@@ -6,7 +6,7 @@ import com.mojang.serialization.Dynamic;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code SimpleBlockPropertyRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class SimpleBlockPropertyRenameFix extends BlockPropertyRenameFix {
 

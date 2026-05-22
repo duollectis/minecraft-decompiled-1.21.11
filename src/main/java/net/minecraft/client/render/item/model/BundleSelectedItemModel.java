@@ -13,10 +13,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BundleSelectedItemModel}.
+ * Специализированная модель предмета для сумки (bundle), отображающая выбранный
+ * внутренний предмет вместо самой сумки. Делегирует рендеринг выбранного стека
+ * через {@link net.minecraft.item.BundleItem#getSelectedStack}.
  */
+@Environment(EnvType.CLIENT)
 public class BundleSelectedItemModel implements ItemModel {
 
 	static final ItemModel INSTANCE = new BundleSelectedItemModel();
@@ -38,10 +40,8 @@ public class BundleSelectedItemModel implements ItemModel {
 		}
 	}
 
+	/** Незапечённый дескриптор — синглтон без параметров, всегда создаёт единственный экземпляр. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Unbaked}.
-	 */
 	public record Unbaked() implements ItemModel.Unbaked {
 
 		public static final MapCodec<BundleSelectedItemModel.Unbaked>

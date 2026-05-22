@@ -11,7 +11,7 @@ import net.minecraft.server.ServerMetadata;
 import net.minecraft.text.Text;
 
 /**
- * {@code ServerQueryNetworkHandler}.
+ * Класс Server Query Network Handler.
  */
 public class ServerQueryNetworkHandler implements ServerQueryPacketListener {
 

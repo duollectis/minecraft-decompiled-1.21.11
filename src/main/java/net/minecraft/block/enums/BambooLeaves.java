@@ -3,26 +3,29 @@ package net.minecraft.block.enums;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code BambooLeaves}.
+ * Определяет размер листьев на стебле бамбука.
  */
 public enum BambooLeaves implements StringIdentifiable {
+	/** Листья отсутствуют. */
 	NONE("none"),
+	/** Маленькие листья. */
 	SMALL("small"),
+	/** Большие листья. */
 	LARGE("large");
 
 	private final String name;
 
-	private BambooLeaves(final String name) {
+	BambooLeaves(String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

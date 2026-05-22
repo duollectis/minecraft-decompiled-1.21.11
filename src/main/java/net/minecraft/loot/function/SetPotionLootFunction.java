@@ -13,15 +13,16 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.List;
 
 /**
- * {@code SetPotionLootFunction}.
+ * Функция лута, устанавливающая тип зелья в компоненте содержимого зелья предмета.
  */
 public class SetPotionLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetPotionLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(Potion.CODEC.fieldOf("id").forGetter(function -> function.potion))
-					.apply(instance, SetPotionLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(Potion.CODEC.fieldOf("id").forGetter(function -> function.potion))
+			.apply(instance, SetPotionLootFunction::new)
 	);
+
 	private final RegistryEntry<Potion> potion;
 
 	private SetPotionLootFunction(List<LootCondition> conditions, RegistryEntry<Potion> potion) {
@@ -37,10 +38,10 @@ public class SetPotionLootFunction extends ConditionalLootFunction {
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		stack.apply(
-				DataComponentTypes.POTION_CONTENTS,
-				PotionContentsComponent.DEFAULT,
-				this.potion,
-				PotionContentsComponent::with
+			DataComponentTypes.POTION_CONTENTS,
+			PotionContentsComponent.DEFAULT,
+			potion,
+			PotionContentsComponent::with
 		);
 		return stack;
 	}

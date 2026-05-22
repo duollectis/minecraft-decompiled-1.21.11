@@ -13,7 +13,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.world.World;
 
 /**
- * {@code ConsumeEffect}.
+ * Эффект, применяемый к сущности при потреблении предмета (еда, зелье и т.д.).
+ * Регистрируется в реестре {@code CONSUME_EFFECT_TYPE} через вложенный тип {@link Type}.
  */
 public interface ConsumeEffect {
 
@@ -31,7 +32,8 @@ public interface ConsumeEffect {
 	boolean onConsume(World world, ItemStack stack, LivingEntity user);
 
 	/**
-	 * {@code Type}.
+	 * Дескриптор типа эффекта потребления: хранит кодек и сетевой кодек для сериализации.
+	 * Регистрируется в реестре {@code CONSUME_EFFECT_TYPE} через {@link #register}.
 	 */
 	public record Type<T extends ConsumeEffect>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
 

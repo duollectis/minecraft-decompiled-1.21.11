@@ -7,28 +7,32 @@ import net.minecraft.command.argument.ArgumentHelper;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code LongArgumentSerializer}.
+ * Сериализатор аргумента {@link LongArgumentType} для передачи по сети и записи в JSON.
+ * Передаёт минимальное и максимальное допустимые значения через битовый флаг присутствия.
  */
 public class LongArgumentSerializer implements ArgumentSerializer<LongArgumentType, LongArgumentSerializer.Properties> {
 
 	public void writePacket(LongArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
-		boolean bl = properties.min != Long.MIN_VALUE;
-		boolean bl2 = properties.max != Long.MAX_VALUE;
-		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(bl, bl2));
-		if (bl) {
+		boolean hasMin = properties.min != Long.MIN_VALUE;
+		boolean hasMax = properties.max != Long.MAX_VALUE;
+
+		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(hasMin, hasMax));
+
+		if (hasMin) {
 			packetByteBuf.writeLong(properties.min);
 		}
 
-		if (bl2) {
+		if (hasMax) {
 			packetByteBuf.writeLong(properties.max);
 		}
 	}
 
 	public LongArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-		byte b = packetByteBuf.readByte();
-		long l = ArgumentHelper.hasMinFlag(b) ? packetByteBuf.readLong() : Long.MIN_VALUE;
-		long m = ArgumentHelper.hasMaxFlag(b) ? packetByteBuf.readLong() : Long.MAX_VALUE;
-		return new LongArgumentSerializer.Properties(l, m);
+		byte flags = packetByteBuf.readByte();
+		long min = ArgumentHelper.hasMinFlag(flags) ? packetByteBuf.readLong() : Long.MIN_VALUE;
+		long max = ArgumentHelper.hasMaxFlag(flags) ? packetByteBuf.readLong() : Long.MAX_VALUE;
+
+		return new LongArgumentSerializer.Properties(min, max);
 	}
 
 	public void writeJson(LongArgumentSerializer.Properties properties, JsonObject jsonObject) {
@@ -46,7 +50,7 @@ public class LongArgumentSerializer implements ArgumentSerializer<LongArgumentTy
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит диапазон допустимых значений.
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<LongArgumentType> {
 

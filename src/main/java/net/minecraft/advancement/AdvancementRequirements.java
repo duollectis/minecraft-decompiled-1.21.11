@@ -12,14 +12,16 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code AdvancementRequirements}.
+ * Описывает логику завершения достижения: список групп критериев,
+ * где каждая группа — это OR-условие, а все группы объединяются через AND.
  */
 public record AdvancementRequirements(List<List<String>> requirements) {
 
 	public static final Codec<AdvancementRequirements> CODEC = Codec.STRING
-			.listOf()
-			.listOf()
-			.xmap(AdvancementRequirements::new, AdvancementRequirements::requirements);
+		.listOf()
+		.listOf()
+		.xmap(AdvancementRequirements::new, AdvancementRequirements::requirements);
+
 	public static final AdvancementRequirements EMPTY = new AdvancementRequirements(List.of());
 
 	public AdvancementRequirements(PacketByteBuf buf) {
@@ -28,110 +30,106 @@ public record AdvancementRequirements(List<List<String>> requirements) {
 
 	public void writeRequirements(PacketByteBuf buf) {
 		buf.writeCollection(
-				this.requirements,
-				(bufx, requirements) -> bufx.writeCollection(requirements, PacketByteBuf::writeString)
+			requirements,
+			(bufx, group) -> bufx.writeCollection(group, PacketByteBuf::writeString)
 		);
 	}
 
-	public static AdvancementRequirements allOf(Collection<String> requirements) {
-		return new AdvancementRequirements(requirements.stream().map(List::of).toList());
+	/** Создаёт требования, где каждый критерий должен быть выполнен (AND по всем). */
+	public static AdvancementRequirements allOf(Collection<String> criteria) {
+		return new AdvancementRequirements(criteria.stream().map(List::of).toList());
 	}
 
-	public static AdvancementRequirements anyOf(Collection<String> requirements) {
-		return new AdvancementRequirements(List.of(List.copyOf(requirements)));
+	/** Создаёт требования, где достаточно выполнить любой из критериев (OR по всем). */
+	public static AdvancementRequirements anyOf(Collection<String> criteria) {
+		return new AdvancementRequirements(List.of(List.copyOf(criteria)));
 	}
 
 	public int getLength() {
-		return this.requirements.size();
+		return requirements.size();
 	}
 
+	/**
+	 * Возвращает {@code true}, если все группы требований удовлетворены предикатом.
+	 * Пустой список требований всегда возвращает {@code false}.
+	 */
 	public boolean matches(Predicate<String> predicate) {
-		if (this.requirements.isEmpty()) {
+		if (requirements.isEmpty()) {
 			return false;
 		}
-		else {
-			for (List<String> list : this.requirements) {
-				if (!anyMatch(list, predicate)) {
-					return false;
-				}
+		for (List<String> group : requirements) {
+			if (!anyMatch(group, predicate)) {
+				return false;
 			}
-
-			return true;
 		}
+		return true;
 	}
 
 	public int countMatches(Predicate<String> predicate) {
-		int i = 0;
-
-		for (List<String> list : this.requirements) {
-			if (anyMatch(list, predicate)) {
-				i++;
+		int count = 0;
+		for (List<String> group : requirements) {
+			if (anyMatch(group, predicate)) {
+				count++;
 			}
 		}
-
-		return i;
+		return count;
 	}
 
-	private static boolean anyMatch(List<String> requirements, Predicate<String> predicate) {
-		for (String string : requirements) {
-			if (predicate.test(string)) {
+	private static boolean anyMatch(List<String> group, Predicate<String> predicate) {
+		for (String criterion : group) {
+			if (predicate.test(criterion)) {
 				return true;
 			}
 		}
-
 		return false;
 	}
 
-	public DataResult<AdvancementRequirements> validate(Set<String> requirements) {
-		Set<String> set = new ObjectOpenHashSet();
+	/**
+	 * Проверяет, что набор критериев в требованиях точно совпадает с переданным множеством.
+	 */
+	public DataResult<AdvancementRequirements> validate(Set<String> criteria) {
+		Set<String> mentioned = new ObjectOpenHashSet<>();
 
-		for (List<String> list : this.requirements) {
-			if (list.isEmpty() && requirements.isEmpty()) {
+		for (List<String> group : requirements) {
+			if (group.isEmpty() && criteria.isEmpty()) {
 				return DataResult.error(() -> "Requirement entry cannot be empty");
 			}
-
-			set.addAll(list);
+			mentioned.addAll(group);
 		}
 
-		if (!requirements.equals(set)) {
-			Set<String> set2 = Sets.difference(requirements, set);
-			Set<String> set3 = Sets.difference(set, requirements);
+		if (!criteria.equals(mentioned)) {
+			Set<String> missing = Sets.difference(criteria, mentioned);
+			Set<String> unknown = Sets.difference(mentioned, criteria);
 			return DataResult.error(() ->
-					"Advancement completion requirements did not exactly match specified criteria. Missing: " + set2
-							+ ". Unknown: " + set3);
+				"Advancement completion requirements did not exactly match specified criteria. Missing: "
+					+ missing + ". Unknown: " + unknown
+			);
 		}
-		else {
-			return DataResult.success(this);
-		}
+
+		return DataResult.success(this);
 	}
 
 	public boolean isEmpty() {
-		return this.requirements.isEmpty();
+		return requirements.isEmpty();
 	}
 
 	@Override
 	public String toString() {
-		return this.requirements.toString();
+		return requirements.toString();
 	}
 
 	public Set<String> getNames() {
-		Set<String> set = new ObjectOpenHashSet();
-
-		for (List<String> list : this.requirements) {
-			set.addAll(list);
+		Set<String> names = new ObjectOpenHashSet<>();
+		for (List<String> group : requirements) {
+			names.addAll(group);
 		}
-
-		return set;
+		return names;
 	}
 
-	/**
-	 * {@code CriterionMerger}.
-	 */
 	public interface CriterionMerger {
 
-		AdvancementRequirements.CriterionMerger AND = AdvancementRequirements::allOf;
-
-		AdvancementRequirements.CriterionMerger OR = AdvancementRequirements::anyOf;
+		CriterionMerger AND = AdvancementRequirements::allOf;
+		CriterionMerger OR = AdvancementRequirements::anyOf;
 
 		AdvancementRequirements create(Collection<String> requirements);
 	}

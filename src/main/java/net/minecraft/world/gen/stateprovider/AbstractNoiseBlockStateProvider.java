@@ -11,7 +11,8 @@ import net.minecraft.util.math.random.CheckedRandom;
 import net.minecraft.util.math.random.ChunkRandom;
 
 /**
- * {@code AbstractNoiseBlockStateProvider}.
+ * Базовый класс для поставщиков состояний блоков, использующих шум Перлина.
+ * Инициализирует {@link DoublePerlinNoiseSampler} по заданному сиду и параметрам шума.
  */
 public abstract class AbstractNoiseBlockStateProvider extends BlockStateProvider {
 
@@ -26,13 +27,13 @@ public abstract class AbstractNoiseBlockStateProvider extends BlockStateProvider
 		return instance.group(
 				Codec.LONG
 						.fieldOf("seed")
-						.forGetter(abstractNoiseBlockStateProvider -> abstractNoiseBlockStateProvider.seed),
+						.forGetter(provider -> provider.seed),
 				DoublePerlinNoiseSampler.NoiseParameters.CODEC
 						.fieldOf("noise")
-						.forGetter(abstractNoiseBlockStateProvider -> abstractNoiseBlockStateProvider.noiseParameters),
+						.forGetter(provider -> provider.noiseParameters),
 				Codecs.POSITIVE_FLOAT
 						.fieldOf("scale")
-						.forGetter(abstractNoiseBlockStateProvider -> abstractNoiseBlockStateProvider.scale)
+						.forGetter(provider -> provider.scale)
 		);
 	}
 
@@ -48,6 +49,6 @@ public abstract class AbstractNoiseBlockStateProvider extends BlockStateProvider
 	}
 
 	protected double getNoiseValue(BlockPos pos, double scale) {
-		return this.noiseSampler.sample(pos.getX() * scale, pos.getY() * scale, pos.getZ() * scale);
+		return noiseSampler.sample(pos.getX() * scale, pos.getY() * scale, pos.getZ() * scale);
 	}
 }

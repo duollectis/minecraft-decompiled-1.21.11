@@ -22,13 +22,31 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BoneMealItem}.
+ * Предмет костной муки. Ускоряет рост растений и распространяет кораллы
+ * при использовании на воде в биомах с коралловыми рифами.
  */
 public class BoneMealItem extends Item {
 
 	public static final int CORAL_SPREAD_RADIUS = 3;
 	public static final int CORAL_SPREAD_STEP = 1;
 	public static final int CORAL_SPREAD_RANGE = 3;
+
+	/** Количество итераций при распространении подводной растительности. */
+	private static final int UNDERWATER_SPREAD_ITERATIONS = 128;
+	/** Делитель для вычисления количества шагов случайного блуждания. */
+	private static final int WALK_STEP_DIVISOR = 16;
+	/** Флаг обновления блока при установке кораллов. */
+	private static final int BLOCK_UPDATE_FLAGS = 3;
+	/** Шанс (1 из N) вырастить подводное растение вместо морской травы. */
+	private static final int UNDERWATER_PLANT_CHANCE = 4;
+	/** Шанс (1 из N) вырастить морскую траву при наличии удобренной морской травы. */
+	private static final int SEAGRASS_GROW_CHANCE = 10;
+	/** Уровень жидкости, соответствующий полному источнику воды. */
+	private static final int FULL_WATER_LEVEL = 8;
+	/** Код мирового события для эффекта частиц костной муки. */
+	private static final int BONEMEAL_PARTICLE_EVENT = 1505;
+	/** Цвет частиц для эффекта костной муки. */
+	private static final int BONEMEAL_PARTICLE_COLOR = 15;
 
 	public BoneMealItem(Item.Settings settings) {
 		super(settings);
@@ -38,178 +56,174 @@ public class BoneMealItem extends Item {
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
 		BlockPos blockPos = context.getBlockPos();
-		BlockPos blockPos2 = blockPos.offset(context.getSide());
-		ItemStack itemStack = context.getStack();
-		if (useOnFertilizable(itemStack, world, blockPos)) {
+		BlockPos adjacentPos = blockPos.offset(context.getSide());
+		ItemStack stack = context.getStack();
+
+		if (useOnFertilizable(stack, world, blockPos)) {
 			if (!world.isClient()) {
-				itemStack.emitUseGameEvent(context.getPlayer(), GameEvent.ITEM_INTERACT_FINISH);
-				world.syncWorldEvent(1505, blockPos, 15);
+				stack.emitUseGameEvent(context.getPlayer(), GameEvent.ITEM_INTERACT_FINISH);
+				world.syncWorldEvent(BONEMEAL_PARTICLE_EVENT, blockPos, BONEMEAL_PARTICLE_COLOR);
 			}
 
 			return ActionResult.SUCCESS;
 		}
-		else {
-			BlockState blockState = world.getBlockState(blockPos);
-			boolean bl = blockState.isSideSolidFullSquare(world, blockPos, context.getSide());
-			if (bl && useOnGround(itemStack, world, blockPos2, context.getSide())) {
-				if (!world.isClient()) {
-					itemStack.emitUseGameEvent(context.getPlayer(), GameEvent.ITEM_INTERACT_FINISH);
-					world.syncWorldEvent(1505, blockPos2, 15);
-				}
 
-				return ActionResult.SUCCESS;
+		BlockState blockState = world.getBlockState(blockPos);
+		boolean isSolidSide = blockState.isSideSolidFullSquare(world, blockPos, context.getSide());
+
+		if (isSolidSide && useOnGround(stack, world, adjacentPos, context.getSide())) {
+			if (!world.isClient()) {
+				stack.emitUseGameEvent(context.getPlayer(), GameEvent.ITEM_INTERACT_FINISH);
+				world.syncWorldEvent(BONEMEAL_PARTICLE_EVENT, adjacentPos, BONEMEAL_PARTICLE_COLOR);
 			}
-			else {
-				return ActionResult.PASS;
-			}
+
+			return ActionResult.SUCCESS;
 		}
+
+		return ActionResult.PASS;
 	}
 
 	/**
-	 * Использует on fertilizable.
+	 * Применяет костную муку к удобряемому блоку ({@link Fertilizable}).
+	 * На сервере вызывает рост блока и уменьшает стек.
 	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
+	 * @param stack стек костной муки
+	 * @param world мир
+	 * @param pos   позиция блока
+	 * @return {@code true}, если блок является удобряемым и принял удобрение
 	 */
 	public static boolean useOnFertilizable(ItemStack stack, World world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
-		if (blockState.getBlock() instanceof Fertilizable fertilizable && fertilizable.isFertilizable(
-				world,
-				pos,
-				blockState
-		)) {
-			if (world instanceof ServerWorld) {
-				if (fertilizable.canGrow(world, world.random, pos, blockState)) {
-					fertilizable.grow((ServerWorld) world, world.random, pos, blockState);
-				}
 
-				stack.decrement(1);
-			}
-
-			return true;
-		}
-		else {
+		if (!(blockState.getBlock() instanceof Fertilizable fertilizable)
+			|| !fertilizable.isFertilizable(world, pos, blockState)
+		) {
 			return false;
 		}
+
+		if (world instanceof ServerWorld serverWorld) {
+			if (fertilizable.canGrow(world, world.random, pos, blockState)) {
+				fertilizable.grow(serverWorld, world.random, pos, blockState);
+			}
+
+			stack.decrement(1);
+		}
+
+		return true;
 	}
 
 	/**
-	 * Использует on ground.
+	 * Применяет костную муку к поверхности воды, распространяя морскую траву и кораллы.
+	 * Работает только на полных источниках воды ({@code level == 8}).
 	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param blockPos block pos
-	 * @param facing facing
-	 *
-	 * @return boolean — результат операции
+	 * @param stack    стек костной муки
+	 * @param world    мир
+	 * @param blockPos позиция блока воды
+	 * @param facing   направление, с которого применяется костная мука
+	 * @return {@code true}, если применение прошло успешно
 	 */
 	public static boolean useOnGround(ItemStack stack, World world, BlockPos blockPos, @Nullable Direction facing) {
-		if (world.getBlockState(blockPos).isOf(Blocks.WATER) && world.getFluidState(blockPos).getLevel() == 8) {
-			if (!(world instanceof ServerWorld)) {
-				return true;
-			}
-			else {
-				Random random = world.getRandom();
-
-				label80:
-				for (int i = 0; i < 128; i++) {
-					BlockPos blockPos2 = blockPos;
-					BlockState blockState = Blocks.SEAGRASS.getDefaultState();
-
-					for (int j = 0; j < i / 16; j++) {
-						blockPos2 =
-								blockPos2.add(
-										random.nextInt(3) - 1,
-										(random.nextInt(3) - 1) * random.nextInt(3) / 2,
-										random.nextInt(3) - 1
-								);
-						if (world.getBlockState(blockPos2).isFullCube(world, blockPos2)) {
-							continue label80;
-						}
-					}
-
-					RegistryEntry<Biome> registryEntry = world.getBiome(blockPos2);
-					if (registryEntry.isIn(BiomeTags.PRODUCES_CORALS_FROM_BONEMEAL)) {
-						if (i == 0 && facing != null && facing.getAxis().isHorizontal()) {
-							blockState = Registries.BLOCK
-									.getRandomEntry(BlockTags.WALL_CORALS, world.random)
-									.map(blockEntry -> blockEntry.value().getDefaultState())
-									.orElse(blockState);
-							if (blockState.contains(DeadCoralWallFanBlock.FACING)) {
-								blockState = blockState.with(DeadCoralWallFanBlock.FACING, facing);
-							}
-						}
-						else if (random.nextInt(4) == 0) {
-							blockState = Registries.BLOCK
-									.getRandomEntry(BlockTags.UNDERWATER_BONEMEALS, world.random)
-									.map(blockEntry -> blockEntry.value().getDefaultState())
-									.orElse(blockState);
-						}
-					}
-
-					if (blockState.isIn(BlockTags.WALL_CORALS, state -> state.contains(DeadCoralWallFanBlock.FACING))) {
-						for (int k = 0; !blockState.canPlaceAt(world, blockPos2) && k < 4; k++) {
-							blockState =
-									blockState.with(
-											DeadCoralWallFanBlock.FACING,
-											Direction.Type.HORIZONTAL.random(random)
-									);
-						}
-					}
-
-					if (blockState.canPlaceAt(world, blockPos2)) {
-						BlockState blockState2 = world.getBlockState(blockPos2);
-						if (blockState2.isOf(Blocks.WATER) && world.getFluidState(blockPos2).getLevel() == 8) {
-							world.setBlockState(blockPos2, blockState, 3);
-						}
-						else if (blockState2.isOf(Blocks.SEAGRASS)
-								&& ((Fertilizable) Blocks.SEAGRASS).isFertilizable(world, blockPos2, blockState2)
-								&& random.nextInt(10) == 0) {
-							((Fertilizable) Blocks.SEAGRASS).grow((ServerWorld) world, random, blockPos2, blockState2);
-						}
-					}
-				}
-
-				stack.decrement(1);
-				return true;
-			}
-		}
-		else {
+		if (!world.getBlockState(blockPos).isOf(Blocks.WATER)
+			|| world.getFluidState(blockPos).getLevel() != FULL_WATER_LEVEL
+		) {
 			return false;
 		}
+
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return true;
+		}
+
+		Random random = world.getRandom();
+
+		label80:
+		for (int iteration = 0; iteration < UNDERWATER_SPREAD_ITERATIONS; iteration++) {
+			BlockPos currentPos = blockPos;
+			BlockState targetState = Blocks.SEAGRASS.getDefaultState();
+
+			for (int step = 0; step < iteration / WALK_STEP_DIVISOR; step++) {
+				currentPos = currentPos.add(
+					random.nextInt(3) - 1,
+					(random.nextInt(3) - 1) * random.nextInt(3) / 2,
+					random.nextInt(3) - 1
+				);
+
+				if (world.getBlockState(currentPos).isFullCube(world, currentPos)) {
+					continue label80;
+				}
+			}
+
+			RegistryEntry<Biome> biome = world.getBiome(currentPos);
+
+			if (biome.isIn(BiomeTags.PRODUCES_CORALS_FROM_BONEMEAL)) {
+				if (iteration == 0 && facing != null && facing.getAxis().isHorizontal()) {
+					targetState = Registries.BLOCK
+						.getRandomEntry(BlockTags.WALL_CORALS, world.random)
+						.map(entry -> entry.value().getDefaultState())
+						.orElse(targetState);
+
+					if (targetState.contains(DeadCoralWallFanBlock.FACING)) {
+						targetState = targetState.with(DeadCoralWallFanBlock.FACING, facing);
+					}
+				} else if (random.nextInt(UNDERWATER_PLANT_CHANCE) == 0) {
+					targetState = Registries.BLOCK
+						.getRandomEntry(BlockTags.UNDERWATER_BONEMEALS, world.random)
+						.map(entry -> entry.value().getDefaultState())
+						.orElse(targetState);
+				}
+			}
+
+			if (targetState.isIn(BlockTags.WALL_CORALS, state -> state.contains(DeadCoralWallFanBlock.FACING))) {
+				for (int attempt = 0; !targetState.canPlaceAt(world, currentPos) && attempt < CORAL_SPREAD_RANGE; attempt++) {
+					targetState = targetState.with(
+						DeadCoralWallFanBlock.FACING,
+						Direction.Type.HORIZONTAL.random(random)
+					);
+				}
+			}
+
+			if (!targetState.canPlaceAt(world, currentPos)) {
+				continue;
+			}
+
+			BlockState existingState = world.getBlockState(currentPos);
+
+			if (existingState.isOf(Blocks.WATER) && world.getFluidState(currentPos).getLevel() == FULL_WATER_LEVEL) {
+				world.setBlockState(currentPos, targetState, BLOCK_UPDATE_FLAGS);
+			} else if (existingState.isOf(Blocks.SEAGRASS)
+				&& ((Fertilizable) Blocks.SEAGRASS).isFertilizable(world, currentPos, existingState)
+				&& random.nextInt(SEAGRASS_GROW_CHANCE) == 0
+			) {
+				((Fertilizable) Blocks.SEAGRASS).grow(serverWorld, random, currentPos, existingState);
+			}
+		}
+
+		stack.decrement(1);
+		return true;
 	}
 
 	/**
-	 * Создаёт particles.
+	 * Создаёт визуальные частицы удобрения вокруг блока.
+	 * Тип и количество частиц зависят от типа удобряемого блока.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param count count
+	 * @param world мир
+	 * @param pos   позиция блока
+	 * @param count базовое количество частиц
 	 */
 	public static void createParticles(WorldAccess world, BlockPos pos, int count) {
 		BlockState blockState = world.getBlockState(pos);
+
 		if (blockState.getBlock() instanceof Fertilizable fertilizable) {
-			BlockPos blockPos = fertilizable.getFertilizeParticlePos(pos);
+			BlockPos particlePos = fertilizable.getFertilizeParticlePos(pos);
+
 			switch (fertilizable.getFertilizableType()) {
-				case NEIGHBOR_SPREADER:
-					ParticleUtil.spawnParticlesAround(
-							world,
-							blockPos,
-							count * 3,
-							3.0,
-							1.0,
-							false,
-							ParticleTypes.HAPPY_VILLAGER
-					);
-					break;
-				case GROWER:
-					ParticleUtil.spawnParticlesAround(world, blockPos, count, ParticleTypes.HAPPY_VILLAGER);
+				case NEIGHBOR_SPREADER -> ParticleUtil.spawnParticlesAround(
+					world, particlePos, count * 3, 3.0, 1.0, false, ParticleTypes.HAPPY_VILLAGER
+				);
+				case GROWER -> ParticleUtil.spawnParticlesAround(
+					world, particlePos, count, ParticleTypes.HAPPY_VILLAGER
+				);
 			}
-		}
-		else if (blockState.isOf(Blocks.WATER)) {
+		} else if (blockState.isOf(Blocks.WATER)) {
 			ParticleUtil.spawnParticlesAround(world, pos, count * 3, 3.0, 1.0, false, ParticleTypes.HAPPY_VILLAGER);
 		}
 	}

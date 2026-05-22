@@ -17,18 +17,19 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SetInstrumentLootFunction}.
+ * Функция лута, устанавливающая случайный инструмент из указанного тега реестра.
  */
 public class SetInstrumentLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetInstrumentLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(TagKey
-							.codec(RegistryKeys.INSTRUMENT)
-							.fieldOf("options")
-							.forGetter(function -> function.options))
-					.apply(instance, SetInstrumentLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(TagKey
+				.codec(RegistryKeys.INSTRUMENT)
+				.fieldOf("options")
+				.forGetter(function -> function.options))
+			.apply(instance, SetInstrumentLootFunction::new)
 	);
+
 	private final TagKey<Instrument> options;
 
 	private SetInstrumentLootFunction(List<LootCondition> conditions, TagKey<Instrument> options) {
@@ -44,11 +45,8 @@ public class SetInstrumentLootFunction extends ConditionalLootFunction {
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		Registry<Instrument> registry = context.getWorld().getRegistryManager().getOrThrow(RegistryKeys.INSTRUMENT);
-		Optional<RegistryEntry<Instrument>> optional = registry.getRandomEntry(this.options, context.getRandom());
-		if (optional.isPresent()) {
-			stack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(optional.get()));
-		}
-
+		Optional<RegistryEntry<Instrument>> instrument = registry.getRandomEntry(options, context.getRandom());
+		instrument.ifPresent(entry -> stack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(entry)));
 		return stack;
 	}
 

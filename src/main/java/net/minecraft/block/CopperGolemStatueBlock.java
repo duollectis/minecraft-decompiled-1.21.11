@@ -38,7 +38,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code CopperGolemStatueBlock}.
+ * Блок статуи медного голема с поддержкой окисления, поз и водозаполнения.
+ * Выдаёт компараторный сигнал, равный {@code ordinal() + 1} текущей позы.
  */
 public class CopperGolemStatueBlock extends BlockWithEntity implements Waterloggable {
 
@@ -64,11 +65,12 @@ public class CopperGolemStatueBlock extends BlockWithEntity implements Waterlogg
 	public CopperGolemStatueBlock(Oxidizable.OxidationLevel oxidationLevel, AbstractBlock.Settings settings) {
 		super(settings);
 		this.oxidationLevel = oxidationLevel;
-		this.setDefaultState(this
-				.getDefaultState()
-				.with(FACING, Direction.NORTH)
-				.with(POSE, CopperGolemStatueBlock.Pose.STANDING)
-				.with(WATERLOGGED, false));
+		setDefaultState(
+				getDefaultState()
+						.with(FACING, Direction.NORTH)
+						.with(POSE, Pose.STANDING)
+						.with(WATERLOGGED, false)
+		);
 	}
 
 	@Override
@@ -102,7 +104,7 @@ public class CopperGolemStatueBlock extends BlockWithEntity implements Waterlogg
 	}
 
 	public Oxidizable.OxidationLevel getOxidationLevel() {
-		return this.oxidationLevel;
+		return oxidationLevel;
 	}
 
 	@Override
@@ -118,10 +120,9 @@ public class CopperGolemStatueBlock extends BlockWithEntity implements Waterlogg
 		if (stack.isIn(ItemTags.AXES)) {
 			return ActionResult.PASS;
 		}
-		else {
-			this.changePose(world, state, pos, player);
-			return ActionResult.SUCCESS;
-		}
+
+		changePose(world, state, pos, player);
+		return ActionResult.SUCCESS;
 	}
 
 	void changePose(World world, BlockState state, BlockPos pos, PlayerEntity player) {
@@ -200,24 +201,20 @@ public class CopperGolemStatueBlock extends BlockWithEntity implements Waterlogg
 	}
 
 	/**
-	 * {@code Pose}.
+	 * Поза статуи медного голема. Каждая следующая поза циклически сменяет предыдущую при взаимодействии.
 	 */
-	public static enum Pose implements StringIdentifiable {
+	public enum Pose implements StringIdentifiable {
 		STANDING("standing"),
 		SITTING("sitting"),
 		RUNNING("running"),
 		STAR("star");
 
-		public static final IntFunction<CopperGolemStatueBlock.Pose>
-				INDEX_MAPPER =
-				ValueLists.createIndexToValueFunction(
-						(CopperGolemStatueBlock.Pose pose) -> pose.ordinal(),
-						values(),
-						ValueLists.OutOfBoundsHandling.ZERO
-				);
-		public static final Codec<CopperGolemStatueBlock.Pose>
-				CODEC =
-				StringIdentifiable.createCodec(CopperGolemStatueBlock.Pose::values);
+		public static final IntFunction<Pose> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
+				Pose::ordinal,
+				values(),
+				ValueLists.OutOfBoundsHandling.ZERO
+		);
+		public static final Codec<Pose> CODEC = StringIdentifiable.createCodec(Pose::values);
 		private final String id;
 
 		private Pose(final String id) {

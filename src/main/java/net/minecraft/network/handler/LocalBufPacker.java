@@ -6,18 +6,13 @@ import io.netty.channel.ChannelPromise;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 /**
- * Класс local buf packer.
+ * Netty-обработчик исходящего трафика для локальных соединений:
+ * оборачивает объект в {@link OpaqueByteBufHolder} перед записью в pipeline.
  */
 public class LocalBufPacker extends ChannelOutboundHandlerAdapter {
 
-	/**
-	 * Write.
-	 *
-	 * @param context context
-	 * @param buf buf
-	 * @param channelPromise channel promise
-	 */
-	public void write(ChannelHandlerContext context, Object buf, ChannelPromise channelPromise) {
-		context.write(OpaqueByteBufHolder.pack(buf), channelPromise);
+	@Override
+	public void write(ChannelHandlerContext context, Object buf, ChannelPromise promise) {
+		context.write(OpaqueByteBufHolder.pack(buf), promise);
 	}
 }

@@ -7,15 +7,17 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
 /**
- * {@code BlankNumberFormat}.
+ * Формат числового значения, который всегда возвращает пустой текст.
+ * Используется для скрытия числового значения очка в интерфейсе скорборда.
+ * Реализован как синглтон через {@link #INSTANCE}.
  */
 public class BlankNumberFormat implements NumberFormat {
 
 	public static final BlankNumberFormat INSTANCE = new BlankNumberFormat();
-	public static final NumberFormatType<BlankNumberFormat> TYPE = new NumberFormatType<BlankNumberFormat>() {
+
+	public static final NumberFormatType<BlankNumberFormat> TYPE = new NumberFormatType<>() {
 		private static final MapCodec<BlankNumberFormat> CODEC = MapCodec.unit(BlankNumberFormat.INSTANCE);
-		private static final PacketCodec<RegistryByteBuf, BlankNumberFormat>
-				PACKET_CODEC =
+		private static final PacketCodec<RegistryByteBuf, BlankNumberFormat> PACKET_CODEC =
 				PacketCodec.unit(BlankNumberFormat.INSTANCE);
 
 		@Override

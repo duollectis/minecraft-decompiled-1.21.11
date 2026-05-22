@@ -6,7 +6,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HeldItemContext}.
+ * Контекст предмета, удерживаемого в руке.
+ * Предоставляет информацию о мире, позиции и ориентации держателя предмета.
+ * Используется в системе рендеринга предметов и эффектов.
  */
 public interface HeldItemContext {
 
@@ -20,33 +22,43 @@ public interface HeldItemContext {
 		return null;
 	}
 
+	/**
+	 * Создаёт контекст со смещённой позицией относительно исходного контекста.
+	 *
+	 * @param context исходный контекст
+	 * @param offset  вектор смещения позиции
+	 * @return новый контекст с применённым смещением
+	 */
 	static HeldItemContext offseted(HeldItemContext context, Vec3d offset) {
 		return new HeldItemContext.Offset(context, offset);
 	}
 
 	/**
-	 * {@code Offset}.
+	 * Контекст со смещённой позицией.
+	 *
+	 * @param owner  исходный контекст-владелец
+	 * @param offset вектор смещения
 	 */
-	public record Offset(HeldItemContext owner, Vec3d offset) implements HeldItemContext {
+	record Offset(HeldItemContext owner, Vec3d offset) implements HeldItemContext {
 
 		@Override
 		public World getEntityWorld() {
-			return this.owner.getEntityWorld();
+			return owner.getEntityWorld();
 		}
 
 		@Override
 		public Vec3d getEntityPos() {
-			return this.owner.getEntityPos().add(this.offset);
+			return owner.getEntityPos().add(offset);
 		}
 
 		@Override
 		public float getBodyYaw() {
-			return this.owner.getBodyYaw();
+			return owner.getBodyYaw();
 		}
 
 		@Override
 		public @Nullable LivingEntity getEntity() {
-			return this.owner.getEntity();
+			return owner.getEntity();
 		}
 	}
 }

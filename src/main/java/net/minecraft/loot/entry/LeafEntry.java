@@ -20,23 +20,23 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/**
- * {@code LeafEntry}.
- */
+/** Базовый класс для листовых записей пула лута, генерирующих конкретные предметы. */
 public abstract class LeafEntry extends LootPoolEntry {
 
 	public static final int DEFAULT_WEIGHT = 1;
 	public static final int DEFAULT_QUALITY = 0;
+
 	protected final int weight;
 	protected final int quality;
 	protected final List<LootFunction> functions;
 	final BiFunction<ItemStack, LootContext, ItemStack> compiledFunctions;
+
 	private final LootChoice choice = new LeafEntry.Choice() {
 		@Override
 		public void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
 			LeafEntry.this.generateLoot(
-					LootFunction.apply(LeafEntry.this.compiledFunctions, lootConsumer, context),
-					context
+				LootFunction.apply(LeafEntry.this.compiledFunctions, lootConsumer, context),
+				context
 			);
 		}
 	};
@@ -50,56 +50,46 @@ public abstract class LeafEntry extends LootPoolEntry {
 	}
 
 	protected static <T extends LeafEntry> P4<Mu<T>, Integer, Integer, List<LootCondition>, List<LootFunction>> addLeafFields(
-			Instance<T> instance
+		Instance<T> instance
 	) {
 		return instance.group(
-				               Codec.INT.optionalFieldOf("weight", 1).forGetter(entry -> entry.weight),
-				               Codec.INT.optionalFieldOf("quality", 0).forGetter(entry -> entry.quality)
-		               )
-		               .and(addConditionsField(instance).t1())
-		               .and(LootFunctionTypes.CODEC
-				               .listOf()
-				               .optionalFieldOf("functions", List.of())
-				               .forGetter(entry -> entry.functions));
+			Codec.INT.optionalFieldOf("weight", DEFAULT_WEIGHT).forGetter(entry -> entry.weight),
+			Codec.INT.optionalFieldOf("quality", DEFAULT_QUALITY).forGetter(entry -> entry.quality)
+		)
+		.and(addConditionsField(instance).t1())
+		.and(LootFunctionTypes.CODEC
+			.listOf()
+			.optionalFieldOf("functions", List.of())
+			.forGetter(entry -> entry.functions));
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		super.validate(reporter);
 
-		for (int i = 0; i < this.functions.size(); i++) {
-			this.functions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", i)));
+		for (int index = 0; index < functions.size(); index++) {
+			functions.get(index).validate(
+				reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", index))
+			);
 		}
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param lootConsumer loot consumer
-	 * @param context context
-	 */
 	protected abstract void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context);
 
 	@Override
 	public boolean expand(LootContext lootContext, Consumer<LootChoice> consumer) {
-		if (this.test(lootContext)) {
-			consumer.accept(this.choice);
-			return true;
-		}
-		else {
+		if (!test(lootContext)) {
 			return false;
 		}
+
+		consumer.accept(choice);
+		return true;
 	}
 
 	public static LeafEntry.Builder<?> builder(LeafEntry.Factory factory) {
 		return new LeafEntry.BasicBuilder(factory);
 	}
 
-	/**
-	 * {@code BasicBuilder}.
-	 */
 	static class BasicBuilder extends LeafEntry.Builder<LeafEntry.BasicBuilder> {
 
 		private final LeafEntry.Factory factory;
@@ -113,69 +103,47 @@ public abstract class LeafEntry extends LootPoolEntry {
 			return this;
 		}
 
+		@Override
 		protected LeafEntry.BasicBuilder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public LootPoolEntry build() {
-			return this.factory.build(this.weight, this.quality, this.getConditions(), this.getFunctions());
+			return factory.build(weight, quality, getConditions(), getFunctions());
 		}
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public abstract static class Builder<T extends LeafEntry.Builder<T>> extends LootPoolEntry.Builder<T> implements LootFunctionConsumingBuilder<T> {
+	/** Строитель листовой записи с поддержкой веса, качества и функций. */
+	public abstract static class Builder<T extends LeafEntry.Builder<T>>
+		extends LootPoolEntry.Builder<T>
+		implements LootFunctionConsumingBuilder<T> {
 
-		protected int weight = 1;
-		protected int quality = 0;
-		private final com.google.common.collect.ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
+		protected int weight = DEFAULT_WEIGHT;
+		protected int quality = DEFAULT_QUALITY;
+		private final ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
 
-		/**
-		 * Apply.
-		 *
-		 * @param builder builder
-		 *
-		 * @return T — результат операции
-		 */
 		public T apply(LootFunction.Builder builder) {
-			this.functions.add(builder.build());
-			return this.getThisBuilder();
+			functions.add(builder.build());
+			return getThisBuilder();
 		}
 
 		protected List<LootFunction> getFunctions() {
-			return this.functions.build();
+			return functions.build();
 		}
 
-		/**
-		 * Weight.
-		 *
-		 * @param weight weight
-		 *
-		 * @return T — результат операции
-		 */
 		public T weight(int weight) {
 			this.weight = weight;
-			return this.getThisBuilder();
+			return getThisBuilder();
 		}
 
-		/**
-		 * Quality.
-		 *
-		 * @param quality quality
-		 *
-		 * @return T — результат операции
-		 */
 		public T quality(int quality) {
 			this.quality = quality;
-			return this.getThisBuilder();
+			return getThisBuilder();
 		}
 	}
 
-	/**
-	 * {@code Choice}.
-	 */
+	/** Абстрактный выбор предмета из листовой записи с учётом веса и удачи. */
 	protected abstract class Choice implements LootChoice {
 
 		@Override
@@ -184,10 +152,8 @@ public abstract class LeafEntry extends LootPoolEntry {
 		}
 	}
 
+	/** Фабрика для создания листовых записей из параметров веса, качества, условий и функций. */
 	@FunctionalInterface
-	/**
-	 * {@code Factory}.
-	 */
 	protected interface Factory {
 
 		LeafEntry build(int weight, int quality, List<LootCondition> conditions, List<LootFunction> functions);

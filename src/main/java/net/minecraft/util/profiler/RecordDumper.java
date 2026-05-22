@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code RecordDumper}.
+ * Сохраняет результаты профилирования на диск: CSV-файлы метрик по типам сэмплеров,
+ * текстовые файлы отклонений и общий дамп профиля.
  */
 public class RecordDumper {
 
@@ -32,7 +33,9 @@ public class RecordDumper {
 	public static final String METRICS_DIRECTORY = "metrics";
 	public static final String DEVIATIONS_DIRECTORY = "deviations";
 	public static final String FILE_NAME = "profiling.txt";
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final String type;
 
 	public RecordDumper(String type) {
@@ -40,38 +43,35 @@ public class RecordDumper {
 	}
 
 	/**
-	 * Создаёт dump.
-	 *
-	 * @param samplers samplers
-	 * @param deviations deviations
-	 * @param result result
-	 *
-	 * @return Path — результат операции
+	 * Создаёт временную директорию с полным дампом: метрики, отклонения и профиль.
+	 * Возвращает путь к корню временной директории.
 	 */
 	public Path createDump(Set<Sampler> samplers, Map<Sampler, List<Deviation>> deviations, ProfileResult result) {
 		try {
 			Files.createDirectories(DEBUG_PROFILING_DIRECTORY);
 		}
-		catch (IOException var8) {
-			throw new UncheckedIOException(var8);
+		catch (IOException error) {
+			throw new UncheckedIOException(error);
 		}
 
 		try {
-			Path path = Files.createTempDirectory("minecraft-profiling");
-			path.toFile().deleteOnExit();
+			Path tempDir = Files.createTempDirectory("minecraft-profiling");
+			tempDir.toFile().deleteOnExit();
 			Files.createDirectories(DEBUG_PROFILING_DIRECTORY);
-			Path path2 = path.resolve(this.type);
-			Path path3 = path2.resolve("metrics");
-			this.writeSamplers(samplers, path3);
+
+			Path typeDir = tempDir.resolve(type);
+			Path metricsDir = typeDir.resolve(METRICS_DIRECTORY);
+			writeSamplers(samplers, metricsDir);
+
 			if (!deviations.isEmpty()) {
-				this.writeDeviations(deviations, path2.resolve("deviations"));
+				writeDeviations(deviations, typeDir.resolve(DEVIATIONS_DIRECTORY));
 			}
 
-			this.save(result, path2);
-			return path;
+			save(result, typeDir);
+			return tempDir;
 		}
-		catch (IOException var7) {
-			throw new UncheckedIOException(var7);
+		catch (IOException error) {
+			throw new UncheckedIOException(error);
 		}
 	}
 
@@ -79,21 +79,23 @@ public class RecordDumper {
 		if (samplers.isEmpty()) {
 			throw new IllegalArgumentException("Expected at least one sampler to persist");
 		}
-		else {
-			Map<SampleType, List<Sampler>> map = samplers.stream().collect(Collectors.groupingBy(Sampler::getType));
-			map.forEach((type, sampler) -> this.writeSamplersInType(type, (List<Sampler>) sampler, directory));
-		}
+
+		Map<SampleType, List<Sampler>> byType = samplers.stream()
+			.collect(Collectors.groupingBy(Sampler::getType));
+
+		byType.forEach((sampleType, typeSamplers) -> writeSamplersInType(sampleType, typeSamplers, directory));
 	}
 
-	private void writeSamplersInType(SampleType type, List<Sampler> samplers, Path directory) {
-		Path
-				path =
-				directory.resolve(Util.replaceInvalidChars(type.getName(), Identifier::isPathCharacterValid) + ".csv");
+	private void writeSamplersInType(SampleType sampleType, List<Sampler> samplers, Path directory) {
+		Path csvPath = directory.resolve(
+			Util.replaceInvalidChars(sampleType.getName(), Identifier::isPathCharacterValid) + ".csv"
+		);
 		Writer writer = null;
 
 		try {
-			Files.createDirectories(path.getParent());
-			writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8);
+			Files.createDirectories(csvPath.getParent());
+			writer = Files.newBufferedWriter(csvPath, StandardCharsets.UTF_8);
+
 			CsvWriter.Header header = CsvWriter.makeHeader();
 			header.addColumn("@tick");
 
@@ -102,21 +104,24 @@ public class RecordDumper {
 			}
 
 			CsvWriter csvWriter = header.startBody(writer);
-			List<Sampler.Data> list = samplers.stream().map(Sampler::collectData).collect(Collectors.toList());
-			int i = list.stream().mapToInt(Sampler.Data::getStartTick).summaryStatistics().getMin();
-			int j = list.stream().mapToInt(Sampler.Data::getEndTick).summaryStatistics().getMax();
+			List<Sampler.Data> dataList = samplers.stream()
+				.map(Sampler::collectData)
+				.collect(Collectors.toList());
 
-			for (int k = i; k <= j; k++) {
-				int l = k;
-				Stream<String> stream = list.stream().map(data -> String.valueOf(data.getValue(l)));
-				Object[] objects = Stream.concat(Stream.of(String.valueOf(k)), stream).toArray(String[]::new);
-				csvWriter.printRow(objects);
+			int minTick = dataList.stream().mapToInt(Sampler.Data::getStartTick).summaryStatistics().getMin();
+			int maxTick = dataList.stream().mapToInt(Sampler.Data::getEndTick).summaryStatistics().getMax();
+
+			for (int tick = minTick; tick <= maxTick; tick++) {
+				int currentTick = tick;
+				Stream<String> values = dataList.stream().map(data -> String.valueOf(data.getValue(currentTick)));
+				Object[] row = Stream.concat(Stream.of(String.valueOf(tick)), values).toArray(String[]::new);
+				csvWriter.printRow(row);
 			}
 
-			LOGGER.info("Flushed metrics to {}", path);
+			LOGGER.info("Flushed metrics to {}", csvPath);
 		}
-		catch (Exception var18) {
-			LOGGER.error("Could not save profiler results to {}", path, var18);
+		catch (Exception error) {
+			LOGGER.error("Could not save profiler results to {}", csvPath, error);
 		}
 		finally {
 			IOUtils.closeQuietly(writer);
@@ -124,28 +129,20 @@ public class RecordDumper {
 	}
 
 	private void writeDeviations(Map<Sampler, List<Deviation>> deviations, Path deviationsDirectory) {
-		DateTimeFormatter
-				dateTimeFormatter =
-				DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss.SSS", Locale.UK).withZone(ZoneId.systemDefault());
-		deviations.forEach(
-				(sampler, sampleDeviations) -> sampleDeviations.forEach(
-						deviation -> {
-							String string = dateTimeFormatter.format(deviation.instant);
-							Path
-									path2 =
-									deviationsDirectory
-											.resolve(Util.replaceInvalidChars(
-													sampler.getName(),
-													Identifier::isPathCharacterValid
-											))
-											.resolve(String.format(Locale.ROOT, "%d@%s.txt", deviation.ticks, string));
-							deviation.result.save(path2);
-						}
-				)
-		);
+		DateTimeFormatter formatter = DateTimeFormatter
+			.ofPattern("yyyy-MM-dd_HH.mm.ss.SSS", Locale.UK)
+			.withZone(ZoneId.systemDefault());
+
+		deviations.forEach((sampler, sampleDeviations) -> sampleDeviations.forEach(deviation -> {
+			String timestamp = formatter.format(deviation.instant);
+			Path deviationPath = deviationsDirectory
+				.resolve(Util.replaceInvalidChars(sampler.getName(), Identifier::isPathCharacterValid))
+				.resolve(String.format(Locale.ROOT, "%d@%s.txt", deviation.ticks, timestamp));
+			deviation.result.save(deviationPath);
+		}));
 	}
 
 	private void save(ProfileResult result, Path directory) {
-		result.save(directory.resolve("profiling.txt"));
+		result.save(directory.resolve(FILE_NAME));
 	}
 }

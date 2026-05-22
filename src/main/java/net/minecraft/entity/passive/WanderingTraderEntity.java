@@ -31,7 +31,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code WanderingTraderEntity}.
+ * Странствующий торговец — случайно появляющийся торговец
+ * с уникальными предложениями. Исчезает через некоторое время.
  */
 public class WanderingTraderEntity extends MerchantEntity implements ConsumableComponent.ConsumableSoundProvider {
 
@@ -226,8 +227,8 @@ public class WanderingTraderEntity extends MerchantEntity implements ConsumableC
 	}
 
 	/**
-	 * {@code WanderToTargetGoal}.
-	 */
+ * Задача странствующего торговца: убегать от угрозы.
+ */
 	class WanderToTargetGoal extends Goal {
 
 		final WanderingTraderEntity trader;

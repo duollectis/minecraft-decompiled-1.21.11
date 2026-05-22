@@ -9,7 +9,8 @@ import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 import java.util.List;
 
 /**
- * {@code AlterGroundTreeDecorator}.
+ * Декоратор дерева: заменяет блоки почвы вокруг основания дерева на блоки из {@code provider}.
+ * Используется для создания мохового покрова под деревьями в болотах и джунглях.
  */
 public class AlterGroundTreeDecorator extends TreeDecorator {
 
@@ -29,46 +30,51 @@ public class AlterGroundTreeDecorator extends TreeDecorator {
 
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
-		List<BlockPos> list = TreeFeature.getLeafLitterPositions(generator);
-		if (!list.isEmpty()) {
-			int i = list.get(0).getY();
-			list.stream().filter(pos -> pos.getY() == i).forEach(pos -> {
-				this.setArea(generator, pos.west().north());
-				this.setArea(generator, pos.east(2).north());
-				this.setArea(generator, pos.west().south(2));
-				this.setArea(generator, pos.east(2).south(2));
+		List<BlockPos> litterPositions = TreeFeature.getLeafLitterPositions(generator);
 
-				for (int ix = 0; ix < 5; ix++) {
-					int j = generator.getRandom().nextInt(64);
-					int k = j % 8;
-					int l = j / 8;
-					if (k == 0 || k == 7 || l == 0 || l == 7) {
-						this.setArea(generator, pos.add(-3 + k, 0, -3 + l));
-					}
-				}
-			});
+		if (litterPositions.isEmpty()) {
+			return;
 		}
+
+		int baseY = litterPositions.get(0).getY();
+		litterPositions.stream().filter(pos -> pos.getY() == baseY).forEach(pos -> {
+			setArea(generator, pos.west().north());
+			setArea(generator, pos.east(2).north());
+			setArea(generator, pos.west().south(2));
+			setArea(generator, pos.east(2).south(2));
+
+			for (int attempt = 0; attempt < 5; attempt++) {
+				int randomIndex = generator.getRandom().nextInt(64);
+				int offsetX = randomIndex % 8;
+				int offsetZ = randomIndex / 8;
+
+				if (offsetX == 0 || offsetX == 7 || offsetZ == 0 || offsetZ == 7) {
+					setArea(generator, pos.add(-3 + offsetX, 0, -3 + offsetZ));
+				}
+			}
+		});
 	}
 
 	private void setArea(TreeDecorator.Generator generator, BlockPos origin) {
-		for (int i = -2; i <= 2; i++) {
-			for (int j = -2; j <= 2; j++) {
-				if (Math.abs(i) != 2 || Math.abs(j) != 2) {
-					this.setColumn(generator, origin.add(i, 0, j));
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				if (Math.abs(dx) != 2 || Math.abs(dz) != 2) {
+					setColumn(generator, origin.add(dx, 0, dz));
 				}
 			}
 		}
 	}
 
 	private void setColumn(TreeDecorator.Generator generator, BlockPos origin) {
-		for (int i = 2; i >= -3; i--) {
-			BlockPos blockPos = origin.up(i);
-			if (Feature.isSoil(generator.getWorld(), blockPos)) {
-				generator.replace(blockPos, this.provider.get(generator.getRandom(), origin));
+		for (int dy = 2; dy >= -3; dy--) {
+			BlockPos checkPos = origin.up(dy);
+
+			if (Feature.isSoil(generator.getWorld(), checkPos)) {
+				generator.replace(checkPos, provider.get(generator.getRandom(), origin));
 				break;
 			}
 
-			if (!generator.isAir(blockPos) && i < 0) {
+			if (!generator.isAir(checkPos) && dy < 0) {
 				break;
 			}
 		}

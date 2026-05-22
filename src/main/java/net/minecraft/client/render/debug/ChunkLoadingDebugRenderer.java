@@ -111,8 +111,8 @@ public class ChunkLoadingDebugRenderer implements DebugRenderer.Renderer {
 			Builder<ChunkPos, String> builder = ImmutableMap.builder();
 			ClientChunkManager clientChunkManager = clientWorld.getChunkManager();
 
-			for (int k = i - 12; k <= i + 12; k++) {
-				for (int l = j - 12; l <= j + 12; l++) {
+			for (int k = i - LOADING_DATA_CHUNK_RANGE; k <= i + LOADING_DATA_CHUNK_RANGE; k++) {
+				for (int l = j - LOADING_DATA_CHUNK_RANGE; l <= j + LOADING_DATA_CHUNK_RANGE; l++) {
 					ChunkPos chunkPos = new ChunkPos(k, l);
 					String string = "";
 					WorldChunk worldChunk = clientChunkManager.getWorldChunk(k, l, false);
@@ -139,8 +139,8 @@ public class ChunkLoadingDebugRenderer implements DebugRenderer.Renderer {
 					Builder<ChunkPos, String> builderx = ImmutableMap.builder();
 					ServerChunkManager serverChunkManager = serverWorld.getChunkManager();
 
-					for (int kx = i - 12; kx <= i + 12; kx++) {
-						for (int lx = j - 12; lx <= j + 12; lx++) {
+					for (int kx = i - LOADING_DATA_CHUNK_RANGE; kx <= i + LOADING_DATA_CHUNK_RANGE; kx++) {
+						for (int lx = j - LOADING_DATA_CHUNK_RANGE; lx <= j + LOADING_DATA_CHUNK_RANGE; lx++) {
 							ChunkPos chunkPosx = new ChunkPos(kx, lx);
 							builderx.put(
 									chunkPosx,

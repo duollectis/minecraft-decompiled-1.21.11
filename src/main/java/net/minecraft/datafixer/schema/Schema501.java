@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema501}.
+ * Схема DataFixer версии 501, добавляющая сущность {@code PolarBear} (белый медведь)
+ * в реестр сущностей. Использует устаревший формат имён без пространства имён.
  */
 public class Schema501 extends Schema {
 

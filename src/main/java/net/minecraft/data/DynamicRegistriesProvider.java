@@ -14,7 +14,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code DynamicRegistriesProvider}.
+ * Провайдер данных для динамических реестров.
+ * Сериализует все записи каждого динамического реестра в JSON-файлы
+ * по пути {@code data/<namespace>/<registry_path>/<entry_path>.json}.
  */
 public class DynamicRegistriesProvider implements DataProvider {
 
@@ -25,31 +27,21 @@ public class DynamicRegistriesProvider implements DataProvider {
 			DataOutput output,
 			CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture
 	) {
-		this.registriesFuture = registriesFuture;
 		this.output = output;
+		this.registriesFuture = registriesFuture;
 	}
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		return this.registriesFuture
-				.thenCompose(
-						registries -> {
-							DynamicOps<JsonElement> dynamicOps = registries.getOps(JsonOps.INSTANCE);
-							return CompletableFuture.allOf(
-									RegistryLoader.DYNAMIC_REGISTRIES
-											.stream()
-											.flatMap(entry -> this
-													.writeRegistryEntries(
-															writer,
-															registries,
-															dynamicOps,
-															(RegistryLoader.Entry<?>) entry
-													)
-													.stream())
-											.toArray(CompletableFuture[]::new)
-							);
-						}
-				);
+		return registriesFuture.thenCompose(registries -> {
+			DynamicOps<JsonElement> ops = registries.getOps(JsonOps.INSTANCE);
+			return CompletableFuture.allOf(
+					RegistryLoader.DYNAMIC_REGISTRIES
+							.stream()
+							.flatMap(entry -> writeRegistryEntries(writer, registries, ops, entry).stream())
+							.toArray(CompletableFuture[]::new)
+			);
+		});
 	}
 
 	private <T> Optional<CompletableFuture<?>> writeRegistryEntries(
@@ -59,43 +51,35 @@ public class DynamicRegistriesProvider implements DataProvider {
 			RegistryLoader.Entry<T> registry
 	) {
 		RegistryKey<? extends Registry<T>> registryKey = registry.key();
-		return registries.getOptional(registryKey)
-		                 .map(
-				                 wrapper -> {
-					                 DataOutput.PathResolver pathResolver = this.output.getResolver(registryKey);
-					                 return CompletableFuture.allOf(
-							                 wrapper.streamEntries()
-							                        .map(
-									                        entryx -> writeToPath(
-											                        pathResolver.resolveJson(entryx
-													                        .registryKey()
-													                        .getValue()),
-											                        writer,
-											                        ops,
-											                        registry.elementCodec(),
-											                        entryx.value()
-									                        )
-							                        )
-							                        .toArray(CompletableFuture[]::new)
-					                 );
-				                 }
-		                 );
+		return registries.getOptional(registryKey).map(wrapper -> {
+			DataOutput.PathResolver pathResolver = output.getResolver(registryKey);
+			return CompletableFuture.allOf(
+					wrapper.streamEntries()
+							.map(entry -> writeToPath(
+									pathResolver.resolveJson(entry.registryKey().getValue()),
+									writer,
+									ops,
+									registry.elementCodec(),
+									entry.value()
+							))
+							.toArray(CompletableFuture[]::new)
+			);
+		});
 	}
 
 	private static <E> CompletableFuture<?> writeToPath(
 			Path path,
-			DataWriter cache,
-			DynamicOps<JsonElement> json,
+			DataWriter writer,
+			DynamicOps<JsonElement> ops,
 			Encoder<E> encoder,
 			E value
 	) {
-		return (CompletableFuture<?>) encoder.encodeStart(json, value)
-		                                     .mapOrElse(
-				                                     jsonElement -> DataProvider.writeToPath(cache, jsonElement, path),
-				                                     error -> CompletableFuture.failedFuture(new IllegalStateException(
-						                                     "Couldn't generate file '" + path + "': "
-								                                     + error.message()))
-		                                     );
+		return encoder.encodeStart(ops, value).mapOrElse(
+				jsonElement -> DataProvider.writeToPath(writer, jsonElement, path),
+				error -> CompletableFuture.failedFuture(
+						new IllegalStateException("Couldn't generate file '" + path + "': " + error.message())
+				)
+		);
 	}
 
 	@Override

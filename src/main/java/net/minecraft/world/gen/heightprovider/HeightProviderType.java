@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code HeightProviderType}.
+ * Реестровый тип провайдера высоты. Связывает строковый идентификатор
+ * с конкретной реализацией {@link HeightProvider} через MapCodec.
  */
 public interface HeightProviderType<P extends HeightProvider> {
 

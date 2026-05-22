@@ -12,7 +12,8 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code IglooStructure}.
+ * Структура иглу — размещает шаблонные куски через {@link net.minecraft.structure.IglooGenerator}
+ * на поверхности снежных биомов.
  */
 public class IglooStructure extends Structure {
 
@@ -27,7 +28,7 @@ public class IglooStructure extends Structure {
 		return getStructurePosition(
 				context,
 				Heightmap.Type.WORLD_SURFACE_WG,
-				collector -> this.addPieces(collector, context)
+				collector -> addPieces(collector, context)
 		);
 	}
 

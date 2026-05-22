@@ -12,15 +12,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CuttingRecipeDisplay}.
+ * Отображение одного варианта рецепта режущего станка (камнерез, пилорама и т.д.)
+ * для клиентского интерфейса. Содержит отображение слота результата и опциональную
+ * ссылку на серверный {@link RecipeEntry} для проверки доступности рецепта.
+ *
+ * @param <T> тип рецепта
  */
 public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDisplay, Optional<RecipeEntry<T>> recipe) {
 
-	/**
-	 * Codec.
-	 *
-	 * @return > PacketCodec> — результат операции
-	 */
 	public static <T extends Recipe<?>> PacketCodec<RegistryByteBuf, CuttingRecipeDisplay<T>> codec() {
 		return PacketCodec.tuple(
 				SlotDisplay.PACKET_CODEC,
@@ -30,7 +29,9 @@ public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDispla
 	}
 
 	/**
-	 * {@code GroupEntry}.
+	 * Пара «ингредиент → вариант результата» для группировки рецептов по входному материалу.
+	 *
+	 * @param <T> тип рецепта
 	 */
 	public record GroupEntry<T extends Recipe<?>>(Ingredient input, CuttingRecipeDisplay<T> recipe) {
 
@@ -46,7 +47,10 @@ public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDispla
 	}
 
 	/**
-	 * {@code Grouping}.
+	 * Группа всех вариантов результатов для одного входного материала.
+	 * Используется для отображения списка доступных рецептов в интерфейсе станка.
+	 *
+	 * @param <T> тип рецепта
 	 */
 	public record Grouping<T extends Recipe<?>>(List<CuttingRecipeDisplay.GroupEntry<T>> entries) {
 
@@ -62,35 +66,30 @@ public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDispla
 			);
 		}
 
-		/**
-		 * Contains.
-		 *
-		 * @param stack stack
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean contains(ItemStack stack) {
-			return this.entries.stream().anyMatch(entry -> entry.input.test(stack));
+			return entries.stream().anyMatch(entry -> entry.input().test(stack));
 		}
 
+		/**
+		 * Фильтрует группу, оставляя только варианты, принимающие данный стек как входной материал.
+		 *
+		 * @param stack стек для проверки совместимости
+		 * @return новая группа с отфильтрованными вариантами
+		 */
 		public CuttingRecipeDisplay.Grouping<T> filter(ItemStack stack) {
-			return new CuttingRecipeDisplay.Grouping<>(this.entries
-					.stream()
-					.filter(entry -> entry.input.test(stack))
-					.toList());
+			return new CuttingRecipeDisplay.Grouping<>(
+					entries.stream()
+							.filter(entry -> entry.input().test(stack))
+							.toList()
+			);
 		}
 
 		public boolean isEmpty() {
-			return this.entries.isEmpty();
+			return entries.isEmpty();
 		}
 
-		/**
-		 * Size.
-		 *
-		 * @return int — результат операции
-		 */
 		public int size() {
-			return this.entries.size();
+			return entries.size();
 		}
 	}
 }

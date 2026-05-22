@@ -10,22 +10,23 @@ import java.io.IOException;
 import java.util.Optional;
 
 /**
- * {@code NbtString}.
+ * NBT-элемент, хранящий строковое значение в кодировке UTF-8.
+ *
+ * <p>Пустая строка кэшируется в {@code EMPTY}. Используйте фабричный метод
+ * {@link #of(String)} вместо конструктора record.</p>
  */
 public record NbtString(String value) implements NbtPrimitive {
 
+	/**
+	 * Базовый размер тега в байтах: 36 байт заголовка объекта + 2 байта на каждый символ.
+	 * Итоговый размер: {@code SIZE + 2 * value.length()}.
+	 */
 	private static final int SIZE = 36;
-	public static final NbtType<NbtString> TYPE = new NbtType.OfVariableSize<NbtString>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtString — результат операции
-		 */
-		public NbtString read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtString.of(readString(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtString> TYPE = new NbtType.OfVariableSize<>() {
+		@Override
+		public NbtString read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtString.of(readString(input, tracker));
 		}
 
 		@Override
@@ -35,7 +36,7 @@ public record NbtString(String value) implements NbtPrimitive {
 		}
 
 		private static String readString(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(36L);
+			tracker.add(SIZE);
 			String string = input.readUTF();
 			tracker.add(2L, string.length());
 			return string;
@@ -56,11 +57,8 @@ public record NbtString(String value) implements NbtPrimitive {
 			return "TAG_String";
 		}
 	};
+
 	private static final NbtString EMPTY = new NbtString("");
-	private static final char DOUBLE_QUOTE = '"';
-	private static final char SINGLE_QUOTE = '\'';
-	private static final char BACKSLASH = '\\';
-	private static final char NULL = '\u0000';
 
 	@Deprecated(forRemoval = true)
 	public NbtString(String value) {
@@ -68,20 +66,20 @@ public record NbtString(String value) implements NbtPrimitive {
 	}
 
 	/**
-	 * Skip.
+	 * Пропускает строку в потоке без её чтения (читает длину и пропускает байты).
 	 *
-	 * @param input input
+	 * @param input поток ввода
+	 * @throws IOException при ошибке чтения
 	 */
 	public static void skip(DataInput input) throws IOException {
 		input.skipBytes(input.readUnsignedShort());
 	}
 
 	/**
-	 * Of.
+	 * Возвращает кэшированный {@code EMPTY} для пустой строки, иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtString — результат операции
+	 * @param value строковое значение
+	 * @return {@link NbtString} для заданного значения
 	 */
 	public static NbtString of(String value) {
 		return value.isEmpty() ? EMPTY : new NbtString(value);
@@ -89,17 +87,17 @@ public record NbtString(String value) implements NbtPrimitive {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeUTF(this.value);
+		output.writeUTF(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 36 + 2 * this.value.length();
+		return SIZE + 2 * value.length();
 	}
 
 	@Override
 	public byte getType() {
-		return 8;
+		return STRING_TYPE;
 	}
 
 	@Override
@@ -109,23 +107,19 @@ public record NbtString(String value) implements NbtPrimitive {
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitString(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitString(this);
+		return writer.getString();
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtString — результат операции
-	 */
+	@Override
 	public NbtString copy() {
 		return this;
 	}
 
 	@Override
 	public Optional<String> asString() {
-		return Optional.of(this.value);
+		return Optional.of(value);
 	}
 
 	@Override
@@ -134,109 +128,110 @@ public record NbtString(String value) implements NbtPrimitive {
 	}
 
 	/**
-	 * Escape.
+	 * Экранирует строку и оборачивает её в кавычки для SNBT-формата.
+	 * Автоматически выбирает тип кавычек (одинарные или двойные) в зависимости от содержимого.
 	 *
-	 * @param value value
-	 *
-	 * @return String — результат операции
+	 * @param value исходная строка
+	 * @return экранированная строка в кавычках
 	 */
 	public static String escape(String value) {
-		StringBuilder stringBuilder = new StringBuilder();
-		appendEscaped(value, stringBuilder);
-		return stringBuilder.toString();
+		StringBuilder builder = new StringBuilder();
+		appendEscaped(value, builder);
+		return builder.toString();
 	}
 
 	/**
-	 * Append escaped.
+	 * Добавляет экранированную строку в кавычках в переданный {@link StringBuilder}.
+	 * Алгоритм выбора кавычек: если встречается {@code "}, используются {@code '}, и наоборот.
+	 * Если встречаются оба типа, используются {@code "} с экранированием.
 	 *
-	 * @param value value
-	 * @param builder builder
+	 * @param value   исходная строка
+	 * @param builder целевой строитель
 	 */
 	public static void appendEscaped(String value, StringBuilder builder) {
-		int i = builder.length();
+		int quotePosition = builder.length();
 		builder.append(' ');
-		char c = 0;
+		char selectedQuote = 0;
 
-		for (int j = 0; j < value.length(); j++) {
-			char d = value.charAt(j);
-			if (d == '\\') {
+		for (int charIndex = 0; charIndex < value.length(); charIndex++) {
+			char ch = value.charAt(charIndex);
+
+			if (ch == '\\') {
 				builder.append("\\\\");
-			}
-			else if (d != '"' && d != '\'') {
-				String string = SnbtParsing.escapeSpecialChar(d);
-				if (string != null) {
+			} else if (ch != '"' && ch != '\'') {
+				String escaped = SnbtParsing.escapeSpecialChar(ch);
+
+				if (escaped != null) {
 					builder.append('\\');
-					builder.append(string);
+					builder.append(escaped);
+				} else {
+					builder.append(ch);
 				}
-				else {
-					builder.append(d);
-				}
-			}
-			else {
-				if (c == 0) {
-					c = (char) (d == '"' ? 39 : 34);
+			} else {
+				if (selectedQuote == 0) {
+					// Выбираем противоположный тип кавычек, чтобы не экранировать текущий символ
+					selectedQuote = ch == '"' ? '\'' : '"';
 				}
 
-				if (c == d) {
+				if (selectedQuote == ch) {
 					builder.append('\\');
 				}
 
-				builder.append(d);
+				builder.append(ch);
 			}
 		}
 
-		if (c == 0) {
-			c = '"';
+		if (selectedQuote == 0) {
+			selectedQuote = '"';
 		}
 
-		builder.setCharAt(i, c);
-		builder.append(c);
+		builder.setCharAt(quotePosition, selectedQuote);
+		builder.append(selectedQuote);
 	}
 
 	/**
-	 * Escape unquoted.
+	 * Экранирует строку без добавления обрамляющих кавычек.
 	 *
-	 * @param value value
-	 *
-	 * @return String — результат операции
+	 * @param value исходная строка
+	 * @return экранированная строка без кавычек
 	 */
 	public static String escapeUnquoted(String value) {
-		StringBuilder stringBuilder = new StringBuilder();
-		appendEscapedWithoutQuoting(value, stringBuilder);
-		return stringBuilder.toString();
+		StringBuilder builder = new StringBuilder();
+		appendEscapedWithoutQuoting(value, builder);
+		return builder.toString();
 	}
 
 	/**
-	 * Append escaped without quoting.
+	 * Добавляет экранированную строку без кавычек в переданный {@link StringBuilder}.
 	 *
-	 * @param value value
-	 * @param builder builder
+	 * @param value   исходная строка
+	 * @param builder целевой строитель
 	 */
 	public static void appendEscapedWithoutQuoting(String value, StringBuilder builder) {
-		for (int i = 0; i < value.length(); i++) {
-			char c = value.charAt(i);
-			switch (c) {
-				case '"':
-				case '\'':
-				case '\\':
+		for (int charIndex = 0; charIndex < value.length(); charIndex++) {
+			char ch = value.charAt(charIndex);
+
+			switch (ch) {
+				case '"', '\'', '\\' -> {
 					builder.append('\\');
-					builder.append(c);
-					break;
-				default:
-					String string = SnbtParsing.escapeSpecialChar(c);
-					if (string != null) {
+					builder.append(ch);
+				}
+				default -> {
+					String escaped = SnbtParsing.escapeSpecialChar(ch);
+
+					if (escaped != null) {
 						builder.append('\\');
-						builder.append(string);
+						builder.append(escaped);
+					} else {
+						builder.append(ch);
 					}
-					else {
-						builder.append(c);
-					}
+				}
 			}
 		}
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitString(this.value);
+		return visitor.visitString(value);
 	}
 }

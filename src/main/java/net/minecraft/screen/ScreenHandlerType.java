@@ -9,81 +9,87 @@ import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.resource.featuretoggle.ToggleableFeature;
 
 /**
- * {@code ScreenHandlerType}.
+ * Зарегистрированный тип обработчика экрана, связывающий строковый идентификатор
+ * с фабрикой создания конкретного {@link ScreenHandler}.
+ * <p>
+ * Все стандартные типы регистрируются как статические константы при загрузке класса.
+ * Реализует {@link ToggleableFeature} для поддержки экспериментальных функций.
+ *
+ * @param <T> конкретный тип обработчика экрана
  */
 public class ScreenHandlerType<T extends ScreenHandler> implements ToggleableFeature {
 
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X1 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X1 =
 			register("generic_9x1", GenericContainerScreenHandler::createGeneric9x1);
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X2 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X2 =
 			register("generic_9x2", GenericContainerScreenHandler::createGeneric9x2);
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X3 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X3 =
 			register("generic_9x3", GenericContainerScreenHandler::createGeneric9x3);
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X4 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X4 =
 			register("generic_9x4", GenericContainerScreenHandler::createGeneric9x4);
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X5 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X5 =
 			register("generic_9x5", GenericContainerScreenHandler::createGeneric9x5);
-	public static final ScreenHandlerType<GenericContainerScreenHandler>
-			GENERIC_9X6 =
+	public static final ScreenHandlerType<GenericContainerScreenHandler> GENERIC_9X6 =
 			register("generic_9x6", GenericContainerScreenHandler::createGeneric9x6);
-	public static final ScreenHandlerType<Generic3x3ContainerScreenHandler>
-			GENERIC_3X3 =
+	public static final ScreenHandlerType<Generic3x3ContainerScreenHandler> GENERIC_3X3 =
 			register("generic_3x3", Generic3x3ContainerScreenHandler::new);
-	public static final ScreenHandlerType<CrafterScreenHandler>
-			CRAFTER_3X3 =
+	public static final ScreenHandlerType<CrafterScreenHandler> CRAFTER_3X3 =
 			register("crafter_3x3", CrafterScreenHandler::new);
-	public static final ScreenHandlerType<AnvilScreenHandler> ANVIL = register("anvil", AnvilScreenHandler::new);
-	public static final ScreenHandlerType<BeaconScreenHandler> BEACON = register("beacon", BeaconScreenHandler::new);
-	public static final ScreenHandlerType<BlastFurnaceScreenHandler>
-			BLAST_FURNACE =
+	public static final ScreenHandlerType<AnvilScreenHandler> ANVIL =
+			register("anvil", AnvilScreenHandler::new);
+	public static final ScreenHandlerType<BeaconScreenHandler> BEACON =
+			register("beacon", BeaconScreenHandler::new);
+	public static final ScreenHandlerType<BlastFurnaceScreenHandler> BLAST_FURNACE =
 			register("blast_furnace", BlastFurnaceScreenHandler::new);
-	public static final ScreenHandlerType<BrewingStandScreenHandler>
-			BREWING_STAND =
+	public static final ScreenHandlerType<BrewingStandScreenHandler> BREWING_STAND =
 			register("brewing_stand", BrewingStandScreenHandler::new);
-	public static final ScreenHandlerType<CraftingScreenHandler>
-			CRAFTING =
+	public static final ScreenHandlerType<CraftingScreenHandler> CRAFTING =
 			register("crafting", CraftingScreenHandler::new);
-	public static final ScreenHandlerType<EnchantmentScreenHandler>
-			ENCHANTMENT =
+	public static final ScreenHandlerType<EnchantmentScreenHandler> ENCHANTMENT =
 			register("enchantment", EnchantmentScreenHandler::new);
-	public static final ScreenHandlerType<FurnaceScreenHandler>
-			FURNACE =
+	public static final ScreenHandlerType<FurnaceScreenHandler> FURNACE =
 			register("furnace", FurnaceScreenHandler::new);
-	public static final ScreenHandlerType<GrindstoneScreenHandler>
-			GRINDSTONE =
+	public static final ScreenHandlerType<GrindstoneScreenHandler> GRINDSTONE =
 			register("grindstone", GrindstoneScreenHandler::new);
-	public static final ScreenHandlerType<HopperScreenHandler> HOPPER = register("hopper", HopperScreenHandler::new);
-	public static final ScreenHandlerType<LecternScreenHandler>
-			LECTERN =
+	public static final ScreenHandlerType<HopperScreenHandler> HOPPER =
+			register("hopper", HopperScreenHandler::new);
+	public static final ScreenHandlerType<LecternScreenHandler> LECTERN =
 			register("lectern", (syncId, playerInventory) -> new LecternScreenHandler(syncId));
-	public static final ScreenHandlerType<LoomScreenHandler> LOOM = register("loom", LoomScreenHandler::new);
-	public static final ScreenHandlerType<MerchantScreenHandler>
-			MERCHANT =
+	public static final ScreenHandlerType<LoomScreenHandler> LOOM =
+			register("loom", LoomScreenHandler::new);
+	public static final ScreenHandlerType<MerchantScreenHandler> MERCHANT =
 			register("merchant", MerchantScreenHandler::new);
-	public static final ScreenHandlerType<ShulkerBoxScreenHandler>
-			SHULKER_BOX =
+	public static final ScreenHandlerType<ShulkerBoxScreenHandler> SHULKER_BOX =
 			register("shulker_box", ShulkerBoxScreenHandler::new);
-	public static final ScreenHandlerType<SmithingScreenHandler>
-			SMITHING =
+	public static final ScreenHandlerType<SmithingScreenHandler> SMITHING =
 			register("smithing", SmithingScreenHandler::new);
-	public static final ScreenHandlerType<SmokerScreenHandler> SMOKER = register("smoker", SmokerScreenHandler::new);
-	public static final ScreenHandlerType<CartographyTableScreenHandler>
-			CARTOGRAPHY_TABLE =
+	public static final ScreenHandlerType<SmokerScreenHandler> SMOKER =
+			register("smoker", SmokerScreenHandler::new);
+	public static final ScreenHandlerType<CartographyTableScreenHandler> CARTOGRAPHY_TABLE =
 			register("cartography_table", CartographyTableScreenHandler::new);
-	public static final ScreenHandlerType<StonecutterScreenHandler>
-			STONECUTTER =
+	public static final ScreenHandlerType<StonecutterScreenHandler> STONECUTTER =
 			register("stonecutter", StonecutterScreenHandler::new);
+
 	private final FeatureSet requiredFeatures;
-	private final ScreenHandlerType.Factory<T> factory;
+	private final Factory<T> factory;
+
+	public ScreenHandlerType(Factory<T> factory, FeatureSet requiredFeatures) {
+		this.factory = factory;
+		this.requiredFeatures = requiredFeatures;
+	}
+
+	public T create(int syncId, PlayerInventory playerInventory) {
+		return factory.create(syncId, playerInventory);
+	}
+
+	@Override
+	public FeatureSet getRequiredFeatures() {
+		return requiredFeatures;
+	}
 
 	private static <T extends ScreenHandler> ScreenHandlerType<T> register(
 			String id,
-			ScreenHandlerType.Factory<T> factory
+			Factory<T> factory
 	) {
 		return Registry.register(
 				Registries.SCREEN_HANDLER,
@@ -94,7 +100,7 @@ public class ScreenHandlerType<T extends ScreenHandler> implements ToggleableFea
 
 	private static <T extends ScreenHandler> ScreenHandlerType<T> register(
 			String id,
-			ScreenHandlerType.Factory<T> factory,
+			Factory<T> factory,
 			FeatureFlag... requiredFeatures
 	) {
 		return Registry.register(
@@ -104,30 +110,11 @@ public class ScreenHandlerType<T extends ScreenHandler> implements ToggleableFea
 		);
 	}
 
-	public ScreenHandlerType(ScreenHandlerType.Factory<T> factory, FeatureSet requiredFeatures) {
-		this.factory = factory;
-		this.requiredFeatures = requiredFeatures;
-	}
-
 	/**
-	 * Create.
+	 * Фабрика для создания экземпляра обработчика экрана по идентификатору синхронизации
+	 * и инвентарю игрока.
 	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return T — результат операции
-	 */
-	public T create(int syncId, PlayerInventory playerInventory) {
-		return this.factory.create(syncId, playerInventory);
-	}
-
-	@Override
-	public FeatureSet getRequiredFeatures() {
-		return this.requiredFeatures;
-	}
-
-	/**
-	 * {@code Factory}.
+	 * @param <T> тип создаваемого обработчика
 	 */
 	public interface Factory<T extends ScreenHandler> {
 

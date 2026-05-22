@@ -38,14 +38,21 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code PaintingEntity}.
+ * Картина — декоративная сущность, прикреплённая к стене.
+ * Вариант картины определяет её размер и текстуру.
+ * При размещении выбирается наибольший подходящий вариант из тега {@code PLACEABLE}.
  */
 public class PaintingEntity extends AbstractDecorationEntity {
 
 	private static final TrackedData<RegistryEntry<PaintingVariant>> VARIANT = DataTracker.registerData(
 			PaintingEntity.class, TrackedDataHandlerRegistry.PAINTING_VARIANT
 	);
+
+	/** Размер одного пикселя картины в блоках (1/16 блока). */
 	public static final float PIXEL_SIZE = 0.0625F;
+
+	/** Смещение плоскости картины от поверхности блока (15/32 блока). */
+	private static final double PAINTING_DEPTH_OFFSET = 0.46875;
 
 	public PaintingEntity(EntityType<? extends PaintingEntity> entityType, World world) {
 		super(entityType, world);
@@ -54,96 +61,89 @@ public class PaintingEntity extends AbstractDecorationEntity {
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, Variants.getDefaultOrThrow(this.getRegistryManager(), RegistryKeys.PAINTING_VARIANT));
+		builder.add(VARIANT, Variants.getDefaultOrThrow(getRegistryManager(), RegistryKeys.PAINTING_VARIANT));
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
 		if (VARIANT.equals(data)) {
-			this.updateAttachmentPosition();
+			updateAttachmentPosition();
 		}
 	}
 
 	private void setVariant(RegistryEntry<PaintingVariant> variant) {
-		this.dataTracker.set(VARIANT, variant);
+		dataTracker.set(VARIANT, variant);
 	}
 
 	public RegistryEntry<PaintingVariant> getVariant() {
-		return this.dataTracker.get(VARIANT);
+		return dataTracker.get(VARIANT);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.PAINTING_VARIANT ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getVariant()
-		) : super.get(type);
+		return type == DataComponentTypes.PAINTING_VARIANT
+				? castComponentValue((ComponentType<T>) type, getVariant())
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.PAINTING_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.PAINTING_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.PAINTING_VARIANT) {
-			this.setVariant(castComponentValue(DataComponentTypes.PAINTING_VARIANT, value));
+			setVariant(castComponentValue(DataComponentTypes.PAINTING_VARIANT, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
 	/**
-	 * Размещает painting.
+	 * Выбирает наибольший подходящий вариант картины из тега PLACEABLE и размещает её.
+	 * Если несколько вариантов имеют одинаковую максимальную площадь — выбирается случайный.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param facing facing
-	 *
-	 * @return Optional — результат операции
+	 * @return картина с выбранным вариантом, или {@link Optional#empty()} если нет подходящих
 	 */
 	public static Optional<PaintingEntity> placePainting(World world, BlockPos pos, Direction facing) {
-		PaintingEntity paintingEntity = new PaintingEntity(world, pos);
-		List<RegistryEntry<PaintingVariant>> list = new ArrayList<>();
-		world
-				.getRegistryManager()
+		PaintingEntity painting = new PaintingEntity(world, pos);
+		List<RegistryEntry<PaintingVariant>> candidates = new ArrayList<>();
+		world.getRegistryManager()
 				.getOrThrow(RegistryKeys.PAINTING_VARIANT)
 				.iterateEntries(PaintingVariantTags.PLACEABLE)
-				.forEach(list::add);
-		if (list.isEmpty()) {
+				.forEach(candidates::add);
+
+		if (candidates.isEmpty()) {
 			return Optional.empty();
 		}
-		else {
-			paintingEntity.setFacing(facing);
-			list.removeIf(variant -> {
-				paintingEntity.setVariant((RegistryEntry<PaintingVariant>) variant);
-				return !paintingEntity.canStayAttached();
-			});
-			if (list.isEmpty()) {
-				return Optional.empty();
-			}
-			else {
-				int i = list.stream().mapToInt(PaintingEntity::getSize).max().orElse(0);
-				list.removeIf(variant -> getSize((RegistryEntry<PaintingVariant>) variant) < i);
-				Optional<RegistryEntry<PaintingVariant>> optional = Util.getRandomOrEmpty(list, paintingEntity.random);
-				if (optional.isEmpty()) {
-					return Optional.empty();
-				}
-				else {
-					paintingEntity.setVariant(optional.get());
-					paintingEntity.setFacing(facing);
-					return Optional.of(paintingEntity);
-				}
-			}
+
+		painting.setFacing(facing);
+		candidates.removeIf(variant -> {
+			painting.setVariant(variant);
+			return !painting.canStayAttached();
+		});
+
+		if (candidates.isEmpty()) {
+			return Optional.empty();
 		}
+
+		int maxSize = candidates.stream().mapToInt(PaintingEntity::getVariantArea).max().orElse(0);
+		candidates.removeIf(variant -> getVariantArea(variant) < maxSize);
+		Optional<RegistryEntry<PaintingVariant>> chosen = Util.getRandomOrEmpty(candidates, painting.random);
+		if (chosen.isEmpty()) {
+			return Optional.empty();
+		}
+
+		painting.setVariant(chosen.get());
+		painting.setFacing(facing);
+		return Optional.of(painting);
 	}
 
-	private static int getSize(RegistryEntry<PaintingVariant> variant) {
+	private static int getVariantArea(RegistryEntry<PaintingVariant> variant) {
 		return variant.value().getArea();
 	}
 
@@ -153,81 +153,86 @@ public class PaintingEntity extends AbstractDecorationEntity {
 
 	public PaintingEntity(World world, BlockPos pos, Direction direction, RegistryEntry<PaintingVariant> variant) {
 		this(world, pos);
-		this.setVariant(variant);
-		this.setFacing(direction);
+		setVariant(variant);
+		setFacing(direction);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.put("facing", Direction.HORIZONTAL_QUARTER_TURNS_CODEC, this.getHorizontalFacing());
+		view.put("facing", Direction.HORIZONTAL_QUARTER_TURNS_CODEC, getHorizontalFacing());
 		super.writeCustomData(view);
-		Variants.writeData(view, this.getVariant());
+		Variants.writeData(view, getVariant());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		Direction
-				direction =
-				view.<Direction>read("facing", Direction.HORIZONTAL_QUARTER_TURNS_CODEC).orElse(Direction.SOUTH);
+		Direction direction = view.<Direction>read("facing", Direction.HORIZONTAL_QUARTER_TURNS_CODEC)
+				.orElse(Direction.SOUTH);
 		super.readCustomData(view);
-		this.setFacing(direction);
+		setFacing(direction);
 		Variants.fromData(view, RegistryKeys.PAINTING_VARIANT).ifPresent(this::setVariant);
 	}
 
+	/**
+	 * Вычисляет AABB картины. Толщина по оси прикрепления — {@value #PIXEL_SIZE} блока.
+	 * Смещение центра учитывает чётность размеров варианта.
+	 */
 	@Override
 	protected Box calculateBoundingBox(BlockPos pos, Direction side) {
-		float f = 0.46875F;
-		Vec3d vec3d = Vec3d.ofCenter(pos).offset(side, -0.46875);
-		PaintingVariant paintingVariant = this.getVariant().value();
-		double d = this.getOffset(paintingVariant.width());
-		double e = this.getOffset(paintingVariant.height());
-		Direction direction = side.rotateYCounterclockwise();
-		Vec3d vec3d2 = vec3d.offset(direction, d).offset(Direction.UP, e);
+		Vec3d center = Vec3d.ofCenter(pos).offset(side, -PAINTING_DEPTH_OFFSET);
+		PaintingVariant variant = getVariant().value();
+		double offsetX = getOffset(variant.width());
+		double offsetY = getOffset(variant.height());
+		Direction perpendicular = side.rotateYCounterclockwise();
+		Vec3d origin = center.offset(perpendicular, offsetX).offset(Direction.UP, offsetY);
 		Direction.Axis axis = side.getAxis();
-		double g = axis == Direction.Axis.X ? 0.0625 : paintingVariant.width();
-		double h = paintingVariant.height();
-		double i = axis == Direction.Axis.Z ? 0.0625 : paintingVariant.width();
-		return Box.of(vec3d2, g, h, i);
+		double sizeX = axis == Direction.Axis.X ? PIXEL_SIZE : variant.width();
+		double sizeY = variant.height();
+		double sizeZ = axis == Direction.Axis.Z ? PIXEL_SIZE : variant.width();
+		return Box.of(origin, sizeX, sizeY, sizeZ);
 	}
 
+	/** Возвращает смещение центра для выравнивания картины по сетке блоков. */
 	private double getOffset(int length) {
 		return length % 2 == 0 ? 0.5 : 0.0;
 	}
 
 	@Override
 	public void onBreak(ServerWorld world, @Nullable Entity breaker) {
-		if (world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-			this.playSound(SoundEvents.ENTITY_PAINTING_BREAK, 1.0F, 1.0F);
-			if (!(breaker instanceof PlayerEntity playerEntity && playerEntity.isInCreativeMode())) {
-				this.dropItem(world, Items.PAINTING);
-			}
+		if (!world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
+			return;
+		}
+
+		playSound(SoundEvents.ENTITY_PAINTING_BREAK, 1.0F, 1.0F);
+		if (!(breaker instanceof PlayerEntity playerEntity && playerEntity.isInCreativeMode())) {
+			dropItem(world, Items.PAINTING);
 		}
 	}
 
 	@Override
 	public void onPlace() {
-		this.playSound(SoundEvents.ENTITY_PAINTING_PLACE, 1.0F, 1.0F);
+		playSound(SoundEvents.ENTITY_PAINTING_PLACE, 1.0F, 1.0F);
 	}
 
 	@Override
 	public void refreshPositionAndAngles(double x, double y, double z, float yaw, float pitch) {
-		this.setPosition(x, y, z);
+		setPosition(x, y, z);
 	}
 
 	@Override
 	public Vec3d getSyncedPos() {
-		return Vec3d.of(this.attachedBlockPos);
+		return Vec3d.of(attachedBlockPos);
 	}
 
 	@Override
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-		return new EntitySpawnS2CPacket(this, this.getHorizontalFacing().getIndex(), this.getAttachedBlockPos());
+		return new EntitySpawnS2CPacket(this, getHorizontalFacing().getIndex(), getAttachedBlockPos());
 	}
 
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		this.setFacing(Direction.byIndex(packet.getEntityData()));
+		setFacing(Direction.byIndex(packet.getEntityData()));
 	}
 
 	@Override

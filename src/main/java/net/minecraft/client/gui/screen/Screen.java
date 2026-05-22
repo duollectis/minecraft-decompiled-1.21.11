@@ -45,26 +45,31 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Screen}.
+ * Базовый абстрактный класс всех экранов GUI клиента Minecraft.
+ * Управляет жизненным циклом экрана: инициализацией, рендерингом, навигацией и нарратором.
  */
+@Environment(EnvType.CLIENT)
 public abstract class Screen extends AbstractParentElement implements Drawable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Text SCREEN_USAGE_TEXT = Text.translatable("narrator.screen.usage");
+	private static final int CHAR_COLON = 58;
+	private static final int CHAR_SLASH = 47;
+	private static final int CHAR_UNDERSCORE = 95;
+	private static final int CHAR_DASH = 45;
+	private static final int CHAR_DOT = 46;
+	private static final int CHAR_LOWERCASE_A = 97;
+	private static final int CHAR_LOWERCASE_Z = 122;
+	private static final int CHAR_DIGIT_0 = 48;
+	private static final int CHAR_DIGIT_9 = 57;
 	public static final Identifier MENU_BACKGROUND_TEXTURE = Identifier.ofVanilla("textures/gui/menu_background.png");
 	public static final Identifier HEADER_SEPARATOR_TEXTURE = Identifier.ofVanilla("textures/gui/header_separator.png");
 	public static final Identifier FOOTER_SEPARATOR_TEXTURE = Identifier.ofVanilla("textures/gui/footer_separator.png");
-	private static final Identifier
-			INWORLD_MENU_BACKGROUND_TEXTURE =
-			Identifier.ofVanilla("textures/gui/inworld_menu_background.png");
-	public static final Identifier
-			INWORLD_HEADER_SEPARATOR_TEXTURE =
-			Identifier.ofVanilla("textures/gui/inworld_header_separator.png");
-	public static final Identifier
-			INWORLD_FOOTER_SEPARATOR_TEXTURE =
-			Identifier.ofVanilla("textures/gui/inworld_footer_separator.png");
+	private static final Identifier INWORLD_MENU_BACKGROUND_TEXTURE = Identifier.ofVanilla("textures/gui/inworld_menu_background.png");
+	public static final Identifier INWORLD_HEADER_SEPARATOR_TEXTURE = Identifier.ofVanilla("textures/gui/inworld_header_separator.png");
+	public static final Identifier INWORLD_FOOTER_SEPARATOR_TEXTURE = Identifier.ofVanilla("textures/gui/inworld_footer_separator.png");
+	private static final int BACKGROUND_TEXTURE_SIZE = 32;
 	protected static final float TOOLTIP_FADE_DURATION_MS = 2000.0F;
 	protected final Text title;
 	private final List<Element> children = Lists.newArrayList();
@@ -111,65 +116,62 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 	}
 
 	/**
-	 * Отрисовывает with tooltip.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param deltaTicks delta ticks
+	 * Выполняет полный цикл рендеринга экрана: фон, содержимое и отложенные элементы (тултипы).
+	 * Каждый этап изолирован в отдельном корневом слое GUI.
 	 */
 	public final void renderWithTooltip(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		context.createNewRootLayer();
-		this.renderBackground(context, mouseX, mouseY, deltaTicks);
+		renderBackground(context, mouseX, mouseY, deltaTicks);
 		context.createNewRootLayer();
-		this.render(context, mouseX, mouseY, deltaTicks);
+		render(context, mouseX, mouseY, deltaTicks);
 		context.drawDeferredElements();
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		for (Drawable drawable : this.drawables) {
+		for (Drawable drawable : drawables) {
 			drawable.render(context, mouseX, mouseY, deltaTicks);
 		}
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (input.isEscape() && this.shouldCloseOnEsc()) {
-			this.close();
+		if (input.isEscape() && shouldCloseOnEsc()) {
+			close();
 			return true;
 		}
-		else if (super.keyPressed(input)) {
+
+		if (super.keyPressed(input)) {
 			return true;
 		}
-		else {
-			GuiNavigation guiNavigation = (GuiNavigation) (switch (input.key()) {
-				case 258 -> this.getTabNavigation(!input.hasShift());
-				default -> null;
-				case 262 -> this.getArrowNavigation(NavigationDirection.RIGHT);
-				case 263 -> this.getArrowNavigation(NavigationDirection.LEFT);
-				case 264 -> this.getArrowNavigation(NavigationDirection.DOWN);
-				case 265 -> this.getArrowNavigation(NavigationDirection.UP);
-			}
-			);
-			if (guiNavigation != null) {
-				GuiNavigationPath guiNavigationPath = super.getNavigationPath(guiNavigation);
-				if (guiNavigationPath == null && guiNavigation instanceof GuiNavigation.Tab) {
-					this.blur();
-					guiNavigationPath = super.getNavigationPath(guiNavigation);
-				}
 
-				if (guiNavigationPath != null) {
-					this.switchFocus(guiNavigationPath);
-				}
+		GuiNavigation navigation = (GuiNavigation) (switch (input.key()) {
+			case 258 -> getTabNavigation(!input.hasShift());
+			case 262 -> getArrowNavigation(NavigationDirection.RIGHT);
+			case 263 -> getArrowNavigation(NavigationDirection.LEFT);
+			case 264 -> getArrowNavigation(NavigationDirection.DOWN);
+			case 265 -> getArrowNavigation(NavigationDirection.UP);
+			default -> null;
+		});
+
+		if (navigation != null) {
+			GuiNavigationPath path = super.getNavigationPath(navigation);
+
+			if (path == null && navigation instanceof GuiNavigation.Tab) {
+				blur();
+				path = super.getNavigationPath(navigation);
 			}
 
-			return false;
+			if (path != null) {
+				switchFocus(path);
+			}
 		}
+
+		return false;
 	}
 
-	private GuiNavigation.Tab getTabNavigation(boolean bl) {
-		return new GuiNavigation.Tab(bl);
+	private GuiNavigation.Tab getTabNavigation(boolean forward) {
+		return new GuiNavigation.Tab(forward);
 	}
 
 	private GuiNavigation.Arrow getArrowNavigation(NavigationDirection direction) {
@@ -177,152 +179,117 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 	}
 
 	protected void setInitialFocus() {
-		if (this.client.getNavigationType().isKeyboard()) {
-			GuiNavigation.Tab tab = new GuiNavigation.Tab(true);
-			GuiNavigationPath guiNavigationPath = super.getNavigationPath(tab);
-			if (guiNavigationPath != null) {
-				this.switchFocus(guiNavigationPath);
-			}
+		if (!client.getNavigationType().isKeyboard()) {
+			return;
+		}
+
+		GuiNavigationPath path = super.getNavigationPath(new GuiNavigation.Tab(true));
+
+		if (path != null) {
+			switchFocus(path);
 		}
 	}
 
 	protected void setInitialFocus(Element element) {
-		GuiNavigationPath
-				guiNavigationPath =
-				GuiNavigationPath.of(this, element.getNavigationPath(new GuiNavigation.Down()));
-		if (guiNavigationPath != null) {
-			this.switchFocus(guiNavigationPath);
+		GuiNavigationPath path = GuiNavigationPath.of(this, element.getNavigationPath(new GuiNavigation.Down()));
+
+		if (path != null) {
+			switchFocus(path);
 		}
 	}
 
-	/**
-	 * Blur.
-	 */
 	public void blur() {
-		GuiNavigationPath guiNavigationPath = this.getFocusedPath();
-		if (guiNavigationPath != null) {
-			guiNavigationPath.setFocused(false);
+		GuiNavigationPath path = getFocusedPath();
+
+		if (path != null) {
+			path.setFocused(false);
 		}
 	}
 
 	@VisibleForTesting
-	/**
-	 * Switch focus.
-	 *
-	 * @param path path
-	 */
 	protected void switchFocus(GuiNavigationPath path) {
-		this.blur();
+		blur();
 		path.setFocused(true);
 	}
 
-	/**
-	 * Определяет, следует ли close on esc.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldCloseOnEsc() {
 		return true;
 	}
 
-	/**
-	 * Close.
-	 */
 	public void close() {
-		this.client.setScreen(null);
+		client.setScreen(null);
 	}
 
 	protected <T extends Element & Drawable & Selectable> T addDrawableChild(T drawableElement) {
-		this.drawables.add(drawableElement);
-		return this.addSelectableChild(drawableElement);
+		drawables.add(drawableElement);
+		return addSelectableChild(drawableElement);
 	}
 
-	/**
-	 * Добавляет drawable.
-	 *
-	 * @param drawable drawable
-	 *
-	 * @return T — результат операции
-	 */
 	protected <T extends Drawable> T addDrawable(T drawable) {
-		this.drawables.add(drawable);
+		drawables.add(drawable);
 		return drawable;
 	}
 
 	protected <T extends Element & Selectable> T addSelectableChild(T child) {
-		this.children.add(child);
-		this.selectables.add(child);
+		children.add(child);
+		selectables.add(child);
 		return child;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param child child
-	 */
 	protected void remove(Element child) {
-		if (child instanceof Drawable) {
-			this.drawables.remove((Drawable) child);
+		if (child instanceof Drawable drawable) {
+			drawables.remove(drawable);
 		}
 
-		if (child instanceof Selectable) {
-			this.selectables.remove((Selectable) child);
+		if (child instanceof Selectable selectable) {
+			selectables.remove(selectable);
 		}
 
-		if (this.getFocused() == child) {
-			this.blur();
+		if (getFocused() == child) {
+			blur();
 		}
 
-		this.children.remove(child);
+		children.remove(child);
 	}
 
-	/**
-	 * Очищает children.
-	 */
 	protected void clearChildren() {
-		this.drawables.clear();
-		this.children.clear();
-		this.selectables.clear();
+		drawables.clear();
+		children.clear();
+		selectables.clear();
 	}
 
 	public static List<Text> getTooltipFromItem(MinecraftClient client, ItemStack stack) {
 		return stack.getTooltip(
-				Item.TooltipContext.create(client.world),
-				client.player,
-				client.options.advancedItemTooltips ? TooltipType.Default.ADVANCED : TooltipType.Default.BASIC
+			Item.TooltipContext.create(client.world),
+			client.player,
+			client.options.advancedItemTooltips ? TooltipType.Default.ADVANCED : TooltipType.Default.BASIC
 		);
 	}
 
-	/**
-	 * Insert text.
-	 *
-	 * @param text text
-	 * @param override override
-	 */
 	protected void insertText(String text, boolean override) {
 	}
 
 	protected static void handleClickEvent(
-			ClickEvent clickEvent,
-			MinecraftClient client,
-			@Nullable Screen screenAfterRun
+		ClickEvent clickEvent,
+		MinecraftClient client,
+		@Nullable Screen screenAfterRun
 	) {
-		ClientPlayerEntity clientPlayerEntity = Objects.requireNonNull(client.player, "Player not available");
+		ClientPlayerEntity player = Objects.requireNonNull(client.player, "Player not available");
+
 		switch (clickEvent) {
-			case ClickEvent.RunCommand(String var11):
-				handleRunCommand(clientPlayerEntity, var11, screenAfterRun);
+			case ClickEvent.RunCommand(String command):
+				handleRunCommand(player, command, screenAfterRun);
 				break;
 			case ClickEvent.ShowDialog showDialog:
-				clientPlayerEntity.networkHandler.showDialog(showDialog.dialog(), screenAfterRun);
+				player.networkHandler.showDialog(showDialog.dialog(), screenAfterRun);
 				break;
 			case ClickEvent.Custom custom:
-				clientPlayerEntity.networkHandler.sendPacket(new CustomClickActionC2SPacket(
-						custom.id(),
-						custom.payload()
-				));
+				player.networkHandler.sendPacket(new CustomClickActionC2SPacket(custom.id(), custom.payload()));
+
 				if (client.currentScreen != screenAfterRun) {
 					client.setScreen(screenAfterRun);
 				}
+
 				break;
 			default:
 				handleBasicClickEvent(clickEvent, client, screenAfterRun);
@@ -330,29 +297,28 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 	}
 
 	protected static void handleBasicClickEvent(
-			ClickEvent clickEvent,
-			MinecraftClient client,
-			@Nullable Screen screenAfterRun
+		ClickEvent clickEvent,
+		MinecraftClient client,
+		@Nullable Screen screenAfterRun
 	) {
-		boolean bl = switch (clickEvent) {
-			case ClickEvent.OpenUrl(URI var17) -> {
-				handleOpenUri(client, screenAfterRun, var17);
+		boolean shouldNavigate = switch (clickEvent) {
+			case ClickEvent.OpenUrl(URI uri) -> {
+				handleOpenUri(client, screenAfterRun, uri);
 				yield false;
 			}
 			case ClickEvent.OpenFile openFile -> {
 				Util.getOperatingSystem().open(openFile.file());
 				yield true;
 			}
-			case ClickEvent.SuggestCommand(String var22) -> {
-				String var18 = var22;
+			case ClickEvent.SuggestCommand(String command) -> {
 				if (screenAfterRun != null) {
-					screenAfterRun.insertText(var18, true);
+					screenAfterRun.insertText(command, true);
 				}
 
 				yield true;
 			}
-			case ClickEvent.CopyToClipboard(String var13) -> {
-				client.keyboard.setClipboard(var13);
+			case ClickEvent.CopyToClipboard(String text) -> {
+				client.keyboard.setClipboard(text);
 				yield true;
 			}
 			default -> {
@@ -360,308 +326,197 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 				yield true;
 			}
 		};
-		if (bl && client.currentScreen != screenAfterRun) {
+
+		if (shouldNavigate && client.currentScreen != screenAfterRun) {
 			client.setScreen(screenAfterRun);
 		}
 	}
 
 	/**
-	 * Обрабатывает open uri.
-	 *
-	 * @param client client
-	 * @param screen screen
-	 * @param uri uri
-	 *
-	 * @return boolean — результат операции
+	 * Открывает URI с учётом настроек чата: если включён промпт — показывает экран подтверждения,
+	 * иначе открывает напрямую. Возвращает {@code false} если ссылки отключены в настройках.
 	 */
 	protected static boolean handleOpenUri(MinecraftClient client, @Nullable Screen screen, URI uri) {
 		if (!client.options.getChatLinks().getValue()) {
 			return false;
 		}
-		else {
-			if (client.options.getChatLinksPrompt().getValue()) {
-				client.setScreen(new ConfirmLinkScreen(
-						confirmed -> {
-							if (confirmed) {
-								Util.getOperatingSystem().open(uri);
-							}
 
-							client.setScreen(screen);
-						}, uri.toString(), false
-				));
-			}
-			else {
-				Util.getOperatingSystem().open(uri);
-			}
+		if (client.options.getChatLinksPrompt().getValue()) {
+			client.setScreen(new ConfirmLinkScreen(
+				confirmed -> {
+					if (confirmed) {
+						Util.getOperatingSystem().open(uri);
+					}
 
-			return true;
+					client.setScreen(screen);
+				}, uri.toString(), false
+			));
+		} else {
+			Util.getOperatingSystem().open(uri);
 		}
+
+		return true;
 	}
 
-	/**
-	 * Обрабатывает run command.
-	 *
-	 * @param player player
-	 * @param command command
-	 * @param screenAfterRun screen after run
-	 */
 	protected static void handleRunCommand(ClientPlayerEntity player, String command, @Nullable Screen screenAfterRun) {
 		player.networkHandler.runClickEventCommand(CommandManager.stripLeadingSlash(command), screenAfterRun);
 	}
 
-	/**
-	 * Init.
-	 *
-	 * @param width width
-	 * @param height height
-	 */
 	public final void init(int width, int height) {
 		this.width = width;
 		this.height = height;
-		if (!this.screenInitialized) {
-			this.init();
-			this.setInitialFocus();
-		}
-		else {
-			this.refreshWidgetPositions();
+
+		if (!screenInitialized) {
+			init();
+			setInitialFocus();
+		} else {
+			refreshWidgetPositions();
 		}
 
-		this.screenInitialized = true;
-		this.narrateScreenIfNarrationEnabled(false);
-		if (this.client.getNavigationType().isKeyboard()) {
-			this.setElementNarrationStartTime(Long.MAX_VALUE);
-		}
-		else {
-			this.setElementNarrationDelay(SCREEN_INIT_NARRATION_DELAY);
+		screenInitialized = true;
+		narrateScreenIfNarrationEnabled(false);
+
+		if (client.getNavigationType().isKeyboard()) {
+			setElementNarrationStartTime(Long.MAX_VALUE);
+		} else {
+			setElementNarrationDelay(SCREEN_INIT_NARRATION_DELAY);
 		}
 	}
 
-	/**
-	 * Очищает and init.
-	 */
 	protected void clearAndInit() {
-		this.clearChildren();
-		this.blur();
-		this.init();
-		this.setInitialFocus();
+		clearChildren();
+		blur();
+		init();
+		setInitialFocus();
 	}
 
 	protected void setWidgetAlpha(float alpha) {
-		for (Element element : this.children()) {
-			if (element instanceof ClickableWidget clickableWidget) {
-				clickableWidget.setAlpha(alpha);
+		for (Element element : children()) {
+			if (element instanceof ClickableWidget widget) {
+				widget.setAlpha(alpha);
 			}
 		}
 	}
 
 	@Override
 	public List<? extends Element> children() {
-		return this.children;
+		return children;
 	}
 
-	/**
-	 * Init.
-	 */
 	protected void init() {
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 	}
 
-	/**
-	 * Удаляет d.
-	 */
 	public void removed() {
 	}
 
-	/**
-	 * Обрабатывает событие displayed.
-	 */
 	public void onDisplayed() {
 	}
 
-	/**
-	 * Отрисовывает background.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param deltaTicks delta ticks
-	 */
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (this.deferSubtitles()) {
-			this.renderInGameBackground(context);
-		}
-		else {
-			if (this.client.world == null) {
-				this.renderPanoramaBackground(context, deltaTicks);
+		if (deferSubtitles()) {
+			renderInGameBackground(context);
+		} else {
+			if (client.world == null) {
+				renderPanoramaBackground(context, deltaTicks);
 			}
 
-			this.applyBlur(context);
-			this.renderDarkening(context);
+			applyBlur(context);
+			renderDarkening(context);
 		}
 
-		this.client.inGameHud.renderDeferredSubtitles();
+		client.inGameHud.renderDeferredSubtitles();
 	}
 
-	/**
-	 * Применяет blur.
-	 *
-	 * @param context context
-	 */
 	protected void applyBlur(DrawContext context) {
-		float f = this.client.options.getMenuBackgroundBlurrinessValue();
-		if (f >= 1.0F) {
+		if (client.options.getMenuBackgroundBlurrinessValue() >= 1.0F) {
 			context.applyBlur();
 		}
 	}
 
-	/**
-	 * Отрисовывает panorama background.
-	 *
-	 * @param context context
-	 * @param deltaTicks delta ticks
-	 */
 	protected void renderPanoramaBackground(DrawContext context, float deltaTicks) {
-		this.client.gameRenderer
-				.getRotatingPanoramaRenderer()
-				.render(context, this.width, this.height, this.allowRotatingPanorama());
+		client.gameRenderer
+			.getRotatingPanoramaRenderer()
+			.render(context, width, height, allowRotatingPanorama());
 	}
 
-	/**
-	 * Отрисовывает darkening.
-	 *
-	 * @param context context
-	 */
 	protected void renderDarkening(DrawContext context) {
-		this.renderDarkening(context, 0, 0, this.width, this.height);
+		renderDarkening(context, 0, 0, width, height);
 	}
 
-	/**
-	 * Отрисовывает darkening.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param height height
-	 */
 	protected void renderDarkening(DrawContext context, int x, int y, int width, int height) {
 		renderBackgroundTexture(
-				context,
-				this.client.world == null ? MENU_BACKGROUND_TEXTURE : INWORLD_MENU_BACKGROUND_TEXTURE,
-				x,
-				y,
-				0.0F,
-				0.0F,
-				width,
-				height
+			context,
+			client.world == null ? MENU_BACKGROUND_TEXTURE : INWORLD_MENU_BACKGROUND_TEXTURE,
+			x, y, 0.0F, 0.0F, width, height
 		);
 	}
 
 	public static void renderBackgroundTexture(
-			DrawContext context,
-			Identifier texture,
-			int x,
-			int y,
-			float u,
-			float v,
-			int width,
-			int height
+		DrawContext context,
+		Identifier texture,
+		int x,
+		int y,
+		float u,
+		float v,
+		int width,
+		int height
 	) {
-		int i = 32;
-		context.drawTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, 32, 32);
+		context.drawTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
 	}
 
-	/**
-	 * Отрисовывает in game background.
-	 *
-	 * @param context context
-	 */
 	public void renderInGameBackground(DrawContext context) {
-		context.fillGradient(0, 0, this.width, this.height, -1072689136, -804253680);
+		context.fillGradient(0, 0, width, height, -1072689136, -804253680);
 	}
 
-	/**
-	 * Определяет, следует ли pause.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldPause() {
 		return true;
 	}
 
-	/**
-	 * Defer subtitles.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean deferSubtitles() {
 		return false;
 	}
 
-	/**
-	 * Allow rotating panorama.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean allowRotatingPanorama() {
 		return true;
 	}
 
-	/**
-	 * Keep open through portal.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean keepOpenThroughPortal() {
-		return this.shouldPause();
+		return shouldPause();
 	}
 
-	/**
-	 * Refresh widget positions.
-	 */
 	protected void refreshWidgetPositions() {
-		this.clearAndInit();
+		clearAndInit();
 	}
 
-	/**
-	 * Resize.
-	 *
-	 * @param width width
-	 * @param height height
-	 */
 	public void resize(int width, int height) {
 		this.width = width;
 		this.height = height;
-		this.refreshWidgetPositions();
+		refreshWidgetPositions();
 	}
 
-	/**
-	 * Добавляет crash report section.
-	 *
-	 * @param report report
-	 */
 	public void addCrashReportSection(CrashReport report) {
-		CrashReportSection crashReportSection = report.addElement("Affected screen", 1);
-		crashReportSection.add("Screen name", () -> this.getClass().getCanonicalName());
+		CrashReportSection section = report.addElement("Affected screen", 1);
+		section.add("Screen name", () -> getClass().getCanonicalName());
 	}
 
 	protected boolean isValidCharacterForName(String name, int codepoint, int cursorPos) {
-		int i = name.indexOf(58);
-		int j = name.indexOf(47);
-		if (codepoint == 58) {
-			return (j == -1 || cursorPos <= j) && i == -1;
+		int colonPos = name.indexOf(CHAR_COLON);
+		int slashPos = name.indexOf(CHAR_SLASH);
+
+		if (codepoint == CHAR_COLON) {
+			return (slashPos == -1 || cursorPos <= slashPos) && colonPos == -1;
 		}
-		else {
-			return codepoint == 47
-			       ? cursorPos > i
-			       : codepoint == 95 || codepoint == 45 || codepoint >= 97 && codepoint <= 122
-			         || codepoint >= 48 && codepoint <= 57 || codepoint == 46;
-		}
+
+		return codepoint == CHAR_SLASH
+			? cursorPos > colonPos
+			: codepoint == CHAR_UNDERSCORE
+				|| codepoint == CHAR_DASH
+				|| codepoint >= CHAR_LOWERCASE_A && codepoint <= CHAR_LOWERCASE_Z
+				|| codepoint >= CHAR_DIGIT_0 && codepoint <= CHAR_DIGIT_9
+				|| codepoint == CHAR_DOT;
 	}
 
 	@Override
@@ -669,83 +524,61 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return true;
 	}
 
-	/**
-	 * Обрабатывает событие files dropped.
-	 *
-	 * @param paths paths
-	 */
 	public void onFilesDropped(List<Path> paths) {
 	}
 
 	private void setScreenNarrationDelay(long delayMs, boolean restartElementNarration) {
-		this.screenNarrationStartTime = Util.getMeasuringTimeMs() + delayMs;
+		screenNarrationStartTime = Util.getMeasuringTimeMs() + delayMs;
 		if (restartElementNarration) {
-			this.elementNarrationStartTime = Long.MIN_VALUE;
+			elementNarrationStartTime = Long.MIN_VALUE;
 		}
 	}
 
 	private void setElementNarrationDelay(long delayMs) {
-		this.setElementNarrationStartTime(Util.getMeasuringTimeMs() + delayMs);
+		setElementNarrationStartTime(Util.getMeasuringTimeMs() + delayMs);
 	}
 
 	private void setElementNarrationStartTime(long startTimeMs) {
-		this.elementNarrationStartTime = startTimeMs;
+		elementNarrationStartTime = startTimeMs;
 	}
 
-	/**
-	 * Применяет mouse move narrator delay.
-	 */
 	public void applyMouseMoveNarratorDelay() {
-		this.setScreenNarrationDelay(750L, false);
+		setScreenNarrationDelay(MOUSE_MOVE_NARRATION_DELAY, false);
 	}
 
-	/**
-	 * Применяет mouse press scroll narrator delay.
-	 */
 	public void applyMousePressScrollNarratorDelay() {
-		this.setScreenNarrationDelay(200L, true);
+		setScreenNarrationDelay(MOUSE_PRESS_SCROLL_NARRATION_DELAY, true);
 	}
 
-	/**
-	 * Применяет key press narrator delay.
-	 */
 	public void applyKeyPressNarratorDelay() {
-		this.setScreenNarrationDelay(200L, true);
+		setScreenNarrationDelay(MOUSE_PRESS_SCROLL_NARRATION_DELAY, true);
 	}
 
 	private boolean isNarratorActive() {
-		return SharedConstants.UI_NARRATION || this.client.getNarratorManager().isActive();
+		return SharedConstants.UI_NARRATION || client.getNarratorManager().isActive();
 	}
 
-	/**
-	 * Обновляет narrator.
-	 */
 	public void updateNarrator() {
-		if (this.isNarratorActive()) {
-			long l = Util.getMeasuringTimeMs();
-			if (l > this.screenNarrationStartTime && l > this.elementNarrationStartTime) {
-				this.narrateScreen(true);
-				this.screenNarrationStartTime = Long.MAX_VALUE;
+		if (isNarratorActive()) {
+			long now = Util.getMeasuringTimeMs();
+			if (now > screenNarrationStartTime && now > elementNarrationStartTime) {
+				narrateScreen(true);
+				screenNarrationStartTime = Long.MAX_VALUE;
 			}
 		}
 	}
 
-	/**
-	 * Narrate screen if narration enabled.
-	 *
-	 * @param onlyChangedNarrations only changed narrations
-	 */
 	public void narrateScreenIfNarrationEnabled(boolean onlyChangedNarrations) {
-		if (this.isNarratorActive()) {
-			this.narrateScreen(onlyChangedNarrations);
+		if (isNarratorActive()) {
+			narrateScreen(onlyChangedNarrations);
 		}
 	}
 
 	private void narrateScreen(boolean onlyChangedNarrations) {
-		this.narrator.buildNarrations(this::addScreenNarrations);
-		String string = this.narrator.buildNarratorText(!onlyChangedNarrations);
-		if (!string.isEmpty()) {
-			this.client.getNarratorManager().narrateSystemImmediately(string);
+		narrator.buildNarrations(this::addScreenNarrations);
+		String text = narrator.buildNarratorText(!onlyChangedNarrations);
+		if (!text.isEmpty()) {
+			client.getNarratorManager().narrateSystemImmediately(text);
 		}
 	}
 
@@ -753,139 +586,120 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return true;
 	}
 
-	/**
-	 * Добавляет screen narrations.
-	 *
-	 * @param messageBuilder message builder
-	 */
 	protected void addScreenNarrations(NarrationMessageBuilder messageBuilder) {
-		messageBuilder.put(NarrationPart.TITLE, this.getNarratedTitle());
-		if (this.hasUsageText()) {
+		messageBuilder.put(NarrationPart.TITLE, getNarratedTitle());
+		if (hasUsageText()) {
 			messageBuilder.put(NarrationPart.USAGE, SCREEN_USAGE_TEXT);
 		}
 
-		this.addElementNarrations(messageBuilder);
+		addElementNarrations(messageBuilder);
 	}
 
-	/**
-	 * Добавляет element narrations.
-	 *
-	 * @param builder builder
-	 */
 	protected void addElementNarrations(NarrationMessageBuilder builder) {
-		List<? extends Selectable> list = this.selectables
-				.stream()
-				.flatMap(selectable -> selectable.getNarratedParts().stream())
-				.filter(Selectable::isInteractable)
-				.sorted(Comparator.comparingInt(Navigable::getNavigationOrder))
-				.toList();
-		Screen.SelectedElementNarrationData selectedElementNarrationData = findSelectedElementData(list, this.selected);
-		if (selectedElementNarrationData != null) {
-			if (selectedElementNarrationData.selectType.isFocused()) {
-				this.selected = selectedElementNarrationData.selectable;
-			}
+		List<? extends Selectable> interactables = selectables
+			.stream()
+			.flatMap(selectable -> selectable.getNarratedParts().stream())
+			.filter(Selectable::isInteractable)
+			.sorted(Comparator.comparingInt(Navigable::getNavigationOrder))
+			.toList();
 
-			if (list.size() > 1) {
-				builder.put(
-						NarrationPart.POSITION,
-						Text.translatable(
-								"narrator.position.screen",
-								selectedElementNarrationData.index + 1,
-								list.size()
-						)
-				);
-				if (selectedElementNarrationData.selectType == Selectable.SelectionType.FOCUSED) {
-					builder.put(NarrationPart.USAGE, this.getUsageNarrationText());
-				}
-			}
-
-			selectedElementNarrationData.selectable.appendNarrations(builder.nextMessage());
+		SelectedElementNarrationData narrationData = findSelectedElementData(interactables, selected);
+		if (narrationData == null) {
+			return;
 		}
+
+		if (narrationData.selectType.isFocused()) {
+			selected = narrationData.selectable;
+		}
+
+		if (interactables.size() > 1) {
+			builder.put(
+				NarrationPart.POSITION,
+				Text.translatable(
+					"narrator.position.screen",
+					narrationData.index + 1,
+					interactables.size()
+				)
+			);
+			if (narrationData.selectType == Selectable.SelectionType.FOCUSED) {
+				builder.put(NarrationPart.USAGE, getUsageNarrationText());
+			}
+		}
+
+		narrationData.selectable.appendNarrations(builder.nextMessage());
 	}
 
 	protected Text getUsageNarrationText() {
 		return Text.translatable("narration.component_list.usage");
 	}
 
+	/**
+	 * Находит данные нарратора для выбранного элемента из списка.
+	 * Приоритет: сфокусированный новый элемент → сфокусированный текущий → элемент с наибольшим типом выделения.
+	 */
 	public static Screen.@Nullable SelectedElementNarrationData findSelectedElementData(
-			List<? extends Selectable> selectables,
-			@Nullable Selectable selectable
+		List<? extends Selectable> selectables,
+		@Nullable Selectable currentSelected
 	) {
-		Screen.SelectedElementNarrationData selectedElementNarrationData = null;
-		Screen.SelectedElementNarrationData selectedElementNarrationData2 = null;
-		int i = 0;
+		SelectedElementNarrationData bestNonFocused = null;
+		SelectedElementNarrationData currentFocused = null;
+		int size = selectables.size();
 
-		for (int j = selectables.size(); i < j; i++) {
-			Selectable selectable2 = selectables.get(i);
-			Selectable.SelectionType selectionType = selectable2.getType();
+		for (int index = 0; index < size; index++) {
+			Selectable candidate = selectables.get(index);
+			Selectable.SelectionType selectionType = candidate.getType();
+
 			if (selectionType.isFocused()) {
-				if (selectable2 != selectable) {
-					return new Screen.SelectedElementNarrationData(selectable2, i, selectionType);
+				if (candidate != currentSelected) {
+					return new SelectedElementNarrationData(candidate, index, selectionType);
 				}
 
-				selectedElementNarrationData2 = new Screen.SelectedElementNarrationData(selectable2, i, selectionType);
-			}
-			else if (selectionType.compareTo(
-					selectedElementNarrationData != null ? selectedElementNarrationData.selectType
-					                                     : Selectable.SelectionType.NONE) > 0
-			) {
-				selectedElementNarrationData = new Screen.SelectedElementNarrationData(selectable2, i, selectionType);
+				currentFocused = new SelectedElementNarrationData(candidate, index, selectionType);
+			} else if (selectionType.compareTo(
+				bestNonFocused != null ? bestNonFocused.selectType : Selectable.SelectionType.NONE
+			) > 0) {
+				bestNonFocused = new SelectedElementNarrationData(candidate, index, selectionType);
 			}
 		}
 
-		return selectedElementNarrationData != null ? selectedElementNarrationData : selectedElementNarrationData2;
+		return bestNonFocused != null ? bestNonFocused : currentFocused;
 	}
 
-	/**
-	 * Refresh narrator.
-	 *
-	 * @param previouslyDisabled previously disabled
-	 */
 	public void refreshNarrator(boolean previouslyDisabled) {
 		if (previouslyDisabled) {
-			this.setScreenNarrationDelay(NARRATOR_MODE_CHANGE_DELAY, false);
+			setScreenNarrationDelay(NARRATOR_MODE_CHANGE_DELAY, false);
 		}
 
-		if (this.narratorToggleButton != null) {
-			this.narratorToggleButton.setValue(this.client.options.getNarrator().getValue());
+		if (narratorToggleButton != null) {
+			narratorToggleButton.setValue(client.options.getNarrator().getValue());
 		}
 	}
 
 	public TextRenderer getTextRenderer() {
-		return this.textRenderer;
+		return textRenderer;
 	}
 
-	/**
-	 * Shows status effects.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean showsStatusEffects() {
 		return false;
 	}
 
-	/**
-	 * Проверяет возможность interrupt other screen.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canInterruptOtherScreen() {
-		return this.shouldCloseOnEsc();
+		return shouldCloseOnEsc();
 	}
 
 	@Override
 	public ScreenRect getNavigationFocus() {
-		return new ScreenRect(0, 0, this.width, this.height);
+		return new ScreenRect(0, 0, width, height);
 	}
 
 	public @Nullable MusicSound getMusic() {
 		return null;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SelectedElementNarrationData}.
+	 * Данные нарратора для выбранного элемента экрана.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record SelectedElementNarrationData(Selectable selectable, int index, Selectable.SelectionType selectType) {
 	}
 }

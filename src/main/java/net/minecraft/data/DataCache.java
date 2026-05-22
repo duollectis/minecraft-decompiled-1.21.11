@@ -2,7 +2,6 @@ package net.minecraft.data;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.mojang.logging.LogUtils;
@@ -30,233 +29,258 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code DataCache}.
+ * Инкрементальный кэш данных генератора.
+ * Хранит хэши сгенерированных файлов по каждому провайдеру и позволяет
+ * пропускать повторную генерацию неизменившихся данных между запусками.
  */
 public class DataCache {
 
 	static final Logger LOGGER = LogUtils.getLogger();
-	private static final String HEADER = "// ";
+
+	private static final String CACHE_FILE_HEADER = "// ";
+	private static final char TAB_CHAR = '\t';
+	private static final char SPACE_CHAR = ' ';
+
 	private final Path root;
 	private final Path cachePath;
 	private final String versionName;
-	private final Map<String, DataCache.CachedData> cachedDatas;
+	private final Map<String, CachedData> cachedDatas;
 	private final Set<String> dataWriters = new HashSet<>();
 	final Set<Path> paths = new HashSet<>();
 	private final int totalSize;
 	private int totalCacheMissCount;
-
-	private Path getPath(String providerName) {
-		return this.cachePath.resolve(Hashing.sha1().hashString(providerName, StandardCharsets.UTF_8).toString());
-	}
 
 	public DataCache(Path root, Collection<String> providerNames, GameVersion gameVersion) throws IOException {
 		this.versionName = gameVersion.id();
 		this.root = root;
 		this.cachePath = root.resolve(".cache");
 		Files.createDirectories(this.cachePath);
-		Map<String, DataCache.CachedData> map = new HashMap<>();
-		int i = 0;
 
-		for (String string : providerNames) {
-			Path path = this.getPath(string);
-			this.paths.add(path);
-			DataCache.CachedData cachedData = parseOrCreateCache(root, path);
-			map.put(string, cachedData);
-			i += cachedData.size();
+		Map<String, CachedData> map = new HashMap<>();
+		int totalEntries = 0;
+
+		for (String providerName : providerNames) {
+			Path cachePath = getPath(providerName);
+			this.paths.add(cachePath);
+			CachedData cachedData = parseOrCreateCache(root, cachePath);
+			map.put(providerName, cachedData);
+			totalEntries += cachedData.size();
 		}
 
 		this.cachedDatas = map;
-		this.totalSize = i;
+		this.totalSize = totalEntries;
 	}
 
-	private static DataCache.CachedData parseOrCreateCache(Path root, Path dataProviderPath) {
+	private Path getPath(String providerName) {
+		return cachePath.resolve(Hashing.sha1().hashString(providerName, StandardCharsets.UTF_8).toString());
+	}
+
+	private static CachedData parseOrCreateCache(Path root, Path dataProviderPath) {
 		if (Files.isReadable(dataProviderPath)) {
 			try {
-				return DataCache.CachedData.parseCache(root, dataProviderPath);
-			}
-			catch (Exception var3) {
-				LOGGER.warn("Failed to parse cache {}, discarding", dataProviderPath, var3);
+				return CachedData.parseCache(root, dataProviderPath);
+			} catch (Exception exception) {
+				LOGGER.warn("Failed to parse cache {}, discarding", dataProviderPath, exception);
 			}
 		}
 
-		return new DataCache.CachedData("unknown", ImmutableMap.of());
+		return new CachedData("unknown", ImmutableMap.of());
 	}
 
 	public boolean isVersionDifferent(String providerName) {
-		DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
-		return cachedData == null || !cachedData.version.equals(this.versionName);
+		CachedData cachedData = cachedDatas.get(providerName);
+		return cachedData == null || !cachedData.version.equals(versionName);
 	}
 
-	public CompletableFuture<DataCache.RunResult> run(String providerName, DataCache.Runner runner) {
-		DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
+	/**
+	 * Запускает провайдер данных через {@link Runner} и возвращает результат выполнения.
+	 * Создаёт {@link CachedDataWriter}, который отслеживает промахи кэша.
+	 *
+	 * @param providerName имя зарегистрированного провайдера
+	 * @param runner       функция, выполняющая генерацию данных
+	 * @return future с результатом, содержащим новый кэш и количество промахов
+	 */
+	public CompletableFuture<RunResult> run(String providerName, Runner runner) {
+		CachedData cachedData = cachedDatas.get(providerName);
 		if (cachedData == null) {
 			throw new IllegalStateException("Provider not registered: " + providerName);
 		}
-		else {
-			DataCache.CachedDataWriter
-					cachedDataWriter =
-					new DataCache.CachedDataWriter(providerName, this.versionName, cachedData);
-			return runner.update(cachedDataWriter).thenApply(void_ -> cachedDataWriter.finish());
-		}
+
+		CachedDataWriter cachedDataWriter = new CachedDataWriter(providerName, versionName, cachedData);
+		return runner.update(cachedDataWriter).thenApply(void_ -> cachedDataWriter.finish());
 	}
 
-	public void store(DataCache.RunResult runResult) {
-		this.cachedDatas.put(runResult.providerName(), runResult.cache());
-		this.dataWriters.add(runResult.providerName());
-		this.totalCacheMissCount = this.totalCacheMissCount + runResult.cacheMissCount();
+	public void store(RunResult runResult) {
+		cachedDatas.put(runResult.providerName(), runResult.cache());
+		dataWriters.add(runResult.providerName());
+		totalCacheMissCount = totalCacheMissCount + runResult.cacheMissCount();
 	}
 
+	/**
+	 * Записывает обновлённые кэш-файлы на диск и удаляет устаревшие сгенерированные файлы,
+	 * которые больше не присутствуют ни в одном кэше провайдеров.
+	 */
 	public void write() throws IOException {
-		final Set<Path> set = new HashSet<>();
-		this.cachedDatas.forEach((providerName, cachedData) -> {
-			if (this.dataWriters.contains(providerName)) {
-				Path path = this.getPath(providerName);
+		final Set<Path> knownPaths = new HashSet<>();
+
+		cachedDatas.forEach((providerName, cachedData) -> {
+			if (dataWriters.contains(providerName)) {
+				Path providerCachePath = getPath(providerName);
 				cachedData.write(
-						this.root,
-						path,
-						DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(ZonedDateTime.now()) + "\t" + providerName
+						root,
+						providerCachePath,
+						DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(ZonedDateTime.now()) + TAB_CHAR + providerName
 				);
 			}
 
-			set.addAll(cachedData.data().keySet());
+			knownPaths.addAll(cachedData.data().keySet());
 		});
-		set.add(this.root.resolve("version.json"));
-		final MutableInt mutableInt = new MutableInt();
-		final MutableInt mutableInt2 = new MutableInt();
-		Files.walkFileTree(
-				this.root, new SimpleFileVisitor<Path>() {
-					public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) {
-						if (DataCache.this.paths.contains(path)) {
-							return FileVisitResult.CONTINUE;
-						}
-						else {
-							mutableInt.increment();
-							if (set.contains(path)) {
-								return FileVisitResult.CONTINUE;
-							}
-							else {
-								try {
-									Files.delete(path);
-								}
-								catch (IOException var4) {
-									DataCache.LOGGER.warn("Failed to delete file {}", path, var4);
-								}
 
-								mutableInt2.increment();
-								return FileVisitResult.CONTINUE;
-							}
-						}
-					}
+		knownPaths.add(root.resolve("version.json"));
+
+		final MutableInt visitedCount = new MutableInt();
+		final MutableInt deletedCount = new MutableInt();
+
+		Files.walkFileTree(root, new SimpleFileVisitor<>() {
+			public FileVisitResult visitFile(Path path, BasicFileAttributes attributes) {
+				if (paths.contains(path)) {
+					return FileVisitResult.CONTINUE;
 				}
-		);
+
+				visitedCount.increment();
+
+				if (knownPaths.contains(path)) {
+					return FileVisitResult.CONTINUE;
+				}
+
+				try {
+					Files.delete(path);
+				} catch (IOException exception) {
+					LOGGER.warn("Failed to delete file {}", path, exception);
+				}
+
+				deletedCount.increment();
+				return FileVisitResult.CONTINUE;
+			}
+		});
+
 		LOGGER.info(
 				"Caching: total files: {}, old count: {}, new count: {}, removed stale: {}, written: {}",
-				new Object[]{mutableInt, this.totalSize, set.size(), mutableInt2, this.totalCacheMissCount}
+				new Object[]{visitedCount, totalSize, knownPaths.size(), deletedCount, totalCacheMissCount}
 		);
 	}
 
 	/**
-	 * {@code CachedData}.
+	 * Снимок кэша одного провайдера: версия игры и карта путей к хэшам файлов.
+	 * Используется для сравнения с предыдущим запуском и пропуска неизменившихся файлов.
 	 */
 	record CachedData(String version, ImmutableMap<Path, HashCode> data) {
 
 		public @Nullable HashCode get(Path path) {
-			return (HashCode) this.data.get(path);
+			return data.get(path);
 		}
 
 		public int size() {
-			return this.data.size();
+			return data.size();
 		}
 
-		public static DataCache.CachedData parseCache(Path root, Path dataProviderPath) throws IOException {
-			DataCache.CachedData var7;
-			try (BufferedReader bufferedReader = Files.newBufferedReader(dataProviderPath, StandardCharsets.UTF_8)) {
-				String string = bufferedReader.readLine();
-				if (!string.startsWith("// ")) {
+		/**
+		 * Читает кэш-файл с диска. Формат: первая строка — заголовок {@code "// version\tdescription"},
+		 * далее строки вида {@code "hashcode relative/path"}.
+		 */
+		public static CachedData parseCache(Path root, Path dataProviderPath) throws IOException {
+			CachedData result;
+
+			try (BufferedReader reader = Files.newBufferedReader(dataProviderPath, StandardCharsets.UTF_8)) {
+				String headerLine = reader.readLine();
+				if (!headerLine.startsWith(CACHE_FILE_HEADER)) {
 					throw new IllegalStateException("Missing cache file header");
 				}
 
-				String[] strings = string.substring("// ".length()).split("\t", 2);
-				String string2 = strings[0];
+				String[] headerParts = headerLine.substring(CACHE_FILE_HEADER.length()).split("\t", 2);
+				String version = headerParts[0];
 				Builder<Path, HashCode> builder = ImmutableMap.builder();
-				bufferedReader.lines().forEach(line -> {
-					int i = line.indexOf(32);
-					builder.put(root.resolve(line.substring(i + 1)), HashCode.fromString(line.substring(0, i)));
+
+				reader.lines().forEach(line -> {
+					int separatorIndex = line.indexOf(SPACE_CHAR);
+					builder.put(
+							root.resolve(line.substring(separatorIndex + 1)),
+							HashCode.fromString(line.substring(0, separatorIndex))
+					);
 				});
-				var7 = new DataCache.CachedData(string2, builder.build());
+
+				result = new CachedData(version, builder.build());
 			}
 
-			return var7;
+			return result;
 		}
 
 		public void write(Path root, Path dataProviderPath, String description) {
-			try (BufferedWriter bufferedWriter = Files.newBufferedWriter(dataProviderPath, StandardCharsets.UTF_8)) {
-				bufferedWriter.write("// ");
-				bufferedWriter.write(this.version);
-				bufferedWriter.write(9);
-				bufferedWriter.write(description);
-				bufferedWriter.newLine();
-				UnmodifiableIterator var5 = this.data.entrySet().iterator();
+			try (BufferedWriter writer = Files.newBufferedWriter(dataProviderPath, StandardCharsets.UTF_8)) {
+				writer.write(CACHE_FILE_HEADER);
+				writer.write(version);
+				writer.write(TAB_CHAR);
+				writer.write(description);
+				writer.newLine();
 
-				while (var5.hasNext()) {
-					Entry<Path, HashCode> entry = (Entry<Path, HashCode>) var5.next();
-					bufferedWriter.write(entry.getValue().toString());
-					bufferedWriter.write(32);
-					bufferedWriter.write(root.relativize(entry.getKey()).toString());
-					bufferedWriter.newLine();
+				for (Entry<Path, HashCode> entry : data.entrySet()) {
+					writer.write(entry.getValue().toString());
+					writer.write(SPACE_CHAR);
+					writer.write(root.relativize(entry.getKey()).toString());
+					writer.newLine();
 				}
-			}
-			catch (IOException var9) {
-				DataCache.LOGGER.warn("Unable write cachefile {}: {}", dataProviderPath, var9);
+			} catch (IOException exception) {
+				LOGGER.warn("Unable write cachefile {}: {}", dataProviderPath, exception);
 			}
 		}
 	}
 
 	/**
-	 * {@code CachedDataWriter}.
+	 * Реализация {@link DataWriter}, которая отслеживает промахи кэша
+	 * и записывает файлы только при изменении их содержимого.
 	 */
 	static class CachedDataWriter implements DataWriter {
 
 		private final String providerName;
-		private final DataCache.CachedData oldCache;
-		private final DataCache.IntermediaryCache newCache;
+		private final CachedData oldCache;
+		private final IntermediaryCache newCache;
 		private final AtomicInteger cacheMissCount = new AtomicInteger();
 		private volatile boolean closed;
 
-		CachedDataWriter(String providerName, String version, DataCache.CachedData oldCache) {
+		CachedDataWriter(String providerName, String version, CachedData oldCache) {
 			this.providerName = providerName;
 			this.oldCache = oldCache;
-			this.newCache = new DataCache.IntermediaryCache(version);
+			this.newCache = new IntermediaryCache(version);
 		}
 
 		private boolean isCacheInvalid(Path path, HashCode hashCode) {
-			return !Objects.equals(this.oldCache.get(path), hashCode) || !Files.exists(path);
+			return !Objects.equals(oldCache.get(path), hashCode) || !Files.exists(path);
 		}
 
 		@Override
 		public void write(Path path, byte[] data, HashCode hashCode) throws IOException {
-			if (this.closed) {
+			if (closed) {
 				throw new IllegalStateException("Cannot write to cache as it has already been closed");
 			}
-			else {
-				if (this.isCacheInvalid(path, hashCode)) {
-					this.cacheMissCount.incrementAndGet();
-					Files.createDirectories(path.getParent());
-					Files.write(path, data);
-				}
 
-				this.newCache.put(path, hashCode);
+			if (isCacheInvalid(path, hashCode)) {
+				cacheMissCount.incrementAndGet();
+				Files.createDirectories(path.getParent());
+				Files.write(path, data);
 			}
+
+			newCache.put(path, hashCode);
 		}
 
-		public DataCache.RunResult finish() {
-			this.closed = true;
-			return new DataCache.RunResult(this.providerName, this.newCache.toCachedData(), this.cacheMissCount.get());
+		public RunResult finish() {
+			closed = true;
+			return new RunResult(providerName, newCache.toCachedData(), cacheMissCount.get());
 		}
 	}
 
 	/**
-	 * {@code IntermediaryCache}.
+	 * Потокобезопасный промежуточный кэш, накапливающий хэши файлов
+	 * в процессе параллельной генерации данных.
 	 */
 	record IntermediaryCache(String version, ConcurrentMap<Path, HashCode> data) {
 
@@ -265,24 +289,26 @@ public class DataCache {
 		}
 
 		public void put(Path path, HashCode hashCode) {
-			this.data.put(path, hashCode);
+			data.put(path, hashCode);
 		}
 
-		public DataCache.CachedData toCachedData() {
-			return new DataCache.CachedData(this.version, ImmutableMap.copyOf(this.data));
+		public CachedData toCachedData() {
+			return new CachedData(version, ImmutableMap.copyOf(data));
 		}
 	}
 
 	/**
-	 * {@code RunResult}.
+	 * Итоговый результат выполнения одного провайдера данных:
+	 * имя провайдера, новый снимок кэша и количество промахов кэша (записанных файлов).
 	 */
-	public record RunResult(String providerName, DataCache.CachedData cache, int cacheMissCount) {
+	public record RunResult(String providerName, CachedData cache, int cacheMissCount) {
 	}
 
+	/**
+	 * Функциональный интерфейс для запуска провайдера данных.
+	 * Принимает {@link DataWriter} и возвращает future завершения генерации.
+	 */
 	@FunctionalInterface
-	/**
-	 * {@code Runner}.
-	 */
 	public interface Runner {
 
 		CompletableFuture<?> update(DataWriter writer);

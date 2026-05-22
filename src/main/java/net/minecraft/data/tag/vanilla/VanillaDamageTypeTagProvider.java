@@ -27,7 +27,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 		this
 				.builder(DamageTypeTags.DAMAGES_HELMET)
 				.add(DamageTypes.FALLING_ANVIL, DamageTypes.FALLING_BLOCK, DamageTypes.FALLING_STALACTITE);
-		this.builder(DamageTypeTags.BYPASSES_ARMOR)
+		builder(DamageTypeTags.BYPASSES_ARMOR)
 		    .add(
 				    DamageTypes.ON_FIRE,
 				    DamageTypes.IN_WALL,
@@ -49,7 +49,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.SONIC_BOOM,
 				    DamageTypes.OUTSIDE_BORDER
 		    );
-		this.builder(DamageTypeTags.BYPASSES_SHIELD)
+		builder(DamageTypeTags.BYPASSES_SHIELD)
 		    .addTag(DamageTypeTags.BYPASSES_ARMOR)
 		    .add(
 				    DamageTypes.CACTUS,
@@ -63,11 +63,11 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.LIGHTNING_BOLT,
 				    DamageTypes.SWEET_BERRY_BUSH
 		    );
-		this.builder(DamageTypeTags.BYPASSES_INVULNERABILITY).add(DamageTypes.OUT_OF_WORLD, DamageTypes.GENERIC_KILL);
-		this.builder(DamageTypeTags.BYPASSES_EFFECTS).add(DamageTypes.STARVE);
-		this.builder(DamageTypeTags.BYPASSES_RESISTANCE).add(DamageTypes.OUT_OF_WORLD, DamageTypes.GENERIC_KILL);
-		this.builder(DamageTypeTags.BYPASSES_ENCHANTMENTS).add(DamageTypes.SONIC_BOOM);
-		this.builder(DamageTypeTags.IS_FIRE)
+		builder(DamageTypeTags.BYPASSES_INVULNERABILITY).add(DamageTypes.OUT_OF_WORLD, DamageTypes.GENERIC_KILL);
+		builder(DamageTypeTags.BYPASSES_EFFECTS).add(DamageTypes.STARVE);
+		builder(DamageTypeTags.BYPASSES_RESISTANCE).add(DamageTypes.OUT_OF_WORLD, DamageTypes.GENERIC_KILL);
+		builder(DamageTypeTags.BYPASSES_ENCHANTMENTS).add(DamageTypes.SONIC_BOOM);
+		builder(DamageTypeTags.IS_FIRE)
 		    .add(
 				    DamageTypes.IN_FIRE,
 				    DamageTypes.CAMPFIRE,
@@ -77,7 +77,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.UNATTRIBUTED_FIREBALL,
 				    DamageTypes.FIREBALL
 		    );
-		this.builder(DamageTypeTags.IS_PROJECTILE)
+		builder(DamageTypeTags.IS_PROJECTILE)
 		    .add(
 				    DamageTypes.ARROW,
 				    DamageTypes.TRIDENT,
@@ -99,23 +99,23 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 						DamageTypes.PLAYER_EXPLOSION,
 						DamageTypes.BAD_RESPAWN_POINT
 				);
-		this.builder(DamageTypeTags.IS_FALL).add(DamageTypes.FALL, DamageTypes.ENDER_PEARL, DamageTypes.STALAGMITE);
-		this.builder(DamageTypeTags.IS_DROWNING).add(DamageTypes.DROWN);
-		this.builder(DamageTypeTags.IS_FREEZING).add(DamageTypes.FREEZE);
-		this.builder(DamageTypeTags.IS_LIGHTNING).add(DamageTypes.LIGHTNING_BOLT);
-		this.builder(DamageTypeTags.NO_ANGER).add(DamageTypes.MOB_ATTACK_NO_AGGRO);
-		this.builder(DamageTypeTags.NO_IMPACT).add(DamageTypes.DROWN);
-		this.builder(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL).add(DamageTypes.OUT_OF_WORLD);
-		this.builder(DamageTypeTags.WITHER_IMMUNE_TO).add(DamageTypes.DROWN);
-		this.builder(DamageTypeTags.IGNITES_ARMOR_STANDS).add(DamageTypes.IN_FIRE, DamageTypes.CAMPFIRE);
-		this.builder(DamageTypeTags.BURNS_ARMOR_STANDS).add(DamageTypes.ON_FIRE);
+		builder(DamageTypeTags.IS_FALL).add(DamageTypes.FALL, DamageTypes.ENDER_PEARL, DamageTypes.STALAGMITE);
+		builder(DamageTypeTags.IS_DROWNING).add(DamageTypes.DROWN);
+		builder(DamageTypeTags.IS_FREEZING).add(DamageTypes.FREEZE);
+		builder(DamageTypeTags.IS_LIGHTNING).add(DamageTypes.LIGHTNING_BOLT);
+		builder(DamageTypeTags.NO_ANGER).add(DamageTypes.MOB_ATTACK_NO_AGGRO);
+		builder(DamageTypeTags.NO_IMPACT).add(DamageTypes.DROWN);
+		builder(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL).add(DamageTypes.OUT_OF_WORLD);
+		builder(DamageTypeTags.WITHER_IMMUNE_TO).add(DamageTypes.DROWN);
+		builder(DamageTypeTags.IGNITES_ARMOR_STANDS).add(DamageTypes.IN_FIRE, DamageTypes.CAMPFIRE);
+		builder(DamageTypeTags.BURNS_ARMOR_STANDS).add(DamageTypes.ON_FIRE);
 		this
 				.builder(DamageTypeTags.AVOIDS_GUARDIAN_THORNS)
 				.add(DamageTypes.MAGIC, DamageTypes.THORNS)
 				.addTag(DamageTypeTags.IS_EXPLOSION);
-		this.builder(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH).add(DamageTypes.MAGIC);
-		this.builder(DamageTypeTags.ALWAYS_HURTS_ENDER_DRAGONS).addTag(DamageTypeTags.IS_EXPLOSION);
-		this.builder(DamageTypeTags.NO_KNOCKBACK)
+		builder(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH).add(DamageTypes.MAGIC);
+		builder(DamageTypeTags.ALWAYS_HURTS_ENDER_DRAGONS).addTag(DamageTypeTags.IS_EXPLOSION);
+		builder(DamageTypeTags.NO_KNOCKBACK)
 		    .add(
 				    DamageTypes.EXPLOSION,
 				    DamageTypes.PLAYER_EXPLOSION,
@@ -147,7 +147,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.CAMPFIRE,
 				    DamageTypes.SPEAR
 		    );
-		this.builder(DamageTypeTags.ALWAYS_KILLS_ARMOR_STANDS)
+		builder(DamageTypeTags.ALWAYS_KILLS_ARMOR_STANDS)
 		    .add(
 				    DamageTypes.ARROW,
 				    DamageTypes.TRIDENT,
@@ -159,7 +159,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				.builder(DamageTypeTags.CAN_BREAK_ARMOR_STAND)
 				.add(DamageTypes.PLAYER_EXPLOSION)
 				.addTag(DamageTypeTags.IS_PLAYER_ATTACK);
-		this.builder(DamageTypeTags.BYPASSES_WOLF_ARMOR)
+		builder(DamageTypeTags.BYPASSES_WOLF_ARMOR)
 		    .addTag(DamageTypeTags.BYPASSES_INVULNERABILITY)
 		    .add(
 				    DamageTypes.CRAMMING,
@@ -177,8 +177,8 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 		this
 				.builder(DamageTypeTags.IS_PLAYER_ATTACK)
 				.add(DamageTypes.PLAYER_ATTACK, DamageTypes.SPEAR, DamageTypes.MACE_SMASH);
-		this.builder(DamageTypeTags.BURN_FROM_STEPPING).add(DamageTypes.CAMPFIRE, DamageTypes.HOT_FLOOR);
-		this.builder(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)
+		builder(DamageTypeTags.BURN_FROM_STEPPING).add(DamageTypes.CAMPFIRE, DamageTypes.HOT_FLOOR);
+		builder(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)
 		    .add(
 				    DamageTypes.CACTUS,
 				    DamageTypes.FREEZE,
@@ -188,7 +188,7 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.LIGHTNING_BOLT,
 				    DamageTypes.ON_FIRE
 		    );
-		this.builder(DamageTypeTags.PANIC_CAUSES)
+		builder(DamageTypeTags.PANIC_CAUSES)
 		    .addTag(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)
 		    .add(
 				    DamageTypes.ARROW,
@@ -211,6 +211,6 @@ public class VanillaDamageTypeTagProvider extends SimpleTagProvider<DamageType> 
 				    DamageTypes.WITHER_SKULL
 		    )
 		    .addTag(DamageTypeTags.IS_PLAYER_ATTACK);
-		this.builder(DamageTypeTags.MACE_SMASH).add(DamageTypes.MACE_SMASH);
+		builder(DamageTypeTags.MACE_SMASH).add(DamageTypes.MACE_SMASH);
 	}
 }

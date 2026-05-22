@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code LegacyDimensionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LegacyDimensionFix extends DataFix {
 
@@ -16,14 +16,14 @@ public class LegacyDimensionFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		TypeRewriteRule typeRewriteRule = this.fixTypeEverywhereTyped(
+		TypeRewriteRule typeRewriteRule = fixTypeEverywhereTyped(
 				"PlayerLegacyDimensionFix",
-				this.getInputSchema().getType(TypeReferences.PLAYER),
+				getInputSchema().getType(TypeReferences.PLAYER),
 				typed -> typed.update(DSL.remainderFinder(), this::fixPlayer)
 		);
-		Type<?> type = this.getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA);
+		Type<?> type = getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA);
 		OpticFinder<?> opticFinder = type.findField("data");
-		TypeRewriteRule typeRewriteRule2 = this.fixTypeEverywhereTyped(
+		TypeRewriteRule typeRewriteRule2 = fixTypeEverywhereTyped(
 				"MapLegacyDimensionFix",
 				type,
 				typed -> typed.updateTyped(opticFinder, typedx -> typedx.update(DSL.remainderFinder(), this::fixMap))

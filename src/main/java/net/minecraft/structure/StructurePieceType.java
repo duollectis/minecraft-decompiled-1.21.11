@@ -7,7 +7,9 @@ import net.minecraft.registry.Registry;
 import java.util.Locale;
 
 /**
- * {@code StructurePieceType}.
+ * Реестр типов кусков структур. Каждый тип связывает строковый идентификатор
+ * с фабричным методом, который восстанавливает {@link StructurePiece} из NBT.
+ * Используется при сохранении и загрузке структур мира.
  */
 public interface StructurePieceType {
 
@@ -182,7 +184,8 @@ public interface StructurePieceType {
 	}
 
 	/**
-	 * {@code ManagerAware}.
+	 * Тип куска структуры, для загрузки которого требуется {@link StructureTemplateManager}.
+	 * Используется кусками на основе шаблонов NBT (например, EndCity, Igloo, Shipwreck).
 	 */
 	public interface ManagerAware extends StructurePieceType {
 
@@ -195,7 +198,8 @@ public interface StructurePieceType {
 	}
 
 	/**
-	 * {@code Simple}.
+	 * Простой тип куска структуры, загружаемый только из NBT без дополнительных зависимостей.
+	 * Используется процедурно генерируемыми кусками (Stronghold, NetherFortress и т.д.).
 	 */
 	public interface Simple extends StructurePieceType {
 

@@ -8,12 +8,10 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.storage.ChunkCompressionFormat;
 import net.minecraft.world.storage.StorageKey;
 
+/** JFR-событие чтения чанка из файла региона: фиксирует ключ хранилища, позицию, формат сжатия и размер. */
 @Name("minecraft.ChunkRegionRead")
 @Label("Region File Read")
 @DontObfuscate
-/**
- * {@code ChunkRegionReadEvent}.
- */
 public class ChunkRegionReadEvent extends ChunkRegionEvent {
 
 	public static final String EVENT_NAME = "minecraft.ChunkRegionRead";

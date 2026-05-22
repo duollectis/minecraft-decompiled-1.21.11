@@ -121,7 +121,7 @@ public class LightningRodBlock extends RodBlock implements Waterloggable {
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
 		if (world.isThundering()
-				&& world.random.nextInt(200) <= world.getTime() % 200L
+				&& world.random.nextInt(PARTICLE_DISPLAY_INTERVAL) <= world.getTime() % PARTICLE_DISPLAY_INTERVAL
 				&& pos.getY() == world.getTopY(Heightmap.Type.WORLD_SURFACE, pos.getX(), pos.getZ()) - 1) {
 			ParticleUtil.spawnParticle(
 					state.get(FACING).getAxis(),

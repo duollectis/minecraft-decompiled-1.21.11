@@ -16,13 +16,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code RecipePropertySet}.
+ * Набор предметов, допустимых в конкретном слоте устройства (печь, коптильня и т.д.).
+ * Используется клиентом для фильтрации предметов в интерфейсе и серверной валидации.
  */
 public class RecipePropertySet {
 
-	public static final RegistryKey<? extends Registry<RecipePropertySet>>
-			REGISTRY =
-			RegistryKey.ofRegistry(Identifier.ofVanilla("recipe_property_set"));
+	public static final RegistryKey<? extends Registry<RecipePropertySet>> REGISTRY =
+		RegistryKey.ofRegistry(Identifier.ofVanilla("recipe_property_set"));
+
 	public static final RegistryKey<RecipePropertySet> SMITHING_BASE = register("smithing_base");
 	public static final RegistryKey<RecipePropertySet> SMITHING_TEMPLATE = register("smithing_template");
 	public static final RegistryKey<RecipePropertySet> SMITHING_ADDITION = register("smithing_addition");
@@ -30,10 +31,13 @@ public class RecipePropertySet {
 	public static final RegistryKey<RecipePropertySet> BLAST_FURNACE_INPUT = register("blast_furnace_input");
 	public static final RegistryKey<RecipePropertySet> SMOKER_INPUT = register("smoker_input");
 	public static final RegistryKey<RecipePropertySet> CAMPFIRE_INPUT = register("campfire_input");
+
 	public static final PacketCodec<RegistryByteBuf, RecipePropertySet> PACKET_CODEC = Item.ENTRY_PACKET_CODEC
-			.collect(PacketCodecs.toList())
-			.xmap(items -> new RecipePropertySet(Set.copyOf(items)), set -> List.copyOf(set.usableItems));
+		.collect(PacketCodecs.toList())
+		.xmap(items -> new RecipePropertySet(Set.copyOf(items)), set -> List.copyOf(set.usableItems));
+
 	public static final RecipePropertySet EMPTY = new RecipePropertySet(Set.of());
+
 	private final Set<RegistryEntry<Item>> usableItems;
 
 	private RecipePropertySet(Set<RegistryEntry<Item>> usableItems) {
@@ -44,21 +48,15 @@ public class RecipePropertySet {
 		return RegistryKey.of(REGISTRY, Identifier.ofVanilla(id));
 	}
 
-	/**
-	 * Проверяет возможность use.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canUse(ItemStack stack) {
-		return this.usableItems.contains(stack.getRegistryEntry());
+		return usableItems.contains(stack.getRegistryEntry());
 	}
 
 	static RecipePropertySet of(Collection<Ingredient> ingredients) {
-		Set<RegistryEntry<Item>>
-				set =
-				ingredients.stream().flatMap(Ingredient::getMatchingItems).collect(Collectors.toUnmodifiableSet());
-		return new RecipePropertySet(set);
+		Set<RegistryEntry<Item>> items = ingredients.stream()
+			.flatMap(Ingredient::getMatchingItems)
+			.collect(Collectors.toUnmodifiableSet());
+
+		return new RecipePropertySet(items);
 	}
 }

@@ -2,6 +2,7 @@ package net.minecraft.entity;
 
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
+import lombok.Getter;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.util.StringIdentifiable;
@@ -10,8 +11,11 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code EntityPose}.
+ * Поза сущности, определяющая форму хитбокса и анимацию.
+ * Каждая поза имеет числовой индекс для сетевой передачи и строковый идентификатор
+ * для сериализации в NBT/JSON.
  */
+@Getter
 public enum EntityPose implements StringIdentifiable {
 	STANDING(0, "standing"),
 	GLIDING(1, "fall_flying"),
@@ -32,27 +36,23 @@ public enum EntityPose implements StringIdentifiable {
 	SHOOTING(16, "shooting"),
 	INHALING(17, "inhaling");
 
-	public static final IntFunction<EntityPose> INDEX_TO_VALUE = ValueLists.createIndexToValueFunction(
-			EntityPose::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
+	public static final IntFunction<EntityPose> INDEX_TO_VALUE = ValueLists.<EntityPose>createIndexToValueFunction(
+		e -> e.index, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
 	public static final Codec<EntityPose> CODEC = StringIdentifiable.createCodec(EntityPose::values);
-	public static final PacketCodec<ByteBuf, EntityPose>
-			PACKET_CODEC =
-			PacketCodecs.indexed(INDEX_TO_VALUE, EntityPose::getIndex);
+	public static final PacketCodec<ByteBuf, EntityPose> PACKET_CODEC =
+		PacketCodecs.indexed(INDEX_TO_VALUE, e -> e.index);
+
 	private final int index;
 	private final String name;
 
-	private EntityPose(final int index, final String name) {
+	EntityPose(int index, String name) {
 		this.index = index;
 		this.name = name;
 	}
 
-	public int getIndex() {
-		return this.index;
-	}
-
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

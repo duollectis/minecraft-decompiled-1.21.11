@@ -14,27 +14,32 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code TestInstance}.
+ * Абстрактный экземпляр теста, хранящий метаданные и логику запуска.
+ * Конкретные реализации: {@link BlockBasedTestInstance} и {@link FunctionTestInstance}.
  */
 public abstract class TestInstance {
 
-	public static final Codec<TestInstance>
-			CODEC =
-			Registries.TEST_INSTANCE_TYPE.getCodec().dispatch(TestInstance::getCodec, codec -> codec);
+	public static final Codec<TestInstance> CODEC =
+		Registries.TEST_INSTANCE_TYPE.getCodec().dispatch(TestInstance::getCodec, codec -> codec);
+
 	private final TestData<RegistryEntry<TestEnvironmentDefinition>> data;
 
-	public static MapCodec<? extends TestInstance> registerAndGetDefault(Registry<MapCodec<? extends TestInstance>> registry) {
+	public static MapCodec<? extends TestInstance> registerAndGetDefault(
+		Registry<MapCodec<? extends TestInstance>> registry
+	) {
 		register(registry, "block_based", BlockBasedTestInstance.CODEC);
 		return register(registry, "function", FunctionTestInstance.CODEC);
 	}
 
 	private static MapCodec<? extends TestInstance> register(
-			Registry<MapCodec<? extends TestInstance>> registry, String id, MapCodec<? extends TestInstance> codec
+		Registry<MapCodec<? extends TestInstance>> registry,
+		String id,
+		MapCodec<? extends TestInstance> codec
 	) {
 		return Registry.register(
-				registry,
-				RegistryKey.of(RegistryKeys.TEST_INSTANCE_TYPE, Identifier.ofVanilla(id)),
-				codec
+			registry,
+			RegistryKey.of(RegistryKeys.TEST_INSTANCE_TYPE, Identifier.ofVanilla(id)),
+			codec
 		);
 	}
 
@@ -47,69 +52,69 @@ public abstract class TestInstance {
 	public abstract MapCodec<? extends TestInstance> getCodec();
 
 	public RegistryEntry<TestEnvironmentDefinition> getEnvironment() {
-		return this.data.environment();
+		return data.environment();
 	}
 
 	public Identifier getStructure() {
-		return this.data.structure();
+		return data.structure();
 	}
 
 	public int getMaxTicks() {
-		return this.data.maxTicks();
+		return data.maxTicks();
 	}
 
 	public int getSetupTicks() {
-		return this.data.setupTicks();
+		return data.setupTicks();
 	}
 
 	public boolean isRequired() {
-		return this.data.required();
+		return data.required();
 	}
 
 	public boolean isManualOnly() {
-		return this.data.manualOnly();
+		return data.manualOnly();
 	}
 
 	public int getMaxAttempts() {
-		return this.data.maxAttempts();
+		return data.maxAttempts();
 	}
 
 	public int getRequiredSuccesses() {
-		return this.data.requiredSuccesses();
+		return data.requiredSuccesses();
 	}
 
 	public boolean requiresSkyAccess() {
-		return this.data.skyAccess();
+		return data.skyAccess();
 	}
 
 	public BlockRotation getRotation() {
-		return this.data.rotation();
+		return data.rotation();
 	}
 
 	protected TestData<RegistryEntry<TestEnvironmentDefinition>> getData() {
-		return this.data;
+		return data;
 	}
 
 	protected abstract MutableText getTypeDescription();
 
 	public Text getDescription() {
-		return this.getFormattedTypeDescription().append(this.getStructureAndBatchDescription());
+		return getFormattedTypeDescription().append(getStructureAndBatchDescription());
 	}
 
 	protected MutableText getFormattedTypeDescription() {
-		return this.getFormattedDescription("test_instance.description.type", this.getTypeDescription());
+		return getFormattedDescription("test_instance.description.type", getTypeDescription());
 	}
 
 	protected Text getStructureAndBatchDescription() {
-		return this.getFormattedDescription("test_instance.description.structure", this.data.structure().toString())
-		           .append(this.getFormattedDescription(
-				           "test_instance.description.batch",
-				           this.data.environment().getIdAsString()
-		           ));
+		return getFormattedDescription("test_instance.description.structure", data.structure().toString())
+			.append(getFormattedDescription(
+				"test_instance.description.batch",
+				data.environment().getIdAsString()
+			));
 	}
 
 	protected MutableText getFormattedDescription(String key, String description) {
-		return this.getFormattedDescription(key, Text.literal(description));
+		return getFormattedDescription(key, Text.literal(description));
 	}
 
 	protected MutableText getFormattedDescription(String key, MutableText description) {

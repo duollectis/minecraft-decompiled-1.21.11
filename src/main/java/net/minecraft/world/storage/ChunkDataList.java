@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code ChunkDataList}.
+ * Контейнер для списка объектов типа {@code T}, привязанных к конкретному чанку.
+ * Используется при чтении и записи данных чанка через {@link ChunkDataAccess}.
  */
 public class ChunkDataList<T> {
 
@@ -19,19 +20,14 @@ public class ChunkDataList<T> {
 	}
 
 	public ChunkPos getChunkPos() {
-		return this.pos;
+		return pos;
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<T> stream() {
-		return this.backingList.stream();
+		return backingList.stream();
 	}
 
 	public boolean isEmpty() {
-		return this.backingList.isEmpty();
+		return backingList.isEmpty();
 	}
 }

@@ -27,7 +27,10 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LockableContainerBlockEntity}.
+ * Базовый класс для блок-сущностей с инвентарём, поддерживающих замок и пользовательское имя.
+ * <p>
+ * Реализует полный цикл работы с {@link ContainerLock}: проверку при открытии экрана,
+ * воспроизведение звука заблокированного сундука и сериализацию замка в NBT/компоненты.
  */
 public abstract class LockableContainerBlockEntity extends BlockEntity implements Inventory, NamedScreenHandlerFactory, Nameable {
 
@@ -45,55 +48,45 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.lock = ContainerLock.read(view);
-		this.customName = tryParseCustomName(view, "CustomName");
+		lock = ContainerLock.read(view);
+		customName = tryParseCustomName(view, "CustomName");
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		this.lock.write(view);
-		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
+		lock.write(view);
+		view.putNullable("CustomName", TextCodecs.CODEC, customName);
 	}
 
 	@Override
 	public Text getName() {
-		return this.customName != null ? this.customName : this.getContainerName();
+		return customName != null ? customName : getContainerName();
 	}
 
 	@Override
 	public Text getDisplayName() {
-		return this.getName();
+		return getName();
 	}
 
 	@Override
 	public @Nullable Text getCustomName() {
-		return this.customName;
+		return customName;
 	}
 
 	protected abstract Text getContainerName();
 
-	/**
-	 * Проверяет unlocked.
-	 *
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean checkUnlocked(PlayerEntity player) {
-		return this.lock.checkUnlocked(player);
+		return lock.checkUnlocked(player);
 	}
 
 	/**
-	 * Обрабатывает locked.
-	 *
-	 * @param containerPos container pos
-	 * @param player player
-	 * @param name name
+	 * Уведомляет игрока о заблокированном контейнере и воспроизводит звук замка на сервере.
 	 */
 	public static void handleLocked(Vec3d containerPos, PlayerEntity player, Text name) {
 		World world = player.getEntityWorld();
 		player.sendMessage(Text.translatable("container.isLocked", name), true);
+
 		if (!world.isClient()) {
 			world.playSound(
 					null,
@@ -109,7 +102,7 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 	}
 
 	public boolean isLocked() {
-		return !this.lock.equals(ContainerLock.EMPTY);
+		return !lock.equals(ContainerLock.EMPTY);
 	}
 
 	protected abstract DefaultedList<ItemStack> getHeldStacks();
@@ -118,7 +111,7 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 
 	@Override
 	public boolean isEmpty() {
-		for (ItemStack itemStack : this.getHeldStacks()) {
+		for (ItemStack itemStack : getHeldStacks()) {
 			if (!itemStack.isEmpty()) {
 				return false;
 			}
@@ -129,29 +122,30 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return this.getHeldStacks().get(slot);
+		return getHeldStacks().get(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		ItemStack itemStack = Inventories.splitStack(this.getHeldStacks(), slot, amount);
-		if (!itemStack.isEmpty()) {
-			this.markDirty();
+		ItemStack removed = Inventories.splitStack(getHeldStacks(), slot, amount);
+
+		if (!removed.isEmpty()) {
+			markDirty();
 		}
 
-		return itemStack;
+		return removed;
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		return Inventories.removeStack(this.getHeldStacks(), slot);
+		return Inventories.removeStack(getHeldStacks(), slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		this.getHeldStacks().set(slot, stack);
-		stack.capCount(this.getMaxCount(stack));
-		this.markDirty();
+		getHeldStacks().set(slot, stack);
+		stack.capCount(getMaxCount(stack));
+		markDirty();
 	}
 
 	@Override
@@ -161,47 +155,39 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 
 	@Override
 	public void clear() {
-		this.getHeldStacks().clear();
+		getHeldStacks().clear();
 	}
 
 	@Override
-	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		if (this.checkUnlocked(playerEntity)) {
-			return this.createScreenHandler(i, playerInventory);
+	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (checkUnlocked(player)) {
+			return createScreenHandler(syncId, playerInventory);
 		}
-		else {
-			handleLocked(this.getPos().toCenterPos(), playerEntity, this.getDisplayName());
-			return null;
-		}
+
+		handleLocked(getPos().toCenterPos(), player, getDisplayName());
+		return null;
 	}
 
-	/**
-	 * Создаёт screen handler.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return ScreenHandler — результат операции
-	 */
 	protected abstract ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory);
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
-		this.lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
-		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.getHeldStacks());
+		customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
+		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(getHeldStacks());
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
-		if (this.isLocked()) {
-			builder.add(DataComponentTypes.LOCK, this.lock);
+		builder.add(DataComponentTypes.CUSTOM_NAME, customName);
+
+		if (isLocked()) {
+			builder.add(DataComponentTypes.LOCK, lock);
 		}
 
-		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.getHeldStacks()));
+		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(getHeldStacks()));
 	}
 
 	@Override

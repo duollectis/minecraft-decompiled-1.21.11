@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code FetchProfileCommand}.
+ * Команда {@code /fetchprofile}: получение профиля игрока по имени.
  */
 public class FetchProfileCommand {
 

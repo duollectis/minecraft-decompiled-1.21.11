@@ -3,7 +3,8 @@ package net.minecraft.advancement.criterion;
 import net.minecraft.predicate.entity.LootContextPredicateValidator;
 
 /**
- * {@code CriterionConditions}.
+ * Маркерный интерфейс для условий критерия достижения. Реализации содержат предикаты,
+ * которые проверяются при каждом срабатывании соответствующего критерия.
  */
 public interface CriterionConditions {
 

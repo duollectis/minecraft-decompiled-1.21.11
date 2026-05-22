@@ -9,23 +9,27 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 /**
- * {@code Int2ObjectBiMap}.
+ * Двунаправленная карта int ↔ объект, реализованная через открытую адресацию.
+ * Поддерживает отображение как объект→ID, так и ID→объект.
+ * Использует идентичность объектов (reference equality) для сравнения ключей.
+ *
+ * @param <K> тип значений карты
  */
 public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 
 	private static final int ABSENT = -1;
-	private static final Object EMPTY = null;
 	private static final float LOAD_FACTOR = 0.8F;
+
 	private @Nullable K[] values;
 	private int[] ids;
 	private @Nullable K[] idToValues;
 	private int nextId;
 	private int size;
 
-	private Int2ObjectBiMap(int size) {
-		this.values = (K[]) (new Object[size]);
-		this.ids = new int[size];
-		this.idToValues = (K[]) (new Object[size]);
+	private Int2ObjectBiMap(int capacity) {
+		values = (K[]) new Object[capacity];
+		ids = new int[capacity];
+		idToValues = (K[]) new Object[capacity];
 	}
 
 	private Int2ObjectBiMap(K[] values, int[] ids, K[] idToValues, int nextId, int size) {
@@ -36,158 +40,137 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		this.size = size;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param expectedSize expected size
-	 *
-	 * @return Int2ObjectBiMap — результат операции
-	 */
 	public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
-		return new Int2ObjectBiMap((int) (expectedSize / 0.8F));
+		return new Int2ObjectBiMap<>((int) (expectedSize / LOAD_FACTOR));
 	}
 
 	@Override
 	public int getRawId(@Nullable K value) {
-		return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
+		return getIdFromIndex(findIndex(value, getIdealIndex(value)));
 	}
 
 	@Override
 	public @Nullable K get(int index) {
-		return index >= 0 && index < this.idToValues.length ? this.idToValues[index] : null;
+		return index >= 0 && index < idToValues.length ? idToValues[index] : null;
 	}
 
 	private int getIdFromIndex(int index) {
-		return index == -1 ? -1 : this.ids[index];
+		return index == ABSENT ? ABSENT : ids[index];
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param value value
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(K value) {
-		return this.getRawId(value) != -1;
+		return getRawId(value) != ABSENT;
 	}
 
-	/**
-	 * Contains key.
-	 *
-	 * @param index index
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean containsKey(int index) {
-		return this.get(index) != null;
+		return get(index) != null;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param value value
-	 *
-	 * @return int — результат операции
-	 */
 	public int add(K value) {
-		int i = this.nextId();
-		this.put(value, i);
-		return i;
+		int id = nextId();
+		put(value, id);
+		return id;
 	}
 
 	private int nextId() {
-		while (this.nextId < this.idToValues.length && this.idToValues[this.nextId] != null) {
-			this.nextId++;
+		while (nextId < idToValues.length && idToValues[nextId] != null) {
+			nextId++;
 		}
 
-		return this.nextId;
+		return nextId;
 	}
 
-	private void resize(int newSize) {
-		K[] objects = this.values;
-		int[] is = this.ids;
-		Int2ObjectBiMap<K> int2ObjectBiMap = new Int2ObjectBiMap<>(newSize);
+	private void resize(int newCapacity) {
+		K[] oldValues = values;
+		int[] oldIds = ids;
+		Int2ObjectBiMap<K> resized = new Int2ObjectBiMap<>(newCapacity);
 
-		for (int i = 0; i < objects.length; i++) {
-			if (objects[i] != null) {
-				int2ObjectBiMap.put(objects[i], is[i]);
+		for (int i = 0; i < oldValues.length; i++) {
+			if (oldValues[i] != null) {
+				resized.put(oldValues[i], oldIds[i]);
 			}
 		}
 
-		this.values = int2ObjectBiMap.values;
-		this.ids = int2ObjectBiMap.ids;
-		this.idToValues = int2ObjectBiMap.idToValues;
-		this.nextId = int2ObjectBiMap.nextId;
-		this.size = int2ObjectBiMap.size;
+		values = resized.values;
+		ids = resized.ids;
+		idToValues = resized.idToValues;
+		nextId = resized.nextId;
+		size = resized.size;
 	}
 
 	/**
-	 * Put.
+	 * Регистрирует значение с явно указанным ID.
+	 * При необходимости расширяет внутренние массивы.
 	 *
-	 * @param value value
-	 * @param id id
+	 * @param value значение для регистрации
+	 * @param id    числовой идентификатор
 	 */
 	public void put(K value, int id) {
-		int i = Math.max(id, this.size + 1);
-		if (i >= this.values.length * 0.8F) {
-			int j = this.values.length << 1;
+		int requiredCapacity = Math.max(id, size + 1);
 
-			while (j < id) {
-				j <<= 1;
+		if (requiredCapacity >= values.length * LOAD_FACTOR) {
+			int newCapacity = values.length << 1;
+
+			while (newCapacity < id) {
+				newCapacity <<= 1;
 			}
 
-			this.resize(j);
+			resize(newCapacity);
 		}
 
-		int j = this.findFree(this.getIdealIndex(value));
-		this.values[j] = value;
-		this.ids[j] = id;
-		this.idToValues[id] = value;
-		this.size++;
-		if (id == this.nextId) {
-			this.nextId++;
+		int slot = findFree(getIdealIndex(value));
+		values[slot] = value;
+		ids[slot] = id;
+		idToValues[id] = value;
+		size++;
+
+		if (id == nextId) {
+			nextId++;
 		}
 	}
 
 	private int getIdealIndex(@Nullable K value) {
-		return (MathHelper.idealHash(System.identityHashCode(value)) & 2147483647) % this.values.length;
+		return (MathHelper.idealHash(System.identityHashCode(value)) & Integer.MAX_VALUE) % values.length;
 	}
 
-	private int findIndex(@Nullable K value, int id) {
-		for (int i = id; i < this.values.length; i++) {
-			if (this.values[i] == value) {
+	/**
+	 * Ищет слот, содержащий указанное значение, начиная с позиции {@code startIndex}.
+	 * Использует линейное зондирование с обёрткой по кругу.
+	 */
+	private int findIndex(@Nullable K value, int startIndex) {
+		for (int i = startIndex; i < values.length; i++) {
+			if (values[i] == value) {
 				return i;
 			}
 
-			if (this.values[i] == EMPTY) {
-				return -1;
+			if (values[i] == null) {
+				return ABSENT;
 			}
 		}
 
-		for (int i = 0; i < id; i++) {
-			if (this.values[i] == value) {
+		for (int i = 0; i < startIndex; i++) {
+			if (values[i] == value) {
 				return i;
 			}
 
-			if (this.values[i] == EMPTY) {
-				return -1;
+			if (values[i] == null) {
+				return ABSENT;
 			}
 		}
 
-		return -1;
+		return ABSENT;
 	}
 
-	private int findFree(int size) {
-		for (int i = size; i < this.values.length; i++) {
-			if (this.values[i] == EMPTY) {
+	private int findFree(int startIndex) {
+		for (int i = startIndex; i < values.length; i++) {
+			if (values[i] == null) {
 				return i;
 			}
 		}
 
-		for (int ix = 0; ix < size; ix++) {
-			if (this.values[ix] == EMPTY) {
-				return ix;
+		for (int i = 0; i < startIndex; i++) {
+			if (values[i] == null) {
+				return i;
 			}
 		}
 
@@ -196,36 +179,28 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 
 	@Override
 	public Iterator<K> iterator() {
-		return Iterators.filter(Iterators.forArray(this.idToValues), Predicates.notNull());
+		return Iterators.filter(Iterators.forArray(idToValues), Predicates.notNull());
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		Arrays.fill(this.values, null);
-		Arrays.fill(this.idToValues, null);
-		this.nextId = 0;
-		this.size = 0;
+		Arrays.fill(values, null);
+		Arrays.fill(idToValues, null);
+		nextId = 0;
+		size = 0;
 	}
 
 	@Override
 	public int size() {
-		return this.size;
+		return size;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return Int2ObjectBiMap — результат операции
-	 */
 	public Int2ObjectBiMap<K> copy() {
 		return new Int2ObjectBiMap<>(
-				(K[]) ((Object[]) this.values.clone()),
-				(int[]) this.ids.clone(),
-				(K[]) ((Object[]) this.idToValues.clone()),
-				this.nextId,
-				this.size
+			(K[]) values.clone(),
+			ids.clone(),
+			(K[]) idToValues.clone(),
+			nextId,
+			size
 		);
 	}
 }

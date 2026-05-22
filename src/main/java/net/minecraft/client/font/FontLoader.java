@@ -11,10 +11,11 @@ import net.minecraft.util.Identifier;
 
 import java.io.IOException;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FontLoader}.
+ * Интерфейс загрузчика шрифта. Каждый тип шрифта реализует этот интерфейс
+ * и возвращает либо загружаемый провайдер ({@link Loadable}), либо ссылку на другой шрифт ({@link Reference}).
  */
+@Environment(EnvType.CLIENT)
 public interface FontLoader {
 
 	MapCodec<FontLoader> CODEC = FontType.CODEC.dispatchMap(FontLoader::getType, FontType::getLoaderCodec);
@@ -23,36 +24,36 @@ public interface FontLoader {
 
 	Either<FontLoader.Loadable, FontLoader.Reference> build();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Loadable}.
+	 * Загружаемый провайдер шрифта — непосредственно читает данные из ресурсов.
 	 */
-	public interface Loadable {
+	@Environment(EnvType.CLIENT)
+	interface Loadable {
 
 		Font load(ResourceManager resourceManager) throws IOException;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Provider}.
+	 * Провайдер шрифта с привязанной картой фильтров.
+	 * Используется при десериализации конфигурации шрифтов из {@code fonts.json}.
 	 */
-	public record Provider(FontLoader definition, FontFilterType.FilterMap filter) {
+	@Environment(EnvType.CLIENT)
+	record Provider(FontLoader definition, FontFilterType.FilterMap filter) {
 
 		public static final Codec<FontLoader.Provider> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    FontLoader.CODEC.forGetter(FontLoader.Provider::definition),
-						                    FontFilterType.FilterMap.CODEC
-								                    .optionalFieldOf("filter", FontFilterType.FilterMap.NO_FILTER)
-								                    .forGetter(FontLoader.Provider::filter)
-				                    )
-				                    .apply(instance, FontLoader.Provider::new)
+						FontLoader.CODEC.forGetter(FontLoader.Provider::definition),
+						FontFilterType.FilterMap.CODEC
+								.optionalFieldOf("filter", FontFilterType.FilterMap.NO_FILTER)
+								.forGetter(FontLoader.Provider::filter)
+				).apply(instance, FontLoader.Provider::new)
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Reference}.
+	 * Ссылка на другой шрифт по идентификатору — используется для переиспользования уже загруженных шрифтов.
 	 */
-	public record Reference(Identifier id) {
+	@Environment(EnvType.CLIENT)
+	record Reference(Identifier id) {
 	}
 }

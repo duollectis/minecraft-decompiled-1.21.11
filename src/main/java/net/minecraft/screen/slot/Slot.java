@@ -9,7 +9,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code Slot}.
+ * Слот инвентаря в экране обработчика.
+ * <p>
+ * Представляет одну ячейку инвентаря с позицией на экране и логикой ограничений
+ * (что можно вставить, кто может взять). Базовый класс для всех специализированных
+ * слотов (броня, результат крафта, топливо и т.д.).
  */
 public class Slot {
 
@@ -26,124 +30,73 @@ public class Slot {
 		this.y = y;
 	}
 
-	/**
-	 * Обрабатывает событие quick transfer.
-	 *
-	 * @param newItem new item
-	 * @param original original
-	 */
 	public void onQuickTransfer(ItemStack newItem, ItemStack original) {
-		int i = original.getCount() - newItem.getCount();
-		if (i > 0) {
-			this.onCrafted(original, i);
+		int transferred = original.getCount() - newItem.getCount();
+
+		if (transferred > 0) {
+			onCrafted(original, transferred);
 		}
 	}
 
-	/**
-	 * Обрабатывает событие crafted.
-	 *
-	 * @param stack stack
-	 * @param amount amount
-	 */
 	protected void onCrafted(ItemStack stack, int amount) {
 	}
 
-	/**
-	 * Обрабатывает событие take.
-	 *
-	 * @param amount amount
-	 */
 	public void onTake(int amount) {
 	}
 
-	/**
-	 * Обрабатывает событие crafted.
-	 *
-	 * @param stack stack
-	 */
 	protected void onCrafted(ItemStack stack) {
 	}
 
-	/**
-	 * Обрабатывает событие take item.
-	 *
-	 * @param player player
-	 * @param stack stack
-	 */
 	public void onTakeItem(PlayerEntity player, ItemStack stack) {
-		this.markDirty();
+		markDirty();
 	}
 
-	/**
-	 * Проверяет возможность insert.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canInsert(ItemStack stack) {
 		return true;
 	}
 
 	public ItemStack getStack() {
-		return this.inventory.getStack(this.index);
+		return inventory.getStack(index);
 	}
 
 	public boolean hasStack() {
-		return !this.getStack().isEmpty();
+		return !getStack().isEmpty();
 	}
 
 	public void setStack(ItemStack stack) {
-		this.setStack(stack, this.getStack());
+		setStack(stack, getStack());
 	}
 
 	public void setStack(ItemStack stack, ItemStack previousStack) {
-		this.setStackNoCallbacks(stack);
+		setStackNoCallbacks(stack);
 	}
 
 	public void setStackNoCallbacks(ItemStack stack) {
-		this.inventory.setStack(this.index, stack);
-		this.markDirty();
+		inventory.setStack(index, stack);
+		markDirty();
 	}
 
-	/**
-	 * Mark dirty.
-	 */
 	public void markDirty() {
-		this.inventory.markDirty();
+		inventory.markDirty();
 	}
 
 	public int getMaxItemCount() {
-		return this.inventory.getMaxCountPerStack();
+		return inventory.getMaxCountPerStack();
 	}
 
 	public int getMaxItemCount(ItemStack stack) {
-		return Math.min(this.getMaxItemCount(), stack.getMaxCount());
+		return Math.min(getMaxItemCount(), stack.getMaxCount());
 	}
 
 	public @Nullable Identifier getBackgroundSprite() {
 		return null;
 	}
 
-	/**
-	 * Take stack.
-	 *
-	 * @param amount amount
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack takeStack(int amount) {
-		return this.inventory.removeStack(this.index, amount);
+		return inventory.removeStack(index, amount);
 	}
 
-	/**
-	 * Проверяет возможность take items.
-	 *
-	 * @param playerEntity player entity
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canTakeItems(PlayerEntity playerEntity) {
+	public boolean canTakeItems(PlayerEntity player) {
 		return true;
 	}
 
@@ -152,125 +105,90 @@ public class Slot {
 	}
 
 	/**
-	 * Try take stack range.
+	 * Пытается взять из слота от {@code min} до {@code max} предметов.
+	 * Учитывает ограничения {@link #canTakeItems} и {@link #canTakePartial}.
 	 *
-	 * @param min min
-	 * @param max max
-	 * @param player player
-	 *
-	 * @return Optional — результат операции
+	 * @param min    минимальное желаемое количество
+	 * @param max    максимальное желаемое количество
+	 * @param player игрок, выполняющий действие
+	 * @return взятый стек или {@link Optional#empty()} если взять невозможно
 	 */
 	public Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
-		if (!this.canTakeItems(player)) {
+		if (!canTakeItems(player)) {
 			return Optional.empty();
 		}
-		else if (!this.canTakePartial(player) && max < this.getStack().getCount()) {
-			return Optional.empty();
-		}
-		else {
-			min = Math.min(min, max);
-			ItemStack itemStack = this.takeStack(min);
-			if (itemStack.isEmpty()) {
-				return Optional.empty();
-			}
-			else {
-				if (this.getStack().isEmpty()) {
-					this.setStack(ItemStack.EMPTY, itemStack);
-				}
 
-				return Optional.of(itemStack);
-			}
+		if (!canTakePartial(player) && max < getStack().getCount()) {
+			return Optional.empty();
 		}
+
+		int actualAmount = Math.min(min, max);
+		ItemStack taken = takeStack(actualAmount);
+
+		if (taken.isEmpty()) {
+			return Optional.empty();
+		}
+
+		if (getStack().isEmpty()) {
+			setStack(ItemStack.EMPTY, taken);
+		}
+
+		return Optional.of(taken);
 	}
 
-	/**
-	 * Take stack range.
-	 *
-	 * @param min min
-	 * @param max max
-	 * @param player player
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack takeStackRange(int min, int max, PlayerEntity player) {
-		Optional<ItemStack> optional = this.tryTakeStackRange(min, max, player);
-		optional.ifPresent(stack -> this.onTakeItem(player, stack));
-		return optional.orElse(ItemStack.EMPTY);
+		Optional<ItemStack> taken = tryTakeStackRange(min, max, player);
+		taken.ifPresent(stack -> onTakeItem(player, stack));
+		return taken.orElse(ItemStack.EMPTY);
 	}
 
 	/**
-	 * Insert stack.
+	 * Вставляет указанное количество предметов из стека в слот.
+	 * Возвращает остаток стека после вставки.
 	 *
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack insertStack(ItemStack stack) {
-		return this.insertStack(stack, stack.getCount());
-	}
-
-	/**
-	 * Insert stack.
-	 *
-	 * @param stack stack
-	 * @param count count
-	 *
-	 * @return ItemStack — результат операции
+	 * @param stack стек для вставки
+	 * @param count максимальное количество для вставки
+	 * @return остаток стека (может быть тем же объектом если вставка невозможна)
 	 */
 	public ItemStack insertStack(ItemStack stack, int count) {
-		if (!stack.isEmpty() && this.canInsert(stack)) {
-			ItemStack itemStack = this.getStack();
-			int i = Math.min(Math.min(count, stack.getCount()), this.getMaxItemCount(stack) - itemStack.getCount());
-			if (i <= 0) {
-				return stack;
-			}
-			else {
-				if (itemStack.isEmpty()) {
-					this.setStack(stack.split(i));
-				}
-				else if (ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
-					stack.decrement(i);
-					itemStack.increment(i);
-					this.setStack(itemStack);
-				}
-
-				return stack;
-			}
-		}
-		else {
+		if (stack.isEmpty() || !canInsert(stack)) {
 			return stack;
 		}
+
+		ItemStack current = getStack();
+		int insertable = Math.min(Math.min(count, stack.getCount()), getMaxItemCount(stack) - current.getCount());
+
+		if (insertable <= 0) {
+			return stack;
+		}
+
+		if (current.isEmpty()) {
+			setStack(stack.split(insertable));
+		} else if (ItemStack.areItemsAndComponentsEqual(current, stack)) {
+			stack.decrement(insertable);
+			current.increment(insertable);
+			setStack(current);
+		}
+
+		return stack;
 	}
 
-	/**
-	 * Проверяет возможность take partial.
-	 *
-	 * @param player player
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	public ItemStack insertStack(ItemStack stack) {
+		return insertStack(stack, stack.getCount());
+	}
+
 	public boolean canTakePartial(PlayerEntity player) {
-		return this.canTakeItems(player) && this.canInsert(this.getStack());
+		return canTakeItems(player) && canInsert(getStack());
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
-	/**
-	 * Проверяет возможность be highlighted.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canBeHighlighted() {
 		return true;
 	}
 
-	/**
-	 * Отключает s dynamic display.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean disablesDynamicDisplay() {
 		return false;
 	}

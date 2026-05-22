@@ -1,7 +1,8 @@
 package net.minecraft.test;
 
 /**
- * {@code TestCompletionListener}.
+ * Слушатель глобального завершения тестов.
+ * Используется для агрегированной отчётности (например, XML-отчёт).
  */
 public interface TestCompletionListener {
 

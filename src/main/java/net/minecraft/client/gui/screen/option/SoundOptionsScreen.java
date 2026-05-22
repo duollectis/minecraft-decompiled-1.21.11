@@ -10,10 +10,11 @@ import net.minecraft.text.Text;
 
 import java.util.Arrays;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SoundOptionsScreen}.
+ * Экран настроек звука — управляет громкостью по категориям,
+ * субтитрами, направленным звуком и частотой музыки.
  */
+@Environment(EnvType.CLIENT)
 public class SoundOptionsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE_TEXT = Text.translatable("options.sounds.title");
@@ -24,17 +25,17 @@ public class SoundOptionsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void addOptions() {
-		this.body.addSingleOptionEntry(this.gameOptions.getSoundVolumeOption(SoundCategory.MASTER));
-		this.body.addAll(this.getVolumeOptions());
-		this.body.addSingleOptionEntry(this.gameOptions.getSoundDevice());
-		this.body.addAll(this.gameOptions.getShowSubtitles(), this.gameOptions.getDirectionalAudio());
-		this.body.addAll(this.gameOptions.getMusicFrequency(), this.gameOptions.getMusicToast());
+		body.addSingleOptionEntry(gameOptions.getSoundVolumeOption(SoundCategory.MASTER));
+		body.addAll(getVolumeOptions());
+		body.addSingleOptionEntry(gameOptions.getSoundDevice());
+		body.addAll(gameOptions.getShowSubtitles(), gameOptions.getDirectionalAudio());
+		body.addAll(gameOptions.getMusicFrequency(), gameOptions.getMusicToast());
 	}
 
 	private SimpleOption<?>[] getVolumeOptions() {
 		return Arrays.stream(SoundCategory.values())
-		             .filter(category -> category != SoundCategory.MASTER)
-		             .map(this.gameOptions::getSoundVolumeOption)
-		             .toArray(SimpleOption[]::new);
+				.filter(category -> category != SoundCategory.MASTER)
+				.map(gameOptions::getSoundVolumeOption)
+				.toArray(SimpleOption[]::new);
 	}
 }

@@ -37,7 +37,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code GuardianEntity}.
+ * Страж — водный моб, атакующий лучом. В закрытом состоянии (шипы выпущены) наносит
+ * урон атакующим в ближнем бою. Луч заряжается {@code WARMUP_TIME} тиков перед выстрелом.
+ * Передвигается только в воде; на суше прыгает и задыхается.
  */
 public class GuardianEntity extends HostileEntity {
 
@@ -60,26 +62,26 @@ public class GuardianEntity extends HostileEntity {
 
 	public GuardianEntity(EntityType<? extends GuardianEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 10;
-		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
-		this.moveControl = new GuardianEntity.GuardianMoveControl(this);
-		this.tailAngle = this.random.nextFloat();
-		this.lastTailAngle = this.tailAngle;
+		experiencePoints = 10;
+		setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		moveControl = new GuardianEntity.GuardianMoveControl(this);
+		tailAngle = random.nextFloat();
+		lastTailAngle = tailAngle;
 	}
 
 	@Override
 	protected void initGoals() {
 		GoToWalkTargetGoal goToWalkTargetGoal = new GoToWalkTargetGoal(this, 1.0);
-		this.wanderGoal = new WanderAroundGoal(this, 1.0, 80);
-		this.goalSelector.add(4, new GuardianEntity.FireBeamGoal(this));
-		this.goalSelector.add(5, goToWalkTargetGoal);
-		this.goalSelector.add(7, this.wanderGoal);
-		this.goalSelector.add(8, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(8, new LookAtEntityGoal(this, GuardianEntity.class, 12.0F, 0.01F));
-		this.goalSelector.add(9, new LookAroundGoal(this));
-		this.wanderGoal.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		wanderGoal = new WanderAroundGoal(this, 1.0, WARMUP_TIME);
+		goalSelector.add(4, new GuardianEntity.FireBeamGoal(this));
+		goalSelector.add(5, goToWalkTargetGoal);
+		goalSelector.add(7, wanderGoal);
+		goalSelector.add(8, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(8, new LookAtEntityGoal(this, GuardianEntity.class, 12.0F, 0.01F));
+		goalSelector.add(9, new LookAroundGoal(this));
+		wanderGoal.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 		goToWalkTargetGoal.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-		this.targetSelector.add(
+		targetSelector.add(
 				1,
 				new ActiveTargetGoal<>(
 						this,
@@ -111,61 +113,58 @@ public class GuardianEntity extends HostileEntity {
 		builder.add(BEAM_TARGET_ID, 0);
 	}
 
-	/**
-	 * Are spikes retracted.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean areSpikesRetracted() {
-		return this.dataTracker.get(SPIKES_RETRACTED);
+		return dataTracker.get(SPIKES_RETRACTED);
 	}
 
 	void setSpikesRetracted(boolean retracted) {
-		this.dataTracker.set(SPIKES_RETRACTED, retracted);
+		dataTracker.set(SPIKES_RETRACTED, retracted);
 	}
 
 	public int getWarmupTime() {
-		return 80;
+		return WARMUP_TIME;
 	}
 
 	void setBeamTarget(int entityId) {
-		this.dataTracker.set(BEAM_TARGET_ID, entityId);
+		dataTracker.set(BEAM_TARGET_ID, entityId);
 	}
 
 	public boolean hasBeamTarget() {
-		return this.dataTracker.get(BEAM_TARGET_ID) != 0;
+		return dataTracker.get(BEAM_TARGET_ID) != 0;
 	}
 
+	/**
+	 * Возвращает текущую цель луча. На клиенте использует кэш по ID сущности,
+	 * на сервере — напрямую возвращает цель атаки.
+	 */
 	public @Nullable LivingEntity getBeamTarget() {
-		if (!this.hasBeamTarget()) {
+		if (!hasBeamTarget()) {
 			return null;
 		}
-		else if (this.getEntityWorld().isClient()) {
-			if (this.cachedBeamTarget != null) {
-				return this.cachedBeamTarget;
+
+		if (getEntityWorld().isClient()) {
+			if (cachedBeamTarget != null) {
+				return cachedBeamTarget;
 			}
-			else {
-				Entity entity = this.getEntityWorld().getEntityById(this.dataTracker.get(BEAM_TARGET_ID));
-				if (entity instanceof LivingEntity) {
-					this.cachedBeamTarget = (LivingEntity) entity;
-					return this.cachedBeamTarget;
-				}
-				else {
-					return null;
-				}
+
+			Entity entity = getEntityWorld().getEntityById(dataTracker.get(BEAM_TARGET_ID));
+			if (entity instanceof LivingEntity livingEntity) {
+				cachedBeamTarget = livingEntity;
+				return cachedBeamTarget;
 			}
+
+			return null;
 		}
-		else {
-			return this.getTarget();
-		}
+
+		return getTarget();
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
 		if (BEAM_TARGET_ID.equals(data)) {
-			this.beamTicks = 0;
-			this.cachedBeamTarget = null;
+			beamTicks = 0;
+			cachedBeamTarget = null;
 		}
 	}
 
@@ -176,17 +175,17 @@ public class GuardianEntity extends HostileEntity {
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_AMBIENT : SoundEvents.ENTITY_GUARDIAN_AMBIENT_LAND;
+		return isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_AMBIENT : SoundEvents.ENTITY_GUARDIAN_AMBIENT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getHurtSound(DamageSource source) {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_HURT : SoundEvents.ENTITY_GUARDIAN_HURT_LAND;
+		return isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_HURT : SoundEvents.ENTITY_GUARDIAN_HURT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getDeathSound() {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_DEATH : SoundEvents.ENTITY_GUARDIAN_DEATH_LAND;
+		return isTouchingWater() ? SoundEvents.ENTITY_GUARDIAN_DEATH : SoundEvents.ENTITY_GUARDIAN_DEATH_LAND;
 	}
 
 	@Override
@@ -196,130 +195,110 @@ public class GuardianEntity extends HostileEntity {
 
 	@Override
 	public float getPathfindingFavor(BlockPos pos, WorldView world) {
-		return world.getFluidState(pos).isIn(FluidTags.WATER) ? 10.0F + world.getPhototaxisFavor(pos)
-		                                                      : super.getPathfindingFavor(pos, world);
+		return world.getFluidState(pos).isIn(FluidTags.WATER)
+				? 10.0F + world.getPhototaxisFavor(pos)
+				: super.getPathfindingFavor(pos, world);
 	}
 
 	@Override
 	public void tickMovement() {
-		if (this.isAlive()) {
-			if (this.getEntityWorld().isClient()) {
-				this.lastTailAngle = this.tailAngle;
-				if (!this.isTouchingWater()) {
-					this.spikesExtensionRate = 2.0F;
-					Vec3d vec3d = this.getVelocity();
-					if (vec3d.y > 0.0 && this.flopping && !this.isSilent()) {
-						this
-								.getEntityWorld()
-								.playSoundClient(
-										this.getX(),
-										this.getY(),
-										this.getZ(),
-										this.getFlopSound(),
-										this.getSoundCategory(),
-										1.0F,
-										1.0F,
-										false
-								);
+		if (isAlive()) {
+			if (getEntityWorld().isClient()) {
+				lastTailAngle = tailAngle;
+
+				if (!isTouchingWater()) {
+						spikesExtensionRate = 2.0F;
+					Vec3d velocity = getVelocity();
+
+					if (velocity.y > 0.0 && flopping && !isSilent()) {
+						getEntityWorld().playSoundClient(
+								getX(), getY(), getZ(),
+								getFlopSound(), getSoundCategory(),
+								1.0F, 1.0F, false
+						);
 					}
 
-					this.flopping = vec3d.y < 0.0 && this.getEntityWorld().isTopSolid(this.getBlockPos().down(), this);
-				}
-				else if (this.areSpikesRetracted()) {
-					if (this.spikesExtensionRate < 0.5F) {
-						this.spikesExtensionRate = 4.0F;
-					}
-					else {
-						this.spikesExtensionRate = this.spikesExtensionRate + (0.5F - this.spikesExtensionRate) * 0.1F;
-					}
-				}
-				else {
-					this.spikesExtensionRate = this.spikesExtensionRate + (0.125F - this.spikesExtensionRate) * 0.2F;
+					flopping = velocity.y < 0.0 && getEntityWorld().isTopSolid(getBlockPos().down(), this);
+				} else if (areSpikesRetracted()) {
+					spikesExtensionRate = spikesExtensionRate < 0.5F
+							? 4.0F
+							: spikesExtensionRate + (0.5F - spikesExtensionRate) * 0.1F;
+				} else {
+					spikesExtensionRate = spikesExtensionRate + (0.125F - spikesExtensionRate) * 0.2F;
 				}
 
-				this.tailAngle = this.tailAngle + this.spikesExtensionRate;
-				this.lastSpikesExtension = this.spikesExtension;
-				if (!this.isTouchingWater()) {
-					this.spikesExtension = this.random.nextFloat();
-				}
-				else if (this.areSpikesRetracted()) {
-					this.spikesExtension = this.spikesExtension + (0.0F - this.spikesExtension) * 0.25F;
-				}
-				else {
-					this.spikesExtension = this.spikesExtension + (1.0F - this.spikesExtension) * 0.06F;
+				tailAngle += spikesExtensionRate;
+				lastSpikesExtension = spikesExtension;
+
+				if (!isTouchingWater()) {
+						spikesExtension = random.nextFloat();
+				} else if (areSpikesRetracted()) {
+					spikesExtension += (0.0F - spikesExtension) * 0.25F;
+				} else {
+					spikesExtension += (1.0F - spikesExtension) * 0.06F;
 				}
 
-				if (this.areSpikesRetracted() && this.isTouchingWater()) {
-					Vec3d vec3d = this.getRotationVec(0.0F);
-
-					for (int i = 0; i < 2; i++) {
-						this.getEntityWorld()
-						    .addParticleClient(
-								    ParticleTypes.BUBBLE,
-								    this.getParticleX(0.5) - vec3d.x * 1.5,
-								    this.getRandomBodyY() - vec3d.y * 1.5,
-								    this.getParticleZ(0.5) - vec3d.z * 1.5,
-								    0.0,
-								    0.0,
-								    0.0
-						    );
+				if (areSpikesRetracted() && isTouchingWater()) {
+					Vec3d rotVec = getRotationVec(0.0F);
+					for (int bubbleIndex = 0; bubbleIndex < 2; bubbleIndex++) {
+						getEntityWorld().addParticleClient(
+								ParticleTypes.BUBBLE,
+								getParticleX(0.5) - rotVec.x * 1.5,
+								getRandomBodyY() - rotVec.y * 1.5,
+								getParticleZ(0.5) - rotVec.z * 1.5,
+								0.0, 0.0, 0.0
+						);
 					}
 				}
 
-				if (this.hasBeamTarget()) {
-					if (this.beamTicks < this.getWarmupTime()) {
-						this.beamTicks++;
+				if (hasBeamTarget()) {
+					if (beamTicks < getWarmupTime()) {
+						beamTicks++;
 					}
 
-					LivingEntity livingEntity = this.getBeamTarget();
-					if (livingEntity != null) {
-						this.getLookControl().lookAt(livingEntity, 90.0F, 90.0F);
-						this.getLookControl().tick();
-						double d = this.getBeamProgress(0.0F);
-						double e = livingEntity.getX() - this.getX();
-						double f = livingEntity.getBodyY(0.5) - this.getEyeY();
-						double g = livingEntity.getZ() - this.getZ();
-						double h = Math.sqrt(e * e + f * f + g * g);
-						e /= h;
-						f /= h;
-						g /= h;
-						double j = this.random.nextDouble();
+					LivingEntity beamTarget = getBeamTarget();
+					if (beamTarget != null) {
+						getLookControl().lookAt(beamTarget, 90.0F, 90.0F);
+						getLookControl().tick();
+						double beamProgress = getBeamProgress(0.0F);
+						double dx = beamTarget.getX() - getX();
+						double dy = beamTarget.getBodyY(0.5) - getEyeY();
+						double dz = beamTarget.getZ() - getZ();
+						double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+						dx /= dist;
+						dy /= dist;
+						dz /= dist;
+						double particlePos = random.nextDouble();
 
-						while (j < h) {
-							j += 1.8 - d + this.random.nextDouble() * (1.7 - d);
-							this.getEntityWorld()
-							    .addParticleClient(
-									    ParticleTypes.BUBBLE,
-									    this.getX() + e * j,
-									    this.getEyeY() + f * j,
-									    this.getZ() + g * j,
-									    0.0,
-									    0.0,
-									    0.0
-							    );
+						while (particlePos < dist) {
+							particlePos += 1.8 - beamProgress + random.nextDouble() * (1.7 - beamProgress);
+							getEntityWorld().addParticleClient(
+									ParticleTypes.BUBBLE,
+									getX() + dx * particlePos,
+									getEyeY() + dy * particlePos,
+									getZ() + dz * particlePos,
+									0.0, 0.0, 0.0
+							);
 						}
 					}
 				}
 			}
 
-			if (this.isTouchingWater()) {
-				this.setAir(300);
-			}
-			else if (this.isOnGround()) {
-				this.setVelocity(this
-						.getVelocity()
-						.add(
-								(this.random.nextFloat() * 2.0F - 1.0F) * 0.4F,
-								0.5,
-								(this.random.nextFloat() * 2.0F - 1.0F) * 0.4F
-						));
-				this.setYaw(this.random.nextFloat() * 360.0F);
-				this.setOnGround(false);
-				this.velocityDirty = true;
+			if (isTouchingWater()) {
+				setAir(300);
+			} else if (isOnGround()) {
+				setVelocity(getVelocity().add(
+						(random.nextFloat() * 2.0F - 1.0F) * 0.4F,
+						0.5,
+						(random.nextFloat() * 2.0F - 1.0F) * 0.4F
+				));
+				setYaw(random.nextFloat() * 360.0F);
+				setOnGround(false);
+				velocityDirty = true;
 			}
 
-			if (this.hasBeamTarget()) {
-				this.setYaw(this.headYaw);
+			if (hasBeamTarget()) {
+				setYaw(headYaw);
 			}
 		}
 
@@ -331,19 +310,19 @@ public class GuardianEntity extends HostileEntity {
 	}
 
 	public float getTailAngle(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastTailAngle, this.tailAngle);
+		return MathHelper.lerp(tickProgress, lastTailAngle, tailAngle);
 	}
 
 	public float getSpikesExtension(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastSpikesExtension, this.spikesExtension);
+		return MathHelper.lerp(tickProgress, lastSpikesExtension, spikesExtension);
 	}
 
 	public float getBeamProgress(float tickProgress) {
-		return (this.beamTicks + tickProgress) / this.getWarmupTime();
+		return (beamTicks + tickProgress) / getWarmupTime();
 	}
 
 	public float getBeamTicks() {
-		return this.beamTicks;
+		return beamTicks;
 	}
 
 	@Override
@@ -366,15 +345,16 @@ public class GuardianEntity extends HostileEntity {
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (!this.areSpikesRetracted()
+		if (!areSpikesRetracted()
 				&& !source.isIn(DamageTypeTags.AVOIDS_GUARDIAN_THORNS)
 				&& !source.isOf(DamageTypes.THORNS)
-				&& source.getSource() instanceof LivingEntity livingEntity) {
-			livingEntity.damage(world, this.getDamageSources().thorns(this), 2.0F);
+				&& source.getSource() instanceof LivingEntity attacker
+		) {
+			attacker.damage(world, getDamageSources().thorns(this), 2.0F);
 		}
 
-		if (this.wanderGoal != null) {
-			this.wanderGoal.ignoreChanceOnce();
+		if (wanderGoal != null) {
+			wanderGoal.ignoreChanceOnce();
 		}
 
 		return super.damage(world, source, amount);
@@ -387,17 +367,15 @@ public class GuardianEntity extends HostileEntity {
 
 	@Override
 	protected void travelInWater(Vec3d movementInput, double gravity, boolean falling, double y) {
-		this.updateVelocity(0.1F, movementInput);
-		this.move(MovementType.SELF, this.getVelocity());
-		this.setVelocity(this.getVelocity().multiply(0.9));
-		if (!this.areSpikesRetracted() && this.getTarget() == null) {
-			this.setVelocity(this.getVelocity().add(0.0, -0.005, 0.0));
+		updateVelocity(0.1F, movementInput);
+		move(MovementType.SELF, getVelocity());
+		setVelocity(getVelocity().multiply(0.9));
+
+		if (!areSpikesRetracted() && getTarget() == null) {
+			setVelocity(getVelocity().add(0.0, -0.005, 0.0));
 		}
 	}
 
-	/**
-	 * {@code FireBeamGoal}.
-	 */
 	static class FireBeamGoal extends Goal {
 
 		private final GuardianEntity guardian;
@@ -458,27 +436,30 @@ public class GuardianEntity extends HostileEntity {
 				}
 				else {
 					this.beamTicks++;
+
 					if (this.beamTicks == 0) {
 						this.guardian.setBeamTarget(livingEntity.getId());
+
 						if (!this.guardian.isSilent()) {
 							this.guardian.getEntityWorld().sendEntityStatus(this.guardian, (byte) 21);
 						}
 					}
 					else if (this.beamTicks >= this.guardian.getWarmupTime()) {
-						float f = 1.0F;
+						float damage = 1.0F;
+
 						if (this.guardian.getEntityWorld().getDifficulty() == Difficulty.HARD) {
-							f += 2.0F;
+							damage += 2.0F;
 						}
 
 						if (this.elder) {
-							f += 2.0F;
+							damage += 2.0F;
 						}
 
 						ServerWorld serverWorld = getServerWorld(this.guardian);
 						livingEntity.damage(
 								serverWorld,
 								this.guardian.getDamageSources().indirectMagic(this.guardian, this.guardian),
-								f
+								damage
 						);
 						this.guardian.tryAttack(serverWorld, livingEntity);
 						this.guardian.setTarget(null);
@@ -490,9 +471,6 @@ public class GuardianEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code GuardianMoveControl}.
-	 */
 	static class GuardianMoveControl extends MoveControl {
 
 		private final GuardianEntity guardian;
@@ -505,49 +483,48 @@ public class GuardianEntity extends HostileEntity {
 		@Override
 		public void tick() {
 			if (this.state == MoveControl.State.MOVE_TO && !this.guardian.getNavigation().isIdle()) {
-				Vec3d
-						vec3d =
-						new Vec3d(
-								this.targetX - this.guardian.getX(),
-								this.targetY - this.guardian.getY(),
-								this.targetZ - this.guardian.getZ()
-						);
-				double d = vec3d.length();
-				double e = vec3d.x / d;
-				double f = vec3d.y / d;
-				double g = vec3d.z / d;
-				float h = (float) (MathHelper.atan2(vec3d.z, vec3d.x) * 180.0F / (float) Math.PI) - 90.0F;
-				this.guardian.setYaw(this.wrapDegrees(this.guardian.getYaw(), h, 90.0F));
+				Vec3d delta = new Vec3d(
+						this.targetX - this.guardian.getX(),
+						this.targetY - this.guardian.getY(),
+						this.targetZ - this.guardian.getZ()
+				);
+				double dist = delta.length();
+				double normX = delta.x / dist;
+				double normY = delta.y / dist;
+				double normZ = delta.z / dist;
+				float targetYaw = (float) (MathHelper.atan2(delta.z, delta.x) * 180.0F / (float) Math.PI) - 90.0F;
+				this.guardian.setYaw(this.wrapDegrees(this.guardian.getYaw(), targetYaw, 90.0F));
 				this.guardian.bodyYaw = this.guardian.getYaw();
-				float i = (float) (this.speed * this.guardian.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
-				float j = MathHelper.lerp(0.125F, this.guardian.getMovementSpeed(), i);
-				this.guardian.setMovementSpeed(j);
-				double k = Math.sin((this.guardian.age + this.guardian.getId()) * 0.5) * 0.05;
-				double l = Math.cos(this.guardian.getYaw() * (float) (Math.PI / 180.0));
-				double m = Math.sin(this.guardian.getYaw() * (float) (Math.PI / 180.0));
-				double n = Math.sin((this.guardian.age + this.guardian.getId()) * 0.75) * 0.05;
+				float targetSpeed = (float) (this.speed * this.guardian.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
+				float lerpedSpeed = MathHelper.lerp(0.125F, this.guardian.getMovementSpeed(), targetSpeed);
+				this.guardian.setMovementSpeed(lerpedSpeed);
+				double sineWobble = Math.sin((this.guardian.age + this.guardian.getId()) * 0.5) * 0.05;
+				double cosYaw = Math.cos(this.guardian.getYaw() * (float) (Math.PI / 180.0));
+				double sinYaw = Math.sin(this.guardian.getYaw() * (float) (Math.PI / 180.0));
+				double cosWobble = Math.sin((this.guardian.age + this.guardian.getId()) * 0.75) * 0.05;
 				this.guardian.setVelocity(this.guardian
 						.getVelocity()
-						.add(k * l, n * (m + l) * 0.25 + j * f * 0.1, k * m));
+						.add(sineWobble * cosYaw, cosWobble * (sinYaw + cosYaw) * 0.25 + lerpedSpeed * normY * 0.1, sineWobble * sinYaw));
 				LookControl lookControl = this.guardian.getLookControl();
-				double o = this.guardian.getX() + e * 2.0;
-				double p = this.guardian.getEyeY() + f / d;
-				double q = this.guardian.getZ() + g * 2.0;
-				double r = lookControl.getLookX();
-				double s = lookControl.getLookY();
-				double t = lookControl.getLookZ();
+				double lookTargetX = this.guardian.getX() + normX * 2.0;
+				double lookTargetY = this.guardian.getEyeY() + normY / dist;
+				double lookTargetZ = this.guardian.getZ() + normZ * 2.0;
+				double currentLookX = lookControl.getLookX();
+				double currentLookY = lookControl.getLookY();
+				double currentLookZ = lookControl.getLookZ();
+
 				if (!lookControl.isLookingAtSpecificPosition()) {
-					r = o;
-					s = p;
-					t = q;
+					currentLookX = lookTargetX;
+					currentLookY = lookTargetY;
+					currentLookZ = lookTargetZ;
 				}
 
 				this.guardian
 						.getLookControl()
 						.lookAt(
-								MathHelper.lerp(0.125, r, o),
-								MathHelper.lerp(0.125, s, p),
-								MathHelper.lerp(0.125, t, q),
+								MathHelper.lerp(0.125, currentLookX, lookTargetX),
+								MathHelper.lerp(0.125, currentLookY, lookTargetY),
+								MathHelper.lerp(0.125, currentLookZ, lookTargetZ),
 								10.0F,
 								40.0F
 						);
@@ -560,9 +537,6 @@ public class GuardianEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code GuardianTargetPredicate}.
-	 */
 	static class GuardianTargetPredicate implements TargetPredicate.EntityPredicate {
 
 		private final GuardianEntity owner;

@@ -12,61 +12,66 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code HeightmapRenamingFix}.
+ * Переименовывает устаревшие ключи карт высот чанка:
+ * {@code LIQUID} → {@code WORLD_SURFACE_WG},
+ * {@code SOLID} → {@code OCEAN_FLOOR_WG} + {@code OCEAN_FLOOR},
+ * {@code LIGHT} → {@code LIGHT_BLOCKING},
+ * {@code RAIN} → {@code MOTION_BLOCKING} + {@code MOTION_BLOCKING_NO_LEAVES}.
  */
 public class HeightmapRenamingFix extends DataFix {
 
-	public HeightmapRenamingFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public HeightmapRenamingFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("Level");
-		return this.fixTypeEverywhereTyped(
-				"HeightmapRenamingFix",
-				type,
-				chunkTyped -> chunkTyped.updateTyped(
-						opticFinder,
-						levelTyped -> levelTyped.update(DSL.remainderFinder(), this::renameHeightmapTags)
-				)
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> levelFinder = chunkType.findField("Level");
+
+		return fixTypeEverywhereTyped(
+			"HeightmapRenamingFix",
+			chunkType,
+			chunk -> chunk.updateTyped(
+				levelFinder,
+				level -> level.update(DSL.remainderFinder(), this::renameHeightmapTags)
+			)
 		);
 	}
 
-	private Dynamic<?> renameHeightmapTags(Dynamic<?> levelDynamic) {
-		Optional<? extends Dynamic<?>> optional = levelDynamic.get("Heightmaps").result();
-		if (optional.isEmpty()) {
-			return levelDynamic;
+	private Dynamic<?> renameHeightmapTags(Dynamic<?> level) {
+		Optional<? extends Dynamic<?>> heightmapsOpt = level.get("Heightmaps").result();
+
+		if (heightmapsOpt.isEmpty()) {
+			return level;
 		}
-		else {
-			Dynamic<?> dynamic = (Dynamic<?>) optional.get();
-			Optional<? extends Dynamic<?>> optional2 = dynamic.get("LIQUID").result();
-			if (optional2.isPresent()) {
-				dynamic = dynamic.remove("LIQUID");
-				dynamic = dynamic.set("WORLD_SURFACE_WG", optional2.get());
-			}
 
-			Optional<? extends Dynamic<?>> optional3 = dynamic.get("SOLID").result();
-			if (optional3.isPresent()) {
-				dynamic = dynamic.remove("SOLID");
-				dynamic = dynamic.set("OCEAN_FLOOR_WG", optional3.get());
-				dynamic = dynamic.set("OCEAN_FLOOR", optional3.get());
-			}
+		Dynamic<?> heightmaps = heightmapsOpt.get();
 
-			Optional<? extends Dynamic<?>> optional4 = dynamic.get("LIGHT").result();
-			if (optional4.isPresent()) {
-				dynamic = dynamic.remove("LIGHT");
-				dynamic = dynamic.set("LIGHT_BLOCKING", optional4.get());
-			}
-
-			Optional<? extends Dynamic<?>> optional5 = dynamic.get("RAIN").result();
-			if (optional5.isPresent()) {
-				dynamic = dynamic.remove("RAIN");
-				dynamic = dynamic.set("MOTION_BLOCKING", optional5.get());
-				dynamic = dynamic.set("MOTION_BLOCKING_NO_LEAVES", optional5.get());
-			}
-
-			return levelDynamic.set("Heightmaps", dynamic);
+		Optional<? extends Dynamic<?>> liquid = heightmaps.get("LIQUID").result();
+		if (liquid.isPresent()) {
+			heightmaps = heightmaps.remove("LIQUID").set("WORLD_SURFACE_WG", liquid.get());
 		}
+
+		Optional<? extends Dynamic<?>> solid = heightmaps.get("SOLID").result();
+		if (solid.isPresent()) {
+			heightmaps = heightmaps.remove("SOLID")
+				.set("OCEAN_FLOOR_WG", solid.get())
+				.set("OCEAN_FLOOR", solid.get());
+		}
+
+		Optional<? extends Dynamic<?>> light = heightmaps.get("LIGHT").result();
+		if (light.isPresent()) {
+			heightmaps = heightmaps.remove("LIGHT").set("LIGHT_BLOCKING", light.get());
+		}
+
+		Optional<? extends Dynamic<?>> rain = heightmaps.get("RAIN").result();
+		if (rain.isPresent()) {
+			heightmaps = heightmaps.remove("RAIN")
+				.set("MOTION_BLOCKING", rain.get())
+				.set("MOTION_BLOCKING_NO_LEAVES", rain.get());
+		}
+
+		return level.set("Heightmaps", heightmaps);
 	}
 }

@@ -21,7 +21,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@code NoiseConfig}.
+ * Конфигурация шума для генерации мира: хранит все сэмплеры шума,
+ * роутер плотности, мульти-шумовой сэмплер и строитель поверхности.
+ * Создаётся один раз на мир и используется потокобезопасно через ConcurrentHashMap.
  */
 public final class NoiseConfig {
 
@@ -63,152 +65,144 @@ public final class NoiseConfig {
 			RegistryEntryLookup<DoublePerlinNoiseSampler.NoiseParameters> noiseParametersLookup,
 			long seed
 	) {
-		this.randomDeriver = chunkGeneratorSettings.getRandomProvider().create(seed).nextSplitter();
-		this.noiseParametersRegistry = noiseParametersLookup;
-		this.aquiferRandomDeriver = this.randomDeriver.split(Identifier.ofVanilla("aquifer")).nextSplitter();
-		this.oreRandomDeriver = this.randomDeriver.split(Identifier.ofVanilla("ore")).nextSplitter();
-		this.noises = new ConcurrentHashMap<>();
-		this.randomDerivers = new ConcurrentHashMap<>();
-		this.surfaceBuilder =
-				new SurfaceBuilder(
-						this,
-						chunkGeneratorSettings.defaultBlock(),
-						chunkGeneratorSettings.seaLevel(),
-						this.randomDeriver
-				);
-		final boolean bl = chunkGeneratorSettings.usesLegacyRandom();
+		randomDeriver = chunkGeneratorSettings.getRandomProvider().create(seed).nextSplitter();
+		noiseParametersRegistry = noiseParametersLookup;
+		aquiferRandomDeriver = randomDeriver.split(Identifier.ofVanilla("aquifer")).nextSplitter();
+		oreRandomDeriver = randomDeriver.split(Identifier.ofVanilla("ore")).nextSplitter();
+		noises = new ConcurrentHashMap<>();
+		randomDerivers = new ConcurrentHashMap<>();
+		surfaceBuilder = new SurfaceBuilder(
+				this,
+				chunkGeneratorSettings.defaultBlock(),
+				chunkGeneratorSettings.seaLevel(),
+				randomDeriver
+		);
 
-		/**
-		 * {@code LegacyNoiseDensityFunctionVisitor}.
-		 */
+		final boolean useLegacyRandom = chunkGeneratorSettings.usesLegacyRandom();
+
+		// Визитор применяет legacy-шум для старых миров и инициализирует сэмплеры
 		class LegacyNoiseDensityFunctionVisitor implements DensityFunction.DensityFunctionVisitor {
 
 			private final Map<DensityFunction, DensityFunction> cache = new HashMap<>();
 
-			private Random createRandom(long seed) {
-				return new CheckedRandom(seed + seed);
+			private Random createRandom(long noiseSeed) {
+				return new CheckedRandom(noiseSeed + noiseSeed);
 			}
 
 			@Override
 			public DensityFunction.Noise apply(DensityFunction.Noise noiseDensityFunction) {
-				RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters>
-						registryEntry =
-						noiseDensityFunction.noiseData();
-				if (bl) {
+				RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> registryEntry = noiseDensityFunction.noiseData();
+
+				if (useLegacyRandom) {
 					if (registryEntry.matchesKey(NoiseParametersKeys.TEMPERATURE)) {
-						DoublePerlinNoiseSampler doublePerlinNoiseSampler = DoublePerlinNoiseSampler.createLegacy(
-								this.createRandom(0L), new DoublePerlinNoiseSampler.NoiseParameters(-7, 1.0, 1.0)
+						DoublePerlinNoiseSampler sampler = DoublePerlinNoiseSampler.createLegacy(
+								createRandom(0L), new DoublePerlinNoiseSampler.NoiseParameters(-7, 1.0, 1.0)
 						);
-						return new DensityFunction.Noise(registryEntry, doublePerlinNoiseSampler);
+						return new DensityFunction.Noise(registryEntry, sampler);
 					}
 
 					if (registryEntry.matchesKey(NoiseParametersKeys.VEGETATION)) {
-						DoublePerlinNoiseSampler doublePerlinNoiseSampler = DoublePerlinNoiseSampler.createLegacy(
-								this.createRandom(1L), new DoublePerlinNoiseSampler.NoiseParameters(-7, 1.0, 1.0)
+						DoublePerlinNoiseSampler sampler = DoublePerlinNoiseSampler.createLegacy(
+								createRandom(1L), new DoublePerlinNoiseSampler.NoiseParameters(-7, 1.0, 1.0)
 						);
-						return new DensityFunction.Noise(registryEntry, doublePerlinNoiseSampler);
+						return new DensityFunction.Noise(registryEntry, sampler);
 					}
 
 					if (registryEntry.matchesKey(NoiseParametersKeys.OFFSET)) {
-						DoublePerlinNoiseSampler doublePerlinNoiseSampler = DoublePerlinNoiseSampler.create(
+						DoublePerlinNoiseSampler sampler = DoublePerlinNoiseSampler.create(
 								NoiseConfig.this.randomDeriver.split(NoiseParametersKeys.OFFSET.getValue()),
 								new DoublePerlinNoiseSampler.NoiseParameters(0, 0.0)
 						);
-						return new DensityFunction.Noise(registryEntry, doublePerlinNoiseSampler);
+						return new DensityFunction.Noise(registryEntry, sampler);
 					}
 				}
 
-				DoublePerlinNoiseSampler
-						doublePerlinNoiseSampler =
-						NoiseConfig.this.getOrCreateSampler(registryEntry.getKey().orElseThrow());
-				return new DensityFunction.Noise(registryEntry, doublePerlinNoiseSampler);
+				DoublePerlinNoiseSampler sampler = NoiseConfig.this.getOrCreateSampler(
+						registryEntry.getKey().orElseThrow()
+				);
+				return new DensityFunction.Noise(registryEntry, sampler);
 			}
 
 			private DensityFunction applyNotCached(DensityFunction densityFunction) {
 				if (densityFunction instanceof InterpolatedNoiseSampler interpolatedNoiseSampler) {
-					Random
-							random =
-							bl ? this.createRandom(0L)
-							   : NoiseConfig.this.randomDeriver.split(Identifier.ofVanilla("terrain"));
+					Random random = useLegacyRandom
+							? createRandom(0L)
+							: NoiseConfig.this.randomDeriver.split(Identifier.ofVanilla("terrain"));
 					return interpolatedNoiseSampler.copyWithRandom(random);
 				}
-				else {
-					return (DensityFunction) (densityFunction instanceof DensityFunctionTypes.EndIslands
-					                          ? new DensityFunctionTypes.EndIslands(seed)
-					                          : densityFunction
-					);
-				}
+
+				return (DensityFunction) (densityFunction instanceof DensityFunctionTypes.EndIslands
+						? new DensityFunctionTypes.EndIslands(seed)
+						: densityFunction
+				);
 			}
 
 			@Override
 			public DensityFunction apply(DensityFunction densityFunction) {
-				return this.cache.computeIfAbsent(densityFunction, this::applyNotCached);
+				return cache.computeIfAbsent(densityFunction, this::applyNotCached);
 			}
 		}
 
-		this.noiseRouter = chunkGeneratorSettings.noiseRouter().apply(new LegacyNoiseDensityFunctionVisitor());
-		DensityFunction.DensityFunctionVisitor densityFunctionVisitor = new DensityFunction.DensityFunctionVisitor() {
+		noiseRouter = chunkGeneratorSettings.noiseRouter().apply(new LegacyNoiseDensityFunctionVisitor());
+
+		DensityFunction.DensityFunctionVisitor unwrapVisitor = new DensityFunction.DensityFunctionVisitor() {
 			private final Map<DensityFunction, DensityFunction> unwrapped = new HashMap<>();
 
 			private DensityFunction unwrap(DensityFunction densityFunction) {
 				if (densityFunction instanceof DensityFunctionTypes.RegistryEntryHolder registryEntryHolder) {
 					return registryEntryHolder.function().value();
 				}
-				else {
-					return densityFunction instanceof DensityFunctionTypes.Wrapping wrapping ? wrapping.wrapped()
-					                                                                         : densityFunction;
-				}
+
+				return densityFunction instanceof DensityFunctionTypes.Wrapping wrapping
+						? wrapping.wrapped()
+						: densityFunction;
 			}
 
 			@Override
 			public DensityFunction apply(DensityFunction densityFunction) {
-				return this.unwrapped.computeIfAbsent(densityFunction, this::unwrap);
+				return unwrapped.computeIfAbsent(densityFunction, this::unwrap);
 			}
 		};
-		this.multiNoiseSampler = new MultiNoiseUtil.MultiNoiseSampler(
-				this.noiseRouter.temperature().apply(densityFunctionVisitor),
-				this.noiseRouter.vegetation().apply(densityFunctionVisitor),
-				this.noiseRouter.continents().apply(densityFunctionVisitor),
-				this.noiseRouter.erosion().apply(densityFunctionVisitor),
-				this.noiseRouter.depth().apply(densityFunctionVisitor),
-				this.noiseRouter.ridges().apply(densityFunctionVisitor),
+
+		multiNoiseSampler = new MultiNoiseUtil.MultiNoiseSampler(
+				noiseRouter.temperature().apply(unwrapVisitor),
+				noiseRouter.vegetation().apply(unwrapVisitor),
+				noiseRouter.continents().apply(unwrapVisitor),
+				noiseRouter.erosion().apply(unwrapVisitor),
+				noiseRouter.depth().apply(unwrapVisitor),
+				noiseRouter.ridges().apply(unwrapVisitor),
 				chunkGeneratorSettings.spawnTarget()
 		);
 	}
 
 	public DoublePerlinNoiseSampler getOrCreateSampler(RegistryKey<DoublePerlinNoiseSampler.NoiseParameters> noiseParametersKey) {
-		return this.noises
-				.computeIfAbsent(
-						noiseParametersKey,
-						key -> NoiseParametersKeys.createNoiseSampler(
-								this.noiseParametersRegistry,
-								this.randomDeriver,
-								noiseParametersKey
-						)
-				);
+		return noises.computeIfAbsent(
+				noiseParametersKey,
+				key -> NoiseParametersKeys.createNoiseSampler(noiseParametersRegistry, randomDeriver, noiseParametersKey)
+		);
 	}
 
 	public RandomSplitter getOrCreateRandomDeriver(Identifier id) {
-		return this.randomDerivers.computeIfAbsent(id, id2 -> this.randomDeriver.split(id).nextSplitter());
+		return randomDerivers.computeIfAbsent(id, ignored -> randomDeriver.split(id).nextSplitter());
 	}
 
 	public NoiseRouter getNoiseRouter() {
-		return this.noiseRouter;
+		return noiseRouter;
 	}
 
 	public MultiNoiseUtil.MultiNoiseSampler getMultiNoiseSampler() {
-		return this.multiNoiseSampler;
+		return multiNoiseSampler;
 	}
 
 	public SurfaceBuilder getSurfaceBuilder() {
-		return this.surfaceBuilder;
+		return surfaceBuilder;
 	}
 
 	public RandomSplitter getAquiferRandomDeriver() {
-		return this.aquiferRandomDeriver;
+		return aquiferRandomDeriver;
 	}
 
 	public RandomSplitter getOreRandomDeriver() {
-		return this.oreRandomDeriver;
+		return oreRandomDeriver;
 	}
 }

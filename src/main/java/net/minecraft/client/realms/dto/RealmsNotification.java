@@ -24,10 +24,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsNotification}.
+ * Базовый класс уведомлений сервера Realms.
+ * Подклассы {@link InfoPopup} и {@link VisitUrl} реализуют конкретные типы уведомлений.
+ * Тип определяется полем {@code type} в JSON и диспетчеризуется в {@link #fromJson(JsonObject)}.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsNotification {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -37,7 +39,9 @@ public class RealmsNotification {
 	private static final String TYPE_KEY = "type";
 	private static final String VISIT_URL_TYPE = "visitUrl";
 	private static final String INFO_POPUP_TYPE = "infoPopup";
+
 	static final Text OPEN_LINK_TEXT = Text.translatable("mco.notification.visitUrl.buttonText.default");
+
 	final UUID uuid;
 	final boolean dismissable;
 	final boolean seen;
@@ -51,73 +55,72 @@ public class RealmsNotification {
 	}
 
 	public boolean isSeen() {
-		return this.seen;
+		return seen;
 	}
 
 	public boolean isDismissable() {
-		return this.dismissable;
+		return dismissable;
 	}
 
 	public UUID getUuid() {
-		return this.uuid;
+		return uuid;
 	}
 
 	/**
-	 * Parse.
+	 * Парсит список уведомлений из JSON-строки ответа сервера Realms.
+	 * Неизвестные типы уведомлений сохраняются как базовый {@link RealmsNotification}.
 	 *
-	 * @param json json
-	 *
-	 * @return List — результат операции
+	 * @param json JSON-строка с массивом {@code notifications}
+	 * @return список уведомлений (может быть пустым при ошибке)
 	 */
 	public static List<RealmsNotification> parse(String json) {
-		List<RealmsNotification> list = new ArrayList<>();
+		List<RealmsNotification> result = new ArrayList<>();
 
 		try {
-			for (JsonElement jsonElement : LenientJsonParser
+			for (JsonElement element : LenientJsonParser
 					.parse(json)
 					.getAsJsonObject()
 					.get("notifications")
 					.getAsJsonArray()) {
-				list.add(fromJson(jsonElement.getAsJsonObject()));
+				result.add(fromJson(element.getAsJsonObject()));
 			}
-		}
-		catch (Exception var5) {
-			LOGGER.error("Could not parse list of RealmsNotifications", var5);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse list of RealmsNotifications", ex);
 		}
 
-		return list;
+		return result;
 	}
 
 	private static RealmsNotification fromJson(JsonObject json) {
-		UUID uUID = JsonUtils.getUuidOr("notificationUuid", json, null);
-		if (uUID == null) {
+		UUID uuid = JsonUtils.getUuidOr(NOTIFICATION_UUID_KEY, json, null);
+
+		if (uuid == null) {
 			throw new IllegalStateException("Missing required property notificationUuid");
 		}
-		else {
-			boolean bl = JsonUtils.getBooleanOr("dismissable", json, true);
-			boolean bl2 = JsonUtils.getBooleanOr("seen", json, false);
-			String string = JsonUtils.getString("type", json);
-			RealmsNotification realmsNotification = new RealmsNotification(uUID, bl, bl2, string);
 
-			return (RealmsNotification) (switch (string) {
-				case "visitUrl" -> RealmsNotification.VisitUrl.fromJson(realmsNotification, json);
-				case "infoPopup" -> RealmsNotification.InfoPopup.fromJson(realmsNotification, json);
-				default -> realmsNotification;
-			}
-			);
-		}
+		boolean dismissable = JsonUtils.getBooleanOr(DISMISSABLE_KEY, json, true);
+		boolean seen = JsonUtils.getBooleanOr(SEEN_KEY, json, false);
+		String type = JsonUtils.getString(TYPE_KEY, json);
+		RealmsNotification base = new RealmsNotification(uuid, dismissable, seen, type);
+
+		return switch (type) {
+			case VISIT_URL_TYPE -> VisitUrl.fromJson(base, json);
+			case INFO_POPUP_TYPE -> InfoPopup.fromJson(base, json);
+			default -> base;
+		};
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code InfoPopup}.
+	 * Уведомление с всплывающим окном, содержащим изображение, текст и опциональную кнопку-ссылку.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class InfoPopup extends RealmsNotification {
 
 		private static final String TITLE_KEY = "title";
 		private static final String MESSAGE_KEY = "message";
 		private static final String IMAGE_KEY = "image";
 		private static final String URL_BUTTON_KEY = "urlButton";
+
 		private final RealmsText title;
 		private final RealmsText message;
 		private final Identifier image;
@@ -138,95 +141,87 @@ public class RealmsNotification {
 		}
 
 		public static RealmsNotification.InfoPopup fromJson(RealmsNotification parent, JsonObject json) {
-			RealmsText realmsText = JsonUtils.get("title", json, RealmsText::fromJson);
-			RealmsText realmsText2 = JsonUtils.get("message", json, RealmsText::fromJson);
-			Identifier identifier = Identifier.of(JsonUtils.getString("image", json));
-			RealmsNotification.UrlButton
-					urlButton =
-					JsonUtils.getNullable("urlButton", json, RealmsNotification.UrlButton::fromJson);
-			return new RealmsNotification.InfoPopup(parent, realmsText, realmsText2, identifier, urlButton);
+			RealmsText title = JsonUtils.get(TITLE_KEY, json, RealmsText::fromJson);
+			RealmsText message = JsonUtils.get(MESSAGE_KEY, json, RealmsText::fromJson);
+			Identifier image = Identifier.of(JsonUtils.getString(IMAGE_KEY, json));
+			RealmsNotification.UrlButton urlButton = JsonUtils.getNullable(URL_BUTTON_KEY, json, UrlButton::fromJson);
+			return new InfoPopup(parent, title, message, image, urlButton);
 		}
 
 		/**
-		 * Создаёт screen.
+		 * Создаёт всплывающий экран уведомления.
+		 * Возвращает {@code null}, если заголовок не имеет перевода в текущей локали.
 		 *
-		 * @param backgroundScreen background screen
-		 * @param dismissCallback dismiss callback
-		 *
-		 * @return @Nullable PopupScreen — результат операции
+		 * @param backgroundScreen фоновый экран
+		 * @param dismissCallback  колбэк для отметки уведомления как прочитанного
+		 * @return экран уведомления или {@code null} при отсутствии перевода заголовка
 		 */
 		public @Nullable PopupScreen createScreen(Screen backgroundScreen, Consumer<UUID> dismissCallback) {
-			Text text = this.title.toText();
-			if (text == null) {
-				RealmsNotification.LOGGER.warn(
-						"Realms info popup had title with no available translation: {}",
-						this.title
-				);
+			Text titleText = title.toText();
+
+			if (titleText == null) {
+				LOGGER.warn("Realms info popup had title with no available translation: {}", title);
 				return null;
 			}
-			else {
-				PopupScreen.Builder
-						builder =
-						new PopupScreen.Builder(backgroundScreen, text)
-								.image(this.image)
-								.message(this.message.toText(ScreenTexts.EMPTY));
-				if (this.urlButton != null) {
-					builder.button(
-							this.urlButton.urlText.toText(RealmsNotification.OPEN_LINK_TEXT), screen -> {
-								MinecraftClient minecraftClient = MinecraftClient.getInstance();
-								minecraftClient.setScreen(new ConfirmLinkScreen(
-										confirmed -> {
-											if (confirmed) {
-												Util.getOperatingSystem().open(this.urlButton.url);
-												minecraftClient.setScreen(backgroundScreen);
-											}
-											else {
-												minecraftClient.setScreen(screen);
-											}
-										}, this.urlButton.url, true
-								));
-								dismissCallback.accept(this.getUuid());
-							}
-					);
-				}
 
+			PopupScreen.Builder builder = new PopupScreen.Builder(backgroundScreen, titleText)
+					.image(image)
+					.message(message.toText(ScreenTexts.EMPTY));
+
+			if (urlButton != null) {
 				builder.button(
-						ScreenTexts.OK, screen -> {
-							screen.close();
-							dismissCallback.accept(this.getUuid());
+						urlButton.urlText.toText(OPEN_LINK_TEXT),
+						screen -> {
+							MinecraftClient client = MinecraftClient.getInstance();
+							client.setScreen(new ConfirmLinkScreen(
+									confirmed -> {
+										if (confirmed) {
+											Util.getOperatingSystem().open(urlButton.url);
+											client.setScreen(backgroundScreen);
+										} else {
+											client.setScreen(screen);
+										}
+									},
+									urlButton.url,
+									true
+							));
+							dismissCallback.accept(getUuid());
 						}
 				);
-				builder.onClosed(() -> dismissCallback.accept(this.getUuid()));
-				return builder.build();
 			}
+
+			builder.button(ScreenTexts.OK, screen -> {
+				screen.close();
+				dismissCallback.accept(getUuid());
+			});
+			builder.onClosed(() -> dismissCallback.accept(getUuid()));
+			return builder.build();
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code UrlButton}.
-	 */
 	record UrlButton(String url, RealmsText urlText) {
 
 		private static final String URL_KEY = "url";
 		private static final String URL_TEXT_KEY = "urlText";
 
 		public static RealmsNotification.UrlButton fromJson(JsonObject json) {
-			String string = JsonUtils.getString("url", json);
-			RealmsText realmsText = JsonUtils.get("urlText", json, RealmsText::fromJson);
-			return new RealmsNotification.UrlButton(string, realmsText);
+			String url = JsonUtils.getString(URL_KEY, json);
+			RealmsText urlText = JsonUtils.get(URL_TEXT_KEY, json, RealmsText::fromJson);
+			return new UrlButton(url, urlText);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code VisitUrl}.
+	 * Уведомление с кнопкой перехода по внешней ссылке.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class VisitUrl extends RealmsNotification {
 
 		private static final String URL_KEY = "url";
 		private static final String BUTTON_TEXT_KEY = "buttonText";
 		private static final String MESSAGE_KEY = "message";
+
 		private final String url;
 		private final RealmsText buttonText;
 		private final RealmsText message;
@@ -239,26 +234,19 @@ public class RealmsNotification {
 		}
 
 		public static RealmsNotification.VisitUrl fromJson(RealmsNotification parent, JsonObject json) {
-			String string = JsonUtils.getString("url", json);
-			RealmsText realmsText = JsonUtils.get("buttonText", json, RealmsText::fromJson);
-			RealmsText realmsText2 = JsonUtils.get("message", json, RealmsText::fromJson);
-			return new RealmsNotification.VisitUrl(parent, string, realmsText, realmsText2);
+			String url = JsonUtils.getString(URL_KEY, json);
+			RealmsText buttonText = JsonUtils.get(BUTTON_TEXT_KEY, json, RealmsText::fromJson);
+			RealmsText message = JsonUtils.get(MESSAGE_KEY, json, RealmsText::fromJson);
+			return new VisitUrl(parent, url, buttonText, message);
 		}
 
 		public Text getDefaultMessage() {
-			return this.message.toText(Text.translatable("mco.notification.visitUrl.message.default"));
+			return message.toText(Text.translatable("mco.notification.visitUrl.message.default"));
 		}
 
-		/**
-		 * Создаёт button.
-		 *
-		 * @param currentScreen current screen
-		 *
-		 * @return ButtonWidget — результат операции
-		 */
 		public ButtonWidget createButton(Screen currentScreen) {
-			Text text = this.buttonText.toText(RealmsNotification.OPEN_LINK_TEXT);
-			return ButtonWidget.builder(text, ConfirmLinkScreen.opening(currentScreen, this.url)).build();
+			Text label = buttonText.toText(OPEN_LINK_TEXT);
+			return ButtonWidget.builder(label, ConfirmLinkScreen.opening(currentScreen, url)).build();
 		}
 	}
 }

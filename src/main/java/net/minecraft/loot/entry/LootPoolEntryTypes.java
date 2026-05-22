@@ -6,14 +6,12 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
-/**
- * {@code LootPoolEntryTypes}.
- */
+/** Реестр всех стандартных типов записей пула лута. */
 public class LootPoolEntryTypes {
 
-	public static final Codec<LootPoolEntry>
-			CODEC =
-			Registries.LOOT_POOL_ENTRY_TYPE.getCodec().dispatch(LootPoolEntry::getType, LootPoolEntryType::codec);
+	public static final Codec<LootPoolEntry> CODEC =
+		Registries.LOOT_POOL_ENTRY_TYPE.getCodec().dispatch(LootPoolEntry::getType, LootPoolEntryType::codec);
+
 	public static final LootPoolEntryType EMPTY = register("empty", EmptyEntry.CODEC);
 	public static final LootPoolEntryType ITEM = register("item", ItemEntry.CODEC);
 	public static final LootPoolEntryType LOOT_TABLE = register("loot_table", LootTableEntry.CODEC);
@@ -26,9 +24,9 @@ public class LootPoolEntryTypes {
 
 	private static LootPoolEntryType register(String id, MapCodec<? extends LootPoolEntry> codec) {
 		return Registry.register(
-				Registries.LOOT_POOL_ENTRY_TYPE,
-				Identifier.ofVanilla(id),
-				new LootPoolEntryType(codec)
+			Registries.LOOT_POOL_ENTRY_TYPE,
+			Identifier.ofVanilla(id),
+			new LootPoolEntryType(codec)
 		);
 	}
 }

@@ -18,7 +18,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code SignBlock}.
+ * Блок напольной таблички. Устанавливается на твёрдый блок снизу,
+ * ориентируется по направлению взгляда игрока (16 позиций вращения).
  */
 public class SignBlock extends AbstractSignBlock {
 

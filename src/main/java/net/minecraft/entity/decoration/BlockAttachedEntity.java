@@ -20,11 +20,14 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code BlockAttachedEntity}.
+ * Базовый класс для сущностей, прикреплённых к конкретному блоку мира.
+ * Автоматически уничтожается, если блок-опора исчезает (проверка каждые 100 тиков).
  */
 public abstract class BlockAttachedEntity extends Entity {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int ATTACH_CHECK_INTERVAL = 100;
+
 	private int attachCheckTimer;
 	protected BlockPos attachedBlockPos;
 
@@ -41,30 +44,26 @@ public abstract class BlockAttachedEntity extends Entity {
 		this.attachedBlockPos = attachedBlockPos;
 	}
 
-	/**
-	 * Обновляет attachment position.
-	 */
+	/** Обновляет позицию и хитбокс сущности относительно блока-опоры. */
 	protected abstract void updateAttachmentPosition();
 
 	@Override
 	public void tick() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.attemptTickInVoid();
-			if (this.attachCheckTimer++ == 100) {
-				this.attachCheckTimer = 0;
-				if (!this.isRemoved() && !this.canStayAttached()) {
-					this.discard();
-					this.onBreak(serverWorld, null);
-				}
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		attemptTickInVoid();
+		if (attachCheckTimer++ == ATTACH_CHECK_INTERVAL) {
+			attachCheckTimer = 0;
+			if (!isRemoved() && !canStayAttached()) {
+				discard();
+				onBreak(serverWorld, null);
 			}
 		}
 	}
 
-	/**
-	 * Проверяет возможность stay attached.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** Проверяет, может ли сущность оставаться прикреплённой к текущему блоку. */
 	public abstract boolean canStayAttached();
 
 	@Override
@@ -74,91 +73,90 @@ public abstract class BlockAttachedEntity extends Entity {
 
 	@Override
 	public boolean handleAttack(Entity attacker) {
-		if (attacker instanceof PlayerEntity playerEntity) {
-			return !this.getEntityWorld().canEntityModifyAt(playerEntity, this.attachedBlockPos)
-			       ? true
-			       : this.sidedDamage(this.getDamageSources().playerAttack(playerEntity), 0.0F);
-		}
-		else {
+		if (!(attacker instanceof PlayerEntity playerEntity)) {
 			return false;
 		}
+
+		return !getEntityWorld().canEntityModifyAt(playerEntity, attachedBlockPos)
+			? true
+			: sidedDamage(getDamageSources().playerAttack(playerEntity), 0.0F);
 	}
 
 	@Override
 	public boolean clientDamage(DamageSource source) {
-		return !this.isAlwaysInvulnerableTo(source);
+		return !isAlwaysInvulnerableTo(source);
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isAlwaysInvulnerableTo(source)) {
+		if (isAlwaysInvulnerableTo(source)) {
 			return false;
 		}
-		else if (!world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+
+		if (!world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
 				&& source.getAttacker() instanceof MobEntity) {
 			return false;
 		}
-		else {
-			if (!this.isRemoved()) {
-				this.kill(world);
-				this.scheduleVelocityUpdate();
-				this.onBreak(world, source.getAttacker());
-			}
 
-			return true;
+		if (!isRemoved()) {
+			kill(world);
+			scheduleVelocityUpdate();
+			onBreak(world, source.getAttacker());
 		}
+
+		return true;
 	}
 
 	@Override
 	public boolean isImmuneToExplosion(Explosion explosion) {
-		Entity entity = explosion.getEntity();
-		if (entity != null && entity.isTouchingWater()) {
+		Entity explosionEntity = explosion.getEntity();
+		if (explosionEntity != null && explosionEntity.isTouchingWater()) {
 			return true;
 		}
-		else {
-			return explosion.preservesDecorativeEntities() ? super.isImmuneToExplosion(explosion) : true;
-		}
+
+		return explosion.preservesDecorativeEntities() ? super.isImmuneToExplosion(explosion) : true;
 	}
 
 	@Override
 	public void move(MovementType type, Vec3d movement) {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && !this.isRemoved()
+		if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& !isRemoved()
 				&& movement.lengthSquared() > 0.0) {
-			this.kill(serverWorld);
-			this.onBreak(serverWorld, null);
+			kill(serverWorld);
+			onBreak(serverWorld, null);
 		}
 	}
 
 	@Override
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && !this.isRemoved()
+		if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& !isRemoved()
 				&& deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ > 0.0) {
-			this.kill(serverWorld);
-			this.onBreak(serverWorld, null);
+			kill(serverWorld);
+			onBreak(serverWorld, null);
 		}
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.put("block_pos", BlockPos.CODEC, this.getAttachedBlockPos());
+		view.put("block_pos", BlockPos.CODEC, getAttachedBlockPos());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		BlockPos blockPos = view.<BlockPos>read("block_pos", BlockPos.CODEC).orElse(null);
-		if (blockPos != null && blockPos.isWithinDistance(this.getBlockPos(), 16.0)) {
-			this.attachedBlockPos = blockPos;
-		}
-		else {
+		if (blockPos == null || !blockPos.isWithinDistance(getBlockPos(), 16.0)) {
 			LOGGER.error("Block-attached entity at invalid position: {}", blockPos);
+			return;
 		}
+
+		attachedBlockPos = blockPos;
 	}
 
 	/**
-	 * Обрабатывает событие break.
+	 * Вызывается при разрушении сущности — для дропа предметов и звуков.
 	 *
-	 * @param world world
-	 * @param breaker breaker
+	 * @param breaker сущность, разрушившая объект, или {@code null} если причина — мир
 	 */
 	public abstract void onBreak(ServerWorld world, @Nullable Entity breaker);
 
@@ -169,13 +167,13 @@ public abstract class BlockAttachedEntity extends Entity {
 
 	@Override
 	public void setPosition(double x, double y, double z) {
-		this.attachedBlockPos = BlockPos.ofFloored(x, y, z);
-		this.updateAttachmentPosition();
-		this.velocityDirty = true;
+		attachedBlockPos = BlockPos.ofFloored(x, y, z);
+		updateAttachmentPosition();
+		velocityDirty = true;
 	}
 
 	public BlockPos getAttachedBlockPos() {
-		return this.attachedBlockPos;
+		return attachedBlockPos;
 	}
 
 	@Override

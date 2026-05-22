@@ -14,7 +14,8 @@ import net.minecraft.text.TextCodecs;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code Instrument}.
+ * Описывает музыкальный инструмент (например, козий рог): звук, длительность использования,
+ * радиус слышимости и отображаемое название.
  */
 public record Instrument(RegistryEntry<SoundEvent> soundEvent, float useDuration, float range, Text description) {
 

@@ -15,7 +15,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code GameEventDispatchManager}.
+ * Менеджер рассылки игровых событий на уровне серверного мира.
+ * <p>
+ * Определяет все секции чанков в радиусе события, собирает слушателей
+ * с порядком {@link GameEventListener.TriggerOrder#BY_DISTANCE} в список
+ * и обрабатывает их отсортированными по расстоянию. Слушатели с порядком
+ * {@link GameEventListener.TriggerOrder#UNSPECIFIED} вызываются немедленно.
  */
 public class GameEventDispatchManager {
 
@@ -26,55 +31,61 @@ public class GameEventDispatchManager {
 	}
 
 	/**
-	 * Dispatch.
+	 * Рассылает игровое событие всем слушателям в радиусе действия.
+	 * <p>
+	 * Итерирует по всем секциям чанков в кубе со стороной {@code 2 * notificationRadius},
+	 * центрированном на позиции источника события.
 	 *
-	 * @param event event
-	 * @param emitterPos emitter pos
-	 * @param emitter emitter
+	 * @param event      зарегистрированное игровое событие
+	 * @param emitterPos позиция источника события в мире
+	 * @param emitter    описание источника (сущность и/или блок)
 	 */
 	public void dispatch(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter) {
-		int i = event.value().notificationRadius();
-		BlockPos blockPos = BlockPos.ofFloored(emitterPos);
-		int j = ChunkSectionPos.getSectionCoord(blockPos.getX() - i);
-		int k = ChunkSectionPos.getSectionCoord(blockPos.getY() - i);
-		int l = ChunkSectionPos.getSectionCoord(blockPos.getZ() - i);
-		int m = ChunkSectionPos.getSectionCoord(blockPos.getX() + i);
-		int n = ChunkSectionPos.getSectionCoord(blockPos.getY() + i);
-		int o = ChunkSectionPos.getSectionCoord(blockPos.getZ() + i);
-		List<GameEvent.Message> list = new ArrayList<>();
+		int radius = event.value().notificationRadius();
+		BlockPos emitterBlockPos = BlockPos.ofFloored(emitterPos);
+		int minSectionX = ChunkSectionPos.getSectionCoord(emitterBlockPos.getX() - radius);
+		int minSectionY = ChunkSectionPos.getSectionCoord(emitterBlockPos.getY() - radius);
+		int minSectionZ = ChunkSectionPos.getSectionCoord(emitterBlockPos.getZ() - radius);
+		int maxSectionX = ChunkSectionPos.getSectionCoord(emitterBlockPos.getX() + radius);
+		int maxSectionY = ChunkSectionPos.getSectionCoord(emitterBlockPos.getY() + radius);
+		int maxSectionZ = ChunkSectionPos.getSectionCoord(emitterBlockPos.getZ() + radius);
+		List<GameEvent.Message> byDistanceMessages = new ArrayList<>();
+
 		GameEventDispatcher.DispatchCallback dispatchCallback = (listener, listenerPos) -> {
 			if (listener.getTriggerOrder() == GameEventListener.TriggerOrder.BY_DISTANCE) {
-				list.add(new GameEvent.Message(event, emitterPos, emitter, listener, listenerPos));
-			}
-			else {
-				listener.listen(this.world, event, emitter, emitterPos);
+				byDistanceMessages.add(new GameEvent.Message(event, emitterPos, emitter, listener, listenerPos));
+			} else {
+				listener.listen(world, event, emitter, emitterPos);
 			}
 		};
-		boolean bl = false;
 
-		for (int p = j; p <= m; p++) {
-			for (int q = l; q <= o; q++) {
-				Chunk chunk = this.world.getChunkManager().getWorldChunk(p, q);
-				if (chunk != null) {
-					for (int r = k; r <= n; r++) {
-						bl |= chunk.getGameEventDispatcher(r).dispatch(event, emitterPos, emitter, dispatchCallback);
-					}
+		boolean anyDispatched = false;
+
+		for (int sectionX = minSectionX; sectionX <= maxSectionX; sectionX++) {
+			for (int sectionZ = minSectionZ; sectionZ <= maxSectionZ; sectionZ++) {
+				Chunk chunk = world.getChunkManager().getWorldChunk(sectionX, sectionZ);
+				if (chunk == null) {
+					continue;
+				}
+
+				for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
+					anyDispatched |= chunk.getGameEventDispatcher(sectionY)
+						.dispatch(event, emitterPos, emitter, dispatchCallback);
 				}
 			}
 		}
 
-		if (!list.isEmpty()) {
-			this.dispatchListenersByDistance(list);
+		if (!byDistanceMessages.isEmpty()) {
+			dispatchListenersByDistance(byDistanceMessages);
 		}
 
-		if (bl) {
-			this.world
-					.getSubscriptionTracker()
-					.sendEventDebugData(
-							BlockPos.ofFloored(emitterPos),
-							DebugSubscriptionTypes.GAME_EVENTS,
-							new GameEventDebugData(event, emitterPos)
-					);
+		if (anyDispatched) {
+			world.getSubscriptionTracker()
+				.sendEventDebugData(
+					BlockPos.ofFloored(emitterPos),
+					DebugSubscriptionTypes.GAME_EVENTS,
+					new GameEventDebugData(event, emitterPos)
+				);
 		}
 	}
 
@@ -82,8 +93,7 @@ public class GameEventDispatchManager {
 		Collections.sort(messages);
 
 		for (GameEvent.Message message : messages) {
-			GameEventListener gameEventListener = message.getListener();
-			gameEventListener.listen(this.world, message.getEvent(), message.getEmitter(), message.getEmitterPos());
+			message.getListener().listen(world, message.getEvent(), message.getEmitter(), message.getEmitterPos());
 		}
 	}
 }

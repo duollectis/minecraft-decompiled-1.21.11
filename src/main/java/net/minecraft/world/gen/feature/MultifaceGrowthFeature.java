@@ -12,7 +12,9 @@ import net.minecraft.world.gen.feature.util.FeatureContext;
 import java.util.List;
 
 /**
- * {@code MultifaceGrowthFeature}.
+ * Генерирует многогранный рост (например, светящийся лишайник или мох)
+ * на поверхностях блоков. Сначала пробует разместить в начальной точке,
+ * затем ищет подходящую позицию в радиусе {@code searchRange} по каждому направлению.
  */
 public class MultifaceGrowthFeature extends Feature<MultifaceGrowthFeatureConfig> {
 
@@ -22,85 +24,75 @@ public class MultifaceGrowthFeature extends Feature<MultifaceGrowthFeatureConfig
 
 	@Override
 	public boolean generate(FeatureContext<MultifaceGrowthFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		MultifaceGrowthFeatureConfig multifaceGrowthFeatureConfig = context.getConfig();
-		if (!isAirOrWater(structureWorldAccess.getBlockState(blockPos))) {
+		MultifaceGrowthFeatureConfig config = context.getConfig();
+
+		if (!isAirOrWater(world.getBlockState(origin))) {
 			return false;
 		}
-		else {
-			List<Direction> list = multifaceGrowthFeatureConfig.shuffleDirections(random);
-			if (generate(
-					structureWorldAccess,
-					blockPos,
-					structureWorldAccess.getBlockState(blockPos),
-					multifaceGrowthFeatureConfig,
-					random,
-					list
-			)) {
-				return true;
-			}
-			else {
-				BlockPos.Mutable mutable = blockPos.mutableCopy();
 
-				for (Direction direction : list) {
-					mutable.set(blockPos);
-					List<Direction>
-							list2 =
-							multifaceGrowthFeatureConfig.shuffleDirections(random, direction.getOpposite());
+		List<Direction> directions = config.shuffleDirections(random);
 
-					for (int i = 0; i < multifaceGrowthFeatureConfig.searchRange; i++) {
-						mutable.set(blockPos, direction);
-						BlockState blockState = structureWorldAccess.getBlockState(mutable);
-						if (!isAirOrWater(blockState) && !blockState.isOf(multifaceGrowthFeatureConfig.block)) {
-							break;
-						}
+		if (generate(world, origin, world.getBlockState(origin), config, random, directions)) {
+			return true;
+		}
 
-						if (generate(
-								structureWorldAccess,
-								mutable,
-								blockState,
-								multifaceGrowthFeatureConfig,
-								random,
-								list2
-						)) {
-							return true;
-						}
-					}
+		BlockPos.Mutable mutable = origin.mutableCopy();
+
+		for (Direction direction : directions) {
+			mutable.set(origin);
+			List<Direction> searchDirs = config.shuffleDirections(random, direction.getOpposite());
+
+			for (int step = 0; step < config.searchRange; step++) {
+				mutable.set(origin, direction);
+				BlockState state = world.getBlockState(mutable);
+
+				if (!isAirOrWater(state) && !state.isOf(config.block)) {
+					break;
 				}
 
-				return false;
+				if (generate(world, mutable, state, config, random, searchDirs)) {
+					return true;
+				}
 			}
 		}
+
+		return false;
 	}
 
 	public static boolean generate(
-			StructureWorldAccess world,
-			BlockPos pos,
-			BlockState state,
-			MultifaceGrowthFeatureConfig config,
-			Random random,
-			List<Direction> directions
+		StructureWorldAccess world,
+		BlockPos pos,
+		BlockState state,
+		MultifaceGrowthFeatureConfig config,
+		Random random,
+		List<Direction> directions
 	) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
 
 		for (Direction direction : directions) {
-			BlockState blockState = world.getBlockState(mutable.set(pos, direction));
-			if (blockState.isIn(config.canPlaceOn)) {
-				BlockState blockState2 = config.block.withDirection(state, world, pos, direction);
-				if (blockState2 == null) {
-					return false;
-				}
+			BlockState neighbor = world.getBlockState(mutable.set(pos, direction));
 
-				world.setBlockState(pos, blockState2, 3);
-				world.getChunk(pos).markBlockForPostProcessing(pos);
-				if (random.nextFloat() < config.spreadChance) {
-					config.block.getGrower().grow(blockState2, world, pos, direction, random, true);
-				}
-
-				return true;
+			if (!neighbor.isIn(config.canPlaceOn)) {
+				continue;
 			}
+
+			BlockState placed = config.block.withDirection(state, world, pos, direction);
+
+			if (placed == null) {
+				return false;
+			}
+
+			world.setBlockState(pos, placed, 3);
+			world.getChunk(pos).markBlockForPostProcessing(pos);
+
+			if (random.nextFloat() < config.spreadChance) {
+				config.block.getGrower().grow(placed, world, pos, direction, random, true);
+			}
+
+			return true;
 		}
 
 		return false;

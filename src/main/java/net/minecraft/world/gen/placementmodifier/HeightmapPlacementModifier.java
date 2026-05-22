@@ -10,16 +10,17 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import java.util.stream.Stream;
 
 /**
- * {@code HeightmapPlacementModifier}.
+ * Модификатор размещения, смещающий Y-координату позиции на высоту поверхности
+ * согласно указанному типу карты высот.
  */
 public class HeightmapPlacementModifier extends PlacementModifier {
 
 	public static final MapCodec<HeightmapPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Heightmap.Type.CODEC
-							.fieldOf("heightmap")
-							.forGetter(placementModifier -> placementModifier.heightmap))
-					.apply(instance, HeightmapPlacementModifier::new)
+		instance -> instance
+			.group(Heightmap.Type.CODEC
+				.fieldOf("heightmap")
+				.forGetter(modifier -> modifier.heightmap))
+			.apply(instance, HeightmapPlacementModifier::new)
 	);
 	private final Heightmap.Type heightmap;
 
@@ -27,23 +28,16 @@ public class HeightmapPlacementModifier extends PlacementModifier {
 		this.heightmap = heightmap;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param heightmap heightmap
-	 *
-	 * @return HeightmapPlacementModifier — результат операции
-	 */
 	public static HeightmapPlacementModifier of(Heightmap.Type heightmap) {
 		return new HeightmapPlacementModifier(heightmap);
 	}
 
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		int i = pos.getX();
-		int j = pos.getZ();
-		int k = context.getTopY(this.heightmap, i, j);
-		return k > context.getBottomY() ? Stream.of(new BlockPos(i, k, j)) : Stream.of();
+		int x = pos.getX();
+		int z = pos.getZ();
+		int topY = context.getTopY(heightmap, x, z);
+		return topY > context.getBottomY() ? Stream.of(new BlockPos(x, topY, z)) : Stream.of();
 	}
 
 	@Override

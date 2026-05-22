@@ -6,11 +6,18 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SculkChargePopParticle}.
+ * Частица «хлопка» заряда скалка: короткая анимированная вспышка (6–9 тиков),
+ * появляющаяся при завершении распространения заряда. Полупрозрачная, с полной
+ * яркостью, не взаимодействует с блоками.
  */
+@Environment(EnvType.CLIENT)
 public class SculkChargePopParticle extends BillboardParticle {
+
+	private static final float VELOCITY_MULTIPLIER = 0.96F;
+	private static final int FULL_BRIGHTNESS = 240;
+	private static final int MIN_LIFETIME = 6;
+	private static final int LIFETIME_VARIANCE = 4;
 
 	private final SpriteProvider spriteProvider;
 
@@ -25,7 +32,7 @@ public class SculkChargePopParticle extends BillboardParticle {
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getFirst());
-		this.velocityMultiplier = 0.96F;
+		this.velocityMultiplier = VELOCITY_MULTIPLIER;
 		this.spriteProvider = spriteProvider;
 		this.scale(1.0F);
 		this.collidesWithWorld = false;
@@ -34,7 +41,7 @@ public class SculkChargePopParticle extends BillboardParticle {
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -49,29 +56,27 @@ public class SculkChargePopParticle extends BillboardParticle {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public record Factory(SpriteProvider spriteProvider) implements ParticleFactory<SimpleParticleType> {
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SculkChargePopParticle
-					sculkChargePopParticle =
-					new SculkChargePopParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-			sculkChargePopParticle.setAlpha(1.0F);
-			sculkChargePopParticle.setVelocity(g, h, i);
-			sculkChargePopParticle.setMaxAge(random.nextInt(4) + 6);
-			return sculkChargePopParticle;
+			SculkChargePopParticle particle = new SculkChargePopParticle(
+					world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider
+			);
+			particle.setAlpha(1.0F);
+			particle.setVelocity(velocityX, velocityY, velocityZ);
+			particle.setMaxAge(random.nextInt(LIFETIME_VARIANCE) + MIN_LIFETIME);
+			return particle;
 		}
 	}
 }

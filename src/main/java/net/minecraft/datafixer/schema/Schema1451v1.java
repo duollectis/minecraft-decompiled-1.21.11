@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1451v1}.
+ * Схема версии 1451v1: переопределяет тип {@code CHUNK} с полной структурой
+ * уровня — сущностями, блок-сущностями, тиками блоков и секциями палитры
+ * состояний блоков.
  */
 public class Schema1451v1 extends IdentifierNormalizingSchema {
 
-	public Schema1451v1(int i, Schema schema) {
-		super(i, schema);
+	public Schema1451v1(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(

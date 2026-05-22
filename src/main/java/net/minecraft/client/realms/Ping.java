@@ -13,76 +13,77 @@ import java.net.SocketAddress;
 import java.util.Comparator;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Ping}.
+ * Утилита для измерения задержки (ping) до серверов AWS Realms в разных регионах.
+ * Каждый регион пингуется {@link #PING_ATTEMPTS} раз через TCP-соединение на порт 80,
+ * а результат усредняется. Тайм-аут одной попытки — {@link #TIMEOUT_MS} мс.
  */
+@Environment(EnvType.CLIENT)
 public class Ping {
 
+	private static final int PING_ATTEMPTS = 5;
+	private static final int TIMEOUT_MS = 700;
+	private static final int HTTP_PORT = 80;
+
 	/**
-	 * Ping.
+	 * Измеряет задержку до каждого из переданных регионов и возвращает
+	 * список результатов, отсортированный по возрастанию пинга.
 	 *
-	 * @param regions regions
-	 *
-	 * @return List — результат операции
+	 * @param regions регионы для проверки
+	 * @return отсортированный список результатов пинга
 	 */
 	public static List<RegionPingResult> ping(Ping.Region... regions) {
+		// Прогревочный проход — первый пинг часто завышен из-за DNS-резолвинга
 		for (Ping.Region region : regions) {
-			ping(region.endpoint);
+			pingHost(region.endpoint);
 		}
 
-		List<RegionPingResult> list = Lists.newArrayList();
+		List<RegionPingResult> results = Lists.newArrayList();
 
-		for (Ping.Region region2 : regions) {
-			list.add(new RegionPingResult(region2.name, ping(region2.endpoint)));
+		for (Ping.Region region : regions) {
+			results.add(new RegionPingResult(region.name, pingHost(region.endpoint)));
 		}
 
-		list.sort(Comparator.comparingInt(RegionPingResult::ping));
-		return list;
+		results.sort(Comparator.comparingInt(RegionPingResult::ping));
+		return results;
 	}
 
-	private static int ping(String host) {
-		int i = 700;
-		long l = 0L;
+	/**
+	 * Пингует все известные регионы AWS и возвращает отсортированный список результатов.
+	 *
+	 * @return отсортированный список результатов пинга по всем регионам
+	 */
+	public static List<RegionPingResult> pingAllRegions() {
+		return ping(Ping.Region.values());
+	}
+
+	private static int pingHost(String host) {
+		long totalMs = 0L;
 		Socket socket = null;
 
-		for (int j = 0; j < 5; j++) {
+		for (int attempt = 0; attempt < PING_ATTEMPTS; attempt++) {
 			try {
-				SocketAddress socketAddress = new InetSocketAddress(host, 80);
+				SocketAddress address = new InetSocketAddress(host, HTTP_PORT);
 				socket = new Socket();
-				long m = now();
-				socket.connect(socketAddress, 700);
-				l += now() - m;
-			}
-			catch (Exception var12) {
-				l += 700L;
-			}
-			finally {
+				long startMs = now();
+				socket.connect(address, TIMEOUT_MS);
+				totalMs += now() - startMs;
+			} catch (Exception ignored) {
+				totalMs += TIMEOUT_MS;
+			} finally {
 				IOUtils.closeQuietly(socket);
 			}
 		}
 
-		return (int) (l / 5.0);
+		return (int) (totalMs / (double) PING_ATTEMPTS);
 	}
 
 	private static long now() {
 		return Util.getMeasuringTimeMs();
 	}
 
-	/**
-	 * Ping all regions.
-	 *
-	 * @return List — результат операции
-	 */
-	public static List<RegionPingResult> pingAllRegions() {
-		return ping(Ping.Region.values());
-	}
-
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Region}.
-	 */
-	static enum Region {
+	enum Region {
 		US_EAST_1("us-east-1", "ec2.us-east-1.amazonaws.com"),
 		US_WEST_2("us-west-2", "ec2.us-west-2.amazonaws.com"),
 		US_WEST_1("us-west-1", "ec2.us-west-1.amazonaws.com"),
@@ -95,7 +96,7 @@ public class Ping {
 		final String name;
 		final String endpoint;
 
-		private Region(final String name, final String endpoint) {
+		Region(String name, String endpoint) {
 			this.name = name;
 			this.endpoint = endpoint;
 		}

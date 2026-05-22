@@ -16,7 +16,10 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code SingleCommandAction}.
+ * Действие, выполняющее одну команду для одного или нескольких источников.
+ * Обрабатывает стадии подготовки (модификаторы/редиректы) и финального выполнения.
+ *
+ * @param <T> тип источника команды
  */
 public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 
@@ -24,6 +27,7 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 	public static final DynamicCommandExceptionType FORK_LIMIT_EXCEPTION = new DynamicCommandExceptionType(
 			count -> Text.stringifiedTranslatable("command.forkLimit", count)
 	);
+
 	private final String command;
 	private final ContextChain<T> contextChain;
 
@@ -32,6 +36,10 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 		this.contextChain = contextChain;
 	}
 
+	/**
+	 * Выполняет команду: проходит стадии подготовки (модификаторы, редиректы),
+	 * затем ставит в очередь финальное выполнение для каждого источника.
+	 */
 	protected void execute(
 			T baseSource,
 			List<T> sources,
@@ -39,33 +47,31 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 			Frame frame,
 			ExecutionFlags flags
 	) {
-		ContextChain<T> contextChain = this.contextChain;
-		ExecutionFlags executionFlags = flags;
-		List<T> list = sources;
-		if (contextChain.getStage() != Stage.EXECUTE) {
-			context.getProfiler().push(() -> "prepare " + this.command);
+		ContextChain<T> chain = contextChain;
+		ExecutionFlags currentFlags = flags;
+		List<T> currentSources = sources;
+
+		if (chain.getStage() != Stage.EXECUTE) {
+			context.getProfiler().push(() -> "prepare " + command);
 
 			try {
-				for (int i = context.getForkLimit();
-				     contextChain.getStage() != Stage.EXECUTE;
-				     contextChain = contextChain.nextStage()) {
-					CommandContext<T> commandContext = contextChain.getTopContext();
+				int forkLimit = context.getForkLimit();
+				while (chain.getStage() != Stage.EXECUTE) {
+					CommandContext<T> commandContext = chain.getTopContext();
 					if (commandContext.isForked()) {
-						executionFlags = executionFlags.setSilent();
+						currentFlags = currentFlags.setSilent();
 					}
 
 					RedirectModifier<T> redirectModifier = commandContext.getRedirectModifier();
 					@SuppressWarnings("unchecked")
-					Forkable<T>
-							forkable0 =
-							(redirectModifier instanceof Forkable) ? (Forkable<T>) redirectModifier : null;
-					if (forkable0 != null) {
-						Forkable<T> forkable = forkable0;
+					Forkable<T> forkable = (redirectModifier instanceof Forkable) ? (Forkable<T>) redirectModifier : null;
+
+					if (forkable != null) {
 						forkable.execute(
 								baseSource,
-								list,
-								contextChain,
-								executionFlags,
+								currentSources,
+								chain,
+								currentFlags,
 								ExecutionControl.of(context, frame)
 						);
 						return;
@@ -73,105 +79,95 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 
 					if (redirectModifier != null) {
 						context.decrementCommandQuota();
-						boolean bl = executionFlags.isSilent();
-						List<T> list2 = new ObjectArrayList();
+						boolean silent = currentFlags.isSilent();
+						List<T> nextSources = new ObjectArrayList<>();
 
-						for (T abstractServerCommandSource : list) {
+						for (T source : currentSources) {
 							try {
-								Collection<T> collection = ContextChain.runModifier(
+								Collection<T> modified = ContextChain.runModifier(
 										commandContext,
-										abstractServerCommandSource,
-										(contextx, successful, returnValue) -> {},
-										bl
+										source,
+										(ctx, successful, returnValue) -> {},
+										silent
 								);
-								if (list2.size() + collection.size() >= i) {
-									baseSource.handleException(FORK_LIMIT_EXCEPTION.create(i), bl, context.getTracer());
+								if (nextSources.size() + modified.size() >= forkLimit) {
+									baseSource.handleException(FORK_LIMIT_EXCEPTION.create(forkLimit), silent, context.getTracer());
 									return;
 								}
 
-								list2.addAll(collection);
-							}
-							catch (CommandSyntaxException var20) {
-								abstractServerCommandSource.handleException(var20, bl, context.getTracer());
-								if (!bl) {
+								nextSources.addAll(modified);
+							} catch (CommandSyntaxException exception) {
+								source.handleException(exception, silent, context.getTracer());
+								if (!silent) {
 									return;
 								}
 							}
 						}
 
-						list = list2;
+						currentSources = nextSources;
 					}
+
+					chain = chain.nextStage();
 				}
-			}
-			finally {
+			} finally {
 				context.getProfiler().pop();
 			}
 		}
 
-		if (list.isEmpty()) {
-			if (executionFlags.isInsideReturnRun()) {
+		if (currentSources.isEmpty()) {
+			if (currentFlags.isInsideReturnRun()) {
 				context.enqueueCommand(new CommandQueueEntry<T>(frame, FallthroughCommandAction.getInstance()));
 			}
-		}
-		else {
-			CommandContext<T> commandContext2 = contextChain.getTopContext();
-			@SuppressWarnings("unchecked")
-			ControlFlowAware<T>
-					controlFlowAware0 =
-					(commandContext2.getCommand() instanceof ControlFlowAware)
-					? (ControlFlowAware<T>) commandContext2.getCommand() : null;
-			if (controlFlowAware0 != null) {
-				ControlFlowAware<T> controlFlowAware = controlFlowAware0;
-				ExecutionControl<T> executionControl = ExecutionControl.of(context, frame);
 
-				for (T abstractServerCommandSource2 : list) {
-					controlFlowAware.execute(
-							abstractServerCommandSource2,
-							contextChain,
-							executionFlags,
-							executionControl
-					);
-				}
-			}
-			else {
-				if (executionFlags.isInsideReturnRun()) {
-					T abstractServerCommandSource3 = list.get(0);
-					abstractServerCommandSource3 = abstractServerCommandSource3.withReturnValueConsumer(
-							ReturnValueConsumer.chain(
-									abstractServerCommandSource3.getReturnValueConsumer(),
-									frame.returnValueConsumer()
-							)
-					);
-					list = List.of(abstractServerCommandSource3);
-				}
-
-				FixedCommandAction<T>
-						fixedCommandAction =
-						new FixedCommandAction<>(this.command, executionFlags, commandContext2);
-				SteppedCommandAction.enqueueCommands(
-						context,
-						frame,
-						list,
-						(framex, source) -> new CommandQueueEntry<>(framex, fixedCommandAction.bind(source))
-				);
-			}
+			return;
 		}
+
+		CommandContext<T> execContext = chain.getTopContext();
+		@SuppressWarnings("unchecked")
+		ControlFlowAware<T> controlFlowAware = (execContext.getCommand() instanceof ControlFlowAware)
+				? (ControlFlowAware<T>) execContext.getCommand()
+				: null;
+
+		if (controlFlowAware != null) {
+			ExecutionControl<T> executionControl = ExecutionControl.of(context, frame);
+			for (T source : currentSources) {
+				controlFlowAware.execute(source, chain, currentFlags, executionControl);
+			}
+
+			return;
+		}
+
+		if (currentFlags.isInsideReturnRun()) {
+			T firstSource = currentSources.get(0);
+			firstSource = firstSource.withReturnValueConsumer(
+					ReturnValueConsumer.chain(firstSource.getReturnValueConsumer(), frame.returnValueConsumer())
+			);
+			currentSources = List.of(firstSource);
+		}
+
+		FixedCommandAction<T> fixedAction = new FixedCommandAction<>(command, currentFlags, execContext);
+		SteppedCommandAction.enqueueCommands(
+				context,
+				frame,
+				currentSources,
+				(framex, source) -> new CommandQueueEntry<>(framex, fixedAction.bind(source))
+		);
 	}
 
 	protected void traceCommandStart(CommandExecutionContext<T> context, Frame frame) {
 		Tracer tracer = context.getTracer();
 		if (tracer != null) {
-			tracer.traceCommandStart(frame.depth(), this.command);
+			tracer.traceCommandStart(frame.depth(), command);
 		}
 	}
 
 	@Override
 	public String toString() {
-		return this.command;
+		return command;
 	}
 
 	/**
-	 * {@code MultiSource}.
+	 * Выполняет команду для нескольких источников с заданными флагами.
 	 */
 	public static class MultiSource<T extends AbstractServerCommandSource<T>> extends SingleCommandAction<T> implements CommandAction<T> {
 
@@ -193,13 +189,13 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 		}
 
 		@Override
-		public void execute(CommandExecutionContext<T> commandExecutionContext, Frame frame) {
-			this.execute(this.baseSource, this.sources, commandExecutionContext, frame, this.flags);
+		public void execute(CommandExecutionContext<T> context, Frame frame) {
+			execute(baseSource, sources, context, frame, flags);
 		}
 	}
 
 	/**
-	 * {@code SingleSource}.
+	 * Выполняет команду для единственного источника без флагов.
 	 */
 	public static class SingleSource<T extends AbstractServerCommandSource<T>> extends SingleCommandAction<T> implements CommandAction<T> {
 
@@ -211,34 +207,24 @@ public class SingleCommandAction<T extends AbstractServerCommandSource<T>> {
 		}
 
 		@Override
-		public void execute(CommandExecutionContext<T> commandExecutionContext, Frame frame) {
-			this.traceCommandStart(commandExecutionContext, frame);
-			this.execute(this.source, List.of(this.source), commandExecutionContext, frame, ExecutionFlags.NONE);
+		public void execute(CommandExecutionContext<T> context, Frame frame) {
+			traceCommandStart(context, frame);
+			execute(source, List.of(source), context, frame, ExecutionFlags.NONE);
 		}
 	}
 
 	/**
-	 * {@code Sourced}.
+	 * Реализует {@link SourcedCommandAction} — выполняет команду для переданного источника.
 	 */
 	public static class Sourced<T extends AbstractServerCommandSource<T>> extends SingleCommandAction<T> implements SourcedCommandAction<T> {
 
-		public Sourced(String string, ContextChain<T> contextChain) {
-			super(string, contextChain);
+		public Sourced(String command, ContextChain<T> contextChain) {
+			super(command, contextChain);
 		}
 
-		public void execute(
-				T abstractServerCommandSource,
-				CommandExecutionContext<T> commandExecutionContext,
-				Frame frame
-		) {
-			this.traceCommandStart(commandExecutionContext, frame);
-			this.execute(
-					abstractServerCommandSource,
-					List.of(abstractServerCommandSource),
-					commandExecutionContext,
-					frame,
-					ExecutionFlags.NONE
-			);
+		public void execute(T source, CommandExecutionContext<T> context, Frame frame) {
+			traceCommandStart(context, frame);
+			execute(source, List.of(source), context, frame, ExecutionFlags.NONE);
 		}
 	}
 }

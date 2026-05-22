@@ -15,48 +15,69 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code SlotRanges}.
+ * Реестр именованных диапазонов слотов, используемых в командах Minecraft
+ * (например, {@code /item replace} и {@code /loot}).
+ *
+ * <p>Каждый диапазон имеет строковое имя и список идентификаторов слотов.
+ * Диапазоны с суффиксом {@code .*} охватывают все слоты группы,
+ * диапазоны с числовым суффиксом — конкретный слот.
+ *
+ * <p>Смещения слотов для экипировки вычисляются через
+ * {@link EquipmentSlot#getOffsetEntitySlotId(int)} с базовыми константами,
+ * определёнными в этом классе.
  */
 public class SlotRanges {
 
+	private static final int WEAPON_SLOT_OFFSET = 98;
+	private static final int ARMOR_SLOT_OFFSET = 100;
+	private static final int BODY_SLOT_OFFSET = 105;
+	private static final int SADDLE_SLOT_OFFSET = 106;
+
+	/** Идентификатор слота сундука лошади и курсора игрока (оба используют одно значение). */
+	private static final int HORSE_CHEST_SLOT_ID = 499;
+	private static final int PLAYER_CRAFTING_START_SLOT = 500;
+
 	private static final List<SlotRange> SLOT_RANGES = Util.make(
-			new ArrayList<>(), list -> {
-				createAndAdd(list, "contents", 0);
-				createAndAdd(list, "container.", 0, 54);
-				createAndAdd(list, "hotbar.", 0, 9);
-				createAndAdd(list, "inventory.", 9, 27);
-				createAndAdd(list, "enderchest.", 200, 27);
-				createAndAdd(list, "villager.", 300, 8);
-				createAndAdd(list, "horse.", 500, 15);
-				int i = EquipmentSlot.MAINHAND.getOffsetEntitySlotId(98);
-				int j = EquipmentSlot.OFFHAND.getOffsetEntitySlotId(98);
-				createAndAdd(list, "weapon", i);
-				createAndAdd(list, "weapon.mainhand", i);
-				createAndAdd(list, "weapon.offhand", j);
-				createAndAdd(list, "weapon.*", i, j);
-				i = EquipmentSlot.HEAD.getOffsetEntitySlotId(100);
-				j = EquipmentSlot.CHEST.getOffsetEntitySlotId(100);
-				int k = EquipmentSlot.LEGS.getOffsetEntitySlotId(100);
-				int l = EquipmentSlot.FEET.getOffsetEntitySlotId(100);
-				int m = EquipmentSlot.BODY.getOffsetEntitySlotId(105);
-				createAndAdd(list, "armor.head", i);
-				createAndAdd(list, "armor.chest", j);
-				createAndAdd(list, "armor.legs", k);
-				createAndAdd(list, "armor.feet", l);
-				createAndAdd(list, "armor.body", m);
-				createAndAdd(list, "armor.*", i, j, k, l, m);
-				createAndAdd(list, "saddle", EquipmentSlot.SADDLE.getOffsetEntitySlotId(106));
-				createAndAdd(list, "horse.chest", 499);
-				createAndAdd(list, "player.cursor", 499);
-				createAndAdd(list, "player.crafting.", 500, 4);
-			}
+		new ArrayList<>(), list -> {
+			createAndAdd(list, "contents", 0);
+			createAndAdd(list, "container.", 0, 54);
+			createAndAdd(list, "hotbar.", 0, 9);
+			createAndAdd(list, "inventory.", 9, 27);
+			createAndAdd(list, "enderchest.", 200, 27);
+			createAndAdd(list, "villager.", 300, 8);
+			createAndAdd(list, "horse.", 500, 15);
+
+			int mainhandSlot = EquipmentSlot.MAINHAND.getOffsetEntitySlotId(WEAPON_SLOT_OFFSET);
+			int offhandSlot = EquipmentSlot.OFFHAND.getOffsetEntitySlotId(WEAPON_SLOT_OFFSET);
+			createAndAdd(list, "weapon", mainhandSlot);
+			createAndAdd(list, "weapon.mainhand", mainhandSlot);
+			createAndAdd(list, "weapon.offhand", offhandSlot);
+			createAndAdd(list, "weapon.*", mainhandSlot, offhandSlot);
+
+			int headSlot = EquipmentSlot.HEAD.getOffsetEntitySlotId(ARMOR_SLOT_OFFSET);
+			int chestSlot = EquipmentSlot.CHEST.getOffsetEntitySlotId(ARMOR_SLOT_OFFSET);
+			int legsSlot = EquipmentSlot.LEGS.getOffsetEntitySlotId(ARMOR_SLOT_OFFSET);
+			int feetSlot = EquipmentSlot.FEET.getOffsetEntitySlotId(ARMOR_SLOT_OFFSET);
+			int bodySlot = EquipmentSlot.BODY.getOffsetEntitySlotId(BODY_SLOT_OFFSET);
+			createAndAdd(list, "armor.head", headSlot);
+			createAndAdd(list, "armor.chest", chestSlot);
+			createAndAdd(list, "armor.legs", legsSlot);
+			createAndAdd(list, "armor.feet", feetSlot);
+			createAndAdd(list, "armor.body", bodySlot);
+			createAndAdd(list, "armor.*", headSlot, chestSlot, legsSlot, feetSlot, bodySlot);
+
+			createAndAdd(list, "saddle", EquipmentSlot.SADDLE.getOffsetEntitySlotId(SADDLE_SLOT_OFFSET));
+			createAndAdd(list, "horse.chest", HORSE_CHEST_SLOT_ID);
+			createAndAdd(list, "player.cursor", HORSE_CHEST_SLOT_ID);
+			createAndAdd(list, "player.crafting.", PLAYER_CRAFTING_START_SLOT, 4);
+		}
 	);
-	public static final Codec<SlotRange>
-			CODEC =
-			StringIdentifiable.createBasicCodec(() -> SLOT_RANGES.toArray(SlotRange[]::new));
-	private static final Function<String, @Nullable SlotRange>
-			FROM_NAME =
-			StringIdentifiable.createMapper(SLOT_RANGES.toArray(SlotRange[]::new));
+
+	public static final Codec<SlotRange> CODEC =
+		StringIdentifiable.createBasicCodec(() -> SLOT_RANGES.toArray(SlotRange[]::new));
+
+	private static final Function<String, @Nullable SlotRange> FROM_NAME =
+		StringIdentifiable.createMapper(SLOT_RANGES.toArray(SlotRange[]::new));
 
 	private static SlotRange create(String name, int slotId) {
 		return SlotRange.create(name, IntLists.singleton(slotId));
@@ -74,16 +95,26 @@ public class SlotRanges {
 		list.add(create(name, slotId));
 	}
 
+	/**
+	 * Создаёт и добавляет в список диапазон из {@code slotCount} последовательных слотов,
+	 * начиная с {@code firstSlotId}. Для каждого слота создаётся именованный диапазон
+	 * {@code baseName + index}, а также сводный диапазон {@code baseName + "*"}.
+	 *
+	 * @param list        целевой список диапазонов
+	 * @param baseName    базовое имя (например, {@code "hotbar."})
+	 * @param firstSlotId идентификатор первого слота диапазона
+	 * @param slotCount   количество слотов в диапазоне
+	 */
 	private static void createAndAdd(List<SlotRange> list, String baseName, int firstSlotId, int slotCount) {
-		IntList intList = new IntArrayList(slotCount);
+		IntList slotIds = new IntArrayList(slotCount);
 
-		for (int i = 0; i < slotCount; i++) {
-			int j = firstSlotId + i;
-			list.add(create(baseName + i, j));
-			intList.add(j);
+		for (int index = 0; index < slotCount; index++) {
+			int slotId = firstSlotId + index;
+			list.add(create(baseName + index, slotId));
+			slotIds.add(slotId);
 		}
 
-		list.add(create(baseName + "*", intList));
+		list.add(create(baseName + "*", slotIds));
 	}
 
 	private static void createAndAdd(List<SlotRange> list, String name, int... slots) {
@@ -99,9 +130,8 @@ public class SlotRanges {
 	}
 
 	public static Stream<String> streamSingleSlotNames() {
-		return SLOT_RANGES
-				.stream()
-				.filter(slotRange -> slotRange.getSlotCount() == 1)
-				.map(StringIdentifiable::asString);
+		return SLOT_RANGES.stream()
+			.filter(slotRange -> slotRange.getSlotCount() == 1)
+			.map(StringIdentifiable::asString);
 	}
 }

@@ -1,7 +1,8 @@
 package net.minecraft.util.profiler.log;
 
 /**
- * {@code ArrayDebugSampleLog}.
+ * Базовая реализация {@link DebugSampleLog} на основе массива значений.
+ * Хранит текущие значения по измерениям и сбрасывает их к значениям по умолчанию после каждого push.
  */
 public abstract class ArrayDebugSampleLog implements DebugSampleLog {
 
@@ -12,45 +13,37 @@ public abstract class ArrayDebugSampleLog implements DebugSampleLog {
 		if (defaults.length != size) {
 			throw new IllegalArgumentException("defaults have incorrect length of " + defaults.length);
 		}
-		else {
-			this.values = new long[size];
-			this.defaults = defaults;
-		}
+
+		this.values = new long[size];
+		this.defaults = defaults;
 	}
 
 	@Override
-	public void set(long[] values) {
-		System.arraycopy(values, 0, this.values, 0, values.length);
-		this.onPush();
-		this.clearValues();
+	public void set(long[] newValues) {
+		System.arraycopy(newValues, 0, values, 0, newValues.length);
+		onPush();
+		clearValues();
 	}
 
 	@Override
 	public void push(long value) {
-		this.values[0] = value;
-		this.onPush();
-		this.clearValues();
+		values[0] = value;
+		onPush();
+		clearValues();
 	}
 
 	@Override
 	public void push(long value, int column) {
-		if (column >= 1 && column < this.values.length) {
-			this.values[column] = value;
+		if (column < 1 || column >= values.length) {
+			throw new IndexOutOfBoundsException(column + " out of bounds for dimensions " + values.length);
 		}
-		else {
-			throw new IndexOutOfBoundsException(column + " out of bounds for dimensions " + this.values.length);
-		}
+
+		values[column] = value;
 	}
 
-	/**
-	 * Обрабатывает событие push.
-	 */
 	protected abstract void onPush();
 
-	/**
-	 * Очищает values.
-	 */
 	protected void clearValues() {
-		System.arraycopy(this.defaults, 0, this.values, 0, this.defaults.length);
+		System.arraycopy(defaults, 0, values, 0, defaults.length);
 	}
 }

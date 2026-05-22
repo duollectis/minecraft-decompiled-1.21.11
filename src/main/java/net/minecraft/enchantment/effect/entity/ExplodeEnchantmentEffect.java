@@ -28,7 +28,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ExplodeEnchantmentEffect}.
+ * Эффект зачарования, создающий взрыв в позиции применения.
+ * Поддерживает настройку: атрибуцию урона, тип урона, множитель отдачи,
+ * иммунные блоки, смещение, радиус, создание огня, тип взаимодействия с блоками,
+ * частицы и звук взрыва.
  */
 public record ExplodeEnchantmentEffect(
 		boolean attributeToUser,
@@ -47,77 +50,85 @@ public record ExplodeEnchantmentEffect(
 
 	public static final MapCodec<ExplodeEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Codec.BOOL
-							                    .optionalFieldOf("attribute_to_user", false)
-							                    .forGetter(ExplodeEnchantmentEffect::attributeToUser),
-					                    DamageType.ENTRY_CODEC
-							                    .optionalFieldOf("damage_type")
-							                    .forGetter(ExplodeEnchantmentEffect::damageType),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .optionalFieldOf("knockback_multiplier")
-							                    .forGetter(ExplodeEnchantmentEffect::knockbackMultiplier),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.BLOCK)
-							                    .optionalFieldOf("immune_blocks")
-							                    .forGetter(ExplodeEnchantmentEffect::immuneBlocks),
-					                    Vec3d.CODEC.optionalFieldOf("offset", Vec3d.ZERO).forGetter(ExplodeEnchantmentEffect::offset),
-					                    EnchantmentLevelBasedValue.CODEC.fieldOf("radius").forGetter(ExplodeEnchantmentEffect::radius),
-					                    Codec.BOOL.optionalFieldOf("create_fire", false).forGetter(ExplodeEnchantmentEffect::createFire),
-					                    World.ExplosionSourceType.CODEC
-							                    .fieldOf("block_interaction")
-							                    .forGetter(ExplodeEnchantmentEffect::blockInteraction),
-					                    ParticleTypes.TYPE_CODEC
-							                    .fieldOf("small_particle")
-							                    .forGetter(ExplodeEnchantmentEffect::smallParticle),
-					                    ParticleTypes.TYPE_CODEC
-							                    .fieldOf("large_particle")
-							                    .forGetter(ExplodeEnchantmentEffect::largeParticle),
-					                    Pool
-							                    .createCodec(BlockParticleEffect.CODEC)
-							                    .optionalFieldOf("block_particles", Pool.empty())
-							                    .forGetter(ExplodeEnchantmentEffect::blockParticles),
-					                    SoundEvent.ENTRY_CODEC.fieldOf("sound").forGetter(ExplodeEnchantmentEffect::sound)
-			                    )
-			                    .apply(instance, ExplodeEnchantmentEffect::new)
+					Codec.BOOL
+							.optionalFieldOf("attribute_to_user", false)
+							.forGetter(ExplodeEnchantmentEffect::attributeToUser),
+					DamageType.ENTRY_CODEC
+							.optionalFieldOf("damage_type")
+							.forGetter(ExplodeEnchantmentEffect::damageType),
+					EnchantmentLevelBasedValue.CODEC
+							.optionalFieldOf("knockback_multiplier")
+							.forGetter(ExplodeEnchantmentEffect::knockbackMultiplier),
+					RegistryCodecs
+							.entryList(RegistryKeys.BLOCK)
+							.optionalFieldOf("immune_blocks")
+							.forGetter(ExplodeEnchantmentEffect::immuneBlocks),
+					Vec3d.CODEC
+							.optionalFieldOf("offset", Vec3d.ZERO)
+							.forGetter(ExplodeEnchantmentEffect::offset),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("radius")
+							.forGetter(ExplodeEnchantmentEffect::radius),
+					Codec.BOOL
+							.optionalFieldOf("create_fire", false)
+							.forGetter(ExplodeEnchantmentEffect::createFire),
+					World.ExplosionSourceType.CODEC
+							.fieldOf("block_interaction")
+							.forGetter(ExplodeEnchantmentEffect::blockInteraction),
+					ParticleTypes.TYPE_CODEC
+							.fieldOf("small_particle")
+							.forGetter(ExplodeEnchantmentEffect::smallParticle),
+					ParticleTypes.TYPE_CODEC
+							.fieldOf("large_particle")
+							.forGetter(ExplodeEnchantmentEffect::largeParticle),
+					Pool
+							.createCodec(BlockParticleEffect.CODEC)
+							.optionalFieldOf("block_particles", Pool.empty())
+							.forGetter(ExplodeEnchantmentEffect::blockParticles),
+					SoundEvent.ENTRY_CODEC
+							.fieldOf("sound")
+							.forGetter(ExplodeEnchantmentEffect::sound)
+			).apply(instance, ExplodeEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		Vec3d vec3d = pos.add(this.offset);
-		world.createExplosion(
-				this.attributeToUser ? user : null,
-				this.getDamageSource(user, vec3d),
-				new AdvancedExplosionBehavior(
-						this.blockInteraction != World.ExplosionSourceType.NONE,
-						this.damageType.isPresent(),
-						this.knockbackMultiplier.map(knockbackMultiplier -> knockbackMultiplier.getValue(level)),
-						this.immuneBlocks
-				),
-				vec3d.getX(),
-				vec3d.getY(),
-				vec3d.getZ(),
-				Math.max(this.radius.getValue(level), 0.0F),
-				this.createFire,
-				this.blockInteraction,
-				this.smallParticle,
-				this.largeParticle,
-				this.blockParticles,
-				this.sound
-		);
-	}
+		Vec3d explosionPos = pos.add(offset);
 
-	private @Nullable DamageSource getDamageSource(Entity user, Vec3d pos) {
-		if (this.damageType.isEmpty()) {
-			return null;
-		}
-		else {
-			return this.attributeToUser ? new DamageSource(this.damageType.get(), user)
-			                            : new DamageSource(this.damageType.get(), pos);
-		}
+		world.createExplosion(
+				attributeToUser ? user : null,
+				buildDamageSource(user, explosionPos),
+				new AdvancedExplosionBehavior(
+						blockInteraction != World.ExplosionSourceType.NONE,
+						damageType.isPresent(),
+						knockbackMultiplier.map(multiplier -> multiplier.getValue(level)),
+						immuneBlocks
+				),
+				explosionPos.getX(),
+				explosionPos.getY(),
+				explosionPos.getZ(),
+				Math.max(radius.getValue(level), 0.0F),
+				createFire,
+				blockInteraction,
+				smallParticle,
+				largeParticle,
+				blockParticles,
+				sound
+		);
 	}
 
 	@Override
 	public MapCodec<ExplodeEnchantmentEffect> getCodec() {
 		return CODEC;
+	}
+
+	private @Nullable DamageSource buildDamageSource(Entity user, Vec3d pos) {
+		if (damageType.isEmpty()) {
+			return null;
+		}
+
+		return attributeToUser
+			? new DamageSource(damageType.get(), user)
+			: new DamageSource(damageType.get(), pos);
 	}
 }

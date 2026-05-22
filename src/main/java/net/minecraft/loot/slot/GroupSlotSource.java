@@ -6,7 +6,8 @@ import com.mojang.serialization.MapCodec;
 import java.util.List;
 
 /**
- * {@code GroupSlotSource}.
+ * Источник слотов, объединяющий несколько дочерних источников в единый поток предметов.
+ * Поддерживает инлайн-кодек для сокращённой JSON-записи в виде массива.
  */
 public class GroupSlotSource extends CombinedSlotSource {
 

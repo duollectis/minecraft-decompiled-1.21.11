@@ -9,21 +9,25 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3082}.
+ * Схема версии 3082 (Minecraft 1.19 — The Wild Update).
+ * <p>
+ * Регистрирует тип данных для сущности лодки с сундуком ({@code minecraft:chest_boat}),
+ * добавленной в обновлении 1.19. Лодка хранит инвентарь предметов в поле {@code Items}.
  */
 public class Schema3082 extends IdentifierNormalizingSchema {
 
-	public Schema3082(int i, Schema schema) {
-		super(i, schema);
+	public Schema3082(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
 		schema.register(
-				map,
-				"minecraft:chest_boat",
-				string -> DSL.optionalFields("Items", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
+			entityTypes,
+			"minecraft:chest_boat",
+			name -> DSL.optionalFields("Items", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
 		);
-		return map;
+		return entityTypes;
 	}
 }

@@ -10,91 +10,107 @@ import net.minecraft.util.Hand;
 import java.util.EnumSet;
 
 /**
- * {@code MeleeAttackGoal}.
+ * Цель ближнего боя: преследует и атакует цель моба.
+ * Адаптирует частоту обновления пути в зависимости от расстояния до цели.
  */
 public class MeleeAttackGoal extends Goal {
+
+	private static final long ATTACK_INTERVAL_TICKS = 20L;
+	private static final int PATH_UPDATE_BASE = 4;
+	private static final int PATH_UPDATE_JITTER = 7;
+	private static final int PATH_UPDATE_FAR_BONUS = 10;
+	private static final int PATH_UPDATE_MID_BONUS = 5;
+	private static final int PATH_UPDATE_FAIL_BONUS = 15;
+	private static final double FAR_DISTANCE_SQ = 1024.0;
+	private static final double MID_DISTANCE_SQ = 256.0;
+	private static final double FLEE_SPEED_THRESHOLD_SQ = 49.0;
+	private static final float RANDOM_RETARGET_CHANCE = 0.05F;
+	private static final float LOOK_YAW_CHANGE = 30.0F;
+	private static final float LOOK_PITCH_CHANGE = 30.0F;
 
 	protected final PathAwareEntity mob;
 	private final double speed;
 	private final boolean pauseWhenMobIdle;
 	private Path path;
-	private double targetX;
-	private double targetY;
-	private double targetZ;
+	private double lastTargetX;
+	private double lastTargetY;
+	private double lastTargetZ;
 	private int updateCountdownTicks;
 	private int cooldown;
-	private final int attackIntervalTicks = 20;
 	private long lastUpdateTime;
-	private static final long MAX_ATTACK_TIME = 20L;
 
 	public MeleeAttackGoal(PathAwareEntity mob, double speed, boolean pauseWhenMobIdle) {
 		this.mob = mob;
 		this.speed = speed;
 		this.pauseWhenMobIdle = pauseWhenMobIdle;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 	}
 
 	@Override
 	public boolean canStart() {
-		long l = this.mob.getEntityWorld().getTime();
-		if (l - this.lastUpdateTime < 20L) {
+		long currentTime = mob.getEntityWorld().getTime();
+
+		if (currentTime - lastUpdateTime < ATTACK_INTERVAL_TICKS) {
 			return false;
 		}
-		else {
-			this.lastUpdateTime = l;
-			LivingEntity livingEntity = this.mob.getTarget();
-			if (livingEntity == null) {
-				return false;
-			}
-			else if (!livingEntity.isAlive()) {
-				return false;
-			}
-			else {
-				this.path = this.mob.getNavigation().findPathTo(livingEntity, 0);
-				return this.path != null ? true : this.mob.isInAttackRange(livingEntity);
-			}
+
+		lastUpdateTime = currentTime;
+		LivingEntity target = mob.getTarget();
+
+		if (target == null) {
+			return false;
 		}
+
+		if (!target.isAlive()) {
+			return false;
+		}
+
+		path = mob.getNavigation().findPathTo(target, 0);
+		return path != null || mob.isInAttackRange(target);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		LivingEntity livingEntity = this.mob.getTarget();
-		if (livingEntity == null) {
+		LivingEntity target = mob.getTarget();
+
+		if (target == null) {
 			return false;
 		}
-		else if (!livingEntity.isAlive()) {
+
+		if (!target.isAlive()) {
 			return false;
 		}
-		else if (!this.pauseWhenMobIdle) {
-			return !this.mob.getNavigation().isIdle();
+
+		if (!pauseWhenMobIdle) {
+			return !mob.getNavigation().isIdle();
 		}
-		else {
-			return !this.mob.isInPositionTargetRange(livingEntity.getBlockPos())
-			       ? false
-			       : !(livingEntity instanceof PlayerEntity playerEntity && (playerEntity.isSpectator()
-			                                                                 || playerEntity.isCreative()
-			       )
-			       );
+
+		if (!mob.isInPositionTargetRange(target.getBlockPos())) {
+			return false;
 		}
+
+		return !(target instanceof PlayerEntity player)
+				|| (!player.isSpectator() && !player.isCreative());
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingAlong(this.path, this.speed);
-		this.mob.setAttacking(true);
-		this.updateCountdownTicks = 0;
-		this.cooldown = 0;
+		mob.getNavigation().startMovingAlong(path, speed);
+		mob.setAttacking(true);
+		updateCountdownTicks = 0;
+		cooldown = 0;
 	}
 
 	@Override
 	public void stop() {
-		LivingEntity livingEntity = this.mob.getTarget();
-		if (!EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(livingEntity)) {
-			this.mob.setTarget(null);
+		LivingEntity target = mob.getTarget();
+
+		if (!EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(target)) {
+			mob.setTarget(null);
 		}
 
-		this.mob.setAttacking(false);
-		this.mob.getNavigation().stop();
+		mob.setAttacking(false);
+		mob.getNavigation().stop();
 	}
 
 	@Override
@@ -104,81 +120,73 @@ public class MeleeAttackGoal extends Goal {
 
 	@Override
 	public void tick() {
-		LivingEntity livingEntity = this.mob.getTarget();
-		if (livingEntity != null) {
-			this.mob.getLookControl().lookAt(livingEntity, 30.0F, 30.0F);
-			this.updateCountdownTicks = Math.max(this.updateCountdownTicks - 1, 0);
-			if ((this.pauseWhenMobIdle || this.mob.getVisibilityCache().canSee(livingEntity))
-					&& this.updateCountdownTicks <= 0
-					&& (
-					this.targetX == 0.0 && this.targetY == 0.0 && this.targetZ == 0.0
-							|| livingEntity.squaredDistanceTo(this.targetX, this.targetY, this.targetZ) >= 1.0
-							|| this.mob.getRandom().nextFloat() < 0.05F
-			)) {
-				this.targetX = livingEntity.getX();
-				this.targetY = livingEntity.getY();
-				this.targetZ = livingEntity.getZ();
-				this.updateCountdownTicks = 4 + this.mob.getRandom().nextInt(7);
-				double d = this.mob.squaredDistanceTo(livingEntity);
-				if (d > 1024.0) {
-					this.updateCountdownTicks += 10;
-				}
-				else if (d > 256.0) {
-					this.updateCountdownTicks += 5;
-				}
+		LivingEntity target = mob.getTarget();
 
-				if (!this.mob.getNavigation().startMovingTo(livingEntity, this.speed)) {
-					this.updateCountdownTicks += 15;
-				}
+		if (target == null) {
+			return;
+		}
 
-				this.updateCountdownTicks = this.getTickCount(this.updateCountdownTicks);
+		mob.getLookControl().lookAt(target, LOOK_YAW_CHANGE, LOOK_PITCH_CHANGE);
+		updateCountdownTicks = Math.max(updateCountdownTicks - 1, 0);
+
+		boolean canSeeOrIdle = pauseWhenMobIdle || mob.getVisibilityCache().canSee(target);
+		boolean targetMoved = target.squaredDistanceTo(lastTargetX, lastTargetY, lastTargetZ) >= 1.0;
+		boolean noLastTarget = lastTargetX == 0.0 && lastTargetY == 0.0 && lastTargetZ == 0.0;
+		boolean shouldUpdate = canSeeOrIdle
+				&& updateCountdownTicks <= 0
+				&& (noLastTarget || targetMoved || mob.getRandom().nextFloat() < RANDOM_RETARGET_CHANCE);
+
+		if (shouldUpdate) {
+			lastTargetX = target.getX();
+			lastTargetY = target.getY();
+			lastTargetZ = target.getZ();
+			updateCountdownTicks = PATH_UPDATE_BASE + mob.getRandom().nextInt(PATH_UPDATE_JITTER);
+
+			double distSq = mob.squaredDistanceTo(target);
+
+			if (distSq > FAR_DISTANCE_SQ) {
+				updateCountdownTicks += PATH_UPDATE_FAR_BONUS;
+			}
+			else if (distSq > MID_DISTANCE_SQ) {
+				updateCountdownTicks += PATH_UPDATE_MID_BONUS;
 			}
 
-			this.cooldown = Math.max(this.cooldown - 1, 0);
-			this.attack(livingEntity);
+			if (!mob.getNavigation().startMovingTo(target, speed)) {
+				updateCountdownTicks += PATH_UPDATE_FAIL_BONUS;
+			}
+
+			updateCountdownTicks = getTickCount(updateCountdownTicks);
 		}
+
+		cooldown = Math.max(cooldown - 1, 0);
+		attack(target);
 	}
 
-	/**
-	 * Attack.
-	 *
-	 * @param target target
-	 */
 	protected void attack(LivingEntity target) {
-		if (this.canAttack(target)) {
-			this.resetCooldown();
-			this.mob.swingHand(Hand.MAIN_HAND);
-			this.mob.tryAttack(getServerWorld(this.mob), target);
+		if (canAttack(target)) {
+			resetCooldown();
+			mob.swingHand(Hand.MAIN_HAND);
+			mob.tryAttack(getServerWorld(mob), target);
 		}
 	}
 
-	/**
-	 * Сбрасывает cooldown.
-	 */
 	protected void resetCooldown() {
-		this.cooldown = this.getTickCount(20);
+		cooldown = getTickCount((int) ATTACK_INTERVAL_TICKS);
 	}
 
 	protected boolean isCooledDown() {
-		return this.cooldown <= 0;
+		return cooldown <= 0;
 	}
 
-	/**
-	 * Проверяет возможность attack.
-	 *
-	 * @param target target
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canAttack(LivingEntity target) {
-		return this.isCooledDown() && this.mob.isInAttackRange(target) && this.mob.getVisibilityCache().canSee(target);
+		return isCooledDown() && mob.isInAttackRange(target) && mob.getVisibilityCache().canSee(target);
 	}
 
 	protected int getCooldown() {
-		return this.cooldown;
+		return cooldown;
 	}
 
 	protected int getMaxCooldown() {
-		return this.getTickCount(20);
+		return getTickCount((int) ATTACK_INTERVAL_TICKS);
 	}
 }

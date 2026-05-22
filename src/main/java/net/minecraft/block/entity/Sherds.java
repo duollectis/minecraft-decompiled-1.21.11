@@ -22,7 +22,9 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * {@code Sherds}.
+ * Хранит четыре черепка (sherd), украшающих стороны декоративного горшка:
+ * заднюю, левую, правую и переднюю. Каждый черепок опционален —
+ * отсутствующий слот кодируется как {@link Items#BRICK} при сериализации.
  */
 public record Sherds(
 		Optional<Item> back,
@@ -55,17 +57,11 @@ public record Sherds(
 		if (index >= sherds.size()) {
 			return Optional.empty();
 		}
-		else {
-			Item item = sherds.get(index);
-			return item == Items.BRICK ? Optional.empty() : Optional.of(item);
-		}
+
+		Item item = sherds.get(index);
+		return item == Items.BRICK ? Optional.empty() : Optional.of(item);
 	}
 
-	/**
-	 * To list.
-	 *
-	 * @return List — результат операции
-	 */
 	public List<Item> toList() {
 		return Stream.of(this.back, this.left, this.right, this.front).map(item -> item.orElse(Items.BRICK)).toList();
 	}

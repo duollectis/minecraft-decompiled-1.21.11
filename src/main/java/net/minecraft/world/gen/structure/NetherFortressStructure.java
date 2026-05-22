@@ -12,10 +12,10 @@ import net.minecraft.world.biome.SpawnSettings;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
- * {@code NetherFortressStructure}.
+ * Структура крепости Нижнего мира. Содержит статический пул спавна монстров,
+ * используемый при регистрации структуры в {@link Structures}.
  */
 public class NetherFortressStructure extends Structure {
 
@@ -68,7 +68,7 @@ public class NetherFortressStructure extends Structure {
 		BlockPos blockPos = new BlockPos(chunkPos.getStartX(), 64, chunkPos.getStartZ());
 		return Optional.of(new Structure.StructurePosition(
 				blockPos,
-				(Consumer<StructurePiecesCollector>) (collector -> addPieces(collector, context))
+				collector -> addPieces(collector, context)
 		));
 	}
 
@@ -78,12 +78,12 @@ public class NetherFortressStructure extends Structure {
 		);
 		collector.addPiece(start);
 		start.fillOpenings(start, collector, context.random());
-		List<StructurePiece> list = start.pieces;
+		List<StructurePiece> pendingPieces = start.pieces;
 
-		while (!list.isEmpty()) {
-			int i = context.random().nextInt(list.size());
-			StructurePiece structurePiece = list.remove(i);
-			structurePiece.fillOpenings(start, collector, context.random());
+		while (!pendingPieces.isEmpty()) {
+			int randomIndex = context.random().nextInt(pendingPieces.size());
+			StructurePiece piece = pendingPieces.remove(randomIndex);
+			piece.fillOpenings(start, collector, context.random());
 		}
 
 		collector.shiftInto(context.random(), 48, 70);

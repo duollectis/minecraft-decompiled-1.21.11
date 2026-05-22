@@ -11,7 +11,9 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Optional;
 
 /**
- * {@code BlockPropertyRenameFix}.
+ * Абстрактный фикс для переименования свойств блоков в {@code BLOCK_STATE}.
+ * Подклассы определяют, какие блоки затрагиваются ({@link #shouldFix(String)})
+ * и как именно переименовываются свойства ({@link #fix(String, Dynamic)}).
  */
 public abstract class BlockPropertyRenameFix extends DataFix {
 
@@ -23,19 +25,18 @@ public abstract class BlockPropertyRenameFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				this.name,
-				this.getInputSchema().getType(TypeReferences.BLOCK_STATE),
+		return fixTypeEverywhereTyped(
+				name,
+				getInputSchema().getType(TypeReferences.BLOCK_STATE),
 				typed -> typed.update(DSL.remainderFinder(), this::fix)
 		);
 	}
 
 	private Dynamic<?> fix(Dynamic<?> blockState) {
-		Optional<String>
-				optional =
+		Optional<String> blockName =
 				blockState.get("Name").asString().result().map(IdentifierNormalizingSchema::normalize);
-		return optional.isPresent() && this.shouldFix(optional.get())
-		       ? blockState.update("Properties", properties -> this.fix(optional.get(), properties))
+		return blockName.isPresent() && shouldFix(blockName.get())
+		       ? blockState.update("Properties", properties -> fix(blockName.get(), properties))
 		       : blockState;
 	}
 

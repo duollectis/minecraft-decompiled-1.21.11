@@ -6,30 +6,31 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 
 /**
- * {@code RecipeEntry}.
+ * Связывает рецепт с его ключом реестра. Равенство определяется только по ключу,
+ * что позволяет безопасно использовать записи в Set и Map без учёта содержимого рецепта.
  */
 public record RecipeEntry<T extends Recipe<?>>(RegistryKey<Recipe<?>> id, T value) {
 
 	public static final PacketCodec<RegistryByteBuf, RecipeEntry<?>> PACKET_CODEC = PacketCodec.tuple(
-			RegistryKey.createPacketCodec(RegistryKeys.RECIPE),
-			RecipeEntry::id,
-			Recipe.PACKET_CODEC,
-			RecipeEntry::value,
-			RecipeEntry::new
+		RegistryKey.createPacketCodec(RegistryKeys.RECIPE),
+		RecipeEntry::id,
+		Recipe.PACKET_CODEC,
+		RecipeEntry::value,
+		RecipeEntry::new
 	);
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof RecipeEntry<?> recipeEntry && this.id == recipeEntry.id;
+		return this == o ? true : o instanceof RecipeEntry<?> other && id == other.id;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.id.hashCode();
+		return id.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.id.toString();
+		return id.toString();
 	}
 }

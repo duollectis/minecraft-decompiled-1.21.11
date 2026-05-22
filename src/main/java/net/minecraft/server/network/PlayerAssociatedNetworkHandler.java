@@ -3,7 +3,7 @@ package net.minecraft.server.network;
 import net.minecraft.network.packet.Packet;
 
 /**
- * {@code PlayerAssociatedNetworkHandler}.
+ * Класс Player Associated Network Handler.
  */
 public interface PlayerAssociatedNetworkHandler {
 

@@ -17,7 +17,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code EmptyPoolElement}.
+ * Пустой элемент пула — заглушка, которая ничего не генерирует.
+ * Используется как значение по умолчанию, когда пул пуст или элемент не найден.
+ * Вызов {@link #getBoundingBox} намеренно бросает исключение — такие элементы
+ * должны быть отфильтрованы до вычисления ограничивающего прямоугольника.
  */
 public class EmptyPoolElement extends StructurePoolElement {
 
@@ -35,33 +38,36 @@ public class EmptyPoolElement extends StructurePoolElement {
 
 	@Override
 	public List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
-			StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation,
+		Random random
 	) {
 		return Collections.emptyList();
 	}
 
 	@Override
 	public BlockBox getBoundingBox(
-			StructureTemplateManager structureTemplateManager,
-			BlockPos pos,
-			BlockRotation rotation
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation
 	) {
 		throw new IllegalStateException("Invalid call to EmptyPoolElement.getBoundingBox, filter me!");
 	}
 
 	@Override
 	public boolean generate(
-			StructureTemplateManager structureTemplateManager,
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			BlockPos pos,
-			BlockPos pivot,
-			BlockRotation rotation,
-			BlockBox box,
-			Random random,
-			StructureLiquidSettings liquidSettings,
-			boolean keepJigsaws
+		StructureTemplateManager structureTemplateManager,
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		BlockPos pos,
+		BlockPos pivot,
+		BlockRotation rotation,
+		BlockBox box,
+		Random random,
+		StructureLiquidSettings liquidSettings,
+		boolean keepJigsaws
 	) {
 		return true;
 	}

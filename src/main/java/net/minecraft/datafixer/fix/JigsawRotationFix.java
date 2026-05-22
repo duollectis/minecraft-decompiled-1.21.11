@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import java.util.Map;
 
 /**
- * {@code JigsawRotationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class JigsawRotationFix extends BlockPropertyRenameFix {
 

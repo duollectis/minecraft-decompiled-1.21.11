@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema143}.
+ * Схема версии 143: удаляет устаревший тип сущности {@code "TippedArrow"},
+ * заменённый стандартной стрелой с данными зелья в NBT.
  */
 public class Schema143 extends Schema {
 

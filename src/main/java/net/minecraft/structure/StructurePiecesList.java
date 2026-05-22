@@ -17,37 +17,33 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * {@code StructurePiecesList}.
+ * Иммутабельный список кусков структуры с поддержкой сериализации и десериализации.
+ * Хранит маппинг устаревших идентификаторов кусков на актуальный {@code jigsaw}.
  */
 public record StructurePiecesList(List<StructurePiece> pieces) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Identifier JIGSAW = Identifier.ofVanilla("jigsaw");
+
+	/** Маппинг устаревших идентификаторов кусков на актуальный jigsaw. */
 	private static final Map<Identifier, Identifier> ID_UPDATES = ImmutableMap.<Identifier, Identifier>builder()
-	                                                                          .put(Identifier.ofVanilla("nvi"), JIGSAW)
-	                                                                          .put(Identifier.ofVanilla("pcp"), JIGSAW)
-	                                                                          .put(
-			                                                                          Identifier.ofVanilla(
-					                                                                          "bastionremnant"),
-			                                                                          JIGSAW
-	                                                                          )
-	                                                                          .put(
-			                                                                          Identifier.ofVanilla("runtime"),
-			                                                                          JIGSAW
-	                                                                          )
-	                                                                          .build();
+		.put(Identifier.ofVanilla("nvi"), JIGSAW)
+		.put(Identifier.ofVanilla("pcp"), JIGSAW)
+		.put(Identifier.ofVanilla("bastionremnant"), JIGSAW)
+		.put(Identifier.ofVanilla("runtime"), JIGSAW)
+		.build();
 
 	public StructurePiecesList(final List<StructurePiece> pieces) {
 		this.pieces = List.copyOf(pieces);
 	}
 
 	public boolean isEmpty() {
-		return this.pieces.isEmpty();
+		return pieces.isEmpty();
 	}
 
 	public boolean contains(BlockPos pos) {
-		for (StructurePiece structurePiece : this.pieces) {
-			if (structurePiece.getBoundingBox().contains(pos)) {
+		for (StructurePiece piece : pieces) {
+			if (piece.getBoundingBox().contains(pos)) {
 				return true;
 			}
 		}
@@ -57,41 +53,42 @@ public record StructurePiecesList(List<StructurePiece> pieces) {
 
 	public NbtElement toNbt(StructureContext context) {
 		NbtList nbtList = new NbtList();
-
-		for (StructurePiece structurePiece : this.pieces) {
-			nbtList.add(structurePiece.toNbt(context));
+		for (StructurePiece piece : pieces) {
+			nbtList.add(piece.toNbt(context));
 		}
 
 		return nbtList;
 	}
 
+	/**
+	 * Десериализует список кусков из NBT, применяя маппинг устаревших идентификаторов.
+	 * Куски с неизвестными идентификаторами пропускаются с логированием ошибки.
+	 */
 	public static StructurePiecesList fromNbt(NbtList list, StructureContext context) {
-		List<StructurePiece> list2 = Lists.newArrayList();
+		List<StructurePiece> pieces = Lists.newArrayList();
 
-		for (int i = 0; i < list.size(); i++) {
-			NbtCompound nbtCompound = list.getCompoundOrEmpty(i);
-			String string = nbtCompound.getString("id", "").toLowerCase(Locale.ROOT);
-			Identifier identifier = Identifier.of(string);
-			Identifier identifier2 = ID_UPDATES.getOrDefault(identifier, identifier);
-			StructurePieceType structurePieceType = Registries.STRUCTURE_PIECE.get(identifier2);
-			if (structurePieceType == null) {
-				LOGGER.error("Unknown structure piece id: {}", identifier2);
+		for (int index = 0; index < list.size(); index++) {
+			NbtCompound nbt = list.getCompoundOrEmpty(index);
+			String rawId = nbt.getString("id", "").toLowerCase(Locale.ROOT);
+			Identifier identifier = Identifier.of(rawId);
+			Identifier resolvedId = ID_UPDATES.getOrDefault(identifier, identifier);
+			StructurePieceType pieceType = Registries.STRUCTURE_PIECE.get(resolvedId);
+			if (pieceType == null) {
+				LOGGER.error("Unknown structure piece id: {}", resolvedId);
+				continue;
 			}
-			else {
-				try {
-					StructurePiece structurePiece = structurePieceType.load(context, nbtCompound);
-					list2.add(structurePiece);
-				}
-				catch (Exception var10) {
-					LOGGER.error("Exception loading structure piece with id {}", identifier2, var10);
-				}
+
+			try {
+				pieces.add(pieceType.load(context, nbt));
+			} catch (Exception exception) {
+				LOGGER.error("Exception loading structure piece with id {}", resolvedId, exception);
 			}
 		}
 
-		return new StructurePiecesList(list2);
+		return new StructurePiecesList(pieces);
 	}
 
 	public BlockBox getBoundingBox() {
-		return StructurePiece.boundingBox(this.pieces.stream());
+		return StructurePiece.boundingBox(pieces.stream());
 	}
 }

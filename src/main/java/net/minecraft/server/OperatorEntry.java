@@ -5,7 +5,7 @@ import net.minecraft.command.permission.LeveledPermissionPredicate;
 import net.minecraft.command.permission.PermissionLevel;
 
 /**
- * {@code OperatorEntry}.
+ * Запись об операторе сервера с уровнем прав и флагом обхода лимита игроков.
  */
 public class OperatorEntry extends ServerConfigEntry<PlayerConfigEntry> {
 
@@ -20,32 +20,29 @@ public class OperatorEntry extends ServerConfigEntry<PlayerConfigEntry> {
 
 	public OperatorEntry(JsonObject json) {
 		super(PlayerConfigEntry.read(json));
-		PermissionLevel
-				permissionLevel =
-				json.has("level") ? PermissionLevel.fromLevel(json.get("level").getAsInt()) : PermissionLevel.ALL;
+		PermissionLevel permissionLevel = json.has("level")
+			? PermissionLevel.fromLevel(json.get("level").getAsInt())
+			: PermissionLevel.ALL;
 		this.level = LeveledPermissionPredicate.fromLevel(permissionLevel);
 		this.bypassPlayerLimit = json.has("bypassesPlayerLimit") && json.get("bypassesPlayerLimit").getAsBoolean();
 	}
 
 	public LeveledPermissionPredicate getLevel() {
-		return this.level;
+		return level;
 	}
 
-	/**
-	 * Проверяет возможность bypass player limit.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canBypassPlayerLimit() {
-		return this.bypassPlayerLimit;
+		return bypassPlayerLimit;
 	}
 
 	@Override
 	protected void write(JsonObject json) {
-		if (this.getKey() != null) {
-			this.getKey().write(json);
-			json.addProperty("level", this.level.getLevel().getLevel());
-			json.addProperty("bypassesPlayerLimit", this.bypassPlayerLimit);
+		if (getKey() == null) {
+			return;
 		}
+
+		getKey().write(json);
+		json.addProperty("level", level.getLevel().getLevel());
+		json.addProperty("bypassesPlayerLimit", bypassPlayerLimit);
 	}
 }

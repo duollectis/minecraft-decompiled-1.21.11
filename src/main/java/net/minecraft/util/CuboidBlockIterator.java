@@ -1,7 +1,19 @@
 package net.minecraft.util;
 
 /**
- * {@code CuboidBlockIterator}.
+ * Итератор по всем блокам внутри кубоида (прямоугольного параллелепипеда).
+ * <p>
+ * Перебирает блоки в порядке X → Y → Z. Для каждого шага предоставляет
+ * абсолютные координаты текущего блока и количество граничных осей,
+ * по которым блок находится на краю кубоида.
+ * <p>
+ * Использование:
+ * <pre>{@code
+ * CuboidBlockIterator iter = new CuboidBlockIterator(x1, y1, z1, x2, y2, z2);
+ * while (iter.step()) {
+ *     doSomething(iter.getX(), iter.getY(), iter.getZ());
+ * }
+ * }</pre>
  */
 public class CuboidBlockIterator {
 
@@ -9,6 +21,7 @@ public class CuboidBlockIterator {
 	public static final int EDGE_COORD_ONE = 1;
 	public static final int EDGE_COORD_TWO = 2;
 	public static final int EDGE_COORD_THREE = 3;
+
 	private final int startX;
 	private final int startY;
 	private final int startZ;
@@ -28,54 +41,61 @@ public class CuboidBlockIterator {
 		this.sizeX = endX - startX + 1;
 		this.sizeY = endY - startY + 1;
 		this.sizeZ = endZ - startZ + 1;
-		this.totalSize = this.sizeX * this.sizeY * this.sizeZ;
+		this.totalSize = sizeX * sizeY * sizeZ;
 	}
 
 	/**
-	 * Step.
+	 * Переходит к следующему блоку в кубоиде.
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если следующий блок существует, {@code false} если итерация завершена
 	 */
 	public boolean step() {
-		if (this.blocksIterated == this.totalSize) {
+		if (blocksIterated == totalSize) {
 			return false;
 		}
-		else {
-			this.x = this.blocksIterated % this.sizeX;
-			int i = this.blocksIterated / this.sizeX;
-			this.y = i % this.sizeY;
-			this.z = i / this.sizeY;
-			this.blocksIterated++;
-			return true;
-		}
+
+		x = blocksIterated % sizeX;
+		int flat = blocksIterated / sizeX;
+		y = flat % sizeY;
+		z = flat / sizeY;
+		blocksIterated++;
+
+		return true;
 	}
 
 	public int getX() {
-		return this.startX + this.x;
+		return startX + x;
 	}
 
 	public int getY() {
-		return this.startY + this.y;
+		return startY + y;
 	}
 
 	public int getZ() {
-		return this.startZ + this.z;
+		return startZ + z;
 	}
 
+	/**
+	 * Возвращает количество осей, по которым текущий блок находится на краю кубоида.
+	 * Значение от 0 (внутренний блок) до 3 (угловой блок).
+	 *
+	 * @return количество граничных осей (0–3)
+	 */
 	public int getEdgeCoordinatesCount() {
-		int i = 0;
-		if (this.x == 0 || this.x == this.sizeX - 1) {
-			i++;
+		int edgeCount = 0;
+
+		if (x == 0 || x == sizeX - 1) {
+			edgeCount++;
 		}
 
-		if (this.y == 0 || this.y == this.sizeY - 1) {
-			i++;
+		if (y == 0 || y == sizeY - 1) {
+			edgeCount++;
 		}
 
-		if (this.z == 0 || this.z == this.sizeZ - 1) {
-			i++;
+		if (z == 0 || z == sizeZ - 1) {
+			edgeCount++;
 		}
 
-		return i;
+		return edgeCount;
 	}
 }

@@ -4,7 +4,8 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code StructureTerrainAdaptation}.
+ * Режим адаптации рельефа под структуру при генерации мира.
+ * Определяет, как ландшафт подстраивается под размещённую структуру.
  */
 public enum StructureTerrainAdaptation implements StringIdentifiable {
 	NONE("none"),
@@ -13,17 +14,17 @@ public enum StructureTerrainAdaptation implements StringIdentifiable {
 	BEARD_BOX("beard_box"),
 	ENCAPSULATE("encapsulate");
 
-	public static final Codec<StructureTerrainAdaptation>
-			CODEC =
-			StringIdentifiable.createCodec(StructureTerrainAdaptation::values);
+	public static final Codec<StructureTerrainAdaptation> CODEC =
+		StringIdentifiable.createCodec(StructureTerrainAdaptation::values);
+
 	private final String name;
 
-	private StructureTerrainAdaptation(final String name) {
+	StructureTerrainAdaptation(String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

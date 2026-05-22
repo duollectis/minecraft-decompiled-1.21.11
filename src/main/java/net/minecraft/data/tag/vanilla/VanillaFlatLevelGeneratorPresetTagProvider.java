@@ -24,7 +24,7 @@ public class VanillaFlatLevelGeneratorPresetTagProvider extends SimpleTagProvide
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(FlatLevelGeneratorPresetTags.VISIBLE)
+		builder(FlatLevelGeneratorPresetTags.VISIBLE)
 		    .add(FlatLevelGeneratorPresets.CLASSIC_FLAT)
 		    .add(FlatLevelGeneratorPresets.TUNNELERS_DREAM)
 		    .add(FlatLevelGeneratorPresets.WATER_WORLD)

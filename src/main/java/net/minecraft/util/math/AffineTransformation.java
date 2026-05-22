@@ -5,57 +5,54 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.Util;
 import net.minecraft.util.dynamic.Codecs;
 import org.apache.commons.lang3.tuple.Triple;
-import org.joml.*;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
 /**
- * {@code AffineTransformation}.
+ * Аффинное преобразование в 3D-пространстве, хранящееся как матрица 4×4.
+ * Компоненты (перемещение, вращение, масштаб) вычисляются лениво через SVD-разложение.
  */
 public final class AffineTransformation {
 
-	private final Matrix4fc matrix;
-	public static final Codec<AffineTransformation> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Codecs.VECTOR_3F
-							                    .fieldOf("translation")
-							                    .forGetter(affineTransformation -> affineTransformation.translation),
-					                    Codecs.ROTATION
-							                    .fieldOf("left_rotation")
-							                    .forGetter(affineTransformation -> affineTransformation.leftRotation),
-					                    Codecs.VECTOR_3F.fieldOf("scale").forGetter(affineTransformation -> affineTransformation.scale),
-					                    Codecs.ROTATION
-							                    .fieldOf("right_rotation")
-							                    .forGetter(affineTransformation -> affineTransformation.rightRotation)
-			                    )
-			                    .apply(instance, AffineTransformation::new)
-	);
+	public static final Codec<AffineTransformation> CODEC =RecordCodecBuilder.create(instance -> instance.group(
+		Codecs.VECTOR_3F.fieldOf("translation").forGetter(AffineTransformation::getTranslation),
+		Codecs.ROTATION.fieldOf("left_rotation").forGetter(AffineTransformation::getLeftRotation),
+		Codecs.VECTOR_3F.fieldOf("scale").forGetter(AffineTransformation::getScale),
+		Codecs.ROTATION.fieldOf("right_rotation").forGetter(AffineTransformation::getRightRotation)
+	).apply(instance, AffineTransformation::new));
+
 	public static final Codec<AffineTransformation> ANY_CODEC = Codec.withAlternative(
-			CODEC, Codecs.MATRIX_4F.xmap(AffineTransformation::new, AffineTransformation::getMatrix)
+			CODEC,
+			Codecs.MATRIX_4F.xmap(AffineTransformation::new, AffineTransformation::getMatrix)
 	);
+
+	private static final AffineTransformation IDENTITY = Util.make(() -> {
+		AffineTransformation t = new AffineTransformation(new Matrix4f());
+		t.translation = new Vector3f();
+		t.leftRotation = new Quaternionf();
+		t.scale = new Vector3f(1.0F, 1.0F, 1.0F);
+		t.rightRotation = new Quaternionf();
+		t.initialized = true;
+		return t;
+	});
+
+	private final Matrix4fc matrix;
 	private boolean initialized;
 	private @Nullable Vector3fc translation;
 	private @Nullable Quaternionfc leftRotation;
 	private @Nullable Vector3fc scale;
 	private @Nullable Quaternionfc rightRotation;
-	private static final AffineTransformation IDENTITY = Util.make(() -> {
-		AffineTransformation affineTransformation = new AffineTransformation(new Matrix4f());
-		affineTransformation.translation = new Vector3f();
-		affineTransformation.leftRotation = new Quaternionf();
-		affineTransformation.scale = new Vector3f(1.0F, 1.0F, 1.0F);
-		affineTransformation.rightRotation = new Quaternionf();
-		affineTransformation.initialized = true;
-		return affineTransformation;
-	});
 
 	public AffineTransformation(@Nullable Matrix4fc matrix) {
-		if (matrix == null) {
-			this.matrix = new Matrix4f();
-		}
-		else {
-			this.matrix = matrix;
-		}
+		this.matrix = matrix == null ? new Matrix4f() : matrix;
 	}
 
 	public AffineTransformation(
@@ -64,122 +61,68 @@ public final class AffineTransformation {
 			@Nullable Vector3fc scale,
 			@Nullable Quaternionfc rightRotation
 	) {
-		this.matrix = setup(translation, leftRotation, scale, rightRotation);
-		this.translation = (Vector3fc) (translation != null ? translation : new Vector3f());
-		this.leftRotation = (Quaternionfc) (leftRotation != null ? leftRotation : new Quaternionf());
-		this.scale = (Vector3fc) (scale != null ? scale : new Vector3f(1.0F, 1.0F, 1.0F));
-		this.rightRotation = (Quaternionfc) (rightRotation != null ? rightRotation : new Quaternionf());
-		this.initialized = true;
+		matrix = buildMatrix(translation, leftRotation, scale, rightRotation);
+		this.translation = translation != null ? translation : new Vector3f();
+		this.leftRotation = leftRotation != null ? leftRotation : new Quaternionf();
+		this.scale = scale != null ? scale : new Vector3f(1.0F, 1.0F, 1.0F);
+		this.rightRotation = rightRotation != null ? rightRotation : new Quaternionf();
+		initialized = true;
 	}
 
-	/**
-	 * Identity.
-	 *
-	 * @return AffineTransformation — результат операции
-	 */
 	public static AffineTransformation identity() {
 		return IDENTITY;
 	}
 
-	/**
-	 * Multiply.
-	 *
-	 * @param other other
-	 *
-	 * @return AffineTransformation — результат операции
-	 */
 	public AffineTransformation multiply(AffineTransformation other) {
-		Matrix4f matrix4f = this.copyMatrix();
-		matrix4f.mul(other.getMatrix());
-		return new AffineTransformation(matrix4f);
+		Matrix4f result = copyMatrix();
+		result.mul(other.getMatrix());
+		return new AffineTransformation(result);
 	}
 
-	/**
-	 * Invert.
-	 *
-	 * @return @Nullable AffineTransformation — результат операции
-	 */
 	public @Nullable AffineTransformation invert() {
 		if (this == IDENTITY) {
 			return this;
 		}
-		else {
-			Matrix4f matrix4f = this.copyMatrix().invertAffine();
-			return matrix4f.isFinite() ? new AffineTransformation(matrix4f) : null;
-		}
+
+		Matrix4f inverted = copyMatrix().invertAffine();
+		return inverted.isFinite() ? new AffineTransformation(inverted) : null;
 	}
 
-	private void init() {
-		if (!this.initialized) {
-			float f = 1.0F / this.matrix.m33();
-			Triple<Quaternionf, Vector3f, Quaternionf>
-					triple =
-					MatrixUtil.svdDecompose(new Matrix3f(this.matrix).scale(f));
-			this.translation = this.matrix.getTranslation(new Vector3f()).mul(f);
-			this.leftRotation = new Quaternionf((Quaternionfc) triple.getLeft());
-			this.scale = new Vector3f((Vector3fc) triple.getMiddle());
-			this.rightRotation = new Quaternionf((Quaternionfc) triple.getRight());
-			this.initialized = true;
-		}
-	}
-
-	private static Matrix4f setup(
-			@Nullable Vector3fc translation,
-			@Nullable Quaternionfc leftRotation,
-			@Nullable Vector3fc scale,
-			@Nullable Quaternionfc rightRotation
-	) {
-		Matrix4f matrix4f = new Matrix4f();
-		if (translation != null) {
-			matrix4f.translation(translation);
-		}
-
-		if (leftRotation != null) {
-			matrix4f.rotate(leftRotation);
-		}
-
-		if (scale != null) {
-			matrix4f.scale(scale);
-		}
-
-		if (rightRotation != null) {
-			matrix4f.rotate(rightRotation);
-		}
-
-		return matrix4f;
+	public AffineTransformation interpolate(AffineTransformation target, float factor) {
+		return new AffineTransformation(
+				getTranslation().lerp(target.getTranslation(), factor, new Vector3f()),
+				getLeftRotation().slerp(target.getLeftRotation(), factor, new Quaternionf()),
+				getScale().lerp(target.getScale(), factor, new Vector3f()),
+				getRightRotation().slerp(target.getRightRotation(), factor, new Quaternionf())
+		);
 	}
 
 	public Matrix4fc getMatrix() {
-		return this.matrix;
+		return matrix;
 	}
 
-	/**
-	 * Создаёт копию matrix.
-	 *
-	 * @return Matrix4f — результат операции
-	 */
 	public Matrix4f copyMatrix() {
-		return new Matrix4f(this.matrix);
+		return new Matrix4f(matrix);
 	}
 
 	public Vector3fc getTranslation() {
-		this.init();
-		return this.translation;
+		ensureInitialized();
+		return translation;
 	}
 
 	public Quaternionfc getLeftRotation() {
-		this.init();
-		return this.leftRotation;
+		ensureInitialized();
+		return leftRotation;
 	}
 
 	public Vector3fc getScale() {
-		this.init();
-		return this.scale;
+		ensureInitialized();
+		return scale;
 	}
 
 	public Quaternionfc getRightRotation() {
-		this.init();
-		return this.rightRotation;
+		ensureInitialized();
+		return rightRotation;
 	}
 
 	@Override
@@ -187,34 +130,52 @@ public final class AffineTransformation {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			AffineTransformation affineTransformation = (AffineTransformation) o;
-			return Objects.equals(this.matrix, affineTransformation.matrix);
-		}
-		else {
-			return false;
-		}
+
+		return o instanceof AffineTransformation other && Objects.equals(matrix, other.matrix);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.matrix);
+		return Objects.hash(matrix);
 	}
 
 	/**
-	 * Interpolate.
-	 *
-	 * @param target target
-	 * @param factor factor
-	 *
-	 * @return AffineTransformation — результат операции
+	 * Ленивая инициализация компонентов через SVD-разложение матрицы.
+	 * Вызывается только при первом обращении к translation/rotation/scale.
 	 */
-	public AffineTransformation interpolate(AffineTransformation target, float factor) {
-		return new AffineTransformation(
-				this.getTranslation().lerp(target.getTranslation(), factor, new Vector3f()),
-				this.getLeftRotation().slerp(target.getLeftRotation(), factor, new Quaternionf()),
-				this.getScale().lerp(target.getScale(), factor, new Vector3f()),
-				this.getRightRotation().slerp(target.getRightRotation(), factor, new Quaternionf())
-		);
+	private void ensureInitialized() {
+		if (initialized) {
+			return;
+		}
+
+		float scale = 1.0F / matrix.m33();
+		Triple<Quaternionf, Vector3f, Quaternionf> svd = MatrixUtil.svdDecompose(new Matrix3f(matrix).scale(scale));
+		translation = matrix.getTranslation(new Vector3f()).mul(scale);
+		leftRotation = new Quaternionf(svd.getLeft());
+		this.scale = new Vector3f(svd.getMiddle());
+		rightRotation = new Quaternionf(svd.getRight());
+		initialized = true;
+	}
+
+	private static Matrix4f buildMatrix(
+			@Nullable Vector3fc translation,
+			@Nullable Quaternionfc leftRotation,
+			@Nullable Vector3fc scale,
+			@Nullable Quaternionfc rightRotation
+	) {
+		Matrix4f matrix = new Matrix4f();
+		if (translation != null) {
+			matrix.translation(translation);
+		}
+		if (leftRotation != null) {
+			matrix.rotate(leftRotation);
+		}
+		if (scale != null) {
+			matrix.scale(scale);
+		}
+		if (rightRotation != null) {
+			matrix.rotate(rightRotation);
+		}
+		return matrix;
 	}
 }

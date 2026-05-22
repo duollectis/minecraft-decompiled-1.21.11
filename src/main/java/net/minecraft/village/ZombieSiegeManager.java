@@ -17,13 +17,28 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code ZombieSiegeManager}.
+ * Управляет осадой деревни зомби — ночным событием, при котором зомби
+ * атакуют деревню волнами.
+ * <p>
+ * Осада начинается в полночь (тик 18000) с вероятностью 1/10 и продолжается
+ * до тех пор, пока не будут заспавнены все {@link #SIEGE_ZOMBIE_COUNT} зомби.
+ * Между спавнами зомби выдерживается пауза {@link #SPAWN_INTERVAL_TICKS} тиков.
  */
 public class ZombieSiegeManager implements SpecialSpawner {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	private static final long MIDNIGHT_TICK = 18000L;
+	private static final long DAY_CYCLE_TICKS = 24000L;
+	private static final int SIEGE_CHANCE = 10;
+	private static final int SIEGE_ZOMBIE_COUNT = 20;
+	private static final int SPAWN_INTERVAL_TICKS = 2;
+	private static final int SPAWN_ATTEMPTS = 10;
+	private static final float SIEGE_SPAWN_RADIUS = 32.0F;
+	private static final int SPAWN_SCATTER_RADIUS = 8;
+
 	private boolean spawned;
-	private ZombieSiegeManager.State state = ZombieSiegeManager.State.SIEGE_DONE;
+	private State state = State.SIEGE_DONE;
 	private int remaining;
 	private int countdown;
 	private int startX;
@@ -32,121 +47,132 @@ public class ZombieSiegeManager implements SpecialSpawner {
 
 	@Override
 	public void spawn(ServerWorld world, boolean spawnMonsters) {
-		if (!world.isDay() && spawnMonsters) {
-			long l = world.getTimeOfDay() % 24000L;
-			if (l == 18000L) {
-				this.state =
-						world.random.nextInt(10) == 0 ? ZombieSiegeManager.State.SIEGE_TONIGHT
-						                              : ZombieSiegeManager.State.SIEGE_DONE;
-			}
-
-			if (this.state != ZombieSiegeManager.State.SIEGE_DONE) {
-				if (!this.spawned) {
-					if (!this.spawn(world)) {
-						return;
-					}
-
-					this.spawned = true;
-				}
-
-				if (this.countdown > 0) {
-					this.countdown--;
-				}
-				else {
-					this.countdown = 2;
-					if (this.remaining > 0) {
-						this.trySpawnZombie(world);
-						this.remaining--;
-					}
-					else {
-						this.state = ZombieSiegeManager.State.SIEGE_DONE;
-					}
-				}
-			}
+		if (world.isDay() || !spawnMonsters) {
+			state = State.SIEGE_DONE;
+			spawned = false;
+			return;
 		}
-		else {
-			this.state = ZombieSiegeManager.State.SIEGE_DONE;
-			this.spawned = false;
+
+		long timeOfDay = world.getTimeOfDay() % DAY_CYCLE_TICKS;
+
+		if (timeOfDay == MIDNIGHT_TICK) {
+			state = world.random.nextInt(SIEGE_CHANCE) == 0
+					? State.SIEGE_TONIGHT
+					: State.SIEGE_DONE;
+		}
+
+		if (state == State.SIEGE_DONE) {
+			return;
+		}
+
+		if (!spawned) {
+			if (!tryInitiateSiege(world)) {
+				return;
+			}
+
+			spawned = true;
+		}
+
+		if (countdown > 0) {
+			countdown--;
+			return;
+		}
+
+		countdown = SPAWN_INTERVAL_TICKS;
+
+		if (remaining > 0) {
+			trySpawnZombie(world);
+			remaining--;
+		} else {
+			state = State.SIEGE_DONE;
 		}
 	}
 
-	private boolean spawn(ServerWorld world) {
-		for (PlayerEntity playerEntity : world.getPlayers()) {
-			if (!playerEntity.isSpectator()) {
-				BlockPos blockPos = playerEntity.getBlockPos();
-				if (world.isNearOccupiedPointOfInterest(blockPos) && !world
-						.getBiome(blockPos)
-						.isIn(BiomeTags.WITHOUT_ZOMBIE_SIEGES)) {
-					for (int i = 0; i < 10; i++) {
-						float f = world.random.nextFloat() * (float) (Math.PI * 2);
-						this.startX = blockPos.getX() + MathHelper.floor(MathHelper.cos(f) * 32.0F);
-						this.startY = blockPos.getY();
-						this.startZ = blockPos.getZ() + MathHelper.floor(MathHelper.sin(f) * 32.0F);
-						if (this.getSpawnVector(world, new BlockPos(this.startX, this.startY, this.startZ)) != null) {
-							this.countdown = 0;
-							this.remaining = 20;
-							break;
-						}
-					}
+	/**
+	 * Ищет подходящего игрока рядом с деревней и инициализирует точку спавна осады.
+	 *
+	 * @param world серверный мир
+	 * @return {@code true}, если точка спавна успешно найдена
+	 */
+	private boolean tryInitiateSiege(ServerWorld world) {
+		for (PlayerEntity player : world.getPlayers()) {
+			if (player.isSpectator()) {
+				continue;
+			}
 
-					return true;
+			BlockPos playerPos = player.getBlockPos();
+
+			if (!world.isNearOccupiedPointOfInterest(playerPos)
+					|| world.getBiome(playerPos).isIn(BiomeTags.WITHOUT_ZOMBIE_SIEGES)
+			) {
+				continue;
+			}
+
+			for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+				float angle = world.random.nextFloat() * (float) (Math.PI * 2);
+				startX = playerPos.getX() + MathHelper.floor(MathHelper.cos(angle) * SIEGE_SPAWN_RADIUS);
+				startY = playerPos.getY();
+				startZ = playerPos.getZ() + MathHelper.floor(MathHelper.sin(angle) * SIEGE_SPAWN_RADIUS);
+
+				if (getSpawnVector(world, new BlockPos(startX, startY, startZ)) != null) {
+					countdown = 0;
+					remaining = SIEGE_ZOMBIE_COUNT;
+					break;
 				}
 			}
+
+			return true;
 		}
 
 		return false;
 	}
 
 	private void trySpawnZombie(ServerWorld world) {
-		Vec3d vec3d = this.getSpawnVector(world, new BlockPos(this.startX, this.startY, this.startZ));
-		if (vec3d != null) {
-			ZombieEntity zombieEntity;
-			try {
-				zombieEntity = new ZombieEntity(world);
-				zombieEntity.initialize(
-						world,
-						world.getLocalDifficulty(zombieEntity.getBlockPos()),
-						SpawnReason.EVENT,
-						null
-				);
-			}
-			catch (Exception var5) {
-				LOGGER.warn("Failed to create zombie for village siege at {}", vec3d, var5);
-				return;
-			}
+		Vec3d spawnPos = getSpawnVector(world, new BlockPos(startX, startY, startZ));
 
-			zombieEntity.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, world.random.nextFloat() * 360.0F, 0.0F);
-			world.spawnEntityAndPassengers(zombieEntity);
+		if (spawnPos == null) {
+			return;
 		}
+
+		ZombieEntity zombie;
+
+		try {
+			zombie = new ZombieEntity(world);
+			zombie.initialize(
+					world,
+					world.getLocalDifficulty(zombie.getBlockPos()),
+					SpawnReason.EVENT,
+					null
+			);
+		} catch (Exception exception) {
+			LOGGER.warn("Failed to create zombie for village siege at {}", spawnPos, exception);
+			return;
+		}
+
+		zombie.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, world.random.nextFloat() * 360.0F, 0.0F);
+		world.spawnEntityAndPassengers(zombie);
 	}
 
-	private @Nullable Vec3d getSpawnVector(ServerWorld world, BlockPos pos) {
-		for (int i = 0; i < 10; i++) {
-			int j = pos.getX() + world.random.nextInt(16) - 8;
-			int k = pos.getZ() + world.random.nextInt(16) - 8;
-			int l = world.getTopY(Heightmap.Type.WORLD_SURFACE, j, k);
-			BlockPos blockPos = new BlockPos(j, l, k);
-			if (world.isNearOccupiedPointOfInterest(blockPos) && HostileEntity.canSpawnInDark(
-					EntityType.ZOMBIE,
-					world,
-					SpawnReason.EVENT,
-					blockPos,
-					world.random
-			)
+	private @Nullable Vec3d getSpawnVector(ServerWorld world, BlockPos origin) {
+		for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+			int x = origin.getX() + world.random.nextInt(16) - SPAWN_SCATTER_RADIUS;
+			int z = origin.getZ() + world.random.nextInt(16) - SPAWN_SCATTER_RADIUS;
+			int y = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+			BlockPos candidate = new BlockPos(x, y, z);
+
+			if (world.isNearOccupiedPointOfInterest(candidate)
+					&& HostileEntity.canSpawnInDark(EntityType.ZOMBIE, world, SpawnReason.EVENT, candidate, world.random)
 			) {
-				return Vec3d.ofBottomCenter(blockPos);
+				return Vec3d.ofBottomCenter(candidate);
 			}
 		}
 
 		return null;
 	}
 
-	/**
-	 * {@code State}.
-	 */
-	static enum State {
+	enum State {
 		SIEGE_CAN_ACTIVATE,
 		SIEGE_TONIGHT,
-		SIEGE_DONE;
+		SIEGE_DONE
 	}
 }

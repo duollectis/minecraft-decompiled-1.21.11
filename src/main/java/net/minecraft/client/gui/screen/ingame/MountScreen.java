@@ -11,11 +11,27 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MountScreen}.
+ * Базовый экран инвентаря верхового существа (лошадь, наутилус и т.д.).
+ * Отрисовывает текстуру фона, слоты седла/брони и 3D-модель существа.
  */
+@Environment(EnvType.CLIENT)
 public abstract class MountScreen<T extends MountScreenHandler> extends HandledScreen<T> {
+
+	private static final int CHEST_SLOTS_TEXTURE_WIDTH = 90;
+	private static final int CHEST_SLOTS_TEXTURE_HEIGHT = 54;
+	private static final int CHEST_SLOTS_OFFSET_X = 79;
+	private static final int CHEST_SLOTS_OFFSET_Y = 17;
+	private static final int SADDLE_SLOT_OFFSET_X = 7;
+	private static final int SADDLE_SLOT_OFFSET_Y = 35;
+	private static final int ARMOR_SLOT_OFFSET_Y = 35;
+	private static final int ENTITY_LEFT = 26;
+	private static final int ENTITY_TOP = 18;
+	private static final int ENTITY_RIGHT = 78;
+	private static final int ENTITY_BOTTOM = 70;
+	private static final int ENTITY_SCALE = 17;
+	private static final float ENTITY_Y_OFFSET = 0.25F;
+	private static final int SLOT_SIZE = 18;
 
 	protected final int slotColumnCount;
 	protected float mouseX;
@@ -30,66 +46,61 @@ public abstract class MountScreen<T extends MountScreenHandler> extends HandledS
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
+
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.getTexture(),
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			getTexture(),
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
-		if (this.slotColumnCount > 0 && this.getChestSlotsTexture() != null) {
+
+		if (slotColumnCount > 0 && getChestSlotsTexture() != null) {
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					this.getChestSlotsTexture(),
-					90,
-					54,
-					0,
-					0,
-					i + 79,
-					j + 17,
-					this.slotColumnCount * 18,
-					54
+				RenderPipelines.GUI_TEXTURED,
+				getChestSlotsTexture(),
+				CHEST_SLOTS_TEXTURE_WIDTH,
+				CHEST_SLOTS_TEXTURE_HEIGHT,
+				0,
+				0,
+				bgX + CHEST_SLOTS_OFFSET_X,
+				bgY + CHEST_SLOTS_OFFSET_Y,
+				slotColumnCount * SLOT_SIZE,
+				CHEST_SLOTS_TEXTURE_HEIGHT
 			);
 		}
 
-		if (this.canEquipSaddle()) {
-			this.drawSlot(context, i + 7, j + 35 - 18);
+		if (canEquipSaddle()) {
+			drawSlot(context, bgX + SADDLE_SLOT_OFFSET_X, bgY + SADDLE_SLOT_OFFSET_Y - SLOT_SIZE);
 		}
 
-		if (this.canEquipArmor()) {
-			this.drawSlot(context, i + 7, j + 35);
+		if (canEquipArmor()) {
+			drawSlot(context, bgX + SADDLE_SLOT_OFFSET_X, bgY + ARMOR_SLOT_OFFSET_Y);
 		}
 
 		InventoryScreen.drawEntity(
-				context,
-				i + 26,
-				j + 18,
-				i + 78,
-				j + 70,
-				17,
-				0.25F,
-				this.mouseX,
-				this.mouseY,
-				this.mount
+			context,
+			bgX + ENTITY_LEFT,
+			bgY + ENTITY_TOP,
+			bgX + ENTITY_RIGHT,
+			bgY + ENTITY_BOTTOM,
+			ENTITY_SCALE,
+			ENTITY_Y_OFFSET,
+			this.mouseX,
+			this.mouseY,
+			mount
 		);
 	}
 
-	/**
-	 * Draw slot.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	protected void drawSlot(DrawContext context, int x, int y) {
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.getSlotTexture(), x, y, 18, 18);
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, getSlotTexture(), x, y, SLOT_SIZE, SLOT_SIZE);
 	}
 
 	@Override
@@ -97,7 +108,7 @@ public abstract class MountScreen<T extends MountScreenHandler> extends HandledS
 		this.mouseX = mouseX;
 		this.mouseY = mouseY;
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
 	protected abstract Identifier getTexture();
@@ -106,17 +117,7 @@ public abstract class MountScreen<T extends MountScreenHandler> extends HandledS
 
 	protected abstract @Nullable Identifier getChestSlotsTexture();
 
-	/**
-	 * Проверяет возможность equip saddle.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected abstract boolean canEquipSaddle();
 
-	/**
-	 * Проверяет возможность equip armor.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected abstract boolean canEquipArmor();
 }

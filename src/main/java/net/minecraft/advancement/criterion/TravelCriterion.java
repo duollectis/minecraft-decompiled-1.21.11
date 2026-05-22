@@ -14,74 +14,64 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code TravelCriterion}.
+ * Критерий выполняется, когда игрок перемещается на определённое расстояние.
+ * Используется для путешествий в Нижнем мире, падений с высоты и езды в лаве.
  */
 public class TravelCriterion extends AbstractCriterion<TravelCriterion.Conditions> {
 
 	@Override
-	public Codec<TravelCriterion.Conditions> getConditionsCodec() {
-		return TravelCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Vec3d startPos) {
-		Vec3d vec3d = player.getEntityPos();
-		this.trigger(player, conditions -> conditions.matches(player.getEntityWorld(), startPos, vec3d));
+		Vec3d currentPos = player.getEntityPos();
+		trigger(player, conditions -> conditions.matches(player.getEntityWorld(), startPos, currentPos));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LocationPredicate> startPosition,
 			Optional<DistancePredicate> distance
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<TravelCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(TravelCriterion.Conditions::player),
-						                    LocationPredicate.CODEC
-								                    .optionalFieldOf("start_position")
-								                    .forGetter(TravelCriterion.Conditions::startPosition),
-						                    DistancePredicate.CODEC
-								                    .optionalFieldOf("distance")
-								                    .forGetter(TravelCriterion.Conditions::distance)
-				                    )
-				                    .apply(instance, TravelCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						LocationPredicate.CODEC
+								.optionalFieldOf("start_position")
+								.forGetter(Conditions::startPosition),
+						DistancePredicate.CODEC
+								.optionalFieldOf("distance")
+								.forGetter(Conditions::distance)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<TravelCriterion.Conditions> fallFromHeight(
+		public static AdvancementCriterion<Conditions> fallFromHeight(
 				EntityPredicate.Builder entity, DistancePredicate distance, LocationPredicate.Builder startPos
 		) {
-			return Criteria.FALL_FROM_HEIGHT
-					.create(
-							new TravelCriterion.Conditions(
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(entity)),
-									Optional.of(startPos.build()),
-									Optional.of(distance)
-							)
-					);
+			return Criteria.FALL_FROM_HEIGHT.create(new Conditions(
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(entity)),
+					Optional.of(startPos.build()),
+					Optional.of(distance)
+			));
 		}
 
-		public static AdvancementCriterion<TravelCriterion.Conditions> rideEntityInLava(
+		public static AdvancementCriterion<Conditions> rideEntityInLava(
 				EntityPredicate.Builder entity,
 				DistancePredicate distance
 		) {
-			return Criteria.RIDE_ENTITY_IN_LAVA
-					.create(
-							new TravelCriterion.Conditions(
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(entity)),
-									Optional.empty(),
-									Optional.of(distance)
-							)
-					);
+			return Criteria.RIDE_ENTITY_IN_LAVA.create(new Conditions(
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(entity)),
+					Optional.empty(),
+					Optional.of(distance)
+			));
 		}
 
-		public static AdvancementCriterion<TravelCriterion.Conditions> netherTravel(DistancePredicate distance) {
-			return Criteria.NETHER_TRAVEL.create(new TravelCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> netherTravel(DistancePredicate distance) {
+			return Criteria.NETHER_TRAVEL.create(new Conditions(
 					Optional.empty(),
 					Optional.empty(),
 					Optional.of(distance)
@@ -89,11 +79,11 @@ public class TravelCriterion extends AbstractCriterion<TravelCriterion.Condition
 		}
 
 		public boolean matches(ServerWorld world, Vec3d pos, Vec3d endPos) {
-			return this.startPosition.isPresent() && !this.startPosition.get().test(world, pos.x, pos.y, pos.z)
-			       ? false
-			       : !this.distance.isPresent() || this.distance
-			                                       .get()
-			                                       .test(pos.x, pos.y, pos.z, endPos.x, endPos.y, endPos.z);
+			if (startPosition.isPresent() && !startPosition.get().test(world, pos.x, pos.y, pos.z)) {
+				return false;
+			}
+
+			return distance.isEmpty() || distance.get().test(pos.x, pos.y, pos.z, endPos.x, endPos.y, endPos.z);
 		}
 	}
 }

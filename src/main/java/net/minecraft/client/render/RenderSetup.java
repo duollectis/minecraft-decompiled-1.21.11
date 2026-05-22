@@ -20,11 +20,16 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RenderSetup}.
+ * Неизменяемая конфигурация прохода рендеринга: описывает пайплайн, текстуры,
+ * режим наложения слоёв, целевой буфер и прочие параметры отрисовки.
+ * Создаётся через {@link Builder} и используется в {@link RenderLayer} для настройки GPU-состояния.
  */
+@Environment(EnvType.CLIENT)
 public final class RenderSetup {
+
+	/** Размер вершинного буфера по умолчанию (в байтах). */
+	private static final int DEFAULT_EXPECTED_BUFFER_SIZE = 1536;
 
 	final RenderPipeline pipeline;
 	final Map<String, RenderSetup.TextureSpec> textures;
@@ -67,17 +72,17 @@ public final class RenderSetup {
 	@Override
 	public String toString() {
 		return "RenderSetup[layeringTransform="
-				+ this.layeringTransform
+				+ layeringTransform
 				+ ", textureTransform="
-				+ this.textureTransform
+				+ textureTransform
 				+ ", textures="
-				+ this.textures
+				+ textures
 				+ ", outlineProperty="
-				+ this.outlineMode
+				+ outlineMode
 				+ ", useLightmap="
-				+ this.useLightmap
+				+ useLightmap
 				+ ", useOverlay="
-				+ this.useOverlay
+				+ useOverlay
 				+ "]";
 	}
 
@@ -85,56 +90,58 @@ public final class RenderSetup {
 		return new RenderSetup.Builder(renderPipeline);
 	}
 
+	/**
+	 * Разрешает все текстурные спецификации в реальные GPU-объекты.
+	 * Добавляет оверлей (Sampler1) и лайтмап (Sampler2) при необходимости.
+	 *
+	 * @return карта имён сэмплеров к GPU-текстурам, либо пустая карта
+	 */
 	public Map<String, RenderSetup.Texture> resolveTextures() {
-		if (this.textures.isEmpty() && !this.useOverlay && !this.useLightmap) {
+		if (textures.isEmpty() && !useOverlay && !useLightmap) {
 			return Collections.emptyMap();
 		}
-		else {
-			Map<String, RenderSetup.Texture> map = new HashMap<>();
-			if (this.useOverlay) {
-				map.put(
-						"Sampler1",
-						new RenderSetup.Texture(
-								MinecraftClient.getInstance().gameRenderer.getOverlayTexture().getTextureView(),
-								RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
-						)
-				);
-			}
 
-			if (this.useLightmap) {
-				map.put(
-						"Sampler2",
-						new RenderSetup.Texture(
-								MinecraftClient.getInstance().gameRenderer
-										.getLightmapTextureManager()
-										.getGlTextureView(),
-								RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
-						)
-				);
-			}
+		Map<String, RenderSetup.Texture> resolved = new HashMap<>();
 
-			TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
-
-			for (Entry<String, RenderSetup.TextureSpec> entry : this.textures.entrySet()) {
-				AbstractTexture abstractTexture = textureManager.getTexture(entry.getValue().location);
-				GpuSampler gpuSampler = entry.getValue().sampler().get();
-				map.put(
-						entry.getKey(),
-						new RenderSetup.Texture(
-								abstractTexture.getGlTextureView(),
-								gpuSampler != null ? gpuSampler : abstractTexture.getSampler()
-						)
-				);
-			}
-
-			return map;
+		if (useOverlay) {
+			resolved.put(
+					"Sampler1",
+					new RenderSetup.Texture(
+							MinecraftClient.getInstance().gameRenderer.getOverlayTexture().getTextureView(),
+							RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
+					)
+			);
 		}
+
+		if (useLightmap) {
+			resolved.put(
+					"Sampler2",
+					new RenderSetup.Texture(
+							MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView(),
+							RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
+					)
+			);
+		}
+
+		TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
+
+		for (Entry<String, RenderSetup.TextureSpec> entry : textures.entrySet()) {
+			AbstractTexture abstractTexture = textureManager.getTexture(entry.getValue().location);
+			GpuSampler gpuSampler = entry.getValue().sampler().get();
+			resolved.put(
+					entry.getKey(),
+					new RenderSetup.Texture(
+							abstractTexture.getGlTextureView(),
+							gpuSampler != null ? gpuSampler : abstractTexture.getSampler()
+					)
+			);
+		}
+
+		return resolved;
 	}
 
+	/** Строитель конфигурации прохода рендеринга с fluent API. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final RenderPipeline pipeline;
@@ -145,7 +152,7 @@ public final class RenderSetup {
 		private TextureTransform textureTransform = TextureTransform.DEFAULT_TEXTURING;
 		private boolean hasCrumbling = false;
 		private boolean translucent = false;
-		private int expectedBufferSize = 1536;
+		private int expectedBufferSize = DEFAULT_EXPECTED_BUFFER_SIZE;
 		private RenderSetup.OutlineMode outlineMode = RenderSetup.OutlineMode.NONE;
 		private final Map<String, RenderSetup.TextureSpec> textures = new HashMap<>();
 
@@ -154,12 +161,12 @@ public final class RenderSetup {
 		}
 
 		public RenderSetup.Builder texture(String name, Identifier id) {
-			this.textures.put(name, new RenderSetup.TextureSpec(id, () -> null));
+			textures.put(name, new RenderSetup.TextureSpec(id, () -> null));
 			return this;
 		}
 
 		public RenderSetup.Builder texture(String name, Identifier id, @Nullable Supplier<GpuSampler> samplerSupplier) {
-			this.textures.put(
+			textures.put(
 					name,
 					new RenderSetup.TextureSpec(
 							id,
@@ -170,22 +177,22 @@ public final class RenderSetup {
 		}
 
 		public RenderSetup.Builder useLightmap() {
-			this.useLightmap = true;
+			useLightmap = true;
 			return this;
 		}
 
 		public RenderSetup.Builder useOverlay() {
-			this.useOverlay = true;
+			useOverlay = true;
 			return this;
 		}
 
 		public RenderSetup.Builder crumbling() {
-			this.hasCrumbling = true;
+			hasCrumbling = true;
 			return this;
 		}
 
 		public RenderSetup.Builder translucent() {
-			this.translucent = true;
+			translucent = true;
 			return this;
 		}
 
@@ -214,60 +221,49 @@ public final class RenderSetup {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return RenderSetup — результат операции
-		 */
 		public RenderSetup build() {
 			return new RenderSetup(
-					this.pipeline,
-					this.textures,
-					this.useLightmap,
-					this.useOverlay,
-					this.layeringTransform,
-					this.outputTarget,
-					this.textureTransform,
-					this.outlineMode,
-					this.hasCrumbling,
-					this.translucent,
-					this.expectedBufferSize
+					pipeline,
+					textures,
+					useLightmap,
+					useOverlay,
+					layeringTransform,
+					outputTarget,
+					textureTransform,
+					outlineMode,
+					hasCrumbling,
+					translucent,
+					expectedBufferSize
 			);
 		}
 	}
 
+	/** Режим участия слоя в рендеринге контуров сущностей. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code OutlineMode}.
-	 */
-	public static enum OutlineMode {
+	public enum OutlineMode {
 		NONE("none"),
 		IS_OUTLINE("is_outline"),
 		AFFECTS_OUTLINE("affects_outline");
 
 		private final String name;
 
-		private OutlineMode(final String name) {
+		OutlineMode(final String name) {
 			this.name = name;
 		}
 
 		@Override
 		public String toString() {
-			return this.name;
+			return name;
 		}
 	}
 
+	/** Пара GPU-текстура + сэмплер для привязки к шейдерному слоту. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Texture}.
-	 */
 	public record Texture(GpuTextureView textureView, GpuSampler sampler) {
 	}
 
+	/** Спецификация текстуры: идентификатор ресурса и ленивый поставщик сэмплера. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TextureSpec}.
-	 */
 	record TextureSpec(Identifier location, Supplier<@Nullable GpuSampler> sampler) {
 	}
 }

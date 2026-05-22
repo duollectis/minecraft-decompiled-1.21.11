@@ -17,107 +17,70 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * {@code BossBarManager}.
+ * Серверный менеджер командных полос здоровья боссов ({@link CommandBossBar}).
+ * Хранит все активные boss bar'ы, созданные через команду {@code /bossbar},
+ * и обеспечивает их сериализацию в NBT и синхронизацию при подключении/отключении игроков.
  */
 public class BossBarManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final Codec<Map<Identifier, CommandBossBar.Serialized>>
-			CODEC =
+	private static final Codec<Map<Identifier, CommandBossBar.Serialized>> CODEC =
 			Codec.unboundedMap(Identifier.CODEC, CommandBossBar.Serialized.CODEC);
+
 	private final Map<Identifier, CommandBossBar> commandBossBars = Maps.newHashMap();
 
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return @Nullable CommandBossBar — 
-	 */
 	public @Nullable CommandBossBar get(Identifier id) {
-		return this.commandBossBars.get(id);
+		return commandBossBars.get(id);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param id id
-	 * @param displayName display name
-	 *
-	 * @return CommandBossBar — результат операции
-	 */
 	public CommandBossBar add(Identifier id, Text displayName) {
-		CommandBossBar commandBossBar = new CommandBossBar(id, displayName);
-		this.commandBossBars.put(id, commandBossBar);
-		return commandBossBar;
+		CommandBossBar bossBar = new CommandBossBar(id, displayName);
+		commandBossBars.put(id, bossBar);
+		return bossBar;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param bossBar boss bar
-	 */
 	public void remove(CommandBossBar bossBar) {
-		this.commandBossBars.remove(bossBar.getId());
+		commandBossBars.remove(bossBar.getId());
 	}
 
 	public Collection<Identifier> getIds() {
-		return this.commandBossBars.keySet();
+		return commandBossBars.keySet();
 	}
 
 	public Collection<CommandBossBar> getAll() {
-		return this.commandBossBars.values();
+		return commandBossBars.values();
 	}
 
 	/**
-	 * To nbt.
-	 *
-	 * @param registries registries
-	 *
-	 * @return NbtCompound — результат операции
+	 * Сериализует все boss bar'ы в NBT для сохранения на диск.
 	 */
 	public NbtCompound toNbt(RegistryWrapper.WrapperLookup registries) {
-		Map<Identifier, CommandBossBar.Serialized>
-				map =
-				Util.transformMapValues(this.commandBossBars, CommandBossBar::toSerialized);
-		return (NbtCompound) CODEC.encodeStart(registries.getOps(NbtOps.INSTANCE), map).getOrThrow();
+		Map<Identifier, CommandBossBar.Serialized> serialized =
+				Util.transformMapValues(commandBossBars, CommandBossBar::toSerialized);
+		return (NbtCompound) CODEC.encodeStart(registries.getOps(NbtOps.INSTANCE), serialized).getOrThrow();
 	}
 
 	/**
-	 * Читает nbt.
-	 *
-	 * @param nbt nbt
-	 * @param registries registries
+	 * Восстанавливает boss bar'ы из NBT. При ошибке парсинга логирует проблему и пропускает повреждённые записи.
 	 */
 	public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-		Map<Identifier, CommandBossBar.Serialized> map = CODEC.parse(registries.getOps(NbtOps.INSTANCE), nbt)
-		                                                      .resultOrPartial(error -> LOGGER.error(
-				                                                      "Failed to parse boss bar events: {}",
-				                                                      error
-		                                                      ))
-		                                                      .orElse(Map.of());
-		map.forEach((id, serialized) -> this.commandBossBars.put(id, CommandBossBar.fromSerialized(id, serialized)));
+		Map<Identifier, CommandBossBar.Serialized> parsed = CODEC
+				.parse(registries.getOps(NbtOps.INSTANCE), nbt)
+				.resultOrPartial(error -> LOGGER.error("Failed to parse boss bar events: {}", error))
+				.orElse(Map.of());
+
+		parsed.forEach((id, serialized) -> commandBossBars.put(id, CommandBossBar.fromSerialized(id, serialized)));
 	}
 
-	/**
-	 * Обрабатывает событие player connect.
-	 *
-	 * @param player player
-	 */
 	public void onPlayerConnect(ServerPlayerEntity player) {
-		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
-			commandBossBar.onPlayerConnect(player);
+		for (CommandBossBar bossBar : commandBossBars.values()) {
+			bossBar.onPlayerConnect(player);
 		}
 	}
 
-	/**
-	 * Обрабатывает событие player disconnect.
-	 *
-	 * @param player player
-	 */
 	public void onPlayerDisconnect(ServerPlayerEntity player) {
-		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
-			commandBossBar.onPlayerDisconnect(player);
+		for (CommandBossBar bossBar : commandBossBars.values()) {
+			bossBar.onPlayerDisconnect(player);
 		}
 	}
 }

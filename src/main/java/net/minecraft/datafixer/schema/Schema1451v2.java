@@ -9,12 +9,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1451v2}.
+ * Схема версии 1451v2: добавляет блок-сущность {@code minecraft:piston}
+ * с полем {@code blockState}, хранящим состояние блока, захваченного поршнем.
  */
 public class Schema1451v2 extends IdentifierNormalizingSchema {
 
-	public Schema1451v2(int i, Schema schema) {
-		super(i, schema);
+	public Schema1451v2(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

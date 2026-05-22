@@ -39,18 +39,23 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * {@code StatusEffect}.
+ * Базовый класс статусного эффекта (зелья/эффекта моба).
+ *
+ * <p>Определяет категорию, цвет, частицы, звук применения и модификаторы атрибутов.
+ * Подклассы переопределяют {@link #applyUpdateEffect} и {@link #canApplyUpdateEffect}
+ * для реализации периодической логики, либо {@link #applyInstantEffect} для мгновенных эффектов.</p>
  */
 public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 
 	public static final Codec<RegistryEntry<StatusEffect>> ENTRY_CODEC = Registries.STATUS_EFFECT.getEntryCodec();
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<StatusEffect>>
-			ENTRY_PACKET_CODEC =
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<StatusEffect>> ENTRY_PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.STATUS_EFFECT);
+
+	/** Альфа-канал частицы для ambient-режима (≈15% от 255). */
 	private static final int AMBIENT_PARTICLE_ALPHA = MathHelper.floor(38.25F);
-	private final Map<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator>
-			attributeModifiers =
-			new Object2ObjectOpenHashMap();
+
+	private final Map<RegistryEntry<EntityAttribute>, EffectAttributeModifierCreator> attributeModifiers =
+			new Object2ObjectOpenHashMap<>();
 	private final StatusEffectCategory category;
 	private final int color;
 	private final Function<StatusEffectInstance, ParticleEffect> particleFactory;
@@ -64,43 +69,52 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 	protected StatusEffect(StatusEffectCategory category, int color) {
 		this.category = category;
 		this.color = color;
-		this.particleFactory = effect -> {
-			int j = effect.isAmbient() ? AMBIENT_PARTICLE_ALPHA : 255;
-			return TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, ColorHelper.withAlpha(j, color));
+		particleFactory = effect -> {
+			int alpha = effect.isAmbient() ? AMBIENT_PARTICLE_ALPHA : 255;
+			return TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, ColorHelper.withAlpha(alpha, color));
 		};
 	}
 
 	protected StatusEffect(StatusEffectCategory category, int color, ParticleEffect particleEffect) {
 		this.category = category;
 		this.color = color;
-		this.particleFactory = effect -> particleEffect;
+		particleFactory = effect -> particleEffect;
 	}
 
 	public int getFadeInTicks() {
-		return this.fadeInTicks;
+		return fadeInTicks;
 	}
 
 	public int getFadeOutTicks() {
-		return this.fadeOutTicks;
+		return fadeOutTicks;
 	}
 
 	public int getFadeOutThresholdTicks() {
-		return this.fadeOutThresholdTicks;
+		return fadeOutThresholdTicks;
 	}
 
 	/**
-	 * Применяет update effect.
+	 * Применяет периодический эффект к сущности на сервере.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param amplifier amplifier
-	 *
-	 * @return boolean — результат операции
+	 * @param world     серверный мир
+	 * @param entity    целевая сущность
+	 * @param amplifier уровень усиления (0 = уровень I)
+	 * @return {@code true}, если эффект должен продолжаться; {@code false} — для немедленного снятия
 	 */
 	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
 		return true;
 	}
 
+	/**
+	 * Применяет мгновенный эффект к цели (например, от брошенного зелья).
+	 *
+	 * @param world        серверный мир
+	 * @param effectEntity сущность-носитель эффекта (снаряд), может быть {@code null}
+	 * @param attacker     атакующий, может быть {@code null}
+	 * @param target       цель
+	 * @param amplifier    уровень усиления
+	 * @param proximity    близость к центру взрыва (0.0–1.0), влияет на силу эффекта
+	 */
 	public void applyInstantEffect(
 			ServerWorld world,
 			@Nullable Entity effectEntity,
@@ -109,60 +123,41 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 			int amplifier,
 			double proximity
 	) {
-		this.applyUpdateEffect(world, target, amplifier);
+		applyUpdateEffect(world, target, amplifier);
 	}
 
 	/**
-	 * Проверяет возможность apply update effect.
+	 * Определяет, должен ли периодический эффект применяться на данном тике.
 	 *
-	 * @param duration duration
-	 * @param amplifier amplifier
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param duration  оставшаяся длительность в тиках
+	 * @param amplifier уровень усиления
+	 * @return {@code true}, если эффект нужно применить в этот тик
 	 */
 	public boolean canApplyUpdateEffect(int duration, int amplifier) {
 		return false;
 	}
 
-	/**
-	 * Обрабатывает событие applied.
-	 *
-	 * @param entity entity
-	 * @param amplifier amplifier
-	 */
 	public void onApplied(LivingEntity entity, int amplifier) {
 	}
 
 	/**
-	 * Play apply sound.
-	 *
-	 * @param entity entity
-	 * @param amplifier amplifier
+	 * Воспроизводит звук применения эффекта в позиции сущности, если звук задан.
 	 */
 	public void playApplySound(LivingEntity entity, int amplifier) {
-		this.applySound
-				.ifPresent(sound -> entity
-						.getEntityWorld()
-						.playSound(
-								null,
-								entity.getX(),
-								entity.getY(),
-								entity.getZ(),
-								sound,
-								entity.getSoundCategory(),
-								1.0F,
-								1.0F
-						));
+		applySound.ifPresent(sound -> entity
+				.getEntityWorld()
+				.playSound(
+						null,
+						entity.getX(),
+						entity.getY(),
+						entity.getZ(),
+						sound,
+						entity.getSoundCategory(),
+						1.0F,
+						1.0F
+				));
 	}
 
-	/**
-	 * Обрабатывает событие entity removal.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param amplifier amplifier
-	 * @param reason reason
-	 */
 	public void onEntityRemoval(ServerWorld world, LivingEntity entity, int amplifier, Entity.RemovalReason reason) {
 	}
 
@@ -179,64 +174,66 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return false;
 	}
 
-	/**
-	 * Загружает translation key.
-	 *
-	 * @return String — результат операции
-	 */
 	protected String loadTranslationKey() {
-		if (this.translationKey == null) {
-			this.translationKey = Util.createTranslationKey("effect", Registries.STATUS_EFFECT.getId(this));
+		if (translationKey == null) {
+			translationKey = Util.createTranslationKey("effect", Registries.STATUS_EFFECT.getId(this));
 		}
 
-		return this.translationKey;
+		return translationKey;
 	}
 
 	public String getTranslationKey() {
-		return this.loadTranslationKey();
+		return loadTranslationKey();
 	}
 
 	public Text getName() {
-		return Text.translatable(this.getTranslationKey());
+		return Text.translatable(getTranslationKey());
 	}
 
 	public StatusEffectCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
 	public int getColor() {
-		return this.color;
+		return color;
 	}
 
+	/**
+	 * Регистрирует модификатор атрибута, масштабируемый по уровню усиления.
+	 *
+	 * @param attribute атрибут, к которому применяется модификатор
+	 * @param id        уникальный идентификатор модификатора
+	 * @param amount    базовое значение (умножается на {@code amplifier + 1})
+	 * @param operation тип операции модификатора
+	 * @return {@code this} для цепочки вызовов
+	 */
 	public StatusEffect addAttributeModifier(
 			RegistryEntry<EntityAttribute> attribute,
 			Identifier id,
 			double amount,
 			EntityAttributeModifier.Operation operation
 	) {
-		this.attributeModifiers.put(attribute, new StatusEffect.EffectAttributeModifierCreator(id, amount, operation));
+		attributeModifiers.put(attribute, new EffectAttributeModifierCreator(id, amount, operation));
 		return this;
 	}
 
 	/**
-	 * Fade ticks.
+	 * Устанавливает одинаковое время затухания для входа, выхода и порога.
 	 *
-	 * @param fadeTicks fade ticks
-	 *
-	 * @return StatusEffect — результат операции
+	 * @param fadeTicks количество тиков затухания
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public StatusEffect fadeTicks(int fadeTicks) {
-		return this.fadeTicks(fadeTicks, fadeTicks, fadeTicks);
+		return fadeTicks(fadeTicks, fadeTicks, fadeTicks);
 	}
 
 	/**
-	 * Fade ticks.
+	 * Устанавливает раздельные параметры затухания эффекта.
 	 *
-	 * @param fadeInTicks fade in ticks
-	 * @param fadeOutTicks fade out ticks
-	 * @param fadeOutThresholdTicks fade out threshold ticks
-	 *
-	 * @return StatusEffect — результат операции
+	 * @param fadeInTicks           тики плавного появления
+	 * @param fadeOutTicks          тики плавного исчезновения
+	 * @param fadeOutThresholdTicks порог оставшейся длительности, при котором начинается затухание
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public StatusEffect fadeTicks(int fadeInTicks, int fadeOutTicks, int fadeOutThresholdTicks) {
 		this.fadeInTicks = fadeInTicks;
@@ -245,82 +242,66 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return this;
 	}
 
+	/**
+	 * Перебирает все зарегистрированные модификаторы атрибутов с учётом уровня усиления.
+	 */
 	public void forEachAttributeModifier(
 			int amplifier,
 			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> consumer
 	) {
-		this.attributeModifiers
-				.forEach(
-						(attribute, attributeModifierCreator) -> consumer.accept(
-								(RegistryEntry<EntityAttribute>) attribute,
-								attributeModifierCreator.createAttributeModifier(amplifier)
-						)
-				);
+		attributeModifiers.forEach(
+				(attribute, creator) -> consumer.accept(attribute, creator.createAttributeModifier(amplifier))
+		);
 	}
 
 	/**
-	 * Обрабатывает событие removed.
-	 *
-	 * @param attributeContainer attribute container
+	 * Удаляет все модификаторы атрибутов этого эффекта из контейнера атрибутов сущности.
 	 */
 	public void onRemoved(AttributeContainer attributeContainer) {
-		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
-			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.removeModifier(entry.getValue().id());
+		for (Entry<RegistryEntry<EntityAttribute>, EffectAttributeModifierCreator> entry : attributeModifiers.entrySet()) {
+			EntityAttributeInstance instance = attributeContainer.getCustomInstance(entry.getKey());
+			if (instance != null) {
+				instance.removeModifier(entry.getValue().id());
 			}
 		}
 	}
 
 	/**
-	 * Обрабатывает событие applied.
-	 *
-	 * @param attributeContainer attribute container
-	 * @param amplifier amplifier
+	 * Применяет все модификаторы атрибутов этого эффекта к контейнеру атрибутов сущности.
+	 * Перед добавлением удаляет старые модификаторы во избежание дублирования.
 	 */
 	public void onApplied(AttributeContainer attributeContainer, int amplifier) {
-		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
-			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.removeModifier(entry.getValue().id());
-				entityAttributeInstance.addPersistentModifier(entry.getValue().createAttributeModifier(amplifier));
+		for (Entry<RegistryEntry<EntityAttribute>, EffectAttributeModifierCreator> entry : attributeModifiers.entrySet()) {
+			EntityAttributeInstance instance = attributeContainer.getCustomInstance(entry.getKey());
+			if (instance != null) {
+				instance.removeModifier(entry.getValue().id());
+				instance.addPersistentModifier(entry.getValue().createAttributeModifier(amplifier));
 			}
 		}
 	}
 
 	public boolean isBeneficial() {
-		return this.category == StatusEffectCategory.BENEFICIAL;
+		return category == StatusEffectCategory.BENEFICIAL;
 	}
 
-	/**
-	 * Создаёт particle.
-	 *
-	 * @param effect effect
-	 *
-	 * @return ParticleEffect — результат операции
-	 */
 	public ParticleEffect createParticle(StatusEffectInstance effect) {
-		return this.particleFactory.apply(effect);
+		return particleFactory.apply(effect);
 	}
 
 	/**
-	 * Применяет sound.
+	 * Задаёт звук, воспроизводимый при применении эффекта.
 	 *
-	 * @param sound sound
-	 *
-	 * @return StatusEffect — результат операции
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public StatusEffect applySound(SoundEvent sound) {
-		this.applySound = Optional.of(sound);
+		applySound = Optional.of(sound);
 		return this;
 	}
 
 	/**
-	 * Requires.
+	 * Ограничивает эффект набором feature-флагов (экспериментальные функции).
 	 *
-	 * @param requiredFeatures required features
-	 *
-	 * @return StatusEffect — результат операции
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public StatusEffect requires(FeatureFlag... requiredFeatures) {
 		this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
@@ -329,11 +310,11 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 
 	@Override
 	public FeatureSet getRequiredFeatures() {
-		return this.requiredFeatures;
+		return requiredFeatures;
 	}
 
 	/**
-	 * {@code EffectAttributeModifierCreator}.
+	 * Фабрика модификатора атрибута, масштабирующая базовое значение на {@code (amplifier + 1)}.
 	 */
 	record EffectAttributeModifierCreator(
 			Identifier id,
@@ -341,15 +322,8 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 			EntityAttributeModifier.Operation operation
 	) {
 
-		/**
-		 * Создаёт attribute modifier.
-		 *
-		 * @param amplifier amplifier
-		 *
-		 * @return EntityAttributeModifier — результат операции
-		 */
 		public EntityAttributeModifier createAttributeModifier(int amplifier) {
-			return new EntityAttributeModifier(this.id, this.baseValue * (amplifier + 1), this.operation);
+			return new EntityAttributeModifier(id, baseValue * (amplifier + 1), operation);
 		}
 	}
 }

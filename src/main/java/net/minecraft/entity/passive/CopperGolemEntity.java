@@ -45,7 +45,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * {@code CopperGolemEntity}.
+ * Медный голем — созданный игроком голем, нажимающий кнопки.
+ * Со временем окисляется и застывает, если не натирать воском.
  */
 public class CopperGolemEntity extends GolemEntity implements ContainerUser, Shearable {
 
@@ -89,7 +90,7 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 				.getBrain()
 				.remember(
 						MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS,
-						this.getRandom().nextBetweenExclusive(60, 100)
+						this.getRandom().nextBetweenExclusive(SPIN_HEAD_COOLDOWN_MIN, SPIN_HEAD_COOLDOWN_MAX)
 				);
 	}
 
@@ -241,13 +242,13 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 		else if (world.isClient()) {
 			return ActionResult.PASS;
 		}
-		else if (itemStack.isOf(Items.HONEYCOMB) && this.nextOxidationAge != -2L) {
+		else if (itemStack.isOf(Items.HONEYCOMB) && this.nextOxidationAge != OXIDATION_AGE_UNSET) {
 			world.syncWorldEvent(this, 3003, this.getBlockPos(), 0);
-			this.nextOxidationAge = -2L;
+			this.nextOxidationAge = OXIDATION_AGE_UNSET;
 			this.eat(player, hand, itemStack);
 			return ActionResult.SUCCESS_SERVER;
 		}
-		else if (itemStack.isIn(ItemTags.AXES) && this.nextOxidationAge == -2L) {
+		else if (itemStack.isIn(ItemTags.AXES) && this.nextOxidationAge == OXIDATION_AGE_UNSET) {
 			world.playSoundFromEntity(null, this, SoundEvents.ITEM_AXE_SCRAPE, this.getSoundCategory(), 1.0F, 1.0F);
 			world.syncWorldEvent(this, 3004, this.getBlockPos(), 0);
 			this.nextOxidationAge = -1L;
@@ -279,21 +280,23 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 	}
 
 	private void serverTick(ServerWorld world, Random random, long timeOfDay) {
-		if (this.nextOxidationAge != -2L) {
+		if (this.nextOxidationAge != OXIDATION_AGE_UNSET) {
 			if (this.nextOxidationAge == -1L) {
-				this.nextOxidationAge = timeOfDay + random.nextBetween(504000, 552000);
+				this.nextOxidationAge = timeOfDay + random.nextBetween(MIN_OXIDATION_AGE_TICKS, MAX_OXIDATION_AGE_TICKS);
 			}
 			else {
 				Oxidizable.OxidationLevel oxidationLevel = this.dataTracker.get(OXIDATION_LEVEL);
-				boolean bl = oxidationLevel.equals(Oxidizable.OxidationLevel.OXIDIZED);
-				if (timeOfDay >= this.nextOxidationAge && !bl) {
-					Oxidizable.OxidationLevel oxidationLevel2 = oxidationLevel.getIncreased();
-					boolean bl2 = oxidationLevel2.equals(Oxidizable.OxidationLevel.OXIDIZED);
-					this.setOxidationLevel(oxidationLevel2);
-					this.nextOxidationAge = bl2 ? 0L : this.nextOxidationAge + random.nextBetween(504000, 552000);
+				boolean fullyOxidized = oxidationLevel.equals(Oxidizable.OxidationLevel.OXIDIZED);
+				if (timeOfDay >= this.nextOxidationAge && !fullyOxidized) {
+					Oxidizable.OxidationLevel nextLevel = oxidationLevel.getIncreased();
+					boolean reachedMaxOxidation = nextLevel.equals(Oxidizable.OxidationLevel.OXIDIZED);
+					this.setOxidationLevel(nextLevel);
+					this.nextOxidationAge = reachedMaxOxidation
+							? 0L
+							: this.nextOxidationAge + random.nextBetween(MIN_OXIDATION_AGE_TICKS, MAX_OXIDATION_AGE_TICKS);
 				}
 
-				if (bl && this.canTurnIntoStatue(world)) {
+				if (fullyOxidized && this.canTurnIntoStatue(world)) {
 					this.turnIntoStatue(world);
 				}
 			}
@@ -301,7 +304,7 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 	}
 
 	private boolean canTurnIntoStatue(World world) {
-		return world.getBlockState(this.getBlockPos()).isAir() && world.random.nextFloat() <= 0.0058F;
+		return world.getBlockState(this.getBlockPos()).isAir() && world.random.nextFloat() <= OXIDATION_CHANCE_PER_TICK;
 	}
 
 	private void turnIntoStatue(ServerWorld world) {
@@ -347,7 +350,7 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 					this.spinHeadAnimationState.start(this.age);
 				}
 				else if (this.spinHeadTimer == 0) {
-					this.spinHeadTimer = this.age + this.random.nextBetweenExclusive(200, 240);
+					this.spinHeadTimer = this.age + this.random.nextBetweenExclusive(TRANSPORT_COOLDOWN_MIN, TRANSPORT_COOLDOWN_MAX);
 				}
 
 				if (this.age == this.spinHeadTimer + 10.0F) {

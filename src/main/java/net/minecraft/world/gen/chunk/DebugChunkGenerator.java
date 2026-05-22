@@ -29,7 +29,9 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code DebugChunkGenerator}.
+ * Отладочный генератор чанков. Отображает все возможные {@link BlockState} в виде сетки
+ * на высоте {@link #BLOCK_STATE_Y}, разделённой барьерами на высоте {@link #BARRIER_Y}.
+ * Используется исключительно для разработки и тестирования.
  */
 public class DebugChunkGenerator extends ChunkGenerator {
 
@@ -38,17 +40,18 @@ public class DebugChunkGenerator extends ChunkGenerator {
 					.group(RegistryOps.getEntryCodec(BiomeKeys.PLAINS))
 					.apply(instance, instance.stable(DebugChunkGenerator::new))
 	);
+
 	private static final int BLOCK_UPDATE_FLAGS = 2;
-	private static final List<BlockState> BLOCK_STATES = StreamSupport.stream(Registries.BLOCK.spliterator(), false)
-	                                                                  .flatMap(block -> block
-			                                                                  .getStateManager()
-			                                                                  .getStates()
-			                                                                  .stream())
-	                                                                  .collect(Collectors.toList());
+	private static final List<BlockState> BLOCK_STATES = StreamSupport
+			.stream(Registries.BLOCK.spliterator(), false)
+			.flatMap(block -> block.getStateManager().getStates().stream())
+			.collect(Collectors.toList());
 	private static final int X_SIDE_LENGTH = MathHelper.ceil(MathHelper.sqrt(BLOCK_STATES.size()));
 	private static final int Z_SIDE_LENGTH = MathHelper.ceil((float) BLOCK_STATES.size() / X_SIDE_LENGTH);
+
 	protected static final BlockState AIR = Blocks.AIR.getDefaultState();
 	protected static final BlockState BARRIER = Blocks.BARRIER.getDefaultState();
+
 	public static final int BLOCK_STATE_Y = 70;
 	public static final int BARRIER_Y = 60;
 
@@ -69,16 +72,15 @@ public class DebugChunkGenerator extends ChunkGenerator {
 	public void generateFeatures(StructureWorldAccess world, Chunk chunk, StructureAccessor structureAccessor) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 		ChunkPos chunkPos = chunk.getPos();
-		int i = chunkPos.x;
-		int j = chunkPos.z;
+		int chunkX = chunkPos.x;
+		int chunkZ = chunkPos.z;
 
-		for (int k = 0; k < 16; k++) {
-			for (int l = 0; l < 16; l++) {
-				int m = ChunkSectionPos.getOffsetPos(i, k);
-				int n = ChunkSectionPos.getOffsetPos(j, l);
-				world.setBlockState(mutable.set(m, 60, n), BARRIER, 2);
-				BlockState blockState = getBlockState(m, n);
-				world.setBlockState(mutable.set(m, 70, n), blockState, 2);
+		for (int localX = 0; localX < 16; localX++) {
+			for (int localZ = 0; localZ < 16; localZ++) {
+				int worldX = ChunkSectionPos.getOffsetPos(chunkX, localX);
+				int worldZ = ChunkSectionPos.getOffsetPos(chunkZ, localZ);
+				world.setBlockState(mutable.set(worldX, BARRIER_Y, worldZ), BARRIER, BLOCK_UPDATE_FLAGS);
+				world.setBlockState(mutable.set(worldX, BLOCK_STATE_Y, worldZ), getBlockState(worldX, worldZ), BLOCK_UPDATE_FLAGS);
 			}
 		}
 	}
@@ -107,20 +109,24 @@ public class DebugChunkGenerator extends ChunkGenerator {
 	public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
 	}
 
+	/**
+	 * Возвращает {@link BlockState} для отображения в отладочной сетке по мировым координатам.
+	 * Нечётные координаты (x % 2 != 0 && z % 2 != 0) содержат блоки; чётные — воздух (разделители).
+	 */
 	public static BlockState getBlockState(int x, int z) {
-		BlockState blockState = AIR;
-		if (x > 0 && z > 0 && x % 2 != 0 && z % 2 != 0) {
-			x /= 2;
-			z /= 2;
-			if (x <= X_SIDE_LENGTH && z <= Z_SIDE_LENGTH) {
-				int i = MathHelper.abs(x * X_SIDE_LENGTH + z);
-				if (i < BLOCK_STATES.size()) {
-					blockState = BLOCK_STATES.get(i);
-				}
-			}
+		if (x <= 0 || z <= 0 || x % 2 == 0 || z % 2 == 0) {
+			return AIR;
 		}
 
-		return blockState;
+		int gridX = x / 2;
+		int gridZ = z / 2;
+
+		if (gridX > X_SIDE_LENGTH || gridZ > Z_SIDE_LENGTH) {
+			return AIR;
+		}
+
+		int index = MathHelper.abs(gridX * X_SIDE_LENGTH + gridZ);
+		return index < BLOCK_STATES.size() ? BLOCK_STATES.get(index) : AIR;
 	}
 
 	@Override

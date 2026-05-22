@@ -14,7 +14,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 
 /**
- * {@code UntaggedSpawnerFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class UntaggedSpawnerFix extends DataFix {
 
@@ -23,13 +23,13 @@ public class UntaggedSpawnerFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
+		Type<?> type = getInputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
 		OpticFinder<?> opticFinder = type.findField("SpawnData");
 		Type<?> type3 = type2.findField("SpawnData").type();
 		OpticFinder<?> opticFinder2 = type.findField("SpawnPotentials");
 		Type<?> type4 = type2.findField("SpawnPotentials").type();
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Fix mob spawner data structure",
 				type,
 				type2,

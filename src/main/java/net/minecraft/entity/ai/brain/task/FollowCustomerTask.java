@@ -1,15 +1,23 @@
 package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
-import net.minecraft.entity.ai.brain.*;
+import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.EntityLookTarget;
+import net.minecraft.entity.ai.brain.MemoryModuleState;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code FollowCustomerTask}.
+ * Задача мозга жителя, заставляющая его следовать за торговым покупателем-игроком.
+ * Активна, пока игрок находится в радиусе {@code MAX_FOLLOW_DISTANCE_SQ} блоков.
  */
 public class FollowCustomerTask extends MultiTickTask<VillagerEntity> {
+
+	private static final double MAX_FOLLOW_DISTANCE_SQ = 16.0;
+	private static final int FOLLOW_COMPLETION_RANGE = 2;
 
 	private final float speed;
 
@@ -26,69 +34,36 @@ public class FollowCustomerTask extends MultiTickTask<VillagerEntity> {
 		this.speed = speed;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		PlayerEntity playerEntity = villagerEntity.getCustomer();
-		return villagerEntity.isAlive()
-				&& playerEntity != null
-				&& !villagerEntity.isTouchingWater()
-				&& !villagerEntity.knockedBack
-				&& villagerEntity.squaredDistanceTo(playerEntity) <= 16.0;
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		PlayerEntity customer = entity.getCustomer();
+		return entity.isAlive()
+				&& customer != null
+				&& !entity.isTouchingWater()
+				&& !entity.knockedBack
+				&& entity.squaredDistanceTo(customer) <= MAX_FOLLOW_DISTANCE_SQ;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return this.shouldRun(serverWorld, villagerEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return shouldRun(world, entity);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.update(villagerEntity);
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		update(entity);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		Brain<?> brain = villagerEntity.getBrain();
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		Brain<?> brain = entity.getBrain();
 		brain.forget(MemoryModuleType.WALK_TARGET);
 		brain.forget(MemoryModuleType.LOOK_TARGET);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.update(villagerEntity);
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		update(entity);
 	}
 
 	@Override
@@ -100,7 +75,7 @@ public class FollowCustomerTask extends MultiTickTask<VillagerEntity> {
 		Brain<?> brain = villager.getBrain();
 		brain.remember(
 				MemoryModuleType.WALK_TARGET,
-				new WalkTarget(new EntityLookTarget(villager.getCustomer(), false), this.speed, 2)
+				new WalkTarget(new EntityLookTarget(villager.getCustomer(), false), speed, FOLLOW_COMPLETION_RANGE)
 		);
 		brain.remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(villager.getCustomer(), true));
 	}

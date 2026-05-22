@@ -12,10 +12,11 @@ import net.minecraft.state.property.Property;
 import java.util.*;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VariantsBlockModelDefinitionCreator}.
+ * Реализация {@link BlockModelDefinitionCreator}, генерирующая определение блока на основе
+ * набора вариантов модели, сопоставленных с конкретными комбинациями значений свойств блока.
  */
+@Environment(EnvType.CLIENT)
 public class VariantsBlockModelDefinitionCreator implements BlockModelDefinitionCreator {
 
 	private final Block block;
@@ -37,90 +38,75 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 			Block block,
 			BlockStateVariantMap<?> variantMap
 	) {
-		List<Property<?>> list = variantMap.getProperties();
-		list.forEach(property -> {
+		List<Property<?>> properties = variantMap.getProperties();
+
+		properties.forEach(property -> {
 			if (block.getStateManager().getProperty(property.getName()) != property) {
 				throw new IllegalStateException("Property " + property + " is not defined for block " + block);
 			}
-			else if (definedProperties.contains(property)) {
+
+			if (definedProperties.contains(property)) {
 				throw new IllegalStateException(
 						"Values of property " + property + " already defined for block " + block);
 			}
 		});
-		Set<Property<?>> set = new HashSet<>(definedProperties);
-		set.addAll(list);
-		return set;
+
+		Set<Property<?>> merged = new HashSet<>(definedProperties);
+		merged.addAll(properties);
+
+		return merged;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param operators operators
-	 *
-	 * @return VariantsBlockModelDefinitionCreator — результат операции
-	 */
 	public VariantsBlockModelDefinitionCreator apply(BlockStateVariantMap<ModelVariantOperator> operators) {
-		Set<Property<?>> set = validateAndAddProperties(this.definedProperties, this.block, operators);
-		List<VariantsBlockModelDefinitionCreator.Entry>
-				list =
-				this.variants.stream().flatMap(variant -> variant.apply(operators)).toList();
-		return new VariantsBlockModelDefinitionCreator(this.block, list, set);
+		Set<Property<?>> merged = validateAndAddProperties(definedProperties, block, operators);
+		List<Entry> applied = variants.stream()
+				.flatMap(variant -> variant.apply(operators))
+				.toList();
+
+		return new VariantsBlockModelDefinitionCreator(block, applied, merged);
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param operator operator
-	 *
-	 * @return VariantsBlockModelDefinitionCreator — результат операции
-	 */
 	public VariantsBlockModelDefinitionCreator apply(ModelVariantOperator operator) {
-		List<VariantsBlockModelDefinitionCreator.Entry>
-				list =
-				this.variants.stream().flatMap(variant -> variant.apply(operator)).toList();
-		return new VariantsBlockModelDefinitionCreator(this.block, list, this.definedProperties);
+		List<Entry> applied = variants.stream()
+				.flatMap(variant -> variant.apply(operator))
+				.toList();
+
+		return new VariantsBlockModelDefinitionCreator(block, applied, definedProperties);
 	}
 
 	@Override
 	public BlockModelDefinition createBlockModelDefinition() {
-		Map<String, BlockStateModel.Unbaked> map = new HashMap<>();
+		Map<String, BlockStateModel.Unbaked> variantModels = new HashMap<>();
 
-		for (VariantsBlockModelDefinitionCreator.Entry entry : this.variants) {
-			map.put(entry.properties.asString(), entry.variant.toModel());
+		for (Entry entry : variants) {
+			variantModels.put(entry.properties.asString(), entry.variant.toModel());
 		}
 
-		return new BlockModelDefinition(Optional.of(new BlockModelDefinition.Variants(map)), Optional.empty());
+		return new BlockModelDefinition(Optional.of(new BlockModelDefinition.Variants(variantModels)), Optional.empty());
 	}
 
 	@Override
 	public Block getBlock() {
-		return this.block;
+		return block;
 	}
 
-	public static VariantsBlockModelDefinitionCreator.Empty of(Block block) {
-		return new VariantsBlockModelDefinitionCreator.Empty(block);
+	public static Empty of(Block block) {
+		return new Empty(block);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param block block
-	 * @param model model
-	 *
-	 * @return VariantsBlockModelDefinitionCreator — результат операции
-	 */
 	public static VariantsBlockModelDefinitionCreator of(Block block, WeightedVariant model) {
 		return new VariantsBlockModelDefinitionCreator(
 				block,
-				List.of(new VariantsBlockModelDefinitionCreator.Entry(PropertiesMap.EMPTY, model)),
+				List.of(new Entry(PropertiesMap.EMPTY, model)),
 				Set.of()
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Empty}.
+	 * Промежуточный строитель для создания {@link VariantsBlockModelDefinitionCreator}
+	 * без предварительно заданных вариантов — принимает карту вариантов через {@link #with}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Empty {
 
 		private final Block block;
@@ -129,48 +115,36 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 			this.block = block;
 		}
 
-		/**
-		 * With.
-		 *
-		 * @param variantMap variant map
-		 *
-		 * @return VariantsBlockModelDefinitionCreator — результат операции
-		 */
 		public VariantsBlockModelDefinitionCreator with(BlockStateVariantMap<WeightedVariant> variantMap) {
-			Set<Property<?>>
-					set =
-					VariantsBlockModelDefinitionCreator.validateAndAddProperties(Set.of(), this.block, variantMap);
-			List<VariantsBlockModelDefinitionCreator.Entry> list = variantMap.getVariants()
-			                                                                 .entrySet()
-			                                                                 .stream()
-			                                                                 .map(entry -> new VariantsBlockModelDefinitionCreator.Entry(
-					                                                                 entry.getKey(),
-					                                                                 entry.getValue()
-			                                                                 ))
-			                                                                 .toList();
-			return new VariantsBlockModelDefinitionCreator(this.block, list, set);
+			Set<Property<?>> merged = validateAndAddProperties(Set.of(), block, variantMap);
+			List<Entry> entries = variantMap.getVariants()
+					.entrySet()
+					.stream()
+					.map(e -> new Entry(e.getKey(), e.getValue()))
+					.toList();
+
+			return new VariantsBlockModelDefinitionCreator(block, entries, merged);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Пара «карта свойств → взвешенный вариант модели», используемая при построении
+	 * финального {@link net.minecraft.client.render.model.json.BlockModelDefinition}.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Entry(PropertiesMap properties, WeightedVariant variant) {
 
-		public Stream<VariantsBlockModelDefinitionCreator.Entry> apply(BlockStateVariantMap<ModelVariantOperator> operatorMap) {
-			return operatorMap.getVariants().entrySet().stream().map(variant -> {
-				PropertiesMap propertiesMap = this.properties.copyOf(variant.getKey());
-				WeightedVariant weightedVariant = this.variant.apply(variant.getValue());
-				return new VariantsBlockModelDefinitionCreator.Entry(propertiesMap, weightedVariant);
+		public Stream<Entry> apply(BlockStateVariantMap<ModelVariantOperator> operatorMap) {
+			return operatorMap.getVariants().entrySet().stream().map(e -> {
+				PropertiesMap merged = properties.copyOf(e.getKey());
+				WeightedVariant applied = variant.apply(e.getValue());
+
+				return new Entry(merged, applied);
 			});
 		}
 
-		public Stream<VariantsBlockModelDefinitionCreator.Entry> apply(ModelVariantOperator operator) {
-			return Stream.of(new VariantsBlockModelDefinitionCreator.Entry(
-					this.properties,
-					this.variant.apply(operator)
-			));
+		public Stream<Entry> apply(ModelVariantOperator operator) {
+			return Stream.of(new Entry(properties, variant.apply(operator)));
 		}
 	}
 }

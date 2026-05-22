@@ -7,7 +7,9 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code RandomPatchFeature}.
+ * Генерирует случайный патч растительности или других объектов,
+ * многократно пробуя разместить вложенную фичу в случайных позициях
+ * в пределах заданного радиуса.
  */
 public class RandomPatchFeature extends Feature<RandomPatchFeatureConfig> {
 
@@ -17,30 +19,29 @@ public class RandomPatchFeature extends Feature<RandomPatchFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<RandomPatchFeatureConfig> context) {
-		RandomPatchFeatureConfig randomPatchFeatureConfig = context.getConfig();
+		RandomPatchFeatureConfig config = context.getConfig();
 		Random random = context.getRandom();
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		int i = 0;
-		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		int j = randomPatchFeatureConfig.xzSpread() + 1;
-		int k = randomPatchFeatureConfig.ySpread() + 1;
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 
-		for (int l = 0; l < randomPatchFeatureConfig.tries(); l++) {
+		int placed = 0;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+		int xzRange = config.xzSpread() + 1;
+		int yRange = config.ySpread() + 1;
+
+		for (int attempt = 0; attempt < config.tries(); attempt++) {
 			mutable.set(
-					blockPos,
-					random.nextInt(j) - random.nextInt(j),
-					random.nextInt(k) - random.nextInt(k),
-					random.nextInt(j) - random.nextInt(j)
+				origin,
+				random.nextInt(xzRange) - random.nextInt(xzRange),
+				random.nextInt(yRange) - random.nextInt(yRange),
+				random.nextInt(xzRange) - random.nextInt(xzRange)
 			);
-			if (randomPatchFeatureConfig
-					.feature()
-					.value()
-					.generateUnregistered(structureWorldAccess, context.getGenerator(), random, mutable)) {
-				i++;
+
+			if (config.feature().value().generateUnregistered(world, context.getGenerator(), random, mutable)) {
+				placed++;
 			}
 		}
 
-		return i > 0;
+		return placed > 0;
 	}
 }

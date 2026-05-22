@@ -2,6 +2,7 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.DecoratedPotBlockEntity;
 import net.minecraft.block.entity.Sherds;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -44,7 +45,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code DecoratedPotBlock}.
+ * Декорированный горшок — блок с черепками на гранях, поддерживающий хранение одного
+ * стека предметов. Разбивается при ударе подходящим инструментом или снарядом.
+ * Поддерживает компаратор и водозаполнение.
  */
 public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable {
 
@@ -62,11 +65,12 @@ public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable 
 
 	public DecoratedPotBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
+		setDefaultState(
+			stateManager.getDefaultState()
 				.with(FACING, Direction.NORTH)
 				.with(WATERLOGGED, false)
-				.with(CRACKED, false));
+				.with(CRACKED, false)
+		);
 	}
 
 	@Override
@@ -99,11 +103,11 @@ public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		return this
-				.getDefaultState()
-				.with(FACING, ctx.getHorizontalPlayerFacing())
-				.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER)
-				.with(CRACKED, false);
+
+		return getDefaultState()
+			.with(FACING, ctx.getHorizontalPlayerFacing())
+			.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER)
+			.with(CRACKED, false);
 	}
 
 	@Override
@@ -116,76 +120,64 @@ public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable 
 			Hand hand,
 			BlockHitResult hit
 	) {
-		if (world.getBlockEntity(pos) instanceof DecoratedPotBlockEntity decoratedPotBlockEntity) {
-			if (world.isClient()) {
-				return ActionResult.SUCCESS;
-			}
-			else {
-				ItemStack itemStack = decoratedPotBlockEntity.getStack();
-				if (!stack.isEmpty()
-						&& (itemStack.isEmpty() || ItemStack.areItemsAndComponentsEqual(itemStack, stack)
-						&& itemStack.getCount() < itemStack.getMaxCount()
-				)) {
-					decoratedPotBlockEntity.wobble(DecoratedPotBlockEntity.WobbleType.POSITIVE);
-					player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-					ItemStack itemStack2 = stack.splitUnlessCreative(1, player);
-					float f;
-					if (decoratedPotBlockEntity.isEmpty()) {
-						decoratedPotBlockEntity.setStack(itemStack2);
-						f = (float) itemStack2.getCount() / itemStack2.getMaxCount();
-					}
-					else {
-						itemStack.increment(1);
-						f = (float) itemStack.getCount() / itemStack.getMaxCount();
-					}
+		BlockEntity blockEntity = world.getBlockEntity(pos);
 
-					world.playSound(
-							null,
-							pos,
-							SoundEvents.BLOCK_DECORATED_POT_INSERT,
-							SoundCategory.BLOCKS,
-							1.0F,
-							0.7F + 0.5F * f
-					);
-					if (world instanceof ServerWorld serverWorld) {
-						serverWorld.spawnParticles(
-								ParticleTypes.DUST_PLUME,
-								pos.getX() + 0.5,
-								pos.getY() + 1.2,
-								pos.getZ() + 0.5,
-								7,
-								0.0,
-								0.0,
-								0.0,
-								0.0
-						);
-					}
-
-					decoratedPotBlockEntity.markDirty();
-					world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
-					return ActionResult.SUCCESS;
-				}
-				else {
-					return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-				}
-			}
-		}
-		else {
+		if (!(blockEntity instanceof DecoratedPotBlockEntity pot)) {
 			return ActionResult.PASS;
 		}
+
+		if (world.isClient()) {
+			return ActionResult.SUCCESS;
+		}
+
+		ItemStack stored = pot.getStack();
+		boolean canInsert = stack.isEmpty() == false
+			&& (stored.isEmpty()
+				|| (ItemStack.areItemsAndComponentsEqual(stored, stack) && stored.getCount() < stored.getMaxCount()));
+
+		if (canInsert == false) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+
+		pot.wobble(DecoratedPotBlockEntity.WobbleType.POSITIVE);
+		player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+
+		ItemStack inserted = stack.splitUnlessCreative(1, player);
+		float fillRatio;
+
+		if (pot.isEmpty()) {
+			pot.setStack(inserted);
+			fillRatio = (float) inserted.getCount() / inserted.getMaxCount();
+		} else {
+			stored.increment(1);
+			fillRatio = (float) stored.getCount() / stored.getMaxCount();
+		}
+
+		world.playSound(null, pos, SoundEvents.BLOCK_DECORATED_POT_INSERT, SoundCategory.BLOCKS, 1.0F, 0.7F + 0.5F * fillRatio);
+
+		if (world instanceof ServerWorld serverWorld) {
+			serverWorld.spawnParticles(ParticleTypes.DUST_PLUME, pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, 7, 0.0, 0.0, 0.0, 0.0);
+		}
+
+		pot.markDirty();
+		world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (world.getBlockEntity(pos) instanceof DecoratedPotBlockEntity decoratedPotBlockEntity) {
-			world.playSound(null, pos, SoundEvents.BLOCK_DECORATED_POT_INSERT_FAIL, SoundCategory.BLOCKS, 1.0F, 1.0F);
-			decoratedPotBlockEntity.wobble(DecoratedPotBlockEntity.WobbleType.NEGATIVE);
-			world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
-			return ActionResult.SUCCESS;
-		}
-		else {
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+
+		if (!(blockEntity instanceof DecoratedPotBlockEntity pot)) {
 			return ActionResult.PASS;
 		}
+
+		world.playSound(null, pos, SoundEvents.BLOCK_DECORATED_POT_INSERT_FAIL, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		pot.wobble(DecoratedPotBlockEntity.WobbleType.NEGATIVE);
+		world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -231,18 +223,18 @@ public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable 
 
 	@Override
 	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-		ItemStack itemStack = player.getMainHandStack();
-		BlockState blockState = state;
-		if (itemStack.isIn(ItemTags.BREAKS_DECORATED_POTS)
-				&& !EnchantmentHelper.hasAnyEnchantmentsIn(
-				itemStack,
-				EnchantmentTags.PREVENTS_DECORATED_POT_SHATTERING
-		)) {
-			blockState = state.with(CRACKED, true);
-			world.setBlockState(pos, blockState, 260);
+		ItemStack tool = player.getMainHandStack();
+		boolean shouldCrack = tool.isIn(ItemTags.BREAKS_DECORATED_POTS)
+			&& EnchantmentHelper.hasAnyEnchantmentsIn(tool, EnchantmentTags.PREVENTS_DECORATED_POT_SHATTERING) == false;
+
+		if (shouldCrack == false) {
+			return super.onBreak(world, pos, state, player);
 		}
 
-		return super.onBreak(world, pos, blockState, player);
+		BlockState cracked = state.with(CRACKED, true);
+		world.setBlockState(pos, cracked, 260);
+
+		return super.onBreak(world, pos, cracked, player);
 	}
 
 	@Override
@@ -257,23 +249,23 @@ public class DecoratedPotBlock extends BlockWithEntity implements Waterloggable 
 
 	@Override
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-		BlockPos blockPos = hit.getBlockPos();
-		if (world instanceof ServerWorld serverWorld && projectile.canModifyAt(serverWorld, blockPos)
+		BlockPos hitPos = hit.getBlockPos();
+
+		if (world instanceof ServerWorld serverWorld
+				&& projectile.canModifyAt(serverWorld, hitPos)
 				&& projectile.canBreakBlocks(serverWorld)) {
-			world.setBlockState(blockPos, state.with(CRACKED, true), 260);
-			world.breakBlock(blockPos, true, projectile);
+			world.setBlockState(hitPos, state.with(CRACKED, true), 260);
+			world.breakBlock(hitPos, true, projectile);
 		}
 	}
 
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-		if (world.getBlockEntity(pos) instanceof DecoratedPotBlockEntity decoratedPotBlockEntity) {
-			Sherds sherds = decoratedPotBlockEntity.getSherds();
-			return DecoratedPotBlockEntity.getStackWith(sherds);
+		if (world.getBlockEntity(pos) instanceof DecoratedPotBlockEntity pot) {
+			return DecoratedPotBlockEntity.getStackWith(pot.getSherds());
 		}
-		else {
-			return super.getPickStack(world, pos, state, includeData);
-		}
+
+		return super.getPickStack(world, pos, state, includeData);
 	}
 
 	@Override

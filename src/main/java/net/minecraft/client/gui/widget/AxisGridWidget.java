@@ -10,10 +10,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AxisGridWidget}.
+ * Виджет-контейнер, который выравнивает дочерние элементы вдоль одной оси (горизонтальной или вертикальной),
+ * равномерно распределяя оставшееся пространство между ними с помощью {@link Divider}.
+ * Размер по перпендикулярной оси подстраивается под наибольший дочерний элемент.
  */
+@Environment(EnvType.CLIENT)
 public class AxisGridWidget extends WrapperWidget {
 
 	private final AxisGridWidget.DisplayAxis axis;
@@ -32,107 +34,79 @@ public class AxisGridWidget extends WrapperWidget {
 	@Override
 	public void refreshPositions() {
 		super.refreshPositions();
-		if (!this.elements.isEmpty()) {
-			int i = 0;
-			int j = this.axis.getOtherAxisLength(this);
+		if (elements.isEmpty()) {
+			return;
+		}
 
-			for (AxisGridWidget.Element element : this.elements) {
-				i += this.axis.getSameAxisLength(element);
-				j = Math.max(j, this.axis.getOtherAxisLength(element));
+		int totalSameAxis = 0;
+		int maxOtherAxis = axis.getOtherAxisLength(this);
+
+		for (AxisGridWidget.Element element : elements) {
+			totalSameAxis += axis.getSameAxisLength(element);
+			maxOtherAxis = Math.max(maxOtherAxis, axis.getOtherAxisLength(element));
+		}
+
+		int remaining = axis.getSameAxisLength(this) - totalSameAxis;
+		int cursor = axis.getSameAxisCoordinate(this);
+		Iterator<AxisGridWidget.Element> iterator = elements.iterator();
+		AxisGridWidget.Element first = iterator.next();
+		axis.setSameAxisCoordinate(first, cursor);
+		cursor += axis.getSameAxisLength(first);
+
+		if (elements.size() >= 2) {
+			Divider divider = new Divider(remaining, elements.size() - 1);
+			while (divider.hasNext()) {
+				cursor += divider.nextInt();
+				AxisGridWidget.Element next = iterator.next();
+				axis.setSameAxisCoordinate(next, cursor);
+				cursor += axis.getSameAxisLength(next);
 			}
+		}
 
-			int k = this.axis.getSameAxisLength(this) - i;
-			int l = this.axis.getSameAxisCoordinate(this);
-			Iterator<AxisGridWidget.Element> iterator = this.elements.iterator();
-			AxisGridWidget.Element element2 = iterator.next();
-			this.axis.setSameAxisCoordinate(element2, l);
-			l += this.axis.getSameAxisLength(element2);
-			if (this.elements.size() >= 2) {
-				Divider divider = new Divider(k, this.elements.size() - 1);
+		int otherOrigin = axis.getOtherAxisCoordinate(this);
+		for (AxisGridWidget.Element element : elements) {
+			axis.setOtherAxisCoordinate(element, otherOrigin, maxOtherAxis);
+		}
 
-				while (divider.hasNext()) {
-					l += divider.nextInt();
-					AxisGridWidget.Element element3 = iterator.next();
-					this.axis.setSameAxisCoordinate(element3, l);
-					l += this.axis.getSameAxisLength(element3);
-				}
-			}
-
-			int m = this.axis.getOtherAxisCoordinate(this);
-
-			for (AxisGridWidget.Element element4 : this.elements) {
-				this.axis.setOtherAxisCoordinate(element4, m, j);
-			}
-
-			switch (this.axis) {
-				case HORIZONTAL:
-					this.height = j;
-					break;
-				case VERTICAL:
-					this.width = j;
-			}
+		switch (axis) {
+			case HORIZONTAL -> this.height = maxOtherAxis;
+			case VERTICAL -> this.width = maxOtherAxis;
 		}
 	}
 
 	@Override
 	public void forEachElement(Consumer<Widget> consumer) {
-		this.elements.forEach(element -> consumer.accept(element.widget));
+		elements.forEach(element -> consumer.accept(element.widget));
 	}
 
-	/**
-	 * Создаёт копию positioner.
-	 *
-	 * @return Positioner — результат операции
-	 */
 	public Positioner copyPositioner() {
-		return this.mainPositioner.copy();
+		return mainPositioner.copy();
 	}
 
 	public Positioner getMainPositioner() {
-		return this.mainPositioner;
+		return mainPositioner;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget) {
-		return this.add(widget, this.copyPositioner());
+		return add(widget, copyPositioner());
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param positioner positioner
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, Positioner positioner) {
-		this.elements.add(new AxisGridWidget.Element(widget, positioner));
+		elements.add(new AxisGridWidget.Element(widget, positioner));
 		return widget;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param callback callback
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, Consumer<Positioner> callback) {
-		return this.add(widget, Util.make(this.copyPositioner(), callback));
+		return add(widget, Util.make(copyPositioner(), callback));
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DisplayAxis}.
+	 * Ось, вдоль которой выравниваются дочерние элементы.
+	 * Методы {@code getSameAxisLength} / {@code getOtherAxisLength} абстрагируют
+	 * работу с шириной/высотой в зависимости от выбранной оси.
 	 */
-	public static enum DisplayAxis {
+	@Environment(EnvType.CLIENT)
+	public enum DisplayAxis {
 		HORIZONTAL,
 		VERTICAL;
 
@@ -164,23 +138,17 @@ public class AxisGridWidget extends WrapperWidget {
 			};
 		}
 
-		void setSameAxisCoordinate(AxisGridWidget.Element element, int low) {
+		void setSameAxisCoordinate(AxisGridWidget.Element element, int position) {
 			switch (this) {
-				case HORIZONTAL:
-					element.setX(low, element.getWidth());
-					break;
-				case VERTICAL:
-					element.setY(low, element.getHeight());
+				case HORIZONTAL -> element.setX(position, element.getWidth());
+				case VERTICAL -> element.setY(position, element.getHeight());
 			}
 		}
 
-		void setOtherAxisCoordinate(AxisGridWidget.Element element, int low, int high) {
+		void setOtherAxisCoordinate(AxisGridWidget.Element element, int origin, int size) {
 			switch (this) {
-				case HORIZONTAL:
-					element.setY(low, high);
-					break;
-				case VERTICAL:
-					element.setX(low, high);
+				case HORIZONTAL -> element.setY(origin, size);
+				case VERTICAL -> element.setX(origin, size);
 			}
 		}
 
@@ -200,9 +168,6 @@ public class AxisGridWidget extends WrapperWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Element}.
-	 */
 	static class Element extends WrapperWidget.WrappedElement {
 
 		protected Element(Widget widget, Positioner positioner) {

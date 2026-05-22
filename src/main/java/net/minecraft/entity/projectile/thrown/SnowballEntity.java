@@ -15,9 +15,13 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.world.World;
 
 /**
- * {@code SnowballEntity}.
+ * Снежок — метательный снаряд, наносящий урон блейзам и разбивающийся с частицами при попадании.
  */
 public class SnowballEntity extends ThrownItemEntity {
+
+	private static final byte STATUS_BREAK = 3;
+	private static final int BLAZE_DAMAGE = 3;
+	private static final int PARTICLE_COUNT = 8;
 
 	public SnowballEntity(EntityType<? extends SnowballEntity> entityType, World world) {
 		super(entityType, world);
@@ -37,22 +41,22 @@ public class SnowballEntity extends ThrownItemEntity {
 	}
 
 	private ParticleEffect getParticleParameters() {
-		ItemStack itemStack = this.getStack();
-		return (ParticleEffect) (itemStack.isEmpty() ? ParticleTypes.ITEM_SNOWBALL
-		                                             : new ItemStackParticleEffect(ParticleTypes.ITEM, itemStack)
-		);
+		ItemStack stack = getStack();
+		return stack.isEmpty()
+				? ParticleTypes.ITEM_SNOWBALL
+				: new ItemStackParticleEffect(ParticleTypes.ITEM, stack);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 3) {
-			ParticleEffect particleEffect = this.getParticleParameters();
+		if (status != STATUS_BREAK) {
+			return;
+		}
 
-			for (int i = 0; i < 8; i++) {
-				this
-						.getEntityWorld()
-						.addParticleClient(particleEffect, this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
-			}
+		ParticleEffect particleEffect = getParticleParameters();
+
+		for (int i = 0; i < PARTICLE_COUNT; i++) {
+			getEntityWorld().addParticleClient(particleEffect, getX(), getY(), getZ(), 0.0, 0.0, 0.0);
 		}
 	}
 
@@ -60,16 +64,19 @@ public class SnowballEntity extends ThrownItemEntity {
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
 		Entity entity = entityHitResult.getEntity();
-		int i = entity instanceof BlazeEntity ? 3 : 0;
-		entity.serverDamage(this.getDamageSources().thrown(this, this.getOwner()), i);
+		int damage = entity instanceof BlazeEntity ? BLAZE_DAMAGE : 0;
+		entity.serverDamage(getDamageSources().thrown(this, getOwner()), damage);
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (!this.getEntityWorld().isClient()) {
-			this.getEntityWorld().sendEntityStatus(this, (byte) 3);
-			this.discard();
+
+		if (getEntityWorld().isClient()) {
+			return;
 		}
+
+		getEntityWorld().sendEntityStatus(this, STATUS_BREAK);
+		discard();
 	}
 }

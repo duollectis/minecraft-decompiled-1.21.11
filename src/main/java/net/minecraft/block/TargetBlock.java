@@ -52,7 +52,7 @@ public class TargetBlock extends Block {
 
 	private static int trigger(WorldAccess world, BlockState state, BlockHitResult hitResult, Entity entity) {
 		int i = calculatePower(hitResult, hitResult.getPos());
-		int j = entity instanceof PersistentProjectileEntity ? 20 : 8;
+		int j = entity instanceof PersistentProjectileEntity ? RECOVERABLE_POWER_DELAY : 8;
 		if (!world.getBlockTickScheduler().isQueued(hitResult.getBlockPos(), state.getBlock())) {
 			setPower(world, state, i, hitResult.getBlockPos(), j);
 		}

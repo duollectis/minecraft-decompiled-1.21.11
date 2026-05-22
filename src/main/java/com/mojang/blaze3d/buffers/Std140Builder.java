@@ -9,147 +9,182 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
 
+/**
+ * Построитель данных в формате std140 — стандартном layout'е для uniform-блоков OpenGL/Vulkan.
+ * Автоматически выравнивает каждое поле по требованиям спецификации std140 перед записью.
+ * Используется для заполнения {@link GpuBuffer} данными uniform-переменных.
+ *
+ * <p>Типичный сценарий использования:
+ * <pre>{@code
+ *   Std140Builder.onStack(stack, size)
+ *       .putFloat(value)
+ *       .putVec4(x, y, z, w)
+ *       .get();
+ * }</pre>
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code Std140Builder}.
- */
 public class Std140Builder {
+
+	private static final int ALIGN_FLOAT = 4;
+	private static final int ALIGN_VEC2 = 8;
+	private static final int ALIGN_VEC3_VEC4 = 16;
+	private static final int VEC2_BYTE_SIZE = 8;
+	private static final int VEC3_PADDING = 4;
+	private static final int VEC3_TOTAL_SIZE = 16;
+	private static final int VEC4_BYTE_SIZE = 16;
+	private static final int MAT4_BYTE_SIZE = 64;
 
 	private final ByteBuffer buffer;
 	private final int start;
 
 	private Std140Builder(ByteBuffer buffer) {
 		this.buffer = buffer;
-		this.start = buffer.position();
+		start = buffer.position();
 	}
 
+	/** Создаёт построитель, записывающий данные в существующий {@link ByteBuffer}. */
 	public static Std140Builder intoBuffer(ByteBuffer buffer) {
 		return new Std140Builder(buffer);
 	}
 
+	/**
+	 * Создаёт построитель, выделяя память на стеке LWJGL.
+	 *
+	 * @param stack стек памяти LWJGL
+	 * @param size  требуемый размер в байтах
+	 */
 	public static Std140Builder onStack(MemoryStack stack, int size) {
 		return new Std140Builder(stack.malloc(size));
 	}
 
+	/**
+	 * Завершает построение и возвращает заполненный буфер.
+	 * Вызывает {@link ByteBuffer#flip()}, переводя буфер в режим чтения.
+	 */
 	public ByteBuffer get() {
-		return this.buffer.flip();
+		return buffer.flip();
 	}
 
+	/**
+	 * Выравнивает текущую позицию буфера до кратного {@code alignedSize} значения
+	 * относительно начала построителя.
+	 */
 	public Std140Builder align(int alignedSize) {
-		int i = this.buffer.position();
-		this.buffer.position(this.start + MathHelper.roundUpToMultiple(i - this.start, alignedSize));
+		int currentPos = buffer.position();
+		buffer.position(start + MathHelper.roundUpToMultiple(currentPos - start, alignedSize));
 		return this;
 	}
 
 	public Std140Builder putFloat(float value) {
-		this.align(4);
-		this.buffer.putFloat(value);
+		align(ALIGN_FLOAT);
+		buffer.putFloat(value);
 		return this;
 	}
 
 	public Std140Builder putInt(int value) {
-		this.align(4);
-		this.buffer.putInt(value);
+		align(ALIGN_FLOAT);
+		buffer.putInt(value);
 		return this;
 	}
 
 	public Std140Builder putVec2(float x, float y) {
-		this.align(8);
-		this.buffer.putFloat(x);
-		this.buffer.putFloat(y);
+		align(ALIGN_VEC2);
+		buffer.putFloat(x);
+		buffer.putFloat(y);
 		return this;
 	}
 
 	public Std140Builder putVec2(Vector2fc vec) {
-		this.align(8);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 8);
+		align(ALIGN_VEC2);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC2_BYTE_SIZE);
 		return this;
 	}
 
 	public Std140Builder putIVec2(int x, int y) {
-		this.align(8);
-		this.buffer.putInt(x);
-		this.buffer.putInt(y);
+		align(ALIGN_VEC2);
+		buffer.putInt(x);
+		buffer.putInt(y);
 		return this;
 	}
 
 	public Std140Builder putIVec2(Vector2ic vec) {
-		this.align(8);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 8);
+		align(ALIGN_VEC2);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC2_BYTE_SIZE);
 		return this;
 	}
 
 	public Std140Builder putVec3(float x, float y, float z) {
-		this.align(16);
-		this.buffer.putFloat(x);
-		this.buffer.putFloat(y);
-		this.buffer.putFloat(z);
-		this.buffer.position(this.buffer.position() + 4);
+		align(ALIGN_VEC3_VEC4);
+		buffer.putFloat(x);
+		buffer.putFloat(y);
+		buffer.putFloat(z);
+		// std140: vec3 занимает 16 байт — добавляем 4 байта padding
+		buffer.position(buffer.position() + VEC3_PADDING);
 		return this;
 	}
 
 	public Std140Builder putVec3(Vector3fc vec) {
-		this.align(16);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 16);
+		align(ALIGN_VEC3_VEC4);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC3_TOTAL_SIZE);
 		return this;
 	}
 
 	public Std140Builder putIVec3(int x, int y, int z) {
-		this.align(16);
-		this.buffer.putInt(x);
-		this.buffer.putInt(y);
-		this.buffer.putInt(z);
-		this.buffer.position(this.buffer.position() + 4);
+		align(ALIGN_VEC3_VEC4);
+		buffer.putInt(x);
+		buffer.putInt(y);
+		buffer.putInt(z);
+		buffer.position(buffer.position() + VEC3_PADDING);
 		return this;
 	}
 
 	public Std140Builder putIVec3(Vector3ic vec) {
-		this.align(16);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 16);
+		align(ALIGN_VEC3_VEC4);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC3_TOTAL_SIZE);
 		return this;
 	}
 
 	public Std140Builder putVec4(float x, float y, float z, float w) {
-		this.align(16);
-		this.buffer.putFloat(x);
-		this.buffer.putFloat(y);
-		this.buffer.putFloat(z);
-		this.buffer.putFloat(w);
+		align(ALIGN_VEC3_VEC4);
+		buffer.putFloat(x);
+		buffer.putFloat(y);
+		buffer.putFloat(z);
+		buffer.putFloat(w);
 		return this;
 	}
 
 	public Std140Builder putVec4(Vector4fc vec) {
-		this.align(16);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 16);
+		align(ALIGN_VEC3_VEC4);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC4_BYTE_SIZE);
 		return this;
 	}
 
 	public Std140Builder putIVec4(int x, int y, int z, int w) {
-		this.align(16);
-		this.buffer.putInt(x);
-		this.buffer.putInt(y);
-		this.buffer.putInt(z);
-		this.buffer.putInt(w);
+		align(ALIGN_VEC3_VEC4);
+		buffer.putInt(x);
+		buffer.putInt(y);
+		buffer.putInt(z);
+		buffer.putInt(w);
 		return this;
 	}
 
 	public Std140Builder putIVec4(Vector4ic vec) {
-		this.align(16);
-		vec.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 16);
+		align(ALIGN_VEC3_VEC4);
+		vec.get(buffer);
+		buffer.position(buffer.position() + VEC4_BYTE_SIZE);
 		return this;
 	}
 
 	public Std140Builder putMat4f(Matrix4fc matrix) {
-		this.align(16);
-		matrix.get(this.buffer);
-		this.buffer.position(this.buffer.position() + 64);
+		align(ALIGN_VEC3_VEC4);
+		matrix.get(buffer);
+		buffer.position(buffer.position() + MAT4_BYTE_SIZE);
 		return this;
 	}
 }

@@ -8,7 +8,8 @@ import net.minecraft.network.packet.*;
 import java.util.List;
 
 /**
- * Запись custom payload c2 s packet.
+ * Пакет C→S для передачи произвольных данных плагинных каналов.
+ * Поддерживает стандартный канал {@code minecraft:brand} и неизвестные каналы (до 32767 байт).
  */
 public record CustomPayloadC2SPacket(CustomPayload payload) implements Packet<ServerCommonPacketListener> {
 
@@ -16,7 +17,7 @@ public record CustomPayloadC2SPacket(CustomPayload payload) implements Packet<Se
 	public static final PacketCodec<PacketByteBuf, CustomPayloadC2SPacket>
 			CODEC =
 			CustomPayload.<PacketByteBuf>createCodec(
-					             id -> UnknownCustomPayload.createCodec(id, 32767),
+					             id -> UnknownCustomPayload.createCodec(id, MAX_PAYLOAD_SIZE),
 					             List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
 			             )
 			             .xmap(CustomPayloadC2SPacket::new, CustomPayloadC2SPacket::payload);
@@ -26,12 +27,8 @@ public record CustomPayloadC2SPacket(CustomPayload payload) implements Packet<Se
 		return CommonPackets.CUSTOM_PAYLOAD_C2S;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onCustomPayload(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onCustomPayload(this);
 	}
 }

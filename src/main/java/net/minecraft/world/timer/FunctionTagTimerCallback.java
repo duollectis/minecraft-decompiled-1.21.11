@@ -9,28 +9,23 @@ import net.minecraft.server.function.CommandFunctionManager;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code FunctionTagTimerCallback}.
+ * Callback таймера, выполняющий все функции из тега функций при срабатывании.
+ * Используется командой {@code /schedule} с тегом функций.
  */
 public record FunctionTagTimerCallback(Identifier name) implements TimerCallback<MinecraftServer> {
 
 	public static final MapCodec<FunctionTagTimerCallback> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTagTimerCallback::name))
-					.apply(instance, FunctionTagTimerCallback::new)
+		instance -> instance
+			.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTagTimerCallback::name))
+			.apply(instance, FunctionTagTimerCallback::new)
 	);
 
-	/**
-	 * Call.
-	 *
-	 * @param minecraftServer minecraft server
-	 * @param timer timer
-	 * @param l l
-	 */
-	public void call(MinecraftServer minecraftServer, Timer<MinecraftServer> timer, long l) {
-		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
+	@Override
+	public void call(MinecraftServer server, Timer<MinecraftServer> timer, long time) {
+		CommandFunctionManager manager = server.getCommandFunctionManager();
 
-		for (CommandFunction<ServerCommandSource> commandFunction : commandFunctionManager.getTag(this.name)) {
-			commandFunctionManager.execute(commandFunction, commandFunctionManager.getScheduledCommandSource());
+		for (CommandFunction<ServerCommandSource> function : manager.getTag(name)) {
+			manager.execute(function, manager.getScheduledCommandSource());
 		}
 	}
 

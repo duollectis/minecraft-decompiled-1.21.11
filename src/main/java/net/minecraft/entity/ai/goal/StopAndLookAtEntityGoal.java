@@ -6,17 +6,23 @@ import net.minecraft.entity.mob.MobEntity;
 import java.util.EnumSet;
 
 /**
- * {@code StopAndLookAtEntityGoal}.
+ * Расширение {@link LookAtEntityGoal}, которое также блокирует движение моба
+ * на время взгляда на сущность.
  */
 public class StopAndLookAtEntityGoal extends LookAtEntityGoal {
 
-	public StopAndLookAtEntityGoal(MobEntity mobEntity, Class<? extends LivingEntity> class_, float f) {
-		super(mobEntity, class_, f);
+	public StopAndLookAtEntityGoal(MobEntity mob, Class<? extends LivingEntity> targetClass, float range) {
+		super(mob, targetClass, range);
 		this.setControls(EnumSet.of(Goal.Control.LOOK, Goal.Control.MOVE));
 	}
 
-	public StopAndLookAtEntityGoal(MobEntity mobEntity, Class<? extends LivingEntity> class_, float f, float g) {
-		super(mobEntity, class_, f, g);
+	public StopAndLookAtEntityGoal(
+		MobEntity mob,
+		Class<? extends LivingEntity> targetClass,
+		float range,
+		float chance
+	) {
+		super(mob, targetClass, range, chance);
 		this.setControls(EnumSet.of(Goal.Control.LOOK, Goal.Control.MOVE));
 	}
 }

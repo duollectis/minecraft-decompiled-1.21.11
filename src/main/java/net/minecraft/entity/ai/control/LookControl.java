@@ -8,9 +8,15 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code LookControl}.
+ * Контроллер направления взгляда моба.
+ * Плавно поворачивает голову к заданной точке в течение {@code lookAtTimer} тиков,
+ * после чего возвращает голову к направлению тела.
  */
 public class LookControl implements Control {
+
+	private static final float RETURN_TO_BODY_SPEED = 10.0F;
+	private static final float LOOK_EPSILON = 1.0E-5F;
+	private static final int LOOK_TIMER_RESET = 2;
 
 	protected final MobEntity entity;
 	protected float maxYawChange;
@@ -24,144 +30,91 @@ public class LookControl implements Control {
 		this.entity = entity;
 	}
 
-	/**
-	 * Look at.
-	 *
-	 * @param direction direction
-	 */
 	public void lookAt(Vec3d direction) {
-		this.lookAt(direction.x, direction.y, direction.z);
+		lookAt(direction.x, direction.y, direction.z);
 	}
 
-	/**
-	 * Look at.
-	 *
-	 * @param entity entity
-	 */
-	public void lookAt(Entity entity) {
-		this.lookAt(entity.getX(), entity.getEyeY(), entity.getZ());
+	public void lookAt(Entity target) {
+		lookAt(target.getX(), target.getEyeY(), target.getZ());
 	}
 
-	/**
-	 * Look at.
-	 *
-	 * @param entity entity
-	 * @param maxYawChange max yaw change
-	 * @param maxPitchChange max pitch change
-	 */
-	public void lookAt(Entity entity, float maxYawChange, float maxPitchChange) {
-		this.lookAt(entity.getX(), entity.getEyeY(), entity.getZ(), maxYawChange, maxPitchChange);
+	public void lookAt(Entity target, float maxYawChange, float maxPitchChange) {
+		lookAt(target.getX(), target.getEyeY(), target.getZ(), maxYawChange, maxPitchChange);
 	}
 
-	/**
-	 * Look at.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 */
 	public void lookAt(double x, double y, double z) {
-		this.lookAt(x, y, z, this.entity.getMaxLookYawChange(), this.entity.getMaxLookPitchChange());
+		lookAt(x, y, z, entity.getMaxLookYawChange(), entity.getMaxLookPitchChange());
 	}
 
-	/**
-	 * Look at.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param maxYawChange max yaw change
-	 * @param maxPitchChange max pitch change
-	 */
 	public void lookAt(double x, double y, double z, float maxYawChange, float maxPitchChange) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
 		this.maxYawChange = maxYawChange;
 		this.maxPitchChange = maxPitchChange;
-		this.lookAtTimer = 2;
+		lookAtTimer = LOOK_TIMER_RESET;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.shouldStayHorizontal()) {
-			this.entity.setPitch(0.0F);
+		if (shouldStayHorizontal()) {
+			entity.setPitch(0.0F);
 		}
 
-		if (this.lookAtTimer > 0) {
-			this.lookAtTimer--;
-			this
-					.getTargetYaw()
-					.ifPresent(yaw ->
-							this.entity.headYaw =
-									this.changeAngle(this.entity.headYaw, yaw, this.maxYawChange));
-			this
-					.getTargetPitch()
-					.ifPresent(pitch -> this.entity.setPitch(this.changeAngle(
-							this.entity.getPitch(),
-							pitch,
-							this.maxPitchChange
-					)));
+		if (lookAtTimer > 0) {
+			lookAtTimer--;
+			getTargetYaw().ifPresent(yaw -> entity.headYaw = changeAngle(entity.headYaw, yaw, maxYawChange));
+			getTargetPitch().ifPresent(pitch -> entity.setPitch(changeAngle(entity.getPitch(), pitch, maxPitchChange)));
 		}
 		else {
-			this.entity.headYaw = this.changeAngle(this.entity.headYaw, this.entity.bodyYaw, 10.0F);
+			entity.headYaw = changeAngle(entity.headYaw, entity.bodyYaw, RETURN_TO_BODY_SPEED);
 		}
 
-		this.clampHeadYaw();
+		clampHeadYaw();
 	}
 
-	/**
-	 * Clamp head yaw.
-	 */
 	protected void clampHeadYaw() {
-		if (!this.entity.getNavigation().isIdle()) {
-			this.entity.headYaw =
-					MathHelper.clampAngle(this.entity.headYaw, this.entity.bodyYaw, this.entity.getMaxHeadRotation());
+		if (!entity.getNavigation().isIdle()) {
+			entity.headYaw = MathHelper.clampAngle(entity.headYaw, entity.bodyYaw, entity.getMaxHeadRotation());
 		}
 	}
 
-	/**
-	 * Определяет, следует ли stay horizontal.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean shouldStayHorizontal() {
 		return true;
 	}
 
 	public boolean isLookingAtSpecificPosition() {
-		return this.lookAtTimer > 0;
+		return lookAtTimer > 0;
 	}
 
 	public double getLookX() {
-		return this.x;
+		return x;
 	}
 
 	public double getLookY() {
-		return this.y;
+		return y;
 	}
 
 	public double getLookZ() {
-		return this.z;
+		return z;
 	}
 
 	protected Optional<Float> getTargetPitch() {
-		double d = this.x - this.entity.getX();
-		double e = this.y - this.entity.getEyeY();
-		double f = this.z - this.entity.getZ();
-		double g = Math.sqrt(d * d + f * f);
-		return !(Math.abs(e) > 1.0E-5F) && !(Math.abs(g) > 1.0E-5F)
-		       ? Optional.empty()
-		       : Optional.of((float) (-(MathHelper.atan2(e, g) * 180.0F / (float) Math.PI)));
+		double dx = x - entity.getX();
+		double dy = y - entity.getEyeY();
+		double dz = z - entity.getZ();
+		double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+		return Math.abs(dy) <= LOOK_EPSILON && Math.abs(horizontalDist) <= LOOK_EPSILON
+				? Optional.empty()
+				: Optional.of((float) (-(MathHelper.atan2(dy, horizontalDist) * 180.0F / (float) Math.PI)));
 	}
 
 	protected Optional<Float> getTargetYaw() {
-		double d = this.x - this.entity.getX();
-		double e = this.z - this.entity.getZ();
-		return !(Math.abs(e) > 1.0E-5F) && !(Math.abs(d) > 1.0E-5F)
-		       ? Optional.empty()
-		       : Optional.of((float) (MathHelper.atan2(e, d) * 180.0F / (float) Math.PI) - 90.0F);
+		double dx = x - entity.getX();
+		double dz = z - entity.getZ();
+
+		return Math.abs(dz) <= LOOK_EPSILON && Math.abs(dx) <= LOOK_EPSILON
+				? Optional.empty()
+				: Optional.of((float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F);
 	}
 }

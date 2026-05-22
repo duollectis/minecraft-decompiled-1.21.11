@@ -11,7 +11,8 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * {@code CustomModelDataExpansionFix}.
+ * Расширяет формат компонента {@code minecraft:custom_model_data}: конвертирует
+ * одиночное числовое значение в объект с полем {@code floats} — списком из одного float.
  */
 public class CustomModelDataExpansionFix extends DataFix {
 
@@ -20,22 +21,21 @@ public class CustomModelDataExpansionFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
-		return this.fixTypeEverywhereTyped(
+		Type<?> dataComponentsType = getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
+
+		return fixTypeEverywhereTyped(
 				"Custom Model Data expansion",
-				type,
+				dataComponentsType,
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> dynamic.update(
 								"minecraft:custom_model_data",
-								customModelDataDynamic -> {
-									float f = customModelDataDynamic.asNumber(0.0F).floatValue();
-									return customModelDataDynamic.createMap(
-											Map.of(customModelDataDynamic.createString("floats"),
-													customModelDataDynamic.createList(Stream.of(customModelDataDynamic.createFloat(
-															f)))
-											)
-									);
+								customModelData -> {
+									float value = customModelData.asNumber(0.0F).floatValue();
+									return customModelData.createMap(Map.of(
+											customModelData.createString("floats"),
+											customModelData.createList(Stream.of(customModelData.createFloat(value)))
+									));
 								}
 						)
 				)

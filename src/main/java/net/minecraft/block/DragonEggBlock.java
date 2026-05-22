@@ -14,12 +14,17 @@ import net.minecraft.world.World;
 import net.minecraft.world.border.WorldBorder;
 
 /**
- * {@code DragonEggBlock}.
+ * Блок яйца дракона. При взаимодействии или атаке телепортируется в случайную
+ * позицию в радиусе 16 блоков, оставляя за собой частицы портала.
  */
 public class DragonEggBlock extends FallingBlock {
 
 	public static final MapCodec<DragonEggBlock> CODEC = createCodec(DragonEggBlock::new);
 	private static final VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
+	private static final int TELEPORT_ATTEMPTS = 1000;
+	private static final int PARTICLE_COUNT = 128;
+	private static final int FALL_DELAY = 5;
+	private static final int PURE_BLACK_COLOR = -16777216;
 
 	@Override
 	public MapCodec<DragonEggBlock> getCodec() {
@@ -37,62 +42,60 @@ public class DragonEggBlock extends FallingBlock {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		this.teleport(state, world, pos);
+		teleport(state, world, pos);
 		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-		this.teleport(state, world, pos);
+		teleport(state, world, pos);
 	}
 
+	/**
+	 * Телепортирует яйцо в случайную свободную позицию в радиусе 16 блоков по X/Z и 8 по Y.
+	 * На клиенте отображает частицы портала вдоль траектории перемещения.
+	 */
 	private void teleport(BlockState state, World world, BlockPos pos) {
 		WorldBorder worldBorder = world.getWorldBorder();
 
-		for (int i = 0; i < 1000; i++) {
-			BlockPos blockPos = pos.add(
+		for (int attempt = 0; attempt < TELEPORT_ATTEMPTS; attempt++) {
+			BlockPos target = pos.add(
 					world.random.nextInt(16) - world.random.nextInt(16),
 					world.random.nextInt(8) - world.random.nextInt(8),
 					world.random.nextInt(16) - world.random.nextInt(16)
 			);
-			if (world.getBlockState(blockPos).isAir() && worldBorder.contains(blockPos) && !world.isOutOfHeightLimit(
-					blockPos)) {
-				if (world.isClient()) {
-					for (int j = 0; j < 128; j++) {
-						double d = world.random.nextDouble();
-						float f = (world.random.nextFloat() - 0.5F) * 0.2F;
-						float g = (world.random.nextFloat() - 0.5F) * 0.2F;
-						float h = (world.random.nextFloat() - 0.5F) * 0.2F;
-						double
-								e =
-								MathHelper.lerp(d, (double) blockPos.getX(), (double) pos.getX()) + (
-										world.random.nextDouble() - 0.5
-								) + 0.5;
-						double
-								k =
-								MathHelper.lerp(d, (double) blockPos.getY(), (double) pos.getY())
-										+ world.random.nextDouble() - 0.5;
-						double
-								l =
-								MathHelper.lerp(d, (double) blockPos.getZ(), (double) pos.getZ()) + (
-										world.random.nextDouble() - 0.5
-								) + 0.5;
-						world.addParticleClient(ParticleTypes.PORTAL, e, k, l, f, g, h);
-					}
-				}
-				else {
-					world.setBlockState(blockPos, state, 2);
-					world.removeBlock(pos, false);
-				}
 
-				return;
+			if (world.getBlockState(target).isAir() == false
+					|| worldBorder.contains(target) == false
+					|| world.isOutOfHeightLimit(target)
+			) {
+				continue;
 			}
+
+			if (world.isClient()) {
+				for (int particle = 0; particle < PARTICLE_COUNT; particle++) {
+					double progress = world.random.nextDouble();
+					float velX = (world.random.nextFloat() - 0.5F) * 0.2F;
+					float velY = (world.random.nextFloat() - 0.5F) * 0.2F;
+					float velZ = (world.random.nextFloat() - 0.5F) * 0.2F;
+					double x = MathHelper.lerp(progress, target.getX(), pos.getX()) + (world.random.nextDouble() - 0.5) + 0.5;
+					double y = MathHelper.lerp(progress, target.getY(), pos.getY()) + world.random.nextDouble() - 0.5;
+					double z = MathHelper.lerp(progress, target.getZ(), pos.getZ()) + (world.random.nextDouble() - 0.5) + 0.5;
+
+					world.addParticleClient(ParticleTypes.PORTAL, x, y, z, velX, velY, velZ);
+				}
+			} else {
+				world.setBlockState(target, state, Block.NOTIFY_LISTENERS);
+				world.removeBlock(pos, false);
+			}
+
+			return;
 		}
 	}
 
 	@Override
 	protected int getFallDelay() {
-		return 5;
+		return FALL_DELAY;
 	}
 
 	@Override
@@ -102,6 +105,6 @@ public class DragonEggBlock extends FallingBlock {
 
 	@Override
 	public int getColor(BlockState state, BlockView world, BlockPos pos) {
-		return -16777216;
+		return PURE_BLACK_COLOR;
 	}
 }

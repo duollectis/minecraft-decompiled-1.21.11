@@ -1,152 +1,163 @@
 package net.minecraft.entity.boss;
 
 import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import net.minecraft.network.packet.s2c.play.BossBarS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.function.Function;
 
 /**
- * {@code ServerBossBar}.
+ * Серверная реализация полосы здоровья босса. Управляет набором подписанных игроков
+ * и автоматически рассылает сетевые пакеты при изменении любого свойства.
  */
 public class ServerBossBar extends BossBar {
 
 	private final Set<ServerPlayerEntity> players = Sets.newHashSet();
-	private final Set<ServerPlayerEntity> unmodifiablePlayers = Collections.unmodifiableSet(this.players);
+	private final Set<ServerPlayerEntity> unmodifiablePlayers = Collections.unmodifiableSet(players);
 	private boolean visible = true;
 
-	public ServerBossBar(Text displayName, BossBar.Color color, BossBar.Style style) {
+	public ServerBossBar(Text displayName, Color color, Style style) {
 		super(MathHelper.randomUuid(), displayName, color, style);
 	}
 
 	@Override
 	public void setPercent(float percent) {
-		if (percent != this.percent) {
-			super.setPercent(percent);
-			this.sendPacket(BossBarS2CPacket::updateProgress);
+		if (percent == this.percent) {
+			return;
 		}
+
+		super.setPercent(percent);
+		sendPacket(BossBarS2CPacket::updateProgress);
 	}
 
 	@Override
-	public void setColor(BossBar.Color color) {
-		if (color != this.color) {
-			super.setColor(color);
-			this.sendPacket(BossBarS2CPacket::updateStyle);
+	public void setColor(Color color) {
+		if (color == this.color) {
+			return;
 		}
+
+		super.setColor(color);
+		sendPacket(BossBarS2CPacket::updateStyle);
 	}
 
 	@Override
-	public void setStyle(BossBar.Style style) {
-		if (style != this.style) {
-			super.setStyle(style);
-			this.sendPacket(BossBarS2CPacket::updateStyle);
+	public void setStyle(Style style) {
+		if (style == this.style) {
+			return;
 		}
+
+		super.setStyle(style);
+		sendPacket(BossBarS2CPacket::updateStyle);
 	}
 
 	@Override
 	public BossBar setDarkenSky(boolean darkenSky) {
-		if (darkenSky != this.darkenSky) {
-			super.setDarkenSky(darkenSky);
-			this.sendPacket(BossBarS2CPacket::updateProperties);
+		if (darkenSky == this.darkenSky) {
+			return this;
 		}
 
+		super.setDarkenSky(darkenSky);
+		sendPacket(BossBarS2CPacket::updateProperties);
 		return this;
 	}
 
 	@Override
 	public BossBar setDragonMusic(boolean dragonMusic) {
-		if (dragonMusic != this.dragonMusic) {
-			super.setDragonMusic(dragonMusic);
-			this.sendPacket(BossBarS2CPacket::updateProperties);
+		if (dragonMusic == this.dragonMusic) {
+			return this;
 		}
 
+		super.setDragonMusic(dragonMusic);
+		sendPacket(BossBarS2CPacket::updateProperties);
 		return this;
 	}
 
 	@Override
 	public BossBar setThickenFog(boolean thickenFog) {
-		if (thickenFog != this.thickenFog) {
-			super.setThickenFog(thickenFog);
-			this.sendPacket(BossBarS2CPacket::updateProperties);
+		if (thickenFog == this.thickenFog) {
+			return this;
 		}
 
+		super.setThickenFog(thickenFog);
+		sendPacket(BossBarS2CPacket::updateProperties);
 		return this;
 	}
 
 	@Override
 	public void setName(Text name) {
-		if (!Objects.equal(name, this.name)) {
-			super.setName(name);
-			this.sendPacket(BossBarS2CPacket::updateName);
+		if (Objects.equal(name, this.name)) {
+			return;
 		}
-	}
 
-	private void sendPacket(Function<BossBar, BossBarS2CPacket> bossBarToPacketFunction) {
-		if (this.visible) {
-			BossBarS2CPacket bossBarS2CPacket = bossBarToPacketFunction.apply(this);
-
-			for (ServerPlayerEntity serverPlayerEntity : this.players) {
-				serverPlayerEntity.networkHandler.sendPacket(bossBarS2CPacket);
-			}
-		}
+		super.setName(name);
+		sendPacket(BossBarS2CPacket::updateName);
 	}
 
 	/**
-	 * Добавляет player.
-	 *
-	 * @param player player
+	 * Рассылает пакет всем подписанным игрокам, если boss bar видим.
 	 */
+	private void sendPacket(Function<BossBar, BossBarS2CPacket> packetFactory) {
+		if (!visible) {
+			return;
+		}
+
+		BossBarS2CPacket packet = packetFactory.apply(this);
+		for (ServerPlayerEntity player : players) {
+			player.networkHandler.sendPacket(packet);
+		}
+	}
+
 	public void addPlayer(ServerPlayerEntity player) {
-		if (this.players.add(player) && this.visible) {
+		if (players.add(player) && visible) {
 			player.networkHandler.sendPacket(BossBarS2CPacket.add(this));
 		}
 	}
 
-	/**
-	 * Удаляет player.
-	 *
-	 * @param player player
-	 */
 	public void removePlayer(ServerPlayerEntity player) {
-		if (this.players.remove(player) && this.visible) {
-			player.networkHandler.sendPacket(BossBarS2CPacket.remove(this.getUuid()));
+		if (players.remove(player) && visible) {
+			player.networkHandler.sendPacket(BossBarS2CPacket.remove(getUuid()));
 		}
 	}
 
-	/**
-	 * Очищает players.
-	 */
 	public void clearPlayers() {
-		if (!this.players.isEmpty()) {
-			for (ServerPlayerEntity serverPlayerEntity : Lists.newArrayList(this.players)) {
-				this.removePlayer(serverPlayerEntity);
-			}
+		if (players.isEmpty()) {
+			return;
+		}
+
+		for (ServerPlayerEntity player : new ArrayList<>(players)) {
+			removePlayer(player);
 		}
 	}
 
 	public boolean isVisible() {
-		return this.visible;
+		return visible;
 	}
 
+	/**
+	 * Переключает видимость boss bar'а. При включении отправляет ADD-пакет, при выключении — REMOVE-пакет
+	 * всем подписанным игрокам.
+	 */
 	public void setVisible(boolean visible) {
-		if (visible != this.visible) {
-			this.visible = visible;
+		if (visible == this.visible) {
+			return;
+		}
 
-			for (ServerPlayerEntity serverPlayerEntity : this.players) {
-				serverPlayerEntity.networkHandler.sendPacket(
-						visible ? BossBarS2CPacket.add(this) : BossBarS2CPacket.remove(this.getUuid()));
-			}
+		this.visible = visible;
+		for (ServerPlayerEntity player : players) {
+			player.networkHandler.sendPacket(
+					visible ? BossBarS2CPacket.add(this) : BossBarS2CPacket.remove(getUuid())
+			);
 		}
 	}
 
 	public Collection<ServerPlayerEntity> getPlayers() {
-		return this.unmodifiablePlayers;
+		return unmodifiablePlayers;
 	}
 }

@@ -19,10 +19,11 @@ import org.joml.Vector3fc;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SignModelRenderer}.
+ * Рендерер таблички как предмета инвентаря.
+ * Делегирует отрисовку {@link SignBlockEntityRenderer#renderAsItem}.
  */
+@Environment(EnvType.CLIENT)
 public class SignModelRenderer implements SimpleSpecialModelRenderer {
 
 	private final SpriteHolder spriteHolder;
@@ -43,30 +44,23 @@ public class SignModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
-		SignBlockEntityRenderer.renderAsItem(
-				this.spriteHolder,
-				matrices,
-				queue,
-				light,
-				overlay,
-				this.model,
-				this.texture
-		);
+		SignBlockEntityRenderer.renderAsItem(spriteHolder, matrices, queue, light, overlay, model, texture);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		SignBlockEntityRenderer.setTransformsForItem(matrixStack);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		SignBlockEntityRenderer.setTransformsForItem(matrices);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованный дескриптор рендерера таблички.
+	 * Хранит тип древесины и опциональный путь к текстуре.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(WoodType woodType, Optional<Identifier> texture) implements SpecialModelRenderer.Unbaked {
 
 		public static final MapCodec<SignModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(

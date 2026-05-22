@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code BlockStateProviderType}.
+ * Реестр всех типов {@link BlockStateProvider}, используемых при генерации мира.
+ * Каждый тип связывает строковый идентификатор с соответствующим {@link MapCodec} для сериализации.
  */
 public class BlockStateProviderType<P extends BlockStateProvider> {
 
@@ -18,20 +19,18 @@ public class BlockStateProviderType<P extends BlockStateProvider> {
 	public static final BlockStateProviderType<NoiseThresholdBlockStateProvider> NOISE_THRESHOLD_PROVIDER = register(
 			"noise_threshold_provider", NoiseThresholdBlockStateProvider.CODEC
 	);
-	public static final BlockStateProviderType<NoiseBlockStateProvider>
-			NOISE_PROVIDER =
-			register("noise_provider", NoiseBlockStateProvider.CODEC);
+	public static final BlockStateProviderType<NoiseBlockStateProvider> NOISE_PROVIDER = register(
+			"noise_provider", NoiseBlockStateProvider.CODEC
+	);
 	public static final BlockStateProviderType<DualNoiseBlockStateProvider> DUAL_NOISE_PROVIDER = register(
 			"dual_noise_provider", DualNoiseBlockStateProvider.DUAL_CODEC
 	);
 	public static final BlockStateProviderType<PillarBlockStateProvider> ROTATED_BLOCK_PROVIDER = register(
 			"rotated_block_provider", PillarBlockStateProvider.CODEC
 	);
-	public static final BlockStateProviderType<RandomizedIntBlockStateProvider>
-			RANDOMIZED_INT_STATE_PROVIDER =
-			register(
-					"randomized_int_state_provider", RandomizedIntBlockStateProvider.CODEC
-			);
+	public static final BlockStateProviderType<RandomizedIntBlockStateProvider> RANDOMIZED_INT_STATE_PROVIDER = register(
+			"randomized_int_state_provider", RandomizedIntBlockStateProvider.CODEC
+	);
 	private final MapCodec<P> codec;
 
 	private static <P extends BlockStateProvider> BlockStateProviderType<P> register(String id, MapCodec<P> codec) {
@@ -43,6 +42,6 @@ public class BlockStateProviderType<P extends BlockStateProvider> {
 	}
 
 	public MapCodec<P> getCodec() {
-		return this.codec;
+		return codec;
 	}
 }

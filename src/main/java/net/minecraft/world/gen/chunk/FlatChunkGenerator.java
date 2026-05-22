@@ -25,7 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 /**
- * {@code FlatChunkGenerator}.
+ * Генератор плоского мира. Заполняет чанки слоями блоков согласно {@link FlatChunkGeneratorConfig}.
+ * Не использует шумовые функции — рельеф полностью детерминирован конфигурацией.
  */
 public class FlatChunkGenerator extends ChunkGenerator {
 
@@ -34,6 +35,7 @@ public class FlatChunkGenerator extends ChunkGenerator {
 					.group(FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(FlatChunkGenerator::getConfig))
 					.apply(instance, instance.stable(FlatChunkGenerator::new))
 	);
+
 	private final FlatChunkGeneratorConfig config;
 
 	public FlatChunkGenerator(FlatChunkGeneratorConfig config) {
@@ -43,15 +45,16 @@ public class FlatChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public StructurePlacementCalculator createStructurePlacementCalculator(
-			RegistryWrapper<StructureSet> structureSetRegistry, NoiseConfig noiseConfig, long seed
+			RegistryWrapper<StructureSet> structureSetRegistry,
+			NoiseConfig noiseConfig,
+			long seed
 	) {
-		Stream<RegistryEntry<StructureSet>> stream = this.config
-				.getStructureOverrides()
+		Stream<RegistryEntry<StructureSet>> structureStream = config.getStructureOverrides()
 				.map(RegistryEntryList::stream)
 				.orElseGet(() -> structureSetRegistry
 						.streamEntries()
-						.map(structureEntry -> (RegistryEntry<StructureSet>) structureEntry));
-		return StructurePlacementCalculator.create(noiseConfig, seed, this.biomeSource, stream);
+						.map(entry -> (RegistryEntry<StructureSet>) entry));
+		return StructurePlacementCalculator.create(noiseConfig, seed, biomeSource, structureStream);
 	}
 
 	@Override
@@ -60,7 +63,7 @@ public class FlatChunkGenerator extends ChunkGenerator {
 	}
 
 	public FlatChunkGeneratorConfig getConfig() {
-		return this.config;
+		return config;
 	}
 
 	@Override
@@ -69,7 +72,7 @@ public class FlatChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public int getSpawnHeight(HeightLimitView world) {
-		return world.getBottomY() + Math.min(world.getHeight(), this.config.getLayerBlocks().size());
+		return world.getBottomY() + Math.min(world.getHeight(), config.getLayerBlocks().size());
 	}
 
 	@Override
@@ -79,22 +82,25 @@ public class FlatChunkGenerator extends ChunkGenerator {
 			StructureAccessor structureAccessor,
 			Chunk chunk
 	) {
-		List<BlockState> list = this.config.getLayerBlocks();
+		List<BlockState> layerBlocks = config.getLayerBlocks();
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		Heightmap heightmap = chunk.getHeightmap(Heightmap.Type.OCEAN_FLOOR_WG);
-		Heightmap heightmap2 = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE_WG);
+		Heightmap oceanFloor = chunk.getHeightmap(Heightmap.Type.OCEAN_FLOOR_WG);
+		Heightmap worldSurface = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE_WG);
 
-		for (int i = 0; i < Math.min(chunk.getHeight(), list.size()); i++) {
-			BlockState blockState = list.get(i);
-			if (blockState != null) {
-				int j = chunk.getBottomY() + i;
+		for (int layerIndex = 0; layerIndex < Math.min(chunk.getHeight(), layerBlocks.size()); layerIndex++) {
+			BlockState blockState = layerBlocks.get(layerIndex);
 
-				for (int k = 0; k < 16; k++) {
-					for (int l = 0; l < 16; l++) {
-						chunk.setBlockState(mutable.set(k, j, l), blockState);
-						heightmap.trackUpdate(k, j, l, blockState);
-						heightmap2.trackUpdate(k, j, l, blockState);
-					}
+			if (blockState == null) {
+				continue;
+			}
+
+			int worldY = chunk.getBottomY() + layerIndex;
+
+			for (int localX = 0; localX < 16; localX++) {
+				for (int localZ = 0; localZ < 16; localZ++) {
+					chunk.setBlockState(mutable.set(localX, worldY, localZ), blockState);
+					oceanFloor.trackUpdate(localX, worldY, localZ, blockState);
+					worldSurface.trackUpdate(localX, worldY, localZ, blockState);
 				}
 			}
 		}
@@ -104,12 +110,13 @@ public class FlatChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
-		List<BlockState> list = this.config.getLayerBlocks();
+		List<BlockState> layerBlocks = config.getLayerBlocks();
 
-		for (int i = Math.min(list.size() - 1, world.getTopYInclusive()); i >= 0; i--) {
-			BlockState blockState = list.get(i);
+		for (int layerIndex = Math.min(layerBlocks.size() - 1, world.getTopYInclusive()); layerIndex >= 0; layerIndex--) {
+			BlockState blockState = layerBlocks.get(layerIndex);
+
 			if (blockState != null && heightmap.getBlockPredicate().test(blockState)) {
-				return world.getBottomY() + i + 1;
+				return world.getBottomY() + layerIndex + 1;
 			}
 		}
 
@@ -120,12 +127,11 @@ public class FlatChunkGenerator extends ChunkGenerator {
 	public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
 		return new VerticalBlockSample(
 				world.getBottomY(),
-				this.config
-						.getLayerBlocks()
-						.stream()
-						.limit(world.getHeight())
-						.map(state -> state == null ? Blocks.AIR.getDefaultState() : state)
-						.toArray(BlockState[]::new)
+				config.getLayerBlocks()
+				      .stream()
+				      .limit(world.getHeight())
+				      .map(state -> state == null ? Blocks.AIR.getDefaultState() : state)
+				      .toArray(BlockState[]::new)
 		);
 	}
 

@@ -7,10 +7,11 @@ import net.fabricmc.api.Environment;
 import java.util.Optional;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Session}.
+ * Данные текущей игровой сессии: имя пользователя, UUID и токен доступа.
+ * Используется для аутентификации при подключении к серверам и сервисам Mojang.
  */
+@Environment(EnvType.CLIENT)
 public class Session {
 
 	private final String username;
@@ -28,26 +29,26 @@ public class Session {
 	}
 
 	public String getSessionId() {
-		return "token:" + this.accessToken + ":" + UndashedUuid.toString(this.uuid);
+		return "token:" + accessToken + ":" + UndashedUuid.toString(uuid);
 	}
 
 	public UUID getUuidOrNull() {
-		return this.uuid;
+		return uuid;
 	}
 
 	public String getUsername() {
-		return this.username;
+		return username;
 	}
 
 	public String getAccessToken() {
-		return this.accessToken;
+		return accessToken;
 	}
 
 	public Optional<String> getClientId() {
-		return this.clientId;
+		return clientId;
 	}
 
 	public Optional<String> getXuid() {
-		return this.xuid;
+		return xuid;
 	}
 }

@@ -15,7 +15,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BeaconBlock}.
+ * Блок маяка — источник мощных эффектов для игроков в радиусе действия.
+ * Требует пирамиду из ценных блоков под собой для активации.
+ * Открывает экран настройки эффектов при взаимодействии.
  */
 public class BeaconBlock extends BlockWithEntity implements Stainable {
 
@@ -42,16 +44,16 @@ public class BeaconBlock extends BlockWithEntity implements Stainable {
 
 	@Override
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
-			World world,
-			BlockState state,
-			BlockEntityType<T> type
+		World world,
+		BlockState state,
+		BlockEntityType<T> type
 	) {
 		return validateTicker(type, BlockEntityType.BEACON, BeaconBlockEntity::tick);
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient() && world.getBlockEntity(pos) instanceof BeaconBlockEntity beaconBlockEntity) {
+		if (world.isClient() == false && world.getBlockEntity(pos) instanceof BeaconBlockEntity beaconBlockEntity) {
 			player.openHandledScreen(beaconBlockEntity);
 			player.incrementStat(Stats.INTERACT_WITH_BEACON);
 		}

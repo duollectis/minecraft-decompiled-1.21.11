@@ -10,7 +10,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code MuleEntity}.
+ * Мул — гибрид лошади и осла, способный нести сундук.
+ * Стерилен: при «размножении» всегда создаёт нового мула без наследования атрибутов.
  */
 public class MuleEntity extends AbstractDonkeyEntity {
 
@@ -45,15 +46,15 @@ public class MuleEntity extends AbstractDonkeyEntity {
 
 	@Override
 	protected void playJumpSound() {
-		this.playSound(SoundEvents.ENTITY_MULE_JUMP, 0.4F, 1.0F);
+		playSound(SoundEvents.ENTITY_MULE_JUMP, 0.4F, 1.0F);
 	}
 
 	@Override
 	protected void playAddChestSound() {
-		this.playSound(
-				SoundEvents.ENTITY_MULE_CHEST,
-				1.0F,
-				(this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F
+		playSound(
+			SoundEvents.ENTITY_MULE_CHEST,
+			1.0F,
+			(random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F
 		);
 	}
 

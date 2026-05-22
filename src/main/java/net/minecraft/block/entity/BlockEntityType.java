@@ -19,7 +19,10 @@ import org.slf4j.Logger;
 import java.util.Set;
 
 /**
- * {@code BlockEntityType}.
+ * Реестровый тип блок-сущности, связывающий фабрику создания с набором допустимых блоков.
+ * <p>
+ * Каждый экземпляр регистрируется в {@link Registries#BLOCK_ENTITY_TYPE} при инициализации класса.
+ * Метод {@link #supports(BlockState)} используется для валидации при создании и смене состояния блока.
  */
 public class BlockEntityType<T extends BlockEntity> implements FabricBlockEntityType {
 
@@ -367,60 +370,39 @@ public class BlockEntityType<T extends BlockEntity> implements FabricBlockEntity
 		this.blocks = blocks;
 	}
 
-	/**
-	 * Instantiate.
-	 *
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return T — результат операции
-	 */
 	public T instantiate(BlockPos pos, BlockState state) {
-		return (T) this.factory.create(pos, state);
+		return (T) factory.create(pos, state);
+	}
+
+	public boolean supports(BlockState state) {
+		return blocks.contains(state.getBlock());
 	}
 
 	/**
-	 * Supports.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
+	 * @deprecated Используй {@link Registries#BLOCK_ENTITY_TYPE} напрямую для получения записи реестра.
 	 */
-	public boolean supports(BlockState state) {
-		return this.blocks.contains(state.getBlock());
-	}
-
 	@Deprecated
 	public RegistryEntry.Reference<BlockEntityType<?>> getRegistryEntry() {
-		return this.registryEntry;
+		return registryEntry;
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return @Nullable T — 
+	 * Возвращает блок-сущность по позиции, если её тип совпадает с данным.
+	 * Безопасная типизированная альтернатива прямому каст-приведению из {@link BlockView#getBlockEntity}.
 	 */
 	public @Nullable T get(BlockView world, BlockPos pos) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		return (T) (blockEntity != null && blockEntity.getType() == this ? blockEntity : null);
 	}
 
-	/**
-	 * Проверяет возможность potentially execute commands.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canPotentiallyExecuteCommands() {
 		return POTENTIALLY_EXECUTES_COMMANDS.contains(this);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code BlockEntityFactory}.
+	 * Фабричный интерфейс для создания экземпляров блок-сущностей по позиции и состоянию блока.
 	 */
+	@FunctionalInterface
 	interface BlockEntityFactory<T extends BlockEntity> {
 
 		T create(BlockPos pos, BlockState state);

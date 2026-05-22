@@ -26,7 +26,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PiglinBruteEntity}.
+ * Пиглин-брута — агрессивный вариант пиглина с золотым топором.
  */
 public class PiglinBruteEntity extends AbstractPiglinEntity {
 
@@ -69,15 +69,15 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 
 	public PiglinBruteEntity(EntityType<? extends PiglinBruteEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 20;
+		experiencePoints = 20;
 	}
 
 	public static DefaultAttributeContainer.Builder createPiglinBruteAttributes() {
 		return HostileEntity.createHostileAttributes()
-		                    .add(EntityAttributes.MAX_HEALTH, 50.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.35F)
-		                    .add(EntityAttributes.ATTACK_DAMAGE, 7.0)
-		                    .add(EntityAttributes.FOLLOW_RANGE, 12.0);
+		                    .add(EntityAttributes.MAX_HEALTH, MAX_HEALTH)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, MOVEMENT_SPEED)
+		                    .add(EntityAttributes.ATTACK_DAMAGE, ATTACK_DAMAGE)
+		                    .add(EntityAttributes.FOLLOW_RANGE, FOLLOW_RANGE);
 	}
 
 	@Override
@@ -88,13 +88,13 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 			@Nullable EntityData entityData
 	) {
 		PiglinBruteBrain.setCurrentPosAsHome(this);
-		this.initEquipment(world.getRandom(), difficulty);
+		initEquipment(world.getRandom(), difficulty);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.GOLDEN_AXE));
+		equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.GOLDEN_AXE));
 	}
 
 	@Override
@@ -104,7 +104,7 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 
 	@Override
 	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-		return PiglinBruteBrain.create(this, this.createBrainProfile().deserialize(dynamic));
+		return PiglinBruteBrain.create(this, createBrainProfile().deserialize(dynamic));
 	}
 
 	@Override
@@ -119,14 +119,18 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 
 	@Override
 	public boolean canGather(ServerWorld world, ItemStack stack) {
-		return stack.isOf(Items.GOLDEN_AXE) ? super.canGather(world, stack) : false;
+		if (!stack.isOf(Items.GOLDEN_AXE)) {
+			return false;
+		}
+
+		return super.canGather(world, stack);
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("piglinBruteBrain");
-		this.getBrain().tick(world, this);
+		getBrain().tick(world, this);
 		profiler.pop();
 		PiglinBruteBrain.tick(this);
 		PiglinBruteBrain.playSoundRandomly(this);
@@ -135,18 +139,20 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 
 	@Override
 	public PiglinActivity getActivity() {
-		return this.isAttacking() && this.isHoldingTool() ? PiglinActivity.ATTACKING_WITH_MELEE_WEAPON
-		                                                  : PiglinActivity.DEFAULT;
+		return isAttacking() && isHoldingTool()
+				? PiglinActivity.ATTACKING_WITH_MELEE_WEAPON
+				: PiglinActivity.DEFAULT;
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		boolean bl = super.damage(world, source, amount);
-		if (bl && source.getAttacker() instanceof LivingEntity livingEntity) {
-			PiglinBruteBrain.tryRevenge(world, this, livingEntity);
+		boolean damaged = super.damage(world, source, amount);
+
+		if (damaged && source.getAttacker() instanceof LivingEntity attacker) {
+			PiglinBruteBrain.tryRevenge(world, this, attacker);
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	@Override
@@ -166,18 +172,15 @@ public class PiglinBruteEntity extends AbstractPiglinEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_STEP, 0.15F, 1.0F);
 	}
 
-	/**
-	 * Play angry sound.
-	 */
 	protected void playAngrySound() {
-		this.playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_ANGRY);
+		playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_ANGRY);
 	}
 
 	@Override
 	protected void playZombificationSound() {
-		this.playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_CONVERTED_TO_ZOMBIFIED);
+		playSound(SoundEvents.ENTITY_PIGLIN_BRUTE_CONVERTED_TO_ZOMBIFIED);
 	}
 }

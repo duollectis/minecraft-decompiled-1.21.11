@@ -17,7 +17,7 @@ public class RabbitEntityModel extends EntityModel<RabbitEntityRenderState> {
 	private static final float HAUNCH_JUMP_PITCH_MULTIPLIER = 50.0F;
 	private static final float FRONT_LEGS_JUMP_PITCH_MULTIPLIER = -40.0F;
 	private static final float SCALE = 0.6F;
-	private static final ModelTransformer ADULT_TRANSFORMER = ModelTransformer.scaling(0.6F);
+	private static final ModelTransformer ADULT_TRANSFORMER = ModelTransformer.scaling(SCALE);
 	private static final ModelTransformer BABY_TRANSFORMER = new BabyModelTransformer(
 			true, 22.0F, 2.0F, 2.65F, 2.5F, 36.0F, Set.of("head", "left_ear", "right_ear", "nose")
 	);
@@ -109,9 +109,9 @@ public class RabbitEntityModel extends EntityModel<RabbitEntityRenderState> {
 		this.head.pitch = rabbitEntityRenderState.pitch * (float) (Math.PI / 180.0);
 		this.head.yaw = rabbitEntityRenderState.relativeHeadYaw * (float) (Math.PI / 180.0);
 		float f = MathHelper.sin(rabbitEntityRenderState.jumpProgress * (float) Math.PI);
-		this.leftHaunch.pitch += f * 50.0F * (float) (Math.PI / 180.0);
-		this.rightHaunch.pitch += f * 50.0F * (float) (Math.PI / 180.0);
-		this.leftFrontLeg.pitch += f * -40.0F * (float) (Math.PI / 180.0);
-		this.rightFrontLeg.pitch += f * -40.0F * (float) (Math.PI / 180.0);
+		this.leftHaunch.pitch += f * HAUNCH_JUMP_PITCH_MULTIPLIER * (float) (Math.PI / 180.0);
+		this.rightHaunch.pitch += f * HAUNCH_JUMP_PITCH_MULTIPLIER * (float) (Math.PI / 180.0);
+		this.leftFrontLeg.pitch += f * FRONT_LEGS_JUMP_PITCH_MULTIPLIER * (float) (Math.PI / 180.0);
+		this.rightFrontLeg.pitch += f * FRONT_LEGS_JUMP_PITCH_MULTIPLIER * (float) (Math.PI / 180.0);
 	}
 }

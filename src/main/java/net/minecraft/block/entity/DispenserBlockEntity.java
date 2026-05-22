@@ -14,13 +14,14 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code DispenserBlockEntity}.
+ * Блок-сущность диспенсера. Хранит 9 предметов в сетке 3×3 и предоставляет
+ * метод случайного выбора непустого слота для выстрела.
  */
 public class DispenserBlockEntity extends LootableContainerBlockEntity {
 
 	public static final int INVENTORY_SIZE = 9;
 	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.dispenser");
-	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(9, ItemStack.EMPTY);
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
 
 	protected DispenserBlockEntity(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
 		super(blockEntityType, blockPos, blockState);
@@ -32,51 +33,44 @@ public class DispenserBlockEntity extends LootableContainerBlockEntity {
 
 	@Override
 	public int size() {
-		return 9;
+		return INVENTORY_SIZE;
 	}
 
 	/**
-	 * Choose non empty slot.
-	 *
-	 * @param random random
-	 *
-	 * @return int — результат операции
+	 * Выбирает случайный непустой слот с равномерным распределением вероятности
+	 * (алгоритм резервуарной выборки). Возвращает -1, если все слоты пусты.
 	 */
 	public int chooseNonEmptySlot(Random random) {
-		this.generateLoot(null);
-		int i = -1;
-		int j = 1;
+		generateLoot(null);
+		int selectedSlot = -1;
+		int candidateCount = 1;
 
-		for (int k = 0; k < this.inventory.size(); k++) {
-			if (!this.inventory.get(k).isEmpty() && random.nextInt(j++) == 0) {
-				i = k;
+		for (int slot = 0; slot < inventory.size(); slot++) {
+			if (!inventory.get(slot).isEmpty() && random.nextInt(candidateCount++) == 0) {
+				selectedSlot = slot;
 			}
 		}
 
-		return i;
+		return selectedSlot;
 	}
 
 	/**
-	 * Добавляет to first free slot.
-	 *
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
+	 * Добавляет предмет в первый подходящий слот (пустой или с таким же предметом).
+	 * Возвращает остаток стака, который не удалось разместить.
 	 */
 	public ItemStack addToFirstFreeSlot(ItemStack stack) {
-		int i = this.getMaxCount(stack);
+		int maxCount = getMaxCount(stack);
 
-		for (int j = 0; j < this.inventory.size(); j++) {
-			ItemStack itemStack = this.inventory.get(j);
-			if (itemStack.isEmpty() || ItemStack.areItemsAndComponentsEqual(stack, itemStack)) {
-				int k = Math.min(stack.getCount(), i - itemStack.getCount());
-				if (k > 0) {
-					if (itemStack.isEmpty()) {
-						this.setStack(j, stack.split(k));
-					}
-					else {
-						stack.decrement(k);
-						itemStack.increment(k);
+		for (int slot = 0; slot < inventory.size(); slot++) {
+			ItemStack slotStack = inventory.get(slot);
+			if (slotStack.isEmpty() || ItemStack.areItemsAndComponentsEqual(stack, slotStack)) {
+				int transferCount = Math.min(stack.getCount(), maxCount - slotStack.getCount());
+				if (transferCount > 0) {
+					if (slotStack.isEmpty()) {
+						setStack(slot, stack.split(transferCount));
+					} else {
+						stack.decrement(transferCount);
+						slotStack.increment(transferCount);
 					}
 				}
 
@@ -97,28 +91,28 @@ public class DispenserBlockEntity extends LootableContainerBlockEntity {
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-		if (!this.readLootTable(view)) {
-			Inventories.readData(view, this.inventory);
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
+		if (!readLootTable(view)) {
+			Inventories.readData(view, inventory);
 		}
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.writeLootTable(view)) {
-			Inventories.writeData(view, this.inventory);
+		if (!writeLootTable(view)) {
+			Inventories.writeData(view, inventory);
 		}
 	}
 
 	@Override
 	protected DefaultedList<ItemStack> getHeldStacks() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
-	protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
-		this.inventory = inventory;
+	protected void setHeldStacks(DefaultedList<ItemStack> newInventory) {
+		inventory = newInventory;
 	}
 
 	@Override

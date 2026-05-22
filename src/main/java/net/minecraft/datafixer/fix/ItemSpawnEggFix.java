@@ -14,86 +14,18 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code ItemSpawnEggFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemSpawnEggFix extends DataFix {
 
-	private static final @Nullable String[] DAMAGE_TO_ENTITY_IDS = (String[]) DataFixUtils.make(
-			new String[256], ids -> {
-				ids[1] = "Item";
-				ids[2] = "XPOrb";
-				ids[7] = "ThrownEgg";
-				ids[8] = "LeashKnot";
-				ids[9] = "Painting";
-				ids[10] = "Arrow";
-				ids[11] = "Snowball";
-				ids[12] = "Fireball";
-				ids[13] = "SmallFireball";
-				ids[14] = "ThrownEnderpearl";
-				ids[15] = "EyeOfEnderSignal";
-				ids[16] = "ThrownPotion";
-				ids[17] = "ThrownExpBottle";
-				ids[18] = "ItemFrame";
-				ids[19] = "WitherSkull";
-				ids[20] = "PrimedTnt";
-				ids[21] = "FallingSand";
-				ids[22] = "FireworksRocketEntity";
-				ids[23] = "TippedArrow";
-				ids[24] = "SpectralArrow";
-				ids[25] = "ShulkerBullet";
-				ids[26] = "DragonFireball";
-				ids[30] = "ArmorStand";
-				ids[41] = "Boat";
-				ids[42] = "MinecartRideable";
-				ids[43] = "MinecartChest";
-				ids[44] = "MinecartFurnace";
-				ids[45] = "MinecartTNT";
-				ids[46] = "MinecartHopper";
-				ids[47] = "MinecartSpawner";
-				ids[40] = "MinecartCommandBlock";
-				ids[50] = "Creeper";
-				ids[51] = "Skeleton";
-				ids[52] = "Spider";
-				ids[53] = "Giant";
-				ids[54] = "Zombie";
-				ids[55] = "Slime";
-				ids[56] = "Ghast";
-				ids[57] = "PigZombie";
-				ids[58] = "Enderman";
-				ids[59] = "CaveSpider";
-				ids[60] = "Silverfish";
-				ids[61] = "Blaze";
-				ids[62] = "LavaSlime";
-				ids[63] = "EnderDragon";
-				ids[64] = "WitherBoss";
-				ids[65] = "Bat";
-				ids[66] = "Witch";
-				ids[67] = "Endermite";
-				ids[68] = "Guardian";
-				ids[69] = "Shulker";
-				ids[90] = "Pig";
-				ids[91] = "Sheep";
-				ids[92] = "Cow";
-				ids[93] = "Chicken";
-				ids[94] = "Squid";
-				ids[95] = "Wolf";
-				ids[96] = "MushroomCow";
-				ids[97] = "SnowMan";
-				ids[98] = "Ozelot";
-				ids[99] = "VillagerGolem";
-				ids[100] = "EntityHorse";
-				ids[101] = "Rabbit";
-				ids[120] = "Villager";
-				ids[200] = "EnderCrystal";
-			}
-	);
+	private static final @Nullable String[] DAMAGE_TO_ENTITY_IDS = buildDamageToEntityIds();
 
 	public ItemSpawnEggFix(Schema schema, boolean bl) {
 		super(schema, bl);
 	}
 
 	public TypeRewriteRule makeRule() {
-		Schema schema = this.getInputSchema();
+		Schema schema = getInputSchema();
 		Type<?> type = schema.getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
@@ -102,7 +34,7 @@ public class ItemSpawnEggFix extends DataFix {
 		OpticFinder<?> opticFinder3 = type.findField("tag");
 		OpticFinder<?> opticFinder4 = opticFinder3.type().findField("EntityTag");
 		OpticFinder<?> opticFinder5 = DSL.typeFinder(schema.getTypeRaw(TypeReferences.ENTITY));
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemSpawnEggFix",
 				type,
 				typed -> {
@@ -145,5 +77,75 @@ public class ItemSpawnEggFix extends DataFix {
 					}
 				}
 		);
+	}
+
+	private static String[] buildDamageToEntityIds() {
+		String[] arr = new String[256];
+		arr[1] = "Item";
+		arr[2] = "XPOrb";
+		arr[7] = "ThrownEgg";
+		arr[8] = "LeashKnot";
+		arr[9] = "Painting";
+		arr[10] = "Arrow";
+		arr[11] = "Snowball";
+		arr[12] = "Fireball";
+		arr[13] = "SmallFireball";
+		arr[14] = "ThrownEnderpearl";
+		arr[15] = "EyeOfEnderSignal";
+		arr[16] = "ThrownPotion";
+		arr[17] = "ThrownExpBottle";
+		arr[18] = "ItemFrame";
+		arr[19] = "WitherSkull";
+		arr[20] = "PrimedTnt";
+		arr[21] = "FallingSand";
+		arr[22] = "FireworksRocketEntity";
+		arr[23] = "TippedArrow";
+		arr[24] = "SpectralArrow";
+		arr[25] = "ShulkerBullet";
+		arr[26] = "DragonFireball";
+		arr[30] = "ArmorStand";
+		arr[41] = "Boat";
+		arr[42] = "MinecartRideable";
+		arr[43] = "MinecartChest";
+		arr[44] = "MinecartFurnace";
+		arr[45] = "MinecartTNT";
+		arr[46] = "MinecartHopper";
+		arr[47] = "MinecartSpawner";
+		arr[40] = "MinecartCommandBlock";
+		arr[50] = "Creeper";
+		arr[51] = "Skeleton";
+		arr[52] = "Spider";
+		arr[53] = "Giant";
+		arr[54] = "Zombie";
+		arr[55] = "Slime";
+		arr[56] = "Ghast";
+		arr[57] = "PigZombie";
+		arr[58] = "Enderman";
+		arr[59] = "CaveSpider";
+		arr[60] = "Silverfish";
+		arr[61] = "Blaze";
+		arr[62] = "LavaSlime";
+		arr[63] = "EnderDragon";
+		arr[64] = "WitherBoss";
+		arr[65] = "Bat";
+		arr[66] = "Witch";
+		arr[67] = "Endermite";
+		arr[68] = "Guardian";
+		arr[69] = "Shulker";
+		arr[90] = "Pig";
+		arr[91] = "Sheep";
+		arr[92] = "Cow";
+		arr[93] = "Chicken";
+		arr[94] = "Squid";
+		arr[95] = "Wolf";
+		arr[96] = "MushroomCow";
+		arr[97] = "SnowMan";
+		arr[98] = "Ozelot";
+		arr[99] = "VillagerGolem";
+		arr[100] = "EntityHorse";
+		arr[101] = "Rabbit";
+		arr[120] = "Villager";
+		arr[200] = "EnderCrystal";
+		return arr;
 	}
 }

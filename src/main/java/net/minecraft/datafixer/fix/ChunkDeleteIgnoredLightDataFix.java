@@ -10,7 +10,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code ChunkDeleteIgnoredLightDataFix}.
+ * Удаляет данные освещения ({@code BlockLight}, {@code SkyLight}) из секций чанка,
+ * если флаг {@code isLightOn} не установлен — такие данные устарели и будут пересчитаны.
  */
 public class ChunkDeleteIgnoredLightDataFix extends DataFix {
 
@@ -19,22 +20,25 @@ public class ChunkDeleteIgnoredLightDataFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("sections");
-		return this.fixTypeEverywhereTyped(
-				"ChunkDeleteIgnoredLightDataFix",
-				type,
-				typed -> {
-					boolean bl = ((Dynamic) typed.get(DSL.remainderFinder())).get("isLightOn").asBoolean(false);
-					return !bl
-					       ? typed.updateTyped(opticFinder,
-							typedx -> typedx.update(
-									DSL.remainderFinder(),
-									dynamic -> dynamic.remove("BlockLight").remove("SkyLight")
-							)
-					)
-					       : typed;
-				}
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> sectionsFinder = chunkType.findField("sections");
+
+		return fixTypeEverywhereTyped(
+			"ChunkDeleteIgnoredLightDataFix",
+			chunkType,
+			typed -> {
+				boolean isLightOn = ((Dynamic<?>) typed.get(DSL.remainderFinder())).get("isLightOn").asBoolean(false);
+
+				return isLightOn
+					? typed
+					: typed.updateTyped(
+						sectionsFinder,
+						section -> section.update(
+							DSL.remainderFinder(),
+							dynamic -> dynamic.remove("BlockLight").remove("SkyLight")
+						)
+					);
+			}
 		);
 	}
 }

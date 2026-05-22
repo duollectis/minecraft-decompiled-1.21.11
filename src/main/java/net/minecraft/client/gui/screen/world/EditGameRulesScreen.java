@@ -29,10 +29,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EditGameRulesScreen}.
+ * Экран редактирования правил игры (gamerules) перед созданием мира.
+ * Поддерживает булевые и целочисленные правила с валидацией ввода.
  */
+@Environment(EnvType.CLIENT)
 public class EditGameRulesScreen extends Screen {
 
 	private static final Text TITLE = Text.translatable("editGamerule.title");
@@ -52,56 +53,49 @@ public class EditGameRulesScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.layout.addHeader(TITLE, this.textRenderer);
-		this.ruleListWidget = this.layout.addBody(new EditGameRulesScreen.RuleListWidget(this.gameRules));
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		this.doneButton = directionalLayoutWidget.add(
+		layout.addHeader(TITLE, textRenderer);
+		ruleListWidget = layout.addBody(new EditGameRulesScreen.RuleListWidget(gameRules));
+		DirectionalLayoutWidget footer = layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		doneButton = footer.add(
 				ButtonWidget
-						.builder(ScreenTexts.DONE, button -> this.ruleSaver.accept(Optional.of(this.gameRules)))
+						.builder(ScreenTexts.DONE, button -> ruleSaver.accept(Optional.of(gameRules)))
 						.build()
 		);
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.close()).build());
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		footer.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> close()).build());
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		if (this.ruleListWidget != null) {
-			this.ruleListWidget.position(this.width, this.layout);
+		layout.refreshPositions();
+		if (ruleListWidget != null) {
+			ruleListWidget.position(width, layout);
 		}
 	}
 
 	@Override
 	public void close() {
-		this.ruleSaver.accept(Optional.empty());
+		ruleSaver.accept(Optional.empty());
 	}
 
 	private void updateDoneButton() {
-		if (this.doneButton != null) {
-			this.doneButton.active = this.invalidRuleWidgets.isEmpty();
+		if (doneButton != null) {
+			doneButton.active = invalidRuleWidgets.isEmpty();
 		}
 	}
 
 	void markInvalid(EditGameRulesScreen.AbstractRuleWidget ruleWidget) {
-		this.invalidRuleWidgets.add(ruleWidget);
-		this.updateDoneButton();
+		invalidRuleWidgets.add(ruleWidget);
+		updateDoneButton();
 	}
 
 	void markValid(EditGameRulesScreen.AbstractRuleWidget ruleWidget) {
-		this.invalidRuleWidgets.remove(ruleWidget);
-		this.updateDoneButton();
+		invalidRuleWidgets.remove(ruleWidget);
+		updateDoneButton();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code AbstractRuleWidget}.
-	 */
 	public abstract static class AbstractRuleWidget extends ElementListWidget.Entry<EditGameRulesScreen.AbstractRuleWidget> {
 
 		final @Nullable List<OrderedText> description;
@@ -112,9 +106,6 @@ public class EditGameRulesScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code BooleanRuleWidget}.
-	 */
 	public class BooleanRuleWidget extends EditGameRulesScreen.NamedRuleWidget {
 
 		private final CyclingButtonWidget<Boolean> toggleButton;
@@ -157,9 +148,6 @@ public class EditGameRulesScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IntRuleWidget}.
-	 */
 	public class IntRuleWidget extends EditGameRulesScreen.NamedRuleWidget {
 
 		private final TextFieldWidget valueWidget;
@@ -205,9 +193,6 @@ public class EditGameRulesScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code NamedRuleWidget}.
-	 */
 	public abstract class NamedRuleWidget extends EditGameRulesScreen.AbstractRuleWidget {
 
 		private final List<OrderedText> name;
@@ -228,13 +213,6 @@ public class EditGameRulesScreen extends Screen {
 			return this.children;
 		}
 
-		/**
-		 * Draw name.
-		 *
-		 * @param context context
-		 * @param x x
-		 * @param y y
-		 */
 		protected void drawName(DrawContext context, int x, int y) {
 			if (this.name.size() == 1) {
 				context.drawTextWithShadow(
@@ -259,9 +237,6 @@ public class EditGameRulesScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RuleCategoryWidget}.
-	 */
 	public class RuleCategoryWidget extends EditGameRulesScreen.AbstractRuleWidget {
 
 		final Text name;
@@ -304,9 +279,6 @@ public class EditGameRulesScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RuleListWidget}.
-	 */
 	public class RuleListWidget extends ElementListWidget<EditGameRulesScreen.AbstractRuleWidget> {
 
 		private static final int RULE_ENTRY_HEIGHT = 24;
@@ -317,7 +289,7 @@ public class EditGameRulesScreen extends Screen {
 					EditGameRulesScreen.this.width,
 					EditGameRulesScreen.this.layout.getContentHeight(),
 					EditGameRulesScreen.this.layout.getHeaderHeight(),
-					24
+					RULE_ENTRY_HEIGHT
 			);
 			final Map<GameRuleCategory, Map<GameRule<?>, EditGameRulesScreen.AbstractRuleWidget>>
 					map =
@@ -354,36 +326,34 @@ public class EditGameRulesScreen extends Screen {
 								GameRule<T> key,
 								EditGameRulesScreen.RuleWidgetFactory<T> widgetFactory
 						) {
-							Text text = Text.translatable(key.getTranslationKey());
-							Text text2 = Text.literal(key.toShortString()).formatted(Formatting.YELLOW);
-							Text
-									text3 =
-									Text
-											.translatable(
-													"editGamerule.default",
-													Text.literal(key.getValueName(key.getDefaultValue()))
-											)
-											.formatted(Formatting.GRAY);
-							String string = key.getTranslationKey() + ".description";
-							List<OrderedText> list;
-							String string2;
-							if (I18n.hasTranslation(string)) {
-								ImmutableList.Builder<OrderedText>
-										builder =
-										ImmutableList.<OrderedText>builder().add(text2.asOrderedText());
-								Text text4 = Text.translatable(string);
-								EditGameRulesScreen.this.textRenderer.wrapLines(text4, 150).forEach(builder::add);
-								list = builder.add(text3.asOrderedText()).build();
-								string2 = text4.getString() + "\n" + text3.getString();
+							Text ruleName = Text.translatable(key.getTranslationKey());
+							Text ruleShortName = Text.literal(key.toShortString()).formatted(Formatting.YELLOW);
+							Text defaultValueText = Text
+									.translatable(
+											"editGamerule.default",
+											Text.literal(key.getValueName(key.getDefaultValue()))
+									)
+									.formatted(Formatting.GRAY);
+							String descriptionKey = key.getTranslationKey() + ".description";
+							List<OrderedText> description;
+							String narrationText;
+
+							if (I18n.hasTranslation(descriptionKey)) {
+								ImmutableList.Builder<OrderedText> builder =
+										ImmutableList.<OrderedText>builder().add(ruleShortName.asOrderedText());
+								Text descriptionText = Text.translatable(descriptionKey);
+								EditGameRulesScreen.this.textRenderer.wrapLines(descriptionText, 150).forEach(builder::add);
+								description = builder.add(defaultValueText.asOrderedText()).build();
+								narrationText = descriptionText.getString() + "\n" + defaultValueText.getString();
 							}
 							else {
-								list = ImmutableList.of(text2.asOrderedText(), text3.asOrderedText());
-								string2 = text3.getString();
+								description = ImmutableList.of(ruleShortName.asOrderedText(), defaultValueText.asOrderedText());
+								narrationText = defaultValueText.getString();
 							}
 
 							map
 									.computeIfAbsent(key.getCategory(), category -> Maps.newHashMap())
-									.put(key, widgetFactory.create(text, list, string2, key));
+									.put(key, widgetFactory.create(ruleName, description, narrationText, key));
 						}
 					}
 			);
@@ -417,9 +387,6 @@ public class EditGameRulesScreen extends Screen {
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RuleWidgetFactory}.
-	 */
 	interface RuleWidgetFactory<T> {
 
 		EditGameRulesScreen.AbstractRuleWidget create(

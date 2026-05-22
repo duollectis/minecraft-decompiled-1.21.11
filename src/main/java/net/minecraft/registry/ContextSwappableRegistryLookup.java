@@ -11,14 +11,17 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code ContextSwappableRegistryLookup}.
+ * Реализация {@link RegistryEntryLookup.RegistryLookup}, которая создаёт
+ * «заглушки» для записей и тегов реестра во время датагена.
+ *
+ * <p>Используется в контексте, где реальные реестры ещё не загружены.
+ * Все запрошенные записи и теги кешируются и могут быть впоследствии
+ * перенесены в реальный контекст через {@link ContextSwapper}.</p>
  */
 public class ContextSwappableRegistryLookup implements RegistryEntryLookup.RegistryLookup {
 
 	final RegistryWrapper.WrapperLookup delegate;
-	final ContextSwappableRegistryLookup.EntryLookupImpl
-			entryLookupImpl =
-			new ContextSwappableRegistryLookup.EntryLookupImpl();
+	final EntryLookupImpl entryLookupImpl = new EntryLookupImpl();
 	final Map<RegistryKey<Object>, RegistryEntry.Reference<Object>> entries = new HashMap<>();
 	final Map<TagKey<Object>, RegistryEntryList.Named<Object>> tags = new HashMap<>();
 
@@ -27,114 +30,118 @@ public class ContextSwappableRegistryLookup implements RegistryEntryLookup.Regis
 	}
 
 	@Override
-	public <T> Optional<? extends RegistryEntryLookup<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef) {
-		return Optional.of(this.entryLookupImpl.asEntryLookup());
+	public <T> Optional<? extends RegistryEntryLookup<T>> getOptional(
+			RegistryKey<? extends Registry<? extends T>> registryRef
+	) {
+		return Optional.of(entryLookupImpl.asEntryLookup());
 	}
 
 	/**
-	 * Создаёт registry ops.
+	 * Создаёт {@link RegistryOps} с кастомным {@link RegistryOps.RegistryInfoGetter},
+	 * который сначала ищет реестр в делегате, а при отсутствии возвращает
+	 * экспериментальный контекст на основе {@link EntryLookupImpl}.
 	 *
-	 * @param delegateOps delegate ops
-	 *
-	 * @return RegistryOps — результат операции
+	 * @param delegateOps базовые DynamicOps для сериализации
+	 * @param <V>         тип сериализованного представления
+	 * @return RegistryOps с подменённым контекстом реестров
 	 */
 	public <V> RegistryOps<V> createRegistryOps(DynamicOps<V> delegateOps) {
 		return RegistryOps.of(
 				delegateOps,
 				new RegistryOps.RegistryInfoGetter() {
 					@Override
-					public <T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(RegistryKey<? extends Registry<? extends T>> registryRef) {
-						return ContextSwappableRegistryLookup.this.delegate
+					public <T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(
+							RegistryKey<? extends Registry<? extends T>> registryRef
+					) {
+						return delegate
 								.getOptional(registryRef)
 								.map(RegistryOps.RegistryInfo::fromWrapper)
-								.or(
-										() -> Optional.of(
-												new RegistryOps.RegistryInfo<>(
-														ContextSwappableRegistryLookup.this.entryLookupImpl.asEntryOwner(),
-														ContextSwappableRegistryLookup.this.entryLookupImpl.asEntryLookup(),
-														Lifecycle.experimental()
-												)
-										)
-								);
+								.or(() -> Optional.of(new RegistryOps.RegistryInfo<>(
+										entryLookupImpl.asEntryOwner(),
+										entryLookupImpl.asEntryLookup(),
+										Lifecycle.experimental()
+								)));
 					}
 				}
 		);
 	}
 
 	/**
-	 * Создаёт context swapper.
+	 * Создаёт {@link ContextSwapper}, который перекодирует значения из текущего
+	 * контекста (с заглушками) в реальный контекст реестров.
 	 *
-	 * @return ContextSwapper — результат операции
+	 * @return swapper для переноса данных в реальный контекст
 	 */
 	public ContextSwapper createContextSwapper() {
 		return new ContextSwapper() {
 			@Override
-			public <T> DataResult<T> swapContext(Codec<T> codec, T value, RegistryWrapper.WrapperLookup registries) {
-				return codec.encodeStart(ContextSwappableRegistryLookup.this.createRegistryOps(JavaOps.INSTANCE), value)
-				            .flatMap(encodedValue -> codec.parse(registries.getOps(JavaOps.INSTANCE), encodedValue));
+			public <T> DataResult<T> swapContext(
+					Codec<T> codec,
+					T value,
+					RegistryWrapper.WrapperLookup registries
+			) {
+				return codec
+						.encodeStart(createRegistryOps(JavaOps.INSTANCE), value)
+						.flatMap(encodedValue -> codec.parse(registries.getOps(JavaOps.INSTANCE), encodedValue));
 			}
 		};
 	}
 
+	/**
+	 * Проверяет, были ли созданы какие-либо записи или теги через этот lookup.
+	 *
+	 * @return {@code true} если есть хотя бы одна запись или тег
+	 */
 	public boolean hasEntries() {
-		return !this.entries.isEmpty() || !this.tags.isEmpty();
+		return !entries.isEmpty() || !tags.isEmpty();
 	}
 
 	/**
-	 * {@code EntryLookupImpl}.
+	 * Внутренняя реализация lookup, создающая stand-alone записи и теги-заглушки.
+	 * Все созданные объекты кешируются в полях внешнего класса.
 	 */
 	class EntryLookupImpl implements RegistryEntryLookup<Object>, RegistryEntryOwner<Object> {
 
 		@Override
 		public Optional<RegistryEntry.Reference<Object>> getOptional(RegistryKey<Object> key) {
-			return Optional.of(this.getOrComputeEntry(key));
+			return Optional.of(getOrComputeEntry(key));
 		}
 
 		@Override
 		public RegistryEntry.Reference<Object> getOrThrow(RegistryKey<Object> key) {
-			return this.getOrComputeEntry(key);
+			return getOrComputeEntry(key);
 		}
 
 		private RegistryEntry.Reference<Object> getOrComputeEntry(RegistryKey<Object> key) {
-			return ContextSwappableRegistryLookup.this.entries.computeIfAbsent(
+			return entries.computeIfAbsent(
 					key,
-					key2 -> RegistryEntry.Reference.standAlone(this, (RegistryKey<Object>) key2)
+					entryKey -> RegistryEntry.Reference.standAlone(this, (RegistryKey<Object>) entryKey)
 			);
 		}
 
 		@Override
 		public Optional<RegistryEntryList.Named<Object>> getOptional(TagKey<Object> tag) {
-			return Optional.of(this.getOrComputeTag(tag));
+			return Optional.of(getOrComputeTag(tag));
 		}
 
 		@Override
 		public RegistryEntryList.Named<Object> getOrThrow(TagKey<Object> tag) {
-			return this.getOrComputeTag(tag);
+			return getOrComputeTag(tag);
 		}
 
 		private RegistryEntryList.Named<Object> getOrComputeTag(TagKey<Object> tag) {
-			return ContextSwappableRegistryLookup.this.tags.computeIfAbsent(
+			return tags.computeIfAbsent(
 					tag,
 					tagKey -> RegistryEntryList.of(this, (TagKey<Object>) tagKey)
 			);
 		}
 
 		@SuppressWarnings("unchecked")
-		/**
-		 * As entry lookup.
-		 *
-		 * @return RegistryEntryLookup — результат операции
-		 */
 		public <T> RegistryEntryLookup<T> asEntryLookup() {
 			return (RegistryEntryLookup<T>) this;
 		}
 
 		@SuppressWarnings("unchecked")
-		/**
-		 * As entry owner.
-		 *
-		 * @return RegistryEntryOwner — результат операции
-		 */
 		public <T> RegistryEntryOwner<T> asEntryOwner() {
 			return (RegistryEntryOwner<T>) this;
 		}

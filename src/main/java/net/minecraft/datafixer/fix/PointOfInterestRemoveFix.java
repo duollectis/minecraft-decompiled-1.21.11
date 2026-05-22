@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code PointOfInterestRemoveFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PointOfInterestRemoveFix extends PointOfInterestFix {
 

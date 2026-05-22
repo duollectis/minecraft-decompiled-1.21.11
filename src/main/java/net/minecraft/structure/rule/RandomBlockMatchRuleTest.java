@@ -9,17 +9,19 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code RandomBlockMatchRuleTest}.
+ * Реализация {@link RuleTest}, проверяющая тип блока с вероятностной составляющей.
+ * Блок проходит тест только если совпадает его тип И случайное число меньше заданной вероятности.
  */
 public class RandomBlockMatchRuleTest extends RuleTest {
 
 	public static final MapCodec<RandomBlockMatchRuleTest> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Registries.BLOCK.getCodec().fieldOf("block").forGetter(ruleTest -> ruleTest.block),
-					                    Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
-			                    )
-			                    .apply(instance, RandomBlockMatchRuleTest::new)
+		instance -> instance.group(
+			Registries.BLOCK.getCodec().fieldOf("block").forGetter(ruleTest -> ruleTest.block),
+			Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
+		)
+		.apply(instance, RandomBlockMatchRuleTest::new)
 	);
+
 	private final Block block;
 	private final float probability;
 
@@ -30,7 +32,7 @@ public class RandomBlockMatchRuleTest extends RuleTest {
 
 	@Override
 	public boolean test(BlockState state, Random random) {
-		return state.isOf(this.block) && random.nextFloat() < this.probability;
+		return state.isOf(block) && random.nextFloat() < probability;
 	}
 
 	@Override

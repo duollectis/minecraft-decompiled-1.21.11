@@ -35,7 +35,8 @@ import java.util.*;
 import java.util.function.Predicate;
 
 /**
- * {@code MapState}.
+ * Хранит состояние заполненной карты: цвета пикселей, декорации (баннеры, рамки, игроки),
+ * масштаб, центр и измерение. Синхронизируется с клиентами через {@link MapUpdateS2CPacket}.
  */
 public class MapState extends PersistentState {
 
@@ -45,6 +46,7 @@ public class MapState extends PersistentState {
 	public static final int MAX_SCALE = 4;
 	public static final int MAX_DECORATIONS = 256;
 	private static final String FRAME_PREFIX = "frame-";
+	private static final int DECORATION_SYNC_INTERVAL = 5;
 	public static final Codec<MapState> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
 					                    World.CODEC.fieldOf("dimension").forGetter(mapState -> mapState.dimension),
@@ -76,7 +78,7 @@ public class MapState extends PersistentState {
 	private final boolean showDecorations;
 	private final boolean unlimitedTracking;
 	public final byte scale;
-	public byte[] colors = new byte[16384];
+	public byte[] colors = new byte[SIZE * SIZE];
 	public final boolean locked;
 	private final List<MapState.PlayerUpdateTracker> updateTrackers = Lists.newArrayList();
 	private final Map<PlayerEntity, MapState.PlayerUpdateTracker> updateTrackersByPlayer = Maps.newHashMap();
@@ -139,7 +141,7 @@ public class MapState extends PersistentState {
 				locked,
 				dimension
 		);
-		if (colors.array().length == 16384) {
+		if (colors.array().length == SIZE * SIZE) {
 			this.colors = colors.array();
 		}
 
@@ -178,12 +180,12 @@ public class MapState extends PersistentState {
 			boolean unlimitedTracking,
 			RegistryKey<World> dimension
 	) {
-		int i = 128 * (1 << scale);
-		int j = MathHelper.floor((centerX + 64.0) / i);
-		int k = MathHelper.floor((centerZ + 64.0) / i);
-		int l = j * i + i / 2 - 64;
-		int m = k * i + i / 2 - 64;
-		return new MapState(l, m, scale, showDecorations, unlimitedTracking, false, dimension);
+		int blockSize = SIZE * (1 << scale);
+		int gridX = MathHelper.floor((centerX + 64.0) / blockSize);
+		int gridZ = MathHelper.floor((centerZ + 64.0) / blockSize);
+		int snappedCenterX = gridX * blockSize + blockSize / 2 - SIZE_HALF;
+		int snappedCenterZ = gridZ * blockSize + blockSize / 2 - SIZE_HALF;
+		return new MapState(snappedCenterX, snappedCenterZ, scale, showDecorations, unlimitedTracking, false, dimension);
 	}
 
 	/**
@@ -392,30 +394,32 @@ public class MapState extends PersistentState {
 			double rotation,
 			@Nullable Text text
 	) {
-		int i = 1 << this.scale;
-		float f = (float) (x - this.centerX) / i;
-		float g = (float) (z - this.centerZ) / i;
-		MapState.Marker marker = this.getMarker(type, world, rotation, f, g);
+		int scaleFactor = 1 << this.scale;
+		float dx = (float) (x - this.centerX) / scaleFactor;
+		float dz = (float) (z - this.centerZ) / scaleFactor;
+		MapState.Marker marker = this.getMarker(type, world, rotation, dx, dz);
+
 		if (marker == null) {
 			this.removeDecoration(key);
+			return;
 		}
-		else {
-			MapDecoration
-					mapDecoration =
-					new MapDecoration(marker.type(), marker.x(), marker.y(), marker.rot(), Optional.ofNullable(text));
-			MapDecoration mapDecoration2 = this.decorations.put(key, mapDecoration);
-			if (!mapDecoration.equals(mapDecoration2)) {
-				if (mapDecoration2 != null && mapDecoration2.type().value().trackCount()) {
-					this.decorationCount--;
-				}
 
-				if (marker.type().value().trackCount()) {
-					this.decorationCount++;
-				}
+		MapDecoration decoration = new MapDecoration(marker.type(), marker.x(), marker.y(), marker.rot(), Optional.ofNullable(text));
+		MapDecoration previous = this.decorations.put(key, decoration);
 
-				this.markDecorationsDirty();
-			}
+		if (decoration.equals(previous)) {
+			return;
 		}
+
+		if (previous != null && previous.type().value().trackCount()) {
+			this.decorationCount--;
+		}
+
+		if (marker.type().value().trackCount()) {
+			this.decorationCount++;
+		}
+
+		this.markDecorationsDirty();
 	}
 
 	private MapState.@Nullable Marker getMarker(
@@ -425,27 +429,19 @@ public class MapState extends PersistentState {
 			float dx,
 			float dz
 	) {
-		byte b = offsetToMarkerPosition(dx);
-		byte c = offsetToMarkerPosition(dz);
+		byte markerX = offsetToMarkerPosition(dx);
+		byte markerZ = offsetToMarkerPosition(dz);
+
 		if (type.matches(MapDecorationTypes.PLAYER)) {
-			Pair<RegistryEntry<MapDecorationType>, Byte>
-					pair =
-					this.getPlayerMarkerAndRotation(type, world, rotation, dx, dz);
-			return pair == null ? null : new MapState.Marker(
-					(RegistryEntry<MapDecorationType>) pair.getFirst(),
-					b,
-					c,
-					(Byte) pair.getSecond()
-			);
+			Pair<RegistryEntry<MapDecorationType>, Byte> pair = this.getPlayerMarkerAndRotation(type, world, rotation, dx, dz);
+			return pair == null
+					? null
+					: new MapState.Marker(pair.getFirst(), markerX, markerZ, pair.getSecond());
 		}
-		else {
-			return !isInBounds(dx, dz) && !this.unlimitedTracking ? null : new MapState.Marker(
-					type,
-					b,
-					c,
-					this.getPlayerMarkerRotation(world, rotation)
-			);
-		}
+
+		return (isInBounds(dx, dz) || this.unlimitedTracking)
+				? new MapState.Marker(type, markerX, markerZ, this.getPlayerMarkerRotation(world, rotation))
+				: null;
 	}
 
 	private @Nullable Pair<RegistryEntry<MapDecorationType>, Byte> getPlayerMarkerAndRotation(
@@ -454,47 +450,50 @@ public class MapState extends PersistentState {
 		if (isInBounds(dx, dz)) {
 			return Pair.of(type, this.getPlayerMarkerRotation(world, rotation));
 		}
-		else {
-			RegistryEntry<MapDecorationType> registryEntry = this.getPlayerMarker(dx, dz);
-			return registryEntry == null ? null : Pair.of(registryEntry, (byte) 0);
-		}
+
+		RegistryEntry<MapDecorationType> offMapMarker = this.getPlayerMarker(dx, dz);
+		return offMapMarker == null ? null : Pair.of(offMapMarker, (byte) 0);
 	}
 
 	private byte getPlayerMarkerRotation(@Nullable WorldAccess world, double rotation) {
 		if (this.dimension == World.NETHER && world != null) {
-			int i = (int) (world.getTime() / 10L);
-			return (byte) (i * i * 34187121 + i * 121 >> 15 & 15);
+			// В Нижнем мире стрелка вращается псевдослучайно на основе игрового времени
+			int tick = (int) (world.getTime() / NETHER_ROTATION_TICK_DIVISOR);
+			return (byte) (tick * tick * NETHER_ROTATION_MULTIPLIER_A + tick * NETHER_ROTATION_MULTIPLIER_B >> NETHER_ROTATION_SHIFT & NETHER_ROTATION_MASK);
 		}
-		else {
-			double d = rotation < 0.0 ? rotation - 8.0 : rotation + 8.0;
-			return (byte) (d * 16.0 / 360.0);
-		}
+
+		double adjusted = rotation < 0.0 ? rotation - 8.0 : rotation + 8.0;
+		return (byte) (adjusted * 16.0 / 360.0);
 	}
 
+	private static final long NETHER_ROTATION_TICK_DIVISOR = 10L;
+	private static final int NETHER_ROTATION_MULTIPLIER_A = 34187121;
+	private static final int NETHER_ROTATION_MULTIPLIER_B = 121;
+	private static final int NETHER_ROTATION_SHIFT = 15;
+	private static final int NETHER_ROTATION_MASK = 15;
+	private static final float MAP_HALF_SIZE = 63.0F;
+	private static final float PLAYER_OFF_MAP_RADIUS = 320.0F;
+	private static final byte MARKER_MAX = 127;
+
 	private static boolean isInBounds(float dx, float dz) {
-		int i = 63;
-		return dx >= -63.0F && dz >= -63.0F && dx <= 63.0F && dz <= 63.0F;
+		return dx >= -MAP_HALF_SIZE && dz >= -MAP_HALF_SIZE && dx <= MAP_HALF_SIZE && dz <= MAP_HALF_SIZE;
 	}
 
 	private @Nullable RegistryEntry<MapDecorationType> getPlayerMarker(float dx, float dz) {
-		int i = 320;
-		boolean bl = Math.abs(dx) < 320.0F && Math.abs(dz) < 320.0F;
-		if (bl) {
+		boolean isNearby = Math.abs(dx) < PLAYER_OFF_MAP_RADIUS && Math.abs(dz) < PLAYER_OFF_MAP_RADIUS;
+		if (isNearby) {
 			return MapDecorationTypes.PLAYER_OFF_MAP;
 		}
-		else {
-			return this.unlimitedTracking ? MapDecorationTypes.PLAYER_OFF_LIMITS : null;
-		}
+
+		return this.unlimitedTracking ? MapDecorationTypes.PLAYER_OFF_LIMITS : null;
 	}
 
-	private static byte offsetToMarkerPosition(float d) {
-		int i = 63;
-		if (d <= -63.0F) {
-			return -128;
+	private static byte offsetToMarkerPosition(float offset) {
+		if (offset <= -MAP_HALF_SIZE) {
+			return -SIZE;
 		}
-		else {
-			return d >= 63.0F ? 127 : (byte) (d * 2.0F + 0.5);
-		}
+
+		return offset >= MAP_HALF_SIZE ? MARKER_MAX : (byte) (offset * 2.0F + 0.5);
 	}
 
 	public @Nullable Packet<?> getPlayerMarkerPacket(MapIdComponent mapId, PlayerEntity player) {
@@ -534,13 +533,13 @@ public class MapState extends PersistentState {
 	 * @return boolean — результат операции
 	 */
 	public boolean addBanner(WorldAccess world, BlockPos pos) {
-		double d = pos.getX() + 0.5;
-		double e = pos.getZ() + 0.5;
-		int i = 1 << this.scale;
-		double f = (d - this.centerX) / i;
-		double g = (e - this.centerZ) / i;
-		int j = 63;
-		if (f >= -63.0 && g >= -63.0 && f <= 63.0 && g <= 63.0) {
+		double bannerX = pos.getX() + 0.5;
+		double bannerZ = pos.getZ() + 0.5;
+		int scaleFactor = 1 << this.scale;
+		double relativeX = (bannerX - this.centerX) / scaleFactor;
+		double relativeZ = (bannerZ - this.centerZ) / scaleFactor;
+
+		if (relativeX >= -MAP_HALF_SIZE && relativeZ >= -MAP_HALF_SIZE && relativeX <= MAP_HALF_SIZE && relativeZ <= MAP_HALF_SIZE) {
 			MapBannerMarker mapBannerMarker = MapBannerMarker.fromWorldBlock(world, pos);
 			if (mapBannerMarker == null) {
 				return false;
@@ -552,14 +551,14 @@ public class MapState extends PersistentState {
 				return true;
 			}
 
-			if (!this.decorationCountNotLessThan(256)) {
+			if (!this.decorationCountNotLessThan(MAX_DECORATIONS)) {
 				this.banners.put(mapBannerMarker.getKey(), mapBannerMarker);
 				this.addDecoration(
 						mapBannerMarker.getDecorationType(),
 						world,
 						mapBannerMarker.getKey(),
-						d,
-						e,
+						bannerX,
+						bannerZ,
 						180.0,
 						mapBannerMarker.name().orElse(null)
 				);
@@ -620,18 +619,17 @@ public class MapState extends PersistentState {
 	 * @return boolean — результат операции
 	 */
 	public boolean putColor(int x, int z, byte color) {
-		byte b = this.colors[x + z * 128];
-		if (b != color) {
-			this.setColor(x, z, color);
-			return true;
-		}
-		else {
+		byte existing = this.colors[x + z * SIZE];
+		if (existing == color) {
 			return false;
 		}
+
+		this.setColor(x, z, color);
+		return true;
 	}
 
 	public void setColor(int x, int z, byte color) {
-		this.colors[x + z * 128] = color;
+		this.colors[x + z * SIZE] = color;
 		this.markDirty(x, z);
 	}
 
@@ -679,11 +677,13 @@ public class MapState extends PersistentState {
 	}
 
 	private static String getFrameDecorationKey(int id) {
-		return "frame-" + id;
+		return FRAME_PREFIX + id;
 	}
 
 	/**
-	 * {@code Marker}.
+	 * Временный маркер игрока или сущности на карте, вычисляемый за один тик.
+	 * Хранит тип декорации, позицию в координатах карты (−128..127) и угол поворота,
+	 * после чего передаётся в {@link MapState#addDecoration} для обновления отображения.
 	 */
 	record Marker(RegistryEntry<MapDecorationType> type, byte x, byte y, byte rot) {
 	}
@@ -697,8 +697,8 @@ public class MapState extends PersistentState {
 		private boolean dirty = true;
 		private int startX;
 		private int startZ;
-		private int endX = 127;
-		private int endZ = 127;
+		private int endX = SIZE - 1;
+		private int endZ = SIZE - 1;
 		private boolean decorationsDirty = true;
 		private int emptyPacketsRequested;
 		public int updateTick;
@@ -708,43 +708,35 @@ public class MapState extends PersistentState {
 		}
 
 		private MapState.UpdateData getMapUpdateData() {
-			int i = this.startX;
-			int j = this.startZ;
-			int k = this.endX + 1 - this.startX;
-			int l = this.endZ + 1 - this.startZ;
-			byte[] bs = new byte[k * l];
+			int width = this.endX + 1 - this.startX;
+			int height = this.endZ + 1 - this.startZ;
+			byte[] patch = new byte[width * height];
 
-			for (int m = 0; m < k; m++) {
-				for (int n = 0; n < l; n++) {
-					bs[m + n * k] = MapState.this.colors[i + m + (j + n) * 128];
+			for (int col = 0; col < width; col++) {
+				for (int row = 0; row < height; row++) {
+					patch[col + row * width] = MapState.this.colors[this.startX + col + (this.startZ + row) * SIZE];
 				}
 			}
 
-			return new MapState.UpdateData(i, j, k, l, bs);
+			return new MapState.UpdateData(this.startX, this.startZ, width, height, patch);
 		}
 
 		@Nullable Packet<?> getPacket(MapIdComponent mapId) {
-			MapState.UpdateData updateData;
+			MapState.UpdateData updateData = null;
 			if (this.dirty) {
 				this.dirty = false;
 				updateData = this.getMapUpdateData();
 			}
-			else {
-				updateData = null;
-			}
 
-			Collection<MapDecoration> collection;
-			if (this.decorationsDirty && this.emptyPacketsRequested++ % 5 == 0) {
+			Collection<MapDecoration> decorations = null;
+			if (this.decorationsDirty && this.emptyPacketsRequested++ % DECORATION_SYNC_INTERVAL == 0) {
 				this.decorationsDirty = false;
-				collection = MapState.this.decorations.values();
-			}
-			else {
-				collection = null;
+				decorations = MapState.this.decorations.values();
 			}
 
-			return collection == null && updateData == null
-			       ? null
-			       : new MapUpdateS2CPacket(mapId, MapState.this.scale, MapState.this.locked, collection, updateData);
+			return (decorations == null && updateData == null)
+					? null
+					: new MapUpdateS2CPacket(mapId, MapState.this.scale, MapState.this.locked, decorations, updateData);
 		}
 
 		void markDirty(int startX, int startZ) {
@@ -769,7 +761,9 @@ public class MapState extends PersistentState {
 	}
 
 	/**
-	 * {@code UpdateData}.
+	 * Дельта-обновление пикселей карты, отправляемое клиенту по сети.
+	 * Описывает прямоугольный патч изменившихся цветов с координатами начала
+	 * и размерами, что позволяет передавать только изменённую область вместо всей карты.
 	 */
 	public record UpdateData(int startX, int startZ, int width, int height, byte[] colors) {
 
@@ -792,23 +786,22 @@ public class MapState extends PersistentState {
 		}
 
 		private static Optional<MapState.UpdateData> decode(ByteBuf buf) {
-			int i = buf.readUnsignedByte();
-			if (i > 0) {
-				int j = buf.readUnsignedByte();
-				int k = buf.readUnsignedByte();
-				int l = buf.readUnsignedByte();
-				byte[] bs = PacketByteBuf.readByteArray(buf);
-				return Optional.of(new MapState.UpdateData(k, l, i, j, bs));
-			}
-			else {
+			int width = buf.readUnsignedByte();
+			if (width == 0) {
 				return Optional.empty();
 			}
+
+			int height = buf.readUnsignedByte();
+			int startX = buf.readUnsignedByte();
+			int startZ = buf.readUnsignedByte();
+			byte[] colors = PacketByteBuf.readByteArray(buf);
+			return Optional.of(new MapState.UpdateData(startX, startZ, width, height, colors));
 		}
 
 		public void setColorsTo(MapState mapState) {
-			for (int i = 0; i < this.width; i++) {
-				for (int j = 0; j < this.height; j++) {
-					mapState.setColor(this.startX + i, this.startZ + j, this.colors[i + j * this.width]);
+			for (int col = 0; col < this.width; col++) {
+				for (int row = 0; row < this.height; row++) {
+					mapState.setColor(this.startX + col, this.startZ + row, this.colors[col + row * this.width]);
 				}
 			}
 		}

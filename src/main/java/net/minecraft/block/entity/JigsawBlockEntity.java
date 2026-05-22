@@ -23,16 +23,15 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code JigsawBlockEntity}.
+ * Блок-сущность пазла (Jigsaw). Хранит конфигурацию соединения структурных пулов:
+ * имя, цель, пул, тип соединения и приоритеты размещения/выбора.
  */
 public class JigsawBlockEntity extends BlockEntity {
 
-	public static final Codec<RegistryKey<StructurePool>>
-			STRUCTURE_POOL_KEY_CODEC =
+	public static final Codec<RegistryKey<StructurePool>> STRUCTURE_POOL_KEY_CODEC =
 			RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL);
 	public static final Identifier DEFAULT_NAME = Identifier.ofVanilla("empty");
-	private static final int DEFAULT_PLACEMENT_PRIORITY = 0;
-	private static final int DEFAULT_SELECTION_PRIORITY = 0;
+	public static final String DEFAULT_FINAL_STATE = "minecraft:air";
 	public static final String TARGET_KEY = "target";
 	public static final String POOL_KEY = "pool";
 	public static final String JOINT_KEY = "joint";
@@ -40,45 +39,45 @@ public class JigsawBlockEntity extends BlockEntity {
 	public static final String SELECTION_PRIORITY_KEY = "selection_priority";
 	public static final String NAME_KEY = "name";
 	public static final String FINAL_STATE_KEY = "final_state";
-	public static final String DEFAULT_FINAL_STATE = "minecraft:air";
+
 	private Identifier name = DEFAULT_NAME;
 	private Identifier target = DEFAULT_NAME;
 	private RegistryKey<StructurePool> pool = StructurePools.EMPTY;
-	private JigsawBlockEntity.Joint joint = JigsawBlockEntity.Joint.ROLLABLE;
-	private String finalState = "minecraft:air";
-	private int placementPriority = 0;
-	private int selectionPriority = 0;
+	private Joint joint = Joint.ROLLABLE;
+	private String finalState = DEFAULT_FINAL_STATE;
+	private int placementPriority;
+	private int selectionPriority;
 
 	public JigsawBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.JIGSAW, pos, state);
 	}
 
 	public Identifier getName() {
-		return this.name;
+		return name;
 	}
 
 	public Identifier getTarget() {
-		return this.target;
+		return target;
 	}
 
 	public RegistryKey<StructurePool> getPool() {
-		return this.pool;
+		return pool;
 	}
 
 	public String getFinalState() {
-		return this.finalState;
+		return finalState;
 	}
 
-	public JigsawBlockEntity.Joint getJoint() {
-		return this.joint;
+	public Joint getJoint() {
+		return joint;
 	}
 
 	public int getPlacementPriority() {
-		return this.placementPriority;
+		return placementPriority;
 	}
 
 	public int getSelectionPriority() {
-		return this.selectionPriority;
+		return selectionPriority;
 	}
 
 	public void setName(Identifier name) {
@@ -97,7 +96,7 @@ public class JigsawBlockEntity extends BlockEntity {
 		this.finalState = finalState;
 	}
 
-	public void setJoint(JigsawBlockEntity.Joint joint) {
+	public void setJoint(Joint joint) {
 		this.joint = joint;
 	}
 
@@ -112,61 +111,48 @@ public class JigsawBlockEntity extends BlockEntity {
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.put("name", Identifier.CODEC, this.name);
-		view.put("target", Identifier.CODEC, this.target);
-		view.put("pool", STRUCTURE_POOL_KEY_CODEC, this.pool);
-		view.putString("final_state", this.finalState);
-		view.put("joint", JigsawBlockEntity.Joint.CODEC, this.joint);
-		view.putInt("placement_priority", this.placementPriority);
-		view.putInt("selection_priority", this.selectionPriority);
+		view.put("name", Identifier.CODEC, name);
+		view.put("target", Identifier.CODEC, target);
+		view.put("pool", STRUCTURE_POOL_KEY_CODEC, pool);
+		view.putString("final_state", finalState);
+		view.put("joint", Joint.CODEC, joint);
+		view.putInt("placement_priority", placementPriority);
+		view.putInt("selection_priority", selectionPriority);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.name = view.<Identifier>read("name", Identifier.CODEC).orElse(DEFAULT_NAME);
-		this.target = view.<Identifier>read("target", Identifier.CODEC).orElse(DEFAULT_NAME);
-		this.pool =
-				view.<RegistryKey<StructurePool>>read("pool", STRUCTURE_POOL_KEY_CODEC).orElse(StructurePools.EMPTY);
-		this.finalState = view.getString("final_state", "minecraft:air");
-		this.joint = view.<JigsawBlockEntity.Joint>read("joint", JigsawBlockEntity.Joint.CODEC)
-		                 .orElseGet(() -> StructureTemplate.getJointFromFacing(this.getCachedState()));
-		this.placementPriority = view.getInt("placement_priority", 0);
-		this.selectionPriority = view.getInt("selection_priority", 0);
+		name = view.<Identifier>read("name", Identifier.CODEC).orElse(DEFAULT_NAME);
+		target = view.<Identifier>read("target", Identifier.CODEC).orElse(DEFAULT_NAME);
+		pool = view.<RegistryKey<StructurePool>>read("pool", STRUCTURE_POOL_KEY_CODEC).orElse(StructurePools.EMPTY);
+		finalState = view.getString("final_state", DEFAULT_FINAL_STATE);
+		joint = view.<Joint>read("joint", Joint.CODEC)
+				.orElseGet(() -> StructureTemplate.getJointFromFacing(getCachedState()));
+		placementPriority = view.getInt("placement_priority", 0);
+		selectionPriority = view.getInt("selection_priority", 0);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
-	/**
-	 * Generate.
-	 *
-	 * @param world world
-	 * @param maxDepth max depth
-	 * @param keepJigsaws keep jigsaws
-	 */
+	/** Запускает генерацию структуры из пула, начиная с блока перед этим пазлом. */
 	public void generate(ServerWorld world, int maxDepth, boolean keepJigsaws) {
-		BlockPos blockPos = this.getPos().offset(this.getCachedState().get(JigsawBlock.ORIENTATION).getFacing());
+		BlockPos startPos = getPos().offset(getCachedState().get(JigsawBlock.ORIENTATION).getFacing());
 		Registry<StructurePool> registry = world.getRegistryManager().getOrThrow(RegistryKeys.TEMPLATE_POOL);
-		RegistryEntry<StructurePool> registryEntry = registry.getOrThrow(this.pool);
-		StructurePoolBasedGenerator.generate(world, registryEntry, this.target, maxDepth, blockPos, keepJigsaws);
+		RegistryEntry<StructurePool> poolEntry = registry.getOrThrow(pool);
+		StructurePoolBasedGenerator.generate(world, poolEntry, target, maxDepth, startPos, keepJigsaws);
 	}
 
-	/**
-	 * {@code Joint}.
-	 */
-	public static enum Joint implements StringIdentifiable {
+	/** Тип соединения пазла: вращаемый (rollable) или выровненный (aligned). */
+	public enum Joint implements StringIdentifiable {
 		ROLLABLE("rollable"),
 		ALIGNED("aligned");
 
@@ -181,16 +167,11 @@ public class JigsawBlockEntity extends BlockEntity {
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
-		/**
-		 * As text.
-		 *
-		 * @return Text — результат операции
-		 */
 		public Text asText() {
-			return Text.translatable("jigsaw_block.joint." + this.name);
+			return Text.translatable("jigsaw_block.joint." + name);
 		}
 	}
 }

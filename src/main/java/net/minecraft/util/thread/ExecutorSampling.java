@@ -10,49 +10,51 @@ import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 /**
- * {@code ExecutorSampling}.
+ * Синглтон-реестр всех активных {@link SampleableExecutor}-ов.
+ * Хранит слабые ссылки, чтобы не препятствовать сборке мусора завершённых исполнителей.
+ * Предоставляет агрегированный список {@link Sampler}-ов для мониторинга очередей.
  */
 public class ExecutorSampling {
 
 	public static final ExecutorSampling INSTANCE = new ExecutorSampling();
+
 	private final WeakHashMap<SampleableExecutor, Void> activeExecutors = new WeakHashMap<>();
 
 	private ExecutorSampling() {
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param executor executor
-	 */
 	public void add(SampleableExecutor executor) {
-		this.activeExecutors.put(executor, null);
+		activeExecutors.put(executor, null);
 	}
 
 	/**
-	 * Создаёт samplers.
-	 *
-	 * @return List — результат операции
+	 * Собирает сэмплеры всех зарегистрированных исполнителей и объединяет
+	 * одноимённые сэмплеры в {@link MergedSampler}, усредняющий их значения.
 	 */
 	public List<Sampler> createSamplers() {
-		Map<String, List<Sampler>> map = this.activeExecutors
-				.keySet()
-				.stream()
-				.flatMap(executor -> executor.createSamplers().stream())
-				.collect(Collectors.groupingBy(Sampler::getName));
-		return mergeSimilarSamplers(map);
+		Map<String, List<Sampler>> grouped = activeExecutors
+			.keySet()
+			.stream()
+			.flatMap(executor -> executor.createSamplers().stream())
+			.collect(Collectors.groupingBy(Sampler::getName));
+
+		return mergeSimilarSamplers(grouped);
 	}
 
 	private static List<Sampler> mergeSimilarSamplers(Map<String, List<Sampler>> samplers) {
-		return samplers.entrySet().stream().map(entry -> {
-			String string = entry.getKey();
-			List<Sampler> list = entry.getValue();
-			return (Sampler) (list.size() > 1 ? new ExecutorSampling.MergedSampler(string, list) : list.get(0));
-		}).collect(Collectors.toList());
+		return samplers.entrySet()
+			.stream()
+			.map(entry -> {
+				String name = entry.getKey();
+				List<Sampler> list = entry.getValue();
+				return list.size() > 1 ? new MergedSampler(name, list) : list.get(0);
+			})
+			.collect(Collectors.toList());
 	}
 
 	/**
-	 * {@code MergedSampler}.
+	 * Агрегирующий сэмплер, усредняющий значения нескольких одноимённых сэмплеров.
+	 * Используется, когда несколько исполнителей имеют одинаковое имя очереди.
 	 */
 	static class MergedSampler extends Sampler {
 
@@ -60,20 +62,19 @@ public class ExecutorSampling {
 
 		MergedSampler(String id, List<Sampler> delegates) {
 			super(
-					id,
-					delegates.get(0).getType(),
-					() -> averageRetrievers(delegates),
-					() -> start(delegates),
-					combineDeviationCheckers(delegates)
+				id,
+				delegates.get(0).getType(),
+				() -> averageRetrievers(delegates),
+				() -> start(delegates),
+				combineDeviationCheckers(delegates)
 			);
 			this.delegates = delegates;
 		}
 
 		private static Sampler.DeviationChecker combineDeviationCheckers(List<Sampler> delegates) {
 			return value -> delegates
-					.stream()
-					.anyMatch(sampler -> sampler.deviationChecker != null ? sampler.deviationChecker.check(value)
-					                                                      : false);
+				.stream()
+				.anyMatch(sampler -> sampler.deviationChecker != null && sampler.deviationChecker.check(value));
 		}
 
 		private static void start(List<Sampler> samplers) {
@@ -83,13 +84,13 @@ public class ExecutorSampling {
 		}
 
 		private static double averageRetrievers(List<Sampler> samplers) {
-			double d = 0.0;
+			double sum = 0.0;
 
 			for (Sampler sampler : samplers) {
-				d += sampler.getRetriever().getAsDouble();
+				sum += sampler.getRetriever().getAsDouble();
 			}
 
-			return d / samplers.size();
+			return sum / samplers.size();
 		}
 
 		@Override
@@ -97,21 +98,22 @@ public class ExecutorSampling {
 			if (this == object) {
 				return true;
 			}
-			else if (object == null || this.getClass() != object.getClass()) {
+
+			if (object == null || getClass() != object.getClass()) {
 				return false;
 			}
-			else if (!super.equals(object)) {
+
+			if (!super.equals(object)) {
 				return false;
 			}
-			else {
-				ExecutorSampling.MergedSampler mergedSampler = (ExecutorSampling.MergedSampler) object;
-				return this.delegates.equals(mergedSampler.delegates);
-			}
+
+			MergedSampler mergedSampler = (MergedSampler) object;
+			return delegates.equals(mergedSampler.delegates);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(super.hashCode(), this.delegates);
+			return Objects.hash(super.hashCode(), delegates);
 		}
 	}
 }

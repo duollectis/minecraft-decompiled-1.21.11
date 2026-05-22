@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code PrimedTntBlockStateFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PrimedTntBlockStateFix extends ChoiceWriteReadFix {
 

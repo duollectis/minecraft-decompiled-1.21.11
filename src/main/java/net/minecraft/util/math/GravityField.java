@@ -5,63 +5,46 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 /**
- * {@code GravityField}.
+ * Поле гравитации, моделирующее притяжение нескольких точечных масс.
+ * Используется в алгоритмах генерации структур для оценки «притяжения» к определённым блокам.
  */
 public class GravityField {
 
-	private final List<GravityField.Point> points = Lists.newArrayList();
+	private final List<Point> points = Lists.newArrayList();
 
-	/**
-	 * Добавляет point.
-	 *
-	 * @param pos pos
-	 * @param mass mass
-	 */
 	public void addPoint(BlockPos pos, double mass) {
 		if (mass != 0.0) {
-			this.points.add(new GravityField.Point(pos, mass));
+			points.add(new Point(pos, mass));
 		}
 	}
 
-	/**
-	 * Calculate.
-	 *
-	 * @param pos pos
-	 * @param mass mass
-	 *
-	 * @return double — результат операции
-	 */
 	public double calculate(BlockPos pos, double mass) {
 		if (mass == 0.0) {
 			return 0.0;
 		}
-		else {
-			double d = 0.0;
 
-			for (GravityField.Point point : this.points) {
-				d += point.getGravityFactor(pos);
-			}
+		double total = 0.0;
 
-			return d * mass;
+		for (Point point : points) {
+			total += point.getGravityFactor(pos);
 		}
+
+		return total * mass;
 	}
 
-	/**
-	 * {@code Point}.
-	 */
-	static class Point {
+	private static class Point {
 
 		private final BlockPos pos;
 		private final double mass;
 
-		public Point(BlockPos pos, double mass) {
+		Point(BlockPos pos, double mass) {
 			this.pos = pos;
 			this.mass = mass;
 		}
 
-		public double getGravityFactor(BlockPos pos) {
-			double d = this.pos.getSquaredDistance(pos);
-			return d == 0.0 ? Double.POSITIVE_INFINITY : this.mass / Math.sqrt(d);
+		double getGravityFactor(BlockPos target) {
+			double squaredDistance = pos.getSquaredDistance(target);
+			return squaredDistance == 0.0 ? Double.POSITIVE_INFINITY : mass / Math.sqrt(squaredDistance);
 		}
 	}
 }

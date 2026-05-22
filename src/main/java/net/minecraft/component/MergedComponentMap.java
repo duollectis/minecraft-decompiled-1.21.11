@@ -8,8 +8,10 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 /**
- * {@code MergedComponentMap}.
- */
+	 * Реализация {@link ComponentMap}, объединяющая базовый набор компонентов с картой изменений.
+	 * Поддерживает паттерн copy-on-write: при первой записи карта изменений копируется,
+	 * что позволяет безопасно разделять её между несколькими экземплярами (например, при {@link #copy()}).
+	 */
 public final class MergedComponentMap implements ComponentMap {
 
 	private final ComponentMap baseComponents;
@@ -31,39 +33,42 @@ public final class MergedComponentMap implements ComponentMap {
 	}
 
 	/**
-	 * Create.
-	 *
-	 * @param baseComponents base components
-	 * @param changes changes
-	 *
-	 * @return MergedComponentMap — результат операции
-	 */
+		 * Создаёт {@link MergedComponentMap} из базовых компонентов и набора изменений.
+		 * Если все изменения отличаются от базовых значений, карта изменений используется напрямую
+		 * (без копирования) для экономии памяти.
+		 *
+		 * @param baseComponents базовые компоненты
+		 * @param changes        набор изменений для применения
+		 * @return новый экземпляр с применёнными изменениями
+		 */
 	public static MergedComponentMap create(ComponentMap baseComponents, ComponentChanges changes) {
 		if (shouldReuseChangesMap(baseComponents, changes.changedComponents)) {
 			return new MergedComponentMap(baseComponents, changes.changedComponents, true);
 		}
-		else {
-			MergedComponentMap mergedComponentMap = new MergedComponentMap(baseComponents);
-			mergedComponentMap.applyChanges(changes);
-			return mergedComponentMap;
-		}
+
+		MergedComponentMap result = new MergedComponentMap(baseComponents);
+		result.applyChanges(changes);
+		return result;
 	}
 
+	/**
+		 * Проверяет, можно ли переиспользовать карту изменений без копирования.
+		 * Переиспользование невозможно, если хотя бы одно изменение дублирует базовое значение
+		 * (такое изменение было бы избыточным и должно быть отфильтровано).
+		 */
 	private static boolean shouldReuseChangesMap(
 			ComponentMap baseComponents,
 			Reference2ObjectMap<ComponentType<?>, Optional<?>> changedComponents
 	) {
-		ObjectIterator var2 = Reference2ObjectMaps.fastIterable(changedComponents).iterator();
+		for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changedComponents)) {
+			Object baseValue = baseComponents.get(entry.getKey());
+			Optional<?> change = entry.getValue();
 
-		while (var2.hasNext()) {
-			Entry<ComponentType<?>, Optional<?>> entry = (Entry<ComponentType<?>, Optional<?>>) var2.next();
-			Object object = baseComponents.get(entry.getKey());
-			Optional<?> optional = entry.getValue();
-			if (optional.isPresent() && optional.get().equals(object)) {
+			if (change.isPresent() && change.get().equals(baseValue)) {
 				return false;
 			}
 
-			if (optional.isEmpty() && object == null) {
+			if (change.isEmpty() && baseValue == null) {
 				return false;
 			}
 		}
@@ -73,113 +78,94 @@ public final class MergedComponentMap implements ComponentMap {
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		Optional<? extends T> optional = (Optional<? extends T>) this.changedComponents.get(type);
-		return (T) (optional != null ? optional.orElse(null) : this.baseComponents.get(type));
+		Optional<? extends T> change = (Optional<? extends T>) changedComponents.get(type);
+		return change != null ? change.orElse(null) : baseComponents.get(type);
 	}
 
 	public boolean hasChanged(ComponentType<?> type) {
-		return this.changedComponents.containsKey(type);
+		return changedComponents.containsKey(type);
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return @Nullable T — результат операции
-	 */
+		 * Устанавливает значение компонента. Если новое значение совпадает с базовым,
+		 * запись об изменении удаляется (нет смысла хранить избыточную дельту).
+		 *
+		 * @param type  тип компонента
+		 * @param value новое значение или {@code null} для удаления
+		 * @return предыдущее значение компонента
+		 */
 	public <T> @Nullable T set(ComponentType<T> type, @Nullable T value) {
-		this.onWrite();
-		T object = this.baseComponents.get(type);
-		Optional<T> optional;
-		if (Objects.equals(value, object)) {
-			optional = (Optional<T>) this.changedComponents.remove(type);
-		}
-		else {
-			optional = (Optional<T>) this.changedComponents.put(type, Optional.ofNullable(value));
+		onWrite();
+		T baseValue = baseComponents.get(type);
+		Optional<T> previous;
+
+		if (Objects.equals(value, baseValue)) {
+			previous = (Optional<T>) changedComponents.remove(type);
+		} else {
+			previous = (Optional<T>) changedComponents.put(type, Optional.ofNullable(value));
 		}
 
-		return optional != null ? optional.orElse(object) : object;
+		return previous != null ? previous.orElse(baseValue) : baseValue;
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param component component
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public <T> @Nullable T set(Component<T> component) {
-		return this.set(component.type(), component.value());
+		return set(component.type(), component.value());
 	}
 
 	/**
-	 * Remove.
-	 *
-	 * @param type type
-	 *
-	 * @return @Nullable T — результат операции
-	 */
+		 * Удаляет компонент. Если компонент присутствует в базовых данных,
+		 * добавляет запись об удалении; иначе просто убирает запись об изменении.
+		 *
+		 * @param type тип компонента для удаления
+		 * @return предыдущее значение или {@code null}
+		 */
 	public <T> @Nullable T remove(ComponentType<? extends T> type) {
-		this.onWrite();
-		T object = this.baseComponents.get(type);
-		Optional<? extends T> optional;
-		if (object != null) {
-			optional = (Optional<? extends T>) this.changedComponents.put(type, Optional.empty());
-		}
-		else {
-			optional = (Optional<? extends T>) this.changedComponents.remove(type);
+		onWrite();
+		T baseValue = baseComponents.get(type);
+		Optional<? extends T> previous;
+
+		if (baseValue != null) {
+			previous = (Optional<? extends T>) changedComponents.put(type, Optional.empty());
+		} else {
+			previous = (Optional<? extends T>) changedComponents.remove(type);
 		}
 
-		return (T) (optional != null ? optional.orElse(null) : object);
+		return previous != null ? previous.orElse(null) : baseValue;
 	}
 
-	/**
-	 * Применяет changes.
-	 *
-	 * @param changes changes
-	 */
 	public void applyChanges(ComponentChanges changes) {
-		this.onWrite();
-		ObjectIterator var2 = Reference2ObjectMaps.fastIterable(changes.changedComponents).iterator();
+		onWrite();
 
-		while (var2.hasNext()) {
-			Entry<ComponentType<?>, Optional<?>> entry = (Entry<ComponentType<?>, Optional<?>>) var2.next();
-			this.applyChange(entry.getKey(), entry.getValue());
+		for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changes.changedComponents)) {
+			applyChange(entry.getKey(), entry.getValue());
 		}
 	}
 
-	private void applyChange(ComponentType<?> type, Optional<?> optional) {
-		Object object = this.baseComponents.get(type);
-		if (optional.isPresent()) {
-			if (optional.get().equals(object)) {
-				this.changedComponents.remove(type);
+	private void applyChange(ComponentType<?> type, Optional<?> change) {
+		Object baseValue = baseComponents.get(type);
+
+		if (change.isPresent()) {
+			if (change.get().equals(baseValue)) {
+				changedComponents.remove(type);
+			} else {
+				changedComponents.put(type, change);
 			}
-			else {
-				this.changedComponents.put(type, optional);
-			}
-		}
-		else if (object != null) {
-			this.changedComponents.put(type, Optional.empty());
-		}
-		else {
-			this.changedComponents.remove(type);
+		} else if (baseValue != null) {
+			changedComponents.put(type, Optional.empty());
+		} else {
+			changedComponents.remove(type);
 		}
 	}
 
 	public void setChanges(ComponentChanges changes) {
-		this.onWrite();
-		this.changedComponents.clear();
-		this.changedComponents.putAll(changes.changedComponents);
+		onWrite();
+		changedComponents.clear();
+		changedComponents.putAll(changes.changedComponents);
 	}
 
-	/**
-	 * Очищает changes.
-	 */
 	public void clearChanges() {
-		this.onWrite();
-		this.changedComponents.clear();
+		onWrite();
+		changedComponents.clear();
 	}
 
 	public void setAll(ComponentMap components) {
@@ -189,130 +175,105 @@ public final class MergedComponentMap implements ComponentMap {
 	}
 
 	private void onWrite() {
-		if (this.copyOnWrite) {
-			this.changedComponents = new Reference2ObjectArrayMap(this.changedComponents);
-			this.copyOnWrite = false;
+		if (copyOnWrite) {
+			changedComponents = new Reference2ObjectArrayMap<>(changedComponents);
+			copyOnWrite = false;
 		}
 	}
 
 	@Override
 	public Set<ComponentType<?>> getTypes() {
-		if (this.changedComponents.isEmpty()) {
-			return this.baseComponents.getTypes();
+		if (changedComponents.isEmpty()) {
+			return baseComponents.getTypes();
 		}
-		else {
-			Set<ComponentType<?>> set = new ReferenceArraySet(this.baseComponents.getTypes());
-			ObjectIterator var2 = Reference2ObjectMaps.fastIterable(this.changedComponents).iterator();
 
-			while (var2.hasNext()) {
-				it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-						entry =
-						(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var2.next();
-				Optional<?> optional = (Optional<?>) entry.getValue();
-				if (optional.isPresent()) {
-					set.add((ComponentType<?>) entry.getKey());
-				}
-				else {
-					set.remove(entry.getKey());
-				}
+		Set<ComponentType<?>> types = new ReferenceArraySet<>(baseComponents.getTypes());
+
+		for (Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changedComponents)) {
+			if (entry.getValue().isPresent()) {
+				types.add(entry.getKey());
+			} else {
+				types.remove(entry.getKey());
 			}
-
-			return set;
 		}
+
+		return types;
 	}
 
 	@Override
 	public Iterator<Component<?>> iterator() {
-		if (this.changedComponents.isEmpty()) {
-			return this.baseComponents.iterator();
+		if (changedComponents.isEmpty()) {
+			return baseComponents.iterator();
 		}
-		else {
-			List<Component<?>> list = new ArrayList<>(this.changedComponents.size() + this.baseComponents.size());
-			ObjectIterator var2 = Reference2ObjectMaps.fastIterable(this.changedComponents).iterator();
 
-			while (var2.hasNext()) {
-				it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-						entry =
-						(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var2.next();
-				if (((Optional) entry.getValue()).isPresent()) {
-					list.add(Component.of((ComponentType) entry.getKey(), ((Optional) entry.getValue()).get()));
-				}
+		List<Component<?>> components = new ArrayList<>(changedComponents.size() + baseComponents.size());
+
+		for (Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changedComponents)) {
+			Optional<?> value = entry.getValue();
+			if (value.isPresent()) {
+				components.add(Component.of((ComponentType) entry.getKey(), value.get()));
 			}
-
-			for (Component<?> component : this.baseComponents) {
-				if (!this.changedComponents.containsKey(component.type())) {
-					list.add(component);
-				}
-			}
-
-			return list.iterator();
 		}
+
+		for (Component<?> component : baseComponents) {
+			if (!changedComponents.containsKey(component.type())) {
+				components.add(component);
+			}
+		}
+
+		return components.iterator();
 	}
 
 	@Override
 	public int size() {
-		int i = this.baseComponents.size();
-		ObjectIterator var2 = Reference2ObjectMaps.fastIterable(this.changedComponents).iterator();
+		int count = baseComponents.size();
 
-		while (var2.hasNext()) {
-			it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-					entry =
-					(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var2.next();
-			boolean bl = ((Optional) entry.getValue()).isPresent();
-			boolean bl2 = this.baseComponents.contains((ComponentType<?>) entry.getKey());
-			if (bl != bl2) {
-				i += bl ? 1 : -1;
+		for (Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changedComponents)) {
+			boolean isPresent = entry.getValue().isPresent();
+			boolean wasPresent = baseComponents.contains(entry.getKey());
+
+			if (isPresent != wasPresent) {
+				count += isPresent ? 1 : -1;
 			}
 		}
 
-		return i;
+		return count;
 	}
 
 	public ComponentChanges getChanges() {
-		if (this.changedComponents.isEmpty()) {
+		if (changedComponents.isEmpty()) {
 			return ComponentChanges.EMPTY;
 		}
-		else {
-			this.copyOnWrite = true;
-			return new ComponentChanges(this.changedComponents);
-		}
+
+		copyOnWrite = true;
+		return new ComponentChanges(changedComponents);
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return MergedComponentMap — результат операции
-	 */
 	public MergedComponentMap copy() {
-		this.copyOnWrite = true;
-		return new MergedComponentMap(this.baseComponents, this.changedComponents, true);
+		copyOnWrite = true;
+		return new MergedComponentMap(baseComponents, changedComponents, true);
 	}
 
-	/**
-	 * Immutable copy.
-	 *
-	 * @return ComponentMap — результат операции
-	 */
 	public ComponentMap immutableCopy() {
-		return (ComponentMap) (this.changedComponents.isEmpty() ? this.baseComponents : this.copy());
+		return changedComponents.isEmpty() ? baseComponents : copy();
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		return this == o
-		       ? true
-		       : o instanceof MergedComponentMap mergedComponentMap
-		         && this.baseComponents.equals(mergedComponentMap.baseComponents)
-		         && this.changedComponents.equals(mergedComponentMap.changedComponents);
+			? true
+			: o instanceof MergedComponentMap other
+				&& baseComponents.equals(other.baseComponents)
+				&& changedComponents.equals(other.changedComponents);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.baseComponents.hashCode() + this.changedComponents.hashCode() * 31;
+		return baseComponents.hashCode() + changedComponents.hashCode() * 31;
 	}
 
 	@Override
 	public String toString() {
-		return "{" + this.stream().map(Component::toString).collect(Collectors.joining(", ")) + "}";
+		return "{" + stream().map(Component::toString).collect(Collectors.joining(", ")) + "}";
 	}
 }

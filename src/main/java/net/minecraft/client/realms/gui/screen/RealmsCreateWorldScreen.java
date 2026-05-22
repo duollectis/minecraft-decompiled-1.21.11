@@ -359,7 +359,7 @@ public class RealmsCreateWorldScreen extends RealmsScreen {
 				final Identifier image,
 				final ButtonWidget.PressAction onPress
 		) {
-			super(0, 0, 60, 60 + 9, message, onPress, DEFAULT_NARRATION_SUPPLIER);
+			super(0, 0, SIZE, SIZE + 9, message, onPress, DEFAULT_NARRATION_SUPPLIER);
 			this.image = image;
 		}
 
@@ -380,15 +380,15 @@ public class RealmsCreateWorldScreen extends RealmsScreen {
 					k + 2,
 					0.0F,
 					0.0F,
-					56,
-					56,
-					56,
-					56,
-					56,
-					56,
+					TEXTURE_SIZE,
+					TEXTURE_SIZE,
+					TEXTURE_SIZE,
+					TEXTURE_SIZE,
+					TEXTURE_SIZE,
+					TEXTURE_SIZE,
 					i
 			);
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, j, k, 60, 60, i);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, j, k, SIZE, SIZE, i);
 			int l = bl ? -6250336 : -1;
 			context.drawCenteredTextWithShadow(
 					RealmsCreateWorldScreen.this.textRenderer,

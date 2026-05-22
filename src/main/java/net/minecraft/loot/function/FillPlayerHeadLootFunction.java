@@ -14,16 +14,15 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.List;
 import java.util.Set;
 
-/**
- * {@code FillPlayerHeadLootFunction}.
- */
+/** Функция лута, записывающая профиль игрока в компонент головы игрока. */
 public class FillPlayerHeadLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<FillPlayerHeadLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(function -> function.entity))
-					.apply(instance, FillPlayerHeadLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(function -> function.entity))
+			.apply(instance, FillPlayerHeadLootFunction::new)
 	);
+
 	private final LootContext.EntityReference entity;
 
 	public FillPlayerHeadLootFunction(List<LootCondition> conditions, LootContext.EntityReference entity) {
@@ -38,13 +37,14 @@ public class FillPlayerHeadLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Set.of(this.entity.contextParam());
+		return Set.of(entity.contextParam());
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		if (stack.isOf(Items.PLAYER_HEAD)
-				&& context.get(this.entity.contextParam()) instanceof PlayerEntity playerEntity) {
+			&& context.get(entity.contextParam()) instanceof PlayerEntity playerEntity
+		) {
 			stack.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(playerEntity.getGameProfile()));
 		}
 

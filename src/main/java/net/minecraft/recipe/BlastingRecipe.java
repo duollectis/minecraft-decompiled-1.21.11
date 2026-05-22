@@ -8,19 +8,20 @@ import net.minecraft.recipe.book.RecipeBookCategories;
 import net.minecraft.recipe.book.RecipeBookCategory;
 
 /**
- * {@code BlastingRecipe}.
+ * Рецепт плавки в доменной печи. Работает вдвое быстрее обычной печи,
+ * но принимает только руды, металлы и схожие материалы (не еду).
  */
 public class BlastingRecipe extends AbstractCookingRecipe {
 
 	public BlastingRecipe(
-			String string,
-			CookingRecipeCategory cookingRecipeCategory,
-			Ingredient ingredient,
-			ItemStack itemStack,
-			float f,
-			int i
+		String group,
+		CookingRecipeCategory category,
+		Ingredient ingredient,
+		ItemStack result,
+		float experience,
+		int cookingTime
 	) {
-		super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
+		super(group, category, ingredient, result, experience, cookingTime);
 	}
 
 	@Override
@@ -40,7 +41,7 @@ public class BlastingRecipe extends AbstractCookingRecipe {
 
 	@Override
 	public RecipeBookCategory getRecipeBookCategory() {
-		return switch (this.getCategory()) {
+		return switch (getCategory()) {
 			case BLOCKS -> RecipeBookCategories.BLAST_FURNACE_BLOCKS;
 			case FOOD, MISC -> RecipeBookCategories.BLAST_FURNACE_MISC;
 		};

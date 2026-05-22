@@ -7,72 +7,78 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 
 /**
- * {@code LecternScreenHandler}.
+ * Обработчик экрана кафедры (lectern).
+ * <p>
+ * Управляет одним слотом книги и одним свойством (текущая страница).
+ * Поддерживает кнопки перелистывания, прыжка на страницу и извлечения книги.
  */
 public class LecternScreenHandler extends ScreenHandler {
 
 	private static final int INVENTORY_SIZE = 1;
 	private static final int PROPERTY_COUNT = 1;
+	private static final int BOOK_SLOT_INDEX = 0;
+	private static final int PAGE_PROPERTY_INDEX = 0;
+
 	public static final int PREVIOUS_PAGE_BUTTON_ID = 1;
 	public static final int NEXT_PAGE_BUTTON_ID = 2;
 	public static final int TAKE_BOOK_BUTTON_ID = 3;
 	public static final int BASE_JUMP_TO_PAGE_BUTTON_ID = 100;
+
 	private final Inventory inventory;
 	private final PropertyDelegate propertyDelegate;
 
 	public LecternScreenHandler(int syncId) {
-		this(syncId, new SimpleInventory(1), new ArrayPropertyDelegate(1));
+		this(syncId, new SimpleInventory(INVENTORY_SIZE), new ArrayPropertyDelegate(PROPERTY_COUNT));
 	}
 
 	public LecternScreenHandler(int syncId, Inventory inventory, PropertyDelegate propertyDelegate) {
 		super(ScreenHandlerType.LECTERN, syncId);
-		checkSize(inventory, 1);
-		checkDataCount(propertyDelegate, 1);
+		checkSize(inventory, INVENTORY_SIZE);
+		checkDataCount(propertyDelegate, PROPERTY_COUNT);
 		this.inventory = inventory;
 		this.propertyDelegate = propertyDelegate;
-		this.addSlot(new Slot(inventory, 0, 0, 0) {
+		addSlot(new Slot(inventory, BOOK_SLOT_INDEX, 0, 0) {
 			@Override
 			public void markDirty() {
 				super.markDirty();
 				LecternScreenHandler.this.onContentChanged(this.inventory);
 			}
 		});
-		this.addProperties(propertyDelegate);
+		addProperties(propertyDelegate);
 	}
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
-		if (id >= 100) {
-			int i = id - 100;
-			this.setProperty(0, i);
+		if (id >= BASE_JUMP_TO_PAGE_BUTTON_ID) {
+			setProperty(PAGE_PROPERTY_INDEX, id - BASE_JUMP_TO_PAGE_BUTTON_ID);
 			return true;
 		}
-		else {
-			switch (id) {
-				case 1: {
-					int i = this.propertyDelegate.get(0);
-					this.setProperty(0, i - 1);
-					return true;
-				}
-				case 2: {
-					int i = this.propertyDelegate.get(0);
-					this.setProperty(0, i + 1);
-					return true;
-				}
-				case 3:
-					if (!player.canModifyBlocks()) {
-						return false;
-					}
 
-					ItemStack itemStack = this.inventory.removeStack(0);
-					this.inventory.markDirty();
-					if (!player.getInventory().insertStack(itemStack)) {
-						player.dropItem(itemStack, false);
-					}
-
-					return true;
-				default:
+		switch (id) {
+			case PREVIOUS_PAGE_BUTTON_ID -> {
+				setProperty(PAGE_PROPERTY_INDEX, propertyDelegate.get(PAGE_PROPERTY_INDEX) - 1);
+				return true;
+			}
+			case NEXT_PAGE_BUTTON_ID -> {
+				setProperty(PAGE_PROPERTY_INDEX, propertyDelegate.get(PAGE_PROPERTY_INDEX) + 1);
+				return true;
+			}
+			case TAKE_BOOK_BUTTON_ID -> {
+				if (!player.canModifyBlocks()) {
 					return false;
+				}
+
+				ItemStack book = inventory.removeStack(BOOK_SLOT_INDEX);
+				inventory.markDirty();
+
+				if (!player.getInventory().insertStack(book)) {
+					player.dropItem(book, false);
+				}
+
+				return true;
+			}
+			default -> {
+				return false;
 			}
 		}
 	}
@@ -85,19 +91,19 @@ public class LecternScreenHandler extends ScreenHandler {
 	@Override
 	public void setProperty(int id, int value) {
 		super.setProperty(id, value);
-		this.sendContentUpdates();
+		sendContentUpdates();
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.inventory.canPlayerUse(player);
+		return inventory.canPlayerUse(player);
 	}
 
 	public ItemStack getBookItem() {
-		return this.inventory.getStack(0);
+		return inventory.getStack(BOOK_SLOT_INDEX);
 	}
 
 	public int getPage() {
-		return this.propertyDelegate.get(0);
+		return propertyDelegate.get(PAGE_PROPERTY_INDEX);
 	}
 }

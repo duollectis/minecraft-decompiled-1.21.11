@@ -11,11 +11,14 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
- * Класс message chain task queue.
+ * Последовательная очередь задач обработки сообщений чата.
+ * Гарантирует порядок выполнения: каждая задача запускается только после завершения предыдущей.
+ * При закрытии ({@link #close()}) новые задачи принимаются, но не выполняются.
  */
 public class MessageChainTaskQueue implements FutureQueue, AutoCloseable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private CompletableFuture<?> current = CompletableFuture.completedFuture(null);
 	private final Executor executor;
 	private volatile boolean closed;
@@ -24,31 +27,43 @@ public class MessageChainTaskQueue implements FutureQueue, AutoCloseable {
 		this.executor = executor;
 	}
 
+	/**
+	 * Добавляет задачу в конец очереди. Задача выполнится только после завершения
+	 * {@code completableFuture} и всех предыдущих задач в очереди.
+	 * Ошибки логируются и не прерывают обработку следующих задач.
+	 * {@link CancellationException} пробрасывается без логирования.
+	 *
+	 * @param completableFuture будущий результат, который нужно дождаться
+	 * @param consumer          обработчик результата, вызывается в {@link #executor}
+	 */
 	@Override
 	public <T> void append(CompletableFuture<T> completableFuture, Consumer<T> consumer) {
-		this.current = this.current.<T, Object>thenCombine(completableFuture, (a, b) -> b).thenAcceptAsync(
-				object -> {
-					if (!this.closed) {
-						consumer.accept((T) object);
+		current = current
+				.<T, Object>thenCombine(completableFuture, (ignored, result) -> result)
+				.thenAcceptAsync(
+						result -> {
+							if (!closed) {
+								consumer.accept((T) result);
+							}
+						},
+						executor
+				)
+				.exceptionally(throwable -> {
+					if (throwable instanceof CompletionException completionException) {
+						throwable = completionException.getCause();
 					}
-				}, this.executor
-		).exceptionally(throwable -> {
-			if (throwable instanceof CompletionException completionException) {
-				throwable = completionException.getCause();
-			}
 
-			if (throwable instanceof CancellationException cancellationException) {
-				throw cancellationException;
-			}
-			else {
-				LOGGER.error("Chain link failed, continuing to next one", throwable);
-				return null;
-			}
-		});
+					if (throwable instanceof CancellationException cancellationException) {
+						throw cancellationException;
+					}
+
+					LOGGER.error("Chain link failed, continuing to next one", throwable);
+					return null;
+				});
 	}
 
 	@Override
 	public void close() {
-		this.closed = true;
+		closed = true;
 	}
 }

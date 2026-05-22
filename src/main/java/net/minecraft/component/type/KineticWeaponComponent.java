@@ -29,8 +29,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code KineticWeaponComponent}.
- */
+	 * Компонент кинетического оружия (трезубец, копьё). Описывает поведение оружия
+	 * при использовании: задержку, условия нанесения урона/отбрасывания/спешивания,
+	 * множитель урона и звуки.
+	 */
 public record KineticWeaponComponent(
 		int contactCooldownTicks,
 		int delayTicks,
@@ -46,31 +48,31 @@ public record KineticWeaponComponent(
 	public static final int DEFAULT_CHARGE_TICKS = 10;
 	public static final Codec<KineticWeaponComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.NON_NEGATIVE_INT
-							                    .optionalFieldOf("contact_cooldown_ticks", 10)
-							                    .forGetter(KineticWeaponComponent::contactCooldownTicks),
-					                    Codecs.NON_NEGATIVE_INT
-							                    .optionalFieldOf("delay_ticks", 0)
-							                    .forGetter(KineticWeaponComponent::delayTicks),
-					                    KineticWeaponComponent.Condition.CODEC
-							                    .optionalFieldOf("dismount_conditions")
-							                    .forGetter(KineticWeaponComponent::dismountConditions),
-					                    KineticWeaponComponent.Condition.CODEC
-							                    .optionalFieldOf("knockback_conditions")
-							                    .forGetter(KineticWeaponComponent::knockbackConditions),
-					                    KineticWeaponComponent.Condition.CODEC
-							                    .optionalFieldOf("damage_conditions")
-							                    .forGetter(KineticWeaponComponent::damageConditions),
-					                    Codec.FLOAT
-							                    .optionalFieldOf("forward_movement", 0.0F)
-							                    .forGetter(KineticWeaponComponent::forwardMovement),
-					                    Codec.FLOAT
-							                    .optionalFieldOf("damage_multiplier", 1.0F)
-							                    .forGetter(KineticWeaponComponent::damageMultiplier),
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("sound").forGetter(KineticWeaponComponent::sound),
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("hit_sound").forGetter(KineticWeaponComponent::hitSound)
-			                    )
-			                    .apply(instance, KineticWeaponComponent::new)
+										Codecs.NON_NEGATIVE_INT
+												.optionalFieldOf("contact_cooldown_ticks", DEFAULT_CHARGE_TICKS)
+												.forGetter(KineticWeaponComponent::contactCooldownTicks),
+										Codecs.NON_NEGATIVE_INT
+												.optionalFieldOf("delay_ticks", 0)
+												.forGetter(KineticWeaponComponent::delayTicks),
+										KineticWeaponComponent.Condition.CODEC
+												.optionalFieldOf("dismount_conditions")
+												.forGetter(KineticWeaponComponent::dismountConditions),
+										KineticWeaponComponent.Condition.CODEC
+												.optionalFieldOf("knockback_conditions")
+												.forGetter(KineticWeaponComponent::knockbackConditions),
+										KineticWeaponComponent.Condition.CODEC
+												.optionalFieldOf("damage_conditions")
+												.forGetter(KineticWeaponComponent::damageConditions),
+										Codec.FLOAT
+												.optionalFieldOf("forward_movement", 0.0F)
+												.forGetter(KineticWeaponComponent::forwardMovement),
+										Codec.FLOAT
+												.optionalFieldOf("damage_multiplier", 1.0F)
+												.forGetter(KineticWeaponComponent::damageMultiplier),
+										SoundEvent.ENTRY_CODEC.optionalFieldOf("sound").forGetter(KineticWeaponComponent::sound),
+										SoundEvent.ENTRY_CODEC.optionalFieldOf("hit_sound").forGetter(KineticWeaponComponent::hitSound)
+								)
+								.apply(instance, KineticWeaponComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, KineticWeaponComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.VAR_INT,
@@ -103,36 +105,42 @@ public record KineticWeaponComponent(
 	}
 
 	/**
-	 * Play sound.
-	 *
-	 * @param entity entity
-	 */
+		 * Воспроизводит звук использования оружия в позиции сущности.
+		 *
+		 * @param entity сущность, в позиции которой воспроизводится звук
+		 */
 	public void playSound(Entity entity) {
-		this.sound
-				.ifPresent(
-						sound -> entity.getEntityWorld()
-						               .playSound(
-								               entity,
-								               entity.getX(),
-								               entity.getY(),
-								               entity.getZ(),
-								               (RegistryEntry<SoundEvent>) sound,
-								               entity.getSoundCategory(),
-								               1.0F,
-								               1.0F
-						               )
-				);
+		sound.ifPresent(
+				soundEntry -> entity.getEntityWorld()
+									.playSound(
+											entity,
+											entity.getX(),
+											entity.getY(),
+											entity.getZ(),
+											(RegistryEntry<SoundEvent>) soundEntry,
+											entity.getSoundCategory(),
+											1.0F,
+											1.0F
+									)
+		);
 	}
 
 	/**
-	 * Play hit sound.
-	 *
-	 * @param entity entity
-	 */
+		 * Воспроизводит звук попадания оружия на стороне клиента.
+		 *
+		 * @param entity сущность-источник звука
+		 */
 	public void playHitSound(Entity entity) {
-		this.hitSound.ifPresent(hitSound -> entity
-				.getEntityWorld()
-				.playSoundFromEntityClient(entity, hitSound.value(), entity.getSoundCategory(), 1.0F, 1.0F));
+		hitSound.ifPresent(
+				hitSoundEntry -> entity.getEntityWorld()
+										.playSoundFromEntityClient(
+												entity,
+												hitSoundEntry.value(),
+												entity.getSoundCategory(),
+												1.0F,
+												1.0F
+										)
+		);
 	}
 
 	public int getUseTicks() {
@@ -142,92 +150,99 @@ public record KineticWeaponComponent(
 	}
 
 	/**
-	 * Usage tick.
-	 *
-	 * @param stack stack
-	 * @param remainingUseTicks remaining use ticks
-	 * @param user user
-	 * @param slot slot
-	 */
+		 * Обрабатывает один тик использования кинетического оружия: собирает коллизии,
+		 * проверяет условия урона/отбрасывания/спешивания и применяет эффекты к целям.
+		 *
+		 * @param stack             стек предмета
+		 * @param remainingUseTicks оставшиеся тики использования
+		 * @param user              сущность, использующая оружие
+		 * @param slot              слот экипировки
+		 */
 	public void usageTick(ItemStack stack, int remainingUseTicks, LivingEntity user, EquipmentSlot slot) {
-		int i = stack.getMaxUseTime(user) - remainingUseTicks;
-		if (i >= this.delayTicks) {
-			i -= this.delayTicks;
-			Vec3d vec3d = user.getRotationVector();
-			double d = vec3d.dotProduct(getAmplifiedMovement(user));
-			float f = user instanceof PlayerEntity ? 1.0F : 0.2F;
-			AttackRangeComponent attackRangeComponent = user.getAttackRange();
-			double e = user.getAttributeBaseValue(EntityAttributes.ATTACK_DAMAGE);
-			boolean bl = false;
+		int elapsedTicks = stack.getMaxUseTime(user) - remainingUseTicks;
 
-			for (EntityHitResult entityHitResult : (Collection<EntityHitResult>) ProjectileUtil
-					.collectPiercingCollisions(
-							user,
-							attackRangeComponent,
-							target -> PiercingWeaponComponent.canHit(user, target),
-							RaycastContext.ShapeType.COLLIDER
-					)
-					.map(blockHit -> List.of(), entityHits -> entityHits)) {
-				Entity entity = entityHitResult.getEntity();
-				if (entity instanceof EnderDragonPart enderDragonPart) {
-					entity = enderDragonPart.owner;
-				}
+		if (elapsedTicks < delayTicks) {
+			return;
+		}
 
-				boolean bl2 = user.isInPiercingCooldown(entity, this.contactCooldownTicks);
-				if (!bl2) {
-					user.startPiercingCooldown(entity);
-					double g = vec3d.dotProduct(getAmplifiedMovement(entity));
-					double h = Math.max(0.0, d - g);
-					boolean
-							bl3 =
-							this.dismountConditions.isPresent() && this.dismountConditions
-									.get()
-									.isSatisfied(i, d, h, f);
-					boolean
-							bl4 =
-							this.knockbackConditions.isPresent() && this.knockbackConditions
-									.get()
-									.isSatisfied(i, d, h, f);
-					boolean
-							bl5 =
-							this.damageConditions.isPresent() && this.damageConditions.get().isSatisfied(i, d, h, f);
-					if (bl3 || bl4 || bl5) {
-						float j = (float) e + MathHelper.floor(h * this.damageMultiplier);
-						bl |= user.pierce(slot, entity, j, bl5, bl4, bl3);
-					}
-				}
+		elapsedTicks -= delayTicks;
+
+		Vec3d lookVector = user.getRotationVector();
+		double userDotProduct = lookVector.dotProduct(getAmplifiedMovement(user));
+		float playerFactor = user instanceof PlayerEntity ? 1.0F : 0.2F;
+		AttackRangeComponent attackRange = user.getAttackRange();
+		double baseDamage = user.getAttributeBaseValue(EntityAttributes.ATTACK_DAMAGE);
+		boolean anyHit = false;
+
+		for (EntityHitResult entityHitResult : (Collection<EntityHitResult>) ProjectileUtil
+				.collectPiercingCollisions(
+						user,
+						attackRange,
+						target -> PiercingWeaponComponent.canHit(user, target),
+						RaycastContext.ShapeType.COLLIDER
+				)
+				.map(blockHit -> List.of(), entityHits -> entityHits)) {
+			Entity entity = entityHitResult.getEntity();
+
+			if (entity instanceof EnderDragonPart enderDragonPart) {
+				entity = enderDragonPart.owner;
 			}
 
-			if (bl) {
-				user.getEntityWorld().sendEntityStatus(user, (byte) 2);
-				if (user instanceof ServerPlayerEntity serverPlayerEntity) {
-					Criteria.SPEAR_MOBS.trigger(
-							serverPlayerEntity,
-							user.getPiercedEntityCount(entityx -> entityx instanceof LivingEntity)
-					);
-				}
+			boolean inCooldown = user.isInPiercingCooldown(entity, contactCooldownTicks);
+
+			if (inCooldown) {
+				continue;
+			}
+
+			user.startPiercingCooldown(entity);
+
+			double entityDotProduct = lookVector.dotProduct(getAmplifiedMovement(entity));
+			double relativeSpeed = Math.max(0.0, userDotProduct - entityDotProduct);
+			boolean shouldDismount = dismountConditions.isPresent()
+					&& dismountConditions.get().isSatisfied(elapsedTicks, userDotProduct, relativeSpeed, playerFactor);
+			boolean shouldKnockback = knockbackConditions.isPresent()
+					&& knockbackConditions.get().isSatisfied(elapsedTicks, userDotProduct, relativeSpeed, playerFactor);
+			boolean shouldDamage = damageConditions.isPresent()
+					&& damageConditions.get().isSatisfied(elapsedTicks, userDotProduct, relativeSpeed, playerFactor);
+
+			if (shouldDismount || shouldKnockback || shouldDamage) {
+				float damage = (float) baseDamage + MathHelper.floor(relativeSpeed * damageMultiplier);
+				anyHit |= user.pierce(slot, entity, damage, shouldDamage, shouldKnockback, shouldDismount);
+			}
+		}
+
+		if (anyHit) {
+			user.getEntityWorld().sendEntityStatus(user, (byte) 2);
+
+			if (user instanceof ServerPlayerEntity serverPlayerEntity) {
+				Criteria.SPEAR_MOBS.trigger(
+						serverPlayerEntity,
+						user.getPiercedEntityCount(entityx -> entityx instanceof LivingEntity)
+				);
 			}
 		}
 	}
 
 	/**
-	 * {@code Condition}.
-	 */
+		 * Условие активации эффекта кинетического оружия. Проверяет, что прошедшее время
+		 * не превышает максимум, а скорость пользователя и относительная скорость сближения
+		 * с целью достаточны для срабатывания.
+		 */
 	public record Condition(int maxDurationTicks, float minSpeed, float minRelativeSpeed) {
 
 		public static final Codec<KineticWeaponComponent.Condition> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codecs.NON_NEGATIVE_INT
-								                    .fieldOf("max_duration_ticks")
-								                    .forGetter(KineticWeaponComponent.Condition::maxDurationTicks),
-						                    Codec.FLOAT
-								                    .optionalFieldOf("min_speed", 0.0F)
-								                    .forGetter(KineticWeaponComponent.Condition::minSpeed),
-						                    Codec.FLOAT
-								                    .optionalFieldOf("min_relative_speed", 0.0F)
-								                    .forGetter(KineticWeaponComponent.Condition::minRelativeSpeed)
-				                    )
-				                    .apply(instance, KineticWeaponComponent.Condition::new)
+											Codecs.NON_NEGATIVE_INT
+													.fieldOf("max_duration_ticks")
+													.forGetter(KineticWeaponComponent.Condition::maxDurationTicks),
+											Codec.FLOAT
+													.optionalFieldOf("min_speed", 0.0F)
+													.forGetter(KineticWeaponComponent.Condition::minSpeed),
+											Codec.FLOAT
+													.optionalFieldOf("min_relative_speed", 0.0F)
+													.forGetter(KineticWeaponComponent.Condition::minRelativeSpeed)
+									)
+									.apply(instance, KineticWeaponComponent.Condition::new)
 		);
 		public static final PacketCodec<ByteBuf, KineticWeaponComponent.Condition> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.VAR_INT,

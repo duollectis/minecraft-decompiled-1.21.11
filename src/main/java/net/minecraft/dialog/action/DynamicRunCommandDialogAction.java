@@ -8,14 +8,19 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code DynamicRunCommandDialogAction}.
+ * Динамическое действие диалога, выполняющее команду с подстановкой значений полей ввода.
+ * <p>
+ * Шаблон команды {@link ParsedTemplate} содержит переменные, которые заменяются
+ * текущими значениями полей ввода диалога перед выполнением команды.
+ *
+ * @param template шаблон команды с переменными для подстановки
  */
 public record DynamicRunCommandDialogAction(ParsedTemplate template) implements DialogAction {
 
 	public static final MapCodec<DynamicRunCommandDialogAction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(ParsedTemplate.CODEC.fieldOf("template").forGetter(DynamicRunCommandDialogAction::template))
-					.apply(instance, DynamicRunCommandDialogAction::new)
+		instance -> instance
+			.group(ParsedTemplate.CODEC.fieldOf("template").forGetter(DynamicRunCommandDialogAction::template))
+			.apply(instance, DynamicRunCommandDialogAction::new)
 	);
 
 	@Override
@@ -25,7 +30,7 @@ public record DynamicRunCommandDialogAction(ParsedTemplate template) implements 
 
 	@Override
 	public Optional<ClickEvent> createClickEvent(Map<String, DialogAction.ValueGetter> valueGetters) {
-		String string = this.template.apply(DialogAction.ValueGetter.resolveAll(valueGetters));
-		return Optional.of(new ClickEvent.RunCommand(string));
+		String command = template.apply(DialogAction.ValueGetter.resolveAll(valueGetters));
+		return Optional.of(new ClickEvent.RunCommand(command));
 	}
 }

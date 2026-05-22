@@ -11,7 +11,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code SmokerBlockEntity}.
+ * Блок-сущность коптильни. Использует рецепты типа {@link RecipeType#SMOKING}.
+ * Сжигает топливо вдвое быстрее обычной печи.
  */
 public class SmokerBlockEntity extends AbstractFurnaceBlockEntity {
 
@@ -33,6 +34,6 @@ public class SmokerBlockEntity extends AbstractFurnaceBlockEntity {
 
 	@Override
 	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-		return new SmokerScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+		return new SmokerScreenHandler(syncId, playerInventory, this, propertyDelegate);
 	}
 }

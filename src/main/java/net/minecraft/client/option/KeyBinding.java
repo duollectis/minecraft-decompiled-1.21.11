@@ -20,97 +20,96 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code KeyBinding}.
+ * Привязка клавиши к игровому действию.
+ * <p>
+ * Хранит текущую и дефолтную клавишу, счётчик нажатий для обработки событий
+ * через {@link #wasPressed()}, а также поддерживает глобальный реестр всех привязок
+ * для быстрого поиска по коду клавиши.
  */
+@Environment(EnvType.CLIENT)
 public class KeyBinding implements Comparable<KeyBinding> {
 
 	private static final Map<String, KeyBinding> KEYS_BY_ID = Maps.newHashMap();
 	private static final Map<InputUtil.Key, List<KeyBinding>> KEY_TO_BINDINGS = Maps.newHashMap();
+
 	private final String id;
 	private final InputUtil.Key defaultKey;
 	private final KeyBinding.Category category;
+	private final int sortOrder;
 	public InputUtil.Key boundKey;
 	private boolean pressed;
 	private int timesPressed;
-	private final int sortOrder;
 
 	/**
-	 * Обрабатывает событие key pressed.
-	 *
-	 * @param key key
+	 * Уведомляет все привязки, связанные с данной клавишей, о её нажатии.
+	 * Увеличивает счётчик {@code timesPressed} для последующей обработки через {@link #wasPressed()}.
 	 */
 	public static void onKeyPressed(InputUtil.Key key) {
-		forAllKeyBinds(key, keyx -> keyx.timesPressed++);
+		forAllKeyBinds(key, binding -> binding.timesPressed++);
 	}
 
 	public static void setKeyPressed(InputUtil.Key key, boolean pressed) {
-		forAllKeyBinds(key, keyx -> keyx.setPressed(pressed));
+		forAllKeyBinds(key, binding -> binding.setPressed(pressed));
 	}
 
 	private static void forAllKeyBinds(InputUtil.Key key, Consumer<KeyBinding> keyConsumer) {
-		List<KeyBinding> list = KEY_TO_BINDINGS.get(key);
-		if (list != null && !list.isEmpty()) {
-			for (KeyBinding keyBinding : list) {
-				keyConsumer.accept(keyBinding);
-			}
+		List<KeyBinding> bindings = KEY_TO_BINDINGS.get(key);
+
+		if (bindings == null || bindings.isEmpty()) {
+			return;
+		}
+
+		for (KeyBinding binding : bindings) {
+			keyConsumer.accept(binding);
 		}
 	}
 
 	/**
-	 * Обновляет pressed states.
+	 * Обновляет состояние {@code pressed} для всех клавиатурных привязок типа {@link InputUtil.Type#KEYSYM},
+	 * опрашивая текущее состояние GLFW-окна.
 	 */
 	public static void updatePressedStates() {
 		Window window = MinecraftClient.getInstance().getWindow();
 
-		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
-			if (keyBinding.shouldSetOnGameFocus()) {
-				keyBinding.setPressed(InputUtil.isKeyPressed(window, keyBinding.boundKey.getCode()));
+		for (KeyBinding binding : KEYS_BY_ID.values()) {
+			if (binding.shouldSetOnGameFocus()) {
+				binding.setPressed(InputUtil.isKeyPressed(window, binding.boundKey.getCode()));
 			}
 		}
 	}
 
-	/**
-	 * Unpress all.
-	 */
 	public static void unpressAll() {
-		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
-			keyBinding.reset();
+		for (KeyBinding binding : KEYS_BY_ID.values()) {
+			binding.reset();
 		}
 	}
 
-	/**
-	 * Restore toggle states.
-	 */
 	public static void restoreToggleStates() {
-		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
-			if (keyBinding instanceof StickyKeyBinding stickyKeyBinding
-					&& stickyKeyBinding.shouldRestoreOnScreenClose()) {
-				stickyKeyBinding.setPressed(true);
+		for (KeyBinding binding : KEYS_BY_ID.values()) {
+			if (binding instanceof StickyKeyBinding stickyBinding && stickyBinding.shouldRestoreOnScreenClose()) {
+				stickyBinding.setPressed(true);
 			}
 		}
 	}
 
-	/**
-	 * Untoggle sticky keys.
-	 */
 	public static void untoggleStickyKeys() {
-		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
-			if (keyBinding instanceof StickyKeyBinding stickyKeyBinding) {
-				stickyKeyBinding.untoggle();
+		for (KeyBinding binding : KEYS_BY_ID.values()) {
+			if (binding instanceof StickyKeyBinding stickyBinding) {
+				stickyBinding.untoggle();
 			}
 		}
 	}
 
 	/**
-	 * Обновляет keys by code.
+	 * Перестраивает индекс {@link #KEY_TO_BINDINGS} после изменения привязок клавиш.
+	 * Должен вызываться каждый раз, когда пользователь меняет раскладку в настройках.
 	 */
 	public static void updateKeysByCode() {
 		KEY_TO_BINDINGS.clear();
 
-		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
-			keyBinding.registerBinding(keyBinding.boundKey);
+		for (KeyBinding binding : KEYS_BY_ID.values()) {
+			binding.registerBinding(binding.boundKey);
 		}
 	}
 
@@ -118,148 +117,119 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		this(id, InputUtil.Type.KEYSYM, code, category);
 	}
 
-	public KeyBinding(String string, InputUtil.Type type, int i, KeyBinding.Category category) {
-		this(string, type, i, category, 0);
+	public KeyBinding(String id, InputUtil.Type type, int code, KeyBinding.Category category) {
+		this(id, type, code, category, 0);
 	}
 
-	public KeyBinding(String id, InputUtil.Type type, int code, KeyBinding.Category category, int i) {
+	public KeyBinding(String id, InputUtil.Type type, int code, KeyBinding.Category category, int sortOrder) {
 		this.id = id;
-		this.boundKey = type.createFromCode(code);
-		this.defaultKey = this.boundKey;
+		boundKey = type.createFromCode(code);
+		defaultKey = boundKey;
 		this.category = category;
-		this.sortOrder = i;
+		this.sortOrder = sortOrder;
 		KEYS_BY_ID.put(id, this);
-		this.registerBinding(this.boundKey);
+		registerBinding(boundKey);
 	}
 
 	public boolean isPressed() {
-		return this.pressed;
+		return pressed;
 	}
 
 	public KeyBinding.Category getCategory() {
-		return this.category;
+		return category;
 	}
 
 	/**
-	 * Was pressed.
-	 *
-	 * @return boolean — результат операции
+	 * Возвращает {@code true} и уменьшает счётчик нажатий, если клавиша была нажата
+	 * хотя бы один раз с момента последнего вызова. Используется для обработки
+	 * дискретных нажатий (не удержания).
 	 */
 	public boolean wasPressed() {
-		if (this.timesPressed == 0) {
+		if (timesPressed == 0) {
 			return false;
 		}
-		else {
-			this.timesPressed--;
-			return true;
-		}
+
+		timesPressed--;
+		return true;
 	}
 
-	/**
-	 * Reset.
-	 */
 	protected void reset() {
-		this.timesPressed = 0;
-		this.setPressed(false);
+		timesPressed = 0;
+		setPressed(false);
 	}
 
 	/**
-	 * Определяет, следует ли set on game focus.
-	 *
-	 * @return boolean — результат операции
+	 * Определяет, нужно ли обновлять состояние этой привязки при наличии фокуса игры.
+	 * Возвращает {@code true} только для клавиатурных привязок с известным кодом клавиши.
 	 */
 	protected boolean shouldSetOnGameFocus() {
-		return this.boundKey.getCategory() == InputUtil.Type.KEYSYM
-				&& this.boundKey.getCode() != InputUtil.UNKNOWN_KEY.getCode();
+		return boundKey.getCategory() == InputUtil.Type.KEYSYM
+				&& boundKey.getCode() != InputUtil.UNKNOWN_KEY.getCode();
 	}
 
 	public String getId() {
-		return this.id;
+		return id;
 	}
 
 	public InputUtil.Key getDefaultKey() {
-		return this.defaultKey;
+		return defaultKey;
 	}
 
 	public void setBoundKey(InputUtil.Key boundKey) {
 		this.boundKey = boundKey;
 	}
 
-	/**
-	 * Compare to.
-	 *
-	 * @param keyBinding key binding
-	 *
-	 * @return int — результат операции
-	 */
-	public int compareTo(KeyBinding keyBinding) {
-		if (this.category == keyBinding.category) {
-			return this.sortOrder == keyBinding.sortOrder
-			       ? I18n.translate(this.id).compareTo(I18n.translate(keyBinding.id))
-			       : Integer.compare(this.sortOrder, keyBinding.sortOrder);
+	@Override
+	public int compareTo(KeyBinding other) {
+		if (category == other.category) {
+			return sortOrder == other.sortOrder
+					? I18n.translate(id).compareTo(I18n.translate(other.id))
+					: Integer.compare(sortOrder, other.sortOrder);
 		}
-		else {
-			return Integer.compare(
-					KeyBinding.Category.CATEGORIES.indexOf(this.category),
-					KeyBinding.Category.CATEGORIES.indexOf(keyBinding.category)
-			);
-		}
+
+		return Integer.compare(
+				KeyBinding.Category.CATEGORIES.indexOf(category),
+				KeyBinding.Category.CATEGORIES.indexOf(other.category)
+		);
 	}
 
 	public static Supplier<Text> getLocalizedName(String id) {
-		KeyBinding keyBinding = KEYS_BY_ID.get(id);
-		return keyBinding == null ? () -> Text.translatable(id) : keyBinding::getBoundKeyLocalizedText;
+		KeyBinding binding = KEYS_BY_ID.get(id);
+		return binding == null ? () -> Text.translatable(id) : binding::getBoundKeyLocalizedText;
 	}
 
-	/**
-	 * Equals.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean equals(KeyBinding other) {
-		return this.boundKey.equals(other.boundKey);
+		return boundKey.equals(other.boundKey);
 	}
 
 	public boolean isUnbound() {
-		return this.boundKey.equals(InputUtil.UNKNOWN_KEY);
+		return boundKey.equals(InputUtil.UNKNOWN_KEY);
 	}
 
 	/**
-	 * Matches key.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, соответствует ли данная привязка нажатой клавише.
+	 * Учитывает как KEYSYM (виртуальный код), так и SCANCODE (физическая позиция).
 	 */
 	public boolean matchesKey(KeyInput key) {
 		return key.key() == InputUtil.UNKNOWN_KEY.getCode()
-		       ? this.boundKey.getCategory() == InputUtil.Type.SCANCODE && this.boundKey.getCode() == key.scancode()
-		       : this.boundKey.getCategory() == InputUtil.Type.KEYSYM && this.boundKey.getCode() == key.key();
+				? boundKey.getCategory() == InputUtil.Type.SCANCODE && boundKey.getCode() == key.scancode()
+				: boundKey.getCategory() == InputUtil.Type.KEYSYM && boundKey.getCode() == key.key();
 	}
 
-	/**
-	 * Matches mouse.
-	 *
-	 * @param click click
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean matchesMouse(Click click) {
-		return this.boundKey.getCategory() == InputUtil.Type.MOUSE && this.boundKey.getCode() == click.button();
+		return boundKey.getCategory() == InputUtil.Type.MOUSE && boundKey.getCode() == click.button();
 	}
 
 	public Text getBoundKeyLocalizedText() {
-		return this.boundKey.getLocalizedText();
+		return boundKey.getLocalizedText();
 	}
 
 	public boolean isDefault() {
-		return this.boundKey.equals(this.defaultKey);
+		return boundKey.equals(defaultKey);
 	}
 
 	public String getBoundKeyTranslationKey() {
-		return this.boundKey.getTranslationKey();
+		return boundKey.getTranslationKey();
 	}
 
 	public void setPressed(boolean pressed) {
@@ -267,24 +237,19 @@ public class KeyBinding implements Comparable<KeyBinding> {
 	}
 
 	private void registerBinding(InputUtil.Key key) {
-		KEY_TO_BINDINGS.computeIfAbsent(key, keyx -> new ArrayList<>()).add(this);
+		KEY_TO_BINDINGS.computeIfAbsent(key, k -> new ArrayList<>()).add(this);
 	}
 
-	/**
-	 * By id.
-	 *
-	 * @param id id
-	 *
-	 * @return @Nullable KeyBinding — результат операции
-	 */
 	public static @Nullable KeyBinding byId(String id) {
 		return KEYS_BY_ID.get(id);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Category}.
+	 * Категория привязки клавиш, используемая для группировки в экране настроек управления.
+	 * Категории регистрируются в глобальном списке {@link #CATEGORIES} в порядке создания,
+	 * что определяет их порядок отображения.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Category(Identifier id) {
 
 		static final List<KeyBinding.Category> CATEGORIES = new ArrayList<>();
@@ -303,6 +268,7 @@ public class KeyBinding implements Comparable<KeyBinding> {
 
 		public static KeyBinding.Category create(Identifier id) {
 			KeyBinding.Category category = new KeyBinding.Category(id);
+
 			if (CATEGORIES.contains(category)) {
 				throw new IllegalArgumentException(String.format(
 						Locale.ROOT,
@@ -310,14 +276,13 @@ public class KeyBinding implements Comparable<KeyBinding> {
 						id
 				));
 			}
-			else {
-				CATEGORIES.add(category);
-				return category;
-			}
+
+			CATEGORIES.add(category);
+			return category;
 		}
 
 		public Text getLabel() {
-			return Text.translatable(this.id.toTranslationKey("key.category"));
+			return Text.translatable(id.toTranslationKey("key.category"));
 		}
 	}
 }

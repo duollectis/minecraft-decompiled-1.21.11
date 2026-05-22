@@ -3,7 +3,12 @@ package net.minecraft.registry;
 import java.util.List;
 
 /**
- * {@code ServerDynamicRegistryType}.
+ * Перечисляет слои динамических реестров на стороне сервера в порядке
+ * их приоритета (от базового к наиболее специфичному).
+ * <p>
+ * Используется как типовой параметр {@link CombinedDynamicRegistries} для
+ * управления многоуровневой системой реестров: статические ванильные данные →
+ * генерация мира → измерения → перезагружаемые данные (лут-таблицы и т.д.).
  */
 public enum ServerDynamicRegistryType {
 	STATIC,
@@ -12,14 +17,14 @@ public enum ServerDynamicRegistryType {
 	RELOADABLE;
 
 	private static final List<ServerDynamicRegistryType> VALUES = List.of(values());
-	private static final DynamicRegistryManager.Immutable
-			STATIC_REGISTRY_MANAGER =
+	private static final DynamicRegistryManager.Immutable STATIC_REGISTRY_MANAGER =
 			DynamicRegistryManager.of(Registries.REGISTRIES);
 
 	/**
-	 * Создаёт combined dynamic registries.
+	 * Создаёт начальный {@link CombinedDynamicRegistries} со всеми слоями,
+	 * предварительно заполнив слой {@link #STATIC} ванильными реестрами.
 	 *
-	 * @return CombinedDynamicRegistries — результат операции
+	 * @return инициализированный менеджер комбинированных реестров
 	 */
 	public static CombinedDynamicRegistries<ServerDynamicRegistryType> createCombinedDynamicRegistries() {
 		return new CombinedDynamicRegistries<>(VALUES).with(STATIC, STATIC_REGISTRY_MANAGER);

@@ -5,7 +5,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 
 /**
- * {@code Shearable}.
+ * Интерфейс для сущностей, которых можно стричь ножницами (овцы, снежные голем и т.д.).
  */
 public interface Shearable {
 

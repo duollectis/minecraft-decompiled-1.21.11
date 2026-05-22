@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * {@code TimedTaskRunner}.
+ * Последовательный исполнитель задач с привязкой к тикам теста.
+ * Задачи выполняются одна за другой при каждом вызове {@link #runSilently(int)} или
+ * {@link #runReported(int)}. Если у задачи задана длительность — проверяется,
+ * что между предыдущей и текущей задачей прошло ровно столько тиков.
  */
 public class TimedTaskRunner {
 
@@ -17,113 +20,120 @@ public class TimedTaskRunner {
 	private int tick;
 
 	TimedTaskRunner(GameTestState gameTest) {
-		this.test = gameTest;
-		this.tick = gameTest.getTick();
+		test = gameTest;
+		tick = gameTest.getTick();
 	}
 
 	public TimedTaskRunner createAndAdd(Runnable task) {
-		this.tasks.add(TimedTask.create(task));
+		tasks.add(TimedTask.create(task));
 		return this;
 	}
 
 	public TimedTaskRunner createAndAdd(long duration, Runnable task) {
-		this.tasks.add(TimedTask.create(duration, task));
+		tasks.add(TimedTask.create(duration, task));
 		return this;
 	}
 
 	public TimedTaskRunner expectMinDuration(int minDuration) {
-		return this.expectMinDurationAndRun(minDuration, () -> {});
+		return expectMinDurationAndRun(minDuration, () -> {});
 	}
 
 	public TimedTaskRunner createAndAddReported(Runnable task) {
-		this.tasks.add(TimedTask.create(() -> this.tryRun(task)));
+		tasks.add(TimedTask.create(() -> tryRun(task)));
 		return this;
 	}
 
+	/**
+	 * Добавляет задачу, которая выполняется только если с момента предыдущей задачи
+	 * прошло не менее {@code minDuration} тиков. Иначе — тест падает.
+	 */
 	public TimedTaskRunner expectMinDurationAndRun(int minDuration, Runnable task) {
-		this.tasks.add(TimedTask.create(() -> {
-			if (this.test.getTick() < this.tick + minDuration) {
+		tasks.add(TimedTask.create(() -> {
+			if (test.getTick() < tick + minDuration) {
 				throw new GameTestException(
-						Text.translatable("test.error.sequence.not_completed"),
-						this.test.getTick()
+					Text.translatable("test.error.sequence.not_completed"),
+					test.getTick()
 				);
 			}
-			else {
-				this.tryRun(task);
-			}
+
+			tryRun(task);
 		}));
 		return this;
 	}
 
+	/**
+	 * Добавляет задачу, которая выполняется немедленно, но если с момента предыдущей задачи
+	 * прошло менее {@code minDuration} тиков — тест падает после выполнения.
+	 */
 	public TimedTaskRunner expectMinDurationOrRun(int minDuration, Runnable task) {
-		this.tasks.add(TimedTask.create(() -> {
-			if (this.test.getTick() < this.tick + minDuration) {
-				this.tryRun(task);
-				throw new GameTestException(
-						Text.translatable("test.error.sequence.not_completed"),
-						this.test.getTick()
-				);
+		tasks.add(TimedTask.create(() -> {
+			if (test.getTick() >= tick + minDuration) {
+				return;
 			}
+
+			tryRun(task);
+			throw new GameTestException(
+				Text.translatable("test.error.sequence.not_completed"),
+				test.getTick()
+			);
 		}));
 		return this;
 	}
 
 	public void completeIfSuccessful() {
-		this.tasks.add(TimedTask.create(this.test::completeIfSuccessful));
+		tasks.add(TimedTask.create(test::completeIfSuccessful));
 	}
 
 	public void fail(Supplier<TestException> exceptionSupplier) {
-		this.tasks.add(TimedTask.create(() -> this.test.fail(exceptionSupplier.get())));
+		tasks.add(TimedTask.create(() -> test.fail(exceptionSupplier.get())));
 	}
 
-	public TimedTaskRunner.Trigger createAndAddTrigger() {
-		TimedTaskRunner.Trigger trigger = new TimedTaskRunner.Trigger();
-		this.tasks.add(TimedTask.create(() -> trigger.trigger(this.test.getTick())));
+	public Trigger createAndAddTrigger() {
+		Trigger trigger = new Trigger();
+		tasks.add(TimedTask.create(() -> trigger.trigger(test.getTick())));
 		return trigger;
 	}
 
-	public void runSilently(int tick) {
+	public void runSilently(int currentTick) {
 		try {
-			this.runTasks(tick);
-		}
-		catch (GameTestException var3) {
+			runTasks(currentTick);
+		} catch (GameTestException ignored) {
+			// Ошибки подавляются намеренно — используется для "тихого" прогона без фиксации провала
 		}
 	}
 
-	public void runReported(int tick) {
+	public void runReported(int currentTick) {
 		try {
-			this.runTasks(tick);
-		}
-		catch (GameTestException var3) {
-			this.test.fail(var3);
+			runTasks(currentTick);
+		} catch (GameTestException ex) {
+			test.fail(ex);
 		}
 	}
 
 	private void tryRun(Runnable task) {
 		try {
 			task.run();
-		}
-		catch (GameTestException var3) {
-			this.test.fail(var3);
+		} catch (GameTestException ex) {
+			test.fail(ex);
 		}
 	}
 
-	private void runTasks(int tick) {
-		Iterator<TimedTask> iterator = this.tasks.iterator();
+	private void runTasks(int currentTick) {
+		Iterator<TimedTask> iterator = tasks.iterator();
 
 		while (iterator.hasNext()) {
 			TimedTask timedTask = iterator.next();
 			timedTask.task.run();
 			iterator.remove();
-			int i = tick - this.tick;
-			int j = this.tick;
-			this.tick = tick;
-			if (timedTask.duration != null && timedTask.duration != i) {
-				this.test.fail(new GameTestException(
-						Text.translatable(
-								"test.error.sequence.invalid_tick",
-								j + timedTask.duration
-						), tick
+
+			int elapsed = currentTick - tick;
+			int previousTick = tick;
+			tick = currentTick;
+
+			if (timedTask.duration != null && timedTask.duration != elapsed) {
+				test.fail(new GameTestException(
+					Text.translatable("test.error.sequence.invalid_tick", previousTick + timedTask.duration),
+					currentTick
 				));
 				break;
 			}
@@ -131,37 +141,40 @@ public class TimedTaskRunner {
 	}
 
 	/**
-	 * {@code Trigger}.
+	 * Триггер, который должен быть активирован ровно в текущий тик теста.
+	 * Используется для проверки точного момента наступления события.
 	 */
 	public class Trigger {
 
 		private static final int UNTRIGGERED_TICK = -1;
-		private int triggeredTick = -1;
+		private int triggeredTick = UNTRIGGERED_TICK;
 
-		void trigger(int tick) {
-			if (this.triggeredTick != -1) {
-				throw new IllegalStateException("Condition already triggered at " + this.triggeredTick);
+		void trigger(int currentTick) {
+			if (triggeredTick != UNTRIGGERED_TICK) {
+				throw new IllegalStateException("Condition already triggered at " + triggeredTick);
 			}
-			else {
-				this.triggeredTick = tick;
-			}
+
+			triggeredTick = currentTick;
 		}
 
 		public void checkTrigger() {
-			int i = TimedTaskRunner.this.test.getTick();
-			if (this.triggeredTick != i) {
-				if (this.triggeredTick == -1) {
-					throw new GameTestException(Text.translatable("test.error.sequence.condition_not_triggered"), i);
-				}
-				else {
-					throw new GameTestException(
-							Text.translatable(
-									"test.error.sequence.condition_already_triggered",
-									this.triggeredTick
-							), i
-					);
-				}
+			int currentTick = TimedTaskRunner.this.test.getTick();
+
+			if (triggeredTick == currentTick) {
+				return;
 			}
+
+			if (triggeredTick == UNTRIGGERED_TICK) {
+				throw new GameTestException(
+					Text.translatable("test.error.sequence.condition_not_triggered"),
+					currentTick
+				);
+			}
+
+			throw new GameTestException(
+				Text.translatable("test.error.sequence.condition_already_triggered", triggeredTick),
+				currentTick
+			);
 		}
 	}
 }

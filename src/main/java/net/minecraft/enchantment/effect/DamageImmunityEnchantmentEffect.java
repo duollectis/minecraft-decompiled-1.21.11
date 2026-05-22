@@ -4,7 +4,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 
 /**
- * {@code DamageImmunityEnchantmentEffect}.
+ * Маркерный эффект зачарования, обозначающий полный иммунитет к определённому типу урона.
+ * Используется как компонент в {@code ComponentMap} зачарования (например, Frost Walker — иммунитет к горению).
  */
 public record DamageImmunityEnchantmentEffect() {
 

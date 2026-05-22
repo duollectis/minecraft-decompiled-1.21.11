@@ -28,7 +28,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * {@code GrindstoneBlock}.
+ * Блок точильного камня. Позволяет снимать зачарования с предметов и объединять их прочность.
+ * Форма зависит от грани крепления ({@link net.minecraft.block.enums.BlockFace}) и направления.
  */
 public class GrindstoneBlock extends WallMountedBlock {
 
@@ -43,42 +44,40 @@ public class GrindstoneBlock extends WallMountedBlock {
 
 	public GrindstoneBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(FACING, Direction.NORTH)
 				.with(FACE, BlockFace.WALL));
-		this.shapeFunction = this.createShapeFunction();
+		shapeFunction = createShapeFunction();
 	}
 
 	private Function<BlockState, VoxelShape> createShapeFunction() {
-		VoxelShape
-				voxelShape =
-				VoxelShapes.union(
-						Block.createCuboidShape(2.0, 6.0, 7.0, 4.0, 10.0, 16.0),
-						Block.createCuboidShape(2.0, 5.0, 3.0, 4.0, 11.0, 9.0)
-				);
-		VoxelShape voxelShape2 = VoxelShapes.transform(voxelShape, DirectionTransformation.INVERT_X);
-		VoxelShape
-				voxelShape3 =
-				VoxelShapes.union(Block.createCuboidZShape(8.0, 2.0, 14.0, 0.0, 12.0), voxelShape, voxelShape2);
-		Map<BlockFace, Map<Direction, VoxelShape>>
-				map =
-				VoxelShapes.createBlockFaceHorizontalFacingShapeMap(voxelShape3);
-		return this.createShapeFunction(state -> map.get(state.get(FACE)).get(state.get(FACING)));
+		VoxelShape leftLeg = VoxelShapes.union(
+				Block.createCuboidShape(2.0, 6.0, 7.0, 4.0, 10.0, 16.0),
+				Block.createCuboidShape(2.0, 5.0, 3.0, 4.0, 11.0, 9.0)
+		);
+		VoxelShape rightLeg = VoxelShapes.transform(leftLeg, DirectionTransformation.INVERT_X);
+		VoxelShape full = VoxelShapes.union(
+				Block.createCuboidZShape(8.0, 2.0, 14.0, 0.0, 12.0),
+				leftLeg,
+				rightLeg
+		);
+		Map<BlockFace, Map<Direction, VoxelShape>> shapeMap = VoxelShapes.createBlockFaceHorizontalFacingShapeMap(full);
+		return createShapeFunction(state -> shapeMap.get(state.get(FACE)).get(state.get(FACING)));
 	}
 
 	private VoxelShape getShape(BlockState state) {
-		return this.shapeFunction.apply(state);
+		return shapeFunction.apply(state);
 	}
 
 	@Override
 	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.getShape(state);
+		return getShape(state);
 	}
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.getShape(state);
+		return getShape(state);
 	}
 
 	@Override
@@ -88,11 +87,12 @@ public class GrindstoneBlock extends WallMountedBlock {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient()) {
-			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-			player.incrementStat(Stats.INTERACT_WITH_GRINDSTONE);
+		if (world.isClient()) {
+			return ActionResult.SUCCESS;
 		}
 
+		player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+		player.incrementStat(Stats.INTERACT_WITH_GRINDSTONE);
 		return ActionResult.SUCCESS;
 	}
 

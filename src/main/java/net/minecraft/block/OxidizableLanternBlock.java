@@ -7,7 +7,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code OxidizableLanternBlock}.
+ * Фонарь из меди с поддержкой окисления. Деградирует со временем через случайные тики,
+ * пока не достигнет максимального уровня окисления.
  */
 public class OxidizableLanternBlock extends LanternBlock implements Oxidizable {
 
@@ -15,7 +16,8 @@ public class OxidizableLanternBlock extends LanternBlock implements Oxidizable {
 			instance -> instance.group(
 					                    Oxidizable.OxidationLevel.CODEC
 							                    .fieldOf("weathering_state")
-							                    .forGetter(OxidizableLanternBlock::getDegradationLevel), createSettingsCodec()
+							                    .forGetter(OxidizableLanternBlock::getDegradationLevel),
+					                    createSettingsCodec()
 			                    )
 			                    .apply(instance, OxidizableLanternBlock::new)
 	);
@@ -33,7 +35,7 @@ public class OxidizableLanternBlock extends LanternBlock implements Oxidizable {
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		this.tickDegradation(state, world, pos, random);
+		tickDegradation(state, world, pos, random);
 	}
 
 	@Override
@@ -42,6 +44,6 @@ public class OxidizableLanternBlock extends LanternBlock implements Oxidizable {
 	}
 
 	public Oxidizable.OxidationLevel getDegradationLevel() {
-		return this.oxidationLevel;
+		return oxidationLevel;
 	}
 }

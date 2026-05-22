@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsMusicToastFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsMusicToastFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class OptionsMusicToastFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsMusicToastFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						options -> options.renameAndFixField(

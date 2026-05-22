@@ -21,168 +21,159 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code StatusEffectsDisplay}.
+ * Отрисовывает панель активных эффектов статуса справа от инвентаря.
+ * Показывается только если справа от контейнера достаточно места (минимум {@code EFFECT_BACKGROUND_HEIGHT} пикселей).
  */
+@Environment(EnvType.CLIENT)
 public class StatusEffectsDisplay {
 
 	private static final Identifier BACKGROUND_TEXTURE = Identifier.ofVanilla("container/inventory/effect_background");
-	private static final Identifier
-			AMBIENT_BACKGROUND_TEXTURE =
-			Identifier.ofVanilla("container/inventory/effect_background_ambient");
+	private static final Identifier AMBIENT_BACKGROUND_TEXTURE = Identifier.ofVanilla("container/inventory/effect_background_ambient");
 	private static final int EFFECT_ICON_SIZE = 18;
 	public static final int EFFECT_ICON_OFFSET = 7;
 	private static final int EFFECT_BACKGROUND_HEIGHT = 32;
 	public static final int MIN_PANEL_WIDTH = 32;
+
 	private final HandledScreen<?> parent;
 	private final MinecraftClient client;
 
 	public StatusEffectsDisplay(HandledScreen<?> parent) {
 		this.parent = parent;
-		this.client = MinecraftClient.getInstance();
+		client = MinecraftClient.getInstance();
 	}
 
-	/**
-	 * Определяет, следует ли hide status effect hud.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldHideStatusEffectHud() {
-		int i = this.parent.x + this.parent.backgroundWidth + 2;
-		int j = this.parent.width - i;
-		return j >= 32;
+		int panelLeft = parent.x + parent.backgroundWidth + 2;
+		int availableWidth = parent.width - panelLeft;
+		return availableWidth >= EFFECT_BACKGROUND_HEIGHT;
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 */
 	public void render(DrawContext context, int mouseX, int mouseY) {
-		int i = this.parent.x + this.parent.backgroundWidth + 2;
-		int j = this.parent.width - i;
-		Collection<StatusEffectInstance> collection = this.client.player.getStatusEffects();
-		if (!collection.isEmpty() && j >= 32) {
-			int k = j >= 120 ? j - 7 : 32;
-			int l = 33;
-			if (collection.size() > 5) {
-				l = 132 / (collection.size() - 1);
-			}
+		int panelLeft = parent.x + parent.backgroundWidth + 2;
+		int availableWidth = parent.width - panelLeft;
+		Collection<StatusEffectInstance> effects = client.player.getStatusEffects();
 
-			this.drawStatusEffects(context, collection, i, l, mouseX, mouseY, k);
+		if (effects.isEmpty() || availableWidth < EFFECT_BACKGROUND_HEIGHT) {
+			return;
 		}
+
+		int effectWidth = availableWidth >= 120 ? availableWidth - 7 : MIN_PANEL_WIDTH;
+		int effectSpacing = 33;
+		if (effects.size() > 5) {
+			effectSpacing = 132 / (effects.size() - 1);
+		}
+
+		drawStatusEffects(context, effects, panelLeft, effectSpacing, mouseX, mouseY, effectWidth);
 	}
 
 	private void drawStatusEffects(
-			DrawContext context,
-			Collection<StatusEffectInstance> effects,
-			int x,
-			int height,
-			int mouseX,
-			int mouseY,
-			int width
+		DrawContext context,
+		Collection<StatusEffectInstance> effects,
+		int x,
+		int spacing,
+		int mouseX,
+		int mouseY,
+		int width
 	) {
-		Iterable<StatusEffectInstance> iterable = Ordering.natural().sortedCopy(effects);
-		int i = this.parent.y;
-		TextRenderer textRenderer = this.parent.getTextRenderer();
+		Iterable<StatusEffectInstance> sorted = Ordering.natural().sortedCopy(effects);
+		int currentY = parent.y;
+		TextRenderer textRenderer = parent.getTextRenderer();
 
-		for (StatusEffectInstance statusEffectInstance : iterable) {
-			boolean bl = statusEffectInstance.isAmbient();
-			Text text = this.getStatusEffectDescription(statusEffectInstance);
-			Text
-					text2 =
-					StatusEffectUtil.getDurationText(
-							statusEffectInstance,
-							1.0F,
-							this.client.world.getTickManager().getTickRate()
-					);
-			int j = this.drawStatusEffectBackgrounds(context, textRenderer, text, text2, x, i, bl, width);
-			this.drawTexts(context, text, text2, textRenderer, x, i, j, height, mouseX, mouseY);
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					InGameHud.getEffectTexture(statusEffectInstance.getEffectType()),
-					x + 7,
-					i + 7,
-					18,
-					18
+		for (StatusEffectInstance effect : sorted) {
+			boolean isAmbient = effect.isAmbient();
+			Text description = getStatusEffectDescription(effect);
+			Text duration = StatusEffectUtil.getDurationText(
+				effect,
+				1.0F,
+				client.world.getTickManager().getTickRate()
 			);
-			i += height;
+			int backgroundWidth = drawStatusEffectBackgrounds(context, textRenderer, description, duration, x, currentY, isAmbient, width);
+			drawTexts(context, description, duration, textRenderer, x, currentY, backgroundWidth, spacing, mouseX, mouseY);
+			context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				InGameHud.getEffectTexture(effect.getEffectType()),
+				x + EFFECT_ICON_OFFSET,
+				currentY + EFFECT_ICON_OFFSET,
+				EFFECT_ICON_SIZE,
+				EFFECT_ICON_SIZE
+			);
+			currentY += spacing;
 		}
 	}
 
 	private int drawStatusEffectBackgrounds(
-			DrawContext context,
-			TextRenderer textRenderer,
-			Text description,
-			Text duration,
-			int x,
-			int y,
-			boolean ambient,
-			int width
+		DrawContext context,
+		TextRenderer textRenderer,
+		Text description,
+		Text duration,
+		int x,
+		int y,
+		boolean ambient,
+		int width
 	) {
-		int i = 32 + textRenderer.getWidth(description) + 7;
-		int j = 32 + textRenderer.getWidth(duration) + 7;
-		int k = Math.min(width, Math.max(i, j));
+		int descriptionWidth = EFFECT_BACKGROUND_HEIGHT + textRenderer.getWidth(description) + EFFECT_ICON_OFFSET;
+		int durationWidth = EFFECT_BACKGROUND_HEIGHT + textRenderer.getWidth(duration) + EFFECT_ICON_OFFSET;
+		int backgroundWidth = Math.min(width, Math.max(descriptionWidth, durationWidth));
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				ambient ? AMBIENT_BACKGROUND_TEXTURE : BACKGROUND_TEXTURE,
-				x,
-				y,
-				k,
-				32
+			RenderPipelines.GUI_TEXTURED,
+			ambient ? AMBIENT_BACKGROUND_TEXTURE : BACKGROUND_TEXTURE,
+			x,
+			y,
+			backgroundWidth,
+			EFFECT_BACKGROUND_HEIGHT
 		);
-		return k;
+		return backgroundWidth;
 	}
 
 	private void drawTexts(
-			DrawContext context,
-			Text description,
-			Text duration,
-			TextRenderer textRenderer,
-			int x,
-			int y,
-			int width,
-			int height,
-			int mouseX,
-			int mouseY
+		DrawContext context,
+		Text description,
+		Text duration,
+		TextRenderer textRenderer,
+		int x,
+		int y,
+		int width,
+		int height,
+		int mouseX,
+		int mouseY
 	) {
-		int i = x + 32;
-		int j = y + 7;
-		int k = width - 32 - 7;
-		boolean bl2;
-		if (k > 0) {
-			boolean bl = textRenderer.getWidth(description) > k;
-			OrderedText orderedText = bl ? TextWidget.trim(description, textRenderer, k) : description.asOrderedText();
-			context.drawTextWithShadow(textRenderer, orderedText, i, j, -1);
-			context.drawTextWithShadow(textRenderer, duration, i, j + 9, -8355712);
-			bl2 = bl;
-		}
-		else {
-			bl2 = true;
+		int textX = x + EFFECT_BACKGROUND_HEIGHT;
+		int textY = y + EFFECT_ICON_OFFSET;
+		int availableTextWidth = width - EFFECT_BACKGROUND_HEIGHT - EFFECT_ICON_OFFSET;
+		boolean needsTooltip;
+
+		if (availableTextWidth > 0) {
+			boolean isTruncated = textRenderer.getWidth(description) > availableTextWidth;
+			OrderedText displayText = isTruncated
+				? TextWidget.trim(description, textRenderer, availableTextWidth)
+				: description.asOrderedText();
+			context.drawTextWithShadow(textRenderer, displayText, textX, textY, -1);
+			context.drawTextWithShadow(textRenderer, duration, textX, textY + 9, -8355712);
+			needsTooltip = isTruncated;
+		} else {
+			needsTooltip = true;
 		}
 
-		if (bl2 && mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+		if (needsTooltip && mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
 			context.drawTooltip(
-					this.parent.getTextRenderer(),
-					List.of(description, duration),
-					Optional.empty(),
-					mouseX,
-					mouseY
+				parent.getTextRenderer(),
+				List.of(description, duration),
+				Optional.empty(),
+				mouseX,
+				mouseY
 			);
 		}
 	}
 
 	private Text getStatusEffectDescription(StatusEffectInstance statusEffect) {
-		MutableText mutableText = statusEffect.getEffectType().value().getName().copy();
+		MutableText name = statusEffect.getEffectType().value().getName().copy();
 		if (statusEffect.getAmplifier() >= 1 && statusEffect.getAmplifier() <= 9) {
-			mutableText
-					.append(ScreenTexts.SPACE)
-					.append(Text.translatable("enchantment.level." + (statusEffect.getAmplifier() + 1)));
+			name
+				.append(ScreenTexts.SPACE)
+				.append(Text.translatable("enchantment.level." + (statusEffect.getAmplifier() + 1)));
 		}
 
-		return mutableText;
+		return name;
 	}
 }

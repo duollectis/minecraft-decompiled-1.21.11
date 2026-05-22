@@ -6,7 +6,8 @@ import net.minecraft.loot.ContainerComponentModifier;
 import net.minecraft.loot.ContainerComponentModifiers;
 
 /**
- * {@code ContentsSlotSource}.
+ * Источник слотов, раскрывающий содержимое контейнерного компонента предмета
+ * (например, {@code CONTAINER}, {@code BUNDLE_CONTENTS}, {@code CHARGED_PROJECTILES}).
  */
 public class ContentsSlotSource extends TransformSlotSource {
 
@@ -31,6 +32,6 @@ public class ContentsSlotSource extends TransformSlotSource {
 
 	@Override
 	protected ItemStream transform(ItemStream stream) {
-		return stream.map(this.component::stream);
+		return stream.map(component::stream);
 	}
 }

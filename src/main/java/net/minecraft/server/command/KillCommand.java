@@ -10,7 +10,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code KillCommand}.
+ * Команда {@code /kill}: уничтожение сущностей.
  */
 public class KillCommand {
 

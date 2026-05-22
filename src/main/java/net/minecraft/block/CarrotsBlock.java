@@ -8,7 +8,8 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code CarrotsBlock}.
+ * Блок моркови. Культура с 8 стадиями роста (AGE 0–7), форма которой
+ * зависит от текущей стадии. Семенем служит сама морковь ({@link net.minecraft.item.Items#CARROT}).
  */
 public class CarrotsBlock extends CropBlock {
 
@@ -33,6 +34,6 @@ public class CarrotsBlock extends CropBlock {
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return SHAPES_BY_AGE[this.getAge(state)];
+		return SHAPES_BY_AGE[getAge(state)];
 	}
 }

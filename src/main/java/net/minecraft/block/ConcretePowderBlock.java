@@ -15,7 +15,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code ConcretePowderBlock}.
+ * Блок порошка бетона — падающий блок, который затвердевает в бетон при контакте с водой.
+ * Затвердевание происходит как при приземлении в воду, так и при размещении рядом с водным блоком.
  */
 public class ConcretePowderBlock extends FallingBlock {
 
@@ -36,7 +37,7 @@ public class ConcretePowderBlock extends FallingBlock {
 
 	public ConcretePowderBlock(Block hardened, AbstractBlock.Settings settings) {
 		super(settings);
-		this.hardenedState = hardened;
+		hardenedState = hardened;
 	}
 
 	@Override
@@ -66,22 +67,20 @@ public class ConcretePowderBlock extends FallingBlock {
 	}
 
 	private static boolean hardensOnAnySide(BlockView world, BlockPos pos) {
-		boolean bl = false;
 		BlockPos.Mutable mutable = pos.mutableCopy();
 
 		for (Direction direction : Direction.values()) {
-			BlockState blockState = world.getBlockState(mutable);
-			if (direction != Direction.DOWN || hardensIn(blockState)) {
+			BlockState current = world.getBlockState(mutable);
+			if (direction != Direction.DOWN || hardensIn(current)) {
 				mutable.set(pos, direction);
-				blockState = world.getBlockState(mutable);
-				if (hardensIn(blockState) && !blockState.isSideSolidFullSquare(world, pos, direction.getOpposite())) {
-					bl = true;
-					break;
+				BlockState neighbor = world.getBlockState(mutable);
+				if (hardensIn(neighbor) && !neighbor.isSideSolidFullSquare(world, pos, direction.getOpposite())) {
+					return true;
 				}
 			}
 		}
 
-		return bl;
+		return false;
 	}
 
 	private static boolean hardensIn(BlockState state) {

@@ -10,7 +10,9 @@ import net.minecraft.world.gen.chunk.ChunkNoiseSampler;
 import net.minecraft.world.gen.densityfunction.DensityFunction;
 
 /**
- * {@code OreVeinSampler}.
+ * Сэмплер рудных жил для процедурной генерации крупных рудных образований.
+ * Реализует алгоритм на основе плотностных функций: медная жила генерируется выше,
+ * железная — глубже. Активируется только при включённом флаге {@link SharedConstants#ORE_VEINS}.
  */
 public final class OreVeinSampler {
 
@@ -27,68 +29,80 @@ public final class OreVeinSampler {
 	private OreVeinSampler() {
 	}
 
+	/**
+	 * Создаёт сэмплер состояний блоков для рудных жил.
+	 * Использует три плотностные функции: переключатель типа жилы, гребень жилы и зазор.
+	 *
+	 * @param veinToggle    функция, знак которой определяет тип жилы (медь/железо)
+	 * @param veinRidged    функция гребня — блокирует генерацию при значении ≥ 0
+	 * @param veinGap       функция зазора — блокирует руду при значении ≤ {@link #VEIN_GAP_THRESHOLD}
+	 * @param randomDeriver источник случайности, разделённый по позиции блока
+	 */
 	public static ChunkNoiseSampler.BlockStateSampler create(
-			DensityFunction veinToggle,
-			DensityFunction veinRidged,
-			DensityFunction veinGap,
-			RandomSplitter randomDeriver
+		DensityFunction veinToggle,
+		DensityFunction veinRidged,
+		DensityFunction veinGap,
+		RandomSplitter randomDeriver
 	) {
-		BlockState blockState = SharedConstants.ORE_VEINS ? Blocks.AIR.getDefaultState() : null;
+		BlockState debugState = SharedConstants.ORE_VEINS ? Blocks.AIR.getDefaultState() : null;
+
 		return pos -> {
-			double d = veinToggle.sample(pos);
-			int i = pos.blockY();
-			OreVeinSampler.VeinType veinType = d > 0.0 ? OreVeinSampler.VeinType.COPPER : OreVeinSampler.VeinType.IRON;
-			double e = Math.abs(d);
-			int j = veinType.maxY - i;
-			int k = i - veinType.minY;
-			if (k >= 0 && j >= 0) {
-				int l = Math.min(j, k);
-				double f = MathHelper.clampedMap((double) l, 0.0, 20.0, -0.2, 0.0);
-				if (e + f < 0.4F) {
-					return blockState;
-				}
-				else {
-					Random random = randomDeriver.split(pos.blockX(), i, pos.blockZ());
-					if (random.nextFloat() > 0.7F) {
-						return blockState;
-					}
-					else if (veinRidged.sample(pos) >= 0.0) {
-						return blockState;
-					}
-					else {
-						double g = MathHelper.clampedMap(e, 0.4F, 0.6F, 0.1F, 0.3F);
-						if (random.nextFloat() < g && veinGap.sample(pos) > -0.3F) {
-							return random.nextFloat() < 0.02F ? veinType.rawOreBlock : veinType.ore;
-						}
-						else {
-							return SharedConstants.ORE_VEINS ? Blocks.OAK_BUTTON.getDefaultState() : veinType.stone;
-						}
-					}
-				}
+			double toggleValue = veinToggle.sample(pos);
+			int blockY = pos.blockY();
+			VeinType veinType = toggleValue > 0.0 ? VeinType.COPPER : VeinType.IRON;
+			double absDensity = Math.abs(toggleValue);
+			int distToTop = veinType.maxY - blockY;
+			int distToBottom = blockY - veinType.minY;
+
+			if (distToBottom < 0 || distToTop < 0) {
+				return debugState;
 			}
-			else {
-				return blockState;
+
+			int edgeDist = Math.min(distToTop, distToBottom);
+			// Плавное затухание плотности у границ диапазона высот жилы
+			double edgeFalloff = MathHelper.clampedMap(edgeDist, 0.0, MAX_DENSITY_INTRUSION, -LIMINAL_DENSITY_REDUCTION, 0.0);
+
+			if (absDensity + edgeFalloff < DENSITY_THRESHOLD) {
+				return debugState;
 			}
+
+			Random random = randomDeriver.split(pos.blockX(), blockY, pos.blockZ());
+
+			if (random.nextFloat() > BLOCK_GENERATION_CHANCE) {
+				return debugState;
+			}
+
+			if (veinRidged.sample(pos) >= 0.0) {
+				return debugState;
+			}
+
+			double oreChance = MathHelper.clampedMap(absDensity, DENSITY_THRESHOLD, DENSITY_FOR_MAX_ORE_CHANCE, MIN_ORE_CHANCE, MAX_ORE_CHANCE);
+
+			if (random.nextFloat() < oreChance && veinGap.sample(pos) > VEIN_GAP_THRESHOLD) {
+				return random.nextFloat() < RAW_ORE_BLOCK_CHANCE ? veinType.rawOreBlock : veinType.ore;
+			}
+
+			return SharedConstants.ORE_VEINS ? Blocks.OAK_BUTTON.getDefaultState() : veinType.stone;
 		};
 	}
 
 	/**
-	 * {@code VeinType}.
+	 * Типы рудных жил с диапазонами высот и соответствующими блоками.
 	 */
-	public static enum VeinType {
+	public enum VeinType {
 		COPPER(
-				Blocks.COPPER_ORE.getDefaultState(),
-				Blocks.RAW_COPPER_BLOCK.getDefaultState(),
-				Blocks.GRANITE.getDefaultState(),
-				0,
-				50
+			Blocks.COPPER_ORE.getDefaultState(),
+			Blocks.RAW_COPPER_BLOCK.getDefaultState(),
+			Blocks.GRANITE.getDefaultState(),
+			0,
+			50
 		),
 		IRON(
-				Blocks.DEEPSLATE_IRON_ORE.getDefaultState(),
-				Blocks.RAW_IRON_BLOCK.getDefaultState(),
-				Blocks.TUFF.getDefaultState(),
-				-60,
-				-8
+			Blocks.DEEPSLATE_IRON_ORE.getDefaultState(),
+			Blocks.RAW_IRON_BLOCK.getDefaultState(),
+			Blocks.TUFF.getDefaultState(),
+			-60,
+			-8
 		);
 
 		final BlockState ore;
@@ -97,13 +111,7 @@ public final class OreVeinSampler {
 		public final int minY;
 		public final int maxY;
 
-		private VeinType(
-				final BlockState ore,
-				final BlockState rawOreBlock,
-				final BlockState stone,
-				final int minY,
-				final int maxY
-		) {
+		VeinType(BlockState ore, BlockState rawOreBlock, BlockState stone, int minY, int maxY) {
 			this.ore = ore;
 			this.rawOreBlock = rawOreBlock;
 			this.stone = stone;

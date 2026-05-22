@@ -24,7 +24,7 @@ public class VanillaPaintingVariantTagProvider extends SimpleTagProvider<Paintin
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(PaintingVariantTags.PLACEABLE)
+		builder(PaintingVariantTags.PLACEABLE)
 		    .add(
 				    PaintingVariants.KEBAB,
 				    PaintingVariants.AZTEC,

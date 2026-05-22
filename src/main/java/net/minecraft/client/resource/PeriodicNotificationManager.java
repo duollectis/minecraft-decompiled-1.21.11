@@ -27,10 +27,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * Класс periodic notification manager.
+ * Менеджер периодических уведомлений, загружаемых из JSON-ресурса.
+ * Фильтрует записи по стране через {@code countryPredicate}, вычисляет
+ * НОД периодов для планирования единого таймера и показывает тосты
+ * через {@link SystemToast} в нужные моменты времени.
  */
+@Environment(EnvType.CLIENT)
 public class PeriodicNotificationManager
 		extends SinglePreparationResourceReloader<Map<String, List<PeriodicNotificationManager.Entry>>>
 		implements AutoCloseable {
@@ -38,15 +41,15 @@ public class PeriodicNotificationManager
 	private static final Codec<Map<String, List<PeriodicNotificationManager.Entry>>> CODEC = Codec.unboundedMap(
 			Codec.STRING,
 			RecordCodecBuilder.<PeriodicNotificationManager.Entry>create(
-					                  instance -> instance.group(
-							                                      Codec.LONG.optionalFieldOf("delay", 0L).forGetter(PeriodicNotificationManager.Entry::delay),
-							                                      Codec.LONG.fieldOf("period").forGetter(PeriodicNotificationManager.Entry::period),
-							                                      Codec.STRING.fieldOf("title").forGetter(PeriodicNotificationManager.Entry::title),
-							                                      Codec.STRING.fieldOf("message").forGetter(PeriodicNotificationManager.Entry::message)
-					                                      )
-					                                      .apply(instance, PeriodicNotificationManager.Entry::new)
-			                  )
-			                  .listOf()
+					instance -> instance.group(
+							Codec.LONG.optionalFieldOf("delay", 0L).forGetter(PeriodicNotificationManager.Entry::delay),
+							Codec.LONG.fieldOf("period").forGetter(PeriodicNotificationManager.Entry::period),
+							Codec.STRING.fieldOf("title").forGetter(PeriodicNotificationManager.Entry::title),
+							Codec.STRING.fieldOf("message").forGetter(PeriodicNotificationManager.Entry::message)
+					)
+					.apply(instance, PeriodicNotificationManager.Entry::new)
+			)
+			.listOf()
 	);
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private final Identifier id;
@@ -59,86 +62,97 @@ public class PeriodicNotificationManager
 		this.countryPredicate = countryPredicate;
 	}
 
+	@Override
 	protected Map<String, List<PeriodicNotificationManager.Entry>> prepare(
 			ResourceManager resourceManager,
 			Profiler profiler
 	) {
-		try {
-			Map var4;
-			try (Reader reader = resourceManager.openAsReader(this.id)) {
-				var4 = (Map) CODEC.parse(JsonOps.INSTANCE, StrictJsonParser.parse(reader)).result().orElseThrow();
-			}
-
-			return var4;
+		try (Reader reader = resourceManager.openAsReader(id)) {
+			return (Map) CODEC.parse(JsonOps.INSTANCE, StrictJsonParser.parse(reader)).result().orElseThrow();
 		}
-		catch (Exception var8) {
-			LOGGER.warn("Failed to load {}", this.id, var8);
+		catch (Exception exception) {
+			LOGGER.warn("Failed to load {}", id, exception);
 			return ImmutableMap.of();
 		}
 	}
 
+	@Override
 	protected void apply(
 			Map<String, List<PeriodicNotificationManager.Entry>> map,
 			ResourceManager resourceManager,
 			Profiler profiler
 	) {
-		List<PeriodicNotificationManager.Entry> list = map.entrySet()
-		                                                  .stream()
-		                                                  .filter(entry -> (Boolean) this.countryPredicate.apply(entry.getKey()))
-		                                                  .map(Map.Entry::getValue)
-		                                                  .flatMap(Collection::stream)
-		                                                  .collect(Collectors.toList());
-		if (list.isEmpty()) {
-			this.cancelTimer();
-		}
-		else if (list.stream().anyMatch(entry -> entry.period == 0L)) {
-			Util.logErrorOrPause("A periodic notification in " + this.id + " has a period of zero minutes");
-			this.cancelTimer();
-		}
-		else {
-			long l = this.getMinDelay(list);
-			long m = this.getPeriod(list, l);
-			if (this.timer == null) {
-				this.timer = new Timer();
-			}
+		List<PeriodicNotificationManager.Entry> entries = map.entrySet()
+				.stream()
+				.filter(entry -> (Boolean) countryPredicate.apply(entry.getKey()))
+				.map(Map.Entry::getValue)
+				.flatMap(Collection::stream)
+				.collect(Collectors.toList());
 
-			if (this.task == null) {
-				this.task = new PeriodicNotificationManager.NotifyTask(list, l, m);
-			}
-			else {
-				this.task = this.task.reload(list, m);
-			}
-
-			this.timer.scheduleAtFixedRate(this.task, TimeUnit.MINUTES.toMillis(l), TimeUnit.MINUTES.toMillis(m));
+		if (entries.isEmpty()) {
+			cancelTimer();
+			return;
 		}
+
+		if (entries.stream().anyMatch(entry -> entry.period == 0L)) {
+			Util.logErrorOrPause("A periodic notification in " + id + " has a period of zero minutes");
+			cancelTimer();
+			return;
+		}
+
+		long minDelay = getMinDelay(entries);
+		long period = getPeriod(entries, minDelay);
+
+		if (timer == null) {
+			timer = new Timer();
+		}
+
+		task = task == null
+				? new PeriodicNotificationManager.NotifyTask(entries, minDelay, period)
+				: task.reload(entries, period);
+
+		timer.scheduleAtFixedRate(task, TimeUnit.MINUTES.toMillis(minDelay), TimeUnit.MINUTES.toMillis(period));
 	}
 
 	@Override
 	public void close() {
-		this.cancelTimer();
+		cancelTimer();
 	}
 
 	private void cancelTimer() {
-		if (this.timer != null) {
-			this.timer.cancel();
+		if (timer != null) {
+			timer.cancel();
 		}
 	}
 
+	/**
+	 * Вычисляет общий период таймера как НОД всех периодов и смещений записей.
+	 * Это позволяет одному таймеру обслуживать несколько уведомлений с разными периодами.
+	 *
+	 * @param entries  список записей уведомлений
+	 * @param minDelay минимальная задержка среди всех записей
+	 * @return НОД периодов, определяющий частоту срабатывания таймера
+	 */
 	private long getPeriod(List<PeriodicNotificationManager.Entry> entries, long minDelay) {
-		return entries.stream().mapToLong(entry -> {
-			long m = entry.delay - minDelay;
-			return LongMath.gcd(m, entry.period);
-		}).reduce(LongMath::gcd).orElseThrow(() -> new IllegalStateException("Empty notifications from: " + this.id));
+		return entries.stream()
+				.mapToLong(entry -> {
+					long offset = entry.delay - minDelay;
+					return LongMath.gcd(offset, entry.period);
+				})
+				.reduce(LongMath::gcd)
+				.orElseThrow(() -> new IllegalStateException("Empty notifications from: " + id));
 	}
 
 	private long getMinDelay(List<PeriodicNotificationManager.Entry> entries) {
 		return entries.stream().mapToLong(entry -> entry.delay).min().orElse(0L);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Запись уведомления с задержкой, периодом и текстами тоста.
+	 * Если {@code delay == 0}, задержка приравнивается к периоду,
+	 * чтобы первое уведомление не показывалось немедленно при старте.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Entry(long delay, long period, String title, String message) {
 
 		public Entry(final long delay, final long period, final String title, final String message) {
@@ -149,10 +163,12 @@ public class PeriodicNotificationManager
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code NotifyTask}.
+	 * Задача таймера, которая при каждом срабатывании проверяет,
+	 * пересёк ли счётчик времени границу очередного периода для каждой записи,
+	 * и показывает первый подходящий тост через основной поток клиента.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class NotifyTask extends TimerTask {
 
 		private final MinecraftClient client = MinecraftClient.getInstance();
@@ -163,36 +179,35 @@ public class PeriodicNotificationManager
 		public NotifyTask(List<PeriodicNotificationManager.Entry> entries, long minDelayMs, long periodMs) {
 			this.entries = entries;
 			this.periodMs = periodMs;
-			this.delayMs = new AtomicLong(minDelayMs);
+			delayMs = new AtomicLong(minDelayMs);
 		}
 
 		public PeriodicNotificationManager.NotifyTask reload(
-				List<PeriodicNotificationManager.Entry> entries,
+				List<PeriodicNotificationManager.Entry> newEntries,
 				long period
 		) {
-			this.cancel();
-			return new PeriodicNotificationManager.NotifyTask(entries, this.delayMs.get(), period);
+			cancel();
+			return new PeriodicNotificationManager.NotifyTask(newEntries, delayMs.get(), period);
 		}
 
 		@Override
 		public void run() {
-			long l = this.delayMs.getAndAdd(this.periodMs);
-			long m = this.delayMs.get();
+			long prevDelay = delayMs.getAndAdd(periodMs);
+			long nextDelay = delayMs.get();
 
-			for (PeriodicNotificationManager.Entry entry : this.entries) {
-				if (l >= entry.delay) {
-					long n = l / entry.period;
-					long o = m / entry.period;
-					if (n != o) {
-						this.client
-								.execute(
-										() -> SystemToast.add(
-												MinecraftClient.getInstance().getToastManager(),
-												SystemToast.Type.PERIODIC_NOTIFICATION,
-												Text.translatable(entry.title, n),
-												Text.translatable(entry.message, n)
-										)
-								);
+			for (PeriodicNotificationManager.Entry entry : entries) {
+				if (prevDelay >= entry.delay) {
+					long prevPeriodIndex = prevDelay / entry.period;
+					long nextPeriodIndex = nextDelay / entry.period;
+					if (prevPeriodIndex != nextPeriodIndex) {
+						client.execute(
+								() -> SystemToast.add(
+										MinecraftClient.getInstance().getToastManager(),
+										SystemToast.Type.PERIODIC_NOTIFICATION,
+										Text.translatable(entry.title, prevPeriodIndex),
+										Text.translatable(entry.message, prevPeriodIndex)
+								)
+						);
 						return;
 					}
 				}

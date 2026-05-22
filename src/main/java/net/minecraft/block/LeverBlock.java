@@ -32,12 +32,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * {@code LeverBlock}.
+ * Блок рычага — источник редстоун-сигнала с фиксированным состоянием.
+ * <p>При активации переключает свойство {@link #POWERED} и уведомляет соседей.
+ * Может быть активирован как игроком, так и взрывом. При активном состоянии
+ * испускает красные частицы пыли.</p>
  */
 public class LeverBlock extends WallMountedBlock {
 
 	public static final MapCodec<LeverBlock> CODEC = createCodec(LeverBlock::new);
 	public static final BooleanProperty POWERED = Properties.POWERED;
+	/** Цвет частиц пыли редстоуна: чистый красный (0xFF0000). */
+	private static final int DUST_PARTICLE_COLOR = 0xFF0000;
 	private final Function<BlockState, VoxelShape> shapeFunction;
 
 	@Override
@@ -97,14 +102,6 @@ public class LeverBlock extends WallMountedBlock {
 		super.onExploded(state, world, pos, explosion, stackMerger);
 	}
 
-	/**
-	 * Toggle power.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param player player
-	 */
 	public void togglePower(BlockState state, World world, BlockPos pos, @Nullable PlayerEntity player) {
 		state = state.cycle(POWERED);
 		world.setBlockState(pos, state, 3);
@@ -129,7 +126,7 @@ public class LeverBlock extends WallMountedBlock {
 		double d = pos.getX() + 0.5 + 0.1 * direction.getOffsetX() + 0.2 * direction2.getOffsetX();
 		double e = pos.getY() + 0.5 + 0.1 * direction.getOffsetY() + 0.2 * direction2.getOffsetY();
 		double f = pos.getZ() + 0.5 + 0.1 * direction.getOffsetZ() + 0.2 * direction2.getOffsetZ();
-		world.addParticleClient(new DustParticleEffect(16711680, alpha), d, e, f, 0.0, 0.0, 0.0);
+		world.addParticleClient(new DustParticleEffect(DUST_PARTICLE_COLOR, alpha), d, e, f, 0.0, 0.0, 0.0);
 	}
 
 	@Override

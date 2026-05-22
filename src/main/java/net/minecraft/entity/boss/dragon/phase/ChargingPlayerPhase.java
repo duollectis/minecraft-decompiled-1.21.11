@@ -8,44 +8,51 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code ChargingPlayerPhase}.
+ * Фаза таранного удара по игроку. Дракон летит прямо к заданной точке;
+ * после достижения или столкновения возвращается в {@link HoldingPatternPhase}.
  */
 public class ChargingPlayerPhase extends AbstractPhase {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int DURATION = 10;
+
+	private static final int CHARGE_COMPLETE_TICKS = 10;
+	private static final double MIN_DIST_SQ = 100.0;
+	private static final double MAX_DIST_SQ = 22500.0;
+
 	private @Nullable Vec3d pathTarget;
 	private int chargingTicks;
 
-	public ChargingPlayerPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public ChargingPlayerPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		if (this.pathTarget == null) {
+		if (pathTarget == null) {
 			LOGGER.warn("Aborting charge player as no target was set.");
-			this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			return;
 		}
-		else if (this.chargingTicks > 0 && this.chargingTicks++ >= 10) {
-			this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+
+		if (chargingTicks > 0 && chargingTicks++ >= CHARGE_COMPLETE_TICKS) {
+			dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			return;
 		}
-		else {
-			double d = this.pathTarget.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
-			if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
-				this.chargingTicks++;
-			}
+
+		double distSq = pathTarget.squaredDistanceTo(dragon.getX(), dragon.getY(), dragon.getZ());
+		if (distSq < MIN_DIST_SQ || distSq > MAX_DIST_SQ || dragon.horizontalCollision || dragon.verticalCollision) {
+			chargingTicks++;
 		}
 	}
 
 	@Override
 	public void beginPhase() {
-		this.pathTarget = null;
-		this.chargingTicks = 0;
+		pathTarget = null;
+		chargingTicks = 0;
 	}
 
-	public void setPathTarget(Vec3d pathTarget) {
-		this.pathTarget = pathTarget;
+	public void setPathTarget(Vec3d target) {
+		pathTarget = target;
 	}
 
 	@Override
@@ -55,7 +62,7 @@ public class ChargingPlayerPhase extends AbstractPhase {
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.pathTarget;
+		return pathTarget;
 	}
 
 	@Override

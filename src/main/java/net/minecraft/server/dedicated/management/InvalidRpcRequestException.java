@@ -1,7 +1,7 @@
 package net.minecraft.server.dedicated.management;
 
 /**
- * {@code InvalidRpcRequestException}.
+ * Класс Invalid Rpc Request Exception.
  */
 public class InvalidRpcRequestException extends RuntimeException {
 

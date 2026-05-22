@@ -23,27 +23,25 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PackListWidget}.
+ * Виджет списка пакетов ресурсов — отображает доступные или выбранные паки
+ * с иконками и кнопками управления (включить, отключить, переместить).
  */
+@Environment(EnvType.CLIENT)
 public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget.Entry> {
 
 	static final Identifier SELECT_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("transferable_list/select_highlighted");
 	static final Identifier SELECT_TEXTURE = Identifier.ofVanilla("transferable_list/select");
-	static final Identifier
-			UNSELECT_HIGHLIGHTED_TEXTURE =
-			Identifier.ofVanilla("transferable_list/unselect_highlighted");
+	static final Identifier UNSELECT_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("transferable_list/unselect_highlighted");
 	static final Identifier UNSELECT_TEXTURE = Identifier.ofVanilla("transferable_list/unselect");
 	static final Identifier MOVE_UP_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("transferable_list/move_up_highlighted");
 	static final Identifier MOVE_UP_TEXTURE = Identifier.ofVanilla("transferable_list/move_up");
-	static final Identifier
-			MOVE_DOWN_HIGHLIGHTED_TEXTURE =
-			Identifier.ofVanilla("transferable_list/move_down_highlighted");
+	static final Identifier MOVE_DOWN_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("transferable_list/move_down_highlighted");
 	static final Identifier MOVE_DOWN_TEXTURE = Identifier.ofVanilla("transferable_list/move_down");
 	static final Text INCOMPATIBLE = Text.translatable("pack.incompatible");
 	static final Text INCOMPATIBLE_CONFIRM = Text.translatable("pack.incompatible.confirm.title");
 	private static final int SCROLLBAR_WIDTH = 2;
+
 	private final Text title;
 	final PackScreen screen;
 
@@ -51,52 +49,49 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		super(client, width, height, 33, 36);
 		this.screen = screen;
 		this.title = title;
-		this.centerListVertically = false;
+		centerListVertically = false;
 	}
 
 	@Override
 	public int getRowWidth() {
-		return this.width - 4;
+		return width - 4;
 	}
 
 	@Override
 	protected int getScrollbarX() {
-		return this.getRight() - 6;
+		return getRight() - 6;
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		return this.getSelectedOrNull() != null ? this.getSelectedOrNull().keyPressed(input) : super.keyPressed(input);
+		Entry selected = getSelectedOrNull();
+		return selected != null ? selected.keyPressed(input) : super.keyPressed(input);
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param packs packs
-	 * @param focused focused
+	 * Обновляет содержимое списка — устанавливает заголовок и добавляет записи паков.
+	 * Если передан {@code focused}, фокусирует соответствующую запись.
 	 */
 	public void set(Stream<ResourcePackOrganizer.Pack> packs, ResourcePackOrganizer.@Nullable AbstractPack focused) {
-		this.clearEntries();
-		Text text = Text.empty().append(this.title).formatted(Formatting.UNDERLINE, Formatting.BOLD);
-		this.addEntry(new PackListWidget.HeaderEntry(this.client.textRenderer, text), (int) (9.0F * 1.5F));
-		this.setSelected(null);
+		clearEntries();
+		Text headerText = Text.empty().append(title).formatted(Formatting.UNDERLINE, Formatting.BOLD);
+		addEntry(new PackListWidget.HeaderEntry(client.textRenderer, headerText), (int) (9.0F * 1.5F));
+		setSelected(null);
 		packs.forEach(pack -> {
-			PackListWidget.ResourcePackEntry
-					resourcePackEntry =
-					new PackListWidget.ResourcePackEntry(this.client, this, pack);
-			this.addEntry(resourcePackEntry);
+			PackListWidget.ResourcePackEntry entry = new PackListWidget.ResourcePackEntry(client, this, pack);
+			addEntry(entry);
 			if (focused != null && focused.getName().equals(pack.getName())) {
-				this.screen.setFocused(this);
-				this.setFocused(resourcePackEntry);
+				screen.setFocused(this);
+				setFocused(entry);
 			}
 		});
-		this.refreshScroll();
+		refreshScroll();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Базовый тип записи списка паков.
 	 */
+	@Environment(EnvType.CLIENT)
 	public abstract class Entry extends AlwaysSelectedEntryListWidget.Entry<PackListWidget.Entry> {
 
 		@Override
@@ -107,10 +102,10 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		public abstract String getName();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code HeaderEntry}.
+	 * Запись-заголовок списка паков.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class HeaderEntry extends PackListWidget.Entry {
 
 		private final TextRenderer textRenderer;
@@ -124,17 +119,17 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
 			context.drawCenteredTextWithShadow(
-					this.textRenderer,
-					this.text,
-					this.getX() + this.getWidth() / 2,
-					this.getContentMiddleY() - 9 / 2,
+					textRenderer,
+					text,
+					getX() + getWidth() / 2,
+					getContentMiddleY() - 9 / 2,
 					-1
 			);
 		}
 
 		@Override
 		public Text getNarration() {
-			return this.text;
+			return text;
 		}
 
 		@Override
@@ -143,14 +138,19 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ResourcePackEntry}.
+	 * Запись одного пакета ресурсов — отображает иконку, название, описание
+	 * и кнопки управления при наведении.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class ResourcePackEntry extends PackListWidget.Entry implements SquareWidgetEntry {
 
 		private static final int ENTRY_WIDTH = 157;
 		public static final int ICON_SIZE = 32;
+		private static final int COLOR_INCOMPATIBLE_BG = -8978432;
+		private static final int COLOR_HOVER_OVERLAY = -1601138544;
+		private static final int COLOR_DESCRIPTION_TEXT = -8355712;
+
 		private final PackListWidget widget;
 		protected final MinecraftClient client;
 		private final ResourcePackOrganizer.Pack pack;
@@ -165,207 +165,147 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 			this.client = client;
 			this.pack = pack;
 			this.widget = widget;
-			this.nameWidget = new TextWidget(pack.getDisplayName(), client.textRenderer);
-			this.descriptionWidget =
-					new MultilineTextWidget(
-							Texts.withStyle(
-									pack.getDecoratedDescription(),
-									Style.EMPTY.withColor(-8355712)
-							), client.textRenderer
-					);
-			this.descriptionWidget.setMaxRows(2);
+			nameWidget = new TextWidget(pack.getDisplayName(), client.textRenderer);
+			descriptionWidget = new MultilineTextWidget(
+					Texts.withStyle(pack.getDecoratedDescription(), Style.EMPTY.withColor(COLOR_DESCRIPTION_TEXT)),
+					client.textRenderer
+			);
+			descriptionWidget.setMaxRows(2);
 		}
 
 		@Override
 		public Text getNarration() {
-			return Text.translatable("narrator.select", this.pack.getDisplayName());
+			return Text.translatable("narrator.select", pack.getDisplayName());
 		}
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			ResourcePackCompatibility resourcePackCompatibility = this.pack.getCompatibility();
-			if (!resourcePackCompatibility.isCompatible()) {
-				int i = this.getContentX() - 1;
-				int j = this.getContentY() - 1;
-				int k = this.getContentRightEnd() + 1;
-				int l = this.getContentBottomEnd() + 1;
-				context.fill(i, j, k, l, -8978432);
+			ResourcePackCompatibility compatibility = pack.getCompatibility();
+			if (!compatibility.isCompatible()) {
+				context.fill(
+						getContentX() - 1,
+						getContentY() - 1,
+						getContentRightEnd() + 1,
+						getContentBottomEnd() + 1,
+						COLOR_INCOMPATIBLE_BG
+				);
 			}
 
 			context.drawTexture(
 					RenderPipelines.GUI_TEXTURED,
-					this.pack.getIconId(),
-					this.getContentX(),
-					this.getContentY(),
+					pack.getIconId(),
+					getContentX(),
+					getContentY(),
 					0.0F,
 					0.0F,
-					32,
-					32,
-					32,
-					32
+					ICON_SIZE,
+					ICON_SIZE,
+					ICON_SIZE,
+					ICON_SIZE
 			);
-			if (!this.nameWidget.getMessage().equals(this.pack.getDisplayName())) {
-				this.nameWidget.setMessage(this.pack.getDisplayName());
+			if (!nameWidget.getMessage().equals(pack.getDisplayName())) {
+				nameWidget.setMessage(pack.getDisplayName());
 			}
 
-			if (!this.descriptionWidget
-					.getMessage()
-					.getContent()
-					.equals(this.pack.getDecoratedDescription().getContent())) {
-				this.descriptionWidget.setMessage(Texts.withStyle(
-						this.pack.getDecoratedDescription(),
-						Style.EMPTY.withColor(-8355712)
-				));
-			}
-
-			if (this.isSelectable()
-					&& (this.client.options.getTouchscreen().getValue() || hovered
-					|| this.widget.getSelectedOrNull() == this && this.widget.isFocused()
-			)) {
-				context.fill(
-						this.getContentX(),
-						this.getContentY(),
-						this.getContentX() + 32,
-						this.getContentY() + 32,
-						-1601138544
+			if (!descriptionWidget.getMessage().getContent().equals(pack.getDecoratedDescription().getContent())) {
+				descriptionWidget.setMessage(
+						Texts.withStyle(pack.getDecoratedDescription(), Style.EMPTY.withColor(COLOR_DESCRIPTION_TEXT))
 				);
-				int i = mouseX - this.getContentX();
-				int j = mouseY - this.getContentY();
-				if (!this.pack.getCompatibility().isCompatible()) {
-					this.nameWidget.setMessage(PackListWidget.INCOMPATIBLE);
-					this.descriptionWidget.setMessage(this.pack.getCompatibility().getNotification());
+			}
+
+			if (isSelectable()
+					&& (client.options.getTouchscreen().getValue()
+					|| hovered
+					|| widget.getSelectedOrNull() == this && widget.isFocused())
+			) {
+				context.fill(
+						getContentX(),
+						getContentY(),
+						getContentX() + ICON_SIZE,
+						getContentY() + ICON_SIZE,
+						COLOR_HOVER_OVERLAY
+				);
+				int relX = mouseX - getContentX();
+				int relY = mouseY - getContentY();
+
+				if (!pack.getCompatibility().isCompatible()) {
+					nameWidget.setMessage(PackListWidget.INCOMPATIBLE);
+					descriptionWidget.setMessage(pack.getCompatibility().getNotification());
 				}
 
-				if (this.pack.canBeEnabled()) {
-					if (this.isInside(i, j, 32)) {
-						context.drawGuiTexture(
-								RenderPipelines.GUI_TEXTURED,
-								PackListWidget.SELECT_HIGHLIGHTED_TEXTURE,
-								this.getContentX(),
-								this.getContentY(),
-								32,
-								32
-						);
+				if (pack.canBeEnabled()) {
+					if (isInside(relX, relY, ICON_SIZE)) {
+						context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.SELECT_HIGHLIGHTED_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 						PackListWidget.this.setCursor(context);
+					} else {
+						context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.SELECT_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 					}
-					else {
-						context.drawGuiTexture(
-								RenderPipelines.GUI_TEXTURED,
-								PackListWidget.SELECT_TEXTURE,
-								this.getContentX(),
-								this.getContentY(),
-								32,
-								32
-						);
-					}
-				}
-				else {
-					if (this.pack.canBeDisabled()) {
-						if (this.isLeft(i, j, 32)) {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.UNSELECT_HIGHLIGHTED_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+				} else {
+					if (pack.canBeDisabled()) {
+						if (isLeft(relX, relY, ICON_SIZE)) {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.UNSELECT_HIGHLIGHTED_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 							PackListWidget.this.setCursor(context);
-						}
-						else {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.UNSELECT_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+						} else {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.UNSELECT_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 						}
 					}
 
-					if (this.pack.canMoveTowardStart()) {
-						if (this.isBottomRight(i, j, 32)) {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.MOVE_UP_HIGHLIGHTED_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+					if (pack.canMoveTowardStart()) {
+						if (isBottomRight(relX, relY, ICON_SIZE)) {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.MOVE_UP_HIGHLIGHTED_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 							PackListWidget.this.setCursor(context);
-						}
-						else {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.MOVE_UP_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+						} else {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.MOVE_UP_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 						}
 					}
 
-					if (this.pack.canMoveTowardEnd()) {
-						if (this.isTopRight(i, j, 32)) {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.MOVE_DOWN_HIGHLIGHTED_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+					if (pack.canMoveTowardEnd()) {
+						if (isTopRight(relX, relY, ICON_SIZE)) {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.MOVE_DOWN_HIGHLIGHTED_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 							PackListWidget.this.setCursor(context);
-						}
-						else {
-							context.drawGuiTexture(
-									RenderPipelines.GUI_TEXTURED,
-									PackListWidget.MOVE_DOWN_TEXTURE,
-									this.getContentX(),
-									this.getContentY(),
-									32,
-									32
-							);
+						} else {
+							context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PackListWidget.MOVE_DOWN_TEXTURE, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 						}
 					}
 				}
 			}
 
-			this.nameWidget.setMaxWidth(157 - (PackListWidget.this.overflows() ? 6 : 0));
-			this.nameWidget.setPosition(this.getContentX() + 32 + 2, this.getContentY() + 1);
-			this.nameWidget.render(context, mouseX, mouseY, deltaTicks);
-			this.descriptionWidget.setMaxWidth(157 - (PackListWidget.this.overflows() ? 6 : 0));
-			this.descriptionWidget.setPosition(this.getContentX() + 32 + 2, this.getContentY() + 12);
-			this.descriptionWidget.render(context, mouseX, mouseY, deltaTicks);
+			int overflowOffset = PackListWidget.this.overflows() ? 6 : 0;
+			nameWidget.setMaxWidth(ENTRY_WIDTH - overflowOffset);
+			nameWidget.setPosition(getContentX() + ICON_SIZE + 2, getContentY() + 1);
+			nameWidget.render(context, mouseX, mouseY, deltaTicks);
+			descriptionWidget.setMaxWidth(ENTRY_WIDTH - overflowOffset);
+			descriptionWidget.setPosition(getContentX() + ICON_SIZE + 2, getContentY() + 12);
+			descriptionWidget.render(context, mouseX, mouseY, deltaTicks);
 		}
 
 		@Override
 		public boolean mouseClicked(Click click, boolean doubled) {
-			if (this.isSelectable()) {
-				int i = (int) click.x() - this.getContentX();
-				int j = (int) click.y() - this.getContentY();
-				if (this.pack.canBeEnabled() && this.isInside(i, j, 32)) {
-					this.enable();
-					return true;
-				}
+			if (!isSelectable()) {
+				return super.mouseClicked(click, doubled);
+			}
 
-				if (this.pack.canBeDisabled() && this.isLeft(i, j, 32)) {
-					this.pack.disable();
-					return true;
-				}
+			int relX = (int) click.x() - getContentX();
+			int relY = (int) click.y() - getContentY();
 
-				if (this.pack.canMoveTowardStart() && this.isBottomRight(i, j, 32)) {
-					this.pack.moveTowardStart();
-					return true;
-				}
+			if (pack.canBeEnabled() && isInside(relX, relY, ICON_SIZE)) {
+				enable();
+				return true;
+			}
 
-				if (this.pack.canMoveTowardEnd() && this.isTopRight(i, j, 32)) {
-					this.pack.moveTowardEnd();
-					return true;
-				}
+			if (pack.canBeDisabled() && isLeft(relX, relY, ICON_SIZE)) {
+				pack.disable();
+				return true;
+			}
+
+			if (pack.canMoveTowardStart() && isBottomRight(relX, relY, ICON_SIZE)) {
+				pack.moveTowardStart();
+				return true;
+			}
+
+			if (pack.canMoveTowardEnd() && isTopRight(relX, relY, ICON_SIZE)) {
+				pack.moveTowardEnd();
+				return true;
 			}
 
 			return super.mouseClicked(click, doubled);
@@ -374,79 +314,76 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		@Override
 		public boolean keyPressed(KeyInput input) {
 			if (input.isEnter()) {
-				this.toggle();
+				toggle();
 				return true;
 			}
-			else {
-				if (input.hasShift()) {
-					if (input.isUp()) {
-						this.moveTowardStart();
-						return true;
-					}
 
-					if (input.isDown()) {
-						this.moveTowardEnd();
-						return true;
-					}
+			if (input.hasShift()) {
+				if (input.isUp()) {
+					moveTowardStart();
+					return true;
 				}
 
-				return super.keyPressed(input);
+				if (input.isDown()) {
+					moveTowardEnd();
+					return true;
+				}
 			}
+
+			return super.keyPressed(input);
 		}
 
 		private boolean isSelectable() {
-			return !this.pack.isPinned() || !this.pack.isAlwaysEnabled();
+			return !pack.isPinned() || !pack.isAlwaysEnabled();
 		}
 
-		/**
-		 * Toggle.
-		 */
 		public void toggle() {
-			if (this.pack.canBeEnabled()) {
-				this.enable();
-			}
-			else if (this.pack.canBeDisabled()) {
-				this.pack.disable();
+			if (pack.canBeEnabled()) {
+				enable();
+			} else if (pack.canBeDisabled()) {
+				pack.disable();
 			}
 		}
 
 		private void moveTowardStart() {
-			if (this.pack.canMoveTowardStart()) {
-				this.pack.moveTowardStart();
+			if (pack.canMoveTowardStart()) {
+				pack.moveTowardStart();
 			}
 		}
 
 		private void moveTowardEnd() {
-			if (this.pack.canMoveTowardEnd()) {
-				this.pack.moveTowardEnd();
+			if (pack.canMoveTowardEnd()) {
+				pack.moveTowardEnd();
 			}
 		}
 
 		private void enable() {
-			if (this.pack.getCompatibility().isCompatible()) {
-				this.pack.enable();
+			if (pack.getCompatibility().isCompatible()) {
+				pack.enable();
+				return;
 			}
-			else {
-				Text text = this.pack.getCompatibility().getConfirmMessage();
-				this.client.setScreen(new ConfirmScreen(
-						confirmed -> {
-							this.client.setScreen(this.widget.screen);
-							if (confirmed) {
-								this.pack.enable();
-							}
-						}, PackListWidget.INCOMPATIBLE_CONFIRM, text
-				));
-			}
+
+			Text confirmMessage = pack.getCompatibility().getConfirmMessage();
+			client.setScreen(new ConfirmScreen(
+					confirmed -> {
+						client.setScreen(widget.screen);
+						if (confirmed) {
+							pack.enable();
+						}
+					},
+					PackListWidget.INCOMPATIBLE_CONFIRM,
+					confirmMessage
+			));
 		}
 
 		@Override
 		public String getName() {
-			return this.pack.getName();
+			return pack.getName();
 		}
 
 		@Override
 		public boolean isClickable() {
-			return PackListWidget.this.children().stream().anyMatch(entry -> entry.getName().equals(this.getName()));
+			return PackListWidget.this.children().stream().anyMatch(entry -> entry.getName().equals(getName()));
 		}
 	}
 }

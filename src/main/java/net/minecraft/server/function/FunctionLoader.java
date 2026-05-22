@@ -31,145 +31,126 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
- * {@code FunctionLoader}.
+ * Загружает mcfunction-файлы и теги функций из датапаков.
+ * Поддерживает асинхронную загрузку через {@link ResourceReloader}.
  */
 public class FunctionLoader implements ResourceReloader {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final RegistryKey<Registry<CommandFunction<ServerCommandSource>>>
-			FUNCTION_REGISTRY_KEY =
-			RegistryKey.ofRegistry(
-					Identifier.ofVanilla("function")
-			);
-	private static final ResourceFinder
-			FINDER =
+	public static final RegistryKey<Registry<CommandFunction<ServerCommandSource>>> FUNCTION_REGISTRY_KEY =
+			RegistryKey.ofRegistry(Identifier.ofVanilla("function"));
+	private static final ResourceFinder FINDER =
 			new ResourceFinder(RegistryKeys.getPath(FUNCTION_REGISTRY_KEY), ".mcfunction");
+
 	private volatile Map<Identifier, CommandFunction<ServerCommandSource>> functions = ImmutableMap.of();
 	private final TagGroupLoader<CommandFunction<ServerCommandSource>> tagLoader = new TagGroupLoader<>(
-			(id, required) -> this.get(id), RegistryKeys.getTagPath(FUNCTION_REGISTRY_KEY)
+			(id, required) -> get(id), RegistryKeys.getTagPath(FUNCTION_REGISTRY_KEY)
 	);
 	private volatile Map<Identifier, List<CommandFunction<ServerCommandSource>>> tags = Map.of();
 	private final PermissionPredicate permissions;
 	private final CommandDispatcher<ServerCommandSource> commandDispatcher;
-
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return Optional> — 
-	 */
-	public Optional<CommandFunction<ServerCommandSource>> get(Identifier id) {
-		return Optional.ofNullable(this.functions.get(id));
-	}
-
-	public Map<Identifier, CommandFunction<ServerCommandSource>> getFunctions() {
-		return this.functions;
-	}
-
-	public List<CommandFunction<ServerCommandSource>> getTagOrEmpty(Identifier id) {
-		return this.tags.getOrDefault(id, List.of());
-	}
-
-	public Iterable<Identifier> getTags() {
-		return this.tags.keySet();
-	}
 
 	public FunctionLoader(PermissionPredicate permissions, CommandDispatcher<ServerCommandSource> commandDispatcher) {
 		this.permissions = permissions;
 		this.commandDispatcher = commandDispatcher;
 	}
 
+	public Optional<CommandFunction<ServerCommandSource>> get(Identifier id) {
+		return Optional.ofNullable(functions.get(id));
+	}
+
+	public Map<Identifier, CommandFunction<ServerCommandSource>> getFunctions() {
+		return functions;
+	}
+
+	public List<CommandFunction<ServerCommandSource>> getTagOrEmpty(Identifier id) {
+		return tags.getOrDefault(id, List.of());
+	}
+
+	public Iterable<Identifier> getTags() {
+		return tags.keySet();
+	}
+
 	@Override
 	public CompletableFuture<Void> reload(
 			ResourceReloader.Store store,
-			Executor executor,
+			Executor prepareExecutor,
 			ResourceReloader.Synchronizer synchronizer,
-			Executor executor2
+			Executor applyExecutor
 	) {
 		ResourceManager resourceManager = store.getResourceManager();
-		CompletableFuture<Map<Identifier, List<TagGroupLoader.TrackedEntry>>>
-				completableFuture =
-				CompletableFuture.supplyAsync(
-						() -> this.tagLoader.loadTags(resourceManager), executor
-				);
-		CompletableFuture<Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>>
-				completableFuture2 =
+
+		CompletableFuture<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> tagsFuture =
+				CompletableFuture.supplyAsync(() -> tagLoader.loadTags(resourceManager), prepareExecutor);
+
+		CompletableFuture<Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>> functionsFuture =
 				CompletableFuture.<Map<Identifier, Resource>>supplyAsync(
-						                 () -> FINDER.findResources(resourceManager), executor
-				                 )
-				                 .thenCompose(functions -> {
-					                 Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>
-							                 map =
-							                 Maps.newHashMap();
-					                 ServerCommandSource
-							                 serverCommandSource =
-							                 CommandManager.createSource(this.permissions);
+						() -> FINDER.findResources(resourceManager), prepareExecutor
+				)
+				.thenCompose(resources -> {
+					Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>> map = Maps.newHashMap();
+					ServerCommandSource source = CommandManager.createSource(permissions);
 
-					                 for (Entry<Identifier, Resource> entry : functions.entrySet()) {
-						                 Identifier identifier = entry.getKey();
-						                 Identifier identifier2 = FINDER.toResourceId(identifier);
-						                 map.put(
-								                 identifier2, CompletableFuture.supplyAsync(
-										                 () -> {
-											                 List<String> list = readLines(entry.getValue());
-											                 return CommandFunction.create(
-													                 identifier2,
-													                 this.commandDispatcher,
-													                 serverCommandSource,
-													                 list
-											                 );
-										                 }, executor
-								                 )
-						                 );
-					                 }
+					for (Entry<Identifier, Resource> entry : resources.entrySet()) {
+						Identifier resourcePath = entry.getKey();
+						Identifier functionId = FINDER.toResourceId(resourcePath);
+						map.put(
+								functionId,
+								CompletableFuture.supplyAsync(
+										() -> {
+											List<String> lines = readLines(entry.getValue());
+											return CommandFunction.create(functionId, commandDispatcher, source, lines);
+										},
+										prepareExecutor
+								)
+						);
+					}
 
-					                 CompletableFuture<?>[]
-							                 completableFutures =
-							                 map.values().toArray(new CompletableFuture[0]);
-					                 return CompletableFuture.allOf(completableFutures).handle((unused, ex) -> map);
-				                 });
-		return completableFuture.thenCombine(completableFuture2, Pair::of)
-		                        .thenCompose(synchronizer::whenPrepared)
-		                        .thenAcceptAsync(
-				                        intermediate -> {
-					                        Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>
-							                        map =
-							                        (Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>) intermediate.getSecond();
-					                        Builder<Identifier, CommandFunction<ServerCommandSource>>
-							                        builder =
-							                        ImmutableMap.builder();
-					                        map.forEach((id, functionFuture) -> functionFuture
-							                        .handle((function, ex) -> {
-								                        if (ex != null) {
-									                        LOGGER.error("Failed to load function {}", id, ex);
-								                        }
-								                        else {
-									                        builder.put(id, function);
-								                        }
+					CompletableFuture<?>[] allFutures = map.values().toArray(new CompletableFuture[0]);
+					return CompletableFuture.allOf(allFutures).handle((unused, ex) -> map);
+				});
 
-								                        return null;
-							                        })
-							                        .join());
-					                        this.functions = builder.build();
-					                        this.tags =
-							                        this.tagLoader.buildGroup((Map<Identifier, List<TagGroupLoader.TrackedEntry>>) intermediate.getFirst());
-				                        },
-				                        executor2
-		                        );
+		return tagsFuture
+				.thenCombine(functionsFuture, Pair::of)
+				.thenCompose(synchronizer::whenPrepared)
+				.thenAcceptAsync(
+						intermediate -> {
+							@SuppressWarnings("unchecked")
+							Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>> pendingFunctions =
+									(Map<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>) intermediate.getSecond();
+
+							Builder<Identifier, CommandFunction<ServerCommandSource>> builder = ImmutableMap.builder();
+
+							pendingFunctions.forEach((id, functionFuture) -> functionFuture
+									.handle((function, ex) -> {
+										if (ex != null) {
+											LOGGER.error("Failed to load function {}", id, ex);
+										}
+										else {
+											builder.put(id, function);
+										}
+
+										return null;
+									})
+									.join());
+
+							functions = builder.build();
+
+							@SuppressWarnings("unchecked")
+							Map<Identifier, List<TagGroupLoader.TrackedEntry>> loadedTags =
+									(Map<Identifier, List<TagGroupLoader.TrackedEntry>>) intermediate.getFirst();
+							tags = tagLoader.buildGroup(loadedTags);
+						},
+						applyExecutor
+				);
 	}
 
 	private static List<String> readLines(Resource resource) {
-		try {
-			List var2;
-			try (BufferedReader bufferedReader = resource.getReader()) {
-				var2 = bufferedReader.lines().toList();
-			}
-
-			return var2;
+		try (BufferedReader reader = resource.getReader()) {
+			return reader.lines().toList();
 		}
-		catch (IOException var6) {
-			throw new CompletionException(var6);
+		catch (IOException exception) {
+			throw new CompletionException(exception);
 		}
 	}
 }

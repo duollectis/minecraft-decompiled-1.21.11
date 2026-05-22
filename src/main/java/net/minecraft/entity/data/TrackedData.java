@@ -1,7 +1,9 @@
 package net.minecraft.entity.data;
 
 /**
- * {@code TrackedData}.
+ * Дескриптор отслеживаемого поля сущности.
+ * Хранит числовой идентификатор поля и его обработчик сериализации.
+ * Равенство определяется исключительно по {@code id}.
  */
 public record TrackedData<T>(int id, TrackedDataHandler<T> dataType) {
 
@@ -10,22 +12,22 @@ public record TrackedData<T>(int id, TrackedDataHandler<T> dataType) {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			TrackedData<?> trackedData = (TrackedData<?>) o;
-			return this.id == trackedData.id;
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		TrackedData<?> other = (TrackedData<?>) o;
+		return id == other.id;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.id;
+		return id;
 	}
 
 	@Override
 	public String toString() {
-		return "<entity data: " + this.id + ">";
+		return "<entity data: " + id + ">";
 	}
 }

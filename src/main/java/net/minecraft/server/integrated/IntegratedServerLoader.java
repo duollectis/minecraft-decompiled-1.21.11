@@ -62,7 +62,7 @@ import java.util.function.Function;
 
 @Environment(EnvType.CLIENT)
 /**
- * {@code IntegratedServerLoader}.
+ * Загрузчик интегрированного сервера: инициализация и запуск сервера одиночной игры.
  */
 public class IntegratedServerLoader {
 

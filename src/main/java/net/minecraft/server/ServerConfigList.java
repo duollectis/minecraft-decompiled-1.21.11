@@ -22,7 +22,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * {@code ServerConfigList}.
+ * Базовый класс для JSON-конфигурационных списков сервера (бан-лист, операторы, белый список).
+ * Хранит записи в памяти в виде {@link Map} и синхронизирует их с файлом на диске при каждом изменении.
+ *
+ * @param <K> тип ключа записи
+ * @param <V> тип записи, расширяющей {@link ServerConfigEntry}
  */
 public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 
@@ -38,189 +42,134 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 	}
 
 	public File getFile() {
-		return this.file;
+		return file;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param serverConfigEntry server config entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean add(V serverConfigEntry) {
-		String string = this.toString(serverConfigEntry.getKey());
-		V serverConfigEntry2 = this.map.get(string);
-		if (serverConfigEntry.equals(serverConfigEntry2)) {
+	public boolean add(V entry) {
+		String key = toString(entry.getKey());
+		V existing = map.get(key);
+		if (entry.equals(existing)) {
 			return false;
 		}
-		else {
-			this.map.put(string, serverConfigEntry);
 
-			try {
-				this.save();
-			}
-			catch (IOException var5) {
-				LOGGER.warn("Could not save the list after adding a user.", var5);
-			}
-
-			return true;
-		}
-	}
-
-	/**
-	 * Get.
-	 *
-	 * @param key key
-	 *
-	 * @return @Nullable V — 
-	 */
-	public @Nullable V get(K key) {
-		this.removeInvalidEntries();
-		return this.map.get(this.toString(key));
-	}
-
-	/**
-	 * Remove.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean remove(K key) {
-		V serverConfigEntry = this.map.remove(this.toString(key));
-		if (serverConfigEntry == null) {
-			return false;
-		}
-		else {
-			try {
-				this.save();
-			}
-			catch (IOException var4) {
-				LOGGER.warn("Could not save the list after removing a user.", var4);
-			}
-
-			return true;
-		}
-	}
-
-	/**
-	 * Remove.
-	 *
-	 * @param entry entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean remove(ServerConfigEntry<K> entry) {
-		return this.remove(Objects.requireNonNull(entry.getKey()));
-	}
-
-	/**
-	 * Clear.
-	 */
-	public void clear() {
-		this.map.clear();
+		map.put(key, entry);
 
 		try {
-			this.save();
+			save();
 		}
-		catch (IOException var2) {
-			LOGGER.warn("Could not save the list after removing a user.", var2);
+		catch (IOException exception) {
+			LOGGER.warn("Could not save the list after adding a user.", exception);
+		}
+
+		return true;
+	}
+
+	public @Nullable V get(K key) {
+		removeInvalidEntries();
+		return map.get(toString(key));
+	}
+
+	public boolean remove(K key) {
+		V removed = map.remove(toString(key));
+		if (removed == null) {
+			return false;
+		}
+
+		try {
+			save();
+		}
+		catch (IOException exception) {
+			LOGGER.warn("Could not save the list after removing a user.", exception);
+		}
+
+		return true;
+	}
+
+	public boolean remove(ServerConfigEntry<K> entry) {
+		return remove(Objects.requireNonNull(entry.getKey()));
+	}
+
+	public void clear() {
+		map.clear();
+
+		try {
+			save();
+		}
+		catch (IOException exception) {
+			LOGGER.warn("Could not save the list after removing a user.", exception);
 		}
 	}
 
 	public String[] getNames() {
-		return this.map.keySet().toArray(new String[0]);
+		return map.keySet().toArray(new String[0]);
 	}
 
 	public boolean isEmpty() {
-		return this.map.isEmpty();
+		return map.isEmpty();
 	}
 
-	/**
-	 * To string.
-	 *
-	 * @param profile profile
-	 *
-	 * @return String — результат операции
-	 */
 	protected String toString(K profile) {
 		return profile.toString();
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param object object
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean contains(K object) {
-		return this.map.containsKey(this.toString(object));
+		return map.containsKey(toString(object));
 	}
 
 	private void removeInvalidEntries() {
-		List<K> list = Lists.newArrayList();
+		List<K> invalid = Lists.newArrayList();
 
-		for (V serverConfigEntry : this.map.values()) {
-			if (serverConfigEntry.isInvalid()) {
-				list.add(serverConfigEntry.getKey());
+		for (V entry : map.values()) {
+			if (entry.isInvalid()) {
+				invalid.add(entry.getKey());
 			}
 		}
 
-		for (K object : list) {
-			this.map.remove(this.toString(object));
+		for (K key : invalid) {
+			map.remove(toString(key));
 		}
 	}
 
-	/**
-	 * From json.
-	 *
-	 * @param json json
-	 *
-	 * @return ServerConfigEntry — результат операции
-	 */
 	protected abstract ServerConfigEntry<K> fromJson(JsonObject json);
 
-	/**
-	 * Values.
-	 *
-	 * @return Collection — результат операции
-	 */
 	public Collection<V> values() {
-		return this.map.values();
+		return map.values();
 	}
 
 	/**
-	 * Save.
+	 * Сохраняет все записи в JSON-файл на диске.
+	 * Вызывается автоматически при каждом изменении списка.
 	 */
 	public void save() throws IOException {
 		JsonArray jsonArray = new JsonArray();
-		this.map.values().stream().map(entry -> Util.make(new JsonObject(), entry::write)).forEach(jsonArray::add);
+		map.values().stream().map(entry -> Util.make(new JsonObject(), entry::write)).forEach(jsonArray::add);
 
-		try (BufferedWriter bufferedWriter = Files.newWriter(this.file, StandardCharsets.UTF_8)) {
-			GSON.toJson(jsonArray, GSON.newJsonWriter(bufferedWriter));
+		try (BufferedWriter writer = Files.newWriter(file, StandardCharsets.UTF_8)) {
+			GSON.toJson(jsonArray, GSON.newJsonWriter(writer));
 		}
 	}
 
 	/**
-	 * Load.
+	 * Загружает записи из JSON-файла с диска.
+	 * Если файл не существует — ничего не делает.
 	 */
 	public void load() throws IOException {
-		if (this.file.exists()) {
-			try (BufferedReader bufferedReader = Files.newReader(this.file, StandardCharsets.UTF_8)) {
-				this.map.clear();
-				JsonArray jsonArray = (JsonArray) GSON.fromJson(bufferedReader, JsonArray.class);
-				if (jsonArray == null) {
-					return;
-				}
+		if (!file.exists()) {
+			return;
+		}
 
-				for (JsonElement jsonElement : jsonArray) {
-					JsonObject jsonObject = JsonHelper.asObject(jsonElement, "entry");
-					ServerConfigEntry<K> serverConfigEntry = this.fromJson(jsonObject);
-					if (serverConfigEntry.getKey() != null) {
-						this.map.put(this.toString(serverConfigEntry.getKey()), (V) serverConfigEntry);
-					}
+		try (BufferedReader reader = Files.newReader(file, StandardCharsets.UTF_8)) {
+			map.clear();
+			JsonArray jsonArray = (JsonArray) GSON.fromJson(reader, JsonArray.class);
+			if (jsonArray == null) {
+				return;
+			}
+
+			for (JsonElement element : jsonArray) {
+				JsonObject jsonObject = JsonHelper.asObject(element, "entry");
+				ServerConfigEntry<K> entry = fromJson(jsonObject);
+				if (entry.getKey() != null) {
+					map.put(toString(entry.getKey()), (V) entry);
 				}
 			}
 		}

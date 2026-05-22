@@ -15,7 +15,9 @@ import net.minecraft.network.packet.s2c.common.CookieRequestS2CPacket;
 import net.minecraft.network.packet.s2c.login.*;
 
 /**
- * Класс login states.
+ * Состояния протокола для фазы {@link net.minecraft.network.NetworkPhase#LOGIN}.
+ * Регистрирует пакеты аутентификации: приветствие, ключ шифрования, запросы плагинов
+ * и переход в фазу конфигурации.
  */
 public class LoginStates {
 

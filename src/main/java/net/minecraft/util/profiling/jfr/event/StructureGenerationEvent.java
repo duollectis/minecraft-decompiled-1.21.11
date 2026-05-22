@@ -8,15 +8,16 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.Structure;
 
+/**
+ * JFR-событие генерации структуры. Фиксирует позицию чанка, идентификатор структуры,
+ * измерение и результат (успех/неудача) для профилирования генерации мира.
+ */
 @Name("minecraft.StructureGeneration")
 @Label("Structure Generation")
 @Category({"Minecraft", "World Generation"})
 @StackTrace(false)
 @Enabled(false)
 @DontObfuscate
-/**
- * {@code StructureGenerationEvent}.
- */
 public class StructureGenerationEvent extends Event {
 
 	public static final String EVENT_NAME = "minecraft.StructureGeneration";
@@ -48,9 +49,7 @@ public class StructureGenerationEvent extends Event {
 		this.level = dimension.getValue().toString();
 	}
 
-	/**
-	 * {@code Names}.
-	 */
+	/** Строковые константы имён JFR-полей события для программного доступа к метаданным. */
 	public interface Names {
 
 		String CHUNK_POS_X = "chunkPosX";

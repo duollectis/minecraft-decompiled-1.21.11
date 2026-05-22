@@ -11,9 +11,17 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code KelpFeature}.
+ * Генерирует колонну ламинарии (kelp) на дне океана.
+ * Высота колонны — от 1 до 10 блоков. Верхний блок — {@code KELP} с
+ * случайным возрастом 20–23, остальные — {@code KELP_PLANT}.
+ * Если на пути встречается препятствие, пытается завершить колонну
+ * на блок ниже последней допустимой позиции.
  */
 public class KelpFeature extends Feature<DefaultFeatureConfig> {
+
+	private static final int MAX_KELP_HEIGHT = 10;
+	private static final int KELP_AGE_MIN = 20;
+	private static final int KELP_AGE_RANGE = 4;
 
 	public KelpFeature(Codec<DefaultFeatureConfig> codec) {
 		super(codec);
@@ -21,52 +29,47 @@ public class KelpFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		int i = 0;
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		int j = structureWorldAccess.getTopY(Heightmap.Type.OCEAN_FLOOR, blockPos.getX(), blockPos.getZ());
-		BlockPos blockPos2 = new BlockPos(blockPos.getX(), j, blockPos.getZ());
-		if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER)) {
-			BlockState blockState = Blocks.KELP.getDefaultState();
-			BlockState blockState2 = Blocks.KELP_PLANT.getDefaultState();
-			int k = 1 + random.nextInt(10);
 
-			for (int l = 0; l <= k; l++) {
-				if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER)
-						&& structureWorldAccess.getBlockState(blockPos2.up()).isOf(Blocks.WATER)
-						&& blockState2.canPlaceAt(structureWorldAccess, blockPos2)) {
-					if (l == k) {
-						structureWorldAccess.setBlockState(
-								blockPos2,
-								blockState.with(KelpBlock.AGE, random.nextInt(4) + 20),
-								2
-						);
-						i++;
-					}
-					else {
-						structureWorldAccess.setBlockState(blockPos2, blockState2, 2);
-					}
-				}
-				else if (l > 0) {
-					BlockPos blockPos3 = blockPos2.down();
-					if (blockState.canPlaceAt(structureWorldAccess, blockPos3) && !structureWorldAccess
-							.getBlockState(blockPos3.down())
-							.isOf(Blocks.KELP)) {
-						structureWorldAccess.setBlockState(
-								blockPos3,
-								blockState.with(KelpBlock.AGE, random.nextInt(4) + 20),
-								2
-						);
-						i++;
-					}
-					break;
-				}
+		int floorY = world.getTopY(Heightmap.Type.OCEAN_FLOOR, origin.getX(), origin.getZ());
+		BlockPos pos = new BlockPos(origin.getX(), floorY, origin.getZ());
 
-				blockPos2 = blockPos2.up();
-			}
+		if (world.getBlockState(pos).isOf(Blocks.WATER) == false) {
+			return false;
 		}
 
-		return i > 0;
+		BlockState kelpTop = Blocks.KELP.getDefaultState();
+		BlockState kelpBody = Blocks.KELP_PLANT.getDefaultState();
+		int height = 1 + random.nextInt(MAX_KELP_HEIGHT);
+		int placed = 0;
+
+		for (int step = 0; step <= height; step++) {
+			if (world.getBlockState(pos).isOf(Blocks.WATER)
+				&& world.getBlockState(pos.up()).isOf(Blocks.WATER)
+				&& kelpBody.canPlaceAt(world, pos)
+			) {
+				if (step == height) {
+					world.setBlockState(pos, kelpTop.with(KelpBlock.AGE, KELP_AGE_MIN + random.nextInt(KELP_AGE_RANGE)), 2);
+					placed++;
+				} else {
+					world.setBlockState(pos, kelpBody, 2);
+				}
+			} else if (step > 0) {
+				BlockPos below = pos.down();
+
+				if (kelpTop.canPlaceAt(world, below) && !world.getBlockState(below.down()).isOf(Blocks.KELP)) {
+					world.setBlockState(below, kelpTop.with(KelpBlock.AGE, KELP_AGE_MIN + random.nextInt(KELP_AGE_RANGE)), 2);
+					placed++;
+				}
+
+				break;
+			}
+
+			pos = pos.up();
+		}
+
+		return placed > 0;
 	}
 }

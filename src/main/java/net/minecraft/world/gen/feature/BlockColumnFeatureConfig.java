@@ -10,7 +10,9 @@ import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 import java.util.List;
 
 /**
- * {@code BlockColumnFeatureConfig}.
+ * Конфигурация фичи колонки блоков. Описывает набор слоёв блоков,
+ * направление роста, предикат допустимого размещения и приоритет вершины.
+ * Используется для генерации сталактитов, сталагмитов и подобных структур.
  */
 public record BlockColumnFeatureConfig(
 		List<BlockColumnFeatureConfig.Layer> layers,
@@ -39,14 +41,6 @@ public record BlockColumnFeatureConfig(
 		return new BlockColumnFeatureConfig.Layer(height, state);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param height height
-	 * @param state state
-	 *
-	 * @return BlockColumnFeatureConfig — результат операции
-	 */
 	public static BlockColumnFeatureConfig create(IntProvider height, BlockStateProvider state) {
 		return new BlockColumnFeatureConfig(
 				List.of(createLayer(height, state)),
@@ -56,9 +50,7 @@ public record BlockColumnFeatureConfig(
 		);
 	}
 
-	/**
-	 * {@code Layer}.
-	 */
+	/** Один слой колонки: провайдер блока и высота в блоках. */
 	public record Layer(IntProvider height, BlockStateProvider state) {
 
 		public static final Codec<BlockColumnFeatureConfig.Layer> CODEC = RecordCodecBuilder.create(

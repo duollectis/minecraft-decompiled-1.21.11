@@ -1,8 +1,6 @@
 package net.minecraft.world.chunk;
 
-/**
- * {@code EntryMissingException}.
- */
+/** Бросается при обращении к несуществующему индексу в палитре. */
 public class EntryMissingException extends RuntimeException {
 
 	public EntryMissingException(int index) {

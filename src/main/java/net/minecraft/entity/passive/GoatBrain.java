@@ -16,7 +16,7 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code GoatBrain}.
+ * Мозг козы: регистрирует сенсоры и задачи поведения.
  */
 public class GoatBrain {
 
@@ -113,8 +113,8 @@ public class GoatBrain {
 								)
 						),
 						Pair.of(0, new BreedTask(EntityType.GOAT)),
-						Pair.of(1, new TemptTask(goat -> 1.25F)),
-						Pair.of(2, WalkTowardsEntityTask.createNearestVisibleAdult(WALKING_SPEED, 1.25F)),
+						Pair.of(1, new TemptTask(goat -> TEMPTED_WALK_SPEED)),
+						Pair.of(2, WalkTowardsEntityTask.createNearestVisibleAdult(WALKING_SPEED, FOLLOW_ADULT_WALK_SPEED)),
 						Pair.of(
 								3,
 								new RandomTask(
@@ -169,7 +169,7 @@ public class GoatBrain {
 										goat -> goat.isScreaming() ? SCREAMING_RAM_COOLDOWN_RANGE : RAM_COOLDOWN_RANGE,
 										RAM_TARGET_PREDICATE,
 										3.0F,
-										goat -> goat.isBaby() ? 1.0 : 2.5,
+										goat -> goat.isBaby() ? 1.0 : ADULT_RAM_STRENGTH_MULTIPLIER,
 										goat -> goat.isScreaming() ? SoundEvents.ENTITY_GOAT_SCREAMING_RAM_IMPACT
 										                           : SoundEvents.ENTITY_GOAT_RAM_IMPACT,
 										goat -> SoundEvents.ENTITY_GOAT_HORN_BREAK
@@ -182,9 +182,9 @@ public class GoatBrain {
 										                           : RAM_COOLDOWN_RANGE.getMin(),
 										4,
 										7,
-										1.25F,
+										TEMPTED_WALK_SPEED,
 										RAM_TARGET_PREDICATE,
-										20,
+										PREPARE_RAM_DURATION,
 										goat -> goat.isScreaming() ? SoundEvents.ENTITY_GOAT_SCREAMING_PREPARE_RAM
 										                           : SoundEvents.ENTITY_GOAT_PREPARE_RAM
 								)

@@ -7,14 +7,22 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code BiomeAccess}.
+ * Предоставляет доступ к биомам с учётом шума Вороного для сглаживания границ.
+ * Использует алгоритм взвешенного расстояния по 8 угловым точкам биом-ячейки.
  */
 public class BiomeAccess {
 
 	public static final int CHUNK_CENTER_OFFSET = BiomeCoords.fromBlock(8);
+
 	private static final int BIOME_COORD_OFFSET = 2;
 	private static final int BIOME_COORD_SCALE = 4;
 	private static final int BIOME_COORD_MASK = 3;
+
+	// Нормализующий делитель для перевода битов сида в диапазон [-0.45, 0.45]
+	private static final double SEED_NORMALIZE_DIVISOR = 1024.0;
+	private static final double SEED_NORMALIZE_SCALE = 0.9;
+	private static final double SEED_NORMALIZE_OFFSET = 0.5;
+
 	private final BiomeAccess.Storage storage;
 	private final long seed;
 
@@ -24,103 +32,119 @@ public class BiomeAccess {
 	}
 
 	/**
-	 * Проверяет наличие h seed.
-	 *
-	 * @param seed seed
-	 *
-	 * @return long — {@code true} если условие выполнено
+	 * Хэширует сид мира через SHA-256 для получения детерминированного,
+	 * но непредсказуемого значения, используемого при размещении биомов.
 	 */
 	public static long hashSeed(long seed) {
 		return Hashing.sha256().hashLong(seed).asLong();
 	}
 
-	/**
-	 * With source.
-	 *
-	 * @param storage storage
-	 *
-	 * @return BiomeAccess — результат операции
-	 */
 	public BiomeAccess withSource(BiomeAccess.Storage storage) {
-		return new BiomeAccess(storage, this.seed);
+		return new BiomeAccess(storage, seed);
 	}
 
+	/**
+	 * Возвращает биом для заданной блочной позиции с применением шума Вороного.
+	 * Алгоритм перебирает 8 угловых точек биом-ячейки и выбирает ближайшую
+	 * с учётом псевдослучайного смещения, зависящего от сида.
+	 */
 	public RegistryEntry<Biome> getBiome(BlockPos pos) {
-		int i = pos.getX() - 2;
-		int j = pos.getY() - 2;
-		int k = pos.getZ() - 2;
-		int l = i >> 2;
-		int m = j >> 2;
-		int n = k >> 2;
-		double d = (i & 3) / 4.0;
-		double e = (j & 3) / 4.0;
-		double f = (k & 3) / 4.0;
-		int o = 0;
-		double g = Double.POSITIVE_INFINITY;
+		int shiftedX = pos.getX() - BIOME_COORD_OFFSET;
+		int shiftedY = pos.getY() - BIOME_COORD_OFFSET;
+		int shiftedZ = pos.getZ() - BIOME_COORD_OFFSET;
+		int biomeX = shiftedX >> 2;
+		int biomeY = shiftedY >> 2;
+		int biomeZ = shiftedZ >> 2;
+		double fracX = (shiftedX & BIOME_COORD_MASK) / (double) BIOME_COORD_SCALE;
+		double fracY = (shiftedY & BIOME_COORD_MASK) / (double) BIOME_COORD_SCALE;
+		double fracZ = (shiftedZ & BIOME_COORD_MASK) / (double) BIOME_COORD_SCALE;
 
-		for (int p = 0; p < 8; p++) {
-			boolean bl = (p & 4) == 0;
-			boolean bl2 = (p & 2) == 0;
-			boolean bl3 = (p & 1) == 0;
-			int q = bl ? l : l + 1;
-			int r = bl2 ? m : m + 1;
-			int s = bl3 ? n : n + 1;
-			double h = bl ? d : d - 1.0;
-			double t = bl2 ? e : e - 1.0;
-			double u = bl3 ? f : f - 1.0;
-			double v = computeWeightedDistance(this.seed, q, r, s, h, t, u);
-			if (g > v) {
-				o = p;
-				g = v;
+		int bestCorner = 0;
+		double minDistance = Double.POSITIVE_INFINITY;
+
+		for (int corner = 0; corner < 8; corner++) {
+			boolean useNearX = (corner & 4) == 0;
+			boolean useNearY = (corner & 2) == 0;
+			boolean useNearZ = (corner & 1) == 0;
+			int cornerX = useNearX ? biomeX : biomeX + 1;
+			int cornerY = useNearY ? biomeY : biomeY + 1;
+			int cornerZ = useNearZ ? biomeZ : biomeZ + 1;
+			double offsetX = useNearX ? fracX : fracX - 1.0;
+			double offsetY = useNearY ? fracY : fracY - 1.0;
+			double offsetZ = useNearZ ? fracZ : fracZ - 1.0;
+			double distance = computeWeightedDistance(seed, cornerX, cornerY, cornerZ, offsetX, offsetY, offsetZ);
+
+			if (minDistance > distance) {
+				bestCorner = corner;
+				minDistance = distance;
 			}
 		}
 
-		int px = (o & 4) == 0 ? l : l + 1;
-		int w = (o & 2) == 0 ? m : m + 1;
-		int x = (o & 1) == 0 ? n : n + 1;
-		return this.storage.getBiomeForNoiseGen(px, w, x);
+		int resultX = (bestCorner & 4) == 0 ? biomeX : biomeX + 1;
+		int resultY = (bestCorner & 2) == 0 ? biomeY : biomeY + 1;
+		int resultZ = (bestCorner & 1) == 0 ? biomeZ : biomeZ + 1;
+		return storage.getBiomeForNoiseGen(resultX, resultY, resultZ);
 	}
 
 	public RegistryEntry<Biome> getBiomeForNoiseGen(double x, double y, double z) {
-		int i = BiomeCoords.fromBlock(MathHelper.floor(x));
-		int j = BiomeCoords.fromBlock(MathHelper.floor(y));
-		int k = BiomeCoords.fromBlock(MathHelper.floor(z));
-		return this.getBiomeForNoiseGen(i, j, k);
+		int biomeX = BiomeCoords.fromBlock(MathHelper.floor(x));
+		int biomeY = BiomeCoords.fromBlock(MathHelper.floor(y));
+		int biomeZ = BiomeCoords.fromBlock(MathHelper.floor(z));
+		return getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
 	}
 
 	public RegistryEntry<Biome> getBiomeForNoiseGen(BlockPos pos) {
-		int i = BiomeCoords.fromBlock(pos.getX());
-		int j = BiomeCoords.fromBlock(pos.getY());
-		int k = BiomeCoords.fromBlock(pos.getZ());
-		return this.getBiomeForNoiseGen(i, j, k);
+		int biomeX = BiomeCoords.fromBlock(pos.getX());
+		int biomeY = BiomeCoords.fromBlock(pos.getY());
+		int biomeZ = BiomeCoords.fromBlock(pos.getZ());
+		return getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
 	}
 
 	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-		return this.storage.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
-	}
-
-	private static double computeWeightedDistance(long l, int i, int j, int k, double d, double e, double f) {
-		long m = SeedMixer.mixSeed(l, i);
-		m = SeedMixer.mixSeed(m, j);
-		m = SeedMixer.mixSeed(m, k);
-		m = SeedMixer.mixSeed(m, i);
-		m = SeedMixer.mixSeed(m, j);
-		m = SeedMixer.mixSeed(m, k);
-		double g = normalizeFromSeed(m);
-		m = SeedMixer.mixSeed(m, l);
-		double h = normalizeFromSeed(m);
-		m = SeedMixer.mixSeed(m, l);
-		double n = normalizeFromSeed(m);
-		return MathHelper.square(f + n) + MathHelper.square(e + h) + MathHelper.square(d + g);
-	}
-
-	private static double normalizeFromSeed(long l) {
-		double d = Math.floorMod(l >> 24, 1024) / 1024.0;
-		return (d - 0.5) * 0.9;
+		return storage.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
 	}
 
 	/**
-	 * {@code Storage}.
+	 * Вычисляет взвешенное расстояние от дробной позиции до угловой точки биом-ячейки
+	 * с псевдослучайным смещением, зависящим от координат и сида мира.
+	 * Смешивание сида выполняется дважды по каждой оси для лучшего распределения.
+	 */
+	private static double computeWeightedDistance(
+		long seed,
+		int cornerX,
+		int cornerY,
+		int cornerZ,
+		double offsetX,
+		double offsetY,
+		double offsetZ
+	) {
+		long mixed = SeedMixer.mixSeed(seed, cornerX);
+		mixed = SeedMixer.mixSeed(mixed, cornerY);
+		mixed = SeedMixer.mixSeed(mixed, cornerZ);
+		mixed = SeedMixer.mixSeed(mixed, cornerX);
+		mixed = SeedMixer.mixSeed(mixed, cornerY);
+		mixed = SeedMixer.mixSeed(mixed, cornerZ);
+		double noiseX = normalizeFromSeed(mixed);
+		mixed = SeedMixer.mixSeed(mixed, seed);
+		double noiseY = normalizeFromSeed(mixed);
+		mixed = SeedMixer.mixSeed(mixed, seed);
+		double noiseZ = normalizeFromSeed(mixed);
+		return MathHelper.square(offsetZ + noiseZ)
+			+ MathHelper.square(offsetY + noiseY)
+			+ MathHelper.square(offsetX + noiseX);
+	}
+
+	/**
+	 * Нормализует значение сида в диапазон [-0.45, 0.45].
+	 * Используется для создания псевдослучайного смещения угловых точек Вороного.
+	 */
+	private static double normalizeFromSeed(long seed) {
+		double normalized = Math.floorMod(seed >> 24, 1024) / SEED_NORMALIZE_DIVISOR;
+		return (normalized - SEED_NORMALIZE_OFFSET) * SEED_NORMALIZE_SCALE;
+	}
+
+	/**
+	 * Источник данных о биомах в координатах шума (биом-координатах).
 	 */
 	public interface Storage {
 

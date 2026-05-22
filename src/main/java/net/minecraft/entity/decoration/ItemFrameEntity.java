@@ -39,30 +39,31 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code ItemFrameEntity}.
+ * Рамка для предметов — декоративная сущность, прикреплённая к блоку.
+ * Хранит один предмет и его угол поворота (0–7, шаг 45°).
+ * Поддерживает режим «фиксированной» рамки, которую нельзя сломать обычными способами.
+ * Выдаёт сигнал компаратору: {@code rotation % 8 + 1} (или 0 если пусто).
  */
 public class ItemFrameEntity extends AbstractDecorationEntity {
 
-	private static final TrackedData<ItemStack>
-			ITEM_STACK =
+	private static final TrackedData<ItemStack> ITEM_STACK =
 			DataTracker.registerData(ItemFrameEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
-	private static final TrackedData<Integer>
-			ROTATION =
+	private static final TrackedData<Integer> ROTATION =
 			DataTracker.registerData(ItemFrameEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
 	public static final int ROTATION_COUNT = 8;
+
 	private static final float FRAME_THICKNESS = 0.0625F;
 	private static final float FRAME_WIDTH = 0.75F;
-	private static final float FRAME_HEIGHT = 0.75F;
-	private static final byte DEFAULT_ITEM_ROTATION = 0;
-	private static final float DEFAULT_ITEM_DROP_CHANCE = 1.0F;
-	private static final boolean DEFAULT_INVISIBLE = false;
-	private static final boolean DEFAULT_FIXED = false;
+	/** Смещение центра рамки от поверхности блока (15/32 блока). */
+	private static final float FRAME_OFFSET = 0.46875F;
+
 	private float itemDropChance = 1.0F;
 	private boolean fixed = false;
 
 	public ItemFrameEntity(EntityType<? extends ItemFrameEntity> entityType, World world) {
 		super(entityType, world);
-		this.setInvisible(false);
+		setInvisible(false);
 	}
 
 	public ItemFrameEntity(World world, BlockPos pos, Direction facing) {
@@ -71,8 +72,8 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 
 	public ItemFrameEntity(EntityType<? extends ItemFrameEntity> type, World world, BlockPos pos, Direction facing) {
 		super(type, world, pos);
-		this.setFacing(facing);
-		this.setInvisible(false);
+		setFacing(facing);
+		setInvisible(false);
 	}
 
 	@Override
@@ -82,125 +83,132 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 		builder.add(ROTATION, 0);
 	}
 
+	/**
+	 * Переопределяет установку направления для поддержки вертикальных поверхностей (пол/потолок).
+	 * Для горизонтальных направлений — стандартный yaw, для вертикальных — pitch ±90°.
+	 */
 	@Override
 	protected void setFacing(Direction facing) {
 		Objects.requireNonNull(facing);
 		super.setFacingInternal(facing);
 		if (facing.getAxis().isHorizontal()) {
-			this.setPitch(0.0F);
-			this.setYaw(facing.getHorizontalQuarterTurns() * 90);
-		}
-		else {
-			this.setPitch(-90 * facing.getDirection().offset());
-			this.setYaw(0.0F);
+			setPitch(0.0F);
+			setYaw(facing.getHorizontalQuarterTurns() * 90);
+		} else {
+			setPitch(-90 * facing.getDirection().offset());
+			setYaw(0.0F);
 		}
 
-		this.lastPitch = this.getPitch();
-		this.lastYaw = this.getYaw();
-		this.updateAttachmentPosition();
+		lastPitch = getPitch();
+		lastYaw = getYaw();
+		updateAttachmentPosition();
 	}
 
 	@Override
 	protected final void updateAttachmentPosition() {
 		super.updateAttachmentPosition();
-		this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());
+		updateTrackedPosition(getX(), getY(), getZ());
 	}
 
 	@Override
 	protected Box calculateBoundingBox(BlockPos pos, Direction side) {
-		return this.computeBoundingBox(pos, side, this.containsMap());
+		return computeBoundingBox(pos, side, containsMap());
 	}
 
 	@Override
 	protected Box getCheckBoundingBox() {
-		return this.computeBoundingBox(this.attachedBlockPos, this.getHorizontalFacing(), false);
+		return computeBoundingBox(attachedBlockPos, getHorizontalFacing(), false);
 	}
 
-	private Box computeBoundingBox(BlockPos blockPos, Direction direction, boolean bl) {
-		float f = 0.46875F;
-		Vec3d vec3d = Vec3d.ofCenter(blockPos).offset(direction, -0.46875);
-		float g = bl ? 1.0F : 0.75F;
-		float h = bl ? 1.0F : 0.75F;
+	/**
+	 * Вычисляет AABB рамки. Если внутри карта — размер 1×1, иначе 0.75×0.75.
+	 * Толщина по оси прикрепления всегда {@value #FRAME_THICKNESS} блока.
+	 */
+	private Box computeBoundingBox(BlockPos blockPos, Direction direction, boolean containsMap) {
+		Vec3d center = Vec3d.ofCenter(blockPos).offset(direction, -FRAME_OFFSET);
+		float sideSize = containsMap ? 1.0F : FRAME_WIDTH;
 		Direction.Axis axis = direction.getAxis();
-		double d = axis == Direction.Axis.X ? 0.0625 : g;
-		double e = axis == Direction.Axis.Y ? 0.0625 : h;
-		double i = axis == Direction.Axis.Z ? 0.0625 : g;
-		return Box.of(vec3d, d, e, i);
+		double sizeX = axis == Direction.Axis.X ? FRAME_THICKNESS : sideSize;
+		double sizeY = axis == Direction.Axis.Y ? FRAME_THICKNESS : sideSize;
+		double sizeZ = axis == Direction.Axis.Z ? FRAME_THICKNESS : sideSize;
+		return Box.of(center, sizeX, sizeY, sizeZ);
 	}
 
 	@Override
 	public boolean canStayAttached() {
-		if (this.fixed) {
+		if (fixed) {
 			return true;
 		}
-		else if (this.isSpaceBlocked(this.getCheckBoundingBox())) {
+
+		if (isSpaceBlocked(getCheckBoundingBox())) {
 			return false;
 		}
-		else {
-			BlockState
-					blockState =
-					this
-							.getEntityWorld()
-							.getBlockState(this.attachedBlockPos.offset(this.getHorizontalFacing().getOpposite()));
-			return blockState.isSolid() || this.getHorizontalFacing().getAxis().isHorizontal()
-					&& AbstractRedstoneGateBlock.isRedstoneGate(blockState)
-			       ? this.hasNoIntersectingDecoration(true)
-			       : false;
-		}
+
+		BlockState blockState = getEntityWorld()
+				.getBlockState(attachedBlockPos.offset(getHorizontalFacing().getOpposite()));
+		return blockState.isSolid()
+				|| getHorizontalFacing().getAxis().isHorizontal()
+				&& AbstractRedstoneGateBlock.isRedstoneGate(blockState)
+			? hasNoIntersectingDecoration(true)
+			: false;
 	}
 
 	@Override
 	public void move(MovementType type, Vec3d movement) {
-		if (!this.fixed) {
+		if (!fixed) {
 			super.move(type, movement);
 		}
 	}
 
 	@Override
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
-		if (!this.fixed) {
+		if (!fixed) {
 			super.addVelocity(deltaX, deltaY, deltaZ);
 		}
 	}
 
 	@Override
 	public void kill(ServerWorld world) {
-		this.removeFromFrame(this.getHeldItemStack());
+		removeFromFrame(getHeldItemStack());
 		super.kill(world);
 	}
 
 	private boolean shouldDropHeldStackWhenDamaged(DamageSource damageSource) {
-		return !damageSource.isIn(DamageTypeTags.IS_EXPLOSION) && !this.getHeldItemStack().isEmpty();
+		return !damageSource.isIn(DamageTypeTags.IS_EXPLOSION) && !getHeldItemStack().isEmpty();
 	}
 
 	private static boolean canDamageWhenFixed(DamageSource damageSource) {
-		return damageSource.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY) || damageSource.isSourceCreativePlayer();
+		return damageSource.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)
+				|| damageSource.isSourceCreativePlayer();
 	}
 
 	@Override
 	public boolean clientDamage(DamageSource source) {
-		return this.fixed && !canDamageWhenFixed(source) ? false : !this.isAlwaysInvulnerableTo(source);
+		return fixed && !canDamageWhenFixed(source) ? false : !isAlwaysInvulnerableTo(source);
 	}
 
+	/**
+	 * Обрабатывает урон по рамке. Если рамка не фиксирована и в ней есть предмет —
+	 * сначала выбрасывает предмет без разрушения самой рамки.
+	 */
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (!this.fixed) {
-			if (this.isAlwaysInvulnerableTo(source)) {
-				return false;
-			}
-			else if (this.shouldDropHeldStackWhenDamaged(source)) {
-				this.dropHeldStack(world, source.getAttacker(), false);
-				this.emitGameEvent(GameEvent.BLOCK_CHANGE, source.getAttacker());
-				this.playSound(this.getRemoveItemSound(), 1.0F, 1.0F);
-				return true;
-			}
-			else {
-				return super.damage(world, source, amount);
-			}
-		}
-		else {
+		if (fixed) {
 			return canDamageWhenFixed(source) && super.damage(world, source, amount);
 		}
+
+		if (isAlwaysInvulnerableTo(source)) {
+			return false;
+		}
+
+		if (shouldDropHeldStackWhenDamaged(source)) {
+			dropHeldStack(world, source.getAttacker(), false);
+			emitGameEvent(GameEvent.BLOCK_CHANGE, source.getAttacker());
+			playSound(getRemoveItemSound(), 1.0F, 1.0F);
+			return true;
+		}
+
+		return super.damage(world, source, amount);
 	}
 
 	public SoundEvent getRemoveItemSound() {
@@ -209,16 +217,15 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 
 	@Override
 	public boolean shouldRender(double distance) {
-		double d = 16.0;
-		d *= 64.0 * getRenderDistanceMultiplier();
-		return distance < d * d;
+		double renderDistance = 16.0 * 64.0 * getRenderDistanceMultiplier();
+		return distance < renderDistance * renderDistance;
 	}
 
 	@Override
 	public void onBreak(ServerWorld world, @Nullable Entity breaker) {
-		this.playSound(this.getBreakSound(), 1.0F, 1.0F);
-		this.dropHeldStack(world, breaker, true);
-		this.emitGameEvent(GameEvent.BLOCK_CHANGE, breaker);
+		playSound(getBreakSound(), 1.0F, 1.0F);
+		dropHeldStack(world, breaker, true);
+		emitGameEvent(GameEvent.BLOCK_CHANGE, breaker);
 	}
 
 	public SoundEvent getBreakSound() {
@@ -227,47 +234,58 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 
 	@Override
 	public void onPlace() {
-		this.playSound(this.getPlaceSound(), 1.0F, 1.0F);
+		playSound(getPlaceSound(), 1.0F, 1.0F);
 	}
 
 	public SoundEvent getPlaceSound() {
 		return SoundEvents.ENTITY_ITEM_FRAME_PLACE;
 	}
 
+	/**
+	 * Выбрасывает содержимое рамки с учётом правил мира и режима игрока.
+	 * В режиме творчества или при отключённых дропах — только очищает карту от метки.
+	 *
+	 * @param dropSelf если {@code true} — также дропает саму рамку как предмет
+	 */
 	private void dropHeldStack(ServerWorld world, @Nullable Entity entity, boolean dropSelf) {
-		if (!this.fixed) {
-			ItemStack itemStack = this.getHeldItemStack();
-			this.setHeldItemStack(ItemStack.EMPTY);
-			if (!world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-				if (entity == null) {
-					this.removeFromFrame(itemStack);
-				}
-			}
-			else if (entity instanceof PlayerEntity playerEntity && playerEntity.isInCreativeMode()) {
-				this.removeFromFrame(itemStack);
-			}
-			else {
-				if (dropSelf) {
-					this.dropStack(world, this.getAsItemStack());
-				}
+		if (fixed) {
+			return;
+		}
 
-				if (!itemStack.isEmpty()) {
-					itemStack = itemStack.copy();
-					this.removeFromFrame(itemStack);
-					if (this.random.nextFloat() < this.itemDropChance) {
-						this.dropStack(world, itemStack);
-					}
-				}
+		ItemStack itemStack = getHeldItemStack();
+		setHeldItemStack(ItemStack.EMPTY);
+		if (!world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
+			if (entity == null) {
+				removeFromFrame(itemStack);
+			}
+
+			return;
+		}
+
+		if (entity instanceof PlayerEntity playerEntity && playerEntity.isInCreativeMode()) {
+			removeFromFrame(itemStack);
+			return;
+		}
+
+		if (dropSelf) {
+			dropStack(world, getAsItemStack());
+		}
+
+		if (!itemStack.isEmpty()) {
+			itemStack = itemStack.copy();
+			removeFromFrame(itemStack);
+			if (random.nextFloat() < itemDropChance) {
+				dropStack(world, itemStack);
 			}
 		}
 	}
 
 	private void removeFromFrame(ItemStack stack) {
-		MapIdComponent mapIdComponent = this.getMapId(stack);
-		if (mapIdComponent != null) {
-			MapState mapState = FilledMapItem.getMapState(mapIdComponent, this.getEntityWorld());
+		MapIdComponent mapId = getMapId(stack);
+		if (mapId != null) {
+			MapState mapState = FilledMapItem.getMapState(mapId, getEntityWorld());
 			if (mapState != null) {
-				mapState.removeFrame(this.attachedBlockPos, this.getId());
+				mapState.removeFrame(attachedBlockPos, getId());
 			}
 		}
 
@@ -275,24 +293,19 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 	}
 
 	public ItemStack getHeldItemStack() {
-		return this.getDataTracker().get(ITEM_STACK);
+		return getDataTracker().get(ITEM_STACK);
 	}
 
 	public @Nullable MapIdComponent getMapId(ItemStack stack) {
 		return stack.get(DataComponentTypes.MAP_ID);
 	}
 
-	/**
-	 * Contains map.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean containsMap() {
-		return this.getHeldItemStack().contains(DataComponentTypes.MAP_ID);
+		return getHeldItemStack().contains(DataComponentTypes.MAP_ID);
 	}
 
 	public void setHeldItemStack(ItemStack stack) {
-		this.setHeldItemStack(stack, true);
+		setHeldItemStack(stack, true);
 	}
 
 	public void setHeldItemStack(ItemStack value, boolean update) {
@@ -300,14 +313,14 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 			value = value.copyWithCount(1);
 		}
 
-		this.setAsStackHolder(value);
-		this.getDataTracker().set(ITEM_STACK, value);
+		setAsStackHolder(value);
+		getDataTracker().set(ITEM_STACK, value);
 		if (!value.isEmpty()) {
-			this.playSound(this.getAddItemSound(), 1.0F, 1.0F);
+			playSound(getAddItemSound(), 1.0F, 1.0F);
 		}
 
-		if (update && this.attachedBlockPos != null) {
-			this.getEntityWorld().updateComparators(this.attachedBlockPos, Blocks.AIR);
+		if (update && attachedBlockPos != null) {
+			getEntityWorld().updateComparators(attachedBlockPos, Blocks.AIR);
 		}
 	}
 
@@ -317,15 +330,16 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 
 	@Override
 	public @Nullable StackReference getStackReference(int slot) {
-		return slot == 0 ? StackReference.of(this::getHeldItemStack, this::setHeldItemStack)
-		                 : super.getStackReference(slot);
+		return slot == 0
+				? StackReference.of(this::getHeldItemStack, this::setHeldItemStack)
+				: super.getStackReference(slot);
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
 		if (data.equals(ITEM_STACK)) {
-			this.setAsStackHolder(this.getHeldItemStack());
+			setAsStackHolder(getHeldItemStack());
 		}
 	}
 
@@ -334,117 +348,121 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 			stack.setHolder(this);
 		}
 
-		this.updateAttachmentPosition();
+		updateAttachmentPosition();
 	}
 
 	public int getRotation() {
-		return this.getDataTracker().get(ROTATION);
+		return getDataTracker().get(ROTATION);
 	}
 
 	public void setRotation(int value) {
-		this.setRotation(value, true);
+		setRotation(value, true);
 	}
 
 	private void setRotation(int value, boolean updateComparators) {
-		this.getDataTracker().set(ROTATION, value % 8);
-		if (updateComparators && this.attachedBlockPos != null) {
-			this.getEntityWorld().updateComparators(this.attachedBlockPos, Blocks.AIR);
+		getDataTracker().set(ROTATION, value % ROTATION_COUNT);
+		if (updateComparators && attachedBlockPos != null) {
+			getEntityWorld().updateComparators(attachedBlockPos, Blocks.AIR);
 		}
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		ItemStack itemStack = this.getHeldItemStack();
+		ItemStack itemStack = getHeldItemStack();
 		if (!itemStack.isEmpty()) {
 			view.put("Item", ItemStack.CODEC, itemStack);
 		}
 
-		view.putByte("ItemRotation", (byte) this.getRotation());
-		view.putFloat("ItemDropChance", this.itemDropChance);
-		view.put("Facing", Direction.INDEX_CODEC, this.getHorizontalFacing());
-		view.putBoolean("Invisible", this.isInvisible());
-		view.putBoolean("Fixed", this.fixed);
+		view.putByte("ItemRotation", (byte) getRotation());
+		view.putFloat("ItemDropChance", itemDropChance);
+		view.put("Facing", Direction.INDEX_CODEC, getHorizontalFacing());
+		view.putBoolean("Invisible", isInvisible());
+		view.putBoolean("Fixed", fixed);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		ItemStack itemStack = view.<ItemStack>read("Item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
-		ItemStack itemStack2 = this.getHeldItemStack();
-		if (!itemStack2.isEmpty() && !ItemStack.areEqual(itemStack, itemStack2)) {
-			this.removeFromFrame(itemStack2);
+		ItemStack newStack = view.<ItemStack>read("Item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+		ItemStack currentStack = getHeldItemStack();
+		if (!currentStack.isEmpty() && !ItemStack.areEqual(newStack, currentStack)) {
+			removeFromFrame(currentStack);
 		}
 
-		this.setHeldItemStack(itemStack, false);
-		this.setRotation(view.getByte("ItemRotation", (byte) 0), false);
-		this.itemDropChance = view.getFloat("ItemDropChance", 1.0F);
-		this.setFacing(view.<Direction>read("Facing", Direction.INDEX_CODEC).orElse(Direction.DOWN));
-		this.setInvisible(view.getBoolean("Invisible", false));
-		this.fixed = view.getBoolean("Fixed", false);
+		setHeldItemStack(newStack, false);
+		setRotation(view.getByte("ItemRotation", (byte) 0), false);
+		itemDropChance = view.getFloat("ItemDropChance", 1.0F);
+		setFacing(view.<Direction>read("Facing", Direction.INDEX_CODEC).orElse(Direction.DOWN));
+		setInvisible(view.getBoolean("Invisible", false));
+		fixed = view.getBoolean("Fixed", false);
 	}
 
+	/**
+	 * Обрабатывает взаимодействие игрока с рамкой.
+	 * Если рамка пуста — вставляет предмет из руки.
+	 * Если рамка занята — поворачивает предмет на 45°.
+	 * Карты с более чем 256 декорациями не принимаются.
+	 */
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
 		ItemStack itemStack = player.getStackInHand(hand);
-		boolean bl = !this.getHeldItemStack().isEmpty();
-		boolean bl2 = !itemStack.isEmpty();
-		if (this.fixed) {
+		boolean hasItem = !getHeldItemStack().isEmpty();
+		boolean handHasItem = !itemStack.isEmpty();
+		if (fixed) {
 			return ActionResult.PASS;
 		}
-		else if (!player.getEntityWorld().isClient()) {
-			if (!bl) {
-				if (bl2 && !this.isRemoved()) {
-					MapState mapState = FilledMapItem.getMapState(itemStack, this.getEntityWorld());
-					if (mapState != null && mapState.decorationCountNotLessThan(256)) {
-						return ActionResult.FAIL;
-					}
-					else {
-						this.setHeldItemStack(itemStack);
-						this.emitGameEvent(GameEvent.BLOCK_CHANGE, player);
-						itemStack.decrementUnlessCreative(1, player);
-						return ActionResult.SUCCESS;
-					}
-				}
-				else {
-					return ActionResult.PASS;
-				}
-			}
-			else {
-				this.playSound(this.getRotateItemSound(), 1.0F, 1.0F);
-				this.setRotation(this.getRotation() + 1);
-				this.emitGameEvent(GameEvent.BLOCK_CHANGE, player);
-				return ActionResult.SUCCESS;
-			}
+
+		if (player.getEntityWorld().isClient()) {
+			return !hasItem && !handHasItem ? ActionResult.PASS : ActionResult.SUCCESS;
 		}
-		else {
-			return (ActionResult) (!bl && !bl2 ? ActionResult.PASS : ActionResult.SUCCESS);
+
+		if (hasItem) {
+			playSound(getRotateItemSound(), 1.0F, 1.0F);
+			setRotation(getRotation() + 1);
+			emitGameEvent(GameEvent.BLOCK_CHANGE, player);
+			return ActionResult.SUCCESS;
 		}
+
+		if (!handHasItem || isRemoved()) {
+			return ActionResult.PASS;
+		}
+
+		MapState mapState = FilledMapItem.getMapState(itemStack, getEntityWorld());
+		if (mapState != null && mapState.decorationCountNotLessThan(256)) {
+			return ActionResult.FAIL;
+		}
+
+		setHeldItemStack(itemStack);
+		emitGameEvent(GameEvent.BLOCK_CHANGE, player);
+		itemStack.decrementUnlessCreative(1, player);
+		return ActionResult.SUCCESS;
 	}
 
 	public SoundEvent getRotateItemSound() {
 		return SoundEvents.ENTITY_ITEM_FRAME_ROTATE_ITEM;
 	}
 
+	/** Возвращает мощность сигнала компаратора: 0 если пусто, иначе {@code rotation % 8 + 1}. */
 	public int getComparatorPower() {
-		return this.getHeldItemStack().isEmpty() ? 0 : this.getRotation() % 8 + 1;
+		return getHeldItemStack().isEmpty() ? 0 : getRotation() % ROTATION_COUNT + 1;
 	}
 
 	@Override
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-		return new EntitySpawnS2CPacket(this, this.getHorizontalFacing().getIndex(), this.getAttachedBlockPos());
+		return new EntitySpawnS2CPacket(this, getHorizontalFacing().getIndex(), getAttachedBlockPos());
 	}
 
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		this.setFacing(Direction.byIndex(packet.getEntityData()));
+		setFacing(Direction.byIndex(packet.getEntityData()));
 	}
 
 	@Override
 	public ItemStack getPickBlockStack() {
-		ItemStack itemStack = this.getHeldItemStack();
-		return itemStack.isEmpty() ? this.getAsItemStack() : itemStack.copy();
+		ItemStack itemStack = getHeldItemStack();
+		return itemStack.isEmpty() ? getAsItemStack() : itemStack.copy();
 	}
 
 	protected ItemStack getAsItemStack() {
@@ -453,8 +471,12 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 
 	@Override
 	public float getBodyYaw() {
-		Direction direction = this.getHorizontalFacing();
-		int i = direction.getAxis().isVertical() ? 90 * direction.getDirection().offset() : 0;
-		return MathHelper.wrapDegrees(180 + direction.getHorizontalQuarterTurns() * 90 + this.getRotation() * 45 + i);
+		Direction direction = getHorizontalFacing();
+		int verticalOffset = direction.getAxis().isVertical()
+				? 90 * direction.getDirection().offset()
+				: 0;
+		return MathHelper.wrapDegrees(
+				180 + direction.getHorizontalQuarterTurns() * 90 + getRotation() * 45 + verticalOffset
+		);
 	}
 }

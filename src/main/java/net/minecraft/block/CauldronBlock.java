@@ -10,7 +10,8 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code CauldronBlock}.
+ * Пустой котёл. Может наполняться дождём (5% шанс), снегом (10% шанс),
+ * а также водой или лавой через капельный камень.
  */
 public class CauldronBlock extends AbstractCauldronBlock {
 
@@ -33,20 +34,17 @@ public class CauldronBlock extends AbstractCauldronBlock {
 	}
 
 	/**
-	 * Проверяет возможность fill with precipitation.
-	 *
-	 * @param world world
-	 * @param precipitation precipitation
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли котёл наполниться осадками в данный тик.
+	 * Дождь даёт 5% шанс, снег — 10%. Другие типы осадков не заполняют котёл.
 	 */
 	protected static boolean canFillWithPrecipitation(World world, Biome.Precipitation precipitation) {
 		if (precipitation == Biome.Precipitation.RAIN) {
-			return world.getRandom().nextFloat() < 0.05F;
+			return world.getRandom().nextFloat() < FILL_WITH_RAIN_CHANCE;
 		}
-		else {
-			return precipitation == Biome.Precipitation.SNOW ? world.getRandom().nextFloat() < 0.1F : false;
-		}
+
+		return precipitation == Biome.Precipitation.SNOW
+			? world.getRandom().nextFloat() < FILL_WITH_SNOW_CHANCE
+			: false;
 	}
 
 	@Override

@@ -33,7 +33,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NoteBlock}.
+ * Блок нотного блока. Воспроизводит звук при активации редстоуном или ударе.
+ * Инструмент определяется блоком снизу, высота тона — свойством {@code NOTE} (0–24).
+ * Поддерживает кастомные звуки черепов существ, установленных сверху.
  */
 public class NoteBlock extends Block {
 
@@ -87,8 +89,8 @@ public class NoteBlock extends Block {
 			BlockState neighborState,
 			Random random
 	) {
-		boolean bl = direction.getAxis() == Direction.Axis.Y;
-		return bl
+		boolean isVertical = direction.getAxis() == Direction.Axis.Y;
+		return isVertical
 		       ? this.getStateWithInstrument(world, pos, state)
 		       : super.getStateForNeighborUpdate(
 				       state,

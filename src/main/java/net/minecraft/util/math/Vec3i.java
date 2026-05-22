@@ -12,46 +12,44 @@ import org.joml.Vector3i;
 
 import java.util.stream.IntStream;
 
-@Unmodifiable
 /**
- * {@code Vec3i}.
+ * Иммутабельный трёхмерный вектор с целочисленными компонентами.
+ * Является базовым классом для {@code BlockPos} и других позиционных типов.
  */
+@Unmodifiable
 public class Vec3i implements Comparable<Vec3i> {
 
 	public static final Codec<Vec3i> CODEC = Codec.INT_STREAM
-			.comapFlatMap(
-					stream -> Util
-							.decodeFixedLengthArray(stream, 3)
-							.map(coordinates -> new Vec3i(coordinates[0], coordinates[1], coordinates[2])),
-					vec -> IntStream.of(vec.getX(), vec.getY(), vec.getZ())
-			);
+		.comapFlatMap(
+			stream -> Util
+				.decodeFixedLengthIntArray(stream, 3)
+				.map(coordinates -> new Vec3i(coordinates[0], coordinates[1], coordinates[2])),
+			vec -> IntStream.of(vec.getX(), vec.getY(), vec.getZ())
+		);
+
 	public static final PacketCodec<ByteBuf, Vec3i> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.VAR_INT,
-			Vec3i::getX,
-			PacketCodecs.VAR_INT,
-			Vec3i::getY,
-			PacketCodecs.VAR_INT,
-			Vec3i::getZ,
-			Vec3i::new
+		PacketCodecs.VAR_INT,
+		Vec3i::getX,
+		PacketCodecs.VAR_INT,
+		Vec3i::getY,
+		PacketCodecs.VAR_INT,
+		Vec3i::getZ,
+		Vec3i::new
 	);
+
 	public static final Vec3i ZERO = new Vec3i(0, 0, 0);
+
 	private int x;
 	private int y;
 	private int z;
 
-	/**
-	 * Создаёт offset codec.
-	 *
-	 * @param maxAbsValue max abs value
-	 *
-	 * @return Codec — результат операции
-	 */
 	public static Codec<Vec3i> createOffsetCodec(int maxAbsValue) {
 		return CODEC.validate(
-				vec -> Math.abs(vec.getX()) < maxAbsValue && Math.abs(vec.getY()) < maxAbsValue
-						       && Math.abs(vec.getZ()) < maxAbsValue
-				       ? DataResult.success(vec)
-				       : DataResult.error(() -> "Position out of range, expected at most " + maxAbsValue + ": " + vec)
+			vec -> Math.abs(vec.getX()) < maxAbsValue
+				&& Math.abs(vec.getY()) < maxAbsValue
+				&& Math.abs(vec.getZ()) < maxAbsValue
+				? DataResult.success(vec)
+				: DataResult.error(() -> "Position out of range, expected at most " + maxAbsValue + ": " + vec)
 		);
 	}
 
@@ -66,43 +64,38 @@ public class Vec3i implements Comparable<Vec3i> {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return !(o instanceof Vec3i vec3i) ? false : this.getX() == vec3i.getX() && this.getY() == vec3i.getY()
-			                                             && this.getZ() == vec3i.getZ();
+
+		if (!(o instanceof Vec3i vec3i)) {
+			return false;
 		}
+
+		return getX() == vec3i.getX() && getY() == vec3i.getY() && getZ() == vec3i.getZ();
 	}
 
 	@Override
 	public int hashCode() {
-		return (this.getY() + this.getZ() * 31) * 31 + this.getX();
+		return (getY() + getZ() * 31) * 31 + getX();
 	}
 
-	/**
-	 * Compare to.
-	 *
-	 * @param vec3i vec3i
-	 *
-	 * @return int — результат операции
-	 */
+	@Override
 	public int compareTo(Vec3i vec3i) {
-		if (this.getY() == vec3i.getY()) {
-			return this.getZ() == vec3i.getZ() ? this.getX() - vec3i.getX() : this.getZ() - vec3i.getZ();
+		if (getY() != vec3i.getY()) {
+			return getY() - vec3i.getY();
 		}
-		else {
-			return this.getY() - vec3i.getY();
-		}
+
+		return getZ() != vec3i.getZ() ? getZ() - vec3i.getZ() : getX() - vec3i.getX();
 	}
 
 	public int getX() {
-		return this.x;
+		return x;
 	}
 
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	public int getZ() {
-		return this.z;
+		return z;
 	}
 
 	protected Vec3i setX(int x) {
@@ -120,327 +113,176 @@ public class Vec3i implements Comparable<Vec3i> {
 		return this;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i add(int x, int y, int z) {
-		return x == 0 && y == 0 && z == 0 ? this : new Vec3i(this.getX() + x, this.getY() + y, this.getZ() + z);
+		return x == 0 && y == 0 && z == 0
+			? this
+			: new Vec3i(getX() + x, getY() + y, getZ() + z);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i add(Vec3i vec) {
-		return this.add(vec.getX(), vec.getY(), vec.getZ());
+		return add(vec.getX(), vec.getY(), vec.getZ());
 	}
 
-	/**
-	 * Subtract.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i subtract(Vec3i vec) {
-		return this.add(-vec.getX(), -vec.getY(), -vec.getZ());
+		return add(-vec.getX(), -vec.getY(), -vec.getZ());
 	}
 
-	/**
-	 * Multiply.
-	 *
-	 * @param scale scale
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i multiply(int scale) {
 		if (scale == 1) {
 			return this;
 		}
-		else {
-			return scale == 0 ? ZERO : new Vec3i(this.getX() * scale, this.getY() * scale, this.getZ() * scale);
-		}
+
+		return scale == 0 ? ZERO : new Vec3i(getX() * scale, getY() * scale, getZ() * scale);
 	}
 
-	/**
-	 * Multiply.
-	 *
-	 * @param scaleX scale x
-	 * @param scaleY scale y
-	 * @param scaleZ scale z
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i multiply(int scaleX, int scaleY, int scaleZ) {
-		return new Vec3i(this.getX() * scaleX, this.getY() * scaleY, this.getZ() * scaleZ);
+		return new Vec3i(getX() * scaleX, getY() * scaleY, getZ() * scaleZ);
 	}
 
-	/**
-	 * Up.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i up() {
-		return this.up(1);
+		return up(1);
 	}
 
-	/**
-	 * Up.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i up(int distance) {
-		return this.offset(Direction.UP, distance);
+		return offset(Direction.UP, distance);
 	}
 
-	/**
-	 * Down.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i down() {
-		return this.down(1);
+		return down(1);
 	}
 
-	/**
-	 * Down.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i down(int distance) {
-		return this.offset(Direction.DOWN, distance);
+		return offset(Direction.DOWN, distance);
 	}
 
-	/**
-	 * North.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i north() {
-		return this.north(1);
+		return north(1);
 	}
 
-	/**
-	 * North.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i north(int distance) {
-		return this.offset(Direction.NORTH, distance);
+		return offset(Direction.NORTH, distance);
 	}
 
-	/**
-	 * South.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i south() {
-		return this.south(1);
+		return south(1);
 	}
 
-	/**
-	 * South.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i south(int distance) {
-		return this.offset(Direction.SOUTH, distance);
+		return offset(Direction.SOUTH, distance);
 	}
 
-	/**
-	 * West.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i west() {
-		return this.west(1);
+		return west(1);
 	}
 
-	/**
-	 * West.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i west(int distance) {
-		return this.offset(Direction.WEST, distance);
+		return offset(Direction.WEST, distance);
 	}
 
-	/**
-	 * East.
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i east() {
-		return this.east(1);
+		return east(1);
 	}
 
-	/**
-	 * East.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i east(int distance) {
-		return this.offset(Direction.EAST, distance);
+		return offset(Direction.EAST, distance);
 	}
 
-	/**
-	 * Offset.
-	 *
-	 * @param direction direction
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i offset(Direction direction) {
-		return this.offset(direction, 1);
+		return offset(direction, 1);
 	}
 
-	/**
-	 * Offset.
-	 *
-	 * @param direction direction
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i offset(Direction direction, int distance) {
 		return distance == 0
-		       ? this
-		       : new Vec3i(
-				       this.getX() + direction.getOffsetX() * distance,
-				       this.getY() + direction.getOffsetY() * distance,
-				       this.getZ() + direction.getOffsetZ() * distance
-		       );
+			? this
+			: new Vec3i(
+				getX() + direction.getOffsetX() * distance,
+				getY() + direction.getOffsetY() * distance,
+				getZ() + direction.getOffsetZ() * distance
+			);
 	}
 
-	/**
-	 * Offset.
-	 *
-	 * @param axis axis
-	 * @param distance distance
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i offset(Direction.Axis axis, int distance) {
 		if (distance == 0) {
 			return this;
 		}
-		else {
-			int i = axis == Direction.Axis.X ? distance : 0;
-			int j = axis == Direction.Axis.Y ? distance : 0;
-			int k = axis == Direction.Axis.Z ? distance : 0;
-			return new Vec3i(this.getX() + i, this.getY() + j, this.getZ() + k);
-		}
+
+		int dx = axis == Direction.Axis.X ? distance : 0;
+		int dy = axis == Direction.Axis.Y ? distance : 0;
+		int dz = axis == Direction.Axis.Z ? distance : 0;
+
+		return new Vec3i(getX() + dx, getY() + dy, getZ() + dz);
 	}
 
-	/**
-	 * Cross product.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vec3i — результат операции
-	 */
 	public Vec3i crossProduct(Vec3i vec) {
 		return new Vec3i(
-				this.getY() * vec.getZ() - this.getZ() * vec.getY(),
-				this.getZ() * vec.getX() - this.getX() * vec.getZ(),
-				this.getX() * vec.getY() - this.getY() * vec.getX()
+			getY() * vec.getZ() - getZ() * vec.getY(),
+			getZ() * vec.getX() - getX() * vec.getZ(),
+			getX() * vec.getY() - getY() * vec.getX()
 		);
 	}
 
 	public boolean isWithinDistance(Vec3i vec, double distance) {
-		return this.getSquaredDistance(vec) < MathHelper.square(distance);
+		return getSquaredDistance(vec) < MathHelper.square(distance);
 	}
 
 	public boolean isWithinDistance(Position pos, double distance) {
-		return this.getSquaredDistance(pos) < MathHelper.square(distance);
+		return getSquaredDistance(pos) < MathHelper.square(distance);
 	}
 
 	public double getSquaredDistance(Vec3i vec) {
-		return this.getSquaredDistance(vec.getX(), vec.getY(), vec.getZ());
+		return getSquaredDistance(vec.getX(), vec.getY(), vec.getZ());
 	}
 
 	public double getSquaredDistance(Position pos) {
-		return this.getSquaredDistanceFromCenter(pos.getX(), pos.getY(), pos.getZ());
+		return getSquaredDistanceFromCenter(pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	public double getSquaredDistanceFromCenter(double x, double y, double z) {
-		double d = this.getX() + 0.5 - x;
-		double e = this.getY() + 0.5 - y;
-		double f = this.getZ() + 0.5 - z;
-		return d * d + e * e + f * f;
+		double dx = getX() + 0.5 - x;
+		double dy = getY() + 0.5 - y;
+		double dz = getZ() + 0.5 - z;
+		return dx * dx + dy * dy + dz * dz;
 	}
 
 	public double getSquaredDistance(double x, double y, double z) {
-		double d = this.getX() - x;
-		double e = this.getY() - y;
-		double f = this.getZ() - z;
-		return d * d + e * e + f * f;
+		double dx = getX() - x;
+		double dy = getY() - y;
+		double dz = getZ() - z;
+		return dx * dx + dy * dy + dz * dz;
 	}
 
 	public int getManhattanDistance(Vec3i vec) {
-		float f = Math.abs(vec.getX() - this.getX());
-		float g = Math.abs(vec.getY() - this.getY());
-		float h = Math.abs(vec.getZ() - this.getZ());
-		return (int) (f + g + h);
+		int dx = Math.abs(vec.getX() - getX());
+		int dy = Math.abs(vec.getY() - getY());
+		int dz = Math.abs(vec.getZ() - getZ());
+		return dx + dy + dz;
 	}
 
 	public int getChebyshevDistance(Vec3i vec) {
-		int i = Math.abs(this.getX() - vec.getX());
-		int j = Math.abs(this.getY() - vec.getY());
-		int k = Math.abs(this.getZ() - vec.getZ());
-		return Math.max(Math.max(i, j), k);
+		int dx = Math.abs(getX() - vec.getX());
+		int dy = Math.abs(getY() - vec.getY());
+		int dz = Math.abs(getZ() - vec.getZ());
+		return Math.max(Math.max(dx, dy), dz);
 	}
 
 	public int getComponentAlongAxis(Direction.Axis axis) {
-		return axis.choose(this.x, this.y, this.z);
+		return axis.choose(x, y, z);
 	}
 
-	/**
-	 * As vector3i.
-	 *
-	 * @return Vector3i — результат операции
-	 */
 	public Vector3i asVector3i() {
-		return new Vector3i(this.x, this.y, this.z);
+		return new Vector3i(x, y, z);
 	}
 
 	@Override
 	public String toString() {
-		return MoreObjects
-				.toStringHelper(this)
-				.add("x", this.getX())
-				.add("y", this.getY())
-				.add("z", this.getZ())
-				.toString();
+		return MoreObjects.toStringHelper(this)
+			.add("x", getX())
+			.add("y", getY())
+			.add("z", getZ())
+			.toString();
 	}
 
-	/**
-	 * To short string.
-	 *
-	 * @return String — результат операции
-	 */
 	public String toShortString() {
-		return this.getX() + ", " + this.getY() + ", " + this.getZ();
+		return getX() + ", " + getY() + ", " + getZ();
 	}
 }

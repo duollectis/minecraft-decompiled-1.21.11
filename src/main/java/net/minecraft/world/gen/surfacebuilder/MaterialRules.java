@@ -38,7 +38,9 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * {@code MaterialRules}.
+ * Система правил материалов поверхности. Определяет, какой блок должен быть размещён
+ * в данной позиции на основе условий (биом, высота, шум, глубина камня и т.д.).
+ * Используется {@link SurfaceBuilder} для построения поверхности чанков.
  */
 public class MaterialRules {
 
@@ -159,9 +161,8 @@ public class MaterialRules {
 		if (rules.length == 0) {
 			throw new IllegalArgumentException("Need at least 1 rule for a sequence");
 		}
-		else {
-			return new MaterialRules.SequenceMaterialRule(Arrays.asList(rules));
-		}
+
+		return new MaterialRules.SequenceMaterialRule(Arrays.asList(rules));
 	}
 
 	public static MaterialRules.MaterialRule block(BlockState state) {
@@ -181,7 +182,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code AboveYMaterialCondition}.
+	 * Условие: текущая позиция находится выше заданной высоты {@code anchor}.
+	 * Опционально учитывает глубину камня и множитель глубины поверхности.
 	 */
 	record AboveYMaterialCondition(
 			YOffset anchor,
@@ -237,7 +239,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code BiomeMaterialCondition}.
+	 * Условие: текущий биом входит в заданный список биомов.
 	 */
 	static final class BiomeMaterialCondition implements MaterialRules.MaterialCondition {
 
@@ -284,10 +286,10 @@ public class MaterialRules {
 			if (this == o) {
 				return true;
 			}
-			else {
-				return o instanceof MaterialRules.BiomeMaterialCondition biomeMaterialCondition ? this.biomes.equals(
-						biomeMaterialCondition.biomes) : false;
-			}
+
+			return o instanceof MaterialRules.BiomeMaterialCondition other
+				? biomes.equals(other.biomes)
+				: false;
 		}
 
 		@Override
@@ -302,7 +304,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code BlockMaterialRule}.
+	 * Правило: всегда возвращает фиксированный {@link BlockState}.
 	 */
 	record BlockMaterialRule(
 			BlockState resultState,
@@ -330,7 +332,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code BlockStateRule}.
+	 * Функциональный интерфейс: возвращает {@link BlockState} для позиции или {@code null},
+	 * если правило не применимо.
 	 */
 	protected interface BlockStateRule {
 
@@ -338,7 +341,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code BooleanSupplier}.
+	 * Поставщик булевого значения, используемый предикатами условий материалов.
 	 */
 	interface BooleanSupplier {
 
@@ -346,7 +349,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code ConditionMaterialRule}.
+	 * Правило: применяет {@code thenRun}, только если выполняется условие {@code ifTrue}.
 	 */
 	record ConditionMaterialRule(
 			MaterialRules.MaterialCondition ifTrue,
@@ -381,7 +384,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code ConditionalBlockStateRule}.
+	 * Правило состояния блока с условием: делегирует в {@code followup} только при истинном условии.
 	 */
 	record ConditionalBlockStateRule(
 			MaterialRules.BooleanSupplier condition,
@@ -389,13 +392,13 @@ public class MaterialRules {
 	) implements MaterialRules.BlockStateRule {
 
 		@Override
-		public @Nullable BlockState tryApply(int i, int j, int k) {
-			return !this.condition.get() ? null : this.followup.tryApply(i, j, k);
+		public @Nullable BlockState tryApply(int x, int y, int z) {
+			return condition.get() ? followup.tryApply(x, y, z) : null;
 		}
 	}
 
 	/**
-	 * {@code FullLazyAbstractPredicate}.
+	 * Ленивый предикат, инвалидируемый при изменении полной 3D-позиции (X, Y, Z).
 	 */
 	abstract static class FullLazyAbstractPredicate extends MaterialRules.LazyAbstractPredicate {
 
@@ -410,9 +413,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code HoleMaterialCondition}.
+	 * Условие: текущая позиция находится в «дыре» (runDepth &lt;= 0).
 	 */
-	static enum HoleMaterialCondition implements MaterialRules.MaterialCondition {
+	enum HoleMaterialCondition implements MaterialRules.MaterialCondition {
 		INSTANCE;
 
 		static final CodecHolder<MaterialRules.HoleMaterialCondition> CODEC = CodecHolder.of(MapCodec.unit(INSTANCE));
@@ -428,7 +431,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code HorizontalLazyAbstractPredicate}.
+	 * Ленивый предикат, инвалидируемый только при изменении горизонтальной позиции (X, Z).
 	 */
 	abstract static class HorizontalLazyAbstractPredicate extends MaterialRules.LazyAbstractPredicate {
 
@@ -443,7 +446,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code InvertedBooleanSupplier}.
+	 * Инвертирующий поставщик булевого значения — обёртка над {@code target}.
 	 */
 	record InvertedBooleanSupplier(MaterialRules.BooleanSupplier target) implements MaterialRules.BooleanSupplier {
 
@@ -454,7 +457,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code LazyAbstractPredicate}.
+	 * Базовый ленивый предикат с кешированием результата. Пересчитывает значение только
+	 * при изменении уникального ключа позиции, что позволяет избежать повторных вычислений
+	 * для одной и той же позиции в рамках одного прохода построения поверхности.
 	 */
 	abstract static class LazyAbstractPredicate implements MaterialRules.BooleanSupplier {
 
@@ -469,34 +474,30 @@ public class MaterialRules {
 
 		@Override
 		public boolean get() {
-			long l = this.getCurrentUniqueValue();
-			if (l == this.uniqueValue) {
-				if (this.result == null) {
+			long currentKey = getCurrentUniqueValue();
+
+			if (currentKey == uniqueValue) {
+				if (result == null) {
 					throw new IllegalStateException("Update triggered but the result is null");
 				}
-				else {
-					return this.result;
-				}
+
+				return result;
 			}
-			else {
-				this.uniqueValue = l;
-				this.result = this.test();
-				return this.result;
-			}
+
+			uniqueValue = currentKey;
+			result = test();
+
+			return result;
 		}
 
 		protected abstract long getCurrentUniqueValue();
 
-		/**
-		 * Test.
-		 *
-		 * @return boolean — результат операции
-		 */
 		protected abstract boolean test();
 	}
 
 	/**
-	 * {@code MaterialCondition}.
+	 * Условие материала поверхности. Принимает контекст и возвращает {@link BooleanSupplier},
+	 * который вычисляет истинность условия для каждой позиции.
 	 */
 	public interface MaterialCondition extends Function<MaterialRules.MaterialRuleContext, MaterialRules.BooleanSupplier> {
 
@@ -526,7 +527,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code MaterialRule}.
+	 * Правило материала поверхности. Принимает контекст и возвращает {@link BlockStateRule},
+	 * определяющее блок для каждой позиции.
 	 */
 	public interface MaterialRule extends Function<MaterialRules.MaterialRuleContext, MaterialRules.BlockStateRule> {
 
@@ -547,7 +549,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code MaterialRuleContext}.
+	 * Контекст выполнения правил материалов. Хранит текущую позицию, биом, глубину камня,
+	 * уровень жидкости и другие параметры, необходимые для вычисления условий.
+	 * Обновляется построчно в процессе генерации поверхности чанка.
 	 */
 	protected static final class MaterialRuleContext {
 
@@ -606,12 +610,6 @@ public class MaterialRules {
 			this.heightContext = heightContext;
 		}
 
-		/**
-		 * Инициализирует horizontal context.
-		 *
-		 * @param blockX block x
-		 * @param blockZ block z
-		 */
 		protected void initHorizontalContext(int blockX, int blockZ) {
 			this.uniqueHorizontalPosValue++;
 			this.uniquePosValue++;
@@ -658,55 +656,52 @@ public class MaterialRules {
 		}
 
 		/**
-		 * Estimate surface height.
-		 *
-		 * @return int — результат операции
+		 * Оценивает минимальную высоту поверхности для текущей горизонтальной позиции.
+		 * Использует билинейную интерполяцию по четырём углам чанка для плавного перехода.
+		 * Результат кешируется до следующего изменения горизонтальной позиции.
 		 */
 		protected int estimateSurfaceHeight() {
-			if (this.cachedSurfaceHeightKey != this.uniqueHorizontalPosValue) {
-				this.cachedSurfaceHeightKey = this.uniqueHorizontalPosValue;
-				int i = blockToChunkCoord(this.blockX);
-				int j = blockToChunkCoord(this.blockZ);
-				long l = ChunkPos.toLong(i, j);
-				if (this.packedChunkPos != l) {
-					this.packedChunkPos = l;
-					this.estimatedSurfaceHeights[0] =
-							this.chunkNoiseSampler.estimateSurfaceHeight(chunkToBlockCoord(i), chunkToBlockCoord(j));
-					this.estimatedSurfaceHeights[1] =
-							this.chunkNoiseSampler.estimateSurfaceHeight(
-									chunkToBlockCoord(i + 1),
-									chunkToBlockCoord(j)
-							);
-					this.estimatedSurfaceHeights[2] =
-							this.chunkNoiseSampler.estimateSurfaceHeight(
-									chunkToBlockCoord(i),
-									chunkToBlockCoord(j + 1)
-							);
-					this.estimatedSurfaceHeights[3] =
-							this.chunkNoiseSampler.estimateSurfaceHeight(
-									chunkToBlockCoord(i + 1),
-									chunkToBlockCoord(j + 1)
-							);
-				}
-
-				int k = MathHelper.floor(
-						MathHelper.lerp2(
-								(this.blockX & 15) / 16.0F,
-								(this.blockZ & 15) / 16.0F,
-								this.estimatedSurfaceHeights[0],
-								this.estimatedSurfaceHeights[1],
-								this.estimatedSurfaceHeights[2],
-								this.estimatedSurfaceHeights[3]
-						)
-				);
-				this.surfaceMinY = k + this.runDepth - 8;
+			if (cachedSurfaceHeightKey == uniqueHorizontalPosValue) {
+				return surfaceMinY;
 			}
 
-			return this.surfaceMinY;
+			cachedSurfaceHeightKey = uniqueHorizontalPosValue;
+			int chunkX = blockToChunkCoord(blockX);
+			int chunkZ = blockToChunkCoord(blockZ);
+			long packedPos = ChunkPos.toLong(chunkX, chunkZ);
+
+			if (packedChunkPos != packedPos) {
+				packedChunkPos = packedPos;
+				estimatedSurfaceHeights[0] =
+						chunkNoiseSampler.estimateSurfaceHeight(chunkToBlockCoord(chunkX), chunkToBlockCoord(chunkZ));
+				estimatedSurfaceHeights[1] =
+						chunkNoiseSampler.estimateSurfaceHeight(chunkToBlockCoord(chunkX + 1), chunkToBlockCoord(chunkZ));
+				estimatedSurfaceHeights[2] =
+						chunkNoiseSampler.estimateSurfaceHeight(chunkToBlockCoord(chunkX), chunkToBlockCoord(chunkZ + 1));
+				estimatedSurfaceHeights[3] =
+						chunkNoiseSampler.estimateSurfaceHeight(
+								chunkToBlockCoord(chunkX + 1),
+								chunkToBlockCoord(chunkZ + 1)
+						);
+			}
+
+			int interpolatedHeight = MathHelper.floor(
+					MathHelper.lerp2(
+							(blockX & CHUNK_COORD_MASK) / 16.0F,
+							(blockZ & CHUNK_COORD_MASK) / 16.0F,
+							estimatedSurfaceHeights[0],
+							estimatedSurfaceHeights[1],
+							estimatedSurfaceHeights[2],
+							estimatedSurfaceHeights[3]
+					)
+			);
+			surfaceMinY = interpolatedHeight + runDepth - 8;
+
+			return surfaceMinY;
 		}
 
 		/**
-		 * {@code BiomeTemperaturePredicate}.
+		 * Предикат: биом в текущей позиции является холодным (температура ниже порога замерзания).
 		 */
 		static class BiomeTemperaturePredicate extends MaterialRules.FullLazyAbstractPredicate {
 
@@ -728,7 +723,7 @@ public class MaterialRules {
 		}
 
 		/**
-		 * {@code NegativeRunDepthPredicate}.
+		 * Предикат: глубина поверхности (runDepth) отрицательна — позиция находится в «дыре».
 		 */
 		static final class NegativeRunDepthPredicate extends MaterialRules.HorizontalLazyAbstractPredicate {
 
@@ -743,7 +738,7 @@ public class MaterialRules {
 		}
 
 		/**
-		 * {@code SteepSlopePredicate}.
+		 * Предикат: склон в текущей позиции является крутым (перепад высот &gt;= 4 блоков).
 		 */
 		static class SteepSlopePredicate extends MaterialRules.HorizontalLazyAbstractPredicate {
 
@@ -751,30 +746,33 @@ public class MaterialRules {
 				super(materialRuleContext);
 			}
 
+			private static final int STEEP_SLOPE_THRESHOLD = 4;
+
 			@Override
 			protected boolean test() {
-				int i = this.context.blockX & 15;
-				int j = this.context.blockZ & 15;
-				int k = Math.max(j - 1, 0);
-				int l = Math.min(j + 1, 15);
-				Chunk chunk = this.context.chunk;
-				int m = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, i, k);
-				int n = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, i, l);
-				if (n >= m + 4) {
+				int localX = context.blockX & CHUNK_COORD_MASK;
+				int localZ = context.blockZ & CHUNK_COORD_MASK;
+				int zMinus = Math.max(localZ - 1, 0);
+				int zPlus = Math.min(localZ + 1, CHUNK_COORD_MASK);
+				Chunk chunk = context.chunk;
+				int heightZMinus = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, zMinus);
+				int heightZPlus = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, zPlus);
+
+				if (heightZPlus >= heightZMinus + STEEP_SLOPE_THRESHOLD) {
 					return true;
 				}
-				else {
-					int o = Math.max(i - 1, 0);
-					int p = Math.min(i + 1, 15);
-					int q = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, o, j);
-					int r = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, p, j);
-					return q >= r + 4;
-				}
+
+				int xMinus = Math.max(localX - 1, 0);
+				int xPlus = Math.min(localX + 1, CHUNK_COORD_MASK);
+				int heightXMinus = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, xMinus, localZ);
+				int heightXPlus = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, xPlus, localZ);
+
+				return heightXMinus >= heightXPlus + STEEP_SLOPE_THRESHOLD;
 			}
 		}
 
 		/**
-		 * {@code SurfacePredicate}.
+		 * Предикат: текущий блок находится выше или на уровне предварительной поверхности чанка.
 		 */
 		final class SurfacePredicate implements MaterialRules.BooleanSupplier {
 
@@ -786,7 +784,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code NoiseThresholdMaterialCondition}.
+	 * Условие: значение шума Перлина в текущей горизонтальной позиции находится
+	 * в диапазоне [{@code minThreshold}, {@code maxThreshold}].
 	 */
 	record NoiseThresholdMaterialCondition(
 			RegistryKey<DoublePerlinNoiseSampler.NoiseParameters> noise,
@@ -845,7 +844,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code NotMaterialCondition}.
+	 * Условие-инвертор: истинно тогда и только тогда, когда {@code target} ложно.
 	 */
 	record NotMaterialCondition(MaterialRules.MaterialCondition target) implements MaterialRules.MaterialCondition {
 
@@ -866,16 +865,17 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code SequenceBlockStateRule}.
+	 * Правило состояния блока: перебирает список правил и возвращает первый ненулевой результат.
 	 */
 	record SequenceBlockStateRule(List<MaterialRules.BlockStateRule> rules) implements MaterialRules.BlockStateRule {
 
 		@Override
-		public @Nullable BlockState tryApply(int i, int j, int k) {
-			for (MaterialRules.BlockStateRule blockStateRule : this.rules) {
-				BlockState blockState = blockStateRule.tryApply(i, j, k);
-				if (blockState != null) {
-					return blockState;
+		public @Nullable BlockState tryApply(int x, int y, int z) {
+			for (MaterialRules.BlockStateRule rule : rules) {
+				BlockState state = rule.tryApply(x, y, z);
+
+				if (state != null) {
+					return state;
 				}
 			}
 
@@ -884,7 +884,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code SequenceMaterialRule}.
+	 * Правило-последовательность: применяет правила по порядку, возвращая первый ненулевой результат.
 	 */
 	record SequenceMaterialRule(List<MaterialRules.MaterialRule> sequence) implements MaterialRules.MaterialRule {
 
@@ -901,36 +901,35 @@ public class MaterialRules {
 		}
 
 		public MaterialRules.BlockStateRule apply(MaterialRules.MaterialRuleContext materialRuleContext) {
-			if (this.sequence.size() == 1) {
-				return this.sequence.get(0).apply(materialRuleContext);
+			if (sequence.size() == 1) {
+				return sequence.get(0).apply(materialRuleContext);
 			}
-			else {
-				Builder<MaterialRules.BlockStateRule> builder = ImmutableList.builder();
 
-				for (MaterialRules.MaterialRule materialRule : this.sequence) {
-					builder.add(materialRule.apply(materialRuleContext));
-				}
+			Builder<MaterialRules.BlockStateRule> builder = ImmutableList.builder();
 
-				return new MaterialRules.SequenceBlockStateRule(builder.build());
+			for (MaterialRules.MaterialRule rule : sequence) {
+				builder.add(rule.apply(materialRuleContext));
 			}
+
+			return new MaterialRules.SequenceBlockStateRule(builder.build());
 		}
 	}
 
 	/**
-	 * {@code SimpleBlockStateRule}.
+	 * Простейшее правило: всегда возвращает один и тот же {@link BlockState}.
 	 */
 	record SimpleBlockStateRule(BlockState state) implements MaterialRules.BlockStateRule {
 
 		@Override
-		public BlockState tryApply(int i, int j, int k) {
-			return this.state;
+		public BlockState tryApply(int x, int y, int z) {
+			return state;
 		}
 	}
 
 	/**
-	 * {@code SteepMaterialCondition}.
+	 * Условие: текущая позиция находится на крутом склоне.
 	 */
-	static enum SteepMaterialCondition implements MaterialRules.MaterialCondition {
+	enum SteepMaterialCondition implements MaterialRules.MaterialCondition {
 		INSTANCE;
 
 		static final CodecHolder<MaterialRules.SteepMaterialCondition> CODEC = CodecHolder.of(MapCodec.unit(INSTANCE));
@@ -946,7 +945,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code StoneDepthMaterialCondition}.
+	 * Условие: глубина камня (расстояние до поверхности/потолка) не превышает заданного порога.
+	 * Используется для размещения почвы, гравия и других поверхностных слоёв.
 	 */
 	record StoneDepthMaterialCondition(
 			int offset,
@@ -982,11 +982,8 @@ public class MaterialRules {
 		}
 
 		public MaterialRules.BooleanSupplier apply(MaterialRules.MaterialRuleContext materialRuleContext) {
-			final boolean bl = this.surfaceType == VerticalSurfaceType.CEILING;
+			final boolean isCeiling = surfaceType == VerticalSurfaceType.CEILING;
 
-			/**
-			 * {@code StoneDepthPredicate}.
-			 */
 			class StoneDepthPredicate extends MaterialRules.FullLazyAbstractPredicate {
 
 				StoneDepthPredicate() {
@@ -995,18 +992,19 @@ public class MaterialRules {
 
 				@Override
 				protected boolean test() {
-					int i = bl ? this.context.stoneDepthBelow : this.context.stoneDepthAbove;
-					int j = StoneDepthMaterialCondition.this.addSurfaceDepth ? this.context.runDepth : 0;
-					int k = StoneDepthMaterialCondition.this.secondaryDepthRange == 0
-					        ? 0
-					        : (int) MathHelper.map(
-							        this.context.getSecondaryDepth(),
-							        -1.0,
-							        1.0,
-							        0.0,
-							        (double) StoneDepthMaterialCondition.this.secondaryDepthRange
-					        );
-					return i <= 1 + StoneDepthMaterialCondition.this.offset + j + k;
+					int stoneDepth = isCeiling ? context.stoneDepthBelow : context.stoneDepthAbove;
+					int surfaceDepthBonus = StoneDepthMaterialCondition.this.addSurfaceDepth ? context.runDepth : 0;
+					int secondaryBonus = StoneDepthMaterialCondition.this.secondaryDepthRange == 0
+							? 0
+							: (int) MathHelper.map(
+									context.getSecondaryDepth(),
+									-1.0,
+									1.0,
+									0.0,
+									StoneDepthMaterialCondition.this.secondaryDepthRange
+							);
+
+					return stoneDepth <= 1 + StoneDepthMaterialCondition.this.offset + surfaceDepthBonus + secondaryBonus;
 				}
 			}
 
@@ -1015,9 +1013,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code SurfaceMaterialCondition}.
+	 * Условие: текущий блок находится выше предварительной поверхности чанка.
 	 */
-	static enum SurfaceMaterialCondition implements MaterialRules.MaterialCondition {
+	enum SurfaceMaterialCondition implements MaterialRules.MaterialCondition {
 		INSTANCE;
 
 		static final CodecHolder<MaterialRules.SurfaceMaterialCondition>
@@ -1035,9 +1033,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code TemperatureMaterialCondition}.
+	 * Условие: биом в текущей позиции является холодным (температура ниже порога замерзания воды).
 	 */
-	static enum TemperatureMaterialCondition implements MaterialRules.MaterialCondition {
+	enum TemperatureMaterialCondition implements MaterialRules.MaterialCondition {
 		INSTANCE;
 
 		static final CodecHolder<MaterialRules.TemperatureMaterialCondition>
@@ -1055,9 +1053,9 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code TerracottaBandsMaterialRule}.
+	 * Правило: возвращает блок из полос терракоты, определяемый координатой Y.
 	 */
-	static enum TerracottaBandsMaterialRule implements MaterialRules.MaterialRule {
+	enum TerracottaBandsMaterialRule implements MaterialRules.MaterialRule {
 		INSTANCE;
 
 		static final CodecHolder<MaterialRules.TerracottaBandsMaterialRule>
@@ -1075,7 +1073,8 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code VerticalGradientMaterialCondition}.
+	 * Условие: вертикальный градиент — вероятность истинности линейно убывает от {@code trueAtAndBelow}
+	 * до {@code falseAtAndAbove}, используя детерминированный шум для плавного перехода.
 	 */
 	record VerticalGradientMaterialCondition(
 			Identifier randomName,
@@ -1106,15 +1105,10 @@ public class MaterialRules {
 		}
 
 		public MaterialRules.BooleanSupplier apply(MaterialRules.MaterialRuleContext materialRuleContext) {
-			final int i = this.trueAtAndBelow().getY(materialRuleContext.heightContext);
-			final int j = this.falseAtAndAbove().getY(materialRuleContext.heightContext);
-			final RandomSplitter
-					randomSplitter =
-					materialRuleContext.noiseConfig.getOrCreateRandomDeriver(this.randomName());
+			final int trueAtY = trueAtAndBelow().getY(materialRuleContext.heightContext);
+			final int falseAtY = falseAtAndAbove().getY(materialRuleContext.heightContext);
+			final RandomSplitter randomSplitter = materialRuleContext.noiseConfig.getOrCreateRandomDeriver(randomName());
 
-			/**
-			 * {@code VerticalGradientPredicate}.
-			 */
 			class VerticalGradientPredicate extends MaterialRules.FullLazyAbstractPredicate {
 
 				VerticalGradientPredicate() {
@@ -1123,18 +1117,20 @@ public class MaterialRules {
 
 				@Override
 				protected boolean test() {
-					int blockY = this.context.blockY;
-					if (blockY <= i) {
+					int blockY = context.blockY;
+
+					if (blockY <= trueAtY) {
 						return true;
 					}
-					else if (blockY >= j) {
+
+					if (blockY >= falseAtY) {
 						return false;
 					}
-					else {
-						double d = MathHelper.map((double) blockY, (double) i, (double) j, 1.0, 0.0);
-						Random random = randomSplitter.split(this.context.blockX, blockY, this.context.blockZ);
-						return random.nextFloat() < d;
-					}
+
+					double probability = MathHelper.map(blockY, trueAtY, falseAtY, 1.0, 0.0);
+					Random random = randomSplitter.split(context.blockX, blockY, context.blockZ);
+
+					return random.nextFloat() < probability;
 				}
 			}
 
@@ -1143,7 +1139,7 @@ public class MaterialRules {
 	}
 
 	/**
-	 * {@code WaterMaterialCondition}.
+	 * Условие: текущая позиция находится выше уровня жидкости с учётом смещения и глубины поверхности.
 	 */
 	record WaterMaterialCondition(
 			int offset,

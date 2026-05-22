@@ -8,13 +8,18 @@ import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Frustum}.
+ * Усечённая пирамида видимости (view frustum) для отсечения невидимых объектов.
+ * Использует JOML {@link FrustumIntersection} для быстрой проверки пересечения AABB с фрустумом.
+ * Поддерживает смещение позиции камеры и расширение охватывающего бокса для корректного
+ * отсечения чанков с учётом погрешностей позиционирования.
  */
+@Environment(EnvType.CLIENT)
 public class Frustum {
 
+	/** Масштаб отступа при расширении охватывающего бокса в {@link #coverBoxAroundSetPosition}. */
 	public static final int RECESSION_SCALE = 4;
+
 	private final FrustumIntersection frustumIntersection = new FrustumIntersection();
 	private final Matrix4f positionProjectionMatrix = new Matrix4f();
 	private Vector4f recession;
@@ -23,92 +28,77 @@ public class Frustum {
 	private double z;
 
 	public Frustum(Matrix4f positionMatrix, Matrix4f projectionMatrix) {
-		this.init(positionMatrix, projectionMatrix);
+		init(positionMatrix, projectionMatrix);
 	}
 
 	public Frustum(Frustum frustum) {
-		this.frustumIntersection.set(frustum.positionProjectionMatrix);
-		this.positionProjectionMatrix.set(frustum.positionProjectionMatrix);
-		this.x = frustum.x;
-		this.y = frustum.y;
-		this.z = frustum.z;
-		this.recession = frustum.recession;
+		frustumIntersection.set(frustum.positionProjectionMatrix);
+		positionProjectionMatrix.set(frustum.positionProjectionMatrix);
+		x = frustum.x;
+		y = frustum.y;
+		z = frustum.z;
+		recession = frustum.recession;
 	}
 
-	/**
-	 * Offset.
-	 *
-	 * @param distance distance
-	 *
-	 * @return Frustum — результат операции
-	 */
+	/** Смещает позицию фрустума вдоль вектора рецессии на заданное расстояние. */
 	public Frustum offset(float distance) {
-		this.x = this.x + this.recession.x * distance;
-		this.y = this.y + this.recession.y * distance;
-		this.z = this.z + this.recession.z * distance;
+		x = x + recession.x * distance;
+		y = y + recession.y * distance;
+		z = z + recession.z * distance;
 		return this;
 	}
 
 	/**
-	 * Cover box around set position.
+	 * Сдвигает позицию фрустума так, чтобы бокс заданного размера вокруг текущей позиции
+	 * полностью попадал в фрустум. Используется для корректного отсечения чанков.
 	 *
-	 * @param boxSize box size
-	 *
-	 * @return Frustum — результат операции
+	 * @param boxSize размер охватывающего бокса в блоках
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public Frustum coverBoxAroundSetPosition(int boxSize) {
-		double d = Math.floor(this.x / boxSize) * boxSize;
-		double e = Math.floor(this.y / boxSize) * boxSize;
-		double f = Math.floor(this.z / boxSize) * boxSize;
-		double g = Math.ceil(this.x / boxSize) * boxSize;
-		double h = Math.ceil(this.y / boxSize) * boxSize;
+		double minX = Math.floor(x / boxSize) * boxSize;
+		double minY = Math.floor(y / boxSize) * boxSize;
+		double minZ = Math.floor(z / boxSize) * boxSize;
+		double maxX = Math.ceil(x / boxSize) * boxSize;
+		double maxY = Math.ceil(y / boxSize) * boxSize;
 
-		for (double i = Math.ceil(this.z / boxSize) * boxSize;
-		     this.frustumIntersection
-				     .intersectAab(
-						     (float) (d - this.x),
-						     (float) (e - this.y),
-						     (float) (f - this.z),
-						     (float) (g - this.x),
-						     (float) (h - this.y),
-						     (float) (i - this.z)
-				     )
-				     != -2;
-		     this.z = this.z - this.recession.z() * 4.0F
+		for (double maxZ = Math.ceil(z / boxSize) * boxSize;
+				frustumIntersection.intersectAab(
+						(float) (minX - x),
+						(float) (minY - y),
+						(float) (minZ - z),
+						(float) (maxX - x),
+						(float) (maxY - y),
+						(float) (maxZ - z)
+				) != -2;
+				z = z - recession.z() * RECESSION_SCALE
 		) {
-			this.x = this.x - this.recession.x() * 4.0F;
-			this.y = this.y - this.recession.y() * 4.0F;
+			x = x - recession.x() * RECESSION_SCALE;
+			y = y - recession.y() * RECESSION_SCALE;
 		}
 
 		return this;
 	}
 
 	public void setPosition(double cameraX, double cameraY, double cameraZ) {
-		this.x = cameraX;
-		this.y = cameraY;
-		this.z = cameraZ;
+		x = cameraX;
+		y = cameraY;
+		z = cameraZ;
 	}
 
 	private void init(Matrix4f positionMatrix, Matrix4f projectionMatrix) {
-		projectionMatrix.mul(positionMatrix, this.positionProjectionMatrix);
-		this.frustumIntersection.set(this.positionProjectionMatrix);
-		this.recession = this.positionProjectionMatrix.transformTranspose(new Vector4f(0.0F, 0.0F, 1.0F, 0.0F));
+		projectionMatrix.mul(positionMatrix, positionProjectionMatrix);
+		frustumIntersection.set(positionProjectionMatrix);
+		recession = positionProjectionMatrix.transformTranspose(new Vector4f(0.0F, 0.0F, 1.0F, 0.0F));
 	}
 
 	public boolean isVisible(Box box) {
-		int i = this.intersectAab(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
-		return i == -2 || i == -1;
+		int result = intersectAab(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
+		return result == -2 || result == -1;
 	}
 
-	/**
-	 * Intersect aab.
-	 *
-	 * @param box box
-	 *
-	 * @return int — результат операции
-	 */
 	public int intersectAab(BlockBox box) {
-		return this.intersectAab(
+		return intersectAab(
 				box.getMinX(),
 				box.getMinY(),
 				box.getMinZ(),
@@ -119,30 +109,27 @@ public class Frustum {
 	}
 
 	private int intersectAab(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-		float f = (float) (minX - this.x);
-		float g = (float) (minY - this.y);
-		float h = (float) (minZ - this.z);
-		float i = (float) (maxX - this.x);
-		float j = (float) (maxY - this.y);
-		float k = (float) (maxZ - this.z);
-		return this.frustumIntersection.intersectAab(f, g, h, i, j, k);
+		float localMinX = (float) (minX - x);
+		float localMinY = (float) (minY - y);
+		float localMinZ = (float) (minZ - z);
+		float localMaxX = (float) (maxX - x);
+		float localMaxY = (float) (maxY - y);
+		float localMaxZ = (float) (maxZ - z);
+		return frustumIntersection.intersectAab(localMinX, localMinY, localMinZ, localMaxX, localMaxY, localMaxZ);
+	}
+
+	public boolean intersectPoint(double x, double y, double z) {
+		return frustumIntersection.testPoint((float) (x - this.x), (float) (y - this.y), (float) (z - this.z));
 	}
 
 	/**
-	 * Intersect point.
+	 * Возвращает 8 угловых точек фрустума в мировом пространстве.
+	 * Вычисляется через обратную матрицу проекции-вида из NDC-координат.
 	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return boolean — результат операции
+	 * @return массив из 8 точек в однородных координатах (после деления на w)
 	 */
-	public boolean intersectPoint(double x, double y, double z) {
-		return this.frustumIntersection.testPoint((float) (x - this.x), (float) (y - this.y), (float) (z - this.z));
-	}
-
 	public Vector4f[] getBoundaryPoints() {
-		Vector4f[] vector4fs = new Vector4f[]{
+		Vector4f[] corners = new Vector4f[]{
 				new Vector4f(-1.0F, -1.0F, -1.0F, 1.0F),
 				new Vector4f(1.0F, -1.0F, -1.0F, 1.0F),
 				new Vector4f(1.0F, 1.0F, -1.0F, 1.0F),
@@ -152,25 +139,25 @@ public class Frustum {
 				new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
 				new Vector4f(-1.0F, 1.0F, 1.0F, 1.0F)
 		};
-		Matrix4f matrix4f = this.positionProjectionMatrix.invert(new Matrix4f());
+		Matrix4f inverseMatrix = positionProjectionMatrix.invert(new Matrix4f());
 
-		for (int i = 0; i < 8; i++) {
-			matrix4f.transform(vector4fs[i]);
-			vector4fs[i].div(vector4fs[i].w());
+		for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++) {
+			inverseMatrix.transform(corners[cornerIndex]);
+			corners[cornerIndex].div(corners[cornerIndex].w());
 		}
 
-		return vector4fs;
+		return corners;
 	}
 
 	public double getX() {
-		return this.x;
+		return x;
 	}
 
 	public double getY() {
-		return this.y;
+		return y;
 	}
 
 	public double getZ() {
-		return this.z;
+		return z;
 	}
 }

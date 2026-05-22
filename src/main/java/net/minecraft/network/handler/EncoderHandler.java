@@ -13,7 +13,8 @@ import net.minecraft.util.profiling.jfr.FlightProfiler;
 import org.slf4j.Logger;
 
 /**
- * Класс encoder handler.
+ * Netty-обработчик исходящего трафика: кодирует {@link Packet} в {@link ByteBuf}
+ * согласно текущему {@link NetworkState}.
  */
 public class EncoderHandler<T extends PacketListener> extends MessageToByteEncoder<Packet<T>> {
 
@@ -24,38 +25,37 @@ public class EncoderHandler<T extends PacketListener> extends MessageToByteEncod
 		this.state = state;
 	}
 
-	protected void encode(ChannelHandlerContext channelHandlerContext, Packet<T> packet, ByteBuf byteBuf)
-	throws Exception {
+	@Override
+	protected void encode(ChannelHandlerContext context, Packet<T> packet, ByteBuf out) throws Exception {
 		PacketType<? extends Packet<? super T>> packetType = packet.getPacketType();
 
 		try {
-			this.state.codec().encode(byteBuf, packet);
-			int i = byteBuf.readableBytes();
+			state.codec().encode(out, packet);
+			int packetSize = out.readableBytes();
+
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug(
 						ClientConnection.PACKET_SENT_MARKER,
 						"OUT: [{}:{}] {} -> {} bytes",
-						new Object[]{this.state.id().getId(), packetType, packet.getClass().getName(), i}
+						new Object[]{state.id().getId(), packetType, packet.getClass().getName(), packetSize}
 				);
 			}
 
 			FlightProfiler.INSTANCE.onPacketSent(
-					this.state.id(),
+					state.id(),
 					packetType,
-					channelHandlerContext.channel().remoteAddress(),
-					i
+					context.channel().remoteAddress(),
+					packetSize
 			);
-		}
-		catch (Throwable var9) {
-			LOGGER.error("Error sending packet {}", packetType, var9);
+		} catch (Throwable e) {
+			LOGGER.error("Error sending packet {}", packetType, e);
 			if (packet.isWritingErrorSkippable()) {
-				throw new PacketEncoderException(var9);
+				throw new PacketEncoderException(e);
 			}
 
-			throw var9;
-		}
-		finally {
-			NetworkStateTransitionHandler.onEncoded(channelHandlerContext, packet);
+			throw e;
+		} finally {
+			NetworkStateTransitionHandler.onEncoded(context, packet);
 		}
 	}
 }

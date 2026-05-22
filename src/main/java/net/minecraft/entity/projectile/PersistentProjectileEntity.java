@@ -7,7 +7,12 @@ import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.BlockState;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.*;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.MovementType;
+import net.minecraft.entity.OminousItemSpawnerEntity;
+import net.minecraft.entity.ProjectileDeflection;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
@@ -40,91 +45,111 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 
 /**
- * {@code PersistentProjectileEntity}.
+ * Базовый класс для снарядов, которые остаются в мире после попадания (стрелы, трезубцы).
+ * <p>
+ * Управляет физикой полёта, застреванием в блоках, пробиванием сущностей,
+ * подбором игроком и логикой критического удара.
  */
 public abstract class PersistentProjectileEntity extends ProjectileEntity {
 
 	private static final double DEFAULT_DAMAGE = 2.0;
-	private static final int DEFAULT_SHAKE_TICKS = 7;
+	private static final int SHAKE_TICKS_ON_HIT = 7;
 	private static final float DRAG_IN_WATER = 0.6F;
-	private static final float DEFAULT_DRAG = 0.99F;
-	private static final short DEFAULT_LIFE = 0;
-	private static final byte DEFAULT_SHAKE = 0;
-	private static final boolean DEFAULT_IN_GROUND = false;
-	private static final boolean DEFAULT_CRITICAL = false;
-	private static final byte DEFAULT_PIERCE_LEVEL = 0;
-	private static final TrackedData<Byte>
-			PROJECTILE_FLAGS =
-			DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BYTE);
-	private static final TrackedData<Byte>
-			PIERCE_LEVEL =
-			DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BYTE);
-	private static final TrackedData<Boolean>
-			IN_GROUND =
-			DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final float DRAG_IN_AIR = 0.99F;
+	private static final int MAX_LIFE_TICKS = 1200;
+	private static final int PIERCE_INITIAL_CAPACITY = 5;
+	private static final float CRITICAL_PARTICLE_STEP = 4.0F;
+	private static final float BLOCK_EMBED_OFFSET = 0.05F;
+	private static final float FALL_VELOCITY_FACTOR = 0.2F;
+	private static final float SPACE_EMPTY_CHECK_EXPAND = 0.06F;
+	private static final double SLOW_VELOCITY_THRESHOLD = 1.0E-7;
+	private static final float FIRE_DURATION_ON_HIT = 5.0F;
+	private static final float SOUND_PITCH_BASE = 0.9F;
+	private static final float SOUND_PITCH_RANGE = 0.2F;
 	private static final int CRITICAL_FLAG = 1;
 	private static final int NO_CLIP_FLAG = 2;
+
+	private static final TrackedData<Byte> PROJECTILE_FLAGS =
+		DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final TrackedData<Byte> PIERCE_LEVEL =
+		DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final TrackedData<Boolean> IN_GROUND =
+		DataTracker.registerData(PersistentProjectileEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+
 	private @Nullable BlockState inBlockState;
 	protected int inGroundTime;
-	public PersistentProjectileEntity.PickupPermission
-			pickupType =
-			PersistentProjectileEntity.PickupPermission.DISALLOWED;
-	public int shake = 0;
-	private int life = 0;
-	private double damage = 2.0;
-	private SoundEvent sound = this.getHitSound();
+	public PickupPermission pickupType = PickupPermission.DISALLOWED;
+	public int shake;
+	private int life;
+	private double damage = DEFAULT_DAMAGE;
+	private SoundEvent sound = getHitSound();
 	private @Nullable IntOpenHashSet piercedEntities;
 	private @Nullable List<Entity> piercingKilledEntities;
-	private ItemStack stack = this.getDefaultItemStack();
-	private @Nullable ItemStack weapon = null;
+	private ItemStack stack = getDefaultItemStack();
+	private @Nullable ItemStack weapon;
 
 	protected PersistentProjectileEntity(EntityType<? extends PersistentProjectileEntity> entityType, World world) {
 		super(entityType, world);
 	}
 
+	/**
+	 * Создаёт снаряд в заданной позиции с привязкой к стеку предмета и оружию.
+	 * Если оружие задано — считывает уровень пробивания из зачарований.
+	 *
+	 * @param type   тип сущности
+	 * @param x      позиция X
+	 * @param y      позиция Y
+	 * @param z      позиция Z
+	 * @param world  мир
+	 * @param stack  стек предмета-снаряда
+	 * @param weapon стек оружия, из которого выпущен снаряд (может быть null)
+	 */
 	protected PersistentProjectileEntity(
-			EntityType<? extends PersistentProjectileEntity> type,
-			double x,
-			double y,
-			double z,
-			World world,
-			ItemStack stack,
-			@Nullable ItemStack weapon
+		EntityType<? extends PersistentProjectileEntity> type,
+		double x,
+		double y,
+		double z,
+		World world,
+		ItemStack stack,
+		@Nullable ItemStack weapon
 	) {
 		this(type, world);
 		this.stack = stack.copy();
-		this.copyComponentsFrom(stack);
-		Unit unit = stack.remove(DataComponentTypes.INTANGIBLE_PROJECTILE);
-		if (unit != null) {
-			this.pickupType = PersistentProjectileEntity.PickupPermission.CREATIVE_ONLY;
+		copyComponentsFrom(stack);
+		Unit intangibleTag = stack.remove(DataComponentTypes.INTANGIBLE_PROJECTILE);
+		if (intangibleTag != null) {
+			pickupType = PickupPermission.CREATIVE_ONLY;
 		}
 
-		this.setPosition(x, y, z);
+		setPosition(x, y, z);
 		if (weapon != null && world instanceof ServerWorld serverWorld) {
 			if (weapon.isEmpty()) {
 				throw new IllegalArgumentException("Invalid weapon firing an arrow");
 			}
 
 			this.weapon = weapon.copy();
-			int i = EnchantmentHelper.getProjectilePiercing(serverWorld, weapon, this.stack);
-			if (i > 0) {
-				this.setPierceLevel((byte) i);
+			int pierceLevel = EnchantmentHelper.getProjectilePiercing(serverWorld, weapon, this.stack);
+			if (pierceLevel > 0) {
+				setPierceLevel((byte) pierceLevel);
 			}
 		}
 	}
 
 	protected PersistentProjectileEntity(
-			EntityType<? extends PersistentProjectileEntity> type,
-			LivingEntity owner,
-			World world,
-			ItemStack stack,
-			@Nullable ItemStack shotFrom
+		EntityType<? extends PersistentProjectileEntity> type,
+		LivingEntity owner,
+		World world,
+		ItemStack stack,
+		@Nullable ItemStack shotFrom
 	) {
 		this(type, owner.getX(), owner.getEyeY() - 0.1F, owner.getZ(), world, stack, shotFrom);
-		this.setOwner(owner);
+		setOwner(owner);
 	}
 
 	public void setSound(SoundEvent sound) {
@@ -133,13 +158,13 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 
 	@Override
 	public boolean shouldRender(double distance) {
-		double d = this.getBoundingBox().getAverageSideLength() * 10.0;
-		if (Double.isNaN(d)) {
-			d = 1.0;
+		double sideLen = getBoundingBox().getAverageSideLength() * 10.0;
+		if (Double.isNaN(sideLen)) {
+			sideLen = 1.0;
 		}
 
-		d *= 64.0 * getRenderDistanceMultiplier();
-		return distance < d * d;
+		sideLen *= 64.0 * getRenderDistanceMultiplier();
+		return distance < sideLen * sideLen;
 	}
 
 	@Override
@@ -152,179 +177,183 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	@Override
 	public void setVelocity(double x, double y, double z, float power, float uncertainty) {
 		super.setVelocity(x, y, z, power, uncertainty);
-		this.life = 0;
+		life = 0;
 	}
 
 	@Override
 	public void setVelocityClient(Vec3d clientVelocity) {
 		super.setVelocityClient(clientVelocity);
-		this.life = 0;
-		if (this.isInGround() && clientVelocity.lengthSquared() > 0.0) {
-			this.setInGround(false);
+		life = 0;
+		if (isInGround() && clientVelocity.lengthSquared() > 0.0) {
+			setInGround(false);
 		}
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
-		if (!this.firstUpdate && this.shake <= 0 && data.equals(IN_GROUND) && this.isInGround()) {
-			this.shake = 7;
+		if (!firstUpdate && shake <= 0 && data.equals(IN_GROUND) && isInGround()) {
+			shake = SHAKE_TICKS_ON_HIT;
 		}
 	}
 
 	@Override
 	public void tick() {
-		boolean bl = !this.isNoClip();
-		Vec3d vec3d = this.getVelocity();
-		BlockPos blockPos = this.getBlockPos();
-		BlockState blockState = this.getEntityWorld().getBlockState(blockPos);
-		if (!blockState.isAir() && bl) {
-			VoxelShape voxelShape = blockState.getCollisionShape(this.getEntityWorld(), blockPos);
-			if (!voxelShape.isEmpty()) {
-				Vec3d vec3d2 = this.getEntityPos();
+		boolean hasCollision = !isNoClip();
+		Vec3d velocity = getVelocity();
+		BlockPos blockPos = getBlockPos();
+		BlockState blockState = getEntityWorld().getBlockState(blockPos);
 
-				for (Box box : voxelShape.getBoundingBoxes()) {
-					if (box.offset(blockPos).contains(vec3d2)) {
-						this.setVelocity(Vec3d.ZERO);
-						this.setInGround(true);
+		// Если снаряд оказался внутри блока — останавливаем его
+		if (!blockState.isAir() && hasCollision) {
+			VoxelShape shape = blockState.getCollisionShape(getEntityWorld(), blockPos);
+			if (!shape.isEmpty()) {
+				Vec3d pos = getEntityPos();
+				for (Box box : shape.getBoundingBoxes()) {
+					if (box.offset(blockPos).contains(pos)) {
+						setVelocity(Vec3d.ZERO);
+						setInGround(true);
 						break;
 					}
 				}
 			}
 		}
 
-		if (this.shake > 0) {
-			this.shake--;
+		if (shake > 0) {
+			shake--;
 		}
 
-		if (this.isTouchingWaterOrRain()) {
-			this.extinguish();
+		if (isTouchingWaterOrRain()) {
+			extinguish();
 		}
 
-		if (this.isInGround() && bl) {
-			if (!this.getEntityWorld().isClient()) {
-				if (this.inBlockState != blockState && this.shouldFall()) {
-					this.fall();
-				}
-				else {
-					this.age();
-				}
-			}
-
-			this.inGroundTime++;
-			if (this.isAlive()) {
-				this.tickBlockCollision();
-			}
-
-			if (!this.getEntityWorld().isClient()) {
-				this.setOnFire(this.getFireTicks() > 0);
-			}
-		}
-		else {
-			this.inGroundTime = 0;
-			Vec3d vec3d3 = this.getEntityPos();
-			if (this.isTouchingWater()) {
-				this.applyDrag(this.getDragInWater());
-				this.spawnBubbleParticles(vec3d3);
-			}
-
-			if (this.isCritical()) {
-				for (int i = 0; i < 4; i++) {
-					this.getEntityWorld()
-					    .addParticleClient(
-							    ParticleTypes.CRIT,
-							    vec3d3.x + vec3d.x * i / 4.0,
-							    vec3d3.y + vec3d.y * i / 4.0,
-							    vec3d3.z + vec3d.z * i / 4.0,
-							    -vec3d.x,
-							    -vec3d.y + 0.2,
-							    -vec3d.z
-					    );
+		if (isInGround() && hasCollision) {
+			if (!getEntityWorld().isClient()) {
+				if (inBlockState != blockState && shouldFall()) {
+					fall();
+				} else {
+					age();
 				}
 			}
 
-			float f;
-			if (!bl) {
-				f = (float) (MathHelper.atan2(-vec3d.x, -vec3d.z) * 180.0F / (float) Math.PI);
-			}
-			else {
-				f = (float) (MathHelper.atan2(vec3d.x, vec3d.z) * 180.0F / (float) Math.PI);
+			inGroundTime++;
+			if (isAlive()) {
+				tickBlockCollision();
 			}
 
-			float g = (float) (MathHelper.atan2(vec3d.y, vec3d.horizontalLength()) * 180.0F / (float) Math.PI);
-			this.setPitch(updateRotation(this.getPitch(), g));
-			this.setYaw(updateRotation(this.getYaw(), f));
-			this.tickLeftOwner();
-			if (bl) {
-				BlockHitResult blockHitResult = this.getEntityWorld()
-				                                    .getCollisionsIncludingWorldBorder(
-						                                    new RaycastContext(
-								                                    vec3d3,
-								                                    vec3d3.add(vec3d),
-								                                    RaycastContext.ShapeType.COLLIDER,
-								                                    RaycastContext.FluidHandling.NONE,
-								                                    this
-						                                    )
-				                                    );
-				this.applyCollision(blockHitResult);
+			if (!getEntityWorld().isClient()) {
+				setOnFire(getFireTicks() > 0);
 			}
-			else {
-				this.setPosition(vec3d3.add(vec3d));
-				this.tickBlockCollision();
+		} else {
+			inGroundTime = 0;
+			Vec3d pos = getEntityPos();
+
+			if (isTouchingWater()) {
+				applyDrag(getDragInWater());
+				spawnBubbleParticles(pos);
 			}
 
-			if (!this.isTouchingWater()) {
-				this.applyDrag(0.99F);
+			if (isCritical()) {
+				for (int step = 0; step < CRITICAL_PARTICLE_STEP; step++) {
+					getEntityWorld().addParticleClient(
+						ParticleTypes.CRIT,
+						pos.x + velocity.x * step / CRITICAL_PARTICLE_STEP,
+						pos.y + velocity.y * step / CRITICAL_PARTICLE_STEP,
+						pos.z + velocity.z * step / CRITICAL_PARTICLE_STEP,
+						-velocity.x,
+						-velocity.y + 0.2,
+						-velocity.z
+					);
+				}
 			}
 
-			if (bl && !this.isInGround()) {
-				this.applyGravity();
+			float yawAngle = hasCollision
+				? (float) (MathHelper.atan2(velocity.x, velocity.z) * 180.0F / (float) Math.PI)
+				: (float) (MathHelper.atan2(-velocity.x, -velocity.z) * 180.0F / (float) Math.PI);
+			float pitchAngle = (float) (MathHelper.atan2(velocity.y, velocity.horizontalLength()) * 180.0F / (float) Math.PI);
+			setPitch(updateRotation(getPitch(), pitchAngle));
+			setYaw(updateRotation(getYaw(), yawAngle));
+			tickLeftOwner();
+
+			if (hasCollision) {
+				BlockHitResult blockHit = getEntityWorld().getCollisionsIncludingWorldBorder(
+					new RaycastContext(
+						pos,
+						pos.add(velocity),
+						RaycastContext.ShapeType.COLLIDER,
+						RaycastContext.FluidHandling.NONE,
+						this
+					)
+				);
+				applyCollision(blockHit);
+			} else {
+				setPosition(pos.add(velocity));
+				tickBlockCollision();
+			}
+
+			if (!isTouchingWater()) {
+				applyDrag(DRAG_IN_AIR);
+			}
+
+			if (hasCollision && !isInGround()) {
+				applyGravity();
 			}
 
 			super.tick();
 		}
 	}
 
-	private void applyCollision(BlockHitResult blockHitResult) {
-		while (this.isAlive()) {
-			Vec3d vec3d = this.getEntityPos();
-			ArrayList<EntityHitResult>
-					arrayList =
-					new ArrayList<>(this.collectPiercingCollisions(vec3d, blockHitResult.getPos()));
-			arrayList.sort(Comparator.comparingDouble(entityHitResultx -> vec3d.squaredDistanceTo(entityHitResultx
-					.getEntity()
-					.getEntityPos())));
-			EntityHitResult entityHitResult = arrayList.isEmpty() ? null : arrayList.getFirst();
-			Vec3d vec3d2 = Objects.requireNonNullElse(entityHitResult, blockHitResult).getPos();
-			this.setPosition(vec3d2);
-			this.tickBlockCollision(vec3d, vec3d2);
-			if (this.portalManager != null && this.portalManager.isInPortal()) {
-				this.tickPortalTeleportation();
+	/**
+	 * Обрабатывает столкновения снаряда с блоком и сущностями на пути.
+	 * Для пробивающих снарядов продолжает движение через сущности до исчерпания уровня пробивания.
+	 *
+	 * @param blockHit результат трассировки луча по блокам
+	 */
+	private void applyCollision(BlockHitResult blockHit) {
+		while (isAlive()) {
+			Vec3d pos = getEntityPos();
+			List<EntityHitResult> entityHits = collectPiercingCollisions(pos, blockHit.getPos())
+				.stream()
+				.sorted(Comparator.comparingDouble(hit -> pos.squaredDistanceTo(hit.getEntity().getEntityPos())))
+				.collect(java.util.stream.Collectors.toList());
+
+			Vec3d targetPos = Objects.requireNonNullElse(
+				entityHits.isEmpty() ? null : entityHits.getFirst(),
+				blockHit
+			).getPos();
+			setPosition(targetPos);
+			tickBlockCollision(pos, targetPos);
+
+			if (portalManager != null && portalManager.isInPortal()) {
+				tickPortalTeleportation();
 			}
 
-			if (arrayList.isEmpty()) {
-				if (this.isAlive() && blockHitResult.getType() != HitResult.Type.MISS) {
-					this.hitOrDeflect(blockHitResult);
-					this.velocityDirty = true;
+			if (entityHits.isEmpty()) {
+				if (isAlive() && blockHit.getType() != HitResult.Type.MISS) {
+					hitOrDeflect(blockHit);
+					velocityDirty = true;
 				}
+
 				break;
 			}
-			else if (this.isAlive() && !this.noClip) {
-				ProjectileDeflection projectileDeflection = this.hitOrDeflect(arrayList);
-				this.velocityDirty = true;
-				if (this.getPierceLevel() > 0 && projectileDeflection == ProjectileDeflection.NONE) {
+
+			if (isAlive() && !noClip) {
+				ProjectileDeflection deflection = hitOrDeflect(entityHits);
+				velocityDirty = true;
+				if (getPierceLevel() > 0 && deflection == ProjectileDeflection.NONE) {
 					continue;
 				}
-				break;
 			}
+
+			break;
 		}
 	}
 
 	private ProjectileDeflection hitOrDeflect(Collection<EntityHitResult> hitResults) {
-		for (EntityHitResult entityHitResult : hitResults) {
-			ProjectileDeflection projectileDeflection = this.hitOrDeflect(entityHitResult);
-			if (!this.isAlive() || projectileDeflection != ProjectileDeflection.NONE) {
-				return projectileDeflection;
+		for (EntityHitResult entityHit : hitResults) {
+			ProjectileDeflection deflection = hitOrDeflect(entityHit);
+			if (!isAlive() || deflection != ProjectileDeflection.NONE) {
+				return deflection;
 			}
 		}
 
@@ -332,25 +361,22 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	}
 
 	private void applyDrag(float drag) {
-		Vec3d vec3d = this.getVelocity();
-		this.setVelocity(vec3d.multiply(drag));
+		setVelocity(getVelocity().multiply(drag));
 	}
 
 	private void spawnBubbleParticles(Vec3d pos) {
-		Vec3d vec3d = this.getVelocity();
-
+		Vec3d velocity = getVelocity();
+		float bubbleOffset = 0.25F;
 		for (int i = 0; i < 4; i++) {
-			float f = 0.25F;
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.BUBBLE,
-					    pos.x - vec3d.x * 0.25,
-					    pos.y - vec3d.y * 0.25,
-					    pos.z - vec3d.z * 0.25,
-					    vec3d.x,
-					    vec3d.y,
-					    vec3d.z
-			    );
+			getEntityWorld().addParticleClient(
+				ParticleTypes.BUBBLE,
+				pos.x - velocity.x * bubbleOffset,
+				pos.y - velocity.y * bubbleOffset,
+				pos.z - velocity.z * bubbleOffset,
+				velocity.x,
+				velocity.y,
+				velocity.z
+			);
 		}
 	}
 
@@ -359,86 +385,93 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		return 0.05;
 	}
 
+	/**
+	 * Проверяет, должен ли снаряд выпасть из блока (блок исчез или снаряд в пустом пространстве).
+	 */
 	private boolean shouldFall() {
-		return this.isInGround() && this
-				.getEntityWorld()
-				.isSpaceEmpty(new Box(this.getEntityPos(), this.getEntityPos()).expand(0.06));
+		return isInGround() && getEntityWorld().isSpaceEmpty(
+			new Box(getEntityPos(), getEntityPos()).expand(SPACE_EMPTY_CHECK_EXPAND)
+		);
 	}
 
+	/**
+	 * Выбивает снаряд из блока с небольшим случайным импульсом.
+	 */
 	private void fall() {
-		this.setInGround(false);
-		Vec3d vec3d = this.getVelocity();
-		this.setVelocity(vec3d.multiply(
-				this.random.nextFloat() * 0.2F,
-				this.random.nextFloat() * 0.2F,
-				this.random.nextFloat() * 0.2F
+		setInGround(false);
+		Vec3d velocity = getVelocity();
+		setVelocity(velocity.multiply(
+			random.nextFloat() * FALL_VELOCITY_FACTOR,
+			random.nextFloat() * FALL_VELOCITY_FACTOR,
+			random.nextFloat() * FALL_VELOCITY_FACTOR
 		));
-		this.life = 0;
+		life = 0;
 	}
 
 	protected boolean isInGround() {
-		return this.dataTracker.get(IN_GROUND);
+		return dataTracker.get(IN_GROUND);
 	}
 
 	protected void setInGround(boolean inGround) {
-		this.dataTracker.set(IN_GROUND, inGround);
+		dataTracker.set(IN_GROUND, inGround);
 	}
 
 	@Override
 	public boolean isPushedByFluids() {
-		return !this.isInGround();
+		return !isInGround();
 	}
 
 	@Override
 	public void move(MovementType type, Vec3d movement) {
 		super.move(type, movement);
-		if (type != MovementType.SELF && this.shouldFall()) {
-			this.fall();
+		if (type != MovementType.SELF && shouldFall()) {
+			fall();
 		}
 	}
 
 	/**
-	 * Age.
+	 * Увеличивает счётчик времени жизни снаряда в блоке.
+	 * По истечении {@value #MAX_LIFE_TICKS} тиков снаряд удаляется.
 	 */
 	protected void age() {
-		this.life++;
-		if (this.life >= 1200) {
-			this.discard();
+		life++;
+		if (life >= MAX_LIFE_TICKS) {
+			discard();
 		}
 	}
 
 	private void clearPiercingStatus() {
-		if (this.piercingKilledEntities != null) {
-			this.piercingKilledEntities.clear();
+		if (piercingKilledEntities != null) {
+			piercingKilledEntities.clear();
 		}
 
-		if (this.piercedEntities != null) {
-			this.piercedEntities.clear();
+		if (piercedEntities != null) {
+			piercedEntities.clear();
 		}
 	}
 
 	@Override
 	public void onBroken(Item item) {
-		this.weapon = null;
+		weapon = null;
 	}
 
 	@Override
 	public void onBubbleColumnSurfaceCollision(boolean drag, BlockPos pos) {
-		if (!this.isInGround()) {
+		if (!isInGround()) {
 			super.onBubbleColumnSurfaceCollision(drag, pos);
 		}
 	}
 
 	@Override
 	public void onBubbleColumnCollision(boolean drag) {
-		if (!this.isInGround()) {
+		if (!isInGround()) {
 			super.onBubbleColumnCollision(drag);
 		}
 	}
 
 	@Override
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
-		if (!this.isInGround()) {
+		if (!isInGround()) {
 			super.addVelocity(deltaX, deltaY, deltaZ);
 		}
 	}
@@ -446,171 +479,191 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		Entity entity = entityHitResult.getEntity();
-		float f = (float) this.getVelocity().length();
-		double d = this.damage;
-		Entity entity2 = this.getOwner();
-		DamageSource damageSource = this.getDamageSources().arrow(this, (Entity) (entity2 != null ? entity2 : this));
-		if (this.getWeaponStack() != null && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			d = EnchantmentHelper.getDamage(serverWorld, this.getWeaponStack(), entity, damageSource, (float) d);
+		Entity target = entityHitResult.getEntity();
+		float speed = (float) getVelocity().length();
+		double baseDamage = damage;
+		Entity ownerEntity = getOwner();
+		DamageSource damageSource = getDamageSources().arrow(this, ownerEntity != null ? ownerEntity : this);
+
+		if (getWeaponStack() != null && getEntityWorld() instanceof ServerWorld serverWorld) {
+			baseDamage = EnchantmentHelper.getDamage(serverWorld, getWeaponStack(), target, damageSource, (float) baseDamage);
 		}
 
-		int i = MathHelper.ceil(MathHelper.clamp(f * d, 0.0, 2.147483647E9));
-		if (this.getPierceLevel() > 0) {
-			if (this.piercedEntities == null) {
-				this.piercedEntities = new IntOpenHashSet(5);
+		int rawDamage = MathHelper.ceil(MathHelper.clamp(speed * baseDamage, 0.0, 2.147483647E9));
+
+		if (getPierceLevel() > 0) {
+			if (piercedEntities == null) {
+				piercedEntities = new IntOpenHashSet(PIERCE_INITIAL_CAPACITY);
 			}
 
-			if (this.piercingKilledEntities == null) {
-				this.piercingKilledEntities = Lists.newArrayListWithCapacity(5);
+			if (piercingKilledEntities == null) {
+				piercingKilledEntities = Lists.newArrayListWithCapacity(PIERCE_INITIAL_CAPACITY);
 			}
 
-			if (this.piercedEntities.size() >= this.getPierceLevel() + 1) {
-				this.discard();
+			if (piercedEntities.size() >= getPierceLevel() + 1) {
+				discard();
 				return;
 			}
 
-			this.piercedEntities.add(entity.getId());
+			piercedEntities.add(target.getId());
 		}
 
-		if (this.isCritical()) {
-			long l = this.random.nextInt(i / 2 + 2);
-			i = (int) Math.min(l + i, 2147483647L);
+		if (isCritical()) {
+			long critBonus = random.nextInt(rawDamage / 2 + 2);
+			rawDamage = (int) Math.min(critBonus + rawDamage, 2147483647L);
 		}
 
-		if (entity2 instanceof LivingEntity livingEntity) {
-			livingEntity.onAttacking(entity);
+		if (ownerEntity instanceof LivingEntity livingOwner) {
+			livingOwner.onAttacking(target);
 		}
 
-		boolean bl = entity.getType() == EntityType.ENDERMAN;
-		int j = entity.getFireTicks();
-		if (this.isOnFire() && !bl) {
-			entity.setOnFireFor(5.0F);
+		boolean isEnderman = target.getType() == EntityType.ENDERMAN;
+		int prevFireTicks = target.getFireTicks();
+		if (isOnFire() && !isEnderman) {
+			target.setOnFireFor(FIRE_DURATION_ON_HIT);
 		}
 
-		if (entity.sidedDamage(damageSource, i)) {
-			if (bl) {
+		if (target.sidedDamage(damageSource, rawDamage)) {
+			if (isEnderman) {
 				return;
 			}
 
-			if (entity instanceof LivingEntity livingEntity2) {
-				if (!this.getEntityWorld().isClient() && this.getPierceLevel() <= 0) {
-					livingEntity2.setStuckArrowCount(livingEntity2.getStuckArrowCount() + 1);
+			if (target instanceof LivingEntity livingTarget) {
+				if (!getEntityWorld().isClient() && getPierceLevel() <= 0) {
+					livingTarget.setStuckArrowCount(livingTarget.getStuckArrowCount() + 1);
 				}
 
-				this.knockback(livingEntity2, damageSource);
-				if (this.getEntityWorld() instanceof ServerWorld serverWorld2) {
-					EnchantmentHelper.onTargetDamaged(serverWorld2, livingEntity2, damageSource, this.getWeaponStack());
+				knockback(livingTarget, damageSource);
+
+				if (getEntityWorld() instanceof ServerWorld serverWorld) {
+					EnchantmentHelper.onTargetDamaged(serverWorld, livingTarget, damageSource, getWeaponStack());
 				}
 
-				this.onHit(livingEntity2);
-				if (livingEntity2 instanceof PlayerEntity
-						&& entity2 instanceof ServerPlayerEntity serverPlayerEntity
-						&& !this.isSilent()
-						&& livingEntity2 != serverPlayerEntity) {
-					serverPlayerEntity.networkHandler.sendPacket(new GameStateChangeS2CPacket(
-							GameStateChangeS2CPacket.PROJECTILE_HIT_PLAYER,
-							0.0F
-					));
+				onHit(livingTarget);
+
+				if (livingTarget instanceof PlayerEntity
+					&& ownerEntity instanceof ServerPlayerEntity serverOwner
+					&& !isSilent()
+					&& livingTarget != serverOwner
+				) {
+					serverOwner.networkHandler.sendPacket(
+						new GameStateChangeS2CPacket(GameStateChangeS2CPacket.PROJECTILE_HIT_PLAYER, 0.0F)
+					);
 				}
 
-				if (!entity.isAlive() && this.piercingKilledEntities != null) {
-					this.piercingKilledEntities.add(livingEntity2);
+				if (!target.isAlive() && piercingKilledEntities != null) {
+					piercingKilledEntities.add(livingTarget);
 				}
 
-				if (!this.getEntityWorld().isClient() && entity2 instanceof ServerPlayerEntity serverPlayerEntity) {
-					if (this.piercingKilledEntities != null) {
-						Criteria.KILLED_BY_ARROW.trigger(serverPlayerEntity, this.piercingKilledEntities, this.weapon);
-					}
-					else if (!entity.isAlive()) {
-						Criteria.KILLED_BY_ARROW.trigger(serverPlayerEntity, List.of(entity), this.weapon);
+				if (!getEntityWorld().isClient() && ownerEntity instanceof ServerPlayerEntity serverOwner) {
+					if (piercingKilledEntities != null) {
+						Criteria.KILLED_BY_ARROW.trigger(serverOwner, piercingKilledEntities, weapon);
+					} else if (!target.isAlive()) {
+						Criteria.KILLED_BY_ARROW.trigger(serverOwner, List.of(target), weapon);
 					}
 				}
 			}
 
-			this.playSound(this.sound, 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
-			if (this.getPierceLevel() <= 0) {
-				this.discard();
+			playSound(sound, 1.0F, SOUND_PITCH_BASE + random.nextFloat() * SOUND_PITCH_RANGE);
+			if (getPierceLevel() <= 0) {
+				discard();
 			}
-		}
-		else {
-			entity.setFireTicks(j);
-			this.deflect(ProjectileDeflection.SIMPLE, entity, this.owner, false);
-			this.setVelocity(this.getVelocity().multiply(0.2));
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld3
-					&& this.getVelocity().lengthSquared() < 1.0E-7) {
-				if (this.pickupType == PersistentProjectileEntity.PickupPermission.ALLOWED) {
-					this.dropStack(serverWorld3, this.asItemStack(), 0.1F);
+		} else {
+			target.setFireTicks(prevFireTicks);
+			deflect(ProjectileDeflection.SIMPLE, target, owner, false);
+			setVelocity(getVelocity().multiply(0.2));
+			if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& getVelocity().lengthSquared() < SLOW_VELOCITY_THRESHOLD
+			) {
+				if (pickupType == PickupPermission.ALLOWED) {
+					dropStack(serverWorld, asItemStack(), 0.1F);
 				}
 
-				this.discard();
+				discard();
 			}
 		}
 	}
 
 	/**
-	 * Knockback.
+	 * Применяет отбрасывание к цели на основе зачарования «Отдача» на оружии.
+	 * Учитывает сопротивление отбрасыванию цели.
 	 *
-	 * @param target target
-	 * @param source source
+	 * @param target цель
+	 * @param source источник урона
 	 */
 	protected void knockback(LivingEntity target, DamageSource source) {
-		double d = this.weapon != null && this.getEntityWorld() instanceof ServerWorld serverWorld
-		           ? EnchantmentHelper.modifyKnockback(serverWorld, this.weapon, target, source, 0.0F)
-		           : 0.0F;
-		if (d > 0.0) {
-			double e = Math.max(0.0, 1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
-			Vec3d vec3d = this.getVelocity().multiply(1.0, 0.0, 1.0).normalize().multiply(d * 0.6 * e);
-			if (vec3d.lengthSquared() > 0.0) {
-				target.addVelocity(vec3d.x, 0.1, vec3d.z);
-			}
+		double knockbackStrength = weapon != null && getEntityWorld() instanceof ServerWorld serverWorld
+			? EnchantmentHelper.modifyKnockback(serverWorld, weapon, target, source, 0.0F)
+			: 0.0F;
+		if (knockbackStrength <= 0.0) {
+			return;
+		}
+
+		double resistanceFactor = Math.max(0.0, 1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
+		Vec3d knockbackVec = getVelocity()
+			.multiply(1.0, 0.0, 1.0)
+			.normalize()
+			.multiply(knockbackStrength * DRAG_IN_WATER * resistanceFactor);
+		if (knockbackVec.lengthSquared() > 0.0) {
+			target.addVelocity(knockbackVec.x, 0.1, knockbackVec.z);
 		}
 	}
 
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
-		this.inBlockState = this.getEntityWorld().getBlockState(blockHitResult.getBlockPos());
+		inBlockState = getEntityWorld().getBlockState(blockHitResult.getBlockPos());
 		super.onBlockHit(blockHitResult);
-		ItemStack itemStack = this.getWeaponStack();
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && itemStack != null) {
-			this.onBlockHitEnchantmentEffects(serverWorld, blockHitResult, itemStack);
+		ItemStack weaponStack = getWeaponStack();
+		if (getEntityWorld() instanceof ServerWorld serverWorld && weaponStack != null) {
+			onBlockHitEnchantmentEffects(serverWorld, blockHitResult, weaponStack);
 		}
 
-		Vec3d vec3d = this.getVelocity();
-		Vec3d vec3d2 = new Vec3d(Math.signum(vec3d.x), Math.signum(vec3d.y), Math.signum(vec3d.z));
-		Vec3d vec3d3 = vec3d2.multiply(0.05F);
-		this.setPosition(this.getEntityPos().subtract(vec3d3));
-		this.setVelocity(Vec3d.ZERO);
-		this.playSound(this.getSound(), 1.0F, 1.2F / (this.random.nextFloat() * 0.2F + 0.9F));
-		this.setInGround(true);
-		this.shake = 7;
-		this.setCritical(false);
-		this.setPierceLevel((byte) 0);
-		this.setSound(SoundEvents.ENTITY_ARROW_HIT);
-		this.clearPiercingStatus();
+		Vec3d velocity = getVelocity();
+		Vec3d embedOffset = new Vec3d(
+			Math.signum(velocity.x),
+			Math.signum(velocity.y),
+			Math.signum(velocity.z)
+		).multiply(BLOCK_EMBED_OFFSET);
+		setPosition(getEntityPos().subtract(embedOffset));
+		setVelocity(Vec3d.ZERO);
+		playSound(getSound(), 1.0F, SOUND_PITCH_BASE + random.nextFloat() * SOUND_PITCH_RANGE);
+		setInGround(true);
+		shake = SHAKE_TICKS_ON_HIT;
+		setCritical(false);
+		setPierceLevel((byte) 0);
+		setSound(SoundEvents.ENTITY_ARROW_HIT);
+		clearPiercingStatus();
 	}
 
+	/**
+	 * Применяет эффекты зачарований при попадании снаряда в блок.
+	 * Вызывается только на сервере.
+	 *
+	 * @param world       серверный мир
+	 * @param blockHit    результат попадания в блок
+	 * @param weaponStack стек оружия
+	 */
 	protected void onBlockHitEnchantmentEffects(
-			ServerWorld world,
-			BlockHitResult blockHitResult,
-			ItemStack weaponStack
+		ServerWorld world,
+		BlockHitResult blockHit,
+		ItemStack weaponStack
 	) {
-		Vec3d vec3d = blockHitResult.getBlockPos().clampToWithin(blockHitResult.getPos());
+		Vec3d hitPos = blockHit.getBlockPos().clampToWithin(blockHit.getPos());
 		EnchantmentHelper.onHitBlock(
-				world,
-				weaponStack,
-				this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null,
-				this,
-				null,
-				vec3d,
-				world.getBlockState(blockHitResult.getBlockPos()),
-				item -> this.weapon = null
+			world,
+			weaponStack,
+			getOwner() instanceof LivingEntity livingOwner ? livingOwner : null,
+			this,
+			null,
+			hitPos,
+			world.getBlockState(blockHit.getBlockPos()),
+			item -> weapon = null
 		);
 	}
 
 	@Override
 	public @Nullable ItemStack getWeaponStack() {
-		return this.weapon;
+		return weapon;
 	}
 
 	protected SoundEvent getHitSound() {
@@ -618,142 +671,134 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	}
 
 	protected final SoundEvent getSound() {
-		return this.sound;
+		return sound;
 	}
 
-	/**
-	 * Обрабатывает событие hit.
-	 *
-	 * @param target target
-	 */
 	protected void onHit(LivingEntity target) {
 	}
 
 	protected @Nullable EntityHitResult getEntityCollision(Vec3d currentPosition, Vec3d nextPosition) {
 		return ProjectileUtil.getEntityCollision(
-				this.getEntityWorld(),
-				this,
-				currentPosition,
-				nextPosition,
-				this.getBoundingBox().stretch(this.getVelocity()).expand(1.0),
-				this::canHit
+			getEntityWorld(),
+			this,
+			currentPosition,
+			nextPosition,
+			getBoundingBox().stretch(getVelocity()).expand(1.0),
+			this::canHit
 		);
 	}
 
 	/**
-	 * Collect piercing collisions.
+	 * Собирает все сущности, которые снаряд пронизывает на пути от {@code from} до {@code to}.
+	 * Используется для пробивающих снарядов.
 	 *
-	 * @param from from
-	 * @param to to
-	 *
-	 * @return Collection — результат операции
+	 * @param from начальная точка
+	 * @param to   конечная точка
+	 * @return коллекция результатов попаданий
 	 */
 	protected Collection<EntityHitResult> collectPiercingCollisions(Vec3d from, Vec3d to) {
 		return ProjectileUtil.collectPiercingCollisions(
-				this.getEntityWorld(),
-				this,
-				from,
-				to,
-				this.getBoundingBox().stretch(this.getVelocity()).expand(1.0),
-				this::canHit,
-				false
+			getEntityWorld(),
+			this,
+			from,
+			to,
+			getBoundingBox().stretch(getVelocity()).expand(1.0),
+			this::canHit,
+			false
 		);
 	}
 
 	@Override
 	protected boolean canHit(Entity entity) {
-		return entity instanceof PlayerEntity && this.getOwner() instanceof PlayerEntity playerEntity
-				       && !playerEntity.shouldDamagePlayer((PlayerEntity) entity)
-		       ? false
-		       : super.canHit(entity) && (this.piercedEntities == null
-		                                  || !this.piercedEntities.contains(entity.getId())
-		       );
+		if (entity instanceof PlayerEntity targetPlayer && getOwner() instanceof PlayerEntity ownerPlayer
+			&& !ownerPlayer.shouldDamagePlayer(targetPlayer)
+		) {
+			return false;
+		}
+
+		return super.canHit(entity)
+			&& (piercedEntities == null || !piercedEntities.contains(entity.getId()));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putShort("life", (short) this.life);
-		view.putNullable("inBlockState", BlockState.CODEC, this.inBlockState);
-		view.putByte("shake", (byte) this.shake);
-		view.putBoolean("inGround", this.isInGround());
-		view.put("pickup", PersistentProjectileEntity.PickupPermission.CODEC, this.pickupType);
-		view.putDouble("damage", this.damage);
-		view.putBoolean("crit", this.isCritical());
-		view.putByte("PierceLevel", this.getPierceLevel());
-		view.put("SoundEvent", Registries.SOUND_EVENT.getCodec(), this.sound);
-		view.put("item", ItemStack.CODEC, this.stack);
-		view.putNullable("weapon", ItemStack.CODEC, this.weapon);
+		view.putShort("life", (short) life);
+		view.putNullable("inBlockState", BlockState.CODEC, inBlockState);
+		view.putByte("shake", (byte) shake);
+		view.putBoolean("inGround", isInGround());
+		view.put("pickup", PickupPermission.CODEC, pickupType);
+		view.putDouble("damage", damage);
+		view.putBoolean("crit", isCritical());
+		view.putByte("PierceLevel", getPierceLevel());
+		view.put("SoundEvent", Registries.SOUND_EVENT.getCodec(), sound);
+		view.put("item", ItemStack.CODEC, stack);
+		view.putNullable("weapon", ItemStack.CODEC, weapon);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.life = view.getShort("life", (short) 0);
-		this.inBlockState = view.<BlockState>read("inBlockState", BlockState.CODEC).orElse(null);
-		this.shake = view.getByte("shake", (byte) 0) & 255;
-		this.setInGround(view.getBoolean("inGround", false));
-		this.damage = view.getDouble("damage", 2.0);
-		this.pickupType =
-				view
-						.<PersistentProjectileEntity.PickupPermission>read(
-								"pickup",
-								PersistentProjectileEntity.PickupPermission.CODEC
-						)
-						.orElse(PersistentProjectileEntity.PickupPermission.DISALLOWED);
-		this.setCritical(view.getBoolean("crit", false));
-		this.setPierceLevel(view.getByte("PierceLevel", (byte) 0));
-		this.sound = view.<SoundEvent>read("SoundEvent", Registries.SOUND_EVENT.getCodec()).orElse(this.getHitSound());
-		this.setStack(view.<ItemStack>read("item", ItemStack.CODEC).orElse(this.getDefaultItemStack()));
-		this.weapon = view.<ItemStack>read("weapon", ItemStack.CODEC).orElse(null);
+		life = view.getShort("life", (short) 0);
+		inBlockState = view.<BlockState>read("inBlockState", BlockState.CODEC).orElse(null);
+		shake = view.getByte("shake", (byte) 0) & 255;
+		setInGround(view.getBoolean("inGround", false));
+		damage = view.getDouble("damage", DEFAULT_DAMAGE);
+		pickupType = view.<PickupPermission>read("pickup", PickupPermission.CODEC)
+			.orElse(PickupPermission.DISALLOWED);
+		setCritical(view.getBoolean("crit", false));
+		setPierceLevel(view.getByte("PierceLevel", (byte) 0));
+		sound = view.<SoundEvent>read("SoundEvent", Registries.SOUND_EVENT.getCodec()).orElse(getHitSound());
+		setStack(view.<ItemStack>read("item", ItemStack.CODEC).orElse(getDefaultItemStack()));
+		weapon = view.<ItemStack>read("weapon", ItemStack.CODEC).orElse(null);
 	}
 
+	/**
+		* Обновляет тип разрешения подбора при смене владельца.
+		* Если владелец — игрок и подбор был запрещён, разрешает его.
+		* Если владелец — {@link OminousItemSpawnerEntity}, запрещает подбор.
+		*/
 	@Override
 	public void setOwner(@Nullable Entity owner) {
 		super.setOwner(owner);
-
-		this.pickupType = switch (owner) {
-			case PlayerEntity playerEntity when this.pickupType
-					== PersistentProjectileEntity.PickupPermission.DISALLOWED ->
-					PersistentProjectileEntity.PickupPermission.ALLOWED;
-			case OminousItemSpawnerEntity ominousItemSpawnerEntity ->
-					PersistentProjectileEntity.PickupPermission.DISALLOWED;
-			case null, default -> this.pickupType;
+		pickupType = switch (owner) {
+			case PlayerEntity ignored when pickupType == PickupPermission.DISALLOWED ->
+				PickupPermission.ALLOWED;
+			case OminousItemSpawnerEntity ignored ->
+				PickupPermission.DISALLOWED;
+			case null, default -> pickupType;
 		};
 	}
 
 	@Override
 	public void onPlayerCollision(PlayerEntity player) {
-		if (!this.getEntityWorld().isClient() && (this.isInGround() || this.isNoClip()) && this.shake <= 0) {
-			if (this.tryPickup(player)) {
+		if (!getEntityWorld().isClient() && (isInGround() || isNoClip()) && shake <= 0) {
+			if (tryPickup(player)) {
 				player.sendPickup(this, 1);
-				this.discard();
+				discard();
 			}
 		}
 	}
 
 	/**
-	 * Try pickup.
-	 *
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
-	 */
+		* Пытается добавить снаряд в инвентарь игрока согласно правилам подбора.
+		*
+		* @param player игрок, подбирающий снаряд
+		* @return true если снаряд успешно подобран
+		*/
 	protected boolean tryPickup(PlayerEntity player) {
-		return switch (this.pickupType) {
+		return switch (pickupType) {
 			case DISALLOWED -> false;
-			case ALLOWED -> player.getInventory().insertStack(this.asItemStack());
+			case ALLOWED -> player.getInventory().insertStack(asItemStack());
 			case CREATIVE_ONLY -> player.isInCreativeMode();
 		};
 	}
 
 	/**
-	 * As item stack.
-	 *
-	 * @return ItemStack — результат операции
-	 */
+		* Возвращает копию стека предмета этого снаряда для подбора или дропа.
+		*/
 	protected ItemStack asItemStack() {
-		return this.stack.copy();
+		return stack.copy();
 	}
 
 	protected abstract ItemStack getDefaultItemStack();
@@ -764,7 +809,7 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	}
 
 	public ItemStack getItemStack() {
-		return this.stack;
+		return stack;
 	}
 
 	public void setDamage(double damage) {
@@ -773,73 +818,72 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 
 	@Override
 	public boolean isAttackable() {
-		return this.getType().isIn(EntityTypeTags.REDIRECTABLE_PROJECTILE);
+		return getType().isIn(EntityTypeTags.REDIRECTABLE_PROJECTILE);
 	}
 
 	public void setCritical(boolean critical) {
-		this.setProjectileFlag(1, critical);
+		setProjectileFlag(CRITICAL_FLAG, critical);
 	}
 
 	private void setPierceLevel(byte level) {
-		this.dataTracker.set(PIERCE_LEVEL, level);
+		dataTracker.set(PIERCE_LEVEL, level);
 	}
 
 	private void setProjectileFlag(int index, boolean flag) {
-		byte b = this.dataTracker.get(PROJECTILE_FLAGS);
-		if (flag) {
-			this.dataTracker.set(PROJECTILE_FLAGS, (byte) (b | index));
-		}
-		else {
-			this.dataTracker.set(PROJECTILE_FLAGS, (byte) (b & ~index));
-		}
+		byte flags = dataTracker.get(PROJECTILE_FLAGS);
+		dataTracker.set(PROJECTILE_FLAGS, flag
+			? (byte) (flags | index)
+			: (byte) (flags & ~index)
+		);
 	}
 
 	protected void setStack(ItemStack stack) {
-		if (!stack.isEmpty()) {
-			this.stack = stack;
-		}
-		else {
-			this.stack = this.getDefaultItemStack();
-		}
+		this.stack = stack.isEmpty() ? getDefaultItemStack() : stack;
 	}
 
 	public boolean isCritical() {
-		byte b = this.dataTracker.get(PROJECTILE_FLAGS);
-		return (b & 1) != 0;
+		return (dataTracker.get(PROJECTILE_FLAGS) & CRITICAL_FLAG) != 0;
 	}
 
 	public byte getPierceLevel() {
-		return this.dataTracker.get(PIERCE_LEVEL);
+		return dataTracker.get(PIERCE_LEVEL);
 	}
 
 	/**
-	 * Применяет damage modifier.
-	 *
-	 * @param damageModifier damage modifier
-	 */
+		* Применяет модификатор урона с учётом сложности мира.
+		* Итоговый урон = {@code damageModifier * 2 + случайная добавка по сложности}.
+		*
+		* @param damageModifier базовый множитель урона (обычно зависит от силы натяжения лука)
+		*/
 	public void applyDamageModifier(float damageModifier) {
-		this.setDamage(damageModifier * 2.0F + this.random.nextTriangular(
-				this.getEntityWorld().getDifficulty().getId() * 0.11,
-				0.57425
+		setDamage(damageModifier * 2.0F + random.nextTriangular(
+			getEntityWorld().getDifficulty().getId() * 0.11,
+			0.57425
 		));
 	}
 
 	protected float getDragInWater() {
-		return 0.6F;
+		return DRAG_IN_WATER;
 	}
 
 	public void setNoClip(boolean noClip) {
 		this.noClip = noClip;
-		this.setProjectileFlag(2, noClip);
+		setProjectileFlag(NO_CLIP_FLAG, noClip);
 	}
 
+	/**
+		* Проверяет режим прохождения сквозь блоки.
+		* На сервере использует поле {@code noClip}, на клиенте — синхронизированный флаг.
+		*/
 	public boolean isNoClip() {
-		return !this.getEntityWorld().isClient() ? this.noClip : (this.dataTracker.get(PROJECTILE_FLAGS) & 2) != 0;
+		return !getEntityWorld().isClient()
+			? noClip
+			: (dataTracker.get(PROJECTILE_FLAGS) & NO_CLIP_FLAG) != 0;
 	}
 
 	@Override
 	public boolean canHit() {
-		return super.canHit() && !this.isInGround();
+		return super.canHit() && !isInGround();
 	}
 
 	@Override
@@ -853,20 +897,19 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 	}
 
 	/**
-	 * {@code PickupPermission}.
-	 */
-	public static enum PickupPermission {
+		* Разрешения на подбор снаряда игроком.
+		*/
+	public enum PickupPermission {
 		DISALLOWED,
 		ALLOWED,
 		CREATIVE_ONLY;
 
-		public static final Codec<PersistentProjectileEntity.PickupPermission> CODEC = Codec.BYTE
-				.xmap(
-						PersistentProjectileEntity.PickupPermission::fromOrdinal,
-						pickupPermission -> (byte) pickupPermission.ordinal()
-				);
+		public static final Codec<PickupPermission> CODEC = Codec.BYTE.xmap(
+			PickupPermission::fromOrdinal,
+			permission -> (byte) permission.ordinal()
+		);
 
-		public static PersistentProjectileEntity.PickupPermission fromOrdinal(int ordinal) {
+		public static PickupPermission fromOrdinal(int ordinal) {
 			if (ordinal < 0 || ordinal > values().length) {
 				ordinal = 0;
 			}

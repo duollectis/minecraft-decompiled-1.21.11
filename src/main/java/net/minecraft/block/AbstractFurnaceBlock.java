@@ -24,7 +24,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractFurnaceBlock}.
+ * Базовый класс для всех типов печей (обычная, доменная, коптильня).
+ * Управляет ориентацией, состоянием горения, открытием инвентаря
+ * и выбросом предметов при разрушении.
  */
 public abstract class AbstractFurnaceBlock extends BlockWithEntity {
 
@@ -33,7 +35,7 @@ public abstract class AbstractFurnaceBlock extends BlockWithEntity {
 
 	protected AbstractFurnaceBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(LIT, false));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH).with(LIT, false));
 	}
 
 	@Override
@@ -42,24 +44,21 @@ public abstract class AbstractFurnaceBlock extends BlockWithEntity {
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (!world.isClient()) {
-			this.openScreen(world, pos, player);
+			openScreen(world, pos, player);
 		}
 
 		return ActionResult.SUCCESS;
 	}
 
 	/**
-	 * Открывает screen.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param player player
+	 * Открывает экран инвентаря печи для игрока.
+	 * Реализуется в подклассах с учётом конкретного типа печи.
 	 */
 	protected abstract void openScreen(World world, BlockPos pos, PlayerEntity player);
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+		return getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
 	}
 
 	@Override
@@ -92,22 +91,26 @@ public abstract class AbstractFurnaceBlock extends BlockWithEntity {
 		builder.add(FACING, LIT);
 	}
 
+	/**
+	 * Создаёт тикер для сущности блока печи, работающий только на сервере.
+	 * Делегирует тикинг в {@link AbstractFurnaceBlockEntity#tick}.
+	 */
 	protected static <T extends BlockEntity> @Nullable BlockEntityTicker<T> validateTicker(
-			World world,
-			BlockEntityType<T> givenType,
-			BlockEntityType<? extends AbstractFurnaceBlockEntity> expectedType
+		World world,
+		BlockEntityType<T> givenType,
+		BlockEntityType<? extends AbstractFurnaceBlockEntity> expectedType
 	) {
 		return world instanceof ServerWorld serverWorld
-		       ? validateTicker(
+			? validateTicker(
 				givenType,
 				expectedType,
-				(worldx, pos, state, blockEntity) -> AbstractFurnaceBlockEntity.tick(
-						serverWorld,
-						pos,
-						state,
-						blockEntity
+				(tickWorld, pos, state, blockEntity) -> AbstractFurnaceBlockEntity.tick(
+					serverWorld,
+					pos,
+					state,
+					blockEntity
 				)
-		)
-		       : null;
+			)
+			: null;
 	}
 }

@@ -8,13 +8,14 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code ItemStackParticleEffect}.
+ * Эффект частицы, визуально отображающий конкретный предмет ({@link ItemStack}).
+ * Используется, например, для частиц разбитого предмета или броска снежка.
  */
 public class ItemStackParticleEffect implements ParticleEffect {
 
-	private static final Codec<ItemStack>
-			ITEM_STACK_CODEC =
+	private static final Codec<ItemStack> ITEM_STACK_CODEC =
 			Codec.withAlternative(ItemStack.UNCOUNTED_CODEC, Item.ENTRY_CODEC, ItemStack::new);
+
 	private final ParticleType<ItemStackParticleEffect> type;
 	private final ItemStack stack;
 
@@ -24,26 +25,28 @@ public class ItemStackParticleEffect implements ParticleEffect {
 				.fieldOf("item");
 	}
 
-	public static PacketCodec<? super RegistryByteBuf, ItemStackParticleEffect> createPacketCodec(ParticleType<ItemStackParticleEffect> type) {
-		return ItemStack.PACKET_CODEC.xmap(stack -> new ItemStackParticleEffect(type, stack), effect -> effect.stack);
+	public static PacketCodec<? super RegistryByteBuf, ItemStackParticleEffect> createPacketCodec(
+			ParticleType<ItemStackParticleEffect> type
+	) {
+		return ItemStack.PACKET_CODEC
+				.xmap(stack -> new ItemStackParticleEffect(type, stack), effect -> effect.stack);
 	}
 
 	public ItemStackParticleEffect(ParticleType<ItemStackParticleEffect> type, ItemStack stack) {
 		if (stack.isEmpty()) {
 			throw new IllegalArgumentException("Empty stacks are not allowed");
 		}
-		else {
-			this.type = type;
-			this.stack = stack;
-		}
+
+		this.type = type;
+		this.stack = stack;
 	}
 
 	@Override
 	public ParticleType<ItemStackParticleEffect> getType() {
-		return this.type;
+		return type;
 	}
 
 	public ItemStack getItemStack() {
-		return this.stack;
+		return stack;
 	}
 }

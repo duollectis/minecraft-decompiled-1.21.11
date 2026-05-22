@@ -8,7 +8,8 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code MudBlock}.
+ * Блок грязи. Имеет заниженную форму столкновения (14/16 высоты), что создаёт
+ * эффект «проваливания» сущностей. Непроходим для навигации ИИ.
  */
 public class MudBlock extends Block {
 

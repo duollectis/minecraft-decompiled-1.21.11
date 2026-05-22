@@ -10,7 +10,8 @@ import net.minecraft.world.block.OrientationHelper;
 import net.minecraft.world.block.WireOrientation;
 
 /**
- * {@code TrappedChestBlockEntity}.
+ * Блок-сущность ловушки-сундука. Расширяет обычный сундук, добавляя обновление соседних
+ * блоков при изменении количества просматривающих игроков (для редстоун-сигнала).
  */
 public class TrappedChestBlockEntity extends ChestBlockEntity {
 

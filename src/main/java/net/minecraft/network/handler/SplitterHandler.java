@@ -11,71 +11,72 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Класс splitter handler.
+ * Netty-обработчик входящих данных: разбивает поток байт на отдельные пакеты
+ * по VarInt-заголовку длины (максимум {@value #LENGTH_BYTES} байта = 21-битное число).
+ * Если данных недостаточно для полного пакета, сбрасывает позицию чтения и ждёт следующего фрагмента.
  */
 public class SplitterHandler extends ByteToMessageDecoder {
 
 	private static final int LENGTH_BYTES = 3;
-	private final ByteBuf reusableBuf = Unpooled.directBuffer(3);
+
+	private final ByteBuf reusableBuf = Unpooled.directBuffer(LENGTH_BYTES);
 	private final @Nullable PacketSizeLogger packetSizeLogger;
 
 	public SplitterHandler(@Nullable PacketSizeLogger packetSizeLogger) {
 		this.packetSizeLogger = packetSizeLogger;
 	}
 
-	/**
-	 * Обрабатывает r removed0.
-	 *
-	 * @param context context
-	 */
-	protected void handlerRemoved0(ChannelHandlerContext context) {
-		this.reusableBuf.release();
+	@Override
+	protected void handlerRemoved0(ChannelHandlerContext ctx) {
+		reusableBuf.release();
 	}
 
-	private static boolean shouldSplit(ByteBuf source, ByteBuf sizeBuf) {
-		for (int i = 0; i < 3; i++) {
+	@Override
+	protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> output) {
+		buf.markReaderIndex();
+		reusableBuf.clear();
+
+		if (!tryReadLengthHeader(buf, reusableBuf)) {
+			buf.resetReaderIndex();
+			return;
+		}
+
+		int frameLength = VarInts.read(reusableBuf);
+
+		if (frameLength == 0) {
+			throw new CorruptedFrameException("Frame length cannot be zero");
+		}
+
+		if (buf.readableBytes() < frameLength) {
+			buf.resetReaderIndex();
+			return;
+		}
+
+		if (packetSizeLogger != null) {
+			packetSizeLogger.increment(frameLength + VarInts.getSizeInBytes(frameLength));
+		}
+
+		output.add(buf.readBytes(frameLength));
+	}
+
+	/**
+	 * Считывает до {@value #LENGTH_BYTES} байт VarInt-заголовка длины из {@code source} в {@code sizeBuf}.
+	 * Возвращает {@code true}, если заголовок прочитан полностью, {@code false} — если данных недостаточно.
+	 */
+	private static boolean tryReadLengthHeader(ByteBuf source, ByteBuf sizeBuf) {
+		for (int byteIndex = 0; byteIndex < LENGTH_BYTES; byteIndex++) {
 			if (!source.isReadable()) {
 				return false;
 			}
 
-			byte b = source.readByte();
-			sizeBuf.writeByte(b);
-			if (!VarInts.shouldContinueRead(b)) {
+			byte current = source.readByte();
+			sizeBuf.writeByte(current);
+
+			if (!VarInts.shouldContinueRead(current)) {
 				return true;
 			}
 		}
 
 		throw new CorruptedFrameException("length wider than 21-bit");
-	}
-
-	/**
-	 * Decode.
-	 *
-	 * @param ctx ctx
-	 * @param buf buf
-	 * @param bytes bytes
-	 */
-	protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> bytes) {
-		buf.markReaderIndex();
-		this.reusableBuf.clear();
-		if (!shouldSplit(buf, this.reusableBuf)) {
-			buf.resetReaderIndex();
-		}
-		else {
-			int i = VarInts.read(this.reusableBuf);
-			if (i == 0) {
-				throw new CorruptedFrameException("Frame length cannot be zero");
-			}
-			else if (buf.readableBytes() < i) {
-				buf.resetReaderIndex();
-			}
-			else {
-				if (this.packetSizeLogger != null) {
-					this.packetSizeLogger.increment(i + VarInts.getSizeInBytes(i));
-				}
-
-				bytes.add(buf.readBytes(i));
-			}
-		}
 	}
 }

@@ -9,21 +9,22 @@ import net.minecraft.util.SwingAnimationType;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code SwingAnimationComponent}.
- */
+	 * Компонент анимации замаха. Определяет тип и длительность анимации удара
+	 * при использовании предмета (например, удар мечом или мотыгой).
+	 */
 public record SwingAnimationComponent(SwingAnimationType type, int duration) {
 
 	public static final SwingAnimationComponent DEFAULT = new SwingAnimationComponent(SwingAnimationType.WHACK, 6);
 	public static final Codec<SwingAnimationComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    SwingAnimationType.CODEC
-							                    .optionalFieldOf("type", DEFAULT.type)
-							                    .forGetter(SwingAnimationComponent::type),
-					                    Codecs.POSITIVE_INT
-							                    .optionalFieldOf("duration", DEFAULT.duration)
-							                    .forGetter(SwingAnimationComponent::duration)
-			                    )
-			                    .apply(instance, SwingAnimationComponent::new)
+										SwingAnimationType.CODEC
+												.optionalFieldOf("type", DEFAULT.type)
+												.forGetter(SwingAnimationComponent::type),
+										Codecs.POSITIVE_INT
+												.optionalFieldOf("duration", DEFAULT.duration)
+												.forGetter(SwingAnimationComponent::duration)
+								)
+								.apply(instance, SwingAnimationComponent::new)
 	);
 	public static final PacketCodec<ByteBuf, SwingAnimationComponent> PACKET_CODEC = PacketCodec.tuple(
 			SwingAnimationType.PACKET_CODEC,

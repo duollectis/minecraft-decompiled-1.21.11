@@ -9,21 +9,26 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema2505}.
+ * Схема версии 2505 (Minecraft 1.16 — Nether Update).
+ * <p>
+ * Регистрирует тип данных для сущности пиглина ({@code minecraft:piglin}),
+ * добавленного в обновлении 1.16. Пиглин хранит инвентарь с предметами,
+ * которые он подбирает или которыми торгует с игроком.
  */
 public class Schema2505 extends IdentifierNormalizingSchema {
 
-	public Schema2505(int i, Schema schema) {
-		super(i, schema);
+	public Schema2505(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
 		schema.register(
-				map,
-				"minecraft:piglin",
-				() -> DSL.optionalFields("Inventory", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
+			entityTypes,
+			"minecraft:piglin",
+			() -> DSL.optionalFields("Inventory", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
 		);
-		return map;
+		return entityTypes;
 	}
 }

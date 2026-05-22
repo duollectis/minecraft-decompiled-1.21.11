@@ -22,13 +22,14 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CowEntity}.
+ * Обычная корова с поддержкой климатических вариантов (умеренный, тёплый, холодный).
  */
 public class CowEntity extends AbstractCowEntity {
 
-	private static final TrackedData<RegistryEntry<CowVariant>>
-			VARIANT =
-			DataTracker.registerData(CowEntity.class, TrackedDataHandlerRegistry.COW_VARIANT);
+	private static final TrackedData<RegistryEntry<CowVariant>> VARIANT = DataTracker.registerData(
+			CowEntity.class,
+			TrackedDataHandlerRegistry.COW_VARIANT
+	);
 
 	public CowEntity(EntityType<? extends CowEntity> entityType, World world) {
 		super(entityType, world);
@@ -37,13 +38,13 @@ public class CowEntity extends AbstractCowEntity {
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), CowVariants.TEMPERATE));
+		builder.add(VARIANT, Variants.getOrDefaultOrThrow(getRegistryManager(), CowVariants.TEMPERATE));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		Variants.writeData(view, this.getVariant());
+		Variants.writeData(view, getVariant());
 	}
 
 	@Override
@@ -52,21 +53,14 @@ public class CowEntity extends AbstractCowEntity {
 		Variants.fromData(view, RegistryKeys.COW_VARIANT).ifPresent(this::setVariant);
 	}
 
-	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable CowEntity — результат операции
-	 */
+	@Override
 	public @Nullable CowEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-		CowEntity cowEntity = EntityType.COW.create(serverWorld, SpawnReason.BREEDING);
-		if (cowEntity != null && passiveEntity instanceof CowEntity cowEntity2) {
-			cowEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : cowEntity2.getVariant());
+		CowEntity child = EntityType.COW.create(serverWorld, SpawnReason.BREEDING);
+		if (child != null && passiveEntity instanceof CowEntity otherCow) {
+			child.setVariant(random.nextBoolean() ? getVariant() : otherCow.getVariant());
 		}
 
-		return cowEntity;
+		return child;
 	}
 
 	@Override
@@ -77,39 +71,40 @@ public class CowEntity extends AbstractCowEntity {
 			@Nullable EntityData entityData
 	) {
 		Variants
-				.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.COW_VARIANT)
+				.select(SpawnContext.of(world, getBlockPos()), RegistryKeys.COW_VARIANT)
 				.ifPresent(this::setVariant);
+
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	public void setVariant(RegistryEntry<CowVariant> variant) {
-		this.dataTracker.set(VARIANT, variant);
+		dataTracker.set(VARIANT, variant);
 	}
 
 	public RegistryEntry<CowVariant> getVariant() {
-		return this.dataTracker.get(VARIANT);
+		return dataTracker.get(VARIANT);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.COW_VARIANT ? castComponentValue((ComponentType<T>) type, this.getVariant())
-		                                              : super.get(type);
+		return type == DataComponentTypes.COW_VARIANT
+				? castComponentValue((ComponentType<T>) type, getVariant())
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.COW_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.COW_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.COW_VARIANT) {
-			this.setVariant(castComponentValue(DataComponentTypes.COW_VARIANT, value));
+			setVariant(castComponentValue(DataComponentTypes.COW_VARIANT, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 }

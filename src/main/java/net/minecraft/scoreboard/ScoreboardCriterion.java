@@ -15,30 +15,41 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code ScoreboardCriterion}.
+ * Критерий скорборда — определяет, как и когда обновляется значение очка.
+ * <p>
+ * Простые критерии (dummy, trigger, deathCount и т.д.) регистрируются статически.
+ * Статистические критерии создаются динамически по имени вида {@code stat_type:stat_id}.
+ * Read-only критерии (здоровье, еда, воздух и т.д.) обновляются игровым движком
+ * и не могут быть изменены командами.
  */
 public class ScoreboardCriterion {
 
 	private static final Map<String, ScoreboardCriterion> SIMPLE_CRITERIA = Maps.newHashMap();
 	private static final Map<String, ScoreboardCriterion> CRITERIA = Maps.newHashMap();
-	public static final Codec<ScoreboardCriterion> CODEC = Codec.STRING
-			.comapFlatMap(
-					name -> getOrCreateStatCriterion(name)
-							.<DataResult>map(DataResult::success)
-							.orElse(DataResult.error(() -> "No scoreboard criteria with name: " + name)),
-					ScoreboardCriterion::getName
-			);
+
+	/**
+	 * Кодек для сериализации критерия по его строковому имени.
+	 * При десериализации пытается найти существующий или создать статистический критерий.
+	 */
+	public static final Codec<ScoreboardCriterion> CODEC = Codec.STRING.comapFlatMap(
+			name -> getOrCreateStatCriterion(name)
+					.<DataResult<ScoreboardCriterion>>map(DataResult::success)
+					.orElse(DataResult.error(() -> "No scoreboard criteria with name: " + name)),
+			ScoreboardCriterion::getName
+	);
+
 	public static final ScoreboardCriterion DUMMY = create("dummy");
 	public static final ScoreboardCriterion TRIGGER = create("trigger");
 	public static final ScoreboardCriterion DEATH_COUNT = create("deathCount");
 	public static final ScoreboardCriterion PLAYER_KILL_COUNT = create("playerKillCount");
 	public static final ScoreboardCriterion TOTAL_KILL_COUNT = create("totalKillCount");
-	public static final ScoreboardCriterion HEALTH = create("health", true, ScoreboardCriterion.RenderType.HEARTS);
-	public static final ScoreboardCriterion FOOD = create("food", true, ScoreboardCriterion.RenderType.INTEGER);
-	public static final ScoreboardCriterion AIR = create("air", true, ScoreboardCriterion.RenderType.INTEGER);
-	public static final ScoreboardCriterion ARMOR = create("armor", true, ScoreboardCriterion.RenderType.INTEGER);
-	public static final ScoreboardCriterion XP = create("xp", true, ScoreboardCriterion.RenderType.INTEGER);
-	public static final ScoreboardCriterion LEVEL = create("level", true, ScoreboardCriterion.RenderType.INTEGER);
+	public static final ScoreboardCriterion HEALTH = create("health", true, RenderType.HEARTS);
+	public static final ScoreboardCriterion FOOD = create("food", true, RenderType.INTEGER);
+	public static final ScoreboardCriterion AIR = create("air", true, RenderType.INTEGER);
+	public static final ScoreboardCriterion ARMOR = create("armor", true, RenderType.INTEGER);
+	public static final ScoreboardCriterion XP = create("xp", true, RenderType.INTEGER);
+	public static final ScoreboardCriterion LEVEL = create("level", true, RenderType.INTEGER);
+
 	public static final ScoreboardCriterion[] TEAM_KILLS = new ScoreboardCriterion[]{
 			create("teamkill." + Formatting.BLACK.getName()),
 			create("teamkill." + Formatting.DARK_BLUE.getName()),
@@ -57,6 +68,7 @@ public class ScoreboardCriterion {
 			create("teamkill." + Formatting.YELLOW.getName()),
 			create("teamkill." + Formatting.WHITE.getName())
 	};
+
 	public static final ScoreboardCriterion[] KILLED_BY_TEAMS = new ScoreboardCriterion[]{
 			create("killedByTeam." + Formatting.BLACK.getName()),
 			create("killedByTeam." + Formatting.DARK_BLUE.getName()),
@@ -75,29 +87,26 @@ public class ScoreboardCriterion {
 			create("killedByTeam." + Formatting.YELLOW.getName()),
 			create("killedByTeam." + Formatting.WHITE.getName())
 	};
+
 	private final String name;
 	private final boolean readOnly;
-	private final ScoreboardCriterion.RenderType defaultRenderType;
+	private final RenderType defaultRenderType;
 
-	public static ScoreboardCriterion create(
-			String name,
-			boolean readOnly,
-			ScoreboardCriterion.RenderType defaultRenderType
-	) {
-		ScoreboardCriterion scoreboardCriterion = new ScoreboardCriterion(name, readOnly, defaultRenderType);
-		SIMPLE_CRITERIA.put(name, scoreboardCriterion);
-		return scoreboardCriterion;
+	public static ScoreboardCriterion create(String name, boolean readOnly, RenderType defaultRenderType) {
+		ScoreboardCriterion criterion = new ScoreboardCriterion(name, readOnly, defaultRenderType);
+		SIMPLE_CRITERIA.put(name, criterion);
+		return criterion;
 	}
 
 	public static ScoreboardCriterion create(String name) {
-		return create(name, false, ScoreboardCriterion.RenderType.INTEGER);
+		return create(name, false, RenderType.INTEGER);
 	}
 
 	protected ScoreboardCriterion(String name) {
-		this(name, false, ScoreboardCriterion.RenderType.INTEGER);
+		this(name, false, RenderType.INTEGER);
 	}
 
-	protected ScoreboardCriterion(String name, boolean readOnly, ScoreboardCriterion.RenderType defaultRenderType) {
+	protected ScoreboardCriterion(String name, boolean readOnly, RenderType defaultRenderType) {
 		this.name = name;
 		this.readOnly = readOnly;
 		this.defaultRenderType = defaultRenderType;
@@ -108,22 +117,28 @@ public class ScoreboardCriterion {
 		return ImmutableSet.copyOf(SIMPLE_CRITERIA.keySet());
 	}
 
+	/**
+	 * Ищет существующий критерий по имени или создаёт статистический критерий
+	 * из строки формата {@code stat_type:stat_id} (разделитель — двоеточие, код 58).
+	 *
+	 * @param name строковое имя критерия
+	 * @return {@link Optional} с найденным или созданным критерием
+	 */
 	public static Optional<ScoreboardCriterion> getOrCreateStatCriterion(String name) {
-		ScoreboardCriterion scoreboardCriterion = CRITERIA.get(name);
-		if (scoreboardCriterion != null) {
-			return Optional.of(scoreboardCriterion);
+		ScoreboardCriterion existing = CRITERIA.get(name);
+		if (existing != null) {
+			return Optional.of(existing);
 		}
-		else {
-			int i = name.indexOf(58);
-			return i < 0
-			       ? Optional.empty()
-			       : Registries.STAT_TYPE
-			         .getOptionalValue(Identifier.splitOn(name.substring(0, i), '.'))
-			         .flatMap(type -> getOrCreateStatCriterion(
-					         (StatType<?>) type,
-					         Identifier.splitOn(name.substring(i + 1), '.')
-			         ));
-		}
+
+		int colonIndex = name.indexOf(':');
+		return colonIndex < 0
+				? Optional.empty()
+				: Registries.STAT_TYPE
+						.getOptionalValue(Identifier.splitOn(name.substring(0, colonIndex), '.'))
+						.flatMap(type -> getOrCreateStatCriterion(
+								(StatType<?>) type,
+								Identifier.splitOn(name.substring(colonIndex + 1), '.')
+						));
 	}
 
 	private static <T> Optional<ScoreboardCriterion> getOrCreateStatCriterion(StatType<T> statType, Identifier id) {
@@ -131,45 +146,44 @@ public class ScoreboardCriterion {
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public boolean isReadOnly() {
-		return this.readOnly;
+		return readOnly;
 	}
 
-	public ScoreboardCriterion.RenderType getDefaultRenderType() {
-		return this.defaultRenderType;
+	public RenderType getDefaultRenderType() {
+		return defaultRenderType;
 	}
 
 	/**
-	 * {@code RenderType}.
+	 * Тип отображения значения очка в интерфейсе скорборда.
+	 * {@code INTEGER} — числовое значение, {@code HEARTS} — иконки сердец (для здоровья).
 	 */
-	public static enum RenderType implements StringIdentifiable {
+	public enum RenderType implements StringIdentifiable {
 		INTEGER("integer"),
 		HEARTS("hearts");
 
-		private final String name;
-		public static final StringIdentifiable.EnumCodec<ScoreboardCriterion.RenderType>
-				CODEC =
-				StringIdentifiable.createCodec(
-						ScoreboardCriterion.RenderType::values
-				);
+		public static final StringIdentifiable.EnumCodec<RenderType> CODEC =
+				StringIdentifiable.createCodec(RenderType::values);
 
-		private RenderType(final String name) {
+		private final String name;
+
+		RenderType(String name) {
 			this.name = name;
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
-		public static ScoreboardCriterion.RenderType getType(String name) {
+		public static RenderType getType(String name) {
 			return CODEC.byId(name, INTEGER);
 		}
 	}

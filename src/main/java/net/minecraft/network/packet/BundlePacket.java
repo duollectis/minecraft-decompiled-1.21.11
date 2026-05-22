@@ -3,7 +3,9 @@ package net.minecraft.network.packet;
 import net.minecraft.network.listener.PacketListener;
 
 /**
- * Класс bundle packet.
+ * Базовый класс пакета-пачки (bundle): объединяет несколько пакетов в один
+ * логический блок, который конвейер обрабатывает атомарно.
+ * Открывается маркером {@link BundleSplitterPacket} и закрывается им же.
  */
 public abstract class BundlePacket<T extends PacketListener> implements Packet<T> {
 
@@ -14,7 +16,7 @@ public abstract class BundlePacket<T extends PacketListener> implements Packet<T
 	}
 
 	public final Iterable<Packet<? super T>> getPackets() {
-		return this.packets;
+		return packets;
 	}
 
 	@Override

@@ -11,7 +11,7 @@ import net.minecraft.world.rule.GameRule;
 import java.util.List;
 
 /**
- * {@code CompositeManagementListener}.
+ * Класс Composite Management Listener.
  */
 public class CompositeManagementListener implements ManagementListener {
 

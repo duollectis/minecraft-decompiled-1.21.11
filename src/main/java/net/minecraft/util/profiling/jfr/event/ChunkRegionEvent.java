@@ -5,12 +5,13 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.storage.ChunkCompressionFormat;
 import net.minecraft.world.storage.StorageKey;
 
+/**
+ * Абстрактное JFR-событие операции с регионом чанка (чтение или запись).
+ * Фиксирует позицию региона, формат сжатия и размер данных в байтах.
+ */
 @Category({"Minecraft", "Storage"})
 @StackTrace(false)
 @Enabled(false)
-/**
- * {@code ChunkRegionEvent}.
- */
 public abstract class ChunkRegionEvent extends Event {
 
 	@Name("regionPosX")
@@ -61,9 +62,6 @@ public abstract class ChunkRegionEvent extends Event {
 		this.bytes = bytes;
 	}
 
-	/**
-	 * {@code Names}.
-	 */
 	public static class Names {
 
 		public static final String REGION_POS_X = "regionPosX";

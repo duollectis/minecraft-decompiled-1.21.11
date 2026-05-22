@@ -9,18 +9,23 @@ import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import net.minecraft.SharedConstants;
 import net.minecraft.util.crash.ReportType;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code ProfileResultImpl}.
+ * Снимок результатов профилирования за один тик или диапазон тиков.
+ * Хранит иерархию секций, счётчики посещений и поддерживает сохранение в текстовый файл.
  */
 public class ProfileResultImpl implements ProfileResult {
 
@@ -46,13 +51,13 @@ public class ProfileResultImpl implements ProfileResult {
 			return Object2LongMaps.emptyMap();
 		}
 	};
-	private static final Splitter SPLITTER = Splitter.on('\u001e');
-	private static final Comparator<Entry<String, ProfileResultImpl.CounterInfo>>
-			COMPARATOR =
-			Entry.<String, ProfileResultImpl.CounterInfo>comparingByValue(
-					     Comparator.comparingLong(info -> info.totalTime)
-			     )
-			     .reversed();
+
+	private static final Splitter PATH_SPLITTER = Splitter.on('\u001e');
+	private static final Comparator<Entry<String, ProfileResultImpl.CounterInfo>> COUNTER_COMPARATOR =
+		Entry.<String, ProfileResultImpl.CounterInfo>comparingByValue(
+			Comparator.comparingLong(info -> info.totalTime)
+		).reversed();
+
 	private final Map<String, ? extends ProfileLocationInfo> locationInfos;
 	private final long startTime;
 	private final int startTick;
@@ -61,11 +66,11 @@ public class ProfileResultImpl implements ProfileResult {
 	private final int tickDuration;
 
 	public ProfileResultImpl(
-			Map<String, ? extends ProfileLocationInfo> locationInfos,
-			long startTime,
-			int startTick,
-			long endTime,
-			int endTick
+		Map<String, ? extends ProfileLocationInfo> locationInfos,
+		long startTime,
+		int startTick,
+		long endTime,
+		int endTick
 	) {
 		this.locationInfos = locationInfos;
 		this.startTime = startTime;
@@ -76,157 +81,161 @@ public class ProfileResultImpl implements ProfileResult {
 	}
 
 	private ProfileLocationInfo getInfo(String path) {
-		ProfileLocationInfo profileLocationInfo = this.locationInfos.get(path);
-		return profileLocationInfo != null ? profileLocationInfo : EMPTY_INFO;
+		ProfileLocationInfo info = locationInfos.get(path);
+		return info != null ? info : EMPTY_INFO;
 	}
 
+	/**
+	 * Возвращает список замеров дочерних секций относительно указанного пути.
+	 * Первым элементом всегда идёт сам родительский узел с 100% долей.
+	 */
 	@Override
 	public List<ProfilerTiming> getTimings(String parentPath) {
-		String string = parentPath;
-		ProfileLocationInfo profileLocationInfo = this.getInfo("root");
-		long l = profileLocationInfo.getTotalTime();
-		ProfileLocationInfo profileLocationInfo2 = this.getInfo(parentPath);
-		long m = profileLocationInfo2.getTotalTime();
-		long n = profileLocationInfo2.getVisitCount();
-		List<ProfilerTiming> list = Lists.newArrayList();
+		String originalPath = parentPath;
+		ProfileLocationInfo rootInfo = getInfo("root");
+		long rootTotalTime = rootInfo.getTotalTime();
+
+		ProfileLocationInfo parentInfo = getInfo(parentPath);
+		long parentTotalTime = parentInfo.getTotalTime();
+		long parentVisitCount = parentInfo.getVisitCount();
+
+		List<ProfilerTiming> timings = Lists.newArrayList();
+
 		if (!parentPath.isEmpty()) {
 			parentPath = parentPath + "\u001e";
 		}
 
-		long o = 0L;
+		long childrenTotalTime = 0L;
 
-		for (String string2 : this.locationInfos.keySet()) {
-			if (isSubpath(parentPath, string2)) {
-				o += this.getInfo(string2).getTotalTime();
+		for (String key : locationInfos.keySet()) {
+			if (isSubpath(parentPath, key)) {
+				childrenTotalTime += getInfo(key).getTotalTime();
 			}
 		}
 
-		float f = (float) o;
-		if (o < m) {
-			o = m;
+		float unaccountedTime = (float) childrenTotalTime;
+
+		if (childrenTotalTime < parentTotalTime) {
+			childrenTotalTime = parentTotalTime;
 		}
 
-		if (l < o) {
-			l = o;
+		if (rootTotalTime < childrenTotalTime) {
+			rootTotalTime = childrenTotalTime;
 		}
 
-		for (String string3 : this.locationInfos.keySet()) {
-			if (isSubpath(parentPath, string3)) {
-				ProfileLocationInfo profileLocationInfo3 = this.getInfo(string3);
-				long p = profileLocationInfo3.getTotalTime();
-				double d = p * 100.0 / o;
-				double e = p * 100.0 / l;
-				String string4 = string3.substring(parentPath.length());
-				list.add(new ProfilerTiming(string4, d, e, profileLocationInfo3.getVisitCount()));
+		for (String key : locationInfos.keySet()) {
+			if (isSubpath(parentPath, key)) {
+				ProfileLocationInfo childInfo = getInfo(key);
+				long childTime = childInfo.getTotalTime();
+				double parentPercent = childTime * 100.0 / childrenTotalTime;
+				double totalPercent = childTime * 100.0 / rootTotalTime;
+				String childName = key.substring(parentPath.length());
+				timings.add(new ProfilerTiming(childName, parentPercent, totalPercent, childInfo.getVisitCount()));
 			}
 		}
 
-		if ((float) o > f) {
-			list.add(new ProfilerTiming("unspecified", ((float) o - f) * 100.0 / o, ((float) o - f) * 100.0 / l, n));
+		if ((float) childrenTotalTime > unaccountedTime) {
+			double unspecifiedParent = ((float) childrenTotalTime - unaccountedTime) * 100.0 / childrenTotalTime;
+			double unspecifiedTotal = ((float) childrenTotalTime - unaccountedTime) * 100.0 / rootTotalTime;
+			timings.add(new ProfilerTiming("unspecified", unspecifiedParent, unspecifiedTotal, parentVisitCount));
 		}
 
-		Collections.sort(list);
-		list.add(0, new ProfilerTiming(string, 100.0, o * 100.0 / l, n));
-		return list;
+		Collections.sort(timings);
+		timings.add(0, new ProfilerTiming(originalPath, 100.0, childrenTotalTime * 100.0 / rootTotalTime, parentVisitCount));
+		return timings;
 	}
 
 	private static boolean isSubpath(String parent, String path) {
-		return path.length() > parent.length() && path.startsWith(parent) && path.indexOf(30, parent.length() + 1) < 0;
+		return path.length() > parent.length()
+			&& path.startsWith(parent)
+			&& path.indexOf(30, parent.length() + 1) < 0;
 	}
 
 	private Map<String, ProfileResultImpl.CounterInfo> setupCounters() {
-		Map<String, ProfileResultImpl.CounterInfo> map = Maps.newTreeMap();
-		this.locationInfos.forEach((location, info) -> {
-			Object2LongMap<String> object2LongMap = info.getCounts();
-			if (!object2LongMap.isEmpty()) {
-				List<String> list = SPLITTER.splitToList(location);
-				object2LongMap.forEach((marker, count) -> map
-						.computeIfAbsent(marker, k -> new ProfileResultImpl.CounterInfo())
-						.add(list.iterator(), count));
+		Map<String, ProfileResultImpl.CounterInfo> counters = Maps.newTreeMap();
+		locationInfos.forEach((location, info) -> {
+			Object2LongMap<String> counts = info.getCounts();
+			if (counts.isEmpty()) {
+				return;
 			}
+
+			List<String> pathParts = PATH_SPLITTER.splitToList(location);
+			counts.forEach((marker, count) -> counters
+				.computeIfAbsent(marker, k -> new ProfileResultImpl.CounterInfo())
+				.add(pathParts.iterator(), count));
 		});
-		return map;
+		return counters;
 	}
 
 	@Override
 	public long getStartTime() {
-		return this.startTime;
+		return startTime;
 	}
 
 	@Override
 	public int getStartTick() {
-		return this.startTick;
+		return startTick;
 	}
 
 	@Override
 	public long getEndTime() {
-		return this.endTime;
+		return endTime;
 	}
 
 	@Override
 	public int getEndTick() {
-		return this.endTick;
+		return endTick;
 	}
 
 	@Override
 	public boolean save(Path path) {
 		Writer writer = null;
 
-		boolean var4;
 		try {
 			Files.createDirectories(path.getParent());
 			writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8);
-			writer.write(this.asString(this.getTimeSpan(), this.getTickSpan()));
+			writer.write(asString(getTimeSpan(), getTickSpan()));
 			return true;
 		}
-		catch (Throwable var8) {
-			LOGGER.error("Could not save profiler results to {}", path, var8);
-			var4 = false;
+		catch (Throwable error) {
+			LOGGER.error("Could not save profiler results to {}", path, error);
+			return false;
 		}
 		finally {
 			IOUtils.closeQuietly(writer);
 		}
-
-		return var4;
 	}
 
-	/**
-	 * As string.
-	 *
-	 * @param timeSpan time span
-	 * @param tickSpan tick span
-	 *
-	 * @return String — результат операции
-	 */
 	protected String asString(long timeSpan, int tickSpan) {
-		StringBuilder stringBuilder = new StringBuilder();
-		ReportType.MINECRAFT_PROFILER_RESULTS.addHeaderAndNugget(stringBuilder, List.of());
-		stringBuilder.append("Version: ").append(SharedConstants.getGameVersion().id()).append('\n');
-		stringBuilder.append("Time span: ").append(timeSpan / 1000000L).append(" ms\n");
-		stringBuilder.append("Tick span: ").append(tickSpan).append(" ticks\n");
-		stringBuilder.append("// This is approximately ")
-		             .append(String.format(Locale.ROOT, "%.2f", tickSpan / ((float) timeSpan / 1.0E9F)))
-		             .append(" ticks per second. It should be ")
-		             .append(20)
-		             .append(" ticks per second\n\n");
-		stringBuilder.append("--- BEGIN PROFILE DUMP ---\n\n");
-		this.appendTiming(0, "root", stringBuilder);
-		stringBuilder.append("--- END PROFILE DUMP ---\n\n");
-		Map<String, ProfileResultImpl.CounterInfo> map = this.setupCounters();
-		if (!map.isEmpty()) {
-			stringBuilder.append("--- BEGIN COUNTER DUMP ---\n\n");
-			this.appendCounterDump(map, stringBuilder, tickSpan);
-			stringBuilder.append("--- END COUNTER DUMP ---\n\n");
+		StringBuilder sb = new StringBuilder();
+		ReportType.MINECRAFT_PROFILER_RESULTS.addHeaderAndNugget(sb, List.of());
+		sb.append("Version: ").append(SharedConstants.getGameVersion().id()).append('\n');
+		sb.append("Time span: ").append(timeSpan / 1000000L).append(" ms\n");
+		sb.append("Tick span: ").append(tickSpan).append(" ticks\n");
+		sb.append("// This is approximately ")
+			.append(String.format(Locale.ROOT, "%.2f", tickSpan / ((float) timeSpan / 1.0E9F)))
+			.append(" ticks per second. It should be ")
+			.append(20)
+			.append(" ticks per second\n\n");
+		sb.append("--- BEGIN PROFILE DUMP ---\n\n");
+		appendTiming(0, "root", sb);
+		sb.append("--- END PROFILE DUMP ---\n\n");
+
+		Map<String, ProfileResultImpl.CounterInfo> counters = setupCounters();
+		if (!counters.isEmpty()) {
+			sb.append("--- BEGIN COUNTER DUMP ---\n\n");
+			appendCounterDump(counters, sb, tickSpan);
+			sb.append("--- END COUNTER DUMP ---\n\n");
 		}
 
-		return stringBuilder.toString();
+		return sb.toString();
 	}
 
 	@Override
 	public String getRootTimings() {
-		StringBuilder stringBuilder = new StringBuilder();
-		this.appendTiming(0, "root", stringBuilder);
-		return stringBuilder.toString();
+		StringBuilder sb = new StringBuilder();
+		appendTiming(0, "root", sb);
+		return sb.toString();
 	}
 
 	private static StringBuilder indent(StringBuilder sb, int size) {
@@ -240,97 +249,88 @@ public class ProfileResultImpl implements ProfileResult {
 	}
 
 	private void appendTiming(int level, String name, StringBuilder sb) {
-		List<ProfilerTiming> list = this.getTimings(name);
-		Object2LongMap<String> object2LongMap = ((ProfileLocationInfo) ObjectUtils.firstNonNull(
-				new ProfileLocationInfo[]{this.locationInfos.get(name), EMPTY_INFO}
-		)
-		)
-				.getCounts();
-		object2LongMap.forEach(
-				(marker, count) -> indent(sb, level)
-						.append('#')
-						.append(marker)
-						.append(' ')
-						.append(count)
-						.append('/')
-						.append(count / this.tickDuration)
-						.append('\n')
+		List<ProfilerTiming> timings = getTimings(name);
+
+		ProfileLocationInfo info = locationInfos.get(name);
+		Object2LongMap<String> counts = info != null ? info.getCounts() : Object2LongMaps.emptyMap();
+
+		counts.forEach((marker, count) -> indent(sb, level)
+			.append('#')
+			.append(marker)
+			.append(' ')
+			.append(count)
+			.append('/')
+			.append(count / tickDuration)
+			.append('\n')
 		);
-		if (list.size() >= 3) {
-			for (int i = 1; i < list.size(); i++) {
-				ProfilerTiming profilerTiming = list.get(i);
-				indent(sb, level)
-						.append(profilerTiming.name)
-						.append('(')
-						.append(profilerTiming.visitCount)
-						.append('/')
-						.append(String.format(
-								Locale.ROOT,
-								"%.0f",
-								(float) profilerTiming.visitCount / this.tickDuration
-						))
-						.append(')')
-						.append(" - ")
-						.append(String.format(Locale.ROOT, "%.2f", profilerTiming.parentSectionUsagePercentage))
-						.append("%/")
-						.append(String.format(Locale.ROOT, "%.2f", profilerTiming.totalUsagePercentage))
-						.append("%\n");
-				if (!"unspecified".equals(profilerTiming.name)) {
-					try {
-						this.appendTiming(level + 1, name + "\u001e" + profilerTiming.name, sb);
-					}
-					catch (Exception var9) {
-						sb.append("[[ EXCEPTION ").append(var9).append(" ]]");
-					}
-				}
+
+		if (timings.size() < 3) {
+			return;
+		}
+
+		for (int i = 1; i < timings.size(); i++) {
+			ProfilerTiming timing = timings.get(i);
+			indent(sb, level)
+				.append(timing.name)
+				.append('(')
+				.append(timing.visitCount)
+				.append('/')
+				.append(String.format(Locale.ROOT, "%.0f", (float) timing.visitCount / tickDuration))
+				.append(')')
+				.append(" - ")
+				.append(String.format(Locale.ROOT, "%.2f", timing.parentSectionUsagePercentage))
+				.append("%/")
+				.append(String.format(Locale.ROOT, "%.2f", timing.totalUsagePercentage))
+				.append("%\n");
+
+			if ("unspecified".equals(timing.name)) {
+				continue;
+			}
+
+			try {
+				appendTiming(level + 1, name + "\u001e" + timing.name, sb);
+			}
+			catch (Exception error) {
+				sb.append("[[ EXCEPTION ").append(error).append(" ]]");
 			}
 		}
 	}
 
-	private void appendCounter(
-			int depth,
-			String name,
-			ProfileResultImpl.CounterInfo info,
-			int tickSpan,
-			StringBuilder sb
-	) {
+	private void appendCounter(int depth, String name, ProfileResultImpl.CounterInfo info, int tickSpan, StringBuilder sb) {
 		indent(sb, depth)
-				.append(name)
-				.append(" total:")
-				.append(info.selfTime)
-				.append('/')
-				.append(info.totalTime)
-				.append(" average: ")
-				.append(info.selfTime / tickSpan)
-				.append('/')
-				.append(info.totalTime / tickSpan)
-				.append('\n');
+			.append(name)
+			.append(" total:")
+			.append(info.selfTime)
+			.append('/')
+			.append(info.totalTime)
+			.append(" average: ")
+			.append(info.selfTime / tickSpan)
+			.append('/')
+			.append(info.totalTime / tickSpan)
+			.append('\n');
+
 		info.subCounters
-				.entrySet()
-				.stream()
-				.sorted(COMPARATOR)
-				.forEach(entry -> this.appendCounter(depth + 1, entry.getKey(), entry.getValue(), tickSpan, sb));
+			.entrySet()
+			.stream()
+			.sorted(COUNTER_COMPARATOR)
+			.forEach(entry -> appendCounter(depth + 1, entry.getKey(), entry.getValue(), tickSpan, sb));
 	}
 
-	private void appendCounterDump(
-			Map<String, ProfileResultImpl.CounterInfo> counters,
-			StringBuilder sb,
-			int tickSpan
-	) {
+	private void appendCounterDump(Map<String, ProfileResultImpl.CounterInfo> counters, StringBuilder sb, int tickSpan) {
 		counters.forEach((name, info) -> {
 			sb.append("-- Counter: ").append(name).append(" --\n");
-			this.appendCounter(0, "root", info.subCounters.get("root"), tickSpan, sb);
+			appendCounter(0, "root", info.subCounters.get("root"), tickSpan, sb);
 			sb.append("\n\n");
 		});
 	}
 
 	@Override
 	public int getTickSpan() {
-		return this.tickDuration;
+		return tickDuration;
 	}
 
 	/**
-	 * {@code CounterInfo}.
+	 * Узел дерева счётчиков: хранит собственное время секции и рекурсивно вложенные счётчики.
 	 */
 	static class CounterInfo {
 
@@ -338,22 +338,17 @@ public class ProfileResultImpl implements ProfileResult {
 		long totalTime;
 		final Map<String, ProfileResultImpl.CounterInfo> subCounters = Maps.newHashMap();
 
-		/**
-		 * Add.
-		 *
-		 * @param pathIterator path iterator
-		 * @param time time
-		 */
 		public void add(Iterator<String> pathIterator, long time) {
-			this.totalTime += time;
+			totalTime += time;
+
 			if (!pathIterator.hasNext()) {
-				this.selfTime += time;
+				selfTime += time;
+				return;
 			}
-			else {
-				this.subCounters
-						.computeIfAbsent(pathIterator.next(), k -> new ProfileResultImpl.CounterInfo())
-						.add(pathIterator, time);
-			}
+
+			subCounters
+				.computeIfAbsent(pathIterator.next(), k -> new ProfileResultImpl.CounterInfo())
+				.add(pathIterator, time);
 		}
 	}
 }

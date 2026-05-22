@@ -9,17 +9,15 @@ import net.minecraft.util.math.MathHelper;
 
 import java.util.Set;
 
-/**
- * {@code UniformLootNumberProvider}.
- */
+/** Провайдер числа, возвращающий случайное значение из равномерного распределения [min, max]. */
 public record UniformLootNumberProvider(LootNumberProvider min, LootNumberProvider max) implements LootNumberProvider {
 
 	public static final MapCodec<UniformLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    LootNumberProviderTypes.CODEC.fieldOf("min").forGetter(UniformLootNumberProvider::min),
-					                    LootNumberProviderTypes.CODEC.fieldOf("max").forGetter(UniformLootNumberProvider::max)
-			                    )
-			                    .apply(instance, UniformLootNumberProvider::new)
+		instance -> instance.group(
+			LootNumberProviderTypes.CODEC.fieldOf("min").forGetter(UniformLootNumberProvider::min),
+			LootNumberProviderTypes.CODEC.fieldOf("max").forGetter(UniformLootNumberProvider::max)
+		)
+		.apply(instance, UniformLootNumberProvider::new)
 	);
 
 	@Override
@@ -27,33 +25,25 @@ public record UniformLootNumberProvider(LootNumberProvider min, LootNumberProvid
 		return LootNumberProviderTypes.UNIFORM;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return UniformLootNumberProvider — результат операции
-	 */
 	public static UniformLootNumberProvider create(float min, float max) {
 		return new UniformLootNumberProvider(
-				ConstantLootNumberProvider.create(min),
-				ConstantLootNumberProvider.create(max)
+			ConstantLootNumberProvider.create(min),
+			ConstantLootNumberProvider.create(max)
 		);
 	}
 
 	@Override
 	public int nextInt(LootContext context) {
-		return MathHelper.nextInt(context.getRandom(), this.min.nextInt(context), this.max.nextInt(context));
+		return MathHelper.nextInt(context.getRandom(), min.nextInt(context), max.nextInt(context));
 	}
 
 	@Override
 	public float nextFloat(LootContext context) {
-		return MathHelper.nextFloat(context.getRandom(), this.min.nextFloat(context), this.max.nextFloat(context));
+		return MathHelper.nextFloat(context.getRandom(), min.nextFloat(context), max.nextFloat(context));
 	}
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Sets.union(this.min.getAllowedParameters(), this.max.getAllowedParameters());
+		return Sets.union(min.getAllowedParameters(), max.getAllowedParameters());
 	}
 }

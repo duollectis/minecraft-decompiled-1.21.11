@@ -23,8 +23,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code PiercingWeaponComponent}.
- */
+	 * Компонент пронизывающего оружия (мач, копьё в режиме удара). Описывает поведение
+	 * при ударе: отбрасывание, спешивание, звуки и логику попадания по нескольким целям.
+	 */
 public record PiercingWeaponComponent(
 		boolean dealsKnockback,
 		boolean dismounts,
@@ -34,14 +35,14 @@ public record PiercingWeaponComponent(
 
 	public static final Codec<PiercingWeaponComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codec.BOOL
-							                    .optionalFieldOf("deals_knockback", true)
-							                    .forGetter(PiercingWeaponComponent::dealsKnockback),
-					                    Codec.BOOL.optionalFieldOf("dismounts", false).forGetter(PiercingWeaponComponent::dismounts),
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("sound").forGetter(PiercingWeaponComponent::sound),
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("hit_sound").forGetter(PiercingWeaponComponent::hitSound)
-			                    )
-			                    .apply(instance, PiercingWeaponComponent::new)
+										Codec.BOOL
+												.optionalFieldOf("deals_knockback", true)
+												.forGetter(PiercingWeaponComponent::dealsKnockback),
+										Codec.BOOL.optionalFieldOf("dismounts", false).forGetter(PiercingWeaponComponent::dismounts),
+										SoundEvent.ENTRY_CODEC.optionalFieldOf("sound").forGetter(PiercingWeaponComponent::sound),
+										SoundEvent.ENTRY_CODEC.optionalFieldOf("hit_sound").forGetter(PiercingWeaponComponent::hitSound)
+								)
+								.apply(instance, PiercingWeaponComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, PiercingWeaponComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.BOOLEAN,
@@ -56,104 +57,109 @@ public record PiercingWeaponComponent(
 	);
 
 	/**
-	 * Play sound.
-	 *
-	 * @param entity entity
-	 */
+		 * Воспроизводит звук использования оружия в позиции сущности.
+		 *
+		 * @param entity сущность-источник звука
+		 */
 	public void playSound(Entity entity) {
-		this.sound
-				.ifPresent(
-						sound -> entity.getEntityWorld()
-						               .playSound(
-								               entity,
-								               entity.getX(),
-								               entity.getY(),
-								               entity.getZ(),
-								               (RegistryEntry<SoundEvent>) sound,
-								               entity.getSoundCategory(),
-								               1.0F,
-								               1.0F
-						               )
-				);
+		sound.ifPresent(
+				soundEntry -> entity.getEntityWorld()
+									.playSound(
+											entity,
+											entity.getX(),
+											entity.getY(),
+											entity.getZ(),
+											soundEntry,
+											entity.getSoundCategory(),
+											1.0F,
+											1.0F
+									)
+		);
 	}
 
 	/**
-	 * Play hit sound.
-	 *
-	 * @param entity entity
-	 */
+		 * Воспроизводит звук попадания оружия (без привязки к источнику, слышен всем).
+		 *
+		 * @param entity сущность, в позиции которой воспроизводится звук
+		 */
 	public void playHitSound(Entity entity) {
-		this.hitSound
-				.ifPresent(
-						sound -> entity.getEntityWorld()
-						               .playSound(
-								               null,
-								               entity.getX(),
-								               entity.getY(),
-								               entity.getZ(),
-								               (RegistryEntry<SoundEvent>) sound,
-								               entity.getSoundCategory(),
-								               1.0F,
-								               1.0F
-						               )
-				);
+		hitSound.ifPresent(
+				soundEntry -> entity.getEntityWorld()
+									.playSound(
+											null,
+											entity.getX(),
+											entity.getY(),
+											entity.getZ(),
+											soundEntry,
+											entity.getSoundCategory(),
+											1.0F,
+											1.0F
+									)
+		);
 	}
 
 	/**
-	 * Проверяет возможность hit.
-	 *
-	 * @param attacker attacker
-	 * @param target target
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+		 * Проверяет, может ли атакующий нанести удар по цели пронизывающим оружием.
+		 * Учитывает неуязвимость, живость, тип сущности и правила PvP.
+		 *
+		 * @param attacker атакующая сущность
+		 * @param target   цель атаки
+		 * @return {@code true} если удар допустим
+		 */
 	public static boolean canHit(Entity attacker, Entity target) {
 		if (target.isInvulnerable() || !target.isAlive()) {
 			return false;
 		}
-		else if (target instanceof InteractionEntity) {
+
+		if (target instanceof InteractionEntity) {
 			return true;
 		}
-		else if (!target.canBeHitByProjectile()) {
+
+		if (!target.canBeHitByProjectile()) {
 			return false;
 		}
-		else {
-			return target instanceof PlayerEntity playerEntity
-					       && attacker instanceof PlayerEntity playerEntity2
-					       && !playerEntity2.shouldDamagePlayer(playerEntity)
-			       ? false
-			       : !attacker.isConnectedThroughVehicle(target);
+
+		if (target instanceof PlayerEntity playerTarget
+				&& attacker instanceof PlayerEntity playerAttacker
+				&& !playerAttacker.shouldDamagePlayer(playerTarget)
+		) {
+			return false;
 		}
+
+		return !attacker.isConnectedThroughVehicle(target);
 	}
 
 	/**
-	 * Stab.
-	 *
-	 * @param attacker attacker
-	 * @param slot slot
-	 */
+		 * Выполняет удар пронизывающим оружием: собирает все цели в зоне атаки,
+		 * наносит урон каждой и воспроизводит звуки.
+		 *
+		 * @param attacker атакующая сущность
+		 * @param slot     слот экипировки оружия
+		 */
 	public void stab(LivingEntity attacker, EquipmentSlot slot) {
-		float f = (float) attacker.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-		AttackRangeComponent attackRangeComponent = attacker.getAttackRange();
-		boolean bl = false;
+		float damage = (float) attacker.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+		AttackRangeComponent attackRange = attacker.getAttackRange();
+		boolean anyHit = false;
 
-		for (EntityHitResult entityHitResult : (Collection<EntityHitResult>) ProjectileUtil.collectPiercingCollisions(
-				                                                                                   attacker, attackRangeComponent, target -> canHit(attacker, target), RaycastContext.ShapeType.COLLIDER
-		                                                                                   )
-		                                                                                   .map(
-				                                                                                   blockHit -> List.of(),
-				                                                                                   entityHits -> entityHits
-		                                                                                   )) {
-			bl |= attacker.pierce(slot, entityHitResult.getEntity(), f, true, this.dealsKnockback, this.dismounts);
+		for (EntityHitResult entityHitResult : (Collection<EntityHitResult>) ProjectileUtil
+				.collectPiercingCollisions(
+						attacker,
+						attackRange,
+						target -> canHit(attacker, target),
+						RaycastContext.ShapeType.COLLIDER
+				)
+				.map(blockHit -> List.of(), entityHits -> entityHits)) {
+			anyHit |= attacker.pierce(slot, entityHitResult.getEntity(), damage, true, dealsKnockback, dismounts);
 		}
 
 		attacker.beforePlayerAttack();
 		attacker.useAttackEnchantmentEffects();
-		if (bl) {
-			this.playHitSound(attacker);
+
+		if (anyHit) {
+			playHitSound(attacker);
 		}
 
-		this.playSound(attacker);
+		playSound(attacker);
 		attacker.swingHand(Hand.MAIN_HAND, false);
 	}
 }

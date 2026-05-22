@@ -7,7 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * {@code UriUtil}.
+ * Класс Uri Util.
  */
 public class UriUtil {
 

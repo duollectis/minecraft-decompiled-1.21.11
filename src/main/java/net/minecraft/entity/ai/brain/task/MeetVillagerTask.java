@@ -9,17 +9,16 @@ import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.util.math.GlobalPos;
 
 /**
- * {@code MeetVillagerTask}.
+ * Фабричный класс задачи мозга, инициирующей встречу жителя с другим жителем на месте собраний.
+ * Запускается случайно (1/{@code MEET_CHANCE}) при нахождении рядом с точкой встречи.
  */
 public class MeetVillagerTask {
 
 	private static final float WALK_SPEED = 0.3F;
+	private static final double MEETING_RANGE = 4.0;
+	private static final double TALK_DISTANCE_SQ = 32.0;
+	private static final int MEET_CHANCE = 100;
 
-	/**
-	 * Create.
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -32,32 +31,27 @@ public class MeetVillagerTask {
 				                  .apply(
 						                  context,
 						                  (walkTarget, lookTarget, meetingPoint, visibleMobs, interactionTarget) -> (world, entity, time) -> {
-							                  GlobalPos globalPos = context.getValue(meetingPoint);
-							                  LivingTargetCache livingTargetCache = context.getValue(visibleMobs);
-							                  if (world.getRandom().nextInt(100) == 0
-									                  && world.getRegistryKey() == globalPos.dimension()
-									                  && globalPos.pos().isWithinDistance(entity.getEntityPos(), 4.0)
-									                  && livingTargetCache.anyMatch(target -> EntityType.VILLAGER.equals(
-									                  target.getType()))) {
-								                  livingTargetCache
-										                  .findFirst(target ->
-												                  EntityType.VILLAGER.equals(target.getType())
-														                  && target.squaredDistanceTo(entity) <= 32.0)
-										                  .ifPresent(target -> {
-											                  interactionTarget.remember(target);
-											                  lookTarget.remember(new EntityLookTarget(target, true));
-											                  walkTarget.remember(new WalkTarget(
-													                  new EntityLookTarget(
-															                  target,
-															                  false
-													                  ), 0.3F, 1
-											                  ));
-										                  });
-								                  return true;
-							                  }
-							                  else {
+							                  GlobalPos meeting = context.getValue(meetingPoint);
+							                  LivingTargetCache mobs = context.getValue(visibleMobs);
+							                  boolean shouldMeet = world.getRandom().nextInt(MEET_CHANCE) == 0
+									                  && world.getRegistryKey() == meeting.dimension()
+									                  && meeting.pos().isWithinDistance(entity.getEntityPos(), MEETING_RANGE)
+									                  && mobs.anyMatch(target -> EntityType.VILLAGER.equals(target.getType()));
+
+							                  if (!shouldMeet) {
 								                  return false;
 							                  }
+
+							                  mobs.findFirst(target ->
+									                  EntityType.VILLAGER.equals(target.getType())
+											                  && target.squaredDistanceTo(entity) <= TALK_DISTANCE_SQ
+							                  ).ifPresent(target -> {
+								                  interactionTarget.remember(target);
+								                  lookTarget.remember(new EntityLookTarget(target, true));
+								                  walkTarget.remember(new WalkTarget(new EntityLookTarget(target, false), WALK_SPEED, 1));
+							                  });
+
+							                  return true;
 						                  }
 				                  )
 		);

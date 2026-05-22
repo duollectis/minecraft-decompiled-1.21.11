@@ -5,7 +5,8 @@ import net.minecraft.obfuscate.DontObfuscate;
 import net.minecraft.test.TestBootstrap;
 
 /**
- * {@code Main}.
+ * Точка входа для запуска игровых тестов (GameTest) в headless-режиме.
+ * Инициализирует версию игры и передаёт управление {@link TestBootstrap}.
  */
 public class Main {
 

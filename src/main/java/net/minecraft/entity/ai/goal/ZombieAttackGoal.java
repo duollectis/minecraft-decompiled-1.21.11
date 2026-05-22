@@ -3,9 +3,12 @@ package net.minecraft.entity.ai.goal;
 import net.minecraft.entity.mob.ZombieEntity;
 
 /**
- * {@code ZombieAttackGoal}.
+ * Цель ближнего боя зомби: расширяет {@link MeleeAttackGoal}, включая анимацию атаки
+ * через {@code ATTACK_ANIM_DELAY} тиков после начала замаха.
  */
 public class ZombieAttackGoal extends MeleeAttackGoal {
+
+	private static final int ATTACK_ANIM_DELAY = 5;
 
 	private final ZombieEntity zombie;
 	private int ticks;
@@ -18,24 +21,20 @@ public class ZombieAttackGoal extends MeleeAttackGoal {
 	@Override
 	public void start() {
 		super.start();
-		this.ticks = 0;
+		ticks = 0;
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.zombie.setAttacking(false);
+		zombie.setAttacking(false);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		this.ticks++;
-		if (this.ticks >= 5 && this.getCooldown() < this.getMaxCooldown() / 2) {
-			this.zombie.setAttacking(true);
-		}
-		else {
-			this.zombie.setAttacking(false);
-		}
+		ticks++;
+		boolean isAttacking = ticks >= ATTACK_ANIM_DELAY && getCooldown() < getMaxCooldown() / 2;
+		zombie.setAttacking(isAttacking);
 	}
 }

@@ -11,7 +11,11 @@ import com.mojang.logging.LogUtils;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.*;
+import net.minecraft.client.gl.DynamicUniforms;
+import net.minecraft.client.gl.GlBackend;
+import net.minecraft.client.gl.SamplerCache;
+import net.minecraft.client.gl.ScissorState;
+import net.minecraft.client.gl.ShaderSourceGetter;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.tracy.TracyFrameCapturer;
@@ -34,11 +38,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntConsumer;
 
+/**
+ * Центральный фасад системы рендеринга.
+ *
+ * <p>Управляет жизненным циклом GPU-устройства, матрицами проекции и модели,
+ * индексными буферами для стандартных примитивов, а также очередью задач,
+ * ожидающих завершения GPU-операций через {@link GpuFence}.
+ *
+ * <p>Большинство методов требуют вызова из потока рендеринга —
+ * нарушение этого условия приводит к {@link IllegalStateException}.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code RenderSystem}.
- */
 public class RenderSystem {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -47,28 +58,27 @@ public class RenderSystem {
 	private static @Nullable Thread renderThread;
 	private static @Nullable GpuDevice DEVICE;
 	private static double lastDrawTime = Double.MIN_VALUE;
-	private static final RenderSystem.ShapeIndexBuffer
-			sharedSequential =
-			new RenderSystem.ShapeIndexBuffer(1, 1, IntConsumer::accept);
+	private static final RenderSystem.ShapeIndexBuffer sharedSequential =
+		new RenderSystem.ShapeIndexBuffer(1, 1, IntConsumer::accept);
 	private static final RenderSystem.ShapeIndexBuffer sharedSequentialQuad = new RenderSystem.ShapeIndexBuffer(
-			4, 6, (indexConsumer, firstVertexIndex) -> {
-		indexConsumer.accept(firstVertexIndex);
-		indexConsumer.accept(firstVertexIndex + 1);
-		indexConsumer.accept(firstVertexIndex + 2);
-		indexConsumer.accept(firstVertexIndex + 2);
-		indexConsumer.accept(firstVertexIndex + 3);
-		indexConsumer.accept(firstVertexIndex);
-	}
+		4, 6, (indexConsumer, firstVertexIndex) -> {
+			indexConsumer.accept(firstVertexIndex);
+			indexConsumer.accept(firstVertexIndex + 1);
+			indexConsumer.accept(firstVertexIndex + 2);
+			indexConsumer.accept(firstVertexIndex + 2);
+			indexConsumer.accept(firstVertexIndex + 3);
+			indexConsumer.accept(firstVertexIndex);
+		}
 	);
 	private static final RenderSystem.ShapeIndexBuffer sharedSequentialLines = new RenderSystem.ShapeIndexBuffer(
-			4, 6, (indexConsumer, firstVertexIndex) -> {
-		indexConsumer.accept(firstVertexIndex);
-		indexConsumer.accept(firstVertexIndex + 1);
-		indexConsumer.accept(firstVertexIndex + 2);
-		indexConsumer.accept(firstVertexIndex + 3);
-		indexConsumer.accept(firstVertexIndex + 2);
-		indexConsumer.accept(firstVertexIndex + 1);
-	}
+		4, 6, (indexConsumer, firstVertexIndex) -> {
+			indexConsumer.accept(firstVertexIndex);
+			indexConsumer.accept(firstVertexIndex + 1);
+			indexConsumer.accept(firstVertexIndex + 2);
+			indexConsumer.accept(firstVertexIndex + 3);
+			indexConsumer.accept(firstVertexIndex + 2);
+			indexConsumer.accept(firstVertexIndex + 1);
+		}
 	);
 	private static ProjectionType projectionType = ProjectionType.PERSPECTIVE;
 	private static ProjectionType savedProjectionType = ProjectionType.PERSPECTIVE;
@@ -96,9 +106,8 @@ public class RenderSystem {
 		if (renderThread != null) {
 			throw new IllegalStateException("Could not initialize render thread");
 		}
-		else {
-			renderThread = Thread.currentThread();
-		}
+
+		renderThread = Thread.currentThread();
 	}
 
 	public static boolean isOnRenderThread() {
@@ -139,15 +148,22 @@ public class RenderSystem {
 		pollEvents();
 	}
 
+	/**
+	 * Ограничивает FPS, блокируя поток рендеринга до наступления следующего кадра.
+	 * Использует {@code glfwWaitEventsTimeout} вместо busy-wait для экономии CPU.
+	 *
+	 * @param fps целевое количество кадров в секунду
+	 */
 	public static void limitDisplayFPS(int fps) {
-		double d = lastDrawTime + 1.0 / fps;
+		double targetTime = lastDrawTime + 1.0 / fps;
+		double currentTime = GLFW.glfwGetTime();
 
-		double e;
-		for (e = GLFW.glfwGetTime(); e < d; e = GLFW.glfwGetTime()) {
-			GLFW.glfwWaitEventsTimeout(d - e);
+		while (currentTime < targetTime) {
+			GLFW.glfwWaitEventsTimeout(targetTime - currentTime);
+			currentTime = GLFW.glfwGetTime();
 		}
 
-		lastDrawTime = e;
+		lastDrawTime = currentTime;
 	}
 
 	public static void setShaderFog(GpuBufferSlice shaderFog) {
@@ -166,8 +182,8 @@ public class RenderSystem {
 		return shaderLightDirections;
 	}
 
-	public static void enableScissorForRenderTypeDraws(int i, int j, int k, int l) {
-		scissorStateForRenderTypeDraws.enable(i, j, k, l);
+	public static void enableScissorForRenderTypeDraws(int x, int y, int width, int height) {
+		scissorStateForRenderTypeDraws.enable(x, y, width, height);
 	}
 
 	public static void disableScissorForRenderTypeDraws() {
@@ -271,17 +287,21 @@ public class RenderSystem {
 		PENDING_FENCES.addLast(new RenderSystem.Task(task, getDevice().createCommandEncoder().createFence()));
 	}
 
+	/**
+	 * Выполняет все задачи из очереди, чей GPU-fence уже сигнализирован.
+	 * Останавливается при первой незавершённой задаче, сохраняя порядок выполнения.
+	 */
 	public static void executePendingTasks() {
 		for (RenderSystem.Task task = PENDING_FENCES.peekFirst(); task != null; task = PENDING_FENCES.peekFirst()) {
-			if (!task.fence.awaitCompletion(0L)) {
+			if (!task.fence().awaitCompletion(0L)) {
 				return;
 			}
 
 			try {
-				task.callback.run();
+				task.callback().run();
 			}
 			finally {
-				task.fence.close();
+				task.fence().close();
 			}
 
 			PENDING_FENCES.removeFirst();
@@ -292,9 +312,8 @@ public class RenderSystem {
 		if (DEVICE == null) {
 			throw new IllegalStateException("Can't getDevice() before it was initialized");
 		}
-		else {
-			return DEVICE;
-		}
+
+		return DEVICE;
 	}
 
 	public static @Nullable GpuDevice tryGetDevice() {
@@ -305,37 +324,37 @@ public class RenderSystem {
 		if (dynamicUniforms == null) {
 			throw new IllegalStateException("Can't getDynamicUniforms() before device was initialized");
 		}
-		else {
-			return dynamicUniforms;
-		}
+
+		return dynamicUniforms;
 	}
 
 	public static void bindDefaultUniforms(RenderPass pass) {
-		GpuBufferSlice gpuBufferSlice = getProjectionMatrixBuffer();
-		if (gpuBufferSlice != null) {
-			pass.setUniform("Projection", gpuBufferSlice);
+		GpuBufferSlice projection = getProjectionMatrixBuffer();
+		if (projection != null) {
+			pass.setUniform("Projection", projection);
 		}
 
-		GpuBufferSlice gpuBufferSlice2 = getShaderFog();
-		if (gpuBufferSlice2 != null) {
-			pass.setUniform("Fog", gpuBufferSlice2);
+		GpuBufferSlice fog = getShaderFog();
+		if (fog != null) {
+			pass.setUniform("Fog", fog);
 		}
 
-		GpuBuffer gpuBuffer = getGlobalSettingsUniform();
-		if (gpuBuffer != null) {
-			pass.setUniform("Globals", gpuBuffer);
+		GpuBuffer globals = getGlobalSettingsUniform();
+		if (globals != null) {
+			pass.setUniform("Globals", globals);
 		}
 
-		GpuBufferSlice gpuBufferSlice3 = getShaderLights();
-		if (gpuBufferSlice3 != null) {
-			pass.setUniform("Lighting", gpuBufferSlice3);
+		GpuBufferSlice lighting = getShaderLights();
+		if (lighting != null) {
+			pass.setUniform("Lighting", lighting);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ShapeIndexBuffer}.
+	 * Буфер индексов для стандартных примитивов (квады, линии и т.д.).
+	 * Автоматически расширяется при нехватке места через {@link #grow(int)}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static final class ShapeIndexBuffer {
 
 		private final int vertexCountInShape;
@@ -356,69 +375,66 @@ public class RenderSystem {
 		}
 
 		public boolean isLargeEnough(int requiredSize) {
-			return requiredSize <= this.size;
+			return requiredSize <= size;
 		}
 
 		public GpuBuffer getIndexBuffer(int requiredSize) {
-			this.grow(requiredSize);
-			return this.indexBuffer;
+			grow(requiredSize);
+			return indexBuffer;
 		}
 
 		private void grow(int requiredSize) {
-			if (!this.isLargeEnough(requiredSize)) {
-				requiredSize = MathHelper.roundUpToMultiple(requiredSize * 2, this.vertexCountInTriangulated);
-				RenderSystem.LOGGER.debug("Growing IndexBuffer: Old limit {}, new limit {}.", this.size, requiredSize);
-				int i = requiredSize / this.vertexCountInTriangulated;
-				int j = i * this.vertexCountInShape;
-				VertexFormat.IndexType indexType = VertexFormat.IndexType.smallestFor(j);
-				int k = MathHelper.roundUpToMultiple(requiredSize * indexType.size, 4);
-				ByteBuffer byteBuffer = MemoryUtil.memAlloc(k);
-
-				try {
-					this.indexType = indexType;
-					it.unimi.dsi.fastutil.ints.IntConsumer intConsumer = this.getIndexConsumer(byteBuffer);
-
-					for (int l = 0; l < requiredSize; l += this.vertexCountInTriangulated) {
-						this.triangulator.accept(
-								intConsumer,
-								l * this.vertexCountInShape / this.vertexCountInTriangulated
-						);
-					}
-
-					byteBuffer.flip();
-					if (this.indexBuffer != null) {
-						this.indexBuffer.close();
-					}
-
-					this.indexBuffer =
-							RenderSystem.getDevice().createBuffer(() -> "Auto Storage index buffer", 64, byteBuffer);
-				}
-				finally {
-					MemoryUtil.memFree(byteBuffer);
-				}
-
-				this.size = requiredSize;
+			if (isLargeEnough(requiredSize)) {
+				return;
 			}
+
+			requiredSize = MathHelper.roundUpToMultiple(requiredSize * 2, vertexCountInTriangulated);
+			RenderSystem.LOGGER.debug("Growing IndexBuffer: Old limit {}, new limit {}.", size, requiredSize);
+
+			int shapeCount = requiredSize / vertexCountInTriangulated;
+			int vertexCount = shapeCount * vertexCountInShape;
+			VertexFormat.IndexType newIndexType = VertexFormat.IndexType.smallestFor(vertexCount);
+			int bufferBytes = MathHelper.roundUpToMultiple(requiredSize * newIndexType.size, 4);
+			ByteBuffer byteBuffer = MemoryUtil.memAlloc(bufferBytes);
+
+			try {
+				indexType = newIndexType;
+				it.unimi.dsi.fastutil.ints.IntConsumer intConsumer = getIndexConsumer(byteBuffer);
+
+				for (int offset = 0; offset < requiredSize; offset += vertexCountInTriangulated) {
+					triangulator.accept(
+						intConsumer,
+						offset * vertexCountInShape / vertexCountInTriangulated
+					);
+				}
+
+				byteBuffer.flip();
+				if (indexBuffer != null) {
+					indexBuffer.close();
+				}
+
+				indexBuffer = RenderSystem.getDevice()
+					.createBuffer(() -> "Auto Storage index buffer", 64, byteBuffer);
+			}
+			finally {
+				MemoryUtil.memFree(byteBuffer);
+			}
+
+			size = requiredSize;
 		}
 
-		private it.unimi.dsi.fastutil.ints.IntConsumer getIndexConsumer(ByteBuffer indexBuffer) {
-			switch (this.indexType) {
-				case SHORT:
-					return index -> indexBuffer.putShort((short) index);
-				case INT:
-				default:
-					return indexBuffer::putInt;
-			}
+		private it.unimi.dsi.fastutil.ints.IntConsumer getIndexConsumer(ByteBuffer buffer) {
+			return switch (indexType) {
+				case SHORT -> index -> buffer.putShort((short) index);
+				case INT -> buffer::putInt;
+			};
 		}
 
 		public VertexFormat.IndexType getIndexType() {
-			return this.indexType;
+			return indexType;
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code Triangulator}.
-		 */
 		interface Triangulator {
 
 			void accept(it.unimi.dsi.fastutil.ints.IntConsumer indexConsumer, int firstVertexIndex);
@@ -426,9 +442,6 @@ public class RenderSystem {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Task}.
-	 */
 	record Task(Runnable callback, GpuFence fence) {
 	}
 }

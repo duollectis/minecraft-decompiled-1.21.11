@@ -5,7 +5,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code BlockPosLookTarget}.
+ * Реализация {@link LookTarget}, привязанная к фиксированной позиции блока.
+ * Всегда считается видимой для любого наблюдателя, так как блоки не могут «прятаться».
  */
 public class BlockPosLookTarget implements LookTarget {
 
@@ -24,12 +25,12 @@ public class BlockPosLookTarget implements LookTarget {
 
 	@Override
 	public Vec3d getPos() {
-		return this.pos;
+		return pos;
 	}
 
 	@Override
 	public BlockPos getBlockPos() {
-		return this.blockPos;
+		return blockPos;
 	}
 
 	@Override
@@ -39,6 +40,6 @@ public class BlockPosLookTarget implements LookTarget {
 
 	@Override
 	public String toString() {
-		return "BlockPosTracker{blockPos=" + this.blockPos + ", centerPosition=" + this.pos + "}";
+		return "BlockPosTracker{blockPos=" + blockPos + ", centerPosition=" + pos + "}";
 	}
 }

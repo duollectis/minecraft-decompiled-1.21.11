@@ -16,62 +16,89 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code BlendingDataFix}.
+ * Добавляет тег {@code blending_data} в чанки Overworld для корректного смешивания
+ * старого и нового рельефа при обновлении мира. Чанки с ранними статусами генерации
+ * или с тегом {@code below_zero_retrogen} получают данные для устаревшего диапазона высот.
  */
 public class BlendingDataFix extends DataFix {
 
-	private final String name;
 	private static final Set<String> SKIP_BLENDING_STATUSES = Set.of(
-			"minecraft:empty", "minecraft:structure_starts", "minecraft:structure_references", "minecraft:biomes"
+		"minecraft:empty",
+		"minecraft:structure_starts",
+		"minecraft:structure_references",
+		"minecraft:biomes"
 	);
+
+	private static final String OVERWORLD_DIMENSION = "minecraft:overworld";
+	private static final int OVERWORLD_HEIGHT = 384;
+	private static final int OVERWORLD_MIN_Y = -64;
+	private static final int LEGACY_HEIGHT = 256;
+	private static final int LEGACY_MIN_Y = 0;
+
+	private final String name;
 
 	public BlendingDataFix(Schema outputSchema) {
 		super(outputSchema, false);
-		this.name = "Blending Data Fix v" + outputSchema.getVersionKey();
+		name = "Blending Data Fix v" + outputSchema.getVersionKey();
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.CHUNK);
-		return this.fixTypeEverywhereTyped(
-				this.name,
-				type,
-				typed -> typed.update(DSL.remainderFinder(), chunk -> update(chunk, chunk.get("__context")))
+		Type<?> chunkType = getOutputSchema().getType(TypeReferences.CHUNK);
+
+		return fixTypeEverywhereTyped(
+			name,
+			chunkType,
+			typed -> typed.update(DSL.remainderFinder(), chunk -> update(chunk, chunk.get("__context")))
 		);
 	}
 
 	private static Dynamic<?> update(Dynamic<?> chunk, OptionalDynamic<?> context) {
 		chunk = chunk.remove("blending_data");
-		boolean bl = "minecraft:overworld".equals(context.get("dimension").asString().result().orElse(""));
-		Optional<? extends Dynamic<?>> optional = chunk.get("Status").result();
-		if (bl && optional.isPresent()) {
-			String string = IdentifierNormalizingSchema.normalize(optional.get().asString("empty"));
-			Optional<? extends Dynamic<?>> optional2 = chunk.get("below_zero_retrogen").result();
-			if (!SKIP_BLENDING_STATUSES.contains(string)) {
-				chunk = setSections(chunk, 384, -64);
-			}
-			else if (optional2.isPresent()) {
-				Dynamic<?> dynamic = (Dynamic<?>) optional2.get();
-				String string2 = IdentifierNormalizingSchema.normalize(dynamic.get("target_status").asString("empty"));
-				if (!SKIP_BLENDING_STATUSES.contains(string2)) {
-					chunk = setSections(chunk, 256, 0);
-				}
-			}
+
+		boolean isOverworld = OVERWORLD_DIMENSION.equals(
+			context.get("dimension").asString().result().orElse("")
+		);
+
+		if (!isOverworld) {
+			return chunk;
 		}
 
-		return chunk;
+		Optional<? extends Dynamic<?>> statusOpt = chunk.get("Status").result();
+
+		if (statusOpt.isEmpty()) {
+			return chunk;
+		}
+
+		String status = IdentifierNormalizingSchema.normalize(statusOpt.get().asString("empty"));
+
+		if (!SKIP_BLENDING_STATUSES.contains(status)) {
+			return setSections(chunk, OVERWORLD_HEIGHT, OVERWORLD_MIN_Y);
+		}
+
+		Optional<? extends Dynamic<?>> belowZeroOpt = chunk.get("below_zero_retrogen").result();
+
+		if (belowZeroOpt.isEmpty()) {
+			return chunk;
+		}
+
+		Dynamic<?> belowZero = belowZeroOpt.get();
+		String targetStatus = IdentifierNormalizingSchema.normalize(belowZero.get("target_status").asString("empty"));
+
+		return SKIP_BLENDING_STATUSES.contains(targetStatus)
+			? chunk
+			: setSections(chunk, LEGACY_HEIGHT, LEGACY_MIN_Y);
 	}
 
 	private static Dynamic<?> setSections(Dynamic<?> dynamic, int height, int minY) {
 		return dynamic.set(
-				"blending_data",
-				dynamic.createMap(
-						Map.of(
-								dynamic.createString("min_section"),
-								dynamic.createInt(ChunkSectionPos.getSectionCoord(minY)),
-								dynamic.createString("max_section"),
-								dynamic.createInt(ChunkSectionPos.getSectionCoord(minY + height))
-						)
+			"blending_data",
+			dynamic.createMap(
+				Map.of(
+					dynamic.createString("min_section"), dynamic.createInt(ChunkSectionPos.getSectionCoord(minY)),
+					dynamic.createString("max_section"), dynamic.createInt(ChunkSectionPos.getSectionCoord(minY + height))
 				)
+			)
 		);
 	}
 }

@@ -8,7 +8,8 @@ import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс ping packets.
+ * Реестр типов пакетов пинга: клиент отправляет {@code PING_REQUEST},
+ * сервер отвечает {@code PONG_RESPONSE} с тем же payload для измерения RTT.
  */
 public class PingPackets {
 

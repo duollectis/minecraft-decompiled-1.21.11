@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1800}.
+ * Схема версии 1800: добавляет сущности обновления Village &amp; Pillage —
+ * панду {@code minecraft:panda} и разбойника {@code minecraft:pillager}
+ * с инвентарём.
  */
 public class Schema1800 extends IdentifierNormalizingSchema {
 
-	public Schema1800(int i, Schema schema) {
-		super(i, schema);
+	public Schema1800(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

@@ -75,13 +75,13 @@ public class VanillaGameEventTagProvider extends SimpleTagProvider<GameEvent> {
 				.add(BASIC_GAME_EVENTS)
 				.add(Vibrations.RESONATIONS)
 				.add(GameEvent.FLAP.registryKey());
-		this.builder(GameEventTags.SHRIEKER_CAN_LISTEN).add(GameEvent.SCULK_SENSOR_TENDRILS_CLICKING.registryKey());
-		this.builder(GameEventTags.WARDEN_CAN_LISTEN)
+		builder(GameEventTags.SHRIEKER_CAN_LISTEN).add(GameEvent.SCULK_SENSOR_TENDRILS_CLICKING.registryKey());
+		builder(GameEventTags.WARDEN_CAN_LISTEN)
 		    .add(BASIC_GAME_EVENTS)
 		    .add(Vibrations.RESONATIONS)
 		    .add(GameEvent.SHRIEK.registryKey())
 		    .addTag(GameEventTags.SHRIEKER_CAN_LISTEN);
-		this.builder(GameEventTags.IGNORE_VIBRATIONS_SNEAKING)
+		builder(GameEventTags.IGNORE_VIBRATIONS_SNEAKING)
 		    .add(
 				    GameEvent.HIT_GROUND.registryKey(),
 				    GameEvent.PROJECTILE_SHOOT.registryKey(),
@@ -90,6 +90,6 @@ public class VanillaGameEventTagProvider extends SimpleTagProvider<GameEvent> {
 				    GameEvent.ITEM_INTERACT_START.registryKey(),
 				    GameEvent.ITEM_INTERACT_FINISH.registryKey()
 		    );
-		this.builder(GameEventTags.ALLAY_CAN_LISTEN).add(GameEvent.NOTE_BLOCK_PLAY.registryKey());
+		builder(GameEventTags.ALLAY_CAN_LISTEN).add(GameEvent.NOTE_BLOCK_PLAY.registryKey());
 	}
 }

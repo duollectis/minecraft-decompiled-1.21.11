@@ -82,10 +82,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CreateWorldScreen}.
+ * Экран создания нового мира. Управляет вкладками настроек игры, мира и дополнительных параметров,
+ * а также загрузкой датапаков и валидацией конфигурации генератора мира.
  */
+@Environment(EnvType.CLIENT)
 public class CreateWorldScreen extends Screen {
 
 	private static final int MIN_VERSION = 1;
@@ -99,16 +100,11 @@ public class CreateWorldScreen extends Screen {
 	private static final Text PREPARING_TEXT = Text.translatable("createWorld.preparing");
 	private static final int CONTENT_PADDING = 10;
 	private static final int BUTTON_PADDING = 8;
-	public static final Identifier
-			TAB_HEADER_BACKGROUND_TEXTURE =
+	public static final Identifier TAB_HEADER_BACKGROUND_TEXTURE =
 			Identifier.ofVanilla("textures/gui/tab_header_background.png");
 	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 	final WorldCreator worldCreator;
-	private final TabManager tabManager = new TabManager(
-			clickableWidget -> {
-				ClickableWidget var10000 = this.addDrawableChild(clickableWidget);
-			}, child -> this.remove(child)
-	);
+	private final TabManager tabManager = new TabManager(this::addDrawableChild, this::remove);
 	private boolean recreated;
 	private final SymlinkFinder symlinkFinder;
 	private final CreateWorldCallback callback;
@@ -117,12 +113,6 @@ public class CreateWorldScreen extends Screen {
 	private @Nullable ResourcePackManager packManager;
 	private @Nullable TabNavigationWidget tabNavigation;
 
-	/**
-	 * Show.
-	 *
-	 * @param client client
-	 * @param runnable runnable
-	 */
 	public static void show(MinecraftClient client, Runnable runnable) {
 		show(
 				client,
@@ -134,13 +124,6 @@ public class CreateWorldScreen extends Screen {
 		);
 	}
 
-	/**
-	 * Show.
-	 *
-	 * @param client client
-	 * @param runnable runnable
-	 * @param callback callback
-	 */
 	public static void show(MinecraftClient client, Runnable runnable, CreateWorldCallback callback) {
 		GeneratorOptionsFactory
 				generatorOptionsFactory =
@@ -153,12 +136,6 @@ public class CreateWorldScreen extends Screen {
 		show(client, runnable, function, generatorOptionsFactory, WorldPresets.DEFAULT, callback);
 	}
 
-	/**
-	 * Show test world.
-	 *
-	 * @param client client
-	 * @param runnable runnable
-	 */
 	public static void showTestWorld(MinecraftClient client, Runnable runnable) {
 		GeneratorOptionsFactory
 				generatorOptionsFactory =
@@ -298,33 +275,32 @@ public class CreateWorldScreen extends Screen {
 	}
 
 	public WorldCreator getWorldCreator() {
-		return this.worldCreator;
+		return worldCreator;
 	}
 
 	@Override
 	protected void init() {
-		this.tabNavigation = TabNavigationWidget.builder(this.tabManager, this.width)
-		                                        .tabs(
-				                                        new CreateWorldScreen.GameTab(),
-				                                        new CreateWorldScreen.WorldTab(),
-				                                        new CreateWorldScreen.MoreTab()
-		                                        )
-		                                        .build();
-		this.addDrawableChild(this.tabNavigation);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(Text.translatable("selectWorld.create"), button -> this.createLevel())
+		tabNavigation = TabNavigationWidget
+				.builder(tabManager, width)
+				.tabs(
+						new GameTab(),
+						new WorldTab(),
+						new MoreTab()
+				)
+				.build();
+		addDrawableChild(tabNavigation);
+		DirectionalLayoutWidget footer = layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		footer.add(ButtonWidget
+				.builder(Text.translatable("selectWorld.create"), button -> createLevel())
 				.build());
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.onCloseScreen()).build());
-		this.layout.forEachChild(child -> {
+		footer.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> onCloseScreen()).build());
+		layout.forEachChild(child -> {
 			child.setNavigationOrder(1);
-			this.addDrawableChild(child);
+			addDrawableChild(child);
 		});
-		this.tabNavigation.selectTab(0, false);
-		this.worldCreator.update();
-		this.refreshWidgetPositions();
+		tabNavigation.selectTab(0, false);
+		worldCreator.update();
+		refreshWidgetPositions();
 	}
 
 	@Override
@@ -333,15 +309,17 @@ public class CreateWorldScreen extends Screen {
 
 	@Override
 	public void refreshWidgetPositions() {
-		if (this.tabNavigation != null) {
-			this.tabNavigation.setWidth(this.width);
-			this.tabNavigation.init();
-			int i = this.tabNavigation.getNavigationFocus().getBottom();
-			ScreenRect screenRect = new ScreenRect(0, i, this.width, this.height - this.layout.getFooterHeight() - i);
-			this.tabManager.setTabArea(screenRect);
-			this.layout.setHeaderHeight(i);
-			this.layout.refreshPositions();
+		if (tabNavigation == null) {
+			return;
 		}
+
+		tabNavigation.setWidth(width);
+		tabNavigation.init();
+		int navBottom = tabNavigation.getNavigationFocus().getBottom();
+		ScreenRect tabArea = new ScreenRect(0, navBottom, width, height - layout.getFooterHeight() - navBottom);
+		tabManager.setTabArea(tabArea);
+		layout.setHeaderHeight(navBottom);
+		layout.refreshPositions();
 	}
 
 	private static void showMessage(MinecraftClient client, Text text) {
@@ -349,38 +327,37 @@ public class CreateWorldScreen extends Screen {
 	}
 
 	private void createLevel() {
-		GeneratorOptionsHolder generatorOptionsHolder = this.worldCreator.getGeneratorOptionsHolder();
-		DimensionOptionsRegistryHolder.DimensionsConfig dimensionsConfig = generatorOptionsHolder.selectedDimensions()
-		                                                                                         .toConfig(
-				                                                                                         generatorOptionsHolder.dimensionOptionsRegistry());
-		CombinedDynamicRegistries<ServerDynamicRegistryType>
-				combinedDynamicRegistries =
-				generatorOptionsHolder.combinedDynamicRegistries()
-				                      .with(
-						                      ServerDynamicRegistryType.DIMENSIONS,
-						                      dimensionsConfig.toDynamicRegistryManager()
-				                      );
-		Lifecycle lifecycle = FeatureFlags.isNotVanilla(generatorOptionsHolder.dataConfiguration().enabledFeatures())
-		                      ? Lifecycle.experimental()
-		                      : Lifecycle.stable();
-		Lifecycle lifecycle2 = combinedDynamicRegistries.getCombinedRegistryManager().getLifecycle();
-		Lifecycle lifecycle3 = lifecycle2.add(lifecycle);
-		boolean bl = !this.recreated && lifecycle2 == Lifecycle.stable();
-		LevelInfo
-				levelInfo =
-				this.createLevelInfo(dimensionsConfig.specialWorldProperty() == LevelProperties.SpecialProperty.DEBUG);
+		GeneratorOptionsHolder generatorOptionsHolder = worldCreator.getGeneratorOptionsHolder();
+		DimensionOptionsRegistryHolder.DimensionsConfig dimensionsConfig = generatorOptionsHolder
+				.selectedDimensions()
+				.toConfig(generatorOptionsHolder.dimensionOptionsRegistry());
+		CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries = generatorOptionsHolder
+				.combinedDynamicRegistries()
+				.with(
+						ServerDynamicRegistryType.DIMENSIONS,
+						dimensionsConfig.toDynamicRegistryManager()
+				);
+		Lifecycle dataLifecycle = FeatureFlags.isNotVanilla(generatorOptionsHolder.dataConfiguration().enabledFeatures())
+				? Lifecycle.experimental()
+				: Lifecycle.stable();
+		Lifecycle registryLifecycle = combinedDynamicRegistries.getCombinedRegistryManager().getLifecycle();
+		Lifecycle finalLifecycle = registryLifecycle.add(dataLifecycle);
+		boolean isNewWorld = !recreated && registryLifecycle == Lifecycle.stable();
+		LevelInfo levelInfo = createLevelInfo(
+				dimensionsConfig.specialWorldProperty() == LevelProperties.SpecialProperty.DEBUG
+		);
 		LevelProperties levelProperties = new LevelProperties(
 				levelInfo,
-				this.worldCreator.getGeneratorOptionsHolder().generatorOptions(),
+				worldCreator.getGeneratorOptionsHolder().generatorOptions(),
 				dimensionsConfig.specialWorldProperty(),
-				lifecycle3
+				finalLifecycle
 		);
 		IntegratedServerLoader.tryLoad(
-				this.client,
+				client,
 				this,
-				lifecycle3,
-				() -> this.createAndClearTempDir(combinedDynamicRegistries, levelProperties),
-				bl
+				finalLifecycle,
+				() -> createAndClearTempDir(combinedDynamicRegistries, levelProperties),
+				isNewWorld
 		);
 	}
 
@@ -388,10 +365,10 @@ public class CreateWorldScreen extends Screen {
 			CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
 			LevelProperties levelProperties
 	) {
-		boolean bl = this.callback.create(this, combinedDynamicRegistries, levelProperties, this.dataPackTempDir);
-		this.clearDataPackTempDir();
-		if (!bl) {
-			this.onCloseScreen();
+		boolean created = callback.create(this, combinedDynamicRegistries, levelProperties, dataPackTempDir);
+		clearDataPackTempDir();
+		if (!created) {
+			onCloseScreen();
 		}
 	}
 
@@ -399,83 +376,79 @@ public class CreateWorldScreen extends Screen {
 			CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
 			SaveProperties saveProperties
 	) {
-		String string = this.worldCreator.getWorldDirectoryName();
-		GeneratorOptionsHolder generatorOptionsHolder = this.worldCreator.getGeneratorOptionsHolder();
-		showMessage(this.client, PREPARING_TEXT);
-		Optional<LevelStorage.Session> optional = createSession(this.client, string, this.dataPackTempDir);
-		if (optional.isEmpty()) {
-			SystemToast.addPackCopyFailure(this.client, string);
+		String dirName = worldCreator.getWorldDirectoryName();
+		GeneratorOptionsHolder generatorOptionsHolder = worldCreator.getGeneratorOptionsHolder();
+		showMessage(client, PREPARING_TEXT);
+		Optional<LevelStorage.Session> sessionOpt = createSession(client, dirName, dataPackTempDir);
+		if (sessionOpt.isEmpty()) {
+			SystemToast.addPackCopyFailure(client, dirName);
 			return false;
 		}
-		else {
-			this.client
-					.createIntegratedServerLoader()
-					.startNewWorld(
-							optional.get(),
-							generatorOptionsHolder.dataPackContents(),
-							combinedDynamicRegistries,
-							saveProperties
-					);
-			return true;
-		}
+
+		client
+				.createIntegratedServerLoader()
+				.startNewWorld(
+						sessionOpt.get(),
+						generatorOptionsHolder.dataPackContents(),
+						combinedDynamicRegistries,
+						saveProperties
+				);
+		return true;
 	}
 
 	private LevelInfo createLevelInfo(boolean debugWorld) {
-		String string = this.worldCreator.getWorldName().trim();
+		String worldName = worldCreator.getWorldName().trim();
 		if (debugWorld) {
-			GameRules gameRules = new GameRules(DataConfiguration.SAFE_MODE.enabledFeatures());
-			gameRules.setValue(GameRules.ADVANCE_TIME, false, null);
+			GameRules debugRules = new GameRules(DataConfiguration.SAFE_MODE.enabledFeatures());
+			debugRules.setValue(GameRules.ADVANCE_TIME, false, null);
 			return new LevelInfo(
-					string,
+					worldName,
 					GameMode.SPECTATOR,
 					false,
 					Difficulty.PEACEFUL,
 					true,
-					gameRules,
+					debugRules,
 					DataConfiguration.SAFE_MODE
 			);
 		}
-		else {
-			return new LevelInfo(
-					string,
-					this.worldCreator.getGameMode().defaultGameMode,
-					this.worldCreator.isHardcore(),
-					this.worldCreator.getDifficulty(),
-					this.worldCreator.areCheatsEnabled(),
-					this.worldCreator.getGameRules(),
-					this.worldCreator.getGeneratorOptionsHolder().dataConfiguration()
-			);
-		}
+
+		return new LevelInfo(
+				worldName,
+				worldCreator.getGameMode().defaultGameMode,
+				worldCreator.isHardcore(),
+				worldCreator.getDifficulty(),
+				worldCreator.areCheatsEnabled(),
+				worldCreator.getGameRules(),
+				worldCreator.getGeneratorOptionsHolder().dataConfiguration()
+		);
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.tabNavigation.keyPressed(input)) {
+		if (tabNavigation.keyPressed(input)) {
 			return true;
 		}
-		else if (super.keyPressed(input)) {
+
+		if (super.keyPressed(input)) {
 			return true;
 		}
-		else if (input.isEnter()) {
-			this.createLevel();
+
+		if (input.isEnter()) {
+			createLevel();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
 	public void close() {
-		this.onCloseScreen();
+		onCloseScreen();
 	}
 
-	/**
-	 * Обрабатывает событие close screen.
-	 */
 	public void onCloseScreen() {
-		this.closeCallback.run();
-		this.clearDataPackTempDir();
+		closeCallback.run();
+		clearDataPackTempDir();
 	}
 
 	@Override
@@ -485,10 +458,10 @@ public class CreateWorldScreen extends Screen {
 				RenderPipelines.GUI_TEXTURED,
 				Screen.FOOTER_SEPARATOR_TEXTURE,
 				0,
-				this.height - this.layout.getFooterHeight() - 2,
+				height - layout.getFooterHeight() - 2,
 				0.0F,
 				0.0F,
-				this.width,
+				width,
 				2,
 				32,
 				2
@@ -504,64 +477,54 @@ public class CreateWorldScreen extends Screen {
 				0,
 				0.0F,
 				0.0F,
-				this.width,
-				this.layout.getHeaderHeight(),
+				width,
+				layout.getHeaderHeight(),
 				16,
 				16
 		);
-		this.renderDarkening(context, 0, this.layout.getHeaderHeight(), this.width, this.height);
+		renderDarkening(context, 0, layout.getHeaderHeight(), width, height);
 	}
 
 	private @Nullable Path getOrCreateDataPackTempDir() {
-		if (this.dataPackTempDir == null) {
+		if (dataPackTempDir == null) {
 			try {
-				this.dataPackTempDir = Files.createTempDirectory("mcworld-");
+				dataPackTempDir = Files.createTempDirectory(TEMP_DIR_PREFIX);
 			}
-			catch (IOException var2) {
-				LOGGER.warn("Failed to create temporary dir", var2);
-				SystemToast.addPackCopyFailure(this.client, this.worldCreator.getWorldDirectoryName());
-				this.onCloseScreen();
+			catch (IOException exception) {
+				LOGGER.warn("Failed to create temporary dir", exception);
+				SystemToast.addPackCopyFailure(client, worldCreator.getWorldDirectoryName());
+				onCloseScreen();
 			}
 		}
 
-		return this.dataPackTempDir;
+		return dataPackTempDir;
 	}
 
 	void openExperimentsScreen(DataConfiguration dataConfiguration) {
-		Pair<Path, ResourcePackManager> pair = this.getScannedPack(dataConfiguration);
-		if (pair != null) {
-			this.client
-					.setScreen(
-							new ExperimentsScreen(
-									this,
-									(ResourcePackManager) pair.getSecond(),
-									resourcePackManager -> this.applyDataPacks(
-											resourcePackManager,
-											false,
-											this::openExperimentsScreen
-									)
-							)
-					);
+		Pair<Path, ResourcePackManager> pack = getScannedPack(dataConfiguration);
+		if (pack == null) {
+			return;
 		}
+
+		client.setScreen(new ExperimentsScreen(
+				this,
+				pack.getSecond(),
+				manager -> applyDataPacks(manager, false, this::openExperimentsScreen)
+		));
 	}
 
 	void openPackScreen(DataConfiguration dataConfiguration) {
-		Pair<Path, ResourcePackManager> pair = this.getScannedPack(dataConfiguration);
-		if (pair != null) {
-			this.client
-					.setScreen(
-							new PackScreen(
-									(ResourcePackManager) pair.getSecond(),
-									resourcePackManager -> this.applyDataPacks(
-											resourcePackManager,
-											true,
-											this::openPackScreen
-									),
-									(Path) pair.getFirst(),
-									Text.translatable("dataPack.title")
-							)
-					);
+		Pair<Path, ResourcePackManager> pack = getScannedPack(dataConfiguration);
+		if (pack == null) {
+			return;
 		}
+
+		client.setScreen(new PackScreen(
+				pack.getSecond(),
+				manager -> applyDataPacks(manager, true, this::openPackScreen),
+				pack.getFirst(),
+				Text.translatable("dataPack.title")
+		));
 	}
 
 	private void applyDataPacks(
@@ -569,38 +532,37 @@ public class CreateWorldScreen extends Screen {
 			boolean fromPackScreen,
 			Consumer<DataConfiguration> configurationSetter
 	) {
-		List<String> list = ImmutableList.copyOf(dataPackManager.getEnabledIds());
-		List<String>
-				list2 =
-				dataPackManager
-						.getIds()
-						.stream()
-						.filter(name -> !list.contains(name))
-						.collect(ImmutableList.toImmutableList());
+		List<String> enabledPacks = ImmutableList.copyOf(dataPackManager.getEnabledIds());
+		List<String> disabledPacks = dataPackManager
+				.getIds()
+				.stream()
+				.filter(name -> !enabledPacks.contains(name))
+				.collect(ImmutableList.toImmutableList());
 		DataConfiguration dataConfiguration = new DataConfiguration(
-				new DataPackSettings(list, list2),
-				this.worldCreator.getGeneratorOptionsHolder().dataConfiguration().enabledFeatures()
+				new DataPackSettings(enabledPacks, disabledPacks),
+				worldCreator.getGeneratorOptionsHolder().dataConfiguration().enabledFeatures()
 		);
-		if (this.worldCreator.updateDataConfiguration(dataConfiguration)) {
-			this.client.setScreen(this);
+		if (worldCreator.updateDataConfiguration(dataConfiguration)) {
+			client.setScreen(this);
+			return;
+		}
+
+		FeatureSet featureSet = dataPackManager.getRequestedFeatures();
+		if (FeatureFlags.isNotVanilla(featureSet) && fromPackScreen) {
+			client.setScreen(new ExperimentalWarningScreen(
+					dataPackManager.getEnabledProfiles(),
+					confirmed -> {
+						if (confirmed) {
+							validateDataPacks(dataPackManager, dataConfiguration, configurationSetter);
+						}
+						else {
+							configurationSetter.accept(worldCreator.getGeneratorOptionsHolder().dataConfiguration());
+						}
+					}
+			));
 		}
 		else {
-			FeatureSet featureSet = dataPackManager.getRequestedFeatures();
-			if (FeatureFlags.isNotVanilla(featureSet) && fromPackScreen) {
-				this.client.setScreen(new ExperimentalWarningScreen(
-						dataPackManager.getEnabledProfiles(), confirmed -> {
-					if (confirmed) {
-						this.validateDataPacks(dataPackManager, dataConfiguration, configurationSetter);
-					}
-					else {
-						configurationSetter.accept(this.worldCreator.getGeneratorOptionsHolder().dataConfiguration());
-					}
-				}
-				));
-			}
-			else {
-				this.validateDataPacks(dataPackManager, dataConfiguration, configurationSetter);
-			}
+			validateDataPacks(dataPackManager, dataConfiguration, configurationSetter);
 		}
 	}
 
@@ -609,102 +571,99 @@ public class CreateWorldScreen extends Screen {
 			DataConfiguration dataConfiguration,
 			Consumer<DataConfiguration> configurationSetter
 	) {
-		this.client.setScreenAndRender(new MessageScreen(Text.translatable("dataPack.validation.working")));
+		client.setScreenAndRender(new MessageScreen(Text.translatable("dataPack.validation.working")));
 		SaveLoading.ServerConfig serverConfig = createServerConfig(dataPackManager, dataConfiguration);
 		SaveLoading.<WorldCreationSettings, GeneratorOptionsHolder>load(
-				           serverConfig,
-				           context -> {
-					           if (context
-							           .worldGenRegistryManager()
-							           .getOrThrow(RegistryKeys.WORLD_PRESET)
-							           .streamEntries()
-							           .findAny()
-							           .isEmpty()) {
-						           throw new IllegalStateException("Needs at least one world preset to continue");
-					           }
-					           else if (context
-							           .worldGenRegistryManager()
-							           .getOrThrow(RegistryKeys.BIOME)
-							           .streamEntries()
-							           .findAny()
-							           .isEmpty()) {
-						           throw new IllegalStateException("Needs at least one biome continue");
-					           }
-					           else {
-						           GeneratorOptionsHolder generatorOptionsHolder = this.worldCreator.getGeneratorOptionsHolder();
-						           DynamicOps<JsonElement>
-								           dynamicOps =
-								           generatorOptionsHolder.getCombinedRegistryManager().getOps(JsonOps.INSTANCE);
-						           DataResult<JsonElement> dataResult = WorldGenSettings.encode(
-								                                                                dynamicOps,
-								                                                                generatorOptionsHolder.generatorOptions(),
-								                                                                generatorOptionsHolder.selectedDimensions()
-						                                                                )
-						                                                                .setLifecycle(Lifecycle.stable());
-						           DynamicOps<JsonElement>
-								           dynamicOps2 =
-								           context.worldGenRegistryManager().getOps(JsonOps.INSTANCE);
-						           WorldGenSettings
-								           worldGenSettings =
-								           (WorldGenSettings) dataResult
-										           .flatMap(json -> WorldGenSettings.CODEC.parse(dynamicOps2, json))
-										           .getOrThrow(error -> new IllegalStateException(
-												           "Error parsing worldgen settings after loading data packs: " + error));
-						           return new SaveLoading.LoadContext<>(
-								           new WorldCreationSettings(worldGenSettings, context.dataConfiguration()),
-								           context.dimensionsRegistryManager()
-						           );
-					           }
-				           },
-				           (resourceManager, dataPackContents, combinedDynamicRegistries, context) -> {
-					           resourceManager.close();
-					           return new GeneratorOptionsHolder(
-							           context.worldGenSettings(),
-							           combinedDynamicRegistries,
-							           dataPackContents,
-							           context.dataConfiguration()
-					           );
-				           },
-				           Util.getMainWorkerExecutor(),
-				           this.client
-		           )
-		           .thenApply(generatorOptionsHolder -> {
-			           generatorOptionsHolder.initializeIndexedFeaturesLists();
-			           return (GeneratorOptionsHolder) generatorOptionsHolder;
-		           })
-		           .thenAcceptAsync(this.worldCreator::setGeneratorOptionsHolder, this.client)
-		           .handleAsync(
-				           (void_, throwable) -> {
-					           if (throwable != null) {
-						           LOGGER.warn("Failed to validate datapack", throwable);
-						           this.client
-								           .setScreen(
-										           new ConfirmScreen(
-												           confirmed -> {
-													           if (confirmed) {
-														           configurationSetter.accept(this.worldCreator
-																           .getGeneratorOptionsHolder()
-																           .dataConfiguration());
-													           }
-													           else {
-														           configurationSetter.accept(DataConfiguration.SAFE_MODE);
-													           }
-												           },
-												           Text.translatable("dataPack.validation.failed"),
-												           ScreenTexts.EMPTY,
-												           Text.translatable("dataPack.validation.back"),
-												           Text.translatable("dataPack.validation.reset")
-										           )
-								           );
-					           }
-					           else {
-						           this.client.setScreen(this);
-					           }
+				serverConfig,
+				context -> {
+					if (context
+							.worldGenRegistryManager()
+							.getOrThrow(RegistryKeys.WORLD_PRESET)
+							.streamEntries()
+							.findAny()
+							.isEmpty()
+					) {
+						throw new IllegalStateException("Needs at least one world preset to continue");
+					}
 
-					           return null;
-				           },
-				           this.client
-		           );
+					if (context
+							.worldGenRegistryManager()
+							.getOrThrow(RegistryKeys.BIOME)
+							.streamEntries()
+							.findAny()
+							.isEmpty()
+					) {
+						throw new IllegalStateException("Needs at least one biome continue");
+					}
+
+					GeneratorOptionsHolder generatorOptionsHolder = worldCreator.getGeneratorOptionsHolder();
+					DynamicOps<JsonElement> currentOps = generatorOptionsHolder
+							.getCombinedRegistryManager()
+							.getOps(JsonOps.INSTANCE);
+					DataResult<JsonElement> dataResult = WorldGenSettings
+							.encode(
+									currentOps,
+									generatorOptionsHolder.generatorOptions(),
+									generatorOptionsHolder.selectedDimensions()
+							)
+							.setLifecycle(Lifecycle.stable());
+					DynamicOps<JsonElement> newOps = context.worldGenRegistryManager().getOps(JsonOps.INSTANCE);
+					WorldGenSettings worldGenSettings = dataResult
+							.flatMap(json -> WorldGenSettings.CODEC.parse(newOps, json))
+							.getOrThrow(error -> new IllegalStateException(
+									"Error parsing worldgen settings after loading data packs: " + error
+							));
+					return new SaveLoading.LoadContext<>(
+							new WorldCreationSettings(worldGenSettings, context.dataConfiguration()),
+							context.dimensionsRegistryManager()
+					);
+				},
+				(resourceManager, dataPackContents, combinedDynamicRegistries, context) -> {
+					resourceManager.close();
+					return new GeneratorOptionsHolder(
+							context.worldGenSettings(),
+							combinedDynamicRegistries,
+							dataPackContents,
+							context.dataConfiguration()
+					);
+				},
+				Util.getMainWorkerExecutor(),
+				client
+		)
+		.thenApply(holder -> {
+			holder.initializeIndexedFeaturesLists();
+			return holder;
+		})
+		.thenAcceptAsync(worldCreator::setGeneratorOptionsHolder, client)
+		.handleAsync(
+				(ignored, throwable) -> {
+					if (throwable != null) {
+						LOGGER.warn("Failed to validate datapack", throwable);
+						client.setScreen(new ConfirmScreen(
+								confirmed -> {
+									if (confirmed) {
+										configurationSetter.accept(
+												worldCreator.getGeneratorOptionsHolder().dataConfiguration()
+										);
+									}
+									else {
+										configurationSetter.accept(DataConfiguration.SAFE_MODE);
+									}
+								},
+								Text.translatable("dataPack.validation.failed"),
+								ScreenTexts.EMPTY,
+								Text.translatable("dataPack.validation.back"),
+								Text.translatable("dataPack.validation.reset")
+						));
+					}
+					else {
+						client.setScreen(this);
+					}
+
+					return null;
+				},
+				client
+		);
 	}
 
 	private static SaveLoading.ServerConfig createServerConfig(
@@ -720,23 +679,23 @@ public class CreateWorldScreen extends Screen {
 	}
 
 	private void clearDataPackTempDir() {
-		if (this.dataPackTempDir != null && Files.exists(this.dataPackTempDir)) {
-			try (Stream<Path> stream = Files.walk(this.dataPackTempDir)) {
+		if (dataPackTempDir != null && Files.exists(dataPackTempDir)) {
+			try (Stream<Path> stream = Files.walk(dataPackTempDir)) {
 				stream.sorted(Comparator.reverseOrder()).forEach(path -> {
 					try {
 						Files.delete(path);
 					}
-					catch (IOException var2) {
-						LOGGER.warn("Failed to remove temporary file {}", path, var2);
+					catch (IOException exception) {
+						LOGGER.warn("Failed to remove temporary file {}", path, exception);
 					}
 				});
 			}
-			catch (IOException var6) {
-				LOGGER.warn("Failed to list temporary dir {}", this.dataPackTempDir);
+			catch (IOException exception) {
+				LOGGER.warn("Failed to list temporary dir {}", dataPackTempDir);
 			}
 		}
 
-		this.dataPackTempDir = null;
+		dataPackTempDir = null;
 	}
 
 	private static void copyDataPack(Path srcFolder, Path destFolder, Path dataPackFile) {
@@ -749,39 +708,38 @@ public class CreateWorldScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Создаёт сессию хранилища для нового мира и копирует датапаки из временной директории.
+	 * Если копирование завершается ошибкой, сессия закрывается и возвращается пустой Optional.
+	 */
 	private static Optional<LevelStorage.Session> createSession(
 			MinecraftClient client,
 			String worldDirectoryName,
 			@Nullable Path dataPackTempDir
 	) {
 		try {
-			LevelStorage.Session
-					session =
-					client.getLevelStorage().createSessionWithoutSymlinkCheck(worldDirectoryName);
+			LevelStorage.Session session = client
+					.getLevelStorage()
+					.createSessionWithoutSymlinkCheck(worldDirectoryName);
 			if (dataPackTempDir == null) {
 				return Optional.of(session);
 			}
 
-			try {
-				Optional var6;
-				try (Stream<Path> stream = Files.walk(dataPackTempDir)) {
-					Path path = session.getDirectory(WorldSavePath.DATAPACKS);
-					PathUtil.createDirectories(path);
-					stream
-							.filter(pathx -> !pathx.equals(dataPackTempDir))
-							.forEach(pathx -> copyDataPack(dataPackTempDir, path, pathx));
-					var6 = Optional.of(session);
-				}
-
-				return var6;
+			try (Stream<Path> stream = Files.walk(dataPackTempDir)) {
+				Path dataPacksDir = session.getDirectory(WorldSavePath.DATAPACKS);
+				PathUtil.createDirectories(dataPacksDir);
+				stream
+						.filter(file -> !file.equals(dataPackTempDir))
+						.forEach(file -> copyDataPack(dataPackTempDir, dataPacksDir, file));
+				return Optional.of(session);
 			}
-			catch (UncheckedIOException | IOException var9) {
-				LOGGER.warn("Failed to copy datapacks to world {}", worldDirectoryName, var9);
+			catch (UncheckedIOException | IOException exception) {
+				LOGGER.warn("Failed to copy datapacks to world {}", worldDirectoryName, exception);
 				session.close();
 			}
 		}
-		catch (UncheckedIOException | IOException var10) {
-			LOGGER.warn("Failed to create access for {}", worldDirectoryName, var10);
+		catch (UncheckedIOException | IOException exception) {
+			LOGGER.warn("Failed to create access for {}", worldDirectoryName, exception);
 		}
 
 		return Optional.empty();
@@ -826,25 +784,24 @@ public class CreateWorldScreen extends Screen {
 	}
 
 	private @Nullable Pair<Path, ResourcePackManager> getScannedPack(DataConfiguration dataConfiguration) {
-		Path path = this.getOrCreateDataPackTempDir();
-		if (path != null) {
-			if (this.packManager == null) {
-				this.packManager = VanillaDataPackProvider.createManager(path, this.symlinkFinder);
-				this.packManager.scanPacks();
-			}
-
-			this.packManager.setEnabledProfiles(dataConfiguration.dataPacks().getEnabled());
-			return Pair.of(path, this.packManager);
-		}
-		else {
+		Path tempDir = getOrCreateDataPackTempDir();
+		if (tempDir == null) {
 			return null;
 		}
+
+		if (packManager == null) {
+			packManager = VanillaDataPackProvider.createManager(tempDir, symlinkFinder);
+			packManager.scanPacks();
+		}
+
+		packManager.setEnabledProfiles(dataConfiguration.dataPacks().getEnabled());
+		return Pair.of(tempDir, packManager);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code GameTab}.
+	 * Вкладка «Игра» — настройки режима игры, сложности и читов.
 	 */
+	@Environment(EnvType.CLIENT)
 	class GameTab extends GridScreenTab {
 
 		private static final Text GAME_TAB_TITLE_TEXT = Text.translatable("createWorld.tab.game.title");
@@ -895,7 +852,7 @@ public class CreateWorldScreen extends Screen {
 							.build(
 									0,
 									0,
-									210,
+									BUTTON_WIDTH,
 									20,
 									CreateWorldScreen.GAME_MODE_TEXT,
 									(button, value) -> CreateWorldScreen.this.worldCreator.setGameMode(value)
@@ -917,7 +874,7 @@ public class CreateWorldScreen extends Screen {
 							.build(
 									0,
 									0,
-									210,
+									BUTTON_WIDTH,
 									20,
 									Text.translatable("options.difficulty"),
 									(button, value) -> CreateWorldScreen.this.worldCreator.setDifficulty(value)
@@ -937,7 +894,7 @@ public class CreateWorldScreen extends Screen {
 					                   .build(
 							                   0,
 							                   0,
-							                   210,
+							                   BUTTON_WIDTH,
 							                   20,
 							                   ALLOW_COMMANDS_TEXT,
 							                   (button, value) -> CreateWorldScreen.this.worldCreator.setCheatsEnabled(
@@ -958,17 +915,17 @@ public class CreateWorldScreen extends Screen {
 										            .getGeneratorOptionsHolder()
 										            .dataConfiguration())
 						            )
-						            .width(210)
+						            .width(BUTTON_WIDTH)
 						            .build()
 				);
 			}
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MoreTab}.
+	 * Вкладка «Дополнительно» — правила игры, эксперименты и датапаки.
 	 */
+	@Environment(EnvType.CLIENT)
 	class MoreTab extends GridScreenTab {
 
 		private static final Text MORE_TAB_TITLE_TEXT = Text.translatable("createWorld.tab.more.title");
@@ -978,7 +935,7 @@ public class CreateWorldScreen extends Screen {
 		MoreTab() {
 			super(MORE_TAB_TITLE_TEXT);
 			GridWidget.Adder adder = this.grid.setRowSpacing(8).createAdder(1);
-			adder.add(ButtonWidget.builder(GAME_RULES_TEXT, button -> this.openGameRulesScreen()).width(210).build());
+			adder.add(ButtonWidget.builder(GAME_RULES_TEXT, button -> this.openGameRulesScreen()).width(BUTTON_WIDTH).build());
 			adder.add(
 					ButtonWidget.builder(
 							            CreateWorldScreen.EXPERIMENTS_TEXT,
@@ -986,7 +943,7 @@ public class CreateWorldScreen extends Screen {
 									            .getGeneratorOptionsHolder()
 									            .dataConfiguration())
 					            )
-					            .width(210)
+					            .width(BUTTON_WIDTH)
 					            .build()
 			);
 			adder.add(
@@ -996,7 +953,7 @@ public class CreateWorldScreen extends Screen {
 									            .getGeneratorOptionsHolder()
 									            .dataConfiguration())
 					            )
-					            .width(210)
+					            .width(BUTTON_WIDTH)
 					            .build()
 			);
 		}
@@ -1020,10 +977,10 @@ public class CreateWorldScreen extends Screen {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code WorldTab}.
+	 * Вкладка «Мир» — тип генератора, сид, структуры и бонусный сундук.
 	 */
+	@Environment(EnvType.CLIENT)
 	class WorldTab extends GridScreenTab {
 
 		private static final Text WORLD_TAB_TITLE_TEXT = Text.translatable("createWorld.tab.world.title");
@@ -1041,7 +998,7 @@ public class CreateWorldScreen extends Screen {
 
 		WorldTab() {
 			super(WORLD_TAB_TITLE_TEXT);
-			GridWidget.Adder adder = this.grid.setColumnSpacing(10).setRowSpacing(8).createAdder(2);
+			GridWidget.Adder adder = this.grid.setColumnSpacing(CONTENT_PADDING).setRowSpacing(8).createAdder(2);
 			CyclingButtonWidget<WorldCreator.WorldType> cyclingButtonWidget = adder.add(
 					CyclingButtonWidget
 							.builder(
@@ -1108,7 +1065,7 @@ public class CreateWorldScreen extends Screen {
 							ENTER_SEED_TEXT
 					), 2
 			);
-			WorldScreenOptionGrid.Builder builder = WorldScreenOptionGrid.builder(310);
+			WorldScreenOptionGrid.Builder builder = WorldScreenOptionGrid.builder(TAB_WIDTH);
 			builder.add(
 					       MAP_FEATURES_TEXT,
 					       CreateWorldScreen.this.worldCreator::shouldGenerateStructures,

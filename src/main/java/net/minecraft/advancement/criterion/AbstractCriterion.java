@@ -1,8 +1,5 @@
 package net.minecraft.advancement.criterion;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import net.minecraft.advancement.PlayerAdvancementTracker;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.predicate.entity.EntityPredicate;
@@ -10,6 +7,9 @@ import net.minecraft.predicate.entity.LootContextPredicate;
 import net.minecraft.predicate.entity.LootContextPredicateValidator;
 import net.minecraft.server.network.ServerPlayerEntity;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,20 +17,21 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code AbstractCriterion}.
+ * Базовая реализация критерия достижения. Управляет подпиской трекеров прогресса
+ * и выполняет проверку условий при срабатывании триггера.
+ *
+ * @param <T> тип условий данного критерия
  */
 public abstract class AbstractCriterion<T extends AbstractCriterion.Conditions> implements Criterion<T> {
 
-	private final Map<PlayerAdvancementTracker, Set<Criterion.ConditionsContainer<T>>>
-			progressions =
-			Maps.newIdentityHashMap();
+	private final Map<PlayerAdvancementTracker, Set<Criterion.ConditionsContainer<T>>> progressions = new HashMap<>();
 
 	@Override
 	public final void beginTrackingCondition(
 			PlayerAdvancementTracker manager,
 			Criterion.ConditionsContainer<T> conditions
 	) {
-		this.progressions.computeIfAbsent(manager, managerx -> Sets.newHashSet()).add(conditions);
+		progressions.computeIfAbsent(manager, key -> new HashSet<>()).add(conditions);
 	}
 
 	@Override
@@ -38,59 +39,75 @@ public abstract class AbstractCriterion<T extends AbstractCriterion.Conditions> 
 			PlayerAdvancementTracker manager,
 			Criterion.ConditionsContainer<T> conditions
 	) {
-		Set<Criterion.ConditionsContainer<T>> set = this.progressions.get(manager);
-		if (set != null) {
-			set.remove(conditions);
-			if (set.isEmpty()) {
-				this.progressions.remove(manager);
-			}
+		Set<Criterion.ConditionsContainer<T>> tracked = progressions.get(manager);
+		if (tracked == null) {
+			return;
+		}
+
+		tracked.remove(conditions);
+		if (tracked.isEmpty()) {
+			progressions.remove(manager);
 		}
 	}
 
 	@Override
 	public final void endTracking(PlayerAdvancementTracker tracker) {
-		this.progressions.remove(tracker);
+		progressions.remove(tracker);
 	}
 
+	/**
+	 * Проверяет все отслеживаемые условия для данного игрока и выдаёт прогресс
+	 * тем, которые прошли проверку предиката и условия на игрока.
+	 *
+	 * @param player    игрок, для которого сработал триггер
+	 * @param predicate дополнительная проверка условий критерия
+	 */
 	protected void trigger(ServerPlayerEntity player, Predicate<T> predicate) {
-		PlayerAdvancementTracker playerAdvancementTracker = player.getAdvancementTracker();
-		Set<Criterion.ConditionsContainer<T>> set = this.progressions.get(playerAdvancementTracker);
-		if (set != null && !set.isEmpty()) {
-			LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, player);
-			List<Criterion.ConditionsContainer<T>> list = null;
+		PlayerAdvancementTracker tracker = player.getAdvancementTracker();
+		Set<Criterion.ConditionsContainer<T>> tracked = progressions.get(tracker);
+		if (tracked == null || tracked.isEmpty()) {
+			return;
+		}
 
-			for (Criterion.ConditionsContainer<T> conditionsContainer : set) {
-				T conditions = conditionsContainer.conditions();
-				if (predicate.test(conditions)) {
-					Optional<LootContextPredicate> optional = conditions.player();
-					if (optional.isEmpty() || optional.get().test(lootContext)) {
-						if (list == null) {
-							list = Lists.newArrayList();
-						}
+		LootContext playerContext = EntityPredicate.createAdvancementEntityLootContext(player, player);
+		List<Criterion.ConditionsContainer<T>> matched = null;
 
-						list.add(conditionsContainer);
-					}
-				}
+		for (Criterion.ConditionsContainer<T> container : tracked) {
+			T conditions = container.conditions();
+			if (!predicate.test(conditions)) {
+				continue;
 			}
 
-			if (list != null) {
-				for (Criterion.ConditionsContainer<T> conditionsContainerx : list) {
-					conditionsContainerx.grant(playerAdvancementTracker);
-				}
+			Optional<LootContextPredicate> playerPredicate = conditions.player();
+			if (playerPredicate.isPresent() && !playerPredicate.get().test(playerContext)) {
+				continue;
+			}
+
+			if (matched == null) {
+				matched = new ArrayList<>();
+			}
+
+			matched.add(container);
+		}
+
+		if (matched != null) {
+			for (Criterion.ConditionsContainer<T> container : matched) {
+				container.grant(tracker);
 			}
 		}
 	}
 
 	/**
-	 * {@code Conditions}.
+	 * Базовый интерфейс условий для критериев, основанных на {@link AbstractCriterion}.
+	 * Предоставляет стандартную валидацию предиката игрока.
 	 */
 	public interface Conditions extends CriterionConditions {
 
+		Optional<LootContextPredicate> player();
+
 		@Override
 		default void validate(LootContextPredicateValidator validator) {
-			validator.validateEntityPredicate(this.player(), "player");
+			validator.validateEntityPredicate(player(), "player");
 		}
-
-		Optional<LootContextPredicate> player();
 	}
 }

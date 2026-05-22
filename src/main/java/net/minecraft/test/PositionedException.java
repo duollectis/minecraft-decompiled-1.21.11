@@ -2,10 +2,10 @@ package net.minecraft.test;
 
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PositionedException}.
+ * Исключение теста, привязанное к конкретной позиции в мире.
+ * Содержит как абсолютные координаты блока, так и относительные (внутри структуры теста).
  */
 public class PositionedException extends GameTestException {
 
@@ -22,26 +22,26 @@ public class PositionedException extends GameTestException {
 	public Text getText() {
 		return Text.translatable(
 				"test.error.position",
-				this.message,
-				this.pos.getX(),
-				this.pos.getY(),
-				this.pos.getZ(),
-				this.relativePos.getX(),
-				this.relativePos.getY(),
-				this.relativePos.getZ(),
-				this.tick
+				message,
+				pos.getX(),
+				pos.getY(),
+				pos.getZ(),
+				relativePos.getX(),
+				relativePos.getY(),
+				relativePos.getZ(),
+				tick
 		);
 	}
 
 	public Text getDebugMessage() {
-		return this.message;
+		return message;
 	}
 
-	public @Nullable BlockPos getRelativePos() {
-		return this.relativePos;
+	public BlockPos getRelativePos() {
+		return relativePos;
 	}
 
-	public @Nullable BlockPos getPos() {
-		return this.pos;
+	public BlockPos getPos() {
+		return pos;
 	}
 }

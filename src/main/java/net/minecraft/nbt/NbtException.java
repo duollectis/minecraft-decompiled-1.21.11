@@ -1,7 +1,7 @@
 package net.minecraft.nbt;
 
 /**
- * {@code NbtException}.
+ * Базовое непроверяемое исключение для ошибок, связанных с обработкой NBT-данных.
  */
 public class NbtException extends RuntimeException {
 

@@ -12,37 +12,34 @@ import net.minecraft.util.ErrorReporter;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * {@code FilteredLootFunction}.
- */
+/** Функция лута, применяющая одну из двух дочерних функций в зависимости от соответствия предмета фильтру. */
 public class FilteredLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<FilteredLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									ItemPredicate.CODEC
-											.fieldOf("item_filter")
-											.forGetter(lootFunction -> lootFunction.itemFilter),
-									LootFunctionTypes.CODEC
-											.optionalFieldOf("on_pass")
-											.forGetter(lootFunction -> lootFunction.onPass),
-									LootFunctionTypes.CODEC
-											.optionalFieldOf("on_fail")
-											.forGetter(lootFunction -> lootFunction.onFail)
-							)
-					)
-					.apply(instance, FilteredLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				ItemPredicate.CODEC
+					.fieldOf("item_filter")
+					.forGetter(function -> function.itemFilter),
+				LootFunctionTypes.CODEC
+					.optionalFieldOf("on_pass")
+					.forGetter(function -> function.onPass),
+				LootFunctionTypes.CODEC
+					.optionalFieldOf("on_fail")
+					.forGetter(function -> function.onFail)
+			))
+			.apply(instance, FilteredLootFunction::new)
 	);
+
 	private final ItemPredicate itemFilter;
 	private final Optional<LootFunction> onPass;
 	private final Optional<LootFunction> onFail;
 
 	FilteredLootFunction(
-			List<LootCondition> conditions,
-			ItemPredicate itemFilter,
-			Optional<LootFunction> onPass,
-			Optional<LootFunction> onFail
+		List<LootCondition> conditions,
+		ItemPredicate itemFilter,
+		Optional<LootFunction> onPass,
+		Optional<LootFunction> onFail
 	) {
 		super(conditions);
 		this.itemFilter = itemFilter;
@@ -57,27 +54,23 @@ public class FilteredLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		Optional<LootFunction> optional = this.itemFilter.test(stack) ? this.onPass : this.onFail;
-		return optional.isPresent() ? optional.get().apply(stack, context) : stack;
+		Optional<LootFunction> branch = itemFilter.test(stack) ? onPass : onFail;
+		return branch.isPresent() ? branch.get().apply(stack, context) : stack;
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		super.validate(reporter);
-		this.onPass.ifPresent(lootFunction -> lootFunction.validate(reporter.makeChild(new ErrorReporter.MapElementContext(
-				"on_pass"))));
-		this.onFail.ifPresent(lootFunction -> lootFunction.validate(reporter.makeChild(new ErrorReporter.MapElementContext(
-				"on_fail"))));
+		onPass.ifPresent(fn -> fn.validate(reporter.makeChild(new ErrorReporter.MapElementContext("on_pass"))));
+		onFail.ifPresent(fn -> fn.validate(reporter.makeChild(new ErrorReporter.MapElementContext("on_fail"))));
 	}
 
-	public static FilteredLootFunction.Builder builder(ItemPredicate itemFilter) {
-		return new FilteredLootFunction.Builder(itemFilter);
+	public static Builder builder(ItemPredicate itemFilter) {
+		return new Builder(itemFilter);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<FilteredLootFunction.Builder> {
+	/** Строитель функции фильтрации предметов. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private final ItemPredicate itemFilter;
 		private Optional<LootFunction> onPass = Optional.empty();
@@ -87,23 +80,24 @@ public class FilteredLootFunction extends ConditionalLootFunction {
 			this.itemFilter = itemFilter;
 		}
 
-		protected FilteredLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
-		public FilteredLootFunction.Builder onPass(Optional<LootFunction> onPass) {
+		public Builder onPass(Optional<LootFunction> onPass) {
 			this.onPass = onPass;
 			return this;
 		}
 
-		public FilteredLootFunction.Builder onFail(Optional<LootFunction> onFail) {
+		public Builder onFail(Optional<LootFunction> onFail) {
 			this.onFail = onFail;
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new FilteredLootFunction(this.getConditions(), this.itemFilter, this.onPass, this.onFail);
+			return new FilteredLootFunction(getConditions(), itemFilter, onPass, onFail);
 		}
 	}
 }

@@ -21,7 +21,8 @@ import net.minecraft.world.event.GameEvent;
 import java.util.Optional;
 
 /**
- * {@code JukeboxBlockEntity}.
+ * Блок-сущность музыкального ящика. Управляет воспроизведением пластинок через {@link JukeboxManager},
+ * синхронизирует состояние блока и выбрасывает пластинку при разрушении.
  */
 public class JukeboxBlockEntity extends BlockEntity implements SingleStackInventory.SingleStackBlockEntityInventory {
 
@@ -35,136 +36,112 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 	}
 
 	public JukeboxManager getManager() {
-		return this.manager;
+		return manager;
 	}
 
-	/**
-	 * Обрабатывает событие manager change.
-	 */
 	public void onManagerChange() {
-		this.world.updateNeighbors(this.getPos(), this.getCachedState().getBlock());
-		this.markDirty();
+		world.updateNeighbors(getPos(), getCachedState().getBlock());
+		markDirty();
 	}
 
 	private void onRecordStackChanged(boolean hasRecord) {
-		if (this.world != null && this.world.getBlockState(this.getPos()) == this.getCachedState()) {
-			this.world.setBlockState(this.getPos(), this.getCachedState().with(JukeboxBlock.HAS_RECORD, hasRecord), 2);
-			this.world.emitGameEvent(
-					GameEvent.BLOCK_CHANGE,
-					this.getPos(),
-					GameEvent.Emitter.of(this.getCachedState())
-			);
+		if (world == null || world.getBlockState(getPos()) != getCachedState()) {
+			return;
 		}
+
+		world.setBlockState(getPos(), getCachedState().with(JukeboxBlock.HAS_RECORD, hasRecord), 2);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, getPos(), GameEvent.Emitter.of(getCachedState()));
 	}
 
-	/**
-	 * Бросает record.
-	 */
 	public void dropRecord() {
-		if (this.world != null && !this.world.isClient()) {
-			BlockPos blockPos = this.getPos();
-			ItemStack itemStack = this.getStack();
-			if (!itemStack.isEmpty()) {
-				this.emptyStack();
-				Vec3d vec3d = Vec3d.add(blockPos, 0.5, 1.01, 0.5).addHorizontalRandom(this.world.random, 0.7F);
-				ItemStack itemStack2 = itemStack.copy();
-				ItemEntity
-						itemEntity =
-						new ItemEntity(this.world, vec3d.getX(), vec3d.getY(), vec3d.getZ(), itemStack2);
-				itemEntity.setToDefaultPickupDelay();
-				this.world.spawnEntity(itemEntity);
-				this.onManagerChange();
-			}
+		if (world == null || world.isClient()) {
+			return;
 		}
+
+		ItemStack record = getStack();
+		if (record.isEmpty()) {
+			return;
+		}
+
+		emptyStack();
+		Vec3d spawnPos = Vec3d.add(getPos(), 0.5, 1.01, 0.5).addHorizontalRandom(world.random, 0.7F);
+		ItemEntity itemEntity = new ItemEntity(world, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), record.copy());
+		itemEntity.setToDefaultPickupDelay();
+		world.spawnEntity(itemEntity);
+		onManagerChange();
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, JukeboxBlockEntity blockEntity) {
 		blockEntity.manager.tick(world, state);
 	}
 
 	public int getComparatorOutput() {
-		return JukeboxSong.getSongEntryFromStack(this.world.getRegistryManager(), this.recordStack)
-		                  .map(RegistryEntry::value)
-		                  .map(JukeboxSong::comparatorOutput)
-		                  .orElse(0);
+		return JukeboxSong.getSongEntryFromStack(world.getRegistryManager(), recordStack)
+				.map(RegistryEntry::value)
+				.map(JukeboxSong::comparatorOutput)
+				.orElse(0);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		ItemStack itemStack = view.<ItemStack>read("RecordItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
-		if (!this.recordStack.isEmpty() && !ItemStack.areItemsAndComponentsEqual(itemStack, this.recordStack)) {
-			this.manager.stopPlaying(this.world, this.getCachedState());
+		ItemStack newRecord = view.<ItemStack>read("RecordItem", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+		if (!recordStack.isEmpty() && !ItemStack.areItemsAndComponentsEqual(newRecord, recordStack)) {
+			manager.stopPlaying(world, getCachedState());
 		}
 
-		this.recordStack = itemStack;
-		view.getOptionalLong("ticks_since_song_started")
-		    .ifPresent(
-				    ticksSinceSongStarted -> JukeboxSong.getSongEntryFromStack(view.getRegistries(), this.recordStack)
-				                                        .ifPresent(song -> this.manager.setValues(
-						                                        (RegistryEntry<JukeboxSong>) song,
-						                                        ticksSinceSongStarted
-				                                        ))
-		    );
+		recordStack = newRecord;
+		view.getOptionalLong("ticks_since_song_started").ifPresent(
+				ticksSinceSongStarted -> JukeboxSong.getSongEntryFromStack(view.getRegistries(), recordStack)
+						.ifPresent(song -> manager.setValues((RegistryEntry<JukeboxSong>) song, ticksSinceSongStarted))
+		);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.getStack().isEmpty()) {
-			view.put("RecordItem", ItemStack.CODEC, this.getStack());
+		if (!getStack().isEmpty()) {
+			view.put("RecordItem", ItemStack.CODEC, getStack());
 		}
 
-		if (this.manager.getSong() != null) {
-			view.putLong("ticks_since_song_started", this.manager.getTicksSinceSongStarted());
+		if (manager.getSong() != null) {
+			view.putLong("ticks_since_song_started", manager.getTicksSinceSongStarted());
 		}
 	}
 
 	@Override
 	public ItemStack getStack() {
-		return this.recordStack;
+		return recordStack;
 	}
 
 	@Override
 	public ItemStack decreaseStack(int count) {
-		ItemStack itemStack = this.recordStack;
-		this.setStack(ItemStack.EMPTY);
-		return itemStack;
+		ItemStack record = recordStack;
+		setStack(ItemStack.EMPTY);
+		return record;
 	}
 
 	@Override
 	public void setStack(ItemStack stack) {
-		this.recordStack = stack;
-		boolean bl = !this.recordStack.isEmpty();
-		Optional<RegistryEntry<JukeboxSong>>
-				optional =
-				JukeboxSong.getSongEntryFromStack(this.world.getRegistryManager(), this.recordStack);
-		this.onRecordStackChanged(bl);
-		if (bl && optional.isPresent()) {
-			this.manager.startPlaying(this.world, optional.get());
-		}
-		else {
-			this.manager.stopPlaying(this.world, this.getCachedState());
+		recordStack = stack;
+		boolean hasRecord = !recordStack.isEmpty();
+		Optional<RegistryEntry<JukeboxSong>> songEntry =
+				JukeboxSong.getSongEntryFromStack(world.getRegistryManager(), recordStack);
+
+		onRecordStackChanged(hasRecord);
+
+		if (hasRecord && songEntry.isPresent()) {
+			manager.startPlaying(world, songEntry.get());
+		} else {
+			manager.stopPlaying(world, getCachedState());
 		}
 	}
 
 	@Override
 	public void markRemoved() {
 		super.markRemoved();
-		this.world.emitGameEvent(
-				GameEvent.JUKEBOX_STOP_PLAY,
-				this.getPos(),
-				GameEvent.Emitter.of(this.getCachedState())
-		);
-		this.world.syncWorldEvent(1011, this.getPos(), 0);
+		world.emitGameEvent(GameEvent.JUKEBOX_STOP_PLAY, getPos(), GameEvent.Emitter.of(getCachedState()));
+		world.syncWorldEvent(1011, getPos(), 0);
 	}
 
 	@Override
@@ -179,7 +156,7 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 
 	@Override
 	public boolean isValid(int slot, ItemStack stack) {
-		return stack.contains(DataComponentTypes.JUKEBOX_PLAYABLE) && this.getStack(slot).isEmpty();
+		return stack.contains(DataComponentTypes.JUKEBOX_PLAYABLE) && getStack(slot).isEmpty();
 	}
 
 	@Override
@@ -189,25 +166,21 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 
 	@Override
 	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
-		this.dropRecord();
+		dropRecord();
 	}
 
 	@VisibleForTesting
 	public void setDisc(ItemStack stack) {
-		this.recordStack = stack;
-		JukeboxSong
-				.getSongEntryFromStack(this.world.getRegistryManager(), stack)
-				.ifPresent(song -> this.manager.setValues((RegistryEntry<JukeboxSong>) song, 0L));
-		this.world.updateNeighbors(this.getPos(), this.getCachedState().getBlock());
-		this.markDirty();
+		recordStack = stack;
+		JukeboxSong.getSongEntryFromStack(world.getRegistryManager(), stack)
+				.ifPresent(song -> manager.setValues((RegistryEntry<JukeboxSong>) song, 0L));
+		world.updateNeighbors(getPos(), getCachedState().getBlock());
+		markDirty();
 	}
 
 	@VisibleForTesting
-	/**
-	 * Reload disc.
-	 */
 	public void reloadDisc() {
-		JukeboxSong.getSongEntryFromStack(this.world.getRegistryManager(), this.getStack())
-		           .ifPresent(song -> this.manager.startPlaying(this.world, (RegistryEntry<JukeboxSong>) song));
+		JukeboxSong.getSongEntryFromStack(world.getRegistryManager(), getStack())
+				.ifPresent(song -> manager.startPlaying(world, (RegistryEntry<JukeboxSong>) song));
 	}
 }

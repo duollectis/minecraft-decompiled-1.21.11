@@ -15,7 +15,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code NearestPlayersSensor}.
+ * Сенсор обнаружения ближайших игроков в радиусе {@code FOLLOW_RANGE}.
+ * Записывает в память всех игроков, видимых, атакуемых и ближайшего атакуемого.
  */
 public class NearestPlayersSensor extends Sensor<LivingEntity> {
 
@@ -31,23 +32,29 @@ public class NearestPlayersSensor extends Sensor<LivingEntity> {
 
 	@Override
 	protected void sense(ServerWorld world, LivingEntity entity) {
-		List<PlayerEntity> list = world.getPlayers()
-		                               .stream()
-		                               .filter(EntityPredicates.EXCEPT_SPECTATOR)
-		                               .filter(player -> entity.isInRange(player, this.getFollowRange(entity)))
-		                               .sorted(Comparator.comparingDouble(entity::squaredDistanceTo))
-		                               .collect(Collectors.toList());
+		List<PlayerEntity> players = world.getPlayers()
+				.stream()
+				.filter(EntityPredicates.EXCEPT_SPECTATOR)
+				.filter(player -> entity.isInRange(player, getFollowRange(entity)))
+				.sorted(Comparator.comparingDouble(entity::squaredDistanceTo))
+				.collect(Collectors.toList());
+
 		Brain<?> brain = entity.getBrain();
-		brain.remember(MemoryModuleType.NEAREST_PLAYERS, list);
-		List<PlayerEntity>
-				list2 =
-				list.stream().filter(player -> testTargetPredicate(world, entity, player)).collect(Collectors.toList());
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_PLAYER, list2.isEmpty() ? null : list2.get(0));
-		List<PlayerEntity>
-				list3 =
-				list2.stream().filter(player -> testAttackableTargetPredicate(world, entity, player)).toList();
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS, list3);
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER, list3.isEmpty() ? null : list3.get(0));
+		brain.remember(MemoryModuleType.NEAREST_PLAYERS, players);
+
+		List<PlayerEntity> visiblePlayers = players.stream()
+				.filter(player -> testTargetPredicate(world, entity, player))
+				.collect(Collectors.toList());
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_PLAYER, visiblePlayers.isEmpty() ? null : visiblePlayers.get(0));
+
+		List<PlayerEntity> targetablePlayers = visiblePlayers.stream()
+				.filter(player -> testAttackableTargetPredicate(world, entity, player))
+				.toList();
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS, targetablePlayers);
+		brain.remember(
+				MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER,
+				targetablePlayers.isEmpty() ? null : targetablePlayers.get(0)
+		);
 	}
 
 	protected double getFollowRange(LivingEntity entity) {

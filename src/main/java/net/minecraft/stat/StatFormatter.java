@@ -6,46 +6,76 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 /**
- * {@code StatFormatter}.
+ * Функциональный интерфейс для форматирования числового значения статистики
+ * в читаемую строку.
+ *
+ * <p>Предоставляет набор стандартных форматтеров: {@link #DEFAULT}, {@link #DIVIDE_BY_TEN},
+ * {@link #DISTANCE} и {@link #TIME}. Каждый форматтер адаптирует сырое целое число
+ * к удобочитаемому представлению с нужными единицами измерения.
  */
 public interface StatFormatter {
 
-	DecimalFormat DECIMAL_FORMAT = new DecimalFormat("########0.00", DecimalFormatSymbols.getInstance(Locale.ROOT));
+	DecimalFormat DECIMAL_FORMAT = new DecimalFormat(
+		"########0.00",
+		DecimalFormatSymbols.getInstance(Locale.ROOT)
+	);
 
+	/** Форматирует значение как целое число в локали US (например, "1,234"). */
 	StatFormatter DEFAULT = NumberFormat.getIntegerInstance(Locale.US)::format;
 
-	StatFormatter DIVIDE_BY_TEN = i -> DECIMAL_FORMAT.format(i * 0.1);
+	/** Форматирует значение, разделив на 10 (используется для урона: 1 единица = 0.5 HP). */
+	StatFormatter DIVIDE_BY_TEN = value -> DECIMAL_FORMAT.format(value * 0.1);
 
+	/**
+	 * Форматирует расстояние в сантиметрах, автоматически выбирая единицу:
+	 * километры (> 500 м), метры (> 0.5 м) или сантиметры.
+	 */
 	StatFormatter DISTANCE = cm -> {
-		double d = cm / 100.0;
-		double e = d / 1000.0;
-		if (e > 0.5) {
-			return DECIMAL_FORMAT.format(e) + " km";
+		double meters = cm / 100.0;
+		double kilometers = meters / 1000.0;
+
+		if (kilometers > 0.5) {
+			return DECIMAL_FORMAT.format(kilometers) + " km";
 		}
-		else {
-			return d > 0.5 ? DECIMAL_FORMAT.format(d) + " m" : cm + " cm";
-		}
+
+		return meters > 0.5
+			? DECIMAL_FORMAT.format(meters) + " m"
+			: cm + " cm";
 	};
 
+	/**
+	 * Форматирует время в тиках, автоматически выбирая единицу:
+	 * годы, дни, часы, минуты или секунды.
+	 */
 	StatFormatter TIME = ticks -> {
-		double d = ticks / 20.0;
-		double e = d / 60.0;
-		double f = e / 60.0;
-		double g = f / 24.0;
-		double h = g / 365.0;
-		if (h > 0.5) {
-			return DECIMAL_FORMAT.format(h) + " y";
+		double seconds = ticks / 20.0;
+		double minutes = seconds / 60.0;
+		double hours = minutes / 60.0;
+		double days = hours / 24.0;
+		double years = days / 365.0;
+
+		if (years > 0.5) {
+			return DECIMAL_FORMAT.format(years) + " y";
 		}
-		else if (g > 0.5) {
-			return DECIMAL_FORMAT.format(g) + " d";
+
+		if (days > 0.5) {
+			return DECIMAL_FORMAT.format(days) + " d";
 		}
-		else if (f > 0.5) {
-			return DECIMAL_FORMAT.format(f) + " h";
+
+		if (hours > 0.5) {
+			return DECIMAL_FORMAT.format(hours) + " h";
 		}
-		else {
-			return e > 0.5 ? DECIMAL_FORMAT.format(e) + " min" : d + " s";
-		}
+
+		return minutes > 0.5
+			? DECIMAL_FORMAT.format(minutes) + " min"
+			: seconds + " s";
 	};
 
+	/**
+	 * Форматирует сырое целочисленное значение статистики в строку.
+	 *
+	 * @param value сырое значение статистики
+	 * @return отформатированная строка
+	 */
 	String format(int value);
 }

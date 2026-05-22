@@ -15,7 +15,7 @@ import net.minecraft.entity.passive.NautilusBrain;
 import net.minecraft.sound.SoundEvents;
 
 /**
- * {@code ZombieNautilusBrain}.
+ * Мозг (Brain) для зомби-наутилуса.
  */
 public class ZombieNautilusBrain {
 
@@ -60,13 +60,6 @@ public class ZombieNautilusBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param brain brain
-	 *
-	 * @return Brain — результат операции
-	 */
 	protected static Brain<?> create(Brain<ZombieNautilusEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -95,7 +88,7 @@ public class ZombieNautilusBrain {
 		brain.setTaskList(
 				Activity.IDLE,
 				ImmutableList.of(
-						Pair.of(1, new TemptTask(entity -> 0.9F, entity -> entity.isBaby() ? 2.5 : 3.5)),
+						Pair.of(1, new TemptTask(entity -> SWIM_SPEED, entity -> entity.isBaby() ? 2.5 : 3.5)),
 						Pair.of(
 								2,
 								UpdateAttackTargetTask.<ZombieNautilusEntity>create((world, nautilus) -> NautilusBrain.findAttackTarget(
@@ -127,12 +120,12 @@ public class ZombieNautilusBrain {
 						Pair.of(
 								0,
 								new DashAttackTask(
-										80,
+										ATTACK_COOLDOWN_TICKS,
 										NautilusBrain.FIGHT_TARGET_PREDICATE,
 										0.5F,
 										2.0F,
-										12.0,
-										11.0,
+										ATTACK_RANGE,
+										CHASE_RANGE,
 										SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH
 								)
 						)
@@ -146,11 +139,6 @@ public class ZombieNautilusBrain {
 		);
 	}
 
-	/**
-	 * Обновляет activities.
-	 *
-	 * @param nautilus nautilus
-	 */
 	public static void updateActivities(ZombieNautilusEntity nautilus) {
 		nautilus.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
 	}

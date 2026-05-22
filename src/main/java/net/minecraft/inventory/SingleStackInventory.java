@@ -5,20 +5,22 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code SingleStackInventory}.
+ * Инвентарь, содержащий ровно один слот. Делегирует все операции
+ * с конкретным слотом к методам {@link #getStack()} и {@link #setStack(ItemStack)},
+ * которые реализующий класс обязан предоставить.
  */
 public interface SingleStackInventory extends Inventory {
 
 	ItemStack getStack();
 
-	default ItemStack decreaseStack(int count) {
-		return this.getStack().split(count);
-	}
-
 	void setStack(ItemStack stack);
 
+	default ItemStack decreaseStack(int count) {
+		return getStack().split(count);
+	}
+
 	default ItemStack emptyStack() {
-		return this.decreaseStack(this.getMaxCountPerStack());
+		return decreaseStack(getMaxCountPerStack());
 	}
 
 	@Override
@@ -28,46 +30,48 @@ public interface SingleStackInventory extends Inventory {
 
 	@Override
 	default boolean isEmpty() {
-		return this.getStack().isEmpty();
+		return getStack().isEmpty();
 	}
 
 	@Override
 	default void clear() {
-		this.emptyStack();
-	}
-
-	@Override
-	default ItemStack removeStack(int slot) {
-		return this.removeStack(slot, this.getMaxCountPerStack());
+		emptyStack();
 	}
 
 	@Override
 	default ItemStack getStack(int slot) {
-		return slot == 0 ? this.getStack() : ItemStack.EMPTY;
+		return slot == 0 ? getStack() : ItemStack.EMPTY;
+	}
+
+	@Override
+	default ItemStack removeStack(int slot) {
+		return removeStack(slot, getMaxCountPerStack());
 	}
 
 	@Override
 	default ItemStack removeStack(int slot, int amount) {
-		return slot != 0 ? ItemStack.EMPTY : this.decreaseStack(amount);
+		return slot != 0 ? ItemStack.EMPTY : decreaseStack(amount);
 	}
 
 	@Override
 	default void setStack(int slot, ItemStack stack) {
 		if (slot == 0) {
-			this.setStack(stack);
+			setStack(stack);
 		}
 	}
 
 	/**
-	 * {@code SingleStackBlockEntityInventory}.
+	 * Специализация {@link SingleStackInventory} для блок-сущностей.
+	 * Делегирует проверку прав доступа игрока к стандартной логике
+	 * {@link Inventory#canPlayerUse(BlockEntity, PlayerEntity)}.
 	 */
-	public interface SingleStackBlockEntityInventory extends SingleStackInventory {
+	interface SingleStackBlockEntityInventory extends SingleStackInventory {
 
 		BlockEntity asBlockEntity();
 
 		@Override
 		default boolean canPlayerUse(PlayerEntity player) {
-			return Inventory.canPlayerUse(this.asBlockEntity(), player);
+			return Inventory.canPlayerUse(asBlockEntity(), player);
 		}
 	}
 }

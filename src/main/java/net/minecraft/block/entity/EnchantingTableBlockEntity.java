@@ -17,11 +17,22 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EnchantingTableBlockEntity}.
+ * Блок-сущность стола зачарований. Управляет анимацией книги: поворотом к ближайшему игроку,
+ * перелистыванием страниц и плавным вращением.
  */
 public class EnchantingTableBlockEntity extends BlockEntity implements Nameable {
 
 	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.enchant");
+	private static final Random RANDOM = Random.create();
+	private static final float PLAYER_DETECTION_RADIUS = 3.0F;
+	private static final float BOOK_ROTATION_LERP_FACTOR = 0.4F;
+	private static final float PAGE_FLIP_LERP_FACTOR = 0.9F;
+	private static final float PAGE_FLIP_CLAMP = 0.2F;
+	private static final float PAGE_FLIP_SPEED = 0.4F;
+	private static final float TURNING_SPEED_STEP = 0.1F;
+	private static final float IDLE_ROTATION_SPEED = 0.02F;
+	private static final int PAGE_FLIP_RANDOM_INTERVAL = 40;
+
 	public int ticks;
 	public float nextPageAngle;
 	public float pageAngle;
@@ -32,7 +43,6 @@ public class EnchantingTableBlockEntity extends BlockEntity implements Nameable 
 	public float bookRotation;
 	public float lastBookRotation;
 	public float targetBookRotation;
-	private static final Random RANDOM = Random.create();
 	private @Nullable Text customName;
 
 	public EnchantingTableBlockEntity(BlockPos pos, BlockState state) {
@@ -42,46 +52,42 @@ public class EnchantingTableBlockEntity extends BlockEntity implements Nameable 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
+		view.putNullable("CustomName", TextCodecs.CODEC, customName);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.customName = tryParseCustomName(view, "CustomName");
+		customName = tryParseCustomName(view, "CustomName");
 	}
 
 	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
+	 * Обновляет анимацию книги: поворот к ближайшему игроку, перелистывание страниц.
+	 * Нормализует углы в диапазон [-π, π] для корректной интерполяции.
 	 */
 	public static void tick(World world, BlockPos pos, BlockState state, EnchantingTableBlockEntity blockEntity) {
 		blockEntity.pageTurningSpeed = blockEntity.nextPageTurningSpeed;
 		blockEntity.lastBookRotation = blockEntity.bookRotation;
-		PlayerEntity
-				playerEntity =
-				world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 3.0, false);
-		if (playerEntity != null) {
-			double d = playerEntity.getX() - (pos.getX() + 0.5);
-			double e = playerEntity.getZ() - (pos.getZ() + 0.5);
-			blockEntity.targetBookRotation = (float) MathHelper.atan2(e, d);
-			blockEntity.nextPageTurningSpeed += 0.1F;
-			if (blockEntity.nextPageTurningSpeed < 0.5F || RANDOM.nextInt(40) == 0) {
-				float f = blockEntity.flipRandom;
 
+		PlayerEntity nearestPlayer = world.getClosestPlayer(
+				pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, PLAYER_DETECTION_RADIUS, false
+		);
+
+		if (nearestPlayer != null) {
+			double dx = nearestPlayer.getX() - (pos.getX() + 0.5);
+			double dz = nearestPlayer.getZ() - (pos.getZ() + 0.5);
+			blockEntity.targetBookRotation = (float) MathHelper.atan2(dz, dx);
+			blockEntity.nextPageTurningSpeed += TURNING_SPEED_STEP;
+
+			if (blockEntity.nextPageTurningSpeed < 0.5F || RANDOM.nextInt(PAGE_FLIP_RANDOM_INTERVAL) == 0) {
+				float prevFlipRandom = blockEntity.flipRandom;
 				do {
-					blockEntity.flipRandom = blockEntity.flipRandom + (RANDOM.nextInt(4) - RANDOM.nextInt(4));
-				}
-				while (f == blockEntity.flipRandom);
+					blockEntity.flipRandom += RANDOM.nextInt(4) - RANDOM.nextInt(4);
+				} while (prevFlipRandom == blockEntity.flipRandom);
 			}
-		}
-		else {
-			blockEntity.targetBookRotation += 0.02F;
-			blockEntity.nextPageTurningSpeed -= 0.1F;
+		} else {
+			blockEntity.targetBookRotation += IDLE_ROTATION_SPEED;
+			blockEntity.nextPageTurningSpeed -= TURNING_SPEED_STEP;
 		}
 
 		while (blockEntity.bookRotation >= (float) Math.PI) {
@@ -100,30 +106,33 @@ public class EnchantingTableBlockEntity extends BlockEntity implements Nameable 
 			blockEntity.targetBookRotation += (float) (Math.PI * 2);
 		}
 
-		float g = blockEntity.targetBookRotation - blockEntity.bookRotation;
+		float rotationDelta = blockEntity.targetBookRotation - blockEntity.bookRotation;
 
-		while (g >= (float) Math.PI) {
-			g -= (float) (Math.PI * 2);
+		while (rotationDelta >= (float) Math.PI) {
+			rotationDelta -= (float) (Math.PI * 2);
 		}
 
-		while (g < (float) -Math.PI) {
-			g += (float) (Math.PI * 2);
+		while (rotationDelta < (float) -Math.PI) {
+			rotationDelta += (float) (Math.PI * 2);
 		}
 
-		blockEntity.bookRotation += g * 0.4F;
+		blockEntity.bookRotation += rotationDelta * BOOK_ROTATION_LERP_FACTOR;
 		blockEntity.nextPageTurningSpeed = MathHelper.clamp(blockEntity.nextPageTurningSpeed, 0.0F, 1.0F);
 		blockEntity.ticks++;
 		blockEntity.pageAngle = blockEntity.nextPageAngle;
-		float h = (blockEntity.flipRandom - blockEntity.nextPageAngle) * 0.4F;
-		float i = 0.2F;
-		h = MathHelper.clamp(h, -0.2F, 0.2F);
-		blockEntity.flipTurn = blockEntity.flipTurn + (h - blockEntity.flipTurn) * 0.9F;
-		blockEntity.nextPageAngle = blockEntity.nextPageAngle + blockEntity.flipTurn;
+
+		float pageFlipDelta = MathHelper.clamp(
+				(blockEntity.flipRandom - blockEntity.nextPageAngle) * PAGE_FLIP_SPEED,
+				-PAGE_FLIP_CLAMP,
+				PAGE_FLIP_CLAMP
+		);
+		blockEntity.flipTurn += (pageFlipDelta - blockEntity.flipTurn) * PAGE_FLIP_LERP_FACTOR;
+		blockEntity.nextPageAngle += blockEntity.flipTurn;
 	}
 
 	@Override
 	public Text getName() {
-		return this.customName != null ? this.customName : CONTAINER_NAME_TEXT;
+		return customName != null ? customName : CONTAINER_NAME_TEXT;
 	}
 
 	public void setCustomName(@Nullable Text customName) {
@@ -132,19 +141,19 @@ public class EnchantingTableBlockEntity extends BlockEntity implements Nameable 
 
 	@Override
 	public @Nullable Text getCustomName() {
-		return this.customName;
+		return customName;
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		customName = components.get(DataComponentTypes.CUSTOM_NAME);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
+		builder.add(DataComponentTypes.CUSTOM_NAME, customName);
 	}
 
 	@Override

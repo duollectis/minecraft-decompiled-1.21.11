@@ -8,7 +8,7 @@ import net.minecraft.world.World;
 import java.util.function.Supplier;
 
 /**
- * {@code BoatEntity}.
+ * Стандартная лодка. Пассажир крепится на высоте 1/3 от высоты корпуса.
  */
 public class BoatEntity extends AbstractBoatEntity {
 

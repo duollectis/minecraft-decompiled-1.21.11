@@ -1,8 +1,6 @@
 package net.minecraft.datafixer.schema;
 
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
-import com.mojang.datafixers.DataFixUtils;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.templates.Hook.HookFunction;
 import com.mojang.datafixers.types.templates.TypeTemplate;
@@ -15,50 +13,53 @@ import org.slf4j.Logger;
 
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.HashMap;
 
 /**
- * {@code Schema99}.
+ * Базовая схема DataFixer версии 99, определяющая полный начальный реестр типов данных
+ * Minecraft: сущности, блок-сущности, предметы, игрок, чанк, структуры и т.д.
+ * Содержит хук {@code BLOCK_ENTITY_TAG_HOOK}, обновляющий теги {@code BlockEntityTag}
+ * и {@code EntityTag} внутри стеков предметов при миграции старых данных.
+ * Является корневой схемой, от которой наследуются все последующие версии.
  */
 public class Schema99 extends Schema {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	static final Map<String, String> BLOCKS_TO_BLOCK_ENTITIES = (Map<String, String>) DataFixUtils.make(
-			Maps.<String, String>newHashMap(), map -> {
-				map.put("minecraft:furnace", "Furnace");
-				map.put("minecraft:lit_furnace", "Furnace");
-				map.put("minecraft:chest", "Chest");
-				map.put("minecraft:trapped_chest", "Chest");
-				map.put("minecraft:ender_chest", "EnderChest");
-				map.put("minecraft:jukebox", "RecordPlayer");
-				map.put("minecraft:dispenser", "Trap");
-				map.put("minecraft:dropper", "Dropper");
-				map.put("minecraft:sign", "Sign");
-				map.put("minecraft:mob_spawner", "MobSpawner");
-				map.put("minecraft:noteblock", "Music");
-				map.put("minecraft:brewing_stand", "Cauldron");
-				map.put("minecraft:enhanting_table", "EnchantTable");
-				map.put("minecraft:command_block", "CommandBlock");
-				map.put("minecraft:beacon", "Beacon");
-				map.put("minecraft:skull", "Skull");
-				map.put("minecraft:daylight_detector", "DLDetector");
-				map.put("minecraft:hopper", "Hopper");
-				map.put("minecraft:banner", "Banner");
-				map.put("minecraft:flower_pot", "FlowerPot");
-				map.put("minecraft:repeating_command_block", "CommandBlock");
-				map.put("minecraft:chain_command_block", "CommandBlock");
-				map.put("minecraft:standing_sign", "Sign");
-				map.put("minecraft:wall_sign", "Sign");
-				map.put("minecraft:piston_head", "Piston");
-				map.put("minecraft:daylight_detector_inverted", "DLDetector");
-				map.put("minecraft:unpowered_comparator", "Comparator");
-				map.put("minecraft:powered_comparator", "Comparator");
-				map.put("minecraft:wall_banner", "Banner");
-				map.put("minecraft:standing_banner", "Banner");
-				map.put("minecraft:structure_block", "Structure");
-				map.put("minecraft:end_portal", "Airportal");
-				map.put("minecraft:end_gateway", "EndGateway");
-				map.put("minecraft:shield", "Banner");
-			}
+	static final Map<String, String> BLOCKS_TO_BLOCK_ENTITIES = Map.ofEntries(
+		Map.entry("minecraft:furnace", "Furnace"),
+		Map.entry("minecraft:lit_furnace", "Furnace"),
+		Map.entry("minecraft:chest", "Chest"),
+		Map.entry("minecraft:trapped_chest", "Chest"),
+		Map.entry("minecraft:ender_chest", "EnderChest"),
+		Map.entry("minecraft:jukebox", "RecordPlayer"),
+		Map.entry("minecraft:dispenser", "Trap"),
+		Map.entry("minecraft:dropper", "Dropper"),
+		Map.entry("minecraft:sign", "Sign"),
+		Map.entry("minecraft:mob_spawner", "MobSpawner"),
+		Map.entry("minecraft:noteblock", "Music"),
+		Map.entry("minecraft:brewing_stand", "Cauldron"),
+		Map.entry("minecraft:enhanting_table", "EnchantTable"),
+		Map.entry("minecraft:command_block", "CommandBlock"),
+		Map.entry("minecraft:beacon", "Beacon"),
+		Map.entry("minecraft:skull", "Skull"),
+		Map.entry("minecraft:daylight_detector", "DLDetector"),
+		Map.entry("minecraft:hopper", "Hopper"),
+		Map.entry("minecraft:banner", "Banner"),
+		Map.entry("minecraft:flower_pot", "FlowerPot"),
+		Map.entry("minecraft:repeating_command_block", "CommandBlock"),
+		Map.entry("minecraft:chain_command_block", "CommandBlock"),
+		Map.entry("minecraft:standing_sign", "Sign"),
+		Map.entry("minecraft:wall_sign", "Sign"),
+		Map.entry("minecraft:piston_head", "Piston"),
+		Map.entry("minecraft:daylight_detector_inverted", "DLDetector"),
+		Map.entry("minecraft:unpowered_comparator", "Comparator"),
+		Map.entry("minecraft:powered_comparator", "Comparator"),
+		Map.entry("minecraft:wall_banner", "Banner"),
+		Map.entry("minecraft:standing_banner", "Banner"),
+		Map.entry("minecraft:structure_block", "Structure"),
+		Map.entry("minecraft:end_portal", "Airportal"),
+		Map.entry("minecraft:end_gateway", "EndGateway"),
+		Map.entry("minecraft:shield", "Banner")
 	);
 	public static final Map<String, String>
 			ENTITY_TO_BLOCK_ENTITY_RENAMES =
@@ -94,7 +95,7 @@ public class Schema99 extends Schema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		schema.register(map, "Item", name -> DSL.optionalFields("Item", TypeReferences.ITEM_STACK.in(schema)));
 		schema.registerSimple(map, "XPOrb");
 		targetInTile(schema, map, "ThrownEgg");
@@ -260,7 +261,7 @@ public class Schema99 extends Schema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		targetItems(schema, map, "Furnace");
 		targetItems(schema, map, "Chest");
 		schema.registerSimple(map, "EnderChest");

@@ -37,194 +37,139 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * {@code TrackedDataHandlerRegistry}.
+ * Глобальный реестр всех {@link TrackedDataHandler}, используемых для синхронизации
+ * данных сущностей между сервером и клиентом.
+ * Каждый обработчик регистрируется один раз в статическом блоке инициализации
+ * и получает уникальный числовой идентификатор.
  */
 public class TrackedDataHandlerRegistry {
 
 	private static final Int2ObjectBiMap<TrackedDataHandler<?>> DATA_HANDLERS = Int2ObjectBiMap.create(16);
+
 	public static final TrackedDataHandler<Byte> BYTE = TrackedDataHandler.create(PacketCodecs.BYTE);
 	public static final TrackedDataHandler<Integer> INTEGER = TrackedDataHandler.create(PacketCodecs.VAR_INT);
 	public static final TrackedDataHandler<Long> LONG = TrackedDataHandler.create(PacketCodecs.VAR_LONG);
 	public static final TrackedDataHandler<Float> FLOAT = TrackedDataHandler.create(PacketCodecs.FLOAT);
 	public static final TrackedDataHandler<String> STRING = TrackedDataHandler.create(PacketCodecs.STRING);
-	public static final TrackedDataHandler<Text>
-			TEXT_COMPONENT =
+	public static final TrackedDataHandler<Text> TEXT_COMPONENT =
 			TrackedDataHandler.create(TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC);
 	public static final TrackedDataHandler<Optional<Text>> OPTIONAL_TEXT_COMPONENT = TrackedDataHandler.create(
 			TextCodecs.OPTIONAL_UNLIMITED_REGISTRY_PACKET_CODEC
 	);
-	public static final TrackedDataHandler<ItemStack> ITEM_STACK = new TrackedDataHandler<ItemStack>() {
+	public static final TrackedDataHandler<ItemStack> ITEM_STACK = new TrackedDataHandler<>() {
 		@Override
 		public PacketCodec<? super RegistryByteBuf, ItemStack> codec() {
 			return ItemStack.OPTIONAL_PACKET_CODEC;
 		}
 
-		/**
-		 * Copy.
-		 *
-		 * @param itemStack item stack
-		 *
-		 * @return ItemStack — результат операции
-		 */
+		@Override
 		public ItemStack copy(ItemStack itemStack) {
 			return itemStack.copy();
 		}
 	};
-	public static final TrackedDataHandler<BlockState>
-			BLOCK_STATE =
+	public static final TrackedDataHandler<BlockState> BLOCK_STATE =
 			TrackedDataHandler.create(PacketCodecs.entryOf(Block.STATE_IDS));
-	private static final PacketCodec<ByteBuf, Optional<BlockState>>
-			OPTIONAL_BLOCK_STATE_CODEC =
-			new PacketCodec<ByteBuf, Optional<BlockState>>() {
-				/**
-				 * Encode.
-				 *
-				 * @param byteBuf byte buf
-				 * @param optional optional
-				 */
-				public void encode(ByteBuf byteBuf, Optional<BlockState> optional) {
-					if (optional.isPresent()) {
-						VarInts.write(byteBuf, Block.getRawIdFromState(optional.get()));
-					}
-					else {
-						VarInts.write(byteBuf, 0);
-					}
+
+	// Кодек для Optional<BlockState>: 0 означает отсутствие значения, иначе raw id состояния блока
+	private static final PacketCodec<ByteBuf, Optional<BlockState>> OPTIONAL_BLOCK_STATE_CODEC =
+			new PacketCodec<>() {
+				@Override
+				public void encode(ByteBuf buf, Optional<BlockState> optional) {
+					VarInts.write(buf, optional.isPresent() ? Block.getRawIdFromState(optional.get()) : 0);
 				}
 
-				/**
-				 * Decode.
-				 *
-				 * @param byteBuf byte buf
-				 *
-				 * @return Optional — результат операции
-				 */
-				public Optional<BlockState> decode(ByteBuf byteBuf) {
-					int i = VarInts.read(byteBuf);
-					return i == 0 ? Optional.empty() : Optional.of(Block.getStateFromRawId(i));
+				@Override
+				public Optional<BlockState> decode(ByteBuf buf) {
+					int rawId = VarInts.read(buf);
+					return rawId == 0 ? Optional.empty() : Optional.of(Block.getStateFromRawId(rawId));
 				}
 			};
-	public static final TrackedDataHandler<Optional<BlockState>>
-			OPTIONAL_BLOCK_STATE =
+
+	public static final TrackedDataHandler<Optional<BlockState>> OPTIONAL_BLOCK_STATE =
 			TrackedDataHandler.create(OPTIONAL_BLOCK_STATE_CODEC);
 	public static final TrackedDataHandler<Boolean> BOOLEAN = TrackedDataHandler.create(PacketCodecs.BOOLEAN);
-	public static final TrackedDataHandler<ParticleEffect>
-			PARTICLE =
+	public static final TrackedDataHandler<ParticleEffect> PARTICLE =
 			TrackedDataHandler.create(ParticleTypes.PACKET_CODEC);
 	public static final TrackedDataHandler<List<ParticleEffect>> PARTICLE_LIST = TrackedDataHandler.create(
 			ParticleTypes.PACKET_CODEC.collect(PacketCodecs.toList())
 	);
-	public static final TrackedDataHandler<EulerAngle> ROTATION = TrackedDataHandler.create(EulerAngle.PACKET_CODEC);
-	public static final TrackedDataHandler<BlockPos> BLOCK_POS = TrackedDataHandler.create(BlockPos.PACKET_CODEC);
+	public static final TrackedDataHandler<EulerAngle> ROTATION =
+			TrackedDataHandler.create(EulerAngle.PACKET_CODEC);
+	public static final TrackedDataHandler<BlockPos> BLOCK_POS =
+			TrackedDataHandler.create(BlockPos.PACKET_CODEC);
 	public static final TrackedDataHandler<Optional<BlockPos>> OPTIONAL_BLOCK_POS = TrackedDataHandler.create(
 			BlockPos.PACKET_CODEC.collect(PacketCodecs::optional)
 	);
-	public static final TrackedDataHandler<Direction> FACING = TrackedDataHandler.create(Direction.PACKET_CODEC);
+	public static final TrackedDataHandler<Direction> FACING =
+			TrackedDataHandler.create(Direction.PACKET_CODEC);
 	@SuppressWarnings("unchecked")
-	public static final TrackedDataHandler<Optional<LazyEntityReference<LivingEntity>>>
-			LAZY_ENTITY_REFERENCE =
+	public static final TrackedDataHandler<Optional<LazyEntityReference<LivingEntity>>> LAZY_ENTITY_REFERENCE =
 			TrackedDataHandler.create(
-					((PacketCodec<ByteBuf, LazyEntityReference<LivingEntity>>) (PacketCodec<ByteBuf, ?>) LazyEntityReference.createPacketCodec()).collect(
-							PacketCodecs::optional)
+					((PacketCodec<ByteBuf, LazyEntityReference<LivingEntity>>) (PacketCodec<ByteBuf, ?>) LazyEntityReference.createPacketCodec())
+							.collect(PacketCodecs::optional)
 			);
 	public static final TrackedDataHandler<Optional<GlobalPos>> OPTIONAL_GLOBAL_POS = TrackedDataHandler.create(
 			GlobalPos.PACKET_CODEC.collect(PacketCodecs::optional)
 	);
-	public static final TrackedDataHandler<VillagerData>
-			VILLAGER_DATA =
+	public static final TrackedDataHandler<VillagerData> VILLAGER_DATA =
 			TrackedDataHandler.create(VillagerData.PACKET_CODEC);
-	private static final PacketCodec<ByteBuf, OptionalInt>
-			OPTIONAL_INT_CODEC =
-			new PacketCodec<ByteBuf, OptionalInt>() {
-				/**
-				 * Decode.
-				 *
-				 * @param byteBuf byte buf
-				 *
-				 * @return OptionalInt — результат операции
-				 */
-				public OptionalInt decode(ByteBuf byteBuf) {
-					int i = VarInts.read(byteBuf);
-					return i == 0 ? OptionalInt.empty() : OptionalInt.of(i - 1);
-				}
 
-				/**
-				 * Encode.
-				 *
-				 * @param byteBuf byte buf
-				 * @param optionalInt optional int
-				 */
-				public void encode(ByteBuf byteBuf, OptionalInt optionalInt) {
-					VarInts.write(byteBuf, optionalInt.orElse(-1) + 1);
-				}
-			};
-	public static final TrackedDataHandler<OptionalInt> OPTIONAL_INT = TrackedDataHandler.create(OPTIONAL_INT_CODEC);
-	public static final TrackedDataHandler<EntityPose> ENTITY_POSE = TrackedDataHandler.create(EntityPose.PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<CatVariant>>
-			CAT_VARIANT =
+	// Кодек для OptionalInt: 0 означает отсутствие значения, иначе значение + 1
+	private static final PacketCodec<ByteBuf, OptionalInt> OPTIONAL_INT_CODEC = new PacketCodec<>() {
+		@Override
+		public OptionalInt decode(ByteBuf buf) {
+			int encoded = VarInts.read(buf);
+			return encoded == 0 ? OptionalInt.empty() : OptionalInt.of(encoded - 1);
+		}
+
+		@Override
+		public void encode(ByteBuf buf, OptionalInt optionalInt) {
+			VarInts.write(buf, optionalInt.orElse(-1) + 1);
+		}
+	};
+
+	public static final TrackedDataHandler<OptionalInt> OPTIONAL_INT =
+			TrackedDataHandler.create(OPTIONAL_INT_CODEC);
+	public static final TrackedDataHandler<EntityPose> ENTITY_POSE =
+			TrackedDataHandler.create(EntityPose.PACKET_CODEC);
+	public static final TrackedDataHandler<RegistryEntry<CatVariant>> CAT_VARIANT =
 			TrackedDataHandler.create(CatVariant.PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<ChickenVariant>>
-			CHICKEN_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<ChickenVariant>> CHICKEN_VARIANT =
 			TrackedDataHandler.create(ChickenVariant.ENTRY_PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<CowVariant>>
-			COW_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<CowVariant>> COW_VARIANT =
 			TrackedDataHandler.create(CowVariant.ENTRY_PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<WolfVariant>>
-			WOLF_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<WolfVariant>> WOLF_VARIANT =
 			TrackedDataHandler.create(WolfVariant.ENTRY_PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<WolfSoundVariant>>
-			WOLF_SOUND_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<WolfSoundVariant>> WOLF_SOUND_VARIANT =
 			TrackedDataHandler.create(WolfSoundVariant.PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<FrogVariant>>
-			FROG_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<FrogVariant>> FROG_VARIANT =
 			TrackedDataHandler.create(FrogVariant.PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<PigVariant>>
-			PIG_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<PigVariant>> PIG_VARIANT =
 			TrackedDataHandler.create(PigVariant.ENTRY_PACKET_CODEC);
-	public static final TrackedDataHandler<RegistryEntry<ZombieNautilusVariant>>
-			ZOMBIE_NAUTILUS_VARIANT =
-			TrackedDataHandler.create(
-					ZombieNautilusVariant.ENTRY_PACKET_CODEC
-			);
-	public static final TrackedDataHandler<RegistryEntry<PaintingVariant>>
-			PAINTING_VARIANT =
+	public static final TrackedDataHandler<RegistryEntry<ZombieNautilusVariant>> ZOMBIE_NAUTILUS_VARIANT =
+			TrackedDataHandler.create(ZombieNautilusVariant.ENTRY_PACKET_CODEC);
+	public static final TrackedDataHandler<RegistryEntry<PaintingVariant>> PAINTING_VARIANT =
 			TrackedDataHandler.create(PaintingVariant.ENTRY_PACKET_CODEC);
-	public static final TrackedDataHandler<ArmadilloEntity.State>
-			ARMADILLO_STATE =
+	public static final TrackedDataHandler<ArmadilloEntity.State> ARMADILLO_STATE =
 			TrackedDataHandler.create(ArmadilloEntity.State.PACKET_CODEC);
-	public static final TrackedDataHandler<SnifferEntity.State>
-			SNIFFER_STATE =
+	public static final TrackedDataHandler<SnifferEntity.State> SNIFFER_STATE =
 			TrackedDataHandler.create(SnifferEntity.State.PACKET_CODEC);
-	public static final TrackedDataHandler<Oxidizable.OxidationLevel>
-			OXIDATION_LEVEL =
+	public static final TrackedDataHandler<Oxidizable.OxidationLevel> OXIDATION_LEVEL =
 			TrackedDataHandler.create(Oxidizable.OxidationLevel.PACKET_CODEC);
-	public static final TrackedDataHandler<CopperGolemState>
-			COPPER_GOLEM_STATE =
+	public static final TrackedDataHandler<CopperGolemState> COPPER_GOLEM_STATE =
 			TrackedDataHandler.create(CopperGolemState.PACKET_CODEC);
-	public static final TrackedDataHandler<Vector3fc> VECTOR_3F = TrackedDataHandler.create(PacketCodecs.VECTOR_3F);
-	public static final TrackedDataHandler<Quaternionfc>
-			QUATERNION_F =
+	public static final TrackedDataHandler<Vector3fc> VECTOR_3F =
+			TrackedDataHandler.create(PacketCodecs.VECTOR_3F);
+	public static final TrackedDataHandler<Quaternionfc> QUATERNION_F =
 			TrackedDataHandler.create(PacketCodecs.QUATERNION_F);
-	public static final TrackedDataHandler<ProfileComponent>
-			PROFILE =
+	public static final TrackedDataHandler<ProfileComponent> PROFILE =
 			TrackedDataHandler.create(ProfileComponent.PACKET_CODEC);
 	public static final TrackedDataHandler<Arm> ARM = TrackedDataHandler.create(Arm.PACKET_CODEC);
 
-	/**
-	 * Register.
-	 *
-	 * @param handler handler
-	 */
 	public static void register(TrackedDataHandler<?> handler) {
 		DATA_HANDLERS.add(handler);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return @Nullable TrackedDataHandler — 
-	 */
 	public static @Nullable TrackedDataHandler<?> get(int id) {
 		return DATA_HANDLERS.get(id);
 	}

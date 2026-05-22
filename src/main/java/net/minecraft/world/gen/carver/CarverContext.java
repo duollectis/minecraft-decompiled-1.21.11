@@ -17,7 +17,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code CarverContext}.
+ * Контекст выполнения карвера, предоставляющий доступ к реестрам,
+ * сэмплеру шума чанка и правилам материалов поверхности.
  */
 public class CarverContext extends HeightContext {
 
@@ -27,12 +28,12 @@ public class CarverContext extends HeightContext {
 	private final MaterialRules.MaterialRule materialRule;
 
 	public CarverContext(
-			NoiseChunkGenerator noiseChunkGenerator,
-			DynamicRegistryManager registryManager,
-			HeightLimitView heightLimitView,
-			ChunkNoiseSampler chunkNoiseSampler,
-			NoiseConfig noiseConfig,
-			MaterialRules.MaterialRule materialRule
+		NoiseChunkGenerator noiseChunkGenerator,
+		DynamicRegistryManager registryManager,
+		HeightLimitView heightLimitView,
+		ChunkNoiseSampler chunkNoiseSampler,
+		NoiseConfig noiseConfig,
+		MaterialRules.MaterialRule materialRule
 	) {
 		super(noiseChunkGenerator, heightLimitView);
 		this.registryManager = registryManager;
@@ -43,22 +44,22 @@ public class CarverContext extends HeightContext {
 
 	@Deprecated
 	public Optional<BlockState> applyMaterialRule(
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			Chunk chunk,
-			BlockPos pos,
-			boolean hasFluid
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		Chunk chunk,
+		BlockPos pos,
+		boolean hasFluid
 	) {
-		return this.noiseConfig
-				.getSurfaceBuilder()
-				.applyMaterialRule(this.materialRule, this, posToBiome, chunk, this.chunkNoiseSampler, pos, hasFluid);
+		return noiseConfig
+			.getSurfaceBuilder()
+			.applyMaterialRule(materialRule, this, posToBiome, chunk, chunkNoiseSampler, pos, hasFluid);
 	}
 
 	@Deprecated
 	public DynamicRegistryManager getRegistryManager() {
-		return this.registryManager;
+		return registryManager;
 	}
 
 	public NoiseConfig getNoiseConfig() {
-		return this.noiseConfig;
+		return noiseConfig;
 	}
 }

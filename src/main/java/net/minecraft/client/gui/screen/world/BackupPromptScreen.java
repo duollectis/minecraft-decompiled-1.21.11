@@ -13,14 +13,22 @@ import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BackupPromptScreen}.
+ * Экран предупреждения с предложением создать резервную копию мира перед входом.
+ * Отображается при попытке открыть мир, требующий обновления или потенциально несовместимый.
  */
+@Environment(EnvType.CLIENT)
 public class BackupPromptScreen extends Screen {
 
+	private static final int TITLE_Y = 50;
+	private static final int TEXT_Y = 70;
+	private static final int LINE_HEIGHT = 9;
+	private static final int BUTTON_OFFSET_X = 155;
+	private static final int BUTTON_OFFSET_X_CENTER = 80;
+	private static final int BUTTON_OFFSET_X_RIGHT = 160;
 	private static final Text SKIP_BUTTON_TEXT = Text.translatable("selectWorld.backupJoinSkipButton");
 	public static final Text CONFIRM_BUTTON_TEXT = Text.translatable("selectWorld.backupJoinConfirmButton");
+
 	private final Runnable onCancel;
 	protected final BackupPromptScreen.Callback callback;
 	private final Text subtitle;
@@ -59,42 +67,43 @@ public class BackupPromptScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		this.wrappedText = MultilineText.create(this.textRenderer, this.subtitle, this.width - 50);
-		int i = (this.wrappedText.getLineCount() + 1) * 9;
-		this.eraseCacheCheckbox =
-				CheckboxWidget
-						.builder(
-								Text.translatable("selectWorld.backupEraseCache").withColor(-2039584),
-								this.textRenderer
-						)
-						.pos(this.width / 2 - 155 + 80, 76 + i)
-						.build();
-		if (this.showEraseCacheCheckbox) {
-			this.addDrawableChild(this.eraseCacheCheckbox);
+		wrappedText = MultilineText.create(textRenderer, subtitle, width - 50);
+		int textHeight = (wrappedText.getLineCount() + 1) * LINE_HEIGHT;
+
+		eraseCacheCheckbox = CheckboxWidget
+				.builder(
+						Text.translatable("selectWorld.backupEraseCache").withColor(-2039584),
+						textRenderer
+				)
+				.pos(width / 2 - BUTTON_OFFSET_X + BUTTON_OFFSET_X_CENTER, 76 + textHeight)
+				.build();
+
+		if (showEraseCacheCheckbox) {
+			addDrawableChild(eraseCacheCheckbox);
 		}
 
-		this.addDrawableChild(
+		addDrawableChild(
 				ButtonWidget
 						.builder(
-								this.firstButtonText,
-								button -> this.callback.proceed(true, this.eraseCacheCheckbox.isChecked())
+								firstButtonText,
+								button -> callback.proceed(true, eraseCacheCheckbox.isChecked())
 						)
-						.dimensions(this.width / 2 - 155, 100 + i, 150, 20)
+						.dimensions(width / 2 - BUTTON_OFFSET_X, 100 + textHeight, 150, 20)
 						.build()
 		);
-		this.addDrawableChild(
+		addDrawableChild(
 				ButtonWidget
 						.builder(
 								SKIP_BUTTON_TEXT,
-								button -> this.callback.proceed(false, this.eraseCacheCheckbox.isChecked())
+								button -> callback.proceed(false, eraseCacheCheckbox.isChecked())
 						)
-						.dimensions(this.width / 2 - 155 + 160, 100 + i, 150, 20)
+						.dimensions(width / 2 - BUTTON_OFFSET_X + BUTTON_OFFSET_X_RIGHT, 100 + textHeight, 150, 20)
 						.build()
 		);
-		this.addDrawableChild(
+		addDrawableChild(
 				ButtonWidget
-						.builder(ScreenTexts.CANCEL, button -> this.onCancel.run())
-						.dimensions(this.width / 2 - 155 + 80, 124 + i, 150, 20)
+						.builder(ScreenTexts.CANCEL, button -> onCancel.run())
+						.dimensions(width / 2 - BUTTON_OFFSET_X + BUTTON_OFFSET_X_CENTER, 124 + textHeight, 150, 20)
 						.build()
 		);
 	}
@@ -102,9 +111,9 @@ public class BackupPromptScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 50, -1);
-		this.wrappedText.draw(Alignment.CENTER, this.width / 2, 70, 9, drawnTextConsumer);
+		DrawnTextConsumer textConsumer = context.getTextConsumer();
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
+		wrappedText.draw(Alignment.CENTER, width / 2, TEXT_Y, LINE_HEIGHT, textConsumer);
 	}
 
 	@Override
@@ -115,18 +124,17 @@ public class BackupPromptScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.key() == 256) {
-			this.onCancel.run();
+			onCancel.run();
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Callback}.
+	 * Колбэк для обработки выбора пользователя на экране резервного копирования.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Callback {
 
 		void proceed(boolean backup, boolean eraseCache);

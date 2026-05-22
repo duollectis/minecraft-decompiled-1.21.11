@@ -8,7 +8,11 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code SmithingRecipe}.
+ * Интерфейс для всех рецептов кузнечного стола.
+ * <p>
+ * Рецепт кузнеца принимает три слота: шаблон, основу и добавку.
+ * Каждый из них может быть опциональным ({@link Optional#empty()} означает,
+ * что слот принимает любой предмет, включая пустой).
  */
 public interface SmithingRecipe extends Recipe<SmithingRecipeInput> {
 
@@ -20,10 +24,16 @@ public interface SmithingRecipe extends Recipe<SmithingRecipeInput> {
 	@Override
 	RecipeSerializer<? extends SmithingRecipe> getSerializer();
 
-	default boolean matches(SmithingRecipeInput smithingRecipeInput, World world) {
-		return Ingredient.matches(this.template(), smithingRecipeInput.template())
-				&& this.base().test(smithingRecipeInput.base())
-				&& Ingredient.matches(this.addition(), smithingRecipeInput.addition());
+	/**
+	 * Проверяет соответствие входных данных рецепту.
+	 * Шаблон и добавка проверяются через {@link Ingredient#matches(Optional, ItemStack)},
+	 * основа — через {@link Ingredient#test(ItemStack)}.
+	 */
+	@Override
+	default boolean matches(SmithingRecipeInput input, World world) {
+		return Ingredient.matches(template(), input.template())
+			&& base().test(input.base())
+			&& Ingredient.matches(addition(), input.addition());
 	}
 
 	Optional<Ingredient> template();

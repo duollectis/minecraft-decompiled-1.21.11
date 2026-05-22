@@ -6,13 +6,13 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.realms.RealmsSerializable;
 import net.minecraft.client.realms.ServiceQuality;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RegionData}.
+ * DTO данных региона сессии Realms.
+ * Содержит название региона AWS и оценку качества соединения.
  */
+@Environment(EnvType.CLIENT)
 public record RegionData(
 		@SerializedName("regionName") RealmsRegion region,
 		@SerializedName("serviceQuality") ServiceQuality serviceQuality
-)
-		implements RealmsSerializable {
+) implements RealmsSerializable {
 }

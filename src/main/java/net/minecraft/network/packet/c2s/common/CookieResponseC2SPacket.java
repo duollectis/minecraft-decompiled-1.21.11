@@ -11,7 +11,8 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Запись cookie response c2 s packet.
+ * Пакет C→S, возвращающий серверу ранее сохранённое cookie по его ключу.
+ * Является ответом на запрос {@code CookieRequestS2CPacket}; payload может быть null, если cookie не найдено.
  */
 public record CookieResponseC2SPacket(
 		Identifier key,
@@ -27,8 +28,8 @@ public record CookieResponseC2SPacket(
 	}
 
 	private void write(PacketByteBuf buf) {
-		buf.writeIdentifier(this.key);
-		buf.writeNullable(this.payload, StoreCookieS2CPacket.COOKIE_PACKET_CODEC);
+		buf.writeIdentifier(key);
+		buf.writeNullable(payload, StoreCookieS2CPacket.COOKIE_PACKET_CODEC);
 	}
 
 	@Override
@@ -36,12 +37,8 @@ public record CookieResponseC2SPacket(
 		return CookiePackets.COOKIE_RESPONSE;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCookieResponsePacketListener server cookie response packet listener
-	 */
-	public void apply(ServerCookieResponsePacketListener serverCookieResponsePacketListener) {
-		serverCookieResponsePacketListener.onCookieResponse(this);
+	@Override
+	public void apply(ServerCookieResponsePacketListener listener) {
+		listener.onCookieResponse(this);
 	}
 }

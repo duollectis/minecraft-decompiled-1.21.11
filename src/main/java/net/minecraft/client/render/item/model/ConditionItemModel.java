@@ -19,10 +19,12 @@ import net.minecraft.registry.ContextSwapper;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ConditionItemModel}.
+ * Условная модель предмета: выбирает между двумя дочерними моделями ({@code onTrue} / {@code onFalse})
+ * на основе результата {@link PropertyTester}. Позволяет реализовывать переключение внешнего вида
+ * предмета в зависимости от его состояния (например, заряжен/не заряжен, открыт/закрыт).
  */
+@Environment(EnvType.CLIENT)
 public class ConditionItemModel implements ItemModel {
 
 	private final PropertyTester property;
@@ -46,21 +48,24 @@ public class ConditionItemModel implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		(this.property.test(
+
+		boolean result = property.test(
 				stack,
 				world,
 				heldItemContext == null ? null : heldItemContext.getEntity(),
 				seed,
 				displayContext
-		) ? this.onTrue : this.onFalse
-		)
-				.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+		);
+		ItemModel chosen = result ? onTrue : onFalse;
+		chosen.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённый дескриптор условной модели. При запекании оборачивает {@link BooleanProperty}
+	 * в контекстно-независимый {@link PropertyTester} через {@link ContextSwapper}, если он задан,
+	 * чтобы свойство корректно работало в разных измерениях.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			BooleanProperty property,
 			ItemModel.Unbaked onTrue,
@@ -90,6 +95,11 @@ public class ConditionItemModel implements ItemModel {
 			);
 		}
 
+		/**
+		 * Оборачивает {@link BooleanProperty} в контекстно-независимый {@link PropertyTester},
+		 * кэшируя перепривязанное свойство для каждого мира через {@link DataCache}.
+		 * Если {@code contextSwapper} не задан — возвращает свойство без изменений.
+		 */
 		private PropertyTester makeWorldIndependentProperty(
 				BooleanProperty property,
 				@Nullable ContextSwapper contextSwapper
@@ -97,21 +107,15 @@ public class ConditionItemModel implements ItemModel {
 			if (contextSwapper == null) {
 				return property;
 			}
-			else {
-				DataCache<ClientWorld, PropertyTester>
-						dataCache =
-						new DataCache<>(world -> ConditionItemModel.Unbaked.<BooleanProperty>swapContext(
-								property,
-								contextSwapper,
-								world
-						));
-				return (stack, world, entity, seed, transformationMode) -> {
-					PropertyTester
-							propertyTester =
-							(PropertyTester) (world == null ? property : dataCache.compute(world));
-					return propertyTester.test(stack, world, entity, seed, transformationMode);
-				};
-			}
+
+			DataCache<ClientWorld, PropertyTester> cache = new DataCache<>(
+					world -> ConditionItemModel.Unbaked.<BooleanProperty>swapContext(property, contextSwapper, world)
+			);
+
+			return (stack, world, entity, seed, transformationMode) -> {
+				PropertyTester tester = world == null ? property : (PropertyTester) cache.compute(world);
+				return tester.test(stack, world, entity, seed, transformationMode);
+			};
 		}
 
 		@SuppressWarnings("unchecked")

@@ -18,79 +18,75 @@ import net.minecraft.util.math.floatprovider.FloatProvider;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code SpawnParticlesEnchantmentEffect}.
+ * Эффект зачарования, порождающий частицы вокруг сущности.
+ * Позиция и скорость частиц задаются через {@link PositionSource} и {@link VelocitySource}.
  */
 public record SpawnParticlesEnchantmentEffect(
-		ParticleEffect particle,
-		SpawnParticlesEnchantmentEffect.PositionSource horizontalPosition,
-		SpawnParticlesEnchantmentEffect.PositionSource verticalPosition,
-		SpawnParticlesEnchantmentEffect.VelocitySource horizontalVelocity,
-		SpawnParticlesEnchantmentEffect.VelocitySource verticalVelocity,
-		FloatProvider speed
+	ParticleEffect particle,
+	PositionSource horizontalPosition,
+	PositionSource verticalPosition,
+	VelocitySource horizontalVelocity,
+	VelocitySource verticalVelocity,
+	FloatProvider speed
 ) implements EnchantmentEntityEffect {
 
 	public static final MapCodec<SpawnParticlesEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    ParticleTypes.TYPE_CODEC.fieldOf("particle").forGetter(SpawnParticlesEnchantmentEffect::particle),
-					                    SpawnParticlesEnchantmentEffect.PositionSource.CODEC
-							                    .fieldOf("horizontal_position")
-							                    .forGetter(SpawnParticlesEnchantmentEffect::horizontalPosition),
-					                    SpawnParticlesEnchantmentEffect.PositionSource.CODEC
-							                    .fieldOf("vertical_position")
-							                    .forGetter(SpawnParticlesEnchantmentEffect::verticalPosition),
-					                    SpawnParticlesEnchantmentEffect.VelocitySource.CODEC
-							                    .fieldOf("horizontal_velocity")
-							                    .forGetter(SpawnParticlesEnchantmentEffect::horizontalVelocity),
-					                    SpawnParticlesEnchantmentEffect.VelocitySource.CODEC
-							                    .fieldOf("vertical_velocity")
-							                    .forGetter(SpawnParticlesEnchantmentEffect::verticalVelocity),
-					                    FloatProvider.VALUE_CODEC
-							                    .optionalFieldOf("speed", ConstantFloatProvider.ZERO)
-							                    .forGetter(SpawnParticlesEnchantmentEffect::speed)
-			                    )
-			                    .apply(instance, SpawnParticlesEnchantmentEffect::new)
+		instance -> instance.group(
+			ParticleTypes.TYPE_CODEC
+				.fieldOf("particle")
+				.forGetter(SpawnParticlesEnchantmentEffect::particle),
+			PositionSource.CODEC
+				.fieldOf("horizontal_position")
+				.forGetter(SpawnParticlesEnchantmentEffect::horizontalPosition),
+			PositionSource.CODEC
+				.fieldOf("vertical_position")
+				.forGetter(SpawnParticlesEnchantmentEffect::verticalPosition),
+			VelocitySource.CODEC
+				.fieldOf("horizontal_velocity")
+				.forGetter(SpawnParticlesEnchantmentEffect::horizontalVelocity),
+			VelocitySource.CODEC
+				.fieldOf("vertical_velocity")
+				.forGetter(SpawnParticlesEnchantmentEffect::verticalVelocity),
+			FloatProvider.VALUE_CODEC
+				.optionalFieldOf("speed", ConstantFloatProvider.ZERO)
+				.forGetter(SpawnParticlesEnchantmentEffect::speed)
+		)
+		.apply(instance, SpawnParticlesEnchantmentEffect::new)
 	);
 
-	public static SpawnParticlesEnchantmentEffect.PositionSource entityPosition(float offset) {
-		return new SpawnParticlesEnchantmentEffect.PositionSource(
-				SpawnParticlesEnchantmentEffect.PositionSourceType.ENTITY_POSITION,
-				offset,
-				1.0F
-		);
+	public static PositionSource entityPosition(float offset) {
+		return new PositionSource(PositionSourceType.ENTITY_POSITION, offset, 1.0F);
 	}
 
-	public static SpawnParticlesEnchantmentEffect.PositionSource withinBoundingBox() {
-		return new SpawnParticlesEnchantmentEffect.PositionSource(
-				SpawnParticlesEnchantmentEffect.PositionSourceType.BOUNDING_BOX,
-				0.0F,
-				1.0F
-		);
+	public static PositionSource withinBoundingBox() {
+		return new PositionSource(PositionSourceType.BOUNDING_BOX, 0.0F, 1.0F);
 	}
 
-	public static SpawnParticlesEnchantmentEffect.VelocitySource scaledVelocity(float movementScale) {
-		return new SpawnParticlesEnchantmentEffect.VelocitySource(movementScale, ConstantFloatProvider.ZERO);
+	public static VelocitySource scaledVelocity(float movementScale) {
+		return new VelocitySource(movementScale, ConstantFloatProvider.ZERO);
 	}
 
-	public static SpawnParticlesEnchantmentEffect.VelocitySource fixedVelocity(FloatProvider base) {
-		return new SpawnParticlesEnchantmentEffect.VelocitySource(0.0F, base);
+	public static VelocitySource fixedVelocity(FloatProvider base) {
+		return new VelocitySource(0.0F, base);
 	}
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
 		Random random = user.getRandom();
-		Vec3d vec3d = user.getMovement();
-		float f = user.getWidth();
-		float g = user.getHeight();
+		Vec3d movement = user.getMovement();
+		float width = user.getWidth();
+		float height = user.getHeight();
+
 		world.spawnParticles(
-				this.particle,
-				this.horizontalPosition.getPosition(pos.getX(), pos.getX(), f, random),
-				this.verticalPosition.getPosition(pos.getY(), pos.getY() + g / 2.0F, g, random),
-				this.horizontalPosition.getPosition(pos.getZ(), pos.getZ(), f, random),
-				0,
-				this.horizontalVelocity.getVelocity(vec3d.getX(), random),
-				this.verticalVelocity.getVelocity(vec3d.getY(), random),
-				this.horizontalVelocity.getVelocity(vec3d.getZ(), random),
-				this.speed.get(random)
+			particle,
+			horizontalPosition.getPosition(pos.getX(), pos.getX(), width, random),
+			verticalPosition.getPosition(pos.getY(), pos.getY() + height / 2.0F, height, random),
+			horizontalPosition.getPosition(pos.getZ(), pos.getZ(), width, random),
+			0,
+			horizontalVelocity.getVelocity(movement.getX(), random),
+			verticalVelocity.getVelocity(movement.getY(), random),
+			horizontalVelocity.getVelocity(movement.getZ(), random),
+			speed.get(random)
 		);
 	}
 
@@ -100,125 +96,112 @@ public record SpawnParticlesEnchantmentEffect(
 	}
 
 	/**
-	 * {@code PositionSource}.
+	 * Источник позиции для спавна частицы: либо точка сущности, либо случайная точка внутри хитбокса.
 	 */
-	public record PositionSource(SpawnParticlesEnchantmentEffect.PositionSourceType type, float offset, float scale) {
+	public record PositionSource(PositionSourceType type, float offset, float scale) {
 
 		@SuppressWarnings("unchecked")
-		public static final MapCodec<SpawnParticlesEnchantmentEffect.PositionSource>
-				CODEC =
-				(MapCodec<SpawnParticlesEnchantmentEffect.PositionSource>) RecordCodecBuilder
-						.<SpawnParticlesEnchantmentEffect.PositionSource>mapCodec(
-								instance -> instance.group(
-										                    SpawnParticlesEnchantmentEffect.PositionSourceType.CODEC
-												                    .fieldOf("type")
-												                    .forGetter(SpawnParticlesEnchantmentEffect.PositionSource::type),
-										                    Codec.FLOAT
-												                    .optionalFieldOf("offset", 0.0F)
-												                    .forGetter(SpawnParticlesEnchantmentEffect.PositionSource::offset),
-										                    Codecs.POSITIVE_FLOAT
-												                    .optionalFieldOf("scale", 1.0F)
-												                    .forGetter(SpawnParticlesEnchantmentEffect.PositionSource::scale)
-								                    )
-								                    .apply(
-										                    instance,
-										                    SpawnParticlesEnchantmentEffect.PositionSource::new
-								                    )
-						)
-						.validate(
-								source -> source.type()
-										          == SpawnParticlesEnchantmentEffect.PositionSourceType.ENTITY_POSITION
-										          && source.scale() != 1.0F
-								          ? DataResult.error(() -> "Cannot scale an entity position coordinate source")
-								          : DataResult.success(source)
-						);
+		public static final MapCodec<PositionSource> CODEC =
+			(MapCodec<PositionSource>) RecordCodecBuilder
+				.<PositionSource>mapCodec(
+					instance -> instance.group(
+						PositionSourceType.CODEC
+							.fieldOf("type")
+							.forGetter(PositionSource::type),
+						Codec.FLOAT
+							.optionalFieldOf("offset", 0.0F)
+							.forGetter(PositionSource::offset),
+						Codecs.POSITIVE_FLOAT
+							.optionalFieldOf("scale", 1.0F)
+							.forGetter(PositionSource::scale)
+					)
+					.apply(instance, PositionSource::new)
+				)
+				.validate(
+					source -> source.type() == PositionSourceType.ENTITY_POSITION && source.scale() != 1.0F
+						? DataResult.error(() -> "Cannot scale an entity position coordinate source")
+						: DataResult.success(source)
+				);
 
 		public double getPosition(
-				double entityPosition,
-				double boundingBoxCenter,
-				float boundingBoxSize,
-				Random random
+			double entityPosition,
+			double boundingBoxCenter,
+			float boundingBoxSize,
+			Random random
 		) {
-			return this.type.getCoordinate(entityPosition, boundingBoxCenter, boundingBoxSize * this.scale, random)
-					+ this.offset;
+			return type.getCoordinate(entityPosition, boundingBoxCenter, boundingBoxSize * scale, random) + offset;
 		}
+
 	}
 
 	/**
-	 * {@code PositionSourceType}.
+	 * Тип источника позиции: фиксированная точка сущности или случайная точка внутри хитбокса.
 	 */
-	public static enum PositionSourceType implements StringIdentifiable {
+	public enum PositionSourceType implements StringIdentifiable {
 		ENTITY_POSITION(
-				"entity_position",
-				(entityPosition, boundingBoxCenter, boundingBoxSize, random) -> entityPosition
+			"entity_position",
+			(entityPosition, boundingBoxCenter, boundingBoxSize, random) -> entityPosition
 		),
 		BOUNDING_BOX(
-				"in_bounding_box",
-				(entityPosition, boundingBoxCenter, boundingBoxSize, random) -> boundingBoxCenter
-						+ (random.nextDouble() - 0.5) * boundingBoxSize
+			"in_bounding_box",
+			(entityPosition, boundingBoxCenter, boundingBoxSize, random) -> boundingBoxCenter
+				+ (random.nextDouble() - 0.5) * boundingBoxSize
 		);
 
-		public static final Codec<SpawnParticlesEnchantmentEffect.PositionSourceType>
-				CODEC =
-				StringIdentifiable.createCodec(
-						SpawnParticlesEnchantmentEffect.PositionSourceType::values
-				);
-		private final String id;
-		private final SpawnParticlesEnchantmentEffect.PositionSourceType.CoordinateSource coordinateSource;
+		public static final Codec<PositionSourceType> CODEC = StringIdentifiable.createCodec(PositionSourceType::values);
 
-		private PositionSourceType(
-				final String id,
-				final SpawnParticlesEnchantmentEffect.PositionSourceType.CoordinateSource coordinateSource
-		) {
+		private final String id;
+		private final CoordinateSource coordinateSource;
+
+		PositionSourceType(String id, CoordinateSource coordinateSource) {
 			this.id = id;
 			this.coordinateSource = coordinateSource;
 		}
 
 		public double getCoordinate(
-				double entityPosition,
-				double boundingBoxCenter,
-				float boundingBoxSize,
-				Random random
+			double entityPosition,
+			double boundingBoxCenter,
+			float boundingBoxSize,
+			Random random
 		) {
-			return this.coordinateSource.getCoordinate(entityPosition, boundingBoxCenter, boundingBoxSize, random);
+			return coordinateSource.getCoordinate(entityPosition, boundingBoxCenter, boundingBoxSize, random);
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 
 		@FunctionalInterface
-		/**
-		 * {@code CoordinateSource}.
-		 */
 		interface CoordinateSource {
 
 			double getCoordinate(double entityPosition, double boundingBoxCenter, float boundingBoxSize, Random random);
+
 		}
+
 	}
 
 	/**
-	 * {@code VelocitySource}.
+	 * Источник скорости частицы: масштабирование скорости сущности плюс базовое случайное значение.
 	 */
 	public record VelocitySource(float movementScale, FloatProvider base) {
 
-		public static final MapCodec<SpawnParticlesEnchantmentEffect.VelocitySource>
-				CODEC =
-				RecordCodecBuilder.mapCodec(
-						instance -> instance.group(
-								                    Codec.FLOAT
-										                    .optionalFieldOf("movement_scale", 0.0F)
-										                    .forGetter(SpawnParticlesEnchantmentEffect.VelocitySource::movementScale),
-								                    FloatProvider.VALUE_CODEC
-										                    .optionalFieldOf("base", ConstantFloatProvider.ZERO)
-										                    .forGetter(SpawnParticlesEnchantmentEffect.VelocitySource::base)
-						                    )
-						                    .apply(instance, SpawnParticlesEnchantmentEffect.VelocitySource::new)
-				);
+		public static final MapCodec<VelocitySource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+				Codec.FLOAT
+					.optionalFieldOf("movement_scale", 0.0F)
+					.forGetter(VelocitySource::movementScale),
+				FloatProvider.VALUE_CODEC
+					.optionalFieldOf("base", ConstantFloatProvider.ZERO)
+					.forGetter(VelocitySource::base)
+			)
+			.apply(instance, VelocitySource::new)
+		);
 
 		public double getVelocity(double entityVelocity, Random random) {
-			return entityVelocity * this.movementScale + this.base.get(random);
+			return entityVelocity * movementScale + base.get(random);
 		}
+
 	}
+
 }

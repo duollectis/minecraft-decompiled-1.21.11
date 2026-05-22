@@ -10,10 +10,11 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextIconButtonWidget}.
+ * Абстрактная кнопка с иконкой-текстурой. Конкретные реализации:
+ * {@link IconOnly} — только иконка, {@link WithText} — иконка + текст.
  */
+@Environment(EnvType.CLIENT)
 public abstract class TextIconButtonWidget extends ButtonWidget {
 
 	protected final ButtonTextures texture;
@@ -42,30 +43,23 @@ public abstract class TextIconButtonWidget extends ButtonWidget {
 				narrationSupplier == null ? DEFAULT_NARRATION_SUPPLIER : narrationSupplier
 		);
 		if (tooltip != null) {
-			this.setTooltip(Tooltip.of(tooltip));
+			setTooltip(Tooltip.of(tooltip));
 		}
 
 		this.textureWidth = textureWidth;
 		this.textureHeight = textureHeight;
-		this.texture = textures;
+		texture = textures;
 	}
 
-	/**
-	 * Draw icon.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	protected void drawIcon(DrawContext context, int x, int y) {
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				this.texture.get(this.isInteractable(), this.isSelected()),
+				texture.get(isInteractable(), isSelected()),
 				x,
 				y,
-				this.textureWidth,
-				this.textureHeight,
-				this.alpha
+				textureWidth,
+				textureHeight,
+				alpha
 		);
 	}
 
@@ -77,10 +71,10 @@ public abstract class TextIconButtonWidget extends ButtonWidget {
 		return new TextIconButtonWidget.Builder(text, onPress, hideLabel);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link TextIconButtonWidget}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final net.minecraft.text.Text text;
@@ -135,106 +129,94 @@ public abstract class TextIconButtonWidget extends ButtonWidget {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return TextIconButtonWidget — результат операции
-		 */
 		public TextIconButtonWidget build() {
-			if (this.texture == null) {
+			if (texture == null) {
 				throw new IllegalStateException("Sprite not set");
 			}
-			else {
-				return (TextIconButtonWidget) (this.hideText
-				                               ? new TextIconButtonWidget.IconOnly(
-						this.width,
-						this.height,
-						this.text,
-						this.textureWidth,
-						this.textureHeight,
-						this.texture,
-						this.onPress,
-						this.tooltip,
-						this.narrationSupplier
-				)
-				                               : new TextIconButtonWidget.WithText(
-						                               this.width,
-						                               this.height,
-						                               this.text,
-						                               this.textureWidth,
-						                               this.textureHeight,
-						                               this.texture,
-						                               this.onPress,
-						                               this.tooltip,
-						                               this.narrationSupplier
-				                               )
-				);
-			}
+
+			return hideText
+					? new TextIconButtonWidget.IconOnly(
+							width,
+							height,
+							text,
+							textureWidth,
+							textureHeight,
+							texture,
+							onPress,
+							tooltip,
+							narrationSupplier
+					)
+					: new TextIconButtonWidget.WithText(
+							width,
+							height,
+							text,
+							textureWidth,
+							textureHeight,
+							texture,
+							onPress,
+							tooltip,
+							narrationSupplier
+					);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IconOnly}.
-	 */
 	public static class IconOnly extends TextIconButtonWidget {
 
 		@SuppressWarnings("NullableProblems")
 		protected IconOnly(
-				int i,
-				int j,
+				int width,
+				int height,
 				net.minecraft.text.Text text,
-				int k,
-				int l,
+				int textureWidth,
+				int textureHeight,
 				ButtonTextures buttonTextures,
 				ButtonWidget.PressAction pressAction,
-				net.minecraft.text.Text text2,
+				net.minecraft.text.Text tooltip,
 				ButtonWidget.@Nullable NarrationSupplier narrationSupplier
 		) {
-			super(i, j, text, k, l, buttonTextures, pressAction, text2, narrationSupplier);
+			super(width, height, text, textureWidth, textureHeight, buttonTextures, pressAction, tooltip, narrationSupplier);
 		}
 
 		@Override
 		public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			this.drawButton(context);
-			int i = this.getX() + this.getWidth() / 2 - this.textureWidth / 2;
-			int j = this.getY() + this.getHeight() / 2 - this.textureHeight / 2;
-			this.drawIcon(context, i, j);
+			drawButton(context);
+			int iconX = getX() + getWidth() / 2 - textureWidth / 2;
+			int iconY = getY() + getHeight() / 2 - textureHeight / 2;
+			drawIcon(context, iconX, iconY);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WithText}.
-	 */
 	public static class WithText extends TextIconButtonWidget {
 
 		@SuppressWarnings("NullableProblems")
 		protected WithText(
-				int i,
-				int j,
+				int width,
+				int height,
 				net.minecraft.text.Text text,
-				int k,
-				int l,
+				int textureWidth,
+				int textureHeight,
 				ButtonTextures buttonTextures,
 				ButtonWidget.PressAction pressAction,
-				net.minecraft.text.Text text2,
+				net.minecraft.text.Text tooltip,
 				ButtonWidget.@Nullable NarrationSupplier narrationSupplier
 		) {
-			super(i, j, text, k, l, buttonTextures, pressAction, text2, narrationSupplier);
+			super(width, height, text, textureWidth, textureHeight, buttonTextures, pressAction, tooltip, narrationSupplier);
 		}
 
 		@Override
 		public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			this.drawButton(context);
-			int i = this.getX() + 2;
-			int j = this.getX() + this.getWidth() - this.textureWidth - 4;
-			int k = this.getX() + this.getWidth() / 2;
-			DrawnTextConsumer drawnTextConsumer = context.getHoverListener(this, DrawContext.HoverType.NONE);
-			drawnTextConsumer.marqueedText(this.getMessage(), k, i, j, this.getY(), this.getY() + this.getHeight());
-			int l = this.getX() + this.getWidth() - this.textureWidth - 2;
-			int m = this.getY() + this.getHeight() / 2 - this.textureHeight / 2;
-			this.drawIcon(context, l, m);
+			drawButton(context);
+			int textStart = getX() + 2;
+			int textEnd = getX() + getWidth() - textureWidth - 4;
+			int textCenter = getX() + getWidth() / 2;
+			DrawnTextConsumer textConsumer = context.getHoverListener(this, DrawContext.HoverType.NONE);
+			textConsumer.marqueedText(getMessage(), textCenter, textStart, textEnd, getY(), getY() + getHeight());
+
+			int iconX = getX() + getWidth() - textureWidth - 2;
+			int iconY = getY() + getHeight() / 2 - textureHeight / 2;
+			drawIcon(context, iconX, iconY);
 		}
 	}
 }

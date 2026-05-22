@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * {@code Segmented}.
+ * Интерфейс сегментированных блоков (например, цветочные горшки с несколькими
+ * секциями). Определяет логику добавления сегментов при повторном размещении
+ * и построения формы столкновения по количеству активных сегментов.
  */
 public interface Segmented {
 
@@ -39,9 +41,9 @@ public interface Segmented {
 		return state -> {
 			VoxelShape voxelShape = VoxelShapes.empty();
 			Direction direction = state.get(directionProperty);
-			int i = state.get(segmentAmountProperty);
+			int segmentCount = state.get(segmentAmountProperty);
 
-			for (int j = 0; j < i; j++) {
+			for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
 				voxelShape = VoxelShapes.union(voxelShape, map.get(direction));
 				direction = direction.rotateYCounterclockwise();
 			}
@@ -60,7 +62,7 @@ public interface Segmented {
 
 	default boolean shouldAddSegment(BlockState state, ItemPlacementContext context, IntProperty property) {
 		return !context.shouldCancelInteraction() && context.getStack().isOf(state.getBlock().asItem())
-				&& state.get(property) < 4;
+				&& state.get(property) < MAX_SEGMENTS;
 	}
 
 	default BlockState getPlacementState(
@@ -71,7 +73,7 @@ public interface Segmented {
 	) {
 		BlockState blockState = context.getWorld().getBlockState(context.getBlockPos());
 		return blockState.isOf(block)
-		       ? blockState.with(amountProperty, Math.min(4, blockState.get(amountProperty) + 1))
+		       ? blockState.with(amountProperty, Math.min(MAX_SEGMENTS, blockState.get(amountProperty) + 1))
 		       : block.getDefaultState().with(directionProperty, context.getHorizontalPlayerFacing().getOpposite());
 	}
 }

@@ -23,7 +23,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import java.util.function.Function;
 
 /**
- * {@code FenceBlock}.
+ * Блок забора, соединяющийся с соседними заборами, воротами и полными блоками.
+ * <p>Поддерживает горизонтальные соединения по четырём сторонам и заполнение водой.
+ * Привязка поводка к столбу забора обрабатывается через {@link net.minecraft.item.LeadItem}.</p>
  */
 public class FenceBlock extends HorizontalConnectingBlock {
 
@@ -69,15 +71,6 @@ public class FenceBlock extends HorizontalConnectingBlock {
 		return false;
 	}
 
-	/**
-	 * Проверяет возможность connect.
-	 *
-	 * @param state state
-	 * @param neighborIsFullSquare neighbor is full square
-	 * @param dir dir
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canConnect(BlockState state, boolean neighborIsFullSquare, Direction dir) {
 		Block block = state.getBlock();
 		boolean bl = this.canConnectToFence(state);

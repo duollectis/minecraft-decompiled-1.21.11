@@ -13,7 +13,9 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code ChorusPlantBlock}.
+ * Стебель хоруса — многосвязный блок, формирующий тело хорусного растения в Крае.
+ * Соединяется со всеми соседними стеблями, цветками хоруса и блоками камня Края снизу.
+ * Разрушается, если теряет опору (нет соединения снизу или с боковым стеблем на камне Края).
  */
 public class ChorusPlantBlock extends ConnectingBlock {
 
@@ -26,8 +28,8 @@ public class ChorusPlantBlock extends ConnectingBlock {
 
 	public ChorusPlantBlock(AbstractBlock.Settings settings) {
 		super(10.0F, settings);
-		this.setDefaultState(
-				this.stateManager
+		setDefaultState(
+				stateManager
 						.getDefaultState()
 						.with(NORTH, false)
 						.with(EAST, false)
@@ -40,37 +42,37 @@ public class ChorusPlantBlock extends ConnectingBlock {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return withConnectionProperties(ctx.getWorld(), ctx.getBlockPos(), this.getDefaultState());
+		return withConnectionProperties(ctx.getWorld(), ctx.getBlockPos(), getDefaultState());
 	}
 
 	/**
-	 * With connection properties.
+	 * Вычисляет состояние блока с учётом всех соседних соединений.
+	 * Соединяется вниз также с блоком камня Края, что является корневым условием роста хоруса.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return BlockState — результат операции
+	 * @param world мир для чтения соседних состояний
+	 * @param pos   позиция данного блока
+	 * @param state базовое состояние, к которому применяются соединения
+	 * @return состояние с выставленными флагами направлений
 	 */
 	public static BlockState withConnectionProperties(BlockView world, BlockPos pos, BlockState state) {
-		BlockState blockState = world.getBlockState(pos.down());
-		BlockState blockState2 = world.getBlockState(pos.up());
-		BlockState blockState3 = world.getBlockState(pos.north());
-		BlockState blockState4 = world.getBlockState(pos.east());
-		BlockState blockState5 = world.getBlockState(pos.south());
-		BlockState blockState6 = world.getBlockState(pos.west());
-		Block block = state.getBlock();
+		BlockState below = world.getBlockState(pos.down());
+		BlockState above = world.getBlockState(pos.up());
+		BlockState northState = world.getBlockState(pos.north());
+		BlockState eastState = world.getBlockState(pos.east());
+		BlockState southState = world.getBlockState(pos.south());
+		BlockState westState = world.getBlockState(pos.west());
+		Block self = state.getBlock();
+
 		return state
 				.withIfExists(
 						DOWN,
-						blockState.isOf(block) || blockState.isOf(Blocks.CHORUS_FLOWER)
-								|| blockState.isOf(Blocks.END_STONE)
+						below.isOf(self) || below.isOf(Blocks.CHORUS_FLOWER) || below.isOf(Blocks.END_STONE)
 				)
-				.withIfExists(UP, blockState2.isOf(block) || blockState2.isOf(Blocks.CHORUS_FLOWER))
-				.withIfExists(NORTH, blockState3.isOf(block) || blockState3.isOf(Blocks.CHORUS_FLOWER))
-				.withIfExists(EAST, blockState4.isOf(block) || blockState4.isOf(Blocks.CHORUS_FLOWER))
-				.withIfExists(SOUTH, blockState5.isOf(block) || blockState5.isOf(Blocks.CHORUS_FLOWER))
-				.withIfExists(WEST, blockState6.isOf(block) || blockState6.isOf(Blocks.CHORUS_FLOWER));
+				.withIfExists(UP, above.isOf(self) || above.isOf(Blocks.CHORUS_FLOWER))
+				.withIfExists(NORTH, northState.isOf(self) || northState.isOf(Blocks.CHORUS_FLOWER))
+				.withIfExists(EAST, eastState.isOf(self) || eastState.isOf(Blocks.CHORUS_FLOWER))
+				.withIfExists(SOUTH, southState.isOf(self) || southState.isOf(Blocks.CHORUS_FLOWER))
+				.withIfExists(WEST, westState.isOf(self) || westState.isOf(Blocks.CHORUS_FLOWER));
 	}
 
 	@Override
@@ -86,6 +88,7 @@ public class ChorusPlantBlock extends ConnectingBlock {
 	) {
 		if (!state.canPlaceAt(world, pos)) {
 			tickView.scheduleBlockTick(pos, this, 1);
+
 			return super.getStateForNeighborUpdate(
 					state,
 					world,
@@ -97,12 +100,12 @@ public class ChorusPlantBlock extends ConnectingBlock {
 					random
 			);
 		}
-		else {
-			boolean bl = neighborState.isOf(this)
-					|| neighborState.isOf(Blocks.CHORUS_FLOWER)
-					|| direction == Direction.DOWN && neighborState.isOf(Blocks.END_STONE);
-			return state.with(FACING_PROPERTIES.get(direction), bl);
-		}
+
+		boolean connects = neighborState.isOf(this)
+				|| neighborState.isOf(Blocks.CHORUS_FLOWER)
+				|| direction == Direction.DOWN && neighborState.isOf(Blocks.END_STONE);
+
+		return state.with(FACING_PROPERTIES.get(direction), connects);
 	}
 
 	@Override
@@ -114,25 +117,27 @@ public class ChorusPlantBlock extends ConnectingBlock {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.down());
-		boolean bl = !world.getBlockState(pos.up()).isAir() && !blockState.isAir();
+		BlockState below = world.getBlockState(pos.down());
+		boolean hasVerticalNeighbors = !world.getBlockState(pos.up()).isAir() && !below.isAir();
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockPos blockPos = pos.offset(direction);
-			BlockState blockState2 = world.getBlockState(blockPos);
-			if (blockState2.isOf(this)) {
-				if (bl) {
+			BlockPos neighborPos = pos.offset(direction);
+			BlockState neighborState = world.getBlockState(neighborPos);
+
+			if (neighborState.isOf(this)) {
+				if (hasVerticalNeighbors) {
 					return false;
 				}
 
-				BlockState blockState3 = world.getBlockState(blockPos.down());
-				if (blockState3.isOf(this) || blockState3.isOf(Blocks.END_STONE)) {
+				BlockState neighborBelow = world.getBlockState(neighborPos.down());
+
+				if (neighborBelow.isOf(this) || neighborBelow.isOf(Blocks.END_STONE)) {
 					return true;
 				}
 			}
 		}
 
-		return blockState.isOf(this) || blockState.isOf(Blocks.END_STONE);
+		return below.isOf(this) || below.isOf(Blocks.END_STONE);
 	}
 
 	@Override

@@ -21,13 +21,18 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
- * {@code ThreadExecutor}.
+ * Однопоточный исполнитель с собственной очередью задач. Задачи выполняются строго
+ * на «владеющем» потоке (определяется через {@link #getThread()}). Если вызов происходит
+ * из другого потока, задача ставится в очередь; если с того же потока — выполняется немедленно.
+ * Поддерживает Tracy-зоны для профилирования и регистрируется в {@link ExecutorSampling}.
  */
 public abstract class ThreadExecutor<R extends Runnable> implements SampleableExecutor, TaskExecutor<R>, Executor {
 
 	public static final long YIELD_INTERVAL_NS = 100000L;
-	private final String name;
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	private final String name;
 	private final Queue<R> tasks = Queues.newConcurrentLinkedQueue();
 	private int executionsInProgress;
 
@@ -36,217 +41,155 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		ExecutorSampling.INSTANCE.add(this);
 	}
 
-	/**
-	 * Проверяет возможность execute.
-	 *
-	 * @param task task
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected abstract boolean canExecute(R task);
 
 	public boolean isOnThread() {
-		return Thread.currentThread() == this.getThread();
+		return Thread.currentThread() == getThread();
 	}
 
 	protected abstract Thread getThread();
 
-	/**
-	 * Определяет, следует ли execute async.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean shouldExecuteAsync() {
-		return !this.isOnThread();
+		return !isOnThread();
 	}
 
 	public int getTaskCount() {
-		return this.tasks.size();
+		return tasks.size();
 	}
 
 	@Override
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * Submit.
-	 *
-	 * @param task task
-	 *
-	 * @return CompletableFuture — результат операции
+	 * Выполняет задачу немедленно, если вызов происходит с владеющего потока,
+	 * иначе ставит её в очередь и возвращает {@link CompletableFuture} для ожидания результата.
 	 */
 	public <V> CompletableFuture<V> submit(Supplier<V> task) {
-		return this.shouldExecuteAsync() ? CompletableFuture.supplyAsync(task, this)
-		                                 : CompletableFuture.completedFuture(task.get());
+		return shouldExecuteAsync()
+			? CompletableFuture.supplyAsync(task, this)
+			: CompletableFuture.completedFuture(task.get());
 	}
 
 	private CompletableFuture<Void> submitAsync(Runnable runnable) {
 		return CompletableFuture.supplyAsync(
-				() -> {
-					runnable.run();
-					return null;
-				}, this
+			() -> {
+				runnable.run();
+				return null;
+			},
+			this
 		);
 	}
 
-	@CheckReturnValue
 	/**
-	 * Submit.
-	 *
-	 * @param task task
-	 *
-	 * @return CompletableFuture — результат операции
+	 * Выполняет задачу немедленно, если вызов происходит с владеющего потока,
+	 * иначе ставит её в очередь асинхронно.
 	 */
+	@CheckReturnValue
 	public CompletableFuture<Void> submit(Runnable task) {
-		if (this.shouldExecuteAsync()) {
-			return this.submitAsync(task);
+		if (shouldExecuteAsync()) {
+			return submitAsync(task);
 		}
-		else {
-			task.run();
-			return CompletableFuture.completedFuture(null);
-		}
+
+		task.run();
+		return CompletableFuture.completedFuture(null);
 	}
 
-	/**
-	 * Submit and join.
-	 *
-	 * @param runnable runnable
-	 */
 	public void submitAndJoin(Runnable runnable) {
-		if (!this.isOnThread()) {
-			this.submitAsync(runnable).join();
+		if (!isOnThread()) {
+			submitAsync(runnable).join();
+			return;
 		}
-		else {
-			runnable.run();
-		}
+
+		runnable.run();
 	}
 
 	@Override
 	public void send(R runnable) {
-		this.tasks.add(runnable);
-		LockSupport.unpark(this.getThread());
+		tasks.add(runnable);
+		LockSupport.unpark(getThread());
 	}
 
 	@Override
 	public void execute(Runnable runnable) {
-		R runnable2 = this.createTask(runnable);
-		if (this.shouldExecuteAsync()) {
-			this.send(runnable2);
+		R task = createTask(runnable);
+
+		if (shouldExecuteAsync()) {
+			send(task);
 		}
 		else {
-			this.executeTask(runnable2);
+			executeTask(task);
 		}
 	}
 
-	/**
-	 * Execute sync.
-	 *
-	 * @param runnable runnable
-	 */
 	public void executeSync(Runnable runnable) {
-		this.execute(runnable);
+		execute(runnable);
 	}
 
-	/**
-	 * Проверяет возможность cel tasks.
-	 */
 	protected void cancelTasks() {
-		this.tasks.clear();
+		tasks.clear();
 	}
 
-	/**
-	 * Run tasks.
-	 */
 	protected void runTasks() {
-		while (this.runTask()) {
+		while (runTask()) {
 		}
 	}
 
 	protected boolean isExecutionInProgress() {
-		return this.executionsInProgress > 0;
+		return executionsInProgress > 0;
 	}
 
-	/**
-	 * Run task.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean runTask() {
-		R runnable = this.tasks.peek();
+		R runnable = tasks.peek();
+
 		if (runnable == null) {
 			return false;
 		}
-		else if (!this.isExecutionInProgress() && !this.canExecute(runnable)) {
+
+		if (!isExecutionInProgress() && !canExecute(runnable)) {
 			return false;
 		}
-		else {
-			this.executeTask(this.tasks.remove());
-			return true;
-		}
+
+		executeTask(tasks.remove());
+		return true;
 	}
 
 	/**
-	 * Run tasks.
-	 *
-	 * @param stopCondition stop condition
+	 * Выполняет задачи из очереди до тех пор, пока {@code stopCondition} не вернёт {@code true}.
+	 * Если очередь пуста — уступает процессор через {@link #waitForTasks()}.
 	 */
 	public void runTasks(BooleanSupplier stopCondition) {
-		this.executionsInProgress++;
+		executionsInProgress++;
 
 		try {
 			while (!stopCondition.getAsBoolean()) {
-				if (!this.runTask()) {
-					this.waitForTasks();
+				if (!runTask()) {
+					waitForTasks();
 				}
 			}
 		}
 		finally {
-			this.executionsInProgress--;
+			executionsInProgress--;
 		}
 	}
 
-	/**
-	 * Wait for tasks.
-	 */
 	protected void waitForTasks() {
 		Thread.yield();
-		LockSupport.parkNanos("waiting for tasks", 100000L);
+		LockSupport.parkNanos("waiting for tasks", YIELD_INTERVAL_NS);
 	}
 
-	/**
-	 * Execute task.
-	 *
-	 * @param task task
-	 */
 	protected void executeTask(R task) {
 		try {
-			Zone zone = TracyClient.beginZone("Task", SharedConstants.isDevelopment);
-
-			try {
+			try (Zone zone = TracyClient.beginZone("Task", SharedConstants.isDevelopment)) {
 				task.run();
 			}
-			catch (Throwable var6) {
-				if (zone != null) {
-					try {
-						zone.close();
-					}
-					catch (Throwable var5) {
-						var6.addSuppressed(var5);
-					}
-				}
-
-				throw var6;
-			}
-
-			if (zone != null) {
-				zone.close();
-			}
 		}
-		catch (Exception var7) {
-			LOGGER.error(LogUtils.FATAL_MARKER, "Error executing task on {}", this.getName(), var7);
-			if (isMemoryError(var7)) {
-				throw var7;
+		catch (Exception exception) {
+			LOGGER.error(LogUtils.FATAL_MARKER, "Error executing task on {}", getName(), exception);
+
+			if (isMemoryError(exception)) {
+				throw exception;
 			}
 		}
 	}
@@ -254,15 +197,15 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 	@Override
 	public List<Sampler> createSamplers() {
 		return ImmutableList.of(Sampler.create(
-				this.name + "-pending-tasks",
-				SampleType.EVENT_LOOPS,
-				this::getTaskCount
+			name + "-pending-tasks",
+			SampleType.EVENT_LOOPS,
+			this::getTaskCount
 		));
 	}
 
 	public static boolean isMemoryError(Throwable exception) {
 		return exception instanceof CrashException crashException
-		       ? isMemoryError(crashException.getCause())
-		       : exception instanceof OutOfMemoryError || exception instanceof StackOverflowError;
+			? isMemoryError(crashException.getCause())
+			: exception instanceof OutOfMemoryError || exception instanceof StackOverflowError;
 	}
 }

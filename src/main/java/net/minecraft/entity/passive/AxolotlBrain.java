@@ -17,7 +17,7 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code AxolotlBrain}.
+ * Мозг аксолотля: регистрирует сенсоры и задачи поведения.
  */
 public class AxolotlBrain {
 
@@ -97,7 +97,7 @@ public class AxolotlBrain {
 										UniformIntProvider.create(30, 60)
 								)
 						),
-						Pair.of(1, new BreedTask(EntityType.AXOLOTL, 0.2F, 2)),
+						Pair.of(1, new BreedTask(EntityType.AXOLOTL, BREEDING_SPEED, 2)),
 						Pair.of(
 								2,
 								new RandomTask(
@@ -116,7 +116,7 @@ public class AxolotlBrain {
 								)
 						),
 						Pair.of(3, UpdateAttackTargetTask.create(AxolotlBrain::getAttackTarget)),
-						Pair.of(3, SeekWaterTask.create(6, 0.15F)),
+						Pair.of(3, SeekWaterTask.create(6, ON_LAND_SPEED)),
 						Pair.of(
 								4,
 								new CompositeTask(
@@ -126,7 +126,7 @@ public class AxolotlBrain {
 										CompositeTask.RunMode.TRY_ALL,
 										ImmutableList.of(
 												Pair.of(StrollTask.createDynamicRadius(0.5F), 2),
-												Pair.of(StrollTask.create(0.15F, false), 2),
+												Pair.of(StrollTask.create(ON_LAND_SPEED, false), 2),
 												Pair.of(
 														GoToLookTargetTask.create(
 																AxolotlBrain::canGoToLookTarget,
@@ -172,15 +172,15 @@ public class AxolotlBrain {
 	}
 
 	private static float getTargetApproachingSpeed(LivingEntity entity) {
-		return entity.isTouchingWater() ? 0.6F : 0.15F;
+		return entity.isTouchingWater() ? TARGET_APPROACHING_SPEED : ON_LAND_SPEED;
 	}
 
 	private static float getAdultFollowingSpeed(LivingEntity entity) {
-		return entity.isTouchingWater() ? 0.6F : 0.15F;
+		return entity.isTouchingWater() ? TARGET_APPROACHING_SPEED : ON_LAND_SPEED;
 	}
 
 	private static float getTemptedSpeed(LivingEntity entity) {
-		return entity.isTouchingWater() ? 0.5F : 0.15F;
+		return entity.isTouchingWater() ? 0.5F : ON_LAND_SPEED;
 	}
 
 	private static Optional<? extends LivingEntity> getAttackTarget(ServerWorld world, AxolotlEntity axolotl) {

@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code SendResourcePackTask}.
+ * Класс Send Resource Pack Task.
  */
 public class SendResourcePackTask implements ServerPlayerConfigurationTask {
 

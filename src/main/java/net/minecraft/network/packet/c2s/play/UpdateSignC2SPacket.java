@@ -33,7 +33,7 @@ public class UpdateSignC2SPacket implements Packet<ServerPlayPacketListener> {
 		this.text = new String[4];
 
 		for (int i = 0; i < 4; i++) {
-			this.text[i] = buf.readString(384);
+			this.text[i] = buf.readString(MAX_LINE_LENGTH);
 		}
 	}
 

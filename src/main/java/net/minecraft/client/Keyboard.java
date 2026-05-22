@@ -57,14 +57,27 @@ import org.slf4j.Logger;
 import java.nio.file.Path;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Keyboard}.
+ * Обработчик клавиатурных событий клиента.
+ * Управляет горячими клавишами отладки, F3-комбинациями, скриншотами и полноэкранным режимом.
  */
+@Environment(EnvType.CLIENT)
 public class Keyboard {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	/** Время удержания клавиши краша в миллисекундах до срабатывания. */
 	public static final int DEBUG_CRASH_TIME = 10000;
+
+	/** Код ошибки GLFW при недоступном формате буфера обмена — не является критической ошибкой. */
+	private static final int GLFW_FORMAT_UNAVAILABLE = 65545;
+
+	/** Минимальный интервал между лог-сообщениями при удержании клавиши краша (мс). */
+	private static final long CRASH_LOG_INTERVAL_MS = 1000L;
+
+	/** Задержка после последнего обновления привязки клавиш в KeybindsScreen (мс). */
+	private static final long KEYBIND_UPDATE_DELAY_MS = 20L;
+
 	private final MinecraftClient client;
 	private final Clipboard clipboard = new Clipboard();
 	private long debugCrashStartTime = -1L;
@@ -78,685 +91,688 @@ public class Keyboard {
 
 	private boolean processDebugKeys(KeyInput input) {
 		switch (input.key()) {
-			case 69:
-				if (this.client.player == null) {
+			case InputUtil.GLFW_KEY_E:
+				if (client.player == null) {
 					return false;
 				}
 
-				boolean bl = this.client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_PATHS);
-				this.debugLog("SectionPath: " + (bl ? "shown" : "hidden"));
+				boolean sectionPathsVisible = client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_PATHS);
+				debugLog("SectionPath: " + (sectionPathsVisible ? "shown" : "hidden"));
 				return true;
-			case 70:
-				boolean bl3 = FogRenderer.toggleFog();
-				this.debugLog("Fog: ", bl3);
+
+			case InputUtil.GLFW_KEY_F:
+				boolean fogEnabled = FogRenderer.toggleFog();
+				debugLog("Fog: ", fogEnabled);
 				return true;
-			case 71:
-			case 72:
-			case 73:
-			case 74:
-			case 75:
-			case 77:
-			case 78:
-			case 80:
-			case 81:
-			case 82:
-			case 83:
-			case 84:
+
+			case InputUtil.GLFW_KEY_L:
+				client.chunkCullingEnabled = !client.chunkCullingEnabled;
+				debugLog("SmartCull: ", client.chunkCullingEnabled);
+				return true;
+
+			case InputUtil.GLFW_KEY_O:
+				if (client.player == null) {
+					return false;
+				}
+
+				boolean octreeVisible = client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_OCTREE);
+				debugLog("Frustum culling Octree: ", octreeVisible);
+				return true;
+
+			case InputUtil.GLFW_KEY_U:
+				if (input.hasShift()) {
+					client.worldRenderer.killFrustum();
+					debugLog("Killed frustum");
+				} else {
+					client.worldRenderer.captureFrustum();
+					debugLog("Captured frustum");
+				}
+
+				return true;
+
+			case InputUtil.GLFW_KEY_V:
+				if (client.player == null) {
+					return false;
+				}
+
+				boolean sectionVisibilityEnabled = client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_VISIBILITY);
+				debugLog("SectionVisibility: ", sectionVisibilityEnabled);
+				return true;
+
+			case InputUtil.GLFW_KEY_W:
+				client.wireFrame = !client.wireFrame;
+				debugLog("WireFrame: ", client.wireFrame);
+				return true;
+
 			default:
 				return false;
-			case 76:
-				this.client.chunkCullingEnabled = !this.client.chunkCullingEnabled;
-				this.debugLog("SmartCull: ", this.client.chunkCullingEnabled);
-				return true;
-			case 79:
-				if (this.client.player == null) {
-					return false;
-				}
-
-				boolean bl2 = this.client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_OCTREE);
-				this.debugLog("Frustum culling Octree: ", bl2);
-				return true;
-			case 85:
-				if (input.hasShift()) {
-					this.client.worldRenderer.killFrustum();
-					this.debugLog("Killed frustum");
-				}
-				else {
-					this.client.worldRenderer.captureFrustum();
-					this.debugLog("Captured frustum");
-				}
-
-				return true;
-			case 86:
-				if (this.client.player == null) {
-					return false;
-				}
-
-				boolean bl4 = this.client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_SECTION_VISIBILITY);
-				this.debugLog("SectionVisibility: ", bl4);
-				return true;
-			case 87:
-				this.client.wireFrame = !this.client.wireFrame;
-				this.debugLog("WireFrame: ", this.client.wireFrame);
-				return true;
 		}
 	}
 
 	private void debugLog(String message, boolean value) {
-		this.debugLog(message + (value ? "enabled" : "disabled"));
+		debugLog(message + (value ? "enabled" : "disabled"));
 	}
 
 	private void sendMessage(Text message) {
-		this.client.inGameHud.getChatHud().addMessage(message);
-		this.client.getNarratorManager().narrateSystemMessage(message);
+		client.inGameHud.getChatHud().addMessage(message);
+		client.getNarratorManager().narrateSystemMessage(message);
 	}
 
 	private static Text getDebugMessage(Formatting formatting, Text message) {
-		return Text
-				.empty()
-				.append(Text.translatable("debug.prefix").formatted(formatting, Formatting.BOLD))
-				.append(ScreenTexts.SPACE)
-				.append(message);
+		return Text.empty()
+			.append(Text.translatable("debug.prefix").formatted(formatting, Formatting.BOLD))
+			.append(ScreenTexts.SPACE)
+			.append(message);
 	}
 
 	private void debugError(Text message) {
-		this.sendMessage(getDebugMessage(Formatting.RED, message));
+		sendMessage(getDebugMessage(Formatting.RED, message));
 	}
 
 	private void debugLog(Text text) {
-		this.sendMessage(getDebugMessage(Formatting.YELLOW, text));
+		sendMessage(getDebugMessage(Formatting.YELLOW, text));
 	}
 
 	private void debugLog(String key, Object... args) {
-		this.debugLog(Text.translatable(key, args));
+		debugLog(Text.translatable(key, args));
 	}
 
 	private void debugLog(String message) {
-		this.debugLog(Text.literal(message));
+		debugLog(Text.literal(message));
 	}
 
+	/**
+	 * Обрабатывает F3-комбинации клавиш.
+	 * Возвращает {@code true}, если клавиша была обработана и не должна передаваться дальше.
+	 *
+	 * @param key событие нажатия клавиши
+	 * @return {@code true} если клавиша обработана
+	 */
 	private boolean processF3(KeyInput key) {
-		if (this.debugCrashStartTime > 0L && this.debugCrashStartTime < Util.getMeasuringTimeMs() - 100L) {
+		if (debugCrashStartTime > 0L && debugCrashStartTime < Util.getMeasuringTimeMs() - 100L) {
 			return true;
 		}
-		else if (SharedConstants.HOTKEYS && this.processDebugKeys(key)) {
+
+		if (SharedConstants.HOTKEYS && processDebugKeys(key)) {
 			return true;
 		}
-		else {
-			if (SharedConstants.FEATURE_COUNT) {
-				switch (key.key()) {
-					case 76:
-						FeatureDebugLogger.dump();
-						return true;
-					case 82:
-						FeatureDebugLogger.clear();
-						return true;
+
+		if (SharedConstants.FEATURE_COUNT) {
+			switch (key.key()) {
+				case InputUtil.GLFW_KEY_L -> {
+					FeatureDebugLogger.dump();
+					return true;
+				}
+				case InputUtil.GLFW_KEY_R -> {
+					FeatureDebugLogger.clear();
+					return true;
 				}
 			}
+		}
 
-			GameOptions gameOptions = this.client.options;
-			boolean bl = false;
-			if (gameOptions.debugReloadChunkKey.matchesKey(key)) {
-				this.client.worldRenderer.reload();
-				this.debugLog("debug.reload_chunks.message");
-				bl = true;
-			}
+		GameOptions gameOptions = client.options;
+		boolean handled = false;
 
-			if (gameOptions.debugShowHitboxesKey.matchesKey(key) && this.client.player != null
-					&& !this.client.player.hasReducedDebugInfo()) {
-				boolean bl2 = this.client.debugHudEntryList.toggleVisibility(DebugHudEntries.ENTITY_HITBOXES);
-				this.debugLog(bl2 ? "debug.show_hitboxes.on" : "debug.show_hitboxes.off");
-				bl = true;
-			}
+		if (gameOptions.debugReloadChunkKey.matchesKey(key)) {
+			client.worldRenderer.reload();
+			debugLog("debug.reload_chunks.message");
+			handled = true;
+		}
 
-			if (gameOptions.debugClearChatKey.matchesKey(key)) {
-				this.client.inGameHud.getChatHud().clear(false);
-				bl = true;
-			}
+		if (gameOptions.debugShowHitboxesKey.matchesKey(key)
+			&& client.player != null
+			&& !client.player.hasReducedDebugInfo()
+		) {
+			boolean hitboxesVisible = client.debugHudEntryList.toggleVisibility(DebugHudEntries.ENTITY_HITBOXES);
+			debugLog(hitboxesVisible ? "debug.show_hitboxes.on" : "debug.show_hitboxes.off");
+			handled = true;
+		}
 
-			if (gameOptions.debugShowChunkBordersKey.matchesKey(key) && this.client.player != null
-					&& !this.client.player.hasReducedDebugInfo()) {
-				boolean bl2 = this.client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_BORDERS);
-				this.debugLog(bl2 ? "debug.chunk_boundaries.on" : "debug.chunk_boundaries.off");
-				bl = true;
-			}
+		if (gameOptions.debugClearChatKey.matchesKey(key)) {
+			client.inGameHud.getChatHud().clear(false);
+			handled = true;
+		}
 
-			if (gameOptions.debugShowAdvancedTooltipsKey.matchesKey(key)) {
-				gameOptions.advancedItemTooltips = !gameOptions.advancedItemTooltips;
-				this.debugLog(gameOptions.advancedItemTooltips ? "debug.advanced_tooltips.on"
-				                                               : "debug.advanced_tooltips.off");
-				gameOptions.write();
-				bl = true;
-			}
+		if (gameOptions.debugShowChunkBordersKey.matchesKey(key)
+			&& client.player != null
+			&& !client.player.hasReducedDebugInfo()
+		) {
+			boolean chunkBordersVisible = client.debugHudEntryList.toggleVisibility(DebugHudEntries.CHUNK_BORDERS);
+			debugLog(chunkBordersVisible ? "debug.chunk_boundaries.on" : "debug.chunk_boundaries.off");
+			handled = true;
+		}
 
-			if (gameOptions.debugCopyRecreateCommandKey.matchesKey(key)) {
-				if (this.client.player != null && !this.client.player.hasReducedDebugInfo()) {
-					this.copyLookAt(
-							this.client.player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS),
-							!key.hasShift()
-					);
-				}
+		if (gameOptions.debugShowAdvancedTooltipsKey.matchesKey(key)) {
+			gameOptions.advancedItemTooltips = !gameOptions.advancedItemTooltips;
+			debugLog(gameOptions.advancedItemTooltips ? "debug.advanced_tooltips.on" : "debug.advanced_tooltips.off");
+			gameOptions.write();
+			handled = true;
+		}
 
-				bl = true;
-			}
-
-			if (gameOptions.debugSpectateKey.matchesKey(key)) {
-				if (this.client.player == null
-						|| !GameModeCommand.PERMISSION_CHECK.allows(this.client.player.getPermissions())) {
-					this.debugLog("debug.creative_spectator.error");
-				}
-				else if (!this.client.player.isSpectator()) {
-					this.client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(GameMode.SPECTATOR));
-				}
-				else {
-					GameMode
-							gameMode =
-							(GameMode) MoreObjects.firstNonNull(
-									this.client.interactionManager.getPreviousGameMode(),
-									GameMode.CREATIVE
-							);
-					this.client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(gameMode));
-				}
-
-				bl = true;
-			}
-
-			if (gameOptions.debugSwitchGameModeKey.matchesKey(key) && this.client.world != null
-					&& this.client.currentScreen == null) {
-				if (this.client.canSwitchGameMode()
-						&& GameModeCommand.PERMISSION_CHECK.allows(this.client.player.getPermissions())) {
-					this.client.setScreen(new GameModeSwitcherScreen());
-				}
-				else {
-					this.debugLog("debug.gamemodes.error");
-				}
-
-				bl = true;
-			}
-
-			if (gameOptions.debugOptionsKey.matchesKey(key)) {
-				if (this.client.currentScreen instanceof DebugOptionsScreen) {
-					this.client.currentScreen.close();
-				}
-				else if (this.client.canCurrentScreenInterruptOtherScreen()) {
-					if (this.client.currentScreen != null) {
-						this.client.currentScreen.close();
-					}
-
-					this.client.setScreen(new DebugOptionsScreen());
-				}
-
-				bl = true;
-			}
-
-			if (gameOptions.debugFocusPauseKey.matchesKey(key)) {
-				gameOptions.pauseOnLostFocus = !gameOptions.pauseOnLostFocus;
-				gameOptions.write();
-				this.debugLog(gameOptions.pauseOnLostFocus ? "debug.pause_focus.on" : "debug.pause_focus.off");
-				bl = true;
-			}
-
-			if (gameOptions.debugDumpDynamicTexturesKey.matchesKey(key)) {
-				Path path = this.client.runDirectory.toPath().toAbsolutePath();
-				Path path2 = TextureUtil.getDebugTexturePath(path);
-				this.client.getTextureManager().dumpDynamicTextures(path2);
-				Text text = Text.literal(path.relativize(path2).toString())
-				                .formatted(Formatting.UNDERLINE)
-				                .styled(style -> style.withClickEvent(new ClickEvent.OpenFile(path2)));
-				this.debugLog(Text.translatable("debug.dump_dynamic_textures", text));
-				bl = true;
-			}
-
-			if (gameOptions.debugReloadResourcePacksKey.matchesKey(key)) {
-				this.debugLog("debug.reload_resourcepacks.message");
-				this.client.reloadResources();
-				bl = true;
-			}
-
-			if (gameOptions.debugProfilingKey.matchesKey(key)) {
-				if (this.client.toggleDebugProfiler(this::debugLog)) {
-					this.debugLog(
-							Text.translatable(
-									"debug.profiling.start",
-									10,
-									gameOptions.debugModifierKey.getBoundKeyLocalizedText(),
-									gameOptions.debugProfilingKey.getBoundKeyLocalizedText()
-							)
-					);
-				}
-
-				bl = true;
-			}
-
-			if (gameOptions.debugCopyLocationKey.matchesKey(key) && this.client.player != null
-					&& !this.client.player.hasReducedDebugInfo()) {
-				this.debugLog("debug.copy_location.message");
-				this.setClipboard(
-						String.format(
-								Locale.ROOT,
-								"/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f",
-								this.client.player.getEntityWorld().getRegistryKey().getValue(),
-								this.client.player.getX(),
-								this.client.player.getY(),
-								this.client.player.getZ(),
-								this.client.player.getYaw(),
-								this.client.player.getPitch()
-						)
+		if (gameOptions.debugCopyRecreateCommandKey.matchesKey(key)) {
+			if (client.player != null && !client.player.hasReducedDebugInfo()) {
+				copyLookAt(
+					client.player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS),
+					!key.hasShift()
 				);
-				bl = true;
 			}
 
-			if (gameOptions.debugDumpVersionKey.matchesKey(key)) {
-				this.debugLog("debug.version.header");
-				VersionCommand.acceptInfo(this::sendMessage);
-				bl = true;
-			}
-
-			if (gameOptions.debugProfilingChartKey.matchesKey(key)) {
-				this.client.getDebugHud().toggleRenderingChart();
-				bl = true;
-			}
-
-			if (gameOptions.debugFpsChartsKey.matchesKey(key)) {
-				this.client.getDebugHud().toggleRenderingAndTickCharts();
-				bl = true;
-			}
-
-			if (gameOptions.debugNetworkChartsKey.matchesKey(key)) {
-				this.client.getDebugHud().togglePacketSizeAndPingCharts();
-				bl = true;
-			}
-
-			return bl;
+			handled = true;
 		}
+
+		if (gameOptions.debugSpectateKey.matchesKey(key)) {
+			if (client.player == null
+				|| !GameModeCommand.PERMISSION_CHECK.allows(client.player.getPermissions())
+			) {
+				debugLog("debug.creative_spectator.error");
+			} else if (!client.player.isSpectator()) {
+				client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(GameMode.SPECTATOR));
+			} else {
+				GameMode previousMode = MoreObjects.firstNonNull(
+					client.interactionManager.getPreviousGameMode(),
+					GameMode.CREATIVE
+				);
+				client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(previousMode));
+			}
+
+			handled = true;
+		}
+
+		if (gameOptions.debugSwitchGameModeKey.matchesKey(key)
+			&& client.world != null
+			&& client.currentScreen == null
+		) {
+			if (client.canSwitchGameMode()
+				&& GameModeCommand.PERMISSION_CHECK.allows(client.player.getPermissions())
+			) {
+				client.setScreen(new GameModeSwitcherScreen());
+			} else {
+				debugLog("debug.gamemodes.error");
+			}
+
+			handled = true;
+		}
+
+		if (gameOptions.debugOptionsKey.matchesKey(key)) {
+			if (client.currentScreen instanceof DebugOptionsScreen) {
+				client.currentScreen.close();
+			} else if (client.canCurrentScreenInterruptOtherScreen()) {
+				if (client.currentScreen != null) {
+					client.currentScreen.close();
+				}
+
+				client.setScreen(new DebugOptionsScreen());
+			}
+
+			handled = true;
+		}
+
+		if (gameOptions.debugFocusPauseKey.matchesKey(key)) {
+			gameOptions.pauseOnLostFocus = !gameOptions.pauseOnLostFocus;
+			gameOptions.write();
+			debugLog(gameOptions.pauseOnLostFocus ? "debug.pause_focus.on" : "debug.pause_focus.off");
+			handled = true;
+		}
+
+		if (gameOptions.debugDumpDynamicTexturesKey.matchesKey(key)) {
+			Path runPath = client.runDirectory.toPath().toAbsolutePath();
+			Path debugTexturePath = TextureUtil.getDebugTexturePath(runPath);
+			client.getTextureManager().dumpDynamicTextures(debugTexturePath);
+			Text pathLink = Text.literal(runPath.relativize(debugTexturePath).toString())
+				.formatted(Formatting.UNDERLINE)
+				.styled(style -> style.withClickEvent(new ClickEvent.OpenFile(debugTexturePath)));
+			debugLog(Text.translatable("debug.dump_dynamic_textures", pathLink));
+			handled = true;
+		}
+
+		if (gameOptions.debugReloadResourcePacksKey.matchesKey(key)) {
+			debugLog("debug.reload_resourcepacks.message");
+			client.reloadResources();
+			handled = true;
+		}
+
+		if (gameOptions.debugProfilingKey.matchesKey(key)) {
+			if (client.toggleDebugProfiler(this::debugLog)) {
+				debugLog(Text.translatable(
+					"debug.profiling.start",
+					10,
+					gameOptions.debugModifierKey.getBoundKeyLocalizedText(),
+					gameOptions.debugProfilingKey.getBoundKeyLocalizedText()
+				));
+			}
+
+			handled = true;
+		}
+
+		if (gameOptions.debugCopyLocationKey.matchesKey(key)
+			&& client.player != null
+			&& !client.player.hasReducedDebugInfo()
+		) {
+			debugLog("debug.copy_location.message");
+			setClipboard(String.format(
+				Locale.ROOT,
+				"/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f",
+				client.player.getEntityWorld().getRegistryKey().getValue(),
+				client.player.getX(),
+				client.player.getY(),
+				client.player.getZ(),
+				client.player.getYaw(),
+				client.player.getPitch()
+			));
+			handled = true;
+		}
+
+		if (gameOptions.debugDumpVersionKey.matchesKey(key)) {
+			debugLog("debug.version.header");
+			VersionCommand.acceptInfo(this::sendMessage);
+			handled = true;
+		}
+
+		if (gameOptions.debugProfilingChartKey.matchesKey(key)) {
+			client.getDebugHud().toggleRenderingChart();
+			handled = true;
+		}
+
+		if (gameOptions.debugFpsChartsKey.matchesKey(key)) {
+			client.getDebugHud().toggleRenderingAndTickCharts();
+			handled = true;
+		}
+
+		if (gameOptions.debugNetworkChartsKey.matchesKey(key)) {
+			client.getDebugHud().togglePacketSizeAndPingCharts();
+			handled = true;
+		}
+
+		return handled;
 	}
 
 	private void copyLookAt(boolean hasQueryPermission, boolean queryServer) {
-		HitResult hitResult = this.client.crosshairTarget;
-		if (hitResult != null) {
-			switch (hitResult.getType()) {
-				case BLOCK:
-					BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
-					World world = this.client.player.getEntityWorld();
-					BlockState blockState = world.getBlockState(blockPos);
-					if (hasQueryPermission) {
-						if (queryServer) {
-							this.client.player.networkHandler.getDataQueryHandler().queryBlockNbt(
-									blockPos, nbt -> {
-										this.copyBlock(blockState, blockPos, nbt);
-										this.debugLog("debug.inspect.server.block");
-									}
-							);
-						}
-						else {
-							BlockEntity blockEntity = world.getBlockEntity(blockPos);
-							NbtCompound
-									nbtCompound =
-									blockEntity != null ? blockEntity.createNbt(world.getRegistryManager()) : null;
-							this.copyBlock(blockState, blockPos, nbtCompound);
-							this.debugLog("debug.inspect.client.block");
-						}
-					}
-					else {
-						this.copyBlock(blockState, blockPos, null);
-						this.debugLog("debug.inspect.client.block");
-					}
-					break;
-				case ENTITY:
-					Entity entity = ((EntityHitResult) hitResult).getEntity();
-					Identifier identifier = Registries.ENTITY_TYPE.getId(entity.getType());
-					if (hasQueryPermission) {
-						if (queryServer) {
-							this.client.player.networkHandler.getDataQueryHandler().queryEntityNbt(
-									entity.getId(), nbt -> {
-										this.copyEntity(identifier, entity.getEntityPos(), nbt);
-										this.debugLog("debug.inspect.server.entity");
-									}
-							);
-						}
-						else {
-							try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-									entity.getErrorReporterContext(),
-									LOGGER
-							)
-							) {
-								NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
-								entity.writeData(nbtWriteView);
-								this.copyEntity(identifier, entity.getEntityPos(), nbtWriteView.getNbt());
-							}
+		HitResult hitResult = client.crosshairTarget;
+		if (hitResult == null) {
+			return;
+		}
 
-							this.debugLog("debug.inspect.client.entity");
+		switch (hitResult.getType()) {
+			case BLOCK -> {
+				BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
+				World world = client.player.getEntityWorld();
+				BlockState blockState = world.getBlockState(blockPos);
+
+				if (hasQueryPermission) {
+					if (queryServer) {
+						client.player.networkHandler.getDataQueryHandler().queryBlockNbt(
+							blockPos, nbt -> {
+								copyBlock(blockState, blockPos, nbt);
+								debugLog("debug.inspect.server.block");
+							}
+						);
+					} else {
+						BlockEntity blockEntity = world.getBlockEntity(blockPos);
+						NbtCompound nbt = blockEntity != null
+							? blockEntity.createNbt(world.getRegistryManager())
+							: null;
+						copyBlock(blockState, blockPos, nbt);
+						debugLog("debug.inspect.client.block");
+					}
+				} else {
+					copyBlock(blockState, blockPos, null);
+					debugLog("debug.inspect.client.block");
+				}
+			}
+			case ENTITY -> {
+				Entity entity = ((EntityHitResult) hitResult).getEntity();
+				Identifier entityId = Registries.ENTITY_TYPE.getId(entity.getType());
+
+				if (hasQueryPermission) {
+					if (queryServer) {
+						client.player.networkHandler.getDataQueryHandler().queryEntityNbt(
+							entity.getId(), nbt -> {
+								copyEntity(entityId, entity.getEntityPos(), nbt);
+								debugLog("debug.inspect.server.entity");
+							}
+						);
+					} else {
+						try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
+							entity.getErrorReporterContext(),
+							LOGGER
+						)) {
+							NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
+							entity.writeData(nbtWriteView);
+							copyEntity(entityId, entity.getEntityPos(), nbtWriteView.getNbt());
 						}
+
+						debugLog("debug.inspect.client.entity");
 					}
-					else {
-						this.copyEntity(identifier, entity.getEntityPos(), null);
-						this.debugLog("debug.inspect.client.entity");
-					}
+				} else {
+					copyEntity(entityId, entity.getEntityPos(), null);
+					debugLog("debug.inspect.client.entity");
+				}
 			}
 		}
 	}
 
 	private void copyBlock(BlockState state, BlockPos pos, @Nullable NbtCompound nbt) {
-		StringBuilder stringBuilder = new StringBuilder(BlockArgumentParser.stringifyBlockState(state));
+		StringBuilder command = new StringBuilder(BlockArgumentParser.stringifyBlockState(state));
 		if (nbt != null) {
-			stringBuilder.append(nbt);
+			command.append(nbt);
 		}
 
-		String
-				string =
-				String.format(Locale.ROOT, "/setblock %d %d %d %s", pos.getX(), pos.getY(), pos.getZ(), stringBuilder);
-		this.setClipboard(string);
+		setClipboard(String.format(
+			Locale.ROOT,
+			"/setblock %d %d %d %s",
+			pos.getX(),
+			pos.getY(),
+			pos.getZ(),
+			command
+		));
 	}
 
 	private void copyEntity(Identifier id, Vec3d pos, @Nullable NbtCompound nbt) {
-		String string2;
+		String command;
 		if (nbt != null) {
 			nbt.remove("UUID");
 			nbt.remove("Pos");
-			String string = NbtHelper.toPrettyPrintedText(nbt).getString();
-			string2 = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f %s", id, pos.x, pos.y, pos.z, string);
-		}
-		else {
-			string2 = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f", id, pos.x, pos.y, pos.z);
+			String nbtString = NbtHelper.toPrettyPrintedText(nbt).getString();
+			command = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f %s", id, pos.x, pos.y, pos.z, nbtString);
+		} else {
+			command = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f", id, pos.x, pos.y, pos.z);
 		}
 
-		this.setClipboard(string2);
+		setClipboard(command);
 	}
 
+	/**
+	 * Обрабатывает низкоуровневое событие клавиши GLFW.
+	 * Управляет инициацией краша, навигацией GUI, F3-комбинациями и привязками клавиш.
+	 *
+	 * @param window   дескриптор окна GLFW
+	 * @param action   действие: 0 = отпустить, 1 = нажать, 2 = повтор
+	 * @param input    данные о нажатой клавише
+	 */
 	private void onKey(long window, @KeyInput.KeyAction int action, KeyInput input) {
-		Window window2 = this.client.getWindow();
-		if (window == window2.getHandle()) {
-			this.client.getInactivityFpsLimiter().onInput();
-			GameOptions gameOptions = this.client.options;
-			boolean
-					bl =
-					gameOptions.debugModifierKey.boundKey.getCode() == gameOptions.debugOverlayKey.boundKey.getCode();
-			boolean bl2 = gameOptions.debugModifierKey.isPressed();
-			boolean
-					bl3 =
-					!gameOptions.debugCrashKey.isUnbound() && InputUtil.isKeyPressed(
-							this.client.getWindow(),
-							gameOptions.debugCrashKey.boundKey.getCode()
+		Window clientWindow = client.getWindow();
+		if (window != clientWindow.getHandle()) {
+			return;
+		}
+
+		client.getInactivityFpsLimiter().onInput();
+		GameOptions gameOptions = client.options;
+
+		// F3 и debugOverlay могут быть привязаны к одной клавише
+		boolean f3SameAsOverlay = gameOptions.debugModifierKey.boundKey.getCode()
+			== gameOptions.debugOverlayKey.boundKey.getCode();
+		boolean f3Pressed = gameOptions.debugModifierKey.isPressed();
+		boolean crashKeyPressed = !gameOptions.debugCrashKey.isUnbound()
+			&& InputUtil.isKeyPressed(clientWindow, gameOptions.debugCrashKey.boundKey.getCode());
+
+		if (debugCrashStartTime > 0L) {
+			if (!crashKeyPressed || !f3Pressed) {
+				debugCrashStartTime = -1L;
+			}
+		} else if (crashKeyPressed && f3Pressed) {
+			switchF3State = f3SameAsOverlay;
+			debugCrashStartTime = Util.getMeasuringTimeMs();
+			debugCrashLastLogTime = Util.getMeasuringTimeMs();
+			debugCrashElapsedTime = 0L;
+		}
+
+		Screen screen = client.currentScreen;
+		if (screen != null) {
+			switch (input.key()) {
+				case InputUtil.GLFW_KEY_TAB -> client.setNavigationType(GuiNavigationType.KEYBOARD_TAB);
+				case InputUtil.GLFW_KEY_RIGHT, InputUtil.GLFW_KEY_LEFT,
+					InputUtil.GLFW_KEY_DOWN, InputUtil.GLFW_KEY_UP ->
+					client.setNavigationType(GuiNavigationType.KEYBOARD_ARROW);
+			}
+		}
+
+		if (action == InputUtil.GLFW_PRESS
+			&& !(client.currentScreen instanceof KeybindsScreen keybindsScreen
+			&& keybindsScreen.lastKeyCodeUpdateTime > Util.getMeasuringTimeMs() - KEYBIND_UPDATE_DELAY_MS)
+		) {
+			if (gameOptions.fullscreenKey.matchesKey(input)) {
+				clientWindow.toggleFullscreen();
+				boolean isFullscreen = clientWindow.isFullscreen();
+				gameOptions.getFullscreen().setValue(isFullscreen);
+				gameOptions.write();
+
+				if (client.currentScreen instanceof VideoOptionsScreen videoOptionsScreen) {
+					videoOptionsScreen.updateFullscreenButtonValue(isFullscreen);
+				}
+
+				return;
+			}
+
+			if (gameOptions.screenshotKey.matchesKey(input)) {
+				if (input.hasCtrlOrCmd() && SharedConstants.PANORAMA_SCREENSHOT) {
+					sendMessage(client.takePanorama(client.runDirectory));
+				} else {
+					ScreenshotRecorder.saveScreenshot(
+						client.runDirectory,
+						client.getFramebuffer(),
+						message -> client.execute(() -> sendMessage(message))
 					);
-			if (this.debugCrashStartTime > 0L) {
-				if (!bl3 || !bl2) {
-					this.debugCrashStartTime = -1L;
-				}
-			}
-			else if (bl3 && bl2) {
-				this.switchF3State = bl;
-				this.debugCrashStartTime = Util.getMeasuringTimeMs();
-				this.debugCrashLastLogTime = Util.getMeasuringTimeMs();
-				this.debugCrashElapsedTime = 0L;
-			}
-
-			Screen screen = this.client.currentScreen;
-			if (screen != null) {
-				switch (input.key()) {
-					case 258:
-						this.client.setNavigationType(GuiNavigationType.KEYBOARD_TAB);
-					case 259:
-					case 260:
-					case 261:
-					default:
-						break;
-					case 262:
-					case 263:
-					case 264:
-					case 265:
-						this.client.setNavigationType(GuiNavigationType.KEYBOARD_ARROW);
-				}
-			}
-
-			if (action == 1
-					&& (!(this.client.currentScreen instanceof KeybindsScreen)
-					|| ((KeybindsScreen) screen).lastKeyCodeUpdateTime <= Util.getMeasuringTimeMs() - 20L
-			)) {
-				if (gameOptions.fullscreenKey.matchesKey(input)) {
-					window2.toggleFullscreen();
-					boolean bl4 = window2.isFullscreen();
-					gameOptions.getFullscreen().setValue(bl4);
-					gameOptions.write();
-					if (this.client.currentScreen instanceof VideoOptionsScreen videoOptionsScreen) {
-						videoOptionsScreen.updateFullscreenButtonValue(bl4);
-					}
-
-					return;
 				}
 
-				if (gameOptions.screenshotKey.matchesKey(input)) {
-					if (input.hasCtrlOrCmd() && SharedConstants.PANORAMA_SCREENSHOT) {
-						this.sendMessage(this.client.takePanorama(this.client.runDirectory));
-					}
-					else {
-						ScreenshotRecorder.saveScreenshot(
-								this.client.runDirectory,
-								this.client.getFramebuffer(),
-								message -> this.client.execute(() -> this.sendMessage(message))
-						);
-					}
+				return;
+			}
+		}
 
-					return;
+		if (action != InputUtil.GLFW_RELEASE) {
+			boolean notTypingInField = screen == null
+				|| !(screen.getFocused() instanceof TextFieldWidget textField)
+				|| !textField.isActive();
+
+			if (notTypingInField
+				&& input.hasCtrlOrCmd()
+				&& input.key() == InputUtil.GLFW_KEY_B
+				&& client.getNarratorManager().isActive()
+				&& gameOptions.getNarratorHotkey().getValue()
+			) {
+				boolean wasOff = gameOptions.getNarrator().getValue() == NarratorMode.OFF;
+				gameOptions.getNarrator().setValue(
+					NarratorMode.byId(gameOptions.getNarrator().getValue().getId() + 1)
+				);
+				gameOptions.write();
+
+				if (screen != null) {
+					screen.refreshNarrator(wasOff);
 				}
 			}
+		}
 
-			if (action != 0) {
-				boolean
-						bl4 =
-						screen == null || !(screen.getFocused() instanceof TextFieldWidget)
-								|| !((TextFieldWidget) screen.getFocused()).isActive();
-				if (bl4) {
-					if (input.hasCtrlOrCmd() && input.key() == 66 && this.client.getNarratorManager().isActive()
-							&& gameOptions.getNarratorHotkey().getValue()) {
-						boolean bl5 = gameOptions.getNarrator().getValue() == NarratorMode.OFF;
-						gameOptions
-								.getNarrator()
-								.setValue(NarratorMode.byId(gameOptions.getNarrator().getValue().getId() + 1));
-						gameOptions.write();
-						if (screen != null) {
-							screen.refreshNarrator(bl5);
+		if (screen != null) {
+			try {
+				if (action == InputUtil.GLFW_PRESS || action == InputUtil.GLFW_REPEAT) {
+					screen.applyKeyPressNarratorDelay();
+					if (screen.keyPressed(input)) {
+						if (client.currentScreen == null) {
+							InputUtil.Key key = InputUtil.fromKeyCode(input);
+							KeyBinding.setKeyPressed(key, false);
 						}
+
+						return;
 					}
-
-					ClientPlayerEntity var21 = this.client.player;
-				}
-			}
-
-			if (screen != null) {
-				try {
-					if (action != 1 && action != 2) {
-						if (action == 0 && screen.keyReleased(input)) {
-							if (gameOptions.debugModifierKey.matchesKey(input)) {
-								this.switchF3State = false;
-							}
-
-							return;
+				} else if (action == InputUtil.GLFW_RELEASE) {
+					if (screen.keyReleased(input)) {
+						if (gameOptions.debugModifierKey.matchesKey(input)) {
+							switchF3State = false;
 						}
-					}
-					else {
-						screen.applyKeyPressNarratorDelay();
-						if (screen.keyPressed(input)) {
-							if (this.client.currentScreen == null) {
-								InputUtil.Key key = InputUtil.fromKeyCode(input);
-								KeyBinding.setKeyPressed(key, false);
-							}
 
-							return;
-						}
+						return;
 					}
 				}
-				catch (Throwable var17) {
-					CrashReport crashReport = CrashReport.create(var17, "keyPressed event handler");
-					screen.addCrashReportSection(crashReport);
-					CrashReportSection crashReportSection = crashReport.addElement("Key");
-					crashReportSection.add("Key", input.key());
-					crashReportSection.add("Scancode", input.scancode());
-					crashReportSection.add("Mods", input.modifiers());
-					throw new CrashException(crashReport);
+			} catch (Throwable throwable) {
+				CrashReport crashReport = CrashReport.create(throwable, "keyPressed event handler");
+				screen.addCrashReportSection(crashReport);
+				CrashReportSection section = crashReport.addElement("Key");
+				section.add("Key", input.key());
+				section.add("Scancode", input.scancode());
+				section.add("Mods", input.modifiers());
+				throw new CrashException(crashReport);
+			}
+		}
+
+		InputUtil.Key key = InputUtil.fromKeyCode(input);
+		boolean noScreen = client.currentScreen == null;
+		boolean gameOrMenuScreen = noScreen
+			|| client.currentScreen instanceof GameMenuScreen gameMenuScreen && !gameMenuScreen.shouldShowMenu()
+			|| client.currentScreen instanceof GameModeSwitcherScreen;
+
+		if (f3SameAsOverlay && gameOptions.debugModifierKey.matchesKey(input) && action == InputUtil.GLFW_RELEASE) {
+			if (switchF3State) {
+				switchF3State = false;
+			} else {
+				client.debugHudEntryList.toggleF3Enabled();
+			}
+		} else if (!f3SameAsOverlay && gameOptions.debugOverlayKey.matchesKey(input) && action == InputUtil.GLFW_PRESS) {
+			client.debugHudEntryList.toggleF3Enabled();
+		}
+
+		if (action == InputUtil.GLFW_RELEASE) {
+			KeyBinding.setKeyPressed(key, false);
+		} else {
+			boolean f3Handled = false;
+
+			if (gameOrMenuScreen && input.isEscape()) {
+				client.openGameMenu(f3Pressed);
+				f3Handled = f3Pressed;
+			} else if (f3Pressed) {
+				f3Handled = processF3(input);
+				if (f3Handled && screen instanceof DebugOptionsScreen debugOptionsScreen) {
+					DebugOptionsScreen.OptionsListWidget optionsListWidget = debugOptionsScreen.getOptionsListWidget();
+					if (optionsListWidget != null) {
+						optionsListWidget.children().forEach(DebugOptionsScreen.AbstractEntry::init);
+					}
+				}
+			} else if (gameOrMenuScreen && gameOptions.toggleGuiKey.matchesKey(input)) {
+				gameOptions.hudHidden = !gameOptions.hudHidden;
+			} else if (gameOrMenuScreen && gameOptions.toggleSpectatorShaderEffectsKey.matchesKey(input)) {
+				client.gameRenderer.togglePostProcessorEnabled();
+			}
+
+			if (f3SameAsOverlay) {
+				switchF3State |= f3Handled;
+			}
+
+			if (client.getDebugHud().shouldShowRenderingChart() && !f3Pressed) {
+				int digit = input.asNumber();
+				if (digit != -1) {
+					client.getDebugHud().getPieChart().select(digit);
 				}
 			}
 
-			InputUtil.Key key = InputUtil.fromKeyCode(input);
-			boolean bl5 = this.client.currentScreen == null;
-			boolean bl6 = bl5
-					|| this.client.currentScreen instanceof GameMenuScreen gameMenuScreen
-					&& !gameMenuScreen.shouldShowMenu()
-					|| this.client.currentScreen instanceof GameModeSwitcherScreen;
-			if (bl && gameOptions.debugModifierKey.matchesKey(input) && action == 0) {
-				if (this.switchF3State) {
-					this.switchF3State = false;
-				}
-				else {
-					this.client.debugHudEntryList.toggleF3Enabled();
-				}
-			}
-			else if (!bl && gameOptions.debugOverlayKey.matchesKey(input) && action == 1) {
-				this.client.debugHudEntryList.toggleF3Enabled();
-			}
-
-			if (action == 0) {
-				KeyBinding.setKeyPressed(key, false);
-			}
-			else {
-				boolean bl7 = false;
-				if (bl6 && input.isEscape()) {
-					this.client.openGameMenu(bl2);
-					bl7 = bl2;
-				}
-				else if (bl2) {
-					bl7 = this.processF3(input);
-					if (bl7 && screen instanceof DebugOptionsScreen debugOptionsScreen) {
-						DebugOptionsScreen.OptionsListWidget
-								optionsListWidget =
-								debugOptionsScreen.getOptionsListWidget();
-						if (optionsListWidget != null) {
-							optionsListWidget.children().forEach(DebugOptionsScreen.AbstractEntry::init);
-						}
-					}
-				}
-				else if (bl6 && gameOptions.toggleGuiKey.matchesKey(input)) {
-					gameOptions.hudHidden = !gameOptions.hudHidden;
-				}
-				else if (bl6 && gameOptions.toggleSpectatorShaderEffectsKey.matchesKey(input)) {
-					this.client.gameRenderer.togglePostProcessorEnabled();
-				}
-
-				if (bl) {
-					this.switchF3State |= bl7;
-				}
-
-				if (this.client.getDebugHud().shouldShowRenderingChart() && !bl2) {
-					int i = input.asNumber();
-					if (i != -1) {
-						this.client.getDebugHud().getPieChart().select(i);
-					}
-				}
-
-				if (bl5 || key == gameOptions.debugModifierKey.boundKey) {
-					if (bl7) {
-						KeyBinding.setKeyPressed(key, false);
-					}
-					else {
-						KeyBinding.setKeyPressed(key, true);
-						KeyBinding.onKeyPressed(key);
-					}
+			if (noScreen || key == gameOptions.debugModifierKey.boundKey) {
+				if (f3Handled) {
+					KeyBinding.setKeyPressed(key, false);
+				} else {
+					KeyBinding.setKeyPressed(key, true);
+					KeyBinding.onKeyPressed(key);
 				}
 			}
 		}
 	}
 
 	private void onChar(long window, CharInput input) {
-		if (window == this.client.getWindow().getHandle()) {
-			Screen screen = this.client.currentScreen;
-			if (screen != null && this.client.getOverlay() == null) {
-				try {
-					screen.charTyped(input);
-				}
-				catch (Throwable var8) {
-					CrashReport crashReport = CrashReport.create(var8, "charTyped event handler");
-					screen.addCrashReportSection(crashReport);
-					CrashReportSection crashReportSection = crashReport.addElement("Key");
-					crashReportSection.add("Codepoint", input.codepoint());
-					crashReportSection.add("Mods", input.modifiers());
-					throw new CrashException(crashReport);
-				}
-			}
+		if (window != client.getWindow().getHandle()) {
+			return;
+		}
+
+		Screen screen = client.currentScreen;
+		if (screen == null || client.getOverlay() != null) {
+			return;
+		}
+
+		try {
+			screen.charTyped(input);
+		} catch (Throwable throwable) {
+			CrashReport crashReport = CrashReport.create(throwable, "charTyped event handler");
+			screen.addCrashReportSection(crashReport);
+			CrashReportSection section = crashReport.addElement("Key");
+			section.add("Codepoint", input.codepoint());
+			section.add("Mods", input.modifiers());
+			throw new CrashException(crashReport);
 		}
 	}
 
 	/**
-	 * Устанавливает up.
+	 * Регистрирует GLFW-коллбэки клавиатуры и символьного ввода для указанного окна.
 	 *
-	 * @param window window
+	 * @param window окно, для которого устанавливаются коллбэки
 	 */
 	public void setup(Window window) {
 		InputUtil.setKeyboardCallbacks(
-				window, (handle, key, scancode, action, modifiers) -> {
-					KeyInput keyInput = new KeyInput(key, scancode, modifiers);
-					this.client.execute(() -> this.onKey(handle, action, keyInput));
-				}, (windowx, codePoint, modifiers) -> {
-					CharInput charInput = new CharInput(codePoint, modifiers);
-					this.client.execute(() -> this.onChar(windowx, charInput));
-				}
+			window,
+			(handle, keyCode, scancode, action, modifiers) -> {
+				KeyInput keyInput = new KeyInput(keyCode, scancode, modifiers);
+				client.execute(() -> onKey(handle, action, keyInput));
+			},
+			(handle, codePoint, modifiers) -> {
+				CharInput charInput = new CharInput(codePoint, modifiers);
+				client.execute(() -> onChar(handle, charInput));
+			}
 		);
 	}
 
 	public String getClipboard() {
-		return this.clipboard.get(
-				this.client.getWindow(), (error, description) -> {
-					if (error != 65545) {
-						this.client.getWindow().logGlError(error, description);
-					}
+		return clipboard.get(
+			client.getWindow(),
+			(error, description) -> {
+				if (error != GLFW_FORMAT_UNAVAILABLE) {
+					client.getWindow().logGlError(error, description);
 				}
+			}
 		);
 	}
 
-	public void setClipboard(String clipboard) {
-		if (!clipboard.isEmpty()) {
-			this.clipboard.set(this.client.getWindow(), clipboard);
+	public void setClipboard(String text) {
+		if (text.isEmpty()) {
+			return;
 		}
+
+		clipboard.set(client.getWindow(), text);
 	}
 
 	/**
-	 * Poll debug crash.
+	 * Проверяет удержание клавиши отладочного краша и выводит предупреждения.
+	 * По истечении {@link #DEBUG_CRASH_TIME} вызывает принудительный крэш JVM или игры.
 	 */
 	public void pollDebugCrash() {
-		if (this.debugCrashStartTime > 0L) {
-			long l = Util.getMeasuringTimeMs();
-			long m = 10000L - (l - this.debugCrashStartTime);
-			long n = l - this.debugCrashLastLogTime;
-			if (m < 0L) {
-				if (this.client.isCtrlPressed()) {
-					GlfwUtil.makeJvmCrash();
-				}
+		if (debugCrashStartTime <= 0L) {
+			return;
+		}
 
-				String string = "Manually triggered debug crash";
-				CrashReport
-						crashReport =
-						new CrashReport(
-								"Manually triggered debug crash",
-								new Throwable("Manually triggered debug crash")
-						);
-				CrashReportSection crashReportSection = crashReport.addElement("Manual crash details");
-				WinNativeModuleUtil.addDetailTo(crashReportSection);
-				throw new CrashException(crashReport);
+		long now = Util.getMeasuringTimeMs();
+		long remaining = DEBUG_CRASH_TIME - (now - debugCrashStartTime);
+		long sinceLastLog = now - debugCrashLastLogTime;
+
+		if (remaining < 0L) {
+			if (client.isCtrlPressed()) {
+				GlfwUtil.makeJvmCrash();
 			}
 
-			if (n >= 1000L) {
-				if (this.debugCrashElapsedTime == 0L) {
-					this.debugLog(
-							"debug.crash.message",
-							this.client.options.debugModifierKey.getBoundKeyLocalizedText().getString(),
-							this.client.options.debugCrashKey.getBoundKeyLocalizedText().getString()
-					);
-				}
-				else {
-					this.debugError(Text.translatable("debug.crash.warning", MathHelper.ceil((float) m / 1000.0F)));
-				}
+			CrashReport crashReport = new CrashReport(
+				"Manually triggered debug crash",
+				new Throwable("Manually triggered debug crash")
+			);
+			CrashReportSection section = crashReport.addElement("Manual crash details");
+			WinNativeModuleUtil.addDetailTo(section);
+			throw new CrashException(crashReport);
+		}
 
-				this.debugCrashLastLogTime = l;
-				this.debugCrashElapsedTime++;
+		if (sinceLastLog >= CRASH_LOG_INTERVAL_MS) {
+			if (debugCrashElapsedTime == 0L) {
+				debugLog(
+					"debug.crash.message",
+					client.options.debugModifierKey.getBoundKeyLocalizedText().getString(),
+					client.options.debugCrashKey.getBoundKeyLocalizedText().getString()
+				);
+			} else {
+				debugError(Text.translatable("debug.crash.warning", MathHelper.ceil((float) remaining / 1000.0F)));
 			}
+
+			debugCrashLastLogTime = now;
+			debugCrashElapsedTime++;
 		}
 	}
 }

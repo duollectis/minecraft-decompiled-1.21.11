@@ -5,10 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.screen.ScreenTexts;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OptionSliderWidget}.
+ * Базовый слайдер для настроек игры, привязанный к {@link GameOptions}.
  */
+@Environment(EnvType.CLIENT)
 public abstract class OptionSliderWidget extends SliderWidget {
 
 	protected final GameOptions options;

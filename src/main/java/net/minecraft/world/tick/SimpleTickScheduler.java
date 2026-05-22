@@ -1,61 +1,63 @@
 package net.minecraft.world.tick;
 
-import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 /**
- * {@code SimpleTickScheduler}.
+ * Простой планировщик тиков без учёта времени срабатывания.
+ * Используется для структур и фич, где тики должны выполниться при следующей загрузке чанка.
+ * Все тики хранятся с нулевой задержкой.
+ *
+ * @param <T> тип объекта, для которого планируются тики
  */
 public class SimpleTickScheduler<T> implements SerializableTickScheduler<T>, BasicTickScheduler<T> {
 
-	private final List<Tick<T>> scheduledTicks = Lists.newArrayList();
-	private final Set<Tick<?>> scheduledTicksSet = new ObjectOpenCustomHashSet(Tick.HASH_STRATEGY);
+	private final List<Tick<T>> scheduledTicks = new ArrayList<>();
+	private final Set<Tick<?>> scheduledTicksSet = new ObjectOpenCustomHashSet<>(Tick.HASH_STRATEGY);
 
 	@Override
 	public void scheduleTick(OrderedTick<T> orderedTick) {
 		Tick<T> tick = new Tick<>(orderedTick.type(), orderedTick.pos(), 0, orderedTick.priority());
-		this.scheduleTick(tick);
+		scheduleTick(tick);
 	}
 
 	private void scheduleTick(Tick<T> tick) {
-		if (this.scheduledTicksSet.add(tick)) {
-			this.scheduledTicks.add(tick);
+		if (scheduledTicksSet.add(tick)) {
+			scheduledTicks.add(tick);
 		}
 	}
 
 	@Override
 	public boolean isQueued(BlockPos pos, T type) {
-		return this.scheduledTicksSet.contains(Tick.create(type, pos));
+		return scheduledTicksSet.contains(Tick.create(type, pos));
 	}
 
 	@Override
 	public int getTickCount() {
-		return this.scheduledTicks.size();
+		return scheduledTicks.size();
 	}
 
 	@Override
-	public List<Tick<T>> collectTicks(long time) {
-		return this.scheduledTicks;
+	public List<Tick<T>> collectTicks(long currentTime) {
+		return scheduledTicks;
 	}
 
 	public List<Tick<T>> getTicks() {
-		return List.copyOf(this.scheduledTicks);
+		return List.copyOf(scheduledTicks);
 	}
 
 	/**
-	 * Tick.
+	 * Создаёт планировщик, предзаполненный переданным списком тиков.
 	 *
-	 * @param ticks ticks
-	 *
-	 * @return SimpleTickScheduler — результат операции
+	 * @param ticks список тиков для загрузки
 	 */
 	public static <T> SimpleTickScheduler<T> tick(List<Tick<T>> ticks) {
-		SimpleTickScheduler<T> simpleTickScheduler = new SimpleTickScheduler<>();
-		ticks.forEach(simpleTickScheduler::scheduleTick);
-		return simpleTickScheduler;
+		SimpleTickScheduler<T> scheduler = new SimpleTickScheduler<>();
+		ticks.forEach(scheduler::scheduleTick);
+		return scheduler;
 	}
 }

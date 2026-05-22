@@ -13,7 +13,10 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * {@code AlternativeLootCondition}.
+ * Базовый класс для составных условий лута (AND/OR).
+ *
+ * <p>Хранит список дочерних условий и скомпилированный предикат,
+ * который вычисляется один раз при создании объекта.</p>
  */
 public abstract class AlternativeLootCondition implements LootCondition {
 
@@ -26,85 +29,60 @@ public abstract class AlternativeLootCondition implements LootCondition {
 	}
 
 	/**
-	 * Создаёт codec.
-	 *
-	 * @param termsToCondition terms to condition
-	 *
-	 * @return MapCodec — результат операции
+	 * Создаёт {@link MapCodec} для подкласса, сериализующий список условий в поле {@code "terms"}.
 	 */
-	protected static <T extends AlternativeLootCondition> MapCodec<T> createCodec(Function<List<LootCondition>, T> termsToCondition) {
+	protected static <T extends AlternativeLootCondition> MapCodec<T> createCodec(
+		Function<List<LootCondition>, T> termsToCondition
+	) {
 		return RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(LootCondition.CODEC.listOf().fieldOf("terms").forGetter(condition -> condition.terms))
-						.apply(instance, termsToCondition)
+			instance -> instance
+				.group(LootCondition.CODEC.listOf().fieldOf("terms").forGetter(condition -> condition.terms))
+				.apply(instance, termsToCondition)
 		);
 	}
 
 	/**
-	 * Создаёт inline codec.
-	 *
-	 * @param termsToCondition terms to condition
-	 *
-	 * @return Codec — результат операции
+	 * Создаёт инлайн-кодек, сериализующий условие как простой список (без обёртки в объект).
 	 */
-	protected static <T extends AlternativeLootCondition> Codec<T> createInlineCodec(Function<List<LootCondition>, T> termsToCondition) {
+	protected static <T extends AlternativeLootCondition> Codec<T> createInlineCodec(
+		Function<List<LootCondition>, T> termsToCondition
+	) {
 		return LootCondition.CODEC.listOf().xmap(termsToCondition, condition -> condition.terms);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public final boolean test(LootContext lootContext) {
-		return this.predicate.test(lootContext);
+		return predicate.test(lootContext);
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		LootCondition.super.validate(reporter);
 
-		for (int i = 0; i < this.terms.size(); i++) {
-			this.terms.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", i)));
+		for (int index = 0; index < terms.size(); index++) {
+			terms.get(index).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", index)));
 		}
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Базовый строитель для составных условий. */
 	public abstract static class Builder implements LootCondition.Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootCondition> terms = ImmutableList.builder();
+		private final ImmutableList.Builder<LootCondition> terms = ImmutableList.builder();
 
-		protected Builder(LootCondition.Builder... terms) {
-			for (LootCondition.Builder builder : terms) {
-				this.terms.add(builder.build());
+		protected Builder(LootCondition.Builder... builders) {
+			for (LootCondition.Builder builder : builders) {
+				terms.add(builder.build());
 			}
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param builder builder
-		 */
 		public void add(LootCondition.Builder builder) {
-			this.terms.add(builder.build());
+			terms.add(builder.build());
 		}
 
 		@Override
 		public LootCondition build() {
-			return this.build(this.terms.build());
+			return build(terms.build());
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param terms terms
-		 *
-		 * @return LootCondition — результат операции
-		 */
 		protected abstract LootCondition build(List<LootCondition> terms);
 	}
 }

@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code EnchantmentsPredicate}.
+ * Базовый предикат для проверки зачарований предмета.
+ * Подклассы {@link Enchantments} и {@link StoredEnchantments} различаются
+ * типом компонента: активные зачарования vs. сохранённые (книги зачарований).
  */
 public abstract class EnchantmentsPredicate implements ComponentSubPredicate<ItemEnchantmentsComponent> {
 
@@ -20,22 +22,8 @@ public abstract class EnchantmentsPredicate implements ComponentSubPredicate<Ite
 		this.enchantments = enchantments;
 	}
 
-	public static <T extends EnchantmentsPredicate> Codec<T> createCodec(Function<List<EnchantmentPredicate>, T> predicateFunction) {
-		return EnchantmentPredicate.CODEC.listOf().xmap(predicateFunction, EnchantmentsPredicate::getEnchantments);
-	}
-
-	protected List<EnchantmentPredicate> getEnchantments() {
-		return this.enchantments;
-	}
-
-	public boolean test(ItemEnchantmentsComponent itemEnchantmentsComponent) {
-		for (EnchantmentPredicate enchantmentPredicate : this.enchantments) {
-			if (!enchantmentPredicate.test(itemEnchantmentsComponent)) {
-				return false;
-			}
-		}
-
-		return true;
+	public static <T extends EnchantmentsPredicate> Codec<T> createCodec(Function<List<EnchantmentPredicate>, T> factory) {
+		return EnchantmentPredicate.CODEC.listOf().xmap(factory, EnchantmentsPredicate::getEnchantments);
 	}
 
 	public static EnchantmentsPredicate.Enchantments enchantments(List<EnchantmentPredicate> enchantments) {
@@ -46,17 +34,29 @@ public abstract class EnchantmentsPredicate implements ComponentSubPredicate<Ite
 		return new EnchantmentsPredicate.StoredEnchantments(storedEnchantments);
 	}
 
+	protected List<EnchantmentPredicate> getEnchantments() {
+		return enchantments;
+	}
+
+	public boolean test(ItemEnchantmentsComponent component) {
+		for (EnchantmentPredicate enchantmentPredicate : enchantments) {
+			if (!enchantmentPredicate.test(component)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	/**
-	 * {@code Enchantments}.
+	 * Предикат для активных зачарований предмета (компонент {@code ENCHANTMENTS}).
 	 */
 	public static class Enchantments extends EnchantmentsPredicate {
 
-		public static final Codec<EnchantmentsPredicate.Enchantments>
-				CODEC =
-				createCodec(EnchantmentsPredicate.Enchantments::new);
+		public static final Codec<EnchantmentsPredicate.Enchantments> CODEC = createCodec(EnchantmentsPredicate.Enchantments::new);
 
-		protected Enchantments(List<EnchantmentPredicate> list) {
-			super(list);
+		protected Enchantments(List<EnchantmentPredicate> enchantments) {
+			super(enchantments);
 		}
 
 		@Override
@@ -66,16 +66,14 @@ public abstract class EnchantmentsPredicate implements ComponentSubPredicate<Ite
 	}
 
 	/**
-	 * {@code StoredEnchantments}.
+	 * Предикат для сохранённых зачарований (компонент {@code STORED_ENCHANTMENTS}, книги зачарований).
 	 */
 	public static class StoredEnchantments extends EnchantmentsPredicate {
 
-		public static final Codec<EnchantmentsPredicate.StoredEnchantments>
-				CODEC =
-				createCodec(EnchantmentsPredicate.StoredEnchantments::new);
+		public static final Codec<EnchantmentsPredicate.StoredEnchantments> CODEC = createCodec(EnchantmentsPredicate.StoredEnchantments::new);
 
-		protected StoredEnchantments(List<EnchantmentPredicate> list) {
-			super(list);
+		protected StoredEnchantments(List<EnchantmentPredicate> enchantments) {
+			super(enchantments);
 		}
 
 		@Override

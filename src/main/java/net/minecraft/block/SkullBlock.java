@@ -19,7 +19,8 @@ import net.minecraft.world.BlockView;
 import java.util.Map;
 
 /**
- * {@code SkullBlock}.
+ * Блок черепа/головы, устанавливаемый на пол. Поддерживает 16 позиций вращения.
+ * Форма зависит от типа черепа (пиглин имеет расширенную форму).
  */
 public class SkullBlock extends AbstractSkullBlock {
 
@@ -73,9 +74,6 @@ public class SkullBlock extends AbstractSkullBlock {
 		builder.add(ROTATION);
 	}
 
-	/**
-	 * {@code SkullType}.
-	 */
 	public interface SkullType extends StringIdentifiable {
 
 		Map<String, SkullBlock.SkullType> TYPES = new Object2ObjectArrayMap();
@@ -83,10 +81,7 @@ public class SkullBlock extends AbstractSkullBlock {
 		Codec<SkullBlock.SkullType> CODEC = Codec.stringResolver(StringIdentifiable::asString, TYPES::get);
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type implements SkullBlock.SkullType {
+	public enum Type implements SkullBlock.SkullType {
 		SKELETON("skeleton"),
 		WITHER_SKELETON("wither_skeleton"),
 		PLAYER("player"),

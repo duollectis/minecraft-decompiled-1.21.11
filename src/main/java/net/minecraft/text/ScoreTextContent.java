@@ -20,16 +20,20 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ScoreTextContent}.
+ * Содержимое текстового компонента, отображающее значение счёта из таблицы результатов.
+ *
+ * <p>Поле {@code name} может быть либо {@link ParsedSelector} (для динамического выбора сущности),
+ * либо строкой (для статического имени держателя счёта, например {@code "*"} для wildcard).
+ * Поле {@code objective} задаёт имя цели в таблице результатов.</p>
  */
 public record ScoreTextContent(Either<ParsedSelector, String> name, String objective) implements TextContent {
 
 	public static final MapCodec<ScoreTextContent> INNER_CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Codec.either(ParsedSelector.CODEC, Codec.STRING).fieldOf("name").forGetter(ScoreTextContent::name),
-					                    Codec.STRING.fieldOf("objective").forGetter(ScoreTextContent::objective)
-			                    )
-			                    .apply(instance, ScoreTextContent::new)
+					Codec.either(ParsedSelector.CODEC, Codec.STRING).fieldOf("name").forGetter(ScoreTextContent::name),
+					Codec.STRING.fieldOf("objective").forGetter(ScoreTextContent::objective)
+			)
+			.apply(instance, ScoreTextContent::new)
 	);
 	public static final MapCodec<ScoreTextContent> CODEC = INNER_CODEC.fieldOf("score");
 
@@ -38,42 +42,52 @@ public record ScoreTextContent(Either<ParsedSelector, String> name, String objec
 		return CODEC;
 	}
 
+	/**
+	 * Определяет держателя счёта на основе источника команды.
+	 *
+	 * <p>Если имя задано через селектор — выполняет его и возвращает единственную сущность.
+	 * Если сущностей несколько — бросает исключение. Если список пуст — возвращает
+	 * статический держатель по строке селектора. Если имя задано строкой — использует её напрямую.</p>
+	 */
 	private ScoreHolder getScoreHolder(ServerCommandSource source) throws CommandSyntaxException {
-		Optional<ParsedSelector> optional = this.name.left();
-		if (optional.isPresent()) {
-			List<? extends Entity> list = optional.get().comp_3068().getEntities(source);
-			if (!list.isEmpty()) {
-				if (list.size() != 1) {
-					throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.create();
-				}
-				else {
-					return list.getFirst();
-				}
+		Optional<ParsedSelector> parsedSelector = name.left();
+
+		if (parsedSelector.isPresent()) {
+			List<? extends Entity> entities = parsedSelector.get().selector().getEntities(source);
+
+			if (entities.isEmpty()) {
+				return ScoreHolder.fromName(parsedSelector.get().raw());
 			}
-			else {
-				return ScoreHolder.fromName(optional.get().comp_3067());
+
+			if (entities.size() != 1) {
+				throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.create();
 			}
+
+			return entities.getFirst();
 		}
-		else {
-			return ScoreHolder.fromName((String) this.name.right().orElseThrow());
-		}
+
+		return ScoreHolder.fromName(name.right().orElseThrow());
 	}
 
 	private MutableText getScore(ScoreHolder scoreHolder, ServerCommandSource source) {
-		MinecraftServer minecraftServer = source.getServer();
-		if (minecraftServer != null) {
-			Scoreboard scoreboard = minecraftServer.getScoreboard();
-			ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(this.objective);
-			if (scoreboardObjective != null) {
-				ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(scoreHolder, scoreboardObjective);
-				if (readableScoreboardScore != null) {
-					return readableScoreboardScore.getFormattedScore(scoreboardObjective.getNumberFormatOr(
-							StyledNumberFormat.EMPTY));
-				}
-			}
+		MinecraftServer server = source.getServer();
+
+		if (server == null) {
+			return Text.empty();
 		}
 
-		return Text.empty();
+		Scoreboard scoreboard = server.getScoreboard();
+		ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(objective);
+
+		if (scoreboardObjective == null) {
+			return Text.empty();
+		}
+
+		ReadableScoreboardScore score = scoreboard.getScore(scoreHolder, scoreboardObjective);
+
+		return score != null
+				? score.getFormattedScore(scoreboardObjective.getNumberFormatOr(StyledNumberFormat.EMPTY))
+				: Text.empty();
 	}
 
 	@Override
@@ -82,17 +96,17 @@ public record ScoreTextContent(Either<ParsedSelector, String> name, String objec
 		if (source == null) {
 			return Text.empty();
 		}
-		else {
-			ScoreHolder scoreHolder = this.getScoreHolder(source);
-			ScoreHolder
-					scoreHolder2 =
-					(ScoreHolder) (sender != null && scoreHolder.equals(ScoreHolder.WILDCARD) ? sender : scoreHolder);
-			return this.getScore(scoreHolder2, source);
-		}
+
+		ScoreHolder scoreHolder = getScoreHolder(source);
+		ScoreHolder resolved = sender != null && scoreHolder.equals(ScoreHolder.WILDCARD)
+				? sender
+				: scoreHolder;
+
+		return getScore(resolved, source);
 	}
 
 	@Override
 	public String toString() {
-		return "score{name='" + this.name + "', objective='" + this.objective + "'}";
+		return "score{name='" + name + "', objective='" + objective + "'}";
 	}
 }

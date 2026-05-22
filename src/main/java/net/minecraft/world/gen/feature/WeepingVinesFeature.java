@@ -13,9 +13,16 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code WeepingVinesFeature}.
+ * Генерирует плачущие лозы (weeping vines) в Нижнем мире.
+ * Сначала распространяет блоки блока нетерровых бородавок вокруг точки,
+ * затем генерирует колонны лоз, свисающих вниз.
  */
 public class WeepingVinesFeature extends Feature<DefaultFeatureConfig> {
+
+	private static final int VINE_AGE_MIN = 17;
+	private static final int VINE_AGE_MAX = 25;
+	private static final int WART_SPREAD_ATTEMPTS = 200;
+	private static final int VINE_SPREAD_ATTEMPTS = 100;
 
 	private static final Direction[] DIRECTIONS = Direction.values();
 
@@ -25,54 +32,58 @@ public class WeepingVinesFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		if (!structureWorldAccess.isAir(blockPos)) {
+
+		if (!world.isAir(origin)) {
 			return false;
 		}
-		else {
-			BlockState blockState = structureWorldAccess.getBlockState(blockPos.up());
-			if (!blockState.isOf(Blocks.NETHERRACK) && !blockState.isOf(Blocks.NETHER_WART_BLOCK)) {
-				return false;
-			}
-			else {
-				this.generateNetherWartBlocksInArea(structureWorldAccess, random, blockPos);
-				this.generateVinesInArea(structureWorldAccess, random, blockPos);
-				return true;
-			}
+
+		BlockState above = world.getBlockState(origin.up());
+
+		if (!above.isOf(Blocks.NETHERRACK) && !above.isOf(Blocks.NETHER_WART_BLOCK)) {
+			return false;
 		}
+
+		generateNetherWartBlocksInArea(world, random, origin);
+		generateVinesInArea(world, random, origin);
+		return true;
 	}
 
 	private void generateNetherWartBlocksInArea(WorldAccess world, Random random, BlockPos pos) {
 		world.setBlockState(pos, Blocks.NETHER_WART_BLOCK.getDefaultState(), 2);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		BlockPos.Mutable mutable2 = new BlockPos.Mutable();
+		BlockPos.Mutable neighborCheck = new BlockPos.Mutable();
 
-		for (int i = 0; i < 200; i++) {
+		for (int attempt = 0; attempt < WART_SPREAD_ATTEMPTS; attempt++) {
 			mutable.set(
-					pos,
-					random.nextInt(6) - random.nextInt(6),
-					random.nextInt(2) - random.nextInt(5),
-					random.nextInt(6) - random.nextInt(6)
+				pos,
+				random.nextInt(6) - random.nextInt(6),
+				random.nextInt(2) - random.nextInt(5),
+				random.nextInt(6) - random.nextInt(6)
 			);
-			if (world.isAir(mutable)) {
-				int j = 0;
 
-				for (Direction direction : DIRECTIONS) {
-					BlockState blockState = world.getBlockState(mutable2.set(mutable, direction));
-					if (blockState.isOf(Blocks.NETHERRACK) || blockState.isOf(Blocks.NETHER_WART_BLOCK)) {
-						j++;
-					}
+			if (!world.isAir(mutable)) {
+				continue;
+			}
 
-					if (j > 1) {
-						break;
-					}
+			int wartNeighbors = 0;
+
+			for (Direction direction : DIRECTIONS) {
+				BlockState neighbor = world.getBlockState(neighborCheck.set(mutable, direction));
+
+				if (neighbor.isOf(Blocks.NETHERRACK) || neighbor.isOf(Blocks.NETHER_WART_BLOCK)) {
+					wartNeighbors++;
 				}
 
-				if (j == 1) {
-					world.setBlockState(mutable, Blocks.NETHER_WART_BLOCK.getDefaultState(), 2);
+				if (wartNeighbors > 1) {
+					break;
 				}
+			}
+
+			if (wartNeighbors == 1) {
+				world.setBlockState(mutable, Blocks.NETHER_WART_BLOCK.getDefaultState(), 2);
 			}
 		}
 	}
@@ -80,57 +91,67 @@ public class WeepingVinesFeature extends Feature<DefaultFeatureConfig> {
 	private void generateVinesInArea(WorldAccess world, Random random, BlockPos pos) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = 0; i < 100; i++) {
+		for (int attempt = 0; attempt < VINE_SPREAD_ATTEMPTS; attempt++) {
 			mutable.set(
-					pos,
-					random.nextInt(8) - random.nextInt(8),
-					random.nextInt(2) - random.nextInt(7),
-					random.nextInt(8) - random.nextInt(8)
+				pos,
+				random.nextInt(8) - random.nextInt(8),
+				random.nextInt(2) - random.nextInt(7),
+				random.nextInt(8) - random.nextInt(8)
 			);
-			if (world.isAir(mutable)) {
-				BlockState blockState = world.getBlockState(mutable.up());
-				if (blockState.isOf(Blocks.NETHERRACK) || blockState.isOf(Blocks.NETHER_WART_BLOCK)) {
-					int j = MathHelper.nextInt(random, 1, 8);
-					if (random.nextInt(6) == 0) {
-						j *= 2;
-					}
 
-					if (random.nextInt(5) == 0) {
-						j = 1;
-					}
-
-					int k = 17;
-					int l = 25;
-					generateVineColumn(world, random, mutable, j, 17, 25);
-				}
+			if (!world.isAir(mutable)) {
+				continue;
 			}
+
+			BlockState above = world.getBlockState(mutable.up());
+
+			if (!above.isOf(Blocks.NETHERRACK) && !above.isOf(Blocks.NETHER_WART_BLOCK)) {
+				continue;
+			}
+
+			int length = MathHelper.nextInt(random, 1, 8);
+
+			if (random.nextInt(6) == 0) {
+				length *= 2;
+			}
+
+			if (random.nextInt(5) == 0) {
+				length = 1;
+			}
+
+			generateVineColumn(world, random, mutable, length, VINE_AGE_MIN, VINE_AGE_MAX);
 		}
 	}
 
+	/**
+	 * Генерирует вертикальную колонну плачущих лоз, свисающих вниз.
+	 * Последний блок получает случайный возраст из диапазона [{@code minAge}, {@code maxAge}].
+	 */
 	public static void generateVineColumn(
-			WorldAccess world,
-			Random random,
-			BlockPos.Mutable pos,
-			int length,
-			int minAge,
-			int maxAge
+		WorldAccess world,
+		Random random,
+		BlockPos.Mutable pos,
+		int length,
+		int minAge,
+		int maxAge
 	) {
-		for (int i = 0; i <= length; i++) {
-			if (world.isAir(pos)) {
-				if (i == length || !world.isAir(pos.down())) {
-					world.setBlockState(
-							pos,
-							Blocks.WEEPING_VINES
-									.getDefaultState()
-									.with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)),
-							2
-					);
-					break;
-				}
-
-				world.setBlockState(pos, Blocks.WEEPING_VINES_PLANT.getDefaultState(), 2);
+		for (int step = 0; step <= length; step++) {
+			if (!world.isAir(pos)) {
+				break;
 			}
 
+			if (step == length || !world.isAir(pos.down())) {
+				world.setBlockState(
+					pos,
+					Blocks.WEEPING_VINES
+						.getDefaultState()
+						.with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)),
+					2
+				);
+				break;
+			}
+
+			world.setBlockState(pos, Blocks.WEEPING_VINES_PLANT.getDefaultState(), 2);
 			pos.move(Direction.DOWN);
 		}
 	}

@@ -14,7 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code CraftingTableBlock}.
+ * Верстак — открывает стандартный 3×3 интерфейс крафта при взаимодействии игрока.
  */
 public class CraftingTableBlock extends Block {
 

@@ -8,7 +8,7 @@ import com.mojang.serialization.Dynamic;
 import java.util.function.Predicate;
 
 /**
- * {@code SimpleItemNbtFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public abstract class SimpleItemNbtFix extends ItemNbtFix {
 

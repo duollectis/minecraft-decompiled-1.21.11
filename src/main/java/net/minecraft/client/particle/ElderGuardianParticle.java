@@ -12,24 +12,28 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ElderGuardianParticle}.
+ * Частица проклятия Старшего Стража — отображает полноразмерную 3D-модель
+ * существа, парящую над игроком при наложении эффекта Mining Fatigue III.
+ * Использует специальный {@link ParticleTextureSheet#ELDER_GUARDIANS} для рендеринга.
  */
+@Environment(EnvType.CLIENT)
 public class ElderGuardianParticle extends Particle {
+
+	private static final int MAX_AGE = 30;
 
 	protected final ElderGuardianParticleModel model;
 	protected final RenderLayer renderLayer = RenderLayers.entityTranslucent(ElderGuardianEntityRenderer.TEXTURE);
 
-	ElderGuardianParticle(ClientWorld clientWorld, double d, double e, double f) {
-		super(clientWorld, d, e, f);
-		this.model =
-				new ElderGuardianParticleModel(MinecraftClient
-						.getInstance()
+	ElderGuardianParticle(ClientWorld world, double x, double y, double z) {
+		super(world, x, y, z);
+		this.model = new ElderGuardianParticleModel(
+				MinecraftClient.getInstance()
 						.getLoadedEntityModels()
-						.getModelPart(EntityModelLayers.ELDER_GUARDIAN));
+						.getModelPart(EntityModelLayers.ELDER_GUARDIAN)
+		);
 		this.gravityStrength = 0.0F;
-		this.maxAge = 30;
+		this.maxAge = MAX_AGE;
 	}
 
 	@Override
@@ -37,24 +41,25 @@ public class ElderGuardianParticle extends Particle {
 		return ParticleTextureSheet.ELDER_GUARDIANS;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частицы проклятия Старшего Стража.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new ElderGuardianParticle(clientWorld, d, e, f);
+			return new ElderGuardianParticle(world, x, y, z);
 		}
 	}
 }

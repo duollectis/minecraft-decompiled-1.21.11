@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
- * {@code RconClient}.
+ * Клиент RCON-соединения: обработка одного подключения к консоли удалённого управления.
  */
 public class RconClient extends RconBase {
 

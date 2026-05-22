@@ -1,26 +1,27 @@
 package net.minecraft.command;
 
 /**
- * {@code Frame}.
+ * Фрейм выполнения команды, хранящий глубину стека, потребителя возвращаемого значения
+ * и управляющий объект для досрочного прерывания цепочки.
  */
 public record Frame(int depth, ReturnValueConsumer returnValueConsumer, Frame.Control frameControl) {
 
 	public void succeed(int returnValue) {
-		this.returnValueConsumer.onSuccess(returnValue);
+		returnValueConsumer.onSuccess(returnValue);
 	}
 
 	public void fail() {
-		this.returnValueConsumer.onFailure();
+		returnValueConsumer.onFailure();
 	}
 
 	public void doReturn() {
-		this.frameControl.discard();
+		frameControl.discard();
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Control}.
+	 * Управляющий интерфейс для сброса (прерывания) текущего фрейма.
 	 */
+	@FunctionalInterface
 	public interface Control {
 
 		void discard();

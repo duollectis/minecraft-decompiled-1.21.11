@@ -1,7 +1,7 @@
 package net.minecraft.network.handler;
 
 /**
- * Класс handler names.
+ * Константы имён Netty-обработчиков в pipeline соединения.
  */
 public class HandlerNames {
 

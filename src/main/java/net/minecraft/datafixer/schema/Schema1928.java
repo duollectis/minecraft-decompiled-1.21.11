@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1928}.
+ * Схема версии 1928: переименовывает сущность {@code minecraft:illager_beast}
+ * в {@code minecraft:ravager} — финальное имя равагера после бета-периода.
  */
 public class Schema1928 extends IdentifierNormalizingSchema {
 
-	public Schema1928(int i, Schema schema) {
-		super(i, schema);
+	public Schema1928(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	protected static void targetEntityItems(Schema schema, Map<String, Supplier<TypeTemplate>> map, String entityId) {
@@ -20,9 +21,9 @@ public class Schema1928 extends IdentifierNormalizingSchema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		map.remove("minecraft:illager_beast");
-		targetEntityItems(schema, map, "minecraft:ravager");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		entityTypes.remove("minecraft:illager_beast");
+		targetEntityItems(schema, entityTypes, "minecraft:ravager");
+		return entityTypes;
 	}
 }

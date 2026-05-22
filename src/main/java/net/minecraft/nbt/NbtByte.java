@@ -9,22 +9,21 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtByte}.
+ * NBT-элемент, хранящий значение типа {@code byte}.
+ *
+ * <p>Все 256 возможных значений кэшируются в {@link Cache}, поэтому фабричный метод
+ * {@link #of(byte)} никогда не создаёт новых объектов. Конструктор record помечен
+ * {@link Deprecated} — используйте {@link #of(byte)} или {@link #of(boolean)}.</p>
  */
 public record NbtByte(byte value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 1 байт данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 9;
-	public static final NbtType<NbtByte> TYPE = new NbtType.OfFixedSize<NbtByte>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtByte — результат операции
-		 */
-		public NbtByte read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtByte.of(readByte(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtByte> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtByte read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtByte.of(readByte(input, tracker));
 		}
 
 		@Override
@@ -34,7 +33,7 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 		}
 
 		private static byte readByte(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(9L);
+			tracker.add(SIZE);
 			return input.readByte();
 		}
 
@@ -53,6 +52,7 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 			return "TAG_Byte";
 		}
 	};
+
 	public static final NbtByte ZERO = of((byte) 0);
 	public static final NbtByte ONE = of((byte) 1);
 
@@ -62,22 +62,20 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает кэшированный экземпляр для заданного байтового значения.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtByte — результат операции
+	 * @param value байтовое значение
+	 * @return кэшированный {@link NbtByte}
 	 */
 	public static NbtByte of(byte value) {
-		return NbtByte.Cache.VALUES[128 + value];
+		return Cache.VALUES[128 + value];
 	}
 
 	/**
-	 * Of.
+	 * Конвертирует булево значение в {@link NbtByte}: {@code true} → {@link #ONE}, {@code false} → {@link #ZERO}.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtByte — результат операции
+	 * @param value булево значение
+	 * @return {@link #ONE} или {@link #ZERO}
 	 */
 	public static NbtByte of(boolean value) {
 		return value ? ONE : ZERO;
@@ -85,17 +83,17 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeByte(this.value);
+		output.writeByte(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 9;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 1;
+		return BYTE_TYPE;
 	}
 
 	@Override
@@ -103,11 +101,7 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtByte — результат операции
-	 */
+	@Override
 	public NbtByte copy() {
 		return this;
 	}
@@ -119,64 +113,68 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 
 	@Override
 	public long longValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int intValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public short shortValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public byte byteValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitByte(this.value);
+		return visitor.visitByte(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitByte(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitByte(this);
+		return writer.getString();
 	}
 
 	/**
-	 * {@code Cache}.
+	 * Кэш всех 256 возможных байтовых значений.
+	 * Индекс {@code i} соответствует значению {@code i - 128}.
 	 */
 	static class Cache {
 
-		static final NbtByte[] VALUES = new NbtByte[256];
+		private static final int CACHE_SIZE = 256;
+		private static final int OFFSET = 128;
+
+		static final NbtByte[] VALUES = new NbtByte[CACHE_SIZE];
 
 		private Cache() {
 		}
 
 		static {
-			for (int i = 0; i < VALUES.length; i++) {
-				VALUES[i] = new NbtByte((byte) (i - 128));
+			for (int index = 0; index < VALUES.length; index++) {
+				VALUES[index] = new NbtByte((byte) (index - OFFSET));
 			}
 		}
 	}

@@ -10,11 +10,15 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 
 /**
- * {@code LoggingChunkLoadProgress}.
+ * Реализация {@link ChunkLoadProgress}, которая логирует прогресс загрузки чанков
+ * в консоль с интервалом 500 мс. Делегирует вычисление прогресса {@link DeltaChunkLoadProgress}.
  */
 public class LoggingChunkLoadProgress implements ChunkLoadProgress {
 
+	private static final long LOG_INTERVAL_MS = 500L;
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final boolean player;
 	private final DeltaChunkLoadProgress delegate;
 	private boolean done;
@@ -23,75 +27,69 @@ public class LoggingChunkLoadProgress implements ChunkLoadProgress {
 
 	public LoggingChunkLoadProgress(boolean player) {
 		this.player = player;
-		this.delegate = new DeltaChunkLoadProgress(player);
+		delegate = new DeltaChunkLoadProgress(player);
 	}
 
-	/**
-	 * Without player.
-	 *
-	 * @return LoggingChunkLoadProgress — результат операции
-	 */
 	public static LoggingChunkLoadProgress withoutPlayer() {
 		return new LoggingChunkLoadProgress(false);
 	}
 
-	/**
-	 * With player.
-	 *
-	 * @return LoggingChunkLoadProgress — результат операции
-	 */
 	public static LoggingChunkLoadProgress withPlayer() {
 		return new LoggingChunkLoadProgress(true);
 	}
 
 	@Override
 	public void init(ChunkLoadProgress.Stage stage, int chunks) {
-		if (!this.done) {
-			if (this.startTimeMs == Long.MAX_VALUE) {
-				long l = Util.getMeasuringTimeMs();
-				this.startTimeMs = l;
-				this.nextLogTimeMs = l;
-			}
+		if (done) {
+			return;
+		}
 
-			this.delegate.init(stage, chunks);
-			switch (stage) {
-				case PREPARE_GLOBAL_SPAWN:
-					LOGGER.info("Selecting global world spawn...");
-					break;
-				case LOAD_INITIAL_CHUNKS:
-					LOGGER.info("Loading {} persistent chunks...", chunks);
-					break;
-				case LOAD_PLAYER_CHUNKS:
-					LOGGER.info("Loading {} chunks for player spawn...", chunks);
-			}
+		if (startTimeMs == Long.MAX_VALUE) {
+			long now = Util.getMeasuringTimeMs();
+			startTimeMs = now;
+			nextLogTimeMs = now;
+		}
+
+		delegate.init(stage, chunks);
+
+		switch (stage) {
+			case PREPARE_GLOBAL_SPAWN -> LOGGER.info("Selecting global world spawn...");
+			case LOAD_INITIAL_CHUNKS -> LOGGER.info("Loading {} persistent chunks...", chunks);
+			case LOAD_PLAYER_CHUNKS -> LOGGER.info("Loading {} chunks for player spawn...", chunks);
 		}
 	}
 
 	@Override
 	public void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks) {
-		if (!this.done) {
-			this.delegate.progress(stage, fullChunks, totalChunks);
-			if (Util.getMeasuringTimeMs() > this.nextLogTimeMs) {
-				this.nextLogTimeMs += 500L;
-				int i = MathHelper.floor(this.delegate.getLoadProgress() * 100.0F);
-				LOGGER.info(Text.translatable("menu.preparingSpawn", i).getString());
-			}
+		if (done) {
+			return;
+		}
+
+		delegate.progress(stage, fullChunks, totalChunks);
+
+		if (Util.getMeasuringTimeMs() > nextLogTimeMs) {
+			nextLogTimeMs += LOG_INTERVAL_MS;
+			int percent = MathHelper.floor(delegate.getLoadProgress() * 100.0F);
+			LOGGER.info(Text.translatable("menu.preparingSpawn", percent).getString());
 		}
 	}
 
 	@Override
 	public void finish(ChunkLoadProgress.Stage stage) {
-		if (!this.done) {
-			this.delegate.finish(stage);
-			ChunkLoadProgress.Stage
-					stage2 =
-					this.player ? ChunkLoadProgress.Stage.LOAD_PLAYER_CHUNKS
-					            : ChunkLoadProgress.Stage.LOAD_INITIAL_CHUNKS;
-			if (stage == stage2) {
-				LOGGER.info("Time elapsed: {} ms", Util.getMeasuringTimeMs() - this.startTimeMs);
-				this.nextLogTimeMs = Long.MAX_VALUE;
-				this.done = true;
-			}
+		if (done) {
+			return;
+		}
+
+		delegate.finish(stage);
+
+		ChunkLoadProgress.Stage finalStage = player
+				? ChunkLoadProgress.Stage.LOAD_PLAYER_CHUNKS
+				: ChunkLoadProgress.Stage.LOAD_INITIAL_CHUNKS;
+
+		if (stage == finalStage) {
+			LOGGER.info("Time elapsed: {} ms", Util.getMeasuringTimeMs() - startTimeMs);
+			nextLogTimeMs = Long.MAX_VALUE;
+			done = true;
 		}
 	}
 

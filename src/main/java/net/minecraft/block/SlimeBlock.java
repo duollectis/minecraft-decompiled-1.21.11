@@ -9,7 +9,8 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /**
- * {@code SlimeBlock}.
+ * Блок слизи — отскакивает сущности при падении и замедляет горизонтальное движение.
+ * Живые существа отскакивают с полной скоростью, остальные — с коэффициентом 0.8.
  */
 public class SlimeBlock extends TranslucentBlock {
 
@@ -35,17 +36,18 @@ public class SlimeBlock extends TranslucentBlock {
 	public void onEntityLand(BlockView world, Entity entity) {
 		if (entity.bypassesLandingEffects()) {
 			super.onEntityLand(world, entity);
+			return;
 		}
-		else {
-			this.bounce(entity);
-		}
+
+		bounce(entity);
 	}
 
 	private void bounce(Entity entity) {
-		Vec3d vec3d = entity.getVelocity();
-		if (vec3d.y < 0.0) {
-			double d = entity instanceof LivingEntity ? 1.0 : 0.8;
-			entity.setVelocity(vec3d.x, -vec3d.y * d, vec3d.z);
+		Vec3d velocity = entity.getVelocity();
+
+		if (velocity.y < 0.0) {
+			double bounceFactor = entity instanceof LivingEntity ? 1.0 : 0.8;
+			entity.setVelocity(velocity.x, -velocity.y * bounceFactor, velocity.z);
 		}
 	}
 

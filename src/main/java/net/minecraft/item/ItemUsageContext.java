@@ -10,7 +10,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ItemUsageContext}.
+ * Контекст использования предмета на блоке.
+ * <p>Содержит всю необходимую информацию о взаимодействии: мир, игрок, рука,
+ * стек предмета и результат рейкаста по блоку.</p>
  */
 public class ItemUsageContext {
 
@@ -39,60 +41,55 @@ public class ItemUsageContext {
 	}
 
 	protected final BlockHitResult getHitResult() {
-		return this.hit;
+		return hit;
 	}
 
 	public BlockPos getBlockPos() {
-		return this.hit.getBlockPos();
+		return hit.getBlockPos();
 	}
 
 	public Direction getSide() {
-		return this.hit.getSide();
+		return hit.getSide();
 	}
 
 	public Vec3d getHitPos() {
-		return this.hit.getPos();
+		return hit.getPos();
 	}
 
-	/**
-	 * Hits inside block.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean hitsInsideBlock() {
-		return this.hit.isInsideBlock();
+		return hit.isInsideBlock();
 	}
 
 	public ItemStack getStack() {
-		return this.stack;
+		return stack;
 	}
 
 	public @Nullable PlayerEntity getPlayer() {
-		return this.player;
+		return player;
 	}
 
 	public Hand getHand() {
-		return this.hand;
+		return hand;
 	}
 
 	public World getWorld() {
-		return this.world;
+		return world;
 	}
 
 	public Direction getHorizontalPlayerFacing() {
-		return this.player == null ? Direction.NORTH : this.player.getHorizontalFacing();
+		return player == null ? Direction.NORTH : player.getHorizontalFacing();
 	}
 
 	/**
-	 * Определяет, следует ли cancel interaction.
+	 * Проверяет, должно ли взаимодействие быть отменено (например, игрок приседает).
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если взаимодействие следует отменить
 	 */
 	public boolean shouldCancelInteraction() {
-		return this.player != null && this.player.shouldCancelInteraction();
+		return player != null && player.shouldCancelInteraction();
 	}
 
 	public float getPlayerYaw() {
-		return this.player == null ? 0.0F : this.player.getYaw();
+		return player == null ? 0.0F : player.getYaw();
 	}
 }

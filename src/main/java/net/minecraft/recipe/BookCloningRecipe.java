@@ -11,122 +11,114 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.world.World;
 
 /**
- * {@code BookCloningRecipe}.
+ * Рецепт клонирования написанной книги.
+ * <p>
+ * Принимает ровно одну написанную книгу (источник) и одну или несколько
+ * книг-целей с тегом {@code book_cloning_target}. Результат — стак копий
+ * книги-источника в количестве, равном числу книг-целей.
+ * Оригинал возвращается как остаток крафта.
  */
 public class BookCloningRecipe extends SpecialCraftingRecipe {
 
-	public BookCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public BookCloningRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-						if (bl2) {
-							return false;
-						}
+		boolean hasWrittenBook = false;
+		boolean hasTarget = false;
 
-						bl2 = true;
-					}
-					else {
-						if (!itemStack.isIn(ItemTags.BOOK_CLONING_TARGET)) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						bl = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl2 && bl;
+			if (stack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+				if (hasWrittenBook) {
+					return false;
+				}
+
+				hasWrittenBook = true;
+			} else {
+				if (!stack.isIn(ItemTags.BOOK_CLONING_TARGET)) {
+					return false;
+				}
+
+				hasTarget = true;
+			}
 		}
+
+		return hasWrittenBook && hasTarget;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		int i = 0;
-		ItemStack itemStack = ItemStack.EMPTY;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		int targetCount = 0;
+		ItemStack sourceBook = ItemStack.EMPTY;
 
-		for (int j = 0; j < craftingRecipeInput.size(); j++) {
-			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
-			if (!itemStack2.isEmpty()) {
-				if (itemStack2.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-					if (!itemStack.isEmpty()) {
-						return ItemStack.EMPTY;
-					}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-					itemStack = itemStack2;
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			if (stack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+				if (!sourceBook.isEmpty()) {
+					return ItemStack.EMPTY;
 				}
-				else {
-					if (!itemStack2.isIn(ItemTags.BOOK_CLONING_TARGET)) {
-						return ItemStack.EMPTY;
-					}
 
-					i++;
+				sourceBook = stack;
+			} else {
+				if (!stack.isIn(ItemTags.BOOK_CLONING_TARGET)) {
+					return ItemStack.EMPTY;
 				}
+
+				targetCount++;
 			}
 		}
 
-		WrittenBookContentComponent
-				writtenBookContentComponent =
-				itemStack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
-		if (!itemStack.isEmpty() && i >= 1 && writtenBookContentComponent != null) {
-			WrittenBookContentComponent writtenBookContentComponent2 = writtenBookContentComponent.copy();
-			if (writtenBookContentComponent2 == null) {
-				return ItemStack.EMPTY;
-			}
-			else {
-				ItemStack itemStack3 = itemStack.copyWithCount(i);
-				itemStack3.set(DataComponentTypes.WRITTEN_BOOK_CONTENT, writtenBookContentComponent2);
-				return itemStack3;
-			}
-		}
-		else {
+		WrittenBookContentComponent bookContent = sourceBook.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+
+		if (sourceBook.isEmpty() || targetCount < 1 || bookContent == null) {
 			return ItemStack.EMPTY;
 		}
+
+		WrittenBookContentComponent copiedContent = bookContent.copy();
+
+		if (copiedContent == null) {
+			return ItemStack.EMPTY;
+		}
+
+		ItemStack result = sourceBook.copyWithCount(targetCount);
+		result.set(DataComponentTypes.WRITTEN_BOOK_CONTENT, copiedContent);
+		return result;
 	}
 
 	@Override
 	public DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
-		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+		DefaultedList<ItemStack> remainders = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-		for (int i = 0; i < defaultedList.size(); i++) {
-			ItemStack itemStack = input.getStackInSlot(i);
-			ItemStack itemStack2 = itemStack.getItem().getRecipeRemainder();
-			if (!itemStack2.isEmpty()) {
-				defaultedList.set(i, itemStack2);
-			}
-			else if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-				defaultedList.set(i, itemStack.copyWithCount(1));
+		for (int slotIndex = 0; slotIndex < remainders.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+			ItemStack remainder = stack.getItem().getRecipeRemainder();
+
+			if (!remainder.isEmpty()) {
+				remainders.set(slotIndex, remainder);
+			} else if (stack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+				remainders.set(slotIndex, stack.copyWithCount(1));
 				break;
 			}
 		}
 
-		return defaultedList;
+		return remainders;
 	}
 
 	@Override

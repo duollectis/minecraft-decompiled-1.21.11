@@ -6,11 +6,13 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code EntityAttributes}.
+ * Реестр всех стандартных атрибутов сущностей Minecraft.
+ * Каждый атрибут регистрируется в {@link Registries#ATTRIBUTE} при загрузке класса.
  */
 public class EntityAttributes {
 
 	public static final double DEFAULT_ATTACK_SPEED = 4.0;
+
 	public static final RegistryEntry<EntityAttribute> ARMOR = register(
 			"armor", new ClampedEntityAttribute("attribute.name.armor", 0.0, 0.0, 30.0).setTracked(true)
 	);
@@ -19,13 +21,16 @@ public class EntityAttributes {
 			new ClampedEntityAttribute("attribute.name.armor_toughness", 0.0, 0.0, 20.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> ATTACK_DAMAGE = register(
-			"attack_damage", new ClampedEntityAttribute("attribute.name.attack_damage", 2.0, 0.0, 2048.0)
+			"attack_damage",
+			new ClampedEntityAttribute("attribute.name.attack_damage", 2.0, 0.0, 2048.0)
 	);
 	public static final RegistryEntry<EntityAttribute> ATTACK_KNOCKBACK = register(
-			"attack_knockback", new ClampedEntityAttribute("attribute.name.attack_knockback", 0.0, 0.0, 5.0)
+			"attack_knockback",
+			new ClampedEntityAttribute("attribute.name.attack_knockback", 0.0, 0.0, 5.0)
 	);
 	public static final RegistryEntry<EntityAttribute> ATTACK_SPEED = register(
-			"attack_speed", new ClampedEntityAttribute("attribute.name.attack_speed", 4.0, 0.0, 1024.0).setTracked(true)
+			"attack_speed",
+			new ClampedEntityAttribute("attribute.name.attack_speed", 4.0, 0.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> BLOCK_BREAK_SPEED = register(
 			"block_break_speed",
@@ -60,10 +65,12 @@ public class EntityAttributes {
 					.setCategory(EntityAttribute.Category.NEGATIVE)
 	);
 	public static final RegistryEntry<EntityAttribute> FLYING_SPEED = register(
-			"flying_speed", new ClampedEntityAttribute("attribute.name.flying_speed", 0.4, 0.0, 1024.0).setTracked(true)
+			"flying_speed",
+			new ClampedEntityAttribute("attribute.name.flying_speed", 0.4, 0.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> FOLLOW_RANGE = register(
-			"follow_range", new ClampedEntityAttribute("attribute.name.follow_range", 32.0, 0.0, 2048.0)
+			"follow_range",
+			new ClampedEntityAttribute("attribute.name.follow_range", 32.0, 0.0, 2048.0)
 	);
 	public static final RegistryEntry<EntityAttribute> GRAVITY = register(
 			"gravity",
@@ -76,17 +83,20 @@ public class EntityAttributes {
 			new ClampedEntityAttribute("attribute.name.jump_strength", 0.42F, 0.0, 32.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> KNOCKBACK_RESISTANCE = register(
-			"knockback_resistance", new ClampedEntityAttribute("attribute.name.knockback_resistance", 0.0, 0.0, 1.0)
+			"knockback_resistance",
+			new ClampedEntityAttribute("attribute.name.knockback_resistance", 0.0, 0.0, 1.0)
 	);
 	public static final RegistryEntry<EntityAttribute> LUCK = register(
-			"luck", new ClampedEntityAttribute("attribute.name.luck", 0.0, -1024.0, 1024.0).setTracked(true)
+			"luck",
+			new ClampedEntityAttribute("attribute.name.luck", 0.0, -1024.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> MAX_ABSORPTION = register(
 			"max_absorption",
 			new ClampedEntityAttribute("attribute.name.max_absorption", 0.0, 0.0, 2048.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> MAX_HEALTH = register(
-			"max_health", new ClampedEntityAttribute("attribute.name.max_health", 20.0, 1.0, 1024.0).setTracked(true)
+			"max_health",
+			new ClampedEntityAttribute("attribute.name.max_health", 20.0, 1.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> MINING_EFFICIENCY = register(
 			"mining_efficiency",
@@ -101,7 +111,8 @@ public class EntityAttributes {
 			new ClampedEntityAttribute("attribute.name.movement_speed", 0.7, 0.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> OXYGEN_BONUS = register(
-			"oxygen_bonus", new ClampedEntityAttribute("attribute.name.oxygen_bonus", 0.0, 0.0, 1024.0).setTracked(true)
+			"oxygen_bonus",
+			new ClampedEntityAttribute("attribute.name.oxygen_bonus", 0.0, 0.0, 1024.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> SAFE_FALL_DISTANCE = register(
 			"safe_fall_distance",
@@ -118,10 +129,12 @@ public class EntityAttributes {
 			new ClampedEntityAttribute("attribute.name.sneaking_speed", 0.3, 0.0, 1.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> SPAWN_REINFORCEMENTS = register(
-			"spawn_reinforcements", new ClampedEntityAttribute("attribute.name.spawn_reinforcements", 0.0, 0.0, 1.0)
+			"spawn_reinforcements",
+			new ClampedEntityAttribute("attribute.name.spawn_reinforcements", 0.0, 0.0, 1.0)
 	);
 	public static final RegistryEntry<EntityAttribute> STEP_HEIGHT = register(
-			"step_height", new ClampedEntityAttribute("attribute.name.step_height", 0.6, 0.0, 10.0).setTracked(true)
+			"step_height",
+			new ClampedEntityAttribute("attribute.name.step_height", 0.6, 0.0, 10.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> SUBMERGED_MINING_SPEED = register(
 			"submerged_mining_speed",
@@ -132,7 +145,8 @@ public class EntityAttributes {
 			new ClampedEntityAttribute("attribute.name.sweeping_damage_ratio", 0.0, 0.0, 1.0).setTracked(true)
 	);
 	public static final RegistryEntry<EntityAttribute> TEMPT_RANGE = register(
-			"tempt_range", new ClampedEntityAttribute("attribute.name.tempt_range", 10.0, 0.0, 2048.0)
+			"tempt_range",
+			new ClampedEntityAttribute("attribute.name.tempt_range", 10.0, 0.0, 2048.0)
 	);
 	public static final RegistryEntry<EntityAttribute> WATER_MOVEMENT_EFFICIENCY = register(
 			"water_movement_efficiency",
@@ -140,13 +154,13 @@ public class EntityAttributes {
 	);
 	public static final RegistryEntry<EntityAttribute> WAYPOINT_TRANSMIT_RANGE = register(
 			"waypoint_transmit_range",
-			new ClampedEntityAttribute("attribute.name.waypoint_transmit_range", 0.0, 0.0, 6.0E7).setCategory(
-					EntityAttribute.Category.NEUTRAL)
+			new ClampedEntityAttribute("attribute.name.waypoint_transmit_range", 0.0, 0.0, 6.0E7)
+					.setCategory(EntityAttribute.Category.NEUTRAL)
 	);
 	public static final RegistryEntry<EntityAttribute> WAYPOINT_RECEIVE_RANGE = register(
 			"waypoint_receive_range",
-			new ClampedEntityAttribute("attribute.name.waypoint_receive_range", 0.0, 0.0, 6.0E7).setCategory(
-					EntityAttribute.Category.NEUTRAL)
+			new ClampedEntityAttribute("attribute.name.waypoint_receive_range", 0.0, 0.0, 6.0E7)
+					.setCategory(EntityAttribute.Category.NEUTRAL)
 	);
 
 	private static RegistryEntry<EntityAttribute> register(String id, EntityAttribute attribute) {
@@ -154,11 +168,8 @@ public class EntityAttributes {
 	}
 
 	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return RegistryEntry — результат операции
+	 * Инициализирует реестр атрибутов и возвращает {@link #MAX_HEALTH} как атрибут по умолчанию.
+	 * Вызывается при загрузке реестра для гарантии инициализации статических полей.
 	 */
 	public static RegistryEntry<EntityAttribute> registerAndGetDefault(Registry<EntityAttribute> registry) {
 		return MAX_HEALTH;

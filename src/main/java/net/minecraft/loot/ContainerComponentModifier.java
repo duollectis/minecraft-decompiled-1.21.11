@@ -8,7 +8,13 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
- * {@code ContainerComponentModifier}.
+ * Интерфейс для модификации компонента-контейнера предмета через поток содержимого.
+ *
+ * <p>Позволяет читать и записывать содержимое компонента (например, {@code CONTAINER},
+ * {@code BUNDLE_CONTENTS}) как поток {@link ItemStack}, применяя к нему произвольные
+ * преобразования лут-функций.</p>
+ *
+ * @param <T> тип компонента-контейнера
  */
 public interface ContainerComponentModifier<T> {
 
@@ -20,37 +26,49 @@ public interface ContainerComponentModifier<T> {
 
 	Stream<ItemStack> stream(T component);
 
+	/**
+	 * Применяет модификацию к компоненту стака, читая текущее значение или используя
+	 * переданный {@code component} как значение по умолчанию, если компонент отсутствует.
+	 */
 	default void apply(ItemStack stack, T component, Stream<ItemStack> contents) {
-		T object = stack.getOrDefault(this.getComponentType(), component);
-		T object2 = this.apply(object, contents);
-		stack.set(this.getComponentType(), object2);
+		T current = stack.getOrDefault(getComponentType(), component);
+		T updated = apply(current, contents);
+		stack.set(getComponentType(), updated);
 	}
 
 	default void apply(ItemStack stack, Stream<ItemStack> contents) {
-		this.apply(stack, this.getDefault(), contents);
+		apply(stack, getDefault(), contents);
 	}
 
+	/**
+	 * Применяет оператор преобразования к каждому предмету внутри компонента-контейнера.
+	 * Пустые стаки пропускаются; результат обрезается до максимального размера стака.
+	 */
 	default void apply(ItemStack stack, UnaryOperator<ItemStack> contentsOperator) {
-		T object = stack.get(this.getComponentType());
-		if (object != null) {
-			UnaryOperator<ItemStack> unaryOperator = contentStack -> {
-				if (contentStack.isEmpty()) {
-					return contentStack;
-				}
-				else {
-					ItemStack itemStack = contentsOperator.apply(contentStack);
-					itemStack.capCount(itemStack.getMaxCount());
-					return itemStack;
-				}
-			};
-			this.apply(stack, this.stream(object).map(unaryOperator));
+		T component = stack.get(getComponentType());
+
+		if (component == null) {
+			return;
 		}
+
+		UnaryOperator<ItemStack> safeOperator = contentStack -> {
+			if (contentStack.isEmpty()) {
+				return contentStack;
+			}
+
+			ItemStack result = contentsOperator.apply(contentStack);
+			result.capCount(result.getMaxCount());
+
+			return result;
+		};
+
+		apply(stack, stream(component).map(safeOperator));
 	}
 
 	default ItemStream stream(ItemStack stack) {
 		return () -> {
-			T object = stack.get(this.getComponentType());
-			return object != null ? this.stream(object).filter(s -> !s.isEmpty()) : Stream.empty();
+			T component = stack.get(getComponentType());
+			return component != null ? stream(component).filter(s -> !s.isEmpty()) : Stream.empty();
 		};
 	}
 }

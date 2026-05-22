@@ -9,9 +9,12 @@ import net.minecraft.world.WorldView;
 import java.util.EnumSet;
 
 /**
- * {@code GoToBedAndSleepGoal}.
+ * Цель, заставляющая прирученную кошку находить кровать и засыпать на ней.
+ * Наследует логику навигации к целевой позиции от {@link MoveToTargetPosGoal}.
  */
 public class GoToBedAndSleepGoal extends MoveToTargetPosGoal {
+
+	private static final int SEARCH_INTERVAL_TICKS = 40;
 
 	private final CatEntity cat;
 
@@ -24,35 +27,35 @@ public class GoToBedAndSleepGoal extends MoveToTargetPosGoal {
 
 	@Override
 	public boolean canStart() {
-		return this.cat.isTamed() && !this.cat.isSitting() && !this.cat.isInSleepingPose() && super.canStart();
+		return cat.isTamed() && !cat.isSitting() && !cat.isInSleepingPose() && super.canStart();
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.cat.setInSittingPose(false);
+		cat.setInSittingPose(false);
 	}
 
 	@Override
 	protected int getInterval(PathAwareEntity mob) {
-		return 40;
+		return SEARCH_INTERVAL_TICKS;
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.cat.setInSleepingPose(false);
+		cat.setInSleepingPose(false);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		this.cat.setInSittingPose(false);
-		if (!this.hasReached()) {
-			this.cat.setInSleepingPose(false);
-		}
-		else if (!this.cat.isInSleepingPose()) {
-			this.cat.setInSleepingPose(true);
+		cat.setInSittingPose(false);
+
+		if (!hasReached()) {
+			cat.setInSleepingPose(false);
+		} else if (!cat.isInSleepingPose()) {
+			cat.setInSleepingPose(true);
 		}
 	}
 

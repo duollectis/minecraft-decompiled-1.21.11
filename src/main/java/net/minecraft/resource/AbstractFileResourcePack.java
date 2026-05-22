@@ -15,7 +15,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@code AbstractFileResourcePack}.
+ * Базовая реализация {@link ResourcePack} для паков, хранящихся в файловой системе.
+ * Предоставляет общую логику чтения и разбора метаданных из файла {@code pack.mcmeta}.
  */
 public abstract class AbstractFileResourcePack implements ResourcePack {
 
@@ -28,65 +29,57 @@ public abstract class AbstractFileResourcePack implements ResourcePack {
 
 	@Override
 	public <T> @Nullable T parseMetadata(ResourceMetadataSerializer<T> metadataSerializer) throws IOException {
-		InputSupplier<InputStream> inputSupplier = this.openRoot("pack.mcmeta");
+		InputSupplier<InputStream> inputSupplier = openRoot("pack.mcmeta");
 		if (inputSupplier == null) {
 			return null;
 		}
-		else {
-			Object var4;
-			try (InputStream inputStream = inputSupplier.get()) {
-				var4 = parseMetadata(metadataSerializer, inputStream, this.info);
-			}
 
-			return (T) var4;
+		try (InputStream inputStream = inputSupplier.get()) {
+			return parseMetadata(metadataSerializer, inputStream, info);
 		}
 	}
 
+	/**
+	 * Разбирает метаданные пака из входного потока.
+	 * Читает JSON из потока и декодирует секцию, соответствующую имени сериализатора.
+	 *
+	 * @param metadataSerializer сериализатор нужной секции метаданных
+	 * @param inputStream        поток с содержимым файла {@code pack.mcmeta}
+	 * @param packInfo           информация о паке (используется для логирования ошибок)
+	 * @return декодированный объект метаданных или {@code null} при ошибке / отсутствии секции
+	 */
 	public static <T> @Nullable T parseMetadata(
-			ResourceMetadataSerializer<T> resourceMetadataSerializer,
-			InputStream inputStream,
-			ResourcePackInfo resourcePackInfo
+		ResourceMetadataSerializer<T> metadataSerializer,
+		InputStream inputStream,
+		ResourcePackInfo packInfo
 	) {
 		JsonObject jsonObject;
-		try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
-				inputStream,
-				StandardCharsets.UTF_8
-		))
-		) {
-			jsonObject = JsonHelper.deserialize(bufferedReader);
-		}
-		catch (Exception var9) {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+			jsonObject = JsonHelper.deserialize(reader);
+		} catch (Exception exception) {
 			LOGGER.error(
-					"Couldn't load {} {} metadata: {}",
-					new Object[]{resourcePackInfo.id(), resourceMetadataSerializer.name(), var9.getMessage()}
+				"Couldn't load {} {} metadata: {}",
+				packInfo.id(), metadataSerializer.name(), exception.getMessage()
 			);
 			return null;
 		}
 
-		return (T) (!jsonObject.has(resourceMetadataSerializer.name())
-		            ? null
-		            : resourceMetadataSerializer.codec()
-		                                        .parse(
-				                                        JsonOps.INSTANCE,
-				                                        jsonObject.get(resourceMetadataSerializer.name())
-		                                        )
-		                                        .ifError(
-				                                        error -> LOGGER.error(
-						                                        "Couldn't load {} {} metadata: {}",
-						                                        new Object[]{
-								                                        resourcePackInfo.id(),
-								                                        resourceMetadataSerializer.name(),
-								                                        error.message()
-						                                        }
-				                                        )
-		                                        )
-		                                        .result()
-		                                        .orElse(null)
-		);
+		if (!jsonObject.has(metadataSerializer.name())) {
+			return null;
+		}
+
+		return metadataSerializer.codec()
+			.parse(JsonOps.INSTANCE, jsonObject.get(metadataSerializer.name()))
+			.ifError(error -> LOGGER.error(
+				"Couldn't load {} {} metadata: {}",
+				packInfo.id(), metadataSerializer.name(), error.message()
+			))
+			.result()
+			.orElse(null);
 	}
 
 	@Override
 	public ResourcePackInfo getInfo() {
-		return this.info;
+		return info;
 	}
 }

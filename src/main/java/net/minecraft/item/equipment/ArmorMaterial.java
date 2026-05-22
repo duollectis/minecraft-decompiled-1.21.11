@@ -14,7 +14,8 @@ import net.minecraft.util.Identifier;
 import java.util.Map;
 
 /**
- * {@code ArmorMaterial}.
+ * Материал брони: определяет прочность, защиту по слотам, зачарование,
+ * звук надевания, стойкость, сопротивление отбрасыванию и ресурс для ремонта.
  */
 public record ArmorMaterial(
 		int durability,
@@ -28,38 +29,34 @@ public record ArmorMaterial(
 ) {
 
 	/**
-	 * Создаёт attribute modifiers.
+	 * Создаёт компонент модификаторов атрибутов для указанного слота снаряжения.
+	 * Всегда добавляет ARMOR и ARMOR_TOUGHNESS; KNOCKBACK_RESISTANCE — только если значение > 0.
 	 *
-	 * @param equipmentType equipment type
-	 *
-	 * @return AttributeModifiersComponent — результат операции
+	 * @param equipmentType тип слота снаряжения (шлем, нагрудник и т.д.)
+	 * @return компонент с модификаторами атрибутов для данного материала и слота
 	 */
 	public AttributeModifiersComponent createAttributeModifiers(EquipmentType equipmentType) {
-		int i = this.defense.getOrDefault(equipmentType, 0);
+		int defenseValue = defense.getOrDefault(equipmentType, 0);
 		AttributeModifiersComponent.Builder builder = AttributeModifiersComponent.builder();
-		AttributeModifierSlot
-				attributeModifierSlot =
-				AttributeModifierSlot.forEquipmentSlot(equipmentType.getEquipmentSlot());
-		Identifier identifier = Identifier.ofVanilla("armor." + equipmentType.getName());
+		AttributeModifierSlot slot = AttributeModifierSlot.forEquipmentSlot(equipmentType.getEquipmentSlot());
+		Identifier modifierId = Identifier.ofVanilla("armor." + equipmentType.getName());
+
 		builder.add(
 				EntityAttributes.ARMOR,
-				new EntityAttributeModifier(identifier, i, EntityAttributeModifier.Operation.ADD_VALUE),
-				attributeModifierSlot
+				new EntityAttributeModifier(modifierId, defenseValue, EntityAttributeModifier.Operation.ADD_VALUE),
+				slot
 		);
 		builder.add(
 				EntityAttributes.ARMOR_TOUGHNESS,
-				new EntityAttributeModifier(identifier, this.toughness, EntityAttributeModifier.Operation.ADD_VALUE),
-				attributeModifierSlot
+				new EntityAttributeModifier(modifierId, toughness, EntityAttributeModifier.Operation.ADD_VALUE),
+				slot
 		);
-		if (this.knockbackResistance > 0.0F) {
+
+		if (knockbackResistance > 0.0F) {
 			builder.add(
 					EntityAttributes.KNOCKBACK_RESISTANCE,
-					new EntityAttributeModifier(
-							identifier,
-							this.knockbackResistance,
-							EntityAttributeModifier.Operation.ADD_VALUE
-					),
-					attributeModifierSlot
+					new EntityAttributeModifier(modifierId, knockbackResistance, EntityAttributeModifier.Operation.ADD_VALUE),
+					slot
 			);
 		}
 

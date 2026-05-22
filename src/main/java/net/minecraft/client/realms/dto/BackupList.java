@@ -10,39 +10,41 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BackupList}.
+ * DTO списка резервных копий мира Realms.
+ * Парсит JSON-ответ сервера и фильтрует некорректные записи.
  */
+@Environment(EnvType.CLIENT)
 public record BackupList(List<Backup> backups) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
 	/**
-	 * Parse.
+	 * Парсит список резервных копий из JSON-строки ответа сервера Realms.
+	 * Некорректные записи пропускаются без прерывания парсинга.
 	 *
-	 * @param json json
-	 *
-	 * @return BackupList — результат операции
+	 * @param json JSON-строка с полем {@code backups}
+	 * @return список резервных копий (может быть пустым при ошибке)
 	 */
 	public static BackupList parse(String json) {
-		List<Backup> list = new ArrayList<>();
+		List<Backup> result = new ArrayList<>();
 
 		try {
-			JsonElement jsonElement = LenientJsonParser.parse(json).getAsJsonObject().get("backups");
-			if (jsonElement.isJsonArray()) {
-				for (JsonElement jsonElement2 : jsonElement.getAsJsonArray()) {
-					Backup backup = Backup.parse(jsonElement2);
+			JsonElement backupsElement = LenientJsonParser.parse(json).getAsJsonObject().get("backups");
+
+			if (backupsElement.isJsonArray()) {
+				for (JsonElement element : backupsElement.getAsJsonArray()) {
+					Backup backup = Backup.parse(element);
+
 					if (backup != null) {
-						list.add(backup);
+						result.add(backup);
 					}
 				}
 			}
-		}
-		catch (Exception var6) {
-			LOGGER.error("Could not parse BackupList", var6);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse BackupList", ex);
 		}
 
-		return new BackupList(list);
+		return new BackupList(result);
 	}
 }

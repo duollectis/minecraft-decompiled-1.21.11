@@ -10,7 +10,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code SimpleDefaultedRegistry}.
+ * Реализация {@link DefaultedRegistry} на основе {@link SimpleRegistry}.
+ * При отсутствии запрошенного элемента возвращает элемент по умолчанию,
+ * зарегистрированный под {@code defaultId}.
+ *
+ * @param <T> тип элементов реестра
  */
 public class SimpleDefaultedRegistry<T> extends SimpleRegistry<T> implements DefaultedRegistry<T> {
 
@@ -30,8 +34,9 @@ public class SimpleDefaultedRegistry<T> extends SimpleRegistry<T> implements Def
 	@Override
 	public RegistryEntry.Reference<T> add(RegistryKey<T> key, T value, RegistryEntryInfo info) {
 		RegistryEntry.Reference<T> reference = super.add(key, value, info);
-		if (this.defaultId.equals(key.getValue())) {
-			this.defaultEntry = reference;
+
+		if (defaultId.equals(key.getValue())) {
+			defaultEntry = reference;
 		}
 
 		return reference;
@@ -39,20 +44,20 @@ public class SimpleDefaultedRegistry<T> extends SimpleRegistry<T> implements Def
 
 	@Override
 	public int getRawId(@Nullable T value) {
-		int i = super.getRawId(value);
-		return i == -1 ? super.getRawId(this.defaultEntry.value()) : i;
+		int rawId = super.getRawId(value);
+		return rawId == -1 ? super.getRawId(defaultEntry.value()) : rawId;
 	}
 
 	@Override
 	public Identifier getId(T value) {
 		Identifier identifier = super.getId(value);
-		return identifier == null ? this.defaultId : identifier;
+		return identifier == null ? defaultId : identifier;
 	}
 
 	@Override
 	public T get(@Nullable Identifier id) {
 		T object = super.get(id);
-		return object == null ? this.defaultEntry.value() : object;
+		return object == null ? defaultEntry.value() : object;
 	}
 
 	@Override
@@ -62,22 +67,22 @@ public class SimpleDefaultedRegistry<T> extends SimpleRegistry<T> implements Def
 
 	@Override
 	public Optional<RegistryEntry.Reference<T>> getDefaultEntry() {
-		return Optional.ofNullable(this.defaultEntry);
+		return Optional.ofNullable(defaultEntry);
 	}
 
 	@Override
 	public T get(int index) {
 		T object = super.get(index);
-		return object == null ? this.defaultEntry.value() : object;
+		return object == null ? defaultEntry.value() : object;
 	}
 
 	@Override
 	public Optional<RegistryEntry.Reference<T>> getRandom(Random random) {
-		return super.getRandom(random).or(() -> Optional.of(this.defaultEntry));
+		return super.getRandom(random).or(() -> Optional.of(defaultEntry));
 	}
 
 	@Override
 	public Identifier getDefaultId() {
-		return this.defaultId;
+		return defaultId;
 	}
 }

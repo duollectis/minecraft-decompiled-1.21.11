@@ -9,12 +9,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema808}.
+ * Схема DataFixer версии 808, добавляющая поддержку инвентаря {@code Items}
+ * для блок-сущности {@code minecraft:shulker_box} (ящик шалкера).
  */
 public class Schema808 extends IdentifierNormalizingSchema {
 
-	public Schema808(int i, Schema schema) {
-		super(i, schema);
+	public Schema808(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	protected static void targetItems(Schema schema, Map<String, Supplier<TypeTemplate>> map, String blockEntityId) {

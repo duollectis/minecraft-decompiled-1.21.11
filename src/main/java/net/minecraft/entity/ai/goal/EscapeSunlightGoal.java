@@ -11,9 +11,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code EscapeSunlightGoal}.
+ * Цель побега от солнечного света: ищет затенённую позицию, если моб горит под открытым небом.
+ * Не активируется при наличии шлема или активной цели атаки.
  */
 public class EscapeSunlightGoal extends Goal {
+
+	private static final int SHADE_SEARCH_ATTEMPTS = 10;
+	private static final int SHADE_HORIZONTAL_RANGE = 10;
+	private static final int SHADE_VERTICAL_RANGE = 3;
 
 	protected final PathAwareEntity mob;
 	private double targetX;
@@ -26,69 +31,68 @@ public class EscapeSunlightGoal extends Goal {
 		this.mob = mob;
 		this.speed = speed;
 		this.world = mob.getEntityWorld();
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.getTarget() != null) {
+		if (mob.getTarget() != null) {
 			return false;
 		}
-		else if (!this.world.isDay()) {
+
+		if (!world.isDay()) {
 			return false;
 		}
-		else if (!this.mob.isOnFire()) {
+
+		if (!mob.isOnFire()) {
 			return false;
 		}
-		else if (!this.world.isSkyVisible(this.mob.getBlockPos())) {
+
+		if (!world.isSkyVisible(mob.getBlockPos())) {
 			return false;
 		}
-		else {
-			return !this.mob.getEquippedStack(EquipmentSlot.HEAD).isEmpty() ? false : this.targetShadedPos();
+
+		if (!mob.getEquippedStack(EquipmentSlot.HEAD).isEmpty()) {
+			return false;
 		}
+
+		return targetShadedPos();
 	}
 
-	/**
-	 * Target shaded pos.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean targetShadedPos() {
-		Vec3d vec3d = this.locateShadedPos();
-		if (vec3d == null) {
+		Vec3d shadePos = locateShadedPos();
+		if (shadePos == null) {
 			return false;
 		}
-		else {
-			this.targetX = vec3d.x;
-			this.targetY = vec3d.y;
-			this.targetZ = vec3d.z;
-			return true;
-		}
+
+		targetX = shadePos.x;
+		targetY = shadePos.y;
+		targetZ = shadePos.z;
+		return true;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.mob.getNavigation().isIdle();
+		return !mob.getNavigation().isIdle();
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
+		mob.getNavigation().startMovingTo(targetX, targetY, targetZ, speed);
 	}
 
-	/**
-	 * Locate shaded pos.
-	 *
-	 * @return @Nullable Vec3d — результат операции
-	 */
 	protected @Nullable Vec3d locateShadedPos() {
-		Random random = this.mob.getRandom();
-		BlockPos blockPos = this.mob.getBlockPos();
+		Random random = mob.getRandom();
+		BlockPos origin = mob.getBlockPos();
 
-		for (int i = 0; i < 10; i++) {
-			BlockPos blockPos2 = blockPos.add(random.nextInt(20) - 10, random.nextInt(6) - 3, random.nextInt(20) - 10);
-			if (!this.world.isSkyVisible(blockPos2) && this.mob.getPathfindingFavor(blockPos2) < 0.0F) {
-				return Vec3d.ofBottomCenter(blockPos2);
+		for (int attempt = 0; attempt < SHADE_SEARCH_ATTEMPTS; attempt++) {
+			BlockPos candidate = origin.add(
+					random.nextInt(20) - SHADE_HORIZONTAL_RANGE,
+					random.nextInt(6) - SHADE_VERTICAL_RANGE,
+					random.nextInt(20) - SHADE_HORIZONTAL_RANGE
+			);
+			if (!world.isSkyVisible(candidate) && mob.getPathfindingFavor(candidate) < 0.0F) {
+				return Vec3d.ofBottomCenter(candidate);
 			}
 		}
 

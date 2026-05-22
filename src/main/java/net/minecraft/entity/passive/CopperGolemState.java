@@ -10,7 +10,7 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code CopperGolemState}.
+ * Состояние медного голема: активен или застыл от окисления.
  */
 public enum CopperGolemState implements StringIdentifiable {
 	IDLE("idle", 0),

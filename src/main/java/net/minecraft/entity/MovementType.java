@@ -1,7 +1,7 @@
 package net.minecraft.entity;
 
 /**
- * {@code MovementType}.
+ * Тип движения сущности, определяющий источник и правила применения перемещения.
  */
 public enum MovementType {
 	SELF,

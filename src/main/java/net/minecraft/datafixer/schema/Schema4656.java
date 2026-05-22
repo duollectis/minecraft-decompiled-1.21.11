@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4656}.
+ * Схема DataFixer версии 4656, регистрирующая новые сущности пустынной тематики:
+ * {@code minecraft:camel_husk} и {@code minecraft:parched}.
  */
 public class Schema4656 extends IdentifierNormalizingSchema {
 
-	public Schema4656(int i, Schema schema) {
-		super(i, schema);
+	public Schema4656(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

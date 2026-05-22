@@ -92,7 +92,7 @@ public class BrainDebugRenderer implements DebugRenderer.Renderer {
 					i,
 					brainDebugData.profession() + " " + brainDebugData.xp() + " xp",
 					-1,
-					0.32F
+					DEFAULT_DRAWN_STRING_SIZE
 			);
 			i++;
 		}
@@ -108,47 +108,47 @@ public class BrainDebugRenderer implements DebugRenderer.Renderer {
 							brainDebugData.maxHealth()
 					),
 					j,
-					0.32F
+					DEFAULT_DRAWN_STRING_SIZE
 			);
 			i++;
 		}
 
 		if (bl && !brainDebugData.inventory().equals("")) {
-			GizmoDrawing.entityLabel(entity, i, brainDebugData.inventory(), -98404, 0.32F);
+			GizmoDrawing.entityLabel(entity, i, brainDebugData.inventory(), PINK, DEFAULT_DRAWN_STRING_SIZE);
 			i++;
 		}
 
 		if (bl) {
 			for (String string : brainDebugData.behaviors()) {
-				GizmoDrawing.entityLabel(entity, i, string, -16711681, 0.32F);
+				GizmoDrawing.entityLabel(entity, i, string, AQUA, DEFAULT_DRAWN_STRING_SIZE);
 				i++;
 			}
 		}
 
 		if (bl) {
 			for (String string : brainDebugData.activities()) {
-				GizmoDrawing.entityLabel(entity, i, string, -16711936, 0.32F);
+				GizmoDrawing.entityLabel(entity, i, string, -16711936, DEFAULT_DRAWN_STRING_SIZE);
 				i++;
 			}
 		}
 
 		if (brainDebugData.wantsGolem()) {
-			GizmoDrawing.entityLabel(entity, i, "Wants Golem", -23296, 0.32F);
+			GizmoDrawing.entityLabel(entity, i, "Wants Golem", ORANGE, DEFAULT_DRAWN_STRING_SIZE);
 			i++;
 		}
 
 		if (bl && brainDebugData.angerLevel() != -1) {
-			GizmoDrawing.entityLabel(entity, i, "Anger Level: " + brainDebugData.angerLevel(), -98404, 0.32F);
+			GizmoDrawing.entityLabel(entity, i, "Anger Level: " + brainDebugData.angerLevel(), PINK, DEFAULT_DRAWN_STRING_SIZE);
 			i++;
 		}
 
 		if (bl) {
 			for (String string : brainDebugData.gossips()) {
 				if (string.startsWith(brainDebugData.name())) {
-					GizmoDrawing.entityLabel(entity, i, string, -1, 0.32F);
+					GizmoDrawing.entityLabel(entity, i, string, -1, DEFAULT_DRAWN_STRING_SIZE);
 				}
 				else {
-					GizmoDrawing.entityLabel(entity, i, string, -23296, 0.32F);
+					GizmoDrawing.entityLabel(entity, i, string, ORANGE, DEFAULT_DRAWN_STRING_SIZE);
 				}
 
 				i++;
@@ -157,7 +157,7 @@ public class BrainDebugRenderer implements DebugRenderer.Renderer {
 
 		if (bl) {
 			for (String string : Lists.reverse(brainDebugData.memories())) {
-				GizmoDrawing.entityLabel(entity, i, string, -3355444, 0.32F);
+				GizmoDrawing.entityLabel(entity, i, string, GRAY, DEFAULT_DRAWN_STRING_SIZE);
 				i++;
 			}
 		}

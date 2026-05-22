@@ -16,15 +16,23 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RangeDispatchItemModel}.
+ * Модель предмета с диспетчеризацией по числовому диапазону.
+ * Вычисляет числовое свойство предмета, умножает на масштаб и выбирает
+ * подходящую дочернюю модель по пороговым значениям.
+ * При малом числе порогов используется линейный поиск, при большом — бинарный.
  */
+@Environment(EnvType.CLIENT)
 public class RangeDispatchItemModel implements ItemModel {
 
-	private static final int THRESHOLD_SCALE = 16;
+	private static final int BINARY_SEARCH_THRESHOLD = 16;
+
 	private final NumericProperty property;
 	private final float scale;
 	private final float[] thresholds;
@@ -45,26 +53,30 @@ public class RangeDispatchItemModel implements ItemModel {
 		this.scale = scale;
 	}
 
+	/**
+	 * Находит индекс модели для заданного значения по массиву порогов.
+	 * Возвращает {@code -1}, если значение меньше первого порога.
+	 *
+	 * @param thresholds отсортированный массив пороговых значений
+	 * @param value      вычисленное числовое значение свойства
+	 * @return индекс подходящей модели или {@code -1} для fallback
+	 */
 	private static int getIndex(float[] thresholds, float value) {
-		if (thresholds.length < 16) {
-			for (int i = 0; i < thresholds.length; i++) {
-				if (thresholds[i] > value) {
-					return i - 1;
+		if (thresholds.length < BINARY_SEARCH_THRESHOLD) {
+			for (int index = 0; index < thresholds.length; index++) {
+				if (thresholds[index] > value) {
+					return index - 1;
 				}
 			}
 
 			return thresholds.length - 1;
 		}
-		else {
-			int ix = Arrays.binarySearch(thresholds, value);
-			if (ix < 0) {
-				int j = ~ix;
-				return j - 1;
-			}
-			else {
-				return ix;
-			}
-		}
+
+		int searchResult = Arrays.binarySearch(thresholds, value);
+
+		return searchResult < 0
+				? ~searchResult - 1
+				: searchResult;
 	}
 
 	@Override
@@ -78,62 +90,62 @@ public class RangeDispatchItemModel implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		float f = this.property.getValue(stack, world, heldItemContext, seed) * this.scale;
-		ItemModel itemModel;
-		if (Float.isNaN(f)) {
-			itemModel = this.fallback;
-		}
-		else {
-			int i = getIndex(this.thresholds, f);
-			itemModel = i == -1 ? this.fallback : this.models[i];
+
+		float scaledValue = property.getValue(stack, world, heldItemContext, seed) * scale;
+		ItemModel selected;
+
+		if (Float.isNaN(scaledValue)) {
+			selected = fallback;
+		} else {
+			int index = getIndex(thresholds, scaledValue);
+			selected = index == -1 ? fallback : models[index];
 		}
 
-		itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+		selected.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Запись, связывающая пороговое значение с несериализованной моделью.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Entry(float threshold, ItemModel.Unbaked model) {
 
 		public static final Codec<RangeDispatchItemModel.Entry> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.FLOAT.fieldOf("threshold").forGetter(RangeDispatchItemModel.Entry::threshold),
-						                    ItemModelTypes.CODEC.fieldOf("model").forGetter(RangeDispatchItemModel.Entry::model)
-				                    )
-				                    .apply(instance, RangeDispatchItemModel.Entry::new)
+						Codec.FLOAT.fieldOf("threshold").forGetter(RangeDispatchItemModel.Entry::threshold),
+						ItemModelTypes.CODEC.fieldOf("model").forGetter(RangeDispatchItemModel.Entry::model)
+				).apply(instance, RangeDispatchItemModel.Entry::new)
 		);
-		public static final Comparator<RangeDispatchItemModel.Entry>
-				COMPARATOR =
+
+		public static final Comparator<RangeDispatchItemModel.Entry> COMPARATOR =
 				Comparator.comparingDouble(RangeDispatchItemModel.Entry::threshold);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма модели с диспетчеризацией по диапазону.
+	 * При запекании сортирует записи по порогу и строит параллельные массивы
+	 * порогов и моделей для эффективного поиска во время рендера.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			NumericProperty property,
 			float scale,
 			List<RangeDispatchItemModel.Entry> entries,
 			Optional<ItemModel.Unbaked> fallback
-	)
-			implements ItemModel.Unbaked {
+	) implements ItemModel.Unbaked {
 
 		public static final MapCodec<RangeDispatchItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    NumericProperties.CODEC.forGetter(RangeDispatchItemModel.Unbaked::property),
-						                    Codec.FLOAT.optionalFieldOf("scale", 1.0F).forGetter(RangeDispatchItemModel.Unbaked::scale),
-						                    RangeDispatchItemModel.Entry.CODEC
-								                    .listOf()
-								                    .fieldOf("entries")
-								                    .forGetter(RangeDispatchItemModel.Unbaked::entries),
-						                    ItemModelTypes.CODEC
-								                    .optionalFieldOf("fallback")
-								                    .forGetter(RangeDispatchItemModel.Unbaked::fallback)
-				                    )
-				                    .apply(instance, RangeDispatchItemModel.Unbaked::new)
+						NumericProperties.CODEC.forGetter(RangeDispatchItemModel.Unbaked::property),
+						Codec.FLOAT.optionalFieldOf("scale", 1.0F).forGetter(RangeDispatchItemModel.Unbaked::scale),
+						RangeDispatchItemModel.Entry.CODEC
+								.listOf()
+								.fieldOf("entries")
+								.forGetter(RangeDispatchItemModel.Unbaked::entries),
+						ItemModelTypes.CODEC
+								.optionalFieldOf("fallback")
+								.forGetter(RangeDispatchItemModel.Unbaked::fallback)
+				).apply(instance, RangeDispatchItemModel.Unbaked::new)
 		);
 
 		@Override
@@ -143,27 +155,29 @@ public class RangeDispatchItemModel implements ItemModel {
 
 		@Override
 		public ItemModel bake(ItemModel.BakeContext context) {
-			float[] fs = new float[this.entries.size()];
-			ItemModel[] itemModels = new ItemModel[this.entries.size()];
-			List<RangeDispatchItemModel.Entry> list = new ArrayList<>(this.entries);
-			list.sort(RangeDispatchItemModel.Entry.COMPARATOR);
+			List<RangeDispatchItemModel.Entry> sorted = new ArrayList<>(entries);
+			sorted.sort(RangeDispatchItemModel.Entry.COMPARATOR);
 
-			for (int i = 0; i < list.size(); i++) {
-				RangeDispatchItemModel.Entry entry = list.get(i);
-				fs[i] = entry.threshold;
-				itemModels[i] = entry.model.bake(context);
+			float[] thresholds = new float[sorted.size()];
+			ItemModel[] bakedModels = new ItemModel[sorted.size()];
+
+			for (int index = 0; index < sorted.size(); index++) {
+				RangeDispatchItemModel.Entry entry = sorted.get(index);
+				thresholds[index] = entry.threshold();
+				bakedModels[index] = entry.model().bake(context);
 			}
 
-			ItemModel
-					itemModel =
-					this.fallback.<ItemModel>map(model -> model.bake(context)).orElse(context.missingItemModel());
-			return new RangeDispatchItemModel(this.property, this.scale, fs, itemModels, itemModel);
+			ItemModel bakedFallback = fallback
+					.<ItemModel>map(model -> model.bake(context))
+					.orElse(context.missingItemModel());
+
+			return new RangeDispatchItemModel(property, scale, thresholds, bakedModels, bakedFallback);
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.fallback.ifPresent(model -> model.resolve(resolver));
-			this.entries.forEach(entry -> entry.model.resolve(resolver));
+			fallback.ifPresent(model -> model.resolve(resolver));
+			entries.forEach(entry -> entry.model().resolve(resolver));
 		}
 	}
 }

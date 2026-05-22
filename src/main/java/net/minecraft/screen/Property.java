@@ -1,19 +1,22 @@
 package net.minecraft.screen;
 
 /**
- * {@code Property}.
+ * Отслеживаемое целочисленное свойство экрана, поддерживающее обнаружение изменений.
+ * <p>
+ * Используется для синхронизации числовых данных (прогресс плавки, заряд маяка и т.д.)
+ * между сервером и клиентом через {@link ScreenHandler}. Хранит предыдущее значение
+ * для определения факта изменения без лишних сетевых пакетов.
  */
 public abstract class Property {
 
-	private int oldValue;
+	private int previousValue;
 
 	/**
-	 * Create.
+	 * Создаёт свойство, делегирующее чтение/запись в {@link PropertyDelegate} по индексу.
 	 *
-	 * @param delegate delegate
-	 * @param index index
-	 *
-	 * @return Property — результат операции
+	 * @param delegate делегат, хранящий массив свойств
+	 * @param index    индекс конкретного свойства в делегате
+	 * @return новый экземпляр {@code Property}
 	 */
 	public static Property create(PropertyDelegate delegate, int index) {
 		return new Property() {
@@ -30,12 +33,11 @@ public abstract class Property {
 	}
 
 	/**
-	 * Create.
+	 * Создаёт свойство, делегирующее чтение/запись в примитивный массив по индексу.
 	 *
-	 * @param array array
-	 * @param index index
-	 *
-	 * @return Property — результат операции
+	 * @param array массив значений
+	 * @param index индекс элемента в массиве
+	 * @return новый экземпляр {@code Property}
 	 */
 	public static Property create(int[] array, int index) {
 		return new Property() {
@@ -52,9 +54,9 @@ public abstract class Property {
 	}
 
 	/**
-	 * Create.
+	 * Создаёт автономное свойство с собственным хранилищем значения.
 	 *
-	 * @return Property — результат операции
+	 * @return новый экземпляр {@code Property}
 	 */
 	public static Property create() {
 		return new Property() {
@@ -62,7 +64,7 @@ public abstract class Property {
 
 			@Override
 			public int get() {
-				return this.value;
+				return value;
 			}
 
 			@Override
@@ -72,24 +74,20 @@ public abstract class Property {
 		};
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @return int — 
-	 */
 	public abstract int get();
 
-	/**
-	 * Set.
-	 *
-	 * @param value value
-	 */
 	public abstract void set(int value);
 
+	/**
+	 * Проверяет, изменилось ли значение с момента последнего вызова этого метода.
+	 * Побочный эффект: обновляет внутреннее «предыдущее значение» при каждом вызове.
+	 *
+	 * @return {@code true} если значение изменилось
+	 */
 	public boolean hasChanged() {
-		int i = this.get();
-		boolean bl = i != this.oldValue;
-		this.oldValue = i;
-		return bl;
+		int current = get();
+		boolean changed = current != previousValue;
+		previousValue = current;
+		return changed;
 	}
 }

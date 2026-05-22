@@ -8,7 +8,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code BlockStateProvider}.
+ * Абстрактный поставщик состояний блоков для генерации мира.
+ * Определяет стратегию выбора {@link BlockState} в зависимости от позиции и случайности.
+ * Все конкретные реализации регистрируются через {@link BlockStateProviderType}.
  */
 public abstract class BlockStateProvider {
 
@@ -16,37 +18,15 @@ public abstract class BlockStateProvider {
 			.getCodec()
 			.dispatch(BlockStateProvider::getType, BlockStateProviderType::getCodec);
 
-	/**
-	 * Of.
-	 *
-	 * @param state state
-	 *
-	 * @return SimpleBlockStateProvider — результат операции
-	 */
 	public static SimpleBlockStateProvider of(BlockState state) {
 		return new SimpleBlockStateProvider(state);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param block block
-	 *
-	 * @return SimpleBlockStateProvider — результат операции
-	 */
 	public static SimpleBlockStateProvider of(Block block) {
 		return new SimpleBlockStateProvider(block.getDefaultState());
 	}
 
 	protected abstract BlockStateProviderType<?> getType();
 
-	/**
-	 * Get.
-	 *
-	 * @param random random
-	 * @param pos pos
-	 *
-	 * @return BlockState — 
-	 */
 	public abstract BlockState get(Random random, BlockPos pos);
 }

@@ -3,7 +3,7 @@ package net.minecraft.server.dedicated;
 import net.minecraft.network.QueryableServer;
 
 /**
- * {@code DedicatedServer}.
+ * Абстракция выделенного сервера: инициализация, конфигурация и жизненный цикл dedicated-режима.
  */
 public interface DedicatedServer extends QueryableServer {
 

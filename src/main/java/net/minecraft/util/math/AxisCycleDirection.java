@@ -1,7 +1,8 @@
 package net.minecraft.util.math;
 
 /**
- * {@code AxisCycleDirection}.
+ * Направление циклического сдвига осей X→Y→Z.
+ * Используется для обобщённых операций над осями без явного перечисления случаев.
  */
 public enum AxisCycleDirection {
 	NONE {
@@ -71,47 +72,14 @@ public enum AxisCycleDirection {
 	public static final Direction.Axis[] AXES = Direction.Axis.values();
 	public static final AxisCycleDirection[] VALUES = values();
 
-	/**
-	 * Choose.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param axis axis
-	 *
-	 * @return int — результат операции
-	 */
 	public abstract int choose(int x, int y, int z, Direction.Axis axis);
 
-	/**
-	 * Choose.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param axis axis
-	 *
-	 * @return double — результат операции
-	 */
 	public abstract double choose(double x, double y, double z, Direction.Axis axis);
 
 	public abstract Direction.Axis cycle(Direction.Axis axis);
 
-	/**
-	 * Opposite.
-	 *
-	 * @return AxisCycleDirection — результат операции
-	 */
 	public abstract AxisCycleDirection opposite();
 
-	/**
-	 * Between.
-	 *
-	 * @param from from
-	 * @param to to
-	 *
-	 * @return AxisCycleDirection — результат операции
-	 */
 	public static AxisCycleDirection between(Direction.Axis from, Direction.Axis to) {
 		return VALUES[Math.floorMod(to.ordinal() - from.ordinal(), 3)];
 	}

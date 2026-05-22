@@ -7,12 +7,13 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BlockEntityKeepPackedFix}.
+ * Устанавливает флаг {@code keepPacked = true} для блок-сущности, чтобы предотвратить
+ * её распаковку при загрузке чанка до завершения генерации структуры.
  */
 public class BlockEntityKeepPackedFix extends ChoiceFix {
 
-	public BlockEntityKeepPackedFix(Schema schema, boolean bl) {
-		super(schema, bl, "BlockEntityKeepPacked", TypeReferences.BLOCK_ENTITY, "DUMMY");
+	public BlockEntityKeepPackedFix(Schema schema, boolean changesType) {
+		super(schema, changesType, "BlockEntityKeepPacked", TypeReferences.BLOCK_ENTITY, "DUMMY");
 	}
 
 	private static Dynamic<?> keepPacked(Dynamic<?> dynamic) {

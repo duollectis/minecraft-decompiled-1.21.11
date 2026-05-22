@@ -5,7 +5,6 @@ import com.google.common.collect.Sets;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.minecraft.util.Uuids;
@@ -19,39 +18,48 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code VillagerGossips}.
+ * Хранилище слухов жителя деревни о конкретных сущностях.
+ * <p>
+ * Слухи влияют на репутацию игрока у жителя: положительные увеличивают скидки,
+ * отрицательные — повышают цены. Слухи затухают со временем через {@link #decay()}
+ * и распространяются между жителями через {@link #shareGossipFrom}.
  */
 public class VillagerGossips {
 
 	public static final Codec<VillagerGossips> CODEC = VillagerGossips.GossipEntry.CODEC
 			.listOf()
 			.xmap(VillagerGossips::new, gossips -> gossips.entries().toList());
+
 	public static final int MAX_GOSSIP_ENTRIES = 2;
+
 	private final Map<UUID, VillagerGossips.Reputation> entityReputation = new HashMap<>();
 
 	public VillagerGossips() {
 	}
 
 	private VillagerGossips(List<VillagerGossips.GossipEntry> gossips) {
-		gossips.forEach(gossip -> this.getReputationFor(gossip.target).associatedGossip.put(gossip.type, gossip.value));
+		gossips.forEach(gossip -> getOrCreateReputation(gossip.target).associatedGossip.put(gossip.type, gossip.value));
 	}
 
 	@Debug
 	public Map<UUID, Object2IntMap<VillagerGossipType>> getEntityReputationAssociatedGossips() {
-		Map<UUID, Object2IntMap<VillagerGossipType>> map = Maps.newHashMap();
-		this.entityReputation.keySet().forEach(uuid -> {
-			VillagerGossips.Reputation reputation = this.entityReputation.get(uuid);
-			map.put(uuid, reputation.associatedGossip);
-		});
-		return map;
+		Map<UUID, Object2IntMap<VillagerGossipType>> result = Maps.newHashMap();
+
+		entityReputation.forEach((uuid, reputation) -> result.put(uuid, reputation.associatedGossip));
+
+		return result;
 	}
 
+	/**
+	 * Уменьшает все слухи на величину их затухания. Удаляет слухи, упавшие ниже минимума.
+	 */
 	public void decay() {
-		Iterator<VillagerGossips.Reputation> iterator = this.entityReputation.values().iterator();
+		Iterator<VillagerGossips.Reputation> iterator = entityReputation.values().iterator();
 
 		while (iterator.hasNext()) {
 			VillagerGossips.Reputation reputation = iterator.next();
 			reputation.decay();
+
 			if (reputation.isObsolete()) {
 				iterator.remove();
 			}
@@ -59,93 +67,126 @@ public class VillagerGossips {
 	}
 
 	private Stream<VillagerGossips.GossipEntry> entries() {
-		return this.entityReputation.entrySet().stream().flatMap(entry -> entry.getValue().entriesFor(entry.getKey()));
+		return entityReputation.entrySet()
+				.stream()
+				.flatMap(entry -> entry.getValue().entriesFor(entry.getKey()));
 	}
 
+	/**
+	 * Выбирает случайные слухи для передачи другому жителю.
+	 * Вероятность выбора слуха пропорциональна его абсолютному значению.
+	 *
+	 * @param random генератор случайных чисел
+	 * @param count  количество слухов для выбора
+	 * @return набор выбранных слухов
+	 */
 	private Collection<VillagerGossips.GossipEntry> pickGossips(Random random, int count) {
-		List<VillagerGossips.GossipEntry> list = this.entries().toList();
-		if (list.isEmpty()) {
+		List<VillagerGossips.GossipEntry> allEntries = entries().toList();
+
+		if (allEntries.isEmpty()) {
 			return Collections.emptyList();
 		}
-		else {
-			int[] is = new int[list.size()];
-			int i = 0;
 
-			for (int j = 0; j < list.size(); j++) {
-				VillagerGossips.GossipEntry gossipEntry = list.get(j);
-				i += Math.abs(gossipEntry.getValue());
-				is[j] = i - 1;
-			}
+		// Строим массив накопленных весов для взвешенного случайного выбора
+		int[] cumulativeWeights = new int[allEntries.size()];
+		int totalWeight = 0;
 
-			Set<VillagerGossips.GossipEntry> set = Sets.newIdentityHashSet();
-
-			for (int k = 0; k < count; k++) {
-				int l = random.nextInt(i);
-				int m = Arrays.binarySearch(is, l);
-				set.add(list.get(m < 0 ? -m - 1 : m));
-			}
-
-			return set;
+		for (int index = 0; index < allEntries.size(); index++) {
+			totalWeight += Math.abs(allEntries.get(index).getValue());
+			cumulativeWeights[index] = totalWeight - 1;
 		}
+
+		Set<VillagerGossips.GossipEntry> selected = Sets.newIdentityHashSet();
+
+		for (int pick = 0; pick < count; pick++) {
+			int randomWeight = random.nextInt(totalWeight);
+			int foundIndex = Arrays.binarySearch(cumulativeWeights, randomWeight);
+			selected.add(allEntries.get(foundIndex < 0 ? -foundIndex - 1 : foundIndex));
+		}
+
+		return selected;
 	}
 
-	private VillagerGossips.Reputation getReputationFor(UUID target) {
-		return this.entityReputation.computeIfAbsent(target, uuid -> new VillagerGossips.Reputation());
+	private VillagerGossips.Reputation getOrCreateReputation(UUID target) {
+		return entityReputation.computeIfAbsent(target, uuid -> new VillagerGossips.Reputation());
 	}
 
+	/**
+	 * Перенимает слухи от другого жителя. Слух уменьшается на {@code shareDecrement} при передаче.
+	 * Слухи со значением ниже {@link VillagerGossipType#MIN_GOSSIP_VALUE} не передаются.
+	 *
+	 * @param from   источник слухов
+	 * @param random генератор случайных чисел
+	 * @param count  количество слухов для перенятия
+	 */
 	public void shareGossipFrom(VillagerGossips from, Random random, int count) {
-		Collection<VillagerGossips.GossipEntry> collection = from.pickGossips(random, count);
-		collection.forEach(gossip -> {
-			int i = gossip.value - gossip.type.shareDecrement;
-			if (i >= 2) {
-				this.getReputationFor(gossip.target).associatedGossip.mergeInt(gossip.type, i, VillagerGossips::max);
+		Collection<VillagerGossips.GossipEntry> picked = from.pickGossips(random, count);
+
+		picked.forEach(gossip -> {
+			int sharedValue = gossip.value - gossip.type.shareDecrement;
+
+			if (sharedValue >= VillagerGossipType.MIN_GOSSIP_VALUE) {
+				getOrCreateReputation(gossip.target).associatedGossip.mergeInt(gossip.type, sharedValue, VillagerGossips::max);
 			}
 		});
 	}
 
+	/**
+	 * Возвращает суммарную репутацию сущности с учётом фильтра типов слухов.
+	 *
+	 * @param target           UUID целевой сущности
+	 * @param gossipTypeFilter фильтр типов слухов для учёта
+	 * @return суммарная репутация или 0, если слухов нет
+	 */
 	public int getReputationFor(UUID target, Predicate<VillagerGossipType> gossipTypeFilter) {
-		VillagerGossips.Reputation reputation = this.entityReputation.get(target);
+		VillagerGossips.Reputation reputation = entityReputation.get(target);
 		return reputation != null ? reputation.getValueFor(gossipTypeFilter) : 0;
 	}
 
 	public long getReputationCount(VillagerGossipType type, DoublePredicate predicate) {
-		return this.entityReputation
-				.values()
+		return entityReputation.values()
 				.stream()
 				.filter(reputation -> predicate.test(
-						reputation.associatedGossip.getOrDefault(type, 0) * type.multiplier))
+						reputation.associatedGossip.getOrDefault(type, 0) * type.multiplier
+				))
 				.count();
 	}
 
 	public void startGossip(UUID target, VillagerGossipType type, int value) {
-		VillagerGossips.Reputation reputation = this.getReputationFor(target);
-		reputation.associatedGossip.mergeInt(type, value, (left, right) -> this.mergeReputation(type, left, right));
+		VillagerGossips.Reputation reputation = getOrCreateReputation(target);
+		reputation.associatedGossip.mergeInt(type, value, (left, right) -> mergeReputation(type, left, right));
 		reputation.clamp(type);
+
 		if (reputation.isObsolete()) {
-			this.entityReputation.remove(target);
+			entityReputation.remove(target);
 		}
 	}
 
 	public void removeGossip(UUID target, VillagerGossipType type, int value) {
-		this.startGossip(target, type, -value);
+		startGossip(target, type, -value);
 	}
 
 	public void remove(UUID target, VillagerGossipType type) {
-		VillagerGossips.Reputation reputation = this.entityReputation.get(target);
-		if (reputation != null) {
-			reputation.remove(type);
-			if (reputation.isObsolete()) {
-				this.entityReputation.remove(target);
-			}
+		VillagerGossips.Reputation reputation = entityReputation.get(target);
+
+		if (reputation == null) {
+			return;
+		}
+
+		reputation.remove(type);
+
+		if (reputation.isObsolete()) {
+			entityReputation.remove(target);
 		}
 	}
 
 	public void remove(VillagerGossipType type) {
-		Iterator<VillagerGossips.Reputation> iterator = this.entityReputation.values().iterator();
+		Iterator<VillagerGossips.Reputation> iterator = entityReputation.values().iterator();
 
 		while (iterator.hasNext()) {
 			VillagerGossips.Reputation reputation = iterator.next();
 			reputation.remove(type);
+
 			if (reputation.isObsolete()) {
 				iterator.remove();
 			}
@@ -153,12 +194,13 @@ public class VillagerGossips {
 	}
 
 	public void clear() {
-		this.entityReputation.clear();
+		entityReputation.clear();
 	}
 
 	public void add(VillagerGossips gossips) {
-		gossips.entityReputation.forEach((target, reputation) -> this.getReputationFor(target).associatedGossip.putAll(
-				reputation.associatedGossip));
+		gossips.entityReputation.forEach(
+				(target, reputation) -> getOrCreateReputation(target).associatedGossip.putAll(reputation.associatedGossip)
+		);
 	}
 
 	private static int max(int left, int right) {
@@ -166,96 +208,83 @@ public class VillagerGossips {
 	}
 
 	private int mergeReputation(VillagerGossipType type, int left, int right) {
-		int i = left + right;
-		return i > type.maxValue ? Math.max(type.maxValue, left) : i;
+		int merged = left + right;
+		return merged > type.maxValue ? Math.max(type.maxValue, left) : merged;
 	}
 
 	public VillagerGossips copy() {
-		VillagerGossips villagerGossips = new VillagerGossips();
-		villagerGossips.add(this);
-		return villagerGossips;
+		VillagerGossips copy = new VillagerGossips();
+		copy.add(this);
+		return copy;
 	}
 
-	/**
-	 * {@code GossipEntry}.
-	 */
 	record GossipEntry(UUID target, VillagerGossipType type, int value) {
 
 		public static final Codec<VillagerGossips.GossipEntry> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Uuids.INT_STREAM_CODEC.fieldOf("Target").forGetter(VillagerGossips.GossipEntry::target),
-						                    VillagerGossipType.CODEC.fieldOf("Type").forGetter(VillagerGossips.GossipEntry::type),
-						                    Codecs.POSITIVE_INT.fieldOf("Value").forGetter(VillagerGossips.GossipEntry::value)
-				                    )
-				                    .apply(instance, VillagerGossips.GossipEntry::new)
+						Uuids.INT_STREAM_CODEC.fieldOf("Target").forGetter(VillagerGossips.GossipEntry::target),
+						VillagerGossipType.CODEC.fieldOf("Type").forGetter(VillagerGossips.GossipEntry::type),
+						Codecs.POSITIVE_INT.fieldOf("Value").forGetter(VillagerGossips.GossipEntry::value)
+				).apply(instance, VillagerGossips.GossipEntry::new)
 		);
 
 		public int getValue() {
-			return this.value * this.type.multiplier;
+			return value * type.multiplier;
 		}
 	}
 
-	/**
-	 * {@code Reputation}.
-	 */
 	static class Reputation {
 
-		final Object2IntMap<VillagerGossipType> associatedGossip = new Object2IntOpenHashMap();
+		final Object2IntMap<VillagerGossipType> associatedGossip = new Object2IntOpenHashMap<>();
 
 		public int getValueFor(Predicate<VillagerGossipType> gossipTypeFilter) {
-			return this.associatedGossip
-					.object2IntEntrySet()
+			return associatedGossip.object2IntEntrySet()
 					.stream()
-					.filter(entry -> gossipTypeFilter.test((VillagerGossipType) entry.getKey()))
-					.mapToInt(entry -> entry.getIntValue() * ((VillagerGossipType) entry.getKey()).multiplier)
+					.filter(entry -> gossipTypeFilter.test(entry.getKey()))
+					.mapToInt(entry -> entry.getIntValue() * entry.getKey().multiplier)
 					.sum();
 		}
 
 		public Stream<VillagerGossips.GossipEntry> entriesFor(UUID target) {
-			return this.associatedGossip
-					.object2IntEntrySet()
+			return associatedGossip.object2IntEntrySet()
 					.stream()
-					.map(entry -> new VillagerGossips.GossipEntry(
-							target,
-							(VillagerGossipType) entry.getKey(),
-							entry.getIntValue()
-					));
+					.map(entry -> new VillagerGossips.GossipEntry(target, entry.getKey(), entry.getIntValue()));
 		}
 
 		public void decay() {
-			ObjectIterator<Entry<VillagerGossipType>>
-					objectIterator =
-					this.associatedGossip.object2IntEntrySet().iterator();
+			ObjectIterator<Object2IntMap.Entry<VillagerGossipType>> iterator =
+					associatedGossip.object2IntEntrySet().iterator();
 
-			while (objectIterator.hasNext()) {
-				Entry<VillagerGossipType> entry = (Entry<VillagerGossipType>) objectIterator.next();
-				int i = entry.getIntValue() - ((VillagerGossipType) entry.getKey()).decay;
-				if (i < 2) {
-					objectIterator.remove();
-				}
-				else {
-					entry.setValue(i);
+			while (iterator.hasNext()) {
+				Object2IntMap.Entry<VillagerGossipType> entry = iterator.next();
+				int decayed = entry.getIntValue() - entry.getKey().decay;
+
+				if (decayed < VillagerGossipType.MIN_GOSSIP_VALUE) {
+					iterator.remove();
+				} else {
+					entry.setValue(decayed);
 				}
 			}
 		}
 
 		public boolean isObsolete() {
-			return this.associatedGossip.isEmpty();
+			return associatedGossip.isEmpty();
 		}
 
 		public void clamp(VillagerGossipType gossipType) {
-			int i = this.associatedGossip.getInt(gossipType);
-			if (i > gossipType.maxValue) {
-				this.associatedGossip.put(gossipType, gossipType.maxValue);
+			int value = associatedGossip.getInt(gossipType);
+
+			if (value > gossipType.maxValue) {
+				associatedGossip.put(gossipType, gossipType.maxValue);
 			}
 
-			if (i < 2) {
-				this.remove(gossipType);
+			if (value < VillagerGossipType.MIN_GOSSIP_VALUE) {
+				remove(gossipType);
 			}
 		}
 
 		public void remove(VillagerGossipType gossipType) {
-			this.associatedGossip.removeInt(gossipType);
+			associatedGossip.removeInt(gossipType);
 		}
 	}
 }

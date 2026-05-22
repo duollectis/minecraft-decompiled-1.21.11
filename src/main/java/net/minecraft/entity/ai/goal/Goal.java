@@ -8,61 +8,35 @@ import net.minecraft.world.World;
 import java.util.EnumSet;
 
 /**
- * {@code Goal}.
+ * Базовый класс для всех целей (Goal) ИИ мобов.
+ * Цели выполняются через {@link GoalSelector}, который управляет приоритетами
+ * и контролями ({@link Control}). Каждая цель декларирует, какими контролями
+ * она владеет, чтобы предотвратить конфликты между несовместимыми целями.
  */
 public abstract class Goal {
 
 	private final EnumSet<Goal.Control> controls = EnumSet.noneOf(Goal.Control.class);
 
-	/**
-	 * Проверяет возможность start.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public abstract boolean canStart();
 
-	/**
-	 * Определяет, следует ли continue.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldContinue() {
-		return this.canStart();
+		return canStart();
 	}
 
-	/**
-	 * Проверяет возможность stop.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canStop() {
 		return true;
 	}
 
-	/**
-	 * Start.
-	 */
 	public void start() {
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
 	}
 
-	/**
-	 * Определяет, следует ли run every tick.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldRunEveryTick() {
 		return false;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 	}
 
@@ -73,24 +47,17 @@ public abstract class Goal {
 
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 
 	public EnumSet<Goal.Control> getControls() {
-		return this.controls;
+		return controls;
 	}
 
 	protected int getTickCount(int ticks) {
-		return this.shouldRunEveryTick() ? ticks : toGoalTicks(ticks);
+		return shouldRunEveryTick() ? ticks : toGoalTicks(ticks);
 	}
 
-	/**
-	 * To goal ticks.
-	 *
-	 * @param serverTicks server ticks
-	 *
-	 * @return int — результат операции
-	 */
 	protected static int toGoalTicks(int serverTicks) {
 		return MathHelper.ceilDiv(serverTicks, 2);
 	}
@@ -99,21 +66,11 @@ public abstract class Goal {
 		return (ServerWorld) entity.getEntityWorld();
 	}
 
-	/**
-	 * Cast to server world.
-	 *
-	 * @param world world
-	 *
-	 * @return ServerWorld — результат операции
-	 */
 	protected static ServerWorld castToServerWorld(World world) {
 		return (ServerWorld) world;
 	}
 
-	/**
-	 * {@code Control}.
-	 */
-	public static enum Control {
+	public enum Control {
 		MOVE,
 		LOOK,
 		JUMP,

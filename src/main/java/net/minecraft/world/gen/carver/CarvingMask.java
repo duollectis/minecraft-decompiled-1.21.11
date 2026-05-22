@@ -7,7 +7,8 @@ import java.util.BitSet;
 import java.util.stream.Stream;
 
 /**
- * {@code CarvingMask}.
+ * Битовая маска, отслеживающая, какие позиции в чанке уже были обработаны карвером.
+ * Индексирование: (offsetX & 15) | ((offsetZ & 15) << 4) | ((y - bottomY) << 8).
  */
 public class CarvingMask {
 
@@ -20,65 +21,45 @@ public class CarvingMask {
 		this.mask = new BitSet(256 * height);
 	}
 
-	public void setMaskPredicate(CarvingMask.MaskPredicate maskPredicate) {
-		this.maskPredicate = maskPredicate;
-	}
-
 	public CarvingMask(long[] mask, int bottomY) {
 		this.bottomY = bottomY;
 		this.mask = BitSet.valueOf(mask);
 	}
 
-	private int getIndex(int offsetX, int y, int offsetZ) {
-		return offsetX & 15 | (offsetZ & 15) << 4 | y - this.bottomY << 8;
+	public void setMaskPredicate(CarvingMask.MaskPredicate maskPredicate) {
+		this.maskPredicate = maskPredicate;
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param offsetX offset x
-	 * @param y y
-	 * @param offsetZ offset z
-	 */
 	public void set(int offsetX, int y, int offsetZ) {
-		this.mask.set(this.getIndex(offsetX, y, offsetZ));
+		mask.set(getIndex(offsetX, y, offsetZ));
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param offsetX offset x
-	 * @param y y
-	 * @param offsetZ offset z
-	 *
-	 * @return boolean — 
-	 */
 	public boolean get(int offsetX, int y, int offsetZ) {
-		return this.maskPredicate.test(offsetX, y, offsetZ) || this.mask.get(this.getIndex(offsetX, y, offsetZ));
+		return maskPredicate.test(offsetX, y, offsetZ) || mask.get(getIndex(offsetX, y, offsetZ));
 	}
 
 	/**
-	 * Stream block pos.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return Stream — результат операции
+	 * Возвращает поток всех помеченных позиций в виде {@link BlockPos} относительно чанка.
 	 */
 	public Stream<BlockPos> streamBlockPos(ChunkPos chunkPos) {
-		return this.mask.stream().mapToObj(mask -> {
-			int i = mask & 15;
-			int j = mask >> 4 & 15;
-			int k = mask >> 8;
-			return chunkPos.getBlockPos(i, k + this.bottomY, j);
+		return mask.stream().mapToObj(index -> {
+			int localX = index & 15;
+			int localZ = index >> 4 & 15;
+			int relY = index >> 8;
+			return chunkPos.getBlockPos(localX, relY + bottomY, localZ);
 		});
 	}
 
 	public long[] getMask() {
-		return this.mask.toLongArray();
+		return mask.toLongArray();
+	}
+
+	private int getIndex(int offsetX, int y, int offsetZ) {
+		return offsetX & 15 | (offsetZ & 15) << 4 | y - bottomY << 8;
 	}
 
 	/**
-	 * {@code MaskPredicate}.
+	 * Дополнительный предикат, позволяющий динамически помечать позиции как уже обработанные.
 	 */
 	public interface MaskPredicate {
 

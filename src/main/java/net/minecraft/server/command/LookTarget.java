@@ -7,15 +7,12 @@ import net.minecraft.util.math.Vec3d;
 
 @FunctionalInterface
 /**
- * {@code LookTarget}.
+ * Вспомогательный тип для задания цели взгляда в команде {@code /rotate}.
  */
 public interface LookTarget {
 
 	void look(ServerCommandSource source, Entity entity);
 
-	/**
-	 * {@code LookAtEntity}.
-	 */
 	public record LookAtEntity(Entity entity, EntityAnchorArgumentType.EntityAnchor anchor) implements LookTarget {
 
 		@Override
@@ -29,9 +26,6 @@ public interface LookTarget {
 		}
 	}
 
-	/**
-	 * {@code LookAtPosition}.
-	 */
 	public record LookAtPosition(Vec3d position) implements LookTarget {
 
 		@Override

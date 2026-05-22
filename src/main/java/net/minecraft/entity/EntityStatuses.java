@@ -1,7 +1,9 @@
 package net.minecraft.entity;
 
 /**
- * {@code EntityStatuses}.
+ * Константы статусных байтов сущностей, передаваемых через пакет {@code EntityStatusS2CPacket}.
+ * Каждая константа соответствует определённому визуальному или звуковому эффекту на клиенте.
+ * Значения используются в {@code Entity#handleStatus(byte)}.
  */
 public class EntityStatuses {
 

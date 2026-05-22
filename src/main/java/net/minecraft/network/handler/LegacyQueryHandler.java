@@ -13,70 +13,65 @@ import java.net.SocketAddress;
 import java.util.Locale;
 
 /**
- * Класс legacy query handler.
+ * Netty-обработчик legacy-запросов пинга (протоколы Minecraft до 1.7).
+ * Отвечает на пакет {@code 0xFE} строкой с информацией о сервере и закрывает соединение.
  */
 public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int RESPONSE_PACKET_ID = 255;
+	private static final int MIN_PROTOCOL_VERSION = 73;
+	private static final int MAX_PORT = 65535;
+
 	private final QueryableServer server;
 
 	public LegacyQueryHandler(QueryableServer server) {
 		this.server = server;
 	}
 
-	/**
-	 * Channel read.
-	 *
-	 * @param ctx ctx
-	 * @param msg msg
-	 */
+	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) {
-		ByteBuf byteBuf = (ByteBuf) msg;
-		byteBuf.markReaderIndex();
-		boolean bl = true;
+		ByteBuf buf = (ByteBuf) msg;
+		buf.markReaderIndex();
+		boolean shouldPassThrough = true;
 
 		try {
 			try {
-				if (byteBuf.readUnsignedByte() != 254) {
+				if (buf.readUnsignedByte() != LegacyQueries.QUERY_PACKET_ID) {
 					return;
 				}
 
-				SocketAddress socketAddress = ctx.channel().remoteAddress();
-				int i = byteBuf.readableBytes();
-				if (i == 0) {
-					LOGGER.debug("Ping: (<1.3.x) from {}", socketAddress);
-					String string = getResponseFor1_2(this.server);
-					reply(ctx, createBuf(ctx.alloc(), string));
-				}
-				else {
-					if (byteBuf.readUnsignedByte() != 1) {
+				SocketAddress remoteAddress = ctx.channel().remoteAddress();
+				int remaining = buf.readableBytes();
+
+				if (remaining == 0) {
+					LOGGER.debug("Ping: (<1.3.x) from {}", remoteAddress);
+					reply(ctx, createBuf(ctx.alloc(), getResponseFor1_2(server)));
+				} else {
+					if (buf.readUnsignedByte() != LegacyQueries.LEGACY_PING_BYTE) {
 						return;
 					}
 
-					if (byteBuf.isReadable()) {
-						if (!isLegacyQuery(byteBuf)) {
+					if (buf.isReadable()) {
+						if (!isLegacyQuery(buf)) {
 							return;
 						}
 
-						LOGGER.debug("Ping: (1.6) from {}", socketAddress);
-					}
-					else {
-						LOGGER.debug("Ping: (1.4-1.5.x) from {}", socketAddress);
+						LOGGER.debug("Ping: (1.6) from {}", remoteAddress);
+					} else {
+						LOGGER.debug("Ping: (1.4-1.5.x) from {}", remoteAddress);
 					}
 
-					String string = getResponse(this.server);
-					reply(ctx, createBuf(ctx.alloc(), string));
+					reply(ctx, createBuf(ctx.alloc(), getResponse(server)));
 				}
 
-				byteBuf.release();
-				bl = false;
+				buf.release();
+				shouldPassThrough = false;
+			} catch (RuntimeException ignored) {
 			}
-			catch (RuntimeException var11) {
-			}
-		}
-		finally {
-			if (bl) {
-				byteBuf.resetReaderIndex();
+		} finally {
+			if (shouldPassThrough) {
+				buf.resetReaderIndex();
 				ctx.channel().pipeline().remove(this);
 				ctx.fireChannelRead(msg);
 			}
@@ -84,33 +79,29 @@ public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	private static boolean isLegacyQuery(ByteBuf buf) {
-		short s = buf.readUnsignedByte();
-		if (s != 250) {
+		short header = buf.readUnsignedByte();
+		if (header != LegacyQueries.HEADER) {
 			return false;
 		}
-		else {
-			String string = LegacyQueries.read(buf);
-			if (!"MC|PingHost".equals(string)) {
-				return false;
-			}
-			else {
-				int i = buf.readUnsignedShort();
-				if (buf.readableBytes() != i) {
-					return false;
-				}
-				else {
-					short t = buf.readUnsignedByte();
-					if (t < 73) {
-						return false;
-					}
-					else {
-						String string2 = LegacyQueries.read(buf);
-						int j = buf.readInt();
-						return j <= 65535;
-					}
-				}
-			}
+
+		String channel = LegacyQueries.read(buf);
+		if (!LegacyQueries.PING_HOST.equals(channel)) {
+			return false;
 		}
+
+		int payloadLength = buf.readUnsignedShort();
+		if (buf.readableBytes() != payloadLength) {
+			return false;
+		}
+
+		short protocolVersion = buf.readUnsignedByte();
+		if (protocolVersion < MIN_PROTOCOL_VERSION) {
+			return false;
+		}
+
+		LegacyQueries.read(buf);
+		int port = buf.readInt();
+		return port <= MAX_PORT;
 	}
 
 	private static String getResponseFor1_2(QueryableServer server) {
@@ -127,7 +118,7 @@ public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 		return String.format(
 				Locale.ROOT,
 				"§1\u0000%d\u0000%s\u0000%s\u0000%d\u0000%d",
-				127,
+				LegacyQueries.PROTOCOL_VERSION,
 				server.getVersion(),
 				server.getServerMotd(),
 				server.getCurrentPlayerCount(),
@@ -139,10 +130,10 @@ public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 		context.pipeline().firstContext().writeAndFlush(buf).addListener(ChannelFutureListener.CLOSE);
 	}
 
-	private static ByteBuf createBuf(ByteBufAllocator allocator, String string) {
-		ByteBuf byteBuf = allocator.buffer();
-		byteBuf.writeByte(255);
-		LegacyQueries.write(byteBuf, string);
-		return byteBuf;
+	private static ByteBuf createBuf(ByteBufAllocator allocator, String response) {
+		ByteBuf buf = allocator.buffer();
+		buf.writeByte(RESPONSE_PACKET_ID);
+		LegacyQueries.write(buf, response);
+		return buf;
 	}
 }

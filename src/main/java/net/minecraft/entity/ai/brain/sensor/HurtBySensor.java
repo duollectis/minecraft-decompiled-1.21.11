@@ -11,7 +11,9 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Set;
 
 /**
- * {@code HurtBySensor}.
+ * Сенсор, отслеживающий последний источник урона сущности.
+ * Записывает в память {@code HURT_BY} и {@code HURT_BY_ENTITY} данные об атакующем,
+ * а также очищает память об атакующем, если тот мёртв или находится в другом измерении.
  */
 public class HurtBySensor extends Sensor<LivingEntity> {
 
@@ -24,21 +26,23 @@ public class HurtBySensor extends Sensor<LivingEntity> {
 	protected void sense(ServerWorld world, LivingEntity entity) {
 		Brain<?> brain = entity.getBrain();
 		DamageSource damageSource = entity.getRecentDamageSource();
-		if (damageSource != null) {
-			brain.remember(MemoryModuleType.HURT_BY, entity.getRecentDamageSource());
-			Entity entity2 = damageSource.getAttacker();
-			if (entity2 instanceof LivingEntity) {
-				brain.remember(MemoryModuleType.HURT_BY_ENTITY, (LivingEntity) entity2);
-			}
-		}
-		else {
+
+		if (damageSource == null) {
 			brain.forget(MemoryModuleType.HURT_BY);
+		} else {
+			brain.remember(MemoryModuleType.HURT_BY, damageSource);
+
+			if (damageSource.getAttacker() instanceof LivingEntity attacker) {
+				brain.remember(MemoryModuleType.HURT_BY_ENTITY, attacker);
+			}
 		}
 
 		brain.getOptionalRegisteredMemory(MemoryModuleType.HURT_BY_ENTITY).ifPresent(hurtByEntity -> {
-			if (!hurtByEntity.isAlive() || hurtByEntity.getEntityWorld() != world) {
-				brain.forget(MemoryModuleType.HURT_BY_ENTITY);
+			if (hurtByEntity.isAlive() && hurtByEntity.getEntityWorld() == world) {
+				return;
 			}
+
+			brain.forget(MemoryModuleType.HURT_BY_ENTITY);
 		});
 	}
 }

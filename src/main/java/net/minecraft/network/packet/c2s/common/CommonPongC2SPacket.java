@@ -8,7 +8,8 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 /**
- * Класс common pong c2 s packet.
+ * Пакет C→S, подтверждающий получение пинга от сервера.
+ * Содержит числовой параметр из соответствующего пакета {@code CommonPingS2CPacket}.
  */
 public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
 
@@ -26,7 +27,7 @@ public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
 	}
 
 	private void write(PacketByteBuf buf) {
-		buf.writeInt(this.parameter);
+		buf.writeInt(parameter);
 	}
 
 	@Override
@@ -34,16 +35,12 @@ public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
 		return CommonPackets.PONG;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onPong(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onPong(this);
 	}
 
 	public int getParameter() {
-		return this.parameter;
+		return parameter;
 	}
 }

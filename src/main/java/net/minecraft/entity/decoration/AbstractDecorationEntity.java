@@ -20,12 +20,12 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
- * {@code AbstractDecorationEntity}.
+ * Базовый класс для декоративных сущностей, прикреплённых к блоку и ориентированных по горизонтали
+ * (рамки, картины). Управляет отслеживаемым направлением и проверкой пространства для размещения.
  */
 public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 
-	private static final TrackedData<Direction>
-			FACING =
+	private static final TrackedData<Direction> FACING =
 			DataTracker.registerData(AbstractDecorationEntity.class, TrackedDataHandlerRegistry.FACING);
 	private static final Direction DEFAULT_FACING = Direction.SOUTH;
 
@@ -33,9 +33,13 @@ public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 		super(entityType, world);
 	}
 
-	protected AbstractDecorationEntity(EntityType<? extends AbstractDecorationEntity> type, World world, BlockPos pos) {
+	protected AbstractDecorationEntity(
+			EntityType<? extends AbstractDecorationEntity> type,
+			World world,
+			BlockPos pos
+	) {
 		this(type, world);
-		this.attachedBlockPos = pos;
+		attachedBlockPos = pos;
 	}
 
 	@Override
@@ -47,108 +51,119 @@ public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
 		if (data.equals(FACING)) {
-			this.setFacing(this.getHorizontalFacing());
+			setFacing(getHorizontalFacing());
 		}
 	}
 
 	@Override
 	public Direction getHorizontalFacing() {
-		return this.dataTracker.get(FACING);
+		return dataTracker.get(FACING);
 	}
 
 	protected void setFacingInternal(Direction facing) {
-		this.dataTracker.set(FACING, facing);
+		dataTracker.set(FACING, facing);
 	}
 
+	/**
+	 * Устанавливает горизонтальное направление сущности, обновляя yaw и позицию прикрепления.
+	 * Требует строго горизонтального направления (не вверх/вниз).
+	 */
 	protected void setFacing(Direction facing) {
 		Objects.requireNonNull(facing);
 		Validate.isTrue(facing.getAxis().isHorizontal());
-		this.setFacingInternal(facing);
-		this.setYaw(facing.getHorizontalQuarterTurns() * 90);
-		this.lastYaw = this.getYaw();
-		this.updateAttachmentPosition();
+		setFacingInternal(facing);
+		setYaw(facing.getHorizontalQuarterTurns() * 90);
+		lastYaw = getYaw();
+		updateAttachmentPosition();
 	}
 
 	@Override
 	protected void updateAttachmentPosition() {
-		if (this.getHorizontalFacing() != null) {
-			Box box = this.calculateBoundingBox(this.attachedBlockPos, this.getHorizontalFacing());
-			Vec3d vec3d = box.getCenter();
-			this.setPos(vec3d.x, vec3d.y, vec3d.z);
-			this.setBoundingBox(box);
+		if (getHorizontalFacing() == null) {
+			return;
 		}
+
+		Box box = calculateBoundingBox(attachedBlockPos, getHorizontalFacing());
+		Vec3d center = box.getCenter();
+		setPos(center.x, center.y, center.z);
+		setBoundingBox(box);
 	}
 
 	/**
-	 * Вычисляет bounding box.
-	 *
-	 * @param pos pos
-	 * @param side side
-	 *
-	 * @return Box — результат операции
+	 * Вычисляет хитбокс сущности на основе позиции блока-опоры и стороны прикрепления.
 	 */
 	protected abstract Box calculateBoundingBox(BlockPos pos, Direction side);
 
 	@Override
 	public boolean canStayAttached() {
-		if (this.isSpaceBlocked(this.getCheckBoundingBox())) {
+		if (isSpaceBlocked(getCheckBoundingBox())) {
 			return false;
 		}
-		else {
-			boolean bl = BlockPos.stream(this.getAttachmentBox()).allMatch(pos -> {
-				BlockState blockState = this.getEntityWorld().getBlockState(pos);
-				return blockState.isSolid() || AbstractRedstoneGateBlock.isRedstoneGate(blockState);
-			});
-			return bl && this.hasNoIntersectingDecoration(false);
-		}
+
+		boolean allSolid = BlockPos.stream(getAttachmentBox()).allMatch(pos -> {
+			BlockState blockState = getEntityWorld().getBlockState(pos);
+			return blockState.isSolid() || AbstractRedstoneGateBlock.isRedstoneGate(blockState);
+		});
+
+		return allSolid && hasNoIntersectingDecoration(false);
 	}
 
+	/**
+	 * Возвращает AABB блока-опоры, смещённый в сторону прикрепления на половину блока.
+	 * Используется для проверки твёрдости поверхности.
+	 */
 	protected Box getAttachmentBox() {
-		return this.getBoundingBox().offset(this.getHorizontalFacing().getUnitVector().mul(-0.5F)).contract(1.0E-7);
+		return getBoundingBox().offset(getHorizontalFacing().getUnitVector().mul(-0.5F)).contract(1.0E-7);
 	}
 
+	/**
+	 * Проверяет, нет ли пересекающихся декоративных сущностей того же типа или направления.
+	 *
+	 * @param skipTypeCheck если {@code true} — проверяет только совпадение направления, игнорируя тип
+	 */
 	protected boolean hasNoIntersectingDecoration(boolean skipTypeCheck) {
 		Predicate<AbstractDecorationEntity> predicate = entity -> {
-			boolean bl2 = !skipTypeCheck && entity.getType() == this.getType();
-			boolean bl3 = entity.getHorizontalFacing() == this.getHorizontalFacing();
-			return entity != this && (bl2 || bl3);
+			boolean sameType = !skipTypeCheck && entity.getType() == getType();
+			boolean sameFacing = entity.getHorizontalFacing() == getHorizontalFacing();
+			return entity != this && (sameType || sameFacing);
 		};
-		return !this
-				.getEntityWorld()
-				.hasEntities(TypeFilter.instanceOf(AbstractDecorationEntity.class), this.getCheckBoundingBox(), predicate);
+
+		return !getEntityWorld()
+				.hasEntities(TypeFilter.instanceOf(AbstractDecorationEntity.class), getCheckBoundingBox(), predicate);
 	}
 
+	/**
+	 * Проверяет, заблокировано ли пространство блоком или другой сущностью.
+	 */
 	protected boolean isSpaceBlocked(Box box) {
-		World world = this.getEntityWorld();
+		World world = getEntityWorld();
 		return !world.isBlockSpaceEmpty(this, box) || !world.isSpaceEmpty(this, box);
 	}
 
 	protected Box getCheckBoundingBox() {
-		return this.getBoundingBox();
+		return getBoundingBox();
 	}
 
-	/**
-	 * Обрабатывает событие place.
-	 */
+	/** Вызывается при размещении сущности в мире. */
 	public abstract void onPlace();
 
 	@Override
 	public ItemEntity dropStack(ServerWorld world, ItemStack stack, float yOffset) {
 		ItemEntity itemEntity = new ItemEntity(
-				this.getEntityWorld(),
-				this.getX() + this.getHorizontalFacing().getOffsetX() * 0.15F,
-				this.getY() + yOffset,
-				this.getZ() + this.getHorizontalFacing().getOffsetZ() * 0.15F,
+				getEntityWorld(),
+				getX() + getHorizontalFacing().getOffsetX() * 0.15F,
+				getY() + yOffset,
+				getZ() + getHorizontalFacing().getOffsetZ() * 0.15F,
 				stack
 		);
 		itemEntity.setToDefaultPickupDelay();
-		this.getEntityWorld().spawnEntity(itemEntity);
+		getEntityWorld().spawnEntity(itemEntity);
 		return itemEntity;
 	}
 
 	@Override
 	public float applyRotation(BlockRotation rotation) {
-		Direction direction = this.getHorizontalFacing();
+		Direction direction = getHorizontalFacing();
 		if (direction.getAxis() != Direction.Axis.Y) {
 			switch (rotation) {
 				case CLOCKWISE_180:
@@ -161,21 +176,21 @@ public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 					direction = direction.rotateYClockwise();
 			}
 
-			this.setFacing(direction);
+			setFacing(direction);
 		}
 
-		float f = MathHelper.wrapDegrees(this.getYaw());
+		float yaw = MathHelper.wrapDegrees(getYaw());
 
 		return switch (rotation) {
-			case CLOCKWISE_180 -> f + 180.0F;
-			case COUNTERCLOCKWISE_90 -> f + 90.0F;
-			case CLOCKWISE_90 -> f + 270.0F;
-			default -> f;
+			case CLOCKWISE_180 -> yaw + 180.0F;
+			case COUNTERCLOCKWISE_90 -> yaw + 90.0F;
+			case CLOCKWISE_90 -> yaw + 270.0F;
+			default -> yaw;
 		};
 	}
 
 	@Override
 	public float applyMirror(BlockMirror mirror) {
-		return this.applyRotation(mirror.getRotation(this.getHorizontalFacing()));
+		return applyRotation(mirror.getRotation(getHorizontalFacing()));
 	}
 }

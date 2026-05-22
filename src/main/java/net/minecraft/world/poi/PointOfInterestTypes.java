@@ -21,7 +21,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code PointOfInterestTypes}.
+ * Реестр всех типов точек интереса (POI) в игре.
+ * Содержит ключи для каждого типа и логику их регистрации,
+ * а также глобальный индекс {@code BlockState → RegistryEntry<PointOfInterestType>}
+ * для быстрого определения типа POI по состоянию блока.
  */
 public class PointOfInterestTypes {
 
@@ -46,51 +49,50 @@ public class PointOfInterestTypes {
 	public static final RegistryKey<PointOfInterestType> LODESTONE = of("lodestone");
 	public static final RegistryKey<PointOfInterestType> LIGHTNING_ROD = of("lightning_rod");
 	public static final RegistryKey<PointOfInterestType> TEST_INSTANCE = of("test_instance");
+
+	// Все состояния кроватей с частью HEAD — используются как POI типа HOME
 	private static final Set<BlockState> BED_HEADS = ImmutableList.of(
-			                                                              Blocks.RED_BED,
-			                                                              Blocks.BLACK_BED,
-			                                                              Blocks.BLUE_BED,
-			                                                              Blocks.BROWN_BED,
-			                                                              Blocks.CYAN_BED,
-			                                                              Blocks.GRAY_BED,
-			                                                              Blocks.GREEN_BED,
-			                                                              Blocks.LIGHT_BLUE_BED,
-			                                                              Blocks.LIGHT_GRAY_BED,
-			                                                              Blocks.LIME_BED,
-			                                                              Blocks.MAGENTA_BED,
-			                                                              Blocks.ORANGE_BED,
-			                                                              new Block[]{Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED, Blocks.YELLOW_BED}
-	                                                              )
-	                                                              .stream()
-	                                                              .flatMap(block -> block
-			                                                              .getStateManager()
-			                                                              .getStates()
-			                                                              .stream())
-	                                                              .filter(state -> state.get(BedBlock.PART)
-			                                                              == BedPart.HEAD)
-	                                                              .collect(ImmutableSet.toImmutableSet());
-	private static final Set<BlockState>
-			CAULDRONS =
-			ImmutableList.of(Blocks.CAULDRON, Blocks.LAVA_CAULDRON, Blocks.WATER_CAULDRON, Blocks.POWDER_SNOW_CAULDRON)
-			             .stream()
-			             .flatMap(block -> block.getStateManager().getStates().stream())
-			             .collect(ImmutableSet.toImmutableSet());
+		Blocks.RED_BED,
+		Blocks.BLACK_BED,
+		Blocks.BLUE_BED,
+		Blocks.BROWN_BED,
+		Blocks.CYAN_BED,
+		Blocks.GRAY_BED,
+		Blocks.GREEN_BED,
+		Blocks.LIGHT_BLUE_BED,
+		Blocks.LIGHT_GRAY_BED,
+		Blocks.LIME_BED,
+		Blocks.MAGENTA_BED,
+		Blocks.ORANGE_BED,
+		new Block[]{Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED, Blocks.YELLOW_BED}
+	)
+		.stream()
+		.flatMap(block -> block.getStateManager().getStates().stream())
+		.filter(state -> state.get(BedBlock.PART) == BedPart.HEAD)
+		.collect(ImmutableSet.toImmutableSet());
+
+	// Все состояния котлов — используются как POI типа LEATHERWORKER
+	private static final Set<BlockState> CAULDRONS = ImmutableList
+		.of(Blocks.CAULDRON, Blocks.LAVA_CAULDRON, Blocks.WATER_CAULDRON, Blocks.POWDER_SNOW_CAULDRON)
+		.stream()
+		.flatMap(block -> block.getStateManager().getStates().stream())
+		.collect(ImmutableSet.toImmutableSet());
+
+	// Все варианты громоотводов (включая окисленные и вощёные) — POI типа LIGHTNING_ROD
 	private static final Set<BlockState> LIGHTNING_ROD_STATES = ImmutableList.of(
-			                                                                Blocks.LIGHTNING_ROD,
-			                                                                Blocks.EXPOSED_LIGHTNING_ROD,
-			                                                                Blocks.WEATHERED_LIGHTNING_ROD,
-			                                                                Blocks.OXIDIZED_LIGHTNING_ROD,
-			                                                                Blocks.WAXED_LIGHTNING_ROD,
-			                                                                Blocks.WAXED_EXPOSED_LIGHTNING_ROD,
-			                                                                Blocks.WAXED_WEATHERED_LIGHTNING_ROD,
-			                                                                Blocks.WAXED_OXIDIZED_LIGHTNING_ROD
-	                                                                )
-	                                                                .stream()
-	                                                                .flatMap(block -> block
-			                                                                .getStateManager()
-			                                                                .getStates()
-			                                                                .stream())
-	                                                                .collect(ImmutableSet.toImmutableSet());
+		Blocks.LIGHTNING_ROD,
+		Blocks.EXPOSED_LIGHTNING_ROD,
+		Blocks.WEATHERED_LIGHTNING_ROD,
+		Blocks.OXIDIZED_LIGHTNING_ROD,
+		Blocks.WAXED_LIGHTNING_ROD,
+		Blocks.WAXED_EXPOSED_LIGHTNING_ROD,
+		Blocks.WAXED_WEATHERED_LIGHTNING_ROD,
+		Blocks.WAXED_OXIDIZED_LIGHTNING_ROD
+	)
+		.stream()
+		.flatMap(block -> block.getStateManager().getStates().stream())
+		.collect(ImmutableSet.toImmutableSet());
+
 	private static final Map<BlockState, RegistryEntry<PointOfInterestType>> POI_STATES_TO_TYPE = Maps.newHashMap();
 
 	private static Set<BlockState> getStatesOfBlock(Block block) {
@@ -102,33 +104,36 @@ public class PointOfInterestTypes {
 	}
 
 	private static PointOfInterestType register(
-			Registry<PointOfInterestType> registry,
-			RegistryKey<PointOfInterestType> key,
-			Set<BlockState> states,
-			int ticketCount,
-			int searchDistance
+		Registry<PointOfInterestType> registry,
+		RegistryKey<PointOfInterestType> key,
+		Set<BlockState> states,
+		int ticketCount,
+		int searchDistance
 	) {
-		PointOfInterestType pointOfInterestType = new PointOfInterestType(states, ticketCount, searchDistance);
-		Registry.register(registry, key, pointOfInterestType);
+		PointOfInterestType poiType = new PointOfInterestType(states, ticketCount, searchDistance);
+		Registry.register(registry, key, poiType);
 		registerStates(registry.getOrThrow(key), states);
-		return pointOfInterestType;
+		return poiType;
 	}
 
+	/**
+	 * Регистрирует соответствие каждого {@link BlockState} из набора к записи реестра POI.
+	 * Бросает исключение, если состояние уже зарегистрировано для другого типа.
+	 */
 	private static void registerStates(RegistryEntry<PointOfInterestType> poiTypeEntry, Set<BlockState> states) {
-		states.forEach(
-				state -> {
-					RegistryEntry<PointOfInterestType> registryEntry2 = POI_STATES_TO_TYPE.put(state, poiTypeEntry);
-					if (registryEntry2 != null) {
-						throw (IllegalStateException) Util.getFatalOrPause(
-								new IllegalStateException(String.format(
-										Locale.ROOT,
-										"%s is defined in more than one PoI type",
-										state
-								))
-						);
-					}
-				}
-		);
+		states.forEach(state -> {
+			RegistryEntry<PointOfInterestType> existing = POI_STATES_TO_TYPE.put(state, poiTypeEntry);
+
+			if (existing != null) {
+				throw (IllegalStateException) Util.getFatalOrPause(
+					new IllegalStateException(String.format(
+						Locale.ROOT,
+						"%s is defined in more than one PoI type",
+						state
+					))
+				);
+			}
+		});
 	}
 
 	public static Optional<RegistryEntry<PointOfInterestType>> getTypeForState(BlockState state) {
@@ -140,11 +145,11 @@ public class PointOfInterestTypes {
 	}
 
 	/**
-	 * Регистрирует and get default.
+	 * Регистрирует все стандартные типы POI в переданном реестре и возвращает последний зарегистрированный.
+	 * Вызывается при инициализации реестра игры.
 	 *
-	 * @param registry registry
-	 *
-	 * @return PointOfInterestType — результат операции
+	 * @param registry реестр типов POI
+	 * @return последний зарегистрированный тип (LIGHTNING_ROD)
 	 */
 	public static PointOfInterestType registerAndGetDefault(Registry<PointOfInterestType> registry) {
 		register(registry, ARMORER, getStatesOfBlock(Blocks.BLAST_FURNACE), 1, 1);

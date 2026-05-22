@@ -8,10 +8,11 @@ import net.minecraft.client.gui.screen.ButtonTextures;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TexturedButtonWidget}.
+ * Кнопка с текстурой из {@link ButtonTextures}, автоматически переключающей состояния
+ * (активная/неактивная, выделенная/обычная).
  */
+@Environment(EnvType.CLIENT)
 public class TexturedButtonWidget extends ButtonWidget {
 
 	protected final ButtonTextures textures;
@@ -52,14 +53,14 @@ public class TexturedButtonWidget extends ButtonWidget {
 
 	@Override
 	public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		Identifier identifier = this.textures.get(this.isInteractable(), this.isSelected());
+		Identifier texture = textures.get(isInteractable(), isSelected());
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				identifier,
-				this.getX(),
-				this.getY(),
-				this.width,
-				this.height
+				texture,
+				getX(),
+				getY(),
+				width,
+				height
 		);
 	}
 }

@@ -25,90 +25,100 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 
 /**
- * {@code PlayerSaveHandler}.
+ * Обработчик сохранения и загрузки данных игроков.
+ * Хранит файлы в директории {@code playerdata} уровня.
+ * При загрузке применяет DataFixer для миграции устаревших форматов.
  */
 public class PlayerSaveHandler {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final File playerDataDir;
 	protected final DataFixer dataFixer;
 
 	public PlayerSaveHandler(LevelStorage.Session session, DataFixer dataFixer) {
 		this.dataFixer = dataFixer;
-		this.playerDataDir = session.getDirectory(WorldSavePath.PLAYERDATA).toFile();
-		this.playerDataDir.mkdirs();
+		playerDataDir = session.getDirectory(WorldSavePath.PLAYERDATA).toFile();
+		playerDataDir.mkdirs();
 	}
 
 	/**
-	 * Сохраняет player data.
+	 * Сохраняет данные игрока на диск.
+	 * Использует атомарную замену файла через временный файл и резервную копию.
 	 *
-	 * @param player player
+	 * @param player игрок, данные которого нужно сохранить
 	 */
 	public void savePlayerData(PlayerEntity player) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(player.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, player.getRegistryManager());
 			player.writeData(nbtWriteView);
-			Path path = this.playerDataDir.toPath();
-			Path path2 = Files.createTempFile(path, player.getUuidAsString() + "-", ".dat");
-			NbtCompound nbtCompound = nbtWriteView.getNbt();
-			NbtIo.writeCompressed(nbtCompound, path2);
-			Path path3 = path.resolve(player.getUuidAsString() + ".dat");
-			Path path4 = path.resolve(player.getUuidAsString() + ".dat_old");
-			Util.backupAndReplace(path3, path2, path4);
-		}
-		catch (Exception var11) {
+
+			Path dataDir = playerDataDir.toPath();
+			Path tempFile = Files.createTempFile(dataDir, player.getUuidAsString() + "-", ".dat");
+			NbtIo.writeCompressed(nbtWriteView.getNbt(), tempFile);
+
+			Path targetFile = dataDir.resolve(player.getUuidAsString() + ".dat");
+			Path backupFile = dataDir.resolve(player.getUuidAsString() + ".dat_old");
+			Util.backupAndReplace(targetFile, tempFile, backupFile);
+		} catch (Exception e) {
 			LOGGER.warn("Failed to save player data for {}", player.getStringifiedName());
 		}
 	}
 
 	private void backupCorruptedPlayerData(PlayerConfigEntry playerConfigEntry, String extension) {
-		Path path = this.playerDataDir.toPath();
-		String string = playerConfigEntry.id().toString();
-		Path path2 = path.resolve(string + extension);
-		Path
-				path3 =
-				path.resolve(
-						string + "_corrupted_" + ZonedDateTime.now().format(DateTimeFormatters.MINUTES) + extension);
-		if (Files.isRegularFile(path2)) {
-			try {
-				Files.copy(path2, path3, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
-			}
-			catch (Exception var8) {
-				LOGGER.warn("Failed to copy the player.dat file for {}", playerConfigEntry.name(), var8);
-			}
+		Path dataDir = playerDataDir.toPath();
+		String idString = playerConfigEntry.id().toString();
+		Path sourceFile = dataDir.resolve(idString + extension);
+		Path backupFile = dataDir.resolve(
+			idString + "_corrupted_" + ZonedDateTime.now().format(DateTimeFormatters.MINUTES) + extension
+		);
+
+		if (!Files.isRegularFile(sourceFile)) {
+			return;
+		}
+
+		try {
+			Files.copy(sourceFile, backupFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+		} catch (Exception e) {
+			LOGGER.warn("Failed to copy the player.dat file for {}", playerConfigEntry.name(), e);
 		}
 	}
 
 	private Optional<NbtCompound> loadPlayerData(PlayerConfigEntry playerConfigEntry, String extension) {
-		File file = new File(this.playerDataDir, playerConfigEntry.id() + extension);
-		if (file.exists() && file.isFile()) {
-			try {
-				return Optional.of(NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes()));
-			}
-			catch (Exception var5) {
-				LOGGER.warn("Failed to load player data for {}", playerConfigEntry.name());
-			}
+		File file = new File(playerDataDir, playerConfigEntry.id() + extension);
+
+		if (!file.exists() || !file.isFile()) {
+			return Optional.empty();
 		}
 
-		return Optional.empty();
+		try {
+			return Optional.of(NbtIo.readCompressed(file.toPath(), NbtSizeTracker.ofUnlimitedBytes()));
+		} catch (Exception e) {
+			LOGGER.warn("Failed to load player data for {}", playerConfigEntry.name());
+			return Optional.empty();
+		}
 	}
 
 	/**
-	 * Загружает player data.
+	 * Загружает данные игрока с диска.
+	 * Сначала пробует основной файл {@code .dat}, при неудаче — резервный {@code .dat_old}.
+	 * Применяет DataFixer для обновления формата данных.
 	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return Optional — результат операции
+	 * @param playerConfigEntry конфигурационная запись игрока
+	 * @return NBT-данные игрока, если файл найден и успешно прочитан
 	 */
 	public Optional<NbtCompound> loadPlayerData(PlayerConfigEntry playerConfigEntry) {
-		Optional<NbtCompound> optional = this.loadPlayerData(playerConfigEntry, ".dat");
-		if (optional.isEmpty()) {
-			this.backupCorruptedPlayerData(playerConfigEntry, ".dat");
+		Optional<NbtCompound> primary = loadPlayerData(playerConfigEntry, ".dat");
+
+		if (primary.isEmpty()) {
+			backupCorruptedPlayerData(playerConfigEntry, ".dat");
 		}
 
-		return optional.or(() -> this.loadPlayerData(playerConfigEntry, ".dat_old")).map(nbtCompound -> {
-			int i = NbtHelper.getDataVersion(nbtCompound);
-			return DataFixTypes.PLAYER.update(this.dataFixer, nbtCompound, i);
-		});
+		return primary
+			.or(() -> loadPlayerData(playerConfigEntry, ".dat_old"))
+			.map(nbt -> {
+				int dataVersion = NbtHelper.getDataVersion(nbt);
+				return DataFixTypes.PLAYER.update(dataFixer, nbt, dataVersion);
+			});
 	}
 }

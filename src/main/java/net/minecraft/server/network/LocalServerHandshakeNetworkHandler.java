@@ -9,7 +9,7 @@ import net.minecraft.network.state.LoginStates;
 import net.minecraft.server.MinecraftServer;
 
 /**
- * {@code LocalServerHandshakeNetworkHandler}.
+ * Класс Local Server Handshake Network Handler.
  */
 public class LocalServerHandshakeNetworkHandler implements ServerHandshakePacketListener {
 

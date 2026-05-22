@@ -4,124 +4,91 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkToNibbleArrayMap}.
+ * Абстрактная карта позиций секций чанков → {@link ChunkNibbleArray} с двухэлементным
+ * LRU-кешем для ускорения повторных обращений к одним и тем же позициям.
+ *
+ * @param <M> конкретный подтип карты (для типобезопасного {@link #copy()})
  */
 public abstract class ChunkToNibbleArrayMap<M extends ChunkToNibbleArrayMap<M>> {
 
-	private static final int COPY_THRESHOLD = 2;
-	private final long[] cachePositions = new long[2];
-	private final @Nullable ChunkNibbleArray[] cacheArrays = new ChunkNibbleArray[2];
+	private static final int CACHE_SIZE = 2;
+
+	private final long[] cachePositions = new long[CACHE_SIZE];
+	private final @Nullable ChunkNibbleArray[] cacheArrays = new ChunkNibbleArray[CACHE_SIZE];
 	private boolean cacheEnabled;
 	protected final Long2ObjectOpenHashMap<ChunkNibbleArray> arrays;
 
 	protected ChunkToNibbleArrayMap(Long2ObjectOpenHashMap<ChunkNibbleArray> arrays) {
 		this.arrays = arrays;
-		this.clearCache();
-		this.cacheEnabled = true;
+		clearCache();
+		cacheEnabled = true;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return M — результат операции
-	 */
 	public abstract M copy();
 
 	/**
-	 * Replace with copy.
-	 *
-	 * @param pos pos
-	 *
-	 * @return ChunkNibbleArray — результат операции
+	 * Заменяет массив по позиции его глубокой копией и инвалидирует кеш.
+	 * Используется перед мутацией данных освещения в рамках одного тика.
 	 */
 	public ChunkNibbleArray replaceWithCopy(long pos) {
-		ChunkNibbleArray chunkNibbleArray = ((ChunkNibbleArray) this.arrays.get(pos)).copy();
-		this.arrays.put(pos, chunkNibbleArray);
-		this.clearCache();
-		return chunkNibbleArray;
+		ChunkNibbleArray copied = ((ChunkNibbleArray) arrays.get(pos)).copy();
+		arrays.put(pos, copied);
+		clearCache();
+		return copied;
 	}
 
-	/**
-	 * Contains key.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean containsKey(long chunkPos) {
-		return this.arrays.containsKey(chunkPos);
+		return arrays.containsKey(chunkPos);
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return @Nullable ChunkNibbleArray — 
+	 * Возвращает {@link ChunkNibbleArray} для указанной позиции секции,
+	 * используя двухэлементный LRU-кеш для ускорения повторных обращений.
 	 */
 	public @Nullable ChunkNibbleArray get(long chunkPos) {
-		if (this.cacheEnabled) {
-			for (int i = 0; i < 2; i++) {
-				if (chunkPos == this.cachePositions[i]) {
-					return this.cacheArrays[i];
+		if (cacheEnabled) {
+			for (int i = 0; i < CACHE_SIZE; i++) {
+				if (chunkPos == cachePositions[i]) {
+					return cacheArrays[i];
 				}
 			}
 		}
 
-		ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.arrays.get(chunkPos);
-		if (chunkNibbleArray == null) {
+		ChunkNibbleArray array = (ChunkNibbleArray) arrays.get(chunkPos);
+		if (array == null) {
 			return null;
 		}
-		else {
-			if (this.cacheEnabled) {
-				for (int j = 1; j > 0; j--) {
-					this.cachePositions[j] = this.cachePositions[j - 1];
-					this.cacheArrays[j] = this.cacheArrays[j - 1];
-				}
 
-				this.cachePositions[0] = chunkPos;
-				this.cacheArrays[0] = chunkNibbleArray;
+		if (cacheEnabled) {
+			// Сдвигаем кеш: новый элемент занимает позицию 0
+			for (int i = CACHE_SIZE - 1; i > 0; i--) {
+				cachePositions[i] = cachePositions[i - 1];
+				cacheArrays[i] = cacheArrays[i - 1];
 			}
 
-			return chunkNibbleArray;
+			cachePositions[0] = chunkPos;
+			cacheArrays[0] = array;
 		}
+
+		return array;
 	}
 
-	/**
-	 * Удаляет chunk.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return @Nullable ChunkNibbleArray — результат операции
-	 */
 	public @Nullable ChunkNibbleArray removeChunk(long chunkPos) {
-		return (ChunkNibbleArray) this.arrays.remove(chunkPos);
+		return (ChunkNibbleArray) arrays.remove(chunkPos);
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param pos pos
-	 * @param data data
-	 */
 	public void put(long pos, ChunkNibbleArray data) {
-		this.arrays.put(pos, data);
+		arrays.put(pos, data);
 	}
 
-	/**
-	 * Очищает cache.
-	 */
 	public void clearCache() {
-		for (int i = 0; i < 2; i++) {
-			this.cachePositions[i] = Long.MAX_VALUE;
-			this.cacheArrays[i] = null;
+		for (int i = 0; i < CACHE_SIZE; i++) {
+			cachePositions[i] = Long.MAX_VALUE;
+			cacheArrays[i] = null;
 		}
 	}
 
-	/**
-	 * Отключает cache.
-	 */
 	public void disableCache() {
-		this.cacheEnabled = false;
+		cacheEnabled = false;
 	}
 }

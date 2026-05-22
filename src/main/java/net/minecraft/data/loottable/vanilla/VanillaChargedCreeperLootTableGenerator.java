@@ -27,32 +27,37 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code VanillaChargedCreeperLootTableGenerator}.
+ * Генератор таблиц добычи для убийств, совершённых заряженным крипером.
+ * <p>
+ * Заряженный крипер при взрыве рядом с мобом гарантированно дропает его голову.
+ * Этот генератор создаёт отдельную таблицу для каждого поддерживаемого типа моба
+ * (зомби, скелет, крипер, визер-скелет, пиглин), а также корневую таблицу-диспетчер,
+ * которая выбирает нужную таблицу в зависимости от типа убитой сущности.
  */
 public record VanillaChargedCreeperLootTableGenerator(RegistryWrapper.WrapperLookup registries) implements LootTableGenerator {
 
-	private static final List<VanillaChargedCreeperLootTableGenerator.Table> TABLES = List.of(
-			new VanillaChargedCreeperLootTableGenerator.Table(
+	private static final List<Table> TABLES = List.of(
+			new Table(
 					LootTables.PIGLIN_CHARGED_CREEPER,
 					EntityType.PIGLIN,
 					Items.PIGLIN_HEAD
 			),
-			new VanillaChargedCreeperLootTableGenerator.Table(
+			new Table(
 					LootTables.CREEPER_CHARGED_CREEPER,
 					EntityType.CREEPER,
 					Items.CREEPER_HEAD
 			),
-			new VanillaChargedCreeperLootTableGenerator.Table(
+			new Table(
 					LootTables.SKELETON_CHARGED_CREEPER,
 					EntityType.SKELETON,
 					Items.SKELETON_SKULL
 			),
-			new VanillaChargedCreeperLootTableGenerator.Table(
+			new Table(
 					LootTables.WITHER_SKELETON_CHARGED_CREEPER,
 					EntityType.WITHER_SKELETON,
 					Items.WITHER_SKELETON_SKULL
 			),
-			new VanillaChargedCreeperLootTableGenerator.Table(
+			new Table(
 					LootTables.ZOMBIE_CHARGED_CREEPER,
 					EntityType.ZOMBIE,
 					Items.ZOMBIE_HEAD
@@ -61,10 +66,10 @@ public record VanillaChargedCreeperLootTableGenerator(RegistryWrapper.WrapperLoo
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryEntryLookup<EntityType<?>> registryEntryLookup = this.registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
-		List<LootPoolEntry.Builder<?>> list = new ArrayList<>(TABLES.size());
+		RegistryEntryLookup<EntityType<?>> entityTypeLookup = registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
+		List<LootPoolEntry.Builder<?>> entries = new ArrayList<>(TABLES.size());
 
-		for (VanillaChargedCreeperLootTableGenerator.Table table : TABLES) {
+		for (Table table : TABLES) {
 			lootTableBiConsumer.accept(
 					table.lootTable,
 					LootTable
@@ -78,9 +83,9 @@ public record VanillaChargedCreeperLootTableGenerator(RegistryWrapper.WrapperLoo
 					LootContext.EntityReference.THIS,
 					EntityPredicate.Builder
 							.create()
-							.type(EntityTypePredicate.create(registryEntryLookup, table.entityType))
+							.type(EntityTypePredicate.create(entityTypeLookup, table.entityType))
 			);
-			list.add(LootTableEntry.builder(table.lootTable).conditionally(builder));
+			entries.add(LootTableEntry.builder(table.lootTable).conditionally(builder));
 		}
 
 		lootTableBiConsumer.accept(
@@ -89,12 +94,12 @@ public record VanillaChargedCreeperLootTableGenerator(RegistryWrapper.WrapperLoo
 				         .pool(LootPool
 						         .builder()
 						         .rolls(ConstantLootNumberProvider.create(1.0F))
-						         .with(AlternativeEntry.builder(list.toArray(LootPoolEntry.Builder[]::new))))
+						         .with(AlternativeEntry.builder(entries.toArray(LootPoolEntry.Builder[]::new))))
 		);
 	}
 
 	/**
-	 * {@code Table}.
+	 * Связывает ключ таблицы добычи, тип сущности и выпадающий предмет (голову) в единую запись.
 	 */
 	record Table(RegistryKey<LootTable> lootTable, EntityType<?> entityType, Item item) {
 	}

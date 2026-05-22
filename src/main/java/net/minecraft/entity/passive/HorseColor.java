@@ -10,7 +10,7 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code HorseColor}.
+ * Цвет лошади. Упакован в младший байт варианта лошади (биты 0–7).
  */
 public enum HorseColor implements StringIdentifiable {
 	WHITE(0, "white"),
@@ -23,36 +23,33 @@ public enum HorseColor implements StringIdentifiable {
 
 	public static final Codec<HorseColor> CODEC = StringIdentifiable.createCodec(HorseColor::values);
 	private static final IntFunction<HorseColor> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
-			HorseColor::getIndex, values(), ValueLists.OutOfBoundsHandling.WRAP
+		HorseColor::getIndex,
+		values(),
+		ValueLists.OutOfBoundsHandling.WRAP
 	);
-	public static final PacketCodec<ByteBuf, HorseColor>
-			PACKET_CODEC =
-			PacketCodecs.indexed(INDEX_MAPPER, HorseColor::getIndex);
+	public static final PacketCodec<ByteBuf, HorseColor> PACKET_CODEC = PacketCodecs.indexed(
+		INDEX_MAPPER,
+		HorseColor::getIndex
+	);
+
 	private final int index;
 	private final String id;
 
-	private HorseColor(final int index, final String id) {
+	HorseColor(int index, String id) {
 		this.index = index;
 		this.id = id;
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
-	/**
-	 * By index.
-	 *
-	 * @param index index
-	 *
-	 * @return HorseColor — результат операции
-	 */
 	public static HorseColor byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 }

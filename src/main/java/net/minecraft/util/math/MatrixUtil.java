@@ -1,28 +1,32 @@
 package net.minecraft.util.math;
 
 import org.apache.commons.lang3.tuple.Triple;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
- * {@code MatrixUtil}.
+ * Утилитарный класс для операций над матрицами JOML.
+ * Содержит реализацию SVD-разложения через итерации Якоби с парами Гивенса,
+ * а также вспомогательные методы для проверки свойств матриц.
  */
 public class MatrixUtil {
 
+	// Котангенс π/8 — порог для выбора между аппроксимацией и точным значением в итерации Якоби
 	private static final float COT_PI_OVER_8 = 3.0F + 2.0F * Math.sqrt(2.0F);
 	private static final GivensPair SIN_COS_PI_OVER_8 = GivensPair.fromAngle((float) (java.lang.Math.PI / 4));
+
+	// Флаги свойств матрицы из JOML Matrix4fc
+	private static final int PROPERTY_IDENTITY = 4;
+	private static final int PROPERTY_TRANSLATION = 8;
+	private static final int PROPERTY_ORTHONORMAL = 16;
 
 	private MatrixUtil() {
 	}
 
-	/**
-	 * Scale.
-	 *
-	 * @param matrix matrix
-	 * @param scalar scalar
-	 *
-	 * @return Matrix4f — результат операции
-	 */
 	public static Matrix4f scale(Matrix4f matrix, float scalar) {
 		return matrix.set(
 				matrix.m00() * scalar,
@@ -45,21 +49,24 @@ public class MatrixUtil {
 	}
 
 	private static GivensPair approximateGivensQuaternion(float a11, float a12, float a22) {
-		float f = 2.0F * (a11 - a22);
-		return COT_PI_OVER_8 * a12 * a12 < f * f ? GivensPair.normalize(a12, f) : SIN_COS_PI_OVER_8;
+		float diff = 2.0F * (a11 - a22);
+		return COT_PI_OVER_8 * a12 * a12 < diff * diff
+				? GivensPair.normalize(a12, diff)
+				: SIN_COS_PI_OVER_8;
 	}
 
 	private static GivensPair qrGivensQuaternion(float a1, float a2) {
-		float f = (float) java.lang.Math.hypot(a1, a2);
-		float g = f > 1.0E-6F ? a2 : 0.0F;
-		float h = Math.abs(a1) + Math.max(f, 1.0E-6F);
+		float hyp = (float) java.lang.Math.hypot(a1, a2);
+		float s = hyp > 1.0E-6F ? a2 : 0.0F;
+		float c = Math.abs(a1) + Math.max(hyp, 1.0E-6F);
+
 		if (a1 < 0.0F) {
-			float i = g;
-			g = h;
-			h = i;
+			float tmp = s;
+			s = c;
+			c = tmp;
 		}
 
-		return GivensPair.normalize(g, h);
+		return GivensPair.normalize(s, c);
 	}
 
 	private static void conjugate(Matrix3f X, Matrix3f A) {
@@ -71,114 +78,90 @@ public class MatrixUtil {
 
 	private static void applyJacobiIteration(
 			Matrix3f AtA,
-			Matrix3f matrix3f,
-			Quaternionf quaternionf,
-			Quaternionf quaternionf2
+			Matrix3f rotation,
+			Quaternionf tempQuat,
+			Quaternionf accumQuat
 	) {
 		if (AtA.m01 * AtA.m01 + AtA.m10 * AtA.m10 > 1.0E-6F) {
-			GivensPair givensPair = approximateGivensQuaternion(AtA.m00, 0.5F * (AtA.m01 + AtA.m10), AtA.m11);
-			Quaternionf quaternionf3 = givensPair.setZRotation(quaternionf);
-			quaternionf2.mul(quaternionf3);
-			givensPair.setRotationZ(matrix3f);
-			conjugate(AtA, matrix3f);
+			GivensPair pair = approximateGivensQuaternion(AtA.m00, 0.5F * (AtA.m01 + AtA.m10), AtA.m11);
+			accumQuat.mul(pair.setZRotation(tempQuat));
+			conjugate(AtA, pair.setRotationZ(rotation));
 		}
 
 		if (AtA.m02 * AtA.m02 + AtA.m20 * AtA.m20 > 1.0E-6F) {
-			GivensPair
-					givensPair =
-					approximateGivensQuaternion(AtA.m00, 0.5F * (AtA.m02 + AtA.m20), AtA.m22).negateSin();
-			Quaternionf quaternionf3 = givensPair.setYRotation(quaternionf);
-			quaternionf2.mul(quaternionf3);
-			givensPair.setRotationY(matrix3f);
-			conjugate(AtA, matrix3f);
+			GivensPair pair = approximateGivensQuaternion(AtA.m00, 0.5F * (AtA.m02 + AtA.m20), AtA.m22).negateSin();
+			accumQuat.mul(pair.setYRotation(tempQuat));
+			conjugate(AtA, pair.setRotationY(rotation));
 		}
 
 		if (AtA.m12 * AtA.m12 + AtA.m21 * AtA.m21 > 1.0E-6F) {
-			GivensPair givensPair = approximateGivensQuaternion(AtA.m11, 0.5F * (AtA.m12 + AtA.m21), AtA.m22);
-			Quaternionf quaternionf3 = givensPair.setXRotation(quaternionf);
-			quaternionf2.mul(quaternionf3);
-			givensPair.setRotationX(matrix3f);
-			conjugate(AtA, matrix3f);
+			GivensPair pair = approximateGivensQuaternion(AtA.m11, 0.5F * (AtA.m12 + AtA.m21), AtA.m22);
+			accumQuat.mul(pair.setXRotation(tempQuat));
+			conjugate(AtA, pair.setRotationX(rotation));
 		}
 	}
 
 	/**
-	 * Применяет jacobi iterations.
-	 *
-	 * @param AtA at a
-	 * @param numJacobiIterations num jacobi iterations
-	 *
-	 * @return Quaternionf — результат операции
+	 * Вычисляет правое вращение SVD через итерации Якоби на матрице A^T·A.
+	 * Каждая итерация обнуляет внедиагональные элементы через повороты Гивенса.
 	 */
 	public static Quaternionf applyJacobiIterations(Matrix3f AtA, int numJacobiIterations) {
-		Quaternionf quaternionf = new Quaternionf();
-		Matrix3f matrix3f = new Matrix3f();
-		Quaternionf quaternionf2 = new Quaternionf();
+		Quaternionf result = new Quaternionf();
+		Matrix3f rotation = new Matrix3f();
+		Quaternionf tempQuat = new Quaternionf();
 
 		for (int i = 0; i < numJacobiIterations; i++) {
-			applyJacobiIteration(AtA, matrix3f, quaternionf2, quaternionf);
+			applyJacobiIteration(AtA, rotation, tempQuat, result);
 		}
 
-		quaternionf.normalize();
-		return quaternionf;
+		result.normalize();
+		return result;
 	}
 
 	/**
-	 * Svd decompose.
-	 *
-	 * @param A a
-	 *
-	 * @return Triple — результат операции
+	 * SVD-разложение матрицы 3×3: A = U · Σ · V^T.
+	 * Возвращает тройку (U, Σ, V), где U и V — кватернионы вращения, Σ — вектор сингулярных значений.
 	 */
 	public static Triple<Quaternionf, Vector3f, Quaternionf> svdDecompose(Matrix3f A) {
-		Matrix3f matrix3f = new Matrix3f(A);
-		matrix3f.transpose();
-		matrix3f.mul(A);
-		Quaternionf quaternionf = applyJacobiIterations(matrix3f, 5);
-		float f = matrix3f.m00;
-		float g = matrix3f.m11;
-		boolean bl = f < 1.0E-6;
-		boolean bl2 = g < 1.0E-6;
-		Matrix3f matrix3f3 = A.rotate(quaternionf);
-		Quaternionf quaternionf2 = new Quaternionf();
-		Quaternionf quaternionf3 = new Quaternionf();
-		GivensPair givensPair;
-		if (bl) {
-			givensPair = qrGivensQuaternion(matrix3f3.m11, -matrix3f3.m10);
-		}
-		else {
-			givensPair = qrGivensQuaternion(matrix3f3.m00, matrix3f3.m01);
-		}
+		Matrix3f AtA = new Matrix3f(A);
+		AtA.transpose();
+		AtA.mul(A);
 
-		Quaternionf quaternionf4 = givensPair.setZRotation(quaternionf3);
-		Matrix3f matrix3f4 = givensPair.setRotationZ(matrix3f);
-		quaternionf2.mul(quaternionf4);
-		matrix3f4.transpose().mul(matrix3f3);
-		if (bl) {
-			givensPair = qrGivensQuaternion(matrix3f4.m22, -matrix3f4.m20);
-		}
-		else {
-			givensPair = qrGivensQuaternion(matrix3f4.m00, matrix3f4.m02);
-		}
+		Quaternionf rightRotation = applyJacobiIterations(AtA, 5);
+		boolean firstSingularNearZero = AtA.m00 < 1.0E-6;
+		boolean secondSingularNearZero = AtA.m11 < 1.0E-6;
 
-		givensPair = givensPair.negateSin();
-		Quaternionf quaternionf5 = givensPair.setYRotation(quaternionf3);
-		Matrix3f matrix3f5 = givensPair.setRotationY(matrix3f3);
-		quaternionf2.mul(quaternionf5);
-		matrix3f5.transpose().mul(matrix3f4);
-		if (bl2) {
-			givensPair = qrGivensQuaternion(matrix3f5.m22, -matrix3f5.m21);
-		}
-		else {
-			givensPair = qrGivensQuaternion(matrix3f5.m11, matrix3f5.m12);
-		}
+		Matrix3f rotatedA = A.rotate(rightRotation);
+		Quaternionf leftRotation = new Quaternionf();
+		Quaternionf tempQuat = new Quaternionf();
 
-		Quaternionf quaternionf6 = givensPair.setXRotation(quaternionf3);
-		Matrix3f matrix3f6 = givensPair.setRotationX(matrix3f4);
-		quaternionf2.mul(quaternionf6);
-		matrix3f6.transpose().mul(matrix3f5);
-		Vector3f vector3f = new Vector3f(matrix3f6.m00, matrix3f6.m11, matrix3f6.m22);
-		return Triple.of(quaternionf2, vector3f, quaternionf.conjugate());
+		GivensPair pair = firstSingularNearZero
+				? qrGivensQuaternion(rotatedA.m11, -rotatedA.m10)
+				: qrGivensQuaternion(rotatedA.m00, rotatedA.m01);
+
+		Matrix3f step1 = new Matrix3f();
+		leftRotation.mul(pair.setZRotation(tempQuat));
+		pair.setRotationZ(step1).transpose().mul(rotatedA);
+
+		pair = firstSingularNearZero
+				? qrGivensQuaternion(step1.m22, -step1.m20)
+				: qrGivensQuaternion(step1.m00, step1.m02);
+		pair = pair.negateSin();
+
+		Matrix3f step2 = new Matrix3f();
+		leftRotation.mul(pair.setYRotation(tempQuat));
+		pair.setRotationY(step2).transpose().mul(step1);
+
+		pair = secondSingularNearZero
+				? qrGivensQuaternion(step2.m22, -step2.m21)
+				: qrGivensQuaternion(step2.m11, step2.m12);
+
+		Matrix3f step3 = new Matrix3f();
+		leftRotation.mul(pair.setXRotation(tempQuat));
+		pair.setRotationX(step3).transpose().mul(step2);
+
+		Vector3f singularValues = new Vector3f(step3.m00, step3.m11, step3.m22);
+		return Triple.of(leftRotation, singularValues, rightRotation.conjugate());
 	}
 
 	private static boolean isPropertyBitSet(Matrix4fc matrix, int property) {
@@ -189,24 +172,24 @@ public class MatrixUtil {
 		if (isPropertyBitSet(matrix, property)) {
 			return true;
 		}
-		else if (matrix instanceof Matrix4f matrix4f) {
+
+		if (matrix instanceof Matrix4f matrix4f) {
 			matrix4f.determineProperties();
 			return isPropertyBitSet(matrix, property);
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	public static boolean isIdentity(Matrix4fc matrix) {
-		return hasProperty(matrix, 4);
+		return hasProperty(matrix, PROPERTY_IDENTITY);
 	}
 
 	public static boolean isTranslation(Matrix4fc matrix) {
-		return hasProperty(matrix, 8);
+		return hasProperty(matrix, PROPERTY_TRANSLATION);
 	}
 
 	public static boolean isOrthonormal(Matrix4fc matrix) {
-		return hasProperty(matrix, 16);
+		return hasProperty(matrix, PROPERTY_ORTHONORMAL);
 	}
 }

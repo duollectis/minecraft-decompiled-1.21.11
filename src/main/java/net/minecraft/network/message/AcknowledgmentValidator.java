@@ -5,7 +5,9 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Класс acknowledgment validator.
+ * Серверный валидатор скользящего окна подтверждений чат-сообщений.
+ * Отслеживает последние {@code size} сообщений и проверяет корректность
+ * битовой маски подтверждений, присылаемой клиентом в каждом пакете.
  */
 public class AcknowledgmentValidator {
 
@@ -16,82 +18,103 @@ public class AcknowledgmentValidator {
 	public AcknowledgmentValidator(int size) {
 		this.size = size;
 
-		for (int i = 0; i < size; i++) {
-			this.messages.add(null);
+		for (int index = 0; index < size; index++) {
+			messages.add(null);
 		}
 	}
 
-	/**
-	 * Добавляет pending.
-	 *
-	 * @param signature signature
-	 */
 	public void addPending(MessageSignatureData signature) {
-		if (!signature.equals(this.lastSignature)) {
-			this.messages.add(new AcknowledgedMessage(signature, true));
-			this.lastSignature = signature;
+		if (signature.equals(lastSignature)) {
+			return;
 		}
+
+		messages.add(new AcknowledgedMessage(signature, true));
+		lastSignature = signature;
 	}
 
 	public int getMessageCount() {
-		return this.messages.size();
+		return messages.size();
 	}
 
-	public void removeUntil(int index) throws AcknowledgmentValidator.ValidationException {
-		int i = this.messages.size() - this.size;
-		if (index >= 0 && index <= i) {
-			this.messages.removeElements(0, index);
-		}
-		else {
-			throw new AcknowledgmentValidator.ValidationException(
-					"Advanced last seen window by " + index + " messages, but expected at most " + i);
-		}
-	}
+	/**
+	 * Удаляет из начала очереди {@code index} сообщений, сдвигая окно вперёд.
+	 * Допустимый сдвиг — не более {@code messages.size() - size}.
+	 *
+	 * @param index количество сообщений для удаления
+	 * @throws ValidationException если сдвиг выходит за допустимые границы
+	 */
+	public void removeUntil(int index) throws ValidationException {
+		int maxAllowed = messages.size() - size;
 
-	public LastSeenMessageList validate(LastSeenMessageList.Acknowledgment acknowledgment)
-	throws AcknowledgmentValidator.ValidationException {
-		this.removeUntil(acknowledgment.offset());
-		ObjectList<MessageSignatureData> objectList = new ObjectArrayList(acknowledgment.acknowledged().cardinality());
-		if (acknowledgment.acknowledged().length() > this.size) {
-			throw new AcknowledgmentValidator.ValidationException(
-					"Last seen update contained " + acknowledgment.acknowledged().length()
-							+ " messages, but maximum window size is " + this.size
+		if (index < 0 || index > maxAllowed) {
+			throw new ValidationException(
+					"Advanced last seen window by " + index + " messages, but expected at most " + maxAllowed
 			);
 		}
-		else {
-			for (int i = 0; i < this.size; i++) {
-				boolean bl = acknowledgment.acknowledged().get(i);
-				AcknowledgedMessage acknowledgedMessage = (AcknowledgedMessage) this.messages.get(i);
-				if (bl) {
-					if (acknowledgedMessage == null) {
-						throw new AcknowledgmentValidator.ValidationException(
-								"Last seen update acknowledged unknown or previously ignored message at index " + i);
-					}
 
-					this.messages.set(i, acknowledgedMessage.unmarkAsPending());
-					objectList.add(acknowledgedMessage.signature());
+		messages.removeElements(0, index);
+	}
+
+	/**
+	 * Проверяет пакет подтверждений от клиента и возвращает список подтверждённых подписей.
+	 * Алгоритм:
+	 * <ol>
+	 *   <li>Сдвигает окно на {@code acknowledgment.offset()} позиций.</li>
+	 *   <li>Для каждого бита маски проверяет согласованность с внутренним состоянием.</li>
+	 *   <li>Сверяет контрольную сумму для защиты от рассинхронизации.</li>
+	 * </ol>
+	 *
+	 * @param acknowledgment пакет подтверждений от клиента
+	 * @return список подписей подтверждённых сообщений
+	 * @throws ValidationException при любом нарушении протокола
+	 */
+	public LastSeenMessageList validate(LastSeenMessageList.Acknowledgment acknowledgment)
+	throws ValidationException {
+		removeUntil(acknowledgment.offset());
+
+		if (acknowledgment.acknowledged().length() > size) {
+			throw new ValidationException(
+					"Last seen update contained " + acknowledgment.acknowledged().length()
+							+ " messages, but maximum window size is " + size
+			);
+		}
+
+		ObjectList<MessageSignatureData> signatures = new ObjectArrayList(acknowledgment.acknowledged().cardinality());
+
+		for (int slotIndex = 0; slotIndex < size; slotIndex++) {
+			boolean isAcknowledged = acknowledgment.acknowledged().get(slotIndex);
+			AcknowledgedMessage msg = messages.get(slotIndex);
+
+			if (isAcknowledged) {
+				if (msg == null) {
+					throw new ValidationException(
+							"Last seen update acknowledged unknown or previously ignored message at index " + slotIndex
+					);
 				}
-				else {
-					if (acknowledgedMessage != null && !acknowledgedMessage.pending()) {
-						throw new AcknowledgmentValidator.ValidationException(
-								"Last seen update ignored previously acknowledged message at index " + i
-										+ " and signature " + acknowledgedMessage.signature()
-						);
-					}
 
-					this.messages.set(i, null);
+				messages.set(slotIndex, msg.unmarkAsPending());
+				signatures.add(msg.signature());
+			} else {
+				if (msg != null && !msg.pending()) {
+					throw new ValidationException(
+							"Last seen update ignored previously acknowledged message at index " + slotIndex
+									+ " and signature " + msg.signature()
+					);
 				}
-			}
 
-			LastSeenMessageList lastSeenMessageList = new LastSeenMessageList(objectList);
-			if (!acknowledgment.checksumEquals(lastSeenMessageList)) {
-				throw new AcknowledgmentValidator.ValidationException(
-						"Checksum mismatch on last seen update: the client and server must have desynced");
-			}
-			else {
-				return lastSeenMessageList;
+				messages.set(slotIndex, null);
 			}
 		}
+
+		LastSeenMessageList lastSeenMessages = new LastSeenMessageList(signatures);
+
+		if (!acknowledgment.checksumEquals(lastSeenMessages)) {
+			throw new ValidationException(
+					"Checksum mismatch on last seen update: the client and server must have desynced"
+			);
+		}
+
+		return lastSeenMessages;
 	}
 
 	public static class ValidationException extends Exception {

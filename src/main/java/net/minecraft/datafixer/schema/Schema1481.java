@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1481}.
+ * Схема версии 1481: добавляет блок-сущность {@code minecraft:conduit} —
+ * кондуит, появившийся в Update Aquatic (1.13).
  */
 public class Schema1481 extends IdentifierNormalizingSchema {
 
-	public Schema1481(int i, Schema schema) {
-		super(i, schema);
+	public Schema1481(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

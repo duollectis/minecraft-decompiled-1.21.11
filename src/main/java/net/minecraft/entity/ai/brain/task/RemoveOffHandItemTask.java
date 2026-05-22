@@ -6,28 +6,24 @@ import net.minecraft.entity.mob.PiglinBrain;
 import net.minecraft.entity.mob.PiglinEntity;
 
 /**
- * {@code RemoveOffHandItemTask}.
+ * Фабричный класс задачи мозга пиглина, потребляющей предмет из левой руки.
+ * Срабатывает только если пиглин не восхищается предметом и в левой руке есть потребляемый предмет.
  */
 public class RemoveOffHandItemTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PiglinEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.ADMIRING_ITEM)).apply(
 						context, admiringItem -> (world, entity, time) -> {
-							if (!entity.getOffHandStack().isEmpty() && !entity
-									.getOffHandStack()
-									.contains(DataComponentTypes.BLOCKS_ATTACKS)) {
-								PiglinBrain.consumeOffHandItem(world, entity, true);
-								return true;
-							}
-							else {
+							boolean hasConsumableOffhand = !entity.getOffHandStack().isEmpty()
+									&& !entity.getOffHandStack().contains(DataComponentTypes.BLOCKS_ATTACKS);
+
+							if (!hasConsumableOffhand) {
 								return false;
 							}
+
+							PiglinBrain.consumeOffHandItem(world, entity, true);
+							return true;
 						}
 				)
 		);

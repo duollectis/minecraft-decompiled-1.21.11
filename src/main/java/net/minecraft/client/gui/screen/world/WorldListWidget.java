@@ -61,10 +61,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WorldListWidget}.
+ * Виджет списка сохранённых миров с асинхронной загрузкой, поиском и иконками.
  */
+@Environment(EnvType.CLIENT)
 public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidget.Entry> {
 
 	public static final DateTimeFormatter DATE_FORMAT = Util.getDefaultLocaleFormatter(FormatStyle.SHORT);
@@ -163,9 +163,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		}
 	}
 
-	/**
-	 * Load.
-	 */
 	public void load() {
 		this.levelsFuture = this.loadLevels();
 	}
@@ -286,9 +283,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		return entry instanceof WorldListWidget.WorldEntry worldEntry ? Optional.of(worldEntry) : Optional.empty();
 	}
 
-	/**
-	 * Refresh.
-	 */
 	public void refresh() {
 		this.load();
 		this.client.setScreen(this.parent);
@@ -309,9 +303,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final MinecraftClient client;
@@ -364,11 +355,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			return this;
 		}
 
-		/**
-		 * To widget.
-		 *
-		 * @return WorldListWidget — результат операции
-		 */
 		public WorldListWidget toWidget() {
 			return new WorldListWidget(
 					this.parent,
@@ -385,9 +371,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code EmptyListEntry}.
-	 */
 	public static final class EmptyListEntry extends WorldListWidget.Entry {
 
 		private final TextWidget widget;
@@ -412,9 +395,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Entry}.
-	 */
 	public abstract static class Entry extends AlwaysSelectedEntryListWidget.Entry<WorldListWidget.Entry> implements AutoCloseable {
 
 		@Override
@@ -427,9 +407,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LoadingEntry}.
-	 */
 	public static class LoadingEntry extends WorldListWidget.Entry {
 
 		private static final Text LOADING_LIST_TEXT = Text.translatable("selectWorld.loading_list");
@@ -441,13 +418,13 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			int i = (this.client.currentScreen.width - this.client.textRenderer.getWidth(LOADING_LIST_TEXT)) / 2;
-			int j = this.getContentY() + (this.getContentHeight() - 9) / 2;
-			context.drawTextWithShadow(this.client.textRenderer, LOADING_LIST_TEXT, i, j, -1);
-			String string = LoadingDisplay.get(Util.getMeasuringTimeMs());
-			int k = (this.client.currentScreen.width - this.client.textRenderer.getWidth(string)) / 2;
-			int l = j + 9;
-			context.drawTextWithShadow(this.client.textRenderer, string, k, l, -8355712);
+			int titleX = (client.currentScreen.width - client.textRenderer.getWidth(LOADING_LIST_TEXT)) / 2;
+			int titleY = getContentY() + (getContentHeight() - 9) / 2;
+			context.drawTextWithShadow(client.textRenderer, LOADING_LIST_TEXT, titleX, titleY, -1);
+			String spinner = LoadingDisplay.get(Util.getMeasuringTimeMs());
+			int spinnerX = (client.currentScreen.width - client.textRenderer.getWidth(spinner)) / 2;
+			int spinnerY = titleY + 9;
+			context.drawTextWithShadow(client.textRenderer, spinner, spinnerX, spinnerY, -8355712);
 		}
 
 		@Override
@@ -457,9 +434,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WorldEntry}.
-	 */
 	public final class WorldEntry extends WorldListWidget.Entry implements SquareWidgetEntry {
 
 		private static final int ICON_SIZE = 32;
@@ -478,39 +452,40 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			this.client = parent.client;
 			this.screen = parent.getParent();
 			this.level = level;
-			this.icon = WorldIcon.forWorld(this.client.getTextureManager(), level.getName());
+			this.icon = WorldIcon.forWorld(client.getTextureManager(), level.getName());
 			this.iconPath = level.getIconPath();
-			int i = parent.getRowWidth() - this.getTextX() - 2;
-			Text text = Text.literal(level.getDisplayName());
-			this.displayNameWidget = new TextWidget(text, this.client.textRenderer);
-			this.displayNameWidget.setMaxWidth(i);
-			if (this.client.textRenderer.getWidth(text) > i) {
-				this.displayNameWidget.setTooltip(Tooltip.of(text));
+			int maxTextWidth = parent.getRowWidth() - getTextX() - 2;
+
+			Text displayName = Text.literal(level.getDisplayName());
+			this.displayNameWidget = new TextWidget(displayName, client.textRenderer);
+			displayNameWidget.setMaxWidth(maxTextWidth);
+			if (client.textRenderer.getWidth(displayName) > maxTextWidth) {
+				displayNameWidget.setTooltip(Tooltip.of(displayName));
 			}
 
-			String string = level.getName();
-			long l = level.getLastPlayed();
-			if (l != -1L) {
-				ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(l), ZoneId.systemDefault());
-				string = string + " (" + WorldListWidget.DATE_FORMAT.format(zonedDateTime) + ")";
+			String nameWithDate = level.getName();
+			long lastPlayed = level.getLastPlayed();
+			if (lastPlayed != -1L) {
+				ZonedDateTime playedAt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(lastPlayed), ZoneId.systemDefault());
+				nameWithDate = nameWithDate + " (" + WorldListWidget.DATE_FORMAT.format(playedAt) + ")";
 			}
 
-			Text text2 = Text.literal(string).withColor(-8355712);
-			this.nameWidget = new TextWidget(text2, this.client.textRenderer);
-			this.nameWidget.setMaxWidth(i);
-			if (this.client.textRenderer.getWidth(string) > i) {
-				this.nameWidget.setTooltip(Tooltip.of(text2));
+			Text nameText = Text.literal(nameWithDate).withColor(-8355712);
+			this.nameWidget = new TextWidget(nameText, client.textRenderer);
+			nameWidget.setMaxWidth(maxTextWidth);
+			if (client.textRenderer.getWidth(nameWithDate) > maxTextWidth) {
+				nameWidget.setTooltip(Tooltip.of(nameText));
 			}
 
-			Text text3 = Texts.withStyle(level.getDetails(), Style.EMPTY.withColor(-8355712));
-			this.detailsWidget = new TextWidget(text3, this.client.textRenderer);
-			this.detailsWidget.setMaxWidth(i);
-			if (this.client.textRenderer.getWidth(text3) > i) {
-				this.detailsWidget.setTooltip(Tooltip.of(text3));
+			Text detailsText = Texts.withStyle(level.getDetails(), Style.EMPTY.withColor(-8355712));
+			this.detailsWidget = new TextWidget(detailsText, client.textRenderer);
+			detailsWidget.setMaxWidth(maxTextWidth);
+			if (client.textRenderer.getWidth(detailsText) > maxTextWidth) {
+				detailsWidget.setTooltip(Tooltip.of(detailsText));
 			}
 
-			this.validateIconPath();
-			this.loadIcon();
+			validateIconPath();
+			loadIcon();
 		}
 
 		private void validateIconPath() {
@@ -568,13 +543,13 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			int i = this.getTextX();
-			this.displayNameWidget.setPosition(i, this.getContentY() + 1);
-			this.displayNameWidget.render(context, mouseX, mouseY, deltaTicks);
-			this.nameWidget.setPosition(i, this.getContentY() + 9 + 3);
-			this.nameWidget.render(context, mouseX, mouseY, deltaTicks);
-			this.detailsWidget.setPosition(i, this.getContentY() + 9 + 9 + 3);
-			this.detailsWidget.render(context, mouseX, mouseY, deltaTicks);
+			int textX = getTextX();
+			displayNameWidget.setPosition(textX, getContentY() + 1);
+			displayNameWidget.render(context, mouseX, mouseY, deltaTicks);
+			nameWidget.setPosition(textX, getContentY() + 9 + 3);
+			nameWidget.render(context, mouseX, mouseY, deltaTicks);
+			detailsWidget.setPosition(textX, getContentY() + 9 + 9 + 3);
+			detailsWidget.render(context, mouseX, mouseY, deltaTicks);
 			context.drawTexture(
 					RenderPipelines.GUI_TEXTURED,
 					this.icon.getTextureId(),
@@ -582,124 +557,68 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 					this.getContentY(),
 					0.0F,
 					0.0F,
-					32,
-					32,
-					32,
-					32
+					ICON_SIZE,
+					ICON_SIZE,
+					ICON_SIZE,
+					ICON_SIZE
 			);
-			if (this.parent.worldListType == WorldListWidget.WorldListType.SINGLEPLAYER && (
-					this.client.options.getTouchscreen().getValue() || hovered
+			if (parent.worldListType == WorldListWidget.WorldListType.SINGLEPLAYER && (
+					client.options.getTouchscreen().getValue() || hovered
 			)) {
 				context.fill(
-						this.getContentX(),
-						this.getContentY(),
-						this.getContentX() + 32,
-						this.getContentY() + 32,
+						getContentX(),
+						getContentY(),
+						getContentX() + ICON_SIZE,
+						getContentY() + ICON_SIZE,
 						-1601138544
 				);
-				int j = mouseX - this.getContentX();
-				int k = mouseY - this.getContentY();
-				boolean bl = this.isInside(j, k, 32);
-				Identifier identifier = bl ? WorldListWidget.JOIN_HIGHLIGHTED_TEXTURE : WorldListWidget.JOIN_TEXTURE;
-				Identifier
-						identifier2 =
-						bl ? WorldListWidget.WARNING_HIGHLIGHTED_TEXTURE : WorldListWidget.WARNING_TEXTURE;
-				Identifier identifier3 = bl ? WorldListWidget.ERROR_HIGHLIGHTED_TEXTURE : WorldListWidget.ERROR_TEXTURE;
-				Identifier
-						identifier4 =
-						bl ? WorldListWidget.MARKED_JOIN_HIGHLIGHTED_TEXTURE : WorldListWidget.MARKED_JOIN_TEXTURE;
-				if (this.level instanceof LevelSummary.SymlinkLevelSummary
-						|| this.level instanceof LevelSummary.RecoveryWarning) {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier3,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier4,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
+				int relX = mouseX - getContentX();
+				int relY = mouseY - getContentY();
+				boolean overIcon = isInside(relX, relY, ICON_SIZE);
+				Identifier joinTexture = overIcon ? WorldListWidget.JOIN_HIGHLIGHTED_TEXTURE : WorldListWidget.JOIN_TEXTURE;
+				Identifier warningTexture = overIcon
+						? WorldListWidget.WARNING_HIGHLIGHTED_TEXTURE
+						: WorldListWidget.WARNING_TEXTURE;
+				Identifier errorTexture = overIcon
+						? WorldListWidget.ERROR_HIGHLIGHTED_TEXTURE
+						: WorldListWidget.ERROR_TEXTURE;
+				Identifier markedJoinTexture = overIcon
+						? WorldListWidget.MARKED_JOIN_HIGHLIGHTED_TEXTURE
+						: WorldListWidget.MARKED_JOIN_TEXTURE;
+				if (level instanceof LevelSummary.SymlinkLevelSummary
+						|| level instanceof LevelSummary.RecoveryWarning) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, errorTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, markedJoinTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
 					return;
 				}
 
-				if (this.level.isLocked()) {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier3,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					if (bl) {
+				if (level.isLocked()) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, errorTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					if (overIcon) {
+						context.drawTooltip(client.textRenderer.wrapLines(WorldListWidget.LOCKED_TEXT, 175), mouseX, mouseY);
+					}
+				}
+				else if (level.requiresConversion()) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, errorTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					if (overIcon) {
+						context.drawTooltip(client.textRenderer.wrapLines(WorldListWidget.CONVERSION_TOOLTIP, 175), mouseX, mouseY);
+					}
+				}
+				else if (!level.isVersionAvailable()) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, errorTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					if (overIcon) {
 						context.drawTooltip(
-								this.client.textRenderer.wrapLines(WorldListWidget.LOCKED_TEXT, 175),
+								client.textRenderer.wrapLines(WorldListWidget.INCOMPATIBLE_TOOLTIP, 175),
 								mouseX,
 								mouseY
 						);
 					}
 				}
-				else if (this.level.requiresConversion()) {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier3,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					if (bl) {
-						context.drawTooltip(
-								this.client.textRenderer.wrapLines(WorldListWidget.CONVERSION_TOOLTIP, 175),
-								mouseX,
-								mouseY
-						);
-					}
-				}
-				else if (!this.level.isVersionAvailable()) {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier3,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					if (bl) {
-						context.drawTooltip(
-								this.client.textRenderer.wrapLines(
-										WorldListWidget.INCOMPATIBLE_TOOLTIP,
-										175
-								), mouseX, mouseY
-						);
-					}
-				}
-				else if (this.level.shouldPromptBackup()) {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier4,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					if (this.level.wouldBeDowngraded()) {
-						context.drawGuiTexture(
-								RenderPipelines.GUI_TEXTURED,
-								identifier3,
-								this.getContentX(),
-								this.getContentY(),
-								32,
-								32
-						);
-						if (bl) {
+				else if (level.shouldPromptBackup()) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, markedJoinTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					if (level.wouldBeDowngraded()) {
+						context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, errorTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+						if (overIcon) {
 							context.drawTooltip(
 									ImmutableList.of(
 											WorldListWidget.FROM_NEWER_VERSION_FIRST_LINE.asOrderedText(),
@@ -711,15 +630,8 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 						}
 					}
 					else if (!SharedConstants.getGameVersion().stable()) {
-						context.drawGuiTexture(
-								RenderPipelines.GUI_TEXTURED,
-								identifier2,
-								this.getContentX(),
-								this.getContentY(),
-								32,
-								32
-						);
-						if (bl) {
+						context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, warningTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+						if (overIcon) {
 							context.drawTooltip(
 									ImmutableList.of(
 											WorldListWidget.SNAPSHOT_FIRST_LINE.asOrderedText(),
@@ -731,20 +643,13 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 						}
 					}
 
-					if (bl) {
+					if (overIcon) {
 						WorldListWidget.this.setCursor(context);
 					}
 				}
 				else {
-					context.drawGuiTexture(
-							RenderPipelines.GUI_TEXTURED,
-							identifier,
-							this.getContentX(),
-							this.getContentY(),
-							32,
-							32
-					);
-					if (bl) {
+					context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, joinTexture, getContentX(), getContentY(), ICON_SIZE, ICON_SIZE);
+					if (overIcon) {
 						WorldListWidget.this.setCursor(context);
 					}
 				}
@@ -752,24 +657,24 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		}
 
 		private int getTextX() {
-			return this.getContentX() + 32 + 3;
+			return this.getContentX() + ICON_SIZE + 3;
 		}
 
 		@Override
 		public boolean mouseClicked(Click click, boolean doubled) {
-			if (this.allowConfirmationByKeyboard()) {
-				int i = (int) click.x() - this.getContentX();
-				int j = (int) click.y() - this.getContentY();
-				if (doubled || this.isInside(i, j, 32)
-						&& this.parent.worldListType == WorldListWidget.WorldListType.SINGLEPLAYER) {
-					this.client
-							.getSoundManager()
-							.play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-					Consumer<WorldListWidget.WorldEntry> consumer = this.parent.confirmationCallback;
-					if (consumer != null) {
-						consumer.accept(this);
-						return true;
-					}
+			if (!allowConfirmationByKeyboard()) {
+				return super.mouseClicked(click, doubled);
+			}
+
+			int relX = (int) click.x() - getContentX();
+			int relY = (int) click.y() - getContentY();
+			if (doubled || isInside(relX, relY, ICON_SIZE)
+					&& parent.worldListType == WorldListWidget.WorldListType.SINGLEPLAYER) {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+				Consumer<WorldListWidget.WorldEntry> callback = parent.confirmationCallback;
+				if (callback != null) {
+					callback.accept(this);
+					return true;
 				}
 			}
 
@@ -778,11 +683,11 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 
 		@Override
 		public boolean keyPressed(KeyInput input) {
-			if (input.isEnterOrSpace() && this.allowConfirmationByKeyboard()) {
-				this.client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-				Consumer<WorldListWidget.WorldEntry> consumer = this.parent.confirmationCallback;
-				if (consumer != null) {
-					consumer.accept(this);
+			if (input.isEnterOrSpace() && allowConfirmationByKeyboard()) {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+				Consumer<WorldListWidget.WorldEntry> callback = parent.confirmationCallback;
+				if (callback != null) {
+					callback.accept(this);
 					return true;
 				}
 			}
@@ -790,32 +695,23 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			return super.keyPressed(input);
 		}
 
-		/**
-		 * Allow confirmation by keyboard.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean allowConfirmationByKeyboard() {
-			return this.level.isSelectable() || this.parent.worldListType == WorldListWidget.WorldListType.UPLOAD_WORLD;
+			return level.isSelectable() || parent.worldListType == WorldListWidget.WorldListType.UPLOAD_WORLD;
 		}
 
-		/**
-		 * Play.
-		 */
 		public void play() {
-			if (this.level.isSelectable()) {
-				if (this.level instanceof LevelSummary.SymlinkLevelSummary) {
-					this.client.setScreen(SymlinkWarningScreen.world(() -> this.client.setScreen(this.screen)));
-				}
-				else {
-					this.client.createIntegratedServerLoader().start(this.level.getName(), this.parent::refresh);
-				}
+			if (!level.isSelectable()) {
+				return;
+			}
+
+			if (level instanceof LevelSummary.SymlinkLevelSummary) {
+				client.setScreen(SymlinkWarningScreen.world(() -> client.setScreen(screen)));
+			}
+			else {
+				client.createIntegratedServerLoader().start(level.getName(), parent::refresh);
 			}
 		}
 
-		/**
-		 * Delete if confirmed.
-		 */
 		public void deleteIfConfirmed() {
 			this.client
 					.setScreen(
@@ -836,9 +732,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 					);
 		}
 
-		/**
-		 * Delete.
-		 */
 		public void delete() {
 			LevelStorage levelStorage = this.client.getLevelStorage();
 			String string = this.level.getName();
@@ -852,9 +745,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			}
 		}
 
-		/**
-		 * Edit.
-		 */
 		public void edit() {
 			this.openReadingWorldScreen();
 			String string = this.level.getName();
@@ -895,9 +785,6 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			this.client.setScreen(editWorldScreen);
 		}
 
-		/**
-		 * Recreate.
-		 */
 		public void recreate() {
 			this.openReadingWorldScreen();
 
@@ -965,18 +852,17 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		}
 
 		private void loadIcon() {
-			boolean bl = this.iconPath != null && Files.isRegularFile(this.iconPath);
-			if (bl) {
-				try (InputStream inputStream = Files.newInputStream(this.iconPath)) {
-					this.icon.load(NativeImage.read(inputStream));
+			if (iconPath != null && Files.isRegularFile(iconPath)) {
+				try (InputStream inputStream = Files.newInputStream(iconPath)) {
+					icon.load(NativeImage.read(inputStream));
 				}
-				catch (Throwable var7) {
-					WorldListWidget.LOGGER.error("Invalid icon for world {}", this.level.getName(), var7);
-					this.iconPath = null;
+				catch (Throwable error) {
+					WorldListWidget.LOGGER.error("Invalid icon for world {}", level.getName(), error);
+					iconPath = null;
 				}
 			}
 			else {
-				this.icon.destroy();
+				icon.destroy();
 			}
 		}
 
@@ -998,11 +884,8 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WorldListType}.
-	 */
-	public static enum WorldListType {
+	public enum WorldListType {
 		SINGLEPLAYER,
-		UPLOAD_WORLD;
+		UPLOAD_WORLD
 	}
 }

@@ -9,11 +9,16 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code MultiTickTask}.
+ * Базовый класс многотиковой задачи мозга.
+ * Задача выполняется в течение случайного времени в диапазоне [{@code minRunTime}, {@code maxRunTime}]
+ * и требует наличия определённых состояний памяти для запуска.
+ *
+ * @param <E> тип сущности
  */
 public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 
 	public static final int DEFAULT_RUN_TIME = 60;
+
 	protected final Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryStates;
 	private MultiTickTask.Status status = MultiTickTask.Status.STOPPED;
 	private long endTime;
@@ -21,7 +26,7 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 	private final int maxRunTime;
 
 	public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState) {
-		this(requiredMemoryState, 60);
+		this(requiredMemoryState, DEFAULT_RUN_TIME);
 	}
 
 	public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState, int runTime) {
@@ -35,113 +40,76 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 	) {
 		this.minRunTime = minRunTime;
 		this.maxRunTime = maxRunTime;
-		this.requiredMemoryStates = requiredMemoryState;
+		requiredMemoryStates = requiredMemoryState;
 	}
 
 	@Override
 	public MultiTickTask.Status getStatus() {
-		return this.status;
+		return status;
 	}
 
 	@Override
 	public final boolean tryStarting(ServerWorld world, E entity, long time) {
-		if (this.hasRequiredMemoryState(entity) && this.shouldRun(world, entity)) {
-			this.status = MultiTickTask.Status.RUNNING;
-			int i = this.minRunTime + world.getRandom().nextInt(this.maxRunTime + 1 - this.minRunTime);
-			this.endTime = time + i;
-			this.run(world, entity, time);
-			return true;
-		}
-		else {
+		if (!hasRequiredMemoryState(entity) || !shouldRun(world, entity)) {
 			return false;
 		}
+
+		status = MultiTickTask.Status.RUNNING;
+		int runTime = minRunTime + world.getRandom().nextInt(maxRunTime + 1 - minRunTime);
+		endTime = time + runTime;
+		run(world, entity, time);
+		return true;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param time time
-	 */
 	protected void run(ServerWorld world, E entity, long time) {
 	}
 
 	@Override
 	public final void tick(ServerWorld world, E entity, long time) {
-		if (!this.isTimeLimitExceeded(time) && this.shouldKeepRunning(world, entity, time)) {
-			this.keepRunning(world, entity, time);
-		}
-		else {
-			this.stop(world, entity, time);
+		if (!isTimeLimitExceeded(time) && shouldKeepRunning(world, entity, time)) {
+			keepRunning(world, entity, time);
+		} else {
+			stop(world, entity, time);
 		}
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param time time
-	 */
 	protected void keepRunning(ServerWorld world, E entity, long time) {
 	}
 
 	@Override
 	public final void stop(ServerWorld world, E entity, long time) {
-		this.status = MultiTickTask.Status.STOPPED;
-		this.finishRunning(world, entity, time);
+		status = MultiTickTask.Status.STOPPED;
+		finishRunning(world, entity, time);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param time time
-	 */
 	protected void finishRunning(ServerWorld world, E entity, long time) {
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param time time
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Переопределяется подклассами для продления выполнения задачи сверх минимального времени. */
 	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
 		return false;
 	}
 
 	protected boolean isTimeLimitExceeded(long time) {
-		return time > this.endTime;
+		return time > endTime;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Переопределяется подклассами для добавления дополнительных условий запуска задачи. */
 	protected boolean shouldRun(ServerWorld world, E entity) {
 		return true;
 	}
 
 	@Override
 	public String getName() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 
 	protected boolean hasRequiredMemoryState(E entity) {
-		for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : this.requiredMemoryStates.entrySet()) {
-			MemoryModuleType<?> memoryModuleType = entry.getKey();
-			MemoryModuleState memoryModuleState = entry.getValue();
-			if (!entity.getBrain().isMemoryInState(memoryModuleType, memoryModuleState)) {
+		for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : requiredMemoryStates.entrySet()) {
+			MemoryModuleType<?> memoryType = entry.getKey();
+			MemoryModuleState requiredState = entry.getValue();
+
+			if (!entity.getBrain().isMemoryInState(memoryType, requiredState)) {
 				return false;
 			}
 		}
@@ -149,11 +117,8 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 		return true;
 	}
 
-	/**
-	 * {@code Status}.
-	 */
-	public static enum Status {
+	public enum Status {
 		STOPPED,
-		RUNNING;
+		RUNNING
 	}
 }

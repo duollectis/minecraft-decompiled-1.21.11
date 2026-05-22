@@ -12,116 +12,115 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WindowFramebuffer}.
+ * Основной фреймбуфер окна игры. При нехватке видеопамяти автоматически
+ * откатывается к разрешению по умолчанию ({@value DEFAULT_WIDTH}x{@value DEFAULT_HEIGHT}).
  */
+@Environment(EnvType.CLIENT)
 public class WindowFramebuffer extends Framebuffer {
 
 	public static final int DEFAULT_WIDTH = 854;
 	public static final int DEFAULT_HEIGHT = 480;
-	static final WindowFramebuffer.Size DEFAULT = new WindowFramebuffer.Size(854, 480);
+
+	// Флаги использования текстуры: SAMPLED | COLOR_ATTACHMENT | COPY_SRC | COPY_DST
+	private static final int TEXTURE_USAGE_FLAGS = 15;
+
+	static final Size DEFAULT = new Size(DEFAULT_WIDTH, DEFAULT_HEIGHT);
 
 	public WindowFramebuffer(int width, int height) {
 		super("Main", true);
-		this.init(width, height);
+		init(width, height);
 	}
 
 	private void init(int width, int height) {
-		WindowFramebuffer.Size size = this.findSuitableSize(width, height);
-		if (this.colorAttachment != null && this.depthAttachment != null) {
-			this.textureWidth = size.width;
-			this.textureHeight = size.height;
-		}
-		else {
+		Size size = findSuitableSize(width, height);
+
+		if (colorAttachment == null || depthAttachment == null) {
 			throw new IllegalStateException("Missing color and/or depth textures");
 		}
+
+		textureWidth = size.width;
+		textureHeight = size.height;
 	}
 
-	private WindowFramebuffer.Size findSuitableSize(int width, int height) {
+	private Size findSuitableSize(int width, int height) {
 		RenderSystem.assertOnRenderThread();
 
-		for (WindowFramebuffer.Size size : WindowFramebuffer.Size.findCompatible(width, height)) {
-			if (this.colorAttachment != null) {
-				this.colorAttachment.close();
-				this.colorAttachment = null;
+		for (Size size : Size.findCompatible(width, height)) {
+			if (colorAttachment != null) {
+				colorAttachment.close();
+				colorAttachment = null;
 			}
 
-			if (this.colorAttachmentView != null) {
-				this.colorAttachmentView.close();
-				this.colorAttachmentView = null;
+			if (colorAttachmentView != null) {
+				colorAttachmentView.close();
+				colorAttachmentView = null;
 			}
 
-			if (this.depthAttachment != null) {
-				this.depthAttachment.close();
-				this.depthAttachment = null;
+			if (depthAttachment != null) {
+				depthAttachment.close();
+				depthAttachment = null;
 			}
 
-			if (this.depthAttachmentView != null) {
-				this.depthAttachmentView.close();
-				this.depthAttachmentView = null;
+			if (depthAttachmentView != null) {
+				depthAttachmentView.close();
+				depthAttachmentView = null;
 			}
 
-			this.colorAttachment = this.createColorAttachment(size);
-			this.depthAttachment = this.createDepthAttachment(size);
-			if (this.colorAttachment != null && this.depthAttachment != null) {
-				this.colorAttachmentView = RenderSystem.getDevice().createTextureView(this.colorAttachment);
-				this.depthAttachmentView = RenderSystem.getDevice().createTextureView(this.depthAttachment);
+			colorAttachment = createColorAttachment(size);
+			depthAttachment = createDepthAttachment(size);
+
+			if (colorAttachment != null && depthAttachment != null) {
+				colorAttachmentView = RenderSystem.getDevice().createTextureView(colorAttachment);
+				depthAttachmentView = RenderSystem.getDevice().createTextureView(depthAttachment);
 				return size;
 			}
 		}
 
 		throw new RuntimeException(
-				"Unrecoverable GL_OUT_OF_MEMORY ("
-						+ (this.colorAttachment == null ? "missing color" : "have color")
-						+ ", "
-						+ (this.depthAttachment == null ? "missing depth" : "have depth")
-						+ ")"
+			"Unrecoverable GL_OUT_OF_MEMORY ("
+				+ (colorAttachment == null ? "missing color" : "have color")
+				+ ", "
+				+ (depthAttachment == null ? "missing depth" : "have depth")
+				+ ")"
 		);
 	}
 
-	private @Nullable GpuTexture createColorAttachment(WindowFramebuffer.Size size) {
+	private @Nullable GpuTexture createColorAttachment(Size size) {
 		try {
-			return RenderSystem
-					.getDevice()
-					.createTexture(
-							() -> this.name + " / Color",
-							15,
-							TextureFormat.RGBA8,
-							size.width,
-							size.height,
-							1,
-							1
-					);
-		}
-		catch (TextureAllocationException var3) {
+			return RenderSystem.getDevice()
+				.createTexture(
+					() -> name + " / Color",
+					TEXTURE_USAGE_FLAGS,
+					TextureFormat.RGBA8,
+					size.width,
+					size.height,
+					1,
+					1
+				);
+		} catch (TextureAllocationException exception) {
 			return null;
 		}
 	}
 
-	private @Nullable GpuTexture createDepthAttachment(WindowFramebuffer.Size size) {
+	private @Nullable GpuTexture createDepthAttachment(Size size) {
 		try {
-			return RenderSystem
-					.getDevice()
-					.createTexture(
-							() -> this.name + " / Depth",
-							15,
-							TextureFormat.DEPTH32,
-							size.width,
-							size.height,
-							1,
-							1
-					);
-		}
-		catch (TextureAllocationException var3) {
+			return RenderSystem.getDevice()
+				.createTexture(
+					() -> name + " / Depth",
+					TEXTURE_USAGE_FLAGS,
+					TextureFormat.DEPTH32,
+					size.width,
+					size.height,
+					1,
+					1
+				);
+		} catch (TextureAllocationException exception) {
 			return null;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Size}.
-	 */
 	static class Size {
 
 		public final int width;
@@ -132,12 +131,13 @@ public class WindowFramebuffer extends Framebuffer {
 			this.height = height;
 		}
 
-		static List<WindowFramebuffer.Size> findCompatible(int width, int height) {
+		static List<Size> findCompatible(int width, int height) {
 			RenderSystem.assertOnRenderThread();
-			int i = RenderSystem.getDevice().getMaxTextureSize();
-			return width > 0 && width <= i && height > 0 && height <= i
-			       ? ImmutableList.of(new WindowFramebuffer.Size(width, height), WindowFramebuffer.DEFAULT)
-			       : ImmutableList.of(WindowFramebuffer.DEFAULT);
+			int maxSize = RenderSystem.getDevice().getMaxTextureSize();
+			boolean fits = width > 0 && width <= maxSize && height > 0 && height <= maxSize;
+			return fits
+				? ImmutableList.of(new Size(width, height), DEFAULT)
+				: ImmutableList.of(DEFAULT);
 		}
 
 		@Override
@@ -145,23 +145,23 @@ public class WindowFramebuffer extends Framebuffer {
 			if (this == o) {
 				return true;
 			}
-			else if (o != null && this.getClass() == o.getClass()) {
-				WindowFramebuffer.Size size = (WindowFramebuffer.Size) o;
-				return this.width == size.width && this.height == size.height;
-			}
-			else {
+
+			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
+
+			Size other = (Size) o;
+			return width == other.width && height == other.height;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(this.width, this.height);
+			return Objects.hash(width, height);
 		}
 
 		@Override
 		public String toString() {
-			return this.width + "x" + this.height;
+			return width + "x" + height;
 		}
 	}
 }

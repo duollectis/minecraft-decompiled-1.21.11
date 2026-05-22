@@ -13,79 +13,71 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
- * {@code LightningStrikeCriterion}.
+ * Критерий: молния ударила рядом с игроком.
+ * Проверяет саму молнию и наблюдателей (сущностей поблизости).
  */
 public class LightningStrikeCriterion extends AbstractCriterion<LightningStrikeCriterion.Conditions> {
 
 	@Override
-	public Codec<LightningStrikeCriterion.Conditions> getConditionsCodec() {
-		return LightningStrikeCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, LightningEntity lightning, List<Entity> bystanders) {
-		List<LootContext> list = bystanders.stream()
-		                                   .map(bystander -> EntityPredicate.createAdvancementEntityLootContext(
-				                                   player,
-				                                   bystander
-		                                   ))
-		                                   .collect(Collectors.toList());
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, lightning);
-		this.trigger(player, conditions -> conditions.test(lootContext, list));
+		List<LootContext> bystanderContexts = bystanders.stream()
+				.map(bystander -> EntityPredicate.createAdvancementEntityLootContext(player, bystander))
+				.toList();
+		LootContext lightningContext = EntityPredicate.createAdvancementEntityLootContext(player, lightning);
+
+		trigger(player, conditions -> conditions.test(lightningContext, bystanderContexts));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> lightning,
 			Optional<LootContextPredicate> bystander
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<LightningStrikeCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(LightningStrikeCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("lightning")
-								                    .forGetter(LightningStrikeCriterion.Conditions::lightning),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("bystander")
-								                    .forGetter(LightningStrikeCriterion.Conditions::bystander)
-				                    )
-				                    .apply(instance, LightningStrikeCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("lightning")
+								.forGetter(Conditions::lightning),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("bystander")
+								.forGetter(Conditions::bystander)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<LightningStrikeCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				Optional<EntityPredicate> lightning,
 				Optional<EntityPredicate> bystander
 		) {
-			return Criteria.LIGHTNING_STRIKE
-					.create(
-							new LightningStrikeCriterion.Conditions(
-									Optional.empty(),
-									EntityPredicate.contextPredicateFromEntityPredicate(lightning),
-									EntityPredicate.contextPredicateFromEntityPredicate(bystander)
-							)
-					);
+			return Criteria.LIGHTNING_STRIKE.create(new Conditions(
+					Optional.empty(),
+					EntityPredicate.contextPredicateFromEntityPredicate(lightning),
+					EntityPredicate.contextPredicateFromEntityPredicate(bystander)
+			));
 		}
 
-		public boolean test(LootContext lightning, List<LootContext> bystanders) {
-			return this.lightning.isPresent() && !this.lightning.get().test(lightning)
-			       ? false
-			       : !this.bystander.isPresent() || !bystanders.stream().noneMatch(this.bystander.get()::test);
+		public boolean test(LootContext lightningContext, List<LootContext> bystanderContexts) {
+			if (lightning.isPresent() && !lightning.get().test(lightningContext)) {
+				return false;
+			}
+
+			return bystander.isEmpty() || bystanderContexts.stream().anyMatch(bystander.get()::test);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.lightning, "lightning");
-			validator.validateEntityPredicate(this.bystander, "bystander");
+			validator.validateEntityPredicate(lightning, "lightning");
+			validator.validateEntityPredicate(bystander, "bystander");
 		}
 	}
 }

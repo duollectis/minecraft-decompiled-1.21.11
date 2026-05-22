@@ -10,7 +10,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code OctaveSimplexNoiseSampler}.
+ * Октавный симплекс-шум: суммирует несколько октав {@link SimplexNoiseSampler}
+ * с нарастающей частотой и убывающей амплитудой. Используется для генерации
+ * двумерных карт (например, температуры и влажности биомов в старых версиях).
  */
 public class OctaveSimplexNoiseSampler {
 
@@ -26,85 +28,69 @@ public class OctaveSimplexNoiseSampler {
 		if (octaves.isEmpty()) {
 			throw new IllegalArgumentException("Need some octaves!");
 		}
-		else {
-			int i = -octaves.firstInt();
-			int j = octaves.lastInt();
-			int k = i + j + 1;
-			if (k < 1) {
-				throw new IllegalArgumentException("Total number of octaves needs to be >= 1");
-			}
-			else {
-				SimplexNoiseSampler simplexNoiseSampler = new SimplexNoiseSampler(random);
-				int l = j;
-				this.octaveSamplers = new SimplexNoiseSampler[k];
-				if (j >= 0 && j < k && octaves.contains(0)) {
-					this.octaveSamplers[j] = simplexNoiseSampler;
-				}
 
-				for (int m = j + 1; m < k; m++) {
-					if (m >= 0 && octaves.contains(l - m)) {
-						this.octaveSamplers[m] = new SimplexNoiseSampler(random);
-					}
-					else {
-						random.skip(262);
-					}
-				}
+		int negFirst = -octaves.firstInt();
+		int last = octaves.lastInt();
+		int count = negFirst + last + 1;
 
-				if (j > 0) {
-					long
-							n =
-							(long) (simplexNoiseSampler.sample(
-									simplexNoiseSampler.originX,
-									simplexNoiseSampler.originY,
-									simplexNoiseSampler.originZ
-							) * 9.223372E18F
-							);
-					Random random2 = new ChunkRandom(new CheckedRandom(n));
+		if (count < 1) {
+			throw new IllegalArgumentException("Total number of octaves needs to be >= 1");
+		}
 
-					for (int o = l - 1; o >= 0; o--) {
-						if (o < k && octaves.contains(l - o)) {
-							this.octaveSamplers[o] = new SimplexNoiseSampler(random2);
-						}
-						else {
-							random2.skip(262);
-						}
-					}
-				}
+		SimplexNoiseSampler zeroSampler = new SimplexNoiseSampler(random);
+		octaveSamplers = new SimplexNoiseSampler[count];
 
-				this.lacunarity = Math.pow(2.0, j);
-				this.persistence = 1.0 / (Math.pow(2.0, k) - 1.0);
+		if (last >= 0 && last < count && octaves.contains(0)) {
+			octaveSamplers[last] = zeroSampler;
+		}
+
+		for (int k = last + 1; k < count; k++) {
+			if (k >= 0 && octaves.contains(last - k)) {
+				octaveSamplers[k] = new SimplexNoiseSampler(random);
+			} else {
+				random.skip(262);
 			}
 		}
+
+		if (last > 0) {
+			// Семя для нижних октав вычисляется из значения нулевого сэмплера в его origin-точке
+			long seed = (long) (zeroSampler.sample(
+				zeroSampler.originX,
+				zeroSampler.originY,
+				zeroSampler.originZ
+			) * 9.223372E18F);
+			Random lowerRandom = new ChunkRandom(new CheckedRandom(seed));
+
+			for (int k = last - 1; k >= 0; k--) {
+				if (k < count && octaves.contains(last - k)) {
+					octaveSamplers[k] = new SimplexNoiseSampler(lowerRandom);
+				} else {
+					lowerRandom.skip(262);
+				}
+			}
+		}
+
+		lacunarity = Math.pow(2.0, last);
+		persistence = 1.0 / (Math.pow(2.0, count) - 1.0);
 	}
 
-	/**
-	 * Sample.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param useOrigin use origin
-	 *
-	 * @return double — результат операции
-	 */
 	public double sample(double x, double y, boolean useOrigin) {
-		double d = 0.0;
-		double e = this.lacunarity;
-		double f = this.persistence;
+		double result = 0.0;
+		double freq = lacunarity;
+		double amp = persistence;
 
-		for (SimplexNoiseSampler simplexNoiseSampler : this.octaveSamplers) {
-			if (simplexNoiseSampler != null) {
-				d +=
-						simplexNoiseSampler.sample(
-								x * e + (useOrigin ? simplexNoiseSampler.originX : 0.0),
-								y * e + (useOrigin ? simplexNoiseSampler.originY : 0.0)
-						)
-								* f;
+		for (SimplexNoiseSampler sampler : octaveSamplers) {
+			if (sampler != null) {
+				result += sampler.sample(
+					x * freq + (useOrigin ? sampler.originX : 0.0),
+					y * freq + (useOrigin ? sampler.originY : 0.0)
+				) * amp;
 			}
 
-			e /= 2.0;
-			f *= 2.0;
+			freq /= 2.0;
+			amp *= 2.0;
 		}
 
-		return d;
+		return result;
 	}
 }

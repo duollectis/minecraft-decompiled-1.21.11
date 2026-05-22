@@ -21,7 +21,8 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * {@code CopperChestBlock}.
+ * Медный сундук с поддержкой окисления. При объединении двух сундуков в двойной
+ * выбирается менее окисленный вариант; вощёные сундуки автоматически разворощиваются перед сравнением.
  */
 public class CopperChestBlock extends ChestBlock {
 
@@ -83,25 +84,25 @@ public class CopperChestBlock extends ChestBlock {
 	}
 
 	private static BlockState getNewState(BlockState state, World world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.offset(getFacing(state)));
-		if (!state.get(ChestBlock.CHEST_TYPE).equals(ChestType.SINGLE)
-				&& state.getBlock() instanceof CopperChestBlock copperChestBlock
-				&& blockState.getBlock() instanceof CopperChestBlock copperChestBlock2) {
-			BlockState blockState2 = state;
-			BlockState blockState3 = blockState;
-			if (copperChestBlock.isWaxed() != copperChestBlock2.isWaxed()) {
-				blockState2 = getUnwaxed(copperChestBlock, state).orElse(state);
-				blockState3 = getUnwaxed(copperChestBlock2, blockState).orElse(blockState);
-			}
-
-			Block block = copperChestBlock.oxidationLevel.ordinal() <= copperChestBlock2.oxidationLevel.ordinal()
-			              ? blockState2.getBlock()
-			              : blockState3.getBlock();
-			return block.getStateWithProperties(blockState2);
-		}
-		else {
+		BlockState neighborState = world.getBlockState(pos.offset(getFacing(state)));
+		if (state.get(ChestBlock.CHEST_TYPE).equals(ChestType.SINGLE)
+				|| !(state.getBlock() instanceof CopperChestBlock self)
+				|| !(neighborState.getBlock() instanceof CopperChestBlock neighbor)
+		) {
 			return state;
 		}
+
+		BlockState selfState = state;
+		BlockState neighborResolved = neighborState;
+		if (self.isWaxed() != neighbor.isWaxed()) {
+			selfState = getUnwaxed(self, state).orElse(state);
+			neighborResolved = getUnwaxed(neighbor, neighborState).orElse(neighborState);
+		}
+
+		Block lessOxidized = self.oxidationLevel.ordinal() <= neighbor.oxidationLevel.ordinal()
+				? selfState.getBlock()
+				: neighborResolved.getBlock();
+		return lessOxidized.getStateWithProperties(selfState);
 	}
 
 	@Override
@@ -145,26 +146,24 @@ public class CopperChestBlock extends ChestBlock {
 	}
 
 	public Oxidizable.OxidationLevel getOxidationLevel() {
-		return this.oxidationLevel;
+		return oxidationLevel;
 	}
 
 	/**
-	 * From copper block.
+	 * Создаёт состояние медного сундука, соответствующее степени окисления переданного медного блока.
+	 * Используется при превращении медного блока в сундук (например, через диспенсер).
 	 *
-	 * @param block block
-	 * @param facing facing
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return BlockState — результат операции
+	 * @param block  исходный медный блок (может быть вощёным или окисленным)
+	 * @param facing направление, в которое смотрит сундук
+	 * @param world  мир для определения типа сундука (одиночный/двойной)
+	 * @param pos    позиция нового сундука
+	 * @return состояние медного сундука с правильным типом и направлением
 	 */
 	public static BlockState fromCopperBlock(Block block, Direction facing, World world, BlockPos pos) {
-		CopperChestBlock
-				copperChestBlock =
-				(CopperChestBlock) FROM_COPPER_BLOCK.getOrDefault(block, Blocks.COPPER_CHEST::asBlock).get();
-		ChestType chestType = copperChestBlock.getChestType(world, pos, facing);
-		BlockState blockState = copperChestBlock.getDefaultState().with(FACING, facing).with(CHEST_TYPE, chestType);
-		return getNewState(blockState, world, pos);
+		CopperChestBlock chest = (CopperChestBlock) FROM_COPPER_BLOCK.getOrDefault(block, Blocks.COPPER_CHEST::asBlock).get();
+		ChestType chestType = chest.getChestType(world, pos, facing);
+		BlockState initial = chest.getDefaultState().with(FACING, facing).with(CHEST_TYPE, chestType);
+		return getNewState(initial, world, pos);
 	}
 
 	public boolean isWaxed() {

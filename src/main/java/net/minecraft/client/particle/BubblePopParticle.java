@@ -6,11 +6,14 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BubblePopParticle}.
+ * Частица лопающегося пузыря воды. Проигрывает анимацию из 4 кадров
+ * за 4 тика, после чего исчезает. Используется при выходе пузырей на поверхность воды.
  */
+@Environment(EnvType.CLIENT)
 public class BubblePopParticle extends BillboardParticle {
+
+	private static final int MAX_AGE = 4;
 
 	private final SpriteProvider spriteProvider;
 
@@ -26,7 +29,7 @@ public class BubblePopParticle extends BillboardParticle {
 	) {
 		super(world, x, y, z, spriteProvider.getFirst());
 		this.spriteProvider = spriteProvider;
-		this.maxAge = 4;
+		this.maxAge = MAX_AGE;
 		this.gravityStrength = 0.008F;
 		this.velocityX = velocityX;
 		this.velocityY = velocityY;
@@ -39,6 +42,7 @@ public class BubblePopParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
+
 		if (this.age++ >= this.maxAge) {
 			this.markDead();
 		}
@@ -54,10 +58,10 @@ public class BubblePopParticle extends BillboardParticle {
 		return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц лопающихся пузырей.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -66,18 +70,19 @@ public class BubblePopParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new BubblePopParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			return new BubblePopParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
 		}
 	}
 }

@@ -7,11 +7,13 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * {@code LazyContainer}.
+ * Ленивый контейнер для {@link CommandFunction}: загружает функцию по идентификатору
+ * при первом обращении через {@link CommandFunctionManager}.
  */
 public class LazyContainer {
 
 	public static final Codec<LazyContainer> CODEC = Identifier.CODEC.xmap(LazyContainer::new, LazyContainer::getId);
+
 	private final Identifier id;
 	private boolean initialized;
 	private Optional<CommandFunction<ServerCommandSource>> function = Optional.empty();
@@ -20,29 +22,25 @@ public class LazyContainer {
 		this.id = id;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param commandFunctionManager command function manager
-	 *
-	 * @return Optional> — 
-	 */
-	public Optional<CommandFunction<ServerCommandSource>> get(CommandFunctionManager commandFunctionManager) {
-		if (!this.initialized) {
-			this.function = commandFunctionManager.getFunction(this.id);
-			this.initialized = true;
+	public Optional<CommandFunction<ServerCommandSource>> get(CommandFunctionManager manager) {
+		if (!initialized) {
+			function = manager.getFunction(id);
+			initialized = true;
 		}
 
-		return this.function;
+		return function;
 	}
 
 	public Identifier getId() {
-		return this.id;
+		return id;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return o == this ? true
-		                 : o instanceof LazyContainer lazyContainer && this.getId().equals(lazyContainer.getId());
+		if (o == this) {
+			return true;
+		}
+
+		return o instanceof LazyContainer other && id.equals(other.getId());
 	}
 }

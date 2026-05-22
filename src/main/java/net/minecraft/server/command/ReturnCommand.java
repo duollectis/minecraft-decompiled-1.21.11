@@ -10,7 +10,7 @@ import net.minecraft.command.*;
 import java.util.List;
 
 /**
- * {@code ReturnCommand}.
+ * Команда {@code /return}: возврат значения из функции mcfunction.
  */
 public class ReturnCommand {
 
@@ -41,9 +41,6 @@ public class ReturnCommand {
 		);
 	}
 
-	/**
-	 * {@code FailCommand}.
-	 */
 	static class FailCommand<T extends AbstractServerCommandSource<T>> implements ControlFlowAware.Command<T> {
 
 		public void execute(
@@ -59,9 +56,6 @@ public class ReturnCommand {
 		}
 	}
 
-	/**
-	 * {@code ReturnRunRedirector}.
-	 */
 	static class ReturnRunRedirector<T extends AbstractServerCommandSource<T>> implements Forkable.RedirectModifier<T> {
 
 		public void execute(
@@ -93,9 +87,6 @@ public class ReturnCommand {
 		}
 	}
 
-	/**
-	 * {@code ValueCommand}.
-	 */
 	static class ValueCommand<T extends AbstractServerCommandSource<T>> implements ControlFlowAware.Command<T> {
 
 		public void execute(

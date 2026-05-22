@@ -29,8 +29,10 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * {@code EquippableComponent}.
- */
+	 * Компонент экипируемого предмета. Описывает, в какой слот экипировки надевается
+	 * предмет, какой звук воспроизводится, какие сущности могут его носить,
+	 * а также поведение при диспенсере, обмене и стрижке.
+	 */
 public record EquippableComponent(
 		EquipmentSlot slot,
 		RegistryEntry<SoundEvent> equipSound,
@@ -47,34 +49,34 @@ public record EquippableComponent(
 
 	public static final Codec<EquippableComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    EquipmentSlot.CODEC.fieldOf("slot").forGetter(EquippableComponent::slot),
-					                    SoundEvent.ENTRY_CODEC
-							                    .optionalFieldOf("equip_sound", SoundEvents.ITEM_ARMOR_EQUIP_GENERIC)
-							                    .forGetter(EquippableComponent::equipSound),
-					                    RegistryKey
-							                    .createCodec(EquipmentAssetKeys.REGISTRY_KEY)
-							                    .optionalFieldOf("asset_id")
-							                    .forGetter(EquippableComponent::assetId),
-					                    Identifier.CODEC.optionalFieldOf("camera_overlay").forGetter(EquippableComponent::cameraOverlay),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ENTITY_TYPE)
-							                    .optionalFieldOf("allowed_entities")
-							                    .forGetter(EquippableComponent::allowedEntities),
-					                    Codec.BOOL.optionalFieldOf("dispensable", true).forGetter(EquippableComponent::dispensable),
-					                    Codec.BOOL.optionalFieldOf("swappable", true).forGetter(EquippableComponent::swappable),
-					                    Codec.BOOL.optionalFieldOf("damage_on_hurt", true).forGetter(EquippableComponent::damageOnHurt),
-					                    Codec.BOOL
-							                    .optionalFieldOf("equip_on_interact", false)
-							                    .forGetter(EquippableComponent::equipOnInteract),
-					                    Codec.BOOL.optionalFieldOf("can_be_sheared", false).forGetter(EquippableComponent::canBeSheared),
-					                    SoundEvent.ENTRY_CODEC
-							                    .optionalFieldOf(
-									                    "shearing_sound",
-									                    Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
-							                    )
-							                    .forGetter(EquippableComponent::shearingSound)
-			                    )
-			                    .apply(instance, EquippableComponent::new)
+										EquipmentSlot.CODEC.fieldOf("slot").forGetter(EquippableComponent::slot),
+										SoundEvent.ENTRY_CODEC
+												.optionalFieldOf("equip_sound", SoundEvents.ITEM_ARMOR_EQUIP_GENERIC)
+												.forGetter(EquippableComponent::equipSound),
+										RegistryKey
+												.createCodec(EquipmentAssetKeys.REGISTRY_KEY)
+												.optionalFieldOf("asset_id")
+												.forGetter(EquippableComponent::assetId),
+										Identifier.CODEC.optionalFieldOf("camera_overlay").forGetter(EquippableComponent::cameraOverlay),
+										RegistryCodecs
+												.entryList(RegistryKeys.ENTITY_TYPE)
+												.optionalFieldOf("allowed_entities")
+												.forGetter(EquippableComponent::allowedEntities),
+										Codec.BOOL.optionalFieldOf("dispensable", true).forGetter(EquippableComponent::dispensable),
+										Codec.BOOL.optionalFieldOf("swappable", true).forGetter(EquippableComponent::swappable),
+										Codec.BOOL.optionalFieldOf("damage_on_hurt", true).forGetter(EquippableComponent::damageOnHurt),
+										Codec.BOOL
+												.optionalFieldOf("equip_on_interact", false)
+												.forGetter(EquippableComponent::equipOnInteract),
+										Codec.BOOL.optionalFieldOf("can_be_sheared", false).forGetter(EquippableComponent::canBeSheared),
+										SoundEvent.ENTRY_CODEC
+												.optionalFieldOf(
+														"shearing_sound",
+														Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_SHEARS_SNIP)
+												)
+												.forGetter(EquippableComponent::shearingSound)
+								)
+								.apply(instance, EquippableComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, EquippableComponent> PACKET_CODEC = PacketCodec.tuple(
 			EquipmentSlot.PACKET_CODEC,
@@ -103,12 +105,12 @@ public record EquippableComponent(
 	);
 
 	/**
-	 * Of carpet.
-	 *
-	 * @param color color
-	 *
-	 * @return EquippableComponent — результат операции
-	 */
+		 * Создаёт компонент для ковра ламы заданного цвета. Надевается в слот {@code BODY},
+		 * может быть снят ножницами.
+		 *
+		 * @param color цвет ковра
+		 * @return готовый компонент экипировки для ковра ламы
+		 */
 	public static EquippableComponent ofCarpet(DyeColor color) {
 		return builder(EquipmentSlot.BODY)
 				.equipSound(SoundEvents.ENTITY_LLAMA_SWAG)
@@ -120,10 +122,11 @@ public record EquippableComponent(
 	}
 
 	/**
-	 * Of saddle.
-	 *
-	 * @return EquippableComponent — результат операции
-	 */
+		 * Создаёт компонент для седла. Надевается в слот {@code SADDLE} на любую
+		 * сущность из тега {@code CAN_EQUIP_SADDLE}, может быть снято ножницами.
+		 *
+		 * @return готовый компонент экипировки для седла
+		 */
 	public static EquippableComponent ofSaddle() {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = Registries.createEntryLookup(Registries.ENTITY_TYPE);
 		return builder(EquipmentSlot.SADDLE)
@@ -137,12 +140,12 @@ public record EquippableComponent(
 	}
 
 	/**
-	 * Of harness.
-	 *
-	 * @param color color
-	 *
-	 * @return EquippableComponent — результат операции
-	 */
+		 * Создаёт компонент для упряжи счастливого гаста заданного цвета. Надевается
+		 * в слот {@code BODY} на сущности из тега {@code CAN_EQUIP_HARNESS}.
+		 *
+		 * @param color цвет упряжи
+		 * @return готовый компонент экипировки для упряжи
+		 */
 	public static EquippableComponent ofHarness(DyeColor color) {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = Registries.createEntryLookup(Registries.ENTITY_TYPE);
 		return builder(EquipmentSlot.BODY)
@@ -160,38 +163,39 @@ public record EquippableComponent(
 	}
 
 	/**
-	 * Equip.
-	 *
-	 * @param stack stack
-	 * @param player player
-	 *
-	 * @return ActionResult — результат операции
-	 */
+		 * Надевает предмет на игрока в соответствующий слот. Учитывает зачарование
+		 * {@code PREVENT_ARMOR_CHANGE}, режим творчества и количество предметов в стаке.
+		 * При замене возвращает ранее надетый предмет в руку игрока.
+		 *
+		 * @param stack  надеваемый предмет
+		 * @param player игрок, надевающий предмет
+		 * @return результат действия
+		 */
 	public ActionResult equip(ItemStack stack, PlayerEntity player) {
-		if (player.canUseSlot(this.slot) && this.allows(player.getType())) {
-			ItemStack itemStack = player.getEquippedStack(this.slot);
+		if (player.canUseSlot(slot) && allows(player.getType())) {
+			ItemStack currentlyEquipped = player.getEquippedStack(slot);
 			if ((!EnchantmentHelper.hasAnyEnchantmentsWith(
-					itemStack,
+					currentlyEquipped,
 					EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE
 			) || player.isCreative()
 			)
-					&& !ItemStack.areItemsAndComponentsEqual(stack, itemStack)) {
+					&& !ItemStack.areItemsAndComponentsEqual(stack, currentlyEquipped)) {
 				if (!player.getEntityWorld().isClient()) {
 					player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
 				}
 
 				if (stack.getCount() <= 1) {
-					ItemStack itemStack2 = itemStack.isEmpty() ? stack : itemStack.copyAndEmpty();
-					ItemStack itemStack3 = player.isCreative() ? stack.copy() : stack.copyAndEmpty();
-					player.equipStack(this.slot, itemStack3);
-					return ActionResult.SUCCESS.withNewHandStack(itemStack2);
+					ItemStack returnToHand = currentlyEquipped.isEmpty() ? stack : currentlyEquipped.copyAndEmpty();
+					ItemStack toEquip = player.isCreative() ? stack.copy() : stack.copyAndEmpty();
+					player.equipStack(slot, toEquip);
+					return ActionResult.SUCCESS.withNewHandStack(returnToHand);
 				}
 				else {
-					ItemStack itemStack2 = itemStack.copyAndEmpty();
-					ItemStack itemStack3 = stack.splitUnlessCreative(1, player);
-					player.equipStack(this.slot, itemStack3);
-					if (!player.getInventory().insertStack(itemStack2)) {
-						player.dropItem(itemStack2, false);
+					ItemStack displaced = currentlyEquipped.copyAndEmpty();
+					ItemStack toEquip = stack.splitUnlessCreative(1, player);
+					player.equipStack(slot, toEquip);
+					if (!player.getInventory().insertStack(displaced)) {
+						player.dropItem(displaced, false);
 					}
 
 					return ActionResult.SUCCESS.withNewHandStack(stack);
@@ -207,20 +211,20 @@ public record EquippableComponent(
 	}
 
 	/**
-	 * Equip on interact.
-	 *
-	 * @param player player
-	 * @param entity entity
-	 * @param stack stack
-	 *
-	 * @return ActionResult — результат операции
-	 */
+		 * Надевает предмет на сущность при взаимодействии игрока. Работает только
+		 * если слот свободен, сущность жива и может носить данный предмет.
+		 *
+		 * @param player игрок, взаимодействующий с сущностью
+		 * @param entity целевая сущность
+		 * @param stack  надеваемый предмет
+		 * @return результат действия
+		 */
 	public ActionResult equipOnInteract(PlayerEntity player, LivingEntity entity, ItemStack stack) {
-		if (entity.canEquip(stack, this.slot) && !entity.hasStackEquipped(this.slot) && entity.isAlive()) {
+		if (entity.canEquip(stack, slot) && !entity.hasStackEquipped(slot) && entity.isAlive()) {
 			if (!player.getEntityWorld().isClient()) {
-				entity.equipStack(this.slot, stack.split(1));
+				entity.equipStack(slot, stack.split(1));
 				if (entity instanceof MobEntity mobEntity) {
-					mobEntity.setDropGuaranteed(this.slot);
+					mobEntity.setDropGuaranteed(slot);
 				}
 			}
 
@@ -232,19 +236,19 @@ public record EquippableComponent(
 	}
 
 	/**
-	 * Allows.
-	 *
-	 * @param entityType entity type
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, разрешено ли данному типу сущности носить этот предмет.
+		 * Если список {@code allowedEntities} пуст — разрешено всем.
+		 *
+		 * @param entityType тип сущности для проверки
+		 * @return {@code true} если сущность может носить предмет
+		 */
 	public boolean allows(EntityType<?> entityType) {
-		return this.allowedEntities.isEmpty() || this.allowedEntities.get().contains(entityType.getRegistryEntry());
+		return allowedEntities.isEmpty() || allowedEntities.get().contains(entityType.getRegistryEntry());
 	}
 
 	/**
-	 * {@code Builder}.
-	 */
+		 * Строитель для создания {@link EquippableComponent} с настраиваемыми параметрами.
+		 */
 	public static class Builder {
 
 		private final EquipmentSlot slot;
@@ -317,11 +321,6 @@ public record EquippableComponent(
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return EquippableComponent — результат операции
-		 */
 		public EquippableComponent build() {
 			return new EquippableComponent(
 					this.slot,

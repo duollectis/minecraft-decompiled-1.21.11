@@ -17,24 +17,34 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WaypointStyleProvider}.
+ * Провайдер данных, генерирующий JSON-определения стилей путевых точек (waypoint styles)
+ * в ресурс-пак. Регистрирует все стандартные стили через {@link #bootstrap}.
  */
+@Environment(EnvType.CLIENT)
 public class WaypointStyleProvider implements DataProvider {
+
+	/** Ширина спрайта стиля DEFAULT (в пикселях). */
+	private static final int DEFAULT_SPRITE_WIDTH = 128;
+
+	/** Ширина спрайта стиля BOWTIE (в пикселях). */
+	private static final int BOWTIE_SPRITE_WIDTH = 64;
+
+	/** Высота спрайт-листа, общая для всех стилей (в пикселях). */
+	private static final int SPRITE_SHEET_HEIGHT = 332;
 
 	private final DataOutput.PathResolver pathResolver;
 
 	public WaypointStyleProvider(DataOutput output) {
-		this.pathResolver = output.getResolver(DataOutput.OutputType.RESOURCE_PACK, "waypoint_style");
+		pathResolver = output.getResolver(DataOutput.OutputType.RESOURCE_PACK, "waypoint_style");
 	}
 
-	private static void bootstrap(BiConsumer<RegistryKey<WaypointStyle>, WaypointStyleAsset> waypointStyleBiConsumer) {
-		waypointStyleBiConsumer.accept(
+	private static void bootstrap(BiConsumer<RegistryKey<WaypointStyle>, WaypointStyleAsset> consumer) {
+		consumer.accept(
 				WaypointStyles.DEFAULT,
 				new WaypointStyleAsset(
-						128,
-						332,
+						DEFAULT_SPRITE_WIDTH,
+						SPRITE_SHEET_HEIGHT,
 						List.of(
 								Identifier.ofVanilla("default_0"),
 								Identifier.ofVanilla("default_1"),
@@ -43,11 +53,12 @@ public class WaypointStyleProvider implements DataProvider {
 						)
 				)
 		);
-		waypointStyleBiConsumer.accept(
+
+		consumer.accept(
 				WaypointStyles.BOWTIE,
 				new WaypointStyleAsset(
-						64,
-						332,
+						BOWTIE_SPRITE_WIDTH,
+						SPRITE_SHEET_HEIGHT,
 						List.of(
 								Identifier.ofVanilla("bowtie"),
 								Identifier.ofVanilla("default_0"),
@@ -61,13 +72,15 @@ public class WaypointStyleProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		Map<RegistryKey<WaypointStyle>, WaypointStyleAsset> map = new HashMap<>();
+		Map<RegistryKey<WaypointStyle>, WaypointStyleAsset> styles = new HashMap<>();
+
 		bootstrap((key, asset) -> {
-			if (map.putIfAbsent(key, asset) != null) {
+			if (styles.putIfAbsent(key, asset) != null) {
 				throw new IllegalStateException("Tried to register waypoint style twice for id: " + key);
 			}
 		});
-		return DataProvider.writeAllToPath(writer, WaypointStyleAsset.CODEC, this.pathResolver::resolveJson, map);
+
+		return DataProvider.writeAllToPath(writer, WaypointStyleAsset.CODEC, pathResolver::resolveJson, styles);
 	}
 
 	@Override

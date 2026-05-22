@@ -15,7 +15,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code VegetationPatchFeature}.
+ * Генерирует патч растительности: сначала заменяет грунт под поверхностью
+ * на заданный блок, затем размещает растительную фичу поверх каждой позиции.
  */
 public class VegetationPatchFeature extends Feature<VegetationPatchFeatureConfig> {
 
@@ -25,147 +26,137 @@ public class VegetationPatchFeature extends Feature<VegetationPatchFeatureConfig
 
 	@Override
 	public boolean generate(FeatureContext<VegetationPatchFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		VegetationPatchFeatureConfig vegetationPatchFeatureConfig = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		VegetationPatchFeatureConfig config = context.getConfig();
 		Random random = context.getRandom();
-		BlockPos blockPos = context.getOrigin();
-		Predicate<BlockState> predicate = state -> state.isIn(vegetationPatchFeatureConfig.replaceable);
-		int i = vegetationPatchFeatureConfig.horizontalRadius.get(random) + 1;
-		int j = vegetationPatchFeatureConfig.horizontalRadius.get(random) + 1;
-		Set<BlockPos>
-				set =
-				this.placeGroundAndGetPositions(
-						structureWorldAccess,
-						vegetationPatchFeatureConfig,
-						random,
-						blockPos,
-						predicate,
-						i,
-						j
-				);
-		this.generateVegetation(context, structureWorldAccess, vegetationPatchFeatureConfig, random, set, i, j);
-		return !set.isEmpty();
+		BlockPos origin = context.getOrigin();
+		Predicate<BlockState> replaceable = state -> state.isIn(config.replaceable);
+
+		int radiusX = config.horizontalRadius.get(random) + 1;
+		int radiusZ = config.horizontalRadius.get(random) + 1;
+
+		Set<BlockPos> groundPositions = placeGroundAndGetPositions(world, config, random, origin, replaceable, radiusX, radiusZ);
+		generateVegetation(context, world, config, random, groundPositions, radiusX, radiusZ);
+		return !groundPositions.isEmpty();
 	}
 
+	/**
+	 * Проходит по сетке позиций в радиусе, находит поверхность вдоль заданного направления
+	 * и заменяет грунт на нужную глубину. Возвращает множество позиций, где грунт был успешно заменён.
+	 */
 	protected Set<BlockPos> placeGroundAndGetPositions(
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			Random random,
-			BlockPos pos,
-			Predicate<BlockState> replaceable,
-			int radiusX,
-			int radiusZ
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		Random random,
+		BlockPos pos,
+		Predicate<BlockState> replaceable,
+		int radiusX,
+		int radiusZ
 	) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
-		BlockPos.Mutable mutable2 = mutable.mutableCopy();
-		Direction direction = config.surface.getDirection();
-		Direction direction2 = direction.getOpposite();
-		Set<BlockPos> set = new HashSet<>();
+		BlockPos.Mutable surfaceCheck = mutable.mutableCopy();
+		Direction surfaceDir = config.surface.getDirection();
+		Direction intoSurface = surfaceDir.getOpposite();
+		Set<BlockPos> result = new HashSet<>();
 
-		for (int i = -radiusX; i <= radiusX; i++) {
-			boolean bl = i == -radiusX || i == radiusX;
+		for (int dx = -radiusX; dx <= radiusX; dx++) {
+			boolean onXEdge = dx == -radiusX || dx == radiusX;
 
-			for (int j = -radiusZ; j <= radiusZ; j++) {
-				boolean bl2 = j == -radiusZ || j == radiusZ;
-				boolean bl3 = bl || bl2;
-				boolean bl4 = bl && bl2;
-				boolean bl5 = bl3 && !bl4;
-				if (!bl4 && (!bl5 || config.extraEdgeColumnChance != 0.0F && !(random.nextFloat()
-						> config.extraEdgeColumnChance
-				)
-				)) {
-					mutable.set(pos, i, 0, j);
+			for (int dz = -radiusZ; dz <= radiusZ; dz++) {
+				boolean onZEdge = dz == -radiusZ || dz == radiusZ;
+				boolean isCorner = onXEdge && onZEdge;
+				boolean isEdge = (onXEdge || onZEdge) && !isCorner;
 
-					for (int k = 0;
-					     world.testBlockState(mutable, AbstractBlock.AbstractBlockState::isAir)
-							     && k < config.verticalRange;
-					     k++) {
-						mutable.move(direction);
-					}
+				if (isCorner) {
+					continue;
+				}
 
-					for (int var25 = 0;
-					     world.testBlockState(mutable, state -> !state.isAir()) && var25 < config.verticalRange;
-					     var25++) {
-						mutable.move(direction2);
-					}
+				if (isEdge && (config.extraEdgeColumnChance == 0.0F || random.nextFloat() > config.extraEdgeColumnChance)) {
+					continue;
+				}
 
-					mutable2.set(mutable, config.surface.getDirection());
-					BlockState blockState = world.getBlockState(mutable2);
-					if (world.isAir(mutable) && blockState.isSideSolidFullSquare(
-							world,
-							mutable2,
-							config.surface.getDirection().getOpposite()
-					)) {
-						int
-								l =
-								config.depth.get(random) + (config.extraBottomBlockChance > 0.0F && random.nextFloat()
-										< config.extraBottomBlockChance ? 1 : 0
-								);
-						BlockPos blockPos = mutable2.toImmutable();
-						boolean bl6 = this.placeGround(world, config, replaceable, random, mutable2, l);
-						if (bl6) {
-							set.add(blockPos);
-						}
-					}
+				mutable.set(pos, dx, 0, dz);
+
+				// Движемся вдоль поверхности, пока не выйдем из воздуха
+				for (int step = 0; world.testBlockState(mutable, AbstractBlock.AbstractBlockState::isAir) && step < config.verticalRange; step++) {
+					mutable.move(surfaceDir);
+				}
+
+				// Движемся обратно, пока не выйдем из твёрдого блока
+				for (int step = 0; world.testBlockState(mutable, state -> !state.isAir()) && step < config.verticalRange; step++) {
+					mutable.move(intoSurface);
+				}
+
+				surfaceCheck.set(mutable, surfaceDir);
+				BlockState surfaceState = world.getBlockState(surfaceCheck);
+
+				if (!world.isAir(mutable) || !surfaceState.isSideSolidFullSquare(world, surfaceCheck, intoSurface)) {
+					continue;
+				}
+
+				int depth = config.depth.get(random)
+					+ (config.extraBottomBlockChance > 0.0F && random.nextFloat() < config.extraBottomBlockChance ? 1 : 0);
+				BlockPos groundPos = surfaceCheck.toImmutable();
+
+				if (placeGround(world, config, replaceable, random, surfaceCheck, depth)) {
+					result.add(groundPos);
 				}
 			}
 		}
 
-		return set;
+		return result;
 	}
 
 	protected void generateVegetation(
-			FeatureContext<VegetationPatchFeatureConfig> context,
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			Random random,
-			Set<BlockPos> positions,
-			int radiusX,
-			int radiusZ
+		FeatureContext<VegetationPatchFeatureConfig> context,
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		Random random,
+		Set<BlockPos> positions,
+		int radiusX,
+		int radiusZ
 	) {
-		for (BlockPos blockPos : positions) {
+		for (BlockPos pos : positions) {
 			if (config.vegetationChance > 0.0F && random.nextFloat() < config.vegetationChance) {
-				this.generateVegetationFeature(world, config, context.getGenerator(), random, blockPos);
+				generateVegetationFeature(world, config, context.getGenerator(), random, pos);
 			}
 		}
 	}
 
 	protected boolean generateVegetationFeature(
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			ChunkGenerator generator,
-			Random random,
-			BlockPos pos
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		ChunkGenerator generator,
+		Random random,
+		BlockPos pos
 	) {
 		return config.vegetationFeature
-				.value()
-				.generateUnregistered(
-						world,
-						generator,
-						random,
-						pos.offset(config.surface.getDirection().getOpposite())
-				);
+			.value()
+			.generateUnregistered(world, generator, random, pos.offset(config.surface.getDirection().getOpposite()));
 	}
 
 	protected boolean placeGround(
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			Predicate<BlockState> replaceable,
-			Random random,
-			BlockPos.Mutable pos,
-			int depth
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		Predicate<BlockState> replaceable,
+		Random random,
+		BlockPos.Mutable pos,
+		int depth
 	) {
-		for (int i = 0; i < depth; i++) {
-			BlockState blockState = config.groundState.get(random, pos);
-			BlockState blockState2 = world.getBlockState(pos);
-			if (!blockState.isOf(blockState2.getBlock())) {
-				if (!replaceable.test(blockState2)) {
-					return i != 0;
-				}
+		for (int layer = 0; layer < depth; layer++) {
+			BlockState groundState = config.groundState.get(random, pos);
+			BlockState existing = world.getBlockState(pos);
 
-				world.setBlockState(pos, blockState, 2);
-				pos.move(config.surface.getDirection());
+			if (groundState.isOf(existing.getBlock())) {
+				continue;
 			}
+
+			if (!replaceable.test(existing)) {
+				return layer != 0;
+			}
+
+			world.setBlockState(pos, groundState, 2);
+			pos.move(config.surface.getDirection());
 		}
 
 		return true;

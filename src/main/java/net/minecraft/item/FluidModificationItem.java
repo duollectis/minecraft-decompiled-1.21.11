@@ -7,7 +7,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code FluidModificationItem}.
+ * Интерфейс для предметов, способных взаимодействовать с жидкостями в мире:
+ * наполнять ёмкость жидкостью или выливать её в блок.
+ * Реализуется ведром, бутылкой с водой и аналогичными предметами.
  */
 public interface FluidModificationItem {
 

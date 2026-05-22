@@ -8,10 +8,10 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DisconnectedScreen}.
+ * Экран отключения от сервера с причиной разрыва соединения и кнопкой возврата.
  */
+@Environment(EnvType.CLIENT)
 public class DisconnectedScreen extends Screen {
 
 	private static final Text TO_MENU_TEXT = Text.translatable("gui.toMenu");
@@ -44,59 +44,44 @@ public class DisconnectedScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.grid.getMainPositioner().alignHorizontalCenter().margin(10);
-		this.grid.add(new TextWidget(this.title, this.textRenderer));
-		this.grid.add(new MultilineTextWidget(this.info.reason(), this.textRenderer)
-				.setMaxWidth(this.width - 50)
-				.setCentered(true));
-		this.grid.getMainPositioner().margin(2);
-		this.info
-				.bugReportLink()
-				.ifPresent(uri -> this.grid.add(ButtonWidget
-						.builder(REPORT_TO_SERVER_TEXT, ConfirmLinkScreen.opening(this, uri, false))
+		grid.getMainPositioner().alignHorizontalCenter().margin(10);
+		grid.add(new TextWidget(title, textRenderer));
+		grid.add(
+				new MultilineTextWidget(info.reason(), textRenderer)
+						.setMaxWidth(width - 50)
+						.setCentered(true)
+		);
+		grid.getMainPositioner().margin(2);
+		info.bugReportLink().ifPresent(uri -> grid.add(
+				ButtonWidget.builder(REPORT_TO_SERVER_TEXT, ConfirmLinkScreen.opening(this, uri, false))
 						.width(200)
-						.build()));
-		this.info
-				.report()
-				.ifPresent(
-						path -> this.grid.add(ButtonWidget
-								.builder(
-										OPEN_REPORT_DIR_TEXT,
-										button -> Util.getOperatingSystem().open(path.getParent())
-								)
-								.width(200)
-								.build())
-				);
-		ButtonWidget buttonWidget;
-		if (this.client.isMultiplayerEnabled()) {
-			buttonWidget =
-					ButtonWidget
-							.builder(this.buttonLabel, button -> this.client.setScreen(this.parent))
-							.width(200)
-							.build();
-		}
-		else {
-			buttonWidget =
-					ButtonWidget
-							.builder(TO_TITLE_TEXT, button -> this.client.setScreen(new TitleScreen()))
-							.width(200)
-							.build();
-		}
+						.build()
+		));
+		info.report().ifPresent(path -> grid.add(
+				ButtonWidget.builder(
+						OPEN_REPORT_DIR_TEXT,
+						button -> Util.getOperatingSystem().open(path.getParent())
+				).width(200).build()
+		));
 
-		this.grid.add(buttonWidget);
-		this.grid.refreshPositions();
-		this.grid.forEachChild(this::addDrawableChild);
-		this.refreshWidgetPositions();
+		ButtonWidget backButton = client.isMultiplayerEnabled()
+				? ButtonWidget.builder(buttonLabel, button -> client.setScreen(parent)).width(200).build()
+				: ButtonWidget.builder(TO_TITLE_TEXT, button -> client.setScreen(new TitleScreen())).width(200).build();
+
+		grid.add(backButton);
+		grid.refreshPositions();
+		grid.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		SimplePositioningWidget.setPos(this.grid, this.getNavigationFocus());
+		SimplePositioningWidget.setPos(grid, getNavigationFocus());
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(this.title, this.info.reason());
+		return ScreenTexts.joinSentences(title, info.reason());
 	}
 
 	@Override

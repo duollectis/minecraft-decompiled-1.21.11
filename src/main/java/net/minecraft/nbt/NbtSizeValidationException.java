@@ -1,11 +1,13 @@
 package net.minecraft.nbt;
 
 /**
- * {@code NbtSizeValidationException}.
+ * Бросается при превышении лимитов размера или глубины вложенности NBT-данных.
+ *
+ * @see NbtSizeTracker
  */
 public class NbtSizeValidationException extends NbtException {
 
-	public NbtSizeValidationException(String string) {
-		super(string);
+	public NbtSizeValidationException(String message) {
+		super(message);
 	}
 }

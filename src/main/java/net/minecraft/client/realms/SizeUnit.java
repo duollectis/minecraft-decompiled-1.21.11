@@ -5,10 +5,12 @@ import net.fabricmc.api.Environment;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SizeUnit}.
+ * Единицы измерения размера файла: B, KB, MB, GB.
+ * Предоставляет утилиты для автоматического выбора наиболее подходящей единицы
+ * и форматирования размера в человекочитаемый вид.
  */
+@Environment(EnvType.CLIENT)
 public enum SizeUnit {
 	B,
 	KB,
@@ -16,54 +18,64 @@ public enum SizeUnit {
 	GB;
 
 	private static final int BASE = 1024;
+	private static final String SIZE_PREFIXES = "KMGTPE";
 
+	/**
+	 * Определяет наибольшую подходящую единицу измерения для заданного размера в байтах.
+	 * Например, для 2 097 152 байт вернёт {@link #MB}.
+	 *
+	 * @param bytes размер в байтах
+	 * @return наибольшая подходящая единица измерения
+	 */
 	public static SizeUnit getLargestUnit(long bytes) {
-		if (bytes < 1024L) {
+		if (bytes < BASE) {
 			return B;
 		}
-		else {
-			try {
-				int i = (int) (Math.log(bytes) / Math.log(1024.0));
-				String string = String.valueOf("KMGTPE".charAt(i - 1));
-				return valueOf(string + "B");
-			}
-			catch (Exception var4) {
-				return GB;
-			}
+
+		try {
+			int exponent = (int) (Math.log(bytes) / Math.log(BASE));
+			String prefix = String.valueOf(SIZE_PREFIXES.charAt(exponent - 1));
+			return valueOf(prefix + "B");
+		} catch (Exception ignored) {
+			return GB;
 		}
 	}
 
 	/**
-	 * Конвертирует to unit.
+	 * Конвертирует байты в указанную единицу измерения.
 	 *
-	 * @param bytes bytes
-	 * @param unit unit
-	 *
-	 * @return double — результат операции
+	 * @param bytes размер в байтах
+	 * @param unit целевая единица измерения
+	 * @return значение в указанной единице
 	 */
 	public static double convertToUnit(long bytes, SizeUnit unit) {
-		return unit == B ? bytes : bytes / Math.pow(1024.0, unit.ordinal());
-	}
-
-	public static String getUserFriendlyString(long bytes) {
-		int i = 1024;
-		if (bytes < 1024L) {
-			return bytes + " B";
-		}
-		else {
-			int j = (int) (Math.log(bytes) / Math.log(1024.0));
-			String string = "KMGTPE".charAt(j - 1) + "";
-			return String.format(Locale.ROOT, "%.1f %sB", bytes / Math.pow(1024.0, j), string);
-		}
+		return unit == B ? bytes : bytes / Math.pow(BASE, unit.ordinal());
 	}
 
 	/**
-	 * Human readable size.
+	 * Форматирует размер в байтах в строку с автоматически выбранной единицей.
+	 * Например: {@code 1536} → {@code "1.5 KB"}.
 	 *
-	 * @param bytes bytes
-	 * @param unit unit
+	 * @param bytes размер в байтах
+	 * @return отформатированная строка
+	 */
+	public static String getUserFriendlyString(long bytes) {
+		if (bytes < BASE) {
+			return bytes + " B";
+		}
+
+		int exponent = (int) (Math.log(bytes) / Math.log(BASE));
+		String prefix = SIZE_PREFIXES.charAt(exponent - 1) + "";
+		return String.format(Locale.ROOT, "%.1f %sB", bytes / Math.pow(BASE, exponent), prefix);
+	}
+
+	/**
+	 * Форматирует размер в байтах в строку с явно указанной единицей измерения.
+	 * Для GB используется один знак после запятой, для остальных — целое число.
 	 *
-	 * @return String — результат операции
+	 * @param bytes размер в байтах
+	 * @param unit единица измерения для отображения
+	 * @return отформатированная строка
 	 */
 	public static String humanReadableSize(long bytes, SizeUnit unit) {
 		return String.format(

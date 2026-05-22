@@ -39,115 +39,47 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 /**
- * {@code RecipeGenerator}.
+ * Базовый генератор рецептов крафта для системы датагенерации Minecraft.
+ * Предоставляет утилитарные методы для создания рецептов всех типов (shaped, shapeless,
+ * smelting, smithing и т.д.) и автоматической генерации рецептов для блочных семейств.
  */
 public abstract class RecipeGenerator {
 
 	protected final RegistryWrapper.WrapperLookup registries;
 	private final RegistryEntryLookup<Item> itemLookup;
 	protected final RecipeExporter exporter;
-	private static final Map<BlockFamily.Variant, RecipeGenerator.BlockFamilyRecipeFactory>
-			VARIANT_FACTORIES =
+	private static final Map<BlockFamily.Variant, RecipeGenerator.BlockFamilyRecipeFactory> VARIANT_FACTORIES =
 			ImmutableMap.<BlockFamily.Variant, RecipeGenerator.BlockFamilyRecipeFactory>builder()
-			            .put(
-					            BlockFamily.Variant.BUTTON,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createButtonRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.CHISELED,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createChiseledBlockRecipe(
-							            RecipeCategory.BUILDING_BLOCKS, output, Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.CUT,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createCutCopperRecipe(
-							            RecipeCategory.BUILDING_BLOCKS, output, Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.DOOR,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createDoorRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.CUSTOM_FENCE,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createFenceRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.FENCE,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createFenceRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.CUSTOM_FENCE_GATE,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createFenceGateRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.FENCE_GATE,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createFenceGateRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.SIGN,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createSignRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.SLAB,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createSlabRecipe(
-							            RecipeCategory.BUILDING_BLOCKS, output, Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.STAIRS,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createStairsRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.PRESSURE_PLATE,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createPressurePlateRecipe(
-							            RecipeCategory.REDSTONE, output, Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.POLISHED,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createCondensingRecipe(
-							            RecipeCategory.BUILDING_BLOCKS, output, Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.TRAPDOOR,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.createTrapdoorRecipe(
-							            output,
-							            Ingredient.ofItem(input)
-					            )
-			            )
-			            .put(
-					            BlockFamily.Variant.WALL,
-					            (RecipeGenerator.BlockFamilyRecipeFactory) (generator, output, input) -> generator.getWallRecipe(
-							            RecipeCategory.DECORATIONS, output, Ingredient.ofItem(input)
-					            )
-			            )
+			            .put(BlockFamily.Variant.BUTTON,
+					            (gen, out, in) -> gen.createButtonRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.CHISELED,
+					            (gen, out, in) -> gen.createChiseledBlockRecipe(RecipeCategory.BUILDING_BLOCKS, out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.CUT,
+					            (gen, out, in) -> gen.createCutCopperRecipe(RecipeCategory.BUILDING_BLOCKS, out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.DOOR,
+					            (gen, out, in) -> gen.createDoorRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.CUSTOM_FENCE,
+					            (gen, out, in) -> gen.createFenceRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.FENCE,
+					            (gen, out, in) -> gen.createFenceRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.CUSTOM_FENCE_GATE,
+					            (gen, out, in) -> gen.createFenceGateRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.FENCE_GATE,
+					            (gen, out, in) -> gen.createFenceGateRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.SIGN,
+					            (gen, out, in) -> gen.createSignRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.SLAB,
+					            (gen, out, in) -> gen.createSlabRecipe(RecipeCategory.BUILDING_BLOCKS, out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.STAIRS,
+					            (gen, out, in) -> gen.createStairsRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.PRESSURE_PLATE,
+					            (gen, out, in) -> gen.createPressurePlateRecipe(RecipeCategory.REDSTONE, out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.POLISHED,
+					            (gen, out, in) -> gen.createCondensingRecipe(RecipeCategory.BUILDING_BLOCKS, out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.TRAPDOOR,
+					            (gen, out, in) -> gen.createTrapdoorRecipe(out, Ingredient.ofItem(in)))
+			            .put(BlockFamily.Variant.WALL,
+					            (gen, out, in) -> gen.getWallRecipe(RecipeCategory.DECORATIONS, out, Ingredient.ofItem(in)))
 			            .build();
 
 	protected RecipeGenerator(RegistryWrapper.WrapperLookup registries, RecipeExporter exporter) {
@@ -162,7 +94,7 @@ public abstract class RecipeGenerator {
 		BlockFamilies
 				.getFamilies()
 				.filter(BlockFamily::shouldGenerateRecipes)
-				.forEach(family -> this.generateFamily(family, enabledFeatures));
+				.forEach(family -> generateFamily(family, enabledFeatures));
 	}
 
 	public void offerSingleOutputShapelessRecipe(
@@ -170,7 +102,7 @@ public abstract class RecipeGenerator {
 			ItemConvertible input,
 			@Nullable String group
 	) {
-		this.offerShapelessRecipe(output, input, group, 1);
+		offerShapelessRecipe(output, input, group, 1);
 	}
 
 	public void offerShapelessRecipe(
@@ -179,11 +111,11 @@ public abstract class RecipeGenerator {
 			@Nullable String group,
 			int outputCount
 	) {
-		this.createShapeless(RecipeCategory.MISC, output, outputCount)
+		createShapeless(RecipeCategory.MISC, output, outputCount)
 		    .input(input)
 		    .group(group)
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter, convertBetween(output, input));
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter, convertBetween(output, input));
 	}
 
 	public void offerSmelting(
@@ -194,7 +126,7 @@ public abstract class RecipeGenerator {
 			int cookingTime,
 			String group
 	) {
-		this.offerMultipleOptions(
+		offerMultipleOptions(
 				RecipeSerializer.SMELTING,
 				SmeltingRecipe::new,
 				inputs,
@@ -215,7 +147,7 @@ public abstract class RecipeGenerator {
 			int cookingTime,
 			String group
 	) {
-		this.offerMultipleOptions(
+		offerMultipleOptions(
 				RecipeSerializer.BLASTING,
 				BlastingRecipe::new,
 				inputs,
@@ -251,8 +183,8 @@ public abstract class RecipeGenerator {
 							recipeFactory
 					)
 					.group(group)
-					.criterion(hasItem(itemConvertible), this.conditionsFromItem(itemConvertible))
-					.offerTo(this.exporter, getItemPath(output) + suffix + "_" + getItemPath(itemConvertible));
+					.criterion(hasItem(itemConvertible), conditionsFromItem(itemConvertible))
+					.offerTo(exporter, getItemPath(output) + suffix + "_" + getItemPath(itemConvertible));
 		}
 	}
 
@@ -260,15 +192,15 @@ public abstract class RecipeGenerator {
 		SmithingTransformRecipeJsonBuilder.create(
 				                                  Ingredient.ofItem(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
 				                                  Ingredient.ofItem(input),
-				                                  this.ingredientFromTag(ItemTags.NETHERITE_TOOL_MATERIALS),
+				                                  ingredientFromTag(ItemTags.NETHERITE_TOOL_MATERIALS),
 				                                  category,
 				                                  result
 		                                  )
 		                                  .criterion(
 				                                  "has_netherite_ingot",
-				                                  this.conditionsFromTag(ItemTags.NETHERITE_TOOL_MATERIALS)
+				                                  conditionsFromTag(ItemTags.NETHERITE_TOOL_MATERIALS)
 		                                  )
-		                                  .offerTo(this.exporter, getItemPath(result) + "_smithing");
+		                                  .offerTo(exporter, getItemPath(result) + "_smithing");
 	}
 
 	public void offerSmithingTrimRecipe(
@@ -278,25 +210,25 @@ public abstract class RecipeGenerator {
 	) {
 		RegistryEntry.Reference<ArmorTrimPattern>
 				reference =
-				this.registries.getOrThrow(RegistryKeys.TRIM_PATTERN).getOrThrow(pattern);
+				registries.getOrThrow(RegistryKeys.TRIM_PATTERN).getOrThrow(pattern);
 		SmithingTrimRecipeJsonBuilder.create(
 				                             Ingredient.ofItem(input),
-				                             this.ingredientFromTag(ItemTags.TRIMMABLE_ARMOR),
-				                             this.ingredientFromTag(ItemTags.TRIM_MATERIALS),
+				                             ingredientFromTag(ItemTags.TRIMMABLE_ARMOR),
+				                             ingredientFromTag(ItemTags.TRIM_MATERIALS),
 				                             reference,
 				                             RecipeCategory.MISC
 		                             )
-		                             .criterion("has_smithing_trim_template", this.conditionsFromItem(input))
-		                             .offerTo(this.exporter, recipeKey);
+		                             .criterion("has_smithing_trim_template", conditionsFromItem(input))
+		                             .offerTo(exporter, recipeKey);
 	}
 
 	public void offer2x2CompactingRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
-		this.createShaped(category, output, 1)
+		createShaped(category, output, 1)
 		    .input('#', input)
 		    .pattern("##")
 		    .pattern("##")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerCompactingRecipe(
@@ -308,61 +240,61 @@ public abstract class RecipeGenerator {
 		this
 				.createShapeless(category, output)
 				.input(input, 9)
-				.criterion(criterionName, this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(criterionName, conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public void offerCompactingRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
-		this.offerCompactingRecipe(category, output, input, hasItem(input));
+		offerCompactingRecipe(category, output, input, hasItem(input));
 	}
 
 	public void offerPlanksRecipe2(ItemConvertible output, TagKey<Item> logTag, int count) {
-		this.createShapeless(RecipeCategory.BUILDING_BLOCKS, output, count)
+		createShapeless(RecipeCategory.BUILDING_BLOCKS, output, count)
 		    .input(logTag)
 		    .group("planks")
-		    .criterion("has_log", this.conditionsFromTag(logTag))
-		    .offerTo(this.exporter);
+		    .criterion("has_log", conditionsFromTag(logTag))
+		    .offerTo(exporter);
 	}
 
 	public void offerPlanksRecipe(ItemConvertible output, TagKey<Item> logTag, int count) {
-		this.createShapeless(RecipeCategory.BUILDING_BLOCKS, output, count)
+		createShapeless(RecipeCategory.BUILDING_BLOCKS, output, count)
 		    .input(logTag)
 		    .group("planks")
-		    .criterion("has_logs", this.conditionsFromTag(logTag))
-		    .offerTo(this.exporter);
+		    .criterion("has_logs", conditionsFromTag(logTag))
+		    .offerTo(exporter);
 	}
 
 	public void offerBarkBlockRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output, 3)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output, 3)
 		    .input('#', input)
 		    .pattern("##")
 		    .pattern("##")
 		    .group("bark")
-		    .criterion("has_log", this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion("has_log", conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerBoatRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.TRANSPORTATION, output)
+		createShaped(RecipeCategory.TRANSPORTATION, output)
 		    .input('#', input)
 		    .pattern("# #")
 		    .pattern("###")
 		    .group("boat")
 		    .criterion("in_water", requireEnteringFluid(Blocks.WATER))
-		    .offerTo(this.exporter);
+		    .offerTo(exporter);
 	}
 
 	public void offerChestBoatRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShapeless(RecipeCategory.TRANSPORTATION, output)
+		createShapeless(RecipeCategory.TRANSPORTATION, output)
 		    .input(Blocks.CHEST)
 		    .input(input)
 		    .group("chest_boat")
-		    .criterion("has_boat", this.conditionsFromTag(ItemTags.BOATS))
-		    .offerTo(this.exporter);
+		    .criterion("has_boat", conditionsFromTag(ItemTags.BOATS))
+		    .offerTo(exporter);
 	}
 
 	public final CraftingRecipeJsonBuilder createButtonRecipe(ItemConvertible output, Ingredient input) {
-		return this.createShapeless(RecipeCategory.REDSTONE, output).input(input);
+		return createShapeless(RecipeCategory.REDSTONE, output).input(input);
 	}
 
 	public CraftingRecipeJsonBuilder createDoorRecipe(ItemConvertible output, Ingredient input) {
@@ -395,9 +327,9 @@ public abstract class RecipeGenerator {
 	}
 
 	public void offerPressurePlateRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createPressurePlateRecipe(RecipeCategory.REDSTONE, output, Ingredient.ofItem(input))
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		createPressurePlateRecipe(RecipeCategory.REDSTONE, output, Ingredient.ofItem(input))
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public final CraftingRecipeJsonBuilder createPressurePlateRecipe(
@@ -405,25 +337,25 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output).input('#', input).pattern("##");
+		return createShaped(category, output).input('#', input).pattern("##");
 	}
 
 	public void offerSlabRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
 		this
 				.createSlabRecipe(category, output, Ingredient.ofItem(input))
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public void offerShelfRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.DECORATIONS, output, 6)
+		createShaped(RecipeCategory.DECORATIONS, output, 6)
 		    .input('#', input)
 		    .pattern("###")
 		    .pattern("   ")
 		    .pattern("###")
 		    .group("shelf")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public CraftingRecipeJsonBuilder createSlabRecipe(
@@ -431,7 +363,7 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output, 6).input('#', input).pattern("###");
+		return createShaped(category, output, 6).input('#', input).pattern("###");
 	}
 
 	public CraftingRecipeJsonBuilder createStairsRecipe(ItemConvertible output, Ingredient input) {
@@ -444,11 +376,11 @@ public abstract class RecipeGenerator {
 	}
 
 	public CraftingRecipeJsonBuilder createTrapdoorRecipe(ItemConvertible output, Ingredient input) {
-		return this.createShaped(RecipeCategory.REDSTONE, output, 2).input('#', input).pattern("###").pattern("###");
+		return createShaped(RecipeCategory.REDSTONE, output, 2).input('#', input).pattern("###").pattern("###");
 	}
 
 	public final CraftingRecipeJsonBuilder createSignRecipe(ItemConvertible output, Ingredient input) {
-		return this.createShaped(RecipeCategory.DECORATIONS, output, 3)
+		return createShaped(RecipeCategory.DECORATIONS, output, 3)
 		           .group("sign")
 		           .input('#', input)
 		           .input('X', Items.STICK)
@@ -458,19 +390,19 @@ public abstract class RecipeGenerator {
 	}
 
 	public void offerHangingSignRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.DECORATIONS, output, 6)
+		createShaped(RecipeCategory.DECORATIONS, output, 6)
 		    .group("hanging_sign")
 		    .input('#', input)
 		    .input('X', Items.IRON_CHAIN)
 		    .pattern("X X")
 		    .pattern("###")
 		    .pattern("###")
-		    .criterion("has_stripped_logs", this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion("has_stripped_logs", conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerDyeableRecipes(List<Item> dyes, List<Item> dyeables, String group, RecipeCategory category) {
-		this.offerDyeablesRecipes(dyes, dyeables, null, group, category);
+		offerDyeablesRecipes(dyes, dyeables, null, group, category);
 	}
 
 	public void offerDyeablesRecipes(
@@ -488,143 +420,143 @@ public abstract class RecipeGenerator {
 				stream = Stream.concat(stream, Stream.of(undyed));
 			}
 
-			this.createShapeless(category, item2)
+			createShapeless(category, item2)
 			    .input(item)
 			    .input(Ingredient.ofItems(stream))
 			    .group(group)
-			    .criterion("has_needed_dye", this.conditionsFromItem(item))
-			    .offerTo(this.exporter, "dye_" + getItemPath(item2));
+			    .criterion("has_needed_dye", conditionsFromItem(item))
+			    .offerTo(exporter, "dye_" + getItemPath(item2));
 		}
 	}
 
 	public void offerCarpetRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.DECORATIONS, output, 3)
+		createShaped(RecipeCategory.DECORATIONS, output, 3)
 		    .input('#', input)
 		    .pattern("##")
 		    .group("carpet")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerBedRecipe(ItemConvertible output, ItemConvertible inputWool) {
-		this.createShaped(RecipeCategory.DECORATIONS, output)
+		createShaped(RecipeCategory.DECORATIONS, output)
 		    .input('#', inputWool)
 		    .input('X', ItemTags.PLANKS)
 		    .pattern("###")
 		    .pattern("XXX")
 		    .group("bed")
-		    .criterion(hasItem(inputWool), this.conditionsFromItem(inputWool))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(inputWool), conditionsFromItem(inputWool))
+		    .offerTo(exporter);
 	}
 
 	public void offerBannerRecipe(ItemConvertible output, ItemConvertible inputWool) {
-		this.createShaped(RecipeCategory.DECORATIONS, output)
+		createShaped(RecipeCategory.DECORATIONS, output)
 		    .input('#', inputWool)
 		    .input('|', Items.STICK)
 		    .pattern("###")
 		    .pattern("###")
 		    .pattern(" | ")
 		    .group("banner")
-		    .criterion(hasItem(inputWool), this.conditionsFromItem(inputWool))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(inputWool), conditionsFromItem(inputWool))
+		    .offerTo(exporter);
 	}
 
 	public void offerStainedGlassDyeingRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output, 8)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output, 8)
 		    .input('#', Blocks.GLASS)
 		    .input('X', input)
 		    .pattern("###")
 		    .pattern("#X#")
 		    .pattern("###")
 		    .group("stained_glass")
-		    .criterion("has_glass", this.conditionsFromItem(Blocks.GLASS))
-		    .offerTo(this.exporter);
+		    .criterion("has_glass", conditionsFromItem(Blocks.GLASS))
+		    .offerTo(exporter);
 	}
 
 	public void offerDriedGhast(ItemConvertible output) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output, 1)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output, 1)
 		    .input('#', Items.GHAST_TEAR)
 		    .input('X', Items.SOUL_SAND)
 		    .pattern("###")
 		    .pattern("#X#")
 		    .pattern("###")
 		    .group("dry_ghast")
-		    .criterion(hasItem(Items.GHAST_TEAR), this.conditionsFromItem(Items.GHAST_TEAR))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(Items.GHAST_TEAR), conditionsFromItem(Items.GHAST_TEAR))
+		    .offerTo(exporter);
 	}
 
 	public void offerHarness(ItemConvertible output, ItemConvertible wool) {
-		this.createShaped(RecipeCategory.COMBAT, output)
+		createShaped(RecipeCategory.COMBAT, output)
 		    .input('#', wool)
 		    .input('G', Items.GLASS)
 		    .input('L', Items.LEATHER)
 		    .pattern("LLL")
 		    .pattern("G#G")
 		    .group("harness")
-		    .criterion("has_dried_ghast", this.conditionsFromItem(Blocks.DRIED_GHAST))
-		    .offerTo(this.exporter);
+		    .criterion("has_dried_ghast", conditionsFromItem(Blocks.DRIED_GHAST))
+		    .offerTo(exporter);
 	}
 
 	public void offerStainedGlassPaneRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.DECORATIONS, output, 16)
+		createShaped(RecipeCategory.DECORATIONS, output, 16)
 		    .input('#', input)
 		    .pattern("###")
 		    .pattern("###")
 		    .group("stained_glass_pane")
-		    .criterion("has_glass", this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion("has_glass", conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerStainedGlassPaneDyeingRecipe(ItemConvertible output, ItemConvertible inputDye) {
-		this.createShaped(RecipeCategory.DECORATIONS, output, 8)
+		createShaped(RecipeCategory.DECORATIONS, output, 8)
 		    .input('#', Blocks.GLASS_PANE)
 		    .input('$', inputDye)
 		    .pattern("###")
 		    .pattern("#$#")
 		    .pattern("###")
 		    .group("stained_glass_pane")
-		    .criterion("has_glass_pane", this.conditionsFromItem(Blocks.GLASS_PANE))
-		    .criterion(hasItem(inputDye), this.conditionsFromItem(inputDye))
-		    .offerTo(this.exporter, convertBetween(output, Blocks.GLASS_PANE));
+		    .criterion("has_glass_pane", conditionsFromItem(Blocks.GLASS_PANE))
+		    .criterion(hasItem(inputDye), conditionsFromItem(inputDye))
+		    .offerTo(exporter, convertBetween(output, Blocks.GLASS_PANE));
 	}
 
 	public void offerTerracottaDyeingRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output, 8)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output, 8)
 		    .input('#', Blocks.TERRACOTTA)
 		    .input('X', input)
 		    .pattern("###")
 		    .pattern("#X#")
 		    .pattern("###")
 		    .group("stained_terracotta")
-		    .criterion("has_terracotta", this.conditionsFromItem(Blocks.TERRACOTTA))
-		    .offerTo(this.exporter);
+		    .criterion("has_terracotta", conditionsFromItem(Blocks.TERRACOTTA))
+		    .offerTo(exporter);
 	}
 
 	public void offerConcretePowderDyeingRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShapeless(RecipeCategory.BUILDING_BLOCKS, output, 8)
+		createShapeless(RecipeCategory.BUILDING_BLOCKS, output, 8)
 		    .input(input)
 		    .input(Blocks.SAND, 4)
 		    .input(Blocks.GRAVEL, 4)
 		    .group("concrete_powder")
-		    .criterion("has_sand", this.conditionsFromItem(Blocks.SAND))
-		    .criterion("has_gravel", this.conditionsFromItem(Blocks.GRAVEL))
-		    .offerTo(this.exporter);
+		    .criterion("has_sand", conditionsFromItem(Blocks.SAND))
+		    .criterion("has_gravel", conditionsFromItem(Blocks.GRAVEL))
+		    .offerTo(exporter);
 	}
 
 	public void offerCandleDyeingRecipe(ItemConvertible output, ItemConvertible input) {
-		this.createShapeless(RecipeCategory.DECORATIONS, output)
+		createShapeless(RecipeCategory.DECORATIONS, output)
 		    .input(Blocks.CANDLE)
 		    .input(input)
 		    .group("dyed_candle")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerWallRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
 		this
 				.getWallRecipe(category, output, Ingredient.ofItem(input))
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public final CraftingRecipeJsonBuilder getWallRecipe(
@@ -632,14 +564,14 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output, 6).input('#', input).pattern("###").pattern("###");
+		return createShaped(category, output, 6).input('#', input).pattern("###").pattern("###");
 	}
 
 	public void offerPolishedStoneRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
 		this
 				.createCondensingRecipe(category, output, Ingredient.ofItem(input))
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public final CraftingRecipeJsonBuilder createCondensingRecipe(
@@ -647,14 +579,14 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output, 4).input('S', input).pattern("SS").pattern("SS");
+		return createShaped(category, output, 4).input('S', input).pattern("SS").pattern("SS");
 	}
 
 	public void offerCutCopperRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
 		this
 				.createCutCopperRecipe(category, output, Ingredient.ofItem(input))
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public final ShapedRecipeJsonBuilder createCutCopperRecipe(
@@ -662,22 +594,22 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output, 4).input('#', input).pattern("##").pattern("##");
+		return createShaped(category, output, 4).input('#', input).pattern("##").pattern("##");
 	}
 
 	public void offerChiseledBlockRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
-		this.createChiseledBlockRecipe(category, output, Ingredient.ofItem(input))
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		createChiseledBlockRecipe(category, output, Ingredient.ofItem(input))
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerMosaicRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
-		this.createShaped(category, output)
+		createShaped(category, output)
 		    .input('#', input)
 		    .pattern("#")
 		    .pattern("#")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public ShapedRecipeJsonBuilder createChiseledBlockRecipe(
@@ -685,11 +617,11 @@ public abstract class RecipeGenerator {
 			ItemConvertible output,
 			Ingredient input
 	) {
-		return this.createShaped(category, output).input('#', input).pattern("#").pattern("#");
+		return createShaped(category, output).input('#', input).pattern("#").pattern("#");
 	}
 
 	public void offerStonecuttingRecipe(RecipeCategory category, ItemConvertible output, ItemConvertible input) {
-		this.offerStonecuttingRecipe(category, output, input, 1);
+		offerStonecuttingRecipe(category, output, input, 1);
 	}
 
 	public void offerStonecuttingRecipe(
@@ -699,15 +631,15 @@ public abstract class RecipeGenerator {
 			int count
 	) {
 		StonecuttingRecipeJsonBuilder.createStonecutting(Ingredient.ofItem(input), category, output, count)
-		                             .criterion(hasItem(input), this.conditionsFromItem(input))
-		                             .offerTo(this.exporter, convertBetween(output, input) + "_stonecutting");
+		                             .criterion(hasItem(input), conditionsFromItem(input))
+		                             .offerTo(exporter, convertBetween(output, input) + "_stonecutting");
 	}
 
 	public final void offerCrackingRecipe(ItemConvertible output, ItemConvertible input) {
 		CookingRecipeJsonBuilder
 				.createSmelting(Ingredient.ofItem(input), RecipeCategory.BUILDING_BLOCKS, output, 0.1F, 200)
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter);
 	}
 
 	public void offerReversibleCompactingRecipes(
@@ -716,7 +648,7 @@ public abstract class RecipeGenerator {
 			RecipeCategory compactingCategory,
 			ItemConvertible compactItem
 	) {
-		this.offerReversibleCompactingRecipes(
+		offerReversibleCompactingRecipes(
 				reverseCategory,
 				baseItem,
 				compactingCategory,
@@ -736,7 +668,7 @@ public abstract class RecipeGenerator {
 			String compactingId,
 			String compactingGroup
 	) {
-		this.offerReversibleCompactingRecipes(
+		offerReversibleCompactingRecipes(
 				reverseCategory,
 				baseItem,
 				compactingCategory,
@@ -756,7 +688,7 @@ public abstract class RecipeGenerator {
 			String reverseId,
 			String reverseGroup
 	) {
-		this.offerReversibleCompactingRecipes(
+		offerReversibleCompactingRecipes(
 				reverseCategory,
 				baseItem,
 				compactingCategory,
@@ -778,43 +710,43 @@ public abstract class RecipeGenerator {
 			String reverseId,
 			@Nullable String reverseGroup
 	) {
-		this.createShapeless(reverseCategory, baseItem, 9)
+		createShapeless(reverseCategory, baseItem, 9)
 		    .input(compactItem)
 		    .group(reverseGroup)
-		    .criterion(hasItem(compactItem), this.conditionsFromItem(compactItem))
-		    .offerTo(this.exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(reverseId)));
-		this.createShaped(compactingCategory, compactItem)
+		    .criterion(hasItem(compactItem), conditionsFromItem(compactItem))
+		    .offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(reverseId)));
+		createShaped(compactingCategory, compactItem)
 		    .input('#', baseItem)
 		    .pattern("###")
 		    .pattern("###")
 		    .pattern("###")
 		    .group(compactingGroup)
-		    .criterion(hasItem(baseItem), this.conditionsFromItem(baseItem))
-		    .offerTo(this.exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(compactingId)));
+		    .criterion(hasItem(baseItem), conditionsFromItem(baseItem))
+		    .offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(compactingId)));
 	}
 
 	public void offerSmithingTemplateCopyingRecipe(ItemConvertible template, ItemConvertible resource) {
-		this.createShaped(RecipeCategory.MISC, template, 2)
+		createShaped(RecipeCategory.MISC, template, 2)
 		    .input('#', Items.DIAMOND)
 		    .input('C', resource)
 		    .input('S', template)
 		    .pattern("#S#")
 		    .pattern("#C#")
 		    .pattern("###")
-		    .criterion(hasItem(template), this.conditionsFromItem(template))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(template), conditionsFromItem(template))
+		    .offerTo(exporter);
 	}
 
 	public void offerSmithingTemplateCopyingRecipe(ItemConvertible template, Ingredient resource) {
-		this.createShaped(RecipeCategory.MISC, template, 2)
+		createShaped(RecipeCategory.MISC, template, 2)
 		    .input('#', Items.DIAMOND)
 		    .input('C', resource)
 		    .input('S', template)
 		    .pattern("#S#")
 		    .pattern("#C#")
 		    .pattern("###")
-		    .criterion(hasItem(template), this.conditionsFromItem(template))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(template), conditionsFromItem(template))
+		    .offerTo(exporter);
 	}
 
 	public <T extends AbstractCookingRecipe> void generateCookingRecipes(
@@ -823,7 +755,7 @@ public abstract class RecipeGenerator {
 			AbstractCookingRecipe.RecipeFactory<T> recipeFactory,
 			int cookingTime
 	) {
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -832,7 +764,7 @@ public abstract class RecipeGenerator {
 				Items.COOKED_BEEF,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -841,9 +773,9 @@ public abstract class RecipeGenerator {
 				Items.COOKED_CHICKEN,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(cooker, serializer, recipeFactory, cookingTime, Items.COD, Items.COOKED_COD, 0.35F);
-		this.offerFoodCookingRecipe(cooker, serializer, recipeFactory, cookingTime, Items.KELP, Items.DRIED_KELP, 0.1F);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(cooker, serializer, recipeFactory, cookingTime, Items.COD, Items.COOKED_COD, 0.35F);
+		offerFoodCookingRecipe(cooker, serializer, recipeFactory, cookingTime, Items.KELP, Items.DRIED_KELP, 0.1F);
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -852,7 +784,7 @@ public abstract class RecipeGenerator {
 				Items.COOKED_SALMON,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -861,7 +793,7 @@ public abstract class RecipeGenerator {
 				Items.COOKED_MUTTON,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -870,7 +802,7 @@ public abstract class RecipeGenerator {
 				Items.COOKED_PORKCHOP,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -879,7 +811,7 @@ public abstract class RecipeGenerator {
 				Items.BAKED_POTATO,
 				0.35F
 		);
-		this.offerFoodCookingRecipe(
+		offerFoodCookingRecipe(
 				cooker,
 				serializer,
 				recipeFactory,
@@ -909,8 +841,8 @@ public abstract class RecipeGenerator {
 						serializer,
 						recipeFactory
 				)
-				.criterion(hasItem(input), this.conditionsFromItem(input))
-				.offerTo(this.exporter, getItemPath(output) + "_from_" + cooker);
+				.criterion(hasItem(input), conditionsFromItem(input))
+				.offerTo(exporter, getItemPath(output) + "_from_" + cooker);
 	}
 
 	public void offerWaxingRecipes(FeatureSet enabledFeatures) {
@@ -928,49 +860,49 @@ public abstract class RecipeGenerator {
 												);
 								RecipeCategory recipeCategory = (RecipeCategory) pair.getFirst();
 								String string = (String) pair.getSecond();
-								this.createShapeless(recipeCategory, waxed)
+								createShapeless(recipeCategory, waxed)
 								    .input(unwaxed)
 								    .input(Items.HONEYCOMB)
 								    .group(string)
-								    .criterion(hasItem(unwaxed), this.conditionsFromItem(unwaxed))
-								    .offerTo(this.exporter, convertBetween(waxed, Items.HONEYCOMB));
+								    .criterion(hasItem(unwaxed), conditionsFromItem(unwaxed))
+								    .offerTo(exporter, convertBetween(waxed, Items.HONEYCOMB));
 							}
 						}
 				);
 	}
 
 	public void offerGrateRecipe(Block output, Block input) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output, 4)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output, 4)
 		    .input('M', input)
 		    .pattern(" M ")
 		    .pattern("M M")
 		    .pattern(" M ")
 		    .group(getItemPath(output))
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerBulbRecipe(Block output, Block input) {
-		this.createShaped(RecipeCategory.REDSTONE, output, 4)
+		createShaped(RecipeCategory.REDSTONE, output, 4)
 		    .input('C', input)
 		    .input('R', Items.REDSTONE)
 		    .input('B', Items.BLAZE_ROD)
 		    .pattern(" C ")
 		    .pattern("CBC")
 		    .pattern(" R ")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
+		    .criterion(hasItem(input), conditionsFromItem(input))
 		    .group(getItemPath(output))
-		    .offerTo(this.exporter);
+		    .offerTo(exporter);
 	}
 
 	public void offerWaxedChiseledCopperRecipe(Block output, Block input) {
-		this.createShaped(RecipeCategory.BUILDING_BLOCKS, output)
+		createShaped(RecipeCategory.BUILDING_BLOCKS, output)
 		    .input('M', input)
 		    .pattern(" M ")
 		    .pattern(" M ")
 		    .group(getItemPath(output))
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter);
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter);
 	}
 
 	public void offerSuspiciousStewRecipe(Item input, SuspiciousStewIngredient stewIngredient) {
@@ -982,61 +914,55 @@ public abstract class RecipeGenerator {
 						.add(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, stewIngredient.getStewEffects())
 						.build()
 		);
-		this.createShapeless(RecipeCategory.FOOD, itemStack)
+		createShapeless(RecipeCategory.FOOD, itemStack)
 		    .input(Items.BOWL)
 		    .input(Items.BROWN_MUSHROOM)
 		    .input(Items.RED_MUSHROOM)
 		    .input(input)
 		    .group("suspicious_stew")
-		    .criterion(hasItem(input), this.conditionsFromItem(input))
-		    .offerTo(this.exporter, getItemPath(itemStack.getItem()) + "_from_" + getItemPath(input));
+		    .criterion(hasItem(input), conditionsFromItem(input))
+		    .offerTo(exporter, getItemPath(itemStack.getItem()) + "_from_" + getItemPath(input));
 	}
 
 	public void generateFamily(BlockFamily family, FeatureSet enabledFeatures) {
-		family.getVariants()
-		      .forEach(
-				      (variant, block) -> {
-					      if (block.getRequiredFeatures().isSubsetOf(enabledFeatures)) {
-						      RecipeGenerator.BlockFamilyRecipeFactory
-								      blockFamilyRecipeFactory =
-								      VARIANT_FACTORIES.get(variant);
-						      ItemConvertible itemConvertible = this.getVariantRecipeInput(family, variant);
-						      if (blockFamilyRecipeFactory != null) {
-							      CraftingRecipeJsonBuilder
-									      craftingRecipeJsonBuilder =
-									      blockFamilyRecipeFactory.create(this, block, itemConvertible);
-							      family.getGroup()
-							            .ifPresent(group -> craftingRecipeJsonBuilder.group(
-									            group + (variant == BlockFamily.Variant.CUT ? ""
-									                                                        : "_" + variant.getName()
-									            )));
-							      craftingRecipeJsonBuilder.criterion(
-									      family.getUnlockCriterionName().orElseGet(() -> hasItem(itemConvertible)),
-									      this.conditionsFromItem(itemConvertible)
-							      );
-							      craftingRecipeJsonBuilder.offerTo(this.exporter);
-						      }
+		family.getVariants().forEach((variant, block) -> {
+			if (block.getRequiredFeatures().isSubsetOf(enabledFeatures) == false) {
+				return;
+			}
 
-						      if (variant == BlockFamily.Variant.CRACKED) {
-							      this.offerCrackingRecipe(block, itemConvertible);
-						      }
-					      }
-				      }
-		      );
+			BlockFamilyRecipeFactory recipeFactory = VARIANT_FACTORIES.get(variant);
+			ItemConvertible recipeInput = getVariantRecipeInput(family, variant);
+
+			if (recipeFactory != null) {
+				CraftingRecipeJsonBuilder recipeBuilder = recipeFactory.create(this, block, recipeInput);
+
+				family.getGroup().ifPresent(group -> recipeBuilder.group(
+						group + (variant == BlockFamily.Variant.CUT ? "" : "_" + variant.getName())
+				));
+
+				recipeBuilder.criterion(
+						family.getUnlockCriterionName().orElseGet(() -> hasItem(recipeInput)),
+						conditionsFromItem(recipeInput)
+				);
+				recipeBuilder.offerTo(exporter);
+			}
+
+			if (variant == BlockFamily.Variant.CRACKED) {
+				offerCrackingRecipe(block, recipeInput);
+			}
+		});
 	}
 
 	public final Block getVariantRecipeInput(BlockFamily family, BlockFamily.Variant variant) {
 		if (variant == BlockFamily.Variant.CHISELED) {
-			if (!family.getVariants().containsKey(BlockFamily.Variant.SLAB)) {
+			if (family.getVariants().containsKey(BlockFamily.Variant.SLAB) == false) {
 				throw new IllegalStateException("Slab is not defined for the family.");
 			}
-			else {
-				return family.getVariant(BlockFamily.Variant.SLAB);
-			}
+
+			return family.getVariant(BlockFamily.Variant.SLAB);
 		}
-		else {
-			return family.getBaseBlock();
-		}
+
+		return family.getBaseBlock();
 	}
 
 	public static AdvancementCriterion<EnterBlockCriterion.Conditions> requireEnteringFluid(Block block) {
@@ -1051,15 +977,15 @@ public abstract class RecipeGenerator {
 			NumberRange.IntRange count,
 			ItemConvertible item
 	) {
-		return conditionsFromPredicates(ItemPredicate.Builder.create().items(this.itemLookup, item).count(count));
+		return conditionsFromPredicates(ItemPredicate.Builder.create().items(itemLookup, item).count(count));
 	}
 
 	public AdvancementCriterion<InventoryChangedCriterion.Conditions> conditionsFromItem(ItemConvertible item) {
-		return conditionsFromPredicates(ItemPredicate.Builder.create().items(this.itemLookup, item));
+		return conditionsFromPredicates(ItemPredicate.Builder.create().items(itemLookup, item));
 	}
 
 	public AdvancementCriterion<InventoryChangedCriterion.Conditions> conditionsFromTag(TagKey<Item> tag) {
-		return conditionsFromPredicates(ItemPredicate.Builder.create().tag(this.itemLookup, tag));
+		return conditionsFromPredicates(ItemPredicate.Builder.create().tag(itemLookup, tag));
 	}
 
 	public static AdvancementCriterion<InventoryChangedCriterion.Conditions> conditionsFromPredicates(ItemPredicate.Builder... predicates) {
@@ -1103,40 +1029,42 @@ public abstract class RecipeGenerator {
 	}
 
 	public Ingredient ingredientFromTag(TagKey<Item> tag) {
-		return Ingredient.ofTag(this.itemLookup.getOrThrow(tag));
+		return Ingredient.ofTag(itemLookup.getOrThrow(tag));
 	}
 
 	public ShapedRecipeJsonBuilder createShaped(RecipeCategory category, ItemConvertible output) {
-		return ShapedRecipeJsonBuilder.create(this.itemLookup, category, output);
+		return ShapedRecipeJsonBuilder.create(itemLookup, category, output);
 	}
 
 	public ShapedRecipeJsonBuilder createShaped(RecipeCategory category, ItemConvertible output, int count) {
-		return ShapedRecipeJsonBuilder.create(this.itemLookup, category, output, count);
+		return ShapedRecipeJsonBuilder.create(itemLookup, category, output, count);
 	}
 
 	public ShapelessRecipeJsonBuilder createShapeless(RecipeCategory category, ItemStack output) {
-		return ShapelessRecipeJsonBuilder.create(this.itemLookup, category, output);
+		return ShapelessRecipeJsonBuilder.create(itemLookup, category, output);
 	}
 
 	public ShapelessRecipeJsonBuilder createShapeless(RecipeCategory category, ItemConvertible output) {
-		return ShapelessRecipeJsonBuilder.create(this.itemLookup, category, output);
+		return ShapelessRecipeJsonBuilder.create(itemLookup, category, output);
 	}
 
 	public ShapelessRecipeJsonBuilder createShapeless(RecipeCategory category, ItemConvertible output, int count) {
-		return ShapelessRecipeJsonBuilder.create(this.itemLookup, category, output, count);
+		return ShapelessRecipeJsonBuilder.create(itemLookup, category, output, count);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code BlockFamilyRecipeFactory}.
+	 * Фабрика рецептов для вариантов блочного семейства.
+	 * Принимает генератор, выходной блок и входной блок, возвращает построитель рецепта.
 	 */
+	@FunctionalInterface
 	interface BlockFamilyRecipeFactory {
 
 		CraftingRecipeJsonBuilder create(RecipeGenerator generator, ItemConvertible output, ItemConvertible input);
 	}
 
 	/**
-	 * {@code RecipeProvider}.
+	 * Базовый {@link DataProvider} для генерации рецептов.
+	 * Управляет жизненным циклом асинхронной записи рецептов и их достижений на диск.
 	 */
 	public abstract static class RecipeProvider implements DataProvider {
 
@@ -1150,17 +1078,14 @@ public abstract class RecipeGenerator {
 
 		@Override
 		public CompletableFuture<?> run(DataWriter writer) {
-			return this.registriesFuture
+			return registriesFuture
 					.thenCompose(
 							registries -> {
-								final DataOutput.PathResolver
-										pathResolver =
-										this.output.getResolver(RegistryKeys.RECIPE);
-								final DataOutput.PathResolver
-										pathResolver2 =
-										this.output.getResolver(RegistryKeys.ADVANCEMENT);
-								final Set<RegistryKey<Recipe<?>>> set = Sets.newHashSet();
-								final List<CompletableFuture<?>> list = new ArrayList<>();
+								final DataOutput.PathResolver recipePathResolver = output.getResolver(RegistryKeys.RECIPE);
+								final DataOutput.PathResolver advancementPathResolver = output.getResolver(RegistryKeys.ADVANCEMENT);
+								final Set<RegistryKey<Recipe<?>>> registeredKeys = Sets.newHashSet();
+								final List<CompletableFuture<?>> futures = new ArrayList<>();
+
 								RecipeExporter recipeExporter = new RecipeExporter() {
 									@Override
 									public void accept(
@@ -1168,14 +1093,14 @@ public abstract class RecipeGenerator {
 											Recipe<?> recipe,
 											@Nullable AdvancementEntry advancement
 									) {
-										if (!set.add(key)) {
+										if (registeredKeys.add(key) == false) {
 											throw new IllegalStateException("Duplicate recipe " + key.getValue());
 										}
-										else {
-											this.addRecipe(key, recipe);
-											if (advancement != null) {
-												this.addRecipeAdvancement(advancement);
-											}
+
+										addRecipe(key, recipe);
+
+										if (advancement != null) {
+											addRecipeAdvancement(advancement);
 										}
 									}
 
@@ -1188,40 +1113,41 @@ public abstract class RecipeGenerator {
 
 									@Override
 									public void addRootAdvancement() {
-										AdvancementEntry advancementEntry = Advancement.Builder.createUntelemetered()
-										                                                       .criterion(
-												                                                       "impossible",
-												                                                       Criteria.IMPOSSIBLE.create(
-														                                                       new ImpossibleCriterion.Conditions())
-										                                                       )
-										                                                       .build(CraftingRecipeJsonBuilder.ROOT);
-										this.addRecipeAdvancement(advancementEntry);
+										AdvancementEntry advancementEntry = Advancement.Builder
+												.createUntelemetered()
+												.criterion(
+														"impossible",
+														Criteria.IMPOSSIBLE.create(new ImpossibleCriterion.Conditions())
+												)
+												.build(CraftingRecipeJsonBuilder.ROOT);
+
+										addRecipeAdvancement(advancementEntry);
 									}
 
 									private void addRecipe(RegistryKey<Recipe<?>> key, Recipe<?> recipe) {
-										list.add(DataProvider.writeCodecToPath(
+										futures.add(DataProvider.writeCodecToPath(
 												writer,
 												registries,
 												Recipe.CODEC,
 												recipe,
-												pathResolver.resolveJson(key.getValue())
+												recipePathResolver.resolveJson(key.getValue())
 										));
 									}
 
 									private void addRecipeAdvancement(AdvancementEntry advancementEntry) {
-										list.add(
-												DataProvider.writeCodecToPath(
-														writer,
-														registries,
-														Advancement.CODEC,
-														advancementEntry.value(),
-														pathResolver2.resolveJson(advancementEntry.id())
-												)
-										);
+										futures.add(DataProvider.writeCodecToPath(
+												writer,
+												registries,
+												Advancement.CODEC,
+												advancementEntry.value(),
+												advancementPathResolver.resolveJson(advancementEntry.id())
+										));
 									}
 								};
-								this.getRecipeGenerator(registries, recipeExporter).generate();
-								return CompletableFuture.allOf(list.toArray(CompletableFuture[]::new));
+
+								getRecipeGenerator(registries, recipeExporter).generate();
+
+								return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
 							}
 					);
 		}

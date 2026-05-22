@@ -10,38 +10,40 @@ import com.mojang.datafixers.types.Type;
 import com.mojang.serialization.Dynamic;
 
 /**
- * {@code AddFlagIfNotPresentFix}.
+ * Добавляет булево поле с заданным значением, если оно ещё не присутствует в данных.
  */
 public class AddFlagIfNotPresentFix extends DataFix {
 
 	private final String description;
-	private final boolean value;
+	private final boolean flagValue;
 	private final String key;
 	private final TypeReference typeReference;
 
-	public AddFlagIfNotPresentFix(Schema outputSchema, TypeReference typeReference, String key, boolean value) {
+	public AddFlagIfNotPresentFix(Schema outputSchema, TypeReference typeReference, String key, boolean flagValue) {
 		super(outputSchema, true);
-		this.value = value;
+		this.flagValue = flagValue;
 		this.key = key;
-		this.description =
-				"AddFlagIfNotPresentFix_" + this.key + "=" + this.value + " for " + outputSchema.getVersionKey();
+		description = "AddFlagIfNotPresentFix_" + key + "=" + flagValue + " for " + outputSchema.getVersionKey();
 		this.typeReference = typeReference;
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(this.typeReference);
-		return this.fixTypeEverywhereTyped(
-				this.description,
-				type,
-				typed -> typed.update(
-						DSL.remainderFinder(),
-						dynamic -> dynamic.set(this.key,
-								(Dynamic) DataFixUtils.orElseGet(
-										dynamic.get(this.key).result(),
-										() -> dynamic.createBoolean(this.value)
-								)
-						)
+		Type<?> type = getInputSchema().getType(typeReference);
+
+		return fixTypeEverywhereTyped(
+			description,
+			type,
+			typed -> typed.update(
+				DSL.remainderFinder(),
+				dynamic -> dynamic.set(
+					key,
+					(Dynamic<?>) DataFixUtils.orElseGet(
+						dynamic.get(key).result(),
+						() -> dynamic.createBoolean(flagValue)
+					)
 				)
+			)
 		);
 	}
 }

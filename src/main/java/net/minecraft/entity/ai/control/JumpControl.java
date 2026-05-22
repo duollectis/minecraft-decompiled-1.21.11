@@ -2,9 +2,7 @@ package net.minecraft.entity.ai.control;
 
 import net.minecraft.entity.mob.MobEntity;
 
-/**
- * {@code JumpControl}.
- */
+/** Контроллер прыжка моба. Активируется на один тик через {@link #setActive()}. */
 public class JumpControl implements Control {
 
 	private final MobEntity entity;
@@ -15,14 +13,11 @@ public class JumpControl implements Control {
 	}
 
 	public void setActive() {
-		this.active = true;
+		active = true;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		this.entity.setJumping(this.active);
-		this.active = false;
+		entity.setJumping(active);
+		active = false;
 	}
 }

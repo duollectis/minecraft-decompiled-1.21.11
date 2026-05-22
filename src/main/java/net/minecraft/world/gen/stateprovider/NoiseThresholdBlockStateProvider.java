@@ -13,7 +13,9 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * {@code NoiseThresholdBlockStateProvider}.
+ * Поставщик состояний блоков с пороговым шумом Перлина.
+ * Если значение шума ниже порога — возвращает случайный блок из {@code lowStates},
+ * иначе с вероятностью {@code highChance} — из {@code highStates}, или {@code defaultState}.
  */
 public class NoiseThresholdBlockStateProvider extends AbstractNoiseBlockStateProvider {
 
@@ -21,23 +23,21 @@ public class NoiseThresholdBlockStateProvider extends AbstractNoiseBlockStatePro
 			instance -> fillCodecFields(instance)
 					.and(
 							instance.group(
-									Codec
-											.floatRange(-1.0F, 1.0F)
+									Codec.floatRange(-1.0F, 1.0F)
 											.fieldOf("threshold")
-											.forGetter(noiseThresholdBlockStateProvider -> noiseThresholdBlockStateProvider.threshold),
-									Codec
-											.floatRange(0.0F, 1.0F)
+											.forGetter(provider -> provider.threshold),
+									Codec.floatRange(0.0F, 1.0F)
 											.fieldOf("high_chance")
-											.forGetter(noiseThresholdBlockStateProvider -> noiseThresholdBlockStateProvider.highChance),
+											.forGetter(provider -> provider.highChance),
 									BlockState.CODEC
 											.fieldOf("default_state")
-											.forGetter(noiseThresholdBlockStateProvider -> noiseThresholdBlockStateProvider.defaultState),
+											.forGetter(provider -> provider.defaultState),
 									Codecs.nonEmptyList(BlockState.CODEC.listOf())
-									      .fieldOf("low_states")
-									      .forGetter(noiseThresholdBlockStateProvider -> noiseThresholdBlockStateProvider.lowStates),
+											.fieldOf("low_states")
+											.forGetter(provider -> provider.lowStates),
 									Codecs.nonEmptyList(BlockState.CODEC.listOf())
-									      .fieldOf("high_states")
-									      .forGetter(noiseThresholdBlockStateProvider -> noiseThresholdBlockStateProvider.highStates)
+											.fieldOf("high_states")
+											.forGetter(provider -> provider.highStates)
 							)
 					)
 					.apply(instance, NoiseThresholdBlockStateProvider::new)
@@ -73,12 +73,14 @@ public class NoiseThresholdBlockStateProvider extends AbstractNoiseBlockStatePro
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		double d = this.getNoiseValue(pos, this.scale);
-		if (d < this.threshold) {
-			return Util.getRandom(this.lowStates, random);
+		double noiseValue = getNoiseValue(pos, scale);
+
+		if (noiseValue < threshold) {
+			return Util.getRandom(lowStates, random);
 		}
-		else {
-			return random.nextFloat() < this.highChance ? Util.getRandom(this.highStates, random) : this.defaultState;
-		}
+
+		return random.nextFloat() < highChance
+				? Util.getRandom(highStates, random)
+				: defaultState;
 	}
 }

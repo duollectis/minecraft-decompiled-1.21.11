@@ -12,11 +12,13 @@ import net.minecraft.util.Util;
 
 import java.util.OptionalInt;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultilineTextWidget}.
+ * Виджет многострочного текста с кешированием разбивки строк и поддержкой центрирования.
  */
+@Environment(EnvType.CLIENT)
 public class MultilineTextWidget extends AbstractTextWidget {
+
+	private static final int LINE_HEIGHT = 9;
 
 	private OptionalInt maxWidth = OptionalInt.empty();
 	private OptionalInt maxRows = OptionalInt.empty();
@@ -29,7 +31,7 @@ public class MultilineTextWidget extends AbstractTextWidget {
 
 	public MultilineTextWidget(int x, int y, Text message, TextRenderer textRenderer) {
 		super(x, y, 0, 0, message, textRenderer);
-		this.cacheKeyToText = Util.cachedMapper(
+		cacheKeyToText = Util.cachedMapper(
 				cacheKey -> cacheKey.maxRows.isPresent()
 				            ? MultilineText.create(
 						textRenderer,
@@ -39,7 +41,7 @@ public class MultilineTextWidget extends AbstractTextWidget {
 				)
 				            : MultilineText.create(textRenderer, cacheKey.message, cacheKey.maxWidth)
 		);
-		this.active = false;
+		active = false;
 	}
 
 	public MultilineTextWidget setMaxWidth(int maxWidth) {
@@ -59,49 +61,46 @@ public class MultilineTextWidget extends AbstractTextWidget {
 
 	@Override
 	public int getWidth() {
-		return this.cacheKeyToText.map(this.getCacheKey()).getMaxWidth();
+		return cacheKeyToText.map(getCacheKey()).getMaxWidth();
 	}
 
 	@Override
 	public int getHeight() {
-		return this.cacheKeyToText.map(this.getCacheKey()).getLineCount() * 9;
+		return cacheKeyToText.map(getCacheKey()).getLineCount() * LINE_HEIGHT;
 	}
 
 	@Override
 	public void draw(DrawnTextConsumer textConsumer) {
-		MultilineText multilineText = this.cacheKeyToText.map(this.getCacheKey());
-		int i = this.getTextX();
-		int j = this.getTextY();
-		int k = 9;
-		if (this.centered) {
-			int l = this.getX() + this.getWidth() / 2;
-			multilineText.draw(Alignment.CENTER, l, j, k, textConsumer);
+		MultilineText multilineText = cacheKeyToText.map(getCacheKey());
+		int textX = getTextX();
+		int textY = getTextY();
+
+		if (centered) {
+			int centerX = getX() + getWidth() / 2;
+			multilineText.draw(Alignment.CENTER, centerX, textY, LINE_HEIGHT, textConsumer);
 		}
 		else {
-			multilineText.draw(Alignment.LEFT, i, j, k, textConsumer);
+			multilineText.draw(Alignment.LEFT, textX, textY, LINE_HEIGHT, textConsumer);
 		}
 	}
 
 	protected int getTextX() {
-		return this.getX();
+		return getX();
 	}
 
 	protected int getTextY() {
-		return this.getY();
+		return getY();
 	}
 
 	private MultilineTextWidget.CacheKey getCacheKey() {
 		return new MultilineTextWidget.CacheKey(
-				this.getMessage(),
-				this.maxWidth.orElse(Integer.MAX_VALUE),
-				this.maxRows
+				getMessage(),
+				maxWidth.orElse(Integer.MAX_VALUE),
+				maxRows
 		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CacheKey}.
-	 */
 	record CacheKey(Text message, int maxWidth, OptionalInt maxRows) {
 	}
 }

@@ -15,11 +15,16 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.util.annotation.DeobfuscateClass;
 
+/**
+ * Таблица констант OpenGL и утилитарные методы преобразования высокоуровневых
+ * перечислений движка в соответствующие GL-идентификаторы.
+ *
+ * <p>Все числовые значения взяты из спецификации OpenGL 3.3 Core Profile.
+ * Методы {@code toGl*()} служат единственной точкой маппинга, чтобы
+ * остальной код не содержал магических чисел GL.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code GlConst}.
- */
 public class GlConst {
 
 	public static final int GL_READ_FRAMEBUFFER = 36008;
@@ -75,6 +80,11 @@ public class GlConst {
 	public static final int GL_ONE_MINUS_DST_ALPHA = 773;
 	public static final int GL_DST_COLOR = 774;
 	public static final int GL_ONE_MINUS_DST_COLOR = 775;
+	public static final int GL_SRC_ALPHA_SATURATE = 776;
+	public static final int GL_CONSTANT_COLOR = 32769;
+	public static final int GL_ONE_MINUS_CONSTANT_COLOR = 32770;
+	public static final int GL_CONSTANT_ALPHA = 32771;
+	public static final int GL_ONE_MINUS_CONSTANT_ALPHA = 32772;
 	public static final int GL_REPLACE = 7681;
 	public static final int GL_DEPTH_BUFFER_BIT = 256;
 	public static final int GL_COLOR_BUFFER_BIT = 16384;
@@ -111,6 +121,7 @@ public class GlConst {
 	public static final int GL_PACK_ROW_LENGTH = 3330;
 	public static final int GL_MAX_TEXTURE_SIZE = 3379;
 	public static final int GL_TEXTURE_2D = 3553;
+	/** Грани кубической карты в порядке: +X, -X, +Y, -Y, +Z, -Z. */
 	public static final int[] CUBEMAP_TARGETS = new int[]{34069, 34070, 34071, 34072, 34073, 34074};
 	public static final int GL_DEPTH_COMPONENT = 6402;
 	public static final int GL_DEPTH_COMPONENT32 = 33191;
@@ -144,178 +155,195 @@ public class GlConst {
 	public static final int GL_RGB = 6407;
 	public static final int GL_RG = 33319;
 	public static final int GL_R8 = 33321;
+	public static final int GL_R8I = 33329;
 	public static final int GL_RED = 6403;
+	public static final int GL_BLEND = 3042;
 	public static final int GL_OUT_OF_MEMORY = 1285;
+
+	// GL_MAP_READ_BIT | GL_CLIENT_STORAGE_BIT = 0x41
+	private static final int GL_BUFFER_FLAG_READ_CLIENT = 65;
+	// GL_MAP_WRITE_BIT | GL_CLIENT_STORAGE_BIT = 0x42
+	private static final int GL_BUFFER_FLAG_WRITE_CLIENT = 66;
+	// GL_MAP_PERSISTENT_BIT = 0x200
+	private static final int GL_MAP_PERSISTENT_BIT = 512;
 
 	public static int toGl(DepthTestFunction function) {
 		return switch (function) {
-			case NO_DEPTH_TEST -> 519;
-			case EQUAL_DEPTH_TEST -> 514;
-			case LESS_DEPTH_TEST -> 513;
-			case GREATER_DEPTH_TEST -> 516;
-			default -> 515;
+			case NO_DEPTH_TEST -> GL_ALWAYS;
+			case EQUAL_DEPTH_TEST -> GL_EQUAL;
+			case LESS_DEPTH_TEST -> GL_LESS;
+			case GREATER_DEPTH_TEST -> GL_GREATER;
+			default -> GL_LEQUAL;
 		};
 	}
 
 	public static int toGl(PolygonMode polygonMode) {
-		return switch (polygonMode) {
-			case WIREFRAME -> 6913;
-			default -> 6914;
-		};
+		return polygonMode == PolygonMode.WIREFRAME ? GL_LINE : GL_FILL;
 	}
 
 	public static int toGl(DestFactor factor) {
 		return switch (factor) {
-			case CONSTANT_ALPHA -> 32771;
-			case CONSTANT_COLOR -> 32769;
-			case DST_ALPHA -> 772;
-			case DST_COLOR -> 774;
-			case ONE -> 1;
-			case ONE_MINUS_CONSTANT_ALPHA -> 32772;
-			case ONE_MINUS_CONSTANT_COLOR -> 32770;
-			case ONE_MINUS_DST_ALPHA -> 773;
-			case ONE_MINUS_DST_COLOR -> 775;
-			case ONE_MINUS_SRC_ALPHA -> 771;
-			case ONE_MINUS_SRC_COLOR -> 769;
-			case SRC_ALPHA -> 770;
-			case SRC_COLOR -> 768;
-			case ZERO -> 0;
+			case CONSTANT_ALPHA -> GL_CONSTANT_ALPHA;
+			case CONSTANT_COLOR -> GL_CONSTANT_COLOR;
+			case DST_ALPHA -> GL_DST_ALPHA;
+			case DST_COLOR -> GL_DST_COLOR;
+			case ONE -> GL_ONE;
+			case ONE_MINUS_CONSTANT_ALPHA -> GL_ONE_MINUS_CONSTANT_ALPHA;
+			case ONE_MINUS_CONSTANT_COLOR -> GL_ONE_MINUS_CONSTANT_COLOR;
+			case ONE_MINUS_DST_ALPHA -> GL_ONE_MINUS_DST_ALPHA;
+			case ONE_MINUS_DST_COLOR -> GL_ONE_MINUS_DST_COLOR;
+			case ONE_MINUS_SRC_ALPHA -> GL_ONE_MINUS_SRC_ALPHA;
+			case ONE_MINUS_SRC_COLOR -> GL_ONE_MINUS_SRC_COLOR;
+			case SRC_ALPHA -> GL_SRC_ALPHA;
+			case SRC_COLOR -> GL_SRC_COLOR;
+			case ZERO -> GL_ZERO;
 		};
 	}
 
 	public static int toGl(SourceFactor factor) {
 		return switch (factor) {
-			case CONSTANT_ALPHA -> 32771;
-			case CONSTANT_COLOR -> 32769;
-			case DST_ALPHA -> 772;
-			case DST_COLOR -> 774;
-			case ONE -> 1;
-			case ONE_MINUS_CONSTANT_ALPHA -> 32772;
-			case ONE_MINUS_CONSTANT_COLOR -> 32770;
-			case ONE_MINUS_DST_ALPHA -> 773;
-			case ONE_MINUS_DST_COLOR -> 775;
-			case ONE_MINUS_SRC_ALPHA -> 771;
-			case ONE_MINUS_SRC_COLOR -> 769;
-			case SRC_ALPHA -> 770;
-			case SRC_ALPHA_SATURATE -> 776;
-			case SRC_COLOR -> 768;
-			case ZERO -> 0;
+			case CONSTANT_ALPHA -> GL_CONSTANT_ALPHA;
+			case CONSTANT_COLOR -> GL_CONSTANT_COLOR;
+			case DST_ALPHA -> GL_DST_ALPHA;
+			case DST_COLOR -> GL_DST_COLOR;
+			case ONE -> GL_ONE;
+			case ONE_MINUS_CONSTANT_ALPHA -> GL_ONE_MINUS_CONSTANT_ALPHA;
+			case ONE_MINUS_CONSTANT_COLOR -> GL_ONE_MINUS_CONSTANT_COLOR;
+			case ONE_MINUS_DST_ALPHA -> GL_ONE_MINUS_DST_ALPHA;
+			case ONE_MINUS_DST_COLOR -> GL_ONE_MINUS_DST_COLOR;
+			case ONE_MINUS_SRC_ALPHA -> GL_ONE_MINUS_SRC_ALPHA;
+			case ONE_MINUS_SRC_COLOR -> GL_ONE_MINUS_SRC_COLOR;
+			case SRC_ALPHA -> GL_SRC_ALPHA;
+			case SRC_ALPHA_SATURATE -> GL_SRC_ALPHA_SATURATE;
+			case SRC_COLOR -> GL_SRC_COLOR;
+			case ZERO -> GL_ZERO;
 		};
 	}
 
 	public static int toGl(VertexFormat.DrawMode drawMode) {
 		return switch (drawMode) {
-			case LINES -> 4;
-			case DEBUG_LINES -> 1;
-			case DEBUG_LINE_STRIP -> 3;
-			case POINTS -> 0;
-			case TRIANGLES -> 4;
-			case TRIANGLE_STRIP -> 5;
-			case TRIANGLE_FAN -> 6;
-			case QUADS -> 4;
+			case LINES, TRIANGLES, QUADS -> GL_TRIANGLES;
+			case DEBUG_LINES -> GL_LINES;
+			case DEBUG_LINE_STRIP -> GL_LINE_STRIP;
+			case POINTS -> GL_POINTS;
+			case TRIANGLE_STRIP -> GL_TRIANGLE_STRIP;
+			case TRIANGLE_FAN -> GL_TRIANGLE_FAN;
 		};
 	}
 
 	public static int toGl(VertexFormat.IndexType type) {
 		return switch (type) {
-			case SHORT -> 5123;
-			case INT -> 5125;
+			case SHORT -> GL_UNSIGNED_SHORT;
+			case INT -> GL_UNSIGNED_INT;
 		};
 	}
 
 	public static int toGl(NativeImage.Format format) {
 		return switch (format) {
-			case RGBA -> 6408;
-			case RGB -> 6407;
-			case LUMINANCE_ALPHA -> 33319;
-			case LUMINANCE -> 6403;
+			case RGBA -> GL_RGBA;
+			case RGB -> GL_RGB;
+			case LUMINANCE_ALPHA -> GL_RG;
+			case LUMINANCE -> GL_RED;
 		};
 	}
 
 	public static int toGl(AddressMode addressMode) {
 		return switch (addressMode) {
-			case REPEAT -> 10497;
-			case CLAMP_TO_EDGE -> 33071;
+			case REPEAT -> GL_REPEAT;
+			case CLAMP_TO_EDGE -> GL_CLAMP_TO_EDGE;
 		};
 	}
 
 	public static int toGl(VertexFormatElement.Type type) {
 		return switch (type) {
-			case FLOAT -> 5126;
-			case UBYTE -> 5121;
-			case BYTE -> 5120;
-			case USHORT -> 5123;
-			case SHORT -> 5122;
-			case UINT -> 5125;
-			case INT -> 5124;
+			case FLOAT -> GL_FLOAT;
+			case UBYTE -> GL_UNSIGNED_BYTE;
+			case BYTE -> GL_BYTE;
+			case USHORT -> GL_UNSIGNED_SHORT;
+			case SHORT -> GL_SHORT;
+			case UINT -> GL_UNSIGNED_INT;
+			case INT -> GL_INT;
 		};
 	}
 
 	public static int toGlInternalId(TextureFormat format) {
 		return switch (format) {
-			case RGBA8 -> 32856;
-			case RED8 -> 33321;
-			case RED8I -> 33329;
-			case DEPTH32 -> 33191;
+			case RGBA8 -> GL_RGBA8;
+			case RED8 -> GL_R8;
+			case RED8I -> GL_R8I;
+			case DEPTH32 -> GL_DEPTH_COMPONENT32;
 		};
 	}
 
 	public static int toGlExternalId(TextureFormat format) {
 		return switch (format) {
-			case RGBA8 -> 6408;
-			case RED8 -> 6403;
-			case RED8I -> 6403;
-			case DEPTH32 -> 6402;
+			case RGBA8 -> GL_RGBA;
+			case RED8, RED8I -> GL_RED;
+			case DEPTH32 -> GL_DEPTH_COMPONENT;
 		};
 	}
 
 	public static int toGlType(TextureFormat format) {
 		return switch (format) {
-			case RGBA8 -> 5121;
-			case RED8 -> 5121;
-			case RED8I -> 5121;
-			case DEPTH32 -> 5126;
+			case RGBA8, RED8, RED8I -> GL_UNSIGNED_BYTE;
+			case DEPTH32 -> GL_FLOAT;
 		};
 	}
 
 	public static int toGl(ShaderType type) {
 		return switch (type) {
-			case VERTEX -> 35633;
-			case FRAGMENT -> 35632;
+			case VERTEX -> GL_VERTEX_SHADER;
+			case FRAGMENT -> GL_FRAGMENT_SHADER;
 		};
 	}
 
+	/**
+	 * Преобразует битовую маску использования GPU-буфера в флаги хранилища OpenGL
+	 * (используется при вызове {@code glBufferStorage}).
+	 *
+	 * @param usage битовая маска {@link GpuBuffer.Usage}
+	 * @return комбинация флагов GL_MAP_*_BIT / GL_CLIENT_STORAGE_BIT
+	 */
 	public static int bufferUsageToGlFlag(@GpuBuffer.Usage int usage) {
-		int i = 0;
-		if ((usage & 1) != 0) {
-			i |= 65;
+		int flags = 0;
+
+		if ((usage & GpuBuffer.USAGE_MAP_READ) != 0) {
+			flags |= GL_BUFFER_FLAG_READ_CLIENT;
 		}
 
-		if ((usage & 2) != 0) {
-			i |= 66;
+		if ((usage & GpuBuffer.USAGE_MAP_WRITE) != 0) {
+			flags |= GL_BUFFER_FLAG_WRITE_CLIENT;
 		}
 
-		if ((usage & 8) != 0) {
-			i |= 256;
+		if ((usage & GpuBuffer.USAGE_COPY_DST) != 0) {
+			flags |= GL_DEPTH_BUFFER_BIT;
 		}
 
-		if ((usage & 4) != 0) {
-			i |= 512;
+		if ((usage & GpuBuffer.USAGE_HINT_CLIENT_STORAGE) != 0) {
+			flags |= GL_MAP_PERSISTENT_BIT;
 		}
 
-		return i;
+		return flags;
 	}
 
+	/**
+	 * Преобразует битовую маску использования GPU-буфера в GL-перечисление
+	 * подсказки использования (hint), передаваемое в {@code glBufferData}.
+	 *
+	 * @param usage битовая маска {@link GpuBuffer.Usage}
+	 * @return одно из {@code GL_STREAM_*}, {@code GL_STATIC_*} и т.д.
+	 */
 	public static int bufferUsageToGlEnum(@GpuBuffer.Usage int usage) {
-		boolean bl = (usage & 4) != 0;
-		if ((usage & 2) != 0) {
-			return bl ? 35040 : 35044;
+		boolean isClientStorage = (usage & GpuBuffer.USAGE_HINT_CLIENT_STORAGE) != 0;
+
+		if ((usage & GpuBuffer.USAGE_MAP_WRITE) != 0) {
+			return isClientStorage ? GL_STREAM_DRAW : GL_STATIC_DRAW;
 		}
-		else if ((usage & 1) != 0) {
-			return bl ? 35041 : 35045;
+
+		if ((usage & GpuBuffer.USAGE_MAP_READ) != 0) {
+			return isClientStorage ? GL_STREAM_READ : GL_STATIC_READ;
 		}
-		else {
-			return 35044;
-		}
+
+		return GL_STATIC_DRAW;
 	}
 }

@@ -14,11 +14,20 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code GoToVillageGoal}.
+ * Цель, заставляющая моба ночью двигаться в сторону ближайшей деревни
+ * (зоны с занятыми точками интереса). Использует нечёткое целеполагание
+ * с оценкой расстояния до POI.
  */
 public class GoToVillageGoal extends Goal {
 
 	private static final int ARRIVAL_DISTANCE = 10;
+	private static final int SEARCH_HORIZONTAL_RANGE = 15;
+	private static final int SEARCH_VERTICAL_RANGE = 7;
+	private static final int POI_NEAR_RADIUS = 6;
+	private static final double WAYPOINT_BLEND = 0.4;
+	private static final double WAYPOINT_STEP = 10.0;
+	private static final int RANDOM_WAYPOINT_RANGE = 16;
+
 	private final PathAwareEntity mob;
 	private final int searchRange;
 	private @Nullable BlockPos targetPosition;
@@ -31,72 +40,77 @@ public class GoToVillageGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.hasControllingPassenger()) {
+		if (mob.hasControllingPassenger()) {
 			return false;
 		}
-		else if (this.mob.getEntityWorld().isDay()) {
+
+		if (mob.getEntityWorld().isDay()) {
 			return false;
 		}
-		else if (this.mob.getRandom().nextInt(this.searchRange) != 0) {
+
+		if (mob.getRandom().nextInt(searchRange) != 0) {
 			return false;
 		}
-		else {
-			ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
-			BlockPos blockPos = this.mob.getBlockPos();
-			if (!serverWorld.isNearOccupiedPointOfInterest(blockPos, 6)) {
-				return false;
-			}
-			else {
-				Vec3d
-						vec3d =
-						FuzzyTargeting.find(
-								this.mob,
-								15,
-								7,
-								blockPosx -> -serverWorld.getOccupiedPointOfInterestDistance(ChunkSectionPos.from(
-										blockPosx))
-						);
-				this.targetPosition = vec3d == null ? null : BlockPos.ofFloored(vec3d);
-				return this.targetPosition != null;
-			}
+
+		ServerWorld serverWorld = (ServerWorld) mob.getEntityWorld();
+		BlockPos pos = mob.getBlockPos();
+
+		if (!serverWorld.isNearOccupiedPointOfInterest(pos, POI_NEAR_RADIUS)) {
+			return false;
 		}
+
+		Vec3d target = FuzzyTargeting.find(
+			mob,
+			SEARCH_HORIZONTAL_RANGE,
+			SEARCH_VERTICAL_RANGE,
+			blockPos -> -serverWorld.getOccupiedPointOfInterestDistance(ChunkSectionPos.from(blockPos))
+		);
+
+		targetPosition = target == null ? null : BlockPos.ofFloored(target);
+		return targetPosition != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.targetPosition != null && !this.mob.getNavigation().isIdle() && this.mob
-				.getNavigation()
-				.getTargetPos()
-				.equals(this.targetPosition);
+		return targetPosition != null
+			&& !mob.getNavigation().isIdle()
+			&& mob.getNavigation().getTargetPos().equals(targetPosition);
 	}
 
 	@Override
 	public void tick() {
-		if (this.targetPosition != null) {
-			EntityNavigation entityNavigation = this.mob.getNavigation();
-			if (entityNavigation.isIdle() && !this.targetPosition.isWithinDistance(this.mob.getEntityPos(), ARRIVAL_DISTANCE)) {
-				Vec3d vec3d = Vec3d.ofBottomCenter(this.targetPosition);
-				Vec3d vec3d2 = this.mob.getEntityPos();
-				Vec3d vec3d3 = vec3d2.subtract(vec3d);
-				vec3d = vec3d3.multiply(0.4).add(vec3d);
-				Vec3d vec3d4 = vec3d.subtract(vec3d2).normalize().multiply(10.0).add(vec3d2);
-				BlockPos blockPos = BlockPos.ofFloored(vec3d4);
-				blockPos = this.mob.getEntityWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockPos);
-				if (!entityNavigation.startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0)) {
-					this.findOtherWaypoint();
-				}
+		if (targetPosition == null) {
+			return;
+		}
+
+		EntityNavigation navigation = mob.getNavigation();
+
+		if (navigation.isIdle() && !targetPosition.isWithinDistance(mob.getEntityPos(), ARRIVAL_DISTANCE)) {
+			Vec3d targetCenter = Vec3d.ofBottomCenter(targetPosition);
+			Vec3d mobPos = mob.getEntityPos();
+			Vec3d blended = mobPos.subtract(targetCenter).multiply(WAYPOINT_BLEND).add(targetCenter);
+			Vec3d waypoint = blended.subtract(mobPos).normalize().multiply(WAYPOINT_STEP).add(mobPos);
+			BlockPos waypointPos = mob.getEntityWorld().getTopPosition(
+				Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+				BlockPos.ofFloored(waypoint)
+			);
+
+			if (!navigation.startMovingTo(waypointPos.getX(), waypointPos.getY(), waypointPos.getZ(), 1.0)) {
+				findOtherWaypoint();
 			}
 		}
 	}
 
 	private void findOtherWaypoint() {
-		Random random = this.mob.getRandom();
-		BlockPos blockPos = this.mob
-				.getEntityWorld()
-				.getTopPosition(
-						Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-						this.mob.getBlockPos().add(-8 + random.nextInt(16), 0, -8 + random.nextInt(16))
-				);
-		this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0);
+		Random random = mob.getRandom();
+		BlockPos randomPos = mob.getEntityWorld().getTopPosition(
+			Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+			mob.getBlockPos().add(
+				-8 + random.nextInt(RANDOM_WAYPOINT_RANGE),
+				0,
+				-8 + random.nextInt(RANDOM_WAYPOINT_RANGE)
+			)
+		);
+		mob.getNavigation().startMovingTo(randomPos.getX(), randomPos.getY(), randomPos.getZ(), 1.0);
 	}
 }

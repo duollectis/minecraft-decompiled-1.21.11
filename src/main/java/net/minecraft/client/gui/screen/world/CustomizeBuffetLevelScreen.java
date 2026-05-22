@@ -52,7 +52,7 @@ public class CustomizeBuffetLevelScreen extends Screen {
 		super(Text.translatable("createWorld.customize.buffet.title"));
 		this.parent = parent;
 		this.onDone = onDone;
-		this.layout = new ThreePartsLayoutWidget(this, 13 + 9 + 3 + 15, 33);
+		this.layout = new ThreePartsLayoutWidget(this, 13 + 9 + 3 + SEARCH_FIELD_HEIGHT, 33);
 		this.biomeRegistry = generatorOptionsHolder.getCombinedRegistryManager().getOrThrow(RegistryKeys.BIOME);
 		RegistryEntry<Biome> registryEntry = this.biomeRegistry
 				.getOptional(BiomeKeys.PLAINS)
@@ -83,7 +83,7 @@ public class CustomizeBuffetLevelScreen extends Screen {
 		directionalLayoutWidget.add(new TextWidget(this.getTitle(), this.textRenderer));
 		TextFieldWidget
 				textFieldWidget =
-				directionalLayoutWidget.add(new TextFieldWidget(this.textRenderer, 200, 15, Text.empty()));
+				directionalLayoutWidget.add(new TextFieldWidget(this.textRenderer, 200, SEARCH_FIELD_HEIGHT, Text.empty()));
 		CustomizeBuffetLevelScreen.BuffetBiomesListWidget
 				buffetBiomesListWidget =
 				new CustomizeBuffetLevelScreen.BuffetBiomesListWidget();
@@ -133,7 +133,7 @@ public class CustomizeBuffetLevelScreen extends Screen {
 					CustomizeBuffetLevelScreen.this.width,
 					CustomizeBuffetLevelScreen.this.layout.getContentHeight(),
 					CustomizeBuffetLevelScreen.this.layout.getHeaderHeight(),
-					15
+					SEARCH_FIELD_HEIGHT
 			);
 			this.onSearch("");
 		}

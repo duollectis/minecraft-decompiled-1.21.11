@@ -10,25 +10,20 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Set;
 
 /**
- * {@code EnchantmentActiveCheckLootCondition}.
+ * Условие, проверяющее активность чар в текущем контексте лута.
+ *
+ * <p>Используется в лут-таблицах чар для разграничения активного и неактивного состояния.</p>
  */
 public record EnchantmentActiveCheckLootCondition(boolean active) implements LootCondition {
 
 	public static final MapCodec<EnchantmentActiveCheckLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Codec.BOOL.fieldOf("active").forGetter(EnchantmentActiveCheckLootCondition::active))
-					.apply(instance, EnchantmentActiveCheckLootCondition::new)
+		instance -> instance
+			.group(Codec.BOOL.fieldOf("active").forGetter(EnchantmentActiveCheckLootCondition::active))
+			.apply(instance, EnchantmentActiveCheckLootCondition::new)
 	);
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
-		return lootContext.getOrThrow(LootContextParameters.ENCHANTMENT_ACTIVE) == this.active;
+		return lootContext.getOrThrow(LootContextParameters.ENCHANTMENT_ACTIVE) == active;
 	}
 
 	@Override

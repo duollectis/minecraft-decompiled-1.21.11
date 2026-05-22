@@ -5,7 +5,8 @@ import net.minecraft.recipe.display.CuttingRecipeDisplay;
 import net.minecraft.registry.RegistryKey;
 
 /**
- * {@code RecipeManager}.
+ * Интерфейс менеджера рецептов, предоставляющий доступ к наборам свойств ингредиентов
+ * и рецептам камнерезного станка для клиентской и серверной сторон.
  */
 public interface RecipeManager extends FabricRecipeManager {
 

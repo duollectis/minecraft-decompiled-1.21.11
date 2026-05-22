@@ -7,23 +7,22 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
+/** Корневая группа спектаторского меню: телепорт к игроку и телепорт к команде. */
 @Environment(EnvType.CLIENT)
-/**
- * {@code RootSpectatorCommandGroup}.
- */
 public class RootSpectatorCommandGroup implements SpectatorMenuCommandGroup {
 
 	private static final Text PROMPT_TEXT = Text.translatable("spectatorMenu.root.prompt");
+
 	private final List<SpectatorMenuCommand> elements = Lists.newArrayList();
 
 	public RootSpectatorCommandGroup() {
-		this.elements.add(new TeleportSpectatorMenu());
-		this.elements.add(new TeamTeleportSpectatorMenu());
+		elements.add(new TeleportSpectatorMenu());
+		elements.add(new TeamTeleportSpectatorMenu());
 	}
 
 	@Override
 	public List<SpectatorMenuCommand> getCommands() {
-		return this.elements;
+		return elements;
 	}
 
 	@Override

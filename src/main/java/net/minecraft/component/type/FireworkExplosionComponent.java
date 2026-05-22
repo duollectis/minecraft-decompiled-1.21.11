@@ -24,8 +24,8 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
- * {@code FireworkExplosionComponent}.
- */
+	 * Компонент взрыва фейерверка. Описывает форму, цвета, эффекты шлейфа и мерцания.
+	 */
 public record FireworkExplosionComponent(
 		FireworkExplosionComponent.Type shape,
 		IntList colors,
@@ -41,15 +41,15 @@ public record FireworkExplosionComponent(
 	public static final Codec<IntList> COLORS_CODEC = Codec.INT.listOf().xmap(IntArrayList::new, ArrayList::new);
 	public static final Codec<FireworkExplosionComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    FireworkExplosionComponent.Type.CODEC.fieldOf("shape").forGetter(FireworkExplosionComponent::shape),
-					                    COLORS_CODEC.optionalFieldOf("colors", IntList.of()).forGetter(FireworkExplosionComponent::colors),
-					                    COLORS_CODEC
-							                    .optionalFieldOf("fade_colors", IntList.of())
-							                    .forGetter(FireworkExplosionComponent::fadeColors),
-					                    Codec.BOOL.optionalFieldOf("has_trail", false).forGetter(FireworkExplosionComponent::hasTrail),
-					                    Codec.BOOL.optionalFieldOf("has_twinkle", false).forGetter(FireworkExplosionComponent::hasTwinkle)
-			                    )
-			                    .apply(instance, FireworkExplosionComponent::new)
+										FireworkExplosionComponent.Type.CODEC.fieldOf("shape").forGetter(FireworkExplosionComponent::shape),
+										COLORS_CODEC.optionalFieldOf("colors", IntList.of()).forGetter(FireworkExplosionComponent::colors),
+										COLORS_CODEC
+												.optionalFieldOf("fade_colors", IntList.of())
+												.forGetter(FireworkExplosionComponent::fadeColors),
+										Codec.BOOL.optionalFieldOf("has_trail", false).forGetter(FireworkExplosionComponent::hasTrail),
+										Codec.BOOL.optionalFieldOf("has_twinkle", false).forGetter(FireworkExplosionComponent::hasTwinkle)
+								)
+								.apply(instance, FireworkExplosionComponent::new)
 	);
 	private static final PacketCodec<ByteBuf, IntList> COLORS_PACKET_CODEC = PacketCodecs.INTEGER
 			.collect(PacketCodecs.toList())
@@ -76,47 +76,42 @@ public record FireworkExplosionComponent(
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		textConsumer.accept(this.shape.getName().formatted(Formatting.GRAY));
-		this.appendOptionalTooltip(textConsumer);
+		textConsumer.accept(shape.getName().formatted(Formatting.GRAY));
+		appendOptionalTooltip(textConsumer);
 	}
 
-	/**
-	 * Append optional tooltip.
-	 *
-	 * @param textConsumer text consumer
-	 */
 	public void appendOptionalTooltip(Consumer<Text> textConsumer) {
-		if (!this.colors.isEmpty()) {
-			textConsumer.accept(appendColorsTooltipText(Text.empty().formatted(Formatting.GRAY), this.colors));
+		if (!colors.isEmpty()) {
+			textConsumer.accept(appendColorsTooltipText(Text.empty().formatted(Formatting.GRAY), colors));
 		}
 
-		if (!this.fadeColors.isEmpty()) {
+		if (!fadeColors.isEmpty()) {
 			textConsumer.accept(
 					appendColorsTooltipText(
-							Text
-									.translatable("item.minecraft.firework_star.fade_to")
+							Text.translatable("item.minecraft.firework_star.fade_to")
 									.append(ScreenTexts.SPACE)
-									.formatted(Formatting.GRAY), this.fadeColors
+									.formatted(Formatting.GRAY),
+							fadeColors
 					)
 			);
 		}
 
-		if (this.hasTrail) {
+		if (hasTrail) {
 			textConsumer.accept(Text.translatable("item.minecraft.firework_star.trail").formatted(Formatting.GRAY));
 		}
 
-		if (this.hasTwinkle) {
+		if (hasTwinkle) {
 			textConsumer.accept(Text.translatable("item.minecraft.firework_star.flicker").formatted(Formatting.GRAY));
 		}
 	}
 
 	private static Text appendColorsTooltipText(MutableText text, IntList colors) {
-		for (int i = 0; i < colors.size(); i++) {
-			if (i > 0) {
+		for (int index = 0; index < colors.size(); index++) {
+			if (index > 0) {
 				text.append(", ");
 			}
 
-			text.append(getColorText(colors.getInt(i)));
+			text.append(getColorText(colors.getInt(index)));
 		}
 
 		return text;
@@ -124,32 +119,16 @@ public record FireworkExplosionComponent(
 
 	private static Text getColorText(int color) {
 		DyeColor dyeColor = DyeColor.byFireworkColor(color);
-		return (Text) (dyeColor == null ? CUSTOM_COLOR_TEXT
-		                                : Text.translatable("item.minecraft.firework_star." + dyeColor.getId())
-		);
+		return dyeColor == null
+				? CUSTOM_COLOR_TEXT
+				: Text.translatable("item.minecraft.firework_star." + dyeColor.getId());
 	}
 
-	/**
-	 * With fade colors.
-	 *
-	 * @param fadeColors fade colors
-	 *
-	 * @return FireworkExplosionComponent — результат операции
-	 */
-	public FireworkExplosionComponent withFadeColors(IntList fadeColors) {
-		return new FireworkExplosionComponent(
-				this.shape,
-				this.colors,
-				new IntArrayList(fadeColors),
-				this.hasTrail,
-				this.hasTwinkle
-		);
+	public FireworkExplosionComponent withFadeColors(IntList newFadeColors) {
+		return new FireworkExplosionComponent(shape, colors, new IntArrayList(newFadeColors), hasTrail, hasTwinkle);
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type implements StringIdentifiable {
+	public enum Type implements StringIdentifiable {
 		SMALL_BALL(0, "small_ball"),
 		LARGE_BALL(1, "large_ball"),
 		STAR(2, "star"),
@@ -174,20 +153,20 @@ public record FireworkExplosionComponent(
 		}
 
 		public MutableText getName() {
-			return Text.translatable("item.minecraft.firework_star.shape." + this.name);
+			return Text.translatable("item.minecraft.firework_star.shape." + name);
 		}
 
 		public int getId() {
-			return this.id;
+			return id;
 		}
 
-		public static FireworkExplosionComponent.Type byId(int id) {
+		public static Type byId(int id) {
 			return BY_ID.apply(id);
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

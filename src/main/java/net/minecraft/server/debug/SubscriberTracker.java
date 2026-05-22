@@ -10,7 +10,9 @@ import net.minecraft.world.debug.DebugSubscriptionType;
 import java.util.*;
 
 /**
- * {@code SubscriberTracker}.
+ * Отслеживает, какие игроки подписаны на какие типы отладочных данных.
+ * На каждом тике перестраивает карту подписчиков и позволяет рассылать
+ * отладочные пакеты только заинтересованным игрокам.
  */
 public class SubscriberTracker {
 
@@ -22,58 +24,47 @@ public class SubscriberTracker {
 	}
 
 	private List<ServerPlayerEntity> getSubscribers(DebugSubscriptionType<?> type) {
-		return this.subscribers.getOrDefault(type, List.of());
+		return subscribers.getOrDefault(type, List.of());
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		this.subscribers.values().forEach(List::clear);
+		subscribers.values().forEach(List::clear);
 
-		for (ServerPlayerEntity serverPlayerEntity : this.server.getPlayerManager().getPlayerList()) {
-			for (DebugSubscriptionType<?> debugSubscriptionType : serverPlayerEntity.getSubscribedTypes()) {
-				this.subscribers
-						.computeIfAbsent(debugSubscriptionType, type -> new ArrayList<>())
-						.add(serverPlayerEntity);
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			for (DebugSubscriptionType<?> subscriptionType : player.getSubscribedTypes()) {
+				subscribers
+						.computeIfAbsent(subscriptionType, type -> new ArrayList<>())
+						.add(player);
 			}
 		}
 
-		this.subscribers.values().removeIf(List::isEmpty);
+		subscribers.values().removeIf(List::isEmpty);
 	}
 
-	/**
-	 * Send.
-	 *
-	 * @param type type
-	 * @param packet packet
-	 */
 	public void send(DebugSubscriptionType<?> type, Packet<?> packet) {
-		for (ServerPlayerEntity serverPlayerEntity : this.getSubscribers(type)) {
-			serverPlayerEntity.networkHandler.sendPacket(packet);
+		for (ServerPlayerEntity player : getSubscribers(type)) {
+			player.networkHandler.sendPacket(packet);
 		}
 	}
 
 	public Set<DebugSubscriptionType<?>> getSubscribedTypes() {
-		return Set.copyOf(this.subscribers.keySet());
+		return Set.copyOf(subscribers.keySet());
 	}
 
 	public boolean hasSubscriber(DebugSubscriptionType<?> type) {
-		return !this.getSubscribers(type).isEmpty();
+		return !getSubscribers(type).isEmpty();
 	}
 
 	/**
-	 * Проверяет возможность subscribe.
+	 * Проверяет, может ли игрок подписаться на отладочные данные.
+	 * В режиме разработки разрешено хосту, в продакшне — только операторам.
 	 *
-	 * @param player player
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param player проверяемый игрок
+	 * @return {@code true} если игрок имеет право на подписку
 	 */
 	public boolean canSubscribe(ServerPlayerEntity player) {
-		PlayerConfigEntry playerConfigEntry = player.getPlayerConfigEntry();
-		return SharedConstants.isDevelopment && this.server.isHost(playerConfigEntry) ? true : this.server
-		                                                                                       .getPlayerManager()
-		                                                                                       .isOperator(
-				                                                                                       playerConfigEntry);
+		PlayerConfigEntry configEntry = player.getPlayerConfigEntry();
+		return SharedConstants.isDevelopment && server.isHost(configEntry)
+				|| server.getPlayerManager().isOperator(configEntry);
 	}
 }

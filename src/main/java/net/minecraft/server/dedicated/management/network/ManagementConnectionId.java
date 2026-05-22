@@ -1,7 +1,7 @@
 package net.minecraft.server.dedicated.management.network;
 
 /**
- * {@code ManagementConnectionId}.
+ * Класс Management Connection Id.
  */
 public record ManagementConnectionId(Integer connectionId) {
 

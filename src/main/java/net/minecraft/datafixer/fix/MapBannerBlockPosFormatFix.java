@@ -11,7 +11,7 @@ import net.minecraft.datafixer.FixUtil;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code MapBannerBlockPosFormatFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class MapBannerBlockPosFormatFix extends DataFix {
 
@@ -20,11 +20,11 @@ public class MapBannerBlockPosFormatFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA);
+		Type<?> type = getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA);
 		OpticFinder<?> opticFinder = type.findField("data");
 		OpticFinder<?> opticFinder2 = opticFinder.type().findField("banners");
 		OpticFinder<?> opticFinder3 = DSL.typeFinder(((ListType) opticFinder2.type()).getElement());
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"MapBannerBlockPosFormatFix",
 				type,
 				typed -> typed.updateTyped(

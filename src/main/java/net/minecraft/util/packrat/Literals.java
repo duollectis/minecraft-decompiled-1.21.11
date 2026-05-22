@@ -8,80 +8,86 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code Literals}.
+ * Фабрика терминальных символов (литералов) для PEG-парсера.
+ * Предоставляет готовые {@link Term} для сопоставления строк и символов.
  */
 public interface Literals {
 
 	static Term<StringReader> string(String string) {
-		return new Literals.StringLiteral(string);
+		return new StringLiteral(string);
 	}
 
+	/**
+	 * Создаёт терминал, принимающий ровно один конкретный символ.
+	 */
 	static Term<StringReader> character(char c) {
-		return new Literals.CharacterLiteral(CharList.of(c)) {
+		return new CharacterLiteral(CharList.of(c)) {
 			@Override
-			protected boolean accepts(char c) {
-				return c == c;
+			protected boolean accepts(char ch) {
+				return ch == c;
 			}
 		};
 	}
 
+	/**
+	 * Создаёт терминал, принимающий один из двух символов.
+	 */
 	static Term<StringReader> character(char c1, char c2) {
-		return new Literals.CharacterLiteral(CharList.of(c1, c2)) {
+		return new CharacterLiteral(CharList.of(c1, c2)) {
 			@Override
-			protected boolean accepts(char c) {
-				return c == c1 || c == c2;
+			protected boolean accepts(char ch) {
+				return ch == c1 || ch == c2;
 			}
 		};
 	}
 
 	static StringReader createReader(String string, int cursor) {
-		StringReader stringReader = new StringReader(string);
-		stringReader.setCursor(cursor);
-		return stringReader;
+		StringReader reader = new StringReader(string);
+		reader.setCursor(cursor);
+		return reader;
 	}
 
 	/**
-	 * {@code CharacterLiteral}.
+	 * Терминал, сопоставляющий один символ из допустимого набора.
 	 */
-	public abstract static class CharacterLiteral implements Term<StringReader> {
+	abstract class CharacterLiteral implements Term<StringReader> {
 
 		private final CursorExceptionType<CommandSyntaxException> exception;
 		private final Suggestable<StringReader> suggestions;
 
 		public CharacterLiteral(CharList values) {
-			String string = values.intStream().mapToObj(Character::toString).collect(Collectors.joining("|"));
-			this.exception =
-					CursorExceptionType.create(CommandSyntaxException.BUILT_IN_EXCEPTIONS.literalIncorrect(), string);
-			this.suggestions = state -> values.intStream().mapToObj(Character::toString);
+			String joined = values.intStream()
+					.mapToObj(Character::toString)
+					.collect(Collectors.joining("|"));
+
+			exception = CursorExceptionType.create(
+					CommandSyntaxException.BUILT_IN_EXCEPTIONS.literalIncorrect(),
+					joined
+			);
+			suggestions = state -> values.intStream().mapToObj(Character::toString);
 		}
 
 		@Override
 		public boolean matches(ParsingState<StringReader> state, ParseResults results, Cut cut) {
 			state.getReader().skipWhitespace();
-			int i = state.getCursor();
-			if (state.getReader().canRead() && this.accepts(state.getReader().read())) {
+
+			int cursor = state.getCursor();
+
+			if (state.getReader().canRead() && accepts(state.getReader().read())) {
 				return true;
 			}
-			else {
-				state.getErrors().add(i, this.suggestions, this.exception);
-				return false;
-			}
+
+			state.getErrors().add(cursor, suggestions, exception);
+			return false;
 		}
 
-		/**
-		 * Accepts.
-		 *
-		 * @param c c
-		 *
-		 * @return boolean — результат операции
-		 */
 		protected abstract boolean accepts(char c);
 	}
 
 	/**
-	 * {@code StringLiteral}.
+	 * Терминал, сопоставляющий конкретную строку.
 	 */
-	public static final class StringLiteral implements Term<StringReader> {
+	final class StringLiteral implements Term<StringReader> {
 
 		private final String value;
 		private final CursorExceptionType<CommandSyntaxException> exception;
@@ -89,28 +95,31 @@ public interface Literals {
 
 		public StringLiteral(String value) {
 			this.value = value;
-			this.exception =
-					CursorExceptionType.create(CommandSyntaxException.BUILT_IN_EXCEPTIONS.literalIncorrect(), value);
-			this.suggestions = state -> Stream.of(value);
+			exception = CursorExceptionType.create(
+					CommandSyntaxException.BUILT_IN_EXCEPTIONS.literalIncorrect(),
+					value
+			);
+			suggestions = state -> Stream.of(value);
 		}
 
 		@Override
 		public boolean matches(ParsingState<StringReader> state, ParseResults results, Cut cut) {
 			state.getReader().skipWhitespace();
-			int i = state.getCursor();
-			String string = state.getReader().readUnquotedString();
-			if (!string.equals(this.value)) {
-				state.getErrors().add(i, this.suggestions, this.exception);
-				return false;
-			}
-			else {
+
+			int cursor = state.getCursor();
+			String token = state.getReader().readUnquotedString();
+
+			if (token.equals(value)) {
 				return true;
 			}
+
+			state.getErrors().add(cursor, suggestions, exception);
+			return false;
 		}
 
 		@Override
 		public String toString() {
-			return "terminal[" + this.value + "]";
+			return "terminal[" + value + "]";
 		}
 	}
 }

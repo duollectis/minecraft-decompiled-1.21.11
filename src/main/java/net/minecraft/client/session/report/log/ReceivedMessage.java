@@ -58,7 +58,7 @@ public interface ReceivedMessage extends ChatLogEntry {
 
 		public static final MapCodec<ReceivedMessage.ChatMessage> CHAT_MESSAGE_CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codecs.GAME_PROFILE_CODEC.fieldOf("profile").forGetter(ReceivedMessage.ChatMessage::profile),
+						                    Codecs.GAME_PROFILE.fieldOf("profile").forGetter(ReceivedMessage.ChatMessage::profile),
 						                    SignedMessage.CODEC.forGetter(ReceivedMessage.ChatMessage::message),
 						                    MessageTrustStatus.CODEC
 								                    .optionalFieldOf("trust_level", MessageTrustStatus.SECURE)

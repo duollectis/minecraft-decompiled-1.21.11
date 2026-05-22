@@ -10,7 +10,9 @@ import net.minecraft.structure.*;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code StructurePools}.
+ * Утилитарный класс для регистрации и получения ключей {@link StructurePool}.
+ * Содержит ключ пустого пула {@link #EMPTY}, используемого как заглушка,
+ * и точку входа {@link #bootstrap} для регистрации всех ванильных пулов.
  */
 public class StructurePools {
 
@@ -28,24 +30,24 @@ public class StructurePools {
 		return of(Identifier.of(id));
 	}
 
-	public static void register(Registerable<StructurePool> structurePoolsRegisterable, String id, StructurePool pool) {
-		structurePoolsRegisterable.register(ofVanilla(id), pool);
+	public static void register(Registerable<StructurePool> registerable, String id, StructurePool pool) {
+		registerable.register(ofVanilla(id), pool);
 	}
 
-	public static void bootstrap(Registerable<StructurePool> structurePoolsRegisterable) {
-		RegistryEntryLookup<StructurePool>
-				registryEntryLookup =
-				structurePoolsRegisterable.getRegistryLookup(RegistryKeys.TEMPLATE_POOL);
-		RegistryEntry<StructurePool> registryEntry = registryEntryLookup.getOrThrow(EMPTY);
-		structurePoolsRegisterable.register(
-				EMPTY,
-				new StructurePool(registryEntry, ImmutableList.of(), StructurePool.Projection.RIGID)
-		);
-		BastionRemnantGenerator.bootstrap(structurePoolsRegisterable);
-		PillagerOutpostGenerator.bootstrap(structurePoolsRegisterable);
-		VillageGenerator.bootstrap(structurePoolsRegisterable);
-		AncientCityGenerator.bootstrap(structurePoolsRegisterable);
-		TrailRuinsGenerator.bootstrap(structurePoolsRegisterable);
-		TrialChamberData.bootstrap(structurePoolsRegisterable);
+	/**
+	 * Регистрирует все ванильные пулы структур, включая пустой пул и пулы
+	 * для каждого типа генерируемых структур (деревни, бастионы и т.д.).
+	 */
+	public static void bootstrap(Registerable<StructurePool> registerable) {
+		RegistryEntryLookup<StructurePool> poolLookup = registerable.getRegistryLookup(RegistryKeys.TEMPLATE_POOL);
+		RegistryEntry<StructurePool> emptyEntry = poolLookup.getOrThrow(EMPTY);
+		registerable.register(EMPTY, new StructurePool(emptyEntry, ImmutableList.of(), StructurePool.Projection.RIGID));
+
+		BastionRemnantGenerator.bootstrap(registerable);
+		PillagerOutpostGenerator.bootstrap(registerable);
+		VillageGenerator.bootstrap(registerable);
+		AncientCityGenerator.bootstrap(registerable);
+		TrailRuinsGenerator.bootstrap(registerable);
+		TrialChamberData.bootstrap(registerable);
 	}
 }

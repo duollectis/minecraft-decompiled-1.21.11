@@ -7,31 +7,37 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ReversePortalParticle}.
+ * Обратная частица портала: в отличие от {@link PortalParticle}, движется
+ * от центра наружу с нарастающей скоростью. Крупнее стандартной (×1.5) и
+ * живёт дольше (60–61 тик). Используется для эффекта выхода из портала.
  */
+@Environment(EnvType.CLIENT)
 public class ReversePortalParticle extends PortalParticle {
 
+	private static final float SCALE_MULTIPLIER = 1.5F;
+	private static final int BASE_LIFETIME = 60;
+	private static final int LIFETIME_VARIANCE = 2;
+	private static final float LIFETIME_SCALE_FACTOR = 1.5F;
+
 	ReversePortalParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
 			Sprite sprite
 	) {
-		super(clientWorld, d, e, f, g, h, i, sprite);
-		this.scale *= 1.5F;
-		this.maxAge = (int) (this.random.nextFloat() * 2.0F) + 60;
+		super(world, x, y, z, velocityX, velocityY, velocityZ, sprite);
+		this.scale *= SCALE_MULTIPLIER;
+		this.maxAge = (int) (this.random.nextFloat() * LIFETIME_VARIANCE) + BASE_LIFETIME;
 	}
 
 	@Override
 	public float getSize(float tickProgress) {
-		float f = 1.0F - (this.age + tickProgress) / (this.maxAge * 1.5F);
-		return this.scale * f;
+		return this.scale * (1.0F - (this.age + tickProgress) / (this.maxAge * LIFETIME_SCALE_FACTOR));
 	}
 
 	@Override
@@ -39,21 +45,19 @@ public class ReversePortalParticle extends PortalParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
+
 		if (this.age++ >= this.maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			float f = (float) this.age / this.maxAge;
-			this.x = this.x + this.velocityX * f;
-			this.y = this.y + this.velocityY * f;
-			this.z = this.z + this.velocityZ * f;
-		}
+
+		float lifeProgress = (float) this.age / this.maxAge;
+		this.x += this.velocityX * lifeProgress;
+		this.y += this.velocityY * lifeProgress;
+		this.z += this.velocityZ * lifeProgress;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -62,18 +66,19 @@ public class ReversePortalParticle extends PortalParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new ReversePortalParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new ReversePortalParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
 		}
 	}
 }

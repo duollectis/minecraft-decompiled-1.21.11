@@ -26,7 +26,10 @@ import net.minecraft.world.WorldView;
 import java.util.Optional;
 
 /**
- * {@code StemBlock}.
+ * Стебель тыквы или арбуза, растущий на грядке. При достижении максимального
+ * возраста (7) пытается разместить плод ({@code gourdBlock}) в случайном
+ * горизонтальном направлении и превращается в прикреплённый стебель
+ * ({@code attachedStemBlock}).
  */
 public class StemBlock extends PlantBlock implements Fertilizable {
 
@@ -84,9 +87,9 @@ public class StemBlock extends PlantBlock implements Fertilizable {
 		if (world.getBaseLightLevel(pos, 0) >= 9) {
 			float f = CropBlock.getAvailableMoisture(this, world, pos);
 			if (random.nextInt((int) (25.0F / f) + 1) == 0) {
-				int i = state.get(AGE);
-				if (i < 7) {
-					state = state.with(AGE, i + 1);
+				int age = state.get(AGE);
+				if (age < MAX_AGE) {
+					state = state.with(AGE, age + 1);
 					world.setBlockState(pos, state, 2);
 				}
 				else {
@@ -136,10 +139,10 @@ public class StemBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		int i = Math.min(7, state.get(AGE) + MathHelper.nextInt(world.random, 2, 5));
-		BlockState blockState = state.with(AGE, i);
+		int newAge = Math.min(MAX_AGE, state.get(AGE) + MathHelper.nextInt(world.random, 2, 5));
+		BlockState blockState = state.with(AGE, newAge);
 		world.setBlockState(pos, blockState, 2);
-		if (i == 7) {
+		if (newAge == MAX_AGE) {
 			blockState.randomTick(world, pos, world.random);
 		}
 	}

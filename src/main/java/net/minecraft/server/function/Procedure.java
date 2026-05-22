@@ -6,7 +6,8 @@ import net.minecraft.util.Identifier;
 import java.util.List;
 
 /**
- * {@code Procedure}.
+ * Исполняемая последовательность команд с идентификатором.
+ * Реализуется как {@link ExpandedMacro} — финальный список действий после подстановки макросов.
  */
 public interface Procedure<T> {
 

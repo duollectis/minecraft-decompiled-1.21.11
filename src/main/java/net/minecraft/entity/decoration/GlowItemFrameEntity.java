@@ -10,7 +10,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 /**
- * {@code GlowItemFrameEntity}.
+ * Светящаяся рамка для предметов — вариант {@link ItemFrameEntity} с собственными звуками.
+ * Отличается от обычной рамки только звуковыми эффектами и дропом {@link Items#GLOW_ITEM_FRAME}.
  */
 public class GlowItemFrameEntity extends ItemFrameEntity {
 

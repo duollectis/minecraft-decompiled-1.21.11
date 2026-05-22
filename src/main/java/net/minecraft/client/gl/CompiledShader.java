@@ -7,19 +7,21 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CompiledShader}.
+ * Скомпилированный GLSL-шейдер (вершинный или фрагментный).
+ * Хранит OpenGL-дескриптор шейдера и освобождает его при закрытии.
  */
+@Environment(EnvType.CLIENT)
 public class CompiledShader implements AutoCloseable {
 
 	private static final int CLOSED = -1;
-	public static final CompiledShader
-			INVALID_SHADER =
-			new CompiledShader(-1, Identifier.ofVanilla("invalid"), ShaderType.VERTEX);
+
+	public static final CompiledShader INVALID_SHADER =
+		new CompiledShader(-1, Identifier.ofVanilla("invalid"), ShaderType.VERTEX);
+
 	private final Identifier id;
-	private int handle;
 	private final ShaderType shaderType;
+	private int handle;
 
 	public CompiledShader(int handle, Identifier id, ShaderType shaderType) {
 		this.id = id;
@@ -29,25 +31,24 @@ public class CompiledShader implements AutoCloseable {
 
 	@Override
 	public void close() {
-		if (this.handle == -1) {
+		if (handle == CLOSED) {
 			throw new IllegalStateException("Already closed");
 		}
-		else {
-			RenderSystem.assertOnRenderThread();
-			GlStateManager.glDeleteShader(this.handle);
-			this.handle = -1;
-		}
+
+		RenderSystem.assertOnRenderThread();
+		GlStateManager.glDeleteShader(handle);
+		handle = CLOSED;
 	}
 
 	public Identifier getId() {
-		return this.id;
+		return id;
 	}
 
 	public int getHandle() {
-		return this.handle;
+		return handle;
 	}
 
 	public String getDebugLabel() {
-		return this.shaderType.idConverter().toResourcePath(this.id).toString();
+		return shaderType.idConverter().toResourcePath(id).toString();
 	}
 }

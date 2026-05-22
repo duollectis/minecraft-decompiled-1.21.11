@@ -10,7 +10,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code RandomSpreadFoliagePlacer}.
+ * Размещает листву случайным разбросом: каждый лист помещается
+ * в случайную позицию в пределах заданного радиуса и высоты.
  */
 public class RandomSpreadFoliagePlacer extends FoliagePlacer {
 
@@ -61,12 +62,12 @@ public class RandomSpreadFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		BlockPos blockPos = treeNode.getCenter();
-		BlockPos.Mutable mutable = blockPos.mutableCopy();
+		BlockPos center = treeNode.getCenter();
+		BlockPos.Mutable mutable = center.mutableCopy();
 
-		for (int i = 0; i < this.leafPlacementAttempts; i++) {
+		for (int attempt = 0; attempt < this.leafPlacementAttempts; attempt++) {
 			mutable.set(
-					blockPos,
+					center,
 					random.nextInt(radius) - random.nextInt(radius),
 					random.nextInt(foliageHeight) - random.nextInt(foliageHeight),
 					random.nextInt(radius) - random.nextInt(radius)

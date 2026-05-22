@@ -14,59 +14,62 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CommandHistoryManager}.
+ * Менеджер истории команд чата клиента.
+ * Хранит до {@code MAX_HISTORY_SIZE} последних уникальных команд и персистирует их в файл.
  */
+@Environment(EnvType.CLIENT)
 public class CommandHistoryManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int MAX_SIZE = 50;
-	private static final String FILENAME = "command_history.txt";
-	private final Path path;
-	private final ArrayListDeque<String> history = new ArrayListDeque<>(50);
+	private static final int MAX_HISTORY_SIZE = 50;
+	private static final String HISTORY_FILENAME = "command_history.txt";
+
+	private final Path historyFilePath;
+	private final ArrayListDeque<String> history = new ArrayListDeque<>(MAX_HISTORY_SIZE);
 
 	public CommandHistoryManager(Path directoryPath) {
-		this.path = directoryPath.resolve("command_history.txt");
-		if (Files.exists(this.path)) {
-			try (BufferedReader bufferedReader = Files.newBufferedReader(this.path, StandardCharsets.UTF_8)) {
-				this.history.addAll(bufferedReader.lines().toList());
-			}
-			catch (Exception var7) {
-				LOGGER.error("Failed to read {}, command history will be missing", "command_history.txt", var7);
+		historyFilePath = directoryPath.resolve(HISTORY_FILENAME);
+		if (Files.exists(historyFilePath)) {
+			try (BufferedReader reader = Files.newBufferedReader(historyFilePath, StandardCharsets.UTF_8)) {
+				history.addAll(reader.lines().toList());
+			} catch (Exception exception) {
+				LOGGER.error("Failed to read {}, command history will be missing", HISTORY_FILENAME, exception);
 			}
 		}
 	}
 
 	/**
-	 * Add.
+	 * Добавляет команду в историю, если она отличается от последней.
+	 * При превышении лимита удаляет самую старую запись.
 	 *
-	 * @param command command
+	 * @param command команда для добавления
 	 */
 	public void add(String command) {
-		if (!command.equals(this.history.peekLast())) {
-			if (this.history.size() >= 50) {
-				this.history.removeFirst();
-			}
-
-			this.history.addLast(command);
-			this.write();
+		if (command.equals(history.peekLast())) {
+			return;
 		}
+
+		if (history.size() >= MAX_HISTORY_SIZE) {
+			history.removeFirst();
+		}
+
+		history.addLast(command);
+		write();
 	}
 
 	private void write() {
-		try (BufferedWriter bufferedWriter = Files.newBufferedWriter(this.path, StandardCharsets.UTF_8)) {
-			for (String string : this.history) {
-				bufferedWriter.write(string);
-				bufferedWriter.newLine();
+		try (BufferedWriter writer = Files.newBufferedWriter(historyFilePath, StandardCharsets.UTF_8)) {
+			for (String command : history) {
+				writer.write(command);
+				writer.newLine();
 			}
-		}
-		catch (IOException var6) {
-			LOGGER.error("Failed to write {}, command history will be missing", "command_history.txt", var6);
+		} catch (IOException exception) {
+			LOGGER.error("Failed to write {}, command history will be missing", HISTORY_FILENAME, exception);
 		}
 	}
 
 	public Collection<String> getHistory() {
-		return this.history;
+		return history;
 	}
 }

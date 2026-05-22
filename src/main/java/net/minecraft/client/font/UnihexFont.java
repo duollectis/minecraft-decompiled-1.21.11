@@ -30,10 +30,11 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UnihexFont}.
+ * Шрифт на основе формата Unifont HEX — текстового формата, где каждый глиф
+ * задаётся шестнадцатеричной строкой пикселей размером 8×16, 16×16, 24×16 или 32×16.
  */
+@Environment(EnvType.CLIENT)
 public class UnihexFont implements Font {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -51,77 +52,82 @@ public class UnihexFont implements Font {
 
 	@Override
 	public @Nullable Glyph getGlyph(int codePoint) {
-		return this.glyphs.get(codePoint);
+		return glyphs.get(codePoint);
 	}
 
 	@Override
 	public IntSet getProvidedGlyphs() {
-		return this.glyphs.getProvidedGlyphs();
+		return glyphs.getProvidedGlyphs();
 	}
 
 	@VisibleForTesting
 	static void addRowPixels(IntBuffer pixelsOut, int row, int left, int right) {
-		int i = 32 - left - 1;
-		int j = 32 - right - 1;
+		int startBit = NARROW_GLYPH_WIDTH - left - 1;
+		int endBit = NARROW_GLYPH_WIDTH - right - 1;
 
-		for (int k = i; k >= j; k--) {
-			if (k < 32 && k >= 0) {
-				boolean bl = (row >> k & 1) != 0;
-				pixelsOut.put(bl ? -1 : 0);
-			}
-			else {
+		for (int bit = startBit; bit >= endBit; bit--) {
+			if (bit < NARROW_GLYPH_WIDTH && bit >= 0) {
+				boolean isSet = (row >> bit & 1) != 0;
+				pixelsOut.put(isSet ? -1 : 0);
+			} else {
 				pixelsOut.put(0);
 			}
 		}
 	}
 
 	static void addGlyphPixels(IntBuffer pixelsOut, UnihexFont.BitmapGlyph glyph, int left, int right) {
-		for (int i = 0; i < 16; i++) {
-			int j = glyph.getPixels(i);
-			addRowPixels(pixelsOut, j, left, right);
+		for (int row = 0; row < GLYPH_HEIGHT; row++) {
+			addRowPixels(pixelsOut, glyph.getPixels(row), left, right);
 		}
 	}
 
+	/**
+	 * Читает строки HEX-файла и передаёт каждый глиф в {@code callback}.
+	 * Формат строки: {@code XXXX:HHHH...} где XXXX — кодовая точка (4–6 hex-цифр),
+	 * а HHHH... — пиксельные данные (32, 64, 96 или 128 hex-символов).
+	 */
 	@VisibleForTesting
 	static void readLines(InputStream stream, UnihexFont.BitmapGlyphConsumer callback) throws IOException {
-		int i = 0;
-		ByteList byteList = new ByteArrayList(128);
+		int lineNum = 0;
+		ByteList lineBuffer = new ByteArrayList(EXTRA_WIDE_GLYPH_WIDTH);
 
 		while (true) {
-			boolean bl = readUntilDelimiter(stream, byteList, 58);
-			int j = byteList.size();
-			if (j == 0 && !bl) {
+			boolean hasColon = readUntilDelimiter(stream, lineBuffer, 58);
+			int headerLen = lineBuffer.size();
+
+			if (headerLen == 0 && !hasColon) {
 				return;
 			}
 
-			if (!bl || j != 4 && j != 5 && j != 6) {
+			if (!hasColon || headerLen != 4 && headerLen != 5 && headerLen != 6) {
 				throw new IllegalArgumentException(
-						"Invalid entry at line " + i + ": expected 4, 5 or 6 hex digits followed by a colon");
+					"Invalid entry at line " + lineNum + ": expected 4, 5 or 6 hex digits followed by a colon"
+				);
 			}
 
-			int k = 0;
-
-			for (int l = 0; l < j; l++) {
-				k = k << 4 | getHexDigitValue(i, byteList.getByte(l));
+			int codePoint = 0;
+			for (int digitIndex = 0; digitIndex < headerLen; digitIndex++) {
+				codePoint = codePoint << 4 | getHexDigitValue(lineNum, lineBuffer.getByte(digitIndex));
 			}
 
-			byteList.clear();
-			readUntilDelimiter(stream, byteList, 10);
-			int l = byteList.size();
+			lineBuffer.clear();
+			readUntilDelimiter(stream, lineBuffer, 10);
+			int dataLen = lineBuffer.size();
 
-			UnihexFont.BitmapGlyph bitmapGlyph = switch (l) {
-				case 32 -> UnihexFont.FontImage8x16.read(i, byteList);
-				case 64 -> UnihexFont.FontImage16x16.read(i, byteList);
-				case 96 -> UnihexFont.FontImage32x16.read24x16(i, byteList);
-				case 128 -> UnihexFont.FontImage32x16.read32x16(i, byteList);
+			UnihexFont.BitmapGlyph glyph = switch (dataLen) {
+				case NARROW_GLYPH_WIDTH -> UnihexFont.FontImage8x16.read(lineNum, lineBuffer);
+				case MEDIUM_GLYPH_WIDTH -> UnihexFont.FontImage16x16.read(lineNum, lineBuffer);
+				case WIDE_GLYPH_WIDTH -> UnihexFont.FontImage32x16.read24x16(lineNum, lineBuffer);
+				case EXTRA_WIDE_GLYPH_WIDTH -> UnihexFont.FontImage32x16.read32x16(lineNum, lineBuffer);
 				default -> throw new IllegalArgumentException(
-						"Invalid entry at line " + i
-								+ ": expected hex number describing (8,16,24,32) x 16 bitmap, followed by a new line"
+					"Invalid entry at line " + lineNum
+						+ ": expected hex number describing (8,16,24,32) x 16 bitmap, followed by a new line"
 				);
 			};
-			callback.accept(k, bitmapGlyph);
-			i++;
-			byteList.clear();
+
+			callback.accept(codePoint, glyph);
+			lineNum++;
+			lineBuffer.clear();
 		}
 	}
 
@@ -141,36 +147,38 @@ public class UnihexFont implements Font {
 			case 55 -> 7;
 			case 56 -> 8;
 			case 57 -> 9;
-			default -> throw new IllegalArgumentException(
-					"Invalid entry at line " + lineNum + ": expected hex digit, got " + (char) digit);
 			case 65 -> 10;
 			case 66 -> 11;
 			case 67 -> 12;
 			case 68 -> 13;
 			case 69 -> 14;
 			case 70 -> 15;
+			default -> throw new IllegalArgumentException(
+				"Invalid entry at line " + lineNum + ": expected hex digit, got " + (char) digit
+			);
 		};
 	}
 
 	private static boolean readUntilDelimiter(InputStream stream, ByteList data, int delimiter) throws IOException {
 		while (true) {
-			int i = stream.read();
-			if (i == -1) {
+			int byteVal = stream.read();
+			if (byteVal == -1) {
 				return false;
 			}
 
-			if (i == delimiter) {
+			if (byteVal == delimiter) {
 				return true;
 			}
 
-			data.add((byte) i);
+			data.add((byte) byteVal);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BitmapGlyph}.
+	 * Растровое представление одного глифа Unifont.
+	 * Каждая строка глифа кодируется как целое число, где биты соответствуют пикселям.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface BitmapGlyph {
 
 		int getPixels(int y);
@@ -178,96 +186,73 @@ public class UnihexFont implements Font {
 		int bitWidth();
 
 		default int getNonemptyColumnBitmask() {
-			int i = 0;
-
-			for (int j = 0; j < 16; j++) {
-				i |= this.getPixels(j);
+			int mask = 0;
+			for (int row = 0; row < GLYPH_HEIGHT; row++) {
+				mask |= getPixels(row);
 			}
 
-			return i;
+			return mask;
 		}
 
+		/**
+		 * Возвращает упакованные границы глифа (левая и правая колонки) в виде одного int.
+		 * Если глиф пустой — возвращает границы всей ширины.
+		 */
 		default int getPackedDimensions() {
-			int i = this.getNonemptyColumnBitmask();
-			int j = this.bitWidth();
-			int k;
-			int l;
-			if (i == 0) {
-				k = 0;
-				l = j;
-			}
-			else {
-				k = Integer.numberOfLeadingZeros(i);
-				l = 32 - Integer.numberOfTrailingZeros(i) - 1;
+			int columnMask = getNonemptyColumnBitmask();
+			int width = bitWidth();
+
+			if (columnMask == 0) {
+				return UnihexFont.Dimensions.pack(0, width);
 			}
 
-			return UnihexFont.Dimensions.pack(k, l);
+			int leftCol = Integer.numberOfLeadingZeros(columnMask);
+			int rightCol = NARROW_GLYPH_WIDTH - Integer.numberOfTrailingZeros(columnMask) - 1;
+			return UnihexFont.Dimensions.pack(leftCol, rightCol);
 		}
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code BitmapGlyphConsumer}.
-	 */
 	public interface BitmapGlyphConsumer {
 
 		void accept(int codePoint, UnihexFont.BitmapGlyph glyph);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code DimensionOverride}.
-	 */
 	record DimensionOverride(int from, int to, UnihexFont.Dimensions dimensions) {
 
 		private static final Codec<UnihexFont.DimensionOverride> NON_VALIDATED_CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    Codecs.CODEPOINT.fieldOf("from").forGetter(UnihexFont.DimensionOverride::from),
-						                    Codecs.CODEPOINT.fieldOf("to").forGetter(UnihexFont.DimensionOverride::to),
-						                    UnihexFont.Dimensions.MAP_CODEC.forGetter(UnihexFont.DimensionOverride::dimensions)
-				                    )
-				                    .apply(instance, UnihexFont.DimensionOverride::new)
+			instance -> instance.group(
+				Codecs.CODEPOINT.fieldOf("from").forGetter(UnihexFont.DimensionOverride::from),
+				Codecs.CODEPOINT.fieldOf("to").forGetter(UnihexFont.DimensionOverride::to),
+				UnihexFont.Dimensions.MAP_CODEC.forGetter(UnihexFont.DimensionOverride::dimensions)
+			).apply(instance, UnihexFont.DimensionOverride::new)
 		);
+
 		public static final Codec<UnihexFont.DimensionOverride> CODEC = NON_VALIDATED_CODEC.validate(
-				override -> override.from >= override.to
-				            ? DataResult.error(() -> "Invalid range: [" + override.from + ";" + override.to + "]")
-				            : DataResult.success(override)
+			override -> override.from >= override.to
+				? DataResult.error(() -> "Invalid range: [" + override.from + ";" + override.to + "]")
+				: DataResult.success(override)
 		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Dimensions}.
-	 */
 	public record Dimensions(int left, int right) {
 
 		public static final MapCodec<UnihexFont.Dimensions> MAP_CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Codec.INT.fieldOf("left").forGetter(UnihexFont.Dimensions::left),
-						                    Codec.INT.fieldOf("right").forGetter(UnihexFont.Dimensions::right)
-				                    )
-				                    .apply(instance, UnihexFont.Dimensions::new)
+			instance -> instance.group(
+				Codec.INT.fieldOf("left").forGetter(UnihexFont.Dimensions::left),
+				Codec.INT.fieldOf("right").forGetter(UnihexFont.Dimensions::right)
+			).apply(instance, UnihexFont.Dimensions::new)
 		);
+
 		public static final Codec<UnihexFont.Dimensions> CODEC = MAP_CODEC.codec();
 
-		/**
-		 * Packed value.
-		 *
-		 * @return int — результат операции
-		 */
 		public int packedValue() {
-			return pack(this.left, this.right);
+			return pack(left, right);
 		}
 
-		/**
-		 * Pack.
-		 *
-		 * @param left left
-		 * @param right right
-		 *
-		 * @return int — результат операции
-		 */
 		public static int pack(int left, int right) {
 			return (left & 0xFF) << 8 | right & 0xFF;
 		}
@@ -282,117 +267,101 @@ public class UnihexFont implements Font {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FontImage16x16}.
-	 */
 	record FontImage16x16(short[] contents) implements UnihexFont.BitmapGlyph {
 
 		@Override
 		public int getPixels(int y) {
-			return this.contents[y] << 16;
+			return contents[y] << GLYPH_HEIGHT;
 		}
 
 		static UnihexFont.BitmapGlyph read(int lineNum, ByteList data) {
-			short[] ss = new short[16];
-			int i = 0;
+			short[] rows = new short[GLYPH_HEIGHT];
+			int pos = 0;
 
-			for (int j = 0; j < 16; j++) {
-				int k = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				int l = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				int m = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				int n = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				short s = (short) (k << 12 | l << 8 | m << 4 | n);
-				ss[j] = s;
+			for (int row = 0; row < GLYPH_HEIGHT; row++) {
+				int d0 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d1 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d2 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d3 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				rows[row] = (short) (d0 << 12 | d1 << 8 | d2 << 4 | d3);
 			}
 
-			return new UnihexFont.FontImage16x16(ss);
+			return new UnihexFont.FontImage16x16(rows);
 		}
 
 		@Override
 		public int bitWidth() {
-			return 16;
+			return GLYPH_HEIGHT;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FontImage32x16}.
-	 */
 	record FontImage32x16(int[] contents, int bitWidth) implements UnihexFont.BitmapGlyph {
 
 		private static final int BUFFER_SIZE = 24;
 
 		@Override
 		public int getPixels(int y) {
-			return this.contents[y];
+			return contents[y];
 		}
 
 		static UnihexFont.BitmapGlyph read24x16(int lineNum, ByteList data) {
-			int[] is = new int[16];
-			int i = 0;
-			int j = 0;
+			int[] rows = new int[GLYPH_HEIGHT];
+			int pos = 0;
 
-			for (int k = 0; k < 16; k++) {
-				int l = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int m = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int n = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int o = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int p = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int q = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int r = l << 20 | m << 16 | n << 12 | o << 8 | p << 4 | q;
-				is[k] = r << 8;
-				i |= r;
+			for (int row = 0; row < GLYPH_HEIGHT; row++) {
+				int d0 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d1 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d2 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d3 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d4 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d5 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int packed = d0 << 20 | d1 << GLYPH_HEIGHT | d2 << 12 | d3 << 8 | d4 << 4 | d5;
+				rows[row] = packed << 8;
 			}
 
-			return new UnihexFont.FontImage32x16(is, 24);
+			return new UnihexFont.FontImage32x16(rows, BUFFER_SIZE);
 		}
 
 		public static UnihexFont.BitmapGlyph read32x16(int lineNum, ByteList data) {
-			int[] is = new int[16];
-			int i = 0;
-			int j = 0;
+			int[] rows = new int[GLYPH_HEIGHT];
+			int pos = 0;
 
-			for (int k = 0; k < 16; k++) {
-				int l = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int m = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int n = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int o = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int p = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int q = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int r = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int s = UnihexFont.getHexDigitValue(lineNum, data, j++);
-				int t = l << 28 | m << 24 | n << 20 | o << 16 | p << 12 | q << 8 | r << 4 | s;
-				is[k] = t;
-				i |= t;
+			for (int row = 0; row < GLYPH_HEIGHT; row++) {
+				int d0 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d1 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d2 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d3 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d4 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d5 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d6 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int d7 = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				rows[row] = d0 << 28 | d1 << BUFFER_SIZE | d2 << 20 | d3 << GLYPH_HEIGHT | d4 << 12 | d5 << 8 | d6 << 4 | d7;
 			}
 
-			return new UnihexFont.FontImage32x16(is, 32);
+			return new UnihexFont.FontImage32x16(rows, NARROW_GLYPH_WIDTH);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FontImage8x16}.
-	 */
 	record FontImage8x16(byte[] contents) implements UnihexFont.BitmapGlyph {
 
 		@Override
 		public int getPixels(int y) {
-			return this.contents[y] << 24;
+			return contents[y] << FontImage32x16.BUFFER_SIZE;
 		}
 
 		static UnihexFont.BitmapGlyph read(int lineNum, ByteList data) {
-			byte[] bs = new byte[16];
-			int i = 0;
+			byte[] rows = new byte[GLYPH_HEIGHT];
+			int pos = 0;
 
-			for (int j = 0; j < 16; j++) {
-				int k = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				int l = UnihexFont.getHexDigitValue(lineNum, data, i++);
-				byte b = (byte) (k << 4 | l);
-				bs[j] = b;
+			for (int row = 0; row < GLYPH_HEIGHT; row++) {
+				int high = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				int low = UnihexFont.getHexDigitValue(lineNum, data, pos++);
+				rows[row] = (byte) (high << 4 | low);
 			}
 
-			return new UnihexFont.FontImage8x16(bs);
+			return new UnihexFont.FontImage8x16(rows);
 		}
 
 		@Override
@@ -401,22 +370,23 @@ public class UnihexFont implements Font {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Loader}.
+	 * Загрузчик шрифта из ZIP-архива с HEX-файлами.
+	 * Поддерживает переопределение размеров глифов через {@link DimensionOverride}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Loader implements FontLoader {
 
 		public static final MapCodec<UnihexFont.Loader> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("hex_file").forGetter(loader -> loader.sizes),
-						                    UnihexFont.DimensionOverride.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("size_overrides", List.of())
-								                    .forGetter(loader -> loader.overrides)
-				                    )
-				                    .apply(instance, UnihexFont.Loader::new)
+			instance -> instance.group(
+				Identifier.CODEC.fieldOf("hex_file").forGetter(loader -> loader.sizes),
+				UnihexFont.DimensionOverride.CODEC
+					.listOf()
+					.optionalFieldOf("size_overrides", List.of())
+					.forGetter(loader -> loader.overrides)
+			).apply(instance, UnihexFont.Loader::new)
 		);
+
 		private final Identifier sizes;
 		private final List<UnihexFont.DimensionOverride> overrides;
 
@@ -436,77 +406,58 @@ public class UnihexFont implements Font {
 		}
 
 		private Font load(ResourceManager resourceManager) throws IOException {
-			UnihexFont var3;
-			try (InputStream inputStream = resourceManager.open(this.sizes)) {
-				var3 = this.loadHexFile(inputStream);
+			try (InputStream inputStream = resourceManager.open(sizes)) {
+				return loadHexFile(inputStream);
 			}
-
-			return var3;
 		}
 
 		private UnihexFont loadHexFile(InputStream stream) throws IOException {
-			GlyphContainer<UnihexFont.BitmapGlyph>
-					glyphContainer =
-					new GlyphContainer<>(UnihexFont.BitmapGlyph[]::new, UnihexFont.BitmapGlyph[][]::new);
-			UnihexFont.BitmapGlyphConsumer bitmapGlyphConsumer = glyphContainer::put;
+			GlyphContainer<UnihexFont.BitmapGlyph> rawGlyphs =
+				new GlyphContainer<>(UnihexFont.BitmapGlyph[]::new, UnihexFont.BitmapGlyph[][]::new);
 
-			UnihexFont var17;
-			try (ZipInputStream zipInputStream = new ZipInputStream(stream)) {
-				ZipEntry zipEntry;
-				while ((zipEntry = zipInputStream.getNextEntry()) != null) {
-					String string = zipEntry.getName();
-					if (string.endsWith(".hex")) {
-						UnihexFont.LOGGER.info("Found {}, loading", string);
-						UnihexFont.readLines(new FixedBufferInputStream(zipInputStream), bitmapGlyphConsumer);
+			try (ZipInputStream zip = new ZipInputStream(stream)) {
+				ZipEntry entry;
+				while ((entry = zip.getNextEntry()) != null) {
+					String name = entry.getName();
+					if (name.endsWith(".hex")) {
+						UnihexFont.LOGGER.info("Found {}, loading", name);
+						UnihexFont.readLines(new FixedBufferInputStream(zip), rawGlyphs::put);
 					}
 				}
 
-				GlyphContainer<UnihexFont.UnicodeTextureGlyph> glyphContainer2 = new GlyphContainer<>(
-						UnihexFont.UnicodeTextureGlyph[]::new, UnihexFont.UnicodeTextureGlyph[][]::new
+				GlyphContainer<UnihexFont.UnicodeTextureGlyph> finalGlyphs = new GlyphContainer<>(
+					UnihexFont.UnicodeTextureGlyph[]::new,
+					UnihexFont.UnicodeTextureGlyph[][]::new
 				);
 
-				for (UnihexFont.DimensionOverride dimensionOverride : this.overrides) {
-					int i = dimensionOverride.from;
-					int j = dimensionOverride.to;
-					UnihexFont.Dimensions dimensions = dimensionOverride.dimensions;
+				for (UnihexFont.DimensionOverride override : overrides) {
+					UnihexFont.Dimensions dims = override.dimensions();
 
-					for (int k = i; k <= j; k++) {
-						UnihexFont.BitmapGlyph bitmapGlyph = glyphContainer.remove(k);
-						if (bitmapGlyph != null) {
-							glyphContainer2.put(
-									k,
-									new UnihexFont.UnicodeTextureGlyph(bitmapGlyph, dimensions.left, dimensions.right)
-							);
+					for (int cp = override.from(); cp <= override.to(); cp++) {
+						UnihexFont.BitmapGlyph glyph = rawGlyphs.remove(cp);
+						if (glyph != null) {
+							finalGlyphs.put(cp, new UnihexFont.UnicodeTextureGlyph(glyph, dims.left(), dims.right()));
 						}
 					}
 				}
 
-				glyphContainer.forEachGlyph((codePoint, glyph) -> {
-					int ix = glyph.getPackedDimensions();
-					int jx = UnihexFont.Dimensions.getLeft(ix);
-					int kx = UnihexFont.Dimensions.getRight(ix);
-					glyphContainer2.put(codePoint, new UnihexFont.UnicodeTextureGlyph(glyph, jx, kx));
+				rawGlyphs.forEachGlyph((codePoint, glyph) -> {
+					int packed = glyph.getPackedDimensions();
+					int left = UnihexFont.Dimensions.getLeft(packed);
+					int right = UnihexFont.Dimensions.getRight(packed);
+					finalGlyphs.put(codePoint, new UnihexFont.UnicodeTextureGlyph(glyph, left, right));
 				});
-				var17 = new UnihexFont(glyphContainer2);
-			}
 
-			return var17;
+				return new UnihexFont(finalGlyphs);
+			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code UnicodeTextureGlyph}.
-	 */
 	record UnicodeTextureGlyph(UnihexFont.BitmapGlyph contents, int left, int right) implements Glyph {
 
-		/**
-		 * Width.
-		 *
-		 * @return int — результат операции
-		 */
 		public int width() {
-			return this.right - this.left + 1;
+			return right - left + 1;
 		}
 
 		@Override
@@ -532,54 +483,59 @@ public class UnihexFont implements Font {
 		@Override
 		public BakedGlyph bake(Glyph.AbstractGlyphBaker baker) {
 			return baker.bake(
-					this.getMetrics(),
-					new UploadableGlyph() {
-						@Override
-						public float getOversample() {
-							return 2.0F;
-						}
-
-						@Override
-						public int getWidth() {
-							return UnicodeTextureGlyph.this.width();
-						}
-
-						@Override
-						public int getHeight() {
-							return 16;
-						}
-
-						@Override
-						public void upload(int x, int y, GpuTexture texture) {
-							IntBuffer intBuffer = MemoryUtil.memAllocInt(UnicodeTextureGlyph.this.width() * 16);
-							UnihexFont.addGlyphPixels(
-									intBuffer,
-									UnicodeTextureGlyph.this.contents,
-									UnicodeTextureGlyph.this.left,
-									UnicodeTextureGlyph.this.right
-							);
-							intBuffer.rewind();
-							RenderSystem.getDevice()
-							            .createCommandEncoder()
-							            .writeToTexture(
-									            texture,
-									            MemoryUtil.memByteBuffer(intBuffer),
-									            NativeImage.Format.RGBA,
-									            0,
-									            0,
-									            x,
-									            y,
-									            UnicodeTextureGlyph.this.width(),
-									            16
-							            );
-							MemoryUtil.memFree(intBuffer);
-						}
-
-						@Override
-						public boolean hasColor() {
-							return true;
-						}
+				getMetrics(),
+				new UploadableGlyph() {
+					@Override
+					public float getOversample() {
+						return 2.0F;
 					}
+
+					@Override
+					public int getWidth() {
+						return UnicodeTextureGlyph.this.width();
+					}
+
+					@Override
+					public int getHeight() {
+						return GLYPH_HEIGHT;
+					}
+
+					@Override
+					public void upload(int x, int y, GpuTexture texture) {
+						IntBuffer pixelBuffer = MemoryUtil.memAllocInt(
+							UnicodeTextureGlyph.this.width() * GLYPH_HEIGHT
+						);
+
+						UnihexFont.addGlyphPixels(
+							pixelBuffer,
+							UnicodeTextureGlyph.this.contents,
+							UnicodeTextureGlyph.this.left,
+							UnicodeTextureGlyph.this.right
+						);
+						pixelBuffer.rewind();
+
+						RenderSystem.getDevice()
+							.createCommandEncoder()
+							.writeToTexture(
+								texture,
+								MemoryUtil.memByteBuffer(pixelBuffer),
+								NativeImage.Format.RGBA,
+								0,
+								0,
+								x,
+								y,
+								UnicodeTextureGlyph.this.width(),
+								GLYPH_HEIGHT
+							);
+
+						MemoryUtil.memFree(pixelBuffer);
+					}
+
+					@Override
+					public boolean hasColor() {
+						return true;
+					}
+				}
 			);
 		}
 	}

@@ -5,75 +5,98 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.annotation.DeobfuscateClass;
 import net.minecraft.util.math.MathHelper;
 
+/**
+ * Калькулятор размера буфера в формате std140.
+ * Позволяет вычислить необходимый размер памяти для uniform-блока
+ * до его фактического выделения, зеркально повторяя вызовы {@link Std140Builder}.
+ *
+ * <p>Пример использования:
+ * <pre>{@code
+ *   int size = new Std140SizeCalculator()
+ *       .putFloat()
+ *       .putVec4()
+ *       .get();
+ * }</pre>
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code Std140SizeCalculator}.
- */
 public class Std140SizeCalculator {
+
+	private static final int ALIGN_FLOAT = 4;
+	private static final int ALIGN_VEC2 = 8;
+	private static final int ALIGN_VEC3_VEC4 = 16;
+	private static final int SIZE_FLOAT_INT = 4;
+	private static final int SIZE_VEC2 = 8;
+	private static final int SIZE_VEC3 = 16;
+	private static final int SIZE_VEC4 = 16;
+	private static final int SIZE_MAT4 = 64;
 
 	private int size;
 
+	/** Возвращает вычисленный размер буфера в байтах. */
 	public int get() {
-		return this.size;
+		return size;
 	}
 
+	/**
+	 * Выравнивает текущий размер до кратного {@code alignedSize} значения.
+	 */
 	public Std140SizeCalculator align(int alignedSize) {
-		this.size = MathHelper.roundUpToMultiple(this.size, alignedSize);
+		size = MathHelper.roundUpToMultiple(size, alignedSize);
 		return this;
 	}
 
 	public Std140SizeCalculator putFloat() {
-		this.align(4);
-		this.size += 4;
+		align(ALIGN_FLOAT);
+		size += SIZE_FLOAT_INT;
 		return this;
 	}
 
 	public Std140SizeCalculator putInt() {
-		this.align(4);
-		this.size += 4;
+		align(ALIGN_FLOAT);
+		size += SIZE_FLOAT_INT;
 		return this;
 	}
 
 	public Std140SizeCalculator putVec2() {
-		this.align(8);
-		this.size += 8;
+		align(ALIGN_VEC2);
+		size += SIZE_VEC2;
 		return this;
 	}
 
 	public Std140SizeCalculator putIVec2() {
-		this.align(8);
-		this.size += 8;
+		align(ALIGN_VEC2);
+		size += SIZE_VEC2;
 		return this;
 	}
 
 	public Std140SizeCalculator putVec3() {
-		this.align(16);
-		this.size += 16;
+		align(ALIGN_VEC3_VEC4);
+		size += SIZE_VEC3;
 		return this;
 	}
 
 	public Std140SizeCalculator putIVec3() {
-		this.align(16);
-		this.size += 16;
+		align(ALIGN_VEC3_VEC4);
+		size += SIZE_VEC3;
 		return this;
 	}
 
 	public Std140SizeCalculator putVec4() {
-		this.align(16);
-		this.size += 16;
+		align(ALIGN_VEC3_VEC4);
+		size += SIZE_VEC4;
 		return this;
 	}
 
 	public Std140SizeCalculator putIVec4() {
-		this.align(16);
-		this.size += 16;
+		align(ALIGN_VEC3_VEC4);
+		size += SIZE_VEC4;
 		return this;
 	}
 
 	public Std140SizeCalculator putMat4f() {
-		this.align(16);
-		this.size += 64;
+		align(ALIGN_VEC3_VEC4);
+		size += SIZE_MAT4;
 		return this;
 	}
 }

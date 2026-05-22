@@ -14,9 +14,15 @@ import net.minecraft.world.event.GameEvent;
 import java.util.function.Consumer;
 
 /**
- * {@code ArmorStandItem}.
+ * Предмет, размещающий стойку для брони при использовании на блоке.
+ * Стойка ориентируется по направлению взгляда игрока с шагом 45 градусов.
  */
 public class ArmorStandItem extends Item {
+
+	private static final float YAW_STEP_DEGREES = 45.0F;
+	private static final float YAW_HALF_STEP_DEGREES = 22.5F;
+	private static final float PLACE_SOUND_VOLUME = 0.75F;
+	private static final float PLACE_SOUND_PITCH = 0.8F;
 
 	public ArmorStandItem(Item.Settings settings) {
 		super(settings);
@@ -24,67 +30,62 @@ public class ArmorStandItem extends Item {
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
-		Direction direction = context.getSide();
-		if (direction == Direction.DOWN) {
+		if (context.getSide() == Direction.DOWN) {
 			return ActionResult.FAIL;
 		}
-		else {
-			World world = context.getWorld();
-			ItemPlacementContext itemPlacementContext = new ItemPlacementContext(context);
-			BlockPos blockPos = itemPlacementContext.getBlockPos();
-			ItemStack itemStack = context.getStack();
-			Vec3d vec3d = Vec3d.ofBottomCenter(blockPos);
-			Box box = EntityType.ARMOR_STAND.getDimensions().getBoxAt(vec3d.getX(), vec3d.getY(), vec3d.getZ());
-			if (world.isSpaceEmpty(null, box) && world.getOtherEntities(null, box).isEmpty()) {
-				if (world instanceof ServerWorld serverWorld) {
-					Consumer<ArmorStandEntity>
-							consumer =
-							EntityType.copier(serverWorld, itemStack, context.getPlayer());
-					ArmorStandEntity
-							armorStandEntity =
-							EntityType.ARMOR_STAND.create(
-									serverWorld,
-									consumer,
-									blockPos,
-									SpawnReason.SPAWN_ITEM_USE,
-									true,
-									true
-							);
-					if (armorStandEntity == null) {
-						return ActionResult.FAIL;
-					}
 
-					float
-							f =
-							MathHelper.floor((MathHelper.wrapDegrees(context.getPlayerYaw() - 180.0F) + 22.5F) / 45.0F)
-									* 45.0F;
-					armorStandEntity.refreshPositionAndAngles(
-							armorStandEntity.getX(),
-							armorStandEntity.getY(),
-							armorStandEntity.getZ(),
-							f,
-							0.0F
-					);
-					serverWorld.spawnEntityAndPassengers(armorStandEntity);
-					world.playSound(
-							null,
-							armorStandEntity.getX(),
-							armorStandEntity.getY(),
-							armorStandEntity.getZ(),
-							SoundEvents.ENTITY_ARMOR_STAND_PLACE,
-							SoundCategory.BLOCKS,
-							0.75F,
-							0.8F
-					);
-					armorStandEntity.emitGameEvent(GameEvent.ENTITY_PLACE, context.getPlayer());
+		World world = context.getWorld();
+		ItemPlacementContext placementContext = new ItemPlacementContext(context);
+		BlockPos blockPos = placementContext.getBlockPos();
+		ItemStack stack = context.getStack();
+		Vec3d spawnPos = Vec3d.ofBottomCenter(blockPos);
+		Box box = EntityType.ARMOR_STAND.getDimensions().getBoxAt(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
+
+		if (world.isSpaceEmpty(null, box) && world.getOtherEntities(null, box).isEmpty()) {
+			if (world instanceof ServerWorld serverWorld) {
+				Consumer<ArmorStandEntity> entityCopier = EntityType.copier(serverWorld, stack, context.getPlayer());
+				ArmorStandEntity armorStand = EntityType.ARMOR_STAND.create(
+					serverWorld,
+					entityCopier,
+					blockPos,
+					SpawnReason.SPAWN_ITEM_USE,
+					true,
+					true
+				);
+
+				if (armorStand == null) {
+					return ActionResult.FAIL;
 				}
 
-				itemStack.decrement(1);
-				return ActionResult.SUCCESS;
+				float yaw = MathHelper.floor(
+					(MathHelper.wrapDegrees(context.getPlayerYaw() - 180.0F) + YAW_HALF_STEP_DEGREES) / YAW_STEP_DEGREES
+				) * YAW_STEP_DEGREES;
+
+				armorStand.refreshPositionAndAngles(
+					armorStand.getX(),
+					armorStand.getY(),
+					armorStand.getZ(),
+					yaw,
+					0.0F
+				);
+				serverWorld.spawnEntityAndPassengers(armorStand);
+				world.playSound(
+					null,
+					armorStand.getX(),
+					armorStand.getY(),
+					armorStand.getZ(),
+					SoundEvents.ENTITY_ARMOR_STAND_PLACE,
+					SoundCategory.BLOCKS,
+					PLACE_SOUND_VOLUME,
+					PLACE_SOUND_PITCH
+				);
+				armorStand.emitGameEvent(GameEvent.ENTITY_PLACE, context.getPlayer());
 			}
-			else {
-				return ActionResult.FAIL;
-			}
+
+			stack.decrement(1);
+			return ActionResult.SUCCESS;
 		}
+
+		return ActionResult.FAIL;
 	}
 }

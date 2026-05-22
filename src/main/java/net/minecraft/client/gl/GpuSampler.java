@@ -7,10 +7,11 @@ import net.fabricmc.api.Environment;
 
 import java.util.OptionalDouble;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GpuSampler}.
+ * Абстрактный объект сэмплера GPU, описывающий параметры фильтрации и адресации текстур.
+ * Конкретная реализация — {@link GlSampler}.
  */
+@Environment(EnvType.CLIENT)
 public abstract class GpuSampler implements AutoCloseable {
 
 	public abstract AddressMode getAddressModeU();

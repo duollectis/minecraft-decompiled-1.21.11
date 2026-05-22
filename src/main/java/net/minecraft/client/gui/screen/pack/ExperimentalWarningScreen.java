@@ -20,10 +20,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ExperimentalWarningScreen}.
+ * Экран предупреждения об экспериментальных функциях — отображается при создании мира
+ * с включёнными экспериментальными пакетами данных.
  */
+@Environment(EnvType.CLIENT)
 public class ExperimentalWarningScreen extends Screen {
 
 	private static final Text TITLE = Text.translatable("selectWorld.experimental.title");
@@ -31,9 +32,10 @@ public class ExperimentalWarningScreen extends Screen {
 	private static final Text DETAILS = Text.translatable("selectWorld.experimental.details");
 	private static final int CONTENT_PADDING = 10;
 	private static final int CONTENT_WIDTH = 100;
+
 	private final BooleanConsumer callback;
 	final Collection<ResourcePackProfile> enabledProfiles;
-	private final GridWidget grid = new GridWidget().setColumnSpacing(10).setRowSpacing(20);
+	private final GridWidget grid = new GridWidget().setColumnSpacing(CONTENT_PADDING).setRowSpacing(20);
 
 	public ExperimentalWarningScreen(Collection<ResourcePackProfile> enabledProfiles, BooleanConsumer callback) {
 		super(TITLE);
@@ -49,48 +51,46 @@ public class ExperimentalWarningScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		GridWidget.Adder adder = this.grid.createAdder(2);
-		Positioner positioner = adder.copyPositioner().alignHorizontalCenter();
-		adder.add(new TextWidget(this.title, this.textRenderer), 2, positioner);
-		MultilineTextWidget
-				multilineTextWidget =
-				adder.add(new MultilineTextWidget(MESSAGE, this.textRenderer).setCentered(true), 2, positioner);
-		multilineTextWidget.setMaxWidth(310);
+		GridWidget.Adder adder = grid.createAdder(2);
+		Positioner centeredPositioner = adder.copyPositioner().alignHorizontalCenter();
+		adder.add(new TextWidget(title, textRenderer), 2, centeredPositioner);
+		MultilineTextWidget messageWidget = adder.add(
+				new MultilineTextWidget(MESSAGE, textRenderer).setCentered(true), 2, centeredPositioner
+		);
+		messageWidget.setMaxWidth(310);
 		adder.add(
 				ButtonWidget
-						.builder(
-								DETAILS,
-								button -> this.client.setScreen(new ExperimentalWarningScreen.DetailsScreen())
-						)
-						.width(100)
-						.build(), 2, positioner
+						.builder(DETAILS, button -> client.setScreen(new ExperimentalWarningScreen.DetailsScreen()))
+						.width(CONTENT_WIDTH)
+						.build(),
+				2,
+				centeredPositioner
 		);
-		adder.add(ButtonWidget.builder(ScreenTexts.PROCEED, button -> this.callback.accept(true)).build());
-		adder.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.callback.accept(false)).build());
-		this.grid.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.grid.refreshPositions();
-		this.refreshWidgetPositions();
+		adder.add(ButtonWidget.builder(ScreenTexts.PROCEED, button -> callback.accept(true)).build());
+		adder.add(ButtonWidget.builder(ScreenTexts.BACK, button -> callback.accept(false)).build());
+		grid.forEachChild(this::addDrawableChild);
+		grid.refreshPositions();
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		SimplePositioningWidget.setPos(this.grid, 0, 0, this.width, this.height, 0.5F, 0.5F);
+		SimplePositioningWidget.setPos(grid, 0, 0, width, height, 0.5F, 0.5F);
 	}
 
 	@Override
 	public void close() {
-		this.callback.accept(false);
+		callback.accept(false);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DetailsScreen}.
+	 * Экран с детальным списком экспериментальных пакетов и их флагов.
 	 */
+	@Environment(EnvType.CLIENT)
 	class DetailsScreen extends Screen {
 
 		private static final Text TITLE = Text.translatable("selectWorld.experimental.details.title");
+
 		final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 		private ExperimentalWarningScreen.DetailsScreen.@Nullable PackListWidget packListWidget;
 
@@ -100,37 +100,34 @@ public class ExperimentalWarningScreen extends Screen {
 
 		@Override
 		protected void init() {
-			this.layout.addHeader(TITLE, this.textRenderer);
-			this.packListWidget = this.layout
-					.addBody(new ExperimentalWarningScreen.DetailsScreen.PackListWidget(
-							this.client,
-							ExperimentalWarningScreen.this.enabledProfiles
-					));
-			this.layout.addFooter(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
-			this.layout.forEachChild(child -> {
-				ClickableWidget var10000 = this.addDrawableChild(child);
-			});
-			this.refreshWidgetPositions();
+			layout.addHeader(TITLE, textRenderer);
+			packListWidget = layout.addBody(new ExperimentalWarningScreen.DetailsScreen.PackListWidget(
+					client,
+					ExperimentalWarningScreen.this.enabledProfiles
+			));
+			layout.addFooter(ButtonWidget.builder(ScreenTexts.BACK, button -> close()).build());
+			layout.forEachChild(this::addDrawableChild);
+			refreshWidgetPositions();
 		}
 
 		@Override
 		protected void refreshWidgetPositions() {
-			if (this.packListWidget != null) {
-				this.packListWidget.position(this.width, this.layout);
+			if (packListWidget != null) {
+				packListWidget.position(width, layout);
 			}
 
-			this.layout.refreshPositions();
+			layout.refreshPositions();
 		}
 
 		@Override
 		public void close() {
-			this.client.setScreen(ExperimentalWarningScreen.this);
+			client.setScreen(ExperimentalWarningScreen.this);
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code PackListWidget}.
+		 * Список пакетов с экспериментальными флагами.
 		 */
+		@Environment(EnvType.CLIENT)
 		class PackListWidget extends AlwaysSelectedEntryListWidget<ExperimentalWarningScreen.DetailsScreen.PackListWidgetEntry> {
 
 			public PackListWidget(final MinecraftClient client, final Collection<ResourcePackProfile> enabledProfiles) {
@@ -142,37 +139,37 @@ public class ExperimentalWarningScreen extends Screen {
 						(9 + 2) * 3
 				);
 
-				for (ResourcePackProfile resourcePackProfile : enabledProfiles) {
-					String
-							string =
-							FeatureFlags.printMissingFlags(
-									FeatureFlags.VANILLA_FEATURES,
-									resourcePackProfile.getRequestedFeatures()
-							);
-					if (!string.isEmpty()) {
-						Text text = Texts.withStyle(resourcePackProfile.getDisplayName(), Style.EMPTY.withBold(true));
-						Text text2 = Text.translatable("selectWorld.experimental.details.entry", string);
-						this.addEntry(
-								DetailsScreen.this.new PackListWidgetEntry(
-										text,
-										text2,
-										MultilineText.create(DetailsScreen.this.textRenderer, text2, this.getRowWidth())
-								)
-						);
+				for (ResourcePackProfile profile : enabledProfiles) {
+					String missingFlags = FeatureFlags.printMissingFlags(
+							FeatureFlags.VANILLA_FEATURES,
+							profile.getRequestedFeatures()
+					);
+					if (missingFlags.isEmpty()) {
+						continue;
 					}
+
+					Text displayName = Texts.withStyle(profile.getDisplayName(), Style.EMPTY.withBold(true));
+					Text flagsText = Text.translatable("selectWorld.experimental.details.entry", missingFlags);
+					addEntry(
+							DetailsScreen.this.new PackListWidgetEntry(
+									displayName,
+									flagsText,
+									MultilineText.create(DetailsScreen.this.textRenderer, flagsText, getRowWidth())
+							)
+					);
 				}
 			}
 
 			@Override
 			public int getRowWidth() {
-				return this.width * 3 / 4;
+				return width * 3 / 4;
 			}
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code PackListWidgetEntry}.
+		 * Запись одного пакета в списке деталей.
 		 */
+		@Environment(EnvType.CLIENT)
 		class PackListWidgetEntry extends AlwaysSelectedEntryListWidget.Entry<ExperimentalWarningScreen.DetailsScreen.PackListWidgetEntry> {
 
 			private final Text displayName;
@@ -190,23 +187,17 @@ public class ExperimentalWarningScreen extends Screen {
 				DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
 				context.drawTextWithShadow(
 						DetailsScreen.this.client.textRenderer,
-						this.displayName,
-						this.getContentX(),
-						this.getContentY(),
+						displayName,
+						getContentX(),
+						getContentY(),
 						-1
 				);
-				this.multilineDetails.draw(
-						Alignment.LEFT,
-						this.getContentX(),
-						this.getContentY() + 12,
-						9,
-						drawnTextConsumer
-				);
+				multilineDetails.draw(Alignment.LEFT, getContentX(), getContentY() + 12, 9, drawnTextConsumer);
 			}
 
 			@Override
 			public Text getNarration() {
-				return Text.translatable("narrator.select", ScreenTexts.joinSentences(this.displayName, this.details));
+				return Text.translatable("narrator.select", ScreenTexts.joinSentences(displayName, details));
 			}
 		}
 	}

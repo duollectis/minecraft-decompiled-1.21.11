@@ -11,7 +11,9 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Objects;
 
 /**
- * {@code PointOfInterest}.
+ * Точка интереса (POI) — конкретная позиция в мире, связанная с определённым типом POI.
+ * Хранит количество свободных «билетов» (слотов), которые могут занимать жители деревни
+ * или другие сущности для привязки к данной точке.
  */
 public class PointOfInterest {
 
@@ -31,62 +33,62 @@ public class PointOfInterest {
 		this(pos, type, type.value().ticketCount(), updateListener);
 	}
 
-	public PointOfInterest.Serialized toSerialized() {
-		return new PointOfInterest.Serialized(this.pos, this.type, this.freeTickets);
+	public Serialized toSerialized() {
+		return new Serialized(pos, type, freeTickets);
 	}
 
 	@Deprecated
 	@Debug
 	public int getFreeTickets() {
-		return this.freeTickets;
+		return freeTickets;
 	}
 
 	/**
-	 * Reserve ticket.
+	 * Резервирует один билет, уменьшая счётчик свободных слотов.
+	 * Вызывает {@code updateListener} при успешном резервировании.
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true}, если билет успешно зарезервирован; {@code false}, если свободных слотов нет
 	 */
 	protected boolean reserveTicket() {
-		if (this.freeTickets <= 0) {
+		if (freeTickets <= 0) {
 			return false;
 		}
-		else {
-			this.freeTickets--;
-			this.updateListener.run();
-			return true;
-		}
+
+		freeTickets--;
+		updateListener.run();
+		return true;
 	}
 
 	/**
-	 * Release ticket.
+	 * Освобождает один билет, увеличивая счётчик свободных слотов.
+	 * Вызывает {@code updateListener} при успешном освобождении.
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true}, если билет успешно освобождён; {@code false}, если все слоты уже свободны
 	 */
 	protected boolean releaseTicket() {
-		if (this.freeTickets >= this.type.value().ticketCount()) {
+		if (freeTickets >= type.value().ticketCount()) {
 			return false;
 		}
-		else {
-			this.freeTickets++;
-			this.updateListener.run();
-			return true;
-		}
+
+		freeTickets++;
+		updateListener.run();
+		return true;
 	}
 
 	public boolean hasSpace() {
-		return this.freeTickets > 0;
+		return freeTickets > 0;
 	}
 
 	public boolean isOccupied() {
-		return this.freeTickets != this.type.value().ticketCount();
+		return freeTickets != type.value().ticketCount();
 	}
 
 	public BlockPos getPos() {
-		return this.pos;
+		return pos;
 	}
 
 	public RegistryEntry<PointOfInterestType> getType() {
-		return this.type;
+		return type;
 	}
 
 	@Override
@@ -94,43 +96,41 @@ public class PointOfInterest {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return o != null && this.getClass() == o.getClass() ? Objects.equals(this.pos, ((PointOfInterest) o).pos)
-			                                                    : false;
-		}
+
+		return o != null && getClass() == o.getClass()
+			? Objects.equals(pos, ((PointOfInterest) o).pos)
+			: false;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.pos.hashCode();
+		return pos.hashCode();
 	}
 
 	/**
-	 * {@code Serialized}.
+	 * Сериализованное представление {@link PointOfInterest} для записи на диск через Codec.
 	 */
 	public record Serialized(BlockPos pos, RegistryEntry<PointOfInterestType> poiType, int freeTickets) {
 
-		public static final Codec<PointOfInterest.Serialized> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    BlockPos.CODEC.fieldOf("pos").forGetter(PointOfInterest.Serialized::pos),
-						                    RegistryFixedCodec
-								                    .of(RegistryKeys.POINT_OF_INTEREST_TYPE)
-								                    .fieldOf("type")
-								                    .forGetter(PointOfInterest.Serialized::poiType),
-						                    Codec.INT.fieldOf("free_tickets").orElse(0).forGetter(PointOfInterest.Serialized::freeTickets)
-				                    )
-				                    .apply(instance, PointOfInterest.Serialized::new)
+		public static final Codec<Serialized> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+				BlockPos.CODEC.fieldOf("pos").forGetter(Serialized::pos),
+				RegistryFixedCodec
+					.of(RegistryKeys.POINT_OF_INTEREST_TYPE)
+					.fieldOf("type")
+					.forGetter(Serialized::poiType),
+				Codec.INT.fieldOf("free_tickets").orElse(0).forGetter(Serialized::freeTickets)
+			).apply(instance, Serialized::new)
 		);
 
 		/**
-		 * To point of interest.
+		 * Восстанавливает {@link PointOfInterest} из сериализованного состояния.
 		 *
-		 * @param updateListener update listener
-		 *
-		 * @return PointOfInterest — результат операции
+		 * @param updateListener слушатель изменений, вызываемый при резервировании/освобождении билетов
+		 * @return восстановленный объект {@link PointOfInterest}
 		 */
 		public PointOfInterest toPointOfInterest(Runnable updateListener) {
-			return new PointOfInterest(this.pos, this.poiType, this.freeTickets, updateListener);
+			return new PointOfInterest(pos, poiType, freeTickets, updateListener);
 		}
 	}
 }

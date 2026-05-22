@@ -3,7 +3,10 @@ package net.minecraft.network.encoding;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Класс var ints.
+ * Утилитарный класс для кодирования целых чисел в формате VarInt.
+ *
+ * <p>VarInt использует от 1 до {@value #MAX_BYTES} байт: каждый байт содержит 7 бит данных
+ * и 1 бит-флаг продолжения (старший бит). Это позволяет эффективно передавать малые числа.</p>
  */
 public class VarInts {
 
@@ -12,66 +15,54 @@ public class VarInts {
 	private static final int MORE_BITS_MASK = 128;
 	private static final int DATA_BITS_PER_BYTE = 7;
 
-	public static int getSizeInBytes(int i) {
-		for (int j = 1; j < 5; j++) {
-			if ((i & -1 << j * 7) == 0) {
-				return j;
+	/**
+	 * Вычисляет количество байт, необходимых для кодирования значения в формате VarInt.
+	 */
+	public static int getSizeInBytes(int value) {
+		for (int byteCount = 1; byteCount < MAX_BYTES; byteCount++) {
+			if ((value & -1 << byteCount * DATA_BITS_PER_BYTE) == 0) {
+				return byteCount;
 			}
 		}
 
-		return 5;
+		return MAX_BYTES;
 	}
 
-	/**
-	 * Определяет, следует ли continue read.
-	 *
-	 * @param b b
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean shouldContinueRead(byte b) {
-		return (b & 128) == 128;
+		return (b & MORE_BITS_MASK) == MORE_BITS_MASK;
 	}
 
 	/**
-	 * Read.
+	 * Читает VarInt из буфера.
 	 *
-	 * @param buf buf
-	 *
-	 * @return int — результат операции
+	 * @throws RuntimeException если VarInt занимает более {@value #MAX_BYTES} байт
 	 */
 	public static int read(ByteBuf buf) {
-		int i = 0;
-		int j = 0;
+		int result = 0;
+		int byteIndex = 0;
 
-		byte b;
+		byte current;
 		do {
-			b = buf.readByte();
-			i |= (b & 127) << j++ * 7;
-			if (j > 5) {
+			current = buf.readByte();
+			result |= (current & DATA_BITS_MASK) << byteIndex++ * DATA_BITS_PER_BYTE;
+			if (byteIndex > MAX_BYTES) {
 				throw new RuntimeException("VarInt too big");
 			}
-		}
-		while (shouldContinueRead(b));
+		} while (shouldContinueRead(current));
 
-		return i;
+		return result;
 	}
 
 	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 * @param i i
-	 *
-	 * @return ByteBuf — результат операции
+	 * Записывает значение в буфер в формате VarInt.
 	 */
-	public static ByteBuf write(ByteBuf buf, int i) {
-		while ((i & -128) != 0) {
-			buf.writeByte(i & 127 | 128);
-			i >>>= 7;
+	public static ByteBuf write(ByteBuf buf, int value) {
+		while ((value & -MORE_BITS_MASK) != 0) {
+			buf.writeByte(value & DATA_BITS_MASK | MORE_BITS_MASK);
+			value >>>= DATA_BITS_PER_BYTE;
 		}
 
-		buf.writeByte(i);
+		buf.writeByte(value);
 		return buf;
 	}
 }

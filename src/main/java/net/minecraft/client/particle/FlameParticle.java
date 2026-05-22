@@ -8,14 +8,28 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FlameParticle}.
+ * Частица пламени — оранжево-жёлтый огонь, испускаемый горящими блоками,
+ * факелами и порталами. Не сталкивается с блоками (проходит сквозь них),
+ * уменьшается по мере старения и постепенно увеличивает яркость до максимума.
  */
+@Environment(EnvType.CLIENT)
 public class FlameParticle extends AbstractSlowingParticle {
 
-	FlameParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
-		super(clientWorld, d, e, f, g, h, i, sprite);
+	private static final float MAX_BLOCK_LIGHT = 240.0F;
+	private static final float BLOCK_LIGHT_SCALE = 15.0F * 16.0F;
+
+	FlameParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
+			Sprite sprite
+	) {
+		super(world, x, y, z, velocityX, velocityY, velocityZ, sprite);
 	}
 
 	@Override
@@ -31,29 +45,33 @@ public class FlameParticle extends AbstractSlowingParticle {
 
 	@Override
 	public float getSize(float tickProgress) {
-		float f = (this.age + tickProgress) / this.maxAge;
-		return this.scale * (1.0F - f * f * 0.5F);
+		float lifeRatio = (this.age + tickProgress) / this.maxAge;
+		return this.scale * (1.0F - lifeRatio * lifeRatio * 0.5F);
 	}
 
+	/**
+	 * Яркость пламени нарастает от окружающего освещения до максимума
+	 * по мере старения частицы, имитируя разгорание огня.
+	 */
 	@Override
 	public int getBrightness(float tint) {
-		float f = (this.age + tint) / this.maxAge;
-		f = MathHelper.clamp(f, 0.0F, 1.0F);
-		int i = super.getBrightness(tint);
-		int j = i & 0xFF;
-		int k = i >> 16 & 0xFF;
-		j += (int) (f * 15.0F * 16.0F);
-		if (j > 240) {
-			j = 240;
+		float lifeRatio = MathHelper.clamp((this.age + tint) / this.maxAge, 0.0F, 1.0F);
+		int baseBrightness = super.getBrightness(tint);
+		int blockLight = baseBrightness & 0xFF;
+		int skyLight = baseBrightness >> 16 & 0xFF;
+		blockLight += (int) (lifeRatio * BLOCK_LIGHT_SCALE);
+
+		if (blockLight > MAX_BLOCK_LIGHT) {
+			blockLight = (int) MAX_BLOCK_LIGHT;
 		}
 
-		return j | k << 16;
+		return blockLight | skyLight << 16;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания обычных частиц пламени.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -62,25 +80,27 @@ public class FlameParticle extends AbstractSlowingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new FlameParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SmallFactory}.
+	 * Фабрика для создания уменьшенных частиц пламени (масштаб 0.5).
+	 * Используется для маленьких свечей и факелов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class SmallFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -89,22 +109,30 @@ public class FlameParticle extends AbstractSlowingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			FlameParticle
-					flameParticle =
-					new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			flameParticle.scale(0.5F);
-			return flameParticle;
+			FlameParticle particle = new FlameParticle(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ,
+					this.spriteProvider.getSprite(random)
+			);
+			particle.scale(0.5F);
+			return particle;
 		}
 	}
 }

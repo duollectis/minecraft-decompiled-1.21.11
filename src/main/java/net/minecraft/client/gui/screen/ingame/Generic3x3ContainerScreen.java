@@ -9,10 +9,10 @@ import net.minecraft.screen.Generic3x3ContainerScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Generic3x3ContainerScreen}.
+ * Экран контейнера 3×3 (диспенсер, дропер). Центрирует заголовок по ширине фона.
  */
+@Environment(EnvType.CLIENT)
 public class Generic3x3ContainerScreen extends HandledScreen<Generic3x3ContainerScreenHandler> {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/dispenser.png");
@@ -24,30 +24,30 @@ public class Generic3x3ContainerScreen extends HandledScreen<Generic3x3Container
 	@Override
 	protected void init() {
 		super.init();
-		this.titleX = (this.backgroundWidth - this.textRenderer.getWidth(this.title)) / 2;
+		titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
 	}
 }

@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 
 /**
- * {@code SignTextStrictJsonFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class SignTextStrictJsonFix extends ChoiceFix {
 

@@ -5,7 +5,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.util.Util;
 
 /**
- * {@code RemoveFilteredBookTextFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RemoveFilteredBookTextFix extends ItemNbtFix {
 

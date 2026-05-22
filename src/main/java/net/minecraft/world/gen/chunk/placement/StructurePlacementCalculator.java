@@ -31,55 +31,65 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code StructurePlacementCalculator}.
+ * Вычисляет и кэширует позиции размещения структур для данного мира.
+ * <p>
+ * Для {@link RandomSpreadStructurePlacement} позиции вычисляются детерминированно
+ * на лету. Для {@link ConcentricRingsStructurePlacement} (Крепости) позиции
+ * вычисляются асинхронно через {@link CompletableFuture} при первом обращении.
  */
 public class StructurePlacementCalculator {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final NoiseConfig noiseConfig;
 	private final BiomeSource biomeSource;
 	private final long structureSeed;
 	private final long concentricRingSeed;
-	private final Map<Structure, List<StructurePlacement>> structuresToPlacements = new Object2ObjectOpenHashMap();
-	private final Map<ConcentricRingsStructurePlacement, CompletableFuture<List<ChunkPos>>>
-			concentricPlacementsToPositions =
-			new Object2ObjectArrayMap();
-	private boolean calculated;
 	private final List<RegistryEntry<StructureSet>> structureSets;
+	private final Map<Structure, List<StructurePlacement>> structuresToPlacements = new Object2ObjectOpenHashMap<>();
+	private final Map<ConcentricRingsStructurePlacement, CompletableFuture<List<ChunkPos>>>
+			concentricPlacementsToPositions = new Object2ObjectArrayMap<>();
+	private boolean calculated;
 
+	/**
+	 * Создаёт калькулятор для произвольного потока наборов структур.
+	 * Используется при загрузке мира из кастомного источника данных.
+	 * Seed концентрических колец фиксирован в 0 — кольца не привязаны к seed мира.
+	 */
 	public static StructurePlacementCalculator create(
 			NoiseConfig noiseConfig,
 			long seed,
 			BiomeSource biomeSource,
 			Stream<RegistryEntry<StructureSet>> structureSets
 	) {
-		List<RegistryEntry<StructureSet>>
-				list =
-				structureSets.filter(structureSet -> hasValidBiome(structureSet.value(), biomeSource)).toList();
-		return new StructurePlacementCalculator(noiseConfig, biomeSource, seed, 0L, list);
+		List<RegistryEntry<StructureSet>> filtered = structureSets
+				.filter(entry -> hasValidBiome(entry.value(), biomeSource))
+				.toList();
+		return new StructurePlacementCalculator(noiseConfig, biomeSource, seed, 0L, filtered);
 	}
 
+	/**
+	 * Создаёт калькулятор из реестра наборов структур.
+	 * Seed концентрических колец совпадает с seed мира — стандартное поведение.
+	 */
 	public static StructurePlacementCalculator create(
 			NoiseConfig noiseConfig,
 			long seed,
 			BiomeSource biomeSource,
 			RegistryWrapper<StructureSet> structureSetRegistry
 	) {
-		List<RegistryEntry<StructureSet>> list = structureSetRegistry.streamEntries()
-		                                                             .filter(structureSet -> hasValidBiome(
-				                                                             structureSet.value(),
-				                                                             biomeSource
-		                                                             ))
-		                                                             .collect(Collectors.toUnmodifiableList());
-		return new StructurePlacementCalculator(noiseConfig, biomeSource, seed, seed, list);
+		List<RegistryEntry<StructureSet>> filtered = structureSetRegistry.streamEntries()
+				.filter(entry -> hasValidBiome(entry.value(), biomeSource))
+				.collect(Collectors.toUnmodifiableList());
+		return new StructurePlacementCalculator(noiseConfig, biomeSource, seed, seed, filtered);
 	}
 
 	private static boolean hasValidBiome(StructureSet structureSet, BiomeSource biomeSource) {
-		Stream<RegistryEntry<Biome>> stream = structureSet.structures().stream().flatMap(structure -> {
-			Structure structure2 = structure.structure().value();
-			return structure2.getValidBiomes().stream();
-		});
-		return stream.anyMatch(biomeSource.getBiomes()::contains);
+		Set<RegistryEntry<Biome>> worldBiomes = biomeSource.getBiomes();
+		return structureSet.structures()
+		                   .stream()
+		                   .flatMap(entry -> entry.structure().value().getValidBiomes().stream())
+		                   .anyMatch(worldBiomes::contains);
 	}
 
 	private StructurePlacementCalculator(
@@ -97,147 +107,162 @@ public class StructurePlacementCalculator {
 	}
 
 	public List<RegistryEntry<StructureSet>> getStructureSets() {
-		return this.structureSets;
+		return structureSets;
 	}
 
+	/**
+	 * Заполняет карты {@code structuresToPlacements} и {@code concentricPlacementsToPositions}.
+	 * Для каждого набора структур проверяет совместимость биомов и регистрирует размещения.
+	 * Для концентрических колец запускает асинхронное вычисление позиций.
+	 */
 	private void calculate() {
-		Set<RegistryEntry<Biome>> set = this.biomeSource.getBiomes();
-		this.getStructureSets()
-		    .forEach(
-				    structureSet -> {
-					    StructureSet structureSet2 = structureSet.value();
-					    boolean bl = false;
+		Set<RegistryEntry<Biome>> worldBiomes = biomeSource.getBiomes();
 
-					    for (StructureSet.WeightedEntry weightedEntry : structureSet2.structures()) {
-						    Structure structure = weightedEntry.structure().value();
-						    if (structure.getValidBiomes().stream().anyMatch(set::contains)) {
-							    this.structuresToPlacements
-									    .computeIfAbsent(structure, structurex -> new ArrayList<>())
-									    .add(structureSet2.placement());
-							    bl = true;
-						    }
-					    }
+		getStructureSets().forEach(structureSetEntry -> {
+			StructureSet set = structureSetEntry.value();
+			boolean hasValidStructure = false;
 
-					    if (bl
-							    && structureSet2.placement() instanceof ConcentricRingsStructurePlacement concentricRingsStructurePlacement) {
-						    this.concentricPlacementsToPositions
-								    .put(
-										    concentricRingsStructurePlacement,
-										    this.calculateConcentricsRingPlacementPos(
-												    (RegistryEntry<StructureSet>) structureSet,
-												    concentricRingsStructurePlacement
-										    )
-								    );
-					    }
-				    }
-		    );
+			for (StructureSet.WeightedEntry weightedEntry : set.structures()) {
+				Structure structure = weightedEntry.structure().value();
+
+				if (structure.getValidBiomes().stream().anyMatch(worldBiomes::contains)) {
+					structuresToPlacements
+							.computeIfAbsent(structure, key -> new ArrayList<>())
+							.add(set.placement());
+					hasValidStructure = true;
+				}
+			}
+
+			if (hasValidStructure
+					&& set.placement() instanceof ConcentricRingsStructurePlacement concentricPlacement) {
+				concentricPlacementsToPositions.put(
+						concentricPlacement,
+						calculateConcentricRingPositions(structureSetEntry, concentricPlacement)
+				);
+			}
+		});
 	}
 
-	private CompletableFuture<List<ChunkPos>> calculateConcentricsRingPlacementPos(
-			RegistryEntry<StructureSet> structureSetEntry, ConcentricRingsStructurePlacement placement
+	/**
+	 * Асинхронно вычисляет позиции чанков для размещения структур по концентрическим кольцам.
+	 * <p>
+	 * Алгоритм: структуры равномерно распределяются по кольцам, каждое кольцо расположено
+	 * дальше от центра. Для каждой позиции ищется ближайший подходящий биом из
+	 * {@code preferredBiomes}. Если биом не найден — используется исходная позиция кольца.
+	 */
+	@SuppressWarnings("unchecked")
+	private CompletableFuture<List<ChunkPos>> calculateConcentricRingPositions(
+			RegistryEntry<StructureSet> structureSetEntry,
+			ConcentricRingsStructurePlacement placement
 	) {
 		if (placement.getCount() == 0) {
 			return CompletableFuture.completedFuture(List.of());
 		}
-		else {
-			Stopwatch stopwatch = Stopwatch.createStarted(Util.TICKER);
-			int i = placement.getDistance();
-			int j = placement.getCount();
-			List<CompletableFuture<ChunkPos>> list = new ArrayList<>(j);
-			int k = placement.getSpread();
-			RegistryEntryList<Biome> registryEntryList = placement.getPreferredBiomes();
-			Random random = Random.create();
-			random.setSeed(this.concentricRingSeed);
-			double d = random.nextDouble() * Math.PI * 2.0;
-			int l = 0;
-			int m = 0;
 
-			for (int n = 0; n < j; n++) {
-				double e = 4 * i + i * m * 6 + (random.nextDouble() - 0.5) * (i * 2.5);
-				int o = (int) Math.round(Math.cos(d) * e);
-				int p = (int) Math.round(Math.sin(d) * e);
-				Random random2 = random.split();
-				list.add(
-						CompletableFuture.supplyAsync(
-								() -> {
-									Pair<BlockPos, RegistryEntry<Biome>> pair = this.biomeSource
-											.locateBiome(
-													ChunkSectionPos.getOffsetPos(o, 8),
-													0,
-													ChunkSectionPos.getOffsetPos(p, 8),
-													112,
-													registryEntryList::contains,
-													random2,
-													this.noiseConfig.getMultiNoiseSampler()
-											);
-									if (pair != null) {
-										BlockPos blockPos = (BlockPos) pair.getFirst();
-										return new ChunkPos(
-												ChunkSectionPos.getSectionCoord(blockPos.getX()),
-												ChunkSectionPos.getSectionCoord(blockPos.getZ())
-										);
-									}
-									else {
-										return new ChunkPos(o, p);
-									}
-								},
-								Util.getMainWorkerExecutor().named("structureRings")
-						)
-				);
-				d += (Math.PI * 2) / k;
-				if (++l == k) {
-					m++;
-					l = 0;
-					k += 2 * k / (m + 1);
-					k = Math.min(k, j - n);
-					d += random.nextDouble() * Math.PI * 2.0;
-				}
+		Stopwatch stopwatch = Stopwatch.createStarted(Util.TICKER);
+		int distance = placement.getDistance();
+		int totalCount = placement.getCount();
+		int ringSpread = placement.getSpread();
+		RegistryEntryList<Biome> preferredBiomes = placement.getPreferredBiomes();
+
+		Random random = Random.create();
+		random.setSeed(concentricRingSeed);
+
+		double angle = random.nextDouble() * Math.PI * 2.0;
+		int positionsInCurrentRing = 0;
+		int currentRing = 0;
+
+		List<CompletableFuture<ChunkPos>> futures = new ArrayList<>(totalCount);
+
+		for (int placed = 0; placed < totalCount; placed++) {
+			double radius = 4 * distance + distance * currentRing * 6 + (random.nextDouble() - 0.5) * (distance * 2.5);
+			int targetChunkX = (int) Math.round(Math.cos(angle) * radius);
+			int targetChunkZ = (int) Math.round(Math.sin(angle) * radius);
+			Random splitRandom = random.split();
+
+			futures.add(CompletableFuture.supplyAsync(
+					() -> {
+						Pair<BlockPos, RegistryEntry<Biome>> biomeResult = biomeSource.locateBiome(
+								ChunkSectionPos.getOffsetPos(targetChunkX, 8),
+								0,
+								ChunkSectionPos.getOffsetPos(targetChunkZ, 8),
+								112,
+								preferredBiomes::contains,
+								splitRandom,
+								noiseConfig.getMultiNoiseSampler()
+						);
+
+						if (biomeResult != null) {
+							BlockPos biomePos = (BlockPos) biomeResult.getFirst();
+							return new ChunkPos(
+									ChunkSectionPos.getSectionCoord(biomePos.getX()),
+									ChunkSectionPos.getSectionCoord(biomePos.getZ())
+							);
+						}
+
+						return new ChunkPos(targetChunkX, targetChunkZ);
+					},
+					Util.getMainWorkerExecutor().named("structureRings")
+			));
+
+			angle += (Math.PI * 2) / ringSpread;
+
+			if (++positionsInCurrentRing == ringSpread) {
+				currentRing++;
+				positionsInCurrentRing = 0;
+				ringSpread += 2 * ringSpread / (currentRing + 1);
+				ringSpread = Math.min(ringSpread, totalCount - placed);
+				angle += random.nextDouble() * Math.PI * 2.0;
 			}
-
-			return Util.combineSafe(list).thenApply(positions -> {
-				double dx = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS) / 1000.0;
-				LOGGER.debug("Calculation for {} took {}s", structureSetEntry, dx);
-				return positions;
-			});
 		}
+
+		return Util.combineSafe(futures).thenApply(positions -> {
+			double elapsedSeconds = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS) / 1000.0;
+			LOGGER.debug("Calculation for {} took {}s", structureSetEntry, elapsedSeconds);
+			return positions;
+		});
 	}
 
 	/**
-	 * Try calculate.
+	 * Инициализирует вычисление позиций при первом обращении (ленивая инициализация).
 	 */
 	public void tryCalculate() {
-		if (!this.calculated) {
-			this.calculate();
-			this.calculated = true;
+		if (!calculated) {
+			calculate();
+			calculated = true;
 		}
 	}
 
 	public @Nullable List<ChunkPos> getPlacementPositions(ConcentricRingsStructurePlacement placement) {
-		this.tryCalculate();
-		CompletableFuture<List<ChunkPos>> completableFuture = this.concentricPlacementsToPositions.get(placement);
-		return completableFuture != null ? completableFuture.join() : null;
+		tryCalculate();
+		CompletableFuture<List<ChunkPos>> future = concentricPlacementsToPositions.get(placement);
+		return future != null ? future.join() : null;
 	}
 
 	public List<StructurePlacement> getPlacements(RegistryEntry<Structure> structureEntry) {
-		this.tryCalculate();
-		return this.structuresToPlacements.getOrDefault(structureEntry.value(), List.of());
+		tryCalculate();
+		return structuresToPlacements.getOrDefault(structureEntry.value(), List.of());
 	}
 
 	public NoiseConfig getNoiseConfig() {
-		return this.noiseConfig;
+		return noiseConfig;
 	}
 
+	/**
+	 * Проверяет, может ли структура из {@code structureSetEntry} генерироваться
+	 * в квадрате чанков с центром {@code (centerChunkX, centerChunkZ)} и радиусом {@code chunkCount}.
+	 */
 	public boolean canGenerate(
 			RegistryEntry<StructureSet> structureSetEntry,
 			int centerChunkX,
 			int centerChunkZ,
 			int chunkCount
 	) {
-		StructurePlacement structurePlacement = structureSetEntry.value().placement();
+		StructurePlacement placement = structureSetEntry.value().placement();
 
-		for (int i = centerChunkX - chunkCount; i <= centerChunkX + chunkCount; i++) {
-			for (int j = centerChunkZ - chunkCount; j <= centerChunkZ + chunkCount; j++) {
-				if (structurePlacement.shouldGenerate(this, i, j)) {
+		for (int x = centerChunkX - chunkCount; x <= centerChunkX + chunkCount; x++) {
+			for (int z = centerChunkZ - chunkCount; z <= centerChunkZ + chunkCount; z++) {
+				if (placement.shouldGenerate(this, x, z)) {
 					return true;
 				}
 			}
@@ -247,6 +272,6 @@ public class StructurePlacementCalculator {
 	}
 
 	public long getStructureSeed() {
-		return this.structureSeed;
+		return structureSeed;
 	}
 }

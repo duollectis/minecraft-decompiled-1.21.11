@@ -5,7 +5,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.DyeColor;
 
 /**
- * {@code ShieldItem}.
+ * Предмет «Щит». Если щит окрашен (компонент {@link DataComponentTypes#BASE_COLOR}),
+ * отображает название с суффиксом цвета через ключ перевода {@code <translationKey>.<colorId>}.
  */
 public class ShieldItem extends Item {
 
@@ -15,9 +16,10 @@ public class ShieldItem extends Item {
 
 	@Override
 	public Text getName(ItemStack stack) {
-		DyeColor dyeColor = stack.get(DataComponentTypes.BASE_COLOR);
-		return (Text) (dyeColor != null ? Text.translatable(this.translationKey + "." + dyeColor.getId())
-		                                : super.getName(stack)
-		);
+		DyeColor color = stack.get(DataComponentTypes.BASE_COLOR);
+
+		return color != null
+			? Text.translatable(translationKey + "." + color.getId())
+			: super.getName(stack);
 	}
 }

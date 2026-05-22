@@ -12,7 +12,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code TextComponentStringyFlagsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TextComponentStringyFlagsFix extends DataFix {
 
@@ -27,7 +27,7 @@ public class TextComponentStringyFlagsFix extends DataFix {
 				(Type<Pair<String, Either<?, Pair<?, Pair<?, Pair<?, Dynamic<?>>>>>>>) this
 						.getInputSchema()
 						.getType(TypeReferences.TEXT_COMPONENT);
-		return this.fixTypeEverywhere(
+		return fixTypeEverywhere(
 				"TextComponentStringyFlagsFix",
 				type,
 				dynamicOps -> pair -> pair.mapSecond(

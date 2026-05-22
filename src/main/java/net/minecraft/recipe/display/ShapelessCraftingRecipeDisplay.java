@@ -10,7 +10,8 @@ import net.minecraft.resource.featuretoggle.FeatureSet;
 import java.util.List;
 
 /**
- * {@code ShapelessCraftingRecipeDisplay}.
+ * Отображение рецепта бесформенного крафта для клиентского интерфейса книги рецептов.
+ * Содержит список слотов ингредиентов без привязки к позиции в сетке.
  */
 public record ShapelessCraftingRecipeDisplay(
 		List<SlotDisplay> ingredients,
@@ -20,17 +21,12 @@ public record ShapelessCraftingRecipeDisplay(
 
 	public static final MapCodec<ShapelessCraftingRecipeDisplay> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    SlotDisplay.CODEC
-							                    .listOf()
-							                    .fieldOf("ingredients")
-							                    .forGetter(ShapelessCraftingRecipeDisplay::ingredients),
-					                    SlotDisplay.CODEC.fieldOf("result").forGetter(ShapelessCraftingRecipeDisplay::result),
-					                    SlotDisplay.CODEC
-							                    .fieldOf("crafting_station")
-							                    .forGetter(ShapelessCraftingRecipeDisplay::craftingStation)
-			                    )
-			                    .apply(instance, ShapelessCraftingRecipeDisplay::new)
+					SlotDisplay.CODEC.listOf().fieldOf("ingredients").forGetter(ShapelessCraftingRecipeDisplay::ingredients),
+					SlotDisplay.CODEC.fieldOf("result").forGetter(ShapelessCraftingRecipeDisplay::result),
+					SlotDisplay.CODEC.fieldOf("crafting_station").forGetter(ShapelessCraftingRecipeDisplay::craftingStation)
+			).apply(instance, ShapelessCraftingRecipeDisplay::new)
 	);
+
 	public static final PacketCodec<RegistryByteBuf, ShapelessCraftingRecipeDisplay> PACKET_CODEC = PacketCodec.tuple(
 			SlotDisplay.PACKET_CODEC.collect(PacketCodecs.toList()),
 			ShapelessCraftingRecipeDisplay::ingredients,
@@ -40,8 +36,8 @@ public record ShapelessCraftingRecipeDisplay(
 			ShapelessCraftingRecipeDisplay::craftingStation,
 			ShapelessCraftingRecipeDisplay::new
 	);
-	public static final RecipeDisplay.Serializer<ShapelessCraftingRecipeDisplay>
-			SERIALIZER =
+
+	public static final RecipeDisplay.Serializer<ShapelessCraftingRecipeDisplay> SERIALIZER =
 			new RecipeDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
 	@Override
@@ -51,7 +47,7 @@ public record ShapelessCraftingRecipeDisplay(
 
 	@Override
 	public boolean isEnabled(FeatureSet features) {
-		return this.ingredients.stream().allMatch(ingredient -> ingredient.isEnabled(features))
+		return ingredients.stream().allMatch(ingredient -> ingredient.isEnabled(features))
 				&& RecipeDisplay.super.isEnabled(features);
 	}
 }

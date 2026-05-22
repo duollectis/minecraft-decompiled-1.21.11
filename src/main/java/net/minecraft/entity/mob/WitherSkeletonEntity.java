@@ -23,18 +23,20 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code WitherSkeletonEntity}.
+ * Скелет иссушителя — мощный скелет из Нижнего мира с мечом.
  */
 public class WitherSkeletonEntity extends AbstractSkeletonEntity {
 
+	private static final int WITHER_EFFECT_DURATION = 200;
+
 	public WitherSkeletonEntity(EntityType<? extends WitherSkeletonEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
+		setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
 	}
 
 	@Override
 	protected void initGoals() {
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, AbstractPiglinEntity.class, true));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, AbstractPiglinEntity.class, true));
 		super.initGoals();
 	}
 
@@ -70,7 +72,7 @@ public class WitherSkeletonEntity extends AbstractSkeletonEntity {
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+		equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
 	}
 
 	@Override
@@ -84,10 +86,10 @@ public class WitherSkeletonEntity extends AbstractSkeletonEntity {
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		EntityData entityData2 = super.initialize(world, difficulty, spawnReason, entityData);
-		this.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
-		this.updateAttackType();
-		return entityData2;
+		EntityData result = super.initialize(world, difficulty, spawnReason, entityData);
+		getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
+		updateAttackType();
+		return result;
 	}
 
 	@Override
@@ -95,13 +97,12 @@ public class WitherSkeletonEntity extends AbstractSkeletonEntity {
 		if (!super.tryAttack(world, target)) {
 			return false;
 		}
-		else {
-			if (target instanceof LivingEntity) {
-				((LivingEntity) target).addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 200), this);
-			}
 
-			return true;
+		if (target instanceof LivingEntity livingTarget) {
+			livingTarget.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, WITHER_EFFECT_DURATION), this);
 		}
+
+		return true;
 	}
 
 	@Override
@@ -119,6 +120,10 @@ public class WitherSkeletonEntity extends AbstractSkeletonEntity {
 
 	@Override
 	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-		return effect.equals(StatusEffects.WITHER) ? false : super.canHaveStatusEffect(effect);
+		if (effect.equals(StatusEffects.WITHER)) {
+			return false;
+		}
+
+		return super.canHaveStatusEffect(effect);
 	}
 }

@@ -16,7 +16,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.text.Text;
 
 /**
- * {@code DamageCommand}.
+ * Команда {@code /damage}: нанесение урона сущностям.
  */
 public class DamageCommand {
 

@@ -24,26 +24,25 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BrushableBlock}.
+ * Блок с зарытым лутом, который можно раскопать кисточкой.
+ * При падении ведёт себя как {@link FallingBlock}: разрушается при приземлении,
+ * превращаясь в {@link #baseBlock}. Степень раскопки хранится в свойстве {@link #DUSTED}.
  */
 public class BrushableBlock extends BlockWithEntity implements Falling {
 
 	public static final MapCodec<BrushableBlock> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Registries.BLOCK.getCodec().fieldOf("turns_into").forGetter(BrushableBlock::getBaseBlock),
-					                    Registries.SOUND_EVENT
-							                    .getCodec()
-							                    .fieldOf("brush_sound")
-							                    .forGetter(BrushableBlock::getBrushingSound),
-					                    Registries.SOUND_EVENT
-							                    .getCodec()
-							                    .fieldOf("brush_completed_sound")
-							                    .forGetter(BrushableBlock::getBrushingCompleteSound),
-					                    createSettingsCodec()
-			                    )
-			                    .apply(instance, BrushableBlock::new)
+		instance -> instance.group(
+			Registries.BLOCK.getCodec().fieldOf("turns_into").forGetter(BrushableBlock::getBaseBlock),
+			Registries.SOUND_EVENT.getCodec().fieldOf("brush_sound").forGetter(BrushableBlock::getBrushingSound),
+			Registries.SOUND_EVENT
+				.getCodec()
+				.fieldOf("brush_completed_sound")
+				.forGetter(BrushableBlock::getBrushingCompleteSound),
+			createSettingsCodec()
+		).apply(instance, BrushableBlock::new)
 	);
 	private static final IntProperty DUSTED = Properties.DUSTED;
+	private static final int PARTICLE_SPAWN_CHANCE = 16;
 	public static final int TICK_DELAY = 2;
 	private final Block baseBlock;
 	private final SoundEvent brushingSound;
@@ -74,7 +73,7 @@ public class BrushableBlock extends BlockWithEntity implements Falling {
 
 	@Override
 	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		world.scheduleBlockTick(pos, this, 2);
+		world.scheduleBlockTick(pos, this, TICK_DELAY);
 	}
 
 	@Override
@@ -88,7 +87,7 @@ public class BrushableBlock extends BlockWithEntity implements Falling {
 			BlockState neighborState,
 			Random random
 	) {
-		tickView.scheduleBlockTick(pos, this, 2);
+		tickView.scheduleBlockTick(pos, this, TICK_DELAY);
 		return super.getStateForNeighborUpdate(
 				state,
 				world,
@@ -115,33 +114,32 @@ public class BrushableBlock extends BlockWithEntity implements Falling {
 
 	@Override
 	public void onDestroyedOnLanding(World world, BlockPos pos, FallingBlockEntity fallingBlockEntity) {
-		Vec3d vec3d = fallingBlockEntity.getBoundingBox().getCenter();
+		Vec3d center = fallingBlockEntity.getBoundingBox().getCenter();
 		world.syncWorldEvent(
-				2001,
-				BlockPos.ofFloored(vec3d),
-				Block.getRawIdFromState(fallingBlockEntity.getBlockState())
+			2001,
+			BlockPos.ofFloored(center),
+			Block.getRawIdFromState(fallingBlockEntity.getBlockState())
 		);
-		world.emitGameEvent(fallingBlockEntity, GameEvent.BLOCK_DESTROY, vec3d);
+		world.emitGameEvent(fallingBlockEntity, GameEvent.BLOCK_DESTROY, center);
 	}
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (random.nextInt(16) == 0) {
-			BlockPos blockPos = pos.down();
-			if (FallingBlock.canFallThrough(world.getBlockState(blockPos))) {
-				double d = pos.getX() + random.nextDouble();
-				double e = pos.getY() - 0.05;
-				double f = pos.getZ() + random.nextDouble();
-				world.addParticleClient(
-						new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, state),
-						d,
-						e,
-						f,
-						0.0,
-						0.0,
-						0.0
-				);
-			}
+		if (random.nextInt(PARTICLE_SPAWN_CHANCE) == 0
+			&& FallingBlock.canFallThrough(world.getBlockState(pos.down()))
+		) {
+			double dustX = pos.getX() + random.nextDouble();
+			double dustY = pos.getY() - 0.05;
+			double dustZ = pos.getZ() + random.nextDouble();
+			world.addParticleClient(
+				new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, state),
+				dustX,
+				dustY,
+				dustZ,
+				0.0,
+				0.0,
+				0.0
+			);
 		}
 	}
 
@@ -151,14 +149,14 @@ public class BrushableBlock extends BlockWithEntity implements Falling {
 	}
 
 	public Block getBaseBlock() {
-		return this.baseBlock;
+		return baseBlock;
 	}
 
 	public SoundEvent getBrushingSound() {
-		return this.brushingSound;
+		return brushingSound;
 	}
 
 	public SoundEvent getBrushingCompleteSound() {
-		return this.brushingCompleteSound;
+		return brushingCompleteSound;
 	}
 }

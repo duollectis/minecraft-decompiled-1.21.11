@@ -14,10 +14,11 @@ import net.minecraft.util.Util;
 
 import java.net.URI;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ConfirmLinkScreen}.
+ * Экран подтверждения перехода по внешней ссылке.
+ * Для ненадёжных ссылок отображает предупреждение и кнопку копирования.
  */
+@Environment(EnvType.CLIENT)
 public class ConfirmLinkScreen extends ConfirmScreen {
 
 	private static final Text WARNING = Text.translatable("chat.link.warning").withColor(-13108);
@@ -71,9 +72,9 @@ public class ConfirmLinkScreen extends ConfirmScreen {
 			boolean linkTrusted
 	) {
 		super(callback, title, message);
-		this.yesText = linkTrusted ? ScreenTexts.OPEN_LINK : ScreenTexts.YES;
+		yesText = linkTrusted ? ScreenTexts.OPEN_LINK : ScreenTexts.YES;
 		this.noText = noText;
-		this.drawWarning = !linkTrusted;
+		drawWarning = !linkTrusted;
 		this.link = link;
 	}
 
@@ -87,88 +88,61 @@ public class ConfirmLinkScreen extends ConfirmScreen {
 
 	@Override
 	protected void initExtras() {
-		if (this.drawWarning) {
-			this.layout.add(new TextWidget(WARNING, this.textRenderer));
+		if (drawWarning) {
+			layout.add(new TextWidget(WARNING, textRenderer));
 		}
 	}
 
 	@Override
-	protected void addButtons(DirectionalLayoutWidget layout) {
-		this.yesButton =
-				layout.add(ButtonWidget.builder(this.yesText, button -> this.callback.accept(true)).width(100).build());
-		layout.add(ButtonWidget.builder(
+	protected void addButtons(DirectionalLayoutWidget buttonLayout) {
+		yesButton = buttonLayout.add(
+				ButtonWidget.builder(yesText, button -> callback.accept(true)).width(BUTTON_WIDTH).build()
+		);
+		buttonLayout.add(ButtonWidget.builder(
 				ScreenTexts.COPY, button -> {
-					this.copyToClipboard();
-					this.callback.accept(false);
+					copyToClipboard();
+					callback.accept(false);
 				}
-		).width(100).build());
-		this.noButton =
-				layout.add(ButtonWidget.builder(this.noText, button -> this.callback.accept(false)).width(100).build());
+		).width(BUTTON_WIDTH).build());
+		noButton = buttonLayout.add(
+				ButtonWidget.builder(noText, button -> callback.accept(false)).width(BUTTON_WIDTH).build()
+		);
 	}
 
-	/**
-	 * Создаёт копию to clipboard.
-	 */
 	public void copyToClipboard() {
-		this.client.keyboard.setClipboard(this.link);
+		client.keyboard.setClipboard(link);
 	}
 
-	/**
-	 * Open.
-	 *
-	 * @param parent parent
-	 * @param url url
-	 * @param linkTrusted link trusted
-	 */
 	public static void open(Screen parent, String url, boolean linkTrusted) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		minecraftClient.setScreen(new ConfirmLinkScreen(
+		MinecraftClient client = MinecraftClient.getInstance();
+		client.setScreen(new ConfirmLinkScreen(
 				confirmed -> {
 					if (confirmed) {
 						Util.getOperatingSystem().open(url);
 					}
 
-					minecraftClient.setScreen(parent);
+					client.setScreen(parent);
 				}, url, linkTrusted
 		));
 	}
 
-	/**
-	 * Open.
-	 *
-	 * @param parent parent
-	 * @param uri uri
-	 * @param linkTrusted link trusted
-	 */
 	public static void open(Screen parent, URI uri, boolean linkTrusted) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		minecraftClient.setScreen(new ConfirmLinkScreen(
+		MinecraftClient client = MinecraftClient.getInstance();
+		client.setScreen(new ConfirmLinkScreen(
 				confirmed -> {
 					if (confirmed) {
 						Util.getOperatingSystem().open(uri);
 					}
 
-					minecraftClient.setScreen(parent);
+					client.setScreen(parent);
 				}, uri.toString(), linkTrusted
 		));
 	}
 
-	/**
-	 * Open.
-	 *
-	 * @param parent parent
-	 * @param uri uri
-	 */
 	public static void open(Screen parent, URI uri) {
 		open(parent, uri, true);
 	}
 
-	/**
-	 * Open.
-	 *
-	 * @param parent parent
-	 * @param url url
-	 */
 	public static void open(Screen parent, String url) {
 		open(parent, url, true);
 	}

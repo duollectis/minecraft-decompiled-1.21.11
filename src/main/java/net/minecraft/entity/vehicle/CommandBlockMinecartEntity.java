@@ -24,18 +24,26 @@ import net.minecraft.world.CommandBlockExecutor;
 import net.minecraft.world.World;
 
 /**
- * {@code CommandBlockMinecartEntity}.
+ * Вагонетка с командным блоком — выполняет команду при проезде по активированному рельсу.
+ *
+ * <p>Команда и последний вывод синхронизируются через {@link DataTracker} для отображения
+ * на клиенте. Выполнение команды ограничено кулдауном {@value #EXECUTE_TICK_COOLDOWN} тиков,
+ * чтобы предотвратить многократный запуск на одном рельсе за один проезд.
  */
 public class CommandBlockMinecartEntity extends AbstractMinecartEntity {
 
-	static final TrackedData<String>
-			COMMAND =
-			DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.STRING);
-	static final TrackedData<Text>
-			LAST_OUTPUT =
-			DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.TEXT_COMPONENT);
-	private final CommandBlockExecutor commandExecutor = new CommandBlockMinecartEntity.CommandExecutor();
 	private static final int EXECUTE_TICK_COOLDOWN = 4;
+
+	static final TrackedData<String> COMMAND = DataTracker.registerData(
+		CommandBlockMinecartEntity.class,
+		TrackedDataHandlerRegistry.STRING
+	);
+	static final TrackedData<Text> LAST_OUTPUT = DataTracker.registerData(
+		CommandBlockMinecartEntity.class,
+		TrackedDataHandlerRegistry.TEXT_COMPONENT
+	);
+
+	private final CommandBlockExecutor commandExecutor = new CommandExecutor();
 	private int lastExecuted;
 
 	public CommandBlockMinecartEntity(EntityType<? extends CommandBlockMinecartEntity> entityType, World world) {
@@ -62,15 +70,15 @@ public class CommandBlockMinecartEntity extends AbstractMinecartEntity {
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.commandExecutor.readData(view);
-		this.getDataTracker().set(COMMAND, this.getCommandExecutor().getCommand());
-		this.getDataTracker().set(LAST_OUTPUT, this.getCommandExecutor().getLastOutput());
+		commandExecutor.readData(view);
+		getDataTracker().set(COMMAND, getCommandExecutor().getCommand());
+		getDataTracker().set(LAST_OUTPUT, getCommandExecutor().getLastOutput());
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.commandExecutor.writeData(view);
+		commandExecutor.writeData(view);
 	}
 
 	@Override
@@ -79,71 +87,81 @@ public class CommandBlockMinecartEntity extends AbstractMinecartEntity {
 	}
 
 	public CommandBlockExecutor getCommandExecutor() {
-		return this.commandExecutor;
+		return commandExecutor;
 	}
 
+	/**
+	 * Выполняет команду при проезде по активированному рельсу.
+	 *
+	 * <p>Кулдаун {@value #EXECUTE_TICK_COOLDOWN} тиков предотвращает повторное выполнение
+	 * при медленном движении вагонетки над одним и тем же рельсом.
+	 */
 	@Override
-	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-		if (bl && this.age - this.lastExecuted >= 4) {
-			this.getCommandExecutor().execute(serverWorld);
-			this.lastExecuted = this.age;
+	public void onActivatorRail(ServerWorld serverWorld, int x, int y, int z, boolean powered) {
+		if (powered && age - lastExecuted >= EXECUTE_TICK_COOLDOWN) {
+			getCommandExecutor().execute(serverWorld);
+			lastExecuted = age;
 		}
 	}
 
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		if (!player.isCreativeLevelTwoOp()) {
-			return ActionResult.PASS;
-		}
-		else {
+		if (player.isCreativeLevelTwoOp()) {
 			if (player.getEntityWorld().isClient()) {
 				player.openCommandBlockMinecartScreen(this);
 			}
 
 			return ActionResult.SUCCESS;
 		}
+
+		return ActionResult.PASS;
 	}
 
+	/**
+	 * Синхронизирует состояние командного блока при изменении отслеживаемых данных.
+	 *
+	 * <p>Обновление {@code LAST_OUTPUT} обёрнуто в try-catch, так как десериализация
+	 * текстового компонента может завершиться ошибкой при получении некорректных данных от сервера.
+	 */
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
+
 		if (LAST_OUTPUT.equals(data)) {
 			try {
-				this.commandExecutor.setLastOutput(this.getDataTracker().get(LAST_OUTPUT));
+				commandExecutor.setLastOutput(getDataTracker().get(LAST_OUTPUT));
+			} catch (Throwable throwable) {
+				// Некорректный текстовый компонент от сервера — игнорируем, чтобы не крашить клиент
 			}
-			catch (Throwable var3) {
-			}
-		}
-		else if (COMMAND.equals(data)) {
-			this.commandExecutor.setCommand(this.getDataTracker().get(COMMAND));
+		} else if (COMMAND.equals(data)) {
+			commandExecutor.setCommand(getDataTracker().get(COMMAND));
 		}
 	}
 
 	/**
-	 * {@code CommandExecutor}.
+	 * Реализация {@link CommandBlockExecutor} для вагонетки с командным блоком.
+	 * Синхронизирует команду и вывод через {@link DataTracker} родительской сущности.
 	 */
 	class CommandExecutor extends CommandBlockExecutor {
 
 		@Override
 		public void markDirty(ServerWorld world) {
-			CommandBlockMinecartEntity.this.getDataTracker().set(CommandBlockMinecartEntity.COMMAND, this.getCommand());
-			CommandBlockMinecartEntity.this
-					.getDataTracker()
-					.set(CommandBlockMinecartEntity.LAST_OUTPUT, this.getLastOutput());
+			CommandBlockMinecartEntity.this.getDataTracker().set(COMMAND, getCommand());
+			CommandBlockMinecartEntity.this.getDataTracker().set(LAST_OUTPUT, getLastOutput());
 		}
 
 		@Override
 		public ServerCommandSource getSource(ServerWorld world, CommandOutput output) {
 			return new ServerCommandSource(
-					output,
-					CommandBlockMinecartEntity.this.getEntityPos(),
-					CommandBlockMinecartEntity.this.getRotationClient(),
-					world,
-					LeveledPermissionPredicate.GAMEMASTERS,
-					this.getName().getString(),
-					CommandBlockMinecartEntity.this.getDisplayName(),
-					world.getServer(),
-					CommandBlockMinecartEntity.this
+				output,
+				CommandBlockMinecartEntity.this.getEntityPos(),
+				CommandBlockMinecartEntity.this.getRotationClient(),
+				world,
+				LeveledPermissionPredicate.GAMEMASTERS,
+				getName().getString(),
+				CommandBlockMinecartEntity.this.getDisplayName(),
+				world.getServer(),
+				CommandBlockMinecartEntity.this
 			);
 		}
 

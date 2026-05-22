@@ -12,16 +12,16 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code MatchToolLootCondition}.
+ * Условие, проверяющее инструмент в контексте лута через {@link ItemPredicate}.
  */
 public record MatchToolLootCondition(Optional<ItemPredicate> predicate) implements LootCondition {
 
 	public static final MapCodec<MatchToolLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(ItemPredicate.CODEC
-							.optionalFieldOf("predicate")
-							.forGetter(MatchToolLootCondition::predicate))
-					.apply(instance, MatchToolLootCondition::new)
+		instance -> instance
+			.group(
+				ItemPredicate.CODEC.optionalFieldOf("predicate").forGetter(MatchToolLootCondition::predicate)
+			)
+			.apply(instance, MatchToolLootCondition::new)
 	);
 
 	@Override
@@ -34,16 +34,9 @@ public record MatchToolLootCondition(Optional<ItemPredicate> predicate) implemen
 		return Set.of(LootContextParameters.TOOL);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
-		ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
-		return itemStack != null && (this.predicate.isEmpty() || this.predicate.get().test(itemStack));
+		ItemStack tool = lootContext.get(LootContextParameters.TOOL);
+		return tool != null && (predicate.isEmpty() || predicate.get().test(tool));
 	}
 
 	public static LootCondition.Builder builder(ItemPredicate.Builder predicate) {

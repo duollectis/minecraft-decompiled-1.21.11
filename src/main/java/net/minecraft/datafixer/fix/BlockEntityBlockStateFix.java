@@ -10,40 +10,45 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BlockEntityBlockStateFix}.
+ * Конвертирует устаревший формат блок-стейта поршня (числовые {@code blockId} + {@code blockData})
+ * в новый формат на основе именованных состояний блоков через {@link BlockStateFlattening}.
  */
 public class BlockEntityBlockStateFix extends ChoiceFix {
 
-	public BlockEntityBlockStateFix(Schema schema, boolean bl) {
-		super(schema, bl, "BlockEntityBlockStateFix", TypeReferences.BLOCK_ENTITY, "minecraft:piston");
+	private static final int BLOCK_DATA_MASK = 15;
+
+	public BlockEntityBlockStateFix(Schema schema, boolean changesType) {
+		super(schema, changesType, "BlockEntityBlockStateFix", TypeReferences.BLOCK_ENTITY, "minecraft:piston");
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		Type<?> type = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:piston");
-		Type<?> type2 = type.findFieldType("blockState");
-		OpticFinder<?> opticFinder = DSL.fieldFinder("blockState", type2);
-		Dynamic<?> dynamic = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
-		int i = dynamic.get("blockId").asInt(0);
-		dynamic = dynamic.remove("blockId");
-		int j = dynamic.get("blockData").asInt(0) & 15;
-		dynamic = dynamic.remove("blockData");
-		Dynamic<?> dynamic2 = BlockStateFlattening.lookupState(i << 4 | j);
-		Typed<?>
-				typed =
-				(Typed<?>) type
-						.pointTyped(inputTyped.getOps())
-						.orElseThrow(() -> new IllegalStateException("Could not create new piston block entity."));
-		return typed.set(DSL.remainderFinder(), dynamic)
-		            .set(
-				            opticFinder,
-				            (Typed) ((Pair) type2
-						            .readTyped(dynamic2)
-						            .result()
-						            .orElseThrow(() -> new IllegalStateException(
-								            "Could not parse newly created block state tag."))
-				            )
-						            .getFirst()
-		            );
+		Type<?> pistonType = getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:piston");
+		Type<?> blockStateFieldType = pistonType.findFieldType("blockState");
+		OpticFinder<?> blockStateFinder = DSL.fieldFinder("blockState", blockStateFieldType);
+
+		Dynamic<?> remainder = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
+		int blockId = remainder.get("blockId").asInt(0);
+		remainder = remainder.remove("blockId");
+
+		int blockData = remainder.get("blockData").asInt(0) & BLOCK_DATA_MASK;
+		remainder = remainder.remove("blockData");
+
+		Dynamic<?> newBlockState = BlockStateFlattening.lookupState(blockId << 4 | blockData);
+		Typed<?> newTyped = pistonType
+			.pointTyped(inputTyped.getOps())
+			.orElseThrow(() -> new IllegalStateException("Could not create new piston block entity."));
+
+		return newTyped
+			.set(DSL.remainderFinder(), remainder)
+			.set(
+				(OpticFinder<Object>) blockStateFinder,
+				(Object) ((Pair<?, ?>) blockStateFieldType
+					.readTyped(newBlockState)
+					.result()
+					.orElseThrow(() -> new IllegalStateException("Could not parse newly created block state tag."))
+				).getFirst()
+			);
 	}
 }

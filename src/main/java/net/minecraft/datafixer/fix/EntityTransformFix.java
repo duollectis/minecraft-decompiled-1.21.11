@@ -16,7 +16,10 @@ import java.util.Locale;
 import java.util.function.Function;
 
 /**
- * {@code EntityTransformFix}.
+ * Базовый класс для фиксов, которые преобразуют тип сущности и/или её данные.
+ * Использует {@link TaggedChoiceType} для разрешения входного и выходного типов
+ * по строковому ключу (идентификатору сущности), затем делегирует трансформацию
+ * в {@link #transform(String, Typed)}.
  */
 public abstract class EntityTransformFix extends DataFix {
 
@@ -28,47 +31,52 @@ public abstract class EntityTransformFix extends DataFix {
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public TypeRewriteRule makeRule() {
-		TaggedChoiceType<String>
-				taggedChoiceType =
-				(TaggedChoiceType<String>) this.getInputSchema().findChoiceType(TypeReferences.ENTITY);
-		TaggedChoiceType<String>
-				taggedChoiceType2 =
-				(TaggedChoiceType<String>) this.getOutputSchema().findChoiceType(TypeReferences.ENTITY);
-		Function<String, Type<?>> function = Util.memoize(string -> {
-			Type<?> type = (Type<?>) taggedChoiceType.types().get(string);
-			return FixUtil.withTypeChanged(type, taggedChoiceType, taggedChoiceType2);
+		TaggedChoiceType<String> inputChoiceType =
+			(TaggedChoiceType<String>) getInputSchema().findChoiceType(TypeReferences.ENTITY);
+		TaggedChoiceType<String> outputChoiceType =
+			(TaggedChoiceType<String>) getOutputSchema().findChoiceType(TypeReferences.ENTITY);
+
+		Function<String, Type<?>> typeResolver = Util.memoize(entityId -> {
+			Type<?> inputType = (Type<?>) inputChoiceType.types().get(entityId);
+			return FixUtil.withTypeChanged(inputType, inputChoiceType, outputChoiceType);
 		});
-		return this.fixTypeEverywhere(
-				this.name,
-				taggedChoiceType,
-				taggedChoiceType2,
-				dynamicOps -> pair -> {
-					String string = (String) pair.getFirst();
-					Type<?> type = function.apply(string);
-					Pair<String, Typed<?>>
-							pair2 =
-							this.transform(string, this.makeTyped(pair.getSecond(), dynamicOps, type));
-					Type<?> type2 = (Type<?>) taggedChoiceType2.types().get(pair2.getFirst());
-					if (!type2.equals(((Typed) pair2.getSecond()).getType(), true, true)) {
-						throw new IllegalStateException(
-								String.format(
-										Locale.ROOT,
-										"Dynamic type check failed: %s not equal to %s",
-										type2,
-										((Typed) pair2.getSecond()).getType()
-								)
-						);
-					}
-					else {
-						return Pair.of((String) pair2.getFirst(), ((Typed) pair2.getSecond()).getValue());
-					}
+
+		return fixTypeEverywhere(
+			name,
+			inputChoiceType,
+			outputChoiceType,
+			dynamicOps -> pair -> {
+				String entityId = (String) pair.getFirst();
+				Type<?> resolvedType = typeResolver.apply(entityId);
+				Pair<String, Typed<?>> result = transform(
+					entityId,
+					makeTyped(pair.getSecond(), dynamicOps, resolvedType)
+				);
+
+				String newEntityId = result.getFirst();
+				Typed<?> newTyped = result.getSecond();
+				Type<?> expectedOutputType = (Type<?>) outputChoiceType.types().get(newEntityId);
+
+				if (expectedOutputType.equals(((Typed) newTyped).getType(), true, true)) {
+					return Pair.of(newEntityId, ((Typed) newTyped).getValue());
 				}
+
+				throw new IllegalStateException(
+					String.format(
+						Locale.ROOT,
+						"Dynamic type check failed: %s not equal to %s",
+						expectedOutputType,
+						((Typed) newTyped).getType()
+					)
+				);
+			}
 		);
 	}
 
-	private <A> Typed<A> makeTyped(Object object, DynamicOps<?> dynamicOps, Type<A> type) {
-		return new Typed(type, dynamicOps, object);
+	private <A> Typed<A> makeTyped(Object value, DynamicOps<?> dynamicOps, Type<A> type) {
+		return new Typed<>(type, dynamicOps, (A) value);
 	}
 
 	protected abstract Pair<String, Typed<?>> transform(String choice, Typed<?> entityTyped);

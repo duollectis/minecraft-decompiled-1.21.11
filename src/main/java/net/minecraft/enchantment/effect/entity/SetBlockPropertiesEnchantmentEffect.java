@@ -17,28 +17,28 @@ import net.minecraft.world.event.GameEvent;
 import java.util.Optional;
 
 /**
- * {@code SetBlockPropertiesEnchantmentEffect}.
+ * Эффект зачарования, изменяющий свойства блока в заданной позиции (с опциональным смещением).
+ * Применяет компонент {@link BlockStateComponent} к текущему состоянию блока.
+ * Если состояние изменилось — обновляет блок и опционально генерирует игровое событие.
  */
 public record SetBlockPropertiesEnchantmentEffect(
 		BlockStateComponent properties,
 		Vec3i offset,
 		Optional<RegistryEntry<GameEvent>> triggerGameEvent
-)
-		implements EnchantmentEntityEffect {
+) implements EnchantmentEntityEffect {
 
 	public static final MapCodec<SetBlockPropertiesEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    BlockStateComponent.CODEC
-							                    .fieldOf("properties")
-							                    .forGetter(SetBlockPropertiesEnchantmentEffect::properties),
-					                    Vec3i.CODEC
-							                    .optionalFieldOf("offset", Vec3i.ZERO)
-							                    .forGetter(SetBlockPropertiesEnchantmentEffect::offset),
-					                    GameEvent.CODEC
-							                    .optionalFieldOf("trigger_game_event")
-							                    .forGetter(SetBlockPropertiesEnchantmentEffect::triggerGameEvent)
-			                    )
-			                    .apply(instance, SetBlockPropertiesEnchantmentEffect::new)
+					BlockStateComponent.CODEC
+							.fieldOf("properties")
+							.forGetter(SetBlockPropertiesEnchantmentEffect::properties),
+					Vec3i.CODEC
+							.optionalFieldOf("offset", Vec3i.ZERO)
+							.forGetter(SetBlockPropertiesEnchantmentEffect::offset),
+					GameEvent.CODEC
+							.optionalFieldOf("trigger_game_event")
+							.forGetter(SetBlockPropertiesEnchantmentEffect::triggerGameEvent)
+			).apply(instance, SetBlockPropertiesEnchantmentEffect::new)
 	);
 
 	public SetBlockPropertiesEnchantmentEffect(BlockStateComponent properties) {
@@ -47,15 +47,16 @@ public record SetBlockPropertiesEnchantmentEffect(
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		BlockPos blockPos = BlockPos.ofFloored(pos).add(this.offset);
-		BlockState blockState = user.getEntityWorld().getBlockState(blockPos);
-		BlockState blockState2 = this.properties.applyToState(blockState);
-		if (blockState != blockState2 && user.getEntityWorld().setBlockState(blockPos, blockState2, 3)) {
-			this.triggerGameEvent.ifPresent(gameEvent -> world.emitGameEvent(
-					user,
-					(RegistryEntry<GameEvent>) gameEvent,
-					blockPos
-			));
+		BlockPos targetPos = BlockPos.ofFloored(pos).add(offset);
+		BlockState currentState = user.getEntityWorld().getBlockState(targetPos);
+		BlockState newState = properties.applyToState(currentState);
+
+		if (currentState == newState) {
+			return;
+		}
+
+		if (user.getEntityWorld().setBlockState(targetPos, newState, 3)) {
+			triggerGameEvent.ifPresent(event -> world.emitGameEvent(user, event, targetPos));
 		}
 	}
 

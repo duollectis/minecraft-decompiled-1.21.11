@@ -5,7 +5,8 @@ import net.minecraft.world.gen.chunk.ChunkNoiseSampler;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BlockSource}.
+ * Источник блоков для генерации чанков.
+ * Используется при заполнении шумового объёма блоками на основе позиции.
  */
 public interface BlockSource {
 

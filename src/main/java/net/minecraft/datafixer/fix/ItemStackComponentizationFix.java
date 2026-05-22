@@ -22,7 +22,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ItemStackComponentizationFix}.
+ * Мигрирует данные предметов (ItemStack) из старого NBT-формата в новую компонентную систему (1.20.5+).
+ * <p>
+ * Переносит поля тега {@code tag} (Enchantments, display, Damage, Unbreakable и т.д.)
+ * в именованные компоненты ({@code minecraft:enchantments}, {@code minecraft:custom_name} и т.д.).
+ * Остаточные NBT-данные, не распознанные фиксером, сохраняются в {@code minecraft:custom_data}.
  */
 public class ItemStackComponentizationFix extends DataFix {
 
@@ -34,6 +38,13 @@ public class ItemStackComponentizationFix extends DataFix {
 	private static final int HIDE_ADDITIONAL_FLAG = 32;
 	private static final int HIDE_DYED_FLAG = 64;
 	private static final int HIDE_UPGRADE_FLAG = 128;
+	private static final int MAX_USERNAME_LENGTH = 16;
+	private static final int MAX_USERNAME_CHAR_CODE = 32;
+	private static final char BLOCK_STATE_OPEN_BRACKET = '[';
+	private static final char BLOCK_STATE_CLOSE_BRACKET = ']';
+	private static final char NBT_OPEN_BRACE = '{';
+	private static final char NBT_CLOSE_BRACE = '}';
+	private static final char PROPERTY_EQUALS = '=';
 	private static final Set<String> POTION_ITEM_IDS = Set.of(
 			"minecraft:potion", "minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:tipped_arrow"
 	);
@@ -144,7 +155,7 @@ public class ItemStackComponentizationFix extends DataFix {
 
 		fixEnchantments(data, dynamic, "Enchantments", "minecraft:enchantments", (i & 1) != 0);
 		if (data.itemEquals("minecraft:enchanted_book")) {
-			fixEnchantments(data, dynamic, "StoredEnchantments", "minecraft:stored_enchantments", (i & 32) != 0);
+			fixEnchantments(data, dynamic, "StoredEnchantments", "minecraft:stored_enchantments", (i & HIDE_ADDITIONAL_FLAG) != 0);
 		}
 
 		data.applyFixer("display", false, displayDynamic -> fixDisplay(data, displayDynamic, i));
@@ -153,14 +164,14 @@ public class ItemStackComponentizationFix extends DataFix {
 		Optional<? extends Dynamic<?>> optional = data.getAndRemove("Trim").result();
 		if (optional.isPresent()) {
 			Dynamic<?> dynamic3 = (Dynamic<?>) optional.get();
-			if ((i & 128) != 0) {
+			if ((i & HIDE_UPGRADE_FLAG) != 0) {
 				dynamic3 = dynamic3.set("show_in_tooltip", dynamic3.createBoolean(false));
 			}
 
 			data.setComponent("minecraft:trim", dynamic3);
 		}
 
-		if ((i & 32) != 0) {
+		if ((i & HIDE_ADDITIONAL_FLAG) != 0) {
 			data.setComponent("minecraft:hide_additional_tooltip", dynamic.emptyMap());
 		}
 
@@ -285,7 +296,7 @@ public class ItemStackComponentizationFix extends DataFix {
 		}
 
 		Optional<Integer> optional = dynamic.get("color").asNumber().result().map(Number::intValue);
-		boolean bl = (hideFlags & 64) != 0;
+		boolean bl = (hideFlags & HIDE_DYED_FLAG) != 0;
 		if (optional.isPresent() || bl) {
 			Dynamic<?> dynamic2 = dynamic.emptyMap().set("rgb", dynamic.createInt(optional.orElse(10511680)));
 			if (bl) {
@@ -455,7 +466,7 @@ public class ItemStackComponentizationFix extends DataFix {
 			int hideFlags
 	) {
 		fixBlockPredicateList(data, dynamic, "CanDestroy", "minecraft:can_break", (hideFlags & 8) != 0);
-		fixBlockPredicateList(data, dynamic, "CanPlaceOn", "minecraft:can_place_on", (hideFlags & 16) != 0);
+		fixBlockPredicateList(data, dynamic, "CanPlaceOn", "minecraft:can_place_on", (hideFlags & HIDE_CAN_PLACE_FLAG) != 0);
 	}
 
 	private static void fixBlockPredicateList(
@@ -496,41 +507,41 @@ public class ItemStackComponentizationFix extends DataFix {
 	}
 
 	private static Dynamic<?> createBlockPredicateListDynamic(Dynamic<?> dynamic, String listAsString) {
-		int i = listAsString.indexOf(91);
-		int j = listAsString.indexOf(123);
-		int k = listAsString.length();
-		if (i != -1) {
-			k = i;
+		int bracketStart = listAsString.indexOf(BLOCK_STATE_OPEN_BRACKET);
+		int braceStart = listAsString.indexOf(NBT_OPEN_BRACE);
+		int blockNameEnd = listAsString.length();
+		if (bracketStart != -1) {
+			blockNameEnd = bracketStart;
 		}
 
-		if (j != -1) {
-			k = Math.min(k, j);
+		if (braceStart != -1) {
+			blockNameEnd = Math.min(blockNameEnd, braceStart);
 		}
 
-		String string = listAsString.substring(0, k);
-		Dynamic<?> dynamic2 = dynamic.emptyMap().set("blocks", dynamic.createString(string.trim()));
-		int l = listAsString.indexOf(93);
-		if (i != -1 && l != -1) {
-			Dynamic<?> dynamic3 = dynamic.emptyMap();
+		String blockName = listAsString.substring(0, blockNameEnd);
+		Dynamic<?> result = dynamic.emptyMap().set("blocks", dynamic.createString(blockName.trim()));
+		int bracketEnd = listAsString.indexOf(BLOCK_STATE_CLOSE_BRACKET);
+		if (bracketStart != -1 && bracketEnd != -1) {
+			Dynamic<?> stateMap = dynamic.emptyMap();
 
-			for (String string2 : COMMA_SPLITTER.split(listAsString.substring(i + 1, l))) {
-				int m = string2.indexOf(61);
-				if (m != -1) {
-					String string3 = string2.substring(0, m).trim();
-					String string4 = string2.substring(m + 1).trim();
-					dynamic3 = dynamic3.set(string3, dynamic.createString(string4));
+			for (String property : COMMA_SPLITTER.split(listAsString.substring(bracketStart + 1, bracketEnd))) {
+				int equalsPos = property.indexOf(PROPERTY_EQUALS);
+				if (equalsPos != -1) {
+					String propertyKey = property.substring(0, equalsPos).trim();
+					String propertyValue = property.substring(equalsPos + 1).trim();
+					stateMap = stateMap.set(propertyKey, dynamic.createString(propertyValue));
 				}
 			}
 
-			dynamic2 = dynamic2.set("state", dynamic3);
+			result = result.set("state", stateMap);
 		}
 
-		int n = listAsString.indexOf(125);
-		if (j != -1 && n != -1) {
-			dynamic2 = dynamic2.set("nbt", dynamic.createString(listAsString.substring(j, n + 1)));
+		int braceEnd = listAsString.indexOf(NBT_CLOSE_BRACE);
+		if (braceStart != -1 && braceEnd != -1) {
+			result = result.set("nbt", dynamic.createString(listAsString.substring(braceStart, braceEnd + 1)));
 		}
 
-		return dynamic2;
+		return result;
 	}
 
 	private static void fixAttributeModifiers(
@@ -606,7 +617,7 @@ public class ItemStackComponentizationFix extends DataFix {
 			case 13 -> "banner_light_blue";
 			case 14 -> "banner_yellow";
 			case 15 -> "banner_lime";
-			case 16 -> "banner_pink";
+			case HIDE_CAN_PLACE_FLAG -> "banner_pink";
 			case 17 -> "banner_gray";
 			case 18 -> "banner_light_gray";
 			case 19 -> "banner_cyan";
@@ -622,7 +633,7 @@ public class ItemStackComponentizationFix extends DataFix {
 			case 29 -> "village_savanna";
 			case 30 -> "village_snowy";
 			case 31 -> "village_taiga";
-			case 32 -> "jungle_temple";
+			case HIDE_ADDITIONAL_FLAG -> "jungle_temple";
 			case 33 -> "swamp_hut";
 			default -> "player";
 		};
@@ -821,7 +832,8 @@ public class ItemStackComponentizationFix extends DataFix {
 	}
 
 	private static boolean isValidUsername(String username) {
-		return username.length() > 16 ? false : username.chars().filter(c -> c <= 32 || c >= 127).findAny().isEmpty();
+		return username.length() <= MAX_USERNAME_LENGTH
+				&& username.chars().filter(c -> c <= MAX_USERNAME_CHAR_CODE || c >= 127).findAny().isEmpty();
 	}
 
 	private static @Nullable Dynamic<?> createPropertiesDynamic(OptionalDynamic<?> propertiesDynamic) {
@@ -867,10 +879,10 @@ public class ItemStackComponentizationFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.writeFixAndRead(
+		return writeFixAndRead(
 				"ItemStack componentization",
-				this.getInputSchema().getType(TypeReferences.ITEM_STACK),
-				this.getOutputSchema().getType(TypeReferences.ITEM_STACK),
+				getInputSchema().getType(TypeReferences.ITEM_STACK),
+				getOutputSchema().getType(TypeReferences.ITEM_STACK),
 				dynamic -> {
 					Optional<? extends Dynamic<?>>
 							optional =
@@ -878,13 +890,14 @@ public class ItemStackComponentizationFix extends DataFix {
 								fixStack(data, data.nbt);
 								return data.buildResult();
 							});
-					return (Dynamic) DataFixUtils.orElse(optional, dynamic);
+					return (Dynamic<?>) DataFixUtils.orElse(optional, dynamic);
 				}
 		);
 	}
 
 	/**
-	 * {@code StackData}.
+	 * Изменяемый контейнер данных одного предмета в процессе миграции.
+	 * Хранит идентификатор предмета, количество, накопленные компоненты и остаточный NBT-тег.
 	 */
 	static class StackData {
 
@@ -985,7 +998,7 @@ public class ItemStackComponentizationFix extends DataFix {
 					                 leftoverNbt.convert(dynamicOps).getValue(),
 					                 mapLike
 			                 ))
-			                 .map(object -> new Dynamic(dynamicOps, object))
+			                 .map(object -> new Dynamic<>(dynamicOps, object))
 			                 .result()
 			                 .orElse(data);
 		}

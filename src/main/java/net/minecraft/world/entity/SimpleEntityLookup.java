@@ -9,7 +9,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * {@code SimpleEntityLookup}.
+ * Простая реализация {@link EntityLookup}, делегирующая запросы по ID/UUID в {@link EntityIndex},
+ * а пространственные запросы — в {@link SectionedEntityCache}.
+ *
+ * @param <T> тип сущностей
  */
 public class SimpleEntityLookup<T extends EntityLike> implements EntityLookup<T> {
 
@@ -23,31 +26,31 @@ public class SimpleEntityLookup<T extends EntityLike> implements EntityLookup<T>
 
 	@Override
 	public @Nullable T get(int id) {
-		return this.index.get(id);
+		return index.get(id);
 	}
 
 	@Override
 	public @Nullable T get(UUID uuid) {
-		return this.index.get(uuid);
+		return index.get(uuid);
 	}
 
 	@Override
 	public Iterable<T> iterate() {
-		return this.index.iterate();
+		return index.iterate();
 	}
 
 	@Override
 	public <U extends T> void forEach(TypeFilter<T, U> filter, LazyIterationConsumer<U> consumer) {
-		this.index.forEach(filter, consumer);
+		index.forEach(filter, consumer);
 	}
 
 	@Override
 	public void forEachIntersects(Box box, Consumer<T> action) {
-		this.cache.forEachIntersects(box, LazyIterationConsumer.forConsumer(action));
+		cache.forEachIntersects(box, LazyIterationConsumer.forConsumer(action));
 	}
 
 	@Override
 	public <U extends T> void forEachIntersects(TypeFilter<T, U> filter, Box box, LazyIterationConsumer<U> consumer) {
-		this.cache.forEachIntersects(filter, box, consumer);
+		cache.forEachIntersects(filter, box, consumer);
 	}
 }

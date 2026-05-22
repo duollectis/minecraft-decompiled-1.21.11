@@ -13,13 +13,21 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code WaterAnimalEntity}.
+ * Базовый класс для водных пассивных существ (рыбы, кальмары и т.д.).
+ * Реализует логику дыхания: существо тонет вне воды и восстанавливает воздух в воде.
  */
 public abstract class WaterAnimalEntity extends PassiveEntity {
 
+	/** Глубина спавна относительно уровня моря (от -13 до 0 блоков). */
+	private static final int SPAWN_DEPTH_OFFSET = 13;
+	/** Максимальный запас воздуха в тиках. */
+	private static final int MAX_AIR = 300;
+	/** Урон от утопления за тик вне воды. */
+	private static final float DROWN_DAMAGE = 2.0F;
+
 	protected WaterAnimalEntity(EntityType<? extends WaterAnimalEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 	}
 
 	@Override
@@ -34,32 +42,32 @@ public abstract class WaterAnimalEntity extends PassiveEntity {
 
 	@Override
 	public int getExperienceToDrop(ServerWorld world) {
-		return 1 + this.random.nextInt(3);
+		return 1 + random.nextInt(3);
 	}
 
 	/**
-	 * Выполняет тик обновления для breathing.
+	 * Обновляет запас воздуха: уменьшает вне воды (с уроном при исчерпании),
+	 * восстанавливает до максимума в воде.
 	 *
-	 * @param air air
+	 * @param airBefore запас воздуха до вызова {@code baseTick()}
 	 */
-	protected void tickBreathing(int air) {
-		if (this.isAlive() && !this.isTouchingWater()) {
-			this.setAir(air - 1);
-			if (this.shouldDrown()) {
-				this.setAir(0);
-				this.serverDamage(this.getDamageSources().drown(), 2.0F);
+	protected void tickBreathing(int airBefore) {
+		if (isAlive() && !isTouchingWater()) {
+			setAir(airBefore - 1);
+			if (shouldDrown()) {
+				setAir(0);
+				serverDamage(getDamageSources().drown(), DROWN_DAMAGE);
 			}
-		}
-		else {
-			this.setAir(300);
+		} else {
+			setAir(MAX_AIR);
 		}
 	}
 
 	@Override
 	public void baseTick() {
-		int i = this.getAir();
+		int airBefore = getAir();
 		super.baseTick();
-		this.tickBreathing(i);
+		tickBreathing(airBefore);
 	}
 
 	@Override
@@ -72,17 +80,23 @@ public abstract class WaterAnimalEntity extends PassiveEntity {
 		return false;
 	}
 
+	/**
+	 * Проверяет допустимость спавна водного существа по позиции.
+	 * Существо должно находиться в диапазоне от (уровень моря - 13) до уровня моря,
+	 * снизу должна быть вода, сверху — блок воды.
+	 */
 	public static boolean canSpawn(
-			EntityType<? extends WaterAnimalEntity> type,
-			WorldAccess world,
-			SpawnReason reason,
-			BlockPos pos,
-			Random random
+		EntityType<? extends WaterAnimalEntity> type,
+		WorldAccess world,
+		SpawnReason reason,
+		BlockPos pos,
+		Random random
 	) {
-		int i = world.getSeaLevel();
-		int j = i - 13;
-		return pos.getY() >= j && pos.getY() <= i && world.getFluidState(pos.down()).isIn(FluidTags.WATER) && world
-				.getBlockState(pos.up())
-				.isOf(Blocks.WATER);
+		int seaLevel = world.getSeaLevel();
+		int minY = seaLevel - SPAWN_DEPTH_OFFSET;
+		return pos.getY() >= minY
+			&& pos.getY() <= seaLevel
+			&& world.getFluidState(pos.down()).isIn(FluidTags.WATER)
+			&& world.getBlockState(pos.up()).isOf(Blocks.WATER);
 	}
 }

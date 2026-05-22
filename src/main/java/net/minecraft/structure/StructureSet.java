@@ -12,20 +12,21 @@ import net.minecraft.world.gen.structure.Structure;
 import java.util.List;
 
 /**
- * {@code StructureSet}.
+ * Набор структур с весами и общим правилом размещения.
+ * При генерации мира из набора случайно выбирается одна структура
+ * пропорционально её весу, после чего применяется общее {@link StructurePlacement}.
  */
 public record StructureSet(List<StructureSet.WeightedEntry> structures, StructurePlacement placement) {
 
 	public static final Codec<StructureSet> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    StructureSet.WeightedEntry.CODEC.listOf().fieldOf("structures").forGetter(StructureSet::structures),
-					                    StructurePlacement.TYPE_CODEC.fieldOf("placement").forGetter(StructureSet::placement)
-			                    )
-			                    .apply(instance, StructureSet::new)
+		instance -> instance.group(
+			StructureSet.WeightedEntry.CODEC.listOf().fieldOf("structures").forGetter(StructureSet::structures),
+			StructurePlacement.TYPE_CODEC.fieldOf("placement").forGetter(StructureSet::placement)
+		).apply(instance, StructureSet::new)
 	);
-	public static final Codec<RegistryEntry<StructureSet>>
-			REGISTRY_CODEC =
-			RegistryElementCodec.of(RegistryKeys.STRUCTURE_SET, CODEC);
+
+	public static final Codec<RegistryEntry<StructureSet>> REGISTRY_CODEC =
+		RegistryElementCodec.of(RegistryKeys.STRUCTURE_SET, CODEC);
 
 	public StructureSet(RegistryEntry<Structure> structure, StructurePlacement placement) {
 		this(List.of(new StructureSet.WeightedEntry(structure, 1)), placement);
@@ -40,16 +41,16 @@ public record StructureSet(List<StructureSet.WeightedEntry> structures, Structur
 	}
 
 	/**
-	 * {@code WeightedEntry}.
+	 * Взвешенная запись структуры внутри набора.
+	 * Чем больше {@code weight}, тем выше вероятность выбора этой структуры.
 	 */
 	public record WeightedEntry(RegistryEntry<Structure> structure, int weight) {
 
 		public static final Codec<StructureSet.WeightedEntry> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    Structure.ENTRY_CODEC.fieldOf("structure").forGetter(StructureSet.WeightedEntry::structure),
-						                    Codecs.POSITIVE_INT.fieldOf("weight").forGetter(StructureSet.WeightedEntry::weight)
-				                    )
-				                    .apply(instance, StructureSet.WeightedEntry::new)
+			instance -> instance.group(
+				Structure.ENTRY_CODEC.fieldOf("structure").forGetter(StructureSet.WeightedEntry::structure),
+				Codecs.POSITIVE_INT.fieldOf("weight").forGetter(StructureSet.WeightedEntry::weight)
+			).apply(instance, StructureSet.WeightedEntry::new)
 		);
 	}
 }

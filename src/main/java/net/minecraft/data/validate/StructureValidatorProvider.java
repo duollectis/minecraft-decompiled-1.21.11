@@ -12,12 +12,26 @@ import net.minecraft.structure.StructureTemplate;
 import org.slf4j.Logger;
 
 /**
- * {@code StructureValidatorProvider}.
+ * Реализация {@link SnbtProvider.Tweaker}, которая валидирует и обновляет
+ * NBT-данные структур через DataFixer. Предупреждает о структурах со слишком
+ * старой версией данных, которые могут потребовать ручного обновления.
  */
 public class StructureValidatorProvider implements SnbtProvider.Tweaker {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final String PATH_PREFIX = ResourceType.SERVER_DATA.getDirectory() + "/minecraft/structure/";
+
+	/**
+	 * Минимальная версия данных структуры, при которой не выводится предупреждение.
+	 * Соответствует версии данных Minecraft 1.21.
+	 */
+	private static final int CURRENT_DATA_VERSION = 4650;
+
+	/**
+	 * Версия данных по умолчанию для структур без явно указанной версии.
+	 * Соответствует формату до введения DataVersion в NBT структур.
+	 */
+	private static final int LEGACY_DATA_VERSION = 500;
 
 	@Override
 	public NbtCompound write(String name, NbtCompound nbt) {
@@ -25,15 +39,18 @@ public class StructureValidatorProvider implements SnbtProvider.Tweaker {
 	}
 
 	public static NbtCompound update(String name, NbtCompound nbt) {
-		StructureTemplate structureTemplate = new StructureTemplate();
-		int i = NbtHelper.getDataVersion(nbt, 500);
-		int j = 4650;
-		if (i < 4650) {
-			LOGGER.warn("SNBT Too old, do not forget to update: {} < {}: {}", new Object[]{i, 4650, name});
+		int dataVersion = NbtHelper.getDataVersion(nbt, LEGACY_DATA_VERSION);
+
+		if (dataVersion < CURRENT_DATA_VERSION) {
+			LOGGER.warn(
+					"SNBT Too old, do not forget to update: {} < {}: {}",
+					dataVersion, CURRENT_DATA_VERSION, name
+			);
 		}
 
-		NbtCompound nbtCompound = DataFixTypes.STRUCTURE.update(Schemas.getFixer(), nbt, i);
-		structureTemplate.readNbt(Registries.BLOCK, nbtCompound);
+		NbtCompound updatedNbt = DataFixTypes.STRUCTURE.update(Schemas.getFixer(), nbt, dataVersion);
+		StructureTemplate structureTemplate = new StructureTemplate();
+		structureTemplate.readNbt(Registries.BLOCK, updatedNbt);
 		return structureTemplate.writeNbt(new NbtCompound());
 	}
 }

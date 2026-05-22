@@ -5,7 +5,7 @@ import net.minecraft.network.packet.s2c.play.CooldownUpdateS2CPacket;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code ServerItemCooldownManager}.
+ * Класс Server Item Cooldown Manager.
  */
 public class ServerItemCooldownManager extends ItemCooldownManager {
 

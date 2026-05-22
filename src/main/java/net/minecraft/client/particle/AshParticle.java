@@ -6,10 +6,11 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AshParticle}.
+ * Частица пепла, медленно поднимающаяся вверх в биомах с пепельной атмосферой
+ * (например, в Basalt Deltas). Наследует логику подъёма от {@link AscendingParticle}.
  */
+@Environment(EnvType.CLIENT)
 public class AshParticle extends AscendingParticle {
 
 	protected AshParticle(
@@ -43,10 +44,10 @@ public class AshParticle extends AscendingParticle {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц пепла без начальной скорости.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -55,18 +56,19 @@ public class AshParticle extends AscendingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new AshParticle(clientWorld, d, e, f, 0.0, 0.0, 0.0, 1.0F, this.spriteProvider);
+			return new AshParticle(world, x, y, z, 0.0, 0.0, 0.0, 1.0F, this.spriteProvider);
 		}
 	}
 }

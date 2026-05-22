@@ -73,7 +73,7 @@ public class SporeBlossomBlock extends Block {
 		world.addParticleClient(ParticleTypes.FALLING_SPORE_BLOSSOM, d, e, f, 0.0, 0.0, 0.0);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int l = 0; l < 14; l++) {
+		for (int l = 0; l < PARTICLE_SPAWN_COUNT; l++) {
 			mutable.set(
 					i + MathHelper.nextInt(random, -10, 10),
 					j - random.nextInt(10),

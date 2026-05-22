@@ -8,7 +8,7 @@ import net.minecraft.util.Util;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code ChunkTicket}.
+ * Класс Chunk Ticket.
  */
 public class ChunkTicket {
 
@@ -65,9 +65,6 @@ public class ChunkTicket {
 		this.ticksLeft = this.type.expiryTicks();
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		if (this.type.canExpire()) {
 			this.ticksLeft--;

@@ -22,11 +22,18 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code StorageMinecartEntity}.
+ * Базовый класс для вагонеток с инвентарём (сундук, воронка).
+ * Управляет сериализацией инвентаря, лут-таблицами и замедлением в зависимости от заполненности.
  */
 public abstract class StorageMinecartEntity extends AbstractMinecartEntity implements VehicleInventory {
 
-	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(36, ItemStack.EMPTY);
+	private static final int INVENTORY_SIZE = 36;
+	private static final float BASE_SLOWDOWN = 0.98F;
+	private static final float SLOWDOWN_PER_EMPTY_SLOT = 0.001F;
+	private static final float WATER_SLOWDOWN_FACTOR = 0.95F;
+	private static final int MAX_COMPARATOR_OUTPUT = 15;
+
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
 	private @Nullable RegistryKey<LootTable> lootTable;
 	private long lootTableSeed;
 
@@ -37,32 +44,32 @@ public abstract class StorageMinecartEntity extends AbstractMinecartEntity imple
 	@Override
 	public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
 		super.killAndDropSelf(world, damageSource);
-		this.onBroken(damageSource, world, this);
+		onBroken(damageSource, world, this);
 	}
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return this.getInventoryStack(slot);
+		return getInventoryStack(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		return this.removeInventoryStack(slot, amount);
+		return removeInventoryStack(slot, amount);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		return this.removeInventoryStack(slot);
+		return removeInventoryStack(slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		this.setInventoryStack(slot, stack);
+		setInventoryStack(slot, stack);
 	}
 
 	@Override
 	public StackReference getStackReference(int slot) {
-		return this.getInventoryStackReference(slot);
+		return getInventoryStackReference(slot);
 	}
 
 	@Override
@@ -71,13 +78,13 @@ public abstract class StorageMinecartEntity extends AbstractMinecartEntity imple
 
 	@Override
 	public boolean canPlayerUse(PlayerEntity player) {
-		return this.canPlayerAccess(player);
+		return canPlayerAccess(player);
 	}
 
 	@Override
 	public void remove(Entity.RemovalReason reason) {
-		if (!this.getEntityWorld().isClient() && reason.shouldDestroy()) {
-			ItemScatterer.spawn(this.getEntityWorld(), this, this);
+		if (!getEntityWorld().isClient() && reason.shouldDestroy()) {
+			ItemScatterer.spawn(getEntityWorld(), this, this);
 		}
 
 		super.remove(reason);
@@ -86,61 +93,65 @@ public abstract class StorageMinecartEntity extends AbstractMinecartEntity imple
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.writeInventoryToData(view);
+		writeInventoryToData(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.readInventoryFromData(view);
+		readInventoryFromData(view);
 	}
 
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		return this.open(player);
+		return open(player);
 	}
 
+	/**
+	 * Замедляет вагонетку в зависимости от количества пустых слотов инвентаря.
+	 * Чем больше предметов — тем медленнее вагонетка (имитация веса груза).
+	 */
 	@Override
 	protected Vec3d applySlowdown(Vec3d velocity) {
-		float f = 0.98F;
-		if (this.lootTable == null) {
-			int i = 15 - ScreenHandler.calculateComparatorOutput(this);
-			f += i * 0.001F;
+		float slowdown = BASE_SLOWDOWN;
+
+		if (lootTable == null) {
+			int emptySlots = MAX_COMPARATOR_OUTPUT - ScreenHandler.calculateComparatorOutput(this);
+			slowdown += emptySlots * SLOWDOWN_PER_EMPTY_SLOT;
 		}
 
-		if (this.isTouchingWater()) {
-			f *= 0.95F;
+		if (isTouchingWater()) {
+			slowdown *= WATER_SLOWDOWN_FACTOR;
 		}
 
-		return velocity.multiply(f, 0.0, f);
+		return velocity.multiply(slowdown, 0.0, slowdown);
 	}
 
 	@Override
 	public void clear() {
-		this.clearInventory();
+		clearInventory();
 	}
 
 	public void setLootTable(RegistryKey<LootTable> lootTable, long lootSeed) {
 		this.lootTable = lootTable;
-		this.lootTableSeed = lootSeed;
+		lootTableSeed = lootSeed;
 	}
 
 	@Override
-	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		if (this.lootTable != null && playerEntity.isSpectator()) {
+	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (lootTable != null && player.isSpectator()) {
 			return null;
 		}
-		else {
-			this.generateInventoryLoot(playerInventory.player);
-			return this.getScreenHandler(i, playerInventory);
-		}
+
+		generateInventoryLoot(playerInventory.player);
+		return getScreenHandler(syncId, playerInventory);
 	}
 
 	protected abstract ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory);
 
 	@Override
 	public @Nullable RegistryKey<LootTable> getLootTable() {
-		return this.lootTable;
+		return lootTable;
 	}
 
 	@Override
@@ -150,21 +161,21 @@ public abstract class StorageMinecartEntity extends AbstractMinecartEntity imple
 
 	@Override
 	public long getLootTableSeed() {
-		return this.lootTableSeed;
+		return lootTableSeed;
 	}
 
 	@Override
-	public void setLootTableSeed(long lootTableSeed) {
-		this.lootTableSeed = lootTableSeed;
+	public void setLootTableSeed(long seed) {
+		lootTableSeed = seed;
 	}
 
 	@Override
 	public DefaultedList<ItemStack> getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
 	public void resetInventory() {
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
 	}
 }

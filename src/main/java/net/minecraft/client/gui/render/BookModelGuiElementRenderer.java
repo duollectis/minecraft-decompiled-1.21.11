@@ -14,11 +14,20 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookModelGuiElementRenderer}.
+ * Рендерер 3D-модели книги в GUI (например, в интерфейсе зачарования).
+ * Управляет анимацией открытия книги и перелистывания страниц.
  */
+@Environment(EnvType.CLIENT)
 public class BookModelGuiElementRenderer extends SpecialGuiElementRenderer<BookModelGuiElementRenderState> {
+
+	private static final float BOOK_X_ROTATION_DEGREES = 25.0F;
+	private static final float BOOK_Y_ROTATION_DEGREES = 180.0F;
+	private static final float BOOK_FLIP_PHASE_OFFSET_A = 0.25F;
+	private static final float BOOK_FLIP_PHASE_OFFSET_B = 0.75F;
+	private static final float BOOK_FLIP_SCALE = 1.6F;
+	private static final float BOOK_FLIP_CLAMP_SHIFT = 0.3F;
+	private static final float BOOK_Y_OFFSET_SCALE = 17;
 
 	public BookModelGuiElementRenderer(VertexConsumerProvider.Immediate immediate) {
 		super(immediate);
@@ -30,34 +39,51 @@ public class BookModelGuiElementRenderer extends SpecialGuiElementRenderer<BookM
 	}
 
 	/**
-	 * Render.
-	 *
-	 * @param bookModelGuiElementRenderState book model gui element render state
-	 * @param matrixStack matrix stack
+	 * Отрисовывает анимированную 3D-модель книги.
+	 * Вычисляет прогресс перелистывания страниц через дробную часть фазы анимации,
+	 * чтобы создать плавный эффект перелистывания двух страниц одновременно.
 	 */
-	protected void render(BookModelGuiElementRenderState bookModelGuiElementRenderState, MatrixStack matrixStack) {
+	@Override
+	protected void render(BookModelGuiElementRenderState state, MatrixStack matrices) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()
 				.setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
-		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F));
-		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(25.0F));
-		float f = bookModelGuiElementRenderState.open();
-		matrixStack.translate((1.0F - f) * 0.2F, (1.0F - f) * 0.1F, (1.0F - f) * 0.25F);
-		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(1.0F - f) * 90.0F - 90.0F));
-		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
-		float g = bookModelGuiElementRenderState.flip();
-		float h = MathHelper.clamp(MathHelper.fractionalPart(g + 0.25F) * 1.6F - 0.3F, 0.0F, 1.0F);
-		float i = MathHelper.clamp(MathHelper.fractionalPart(g + 0.75F) * 1.6F - 0.3F, 0.0F, 1.0F);
-		BookModel bookModel = bookModelGuiElementRenderState.bookModel();
-		bookModel.setAngles(new BookModel.BookModelState(0.0F, h, i, f));
-		Identifier identifier = bookModelGuiElementRenderState.texture();
-		VertexConsumer vertexConsumer = this.vertexConsumers.getBuffer(bookModel.getLayer(identifier));
-		bookModel.render(matrixStack, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
+
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(BOOK_Y_ROTATION_DEGREES));
+		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(BOOK_X_ROTATION_DEGREES));
+
+		float openProgress = state.open();
+		matrices.translate(
+				(1.0F - openProgress) * 0.2F,
+				(1.0F - openProgress) * 0.1F,
+				(1.0F - openProgress) * 0.25F
+		);
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(1.0F - openProgress) * 90.0F - 90.0F));
+		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(BOOK_Y_ROTATION_DEGREES));
+
+		float flipPhase = state.flip();
+		float pageA = MathHelper.clamp(
+				MathHelper.fractionalPart(flipPhase + BOOK_FLIP_PHASE_OFFSET_A) * BOOK_FLIP_SCALE - BOOK_FLIP_CLAMP_SHIFT,
+				0.0F,
+				1.0F
+		);
+		float pageB = MathHelper.clamp(
+				MathHelper.fractionalPart(flipPhase + BOOK_FLIP_PHASE_OFFSET_B) * BOOK_FLIP_SCALE - BOOK_FLIP_CLAMP_SHIFT,
+				0.0F,
+				1.0F
+		);
+
+		BookModel bookModel = state.bookModel();
+		bookModel.setAngles(new BookModel.BookModelState(0.0F, pageA, pageB, openProgress));
+
+		Identifier texture = state.texture();
+		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(bookModel.getLayer(texture));
+		bookModel.render(matrices, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
 	}
 
 	@Override
 	protected float getYOffset(int height, int windowScaleFactor) {
-		return 17 * windowScaleFactor;
+		return BOOK_Y_OFFSET_SCALE * windowScaleFactor;
 	}
 
 	@Override

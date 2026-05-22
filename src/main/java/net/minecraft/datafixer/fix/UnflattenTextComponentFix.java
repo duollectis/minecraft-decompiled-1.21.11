@@ -16,7 +16,7 @@ import net.minecraft.util.Util;
 import org.slf4j.Logger;
 
 /**
- * {@code UnflattenTextComponentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class UnflattenTextComponentFix extends DataFix {
 
@@ -30,13 +30,13 @@ public class UnflattenTextComponentFix extends DataFix {
 	protected TypeRewriteRule makeRule() {
 		Type<Pair<String, String>>
 				type =
-				(Type<Pair<String, String>>) this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.TEXT_COMPONENT);
+				(Type<Pair<String, String>>) getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.TEXT_COMPONENT);
 		return this.createRewriteRule(type, type2);
 	}
 
 	private <T> TypeRewriteRule createRewriteRule(Type<Pair<String, String>> type, Type<T> type2) {
-		return this.fixTypeEverywhere(
+		return fixTypeEverywhere(
 				"UnflattenTextComponentFix",
 				type,
 				type2,

@@ -10,33 +10,30 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.dynamic.Codecs;
 import org.joml.*;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UniformValue}.
+ * Значение uniform-переменной, передаваемой в шейдер через UBO.
+ * Каждая реализация соответствует конкретному типу GLSL-переменной
+ * и умеет записывать себя в STD140-выровненный буфер.
  */
+@Environment(EnvType.CLIENT)
 public interface UniformValue {
 
-	Codec<UniformValue> CODEC = UniformValue.Type.CODEC.dispatch(UniformValue::getType, val -> val.mapCodec);
+	Codec<UniformValue> CODEC = Type.CODEC.dispatch(UniformValue::getType, val -> val.mapCodec);
 
 	void write(Std140Builder builder);
 
 	void addSize(Std140SizeCalculator calculator);
 
-	UniformValue.Type getType();
+	Type getType();
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FloatValue}.
-	 */
 	public record FloatValue(float value) implements UniformValue {
 
-		public static final Codec<UniformValue.FloatValue>
-				CODEC =
-				Codec.FLOAT.xmap(UniformValue.FloatValue::new, UniformValue.FloatValue::value);
+		public static final Codec<FloatValue> CODEC = Codec.FLOAT.xmap(FloatValue::new, FloatValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putFloat(this.value);
+			builder.putFloat(value);
 		}
 
 		@Override
@@ -45,24 +42,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.FLOAT;
+		public Type getType() {
+			return Type.FLOAT;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IntValue}.
-	 */
 	public record IntValue(int value) implements UniformValue {
 
-		public static final Codec<UniformValue.IntValue>
-				CODEC =
-				Codec.INT.xmap(UniformValue.IntValue::new, UniformValue.IntValue::value);
+		public static final Codec<IntValue> CODEC = Codec.INT.xmap(IntValue::new, IntValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putInt(this.value);
+			builder.putInt(value);
 		}
 
 		@Override
@@ -71,24 +63,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.INT;
+		public Type getType() {
+			return Type.INT;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Matrix4fValue}.
-	 */
 	public record Matrix4fValue(Matrix4fc value) implements UniformValue {
 
-		public static final Codec<UniformValue.Matrix4fValue>
-				CODEC =
-				Codecs.MATRIX_4F.xmap(UniformValue.Matrix4fValue::new, UniformValue.Matrix4fValue::value);
+		public static final Codec<Matrix4fValue> CODEC = Codecs.MATRIX_4F.xmap(Matrix4fValue::new, Matrix4fValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putMat4f(this.value);
+			builder.putMat4f(value);
 		}
 
 		@Override
@@ -97,54 +84,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.MATRIX4X4;
+		public Type getType() {
+			return Type.MATRIX4X4;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type implements StringIdentifiable {
-		INT("int", UniformValue.IntValue.CODEC),
-		IVEC3("ivec3", UniformValue.Vec3iValue.CODEC),
-		FLOAT("float", UniformValue.FloatValue.CODEC),
-		VEC2("vec2", UniformValue.Vec2fValue.CODEC),
-		VEC3("vec3", UniformValue.Vec3fValue.CODEC),
-		VEC4("vec4", UniformValue.Vec4fValue.CODEC),
-		MATRIX4X4("matrix4x4", UniformValue.Matrix4fValue.CODEC);
-
-		public static final StringIdentifiable.EnumCodec<UniformValue.Type>
-				CODEC =
-				StringIdentifiable.createCodec(UniformValue.Type::values);
-		private final String name;
-		final MapCodec<? extends UniformValue> mapCodec;
-
-		private Type(final String name, final Codec<? extends UniformValue> codec) {
-			this.name = name;
-			this.mapCodec = codec.fieldOf("value");
-		}
-
-		@Override
-		public String asString() {
-			return this.name;
-		}
-	}
-
-	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Vec2fValue}.
-	 */
 	public record Vec2fValue(Vector2fc value) implements UniformValue {
 
-		public static final Codec<UniformValue.Vec2fValue>
-				CODEC =
-				Codecs.VECTOR_2F.xmap(UniformValue.Vec2fValue::new, UniformValue.Vec2fValue::value);
+		public static final Codec<Vec2fValue> CODEC = Codecs.VECTOR_2F.xmap(Vec2fValue::new, Vec2fValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putVec2(this.value);
+			builder.putVec2(value);
 		}
 
 		@Override
@@ -153,24 +105,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.VEC2;
+		public Type getType() {
+			return Type.VEC2;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Vec3fValue}.
-	 */
 	public record Vec3fValue(Vector3fc value) implements UniformValue {
 
-		public static final Codec<UniformValue.Vec3fValue>
-				CODEC =
-				Codecs.VECTOR_3F.xmap(UniformValue.Vec3fValue::new, UniformValue.Vec3fValue::value);
+		public static final Codec<Vec3fValue> CODEC = Codecs.VECTOR_3F.xmap(Vec3fValue::new, Vec3fValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putVec3(this.value);
+			builder.putVec3(value);
 		}
 
 		@Override
@@ -179,24 +126,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.VEC3;
+		public Type getType() {
+			return Type.VEC3;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Vec3iValue}.
-	 */
 	public record Vec3iValue(Vector3ic value) implements UniformValue {
 
-		public static final Codec<UniformValue.Vec3iValue>
-				CODEC =
-				Codecs.VECTOR_3I.xmap(UniformValue.Vec3iValue::new, UniformValue.Vec3iValue::value);
+		public static final Codec<Vec3iValue> CODEC = Codecs.VECTOR_3I.xmap(Vec3iValue::new, Vec3iValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putIVec3(this.value);
+			builder.putIVec3(value);
 		}
 
 		@Override
@@ -205,24 +147,19 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.IVEC3;
+		public Type getType() {
+			return Type.IVEC3;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Vec4fValue}.
-	 */
 	public record Vec4fValue(Vector4fc value) implements UniformValue {
 
-		public static final Codec<UniformValue.Vec4fValue>
-				CODEC =
-				Codecs.VECTOR_4F.xmap(UniformValue.Vec4fValue::new, UniformValue.Vec4fValue::value);
+		public static final Codec<Vec4fValue> CODEC = Codecs.VECTOR_4F.xmap(Vec4fValue::new, Vec4fValue::value);
 
 		@Override
 		public void write(Std140Builder builder) {
-			builder.putVec4(this.value);
+			builder.putVec4(value);
 		}
 
 		@Override
@@ -231,8 +168,34 @@ public interface UniformValue {
 		}
 
 		@Override
-		public UniformValue.Type getType() {
-			return UniformValue.Type.VEC4;
+		public Type getType() {
+			return Type.VEC4;
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	public enum Type implements StringIdentifiable {
+		INT("int", IntValue.CODEC),
+		IVEC3("ivec3", Vec3iValue.CODEC),
+		FLOAT("float", FloatValue.CODEC),
+		VEC2("vec2", Vec2fValue.CODEC),
+		VEC3("vec3", Vec3fValue.CODEC),
+		VEC4("vec4", Vec4fValue.CODEC),
+		MATRIX4X4("matrix4x4", Matrix4fValue.CODEC);
+
+		public static final StringIdentifiable.EnumCodec<Type> CODEC = StringIdentifiable.createCodec(Type::values);
+
+		private final String name;
+		final MapCodec<? extends UniformValue> mapCodec;
+
+		Type(String name, Codec<? extends UniformValue> codec) {
+			this.name = name;
+			mapCodec = codec.fieldOf("value");
+		}
+
+		@Override
+		public String asString() {
+			return name;
 		}
 	}
 }

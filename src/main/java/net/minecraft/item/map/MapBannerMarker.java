@@ -14,7 +14,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code MapBannerMarker}.
+ * Маркер баннера на карте, хранящий позицию, цвет и опциональное имя баннера.
+ * Используется для отображения баннеров как декораций на заполненных картах.
  */
 public record MapBannerMarker(BlockPos pos, DyeColor color, Optional<Text> name) {
 
@@ -28,12 +29,8 @@ public record MapBannerMarker(BlockPos pos, DyeColor color, Optional<Text> name)
 	);
 
 	/**
-	 * From world block.
-	 *
-	 * @param blockView block view
-	 * @param blockPos block pos
-	 *
-	 * @return @Nullable MapBannerMarker — результат операции
+	 * Считывает данные баннера из блока мира по указанной позиции.
+	 * Возвращает {@code null}, если блок не является баннером.
 	 */
 	public static @Nullable MapBannerMarker fromWorldBlock(BlockView blockView, BlockPos blockPos) {
 		if (blockView.getBlockEntity(blockPos) instanceof BannerBlockEntity bannerBlockEntity) {
@@ -41,9 +38,8 @@ public record MapBannerMarker(BlockPos pos, DyeColor color, Optional<Text> name)
 			Optional<Text> optional = Optional.ofNullable(bannerBlockEntity.getCustomName());
 			return new MapBannerMarker(blockPos, dyeColor, optional);
 		}
-		else {
-			return null;
-		}
+
+		return null;
 	}
 
 	public RegistryEntry<MapDecorationType> getDecorationType() {

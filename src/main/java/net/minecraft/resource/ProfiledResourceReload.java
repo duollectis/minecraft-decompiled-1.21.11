@@ -15,119 +15,132 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@code ProfiledResourceReload}.
+ * Расширение {@link SimpleResourceReload}, собирающее статистику времени выполнения
+ * каждого перезагрузчика и выводящее итоговый отчёт в лог.
  */
 public class ProfiledResourceReload extends SimpleResourceReload<ProfiledResourceReload.Summary> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private final Stopwatch reloadTimer = Stopwatch.createUnstarted();
 
+	/**
+	 * Запускает профилируемую перезагрузку ресурсов.
+	 *
+	 * @param manager        менеджер ресурсов
+	 * @param reloaders      список перезагрузчиков
+	 * @param prepareExecutor исполнитель фазы подготовки
+	 * @param applyExecutor  исполнитель фазы применения
+	 * @param initialStage   начальная стадия (барьер синхронизации)
+	 * @return объект отслеживания прогресса перезагрузки
+	 */
 	public static ResourceReload start(
-			ResourceManager manager,
-			List<ResourceReloader> reloaders,
-			Executor prepareExecutor,
-			Executor applyExecutor,
-			CompletableFuture<Unit> initialStage
+		ResourceManager manager,
+		List<ResourceReloader> reloaders,
+		Executor prepareExecutor,
+		Executor applyExecutor,
+		CompletableFuture<Unit> initialStage
 	) {
-		ProfiledResourceReload profiledResourceReload = new ProfiledResourceReload(reloaders);
-		profiledResourceReload.start(
-				prepareExecutor,
-				applyExecutor,
-				manager,
-				reloaders,
-				(store, reloadSynchronizer, reloader, prepare, apply) -> {
-					AtomicLong atomicLong = new AtomicLong();
-					AtomicLong atomicLong2 = new AtomicLong();
-					AtomicLong atomicLong3 = new AtomicLong();
-					AtomicLong atomicLong4 = new AtomicLong();
-					CompletableFuture<Void> completableFuture = reloader.reload(
-							store,
-							getProfiledExecutor(prepare, atomicLong, atomicLong2, reloader.getName()),
-							reloadSynchronizer,
-							getProfiledExecutor(apply, atomicLong3, atomicLong4, reloader.getName())
-					);
-					return completableFuture.thenApplyAsync(
-							v -> {
-								LOGGER.debug("Finished reloading {}", reloader.getName());
-								return new ProfiledResourceReload.Summary(
-										reloader.getName(),
-										atomicLong,
-										atomicLong2,
-										atomicLong3,
-										atomicLong4
-								);
-							}, applyExecutor
-					);
-				},
-				initialStage
+		ProfiledResourceReload reload = new ProfiledResourceReload(reloaders);
+		reload.start(
+			prepareExecutor,
+			applyExecutor,
+			manager,
+			reloaders,
+			(store, synchronizer, reloader, prepare, apply) -> {
+				AtomicLong prepareTime = new AtomicLong();
+				AtomicLong prepareCount = new AtomicLong();
+				AtomicLong applyTime = new AtomicLong();
+				AtomicLong applyCount = new AtomicLong();
+
+				CompletableFuture<Void> future = reloader.reload(
+					store,
+					getProfiledExecutor(prepare, prepareTime, prepareCount, reloader.getName()),
+					synchronizer,
+					getProfiledExecutor(apply, applyTime, applyCount, reloader.getName())
+				);
+
+				return future.thenApplyAsync(
+					ignored -> {
+						LOGGER.debug("Finished reloading {}", reloader.getName());
+						return new Summary(reloader.getName(), prepareTime, prepareCount, applyTime, applyCount);
+					},
+					applyExecutor
+				);
+			},
+			initialStage
 		);
-		return profiledResourceReload;
+		return reload;
 	}
 
 	private ProfiledResourceReload(List<ResourceReloader> waitingReloaders) {
 		super(waitingReloaders);
-		this.reloadTimer.start();
+		reloadTimer.start();
 	}
 
 	@Override
 	protected CompletableFuture<List<ProfiledResourceReload.Summary>> startAsync(
-			Executor prepareExecutor,
-			Executor applyExecutor,
-			ResourceManager manager,
-			List<ResourceReloader> reloaders,
-			SimpleResourceReload.Factory<ProfiledResourceReload.Summary> factory,
-			CompletableFuture<?> initialStage
+		Executor prepareExecutor,
+		Executor applyExecutor,
+		ResourceManager manager,
+		List<ResourceReloader> reloaders,
+		SimpleResourceReload.Factory<ProfiledResourceReload.Summary> factory,
+		CompletableFuture<?> initialStage
 	) {
-		return super
-				.startAsync(prepareExecutor, applyExecutor, manager, reloaders, factory, initialStage)
-				.thenApplyAsync(this::finish, applyExecutor);
+		return super.startAsync(prepareExecutor, applyExecutor, manager, reloaders, factory, initialStage)
+			.thenApplyAsync(this::finish, applyExecutor);
 	}
 
-	private static Executor getProfiledExecutor(Executor executor, AtomicLong output, AtomicLong counter, String name) {
+	private static Executor getProfiledExecutor(
+		Executor executor,
+		AtomicLong timeAccumulator,
+		AtomicLong counter,
+		String name
+	) {
 		return runnable -> executor.execute(() -> {
 			Profiler profiler = Profilers.get();
 			profiler.push(name);
-			long l = Util.getMeasuringTimeNano();
+			long startNano = Util.getMeasuringTimeNano();
 			runnable.run();
-			output.addAndGet(Util.getMeasuringTimeNano() - l);
+			timeAccumulator.addAndGet(Util.getMeasuringTimeNano() - startNano);
 			counter.incrementAndGet();
 			profiler.pop();
 		});
 	}
 
 	private List<ProfiledResourceReload.Summary> finish(List<ProfiledResourceReload.Summary> summaries) {
-		this.reloadTimer.stop();
-		long l = 0L;
-		LOGGER.info("Resource reload finished after {} ms", this.reloadTimer.elapsed(TimeUnit.MILLISECONDS));
+		reloadTimer.stop();
+		long totalApplyMs = 0L;
 
-		for (ProfiledResourceReload.Summary summary : summaries) {
-			long m = TimeUnit.NANOSECONDS.toMillis(summary.prepareTimeMs.get());
-			long n = summary.preparationCount.get();
-			long o = TimeUnit.NANOSECONDS.toMillis(summary.applyTimeMs.get());
-			long p = summary.reloadCount.get();
-			long q = m + o;
-			long r = n + p;
-			String string = summary.name;
+		LOGGER.info("Resource reload finished after {} ms", reloadTimer.elapsed(TimeUnit.MILLISECONDS));
+
+		for (Summary summary : summaries) {
+			long prepareMs = TimeUnit.NANOSECONDS.toMillis(summary.prepareTimeMs.get());
+			long prepareTasks = summary.preparationCount.get();
+			long applyMs = TimeUnit.NANOSECONDS.toMillis(summary.applyTimeMs.get());
+			long applyTasks = summary.reloadCount.get();
+			long totalMs = prepareMs + applyMs;
+			long totalTasks = prepareTasks + applyTasks;
+
 			LOGGER.info(
-					"{} took approximately {} tasks/{} ms ({} tasks/{} ms preparing, {} tasks/{} ms applying)",
-					new Object[]{string, r, q, n, m, p, o}
+				"{} took approximately {} tasks/{} ms ({} tasks/{} ms preparing, {} tasks/{} ms applying)",
+				summary.name, totalTasks, totalMs, prepareTasks, prepareMs, applyTasks, applyMs
 			);
-			l += o;
+
+			totalApplyMs += applyMs;
 		}
 
-		LOGGER.info("Total blocking time: {} ms", l);
+		LOGGER.info("Total blocking time: {} ms", totalApplyMs);
 		return summaries;
 	}
 
 	/**
-	 * {@code Summary}.
+	 * Итоговая статистика перезагрузки одного {@link ResourceReloader}.
 	 */
 	public record Summary(
-			String name,
-			AtomicLong prepareTimeMs,
-			AtomicLong preparationCount,
-			AtomicLong applyTimeMs,
-			AtomicLong reloadCount
-	) {
-	}
+		String name,
+		AtomicLong prepareTimeMs,
+		AtomicLong preparationCount,
+		AtomicLong applyTimeMs,
+		AtomicLong reloadCount
+	) {}
 }

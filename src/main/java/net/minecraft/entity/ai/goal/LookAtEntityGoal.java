@@ -12,12 +12,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 import java.util.function.Predicate;
 
-/**
- * {@code LookAtEntityGoal}.
- */
+/** Цель взгляда на ближайшую сущность заданного типа. */
 public class LookAtEntityGoal extends Goal {
 
 	public static final float DEFAULT_CHANCE = 0.02F;
+	private static final int LOOK_TIME_BASE = 40;
+	private static final int LOOK_TIME_JITTER = 40;
+	private static final double LOOK_SEARCH_HEIGHT = 3.0;
+
 	protected final MobEntity mob;
 	protected @Nullable Entity target;
 	protected final float range;
@@ -28,7 +30,7 @@ public class LookAtEntityGoal extends Goal {
 	protected final TargetPredicate targetPredicate;
 
 	public LookAtEntityGoal(MobEntity mob, Class<? extends LivingEntity> targetType, float range) {
-		this(mob, targetType, range, 0.02F);
+		this(mob, targetType, range, DEFAULT_CHANCE);
 	}
 
 	public LookAtEntityGoal(MobEntity mob, Class<? extends LivingEntity> targetType, float range, float chance) {
@@ -47,14 +49,13 @@ public class LookAtEntityGoal extends Goal {
 		this.range = range;
 		this.chance = chance;
 		this.lookForward = lookForward;
-		this.setControls(EnumSet.of(Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.LOOK));
+
 		if (targetType == PlayerEntity.class) {
-			Predicate<Entity> predicate = EntityPredicates.rides(mob);
-			this.targetPredicate =
-					TargetPredicate
-							.createNonAttackable()
-							.setBaseMaxDistance(range)
-							.setPredicate((entity, world) -> predicate.test(entity));
+			Predicate<Entity> ridePredicate = EntityPredicates.rides(mob);
+			this.targetPredicate = TargetPredicate.createNonAttackable()
+					.setBaseMaxDistance(range)
+					.setPredicate((entity, world) -> ridePredicate.test(entity));
 		}
 		else {
 			this.targetPredicate = TargetPredicate.createNonAttackable().setBaseMaxDistance(range);
@@ -63,72 +64,68 @@ public class LookAtEntityGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.getRandom().nextFloat() >= this.chance) {
+		if (mob.getRandom().nextFloat() >= chance) {
 			return false;
 		}
-		else {
-			if (this.mob.getTarget() != null) {
-				this.target = this.mob.getTarget();
-			}
 
-			ServerWorld serverWorld = getServerWorld(this.mob);
-			if (this.targetType == PlayerEntity.class) {
-				this.target =
-						serverWorld.getClosestPlayer(
-								this.targetPredicate,
-								this.mob,
-								this.mob.getX(),
-								this.mob.getEyeY(),
-								this.mob.getZ()
-						);
-			}
-			else {
-				this.target = serverWorld.getClosestEntity(
-						this.mob
-								.getEntityWorld()
-								.getEntitiesByClass(
-										this.targetType,
-										this.mob.getBoundingBox().expand(this.range, 3.0, this.range),
-										livingEntity -> true
-								),
-						this.targetPredicate,
-						this.mob,
-						this.mob.getX(),
-						this.mob.getEyeY(),
-						this.mob.getZ()
-				);
-			}
-
-			return this.target != null;
+		if (mob.getTarget() != null) {
+			target = mob.getTarget();
 		}
+
+		ServerWorld serverWorld = getServerWorld(mob);
+
+		if (targetType == PlayerEntity.class) {
+			target = serverWorld.getClosestPlayer(targetPredicate, mob, mob.getX(), mob.getEyeY(), mob.getZ());
+		}
+		else {
+			target = serverWorld.getClosestEntity(
+					mob.getEntityWorld().getEntitiesByClass(
+							targetType,
+							mob.getBoundingBox().expand(range, LOOK_SEARCH_HEIGHT, range),
+							livingEntity -> true
+					),
+					targetPredicate,
+					mob,
+					mob.getX(),
+					mob.getEyeY(),
+					mob.getZ()
+			);
+		}
+
+		return target != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		if (!this.target.isAlive()) {
+		if (!target.isAlive()) {
 			return false;
 		}
-		else {
-			return this.mob.squaredDistanceTo(this.target) > this.range * this.range ? false : this.lookTime > 0;
+
+		if (mob.squaredDistanceTo(target) > range * range) {
+			return false;
 		}
+
+		return lookTime > 0;
 	}
 
 	@Override
 	public void start() {
-		this.lookTime = this.getTickCount(40 + this.mob.getRandom().nextInt(40));
+		lookTime = getTickCount(LOOK_TIME_BASE + mob.getRandom().nextInt(LOOK_TIME_JITTER));
 	}
 
 	@Override
 	public void stop() {
-		this.target = null;
+		target = null;
 	}
 
 	@Override
 	public void tick() {
-		if (this.target.isAlive()) {
-			double d = this.lookForward ? this.mob.getEyeY() : this.target.getEyeY();
-			this.mob.getLookControl().lookAt(this.target.getX(), d, this.target.getZ());
-			this.lookTime--;
+		if (!target.isAlive()) {
+			return;
 		}
+
+		double lookY = lookForward ? mob.getEyeY() : target.getEyeY();
+		mob.getLookControl().lookAt(target.getX(), lookY, target.getZ());
+		lookTime--;
 	}
 }

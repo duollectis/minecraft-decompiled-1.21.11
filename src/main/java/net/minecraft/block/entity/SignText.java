@@ -15,32 +15,34 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code SignText}.
+ * Иммутабельный контейнер текста одной стороны таблички.
+ * Хранит четыре строки в двух вариантах: оригинальном и отфильтрованном (для чат-фильтра).
+ * Поддерживает цвет текста и эффект свечения.
  */
 public class SignText {
 
-	private static final Codec<Text[]> MESSAGES_CODEC = TextCodecs.CODEC
-			.listOf()
-			.comapFlatMap(
-					messages -> Util.decodeFixedLengthList(messages, 4)
-					                .map(list -> new Text[]{
-							                (Text) list.get(0),
-							                (Text) list.get(1),
-							                (Text) list.get(2),
-							                (Text) list.get(3)
-					                }),
-					messages -> List.of(messages[0], messages[1], messages[2], messages[3])
-			);
-	public static final Codec<SignText> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    MESSAGES_CODEC.fieldOf("messages").forGetter(signText -> signText.messages),
-					                    MESSAGES_CODEC.lenientOptionalFieldOf("filtered_messages").forGetter(SignText::getFilteredMessages),
-					                    DyeColor.CODEC.fieldOf("color").orElse(DyeColor.BLACK).forGetter(signText -> signText.color),
-					                    Codec.BOOL.fieldOf("has_glowing_text").orElse(false).forGetter(signText -> signText.glowing)
-			                    )
-			                    .apply(instance, SignText::create)
-	);
 	public static final int LINE_COUNT = 4;
+	private static final Codec<Text[]> MESSAGES_CODEC = TextCodecs.CODEC
+		.listOf()
+		.comapFlatMap(
+			messages -> Util.decodeFixedLengthList(messages, LINE_COUNT)
+				.map(list -> new Text[]{
+					(Text) list.get(0),
+					(Text) list.get(1),
+					(Text) list.get(2),
+					(Text) list.get(3)
+				}),
+			messages -> List.of(messages[0], messages[1], messages[2], messages[3])
+		);
+	public static final Codec<SignText> CODEC = RecordCodecBuilder.create(
+		instance -> instance.group(
+			MESSAGES_CODEC.fieldOf("messages").forGetter(signText -> signText.messages),
+			MESSAGES_CODEC.lenientOptionalFieldOf("filtered_messages").forGetter(SignText::getFilteredMessages),
+			DyeColor.CODEC.fieldOf("color").orElse(DyeColor.BLACK).forGetter(signText -> signText.color),
+			Codec.BOOL.fieldOf("has_glowing_text").orElse(false).forGetter(signText -> signText.glowing)
+		).apply(instance, SignText::create)
+	);
+
 	private final Text[] messages;
 	private final Text[] filteredMessages;
 	private final DyeColor color;
@@ -64,108 +66,80 @@ public class SignText {
 	}
 
 	private static SignText create(
-			Text[] messages,
-			Optional<Text[]> filteredMessages,
-			DyeColor color,
-			boolean glowing
+		Text[] messages,
+		Optional<Text[]> filteredMessages,
+		DyeColor color,
+		boolean glowing
 	) {
 		return new SignText(
-				messages,
-				filteredMessages.orElse(Arrays.copyOf(messages, messages.length)),
-				color,
-				glowing
+			messages,
+			filteredMessages.orElse(Arrays.copyOf(messages, messages.length)),
+			color,
+			glowing
 		);
 	}
 
 	public boolean isGlowing() {
-		return this.glowing;
+		return glowing;
 	}
 
-	/**
-	 * With glowing.
-	 *
-	 * @param glowing glowing
-	 *
-	 * @return SignText — результат операции
-	 */
-	public SignText withGlowing(boolean glowing) {
-		return glowing == this.glowing ? this : new SignText(this.messages, this.filteredMessages, this.color, glowing);
+	public SignText withGlowing(boolean newGlowing) {
+		return newGlowing == glowing ? this : new SignText(messages, filteredMessages, color, newGlowing);
 	}
 
 	public DyeColor getColor() {
-		return this.color;
+		return color;
 	}
 
-	/**
-	 * With color.
-	 *
-	 * @param color color
-	 *
-	 * @return SignText — результат операции
-	 */
-	public SignText withColor(DyeColor color) {
-		return color == this.getColor() ? this
-		                                : new SignText(this.messages, this.filteredMessages, color, this.glowing);
+	public SignText withColor(DyeColor newColor) {
+		return newColor == color ? this : new SignText(messages, filteredMessages, newColor, glowing);
 	}
 
-	public Text getMessage(int line, boolean filtered) {
-		return this.getMessages(filtered)[line];
+	public Text getMessage(int line, boolean useFiltered) {
+		return getMessages(useFiltered)[line];
 	}
 
-	/**
-	 * With message.
-	 *
-	 * @param line line
-	 * @param message message
-	 *
-	 * @return SignText — результат операции
-	 */
 	public SignText withMessage(int line, Text message) {
-		return this.withMessage(line, message, message);
+		return withMessage(line, message, message);
 	}
 
-	/**
-	 * With message.
-	 *
-	 * @param line line
-	 * @param message message
-	 * @param filteredMessage filtered message
-	 *
-	 * @return SignText — результат операции
-	 */
 	public SignText withMessage(int line, Text message, Text filteredMessage) {
-		Text[] texts = Arrays.copyOf(this.messages, this.messages.length);
-		Text[] texts2 = Arrays.copyOf(this.filteredMessages, this.filteredMessages.length);
-		texts[line] = message;
-		texts2[line] = filteredMessage;
-		return new SignText(texts, texts2, this.color, this.glowing);
+		Text[] newMessages = Arrays.copyOf(messages, messages.length);
+		Text[] newFiltered = Arrays.copyOf(filteredMessages, filteredMessages.length);
+		newMessages[line] = message;
+		newFiltered[line] = filteredMessage;
+		return new SignText(newMessages, newFiltered, color, glowing);
 	}
 
 	public boolean hasText(PlayerEntity player) {
-		return Arrays.stream(this.getMessages(player.shouldFilterText())).anyMatch(text -> !text.getString().isEmpty());
+		return Arrays.stream(getMessages(player.shouldFilterText())).anyMatch(text -> !text.getString().isEmpty());
 	}
 
-	public Text[] getMessages(boolean filtered) {
-		return filtered ? this.filteredMessages : this.messages;
+	public Text[] getMessages(boolean useFiltered) {
+		return useFiltered ? filteredMessages : messages;
 	}
 
-	public OrderedText[] getOrderedMessages(boolean filtered, Function<Text, OrderedText> messageOrderer) {
-		if (this.orderedMessages == null || this.filtered != filtered) {
-			this.filtered = filtered;
-			this.orderedMessages = new OrderedText[4];
+	/**
+	 * Возвращает кешированный массив {@link OrderedText} для рендеринга.
+	 * Кеш инвалидируется при смене режима фильтрации или первом вызове.
+	 */
+	public OrderedText[] getOrderedMessages(boolean useFiltered, Function<Text, OrderedText> messageOrderer) {
+		if (orderedMessages == null || filtered != useFiltered) {
+			filtered = useFiltered;
+			orderedMessages = new OrderedText[LINE_COUNT];
 
-			for (int i = 0; i < 4; i++) {
-				this.orderedMessages[i] = messageOrderer.apply(this.getMessage(i, filtered));
+			for (int i = 0; i < LINE_COUNT; i++) {
+				orderedMessages[i] = messageOrderer.apply(getMessage(i, useFiltered));
 			}
 		}
 
-		return this.orderedMessages;
+		return orderedMessages;
 	}
 
 	private Optional<Text[]> getFilteredMessages() {
-		for (int i = 0; i < 4; i++) {
-			if (!this.filteredMessages[i].equals(this.messages[i])) {
-				return Optional.of(this.filteredMessages);
+		for (int i = 0; i < LINE_COUNT; i++) {
+			if (!filteredMessages[i].equals(messages[i])) {
+				return Optional.of(filteredMessages);
 			}
 		}
 
@@ -173,9 +147,8 @@ public class SignText {
 	}
 
 	public boolean hasRunCommandClickEvent(PlayerEntity player) {
-		for (Text text : this.getMessages(player.shouldFilterText())) {
-			Style style = text.getStyle();
-			ClickEvent clickEvent = style.getClickEvent();
+		for (Text text : getMessages(player.shouldFilterText())) {
+			ClickEvent clickEvent = text.getStyle().getClickEvent();
 			if (clickEvent != null && clickEvent.getAction() == ClickEvent.Action.RUN_COMMAND) {
 				return true;
 			}

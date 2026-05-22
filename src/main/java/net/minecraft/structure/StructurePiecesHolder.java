@@ -4,7 +4,8 @@ import net.minecraft.util.math.BlockBox;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code StructurePiecesHolder}.
+ * Интерфейс для накопления кусков структуры во время генерации.
+ * Позволяет добавлять куски и проверять пересечения с существующими.
  */
 public interface StructurePiecesHolder {
 

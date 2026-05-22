@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4420}.
+ * Схема DataFixer версии 4420, обновляющая регистрацию сущности
+ * {@code minecraft:area_effect_cloud}: поле частицы переименовано
+ * с {@code Particle} на {@code custom_particle} и теперь ссылается на тип {@code PARTICLE}.
  */
 public class Schema4420 extends IdentifierNormalizingSchema {
 
-	public Schema4420(int i, Schema schema) {
-		super(i, schema);
+	public Schema4420(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

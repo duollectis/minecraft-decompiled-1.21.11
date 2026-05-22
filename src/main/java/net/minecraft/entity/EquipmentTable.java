@@ -12,55 +12,40 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * {@code EquipmentTable}.
+ * Таблица снаряжения, связывающая лут-таблицу с шансами выпадения по слотам.
+ * Поддерживает компактную сериализацию: если все слоты имеют одинаковый шанс,
+ * кодируется как одно число {@code float}, иначе — как карта слот→шанс.
  */
 public record EquipmentTable(RegistryKey<LootTable> lootTable, Map<EquipmentSlot, Float> slotDropChances) {
 
 	public static final Codec<Map<EquipmentSlot, Float>> SLOT_DROP_CHANCES_CODEC = Codec.either(
-			                                                                                    Codec.FLOAT, Codec.unboundedMap(EquipmentSlot.CODEC, Codec.FLOAT)
-	                                                                                    )
-	                                                                                    .xmap(
-			                                                                                    either -> (Map) either.map(
-					                                                                                    EquipmentTable::createSlotDropChances,
-					                                                                                    Function.identity()
-			                                                                                    ), map -> {
-				                                                                                    boolean
-						                                                                                    bl =
-						                                                                                    map
-								                                                                                    .values()
-								                                                                                    .stream()
-								                                                                                    .distinct()
-								                                                                                    .count()
-								                                                                                    == 1L;
-				                                                                                    boolean
-						                                                                                    bl2 =
-						                                                                                    map
-								                                                                                    .keySet()
-								                                                                                    .containsAll(
-										                                                                                    EquipmentSlot.VALUES);
-				                                                                                    return bl && bl2
-				                                                                                           ? Either.left(
-						                                                                                    map
-						                                                                                    .values()
-						                                                                                    .stream()
-						                                                                                    .findFirst()
-						                                                                                    .orElse(0.0F))
-				                                                                                           : Either.right(
-						                                                                                           map);
-			                                                                                    }
-	                                                                                    );
-	public static final Codec<EquipmentTable> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(EquipmentTable::lootTable),
-					                    SLOT_DROP_CHANCES_CODEC
-							                    .optionalFieldOf("slot_drop_chances", Map.of())
-							                    .forGetter(EquipmentTable::slotDropChances)
-			                    )
-			                    .apply(instance, EquipmentTable::new)
+		Codec.FLOAT,
+		Codec.unboundedMap(EquipmentSlot.CODEC, Codec.FLOAT)
+	).xmap(
+		either -> (Map<EquipmentSlot, Float>) either.map(
+			EquipmentTable::createSlotDropChances,
+			Function.identity()
+		),
+		map -> {
+			boolean allSame = map.values().stream().distinct().count() == 1L;
+			boolean allSlots = map.keySet().containsAll(EquipmentSlot.VALUES);
+			return allSame && allSlots
+				? Either.left(map.values().stream().findFirst().orElse(0.0F))
+				: Either.right(map);
+		}
 	);
 
-	public EquipmentTable(RegistryKey<LootTable> lootTable, float slotDropChances) {
-		this(lootTable, createSlotDropChances(slotDropChances));
+	public static final Codec<EquipmentTable> CODEC = RecordCodecBuilder.create(
+		instance -> instance.group(
+			LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(EquipmentTable::lootTable),
+			SLOT_DROP_CHANCES_CODEC
+				.optionalFieldOf("slot_drop_chances", Map.of())
+				.forGetter(EquipmentTable::slotDropChances)
+		).apply(instance, EquipmentTable::new)
+	);
+
+	public EquipmentTable(RegistryKey<LootTable> lootTable, float uniformDropChance) {
+		this(lootTable, createSlotDropChances(uniformDropChance));
 	}
 
 	private static Map<EquipmentSlot, Float> createSlotDropChances(float dropChance) {
@@ -68,12 +53,12 @@ public record EquipmentTable(RegistryKey<LootTable> lootTable, Map<EquipmentSlot
 	}
 
 	private static Map<EquipmentSlot, Float> createSlotDropChances(List<EquipmentSlot> slots, float dropChance) {
-		Map<EquipmentSlot, Float> map = Maps.newHashMap();
+		Map<EquipmentSlot, Float> chances = Maps.newHashMap();
 
-		for (EquipmentSlot equipmentSlot : slots) {
-			map.put(equipmentSlot, dropChance);
+		for (EquipmentSlot slot : slots) {
+			chances.put(slot, dropChance);
 		}
 
-		return map;
+		return chances;
 	}
 }

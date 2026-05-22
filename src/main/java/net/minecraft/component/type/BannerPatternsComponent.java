@@ -26,11 +26,12 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code BannerPatternsComponent}.
- */
+	 * Компонент слоёв узора баннера. Хранит упорядоченный список слоёв (паттерн + цвет).
+	 * В тултипе отображается не более {@link #MAX_TOOLTIP_LAYERS} слоёв.
+	 */
 public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers) implements TooltipAppender {
 
-	static final Logger LOGGER = LogUtils.getLogger();
+	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final BannerPatternsComponent DEFAULT = new BannerPatternsComponent(List.of());
 	public static final Codec<BannerPatternsComponent> CODEC = BannerPatternsComponent.Layer.CODEC
 			.listOf()
@@ -41,13 +42,16 @@ public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers
 					.collect(PacketCodecs.toList())
 					.xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
 
+	private static final int MAX_TOOLTIP_LAYERS = 6;
+
 	/**
-	 * Without top layer.
-	 *
-	 * @return BannerPatternsComponent — результат операции
-	 */
+		 * Возвращает новый компонент без последнего (верхнего) слоя узора.
+		 * Используется при снятии верхнего паттерна с баннера.
+		 *
+		 * @return компонент без верхнего слоя
+		 */
 	public BannerPatternsComponent withoutTopLayer() {
-		return new BannerPatternsComponent(List.copyOf(this.layers.subList(0, this.layers.size() - 1)));
+		return new BannerPatternsComponent(List.copyOf(layers.subList(0, layers.size() - 1)));
 	}
 
 	@Override
@@ -57,19 +61,15 @@ public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		for (int i = 0; i < Math.min(this.layers().size(), 6); i++) {
-			textConsumer.accept(this.layers().get(i).getTooltipText().formatted(Formatting.GRAY));
+		int visibleCount = Math.min(layers().size(), MAX_TOOLTIP_LAYERS);
+		for (int index = 0; index < visibleCount; index++) {
+			textConsumer.accept(layers().get(index).getTooltipText().formatted(Formatting.GRAY));
 		}
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<BannerPatternsComponent.Layer>
-				entries =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<BannerPatternsComponent.Layer> entries = ImmutableList.builder();
 
 		@Deprecated
 		public BannerPatternsComponent.Builder add(
@@ -77,51 +77,45 @@ public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers
 				RegistryKey<BannerPattern> pattern,
 				DyeColor color
 		) {
-			Optional<RegistryEntry.Reference<BannerPattern>> optional = patternLookup.getOptional(pattern);
-			if (optional.isEmpty()) {
-				BannerPatternsComponent.LOGGER.warn("Unable to find banner pattern with id: '{}'", pattern.getValue());
+			Optional<RegistryEntry.Reference<BannerPattern>> found = patternLookup.getOptional(pattern);
+			if (found.isEmpty()) {
+				LOGGER.warn("Unable to find banner pattern with id: '{}'", pattern.getValue());
 				return this;
 			}
-			else {
-				return this.add(optional.get(), color);
-			}
+
+			return add(found.get(), color);
 		}
 
 		public BannerPatternsComponent.Builder add(RegistryEntry<BannerPattern> pattern, DyeColor color) {
-			return this.add(new BannerPatternsComponent.Layer(pattern, color));
+			return add(new BannerPatternsComponent.Layer(pattern, color));
 		}
 
 		public BannerPatternsComponent.Builder add(BannerPatternsComponent.Layer layer) {
-			this.entries.add(layer);
+			entries.add(layer);
 			return this;
 		}
 
 		public BannerPatternsComponent.Builder addAll(BannerPatternsComponent patterns) {
-			this.entries.addAll(patterns.layers);
+			entries.addAll(patterns.layers);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return BannerPatternsComponent — результат операции
-		 */
 		public BannerPatternsComponent build() {
-			return new BannerPatternsComponent(this.entries.build());
+			return new BannerPatternsComponent(entries.build());
 		}
 	}
 
 	/**
-	 * {@code Layer}.
-	 */
+		 * Один слой узора баннера: паттерн и цвет краски.
+		 */
 	public record Layer(RegistryEntry<BannerPattern> pattern, DyeColor color) {
 
 		public static final Codec<BannerPatternsComponent.Layer> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    BannerPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(BannerPatternsComponent.Layer::pattern),
-						                    DyeColor.CODEC.fieldOf("color").forGetter(BannerPatternsComponent.Layer::color)
-				                    )
-				                    .apply(instance, BannerPatternsComponent.Layer::new)
+											BannerPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(BannerPatternsComponent.Layer::pattern),
+											DyeColor.CODEC.fieldOf("color").forGetter(BannerPatternsComponent.Layer::color)
+									)
+									.apply(instance, BannerPatternsComponent.Layer::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, BannerPatternsComponent.Layer>
 				PACKET_CODEC =

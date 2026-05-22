@@ -1,7 +1,7 @@
 package net.minecraft.entity;
 
 /**
- * {@code ItemSteerable}.
+ * Интерфейс для сущностей, управляемых предметом на палке (свинья, страйдер).
  */
 public interface ItemSteerable {
 

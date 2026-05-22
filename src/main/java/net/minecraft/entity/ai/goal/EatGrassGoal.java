@@ -13,12 +13,18 @@ import java.util.EnumSet;
 import java.util.function.Predicate;
 
 /**
- * {@code EatGrassGoal}.
+ * Цель поедания травы: моб останавливается и поедает траву или блок дёрна под ногами,
+ * при включённом правиле {@code DO_MOB_GRIEFING} разрушает блок.
  */
 public class EatGrassGoal extends Goal {
 
 	private static final int MAX_TIMER = 40;
+	private static final int EAT_TICK = 4;
+	private static final byte EAT_STATUS = 10;
+	private static final int GRASS_BREAK_EVENT = 2001;
+	private static final int DOOR_BREAK_EVENT = 1019;
 	private static final Predicate<BlockState> EDIBLE_PREDICATE = state -> state.isIn(BlockTags.EDIBLE_FOR_SHEEP);
+
 	private final MobEntity mob;
 	private final World world;
 	private int timer;
@@ -26,70 +32,67 @@ public class EatGrassGoal extends Goal {
 	public EatGrassGoal(MobEntity mob) {
 		this.mob = mob;
 		this.world = mob.getEntityWorld();
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK, Goal.Control.JUMP));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK, Goal.Control.JUMP));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.getRandom().nextInt(this.getTickCount(this.mob.isBaby() ? 50 : 1000)) != 0) {
+		int chance = mob.isBaby() ? 50 : 1000;
+		if (mob.getRandom().nextInt(getTickCount(chance)) != 0) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = this.mob.getBlockPos();
-			return EDIBLE_PREDICATE.test(this.world.getBlockState(blockPos)) ? true : this.world
-			                                                                          .getBlockState(blockPos.down())
-			                                                                          .isOf(Blocks.GRASS_BLOCK);
-		}
+
+		BlockPos blockPos = mob.getBlockPos();
+		return EDIBLE_PREDICATE.test(world.getBlockState(blockPos))
+				|| world.getBlockState(blockPos.down()).isOf(Blocks.GRASS_BLOCK);
 	}
 
 	@Override
 	public void start() {
-		this.timer = this.getTickCount(40);
-		this.world.sendEntityStatus(this.mob, (byte) 10);
-		this.mob.getNavigation().stop();
+		timer = getTickCount(MAX_TIMER);
+		world.sendEntityStatus(mob, EAT_STATUS);
+		mob.getNavigation().stop();
 	}
 
 	@Override
 	public void stop() {
-		this.timer = 0;
+		timer = 0;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.timer > 0;
+		return timer > 0;
 	}
 
 	public int getTimer() {
-		return this.timer;
+		return timer;
 	}
 
 	@Override
 	public void tick() {
-		this.timer = Math.max(0, this.timer - 1);
-		if (this.timer == this.getTickCount(4)) {
-			BlockPos blockPos = this.mob.getBlockPos();
-			if (EDIBLE_PREDICATE.test(this.world.getBlockState(blockPos))) {
-				if (castToServerWorld(this.world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-					this.world.breakBlock(blockPos, false);
-				}
+		timer = Math.max(0, timer - 1);
+		if (timer != getTickCount(EAT_TICK)) {
+			return;
+		}
 
-				this.mob.onEatingGrass();
+		BlockPos blockPos = mob.getBlockPos();
+		if (EDIBLE_PREDICATE.test(world.getBlockState(blockPos))) {
+			if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				world.breakBlock(blockPos, false);
 			}
-			else {
-				BlockPos blockPos2 = blockPos.down();
-				if (this.world.getBlockState(blockPos2).isOf(Blocks.GRASS_BLOCK)) {
-					if (castToServerWorld(this.world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-						this.world.syncWorldEvent(
-								2001,
-								blockPos2,
-								Block.getRawIdFromState(Blocks.GRASS_BLOCK.getDefaultState())
-						);
-						this.world.setBlockState(blockPos2, Blocks.DIRT.getDefaultState(), 2);
-					}
 
-					this.mob.onEatingGrass();
-				}
+			mob.onEatingGrass();
+			return;
+		}
+
+		BlockPos below = blockPos.down();
+		if (world.getBlockState(below).isOf(Blocks.GRASS_BLOCK)) {
+			if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				world.syncWorldEvent(GRASS_BREAK_EVENT, below, Block.getRawIdFromState(Blocks.GRASS_BLOCK.getDefaultState()));
+				world.setBlockState(below, Blocks.DIRT.getDefaultState(), 2);
 			}
+
+			mob.onEatingGrass();
 		}
 	}
 }

@@ -3,56 +3,60 @@ package net.minecraft.command;
 import java.util.List;
 
 /**
- * {@code SteppedCommandAction}.
+ * Действие, выполняющее список подкоманд пошагово — по одной за итерацию
+ * основного цикла очереди. Используется для больших списков источников,
+ * чтобы не переполнять очередь за один шаг.
+ *
+ * @param <T> тип источника команды
+ * @param <P> тип элемента подкоманды
  */
 public class SteppedCommandAction<T, P> implements CommandAction<T> {
 
-	private final SteppedCommandAction.ActionWrapper<T, P> wrapper;
+	private final ActionWrapper<T, P> wrapper;
 	private final List<P> actions;
 	private final CommandQueueEntry<T> selfCommandQueueEntry;
 	private int nextActionIndex;
 
-	private SteppedCommandAction(SteppedCommandAction.ActionWrapper<T, P> wrapper, List<P> actions, Frame frame) {
+	private SteppedCommandAction(ActionWrapper<T, P> wrapper, List<P> actions, Frame frame) {
 		this.wrapper = wrapper;
 		this.actions = actions;
-		this.selfCommandQueueEntry = new CommandQueueEntry<>(frame, this);
+		selfCommandQueueEntry = new CommandQueueEntry<>(frame, this);
 	}
 
 	@Override
-	public void execute(CommandExecutionContext<T> commandExecutionContext, Frame frame) {
-		P object = this.actions.get(this.nextActionIndex);
-		commandExecutionContext.enqueueCommand(this.wrapper.create(frame, object));
-		if (++this.nextActionIndex < this.actions.size()) {
-			commandExecutionContext.enqueueCommand(this.selfCommandQueueEntry);
+	public void execute(CommandExecutionContext<T> context, Frame frame) {
+		P action = actions.get(nextActionIndex);
+		context.enqueueCommand(wrapper.create(frame, action));
+		if (++nextActionIndex < actions.size()) {
+			context.enqueueCommand(selfCommandQueueEntry);
 		}
 	}
 
+	/**
+	 * Ставит в очередь все действия из списка. Для 0–2 элементов использует
+	 * прямую постановку в очередь; для больших списков создаёт пошаговый итератор.
+	 */
 	public static <T, P> void enqueueCommands(
 			CommandExecutionContext<T> context,
 			Frame frame,
 			List<P> actions,
-			SteppedCommandAction.ActionWrapper<T, P> wrapper
+			ActionWrapper<T, P> wrapper
 	) {
-		int i = actions.size();
-		switch (i) {
-			case 0:
-				break;
-			case 1:
-				context.enqueueCommand(wrapper.create(frame, actions.get(0)));
-				break;
-			case 2:
+		switch (actions.size()) {
+			case 0 -> {}
+			case 1 -> context.enqueueCommand(wrapper.create(frame, actions.get(0)));
+			case 2 -> {
 				context.enqueueCommand(wrapper.create(frame, actions.get(0)));
 				context.enqueueCommand(wrapper.create(frame, actions.get(1)));
-				break;
-			default:
-				context.enqueueCommand((new SteppedCommandAction<>(wrapper, actions, frame)).selfCommandQueueEntry);
+			}
+			default -> context.enqueueCommand(new SteppedCommandAction<>(wrapper, actions, frame).selfCommandQueueEntry);
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code ActionWrapper}.
+	 * Фабрика для создания записи очереди из фрейма и элемента подкоманды.
 	 */
+	@FunctionalInterface
 	public interface ActionWrapper<T, P> {
 
 		CommandQueueEntry<T> create(Frame frame, P action);

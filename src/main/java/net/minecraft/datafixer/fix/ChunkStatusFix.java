@@ -12,31 +12,34 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Objects;
 
 /**
- * {@code ChunkStatusFix}.
+ * Переименовывает устаревший статус генерации чанка {@code postprocessed} в {@code fullchunk}.
  */
 public class ChunkStatusFix extends DataFix {
 
-	public ChunkStatusFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public ChunkStatusFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = type.findFieldType("Level");
-		OpticFinder<?> opticFinder = DSL.fieldFinder("Level", type2);
-		return this.fixTypeEverywhereTyped(
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		Type<?> levelType = chunkType.findFieldType("Level");
+		OpticFinder<?> levelFinder = DSL.fieldFinder("Level", levelType);
+
+		return fixTypeEverywhereTyped(
 				"ChunkStatusFix",
-				type,
-				this.getOutputSchema().getType(TypeReferences.CHUNK),
-				typed -> typed.updateTyped(
-						opticFinder, typedx -> {
-							Dynamic<?> dynamic = (Dynamic<?>) typedx.get(DSL.remainderFinder());
-							String string = dynamic.get("Status").asString("empty");
-							if (Objects.equals(string, "postprocessed")) {
-								dynamic = dynamic.set("Status", dynamic.createString("fullchunk"));
+				chunkType,
+				getOutputSchema().getType(TypeReferences.CHUNK),
+				chunkTyped -> chunkTyped.updateTyped(
+						levelFinder,
+						levelTyped -> {
+							Dynamic<?> levelDynamic = (Dynamic<?>) levelTyped.get(DSL.remainderFinder());
+							String status = levelDynamic.get("Status").asString("empty");
+
+							if (Objects.equals(status, "postprocessed")) {
+								levelDynamic = levelDynamic.set("Status", levelDynamic.createString("fullchunk"));
 							}
 
-							return typedx.set(DSL.remainderFinder(), dynamic);
+							return levelTyped.set(DSL.remainderFinder(), levelDynamic);
 						}
 				)
 		);

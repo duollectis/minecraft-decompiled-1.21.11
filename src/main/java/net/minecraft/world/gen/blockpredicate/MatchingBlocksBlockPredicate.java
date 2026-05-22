@@ -10,19 +10,22 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.util.math.Vec3i;
 
 /**
- * {@code MatchingBlocksBlockPredicate}.
+ * Предикат, проверяющий, принадлежит ли блок по смещённой позиции одному из заданных блоков.
  */
 class MatchingBlocksBlockPredicate extends OffsetPredicate {
 
-	private final RegistryEntryList<Block> blocks;
 	public static final MapCodec<MatchingBlocksBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> registerOffsetField(instance)
-					.and(RegistryCodecs
-							.entryList(RegistryKeys.BLOCK)
-							.fieldOf("blocks")
-							.forGetter(predicate -> predicate.blocks))
-					.apply(instance, MatchingBlocksBlockPredicate::new)
+		instance -> registerOffsetField(instance)
+			.and(
+				RegistryCodecs
+					.entryList(RegistryKeys.BLOCK)
+					.fieldOf("blocks")
+					.forGetter(predicate -> predicate.blocks)
+			)
+			.apply(instance, MatchingBlocksBlockPredicate::new)
 	);
+
+	private final RegistryEntryList<Block> blocks;
 
 	public MatchingBlocksBlockPredicate(Vec3i offset, RegistryEntryList<Block> blocks) {
 		super(offset);
@@ -31,7 +34,7 @@ class MatchingBlocksBlockPredicate extends OffsetPredicate {
 
 	@Override
 	protected boolean test(BlockState state) {
-		return state.isIn(this.blocks);
+		return state.isIn(blocks);
 	}
 
 	@Override

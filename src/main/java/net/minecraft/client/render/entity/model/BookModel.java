@@ -6,16 +6,23 @@ import net.minecraft.client.model.*;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.util.math.MathHelper;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookModel}.
+ * Модель открытой книги с анимацией перелистывания страниц.
+ * <p>
+ * Используется для отображения книги на подставке (enchanting table).
+ * Анимация управляется через {@link BookModelState}: угол раскрытия обложек,
+ * скорость перелистывания и прогресс перелистывания каждой страницы.
  */
+@Environment(EnvType.CLIENT)
 public class BookModel extends Model<BookModel.BookModelState> {
 
+	private static final String LEFT_LID = "left_lid";
+	private static final String RIGHT_LID = "right_lid";
 	private static final String LEFT_PAGES = "left_pages";
 	private static final String RIGHT_PAGES = "right_pages";
 	private static final String FLIP_PAGE1 = "flip_page1";
 	private static final String FLIP_PAGE2 = "flip_page2";
+
 	private final ModelPart leftCover;
 	private final ModelPart rightCover;
 	private final ModelPart leftPages;
@@ -25,69 +32,74 @@ public class BookModel extends Model<BookModel.BookModelState> {
 
 	public BookModel(ModelPart root) {
 		super(root, RenderLayers::entitySolid);
-		this.leftCover = root.getChild("left_lid");
-		this.rightCover = root.getChild("right_lid");
-		this.leftPages = root.getChild("left_pages");
-		this.rightPages = root.getChild("right_pages");
-		this.leftFlippingPage = root.getChild("flip_page1");
-		this.rightFlippingPage = root.getChild("flip_page2");
+		leftCover = root.getChild(LEFT_LID);
+		rightCover = root.getChild(RIGHT_LID);
+		leftPages = root.getChild(LEFT_PAGES);
+		rightPages = root.getChild(RIGHT_PAGES);
+		leftFlippingPage = root.getChild(FLIP_PAGE1);
+		rightFlippingPage = root.getChild(FLIP_PAGE2);
 	}
 
 	public static TexturedModelData getTexturedModelData() {
 		ModelData modelData = new ModelData();
-		ModelPartData modelPartData = modelData.getRoot();
-		modelPartData.addChild(
-				"left_lid",
+		ModelPartData root = modelData.getRoot();
+		root.addChild(
+				LEFT_LID,
 				ModelPartBuilder.create().uv(0, 0).cuboid(-6.0F, -5.0F, -0.005F, 6.0F, 10.0F, 0.005F),
 				ModelTransform.origin(0.0F, 0.0F, -1.0F)
 		);
-		modelPartData.addChild(
-				"right_lid",
+		root.addChild(
+				RIGHT_LID,
 				ModelPartBuilder.create().uv(16, 0).cuboid(0.0F, -5.0F, -0.005F, 6.0F, 10.0F, 0.005F),
 				ModelTransform.origin(0.0F, 0.0F, 1.0F)
 		);
-		modelPartData.addChild(
+		root.addChild(
 				"seam",
 				ModelPartBuilder.create().uv(12, 0).cuboid(-1.0F, -5.0F, 0.0F, 2.0F, 10.0F, 0.005F),
 				ModelTransform.rotation(0.0F, (float) (Math.PI / 2), 0.0F)
 		);
-		modelPartData.addChild(
-				"left_pages",
+		root.addChild(
+				LEFT_PAGES,
 				ModelPartBuilder.create().uv(0, 10).cuboid(0.0F, -4.0F, -0.99F, 5.0F, 8.0F, 1.0F),
 				ModelTransform.NONE
 		);
-		modelPartData.addChild(
-				"right_pages",
+		root.addChild(
+				RIGHT_PAGES,
 				ModelPartBuilder.create().uv(12, 10).cuboid(0.0F, -4.0F, -0.01F, 5.0F, 8.0F, 1.0F),
 				ModelTransform.NONE
 		);
-		ModelPartBuilder
-				modelPartBuilder =
+		ModelPartBuilder flipPageBuilder =
 				ModelPartBuilder.create().uv(24, 10).cuboid(0.0F, -4.0F, 0.0F, 5.0F, 8.0F, 0.005F);
-		modelPartData.addChild("flip_page1", modelPartBuilder, ModelTransform.NONE);
-		modelPartData.addChild("flip_page2", modelPartBuilder, ModelTransform.NONE);
+		root.addChild(FLIP_PAGE1, flipPageBuilder, ModelTransform.NONE);
+		root.addChild(FLIP_PAGE2, flipPageBuilder, ModelTransform.NONE);
 		return TexturedModelData.of(modelData, 64, 32);
 	}
 
-	public void setAngles(BookModel.BookModelState bookModelState) {
-		super.setAngles(bookModelState);
-		float f = (MathHelper.sin(bookModelState.pageTurnAmount * 0.02F) * 0.1F + 1.25F) * bookModelState.pageTurnSpeed;
-		this.leftCover.yaw = (float) Math.PI + f;
-		this.rightCover.yaw = -f;
-		this.leftPages.yaw = f;
-		this.rightPages.yaw = -f;
-		this.leftFlippingPage.yaw = f - f * 2.0F * bookModelState.leftFlipAmount;
-		this.rightFlippingPage.yaw = f - f * 2.0F * bookModelState.rightFlipAmount;
-		this.leftPages.originX = MathHelper.sin(f);
-		this.rightPages.originX = MathHelper.sin(f);
-		this.leftFlippingPage.originX = MathHelper.sin(f);
-		this.rightFlippingPage.originX = MathHelper.sin(f);
+	@Override
+	public void setAngles(BookModel.BookModelState state) {
+		super.setAngles(state);
+		float openAngle = (MathHelper.sin(state.pageTurnAmount * 0.02F) * 0.1F + 1.25F) * state.pageTurnSpeed;
+		leftCover.yaw = (float) Math.PI + openAngle;
+		rightCover.yaw = -openAngle;
+		leftPages.yaw = openAngle;
+		rightPages.yaw = -openAngle;
+		leftFlippingPage.yaw = openAngle - openAngle * 2.0F * state.leftFlipAmount;
+		rightFlippingPage.yaw = openAngle - openAngle * 2.0F * state.rightFlipAmount;
+		leftPages.originX = MathHelper.sin(openAngle);
+		rightPages.originX = MathHelper.sin(openAngle);
+		leftFlippingPage.originX = MathHelper.sin(openAngle);
+		rightFlippingPage.originX = MathHelper.sin(openAngle);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BookModelState}.
+	 * Состояние анимации книги: параметры раскрытия и перелистывания страниц.
+	 *
+	 * @param pageTurnAmount  накопленный счётчик перелистываний (влияет на угол раскрытия)
+	 * @param leftFlipAmount  прогресс перелистывания левой страницы [0..1]
+	 * @param rightFlipAmount прогресс перелистывания правой страницы [0..1]
+	 * @param pageTurnSpeed   скорость перелистывания (масштабирует угол раскрытия)
 	 */
+	@Environment(EnvType.CLIENT)
 	public record BookModelState(
 			float pageTurnAmount,
 			float leftFlipAmount,

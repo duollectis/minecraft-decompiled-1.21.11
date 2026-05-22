@@ -7,7 +7,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * {@code OptionalChunk}.
+ * Класс Optional Chunk.
  */
 public interface OptionalChunk<T> {
 
@@ -40,9 +40,6 @@ public interface OptionalChunk<T> {
 
 	<E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E;
 
-	/**
-	 * {@code ActualChunk}.
-	 */
 	public record ActualChunk<T>(T value) implements OptionalChunk<T> {
 
 		@Override
@@ -77,9 +74,6 @@ public interface OptionalChunk<T> {
 		}
 	}
 
-	/**
-	 * {@code LoadFailure}.
-	 */
 	public record LoadFailure<T>(Supplier<String> error) implements OptionalChunk<T> {
 
 		@Override

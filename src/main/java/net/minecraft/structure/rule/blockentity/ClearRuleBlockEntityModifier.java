@@ -6,7 +6,8 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ClearRuleBlockEntityModifier}.
+ * Реализация {@link RuleBlockEntityModifier}, полностью очищающая NBT блок-сущности.
+ * Возвращает пустой {@link NbtCompound} независимо от входных данных.
  */
 public class ClearRuleBlockEntityModifier implements RuleBlockEntityModifier {
 

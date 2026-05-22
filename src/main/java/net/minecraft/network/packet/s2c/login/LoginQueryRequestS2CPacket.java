@@ -31,7 +31,7 @@ public record LoginQueryRequestS2CPacket(
 
 	private static UnknownLoginQueryRequestPayload readUnknownPayload(Identifier id, PacketByteBuf buf) {
 		int i = buf.readableBytes();
-		if (i >= 0 && i <= 1048576) {
+		if (i >= 0 && i <= MAX_PAYLOAD_SIZE) {
 			buf.skipBytes(i);
 			return new UnknownLoginQueryRequestPayload(id);
 		}

@@ -5,67 +5,56 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 /**
- * {@code ColorHelper}.
+ * Утилитарный класс для работы с цветами в формате ARGB (packed int).
+ * Содержит LUT-таблицы для быстрого перевода между sRGB и линейным цветовым пространством,
+ * а также операции смешивания, масштабирования, интерполяции и конвертации цветов.
  */
 public class ColorHelper {
 
 	private static final int LINEAR_TO_SRGB_LUT_LENGTH = 1024;
+	private static final int RGB_CHANNEL_MASK = 0xFFFFFF;
+
 	private static final short[] SRGB_TO_LINEAR = Util.make(
 			new short[256], out -> {
 				for (int i = 0; i < out.length; i++) {
-					float f = i / 255.0F;
-					out[i] = (short) Math.round(computeSrgbToLinear(f) * 1023.0F);
+					float srgb = i / 255.0F;
+					out[i] = (short) Math.round(computeSrgbToLinear(srgb) * 1023.0F);
 				}
 			}
 	);
+
 	private static final byte[] LINEAR_TO_SRGB = Util.make(
-			new byte[1024], out -> {
+			new byte[LINEAR_TO_SRGB_LUT_LENGTH], out -> {
 				for (int i = 0; i < out.length; i++) {
-					float f = i / 1023.0F;
-					out[i] = (byte) Math.round(computeLinearToSrgb(f) * 255.0F);
+					float linear = i / 1023.0F;
+					out[i] = (byte) Math.round(computeLinearToSrgb(linear) * 255.0F);
 				}
 			}
 	);
 
 	private static float computeSrgbToLinear(float srgb) {
-		return srgb >= 0.04045F ? (float) Math.pow((srgb + 0.055) / 1.055, 2.4) : srgb / 12.92F;
+		return srgb >= 0.04045F
+				? (float) Math.pow((srgb + 0.055) / 1.055, 2.4)
+				: srgb / 12.92F;
 	}
 
 	private static float computeLinearToSrgb(float linear) {
-		return linear >= 0.0031308F ? (float) (1.055 * Math.pow(linear, 0.4166666666666667) - 0.055) : 12.92F * linear;
+		return linear >= 0.0031308F
+				? (float) (1.055 * Math.pow(linear, 0.4166666666666667) - 0.055)
+				: 12.92F * linear;
 	}
 
-	/**
-	 * Srgb to linear.
-	 *
-	 * @param srgb srgb
-	 *
-	 * @return float — результат операции
-	 */
 	public static float srgbToLinear(int srgb) {
 		return SRGB_TO_LINEAR[srgb] / 1023.0F;
 	}
 
-	/**
-	 * Linear to srgb.
-	 *
-	 * @param linear linear
-	 *
-	 * @return int — результат операции
-	 */
 	public static int linearToSrgb(float linear) {
 		return LINEAR_TO_SRGB[MathHelper.floor(linear * 1023.0F)] & 0xFF;
 	}
 
 	/**
-	 * Interpolate.
-	 *
-	 * @param a a
-	 * @param b b
-	 * @param c c
-	 * @param d d
-	 *
-	 * @return int — результат операции
+	 * Усредняет 4 цвета ARGB с корректным учётом гамма-коррекции (через линейное пространство).
+	 * Используется при билинейной фильтрации текстур.
 	 */
 	public static int interpolate(int a, int b, int c, int d) {
 		return getArgb(
@@ -77,8 +66,8 @@ public class ColorHelper {
 	}
 
 	private static int averageSrgbIntensities(int a, int b, int c, int d) {
-		int i = (SRGB_TO_LINEAR[a] + SRGB_TO_LINEAR[b] + SRGB_TO_LINEAR[c] + SRGB_TO_LINEAR[d]) / 4;
-		return LINEAR_TO_SRGB[i] & 0xFF;
+		int linearAvg = (SRGB_TO_LINEAR[a] + SRGB_TO_LINEAR[b] + SRGB_TO_LINEAR[c] + SRGB_TO_LINEAR[d]) / 4;
+		return LINEAR_TO_SRGB[linearAvg] & 0xFF;
 	}
 
 	public static int getAlpha(int argb) {
@@ -113,38 +102,23 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Mix.
-	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return int — результат операции
-	 */
 	public static int mix(int first, int second) {
 		if (first == -1) {
 			return second;
 		}
-		else {
-			return second == -1
-			       ? first
-			       : getArgb(
-					       getAlpha(first) * getAlpha(second) / 255,
-					       getRed(first) * getRed(second) / 255,
-					       getGreen(first) * getGreen(second) / 255,
-					       getBlue(first) * getBlue(second) / 255
-			       );
+
+		if (second == -1) {
+			return first;
 		}
+
+		return getArgb(
+				getAlpha(first) * getAlpha(second) / 255,
+				getRed(first) * getRed(second) / 255,
+				getGreen(first) * getGreen(second) / 255,
+				getBlue(first) * getBlue(second) / 255
+		);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return int — результат операции
-	 */
 	public static int add(int a, int b) {
 		return getArgb(
 				getAlpha(a),
@@ -154,14 +128,6 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Subtract.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return int — результат операции
-	 */
 	public static int subtract(int a, int b) {
 		return getArgb(
 				getAlpha(a),
@@ -171,45 +137,18 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Scale alpha.
-	 *
-	 * @param argb argb
-	 * @param scale scale
-	 *
-	 * @return int — результат операции
-	 */
 	public static int scaleAlpha(int argb, float scale) {
 		if (argb == 0 || scale <= 0.0F) {
 			return 0;
 		}
-		else {
-			return scale >= 1.0F ? argb : withAlpha(getAlphaFloat(argb) * scale, argb);
-		}
+
+		return scale >= 1.0F ? argb : withAlpha(getAlphaFloat(argb) * scale, argb);
 	}
 
-	/**
-	 * Scale rgb.
-	 *
-	 * @param argb argb
-	 * @param scale scale
-	 *
-	 * @return int — результат операции
-	 */
 	public static int scaleRgb(int argb, float scale) {
 		return scaleRgb(argb, scale, scale, scale);
 	}
 
-	/**
-	 * Scale rgb.
-	 *
-	 * @param argb argb
-	 * @param redScale red scale
-	 * @param greenScale green scale
-	 * @param blueScale blue scale
-	 *
-	 * @return int — результат операции
-	 */
 	public static int scaleRgb(int argb, float redScale, float greenScale, float blueScale) {
 		return getArgb(
 				getAlpha(argb),
@@ -219,14 +158,6 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Scale rgb.
-	 *
-	 * @param argb argb
-	 * @param scale scale
-	 *
-	 * @return int — результат операции
-	 */
 	public static int scaleRgb(int argb, int scale) {
 		return getArgb(
 				getAlpha(argb),
@@ -236,215 +167,97 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Grayscale.
-	 *
-	 * @param argb argb
-	 *
-	 * @return int — результат операции
-	 */
 	public static int grayscale(int argb) {
-		int i = (int) (getRed(argb) * 0.3F + getGreen(argb) * 0.59F + getBlue(argb) * 0.11F);
-		return getArgb(getAlpha(argb), i, i, i);
+		int luminance = (int) (getRed(argb) * 0.3F + getGreen(argb) * 0.59F + getBlue(argb) * 0.11F);
+		return getArgb(getAlpha(argb), luminance, luminance, luminance);
 	}
 
-	/**
-	 * Alpha blend.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return int — результат операции
-	 */
 	public static int alphaBlend(int a, int b) {
-		int i = getAlpha(a);
-		int j = getAlpha(b);
-		if (j == 255) {
+		int alphaA = getAlpha(a);
+		int alphaB = getAlpha(b);
+
+		if (alphaB == 255) {
 			return b;
 		}
-		else if (j == 0) {
+
+		if (alphaB == 0) {
 			return a;
 		}
-		else {
-			int k = j + i * (255 - j) / 255;
-			return getArgb(
-					k,
-					blend(k, j, getRed(a), getRed(b)),
-					blend(k, j, getGreen(a), getGreen(b)),
-					blend(k, j, getBlue(a), getBlue(b))
-			);
-		}
+
+		int blendedAlpha = alphaB + alphaA * (255 - alphaB) / 255;
+		return getArgb(
+				blendedAlpha,
+				blend(blendedAlpha, alphaB, getRed(a), getRed(b)),
+				blend(blendedAlpha, alphaB, getGreen(a), getGreen(b)),
+				blend(blendedAlpha, alphaB, getBlue(a), getBlue(b))
+		);
 	}
 
 	private static int blend(int blendedAlpha, int alpha, int a, int b) {
 		return (b * alpha + a * (blendedAlpha - alpha)) / blendedAlpha;
 	}
 
-	/**
-	 * Lerp.
-	 *
-	 * @param delta delta
-	 * @param start start
-	 * @param end end
-	 *
-	 * @return int — результат операции
-	 */
 	public static int lerp(float delta, int start, int end) {
-		int i = MathHelper.lerp(delta, getAlpha(start), getAlpha(end));
-		int j = MathHelper.lerp(delta, getRed(start), getRed(end));
-		int k = MathHelper.lerp(delta, getGreen(start), getGreen(end));
-		int l = MathHelper.lerp(delta, getBlue(start), getBlue(end));
-		return getArgb(i, j, k, l);
+		int alpha = MathHelper.lerp(delta, getAlpha(start), getAlpha(end));
+		int red = MathHelper.lerp(delta, getRed(start), getRed(end));
+		int green = MathHelper.lerp(delta, getGreen(start), getGreen(end));
+		int blue = MathHelper.lerp(delta, getBlue(start), getBlue(end));
+		return getArgb(alpha, red, green, blue);
 	}
 
-	/**
-	 * Lerp linear.
-	 *
-	 * @param delta delta
-	 * @param start start
-	 * @param end end
-	 *
-	 * @return int — результат операции
-	 */
 	public static int lerpLinear(float delta, int start, int end) {
 		return getArgb(
 				MathHelper.lerp(delta, getAlpha(start), getAlpha(end)),
-				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getRed(start)], SRGB_TO_LINEAR[getRed(end)])]
-						& 0xFF,
-				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getGreen(start)], SRGB_TO_LINEAR[getGreen(end)])]
-						& 0xFF,
-				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getBlue(start)], SRGB_TO_LINEAR[getBlue(end)])]
-						& 0xFF
+				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getRed(start)], SRGB_TO_LINEAR[getRed(end)])] & 0xFF,
+				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getGreen(start)], SRGB_TO_LINEAR[getGreen(end)])] & 0xFF,
+				LINEAR_TO_SRGB[MathHelper.lerp(delta, SRGB_TO_LINEAR[getBlue(start)], SRGB_TO_LINEAR[getBlue(end)])] & 0xFF
 		);
 	}
 
-	/**
-	 * Full alpha.
-	 *
-	 * @param argb argb
-	 *
-	 * @return int — результат операции
-	 */
 	public static int fullAlpha(int argb) {
 		return argb | 0xFF000000;
 	}
 
-	/**
-	 * Zero alpha.
-	 *
-	 * @param argb argb
-	 *
-	 * @return int — результат операции
-	 */
 	public static int zeroAlpha(int argb) {
-		return argb & 16777215;
+		return argb & RGB_CHANNEL_MASK;
 	}
 
-	/**
-	 * With alpha.
-	 *
-	 * @param alpha alpha
-	 * @param rgb rgb
-	 *
-	 * @return int — результат операции
-	 */
 	public static int withAlpha(int alpha, int rgb) {
-		return alpha << 24 | rgb & 16777215;
+		return alpha << 24 | rgb & RGB_CHANNEL_MASK;
 	}
 
-	/**
-	 * With alpha.
-	 *
-	 * @param alpha alpha
-	 * @param color color
-	 *
-	 * @return int — результат операции
-	 */
 	public static int withAlpha(float alpha, int color) {
-		return channelFromFloat(alpha) << 24 | color & 16777215;
+		return channelFromFloat(alpha) << 24 | color & RGB_CHANNEL_MASK;
 	}
 
 	public static int getWhite(float alpha) {
-		return channelFromFloat(alpha) << 24 | 16777215;
+		return channelFromFloat(alpha) << 24 | RGB_CHANNEL_MASK;
 	}
 
-	/**
-	 * White with alpha.
-	 *
-	 * @param alpha alpha
-	 *
-	 * @return int — результат операции
-	 */
 	public static int whiteWithAlpha(int alpha) {
-		return alpha << 24 | 16777215;
+		return alpha << 24 | RGB_CHANNEL_MASK;
 	}
 
-	/**
-	 * To alpha.
-	 *
-	 * @param alpha alpha
-	 *
-	 * @return int — результат операции
-	 */
 	public static int toAlpha(float alpha) {
 		return channelFromFloat(alpha) << 24;
 	}
 
-	/**
-	 * To alpha.
-	 *
-	 * @param alpha alpha
-	 *
-	 * @return int — результат операции
-	 */
 	public static int toAlpha(int alpha) {
 		return alpha << 24;
 	}
 
-	/**
-	 * From floats.
-	 *
-	 * @param alpha alpha
-	 * @param red red
-	 * @param green green
-	 * @param blue blue
-	 *
-	 * @return int — результат операции
-	 */
 	public static int fromFloats(float alpha, float red, float green, float blue) {
 		return getArgb(channelFromFloat(alpha), channelFromFloat(red), channelFromFloat(green), channelFromFloat(blue));
 	}
 
-	/**
-	 * To rgb vector.
-	 *
-	 * @param rgb rgb
-	 *
-	 * @return Vector3f — результат операции
-	 */
 	public static Vector3f toRgbVector(int rgb) {
 		return new Vector3f(getRedFloat(rgb), getGreenFloat(rgb), getBlueFloat(rgb));
 	}
 
-	/**
-	 * To rgba vector.
-	 *
-	 * @param argb argb
-	 *
-	 * @return Vector4f — результат операции
-	 */
 	public static Vector4f toRgbaVector(int argb) {
 		return new Vector4f(getRedFloat(argb), getGreenFloat(argb), getBlueFloat(argb), getAlphaFloat(argb));
 	}
 
-	/**
-	 * Average.
-	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return int — результат операции
-	 */
 	public static int average(int first, int second) {
 		return getArgb(
 				(getAlpha(first) + getAlpha(second)) / 2,
@@ -454,13 +267,6 @@ public class ColorHelper {
 		);
 	}
 
-	/**
-	 * Channel from float.
-	 *
-	 * @param value value
-	 *
-	 * @return int — результат операции
-	 */
 	public static int channelFromFloat(float value) {
 		return MathHelper.floor(value * 255.0F);
 	}
@@ -485,119 +291,73 @@ public class ColorHelper {
 		return channel / 255.0F;
 	}
 
-	/**
-	 * To abgr.
-	 *
-	 * @param argb argb
-	 *
-	 * @return int — результат операции
-	 */
 	public static int toAbgr(int argb) {
 		return argb & -16711936 | (argb & 0xFF0000) >> 16 | (argb & 0xFF) << 16;
 	}
 
-	/**
-	 * From abgr.
-	 *
-	 * @param abgr abgr
-	 *
-	 * @return int — результат операции
-	 */
 	public static int fromAbgr(int abgr) {
 		return toAbgr(abgr);
 	}
 
 	/**
-	 * With brightness.
-	 *
-	 * @param argb argb
-	 * @param brightness brightness
-	 *
-	 * @return int — результат операции
+	 * Изменяет яркость цвета ARGB, сохраняя оттенок (hue) и насыщенность (saturation).
+	 * Реализует алгоритм HSV: конвертирует RGB → HSV, заменяет V на {@code brightness}, возвращает обратно.
 	 */
 	public static int withBrightness(int argb, float brightness) {
-		int i = getRed(argb);
-		int j = getGreen(argb);
-		int k = getBlue(argb);
-		int l = getAlpha(argb);
-		int m = Math.max(Math.max(i, j), k);
-		int n = Math.min(Math.min(i, j), k);
-		float f = m - n;
-		float g;
-		if (m != 0) {
-			g = f / m;
-		}
-		else {
-			g = 0.0F;
+		int red = getRed(argb);
+		int green = getGreen(argb);
+		int blue = getBlue(argb);
+		int alpha = getAlpha(argb);
+
+		int maxChannel = Math.max(Math.max(red, green), blue);
+		int minChannel = Math.min(Math.min(red, green), blue);
+		float chroma = maxChannel - minChannel;
+
+		float saturation = maxChannel != 0 ? chroma / maxChannel : 0.0F;
+
+		if (saturation == 0.0F) {
+			int gray = Math.round(brightness * 255.0F);
+			return getArgb(alpha, gray, gray, gray);
 		}
 
-		float h;
-		if (g == 0.0F) {
-			h = 0.0F;
-		}
-		else {
-			float o = (m - i) / f;
-			float p = (m - j) / f;
-			float q = (m - k) / f;
-			if (i == m) {
-				h = q - p;
-			}
-			else if (j == m) {
-				h = 2.0F + o - q;
-			}
-			else {
-				h = 4.0F + p - o;
-			}
+		float hue = computeHue(red, green, blue, maxChannel, chroma);
+		float hueSector = (hue - (float) Math.floor(hue)) * 6.0F;
+		float hueFraction = hueSector - (float) Math.floor(hueSector);
 
-			h /= 6.0F;
-			if (h < 0.0F) {
-				h++;
-			}
+		float p1 = brightness * (1.0F - saturation);
+		float p2 = brightness * (1.0F - saturation * hueFraction);
+		float p3 = brightness * (1.0F - saturation * (1.0F - hueFraction));
+
+		return switch ((int) hueSector) {
+			case 0 -> getArgb(alpha, Math.round(brightness * 255.0F), Math.round(p3 * 255.0F), Math.round(p1 * 255.0F));
+			case 1 -> getArgb(alpha, Math.round(p2 * 255.0F), Math.round(brightness * 255.0F), Math.round(p1 * 255.0F));
+			case 2 -> getArgb(alpha, Math.round(p1 * 255.0F), Math.round(brightness * 255.0F), Math.round(p3 * 255.0F));
+			case 3 -> getArgb(alpha, Math.round(p1 * 255.0F), Math.round(p2 * 255.0F), Math.round(brightness * 255.0F));
+			case 4 -> getArgb(alpha, Math.round(p3 * 255.0F), Math.round(p1 * 255.0F), Math.round(brightness * 255.0F));
+			default -> getArgb(alpha, Math.round(brightness * 255.0F), Math.round(p1 * 255.0F), Math.round(p2 * 255.0F));
+		};
+	}
+
+	private static float computeHue(int red, int green, int blue, int maxChannel, float chroma) {
+		float redFactor = (maxChannel - red) / chroma;
+		float greenFactor = (maxChannel - green) / chroma;
+		float blueFactor = (maxChannel - blue) / chroma;
+
+		float hue;
+		if (red == maxChannel) {
+			hue = blueFactor - greenFactor;
+		} else if (green == maxChannel) {
+			hue = 2.0F + redFactor - blueFactor;
+		} else {
+			hue = 4.0F + greenFactor - redFactor;
 		}
 
-		if (g == 0.0F) {
-			i = j = k = Math.round(brightness * 255.0F);
-			return getArgb(l, i, j, k);
-		}
-		else {
-			float ox = (h - (float) Math.floor(h)) * 6.0F;
-			float px = ox - (float) Math.floor(ox);
-			float qx = brightness * (1.0F - g);
-			float r = brightness * (1.0F - g * px);
-			float s = brightness * (1.0F - g * (1.0F - px));
-			switch ((int) ox) {
-				case 0:
-					i = Math.round(brightness * 255.0F);
-					j = Math.round(s * 255.0F);
-					k = Math.round(qx * 255.0F);
-					break;
-				case 1:
-					i = Math.round(r * 255.0F);
-					j = Math.round(brightness * 255.0F);
-					k = Math.round(qx * 255.0F);
-					break;
-				case 2:
-					i = Math.round(qx * 255.0F);
-					j = Math.round(brightness * 255.0F);
-					k = Math.round(s * 255.0F);
-					break;
-				case 3:
-					i = Math.round(qx * 255.0F);
-					j = Math.round(r * 255.0F);
-					k = Math.round(brightness * 255.0F);
-					break;
-				case 4:
-					i = Math.round(s * 255.0F);
-					j = Math.round(qx * 255.0F);
-					k = Math.round(brightness * 255.0F);
-					break;
-				case 5:
-					i = Math.round(brightness * 255.0F);
-					j = Math.round(qx * 255.0F);
-					k = Math.round(r * 255.0F);
-			}
+		hue /= 6.0F;
 
-			return getArgb(l, i, j, k);
+		if (hue < 0.0F) {
+			hue++;
 		}
+
+		return hue;
 	}
 }

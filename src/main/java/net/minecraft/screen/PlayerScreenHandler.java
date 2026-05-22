@@ -16,7 +16,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code PlayerScreenHandler}.
+ * Обработчик экрана инвентаря игрока.
+ *
+ * <p>Управляет 2×2 сеткой крафта, четырьмя слотами брони, слотом
+ * второй руки и стандартным инвентарём. Слоты расположены в следующем
+ * порядке: результат крафта (0), ячейки крафта (1–4), броня (5–8),
+ * инвентарь (9–35), хотбар (36–44), вторая рука (45).</p>
  */
 public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 
@@ -35,42 +40,65 @@ public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 	public static final int HOTBAR_START = 36;
 	public static final int HOTBAR_END = 45;
 	public static final int OFFHAND_ID = 45;
+	private static final int OFFHAND_SLOT_BOUND = 46;
+	private static final int ARMOR_SLOT_GUI_INDEX = 8;
+	private static final int ARMOR_SLOT_X = 8;
+	private static final int ARMOR_SLOT_Y_START = 8;
+	private static final int ARMOR_SLOT_STEP = 18;
+	private static final int RESULT_SLOT_X = 154;
+	private static final int RESULT_SLOT_Y = 28;
+	private static final int INPUT_SLOTS_X = 98;
+	private static final int INPUT_SLOTS_Y = 18;
+	private static final int PLAYER_SLOTS_X = 8;
+	private static final int PLAYER_SLOTS_Y = 84;
+	private static final int OFFHAND_SLOT_X = 77;
+	private static final int OFFHAND_SLOT_Y = 62;
+	private static final int OFFHAND_INVENTORY_INDEX = 40;
+
 	public static final Identifier EMPTY_HELMET_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/helmet");
 	public static final Identifier EMPTY_CHESTPLATE_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/chestplate");
 	public static final Identifier EMPTY_LEGGINGS_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/leggings");
 	public static final Identifier EMPTY_BOOTS_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/boots");
 	public static final Identifier EMPTY_OFF_HAND_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/shield");
+
 	private static final Map<EquipmentSlot, Identifier> EMPTY_ARMOR_SLOT_TEXTURES = Map.of(
-			EquipmentSlot.FEET,
-			EMPTY_BOOTS_SLOT_TEXTURE,
-			EquipmentSlot.LEGS,
-			EMPTY_LEGGINGS_SLOT_TEXTURE,
-			EquipmentSlot.CHEST,
-			EMPTY_CHESTPLATE_SLOT_TEXTURE,
-			EquipmentSlot.HEAD,
-			EMPTY_HELMET_SLOT_TEXTURE
+		EquipmentSlot.FEET, EMPTY_BOOTS_SLOT_TEXTURE,
+		EquipmentSlot.LEGS, EMPTY_LEGGINGS_SLOT_TEXTURE,
+		EquipmentSlot.CHEST, EMPTY_CHESTPLATE_SLOT_TEXTURE,
+		EquipmentSlot.HEAD, EMPTY_HELMET_SLOT_TEXTURE
 	);
-	private static final EquipmentSlot[] EQUIPMENT_SLOT_ORDER = new EquipmentSlot[]{
-			EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
+
+	private static final EquipmentSlot[] EQUIPMENT_SLOT_ORDER = {
+		EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
 	};
+
 	public final boolean onServer;
 	private final PlayerEntity owner;
 
 	public PlayerScreenHandler(PlayerInventory inventory, boolean onServer, PlayerEntity owner) {
-		super(null, 0, 2, 2);
+		super(null, 0, CRAFTING_GRID_WIDTH, CRAFTING_GRID_HEIGHT);
 		this.onServer = onServer;
 		this.owner = owner;
-		this.addResultSlot(owner, 154, 28);
-		this.addInputSlots(98, 18);
 
-		for (int i = 0; i < 4; i++) {
-			EquipmentSlot equipmentSlot = EQUIPMENT_SLOT_ORDER[i];
-			Identifier identifier = EMPTY_ARMOR_SLOT_TEXTURES.get(equipmentSlot);
-			this.addSlot(new ArmorSlot(inventory, owner, equipmentSlot, 39 - i, 8, 8 + i * 18, identifier));
+		addResultSlot(owner, RESULT_SLOT_X, RESULT_SLOT_Y);
+		addInputSlots(INPUT_SLOTS_X, INPUT_SLOTS_Y);
+
+		for (int armorIndex = 0; armorIndex < EQUIPMENT_COUNT; armorIndex++) {
+			EquipmentSlot equipmentSlot = EQUIPMENT_SLOT_ORDER[armorIndex];
+			Identifier texture = EMPTY_ARMOR_SLOT_TEXTURES.get(equipmentSlot);
+			addSlot(new ArmorSlot(
+				inventory,
+				owner,
+				equipmentSlot,
+				equipmentSlot.getOffsetEntitySlotId(PlayerInventory.MAIN_SIZE),
+				ARMOR_SLOT_X,
+				ARMOR_SLOT_Y_START + armorIndex * ARMOR_SLOT_STEP,
+				texture
+			));
 		}
 
-		this.addPlayerSlots(inventory, 8, 84);
-		this.addSlot(new Slot(inventory, 40, 77, 62) {
+		addPlayerSlots(inventory, PLAYER_SLOTS_X, PLAYER_SLOTS_Y);
+		addSlot(new Slot(inventory, OFFHAND_INVENTORY_INDEX, OFFHAND_SLOT_X, OFFHAND_SLOT_Y) {
 			@Override
 			public void setStack(ItemStack stack, ItemStack previousStack) {
 				owner.onEquipStack(EquipmentSlot.OFFHAND, previousStack, stack);
@@ -79,25 +107,25 @@ public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 
 			@Override
 			public Identifier getBackgroundSprite() {
-				return PlayerScreenHandler.EMPTY_OFF_HAND_SLOT_TEXTURE;
+				return EMPTY_OFF_HAND_SLOT_TEXTURE;
 			}
 		});
 	}
 
 	public static boolean isInHotbar(int slot) {
-		return slot >= 36 && slot < 45 || slot == 45;
+		return slot >= INVENTORY_END && slot < HOTBAR_END || slot == OFFHAND_ID;
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
-		if (this.owner.getEntityWorld() instanceof ServerWorld serverWorld) {
+		if (owner.getEntityWorld() instanceof ServerWorld serverWorld) {
 			CraftingScreenHandler.updateResult(
-					this,
-					serverWorld,
-					this.owner,
-					this.craftingInventory,
-					this.craftingResultInventory,
-					null
+				this,
+				serverWorld,
+				owner,
+				craftingInventory,
+				craftingResultInventory,
+				null
 			);
 		}
 	}
@@ -105,10 +133,13 @@ public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.craftingResultInventory.clear();
-		if (!player.getEntityWorld().isClient()) {
-			this.dropInventory(player, this.craftingInventory);
+		craftingResultInventory.clear();
+
+		if (player.getEntityWorld().isClient()) {
+			return;
 		}
+
+		dropInventory(player, craftingInventory);
 	}
 
 	@Override
@@ -116,95 +147,101 @@ public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 		return true;
 	}
 
+	/**
+	 * Быстрое перемещение предмета (Shift+Click) с учётом всех зон инвентаря игрока.
+	 *
+	 * <p>Логика приоритетов:
+	 * <ul>
+	 *   <li>Результат крафта (слот 0) → инвентарь+хотбар, с вызовом {@code onQuickTransfer}</li>
+	 *   <li>Ячейки крафта (1–4) и броня (5–8) → инвентарь+хотбар</li>
+	 *   <li>Предмет брони → соответствующий слот брони</li>
+	 *   <li>Предмет второй руки → слот второй руки</li>
+	 *   <li>Инвентарь (9–35) → хотбар</li>
+	 *   <li>Хотбар (36–44) → инвентарь</li>
+	 * </ul></p>
+	 */
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			EquipmentSlot equipmentSlot = player.getPreferredEquipmentSlot(itemStack);
-			if (slot == 0) {
-				if (!this.insertItem(itemStack2, 9, 45, true)) {
-					return ItemStack.EMPTY;
-				}
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-			}
-			else if (slot >= 1 && slot < 5) {
-				if (!this.insertItem(itemStack2, 9, 45, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= 5 && slot < 9) {
-				if (!this.insertItem(itemStack2, 9, 45, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (equipmentSlot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR && !this.slots
-					.get(8 - equipmentSlot.getEntitySlotId())
-					.hasStack()) {
-				int i = 8 - equipmentSlot.getEntitySlotId();
-				if (!this.insertItem(itemStack2, i, i + 1, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (equipmentSlot == EquipmentSlot.OFFHAND && !this.slots.get(45).hasStack()) {
-				if (!this.insertItem(itemStack2, 45, 46, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= 9 && slot < 36) {
-				if (!this.insertItem(itemStack2, 36, 45, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= 36 && slot < 45) {
-				if (!this.insertItem(itemStack2, 9, 36, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 9, 45, false)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY, itemStack);
-			}
-			else {
-				slot2.markDirty();
-			}
-
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
-			if (slot == 0) {
-				player.dropItem(itemStack2, false);
-			}
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
+		EquipmentSlot equipmentSlot = player.getPreferredEquipmentSlot(original);
+
+		if (slot == 0) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(slotStack, original);
+		} else if (slot >= CRAFTING_INPUT_START && slot < EQUIPMENT_END) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (equipmentSlot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR
+			&& !slots.get(ARMOR_SLOT_GUI_INDEX - equipmentSlot.getEntitySlotId()).hasStack()
+		) {
+			int armorSlotIndex = ARMOR_SLOT_GUI_INDEX - equipmentSlot.getEntitySlotId();
+
+			if (!insertItem(slotStack, armorSlotIndex, armorSlotIndex + 1, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (equipmentSlot == EquipmentSlot.OFFHAND && !slots.get(OFFHAND_ID).hasStack()) {
+			if (!insertItem(slotStack, HOTBAR_END, OFFHAND_SLOT_BOUND, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= INVENTORY_START && slot < INVENTORY_END) {
+			if (!insertItem(slotStack, INVENTORY_END, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= INVENTORY_END && slot < HOTBAR_END) {
+			if (!insertItem(slotStack, INVENTORY_START, INVENTORY_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, false)) {
+			return ItemStack.EMPTY;
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY, original);
+		} else {
+			sourceSlot.markDirty();
+		}
+
+		if (slotStack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, slotStack);
+
+		if (slot == 0) {
+			player.dropItem(slotStack, false);
+		}
+
+		return original;
 	}
 
 	@Override
 	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-		return slot.inventory != this.craftingResultInventory && super.canInsertIntoSlot(stack, slot);
+		return slot.inventory != craftingResultInventory && super.canInsertIntoSlot(stack, slot);
 	}
 
 	@Override
 	public Slot getOutputSlot() {
-		return this.slots.get(0);
+		return slots.get(0);
 	}
 
 	@Override
 	public List<Slot> getInputSlots() {
-		return this.slots.subList(1, 5);
+		return slots.subList(CRAFTING_INPUT_START, CRAFTING_INPUT_END);
 	}
 
 	public RecipeInputInventory getCraftingInput() {
-		return this.craftingInventory;
+		return craftingInventory;
 	}
 
 	@Override
@@ -214,6 +251,6 @@ public class PlayerScreenHandler extends AbstractCraftingScreenHandler {
 
 	@Override
 	protected PlayerEntity getPlayer() {
-		return this.owner;
+		return owner;
 	}
 }

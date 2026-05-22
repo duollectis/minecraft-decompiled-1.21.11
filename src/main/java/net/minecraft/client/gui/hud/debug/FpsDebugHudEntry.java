@@ -10,30 +10,30 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FpsDebugHudEntry}.
+ * Запись отладочного HUD: текущий FPS, лимит кадров и статус VSync.
  */
+@Environment(EnvType.CLIENT)
 public class FpsDebugHudEntry implements DebugHudEntry {
+
+	/** Значение лимита FPS, соответствующее «без ограничений». */
+	private static final int UNLIMITED_FPS = 260;
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		int i = minecraftClient.getInactivityFpsLimiter().update();
-		GameOptions gameOptions = minecraftClient.options;
+		MinecraftClient client = MinecraftClient.getInstance();
+		int fpsLimit = client.getInactivityFpsLimiter().update();
+		GameOptions options = client.options;
+		String fpsLimitLabel = fpsLimit == UNLIMITED_FPS ? "inf" : String.valueOf(fpsLimit);
+		String vsyncSuffix = options.getEnableVsync().getValue() ? " vsync" : "";
+
 		lines.addPriorityLine(
-				String.format(
-						Locale.ROOT,
-						"%d fps T: %s%s",
-						minecraftClient.getCurrentFps(),
-						i == 260 ? "inf" : i,
-						gameOptions.getEnableVsync().getValue() ? " vsync" : ""
-				)
+			String.format(Locale.ROOT, "%d fps T: %s%s", client.getCurrentFps(), fpsLimitLabel, vsyncSuffix)
 		);
 	}
 

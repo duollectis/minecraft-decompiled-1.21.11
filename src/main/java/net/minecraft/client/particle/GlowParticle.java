@@ -86,7 +86,7 @@ public class GlowParticle extends BillboardParticle {
 		) {
 			GlowParticle glowParticle = new GlowParticle(clientWorld, d, e, f, 0.0, 0.0, 0.0, this.spriteProvider);
 			glowParticle.setColor(1.0F, 0.9F, 1.0F);
-			glowParticle.setVelocity(g * 0.25, h * 0.25, i * 0.25);
+			glowParticle.setVelocity(g * velocityMultiplier, h * velocityMultiplier, i * velocityMultiplier);
 			int j = 2;
 			int k = 4;
 			glowParticle.setMaxAge(random.nextInt(2) + 2);
@@ -179,7 +179,7 @@ public class GlowParticle extends BillboardParticle {
 				glowParticle.setColor(0.43F, 0.77F, 0.62F);
 			}
 
-			glowParticle.setVelocity(g * 0.01, h * 0.01, i * 0.01);
+			glowParticle.setVelocity(g * velocityMultiplier, h * 0.01, i * 0.01);
 			int j = 10;
 			int k = 40;
 			glowParticle.setMaxAge(random.nextInt(30) + 10);
@@ -213,7 +213,7 @@ public class GlowParticle extends BillboardParticle {
 		) {
 			GlowParticle glowParticle = new GlowParticle(clientWorld, d, e, f, 0.0, 0.0, 0.0, this.spriteProvider);
 			glowParticle.setColor(1.0F, 0.9F, 1.0F);
-			glowParticle.setVelocity(g * 0.01 / 2.0, h * 0.01, i * 0.01 / 2.0);
+			glowParticle.setVelocity(g * velocityMultiplier / 2.0, h * 0.01, i * 0.01 / 2.0);
 			int j = 10;
 			int k = 40;
 			glowParticle.setMaxAge(random.nextInt(30) + 10);
@@ -247,7 +247,7 @@ public class GlowParticle extends BillboardParticle {
 		) {
 			GlowParticle glowParticle = new GlowParticle(clientWorld, d, e, f, 0.0, 0.0, 0.0, this.spriteProvider);
 			glowParticle.setColor(0.91F, 0.55F, 0.08F);
-			glowParticle.setVelocity(g * 0.01 / 2.0, h * 0.01, i * 0.01 / 2.0);
+			glowParticle.setVelocity(g * velocityMultiplier / 2.0, h * 0.01, i * 0.01 / 2.0);
 			int j = 10;
 			int k = 40;
 			glowParticle.setMaxAge(random.nextInt(30) + 10);

@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.predicate.item.ItemPredicate;
 
 /**
- * {@code FilteredSlotSource}.
+ * Источник слотов, фильтрующий предметы из дочернего источника по предикату {@link ItemPredicate}.
  */
 public class FilteredSlotSource extends TransformSlotSource {
 
@@ -28,6 +28,6 @@ public class FilteredSlotSource extends TransformSlotSource {
 
 	@Override
 	protected ItemStream transform(ItemStream stream) {
-		return stream.filter(this.itemFilter);
+		return stream.filter(itemFilter);
 	}
 }

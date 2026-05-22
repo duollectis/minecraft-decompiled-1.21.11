@@ -2,14 +2,12 @@ package net.minecraft.entity.ai.control;
 
 import net.minecraft.util.math.MathHelper;
 
-/**
- * {@code Control}.
- */
+/** Базовый интерфейс для всех контроллеров моба (движение, взгляд, прыжок). */
 public interface Control {
 
 	default float changeAngle(float start, float end, float maxChange) {
-		float f = MathHelper.subtractAngles(start, end);
-		float g = MathHelper.clamp(f, -maxChange, maxChange);
-		return start + g;
+		float delta = MathHelper.subtractAngles(start, end);
+		float clamped = MathHelper.clamp(delta, -maxChange, maxChange);
+		return start + clamped;
 	}
 }

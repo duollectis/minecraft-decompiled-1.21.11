@@ -1,17 +1,18 @@
 package net.minecraft.world;
 
 /**
- * {@code PersistentState}.
+ * Базовый класс для всех персистентных состояний мира, сохраняемых на диск.
+ * <p>
+ * Подклассы реализуют сериализацию через {@code Codec} и регистрируются
+ * в {@link PersistentStateManager}. Флаг {@code dirty} сигнализирует менеджеру
+ * о необходимости записи состояния при следующем сохранении мира.
  */
 public abstract class PersistentState {
 
 	private boolean dirty;
 
-	/**
-	 * Mark dirty.
-	 */
 	public void markDirty() {
-		this.setDirty(true);
+		setDirty(true);
 	}
 
 	public void setDirty(boolean dirty) {
@@ -19,6 +20,6 @@ public abstract class PersistentState {
 	}
 
 	public boolean isDirty() {
-		return this.dirty;
+		return dirty;
 	}
 }

@@ -10,7 +10,7 @@ import net.minecraft.world.poi.PointOfInterest;
 import net.minecraft.world.poi.PointOfInterestType;
 
 /**
- * {@code PoiDebugData}.
+ * Отладочные данные точки интереса (POI): позиция, тип и количество свободных слотов.
  */
 public record PoiDebugData(BlockPos pos, RegistryEntry<PointOfInterestType> poiType, int freeTicketCount) {
 

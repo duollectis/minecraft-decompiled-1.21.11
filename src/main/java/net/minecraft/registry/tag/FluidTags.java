@@ -5,7 +5,11 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code FluidTags}.
+ * Реестр тегов жидкостей ванильного Minecraft.
+ * <p>
+ * Теги используются для группировки жидкостей по категориям, что позволяет
+ * проверять принадлежность жидкости к группе без перечисления конкретных типов.
+ * Например, {@link #WATER} объединяет все варианты воды, {@link #LAVA} — лавы.
  */
 public final class FluidTags {
 

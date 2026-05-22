@@ -17,10 +17,11 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SkinAbuseReport}.
+ * Жалоба на нарушение правил, связанное со скином игрока.
+ * Содержит поставщик текстур скина для включения URL в запрос к API Mojang.
  */
+@Environment(EnvType.CLIENT)
 public class SkinAbuseReport extends AbuseReport {
 
 	final Supplier<SkinTextures> skinSupplier;
@@ -31,22 +32,15 @@ public class SkinAbuseReport extends AbuseReport {
 	}
 
 	public Supplier<SkinTextures> getSkinSupplier() {
-		return this.skinSupplier;
+		return skinSupplier;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return SkinAbuseReport — результат операции
-	 */
 	public SkinAbuseReport copy() {
-		SkinAbuseReport
-				skinAbuseReport =
-				new SkinAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid, this.skinSupplier);
-		skinAbuseReport.opinionComments = this.opinionComments;
-		skinAbuseReport.reason = this.reason;
-		skinAbuseReport.attested = this.attested;
-		return skinAbuseReport;
+		SkinAbuseReport copy = new SkinAbuseReport(reportId, currentTime, reportedPlayerUuid, skinSupplier);
+		copy.opinionComments = opinionComments;
+		copy.reason = reason;
+		copy.attested = attested;
+		return copy;
 	}
 
 	@Override
@@ -54,10 +48,8 @@ public class SkinAbuseReport extends AbuseReport {
 		return new SkinReportScreen(parent, context, this);
 	}
 
+	/** Строитель жалобы на скин: извлекает URL скина из текстур и формирует запрос. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends AbuseReport.Builder<SkinAbuseReport> {
 
 		public Builder(SkinAbuseReport report, AbuseReportLimits limits) {
@@ -87,29 +79,22 @@ public class SkinAbuseReport extends AbuseReport {
 
 		@Override
 		public Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context) {
-			AbuseReport.ValidationError validationError = this.validate();
+			AbuseReport.ValidationError validationError = validate();
 			if (validationError != null) {
 				return Either.right(validationError);
 			}
-			else {
-				String string = Objects.requireNonNull(this.report.reason).getId();
-				ReportedEntity reportedEntity = new ReportedEntity(this.report.reportedPlayerUuid);
-				SkinTextures skinTextures = this.report.skinSupplier.get();
-				String
-						string2 =
-						skinTextures.body() instanceof AssetInfo.SkinAssetInfo skinAssetInfo ? skinAssetInfo.url()
-						                                                                     : null;
-				com.mojang.authlib.minecraft.report.AbuseReport
-						abuseReport =
-						com.mojang.authlib.minecraft.report.AbuseReport.skin(
-								this.report.opinionComments, string, string2, reportedEntity, this.report.currentTime
-						);
-				return Either.left(new AbuseReport.ReportWithId(
-						this.report.reportId,
-						AbuseReportType.SKIN,
-						abuseReport
-				));
-			}
+
+			String reasonId = Objects.requireNonNull(report.reason).getId();
+			ReportedEntity reportedEntity = new ReportedEntity(report.reportedPlayerUuid);
+			SkinTextures skinTextures = report.skinSupplier.get();
+			String skinUrl = skinTextures.body() instanceof AssetInfo.SkinAssetInfo skinAssetInfo
+					? skinAssetInfo.url()
+					: null;
+			com.mojang.authlib.minecraft.report.AbuseReport abuseReport =
+					com.mojang.authlib.minecraft.report.AbuseReport.skin(
+							report.opinionComments, reasonId, skinUrl, reportedEntity, report.currentTime
+					);
+			return Either.left(new AbuseReport.ReportWithId(report.reportId, AbuseReportType.SKIN, abuseReport));
 		}
 	}
 }

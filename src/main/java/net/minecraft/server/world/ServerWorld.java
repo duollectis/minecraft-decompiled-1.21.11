@@ -128,7 +128,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerWorld}.
+ * Класс Server World.
  */
 public class ServerWorld extends World implements EntityLookupView, StructureWorldAccess {
 
@@ -344,9 +344,9 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		if (!this.isDebugWorld() && bl) {
 			long l = this.getTime();
 			profiler.push("blockTicks");
-			this.blockTickScheduler.tick(l, 65536, this::tickBlock);
+			this.blockTickScheduler.tick(l, MAX_TICKS, this::tickBlock);
 			profiler.swap("fluidTicks");
-			this.fluidTickScheduler.tick(l, 65536, this::tickFluid);
+			this.fluidTickScheduler.tick(l, MAX_TICKS, this::tickFluid);
 			profiler.pop();
 		}
 
@@ -373,7 +373,7 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 			this.idleTimeout++;
 		}
 
-		if (this.idleTimeout < 300) {
+		if (this.idleTimeout < SERVER_IDLE_COOLDOWN) {
 			profiler.push("entities");
 			if (this.enderDragonFight != null && bl) {
 				profiler.push("dragonFight");
@@ -1838,7 +1838,7 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 	}
 
 	public @Nullable Raid getRaidAt(BlockPos pos) {
-		return this.raidManager.getRaidAt(pos, 9216);
+		return this.raidManager.getRaidAt(pos, Raid.SQUARED_RAID_CENTER_DISTANCE);
 	}
 
 	public boolean hasRaidAt(BlockPos pos) {
@@ -2296,9 +2296,6 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK);
 	}
 
-	/**
-	 * {@code ServerEntityHandler}.
-	 */
 	final class ServerEntityHandler implements EntityHandler<Entity> {
 
 		/**

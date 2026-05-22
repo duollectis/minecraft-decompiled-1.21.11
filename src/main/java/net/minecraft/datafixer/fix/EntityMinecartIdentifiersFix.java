@@ -10,7 +10,8 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.util.Util;
 
 /**
- * {@code EntityMinecartIdentifiersFix}.
+ * Разделяет старый тип {@code Minecart} на отдельные типы по полю {@code Type}:
+ * {@code MinecartRideable}, {@code MinecartChest}, {@code MinecartFurnace}.
  */
 public class EntityMinecartIdentifiersFix extends EntityTransformFix {
 
@@ -23,16 +24,20 @@ public class EntityMinecartIdentifiersFix extends EntityTransformFix {
 		if (!choice.equals("Minecart")) {
 			return Pair.of(choice, entityTyped);
 		}
-		else {
-			int i = ((Dynamic) entityTyped.getOrCreate(DSL.remainderFinder())).get("Type").asInt(0);
 
-			String string = switch (i) {
-				case 1 -> "MinecartChest";
-				case 2 -> "MinecartFurnace";
-				default -> "MinecartRideable";
-			};
-			Type<?> type = (Type<?>) this.getOutputSchema().findChoiceType(TypeReferences.ENTITY).types().get(string);
-			return Pair.of(string, Util.apply(entityTyped, type, entityDynamic -> entityDynamic.remove("Type")));
-		}
+		int minecartType = ((Dynamic) entityTyped.getOrCreate(DSL.remainderFinder())).get("Type").asInt(0);
+
+		String newEntityId = switch (minecartType) {
+			case 1 -> "MinecartChest";
+			case 2 -> "MinecartFurnace";
+			default -> "MinecartRideable";
+		};
+
+		Type<?> outputType = (Type<?>) getOutputSchema()
+				.findChoiceType(TypeReferences.ENTITY)
+				.types()
+				.get(newEntityId);
+
+		return Pair.of(newEntityId, Util.apply(entityTyped, outputType, d -> d.remove("Type")));
 	}
 }

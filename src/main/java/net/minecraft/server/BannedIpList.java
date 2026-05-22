@@ -8,7 +8,8 @@ import java.io.File;
 import java.net.SocketAddress;
 
 /**
- * {@code BannedIpList}.
+ * Список забаненных IP-адресов.
+ * При добавлении и удалении записей уведомляет {@link ManagementListener}.
  */
 public class BannedIpList extends ServerConfigList<String, BannedIpEntry> {
 
@@ -21,85 +22,66 @@ public class BannedIpList extends ServerConfigList<String, BannedIpEntry> {
 		return new BannedIpEntry(json);
 	}
 
-	public boolean isBanned(SocketAddress ip) {
-		String string = this.stringifyAddress(ip);
-		return this.contains(string);
+	public boolean isBanned(SocketAddress address) {
+		return contains(stringifyAddress(address));
 	}
 
 	public boolean isBanned(String ip) {
-		return this.contains(ip);
+		return contains(ip);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param address address
-	 *
-	 * @return @Nullable BannedIpEntry — 
-	 */
 	public @Nullable BannedIpEntry get(SocketAddress address) {
-		String string = this.stringifyAddress(address);
-		return this.get(string);
+		return get(stringifyAddress(address));
 	}
 
-	private String stringifyAddress(SocketAddress address) {
-		String string = address.toString();
-		if (string.contains("/")) {
-			string = string.substring(string.indexOf(47) + 1);
-		}
-
-		if (string.contains(":")) {
-			string = string.substring(0, string.indexOf(58));
-		}
-
-		return string;
-	}
-
-	/**
-	 * Add.
-	 *
-	 * @param bannedIpEntry banned ip entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean add(BannedIpEntry bannedIpEntry) {
-		if (super.add(bannedIpEntry)) {
-			if (bannedIpEntry.getKey() != null) {
-				this.managementListener.onIpBanAdded(bannedIpEntry);
-			}
-
-			return true;
-		}
-		else {
+	@Override
+	public boolean add(BannedIpEntry entry) {
+		if (!super.add(entry)) {
 			return false;
 		}
+
+		if (entry.getKey() != null) {
+			managementListener.onIpBanAdded(entry);
+		}
+
+		return true;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param string string
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean remove(String string) {
-		if (super.remove(string)) {
-			this.managementListener.onIpBanRemoved(string);
-			return true;
-		}
-		else {
+	@Override
+	public boolean remove(String ip) {
+		if (!super.remove(ip)) {
 			return false;
 		}
+
+		managementListener.onIpBanRemoved(ip);
+		return true;
 	}
 
 	@Override
 	public void clear() {
-		for (BannedIpEntry bannedIpEntry : this.values()) {
-			if (bannedIpEntry.getKey() != null) {
-				this.managementListener.onIpBanRemoved(bannedIpEntry.getKey());
+		for (BannedIpEntry entry : values()) {
+			if (entry.getKey() != null) {
+				managementListener.onIpBanRemoved(entry.getKey());
 			}
 		}
 
 		super.clear();
+	}
+
+	/**
+	 * Извлекает строковое представление IP из {@link SocketAddress}, отбрасывая порт и слэш-префикс.
+	 */
+	private String stringifyAddress(SocketAddress address) {
+		String raw = address.toString();
+
+		if (raw.contains("/")) {
+			raw = raw.substring(raw.indexOf('/') + 1);
+		}
+
+		if (raw.contains(":")) {
+			raw = raw.substring(0, raw.indexOf(':'));
+		}
+
+		return raw;
 	}
 }

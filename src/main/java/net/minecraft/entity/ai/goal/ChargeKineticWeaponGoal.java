@@ -15,7 +15,9 @@ import java.util.EnumSet;
 import java.util.Optional;
 
 /**
- * {@code ChargeKineticWeaponGoal}.
+ * Цель атаки кинетическим оружием: моб сначала занимает стартовую позицию
+ * на дистанции от цели, затем выполняет заряженный бросок/удар.
+ * Логика состояния хранится в {@link Data}.
  */
 public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 
@@ -24,6 +26,7 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 	static final int MIN_ATTACK_DISTANCE = 9;
 	static final int MAX_ATTACK_DISTANCE = 11;
 	static final double CHARGING_TIME_TICKS = toGoalTicks(100);
+
 	private final T entity;
 	private ChargeKineticWeaponGoal.@Nullable Data data;
 	double speed;
@@ -32,11 +35,11 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 	float minSquaredDistanceToTarget;
 
 	public ChargeKineticWeaponGoal(
-			T entity,
-			double speed,
-			double targetFollowingSpeed,
-			float maxDistanceToTarget,
-			float minDistanceToTarget
+		T entity,
+		double speed,
+		double targetFollowingSpeed,
+		float maxDistanceToTarget,
+		float minDistanceToTarget
 	) {
 		this.entity = entity;
 		this.speed = speed;
@@ -48,123 +51,125 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.canAttack() && !this.entity.isUsingItem();
+		return canAttack() && !entity.isUsingItem();
 	}
 
 	private boolean canAttack() {
-		return this.entity.getTarget() != null && this.entity
-				.getMainHandStack()
-				.contains(DataComponentTypes.KINETIC_WEAPON);
+		return entity.getTarget() != null
+			&& entity.getMainHandStack().contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
 	private int getUseGoalTicks() {
-		int
-				i =
-				Optional
-						.ofNullable(this.entity.getMainHandStack().get(DataComponentTypes.KINETIC_WEAPON))
-						.map(KineticWeaponComponent::getUseTicks)
-						.orElse(0);
-		return toGoalTicks(i);
+		int useTicks = Optional
+			.ofNullable(entity.getMainHandStack().get(DataComponentTypes.KINETIC_WEAPON))
+			.map(KineticWeaponComponent::getUseTicks)
+			.orElse(0);
+
+		return toGoalTicks(useTicks);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.data != null && !this.data.charged && this.canAttack();
+		return data != null && !data.charged && canAttack();
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.entity.setAttacking(true);
-		this.data = new ChargeKineticWeaponGoal.Data();
+		entity.setAttacking(true);
+		data = new ChargeKineticWeaponGoal.Data();
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.entity.getNavigation().stop();
-		this.entity.setAttacking(false);
-		this.data = null;
-		this.entity.clearActiveItem();
+		entity.getNavigation().stop();
+		entity.setAttacking(false);
+		data = null;
+		entity.clearActiveItem();
 	}
 
 	@Override
 	public void tick() {
-		if (this.data != null) {
-			LivingEntity livingEntity = this.entity.getTarget();
-			double d = this.entity.squaredDistanceTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
-			Entity entity = this.entity.getRootVehicle();
-			float f = 1.0F;
-			if (entity instanceof MobEntity mobEntity) {
-				f = mobEntity.getRiderChargingSpeedMultiplier();
+		if (data == null) {
+			return;
+		}
+
+		LivingEntity target = entity.getTarget();
+		double distSq = entity.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		Entity rootVehicle = entity.getRootVehicle();
+		float speedMultiplier = 1.0F;
+
+		if (rootVehicle instanceof MobEntity mobEntity) {
+			speedMultiplier = mobEntity.getRiderChargingSpeedMultiplier();
+		}
+
+		int vehicleOffset = entity.hasVehicle() ? 2 : 0;
+		entity.lookAtEntity(target, 30.0F, 30.0F);
+		entity.getLookControl().lookAt(target, 30.0F, 30.0F);
+
+		if (data.isIdle()) {
+			if (distSq > maxSquaredDistanceToTarget) {
+				entity.getNavigation().startMovingTo(target, speedMultiplier * targetFollowingSpeed);
+				return;
 			}
 
-			int i = this.entity.hasVehicle() ? 2 : 0;
-			this.entity.lookAtEntity(livingEntity, 30.0F, 30.0F);
-			this.entity.getLookControl().lookAt(livingEntity, 30.0F, 30.0F);
-			if (this.data.isIdle()) {
-				if (d > this.maxSquaredDistanceToTarget) {
-					this.entity.getNavigation().startMovingTo(livingEntity, f * this.targetFollowingSpeed);
+			data.setRemainingUseTicks(getUseGoalTicks());
+			entity.setCurrentHand(Hand.MAIN_HAND);
+		}
+
+		if (data.canStartCharging()) {
+			entity.clearActiveItem();
+			double dist = Math.sqrt(distSq);
+			data.startPos = FuzzyTargeting.findFrom(
+				entity,
+				Math.max(0.0, MIN_ATTACK_DISTANCE + vehicleOffset - dist),
+				Math.max(1.0, MAX_ATTACK_DISTANCE + vehicleOffset - dist),
+				7,
+				target.getEntityPos()
+			);
+			data.chargeTicks = 1;
+		}
+
+		if (data.finishedCharging()) {
+			return;
+		}
+
+		if (data.startPos != null) {
+			entity.getNavigation().startMovingTo(
+				data.startPos.x,
+				data.startPos.y,
+				data.startPos.z,
+				speedMultiplier * targetFollowingSpeed
+			);
+
+			if (entity.getNavigation().isIdle()) {
+				if (data.chargeTicks > 0) {
+					data.charged = true;
 					return;
 				}
 
-				this.data.setRemainingUseTicks(this.getUseGoalTicks());
-				this.entity.setCurrentHand(Hand.MAIN_HAND);
+				data.startPos = null;
 			}
+		} else {
+			entity.getNavigation().startMovingTo(target, speedMultiplier * speed);
 
-			if (this.data.canStartCharging()) {
-				this.entity.clearActiveItem();
-				double e = Math.sqrt(d);
-				this.data.startPos =
-						FuzzyTargeting.findFrom(
-								this.entity,
-								Math.max(0.0, 9 + i - e),
-								Math.max(1.0, 11 + i - e),
-								7,
-								livingEntity.getEntityPos()
-						);
-				this.data.chargeTicks = 1;
-			}
-
-			if (!this.data.finishedCharging()) {
-				if (this.data.startPos != null) {
-					this.entity
-							.getNavigation()
-							.startMovingTo(
-									this.data.startPos.x,
-									this.data.startPos.y,
-									this.data.startPos.z,
-									f * this.targetFollowingSpeed
-							);
-					if (this.entity.getNavigation().isIdle()) {
-						if (this.data.chargeTicks > 0) {
-							this.data.charged = true;
-							return;
-						}
-
-						this.data.startPos = null;
-					}
-				}
-				else {
-					this.entity.getNavigation().startMovingTo(livingEntity, f * this.speed);
-					if (d < this.minSquaredDistanceToTarget || this.entity.getNavigation().isIdle()) {
-						double e = Math.sqrt(d);
-						this.data.startPos =
-								FuzzyTargeting.findFrom(
-										this.entity,
-										6 + i - e,
-										7 + i - e,
-										7,
-										livingEntity.getEntityPos()
-								);
-					}
-				}
+			if (distSq < minSquaredDistanceToTarget || entity.getNavigation().isIdle()) {
+				double dist = Math.sqrt(distSq);
+				data.startPos = FuzzyTargeting.findFrom(
+					entity,
+					MIN_CHARGE_START_DISTANCE + vehicleOffset - dist,
+					MAX_CHARGE_START_DISTANCE + vehicleOffset - dist,
+					7,
+					target.getEntityPos()
+				);
 			}
 		}
 	}
 
 	/**
-	 * {@code Data}.
+	 * Хранит изменяемое состояние одного цикла атаки кинетическим оружием:
+	 * оставшееся время зарядки, позицию старта броска и флаг завершения.
 	 */
 	public static class Data {
 
@@ -174,7 +179,7 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 		boolean charged = false;
 
 		public boolean isIdle() {
-			return this.remainingUseTicks < 0;
+			return remainingUseTicks < 0;
 		}
 
 		public void setRemainingUseTicks(int remainingUseTicks) {
@@ -182,14 +187,14 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 		}
 
 		/**
-		 * Проверяет возможность start charging.
-		 *
-		 * @return boolean — {@code true} если условие выполнено
+		 * Уменьшает счётчик оставшихся тиков зарядки и возвращает {@code true}
+		 * в момент, когда счётчик достигает нуля — сигнал к началу броска.
 		 */
 		public boolean canStartCharging() {
-			if (this.remainingUseTicks > 0) {
-				this.remainingUseTicks--;
-				if (this.remainingUseTicks == 0) {
+			if (remainingUseTicks > 0) {
+				remainingUseTicks--;
+
+				if (remainingUseTicks == 0) {
 					return true;
 				}
 			}
@@ -198,15 +203,15 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 		}
 
 		/**
-		 * Finished charging.
-		 *
-		 * @return boolean — результат операции
+		 * Увеличивает счётчик тиков броска и возвращает {@code true},
+		 * когда бросок завершён (превышен порог {@link ChargeKineticWeaponGoal#CHARGING_TIME_TICKS}).
 		 */
 		public boolean finishedCharging() {
-			if (this.chargeTicks > 0) {
-				this.chargeTicks++;
-				if (this.chargeTicks > ChargeKineticWeaponGoal.CHARGING_TIME_TICKS) {
-					this.charged = true;
+			if (chargeTicks > 0) {
+				chargeTicks++;
+
+				if (chargeTicks > ChargeKineticWeaponGoal.CHARGING_TIME_TICKS) {
+					charged = true;
 					return true;
 				}
 			}

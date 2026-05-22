@@ -8,12 +8,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code IngredientPlacement}.
+ * Описывает расположение ингредиентов рецепта по слотам для автозаполнения сетки крафта.
+ * Хранит список ингредиентов и соответствующие им индексы слотов.
+ * Слот со значением {@link #EMPTY_SLOT} означает отсутствие ингредиента в данной позиции.
  */
 public class IngredientPlacement {
 
 	public static final int EMPTY_SLOT = -1;
 	public static final IngredientPlacement NONE = new IngredientPlacement(List.of(), IntList.of());
+
 	private final List<Ingredient> ingredients;
 	private final IntList placementSlots;
 
@@ -22,80 +25,68 @@ public class IngredientPlacement {
 		this.placementSlots = placementSlots;
 	}
 
-	/**
-	 * For single slot.
-	 *
-	 * @param ingredient ingredient
-	 *
-	 * @return IngredientPlacement — результат операции
-	 */
 	public static IngredientPlacement forSingleSlot(Ingredient ingredient) {
 		return ingredient.isEmpty() ? NONE : new IngredientPlacement(List.of(ingredient), IntList.of(0));
 	}
 
 	/**
-	 * For multiple slots.
-	 *
-	 * @param ingredients ingredients
-	 *
-	 * @return IngredientPlacement — результат операции
+	 * Создаёт размещение для рецептов с фиксированными слотами (например, кузнечный стол).
+	 * Опциональные ингредиенты, отсутствующие в списке, получают индекс {@link #EMPTY_SLOT}.
+	 * Если хотя бы один присутствующий ингредиент пуст — возвращает {@link #NONE}.
 	 */
 	public static IngredientPlacement forMultipleSlots(List<Optional<Ingredient>> ingredients) {
-		int i = ingredients.size();
-		List<Ingredient> list = new ArrayList<>(i);
-		IntList intList = new IntArrayList(i);
-		int j = 0;
+		int slotCount = ingredients.size();
+		List<Ingredient> presentIngredients = new ArrayList<>(slotCount);
+		IntList slotIndices = new IntArrayList(slotCount);
+		int ingredientIndex = 0;
 
 		for (Optional<Ingredient> optional : ingredients) {
 			if (optional.isPresent()) {
 				Ingredient ingredient = optional.get();
+
 				if (ingredient.isEmpty()) {
 					return NONE;
 				}
 
-				list.add(ingredient);
-				intList.add(j++);
-			}
-			else {
-				intList.add(-1);
+				presentIngredients.add(ingredient);
+				slotIndices.add(ingredientIndex++);
+			} else {
+				slotIndices.add(EMPTY_SLOT);
 			}
 		}
 
-		return new IngredientPlacement(list, intList);
+		return new IngredientPlacement(presentIngredients, slotIndices);
 	}
 
 	/**
-	 * For shapeless.
-	 *
-	 * @param ingredients ingredients
-	 *
-	 * @return IngredientPlacement — результат операции
+	 * Создаёт размещение для бесформенных рецептов: каждый ингредиент
+	 * получает индекс, равный его позиции в списке.
+	 * Если хотя бы один ингредиент пуст — возвращает {@link #NONE}.
 	 */
 	public static IngredientPlacement forShapeless(List<Ingredient> ingredients) {
-		int i = ingredients.size();
-		IntList intList = new IntArrayList(i);
+		int count = ingredients.size();
+		IntList slotIndices = new IntArrayList(count);
 
-		for (int j = 0; j < i; j++) {
-			Ingredient ingredient = ingredients.get(j);
-			if (ingredient.isEmpty()) {
+		for (int index = 0; index < count; index++) {
+			if (ingredients.get(index).isEmpty()) {
 				return NONE;
 			}
 
-			intList.add(j);
+			slotIndices.add(index);
 		}
 
-		return new IngredientPlacement(ingredients, intList);
+		return new IngredientPlacement(ingredients, slotIndices);
 	}
 
 	public IntList getPlacementSlots() {
-		return this.placementSlots;
+		return placementSlots;
 	}
 
 	public List<Ingredient> getIngredients() {
-		return this.ingredients;
+		return ingredients;
 	}
 
 	public boolean hasNoPlacement() {
-		return this.placementSlots.isEmpty();
+		return placementSlots.isEmpty();
 	}
 }

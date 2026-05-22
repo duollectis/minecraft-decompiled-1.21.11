@@ -10,95 +10,97 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema2551}.
+ * Схема версии 2551 (Minecraft 1.16 — Nether Update).
+ * <p>
+ * Вводит тип данных {@code WORLD_GEN_SETTINGS} для хранения настроек генерации мира.
+ * Описывает структуру измерений с поддержкой трёх типов генераторов:
+ * {@code minecraft:debug}, {@code minecraft:flat} (суперплоский с биомами и слоями блоков)
+ * и {@code minecraft:noise} (шумовой генератор с несколькими источниками биомов).
  */
 public class Schema2551 extends IdentifierNormalizingSchema {
 
-	public Schema2551(int i, Schema schema) {
-		super(i, schema);
+	public Schema2551(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public void registerTypes(
-			Schema schema,
-			Map<String, Supplier<TypeTemplate>> entityTypes,
-			Map<String, Supplier<TypeTemplate>> blockEntityTypes
+		Schema schema,
+		Map<String, Supplier<TypeTemplate>> entityTypes,
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes
 	) {
 		super.registerTypes(schema, entityTypes, blockEntityTypes);
 		schema.registerType(
-				false,
-				TypeReferences.WORLD_GEN_SETTINGS,
-				() -> DSL.fields(
-						"dimensions",
-						DSL.compoundList(
-								DSL.constType(getIdentifierType()),
-								DSL.fields(
-										"generator",
-										DSL.taggedChoiceLazy(
-												"type",
-												DSL.string(),
-												ImmutableMap.of(
-														"minecraft:debug",
-														DSL::remainder,
-														"minecraft:flat",
-														(Supplier<TypeTemplate>) () -> DSL.optionalFields(
-																"settings",
-																DSL.optionalFields(
-																		"biome",
-																		TypeReferences.BIOME.in(schema),
-																		"layers",
-																		DSL.list(DSL.optionalFields(
-																				"block",
-																				TypeReferences.BLOCK_NAME.in(schema)
-																		))
-																)
-														),
-														"minecraft:noise",
-														(Supplier<TypeTemplate>) () -> DSL.optionalFields(
-																"biome_source",
-																DSL.taggedChoiceLazy(
-																		"type",
-																		DSL.string(),
-																		ImmutableMap.of(
-																				"minecraft:fixed",
-																				(Supplier<TypeTemplate>) () -> DSL.fields(
-																						"biome",
-																						TypeReferences.BIOME.in(schema)
-																				),
-																				"minecraft:multi_noise",
-																				(Supplier<TypeTemplate>) () -> DSL.list(
-																						DSL.fields(
-																								"biome",
-																								TypeReferences.BIOME.in(
-																										schema)
-																						)),
-																				"minecraft:checkerboard",
-																				(Supplier<TypeTemplate>) () -> DSL.fields(
-																						"biomes",
-																						DSL.list(TypeReferences.BIOME.in(
-																								schema))
-																				),
-																				"minecraft:vanilla_layered",
-																				DSL::remainder,
-																				"minecraft:the_end",
-																				DSL::remainder
-																		)
-																),
-																"settings",
-																DSL.or(
-																		DSL.constType(DSL.string()),
-																		DSL.optionalFields(
-																				"default_block",
-																				TypeReferences.BLOCK_NAME.in(schema),
-																				"default_fluid",
-																				TypeReferences.BLOCK_NAME.in(schema)
-																		)
-																)
-														)
-												)
+			false,
+			TypeReferences.WORLD_GEN_SETTINGS,
+			() -> DSL.fields(
+				"dimensions",
+				DSL.compoundList(
+					DSL.constType(getIdentifierType()),
+					DSL.fields(
+						"generator",
+						DSL.taggedChoiceLazy(
+							"type",
+							DSL.string(),
+							ImmutableMap.of(
+								"minecraft:debug",
+								DSL::remainder,
+								"minecraft:flat",
+								(Supplier<TypeTemplate>) () -> DSL.optionalFields(
+									"settings",
+									DSL.optionalFields(
+										"biome",
+										TypeReferences.BIOME.in(schema),
+										"layers",
+										DSL.list(DSL.optionalFields(
+											"block",
+											TypeReferences.BLOCK_NAME.in(schema)
+										))
+									)
+								),
+								"minecraft:noise",
+								(Supplier<TypeTemplate>) () -> DSL.optionalFields(
+									"biome_source",
+									DSL.taggedChoiceLazy(
+										"type",
+										DSL.string(),
+										ImmutableMap.of(
+											"minecraft:fixed",
+											(Supplier<TypeTemplate>) () -> DSL.fields(
+												"biome",
+												TypeReferences.BIOME.in(schema)
+											),
+											"minecraft:multi_noise",
+											(Supplier<TypeTemplate>) () -> DSL.list(
+												DSL.fields("biome", TypeReferences.BIOME.in(schema))
+											),
+											"minecraft:checkerboard",
+											(Supplier<TypeTemplate>) () -> DSL.fields(
+												"biomes",
+												DSL.list(TypeReferences.BIOME.in(schema))
+											),
+											"minecraft:vanilla_layered",
+											DSL::remainder,
+											"minecraft:the_end",
+											DSL::remainder
 										)
+									),
+									"settings",
+									DSL.or(
+										DSL.constType(DSL.string()),
+										DSL.optionalFields(
+											"default_block",
+											TypeReferences.BLOCK_NAME.in(schema),
+											"default_fluid",
+											TypeReferences.BLOCK_NAME.in(schema)
+										)
+									)
 								)
+							)
 						)
+					)
 				)
+			)
 		);
 	}
 }

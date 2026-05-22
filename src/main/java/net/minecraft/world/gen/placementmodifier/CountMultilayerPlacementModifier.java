@@ -13,41 +13,27 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
 
-@Deprecated
 /**
- * {@code CountMultilayerPlacementModifier}.
+ * @deprecated Устаревший модификатор размещения, генерирующий позиции на каждом
+ * горизонтальном слое в пределах чанка. Используйте современные альтернативы.
  */
+@Deprecated
 public class CountMultilayerPlacementModifier extends PlacementModifier {
 
-	public static final MapCodec<CountMultilayerPlacementModifier>
-			MODIFIER_CODEC =
-			IntProvider.createValidatingCodec(0, 256)
-			           .fieldOf("count")
-			           .xmap(CountMultilayerPlacementModifier::new, placementModifier -> placementModifier.count);
+	public static final MapCodec<CountMultilayerPlacementModifier> MODIFIER_CODEC =
+		IntProvider.createValidatingCodec(0, 256)
+			.fieldOf("count")
+			.xmap(CountMultilayerPlacementModifier::new, modifier -> modifier.count);
 	private final IntProvider count;
 
 	private CountMultilayerPlacementModifier(IntProvider count) {
 		this.count = count;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param count count
-	 *
-	 * @return CountMultilayerPlacementModifier — результат операции
-	 */
 	public static CountMultilayerPlacementModifier of(IntProvider count) {
 		return new CountMultilayerPlacementModifier(count);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param count count
-	 *
-	 * @return CountMultilayerPlacementModifier — результат операции
-	 */
 	public static CountMultilayerPlacementModifier of(int count) {
 		return of(ConstantIntProvider.create(count));
 	}
@@ -55,26 +41,27 @@ public class CountMultilayerPlacementModifier extends PlacementModifier {
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
 		Builder<BlockPos> builder = Stream.builder();
-		int i = 0;
+		int layer = 0;
 
-		boolean bl;
+		boolean foundAny;
 		do {
-			bl = false;
+			foundAny = false;
 
-			for (int j = 0; j < this.count.get(random); j++) {
-				int k = random.nextInt(16) + pos.getX();
-				int l = random.nextInt(16) + pos.getZ();
-				int m = context.getTopY(Heightmap.Type.MOTION_BLOCKING, k, l);
-				int n = findPos(context, k, m, l, i);
-				if (n != Integer.MAX_VALUE) {
-					builder.add(new BlockPos(k, n, l));
-					bl = true;
+			for (int attempt = 0; attempt < count.get(random); attempt++) {
+				int x = random.nextInt(16) + pos.getX();
+				int z = random.nextInt(16) + pos.getZ();
+				int topY = context.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
+				int foundY = findPos(context, x, topY, z, layer);
+
+				if (foundY != Integer.MAX_VALUE) {
+					builder.add(new BlockPos(x, foundY, z));
+					foundAny = true;
 				}
 			}
 
-			i++;
+			layer++;
 		}
-		while (bl);
+		while (foundAny);
 
 		return builder.build();
 	}
@@ -84,23 +71,24 @@ public class CountMultilayerPlacementModifier extends PlacementModifier {
 		return PlacementModifierType.COUNT_ON_EVERY_LAYER;
 	}
 
-	private static int findPos(FeaturePlacementContext context, int x, int y, int z, int targetY) {
+	private static int findPos(FeaturePlacementContext context, int x, int y, int z, int targetLayer) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable(x, y, z);
-		int i = 0;
-		BlockState blockState = context.getBlockState(mutable);
+		int layerIndex = 0;
+		BlockState current = context.getBlockState(mutable);
 
-		for (int j = y; j >= context.getBottomY() + 1; j--) {
-			mutable.setY(j - 1);
-			BlockState blockState2 = context.getBlockState(mutable);
-			if (!blocksSpawn(blockState2) && blocksSpawn(blockState) && !blockState2.isOf(Blocks.BEDROCK)) {
-				if (i == targetY) {
+		for (int scanY = y; scanY >= context.getBottomY() + 1; scanY--) {
+			mutable.setY(scanY - 1);
+			BlockState below = context.getBlockState(mutable);
+
+			if (!blocksSpawn(below) && blocksSpawn(current) && !below.isOf(Blocks.BEDROCK)) {
+				if (layerIndex == targetLayer) {
 					return mutable.getY() + 1;
 				}
 
-				i++;
+				layerIndex++;
 			}
 
-			blockState = blockState2;
+			current = below;
 		}
 
 		return Integer.MAX_VALUE;

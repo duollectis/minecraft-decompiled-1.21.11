@@ -8,7 +8,8 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code SimpleRandomFeature}.
+ * Выбирает случайную фичу из списка {@link SimpleRandomFeatureConfig#features}
+ * и генерирует её в точке вызова.
  */
 public class SimpleRandomFeature extends Feature<SimpleRandomFeatureConfig> {
 
@@ -19,12 +20,14 @@ public class SimpleRandomFeature extends Feature<SimpleRandomFeatureConfig> {
 	@Override
 	public boolean generate(FeatureContext<SimpleRandomFeatureConfig> context) {
 		Random random = context.getRandom();
-		SimpleRandomFeatureConfig simpleRandomFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		ChunkGenerator chunkGenerator = context.getGenerator();
-		int i = random.nextInt(simpleRandomFeatureConfig.features.size());
-		PlacedFeature placedFeature = simpleRandomFeatureConfig.features.get(i).value();
-		return placedFeature.generateUnregistered(structureWorldAccess, chunkGenerator, random, blockPos);
+		SimpleRandomFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		ChunkGenerator generator = context.getGenerator();
+
+		int index = random.nextInt(config.features.size());
+		PlacedFeature chosen = config.features.get(index).value();
+
+		return chosen.generateUnregistered(world, generator, random, origin);
 	}
 }

@@ -15,11 +15,16 @@ import org.jspecify.annotations.Nullable;
 import java.nio.file.Path;
 
 /**
- * {@code LevelSummary}.
+ * Краткая информация о сохранённом мире для отображения в списке миров.
+ * Содержит имя, версию, режим игры, флаги доступности и путь к иконке.
+ *
+ * <p>Подклассы {@link RecoveryWarning} и {@link SymlinkLevelSummary} представляют
+ * миры с повреждёнными данными и небезопасными симлинками соответственно.
  */
 public class LevelSummary implements Comparable<LevelSummary> {
 
 	public static final Text SELECT_WORLD_TEXT = Text.translatable("selectWorld.select");
+
 	private final LevelInfo levelInfo;
 	private final SaveVersionInfo versionInfo;
 	private final String name;
@@ -30,13 +35,13 @@ public class LevelSummary implements Comparable<LevelSummary> {
 	private @Nullable Text details;
 
 	public LevelSummary(
-			LevelInfo levelInfo,
-			SaveVersionInfo versionInfo,
-			String name,
-			boolean requiresConversion,
-			boolean locked,
-			boolean experimental,
-			Path iconPath
+		LevelInfo levelInfo,
+		SaveVersionInfo versionInfo,
+		String name,
+		boolean requiresConversion,
+		boolean locked,
+		boolean experimental,
+		Path iconPath
 	) {
 		this.levelInfo = levelInfo;
 		this.versionInfo = versionInfo;
@@ -48,165 +53,153 @@ public class LevelSummary implements Comparable<LevelSummary> {
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public String getDisplayName() {
-		return StringUtils.isEmpty(this.levelInfo.getLevelName()) ? this.name : this.levelInfo.getLevelName();
+		return StringUtils.isEmpty(levelInfo.getLevelName()) ? name : levelInfo.getLevelName();
 	}
 
 	public Path getIconPath() {
-		return this.iconPath;
+		return iconPath;
 	}
 
-	/**
-	 * Requires conversion.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean requiresConversion() {
-		return this.requiresConversion;
+		return requiresConversion;
 	}
 
 	public boolean isExperimental() {
-		return this.experimental;
+		return experimental;
 	}
 
 	public long getLastPlayed() {
-		return this.versionInfo.getLastPlayed();
+		return versionInfo.getLastPlayed();
 	}
 
-	/**
-	 * Compare to.
-	 *
-	 * @param levelSummary level summary
-	 *
-	 * @return int — результат операции
-	 */
-	public int compareTo(LevelSummary levelSummary) {
-		if (this.getLastPlayed() < levelSummary.getLastPlayed()) {
+	@Override
+	public int compareTo(LevelSummary other) {
+		if (getLastPlayed() < other.getLastPlayed()) {
 			return 1;
 		}
-		else {
-			return this.getLastPlayed() > levelSummary.getLastPlayed() ? -1 : this.name.compareTo(levelSummary.name);
-		}
+
+		return getLastPlayed() > other.getLastPlayed() ? -1 : name.compareTo(other.name);
 	}
 
 	public LevelInfo getLevelInfo() {
-		return this.levelInfo;
+		return levelInfo;
 	}
 
 	public GameMode getGameMode() {
-		return this.levelInfo.getGameMode();
+		return levelInfo.getGameMode();
 	}
 
 	public boolean isHardcore() {
-		return this.levelInfo.isHardcore();
+		return levelInfo.isHardcore();
 	}
 
 	public boolean hasCheats() {
-		return this.levelInfo.areCommandsAllowed();
+		return levelInfo.areCommandsAllowed();
 	}
 
 	public MutableText getVersion() {
-		return StringHelper.isEmpty(this.versionInfo.getVersionName())
-		       ? Text.translatable("selectWorld.versionUnknown")
-		       : Text.literal(this.versionInfo.getVersionName());
+		return StringHelper.isEmpty(versionInfo.getVersionName())
+			? Text.translatable("selectWorld.versionUnknown")
+			: Text.literal(versionInfo.getVersionName());
 	}
 
 	public SaveVersionInfo getVersionInfo() {
-		return this.versionInfo;
+		return versionInfo;
 	}
 
-	/**
-	 * Определяет, следует ли prompt backup.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldPromptBackup() {
-		return this.getConversionWarning().promptsBackup();
+		return getConversionWarning().promptsBackup();
+	}
+
+	public boolean wouldBeDowngraded() {
+		return getConversionWarning() == ConversionWarning.DOWNGRADE;
 	}
 
 	/**
-	 * Would be downgraded.
+	 * Определяет тип предупреждения о конвертации мира на основе сравнения
+	 * датаверсии текущей игры и версии сохранения.
 	 *
-	 * @return boolean — результат операции
+	 * @return тип предупреждения: понижение версии, обновление до снапшота или отсутствие
 	 */
-	public boolean wouldBeDowngraded() {
-		return this.getConversionWarning() == LevelSummary.ConversionWarning.DOWNGRADE;
-	}
-
-	public LevelSummary.ConversionWarning getConversionWarning() {
+	public ConversionWarning getConversionWarning() {
 		GameVersion gameVersion = SharedConstants.getGameVersion();
-		int i = gameVersion.dataVersion().id();
-		int j = this.versionInfo.getVersion().id();
-		if (!gameVersion.stable() && j < i) {
-			return LevelSummary.ConversionWarning.UPGRADE_TO_SNAPSHOT;
+		int currentId = gameVersion.dataVersion().id();
+		int savedId = versionInfo.getVersion().id();
+
+		if (!gameVersion.stable() && savedId < currentId) {
+			return ConversionWarning.UPGRADE_TO_SNAPSHOT;
 		}
-		else {
-			return j > i ? LevelSummary.ConversionWarning.DOWNGRADE : LevelSummary.ConversionWarning.NONE;
-		}
+
+		return savedId > currentId ? ConversionWarning.DOWNGRADE : ConversionWarning.NONE;
 	}
 
 	public boolean isLocked() {
-		return this.locked;
+		return locked;
 	}
 
 	public boolean isUnavailable() {
-		return !this.isLocked() && !this.requiresConversion() ? !this.isVersionAvailable() : true;
+		return isLocked() || requiresConversion() || !isVersionAvailable();
 	}
 
 	public boolean isVersionAvailable() {
-		return SharedConstants.getGameVersion().dataVersion().isAvailableTo(this.versionInfo.getVersion());
+		return SharedConstants.getGameVersion().dataVersion().isAvailableTo(versionInfo.getVersion());
 	}
 
+	/**
+	 * Возвращает кешированный текст деталей для отображения в списке миров.
+	 * Вычисляется лениво при первом обращении.
+	 */
 	public Text getDetails() {
-		if (this.details == null) {
-			this.details = this.createDetails();
+		if (details == null) {
+			details = createDetails();
 		}
 
-		return this.details;
+		return details;
 	}
 
 	private Text createDetails() {
-		if (this.isLocked()) {
+		if (isLocked()) {
 			return Text.translatable("selectWorld.locked").formatted(Formatting.RED);
 		}
-		else if (this.requiresConversion()) {
+
+		if (requiresConversion()) {
 			return Text.translatable("selectWorld.conversion").formatted(Formatting.RED);
 		}
-		else if (!this.isVersionAvailable()) {
-			return Text.translatable("selectWorld.incompatible.info", this.getVersion()).formatted(Formatting.RED);
+
+		if (!isVersionAvailable()) {
+			return Text.translatable("selectWorld.incompatible.info", getVersion()).formatted(Formatting.RED);
 		}
-		else {
-			MutableText mutableText = this.isHardcore()
-			                          ? Text.empty().append(Text.translatable("gameMode.hardcore").withColor(-65536))
-			                          : Text.translatable("gameMode." + this.getGameMode().getId());
-			if (this.hasCheats()) {
-				mutableText.append(", ").append(Text.translatable("selectWorld.commands"));
-			}
 
-			if (this.isExperimental()) {
-				mutableText
-						.append(", ")
-						.append(Text.translatable("selectWorld.experimental").formatted(Formatting.YELLOW));
-			}
+		MutableText modeText = isHardcore()
+			? Text.empty().append(Text.translatable("gameMode.hardcore").withColor(-65536))
+			: Text.translatable("gameMode." + getGameMode().getId());
 
-			MutableText mutableText2 = this.getVersion();
-			MutableText
-					mutableText3 =
-					Text.literal(", ").append(Text.translatable("selectWorld.version")).append(ScreenTexts.SPACE);
-			if (this.shouldPromptBackup()) {
-				mutableText3.append(mutableText2.formatted(
-						this.wouldBeDowngraded() ? Formatting.RED : Formatting.ITALIC));
-			}
-			else {
-				mutableText3.append(mutableText2);
-			}
-
-			mutableText.append(mutableText3);
-			return mutableText;
+		if (hasCheats()) {
+			modeText.append(", ").append(Text.translatable("selectWorld.commands"));
 		}
+
+		if (isExperimental()) {
+			modeText.append(", ").append(Text.translatable("selectWorld.experimental").formatted(Formatting.YELLOW));
+		}
+
+		MutableText versionText = getVersion();
+		MutableText versionLabel = Text.literal(", ")
+			.append(Text.translatable("selectWorld.version"))
+			.append(ScreenTexts.SPACE);
+
+		if (shouldPromptBackup()) {
+			versionLabel.append(versionText.formatted(wouldBeDowngraded() ? Formatting.RED : Formatting.ITALIC));
+		} else {
+			versionLabel.append(versionText);
+		}
+
+		modeText.append(versionLabel);
+
+		return modeText;
 	}
 
 	public Text getSelectWorldText() {
@@ -214,19 +207,19 @@ public class LevelSummary implements Comparable<LevelSummary> {
 	}
 
 	public boolean isSelectable() {
-		return !this.isUnavailable();
+		return !isUnavailable();
 	}
 
 	public boolean isImmediatelyLoadable() {
-		return !this.requiresConversion() && !this.isLocked();
+		return !requiresConversion() && !isLocked();
 	}
 
 	public boolean isEditable() {
-		return !this.isUnavailable();
+		return !isUnavailable();
 	}
 
 	public boolean isRecreatable() {
-		return !this.isUnavailable();
+		return !isUnavailable();
 	}
 
 	public boolean isDeletable() {
@@ -234,9 +227,9 @@ public class LevelSummary implements Comparable<LevelSummary> {
 	}
 
 	/**
-	 * {@code ConversionWarning}.
+	 * Тип предупреждения о конвертации мира при открытии в другой версии игры.
 	 */
-	public static enum ConversionWarning {
+	public enum ConversionWarning {
 		NONE(false, false, ""),
 		DOWNGRADE(true, true, "downgrade"),
 		UPGRADE_TO_SNAPSHOT(true, false, "snapshot");
@@ -245,39 +238,35 @@ public class LevelSummary implements Comparable<LevelSummary> {
 		private final boolean dangerous;
 		private final String translationKeySuffix;
 
-		private ConversionWarning(final boolean backup, final boolean dangerous, final String translationKeySuffix) {
+		ConversionWarning(boolean backup, boolean dangerous, String translationKeySuffix) {
 			this.backup = backup;
 			this.dangerous = dangerous;
 			this.translationKeySuffix = translationKeySuffix;
 		}
 
-		/**
-		 * Prompts backup.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean promptsBackup() {
-			return this.backup;
+			return backup;
 		}
 
 		public boolean isDangerous() {
-			return this.dangerous;
+			return dangerous;
 		}
 
 		public String getTranslationKeySuffix() {
-			return this.translationKeySuffix;
+			return translationKeySuffix;
 		}
 	}
 
 	/**
-	 * {@code RecoveryWarning}.
+	 * Сводка для мира с повреждёнными данными level.dat.
+	 * Предлагает восстановление из резервной копии вместо обычного открытия.
 	 */
 	public static class RecoveryWarning extends LevelSummary {
 
-		private static final Text
-				WARNING_TEXT =
-				Text.translatable("recover_world.warning").styled(style -> style.withColor(-65536));
+		private static final Text WARNING_TEXT = Text.translatable("recover_world.warning")
+			.styled(style -> style.withColor(-65536));
 		private static final Text BUTTON_TEXT = Text.translatable("recover_world.button");
+
 		private final long lastPlayed;
 
 		public RecoveryWarning(String name, Path iconPath, long lastPlayed) {
@@ -287,7 +276,7 @@ public class LevelSummary implements Comparable<LevelSummary> {
 
 		@Override
 		public String getDisplayName() {
-			return this.getName();
+			return getName();
 		}
 
 		@Override
@@ -297,7 +286,7 @@ public class LevelSummary implements Comparable<LevelSummary> {
 
 		@Override
 		public long getLastPlayed() {
-			return this.lastPlayed;
+			return lastPlayed;
 		}
 
 		@Override
@@ -332,7 +321,8 @@ public class LevelSummary implements Comparable<LevelSummary> {
 	}
 
 	/**
-	 * {@code SymlinkLevelSummary}.
+	 * Сводка для мира, директория которого содержит небезопасные символические ссылки.
+	 * Открытие заблокировано до ручного подтверждения пользователем.
 	 */
 	public static class SymlinkLevelSummary extends LevelSummary {
 
@@ -345,7 +335,7 @@ public class LevelSummary implements Comparable<LevelSummary> {
 
 		@Override
 		public String getDisplayName() {
-			return this.getName();
+			return getName();
 		}
 
 		@Override

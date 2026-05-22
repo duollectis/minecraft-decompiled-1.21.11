@@ -11,34 +11,36 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerSectionPositionDebugHudEntry}.
+ * Запись отладочного HUD: позиция игрока внутри секции чанка (0–15 по каждой оси).
  */
+@Environment(EnvType.CLIENT)
 public class PlayerSectionPositionDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		Entity entity = minecraftClient.getCameraEntity();
-		if (entity != null) {
-			BlockPos blockPos = minecraftClient.getCameraEntity().getBlockPos();
-			lines.addLineToSection(
-					PlayerPositionDebugHudEntry.SECTION_ID,
-					String.format(
-							Locale.ROOT,
-							"Section-relative: %02d %02d %02d",
-							blockPos.getX() & 15,
-							blockPos.getY() & 15,
-							blockPos.getZ() & 15
-					)
-			);
+		Entity cameraEntity = MinecraftClient.getInstance().getCameraEntity();
+
+		if (cameraEntity == null) {
+			return;
 		}
+
+		BlockPos blockPos = cameraEntity.getBlockPos();
+		lines.addLineToSection(
+			PlayerPositionDebugHudEntry.SECTION_ID,
+			String.format(
+				Locale.ROOT,
+				"Section-relative: %02d %02d %02d",
+				blockPos.getX() & 15,
+				blockPos.getY() & 15,
+				blockPos.getZ() & 15
+			)
+		);
 	}
 
 	@Override

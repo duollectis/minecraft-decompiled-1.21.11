@@ -23,7 +23,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
- * Класс player list s2 c packet.
+ * Пакет сервер→клиент для обновления списка игроков (таб-лист).
+ * Поддерживает набор действий {@link Action}, каждое из которых читает/пишет
+ * определённые поля записи {@link Entry} через интерфейсы {@link Action.Reader} и {@link Action.Writer}.
  */
 public class PlayerListS2CPacket implements Packet<ClientPlayPacketListener> {
 
@@ -43,13 +45,6 @@ public class PlayerListS2CPacket implements Packet<ClientPlayPacketListener> {
 		this.entries = List.of(new PlayerListS2CPacket.Entry(player));
 	}
 
-	/**
-	 * Entry from player.
-	 *
-	 * @param players players
-	 *
-	 * @return PlayerListS2CPacket — результат операции
-	 */
 	public static PlayerListS2CPacket entryFromPlayer(Collection<ServerPlayerEntity> players) {
 		EnumSet<PlayerListS2CPacket.Action> enumSet = EnumSet.of(
 				PlayerListS2CPacket.Action.ADD_PLAYER,
@@ -95,11 +90,6 @@ public class PlayerListS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.PLAYER_INFO_UPDATE;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param clientPlayPacketListener client play packet listener
-	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerList(this);
 	}
@@ -121,7 +111,7 @@ public class PlayerListS2CPacket implements Packet<ClientPlayPacketListener> {
 		return MoreObjects.toStringHelper(this).add("actions", this.actions).add("entries", this.entries).toString();
 	}
 
-	public static enum Action {
+	public enum Action {
 		ADD_PLAYER(
 				(serialized, buf) -> {
 					String string = PacketCodecs.PLAYER_NAME.decode(buf);
@@ -176,26 +166,17 @@ public class PlayerListS2CPacket implements Packet<ClientPlayPacketListener> {
 			this.writer = writer;
 		}
 
-		/**
-		 * Интерфейс reader.
-		 */
 		public interface Reader {
 
 			void read(PlayerListS2CPacket.Serialized serialized, RegistryByteBuf buf);
 		}
 
-		/**
-		 * Интерфейс writer.
-		 */
 		public interface Writer {
 
 			void write(RegistryByteBuf buf, PlayerListS2CPacket.Entry entry);
 		}
 	}
 
-	/**
-	 * Запись entry.
-	 */
 	public record Entry(
 			UUID profileId,
 			@Nullable GameProfile profile,

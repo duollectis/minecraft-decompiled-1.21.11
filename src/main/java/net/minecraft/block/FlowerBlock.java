@@ -15,7 +15,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code FlowerBlock}.
+ * Базовый блок цветка. Реализует {@link SuspiciousStewIngredient} — при крафте
+ * подозрительного рагу передаёт свой эффект {@link #stewEffects} в компонент блюда.
  */
 public class FlowerBlock extends PlantBlock implements SuspiciousStewIngredient {
 
@@ -65,7 +66,7 @@ public class FlowerBlock extends PlantBlock implements SuspiciousStewIngredient 
 
 	@Override
 	public SuspiciousStewEffectsComponent getStewEffects() {
-		return this.stewEffects;
+		return stewEffects;
 	}
 
 	public @Nullable StatusEffectInstance getContactEffect() {

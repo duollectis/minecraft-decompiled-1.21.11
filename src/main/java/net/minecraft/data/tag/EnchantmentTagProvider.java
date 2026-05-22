@@ -29,7 +29,7 @@ public abstract class EnchantmentTagProvider extends SimpleTagProvider<Enchantme
 			RegistryWrapper.WrapperLookup registries,
 			RegistryKey<Enchantment>... enchantments
 	) {
-		this.builder(EnchantmentTags.TOOLTIP_ORDER).add(enchantments);
+		builder(EnchantmentTags.TOOLTIP_ORDER).add(enchantments);
 		Set<RegistryKey<Enchantment>> set = Set.of(enchantments);
 		List<String> list = registries.getOrThrow(RegistryKeys.ENCHANTMENT)
 		                              .streamEntries()

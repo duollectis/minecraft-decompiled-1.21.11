@@ -26,7 +26,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SlabBlock}.
+ * Блок-плита, занимающий половину высоты ячейки. Поддерживает три состояния:
+ * нижняя половина, верхняя половина и двойная плита (полный блок).
+ * Реализует {@link Waterloggable} — может быть заполнен водой в одиночном режиме.
  */
 public class SlabBlock extends Block implements Waterloggable {
 
@@ -98,11 +100,11 @@ public class SlabBlock extends Block implements Waterloggable {
 			return false;
 		}
 		else if (context.canReplaceExisting()) {
-			boolean bl = context.getHitPos().y - context.getBlockPos().getY() > 0.5;
+			boolean isAboveCenter = context.getHitPos().y - context.getBlockPos().getY() > 0.5;
 			Direction direction = context.getSide();
 			return slabType == SlabType.BOTTOM
-			       ? direction == Direction.UP || bl && direction.getAxis().isHorizontal()
-			       : direction == Direction.DOWN || !bl && direction.getAxis().isHorizontal();
+			       ? direction == Direction.UP || isAboveCenter && direction.getAxis().isHorizontal()
+			       : direction == Direction.DOWN || !isAboveCenter && direction.getAxis().isHorizontal();
 		}
 		else {
 			return true;

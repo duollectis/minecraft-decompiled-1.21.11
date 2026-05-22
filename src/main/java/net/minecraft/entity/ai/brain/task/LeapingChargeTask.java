@@ -11,11 +11,15 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
 /**
- * {@code LeapingChargeTask}.
+ * Задача мозга, управляющая фазой полёта при прыжке (LONG_JUMPING).
+ * При приземлении гасит горизонтальную скорость и воспроизводит звук приземления.
  */
 public class LeapingChargeTask extends MultiTickTask<MobEntity> {
 
 	public static final int RUN_TIME = 100;
+	private static final float LANDING_VELOCITY_DAMPEN_XZ = 0.1F;
+	private static final float LANDING_SOUND_VOLUME = 2.0F;
+
 	private final UniformIntProvider cooldownRange;
 	private final SoundEvent sound;
 
@@ -26,55 +30,33 @@ public class LeapingChargeTask extends MultiTickTask<MobEntity> {
 						MemoryModuleState.REGISTERED,
 						MemoryModuleType.LONG_JUMP_MID_JUMP,
 						MemoryModuleState.VALUE_PRESENT
-				), 100
+				), RUN_TIME
 		);
 		this.cooldownRange = cooldownRange;
 		this.sound = sound;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		return !mobEntity.isOnGround();
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, MobEntity entity, long time) {
+		return !entity.isOnGround();
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		mobEntity.setNoDrag(true);
-		mobEntity.setPose(EntityPose.LONG_JUMPING);
+	@Override
+	protected void run(ServerWorld world, MobEntity entity, long time) {
+		entity.setNoDrag(true);
+		entity.setPose(EntityPose.LONG_JUMPING);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		if (mobEntity.isOnGround()) {
-			mobEntity.setVelocity(mobEntity.getVelocity().multiply(0.1F, 1.0, 0.1F));
-			serverWorld.playSoundFromEntity(null, mobEntity, this.sound, SoundCategory.NEUTRAL, 2.0F, 1.0F);
+	@Override
+	protected void finishRunning(ServerWorld world, MobEntity entity, long time) {
+		if (entity.isOnGround()) {
+			entity.setVelocity(entity.getVelocity().multiply(LANDING_VELOCITY_DAMPEN_XZ, 1.0, LANDING_VELOCITY_DAMPEN_XZ));
+			world.playSoundFromEntity(null, entity, sound, SoundCategory.NEUTRAL, LANDING_SOUND_VOLUME, 1.0F);
 		}
 
-		mobEntity.setNoDrag(false);
-		mobEntity.setPose(EntityPose.STANDING);
-		mobEntity.getBrain().forget(MemoryModuleType.LONG_JUMP_MID_JUMP);
-		mobEntity
-				.getBrain()
-				.remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, this.cooldownRange.get(serverWorld.random));
+		entity.setNoDrag(false);
+		entity.setPose(EntityPose.STANDING);
+		entity.getBrain().forget(MemoryModuleType.LONG_JUMP_MID_JUMP);
+		entity.getBrain().remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, cooldownRange.get(world.random));
 	}
 }

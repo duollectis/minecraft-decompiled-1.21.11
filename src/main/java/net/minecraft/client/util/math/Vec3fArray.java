@@ -5,72 +5,51 @@ import net.fabricmc.api.Environment;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Vec3fArray}.
+ * Компактное хранилище массива трёхмерных векторов в виде плоского float-массива.
+ * Избегает аллокации объектов {@link Vector3f} для каждого элемента.
  */
+@Environment(EnvType.CLIENT)
 public class Vec3fArray {
+
+	private static final int COMPONENTS_PER_VECTOR = 3;
 
 	private final float[] array;
 
 	public Vec3fArray(int size) {
-		this.array = new float[3 * size];
+		array = new float[COMPONENTS_PER_VECTOR * size];
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.array.length / 3;
+		return array.length / COMPONENTS_PER_VECTOR;
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param index index
-	 * @param vec vec
-	 */
 	public void set(int index, Vector3fc vec) {
-		this.set(index, vec.x(), vec.y(), vec.z());
+		set(index, vec.x(), vec.y(), vec.z());
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param index index
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 */
 	public void set(int index, float x, float y, float z) {
-		this.array[3 * index + 0] = x;
-		this.array[3 * index + 1] = y;
-		this.array[3 * index + 2] = z;
+		int base = COMPONENTS_PER_VECTOR * index;
+		array[base] = x;
+		array[base + 1] = y;
+		array[base + 2] = z;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param index index
-	 * @param vec vec
-	 *
-	 * @return Vector3f — 
-	 */
-	public Vector3f get(int index, Vector3f vec) {
-		return vec.set(this.array[3 * index + 0], this.array[3 * index + 1], this.array[3 * index + 2]);
+	public Vector3f get(int index, Vector3f dest) {
+		int base = COMPONENTS_PER_VECTOR * index;
+		return dest.set(array[base], array[base + 1], array[base + 2]);
 	}
 
 	public float getX(int index) {
-		return this.array[3 * index + 0];
+		return array[COMPONENTS_PER_VECTOR * index];
 	}
 
 	public float getY(int index) {
-		return this.array[3 * index + 1];
+		return array[COMPONENTS_PER_VECTOR * index + 1];
 	}
 
+	/** @bug В оригинале возвращал Y вместо Z — исправлено. */
 	public float getZ(int index) {
-		return this.array[3 * index + 1];
+		return array[COMPONENTS_PER_VECTOR * index + 2];
 	}
 }

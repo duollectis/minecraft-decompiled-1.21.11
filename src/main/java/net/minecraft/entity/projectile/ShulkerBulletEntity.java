@@ -35,11 +35,32 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code ShulkerBulletEntity}.
+ * Снаряд шалкера — самонаводящийся снаряд, движущийся по осям координат.
+ * <p>
+ * Снаряд перемещается строго вдоль одной из осей X/Y/Z за раз, периодически
+ * меняя направление через {@link #changeTargetDirection}, чтобы обойти препятствия
+ * и приблизиться к цели. При попадании накладывает эффект левитации на {@link LivingEntity}.
  */
 public class ShulkerBulletEntity extends ProjectileEntity {
 
 	private static final double MOVEMENT_SPEED = 0.15;
+	private static final double VELOCITY_CORRECTION_FACTOR = 0.2;
+	private static final double VELOCITY_ACCELERATION_FACTOR = 1.025;
+	private static final double VELOCITY_MAX = 1.0;
+	private static final float ENTITY_HIT_DAMAGE = 4.0F;
+	private static final int LEVITATION_DURATION_TICKS = 200;
+	private static final int STEP_COUNT_BASE = 10;
+	private static final int STEP_COUNT_RANDOM_RANGE = 5;
+	private static final int STEP_COUNT_RANDOM_MULTIPLIER = 10;
+	private static final int RANDOM_DIRECTION_ATTEMPTS = 5;
+	private static final double DEFAULT_TARGET_HEIGHT_FACTOR = 0.5;
+	private static final double EXPLOSION_PARTICLE_SPREAD = 0.2;
+	private static final int EXPLOSION_PARTICLE_COUNT = 2;
+	private static final int CRIT_PARTICLE_COUNT = 15;
+	private static final double CRIT_PARTICLE_SPREAD = 0.2;
+	private static final double TARGET_PROXIMITY_THRESHOLD = 2.0;
+	private static final float RENDER_DISTANCE_SQUARED = 16384.0F;
+
 	private @Nullable LazyEntityReference<Entity> target;
 	private @Nullable Direction direction;
 	private int stepCount;
@@ -49,17 +70,17 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 
 	public ShulkerBulletEntity(EntityType<? extends ShulkerBulletEntity> entityType, World world) {
 		super(entityType, world);
-		this.noClip = true;
+		noClip = true;
 	}
 
 	public ShulkerBulletEntity(World world, LivingEntity owner, Entity target, Direction.Axis axis) {
 		this(EntityType.SHULKER_BULLET, world);
-		this.setOwner(owner);
-		Vec3d vec3d = owner.getBoundingBox().getCenter();
-		this.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, this.getYaw(), this.getPitch());
+		setOwner(owner);
+		Vec3d center = owner.getBoundingBox().getCenter();
+		refreshPositionAndAngles(center.x, center.y, center.z, getYaw(), getPitch());
 		this.target = LazyEntityReference.of(target);
-		this.direction = Direction.UP;
-		this.changeTargetDirection(axis, target);
+		direction = Direction.UP;
+		changeTargetDirection(axis, target);
 	}
 
 	@Override
@@ -70,124 +91,126 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		if (this.target != null) {
-			view.put("Target", Uuids.INT_STREAM_CODEC, this.target.getUuid());
+		if (target != null) {
+			view.put("Target", Uuids.INT_STREAM_CODEC, target.getUuid());
 		}
 
-		view.putNullable("Dir", Direction.INDEX_CODEC, this.direction);
-		view.putInt("Steps", this.stepCount);
-		view.putDouble("TXD", this.targetX);
-		view.putDouble("TYD", this.targetY);
-		view.putDouble("TZD", this.targetZ);
+		view.putNullable("Dir", Direction.INDEX_CODEC, direction);
+		view.putInt("Steps", stepCount);
+		view.putDouble("TXD", targetX);
+		view.putDouble("TYD", targetY);
+		view.putDouble("TZD", targetZ);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.stepCount = view.getInt("Steps", 0);
-		this.targetX = view.getDouble("TXD", 0.0);
-		this.targetY = view.getDouble("TYD", 0.0);
-		this.targetZ = view.getDouble("TZD", 0.0);
-		this.direction = view.<Direction>read("Dir", Direction.INDEX_CODEC).orElse(null);
-		this.target = LazyEntityReference.fromData(view, "Target");
+		stepCount = view.getInt("Steps", 0);
+		targetX = view.getDouble("TXD", 0.0);
+		targetY = view.getDouble("TYD", 0.0);
+		targetZ = view.getDouble("TZD", 0.0);
+		direction = view.<Direction>read("Dir", Direction.INDEX_CODEC).orElse(null);
+		target = LazyEntityReference.fromData(view, "Target");
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 	}
 
-	private @Nullable Direction getDirection() {
-		return this.direction;
-	}
-
-	private void setDirection(@Nullable Direction direction) {
-		this.direction = direction;
-	}
-
+	/**
+	 * Пересчитывает вектор движения снаряда к цели, выбирая допустимое направление
+	 * вдоль одной из осей координат. Если цель недостижима напрямую — выбирается
+	 * случайное свободное направление. Шаг движения сбрасывается на случайное значение.
+	 *
+	 * @param axis   ось, которую нельзя использовать для следующего шага (уже использованная)
+	 * @param target цель, к которой движется снаряд; {@code null} — движение вниз
+	 */
 	private void changeTargetDirection(Direction.@Nullable Axis axis, @Nullable Entity target) {
-		double d = 0.5;
-		BlockPos blockPos;
+		double targetHeightFactor = DEFAULT_TARGET_HEIGHT_FACTOR;
+		BlockPos targetBlock;
+
 		if (target == null) {
-			blockPos = this.getBlockPos().down();
-		}
-		else {
-			d = target.getHeight() * 0.5;
-			blockPos = BlockPos.ofFloored(target.getX(), target.getY() + d, target.getZ());
+			targetBlock = getBlockPos().down();
+		} else {
+			targetHeightFactor = target.getHeight() * DEFAULT_TARGET_HEIGHT_FACTOR;
+			targetBlock = BlockPos.ofFloored(target.getX(), target.getY() + targetHeightFactor, target.getZ());
 		}
 
-		double e = blockPos.getX() + 0.5;
-		double f = blockPos.getY() + d;
-		double g = blockPos.getZ() + 0.5;
-		Direction direction = null;
-		if (!blockPos.isWithinDistance(this.getEntityPos(), 2.0)) {
-			BlockPos blockPos2 = this.getBlockPos();
-			List<Direction> list = Lists.newArrayList();
+		double destX = targetBlock.getX() + DEFAULT_TARGET_HEIGHT_FACTOR;
+		double destY = targetBlock.getY() + targetHeightFactor;
+		double destZ = targetBlock.getZ() + DEFAULT_TARGET_HEIGHT_FACTOR;
+		Direction chosenDirection = null;
+
+		if (!targetBlock.isWithinDistance(getEntityPos(), TARGET_PROXIMITY_THRESHOLD)) {
+			BlockPos currentBlock = getBlockPos();
+			List<Direction> candidates = Lists.newArrayList();
+
 			if (axis != Direction.Axis.X) {
-				if (blockPos2.getX() < blockPos.getX() && this.getEntityWorld().isAir(blockPos2.east())) {
-					list.add(Direction.EAST);
-				}
-				else if (blockPos2.getX() > blockPos.getX() && this.getEntityWorld().isAir(blockPos2.west())) {
-					list.add(Direction.WEST);
+				if (currentBlock.getX() < targetBlock.getX() && getEntityWorld().isAir(currentBlock.east())) {
+					candidates.add(Direction.EAST);
+				} else if (currentBlock.getX() > targetBlock.getX() && getEntityWorld().isAir(currentBlock.west())) {
+					candidates.add(Direction.WEST);
 				}
 			}
 
 			if (axis != Direction.Axis.Y) {
-				if (blockPos2.getY() < blockPos.getY() && this.getEntityWorld().isAir(blockPos2.up())) {
-					list.add(Direction.UP);
-				}
-				else if (blockPos2.getY() > blockPos.getY() && this.getEntityWorld().isAir(blockPos2.down())) {
-					list.add(Direction.DOWN);
+				if (currentBlock.getY() < targetBlock.getY() && getEntityWorld().isAir(currentBlock.up())) {
+					candidates.add(Direction.UP);
+				} else if (currentBlock.getY() > targetBlock.getY() && getEntityWorld().isAir(currentBlock.down())) {
+					candidates.add(Direction.DOWN);
 				}
 			}
 
 			if (axis != Direction.Axis.Z) {
-				if (blockPos2.getZ() < blockPos.getZ() && this.getEntityWorld().isAir(blockPos2.south())) {
-					list.add(Direction.SOUTH);
-				}
-				else if (blockPos2.getZ() > blockPos.getZ() && this.getEntityWorld().isAir(blockPos2.north())) {
-					list.add(Direction.NORTH);
-				}
-			}
-
-			direction = Direction.random(this.random);
-			if (list.isEmpty()) {
-				for (int i = 5; !this.getEntityWorld().isAir(blockPos2.offset(direction)) && i > 0; i--) {
-					direction = Direction.random(this.random);
+				if (currentBlock.getZ() < targetBlock.getZ() && getEntityWorld().isAir(currentBlock.south())) {
+					candidates.add(Direction.SOUTH);
+				} else if (currentBlock.getZ() > targetBlock.getZ() && getEntityWorld().isAir(currentBlock.north())) {
+					candidates.add(Direction.NORTH);
 				}
 			}
-			else {
-				direction = list.get(this.random.nextInt(list.size()));
+
+			chosenDirection = Direction.random(random);
+
+			if (candidates.isEmpty()) {
+				for (int attempt = RANDOM_DIRECTION_ATTEMPTS;
+						!getEntityWorld().isAir(currentBlock.offset(chosenDirection)) && attempt > 0;
+						attempt--) {
+					chosenDirection = Direction.random(random);
+				}
+			} else {
+				chosenDirection = candidates.get(random.nextInt(candidates.size()));
 			}
 
-			e = this.getX() + direction.getOffsetX();
-			f = this.getY() + direction.getOffsetY();
-			g = this.getZ() + direction.getOffsetZ();
+			destX = getX() + chosenDirection.getOffsetX();
+			destY = getY() + chosenDirection.getOffsetY();
+			destZ = getZ() + chosenDirection.getOffsetZ();
 		}
 
-		this.setDirection(direction);
-		double h = e - this.getX();
-		double j = f - this.getY();
-		double k = g - this.getZ();
-		double l = Math.sqrt(h * h + j * j + k * k);
-		if (l == 0.0) {
-			this.targetX = 0.0;
-			this.targetY = 0.0;
-			this.targetZ = 0.0;
-		}
-		else {
-			this.targetX = h / l * MOVEMENT_SPEED;
-			this.targetY = j / l * MOVEMENT_SPEED;
-			this.targetZ = k / l * MOVEMENT_SPEED;
+		direction = chosenDirection;
+
+		double deltaX = destX - getX();
+		double deltaY = destY - getY();
+		double deltaZ = destZ - getZ();
+		double length = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+		if (length == 0.0) {
+			targetX = 0.0;
+			targetY = 0.0;
+			targetZ = 0.0;
+		} else {
+			targetX = deltaX / length * MOVEMENT_SPEED;
+			targetY = deltaY / length * MOVEMENT_SPEED;
+			targetZ = deltaZ / length * MOVEMENT_SPEED;
 		}
 
-		this.velocityDirty = true;
-		this.stepCount = 10 + this.random.nextInt(5) * 10;
+		velocityDirty = true;
+		stepCount = STEP_COUNT_BASE + random.nextInt(STEP_COUNT_RANDOM_RANGE) * STEP_COUNT_RANDOM_MULTIPLIER;
 	}
 
 	@Override
 	public void checkDespawn() {
-		if (this.getEntityWorld().getDifficulty() == Difficulty.PEACEFUL) {
-			this.discard();
+		if (getEntityWorld().getDifficulty() == Difficulty.PEACEFUL) {
+			discard();
 		}
 	}
 
@@ -199,78 +222,86 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		Entity
-				entity =
-				!this.getEntityWorld().isClient() ? LazyEntityReference.getEntity(this.target, this.getEntityWorld())
-				                                  : null;
+
+		Entity trackedTarget = !getEntityWorld().isClient()
+				? LazyEntityReference.getEntity(target, getEntityWorld())
+				: null;
 		HitResult hitResult = null;
-		if (!this.getEntityWorld().isClient()) {
-			if (entity == null) {
-				this.target = null;
+
+		if (!getEntityWorld().isClient()) {
+			if (trackedTarget == null) {
+				target = null;
 			}
 
-			if (entity == null || !entity.isAlive() || entity instanceof PlayerEntity && entity.isSpectator()) {
-				this.applyGravity();
-			}
-			else {
-				this.targetX = MathHelper.clamp(this.targetX * 1.025, -1.0, 1.0);
-				this.targetY = MathHelper.clamp(this.targetY * 1.025, -1.0, 1.0);
-				this.targetZ = MathHelper.clamp(this.targetZ * 1.025, -1.0, 1.0);
-				Vec3d vec3d = this.getVelocity();
-				this.setVelocity(vec3d.add(
-						(this.targetX - vec3d.x) * 0.2,
-						(this.targetY - vec3d.y) * 0.2,
-						(this.targetZ - vec3d.z) * 0.2
+			boolean targetInvalid = trackedTarget == null
+					|| !trackedTarget.isAlive()
+					|| trackedTarget instanceof PlayerEntity && trackedTarget.isSpectator();
+
+			if (targetInvalid) {
+				applyGravity();
+			} else {
+				targetX = MathHelper.clamp(targetX * VELOCITY_ACCELERATION_FACTOR, -VELOCITY_MAX, VELOCITY_MAX);
+				targetY = MathHelper.clamp(targetY * VELOCITY_ACCELERATION_FACTOR, -VELOCITY_MAX, VELOCITY_MAX);
+				targetZ = MathHelper.clamp(targetZ * VELOCITY_ACCELERATION_FACTOR, -VELOCITY_MAX, VELOCITY_MAX);
+
+				Vec3d velocity = getVelocity();
+				setVelocity(velocity.add(
+						(targetX - velocity.x) * VELOCITY_CORRECTION_FACTOR,
+						(targetY - velocity.y) * VELOCITY_CORRECTION_FACTOR,
+						(targetZ - velocity.z) * VELOCITY_CORRECTION_FACTOR
 				));
 			}
 
 			hitResult = ProjectileUtil.getCollision(this, this::canHit);
 		}
 
-		Vec3d vec3d = this.getVelocity();
-		this.setPosition(this.getEntityPos().add(vec3d));
-		this.tickBlockCollision();
-		if (this.portalManager != null && this.portalManager.isInPortal()) {
-			this.tickPortalTeleportation();
+		Vec3d velocity = getVelocity();
+		setPosition(getEntityPos().add(velocity));
+		tickBlockCollision();
+
+		if (portalManager != null && portalManager.isInPortal()) {
+			tickPortalTeleportation();
 		}
 
-		if (hitResult != null && this.isAlive() && hitResult.getType() != HitResult.Type.MISS) {
-			this.hitOrDeflect(hitResult);
+		if (hitResult != null && isAlive() && hitResult.getType() != HitResult.Type.MISS) {
+			hitOrDeflect(hitResult);
 		}
 
 		ProjectileUtil.setRotationFromVelocity(this, 0.5F);
-		if (this.getEntityWorld().isClient()) {
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.END_ROD,
-					    this.getX() - vec3d.x,
-					    this.getY() - vec3d.y + MOVEMENT_SPEED,
-					    this.getZ() - vec3d.z,
-					    0.0,
-					    0.0,
-					    0.0
-			    );
-		}
-		else if (entity != null) {
-			if (this.stepCount > 0) {
-				this.stepCount--;
-				if (this.stepCount == 0) {
-					this.changeTargetDirection(this.direction == null ? null : this.direction.getAxis(), entity);
+
+		if (getEntityWorld().isClient()) {
+			getEntityWorld()
+					.addParticleClient(
+							ParticleTypes.END_ROD,
+							getX() - velocity.x,
+							getY() - velocity.y + MOVEMENT_SPEED,
+							getZ() - velocity.z,
+							0.0,
+							0.0,
+							0.0
+					);
+		} else if (trackedTarget != null) {
+			if (stepCount > 0) {
+				stepCount--;
+				if (stepCount == 0) {
+					changeTargetDirection(direction == null ? null : direction.getAxis(), trackedTarget);
 				}
 			}
 
-			if (this.direction != null) {
-				BlockPos blockPos = this.getBlockPos();
-				Direction.Axis axis = this.direction.getAxis();
-				if (this.getEntityWorld().isTopSolid(blockPos.offset(this.direction), this)) {
-					this.changeTargetDirection(axis, entity);
-				}
-				else {
-					BlockPos blockPos2 = entity.getBlockPos();
-					if (axis == Direction.Axis.X && blockPos.getX() == blockPos2.getX()
-							|| axis == Direction.Axis.Z && blockPos.getZ() == blockPos2.getZ()
-							|| axis == Direction.Axis.Y && blockPos.getY() == blockPos2.getY()) {
-						this.changeTargetDirection(axis, entity);
+			if (direction != null) {
+				BlockPos currentBlock = getBlockPos();
+				Direction.Axis currentAxis = direction.getAxis();
+
+				if (getEntityWorld().isTopSolid(currentBlock.offset(direction), this)) {
+					changeTargetDirection(currentAxis, trackedTarget);
+				} else {
+					BlockPos targetBlock = trackedTarget.getBlockPos();
+					boolean axisAligned = currentAxis == Direction.Axis.X && currentBlock.getX() == targetBlock.getX()
+							|| currentAxis == Direction.Axis.Z && currentBlock.getZ() == targetBlock.getZ()
+							|| currentAxis == Direction.Axis.Y && currentBlock.getY() == targetBlock.getY();
+
+					if (axisAligned) {
+						changeTargetDirection(currentAxis, trackedTarget);
 					}
 				}
 			}
@@ -279,7 +310,7 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 
 	@Override
 	protected boolean shouldTickBlockCollision() {
-		return !this.isRemoved();
+		return !isRemoved();
 	}
 
 	@Override
@@ -294,7 +325,7 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 
 	@Override
 	public boolean shouldRender(double distance) {
-		return distance < 16384.0;
+		return distance < RENDER_DISTANCE_SQUARED;
 	}
 
 	@Override
@@ -305,20 +336,21 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		Entity entity = entityHitResult.getEntity();
-		Entity entity2 = this.getOwner();
-		LivingEntity livingEntity = entity2 instanceof LivingEntity ? (LivingEntity) entity2 : null;
-		DamageSource damageSource = this.getDamageSources().mobProjectile(this, livingEntity);
-		boolean bl = entity.sidedDamage(damageSource, 4.0F);
-		if (bl) {
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-				EnchantmentHelper.onTargetDamaged(serverWorld, entity, damageSource);
+		Entity target = entityHitResult.getEntity();
+		Entity ownerEntity = getOwner();
+		LivingEntity livingOwner = ownerEntity instanceof LivingEntity living ? living : null;
+		DamageSource damageSource = getDamageSources().mobProjectile(this, livingOwner);
+		boolean damaged = target.sidedDamage(damageSource, ENTITY_HIT_DAMAGE);
+
+		if (damaged) {
+			if (getEntityWorld() instanceof ServerWorld serverWorld) {
+				EnchantmentHelper.onTargetDamaged(serverWorld, target, damageSource);
 			}
 
-			if (entity instanceof LivingEntity livingEntity2) {
-				livingEntity2.addStatusEffect(
-						new StatusEffectInstance(StatusEffects.LEVITATION, 200),
-						(Entity) MoreObjects.firstNonNull(entity2, this)
+			if (target instanceof LivingEntity livingTarget) {
+				livingTarget.addStatusEffect(
+						new StatusEffectInstance(StatusEffects.LEVITATION, LEVITATION_DURATION_TICKS),
+						MoreObjects.firstNonNull(ownerEntity, this)
 				);
 			}
 		}
@@ -327,29 +359,29 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		super.onBlockHit(blockHitResult);
-		((ServerWorld) this.getEntityWorld()).spawnParticles(
+		((ServerWorld) getEntityWorld()).spawnParticles(
 				ParticleTypes.EXPLOSION,
-				this.getX(),
-				this.getY(),
-				this.getZ(),
-				2,
-				0.2,
-				0.2,
-				0.2,
+				getX(),
+				getY(),
+				getZ(),
+				EXPLOSION_PARTICLE_COUNT,
+				EXPLOSION_PARTICLE_SPREAD,
+				EXPLOSION_PARTICLE_SPREAD,
+				EXPLOSION_PARTICLE_SPREAD,
 				0.0
 		);
-		this.playSound(SoundEvents.ENTITY_SHULKER_BULLET_HIT, 1.0F, 1.0F);
+		playSound(SoundEvents.ENTITY_SHULKER_BULLET_HIT, 1.0F, 1.0F);
 	}
 
 	private void destroy() {
-		this.discard();
-		this.getEntityWorld().emitGameEvent(GameEvent.ENTITY_DAMAGE, this.getEntityPos(), GameEvent.Emitter.of(this));
+		discard();
+		getEntityWorld().emitGameEvent(GameEvent.ENTITY_DAMAGE, getEntityPos(), GameEvent.Emitter.of(this));
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		this.destroy();
+		destroy();
 	}
 
 	@Override
@@ -364,15 +396,25 @@ public class ShulkerBulletEntity extends ProjectileEntity {
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		this.playSound(SoundEvents.ENTITY_SHULKER_BULLET_HURT, 1.0F, 1.0F);
-		world.spawnParticles(ParticleTypes.CRIT, this.getX(), this.getY(), this.getZ(), 15, 0.2, 0.2, 0.2, 0.0);
-		this.destroy();
+		playSound(SoundEvents.ENTITY_SHULKER_BULLET_HURT, 1.0F, 1.0F);
+		world.spawnParticles(
+				ParticleTypes.CRIT,
+				getX(),
+				getY(),
+				getZ(),
+				CRIT_PARTICLE_COUNT,
+				CRIT_PARTICLE_SPREAD,
+				CRIT_PARTICLE_SPREAD,
+				CRIT_PARTICLE_SPREAD,
+				0.0
+		);
+		destroy();
 		return true;
 	}
 
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		this.setVelocity(packet.getVelocity());
+		setVelocity(packet.getVelocity());
 	}
 }

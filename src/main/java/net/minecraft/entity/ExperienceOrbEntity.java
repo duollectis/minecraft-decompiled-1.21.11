@@ -29,13 +29,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ExperienceOrbEntity}.
+ * Сущность шара опыта. Притягивается к ближайшему игроку в радиусе 8 блоков,
+ * может сливаться с другими шарами того же размера, исчезает через 6000 тиков.
+ * При подборе игроком сначала чинит зачарованное снаряжение через
+ * {@link net.minecraft.enchantment.EnchantmentHelper#getRepairWithExperience}, затем даёт опыт.
  */
 public class ExperienceOrbEntity extends Entity {
 
-	protected static final TrackedData<Integer>
-			VALUE =
-			DataTracker.registerData(ExperienceOrbEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	protected static final TrackedData<Integer> VALUE =
+		DataTracker.registerData(ExperienceOrbEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final int DESPAWN_AGE = 6000;
 	private static final int EXPENSIVE_UPDATE_INTERVAL = 20;
 	private static final int PLAYER_TRACKING_RANGE = 8;
@@ -57,46 +59,39 @@ public class ExperienceOrbEntity extends Entity {
 
 	public ExperienceOrbEntity(World world, Vec3d pos, Vec3d velocity, int amount) {
 		this(EntityType.EXPERIENCE_ORB, world);
-		this.setPosition(pos);
+		setPosition(pos);
 		if (!world.isClient()) {
-			this.setYaw(this.random.nextFloat() * 360.0F);
-			Vec3d vec3d = new Vec3d(
-					(this.random.nextDouble() * 0.2 - 0.1) * 2.0,
-					this.random.nextDouble() * 0.2 * 2.0,
-					(this.random.nextDouble() * 0.2 - 0.1) * 2.0
+			setYaw(random.nextFloat() * 360.0F);
+			Vec3d spawnVelocity = new Vec3d(
+				(random.nextDouble() * 0.2 - 0.1) * 2.0,
+				random.nextDouble() * 0.2 * 2.0,
+				(random.nextDouble() * 0.2 - 0.1) * 2.0
 			);
-			if (velocity.lengthSquared() > 0.0 && velocity.dotProduct(vec3d) < 0.0) {
-				vec3d = vec3d.multiply(-1.0);
+			if (velocity.lengthSquared() > 0.0 && velocity.dotProduct(spawnVelocity) < 0.0) {
+				spawnVelocity = spawnVelocity.multiply(-1.0);
 			}
 
-			double d = this.getBoundingBox().getAverageSideLength();
-			this.setPosition(pos.add(velocity.normalize().multiply(d * 0.5)));
-			this.setVelocity(vec3d);
-			if (!world.isSpaceEmpty(this.getBoundingBox())) {
-				this.tryMoveToOpenSpace(d);
+			double boundingBoxLength = getBoundingBox().getAverageSideLength();
+			setPosition(pos.add(velocity.normalize().multiply(boundingBoxLength * 0.5)));
+			setVelocity(spawnVelocity);
+			if (!world.isSpaceEmpty(getBoundingBox())) {
+				tryMoveToOpenSpace(boundingBoxLength);
 			}
 		}
 
-		this.setValue(amount);
+		setValue(amount);
 	}
 
 	public ExperienceOrbEntity(EntityType<? extends ExperienceOrbEntity> entityType, World world) {
 		super(entityType, world);
 	}
 
-	/**
-	 * Try move to open space.
-	 *
-	 * @param boundingBoxLength bounding box length
-	 */
 	protected void tryMoveToOpenSpace(double boundingBoxLength) {
-		Vec3d vec3d = this.getEntityPos().add(0.0, this.getHeight() / 2.0, 0.0);
-		VoxelShape
-				voxelShape =
-				VoxelShapes.cuboid(Box.of(vec3d, boundingBoxLength, boundingBoxLength, boundingBoxLength));
-		this.getEntityWorld()
-		    .findClosestCollision(this, voxelShape, vec3d, this.getWidth(), this.getHeight(), this.getWidth())
-		    .ifPresent(pos -> this.setPosition(pos.add(0.0, -this.getHeight() / 2.0, 0.0)));
+		Vec3d center = getEntityPos().add(0.0, getHeight() / 2.0, 0.0);
+		VoxelShape searchShape = VoxelShapes.cuboid(Box.of(center, boundingBoxLength, boundingBoxLength, boundingBoxLength));
+		getEntityWorld()
+			.findClosestCollision(this, searchShape, center, getWidth(), getHeight(), getWidth())
+			.ifPresent(pos -> setPosition(pos.add(0.0, -getHeight() / 2.0, 0.0)));
 	}
 
 	@Override
@@ -116,127 +111,107 @@ public class ExperienceOrbEntity extends Entity {
 
 	@Override
 	public void tick() {
-		this.interpolator.tick();
-		if (this.firstUpdate && this.getEntityWorld().isClient()) {
-			this.firstUpdate = false;
+		interpolator.tick();
+		if (firstUpdate && getEntityWorld().isClient()) {
+			firstUpdate = false;
+			return;
 		}
-		else {
-			super.tick();
-			boolean bl = !this.getEntityWorld().isSpaceEmpty(this.getBoundingBox());
-			if (this.isSubmergedIn(FluidTags.WATER)) {
-				this.applyWaterMovement();
-			}
-			else if (!bl) {
-				this.applyGravity();
-			}
 
-			if (this.getEntityWorld().getFluidState(this.getBlockPos()).isIn(FluidTags.LAVA)) {
-				this.setVelocity(
-						(this.random.nextFloat() - this.random.nextFloat()) * 0.2F,
-						0.2F,
-						(this.random.nextFloat() - this.random.nextFloat()) * 0.2F
+		super.tick();
+		boolean isInsideBlock = !getEntityWorld().isSpaceEmpty(getBoundingBox());
+		if (isSubmergedIn(FluidTags.WATER)) {
+			applyWaterMovement();
+		}
+		else if (!isInsideBlock) {
+			applyGravity();
+		}
+
+		if (getEntityWorld().getFluidState(getBlockPos()).isIn(FluidTags.LAVA)) {
+			setVelocity(
+				(random.nextFloat() - random.nextFloat()) * 0.2F,
+				0.2F,
+				(random.nextFloat() - random.nextFloat()) * 0.2F
+			);
+		}
+
+		if (age % EXPENSIVE_UPDATE_INTERVAL == 1) {
+			expensiveUpdate();
+		}
+
+		moveTowardsPlayer();
+		if (target == null && !getEntityWorld().isClient() && isInsideBlock) {
+			boolean isNextPosInsideBlock = !getEntityWorld().isSpaceEmpty(getBoundingBox().offset(getVelocity()));
+			if (isNextPosInsideBlock) {
+				pushOutOfBlocks(
+					getX(),
+					(getBoundingBox().minY + getBoundingBox().maxY) / 2.0,
+					getZ()
 				);
+				velocityDirty = true;
 			}
+		}
 
-			if (this.age % 20 == 1) {
-				this.expensiveUpdate();
-			}
+		double prevVelocityY = getVelocity().y;
+		move(MovementType.SELF, getVelocity());
+		tickBlockCollision();
+		float friction = isOnGround()
+			? getEntityWorld().getBlockState(getVelocityAffectingPos()).getBlock().getSlipperiness() * 0.98F
+			: 0.98F;
 
-			this.moveTowardsPlayer();
-			if (this.target == null && !this.getEntityWorld().isClient() && bl) {
-				boolean bl2 = !this.getEntityWorld().isSpaceEmpty(this.getBoundingBox().offset(this.getVelocity()));
-				if (bl2) {
-					this.pushOutOfBlocks(
-							this.getX(),
-							(this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0,
-							this.getZ()
-					);
-					this.velocityDirty = true;
-				}
-			}
+		setVelocity(getVelocity().multiply(friction));
+		if (groundCollision && prevVelocityY < -getFinalGravity()) {
+			setVelocity(new Vec3d(getVelocity().x, -prevVelocityY * 0.4, getVelocity().z));
+		}
 
-			double d = this.getVelocity().y;
-			this.move(MovementType.SELF, this.getVelocity());
-			this.tickBlockCollision();
-			float f = 0.98F;
-			if (this.isOnGround()) {
-				f =
-						this.getEntityWorld().getBlockState(this.getVelocityAffectingPos()).getBlock().getSlipperiness()
-								* 0.98F;
-			}
-
-			this.setVelocity(this.getVelocity().multiply(f));
-			if (this.groundCollision && d < -this.getFinalGravity()) {
-				this.setVelocity(new Vec3d(this.getVelocity().x, -d * 0.4, this.getVelocity().z));
-			}
-
-			this.orbAge++;
-			if (this.orbAge >= 6000) {
-				this.discard();
-			}
+		orbAge++;
+		if (orbAge >= DESPAWN_AGE) {
+			discard();
 		}
 	}
 
 	private void moveTowardsPlayer() {
-		if (this.target == null || this.target.isSpectator() || this.target.squaredDistanceTo(this) > 64.0) {
-			PlayerEntity playerEntity = this.getEntityWorld().getClosestPlayer(this, 8.0);
-			if (playerEntity != null && !playerEntity.isSpectator() && !playerEntity.isDead()) {
-				this.target = playerEntity;
-			}
-			else {
-				this.target = null;
-			}
+		if (target == null || target.isSpectator() || target.squaredDistanceTo(this) > 64.0) {
+			PlayerEntity nearest = getEntityWorld().getClosestPlayer(this, PLAYER_TRACKING_RANGE);
+			target = (nearest != null && !nearest.isSpectator() && !nearest.isDead()) ? nearest : null;
 		}
 
-		if (this.target != null) {
-			Vec3d vec3d = new Vec3d(
-					this.target.getX() - this.getX(),
-					this.target.getY() + this.target.getStandingEyeHeight() / 2.0 - this.getY(),
-					this.target.getZ() - this.getZ()
-			);
-			double d = vec3d.lengthSquared();
-			double e = 1.0 - Math.sqrt(d) / 8.0;
-			this.setVelocity(this.getVelocity().add(vec3d.normalize().multiply(e * e * 0.1)));
+		if (target == null) {
+			return;
 		}
+
+		Vec3d toTarget = new Vec3d(
+			target.getX() - getX(),
+			target.getY() + target.getStandingEyeHeight() / 2.0 - getY(),
+			target.getZ() - getZ()
+		);
+		double distSquared = toTarget.lengthSquared();
+		double attractionFactor = 1.0 - Math.sqrt(distSquared) / PLAYER_TRACKING_RANGE;
+		setVelocity(getVelocity().add(toTarget.normalize().multiply(attractionFactor * attractionFactor * 0.1)));
 	}
 
 	@Override
 	public BlockPos getVelocityAffectingPos() {
-		return this.getPosWithYOffset(0.999999F);
+		return getPosWithYOffset(0.999999F);
 	}
 
 	private void expensiveUpdate() {
-		if (this.getEntityWorld() instanceof ServerWorld) {
-			for (ExperienceOrbEntity experienceOrbEntity : this.getEntityWorld()
-			                                                   .getEntitiesByType(
-					                                                   TypeFilter.instanceOf(ExperienceOrbEntity.class),
-					                                                   this.getBoundingBox().expand(0.5),
-					                                                   this::isMergeable
-			                                                   )) {
-				this.merge(experienceOrbEntity);
-			}
+		if (!(getEntityWorld() instanceof ServerWorld)) {
+			return;
+		}
+
+		for (ExperienceOrbEntity nearby : getEntityWorld().getEntitiesByType(
+			TypeFilter.instanceOf(ExperienceOrbEntity.class),
+			getBoundingBox().expand(MERGE_SEARCH_RADIUS),
+			this::isMergeable
+		)) {
+			merge(nearby);
 		}
 	}
 
-	/**
-	 * Spawn.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param amount amount
-	 */
 	public static void spawn(ServerWorld world, Vec3d pos, int amount) {
 		spawn(world, pos, Vec3d.ZERO, amount);
 	}
 
-	/**
-	 * Spawn.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param velocity velocity
-	 * @param amount amount
-	 */
 	public static void spawn(ServerWorld world, Vec3d pos, Vec3d velocity, int amount) {
 		while (amount > 0) {
 			int i = roundToOrbSize(amount);
@@ -248,24 +223,21 @@ public class ExperienceOrbEntity extends Entity {
 	}
 
 	private static boolean wasMergedIntoExistingOrb(ServerWorld world, Vec3d pos, int amount) {
-		Box box = Box.of(pos, 1.0, 1.0, 1.0);
-		int i = world.getRandom().nextInt(40);
-		List<ExperienceOrbEntity>
-				list =
-				world.getEntitiesByType(
-						TypeFilter.instanceOf(ExperienceOrbEntity.class),
-						box,
-						orb -> isMergeable(orb, i, amount)
-				);
-		if (!list.isEmpty()) {
-			ExperienceOrbEntity experienceOrbEntity = list.get(0);
-			experienceOrbEntity.pickingCount++;
-			experienceOrbEntity.orbAge = 0;
-			return true;
-		}
-		else {
+		Box searchBox = Box.of(pos, 1.0, 1.0, 1.0);
+		int seed = world.getRandom().nextInt(MERGING_CHANCE_FRACTION);
+		List<ExperienceOrbEntity> candidates = world.getEntitiesByType(
+			TypeFilter.instanceOf(ExperienceOrbEntity.class),
+			searchBox,
+			orb -> isMergeable(orb, seed, amount)
+		);
+		if (candidates.isEmpty()) {
 			return false;
 		}
+
+		ExperienceOrbEntity target = candidates.get(0);
+		target.pickingCount++;
+		target.orbAge = 0;
+		return true;
 	}
 
 	private boolean isMergeable(ExperienceOrbEntity other) {
@@ -273,7 +245,7 @@ public class ExperienceOrbEntity extends Entity {
 	}
 
 	private static boolean isMergeable(ExperienceOrbEntity orb, int seed, int amount) {
-		return !orb.isRemoved() && (orb.getId() - seed) % 40 == 0 && orb.getValue() == amount;
+		return !orb.isRemoved() && (orb.getId() - seed) % MERGING_CHANCE_FRACTION == 0 && orb.getValue() == amount;
 	}
 
 	private void merge(ExperienceOrbEntity other) {
@@ -293,131 +265,144 @@ public class ExperienceOrbEntity extends Entity {
 
 	@Override
 	public final boolean clientDamage(DamageSource source) {
-		return !this.isAlwaysInvulnerableTo(source);
+		return !isAlwaysInvulnerableTo(source);
 	}
 
 	@Override
 	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isAlwaysInvulnerableTo(source)) {
+		if (isAlwaysInvulnerableTo(source)) {
 			return false;
 		}
-		else {
-			this.scheduleVelocityUpdate();
-			this.health = (int) (this.health - amount);
-			if (this.health <= 0) {
-				this.discard();
-			}
 
-			return true;
+		scheduleVelocityUpdate();
+		health = (int) (health - amount);
+		if (health <= 0) {
+			discard();
 		}
+
+		return true;
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.putShort("Health", (short) this.health);
-		view.putShort("Age", (short) this.orbAge);
-		view.putShort("Value", (short) this.getValue());
-		view.putInt("Count", this.pickingCount);
+		view.putShort("Health", (short) health);
+		view.putShort("Age", (short) orbAge);
+		view.putShort("Value", (short) getValue());
+		view.putInt("Count", pickingCount);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		this.health = view.getShort("Health", (short) 5);
-		this.orbAge = view.getShort("Age", (short) 0);
-		this.setValue(view.getShort("Value", (short) 0));
-		this.pickingCount = view.<Integer>read("Count", Codecs.POSITIVE_INT).orElse(1);
+		health = view.getShort("Health", DEFAULT_HEALTH);
+		orbAge = view.getShort("Age", DEFAULT_AGE);
+		setValue(view.getShort("Value", DEFAULT_VALUE));
+		pickingCount = view.<Integer>read("Count", Codecs.POSITIVE_INT).orElse(DEFAULT_COUNT);
 	}
 
 	@Override
 	public void onPlayerCollision(PlayerEntity player) {
-		if (player instanceof ServerPlayerEntity serverPlayerEntity) {
-			if (player.experiencePickUpDelay == 0) {
-				player.experiencePickUpDelay = 2;
-				player.sendPickup(this, 1);
-				int i = this.repairPlayerGears(serverPlayerEntity, this.getValue());
-				if (i > 0) {
-					player.addExperience(i);
-				}
+		if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+			return;
+		}
 
-				this.pickingCount--;
-				if (this.pickingCount == 0) {
-					this.discard();
-				}
-			}
+		if (player.experiencePickUpDelay != 0) {
+			return;
 		}
-	}
 
-	private int repairPlayerGears(ServerPlayerEntity player, int amount) {
-		Optional<EnchantmentEffectContext> optional = EnchantmentHelper.chooseEquipmentWith(
-				EnchantmentEffectComponentTypes.REPAIR_WITH_XP, player, ItemStack::isDamaged
-		);
-		if (optional.isPresent()) {
-			ItemStack itemStack = optional.get().stack();
-			int i = EnchantmentHelper.getRepairWithExperience(player.getEntityWorld(), itemStack, amount);
-			int j = Math.min(i, itemStack.getDamage());
-			itemStack.setDamage(itemStack.getDamage() - j);
-			if (j > 0) {
-				int k = amount - j * amount / i;
-				if (k > 0) {
-					return this.repairPlayerGears(player, k);
-				}
-			}
+		player.experiencePickUpDelay = 2;
+		player.sendPickup(this, 1);
+		int remainingXp = repairPlayerGears(serverPlayer, getValue());
+		if (remainingXp > 0) {
+			player.addExperience(remainingXp);
+		}
 
-			return 0;
-		}
-		else {
-			return amount;
-		}
-	}
-
-	public int getValue() {
-		return this.dataTracker.get(VALUE);
-	}
-
-	private void setValue(int value) {
-		this.dataTracker.set(VALUE, value);
-	}
-
-	public int getOrbSize() {
-		int i = this.getValue();
-		if (i >= 2477) {
-			return 10;
-		}
-		else if (i >= 1237) {
-			return 9;
-		}
-		else if (i >= 617) {
-			return 8;
-		}
-		else if (i >= 307) {
-			return 7;
-		}
-		else if (i >= 149) {
-			return 6;
-		}
-		else if (i >= 73) {
-			return 5;
-		}
-		else if (i >= 37) {
-			return 4;
-		}
-		else if (i >= 17) {
-			return 3;
-		}
-		else if (i >= 7) {
-			return 2;
-		}
-		else {
-			return i >= 3 ? 1 : 0;
+		pickingCount--;
+		if (pickingCount == 0) {
+			discard();
 		}
 	}
 
 	/**
-	 * Round to orb size.
+	 * Рекурсивно чинит зачарованное снаряжение игрока за счёт опыта шара.
+	 * Выбирает случайный предмет с зачарованием REPAIR_WITH_XP, вычисляет
+	 * количество опыта, потраченного на починку, и возвращает остаток.
 	 *
-	 * @param value value
-	 *
-	 * @return int — результат операции
+	 * @param player игрок, чьё снаряжение чинится
+	 * @param amount количество опыта, доступного для починки
+	 * @return остаток опыта после починки (0 если весь опыт ушёл на починку)
+	 */
+	private int repairPlayerGears(ServerPlayerEntity player, int amount) {
+		Optional<EnchantmentEffectContext> repairTarget = EnchantmentHelper.chooseEquipmentWith(
+				EnchantmentEffectComponentTypes.REPAIR_WITH_XP, player, ItemStack::isDamaged
+		);
+		if (repairTarget.isEmpty()) {
+			return amount;
+		}
+
+		ItemStack itemStack = repairTarget.get().stack();
+		int repairPoints = EnchantmentHelper.getRepairWithExperience(player.getEntityWorld(), itemStack, amount);
+		int actualRepair = Math.min(repairPoints, itemStack.getDamage());
+		itemStack.setDamage(itemStack.getDamage() - actualRepair);
+		if (actualRepair > 0) {
+			int remaining = amount - actualRepair * amount / repairPoints;
+			if (remaining > 0) {
+				return this.repairPlayerGears(player, remaining);
+			}
+		}
+
+		return 0;
+	}
+
+	public int getValue() {
+		return dataTracker.get(VALUE);
+	}
+
+	private void setValue(int value) {
+		dataTracker.set(VALUE, value);
+	}
+
+	/**
+	 * Возвращает визуальный размер шара (0–10) на основе количества опыта.
+	 * Используется рендером для выбора текстуры шара.
+	 */
+	public int getOrbSize() {
+		int value = this.getValue();
+		if (value >= 2477) {
+			return 10;
+		}
+		else if (value >= 1237) {
+			return 9;
+		}
+		else if (value >= 617) {
+			return 8;
+		}
+		else if (value >= 307) {
+			return 7;
+		}
+		else if (value >= 149) {
+			return 6;
+		}
+		else if (value >= 73) {
+			return 5;
+		}
+		else if (value >= 37) {
+			return 4;
+		}
+		else if (value >= 17) {
+			return 3;
+		}
+		else if (value >= 7) {
+			return 2;
+		}
+		else {
+			return value >= 3 ? 1 : 0;
+		}
+	}
+
+	/**
+	 * Округляет количество опыта до ближайшего стандартного размера шара.
+	 * Стандартные размеры: 1, 3, 7, 17, 37, 73, 149, 307, 617, 1237, 2477.
+	 * Используется при спавне шаров для разбивки большого количества опыта.
 	 */
 	public static int roundToOrbSize(int value) {
 		if (value >= 2477) {
@@ -464,6 +449,6 @@ public class ExperienceOrbEntity extends Entity {
 
 	@Override
 	public PositionInterpolator getInterpolator() {
-		return this.interpolator;
+		return interpolator;
 	}
 }

@@ -12,13 +12,14 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
 /**
- * {@code MarkerEntity}.
+ * Невидимая сущность-маркер без физики, используемая как точка привязки в командах и структурах.
+ * Не отправляется клиентам, не взаимодействует с поршнями и ловушками, не принимает урон.
  */
 public class MarkerEntity extends Entity {
 
 	public MarkerEntity(EntityType<?> entityType, World world) {
 		super(entityType, world);
-		this.noClip = true;
+		noClip = true;
 	}
 
 	@Override

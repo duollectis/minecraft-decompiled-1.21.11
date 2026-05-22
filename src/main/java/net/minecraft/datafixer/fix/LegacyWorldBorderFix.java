@@ -8,7 +8,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code LegacyWorldBorderFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LegacyWorldBorderFix extends DataFix {
 
@@ -17,9 +17,9 @@ public class LegacyWorldBorderFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"LegacyWorldBorderFix",
-				this.getInputSchema().getType(TypeReferences.LEVEL),
+				getInputSchema().getType(TypeReferences.LEVEL),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						level -> {

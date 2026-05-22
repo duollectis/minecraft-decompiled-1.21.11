@@ -6,11 +6,17 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SweepAttackParticle}.
+ * Частица визуального эффекта круговой атаки мечом (sweep attack).
+ * Отображает анимированный спрайт, масштаб которого зависит от силы удара.
  */
+@Environment(EnvType.CLIENT)
 public class SweepAttackParticle extends BillboardParticle {
+
+	private static final int LIFETIME = 4;
+	private static final int FULL_BRIGHTNESS = 15728880;
+	private static final float COLOR_BASE = 0.4F;
+	private static final float COLOR_VARIANCE = 0.6F;
 
 	private final SpriteProvider spriteProvider;
 
@@ -19,23 +25,24 @@ public class SweepAttackParticle extends BillboardParticle {
 			double x,
 			double y,
 			double z,
-			double velocityX,
+			double sizeReduction,
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, 0.0, 0.0, 0.0, spriteProvider.getFirst());
 		this.spriteProvider = spriteProvider;
-		this.maxAge = 4;
-		float f = this.random.nextFloat() * 0.6F + 0.4F;
-		this.red = f;
-		this.green = f;
-		this.blue = f;
-		this.scale = 1.0F - (float) velocityX * 0.5F;
+		this.maxAge = LIFETIME;
+
+		float grayShade = random.nextFloat() * COLOR_VARIANCE + COLOR_BASE;
+		this.red = grayShade;
+		this.green = grayShade;
+		this.blue = grayShade;
+		this.scale = 1.0F - (float) sizeReduction * 0.5F;
 		this.updateSprite(spriteProvider);
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 15728880;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -43,12 +50,13 @@ public class SweepAttackParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
-		if (this.age++ >= this.maxAge) {
+
+		if (age++ >= maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			this.updateSprite(this.spriteProvider);
-		}
+
+		this.updateSprite(spriteProvider);
 	}
 
 	@Override
@@ -57,9 +65,6 @@ public class SweepAttackParticle extends BillboardParticle {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -68,18 +73,19 @@ public class SweepAttackParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new SweepAttackParticle(clientWorld, d, e, f, g, this.spriteProvider);
+			return new SweepAttackParticle(world, x, y, z, velocityX, spriteProvider);
 		}
 	}
 }

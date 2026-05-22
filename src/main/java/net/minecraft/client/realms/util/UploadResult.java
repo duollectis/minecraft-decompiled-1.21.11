@@ -4,10 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UploadResult}.
+ * Результат операции загрузки мира на Realms-сервер.
+ * Хранит HTTP-статус ответа и опциональное сообщение об ошибке.
  */
+@Environment(EnvType.CLIENT)
 public record UploadResult(int statusCode, @Nullable String errorMessage) {
 
 	public @Nullable String getErrorMessage() {
@@ -20,10 +21,10 @@ public record UploadResult(int statusCode, @Nullable String errorMessage) {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошаговой сборки {@link UploadResult} из отдельных полей HTTP-ответа.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private int statusCode = -1;
@@ -39,11 +40,6 @@ public record UploadResult(int statusCode, @Nullable String errorMessage) {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return UploadResult — результат операции
-		 */
 		public UploadResult build() {
 			return new UploadResult(this.statusCode, this.errorMessage);
 		}

@@ -5,10 +5,8 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
+/** Одна команда в спектаторском меню (телепорт, смена страницы, закрытие и т.п.). */
 @Environment(EnvType.CLIENT)
-/**
- * {@code SpectatorMenuCommand}.
- */
 public interface SpectatorMenuCommand {
 
 	void use(SpectatorMenu menu);

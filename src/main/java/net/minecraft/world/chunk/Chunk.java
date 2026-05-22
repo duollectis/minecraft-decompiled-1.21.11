@@ -55,20 +55,25 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * {@code Chunk}.
+ * Базовый абстрактный класс чанка. Хранит секции блоков, карты высот,
+ * блок-сущности, структуры и планировщики тиков. Является общим предком
+ * для {@link WorldChunk} (загруженный чанк) и {@link ProtoChunk} (чанк генерации).
  */
 public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, StructureHolder, AttachmentTarget {
 
 	public static final int MISSING_SECTION = -1;
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final LongSet EMPTY_STRUCTURE_REFERENCES = new LongOpenHashSet();
+
 	protected final @Nullable ShortList[] postProcessingLists;
 	private volatile boolean needsSaving;
 	private volatile boolean lightOn;
 	protected final ChunkPos pos;
 	private long inhabitedTime;
+
 	@Deprecated
 	private @Nullable GenerationSettings generationSettings;
+
 	protected @Nullable ChunkNoiseSampler chunkNoiseSampler;
 	protected final UpgradeData upgradeData;
 	protected @Nullable BlendingData blendingData;
@@ -82,13 +87,13 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 	protected final ChunkSection[] sectionArray;
 
 	public Chunk(
-			ChunkPos pos,
-			UpgradeData upgradeData,
-			HeightLimitView heightLimitView,
-			PalettesFactory palettesFactory,
-			long inhabitedTime,
-			ChunkSection @Nullable [] sectionArray,
-			@Nullable BlendingData blendingData
+		ChunkPos pos,
+		UpgradeData upgradeData,
+		HeightLimitView heightLimitView,
+		PalettesFactory palettesFactory,
+		long inhabitedTime,
+		ChunkSection @Nullable [] sectionArray,
+		@Nullable BlendingData blendingData
 	) {
 		this.pos = pos;
 		this.upgradeData = upgradeData;
@@ -98,15 +103,15 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		this.postProcessingLists = new ShortList[heightLimitView.countVerticalSections()];
 		this.blendingData = blendingData;
 		this.chunkSkyLight = new ChunkSkyLight(heightLimitView);
+
 		if (sectionArray != null) {
 			if (this.sectionArray.length == sectionArray.length) {
 				System.arraycopy(sectionArray, 0, this.sectionArray, 0, this.sectionArray.length);
-			}
-			else {
+			} else {
 				LOGGER.warn(
-						"Could not set level chunk sections, array length is {} instead of {}",
-						sectionArray.length,
-						this.sectionArray.length
+					"Could not set level chunk sections, array length is {} instead of {}",
+					sectionArray.length,
+					this.sectionArray.length
 				);
 			}
 		}
@@ -114,10 +119,10 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		fillSectionArray(palettesFactory, this.sectionArray);
 	}
 
-	private static void fillSectionArray(PalettesFactory palettesFactory, ChunkSection[] sectionArray) {
-		for (int i = 0; i < sectionArray.length; i++) {
-			if (sectionArray[i] == null) {
-				sectionArray[i] = new ChunkSection(palettesFactory);
+	private static void fillSectionArray(PalettesFactory palettesFactory, ChunkSection[] sections) {
+		for (int index = 0; index < sections.length; index++) {
+			if (sections[index] == null) {
+				sections[index] = new ChunkSection(palettesFactory);
 			}
 		}
 	}
@@ -127,163 +132,154 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 	}
 
 	public @Nullable BlockState setBlockState(BlockPos pos, BlockState state) {
-		return this.setBlockState(pos, state, 3);
+		return setBlockState(pos, state, 3);
 	}
 
 	public abstract @Nullable BlockState setBlockState(
-			BlockPos pos,
-			BlockState state,
-			@Block.SetBlockStateFlag int flags
+		BlockPos pos,
+		BlockState state,
+		@Block.SetBlockStateFlag int flags
 	);
 
 	public abstract void setBlockEntity(BlockEntity blockEntity);
 
-	/**
-	 * Добавляет entity.
-	 *
-	 * @param entity entity
-	 */
 	public abstract void addEntity(Entity entity);
 
+	/**
+	 * Возвращает индекс самой верхней непустой секции чанка.
+	 * Используется для оптимизации рендеринга и освещения.
+	 *
+	 * @return индекс секции, или {@code -1} если все секции пусты
+	 */
 	public int getHighestNonEmptySection() {
-		ChunkSection[] chunkSections = this.getSectionArray();
+		ChunkSection[] sections = getSectionArray();
 
-		for (int i = chunkSections.length - 1; i >= 0; i--) {
-			ChunkSection chunkSection = chunkSections[i];
-			if (!chunkSection.isEmpty()) {
-				return i;
+		for (int index = sections.length - 1; index >= 0; index--) {
+			if (!sections[index].isEmpty()) {
+				return index;
 			}
 		}
 
-		return -1;
+		return MISSING_SECTION;
 	}
 
 	@Deprecated(forRemoval = true)
 	public int getHighestNonEmptySectionYOffset() {
-		int i = this.getHighestNonEmptySection();
-		return i == -1 ? this.getBottomY() : ChunkSectionPos.getBlockCoord(this.sectionIndexToCoord(i));
+		int sectionIndex = getHighestNonEmptySection();
+		return sectionIndex == MISSING_SECTION
+			? getBottomY()
+			: ChunkSectionPos.getBlockCoord(sectionIndexToCoord(sectionIndex));
 	}
 
 	public Set<BlockPos> getBlockEntityPositions() {
-		Set<BlockPos> set = Sets.newHashSet(this.blockEntityNbts.keySet());
-		set.addAll(this.blockEntities.keySet());
-		return set;
+		Set<BlockPos> positions = Sets.newHashSet(blockEntityNbts.keySet());
+		positions.addAll(blockEntities.keySet());
+		return positions;
 	}
 
 	public ChunkSection[] getSectionArray() {
-		return this.sectionArray;
+		return sectionArray;
 	}
 
 	public ChunkSection getSection(int yIndex) {
-		return this.getSectionArray()[yIndex];
+		return getSectionArray()[yIndex];
 	}
 
 	public Collection<Entry<Heightmap.Type, Heightmap>> getHeightmaps() {
-		return Collections.unmodifiableSet(this.heightmaps.entrySet());
+		return Collections.unmodifiableSet(heightmaps.entrySet());
 	}
 
 	public void setHeightmap(Heightmap.Type type, long[] heightmap) {
-		this.getHeightmap(type).setTo(this, type, heightmap);
+		getHeightmap(type).setTo(this, type, heightmap);
 	}
 
 	public Heightmap getHeightmap(Heightmap.Type type) {
-		return this.heightmaps.computeIfAbsent(type, type2 -> new Heightmap(this, type2));
+		return heightmaps.computeIfAbsent(type, t -> new Heightmap(this, t));
 	}
 
 	public boolean hasHeightmap(Heightmap.Type type) {
-		return this.heightmaps.get(type) != null;
+		return heightmaps.get(type) != null;
 	}
 
 	/**
-	 * Sample heightmap.
+	 * Возвращает Y-координату верхнего непустого блока в столбце (x, z).
+	 * Если карта высот ещё не инициализирована — заполняет её на лету.
 	 *
-	 * @param type type
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return int — результат операции
+	 * @return Y-координата верхнего блока (включительно), или {@code bottomY - 1} если столбец пуст
 	 */
 	public int sampleHeightmap(Heightmap.Type type, int x, int z) {
-		Heightmap heightmap = this.heightmaps.get(type);
+		Heightmap heightmap = heightmaps.get(type);
+
 		if (heightmap == null) {
 			if (SharedConstants.isDevelopment && this instanceof WorldChunk) {
-				LOGGER.error("Unprimed heightmap: {} {} {}", new Object[]{type, x, z});
+				LOGGER.error("Unprimed heightmap: {} {} {}", type, x, z);
 			}
 
 			Heightmap.populateHeightmaps(this, EnumSet.of(type));
-			heightmap = this.heightmaps.get(type);
+			heightmap = heightmaps.get(type);
 		}
 
 		return heightmap.get(x & 15, z & 15) - 1;
 	}
 
 	public ChunkPos getPos() {
-		return this.pos;
+		return pos;
 	}
 
 	@Override
 	public @Nullable StructureStart getStructureStart(Structure structure) {
-		return this.structureStarts.get(structure);
+		return structureStarts.get(structure);
 	}
 
 	@Override
 	public void setStructureStart(Structure structure, StructureStart start) {
-		this.structureStarts.put(structure, start);
-		this.markNeedsSaving();
+		structureStarts.put(structure, start);
+		markNeedsSaving();
 	}
 
 	public Map<Structure, StructureStart> getStructureStarts() {
-		return Collections.unmodifiableMap(this.structureStarts);
+		return Collections.unmodifiableMap(structureStarts);
 	}
 
-	public void setStructureStarts(Map<Structure, StructureStart> structureStarts) {
-		this.structureStarts.clear();
-		this.structureStarts.putAll(structureStarts);
-		this.markNeedsSaving();
+	public void setStructureStarts(Map<Structure, StructureStart> starts) {
+		structureStarts.clear();
+		structureStarts.putAll(starts);
+		markNeedsSaving();
 	}
 
 	@Override
 	public LongSet getStructureReferences(Structure structure) {
-		return this.structureReferences.getOrDefault(structure, EMPTY_STRUCTURE_REFERENCES);
+		return structureReferences.getOrDefault(structure, EMPTY_STRUCTURE_REFERENCES);
 	}
 
 	@Override
 	public void addStructureReference(Structure structure, long reference) {
-		this.structureReferences.computeIfAbsent(structure, type2 -> new LongOpenHashSet()).add(reference);
-		this.markNeedsSaving();
+		structureReferences.computeIfAbsent(structure, s -> new LongOpenHashSet()).add(reference);
+		markNeedsSaving();
 	}
 
 	@Override
 	public Map<Structure, LongSet> getStructureReferences() {
-		return Collections.unmodifiableMap(this.structureReferences);
+		return Collections.unmodifiableMap(structureReferences);
 	}
 
 	@Override
-	public void setStructureReferences(Map<Structure, LongSet> structureReferences) {
-		this.structureReferences.clear();
-		this.structureReferences.putAll(structureReferences);
-		this.markNeedsSaving();
+	public void setStructureReferences(Map<Structure, LongSet> references) {
+		structureReferences.clear();
+		structureReferences.putAll(references);
+		markNeedsSaving();
 	}
 
 	/**
-	 * Are sections empty between.
-	 *
-	 * @param lowerHeight lower height
-	 * @param upperHeight upper height
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, пусты ли все секции чанка в диапазоне Y-координат.
+	 * Диапазон автоматически зажимается до границ чанка.
 	 */
 	public boolean areSectionsEmptyBetween(int lowerHeight, int upperHeight) {
-		if (lowerHeight < this.getBottomY()) {
-			lowerHeight = this.getBottomY();
-		}
+		int clampedLower = Math.max(lowerHeight, getBottomY());
+		int clampedUpper = Math.min(upperHeight, getTopYInclusive());
 
-		if (upperHeight > this.getTopYInclusive()) {
-			upperHeight = this.getTopYInclusive();
-		}
-
-		for (int i = lowerHeight; i <= upperHeight; i += 16) {
-			if (!this.getSection(this.getSectionIndex(i)).isEmpty()) {
+		for (int y = clampedLower; y <= clampedUpper; y += 16) {
+			if (!getSection(getSectionIndex(y)).isEmpty()) {
 				return false;
 			}
 		}
@@ -291,125 +287,94 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return true;
 	}
 
-	/**
-	 * Mark needs saving.
-	 */
 	public void markNeedsSaving() {
-		this.needsSaving = true;
+		needsSaving = true;
 	}
 
-	/**
-	 * Try mark saved.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean tryMarkSaved() {
-		if (this.needsSaving) {
-			this.needsSaving = false;
-			return true;
-		}
-		else {
+		if (!needsSaving) {
 			return false;
 		}
+
+		needsSaving = false;
+		return true;
 	}
 
-	/**
-	 * Needs saving.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean needsSaving() {
-		return this.needsSaving;
+		return needsSaving;
 	}
 
 	public abstract ChunkStatus getStatus();
 
 	public ChunkStatus getMaxStatus() {
-		ChunkStatus chunkStatus = this.getStatus();
-		BelowZeroRetrogen belowZeroRetrogen = this.getBelowZeroRetrogen();
-		if (belowZeroRetrogen != null) {
-			ChunkStatus chunkStatus2 = belowZeroRetrogen.getTargetStatus();
-			return ChunkStatus.max(chunkStatus2, chunkStatus);
-		}
-		else {
-			return chunkStatus;
-		}
+		ChunkStatus status = getStatus();
+		BelowZeroRetrogen retrogen = getBelowZeroRetrogen();
+		return retrogen != null
+			? ChunkStatus.max(retrogen.getTargetStatus(), status)
+			: status;
 	}
 
-	/**
-	 * Удаляет block entity.
-	 *
-	 * @param pos pos
-	 */
 	public abstract void removeBlockEntity(BlockPos pos);
 
-	/**
-	 * Mark block for post processing.
-	 *
-	 * @param pos pos
-	 */
 	public void markBlockForPostProcessing(BlockPos pos) {
 		LOGGER.warn("Trying to mark a block for PostProcessing @ {}, but this operation is not supported.", pos);
 	}
 
 	public @Nullable ShortList[] getPostProcessingLists() {
-		return this.postProcessingLists;
+		return postProcessingLists;
 	}
 
-	/**
-	 * Mark blocks for post processing.
-	 *
-	 * @param packedPositions packed positions
-	 * @param index index
-	 */
 	public void markBlocksForPostProcessing(ShortList packedPositions, int index) {
-		getList(this.getPostProcessingLists(), index).addAll(packedPositions);
+		getList(getPostProcessingLists(), index).addAll(packedPositions);
 	}
 
-	/**
-	 * Добавляет pending block entity nbt.
-	 *
-	 * @param nbt nbt
-	 */
 	public void addPendingBlockEntityNbt(NbtCompound nbt) {
-		BlockPos blockPos = BlockEntity.posFromNbt(this.pos, nbt);
-		if (!this.blockEntities.containsKey(blockPos)) {
-			this.blockEntityNbts.put(blockPos, nbt);
+		BlockPos blockPos = BlockEntity.posFromNbt(pos, nbt);
+		if (!blockEntities.containsKey(blockPos)) {
+			blockEntityNbts.put(blockPos, nbt);
 		}
 	}
 
 	public @Nullable NbtCompound getBlockEntityNbt(BlockPos pos) {
-		return this.blockEntityNbts.get(pos);
+		return blockEntityNbts.get(pos);
 	}
 
 	public abstract @Nullable NbtCompound getPackedBlockEntityNbt(
-			BlockPos pos,
-			RegistryWrapper.WrapperLookup registries
+		BlockPos pos,
+		RegistryWrapper.WrapperLookup registries
 	);
 
 	@Override
 	public final void forEachLightSource(BiConsumer<BlockPos, BlockState> callback) {
-		this.forEachBlockMatchingPredicate(blockState -> blockState.getLuminance() != 0, callback);
+		forEachBlockMatchingPredicate(blockState -> blockState.getLuminance() != 0, callback);
 	}
 
+	/**
+	 * Итерирует все блоки во всех секциях чанка, вызывая {@code consumer}
+	 * для каждого блока, удовлетворяющего {@code predicate}.
+	 * Использует быструю проверку {@link ChunkSection#hasAny} для пропуска пустых секций.
+	 */
 	public void forEachBlockMatchingPredicate(
-			Predicate<BlockState> predicate,
-			BiConsumer<BlockPos, BlockState> consumer
+		Predicate<BlockState> predicate,
+		BiConsumer<BlockPos, BlockState> consumer
 	) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = this.getBottomSectionCoord(); i <= this.getTopSectionCoord(); i++) {
-			ChunkSection chunkSection = this.getSection(this.sectionCoordToIndex(i));
-			if (chunkSection.hasAny(predicate)) {
-				BlockPos blockPos = ChunkSectionPos.from(this.pos, i).getMinPos();
+		for (int sectionCoord = getBottomSectionCoord(); sectionCoord <= getTopSectionCoord(); sectionCoord++) {
+			ChunkSection section = getSection(sectionCoordToIndex(sectionCoord));
 
-				for (int j = 0; j < 16; j++) {
-					for (int k = 0; k < 16; k++) {
-						for (int l = 0; l < 16; l++) {
-							BlockState blockState = chunkSection.getBlockState(l, j, k);
-							if (predicate.test(blockState)) {
-								consumer.accept(mutable.set(blockPos, l, j, k), blockState);
-							}
+			if (!section.hasAny(predicate)) {
+				continue;
+			}
+
+			BlockPos sectionMinPos = ChunkSectionPos.from(pos, sectionCoord).getMinPos();
+
+			for (int x = 0; x < 16; x++) {
+				for (int y = 0; y < 16; y++) {
+					for (int z = 0; z < 16; z++) {
+						BlockState blockState = section.getBlockState(x, y, z);
+						if (predicate.test(blockState)) {
+							consumer.accept(mutable.set(sectionMinPos, x, y, z), blockState);
 						}
 					}
 				}
@@ -428,126 +393,120 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 	public abstract Chunk.TickSchedulers getTickSchedulers(long time);
 
 	public UpgradeData getUpgradeData() {
-		return this.upgradeData;
+		return upgradeData;
 	}
 
-	/**
-	 * Использует s old noise.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean usesOldNoise() {
-		return this.blendingData != null;
+		return blendingData != null;
 	}
 
 	public @Nullable BlendingData getBlendingData() {
-		return this.blendingData;
+		return blendingData;
 	}
 
 	public long getInhabitedTime() {
-		return this.inhabitedTime;
+		return inhabitedTime;
 	}
 
-	/**
-	 * Increase inhabited time.
-	 *
-	 * @param timeDelta time delta
-	 */
 	public void increaseInhabitedTime(long timeDelta) {
-		this.inhabitedTime += timeDelta;
+		inhabitedTime += timeDelta;
 	}
 
 	public void setInhabitedTime(long inhabitedTime) {
 		this.inhabitedTime = inhabitedTime;
 	}
 
+	/**
+	 * Возвращает (или создаёт) список отложенной постобработки для секции по индексу.
+	 * Используется для хранения позиций блоков, требующих обновления после загрузки чанка.
+	 */
 	public static ShortList getList(@Nullable ShortList[] lists, int index) {
-		ShortList shortList = lists[index];
-		if (shortList == null) {
-			shortList = new ShortArrayList();
-			lists[index] = shortList;
+		ShortList list = lists[index];
+		if (list == null) {
+			list = new ShortArrayList();
+			lists[index] = list;
 		}
 
-		return shortList;
+		return list;
 	}
 
 	public boolean isLightOn() {
-		return this.lightOn;
+		return lightOn;
 	}
 
 	public void setLightOn(boolean lightOn) {
 		this.lightOn = lightOn;
-		this.markNeedsSaving();
+		markNeedsSaving();
 	}
 
 	@Override
 	public int getBottomY() {
-		return this.heightLimitView.getBottomY();
+		return heightLimitView.getBottomY();
 	}
 
 	@Override
 	public int getHeight() {
-		return this.heightLimitView.getHeight();
+		return heightLimitView.getHeight();
 	}
 
-	public ChunkNoiseSampler getOrCreateChunkNoiseSampler(Function<Chunk, ChunkNoiseSampler> chunkNoiseSamplerCreator) {
-		if (this.chunkNoiseSampler == null) {
-			this.chunkNoiseSampler = chunkNoiseSamplerCreator.apply(this);
+	public ChunkNoiseSampler getOrCreateChunkNoiseSampler(Function<Chunk, ChunkNoiseSampler> creator) {
+		if (chunkNoiseSampler == null) {
+			chunkNoiseSampler = creator.apply(this);
 		}
 
-		return this.chunkNoiseSampler;
+		return chunkNoiseSampler;
 	}
 
 	@Deprecated
-	public GenerationSettings getOrCreateGenerationSettings(Supplier<GenerationSettings> generationSettingsCreator) {
-		if (this.generationSettings == null) {
-			this.generationSettings = generationSettingsCreator.get();
+	public GenerationSettings getOrCreateGenerationSettings(Supplier<GenerationSettings> creator) {
+		if (generationSettings == null) {
+			generationSettings = creator.get();
 		}
 
-		return this.generationSettings;
+		return generationSettings;
 	}
 
+	/**
+	 * Возвращает биом для генерации шума по биомным координатам.
+	 * Координата Y зажимается до допустимого диапазона секций чанка.
+	 */
 	@Override
 	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
 		try {
-			int i = BiomeCoords.fromBlock(this.getBottomY());
-			int j = i + BiomeCoords.fromBlock(this.getHeight()) - 1;
-			int k = MathHelper.clamp(biomeY, i, j);
-			int l = this.getSectionIndex(BiomeCoords.toBlock(k));
-			return this.sectionArray[l].getBiome(biomeX & 3, k & 3, biomeZ & 3);
-		}
-		catch (Throwable var8) {
-			CrashReport crashReport = CrashReport.create(var8, "Getting biome");
-			CrashReportSection crashReportSection = crashReport.addElement("Biome being got");
-			crashReportSection.add(
-					"Location",
-					() -> CrashReportSection.createPositionString(this, biomeX, biomeY, biomeZ)
-			);
+			int bottomBiomeCoord = BiomeCoords.fromBlock(getBottomY());
+			int topBiomeCoord = bottomBiomeCoord + BiomeCoords.fromBlock(getHeight()) - 1;
+			int clampedBiomeY = MathHelper.clamp(biomeY, bottomBiomeCoord, topBiomeCoord);
+			int sectionIndex = getSectionIndex(BiomeCoords.toBlock(clampedBiomeY));
+			return sectionArray[sectionIndex].getBiome(biomeX & 3, clampedBiomeY & 3, biomeZ & 3);
+		} catch (Throwable error) {
+			CrashReport crashReport = CrashReport.create(error, "Getting biome");
+			CrashReportSection section = crashReport.addElement("Biome being got");
+			section.add("Location", () -> CrashReportSection.createPositionString(this, biomeX, biomeY, biomeZ));
 			throw new CrashException(crashReport);
 		}
 	}
 
 	/**
-	 * Populate biomes.
-	 *
-	 * @param biomeSupplier biome supplier
-	 * @param sampler sampler
+	 * Заполняет биомные контейнеры всех секций чанка через {@link BiomeSupplier}.
 	 */
 	public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler) {
-		ChunkPos chunkPos = this.getPos();
-		int i = BiomeCoords.fromBlock(chunkPos.getStartX());
-		int j = BiomeCoords.fromBlock(chunkPos.getStartZ());
-		HeightLimitView heightLimitView = this.getHeightLimitView();
+		ChunkPos chunkPos = getPos();
+		int startBiomeX = BiomeCoords.fromBlock(chunkPos.getStartX());
+		int startBiomeZ = BiomeCoords.fromBlock(chunkPos.getStartZ());
+		HeightLimitView heightLimit = getHeightLimitView();
 
-		for (int k = heightLimitView.getBottomSectionCoord(); k <= heightLimitView.getTopSectionCoord(); k++) {
-			ChunkSection chunkSection = this.getSection(this.sectionCoordToIndex(k));
-			int l = BiomeCoords.fromChunk(k);
-			chunkSection.populateBiomes(biomeSupplier, sampler, i, l, j);
+		for (int sectionCoord = heightLimit.getBottomSectionCoord();
+			 sectionCoord <= heightLimit.getTopSectionCoord();
+			 sectionCoord++
+		) {
+			ChunkSection section = getSection(sectionCoordToIndex(sectionCoord));
+			int sectionBiomeY = BiomeCoords.fromChunk(sectionCoord);
+			section.populateBiomes(biomeSupplier, sampler, startBiomeX, sectionBiomeY, startBiomeZ);
 		}
 	}
 
 	public boolean hasStructureReferences() {
-		return !this.getStructureReferences().isEmpty();
+		return !getStructureReferences().isEmpty();
 	}
 
 	public @Nullable BelowZeroRetrogen getBelowZeroRetrogen() {
@@ -555,23 +514,20 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 	}
 
 	public boolean hasBelowZeroRetrogen() {
-		return this.getBelowZeroRetrogen() != null;
+		return getBelowZeroRetrogen() != null;
 	}
 
 	public HeightLimitView getHeightLimitView() {
 		return this;
 	}
 
-	/**
-	 * Refresh surface y.
-	 */
 	public void refreshSurfaceY() {
-		this.chunkSkyLight.refreshSurfaceY(this);
+		chunkSkyLight.refreshSurfaceY(this);
 	}
 
 	@Override
 	public ChunkSkyLight getChunkSkyLight() {
-		return this.chunkSkyLight;
+		return chunkSkyLight;
 	}
 
 	public static ErrorReporter.Context createErrorReporterContext(ChunkPos pos) {
@@ -579,23 +535,17 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 	}
 
 	public ErrorReporter.Context getErrorReporterContext() {
-		return createErrorReporterContext(this.getPos());
+		return createErrorReporterContext(getPos());
 	}
 
-	/**
-	 * {@code ErrorReporterContext}.
-	 */
 	record ErrorReporterContext(ChunkPos pos) implements ErrorReporter.Context {
 
 		@Override
 		public String getName() {
-			return "chunk@" + this.pos;
+			return "chunk@" + pos;
 		}
 	}
 
-	/**
-	 * {@code TickSchedulers}.
-	 */
 	public record TickSchedulers(List<Tick<Block>> blocks, List<Tick<Fluid>> fluids) {
 	}
 }

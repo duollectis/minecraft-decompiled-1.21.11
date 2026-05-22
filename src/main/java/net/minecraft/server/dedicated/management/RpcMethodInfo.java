@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code RpcMethodInfo}.
+ * Класс Rpc Method Info.
  */
 public record RpcMethodInfo<Params, Result>(
 		String description,
@@ -59,9 +59,6 @@ public record RpcMethodInfo<Params, Result>(
 		return new RpcMethodInfo.Entry<>(name, this);
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	public record Entry<Params, Result>(Identifier name, RpcMethodInfo<Params, Result> contents) {
 
 		@SuppressWarnings("unchecked")

@@ -12,7 +12,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Objects;
 
 /**
- * {@code RemovePoiValidTagFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RemovePoiValidTagFix extends DataFix {
 
@@ -22,11 +22,11 @@ public class RemovePoiValidTagFix extends DataFix {
 
 	protected TypeRewriteRule makeRule() {
 		Type<Pair<String, Dynamic<?>>> type = DSL.named(TypeReferences.POI_CHUNK.typeName(), DSL.remainderType());
-		if (!Objects.equals(type, this.getInputSchema().getType(TypeReferences.POI_CHUNK))) {
+		if (!Objects.equals(type, getInputSchema().getType(TypeReferences.POI_CHUNK))) {
 			throw new IllegalStateException("Poi type is not what was expected.");
 		}
 		else {
-			return this.fixTypeEverywhere(
+			return fixTypeEverywhere(
 					"POI rebuild",
 					type,
 					dynamicOps -> pair -> pair.mapSecond(RemovePoiValidTagFix::removeValidTag)

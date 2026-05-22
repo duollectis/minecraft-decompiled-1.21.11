@@ -4,14 +4,17 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code BodyControl}.
+ * Управляет поворотом тела моба относительно головы.
+ * Синхронизирует {@code bodyYaw} с {@code headYaw} при движении,
+ * а при стоянии плавно подтягивает тело к направлению взгляда.
  */
 public class BodyControl implements Control {
 
-	private final MobEntity entity;
 	private static final int BODY_KEEP_UP_THRESHOLD = 15;
 	private static final int ROTATE_BODY_START_TICK = 10;
 	private static final int ROTATION_INCREMENTS = 10;
+
+	private final MobEntity entity;
 	private int bodyAdjustTicks;
 	private float lastHeadYaw;
 
@@ -19,57 +22,55 @@ public class BodyControl implements Control {
 		this.entity = entity;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.isMoving()) {
-			this.entity.bodyYaw = this.entity.getYaw();
-			this.keepUpHead();
-			this.lastHeadYaw = this.entity.headYaw;
-			this.bodyAdjustTicks = 0;
+		if (isMoving()) {
+			entity.bodyYaw = entity.getYaw();
+			keepUpHead();
+			lastHeadYaw = entity.headYaw;
+			bodyAdjustTicks = 0;
+			return;
+		}
+
+		if (!isIndependent()) {
+			return;
+		}
+
+		if (Math.abs(entity.headYaw - lastHeadYaw) > BODY_KEEP_UP_THRESHOLD) {
+			bodyAdjustTicks = 0;
+			lastHeadYaw = entity.headYaw;
+			keepUpBody();
 		}
 		else {
-			if (this.isIndependent()) {
-				if (Math.abs(this.entity.headYaw - this.lastHeadYaw) > 15.0F) {
-					this.bodyAdjustTicks = 0;
-					this.lastHeadYaw = this.entity.headYaw;
-					this.keepUpBody();
-				}
-				else {
-					this.bodyAdjustTicks++;
-					if (this.bodyAdjustTicks > 10) {
-						this.slowlyAdjustBody();
-					}
-				}
+			bodyAdjustTicks++;
+
+			if (bodyAdjustTicks > ROTATE_BODY_START_TICK) {
+				slowlyAdjustBody();
 			}
 		}
 	}
 
 	private void keepUpBody() {
-		this.entity.bodyYaw =
-				MathHelper.clampAngle(this.entity.bodyYaw, this.entity.headYaw, this.entity.getMaxHeadRotation());
+		entity.bodyYaw = MathHelper.clampAngle(entity.bodyYaw, entity.headYaw, entity.getMaxHeadRotation());
 	}
 
 	private void keepUpHead() {
-		this.entity.headYaw =
-				MathHelper.clampAngle(this.entity.headYaw, this.entity.bodyYaw, this.entity.getMaxHeadRotation());
+		entity.headYaw = MathHelper.clampAngle(entity.headYaw, entity.bodyYaw, entity.getMaxHeadRotation());
 	}
 
 	private void slowlyAdjustBody() {
-		int i = this.bodyAdjustTicks - 10;
-		float f = MathHelper.clamp(i / 10.0F, 0.0F, 1.0F);
-		float g = this.entity.getMaxHeadRotation() * (1.0F - f);
-		this.entity.bodyYaw = MathHelper.clampAngle(this.entity.bodyYaw, this.entity.headYaw, g);
+		int elapsed = bodyAdjustTicks - ROTATE_BODY_START_TICK;
+		float progress = MathHelper.clamp(elapsed / (float) ROTATION_INCREMENTS, 0.0F, 1.0F);
+		float maxAngle = entity.getMaxHeadRotation() * (1.0F - progress);
+		entity.bodyYaw = MathHelper.clampAngle(entity.bodyYaw, entity.headYaw, maxAngle);
 	}
 
 	private boolean isIndependent() {
-		return !(this.entity.getFirstPassenger() instanceof MobEntity);
+		return !(entity.getFirstPassenger() instanceof MobEntity);
 	}
 
 	private boolean isMoving() {
-		double d = this.entity.getX() - this.entity.lastX;
-		double e = this.entity.getZ() - this.entity.lastZ;
-		return d * d + e * e > 2.5000003E-7F;
+		double dx = entity.getX() - entity.lastX;
+		double dz = entity.getZ() - entity.lastZ;
+		return dx * dx + dz * dz > MoveControl.REACHED_DESTINATION_DISTANCE_SQUARED;
 	}
 }

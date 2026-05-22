@@ -20,68 +20,83 @@ import org.joml.Vector4f;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GizmoDrawerImpl}.
+ * Клиентская реализация {@link GizmoDrawer}, накапливающая геометрические примитивы
+ * (точки, линии, полигоны, квады, текст) и отрисовывающая их за один проход.
+ * <p>
+ * Примитивы разделяются на два бакета: {@code opaque} (alpha == 255) и {@code transparent}
+ * (alpha < 255), чтобы гарантировать корректный порядок смешивания.
  */
+@Environment(EnvType.CLIENT)
 public class GizmoDrawerImpl implements GizmoDrawer {
+
+	private static final int FULL_BRIGHT = 15728880;
 
 	private final GizmoDrawerImpl.Division opaque = new GizmoDrawerImpl.Division(true);
 	private final GizmoDrawerImpl.Division transparent = new GizmoDrawerImpl.Division(false);
 	private boolean empty = true;
 
 	private GizmoDrawerImpl.Division getDivision(int color) {
-		return ColorHelper.getAlpha(color) < 255 ? this.transparent : this.opaque;
+		return ColorHelper.getAlpha(color) < 255 ? transparent : opaque;
 	}
 
 	@Override
 	public void addPoint(Vec3d pos, int color, float size) {
-		this.getDivision(color).points.add(new GizmoDrawerImpl.Point(pos, color, size));
-		this.empty = false;
+		getDivision(color).points.add(new GizmoDrawerImpl.Point(pos, color, size));
+		empty = false;
 	}
 
 	@Override
 	public void addLine(Vec3d start, Vec3d end, int color, float width) {
-		this.getDivision(color).lines.add(new GizmoDrawerImpl.Line(start, end, color, width));
-		this.empty = false;
+		getDivision(color).lines.add(new GizmoDrawerImpl.Line(start, end, color, width));
+		empty = false;
 	}
 
 	@Override
 	public void addPolygon(Vec3d[] vertices, int color) {
-		this.getDivision(color).triangleFans.add(new GizmoDrawerImpl.Polygon(vertices, color));
-		this.empty = false;
+		getDivision(color).triangleFans.add(new GizmoDrawerImpl.Polygon(vertices, color));
+		empty = false;
 	}
 
 	@Override
 	public void addQuad(Vec3d a, Vec3d b, Vec3d c, Vec3d d, int color) {
-		this.getDivision(color).quads.add(new GizmoDrawerImpl.Quad(a, b, c, d, color));
-		this.empty = false;
+		getDivision(color).quads.add(new GizmoDrawerImpl.Quad(a, b, c, d, color));
+		empty = false;
 	}
 
 	@Override
 	public void addText(Vec3d pos, String text, TextGizmo.Style style) {
-		this.getDivision(style.color()).texts.add(new GizmoDrawerImpl.Text(pos, text, style));
-		this.empty = false;
+		getDivision(style.color()).texts.add(new GizmoDrawerImpl.Text(pos, text, style));
+		empty = false;
 	}
 
+	/**
+	 * Отрисовывает все накопленные примитивы: сначала непрозрачные, затем прозрачные.
+	 *
+	 * @param matrices матрица трансформаций
+	 * @param vertexConsumers провайдер вершинных буферов
+	 * @param cameraRenderState состояние камеры (позиция, ориентация)
+	 * @param posMatrix матрица позиционирования для клиппинга линий
+	 */
 	public void draw(
 			MatrixStack matrices,
 			VertexConsumerProvider vertexConsumers,
 			CameraRenderState cameraRenderState,
 			Matrix4f posMatrix
 	) {
-		this.opaque.draw(matrices, vertexConsumers, cameraRenderState, posMatrix);
-		this.transparent.draw(matrices, vertexConsumers, cameraRenderState, posMatrix);
+		opaque.draw(matrices, vertexConsumers, cameraRenderState, posMatrix);
+		transparent.draw(matrices, vertexConsumers, cameraRenderState, posMatrix);
 	}
 
 	public boolean isEmpty() {
-		return this.empty;
+		return empty;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Division}.
+	 * Бакет примитивов одного типа прозрачности. Хранит все геометрические примитивы
+	 * и отрисовывает их в правильном порядке: квады → полигоны → линии → текст → точки.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Division(
 			boolean opaque,
 			List<GizmoDrawerImpl.Line> lines,
@@ -113,44 +128,42 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 				VertexConsumerProvider vertexConsumers,
 				CameraRenderState cameraRenderState
 		) {
-			MinecraftClient minecraftClient = MinecraftClient.getInstance();
-			TextRenderer textRenderer = minecraftClient.textRenderer;
-			if (cameraRenderState.initialized) {
-				double d = cameraRenderState.pos.getX();
-				double e = cameraRenderState.pos.getY();
-				double f = cameraRenderState.pos.getZ();
+			if (!cameraRenderState.initialized) {
+				return;
+			}
 
-				for (GizmoDrawerImpl.Text text : this.texts) {
-					matrices.push();
-					matrices.translate(
-							(float) (text.pos().getX() - d),
-							(float) (text.pos().getY() - e),
-							(float) (text.pos().getZ() - f)
-					);
-					matrices.multiply(cameraRenderState.orientation);
-					matrices.scale(text.style.scale() / 16.0F, -text.style.scale() / 16.0F, text.style.scale() / 16.0F);
-					float g;
-					if (text.style.adjustLeft().isEmpty()) {
-						g = -textRenderer.getWidth(text.text) / 2.0F;
-					}
-					else {
-						g = (float) (-text.style.adjustLeft().getAsDouble()) / text.style.scale();
-					}
+			TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
+			double camX = cameraRenderState.pos.getX();
+			double camY = cameraRenderState.pos.getY();
+			double camZ = cameraRenderState.pos.getZ();
 
-					textRenderer.draw(
-							text.text,
-							g,
-							0.0F,
-							text.style.color(),
-							false,
-							matrices.peek().getPositionMatrix(),
-							vertexConsumers,
-							TextRenderer.TextLayerType.NORMAL,
-							0,
-							15728880
-					);
-					matrices.pop();
-				}
+			for (GizmoDrawerImpl.Text text : this.texts) {
+				matrices.push();
+				matrices.translate(
+						(float) (text.pos().getX() - camX),
+						(float) (text.pos().getY() - camY),
+						(float) (text.pos().getZ() - camZ)
+				);
+				matrices.multiply(cameraRenderState.orientation);
+				matrices.scale(text.style.scale() / 16.0F, -text.style.scale() / 16.0F, text.style.scale() / 16.0F);
+
+				float xOffset = text.style.adjustLeft().isEmpty()
+						? -textRenderer.getWidth(text.text) / 2.0F
+						: (float) (-text.style.adjustLeft().getAsDouble()) / text.style.scale();
+
+				textRenderer.draw(
+						text.text,
+						xOffset,
+						0.0F,
+						text.style.color(),
+						false,
+						matrices.peek().getPositionMatrix(),
+						vertexConsumers,
+						TextRenderer.TextLayerType.NORMAL,
+						0,
+						FULL_BRIGHT
+				);
+				matrices.pop();
 			}
 		}
 
@@ -160,62 +173,60 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 				CameraRenderState cameraRenderState,
 				Matrix4f posMatrix
 		) {
-			VertexConsumer
-					vertexConsumer =
-					vertexConsumers.getBuffer(this.opaque ? RenderLayers.lines() : RenderLayers.linesTranslucent());
+			VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
+					this.opaque ? RenderLayers.lines() : RenderLayers.linesTranslucent()
+			);
 			MatrixStack.Entry entry = matrices.peek();
-			Vector4f vector4f = new Vector4f();
-			Vector4f vector4f2 = new Vector4f();
-			Vector4f vector4f3 = new Vector4f();
-			Vector4f vector4f4 = new Vector4f();
-			Vector4f vector4f5 = new Vector4f();
-			double d = cameraRenderState.pos.getX();
-			double e = cameraRenderState.pos.getY();
-			double f = cameraRenderState.pos.getZ();
+			Vector4f startLocal = new Vector4f();
+			Vector4f endLocal = new Vector4f();
+			Vector4f startClip = new Vector4f();
+			Vector4f endClip = new Vector4f();
+			Vector4f clipped = new Vector4f();
+			double camX = cameraRenderState.pos.getX();
+			double camY = cameraRenderState.pos.getY();
+			double camZ = cameraRenderState.pos.getZ();
 
 			for (GizmoDrawerImpl.Line line : this.lines) {
-				vector4f.set(line.start().getX() - d, line.start().getY() - e, line.start().getZ() - f, 1.0);
-				vector4f2.set(line.end().getX() - d, line.end().getY() - e, line.end().getZ() - f, 1.0);
-				vector4f.mul(posMatrix, vector4f3);
-				vector4f2.mul(posMatrix, vector4f4);
-				boolean bl = vector4f3.z > -0.05F;
-				boolean bl2 = vector4f4.z > -0.05F;
-				if (!bl || !bl2) {
-					if (bl || bl2) {
-						float g = vector4f4.z - vector4f3.z;
-						if (Math.abs(g) < 1.0E-9F) {
-							continue;
-						}
+				startLocal.set(line.start().getX() - camX, line.start().getY() - camY, line.start().getZ() - camZ, 1.0);
+				endLocal.set(line.end().getX() - camX, line.end().getY() - camY, line.end().getZ() - camZ, 1.0);
+				startLocal.mul(posMatrix, startClip);
+				endLocal.mul(posMatrix, endClip);
+				boolean startVisible = startClip.z > -0.05F;
+				boolean endVisible = endClip.z > -0.05F;
 
-						float h = MathHelper.clamp((-0.05F - vector4f3.z) / g, 0.0F, 1.0F);
-						vector4f.lerp(vector4f2, h, vector4f5);
-						if (bl) {
-							vector4f.set(vector4f5);
-						}
-						else {
-							vector4f2.set(vector4f5);
-						}
+				if (startVisible && endVisible) {
+					continue;
+				}
+
+				if (startVisible || endVisible) {
+					float zDelta = endClip.z - startClip.z;
+					if (Math.abs(zDelta) < 1.0E-9F) {
+						continue;
 					}
 
-					vertexConsumer.vertex(entry, vector4f.x, vector4f.y, vector4f.z)
-					              .normal(
-							              entry,
-							              vector4f2.x - vector4f.x,
-							              vector4f2.y - vector4f.y,
-							              vector4f2.z - vector4f.z
-					              )
-					              .color(line.color())
-					              .lineWidth(line.width());
-					vertexConsumer.vertex(entry, vector4f2.x, vector4f2.y, vector4f2.z)
-					              .normal(
-							              entry,
-							              vector4f2.x - vector4f.x,
-							              vector4f2.y - vector4f.y,
-							              vector4f2.z - vector4f.z
-					              )
-					              .color(line.color())
-					              .lineWidth(line.width());
+					float clipT = MathHelper.clamp((-0.05F - startClip.z) / zDelta, 0.0F, 1.0F);
+					startLocal.lerp(endLocal, clipT, clipped);
+
+					if (startVisible) {
+						startLocal.set(clipped);
+					}
+					else {
+						endLocal.set(clipped);
+					}
 				}
+
+				float nx = endLocal.x - startLocal.x;
+				float ny = endLocal.y - startLocal.y;
+				float nz = endLocal.z - startLocal.z;
+
+				vertexConsumer.vertex(entry, startLocal.x, startLocal.y, startLocal.z)
+				              .normal(entry, nx, ny, nz)
+				              .color(line.color())
+				              .lineWidth(line.width());
+				vertexConsumer.vertex(entry, endLocal.x, endLocal.y, endLocal.z)
+				              .normal(entry, nx, ny, nz)
+				              .color(line.color())
+				              .lineWidth(line.width());
 			}
 		}
 
@@ -225,20 +236,20 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 				CameraRenderState cameraRenderState
 		) {
 			MatrixStack.Entry entry = matrices.peek();
-			double d = cameraRenderState.pos.getX();
-			double e = cameraRenderState.pos.getY();
-			double f = cameraRenderState.pos.getZ();
+			double camX = cameraRenderState.pos.getX();
+			double camY = cameraRenderState.pos.getY();
+			double camZ = cameraRenderState.pos.getZ();
 
 			for (GizmoDrawerImpl.Polygon polygon : this.triangleFans) {
 				VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.debugTriangleFan());
 
-				for (Vec3d vec3d : polygon.points()) {
+				for (Vec3d vertex : polygon.points()) {
 					vertexConsumer
 							.vertex(
 									entry,
-									(float) (vec3d.getX() - d),
-									(float) (vec3d.getY() - e),
-									(float) (vec3d.getZ() - f)
+									(float) (vertex.getX() - camX),
+									(float) (vertex.getY() - camY),
+									(float) (vertex.getZ() - camZ)
 							)
 							.color(polygon.color());
 				}
@@ -252,42 +263,22 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 		) {
 			VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.debugFilledBox());
 			MatrixStack.Entry entry = matrices.peek();
-			double d = cameraRenderState.pos.getX();
-			double e = cameraRenderState.pos.getY();
-			double f = cameraRenderState.pos.getZ();
+			double camX = cameraRenderState.pos.getX();
+			double camY = cameraRenderState.pos.getY();
+			double camZ = cameraRenderState.pos.getZ();
 
 			for (GizmoDrawerImpl.Quad quad : this.quads) {
 				vertexConsumer
-						.vertex(
-								entry,
-								(float) (quad.a().getX() - d),
-								(float) (quad.a().getY() - e),
-								(float) (quad.a().getZ() - f)
-						)
+						.vertex(entry, (float) (quad.a().getX() - camX), (float) (quad.a().getY() - camY), (float) (quad.a().getZ() - camZ))
 						.color(quad.color());
 				vertexConsumer
-						.vertex(
-								entry,
-								(float) (quad.b().getX() - d),
-								(float) (quad.b().getY() - e),
-								(float) (quad.b().getZ() - f)
-						)
+						.vertex(entry, (float) (quad.b().getX() - camX), (float) (quad.b().getY() - camY), (float) (quad.b().getZ() - camZ))
 						.color(quad.color());
 				vertexConsumer
-						.vertex(
-								entry,
-								(float) (quad.c().getX() - d),
-								(float) (quad.c().getY() - e),
-								(float) (quad.c().getZ() - f)
-						)
+						.vertex(entry, (float) (quad.c().getX() - camX), (float) (quad.c().getY() - camY), (float) (quad.c().getZ() - camZ))
 						.color(quad.color());
 				vertexConsumer
-						.vertex(
-								entry,
-								(float) (quad.d().getX() - d),
-								(float) (quad.d().getY() - e),
-								(float) (quad.d().getZ() - f)
-						)
+						.vertex(entry, (float) (quad.d().getX() - camX), (float) (quad.d().getY() - camY), (float) (quad.d().getZ() - camZ))
 						.color(quad.color());
 			}
 		}
@@ -299,17 +290,17 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 		) {
 			VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.debugPoint());
 			MatrixStack.Entry entry = matrices.peek();
-			double d = cameraRenderState.pos.getX();
-			double e = cameraRenderState.pos.getY();
-			double f = cameraRenderState.pos.getZ();
+			double camX = cameraRenderState.pos.getX();
+			double camY = cameraRenderState.pos.getY();
+			double camZ = cameraRenderState.pos.getZ();
 
 			for (GizmoDrawerImpl.Point point : this.points) {
 				vertexConsumer
 						.vertex(
 								entry,
-								(float) (point.pos.getX() - d),
-								(float) (point.pos.getY() - e),
-								(float) (point.pos.getZ() - f)
+								(float) (point.pos.getX() - camX),
+								(float) (point.pos.getY() - camY),
+								(float) (point.pos.getZ() - camZ)
 						)
 						.color(point.color())
 						.lineWidth(point.size());
@@ -317,38 +308,28 @@ public class GizmoDrawerImpl implements GizmoDrawer {
 		}
 	}
 
+	/** Отрезок линии с цветом и шириной. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Line}.
-	 */
 	record Line(Vec3d start, Vec3d end, int color, float width) {
 	}
 
+	/** Точка с цветом и размером. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Point}.
-	 */
 	record Point(Vec3d pos, int color, float size) {
 	}
 
+	/** Полигон (triangle fan) с набором вершин и цветом. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Polygon}.
-	 */
 	record Polygon(Vec3d[] points, int color) {
 	}
 
+	/** Четырёхугольник с четырьмя вершинами и цветом. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Quad}.
-	 */
 	record Quad(Vec3d a, Vec3d b, Vec3d c, Vec3d d, int color) {
 	}
 
+	/** Текстовая метка с позицией и стилем отображения. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Text}.
-	 */
 	record Text(Vec3d pos, String text, TextGizmo.Style style) {
 	}
 }

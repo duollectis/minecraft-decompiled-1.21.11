@@ -3,25 +3,28 @@ package net.minecraft.block.enums;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code ComparatorMode}.
+ * Режим работы блока компаратора.
+ * Определяет, сравнивает ли компаратор сигналы или вычитает один из другого.
  */
 public enum ComparatorMode implements StringIdentifiable {
+	/** Режим сравнения: выводит сигнал, если задний вход не слабее бокового. */
 	COMPARE("compare"),
+	/** Режим вычитания: вычитает боковой сигнал из заднего. */
 	SUBTRACT("subtract");
 
 	private final String name;
 
-	private ComparatorMode(final String name) {
+	ComparatorMode(final String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

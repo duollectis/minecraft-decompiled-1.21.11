@@ -7,20 +7,24 @@ import net.minecraft.registry.Registry;
 import java.util.function.Function;
 
 /**
- * {@code BlockTypes}.
+ * Реестр всех типов блоков (codec-диспетчер). Каждый тип блока регистрируется
+ * по строковому ключу и связывается со своим {@link MapCodec} для сериализации.
+ * Вызывается один раз при инициализации игры.
  */
-public class BlockTypes {
+public final class BlockTypes {
 
-	public static final MapCodec<Block>
-			CODEC =
+	public static final MapCodec<Block> CODEC =
 			Registries.BLOCK_TYPE.getCodec().dispatchMap(Block::getCodec, Function.identity());
 
+	private BlockTypes() {
+	}
+
 	/**
-	 * Регистрирует and get default.
+	 * Регистрирует все типы блоков в переданный реестр и возвращает codec базового блока.
+	 * Вызывается при старте игры для инициализации системы сериализации блоков.
 	 *
-	 * @param registry registry
-	 *
-	 * @return MapCodec — результат операции
+	 * @param registry реестр codec-ов типов блоков
+	 * @return codec базового типа {@link Block}
 	 */
 	public static MapCodec<? extends Block> registerAndGetDefault(Registry<MapCodec<? extends Block>> registry) {
 		Registry.register(registry, "block", Block.CODEC);

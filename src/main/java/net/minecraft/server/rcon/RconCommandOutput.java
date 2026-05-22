@@ -10,7 +10,7 @@ import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code RconCommandOutput}.
+ * Реализация {@link CommandOutput} для RCON: перехват вывода команд в буфер ответа.
  */
 public class RconCommandOutput implements CommandOutput {
 
@@ -23,9 +23,6 @@ public class RconCommandOutput implements CommandOutput {
 		this.server = server;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
 		this.buffer.setLength(0);
 	}

@@ -5,7 +5,7 @@ import net.minecraft.network.packet.Packet;
 import java.util.function.Consumer;
 
 /**
- * {@code ServerPlayerConfigurationTask}.
+ * Класс Server Player Configuration Task.
  */
 public interface ServerPlayerConfigurationTask {
 
@@ -17,9 +17,6 @@ public interface ServerPlayerConfigurationTask {
 
 	ServerPlayerConfigurationTask.Key getKey();
 
-	/**
-	 * {@code Key}.
-	 */
 	public record Key(String id) {
 
 		@Override

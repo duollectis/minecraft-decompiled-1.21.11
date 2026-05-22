@@ -8,7 +8,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code AbstractCountPlacementModifier}.
+ * Базовый класс счётного модификатора — повторяет входную позицию
+ * {@link #getCount} раз, создавая несколько попыток размещения.
  */
 public abstract class AbstractCountPlacementModifier extends PlacementModifier {
 
@@ -16,6 +17,6 @@ public abstract class AbstractCountPlacementModifier extends PlacementModifier {
 
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		return IntStream.range(0, this.getCount(random, pos)).mapToObj(i -> pos);
+		return IntStream.range(0, getCount(random, pos)).mapToObj(ignored -> pos);
 	}
 }

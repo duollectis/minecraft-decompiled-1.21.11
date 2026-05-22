@@ -8,63 +8,53 @@ import net.minecraft.util.math.MathHelper;
 import java.util.NoSuchElementException;
 
 /**
- * {@code LinkedBlockPosHashSet}.
+ * Хэш-множество позиций блоков с сохранением порядка вставки.
+ * Использует компактное хранилище: несколько позиций блоков упаковываются
+ * в одну запись карты через битовые маски, что снижает накладные расходы памяти.
  */
 public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 
-	private final LinkedBlockPosHashSet.Storage buffer;
+	private final Storage buffer;
 
 	public LinkedBlockPosHashSet(int expectedSize, float loadFactor) {
 		super(expectedSize, loadFactor);
-		this.buffer = new LinkedBlockPosHashSet.Storage(expectedSize / 64, loadFactor);
+		buffer = new Storage(expectedSize / 64, loadFactor);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param posLong pos long
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean add(long posLong) {
-		return this.buffer.add(posLong);
+		return buffer.add(posLong);
 	}
 
-	/**
-	 * Rem.
-	 *
-	 * @param posLong pos long
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean rem(long posLong) {
-		return this.buffer.rem(posLong);
+		return buffer.rem(posLong);
 	}
 
-	/**
-	 * Удаляет first long.
-	 *
-	 * @return long — результат операции
-	 */
+	@Override
 	public long removeFirstLong() {
-		return this.buffer.removeFirstLong();
+		return buffer.removeFirstLong();
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
+	@Override
 	public int size() {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public boolean isEmpty() {
-		return this.buffer.isEmpty();
+		return buffer.isEmpty();
 	}
 
 	/**
-	 * {@code Storage}.
+	 * Компактное хранилище позиций блоков на основе {@link Long2LongLinkedOpenHashMap}.
+	 * Группирует позиции блоков по ключу (старшие биты) и хранит набор смещений
+	 * внутри группы в виде битовой маски (64 бита = до 64 позиций на ключ).
+	 *
+	 * <p>Биты позиции распределены следующим образом:
+	 * <ul>
+	 *   <li>биты Y: позиции 0..FIELD_SPACING-1</li>
+	 *   <li>биты X: позиции X_BIT_OFFSET..X_BIT_OFFSET+HORIZONTAL_COLUMN_BIT_SEPARATION-1</li>
+	 *   <li>биты Z: позиции Z_BIT_OFFSET..Z_BIT_OFFSET+HORIZONTAL_COLUMN_BIT_SEPARATION-1</li>
+	 * </ul>
 	 */
 	protected static class Storage extends Long2LongLinkedOpenHashMap {
 
@@ -75,6 +65,7 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 		private static final int X_BIT_OFFSET = FIELD_SPACING;
 		private static final int Z_BIT_OFFSET = FIELD_SPACING + HORIZONTAL_COLUMN_BIT_SEPARATION;
 		private static final long MAX_POSITION = 3L << Z_BIT_OFFSET | 3L | 3L << X_BIT_OFFSET;
+
 		private int lastWrittenIndex = -1;
 		private long lastWrittenKey;
 		private final int expectedSize;
@@ -89,192 +80,174 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 		}
 
 		static int getBlockOffset(long posLong) {
-			int i = (int) (posLong >>> Z_BIT_OFFSET & 3L);
-			int j = (int) (posLong >>> 0 & 3L);
-			int k = (int) (posLong >>> X_BIT_OFFSET & 3L);
-			return i << 4 | k << 2 | j;
+			int zBits = (int) (posLong >>> Z_BIT_OFFSET & 3L);
+			int yBits = (int) (posLong >>> Y_BIT_OFFSET & 3L);
+			int xBits = (int) (posLong >>> X_BIT_OFFSET & 3L);
+			return zBits << 4 | xBits << 2 | yBits;
 		}
 
-		static long getBlockPosLong(long key, int valueLength) {
-			key |= (long) (valueLength >>> 4 & 3) << Z_BIT_OFFSET;
-			key |= (long) (valueLength >>> 2 & 3) << X_BIT_OFFSET;
-			return key | (long) (valueLength >>> 0 & 3) << 0;
+		static long getBlockPosLong(long key, int offset) {
+			key |= (long) (offset >>> 4 & 3) << Z_BIT_OFFSET;
+			key |= (long) (offset >>> 2 & 3) << X_BIT_OFFSET;
+			return key | (long) (offset & 3) << Y_BIT_OFFSET;
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param posLong pos long
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean add(long posLong) {
-			long l = getKey(posLong);
-			int i = getBlockOffset(posLong);
-			long m = 1L << i;
-			int j;
-			if (l == 0L) {
-				if (this.containsNullKey) {
-					return this.setBits(this.n, m);
+			long groupKey = getKey(posLong);
+			int blockOffset = getBlockOffset(posLong);
+			long bitMask = 1L << blockOffset;
+
+			if (groupKey == 0L) {
+				if (containsNullKey) {
+					return setBits(n, bitMask);
 				}
 
-				this.containsNullKey = true;
-				j = this.n;
+				containsNullKey = true;
+				return insertNewGroup(n, groupKey, bitMask);
 			}
-			else {
-				if (this.lastWrittenIndex != -1 && l == this.lastWrittenKey) {
-					return this.setBits(this.lastWrittenIndex, m);
+
+			if (lastWrittenIndex != -1 && groupKey == lastWrittenKey) {
+				return setBits(lastWrittenIndex, bitMask);
+			}
+
+			long[] keys = key;
+			int slot = (int) HashCommon.mix(groupKey) & mask;
+
+			for (long existing = keys[slot]; existing != 0L; existing = keys[slot]) {
+				if (existing == groupKey) {
+					lastWrittenIndex = slot;
+					lastWrittenKey = groupKey;
+					return setBits(slot, bitMask);
 				}
 
-				long[] ls = this.key;
-				j = (int) HashCommon.mix(l) & this.mask;
-
-				for (long n = ls[j]; n != 0L; n = ls[j]) {
-					if (n == l) {
-						this.lastWrittenIndex = j;
-						this.lastWrittenKey = l;
-						return this.setBits(j, m);
-					}
-
-					j = j + 1 & this.mask;
-				}
+				slot = slot + 1 & mask;
 			}
 
-			this.key[j] = l;
-			this.value[j] = m;
-			if (this.size == 0) {
-				this.first = this.last = j;
-				this.link[j] = -1L;
-			}
-			else {
-				this.link[this.last] = this.link[this.last] ^ (this.link[this.last] ^ j & 4294967295L) & 4294967295L;
-				this.link[j] = (this.last & 4294967295L) << 32 | 4294967295L;
-				this.last = j;
+			return insertNewGroup(slot, groupKey, bitMask);
+		}
+
+		private boolean insertNewGroup(int slot, long groupKey, long bitMask) {
+			key[slot] = groupKey;
+			value[slot] = bitMask;
+
+			if (size == 0) {
+				first = last = slot;
+				link[slot] = -1L;
+			} else {
+				link[last] = link[last] ^ (link[last] ^ slot & 4294967295L) & 4294967295L;
+				link[slot] = (last & 4294967295L) << 32 | 4294967295L;
+				last = slot;
 			}
 
-			if (this.size++ >= this.maxFill) {
-				this.rehash(HashCommon.arraySize(this.size + 1, this.f));
+			if (size++ >= maxFill) {
+				rehash(HashCommon.arraySize(size + 1, f));
 			}
 
 			return false;
 		}
 
 		private boolean setBits(int index, long mask) {
-			boolean bl = (this.value[index] & mask) != 0L;
-			this.value[index] = this.value[index] | mask;
-			return bl;
+			boolean alreadySet = (value[index] & mask) != 0L;
+			value[index] = value[index] | mask;
+			return alreadySet;
 		}
 
-		/**
-		 * Rem.
-		 *
-		 * @param posLong pos long
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean rem(long posLong) {
-			long l = getKey(posLong);
-			int i = getBlockOffset(posLong);
-			long m = 1L << i;
-			if (l == 0L) {
-				return this.containsNullKey ? this.unsetBits(m) : false;
-			}
-			else if (this.lastWrittenIndex != -1 && l == this.lastWrittenKey) {
-				return this.unsetBitsAt(this.lastWrittenIndex, m);
-			}
-			else {
-				long[] ls = this.key;
-				int j = (int) HashCommon.mix(l) & this.mask;
+			long groupKey = getKey(posLong);
+			int blockOffset = getBlockOffset(posLong);
+			long bitMask = 1L << blockOffset;
 
-				for (long n = ls[j]; n != 0L; n = ls[j]) {
-					if (l == n) {
-						this.lastWrittenIndex = j;
-						this.lastWrittenKey = l;
-						return this.unsetBitsAt(j, m);
-					}
+			if (groupKey == 0L) {
+				return containsNullKey ? unsetBits(bitMask) : false;
+			}
 
-					j = j + 1 & this.mask;
+			if (lastWrittenIndex != -1 && groupKey == lastWrittenKey) {
+				return unsetBitsAt(lastWrittenIndex, bitMask);
+			}
+
+			long[] keys = key;
+			int slot = (int) HashCommon.mix(groupKey) & mask;
+
+			for (long existing = keys[slot]; existing != 0L; existing = keys[slot]) {
+				if (groupKey == existing) {
+					lastWrittenIndex = slot;
+					lastWrittenKey = groupKey;
+					return unsetBitsAt(slot, bitMask);
 				}
 
-				return false;
+				slot = slot + 1 & mask;
 			}
+
+			return false;
 		}
 
 		private boolean unsetBits(long mask) {
-			if ((this.value[this.n] & mask) == 0L) {
+			if ((value[n] & mask) == 0L) {
 				return false;
 			}
-			else {
-				this.value[this.n] = this.value[this.n] & ~mask;
-				if (this.value[this.n] != 0L) {
-					return true;
-				}
-				else {
-					this.containsNullKey = false;
-					this.size--;
-					this.fixPointers(this.n);
-					if (this.size < this.maxFill / 4 && this.n > 16) {
-						this.rehash(this.n / 2);
-					}
 
-					return true;
-				}
+			value[n] = value[n] & ~mask;
+
+			if (value[n] != 0L) {
+				return true;
 			}
+
+			containsNullKey = false;
+			size--;
+			fixPointers(n);
+
+			if (size < maxFill / 4 && n > 16) {
+				rehash(n / 2);
+			}
+
+			return true;
 		}
 
 		private boolean unsetBitsAt(int index, long mask) {
-			if ((this.value[index] & mask) == 0L) {
+			if ((value[index] & mask) == 0L) {
 				return false;
 			}
-			else {
-				this.value[index] = this.value[index] & ~mask;
-				if (this.value[index] != 0L) {
-					return true;
-				}
-				else {
-					this.lastWrittenIndex = -1;
-					this.size--;
-					this.fixPointers(index);
-					this.shiftKeys(index);
-					if (this.size < this.maxFill / 4 && this.n > 16) {
-						this.rehash(this.n / 2);
-					}
 
-					return true;
-				}
+			value[index] = value[index] & ~mask;
+
+			if (value[index] != 0L) {
+				return true;
 			}
+
+			lastWrittenIndex = -1;
+			size--;
+			fixPointers(index);
+			shiftKeys(index);
+
+			if (size < maxFill / 4 && n > 16) {
+				rehash(n / 2);
+			}
+
+			return true;
 		}
 
-		/**
-		 * Удаляет first long.
-		 *
-		 * @return long — результат операции
-		 */
+		@Override
 		public long removeFirstLong() {
-			if (this.size == 0) {
+			if (size == 0) {
 				throw new NoSuchElementException();
 			}
-			else {
-				int i = this.first;
-				long l = this.key[i];
-				int j = Long.numberOfTrailingZeros(this.value[i]);
-				this.value[i] = this.value[i] & ~(1L << j);
-				if (this.value[i] == 0L) {
-					this.removeFirstLong();
-					this.lastWrittenIndex = -1;
-				}
 
-				return getBlockPosLong(l, j);
+			int firstSlot = first;
+			long groupKey = key[firstSlot];
+			int bitIndex = Long.numberOfTrailingZeros(value[firstSlot]);
+			value[firstSlot] = value[firstSlot] & ~(1L << bitIndex);
+
+			if (value[firstSlot] == 0L) {
+				super.removeFirstLong();
+				lastWrittenIndex = -1;
 			}
+
+			return getBlockPosLong(groupKey, bitIndex);
 		}
 
-		/**
-		 * Rehash.
-		 *
-		 * @param newN new n
-		 */
+		@Override
 		protected void rehash(int newN) {
-			if (newN > this.expectedSize) {
+			if (newN > expectedSize) {
 				super.rehash(newN);
 			}
 		}

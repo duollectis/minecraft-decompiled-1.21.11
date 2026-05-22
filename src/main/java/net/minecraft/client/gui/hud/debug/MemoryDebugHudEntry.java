@@ -13,45 +13,34 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MemoryDebugHudEntry}.
+ * Запись отладочного HUD: использование памяти JVM и скорость аллокации.
  */
+@Environment(EnvType.CLIENT)
 public class MemoryDebugHudEntry implements DebugHudEntry {
 
 	private static final Identifier SECTION_ID = Identifier.ofVanilla("memory");
-	private final MemoryDebugHudEntry.AllocationRateCalculator
-			allocationRateCalculator =
-			new MemoryDebugHudEntry.AllocationRateCalculator();
+	private final AllocationRateCalculator allocationRateCalculator = new AllocationRateCalculator();
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		long l = Runtime.getRuntime().maxMemory();
-		long m = Runtime.getRuntime().totalMemory();
-		long n = Runtime.getRuntime().freeMemory();
-		long o = m - n;
+		long maxMemory = Runtime.getRuntime().maxMemory();
+		long totalMemory = Runtime.getRuntime().totalMemory();
+		long freeMemory = Runtime.getRuntime().freeMemory();
+		long usedMemory = totalMemory - freeMemory;
+
 		lines.addLinesToSection(
-				SECTION_ID,
-				List.of(
-						String.format(
-								Locale.ROOT,
-								"Mem: %2d%% %03d/%03dMB",
-								o * 100L / l,
-								toMegabytes(o),
-								toMegabytes(l)
-						),
-						String.format(
-								Locale.ROOT,
-								"Allocation rate: %03dMB/s",
-								toMegabytes(this.allocationRateCalculator.get(o))
-						),
-						String.format(Locale.ROOT, "Allocated: %2d%% %03dMB", m * 100L / l, toMegabytes(m))
-				)
+			SECTION_ID,
+			List.of(
+				String.format(Locale.ROOT, "Mem: %2d%% %03d/%03dMB", usedMemory * 100L / maxMemory, toMegabytes(usedMemory), toMegabytes(maxMemory)),
+				String.format(Locale.ROOT, "Allocation rate: %03dMB/s", toMegabytes(allocationRateCalculator.get(usedMemory))),
+				String.format(Locale.ROOT, "Allocated: %2d%% %03dMB", totalMemory * 100L / maxMemory, toMegabytes(totalMemory))
+			)
 		);
 	}
 
@@ -64,49 +53,50 @@ public class MemoryDebugHudEntry implements DebugHudEntry {
 		return true;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code AllocationRateCalculator}.
+	 * Вычисляет скорость аллокации памяти в байтах/с с интервалом обновления {@value #INTERVAL_MS} мс.
+	 * Учитывает сборки мусора: если между замерами прошла GC, результат не обновляется.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class AllocationRateCalculator {
 
-		private static final int INTERVAL = 500;
-		private static final List<GarbageCollectorMXBean>
-				GARBAGE_COLLECTORS =
-				ManagementFactory.getGarbageCollectorMXBeans();
+		private static final int INTERVAL_MS = 500;
+		private static final List<GarbageCollectorMXBean> GARBAGE_COLLECTORS =
+			ManagementFactory.getGarbageCollectorMXBeans();
+
 		private long lastCalculated = 0L;
-		private long allocatedBytes = -1L;
-		private long collectionCount = -1L;
+		private long lastAllocatedBytes = -1L;
+		private long lastCollectionCount = -1L;
 		private long allocationRate = 0L;
 
 		long get(long allocatedBytes) {
-			long l = System.currentTimeMillis();
-			if (l - this.lastCalculated < 500L) {
-				return this.allocationRate;
-			}
-			else {
-				long m = getCollectionCount();
-				if (this.lastCalculated != 0L && m == this.collectionCount) {
-					double d = (double) TimeUnit.SECONDS.toMillis(1L) / (l - this.lastCalculated);
-					long n = allocatedBytes - this.allocatedBytes;
-					this.allocationRate = Math.round(n * d);
-				}
+			long now = System.currentTimeMillis();
 
-				this.lastCalculated = l;
-				this.allocatedBytes = allocatedBytes;
-				this.collectionCount = m;
-				return this.allocationRate;
+			if (now - lastCalculated < INTERVAL_MS) {
+				return allocationRate;
 			}
+
+			long currentCollectionCount = getCollectionCount();
+			if (lastCalculated != 0L && currentCollectionCount == lastCollectionCount) {
+				double secondsRatio = (double) TimeUnit.SECONDS.toMillis(1L) / (now - lastCalculated);
+				long allocatedDelta = allocatedBytes - lastAllocatedBytes;
+				allocationRate = Math.round(allocatedDelta * secondsRatio);
+			}
+
+			lastCalculated = now;
+			lastAllocatedBytes = allocatedBytes;
+			lastCollectionCount = currentCollectionCount;
+			return allocationRate;
 		}
 
 		private static long getCollectionCount() {
-			long l = 0L;
+			long total = 0L;
 
-			for (GarbageCollectorMXBean garbageCollectorMXBean : GARBAGE_COLLECTORS) {
-				l += garbageCollectorMXBean.getCollectionCount();
+			for (GarbageCollectorMXBean gc : GARBAGE_COLLECTORS) {
+				total += gc.getCollectionCount();
 			}
 
-			return l;
+			return total;
 		}
 	}
 }

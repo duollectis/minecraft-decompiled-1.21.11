@@ -43,6 +43,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldEvents;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
@@ -50,73 +51,98 @@ import java.util.EnumSet;
 import java.util.List;
 
 /**
- * {@code WitherEntity}.
+ * Сущность Иссушителя (Wither) — летающий трёхголовый босс.
+ * После призыва проходит фазу неуязвимости ({@link #ON_SUMMONED_INVUL_TIMER} тиков),
+ * затем переходит в боевой режим с атаками черепами и разрушением блоков.
  */
 public class WitherEntity extends HostileEntity implements RangedAttackMob {
 
-	private static final TrackedData<Integer>
-			TRACKED_ENTITY_ID_1 =
+	private static final TrackedData<Integer> TRACKED_ENTITY_ID_1 =
 			DataTracker.registerData(WitherEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Integer>
-			TRACKED_ENTITY_ID_2 =
+	private static final TrackedData<Integer> TRACKED_ENTITY_ID_2 =
 			DataTracker.registerData(WitherEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Integer>
-			TRACKED_ENTITY_ID_3 =
+	private static final TrackedData<Integer> TRACKED_ENTITY_ID_3 =
 			DataTracker.registerData(WitherEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final List<TrackedData<Integer>>
-			TRACKED_ENTITY_IDS =
+	private static final List<TrackedData<Integer>> TRACKED_ENTITY_IDS =
 			ImmutableList.of(TRACKED_ENTITY_ID_1, TRACKED_ENTITY_ID_2, TRACKED_ENTITY_ID_3);
-	private static final TrackedData<Integer>
-			INVUL_TIMER =
+	private static final TrackedData<Integer> INVUL_TIMER =
 			DataTracker.registerData(WitherEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
 	private static final int ON_SUMMONED_INVUL_TIMER = 220;
 	private static final int DEFAULT_INVUL_TIMER = 0;
-	private final float[] sideHeadPitches = new float[2];
-	private final float[] sideHeadYaws = new float[2];
-	private final float[] lastSideHeadPitches = new float[2];
-	private final float[] lastSideHeadYaws = new float[2];
-	private final int[] skullCooldowns = new int[2];
-	private final int[] chargedSkullCooldowns = new int[2];
+	private static final int SIDE_HEAD_COUNT = 2;
+	private static final int SKULL_COOLDOWN_BASE = 10;
+	private static final int SKULL_COOLDOWN_RANDOM = 10;
+	private static final int SKULL_COOLDOWN_ON_HIT = 40;
+	private static final int SKULL_COOLDOWN_ON_HIT_RANDOM = 20;
+	private static final int CHARGED_SKULL_THRESHOLD = 15;
+	private static final int CHARGED_SKULL_BONUS = 3;
+	private static final int BLOCK_BREAKING_COOLDOWN_ON_HIT = 20;
+	private static final int HEAL_INTERVAL_TICKS = 20;
+	private static final int INVUL_HEAL_INTERVAL_TICKS = 10;
+	private static final int INVUL_HEAL_AMOUNT = 10;
+	private static final int HEAL_AMOUNT = 1;
+	private static final double CHARGED_SKULL_RANGE_X = 10.0;
+	private static final double CHARGED_SKULL_RANGE_Y = 5.0;
+	private static final double CHARGED_SKULL_RANGE_Z = 10.0;
+	private static final double HEAD_TARGET_MAX_DISTANCE = 20.0;
+	private static final double HEAD_TRACK_DISTANCE_SQ = 900.0;
+	private static final double HORIZONTAL_CHASE_DISTANCE_SQ = 9.0;
+	private static final double SIDE_HEAD_OFFSET = 1.3;
+	private static final float SIDE_HEAD_YAW_SPEED = 10.0F;
+	private static final float SIDE_HEAD_PITCH_SPEED = 40.0F;
+	private static final float VELOCITY_DAMPING_Y = 0.6F;
+	private static final float VELOCITY_PUSH_FACTOR = 0.3F;
+	private static final float VELOCITY_DRAG_FACTOR = 0.6F;
+	private static final float HORIZONTAL_SPEED_THRESHOLD = 0.05F;
+	private static final float PARTICLE_SPREAD = 0.3F;
+	private static final float INVUL_PARTICLE_HEIGHT = 3.3F;
+	private static final float CENTER_HEAD_Y_OFFSET = 3.0F;
+	private static final float SIDE_HEAD_Y_OFFSET = 2.2F;
+	private static final int EXPERIENCE_POINTS = 50;
+
+	private static final TargetPredicate.EntityPredicate CAN_ATTACK_PREDICATE =
+			(entity, world) -> !entity.getType().isIn(EntityTypeTags.WITHER_FRIENDS) && entity.isMobOrPlayer();
+	private static final TargetPredicate HEAD_TARGET_PREDICATE =
+			TargetPredicate.createAttackable()
+					.setBaseMaxDistance(HEAD_TARGET_MAX_DISTANCE)
+					.setPredicate(CAN_ATTACK_PREDICATE);
+
+	private final float[] sideHeadPitches = new float[SIDE_HEAD_COUNT];
+	private final float[] sideHeadYaws = new float[SIDE_HEAD_COUNT];
+	private final float[] lastSideHeadPitches = new float[SIDE_HEAD_COUNT];
+	private final float[] lastSideHeadYaws = new float[SIDE_HEAD_COUNT];
+	private final int[] skullCooldowns = new int[SIDE_HEAD_COUNT];
+	private final int[] chargedSkullCooldowns = new int[SIDE_HEAD_COUNT];
 	private int blockBreakingCooldown;
-	private final ServerBossBar
-			bossBar =
-			(ServerBossBar) new ServerBossBar(this.getDisplayName(), BossBar.Color.PURPLE, BossBar.Style.PROGRESS)
+	private final ServerBossBar bossBar =
+			(ServerBossBar) new ServerBossBar(getDisplayName(), BossBar.Color.PURPLE, BossBar.Style.PROGRESS)
 					.setDarkenSky(true);
-	private static final TargetPredicate.EntityPredicate
-			CAN_ATTACK_PREDICATE =
-			(entity, world) -> !entity.getType().isIn(EntityTypeTags.WITHER_FRIENDS)
-					&& entity.isMobOrPlayer();
-	private static final TargetPredicate
-			HEAD_TARGET_PREDICATE =
-			TargetPredicate.createAttackable().setBaseMaxDistance(20.0).setPredicate(CAN_ATTACK_PREDICATE);
 
 	public WitherEntity(EntityType<? extends WitherEntity> entityType, World world) {
 		super(entityType, world);
-		this.moveControl = new FlightMoveControl(this, 10, false);
-		this.setHealth(this.getMaxHealth());
-		this.experiencePoints = 50;
+		moveControl = new FlightMoveControl(this, 10, false);
+		setHealth(getMaxHealth());
+		experiencePoints = EXPERIENCE_POINTS;
 	}
 
 	@Override
 	protected EntityNavigation createNavigation(World world) {
-		BirdNavigation birdNavigation = new BirdNavigation(this, world);
-		birdNavigation.setCanOpenDoors(false);
-		birdNavigation.setCanSwim(true);
-		return birdNavigation;
+		BirdNavigation navigation = new BirdNavigation(this, world);
+		navigation.setCanOpenDoors(false);
+		navigation.setCanSwim(true);
+		return navigation;
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(0, new WitherEntity.DescendAtHalfHealthGoal());
-		this.goalSelector.add(2, new ProjectileAttackGoal(this, 1.0, 40, 20.0F));
-		this.goalSelector.add(5, new FlyGoal(this, 1.0));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(7, new LookAroundGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this));
-		this.targetSelector.add(
-				2,
-				new ActiveTargetGoal<>(this, LivingEntity.class, 0, false, false, CAN_ATTACK_PREDICATE)
-		);
+		goalSelector.add(0, new DescendAtHalfHealthGoal());
+		goalSelector.add(2, new ProjectileAttackGoal(this, 1.0, 40, 20.0F));
+		goalSelector.add(5, new FlyGoal(this, 1.0));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(7, new LookAroundGoal(this));
+		targetSelector.add(1, new RevengeGoal(this));
+		targetSelector.add(2, new ActiveTargetGoal<>(this, LivingEntity.class, 0, false, false, CAN_ATTACK_PREDICATE));
 	}
 
 	@Override
@@ -125,28 +151,28 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 		builder.add(TRACKED_ENTITY_ID_1, 0);
 		builder.add(TRACKED_ENTITY_ID_2, 0);
 		builder.add(TRACKED_ENTITY_ID_3, 0);
-		builder.add(INVUL_TIMER, 0);
+		builder.add(INVUL_TIMER, DEFAULT_INVUL_TIMER);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Invul", this.getInvulnerableTimer());
+		view.putInt("Invul", getInvulnerableTimer());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setInvulTimer(view.getInt("Invul", 0));
-		if (this.hasCustomName()) {
-			this.bossBar.setName(this.getDisplayName());
+		setInvulTimer(view.getInt("Invul", 0));
+		if (hasCustomName()) {
+			bossBar.setName(getDisplayName());
 		}
 	}
 
 	@Override
 	public void setCustomName(@Nullable Text name) {
 		super.setCustomName(name);
-		this.bossBar.setName(this.getDisplayName());
+		bossBar.setName(getDisplayName());
 	}
 
 	@Override
@@ -166,244 +192,210 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 
 	@Override
 	public void tickMovement() {
-		Vec3d vec3d = this.getVelocity().multiply(1.0, 0.6, 1.0);
-		if (!this.getEntityWorld().isClient() && this.getTrackedEntityId(0) > 0) {
-			Entity entity = this.getEntityWorld().getEntityById(this.getTrackedEntityId(0));
-			if (entity != null) {
-				double d = vec3d.y;
-				if (this.getY() < entity.getY() || !this.isArmored() && this.getY() < entity.getY() + 5.0) {
-					d = Math.max(0.0, d);
-					d += 0.3 - d * 0.6F;
+		Vec3d velocity = getVelocity().multiply(1.0, VELOCITY_DAMPING_Y, 1.0);
+
+		if (!getEntityWorld().isClient() && getTrackedEntityId(0) > 0) {
+			Entity target = getEntityWorld().getEntityById(getTrackedEntityId(0));
+			if (target != null) {
+				double velY = velocity.y;
+				if (getY() < target.getY() || !isArmored() && getY() < target.getY() + 5.0) {
+					velY = Math.max(0.0, velY);
+					velY += VELOCITY_PUSH_FACTOR - velY * VELOCITY_DRAG_FACTOR;
 				}
 
-				vec3d = new Vec3d(vec3d.x, d, vec3d.z);
-				Vec3d vec3d2 = new Vec3d(entity.getX() - this.getX(), 0.0, entity.getZ() - this.getZ());
-				if (vec3d2.horizontalLengthSquared() > 9.0) {
-					Vec3d vec3d3 = vec3d2.normalize();
-					vec3d = vec3d.add(vec3d3.x * 0.3 - vec3d.x * 0.6, 0.0, vec3d3.z * 0.3 - vec3d.z * 0.6);
+				velocity = new Vec3d(velocity.x, velY, velocity.z);
+				Vec3d toTarget = new Vec3d(target.getX() - getX(), 0.0, target.getZ() - getZ());
+				if (toTarget.horizontalLengthSquared() > HORIZONTAL_CHASE_DISTANCE_SQ) {
+					Vec3d direction = toTarget.normalize();
+					velocity = velocity.add(
+							direction.x * VELOCITY_PUSH_FACTOR - velocity.x * VELOCITY_DRAG_FACTOR,
+							0.0,
+							direction.z * VELOCITY_PUSH_FACTOR - velocity.z * VELOCITY_DRAG_FACTOR
+					);
 				}
 			}
 		}
 
-		this.setVelocity(vec3d);
-		if (vec3d.horizontalLengthSquared() > 0.05) {
-			this.setYaw((float) MathHelper.atan2(vec3d.z, vec3d.x) * (180.0F / (float) Math.PI) - 90.0F);
+		setVelocity(velocity);
+		if (velocity.horizontalLengthSquared() > HORIZONTAL_SPEED_THRESHOLD) {
+			setYaw((float) MathHelper.atan2(velocity.z, velocity.x) * (180.0F / (float) Math.PI) - 90.0F);
 		}
 
 		super.tickMovement();
 
-		for (int i = 0; i < 2; i++) {
-			this.lastSideHeadYaws[i] = this.sideHeadYaws[i];
-			this.lastSideHeadPitches[i] = this.sideHeadPitches[i];
+		for (int i = 0; i < SIDE_HEAD_COUNT; i++) {
+			lastSideHeadYaws[i] = sideHeadYaws[i];
+			lastSideHeadPitches[i] = sideHeadPitches[i];
 		}
 
-		for (int i = 0; i < 2; i++) {
-			int j = this.getTrackedEntityId(i + 1);
-			Entity entity2 = null;
-			if (j > 0) {
-				entity2 = this.getEntityWorld().getEntityById(j);
-			}
+		for (int i = 0; i < SIDE_HEAD_COUNT; i++) {
+			int targetId = getTrackedEntityId(i + 1);
+			Entity sideTarget = targetId > 0 ? getEntityWorld().getEntityById(targetId) : null;
 
-			if (entity2 != null) {
-				double e = this.getHeadX(i + 1);
-				double f = this.getHeadY(i + 1);
-				double g = this.getHeadZ(i + 1);
-				double h = entity2.getX() - e;
-				double k = entity2.getEyeY() - f;
-				double l = entity2.getZ() - g;
-				double m = Math.sqrt(h * h + l * l);
-				float n = (float) (MathHelper.atan2(l, h) * 180.0F / (float) Math.PI) - 90.0F;
-				float o = (float) (-(MathHelper.atan2(k, m) * 180.0F / (float) Math.PI));
-				this.sideHeadPitches[i] = this.getNextAngle(this.sideHeadPitches[i], o, 40.0F);
-				this.sideHeadYaws[i] = this.getNextAngle(this.sideHeadYaws[i], n, 10.0F);
-			}
-			else {
-				this.sideHeadYaws[i] = this.getNextAngle(this.sideHeadYaws[i], this.bodyYaw, 10.0F);
+			if (sideTarget != null) {
+				double headX = getHeadX(i + 1);
+				double headY = getHeadY(i + 1);
+				double headZ = getHeadZ(i + 1);
+				double dx = sideTarget.getX() - headX;
+				double dy = sideTarget.getEyeY() - headY;
+				double dz = sideTarget.getZ() - headZ;
+				double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+				float yaw = (float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F;
+				float pitch = (float) (-(MathHelper.atan2(dy, horizontalDist) * 180.0F / (float) Math.PI));
+				sideHeadPitches[i] = getNextAngle(sideHeadPitches[i], pitch, SIDE_HEAD_PITCH_SPEED);
+				sideHeadYaws[i] = getNextAngle(sideHeadYaws[i], yaw, SIDE_HEAD_YAW_SPEED);
+			} else {
+				sideHeadYaws[i] = getNextAngle(sideHeadYaws[i], bodyYaw, SIDE_HEAD_YAW_SPEED);
 			}
 		}
 
-		boolean bl = this.isArmored();
+		boolean armored = isArmored();
+		float particleSpread = PARTICLE_SPREAD * getScale();
 
-		for (int jx = 0; jx < 3; jx++) {
-			double p = this.getHeadX(jx);
-			double q = this.getHeadY(jx);
-			double r = this.getHeadZ(jx);
-			float s = 0.3F * this.getScale();
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.SMOKE,
-					    p + this.random.nextGaussian() * s,
-					    q + this.random.nextGaussian() * s,
-					    r + this.random.nextGaussian() * s,
-					    0.0,
-					    0.0,
-					    0.0
-			    );
-			if (bl && this.getEntityWorld().random.nextInt(4) == 0) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.5F),
-						    p + this.random.nextGaussian() * s,
-						    q + this.random.nextGaussian() * s,
-						    r + this.random.nextGaussian() * s,
-						    0.0,
-						    0.0,
-						    0.0
-				    );
+		for (int i = 0; i < 3; i++) {
+			double headX = getHeadX(i);
+			double headY = getHeadY(i);
+			double headZ = getHeadZ(i);
+			getEntityWorld().addParticleClient(
+					ParticleTypes.SMOKE,
+					headX + random.nextGaussian() * particleSpread,
+					headY + random.nextGaussian() * particleSpread,
+					headZ + random.nextGaussian() * particleSpread,
+					0.0, 0.0, 0.0
+			);
+
+			if (armored && getEntityWorld().random.nextInt(4) == 0) {
+				getEntityWorld().addParticleClient(
+						TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.5F),
+						headX + random.nextGaussian() * particleSpread,
+						headY + random.nextGaussian() * particleSpread,
+						headZ + random.nextGaussian() * particleSpread,
+						0.0, 0.0, 0.0
+				);
 			}
 		}
 
-		if (this.getInvulnerableTimer() > 0) {
-			float t = 3.3F * this.getScale();
-
-			for (int u = 0; u < 3; u++) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.9F),
-						    this.getX() + this.random.nextGaussian(),
-						    this.getY() + this.random.nextFloat() * t,
-						    this.getZ() + this.random.nextGaussian(),
-						    0.0,
-						    0.0,
-						    0.0
-				    );
+		if (getInvulnerableTimer() > 0) {
+			float invulParticleHeight = INVUL_PARTICLE_HEIGHT * getScale();
+			for (int i = 0; i < 3; i++) {
+				getEntityWorld().addParticleClient(
+						TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.9F),
+						getX() + random.nextGaussian(),
+						getY() + random.nextFloat() * invulParticleHeight,
+						getZ() + random.nextGaussian(),
+						0.0, 0.0, 0.0
+				);
 			}
 		}
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
-		if (this.getInvulnerableTimer() > 0) {
-			int i = this.getInvulnerableTimer() - 1;
-			this.bossBar.setPercent(1.0F - i / 220.0F);
-			if (i <= 0) {
-				world.createExplosion(
-						this,
-						this.getX(),
-						this.getEyeY(),
-						this.getZ(),
-						7.0F,
-						false,
-						World.ExplosionSourceType.MOB
-				);
-				if (!this.isSilent()) {
-					world.syncGlobalEvent(1023, this.getBlockPos(), 0);
+		if (getInvulnerableTimer() > 0) {
+			int remainingInvul = getInvulnerableTimer() - 1;
+			bossBar.setPercent(1.0F - remainingInvul / (float) ON_SUMMONED_INVUL_TIMER);
+
+			if (remainingInvul <= 0) {
+				world.createExplosion(this, getX(), getEyeY(), getZ(), 7.0F, false, World.ExplosionSourceType.MOB);
+				if (!isSilent()) {
+					world.syncGlobalEvent(1023, getBlockPos(), 0);
 				}
 			}
 
-			this.setInvulTimer(i);
-			if (this.age % 10 == 0) {
-				this.heal(10.0F);
+			setInvulTimer(remainingInvul);
+			if (age % INVUL_HEAL_INTERVAL_TICKS == 0) {
+				heal(INVUL_HEAL_AMOUNT);
+			}
+
+			return;
+		}
+
+		super.mobTick(world);
+
+		for (int headIdx = 1; headIdx < 3; headIdx++) {
+			if (age >= skullCooldowns[headIdx - 1]) {
+				skullCooldowns[headIdx - 1] = age + SKULL_COOLDOWN_BASE + random.nextInt(SKULL_COOLDOWN_RANDOM);
+
+				if ((world.getDifficulty() == Difficulty.NORMAL || world.getDifficulty() == Difficulty.HARD)
+						&& chargedSkullCooldowns[headIdx - 1]++ > CHARGED_SKULL_THRESHOLD) {
+					double randX = MathHelper.nextDouble(random, getX() - CHARGED_SKULL_RANGE_X, getX() + CHARGED_SKULL_RANGE_X);
+					double randY = MathHelper.nextDouble(random, getY() - CHARGED_SKULL_RANGE_Y, getY() + CHARGED_SKULL_RANGE_Y);
+					double randZ = MathHelper.nextDouble(random, getZ() - CHARGED_SKULL_RANGE_Z, getZ() + CHARGED_SKULL_RANGE_Z);
+					shootSkullAt(headIdx + 1, randX, randY, randZ, true);
+					chargedSkullCooldowns[headIdx - 1] = 0;
+				}
+
+				int trackedId = getTrackedEntityId(headIdx);
+				if (trackedId > 0) {
+					LivingEntity sideTarget = (LivingEntity) world.getEntityById(trackedId);
+					if (sideTarget != null
+							&& canTarget(sideTarget)
+							&& squaredDistanceTo(sideTarget) <= HEAD_TRACK_DISTANCE_SQ
+							&& canSee(sideTarget)) {
+						shootSkullAt(headIdx + 1, sideTarget);
+						skullCooldowns[headIdx - 1] = age + SKULL_COOLDOWN_ON_HIT + random.nextInt(SKULL_COOLDOWN_ON_HIT_RANDOM);
+						chargedSkullCooldowns[headIdx - 1] = 0;
+					} else {
+						setTrackedEntityId(headIdx, 0);
+					}
+				} else {
+					List<LivingEntity> nearbyTargets = world.getTargets(
+							LivingEntity.class,
+							HEAD_TARGET_PREDICATE,
+							this,
+							getBoundingBox().expand(20.0, 8.0, 20.0)
+					);
+					if (!nearbyTargets.isEmpty()) {
+						setTrackedEntityId(headIdx, nearbyTargets.get(random.nextInt(nearbyTargets.size())).getId());
+					}
+				}
 			}
 		}
-		else {
-			super.mobTick(world);
 
-			for (int ix = 1; ix < 3; ix++) {
-				if (this.age >= this.skullCooldowns[ix - 1]) {
-					this.skullCooldowns[ix - 1] = this.age + 10 + this.random.nextInt(10);
-					if ((world.getDifficulty() == Difficulty.NORMAL || world.getDifficulty() == Difficulty.HARD)
-							&& this.chargedSkullCooldowns[ix - 1]++ > 15) {
-						float f = 10.0F;
-						float g = 5.0F;
-						double d = MathHelper.nextDouble(this.random, this.getX() - 10.0, this.getX() + 10.0);
-						double e = MathHelper.nextDouble(this.random, this.getY() - 5.0, this.getY() + 5.0);
-						double h = MathHelper.nextDouble(this.random, this.getZ() - 10.0, this.getZ() + 10.0);
-						this.shootSkullAt(ix + 1, d, e, h, true);
-						this.chargedSkullCooldowns[ix - 1] = 0;
-					}
+		LivingEntity mainTarget = getTarget();
+		setTrackedEntityId(0, mainTarget != null ? mainTarget.getId() : 0);
 
-					int j = this.getTrackedEntityId(ix);
-					if (j > 0) {
-						LivingEntity livingEntity = (LivingEntity) world.getEntityById(j);
-						if (livingEntity != null && this.canTarget(livingEntity) && !(
-								this.squaredDistanceTo(livingEntity) > 900.0
-						) && this.canSee(livingEntity)) {
-							this.shootSkullAt(ix + 1, livingEntity);
-							this.skullCooldowns[ix - 1] = this.age + 40 + this.random.nextInt(20);
-							this.chargedSkullCooldowns[ix - 1] = 0;
-						}
-						else {
-							this.setTrackedEntityId(ix, 0);
-						}
-					}
-					else {
-						List<LivingEntity>
-								list =
-								world.getTargets(
-										LivingEntity.class,
-										HEAD_TARGET_PREDICATE,
-										this,
-										this.getBoundingBox().expand(20.0, 8.0, 20.0)
-								);
-						if (!list.isEmpty()) {
-							LivingEntity livingEntity2 = list.get(this.random.nextInt(list.size()));
-							this.setTrackedEntityId(ix, livingEntity2.getId());
-						}
+		if (blockBreakingCooldown > 0) {
+			blockBreakingCooldown--;
+			if (blockBreakingCooldown == 0 && world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				boolean brokeBlock = false;
+				int halfWidth = MathHelper.floor(getWidth() / 2.0F + 1.0F);
+				int height = MathHelper.floor(getHeight());
+
+				for (BlockPos blockPos : BlockPos.iterate(
+						getBlockX() - halfWidth, getBlockY(), getBlockZ() - halfWidth,
+						getBlockX() + halfWidth, getBlockY() + height, getBlockZ() + halfWidth
+				)) {
+					BlockState blockState = world.getBlockState(blockPos);
+					if (canDestroy(blockState)) {
+						brokeBlock = world.breakBlock(blockPos, true, this) || brokeBlock;
 					}
 				}
-			}
 
-			if (this.getTarget() != null) {
-				this.setTrackedEntityId(0, this.getTarget().getId());
-			}
-			else {
-				this.setTrackedEntityId(0, 0);
-			}
-
-			if (this.blockBreakingCooldown > 0) {
-				this.blockBreakingCooldown--;
-				if (this.blockBreakingCooldown == 0 && world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-					boolean bl = false;
-					int j = MathHelper.floor(this.getWidth() / 2.0F + 1.0F);
-					int k = MathHelper.floor(this.getHeight());
-
-					for (BlockPos blockPos : BlockPos.iterate(
-							this.getBlockX() - j,
-							this.getBlockY(),
-							this.getBlockZ() - j,
-							this.getBlockX() + j,
-							this.getBlockY() + k,
-							this.getBlockZ() + j
-					)) {
-						BlockState blockState = world.getBlockState(blockPos);
-						if (canDestroy(blockState)) {
-							bl = world.breakBlock(blockPos, true, this) || bl;
-						}
-					}
-
-					if (bl) {
-						world.syncWorldEvent(null, 1022, this.getBlockPos(), 0);
-					}
+				if (brokeBlock) {
+					world.syncWorldEvent(null, 1022, getBlockPos(), 0);
 				}
 			}
-
-			if (this.age % 20 == 0) {
-				this.heal(1.0F);
-			}
-
-			this.bossBar.setPercent(this.getHealth() / this.getMaxHealth());
 		}
+
+		if (age % HEAL_INTERVAL_TICKS == 0) {
+			heal(HEAL_AMOUNT);
+		}
+
+		bossBar.setPercent(getHealth() / getMaxHealth());
 	}
 
-	/**
-	 * Проверяет возможность destroy.
-	 *
-	 * @param block block
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canDestroy(BlockState block) {
 		return !block.isAir() && !block.isIn(BlockTags.WITHER_IMMUNE);
 	}
 
 	/**
-	 * Обрабатывает событие summoned.
+	 * Запускает фазу призыва: устанавливает таймер неуязвимости и сбрасывает здоровье до 1/3.
 	 */
 	public void onSummoned() {
-		this.setInvulTimer(220);
-		this.bossBar.setPercent(0.0F);
-		this.setHealth(this.getMaxHealth() / 3.0F);
+		setInvulTimer(ON_SUMMONED_INVUL_TIMER);
+		bossBar.setPercent(0.0F);
+		setHealth(getMaxHealth() / 3.0F);
 	}
 
 	@Override
@@ -413,145 +405,133 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 	@Override
 	public void onStartedTrackingBy(ServerPlayerEntity player) {
 		super.onStartedTrackingBy(player);
-		this.bossBar.addPlayer(player);
+		bossBar.addPlayer(player);
 	}
 
 	@Override
 	public void onStoppedTrackingBy(ServerPlayerEntity player) {
 		super.onStoppedTrackingBy(player);
-		this.bossBar.removePlayer(player);
+		bossBar.removePlayer(player);
 	}
 
 	private double getHeadX(int headIndex) {
 		if (headIndex <= 0) {
-			return this.getX();
+			return getX();
 		}
-		else {
-			float f = (this.bodyYaw + 180 * (headIndex - 1)) * (float) (Math.PI / 180.0);
-			float g = MathHelper.cos(f);
-			return this.getX() + g * 1.3 * this.getScale();
-		}
+
+		float angle = (bodyYaw + 180 * (headIndex - 1)) * (float) (Math.PI / 180.0);
+		return getX() + MathHelper.cos(angle) * SIDE_HEAD_OFFSET * getScale();
 	}
 
 	private double getHeadY(int headIndex) {
-		float f = headIndex <= 0 ? 3.0F : 2.2F;
-		return this.getY() + f * this.getScale();
+		float yOffset = headIndex <= 0 ? CENTER_HEAD_Y_OFFSET : SIDE_HEAD_Y_OFFSET;
+		return getY() + yOffset * getScale();
 	}
 
 	private double getHeadZ(int headIndex) {
 		if (headIndex <= 0) {
-			return this.getZ();
+			return getZ();
 		}
-		else {
-			float f = (this.bodyYaw + 180 * (headIndex - 1)) * (float) (Math.PI / 180.0);
-			float g = MathHelper.sin(f);
-			return this.getZ() + g * 1.3 * this.getScale();
-		}
+
+		float angle = (bodyYaw + 180 * (headIndex - 1)) * (float) (Math.PI / 180.0);
+		return getZ() + MathHelper.sin(angle) * SIDE_HEAD_OFFSET * getScale();
 	}
 
+	/**
+	 * Плавно поворачивает угол {@code lastAngle} к {@code desiredAngle} с ограничением скорости {@code maxDifference}.
+	 */
 	private float getNextAngle(float lastAngle, float desiredAngle, float maxDifference) {
-		float f = MathHelper.wrapDegrees(desiredAngle - lastAngle);
-		if (f > maxDifference) {
-			f = maxDifference;
-		}
-
-		if (f < -maxDifference) {
-			f = -maxDifference;
-		}
-
-		return lastAngle + f;
+		float delta = MathHelper.wrapDegrees(desiredAngle - lastAngle);
+		delta = MathHelper.clamp(delta, -maxDifference, maxDifference);
+		return lastAngle + delta;
 	}
 
 	private void shootSkullAt(int headIndex, LivingEntity target) {
-		this.shootSkullAt(
+		shootSkullAt(
 				headIndex,
 				target.getX(),
 				target.getY() + target.getStandingEyeHeight() * 0.5,
 				target.getZ(),
-				headIndex == 0 && this.random.nextFloat() < 0.001F
+				headIndex == 0 && random.nextFloat() < 0.001F
 		);
 	}
 
 	private void shootSkullAt(int headIndex, double targetX, double targetY, double targetZ, boolean charged) {
-		if (!this.isSilent()) {
-			this.getEntityWorld().syncWorldEvent(null, 1024, this.getBlockPos(), 0);
+		if (!isSilent()) {
+			getEntityWorld().syncWorldEvent(null, WorldEvents.WITHER_SHOOTS, getBlockPos(), 0);
 		}
 
-		double d = this.getHeadX(headIndex);
-		double e = this.getHeadY(headIndex);
-		double f = this.getHeadZ(headIndex);
-		double g = targetX - d;
-		double h = targetY - e;
-		double i = targetZ - f;
-		Vec3d vec3d = new Vec3d(g, h, i);
-		WitherSkullEntity witherSkullEntity = new WitherSkullEntity(this.getEntityWorld(), this, vec3d.normalize());
-		witherSkullEntity.setOwner(this);
+		double originX = getHeadX(headIndex);
+		double originY = getHeadY(headIndex);
+		double originZ = getHeadZ(headIndex);
+		Vec3d direction = new Vec3d(targetX - originX, targetY - originY, targetZ - originZ).normalize();
+		WitherSkullEntity skull = new WitherSkullEntity(getEntityWorld(), this, direction);
+		skull.setOwner(this);
 		if (charged) {
-			witherSkullEntity.setCharged(true);
+			skull.setCharged(true);
 		}
 
-		witherSkullEntity.setPosition(d, e, f);
-		this.getEntityWorld().spawnEntity(witherSkullEntity);
+		skull.setPosition(originX, originY, originZ);
+		getEntityWorld().spawnEntity(skull);
 	}
 
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		this.shootSkullAt(0, target);
+		shootSkullAt(0, target);
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isInvulnerableTo(world, source)) {
+		if (isInvulnerableTo(world, source)) {
 			return false;
 		}
-		else if (source.isIn(DamageTypeTags.WITHER_IMMUNE_TO) || source.getAttacker() instanceof WitherEntity) {
-			return false;
-		}
-		else if (this.getInvulnerableTimer() > 0 && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-			return false;
-		}
-		else {
-			if (this.isArmored()) {
-				Entity entity = source.getSource();
-				if (entity instanceof PersistentProjectileEntity || entity instanceof WindChargeEntity) {
-					return false;
-				}
-			}
 
-			Entity entity = source.getAttacker();
-			if (entity != null && entity.getType().isIn(EntityTypeTags.WITHER_FRIENDS)) {
+		if (source.isIn(DamageTypeTags.WITHER_IMMUNE_TO) || source.getAttacker() instanceof WitherEntity) {
+			return false;
+		}
+
+		if (getInvulnerableTimer() > 0 && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+			return false;
+		}
+
+		if (isArmored()) {
+			Entity sourceEntity = source.getSource();
+			if (sourceEntity instanceof PersistentProjectileEntity || sourceEntity instanceof WindChargeEntity) {
 				return false;
 			}
-			else {
-				if (this.blockBreakingCooldown <= 0) {
-					this.blockBreakingCooldown = 20;
-				}
-
-				for (int i = 0; i < this.chargedSkullCooldowns.length; i++) {
-					this.chargedSkullCooldowns[i] = this.chargedSkullCooldowns[i] + 3;
-				}
-
-				return super.damage(world, source, amount);
-			}
 		}
+
+		Entity attacker = source.getAttacker();
+		if (attacker != null && attacker.getType().isIn(EntityTypeTags.WITHER_FRIENDS)) {
+			return false;
+		}
+
+		if (blockBreakingCooldown <= 0) {
+			blockBreakingCooldown = BLOCK_BREAKING_COOLDOWN_ON_HIT;
+		}
+
+		for (int i = 0; i < chargedSkullCooldowns.length; i++) {
+			chargedSkullCooldowns[i] += CHARGED_SKULL_BONUS;
+		}
+
+		return super.damage(world, source, amount);
 	}
 
 	@Override
 	protected void dropEquipment(ServerWorld world, DamageSource source, boolean causedByPlayer) {
 		super.dropEquipment(world, source, causedByPlayer);
-		ItemEntity itemEntity = this.dropItem(world, Items.NETHER_STAR);
-		if (itemEntity != null) {
-			itemEntity.setCovetedItem();
+		ItemEntity star = dropItem(world, Items.NETHER_STAR);
+		if (star != null) {
+			star.setCovetedItem();
 		}
 	}
 
 	@Override
 	public void checkDespawn() {
-		if (this.getEntityWorld().getDifficulty() == Difficulty.PEACEFUL && !this.getType().isAllowedInPeaceful()) {
-			this.discard();
-		}
-		else {
-			this.despawnCounter = 0;
+		if (getEntityWorld().getDifficulty() == Difficulty.PEACEFUL && !getType().isAllowedInPeaceful()) {
+			discard();
+		} else {
+			despawnCounter = 0;
 		}
 	}
 
@@ -562,39 +542,42 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 
 	public static DefaultAttributeContainer.Builder createWitherAttributes() {
 		return HostileEntity.createHostileAttributes()
-		                    .add(EntityAttributes.MAX_HEALTH, 300.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.6F)
-		                    .add(EntityAttributes.FLYING_SPEED, 0.6F)
-		                    .add(EntityAttributes.FOLLOW_RANGE, 40.0)
-		                    .add(EntityAttributes.ARMOR, 4.0);
+				.add(EntityAttributes.MAX_HEALTH, 300.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.6F)
+				.add(EntityAttributes.FLYING_SPEED, 0.6F)
+				.add(EntityAttributes.FOLLOW_RANGE, 40.0)
+				.add(EntityAttributes.ARMOR, 4.0);
 	}
 
 	public float[] getSideHeadYaws() {
-		return this.sideHeadYaws;
+		return sideHeadYaws;
 	}
 
 	public float[] getSideHeadPitches() {
-		return this.sideHeadPitches;
+		return sideHeadPitches;
 	}
 
 	public int getInvulnerableTimer() {
-		return this.dataTracker.get(INVUL_TIMER);
+		return dataTracker.get(INVUL_TIMER);
 	}
 
 	public void setInvulTimer(int ticks) {
-		this.dataTracker.set(INVUL_TIMER, ticks);
+		dataTracker.set(INVUL_TIMER, ticks);
 	}
 
 	public int getTrackedEntityId(int headIndex) {
-		return this.dataTracker.get(TRACKED_ENTITY_IDS.get(headIndex));
+		return dataTracker.get(TRACKED_ENTITY_IDS.get(headIndex));
 	}
 
 	public void setTrackedEntityId(int headIndex, int id) {
-		this.dataTracker.set(TRACKED_ENTITY_IDS.get(headIndex), id);
+		dataTracker.set(TRACKED_ENTITY_IDS.get(headIndex), id);
 	}
 
+	/**
+	 * Иссушитель переходит в «бронированный» режим при здоровье ≤ 50%, отражая снаряды.
+	 */
 	public boolean isArmored() {
-		return this.getHealth() <= this.getMaxHealth() / 2.0F;
+		return getHealth() <= getMaxHealth() / 2.0F;
 	}
 
 	@Override
@@ -613,12 +596,12 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 	}
 
 	/**
-	 * {@code DescendAtHalfHealthGoal}.
+	 * Цель, блокирующая движение Иссушителя во время фазы неуязвимости после призыва.
 	 */
 	class DescendAtHalfHealthGoal extends Goal {
 
 		public DescendAtHalfHealthGoal() {
-			this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.JUMP, Goal.Control.LOOK));
+			setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.JUMP, Goal.Control.LOOK));
 		}
 
 		@Override

@@ -12,9 +12,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code WolfBegGoal}.
+ * Цель выпрашивания у волка: волк смотрит на ближайшего игрока с едой или костью
+ * и принимает позу попрошайки на случайное время.
  */
 public class WolfBegGoal extends Goal {
+
+	private static final int BEG_TIME_BASE = 40;
+	private static final int BEG_TIME_JITTER = 40;
+	private static final float LOOK_ANGLE = 10.0F;
 
 	private final WolfEntity wolf;
 	private @Nullable PlayerEntity begFrom;
@@ -28,60 +33,52 @@ public class WolfBegGoal extends Goal {
 		this.world = getServerWorld(wolf);
 		this.begDistance = begDistance;
 		this.validPlayerPredicate = TargetPredicate.createNonAttackable().setBaseMaxDistance(begDistance);
-		this.setControls(EnumSet.of(Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.LOOK));
 	}
 
 	@Override
 	public boolean canStart() {
-		this.begFrom = this.world.getClosestPlayer(this.validPlayerPredicate, this.wolf);
-		return this.begFrom == null ? false : this.isAttractive(this.begFrom);
+		begFrom = world.getClosestPlayer(validPlayerPredicate, wolf);
+		return begFrom != null && isAttractive(begFrom);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		if (this.begFrom == null || !this.begFrom.isAlive()) {
+		if (begFrom == null || !begFrom.isAlive()) {
 			return false;
 		}
 
-		return this.wolf.squaredDistanceTo(this.begFrom) <= this.begDistance * this.begDistance
-				&& this.timer > 0
-				&& this.isAttractive(this.begFrom);
+		return wolf.squaredDistanceTo(begFrom) <= begDistance * begDistance
+				&& timer > 0
+				&& isAttractive(begFrom);
 	}
 
 	@Override
 	public void start() {
-		this.wolf.setBegging(true);
-		this.timer = this.getTickCount(40 + this.wolf.getRandom().nextInt(40));
+		wolf.setBegging(true);
+		timer = getTickCount(BEG_TIME_BASE + wolf.getRandom().nextInt(BEG_TIME_JITTER));
 	}
 
 	@Override
 	public void stop() {
-		this.wolf.setBegging(false);
-		this.begFrom = null;
+		wolf.setBegging(false);
+		begFrom = null;
 	}
 
 	@Override
 	public void tick() {
-		if (this.begFrom == null) {
+		if (begFrom == null) {
 			return;
 		}
 
-		this.wolf
-				.getLookControl()
-				.lookAt(
-						this.begFrom.getX(),
-						this.begFrom.getEyeY(),
-						this.begFrom.getZ(),
-						10.0F,
-						this.wolf.getMaxLookPitchChange()
-				);
-		this.timer--;
+		wolf.getLookControl().lookAt(begFrom.getX(), begFrom.getEyeY(), begFrom.getZ(), LOOK_ANGLE, wolf.getMaxLookPitchChange());
+		timer--;
 	}
 
 	private boolean isAttractive(PlayerEntity player) {
 		for (Hand hand : Hand.values()) {
 			ItemStack itemStack = player.getStackInHand(hand);
-			if (itemStack.isOf(Items.BONE) || this.wolf.isBreedingItem(itemStack)) {
+			if (itemStack.isOf(Items.BONE) || wolf.isBreedingItem(itemStack)) {
 				return true;
 			}
 		}

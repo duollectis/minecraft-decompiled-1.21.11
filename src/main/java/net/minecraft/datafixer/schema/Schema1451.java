@@ -9,12 +9,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1451}.
+ * Схема версии 1451: добавляет блок-сущность {@code minecraft:trapped_chest}
+ * с поддержкой инвентаря, отделяя её от обычного сундука в системе типов.
  */
 public class Schema1451 extends IdentifierNormalizingSchema {
 
-	public Schema1451(int i, Schema schema) {
-		super(i, schema);
+	public Schema1451(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

@@ -20,7 +20,9 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code TeleportRandomlyConsumeEffect}.
+ * Эффект потребления, телепортирующий сущность в случайную точку в радиусе {@code diameter / 2}.
+ * Совершает до 16 попыток найти валидную позицию телепортации.
+ * При успехе сбрасывает текущий взрыв у игрока (если применимо).
  */
 public record TeleportRandomlyConsumeEffect(float diameter) implements ConsumeEffect {
 
@@ -28,7 +30,7 @@ public record TeleportRandomlyConsumeEffect(float diameter) implements ConsumeEf
 	public static final MapCodec<TeleportRandomlyConsumeEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
 					.group(Codecs.POSITIVE_FLOAT
-							.optionalFieldOf("diameter", 16.0F)
+							.optionalFieldOf("diameter", DEFAULT_DIAMETER)
 							.forGetter(TeleportRandomlyConsumeEffect::diameter))
 					.apply(instance, TeleportRandomlyConsumeEffect::new)
 	);
@@ -37,7 +39,7 @@ public record TeleportRandomlyConsumeEffect(float diameter) implements ConsumeEf
 	);
 
 	public TeleportRandomlyConsumeEffect() {
-		this(16.0F);
+		this(DEFAULT_DIAMETER);
 	}
 
 	@Override
@@ -47,45 +49,46 @@ public record TeleportRandomlyConsumeEffect(float diameter) implements ConsumeEf
 
 	@Override
 	public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
-		boolean bl = false;
+		boolean teleported = false;
 
-		for (int i = 0; i < 16; i++) {
-			double d = user.getX() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
-			double e = MathHelper.clamp(
-					user.getY() + (user.getRandom().nextDouble() - 0.5) * this.diameter,
-					(double) world.getBottomY(),
-					(double) (world.getBottomY() + ((ServerWorld) world).getLogicalHeight() - 1)
+		for (int attempt = 0; attempt < 16; attempt++) {
+			double targetX = user.getX() + (user.getRandom().nextDouble() - 0.5) * diameter;
+			double targetY = MathHelper.clamp(
+					user.getY() + (user.getRandom().nextDouble() - 0.5) * diameter,
+					world.getBottomY(),
+					world.getBottomY() + ((ServerWorld) world).getLogicalHeight() - 1
 			);
-			double f = user.getZ() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
+			double targetZ = user.getZ() + (user.getRandom().nextDouble() - 0.5) * diameter;
+
 			if (user.hasVehicle()) {
 				user.stopRiding();
 			}
 
-			Vec3d vec3d = user.getEntityPos();
-			if (user.teleport(d, e, f, true)) {
-				world.emitGameEvent(GameEvent.TELEPORT, vec3d, GameEvent.Emitter.of(user));
-				SoundCategory soundCategory;
-				SoundEvent soundEvent;
-				if (user instanceof FoxEntity) {
-					soundEvent = SoundEvents.ENTITY_FOX_TELEPORT;
-					soundCategory = SoundCategory.NEUTRAL;
-				}
-				else {
-					soundEvent = SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT;
-					soundCategory = SoundCategory.PLAYERS;
-				}
+			Vec3d prevPos = user.getEntityPos();
 
-				world.playSound(null, user.getX(), user.getY(), user.getZ(), soundEvent, soundCategory);
+			if (user.teleport(targetX, targetY, targetZ, true)) {
+				world.emitGameEvent(GameEvent.TELEPORT, prevPos, GameEvent.Emitter.of(user));
+				playSoundForEntity(world, user);
 				user.onLanding();
-				bl = true;
+				teleported = true;
 				break;
 			}
 		}
 
-		if (bl && user instanceof PlayerEntity playerEntity) {
+		if (teleported && user instanceof PlayerEntity playerEntity) {
 			playerEntity.clearCurrentExplosion();
 		}
 
-		return bl;
+		return teleported;
+	}
+
+	private static void playSoundForEntity(World world, LivingEntity user) {
+		SoundEvent sound = user instanceof FoxEntity
+				? SoundEvents.ENTITY_FOX_TELEPORT
+				: SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT;
+		SoundCategory category = user instanceof FoxEntity
+				? SoundCategory.NEUTRAL
+				: SoundCategory.PLAYERS;
+		world.playSound(null, user.getX(), user.getY(), user.getZ(), sound, category);
 	}
 }

@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code GameEventRenamesFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class GameEventRenamesFix extends DataFix {
 
@@ -37,11 +37,11 @@ public class GameEventRenamesFix extends DataFix {
 		Type<Pair<String, String>>
 				type =
 				DSL.named(this.typeReference.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-		if (!Objects.equals(type, this.getInputSchema().getType(this.typeReference))) {
+		if (!Objects.equals(type, getInputSchema().getType(this.typeReference))) {
 			throw new IllegalStateException("\"" + this.typeReference.typeName() + "\" is not what was expected.");
 		}
 		else {
-			return this.fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this.renamer));
+			return fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this.renamer));
 		}
 	}
 }

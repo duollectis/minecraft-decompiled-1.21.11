@@ -33,12 +33,17 @@ import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 
 /**
- * {@code PlayerAdvancementTracker}.
+ * Отслеживает прогресс достижений конкретного игрока: хранит состояние критериев,
+ * управляет видимостью достижений в дереве и синхронизирует данные с клиентом.
  */
 public class PlayerAdvancementTracker {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+	// Версия формата сохранения прогресса достижений (DataFixer)
+	private static final int ADVANCEMENTS_DATA_VERSION = 1343;
+
 	private final PlayerManager playerManager;
 	private final Path filePath;
 	private AdvancementManager advancementManager;
@@ -49,7 +54,7 @@ public class PlayerAdvancementTracker {
 	private ServerPlayerEntity owner;
 	private @Nullable AdvancementEntry currentDisplayTab;
 	private boolean dirty = true;
-	private final Codec<PlayerAdvancementTracker.ProgressMap> progressMapCodec;
+	private final Codec<ProgressMap> progressMapCodec;
 
 	public PlayerAdvancementTracker(
 			DataFixer dataFixer,
@@ -61,15 +66,13 @@ public class PlayerAdvancementTracker {
 		this.playerManager = playerManager;
 		this.filePath = filePath;
 		this.owner = owner;
-		this.advancementManager = advancementLoader.getManager();
-		int i = 1343;
-		this.progressMapCodec =
-				DataFixTypes.ADVANCEMENTS.createDataFixingCodec(
-						PlayerAdvancementTracker.ProgressMap.CODEC,
-						dataFixer,
-						1343
-				);
-		this.load(advancementLoader);
+		advancementManager = advancementLoader.getManager();
+		progressMapCodec = DataFixTypes.ADVANCEMENTS.createDataFixingCodec(
+				ProgressMap.CODEC,
+				dataFixer,
+				ADVANCEMENTS_DATA_VERSION
+		);
+		load(advancementLoader);
 	}
 
 	public void setOwner(ServerPlayerEntity owner) {
@@ -83,167 +86,178 @@ public class PlayerAdvancementTracker {
 	}
 
 	public void reload(ServerAdvancementLoader advancementLoader) {
-		this.clearCriteria();
-		this.progress.clear();
-		this.visibleAdvancements.clear();
-		this.updatedRoots.clear();
-		this.progressUpdates.clear();
-		this.dirty = true;
-		this.currentDisplayTab = null;
-		this.advancementManager = advancementLoader.getManager();
-		this.load(advancementLoader);
+		clearCriteria();
+		progress.clear();
+		visibleAdvancements.clear();
+		updatedRoots.clear();
+		progressUpdates.clear();
+		dirty = true;
+		currentDisplayTab = null;
+		advancementManager = advancementLoader.getManager();
+		load(advancementLoader);
 	}
 
 	private void beginTrackingAllAdvancements(ServerAdvancementLoader advancementLoader) {
-		for (AdvancementEntry advancementEntry : advancementLoader.getAdvancements()) {
-			this.beginTracking(advancementEntry);
+		for (AdvancementEntry entry : advancementLoader.getAdvancements()) {
+			beginTracking(entry);
 		}
 	}
 
 	private void rewardEmptyAdvancements(ServerAdvancementLoader advancementLoader) {
-		for (AdvancementEntry advancementEntry : advancementLoader.getAdvancements()) {
-			Advancement advancement = advancementEntry.value();
+		for (AdvancementEntry entry : advancementLoader.getAdvancements()) {
+			Advancement advancement = entry.value();
 			if (advancement.criteria().isEmpty()) {
-				this.grantCriterion(advancementEntry, "");
-				advancement.rewards().apply(this.owner);
+				grantCriterion(entry, "");
+				advancement.rewards().apply(owner);
 			}
 		}
 	}
 
 	private void load(ServerAdvancementLoader advancementLoader) {
-		if (Files.isRegularFile(this.filePath)) {
-			try (Reader reader = Files.newBufferedReader(this.filePath, StandardCharsets.UTF_8)) {
-				JsonElement jsonElement = StrictJsonParser.parse(reader);
-				PlayerAdvancementTracker.ProgressMap
-						progressMap =
-						(PlayerAdvancementTracker.ProgressMap) this.progressMapCodec
-								.parse(JsonOps.INSTANCE, jsonElement)
-								.getOrThrow(JsonParseException::new);
-				this.loadProgressMap(advancementLoader, progressMap);
-			}
-			catch (JsonIOException | IOException var7) {
-				LOGGER.error("Couldn't access player advancements in {}", this.filePath, var7);
-			}
-			catch (JsonParseException var8) {
-				LOGGER.error("Couldn't parse player advancements in {}", this.filePath, var8);
+		if (Files.isRegularFile(filePath)) {
+			try (Reader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
+				JsonElement json = StrictJsonParser.parse(reader);
+				ProgressMap progressMap = progressMapCodec
+						.parse(JsonOps.INSTANCE, json)
+						.getOrThrow(JsonParseException::new);
+				loadProgressMap(advancementLoader, progressMap);
+			} catch (JsonIOException | IOException ex) {
+				LOGGER.error("Couldn't access player advancements in {}", filePath, ex);
+			} catch (JsonParseException ex) {
+				LOGGER.error("Couldn't parse player advancements in {}", filePath, ex);
 			}
 		}
 
-		this.rewardEmptyAdvancements(advancementLoader);
-		this.beginTrackingAllAdvancements(advancementLoader);
+		rewardEmptyAdvancements(advancementLoader);
+		beginTrackingAllAdvancements(advancementLoader);
 	}
 
 	public void save() {
-		JsonElement
-				jsonElement =
-				(JsonElement) this.progressMapCodec
-						.encodeStart(JsonOps.INSTANCE, this.createProgressMap())
-						.getOrThrow();
+		JsonElement json = progressMapCodec
+				.encodeStart(JsonOps.INSTANCE, createProgressMap())
+				.getOrThrow();
 
 		try {
-			PathUtil.createDirectories(this.filePath.getParent());
+			PathUtil.createDirectories(filePath.getParent());
 
-			try (Writer writer = Files.newBufferedWriter(this.filePath, StandardCharsets.UTF_8)) {
-				GSON.toJson(jsonElement, GSON.newJsonWriter(writer));
+			try (Writer writer = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8)) {
+				GSON.toJson(json, GSON.newJsonWriter(writer));
 			}
-		}
-		catch (JsonIOException | IOException var7) {
-			LOGGER.error("Couldn't save player advancements to {}", this.filePath, var7);
+		} catch (JsonIOException | IOException ex) {
+			LOGGER.error("Couldn't save player advancements to {}", filePath, ex);
 		}
 	}
 
-	private void loadProgressMap(ServerAdvancementLoader loader, PlayerAdvancementTracker.ProgressMap progressMap) {
-		progressMap.forEach((id, progress) -> {
-			AdvancementEntry advancementEntry = loader.get(id);
-			if (advancementEntry == null) {
+	private void loadProgressMap(ServerAdvancementLoader loader, ProgressMap progressMap) {
+		progressMap.forEach((id, advancementProgress) -> {
+			AdvancementEntry entry = loader.get(id);
+			if (entry == null) {
 				LOGGER.warn(
 						"Ignored advancement '{}' in progress file {} - it doesn't exist anymore?",
 						id,
-						this.filePath
+						filePath
 				);
+				return;
 			}
-			else {
-				this.initProgress(advancementEntry, progress);
-				this.progressUpdates.add(advancementEntry);
-				this.onStatusUpdate(advancementEntry);
-			}
+
+			initProgress(entry, advancementProgress);
+			progressUpdates.add(entry);
+			onStatusUpdate(entry);
 		});
 	}
 
-	private PlayerAdvancementTracker.ProgressMap createProgressMap() {
-		Map<Identifier, AdvancementProgress> map = new LinkedHashMap<>();
-		this.progress.forEach((entry, progress) -> {
-			if (progress.isAnyObtained()) {
-				map.put(entry.id(), progress);
+	private ProgressMap createProgressMap() {
+		Map<Identifier, AdvancementProgress> result = new LinkedHashMap<>();
+		progress.forEach((entry, advancementProgress) -> {
+			if (advancementProgress.isAnyObtained()) {
+				result.put(entry.id(), advancementProgress);
 			}
 		});
-		return new PlayerAdvancementTracker.ProgressMap(map);
+		return new ProgressMap(result);
 	}
 
+	/**
+	 * Выдаёт критерий достижения игроку. Если достижение выполнено полностью —
+	 * применяет награды и рассылает объявление в чат (если включено правилом игры).
+	 *
+	 * @param advancement   достижение, которому принадлежит критерий
+	 * @param criterionName имя критерия
+	 * @return {@code true}, если критерий был успешно выдан
+	 */
 	public boolean grantCriterion(AdvancementEntry advancement, String criterionName) {
-		boolean bl = false;
-		AdvancementProgress advancementProgress = this.getProgress(advancement);
-		boolean bl2 = advancementProgress.isDone();
-		if (advancementProgress.obtain(criterionName)) {
-			this.endTrackingCompleted(advancement);
-			this.progressUpdates.add(advancement);
-			bl = true;
-			if (!bl2 && advancementProgress.isDone()) {
-				advancement.value().rewards().apply(this.owner);
-				advancement.value().display().ifPresent(display -> {
-					if (display.shouldAnnounceToChat() && this.owner
-							.getEntityWorld()
-							.getGameRules()
-							.getValue(GameRules.ANNOUNCE_ADVANCEMENTS)) {
-						this.playerManager.broadcast(
-								display
-										.getFrame()
-										.getChatAnnouncementText(advancement, this.owner), false
-						);
-					}
-				});
-			}
+		AdvancementProgress advancementProgress = getProgress(advancement);
+		boolean wasAlreadyDone = advancementProgress.isDone();
+
+		if (!advancementProgress.obtain(criterionName)) {
+			return false;
 		}
 
-		if (!bl2 && advancementProgress.isDone()) {
-			this.onStatusUpdate(advancement);
+		endTrackingCompleted(advancement);
+		progressUpdates.add(advancement);
+
+		if (!wasAlreadyDone && advancementProgress.isDone()) {
+			advancement.value().rewards().apply(owner);
+			advancement.value().display().ifPresent(display -> {
+				if (display.shouldAnnounceToChat()
+						&& owner.getEntityWorld().getGameRules().getValue(GameRules.ANNOUNCE_ADVANCEMENTS)) {
+					playerManager.broadcast(
+							display.getFrame().getChatAnnouncementText(advancement, owner),
+							false
+					);
+				}
+			});
 		}
 
-		return bl;
+		if (!wasAlreadyDone && advancementProgress.isDone()) {
+			onStatusUpdate(advancement);
+		}
+
+		return true;
 	}
 
+	/**
+	 * Отзывает критерий достижения у игрока. Если достижение было выполнено —
+	 * возобновляет отслеживание критериев.
+	 *
+	 * @param advancement   достижение, которому принадлежит критерий
+	 * @param criterionName имя критерия
+	 * @return {@code true}, если критерий был успешно отозван
+	 */
 	public boolean revokeCriterion(AdvancementEntry advancement, String criterionName) {
-		boolean bl = false;
-		AdvancementProgress advancementProgress = this.getProgress(advancement);
-		boolean bl2 = advancementProgress.isDone();
-		if (advancementProgress.reset(criterionName)) {
-			this.beginTracking(advancement);
-			this.progressUpdates.add(advancement);
-			bl = true;
+		AdvancementProgress advancementProgress = getProgress(advancement);
+		boolean wasDone = advancementProgress.isDone();
+
+		if (!advancementProgress.reset(criterionName)) {
+			return false;
 		}
 
-		if (bl2 && !advancementProgress.isDone()) {
-			this.onStatusUpdate(advancement);
+		beginTracking(advancement);
+		progressUpdates.add(advancement);
+
+		if (wasDone && !advancementProgress.isDone()) {
+			onStatusUpdate(advancement);
 		}
 
-		return bl;
+		return true;
 	}
 
 	private void onStatusUpdate(AdvancementEntry advancement) {
-		PlacedAdvancement placedAdvancement = this.advancementManager.get(advancement);
-		if (placedAdvancement != null) {
-			this.updatedRoots.add(placedAdvancement.getRoot());
+		PlacedAdvancement placed = advancementManager.get(advancement);
+		if (placed != null) {
+			updatedRoots.add(placed.getRoot());
 		}
 	}
 
 	private void beginTracking(AdvancementEntry advancement) {
-		AdvancementProgress advancementProgress = this.getProgress(advancement);
-		if (!advancementProgress.isDone()) {
-			for (Entry<String, AdvancementCriterion<?>> entry : advancement.value().criteria().entrySet()) {
-				CriterionProgress criterionProgress = advancementProgress.getCriterionProgress(entry.getKey());
-				if (criterionProgress != null && !criterionProgress.isObtained()) {
-					this.beginTracking(advancement, entry.getKey(), entry.getValue());
-				}
+		AdvancementProgress advancementProgress = getProgress(advancement);
+		if (advancementProgress.isDone()) {
+			return;
+		}
+
+		for (Entry<String, AdvancementCriterion<?>> entry : advancement.value().criteria().entrySet()) {
+			CriterionProgress criterionProgress = advancementProgress.getCriterionProgress(entry.getKey());
+			if (criterionProgress != null && !criterionProgress.isObtained()) {
+				beginTracking(advancement, entry.getKey(), entry.getValue());
 			}
 		}
 	}
@@ -262,12 +276,12 @@ public class PlayerAdvancementTracker {
 	}
 
 	private void endTrackingCompleted(AdvancementEntry advancement) {
-		AdvancementProgress advancementProgress = this.getProgress(advancement);
+		AdvancementProgress advancementProgress = getProgress(advancement);
 
 		for (Entry<String, AdvancementCriterion<?>> entry : advancement.value().criteria().entrySet()) {
 			CriterionProgress criterionProgress = advancementProgress.getCriterionProgress(entry.getKey());
 			if (criterionProgress != null && (criterionProgress.isObtained() || advancementProgress.isDone())) {
-				this.endTrackingCompleted(advancement, entry.getKey(), entry.getValue());
+				endTrackingCompleted(advancement, entry.getKey(), entry.getValue());
 			}
 		}
 	}
@@ -285,97 +299,109 @@ public class PlayerAdvancementTracker {
 				);
 	}
 
+	/**
+	 * Отправляет накопленные обновления прогресса и видимости достижений клиенту.
+	 * Вызывается каждый тик для синхронизации состояния.
+	 *
+	 * @param player    игрок-получатель пакета
+	 * @param showToast показывать ли всплывающие уведомления о новых достижениях
+	 */
 	public void sendUpdate(ServerPlayerEntity player, boolean showToast) {
-		if (this.dirty || !this.updatedRoots.isEmpty() || !this.progressUpdates.isEmpty()) {
-			Map<Identifier, AdvancementProgress> map = new HashMap<>();
-			Set<AdvancementEntry> set = new HashSet<>();
-			Set<Identifier> set2 = new HashSet<>();
+		if (!dirty && updatedRoots.isEmpty() && progressUpdates.isEmpty()) {
+			dirty = false;
+			return;
+		}
 
-			for (PlacedAdvancement placedAdvancement : this.updatedRoots) {
-				this.calculateDisplay(placedAdvancement, set, set2);
-			}
+		Map<Identifier, AdvancementProgress> progressToSend = new HashMap<>();
+		Set<AdvancementEntry> added = new HashSet<>();
+		Set<Identifier> removed = new HashSet<>();
 
-			this.updatedRoots.clear();
+		for (PlacedAdvancement root : updatedRoots) {
+			calculateDisplay(root, added, removed);
+		}
 
-			for (AdvancementEntry advancementEntry : this.progressUpdates) {
-				if (this.visibleAdvancements.contains(advancementEntry)) {
-					map.put(advancementEntry.id(), this.progress.get(advancementEntry));
-				}
-			}
+		updatedRoots.clear();
 
-			this.progressUpdates.clear();
-			if (!map.isEmpty() || !set.isEmpty() || !set2.isEmpty()) {
-				player.networkHandler.sendPacket(new AdvancementUpdateS2CPacket(this.dirty, set, set2, map, showToast));
+		for (AdvancementEntry entry : progressUpdates) {
+			if (visibleAdvancements.contains(entry)) {
+				progressToSend.put(entry.id(), progress.get(entry));
 			}
 		}
 
-		this.dirty = false;
+		progressUpdates.clear();
+
+		if (!progressToSend.isEmpty() || !added.isEmpty() || !removed.isEmpty()) {
+			player.networkHandler.sendPacket(
+					new AdvancementUpdateS2CPacket(dirty, added, removed, progressToSend, showToast)
+			);
+		}
+
+		dirty = false;
 	}
 
 	public void setDisplayTab(@Nullable AdvancementEntry advancement) {
-		AdvancementEntry advancementEntry = this.currentDisplayTab;
-		if (advancement != null && advancement.value().isRoot() && advancement.value().display().isPresent()) {
-			this.currentDisplayTab = advancement;
-		}
-		else {
-			this.currentDisplayTab = null;
-		}
+		AdvancementEntry previous = currentDisplayTab;
+		boolean isValidTab = advancement != null
+				&& advancement.value().isRoot()
+				&& advancement.value().display().isPresent();
+		currentDisplayTab = isValidTab ? advancement : null;
 
-		if (advancementEntry != this.currentDisplayTab) {
-			this.owner.networkHandler.sendPacket(new SelectAdvancementTabS2CPacket(
-					this.currentDisplayTab == null ? null : this.currentDisplayTab.id()));
+		if (previous != currentDisplayTab) {
+			owner.networkHandler.sendPacket(new SelectAdvancementTabS2CPacket(
+					currentDisplayTab == null ? null : currentDisplayTab.id()
+			));
 		}
 	}
 
 	public AdvancementProgress getProgress(AdvancementEntry advancement) {
-		AdvancementProgress advancementProgress = this.progress.get(advancement);
-		if (advancementProgress == null) {
-			advancementProgress = new AdvancementProgress();
-			this.initProgress(advancement, advancementProgress);
+		AdvancementProgress existing = progress.get(advancement);
+		if (existing != null) {
+			return existing;
 		}
 
-		return advancementProgress;
+		AdvancementProgress created = new AdvancementProgress();
+		initProgress(advancement, created);
+		return created;
 	}
 
-	private void initProgress(AdvancementEntry advancement, AdvancementProgress progress) {
-		progress.init(advancement.value().requirements());
-		this.progress.put(advancement, progress);
+	private void initProgress(AdvancementEntry advancement, AdvancementProgress advancementProgress) {
+		advancementProgress.init(advancement.value().requirements());
+		progress.put(advancement, advancementProgress);
 	}
 
 	private void calculateDisplay(PlacedAdvancement root, Set<AdvancementEntry> added, Set<Identifier> removed) {
 		AdvancementDisplays.calculateDisplay(
 				root,
-				advancement -> this.getProgress(advancement.getAdvancementEntry()).isDone(),
+				advancement -> getProgress(advancement.getAdvancementEntry()).isDone(),
 				(advancement, displayed) -> {
-					AdvancementEntry advancementEntry = advancement.getAdvancementEntry();
+					AdvancementEntry entry = advancement.getAdvancementEntry();
 					if (displayed) {
-						if (this.visibleAdvancements.add(advancementEntry)) {
-							added.add(advancementEntry);
-							if (this.progress.containsKey(advancementEntry)) {
-								this.progressUpdates.add(advancementEntry);
+						if (visibleAdvancements.add(entry)) {
+							added.add(entry);
+							if (progress.containsKey(entry)) {
+								progressUpdates.add(entry);
 							}
 						}
-					}
-					else if (this.visibleAdvancements.remove(advancementEntry)) {
-						removed.add(advancementEntry.id());
+					} else if (visibleAdvancements.remove(entry)) {
+						removed.add(entry.id());
 					}
 				}
 		);
 	}
 
 	/**
-	 * {@code ProgressMap}.
+	 * Обёртка над картой прогресса достижений для сериализации/десериализации.
+	 * При итерации сортирует записи по значению (времени получения) для детерминированного порядка.
 	 */
 	record ProgressMap(Map<Identifier, AdvancementProgress> map) {
 
-		public static final Codec<PlayerAdvancementTracker.ProgressMap>
-				CODEC =
-				Codec.unboundedMap(Identifier.CODEC, AdvancementProgress.CODEC)
-				     .xmap(PlayerAdvancementTracker.ProgressMap::new, PlayerAdvancementTracker.ProgressMap::map);
+		public static final Codec<ProgressMap> CODEC = Codec.unboundedMap(
+				Identifier.CODEC,
+				AdvancementProgress.CODEC
+		).xmap(ProgressMap::new, ProgressMap::map);
 
 		public void forEach(BiConsumer<Identifier, AdvancementProgress> consumer) {
-			this.map
-					.entrySet()
+			map.entrySet()
 					.stream()
 					.sorted(Entry.comparingByValue())
 					.forEach(entry -> consumer.accept(entry.getKey(), entry.getValue()));

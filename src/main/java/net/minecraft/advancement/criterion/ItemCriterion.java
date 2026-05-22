@@ -30,139 +30,120 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * {@code ItemCriterion}.
+ * Критерий: игрок использовал предмет на блоке или разместил блок.
+ * Строит контекст лута с параметрами позиции, сущности, состояния блока и инструмента.
  */
 public class ItemCriterion extends AbstractCriterion<ItemCriterion.Conditions> {
 
 	@Override
-	public Codec<ItemCriterion.Conditions> getConditionsCodec() {
-		return ItemCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, BlockPos pos, ItemStack stack) {
-		ServerWorld serverWorld = player.getEntityWorld();
-		BlockState blockState = serverWorld.getBlockState(pos);
-		LootWorldContext lootWorldContext = new LootWorldContext.Builder(serverWorld)
+		ServerWorld world = player.getEntityWorld();
+		BlockState blockState = world.getBlockState(pos);
+		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.ORIGIN, pos.toCenterPos())
 				.add(LootContextParameters.THIS_ENTITY, player)
 				.add(LootContextParameters.BLOCK_STATE, blockState)
 				.add(LootContextParameters.TOOL, stack)
 				.build(LootContextTypes.ADVANCEMENT_LOCATION);
 		LootContext lootContext = new LootContext.Builder(lootWorldContext).build(Optional.empty());
-		this.trigger(player, conditions -> conditions.test(lootContext));
+
+		trigger(player, conditions -> conditions.test(lootContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> location
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<ItemCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(ItemCriterion.Conditions::player),
-						                    LootContextPredicate.CODEC
-								                    .optionalFieldOf("location")
-								                    .forGetter(ItemCriterion.Conditions::location)
-				                    )
-				                    .apply(instance, ItemCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						LootContextPredicate.CODEC
+								.optionalFieldOf("location")
+								.forGetter(Conditions::location)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createPlacedBlock(Block block) {
-			LootContextPredicate
-					lootContextPredicate =
-					LootContextPredicate.create(BlockStatePropertyLootCondition.builder(block).build());
-			return Criteria.PLACED_BLOCK.create(new ItemCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(lootContextPredicate)
-			));
+		public static AdvancementCriterion<Conditions> createPlacedBlock(Block block) {
+			LootContextPredicate predicate = LootContextPredicate.create(
+					BlockStatePropertyLootCondition.builder(block).build()
+			);
+
+			return Criteria.PLACED_BLOCK.create(new Conditions(Optional.empty(), Optional.of(predicate)));
 		}
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createPlacedBlock(LootCondition.Builder... locationConditions) {
-			LootContextPredicate lootContextPredicate = LootContextPredicate.create(
+		public static AdvancementCriterion<Conditions> createPlacedBlock(LootCondition.Builder... locationConditions) {
+			LootContextPredicate predicate = LootContextPredicate.create(
 					Arrays.stream(locationConditions).map(LootCondition.Builder::build).toArray(LootCondition[]::new)
 			);
-			return Criteria.PLACED_BLOCK.create(new ItemCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(lootContextPredicate)
-			));
+
+			return Criteria.PLACED_BLOCK.create(new Conditions(Optional.empty(), Optional.of(predicate)));
 		}
 
-		public static <T extends Comparable<T>> AdvancementCriterion<ItemCriterion.Conditions> createPlacedWithState(
+		public static <T extends Comparable<T>> AdvancementCriterion<Conditions> createPlacedWithState(
 				Block block, Property<T> property, String value
 		) {
-			StatePredicate.Builder builder = StatePredicate.Builder.create().exactMatch(property, value);
-			LootContextPredicate
-					lootContextPredicate =
-					LootContextPredicate.create(BlockStatePropertyLootCondition
-							.builder(block)
-							.properties(builder)
-							.build());
-			return Criteria.PLACED_BLOCK.create(new ItemCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(lootContextPredicate)
-			));
+			StatePredicate.Builder stateBuilder = StatePredicate.Builder.create().exactMatch(property, value);
+			LootContextPredicate predicate = LootContextPredicate.create(
+					BlockStatePropertyLootCondition.builder(block).properties(stateBuilder).build()
+			);
+
+			return Criteria.PLACED_BLOCK.create(new Conditions(Optional.empty(), Optional.of(predicate)));
 		}
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createPlacedWithState(
-				Block block,
-				Property<Boolean> property,
-				boolean value
+		public static AdvancementCriterion<Conditions> createPlacedWithState(
+				Block block, Property<Boolean> property, boolean value
 		) {
 			return createPlacedWithState(block, property, String.valueOf(value));
 		}
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createPlacedWithState(
-				Block block,
-				Property<Integer> property,
-				int value
+		public static AdvancementCriterion<Conditions> createPlacedWithState(
+				Block block, Property<Integer> property, int value
 		) {
 			return createPlacedWithState(block, property, String.valueOf(value));
 		}
 
-		public static <T extends Comparable<T> & StringIdentifiable> AdvancementCriterion<ItemCriterion.Conditions> createPlacedWithState(
+		public static <T extends Comparable<T> & StringIdentifiable> AdvancementCriterion<Conditions> createPlacedWithState(
 				Block block, Property<T> property, T value
 		) {
 			return createPlacedWithState(block, property, value.asString());
 		}
 
-		private static ItemCriterion.Conditions create(LocationPredicate.Builder location, ItemPredicate.Builder item) {
-			LootContextPredicate lootContextPredicate = LootContextPredicate.create(
-					LocationCheckLootCondition.builder(location).build(), MatchToolLootCondition.builder(item).build()
+		private static Conditions create(LocationPredicate.Builder location, ItemPredicate.Builder item) {
+			LootContextPredicate predicate = LootContextPredicate.create(
+					LocationCheckLootCondition.builder(location).build(),
+					MatchToolLootCondition.builder(item).build()
 			);
-			return new ItemCriterion.Conditions(Optional.empty(), Optional.of(lootContextPredicate));
+
+			return new Conditions(Optional.empty(), Optional.of(predicate));
 		}
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createItemUsedOnBlock(
-				LocationPredicate.Builder location,
-				ItemPredicate.Builder item
+		public static AdvancementCriterion<Conditions> createItemUsedOnBlock(
+				LocationPredicate.Builder location, ItemPredicate.Builder item
 		) {
 			return Criteria.ITEM_USED_ON_BLOCK.create(create(location, item));
 		}
 
-		public static AdvancementCriterion<ItemCriterion.Conditions> createAllayDropItemOnBlock(
-				LocationPredicate.Builder location,
-				ItemPredicate.Builder item
+		public static AdvancementCriterion<Conditions> createAllayDropItemOnBlock(
+				LocationPredicate.Builder location, ItemPredicate.Builder item
 		) {
 			return Criteria.ALLAY_DROP_ITEM_ON_BLOCK.create(create(location, item));
 		}
 
-		public boolean test(LootContext location) {
-			return this.location.isEmpty() || this.location.get().test(location);
+		public boolean test(LootContext locationContext) {
+			return location.isEmpty() || location.get().test(locationContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			this.location.ifPresent(location -> validator.validate(
-					location,
-					LootContextTypes.ADVANCEMENT_LOCATION,
-					"location"
-			));
+			location.ifPresent(loc -> validator.validate(loc, LootContextTypes.ADVANCEMENT_LOCATION, "location"));
 		}
 	}
 }

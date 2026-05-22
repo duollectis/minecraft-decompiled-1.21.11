@@ -23,7 +23,7 @@ public class VanillaDialogTagProvider extends SimpleTagProvider<Dialog> {
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(DialogTags.PAUSE_SCREEN_ADDITIONS);
-		this.builder(DialogTags.QUICK_ACTIONS);
+		builder(DialogTags.PAUSE_SCREEN_ADDITIONS);
+		builder(DialogTags.QUICK_ACTIONS);
 	}
 }

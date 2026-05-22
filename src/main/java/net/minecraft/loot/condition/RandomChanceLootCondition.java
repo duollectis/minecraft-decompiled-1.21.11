@@ -7,15 +7,13 @@ import net.minecraft.loot.provider.number.ConstantLootNumberProvider;
 import net.minecraft.loot.provider.number.LootNumberProvider;
 import net.minecraft.loot.provider.number.LootNumberProviderTypes;
 
-/**
- * {@code RandomChanceLootCondition}.
- */
+/** Условие лута: срабатывает с заданной случайной вероятностью. */
 public record RandomChanceLootCondition(LootNumberProvider chance) implements LootCondition {
 
 	public static final MapCodec<RandomChanceLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(LootNumberProviderTypes.CODEC.fieldOf("chance").forGetter(RandomChanceLootCondition::chance))
-					.apply(instance, RandomChanceLootCondition::new)
+		instance -> instance
+			.group(LootNumberProviderTypes.CODEC.fieldOf("chance").forGetter(RandomChanceLootCondition::chance))
+			.apply(instance, RandomChanceLootCondition::new)
 	);
 
 	@Override
@@ -23,16 +21,10 @@ public record RandomChanceLootCondition(LootNumberProvider chance) implements Lo
 		return LootConditionTypes.RANDOM_CHANCE;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		float f = this.chance.nextFloat(lootContext);
-		return lootContext.getRandom().nextFloat() < f;
+		float chance = this.chance.nextFloat(lootContext);
+		return lootContext.getRandom().nextFloat() < chance;
 	}
 
 	public static LootCondition.Builder builder(float chance) {

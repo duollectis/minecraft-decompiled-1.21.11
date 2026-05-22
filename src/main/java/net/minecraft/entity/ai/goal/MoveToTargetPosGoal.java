@@ -7,13 +7,16 @@ import net.minecraft.world.WorldView;
 import java.util.EnumSet;
 
 /**
- * {@code MoveToTargetPosGoal}.
+ * Базовая цель навигации к конкретной позиции блока: ищет подходящую позицию
+ * в радиусе {@code range} и ведёт моба к ней, пока не достигнет или не истечёт
+ * время ожидания. Подклассы определяют критерий целевой позиции через
+ * {@link #isTargetPos(WorldView, BlockPos)}.
  */
 public abstract class MoveToTargetPosGoal extends Goal {
 
 	private static final int MIN_WAITING_TIME = 1200;
-	private static final int MAX_TRYING_TIME = 1200;
 	private static final int MIN_INTERVAL = 200;
+
 	protected final PathAwareEntity mob;
 	public final double speed;
 	protected int cooldown;
@@ -40,45 +43,40 @@ public abstract class MoveToTargetPosGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.cooldown > 0) {
-			this.cooldown--;
+		if (cooldown > 0) {
+			cooldown--;
 			return false;
 		}
-		else {
-			this.cooldown = this.getInterval(this.mob);
-			return this.findTargetPos();
-		}
+
+		cooldown = getInterval(mob);
+		return findTargetPos();
 	}
 
 	protected int getInterval(PathAwareEntity mob) {
-		return toGoalTicks(200 + mob.getRandom().nextInt(200));
+		return toGoalTicks(MIN_INTERVAL + mob.getRandom().nextInt(MIN_INTERVAL));
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.tryingTime >= -this.safeWaitingTime && this.tryingTime <= 1200
-				&& this.isTargetPos(this.mob.getEntityWorld(), this.targetPos);
+		return tryingTime >= -safeWaitingTime
+			&& tryingTime <= MIN_WAITING_TIME
+			&& isTargetPos(mob.getEntityWorld(), targetPos);
 	}
 
 	@Override
 	public void start() {
-		this.startMovingToTarget();
-		this.tryingTime = 0;
-		this.safeWaitingTime = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
+		startMovingToTarget();
+		tryingTime = 0;
+		safeWaitingTime = mob.getRandom().nextInt(mob.getRandom().nextInt(MIN_WAITING_TIME) + MIN_WAITING_TIME) + MIN_WAITING_TIME;
 	}
 
-	/**
-	 * Запускает moving to target.
-	 */
 	protected void startMovingToTarget() {
-		this.mob
-				.getNavigation()
-				.startMovingTo(
-						this.targetPos.getX() + 0.5,
-						this.targetPos.getY() + 1,
-						this.targetPos.getZ() + 0.5,
-						this.speed
-				);
+		mob.getNavigation().startMovingTo(
+			targetPos.getX() + 0.5,
+			targetPos.getY() + 1,
+			targetPos.getZ() + 0.5,
+			speed
+		);
 	}
 
 	public double getDesiredDistanceToTarget() {
@@ -86,7 +84,7 @@ public abstract class MoveToTargetPosGoal extends Goal {
 	}
 
 	protected BlockPos getTargetPos() {
-		return this.targetPos.up();
+		return targetPos.up();
 	}
 
 	@Override
@@ -96,56 +94,46 @@ public abstract class MoveToTargetPosGoal extends Goal {
 
 	@Override
 	public void tick() {
-		BlockPos blockPos = this.getTargetPos();
-		if (!blockPos.isWithinDistance(this.mob.getEntityPos(), this.getDesiredDistanceToTarget())) {
-			this.reached = false;
-			this.tryingTime++;
-			if (this.shouldResetPath()) {
-				this.mob
-						.getNavigation()
-						.startMovingTo(blockPos.getX() + 0.5, blockPos.getY(), blockPos.getZ() + 0.5, this.speed);
+		BlockPos pos = getTargetPos();
+
+		if (!pos.isWithinDistance(mob.getEntityPos(), getDesiredDistanceToTarget())) {
+			reached = false;
+			tryingTime++;
+
+			if (shouldResetPath()) {
+				mob.getNavigation().startMovingTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
 			}
-		}
-		else {
-			this.reached = true;
-			this.tryingTime--;
+		} else {
+			reached = true;
+			tryingTime--;
 		}
 	}
 
-	/**
-	 * Определяет, следует ли reset path.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldResetPath() {
-		return this.tryingTime % 40 == 0;
+		return tryingTime % 40 == 0;
 	}
 
 	protected boolean hasReached() {
-		return this.reached;
+		return reached;
 	}
 
 	/**
-	 * Ищет target pos.
-	 *
-	 * @return boolean — target pos
+	 * Спиральный поиск подходящей позиции блока в радиусе {@code range} и диапазоне
+	 * высот от {@code lowestY} до {@code maxYDifference}. Возвращает {@code true},
+	 * если позиция найдена и сохранена в {@link #targetPos}.
 	 */
 	protected boolean findTargetPos() {
-		int i = this.range;
-		int j = this.maxYDifference;
-		BlockPos blockPos = this.mob.getBlockPos();
+		BlockPos origin = mob.getBlockPos();
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int k = this.lowestY; k <= j; k = k > 0 ? -k : 1 - k) {
-			for (int l = 0; l < i; l++) {
-				for (int m = 0; m <= l; m = m > 0 ? -m : 1 - m) {
-					for (int n = m < l && m > -l ? l : 0; n <= l; n = n > 0 ? -n : 1 - n) {
-						mutable.set(blockPos, m, k - 1, n);
-						if (this.mob.isInPositionTargetRange(mutable) && this.isTargetPos(
-								this.mob.getEntityWorld(),
-								mutable
-						)) {
-							this.targetPos = mutable;
+		for (int dy = lowestY; dy <= maxYDifference; dy = dy > 0 ? -dy : 1 - dy) {
+			for (int radius = 0; radius < range; radius++) {
+				for (int dx = 0; dx <= radius; dx = dx > 0 ? -dx : 1 - dx) {
+					for (int dz = dx < radius && dx > -radius ? radius : 0; dz <= radius; dz = dz > 0 ? -dz : 1 - dz) {
+						mutable.set(origin, dx, dy - 1, dz);
+
+						if (mob.isInPositionTargetRange(mutable) && isTargetPos(mob.getEntityWorld(), mutable)) {
+							targetPos = mutable;
 							return true;
 						}
 					}

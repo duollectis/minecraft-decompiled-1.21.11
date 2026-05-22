@@ -29,35 +29,26 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-/**
- * {@code DensityFunctionTypes}.
- */
+/** Реестр и фабрика всех типов функций плотности, используемых при генерации рельефа мира. */
 public final class DensityFunctionTypes {
 
 	private static final Codec<DensityFunction> DYNAMIC_RANGE = Registries.DENSITY_FUNCTION_TYPE
 			.getCodec()
 			.dispatch(densityFunction -> densityFunction.getCodecHolder().codec(), Function.identity());
 	protected static final double MAX_CONSTANT_VALUE = 1000000.0;
-	static final Codec<Double> CONSTANT_RANGE = Codec.doubleRange(-1000000.0, 1000000.0);
+	static final Codec<Double> CONSTANT_RANGE = Codec.doubleRange(-MAX_CONSTANT_VALUE, MAX_CONSTANT_VALUE);
 	public static final Codec<DensityFunction> CODEC = Codec.either(CONSTANT_RANGE, DYNAMIC_RANGE)
-	                                                        .xmap(
-			                                                        either -> (DensityFunction) either.map(
-					                                                        DensityFunctionTypes::constant,
-					                                                        Function.identity()
-			                                                        ),
-			                                                        densityFunction ->
-					                                                        densityFunction instanceof DensityFunctionTypes.Constant constant
-					                                                        ? Either.left(constant.value())
-					                                                        : Either.right(densityFunction)
-	                                                        );
+			.xmap(
+					either -> (DensityFunction) either.map(
+							DensityFunctionTypes::constant,
+							Function.identity()
+					),
+					densityFunction ->
+							densityFunction instanceof DensityFunctionTypes.Constant constant
+							? Either.left(constant.value())
+							: Either.right(densityFunction)
+			);
 
-	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return MapCodec — результат операции
-	 */
 	public static MapCodec<? extends DensityFunction> registerAndGetDefault(Registry<MapCodec<? extends DensityFunction>> registry) {
 		register(registry, "blend_alpha", DensityFunctionTypes.BlendAlpha.CODEC);
 		register(registry, "blend_offset", DensityFunctionTypes.BlendOffset.CODEC);
@@ -120,10 +111,10 @@ public final class DensityFunctionTypes {
 		return CodecHolder.of(
 				RecordCodecBuilder.mapCodec(
 						instance -> instance.group(
-								                    DensityFunction.FUNCTION_CODEC.fieldOf("argument1").forGetter(argument1Getter),
-								                    DensityFunction.FUNCTION_CODEC.fieldOf("argument2").forGetter(argument2Getter)
-						                    )
-						                    .apply(instance, creator)
+								DensityFunction.FUNCTION_CODEC.fieldOf("argument1").forGetter(argument1Getter),
+								DensityFunction.FUNCTION_CODEC.fieldOf("argument2").forGetter(argument2Getter)
+						)
+						.apply(instance, creator)
 				)
 		);
 	}
@@ -135,57 +126,22 @@ public final class DensityFunctionTypes {
 	private DensityFunctionTypes() {
 	}
 
-	/**
-	 * Interpolated.
-	 *
-	 * @param inputFunction input function
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction interpolated(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.INTERPOLATED, inputFunction);
 	}
 
-	/**
-	 * Flat cache.
-	 *
-	 * @param inputFunction input function
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction flatCache(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.FLAT_CACHE, inputFunction);
 	}
 
-	/**
-	 * Cache2d.
-	 *
-	 * @param inputFunction input function
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction cache2d(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE2D, inputFunction);
 	}
 
-	/**
-	 * Cache once.
-	 *
-	 * @param inputFunction input function
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction cacheOnce(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE_ONCE, inputFunction);
 	}
 
-	/**
-	 * Cache all in cell.
-	 *
-	 * @param inputFunction input function
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction cacheAllInCell(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE_ALL_IN_CELL, inputFunction);
 	}
@@ -237,13 +193,6 @@ public final class DensityFunctionTypes {
 		);
 	}
 
-	/**
-	 * Noise.
-	 *
-	 * @param noiseParameters noise parameters
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction noise(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return noise(noiseParameters, 1.0, 1.0);
 	}
@@ -273,57 +222,22 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.RangeChoice(input, minInclusive, maxExclusive, whenInRange, whenOutOfRange);
 	}
 
-	/**
-	 * Shift a.
-	 *
-	 * @param noiseParameters noise parameters
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction shiftA(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.ShiftA(new DensityFunction.Noise(noiseParameters));
 	}
 
-	/**
-	 * Shift b.
-	 *
-	 * @param noiseParameters noise parameters
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction shiftB(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.ShiftB(new DensityFunction.Noise(noiseParameters));
 	}
 
-	/**
-	 * Shift.
-	 *
-	 * @param noiseParameters noise parameters
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction shift(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.Shift(new DensityFunction.Noise(noiseParameters));
 	}
 
-	/**
-	 * Blend density.
-	 *
-	 * @param input input
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction blendDensity(DensityFunction input) {
 		return new DensityFunctionTypes.BlendDensity(input);
 	}
 
-	/**
-	 * End islands.
-	 *
-	 * @param seed seed
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction endIslands(long seed) {
 		return new DensityFunctionTypes.EndIslands(seed);
 	}
@@ -336,50 +250,18 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.WeirdScaledSampler(input, new DensityFunction.Noise(parameters), mapper);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction add(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.ADD, a, b);
 	}
 
-	/**
-	 * Mul.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction mul(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MUL, a, b);
 	}
 
-	/**
-	 * Min.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction min(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MIN, a, b);
 	}
 
-	/**
-	 * Max.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction max(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MAX, a, b);
 	}
@@ -390,48 +272,18 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.Spline(spline);
 	}
 
-	/**
-	 * Zero.
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction zero() {
 		return DensityFunctionTypes.Constant.ZERO;
 	}
 
-	/**
-	 * Constant.
-	 *
-	 * @param density density
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction constant(double density) {
 		return new DensityFunctionTypes.Constant(density);
 	}
 
-	/**
-	 * Y clamped gradient.
-	 *
-	 * @param fromY from y
-	 * @param toY to y
-	 * @param fromValue from value
-	 * @param toValue to value
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction yClampedGradient(int fromY, int toY, double fromValue, double toValue) {
 		return new DensityFunctionTypes.YClampedGradient(fromY, toY, fromValue, toValue);
 	}
 
-	/**
-	 * Unary.
-	 *
-	 * @param input input
-	 * @param type type
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction unary(DensityFunction input, DensityFunctionTypes.UnaryOperation.Type type) {
 		return DensityFunctionTypes.UnaryOperation.create(type, input);
 	}
@@ -442,53 +294,24 @@ public final class DensityFunctionTypes {
 		return add(constant(d), mul(constant(e), function));
 	}
 
-	/**
-	 * Blend alpha.
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction blendAlpha() {
 		return DensityFunctionTypes.BlendAlpha.INSTANCE;
 	}
 
-	/**
-	 * Blend offset.
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction blendOffset() {
 		return DensityFunctionTypes.BlendOffset.INSTANCE;
 	}
 
-	/**
-	 * Lerp.
-	 *
-	 * @param delta delta
-	 * @param start start
-	 * @param end end
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction lerp(DensityFunction delta, DensityFunction start, DensityFunction end) {
 		if (start instanceof DensityFunctionTypes.Constant constant) {
 			return lerp(delta, constant.value, end);
 		}
-		else {
-			DensityFunction densityFunction = cacheOnce(delta);
-			DensityFunction densityFunction2 = add(mul(densityFunction, constant(-1.0)), constant(1.0));
-			return add(mul(start, densityFunction2), mul(end, densityFunction));
-		}
+
+		DensityFunction densityFunction = cacheOnce(delta);
+		DensityFunction densityFunction2 = add(mul(densityFunction, constant(-1.0)), constant(1.0));
+		return add(mul(start, densityFunction2), mul(end, densityFunction));
 	}
 
-	/**
-	 * Lerp.
-	 *
-	 * @param delta delta
-	 * @param start start
-	 * @param end end
-	 *
-	 * @return DensityFunction — результат операции
-	 */
 	public static DensityFunction lerp(DensityFunction delta, double start, DensityFunction end) {
 		return add(mul(delta, add(end, constant(-start))), constant(start));
 	}
@@ -502,9 +325,7 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.FindTopSurface(density, upperBound, lowerBound, cellHeight);
 	}
 
-	/**
-	 * {@code Beardifier}.
-	 */
+	/** Заглушка-синглтон алгоритма «бороды» структур; реальная реализация подменяется при генерации чанка. */
 	public static enum Beardifier implements DensityFunctionTypes.Beardifying {
 		INSTANCE;
 
@@ -529,9 +350,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Beardifying}.
-	 */
+	/** Маркерный интерфейс для функций плотности, реализующих алгоритм «бороды» структур. */
 	public interface Beardifying extends DensityFunction.Base {
 
 		CodecHolder<DensityFunction>
@@ -544,9 +363,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code BinaryOperation}.
-	 */
+	/** Полная бинарная операция над двумя произвольными функциями плотности с кэшированием диапазона. */
 	record BinaryOperation(
 			DensityFunctionTypes.BinaryOperationLike.Type type,
 			DensityFunction argument1,
@@ -569,36 +386,36 @@ public final class DensityFunctionTypes {
 
 		@Override
 		public void fill(double[] densities, DensityFunction.EachApplier applier) {
-			this.argument1.fill(densities, applier);
-			switch (this.type) {
+			argument1.fill(densities, applier);
+			switch (type) {
 				case ADD:
-					double[] ds = new double[densities.length];
-					this.argument2.fill(ds, applier);
+					double[] buffer = new double[densities.length];
+					argument2.fill(buffer, applier);
 
-					for (int i = 0; i < densities.length; i++) {
-						densities[i] += ds[i];
+					for (int idx = 0; idx < densities.length; idx++) {
+						densities[idx] += buffer[idx];
 					}
 					break;
 				case MUL:
-					for (int j = 0; j < densities.length; j++) {
-						double d = densities[j];
-						densities[j] = d == 0.0 ? 0.0 : d * this.argument2.sample(applier.at(j));
+					for (int idx = 0; idx < densities.length; idx++) {
+						double val = densities[idx];
+						densities[idx] = val == 0.0 ? 0.0 : val * argument2.sample(applier.at(idx));
 					}
 					break;
 				case MIN:
-					double e = this.argument2.minValue();
+					double minThreshold = argument2.minValue();
 
-					for (int k = 0; k < densities.length; k++) {
-						double f = densities[k];
-						densities[k] = f < e ? f : Math.min(f, this.argument2.sample(applier.at(k)));
+					for (int idx = 0; idx < densities.length; idx++) {
+						double val = densities[idx];
+						densities[idx] = val < minThreshold ? val : Math.min(val, argument2.sample(applier.at(idx)));
 					}
 					break;
 				case MAX:
-					double maxThreshold = this.argument2.maxValue();
+					double maxThreshold = argument2.maxValue();
 
-					for (int k = 0; k < densities.length; k++) {
-						double f = densities[k];
-						densities[k] = f > maxThreshold ? f : Math.max(f, this.argument2.sample(applier.at(k)));
+					for (int idx = 0; idx < densities.length; idx++) {
+						double val = densities[idx];
+						densities[idx] = val > maxThreshold ? val : Math.max(val, argument2.sample(applier.at(idx)));
 					}
 			}
 		}
@@ -613,9 +430,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code BinaryOperationLike}.
-	 */
+	/** Общий контракт для бинарных операций (ADD, MUL, MIN, MAX) над функциями плотности. */
 	interface BinaryOperationLike extends DensityFunction {
 
 		Logger LOGGER = LogUtils.getLogger();
@@ -623,62 +438,51 @@ public final class DensityFunctionTypes {
 		static DensityFunctionTypes.BinaryOperationLike create(
 				DensityFunctionTypes.BinaryOperationLike.Type type, DensityFunction argument1, DensityFunction argument2
 		) {
-			double d = argument1.minValue();
-			double e = argument2.minValue();
-			double f = argument1.maxValue();
-			double g = argument2.maxValue();
+			double min1 = argument1.minValue();
+			double min2 = argument2.minValue();
+			double max1 = argument1.maxValue();
+			double max2 = argument2.maxValue();
 			if (type == DensityFunctionTypes.BinaryOperationLike.Type.MIN
 					|| type == DensityFunctionTypes.BinaryOperationLike.Type.MAX) {
-				boolean bl = d >= g;
-				boolean bl2 = e >= f;
-				if (bl || bl2) {
+				boolean arg1AboveArg2 = min1 >= max2;
+				boolean arg2AboveArg1 = min2 >= max1;
+				if (arg1AboveArg2 || arg2AboveArg1) {
 					LOGGER.warn(
 							"Creating a {} function between two non-overlapping inputs: {} and {}",
 							new Object[]{type, argument1, argument2}
 					);
 				}
 			}
-			double h = switch (type) {
-				case ADD -> d + e;
-				case MUL -> d > 0.0 && e > 0.0 ? d * e : (f < 0.0 && g < 0.0 ? f * g : Math.min(d * g, f * e));
-				case MIN -> Math.min(d, e);
-				case MAX -> Math.max(d, e);
+
+			double resultMin = switch (type) {
+				case ADD -> min1 + min2;
+				case MUL -> min1 > 0.0 && min2 > 0.0 ? min1 * min2 : (max1 < 0.0 && max2 < 0.0 ? max1 * max2 : Math.min(min1 * max2, max1 * min2));
+				case MIN -> Math.min(min1, min2);
+				case MAX -> Math.max(min1, min2);
 			};
 
-			double i = switch (type) {
-				case ADD -> f + g;
-				case MUL -> d > 0.0 && e > 0.0 ? f * g : (f < 0.0 && g < 0.0 ? d * e : Math.max(d * e, f * g));
-				case MIN -> Math.min(f, g);
-				case MAX -> Math.max(f, g);
+			double resultMax = switch (type) {
+				case ADD -> max1 + max2;
+				case MUL -> min1 > 0.0 && min2 > 0.0 ? max1 * max2 : (max1 < 0.0 && max2 < 0.0 ? min1 * min2 : Math.max(min1 * min2, max1 * max2));
+				case MIN -> Math.min(max1, max2);
+				case MAX -> Math.max(max1, max2);
 			};
 			if (type == DensityFunctionTypes.BinaryOperationLike.Type.MUL
 					|| type == DensityFunctionTypes.BinaryOperationLike.Type.ADD) {
+				var specificType = type == DensityFunctionTypes.BinaryOperationLike.Type.ADD
+						? DensityFunctionTypes.LinearOperation.SpecificType.ADD
+						: DensityFunctionTypes.LinearOperation.SpecificType.MUL;
+
 				if (argument1 instanceof DensityFunctionTypes.Constant constant) {
-					return new DensityFunctionTypes.LinearOperation(
-							type == DensityFunctionTypes.BinaryOperationLike.Type.ADD
-							? DensityFunctionTypes.LinearOperation.SpecificType.ADD
-							: DensityFunctionTypes.LinearOperation.SpecificType.MUL,
-							argument2,
-							h,
-							i,
-							constant.value
-					);
+					return new DensityFunctionTypes.LinearOperation(specificType, argument2, resultMin, resultMax, constant.value);
 				}
 
 				if (argument2 instanceof DensityFunctionTypes.Constant constant) {
-					return new DensityFunctionTypes.LinearOperation(
-							type == DensityFunctionTypes.BinaryOperationLike.Type.ADD
-							? DensityFunctionTypes.LinearOperation.SpecificType.ADD
-							: DensityFunctionTypes.LinearOperation.SpecificType.MUL,
-							argument1,
-							h,
-							i,
-							constant.value
-					);
+					return new DensityFunctionTypes.LinearOperation(specificType, argument1, resultMin, resultMax, constant.value);
 				}
 			}
 
-			return new DensityFunctionTypes.BinaryOperation(type, argument1, argument2, h, i);
+			return new DensityFunctionTypes.BinaryOperation(type, argument1, argument2, resultMin, resultMax);
 		}
 
 		DensityFunctionTypes.BinaryOperationLike.Type type();
@@ -692,9 +496,7 @@ public final class DensityFunctionTypes {
 			return this.type().codecHolder;
 		}
 
-		/**
-		 * {@code Type}.
-		 */
+		/** Перечисление поддерживаемых бинарных операций над функциями плотности. */
 		public static enum Type implements StringIdentifiable {
 			ADD("add"),
 			MUL("mul"),
@@ -722,9 +524,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code BlendAlpha}.
-	 */
+	/** Функция плотности для альфа-коэффициента смешивания биомов; всегда возвращает 1.0. */
 	public static enum BlendAlpha implements DensityFunction.Base {
 		INSTANCE;
 
@@ -756,9 +556,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code BlendDensity}.
-	 */
+	/** Применяет смешивание плотности биомов через {@link net.minecraft.world.ChunkRegionBlender} к входной функции. */
 	record BlendDensity(DensityFunction input) implements DensityFunctionTypes.Positional {
 
 		static final CodecHolder<DensityFunctionTypes.BlendDensity> CODEC_HOLDER = DensityFunctionTypes.holderOf(
@@ -791,9 +589,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code BlendOffset}.
-	 */
+	/** Функция плотности для смещения при смешивании биомов; всегда возвращает 0.0. */
 	public static enum BlendOffset implements DensityFunction.Base {
 		INSTANCE;
 
@@ -825,9 +621,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Clamp}.
-	 */
+	/** Ограничивает значение входной функции плотности в заданном диапазоне [min, max]. */
 	protected record Clamp(
 			DensityFunction input,
 			double minValue,
@@ -866,9 +660,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Constant}.
-	 */
+	/** Константная функция плотности, возвращающая одно и то же значение в любой точке пространства. */
 	record Constant(double value) implements DensityFunction.Base {
 
 		static final CodecHolder<DensityFunctionTypes.Constant> CODEC_HOLDER = DensityFunctionTypes.holderOf(
@@ -904,9 +696,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code EndIslands}.
-	 */
+	/** Генерирует характерный рельеф островов Края на основе симплекс-шума с фиксированным сидом. */
 	public static final class EndIslands implements DensityFunction.Base {
 
 		public static final CodecHolder<DensityFunctionTypes.EndIslands>
@@ -933,7 +723,7 @@ public final class DensityFunctionTypes {
 				for (int n = -12; n <= 12; n++) {
 					long o = i + m;
 					long p = j + n;
-					if (o * o + p * p > 4096L && sampler.sample(o, p) < -0.9F) {
+					if (o * o + p * p > 4096L && sampler.sample(o, p) < CAVES_THRESHOLD) {
 						float
 								g =
 								(MathHelper.abs((float) o) * 3439.0F + MathHelper.abs((float) p) * 147.0F) % 13.0F
@@ -971,9 +761,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code FindTopSurface}.
-	 */
+	/** Ищет Y-координату верхней твёрдой поверхности в заданном диапазоне высот по шагу ячейки. */
 	record FindTopSurface(
 			DensityFunction density,
 			DensityFunction upperBound,
@@ -1006,20 +794,18 @@ public final class DensityFunctionTypes {
 
 		@Override
 		public double sample(DensityFunction.NoisePos pos) {
-			int i = MathHelper.floor(this.upperBound.sample(pos) / this.cellHeight) * this.cellHeight;
-			if (i <= this.lowerBound) {
-				return this.lowerBound;
+			int topY = MathHelper.floor(upperBound.sample(pos) / cellHeight) * cellHeight;
+			if (topY <= lowerBound) {
+				return lowerBound;
 			}
-			else {
-				for (int j = i; j >= this.lowerBound; j -= this.cellHeight) {
-					if (this.density.sample(new DensityFunction.UnblendedNoisePos(pos.blockX(), j, pos.blockZ()))
-							> 0.0) {
-						return j;
-					}
-				}
 
-				return this.lowerBound;
+			for (int y = topY; y >= lowerBound; y -= cellHeight) {
+				if (density.sample(new DensityFunction.UnblendedNoisePos(pos.blockX(), y, pos.blockZ())) > 0.0) {
+					return y;
+				}
 			}
+
+			return lowerBound;
 		}
 
 		@Override
@@ -1055,9 +841,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code LinearOperation}.
-	 */
+	/** Оптимизированная линейная операция (ADD/MUL) с константой; избегает лишнего сэмплирования. */
 	record LinearOperation(
 			DensityFunctionTypes.LinearOperation.SpecificType specificType,
 			DensityFunction input,
@@ -1093,39 +877,33 @@ public final class DensityFunctionTypes {
 
 		@Override
 		public DensityFunction apply(DensityFunction.DensityFunctionVisitor visitor) {
-			DensityFunction densityFunction = this.input.apply(visitor);
-			double d = densityFunction.minValue();
-			double e = densityFunction.maxValue();
-			double f;
-			double g;
-			if (this.specificType == DensityFunctionTypes.LinearOperation.SpecificType.ADD) {
-				f = d + this.argument;
-				g = e + this.argument;
-			}
-			else if (this.argument >= 0.0) {
-				f = d * this.argument;
-				g = e * this.argument;
-			}
-			else {
-				f = e * this.argument;
-				g = d * this.argument;
+			DensityFunction transformed = input.apply(visitor);
+			double newMin = transformed.minValue();
+			double newMax = transformed.maxValue();
+			double resultMin;
+			double resultMax;
+			if (specificType == DensityFunctionTypes.LinearOperation.SpecificType.ADD) {
+				resultMin = newMin + argument;
+				resultMax = newMax + argument;
+			} else if (argument >= 0.0) {
+				resultMin = newMin * argument;
+				resultMax = newMax * argument;
+			} else {
+				resultMin = newMax * argument;
+				resultMax = newMin * argument;
 			}
 
-			return new DensityFunctionTypes.LinearOperation(this.specificType, densityFunction, f, g, this.argument);
+			return new DensityFunctionTypes.LinearOperation(specificType, transformed, resultMin, resultMax, argument);
 		}
 
-		/**
-		 * {@code SpecificType}.
-		 */
+		/** Конкретный тип линейной операции: сложение или умножение на константу. */
 		static enum SpecificType {
 			MUL,
 			ADD;
 		}
 	}
 
-	/**
-	 * {@code Noise}.
-	 */
+	/** Функция плотности на основе двойного шума Перлина с независимым масштабированием по осям XZ и Y. */
 	protected record Noise(
 			DensityFunction.Noise noise,
 			@Deprecated double xzScale,
@@ -1134,11 +912,11 @@ public final class DensityFunctionTypes {
 
 		public static final MapCodec<DensityFunctionTypes.Noise> NOISE_CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    DensityFunction.Noise.CODEC.fieldOf("noise").forGetter(DensityFunctionTypes.Noise::noise),
-						                    Codec.DOUBLE.fieldOf("xz_scale").forGetter(DensityFunctionTypes.Noise::xzScale),
-						                    Codec.DOUBLE.fieldOf("y_scale").forGetter(DensityFunctionTypes.Noise::yScale)
-				                    )
-				                    .apply(instance, DensityFunctionTypes.Noise::new)
+						DensityFunction.Noise.CODEC.fieldOf("noise").forGetter(DensityFunctionTypes.Noise::noise),
+						Codec.DOUBLE.fieldOf("xz_scale").forGetter(DensityFunctionTypes.Noise::xzScale),
+						Codec.DOUBLE.fieldOf("y_scale").forGetter(DensityFunctionTypes.Noise::yScale)
+				)
+				.apply(instance, DensityFunctionTypes.Noise::new)
 		);
 		public static final CodecHolder<DensityFunctionTypes.Noise>
 				CODEC_HOLDER =
@@ -1179,9 +957,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Offset}.
-	 */
+	/** Базовый интерфейс функций смещения координат; масштабирует шум в 4 раза относительно входных координат. */
 	interface Offset extends DensityFunction {
 
 		DensityFunction.Noise offsetNoise();
@@ -1206,9 +982,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Positional}.
-	 */
+	/** Функция плотности, зависящая от позиции: применяет преобразование к значению входной функции в точке. */
 	interface Positional extends DensityFunction {
 
 		DensityFunction input();
@@ -1230,9 +1004,7 @@ public final class DensityFunctionTypes {
 		double apply(DensityFunction.NoisePos pos, double density);
 	}
 
-	/**
-	 * {@code RangeChoice}.
-	 */
+	/** Выбирает одну из двух функций плотности в зависимости от того, попадает ли значение входной в диапазон. */
 	record RangeChoice(
 			DensityFunction input,
 			double minInclusive,
@@ -1244,23 +1016,13 @@ public final class DensityFunctionTypes {
 
 		public static final MapCodec<DensityFunctionTypes.RangeChoice> RANGE_CHOICE_CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    DensityFunction.FUNCTION_CODEC
-								                    .fieldOf("input")
-								                    .forGetter(DensityFunctionTypes.RangeChoice::input),
-						                    DensityFunctionTypes.CONSTANT_RANGE
-								                    .fieldOf("min_inclusive")
-								                    .forGetter(DensityFunctionTypes.RangeChoice::minInclusive),
-						                    DensityFunctionTypes.CONSTANT_RANGE
-								                    .fieldOf("max_exclusive")
-								                    .forGetter(DensityFunctionTypes.RangeChoice::maxExclusive),
-						                    DensityFunction.FUNCTION_CODEC
-								                    .fieldOf("when_in_range")
-								                    .forGetter(DensityFunctionTypes.RangeChoice::whenInRange),
-						                    DensityFunction.FUNCTION_CODEC
-								                    .fieldOf("when_out_of_range")
-								                    .forGetter(DensityFunctionTypes.RangeChoice::whenOutOfRange)
-				                    )
-				                    .apply(instance, DensityFunctionTypes.RangeChoice::new)
+						DensityFunction.FUNCTION_CODEC.fieldOf("input").forGetter(DensityFunctionTypes.RangeChoice::input),
+						DensityFunctionTypes.CONSTANT_RANGE.fieldOf("min_inclusive").forGetter(DensityFunctionTypes.RangeChoice::minInclusive),
+						DensityFunctionTypes.CONSTANT_RANGE.fieldOf("max_exclusive").forGetter(DensityFunctionTypes.RangeChoice::maxExclusive),
+						DensityFunction.FUNCTION_CODEC.fieldOf("when_in_range").forGetter(DensityFunctionTypes.RangeChoice::whenInRange),
+						DensityFunction.FUNCTION_CODEC.fieldOf("when_out_of_range").forGetter(DensityFunctionTypes.RangeChoice::whenOutOfRange)
+				)
+				.apply(instance, DensityFunctionTypes.RangeChoice::new)
 		);
 		public static final CodecHolder<DensityFunctionTypes.RangeChoice>
 				CODEC_HOLDER =
@@ -1275,16 +1037,13 @@ public final class DensityFunctionTypes {
 
 		@Override
 		public void fill(double[] densities, DensityFunction.EachApplier applier) {
-			this.input.fill(densities, applier);
+			input.fill(densities, applier);
 
-			for (int i = 0; i < densities.length; i++) {
-				double d = densities[i];
-				if (d >= this.minInclusive && d < this.maxExclusive) {
-					densities[i] = this.whenInRange.sample(applier.at(i));
-				}
-				else {
-					densities[i] = this.whenOutOfRange.sample(applier.at(i));
-				}
+			for (int idx = 0; idx < densities.length; idx++) {
+				double val = densities[idx];
+				densities[idx] = val >= minInclusive && val < maxExclusive
+						? whenInRange.sample(applier.at(idx))
+						: whenOutOfRange.sample(applier.at(idx));
 			}
 		}
 
@@ -1317,10 +1076,8 @@ public final class DensityFunctionTypes {
 		}
 	}
 
+	/** Обёртка над {@link RegistryEntry}, делегирующая все вызовы к значению записи реестра. */
 	@Debug
-	/**
-	 * {@code RegistryEntryHolder}.
-	 */
 	public record RegistryEntryHolder(RegistryEntry<DensityFunction> function) implements DensityFunction {
 
 		@Override
@@ -1356,9 +1113,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Shift}.
-	 */
+	/** Смещение координат по всем трём осям на основе шума; используется для искажения рельефа. */
 	protected record Shift(DensityFunction.Noise offsetNoise) implements DensityFunctionTypes.Offset {
 
 		static final CodecHolder<DensityFunctionTypes.Shift> CODEC_HOLDER = DensityFunctionTypes.holderOf(
@@ -1381,9 +1136,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code ShiftA}.
-	 */
+	/** Смещение координат по осям X и Z (Y=0); первая компонента пары смещений для 2D-искажения. */
 	protected record ShiftA(DensityFunction.Noise offsetNoise) implements DensityFunctionTypes.Offset {
 
 		static final CodecHolder<DensityFunctionTypes.ShiftA> CODEC_HOLDER = DensityFunctionTypes.holderOf(
@@ -1406,9 +1159,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code ShiftB}.
-	 */
+	/** Смещение координат по осям Z и X (Y=0); вторая компонента пары смещений для 2D-искажения. */
 	protected record ShiftB(DensityFunction.Noise offsetNoise) implements DensityFunctionTypes.Offset {
 
 		static final CodecHolder<DensityFunctionTypes.ShiftB> CODEC_HOLDER = DensityFunctionTypes.holderOf(
@@ -1431,9 +1182,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code ShiftedNoise}.
-	 */
+	/** Сэмплирует шум в координатах, смещённых тремя независимыми функциями плотности по осям X, Y, Z. */
 	protected record ShiftedNoise(
 			DensityFunction shiftX,
 			DensityFunction shiftY,
@@ -1511,9 +1260,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Spline}.
-	 */
+	/** Вычисляет плотность через кубический сплайн по нескольким входным функциям плотности. */
 	public record Spline(net.minecraft.util.math.Spline<DensityFunctionTypes.Spline.SplinePos, DensityFunctionTypes.Spline.DensityFunctionWrapper> spline)
 			implements DensityFunction {
 
@@ -1561,9 +1308,7 @@ public final class DensityFunctionTypes {
 			return CODEC_HOLDER;
 		}
 
-		/**
-		 * {@code DensityFunctionWrapper}.
-		 */
+		/** Обёртка функции плотности для использования в качестве оси сплайна; конвертирует double → float. */
 		public record DensityFunctionWrapper(RegistryEntry<DensityFunction> function) implements ToFloatFunction<DensityFunctionTypes.Spline.SplinePos> {
 
 			public static final Codec<DensityFunctionTypes.Spline.DensityFunctionWrapper>
@@ -1629,16 +1374,12 @@ public final class DensityFunctionTypes {
 			}
 		}
 
-		/**
-		 * {@code SplinePos}.
-		 */
+		/** Позиция в пространстве сплайна, оборачивающая {@link DensityFunction.NoisePos} для передачи в оси. */
 		public record SplinePos(DensityFunction.NoisePos context) {
 		}
 	}
 
-	/**
-	 * {@code Unary}.
-	 */
+	/** Базовый интерфейс унарных функций плотности: применяет скалярное преобразование к значению входной функции. */
 	interface Unary extends DensityFunction {
 
 		DensityFunction input();
@@ -1660,9 +1401,7 @@ public final class DensityFunctionTypes {
 		double apply(double density);
 	}
 
-	/**
-	 * {@code UnaryOperation}.
-	 */
+	/** Конкретная унарная операция над функцией плотности с предвычисленным диапазоном значений. */
 	protected record UnaryOperation(
 			DensityFunctionTypes.UnaryOperation.Type type,
 			DensityFunction input,
@@ -1675,26 +1414,20 @@ public final class DensityFunctionTypes {
 				DensityFunctionTypes.UnaryOperation.Type type,
 				DensityFunction input
 		) {
-			double d = input.minValue();
-			double e = input.maxValue();
-			double f = apply(type, d);
-			double g = apply(type, e);
+			double inputMin = input.minValue();
+			double inputMax = input.maxValue();
+			double appliedMin = apply(type, inputMin);
+			double appliedMax = apply(type, inputMax);
 			if (type == DensityFunctionTypes.UnaryOperation.Type.INVERT) {
-				return d < 0.0 && e > 0.0
-				       ? new DensityFunctionTypes.UnaryOperation(
-						type,
-						input,
-						Double.NEGATIVE_INFINITY,
-						Double.POSITIVE_INFINITY
-				)
-				       : new DensityFunctionTypes.UnaryOperation(type, input, g, f);
+				return inputMin < 0.0 && inputMax > 0.0
+						? new DensityFunctionTypes.UnaryOperation(type, input, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+						: new DensityFunctionTypes.UnaryOperation(type, input, appliedMax, appliedMin);
 			}
-			else {
-				return type != DensityFunctionTypes.UnaryOperation.Type.ABS
-						       && type != DensityFunctionTypes.UnaryOperation.Type.SQUARE
-				       ? new DensityFunctionTypes.UnaryOperation(type, input, f, g)
-				       : new DensityFunctionTypes.UnaryOperation(type, input, Math.max(0.0, d), Math.max(f, g));
-			}
+
+			return type != DensityFunctionTypes.UnaryOperation.Type.ABS
+					&& type != DensityFunctionTypes.UnaryOperation.Type.SQUARE
+					? new DensityFunctionTypes.UnaryOperation(type, input, appliedMin, appliedMax)
+					: new DensityFunctionTypes.UnaryOperation(type, input, Math.max(0.0, inputMin), Math.max(appliedMin, appliedMax));
 		}
 
 		private static double apply(DensityFunctionTypes.UnaryOperation.Type type, double density) {
@@ -1726,9 +1459,7 @@ public final class DensityFunctionTypes {
 			return this.type.codecHolder;
 		}
 
-		/**
-		 * {@code Type}.
-		 */
+		/** Перечисление поддерживаемых унарных математических операций над значением плотности. */
 		static enum Type implements StringIdentifiable {
 			ABS("abs"),
 			SQUARE("square"),
@@ -1755,9 +1486,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code WeirdScaledSampler}.
-	 */
+	/** Масштабирует шум на коэффициент редкости, создавая пещеры и туннели с нелинейным распределением. */
 	protected record WeirdScaledSampler(
 			DensityFunction input,
 			DensityFunction.Noise noise,
@@ -1814,9 +1543,7 @@ public final class DensityFunctionTypes {
 			return CODEC_HOLDER;
 		}
 
-		/**
-		 * {@code RarityValueMapper}.
-		 */
+		/** Маппер редкости: определяет функцию масштабирования и максимальный множитель для типа пещер. */
 		public static enum RarityValueMapper implements StringIdentifiable {
 			TYPE1("type_1", DensityFunctions.CaveScaler::scaleTunnels, 2.0),
 			TYPE2("type_2", DensityFunctions.CaveScaler::scaleCaves, 3.0);
@@ -1847,9 +1574,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Wrapper}.
-	 */
+	/** Маркерный интерфейс для функций-обёрток с кэшированием; делегирует вычисление вложенной функции. */
 	public interface Wrapper extends DensityFunction {
 
 		DensityFunctionTypes.Wrapping.Type type();
@@ -1867,9 +1592,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code Wrapping}.
-	 */
+	/** Конкретная реализация обёртки с типом кэширования (интерполяция, плоский кэш, 2D-кэш и др.). */
 	public record Wrapping(
 			DensityFunctionTypes.Wrapping.Type type,
 			DensityFunction wrapped
@@ -1895,9 +1618,7 @@ public final class DensityFunctionTypes {
 			return this.wrapped.maxValue();
 		}
 
-		/**
-		 * {@code Type}.
-		 */
+		/** Перечисление стратегий кэширования и интерполяции для функций-обёрток плотности. */
 		public static enum Type implements StringIdentifiable {
 			INTERPOLATED("interpolated"),
 			FLAT_CACHE("flat_cache"),
@@ -1922,9 +1643,7 @@ public final class DensityFunctionTypes {
 		}
 	}
 
-	/**
-	 * {@code YClampedGradient}.
-	 */
+	/** Линейный градиент плотности по оси Y, зажатый в диапазоне [fromY, toY] с маппингом значений. */
 	record YClampedGradient(int fromY, int toY, double fromValue, double toValue) implements DensityFunction.Base {
 
 		private static final MapCodec<DensityFunctionTypes.YClampedGradient>

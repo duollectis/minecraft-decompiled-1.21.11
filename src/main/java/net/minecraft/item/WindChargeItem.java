@@ -17,11 +17,17 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code WindChargeItem}.
+ * Предмет «заряд ветра» — снаряд, создающий взрывную волну при попадании.
+ * При использовании игроком запускает {@link WindChargeEntity} с фиксированной мощью.
+ * При выстреле из диспенсера использует треугольное распределение для разброса.
  */
 public class WindChargeItem extends Item implements ProjectileItem {
 
-	public static float POWER = 1.5F;
+	public static final float POWER = 1.5F;
+	private static final float DISPENSER_UNCERTAINTY = 6.6666665F;
+	private static final int DISPENSE_EVENT_ID = 1051;
+	/** Треугольное распределение разброса при выстреле из диспенсера. */
+	private static final double DISPENSER_SPREAD = 0.11485000000000001;
 
 	public WindChargeItem(Item.Settings settings) {
 		super(settings);
@@ -66,12 +72,13 @@ public class WindChargeItem extends Item implements ProjectileItem {
 	@Override
 	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
 		Random random = world.getRandom();
-		double d = random.nextTriangular((double) direction.getOffsetX(), 0.11485000000000001);
-		double e = random.nextTriangular((double) direction.getOffsetY(), 0.11485000000000001);
-		double f = random.nextTriangular((double) direction.getOffsetZ(), 0.11485000000000001);
-		Vec3d vec3d = new Vec3d(d, e, f);
-		WindChargeEntity windChargeEntity = new WindChargeEntity(world, pos.getX(), pos.getY(), pos.getZ(), vec3d);
-		windChargeEntity.setVelocity(vec3d);
+		Vec3d velocity = new Vec3d(
+				random.nextTriangular(direction.getOffsetX(), DISPENSER_SPREAD),
+				random.nextTriangular(direction.getOffsetY(), DISPENSER_SPREAD),
+				random.nextTriangular(direction.getOffsetZ(), DISPENSER_SPREAD)
+		);
+		WindChargeEntity windChargeEntity = new WindChargeEntity(world, pos.getX(), pos.getY(), pos.getZ(), velocity);
+		windChargeEntity.setVelocity(velocity);
 		return windChargeEntity;
 	}
 
@@ -89,14 +96,10 @@ public class WindChargeItem extends Item implements ProjectileItem {
 	@Override
 	public ProjectileItem.Settings getProjectileSettings() {
 		return ProjectileItem.Settings.builder()
-		                              .positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(
-				                              pointer,
-				                              1.0,
-				                              Vec3d.ZERO
-		                              ))
-		                              .uncertainty(6.6666665F)
-		                              .power(1.0F)
-		                              .overrideDispenseEvent(1051)
-		                              .build();
+			.positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(pointer, 1.0, Vec3d.ZERO))
+			.uncertainty(DISPENSER_UNCERTAINTY)
+			.power(1.0F)
+			.overrideDispenseEvent(DISPENSE_EVENT_ID)
+			.build();
 	}
 }

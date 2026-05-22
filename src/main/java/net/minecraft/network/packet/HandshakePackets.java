@@ -6,7 +6,8 @@ import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс handshake packets.
+ * Реестр типов пакетов фазы {@code HANDSHAKING}: единственный пакет
+ * {@code INTENTION} — клиент сообщает версию протокола и желаемую фазу.
  */
 public class HandshakePackets {
 

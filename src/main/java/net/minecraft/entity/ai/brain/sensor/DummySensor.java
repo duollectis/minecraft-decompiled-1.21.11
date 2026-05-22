@@ -8,7 +8,8 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Set;
 
 /**
- * {@code DummySensor}.
+ * Сенсор-заглушка, который ничего не делает и не записывает никаких воспоминаний.
+ * Используется как placeholder при регистрации типов сенсоров, которые не требуют логики.
  */
 public class DummySensor extends Sensor<LivingEntity> {
 

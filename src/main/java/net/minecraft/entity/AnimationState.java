@@ -3,87 +3,76 @@ package net.minecraft.entity;
 import java.util.function.Consumer;
 
 /**
- * {@code AnimationState}.
+ * Хранит состояние анимации сущности — запущена она или нет.
+ * Использует {@code Integer.MIN_VALUE} как сигнальное значение «остановлена»,
+ * что позволяет избежать отдельного булевого флага.
  */
 public class AnimationState {
 
 	private static final int STOPPED = Integer.MIN_VALUE;
-	private int startTick = Integer.MIN_VALUE;
 
-	/**
-	 * Start.
-	 *
-	 * @param tick tick
-	 */
+	private int startTick = STOPPED;
+
 	public void start(int tick) {
-		this.startTick = tick;
+		startTick = tick;
 	}
 
-	/**
-	 * Запускает if not running.
-	 *
-	 * @param tick tick
-	 */
 	public void startIfNotRunning(int tick) {
-		if (!this.isRunning()) {
-			this.start(tick);
+		if (isRunning()) {
+			return;
 		}
+
+		start(tick);
 	}
 
 	public void setRunning(boolean running, int tick) {
 		if (running) {
-			this.startIfNotRunning(tick);
-		}
-		else {
-			this.stop();
+			startIfNotRunning(tick);
+		} else {
+			stop();
 		}
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.startTick = Integer.MIN_VALUE;
+		startTick = STOPPED;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param consumer consumer
-	 */
 	public void run(Consumer<AnimationState> consumer) {
-		if (this.isRunning()) {
+		if (isRunning()) {
 			consumer.accept(this);
 		}
 	}
 
 	/**
-	 * Skip.
+	 * Сдвигает стартовый тик назад, имитируя пропуск {@code ticks} тиков
+	 * с учётом множителя скорости воспроизведения.
 	 *
-	 * @param ticks ticks
-	 * @param speedMultiplier speed multiplier
+	 * @param ticks           количество тиков для пропуска
+	 * @param speedMultiplier множитель скорости анимации
 	 */
 	public void skip(int ticks, float speedMultiplier) {
-		if (this.isRunning()) {
-			this.startTick -= (int) (ticks * speedMultiplier);
+		if (isRunning()) {
+			startTick -= (int) (ticks * speedMultiplier);
 		}
 	}
 
+	/**
+	 * Возвращает время в миллисекундах, прошедшее с момента запуска анимации.
+	 * Один тик = 50 мс (20 TPS).
+	 *
+	 * @param age текущий возраст сущности в тиках (может быть дробным для интерполяции)
+	 * @return время в миллисекундах
+	 */
 	public long getTimeInMilliseconds(float age) {
-		float f = age - this.startTick;
-		return (long) (f * 50.0F);
+		float elapsed = age - startTick;
+		return (long) (elapsed * 50.0F);
 	}
 
 	public boolean isRunning() {
-		return this.startTick != Integer.MIN_VALUE;
+		return startTick != STOPPED;
 	}
 
-	/**
-	 * Создаёт копию from.
-	 *
-	 * @param state state
-	 */
 	public void copyFrom(AnimationState state) {
-		this.startTick = state.startTick;
+		startTick = state.startTick;
 	}
 }

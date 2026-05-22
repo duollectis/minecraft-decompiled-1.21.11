@@ -7,12 +7,15 @@ import net.minecraft.item.ItemStack;
 import java.util.Optional;
 
 /**
- * {@code CrafterOutputSlot}.
+ * Выходной слот автоматического крафтера (блок Crafter).
+ * <p>
+ * Полностью заблокирован для ручного взаимодействия игрока — предметы
+ * выдаются только автоматически самим блоком крафтера.
  */
 public class CrafterOutputSlot extends Slot {
 
-	public CrafterOutputSlot(Inventory inventory, int i, int j, int k) {
-		super(inventory, i, j, k);
+	public CrafterOutputSlot(Inventory inventory, int index, int x, int y) {
+		super(inventory, index, x, y);
 	}
 
 	@Override
@@ -20,7 +23,7 @@ public class CrafterOutputSlot extends Slot {
 	}
 
 	@Override
-	public boolean canTakeItems(PlayerEntity playerEntity) {
+	public boolean canTakeItems(PlayerEntity player) {
 		return false;
 	}
 
@@ -41,7 +44,7 @@ public class CrafterOutputSlot extends Slot {
 
 	@Override
 	public ItemStack insertStack(ItemStack stack, int count) {
-		return this.insertStack(stack);
+		return stack;
 	}
 
 	@Override

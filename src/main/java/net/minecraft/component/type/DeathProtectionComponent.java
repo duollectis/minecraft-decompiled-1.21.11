@@ -16,8 +16,9 @@ import net.minecraft.network.codec.PacketCodecs;
 import java.util.List;
 
 /**
- * {@code DeathProtectionComponent}.
- */
+	 * Компонент защиты от смерти. Хранит список эффектов, применяемых к сущности
+	 * в момент смерти (например, эффекты тотема бессмертия).
+	 */
 public record DeathProtectionComponent(List<ConsumeEffect> deathEffects) {
 
 	public static final Codec<DeathProtectionComponent> CODEC = RecordCodecBuilder.create(
@@ -47,13 +48,14 @@ public record DeathProtectionComponent(List<ConsumeEffect> deathEffects) {
 	);
 
 	/**
-	 * Применяет death effects.
-	 *
-	 * @param stack stack
-	 * @param entity entity
-	 */
+		 * Применяет все эффекты смерти к сущности. Вызывается в момент, когда предмет
+		 * предотвращает гибель (например, тотем бессмертия поглощается из инвентаря).
+		 *
+		 * @param stack предмет, активировавший защиту
+		 * @param entity сущность, которой применяются эффекты
+		 */
 	public void applyDeathEffects(ItemStack stack, LivingEntity entity) {
-		for (ConsumeEffect consumeEffect : this.deathEffects) {
+		for (ConsumeEffect consumeEffect : deathEffects) {
 			consumeEffect.onConsume(entity.getEntityWorld(), stack, entity);
 		}
 	}

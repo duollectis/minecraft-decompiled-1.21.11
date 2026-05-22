@@ -26,36 +26,40 @@ import net.minecraft.world.gen.feature.PlacedFeature;
 import java.util.List;
 
 /**
- * {@code FeaturePoolElement}.
+ * Элемент пула, генерирующий {@link PlacedFeature} вместо структурного шаблона.
+ * Используется для встраивания биомных фич (деревья, растения и т.д.) в jigsaw-структуры.
+ * Синтетически создаёт jigsaw-блок, направленный вниз, чтобы соединение работало корректно.
  */
 public class FeaturePoolElement extends StructurePoolElement {
 
+	private static final Identifier DEFAULT_JIGSAW_NAME = Identifier.ofVanilla("bottom");
+
 	public static final MapCodec<FeaturePoolElement> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(
-							PlacedFeature.REGISTRY_CODEC.fieldOf("feature").forGetter(pool -> pool.feature),
-							projectionGetter()
-					)
-					.apply(instance, FeaturePoolElement::new)
+		instance -> instance
+			.group(
+				PlacedFeature.REGISTRY_CODEC.fieldOf("feature").forGetter(pool -> pool.feature),
+				projectionGetter()
+			)
+			.apply(instance, FeaturePoolElement::new)
 	);
-	private static final Identifier DEFAULT_NAME = Identifier.ofVanilla("bottom");
+
 	private final RegistryEntry<PlacedFeature> feature;
-	private final NbtCompound nbt;
+	private final NbtCompound jigsawNbt;
 
 	protected FeaturePoolElement(RegistryEntry<PlacedFeature> feature, StructurePool.Projection projection) {
 		super(projection);
 		this.feature = feature;
-		this.nbt = this.createDefaultJigsawNbt();
+		jigsawNbt = createDefaultJigsawNbt();
 	}
 
 	private NbtCompound createDefaultJigsawNbt() {
-		NbtCompound nbtCompound = new NbtCompound();
-		nbtCompound.put("name", Identifier.CODEC, DEFAULT_NAME);
-		nbtCompound.putString("final_state", "minecraft:air");
-		nbtCompound.put("pool", JigsawBlockEntity.STRUCTURE_POOL_KEY_CODEC, StructurePools.EMPTY);
-		nbtCompound.put("target", Identifier.CODEC, JigsawBlockEntity.DEFAULT_NAME);
-		nbtCompound.put("joint", JigsawBlockEntity.Joint.CODEC, JigsawBlockEntity.Joint.ROLLABLE);
-		return nbtCompound;
+		NbtCompound nbt = new NbtCompound();
+		nbt.put("name", Identifier.CODEC, DEFAULT_JIGSAW_NAME);
+		nbt.putString("final_state", "minecraft:air");
+		nbt.put("pool", JigsawBlockEntity.STRUCTURE_POOL_KEY_CODEC, StructurePools.EMPTY);
+		nbt.put("target", Identifier.CODEC, JigsawBlockEntity.DEFAULT_NAME);
+		nbt.put("joint", JigsawBlockEntity.Joint.CODEC, JigsawBlockEntity.Joint.ROLLABLE);
+		return nbt;
 	}
 
 	@Override
@@ -65,56 +69,55 @@ public class FeaturePoolElement extends StructurePoolElement {
 
 	@Override
 	public List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
-			StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation,
+		Random random
 	) {
 		return List.of(
-				StructureTemplate.JigsawBlockInfo.of(
-						new StructureTemplate.StructureBlockInfo(
-								pos,
-								Blocks.JIGSAW
-										.getDefaultState()
-										.with(
-												JigsawBlock.ORIENTATION,
-												Orientation.byDirections(Direction.DOWN, Direction.SOUTH)
-										),
-								this.nbt
-						)
+			StructureTemplate.JigsawBlockInfo.of(
+				new StructureTemplate.StructureBlockInfo(
+					pos,
+					Blocks.JIGSAW.getDefaultState()
+						.with(JigsawBlock.ORIENTATION, Orientation.byDirections(Direction.DOWN, Direction.SOUTH)),
+					jigsawNbt
 				)
+			)
 		);
 	}
 
 	@Override
 	public BlockBox getBoundingBox(
-			StructureTemplateManager structureTemplateManager,
-			BlockPos pos,
-			BlockRotation rotation
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation
 	) {
-		Vec3i vec3i = this.getStart(structureTemplateManager, rotation);
+		Vec3i size = getStart(structureTemplateManager, rotation);
 		return new BlockBox(
-				pos.getX(),
-				pos.getY(),
-				pos.getZ(),
-				pos.getX() + vec3i.getX(),
-				pos.getY() + vec3i.getY(),
-				pos.getZ() + vec3i.getZ()
+			pos.getX(),
+			pos.getY(),
+			pos.getZ(),
+			pos.getX() + size.getX(),
+			pos.getY() + size.getY(),
+			pos.getZ() + size.getZ()
 		);
 	}
 
 	@Override
 	public boolean generate(
-			StructureTemplateManager structureTemplateManager,
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			BlockPos pos,
-			BlockPos pivot,
-			BlockRotation rotation,
-			BlockBox box,
-			Random random,
-			StructureLiquidSettings liquidSettings,
-			boolean keepJigsaws
+		StructureTemplateManager structureTemplateManager,
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		BlockPos pos,
+		BlockPos pivot,
+		BlockRotation rotation,
+		BlockBox box,
+		Random random,
+		StructureLiquidSettings liquidSettings,
+		boolean keepJigsaws
 	) {
-		return this.feature.value().generateUnregistered(world, chunkGenerator, random, pos);
+		return feature.value().generateUnregistered(world, chunkGenerator, random, pos);
 	}
 
 	@Override
@@ -124,6 +127,6 @@ public class FeaturePoolElement extends StructurePoolElement {
 
 	@Override
 	public String toString() {
-		return "Feature[" + this.feature + "]";
+		return "Feature[" + feature + "]";
 	}
 }

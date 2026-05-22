@@ -84,6 +84,8 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	);
 	private static final Text UNBREAKABLE_TEXT = Text.translatable("item.unbreakable").formatted(Formatting.BLUE);
 	private static final Text INTANGIBLE_TEXT = Text.translatable("item.intangible").formatted(Formatting.GRAY);
+	private static final Text DISABLED_TEXT = Text.translatable("item.disabled").formatted(Formatting.RED);
+
 	public static final MapCodec<ItemStack> MAP_CODEC = MapCodec.recursive(
 			"ItemStack",
 			codec -> RecordCodecBuilder.mapCodec(
@@ -114,63 +116,47 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	public static final Codec<ItemStack> OPTIONAL_CODEC = Codecs.optional(CODEC)
 	                                                            .xmap(
 			                                                            optional -> optional.orElse(ItemStack.EMPTY),
-			                                                            stack -> stack.isEmpty() ? Optional.empty()
-			                                                                                     : Optional.of(stack)
+			                                                            stack -> stack.isEmpty()
+			                                                                     ? Optional.empty()
+			                                                                     : Optional.of(stack)
 	                                                            );
-	public static final Codec<ItemStack>
-			REGISTRY_ENTRY_CODEC =
+	public static final Codec<ItemStack> REGISTRY_ENTRY_CODEC =
 			Item.ENTRY_CODEC.xmap(ItemStack::new, ItemStack::getRegistryEntry);
-	public static final PacketCodec<RegistryByteBuf, ItemStack>
-			OPTIONAL_PACKET_CODEC =
+
+	public static final PacketCodec<RegistryByteBuf, ItemStack> OPTIONAL_PACKET_CODEC =
 			createOptionalPacketCodec(ComponentChanges.PACKET_CODEC);
-	public static final PacketCodec<RegistryByteBuf, ItemStack>
-			LENGTH_PREPENDED_OPTIONAL_PACKET_CODEC =
-			createOptionalPacketCodec(
-					ComponentChanges.LENGTH_PREPENDED_PACKET_CODEC
-			);
-	public static final PacketCodec<RegistryByteBuf, ItemStack>
-			PACKET_CODEC =
-			new PacketCodec<RegistryByteBuf, ItemStack>() {
-				/**
-				 * Decode.
-				 *
-				 * @param registryByteBuf registry byte buf
-				 *
-				 * @return ItemStack — результат операции
-				 */
-				public ItemStack decode(RegistryByteBuf registryByteBuf) {
-					ItemStack itemStack = ItemStack.OPTIONAL_PACKET_CODEC.decode(registryByteBuf);
-					if (itemStack.isEmpty()) {
+	public static final PacketCodec<RegistryByteBuf, ItemStack> LENGTH_PREPENDED_OPTIONAL_PACKET_CODEC =
+			createOptionalPacketCodec(ComponentChanges.LENGTH_PREPENDED_PACKET_CODEC);
+
+	public static final PacketCodec<RegistryByteBuf, ItemStack> PACKET_CODEC =
+			new PacketCodec<>() {
+				@Override
+				public ItemStack decode(RegistryByteBuf buf) {
+					ItemStack stack = ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
+					if (stack.isEmpty()) {
 						throw new DecoderException("Empty ItemStack not allowed");
 					}
-					else {
-						return itemStack;
-					}
+
+					return stack;
 				}
 
-				/**
-				 * Encode.
-				 *
-				 * @param registryByteBuf registry byte buf
-				 * @param itemStack item stack
-				 */
-				public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
-					if (itemStack.isEmpty()) {
+				@Override
+				public void encode(RegistryByteBuf buf, ItemStack stack) {
+					if (stack.isEmpty()) {
 						throw new EncoderException("Empty ItemStack not allowed");
 					}
-					else {
-						ItemStack.OPTIONAL_PACKET_CODEC.encode(registryByteBuf, itemStack);
-					}
+
+					ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, stack);
 				}
 			};
-	public static final PacketCodec<RegistryByteBuf, List<ItemStack>>
-			OPTIONAL_LIST_PACKET_CODEC =
-			OPTIONAL_PACKET_CODEC.collect(
-					PacketCodecs.toCollection(DefaultedList::ofSize)
-			);
+
+	public static final PacketCodec<RegistryByteBuf, List<ItemStack>> OPTIONAL_LIST_PACKET_CODEC =
+			OPTIONAL_PACKET_CODEC.collect(PacketCodecs.toCollection(DefaultedList::ofSize));
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final ItemStack EMPTY = new ItemStack((Void) null);
-	private static final Text DISABLED_TEXT = Text.translatable("item.disabled").formatted(Formatting.RED);
+
 	private int count;
 	private int bobbingAnimationTime;
 	@Deprecated
@@ -179,126 +165,112 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	private @Nullable Entity holder;
 
 	/**
-	 * Validate.
+	 * Валидирует стек предмета: проверяет совместимость компонентов и допустимость количества.
 	 *
-	 * @param stack stack
-	 *
-	 * @return DataResult — результат операции
+	 * @param stack стек для валидации
+	 * @return успех или ошибка с описанием нарушения
 	 */
 	public static DataResult<ItemStack> validate(ItemStack stack) {
-		DataResult<Unit> dataResult = validateComponents(stack.getComponents());
-		if (dataResult.isError()) {
-			return dataResult.map(v -> stack);
+		DataResult<Unit> componentResult = validateComponents(stack.getComponents());
+		if (componentResult.isError()) {
+			return componentResult.map(v -> stack);
 		}
-		else {
-			return stack.getCount() > stack.getMaxCount()
-			       ? DataResult.error(() -> "Item stack with stack size of " + stack.getCount()
-			                                + " was larger than maximum: " + stack.getMaxCount())
-			       : DataResult.success(stack);
-		}
+
+		return stack.getCount() > stack.getMaxCount()
+		       ? DataResult.error(() -> "Item stack with stack size of " + stack.getCount()
+		                                + " was larger than maximum: " + stack.getMaxCount())
+		       : DataResult.success(stack);
 	}
 
-	private static PacketCodec<RegistryByteBuf, ItemStack> createOptionalPacketCodec(PacketCodec<RegistryByteBuf, ComponentChanges> componentsPacketCodec) {
-		return new PacketCodec<RegistryByteBuf, ItemStack>() {
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return ItemStack — результат операции
-			 */
-			public ItemStack decode(RegistryByteBuf registryByteBuf) {
-				int i = registryByteBuf.readVarInt();
-				if (i <= 0) {
+	/**
+	 * Создаёт пакетный кодек для опционального стека предмета.
+	 * <p>Пустой стек кодируется как count=0 без данных предмета.</p>
+	 *
+	 * @param componentsCodec кодек для изменений компонентов
+	 * @return пакетный кодек опционального стека
+	 */
+	private static PacketCodec<RegistryByteBuf, ItemStack> createOptionalPacketCodec(
+			PacketCodec<RegistryByteBuf, ComponentChanges> componentsCodec
+	) {
+		return new PacketCodec<>() {
+			@Override
+			public ItemStack decode(RegistryByteBuf buf) {
+				int count = buf.readVarInt();
+				if (count <= 0) {
 					return ItemStack.EMPTY;
 				}
-				else {
-					RegistryEntry<Item> registryEntry = Item.ENTRY_PACKET_CODEC.decode(registryByteBuf);
-					ComponentChanges componentChanges = componentsPacketCodec.decode(registryByteBuf);
-					return new ItemStack(registryEntry, i, componentChanges);
-				}
+
+				RegistryEntry<Item> registryEntry = Item.ENTRY_PACKET_CODEC.decode(buf);
+				ComponentChanges componentChanges = componentsCodec.decode(buf);
+				return new ItemStack(registryEntry, count, componentChanges);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param itemStack item stack
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
-				if (itemStack.isEmpty()) {
-					registryByteBuf.writeVarInt(0);
+			@Override
+			public void encode(RegistryByteBuf buf, ItemStack stack) {
+				if (stack.isEmpty()) {
+					buf.writeVarInt(0);
+					return;
 				}
-				else {
-					registryByteBuf.writeVarInt(itemStack.getCount());
-					Item.ENTRY_PACKET_CODEC.encode(registryByteBuf, itemStack.getRegistryEntry());
-					componentsPacketCodec.encode(registryByteBuf, itemStack.components.getChanges());
-				}
+
+				buf.writeVarInt(stack.getCount());
+				Item.ENTRY_PACKET_CODEC.encode(buf, stack.getRegistryEntry());
+				componentsCodec.encode(buf, stack.components.getChanges());
 			}
 		};
 	}
 
 	/**
-	 * Создаёт extra validating packet codec.
+	 * Создаёт пакетный кодек с дополнительной валидацией через сериализацию в NullOps.
+	 * <p>Используется для проверки корректности стека при получении от клиента.</p>
 	 *
-	 * @param basePacketCodec base packet codec
-	 *
-	 * @return PacketCodec — результат операции
+	 * @param baseCodec базовый кодек стека
+	 * @return кодек с дополнительной валидацией
 	 */
-	public static PacketCodec<RegistryByteBuf, ItemStack> createExtraValidatingPacketCodec(PacketCodec<RegistryByteBuf, ItemStack> basePacketCodec) {
-		return new PacketCodec<RegistryByteBuf, ItemStack>() {
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return ItemStack — результат операции
-			 */
-			public ItemStack decode(RegistryByteBuf registryByteBuf) {
-				ItemStack itemStack = basePacketCodec.decode(registryByteBuf);
-				if (!itemStack.isEmpty()) {
-					RegistryOps<Unit> registryOps = registryByteBuf.getRegistryManager().getOps(NullOps.INSTANCE);
-					ItemStack.CODEC.encodeStart(registryOps, itemStack).getOrThrow(DecoderException::new);
+	public static PacketCodec<RegistryByteBuf, ItemStack> createExtraValidatingPacketCodec(
+			PacketCodec<RegistryByteBuf, ItemStack> baseCodec
+	) {
+		return new PacketCodec<>() {
+			@Override
+			public ItemStack decode(RegistryByteBuf buf) {
+				ItemStack stack = baseCodec.decode(buf);
+				if (!stack.isEmpty()) {
+					RegistryOps<Unit> registryOps = buf.getRegistryManager().getOps(NullOps.INSTANCE);
+					ItemStack.CODEC.encodeStart(registryOps, stack).getOrThrow(DecoderException::new);
 				}
 
-				return itemStack;
+				return stack;
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param itemStack item stack
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
-				basePacketCodec.encode(registryByteBuf, itemStack);
+			@Override
+			public void encode(RegistryByteBuf buf, ItemStack stack) {
+				baseCodec.encode(buf, stack);
 			}
 		};
 	}
 
 	public Optional<TooltipData> getTooltipData() {
-		return this.getItem().getTooltipData(this);
+		return getItem().getTooltipData(this);
 	}
 
 	@Override
 	public ComponentMap getComponents() {
-		return (ComponentMap) (!this.isEmpty() ? this.components : ComponentMap.EMPTY);
+		return !isEmpty() ? components : ComponentMap.EMPTY;
 	}
 
 	public ComponentMap getDefaultComponents() {
-		return !this.isEmpty() ? this.getItem().getComponents() : ComponentMap.EMPTY;
+		return !isEmpty() ? getItem().getComponents() : ComponentMap.EMPTY;
 	}
 
 	public ComponentChanges getComponentChanges() {
-		return !this.isEmpty() ? this.components.getChanges() : ComponentChanges.EMPTY;
+		return !isEmpty() ? components.getChanges() : ComponentChanges.EMPTY;
 	}
 
 	public ComponentMap getImmutableComponents() {
-		return !this.isEmpty() ? this.components.immutableCopy() : ComponentMap.EMPTY;
+		return !isEmpty() ? components.immutableCopy() : ComponentMap.EMPTY;
 	}
 
 	public boolean hasChangedComponent(ComponentType<?> type) {
-		return !this.isEmpty() && this.components.hasChanged(type);
+		return !isEmpty() && components.hasChanged(type);
 	}
 
 	public ItemStack(ItemConvertible item) {
@@ -328,258 +300,234 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	}
 
 	private ItemStack(@Nullable Void v) {
-		this.item = null;
-		this.components = new MergedComponentMap(ComponentMap.EMPTY);
+		item = null;
+		components = new MergedComponentMap(ComponentMap.EMPTY);
 	}
 
 	/**
-	 * Валидирует components.
+	 * Валидирует набор компонентов стека: проверяет совместимость прочности и стакаемости,
+	 * а также допустимость количества предметов в контейнерах.
 	 *
-	 * @param components components
-	 *
-	 * @return DataResult — результат операции
+	 * @param components набор компонентов для проверки
+	 * @return успех или ошибка с описанием нарушения
 	 */
 	public static DataResult<Unit> validateComponents(ComponentMap components) {
 		if (components.contains(DataComponentTypes.MAX_DAMAGE)
 				&& components.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1) > 1) {
 			return DataResult.error(() -> "Item cannot be both damageable and stackable");
 		}
-		else {
-			ContainerComponent
-					containerComponent =
-					components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
 
-			for (ItemStack itemStack : containerComponent.iterateNonEmpty()) {
-				int i = itemStack.getCount();
-				int j = itemStack.getMaxCount();
-				if (i > j) {
-					return DataResult.error(() -> "Item stack with count of " + i + " was larger than maximum: " + j);
-				}
+		ContainerComponent container =
+				components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
+
+		for (ItemStack itemStack : container.iterateNonEmpty()) {
+			int count = itemStack.getCount();
+			int maxCount = itemStack.getMaxCount();
+			if (count > maxCount) {
+				return DataResult.error(() -> "Item stack with count of " + count + " was larger than maximum: " + maxCount);
 			}
-
-			return DataResult.success(Unit.INSTANCE);
 		}
+
+		return DataResult.success(Unit.INSTANCE);
 	}
 
 	public boolean isEmpty() {
-		return this == EMPTY || this.item == Items.AIR || this.count <= 0;
+		return this == EMPTY || item == Items.AIR || count <= 0;
 	}
 
 	public boolean isItemEnabled(FeatureSet enabledFeatures) {
-		return this.isEmpty() || this.getItem().isEnabled(enabledFeatures);
+		return isEmpty() || getItem().isEnabled(enabledFeatures);
 	}
 
 	/**
-	 * Split.
+	 * Отделяет указанное количество предметов от стека и возвращает их как новый стек.
 	 *
-	 * @param amount amount
-	 *
-	 * @return ItemStack — результат операции
+	 * @param amount количество предметов для отделения
+	 * @return новый стек с отделёнными предметами
 	 */
 	public ItemStack split(int amount) {
-		int i = Math.min(amount, this.getCount());
-		ItemStack itemStack = this.copyWithCount(i);
-		this.decrement(i);
-		return itemStack;
+		int splitAmount = Math.min(amount, getCount());
+		ItemStack result = copyWithCount(splitAmount);
+		decrement(splitAmount);
+		return result;
 	}
 
 	/**
-	 * Создаёт копию and empty.
+	 * Копирует стек и обнуляет количество в текущем.
 	 *
-	 * @return ItemStack — результат операции
+	 * @return копия стека с исходным количеством, текущий стек становится пустым
 	 */
 	public ItemStack copyAndEmpty() {
-		if (this.isEmpty()) {
+		if (isEmpty()) {
 			return EMPTY;
 		}
-		else {
-			ItemStack itemStack = this.copy();
-			this.setCount(0);
-			return itemStack;
-		}
+
+		ItemStack copy = copy();
+		setCount(0);
+		return copy;
 	}
 
 	public Item getItem() {
-		return this.isEmpty() ? Items.AIR : this.item;
+		return isEmpty() ? Items.AIR : item;
 	}
 
 	public RegistryEntry<Item> getRegistryEntry() {
-		return this.getItem().getRegistryEntry();
+		return getItem().getRegistryEntry();
 	}
 
 	public boolean isIn(TagKey<Item> tag) {
-		return this.getItem().getRegistryEntry().isIn(tag);
+		return getItem().getRegistryEntry().isIn(tag);
 	}
 
 	public boolean isOf(Item item) {
-		return this.getItem() == item;
+		return getItem() == item;
 	}
 
-	/**
-	 * Item matches.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean itemMatches(Predicate<RegistryEntry<Item>> predicate) {
-		return predicate.test(this.getItem().getRegistryEntry());
+		return predicate.test(getItem().getRegistryEntry());
 	}
 
-	/**
-	 * Item matches.
-	 *
-	 * @param itemEntry item entry
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean itemMatches(RegistryEntry<Item> itemEntry) {
-		return this.getItem().getRegistryEntry() == itemEntry;
+		return getItem().getRegistryEntry() == itemEntry;
 	}
 
 	public boolean isIn(RegistryEntryList<Item> registryEntryList) {
-		return registryEntryList.contains(this.getRegistryEntry());
+		return registryEntryList.contains(getRegistryEntry());
 	}
 
-	/**
-	 * Stream tags.
-	 *
-	 * @return Stream> — результат операции
-	 */
 	public Stream<TagKey<Item>> streamTags() {
-		return this.getItem().getRegistryEntry().streamTags();
+		return getItem().getRegistryEntry().streamTags();
 	}
 
 	/**
-	 * Использует on block.
+	 * Использует предмет на блоке. Проверяет права игрока на изменение мира
+	 * и наличие компонента {@code CAN_PLACE_ON} перед делегированием в {@link Item#useOnBlock}.
 	 *
-	 * @param context context
-	 *
-	 * @return ActionResult — результат операции
+	 * @param context контекст использования предмета на блоке
+	 * @return результат действия
 	 */
 	public ActionResult useOnBlock(ItemUsageContext context) {
-		PlayerEntity playerEntity = context.getPlayer();
+		PlayerEntity player = context.getPlayer();
 		BlockPos blockPos = context.getBlockPos();
-		if (playerEntity != null
-				&& !playerEntity.getAbilities().allowModifyWorld
-				&& !this.canPlaceOn(new CachedBlockPosition(context.getWorld(), blockPos, false))) {
+
+		if (player != null
+				&& !player.getAbilities().allowModifyWorld
+				&& !canPlaceOn(new CachedBlockPosition(context.getWorld(), blockPos, false))) {
 			return ActionResult.PASS;
 		}
-		else {
-			Item heldItem = this.getItem();
-			ActionResult actionResult = heldItem.useOnBlock(context);
 
-			if (playerEntity != null && actionResult instanceof ActionResult.Success success
-					&& success.shouldIncrementStat()) {
-				playerEntity.incrementStat(Stats.USED.getOrCreateStat(heldItem));
-			}
+		Item heldItem = getItem();
+		ActionResult actionResult = heldItem.useOnBlock(context);
 
-			return actionResult;
+		if (player != null && actionResult instanceof ActionResult.Success success
+				&& success.shouldIncrementStat()) {
+			player.incrementStat(Stats.USED.getOrCreateStat(heldItem));
 		}
+
+		return actionResult;
 	}
 
 	public float getMiningSpeedMultiplier(BlockState state) {
-		return this.getItem().getMiningSpeed(this, state);
+		return getItem().getMiningSpeed(this, state);
 	}
 
 	/**
-	 * Use.
+	 * Использует предмет игроком. Если предмет не требует длительного использования,
+	 * автоматически применяет остаток и кулдаун после успешного действия.
 	 *
-	 * @param world world
-	 * @param user user
-	 * @param hand hand
-	 *
-	 * @return ActionResult — результат операции
+	 * @param world мир
+	 * @param user  игрок
+	 * @param hand  рука
+	 * @return результат действия
 	 */
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = this.copy();
-		boolean bl = this.getMaxUseTime(user) <= 0;
-		ActionResult actionResult = this.getItem().use(world, user, hand);
-		return (ActionResult) (bl && actionResult instanceof ActionResult.Success success
-		                       ? success.withNewHandStack(
+		ItemStack snapshot = copy();
+		boolean isInstant = getMaxUseTime(user) <= 0;
+		ActionResult actionResult = getItem().use(world, user, hand);
+
+		return isInstant && actionResult instanceof ActionResult.Success success
+		       ? success.withNewHandStack(
 				success.getNewHandStack() == null
-				? this.applyRemainderAndCooldown(user, itemStack)
-				: success.getNewHandStack().applyRemainderAndCooldown(user, itemStack)
+				? applyRemainderAndCooldown(user, snapshot)
+				: success.getNewHandStack().applyRemainderAndCooldown(user, snapshot)
 		)
-		                       : actionResult
-		);
+		       : actionResult;
 	}
 
 	/**
-	 * Finish using.
+	 * Завершает длительное использование предмета и применяет остаток и кулдаун.
 	 *
-	 * @param world world
-	 * @param user user
-	 *
-	 * @return ItemStack — результат операции
+	 * @param world мир
+	 * @param user  сущность, использующая предмет
+	 * @return итоговый стек после завершения использования
 	 */
 	public ItemStack finishUsing(World world, LivingEntity user) {
-		ItemStack itemStack = this.copy();
-		ItemStack itemStack2 = this.getItem().finishUsing(this, world, user);
-		return itemStack2.applyRemainderAndCooldown(user, itemStack);
+		ItemStack snapshot = copy();
+		ItemStack result = getItem().finishUsing(this, world, user);
+		return result.applyRemainderAndCooldown(user, snapshot);
 	}
 
+	/**
+	 * Применяет компонент {@code USE_REMAINDER} (замена предмета после использования)
+	 * и {@code USE_COOLDOWN} (кулдаун) к стеку.
+	 *
+	 * @param user  сущность, использовавшая предмет
+	 * @param stack снимок стека до использования
+	 * @return итоговый стек (может быть заменён остатком)
+	 */
 	private ItemStack applyRemainderAndCooldown(LivingEntity user, ItemStack stack) {
-		UseRemainderComponent useRemainderComponent = stack.get(DataComponentTypes.USE_REMAINDER);
-		UseCooldownComponent useCooldownComponent = stack.get(DataComponentTypes.USE_COOLDOWN);
-		int i = stack.getCount();
-		ItemStack itemStack = this;
-		if (useRemainderComponent != null) {
-			itemStack = useRemainderComponent.convert(this, i, user.isInCreativeMode(), user::giveOrDropStack);
+		UseRemainderComponent remainder = stack.get(DataComponentTypes.USE_REMAINDER);
+		UseCooldownComponent cooldown = stack.get(DataComponentTypes.USE_COOLDOWN);
+		int originalCount = stack.getCount();
+
+		ItemStack result = this;
+		if (remainder != null) {
+			result = remainder.convert(this, originalCount, user.isInCreativeMode(), user::giveOrDropStack);
 		}
 
-		if (useCooldownComponent != null) {
-			useCooldownComponent.set(stack, user);
+		if (cooldown != null) {
+			cooldown.set(stack, user);
 		}
 
-		return itemStack;
+		return result;
 	}
 
 	public int getMaxCount() {
-		return this.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1);
+		return getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1);
 	}
 
 	public boolean isStackable() {
-		return this.getMaxCount() > 1 && (!this.isDamageable() || !this.isDamaged());
+		return getMaxCount() > 1 && (!isDamageable() || !isDamaged());
 	}
 
 	public boolean isDamageable() {
-		return this.contains(DataComponentTypes.MAX_DAMAGE) && !this.contains(DataComponentTypes.UNBREAKABLE)
-				&& this.contains(DataComponentTypes.DAMAGE);
+		return contains(DataComponentTypes.MAX_DAMAGE)
+				&& !contains(DataComponentTypes.UNBREAKABLE)
+				&& contains(DataComponentTypes.DAMAGE);
 	}
 
 	public boolean isDamaged() {
-		return this.isDamageable() && this.getDamage() > 0;
+		return isDamageable() && getDamage() > 0;
 	}
 
 	public int getDamage() {
-		return MathHelper.clamp(this.getOrDefault(DataComponentTypes.DAMAGE, 0), 0, this.getMaxDamage());
+		return MathHelper.clamp(getOrDefault(DataComponentTypes.DAMAGE, 0), 0, getMaxDamage());
 	}
 
 	public void setDamage(int damage) {
-		this.set(DataComponentTypes.DAMAGE, MathHelper.clamp(damage, 0, this.getMaxDamage()));
+		set(DataComponentTypes.DAMAGE, MathHelper.clamp(damage, 0, getMaxDamage()));
 	}
 
 	public int getMaxDamage() {
-		return this.getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
+		return getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
 	}
 
-	/**
-	 * Определяет, следует ли break.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldBreak() {
-		return this.isDamageable() && this.getDamage() >= this.getMaxDamage();
+		return isDamageable() && getDamage() >= getMaxDamage();
 	}
 
-	/**
-	 * Will break next use.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean willBreakNextUse() {
-		return this.isDamageable() && this.getDamage() >= this.getMaxDamage() - 1;
+		return isDamageable() && getDamage() >= getMaxDamage() - 1;
 	}
 
 	public void damage(
@@ -588,22 +536,30 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 			@Nullable ServerPlayerEntity player,
 			Consumer<Item> breakCallback
 	) {
-		int i = this.calculateDamage(amount, world, player);
-		if (i != 0) {
-			this.onDurabilityChange(this.getDamage() + i, player, breakCallback);
+		int actualDamage = calculateDamage(amount, world, player);
+		if (actualDamage != 0) {
+			onDurabilityChange(getDamage() + actualDamage, player, breakCallback);
 		}
 	}
 
+	/**
+	 * Вычисляет фактический урон прочности с учётом зачарований и режима творчества.
+	 *
+	 * @param baseDamage базовый урон прочности
+	 * @param world      серверный мир (нужен для зачарований)
+	 * @param player     игрок или {@code null}
+	 * @return фактический урон прочности (0 если предмет нельзя повредить)
+	 */
 	private int calculateDamage(int baseDamage, ServerWorld world, @Nullable ServerPlayerEntity player) {
-		if (!this.isDamageable()) {
+		if (!isDamageable()) {
 			return 0;
 		}
-		else if (player != null && player.isInCreativeMode()) {
+
+		if (player != null && player.isInCreativeMode()) {
 			return 0;
 		}
-		else {
-			return baseDamage > 0 ? EnchantmentHelper.getItemDamage(world, this, baseDamage) : baseDamage;
-		}
+
+		return baseDamage > 0 ? EnchantmentHelper.getItemDamage(world, this, baseDamage) : baseDamage;
 	}
 
 	private void onDurabilityChange(int damage, @Nullable ServerPlayerEntity player, Consumer<Item> breakCallback) {
@@ -611,110 +567,89 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 			Criteria.ITEM_DURABILITY_CHANGED.trigger(player, this, damage);
 		}
 
-		this.setDamage(damage);
+		setDamage(damage);
 
-		if (this.shouldBreak()) {
-			Item heldItem = this.getItem();
-			this.decrement(1);
-			breakCallback.accept(heldItem);
+		if (shouldBreak()) {
+			Item brokenItem = getItem();
+			decrement(1);
+			breakCallback.accept(brokenItem);
 		}
 	}
 
 	/**
-	 * Damage.
+	 * Наносит урон прочности предмету игрока, не позволяя сломать его в руке
+	 * (урон ограничивается до {@code maxDamage - 1}).
 	 *
-	 * @param amount amount
-	 * @param player player
+	 * @param amount количество урона прочности
+	 * @param player игрок-владелец предмета
 	 */
 	public void damage(int amount, PlayerEntity player) {
-		if (player instanceof ServerPlayerEntity serverPlayerEntity) {
-			int i = this.calculateDamage(amount, serverPlayerEntity.getEntityWorld(), serverPlayerEntity);
-			if (i == 0) {
-				return;
-			}
-
-			int j = Math.min(this.getDamage() + i, this.getMaxDamage() - 1);
-			this.onDurabilityChange(j, serverPlayerEntity, item -> {});
+		if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+			return;
 		}
+
+		int actualDamage = calculateDamage(amount, serverPlayer.getEntityWorld(), serverPlayer);
+		if (actualDamage == 0) {
+			return;
+		}
+
+		int clampedDamage = Math.min(getDamage() + actualDamage, getMaxDamage() - 1);
+		onDurabilityChange(clampedDamage, serverPlayer, item -> {});
 	}
 
-	/**
-	 * Damage.
-	 *
-	 * @param amount amount
-	 * @param entity entity
-	 * @param hand hand
-	 */
 	public void damage(int amount, LivingEntity entity, Hand hand) {
-		this.damage(amount, entity, hand.getEquipmentSlot());
+		damage(amount, entity, hand.getEquipmentSlot());
 	}
 
-	/**
-	 * Damage.
-	 *
-	 * @param amount amount
-	 * @param entity entity
-	 * @param slot slot
-	 */
 	public void damage(int amount, LivingEntity entity, EquipmentSlot slot) {
 		if (entity.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.damage(
+			damage(
 					amount,
 					serverWorld,
-					entity instanceof ServerPlayerEntity serverPlayerEntity ? serverPlayerEntity : null,
-					item -> entity.sendEquipmentBreakStatus(item, slot)
+					entity instanceof ServerPlayerEntity serverPlayer ? serverPlayer : null,
+					brokenItem -> entity.sendEquipmentBreakStatus(brokenItem, slot)
 			);
 		}
 	}
 
 	/**
-	 * Damage.
+	 * Наносит урон прочности и возвращает новый стек если предмет сломался.
+	 * <p>При поломке создаёт стек из {@code itemAfterBreaking} с перенесёнными компонентами.</p>
 	 *
-	 * @param amount amount
-	 * @param itemAfterBreaking item after breaking
-	 * @param entity entity
-	 * @param slot slot
-	 *
-	 * @return ItemStack — результат операции
+	 * @param amount           количество урона прочности
+	 * @param itemAfterBreaking предмет, который появится после поломки
+	 * @param entity           сущность-владелец
+	 * @param slot             слот экипировки
+	 * @return текущий стек или новый стек после поломки
 	 */
 	public ItemStack damage(int amount, ItemConvertible itemAfterBreaking, LivingEntity entity, EquipmentSlot slot) {
-		this.damage(amount, entity, slot);
-		if (this.isEmpty()) {
-			ItemStack itemStack = this.copyComponentsToNewStackIgnoreEmpty(itemAfterBreaking, 1);
-			if (itemStack.isDamageable()) {
-				itemStack.setDamage(0);
-			}
-
-			return itemStack;
-		}
-		else {
+		damage(amount, entity, slot);
+		if (!isEmpty()) {
 			return this;
 		}
+
+		ItemStack replacement = copyComponentsToNewStackIgnoreEmpty(itemAfterBreaking, 1);
+		if (replacement.isDamageable()) {
+			replacement.setDamage(0);
+		}
+
+		return replacement;
 	}
 
 	public boolean isItemBarVisible() {
-		return this.getItem().isItemBarVisible(this);
+		return getItem().isItemBarVisible(this);
 	}
 
 	public int getItemBarStep() {
-		return this.getItem().getItemBarStep(this);
+		return getItem().getItemBarStep(this);
 	}
 
 	public int getItemBarColor() {
-		return this.getItem().getItemBarColor(this);
+		return getItem().getItemBarColor(this);
 	}
 
-	/**
-	 * Обрабатывает событие stack clicked.
-	 *
-	 * @param slot slot
-	 * @param clickType click type
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean onStackClicked(Slot slot, ClickType clickType, PlayerEntity player) {
-		return this.getItem().onStackClicked(this, slot, clickType, player);
+		return getItem().onStackClicked(this, slot, clickType, player);
 	}
 
 	public boolean onClicked(
@@ -724,1025 +659,748 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 			PlayerEntity player,
 			StackReference cursorStackReference
 	) {
-		return this.getItem().onClicked(this, stack, slot, clickType, player, cursorStackReference);
+		return getItem().onClicked(this, stack, slot, clickType, player, cursorStackReference);
 	}
 
 	/**
-	 * Post hit.
+	 * Вызывается после удара по сущности данным предметом.
+	 * <p>Если у предмета есть компонент {@code WEAPON}, увеличивает статистику использования.</p>
 	 *
-	 * @param target target
-	 * @param user user
-	 *
-	 * @return boolean — результат операции
+	 * @param target цель удара
+	 * @param user   атакующая сущность
+	 * @return {@code true} если предмет является оружием
 	 */
 	public boolean postHit(LivingEntity target, LivingEntity user) {
-		Item heldItem = this.getItem();
+		Item heldItem = getItem();
 		heldItem.postHit(this, target, user);
 
-		if (this.contains(DataComponentTypes.WEAPON)) {
-			if (user instanceof PlayerEntity playerEntity) {
-				playerEntity.incrementStat(Stats.USED.getOrCreateStat(heldItem));
-			}
-
-			return true;
-		}
-		else {
+		if (!contains(DataComponentTypes.WEAPON)) {
 			return false;
 		}
+
+		if (user instanceof PlayerEntity player) {
+			player.incrementStat(Stats.USED.getOrCreateStat(heldItem));
+		}
+
+		return true;
 	}
 
-	/**
-	 * Post damage entity.
-	 *
-	 * @param target target
-	 * @param user user
-	 */
 	public void postDamageEntity(LivingEntity target, LivingEntity user) {
-		this.getItem().postDamageEntity(this, target, user);
-		WeaponComponent weaponComponent = this.get(DataComponentTypes.WEAPON);
-		if (weaponComponent != null) {
-			this.damage(weaponComponent.itemDamagePerAttack(), user, EquipmentSlot.MAINHAND);
+		getItem().postDamageEntity(this, target, user);
+		WeaponComponent weapon = get(DataComponentTypes.WEAPON);
+		if (weapon != null) {
+			damage(weapon.itemDamagePerAttack(), user, EquipmentSlot.MAINHAND);
 		}
 	}
 
-	/**
-	 * Post mine.
-	 *
-	 * @param world world
-	 * @param state state
-	 * @param pos pos
-	 * @param miner miner
-	 */
 	public void postMine(World world, BlockState state, BlockPos pos, PlayerEntity miner) {
-		Item item = this.getItem();
-		if (item.postMine(this, world, state, pos, miner)) {
-			miner.incrementStat(Stats.USED.getOrCreateStat(item));
+		Item heldItem = getItem();
+		if (heldItem.postMine(this, world, state, pos, miner)) {
+			miner.incrementStat(Stats.USED.getOrCreateStat(heldItem));
 		}
 	}
 
 	public boolean isSuitableFor(BlockState state) {
-		return this.getItem().isCorrectForDrops(this, state);
+		return getItem().isCorrectForDrops(this, state);
 	}
 
 	/**
-	 * Использует on entity.
+	 * Использует предмет на сущности. Сначала проверяет компонент {@code EQUIPPABLE}
+	 * с флагом {@code equipOnInteract}, затем делегирует в {@link Item#useOnEntity}.
 	 *
-	 * @param user user
-	 * @param entity entity
-	 * @param hand hand
-	 *
-	 * @return ActionResult — результат операции
+	 * @param user   игрок
+	 * @param entity целевая сущность
+	 * @param hand   рука
+	 * @return результат действия
 	 */
 	public ActionResult useOnEntity(PlayerEntity user, LivingEntity entity, Hand hand) {
-		EquippableComponent equippableComponent = this.get(DataComponentTypes.EQUIPPABLE);
-		if (equippableComponent != null && equippableComponent.equipOnInteract()) {
-			ActionResult actionResult = equippableComponent.equipOnInteract(user, entity, this);
+		EquippableComponent equippable = get(DataComponentTypes.EQUIPPABLE);
+		if (equippable != null && equippable.equipOnInteract()) {
+			ActionResult actionResult = equippable.equipOnInteract(user, entity, this);
 			if (actionResult != ActionResult.PASS) {
 				return actionResult;
 			}
 		}
 
-		return this.getItem().useOnEntity(this, user, entity, hand);
+		return getItem().useOnEntity(this, user, entity, hand);
+	}
+public ItemStack copy() {
+	if (isEmpty()) {
+		return EMPTY;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack copy() {
-		if (this.isEmpty()) {
-			return EMPTY;
-		}
-		else {
-			ItemStack itemStack = new ItemStack(this.getItem(), this.count, this.components.copy());
-			itemStack.setBobbingAnimationTime(this.getBobbingAnimationTime());
-			return itemStack;
-		}
+	ItemStack copy = new ItemStack(getItem(), count, components.copy());
+	copy.setBobbingAnimationTime(getBobbingAnimationTime());
+	return copy;
+}
+
+public ItemStack copyWithCount(int count) {
+	if (isEmpty()) {
+		return EMPTY;
 	}
 
-	/**
-	 * Создаёт копию with count.
-	 *
-	 * @param count count
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack copyWithCount(int count) {
-		if (this.isEmpty()) {
-			return EMPTY;
-		}
-		else {
-			ItemStack itemStack = this.copy();
-			itemStack.setCount(count);
-			return itemStack;
-		}
+	ItemStack copy = copy();
+	copy.setCount(count);
+	return copy;
+}
+
+public ItemStack withItem(ItemConvertible item) {
+	return copyComponentsToNewStack(item, getCount());
+}
+
+public ItemStack copyComponentsToNewStack(ItemConvertible item, int count) {
+	return isEmpty() ? EMPTY : copyComponentsToNewStackIgnoreEmpty(item, count);
+}
+
+private ItemStack copyComponentsToNewStackIgnoreEmpty(ItemConvertible item, int count) {
+	return new ItemStack(item.asItem().getRegistryEntry(), count, components.getChanges());
+}
+
+/**
+ * Проверяет полное равенство двух стеков: тип предмета, количество и компоненты.
+ *
+ * @param left  первый стек
+ * @param right второй стек
+ * @return {@code true} если стеки полностью идентичны
+ */
+public static boolean areEqual(ItemStack left, ItemStack right) {
+	if (left == right) {
+		return true;
 	}
 
-	/**
-	 * With item.
-	 *
-	 * @param item item
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack withItem(ItemConvertible item) {
-		return this.copyComponentsToNewStack(item, this.getCount());
+	return left.getCount() == right.getCount() && areItemsAndComponentsEqual(left, right);
+}
+
+@Deprecated
+public static boolean stacksEqual(List<ItemStack> left, List<ItemStack> right) {
+	if (left.size() != right.size()) {
+		return false;
 	}
 
-	/**
-	 * Создаёт копию components to new stack.
-	 *
-	 * @param item item
-	 * @param count count
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack copyComponentsToNewStack(ItemConvertible item, int count) {
-		return this.isEmpty() ? EMPTY : this.copyComponentsToNewStackIgnoreEmpty(item, count);
-	}
-
-	private ItemStack copyComponentsToNewStackIgnoreEmpty(ItemConvertible item, int count) {
-		return new ItemStack(item.asItem().getRegistryEntry(), count, this.components.getChanges());
-	}
-
-	/**
-	 * Are equal.
-	 *
-	 * @param left left
-	 * @param right right
-	 *
-	 * @return boolean — результат операции
-	 */
-	public static boolean areEqual(ItemStack left, ItemStack right) {
-		if (left == right) {
-			return true;
-		}
-		else {
-			return left.getCount() != right.getCount() ? false : areItemsAndComponentsEqual(left, right);
-		}
-	}
-
-	@Deprecated
-	/**
-	 * Stacks equal.
-	 *
-	 * @param left left
-	 * @param right right
-	 *
-	 * @return boolean — результат операции
-	 */
-	public static boolean stacksEqual(List<ItemStack> left, List<ItemStack> right) {
-		if (left.size() != right.size()) {
+	for (int index = 0; index < left.size(); index++) {
+		if (!areEqual(left.get(index), right.get(index))) {
 			return false;
 		}
-		else {
-			for (int i = 0; i < left.size(); i++) {
-				if (!areEqual(left.get(i), right.get(i))) {
-					return false;
-				}
-			}
-
-			return true;
-		}
 	}
 
-	/**
-	 * Are items equal.
-	 *
-	 * @param left left
-	 * @param right right
-	 *
-	 * @return boolean — результат операции
-	 */
-	public static boolean areItemsEqual(ItemStack left, ItemStack right) {
-		return left.isOf(right.getItem());
+	return true;
+}
+
+public static boolean areItemsEqual(ItemStack left, ItemStack right) {
+	return left.isOf(right.getItem());
+}
+
+public static boolean areItemsAndComponentsEqual(ItemStack stack, ItemStack otherStack) {
+	if (!stack.isOf(otherStack.getItem())) {
+		return false;
 	}
 
-	/**
-	 * Are items and components equal.
-	 *
-	 * @param stack stack
-	 * @param otherStack other stack
-	 *
-	 * @return boolean — результат операции
-	 */
-	public static boolean areItemsAndComponentsEqual(ItemStack stack, ItemStack otherStack) {
-		if (!stack.isOf(otherStack.getItem())) {
+	return stack.isEmpty() && otherStack.isEmpty() || Objects.equals(stack.components, otherStack.components);
+}
+
+/**
+ * Определяет, нужно ли пропустить анимацию руки при смене стека в слоте.
+ * <p>Пропускает анимацию если стеки идентичны или отличаются только компонентами
+ * из списка {@code skippedComponent} (например, кулдаун или анимация).</p>
+ *
+ * @param from             предыдущий стек
+ * @param to               новый стек
+ * @param skippedComponent предикат компонентов, изменение которых не вызывает анимацию
+ * @return {@code true} если анимацию следует пропустить
+ */
+public static boolean shouldSkipHandAnimationOnSwap(
+		ItemStack from,
+		ItemStack to,
+		Predicate<ComponentType<?>> skippedComponent
+) {
+	if (from == to) {
+		return true;
+	}
+
+	if (from.getCount() != to.getCount()) {
+		return false;
+	}
+
+	if (!from.isOf(to.getItem())) {
+		return false;
+	}
+
+	if (from.isEmpty() && to.isEmpty()) {
+		return true;
+	}
+
+	if (from.components.size() != to.components.size()) {
+		return false;
+	}
+
+	for (ComponentType<?> componentType : from.components.getTypes()) {
+		Object fromValue = from.components.get(componentType);
+		Object toValue = to.components.get(componentType);
+		if (fromValue == null || toValue == null) {
 			return false;
 		}
-		else {
-			return stack.isEmpty() && otherStack.isEmpty() ? true
-			                                               : Objects.equals(stack.components, otherStack.components);
-		}
-	}
 
-	public static boolean shouldSkipHandAnimationOnSwap(
-			ItemStack from,
-			ItemStack to,
-			Predicate<ComponentType<?>> skippedComponent
-	) {
-		if (from == to) {
-			return true;
-		}
-		else if (from.getCount() != to.getCount()) {
+		if (!Objects.equals(fromValue, toValue) && !skippedComponent.test(componentType)) {
 			return false;
 		}
-		else if (!from.isOf(to.getItem())) {
-			return false;
-		}
-		else if (from.isEmpty() && to.isEmpty()) {
-			return true;
-		}
-		else if (from.components.size() != to.components.size()) {
-			return false;
-		}
-		else {
-			for (ComponentType<?> componentType : from.components.getTypes()) {
-				Object object = from.components.get(componentType);
-				Object object2 = to.components.get(componentType);
-				if (object == null || object2 == null) {
-					return false;
-				}
-
-				if (!Objects.equals(object, object2) && !skippedComponent.test(componentType)) {
-					return false;
-				}
-			}
-
-			return true;
-		}
 	}
 
-	/**
-	 * Создаёт optional codec.
-	 *
-	 * @param fieldName field name
-	 *
-	 * @return MapCodec — результат операции
-	 */
-	public static MapCodec<ItemStack> createOptionalCodec(String fieldName) {
-		return CODEC
-				.lenientOptionalFieldOf(fieldName)
-				.xmap(
-						optional -> optional.orElse(EMPTY),
-						stack -> stack.isEmpty() ? Optional.empty() : Optional.of(stack)
-				);
+	return true;
+}
+
+public static MapCodec<ItemStack> createOptionalCodec(String fieldName) {
+	return CODEC
+			.lenientOptionalFieldOf(fieldName)
+			.xmap(
+					optional -> optional.orElse(EMPTY),
+					stack -> stack.isEmpty() ? Optional.empty() : Optional.of(stack)
+			);
+}
+
+/**
+ * Вычисляет хэш-код стека предмета на основе типа предмета и его компонентов.
+ *
+ * @param stack стек или {@code null}
+ * @return хэш-код стека, 0 для {@code null}
+ */
+public static int hashCode(@Nullable ItemStack stack) {
+	if (stack == null) {
+		return 0;
 	}
 
-	/**
-	 * Проверяет наличие h code.
-	 *
-	 * @param stack stack
-	 *
-	 * @return int — {@code true} если условие выполнено
-	 */
-	public static int hashCode(@Nullable ItemStack stack) {
-		if (stack != null) {
-			int i = 31 + stack.getItem().hashCode();
-			return 31 * i + stack.getComponents().hashCode();
-		}
-		else {
-			return 0;
-		}
+	int hash = 31 + stack.getItem().hashCode();
+	return 31 * hash + stack.getComponents().hashCode();
+}
+
+@Deprecated
+public static int listHashCode(List<ItemStack> stacks) {
+	int hash = 0;
+	for (ItemStack stack : stacks) {
+		hash = hash * 31 + hashCode(stack);
 	}
 
-	@Deprecated
-	/**
-	 * List hash code.
-	 *
-	 * @param stacks stacks
-	 *
-	 * @return int — результат операции
-	 */
-	public static int listHashCode(List<ItemStack> stacks) {
-		int i = 0;
+	return hash;
+}
 
-		for (ItemStack itemStack : stacks) {
-			i = i * 31 + hashCode(itemStack);
-		}
+@Override
+public String toString() {
+	return getCount() + " " + getItem();
+}
 
-		return i;
+public void inventoryTick(World world, Entity entity, @Nullable EquipmentSlot slot) {
+	if (bobbingAnimationTime > 0) {
+		bobbingAnimationTime--;
 	}
 
-	@Override
-	public String toString() {
-		return this.getCount() + " " + this.getItem();
-	}
-
-	/**
-	 * Inventory tick.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param slot slot
-	 */
-	public void inventoryTick(World world, Entity entity, @Nullable EquipmentSlot slot) {
-		if (this.bobbingAnimationTime > 0) {
-			this.bobbingAnimationTime--;
-		}
-
-		if (world instanceof ServerWorld serverWorld) {
-			this.getItem().inventoryTick(this, serverWorld, entity, slot);
-		}
-	}
-
-	/**
-	 * Обрабатывает событие craft by player.
-	 *
-	 * @param player player
-	 * @param amount amount
-	 */
-	public void onCraftByPlayer(PlayerEntity player, int amount) {
-		player.increaseStat(Stats.CRAFTED.getOrCreateStat(this.getItem()), amount);
-		this.getItem().onCraftByPlayer(this, player);
-	}
-
-	/**
-	 * Обрабатывает событие craft by crafter.
-	 *
-	 * @param world world
-	 */
-	public void onCraftByCrafter(World world) {
-		this.getItem().onCraft(this, world);
-	}
-
-	public int getMaxUseTime(LivingEntity user) {
-		return this.getItem().getMaxUseTime(this, user);
-	}
-
-	public UseAction getUseAction() {
-		return this.getItem().getUseAction(this);
-	}
-
-	/**
-	 * Обрабатывает событие stopped using.
-	 *
-	 * @param world world
-	 * @param user user
-	 * @param remainingUseTicks remaining use ticks
-	 */
-	public void onStoppedUsing(World world, LivingEntity user, int remainingUseTicks) {
-		ItemStack itemStack = this.copy();
-		if (this.getItem().onStoppedUsing(this, world, user, remainingUseTicks)) {
-			ItemStack itemStack2 = this.applyRemainderAndCooldown(user, itemStack);
-			if (itemStack2 != this) {
-				user.setStackInHand(user.getActiveHand(), itemStack2);
-			}
-		}
-	}
-
-	/**
-	 * Emit use game event.
-	 *
-	 * @param user user
-	 * @param gameEvent game event
-	 */
-	public void emitUseGameEvent(Entity user, RegistryEntry.Reference<GameEvent> gameEvent) {
-		UseEffectsComponent useEffectsComponent = this.get(DataComponentTypes.USE_EFFECTS);
-		if (useEffectsComponent != null && useEffectsComponent.interactVibrations()) {
-			user.emitGameEvent(gameEvent);
-		}
-	}
-
-	public boolean isUsedOnRelease() {
-		return this.getItem().isUsedOnRelease(this);
-	}
-
-	/**
-	 * Set.
-	 *
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return @Nullable T — результат операции
-	 */
-	public <T> @Nullable T set(ComponentType<T> type, @Nullable T value) {
-		return this.components.set(type, value);
-	}
-
-	/**
-	 * Set.
-	 *
-	 * @param component component
-	 *
-	 * @return @Nullable T — результат операции
-	 */
-	public <T> @Nullable T set(Component<T> component) {
-		return this.components.set(component);
-	}
-
-	/**
-	 * Copy.
-	 *
-	 * @param type type
-	 * @param from from
-	 *
-	 * @return void — результат операции
-	 */
-	public <T> void copy(ComponentType<T> type, ComponentsAccess from) {
-		this.set(type, from.get(type));
-	}
-
-	/**
-	 * Apply.
-	 *
-	 * @param type type
-	 * @param defaultValue default value
-	 * @param change change
-	 * @param applier applier
-	 *
-	 * @return @Nullable T — результат операции
-	 */
-	public <T, U> @Nullable T apply(ComponentType<T> type, T defaultValue, U change, BiFunction<T, U, T> applier) {
-		return this.set(type, applier.apply(this.getOrDefault(type, defaultValue), change));
-	}
-
-	/**
-	 * Apply.
-	 *
-	 * @param type type
-	 * @param defaultValue default value
-	 * @param applier applier
-	 *
-	 * @return @Nullable T — результат операции
-	 */
-	public <T> @Nullable T apply(ComponentType<T> type, T defaultValue, UnaryOperator<T> applier) {
-		T object = this.getOrDefault(type, defaultValue);
-		return this.set(type, applier.apply(object));
-	}
-
-	/**
-	 * Remove.
-	 *
-	 * @param type type
-	 *
-	 * @return @Nullable T — результат операции
-	 */
-	public <T> @Nullable T remove(ComponentType<? extends T> type) {
-		return this.components.remove(type);
-	}
-
-	/**
-	 * Применяет changes.
-	 *
-	 * @param changes changes
-	 */
-	public void applyChanges(ComponentChanges changes) {
-		ComponentChanges componentChanges = this.components.getChanges();
-		this.components.applyChanges(changes);
-		Optional<Error<ItemStack>> optional = validate(this).error();
-		if (optional.isPresent()) {
-			LOGGER.error("Failed to apply component patch '{}' to item: '{}'", changes, optional.get().message());
-			this.components.setChanges(componentChanges);
-		}
-	}
-
-	/**
-	 * Применяет unvalidated changes.
-	 *
-	 * @param changes changes
-	 */
-	public void applyUnvalidatedChanges(ComponentChanges changes) {
-		this.components.applyChanges(changes);
-	}
-
-	/**
-	 * Применяет components from.
-	 *
-	 * @param components components
-	 */
-	public void applyComponentsFrom(ComponentMap components) {
-		this.components.setAll(components);
-	}
-
-	public Text getName() {
-		Text text = this.getCustomName();
-		return text != null ? text : this.getItemName();
-	}
-
-	public @Nullable Text getCustomName() {
-		Text text = this.get(DataComponentTypes.CUSTOM_NAME);
-		if (text != null) {
-			return text;
-		}
-		else {
-			WrittenBookContentComponent writtenBookContentComponent = this.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
-			if (writtenBookContentComponent != null) {
-				String string = writtenBookContentComponent.title().raw();
-				if (!StringHelper.isBlank(string)) {
-					return Text.literal(string);
-				}
-			}
-
-			return null;
-		}
-	}
-
-	public Text getItemName() {
-		return this.getItem().getName(this);
-	}
-
-	public Text getFormattedName() {
-		MutableText mutableText = Text.empty().append(this.getName()).formatted(this.getRarity().getFormatting());
-		if (this.contains(DataComponentTypes.CUSTOM_NAME)) {
-			mutableText.formatted(Formatting.ITALIC);
-		}
-
-		return mutableText;
-	}
-
-	public <T extends TooltipAppender> void appendComponentTooltip(
-			ComponentType<T> componentType,
-			Item.TooltipContext context,
-			TooltipDisplayComponent displayComponent,
-			Consumer<Text> textConsumer,
-			TooltipType type
-	) {
-		T tooltipAppender = (T) this.get(componentType);
-		if (tooltipAppender != null && displayComponent.shouldDisplay(componentType)) {
-			tooltipAppender.appendTooltip(context, textConsumer, type, this.components);
-		}
-	}
-
-	public List<Text> getTooltip(Item.TooltipContext context, @Nullable PlayerEntity player, TooltipType type) {
-		TooltipDisplayComponent
-				tooltipDisplayComponent =
-				this.getOrDefault(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplayComponent.DEFAULT);
-		if (!type.isCreative() && tooltipDisplayComponent.hideTooltip()) {
-			boolean bl = this.getItem().shouldShowOperatorBlockWarnings(this, player);
-			return bl ? OPERATOR_WARNINGS : List.of();
-		}
-		else {
-			List<Text> list = Lists.newArrayList();
-			list.add(this.getFormattedName());
-			this.appendTooltip(context, tooltipDisplayComponent, player, type, list::add);
-			return list;
-		}
-	}
-
-	public void appendTooltip(
-			Item.TooltipContext context,
-			TooltipDisplayComponent displayComponent,
-			@Nullable PlayerEntity player,
-			TooltipType type,
-			Consumer<Text> textConsumer
-	) {
-		this.getItem().appendTooltip(this, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(
-				DataComponentTypes.TROPICAL_FISH_PATTERN,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(DataComponentTypes.INSTRUMENT, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.MAP_ID, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.BEES, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.CONTAINER_LOOT, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.CONTAINER, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.BANNER_PATTERNS, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.POT_DECORATIONS, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(
-				DataComponentTypes.WRITTEN_BOOK_CONTENT,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(
-				DataComponentTypes.CHARGED_PROJECTILES,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(DataComponentTypes.FIREWORKS, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(
-				DataComponentTypes.FIREWORK_EXPLOSION,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(DataComponentTypes.POTION_CONTENTS, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.JUKEBOX_PLAYABLE, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.TRIM, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(
-				DataComponentTypes.STORED_ENCHANTMENTS,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(DataComponentTypes.ENCHANTMENTS, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.DYED_COLOR, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.PROFILE, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
-		this.appendAttributeModifiersTooltip(textConsumer, displayComponent, player);
-		this.appendTooltipIfComponentExists(
-				DataComponentTypes.INTANGIBLE_PROJECTILE,
-				INTANGIBLE_TEXT,
-				displayComponent,
-				textConsumer
-		);
-		this.appendTooltipIfComponentExists(
-				DataComponentTypes.UNBREAKABLE,
-				UNBREAKABLE_TEXT,
-				displayComponent,
-				textConsumer
-		);
-		this.appendComponentTooltip(
-				DataComponentTypes.OMINOUS_BOTTLE_AMPLIFIER,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(
-				DataComponentTypes.SUSPICIOUS_STEW_EFFECTS,
-				context,
-				displayComponent,
-				textConsumer,
-				type
-		);
-		this.appendComponentTooltip(DataComponentTypes.BLOCK_STATE, context, displayComponent, textConsumer, type);
-		this.appendComponentTooltip(DataComponentTypes.ENTITY_DATA, context, displayComponent, textConsumer, type);
-		if ((this.isOf(Items.SPAWNER) || this.isOf(Items.TRIAL_SPAWNER)) && displayComponent.shouldDisplay(
-				DataComponentTypes.BLOCK_ENTITY_DATA)) {
-			TypedEntityData<BlockEntityType<?>> typedEntityData = this.get(DataComponentTypes.BLOCK_ENTITY_DATA);
-			Spawner.appendSpawnDataToTooltip(typedEntityData, textConsumer, "SpawnData");
-		}
-
-		BlockPredicatesComponent blockPredicatesComponent = this.get(DataComponentTypes.CAN_BREAK);
-		if (blockPredicatesComponent != null && displayComponent.shouldDisplay(DataComponentTypes.CAN_BREAK)) {
-			textConsumer.accept(ScreenTexts.EMPTY);
-			textConsumer.accept(BlockPredicatesComponent.CAN_BREAK_TEXT);
-			blockPredicatesComponent.addTooltips(textConsumer);
-		}
-
-		BlockPredicatesComponent blockPredicatesComponent2 = this.get(DataComponentTypes.CAN_PLACE_ON);
-		if (blockPredicatesComponent2 != null && displayComponent.shouldDisplay(DataComponentTypes.CAN_PLACE_ON)) {
-			textConsumer.accept(ScreenTexts.EMPTY);
-			textConsumer.accept(BlockPredicatesComponent.CAN_PLACE_TEXT);
-			blockPredicatesComponent2.addTooltips(textConsumer);
-		}
-
-		if (type.isAdvanced()) {
-			if (this.isDamaged() && displayComponent.shouldDisplay(DataComponentTypes.DAMAGE)) {
-				textConsumer.accept(Text.translatable(
-						"item.durability",
-						this.getMaxDamage() - this.getDamage(),
-						this.getMaxDamage()
-				));
-			}
-
-			textConsumer.accept(Text
-					.literal(Registries.ITEM.getId(this.getItem()).toString())
-					.formatted(Formatting.DARK_GRAY));
-			int i = this.components.size();
-			if (i > 0) {
-				textConsumer.accept(Text.translatable("item.components", i).formatted(Formatting.DARK_GRAY));
-			}
-		}
-
-		if (player != null && !this.getItem().isEnabled(player.getEntityWorld().getEnabledFeatures())) {
-			textConsumer.accept(DISABLED_TEXT);
-		}
-
-		boolean bl = this.getItem().shouldShowOperatorBlockWarnings(this, player);
-		if (bl) {
-			OPERATOR_WARNINGS.forEach(textConsumer);
-		}
-	}
-
-	private void appendTooltipIfComponentExists(
-			ComponentType<?> type,
-			Text tooltip,
-			TooltipDisplayComponent displayComponent,
-			Consumer<Text> textConsumer
-	) {
-		if (this.contains(type) && displayComponent.shouldDisplay(type)) {
-			textConsumer.accept(tooltip);
-		}
-	}
-
-	private void appendAttributeModifiersTooltip(
-			Consumer<Text> textConsumer,
-			TooltipDisplayComponent displayComponent,
-			@Nullable PlayerEntity player
-	) {
-		if (displayComponent.shouldDisplay(DataComponentTypes.ATTRIBUTE_MODIFIERS)) {
-			for (AttributeModifierSlot attributeModifierSlot : AttributeModifierSlot.values()) {
-				MutableBoolean mutableBoolean = new MutableBoolean(true);
-				this.applyAttributeModifier(
-						attributeModifierSlot, (attribute, modifier, display) -> {
-							if (display != AttributeModifiersComponent.Display.getHidden()) {
-								if (mutableBoolean.isTrue()) {
-									textConsumer.accept(ScreenTexts.EMPTY);
-									textConsumer.accept(Text
-											.translatable("item.modifiers." + attributeModifierSlot.asString())
-											.formatted(Formatting.GRAY));
-									mutableBoolean.setFalse();
-								}
-
-								display.addTooltip(textConsumer, player, attribute, modifier);
-							}
-						}
-				);
-			}
-		}
-	}
-
-	public boolean hasGlint() {
-		Boolean boolean_ = this.get(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE);
-		return boolean_ != null ? boolean_ : this.getItem().hasGlint(this);
-	}
-
-	public Rarity getRarity() {
-		Rarity rarity = this.getOrDefault(DataComponentTypes.RARITY, Rarity.COMMON);
-		if (!this.hasEnchantments()) {
-			return rarity;
-		}
-		else {
-			return switch (rarity) {
-				case COMMON, UNCOMMON -> Rarity.RARE;
-				case RARE -> Rarity.EPIC;
-				default -> rarity;
-			};
-		}
-	}
-
-	public boolean isEnchantable() {
-		if (!this.contains(DataComponentTypes.ENCHANTABLE)) {
-			return false;
-		}
-		else {
-			ItemEnchantmentsComponent itemEnchantmentsComponent = this.get(DataComponentTypes.ENCHANTMENTS);
-			return itemEnchantmentsComponent != null && itemEnchantmentsComponent.isEmpty();
-		}
-	}
-
-	/**
-	 * Добавляет enchantment.
-	 *
-	 * @param enchantment enchantment
-	 * @param level level
-	 */
-	public void addEnchantment(RegistryEntry<Enchantment> enchantment, int level) {
-		EnchantmentHelper.apply(this, builder -> builder.add(enchantment, level));
-	}
-
-	public boolean hasEnchantments() {
-		return !this.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT).isEmpty();
-	}
-
-	public ItemEnchantmentsComponent getEnchantments() {
-		return this.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
-	}
-
-	public boolean isInFrame() {
-		return this.holder instanceof ItemFrameEntity;
-	}
-
-	public void setHolder(@Nullable Entity holder) {
-		if (!this.isEmpty()) {
-			this.holder = holder;
-		}
-	}
-
-	public @Nullable ItemFrameEntity getFrame() {
-		return this.holder instanceof ItemFrameEntity ? (ItemFrameEntity) this.getHolder() : null;
-	}
-
-	public @Nullable Entity getHolder() {
-		return !this.isEmpty() ? this.holder : null;
-	}
-
-	public void applyAttributeModifier(
-			AttributeModifierSlot slot,
-			TriConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier, AttributeModifiersComponent.Display> attributeModifierConsumer
-	) {
-		AttributeModifiersComponent
-				attributeModifiersComponent =
-				this.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
-		attributeModifiersComponent.applyModifiers(slot, attributeModifierConsumer);
-		EnchantmentHelper.applyAttributeModifiers(
-				this,
-				slot,
-				(attribute, modifier) -> attributeModifierConsumer.accept(
-						attribute,
-						modifier,
-						AttributeModifiersComponent.Display.getDefault()
-				)
-		);
-	}
-
-	public void applyAttributeModifiers(
-			EquipmentSlot slot,
-			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> attributeModifierConsumer
-	) {
-		AttributeModifiersComponent
-				attributeModifiersComponent =
-				this.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
-		attributeModifiersComponent.applyModifiers(slot, attributeModifierConsumer);
-		EnchantmentHelper.applyAttributeModifiers(this, slot, attributeModifierConsumer);
-	}
-
-	/**
-	 * To hoverable text.
-	 *
-	 * @return Text — результат операции
-	 */
-	public Text toHoverableText() {
-		MutableText mutableText = Text.empty().append(this.getName());
-		if (this.contains(DataComponentTypes.CUSTOM_NAME)) {
-			mutableText.formatted(Formatting.ITALIC);
-		}
-
-		MutableText mutableText2 = Texts.bracketed(mutableText);
-		if (!this.isEmpty()) {
-			mutableText2
-					.formatted(this.getRarity().getFormatting())
-					.styled(style -> style.withHoverEvent(new HoverEvent.ShowItem(this)));
-		}
-
-		return mutableText2;
-	}
-
-	public SwingAnimationComponent getSwingAnimation() {
-		return this.getOrDefault(DataComponentTypes.SWING_ANIMATION, SwingAnimationComponent.DEFAULT);
-	}
-
-	/**
-	 * Проверяет возможность place on.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canPlaceOn(CachedBlockPosition pos) {
-		BlockPredicatesComponent blockPredicatesComponent = this.get(DataComponentTypes.CAN_PLACE_ON);
-		return blockPredicatesComponent != null && blockPredicatesComponent.check(pos);
-	}
-
-	/**
-	 * Проверяет возможность break.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canBreak(CachedBlockPosition pos) {
-		BlockPredicatesComponent blockPredicatesComponent = this.get(DataComponentTypes.CAN_BREAK);
-		return blockPredicatesComponent != null && blockPredicatesComponent.check(pos);
-	}
-
-	public int getBobbingAnimationTime() {
-		return this.bobbingAnimationTime;
-	}
-
-	public void setBobbingAnimationTime(int bobbingAnimationTime) {
-		this.bobbingAnimationTime = bobbingAnimationTime;
-	}
-
-	public int getCount() {
-		return this.isEmpty() ? 0 : this.count;
-	}
-
-	public void setCount(int count) {
-		this.count = count;
-	}
-
-	/**
-	 * Cap count.
-	 *
-	 * @param maxCount max count
-	 */
-	public void capCount(int maxCount) {
-		if (!this.isEmpty() && this.getCount() > maxCount) {
-			this.setCount(maxCount);
-		}
-	}
-
-	/**
-	 * Increment.
-	 *
-	 * @param amount amount
-	 */
-	public void increment(int amount) {
-		this.setCount(this.getCount() + amount);
-	}
-
-	/**
-	 * Decrement.
-	 *
-	 * @param amount amount
-	 */
-	public void decrement(int amount) {
-		this.increment(-amount);
-	}
-
-	/**
-	 * Decrement unless creative.
-	 *
-	 * @param amount amount
-	 * @param entity entity
-	 */
-	public void decrementUnlessCreative(int amount, @Nullable LivingEntity entity) {
-		if (entity == null || !entity.isInCreativeMode()) {
-			this.decrement(amount);
-		}
-	}
-
-	/**
-	 * Split unless creative.
-	 *
-	 * @param amount amount
-	 * @param entity entity
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack splitUnlessCreative(int amount, @Nullable LivingEntity entity) {
-		ItemStack itemStack = this.copyWithCount(amount);
-		this.decrementUnlessCreative(amount, entity);
-		return itemStack;
-	}
-
-	/**
-	 * Usage tick.
-	 *
-	 * @param world world
-	 * @param user user
-	 * @param remainingUseTicks remaining use ticks
-	 */
-	public void usageTick(World world, LivingEntity user, int remainingUseTicks) {
-		ConsumableComponent consumableComponent = this.get(DataComponentTypes.CONSUMABLE);
-		if (consumableComponent != null && consumableComponent.shouldSpawnParticlesAndPlaySounds(remainingUseTicks)) {
-			consumableComponent.spawnParticlesAndPlaySound(user.getRandom(), user, this, 5);
-		}
-
-		KineticWeaponComponent kineticWeaponComponent = this.get(DataComponentTypes.KINETIC_WEAPON);
-		if (kineticWeaponComponent != null && !world.isClient()) {
-			kineticWeaponComponent.usageTick(this, remainingUseTicks, user, user.getActiveHand().getEquipmentSlot());
-		}
-		else {
-			this.getItem().usageTick(world, user, this, remainingUseTicks);
-		}
-	}
-
-	/**
-	 * Обрабатывает событие item entity destroyed.
-	 *
-	 * @param entity entity
-	 */
-	public void onItemEntityDestroyed(ItemEntity entity) {
-		this.getItem().onItemEntityDestroyed(entity);
-	}
-
-	/**
-	 * Takes damage from.
-	 *
-	 * @param source source
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean takesDamageFrom(DamageSource source) {
-		DamageResistantComponent damageResistantComponent = this.get(DataComponentTypes.DAMAGE_RESISTANT);
-		return damageResistantComponent == null || !damageResistantComponent.resists(source);
-	}
-
-	/**
-	 * Проверяет возможность repair with.
-	 *
-	 * @param ingredient ingredient
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canRepairWith(ItemStack ingredient) {
-		RepairableComponent repairableComponent = this.get(DataComponentTypes.REPAIRABLE);
-		return repairableComponent != null && repairableComponent.matches(ingredient);
-	}
-
-	/**
-	 * Проверяет возможность mine.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param player player
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canMine(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-		return this.getItem().canMine(this, state, world, pos, player);
-	}
-
-	public DamageSource getDamageSource(LivingEntity attacker, Supplier<DamageSource> fallbackSupplier) {
-		return Optional.ofNullable(this.get(DataComponentTypes.DAMAGE_TYPE))
-		               .flatMap(ref -> ref.resolveEntry(attacker.getRegistryManager()))
-		               .map(typeEntry -> new DamageSource((RegistryEntry<DamageType>) typeEntry, attacker))
-		               .or(() -> Optional.ofNullable(this.getItem().getDamageSource(attacker)))
-		               .orElseGet(fallbackSupplier);
+	if (world instanceof ServerWorld serverWorld) {
+		getItem().inventoryTick(this, serverWorld, entity, slot);
 	}
 }
+
+public void onCraftByPlayer(PlayerEntity player, int amount) {
+	player.increaseStat(Stats.CRAFTED.getOrCreateStat(getItem()), amount);
+	getItem().onCraftByPlayer(this, player);
+}
+
+public void onCraftByCrafter(World world) {
+	getItem().onCraft(this, world);
+}
+
+public int getMaxUseTime(LivingEntity user) {
+	return getItem().getMaxUseTime(this, user);
+}
+
+public UseAction getUseAction() {
+	return getItem().getUseAction(this);
+}
+
+public void onStoppedUsing(World world, LivingEntity user, int remainingUseTicks) {
+	ItemStack snapshot = copy();
+	if (!getItem().onStoppedUsing(this, world, user, remainingUseTicks)) {
+		return;
+	}
+
+	ItemStack result = applyRemainderAndCooldown(user, snapshot);
+	if (result != this) {
+		user.setStackInHand(user.getActiveHand(), result);
+	}
+}
+
+/**
+ * Испускает игровое событие использования, если компонент {@code USE_EFFECTS}
+ * разрешает вибрации взаимодействия.
+ *
+ * @param user      сущность, использующая предмет
+ * @param gameEvent событие для испускания
+ */
+public void emitUseGameEvent(Entity user, RegistryEntry.Reference<GameEvent> gameEvent) {
+	UseEffectsComponent useEffects = get(DataComponentTypes.USE_EFFECTS);
+	if (useEffects != null && useEffects.interactVibrations()) {
+		user.emitGameEvent(gameEvent);
+	}
+}
+
+public boolean isUsedOnRelease() {
+	return getItem().isUsedOnRelease(this);
+}
+
+public <T> @Nullable T set(ComponentType<T> type, @Nullable T value) {
+	return components.set(type, value);
+}
+
+public <T> @Nullable T set(Component<T> component) {
+	return components.set(component);
+}
+
+public <T> void copy(ComponentType<T> type, ComponentsAccess from) {
+	set(type, from.get(type));
+}
+
+public <T, U> @Nullable T apply(ComponentType<T> type, T defaultValue, U change, BiFunction<T, U, T> applier) {
+	return set(type, applier.apply(getOrDefault(type, defaultValue), change));
+}
+
+public <T> @Nullable T apply(ComponentType<T> type, T defaultValue, UnaryOperator<T> applier) {
+	T current = getOrDefault(type, defaultValue);
+	return set(type, applier.apply(current));
+}
+
+public <T> @Nullable T remove(ComponentType<? extends T> type) {
+	return components.remove(type);
+}
+
+/**
+ * Применяет изменения компонентов с валидацией. При ошибке откатывает изменения
+ * и логирует сообщение об ошибке.
+ *
+ * @param changes изменения компонентов для применения
+ */
+public void applyChanges(ComponentChanges changes) {
+	ComponentChanges previousChanges = components.getChanges();
+	components.applyChanges(changes);
+	Optional<Error<ItemStack>> error = validate(this).error();
+	if (error.isPresent()) {
+		LOGGER.error("Failed to apply component patch '{}' to item: '{}'", changes, error.get().message());
+		components.setChanges(previousChanges);
+	}
+}
+
+public void applyUnvalidatedChanges(ComponentChanges changes) {
+	components.applyChanges(changes);
+}
+
+public void applyComponentsFrom(ComponentMap components) {
+	this.components.setAll(components);
+}
+
+public Text getName() {
+	Text customName = getCustomName();
+	return customName != null ? customName : getItemName();
+}
+
+public @Nullable Text getCustomName() {
+	Text customName = get(DataComponentTypes.CUSTOM_NAME);
+	if (customName != null) {
+		return customName;
+	}
+
+	WrittenBookContentComponent writtenBook = get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+	if (writtenBook != null) {
+		String title = writtenBook.title().raw();
+		if (!StringHelper.isBlank(title)) {
+			return Text.literal(title);
+		}
+	}
+
+	return null;
+}
+
+public Text getItemName() {
+	return getItem().getName(this);
+}
+
+public Text getFormattedName() {
+	MutableText name = Text.empty().append(getName()).formatted(getRarity().getFormatting());
+	if (contains(DataComponentTypes.CUSTOM_NAME)) {
+		name.formatted(Formatting.ITALIC);
+	}
+
+	return name;
+}
+
+public <T extends TooltipAppender> void appendComponentTooltip(
+		ComponentType<T> componentType,
+		Item.TooltipContext context,
+		TooltipDisplayComponent displayComponent,
+		Consumer<Text> textConsumer,
+		TooltipType type
+) {
+	T tooltipAppender = (T) get(componentType);
+	if (tooltipAppender != null && displayComponent.shouldDisplay(componentType)) {
+		tooltipAppender.appendTooltip(context, textConsumer, type, components);
+	}
+}
+
+/**
+ * Формирует полный список строк подсказки для предмета.
+ * <p>Если подсказка скрыта ({@code hideTooltip}), возвращает предупреждения оператора
+ * или пустой список. Иначе собирает все компоненты подсказки.</p>
+ *
+ * @param context контекст подсказки
+ * @param player  игрок или {@code null}
+ * @param type    тип подсказки (обычная, расширенная, творческая)
+ * @return список строк подсказки
+ */
+public List<Text> getTooltip(Item.TooltipContext context, @Nullable PlayerEntity player, TooltipType type) {
+	TooltipDisplayComponent displayComponent =
+			getOrDefault(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplayComponent.DEFAULT);
+
+	if (!type.isCreative() && displayComponent.hideTooltip()) {
+		boolean showWarnings = getItem().shouldShowOperatorBlockWarnings(this, player);
+		return showWarnings ? OPERATOR_WARNINGS : List.of();
+	}
+
+	List<Text> lines = Lists.newArrayList();
+	lines.add(getFormattedName());
+	appendTooltip(context, displayComponent, player, type, lines::add);
+	return lines;
+}
+
+public void appendTooltip(
+		Item.TooltipContext context,
+		TooltipDisplayComponent displayComponent,
+		@Nullable PlayerEntity player,
+		TooltipType type,
+		Consumer<Text> textConsumer
+) {
+	getItem().appendTooltip(this, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.TROPICAL_FISH_PATTERN, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.INSTRUMENT, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.MAP_ID, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.BEES, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.CONTAINER_LOOT, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.CONTAINER, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.BANNER_PATTERNS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.POT_DECORATIONS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.WRITTEN_BOOK_CONTENT, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.CHARGED_PROJECTILES, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.FIREWORKS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.FIREWORK_EXPLOSION, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.POTION_CONTENTS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.JUKEBOX_PLAYABLE, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.TRIM, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.STORED_ENCHANTMENTS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.ENCHANTMENTS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.DYED_COLOR, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.PROFILE, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
+	appendAttributeModifiersTooltip(textConsumer, displayComponent, player);
+	appendTooltipIfComponentExists(DataComponentTypes.INTANGIBLE_PROJECTILE, INTANGIBLE_TEXT, displayComponent, textConsumer);
+	appendTooltipIfComponentExists(DataComponentTypes.UNBREAKABLE, UNBREAKABLE_TEXT, displayComponent, textConsumer);
+	appendComponentTooltip(DataComponentTypes.OMINOUS_BOTTLE_AMPLIFIER, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.BLOCK_STATE, context, displayComponent, textConsumer, type);
+	appendComponentTooltip(DataComponentTypes.ENTITY_DATA, context, displayComponent, textConsumer, type);
+
+	if ((isOf(Items.SPAWNER) || isOf(Items.TRIAL_SPAWNER))
+			&& displayComponent.shouldDisplay(DataComponentTypes.BLOCK_ENTITY_DATA)) {
+		TypedEntityData<BlockEntityType<?>> blockEntityData = get(DataComponentTypes.BLOCK_ENTITY_DATA);
+		Spawner.appendSpawnDataToTooltip(blockEntityData, textConsumer, "SpawnData");
+	}
+
+	BlockPredicatesComponent canBreak = get(DataComponentTypes.CAN_BREAK);
+	if (canBreak != null && displayComponent.shouldDisplay(DataComponentTypes.CAN_BREAK)) {
+		textConsumer.accept(ScreenTexts.EMPTY);
+		textConsumer.accept(BlockPredicatesComponent.CAN_BREAK_TEXT);
+		canBreak.addTooltips(textConsumer);
+	}
+
+	BlockPredicatesComponent canPlaceOn = get(DataComponentTypes.CAN_PLACE_ON);
+	if (canPlaceOn != null && displayComponent.shouldDisplay(DataComponentTypes.CAN_PLACE_ON)) {
+		textConsumer.accept(ScreenTexts.EMPTY);
+		textConsumer.accept(BlockPredicatesComponent.CAN_PLACE_TEXT);
+		canPlaceOn.addTooltips(textConsumer);
+	}
+
+	if (type.isAdvanced()) {
+		if (isDamaged() && displayComponent.shouldDisplay(DataComponentTypes.DAMAGE)) {
+			textConsumer.accept(Text.translatable(
+					"item.durability",
+					getMaxDamage() - getDamage(),
+					getMaxDamage()
+			));
+		}
+
+		textConsumer.accept(Text
+				.literal(Registries.ITEM.getId(getItem()).toString())
+				.formatted(Formatting.DARK_GRAY));
+
+		int componentCount = components.size();
+		if (componentCount > 0) {
+			textConsumer.accept(Text.translatable("item.components", componentCount).formatted(Formatting.DARK_GRAY));
+		}
+	}
+
+	if (player != null && !getItem().isEnabled(player.getEntityWorld().getEnabledFeatures())) {
+		textConsumer.accept(DISABLED_TEXT);
+	}
+
+	if (getItem().shouldShowOperatorBlockWarnings(this, player)) {
+		OPERATOR_WARNINGS.forEach(textConsumer);
+	}
+}
+
+private void appendTooltipIfComponentExists(
+		ComponentType<?> type,
+		Text tooltip,
+		TooltipDisplayComponent displayComponent,
+		Consumer<Text> textConsumer
+) {
+	if (contains(type) && displayComponent.shouldDisplay(type)) {
+		textConsumer.accept(tooltip);
+	}
+}
+
+private void appendAttributeModifiersTooltip(
+		Consumer<Text> textConsumer,
+		TooltipDisplayComponent displayComponent,
+		@Nullable PlayerEntity player
+) {
+	if (!displayComponent.shouldDisplay(DataComponentTypes.ATTRIBUTE_MODIFIERS)) {
+		return;
+	}
+
+	for (AttributeModifierSlot slot : AttributeModifierSlot.values()) {
+		MutableBoolean isFirstEntry = new MutableBoolean(true);
+		applyAttributeModifier(
+				slot, (attribute, modifier, display) -> {
+					if (display == AttributeModifiersComponent.Display.getHidden()) {
+						return;
+					}
+
+					if (isFirstEntry.isTrue()) {
+						textConsumer.accept(ScreenTexts.EMPTY);
+						textConsumer.accept(Text
+								.translatable("item.modifiers." + slot.asString())
+								.formatted(Formatting.GRAY));
+						isFirstEntry.setFalse();
+					}
+
+					display.addTooltip(textConsumer, player, attribute, modifier);
+				}
+		);
+	}
+}
+
+public boolean hasGlint() {
+	Boolean glintOverride = get(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE);
+	return glintOverride != null ? glintOverride : getItem().hasGlint(this);
+}
+
+public Rarity getRarity() {
+	Rarity rarity = getOrDefault(DataComponentTypes.RARITY, Rarity.COMMON);
+	if (!hasEnchantments()) {
+		return rarity;
+	}
+
+	return switch (rarity) {
+		case COMMON, UNCOMMON -> Rarity.RARE;
+		case RARE -> Rarity.EPIC;
+		default -> rarity;
+	};
+}
+
+public boolean isEnchantable() {
+	if (!contains(DataComponentTypes.ENCHANTABLE)) {
+		return false;
+	}
+
+	ItemEnchantmentsComponent enchantments = get(DataComponentTypes.ENCHANTMENTS);
+	return enchantments != null && enchantments.isEmpty();
+}
+
+public void addEnchantment(RegistryEntry<Enchantment> enchantment, int level) {
+	EnchantmentHelper.apply(this, builder -> builder.add(enchantment, level));
+}
+
+public boolean hasEnchantments() {
+	return !getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT).isEmpty();
+}
+
+public ItemEnchantmentsComponent getEnchantments() {
+	return getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
+}
+
+public boolean isInFrame() {
+	return holder instanceof ItemFrameEntity;
+}
+
+public void setHolder(@Nullable Entity holder) {
+	if (!isEmpty()) {
+		this.holder = holder;
+	}
+}
+
+public @Nullable ItemFrameEntity getFrame() {
+	return holder instanceof ItemFrameEntity frame ? frame : null;
+}
+
+public @Nullable Entity getHolder() {
+	return !isEmpty() ? holder : null;
+}
+
+public void applyAttributeModifier(
+		AttributeModifierSlot slot,
+		TriConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier, AttributeModifiersComponent.Display> consumer
+) {
+	AttributeModifiersComponent attributeModifiers =
+			getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
+	attributeModifiers.applyModifiers(slot, consumer);
+	EnchantmentHelper.applyAttributeModifiers(
+			this,
+			slot,
+			(attribute, modifier) -> consumer.accept(
+					attribute,
+					modifier,
+					AttributeModifiersComponent.Display.getDefault()
+			)
+	);
+}
+
+public void applyAttributeModifiers(
+		EquipmentSlot slot,
+		BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> consumer
+) {
+	AttributeModifiersComponent attributeModifiers =
+			getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
+	attributeModifiers.applyModifiers(slot, consumer);
+	EnchantmentHelper.applyAttributeModifiers(this, slot, consumer);
+}
+
+/**
+ * Создаёт текст с hover-событием, показывающим информацию о предмете при наведении.
+ *
+ * @return текст с именем предмета и hover-событием
+ */
+public Text toHoverableText() {
+	MutableText name = Text.empty().append(getName());
+	if (contains(DataComponentTypes.CUSTOM_NAME)) {
+		name.formatted(Formatting.ITALIC);
+	}
+
+	MutableText bracketed = Texts.bracketed(name);
+	if (!isEmpty()) {
+		bracketed
+				.formatted(getRarity().getFormatting())
+				.styled(style -> style.withHoverEvent(new HoverEvent.ShowItem(this)));
+	}
+
+	return bracketed;
+}
+
+public SwingAnimationComponent getSwingAnimation() {
+	return getOrDefault(DataComponentTypes.SWING_ANIMATION, SwingAnimationComponent.DEFAULT);
+}
+
+public boolean canPlaceOn(CachedBlockPosition pos) {
+	BlockPredicatesComponent canPlaceOn = get(DataComponentTypes.CAN_PLACE_ON);
+	return canPlaceOn != null && canPlaceOn.check(pos);
+}
+
+public boolean canBreak(CachedBlockPosition pos) {
+	BlockPredicatesComponent canBreak = get(DataComponentTypes.CAN_BREAK);
+	return canBreak != null && canBreak.check(pos);
+}
+
+public int getBobbingAnimationTime() {
+	return bobbingAnimationTime;
+}
+
+public void setBobbingAnimationTime(int bobbingAnimationTime) {
+	this.bobbingAnimationTime = bobbingAnimationTime;
+}
+
+public int getCount() {
+	return isEmpty() ? 0 : count;
+}
+
+public void setCount(int count) {
+	this.count = count;
+}
+
+public void capCount(int maxCount) {
+	if (!isEmpty() && getCount() > maxCount) {
+		setCount(maxCount);
+	}
+}
+
+public void increment(int amount) {
+	setCount(getCount() + amount);
+}
+
+public void decrement(int amount) {
+	increment(-amount);
+}
+
+public void decrementUnlessCreative(int amount, @Nullable LivingEntity entity) {
+	if (entity == null || !entity.isInCreativeMode()) {
+		decrement(amount);
+	}
+}
+
+public ItemStack splitUnlessCreative(int amount, @Nullable LivingEntity entity) {
+	ItemStack split = copyWithCount(amount);
+	decrementUnlessCreative(amount, entity);
+	return split;
+}
+
+public void usageTick(World world, LivingEntity user, int remainingUseTicks) {
+	ConsumableComponent consumable = get(DataComponentTypes.CONSUMABLE);
+	if (consumable != null && consumable.shouldSpawnParticlesAndPlaySounds(remainingUseTicks)) {
+		consumable.spawnParticlesAndPlaySound(user.getRandom(), user, this, 5);
+	}
+
+	KineticWeaponComponent kineticWeapon = get(DataComponentTypes.KINETIC_WEAPON);
+	if (kineticWeapon != null && !world.isClient()) {
+		kineticWeapon.usageTick(this, remainingUseTicks, user, user.getActiveHand().getEquipmentSlot());
+	} else {
+		getItem().usageTick(world, user, this, remainingUseTicks);
+	}
+}
+
+public void onItemEntityDestroyed(ItemEntity entity) {
+	getItem().onItemEntityDestroyed(entity);
+}
+
+public boolean takesDamageFrom(DamageSource source) {
+	DamageResistantComponent resistant = get(DataComponentTypes.DAMAGE_RESISTANT);
+	return resistant == null || !resistant.resists(source);
+}
+
+public boolean canRepairWith(ItemStack ingredient) {
+	RepairableComponent repairable = get(DataComponentTypes.REPAIRABLE);
+	return repairable != null && repairable.matches(ingredient);
+}
+
+public boolean canMine(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+	return getItem().canMine(this, state, world, pos, player);
+}
+
+/**
+ * Определяет источник урона для данного предмета.
+ * <p>Сначала проверяет компонент {@code DAMAGE_TYPE}, затем метод предмета,
+ * и в крайнем случае использует {@code fallbackSupplier}.</p>
+ *
+ * @param attacker         атакующая сущность
+ * @param fallbackSupplier поставщик источника урона по умолчанию
+ * @return источник урона
+ */
+public DamageSource getDamageSource(LivingEntity attacker, Supplier<DamageSource> fallbackSupplier) {
+	return Optional.ofNullable(get(DataComponentTypes.DAMAGE_TYPE))
+	               .flatMap(ref -> ref.resolveEntry(attacker.getRegistryManager()))
+	               .map(typeEntry -> new DamageSource((RegistryEntry<DamageType>) typeEntry, attacker))
+	               .or(() -> Optional.ofNullable(getItem().getDamageSource(attacker)))
+	               .orElseGet(fallbackSupplier);
+}
+}
+		

@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.RandomAccess;
 
 /**
- * {@code ListDeque}.
+ * Комбинированный интерфейс, объединяющий {@link List}, {@link Deque} и {@link RandomAccess}.
+ * Предоставляет доступ к элементам как по индексу, так и через операции очереди/стека.
+ *
+ * @param <T> тип элементов
  */
 public interface ListDeque<T> extends Serializable, Cloneable, Deque<T>, List<T>, RandomAccess {
 
@@ -34,36 +37,36 @@ public interface ListDeque<T> extends Serializable, Cloneable, Deque<T>, List<T>
 
 	@Override
 	default boolean offer(T object) {
-		return this.offerLast(object);
+		return offerLast(object);
 	}
 
 	@Override
 	default T remove() {
-		return this.removeFirst();
+		return removeFirst();
 	}
 
 	@Override
 	default @Nullable T poll() {
-		return this.pollFirst();
+		return pollFirst();
 	}
 
 	@Override
 	default T element() {
-		return this.getFirst();
+		return getFirst();
 	}
 
 	@Override
 	default @Nullable T peek() {
-		return this.peekFirst();
+		return peekFirst();
 	}
 
 	@Override
 	default void push(T object) {
-		this.addFirst(object);
+		addFirst(object);
 	}
 
 	@Override
 	default T pop() {
-		return this.removeFirst();
+		return removeFirst();
 	}
 }

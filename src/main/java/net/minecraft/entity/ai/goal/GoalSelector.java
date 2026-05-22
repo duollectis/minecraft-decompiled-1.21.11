@@ -11,7 +11,10 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code GoalSelector}.
+ * Планировщик целей ИИ моба. Управляет набором {@link PrioritizedGoal},
+ * выбирая активные цели по приоритету и совместимости контролей.
+ * На каждый тик: сначала останавливает цели, потерявшие право на выполнение,
+ * затем запускает новые подходящие цели, наконец тикает все активные.
  */
 public class GoalSelector {
 
@@ -28,42 +31,27 @@ public class GoalSelector {
 			return false;
 		}
 	};
+
 	private final Map<Goal.Control, PrioritizedGoal> goalsByControl = new EnumMap<>(Goal.Control.class);
 	private final Set<PrioritizedGoal> goals = new ObjectLinkedOpenHashSet();
 	private final EnumSet<Goal.Control> disabledControls = EnumSet.noneOf(Goal.Control.class);
 
-	/**
-	 * Add.
-	 *
-	 * @param priority priority
-	 * @param goal goal
-	 */
 	public void add(int priority, Goal goal) {
-		this.goals.add(new PrioritizedGoal(priority, goal));
+		goals.add(new PrioritizedGoal(priority, goal));
 	}
 
-	/**
-	 * Clear.
-	 *
-	 * @param predicate predicate
-	 */
 	public void clear(Predicate<Goal> predicate) {
-		this.goals.removeIf(goal -> predicate.test(goal.getGoal()));
+		goals.removeIf(goal -> predicate.test(goal.getGoal()));
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param goal goal
-	 */
 	public void remove(Goal goal) {
-		for (PrioritizedGoal prioritizedGoal : this.goals) {
+		for (PrioritizedGoal prioritizedGoal : goals) {
 			if (prioritizedGoal.getGoal() == goal && prioritizedGoal.isRunning()) {
 				prioritizedGoal.stop();
 			}
 		}
 
-		this.goals.removeIf(prioritizedGoalx -> prioritizedGoalx.getGoal() == goal);
+		goals.removeIf(pg -> pg.getGoal() == goal);
 	}
 
 	private static boolean usesAny(PrioritizedGoal goal, EnumSet<Goal.Control> controls) {
@@ -86,56 +74,49 @@ public class GoalSelector {
 		return true;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		Profiler profiler = Profilers.get();
 		profiler.push("goalCleanup");
 
-		for (PrioritizedGoal prioritizedGoal : this.goals) {
-			if (prioritizedGoal.isRunning() && (usesAny(prioritizedGoal, this.disabledControls)
-					|| !prioritizedGoal.shouldContinue()
-			)) {
-				prioritizedGoal.stop();
+		for (PrioritizedGoal goal : goals) {
+			if (goal.isRunning() && (usesAny(goal, disabledControls) || !goal.shouldContinue())) {
+				goal.stop();
 			}
 		}
 
-		this.goalsByControl.entrySet().removeIf(entry -> !entry.getValue().isRunning());
+		goalsByControl.entrySet().removeIf(entry -> !entry.getValue().isRunning());
 		profiler.pop();
 		profiler.push("goalUpdate");
 
-		for (PrioritizedGoal prioritizedGoalx : this.goals) {
-			if (!prioritizedGoalx.isRunning()
-					&& !usesAny(prioritizedGoalx, this.disabledControls)
-					&& canReplaceAll(prioritizedGoalx, this.goalsByControl)
-					&& prioritizedGoalx.canStart()) {
-				for (Goal.Control control : prioritizedGoalx.getControls()) {
-					PrioritizedGoal prioritizedGoal2 = this.goalsByControl.getOrDefault(control, REPLACEABLE_GOAL);
-					prioritizedGoal2.stop();
-					this.goalsByControl.put(control, prioritizedGoalx);
+		for (PrioritizedGoal goal : goals) {
+			if (!goal.isRunning()
+					&& !usesAny(goal, disabledControls)
+					&& canReplaceAll(goal, goalsByControl)
+					&& goal.canStart()) {
+				for (Goal.Control control : goal.getControls()) {
+					goalsByControl.getOrDefault(control, REPLACEABLE_GOAL).stop();
+					goalsByControl.put(control, goal);
 				}
 
-				prioritizedGoalx.start();
+				goal.start();
 			}
 		}
 
 		profiler.pop();
-		this.tickGoals(true);
+		tickGoals(true);
 	}
 
 	/**
-	 * Выполняет тик обновления для goals.
-	 *
-	 * @param tickAll tick all
+	 * Тикает все активные цели. Если {@code tickAll = false} — только те,
+	 * у которых {@link Goal#shouldRunEveryTick()} возвращает {@code true}.
 	 */
 	public void tickGoals(boolean tickAll) {
 		Profiler profiler = Profilers.get();
 		profiler.push("goalTick");
 
-		for (PrioritizedGoal prioritizedGoal : this.goals) {
-			if (prioritizedGoal.isRunning() && (tickAll || prioritizedGoal.shouldRunEveryTick())) {
-				prioritizedGoal.tick();
+		for (PrioritizedGoal goal : goals) {
+			if (goal.isRunning() && (tickAll || goal.shouldRunEveryTick())) {
+				goal.tick();
 			}
 		}
 
@@ -143,33 +124,23 @@ public class GoalSelector {
 	}
 
 	public Set<PrioritizedGoal> getGoals() {
-		return this.goals;
+		return goals;
 	}
 
-	/**
-	 * Отключает control.
-	 *
-	 * @param control control
-	 */
 	public void disableControl(Goal.Control control) {
-		this.disabledControls.add(control);
+		disabledControls.add(control);
 	}
 
-	/**
-	 * Включает control.
-	 *
-	 * @param control control
-	 */
 	public void enableControl(Goal.Control control) {
-		this.disabledControls.remove(control);
+		disabledControls.remove(control);
 	}
 
 	public void setControlEnabled(Goal.Control control, boolean enabled) {
 		if (enabled) {
-			this.enableControl(control);
+			enableControl(control);
 		}
 		else {
-			this.disableControl(control);
+			disableControl(control);
 		}
 	}
 }

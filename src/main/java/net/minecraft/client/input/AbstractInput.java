@@ -9,11 +9,35 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractInput}.
+ * Базовый интерфейс для всех типов ввода: клавиатурного ({@link KeyInput})
+ * и мышиного ({@link MouseInput}). Предоставляет набор утилитарных методов
+ * для проверки нажатых клавиш и модификаторов на основе GLFW-кодов.
  */
+@Environment(EnvType.CLIENT)
 public interface AbstractInput {
+
+	// ─── GLFW keycodes ──────────────────────────────────────────────────────────
+	int KEY_ESCAPE = 256;
+	int KEY_ENTER = 257;
+	int KEY_TAB = 258;
+	int KEY_RIGHT = 262;
+	int KEY_LEFT = 263;
+	int KEY_DOWN = 264;
+	int KEY_UP = 265;
+	int KEY_KP_ENTER = 335;
+	int KEY_A = 65;
+	int KEY_C = 67;
+	int KEY_V = 86;
+	int KEY_X = 88;
+	int KEY_SPACE = 32;
+	int KEY_0 = 48;
+	int KEY_9 = 57;
+
+	// ─── GLFW modifier bits ──────────────────────────────────────────────────────
+	int MOD_SHIFT = 1;
+	int MOD_CTRL = 2;
+	int MOD_ALT = 4;
 
 	int NOT_A_NUMBER = -1;
 
@@ -24,74 +48,80 @@ public interface AbstractInput {
 	int modifiers();
 
 	default boolean isEnterOrSpace() {
-		return this.getKeycode() == 257 || this.getKeycode() == 32 || this.getKeycode() == 335;
+		int key = getKeycode();
+		return key == KEY_ENTER || key == KEY_SPACE || key == KEY_KP_ENTER;
 	}
 
 	default boolean isEnter() {
-		return this.getKeycode() == 257 || this.getKeycode() == 335;
+		int key = getKeycode();
+		return key == KEY_ENTER || key == KEY_KP_ENTER;
 	}
 
 	default boolean isEscape() {
-		return this.getKeycode() == 256;
+		return getKeycode() == KEY_ESCAPE;
 	}
 
 	default boolean isLeft() {
-		return this.getKeycode() == 263;
+		return getKeycode() == KEY_LEFT;
 	}
 
 	default boolean isRight() {
-		return this.getKeycode() == 262;
+		return getKeycode() == KEY_RIGHT;
 	}
 
 	default boolean isUp() {
-		return this.getKeycode() == 265;
+		return getKeycode() == KEY_UP;
 	}
 
 	default boolean isDown() {
-		return this.getKeycode() == 264;
+		return getKeycode() == KEY_DOWN;
 	}
 
 	default boolean isTab() {
-		return this.getKeycode() == 258;
+		return getKeycode() == KEY_TAB;
 	}
 
+	/**
+	 * Возвращает цифру 0–9, если нажата соответствующая клавиша, иначе {@link #NOT_A_NUMBER}.
+	 */
 	default int asNumber() {
-		int i = this.getKeycode() - 48;
-		return i >= 0 && i <= 9 ? i : -1;
+		int digit = getKeycode() - KEY_0;
+		return digit >= 0 && digit <= 9 ? digit : NOT_A_NUMBER;
 	}
 
 	default boolean hasAlt() {
-		return (this.modifiers() & 4) != 0;
+		return (modifiers() & MOD_ALT) != 0;
 	}
 
 	default boolean hasShift() {
-		return (this.modifiers() & 1) != 0;
+		return (modifiers() & MOD_SHIFT) != 0;
 	}
 
 	default boolean hasCtrl() {
-		return (this.modifiers() & 2) != 0;
+		return (modifiers() & MOD_CTRL) != 0;
 	}
 
 	default boolean hasCtrlOrCmd() {
-		return (this.modifiers() & SystemKeycodes.CTRL_MOD) != 0;
+		return (modifiers() & SystemKeycodes.CTRL_MOD) != 0;
 	}
 
 	default boolean isSelectAll() {
-		return this.getKeycode() == 65 && this.hasCtrlOrCmd() && !this.hasShift() && !this.hasAlt();
+		return getKeycode() == KEY_A && hasCtrlOrCmd() && !hasShift() && !hasAlt();
 	}
 
 	default boolean isCopy() {
-		return this.getKeycode() == 67 && this.hasCtrlOrCmd() && !this.hasShift() && !this.hasAlt();
+		return getKeycode() == KEY_C && hasCtrlOrCmd() && !hasShift() && !hasAlt();
 	}
 
 	default boolean isPaste() {
-		return this.getKeycode() == 86 && this.hasCtrlOrCmd() && !this.hasShift() && !this.hasAlt();
+		return getKeycode() == KEY_V && hasCtrlOrCmd() && !hasShift() && !hasAlt();
 	}
 
 	default boolean isCut() {
-		return this.getKeycode() == 88 && this.hasCtrlOrCmd() && !this.hasShift() && !this.hasAlt();
+		return getKeycode() == KEY_X && hasCtrlOrCmd() && !hasShift() && !hasAlt();
 	}
 
+	/** Аннотация-маркер для значений битовой маски модификаторов GLFW. */
 	@Retention(RetentionPolicy.CLASS)
 	@Target(
 			{
@@ -103,9 +133,6 @@ public interface AbstractInput {
 			}
 	)
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Modifier}.
-	 */
-	public @interface Modifier {
+	@interface Modifier {
 	}
 }

@@ -7,91 +7,91 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code AdvancementDisplays}.
+ * Утилитный класс для вычисления видимости достижений в дереве.
+ * <p>
+ * Достижение считается видимым, если оно само выполнено, либо если в пределах
+ * {@link #DISPLAY_DEPTH} уровней вверх по дереву есть выполненное достижение.
  */
 public class AdvancementDisplays {
 
 	private static final int DISPLAY_DEPTH = 2;
 
-	private static AdvancementDisplays.Status getStatus(Advancement advancement, boolean force) {
-		Optional<AdvancementDisplay> optional = advancement.display();
-		if (optional.isEmpty()) {
-			return AdvancementDisplays.Status.HIDE;
+	private static Status getStatus(Advancement advancement, boolean done) {
+		Optional<AdvancementDisplay> display = advancement.display();
+		if (display.isEmpty()) {
+			return Status.HIDE;
 		}
-		else if (force) {
-			return AdvancementDisplays.Status.SHOW;
+		if (done) {
+			return Status.SHOW;
 		}
-		else {
-			return optional.get().isHidden() ? AdvancementDisplays.Status.HIDE : AdvancementDisplays.Status.NO_CHANGE;
-		}
+		return display.get().isHidden() ? Status.HIDE : Status.NO_CHANGE;
 	}
 
-	private static boolean shouldDisplay(Stack<AdvancementDisplays.Status> statuses) {
-		for (int i = 0; i <= 2; i++) {
-			AdvancementDisplays.Status status = (AdvancementDisplays.Status) statuses.peek(i);
-			if (status == AdvancementDisplays.Status.SHOW) {
+	private static boolean shouldDisplay(Stack<Status> statuses) {
+		for (int depth = 0; depth <= DISPLAY_DEPTH; depth++) {
+			Status status = statuses.peek(depth);
+			if (status == Status.SHOW) {
 				return true;
 			}
-
-			if (status == AdvancementDisplays.Status.HIDE) {
+			if (status == Status.HIDE) {
 				return false;
 			}
 		}
-
 		return false;
 	}
 
 	private static boolean shouldDisplay(
-			PlacedAdvancement advancement,
-			Stack<AdvancementDisplays.Status> statuses,
-			Predicate<PlacedAdvancement> donePredicate,
-			AdvancementDisplays.ResultConsumer consumer
+		PlacedAdvancement advancement,
+		Stack<Status> statuses,
+		Predicate<PlacedAdvancement> donePredicate,
+		ResultConsumer consumer
 	) {
-		boolean bl = donePredicate.test(advancement);
-		AdvancementDisplays.Status status = getStatus(advancement.getAdvancement(), bl);
-		boolean bl2 = bl;
+		boolean done = donePredicate.test(advancement);
+		Status status = getStatus(advancement.getAdvancement(), done);
+		boolean anyChildDone = done;
 		statuses.push(status);
 
-		for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
-			bl2 |= shouldDisplay(placedAdvancement, statuses, donePredicate, consumer);
+		for (PlacedAdvancement child : advancement.getChildren()) {
+			anyChildDone |= shouldDisplay(child, statuses, donePredicate, consumer);
 		}
 
-		boolean bl3 = bl2 || shouldDisplay(statuses);
+		boolean visible = anyChildDone || shouldDisplay(statuses);
 		statuses.pop();
-		consumer.accept(advancement, bl3);
-		return bl2;
+		consumer.accept(advancement, visible);
+		return anyChildDone;
 	}
 
+	/**
+	 * Рассчитывает видимость всех достижений в дереве, начиная с корня.
+	 *
+	 * @param advancement   любое достижение в дереве (корень будет найден автоматически)
+	 * @param donePredicate предикат, возвращающий {@code true} если достижение выполнено
+	 * @param consumer      получает каждое достижение и флаг его видимости
+	 */
 	public static void calculateDisplay(
-			PlacedAdvancement advancement,
-			Predicate<PlacedAdvancement> donePredicate,
-			AdvancementDisplays.ResultConsumer consumer
+		PlacedAdvancement advancement,
+		Predicate<PlacedAdvancement> donePredicate,
+		ResultConsumer consumer
 	) {
-		PlacedAdvancement placedAdvancement = advancement.getRoot();
-		Stack<AdvancementDisplays.Status> stack = new ObjectArrayList();
+		PlacedAdvancement root = advancement.getRoot();
+		Stack<Status> stack = new ObjectArrayList<>();
 
-		for (int i = 0; i <= 2; i++) {
-			stack.push(AdvancementDisplays.Status.NO_CHANGE);
+		for (int depth = 0; depth <= DISPLAY_DEPTH; depth++) {
+			stack.push(Status.NO_CHANGE);
 		}
 
-		shouldDisplay(placedAdvancement, stack, donePredicate, consumer);
+		shouldDisplay(root, stack, donePredicate, consumer);
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ResultConsumer}.
-	 */
 	public interface ResultConsumer {
 
 		void accept(PlacedAdvancement advancement, boolean shouldDisplay);
 	}
 
-	/**
-	 * {@code Status}.
-	 */
-	static enum Status {
+	enum Status {
 		SHOW,
 		HIDE,
-		NO_CHANGE;
+		NO_CHANGE
 	}
 }

@@ -29,10 +29,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerListHud}.
+ * HUD-компонент списка игроков (Tab-список): отображает ники, пинг, скорборд и заголовок/подвал.
  */
+@Environment(EnvType.CLIENT)
 public class PlayerListHud {
 
 	private static final Identifier PING_UNKNOWN_ICON_TEXTURE = Identifier.ofVanilla("icon/ping_unknown");
@@ -154,7 +154,7 @@ public class PlayerListHud {
 		int o = n;
 
 		int p;
-		for (p = 1; o > 20; o = (n + p - 1) / p) {
+		for (p = 1; o > MAX_ROWS; o = (n + p - 1) / p) {
 			p++;
 		}
 
@@ -364,7 +364,7 @@ public class PlayerListHud {
 		PlayerListHud.Heart heart = this.hearts.computeIfAbsent(uuid, uuid2 -> new PlayerListHud.Heart(score));
 		heart.tick(score, this.inGameHud.getTicks());
 		int i = MathHelper.ceilDiv(Math.max(score, heart.getLastScore()), 2);
-		int j = Math.max(score, Math.max(heart.getLastScore(), 20)) / 2;
+		int j = Math.max(score, Math.max(heart.getLastScore(), MAX_ROWS)) / 2;
 		boolean bl = heart.useHighlighted(this.inGameHud.getTicks());
 		if (i > 0) {
 			int k = MathHelper.floor(Math.min((float) (right - left - 4) / j, 9.0F));
@@ -456,18 +456,16 @@ public class PlayerListHud {
 		this.header = header;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
 		this.header = null;
 		this.footer = null;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Heart}.
+	 * Отслеживает изменения очков здоровья игрока в Tab-списке для подсветки
+	 * при увеличении/уменьшении значения.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Heart {
 
 		private static final long COOLDOWN_TICKS = 20L;
@@ -483,21 +481,15 @@ public class PlayerListHud {
 			this.score = score;
 		}
 
-		/**
-		 * Tick.
-		 *
-		 * @param score score
-		 * @param currentTick current tick
-		 */
 		public void tick(int score, long currentTick) {
 			if (score != this.score) {
-				long l = score < this.score ? 20L : 10L;
+				long l = score < this.score ? 20L : SCORE_INCREASE_HIGHLIGHT_TICKS;
 				this.highlightEndTick = currentTick + l;
 				this.score = score;
 				this.lastScoreChangeTick = currentTick;
 			}
 
-			if (currentTick - this.lastScoreChangeTick > 20L) {
+			if (currentTick - this.lastScoreChangeTick > SCORE_DECREASE_HIGHLIGHT_TICKS) {
 				this.lastScore = score;
 			}
 		}
@@ -506,22 +498,12 @@ public class PlayerListHud {
 			return this.lastScore;
 		}
 
-		/**
-		 * Использует highlighted.
-		 *
-		 * @param currentTick current tick
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean useHighlighted(long currentTick) {
 			return this.highlightEndTick > currentTick && (this.highlightEndTick - currentTick) % 6L >= 3L;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ScoreDisplayEntry}.
-	 */
 	record ScoreDisplayEntry(Text name, int score, @Nullable Text formattedScore, int scoreWidth) {
 	}
 }

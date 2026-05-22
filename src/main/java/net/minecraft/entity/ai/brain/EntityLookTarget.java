@@ -8,7 +8,9 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code EntityLookTarget}.
+ * Реализация {@link LookTarget}, привязанная к живой сущности.
+ * Позиция цели обновляется динамически вместе с движением сущности.
+ * Видимость проверяется через кэш {@link LivingTargetCache} в памяти наблюдателя.
  */
 public class EntityLookTarget implements LookTarget {
 
@@ -28,39 +30,43 @@ public class EntityLookTarget implements LookTarget {
 
 	@Override
 	public Vec3d getPos() {
-		return this.useEyeHeight ? this.entity.getEntityPos().add(0.0, this.entity.getStandingEyeHeight(), 0.0)
-		                         : this.entity.getEntityPos();
+		return useEyeHeight
+				? entity.getEntityPos().add(0.0, entity.getStandingEyeHeight(), 0.0)
+				: entity.getEntityPos();
 	}
 
 	@Override
 	public BlockPos getBlockPos() {
-		return this.blockPosAtEye ? BlockPos.ofFloored(this.entity.getEyePos()) : this.entity.getBlockPos();
+		return blockPosAtEye ? BlockPos.ofFloored(entity.getEyePos()) : entity.getBlockPos();
 	}
 
+	/**
+	 * Проверяет видимость цели через кэш {@link LivingTargetCache}.
+	 * Если цель — не живая сущность, считается всегда видимой.
+	 * Мёртвые сущности никогда не считаются видимыми.
+	 */
 	@Override
-	public boolean isSeenBy(LivingEntity entity) {
-		if (this.entity instanceof LivingEntity livingEntity) {
-			if (!livingEntity.isAlive()) {
-				return false;
-			}
-			else {
-				Optional<LivingTargetCache>
-						optional =
-						entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
-				return optional.isPresent() && optional.get().contains(livingEntity);
-			}
-		}
-		else {
+	public boolean isSeenBy(LivingEntity observer) {
+		if (!(entity instanceof LivingEntity livingEntity)) {
 			return true;
 		}
+
+		if (!livingEntity.isAlive()) {
+			return false;
+		}
+
+		Optional<LivingTargetCache> visibleMobs = observer.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
+
+		return visibleMobs.isPresent() && visibleMobs.get().contains(livingEntity);
 	}
 
 	public Entity getEntity() {
-		return this.entity;
+		return entity;
 	}
 
 	@Override
 	public String toString() {
-		return "EntityTracker for " + this.entity;
+		return "EntityTracker for " + entity;
 	}
 }

@@ -10,7 +10,8 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.function.DoubleUnaryOperator;
 
 /**
- * {@code EntityAttributeBaseFix}.
+ * Применяет числовое преобразование к базовому значению конкретного атрибута сущности.
+ * Используется для исправления некорректных значений атрибутов при смене формата.
  */
 public class EntityAttributeBaseFix extends ChoiceFix {
 
@@ -31,24 +32,21 @@ public class EntityAttributeBaseFix extends ChoiceFix {
 
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		return inputTyped.update(DSL.remainderFinder(), this::fix);
+		return inputTyped.update(DSL.remainderFinder(), this::fixAttributes);
 	}
 
-	private Dynamic<?> fix(Dynamic<?> dynamic) {
-		return dynamic.update(
+	private Dynamic<?> fixAttributes(Dynamic<?> entity) {
+		return entity.update(
 				"attributes",
-				attributesDynamic -> dynamic.createList(attributesDynamic.asStream().map(attributeDynamic -> {
-					String string = IdentifierNormalizingSchema.normalize(attributeDynamic.get("id").asString(""));
-					if (string.equals(this.attributeId) == false) {
-						return attributeDynamic;
+				attributes -> entity.createList(attributes.asStream().map(attribute -> {
+					String id = IdentifierNormalizingSchema.normalize(attribute.get("id").asString(""));
+
+					if (!id.equals(attributeId)) {
+						return attribute;
 					}
-					else {
-						double d = attributeDynamic.get("base").asDouble(0.0);
-						return attributeDynamic.set(
-								"base",
-								attributeDynamic.createDouble(this.fixOperator.applyAsDouble(d))
-						);
-					}
+
+					double baseValue = attribute.get("base").asDouble(0.0);
+					return attribute.set("base", attribute.createDouble(fixOperator.applyAsDouble(baseValue)));
 				}))
 		);
 	}

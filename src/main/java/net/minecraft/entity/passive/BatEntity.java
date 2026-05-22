@@ -30,20 +30,23 @@ import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BatEntity}.
+ * Летучая мышь — пассивное летающее существо, обитающее в пещерах.
+ * Днём висит на потолке (roosting), ночью летает в поисках места для отдыха.
+ * Убегает от игроков, приближающихся на расстояние менее 4 блоков.
  */
 public class BatEntity extends AmbientEntity {
 
 	public static final float BAT_WIDTH = 0.5F;
 	public static final float BAT_TRACKING_RANGE = 10.0F;
-	private static final TrackedData<Byte>
-			BAT_FLAGS =
-			DataTracker.registerData(BatEntity.class, TrackedDataHandlerRegistry.BYTE);
+
+	private static final TrackedData<Byte> BAT_FLAGS = DataTracker.registerData(
+		BatEntity.class, TrackedDataHandlerRegistry.BYTE
+	);
 	private static final int ROOSTING_FLAG = 1;
-	private static final TargetPredicate
-			CLOSE_PLAYER_PREDICATE =
-			TargetPredicate.createNonAttackable().setBaseMaxDistance(4.0);
-	private static final byte DEFAULT_BAT_FLAGS = 0;
+	private static final TargetPredicate CLOSE_PLAYER_PREDICATE = TargetPredicate
+		.createNonAttackable()
+		.setBaseMaxDistance(4.0);
+
 	public final AnimationState flyingAnimationState = new AnimationState();
 	public final AnimationState roostingAnimationState = new AnimationState();
 	private @Nullable BlockPos hangingPosition;
@@ -51,13 +54,13 @@ public class BatEntity extends AmbientEntity {
 	public BatEntity(EntityType<? extends BatEntity> entityType, World world) {
 		super(entityType, world);
 		if (!world.isClient()) {
-			this.setRoosting(true);
+			setRoosting(true);
 		}
 	}
 
 	@Override
 	public boolean isFlappingWings() {
-		return !this.isRoosting() && this.age % 10.0F == 0.0F;
+		return !isRoosting() && age % 10 == 0;
 	}
 
 	@Override
@@ -78,7 +81,7 @@ public class BatEntity extends AmbientEntity {
 
 	@Override
 	public @Nullable SoundEvent getAmbientSound() {
-		return this.isRoosting() && this.random.nextInt(4) != 0 ? null : SoundEvents.ENTITY_BAT_AMBIENT;
+		return isRoosting() && random.nextInt(4) != 0 ? null : SoundEvents.ENTITY_BAT_AMBIENT;
 	}
 
 	@Override
@@ -109,95 +112,93 @@ public class BatEntity extends AmbientEntity {
 	}
 
 	public boolean isRoosting() {
-		return (this.dataTracker.get(BAT_FLAGS) & 1) != 0;
+		return (dataTracker.get(BAT_FLAGS) & ROOSTING_FLAG) != 0;
 	}
 
 	public void setRoosting(boolean roosting) {
-		byte b = this.dataTracker.get(BAT_FLAGS);
-		if (roosting) {
-			this.dataTracker.set(BAT_FLAGS, (byte) (b | 1));
-		}
-		else {
-			this.dataTracker.set(BAT_FLAGS, (byte) (b & -2));
-		}
+		byte flags = dataTracker.get(BAT_FLAGS);
+		dataTracker.set(BAT_FLAGS, roosting ? (byte) (flags | ROOSTING_FLAG) : (byte) (flags & ~ROOSTING_FLAG));
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.isRoosting()) {
-			this.setVelocity(Vec3d.ZERO);
-			this.setPos(this.getX(), MathHelper.floor(this.getY()) + 1.0 - this.getHeight(), this.getZ());
-		}
-		else {
-			this.setVelocity(this.getVelocity().multiply(1.0, 0.6, 1.0));
+		if (isRoosting()) {
+			setVelocity(Vec3d.ZERO);
+			setPos(getX(), MathHelper.floor(getY()) + 1.0 - getHeight(), getZ());
+		} else {
+			setVelocity(getVelocity().multiply(1.0, 0.6, 1.0));
 		}
 
-		this.updateAnimations();
+		updateAnimations();
 	}
 
+	/**
+	 * Основная логика ИИ летучей мыши на сервере.
+	 * В режиме roosting: случайно поворачивает голову и улетает при приближении игрока.
+	 * В режиме полёта: навигирует к случайной точке подвешивания, пытается сесть на потолок.
+	 */
 	@Override
 	protected void mobTick(ServerWorld world) {
 		super.mobTick(world);
-		BlockPos blockPos = this.getBlockPos();
-		BlockPos blockPos2 = blockPos.up();
-		if (this.isRoosting()) {
-			boolean bl = this.isSilent();
-			if (world.getBlockState(blockPos2).isSolidBlock(world, blockPos)) {
-				if (this.random.nextInt(200) == 0) {
-					this.headYaw = this.random.nextInt(360);
+		BlockPos pos = getBlockPos();
+		BlockPos posAbove = pos.up();
+
+		if (isRoosting()) {
+			boolean silent = isSilent();
+			if (world.getBlockState(posAbove).isSolidBlock(world, pos)) {
+				if (random.nextInt(200) == 0) {
+					headYaw = random.nextInt(360);
 				}
 
 				if (world.getClosestPlayer(CLOSE_PLAYER_PREDICATE, this) != null) {
-					this.setRoosting(false);
-					if (!bl) {
-						world.syncWorldEvent(null, 1025, blockPos, 0);
+					setRoosting(false);
+					if (!silent) {
+						world.syncWorldEvent(null, 1025, pos, 0);
 					}
 				}
-			}
-			else {
-				this.setRoosting(false);
-				if (!bl) {
-					world.syncWorldEvent(null, 1025, blockPos, 0);
+			} else {
+				setRoosting(false);
+				if (!silent) {
+					world.syncWorldEvent(null, 1025, pos, 0);
 				}
 			}
-		}
-		else {
-			if (this.hangingPosition != null && (!world.isAir(this.hangingPosition)
-					|| this.hangingPosition.getY() <= world.getBottomY()
-			)) {
-				this.hangingPosition = null;
+		} else {
+			if (hangingPosition != null
+				&& (!world.isAir(hangingPosition) || hangingPosition.getY() <= world.getBottomY())
+			) {
+				hangingPosition = null;
 			}
 
-			if (this.hangingPosition == null || this.random.nextInt(30) == 0 || this.hangingPosition.isWithinDistance(
-					this.getEntityPos(),
-					2.0
-			)) {
-				this.hangingPosition = BlockPos.ofFloored(
-						this.getX() + this.random.nextInt(7) - this.random.nextInt(7),
-						this.getY() + this.random.nextInt(6) - 2.0,
-						this.getZ() + this.random.nextInt(7) - this.random.nextInt(7)
+			if (hangingPosition == null
+				|| random.nextInt(30) == 0
+				|| hangingPosition.isWithinDistance(getEntityPos(), 2.0)
+			) {
+				hangingPosition = BlockPos.ofFloored(
+					getX() + random.nextInt(7) - random.nextInt(7),
+					getY() + random.nextInt(6) - 2.0,
+					getZ() + random.nextInt(7) - random.nextInt(7)
 				);
 			}
 
-			double d = this.hangingPosition.getX() + 0.5 - this.getX();
-			double e = this.hangingPosition.getY() + 0.1 - this.getY();
-			double f = this.hangingPosition.getZ() + 0.5 - this.getZ();
-			Vec3d vec3d = this.getVelocity();
-			Vec3d
-					vec3d2 =
-					vec3d.add(
-							(Math.signum(d) * 0.5 - vec3d.x) * 0.1F,
-							(Math.signum(e) * 0.7F - vec3d.y) * 0.1F,
-							(Math.signum(f) * 0.5 - vec3d.z) * 0.1F
-					);
-			this.setVelocity(vec3d2);
-			float g = (float) (MathHelper.atan2(vec3d2.z, vec3d2.x) * 180.0F / (float) Math.PI) - 90.0F;
-			float h = MathHelper.wrapDegrees(g - this.getYaw());
-			this.forwardSpeed = 0.5F;
-			this.setYaw(this.getYaw() + h);
-			if (this.random.nextInt(100) == 0 && world.getBlockState(blockPos2).isSolidBlock(world, blockPos2)) {
-				this.setRoosting(true);
+			double dx = hangingPosition.getX() + 0.5 - getX();
+			double dy = hangingPosition.getY() + 0.1 - getY();
+			double dz = hangingPosition.getZ() + 0.5 - getZ();
+			Vec3d velocity = getVelocity();
+			Vec3d newVelocity = velocity.add(
+				(Math.signum(dx) * 0.5 - velocity.x) * 0.1F,
+				(Math.signum(dy) * 0.7F - velocity.y) * 0.1F,
+				(Math.signum(dz) * 0.5 - velocity.z) * 0.1F
+			);
+			setVelocity(newVelocity);
+
+			float targetYaw = (float) (MathHelper.atan2(newVelocity.z, newVelocity.x) * 180.0F / (float) Math.PI) - 90.0F;
+			float yawDelta = MathHelper.wrapDegrees(targetYaw - getYaw());
+			forwardSpeed = 0.5F;
+			setYaw(getYaw() + yawDelta);
+
+			if (random.nextInt(100) == 0 && world.getBlockState(posAbove).isSolidBlock(world, posAbove)) {
+				setRoosting(true);
 			}
 		}
 	}
@@ -218,65 +219,62 @@ public class BatEntity extends AmbientEntity {
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isInvulnerableTo(world, source)) {
+		if (isInvulnerableTo(world, source)) {
 			return false;
 		}
-		else {
-			if (this.isRoosting()) {
-				this.setRoosting(false);
-			}
 
-			return super.damage(world, source, amount);
+		if (isRoosting()) {
+			setRoosting(false);
 		}
+
+		return super.damage(world, source, amount);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.dataTracker.set(BAT_FLAGS, view.getByte("BatFlags", (byte) 0));
+		dataTracker.set(BAT_FLAGS, view.getByte("BatFlags", (byte) 0));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putByte("BatFlags", this.dataTracker.get(BAT_FLAGS));
+		view.putByte("BatFlags", dataTracker.get(BAT_FLAGS));
 	}
 
 	public static boolean canSpawn(
-			EntityType<BatEntity> type,
-			WorldAccess world,
-			SpawnReason spawnReason,
-			BlockPos pos,
-			Random random
+		EntityType<BatEntity> type,
+		WorldAccess world,
+		SpawnReason spawnReason,
+		BlockPos pos,
+		Random random
 	) {
 		if (pos.getY() >= world.getTopPosition(Heightmap.Type.WORLD_SURFACE, pos).getY()) {
 			return false;
 		}
-		else if (random.nextBoolean()) {
+
+		if (random.nextBoolean()) {
 			return false;
 		}
-		else if (world.getLightLevel(pos) > random.nextInt(4)) {
+
+		if (world.getLightLevel(pos) > random.nextInt(4)) {
 			return false;
 		}
-		else {
-			return !world.getBlockState(pos.down()).isIn(BlockTags.BATS_SPAWNABLE_ON) ? false : canMobSpawn(
-					type,
-					world,
-					spawnReason,
-					pos,
-					random
-			);
+
+		if (!world.getBlockState(pos.down()).isIn(BlockTags.BATS_SPAWNABLE_ON)) {
+			return false;
 		}
+
+		return canMobSpawn(type, world, spawnReason, pos, random);
 	}
 
 	private void updateAnimations() {
-		if (this.isRoosting()) {
-			this.flyingAnimationState.stop();
-			this.roostingAnimationState.startIfNotRunning(this.age);
-		}
-		else {
-			this.roostingAnimationState.stop();
-			this.flyingAnimationState.startIfNotRunning(this.age);
+		if (isRoosting()) {
+			flyingAnimationState.stop();
+			roostingAnimationState.startIfNotRunning(age);
+		} else {
+			roostingAnimationState.stop();
+			flyingAnimationState.startIfNotRunning(age);
 		}
 	}
 }

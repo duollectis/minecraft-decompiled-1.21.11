@@ -4,22 +4,23 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code Nameable}.
+ * Интерфейс для объектов, имеющих имя — стандартное и опционально пользовательское.
+ * Реализуется блок-сущностями, контейнерами и другими именуемыми объектами мира.
  */
 public interface Nameable {
 
 	Text getName();
 
 	default String getStringifiedName() {
-		return this.getName().getString();
+		return getName().getString();
 	}
 
 	default boolean hasCustomName() {
-		return this.getCustomName() != null;
+		return getCustomName() != null;
 	}
 
 	default Text getDisplayName() {
-		return this.getName();
+		return getName();
 	}
 
 	default @Nullable Text getCustomName() {

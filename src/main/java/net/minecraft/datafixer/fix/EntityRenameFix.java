@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * {@code EntityRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public abstract class EntityRenameFix extends DataFix {
 
@@ -29,19 +29,19 @@ public abstract class EntityRenameFix extends DataFix {
 	public TypeRewriteRule makeRule() {
 		TaggedChoiceType<String>
 				taggedChoiceType =
-				(TaggedChoiceType<String>) this.getInputSchema().findChoiceType(TypeReferences.ENTITY);
+				(TaggedChoiceType<String>) getInputSchema().findChoiceType(TypeReferences.ENTITY);
 		TaggedChoiceType<String>
 				taggedChoiceType2 =
-				(TaggedChoiceType<String>) this.getOutputSchema().findChoiceType(TypeReferences.ENTITY);
+				(TaggedChoiceType<String>) getOutputSchema().findChoiceType(TypeReferences.ENTITY);
 		Type<Pair<String, String>>
 				type =
 				DSL.named(TypeReferences.ENTITY_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-		if (!Objects.equals(this.getOutputSchema().getType(TypeReferences.ENTITY_NAME), type)) {
+		if (!Objects.equals(getOutputSchema().getType(TypeReferences.ENTITY_NAME), type)) {
 			throw new IllegalStateException("Entity name type is not what was expected.");
 		}
 		else {
 			return TypeRewriteRule.seq(
-					this.fixTypeEverywhere(
+					fixTypeEverywhere(
 							this.name,
 							taggedChoiceType,
 							taggedChoiceType2,
@@ -62,7 +62,7 @@ public abstract class EntityRenameFix extends DataFix {
 								}
 							})
 					),
-					this.fixTypeEverywhere(
+					fixTypeEverywhere(
 							this.name + " for entity name",
 							type,
 							dynamicOps -> pair -> pair.mapSecond(this::rename)

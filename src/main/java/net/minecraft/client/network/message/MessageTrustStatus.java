@@ -14,10 +14,11 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * Перечисление message trust status.
+ * Статус доверия к сообщению чата: безопасное, изменённое или небезопасное.
+ * Определяется на основе наличия подписи, её актуальности и соответствия контента.
  */
+@Environment(EnvType.CLIENT)
 public enum MessageTrustStatus implements StringIdentifiable {
 	SECURE("secure"),
 	MODIFIED("modified"),
@@ -34,19 +35,18 @@ public enum MessageTrustStatus implements StringIdentifiable {
 		if (!message.hasSignature() || message.isExpiredOnClient(receptionTimestamp)) {
 			return NOT_SECURE;
 		}
-		else {
-			return isModified(message, decorated) ? MODIFIED : SECURE;
-		}
+
+		return isModified(message, decorated) ? MODIFIED : SECURE;
 	}
 
 	private static boolean isModified(SignedMessage message, Text decorated) {
 		if (!decorated.getString().contains(message.getSignedContent())) {
 			return true;
 		}
-		else {
-			Text text = message.unsignedContent();
-			return text == null ? false : isNotInDefaultFont(text);
-		}
+
+		Text unsignedContent = message.unsignedContent();
+
+		return unsignedContent != null && isNotInDefaultFont(unsignedContent);
 	}
 
 	private static boolean isNotInDefaultFont(Text content) {
@@ -59,20 +59,13 @@ public enum MessageTrustStatus implements StringIdentifiable {
 	}
 
 	private static boolean isNotInDefaultFont(Style style) {
-		return !style.getFont().equals(StyleSpriteSource.DEFAULT);
+		return style.getFont().equals(StyleSpriteSource.DEFAULT) == false;
 	}
 
 	public boolean isInsecure() {
 		return this == NOT_SECURE;
 	}
 
-	/**
-	 * Создаёт indicator.
-	 *
-	 * @param message message
-	 *
-	 * @return @Nullable MessageIndicator — результат операции
-	 */
 	public @Nullable MessageIndicator createIndicator(SignedMessage message) {
 		return switch (this) {
 			case MODIFIED -> MessageIndicator.modified(message.getSignedContent());
@@ -83,6 +76,6 @@ public enum MessageTrustStatus implements StringIdentifiable {
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 }

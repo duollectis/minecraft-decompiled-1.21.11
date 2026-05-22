@@ -11,19 +11,11 @@ import net.minecraft.entity.ai.brain.WalkTarget;
 import java.util.function.Predicate;
 
 /**
- * {@code WalkTowardsNearestVisibleWantedItemTask}.
+ * Фабричный класс задачи мозга, направляющей существо к ближайшему видимому желанному предмету.
+ * Учитывает кулдаун подбора, границы мира и флаг {@code canPickUpLoot}.
  */
 public class WalkTowardsNearestVisibleWantedItemTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 * @param requiresWalkTarget requires walk target
-	 * @param radius radius
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(float speed, boolean requiresWalkTarget, int radius) {
 		return create(entity -> true, speed, requiresWalkTarget, radius);
 	}
@@ -36,43 +28,35 @@ public class WalkTowardsNearestVisibleWantedItemTask {
 	) {
 		return TaskTriggerer.task(
 				context -> {
-					TaskTriggerer<E, ? extends MemoryQueryResult<? extends K1, WalkTarget>>
-							taskTriggerer =
+					TaskTriggerer<E, ? extends MemoryQueryResult<? extends K1, WalkTarget>> walkTargetQuery =
 							requiresWalkTarget
 							? context.queryMemoryOptional(MemoryModuleType.WALK_TARGET)
 							: context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET);
+
 					return context.group(
 							              context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET),
-							              taskTriggerer,
+							              walkTargetQuery,
 							              context.queryMemoryValue(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM),
 							              context.queryMemoryOptional(MemoryModuleType.ITEM_PICKUP_COOLDOWN_TICKS)
 					              )
 					              .apply(
 							              context,
 							              (lookTarget, walkTarget, nearestVisibleWantedItem, itemPickupCooldownTicks) -> (world, entity, time) -> {
-								              ItemEntity itemEntity = context.getValue(nearestVisibleWantedItem);
-								              if (context.getOptionalValue(itemPickupCooldownTicks).isEmpty()
+								              ItemEntity item = context.getValue(nearestVisibleWantedItem);
+								              boolean canPickUp = context.getOptionalValue(itemPickupCooldownTicks).isEmpty()
 										              && startCondition.test((E) entity)
-										              && itemEntity.isInRange(entity, radius)
-										              && entity
-										              .getEntityWorld()
-										              .getWorldBorder()
-										              .contains(itemEntity.getBlockPos())
-										              && entity.canPickUpLoot()) {
-									              WalkTarget
-											              walkTargetx =
-											              new WalkTarget(
-													              new EntityLookTarget(itemEntity, false),
-													              speed,
-													              0
-											              );
-									              lookTarget.remember(new EntityLookTarget(itemEntity, true));
-									              walkTarget.remember(walkTargetx);
-									              return true;
-								              }
-								              else {
+										              && item.isInRange(entity, radius)
+										              && entity.getEntityWorld().getWorldBorder().contains(item.getBlockPos())
+										              && entity.canPickUpLoot();
+
+								              if (!canPickUp) {
 									              return false;
 								              }
+
+								              WalkTarget newWalkTarget = new WalkTarget(new EntityLookTarget(item, false), speed, 0);
+								              lookTarget.remember(new EntityLookTarget(item, true));
+								              walkTarget.remember(newWalkTarget);
+								              return true;
 							              }
 					              );
 				}

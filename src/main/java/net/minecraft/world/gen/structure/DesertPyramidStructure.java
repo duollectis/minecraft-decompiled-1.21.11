@@ -2,7 +2,6 @@ package net.minecraft.world.gen.structure;
 
 import com.mojang.serialization.MapCodec;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectListIterator;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.loot.LootTables;
@@ -23,7 +22,8 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import java.util.Set;
 
 /**
- * {@code DesertPyramidStructure}.
+ * Структура пустынной пирамиды. После размещения расставляет подозрительный песок
+ * с лут-таблицей археологии в случайных позициях внутри пирамиды.
  */
 public class DesertPyramidStructure extends BasicTempleStructure {
 
@@ -52,16 +52,14 @@ public class DesertPyramidStructure extends BasicTempleStructure {
 			}
 		}
 
-		ObjectArrayList<BlockPos> objectArrayList = new ObjectArrayList(set.stream().toList());
-		Random random2 = Random.create(world.getSeed()).nextSplitter().split(pieces.getBoundingBox().getCenter());
-		Util.shuffle(objectArrayList, random2);
-		int i = Math.min(set.size(), random2.nextBetweenExclusive(5, 8));
-		ObjectListIterator var12 = objectArrayList.iterator();
+		ObjectArrayList<BlockPos> shuffledPositions = new ObjectArrayList<>(set.stream().toList());
+		Random seededRandom = Random.create(world.getSeed()).nextSplitter().split(pieces.getBoundingBox().getCenter());
+		Util.shuffle(shuffledPositions, seededRandom);
+		int lootCount = Math.min(set.size(), seededRandom.nextBetweenExclusive(5, 8));
 
-		while (var12.hasNext()) {
-			BlockPos blockPos = (BlockPos) var12.next();
-			if (i > 0) {
-				i--;
+		for (BlockPos blockPos : shuffledPositions) {
+			if (lootCount > 0) {
+				lootCount--;
 				placeSuspiciousSand(box, world, blockPos);
 			}
 			else if (box.contains(blockPos)) {

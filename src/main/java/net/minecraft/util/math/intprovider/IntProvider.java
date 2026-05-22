@@ -7,66 +7,49 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code IntProvider}.
+ * Абстрактный поставщик целочисленных значений с поддержкой сериализации через Codec.
+ * Позволяет задавать диапазоны значений для генерации мира (высоты, количества руды и т.д.).
+ * Поддерживает как константные значения, так и различные распределения вероятностей.
  */
 public abstract class IntProvider {
 
 	private static final Codec<Either<Integer, IntProvider>> INT_CODEC = Codec.either(
-			Codec.INT, Registries.INT_PROVIDER_TYPE.getCodec().dispatch(IntProvider::getType, IntProviderType::codec)
+		Codec.INT,
+		Registries.INT_PROVIDER_TYPE.getCodec().dispatch(IntProvider::getType, IntProviderType::codec)
 	);
+
 	public static final Codec<IntProvider> VALUE_CODEC = INT_CODEC.xmap(
-			either -> (IntProvider) either.map(ConstantIntProvider::create, provider -> provider),
-			provider -> provider.getType() == IntProviderType.CONSTANT
-			            ? Either.left(((ConstantIntProvider) provider).getValue()) : Either.right(provider)
+		either -> (IntProvider) either.map(ConstantIntProvider::create, provider -> provider),
+		provider -> provider.getType() == IntProviderType.CONSTANT
+			? Either.left(((ConstantIntProvider) provider).getValue())
+			: Either.right(provider)
 	);
+
 	public static final Codec<IntProvider> NON_NEGATIVE_CODEC = createValidatingCodec(0, Integer.MAX_VALUE);
 	public static final Codec<IntProvider> POSITIVE_CODEC = createValidatingCodec(1, Integer.MAX_VALUE);
 
-	/**
-	 * Создаёт validating codec.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return Codec — результат операции
-	 */
 	public static Codec<IntProvider> createValidatingCodec(int min, int max) {
 		return createValidatingCodec(min, max, VALUE_CODEC);
 	}
 
-	/**
-	 * Создаёт validating codec.
-	 *
-	 * @param min min
-	 * @param max max
-	 * @param providerCodec provider codec
-	 *
-	 * @return Codec — результат операции
-	 */
 	public static <T extends IntProvider> Codec<T> createValidatingCodec(int min, int max, Codec<T> providerCodec) {
 		return providerCodec.validate(provider -> validateProvider(min, max, provider));
 	}
 
 	private static <T extends IntProvider> DataResult<T> validateProvider(int min, int max, T provider) {
 		if (provider.getMin() < min) {
-			return DataResult.error(() -> "Value provider too low: " + min + " [" + provider.getMin() + "-"
-					+ provider.getMax() + "]");
+			return DataResult.error(
+				() -> "Value provider too low: " + min + " [" + provider.getMin() + "-" + provider.getMax() + "]"
+			);
 		}
-		else {
-			return provider.getMax() > max
-			       ? DataResult.error(() -> "Value provider too high: " + max + " [" + provider.getMin() + "-"
-			                                + provider.getMax() + "]")
-			       : DataResult.success(provider);
-		}
+
+		return provider.getMax() > max
+			? DataResult.error(
+				() -> "Value provider too high: " + max + " [" + provider.getMin() + "-" + provider.getMax() + "]"
+			)
+			: DataResult.success(provider);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param random random
-	 *
-	 * @return int — 
-	 */
 	public abstract int get(Random random);
 
 	public abstract int getMin();

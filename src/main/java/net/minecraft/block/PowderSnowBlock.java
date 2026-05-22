@@ -27,7 +27,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code PowderSnowBlock}.
+ * Блок порошкового снега — замедляет движение, замораживает сущности и тушит горящих.
+ * Сущности с кожаными ботинками или из тега {@code POWDER_SNOW_WALKABLE_MOBS} могут
+ * ходить по поверхности, не проваливаясь.
  */
 public class PowderSnowBlock extends Block implements FluidDrainable {
 
@@ -51,7 +53,9 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 
 	@Override
 	protected boolean isSideInvisible(BlockState state, BlockState stateFrom, Direction direction) {
-		return stateFrom.isOf(this) ? true : super.isSideInvisible(state, stateFrom, direction);
+		return stateFrom.isOf(this)
+				? true
+				: super.isSideInvisible(state, stateFrom, direction);
 	}
 
 	@Override
@@ -64,7 +68,7 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 			boolean bl
 	) {
 		if (!(entity instanceof LivingEntity) || entity.getBlockStateAtPos().isOf(this)) {
-			entity.slowMovement(state, new Vec3d(0.9F, 1.5, 0.9F));
+			entity.slowMovement(state, new Vec3d(HORIZONTAL_MOVEMENT_MULTIPLIER, VERTICAL_MOVEMENT_MULTIPLIER, HORIZONTAL_MOVEMENT_MULTIPLIER));
 			if (world.isClient()) {
 				Random random = world.getRandom();
 				boolean bl2 = entity.lastRenderX != entity.getX() || entity.lastRenderZ != entity.getZ();
@@ -74,9 +78,9 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 							entity.getX(),
 							pos.getY() + 1,
 							entity.getZ(),
-							MathHelper.nextBetween(random, -1.0F, 1.0F) * 0.083333336F,
+							MathHelper.nextBetween(random, -1.0F, 1.0F) * SNOWFLAKE_VELOCITY,
 							0.05F,
-							MathHelper.nextBetween(random, -1.0F, 1.0F) * 0.083333336F
+							MathHelper.nextBetween(random, -1.0F, 1.0F) * SNOWFLAKE_VELOCITY
 					);
 				}
 			}
@@ -102,9 +106,11 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 
 	@Override
 	public void onLandedUpon(World world, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
-		if (!(fallDistance < 4.0) && entity instanceof LivingEntity livingEntity) {
+		if (fallDistance >= MIN_FALL_DISTANCE && entity instanceof LivingEntity livingEntity) {
 			LivingEntity.FallSounds fallSounds = livingEntity.getFallSounds();
-			SoundEvent soundEvent = fallDistance < 7.0 ? fallSounds.small() : fallSounds.big();
+			SoundEvent soundEvent = fallDistance < SMALL_FALL_SOUND_MAX_DISTANCE
+					? fallSounds.small()
+					: fallSounds.big();
 			entity.playSound(soundEvent, 1.0F, 1.0F);
 		}
 	}
@@ -120,7 +126,7 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 		if (!context.isPlacement() && context instanceof EntityShapeContext entityShapeContext) {
 			Entity entity = entityShapeContext.getEntity();
 			if (entity != null) {
-				if (entity.fallDistance > 2.5) {
+				if (entity.fallDistance > FALL_DAMAGE_THRESHOLD) {
 					return FALLING_SHAPE;
 				}
 
@@ -146,21 +152,17 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 	}
 
 	/**
-	 * Проверяет возможность walk on powder snow.
-	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли сущность ходить по поверхности порошкового снега.
+	 * Мобы из тега {@code POWDER_SNOW_WALKABLE_MOBS} проходят всегда;
+	 * для остальных живых существ требуются кожаные ботинки.
 	 */
 	public static boolean canWalkOnPowderSnow(Entity entity) {
 		if (entity.getType().isIn(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS)) {
 			return true;
 		}
-		else {
-			return entity instanceof LivingEntity ? ((LivingEntity) entity)
-			                                        .getEquippedStack(EquipmentSlot.FEET)
-			                                        .isOf(Items.LEATHER_BOOTS) : false;
-		}
+
+		return entity instanceof LivingEntity livingEntity
+				&& livingEntity.getEquippedStack(EquipmentSlot.FEET).isOf(Items.LEATHER_BOOTS);
 	}
 
 	@Override

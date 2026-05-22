@@ -21,7 +21,19 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code VillagerProfession}.
+ * Профессия жителя деревни, определяющая его рабочее место, собираемые предметы
+ * и звук работы.
+ * <p>
+ * Каждая профессия привязана к конкретному типу точки интереса (рабочему блоку).
+ * Предикат {@link #IS_ACQUIRABLE_JOB_SITE} используется для профессий без фиксированного
+ * рабочего места (например, {@link #NONE}).
+ *
+ * @param id                   локализованное имя профессии
+ * @param heldWorkstation      предикат для уже занятого рабочего места
+ * @param acquirableWorkstation предикат для поиска нового рабочего места
+ * @param gatherableItems      предметы, которые житель собирает с земли
+ * @param secondaryJobSites    дополнительные блоки рабочего места
+ * @param workSound            звук работы (может быть null)
  */
 public record VillagerProfession(
 		Text id,
@@ -32,9 +44,9 @@ public record VillagerProfession(
 		@Nullable SoundEvent workSound
 ) {
 
-	public static final Predicate<RegistryEntry<PointOfInterestType>> IS_ACQUIRABLE_JOB_SITE = poiType -> poiType.isIn(
-			PointOfInterestTypeTags.ACQUIRABLE_JOB_SITE
-	);
+	public static final Predicate<RegistryEntry<PointOfInterestType>> IS_ACQUIRABLE_JOB_SITE =
+			poiType -> poiType.isIn(PointOfInterestTypeTags.ACQUIRABLE_JOB_SITE);
+
 	public static final RegistryKey<VillagerProfession> NONE = of("none");
 	public static final RegistryKey<VillagerProfession> ARMORER = of("armorer");
 	public static final RegistryKey<VillagerProfession> BUTCHER = of("butcher");
@@ -121,7 +133,8 @@ public record VillagerProfession(
 				key,
 				new VillagerProfession(
 						Text.translatable(
-								"entity." + key.getValue().getNamespace() + ".villager." + key.getValue().getPath()),
+								"entity." + key.getValue().getNamespace() + ".villager." + key.getValue().getPath()
+						),
 						heldWorkstation,
 						acquirableWorkstation,
 						gatherableItems,
@@ -135,12 +148,7 @@ public record VillagerProfession(
 		register(registry, NONE, PointOfInterestType.NONE, IS_ACQUIRABLE_JOB_SITE, null);
 		register(registry, ARMORER, PointOfInterestTypes.ARMORER, SoundEvents.ENTITY_VILLAGER_WORK_ARMORER);
 		register(registry, BUTCHER, PointOfInterestTypes.BUTCHER, SoundEvents.ENTITY_VILLAGER_WORK_BUTCHER);
-		register(
-				registry,
-				CARTOGRAPHER,
-				PointOfInterestTypes.CARTOGRAPHER,
-				SoundEvents.ENTITY_VILLAGER_WORK_CARTOGRAPHER
-		);
+		register(registry, CARTOGRAPHER, PointOfInterestTypes.CARTOGRAPHER, SoundEvents.ENTITY_VILLAGER_WORK_CARTOGRAPHER);
 		register(registry, CLERIC, PointOfInterestTypes.CLERIC, SoundEvents.ENTITY_VILLAGER_WORK_CLERIC);
 		register(
 				registry,
@@ -152,22 +160,12 @@ public record VillagerProfession(
 		);
 		register(registry, FISHERMAN, PointOfInterestTypes.FISHERMAN, SoundEvents.ENTITY_VILLAGER_WORK_FISHERMAN);
 		register(registry, FLETCHER, PointOfInterestTypes.FLETCHER, SoundEvents.ENTITY_VILLAGER_WORK_FLETCHER);
-		register(
-				registry,
-				LEATHERWORKER,
-				PointOfInterestTypes.LEATHERWORKER,
-				SoundEvents.ENTITY_VILLAGER_WORK_LEATHERWORKER
-		);
+		register(registry, LEATHERWORKER, PointOfInterestTypes.LEATHERWORKER, SoundEvents.ENTITY_VILLAGER_WORK_LEATHERWORKER);
 		register(registry, LIBRARIAN, PointOfInterestTypes.LIBRARIAN, SoundEvents.ENTITY_VILLAGER_WORK_LIBRARIAN);
 		register(registry, MASON, PointOfInterestTypes.MASON, SoundEvents.ENTITY_VILLAGER_WORK_MASON);
 		register(registry, NITWIT, PointOfInterestType.NONE, PointOfInterestType.NONE, null);
 		register(registry, SHEPHERD, PointOfInterestTypes.SHEPHERD, SoundEvents.ENTITY_VILLAGER_WORK_SHEPHERD);
 		register(registry, TOOLSMITH, PointOfInterestTypes.TOOLSMITH, SoundEvents.ENTITY_VILLAGER_WORK_TOOLSMITH);
-		return register(
-				registry,
-				WEAPONSMITH,
-				PointOfInterestTypes.WEAPONSMITH,
-				SoundEvents.ENTITY_VILLAGER_WORK_WEAPONSMITH
-		);
+		return register(registry, WEAPONSMITH, PointOfInterestTypes.WEAPONSMITH, SoundEvents.ENTITY_VILLAGER_WORK_WEAPONSMITH);
 	}
 }

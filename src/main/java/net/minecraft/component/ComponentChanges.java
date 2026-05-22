@@ -3,7 +3,6 @@ package net.minecraft.component;
 import com.google.common.collect.Sets;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMaps;
@@ -21,186 +20,168 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code ComponentChanges}.
- */
+	 * Хранит набор изменений компонентов предмета: добавленных (с новым значением) и удалённых.
+	 * Используется для передачи дельты состояния компонентов между клиентом и сервером,
+	 * а также при применении изменений к {@link MergedComponentMap}.
+	 */
 public final class ComponentChanges {
 
+	/**
+		 * Максимальный размер карты изменений при декодировании пакета.
+		 * Ограничение защищает от атак с переполнением памяти.
+		 */
+	private static final int MAX_PACKET_MAP_SIZE = 65536;
+
+	private static final String REMOVE_PREFIX = "!";
+
 	public static final ComponentChanges EMPTY = new ComponentChanges(Reference2ObjectMaps.emptyMap());
-	public static final Codec<ComponentChanges>
-			CODEC =
-			Codec.dispatchedMap(ComponentChanges.Type.CODEC, ComponentChanges.Type::getValueCodec).xmap(
-					changes -> {
-						if (changes.isEmpty()) {
-							return EMPTY;
-						}
-						else {
-							Reference2ObjectMap<ComponentType<?>, Optional<?>>
-									reference2ObjectMap =
-									new Reference2ObjectArrayMap<>(changes.size());
 
-							for (Entry<ComponentChanges.Type, ?> entry : changes.entrySet()) {
-								ComponentChanges.Type type = entry.getKey();
-								if (type.removed()) {
-									reference2ObjectMap.put(type.type(), Optional.empty());
-								}
-								else {
-									reference2ObjectMap.put(type.type(), Optional.of(entry.getValue()));
-								}
-							}
+	public static final Codec<ComponentChanges> CODEC = Codec.dispatchedMap(
+			ComponentChanges.Type.CODEC,
+			ComponentChanges.Type::getValueCodec
+	).xmap(
+			changes -> {
+				if (changes.isEmpty()) {
+					return EMPTY;
+				}
 
-							return new ComponentChanges(reference2ObjectMap);
-						}
-					}, changes -> {
-						@SuppressWarnings("unchecked")
-						Reference2ObjectMap<ComponentChanges.Type, Object>
-								reference2ObjectMap =
-								new Reference2ObjectArrayMap<>(changes.changedComponents.size());
-						ObjectIterator var2 = Reference2ObjectMaps.fastIterable(changes.changedComponents).iterator();
+				Reference2ObjectMap<ComponentType<?>, Optional<?>> result = new Reference2ObjectArrayMap<>(changes.size());
 
-						while (var2.hasNext()) {
-							Entry<ComponentType<?>, Optional<?>>
-									entry =
-									(Entry<ComponentType<?>, Optional<?>>) var2.next();
-							ComponentType<?> componentType = entry.getKey();
-							if (!componentType.shouldSkipSerialization()) {
-								Optional<?> optional = entry.getValue();
-								if (optional.isPresent()) {
-									reference2ObjectMap.put(
-											new ComponentChanges.Type(componentType, false),
-											optional.get()
-									);
-								}
-								else {
-									reference2ObjectMap.put(
-											new ComponentChanges.Type(componentType, true),
-											Unit.INSTANCE
-									);
-								}
-							}
-						}
-
-						return (java.util.Map) reference2ObjectMap;
+				for (Entry<ComponentChanges.Type, ?> entry : changes.entrySet()) {
+					ComponentChanges.Type type = entry.getKey();
+					if (type.removed()) {
+						result.put(type.type(), Optional.empty());
+					} else {
+						result.put(type.type(), Optional.of(entry.getValue()));
 					}
-			);
-	public static final PacketCodec<RegistryByteBuf, ComponentChanges>
-			PACKET_CODEC =
-			createPacketCodec(new ComponentChanges.PacketCodecFunction() {
+				}
+
+				return new ComponentChanges(result);
+			},
+			changes -> {
+				@SuppressWarnings("unchecked")
+				Reference2ObjectMap<ComponentChanges.Type, Object> result = new Reference2ObjectArrayMap<>(
+						changes.changedComponents.size()
+				);
+
+				for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changes.changedComponents)) {
+					ComponentType<?> componentType = entry.getKey();
+					if (componentType.shouldSkipSerialization()) {
+						continue;
+					}
+
+					Optional<?> optional = entry.getValue();
+					if (optional.isPresent()) {
+						result.put(new ComponentChanges.Type(componentType, false), optional.get());
+					} else {
+						result.put(new ComponentChanges.Type(componentType, true), Unit.INSTANCE);
+					}
+				}
+
+				return (java.util.Map) result;
+			}
+	);
+
+	public static final PacketCodec<RegistryByteBuf, ComponentChanges> PACKET_CODEC = createPacketCodec(
+			new ComponentChanges.PacketCodecFunction() {
 				@Override
 				public <T> PacketCodec<RegistryByteBuf, T> apply(ComponentType<T> componentType) {
 					return componentType.getPacketCodec().cast();
 				}
-			});
-	public static final PacketCodec<RegistryByteBuf, ComponentChanges>
-			LENGTH_PREPENDED_PACKET_CODEC =
-			createPacketCodec(
-					new ComponentChanges.PacketCodecFunction() {
-						@Override
-						public <T> PacketCodec<RegistryByteBuf, T> apply(ComponentType<T> componentType) {
-							PacketCodec<RegistryByteBuf, T> packetCodec = componentType.getPacketCodec().cast();
-							return packetCodec.collect(PacketCodecs.lengthPrependedRegistry(Integer.MAX_VALUE));
-						}
-					}
-			);
-	private static final String REMOVE_PREFIX = "!";
+			}
+	);
+
+	public static final PacketCodec<RegistryByteBuf, ComponentChanges> LENGTH_PREPENDED_PACKET_CODEC = createPacketCodec(
+			new ComponentChanges.PacketCodecFunction() {
+				@Override
+				public <T> PacketCodec<RegistryByteBuf, T> apply(ComponentType<T> componentType) {
+					PacketCodec<RegistryByteBuf, T> packetCodec = componentType.getPacketCodec().cast();
+					return packetCodec.collect(PacketCodecs.lengthPrependedRegistry(Integer.MAX_VALUE));
+				}
+			}
+	);
+
 	final Reference2ObjectMap<ComponentType<?>, Optional<?>> changedComponents;
 
-	private static PacketCodec<RegistryByteBuf, ComponentChanges> createPacketCodec(ComponentChanges.PacketCodecFunction packetCodecFunction) {
-		return new PacketCodec<RegistryByteBuf, ComponentChanges>() {
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return ComponentChanges — результат операции
-			 */
-			public ComponentChanges decode(RegistryByteBuf registryByteBuf) {
-				int i = registryByteBuf.readVarInt();
-				int j = registryByteBuf.readVarInt();
-				if (i == 0 && j == 0) {
+	/**
+		 * Создаёт {@link PacketCodec} для сериализации изменений компонентов по сети.
+		 * Формат пакета: [кол-во добавленных] [кол-во удалённых] [добавленные...] [удалённые...]
+		 *
+		 * @param packetCodecFunction функция, возвращающая кодек для конкретного типа компонента
+		 * @return готовый сетевой кодек
+		 */
+	private static PacketCodec<RegistryByteBuf, ComponentChanges> createPacketCodec(
+			ComponentChanges.PacketCodecFunction packetCodecFunction
+	) {
+		return new PacketCodec<>() {
+			@Override
+			public ComponentChanges decode(RegistryByteBuf buf) {
+				int addedCount = buf.readVarInt();
+				int removedCount = buf.readVarInt();
+
+				if (addedCount == 0 && removedCount == 0) {
 					return ComponentChanges.EMPTY;
 				}
-				else {
-					int k = i + j;
-					Reference2ObjectMap<ComponentType<?>, Optional<?>>
-							reference2ObjectMap =
-							new Reference2ObjectArrayMap(Math.min(k, 65536));
 
-					for (int l = 0; l < i; l++) {
-						ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
-						Object object = packetCodecFunction.apply(componentType).decode(registryByteBuf);
-						reference2ObjectMap.put(componentType, Optional.of(object));
-					}
+				int totalCount = addedCount + removedCount;
+				Reference2ObjectMap<ComponentType<?>, Optional<?>> result = new Reference2ObjectArrayMap<>(
+						Math.min(totalCount, MAX_PACKET_MAP_SIZE)
+				);
 
-					for (int l = 0; l < j; l++) {
-						ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
-						reference2ObjectMap.put(componentType, Optional.empty());
-					}
-
-					return new ComponentChanges(reference2ObjectMap);
+				for (int i = 0; i < addedCount; i++) {
+					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(buf);
+					Object value = packetCodecFunction.apply(componentType).decode(buf);
+					result.put(componentType, Optional.of(value));
 				}
+
+				for (int i = 0; i < removedCount; i++) {
+					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(buf);
+					result.put(componentType, Optional.empty());
+				}
+
+				return new ComponentChanges(result);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param componentChanges component changes
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, ComponentChanges componentChanges) {
+			@Override
+			public void encode(RegistryByteBuf buf, ComponentChanges componentChanges) {
 				if (componentChanges.isEmpty()) {
-					registryByteBuf.writeVarInt(0);
-					registryByteBuf.writeVarInt(0);
+					buf.writeVarInt(0);
+					buf.writeVarInt(0);
+					return;
 				}
-				else {
-					int i = 0;
-					int j = 0;
-					ObjectIterator
-							var5 =
-							Reference2ObjectMaps.fastIterable(componentChanges.changedComponents).iterator();
 
-					while (var5.hasNext()) {
-						it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-								entry =
-								(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var5.next();
-						if (((Optional) entry.getValue()).isPresent()) {
-							i++;
-						}
-						else {
-							j++;
-						}
+				int addedCount = 0;
+				int removedCount = 0;
+
+				for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(componentChanges.changedComponents)) {
+					if (entry.getValue().isPresent()) {
+						addedCount++;
+					} else {
+						removedCount++;
 					}
+				}
 
-					registryByteBuf.writeVarInt(i);
-					registryByteBuf.writeVarInt(j);
-					var5 = Reference2ObjectMaps.fastIterable(componentChanges.changedComponents).iterator();
+				buf.writeVarInt(addedCount);
+				buf.writeVarInt(removedCount);
 
-					while (var5.hasNext()) {
-						it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-								entry =
-								(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var5.next();
-						Optional<?> optional = (Optional<?>) entry.getValue();
-						if (optional.isPresent()) {
-							ComponentType<?> componentType = (ComponentType<?>) entry.getKey();
-							ComponentType.PACKET_CODEC.encode(registryByteBuf, componentType);
-							this.encode(registryByteBuf, componentType, optional.get());
-						}
+				for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(componentChanges.changedComponents)) {
+					Optional<?> optional = entry.getValue();
+					if (optional.isPresent()) {
+						ComponentType<?> componentType = entry.getKey();
+						ComponentType.PACKET_CODEC.encode(buf, componentType);
+						encodeValue(buf, componentType, optional.get());
 					}
+				}
 
-					var5 = Reference2ObjectMaps.fastIterable(componentChanges.changedComponents).iterator();
-
-					while (var5.hasNext()) {
-						it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>
-								entry =
-								(it.unimi.dsi.fastutil.objects.Reference2ObjectMap.Entry<ComponentType<?>, Optional<?>>) var5.next();
-						if (((Optional) entry.getValue()).isEmpty()) {
-							ComponentType<?> componentType2 = (ComponentType<?>) entry.getKey();
-							ComponentType.PACKET_CODEC.encode(registryByteBuf, componentType2);
-						}
+				for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(componentChanges.changedComponents)) {
+					if (entry.getValue().isEmpty()) {
+						ComponentType.PACKET_CODEC.encode(buf, entry.getKey());
 					}
 				}
 			}
 
-			private <T> void encode(RegistryByteBuf buf, ComponentType<T> type, Object value) {
+			@SuppressWarnings("unchecked")
+			private <T> void encodeValue(RegistryByteBuf buf, ComponentType<T> type, Object value) {
 				packetCodecFunction.apply(type).encode(buf, (T) value);
 			}
 		};
@@ -215,212 +196,193 @@ public final class ComponentChanges {
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param type type
-	 *
-	 * @return @Nullable Optional — 
-	 */
+		 * Возвращает значение изменения для указанного типа компонента.
+		 * Возвращает {@code Optional.empty()} если компонент удалён,
+		 * {@code Optional.of(value)} если добавлен/изменён,
+		 * или {@code null} если изменений для этого типа нет.
+		 *
+		 * @param type тип компонента
+		 * @return обёртка над значением или {@code null}
+		 */
 	public <T> @Nullable Optional<? extends T> get(ComponentType<? extends T> type) {
-		return (Optional<? extends T>) this.changedComponents.get(type);
+		return (Optional<? extends T>) changedComponents.get(type);
 	}
 
-	/**
-	 * Entry set.
-	 *
-	 * @return Set, Optional>> — результат операции
-	 */
 	public Set<Entry<ComponentType<?>, Optional<?>>> entrySet() {
-		return this.changedComponents.entrySet();
+		return changedComponents.entrySet();
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.changedComponents.size();
+		return changedComponents.size();
 	}
 
 	/**
-	 * With removed if.
-	 *
-	 * @param removedTypePredicate removed type predicate
-	 *
-	 * @return ComponentChanges — результат операции
-	 */
+		 * Возвращает новый экземпляр {@code ComponentChanges} без типов, удовлетворяющих предикату.
+		 *
+		 * @param removedTypePredicate предикат для фильтрации типов компонентов
+		 * @return отфильтрованные изменения
+		 */
 	public ComponentChanges withRemovedIf(Predicate<ComponentType<?>> removedTypePredicate) {
-		if (this.isEmpty()) {
+		if (isEmpty()) {
 			return EMPTY;
 		}
-		else {
-			Reference2ObjectMap<ComponentType<?>, Optional<?>>
-					reference2ObjectMap =
-					new Reference2ObjectArrayMap(this.changedComponents);
-			reference2ObjectMap.keySet().removeIf(removedTypePredicate);
-			return reference2ObjectMap.isEmpty() ? EMPTY : new ComponentChanges(reference2ObjectMap);
-		}
+
+		Reference2ObjectMap<ComponentType<?>, Optional<?>> filtered = new Reference2ObjectArrayMap<>(changedComponents);
+		filtered.keySet().removeIf(removedTypePredicate);
+
+		return filtered.isEmpty() ? EMPTY : new ComponentChanges(filtered);
 	}
 
 	public boolean isEmpty() {
-		return this.changedComponents.isEmpty();
+		return changedComponents.isEmpty();
 	}
 
+	/**
+		 * Разбивает изменения на две группы: добавленные компоненты и удалённые типы.
+		 *
+		 * @return пара {@link AddedRemovedPair}
+		 */
 	public ComponentChanges.AddedRemovedPair toAddedRemovedPair() {
-		if (this.isEmpty()) {
+		if (isEmpty()) {
 			return ComponentChanges.AddedRemovedPair.EMPTY;
 		}
-		else {
-			ComponentMap.Builder builder = ComponentMap.builder();
-			Set<ComponentType<?>> set = Sets.newIdentityHashSet();
-			this.changedComponents.forEach((type, value) -> {
-				if (value.isPresent()) {
-					builder.put(type, value.get());
-				}
-				else {
-					set.add(type);
-				}
-			});
-			return new ComponentChanges.AddedRemovedPair(builder.build(), set);
-		}
+
+		ComponentMap.Builder builder = ComponentMap.builder();
+		Set<ComponentType<?>> removed = Sets.newIdentityHashSet();
+
+		changedComponents.forEach((type, value) -> {
+			if (value.isPresent()) {
+				builder.put(type, value.get());
+			} else {
+				removed.add(type);
+			}
+		});
+
+		return new ComponentChanges.AddedRemovedPair(builder.build(), removed);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof ComponentChanges componentChanges && this.changedComponents.equals(
-				componentChanges.changedComponents);
+		return this == o
+			? true
+			: o instanceof ComponentChanges other && changedComponents.equals(other.changedComponents);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.changedComponents.hashCode();
+		return changedComponents.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return toString(this.changedComponents);
+		return toString(changedComponents);
 	}
 
 	static String toString(Reference2ObjectMap<ComponentType<?>, Optional<?>> changes) {
-		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append('{');
-		boolean bl = true;
-		ObjectIterator var3 = Reference2ObjectMaps.fastIterable(changes).iterator();
+		StringBuilder builder = new StringBuilder();
+		builder.append('{');
+		boolean isFirst = true;
 
-		while (var3.hasNext()) {
-			Entry<ComponentType<?>, Optional<?>> entry = (Entry<ComponentType<?>, Optional<?>>) var3.next();
-			if (bl) {
-				bl = false;
-			}
-			else {
-				stringBuilder.append(", ");
+		for (Entry<ComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(changes)) {
+			if (isFirst) {
+				isFirst = false;
+			} else {
+				builder.append(", ");
 			}
 
 			Optional<?> optional = entry.getValue();
 			if (optional.isPresent()) {
-				stringBuilder.append(entry.getKey());
-				stringBuilder.append("=>");
-				stringBuilder.append(optional.get());
-			}
-			else {
-				stringBuilder.append("!");
-				stringBuilder.append(entry.getKey());
+				builder.append(entry.getKey());
+				builder.append("=>");
+				builder.append(optional.get());
+			} else {
+				builder.append(REMOVE_PREFIX);
+				builder.append(entry.getKey());
 			}
 		}
 
-		stringBuilder.append('}');
-		return stringBuilder.toString();
+		builder.append('}');
+		return builder.toString();
 	}
 
-	/**
-	 * {@code AddedRemovedPair}.
-	 */
 	public record AddedRemovedPair(ComponentMap added, Set<ComponentType<?>> removed) {
 
-		public static final ComponentChanges.AddedRemovedPair
-				EMPTY =
-				new ComponentChanges.AddedRemovedPair(ComponentMap.EMPTY, Set.of());
+		public static final ComponentChanges.AddedRemovedPair EMPTY = new ComponentChanges.AddedRemovedPair(
+				ComponentMap.EMPTY,
+				Set.of()
+		);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final Reference2ObjectMap<ComponentType<?>, Optional<?>> changes = new Reference2ObjectArrayMap();
+		private final Reference2ObjectMap<ComponentType<?>, Optional<?>> changes = new Reference2ObjectArrayMap<>();
 
 		Builder() {
 		}
 
 		public <T> ComponentChanges.Builder add(ComponentType<T> type, T value) {
-			this.changes.put(type, Optional.of(value));
+			changes.put(type, Optional.of(value));
 			return this;
 		}
 
 		public <T> ComponentChanges.Builder remove(ComponentType<T> type) {
-			this.changes.put(type, Optional.empty());
+			changes.put(type, Optional.empty());
 			return this;
 		}
 
 		public <T> ComponentChanges.Builder add(Component<T> component) {
-			return this.add(component.type(), component.value());
+			return add(component.type(), component.value());
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ComponentChanges — результат операции
-		 */
 		public ComponentChanges build() {
-			return this.changes.isEmpty() ? ComponentChanges.EMPTY : new ComponentChanges(this.changes);
+			return changes.isEmpty() ? ComponentChanges.EMPTY : new ComponentChanges(changes);
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code PacketCodecFunction}.
-	 */
+		 * Функциональный интерфейс для получения сетевого кодека по типу компонента.
+		 * Используется при создании {@link PacketCodec} для {@link ComponentChanges}.
+		 */
+	@FunctionalInterface
 	interface PacketCodecFunction {
 
 		<T> PacketCodec<? super RegistryByteBuf, T> apply(ComponentType<T> type);
 	}
 
 	/**
-	 * {@code Type}.
-	 */
+		 * Внутренний тип, объединяющий {@link ComponentType} с флагом удаления.
+		 * Используется как ключ при сериализации изменений через {@link Codec#dispatchedMap}.
+		 */
 	record Type(ComponentType<?> type, boolean removed) {
 
-		public static final Codec<ComponentChanges.Type> CODEC = Codec.STRING
-				.flatXmap(
-						id -> {
-							boolean bl = id.startsWith("!");
-							if (bl) {
-								id = id.substring("!".length());
-							}
+		public static final Codec<ComponentChanges.Type> CODEC = Codec.STRING.flatXmap(
+				id -> {
+					boolean isRemoval = id.startsWith(REMOVE_PREFIX);
+					String resolvedId = isRemoval ? id.substring(REMOVE_PREFIX.length()) : id;
 
-							Identifier identifier = Identifier.tryParse(id);
-							ComponentType<?> componentType = Registries.DATA_COMPONENT_TYPE.get(identifier);
-							if (componentType == null) {
-								return DataResult.error(() -> "No component with type: '" + identifier + "'");
-							}
-							else {
-								return componentType.shouldSkipSerialization()
-								       ? DataResult.error(() -> "'" + identifier + "' is not a persistent component")
-								       : DataResult.success(new ComponentChanges.Type(componentType, bl));
-							}
-						},
-						type -> {
-							ComponentType<?> componentType = type.type();
-							Identifier identifier = Registries.DATA_COMPONENT_TYPE.getId(componentType);
-							return identifier == null
-							       ? DataResult.error(() -> "Unregistered component: " + componentType)
-							       : DataResult.success(type.removed() ? "!" + identifier : identifier.toString());
-						}
-				);
+					Identifier identifier = Identifier.tryParse(resolvedId);
+					ComponentType<?> componentType = Registries.DATA_COMPONENT_TYPE.get(identifier);
+
+					if (componentType == null) {
+						return DataResult.error(() -> "No component with type: '" + identifier + "'");
+					}
+
+					return componentType.shouldSkipSerialization()
+						? DataResult.error(() -> "'" + identifier + "' is not a persistent component")
+						: DataResult.success(new ComponentChanges.Type(componentType, isRemoval));
+				},
+				type -> {
+					ComponentType<?> componentType = type.type();
+					Identifier identifier = Registries.DATA_COMPONENT_TYPE.getId(componentType);
+
+					return identifier == null
+						? DataResult.error(() -> "Unregistered component: " + componentType)
+						: DataResult.success(type.removed() ? REMOVE_PREFIX + identifier : identifier.toString());
+				}
+		);
 
 		public Codec<?> getValueCodec() {
-			return this.removed ? Codec.EMPTY.codec() : this.type.getCodecOrThrow();
+			return removed ? Codec.EMPTY.codec() : type.getCodecOrThrow();
 		}
 	}
 }

@@ -26,33 +26,30 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * {@code SetAttributesLootFunction}.
- */
+/** Функция лута, добавляющая модификаторы атрибутов к предмету. */
 public class SetAttributesLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetAttributesLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									SetAttributesLootFunction.Attribute.CODEC
-											.listOf()
-											.fieldOf("modifiers")
-											.forGetter(function -> function.attributes),
-									Codec.BOOL
-											.optionalFieldOf("replace", true)
-											.forGetter(lootFunction -> lootFunction.replace)
-							)
-					)
-					.apply(instance, SetAttributesLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				Attribute.CODEC
+					.listOf()
+					.fieldOf("modifiers")
+					.forGetter(function -> function.attributes),
+				Codec.BOOL
+					.optionalFieldOf("replace", true)
+					.forGetter(function -> function.replace)
+			))
+			.apply(instance, SetAttributesLootFunction::new)
 	);
-	private final List<SetAttributesLootFunction.Attribute> attributes;
+
+	private final List<Attribute> attributes;
 	private final boolean replace;
 
 	SetAttributesLootFunction(
-			List<LootCondition> conditions,
-			List<SetAttributesLootFunction.Attribute> attributes,
-			boolean replace
+		List<LootCondition> conditions,
+		List<Attribute> attributes,
+		boolean replace
 	) {
 		super(conditions);
 		this.attributes = List.copyOf(attributes);
@@ -66,97 +63,79 @@ public class SetAttributesLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.attributes
-				.stream()
-				.flatMap(attribute -> attribute.amount.getAllowedParameters().stream())
-				.collect(ImmutableSet.toImmutableSet());
+		return attributes
+			.stream()
+			.flatMap(attribute -> attribute.amount.getAllowedParameters().stream())
+			.collect(ImmutableSet.toImmutableSet());
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		if (this.replace) {
-			stack.set(
-					DataComponentTypes.ATTRIBUTE_MODIFIERS,
-					this.applyTo(context, AttributeModifiersComponent.DEFAULT)
-			);
-		}
-		else {
+		if (replace) {
+			stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, applyTo(context, AttributeModifiersComponent.DEFAULT));
+		} else {
 			stack.apply(
-					DataComponentTypes.ATTRIBUTE_MODIFIERS,
-					AttributeModifiersComponent.DEFAULT,
-					attributeModifiersComponent -> this.applyTo(context, attributeModifiersComponent)
+				DataComponentTypes.ATTRIBUTE_MODIFIERS,
+				AttributeModifiersComponent.DEFAULT,
+				component -> applyTo(context, component)
 			);
 		}
 
 		return stack;
 	}
 
-	private AttributeModifiersComponent applyTo(
-			LootContext context,
-			AttributeModifiersComponent attributeModifiersComponent
-	) {
+	private AttributeModifiersComponent applyTo(LootContext context, AttributeModifiersComponent component) {
 		Random random = context.getRandom();
 
-		for (SetAttributesLootFunction.Attribute attribute : this.attributes) {
-			AttributeModifierSlot attributeModifierSlot = Util.getRandom(attribute.slots, random);
-			attributeModifiersComponent = attributeModifiersComponent.with(
-					attribute.attribute,
-					new EntityAttributeModifier(attribute.id, attribute.amount.nextFloat(context), attribute.operation),
-					attributeModifierSlot
+		for (Attribute attribute : attributes) {
+			AttributeModifierSlot slot = Util.getRandom(attribute.slots, random);
+			component = component.with(
+				attribute.attribute,
+				new EntityAttributeModifier(attribute.id, attribute.amount.nextFloat(context), attribute.operation),
+				slot
 			);
 		}
 
-		return attributeModifiersComponent;
+		return component;
 	}
 
-	public static SetAttributesLootFunction.AttributeBuilder attributeBuilder(
-			Identifier id,
-			RegistryEntry<EntityAttribute> attribute,
-			EntityAttributeModifier.Operation operation,
-			LootNumberProvider amountRange
+	public static AttributeBuilder attributeBuilder(
+		Identifier id,
+		RegistryEntry<EntityAttribute> attribute,
+		EntityAttributeModifier.Operation operation,
+		LootNumberProvider amountRange
 	) {
-		return new SetAttributesLootFunction.AttributeBuilder(id, attribute, operation, amountRange);
+		return new AttributeBuilder(id, attribute, operation, amountRange);
 	}
 
-	public static SetAttributesLootFunction.Builder builder() {
-		return new SetAttributesLootFunction.Builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
-	/**
-	 * {@code Attribute}.
-	 */
+	/** Описание одного модификатора атрибута для функции лута. */
 	record Attribute(
-			Identifier id,
-			RegistryEntry<EntityAttribute> attribute,
-			EntityAttributeModifier.Operation operation,
-			LootNumberProvider amount,
-			List<AttributeModifierSlot> slots
+		Identifier id,
+		RegistryEntry<EntityAttribute> attribute,
+		EntityAttributeModifier.Operation operation,
+		LootNumberProvider amount,
+		List<AttributeModifierSlot> slots
 	) {
 
-		private static final Codec<List<AttributeModifierSlot>>
-				EQUIPMENT_SLOT_LIST_CODEC =
-				Codecs.nonEmptyList(Codecs.listOrSingle(AttributeModifierSlot.CODEC));
-		public static final Codec<SetAttributesLootFunction.Attribute> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("id").forGetter(SetAttributesLootFunction.Attribute::id),
-						                    EntityAttribute.CODEC
-								                    .fieldOf("attribute")
-								                    .forGetter(SetAttributesLootFunction.Attribute::attribute),
-						                    EntityAttributeModifier.Operation.CODEC
-								                    .fieldOf("operation")
-								                    .forGetter(SetAttributesLootFunction.Attribute::operation),
-						                    LootNumberProviderTypes.CODEC
-								                    .fieldOf("amount")
-								                    .forGetter(SetAttributesLootFunction.Attribute::amount),
-						                    EQUIPMENT_SLOT_LIST_CODEC.fieldOf("slot").forGetter(SetAttributesLootFunction.Attribute::slots)
-				                    )
-				                    .apply(instance, SetAttributesLootFunction.Attribute::new)
+		private static final Codec<List<AttributeModifierSlot>> EQUIPMENT_SLOT_LIST_CODEC =
+			Codecs.nonEmptyList(Codecs.listOrSingle(AttributeModifierSlot.CODEC));
+
+		public static final Codec<Attribute> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+				Identifier.CODEC.fieldOf("id").forGetter(Attribute::id),
+				EntityAttribute.CODEC.fieldOf("attribute").forGetter(Attribute::attribute),
+				EntityAttributeModifier.Operation.CODEC.fieldOf("operation").forGetter(Attribute::operation),
+				LootNumberProviderTypes.CODEC.fieldOf("amount").forGetter(Attribute::amount),
+				EQUIPMENT_SLOT_LIST_CODEC.fieldOf("slot").forGetter(Attribute::slots)
+			).apply(instance, Attribute::new)
 		);
 	}
 
-	/**
-	 * {@code AttributeBuilder}.
-	 */
+	/** Строитель одного модификатора атрибута. */
 	public static class AttributeBuilder {
 
 		private final Identifier id;
@@ -166,10 +145,10 @@ public class SetAttributesLootFunction extends ConditionalLootFunction {
 		private final Set<AttributeModifierSlot> slots = EnumSet.noneOf(AttributeModifierSlot.class);
 
 		public AttributeBuilder(
-				Identifier id,
-				RegistryEntry<EntityAttribute> attribute,
-				EntityAttributeModifier.Operation operation,
-				LootNumberProvider amount
+			Identifier id,
+			RegistryEntry<EntityAttribute> attribute,
+			EntityAttributeModifier.Operation operation,
+			LootNumberProvider amount
 		) {
 			this.id = id;
 			this.attribute = attribute;
@@ -177,29 +156,21 @@ public class SetAttributesLootFunction extends ConditionalLootFunction {
 			this.amount = amount;
 		}
 
-		public SetAttributesLootFunction.AttributeBuilder slot(AttributeModifierSlot slot) {
-			this.slots.add(slot);
+		public AttributeBuilder slot(AttributeModifierSlot slot) {
+			slots.add(slot);
 			return this;
 		}
 
-		public SetAttributesLootFunction.Attribute build() {
-			return new SetAttributesLootFunction.Attribute(
-					this.id,
-					this.attribute,
-					this.operation,
-					this.amount,
-					List.copyOf(this.slots)
-			);
+		public Attribute build() {
+			return new Attribute(id, attribute, operation, amount, List.copyOf(slots));
 		}
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<SetAttributesLootFunction.Builder> {
+	/** Строитель функции установки атрибутов. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private final boolean replace;
-		private final List<SetAttributesLootFunction.Attribute> attributes = Lists.newArrayList();
+		private final List<Attribute> attributes = Lists.newArrayList();
 
 		public Builder(boolean replace) {
 			this.replace = replace;
@@ -209,18 +180,19 @@ public class SetAttributesLootFunction extends ConditionalLootFunction {
 			this(false);
 		}
 
-		protected SetAttributesLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
-		public SetAttributesLootFunction.Builder attribute(SetAttributesLootFunction.AttributeBuilder attribute) {
-			this.attributes.add(attribute.build());
+		public Builder attribute(AttributeBuilder attribute) {
+			attributes.add(attribute.build());
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new SetAttributesLootFunction(this.getConditions(), this.attributes, this.replace);
+			return new SetAttributesLootFunction(getConditions(), attributes, replace);
 		}
 	}
 }

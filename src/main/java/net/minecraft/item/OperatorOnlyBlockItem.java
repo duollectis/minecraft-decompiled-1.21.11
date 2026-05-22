@@ -6,7 +6,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code OperatorOnlyBlockItem}.
+ * Предмет-блок, который могут размещать только операторы уровня 2 и выше.
+ * <p>Используется для командных блоков и других привилегированных блоков.</p>
  */
 public class OperatorOnlyBlockItem extends BlockItem {
 
@@ -16,7 +17,7 @@ public class OperatorOnlyBlockItem extends BlockItem {
 
 	@Override
 	protected @Nullable BlockState getPlacementState(ItemPlacementContext context) {
-		PlayerEntity playerEntity = context.getPlayer();
-		return playerEntity != null && !playerEntity.isCreativeLevelTwoOp() ? null : super.getPlacementState(context);
+		PlayerEntity player = context.getPlayer();
+		return player != null && !player.isCreativeLevelTwoOp() ? null : super.getPlacementState(context);
 	}
 }

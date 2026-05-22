@@ -3,10 +3,10 @@ package net.minecraft.client.gui.navigation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Navigable}.
+ * Маркерный интерфейс для GUI-элементов, участвующих в клавиатурной навигации.
  */
+@Environment(EnvType.CLIENT)
 public interface Navigable {
 
 	default int getNavigationOrder() {

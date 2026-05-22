@@ -5,7 +5,7 @@ import net.minecraft.server.dedicated.management.dispatch.*;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 
 /**
- * {@code OutgoingRpcMethods}.
+ * Класс Outgoing Rpc Methods.
  */
 public class OutgoingRpcMethods {
 

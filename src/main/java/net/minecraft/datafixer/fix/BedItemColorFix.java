@@ -14,33 +14,43 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code BedItemColorFix}.
+ * Устанавливает поле {@code Damage} предмета кровати в значение 14 (красный цвет),
+ * если оно равно 0 — это соответствует поведению до флаттенинга, когда красная кровать была дефолтной.
  */
 public class BedItemColorFix extends DataFix {
 
-	public BedItemColorFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	/** Цвет кровати по умолчанию (красный = 14) при отсутствии явного значения Damage. */
+	private static final short DEFAULT_BED_COLOR = 14;
+
+	public BedItemColorFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
-				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
+		OpticFinder<Pair<String, String>> idFinder = DSL.fieldFinder(
+			"id",
+			DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
-		return this.fixTypeEverywhereTyped(
-				"BedItemColorFix", this.getInputSchema().getType(TypeReferences.ITEM_STACK), typed -> {
-					Optional<Pair<String, String>> optional = typed.getOptional(opticFinder);
-					if (optional.isPresent() && Objects.equals(optional.get().getSecond(), "minecraft:bed")) {
-						Dynamic<?> dynamic = (Dynamic<?>) typed.get(DSL.remainderFinder());
-						if (dynamic.get("Damage").asInt(0) == 0) {
-							return typed.set(
-									DSL.remainderFinder(),
-									dynamic.set("Damage", dynamic.createShort((short) 14))
-							);
-						}
-					}
 
+		return fixTypeEverywhereTyped(
+			"BedItemColorFix",
+			getInputSchema().getType(TypeReferences.ITEM_STACK),
+			typed -> {
+				Optional<Pair<String, String>> id = typed.getOptional(idFinder);
+
+				if (id.isEmpty() || !Objects.equals(id.get().getSecond(), "minecraft:bed")) {
 					return typed;
 				}
+
+				Dynamic<?> dynamic = (Dynamic<?>) typed.get(DSL.remainderFinder());
+
+				if (dynamic.get("Damage").asInt(0) != 0) {
+					return typed;
+				}
+
+				return typed.set(DSL.remainderFinder(), dynamic.set("Damage", dynamic.createShort(DEFAULT_BED_COLOR)));
+			}
 		);
 	}
 }

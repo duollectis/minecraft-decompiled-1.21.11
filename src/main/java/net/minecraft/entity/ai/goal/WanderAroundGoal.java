@@ -7,12 +7,14 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.EnumSet;
 
-/**
- * {@code WanderAroundGoal}.
- */
+/** Цель случайного блуждания моба. Периодически выбирает случайную точку и идёт к ней. */
 public class WanderAroundGoal extends Goal {
 
 	public static final int DEFAULT_CHANCE = 120;
+	private static final int DESPAWN_COUNTER_THRESHOLD = 100;
+	private static final int WANDER_HORIZONTAL_RANGE = 10;
+	private static final int WANDER_VERTICAL_RANGE = 7;
+
 	protected final PathAwareEntity mob;
 	protected double targetX;
 	protected double targetY;
@@ -23,76 +25,71 @@ public class WanderAroundGoal extends Goal {
 	private final boolean canDespawn;
 
 	public WanderAroundGoal(PathAwareEntity mob, double speed) {
-		this(mob, speed, 120);
+		this(mob, speed, DEFAULT_CHANCE);
 	}
 
 	public WanderAroundGoal(PathAwareEntity mob, double speed, int chance) {
 		this(mob, speed, chance, true);
 	}
 
-	public WanderAroundGoal(PathAwareEntity entity, double speed, int chance, boolean canDespawn) {
-		this.mob = entity;
+	public WanderAroundGoal(PathAwareEntity mob, double speed, int chance, boolean canDespawn) {
+		this.mob = mob;
 		this.speed = speed;
 		this.chance = chance;
 		this.canDespawn = canDespawn;
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.hasControllingPassenger()) {
+		if (mob.hasControllingPassenger()) {
 			return false;
 		}
-		else {
-			if (!this.ignoringChance) {
-				if (this.canDespawn && this.mob.getDespawnCounter() >= 100) {
-					return false;
-				}
 
-				if (this.mob.getRandom().nextInt(toGoalTicks(this.chance)) != 0) {
-					return false;
-				}
-			}
-
-			Vec3d vec3d = this.getWanderTarget();
-			if (vec3d == null) {
+		if (!ignoringChance) {
+			if (canDespawn && mob.getDespawnCounter() >= DESPAWN_COUNTER_THRESHOLD) {
 				return false;
 			}
-			else {
-				this.targetX = vec3d.x;
-				this.targetY = vec3d.y;
-				this.targetZ = vec3d.z;
-				this.ignoringChance = false;
-				return true;
+
+			if (mob.getRandom().nextInt(toGoalTicks(chance)) != 0) {
+				return false;
 			}
 		}
+
+		Vec3d wanderTarget = getWanderTarget();
+		if (wanderTarget == null) {
+			return false;
+		}
+
+		targetX = wanderTarget.x;
+		targetY = wanderTarget.y;
+		targetZ = wanderTarget.z;
+		ignoringChance = false;
+		return true;
 	}
 
 	protected @Nullable Vec3d getWanderTarget() {
-		return NoPenaltyTargeting.find(this.mob, 10, 7);
+		return NoPenaltyTargeting.find(mob, WANDER_HORIZONTAL_RANGE, WANDER_VERTICAL_RANGE);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.mob.getNavigation().isIdle() && !this.mob.hasControllingPassenger();
+		return !mob.getNavigation().isIdle() && !mob.hasControllingPassenger();
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
+		mob.getNavigation().startMovingTo(targetX, targetY, targetZ, speed);
 	}
 
 	@Override
 	public void stop() {
-		this.mob.getNavigation().stop();
+		mob.getNavigation().stop();
 		super.stop();
 	}
 
-	/**
-	 * Ignore chance once.
-	 */
 	public void ignoreChanceOnce() {
-		this.ignoringChance = true;
+		ignoringChance = true;
 	}
 
 	public void setChance(int chance) {

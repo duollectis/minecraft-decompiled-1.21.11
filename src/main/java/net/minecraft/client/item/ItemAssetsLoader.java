@@ -26,117 +26,107 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemAssetsLoader}.
+ * Асинхронно загружает все клиентские ассеты предметов из директории {@code items/}
+ * ресурс-пака. Каждый JSON-файл парсится в {@link ItemAsset} с учётом динамических
+ * реестров. Ошибки парсинга логируются, но не прерывают загрузку остальных ассетов.
  */
+@Environment(EnvType.CLIENT)
 public class ItemAssetsLoader {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final ResourceFinder FINDER = ResourceFinder.json("items");
 
+	/**
+	 * Запускает асинхронную загрузку всех ассетов предметов.
+	 *
+	 * @param resourceManager менеджер ресурсов для поиска JSON-файлов
+	 * @param executor исполнитель для параллельного парсинга
+	 * @return future с результатом, содержащим карту id → ассет
+	 */
 	public static CompletableFuture<ItemAssetsLoader.Result> load(ResourceManager resourceManager, Executor executor) {
-		DynamicRegistryManager.Immutable
-				immutable =
+		DynamicRegistryManager.Immutable registryManager =
 				ClientDynamicRegistryType.createCombinedDynamicRegistries().getCombinedRegistryManager();
+
 		return CompletableFuture
 				.<Map<Identifier, Resource>>supplyAsync(() -> FINDER.findResources(resourceManager), executor)
 				.thenCompose(
-						itemAssets -> {
-							List<CompletableFuture<ItemAssetsLoader.Definition>>
-									list =
-									new ArrayList<>(itemAssets.size());
-							itemAssets.forEach(
-									(itemId, itemResource) -> list.add(
+						itemResources -> {
+							List<CompletableFuture<ItemAssetsLoader.Definition>> futures =
+									new ArrayList<>(itemResources.size());
+
+							itemResources.forEach(
+									(resourcePath, resource) -> futures.add(
 											CompletableFuture.supplyAsync(
-													() -> {
-														Identifier identifier2 = FINDER.toResourceId(itemId);
-
-														try {
-															ItemAssetsLoader.Definition var8;
-															try (Reader reader = itemResource.getReader()) {
-																ContextSwappableRegistryLookup
-																		contextSwappableRegistryLookup =
-																		new ContextSwappableRegistryLookup(immutable);
-																DynamicOps<JsonElement>
-																		dynamicOps =
-																		contextSwappableRegistryLookup.createRegistryOps(
-																				JsonOps.INSTANCE);
-																ItemAsset itemAsset = ItemAsset.CODEC
-																		.parse(
-																				dynamicOps,
-																				StrictJsonParser.parse(reader)
-																		)
-																		.ifError(
-																				error -> LOGGER.error(
-																						"Couldn't parse item model '{}' from pack '{}': {}",
-																						new Object[]{
-																								identifier2,
-																								itemResource.getPackId(),
-																								error.message()
-																						}
-																				)
-																		)
-																		.result()
-																		.map(
-																				itemAssetx ->
-																						contextSwappableRegistryLookup.hasEntries()
-																						? itemAssetx.withContextSwapper(
-																								contextSwappableRegistryLookup.createContextSwapper())
-																						: itemAssetx
-																		)
-																		.orElse(null);
-																var8 =
-																		new ItemAssetsLoader.Definition(
-																				identifier2,
-																				itemAsset
-																		);
-															}
-
-															return var8;
-														}
-														catch (Exception var11) {
-															LOGGER.error(
-																	"Failed to open item model {} from pack '{}'",
-																	new Object[]{
-																			itemId,
-																			itemResource.getPackId(),
-																			var11
-																	}
-															);
-															return new ItemAssetsLoader.Definition(identifier2, null);
-														}
-													},
+													() -> parseDefinition(resourcePath, resource, registryManager),
 													executor
 											)
 									)
 							);
-							return Util.combineSafe(list).thenApply(definitions -> {
-								Map<Identifier, ItemAsset> map = new HashMap<>();
+
+							return Util.combineSafe(futures).thenApply(definitions -> {
+								Map<Identifier, ItemAsset> assets = new HashMap<>();
 
 								for (ItemAssetsLoader.Definition definition : definitions) {
 									if (definition.clientItemInfo != null) {
-										map.put(definition.id, definition.clientItemInfo);
+										assets.put(definition.id, definition.clientItemInfo);
 									}
 								}
 
-								return new ItemAssetsLoader.Result(map);
+								return new ItemAssetsLoader.Result(assets);
 							});
 						}
 				);
 	}
 
+	private static ItemAssetsLoader.Definition parseDefinition(
+			Identifier resourcePath,
+			Resource resource,
+			DynamicRegistryManager.Immutable registryManager
+	) {
+		Identifier itemId = FINDER.toResourceId(resourcePath);
+
+		try {
+			try (Reader reader = resource.getReader()) {
+				ContextSwappableRegistryLookup registryLookup = new ContextSwappableRegistryLookup(registryManager);
+				DynamicOps<JsonElement> ops = registryLookup.createRegistryOps(JsonOps.INSTANCE);
+
+				ItemAsset asset = ItemAsset.CODEC
+						.parse(ops, StrictJsonParser.parse(reader))
+						.ifError(
+								error -> LOGGER.error(
+										"Couldn't parse item model '{}' from pack '{}': {}",
+										itemId,
+										resource.getPackId(),
+										error.message()
+								)
+						)
+						.result()
+						.map(
+								parsed -> registryLookup.hasEntries()
+										? parsed.withContextSwapper(registryLookup.createContextSwapper())
+										: parsed
+						)
+						.orElse(null);
+
+				return new ItemAssetsLoader.Definition(itemId, asset);
+			}
+		} catch (Exception exception) {
+			LOGGER.error(
+					"Failed to open item model {} from pack '{}'",
+					resourcePath,
+					resource.getPackId(),
+					exception
+			);
+			return new ItemAssetsLoader.Definition(itemId, null);
+		}
+	}
+
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Definition}.
-	 */
 	record Definition(Identifier id, @Nullable ItemAsset clientItemInfo) {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Result}.
-	 */
 	public record Result(Map<Identifier, ItemAsset> contents) {
 	}
 }

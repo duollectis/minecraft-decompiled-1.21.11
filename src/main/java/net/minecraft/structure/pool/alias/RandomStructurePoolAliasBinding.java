@@ -13,39 +13,38 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 /**
- * {@code RandomStructurePoolAliasBinding}.
+ * Привязка псевдонима пула структур к случайно выбранному целевому пулу.
+ * При каждом вызове {@link #forEach} из взвешенного набора {@code targets}
+ * случайно выбирается один целевой пул и передаётся в {@code aliasConsumer}.
  */
 public record RandomStructurePoolAliasBinding(
-		RegistryKey<StructurePool> alias,
-		Pool<RegistryKey<StructurePool>> targets
+	RegistryKey<StructurePool> alias,
+	Pool<RegistryKey<StructurePool>> targets
 ) implements StructurePoolAliasBinding {
 
-	static MapCodec<RandomStructurePoolAliasBinding> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryKey
-							                    .createCodec(RegistryKeys.TEMPLATE_POOL)
-							                    .fieldOf("alias")
-							                    .forGetter(RandomStructurePoolAliasBinding::alias),
-					                    Pool.createNonEmptyCodec(RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL))
-					                        .fieldOf("targets")
-					                        .forGetter(RandomStructurePoolAliasBinding::targets)
-			                    )
-			                    .apply(instance, RandomStructurePoolAliasBinding::new)
+	static final MapCodec<RandomStructurePoolAliasBinding> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> instance.group(
+			RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL)
+				.fieldOf("alias")
+				.forGetter(RandomStructurePoolAliasBinding::alias),
+			Pool.createNonEmptyCodec(RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL))
+				.fieldOf("targets")
+				.forGetter(RandomStructurePoolAliasBinding::targets)
+		).apply(instance, RandomStructurePoolAliasBinding::new)
 	);
 
 	@Override
 	public void forEach(
-			Random random,
-			BiConsumer<RegistryKey<StructurePool>, RegistryKey<StructurePool>> aliasConsumer
+		Random random,
+		BiConsumer<RegistryKey<StructurePool>, RegistryKey<StructurePool>> aliasConsumer
 	) {
-		this.targets
-				.getOrEmpty(random)
-				.ifPresent(target -> aliasConsumer.accept(this.alias, (RegistryKey<StructurePool>) target));
+		targets.getOrEmpty(random)
+			.ifPresent(target -> aliasConsumer.accept(alias, target));
 	}
 
 	@Override
 	public Stream<RegistryKey<StructurePool>> streamTargets() {
-		return this.targets.getEntries().stream().map(Weighted::value);
+		return targets.getEntries().stream().map(Weighted::value);
 	}
 
 	@Override

@@ -12,36 +12,41 @@ import net.minecraft.util.math.MathHelper;
 
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code JumpBar}.
+ * Полоса заряда прыжка верхового животного (лошадь, осёл и т.п.).
+ * Показывает либо кулдаун прыжка, либо текущий заряд.
  */
+@Environment(EnvType.CLIENT)
 public class JumpBar implements Bar {
 
 	private static final Identifier BACKGROUND = Identifier.ofVanilla("hud/jump_bar_background");
 	private static final Identifier COOLDOWN = Identifier.ofVanilla("hud/jump_bar_cooldown");
 	private static final Identifier PROGRESS = Identifier.ofVanilla("hud/jump_bar_progress");
+
 	private final MinecraftClient client;
 	private final JumpingMount jumpingMount;
 
 	public JumpBar(MinecraftClient client) {
 		this.client = client;
-		this.jumpingMount = Objects.requireNonNull(Objects.requireNonNull(client.player).getJumpingMount());
+		jumpingMount = Objects.requireNonNull(Objects.requireNonNull(client.player).getJumpingMount());
 	}
 
 	@Override
 	public void renderBar(DrawContext context, RenderTickCounter tickCounter) {
-		int i = this.getCenterX(this.client.getWindow());
-		int j = this.getCenterY(this.client.getWindow());
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, BACKGROUND, i, j, 182, 5);
-		if (this.jumpingMount.getJumpCooldown() > 0) {
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, COOLDOWN, i, j, 182, 5);
+		int barX = getCenterX(client.getWindow());
+		int barY = getCenterY(client.getWindow());
+
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, BACKGROUND, barX, barY, WIDTH, HEIGHT);
+
+		if (jumpingMount.getJumpCooldown() > 0) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, COOLDOWN, barX, barY, WIDTH, HEIGHT);
+			return;
 		}
-		else {
-			int k = MathHelper.lerpPositive(this.client.player.getMountJumpStrength(), 0, 182);
-			if (k > 0) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PROGRESS, 182, 5, 0, 0, i, j, k, 5);
-			}
+
+		int chargeWidth = MathHelper.lerpPositive(client.player.getMountJumpStrength(), 0, WIDTH);
+
+		if (chargeWidth > 0) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PROGRESS, WIDTH, HEIGHT, 0, 0, barX, barY, chargeWidth, HEIGHT);
 		}
 	}
 

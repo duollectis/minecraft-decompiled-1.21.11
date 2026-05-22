@@ -6,7 +6,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code WorldBorderWarningTimeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WorldBorderWarningTimeFix extends DataFix {
 
@@ -15,10 +15,10 @@ public class WorldBorderWarningTimeFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.writeFixAndRead(
+		return writeFixAndRead(
 				"WorldBorderWarningTimeFix",
-				this.getInputSchema().getType(TypeReferences.WORLD_BORDER_SAVED_DATA),
-				this.getOutputSchema().getType(TypeReferences.WORLD_BORDER_SAVED_DATA),
+				getInputSchema().getType(TypeReferences.WORLD_BORDER_SAVED_DATA),
+				getOutputSchema().getType(TypeReferences.WORLD_BORDER_SAVED_DATA),
 				dynamic -> dynamic.update("data",
 						dynamicx -> dynamicx.update(
 								"warning_time",

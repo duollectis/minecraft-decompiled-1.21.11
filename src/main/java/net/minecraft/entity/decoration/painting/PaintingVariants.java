@@ -10,7 +10,9 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * {@code PaintingVariants}.
+ * Реестр всех встроенных вариантов картин Minecraft.
+ * Каждый вариант регистрируется с размером в блоках и локализованными названием/автором.
+ * Варианты без автора (например, {@link #WITHER}, {@link #EARTH}) передают {@code hasAuthor = false}.
  */
 public class PaintingVariants {
 
@@ -66,11 +68,6 @@ public class PaintingVariants {
 	public static final RegistryKey<PaintingVariant> TIDES = of("tides");
 	public static final RegistryKey<PaintingVariant> DENNIS = of("dennis");
 
-	/**
-	 * Bootstrap.
-	 *
-	 * @param registry registry
-	 */
 	public static void bootstrap(Registerable<PaintingVariant> registry) {
 		register(registry, KEBAB, 1, 1);
 		register(registry, AZTEC, 1, 1);
@@ -141,18 +138,18 @@ public class PaintingVariants {
 			int height,
 			boolean hasAuthor
 	) {
+		Identifier id = key.getValue();
+		Optional<Text> author = hasAuthor
+				? Optional.of(Text.translatable(id.toTranslationKey("painting", "author")).formatted(Formatting.GRAY))
+				: Optional.empty();
 		registry.register(
 				key,
 				new PaintingVariant(
 						width,
 						height,
-						key.getValue(),
-						Optional.of(Text
-								.translatable(key.getValue().toTranslationKey("painting", "title"))
-								.formatted(Formatting.YELLOW)),
-						hasAuthor ? Optional.of(Text
-						                        .translatable(key.getValue().toTranslationKey("painting", "author"))
-						                        .formatted(Formatting.GRAY)) : Optional.empty()
+						id,
+						Optional.of(Text.translatable(id.toTranslationKey("painting", "title")).formatted(Formatting.YELLOW)),
+						author
 				)
 		);
 	}

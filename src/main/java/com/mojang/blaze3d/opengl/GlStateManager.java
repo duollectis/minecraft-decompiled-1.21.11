@@ -9,7 +9,14 @@ import net.minecraft.client.util.MacWindowUtil;
 import net.minecraft.util.annotation.DeobfuscateClass;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.opengl.*;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL32;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
@@ -17,11 +24,15 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
 
+/**
+ * Менеджер состояния OpenGL с кэшированием.
+ *
+ * <p>Все методы, изменяющие состояние GL, сначала проверяют кэшированное значение
+ * и вызывают нативный GL только при реальном изменении. Это снижает количество
+ * дорогостоящих вызовов драйвера.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code GlStateManager}.
- */
 public class GlStateManager {
 
 	private static final Plot PLOT_TEXTURES = TracyClient.createPlot("GPU Textures");
@@ -36,9 +47,9 @@ public class GlStateManager {
 	private static final GlStateManager.ScissorTestState SCISSOR = new GlStateManager.ScissorTestState();
 	private static int activeTexture;
 	private static final int TEXTURE_COUNT = 12;
-	private static final GlStateManager.Texture2DState[] TEXTURES = IntStream.range(0, 12)
-	                                                                         .mapToObj(index -> new GlStateManager.Texture2DState())
-	                                                                         .toArray(GlStateManager.Texture2DState[]::new);
+	private static final GlStateManager.Texture2DState[] TEXTURES = IntStream.range(0, TEXTURE_COUNT)
+		.mapToObj(index -> new GlStateManager.Texture2DState())
+		.toArray(GlStateManager.Texture2DState[]::new);
 	private static final GlStateManager.ColorMask COLOR_MASK = new GlStateManager.ColorMask();
 	private static int readFbo;
 	private static int writeFbo;
@@ -94,12 +105,18 @@ public class GlStateManager {
 		BLEND.capState.enable();
 	}
 
-	public static void _blendFuncSeparate(int srcFactorRGB, int dstFactorRgb, int srcFactorAlpha, int dstFactorAlpha) {
+	public static void _blendFuncSeparate(
+			int srcFactorRGB,
+			int dstFactorRgb,
+			int srcFactorAlpha,
+			int dstFactorAlpha
+	) {
 		RenderSystem.assertOnRenderThread();
 		if (srcFactorRGB != BLEND.srcFactorRgb
-				|| dstFactorRgb != BLEND.dstFactorRgb
-				|| srcFactorAlpha != BLEND.srcFactorAlpha
-				|| dstFactorAlpha != BLEND.dstFactorAlpha) {
+			|| dstFactorRgb != BLEND.dstFactorRgb
+			|| srcFactorAlpha != BLEND.srcFactorAlpha
+			|| dstFactorAlpha != BLEND.dstFactorAlpha
+		) {
 			BLEND.srcFactorRgb = srcFactorRGB;
 			BLEND.dstFactorRgb = dstFactorRgb;
 			BLEND.srcFactorAlpha = srcFactorAlpha;
@@ -128,41 +145,27 @@ public class GlStateManager {
 		return GL20.glCreateShader(type);
 	}
 
+	/**
+	 * Загружает исходный код шейдера через нативный вызов {@code glShaderSource},
+	 * передавая строку как null-terminated UTF-8 буфер через {@link MemoryStack}.
+	 * Нативный вызов используется вместо LWJGL-обёртки для точного контроля
+	 * над длиной строки (передаём 0 = null-terminated).
+	 */
 	public static void glShaderSource(int shader, String source) {
 		RenderSystem.assertOnRenderThread();
-		byte[] bs = source.getBytes(StandardCharsets.UTF_8);
-		ByteBuffer byteBuffer = MemoryUtil.memAlloc(bs.length + 1);
-		byteBuffer.put(bs);
-		byteBuffer.put((byte) 0);
-		byteBuffer.flip();
+		byte[] sourceBytes = source.getBytes(StandardCharsets.UTF_8);
+		ByteBuffer sourceBuffer = MemoryUtil.memAlloc(sourceBytes.length + 1);
+		sourceBuffer.put(sourceBytes);
+		sourceBuffer.put((byte) 0);
+		sourceBuffer.flip();
 
-		try {
-			MemoryStack memoryStack = MemoryStack.stackPush();
-
-			try {
-				PointerBuffer pointerBuffer = memoryStack.mallocPointer(1);
-				pointerBuffer.put(byteBuffer);
-				GL20C.nglShaderSource(shader, 1, pointerBuffer.address0(), 0L);
-			}
-			catch (Throwable var12) {
-				if (memoryStack != null) {
-					try {
-						memoryStack.close();
-					}
-					catch (Throwable var11) {
-						var12.addSuppressed(var11);
-					}
-				}
-
-				throw var12;
-			}
-
-			if (memoryStack != null) {
-				memoryStack.close();
-			}
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			PointerBuffer pointerBuffer = stack.mallocPointer(1);
+			pointerBuffer.put(sourceBuffer);
+			GL20C.nglShaderSource(shader, 1, pointerBuffer.address0(), 0L);
 		}
 		finally {
-			MemoryUtil.memFree(byteBuffer);
+			MemoryUtil.memFree(sourceBuffer);
 		}
 	}
 
@@ -269,25 +272,32 @@ public class GlStateManager {
 		GL15.glDeleteBuffers(buffer);
 	}
 
+	/**
+	 * Привязывает фреймбуфер к указанной цели с кэшированием.
+	 * Цель {@code GL_FRAMEBUFFER} обновляет оба кэша (read и draw).
+	 */
 	public static void _glBindFramebuffer(int target, int framebuffer) {
-		if ((target == 36008 || target == 36160) && readFbo != framebuffer) {
-			GL30.glBindFramebuffer(36008, framebuffer);
+		if ((target == GlConst.GL_READ_FRAMEBUFFER || target == GlConst.GL_FRAMEBUFFER)
+			&& readFbo != framebuffer
+		) {
+			GL30.glBindFramebuffer(GlConst.GL_READ_FRAMEBUFFER, framebuffer);
 			readFbo = framebuffer;
 		}
 
-		if ((target == 36009 || target == 36160) && writeFbo != framebuffer) {
-			GL30.glBindFramebuffer(36009, framebuffer);
+		if ((target == GlConst.GL_DRAW_FRAMEBUFFER || target == GlConst.GL_FRAMEBUFFER)
+			&& writeFbo != framebuffer
+		) {
+			GL30.glBindFramebuffer(GlConst.GL_DRAW_FRAMEBUFFER, framebuffer);
 			writeFbo = framebuffer;
 		}
 	}
 
 	public static int getFrameBuffer(int target) {
-		if (target == 36008) {
+		if (target == GlConst.GL_READ_FRAMEBUFFER) {
 			return readFbo;
 		}
-		else {
-			return target == 36009 ? writeFbo : 0;
-		}
+
+		return target == GlConst.GL_DRAW_FRAMEBUFFER ? writeFbo : 0;
 	}
 
 	public static void _glBlitFrameBuffer(
@@ -397,8 +407,9 @@ public class GlStateManager {
 
 	public static void _activeTexture(int texture) {
 		RenderSystem.assertOnRenderThread();
-		if (activeTexture != texture - 33984) {
-			activeTexture = texture - 33984;
+		int slot = texture - GlConst.GL_TEXTURE0;
+		if (activeTexture != slot) {
+			activeTexture = slot;
 			GL13.glActiveTexture(texture);
 		}
 	}
@@ -423,9 +434,9 @@ public class GlStateManager {
 		RenderSystem.assertOnRenderThread();
 		GL11.glDeleteTextures(texture);
 
-		for (GlStateManager.Texture2DState texture2DState : TEXTURES) {
-			if (texture2DState.boundTexture == texture) {
-				texture2DState.boundTexture = -1;
+		for (GlStateManager.Texture2DState textureState : TEXTURES) {
+			if (textureState.boundTexture == texture) {
+				textureState.boundTexture = -1;
 			}
 		}
 
@@ -437,7 +448,7 @@ public class GlStateManager {
 		RenderSystem.assertOnRenderThread();
 		if (texture != TEXTURES[activeTexture].boundTexture) {
 			TEXTURES[activeTexture].boundTexture = texture;
-			GL11.glBindTexture(3553, texture);
+			GL11.glBindTexture(GlConst.GL_TEXTURE_2D, texture);
 		}
 	}
 
@@ -492,8 +503,9 @@ public class GlStateManager {
 
 	public static void _colorMask(boolean red, boolean green, boolean blue, boolean alpha) {
 		RenderSystem.assertOnRenderThread();
-		if (red != COLOR_MASK.red || green != COLOR_MASK.green || blue != COLOR_MASK.blue
-				|| alpha != COLOR_MASK.alpha) {
+		if (red != COLOR_MASK.red || green != COLOR_MASK.green
+			|| blue != COLOR_MASK.blue || alpha != COLOR_MASK.alpha
+		) {
 			COLOR_MASK.red = red;
 			COLOR_MASK.green = green;
 			COLOR_MASK.blue = blue;
@@ -590,22 +602,20 @@ public class GlStateManager {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code BlendFuncState}.
-	 */
 	static class BlendFuncState {
 
-		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(3042);
-		public int srcFactorRgb = 1;
-		public int dstFactorRgb = 0;
-		public int srcFactorAlpha = 1;
-		public int dstFactorAlpha = 0;
+		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(GlConst.GL_BLEND);
+		public int srcFactorRgb = GlConst.GL_ONE;
+		public int dstFactorRgb = GlConst.GL_ZERO;
+		public int srcFactorAlpha = GlConst.GL_ONE;
+		public int dstFactorAlpha = GlConst.GL_ZERO;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CapabilityTracker}.
+	 * Отслеживает состояние GL-возможности (capability) и вызывает
+	 * {@code glEnable}/{@code glDisable} только при реальном изменении.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class CapabilityTracker {
 
 		private final int cap;
@@ -616,31 +626,28 @@ public class GlStateManager {
 		}
 
 		public void disable() {
-			this.setState(false);
+			setState(false);
 		}
 
 		public void enable() {
-			this.setState(true);
+			setState(true);
 		}
 
-		public void setState(boolean state) {
+		public void setState(boolean newState) {
 			RenderSystem.assertOnRenderThread();
-			if (state != this.state) {
-				this.state = state;
-				if (state) {
-					GL11.glEnable(this.cap);
+			if (newState != state) {
+				state = newState;
+				if (newState) {
+					GL11.glEnable(cap);
 				}
 				else {
-					GL11.glDisable(this.cap);
+					GL11.glDisable(cap);
 				}
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ColorMask}.
-	 */
 	static class ColorMask {
 
 		public boolean red = true;
@@ -650,59 +657,47 @@ public class GlStateManager {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CullFaceState}.
-	 */
 	static class CullFaceState {
 
+		// GL_CULL_FACE = 2884
 		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(2884);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code DepthTestState}.
-	 */
 	static class DepthTestState {
 
+		// GL_DEPTH_TEST = 2929
 		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(2929);
 		public boolean mask = true;
-		public int func = 513;
+		public int func = GlConst.GL_LESS;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LogicOpState}.
-	 */
 	static class LogicOpState {
 
+		// GL_COLOR_LOGIC_OP = 3058
 		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(3058);
+		// GL_COPY = 5379
 		public int op = 5379;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code PolygonOffsetState}.
-	 */
 	static class PolygonOffsetState {
 
+		// GL_POLYGON_OFFSET_FILL = 32823
 		public final GlStateManager.CapabilityTracker capFill = new GlStateManager.CapabilityTracker(32823);
 		public float factor;
 		public float units;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ScissorTestState}.
-	 */
 	static class ScissorTestState {
 
+		// GL_SCISSOR_TEST = 3089
 		public final GlStateManager.CapabilityTracker capState = new GlStateManager.CapabilityTracker(3089);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Texture2DState}.
-	 */
 	static class Texture2DState {
 
 		public int boundTexture;

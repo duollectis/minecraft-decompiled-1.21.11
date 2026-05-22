@@ -7,17 +7,24 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code AttributeContainer}.
+ * Контейнер атрибутов конкретной сущности. Хранит переопределённые (custom) экземпляры атрибутов
+ * поверх базовых значений из {@link DefaultAttributeContainer}.
+ * <p>
+ * Отслеживает изменённые атрибуты для последующей синхронизации с клиентом.
  */
 public class AttributeContainer {
 
-	private final Map<RegistryEntry<EntityAttribute>, EntityAttributeInstance> custom = new Object2ObjectOpenHashMap();
-	private final Set<EntityAttributeInstance> tracked = new ObjectOpenHashSet();
-	private final Set<EntityAttributeInstance> pendingUpdate = new ObjectOpenHashSet();
+	private final Map<RegistryEntry<EntityAttribute>, EntityAttributeInstance> custom = new Object2ObjectOpenHashMap<>();
+	private final Set<EntityAttributeInstance> tracked = new ObjectOpenHashSet<>();
+	private final Set<EntityAttributeInstance> pendingUpdate = new ObjectOpenHashSet<>();
 	private final DefaultAttributeContainer defaultAttributes;
 
 	public AttributeContainer(DefaultAttributeContainer defaultAttributes) {
@@ -25,165 +32,148 @@ public class AttributeContainer {
 	}
 
 	private void updateTrackedStatus(EntityAttributeInstance instance) {
-		this.pendingUpdate.add(instance);
+		pendingUpdate.add(instance);
 		if (instance.getAttribute().value().isTracked()) {
-			this.tracked.add(instance);
+			tracked.add(instance);
 		}
 	}
 
 	public Set<EntityAttributeInstance> getTracked() {
-		return this.tracked;
+		return tracked;
 	}
 
 	public Set<EntityAttributeInstance> getPendingUpdate() {
-		return this.pendingUpdate;
+		return pendingUpdate;
 	}
 
 	public Collection<EntityAttributeInstance> getAttributesToSend() {
-		return this.custom
-				.values()
+		return custom.values()
 				.stream()
-				.filter(attribute -> attribute.getAttribute().value().isTracked())
+				.filter(instance -> instance.getAttribute().value().isTracked())
 				.collect(Collectors.toList());
 	}
 
 	public @Nullable EntityAttributeInstance getCustomInstance(RegistryEntry<EntityAttribute> attribute) {
-		return this.custom.computeIfAbsent(
+		return custom.computeIfAbsent(
 				attribute,
-				attributex -> this.defaultAttributes.createOverride(this::updateTrackedStatus, attributex)
+				attr -> defaultAttributes.createOverride(this::updateTrackedStatus, attr)
 		);
 	}
 
 	public boolean hasAttribute(RegistryEntry<EntityAttribute> attribute) {
-		return this.custom.get(attribute) != null || this.defaultAttributes.has(attribute);
+		return custom.containsKey(attribute) || defaultAttributes.has(attribute);
 	}
 
 	public boolean hasModifierForAttribute(RegistryEntry<EntityAttribute> attribute, Identifier id) {
-		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-		return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id) != null
-		                                       : this.defaultAttributes.hasModifier(attribute, id);
+		EntityAttributeInstance instance = custom.get(attribute);
+		return instance != null
+				? instance.getModifier(id) != null
+				: defaultAttributes.hasModifier(attribute, id);
 	}
 
 	public double getValue(RegistryEntry<EntityAttribute> attribute) {
-		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-		return entityAttributeInstance != null ? entityAttributeInstance.getValue()
-		                                       : this.defaultAttributes.getValue(attribute);
+		EntityAttributeInstance instance = custom.get(attribute);
+		return instance != null ? instance.getValue() : defaultAttributes.getValue(attribute);
 	}
 
 	public double getBaseValue(RegistryEntry<EntityAttribute> attribute) {
-		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-		return entityAttributeInstance != null ? entityAttributeInstance.getBaseValue()
-		                                       : this.defaultAttributes.getBaseValue(attribute);
+		EntityAttributeInstance instance = custom.get(attribute);
+		return instance != null ? instance.getBaseValue() : defaultAttributes.getBaseValue(attribute);
 	}
 
 	public double getModifierValue(RegistryEntry<EntityAttribute> attribute, Identifier id) {
-		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-		return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id).value()
-		                                       : this.defaultAttributes.getModifierValue(attribute, id);
+		EntityAttributeInstance instance = custom.get(attribute);
+		return instance != null
+				? instance.getModifier(id).value()
+				: defaultAttributes.getModifierValue(attribute, id);
 	}
 
 	/**
-	 * Добавляет temporary modifiers.
-	 *
-	 * @param modifiersMap modifiers map
+	 * Добавляет временные модификаторы из мультимапы. Перед добавлением удаляет старый модификатор
+	 * с тем же id, чтобы избежать дублирования.
 	 */
 	public void addTemporaryModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
 		modifiersMap.forEach((attribute, modifier) -> {
-			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attribute);
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.removeModifier(modifier.id());
-				entityAttributeInstance.addTemporaryModifier(modifier);
+			EntityAttributeInstance instance = getCustomInstance(attribute);
+			if (instance == null) {
+				return;
 			}
+
+			instance.removeModifier(modifier.id());
+			instance.addTemporaryModifier(modifier);
 		});
 	}
 
-	/**
-	 * Удаляет modifiers.
-	 *
-	 * @param modifiersMap modifiers map
-	 */
 	public void removeModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
 		modifiersMap.asMap().forEach((attribute, modifiers) -> {
-			EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-			if (entityAttributeInstance != null) {
-				modifiers.forEach(modifier -> entityAttributeInstance.removeModifier(modifier.id()));
+			EntityAttributeInstance instance = custom.get(attribute);
+			if (instance == null) {
+				return;
 			}
+
+			modifiers.forEach(modifier -> instance.removeModifier(modifier.id()));
 		});
 	}
 
 	public void setFrom(AttributeContainer other) {
-		other.custom.values().forEach(attributeInstance -> {
-			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.setFrom(attributeInstance);
+		other.custom.values().forEach(otherInstance -> {
+			EntityAttributeInstance instance = getCustomInstance(otherInstance.getAttribute());
+			if (instance != null) {
+				instance.setFrom(otherInstance);
 			}
 		});
 	}
 
 	public void setBaseFrom(AttributeContainer other) {
-		other.custom.values().forEach(attributeInstance -> {
-			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.setBaseValue(attributeInstance.getBaseValue());
+		other.custom.values().forEach(otherInstance -> {
+			EntityAttributeInstance instance = getCustomInstance(otherInstance.getAttribute());
+			if (instance != null) {
+				instance.setBaseValue(otherInstance.getBaseValue());
 			}
 		});
 	}
 
-	/**
-	 * Добавляет persistent modifiers from.
-	 *
-	 * @param other other
-	 */
 	public void addPersistentModifiersFrom(AttributeContainer other) {
-		other.custom.values().forEach(attributeInstance -> {
-			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.addPersistentModifiers(attributeInstance.getPersistentModifiers());
+		other.custom.values().forEach(otherInstance -> {
+			EntityAttributeInstance instance = getCustomInstance(otherInstance.getAttribute());
+			if (instance != null) {
+				instance.addPersistentModifiers(otherInstance.getPersistentModifiers());
 			}
 		});
 	}
 
 	/**
-	 * Сбрасывает to base value.
+	 * Сбрасывает базовое значение атрибута к значению по умолчанию из {@link DefaultAttributeContainer}.
 	 *
-	 * @param attribute attribute
-	 *
-	 * @return boolean — результат операции
+	 * @return {@code false}, если атрибут не зарегистрирован в базовом контейнере
 	 */
 	public boolean resetToBaseValue(RegistryEntry<EntityAttribute> attribute) {
-		if (!this.defaultAttributes.has(attribute)) {
+		if (!defaultAttributes.has(attribute)) {
 			return false;
 		}
-		else {
-			EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.setBaseValue(this.defaultAttributes.getBaseValue(attribute));
-			}
 
-			return true;
+		EntityAttributeInstance instance = custom.get(attribute);
+		if (instance != null) {
+			instance.setBaseValue(defaultAttributes.getBaseValue(attribute));
 		}
+
+		return true;
 	}
 
 	public List<EntityAttributeInstance.Packed> pack() {
-		List<EntityAttributeInstance.Packed> list = new ArrayList<>(this.custom.values().size());
-
-		for (EntityAttributeInstance entityAttributeInstance : this.custom.values()) {
-			list.add(entityAttributeInstance.pack());
+		List<EntityAttributeInstance.Packed> result = new ArrayList<>(custom.values().size());
+		for (EntityAttributeInstance instance : custom.values()) {
+			result.add(instance.pack());
 		}
 
-		return list;
+		return result;
 	}
 
-	/**
-	 * Unpack.
-	 *
-	 * @param packedList packed list
-	 */
 	public void unpack(List<EntityAttributeInstance.Packed> packedList) {
 		for (EntityAttributeInstance.Packed packed : packedList) {
-			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(packed.attribute());
-			if (entityAttributeInstance != null) {
-				entityAttributeInstance.unpack(packed);
+			EntityAttributeInstance instance = getCustomInstance(packed.attribute());
+			if (instance != null) {
+				instance.unpack(packed);
 			}
 		}
 	}

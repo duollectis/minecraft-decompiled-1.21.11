@@ -25,175 +25,233 @@ import java.util.Deque;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * Класс message handler.
+ * Обработчик входящих сообщений чата на стороне клиента.
+ * <p>Поддерживает задержку отображения сообщений ({@link #setChatDelay}),
+ * очередь отложенных сообщений и верификацию подписей через {@link MessageTrustStatus}.
+ * Сообщения от заблокированных или скрытых игроков фильтруются.
  */
+@Environment(EnvType.CLIENT)
 public class MessageHandler {
 
-	private static final Text
-			VALIDATION_ERROR_TEXT =
+	private static final Text VALIDATION_ERROR_TEXT =
 			Text.translatable("chat.validation_error").formatted(Formatting.RED, Formatting.ITALIC);
+
 	private final MinecraftClient client;
 	private final Deque<MessageHandler.ProcessableMessage> delayedMessages = Queues.newArrayDeque();
 	private long chatDelay;
 	private long lastProcessTime;
 
+	/**
+	 * @param client клиент Minecraft
+	 */
 	public MessageHandler(MinecraftClient client) {
 		this.client = client;
 	}
 
 	/**
-	 * Обрабатывает delayed messages.
+	 * Обрабатывает отложенные сообщения в очереди.
+	 * Если игра на паузе и задержка активна — сдвигает время последней обработки.
+	 * Если задержка истекла — извлекает и обрабатывает одно сообщение из очереди.
 	 */
 	public void processDelayedMessages() {
-		if (this.client.isPaused()) {
-			if (this.chatDelay > 0L) {
-				this.lastProcessTime += 50L;
+		if (client.isPaused()) {
+			if (chatDelay > 0L) {
+				lastProcessTime += 50L;
 			}
-		}
-		else {
-			if (this.chatDelay == 0L) {
-				if (!this.delayedMessages.isEmpty()) {
-					this.processAll();
-				}
-			}
-			else {
-				MessageHandler.ProcessableMessage processableMessage;
-				if (Util.getMeasuringTimeMs() >= this.lastProcessTime + this.chatDelay) {
-					do {
-						processableMessage = this.delayedMessages.poll();
-					}
-					while (processableMessage != null && !processableMessage.accept());
-				}
-			}
-		}
-	}
 
-	public void setChatDelay(double chatDelay) {
-		long l = (long) (chatDelay * 1000.0);
-		if (l == 0L && this.chatDelay > 0L && !this.client.isPaused()) {
-			this.processAll();
+			return;
 		}
 
-		this.chatDelay = l;
+		if (chatDelay == 0L) {
+			if (delayedMessages.isEmpty() == false) {
+				processAll();
+			}
+
+			return;
+		}
+
+		if (Util.getMeasuringTimeMs() < lastProcessTime + chatDelay) {
+			return;
+		}
+
+		ProcessableMessage message;
+		do {
+			message = delayedMessages.poll();
+		}
+		while (message != null && message.accept() == false);
 	}
 
 	/**
-	 * Process.
+	 * Устанавливает задержку отображения сообщений чата.
+	 * При сбросе задержки до нуля немедленно обрабатывает все отложенные сообщения.
+	 *
+	 * @param chatDelay задержка в секундах
+	 */
+	public void setChatDelay(double chatDelay) {
+		long delayMs = (long) (chatDelay * 1000.0);
+
+		if (delayMs == 0L && this.chatDelay > 0L && client.isPaused() == false) {
+			processAll();
+		}
+
+		this.chatDelay = delayMs;
+	}
+
+	/**
+	 * Принудительно обрабатывает первое сообщение из очереди.
 	 */
 	public void process() {
-		this.delayedMessages.remove().accept();
-	}
-
-	public long getUnprocessedMessageCount() {
-		return this.delayedMessages.size();
+		delayedMessages.remove().accept();
 	}
 
 	/**
-	 * Обрабатывает all.
+	 * Возвращает количество необработанных сообщений в очереди.
+	 *
+	 * @return размер очереди
+	 */
+	public long getUnprocessedMessageCount() {
+		return delayedMessages.size();
+	}
+
+	/**
+	 * Немедленно обрабатывает все отложенные сообщения и очищает очередь.
 	 */
 	public void processAll() {
-		this.delayedMessages.forEach(MessageHandler.ProcessableMessage::accept);
-		this.delayedMessages.clear();
-		this.lastProcessTime = 0L;
+		delayedMessages.forEach(ProcessableMessage::accept);
+		delayedMessages.clear();
+		lastProcessTime = 0L;
 	}
 
 	/**
-	 * Удаляет delayed message.
+	 * Удаляет отложенное сообщение с указанной подписью из очереди.
 	 *
-	 * @param signature signature
-	 *
-	 * @return boolean — результат операции
+	 * @param signature подпись сообщения для удаления
+	 * @return {@code true} если сообщение было найдено и удалено
 	 */
 	public boolean removeDelayedMessage(MessageSignatureData signature) {
-		return this.delayedMessages.removeIf(message -> signature.equals(message.signature()));
-	}
-
-	private boolean shouldDelay() {
-		return this.chatDelay > 0L && Util.getMeasuringTimeMs() < this.lastProcessTime + this.chatDelay;
-	}
-
-	private void process(@Nullable MessageSignatureData signature, BooleanSupplier processor) {
-		if (this.shouldDelay()) {
-			this.delayedMessages.add(new MessageHandler.ProcessableMessage(signature, processor));
-		}
-		else {
-			processor.getAsBoolean();
-		}
+		return delayedMessages.removeIf(message -> signature.equals(message.signature()));
 	}
 
 	/**
-	 * Обрабатывает событие chat message.
+	 * Обрабатывает подписанное сообщение чата от игрока.
+	 * Верифицирует подпись, применяет фильтры и добавляет в HUD и лог.
 	 *
-	 * @param message message
-	 * @param sender sender
-	 * @param params params
+	 * @param message сообщение с подписью
+	 * @param sender  профиль отправителя
+	 * @param params  параметры типа сообщения (декорации, нарратор)
 	 */
 	public void onChatMessage(SignedMessage message, GameProfile sender, MessageType.Parameters params) {
-		boolean bl = this.client.options.getOnlyShowSecureChat().getValue();
-		SignedMessage signedMessage = bl ? message.withoutUnsigned() : message;
-		Text text = params.applyChatDecoration(signedMessage.getContent());
-		Instant instant = Instant.now();
-		this.process(
+		boolean onlySecure = client.options.getOnlyShowSecureChat().getValue();
+		SignedMessage displayMessage = onlySecure ? message.withoutUnsigned() : message;
+		Text decorated = params.applyChatDecoration(displayMessage.getContent());
+		Instant receivedAt = Instant.now();
+
+		process(
 				message.signature(), () -> {
-					boolean bl2 = this.processChatMessageInternal(params, message, text, sender, bl, instant);
-					ClientPlayNetworkHandler clientPlayNetworkHandler = this.client.getNetworkHandler();
-					if (clientPlayNetworkHandler != null && message.signature() != null) {
-						clientPlayNetworkHandler.acknowledge(message.signature(), bl2);
+					boolean accepted = processChatMessageInternal(params, message, decorated, sender, onlySecure, receivedAt);
+					ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
+
+					if (networkHandler != null && message.signature() != null) {
+						networkHandler.acknowledge(message.signature(), accepted);
 					}
 
-					return bl2;
+					return accepted;
 				}
 		);
 	}
 
+	/**
+	 * Обрабатывает сообщение с нарушенной или отсутствующей подписью.
+	 * Отображает индикатор ошибки валидации вместо содержимого.
+	 *
+	 * @param sender     UUID отправителя
+	 * @param signature  подпись сообщения или {@code null}
+	 * @param parameters параметры типа сообщения
+	 */
 	public void onUnverifiedMessage(
 			UUID sender,
 			@Nullable MessageSignatureData signature,
 			MessageType.Parameters parameters
 	) {
-		this.process(
+		process(
 				null, () -> {
-					ClientPlayNetworkHandler clientPlayNetworkHandler = this.client.getNetworkHandler();
-					if (clientPlayNetworkHandler != null && signature != null) {
-						clientPlayNetworkHandler.acknowledge(signature, false);
+					ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
+
+					if (networkHandler != null && signature != null) {
+						networkHandler.acknowledge(signature, false);
 					}
 
-					if (this.client.shouldBlockMessages(sender)) {
+					if (client.shouldBlockMessages(sender)) {
 						return false;
 					}
-					else {
-						Text text = parameters.applyChatDecoration(VALIDATION_ERROR_TEXT);
-						this.client.inGameHud.getChatHud().addMessage(text, null, MessageIndicator.chatError());
-						this.client
-								.getNarratorManager()
-								.narrate(parameters.applyNarrationDecoration(VALIDATION_ERROR_TEXT));
-						this.lastProcessTime = Util.getMeasuringTimeMs();
-						return true;
-					}
+
+					Text decorated = parameters.applyChatDecoration(VALIDATION_ERROR_TEXT);
+					client.inGameHud.getChatHud().addMessage(decorated, null, MessageIndicator.chatError());
+					client.getNarratorManager().narrate(parameters.applyNarrationDecoration(VALIDATION_ERROR_TEXT));
+					lastProcessTime = Util.getMeasuringTimeMs();
+					return true;
 				}
 		);
 	}
 
 	/**
-	 * Обрабатывает событие profileless message.
+	 * Обрабатывает системное сообщение без профиля отправителя (серверные объявления и т.д.).
 	 *
-	 * @param content content
-	 * @param params params
+	 * @param content содержимое сообщения
+	 * @param params  параметры типа сообщения
 	 */
 	public void onProfilelessMessage(Text content, MessageType.Parameters params) {
-		Instant instant = Instant.now();
-		this.process(
+		Instant receivedAt = Instant.now();
+
+		process(
 				null, () -> {
-					Text text2 = params.applyChatDecoration(content);
-					this.client.inGameHud.getChatHud().addMessage(text2);
-					this.narrate(params, content);
-					this.addToChatLog(text2, instant);
-					this.lastProcessTime = Util.getMeasuringTimeMs();
+					Text decorated = params.applyChatDecoration(content);
+					client.inGameHud.getChatHud().addMessage(decorated);
+					narrate(params, content);
+					addToChatLog(decorated, receivedAt);
+					lastProcessTime = Util.getMeasuringTimeMs();
 					return true;
 				}
 		);
+	}
+
+	/**
+	 * Обрабатывает игровое сообщение (системное или оверлей).
+	 * Фильтрует сообщения от заблокированных игроков по имени в тексте.
+	 *
+	 * @param message сообщение для отображения
+	 * @param overlay {@code true} для отображения в оверлее (над хотбаром)
+	 */
+	public void onGameMessage(Text message, boolean overlay) {
+		boolean hideMatchedNames = client.options.getHideMatchedNames().getValue();
+
+		if (hideMatchedNames && client.shouldBlockMessages(extractSender(message))) {
+			return;
+		}
+
+		if (overlay) {
+			client.inGameHud.setOverlayMessage(message, false);
+			client.getNarratorManager().narrateSystemMessage(message);
+		}
+		else {
+			client.inGameHud.getChatHud().addMessage(message);
+			addToChatLog(message, Instant.now());
+			client.getNarratorManager().narrate(message);
+		}
+	}
+
+	private boolean shouldDelay() {
+		return chatDelay > 0L && Util.getMeasuringTimeMs() < lastProcessTime + chatDelay;
+	}
+
+	private void process(@Nullable MessageSignatureData signature, BooleanSupplier processor) {
+		if (shouldDelay()) {
+			delayedMessages.add(new ProcessableMessage(signature, processor));
+		}
+		else {
+			processor.getAsBoolean();
+		}
 	}
 
 	private boolean processChatMessageInternal(
@@ -204,106 +262,80 @@ public class MessageHandler {
 			boolean onlyShowSecureChat,
 			Instant receptionTimestamp
 	) {
-		MessageTrustStatus messageTrustStatus = this.getStatus(message, decorated, receptionTimestamp);
-		if (onlyShowSecureChat && messageTrustStatus.isInsecure()) {
+		MessageTrustStatus trustStatus = getStatus(message, decorated, receptionTimestamp);
+
+		if (onlyShowSecureChat && trustStatus.isInsecure()) {
 			return false;
 		}
-		else if (!this.client.shouldBlockMessages(message.getSender()) && !message.isFullyFiltered()) {
-			MessageIndicator messageIndicator = messageTrustStatus.createIndicator(message);
-			MessageSignatureData messageSignatureData = message.signature();
-			FilterMask filterMask = message.filterMask();
-			if (filterMask.isPassThrough()) {
-				this.client.inGameHud.getChatHud().addMessage(decorated, messageSignatureData, messageIndicator);
-				this.narrate(params, message.getContent());
-			}
-			else {
-				Text text = filterMask.getFilteredText(message.getSignedContent());
-				if (text != null) {
-					this.client.inGameHud
-							.getChatHud()
-							.addMessage(params.applyChatDecoration(text), messageSignatureData, messageIndicator);
-					this.narrate(params, text);
-				}
-			}
 
-			this.addToChatLog(message, sender, messageTrustStatus);
-			this.lastProcessTime = Util.getMeasuringTimeMs();
-			return true;
+		if (client.shouldBlockMessages(message.getSender()) || message.isFullyFiltered()) {
+			return false;
+		}
+
+		MessageIndicator indicator = trustStatus.createIndicator(message);
+		MessageSignatureData messageSignature = message.signature();
+		FilterMask filterMask = message.filterMask();
+
+		if (filterMask.isPassThrough()) {
+			client.inGameHud.getChatHud().addMessage(decorated, messageSignature, indicator);
+			narrate(params, message.getContent());
 		}
 		else {
-			return false;
+			Text filtered = filterMask.getFilteredText(message.getSignedContent());
+
+			if (filtered != null) {
+				client.inGameHud.getChatHud().addMessage(params.applyChatDecoration(filtered), messageSignature, indicator);
+				narrate(params, filtered);
+			}
 		}
+
+		addToChatLog(message, sender, trustStatus);
+		lastProcessTime = Util.getMeasuringTimeMs();
+		return true;
 	}
 
 	private void narrate(MessageType.Parameters params, Text message) {
-		this.client.getNarratorManager().narrateChatMessage(params.applyNarrationDecoration(message));
+		client.getNarratorManager().narrateChatMessage(params.applyNarrationDecoration(message));
 	}
 
 	private MessageTrustStatus getStatus(SignedMessage message, Text decorated, Instant receptionTimestamp) {
-		return this.isAlwaysTrusted(message.getSender()) ? MessageTrustStatus.SECURE : MessageTrustStatus.getStatus(
-				message,
-				decorated,
-				receptionTimestamp
-		);
+		return isAlwaysTrusted(message.getSender())
+				? MessageTrustStatus.SECURE
+				: MessageTrustStatus.getStatus(message, decorated, receptionTimestamp);
 	}
 
-	private void addToChatLog(SignedMessage message, GameProfile gameProfile, MessageTrustStatus messageTrustStatus) {
-		ChatLog chatLog = this.client.getAbuseReportContext().getChatLog();
-		chatLog.add(ReceivedMessage.of(gameProfile, message, messageTrustStatus));
+	private void addToChatLog(SignedMessage message, GameProfile gameProfile, MessageTrustStatus trustStatus) {
+		ChatLog chatLog = client.getAbuseReportContext().getChatLog();
+		chatLog.add(ReceivedMessage.of(gameProfile, message, trustStatus));
 	}
 
 	private void addToChatLog(Text message, Instant timestamp) {
-		ChatLog chatLog = this.client.getAbuseReportContext().getChatLog();
+		ChatLog chatLog = client.getAbuseReportContext().getChatLog();
 		chatLog.add(ReceivedMessage.of(message, timestamp));
 	}
 
-	/**
-	 * Обрабатывает событие game message.
-	 *
-	 * @param message message
-	 * @param overlay overlay
-	 */
-	public void onGameMessage(Text message, boolean overlay) {
-		if (!this.client.options.getHideMatchedNames().getValue()
-				|| !this.client.shouldBlockMessages(this.extractSender(message))) {
-			if (overlay) {
-				this.client.inGameHud.setOverlayMessage(message, false);
-				this.client.getNarratorManager().narrateSystemMessage(message);
-			}
-			else {
-				this.client.inGameHud.getChatHud().addMessage(message);
-				this.addToChatLog(message, Instant.now());
-				this.client.getNarratorManager().narrate(message);
-			}
-		}
-	}
-
 	private UUID extractSender(Text text) {
-		String string = TextVisitFactory.removeFormattingCodes(text);
-		String string2 = StringUtils.substringBetween(string, "<", ">");
-		return string2 == null ? Util.NIL_UUID : this.client.getSocialInteractionsManager().getUuid(string2);
+		String plain = TextVisitFactory.removeFormattingCodes(text);
+		String name = StringUtils.substringBetween(plain, "<", ">");
+		return name == null ? Util.NIL_UUID : client.getSocialInteractionsManager().getUuid(name);
 	}
 
 	private boolean isAlwaysTrusted(UUID sender) {
-		if (this.client.isInSingleplayer() && this.client.player != null) {
-			UUID uUID = this.client.player.getGameProfile().id();
-			return uUID.equals(sender);
-		}
-		else {
+		if (client.isInSingleplayer() == false || client.player == null) {
 			return false;
 		}
+
+		return client.player.getGameProfile().id().equals(sender);
 	}
 
+	/**
+	 * Сообщение в очереди отложенной обработки.
+	 */
 	@Environment(EnvType.CLIENT)
 	record ProcessableMessage(@Nullable MessageSignatureData signature, BooleanSupplier handler) {
 
-		/**
-		 * Accept.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean accept() {
-			return this.handler.getAsBoolean();
+			return handler.getAsBoolean();
 		}
 	}
 }

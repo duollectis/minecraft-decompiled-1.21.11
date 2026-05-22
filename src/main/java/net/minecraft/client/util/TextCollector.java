@@ -8,41 +8,33 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextCollector}.
+ * Аккумулятор фрагментов {@link StringVisitable} для последующего объединения.
+ * Оптимизирует случай единственного фрагмента, возвращая его без обёртки.
  */
+@Environment(EnvType.CLIENT)
 public class TextCollector {
 
 	private final List<StringVisitable> texts = Lists.newArrayList();
 
-	/**
-	 * Add.
-	 *
-	 * @param text text
-	 */
 	public void add(StringVisitable text) {
-		this.texts.add(text);
+		texts.add(text);
 	}
 
 	public @Nullable StringVisitable getRawCombined() {
-		if (this.texts.isEmpty()) {
+		if (texts.isEmpty()) {
 			return null;
 		}
-		else {
-			return this.texts.size() == 1 ? this.texts.get(0) : StringVisitable.concat(this.texts);
-		}
+
+		return texts.size() == 1 ? texts.get(0) : StringVisitable.concat(texts);
 	}
 
 	public StringVisitable getCombined() {
-		StringVisitable stringVisitable = this.getRawCombined();
-		return stringVisitable != null ? stringVisitable : StringVisitable.EMPTY;
+		StringVisitable combined = getRawCombined();
+		return combined != null ? combined : StringVisitable.EMPTY;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.texts.clear();
+		texts.clear();
 	}
 }

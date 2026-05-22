@@ -32,7 +32,7 @@ public record LoginQueryResponseC2SPacket(
 
 	private static LoginQueryResponsePayload getVanillaPayload(PacketByteBuf buf) {
 		int i = buf.readableBytes();
-		if (i >= 0 && i <= 1048576) {
+		if (i >= 0 && i <= MAX_PAYLOAD_SIZE) {
 			buf.skipBytes(i);
 			return UnknownLoginQueryResponsePayload.INSTANCE;
 		}

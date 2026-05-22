@@ -16,69 +16,74 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code DropInvalidSignDatafixDataFix}.
+ * Удаляет некорректные данные datafixer из текста вывески: если флаг {@code _filtered_correct}
+ * установлен — просто убирает его; иначе — очищает {@code filtered_messages} от пустых записей,
+ * заменяя их соответствующими значениями из {@code messages}.
  */
 public class DropInvalidSignDatafixDataFix extends DataFix {
 
 	private final String blockEntityName;
 
-	public DropInvalidSignDatafixDataFix(Schema outputSchema, String name) {
+	public DropInvalidSignDatafixDataFix(Schema outputSchema, String blockEntityName) {
 		super(outputSchema, false);
-		this.blockEntityName = name;
+		this.blockEntityName = blockEntityName;
 	}
 
-	private <T> Dynamic<T> dropInvalidDatafixData(Dynamic<T> dynamic) {
-		dynamic = dynamic.update("front_text", DropInvalidSignDatafixDataFix::dropInvalidDatafixDataOnSide);
-		dynamic = dynamic.update("back_text", DropInvalidSignDatafixDataFix::dropInvalidDatafixDataOnSide);
+	private <T> Dynamic<T> dropInvalidDatafixData(Dynamic<T> signData) {
+		signData = signData.update("front_text", DropInvalidSignDatafixDataFix::dropInvalidDatafixDataOnSide);
+		signData = signData.update("back_text", DropInvalidSignDatafixDataFix::dropInvalidDatafixDataOnSide);
 
-		for (String string : UpdateSignTextFormatFix.SIGN_SIDES) {
-			dynamic = dynamic.remove(string);
+		for (String side : UpdateSignTextFormatFix.SIGN_SIDES) {
+			signData = signData.remove(side);
 		}
 
-		return dynamic;
+		return signData;
 	}
 
 	private static <T> Dynamic<T> dropInvalidDatafixDataOnSide(Dynamic<T> textData) {
-		Optional<Stream<Dynamic<T>>> optional = textData.get("filtered_messages").asStreamOpt().result();
-		if (optional.isEmpty()) {
+		Optional<Stream<Dynamic<T>>> filteredMessages = textData.get("filtered_messages").asStreamOpt().result();
+
+		if (filteredMessages.isEmpty()) {
 			return textData;
 		}
-		else {
-			Dynamic<T> dynamic = TextFixes.empty(textData.getOps());
-			List<Dynamic<T>> list = textData.get("messages").asStreamOpt().result().orElse(Stream.of()).toList();
-			List<Dynamic<T>> list2 = Streams.mapWithIndex(
-					optional.get(), (message, index) -> {
-						Dynamic<T> dynamic2 = index < list.size() ? list.get((int) index) : dynamic;
-						return message.equals(dynamic) ? dynamic2 : message;
-					}
-			).toList();
-			return list2.equals(list) ? textData.remove("filtered_messages")
-			                          : textData.set("filtered_messages", textData.createList(list2.stream()));
-		}
+
+		Dynamic<T> emptyText = TextFixes.empty(textData.getOps());
+		List<Dynamic<T>> messages = textData.get("messages").asStreamOpt().result().orElse(Stream.of()).toList();
+		List<Dynamic<T>> fixedFiltered = Streams.mapWithIndex(
+				filteredMessages.get(),
+				(message, index) -> {
+					Dynamic<T> fallback = index < messages.size() ? messages.get((int) index) : emptyText;
+					return message.equals(emptyText) ? fallback : message;
+				}
+		).toList();
+
+		return fixedFiltered.equals(messages)
+				? textData.remove("filtered_messages")
+				: textData.set("filtered_messages", textData.createList(fixedFiltered.stream()));
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type2 = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, this.blockEntityName);
-		OpticFinder<?> opticFinder = DSL.namedChoice(this.blockEntityName, type2);
-		return this.fixTypeEverywhereTyped(
-				"DropInvalidSignDataFix for " + this.blockEntityName,
-				type,
+		Type<?> blockEntityType = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> signType = getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, blockEntityName);
+		OpticFinder<?> signFinder = DSL.namedChoice(blockEntityName, signType);
+
+		return fixTypeEverywhereTyped(
+				"DropInvalidSignDataFix for " + blockEntityName,
+				blockEntityType,
 				typed -> typed.updateTyped(
-						opticFinder,
-						type2,
-						typedx -> {
-							boolean
-									bl =
-									((Dynamic) typedx.get(DSL.remainderFinder()))
-											.get("_filtered_correct")
-											.asBoolean(false);
-							return bl
-							       ? typedx.update(
-									DSL.remainderFinder(),
-									dynamic -> dynamic.remove("_filtered_correct")
-							)
-							       : Util.apply(typedx, type2, this::dropInvalidDatafixData);
+						signFinder,
+						signType,
+						signTyped -> {
+							boolean isFilteredCorrect = ((Dynamic) signTyped.get(DSL.remainderFinder()))
+									.get("_filtered_correct")
+									.asBoolean(false);
+
+							return isFilteredCorrect
+									? signTyped.update(
+											DSL.remainderFinder(),
+											dynamic -> dynamic.remove("_filtered_correct")
+									)
+									: Util.apply(signTyped, signType, this::dropInvalidDatafixData);
 						}
 				)
 		);

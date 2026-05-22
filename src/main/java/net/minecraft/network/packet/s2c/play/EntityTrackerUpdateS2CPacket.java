@@ -33,14 +33,14 @@ public record EntityTrackerUpdateS2CPacket(
 			serializedEntry.write(buf);
 		}
 
-		buf.writeByte(255);
+		buf.writeByte(MARKER_ID);
 	}
 
 	private static List<DataTracker.SerializedEntry<?>> read(RegistryByteBuf buf) {
 		List<DataTracker.SerializedEntry<?>> list = new ArrayList<>();
 
 		int i;
-		while ((i = buf.readUnsignedByte()) != 255) {
+		while ((i = buf.readUnsignedByte()) != MARKER_ID) {
 			list.add(DataTracker.SerializedEntry.fromBuf(buf, i));
 		}
 

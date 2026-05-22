@@ -10,96 +10,108 @@ import java.util.function.IntFunction;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code ValueLists}.
+ * Утилитарный класс для создания функций отображения целочисленного индекса на значение перечисления.
+ * Поддерживает разреженные (через хэш-карту) и плотные (через массив) индексы,
+ * а также настраиваемое поведение при выходе за границы.
  */
 public class ValueLists {
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static <T> IntFunction<T> createIndexToValueFunction(ToIntFunction<T> valueToIndexFunction, T[] values) {
 		if (values.length == 0) {
 			throw new IllegalArgumentException("Empty value list");
 		}
-		else {
-			Int2ObjectMap<T> int2ObjectMap = new Int2ObjectOpenHashMap();
 
-			for (T object : values) {
-				int i = valueToIndexFunction.applyAsInt(object);
-				T object2 = (T) int2ObjectMap.put(i, object);
-				if (object2 != null) {
-					throw new IllegalArgumentException(
-							"Duplicate entry on id " + i + ": current=" + object + ", previous=" + object2);
-				}
+		Int2ObjectMap<T> indexMap = new Int2ObjectOpenHashMap();
+
+		for (T value : values) {
+			int index = valueToIndexFunction.applyAsInt(value);
+			T previous = (T) indexMap.put(index, value);
+
+			if (previous != null) {
+				throw new IllegalArgumentException(
+					"Duplicate entry on id " + index + ": current=" + value + ", previous=" + previous
+				);
 			}
-
-			return int2ObjectMap;
 		}
+
+		return indexMap;
 	}
 
 	public static <T> IntFunction<T> createIndexToValueFunction(
-			ToIntFunction<T> valueToIndexFunction,
-			T[] values,
-			T fallback
+		ToIntFunction<T> valueToIndexFunction,
+		T[] values,
+		T fallback
 	) {
-		IntFunction<T> intFunction = createIndexToValueFunction(valueToIndexFunction, values);
-		return index -> Objects.requireNonNullElse(intFunction.apply(index), fallback);
+		IntFunction<T> indexToValue = createIndexToValueFunction(valueToIndexFunction, values);
+		return index -> Objects.requireNonNullElse(indexToValue.apply(index), fallback);
 	}
 
+	@SuppressWarnings("unchecked")
 	private static <T> T[] validate(ToIntFunction<T> valueToIndexFunction, T[] values) {
-		int i = values.length;
-		if (i == 0) {
+		int size = values.length;
+
+		if (size == 0) {
 			throw new IllegalArgumentException("Empty value list");
 		}
-		else {
-			T[] objects = (T[]) values.clone();
-			Arrays.fill(objects, null);
 
-			for (T object : values) {
-				int j = valueToIndexFunction.applyAsInt(object);
-				if (j < 0 || j >= i) {
-					throw new IllegalArgumentException(
-							"Values are not continous, found index " + j + " for value " + object);
-				}
+		T[] indexed = (T[]) values.clone();
+		Arrays.fill(indexed, null);
 
-				T object2 = objects[j];
-				if (object2 != null) {
-					throw new IllegalArgumentException(
-							"Duplicate entry on id " + j + ": current=" + object + ", previous=" + object2);
-				}
+		for (T value : values) {
+			int index = valueToIndexFunction.applyAsInt(value);
 
-				objects[j] = object;
+			if (index < 0 || index >= size) {
+				throw new IllegalArgumentException(
+					"Values are not continous, found index " + index + " for value " + value
+				);
 			}
 
-			for (int k = 0; k < i; k++) {
-				if (objects[k] == null) {
-					throw new IllegalArgumentException("Missing value at index: " + k);
-				}
+			T existing = indexed[index];
+
+			if (existing != null) {
+				throw new IllegalArgumentException(
+					"Duplicate entry on id " + index + ": current=" + value + ", previous=" + existing
+				);
 			}
 
-			return objects;
+			indexed[index] = value;
 		}
+
+		for (int i = 0; i < size; i++) {
+			if (indexed[i] == null) {
+				throw new IllegalArgumentException("Missing value at index: " + i);
+			}
+		}
+
+		return indexed;
 	}
 
 	public static <T> IntFunction<T> createIndexToValueFunction(
-			ToIntFunction<T> valueToIndexFunction, T[] values, ValueLists.OutOfBoundsHandling outOfBoundsHandling
+		ToIntFunction<T> valueToIndexFunction,
+		T[] values,
+		OutOfBoundsHandling outOfBoundsHandling
 	) {
-		T[] objects = validate(valueToIndexFunction, values);
-		int i = objects.length;
+		T[] indexed = validate(valueToIndexFunction, values);
+		int size = indexed.length;
 
 		return switch (outOfBoundsHandling) {
 			case ZERO -> {
-				T object = objects[0];
-				yield index -> index >= 0 && index < i ? objects[index] : object;
+				T zeroValue = indexed[0];
+				yield index -> index >= 0 && index < size ? indexed[index] : zeroValue;
 			}
-			case WRAP -> index -> objects[MathHelper.floorMod(index, i)];
-			case CLAMP -> index -> objects[MathHelper.clamp(index, 0, i - 1)];
+			case WRAP -> index -> indexed[MathHelper.floorMod(index, size)];
+			case CLAMP -> index -> indexed[MathHelper.clamp(index, 0, size - 1)];
 		};
 	}
 
-	/**
-	 * {@code OutOfBoundsHandling}.
-	 */
-	public static enum OutOfBoundsHandling {
+	/** Стратегия обработки индекса, выходящего за пределы допустимого диапазона. */
+	public enum OutOfBoundsHandling {
+		/** Возвращает элемент с индексом 0. */
 		ZERO,
+		/** Оборачивает индекс по модулю размера массива. */
 		WRAP,
-		CLAMP;
+		/** Зажимает индекс в диапазон {@code [0, size-1]}. */
+		CLAMP
 	}
 }

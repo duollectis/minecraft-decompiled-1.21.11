@@ -5,7 +5,9 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code MapColor}.
+ * Реестр цветов карты: каждый блок ассоциируется с одним из 64 цветов,
+ * которые отображаются на картах в инвентаре игрока.
+ * Цвет рендерится с учётом яркости {@link Brightness}, кодируемой в один байт.
  */
 public class MapColor {
 
@@ -91,11 +93,11 @@ public class MapColor {
 	}
 
 	/**
-	 * Get.
+	 * Возвращает цвет карты по идентификатору с проверкой диапазона.
+	 * При отсутствии зарегистрированного цвета возвращает {@link #CLEAR}.
 	 *
-	 * @param id id
-	 *
-	 * @return MapColor — 
+	 * @param id идентификатор цвета (0–63)
+	 * @return соответствующий {@link MapColor}
 	 */
 	public static MapColor get(int id) {
 		Preconditions.checkPositionIndex(id, COLORS.length, "material id");
@@ -117,9 +119,9 @@ public class MapColor {
 	}
 
 	/**
-	 * {@code Brightness}.
+	 * Уровень яркости цвета карты, кодируемый в 2 младших бита байта цвета.
 	 */
-	public static enum Brightness {
+	public enum Brightness {
 		LOW(0, 180),
 		NORMAL(1, 220),
 		HIGH(2, 255),

@@ -18,69 +18,93 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code RangedWeaponItem}.
+ * Базовый класс для дальнобойного оружия (лук, арбалет). Содержит общую логику
+ * загрузки снарядов, расчёта разброса при мультивыстреле и создания сущностей стрел.
  */
 public abstract class RangedWeaponItem extends Item {
 
 	public static final Predicate<ItemStack> BOW_PROJECTILES = stack -> stack.isIn(ItemTags.ARROWS);
-	public static final Predicate<ItemStack>
-			CROSSBOW_HELD_PROJECTILES =
-			BOW_PROJECTILES.or(stack -> stack.isOf(Items.FIREWORK_ROCKET));
+	public static final Predicate<ItemStack> CROSSBOW_HELD_PROJECTILES =
+		BOW_PROJECTILES.or(stack -> stack.isOf(Items.FIREWORK_ROCKET));
 
 	public RangedWeaponItem(Item.Settings settings) {
 		super(settings);
 	}
 
 	public Predicate<ItemStack> getHeldProjectiles() {
-		return this.getProjectiles();
+		return getProjectiles();
 	}
 
 	public abstract Predicate<ItemStack> getProjectiles();
 
+	/**
+	 * Возвращает снаряд, который держит сущность в руке. Приоритет — второстепенная рука,
+	 * затем основная. Если ни в одной руке нет подходящего снаряда — возвращает {@link ItemStack#EMPTY}.
+	 */
 	public static ItemStack getHeldProjectile(LivingEntity entity, Predicate<ItemStack> predicate) {
 		if (predicate.test(entity.getStackInHand(Hand.OFF_HAND))) {
 			return entity.getStackInHand(Hand.OFF_HAND);
 		}
-		else {
-			return predicate.test(entity.getStackInHand(Hand.MAIN_HAND)) ? entity.getStackInHand(Hand.MAIN_HAND)
-			                                                             : ItemStack.EMPTY;
-		}
+
+		return predicate.test(entity.getStackInHand(Hand.MAIN_HAND))
+			? entity.getStackInHand(Hand.MAIN_HAND)
+			: ItemStack.EMPTY;
 	}
 
 	public abstract int getRange();
 
+	/**
+	 * Выпускает все снаряды из списка с учётом чар на разброс (multishot).
+	 * Снаряды равномерно распределяются по углу вокруг центральной оси.
+	 *
+	 * @param world серверный мир
+	 * @param shooter стреляющая сущность
+	 * @param hand рука, в которой оружие
+	 * @param stack стек оружия
+	 * @param projectiles список снарядов для выстрела
+	 * @param speed скорость снарядов
+	 * @param divergence базовый разброс
+	 * @param critical является ли выстрел критическим
+	 * @param target цель (может быть null)
+	 */
 	protected void shootAll(
-			ServerWorld world,
-			LivingEntity shooter,
-			Hand hand,
-			ItemStack stack,
-			List<ItemStack> projectiles,
-			float speed,
-			float divergence,
-			boolean critical,
-			@Nullable LivingEntity target
+		ServerWorld world,
+		LivingEntity shooter,
+		Hand hand,
+		ItemStack stack,
+		List<ItemStack> projectiles,
+		float speed,
+		float divergence,
+		boolean critical,
+		@Nullable LivingEntity target
 	) {
-		float f = EnchantmentHelper.getProjectileSpread(world, stack, shooter, 0.0F);
-		float g = projectiles.size() == 1 ? 0.0F : 2.0F * f / (projectiles.size() - 1);
-		float h = (projectiles.size() - 1) % 2 * g / 2.0F;
-		float i = 1.0F;
+		float spread = EnchantmentHelper.getProjectileSpread(world, stack, shooter, 0.0F);
+		float spreadStep = projectiles.size() == 1 ? 0.0F : 2.0F * spread / (projectiles.size() - 1);
+		float spreadOffset = (projectiles.size() - 1) % 2 * spreadStep / 2.0F;
+		float sign = 1.0F;
 
-		for (int j = 0; j < projectiles.size(); j++) {
-			ItemStack itemStack = projectiles.get(j);
-			if (!itemStack.isEmpty()) {
-				float k = h + i * ((j + 1) / 2) * g;
-				i = -i;
-				int l = j;
-				ProjectileEntity.spawn(
-						this.createArrowEntity(world, shooter, stack, itemStack, critical),
-						world,
-						itemStack,
-						projectile -> this.shoot(shooter, projectile, l, speed, divergence, k, target)
-				);
-				stack.damage(this.getWeaponStackDamage(itemStack), shooter, hand.getEquipmentSlot());
-				if (stack.isEmpty()) {
-					break;
-				}
+		for (int index = 0; index < projectiles.size(); index++) {
+			ItemStack projectileStack = projectiles.get(index);
+
+			if (projectileStack.isEmpty()) {
+				continue;
+			}
+
+			float yaw = spreadOffset + sign * ((index + 1) / 2) * spreadStep;
+			sign = -sign;
+
+			int capturedIndex = index;
+			ProjectileEntity.spawn(
+				createArrowEntity(world, shooter, stack, projectileStack, critical),
+				world,
+				projectileStack,
+				projectile -> shoot(shooter, projectile, capturedIndex, speed, divergence, yaw, target)
+			);
+
+			stack.damage(getWeaponStackDamage(projectileStack), shooter, hand.getEquipmentSlot());
+
+			if (stack.isEmpty()) {
+				break;
 			}
 		}
 	}
@@ -90,95 +114,103 @@ public abstract class RangedWeaponItem extends Item {
 	}
 
 	protected abstract void shoot(
-			LivingEntity shooter,
-			ProjectileEntity projectile,
-			int index,
-			float speed,
-			float divergence,
-			float yaw,
-			@Nullable LivingEntity target
+		LivingEntity shooter,
+		ProjectileEntity projectile,
+		int index,
+		float speed,
+		float divergence,
+		float yaw,
+		@Nullable LivingEntity target
 	);
 
 	protected ProjectileEntity createArrowEntity(
-			World world,
-			LivingEntity shooter,
-			ItemStack weaponStack,
-			ItemStack projectileStack,
-			boolean critical
+		World world,
+		LivingEntity shooter,
+		ItemStack weaponStack,
+		ItemStack projectileStack,
+		boolean critical
 	) {
-		ArrowItem
-				arrowItem2 =
-				projectileStack.getItem() instanceof ArrowItem arrowItem ? arrowItem : (ArrowItem) Items.ARROW;
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				arrowItem2.createArrow(world, projectileStack, shooter, weaponStack);
+		ArrowItem arrowItem = projectileStack.getItem() instanceof ArrowItem arrow
+			? arrow
+			: (ArrowItem) Items.ARROW;
+
+		PersistentProjectileEntity arrow = arrowItem.createArrow(world, projectileStack, shooter, weaponStack);
+
 		if (critical) {
-			persistentProjectileEntity.setCritical(true);
+			arrow.setCritical(true);
 		}
 
-		return persistentProjectileEntity;
+		return arrow;
 	}
 
 	/**
-	 * Load.
+	 * Формирует список снарядов для выстрела с учётом чар на количество снарядов.
+	 * На клиенте всегда возвращает ровно 1 снаряд.
 	 *
-	 * @param stack stack
-	 * @param projectileStack projectile stack
-	 * @param shooter shooter
-	 *
-	 * @return List — результат операции
+	 * @param stack стек оружия
+	 * @param projectileStack стек снаряда
+	 * @param shooter стреляющая сущность
+	 * @return список снарядов для выстрела
 	 */
 	protected static List<ItemStack> load(ItemStack stack, ItemStack projectileStack, LivingEntity shooter) {
 		if (projectileStack.isEmpty()) {
 			return List.of();
 		}
-		else {
-			int
-					i =
-					shooter.getEntityWorld() instanceof ServerWorld serverWorld ? EnchantmentHelper.getProjectileCount(
-							serverWorld,
-							stack,
-							shooter,
-							1
-					) : 1;
-			List<ItemStack> list = new ArrayList<>(i);
-			ItemStack itemStack = projectileStack.copy();
 
-			for (int j = 0; j < i; j++) {
-				ItemStack itemStack2 = getProjectile(stack, j == 0 ? projectileStack : itemStack, shooter, j > 0);
-				if (!itemStack2.isEmpty()) {
-					list.add(itemStack2);
-				}
+		int count = shooter.getEntityWorld() instanceof ServerWorld serverWorld
+			? EnchantmentHelper.getProjectileCount(serverWorld, stack, shooter, 1)
+			: 1;
+
+		List<ItemStack> result = new ArrayList<>(count);
+		ItemStack projectileCopy = projectileStack.copy();
+
+		for (int i = 0; i < count; i++) {
+			ItemStack projectile = getProjectile(stack, i == 0 ? projectileStack : projectileCopy, shooter, i > 0);
+
+			if (!projectile.isEmpty()) {
+				result.add(projectile);
 			}
-
-			return list;
 		}
+
+		return result;
 	}
 
+	/**
+	 * Извлекает один снаряд из инвентаря или создаёт «нематериальный» (intangible) снаряд
+	 * для мультивыстрела и творческого режима.
+	 *
+	 * @param stack стек оружия
+	 * @param projectileStack стек снаряда
+	 * @param shooter стреляющая сущность
+	 * @param multishot является ли это дополнительным снарядом мультивыстрела
+	 * @return снаряд для выстрела или {@link ItemStack#EMPTY} если снарядов недостаточно
+	 */
 	protected static ItemStack getProjectile(
-			ItemStack stack,
-			ItemStack projectileStack,
-			LivingEntity shooter,
-			boolean multishot
+		ItemStack stack,
+		ItemStack projectileStack,
+		LivingEntity shooter,
+		boolean multishot
 	) {
-		int i = !multishot && !shooter.isInCreativeMode() && shooter.getEntityWorld() instanceof ServerWorld serverWorld
-		        ? EnchantmentHelper.getAmmoUse(serverWorld, stack, projectileStack, 1)
-		        : 0;
-		if (i > projectileStack.getCount()) {
+		int ammoUse = !multishot && !shooter.isInCreativeMode() && shooter.getEntityWorld() instanceof ServerWorld serverWorld
+			? EnchantmentHelper.getAmmoUse(serverWorld, stack, projectileStack, 1)
+			: 0;
+
+		if (ammoUse > projectileStack.getCount()) {
 			return ItemStack.EMPTY;
 		}
-		else if (i == 0) {
-			ItemStack itemStack = projectileStack.copyWithCount(1);
-			itemStack.set(DataComponentTypes.INTANGIBLE_PROJECTILE, Unit.INSTANCE);
-			return itemStack;
-		}
-		else {
-			ItemStack itemStack = projectileStack.split(i);
-			if (projectileStack.isEmpty() && shooter instanceof PlayerEntity playerEntity) {
-				playerEntity.getInventory().removeOne(projectileStack);
-			}
 
-			return itemStack;
+		if (ammoUse == 0) {
+			ItemStack intangible = projectileStack.copyWithCount(1);
+			intangible.set(DataComponentTypes.INTANGIBLE_PROJECTILE, Unit.INSTANCE);
+			return intangible;
 		}
+
+		ItemStack consumed = projectileStack.split(ammoUse);
+
+		if (projectileStack.isEmpty() && shooter instanceof PlayerEntity player) {
+			player.getInventory().removeOne(projectileStack);
+		}
+
+		return consumed;
 	}
 }

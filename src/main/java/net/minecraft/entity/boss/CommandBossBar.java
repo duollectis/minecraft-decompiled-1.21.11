@@ -13,209 +13,173 @@ import net.minecraft.util.Uuids;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * {@code CommandBossBar}.
+ * Boss bar, управляемый командой {@code /bossbar}. Хранит набор UUID игроков,
+ * которые должны видеть полосу, и синхронизирует реальных онлайн-игроков при их подключении.
  */
 public class CommandBossBar extends ServerBossBar {
 
 	private static final int DEFAULT_MAX_VALUE = 100;
+
 	private final Identifier id;
 	private final Set<UUID> playerUuids = Sets.newHashSet();
 	private int value;
-	private int maxValue = 100;
+	private int maxValue = DEFAULT_MAX_VALUE;
 
 	public CommandBossBar(Identifier id, Text displayName) {
 		super(displayName, BossBar.Color.WHITE, BossBar.Style.PROGRESS);
 		this.id = id;
-		this.setPercent(0.0F);
+		setPercent(0.0F);
 	}
 
 	public Identifier getId() {
-		return this.id;
+		return id;
 	}
 
 	@Override
 	public void addPlayer(ServerPlayerEntity player) {
 		super.addPlayer(player);
-		this.playerUuids.add(player.getUuid());
+		playerUuids.add(player.getUuid());
 	}
 
-	/**
-	 * Добавляет player.
-	 *
-	 * @param uuid uuid
-	 */
 	public void addPlayer(UUID uuid) {
-		this.playerUuids.add(uuid);
+		playerUuids.add(uuid);
 	}
 
 	@Override
 	public void removePlayer(ServerPlayerEntity player) {
 		super.removePlayer(player);
-		this.playerUuids.remove(player.getUuid());
+		playerUuids.remove(player.getUuid());
 	}
 
 	@Override
 	public void clearPlayers() {
 		super.clearPlayers();
-		this.playerUuids.clear();
+		playerUuids.clear();
 	}
 
 	public int getValue() {
-		return this.value;
+		return value;
 	}
 
 	public int getMaxValue() {
-		return this.maxValue;
+		return maxValue;
 	}
 
 	public void setValue(int value) {
 		this.value = value;
-		this.setPercent(MathHelper.clamp((float) value / this.maxValue, 0.0F, 1.0F));
+		setPercent(MathHelper.clamp((float) value / maxValue, 0.0F, 1.0F));
 	}
 
 	public void setMaxValue(int maxValue) {
 		this.maxValue = maxValue;
-		this.setPercent(MathHelper.clamp((float) this.value / maxValue, 0.0F, 1.0F));
+		setPercent(MathHelper.clamp((float) value / maxValue, 0.0F, 1.0F));
 	}
 
 	/**
-	 * To hoverable text.
-	 *
-	 * @return Text — результат операции
+	 * Возвращает кликабельное текстовое представление boss bar'а для использования в чате.
+	 * Цвет и hover-событие отражают текущий цвет и идентификатор полосы.
 	 */
 	public final Text toHoverableText() {
-		return Texts.bracketed(this.getName())
-		            .styled(
-				            style -> style.withColor(this.getColor().getTextFormat())
-				                          .withHoverEvent(new HoverEvent.ShowText(Text.literal(this
-						                          .getId()
-						                          .toString())))
-				                          .withInsertion(this.getId().toString())
-		            );
+		return Texts.bracketed(getName())
+				.styled(style -> style
+						.withColor(getColor().getTextFormat())
+						.withHoverEvent(new HoverEvent.ShowText(Text.literal(getId().toString())))
+						.withInsertion(getId().toString())
+				);
 	}
 
 	/**
-	 * Добавляет players.
+	 * Синхронизирует набор подписанных игроков с переданной коллекцией.
+	 * Игроки, которых нет в новом списке, удаляются; новые — добавляются.
 	 *
-	 * @param players players
-	 *
-	 * @return boolean — результат операции
+	 * @return {@code true}, если набор игроков изменился
 	 */
 	public boolean addPlayers(Collection<ServerPlayerEntity> players) {
-		Set<UUID> set = Sets.newHashSet();
-		Set<ServerPlayerEntity> set2 = Sets.newHashSet();
+		Map<UUID, ServerPlayerEntity> playersByUuid = players.stream()
+				.collect(Collectors.toMap(ServerPlayerEntity::getUuid, p -> p));
 
-		for (UUID uUID : this.playerUuids) {
-			boolean bl = false;
+		// UUID, которые были в списке, но отсутствуют в новом наборе — нужно удалить
+		Set<UUID> toRemove = Sets.difference(playerUuids, playersByUuid.keySet());
+		// Игроки, которых ещё нет в подписке — нужно добавить
+		Set<ServerPlayerEntity> toAdd = players.stream()
+				.filter(p -> !playerUuids.contains(p.getUuid()))
+				.collect(Collectors.toSet());
 
-			for (ServerPlayerEntity serverPlayerEntity : players) {
-				if (serverPlayerEntity.getUuid().equals(uUID)) {
-					bl = true;
-					break;
-				}
-			}
+		boolean changed = !toRemove.isEmpty() || !toAdd.isEmpty();
 
-			if (!bl) {
-				set.add(uUID);
-			}
+		for (UUID uuid : Set.copyOf(toRemove)) {
+			getPlayers().stream()
+					.filter(p -> p.getUuid().equals(uuid))
+					.findFirst()
+					.ifPresent(this::removePlayer);
+			playerUuids.remove(uuid);
 		}
 
-		for (ServerPlayerEntity serverPlayerEntity2 : players) {
-			boolean bl = false;
-
-			for (UUID uUID2 : this.playerUuids) {
-				if (serverPlayerEntity2.getUuid().equals(uUID2)) {
-					bl = true;
-					break;
-				}
-			}
-
-			if (!bl) {
-				set2.add(serverPlayerEntity2);
-			}
+		for (ServerPlayerEntity player : toAdd) {
+			addPlayer(player);
 		}
 
-		for (UUID uUID : set) {
-			for (ServerPlayerEntity serverPlayerEntity3 : this.getPlayers()) {
-				if (serverPlayerEntity3.getUuid().equals(uUID)) {
-					this.removePlayer(serverPlayerEntity3);
-					break;
-				}
-			}
-
-			this.playerUuids.remove(uUID);
-		}
-
-		for (ServerPlayerEntity serverPlayerEntity2 : set2) {
-			this.addPlayer(serverPlayerEntity2);
-		}
-
-		return !set.isEmpty() || !set2.isEmpty();
+		return changed;
 	}
 
 	/**
-	 * From serialized.
-	 *
-	 * @param id id
-	 * @param serialized serialized
-	 *
-	 * @return CommandBossBar — результат операции
+	 * Восстанавливает {@link CommandBossBar} из сериализованного представления (NBT/JSON).
 	 */
-	public static CommandBossBar fromSerialized(Identifier id, CommandBossBar.Serialized serialized) {
-		CommandBossBar commandBossBar = new CommandBossBar(id, serialized.name);
-		commandBossBar.setVisible(serialized.visible);
-		commandBossBar.setValue(serialized.value);
-		commandBossBar.setMaxValue(serialized.max);
-		commandBossBar.setColor(serialized.color);
-		commandBossBar.setStyle(serialized.overlay);
-		commandBossBar.setDarkenSky(serialized.darkenScreen);
-		commandBossBar.setDragonMusic(serialized.playBossMusic);
-		commandBossBar.setThickenFog(serialized.createWorldFog);
-		serialized.players.forEach(commandBossBar::addPlayer);
-		return commandBossBar;
+	public static CommandBossBar fromSerialized(Identifier id, Serialized serialized) {
+		CommandBossBar bossBar = new CommandBossBar(id, serialized.name);
+		bossBar.setVisible(serialized.visible);
+		bossBar.setValue(serialized.value);
+		bossBar.setMaxValue(serialized.max);
+		bossBar.setColor(serialized.color);
+		bossBar.setStyle(serialized.overlay);
+		bossBar.setDarkenSky(serialized.darkenScreen);
+		bossBar.setDragonMusic(serialized.playBossMusic);
+		bossBar.setThickenFog(serialized.createWorldFog);
+		serialized.players.forEach(bossBar::addPlayer);
+		return bossBar;
 	}
 
-	public CommandBossBar.Serialized toSerialized() {
-		return new CommandBossBar.Serialized(
-				this.getName(),
-				this.isVisible(),
-				this.getValue(),
-				this.getMaxValue(),
-				this.getColor(),
-				this.getStyle(),
-				this.shouldDarkenSky(),
-				this.hasDragonMusic(),
-				this.shouldThickenFog(),
-				Set.copyOf(this.playerUuids)
+	public Serialized toSerialized() {
+		return new Serialized(
+				getName(),
+				isVisible(),
+				getValue(),
+				getMaxValue(),
+				getColor(),
+				getStyle(),
+				shouldDarkenSky(),
+				hasDragonMusic(),
+				shouldThickenFog(),
+				Set.copyOf(playerUuids)
 		);
 	}
 
 	/**
-	 * Обрабатывает событие player connect.
-	 *
-	 * @param player player
+	 * Добавляет игрока в реальный список подписчиков, если его UUID зарегистрирован в этом boss bar'е.
+	 * Вызывается при подключении игрока к серверу.
 	 */
 	public void onPlayerConnect(ServerPlayerEntity player) {
-		if (this.playerUuids.contains(player.getUuid())) {
-			this.addPlayer(player);
+		if (playerUuids.contains(player.getUuid())) {
+			addPlayer(player);
 		}
 	}
 
 	/**
-	 * Обрабатывает событие player disconnect.
-	 *
-	 * @param player player
+	 * Удаляет игрока из реального списка подписчиков без изменения набора UUID.
+	 * Вызывается при отключении игрока от сервера.
 	 */
 	public void onPlayerDisconnect(ServerPlayerEntity player) {
 		super.removePlayer(player);
 	}
 
 	/**
-	 * {@code Serialized}.
+	 * Сериализованное представление {@link CommandBossBar} для сохранения в NBT.
 	 */
 	public record Serialized(
 			Text name,
@@ -230,32 +194,19 @@ public class CommandBossBar extends ServerBossBar {
 			Set<UUID> players
 	) {
 
-		public static final Codec<CommandBossBar.Serialized> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Serialized> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    TextCodecs.CODEC.fieldOf("Name").forGetter(CommandBossBar.Serialized::name),
-						                    Codec.BOOL.optionalFieldOf("Visible", false).forGetter(CommandBossBar.Serialized::visible),
-						                    Codec.INT.optionalFieldOf("Value", 0).forGetter(CommandBossBar.Serialized::value),
-						                    Codec.INT.optionalFieldOf("Max", 100).forGetter(CommandBossBar.Serialized::max),
-						                    BossBar.Color.CODEC
-								                    .optionalFieldOf("Color", BossBar.Color.WHITE)
-								                    .forGetter(CommandBossBar.Serialized::color),
-						                    BossBar.Style.CODEC
-								                    .optionalFieldOf("Overlay", BossBar.Style.PROGRESS)
-								                    .forGetter(CommandBossBar.Serialized::overlay),
-						                    Codec.BOOL
-								                    .optionalFieldOf("DarkenScreen", false)
-								                    .forGetter(CommandBossBar.Serialized::darkenScreen),
-						                    Codec.BOOL
-								                    .optionalFieldOf("PlayBossMusic", false)
-								                    .forGetter(CommandBossBar.Serialized::playBossMusic),
-						                    Codec.BOOL
-								                    .optionalFieldOf("CreateWorldFog", false)
-								                    .forGetter(CommandBossBar.Serialized::createWorldFog),
-						                    Uuids.SET_CODEC
-								                    .optionalFieldOf("Players", Set.of())
-								                    .forGetter(CommandBossBar.Serialized::players)
-				                    )
-				                    .apply(instance, CommandBossBar.Serialized::new)
+						TextCodecs.CODEC.fieldOf("Name").forGetter(Serialized::name),
+						Codec.BOOL.optionalFieldOf("Visible", false).forGetter(Serialized::visible),
+						Codec.INT.optionalFieldOf("Value", 0).forGetter(Serialized::value),
+						Codec.INT.optionalFieldOf("Max", DEFAULT_MAX_VALUE).forGetter(Serialized::max),
+						BossBar.Color.CODEC.optionalFieldOf("Color", BossBar.Color.WHITE).forGetter(Serialized::color),
+						BossBar.Style.CODEC.optionalFieldOf("Overlay", BossBar.Style.PROGRESS).forGetter(Serialized::overlay),
+						Codec.BOOL.optionalFieldOf("DarkenScreen", false).forGetter(Serialized::darkenScreen),
+						Codec.BOOL.optionalFieldOf("PlayBossMusic", false).forGetter(Serialized::playBossMusic),
+						Codec.BOOL.optionalFieldOf("CreateWorldFog", false).forGetter(Serialized::createWorldFog),
+						Uuids.SET_CODEC.optionalFieldOf("Players", Set.of()).forGetter(Serialized::players)
+				).apply(instance, Serialized::new)
 		);
 	}
 }

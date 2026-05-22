@@ -29,7 +29,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 /**
- * {@code ChunkHolder}.
+ * Класс Chunk Holder.
  */
 public class ChunkHolder extends AbstractChunkHolder {
 
@@ -403,17 +403,11 @@ public class ChunkHolder extends AbstractChunkHolder {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code LevelUpdateListener}.
-	 */
 	public interface LevelUpdateListener {
 
 		void updateLevel(ChunkPos pos, IntSupplier levelGetter, int targetLevel, IntConsumer levelSetter);
 	}
 
-	/**
-	 * {@code PlayersWatchingChunkProvider}.
-	 */
 	public interface PlayersWatchingChunkProvider {
 
 		List<ServerPlayerEntity> getPlayersWatchingChunk(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge);

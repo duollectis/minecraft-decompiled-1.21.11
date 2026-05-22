@@ -7,14 +7,18 @@ import net.minecraft.util.math.Vec3d;
 import java.util.EnumSet;
 
 /**
- * {@code GoToWalkTargetGoal}.
+ * Цель, направляющая моба к его позиционной цели ({@code positionTarget})
+ * без штрафных зон. Активируется, когда моб находится вне целевого радиуса.
  */
 public class GoToWalkTargetGoal extends Goal {
 
+	private static final int SEARCH_HORIZONTAL_RANGE = 16;
+	private static final int SEARCH_VERTICAL_RANGE = 7;
+
 	private final PathAwareEntity mob;
-	private double x;
-	private double y;
-	private double z;
+	private double targetX;
+	private double targetY;
+	private double targetZ;
 	private final double speed;
 
 	public GoToWalkTargetGoal(PathAwareEntity mob, double speed) {
@@ -25,38 +29,35 @@ public class GoToWalkTargetGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.isInPositionTargetRange()) {
+		if (mob.isInPositionTargetRange()) {
 			return false;
 		}
-		else {
-			Vec3d
-					vec3d =
-					NoPenaltyTargeting.findTo(
-							this.mob,
-							16,
-							7,
-							Vec3d.ofBottomCenter(this.mob.getPositionTarget()),
-							(float) (Math.PI / 2)
-					);
-			if (vec3d == null) {
-				return false;
-			}
-			else {
-				this.x = vec3d.x;
-				this.y = vec3d.y;
-				this.z = vec3d.z;
-				return true;
-			}
+
+		Vec3d target = NoPenaltyTargeting.findTo(
+			mob,
+			SEARCH_HORIZONTAL_RANGE,
+			SEARCH_VERTICAL_RANGE,
+			Vec3d.ofBottomCenter(mob.getPositionTarget()),
+			(float) (Math.PI / 2)
+		);
+
+		if (target == null) {
+			return false;
 		}
+
+		targetX = target.x;
+		targetY = target.y;
+		targetZ = target.z;
+		return true;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.mob.getNavigation().isIdle();
+		return !mob.getNavigation().isIdle();
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingTo(this.x, this.y, this.z, this.speed);
+		mob.getNavigation().startMovingTo(targetX, targetY, targetZ, speed);
 	}
 }

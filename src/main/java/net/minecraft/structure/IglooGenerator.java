@@ -24,7 +24,9 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import java.util.Map;
 
 /**
- * {@code IglooGenerator}.
+ * Генератор структуры иглу. Размещает три шаблонных части: верхнюю (снежный купол),
+ * среднюю (лестничный пролёт) и нижнюю (подземная лаборатория). Нижняя часть и
+ * промежуточные секции генерируются только с вероятностью 50%.
  */
 public class IglooGenerator {
 
@@ -57,11 +59,11 @@ public class IglooGenerator {
 			Random random
 	) {
 		if (random.nextDouble() < 0.5) {
-			int i = random.nextInt(8) + 4;
-			holder.addPiece(new IglooGenerator.Piece(manager, BOTTOM_TEMPLATE, pos, rotation, i * 3));
+			int depth = random.nextInt(8) + 4;
+			holder.addPiece(new IglooGenerator.Piece(manager, BOTTOM_TEMPLATE, pos, rotation, depth * 3));
 
-			for (int j = 0; j < i - 1; j++) {
-				holder.addPiece(new IglooGenerator.Piece(manager, MIDDLE_TEMPLATE, pos, rotation, j * 3));
+			for (int floorIndex = 0; floorIndex < depth - 1; floorIndex++) {
+				holder.addPiece(new IglooGenerator.Piece(manager, MIDDLE_TEMPLATE, pos, rotation, floorIndex * 3));
 			}
 		}
 
@@ -69,7 +71,8 @@ public class IglooGenerator {
 	}
 
 	/**
-	 * {@code Piece}.
+	 * Один структурный фрагмент иглу, загружаемый из NBT-шаблона.
+	 * Корректирует Y-позицию по высоте поверхности мира при генерации.
 	 */
 	public static class Piece extends SimpleStructurePiece {
 
@@ -150,32 +153,26 @@ public class IglooGenerator {
 				ChunkPos chunkPos,
 				BlockPos pivot
 		) {
-			Identifier identifier = Identifier.of(this.templateIdString);
-			StructurePlacementData
-					structurePlacementData =
-					createPlacementData(this.placementData.getRotation(), identifier);
-			BlockPos blockPos = IglooGenerator.OFFSETS_FROM_TOP.get(identifier);
-			BlockPos
-					blockPos2 =
-					this.pos.add(StructureTemplate.transform(
-							structurePlacementData,
-							new BlockPos(3 - blockPos.getX(), 0, -blockPos.getZ())
-					));
-			int i = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, blockPos2.getX(), blockPos2.getZ());
-			BlockPos blockPos3 = this.pos;
-			this.pos = this.pos.add(0, i - 90 - 1, 0);
+			Identifier templateId = Identifier.of(this.templateIdString);
+			StructurePlacementData placementData = createPlacementData(this.placementData.getRotation(), templateId);
+			BlockPos offsetFromTop = IglooGenerator.OFFSETS_FROM_TOP.get(templateId);
+			BlockPos surfaceCheckPos = this.pos.add(
+					StructureTemplate.transform(placementData, new BlockPos(3 - offsetFromTop.getX(), 0, -offsetFromTop.getZ()))
+			);
+			int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, surfaceCheckPos.getX(), surfaceCheckPos.getZ());
+			BlockPos originalPos = this.pos;
+			this.pos = this.pos.add(0, surfaceY - OFFSET_Y - 1, 0);
 			super.generate(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
-			if (identifier.equals(IglooGenerator.TOP_TEMPLATE)) {
-				BlockPos
-						blockPos4 =
-						this.pos.add(StructureTemplate.transform(structurePlacementData, new BlockPos(3, 0, 5)));
-				BlockState blockState = world.getBlockState(blockPos4.down());
-				if (!blockState.isAir() && !blockState.isOf(Blocks.LADDER)) {
-					world.setBlockState(blockPos4, Blocks.SNOW_BLOCK.getDefaultState(), 3);
+
+			if (templateId.equals(IglooGenerator.TOP_TEMPLATE)) {
+				BlockPos snowCheckPos = this.pos.add(StructureTemplate.transform(placementData, new BlockPos(3, 0, 5)));
+				BlockState belowState = world.getBlockState(snowCheckPos.down());
+				if (!belowState.isAir() && !belowState.isOf(Blocks.LADDER)) {
+					world.setBlockState(snowCheckPos, Blocks.SNOW_BLOCK.getDefaultState(), 3);
 				}
 			}
 
-			this.pos = blockPos3;
+			this.pos = originalPos;
 		}
 	}
 }

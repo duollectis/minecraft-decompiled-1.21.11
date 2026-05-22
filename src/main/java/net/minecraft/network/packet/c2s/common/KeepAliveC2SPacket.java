@@ -8,7 +8,8 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 /**
- * Класс keep alive c2 s packet.
+ * Пакет C→S, подтверждающий получение keep-alive запроса от сервера.
+ * Клиент обязан ответить тем же {@code id} в течение 30 секунд, иначе соединение разрывается.
  */
 public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
 
@@ -26,7 +27,7 @@ public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
 	}
 
 	private void write(PacketByteBuf buf) {
-		buf.writeLong(this.id);
+		buf.writeLong(id);
 	}
 
 	@Override
@@ -34,16 +35,12 @@ public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
 		return CommonPackets.KEEP_ALIVE_C2S;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onKeepAlive(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onKeepAlive(this);
 	}
 
 	public long getId() {
-		return this.id;
+		return id;
 	}
 }

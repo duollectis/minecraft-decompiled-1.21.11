@@ -14,7 +14,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NautilusEntity}.
+ * Наутилус — верховое водное животное с инвентарём.
  */
 public class NautilusEntity extends AbstractNautilusEntity {
 
@@ -128,7 +128,7 @@ public class NautilusEntity extends AbstractNautilusEntity {
 
 	@Override
 	public int getMaxAir() {
-		return 300;
+		return MAX_AIR;
 	}
 
 	/**
@@ -146,7 +146,7 @@ public class NautilusEntity extends AbstractNautilusEntity {
 			}
 		}
 		else {
-			this.setAir(300);
+			this.setAir(MAX_AIR);
 		}
 	}
 

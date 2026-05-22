@@ -6,13 +6,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code SimpleBlockStateProvider}.
+ * Простейший поставщик состояний блоков, всегда возвращающий одно фиксированное состояние.
  */
 public class SimpleBlockStateProvider extends BlockStateProvider {
 
 	public static final MapCodec<SimpleBlockStateProvider> CODEC = BlockState.CODEC
 			.fieldOf("state")
-			.xmap(SimpleBlockStateProvider::new, simpleBlockStateProvider -> simpleBlockStateProvider.state);
+			.xmap(SimpleBlockStateProvider::new, provider -> provider.state);
 	private final BlockState state;
 
 	protected SimpleBlockStateProvider(BlockState state) {
@@ -26,6 +26,6 @@ public class SimpleBlockStateProvider extends BlockStateProvider {
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		return this.state;
+		return state;
 	}
 }

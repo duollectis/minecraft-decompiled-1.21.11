@@ -9,7 +9,8 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Optional;
 
 /**
- * {@code TickCooldownTask}.
+ * Задача мозга, уменьшающая счётчик кулдауна в указанном модуле памяти на 1 каждый тик.
+ * По достижении нуля забывает модуль памяти, тем самым снимая кулдаун.
  */
 public class TickCooldownTask extends MultiTickTask<LivingEntity> {
 
@@ -21,7 +22,7 @@ public class TickCooldownTask extends MultiTickTask<LivingEntity> {
 	}
 
 	private Optional<Integer> getRemainingCooldownTicks(LivingEntity entity) {
-		return entity.getBrain().getOptionalRegisteredMemory(this.cooldownModule);
+		return entity.getBrain().getOptionalRegisteredMemory(cooldownModule);
 	}
 
 	@Override
@@ -31,18 +32,18 @@ public class TickCooldownTask extends MultiTickTask<LivingEntity> {
 
 	@Override
 	protected boolean shouldKeepRunning(ServerWorld world, LivingEntity entity, long time) {
-		Optional<Integer> optional = this.getRemainingCooldownTicks(entity);
-		return optional.isPresent() && optional.get() > 0;
+		Optional<Integer> remainingTicks = getRemainingCooldownTicks(entity);
+		return remainingTicks.isPresent() && remainingTicks.get() > 0;
 	}
 
 	@Override
 	protected void keepRunning(ServerWorld world, LivingEntity entity, long time) {
-		Optional<Integer> optional = this.getRemainingCooldownTicks(entity);
-		entity.getBrain().remember(this.cooldownModule, optional.get() - 1);
+		Optional<Integer> remainingTicks = getRemainingCooldownTicks(entity);
+		entity.getBrain().remember(cooldownModule, remainingTicks.get() - 1);
 	}
 
 	@Override
 	protected void finishRunning(ServerWorld world, LivingEntity entity, long time) {
-		entity.getBrain().forget(this.cooldownModule);
+		entity.getBrain().forget(cooldownModule);
 	}
 }

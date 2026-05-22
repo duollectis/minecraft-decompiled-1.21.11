@@ -20,7 +20,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code SaplingGenerator}.
+ * Генератор дерева для саженца. Хранит ключи конфигурированных фич для обычного,
+ * редкого, мегадерева и вариантов с пчёлами. При бонмилинге выбирает подходящий
+ * вариант с учётом вероятности редкого дерева и наличия цветов рядом.
  */
 public final class SaplingGenerator {
 
@@ -152,6 +154,13 @@ public final class SaplingGenerator {
 		                                                                                : this.megaVariant.orElse(null);
 	}
 
+	/**
+	 * Пытается вырастить дерево на месте саженца. Сначала проверяет возможность
+	 * мегадерева (2×2 саженца), затем — обычного. Временно заменяет саженцы воздухом
+	 * перед генерацией, восстанавливая их при неудаче.
+	 *
+	 * @return {@code true}, если дерево успешно сгенерировано
+	 */
 	public boolean generate(
 			ServerWorld world,
 			ChunkGenerator chunkGenerator,
@@ -159,30 +168,35 @@ public final class SaplingGenerator {
 			BlockState state,
 			Random random
 	) {
-		RegistryKey<ConfiguredFeature<?, ?>> registryKey = this.getMegaTreeFeature(random);
-		if (registryKey != null) {
-			RegistryEntry<ConfiguredFeature<?, ?>> registryEntry = world.getRegistryManager()
-			                                                            .getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
-			                                                            .getOptional(registryKey)
-			                                                            .orElse(null);
-			if (registryEntry != null) {
-				for (int i = 0; i >= -1; i--) {
-					for (int j = 0; j >= -1; j--) {
-						if (canGenerateLargeTree(state, world, pos, i, j)) {
-							ConfiguredFeature<?, ?> configuredFeature = registryEntry.value();
-							BlockState blockState = Blocks.AIR.getDefaultState();
-							world.setBlockState(pos.add(i, 0, j), blockState, 260);
-							world.setBlockState(pos.add(i + 1, 0, j), blockState, 260);
-							world.setBlockState(pos.add(i, 0, j + 1), blockState, 260);
-							world.setBlockState(pos.add(i + 1, 0, j + 1), blockState, 260);
-							if (configuredFeature.generate(world, chunkGenerator, random, pos.add(i, 0, j))) {
+		RegistryKey<ConfiguredFeature<?, ?>> megaKey = getMegaTreeFeature(random);
+
+		if (megaKey != null) {
+			RegistryEntry<ConfiguredFeature<?, ?>> megaEntry = world.getRegistryManager()
+					.getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
+					.getOptional(megaKey)
+					.orElse(null);
+
+			if (megaEntry != null) {
+				for (int offsetX = 0; offsetX >= -1; offsetX--) {
+					for (int offsetZ = 0; offsetZ >= -1; offsetZ--) {
+						if (canGenerateLargeTree(state, world, pos, offsetX, offsetZ)) {
+							ConfiguredFeature<?, ?> megaFeature = megaEntry.value();
+							BlockState airState = Blocks.AIR.getDefaultState();
+
+							world.setBlockState(pos.add(offsetX, 0, offsetZ), airState, 260);
+							world.setBlockState(pos.add(offsetX + 1, 0, offsetZ), airState, 260);
+							world.setBlockState(pos.add(offsetX, 0, offsetZ + 1), airState, 260);
+							world.setBlockState(pos.add(offsetX + 1, 0, offsetZ + 1), airState, 260);
+
+							if (megaFeature.generate(world, chunkGenerator, random, pos.add(offsetX, 0, offsetZ))) {
 								return true;
 							}
 
-							world.setBlockState(pos.add(i, 0, j), state, 260);
-							world.setBlockState(pos.add(i + 1, 0, j), state, 260);
-							world.setBlockState(pos.add(i, 0, j + 1), state, 260);
-							world.setBlockState(pos.add(i + 1, 0, j + 1), state, 260);
+							world.setBlockState(pos.add(offsetX, 0, offsetZ), state, 260);
+							world.setBlockState(pos.add(offsetX + 1, 0, offsetZ), state, 260);
+							world.setBlockState(pos.add(offsetX, 0, offsetZ + 1), state, 260);
+							world.setBlockState(pos.add(offsetX + 1, 0, offsetZ + 1), state, 260);
+
 							return false;
 						}
 					}
@@ -190,37 +204,37 @@ public final class SaplingGenerator {
 			}
 		}
 
-		RegistryKey<ConfiguredFeature<?, ?>>
-				registryKey2 =
-				this.getSmallTreeFeature(random, this.areFlowersNearby(world, pos));
-		if (registryKey2 == null) {
+		RegistryKey<ConfiguredFeature<?, ?>> smallKey = getSmallTreeFeature(random, areFlowersNearby(world, pos));
+
+		if (smallKey == null) {
 			return false;
 		}
-		else {
-			RegistryEntry<ConfiguredFeature<?, ?>> registryEntry2 = world.getRegistryManager()
-			                                                             .getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
-			                                                             .getOptional(registryKey2)
-			                                                             .orElse(null);
-			if (registryEntry2 == null) {
-				return false;
-			}
-			else {
-				ConfiguredFeature<?, ?> configuredFeature2 = registryEntry2.value();
-				BlockState blockState2 = world.getFluidState(pos).getBlockState();
-				world.setBlockState(pos, blockState2, 260);
-				if (configuredFeature2.generate(world, chunkGenerator, random, pos)) {
-					if (world.getBlockState(pos) == blockState2) {
-						world.updateListeners(pos, state, blockState2, 2);
-					}
 
-					return true;
-				}
-				else {
-					world.setBlockState(pos, state, 260);
-					return false;
-				}
-			}
+		RegistryEntry<ConfiguredFeature<?, ?>> smallEntry = world.getRegistryManager()
+				.getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
+				.getOptional(smallKey)
+				.orElse(null);
+
+		if (smallEntry == null) {
+			return false;
 		}
+
+		ConfiguredFeature<?, ?> smallFeature = smallEntry.value();
+		BlockState fluidBlockState = world.getFluidState(pos).getBlockState();
+
+		world.setBlockState(pos, fluidBlockState, 260);
+
+		if (smallFeature.generate(world, chunkGenerator, random, pos)) {
+			if (world.getBlockState(pos) == fluidBlockState) {
+				world.updateListeners(pos, state, fluidBlockState, 2);
+			}
+
+			return true;
+		}
+
+		world.setBlockState(pos, state, 260);
+
+		return false;
 	}
 
 	private static boolean canGenerateLargeTree(BlockState state, BlockView world, BlockPos pos, int x, int z) {

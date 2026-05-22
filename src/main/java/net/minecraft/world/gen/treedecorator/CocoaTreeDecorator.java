@@ -11,7 +11,8 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * {@code CocoaTreeDecorator}.
+ * Декоратор дерева: с заданной вероятностью размещает стручки какао на нижних брёвнах ствола.
+ * Используется для джунглевых деревьев.
  */
 public class CocoaTreeDecorator extends TreeDecorator {
 
@@ -32,31 +33,43 @@ public class CocoaTreeDecorator extends TreeDecorator {
 		return TreeDecoratorType.COCOA;
 	}
 
+	private static final float COCOA_PLACEMENT_CHANCE = 0.25F;
+	private static final int COCOA_MAX_HEIGHT_OFFSET = 2;
+
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
-		if (!(random.nextFloat() >= this.probability)) {
-			List<BlockPos> list = generator.getLogPositions();
-			if (!list.isEmpty()) {
-				int i = list.getFirst().getY();
-				list.stream().filter(pos -> pos.getY() - i <= 2).forEach(pos -> {
-					for (Direction direction : Direction.Type.HORIZONTAL) {
-						if (random.nextFloat() <= 0.25F) {
-							Direction direction2 = direction.getOpposite();
-							BlockPos blockPos = pos.add(direction2.getOffsetX(), 0, direction2.getOffsetZ());
-							if (generator.isAir(blockPos)) {
-								generator.replace(
-										blockPos,
-										Blocks.COCOA
-												.getDefaultState()
-												.with(CocoaBlock.AGE, random.nextInt(3))
-												.with(CocoaBlock.FACING, direction)
-								);
-							}
-						}
-					}
-				});
-			}
+
+		if (random.nextFloat() >= probability) {
+			return;
 		}
+
+		List<BlockPos> logPositions = generator.getLogPositions();
+
+		if (logPositions.isEmpty()) {
+			return;
+		}
+
+		int baseY = logPositions.getFirst().getY();
+		logPositions.stream().filter(pos -> pos.getY() - baseY <= COCOA_MAX_HEIGHT_OFFSET).forEach(pos -> {
+			for (Direction direction : Direction.Type.HORIZONTAL) {
+				if (random.nextFloat() > COCOA_PLACEMENT_CHANCE) {
+					continue;
+				}
+
+				Direction attachFace = direction.getOpposite();
+				BlockPos cocoaPos = pos.add(attachFace.getOffsetX(), 0, attachFace.getOffsetZ());
+
+				if (generator.isAir(cocoaPos)) {
+					generator.replace(
+							cocoaPos,
+							Blocks.COCOA
+									.getDefaultState()
+									.with(CocoaBlock.AGE, random.nextInt(3))
+									.with(CocoaBlock.FACING, direction)
+					);
+				}
+			}
+		});
 	}
 }

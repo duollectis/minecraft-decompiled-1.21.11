@@ -4,7 +4,9 @@ import net.minecraft.block.Block;
 import net.minecraft.text.Text;
 
 /**
- * {@code AirBlockItem}.
+ * Предмет-воздух. Используется как нулевой объект для пустого слота инвентаря.
+ * <p>Переопределяет {@link #getName(ItemStack)} чтобы вернуть имя предмета
+ * без учёта стека (воздух не имеет стека).</p>
  */
 public class AirBlockItem extends Item {
 
@@ -14,6 +16,6 @@ public class AirBlockItem extends Item {
 
 	@Override
 	public Text getName(ItemStack stack) {
-		return this.getName();
+		return getName();
 	}
 }

@@ -10,124 +10,67 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * {@code ParsingRules}.
+ * Реестр правил разбора, связывающий {@link Symbol} с соответствующими {@link ParsingRule}.
+ * Поддерживает ленивую регистрацию через {@link #getOrCreate} для взаимно рекурсивных правил.
  */
 public class ParsingRules<S> {
 
-	private final Map<Symbol<?>, ParsingRules.RuleEntryImpl<S, ?>> rules = new IdentityHashMap<>();
+	private final Map<Symbol<?>, RuleEntryImpl<S, ?>> rules = new IdentityHashMap<>();
 
-	/**
-	 * Set.
-	 *
-	 * @param symbol symbol
-	 * @param rule rule
-	 *
-	 * @return ParsingRuleEntry — результат операции
-	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, ParsingRule<S, T> rule) {
-		ParsingRules.RuleEntryImpl<S, T>
-				ruleEntryImpl =
-				(ParsingRules.RuleEntryImpl<S, T>) this.rules.computeIfAbsent(symbol, ParsingRules.RuleEntryImpl::new);
-		if (ruleEntryImpl.rule != null) {
+		RuleEntryImpl<S, T> entry = (RuleEntryImpl<S, T>) rules.computeIfAbsent(symbol, RuleEntryImpl::new);
+
+		if (entry.rule != null) {
 			throw new IllegalArgumentException("Trying to override rule: " + symbol);
 		}
-		else {
-			ruleEntryImpl.rule = rule;
-			return ruleEntryImpl;
-		}
+
+		entry.rule = rule;
+		return entry;
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param symbol symbol
-	 * @param term term
-	 * @param action action
-	 *
-	 * @return ParsingRuleEntry — результат операции
-	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, Term<S> term, ParsingRule.RuleAction<S, T> action) {
-		return this.set(symbol, ParsingRule.of(term, action));
+		return set(symbol, ParsingRule.of(term, action));
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param symbol symbol
-	 * @param term term
-	 * @param action action
-	 *
-	 * @return ParsingRuleEntry — результат операции
-	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, Term<S> term, ParsingRule.StatelessAction<S, T> action) {
-		return this.set(symbol, ParsingRule.of(term, action));
+		return set(symbol, ParsingRule.of(term, action));
 	}
 
-	/**
-	 * Ensure bound.
-	 */
 	public void ensureBound() {
-		List<? extends Symbol<?>>
-				list =
-				this.rules
-						.entrySet()
-						.stream()
-						.filter(entry -> entry.getValue().rule == null)
-						.map(Entry::getKey)
-						.toList();
-		if (!list.isEmpty()) {
-			throw new IllegalStateException("Unbound names: " + list);
+		List<? extends Symbol<?>> unbound = rules.entrySet()
+				.stream()
+				.filter(entry -> entry.getValue().rule == null)
+				.map(Entry::getKey)
+				.toList();
+
+		if (!unbound.isEmpty()) {
+			throw new IllegalStateException("Unbound names: " + unbound);
 		}
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param symbol symbol
-	 *
-	 * @return ParsingRuleEntry — 
-	 */
 	public <T> ParsingRuleEntry<S, T> get(Symbol<T> symbol) {
 		return (ParsingRuleEntry<S, T>) Objects.requireNonNull(
-				this.rules.get(symbol),
+				rules.get(symbol),
 				() -> "No rule called " + symbol
 		);
 	}
 
 	public <T> ParsingRuleEntry<S, T> getOrCreate(Symbol<T> symbol) {
-		return this.getOrCreateInternal(symbol);
+		return getOrCreateInternal(symbol);
 	}
 
-	private <T> ParsingRules.RuleEntryImpl<S, T> getOrCreateInternal(Symbol<T> symbol) {
-		return (ParsingRules.RuleEntryImpl<S, T>) this.rules.computeIfAbsent(symbol, ParsingRules.RuleEntryImpl::new);
+	private <T> RuleEntryImpl<S, T> getOrCreateInternal(Symbol<T> symbol) {
+		return (RuleEntryImpl<S, T>) rules.computeIfAbsent(symbol, RuleEntryImpl::new);
 	}
 
-	/**
-	 * Term.
-	 *
-	 * @param symbol symbol
-	 *
-	 * @return Term — результат операции
-	 */
 	public <T> Term<S> term(Symbol<T> symbol) {
-		return new ParsingRules.RuleTerm<>(this.getOrCreateInternal(symbol), symbol);
+		return new RuleTerm<>(getOrCreateInternal(symbol), symbol);
 	}
 
-	/**
-	 * Term.
-	 *
-	 * @param symbol symbol
-	 * @param nameToStore name to store
-	 *
-	 * @return Term — результат операции
-	 */
 	public <T> Term<S> term(Symbol<T> symbol, Symbol<T> nameToStore) {
-		return new ParsingRules.RuleTerm<>(this.getOrCreateInternal(symbol), nameToStore);
+		return new RuleTerm<>(getOrCreateInternal(symbol), nameToStore);
 	}
 
-	/**
-	 * {@code RuleEntryImpl}.
-	 */
 	static class RuleEntryImpl<S, T> implements ParsingRuleEntry<S, T>, Supplier<String> {
 
 		private final Symbol<T> symbol;
@@ -139,39 +82,32 @@ public class ParsingRules<S> {
 
 		@Override
 		public Symbol<T> getSymbol() {
-			return this.symbol;
+			return symbol;
 		}
 
 		@Override
 		public ParsingRule<S, T> getRule() {
-			return Objects.requireNonNull(this.rule, this);
+			return Objects.requireNonNull(rule, this);
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @return String — 
-		 */
+		@Override
 		public String get() {
-			return "Unbound rule " + this.symbol;
+			return "Unbound rule " + symbol;
 		}
 	}
 
-	/**
-	 * {@code RuleTerm}.
-	 */
-	record RuleTerm<S, T>(ParsingRules.RuleEntryImpl<S, T> ruleToParse, Symbol<T> nameToStore) implements Term<S> {
+	record RuleTerm<S, T>(RuleEntryImpl<S, T> ruleToParse, Symbol<T> nameToStore) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			T object = state.parse(this.ruleToParse);
-			if (object == null) {
+			T value = state.parse(ruleToParse);
+
+			if (value == null) {
 				return false;
 			}
-			else {
-				results.put(this.nameToStore, object);
-				return true;
-			}
+
+			results.put(nameToStore, value);
+			return true;
 		}
 	}
 }

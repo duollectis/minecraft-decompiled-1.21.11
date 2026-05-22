@@ -9,7 +9,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * {@code TestFunctionProvider}.
+ * Абстрактный провайдер тестовых функций.
+ * Подклассы регистрируют свои функции через {@link #register(BiConsumer)}.
+ * Все зарегистрированные провайдеры вызываются при {@link #registerAll(Registry)}.
  */
 public abstract class TestFunctionProvider {
 
@@ -20,8 +22,8 @@ public abstract class TestFunctionProvider {
 	}
 
 	public static void registerAll(Registry<Consumer<TestContext>> registry) {
-		for (TestFunctionProvider testFunctionProvider : PROVIDERS) {
-			testFunctionProvider.register((key, value) -> Registry.register(registry, key, value));
+		for (TestFunctionProvider provider : PROVIDERS) {
+			provider.register((key, value) -> Registry.register(registry, key, value));
 		}
 	}
 

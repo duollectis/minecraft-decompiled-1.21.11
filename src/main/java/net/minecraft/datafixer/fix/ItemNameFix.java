@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * {@code ItemNameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public abstract class ItemNameFix extends DataFix {
 
@@ -28,11 +28,11 @@ public abstract class ItemNameFix extends DataFix {
 		Type<Pair<String, String>>
 				type =
 				DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-		if (!Objects.equals(this.getInputSchema().getType(TypeReferences.ITEM_NAME), type)) {
+		if (!Objects.equals(getInputSchema().getType(TypeReferences.ITEM_NAME), type)) {
 			throw new IllegalStateException("item name type is not what was expected.");
 		}
 		else {
-			return this.fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this::rename));
+			return fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this::rename));
 		}
 	}
 

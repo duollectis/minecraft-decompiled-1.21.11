@@ -7,10 +7,14 @@ import net.fabricmc.api.Environment;
 import net.minecraft.resource.metadata.ResourceMetadataSerializer;
 import net.minecraft.util.StringIdentifiable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VillagerResourceMetadata}.
+ * Метаданные ресурса жителя: описывает, как шляпа взаимодействует с профессиональным головным убором.
+ * <p>
+ * Хранится в файле {@code villager.mcmeta} рядом с текстурой жителя.
+ * Тип {@link HatType} определяет, нужно ли скрывать часть или всю шляпу
+ * при надевании профессионального головного убора.
  */
+@Environment(EnvType.CLIENT)
 public record VillagerResourceMetadata(VillagerResourceMetadata.HatType hatType) {
 
 	public static final Codec<VillagerResourceMetadata> CODEC = RecordCodecBuilder.create(
@@ -21,31 +25,32 @@ public record VillagerResourceMetadata(VillagerResourceMetadata.HatType hatType)
 			                    )
 			                    .apply(instance, VillagerResourceMetadata::new)
 	);
-	public static final ResourceMetadataSerializer<VillagerResourceMetadata>
-			SERIALIZER =
+
+	public static final ResourceMetadataSerializer<VillagerResourceMetadata> SERIALIZER =
 			new ResourceMetadataSerializer<>("villager", CODEC);
 
+	/** Режим отображения шляпы жителя при наличии профессионального головного убора. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code HatType}.
-	 */
-	public static enum HatType implements StringIdentifiable {
+	public enum HatType implements StringIdentifiable {
+		/** Шляпа отображается полностью. */
 		NONE("none"),
+		/** Верхняя часть шляпы скрыта. */
 		PARTIAL("partial"),
+		/** Шляпа полностью скрыта. */
 		FULL("full");
 
-		public static final Codec<VillagerResourceMetadata.HatType>
-				CODEC =
+		public static final Codec<VillagerResourceMetadata.HatType> CODEC =
 				StringIdentifiable.createCodec(VillagerResourceMetadata.HatType::values);
+
 		private final String name;
 
-		private HatType(final String name) {
+		HatType(final String name) {
 			this.name = name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

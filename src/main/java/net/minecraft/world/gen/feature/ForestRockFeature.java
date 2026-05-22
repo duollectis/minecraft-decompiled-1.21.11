@@ -8,9 +8,13 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code ForestRockFeature}.
+ * Генерирует небольшой каменный валун в лесу: 3 итерации случайных эллипсоидов,
+ * каждый раз смещая центр вниз и в сторону, создавая органичную форму.
  */
 public class ForestRockFeature extends Feature<SingleStateFeatureConfig> {
+
+	private static final int BOULDER_ITERATIONS = 3;
+	private static final int MIN_Y_OFFSET_FROM_BOTTOM = 3;
 
 	public ForestRockFeature(Codec<SingleStateFeatureConfig> codec) {
 		super(codec);
@@ -18,42 +22,45 @@ public class ForestRockFeature extends Feature<SingleStateFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<SingleStateFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos pos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
+		SingleStateFeatureConfig config = context.getConfig();
 
-		SingleStateFeatureConfig singleStateFeatureConfig;
-		for (singleStateFeatureConfig = context.getConfig();
-		     blockPos.getY() > structureWorldAccess.getBottomY() + 3;
-		     blockPos = blockPos.down()) {
-			if (!structureWorldAccess.isAir(blockPos.down())) {
-				BlockState blockState = structureWorldAccess.getBlockState(blockPos.down());
-				if (isSoil(blockState) || isStone(blockState)) {
-					break;
-				}
+		while (pos.getY() > world.getBottomY() + MIN_Y_OFFSET_FROM_BOTTOM) {
+			if (world.isAir(pos.down())) {
+				pos = pos.down();
+				continue;
 			}
+
+			BlockState below = world.getBlockState(pos.down());
+
+			if (isSoil(below) || isStone(below)) {
+				break;
+			}
+
+			pos = pos.down();
 		}
 
-		if (blockPos.getY() <= structureWorldAccess.getBottomY() + 3) {
+		if (pos.getY() <= world.getBottomY() + MIN_Y_OFFSET_FROM_BOTTOM) {
 			return false;
 		}
-		else {
-			for (int i = 0; i < 3; i++) {
-				int j = random.nextInt(2);
-				int k = random.nextInt(2);
-				int l = random.nextInt(2);
-				float f = (j + k + l) * 0.333F + 0.5F;
 
-				for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-j, -k, -l), blockPos.add(j, k, l))) {
-					if (blockPos2.getSquaredDistance(blockPos) <= f * f) {
-						structureWorldAccess.setBlockState(blockPos2, singleStateFeatureConfig.state, 3);
-					}
+		for (int iteration = 0; iteration < BOULDER_ITERATIONS; iteration++) {
+			int rx = random.nextInt(2);
+			int ry = random.nextInt(2);
+			int rz = random.nextInt(2);
+			float radius = (rx + ry + rz) * 0.333F + 0.5F;
+
+			for (BlockPos candidate : BlockPos.iterate(pos.add(-rx, -ry, -rz), pos.add(rx, ry, rz))) {
+				if (candidate.getSquaredDistance(pos) <= radius * radius) {
+					world.setBlockState(candidate, config.state, 3);
 				}
-
-				blockPos = blockPos.add(-1 + random.nextInt(2), -random.nextInt(2), -1 + random.nextInt(2));
 			}
 
-			return true;
+			pos = pos.add(-1 + random.nextInt(2), -random.nextInt(2), -1 + random.nextInt(2));
 		}
+
+		return true;
 	}
 }

@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code BreezeAttackablesSensor}.
+ * Сенсор поиска ближайшей атакуемой цели для Бриза.
+ * Расширяет базовый сенсор живых существ, добавляя поиск ближайшей атакуемой цели
+ * среди не-творческих и не-зрительских игроков.
  */
 public class BreezeAttackablesSensor extends NearestLivingEntitiesSensor<BreezeEntity> {
 
@@ -24,24 +26,19 @@ public class BreezeAttackablesSensor extends NearestLivingEntitiesSensor<BreezeE
 		));
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 */
-	protected void sense(ServerWorld serverWorld, BreezeEntity breezeEntity) {
-		super.sense(serverWorld, breezeEntity);
-		breezeEntity.getBrain()
-		            .getOptionalRegisteredMemory(MemoryModuleType.MOBS)
-		            .stream()
-		            .flatMap(Collection::stream)
-		            .filter(EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR)
-		            .filter(target -> Sensor.testAttackableTargetPredicate(serverWorld, breezeEntity, target))
-		            .findFirst()
-		            .ifPresentOrElse(
-				            target -> breezeEntity.getBrain().remember(MemoryModuleType.NEAREST_ATTACKABLE, target),
-				            () -> breezeEntity.getBrain().forget(MemoryModuleType.NEAREST_ATTACKABLE)
-		            );
+	@Override
+	protected void sense(ServerWorld world, BreezeEntity entity) {
+		super.sense(world, entity);
+		entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.MOBS)
+				.stream()
+				.flatMap(Collection::stream)
+				.filter(EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR)
+				.filter(target -> Sensor.testAttackableTargetPredicate(world, entity, target))
+				.findFirst()
+				.ifPresentOrElse(
+						target -> entity.getBrain().remember(MemoryModuleType.NEAREST_ATTACKABLE, target),
+						() -> entity.getBrain().forget(MemoryModuleType.NEAREST_ATTACKABLE)
+				);
 	}
 }

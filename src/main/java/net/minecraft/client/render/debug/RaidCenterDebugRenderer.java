@@ -56,7 +56,7 @@ public class RaidCenterDebugRenderer implements DebugRenderer.Renderer {
 
 	private static void drawString(String text, BlockPos pos, int color) {
 		GizmoDrawing
-				.text(text, Vec3d.add(pos, 0.5, 1.3, 0.5), TextGizmo.Style.centered(color).scaled(0.64F))
+				.text(text, Vec3d.add(pos, 0.5, 1.3, 0.5), TextGizmo.Style.centered(color).scaled(DRAWN_STRING_SIZE))
 				.ignoreOcclusion();
 	}
 

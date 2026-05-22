@@ -2,7 +2,6 @@ package net.minecraft.datafixer.fix;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.DataFix;
 import com.mojang.datafixers.DataFixUtils;
@@ -20,9 +19,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashMap;
 
 /**
- * {@code StatsCounterFix}.
+ * Исправление DataFixer, которое мигрирует формат статистики игрока с плоского
+ * строкового ключа (например, {@code stat.mineBlock.minecraft.stone}) на
+ * иерархическую структуру с категорией и ключом (например, {@code minecraft:mined / minecraft:stone}).
+ * <p>
+ * Выполняется в два прохода: первый конвертирует сами счётчики статистики,
+ * второй обновляет поле {@code CriteriaName} в целях скорборда.
  */
 public class StatsCounterFix extends DataFix {
 
@@ -365,49 +370,55 @@ public class StatsCounterFix extends DataFix {
 		super(schema, bl);
 	}
 
-	private static StatsCounterFix.@Nullable Stat rename(String old) {
-		if (REMOVED_STATS.contains(old)) {
+	/**
+	 * Конвертирует старый строковый ключ статистики в новую структуру {@link Stat}.
+	 * Возвращает {@code null}, если статистика удалена или не распознана.
+	 *
+	 * @param oldKey старый ключ статистики в формате {@code stat.category.namespace.key}
+	 * @return новая структура статистики или {@code null}
+	 */
+	private static StatsCounterFix.@Nullable Stat rename(String oldKey) {
+		if (REMOVED_STATS.contains(oldKey)) {
 			return null;
 		}
-		else {
-			String string = RENAMED_GENERAL_STATS.get(old);
-			if (string != null) {
-				return new StatsCounterFix.Stat("minecraft:custom", string);
-			}
-			else {
-				int i = StringUtils.ordinalIndexOf(old, ".", 2);
-				if (i < 0) {
-					return null;
-				}
-				else {
-					String string2 = old.substring(0, i);
-					if ("stat.mineBlock".equals(string2)) {
-						String string3 = getBlock(old.substring(i + 1).replace('.', ':'));
-						return new StatsCounterFix.Stat("minecraft:mined", string3);
-					}
-					else {
-						String string3 = RENAMED_ITEM_STATS.get(string2);
-						if (string3 != null) {
-							String string4 = old.substring(i + 1).replace('.', ':');
-							String string5 = getItem(string4);
-							String string6 = string5 == null ? string4 : string5;
-							return new StatsCounterFix.Stat(string3, string6);
-						}
-						else {
-							String string4 = RENAMED_ENTITY_STATS.get(string2);
-							if (string4 != null) {
-								String string5 = old.substring(i + 1).replace('.', ':');
-								String string6 = RENAMED_ENTITIES.getOrDefault(string5, string5);
-								return new StatsCounterFix.Stat(string4, string6);
-							}
-							else {
-								return null;
-							}
-						}
-					}
-				}
-			}
+
+		String renamedGeneral = RENAMED_GENERAL_STATS.get(oldKey);
+
+		if (renamedGeneral != null) {
+			return new StatsCounterFix.Stat(CUSTOM, renamedGeneral);
 		}
+
+		int secondDotIndex = StringUtils.ordinalIndexOf(oldKey, ".", 2);
+
+		if (secondDotIndex < 0) {
+			return null;
+		}
+
+		String category = oldKey.substring(0, secondDotIndex);
+		String rawSubKey = oldKey.substring(secondDotIndex + 1).replace('.', ':');
+
+		if ("stat.mineBlock".equals(category)) {
+			return new StatsCounterFix.Stat("minecraft:mined", getBlock(rawSubKey));
+		}
+
+		String itemStatCategory = RENAMED_ITEM_STATS.get(category);
+
+		if (itemStatCategory != null) {
+			String resolvedItem = getItem(rawSubKey);
+			String itemKey = resolvedItem == null ? rawSubKey : resolvedItem;
+
+			return new StatsCounterFix.Stat(itemStatCategory, itemKey);
+		}
+
+		String entityStatCategory = RENAMED_ENTITY_STATS.get(category);
+
+		if (entityStatCategory != null) {
+			String entityKey = RENAMED_ENTITIES.getOrDefault(rawSubKey, rawSubKey);
+
+			return new StatsCounterFix.Stat(entityStatCategory, entityKey);
+		}
+
+		return null;
 	}
 
 	public TypeRewriteRule makeRule() {
@@ -415,12 +426,12 @@ public class StatsCounterFix extends DataFix {
 	}
 
 	private TypeRewriteRule makeFirstRoundRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.STATS);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.STATS);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.STATS);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.STATS);
+		return fixTypeEverywhereTyped(
 				"StatsCounterFix", type, type2, statsTyped -> {
 					Dynamic<?> dynamic = (Dynamic<?>) statsTyped.get(DSL.remainderFinder());
-					Map<Dynamic<?>, Dynamic<?>> map = Maps.newHashMap();
+					Map<Dynamic<?>, Dynamic<?>> map = new HashMap<>();
 					Optional<? extends Map<? extends Dynamic<?>, ? extends Dynamic<?>>>
 							optional =
 							dynamic.getMapValues().result();
@@ -446,9 +457,9 @@ public class StatsCounterFix extends DataFix {
 	}
 
 	private TypeRewriteRule makeSecondRoundRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.OBJECTIVE);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.OBJECTIVE);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.OBJECTIVE);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.OBJECTIVE);
+		return fixTypeEverywhereTyped(
 				"ObjectiveStatFix",
 				type,
 				type2,
@@ -482,7 +493,7 @@ public class StatsCounterFix extends DataFix {
 	}
 
 	/**
-	 * {@code Stat}.
+	 * Иммутабельная запись, представляющая мигрированную статистику: категорию и ключ.
 	 */
 	record Stat(String type, String typeKey) {
 	}

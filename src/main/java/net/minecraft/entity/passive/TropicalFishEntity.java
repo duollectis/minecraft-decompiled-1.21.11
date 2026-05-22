@@ -47,7 +47,8 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
- * {@code TropicalFishEntity}.
+ * Тропическая рыба — стайная рыба с 22 предустановленными вариантами окраски.
+ * Цвет и форма тела кодируются в одном целом числе {@code VARIANT}.
  */
 public class TropicalFishEntity extends SchoolingFishEntity {
 
@@ -303,8 +304,8 @@ public class TropicalFishEntity extends SchoolingFishEntity {
 	}
 
 	/**
-	 * {@code Pattern}.
-	 */
+ * Форма тела тропической рыбы: маленькая или большая.
+ */
 	public static enum Pattern implements StringIdentifiable, TooltipAppender {
 		KOB("kob", TropicalFishEntity.Size.SMALL, 0),
 		SUNSTREAK("sunstreak", TropicalFishEntity.Size.SMALL, 1),
@@ -409,8 +410,8 @@ public class TropicalFishEntity extends SchoolingFishEntity {
 	}
 
 	/**
-	 * {@code Size}.
-	 */
+ * Предустановленный вариант тропической рыбы с именем и цветом.
+ */
 	public static enum Size {
 		SMALL(0),
 		LARGE(1);
@@ -423,8 +424,8 @@ public class TropicalFishEntity extends SchoolingFishEntity {
 	}
 
 	/**
-	 * {@code TropicalFishData}.
-	 */
+ * Данные спавна тропической рыбы: хранит вариант окраски.
+ */
 	static class TropicalFishData extends SchoolingFishEntity.FishData {
 
 		final TropicalFishEntity.Variant variant;
@@ -436,8 +437,8 @@ public class TropicalFishEntity extends SchoolingFishEntity {
 	}
 
 	/**
-	 * {@code Variant}.
-	 */
+ * Данные тропической рыбы для сериализации.
+ */
 	public record Variant(TropicalFishEntity.Pattern pattern, DyeColor baseColor, DyeColor patternColor) {
 
 		public static final Codec<TropicalFishEntity.Variant>

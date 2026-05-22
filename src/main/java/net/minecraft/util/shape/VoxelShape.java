@@ -15,7 +15,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code VoxelShape}.
+ * Форма вокселя для физики и рендеринга коллизий блоков.
+ * Обёртка над {@link VoxelSet}, предоставляющая методы для вычисления
+ * пересечений, лучевого каста и итерации по граням и рёбрам формы.
  */
 public abstract class VoxelShape {
 

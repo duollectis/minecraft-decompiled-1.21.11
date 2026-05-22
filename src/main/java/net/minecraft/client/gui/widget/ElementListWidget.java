@@ -20,87 +20,90 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ElementListWidget}.
+ * Список с записями, каждая из которых может содержать несколько интерактивных дочерних элементов.
+ * Расширяет {@link EntryListWidget}, добавляя поддержку горизонтальной навигации внутри записей
+ * и делегирование фокуса дочерним виджетам через {@link ParentElement}.
+ *
+ * @param <E> тип записи списка
  */
+@Environment(EnvType.CLIENT)
 public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> extends EntryListWidget<E> {
 
-	public ElementListWidget(MinecraftClient minecraftClient, int i, int j, int k, int l) {
-		super(minecraftClient, i, j, k, l);
+	public ElementListWidget(MinecraftClient client, int width, int height, int y, int itemHeight) {
+		super(client, width, height, y, itemHeight);
 	}
 
 	@Override
 	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-		if (this.getEntryCount() == 0) {
+		if (getEntryCount() == 0) {
 			return null;
 		}
-		else if (!(navigation instanceof GuiNavigation.Arrow arrow)) {
+
+		if (!(navigation instanceof GuiNavigation.Arrow arrow)) {
 			return super.getNavigationPath(navigation);
 		}
-		else {
-			E entry = this.getFocused();
-			if (arrow.direction().getAxis() == NavigationAxis.HORIZONTAL && entry != null) {
-				return GuiNavigationPath.of(this, entry.getNavigationPath(navigation));
-			}
-			else {
-				int i = -1;
-				NavigationDirection navigationDirection = arrow.direction();
-				if (entry != null) {
-					i = entry.children().indexOf(entry.getFocused());
-				}
 
-				if (i == -1) {
-					switch (navigationDirection) {
-						case LEFT:
-							i = Integer.MAX_VALUE;
-							navigationDirection = NavigationDirection.DOWN;
-							break;
-						case RIGHT:
-							i = 0;
-							navigationDirection = NavigationDirection.DOWN;
-							break;
-						default:
-							i = 0;
-					}
-				}
-
-				E entry2 = entry;
-
-				GuiNavigationPath guiNavigationPath;
-				do {
-					entry2 =
-							this.getNeighboringEntry(
-									navigationDirection,
-									element -> !element.children().isEmpty(),
-									entry2
-							);
-					if (entry2 == null) {
-						return null;
-					}
-
-					guiNavigationPath = entry2.getNavigationPath(arrow, i);
-				}
-				while (guiNavigationPath == null);
-
-				return GuiNavigationPath.of(this, guiNavigationPath);
-			}
+		E focused = getFocused();
+		if (arrow.direction().getAxis() == NavigationAxis.HORIZONTAL && focused != null) {
+			return GuiNavigationPath.of(this, focused.getNavigationPath(navigation));
 		}
+
+		int childIndex = -1;
+		NavigationDirection direction = arrow.direction();
+		if (focused != null) {
+			childIndex = focused.children().indexOf(focused.getFocused());
+		}
+
+		if (childIndex == -1) {
+			childIndex = switch (direction) {
+				case LEFT -> {
+					direction = NavigationDirection.DOWN;
+					yield Integer.MAX_VALUE;
+				}
+				case RIGHT -> {
+					direction = NavigationDirection.DOWN;
+					yield 0;
+				}
+				default -> 0;
+			};
+		}
+
+		E candidate = focused;
+		GuiNavigationPath path;
+		final NavigationDirection finalDirection = direction;
+		final int finalChildIndex = childIndex;
+		do {
+			candidate = getNeighboringEntry(
+					finalDirection,
+					element -> !element.children().isEmpty(),
+					candidate
+			);
+			if (candidate == null) {
+				return null;
+			}
+
+			path = candidate.getNavigationPath(arrow, finalChildIndex);
+		} while (path == null);
+
+		return GuiNavigationPath.of(this, path);
 	}
 
 	@Override
 	public void setFocused(@Nullable Element focused) {
-		if (this.getFocused() != focused) {
-			super.setFocused(focused);
-			if (focused == null) {
-				this.setSelected(null);
-			}
+		if (getFocused() == focused) {
+			return;
+		}
+
+		super.setFocused(focused);
+		if (focused == null) {
+			setSelected(null);
 		}
 	}
 
 	@Override
 	public Selectable.SelectionType getType() {
-		return this.isFocused() ? Selectable.SelectionType.FOCUSED : super.getType();
+		return isFocused() ? Selectable.SelectionType.FOCUSED : super.getType();
 	}
 
 	@Override
@@ -110,20 +113,22 @@ public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> ex
 
 	@Override
 	public void appendClickableNarrations(NarrationMessageBuilder builder) {
-		if (this.getHoveredEntry() instanceof E entry) {
+		if (getHoveredEntry() instanceof E entry) {
 			entry.appendNarrations(builder.nextMessage());
-			this.appendNarrations(builder, entry);
-		}
-		else if (this.getFocused() instanceof E entry2) {
-			entry2.appendNarrations(builder.nextMessage());
-			this.appendNarrations(builder, entry2);
+			appendNarrations(builder, entry);
+		} else if (getFocused() instanceof E entry) {
+			entry.appendNarrations(builder.nextMessage());
+			appendNarrations(builder, entry);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Базовая запись для {@link ElementListWidget}, поддерживающая дочерние интерактивные элементы.
+	 * Реализует {@link ParentElement} для делегирования фокуса и навигации вложенным виджетам.
+	 *
+	 * @param <E> тип записи
 	 */
+	@Environment(EnvType.CLIENT)
 	public abstract static class Entry<E extends ElementListWidget.Entry<E>> extends EntryListWidget.Entry<E> implements ParentElement {
 
 		private @Nullable Element focused;
@@ -132,7 +137,7 @@ public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> ex
 
 		@Override
 		public boolean isDragging() {
-			return this.dragging;
+			return dragging;
 		}
 
 		@Override
@@ -160,40 +165,46 @@ public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> ex
 
 		@Override
 		public @Nullable Element getFocused() {
-			return this.focused;
+			return focused;
 		}
 
+		/**
+		 * Возвращает путь навигации к дочернему элементу по заданному индексу.
+		 * Используется при горизонтальной навигации между записями списка.
+		 *
+		 * @param navigation навигационное событие
+		 * @param index индекс дочернего элемента, к которому нужно перейти
+		 * @return путь навигации или {@code null}, если дочерних элементов нет
+		 */
 		public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation, int index) {
-			if (this.children().isEmpty()) {
+			if (children().isEmpty()) {
 				return null;
 			}
-			else {
-				GuiNavigationPath
-						guiNavigationPath =
-						this.children().get(Math.min(index, this.children().size() - 1)).getNavigationPath(navigation);
-				return GuiNavigationPath.of(this, guiNavigationPath);
-			}
+
+			GuiNavigationPath path = children()
+					.get(Math.min(index, children().size() - 1))
+					.getNavigationPath(navigation);
+			return GuiNavigationPath.of(this, path);
 		}
 
 		@Override
 		public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
 			if (navigation instanceof GuiNavigation.Arrow arrow) {
-				int i = switch (arrow.direction()) {
+				int step = switch (arrow.direction()) {
 					case LEFT -> -1;
 					case RIGHT -> 1;
 					case UP, DOWN -> 0;
 				};
-				if (i == 0) {
+				if (step == 0) {
 					return null;
 				}
 
-				int j = MathHelper.clamp(i + this.children().indexOf(this.getFocused()), 0, this.children().size() - 1);
-
-				for (int k = j; k >= 0 && k < this.children().size(); k += i) {
-					Element element = this.children().get(k);
-					GuiNavigationPath guiNavigationPath = element.getNavigationPath(navigation);
-					if (guiNavigationPath != null) {
-						return GuiNavigationPath.of(this, guiNavigationPath);
+				int startIndex = MathHelper.clamp(step + children().indexOf(getFocused()), 0, children().size() - 1);
+				for (int index = startIndex; index >= 0 && index < children().size(); index += step) {
+					Element element = children().get(index);
+					GuiNavigationPath path = element.getNavigationPath(navigation);
+					if (path != null) {
+						return GuiNavigationPath.of(this, path);
 					}
 				}
 			}
@@ -201,35 +212,31 @@ public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> ex
 			return ParentElement.super.getNavigationPath(navigation);
 		}
 
-		/**
-		 * Selectable children.
-		 *
-		 * @return List — результат операции
-		 */
 		public abstract List<? extends Selectable> selectableChildren();
 
 		void appendNarrations(NarrationMessageBuilder builder) {
-			List<? extends Selectable> list = this.selectableChildren();
-			Screen.SelectedElementNarrationData
-					selectedElementNarrationData =
-					Screen.findSelectedElementData(list, this.focusedSelectable);
-			if (selectedElementNarrationData != null) {
-				if (selectedElementNarrationData.selectType().isFocused()) {
-					this.focusedSelectable = selectedElementNarrationData.selectable();
-				}
-
-				if (list.size() > 1) {
-					builder.put(NarrationPart.POSITION,
-							Text.translatable(
-									"narrator.position.object_list",
-									selectedElementNarrationData.index() + 1,
-									list.size()
-							)
-					);
-				}
-
-				selectedElementNarrationData.selectable().appendNarrations(builder.nextMessage());
+			List<? extends Selectable> selectables = selectableChildren();
+			Screen.SelectedElementNarrationData narrationData = Screen.findSelectedElementData(selectables, focusedSelectable);
+			if (narrationData == null) {
+				return;
 			}
+
+			if (narrationData.selectType().isFocused()) {
+				focusedSelectable = narrationData.selectable();
+			}
+
+			if (selectables.size() > 1) {
+				builder.put(
+						NarrationPart.POSITION,
+						Text.translatable(
+								"narrator.position.object_list",
+								narrationData.index() + 1,
+								selectables.size()
+						)
+				);
+			}
+
+			narrationData.selectable().appendNarrations(builder.nextMessage());
 		}
 	}
 }

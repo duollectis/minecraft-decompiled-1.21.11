@@ -7,10 +7,16 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code Palette}.
+ * Палитра — отображение между компактными целочисленными идентификаторами
+ * и реальными объектами (блок-стейтами, биомами и т.д.).
+ * Используется внутри {@link PalettedContainer} для сжатого хранения данных секций.
  */
 public interface Palette<T> {
 
+	/**
+	 * Возвращает числовой идентификатор объекта в палитре.
+	 * Если объект отсутствует — добавляет его; при переполнении вызывает {@code listener}.
+	 */
 	int index(T object, PaletteResizeListener<T> listener);
 
 	boolean hasAny(Predicate<T> predicate);
@@ -27,10 +33,8 @@ public interface Palette<T> {
 
 	Palette<T> copy();
 
-	/**
-	 * {@code Factory}.
-	 */
-	public interface Factory {
+	/** Фабрика для создания конкретных реализаций палитры. */
+	interface Factory {
 
 		<A> Palette<A> create(int bits, List<A> values);
 	}

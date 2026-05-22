@@ -14,7 +14,7 @@ import net.minecraft.entity.ai.brain.task.*;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
 /**
- * {@code TadpoleBrain}.
+ * Мозг головастика: регистрирует сенсоры и задачи поведения.
  */
 public class TadpoleBrain {
 
@@ -62,7 +62,7 @@ public class TadpoleBrain {
 										UniformIntProvider.create(30, 60)
 								)
 						),
-						Pair.of(1, new TemptTask(livingEntity -> 1.25F)),
+						Pair.of(1, new TemptTask(livingEntity -> TEMPT_SPEED)),
 						Pair.of(
 								2,
 								new CompositeTask(

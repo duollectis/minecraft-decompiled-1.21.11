@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@code ActivityNotifier}.
+ * Класс Activity Notifier.
  */
 public class ActivityNotifier {
 

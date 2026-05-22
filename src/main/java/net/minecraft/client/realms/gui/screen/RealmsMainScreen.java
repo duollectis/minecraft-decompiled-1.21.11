@@ -53,10 +53,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsMainScreen}.
+ * Главный экран Realms — отображает список серверов, уведомления и кнопки управления.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsMainScreen extends RealmsScreen {
 
 	static final Identifier INFO_ICON_TEXTURE = Identifier.ofVanilla("icon/info");
@@ -103,6 +103,7 @@ public class RealmsMainScreen extends RealmsScreen {
 	private static final int ICON_PADDING = 11;
 	private static final int NEW_REALM_ICON_WIDTH = 40;
 	private static final int NEW_REALM_ICON_HEIGHT = 20;
+	private static final int HEADER_SIDE_WIDTH = 90;
 	private static final boolean GAME_ON_SNAPSHOT = !SharedConstants.getGameVersion().stable();
 	private static boolean showingSnapshotRealms = GAME_ON_SNAPSHOT;
 	private final CompletableFuture<RealmsAvailability.Info> availabilityInfo = RealmsAvailability.check();
@@ -162,34 +163,34 @@ public class RealmsMainScreen extends RealmsScreen {
 		}, text2
 		);
 		this.playButton =
-				ButtonWidget.builder(PLAY_TEXT, button -> play(this.getSelectedServer(), this)).width(100).build();
+				ButtonWidget.builder(PLAY_TEXT, button -> play(this.getSelectedServer(), this)).width(BUTTON_WIDTH).build();
 		this.configureButton =
 				ButtonWidget
 						.builder(CONFIGURE_TEXT, button -> this.configureClicked(this.getSelectedServer()))
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build();
 		this.renewButton =
 				ButtonWidget
 						.builder(EXPIRED_RENEW_TEXT, button -> this.onRenew(this.getSelectedServer()))
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build();
 		this.leaveButton =
 				ButtonWidget
 						.builder(LEAVE_TEXT, button -> this.leaveClicked(this.getSelectedServer()))
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build();
 		this.purchaseButton =
 				ButtonWidget
 						.builder(Text.translatable("mco.selectServer.purchase"), button -> this.showBuyRealmsScreen())
-						.size(100, 20)
+						.size(BUTTON_WIDTH, 20)
 						.build();
-		this.backButton = ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).width(100).build();
+		this.backButton = ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).width(BUTTON_WIDTH).build();
 		if (RealmsClient.ENVIRONMENT == RealmsClient.Environment.STAGE) {
 			this.addDrawableChild(
 					CyclingButtonWidget
 							.onOffBuilder(Text.literal("Snapshot"), Text.literal("Release"), showingSnapshotRealms)
 							.build(
-									5, 5, 100, 20, Text.literal("Realm"), (button, snapshot) -> {
+									5, 5, BUTTON_WIDTH, NEW_REALM_ICON_HEIGHT, Text.literal("Realm"), (button, snapshot) -> {
 										showingSnapshotRealms = snapshot;
 										this.availableSnapshotServers = List.of();
 										this.resetPeriodicCheckers();
@@ -214,6 +215,10 @@ public class RealmsMainScreen extends RealmsScreen {
 		);
 	}
 
+	/**
+	 * Проверяет, должен ли экран показывать снапшот-серверы Realms.
+	 * Возвращает {@code true} только если текущая версия игры нестабильна и пользователь включил режим снапшота.
+	 */
 	public static boolean isSnapshotRealmsEligible() {
 		return GAME_ON_SNAPSHOT && showingSnapshotRealms;
 	}
@@ -231,6 +236,10 @@ public class RealmsMainScreen extends RealmsScreen {
 		this.client.setScreen(this.parent);
 	}
 
+	/**
+	 * Определяет текущий статус загрузки на основе наличия серверов и уведомлений,
+	 * переключая экран между состояниями {@code NO_REALMS} и {@code LIST}.
+	 */
 	private void updateLoadStatus() {
 		if (this.serverFilterer.isEmpty() && this.availableSnapshotServers.isEmpty() && this.notifications.isEmpty()) {
 			this.onLoadStatusChange(RealmsMainScreen.LoadStatus.NO_REALMS);
@@ -240,6 +249,10 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Перестраивает весь layout экрана при смене статуса загрузки.
+	 * Удаляет старые виджеты, создаёт новый layout и регистрирует дочерние виджеты.
+	 */
 	private void onLoadStatusChange(RealmsMainScreen.LoadStatus loadStatus) {
 		if (this.loadStatus != loadStatus) {
 			if (this.layout != null) {
@@ -255,9 +268,13 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Создаёт трёхчастный layout (шапка / тело / подвал) для заданного статуса загрузки.
+	 * Тело варьируется: спиннер загрузки, заглушка «нет серверов» или список серверов.
+	 */
 	private ThreePartsLayoutWidget makeLayoutFor(RealmsMainScreen.LoadStatus loadStatus) {
 		ThreePartsLayoutWidget threePartsLayoutWidget = new ThreePartsLayoutWidget(this);
-		threePartsLayoutWidget.setHeaderHeight(44);
+		threePartsLayoutWidget.setHeaderHeight(LIST_ENTRY_HEIGHT);
 		threePartsLayoutWidget.addHeader(this.makeHeader());
 		LayoutWidget layoutWidget = this.makeInnerLayout(loadStatus);
 		layoutWidget.refreshPositions();
@@ -277,22 +294,29 @@ public class RealmsMainScreen extends RealmsScreen {
 		return threePartsLayoutWidget;
 	}
 
+	/**
+	 * Строит горизонтальный layout шапки: логотип Realms по центру,
+	 * кнопки приглашений и новостей выровнены по правому краю.
+	 */
 	private LayoutWidget makeHeader() {
-		int i = 90;
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(4);
-		directionalLayoutWidget.getMainPositioner().alignVerticalCenter();
-		directionalLayoutWidget.add(this.inviteButton);
-		directionalLayoutWidget.add(this.newsButton);
-		DirectionalLayoutWidget directionalLayoutWidget2 = DirectionalLayoutWidget.horizontal();
-		directionalLayoutWidget2.getMainPositioner().alignVerticalCenter();
-		directionalLayoutWidget2.add(EmptyWidget.ofWidth(90));
-		directionalLayoutWidget2.add(createRealmsLogoIconWidget(), Positioner::alignHorizontalCenter);
-		directionalLayoutWidget2
-				.add(new SimplePositioningWidget(90, 44))
-				.add(directionalLayoutWidget, Positioner::alignRight);
-		return directionalLayoutWidget2;
+		DirectionalLayoutWidget iconsLayout = DirectionalLayoutWidget.horizontal().spacing(4);
+		iconsLayout.getMainPositioner().alignVerticalCenter();
+		iconsLayout.add(this.inviteButton);
+		iconsLayout.add(this.newsButton);
+		DirectionalLayoutWidget headerLayout = DirectionalLayoutWidget.horizontal();
+		headerLayout.getMainPositioner().alignVerticalCenter();
+		headerLayout.add(EmptyWidget.ofWidth(HEADER_SIDE_WIDTH));
+		headerLayout.add(createRealmsLogoIconWidget(), Positioner::alignHorizontalCenter);
+		headerLayout
+				.add(new SimplePositioningWidget(HEADER_SIDE_WIDTH, LIST_ENTRY_HEIGHT))
+				.add(iconsLayout, Positioner::alignRight);
+		return headerLayout;
 	}
 
+	/**
+	 * Строит сетку кнопок подвала. В режиме {@code LIST} добавляются кнопки
+	 * «Играть», «Настроить», «Продлить», «Покинуть»; в остальных — только «Купить» и «Назад».
+	 */
 	private LayoutWidget makeInnerLayout(RealmsMainScreen.LoadStatus loadStatus) {
 		GridWidget gridWidget = new GridWidget().setSpacing(4);
 		GridWidget.Adder adder = gridWidget.createAdder(3);
@@ -308,13 +332,16 @@ public class RealmsMainScreen extends RealmsScreen {
 		return gridWidget;
 	}
 
+	/**
+	 * Создаёт вертикальный layout-заглушку для случая, когда у игрока нет серверов Realms.
+	 */
 	private DirectionalLayoutWidget makeNoRealmsLayout() {
 		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.vertical().spacing(8);
 		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
 		directionalLayoutWidget.add(IconWidget.create(130, 64, NO_REALMS_TEXTURE, 130, 64));
 		directionalLayoutWidget.add(
 				NarratedMultilineTextWidget.builder(NO_REALMS_TEXT, this.textRenderer)
-				                           .width(308)
+				                           .width(SERVER_LIST_WIDTH)
 				                           .alwaysShowBorders(false)
 				                           .backgroundRendering(NarratedMultilineTextWidget.BackgroundRendering.ON_FOCUS)
 				                           .build()
@@ -322,28 +349,35 @@ public class RealmsMainScreen extends RealmsScreen {
 		return directionalLayoutWidget;
 	}
 
+	/**
+	 * Обновляет состояние активности кнопок управления сервером в зависимости
+	 * от выбранного сервера и его текущего состояния (истёк, закрыт, чужой и т.д.).
+	 */
 	void refreshButtons() {
 		RealmsServer realmsServer = this.getSelectedServer();
-		boolean bl = realmsServer != null;
+		boolean serverSelected = realmsServer != null;
 		this.purchaseButton.active = this.loadStatus != RealmsMainScreen.LoadStatus.LOADING;
-		this.playButton.active = bl && realmsServer.shouldAllowPlay();
-		if (!this.playButton.active && bl && realmsServer.state == RealmsServer.State.CLOSED) {
+		this.playButton.active = serverSelected && realmsServer.shouldAllowPlay();
+		if (!this.playButton.active && serverSelected && realmsServer.state == RealmsServer.State.CLOSED) {
 			this.playButton.setTooltip(Tooltip.of(RealmsServer.REALM_CLOSED_TEXT));
 		}
 
-		this.renewButton.active = bl && this.shouldRenewButtonBeActive(realmsServer);
-		this.leaveButton.active = bl && this.shouldLeaveButtonBeActive(realmsServer);
-		this.configureButton.active = bl && this.shouldConfigureButtonBeActive(realmsServer);
+		this.renewButton.active = serverSelected && this.shouldRenewButtonBeActive(realmsServer);
+		this.leaveButton.active = serverSelected && this.shouldLeaveButtonBeActive(realmsServer);
+		this.configureButton.active = serverSelected && this.shouldConfigureButtonBeActive(realmsServer);
 	}
 
+	/** Кнопка «Продлить» активна только для собственных истёкших серверов. */
 	private boolean shouldRenewButtonBeActive(RealmsServer server) {
 		return server.expired && isSelfOwnedServer(server);
 	}
 
+	/** Кнопка «Настроить» активна только для собственных инициализированных серверов. */
 	private boolean shouldConfigureButtonBeActive(RealmsServer server) {
 		return isSelfOwnedServer(server) && server.state != RealmsServer.State.UNINITIALIZED;
 	}
 
+	/** Кнопка «Покинуть» активна только для чужих серверов (не владелец). */
 	private boolean shouldLeaveButtonBeActive(RealmsServer server) {
 		return !isSelfOwnedServer(server);
 	}
@@ -356,20 +390,18 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
-	/**
-	 * Сбрасывает pending invites count.
-	 */
 	public static void resetPendingInvitesCount() {
 		MinecraftClient.getInstance().getRealmsPeriodicCheckers().pendingInvitesCount.reset();
 	}
 
-	/**
-	 * Сбрасывает server list.
-	 */
 	public static void resetServerList() {
 		MinecraftClient.getInstance().getRealmsPeriodicCheckers().serverList.reset();
 	}
 
+	/**
+	 * Сбрасывает все периодические проверки Realms, чтобы они немедленно
+	 * выполнились заново при следующем тике (используется при переключении режима снапшота).
+	 */
 	private void resetPeriodicCheckers() {
 		for (PeriodicRunnerFactory.PeriodicRunner<?> periodicRunner : this.client
 				.getRealmsPeriodicCheckers()
@@ -378,6 +410,11 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Регистрирует все периодические задачи Realms: обновление списка серверов,
+	 * уведомлений, приглашений, новостей и онлайн-игроков. Пинг регионов запускается
+	 * однократно при первом обнаружении собственного активного сервера.
+	 */
 	private PeriodicRunnerFactory.RunnersManager createPeriodicRunnersManager(RealmsPeriodicCheckers periodicCheckers) {
 		PeriodicRunnerFactory.RunnersManager runnersManager = periodicCheckers.runnerFactory.create();
 		runnersManager.add(
@@ -385,15 +422,15 @@ public class RealmsMainScreen extends RealmsScreen {
 					this.serverFilterer.filterAndSort(availableServers.serverList());
 					this.availableSnapshotServers = availableServers.availableSnapshotServers();
 					this.refresh();
-					boolean bl = false;
+					boolean hasOwnedServer = false;
 
 					for (RealmsServer realmsServer : this.serverFilterer) {
 						if (this.isOwnedNotExpired(realmsServer)) {
-							bl = true;
+							hasOwnedServer = true;
 						}
 					}
 
-					if (!regionsPinged && bl) {
+					if (!regionsPinged && hasOwnedServer) {
 						regionsPinged = true;
 						this.pingRegions();
 					}
@@ -448,33 +485,41 @@ public class RealmsMainScreen extends RealmsScreen {
 		return runnersManager;
 	}
 
+	/**
+	 * Отправляет на сервер Realms запрос о прочтении уведомлений, которые ещё не были
+	 * помечены как просмотренные ни локально, ни на сервере.
+	 */
 	void markAsSeen(Collection<RealmsNotification> notifications) {
-		List<UUID> list = new ArrayList<>(notifications.size());
+		List<UUID> unseenIds = new ArrayList<>(notifications.size());
 
 		for (RealmsNotification realmsNotification : notifications) {
 			if (!realmsNotification.isSeen() && !this.seenNotifications.contains(realmsNotification.getUuid())) {
-				list.add(realmsNotification.getUuid());
+				unseenIds.add(realmsNotification.getUuid());
 			}
 		}
 
-		if (!list.isEmpty()) {
+		if (!unseenIds.isEmpty()) {
 			request(
 					client -> {
-						client.markNotificationsAsSeen(list);
+						client.markNotificationsAsSeen(unseenIds);
 						return null;
-					}, result -> this.seenNotifications.addAll(list)
+					}, result -> this.seenNotifications.addAll(unseenIds)
 			);
 		}
 	}
 
+	/**
+	 * Выполняет асинхронный запрос к Realms API в фоновом потоке и передаёт результат
+	 * в {@code resultConsumer} на главном потоке. Ошибки логируются без пробрасывания.
+	 */
 	private static <T> void request(RealmsMainScreen.Request<T> request, Consumer<T> resultConsumer) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		CompletableFuture.<T>supplyAsync(() -> {
 			try {
 				return request.request(RealmsClient.createRealmsClient(minecraftClient));
 			}
-			catch (RealmsServiceException var3) {
-				throw new RuntimeException(var3);
+			catch (RealmsServiceException error) {
+				throw new RuntimeException(error);
 			}
 		}).thenAcceptAsync(resultConsumer, minecraftClient).exceptionally(throwable -> {
 			LOGGER.error("Failed to execute call to Realms Service", throwable);
@@ -482,12 +527,19 @@ public class RealmsMainScreen extends RealmsScreen {
 		});
 	}
 
+	/**
+	 * Перестраивает список серверов, обновляет статус загрузки и состояние кнопок.
+	 */
 	private void refresh() {
 		this.realmSelectionList.refresh(this);
 		this.updateLoadStatus();
 		this.refreshButtons();
 	}
 
+	/**
+	 * Запускает фоновый поток, который пингует все регионы Realms и отправляет
+	 * результаты на сервер для оптимального выбора региона.
+	 */
 	private void pingRegions() {
 		new Thread(() -> {
 			List<RegionPingResult> list = Ping.pingAllRegions();
@@ -497,52 +549,64 @@ public class RealmsMainScreen extends RealmsScreen {
 			try {
 				realmsClient.sendPingResults(pingResult);
 			}
-			catch (Throwable var5) {
-				LOGGER.warn("Could not send ping result to Realms: ", var5);
+			catch (Throwable error) {
+				LOGGER.warn("Could not send ping result to Realms: ", error);
 			}
 		}).start();
 	}
 
+	/**
+	 * Возвращает список ID собственных активных (не истёкших) серверов Realms.
+	 * Используется при отправке результатов пинга регионов.
+	 */
 	private List<Long> getOwnedNonExpiredWorldIds() {
-		List<Long> list = Lists.newArrayList();
+		List<Long> worldIds = Lists.newArrayList();
 
 		for (RealmsServer realmsServer : this.serverFilterer) {
 			if (this.isOwnedNotExpired(realmsServer)) {
-				list.add(realmsServer.id);
+				worldIds.add(realmsServer.id);
 			}
 		}
 
-		return list;
+		return worldIds;
 	}
 
+	/**
+	 * Открывает экран подтверждения перехода по ссылке продления подписки Realms.
+	 * URL формируется с учётом UUID игрока и типа подписки (пробная/обычная).
+	 */
 	private void onRenew(@Nullable RealmsServer realmsServer) {
 		if (realmsServer != null) {
-			String
-					string =
-					Urls.getExtendJavaRealmsUrl(
-							realmsServer.remoteSubscriptionId,
-							this.client.getSession().getUuidOrNull(),
-							realmsServer.expiredTrial
-					);
+			String renewUrl = Urls.getExtendJavaRealmsUrl(
+					realmsServer.remoteSubscriptionId,
+					this.client.getSession().getUuidOrNull(),
+					realmsServer.expiredTrial
+			);
 			this.client.setScreen(new ConfirmLinkScreen(
-					bl -> {
-						if (bl) {
-							Util.getOperatingSystem().open(string);
+					confirmed -> {
+						if (confirmed) {
+							Util.getOperatingSystem().open(renewUrl);
 						}
 						else {
 							this.client.setScreen(this);
 						}
-					}, string, true
+					}, renewUrl, true
 			));
 		}
 	}
 
+	/**
+	 * Открывает экран настройки сервера, если текущий игрок является его владельцем.
+	 */
 	private void configureClicked(@Nullable RealmsServer serverData) {
 		if (serverData != null && this.client.uuidEquals(serverData.ownerUUID)) {
 			this.client.setScreen(new RealmsConfigureWorldScreen(this, serverData.id));
 		}
 	}
 
+	/**
+	 * Показывает диалог подтверждения выхода с чужого сервера Realms.
+	 */
 	private void leaveClicked(@Nullable RealmsServer selectedServer) {
 		if (selectedServer != null && !this.client.uuidEquals(selectedServer.ownerUUID)) {
 			Text text = Text.translatable("mco.configure.world.leave.question.line1");
@@ -550,12 +614,19 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Возвращает выбранный сервер из списка, или {@code null}, если выбрана не запись сервера.
+	 */
 	private @Nullable RealmsServer getSelectedServer() {
 		return this.realmSelectionList.getSelectedOrNull() instanceof RealmsMainScreen.RealmSelectionListEntry realmSelectionListEntry
 		       ? realmSelectionListEntry.getRealmsServer()
 		       : null;
 	}
 
+	/**
+	 * Выполняет выход с сервера в фоновом потоке: отзывает собственное приглашение
+	 * и сбрасывает список серверов. При ошибке показывает экран с описанием проблемы.
+	 */
 	private void leaveServer(RealmsServer server) {
 		(new Thread("Realms-leave-server") {
 			@Override
@@ -565,10 +636,10 @@ public class RealmsMainScreen extends RealmsScreen {
 					realmsClient.uninviteMyselfFrom(server.id);
 					RealmsMainScreen.this.client.execute(RealmsMainScreen::resetServerList);
 				}
-				catch (RealmsServiceException var2) {
-					RealmsMainScreen.LOGGER.error("Couldn't configure world", var2);
+				catch (RealmsServiceException error) {
+					RealmsMainScreen.LOGGER.error("Couldn't configure world", error);
 					RealmsMainScreen.this.client.execute(() -> RealmsMainScreen.this.client.setScreen(new RealmsGenericErrorScreen(
-							var2,
+							error,
 							RealmsMainScreen.this
 					)));
 				}
@@ -578,6 +649,9 @@ public class RealmsMainScreen extends RealmsScreen {
 		this.client.setScreen(this);
 	}
 
+	/**
+	 * Асинхронно отправляет запрос на скрытие уведомления и удаляет его из локального списка.
+	 */
 	void dismissNotification(UUID notification) {
 		request(
 				client -> {
@@ -591,9 +665,6 @@ public class RealmsMainScreen extends RealmsScreen {
 		);
 	}
 
-	/**
-	 * Удаляет selection.
-	 */
 	public void removeSelection() {
 		this.realmSelectionList.setSelected(null);
 		resetServerList();
@@ -640,21 +711,18 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	/**
-	 * Play.
-	 *
-	 * @param serverData server data
-	 * @param parent parent
+	 * Запускает подключение к серверу Realms без принудительной подготовки.
 	 */
 	public static void play(@Nullable RealmsServer serverData, Screen parent) {
 		play(serverData, parent, false);
 	}
 
 	/**
-	 * Play.
+	 * Запускает подключение к серверу Realms с учётом совместимости версий.
+	 * В зависимости от {@link RealmsServer#compatibility} показывает соответствующий
+	 * экран предупреждения или сразу запускает задачу подключения.
 	 *
-	 * @param server server
-	 * @param parent parent
-	 * @param needsPreparation needs preparation
+	 * @param needsPreparation если {@code true}, пропускает проверку совместимости снапшота
 	 */
 	public static void play(@Nullable RealmsServer server, Screen parent, boolean needsPreparation) {
 		if (server != null) {
@@ -733,6 +801,10 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Показывает всплывающий экран предупреждения о несовместимости версий с кнопками
+	 * подтверждения (запускает подключение) и отмены.
+	 */
 	private static void showCompatibilityScreen(
 			RealmsServer server,
 			Screen parent,
@@ -753,39 +825,59 @@ public class RealmsMainScreen extends RealmsScreen {
 		).button(ScreenTexts.CANCEL, PopupScreen::close).build());
 	}
 
+	/**
+	 * Показывает экран предупреждения о необходимости обновить сервер Realms.
+	 * Текст описания различается для владельца и участника сервера.
+	 */
 	private static void showNeedsUpgradeScreen(RealmsServer serverData, Screen parent) {
-		Text text = Text.translatable("mco.compatibility.upgrade.title").withColor(-171);
-		Text text2 = Text.translatable("mco.compatibility.upgrade");
-		Text text3 = Text.literal(serverData.activeVersion).withColor(-171);
-		Text text4 = Text.literal(SharedConstants.getGameVersion().name()).withColor(-171);
-		Text text5 = isSelfOwnedServer(serverData)
-		             ? Text.translatable("mco.compatibility.upgrade.description", text3, text4)
-		             : Text.translatable("mco.compatibility.upgrade.friend.description", text3, text4);
-		showCompatibilityScreen(serverData, parent, text, text5, text2);
+		Text title = Text.translatable("mco.compatibility.upgrade.title").withColor(-171);
+		Text upgradeText = Text.translatable("mco.compatibility.upgrade");
+		Text serverVersion = Text.literal(serverData.activeVersion).withColor(-171);
+		Text clientVersion = Text.literal(SharedConstants.getGameVersion().name()).withColor(-171);
+		Text description = isSelfOwnedServer(serverData)
+				? Text.translatable("mco.compatibility.upgrade.description", serverVersion, clientVersion)
+				: Text.translatable("mco.compatibility.upgrade.friend.description", serverVersion, clientVersion);
+		showCompatibilityScreen(serverData, parent, title, description, upgradeText);
 	}
 
+	/**
+	 * Возвращает текст версии сервера: серый для совместимой, красный для несовместимой.
+	 */
 	public static Text getVersionText(String version, boolean compatible) {
 		return getVersionText(version, compatible ? -8355712 : -2142128);
 	}
 
+	/**
+	 * Возвращает текст версии сервера с заданным цветом, или {@link ScreenTexts#EMPTY} если версия пустая.
+	 */
 	public static Text getVersionText(String version, int color) {
 		return (Text) (StringUtils.isBlank(version) ? ScreenTexts.EMPTY : Text.literal(version).withColor(color));
 	}
 
+	/**
+	 * Возвращает локализованное название режима игры. Для хардкора возвращает
+	 * «Хардкор» красным цветом вне зависимости от {@code id}.
+	 */
 	public static Text getGameModeText(int id, boolean hardcore) {
 		return (Text) (hardcore ? Text.translatable("gameMode.hardcore").withColor(-65536)
 		                        : GameMode.byIndex(id).getTranslatableName()
 		);
 	}
 
+	/** Проверяет, является ли текущий игрок владельцем данного сервера Realms. */
 	static boolean isSelfOwnedServer(RealmsServer server) {
 		return MinecraftClient.getInstance().uuidEquals(server.ownerUUID);
 	}
 
+	/** Проверяет, что сервер принадлежит текущему игроку и его подписка не истекла. */
 	private boolean isOwnedNotExpired(RealmsServer serverData) {
 		return isSelfOwnedServer(serverData) && !serverData.expired;
 	}
 
+	/**
+	 * Рисует диагональную надпись среды (STAGE/LOCAL) поверх экрана для визуальной
+	 * идентификации нерелизного окружения Realms.
+	 */
 	private void drawEnvironmentText(DrawContext context, String text, int color) {
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate(this.width / 2 - 25, 20.0F);
@@ -796,9 +888,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CrossButton}.
-	 */
 	static class CrossButton extends TexturedButtonWidget {
 
 		private static final ButtonTextures TEXTURES = new ButtonTextures(
@@ -812,9 +901,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Entry}.
-	 */
 	abstract class Entry extends AlwaysSelectedEntryListWidget.Entry<RealmsMainScreen.Entry> {
 
 		protected static final int STATUS_ICON_MARGIN_RIGHT = 10;
@@ -822,6 +908,10 @@ public class RealmsMainScreen extends RealmsScreen {
 		protected static final int STATUS_ICON_OFFSET_X = 7;
 		protected static final int STATUS_ICON_OFFSET_Y = 2;
 
+		/**
+		 * Рисует иконку статуса сервера (истёк, закрыт, скоро истечёт, открыт) с тултипом.
+		 * Тултип показывается только при наведении мыши на иконку.
+		 */
 		protected void renderStatusIcon(
 				RealmsServer server,
 				DrawContext context,
@@ -830,13 +920,13 @@ public class RealmsMainScreen extends RealmsScreen {
 				int mouseX,
 				int mouseY
 		) {
-			int i = x - 10 - 7;
-			int j = y + 2;
+			int iconX = x - STATUS_ICON_MARGIN_RIGHT - 7;
+			int iconY = y + 2;
 			if (server.expired) {
 				this.drawTextureWithTooltip(
 						context,
-						i,
-						j,
+						iconX,
+						iconY,
 						mouseX,
 						mouseY,
 						RealmsMainScreen.EXPIRED_STATUS_TEXTURE,
@@ -846,8 +936,8 @@ public class RealmsMainScreen extends RealmsScreen {
 			else if (server.state == RealmsServer.State.CLOSED) {
 				this.drawTextureWithTooltip(
 						context,
-						i,
-						j,
+						iconX,
+						iconY,
 						mouseX,
 						mouseY,
 						RealmsMainScreen.CLOSED_STATUS_TEXTURE,
@@ -857,8 +947,8 @@ public class RealmsMainScreen extends RealmsScreen {
 			else if (RealmsMainScreen.isSelfOwnedServer(server) && server.daysLeft < 7) {
 				this.drawTextureWithTooltip(
 						context,
-						i,
-						j,
+						iconX,
+						iconY,
 						mouseX,
 						mouseY,
 						RealmsMainScreen.EXPIRES_SOON_STATUS_TEXTURE,
@@ -878,8 +968,8 @@ public class RealmsMainScreen extends RealmsScreen {
 			else if (server.state == RealmsServer.State.OPEN) {
 				this.drawTextureWithTooltip(
 						context,
-						i,
-						j,
+						iconX,
+						iconY,
 						mouseX,
 						mouseY,
 						RealmsMainScreen.OPEN_STATUS_TEXTURE,
@@ -888,6 +978,10 @@ public class RealmsMainScreen extends RealmsScreen {
 			}
 		}
 
+		/**
+		 * Рисует текстуру и показывает тултип, если курсор находится над ней.
+		 * Тултип вычисляется лениво через {@code Supplier} для экономии ресурсов.
+		 */
 		private void drawTextureWithTooltip(
 				DrawContext context,
 				int x,
@@ -897,13 +991,17 @@ public class RealmsMainScreen extends RealmsScreen {
 				Identifier texture,
 				Supplier<Text> tooltip
 		) {
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, 10, 28);
-			if (RealmsMainScreen.this.realmSelectionList.isMouseOver(mouseX, mouseY) && mouseX >= x && mouseX <= x + 10
-					&& mouseY >= y && mouseY <= y + 28) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, STATUS_ICON_MARGIN_RIGHT, PLAYER_HEAD_SIZE);
+			if (RealmsMainScreen.this.realmSelectionList.isMouseOver(mouseX, mouseY) && mouseX >= x && mouseX <= x + STATUS_ICON_MARGIN_RIGHT
+					&& mouseY >= y && mouseY <= y + PLAYER_HEAD_SIZE) {
 				context.drawTooltip(tooltip.get(), mouseX, mouseY);
 			}
 		}
 
+		/**
+		 * Рисует название сервера и его версию. Версия выравнивается по правому краю;
+		 * для минигр версия не отображается.
+		 */
 		protected void drawServerNameAndVersion(
 				DrawContext context,
 				int y,
@@ -912,76 +1010,71 @@ public class RealmsMainScreen extends RealmsScreen {
 				int color,
 				RealmsServer server
 		) {
-			int i = this.getNameX(x);
-			int j = this.getNameY(y);
-			Text text = RealmsMainScreen.getVersionText(server.activeVersion, server.isCompatible());
-			int k = this.getVersionRight(x, width, text);
-			this.drawTrimmedText(context, server.getName(), i, j, k, color);
-			if (text != ScreenTexts.EMPTY && !server.isMinigame()) {
-				context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, text, k, j, -8355712);
+			int nameX = this.getNameX(x);
+			int nameY = this.getNameY(y);
+			Text versionText = RealmsMainScreen.getVersionText(server.activeVersion, server.isCompatible());
+			int versionRight = this.getVersionRight(x, width, versionText);
+			this.drawTrimmedText(context, server.getName(), nameX, nameY, versionRight, color);
+			if (versionText != ScreenTexts.EMPTY && !server.isMinigame()) {
+				context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, versionText, versionRight, nameY, -8355712);
 			}
 		}
 
 		/**
-		 * Draw description.
-		 *
-		 * @param context context
-		 * @param y y
-		 * @param x x
-		 * @param width width
-		 * @param server server
+		 * Рисует строку описания сервера. Для минигр показывает название минигры;
+		 * для обычных серверов — режим игры и обрезанное описание.
 		 */
 		protected void drawDescription(DrawContext context, int y, int x, int width, RealmsServer server) {
-			int i = this.getNameX(x);
-			int j = this.getNameY(y);
-			int k = this.getDescriptionY(j);
-			String string = server.getMinigameName();
-			boolean bl = server.isMinigame();
-			if (bl && string != null) {
-				Text text = Text.literal(string).formatted(Formatting.GRAY);
+			int nameX = this.getNameX(x);
+			int nameY = this.getNameY(y);
+			int descriptionY = this.getDescriptionY(nameY);
+			String minigameName = server.getMinigameName();
+			boolean isMinigame = server.isMinigame();
+			if (isMinigame && minigameName != null) {
+				Text minigameText = Text.literal(minigameName).formatted(Formatting.GRAY);
 				context.drawTextWithShadow(
 						RealmsMainScreen.this.textRenderer,
-						Text.translatable("mco.selectServer.minigameName", text).withColor(-171),
-						i,
-						k,
+						Text.translatable("mco.selectServer.minigameName", minigameText).withColor(-171),
+						nameX,
+						descriptionY,
 						-1
 				);
 			}
 			else {
-				int l = this.drawGameMode(server, context, x, width, j);
-				this.drawTrimmedText(context, server.getDescription(), i, this.getDescriptionY(j), l, -8355712);
+				int gameModeRight = this.drawGameMode(server, context, x, width, nameY);
+				this.drawTrimmedText(context, server.getDescription(), nameX, descriptionY, gameModeRight, -8355712);
 			}
 		}
 
 		/**
-		 * Draw owner or expired text.
-		 *
-		 * @param context context
-		 * @param y y
-		 * @param x x
-		 * @param server server
+		 * Рисует третью строку записи: имя владельца для чужих серверов,
+		 * или текст об истечении подписки для собственных истёкших серверов.
 		 */
 		protected void drawOwnerOrExpiredText(DrawContext context, int y, int x, RealmsServer server) {
-			int i = this.getNameX(x);
-			int j = this.getNameY(y);
-			int k = this.getStatusY(j);
+			int nameX = this.getNameX(x);
+			int nameY = this.getNameY(y);
+			int statusY = this.getStatusY(nameY);
 			if (!RealmsMainScreen.isSelfOwnedServer(server)) {
 				context.drawTextWithShadow(
 						RealmsMainScreen.this.textRenderer,
 						server.owner,
-						i,
-						this.getStatusY(j),
+						nameX,
+						statusY,
 						-8355712
 				);
 			}
 			else if (server.expired) {
-				Text
-						text =
-						server.expiredTrial ? RealmsMainScreen.EXPIRED_TRIAL_TEXT : RealmsMainScreen.EXPIRED_LIST_TEXT;
-				context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, text, i, k, -2142128);
+				Text expiredText = server.expiredTrial
+						? RealmsMainScreen.EXPIRED_TRIAL_TEXT
+						: RealmsMainScreen.EXPIRED_LIST_TEXT;
+				context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, expiredText, nameX, statusY, -2142128);
 			}
 		}
 
+		/**
+		 * Рисует строку, обрезая её с добавлением «...» если она не помещается
+		 * в диапазон [{@code left}, {@code right}].
+		 */
 		protected void drawTrimmedText(
 				DrawContext context,
 				@Nullable String string,
@@ -991,15 +1084,13 @@ public class RealmsMainScreen extends RealmsScreen {
 				int color
 		) {
 			if (string != null) {
-				int i = right - left;
-				if (RealmsMainScreen.this.textRenderer.getWidth(string) > i) {
-					String
-							string2 =
-							RealmsMainScreen.this.textRenderer.trimToWidth(
-									string,
-									i - RealmsMainScreen.this.textRenderer.getWidth("... ")
-							);
-					context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, string2 + "...", left, y, color);
+				int maxWidth = right - left;
+				if (RealmsMainScreen.this.textRenderer.getWidth(string) > maxWidth) {
+					String trimmed = RealmsMainScreen.this.textRenderer.trimToWidth(
+							string,
+							maxWidth - RealmsMainScreen.this.textRenderer.getWidth("... ")
+					);
+					context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, trimmed + "...", left, y, color);
 				}
 				else {
 					context.drawTextWithShadow(RealmsMainScreen.this.textRenderer, string, left, y, color);
@@ -1008,53 +1099,47 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 
 		protected int getVersionRight(int x, int width, Text version) {
-			return x + width - RealmsMainScreen.this.textRenderer.getWidth(version) - 20;
+			return x + width - RealmsMainScreen.this.textRenderer.getWidth(version) - NEW_REALM_ICON_HEIGHT;
 		}
 
 		protected int getGameModeRight(int x, int width, Text gameMode) {
-			return x + width - RealmsMainScreen.this.textRenderer.getWidth(gameMode) - 20;
+			return x + width - RealmsMainScreen.this.textRenderer.getWidth(gameMode) - NEW_REALM_ICON_HEIGHT;
 		}
 
 		/**
-		 * Draw game mode.
+		 * Рисует название режима игры и иконку хардкора (если применимо) по правому краю.
 		 *
-		 * @param server server
-		 * @param context context
-		 * @param x x
-		 * @param entryWidth entry width
-		 * @param y y
-		 *
-		 * @return int — результат операции
+		 * @return X-координата левого края нарисованного блока (для выравнивания описания)
 		 */
 		protected int drawGameMode(RealmsServer server, DrawContext context, int x, int entryWidth, int y) {
-			boolean bl = server.hardcore;
-			int i = server.gameMode;
-			int j = x;
-			if (GameMode.isValid(i)) {
-				Text text = RealmsMainScreen.getGameModeText(i, bl);
-				j = this.getGameModeRight(x, entryWidth, text);
+			boolean isHardcore = server.hardcore;
+			int gameModeId = server.gameMode;
+			int gameModeRight = x;
+			if (GameMode.isValid(gameModeId)) {
+				Text gameModeText = RealmsMainScreen.getGameModeText(gameModeId, isHardcore);
+				gameModeRight = this.getGameModeRight(x, entryWidth, gameModeText);
 				context.drawTextWithShadow(
 						RealmsMainScreen.this.textRenderer,
-						text,
-						j,
+						gameModeText,
+						gameModeRight,
 						this.getDescriptionY(y),
 						-8355712
 				);
 			}
 
-			if (bl) {
-				j -= 10;
+			if (isHardcore) {
+				gameModeRight -= STATUS_ICON_MARGIN_RIGHT;
 				context.drawGuiTexture(
 						RenderPipelines.GUI_TEXTURED,
 						RealmsMainScreen.HARDCORE_ICON_TEXTURE,
-						j,
+						gameModeRight,
 						this.getDescriptionY(y),
 						8,
 						8
 				);
 			}
 
-			return j;
+			return gameModeRight;
 		}
 
 		protected int getNameY(int y) {
@@ -1079,9 +1164,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LoadStatus}.
-	 */
 	static enum LoadStatus {
 		LOADING,
 		NO_REALMS,
@@ -1089,9 +1171,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code NotificationButtonWidget}.
-	 */
 	static class NotificationButtonWidget extends TextIconButtonWidget.IconOnly {
 
 		private static final Identifier[] TEXTURES = new Identifier[]{
@@ -1113,7 +1192,7 @@ public class RealmsMainScreen extends RealmsScreen {
 				ButtonWidget.PressAction onPress,
 				net.minecraft.text.Text tooltip
 		) {
-			super(20, 20, message, 14, 14, new ButtonTextures(texture), onPress, tooltip, null);
+			super(SIZE, SIZE, message, TEXTURE_SIZE, TEXTURE_SIZE, new ButtonTextures(texture), onPress, tooltip, null);
 		}
 
 		int getNotificationCount() {
@@ -1145,9 +1224,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ParentRealmSelectionListEntry}.
-	 */
 	class ParentRealmSelectionListEntry extends RealmsMainScreen.Entry {
 
 		private final RealmsServer server;
@@ -1197,9 +1273,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RealmSelectionList}.
-	 */
 	class RealmSelectionList extends AlwaysSelectedEntryListWidget<RealmsMainScreen.Entry> {
 
 		public RealmSelectionList() {
@@ -1216,6 +1289,10 @@ public class RealmsMainScreen extends RealmsScreen {
 			return 300;
 		}
 
+		/**
+		 * Перестраивает список: сначала добавляет уведомления-ссылки (VisitUrl),
+		 * затем записи серверов. Восстанавливает ранее выбранный элемент.
+		 */
 		void refresh(RealmsMainScreen mainScreen) {
 			RealmsMainScreen.Entry entry = this.getSelectedOrNull();
 			this.clearEntries();
@@ -1231,28 +1308,33 @@ public class RealmsMainScreen extends RealmsScreen {
 			this.addServerEntries(entry);
 		}
 
+		/**
+		 * Добавляет запись-уведомление с кнопкой перехода по URL. Высота записи
+		 * вычисляется динамически по количеству строк текста сообщения.
+		 */
 		private void addVisitEntries(
 				RealmsNotification.VisitUrl url,
 				RealmsMainScreen mainScreen,
 				RealmsMainScreen.@Nullable Entry selectedEntry
 		) {
 			Text text = url.getDefaultMessage();
-			int
-					i =
-					RealmsMainScreen.this.textRenderer.getWrappedLinesHeight(
-							text,
-							RealmsMainScreen.VisitUrlNotification.getTextWidth(this.getRowWidth())
-					);
-			RealmsMainScreen.VisitUrlNotification
-					visitUrlNotification =
-					RealmsMainScreen.this.new VisitUrlNotification(mainScreen, i, text, url);
-			this.addEntry(visitUrlNotification, 38 + i);
+			int textHeight = RealmsMainScreen.this.textRenderer.getWrappedLinesHeight(
+					text,
+					RealmsMainScreen.VisitUrlNotification.getTextWidth(this.getRowWidth())
+			);
+			RealmsMainScreen.VisitUrlNotification visitUrlNotification =
+					RealmsMainScreen.this.new VisitUrlNotification(mainScreen, textHeight, text, url);
+			this.addEntry(visitUrlNotification, 38 + textHeight);
 			if (selectedEntry instanceof RealmsMainScreen.VisitUrlNotification visitUrlNotification2
 					&& visitUrlNotification2.getMessage().equals(text)) {
 				this.setSelected((RealmsMainScreen.Entry) visitUrlNotification);
 			}
 		}
 
+		/**
+		 * Добавляет записи серверов: снапшот-серверы идут первыми, затем обычные.
+		 * В режиме снапшота нединамические серверы отображаются как ParentRealmSelectionListEntry.
+		 */
 		private void addServerEntries(RealmsMainScreen.@Nullable Entry selectedEntry) {
 			for (RealmsServer realmsServer : RealmsMainScreen.this.availableSnapshotServers) {
 				this.addEntry(RealmsMainScreen.this.new SnapshotEntry(realmsServer));
@@ -1281,9 +1363,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RealmSelectionListEntry}.
-	 */
 	class RealmSelectionListEntry extends RealmsMainScreen.Entry {
 
 		private static final Text ONLINE_PLAYERS_TEXT = Text.translatable("mco.onlinePlayers");
@@ -1314,16 +1393,16 @@ public class RealmsMainScreen extends RealmsScreen {
 						RenderPipelines.GUI_TEXTURED,
 						RealmsMainScreen.NEW_REALM_ICON_TEXTURE,
 						this.getContentX() - 5,
-						this.getContentMiddleY() - 10,
-						40,
-						20
+						this.getContentMiddleY() - STATUS_ICON_MARGIN_RIGHT,
+						NEW_REALM_ICON_WIDTH,
+						NEW_REALM_ICON_HEIGHT
 				);
-				int i = this.getContentMiddleY() - 9 / 2;
+				int textY = this.getContentMiddleY() - 9 / 2;
 				context.drawTextWithShadow(
 						RealmsMainScreen.this.textRenderer,
 						RealmsMainScreen.UNINITIALIZED_TEXT,
-						this.getContentX() + 40 - 2,
-						i,
+						this.getContentX() + NEW_REALM_ICON_WIDTH - 2,
+						textY,
 						-8388737
 				);
 			}
@@ -1382,6 +1461,12 @@ public class RealmsMainScreen extends RealmsScreen {
 			}
 		}
 
+		/**
+		 * Рисует иконки голов онлайн-игроков в нижнем правом углу записи.
+		 * При наведении мыши показывает тултип с именами игроков.
+		 *
+		 * @return {@code true} если тултип был показан (чтобы подавить стандартный тултип записи)
+		 */
 		private boolean drawPlayers(
 				DrawContext context,
 				int top,
@@ -1392,38 +1477,38 @@ public class RealmsMainScreen extends RealmsScreen {
 				int mouseY,
 				float tickProgress
 		) {
-			List<ProfileComponent> list = RealmsMainScreen.this.onlinePlayers.get(this.server.id);
-			int i = list.size();
-			if (i > 0) {
-				int j = left + width - 21;
-				int k = top + height - 9 - 2;
-				int l = 9 * i + 3 * (i - 1);
-				int m = j - l;
-				List<PlayerSkinCache.Entry> list2;
-				if (mouseX >= m && mouseX <= j && mouseY >= k && mouseY <= k + 9) {
-					list2 = new ArrayList<>(i);
+			List<ProfileComponent> players = RealmsMainScreen.this.onlinePlayers.get(this.server.id);
+			int playerCount = players.size();
+			if (playerCount > 0) {
+				int rightEdge = left + width - 21;
+				int bottomY = top + height - 9 - 2;
+				int totalWidth = 9 * playerCount + 3 * (playerCount - 1);
+				int leftEdge = rightEdge - totalWidth;
+				List<PlayerSkinCache.Entry> hoveredPlayers;
+				if (mouseX >= leftEdge && mouseX <= rightEdge && mouseY >= bottomY && mouseY <= bottomY + 9) {
+					hoveredPlayers = new ArrayList<>(playerCount);
 				}
 				else {
-					list2 = null;
+					hoveredPlayers = null;
 				}
 
 				PlayerSkinCache playerSkinCache = RealmsMainScreen.this.client.getPlayerSkinCache();
 
-				for (int n = 0; n < list.size(); n++) {
-					ProfileComponent profileComponent = list.get(n);
+				for (int playerIndex = 0; playerIndex < players.size(); playerIndex++) {
+					ProfileComponent profileComponent = players.get(playerIndex);
 					PlayerSkinCache.Entry entry = playerSkinCache.get(profileComponent);
-					int o = m + 12 * n;
-					PlayerSkinDrawer.draw(context, entry.getTextures(), o, k, 9);
-					if (list2 != null) {
-						list2.add(entry);
+					int playerX = leftEdge + 12 * playerIndex;
+					PlayerSkinDrawer.draw(context, entry.getTextures(), playerX, bottomY, 9);
+					if (hoveredPlayers != null) {
+						hoveredPlayers.add(entry);
 					}
 				}
 
-				if (list2 != null) {
+				if (hoveredPlayers != null) {
 					context.drawTooltip(
 							RealmsMainScreen.this.textRenderer,
 							List.of(ONLINE_PLAYERS_TEXT),
-							Optional.of(new ProfilesTooltipComponent.ProfilesData(list2)),
+							Optional.of(new ProfilesTooltipComponent.ProfilesData(hoveredPlayers)),
 							mouseX,
 							mouseY
 					);
@@ -1497,18 +1582,12 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Request}.
-	 */
 	interface Request<T> {
 
 		T request(RealmsClient client) throws RealmsServiceException;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SnapshotEntry}.
-	 */
 	class SnapshotEntry extends RealmsMainScreen.Entry {
 
 		private static final Text START_TEXT = Text.translatable("mco.snapshot.start");
@@ -1527,16 +1606,16 @@ public class RealmsMainScreen extends RealmsScreen {
 					RenderPipelines.GUI_TEXTURED,
 					RealmsMainScreen.NEW_REALM_ICON_TEXTURE,
 					this.getContentX() - 5,
-					this.getContentMiddleY() - 10,
-					40,
-					20
+					this.getContentMiddleY() - STATUS_ICON_MARGIN_RIGHT,
+					NEW_REALM_ICON_WIDTH,
+					NEW_REALM_ICON_HEIGHT
 			);
-			int i = this.getContentMiddleY() - 9 / 2;
+			int textY = this.getContentMiddleY() - 9 / 2;
 			context.drawTextWithShadow(
 					RealmsMainScreen.this.textRenderer,
 					START_TEXT,
-					this.getContentX() + 40 - 2,
-					i - 5,
+					this.getContentX() + NEW_REALM_ICON_WIDTH - 2,
+					textY - 5,
 					-8388737
 			);
 			context.drawTextWithShadow(
@@ -1545,8 +1624,8 @@ public class RealmsMainScreen extends RealmsScreen {
 							"mco.snapshot.description",
 							Objects.requireNonNullElse(this.server.name, "unknown server")
 					),
-					this.getContentX() + 40 - 2,
-					i + 5,
+					this.getContentX() + NEW_REALM_ICON_WIDTH - 2,
+					textY + 5,
 					-8355712
 			);
 			this.tooltip
@@ -1582,6 +1661,9 @@ public class RealmsMainScreen extends RealmsScreen {
 			}
 		}
 
+		/**
+		 * Показывает всплывающий диалог с предложением создать снапшот-сервер.
+		 */
 		private void showPopup() {
 			RealmsMainScreen.this.client
 					.getSoundManager()
@@ -1622,9 +1704,6 @@ public class RealmsMainScreen extends RealmsScreen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code VisitUrlNotification}.
-	 */
 	class VisitUrlNotification extends RealmsMainScreen.Entry {
 
 		private static final int NOTIFICATION_ICON_WIDTH = 40;
@@ -1648,12 +1727,12 @@ public class RealmsMainScreen extends RealmsScreen {
 			this.message = message;
 			this.grid = new GridWidget();
 			this.grid.add(
-					IconWidget.create(20, 20, RealmsMainScreen.INFO_ICON_TEXTURE),
+					IconWidget.create(NEW_REALM_ICON_HEIGHT, NEW_REALM_ICON_HEIGHT, RealmsMainScreen.INFO_ICON_TEXTURE),
 					0,
 					0,
 					this.grid.copyPositioner().margin(7, 7, 0, 0)
 			);
-			this.grid.add(EmptyWidget.ofWidth(40), 0, 0);
+			this.grid.add(EmptyWidget.ofWidth(NEW_REALM_ICON_WIDTH), 0, 0);
 			this.textGrid =
 					this.grid.add(new SimplePositioningWidget(0, lines), 0, 1, this.grid.copyPositioner().marginTop(7));
 			this.textWidget = this.textGrid
@@ -1661,7 +1740,7 @@ public class RealmsMainScreen extends RealmsScreen {
 							new MultilineTextWidget(message, RealmsMainScreen.this.textRenderer).setCentered(true),
 							this.textGrid.copyPositioner().alignHorizontalCenter().alignTop()
 					);
-			this.grid.add(EmptyWidget.ofWidth(40), 0, 2);
+			this.grid.add(EmptyWidget.ofWidth(NEW_REALM_ICON_WIDTH), 0, 2);
 			if (url.isDismissable()) {
 				this.dismissButton = this.grid
 						.add(
@@ -1694,27 +1773,32 @@ public class RealmsMainScreen extends RealmsScreen {
 			if (this.urlButton.keyPressed(input)) {
 				return true;
 			}
-			else {
-				return this.dismissButton != null && this.dismissButton.keyPressed(input) ? true
-				                                                                          : super.keyPressed(input);
+
+			if (this.dismissButton != null && this.dismissButton.keyPressed(input)) {
+				return true;
 			}
+
+			return super.keyPressed(input);
 		}
 
 		private void setWidth() {
-			int i = this.getWidth();
-			if (this.width != i) {
-				this.updateWidth(i);
-				this.width = i;
+			int currentWidth = this.getWidth();
+			if (this.width != currentWidth) {
+				this.updateWidth(currentWidth);
+				this.width = currentWidth;
 			}
 		}
 
 		private void updateWidth(int width) {
-			int i = getTextWidth(width);
-			this.textGrid.setMinWidth(i);
-			this.textWidget.setMaxWidth(i);
+			int textWidth = getTextWidth(width);
+			this.textGrid.setMinWidth(textWidth);
+			this.textWidget.setMaxWidth(textWidth);
 			this.grid.refreshPositions();
 		}
 
+		/**
+		 * Вычисляет доступную ширину для текста уведомления с учётом иконки и кнопок по бокам.
+		 */
 		public static int getTextWidth(int width) {
 			return width - 80;
 		}

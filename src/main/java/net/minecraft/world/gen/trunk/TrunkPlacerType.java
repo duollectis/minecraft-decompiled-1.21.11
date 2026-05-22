@@ -5,7 +5,9 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code TrunkPlacerType}.
+ * Реестр типов алгоритмов размещения ствола дерева.
+ * Каждый тип связывает строковый идентификатор с конкретной реализацией {@link TrunkPlacer}
+ * и её {@link com.mojang.serialization.MapCodec} для сериализации.
  */
 public class TrunkPlacerType<P extends TrunkPlacer> {
 
@@ -47,6 +49,6 @@ public class TrunkPlacerType<P extends TrunkPlacer> {
 	}
 
 	public MapCodec<P> getCodec() {
-		return this.codec;
+		return codec;
 	}
 }

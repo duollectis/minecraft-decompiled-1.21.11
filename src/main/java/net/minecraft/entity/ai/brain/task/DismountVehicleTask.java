@@ -5,7 +5,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code DismountVehicleTask}.
+ * Задача мозга, принудительно спешивающая сущность с транспортного средства.
  */
 public class DismountVehicleTask extends MultiTickTask<LivingEntity> {
 

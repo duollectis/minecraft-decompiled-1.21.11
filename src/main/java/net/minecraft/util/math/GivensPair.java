@@ -5,73 +5,48 @@ import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 
 /**
- * {@code GivensPair}.
+ * Пара Гивенса (sin(θ/2), cos(θ/2)) — компактное представление угла вращения.
+ * Используется в SVD-разложении аффинных трансформаций для извлечения компонент вращения.
  */
 public record GivensPair(float sinHalf, float cosHalf) {
 
 	/**
-	 * Normalize.
-	 *
-	 * @param a a
-	 * @param b b
-	 *
-	 * @return GivensPair — результат операции
+	 * Нормализует вектор (a, b) и возвращает его как пару Гивенса.
+	 * Применяется для стабилизации итераций SVD.
 	 */
 	public static GivensPair normalize(float a, float b) {
-		float f = Math.invsqrt(a * a + b * b);
-		return new GivensPair(f * a, f * b);
+		float invLen = Math.invsqrt(a * a + b * b);
+		return new GivensPair(invLen * a, invLen * b);
 	}
 
-	/**
-	 * From angle.
-	 *
-	 * @param radians radians
-	 *
-	 * @return GivensPair — результат операции
-	 */
 	public static GivensPair fromAngle(float radians) {
-		float f = Math.sin(radians / 2.0F);
-		float g = Math.cosFromSin(f, radians / 2.0F);
-		return new GivensPair(f, g);
+		float sin = Math.sin(radians / 2.0F);
+		float cos = Math.cosFromSin(sin, radians / 2.0F);
+		return new GivensPair(sin, cos);
 	}
 
-	/**
-	 * Negate sin.
-	 *
-	 * @return GivensPair — результат операции
-	 */
 	public GivensPair negateSin() {
-		return new GivensPair(-this.sinHalf, this.cosHalf);
+		return new GivensPair(-sinHalf, cosHalf);
 	}
 
 	public Quaternionf setXRotation(Quaternionf quaternionf) {
-		return quaternionf.set(this.sinHalf, 0.0F, 0.0F, this.cosHalf);
+		return quaternionf.set(sinHalf, 0.0F, 0.0F, cosHalf);
 	}
 
 	public Quaternionf setYRotation(Quaternionf quaternionf) {
-		return quaternionf.set(0.0F, this.sinHalf, 0.0F, this.cosHalf);
+		return quaternionf.set(0.0F, sinHalf, 0.0F, cosHalf);
 	}
 
 	public Quaternionf setZRotation(Quaternionf quaternionf) {
-		return quaternionf.set(0.0F, 0.0F, this.sinHalf, this.cosHalf);
+		return quaternionf.set(0.0F, 0.0F, sinHalf, cosHalf);
 	}
 
-	/**
-	 * Cos double.
-	 *
-	 * @return float — результат операции
-	 */
 	public float cosDouble() {
-		return this.cosHalf * this.cosHalf - this.sinHalf * this.sinHalf;
+		return cosHalf * cosHalf - sinHalf * sinHalf;
 	}
 
-	/**
-	 * Sin double.
-	 *
-	 * @return float — результат операции
-	 */
 	public float sinDouble() {
-		return 2.0F * this.sinHalf * this.cosHalf;
+		return 2.0F * sinHalf * cosHalf;
 	}
 
 	public Matrix3f setRotationX(Matrix3f matrix3f) {
@@ -79,12 +54,12 @@ public record GivensPair(float sinHalf, float cosHalf) {
 		matrix3f.m02 = 0.0F;
 		matrix3f.m10 = 0.0F;
 		matrix3f.m20 = 0.0F;
-		float f = this.cosDouble();
-		float g = this.sinDouble();
-		matrix3f.m11 = f;
-		matrix3f.m22 = f;
-		matrix3f.m12 = g;
-		matrix3f.m21 = -g;
+		float cos = cosDouble();
+		float sin = sinDouble();
+		matrix3f.m11 = cos;
+		matrix3f.m22 = cos;
+		matrix3f.m12 = sin;
+		matrix3f.m21 = -sin;
 		matrix3f.m00 = 1.0F;
 		return matrix3f;
 	}
@@ -94,12 +69,12 @@ public record GivensPair(float sinHalf, float cosHalf) {
 		matrix3f.m10 = 0.0F;
 		matrix3f.m12 = 0.0F;
 		matrix3f.m21 = 0.0F;
-		float f = this.cosDouble();
-		float g = this.sinDouble();
-		matrix3f.m00 = f;
-		matrix3f.m22 = f;
-		matrix3f.m02 = -g;
-		matrix3f.m20 = g;
+		float cos = cosDouble();
+		float sin = sinDouble();
+		matrix3f.m00 = cos;
+		matrix3f.m22 = cos;
+		matrix3f.m02 = -sin;
+		matrix3f.m20 = sin;
 		matrix3f.m11 = 1.0F;
 		return matrix3f;
 	}
@@ -109,12 +84,12 @@ public record GivensPair(float sinHalf, float cosHalf) {
 		matrix3f.m12 = 0.0F;
 		matrix3f.m20 = 0.0F;
 		matrix3f.m21 = 0.0F;
-		float f = this.cosDouble();
-		float g = this.sinDouble();
-		matrix3f.m00 = f;
-		matrix3f.m11 = f;
-		matrix3f.m01 = g;
-		matrix3f.m10 = -g;
+		float cos = cosDouble();
+		float sin = sinDouble();
+		matrix3f.m00 = cos;
+		matrix3f.m11 = cos;
+		matrix3f.m01 = sin;
+		matrix3f.m10 = -sin;
 		matrix3f.m22 = 1.0F;
 		return matrix3f;
 	}

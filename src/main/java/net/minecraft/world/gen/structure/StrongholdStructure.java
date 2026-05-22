@@ -7,10 +7,10 @@ import net.minecraft.structure.StructurePiecesCollector;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
- * {@code StrongholdStructure}.
+ * Структура крепости. Генерирует лабиринт комнат с порталом в Энд.
+ * Повторяет генерацию до тех пор, пока не будет создана комната с порталом.
  */
 public class StrongholdStructure extends Structure {
 
@@ -25,33 +25,32 @@ public class StrongholdStructure extends Structure {
 		return Optional.of(
 				new Structure.StructurePosition(
 						context.chunkPos().getStartPos(),
-						(Consumer<StructurePiecesCollector>) (collector -> addPieces(collector, context))
+						collector -> addPieces(collector, context)
 				)
 		);
 	}
 
 	private static void addPieces(StructurePiecesCollector collector, Structure.Context context) {
-		int i = 0;
+		int attempt = 0;
 
 		StrongholdGenerator.Start start;
 		do {
 			collector.clear();
-			context.random().setCarverSeed(context.seed() + i++, context.chunkPos().x, context.chunkPos().z);
+			context.random().setCarverSeed(context.seed() + attempt++, context.chunkPos().x, context.chunkPos().z);
 			StrongholdGenerator.init();
-			start =
-					new StrongholdGenerator.Start(
-							context.random(),
-							context.chunkPos().getOffsetX(2),
-							context.chunkPos().getOffsetZ(2)
-					);
+			start = new StrongholdGenerator.Start(
+					context.random(),
+					context.chunkPos().getOffsetX(2),
+					context.chunkPos().getOffsetZ(2)
+			);
 			collector.addPiece(start);
 			start.fillOpenings(start, collector, context.random());
-			List<StructurePiece> list = start.pieces;
+			List<StructurePiece> pendingPieces = start.pieces;
 
-			while (!list.isEmpty()) {
-				int j = context.random().nextInt(list.size());
-				StructurePiece structurePiece = list.remove(j);
-				structurePiece.fillOpenings(start, collector, context.random());
+			while (!pendingPieces.isEmpty()) {
+				int randomIndex = context.random().nextInt(pendingPieces.size());
+				StructurePiece piece = pendingPieces.remove(randomIndex);
+				piece.fillOpenings(start, collector, context.random());
 			}
 
 			collector.shiftInto(
@@ -60,8 +59,7 @@ public class StrongholdStructure extends Structure {
 					context.random(),
 					10
 			);
-		}
-		while (collector.isEmpty() || start.portalRoom == null);
+		} while (collector.isEmpty() || start.portalRoom == null);
 	}
 
 	@Override

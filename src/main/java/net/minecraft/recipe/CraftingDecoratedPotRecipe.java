@@ -10,12 +10,16 @@ import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.world.World;
 
 /**
- * {@code CraftingDecoratedPotRecipe}.
+ * Рецепт крафта декорированного горшка из четырёх черепков (или кирпичей).
+ * <p>
+ * Требует сетку 3×3 с ровно 4 предметами в позициях «ромба»:
+ * верх (1,0), лево (0,1), право (2,1), низ (1,2).
+ * Все четыре предмета должны иметь тег {@code decorated_pot_ingredients}.
  */
 public class CraftingDecoratedPotRecipe extends SpecialCraftingRecipe {
 
-	public CraftingDecoratedPotRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public CraftingDecoratedPotRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
 	private static ItemStack getBack(CraftingRecipeInput input) {
@@ -34,38 +38,25 @@ public class CraftingDecoratedPotRecipe extends SpecialCraftingRecipe {
 		return input.getStackInSlot(1, 2);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		return craftingRecipeInput.getWidth() == 3 && craftingRecipeInput.getHeight() == 3
-				       && craftingRecipeInput.getStackCount() == 4
-		       ? getBack(craftingRecipeInput).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
-		         && getLeft(craftingRecipeInput).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
-		         && getRight(craftingRecipeInput).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
-		         && getFront(craftingRecipeInput).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
-		       : false;
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getWidth() != 3 || input.getHeight() != 3 || input.getStackCount() != 4) {
+			return false;
+		}
+
+		return getBack(input).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
+			&& getLeft(input).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
+			&& getRight(input).isIn(ItemTags.DECORATED_POT_INGREDIENTS)
+			&& getFront(input).isIn(ItemTags.DECORATED_POT_INGREDIENTS);
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
 		Sherds sherds = new Sherds(
-				getBack(craftingRecipeInput).getItem(),
-				getLeft(craftingRecipeInput).getItem(),
-				getRight(craftingRecipeInput).getItem(),
-				getFront(craftingRecipeInput).getItem()
+			getBack(input).getItem(),
+			getLeft(input).getItem(),
+			getRight(input).getItem(),
+			getFront(input).getItem()
 		);
 		return DecoratedPotBlockEntity.getStackWith(sherds);
 	}

@@ -6,7 +6,7 @@ import javax.swing.*;
 import java.util.Vector;
 
 /**
- * {@code PlayerListGui}.
+ * Класс Player List Gui.
  */
 public class PlayerListGui extends JList<String> {
 
@@ -18,9 +18,6 @@ public class PlayerListGui extends JList<String> {
 		server.addServerGuiTickable(this::tick);
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		if (this.tick++ % 20 == 0) {
 			Vector<String> vector = new Vector<>();

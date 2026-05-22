@@ -15,10 +15,12 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-@FunctionalInterface
 /**
- * {@code StructureGeneratorFactory}.
+ * Фабрика генераторов структур. Принимает контекст генерации и возвращает
+ * опциональный {@link StructurePiecesGenerator}, если структура может быть
+ * размещена в данной позиции (биом, высота, условия).
  */
+@FunctionalInterface
 public interface StructureGeneratorFactory<C extends FeatureConfig> {
 
 	Optional<StructurePiecesGenerator<C>> createGenerator(StructureGeneratorFactory.Context<C> context);
@@ -35,7 +37,9 @@ public interface StructureGeneratorFactory<C extends FeatureConfig> {
 	}
 
 	/**
-	 * {@code Context}.
+	 * Контекст генерации структуры. Содержит все необходимые данные для принятия
+	 * решения о размещении: генератор чанков, источник биомов, конфигурацию шума,
+	 * позицию чанка и предикат допустимых биомов.
 	 */
 	public record Context<C extends FeatureConfig>(
 			ChunkGenerator chunkGenerator,
@@ -51,18 +55,18 @@ public interface StructureGeneratorFactory<C extends FeatureConfig> {
 	) {
 
 		public boolean isBiomeValid(Heightmap.Type heightmapType) {
-			int i = this.chunkPos.getCenterX();
-			int j = this.chunkPos.getCenterZ();
-			int k = this.chunkGenerator.getHeightInGround(i, j, heightmapType, this.world, this.noiseConfig);
-			RegistryEntry<Biome> registryEntry = this.chunkGenerator
+			int centerX = this.chunkPos.getCenterX();
+			int centerZ = this.chunkPos.getCenterZ();
+			int groundY = this.chunkGenerator.getHeightInGround(centerX, centerZ, heightmapType, this.world, this.noiseConfig);
+			RegistryEntry<Biome> biome = this.chunkGenerator
 					.getBiomeSource()
 					.getBiome(
-							BiomeCoords.fromBlock(i),
-							BiomeCoords.fromBlock(k),
-							BiomeCoords.fromBlock(j),
+							BiomeCoords.fromBlock(centerX),
+							BiomeCoords.fromBlock(groundY),
+							BiomeCoords.fromBlock(centerZ),
 							this.noiseConfig.getMultiNoiseSampler()
 					);
-			return this.validBiome.test(registryEntry);
+			return this.validBiome.test(biome);
 		}
 	}
 }

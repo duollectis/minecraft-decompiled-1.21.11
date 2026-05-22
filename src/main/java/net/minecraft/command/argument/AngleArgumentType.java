@@ -13,16 +13,18 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * {@code AngleArgumentType}.
+ * Тип аргумента команды для разбора угла в градусах.
+ * Поддерживает абсолютные значения ({@code 45}) и относительные ({@code ~}, {@code ~-5}).
+ * Относительный угол прибавляется к текущему повороту источника команды по оси Y.
  */
 public class AngleArgumentType implements ArgumentType<AngleArgumentType.Angle> {
 
 	private static final Collection<String> EXAMPLES = Arrays.asList("0", "~", "~-5");
-	public static final SimpleCommandExceptionType
-			INCOMPLETE_ANGLE_EXCEPTION =
+
+	public static final SimpleCommandExceptionType INCOMPLETE_ANGLE_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("argument.angle.incomplete"));
-	public static final SimpleCommandExceptionType
-			INVALID_ANGLE_EXCEPTION =
+
+	public static final SimpleCommandExceptionType INVALID_ANGLE_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("argument.angle.invalid"));
 
 	public static AngleArgumentType angle() {
@@ -30,35 +32,35 @@ public class AngleArgumentType implements ArgumentType<AngleArgumentType.Angle> 
 	}
 
 	public static float getAngle(CommandContext<ServerCommandSource> context, String name) {
-		return ((AngleArgumentType.Angle) context.getArgument(
-				name,
-				AngleArgumentType.Angle.class
-		)
-		).getAngle((ServerCommandSource) context.getSource());
+		return ((AngleArgumentType.Angle) context.getArgument(name, AngleArgumentType.Angle.class))
+				.getAngle((ServerCommandSource) context.getSource());
 	}
 
-	public AngleArgumentType.Angle parse(StringReader stringReader) throws CommandSyntaxException {
-		if (!stringReader.canRead()) {
-			throw INCOMPLETE_ANGLE_EXCEPTION.createWithContext(stringReader);
+	@Override
+	public AngleArgumentType.Angle parse(StringReader reader) throws CommandSyntaxException {
+		if (!reader.canRead()) {
+			throw INCOMPLETE_ANGLE_EXCEPTION.createWithContext(reader);
 		}
-		else {
-			boolean bl = CoordinateArgument.isRelative(stringReader);
-			float f = stringReader.canRead() && stringReader.peek() != ' ' ? stringReader.readFloat() : 0.0F;
-			if (!Float.isNaN(f) && !Float.isInfinite(f)) {
-				return new AngleArgumentType.Angle(f, bl);
-			}
-			else {
-				throw INVALID_ANGLE_EXCEPTION.createWithContext(stringReader);
-			}
+
+		boolean relative = CoordinateArgument.isRelative(reader);
+		float value = reader.canRead() && reader.peek() != ' ' ? reader.readFloat() : 0.0F;
+
+		if (Float.isNaN(value) || Float.isInfinite(value)) {
+			throw INVALID_ANGLE_EXCEPTION.createWithContext(reader);
 		}
+
+		return new AngleArgumentType.Angle(value, relative);
 	}
 
+	@Override
 	public Collection<String> getExamples() {
 		return EXAMPLES;
 	}
 
 	/**
-	 * {@code Angle}.
+	 * Разобранный угол с флагом относительности.
+	 * При вычислении итогового значения относительный угол прибавляется к повороту
+	 * источника команды по оси Y и нормализуется в диапазон [-180, 180].
 	 */
 	public static final class Angle {
 
@@ -71,7 +73,9 @@ public class AngleArgumentType implements ArgumentType<AngleArgumentType.Angle> 
 		}
 
 		public float getAngle(ServerCommandSource source) {
-			return MathHelper.wrapDegrees(this.relative ? this.angle + source.getRotation().y : this.angle);
+			return MathHelper.wrapDegrees(relative ? angle + source.getRotation().y : angle);
 		}
+
 	}
+
 }

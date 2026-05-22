@@ -3,10 +3,10 @@ package net.minecraft.client.gl;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScissorState}.
+ * Состояние scissor-теста: хранит прямоугольник отсечения и флаг активности.
  */
+@Environment(EnvType.CLIENT)
 public class ScissorState {
 
 	private boolean enabled;
@@ -15,46 +15,35 @@ public class ScissorState {
 	private int width;
 	private int height;
 
-	/**
-	 * Enable.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param height height
-	 */
 	public void enable(int x, int y, int width, int height) {
-		this.enabled = true;
+		enabled = true;
 		this.x = x;
 		this.y = y;
 		this.width = width;
 		this.height = height;
 	}
 
-	/**
-	 * Disable.
-	 */
 	public void disable() {
-		this.enabled = false;
+		enabled = false;
 	}
 
 	public boolean isEnabled() {
-		return this.enabled;
+		return enabled;
 	}
 
 	public int getX() {
-		return this.x;
+		return x;
 	}
 
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 }

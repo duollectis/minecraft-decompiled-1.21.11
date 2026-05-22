@@ -23,9 +23,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code DashAttackTask}.
+ * Задача мозга животного, выполняющая стремительный бросок к цели атаки.
+ * При столкновении наносит урон и отбрасывает цель с учётом эффектов скорости/замедления.
  */
 public class DashAttackTask extends MultiTickTask<AnimalEntity> {
+
+	private static final float EFFECT_BONUS_MULTIPLIER = 0.25F;
+	private static final float MIN_KNOCKBACK = 0.2F;
+	private static final float MAX_KNOCKBACK = 2.0F;
 
 	private final int cooldownTicks;
 	private final TargetPredicate predicate;
@@ -61,144 +66,107 @@ public class DashAttackTask extends MultiTickTask<AnimalEntity> {
 		this.maxEntitySpeed = maxEntitySpeed;
 		this.maxDistance = maxDistance;
 		this.sound = sound;
-		this.velocity = Vec3d.ZERO;
-		this.lastPos = Vec3d.ZERO;
+		velocity = Vec3d.ZERO;
+		lastPos = Vec3d.ZERO;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, AnimalEntity animalEntity) {
-		return animalEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET);
+	@Override
+	protected boolean shouldRun(ServerWorld world, AnimalEntity entity) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		Brain<?> brain = animalEntity.getBrain();
-		Optional<LivingEntity> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET);
-		if (optional.isEmpty()) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, AnimalEntity entity, long time) {
+		Brain<?> brain = entity.getBrain();
+		Optional<LivingEntity> attackTarget = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET);
+		if (attackTarget.isEmpty()) {
 			return false;
 		}
-		else {
-			LivingEntity livingEntity = optional.get();
-			if (animalEntity instanceof TameableEntity tameableEntity && tameableEntity.isTamed()) {
-				return false;
-			}
-			else if (animalEntity.getEntityPos().subtract(this.lastPos).lengthSquared()
-					>= this.maxEntitySpeed * this.maxEntitySpeed) {
-				return false;
-			}
-			else if (livingEntity.getEntityPos().subtract(animalEntity.getEntityPos()).lengthSquared()
-					>= this.maxDistance * this.maxDistance) {
-				return false;
-			}
-			else {
-				return !animalEntity.canSee(livingEntity) ? false
-				                                          : !brain.hasMemoryModule(MemoryModuleType.CHARGE_COOLDOWN_TICKS);
-			}
+
+		LivingEntity target = attackTarget.get();
+		if (entity instanceof TameableEntity tameable && tameable.isTamed()) {
+			return false;
+		}
+
+		if (entity.getEntityPos().subtract(lastPos).lengthSquared() >= maxEntitySpeed * maxEntitySpeed) {
+			return false;
+		}
+
+		if (target.getEntityPos().subtract(entity.getEntityPos()).lengthSquared() >= maxDistance * maxDistance) {
+			return false;
+		}
+
+		return entity.canSee(target) && !brain.hasMemoryModule(MemoryModuleType.CHARGE_COOLDOWN_TICKS);
+	}
+
+	@Override
+	protected void run(ServerWorld world, AnimalEntity entity, long time) {
+		lastPos = entity.getEntityPos();
+		LivingEntity target = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
+		Vec3d direction = target.getEntityPos().subtract(entity.getEntityPos()).normalize();
+		velocity = direction.multiply(speed);
+		if (shouldKeepRunning(world, entity, time)) {
+			entity.playSoundIfNotSilent(sound);
 		}
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		Brain<?> brain = animalEntity.getBrain();
-		this.lastPos = animalEntity.getEntityPos();
-		LivingEntity livingEntity = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
-		Vec3d vec3d = livingEntity.getEntityPos().subtract(animalEntity.getEntityPos()).normalize();
-		this.velocity = vec3d.multiply(this.speed);
-		if (this.shouldKeepRunning(serverWorld, animalEntity, l)) {
-			animalEntity.playSoundIfNotSilent(this.sound);
-		}
-	}
+	@Override
+	protected void keepRunning(ServerWorld world, AnimalEntity entity, long time) {
+		LivingEntity target = entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
+				.orElseThrow();
+		entity.lookAtEntity(target, 360.0F, 360.0F);
+		entity.setVelocity(velocity);
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		Brain<?> brain = animalEntity.getBrain();
-		LivingEntity livingEntity = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElseThrow();
-		animalEntity.lookAtEntity(livingEntity, 360.0F, 360.0F);
-		animalEntity.setVelocity(this.velocity);
-		List<LivingEntity> list = new ArrayList<>(1);
-		serverWorld.collectEntitiesByType(
+		List<LivingEntity> hit = new ArrayList<>(1);
+		world.collectEntitiesByType(
 				TypeFilter.instanceOf(LivingEntity.class),
-				animalEntity.getBoundingBox(),
-				target -> this.predicate.test(serverWorld, animalEntity, target),
-				list,
+				entity.getBoundingBox(),
+				candidate -> predicate.test(world, entity, candidate),
+				hit,
 				1
 		);
-		if (!list.isEmpty()) {
-			LivingEntity livingEntity2 = list.get(0);
-			if (animalEntity.hasPassenger(livingEntity2)) {
-				return;
-			}
-
-			this.attack(serverWorld, animalEntity, livingEntity2);
-			this.knockbackTarget(animalEntity, livingEntity2);
-			this.finishRunning(serverWorld, animalEntity, l);
+		if (hit.isEmpty()) {
+			return;
 		}
+
+		LivingEntity hitTarget = hit.get(0);
+		if (entity.hasPassenger(hitTarget)) {
+			return;
+		}
+
+		attack(world, entity, hitTarget);
+		knockbackTarget(entity, hitTarget);
+		finishRunning(world, entity, time);
 	}
 
 	private void attack(ServerWorld world, AnimalEntity entity, LivingEntity target) {
 		DamageSource damageSource = world.getDamageSources().mobAttack(entity);
-		float f = (float) entity.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-		if (target.damage(world, damageSource, f)) {
+		float damage = (float) entity.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+		if (target.damage(world, damageSource, damage)) {
 			EnchantmentHelper.onTargetDamaged(world, target, damageSource);
 		}
 	}
 
 	private void knockbackTarget(AnimalEntity entity, LivingEntity target) {
-		int
-				i =
-				entity.hasStatusEffect(StatusEffects.SPEED) ? entity.getStatusEffect(StatusEffects.SPEED).getAmplifier()
-				                                              + 1 : 0;
-		int
-				j =
-				entity.hasStatusEffect(StatusEffects.SLOWNESS) ?
-				entity.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1 : 0;
-		float f = 0.25F * (i - j);
-		float
-				g =
-				MathHelper.clamp(
-						this.speed * (float) entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED),
-						0.2F,
-						2.0F
-				) + f;
-		entity.knockbackTarget(target, g * this.knockbackStrength, entity.getVelocity());
+		int speedAmplifier = entity.hasStatusEffect(StatusEffects.SPEED)
+				? entity.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1
+				: 0;
+		int slownessAmplifier = entity.hasStatusEffect(StatusEffects.SLOWNESS)
+				? entity.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1
+				: 0;
+		float effectBonus = EFFECT_BONUS_MULTIPLIER * (speedAmplifier - slownessAmplifier);
+		float knockback = MathHelper.clamp(
+				speed * (float) entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED),
+				MIN_KNOCKBACK,
+				MAX_KNOCKBACK
+		) + effectBonus;
+		entity.knockbackTarget(target, knockback * knockbackStrength, entity.getVelocity());
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		animalEntity.getBrain().remember(MemoryModuleType.CHARGE_COOLDOWN_TICKS, this.cooldownTicks);
-		animalEntity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+	@Override
+	protected void finishRunning(ServerWorld world, AnimalEntity entity, long time) {
+		entity.getBrain().remember(MemoryModuleType.CHARGE_COOLDOWN_TICKS, cooldownTicks);
+		entity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
 	}
 }

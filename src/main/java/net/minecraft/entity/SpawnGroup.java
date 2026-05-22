@@ -4,7 +4,8 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code SpawnGroup}.
+ * Группа спауна мобов, определяющая лимит одновременно существующих сущностей,
+ * дальность деспауна и поведение при мирном режиме сложности.
  */
 public enum SpawnGroup implements StringIdentifiable {
 	MONSTER("monster", 70, false, false, 128),
@@ -17,19 +18,20 @@ public enum SpawnGroup implements StringIdentifiable {
 	MISC("misc", -1, true, true, 128);
 
 	public static final Codec<SpawnGroup> CODEC = StringIdentifiable.createCodec(SpawnGroup::values);
+	private static final int DESPAWN_START_RANGE = 32;
+
 	private final int capacity;
 	private final boolean peaceful;
 	private final boolean rare;
 	private final String name;
-	private final int despawnStartRange = 32;
 	private final int immediateDespawnRange;
 
-	private SpawnGroup(
-			final String name,
-			final int spawnCap,
-			final boolean peaceful,
-			final boolean rare,
-			final int immediateDespawnRange
+	SpawnGroup(
+			String name,
+			int spawnCap,
+			boolean peaceful,
+			boolean rare,
+			int immediateDespawnRange
 	) {
 		this.name = name;
 		this.capacity = spawnCap;
@@ -38,32 +40,37 @@ public enum SpawnGroup implements StringIdentifiable {
 		this.immediateDespawnRange = immediateDespawnRange;
 	}
 
-	public String getName() {
-		return this.name;
-	}
-
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
-	public int getCapacity() {
-		return this.capacity;
+	/**
+	 * Возвращает дистанцию, начиная с которой моб начинает деспауниться.
+	 * Фиксировано для всех групп — 32 блока от игрока.
+	 */
+	public int getDespawnStartRange() {
+		return DESPAWN_START_RANGE;
 	}
 
 	public boolean isPeaceful() {
-		return this.peaceful;
-	}
-
-	public boolean isRare() {
-		return this.rare;
+		return peaceful;
 	}
 
 	public int getImmediateDespawnRange() {
-		return this.immediateDespawnRange;
+		return immediateDespawnRange;
 	}
 
-	public int getDespawnStartRange() {
-		return 32;
+	public int getCapacity() {
+		return capacity;
 	}
+
+	public boolean isRare() {
+		return rare;
+	}
+
+	public String getName() {
+		return name;
+	}
+
 }

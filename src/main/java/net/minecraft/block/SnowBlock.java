@@ -19,7 +19,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SnowBlock}.
+ * Блок снежного покрова, поддерживающий от 1 до 8 слоёв.
+ * Тает при высоком уровне блочного освещения и может быть уложен стопкой
+ * путём повторного размещения предмета на уже существующем блоке.
  */
 public class SnowBlock extends Block {
 
@@ -130,9 +132,9 @@ public class SnowBlock extends Block {
 
 	@Override
 	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
-		int i = state.get(LAYERS);
-		if (!context.getStack().isOf(this.asItem()) || i >= 8) {
-			return i == 1;
+		int layers = state.get(LAYERS);
+		if (!context.getStack().isOf(this.asItem()) || layers >= MAX_LAYERS) {
+			return layers == 1;
 		}
 		else {
 			return context.canReplaceExisting() ? context.getSide() == Direction.UP : true;
@@ -143,8 +145,8 @@ public class SnowBlock extends Block {
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos());
 		if (blockState.isOf(this)) {
-			int i = blockState.get(LAYERS);
-			return blockState.with(LAYERS, Math.min(8, i + 1));
+			int layers = blockState.get(LAYERS);
+			return blockState.with(LAYERS, Math.min(MAX_LAYERS, layers + 1));
 		}
 		else {
 			return super.getPlacementState(ctx);

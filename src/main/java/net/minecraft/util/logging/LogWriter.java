@@ -17,11 +17,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code LogWriter}.
+ * Потокобезопасный писатель лог-файла, сериализующий записи через {@link Codec} в JSON.
+ * Поддерживает подсчёт ссылок: файловый канал закрывается только когда все
+ * читатели и сам писатель освобождены.
  */
 public class LogWriter<T> implements Closeable {
 
 	private static final Gson GSON = new Gson();
+	private static final int NEWLINE = 10;
+
 	private final Codec<T> codec;
 	final FileChannel channel;
 	private final AtomicInteger refCount = new AtomicInteger(1);
@@ -31,79 +35,70 @@ public class LogWriter<T> implements Closeable {
 		this.channel = channel;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param codec codec
-	 * @param path path
-	 *
-	 * @return LogWriter — результат операции
-	 */
 	public static <T> LogWriter<T> create(Codec<T> codec, Path path) throws IOException {
-		FileChannel
-				fileChannel =
-				FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.READ, StandardOpenOption.CREATE);
+		FileChannel fileChannel = FileChannel.open(
+				path,
+				StandardOpenOption.WRITE,
+				StandardOpenOption.READ,
+				StandardOpenOption.CREATE
+		);
 		return new LogWriter<>(codec, fileChannel);
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param object object
-	 */
 	public void write(T object) throws IOException {
-		JsonElement
-				jsonElement =
-				(JsonElement) this.codec.encodeStart(JsonOps.INSTANCE, object).getOrThrow(IOException::new);
-		this.channel.position(this.channel.size());
-		Writer writer = Channels.newWriter(this.channel, StandardCharsets.UTF_8);
-		GSON.toJson(jsonElement, GSON.newJsonWriter(writer));
-		writer.write(10);
+		JsonElement json = (JsonElement) codec.encodeStart(JsonOps.INSTANCE, object).getOrThrow(IOException::new);
+		channel.position(channel.size());
+		Writer writer = Channels.newWriter(channel, StandardCharsets.UTF_8);
+		GSON.toJson(json, GSON.newJsonWriter(writer));
+		writer.write(NEWLINE);
 		writer.flush();
 	}
 
+	/**
+	 * Создаёт читатель, разделяющий файловый канал с этим писателем.
+	 * Канал закроется только после освобождения всех читателей и самого писателя.
+	 *
+	 * @return читатель, позиция которого независима от позиции писателя
+	 * @throws IOException если писатель уже закрыт
+	 */
 	public LogReader<T> getReader() throws IOException {
-		if (this.refCount.get() <= 0) {
+		if (refCount.get() <= 0) {
 			throw new IOException("Event log has already been closed");
 		}
-		else {
-			this.refCount.incrementAndGet();
-			final LogReader<T>
-					logReader =
-					LogReader.create(this.codec, Channels.newReader(this.channel, StandardCharsets.UTF_8));
-			return new LogReader<T>() {
-				private volatile long pos;
 
-				@Override
-				public @Nullable T read() throws IOException {
-					Object var1;
-					try {
-						LogWriter.this.channel.position(this.pos);
-						var1 = logReader.read();
-					}
-					finally {
-						this.pos = LogWriter.this.channel.position();
-					}
+		refCount.incrementAndGet();
+		LogReader<T> delegate = LogReader.create(codec, Channels.newReader(channel, StandardCharsets.UTF_8));
 
-					return (T) var1;
+		return new LogReader<>() {
+			private volatile long position;
+
+			@Override
+			public @Nullable T read() throws IOException {
+				T result;
+				try {
+					channel.position(position);
+					result = delegate.read();
+				} finally {
+					position = channel.position();
 				}
+				return result;
+			}
 
-				@Override
-				public void close() throws IOException {
-					LogWriter.this.closeIfNotReferenced();
-				}
-			};
-		}
+			@Override
+			public void close() throws IOException {
+				closeIfNotReferenced();
+			}
+		};
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.closeIfNotReferenced();
+		closeIfNotReferenced();
 	}
 
 	void closeIfNotReferenced() throws IOException {
-		if (this.refCount.decrementAndGet() <= 0) {
-			this.channel.close();
+		if (refCount.decrementAndGet() <= 0) {
+			channel.close();
 		}
 	}
 }

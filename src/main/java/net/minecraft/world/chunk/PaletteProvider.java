@@ -4,13 +4,16 @@ import net.minecraft.util.collection.IndexedIterable;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code PaletteProvider}.
+ * Стратегия выбора типа палитры в зависимости от числа бит на элемент.
+ * Определяет, какую реализацию {@link Palette} использовать для блок-стейтов
+ * и биомов, а также вычисляет линейный индекс по координатам (x, y, z).
  */
 public abstract class PaletteProvider<T> {
 
 	private static final Palette.Factory SINGULAR = SingularPalette::create;
 	private static final Palette.Factory ARRAY = ArrayPalette::create;
 	private static final Palette.Factory BI_MAP = BiMapPalette::create;
+
 	static final PaletteType SINGULAR_TYPE = new PaletteType.Static(SINGULAR, 0);
 	static final PaletteType ARRAY_1_TYPE = new PaletteType.Static(ARRAY, 1);
 	static final PaletteType ARRAY_2_TYPE = new PaletteType.Static(ARRAY, 2);
@@ -20,6 +23,7 @@ public abstract class PaletteProvider<T> {
 	static final PaletteType BI_MAP_6_TYPE = new PaletteType.Static(BI_MAP, 6);
 	static final PaletteType BI_MAP_7_TYPE = new PaletteType.Static(BI_MAP, 7);
 	static final PaletteType BI_MAP_8_TYPE = new PaletteType.Static(BI_MAP, 8);
+
 	private final IndexedIterable<T> idList;
 	private final IdListPalette<T> palette;
 	protected final int bitsInMemory;
@@ -35,97 +39,69 @@ public abstract class PaletteProvider<T> {
 	}
 
 	/**
-	 * For block states.
-	 *
-	 * @param idList id list
-	 *
-	 * @return PaletteProvider — результат операции
+	 * Создаёт провайдер для блок-стейтов (секция 16×16×16, 4 бита на ось).
+	 * Использует линейную палитру до 4 бит, BiMap до 8 бит, затем глобальный реестр.
 	 */
 	public static <T> PaletteProvider<T> forBlockStates(IndexedIterable<T> idList) {
 		return new PaletteProvider<T>(idList, 4) {
 			@Override
 			public PaletteType createType(int bitsInStorage) {
-				return (PaletteType) (switch (bitsInStorage) {
-					case 0 -> PaletteProvider.SINGULAR_TYPE;
-					case 1, 2, 3, 4 -> PaletteProvider.ARRAY_4_TYPE;
-					case 5 -> PaletteProvider.BI_MAP_5_TYPE;
-					case 6 -> PaletteProvider.BI_MAP_6_TYPE;
-					case 7 -> PaletteProvider.BI_MAP_7_TYPE;
-					case 8 -> PaletteProvider.BI_MAP_8_TYPE;
-					default -> new PaletteType.Dynamic(this.bitsInMemory, bitsInStorage);
-				}
-				);
+				return switch (bitsInStorage) {
+					case 0 -> SINGULAR_TYPE;
+					case 1, 2, 3, 4 -> ARRAY_4_TYPE;
+					case 5 -> BI_MAP_5_TYPE;
+					case 6 -> BI_MAP_6_TYPE;
+					case 7 -> BI_MAP_7_TYPE;
+					case 8 -> BI_MAP_8_TYPE;
+					default -> new PaletteType.Dynamic(bitsInMemory, bitsInStorage);
+				};
 			}
 		};
 	}
 
 	/**
-	 * For biomes.
-	 *
-	 * @param idList id list
-	 *
-	 * @return PaletteProvider — результат операции
+	 * Создаёт провайдер для биомов (секция 4×4×4, 2 бита на ось).
+	 * Использует линейную палитру до 3 бит, затем глобальный реестр.
 	 */
 	public static <T> PaletteProvider<T> forBiomes(IndexedIterable<T> idList) {
 		return new PaletteProvider<T>(idList, 2) {
 			@Override
 			public PaletteType createType(int bitsInStorage) {
-				return (PaletteType) (switch (bitsInStorage) {
-					case 0 -> PaletteProvider.SINGULAR_TYPE;
-					case 1 -> PaletteProvider.ARRAY_1_TYPE;
-					case 2 -> PaletteProvider.ARRAY_2_TYPE;
-					case 3 -> PaletteProvider.ARRAY_3_TYPE;
-					default -> new PaletteType.Dynamic(this.bitsInMemory, bitsInStorage);
-				}
-				);
+				return switch (bitsInStorage) {
+					case 0 -> SINGULAR_TYPE;
+					case 1 -> ARRAY_1_TYPE;
+					case 2 -> ARRAY_2_TYPE;
+					case 3 -> ARRAY_3_TYPE;
+					default -> new PaletteType.Dynamic(bitsInMemory, bitsInStorage);
+				};
 			}
 		};
 	}
 
 	public int getSize() {
-		return this.size;
+		return size;
 	}
 
 	/**
-	 * Вычисляет index.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return int — результат операции
+	 * Вычисляет линейный индекс элемента по трёхмерным координатам внутри секции.
+	 * Формула: {@code (y << bitsPerAxis | z) << bitsPerAxis | x}.
 	 */
 	public int computeIndex(int x, int y, int z) {
-		return (y << this.bitsPerAxis | z) << this.bitsPerAxis | x;
+		return (y << bitsPerAxis | z) << bitsPerAxis | x;
 	}
 
 	public IndexedIterable<T> getIdList() {
-		return this.idList;
+		return idList;
 	}
 
 	public IdListPalette<T> getPalette() {
-		return this.palette;
+		return palette;
 	}
 
-	/**
-	 * Создаёт type.
-	 *
-	 * @param bitsInStorage bits in storage
-	 *
-	 * @return PaletteType — результат операции
-	 */
 	protected abstract PaletteType createType(int bitsInStorage);
 
-	/**
-	 * Создаёт type from size.
-	 *
-	 * @param size size
-	 *
-	 * @return PaletteType — результат операции
-	 */
 	protected PaletteType createTypeFromSize(int size) {
-		int i = toBits(size);
-		return this.createType(i);
+		return createType(toBits(size));
 	}
 
 	private static int toBits(int size) {

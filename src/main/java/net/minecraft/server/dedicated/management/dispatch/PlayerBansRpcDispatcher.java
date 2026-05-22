@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code PlayerBansRpcDispatcher}.
+ * Класс Player Bans Rpc Dispatcher.
  */
 public class PlayerBansRpcDispatcher {
 
@@ -150,9 +150,6 @@ public class PlayerBansRpcDispatcher {
 		return get(dispatcher);
 	}
 
-	/**
-	 * {@code ConfigEntry}.
-	 */
 	record ConfigEntry(PlayerConfigEntry player, @Nullable String reason, String source, Optional<Instant> expires) {
 
 		static PlayerBansRpcDispatcher.ConfigEntry of(BannedPlayerEntry entry) {
@@ -175,9 +172,6 @@ public class PlayerBansRpcDispatcher {
 		}
 	}
 
-	/**
-	 * {@code RpcEntry}.
-	 */
 	public record RpcEntry(
 			RpcPlayer player,
 			Optional<String> reason,

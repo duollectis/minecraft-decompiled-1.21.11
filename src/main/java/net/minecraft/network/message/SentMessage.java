@@ -4,7 +4,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
 /**
- * Интерфейс sent message.
+ * Отправляемое сообщение чата. Два варианта: подписанное ({@link Chat}) и без профиля ({@link Profileless}).
  */
 public interface SentMessage {
 
@@ -13,38 +13,39 @@ public interface SentMessage {
 	void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params);
 
 	static SentMessage of(SignedMessage message) {
-		return (SentMessage) (message.isSenderMissing() ? new SentMessage.Profileless(message.getContent())
-		                                                : new SentMessage.Chat(message)
-		);
+		return message.isSenderMissing()
+				? new SentMessage.Profileless(message.getContent())
+				: new SentMessage.Chat(message);
 	}
 
 	/**
-	 * Запись chat.
+	 * Подписанное сообщение с профилем игрока. Применяет маску фильтрации перед отправкой.
 	 */
-	public record Chat(SignedMessage message) implements SentMessage {
+	record Chat(SignedMessage message) implements SentMessage {
 
 		@Override
 		public Text content() {
-			return this.message.getContent();
+			return message.getContent();
 		}
 
 		@Override
 		public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
-			SignedMessage signedMessage = this.message.withFilterMaskEnabled(filterMaskEnabled);
-			if (!signedMessage.isFullyFiltered()) {
-				sender.networkHandler.sendChatMessage(signedMessage, params);
+			SignedMessage filtered = message.withFilterMaskEnabled(filterMaskEnabled);
+
+			if (!filtered.isFullyFiltered()) {
+				sender.networkHandler.sendChatMessage(filtered, params);
 			}
 		}
 	}
 
 	/**
-	 * Запись profileless.
+	 * Сообщение без профиля игрока (анонимное или системное).
 	 */
-	public record Profileless(Text content) implements SentMessage {
+	record Profileless(Text content) implements SentMessage {
 
 		@Override
 		public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
-			sender.networkHandler.sendProfilelessChatMessage(this.content, params);
+			sender.networkHandler.sendProfilelessChatMessage(content, params);
 		}
 	}
 }

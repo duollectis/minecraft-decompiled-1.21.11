@@ -20,12 +20,15 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code OminousItemSpawnerEntity}.
+ * Сущность-спаунер предметов, создаваемая при активации зловещего испытания.
+ * Парит в воздухе, через случайное время выбрасывает предмет (или снаряд) вниз
+ * и уничтожается. На клиенте каждые 5 тиков генерирует частицы {@code OMINOUS_SPAWNING}.
  */
 public class OminousItemSpawnerEntity extends Entity {
 
 	private static final int MIN_SPAWN_ITEM_AFTER_TICKS = 60;
 	private static final int MAX_SPAWN_ITEM_AFTER_TICKS = 120;
+	private static final double PARTICLE_SPREAD = 0.4;
 	private static final String SPAWN_ITEM_AFTER_TICKS_NBT_KEY = "spawn_item_after_ticks";
 	private static final String ITEM_NBT_KEY = "item";
 	private static final TrackedData<ItemStack>
@@ -40,20 +43,14 @@ public class OminousItemSpawnerEntity extends Entity {
 	}
 
 	/**
-	 * Create.
-	 *
-	 * @param world world
-	 * @param stack stack
-	 *
-	 * @return OminousItemSpawnerEntity — результат операции
+	 * Создаёт новый спаунер с заданным предметом и случайной задержкой спауна.
+	 * Задержка выбирается равномерно в диапазоне [{@code MIN_SPAWN_ITEM_AFTER_TICKS}, {@code MAX_SPAWN_ITEM_AFTER_TICKS}].
 	 */
 	public static OminousItemSpawnerEntity create(World world, ItemStack stack) {
-		OminousItemSpawnerEntity
-				ominousItemSpawnerEntity =
-				new OminousItemSpawnerEntity(EntityType.OMINOUS_ITEM_SPAWNER, world);
-		ominousItemSpawnerEntity.spawnItemAfterTicks = world.random.nextBetween(60, 120);
-		ominousItemSpawnerEntity.setItem(stack);
-		return ominousItemSpawnerEntity;
+		OminousItemSpawnerEntity spawner = new OminousItemSpawnerEntity(EntityType.OMINOUS_ITEM_SPAWNER, world);
+		spawner.spawnItemAfterTicks = world.random.nextBetween(MIN_SPAWN_ITEM_AFTER_TICKS, MAX_SPAWN_ITEM_AFTER_TICKS);
+		spawner.setItem(stack);
+		return spawner;
 	}
 
 	@Override
@@ -68,7 +65,7 @@ public class OminousItemSpawnerEntity extends Entity {
 	}
 
 	private void tickServer(ServerWorld world) {
-		if (this.age == this.spawnItemAfterTicks - 36L) {
+		if (this.age == this.spawnItemAfterTicks - PRE_SPAWN_SOUND_OFFSET) {
 			world.playSound(
 					null,
 					this.getBlockPos(),
@@ -175,30 +172,30 @@ public class OminousItemSpawnerEntity extends Entity {
 	}
 
 	/**
-	 * Добавляет particles.
+	 * Генерирует клиентские частицы {@code OMINOUS_SPAWNING} вокруг спаунера.
+	 * Каждый вызов создаёт от 1 до 3 частиц со случайным смещением по Гауссу.
 	 */
 	public void addParticles() {
-		Vec3d vec3d = this.getEntityPos();
-		int i = this.random.nextBetween(1, 3);
+		Vec3d center = getEntityPos();
+		int particleCount = random.nextBetween(1, 3);
 
-		for (int j = 0; j < i; j++) {
-			double d = 0.4;
-			Vec3d vec3d2 = new Vec3d(
-					this.getX() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
-					this.getY() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
-					this.getZ() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian())
+		for (int index = 0; index < particleCount; index++) {
+			Vec3d particlePos = new Vec3d(
+					getX() + PARTICLE_SPREAD * (random.nextGaussian() - random.nextGaussian()),
+					getY() + PARTICLE_SPREAD * (random.nextGaussian() - random.nextGaussian()),
+					getZ() + PARTICLE_SPREAD * (random.nextGaussian() - random.nextGaussian())
 			);
-			Vec3d vec3d3 = vec3d.relativize(vec3d2);
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.OMINOUS_SPAWNING,
-					    vec3d.getX(),
-					    vec3d.getY(),
-					    vec3d.getZ(),
-					    vec3d3.getX(),
-					    vec3d3.getY(),
-					    vec3d3.getZ()
-			    );
+			Vec3d velocity = center.relativize(particlePos);
+
+			getEntityWorld().addParticleClient(
+					ParticleTypes.OMINOUS_SPAWNING,
+					center.getX(),
+					center.getY(),
+					center.getZ(),
+					velocity.getX(),
+					velocity.getY(),
+					velocity.getZ()
+			);
 		}
 	}
 

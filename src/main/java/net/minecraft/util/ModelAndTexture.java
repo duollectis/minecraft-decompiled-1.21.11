@@ -7,7 +7,10 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code ModelAndTexture}.
+ * Пара «модель + текстура», используемая для описания визуального представления объектов.
+ * Хранит ссылку на модель произвольного типа и информацию о текстурном ассете.
+ *
+ * @param <T> тип модели
  */
 public record ModelAndTexture<T>(T model, AssetInfo.TextureAssetInfo asset) {
 
@@ -16,38 +19,37 @@ public record ModelAndTexture<T>(T model, AssetInfo.TextureAssetInfo asset) {
 	}
 
 	/**
-	 * Создаёт map codec.
+	 * Создаёт {@link MapCodec} для сериализации, где поле {@code model} является опциональным
+	 * с заданным значением по умолчанию.
 	 *
-	 * @param modelCodec model codec
-	 * @param model model
-	 *
-	 * @return MapCodec> — результат операции
+	 * @param modelCodec кодек для типа модели
+	 * @param defaultModel значение модели по умолчанию
+	 * @return кодек для {@link ModelAndTexture}
 	 */
-	public static <T> MapCodec<ModelAndTexture<T>> createMapCodec(Codec<T> modelCodec, T model) {
+	public static <T> MapCodec<ModelAndTexture<T>> createMapCodec(Codec<T> modelCodec, T defaultModel) {
 		return RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    modelCodec.optionalFieldOf("model", model).forGetter(ModelAndTexture::model),
-						                    AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(ModelAndTexture::asset)
-				                    )
-				                    .apply(instance, ModelAndTexture::new)
+			instance -> instance.group(
+				modelCodec.optionalFieldOf("model", defaultModel).forGetter(ModelAndTexture::model),
+				AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(ModelAndTexture::asset)
+			).apply(instance, ModelAndTexture::new)
 		);
 	}
 
 	/**
-	 * Создаёт packet codec.
+	 * Создаёт {@link PacketCodec} для сетевой передачи пары модель+текстура.
 	 *
-	 * @param RegistryByteBuf registry byte buf
-	 * @param modelPacketCodec model packet codec
-	 *
-	 * @return PacketCodec> — результат операции
+	 * @param modelPacketCodec кодек для сетевой передачи модели
+	 * @return пакетный кодек для {@link ModelAndTexture}
 	 */
-	public static <T> PacketCodec<RegistryByteBuf, ModelAndTexture<T>> createPacketCodec(PacketCodec<? super RegistryByteBuf, T> modelPacketCodec) {
+	public static <T> PacketCodec<RegistryByteBuf, ModelAndTexture<T>> createPacketCodec(
+		PacketCodec<? super RegistryByteBuf, T> modelPacketCodec
+	) {
 		return PacketCodec.tuple(
-				modelPacketCodec,
-				ModelAndTexture::model,
-				AssetInfo.TextureAssetInfo.PACKET_CODEC,
-				ModelAndTexture::asset,
-				ModelAndTexture::new
+			modelPacketCodec,
+			ModelAndTexture::model,
+			AssetInfo.TextureAssetInfo.PACKET_CODEC,
+			ModelAndTexture::asset,
+			ModelAndTexture::new
 		);
 	}
 }

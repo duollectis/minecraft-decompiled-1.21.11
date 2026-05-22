@@ -8,7 +8,8 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code ContainerBlockEntityLockPredicateFix}.
+ * Переименовывает поле {@code Lock} в {@code lock} у всех блок-энтити-контейнеров
+ * и конвертирует его значение через {@link LockComponentPredicateFix#fixLock}.
  */
 public class ContainerBlockEntityLockPredicateFix extends DataFix {
 
@@ -17,9 +18,9 @@ public class ContainerBlockEntityLockPredicateFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ContainerBlockEntityLockPredicateFix",
-				this.getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
+				getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
 				ContainerBlockEntityLockPredicateFix::fixLock
 		);
 	}

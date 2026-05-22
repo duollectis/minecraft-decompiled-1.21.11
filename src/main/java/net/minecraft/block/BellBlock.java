@@ -42,7 +42,9 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * {@code BellBlock}.
+ * Блок колокола. Поддерживает 4 типа крепления ({@link Attachment}): к полу, потолку
+ * и одной/двум стенам. Звонит при нажатии игрока, попадании снаряда, взрыве или
+ * редстоун-сигнале. При звоне уведомляет ближайших рейдеров через {@link BellBlockEntity}.
  */
 public class BellBlock extends BlockWithEntity {
 
@@ -50,22 +52,21 @@ public class BellBlock extends BlockWithEntity {
 	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
 	public static final EnumProperty<Attachment> ATTACHMENT = Properties.ATTACHMENT;
 	public static final BooleanProperty POWERED = Properties.POWERED;
-	private static final VoxelShape
-			BELL_SHAPE =
-			VoxelShapes.union(Block.createColumnShape(6.0, 6.0, 13.0), Block.createColumnShape(8.0, 4.0, 6.0));
-	private static final VoxelShape
-			CEILING_SHAPE =
-			VoxelShapes.union(BELL_SHAPE, Block.createColumnShape(2.0, 13.0, 16.0));
-	private static final Map<Direction.Axis, VoxelShape>
-			FLOOR_SHAPES =
-			VoxelShapes.createHorizontalAxisShapeMap(Block.createCuboidShape(16.0, 16.0, 8.0));
-	private static final Map<Direction.Axis, VoxelShape> DOUBLE_WALL_SHAPES = VoxelShapes.createHorizontalAxisShapeMap(
-			VoxelShapes.union(BELL_SHAPE, Block.createColumnShape(2.0, 16.0, 13.0, 15.0))
-	);
-	private static final Map<Direction, VoxelShape> SINGLE_WALL_SHAPES = VoxelShapes.createHorizontalFacingShapeMap(
-			VoxelShapes.union(BELL_SHAPE, Block.createCuboidZShape(2.0, 13.0, 15.0, 0.0, 13.0))
-	);
 	public static final int BELL_RING_NOTIFY_FLAGS = 1;
+	private static final VoxelShape BELL_SHAPE =
+			VoxelShapes.union(Block.createColumnShape(6.0, 6.0, 13.0), Block.createColumnShape(8.0, 4.0, 6.0));
+	private static final VoxelShape CEILING_SHAPE =
+			VoxelShapes.union(BELL_SHAPE, Block.createColumnShape(2.0, 13.0, 16.0));
+	private static final Map<Direction.Axis, VoxelShape> FLOOR_SHAPES =
+			VoxelShapes.createHorizontalAxisShapeMap(Block.createCuboidShape(16.0, 16.0, 8.0));
+	private static final Map<Direction.Axis, VoxelShape> DOUBLE_WALL_SHAPES =
+			VoxelShapes.createHorizontalAxisShapeMap(
+					VoxelShapes.union(BELL_SHAPE, Block.createColumnShape(2.0, 16.0, 13.0, 15.0))
+			);
+	private static final Map<Direction, VoxelShape> SINGLE_WALL_SHAPES =
+			VoxelShapes.createHorizontalFacingShapeMap(
+					VoxelShapes.union(BELL_SHAPE, Block.createCuboidZShape(2.0, 13.0, 15.0, 0.0, 13.0))
+			);
 
 	@Override
 	public MapCodec<BellBlock> getCodec() {
@@ -74,7 +75,7 @@ public class BellBlock extends BlockWithEntity {
 
 	public BellBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(FACING, Direction.NORTH)
 				.with(ATTACHMENT, Attachment.FLOOR)
@@ -90,27 +91,35 @@ public class BellBlock extends BlockWithEntity {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		boolean bl = world.isReceivingRedstonePower(pos);
-		if (bl != state.get(POWERED)) {
-			if (bl) {
-				this.ring(world, pos, null);
-			}
+		boolean powered = world.isReceivingRedstonePower(pos);
 
-			world.setBlockState(pos, state.with(POWERED, bl), 3);
+		if (powered == state.get(POWERED)) {
+			return;
 		}
+
+		if (powered) {
+			ring(world, pos, null);
+		}
+
+		world.setBlockState(pos, state.with(POWERED, powered), 3);
 	}
 
 	@Override
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-		PlayerEntity playerEntity2 = projectile.getOwner() instanceof PlayerEntity playerEntity ? playerEntity : null;
-		this.ring(world, state, hit, playerEntity2, true);
+		PlayerEntity shooter = projectile.getOwner() instanceof PlayerEntity player ? player : null;
+		ring(world, state, hit, shooter, true);
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		return (ActionResult) (this.ring(world, state, hit, player, true) ? ActionResult.SUCCESS : ActionResult.PASS);
+		return ring(world, state, hit, player, true) ? ActionResult.SUCCESS : ActionResult.PASS;
 	}
 
+	/**
+	 * Звонит в колокол при попадании в него (с проверкой точки удара или без).
+	 * Если {@code checkHitPos} равен {@code true} — проверяет, что удар пришёлся
+	 * именно по телу колокола, а не по опоре.
+	 */
 	public boolean ring(
 			World world,
 			BlockState state,
@@ -118,150 +127,129 @@ public class BellBlock extends BlockWithEntity {
 			@Nullable PlayerEntity player,
 			boolean checkHitPos
 	) {
-		Direction direction = hitResult.getSide();
-		BlockPos blockPos = hitResult.getBlockPos();
-		boolean bl = !checkHitPos || this.isPointOnBell(state, direction, hitResult.getPos().y - blockPos.getY());
-		if (bl) {
-			boolean bl2 = this.ring(player, world, blockPos, direction);
-			if (bl2 && player != null) {
-				player.incrementStat(Stats.BELL_RING);
-			}
+		Direction side = hitResult.getSide();
+		BlockPos hitPos = hitResult.getBlockPos();
+		boolean hitOnBell = checkHitPos == false
+				|| isPointOnBell(state, side, hitResult.getPos().y - hitPos.getY());
 
-			return true;
-		}
-		else {
+		if (hitOnBell == false) {
 			return false;
 		}
+
+		boolean rang = ring(player, world, hitPos, side);
+
+		if (rang && player != null) {
+			player.incrementStat(Stats.BELL_RING);
+		}
+
+		return true;
 	}
 
 	private boolean isPointOnBell(BlockState state, Direction side, double y) {
-		if (side.getAxis() != Direction.Axis.Y && !(y > 0.8124F)) {
-			Direction direction = state.get(FACING);
-			Attachment attachment = state.get(ATTACHMENT);
-			switch (attachment) {
-				case FLOOR:
-					return direction.getAxis() == side.getAxis();
-				case SINGLE_WALL:
-				case DOUBLE_WALL:
-					return direction.getAxis() != side.getAxis();
-				case CEILING:
-					return true;
-				default:
-					return false;
-			}
-		}
-		else {
+		if (side.getAxis() == Direction.Axis.Y || y > 0.8124F) {
 			return false;
 		}
+
+		Direction facing = state.get(FACING);
+		Attachment attachment = state.get(ATTACHMENT);
+
+		return switch (attachment) {
+			case FLOOR -> facing.getAxis() == side.getAxis();
+			case SINGLE_WALL, DOUBLE_WALL -> facing.getAxis() != side.getAxis();
+			case CEILING -> true;
+		};
 	}
 
-	/**
-	 * Ring.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param direction direction
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean ring(World world, BlockPos pos, @Nullable Direction direction) {
-		return this.ring(null, world, pos, direction);
+		return ring(null, world, pos, direction);
 	}
 
 	/**
-	 * Ring.
-	 *
-	 * @param entity entity
-	 * @param world world
-	 * @param pos pos
-	 * @param direction direction
-	 *
-	 * @return boolean — результат операции
+	 * Активирует колокол на сервере: запускает анимацию через {@link BellBlockEntity},
+	 * воспроизводит звук и испускает игровое событие. Если {@code direction} равен
+	 * {@code null} — использует направление, в которое смотрит блок.
 	 */
 	public boolean ring(@Nullable Entity entity, World world, BlockPos pos, @Nullable Direction direction) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (!world.isClient() && blockEntity instanceof BellBlockEntity) {
-			if (direction == null) {
-				direction = world.getBlockState(pos).get(FACING);
-			}
-
-			((BellBlockEntity) blockEntity).activate(direction);
-			world.playSound(null, pos, SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 2.0F, 1.0F);
-			world.emitGameEvent(entity, GameEvent.BLOCK_CHANGE, pos);
-			return true;
-		}
-		else {
+		if (world.isClient() || world.getBlockEntity(pos) instanceof BellBlockEntity == false) {
 			return false;
 		}
+
+		BellBlockEntity bell = (BellBlockEntity) world.getBlockEntity(pos);
+		Direction ringDirection = direction != null ? direction : world.getBlockState(pos).get(FACING);
+
+		bell.activate(ringDirection);
+		world.playSound(null, pos, SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 2.0F, 1.0F);
+		world.emitGameEvent(entity, GameEvent.BLOCK_CHANGE, pos);
+
+		return true;
 	}
 
 	private VoxelShape getShape(BlockState state) {
-		Direction direction = state.get(FACING);
+		Direction facing = state.get(FACING);
 
-		return switch ((Attachment) state.get(ATTACHMENT)) {
-			case FLOOR -> (VoxelShape) FLOOR_SHAPES.get(direction.getAxis());
-			case SINGLE_WALL -> (VoxelShape) SINGLE_WALL_SHAPES.get(direction);
-			case DOUBLE_WALL -> (VoxelShape) DOUBLE_WALL_SHAPES.get(direction.getAxis());
+		return switch (state.get(ATTACHMENT)) {
+			case FLOOR -> FLOOR_SHAPES.get(facing.getAxis());
+			case SINGLE_WALL -> SINGLE_WALL_SHAPES.get(facing);
+			case DOUBLE_WALL -> DOUBLE_WALL_SHAPES.get(facing.getAxis());
 			case CEILING -> CEILING_SHAPE;
 		};
 	}
 
 	@Override
 	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.getShape(state);
+		return getShape(state);
 	}
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.getShape(state);
+		return getShape(state);
 	}
 
+	/**
+	 * Определяет начальное состояние при размещении. Пробует разместить колокол
+	 * в порядке приоритета: потолок/пол (при ударе по горизонтальной поверхности),
+	 * двойная стена → одиночная стена → пол/потолок (при ударе по вертикальной).
+	 */
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		Direction direction = ctx.getSide();
-		BlockPos blockPos = ctx.getBlockPos();
+		Direction side = ctx.getSide();
+		BlockPos pos = ctx.getBlockPos();
 		World world = ctx.getWorld();
-		Direction.Axis axis = direction.getAxis();
+		Direction.Axis axis = side.getAxis();
+
 		if (axis == Direction.Axis.Y) {
-			BlockState blockState = this.getDefaultState()
-			                            .with(
-					                            ATTACHMENT,
-					                            direction == Direction.DOWN ? Attachment.CEILING : Attachment.FLOOR
-			                            )
-			                            .with(FACING, ctx.getHorizontalPlayerFacing());
-			if (blockState.canPlaceAt(ctx.getWorld(), blockPos)) {
-				return blockState;
-			}
-		}
-		else {
-			boolean bl = axis == Direction.Axis.X
-					&& world
-					.getBlockState(blockPos.west())
-					.isSideSolidFullSquare(world, blockPos.west(), Direction.EAST)
-					&& world
-					.getBlockState(blockPos.east())
-					.isSideSolidFullSquare(world, blockPos.east(), Direction.WEST)
-					|| axis == Direction.Axis.Z
-					&& world
-					.getBlockState(blockPos.north())
-					.isSideSolidFullSquare(world, blockPos.north(), Direction.SOUTH)
-					&& world
-					.getBlockState(blockPos.south())
-					.isSideSolidFullSquare(world, blockPos.south(), Direction.NORTH);
-			BlockState blockState = this.getDefaultState()
-			                            .with(FACING, direction.getOpposite())
-			                            .with(ATTACHMENT, bl ? Attachment.DOUBLE_WALL : Attachment.SINGLE_WALL);
-			if (blockState.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
-				return blockState;
+			Attachment attachment = side == Direction.DOWN ? Attachment.CEILING : Attachment.FLOOR;
+			BlockState candidate = getDefaultState()
+					.with(ATTACHMENT, attachment)
+					.with(FACING, ctx.getHorizontalPlayerFacing());
+
+			if (candidate.canPlaceAt(world, pos)) {
+				return candidate;
 			}
 
-			boolean
-					bl2 =
-					world.getBlockState(blockPos.down()).isSideSolidFullSquare(world, blockPos.down(), Direction.UP);
-			blockState = blockState.with(ATTACHMENT, bl2 ? Attachment.FLOOR : Attachment.CEILING);
-			if (blockState.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
-				return blockState;
-			}
+			return null;
+		}
+
+		boolean hasDoubleWallSupport = axis == Direction.Axis.X
+				&& world.getBlockState(pos.west()).isSideSolidFullSquare(world, pos.west(), Direction.EAST)
+				&& world.getBlockState(pos.east()).isSideSolidFullSquare(world, pos.east(), Direction.WEST)
+				|| axis == Direction.Axis.Z
+				&& world.getBlockState(pos.north()).isSideSolidFullSquare(world, pos.north(), Direction.SOUTH)
+				&& world.getBlockState(pos.south()).isSideSolidFullSquare(world, pos.south(), Direction.NORTH);
+
+		BlockState wallCandidate = getDefaultState()
+				.with(FACING, side.getOpposite())
+				.with(ATTACHMENT, hasDoubleWallSupport ? Attachment.DOUBLE_WALL : Attachment.SINGLE_WALL);
+
+		if (wallCandidate.canPlaceAt(world, pos)) {
+			return wallCandidate;
+		}
+
+		boolean hasFloorSupport = world.getBlockState(pos.down()).isSideSolidFullSquare(world, pos.down(), Direction.UP);
+		BlockState fallbackCandidate = wallCandidate.with(ATTACHMENT, hasFloorSupport ? Attachment.FLOOR : Attachment.CEILING);
+
+		if (fallbackCandidate.canPlaceAt(world, pos)) {
+			return fallbackCandidate;
 		}
 
 		return null;
@@ -276,7 +264,7 @@ public class BellBlock extends BlockWithEntity {
 			BiConsumer<ItemStack, BlockPos> stackMerger
 	) {
 		if (explosion.canTriggerBlocks()) {
-			this.ring(world, pos, null);
+			ring(world, pos, null);
 		}
 
 		super.onExploded(state, world, pos, explosion, stackMerger);
@@ -294,56 +282,57 @@ public class BellBlock extends BlockWithEntity {
 			Random random
 	) {
 		Attachment attachment = state.get(ATTACHMENT);
-		Direction direction2 = getPlacementSide(state).getOpposite();
-		if (direction2 == direction && !state.canPlaceAt(world, pos) && attachment != Attachment.DOUBLE_WALL) {
+		Direction supportSide = getPlacementSide(state).getOpposite();
+
+		if (supportSide == direction
+				&& state.canPlaceAt(world, pos) == false
+				&& attachment != Attachment.DOUBLE_WALL
+		) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			if (direction.getAxis() == state.get(FACING).getAxis()) {
-				if (attachment == Attachment.DOUBLE_WALL && !neighborState.isSideSolidFullSquare(
-						world,
-						neighborPos,
-						direction
-				)) {
-					return state.with(ATTACHMENT, Attachment.SINGLE_WALL).with(FACING, direction.getOpposite());
-				}
 
-				if (attachment == Attachment.SINGLE_WALL
-						&& direction2.getOpposite() == direction
-						&& neighborState.isSideSolidFullSquare(world, neighborPos, state.get(FACING))) {
-					return state.with(ATTACHMENT, Attachment.DOUBLE_WALL);
-				}
+		if (direction.getAxis() == state.get(FACING).getAxis()) {
+			if (attachment == Attachment.DOUBLE_WALL
+					&& neighborState.isSideSolidFullSquare(world, neighborPos, direction) == false
+			) {
+				return state.with(ATTACHMENT, Attachment.SINGLE_WALL).with(FACING, direction.getOpposite());
 			}
 
-			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
-			);
+			if (attachment == Attachment.SINGLE_WALL
+					&& supportSide.getOpposite() == direction
+					&& neighborState.isSideSolidFullSquare(world, neighborPos, state.get(FACING))
+			) {
+				return state.with(ATTACHMENT, Attachment.DOUBLE_WALL);
+			}
 		}
+
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		Direction direction = getPlacementSide(state).getOpposite();
-		return direction == Direction.UP ? Block.sideCoversSmallSquare(world, pos.up(), Direction.DOWN)
-		                                 : WallMountedBlock.canPlaceAt(world, pos, direction);
+		Direction supportSide = getPlacementSide(state).getOpposite();
+
+		return supportSide == Direction.UP
+				? Block.sideCoversSmallSquare(world, pos.up(), Direction.DOWN)
+				: WallMountedBlock.canPlaceAt(world, pos, supportSide);
 	}
 
 	private static Direction getPlacementSide(BlockState state) {
-		switch ((Attachment) state.get(ATTACHMENT)) {
-			case FLOOR:
-				return Direction.UP;
-			case CEILING:
-				return Direction.DOWN;
-			default:
-				return state.get(FACING).getOpposite();
-		}
+		return switch (state.get(ATTACHMENT)) {
+			case FLOOR -> Direction.UP;
+			case CEILING -> Direction.DOWN;
+			default -> state.get(FACING).getOpposite();
+		};
 	}
 
 	@Override

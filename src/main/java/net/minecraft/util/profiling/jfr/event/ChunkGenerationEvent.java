@@ -6,15 +6,16 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
+/**
+ * JFR-событие генерации чанка. Фиксирует позицию чанка, целевой статус генерации
+ * и идентификатор измерения для профилирования производительности генерации мира.
+ */
 @Name("minecraft.ChunkGeneration")
 @Label("Chunk Generation")
 @Category({"Minecraft", "World Generation"})
 @StackTrace(false)
 @Enabled(false)
 @DontObfuscate
-/**
- * {@code ChunkGenerationEvent}.
- */
 public class ChunkGenerationEvent extends Event {
 
 	public static final String EVENT_NAME = "minecraft.ChunkGeneration";
@@ -47,9 +48,6 @@ public class ChunkGenerationEvent extends Event {
 		this.worldPosZ = chunkPos.getStartZ();
 	}
 
-	/**
-	 * {@code Names}.
-	 */
 	public static class Names {
 
 		public static final String WORLD_POS_X = "worldPosX";

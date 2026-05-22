@@ -57,7 +57,11 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code BeehiveBlock}.
+ * Блок улья/гнезда пчёл. Хранит до трёх пчёл внутри и накапливает мёд (уровень 0–5).
+ * При достижении максимального уровня мёда ({@link #FULL_HONEY_LEVEL}) позволяет
+ * собрать соты ножницами или наполнить бутылку мёдом. Если рядом нет костра —
+ * тревожит пчёл при сборе урожая. При разрушении или взрыве выпускает пчёл в режиме
+ * атаки на ближайших игроков.
  */
 public class BeehiveBlock extends BlockWithEntity {
 
@@ -73,7 +77,7 @@ public class BeehiveBlock extends BlockWithEntity {
 
 	public BeehiveBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(HONEY_LEVEL, 0).with(FACING, Direction.NORTH));
+		setDefaultState(stateManager.getDefaultState().with(HONEY_LEVEL, 0).with(FACING, Direction.NORTH));
 	}
 
 	@Override
@@ -86,6 +90,11 @@ public class BeehiveBlock extends BlockWithEntity {
 		return state.get(HONEY_LEVEL);
 	}
 
+	/**
+	 * Вызывается после разрушения блока игроком. Если инструмент не имеет зачарования
+	 * «Шёлковое касание для пчёл» — выпускает пчёл в режиме атаки и тревожит ближайших.
+	 * Всегда активирует критерий достижения уничтожения гнезда.
+	 */
 	@Override
 	public void afterBreak(
 			World world,
@@ -96,20 +105,25 @@ public class BeehiveBlock extends BlockWithEntity {
 			ItemStack tool
 	) {
 		super.afterBreak(world, player, pos, state, blockEntity, tool);
-		if (!world.isClient() && blockEntity instanceof BeehiveBlockEntity beehiveBlockEntity) {
-			if (!EnchantmentHelper.hasAnyEnchantmentsIn(tool, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING)) {
-				beehiveBlockEntity.angerBees(player, state, BeehiveBlockEntity.BeeState.EMERGENCY);
-				ItemScatterer.onStateReplaced(state, world, pos);
-				this.angerNearbyBees(world, pos);
-			}
 
-			Criteria.BEE_NEST_DESTROYED.trigger(
-					(ServerPlayerEntity) player,
-					state,
-					tool,
-					beehiveBlockEntity.getBeeCount()
-			);
+		if (world.isClient() || blockEntity instanceof BeehiveBlockEntity == false) {
+			return;
 		}
+
+		BeehiveBlockEntity beehive = (BeehiveBlockEntity) blockEntity;
+
+		if (EnchantmentHelper.hasAnyEnchantmentsIn(tool, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING) == false) {
+			beehive.angerBees(player, state, BeehiveBlockEntity.BeeState.EMERGENCY);
+			ItemScatterer.onStateReplaced(state, world, pos);
+			angerNearbyBees(world, pos);
+		}
+
+		Criteria.BEE_NEST_DESTROYED.trigger(
+				(ServerPlayerEntity) player,
+				state,
+				tool,
+				beehive.getBeeCount()
+		);
 	}
 
 	@Override
@@ -121,23 +135,26 @@ public class BeehiveBlock extends BlockWithEntity {
 			BiConsumer<ItemStack, BlockPos> stackMerger
 	) {
 		super.onExploded(state, world, pos, explosion, stackMerger);
-		this.angerNearbyBees(world, pos);
+		angerNearbyBees(world, pos);
 	}
 
 	private void angerNearbyBees(World world, BlockPos pos) {
-		Box box = new Box(pos).expand(8.0, 6.0, 8.0);
-		List<BeeEntity> list = world.getNonSpectatingEntities(BeeEntity.class, box);
-		if (!list.isEmpty()) {
-			List<PlayerEntity> list2 = world.getNonSpectatingEntities(PlayerEntity.class, box);
-			if (list2.isEmpty()) {
-				return;
-			}
+		Box searchBox = new Box(pos).expand(8.0, 6.0, 8.0);
+		List<BeeEntity> nearbyBees = world.getNonSpectatingEntities(BeeEntity.class, searchBox);
 
-			for (BeeEntity beeEntity : list) {
-				if (beeEntity.getTarget() == null) {
-					PlayerEntity playerEntity = Util.getRandom(list2, world.random);
-					beeEntity.setTarget(playerEntity);
-				}
+		if (nearbyBees.isEmpty()) {
+			return;
+		}
+
+		List<PlayerEntity> nearbyPlayers = world.getNonSpectatingEntities(PlayerEntity.class, searchBox);
+
+		if (nearbyPlayers.isEmpty()) {
+			return;
+		}
+
+		for (BeeEntity bee : nearbyBees) {
+			if (bee.getTarget() == null) {
+				bee.setTarget(Util.getRandom(nearbyPlayers, world.random));
 			}
 		}
 	}
@@ -161,6 +178,11 @@ public class BeehiveBlock extends BlockWithEntity {
 		);
 	}
 
+	/**
+	 * Обрабатывает взаимодействие с предметом в руке. При полном улье (уровень ≥ 5):
+	 * ножницы срезают соты, стеклянная бутылка наполняется мёдом. Если рядом нет
+	 * горящего костра — тревожит пчёл при сборе урожая.
+	 */
 	@Override
 	protected ActionResult onUseWithItem(
 			ItemStack stack,
@@ -171,76 +193,64 @@ public class BeehiveBlock extends BlockWithEntity {
 			Hand hand,
 			BlockHitResult hit
 	) {
-		int i = state.get(HONEY_LEVEL);
-		boolean bl = false;
-		if (i >= 5) {
-			Item item = stack.getItem();
-			if (world instanceof ServerWorld serverWorld && stack.isOf(Items.SHEARS)) {
-				dropHoneycomb(serverWorld, stack, state, world.getBlockEntity(pos), player, pos);
-				world.playSound(
-						null,
-						player.getX(),
-						player.getY(),
-						player.getZ(),
-						SoundEvents.BLOCK_BEEHIVE_SHEAR,
-						SoundCategory.BLOCKS,
-						1.0F,
-						1.0F
-				);
-				stack.damage(1, player, hand.getEquipmentSlot());
-				bl = true;
-				world.emitGameEvent(player, GameEvent.SHEAR, pos);
-			}
-			else if (stack.isOf(Items.GLASS_BOTTLE)) {
-				stack.decrement(1);
-				world.playSound(
-						player,
-						player.getX(),
-						player.getY(),
-						player.getZ(),
-						SoundEvents.ITEM_BOTTLE_FILL,
-						SoundCategory.BLOCKS,
-						1.0F,
-						1.0F
-				);
-				if (stack.isEmpty()) {
-					player.setStackInHand(hand, new ItemStack(Items.HONEY_BOTTLE));
-				}
-				else if (!player.getInventory().insertStack(new ItemStack(Items.HONEY_BOTTLE))) {
-					player.dropItem(new ItemStack(Items.HONEY_BOTTLE), false);
-				}
+		int honeyLevel = state.get(HONEY_LEVEL);
 
-				bl = true;
-				world.emitGameEvent(player, GameEvent.FLUID_PICKUP, pos);
-			}
-
-			if (!world.isClient() && bl) {
-				player.incrementStat(Stats.USED.getOrCreateStat(item));
-			}
-		}
-
-		if (bl) {
-			if (!CampfireBlock.isLitCampfireInRange(world, pos)) {
-				if (this.hasBees(world, pos)) {
-					this.angerNearbyBees(world, pos);
-				}
-
-				this.takeHoney(world, state, pos, player, BeehiveBlockEntity.BeeState.EMERGENCY);
-			}
-			else {
-				this.takeHoney(world, state, pos);
-			}
-
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (honeyLevel < FULL_HONEY_LEVEL) {
 			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
 		}
+
+		Item usedItem = stack.getItem();
+		boolean harvested = false;
+
+		if (world instanceof ServerWorld serverWorld && stack.isOf(Items.SHEARS)) {
+			dropHoneycomb(serverWorld, stack, state, world.getBlockEntity(pos), player, pos);
+			world.playSound(null, player.getX(), player.getY(), player.getZ(),
+					SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			stack.damage(1, player, hand.getEquipmentSlot());
+			world.emitGameEvent(player, GameEvent.SHEAR, pos);
+			harvested = true;
+		} else if (stack.isOf(Items.GLASS_BOTTLE)) {
+			stack.decrement(1);
+			world.playSound(player, player.getX(), player.getY(), player.getZ(),
+					SoundEvents.ITEM_BOTTLE_FILL, SoundCategory.BLOCKS, 1.0F, 1.0F);
+
+			ItemStack honeyBottle = new ItemStack(Items.HONEY_BOTTLE);
+
+			if (stack.isEmpty()) {
+				player.setStackInHand(hand, honeyBottle);
+			} else if (player.getInventory().insertStack(honeyBottle) == false) {
+				player.dropItem(honeyBottle, false);
+			}
+
+			world.emitGameEvent(player, GameEvent.FLUID_PICKUP, pos);
+			harvested = true;
+		}
+
+		if (harvested == false) {
+			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
+		}
+
+		if (world.isClient() == false) {
+			player.incrementStat(Stats.USED.getOrCreateStat(usedItem));
+		}
+
+		if (CampfireBlock.isLitCampfireInRange(world, pos)) {
+			takeHoney(world, state, pos);
+		} else {
+			if (hasBees(world, pos)) {
+				angerNearbyBees(world, pos);
+			}
+
+			takeHoney(world, state, pos, player, BeehiveBlockEntity.BeeState.EMERGENCY);
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	private boolean hasBees(World world, BlockPos pos) {
-		return world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehiveBlockEntity
-		       ? !beehiveBlockEntity.hasNoBees() : false;
+		return world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehive
+				? beehive.hasNoBees() == false
+				: false;
 	}
 
 	public void takeHoney(
@@ -250,56 +260,63 @@ public class BeehiveBlock extends BlockWithEntity {
 			@Nullable PlayerEntity player,
 			BeehiveBlockEntity.BeeState beeState
 	) {
-		this.takeHoney(world, state, pos);
-		if (world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehiveBlockEntity) {
-			beehiveBlockEntity.angerBees(player, state, beeState);
+		takeHoney(world, state, pos);
+
+		if (world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehive) {
+			beehive.angerBees(player, state, beeState);
 		}
 	}
 
-	/**
-	 * Take honey.
-	 *
-	 * @param world world
-	 * @param state state
-	 * @param pos pos
-	 */
 	public void takeHoney(World world, BlockState state, BlockPos pos) {
 		world.setBlockState(pos, state.with(HONEY_LEVEL, 0), 3);
 	}
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (state.get(HONEY_LEVEL) >= 5) {
-			for (int i = 0; i < random.nextInt(1) + 1; i++) {
-				this.spawnHoneyParticles(world, pos, state);
-			}
+		if (state.get(HONEY_LEVEL) < FULL_HONEY_LEVEL) {
+			return;
+		}
+
+		int particleCount = random.nextInt(1) + 1;
+
+		for (int step = 0; step < particleCount; step++) {
+			spawnHoneyParticles(world, pos, state);
 		}
 	}
 
 	private void spawnHoneyParticles(World world, BlockPos pos, BlockState state) {
-		if (state.getFluidState().isEmpty() && !(world.random.nextFloat() < 0.3F)) {
-			VoxelShape voxelShape = state.getCollisionShape(world, pos);
-			double d = voxelShape.getMax(Direction.Axis.Y);
-			if (d >= 1.0 && !state.isIn(BlockTags.IMPERMEABLE)) {
-				double e = voxelShape.getMin(Direction.Axis.Y);
-				if (e > 0.0) {
-					this.addHoneyParticle(world, pos, voxelShape, pos.getY() + e - 0.05);
-				}
-				else {
-					BlockPos blockPos = pos.down();
-					BlockState blockState = world.getBlockState(blockPos);
-					VoxelShape voxelShape2 = blockState.getCollisionShape(world, blockPos);
-					double f = voxelShape2.getMax(Direction.Axis.Y);
-					if ((f < 1.0 || !blockState.isFullCube(world, blockPos)) && blockState.getFluidState().isEmpty()) {
-						this.addHoneyParticle(world, pos, voxelShape, pos.getY() - 0.05);
-					}
-				}
-			}
+		if (state.getFluidState().isEmpty() == false || world.random.nextFloat() < 0.3F) {
+			return;
+		}
+
+		VoxelShape shape = state.getCollisionShape(world, pos);
+		double topY = shape.getMax(Direction.Axis.Y);
+
+		if (topY < 1.0 || state.isIn(BlockTags.IMPERMEABLE)) {
+			return;
+		}
+
+		double bottomY = shape.getMin(Direction.Axis.Y);
+
+		if (bottomY > 0.0) {
+			addHoneyParticle(world, pos, shape, pos.getY() + bottomY - 0.05);
+			return;
+		}
+
+		BlockPos belowPos = pos.down();
+		BlockState belowState = world.getBlockState(belowPos);
+		VoxelShape belowShape = belowState.getCollisionShape(world, belowPos);
+		double belowTopY = belowShape.getMax(Direction.Axis.Y);
+
+		if ((belowTopY < 1.0 || belowState.isFullCube(world, belowPos) == false)
+				&& belowState.getFluidState().isEmpty()
+		) {
+			addHoneyParticle(world, pos, shape, pos.getY() - 0.05);
 		}
 	}
 
 	private void addHoneyParticle(World world, BlockPos pos, VoxelShape shape, double height) {
-		this.addHoneyParticle(
+		addHoneyParticle(
 				world,
 				pos.getX() + shape.getMin(Direction.Axis.X),
 				pos.getX() + shape.getMax(Direction.Axis.X),
@@ -345,19 +362,27 @@ public class BeehiveBlock extends BlockWithEntity {
 		return world.isClient() ? null : validateTicker(type, BlockEntityType.BEEHIVE, BeehiveBlockEntity::serverTick);
 	}
 
+	/**
+	 * Вызывается при начале разрушения блока. Если игрок в режиме выживания и включены
+	 * дропы — вручную спавнит предмет улья с сохранёнными данными пчёл и уровнем мёда,
+	 * чтобы не потерять содержимое при разрушении.
+	 */
 	@Override
 	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
 		if (world instanceof ServerWorld serverWorld
 				&& player.shouldSkipBlockDrops()
 				&& serverWorld.getGameRules().getValue(GameRules.DO_TILE_DROPS)
-				&& world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehiveBlockEntity) {
-			int i = state.get(HONEY_LEVEL);
-			boolean bl = !beehiveBlockEntity.hasNoBees();
-			if (bl || i > 0) {
-				ItemStack itemStack = new ItemStack(this);
-				itemStack.applyComponentsFrom(beehiveBlockEntity.createComponentMap());
-				itemStack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(HONEY_LEVEL, i));
-				ItemEntity itemEntity = new ItemEntity(world, pos.getX(), pos.getY(), pos.getZ(), itemStack);
+				&& world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehive
+		) {
+			int honeyLevel = state.get(HONEY_LEVEL);
+			boolean hasBees = beehive.hasNoBees() == false;
+
+			if (hasBees || honeyLevel > 0) {
+				ItemStack drop = new ItemStack(this);
+				drop.applyComponentsFrom(beehive.createComponentMap());
+				drop.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(HONEY_LEVEL, honeyLevel));
+
+				ItemEntity itemEntity = new ItemEntity(world, pos.getX(), pos.getY(), pos.getZ(), drop);
 				itemEntity.setToDefaultPickupDelay();
 				world.spawnEntity(itemEntity);
 			}
@@ -369,15 +394,17 @@ public class BeehiveBlock extends BlockWithEntity {
 	@Override
 	protected List<ItemStack> getDroppedStacks(BlockState state, LootWorldContext.Builder builder) {
 		Entity entity = builder.getOptional(LootContextParameters.THIS_ENTITY);
-		if (entity instanceof TntEntity
+
+		boolean destroyedByExplosion = entity instanceof TntEntity
 				|| entity instanceof CreeperEntity
 				|| entity instanceof WitherSkullEntity
 				|| entity instanceof WitherEntity
-				|| entity instanceof TntMinecartEntity) {
-			BlockEntity blockEntity = builder.getOptional(LootContextParameters.BLOCK_ENTITY);
-			if (blockEntity instanceof BeehiveBlockEntity beehiveBlockEntity) {
-				beehiveBlockEntity.angerBees(null, state, BeehiveBlockEntity.BeeState.EMERGENCY);
-			}
+				|| entity instanceof TntMinecartEntity;
+
+		if (destroyedByExplosion
+				&& builder.getOptional(LootContextParameters.BLOCK_ENTITY) instanceof BeehiveBlockEntity beehive
+		) {
+			beehive.angerBees(null, state, BeehiveBlockEntity.BeeState.EMERGENCY);
 		}
 
 		return super.getDroppedStacks(state, builder);
@@ -385,15 +412,16 @@ public class BeehiveBlock extends BlockWithEntity {
 
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-		ItemStack itemStack = super.getPickStack(world, pos, state, includeData);
+		ItemStack stack = super.getPickStack(world, pos, state, includeData);
+
 		if (includeData) {
-			itemStack.set(
+			stack.set(
 					DataComponentTypes.BLOCK_STATE,
 					BlockStateComponent.DEFAULT.with(HONEY_LEVEL, state.get(HONEY_LEVEL))
 			);
 		}
 
-		return itemStack;
+		return stack;
 	}
 
 	@Override
@@ -408,8 +436,9 @@ public class BeehiveBlock extends BlockWithEntity {
 			Random random
 	) {
 		if (world.getBlockState(neighborPos).getBlock() instanceof FireBlock
-				&& world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehiveBlockEntity) {
-			beehiveBlockEntity.angerBees(null, state, BeehiveBlockEntity.BeeState.EMERGENCY);
+				&& world.getBlockEntity(pos) instanceof BeehiveBlockEntity beehive
+		) {
+			beehive.angerBees(null, state, BeehiveBlockEntity.BeeState.EMERGENCY);
 		}
 
 		return super.getStateForNeighborUpdate(

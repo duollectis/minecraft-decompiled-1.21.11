@@ -5,7 +5,9 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code FlightMoveControl}.
+ * Управление движением летающих существ (летучие мыши, пчёлы, фантомы).
+ * При активном состоянии MOVE_TO отключает гравитацию и управляет
+ * тангажом для набора/снижения высоты.
  */
 public class FlightMoveControl extends MoveControl {
 
@@ -20,44 +22,45 @@ public class FlightMoveControl extends MoveControl {
 
 	@Override
 	public void tick() {
-		if (this.state == MoveControl.State.MOVE_TO) {
-			this.state = MoveControl.State.WAIT;
-			this.entity.setNoGravity(true);
-			double d = this.targetX - this.entity.getX();
-			double e = this.targetY - this.entity.getY();
-			double f = this.targetZ - this.entity.getZ();
-			double g = d * d + e * e + f * f;
-			if (g < 2.5000003E-7F) {
-				this.entity.setUpwardSpeed(0.0F);
-				this.entity.setForwardSpeed(0.0F);
-				return;
+		if (state != MoveControl.State.MOVE_TO) {
+			if (!noGravity) {
+				entity.setNoGravity(false);
 			}
 
-			float h = (float) (MathHelper.atan2(f, d) * 180.0F / (float) Math.PI) - 90.0F;
-			this.entity.setYaw(this.wrapDegrees(this.entity.getYaw(), h, 90.0F));
-			float i;
-			if (this.entity.isOnGround()) {
-				i = (float) (this.speed * this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
-			}
-			else {
-				i = (float) (this.speed * this.entity.getAttributeValue(EntityAttributes.FLYING_SPEED));
-			}
-
-			this.entity.setMovementSpeed(i);
-			double j = Math.sqrt(d * d + f * f);
-			if (Math.abs(e) > 1.0E-5F || Math.abs(j) > 1.0E-5F) {
-				float k = (float) (-(MathHelper.atan2(e, j) * 180.0F / (float) Math.PI));
-				this.entity.setPitch(this.wrapDegrees(this.entity.getPitch(), k, this.maxPitchChange));
-				this.entity.setUpwardSpeed(e > 0.0 ? i : -i);
-			}
+			entity.setUpwardSpeed(0.0F);
+			entity.setForwardSpeed(0.0F);
+			return;
 		}
-		else {
-			if (!this.noGravity) {
-				this.entity.setNoGravity(false);
-			}
 
-			this.entity.setUpwardSpeed(0.0F);
-			this.entity.setForwardSpeed(0.0F);
+		state = MoveControl.State.WAIT;
+		entity.setNoGravity(true);
+
+		double dx = targetX - entity.getX();
+		double dy = targetY - entity.getY();
+		double dz = targetZ - entity.getZ();
+		double distSq = dx * dx + dy * dy + dz * dz;
+
+		if (distSq < REACHED_DESTINATION_DISTANCE_SQUARED) {
+			entity.setUpwardSpeed(0.0F);
+			entity.setForwardSpeed(0.0F);
+			return;
+		}
+
+		float targetYaw = (float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F;
+		entity.setYaw(wrapDegrees(entity.getYaw(), targetYaw, MAX_TURN_DEGREES));
+
+		float currentSpeed = entity.isOnGround()
+				? (float) (speed * entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED))
+				: (float) (speed * entity.getAttributeValue(EntityAttributes.FLYING_SPEED));
+
+		entity.setMovementSpeed(currentSpeed);
+
+		double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+		if (Math.abs(dy) > 1.0E-5F || Math.abs(horizontalDist) > 1.0E-5F) {
+			float targetPitch = (float) (-(MathHelper.atan2(dy, horizontalDist) * 180.0F / (float) Math.PI));
+			entity.setPitch(wrapDegrees(entity.getPitch(), targetPitch, maxPitchChange));
+			entity.setUpwardSpeed(dy > 0.0 ? currentSpeed : -currentSpeed);
 		}
 	}
 }

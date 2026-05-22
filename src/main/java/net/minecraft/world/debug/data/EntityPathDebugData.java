@@ -6,7 +6,7 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 
 /**
- * {@code EntityPathDebugData}.
+ * Отладочные данные пути сущности: вычисленный путь и максимальное расстояние между узлами.
  */
 public record EntityPathDebugData(Path path, float maxNodeDistance) {
 

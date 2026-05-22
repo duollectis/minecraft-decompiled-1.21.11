@@ -8,31 +8,23 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code MultiNoiseBiomeSourceParameterLists}.
+ * Регистрирует стандартные списки параметров источников биомов для Нижнего мира и Верхнего мира.
  */
 public class MultiNoiseBiomeSourceParameterLists {
 
 	public static final RegistryKey<MultiNoiseBiomeSourceParameterList> NETHER = of("nether");
 	public static final RegistryKey<MultiNoiseBiomeSourceParameterList> OVERWORLD = of("overworld");
 
-	/**
-	 * Bootstrap.
-	 *
-	 * @param registry registry
-	 */
 	public static void bootstrap(Registerable<MultiNoiseBiomeSourceParameterList> registry) {
-		RegistryEntryLookup<Biome> registryEntryLookup = registry.getRegistryLookup(RegistryKeys.BIOME);
-		registry.register(NETHER,
-				new MultiNoiseBiomeSourceParameterList(
-						MultiNoiseBiomeSourceParameterList.Preset.NETHER,
-						registryEntryLookup
-				)
+		RegistryEntryLookup<Biome> biomeLookup = registry.getRegistryLookup(RegistryKeys.BIOME);
+
+		registry.register(
+			NETHER,
+			new MultiNoiseBiomeSourceParameterList(MultiNoiseBiomeSourceParameterList.Preset.NETHER, biomeLookup)
 		);
-		registry.register(OVERWORLD,
-				new MultiNoiseBiomeSourceParameterList(
-						MultiNoiseBiomeSourceParameterList.Preset.OVERWORLD,
-						registryEntryLookup
-				)
+		registry.register(
+			OVERWORLD,
+			new MultiNoiseBiomeSourceParameterList(MultiNoiseBiomeSourceParameterList.Preset.OVERWORLD, biomeLookup)
 		);
 	}
 

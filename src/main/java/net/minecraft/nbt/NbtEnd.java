@@ -9,28 +9,25 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtEnd}.
+ * Синглтон-тег конца составного тега ({@code TAG_End}).
+ * <p>
+ * Используется как маркер завершения {@link NbtCompound} при бинарной сериализации.
+ * Не несёт полезных данных — только сигнализирует парсеру о конце блока.
  */
 public final class NbtEnd implements NbtElement {
 
 	private static final int SIZE = 8;
+
 	public static final NbtType<NbtEnd> TYPE = new NbtType<NbtEnd>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtEnd — результат операции
-		 */
-		public NbtEnd read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) {
-			nbtSizeTracker.add(8L);
+		@Override
+		public NbtEnd read(DataInput input, NbtSizeTracker tracker) {
+			tracker.add(SIZE);
 			return NbtEnd.INSTANCE;
 		}
 
 		@Override
 		public NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) {
-			tracker.add(8L);
+			tracker.add(SIZE);
 			return visitor.visitEnd();
 		}
 
@@ -52,6 +49,7 @@ public final class NbtEnd implements NbtElement {
 			return "TAG_End";
 		}
 	};
+
 	public static final NbtEnd INSTANCE = new NbtEnd();
 
 	private NbtEnd() {
@@ -63,12 +61,12 @@ public final class NbtEnd implements NbtElement {
 
 	@Override
 	public int getSizeInBytes() {
-		return 8;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 0;
+		return END_TYPE;
 	}
 
 	@Override
@@ -78,16 +76,12 @@ public final class NbtEnd implements NbtElement {
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitEnd(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitEnd(this);
+		return writer.getString();
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtEnd — результат операции
-	 */
+	@Override
 	public NbtEnd copy() {
 		return this;
 	}

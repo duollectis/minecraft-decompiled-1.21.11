@@ -10,145 +10,162 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code HungerManager}.
+ * Управляет состоянием голода, насыщения и истощения игрока.
+ * Обрабатывает регенерацию здоровья от еды и урон от голодания в зависимости от сложности.
  */
 public class HungerManager {
 
-	private static final int DEFAULT_FOOD_TICK_TIMER = 0;
-	private static final float DEFAULT_EXHAUSTION = 0.0F;
-	private int foodLevel = 20;
-	private float saturationLevel = 5.0F;
+	private static final float MAX_EXHAUSTION = 40.0F;
+	private static final float SATURATION_DRAIN_PER_EXHAUSTION = 1.0F;
+	private static final float FOOD_DRAIN_PER_EXHAUSTION = 1.0F;
+	private static final float FAST_HEAL_AMOUNT = 1.0F;
+	private static final float STARVE_DAMAGE = 1.0F;
+	private static final float STARVE_SAFE_HEALTH_HARD = 1.0F;
+	private static final float STARVE_SAFE_HEALTH_NORMAL = 10.0F;
+
+	private int foodLevel = HungerConstants.FULL_FOOD_LEVEL;
+	private float saturationLevel = HungerConstants.INITIAL_SATURATION_LEVEL;
 	private float exhaustion;
 	private int foodTickTimer;
 
+	/**
+	 * Добавляет питательность и насыщение напрямую (без пересчёта через модификатор).
+	 * Оба значения зажимаются в допустимых пределах.
+	 */
 	private void addInternal(int nutrition, float saturation) {
-		this.foodLevel = MathHelper.clamp(nutrition + this.foodLevel, 0, 20);
-		this.saturationLevel = MathHelper.clamp(saturation + this.saturationLevel, 0.0F, (float) this.foodLevel);
+		foodLevel = MathHelper.clamp(nutrition + foodLevel, 0, HungerConstants.FULL_FOOD_LEVEL);
+		saturationLevel = MathHelper.clamp(saturation + saturationLevel, 0.0F, (float) foodLevel);
 	}
 
 	/**
-	 * Add.
+	 * Добавляет еду с пересчётом насыщения через модификатор.
 	 *
-	 * @param food food
-	 * @param saturationModifier saturation modifier
+	 * @param food               количество единиц еды
+	 * @param saturationModifier модификатор насыщения
 	 */
 	public void add(int food, float saturationModifier) {
-		this.addInternal(food, HungerConstants.calculateSaturation(food, saturationModifier));
+		addInternal(food, HungerConstants.calculateSaturation(food, saturationModifier));
 	}
 
 	/**
-	 * Eat.
+	 * Применяет эффект поедания компонента еды.
 	 *
-	 * @param foodComponent food component
+	 * @param foodComponent компонент еды предмета
 	 */
 	public void eat(FoodComponent foodComponent) {
-		this.addInternal(foodComponent.nutrition(), foodComponent.saturation());
+		addInternal(foodComponent.nutrition(), foodComponent.saturation());
 	}
 
 	/**
-	 * Update.
+	 * Выполняет тиковое обновление голода: расходует истощение, регенерирует здоровье
+	 * или наносит урон от голода в зависимости от уровня еды и сложности мира.
 	 *
-	 * @param player player
+	 * @param player игрок, для которого выполняется обновление
 	 */
 	public void update(ServerPlayerEntity player) {
 		ServerWorld serverWorld = player.getEntityWorld();
 		Difficulty difficulty = serverWorld.getDifficulty();
-		if (this.exhaustion > 4.0F) {
-			this.exhaustion -= 4.0F;
-			if (this.saturationLevel > 0.0F) {
-				this.saturationLevel = Math.max(this.saturationLevel - 1.0F, 0.0F);
-			}
-			else if (difficulty != Difficulty.PEACEFUL) {
-				this.foodLevel = Math.max(this.foodLevel - 1, 0);
+
+		if (exhaustion > HungerConstants.EXHAUSTION_UNIT) {
+			exhaustion -= HungerConstants.EXHAUSTION_UNIT;
+
+			if (saturationLevel > 0.0F) {
+				saturationLevel = Math.max(saturationLevel - SATURATION_DRAIN_PER_EXHAUSTION, 0.0F);
+			} else if (difficulty != Difficulty.PEACEFUL) {
+				foodLevel = Math.max(foodLevel - (int) FOOD_DRAIN_PER_EXHAUSTION, 0);
 			}
 		}
 
-		boolean bl = serverWorld.getGameRules().getValue(GameRules.NATURAL_HEALTH_REGENERATION);
-		if (bl && this.saturationLevel > 0.0F && player.canFoodHeal() && this.foodLevel >= 20) {
-			this.foodTickTimer++;
-			if (this.foodTickTimer >= 10) {
-				float f = Math.min(this.saturationLevel, 6.0F);
-				player.heal(f / 6.0F);
-				this.addExhaustion(f);
-				this.foodTickTimer = 0;
+		boolean naturalRegenEnabled = serverWorld.getGameRules().getValue(GameRules.NATURAL_HEALTH_REGENERATION);
+
+		if (naturalRegenEnabled && saturationLevel > 0.0F && player.canFoodHeal()
+			&& foodLevel >= HungerConstants.FULL_FOOD_LEVEL) {
+			foodTickTimer++;
+
+			if (foodTickTimer >= HungerConstants.FAST_HEALING_INTERVAL) {
+				float healAmount = Math.min(saturationLevel, HungerConstants.HEAL_EXHAUSTION_SPRINT);
+				player.heal(healAmount / HungerConstants.HEAL_EXHAUSTION_SPRINT);
+				addExhaustion(healAmount);
+				foodTickTimer = 0;
 			}
-		}
-		else if (bl && this.foodLevel >= 18 && player.canFoodHeal()) {
-			this.foodTickTimer++;
-			if (this.foodTickTimer >= 80) {
-				player.heal(1.0F);
-				this.addExhaustion(6.0F);
-				this.foodTickTimer = 0;
+		} else if (naturalRegenEnabled && foodLevel >= HungerConstants.SLOW_HEALING_FOOD_LEVEL
+			&& player.canFoodHeal()) {
+			foodTickTimer++;
+
+			if (foodTickTimer >= HungerConstants.SLOW_HEALING_STARVING_INTERVAL) {
+				player.heal(FAST_HEAL_AMOUNT);
+				addExhaustion(HungerConstants.HEAL_EXHAUSTION_SPRINT);
+				foodTickTimer = 0;
 			}
-		}
-		else if (this.foodLevel <= 0) {
-			this.foodTickTimer++;
-			if (this.foodTickTimer >= 80) {
-				if (player.getHealth() > 10.0F || difficulty == Difficulty.HARD
-						|| player.getHealth() > 1.0F && difficulty == Difficulty.NORMAL) {
-					player.damage(serverWorld, player.getDamageSources().starve(), 1.0F);
+		} else if (foodLevel <= HungerConstants.STARVING_FOOD_LEVEL) {
+			foodTickTimer++;
+
+			if (foodTickTimer >= HungerConstants.SLOW_HEALING_STARVING_INTERVAL) {
+				boolean canStarveDamage = player.getHealth() > STARVE_SAFE_HEALTH_NORMAL
+					|| difficulty == Difficulty.HARD
+					|| player.getHealth() > STARVE_SAFE_HEALTH_HARD && difficulty == Difficulty.NORMAL;
+
+				if (canStarveDamage) {
+					player.damage(serverWorld, player.getDamageSources().starve(), STARVE_DAMAGE);
 				}
 
-				this.foodTickTimer = 0;
+				foodTickTimer = 0;
 			}
-		}
-		else {
-			this.foodTickTimer = 0;
+		} else {
+			foodTickTimer = 0;
 		}
 	}
 
 	/**
-	 * Читает data.
+	 * Читает состояние голода из NBT-хранилища.
 	 *
-	 * @param view view
+	 * @param view источник данных
 	 */
 	public void readData(ReadView view) {
-		this.foodLevel = view.getInt("foodLevel", 20);
-		this.foodTickTimer = view.getInt("foodTickTimer", 0);
-		this.saturationLevel = view.getFloat("foodSaturationLevel", 5.0F);
-		this.exhaustion = view.getFloat("foodExhaustionLevel", 0.0F);
+		foodLevel = view.getInt("foodLevel", HungerConstants.FULL_FOOD_LEVEL);
+		foodTickTimer = view.getInt("foodTickTimer", 0);
+		saturationLevel = view.getFloat("foodSaturationLevel", HungerConstants.INITIAL_SATURATION_LEVEL);
+		exhaustion = view.getFloat("foodExhaustionLevel", 0.0F);
 	}
 
 	/**
-	 * Записывает data.
+	 * Записывает состояние голода в NBT-хранилище.
 	 *
-	 * @param view view
+	 * @param view приёмник данных
 	 */
 	public void writeData(WriteView view) {
-		view.putInt("foodLevel", this.foodLevel);
-		view.putInt("foodTickTimer", this.foodTickTimer);
-		view.putFloat("foodSaturationLevel", this.saturationLevel);
-		view.putFloat("foodExhaustionLevel", this.exhaustion);
+		view.putInt("foodLevel", foodLevel);
+		view.putInt("foodTickTimer", foodTickTimer);
+		view.putFloat("foodSaturationLevel", saturationLevel);
+		view.putFloat("foodExhaustionLevel", exhaustion);
 	}
 
 	public int getFoodLevel() {
-		return this.foodLevel;
+		return foodLevel;
 	}
 
 	/**
-	 * Проверяет возможность sprint.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, достаточно ли еды для спринта (уровень еды должен быть выше 6).
 	 */
 	public boolean canSprint() {
-		return this.getFoodLevel() > 6.0F;
+		return foodLevel > 6;
 	}
 
 	public boolean isNotFull() {
-		return this.foodLevel < 20;
+		return foodLevel < HungerConstants.FULL_FOOD_LEVEL;
 	}
 
 	/**
-	 * Добавляет exhaustion.
+	 * Добавляет истощение, ограничивая максимальное значение {@link #MAX_EXHAUSTION}.
 	 *
-	 * @param exhaustion exhaustion
+	 * @param amount количество добавляемого истощения
 	 */
-	public void addExhaustion(float exhaustion) {
-		this.exhaustion = Math.min(this.exhaustion + exhaustion, 40.0F);
+	public void addExhaustion(float amount) {
+		exhaustion = Math.min(exhaustion + amount, MAX_EXHAUSTION);
 	}
 
 	public float getSaturationLevel() {
-		return this.saturationLevel;
+		return saturationLevel;
 	}
 
 	public void setFoodLevel(int foodLevel) {

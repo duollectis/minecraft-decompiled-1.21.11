@@ -14,102 +14,68 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code SpearAttackTask}.
+ * Задача мозга, управляющей фазой сближения с целью при атаке копьём.
+ * Переводит существо в состояние {@code CHARGING} как только цель оказывается в радиусе атаки.
  */
 public class SpearAttackTask extends MultiTickTask<PathAwareEntity> {
 
-	double speed;
-	float squaredAttackRange;
+	private final double speed;
+	private final float squaredAttackRange;
 
 	public SpearAttackTask(double speed, float attackRange) {
 		super(Map.of(MemoryModuleType.SPEAR_STATUS, MemoryModuleState.VALUE_ABSENT));
 		this.speed = speed;
-		this.squaredAttackRange = attackRange * attackRange;
+		squaredAttackRange = attackRange * attackRange;
 	}
 
 	private boolean canRun(PathAwareEntity entity) {
-		return this.getAttackTarget(entity) != null && entity
-				.getMainHandStack()
-				.contains(DataComponentTypes.KINETIC_WEAPON);
+		return getAttackTarget(entity) != null
+				&& entity.getMainHandStack().contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
-		return this.canRun(pathAwareEntity) && !pathAwareEntity.isUsingItem();
+	@Override
+	protected boolean shouldRun(ServerWorld world, PathAwareEntity entity) {
+		return canRun(entity) && !entity.isUsingItem();
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.setAttacking(true);
-		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, SpearChargeTask.AdvanceState.APPROACH);
-		super.run(serverWorld, pathAwareEntity, l);
+	@Override
+	protected void run(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.setAttacking(true);
+		entity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, SpearChargeTask.AdvanceState.APPROACH);
+		super.run(world, entity, time);
 	}
 
 	private @Nullable LivingEntity getAttackTarget(PathAwareEntity entity) {
 		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return this.canRun(pathAwareEntity) && this.isTargetWithinRange(pathAwareEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		return canRun(entity) && isTargetOutOfRange(entity);
 	}
 
-	private boolean isTargetWithinRange(PathAwareEntity entity) {
-		LivingEntity livingEntity = this.getAttackTarget(entity);
-		double d = entity.squaredDistanceTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
-		return d > this.squaredAttackRange;
+	private boolean isTargetOutOfRange(PathAwareEntity entity) {
+		LivingEntity target = getAttackTarget(entity);
+		double distSq = entity.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		return distSq > squaredAttackRange;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		LivingEntity livingEntity = this.getAttackTarget(pathAwareEntity);
-		Entity entity = pathAwareEntity.getRootVehicle();
-		float f = 1.0F;
-		if (entity instanceof MobEntity mobEntity) {
-			f = mobEntity.getRiderChargingSpeedMultiplier();
-		}
+	@Override
+	protected void keepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		LivingEntity target = getAttackTarget(entity);
+		Entity rootVehicle = entity.getRootVehicle();
+		float speedMultiplier = rootVehicle instanceof MobEntity mobEntity
+				? mobEntity.getRiderChargingSpeedMultiplier()
+				: 1.0F;
 
-		pathAwareEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(livingEntity, true));
-		pathAwareEntity.getNavigation().startMovingTo(livingEntity, f * this.speed);
+		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(target, true));
+		entity.getNavigation().startMovingTo(target, speedMultiplier * speed);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.getNavigation().stop();
-		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, SpearChargeTask.AdvanceState.CHARGING);
+	@Override
+	protected void finishRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.getNavigation().stop();
+		entity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, SpearChargeTask.AdvanceState.CHARGING);
 	}
 
 	@Override

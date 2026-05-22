@@ -10,10 +10,11 @@ import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Element}.
+ * Базовый интерфейс для всех интерактивных элементов GUI.
+ * Обрабатывает события мыши, клавиатуры и навигации.
  */
+@Environment(EnvType.CLIENT)
 public interface Element extends Navigable {
 
 	default void mouseMoved(double mouseX, double mouseY) {

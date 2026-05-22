@@ -5,7 +5,8 @@ import net.minecraft.util.profiler.Sampler;
 import java.util.List;
 
 /**
- * {@code SampleableExecutor}.
+ * Исполнитель, способный предоставлять {@link Sampler}-ы для мониторинга своей очереди задач.
+ * Реализации регистрируются в {@link ExecutorSampling} для централизованного сбора метрик.
  */
 public interface SampleableExecutor {
 

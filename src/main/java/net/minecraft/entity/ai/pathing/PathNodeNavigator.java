@@ -16,11 +16,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * {@code PathNodeNavigator}.
+ * Реализация алгоритма A* для поиска пути к одной или нескольким целевым позициям.
+ * Использует {@link PathMinHeap} как приоритетную очередь открытых узлов.
  */
 public class PathNodeNavigator {
 
 	private static final float TARGET_DISTANCE_MULTIPLIER = 1.5F;
+
 	private final PathNode[] successors = new PathNode[32];
 	private int range;
 	private final PathNodeMaker pathNodeMaker;
@@ -40,6 +42,17 @@ public class PathNodeNavigator {
 		this.range = range;
 	}
 
+	/**
+	 * Ищет путь от позиции существа к ближайшей из заданных целевых позиций.
+	 *
+	 * @param world кэш чанков для чтения блоков
+	 * @param mob существо-навигатор
+	 * @param positions множество целевых позиций
+	 * @param followRange максимальная дальность следования
+	 * @param distance допустимое расстояние до цели
+	 * @param rangeMultiplier множитель диапазона поиска
+	 * @return найденный путь или {@code null}
+	 */
 	public @Nullable Path findPathToAny(
 			ChunkCache world,
 			MobEntity mob,
@@ -48,25 +61,23 @@ public class PathNodeNavigator {
 			int distance,
 			float rangeMultiplier
 	) {
-		this.minHeap.clear();
-		this.pathNodeMaker.init(world, mob);
-		PathNode pathNode = this.pathNodeMaker.getStart();
-		if (pathNode == null) {
+		minHeap.clear();
+		pathNodeMaker.init(world, mob);
+		PathNode startNode = pathNodeMaker.getStart();
+
+		if (startNode == null) {
 			return null;
 		}
-		else {
-			Map<TargetPathNode, BlockPos> map = positions.stream()
-			                                             .collect(Collectors.toMap(
-					                                             pos -> this.pathNodeMaker.getNode(
-							                                             (double) pos.getX(),
-							                                             (double) pos.getY(),
-							                                             (double) pos.getZ()
-					                                             ), Function.identity()
-			                                             ));
-			Path path = this.findPathToAny(pathNode, map, followRange, distance, rangeMultiplier);
-			this.pathNodeMaker.clear();
-			return path;
-		}
+
+		Map<TargetPathNode, BlockPos> targetMap = positions.stream()
+				.collect(Collectors.toMap(
+						pos -> pathNodeMaker.getNode((double) pos.getX(), (double) pos.getY(), (double) pos.getZ()),
+						Function.identity()
+				));
+
+		Path path = findPathToAny(startNode, targetMap, followRange, distance, rangeMultiplier);
+		pathNodeMaker.clear();
+		return path;
 	}
 
 	private @Nullable Path findPathToAny(
@@ -79,92 +90,94 @@ public class PathNodeNavigator {
 		Profiler profiler = Profilers.get();
 		profiler.push("find_path");
 		profiler.markSampleType(SampleType.PATH_FINDING);
-		Set<TargetPathNode> set = positions.keySet();
-		startNode.penalizedPathLength = 0.0F;
-		startNode.distanceToNearestTarget = this.calculateDistances(startNode, set);
-		startNode.heapWeight = startNode.distanceToNearestTarget;
-		this.minHeap.clear();
-		this.minHeap.push(startNode);
-		boolean bl = this.shouldSendDebugData.getAsBoolean();
-		Set<PathNode> set2 = bl ? new HashSet<>() : Set.of();
-		int i = 0;
-		Set<TargetPathNode> set3 = Sets.newHashSetWithExpectedSize(set.size());
-		int j = (int) (this.range * rangeMultiplier);
 
-		while (!this.minHeap.isEmpty()) {
-			if (++i >= j) {
+		Set<TargetPathNode> targets = positions.keySet();
+		startNode.penalizedPathLength = 0.0F;
+		startNode.distanceToNearestTarget = calculateDistances(startNode, targets);
+		startNode.heapWeight = startNode.distanceToNearestTarget;
+		minHeap.clear();
+		minHeap.push(startNode);
+
+		boolean sendDebug = shouldSendDebugData.getAsBoolean();
+		Set<PathNode> visitedNodes = sendDebug ? new HashSet<>() : Set.of();
+		int iterations = 0;
+		Set<TargetPathNode> reachedTargets = Sets.newHashSetWithExpectedSize(targets.size());
+		int maxIterations = (int) (range * rangeMultiplier);
+
+		while (!minHeap.isEmpty()) {
+			if (++iterations >= maxIterations) {
 				break;
 			}
 
-			PathNode pathNode = this.minHeap.pop();
-			pathNode.visited = true;
+			PathNode current = minHeap.pop();
+			current.visited = true;
 
-			for (TargetPathNode targetPathNode : set) {
-				if (pathNode.getManhattanDistance(targetPathNode) <= distance) {
-					targetPathNode.markReached();
-					set3.add(targetPathNode);
+			for (TargetPathNode target : targets) {
+				if (current.getManhattanDistance(target) <= distance) {
+					target.markReached();
+					reachedTargets.add(target);
 				}
 			}
 
-			if (!set3.isEmpty()) {
+			if (!reachedTargets.isEmpty()) {
 				break;
 			}
 
-			if (bl) {
-				set2.add(pathNode);
+			if (sendDebug) {
+				visitedNodes.add(current);
 			}
 
-			if (!(pathNode.getDistance(startNode) >= followRange)) {
-				int k = this.pathNodeMaker.getSuccessors(this.successors, pathNode);
+			if (current.getDistance(startNode) < followRange) {
+				int successorCount = pathNodeMaker.getSuccessors(successors, current);
 
-				for (int l = 0; l < k; l++) {
-					PathNode pathNode2 = this.successors[l];
-					float f = this.getDistance(pathNode, pathNode2);
-					pathNode2.pathLength = pathNode.pathLength + f;
-					float g = pathNode.penalizedPathLength + f + pathNode2.penalty;
-					if (pathNode2.pathLength < followRange && (!pathNode2.isInHeap()
-							|| g < pathNode2.penalizedPathLength
-					)) {
-						pathNode2.previous = pathNode;
-						pathNode2.penalizedPathLength = g;
-						pathNode2.distanceToNearestTarget = this.calculateDistances(pathNode2, set) * 1.5F;
-						if (pathNode2.isInHeap()) {
-							this.minHeap.setNodeWeight(
-									pathNode2,
-									pathNode2.penalizedPathLength + pathNode2.distanceToNearestTarget
+				for (int idx = 0; idx < successorCount; idx++) {
+					PathNode successor = successors[idx];
+					float stepCost = getDistance(current, successor);
+					successor.pathLength = current.pathLength + stepCost;
+					float penalizedLength = current.penalizedPathLength + stepCost + successor.penalty;
+
+					if (successor.pathLength < followRange
+							&& (!successor.isInHeap() || penalizedLength < successor.penalizedPathLength)) {
+						successor.previous = current;
+						successor.penalizedPathLength = penalizedLength;
+						successor.distanceToNearestTarget = calculateDistances(successor, targets) * TARGET_DISTANCE_MULTIPLIER;
+
+						if (successor.isInHeap()) {
+							minHeap.setNodeWeight(
+									successor,
+									successor.penalizedPathLength + successor.distanceToNearestTarget
 							);
-						}
-						else {
-							pathNode2.heapWeight = pathNode2.penalizedPathLength + pathNode2.distanceToNearestTarget;
-							this.minHeap.push(pathNode2);
+						} else {
+							successor.heapWeight = successor.penalizedPathLength + successor.distanceToNearestTarget;
+							minHeap.push(successor);
 						}
 					}
 				}
 			}
 		}
 
-		Optional<Path> optional = !set3.isEmpty()
-		                          ? set3
-		                            .stream()
-		                            .map(node -> this.createPath(node.getNearestNode(), positions.get(node), true))
-		                            .min(Comparator.comparingInt(Path::getLength))
-		                          : set.stream()
-		                               .map(node -> this.createPath(node.getNearestNode(), positions.get(node), false))
-		                               .min(Comparator
-		                                    .comparingDouble(Path::getManhattanDistanceFromTarget)
-		                                    .thenComparingInt(Path::getLength));
+		Optional<Path> result = reachedTargets.isEmpty()
+				? targets.stream()
+				.map(node -> createPath(node.getNearestNode(), positions.get(node), false))
+				.min(Comparator.comparingDouble(Path::getManhattanDistanceFromTarget)
+						.thenComparingInt(Path::getLength))
+				: reachedTargets.stream()
+				.map(node -> createPath(node.getNearestNode(), positions.get(node), true))
+				.min(Comparator.comparingInt(Path::getLength));
+
 		profiler.pop();
-		if (optional.isEmpty()) {
+
+		if (result.isEmpty()) {
 			return null;
 		}
-		else {
-			Path path = optional.get();
-			if (bl) {
-				path.setDebugInfo(this.minHeap.getNodes(), set2.toArray(PathNode[]::new), set);
-			}
 
-			return path;
+		Path path = result.get();
+
+		if (sendDebug) {
+			path.setDebugInfo(minHeap.getNodes(), visitedNodes.toArray(PathNode[]::new), targets);
 		}
+
+		return path;
 	}
 
 	protected float getDistance(PathNode a, PathNode b) {
@@ -172,27 +185,27 @@ public class PathNodeNavigator {
 	}
 
 	private float calculateDistances(PathNode node, Set<TargetPathNode> targets) {
-		float f = Float.MAX_VALUE;
+		float minDistance = Float.MAX_VALUE;
 
-		for (TargetPathNode targetPathNode : targets) {
-			float g = node.getDistance(targetPathNode);
-			targetPathNode.updateNearestNode(g, node);
-			f = Math.min(g, f);
+		for (TargetPathNode target : targets) {
+			float distance = node.getDistance(target);
+			target.updateNearestNode(distance, node);
+			minDistance = Math.min(distance, minDistance);
 		}
 
-		return f;
+		return minDistance;
 	}
 
 	private Path createPath(PathNode endNode, BlockPos target, boolean reachesTarget) {
-		List<PathNode> list = Lists.newArrayList();
-		PathNode pathNode = endNode;
-		list.add(0, endNode);
+		List<PathNode> nodes = Lists.newArrayList();
+		PathNode current = endNode;
+		nodes.add(0, endNode);
 
-		while (pathNode.previous != null) {
-			pathNode = pathNode.previous;
-			list.add(0, pathNode);
+		while (current.previous != null) {
+			current = current.previous;
+			nodes.add(0, current);
 		}
 
-		return new Path(list, target, reachesTarget);
+		return new Path(nodes, target, reachesTarget);
 	}
 }

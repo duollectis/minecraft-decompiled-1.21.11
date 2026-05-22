@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
 /**
- * {@code ItemStackUuidFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemStackUuidFix extends AbstractUuidFix {
 
@@ -23,8 +23,8 @@ public class ItemStackUuidFix extends AbstractUuidFix {
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
-		return this.fixTypeEverywhereTyped(
-				"ItemStackUUIDFix", this.getInputSchema().getType(this.typeReference), itemStackTyped -> {
+		return fixTypeEverywhereTyped(
+				"ItemStackUUIDFix", getInputSchema().getType(this.typeReference), itemStackTyped -> {
 					OpticFinder<Object> opticFinder2 = (OpticFinder<Object>) itemStackTyped.getType().findField("tag");
 					return itemStackTyped.updateTyped(
 							opticFinder2, tagTyped -> tagTyped.update(

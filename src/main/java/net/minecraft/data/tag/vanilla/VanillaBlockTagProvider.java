@@ -35,7 +35,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 			}
 		}
 		).configure();
-		this.builder(BlockTags.MOB_INTERACTABLE_DOORS)
+		builder(BlockTags.MOB_INTERACTABLE_DOORS)
 		    .addTag(BlockTags.WOODEN_DOORS)
 		    .add(
 				    Blocks.COPPER_DOOR,
@@ -47,7 +47,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.WAXED_WEATHERED_COPPER_DOOR,
 				    Blocks.WAXED_OXIDIZED_COPPER_DOOR
 		    );
-		this.builder(BlockTags.OVERWORLD_NATURAL_LOGS)
+		builder(BlockTags.OVERWORLD_NATURAL_LOGS)
 		    .add(Blocks.ACACIA_LOG)
 		    .add(Blocks.BIRCH_LOG)
 		    .add(Blocks.OAK_LOG)
@@ -57,7 +57,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.PALE_OAK_LOG)
 		    .add(Blocks.MANGROVE_LOG)
 		    .add(Blocks.CHERRY_LOG);
-		this.builder(BlockTags.ENDERMAN_HOLDABLE)
+		builder(BlockTags.ENDERMAN_HOLDABLE)
 		    .addTag(BlockTags.SMALL_FLOWERS)
 		    .addTag(BlockTags.DIRT)
 		    .add(
@@ -80,7 +80,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.WARPED_ROOTS,
 				    Blocks.CACTUS_FLOWER
 		    );
-		this.builder(BlockTags.FLOWER_POTS)
+		builder(BlockTags.FLOWER_POTS)
 		    .add(
 				    Blocks.FLOWER_POT,
 				    Blocks.POTTED_OPEN_EYEBLOSSOM,
@@ -121,7 +121,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.POTTED_CHERRY_SAPLING,
 				    Blocks.POTTED_TORCHFLOWER
 		    );
-		this.builder(BlockTags.BANNERS)
+		builder(BlockTags.BANNERS)
 		    .add(
 				    Blocks.WHITE_BANNER,
 				    Blocks.ORANGE_BANNER,
@@ -159,14 +159,14 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		this
 				.builder(BlockTags.STONE_PRESSURE_PLATES)
 				.add(Blocks.STONE_PRESSURE_PLATE, Blocks.POLISHED_BLACKSTONE_PRESSURE_PLATE);
-		this.builder(BlockTags.PRESSURE_PLATES)
+		builder(BlockTags.PRESSURE_PLATES)
 		    .add(Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE, Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE)
 		    .addTag(BlockTags.WOODEN_PRESSURE_PLATES)
 		    .addTag(BlockTags.STONE_PRESSURE_PLATES);
 		this
 				.builder(BlockTags.CORAL_PLANTS)
 				.add(Blocks.TUBE_CORAL, Blocks.BRAIN_CORAL, Blocks.BUBBLE_CORAL, Blocks.FIRE_CORAL, Blocks.HORN_CORAL);
-		this.builder(BlockTags.CORALS)
+		builder(BlockTags.CORALS)
 		    .addTag(BlockTags.CORAL_PLANTS)
 		    .add(
 				    Blocks.TUBE_CORAL_FAN,
@@ -175,7 +175,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.FIRE_CORAL_FAN,
 				    Blocks.HORN_CORAL_FAN
 		    );
-		this.builder(BlockTags.WALL_CORALS)
+		builder(BlockTags.WALL_CORALS)
 		    .add(
 				    Blocks.TUBE_CORAL_WALL_FAN,
 				    Blocks.BRAIN_CORAL_WALL_FAN,
@@ -183,7 +183,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.FIRE_CORAL_WALL_FAN,
 				    Blocks.HORN_CORAL_WALL_FAN
 		    );
-		this.builder(BlockTags.CORAL_BLOCKS)
+		builder(BlockTags.CORAL_BLOCKS)
 		    .add(
 				    Blocks.TUBE_CORAL_BLOCK,
 				    Blocks.BRAIN_CORAL_BLOCK,
@@ -191,9 +191,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.FIRE_CORAL_BLOCK,
 				    Blocks.HORN_CORAL_BLOCK
 		    );
-		this.builder(BlockTags.ICE).add(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.FROSTED_ICE);
-		this.builder(BlockTags.VALID_SPAWN).add(Blocks.GRASS_BLOCK, Blocks.PODZOL);
-		this.builder(BlockTags.IMPERMEABLE)
+		builder(BlockTags.ICE).add(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.FROSTED_ICE);
+		builder(BlockTags.VALID_SPAWN).add(Blocks.GRASS_BLOCK, Blocks.PODZOL);
+		builder(BlockTags.IMPERMEABLE)
 		    .add(
 				    Blocks.GLASS,
 				    Blocks.WHITE_STAINED_GLASS,
@@ -220,11 +220,11 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.add(Blocks.SEAGRASS)
 				.addTag(BlockTags.CORALS)
 				.addTag(BlockTags.WALL_CORALS);
-		this.builder(BlockTags.BAMBOO_PLANTABLE_ON)
+		builder(BlockTags.BAMBOO_PLANTABLE_ON)
 		    .addTag(BlockTags.SAND)
 		    .addTag(BlockTags.DIRT)
 		    .add(Blocks.BAMBOO, Blocks.BAMBOO_SAPLING, Blocks.GRAVEL, Blocks.SUSPICIOUS_GRAVEL);
-		this.builder(BlockTags.WALL_SIGNS)
+		builder(BlockTags.WALL_SIGNS)
 		    .add(
 				    Blocks.OAK_WALL_SIGN,
 				    Blocks.SPRUCE_WALL_SIGN,
@@ -239,8 +239,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.BAMBOO_WALL_SIGN,
 				    Blocks.CHERRY_WALL_SIGN
 		    );
-		this.builder(BlockTags.SIGNS).addTag(BlockTags.STANDING_SIGNS).addTag(BlockTags.WALL_SIGNS);
-		this.builder(BlockTags.WALL_HANGING_SIGNS)
+		builder(BlockTags.SIGNS).addTag(BlockTags.STANDING_SIGNS).addTag(BlockTags.WALL_SIGNS);
+		builder(BlockTags.WALL_HANGING_SIGNS)
 		    .add(
 				    Blocks.OAK_WALL_HANGING_SIGN,
 				    Blocks.SPRUCE_WALL_HANGING_SIGN,
@@ -259,8 +259,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.builder(BlockTags.ALL_HANGING_SIGNS)
 				.addTag(BlockTags.CEILING_HANGING_SIGNS)
 				.addTag(BlockTags.WALL_HANGING_SIGNS);
-		this.builder(BlockTags.ALL_SIGNS).addTag(BlockTags.SIGNS).addTag(BlockTags.ALL_HANGING_SIGNS);
-		this.builder(BlockTags.DRAGON_IMMUNE)
+		builder(BlockTags.ALL_SIGNS).addTag(BlockTags.SIGNS).addTag(BlockTags.ALL_HANGING_SIGNS);
+		builder(BlockTags.DRAGON_IMMUNE)
 		    .add(
 				    Blocks.BARRIER,
 				    Blocks.BEDROCK,
@@ -282,8 +282,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.TEST_BLOCK,
 				    Blocks.TEST_INSTANCE_BLOCK
 		    );
-		this.builder(BlockTags.DRAGON_TRANSPARENT).add(Blocks.LIGHT).addTag(BlockTags.FIRE);
-		this.builder(BlockTags.WITHER_IMMUNE)
+		builder(BlockTags.DRAGON_TRANSPARENT).add(Blocks.LIGHT).addTag(BlockTags.FIRE);
+		builder(BlockTags.WITHER_IMMUNE)
 		    .add(
 				    Blocks.BARRIER,
 				    Blocks.BEDROCK,
@@ -301,9 +301,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.TEST_BLOCK,
 				    Blocks.TEST_INSTANCE_BLOCK
 		    );
-		this.builder(BlockTags.WITHER_SUMMON_BASE_BLOCKS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
-		this.builder(BlockTags.BEEHIVES).add(Blocks.BEE_NEST, Blocks.BEEHIVE);
-		this.builder(BlockTags.CROPS)
+		builder(BlockTags.WITHER_SUMMON_BASE_BLOCKS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
+		builder(BlockTags.BEEHIVES).add(Blocks.BEE_NEST, Blocks.BEEHIVE);
+		builder(BlockTags.CROPS)
 		    .add(
 				    Blocks.BEETROOTS,
 				    Blocks.CARROTS,
@@ -320,9 +320,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.add(Blocks.SWEET_BERRY_BUSH)
 				.add(Blocks.CAVE_VINES)
 				.add(Blocks.CAVE_VINES_PLANT);
-		this.builder(BlockTags.PORTALS).add(Blocks.NETHER_PORTAL, Blocks.END_PORTAL, Blocks.END_GATEWAY);
-		this.builder(BlockTags.FIRE).add(Blocks.FIRE, Blocks.SOUL_FIRE);
-		this.builder(BlockTags.NYLIUM).add(Blocks.CRIMSON_NYLIUM, Blocks.WARPED_NYLIUM);
+		builder(BlockTags.PORTALS).add(Blocks.NETHER_PORTAL, Blocks.END_PORTAL, Blocks.END_GATEWAY);
+		builder(BlockTags.FIRE).add(Blocks.FIRE, Blocks.SOUL_FIRE);
+		builder(BlockTags.NYLIUM).add(Blocks.CRIMSON_NYLIUM, Blocks.WARPED_NYLIUM);
 		this
 				.builder(BlockTags.BEACON_BASE_BLOCKS)
 				.add(
@@ -332,14 +332,14 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 						Blocks.GOLD_BLOCK,
 						Blocks.IRON_BLOCK
 				);
-		this.builder(BlockTags.SOUL_SPEED_BLOCKS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
-		this.builder(BlockTags.WALL_POST_OVERRIDE)
+		builder(BlockTags.SOUL_SPEED_BLOCKS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
+		builder(BlockTags.WALL_POST_OVERRIDE)
 		    .add(Blocks.TORCH, Blocks.SOUL_TORCH, Blocks.REDSTONE_TORCH, Blocks.COPPER_TORCH, Blocks.TRIPWIRE)
 		    .addTag(BlockTags.SIGNS)
 		    .addTag(BlockTags.BANNERS)
 		    .addTag(BlockTags.PRESSURE_PLATES)
 		    .add(Blocks.CACTUS_FLOWER);
-		this.builder(BlockTags.CLIMBABLE)
+		builder(BlockTags.CLIMBABLE)
 		    .add(
 				    Blocks.LADDER,
 				    Blocks.VINE,
@@ -355,7 +355,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.builder(BlockTags.FALL_DAMAGE_RESETTING)
 				.addTag(BlockTags.CLIMBABLE)
 				.add(Blocks.SWEET_BERRY_BUSH, Blocks.COBWEB);
-		this.builder(BlockTags.PIGLIN_REPELLENTS)
+		builder(BlockTags.PIGLIN_REPELLENTS)
 		    .add(Blocks.SOUL_FIRE)
 		    .add(Blocks.SOUL_TORCH)
 		    .add(Blocks.SOUL_LANTERN)
@@ -367,9 +367,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.add(Blocks.POTTED_WARPED_FUNGUS)
 				.add(Blocks.NETHER_PORTAL)
 				.add(Blocks.RESPAWN_ANCHOR);
-		this.builder(BlockTags.STRIDER_WARM_BLOCKS).add(Blocks.LAVA);
-		this.builder(BlockTags.CAMPFIRES).add(Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE);
-		this.builder(BlockTags.GUARDED_BY_PIGLINS)
+		builder(BlockTags.STRIDER_WARM_BLOCKS).add(Blocks.LAVA);
+		builder(BlockTags.CAMPFIRES).add(Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE);
+		builder(BlockTags.GUARDED_BY_PIGLINS)
 		    .addTag(BlockTags.COPPER_CHESTS)
 		    .add(
 				    Blocks.GOLD_BLOCK,
@@ -382,8 +382,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    )
 		    .addTag(BlockTags.SHULKER_BOXES)
 		    .addTag(BlockTags.GOLD_ORES);
-		this.builder(BlockTags.PREVENT_MOB_SPAWNING_INSIDE).addTag(BlockTags.RAILS);
-		this.builder(BlockTags.UNSTABLE_BOTTOM_CENTER).addTag(BlockTags.FENCE_GATES);
+		builder(BlockTags.PREVENT_MOB_SPAWNING_INSIDE).addTag(BlockTags.RAILS);
+		builder(BlockTags.UNSTABLE_BOTTOM_CENTER).addTag(BlockTags.FENCE_GATES);
 		this
 				.builder(BlockTags.MUSHROOM_GROW_BLOCK)
 				.add(Blocks.MYCELIUM)
@@ -396,30 +396,30 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.add(Blocks.SHORT_DRY_GRASS)
 				.add(Blocks.TALL_DRY_GRASS)
 				.add(Blocks.FERN);
-		this.builder(BlockTags.CAN_GLIDE_THROUGH)
+		builder(BlockTags.CAN_GLIDE_THROUGH)
 		    .add(Blocks.VINE)
 		    .add(Blocks.TWISTING_VINES, Blocks.TWISTING_VINES_PLANT)
 		    .add(Blocks.WEEPING_VINES, Blocks.WEEPING_VINES_PLANT)
 		    .addTag(BlockTags.CAVE_VINES);
-		this.builder(BlockTags.INFINIBURN_OVERWORLD).add(Blocks.NETHERRACK, Blocks.MAGMA_BLOCK);
-		this.builder(BlockTags.INFINIBURN_NETHER).addTag(BlockTags.INFINIBURN_OVERWORLD);
-		this.builder(BlockTags.INFINIBURN_END).addTag(BlockTags.INFINIBURN_OVERWORLD).add(Blocks.BEDROCK);
+		builder(BlockTags.INFINIBURN_OVERWORLD).add(Blocks.NETHERRACK, Blocks.MAGMA_BLOCK);
+		builder(BlockTags.INFINIBURN_NETHER).addTag(BlockTags.INFINIBURN_OVERWORLD);
+		builder(BlockTags.INFINIBURN_END).addTag(BlockTags.INFINIBURN_OVERWORLD).add(Blocks.BEDROCK);
 		this
 				.builder(BlockTags.STONE_ORE_REPLACEABLES)
 				.add(Blocks.STONE)
 				.add(Blocks.GRANITE)
 				.add(Blocks.DIORITE)
 				.add(Blocks.ANDESITE);
-		this.builder(BlockTags.DEEPSLATE_ORE_REPLACEABLES).add(Blocks.DEEPSLATE).add(Blocks.TUFF);
-		this.builder(BlockTags.BASE_STONE_OVERWORLD)
+		builder(BlockTags.DEEPSLATE_ORE_REPLACEABLES).add(Blocks.DEEPSLATE).add(Blocks.TUFF);
+		builder(BlockTags.BASE_STONE_OVERWORLD)
 		    .add(Blocks.STONE)
 		    .add(Blocks.GRANITE)
 		    .add(Blocks.DIORITE)
 		    .add(Blocks.ANDESITE)
 		    .add(Blocks.TUFF)
 		    .add(Blocks.DEEPSLATE);
-		this.builder(BlockTags.BASE_STONE_NETHER).add(Blocks.NETHERRACK).add(Blocks.BASALT).add(Blocks.BLACKSTONE);
-		this.builder(BlockTags.OVERWORLD_CARVER_REPLACEABLES)
+		builder(BlockTags.BASE_STONE_NETHER).add(Blocks.NETHERRACK).add(Blocks.BASALT).add(Blocks.BLACKSTONE);
+		builder(BlockTags.OVERWORLD_CARVER_REPLACEABLES)
 		    .addTag(BlockTags.BASE_STONE_OVERWORLD)
 		    .addTag(BlockTags.DIRT)
 		    .addTag(BlockTags.SAND)
@@ -438,14 +438,14 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.RAW_IRON_BLOCK,
 				    Blocks.RAW_COPPER_BLOCK
 		    );
-		this.builder(BlockTags.NETHER_CARVER_REPLACEABLES)
+		builder(BlockTags.NETHER_CARVER_REPLACEABLES)
 		    .addTag(BlockTags.BASE_STONE_OVERWORLD)
 		    .addTag(BlockTags.BASE_STONE_NETHER)
 		    .addTag(BlockTags.DIRT)
 		    .addTag(BlockTags.NYLIUM)
 		    .addTag(BlockTags.WART_BLOCKS)
 		    .add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
-		this.builder(BlockTags.CANDLE_CAKES)
+		builder(BlockTags.CANDLE_CAKES)
 		    .add(
 				    Blocks.CANDLE_CAKE,
 				    Blocks.WHITE_CANDLE_CAKE,
@@ -465,11 +465,11 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.RED_CANDLE_CAKE,
 				    Blocks.BLACK_CANDLE_CAKE
 		    );
-		this.builder(BlockTags.CRYSTAL_SOUND_BLOCKS).add(Blocks.AMETHYST_BLOCK, Blocks.BUDDING_AMETHYST);
+		builder(BlockTags.CRYSTAL_SOUND_BLOCKS).add(Blocks.AMETHYST_BLOCK, Blocks.BUDDING_AMETHYST);
 		this
 				.builder(BlockTags.CAULDRONS)
 				.add(Blocks.CAULDRON, Blocks.WATER_CAULDRON, Blocks.LAVA_CAULDRON, Blocks.POWDER_SNOW_CAULDRON);
-		this.builder(BlockTags.INSIDE_STEP_SOUND_BLOCKS)
+		builder(BlockTags.INSIDE_STEP_SOUND_BLOCKS)
 		    .add(
 				    Blocks.POWDER_SNOW,
 				    Blocks.SCULK_VEIN,
@@ -480,7 +480,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.WILDFLOWERS,
 				    Blocks.LEAF_LITTER
 		    );
-		this.builder(BlockTags.COMBINATION_STEP_SOUND_BLOCKS)
+		builder(BlockTags.COMBINATION_STEP_SOUND_BLOCKS)
 		    .addTag(BlockTags.WOOL_CARPETS)
 		    .add(
 				    Blocks.MOSS_CARPET,
@@ -491,8 +491,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.CRIMSON_ROOTS,
 				    Blocks.RESIN_CLUMP
 		    );
-		this.builder(BlockTags.DRIPSTONE_REPLACEABLE_BLOCKS).addTag(BlockTags.BASE_STONE_OVERWORLD);
-		this.builder(BlockTags.CAVE_VINES).add(Blocks.CAVE_VINES_PLANT).add(Blocks.CAVE_VINES);
+		builder(BlockTags.DRIPSTONE_REPLACEABLE_BLOCKS).addTag(BlockTags.BASE_STONE_OVERWORLD);
+		builder(BlockTags.CAVE_VINES).add(Blocks.CAVE_VINES_PLANT).add(Blocks.CAVE_VINES);
 		this
 				.builder(BlockTags.MOSS_REPLACEABLE)
 				.addTag(BlockTags.BASE_STONE_OVERWORLD)
@@ -504,7 +504,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.add(Blocks.CLAY)
 				.add(Blocks.GRAVEL)
 				.add(Blocks.SAND);
-		this.builder(BlockTags.AZALEA_ROOT_REPLACEABLE)
+		builder(BlockTags.AZALEA_ROOT_REPLACEABLE)
 		    .addTag(BlockTags.BASE_STONE_OVERWORLD)
 		    .addTag(BlockTags.DIRT)
 		    .addTag(BlockTags.TERRACOTTA)
@@ -514,8 +514,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.SAND)
 		    .add(Blocks.SNOW_BLOCK)
 		    .add(Blocks.POWDER_SNOW);
-		this.builder(BlockTags.SMALL_DRIPLEAF_PLACEABLE).add(Blocks.CLAY).add(Blocks.MOSS_BLOCK);
-		this.builder(BlockTags.BIG_DRIPLEAF_PLACEABLE)
+		builder(BlockTags.SMALL_DRIPLEAF_PLACEABLE).add(Blocks.CLAY).add(Blocks.MOSS_BLOCK);
+		builder(BlockTags.BIG_DRIPLEAF_PLACEABLE)
 		    .addTag(BlockTags.SMALL_DRIPLEAF_PLACEABLE)
 		    .add(
 				    Blocks.DIRT,
@@ -529,9 +529,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.MUDDY_MANGROVE_ROOTS,
 				    Blocks.FARMLAND
 		    );
-		this.builder(BlockTags.OCCLUDES_VIBRATION_SIGNALS).addTag(BlockTags.WOOL);
-		this.builder(BlockTags.SNOW).add(Blocks.SNOW, Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW);
-		this.builder(BlockTags.AXE_MINEABLE)
+		builder(BlockTags.OCCLUDES_VIBRATION_SIGNALS).addTag(BlockTags.WOOL);
+		builder(BlockTags.SNOW).add(Blocks.SNOW, Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW);
+		builder(BlockTags.AXE_MINEABLE)
 		    .add(
 				    Blocks.NOTE_BLOCK,
 				    Blocks.BAMBOO,
@@ -587,7 +587,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.CHISELED_BOOKSHELF)
 		    .addTag(BlockTags.WOODEN_SHELVES)
 		    .add(Blocks.CREAKING_HEART);
-		this.builder(BlockTags.HOE_MINEABLE)
+		builder(BlockTags.HOE_MINEABLE)
 		    .addTag(BlockTags.LEAVES)
 		    .add(
 				    Blocks.NETHER_WART_BLOCK,
@@ -609,7 +609,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.SCULK_VEIN,
 				    Blocks.SCULK_SHRIEKER
 		    );
-		this.builder(BlockTags.PICKAXE_MINEABLE)
+		builder(BlockTags.PICKAXE_MINEABLE)
 		    .add(
 				    Blocks.STONE,
 				    Blocks.GRANITE,
@@ -1004,7 +1004,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .addTag(BlockTags.LANTERNS)
 		    .addTag(BlockTags.CHAINS)
 		    .addTag(BlockTags.BARS);
-		this.builder(BlockTags.SHOVEL_MINEABLE)
+		builder(BlockTags.SHOVEL_MINEABLE)
 		    .add(
 				    Blocks.CLAY,
 				    Blocks.DIRT,
@@ -1028,7 +1028,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.SUSPICIOUS_GRAVEL
 		    )
 		    .addTag(BlockTags.CONCRETE_POWDER);
-		this.builder(BlockTags.SWORD_EFFICIENT)
+		builder(BlockTags.SWORD_EFFICIENT)
 		    .addTag(BlockTags.LEAVES)
 		    .add(Blocks.VINE, Blocks.GLOW_LICHEN)
 		    .add(
@@ -1041,8 +1041,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.BIG_DRIPLEAF_STEM
 		    )
 		    .add(Blocks.CHORUS_PLANT, Blocks.CHORUS_FLOWER);
-		this.builder(BlockTags.SWORD_INSTANTLY_MINES).add(Blocks.BAMBOO, Blocks.BAMBOO_SAPLING);
-		this.builder(BlockTags.NEEDS_DIAMOND_TOOL)
+		builder(BlockTags.SWORD_INSTANTLY_MINES).add(Blocks.BAMBOO, Blocks.BAMBOO_SAPLING);
+		builder(BlockTags.NEEDS_DIAMOND_TOOL)
 		    .add(
 				    Blocks.OBSIDIAN,
 				    Blocks.CRYING_OBSIDIAN,
@@ -1050,7 +1050,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.RESPAWN_ANCHOR,
 				    Blocks.ANCIENT_DEBRIS
 		    );
-		this.builder(BlockTags.NEEDS_IRON_TOOL)
+		builder(BlockTags.NEEDS_IRON_TOOL)
 		    .add(
 				    Blocks.DIAMOND_BLOCK,
 				    Blocks.DIAMOND_ORE,
@@ -1065,7 +1065,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.REDSTONE_ORE,
 				    Blocks.DEEPSLATE_REDSTONE_ORE
 		    );
-		this.builder(BlockTags.NEEDS_STONE_TOOL)
+		builder(BlockTags.NEEDS_STONE_TOOL)
 		    .add(
 				    Blocks.IRON_BLOCK,
 				    Blocks.RAW_IRON_BLOCK,
@@ -1145,9 +1145,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    )
 		    .addTag(BlockTags.COPPER_CHESTS)
 		    .addTag(BlockTags.LIGHTNING_RODS);
-		this.builder(BlockTags.INCORRECT_FOR_NETHERITE_TOOL);
-		this.builder(BlockTags.INCORRECT_FOR_DIAMOND_TOOL);
-		this.builder(BlockTags.INCORRECT_FOR_IRON_TOOL).addTag(BlockTags.NEEDS_DIAMOND_TOOL);
+		builder(BlockTags.INCORRECT_FOR_NETHERITE_TOOL);
+		builder(BlockTags.INCORRECT_FOR_DIAMOND_TOOL);
+		builder(BlockTags.INCORRECT_FOR_IRON_TOOL).addTag(BlockTags.NEEDS_DIAMOND_TOOL);
 		this
 				.builder(BlockTags.INCORRECT_FOR_STONE_TOOL)
 				.addTag(BlockTags.NEEDS_DIAMOND_TOOL)
@@ -1161,11 +1161,11 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.addTag(BlockTags.NEEDS_DIAMOND_TOOL)
 				.addTag(BlockTags.NEEDS_IRON_TOOL)
 				.addTag(BlockTags.NEEDS_STONE_TOOL);
-		this.builder(BlockTags.INCORRECT_FOR_WOODEN_TOOL)
+		builder(BlockTags.INCORRECT_FOR_WOODEN_TOOL)
 		    .addTag(BlockTags.NEEDS_DIAMOND_TOOL)
 		    .addTag(BlockTags.NEEDS_IRON_TOOL)
 		    .addTag(BlockTags.NEEDS_STONE_TOOL);
-		this.builder(BlockTags.FEATURES_CANNOT_REPLACE)
+		builder(BlockTags.FEATURES_CANNOT_REPLACE)
 		    .add(
 				    Blocks.BEDROCK,
 				    Blocks.SPAWNER,
@@ -1183,22 +1183,22 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		this
 				.builder(BlockTags.GEODE_INVALID_BLOCKS)
 				.add(Blocks.BEDROCK, Blocks.WATER, Blocks.LAVA, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
-		this.builder(BlockTags.ANIMALS_SPAWNABLE_ON).add(Blocks.GRASS_BLOCK);
-		this.builder(BlockTags.ARMADILLO_SPAWNABLE_ON)
+		builder(BlockTags.ANIMALS_SPAWNABLE_ON).add(Blocks.GRASS_BLOCK);
+		builder(BlockTags.ARMADILLO_SPAWNABLE_ON)
 		    .addTag(BlockTags.ANIMALS_SPAWNABLE_ON)
 		    .addTag(BlockTags.BADLANDS_TERRACOTTA)
 		    .add(Blocks.RED_SAND, Blocks.COARSE_DIRT);
-		this.builder(BlockTags.AXOLOTLS_SPAWNABLE_ON).add(Blocks.CLAY);
-		this.builder(BlockTags.GOATS_SPAWNABLE_ON)
+		builder(BlockTags.AXOLOTLS_SPAWNABLE_ON).add(Blocks.CLAY);
+		builder(BlockTags.GOATS_SPAWNABLE_ON)
 		    .addTag(BlockTags.ANIMALS_SPAWNABLE_ON)
 		    .add(Blocks.STONE, Blocks.SNOW, Blocks.SNOW_BLOCK, Blocks.PACKED_ICE, Blocks.GRAVEL);
-		this.builder(BlockTags.MOOSHROOMS_SPAWNABLE_ON).add(Blocks.MYCELIUM);
+		builder(BlockTags.MOOSHROOMS_SPAWNABLE_ON).add(Blocks.MYCELIUM);
 		this
 				.builder(BlockTags.PARROTS_SPAWNABLE_ON)
 				.add(Blocks.GRASS_BLOCK, Blocks.AIR)
 				.addTag(BlockTags.LEAVES)
 				.addTag(BlockTags.LOGS);
-		this.builder(BlockTags.POLAR_BEARS_SPAWNABLE_ON_ALTERNATE).add(Blocks.ICE);
+		builder(BlockTags.POLAR_BEARS_SPAWNABLE_ON_ALTERNATE).add(Blocks.ICE);
 		this
 				.builder(BlockTags.RABBITS_SPAWNABLE_ON)
 				.add(Blocks.GRASS_BLOCK, Blocks.SNOW, Blocks.SNOW_BLOCK, Blocks.SAND);
@@ -1211,9 +1211,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		this
 				.builder(BlockTags.FROGS_SPAWNABLE_ON)
 				.add(Blocks.GRASS_BLOCK, Blocks.MUD, Blocks.MANGROVE_ROOTS, Blocks.MUDDY_MANGROVE_ROOTS);
-		this.builder(BlockTags.BATS_SPAWNABLE_ON).addTag(BlockTags.BASE_STONE_OVERWORLD);
-		this.builder(BlockTags.CAMELS_SPAWNABLE_ON).addTag(BlockTags.SAND);
-		this.builder(BlockTags.BADLANDS_TERRACOTTA)
+		builder(BlockTags.BATS_SPAWNABLE_ON).addTag(BlockTags.BASE_STONE_OVERWORLD);
+		builder(BlockTags.CAMELS_SPAWNABLE_ON).addTag(BlockTags.SAND);
+		builder(BlockTags.BADLANDS_TERRACOTTA)
 		    .add(Blocks.TERRACOTTA)
 		    .add(
 				    Blocks.WHITE_TERRACOTTA,
@@ -1223,7 +1223,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.BROWN_TERRACOTTA,
 				    Blocks.LIGHT_GRAY_TERRACOTTA
 		    );
-		this.builder(BlockTags.CONCRETE_POWDER)
+		builder(BlockTags.CONCRETE_POWDER)
 		    .add(
 				    Blocks.WHITE_CONCRETE_POWDER,
 				    Blocks.ORANGE_CONCRETE_POWDER,
@@ -1242,14 +1242,14 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.RED_CONCRETE_POWDER,
 				    Blocks.BLACK_CONCRETE_POWDER
 		    );
-		this.builder(BlockTags.AZALEA_GROWS_ON)
+		builder(BlockTags.AZALEA_GROWS_ON)
 		    .addTag(BlockTags.DIRT)
 		    .addTag(BlockTags.SAND)
 		    .addTag(BlockTags.TERRACOTTA)
 		    .add(Blocks.SNOW_BLOCK)
 		    .add(Blocks.POWDER_SNOW);
-		this.builder(BlockTags.FROG_PREFER_JUMP_TO).add(Blocks.LILY_PAD, Blocks.BIG_DRIPLEAF);
-		this.builder(BlockTags.SCULK_REPLACEABLE)
+		builder(BlockTags.FROG_PREFER_JUMP_TO).add(Blocks.LILY_PAD, Blocks.BIG_DRIPLEAF);
+		builder(BlockTags.SCULK_REPLACEABLE)
 		    .addTag(BlockTags.BASE_STONE_OVERWORLD)
 		    .addTag(BlockTags.DIRT)
 		    .addTag(BlockTags.TERRACOTTA)
@@ -1266,7 +1266,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.END_STONE)
 		    .add(Blocks.RED_SANDSTONE)
 		    .add(Blocks.SANDSTONE);
-		this.builder(BlockTags.SCULK_REPLACEABLE_WORLD_GEN)
+		builder(BlockTags.SCULK_REPLACEABLE_WORLD_GEN)
 		    .addTag(BlockTags.SCULK_REPLACEABLE)
 		    .add(Blocks.DEEPSLATE_BRICKS)
 		    .add(Blocks.DEEPSLATE_TILES)
@@ -1274,9 +1274,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.CRACKED_DEEPSLATE_BRICKS)
 		    .add(Blocks.CRACKED_DEEPSLATE_TILES)
 		    .add(Blocks.POLISHED_DEEPSLATE);
-		this.builder(BlockTags.VIBRATION_RESONATORS).add(Blocks.AMETHYST_BLOCK);
-		this.builder(BlockTags.CONVERTABLE_TO_MUD).add(Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT);
-		this.builder(BlockTags.ANCIENT_CITY_REPLACEABLE)
+		builder(BlockTags.VIBRATION_RESONATORS).add(Blocks.AMETHYST_BLOCK);
+		builder(BlockTags.CONVERTABLE_TO_MUD).add(Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT);
+		builder(BlockTags.ANCIENT_CITY_REPLACEABLE)
 		    .add(Blocks.DEEPSLATE)
 		    .add(Blocks.DEEPSLATE_BRICKS)
 		    .add(Blocks.DEEPSLATE_TILES)
@@ -1289,7 +1289,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.CRACKED_DEEPSLATE_BRICKS)
 		    .add(Blocks.CRACKED_DEEPSLATE_TILES)
 		    .add(Blocks.GRAY_WOOL);
-		this.builder(BlockTags.MANGROVE_LOGS_CAN_GROW_THROUGH)
+		builder(BlockTags.MANGROVE_LOGS_CAN_GROW_THROUGH)
 		    .add(
 				    Blocks.MUD,
 				    Blocks.MUDDY_MANGROVE_ROOTS,
@@ -1300,7 +1300,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.MOSS_CARPET,
 				    Blocks.VINE
 		    );
-		this.builder(BlockTags.MANGROVE_ROOTS_CAN_GROW_THROUGH)
+		builder(BlockTags.MANGROVE_ROOTS_CAN_GROW_THROUGH)
 		    .add(
 				    Blocks.MUD,
 				    Blocks.MUDDY_MANGROVE_ROOTS,
@@ -1316,9 +1316,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				.addTag(BlockTags.TERRACOTTA)
 				.addTag(BlockTags.DIRT)
 				.add(Blocks.FARMLAND);
-		this.builder(BlockTags.SNOW_LAYER_CANNOT_SURVIVE_ON).add(Blocks.ICE).add(Blocks.PACKED_ICE).add(Blocks.BARRIER);
-		this.builder(BlockTags.SNOW_LAYER_CAN_SURVIVE_ON).add(Blocks.HONEY_BLOCK).add(Blocks.SOUL_SAND).add(Blocks.MUD);
-		this.builder(BlockTags.REPLACEABLE_BY_TREES)
+		builder(BlockTags.SNOW_LAYER_CANNOT_SURVIVE_ON).add(Blocks.ICE).add(Blocks.PACKED_ICE).add(Blocks.BARRIER);
+		builder(BlockTags.SNOW_LAYER_CAN_SURVIVE_ON).add(Blocks.HONEY_BLOCK).add(Blocks.SOUL_SAND).add(Blocks.MUD);
+		builder(BlockTags.REPLACEABLE_BY_TREES)
 		    .addTag(BlockTags.LEAVES)
 		    .addTag(BlockTags.SMALL_FLOWERS)
 		    .add(Blocks.PALE_MOSS_CARPET)
@@ -1346,7 +1346,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.SHORT_DRY_GRASS,
 				    Blocks.TALL_DRY_GRASS
 		    );
-		this.builder(BlockTags.REPLACEABLE_BY_MUSHROOMS)
+		builder(BlockTags.REPLACEABLE_BY_MUSHROOMS)
 		    .addTag(BlockTags.LEAVES)
 		    .addTag(BlockTags.SMALL_FLOWERS)
 		    .add(Blocks.PALE_MOSS_CARPET)
@@ -1377,7 +1377,7 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.BUSH,
 				    Blocks.FIREFLY_BUSH
 		    );
-		this.builder(BlockTags.SNAPS_GOAT_HORN)
+		builder(BlockTags.SNAPS_GOAT_HORN)
 		    .addTag(BlockTags.OVERWORLD_NATURAL_LOGS)
 		    .add(Blocks.STONE)
 		    .add(Blocks.PACKED_ICE)
@@ -1385,9 +1385,9 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 		    .add(Blocks.COAL_ORE)
 		    .add(Blocks.COPPER_ORE)
 		    .add(Blocks.EMERALD_ORE);
-		this.builder(BlockTags.INVALID_SPAWN_INSIDE).add(Blocks.END_PORTAL, Blocks.END_GATEWAY);
-		this.builder(BlockTags.TRAIL_RUINS_REPLACEABLE).add(Blocks.GRAVEL);
-		this.builder(BlockTags.SNIFFER_DIGGABLE_BLOCK)
+		builder(BlockTags.INVALID_SPAWN_INSIDE).add(Blocks.END_PORTAL, Blocks.END_GATEWAY);
+		builder(BlockTags.TRAIL_RUINS_REPLACEABLE).add(Blocks.GRAVEL);
+		builder(BlockTags.SNIFFER_DIGGABLE_BLOCK)
 		    .add(
 				    Blocks.DIRT,
 				    Blocks.GRASS_BLOCK,
@@ -1399,17 +1399,17 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.MUD,
 				    Blocks.MUDDY_MANGROVE_ROOTS
 		    );
-		this.builder(BlockTags.SNIFFER_EGG_HATCH_BOOST).add(Blocks.MOSS_BLOCK);
-		this.builder(BlockTags.REPLACEABLE)
+		builder(BlockTags.SNIFFER_EGG_HATCH_BOOST).add(Blocks.MOSS_BLOCK);
+		builder(BlockTags.REPLACEABLE)
 		    .add(
 				    registries.getOrThrow(RegistryKeys.BLOCK)
 				              .streamEntries()
 				              .map(RegistryEntry.Reference::value)
 				              .filter(block -> block.getDefaultState().isReplaceable())
 		    );
-		this.builder(BlockTags.ENCHANTMENT_POWER_PROVIDER).add(Blocks.BOOKSHELF);
-		this.builder(BlockTags.ENCHANTMENT_POWER_TRANSMITTER).addTag(BlockTags.REPLACEABLE);
-		this.builder(BlockTags.MAINTAINS_FARMLAND)
+		builder(BlockTags.ENCHANTMENT_POWER_PROVIDER).add(Blocks.BOOKSHELF);
+		builder(BlockTags.ENCHANTMENT_POWER_TRANSMITTER).addTag(BlockTags.REPLACEABLE);
+		builder(BlockTags.MAINTAINS_FARMLAND)
 		    .add(
 				    Blocks.PUMPKIN_STEM,
 				    Blocks.ATTACHED_PUMPKIN_STEM,
@@ -1423,8 +1423,8 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.PITCHER_CROP,
 				    Blocks.WHEAT
 		    );
-		this.builder(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS).addTag(BlockTags.SAND).addTag(BlockTags.CONCRETE_POWDER);
-		this.builder(BlockTags.HAPPY_GHAST_AVOIDS)
+		builder(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS).addTag(BlockTags.SAND).addTag(BlockTags.CONCRETE_POWDER);
+		builder(BlockTags.HAPPY_GHAST_AVOIDS)
 		    .add(
 				    Blocks.SWEET_BERRY_BUSH,
 				    Blocks.CACTUS,
@@ -1433,14 +1433,14 @@ public class VanillaBlockTagProvider extends ValueLookupTagProvider<Block> {
 				    Blocks.FIRE,
 				    Blocks.POINTED_DRIPSTONE
 		    );
-		this.builder(BlockTags.DOES_NOT_BLOCK_HOPPERS).addTag(BlockTags.BEEHIVES);
-		this.builder(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).add(Blocks.BARRIER, Blocks.BEDROCK);
-		this.builder(BlockTags.TRIGGERS_AMBIENT_DESERT_SAND_BLOCK_SOUNDS).add(Blocks.SAND, Blocks.RED_SAND);
+		builder(BlockTags.DOES_NOT_BLOCK_HOPPERS).addTag(BlockTags.BEEHIVES);
+		builder(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).add(Blocks.BARRIER, Blocks.BEDROCK);
+		builder(BlockTags.TRIGGERS_AMBIENT_DESERT_SAND_BLOCK_SOUNDS).add(Blocks.SAND, Blocks.RED_SAND);
 		this
 				.builder(BlockTags.TRIGGERS_AMBIENT_DESERT_DRY_VEGETATION_BLOCK_SOUNDS)
 				.addTag(BlockTags.TERRACOTTA)
 				.add(Blocks.SAND, Blocks.RED_SAND);
-		this.builder(BlockTags.TRIGGERS_AMBIENT_DRIED_GHAST_BLOCK_SOUNDS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
-		this.builder(BlockTags.AIR).add(Blocks.AIR, Blocks.VOID_AIR, Blocks.CAVE_AIR);
+		builder(BlockTags.TRIGGERS_AMBIENT_DRIED_GHAST_BLOCK_SOUNDS).add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
+		builder(BlockTags.AIR).add(Blocks.AIR, Blocks.VOID_AIR, Blocks.CAVE_AIR);
 	}
 }

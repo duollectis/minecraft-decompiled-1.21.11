@@ -4,7 +4,8 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
 
 /**
- * Интерфейс client query packet listener.
+ * Слушатель клиентских пакетов фазы {@link net.minecraft.network.NetworkPhase#STATUS}.
+ * Обрабатывает ответ сервера на запрос статуса (MOTD, количество игроков и т.д.).
  */
 public interface ClientQueryPacketListener extends ClientPingResultPacketListener, ClientPacketListener {
 

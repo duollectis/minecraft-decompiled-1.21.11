@@ -25,7 +25,8 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code FarmlandBlock}.
+ * Блок вспаханной земли. Поддерживает влажность от 0 до {@link #MAX_MOISTURE}.
+ * Превращается обратно в грязь при отсутствии воды, урожая или при падении тяжёлой сущности.
  */
 public class FarmlandBlock extends Block {
 
@@ -41,7 +42,7 @@ public class FarmlandBlock extends Block {
 
 	public FarmlandBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(MOISTURE, 0));
+		setDefaultState(stateManager.getDefaultState().with(MOISTURE, 0));
 	}
 
 	@Override
@@ -55,7 +56,7 @@ public class FarmlandBlock extends Block {
 			BlockState neighborState,
 			Random random
 	) {
-		if (direction == Direction.UP && !state.canPlaceAt(world, pos)) {
+		if (direction == Direction.UP && state.canPlaceAt(world, pos) == false) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
@@ -73,15 +74,18 @@ public class FarmlandBlock extends Block {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.up());
-		return !blockState.isSolid() || blockState.getBlock() instanceof FenceGateBlock
-				|| blockState.getBlock() instanceof PistonExtensionBlock;
+		BlockState above = world.getBlockState(pos.up());
+
+		return above.isSolid() == false
+				|| above.getBlock() instanceof FenceGateBlock
+				|| above.getBlock() instanceof PistonExtensionBlock;
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return !this.getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos()) ? Blocks.DIRT.getDefaultState()
-		                                                                             : super.getPlacementState(ctx);
+		return getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos()) == false
+				? Blocks.DIRT.getDefaultState()
+				: super.getPlacementState(ctx);
 	}
 
 	@Override
@@ -96,24 +100,28 @@ public class FarmlandBlock extends Block {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (!state.canPlaceAt(world, pos)) {
+		if (state.canPlaceAt(world, pos) == false) {
 			setToDirt(null, state, world, pos);
 		}
 	}
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		int i = state.get(MOISTURE);
-		if (!isWaterNearby(world, pos) && !world.hasRain(pos.up())) {
-			if (i > 0) {
-				world.setBlockState(pos, state.with(MOISTURE, i - 1), 2);
+		int moisture = state.get(MOISTURE);
+		boolean hasWater = isWaterNearby(world, pos) || world.hasRain(pos.up());
+
+		if (hasWater) {
+			if (moisture < MAX_MOISTURE) {
+				world.setBlockState(pos, state.with(MOISTURE, MAX_MOISTURE), Block.NOTIFY_LISTENERS);
 			}
-			else if (!hasCrop(world, pos)) {
-				setToDirt(null, state, world, pos);
-			}
+
+			return;
 		}
-		else if (i < 7) {
-			world.setBlockState(pos, state.with(MOISTURE, 7), 2);
+
+		if (moisture > 0) {
+			world.setBlockState(pos, state.with(MOISTURE, moisture - 1), Block.NOTIFY_LISTENERS);
+		} else if (hasCrop(world, pos) == false) {
+			setToDirt(null, state, world, pos);
 		}
 	}
 
@@ -123,7 +131,8 @@ public class FarmlandBlock extends Block {
 				&& world.random.nextFloat() < fallDistance - 0.5
 				&& entity instanceof LivingEntity
 				&& (entity instanceof PlayerEntity || serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING))
-				&& entity.getWidth() * entity.getWidth() * entity.getHeight() > 0.512F) {
+				&& entity.getWidth() * entity.getWidth() * entity.getHeight() > 0.512F
+		) {
 			setToDirt(entity, state, world, pos);
 		}
 

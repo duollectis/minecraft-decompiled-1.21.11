@@ -8,7 +8,8 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code ScatteredOreFeature}.
+ * Генерирует рассеянную руду: блоки размещаются случайно вокруг точки генерации
+ * с нарастающим разбросом (до {@link #MAX_SPREAD} блоков).
  */
 public class ScatteredOreFeature extends Feature<OreFeatureConfig> {
 
@@ -20,27 +21,21 @@ public class ScatteredOreFeature extends Feature<OreFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<OreFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		OreFeatureConfig oreFeatureConfig = context.getConfig();
-		BlockPos blockPos = context.getOrigin();
-		int i = random.nextInt(oreFeatureConfig.size + 1);
+		OreFeatureConfig config = context.getConfig();
+		BlockPos origin = context.getOrigin();
+		int count = random.nextInt(config.size + 1);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int j = 0; j < i; j++) {
-			this.setPos(mutable, random, blockPos, Math.min(j, 7));
-			BlockState blockState = structureWorldAccess.getBlockState(mutable);
+		for (int placed = 0; placed < count; placed++) {
+			int spread = Math.min(placed, MAX_SPREAD);
+			setPos(mutable, random, origin, spread);
+			BlockState existing = world.getBlockState(mutable);
 
-			for (OreFeatureConfig.Target target : oreFeatureConfig.targets) {
-				if (OreFeature.shouldPlace(
-						blockState,
-						structureWorldAccess::getBlockState,
-						random,
-						oreFeatureConfig,
-						target,
-						mutable
-				)) {
-					structureWorldAccess.setBlockState(mutable, target.state, 2);
+			for (OreFeatureConfig.Target target : config.targets) {
+				if (OreFeature.shouldPlace(existing, world::getBlockState, random, config, target, mutable)) {
+					world.setBlockState(mutable, target.state, 2);
 					break;
 				}
 			}
@@ -50,10 +45,7 @@ public class ScatteredOreFeature extends Feature<OreFeatureConfig> {
 	}
 
 	private void setPos(BlockPos.Mutable mutable, Random random, BlockPos origin, int spread) {
-		int i = this.getSpread(random, spread);
-		int j = this.getSpread(random, spread);
-		int k = this.getSpread(random, spread);
-		mutable.set(origin, i, j, k);
+		mutable.set(origin, getSpread(random, spread), getSpread(random, spread), getSpread(random, spread));
 	}
 
 	private int getSpread(Random random, int spread) {

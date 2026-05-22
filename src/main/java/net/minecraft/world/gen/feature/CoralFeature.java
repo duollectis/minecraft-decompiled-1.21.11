@@ -14,9 +14,7 @@ import net.minecraft.world.gen.feature.util.FeatureContext;
 
 import java.util.Optional;
 
-/**
- * {@code CoralFeature}.
- */
+/** Базовый класс для генераторов кораллов: выбирает случайный тип кораллового блока и делегирует конкретную форму подклассу. */
 public abstract class CoralFeature extends Feature<DefaultFeatureConfig> {
 
 	public CoralFeature(Codec<DefaultFeatureConfig> codec) {
@@ -26,85 +24,66 @@ public abstract class CoralFeature extends Feature<DefaultFeatureConfig> {
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		Optional<Block>
-				optional =
-				Registries.BLOCK.getRandomEntry(BlockTags.CORAL_BLOCKS, random).map(RegistryEntry::value);
-		return optional.isEmpty() ? false : this.generateCoral(
-				structureWorldAccess,
-				random,
-				blockPos,
-				optional.get().getDefaultState()
-		);
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		Optional<Block> coralBlock = Registries.BLOCK.getRandomEntry(BlockTags.CORAL_BLOCKS, random).map(RegistryEntry::value);
+
+		return coralBlock.isEmpty()
+				? false
+				: generateCoral(world, random, origin, coralBlock.get().getDefaultState());
 	}
 
-	/**
-	 * Generate coral.
-	 *
-	 * @param world world
-	 * @param random random
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected abstract boolean generateCoral(WorldAccess world, Random random, BlockPos pos, BlockState state);
 
-	/**
-	 * Generate coral piece.
-	 *
-	 * @param world world
-	 * @param random random
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean generateCoralPiece(WorldAccess world, Random random, BlockPos pos, BlockState state) {
-		BlockPos blockPos = pos.up();
-		BlockState blockState = world.getBlockState(pos);
-		if ((blockState.isOf(Blocks.WATER) || blockState.isIn(BlockTags.CORALS)) && world
-				.getBlockState(blockPos)
-				.isOf(Blocks.WATER)) {
-			world.setBlockState(pos, state, 3);
-			if (random.nextFloat() < 0.25F) {
-				Registries.BLOCK
-						.getRandomEntry(BlockTags.CORALS, random)
-						.map(RegistryEntry::value)
-						.ifPresent(block -> world.setBlockState(blockPos, block.getDefaultState(), 2));
-			}
-			else if (random.nextFloat() < 0.05F) {
-				world.setBlockState(
-						blockPos,
-						Blocks.SEA_PICKLE.getDefaultState().with(SeaPickleBlock.PICKLES, random.nextInt(4) + 1),
-						2
-				);
-			}
+		BlockPos above = pos.up();
+		BlockState current = world.getBlockState(pos);
 
-			for (Direction direction : Direction.Type.HORIZONTAL) {
-				if (random.nextFloat() < 0.2F) {
-					BlockPos blockPos2 = pos.offset(direction);
-					if (world.getBlockState(blockPos2).isOf(Blocks.WATER)) {
-						Registries.BLOCK
-								.getRandomEntry(BlockTags.WALL_CORALS, random)
-								.map(RegistryEntry::value)
-								.ifPresent(block -> {
-									BlockState blockStatex = block.getDefaultState();
-									if (blockStatex.contains(DeadCoralWallFanBlock.FACING)) {
-										blockStatex = blockStatex.with(DeadCoralWallFanBlock.FACING, direction);
-									}
-
-									world.setBlockState(blockPos2, blockStatex, 2);
-								});
-					}
-				}
-			}
-
-			return true;
-		}
-		else {
+		if ((!current.isOf(Blocks.WATER) && !current.isIn(BlockTags.CORALS))
+				|| !world.getBlockState(above).isOf(Blocks.WATER)) {
 			return false;
 		}
+
+		world.setBlockState(pos, state, 3);
+
+		if (random.nextFloat() < 0.25F) {
+			Registries.BLOCK
+					.getRandomEntry(BlockTags.CORALS, random)
+					.map(RegistryEntry::value)
+					.ifPresent(block -> world.setBlockState(above, block.getDefaultState(), 2));
+		} else if (random.nextFloat() < 0.05F) {
+			world.setBlockState(
+					above,
+					Blocks.SEA_PICKLE.getDefaultState().with(SeaPickleBlock.PICKLES, random.nextInt(4) + 1),
+					2
+			);
+		}
+
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			if (random.nextFloat() >= 0.2F) {
+				continue;
+			}
+
+			BlockPos side = pos.offset(direction);
+
+			if (!world.getBlockState(side).isOf(Blocks.WATER)) {
+				continue;
+			}
+
+			Registries.BLOCK
+					.getRandomEntry(BlockTags.WALL_CORALS, random)
+					.map(RegistryEntry::value)
+					.ifPresent(block -> {
+						BlockState wallState = block.getDefaultState();
+
+						if (wallState.contains(DeadCoralWallFanBlock.FACING)) {
+							wallState = wallState.with(DeadCoralWallFanBlock.FACING, direction);
+						}
+
+						world.setBlockState(side, wallState, 2);
+					});
+		}
+
+		return true;
 	}
 }

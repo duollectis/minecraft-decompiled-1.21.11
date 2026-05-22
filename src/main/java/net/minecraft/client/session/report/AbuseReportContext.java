@@ -40,7 +40,7 @@ public final class AbuseReportContext {
 	 * @return AbuseReportContext — результат операции
 	 */
 	public static AbuseReportContext create(ReporterEnvironment environment, UserApiService userApiService) {
-		ChatLog chatLog = new ChatLog(1024);
+		ChatLog chatLog = new ChatLog(MAX_LOGS);
 		AbuseReportSender abuseReportSender = AbuseReportSender.create(environment, userApiService);
 		return new AbuseReportContext(abuseReportSender, environment, chatLog);
 	}

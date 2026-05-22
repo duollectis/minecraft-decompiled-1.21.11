@@ -4,10 +4,12 @@ import net.minecraft.entity.mob.MobEntity;
 
 import java.util.EnumSet;
 
-/**
- * {@code LookAroundGoal}.
- */
+/** Цель случайного осмотра по сторонам. Моб поворачивает голову в случайном направлении. */
 public class LookAroundGoal extends Goal {
+
+	private static final float START_CHANCE = 0.02F;
+	private static final int LOOK_TIME_BASE = 20;
+	private static final int LOOK_TIME_JITTER = 20;
 
 	private final MobEntity mob;
 	private double deltaX;
@@ -16,25 +18,25 @@ public class LookAroundGoal extends Goal {
 
 	public LookAroundGoal(MobEntity mob) {
 		this.mob = mob;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 	}
 
 	@Override
 	public boolean canStart() {
-		return this.mob.getRandom().nextFloat() < 0.02F;
+		return mob.getRandom().nextFloat() < START_CHANCE;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.lookTime >= 0;
+		return lookTime >= 0;
 	}
 
 	@Override
 	public void start() {
-		double d = (Math.PI * 2) * this.mob.getRandom().nextDouble();
-		this.deltaX = Math.cos(d);
-		this.deltaZ = Math.sin(d);
-		this.lookTime = 20 + this.mob.getRandom().nextInt(20);
+		double angle = Math.PI * 2 * mob.getRandom().nextDouble();
+		deltaX = Math.cos(angle);
+		deltaZ = Math.sin(angle);
+		lookTime = LOOK_TIME_BASE + mob.getRandom().nextInt(LOOK_TIME_JITTER);
 	}
 
 	@Override
@@ -44,9 +46,7 @@ public class LookAroundGoal extends Goal {
 
 	@Override
 	public void tick() {
-		this.lookTime--;
-		this.mob
-				.getLookControl()
-				.lookAt(this.mob.getX() + this.deltaX, this.mob.getEyeY(), this.mob.getZ() + this.deltaZ);
+		lookTime--;
+		mob.getLookControl().lookAt(mob.getX() + deltaX, mob.getEyeY(), mob.getZ() + deltaZ);
 	}
 }

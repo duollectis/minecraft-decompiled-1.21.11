@@ -16,10 +16,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DecoratedPotModelRenderer}.
+ * Специализированный рендерер украшенного горшка как предмета.
+ * Делегирует рендер {@link DecoratedPotBlockEntityRenderer}, передавая черепки
+ * из компонента {@link DataComponentTypes#POT_DECORATIONS}.
+ * При отсутствии компонента использует {@link Sherds#DEFAULT} (горшок без украшений).
  */
+@Environment(EnvType.CLIENT)
 public class DecoratedPotModelRenderer implements SpecialModelRenderer<Sherds> {
 
 	private final DecoratedPotBlockEntityRenderer blockEntityRenderer;
@@ -28,43 +31,45 @@ public class DecoratedPotModelRenderer implements SpecialModelRenderer<Sherds> {
 		this.blockEntityRenderer = blockEntityRenderer;
 	}
 
-	public @Nullable Sherds getData(ItemStack itemStack) {
-		return itemStack.get(DataComponentTypes.POT_DECORATIONS);
+	@Override
+	public @Nullable Sherds getData(ItemStack stack) {
+		return stack.get(DataComponentTypes.POT_DECORATIONS);
 	}
 
+	@Override
 	public void render(
 			@Nullable Sherds sherds,
-			ItemDisplayContext itemDisplayContext,
-			MatrixStack matrixStack,
-			OrderedRenderCommandQueue orderedRenderCommandQueue,
-			int i,
-			int j,
-			boolean bl,
-			int k
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int seed
 	) {
-		this.blockEntityRenderer.render(
-				matrixStack,
-				orderedRenderCommandQueue,
-				i,
-				j,
+		blockEntityRenderer.render(
+				matrices,
+				queue,
+				light,
+				overlay,
 				Objects.requireNonNullElse(sherds, Sherds.DEFAULT),
-				k
+				seed
 		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		this.blockEntityRenderer.collectVertices(consumer);
+		blockEntityRenderer.collectVertices(consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера украшенного горшка.
+	 * Не требует параметров — всегда использует стандартную модель горшка.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked() implements SpecialModelRenderer.Unbaked {
 
-		public static final MapCodec<DecoratedPotModelRenderer.Unbaked>
-				CODEC =
+		public static final MapCodec<DecoratedPotModelRenderer.Unbaked> CODEC =
 				MapCodec.unit(new DecoratedPotModelRenderer.Unbaked());
 
 		@Override

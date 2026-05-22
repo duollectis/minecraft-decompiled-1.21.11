@@ -3,7 +3,7 @@ package net.minecraft.entity.passive;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code Cracks}.
+ * Уровни трещин на панцире черепахи или броне.
  */
 public class Cracks {
 
@@ -41,8 +41,8 @@ public class Cracks {
 	}
 
 	/**
-	 * {@code CrackLevel}.
-	 */
+ * Данные трещин для сериализации.
+ */
 	public static enum CrackLevel {
 		NONE,
 		LOW,

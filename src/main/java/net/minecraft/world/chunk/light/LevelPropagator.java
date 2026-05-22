@@ -9,7 +9,9 @@ import net.minecraft.util.math.MathHelper;
 import java.util.function.LongPredicate;
 
 /**
- * {@code LevelPropagator}.
+ * Абстрактный алгоритм распространения уровней (BFS по уровням приоритета).
+ * Используется системой освещения для пошагового обновления уровней света.
+ * Поддерживает как увеличение (increase), так и уменьшение (decrease) уровней.
  */
 public abstract class LevelPropagator {
 
@@ -24,219 +26,171 @@ public abstract class LevelPropagator {
 		if (levelCount >= 254) {
 			throw new IllegalArgumentException("Level count must be < 254.");
 		}
-		else {
-			this.levelCount = levelCount;
-			this.pendingUpdateQueue = new PendingUpdateQueue(levelCount, expectedLevelSize);
-			this.pendingUpdates = new Long2ByteOpenHashMap(expectedTotalSize, 0.5F) {
-				/**
-				 * Rehash.
-				 *
-				 * @param newN new n
-				 */
-				protected void rehash(int newN) {
-					if (newN > expectedTotalSize) {
-						super.rehash(newN);
-					}
+
+		this.levelCount = levelCount;
+		pendingUpdateQueue = new PendingUpdateQueue(levelCount, expectedLevelSize);
+		// Переопределяем rehash, чтобы не расширять хеш-таблицу сверх ожидаемого размера
+		pendingUpdates = new Long2ByteOpenHashMap(expectedTotalSize, 0.5F) {
+			@Override
+			protected void rehash(int newN) {
+				if (newN > expectedTotalSize) {
+					super.rehash(newN);
 				}
-			};
-			this.pendingUpdates.defaultReturnValue((byte) -1);
-		}
+			}
+		};
+		pendingUpdates.defaultReturnValue((byte) -1);
 	}
 
-	/**
-	 * Удаляет pending update.
-	 *
-	 * @param id id
-	 */
 	protected void removePendingUpdate(long id) {
-		int i = this.pendingUpdates.remove(id) & 255;
-		if (i != 255) {
-			int j = this.getLevel(id);
-			int k = this.calculateLevel(j, i);
-			this.pendingUpdateQueue.remove(id, k, this.levelCount);
-			this.hasPendingUpdates = !this.pendingUpdateQueue.isEmpty();
+		int pendingLevel = pendingUpdates.remove(id) & MAX_LEVEL;
+
+		if (pendingLevel == MAX_LEVEL) {
+			return;
 		}
+
+		int currentLevel = getLevel(id);
+		int queueLevel = calculateLevel(currentLevel, pendingLevel);
+		pendingUpdateQueue.remove(id, queueLevel, levelCount);
+		hasPendingUpdates = !pendingUpdateQueue.isEmpty();
 	}
 
-	/**
-	 * Удаляет pending update if.
-	 *
-	 * @param predicate predicate
-	 */
 	public void removePendingUpdateIf(LongPredicate predicate) {
-		LongList longList = new LongArrayList();
-		this.pendingUpdates.keySet().forEach(l -> {
-			if (predicate.test(l)) {
-				longList.add(l);
+		LongList toRemove = new LongArrayList();
+		pendingUpdates.keySet().forEach(id -> {
+			if (predicate.test(id)) {
+				toRemove.add(id);
 			}
 		});
-		longList.forEach(this::removePendingUpdate);
+		toRemove.forEach(this::removePendingUpdate);
 	}
 
 	private int calculateLevel(int a, int b) {
-		return Math.min(Math.min(a, b), this.levelCount - 1);
+		return Math.min(Math.min(a, b), levelCount - 1);
 	}
 
-	/**
-	 * Сбрасывает level.
-	 *
-	 * @param id id
-	 */
 	protected void resetLevel(long id) {
-		this.updateLevel(id, id, this.levelCount - 1, false);
+		updateLevel(id, id, levelCount - 1, false);
 	}
 
-	/**
-	 * Обновляет level.
-	 *
-	 * @param sourceId source id
-	 * @param id id
-	 * @param level level
-	 * @param decrease decrease
-	 */
 	protected void updateLevel(long sourceId, long id, int level, boolean decrease) {
-		this.updateLevel(sourceId, id, level, this.getLevel(id), this.pendingUpdates.get(id) & 255, decrease);
-		this.hasPendingUpdates = !this.pendingUpdateQueue.isEmpty();
+		updateLevel(sourceId, id, level, getLevel(id), pendingUpdates.get(id) & MAX_LEVEL, decrease);
+		hasPendingUpdates = !pendingUpdateQueue.isEmpty();
 	}
 
-	private void updateLevel(long sourceId, long id, int level, int currentLevel, int i, boolean decrease) {
-		if (!this.isMarker(id)) {
-			level = MathHelper.clamp(level, 0, this.levelCount - 1);
-			currentLevel = MathHelper.clamp(currentLevel, 0, this.levelCount - 1);
-			boolean bl = i == 255;
-			if (bl) {
-				i = currentLevel;
+	private void updateLevel(long sourceId, long id, int level, int currentLevel, int pendingLevel, boolean decrease) {
+		if (isMarker(id)) {
+			return;
+		}
+
+		level = MathHelper.clamp(level, 0, levelCount - 1);
+		currentLevel = MathHelper.clamp(currentLevel, 0, levelCount - 1);
+		boolean noPending = pendingLevel == MAX_LEVEL;
+
+		if (noPending) {
+			pendingLevel = currentLevel;
+		}
+
+		int targetLevel = decrease
+				? Math.min(pendingLevel, level)
+				: MathHelper.clamp(recalculateLevel(id, sourceId, level), 0, levelCount - 1);
+
+		int oldQueueLevel = calculateLevel(currentLevel, pendingLevel);
+
+		if (currentLevel != targetLevel) {
+			int newQueueLevel = calculateLevel(currentLevel, targetLevel);
+
+			if (oldQueueLevel != newQueueLevel && !noPending) {
+				pendingUpdateQueue.remove(id, oldQueueLevel, newQueueLevel);
 			}
 
-			int j;
-			if (decrease) {
-				j = Math.min(i, level);
-			}
-			else {
-				j = MathHelper.clamp(this.recalculateLevel(id, sourceId, level), 0, this.levelCount - 1);
-			}
-
-			int k = this.calculateLevel(currentLevel, i);
-			if (currentLevel != j) {
-				int l = this.calculateLevel(currentLevel, j);
-				if (k != l && !bl) {
-					this.pendingUpdateQueue.remove(id, k, l);
-				}
-
-				this.pendingUpdateQueue.enqueue(id, l);
-				this.pendingUpdates.put(id, (byte) j);
-			}
-			else if (!bl) {
-				this.pendingUpdateQueue.remove(id, k, this.levelCount);
-				this.pendingUpdates.remove(id);
-			}
+			pendingUpdateQueue.enqueue(id, newQueueLevel);
+			pendingUpdates.put(id, (byte) targetLevel);
+		} else if (!noPending) {
+			pendingUpdateQueue.remove(id, oldQueueLevel, levelCount);
+			pendingUpdates.remove(id);
 		}
 	}
 
 	/**
-	 * Propagate level.
-	 *
-	 * @param sourceId source id
-	 * @param targetId target id
-	 * @param level level
-	 * @param decrease decrease
+	 * Распространяет уровень от источника к цели через алгоритм BFS.
+	 * При уменьшении (decrease=true) немедленно обновляет уровень цели.
+	 * При увеличении проверяет, не совпадает ли уже распространённый уровень с текущим.
 	 */
 	protected final void propagateLevel(long sourceId, long targetId, int level, boolean decrease) {
-		int i = this.pendingUpdates.get(targetId) & 255;
-		int j = MathHelper.clamp(this.getPropagatedLevel(sourceId, targetId, level), 0, this.levelCount - 1);
-		if (decrease) {
-			this.updateLevel(sourceId, targetId, j, this.getLevel(targetId), i, decrease);
-		}
-		else {
-			boolean bl = i == 255;
-			int k;
-			if (bl) {
-				k = MathHelper.clamp(this.getLevel(targetId), 0, this.levelCount - 1);
-			}
-			else {
-				k = i;
-			}
+		int pendingLevel = pendingUpdates.get(targetId) & MAX_LEVEL;
+		int propagated = MathHelper.clamp(getPropagatedLevel(sourceId, targetId, level), 0, levelCount - 1);
 
-			if (j == k) {
-				this.updateLevel(
-						sourceId,
-						targetId,
-						this.levelCount - 1,
-						bl ? k : this.getLevel(targetId),
-						i,
-						decrease
-				);
-			}
+		if (decrease) {
+			updateLevel(sourceId, targetId, propagated, getLevel(targetId), pendingLevel, decrease);
+			return;
+		}
+
+		boolean noPending = pendingLevel == MAX_LEVEL;
+		int effectiveLevel = noPending
+				? MathHelper.clamp(getLevel(targetId), 0, levelCount - 1)
+				: pendingLevel;
+
+		if (propagated == effectiveLevel) {
+			updateLevel(
+					sourceId,
+					targetId,
+					levelCount - 1,
+					noPending ? effectiveLevel : getLevel(targetId),
+					pendingLevel,
+					decrease
+			);
 		}
 	}
 
 	protected final boolean hasPendingUpdates() {
-		return this.hasPendingUpdates;
+		return hasPendingUpdates;
 	}
 
 	/**
-	 * Применяет pending updates.
-	 *
-	 * @param maxSteps max steps
-	 *
-	 * @return int — результат операции
+	 * Обрабатывает ожидающие обновления уровней, не более {@code maxSteps} итераций.
+	 * Возвращает оставшееся количество шагов.
 	 */
 	protected final int applyPendingUpdates(int maxSteps) {
-		if (this.pendingUpdateQueue.isEmpty()) {
+		if (pendingUpdateQueue.isEmpty()) {
 			return maxSteps;
 		}
-		else {
-			while (!this.pendingUpdateQueue.isEmpty() && maxSteps > 0) {
-				maxSteps--;
-				long l = this.pendingUpdateQueue.dequeue();
-				int i = MathHelper.clamp(this.getLevel(l), 0, this.levelCount - 1);
-				int j = this.pendingUpdates.remove(l) & 255;
-				if (j < i) {
-					this.setLevel(l, j);
-					this.propagateLevel(l, j, true);
-				}
-				else if (j > i) {
-					this.setLevel(l, this.levelCount - 1);
-					if (j != this.levelCount - 1) {
-						this.pendingUpdateQueue.enqueue(l, this.calculateLevel(this.levelCount - 1, j));
-						this.pendingUpdates.put(l, (byte) j);
-					}
 
-					this.propagateLevel(l, i, false);
+		while (!pendingUpdateQueue.isEmpty() && maxSteps > 0) {
+			maxSteps--;
+			long id = pendingUpdateQueue.dequeue();
+			int currentLevel = MathHelper.clamp(getLevel(id), 0, levelCount - 1);
+			int pendingLevel = pendingUpdates.remove(id) & MAX_LEVEL;
+
+			if (pendingLevel < currentLevel) {
+				setLevel(id, pendingLevel);
+				propagateLevel(id, pendingLevel, true);
+			} else if (pendingLevel > currentLevel) {
+				setLevel(id, levelCount - 1);
+
+				if (pendingLevel != levelCount - 1) {
+					pendingUpdateQueue.enqueue(id, calculateLevel(levelCount - 1, pendingLevel));
+					pendingUpdates.put(id, (byte) pendingLevel);
 				}
+
+				propagateLevel(id, currentLevel, false);
 			}
-
-			this.hasPendingUpdates = !this.pendingUpdateQueue.isEmpty();
-			return maxSteps;
 		}
+
+		hasPendingUpdates = !pendingUpdateQueue.isEmpty();
+
+		return maxSteps;
 	}
 
 	public int getPendingUpdateCount() {
-		return this.pendingUpdates.size();
+		return pendingUpdates.size();
 	}
 
 	protected boolean isMarker(long id) {
 		return id == Long.MAX_VALUE;
 	}
 
-	/**
-	 * Recalculate level.
-	 *
-	 * @param id id
-	 * @param excludedId excluded id
-	 * @param maxLevel max level
-	 *
-	 * @return int — результат операции
-	 */
 	protected abstract int recalculateLevel(long id, long excludedId, int maxLevel);
 
-	/**
-	 * Propagate level.
-	 *
-	 * @param id id
-	 * @param level level
-	 * @param decrease decrease
-	 */
 	protected abstract void propagateLevel(long id, int level, boolean decrease);
 
 	protected abstract int getLevel(long id);

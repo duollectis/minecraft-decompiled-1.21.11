@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code CombinedSlotSource}.
+ * Базовый класс для источников слотов, объединяющих несколько дочерних {@link SlotSource}.
+ * Кэширует скомпилированную функцию конкатенации потоков для повторного использования.
  */
 public abstract class CombinedSlotSource implements SlotSource {
 
@@ -24,29 +25,27 @@ public abstract class CombinedSlotSource implements SlotSource {
 	}
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт {@link MapCodec} для подкласса, сериализующий список дочерних источников.
 	 *
-	 * @param termsToSource terms to source
-	 *
-	 * @return MapCodec — результат операции
+	 * @param termsToSource фабричная функция, создающая экземпляр подкласса из списка источников
+	 * @return кодек для сериализации/десериализации подкласса
 	 */
 	protected static <T extends CombinedSlotSource> MapCodec<T> createCodec(Function<List<SlotSource>, T> termsToSource) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance
-						.group(SlotSources.CODEC.listOf().fieldOf("terms").forGetter(source -> source.terms))
+						.group(SlotSources.CODEC.listOf().fieldOf("terms").forGetter(combined -> combined.terms))
 						.apply(instance, termsToSource)
 		);
 	}
 
 	/**
-	 * Создаёт inline codec.
+	 * Создаёт инлайн {@link Codec} для подкласса, сериализующий список дочерних источников напрямую.
 	 *
-	 * @param termsToSource terms to source
-	 *
-	 * @return Codec — результат операции
+	 * @param termsToSource фабричная функция, создающая экземпляр подкласса из списка источников
+	 * @return инлайн-кодек для сокращённой JSON-записи
 	 */
 	protected static <T extends CombinedSlotSource> Codec<T> createInlineCodec(Function<List<SlotSource>, T> termsToSource) {
-		return SlotSources.CODEC.listOf().xmap(termsToSource, source -> source.terms);
+		return SlotSources.CODEC.listOf().xmap(termsToSource, combined -> combined.terms);
 	}
 
 	@Override
@@ -54,15 +53,15 @@ public abstract class CombinedSlotSource implements SlotSource {
 
 	@Override
 	public ItemStream stream(LootContext context) {
-		return this.source.apply(context);
+		return source.apply(context);
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		SlotSource.super.validate(reporter);
 
-		for (int i = 0; i < this.terms.size(); i++) {
-			this.terms.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", i)));
+		for (int index = 0; index < terms.size(); index++) {
+			terms.get(index).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", index)));
 		}
 	}
 }

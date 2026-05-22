@@ -12,7 +12,10 @@ import net.minecraft.registry.RegistryKeys;
 import java.util.function.Function;
 
 /**
- * {@code ParticleTypes}.
+ * Реестр всех типов частиц игры.
+ * Каждый тип регистрируется в {@link Registries#PARTICLE_TYPE} при загрузке класса.
+ * Предоставляет глобальные {@link #TYPE_CODEC} и {@link #PACKET_CODEC} для сериализации
+ * любого {@link ParticleEffect} через диспетчеризацию по типу.
  */
 public class ParticleTypes {
 
@@ -164,8 +167,7 @@ public class ParticleTypes {
 	public static final SimpleParticleType EGG_CRACK = register("egg_crack", false);
 	public static final SimpleParticleType DUST_PLUME = register("dust_plume", false);
 	public static final SimpleParticleType TRIAL_SPAWNER_DETECTION = register("trial_spawner_detection", true);
-	public static final SimpleParticleType
-			TRIAL_SPAWNER_DETECTION_OMINOUS =
+	public static final SimpleParticleType TRIAL_SPAWNER_DETECTION_OMINOUS =
 			register("trial_spawner_detection_ominous", true);
 	public static final SimpleParticleType VAULT_CONNECTION = register("vault_connection", true);
 	public static final ParticleType<BlockStateParticleEffect> DUST_PILLAR = register(
@@ -178,13 +180,19 @@ public class ParticleTypes {
 			"block_crumble", false, BlockStateParticleEffect::createCodec, BlockStateParticleEffect::createPacketCodec
 	);
 	public static final SimpleParticleType FIREFLY = register("firefly", false);
-	public static final Codec<ParticleEffect>
-			TYPE_CODEC =
+
+	/**
+	 * Codec для сериализации любого {@link ParticleEffect} через диспетчеризацию по полю {@code "type"}.
+	 */
+	public static final Codec<ParticleEffect> TYPE_CODEC =
 			Registries.PARTICLE_TYPE.getCodec().dispatch("type", ParticleEffect::getType, ParticleType::getCodec);
-	public static final PacketCodec<RegistryByteBuf, ParticleEffect>
-			PACKET_CODEC =
+
+	/**
+	 * Packet codec для сетевой передачи любого {@link ParticleEffect}.
+	 */
+	public static final PacketCodec<RegistryByteBuf, ParticleEffect> PACKET_CODEC =
 			PacketCodecs.registryValue(RegistryKeys.PARTICLE_TYPE)
-			            .dispatch(ParticleEffect::getType, ParticleType::getPacketCodec);
+					.dispatch(ParticleEffect::getType, ParticleType::getPacketCodec);
 
 	private static SimpleParticleType register(String name, boolean alwaysShow) {
 		return Registry.register(Registries.PARTICLE_TYPE, name, new SimpleParticleType(alwaysShow));

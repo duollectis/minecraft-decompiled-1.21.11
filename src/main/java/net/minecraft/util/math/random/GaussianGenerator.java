@@ -3,50 +3,45 @@ package net.minecraft.util.math.random;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code GaussianGenerator}.
+ * Генератор нормально распределённых (гауссовых) случайных чисел
+ * методом Бокса-Мюллера. Каждый вызов {@link #next()} производит два значения,
+ * второе кешируется для следующего вызова, что вдвое сокращает число обращений к RNG.
  */
 public class GaussianGenerator {
 
 	public final Random baseRandom;
-	private double nextNextGaussian;
-	private boolean hasNextGaussian;
+	private double cachedGaussian;
+	private boolean hasCachedGaussian;
 
 	public GaussianGenerator(Random baseRandom) {
 		this.baseRandom = baseRandom;
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
-		this.hasNextGaussian = false;
+		hasCachedGaussian = false;
 	}
 
-	/**
-	 * Next.
-	 *
-	 * @return double — результат операции
-	 */
 	public double next() {
-		if (this.hasNextGaussian) {
-			this.hasNextGaussian = false;
-			return this.nextNextGaussian;
-		}
-		else {
-			double d;
-			double e;
-			double f;
-			do {
-				d = 2.0 * this.baseRandom.nextDouble() - 1.0;
-				e = 2.0 * this.baseRandom.nextDouble() - 1.0;
-				f = MathHelper.square(d) + MathHelper.square(e);
-			}
-			while (f >= 1.0 || f == 0.0);
+		if (hasCachedGaussian) {
+			hasCachedGaussian = false;
 
-			double g = Math.sqrt(-2.0 * Math.log(f) / f);
-			this.nextNextGaussian = e * g;
-			this.hasNextGaussian = true;
-			return d * g;
+			return cachedGaussian;
 		}
+
+		double u;
+		double v;
+		double s;
+
+		do {
+			u = 2.0 * baseRandom.nextDouble() - 1.0;
+			v = 2.0 * baseRandom.nextDouble() - 1.0;
+			s = MathHelper.square(u) + MathHelper.square(v);
+		} while (s >= 1.0 || s == 0.0);
+
+		double multiplier = Math.sqrt(-2.0 * Math.log(s) / s);
+		cachedGaussian = v * multiplier;
+		hasCachedGaussian = true;
+
+		return u * multiplier;
 	}
 }

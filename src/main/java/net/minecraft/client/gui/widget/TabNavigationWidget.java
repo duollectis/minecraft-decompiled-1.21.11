@@ -21,10 +21,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TabNavigationWidget}.
+ * Виджет навигации по вкладкам. Управляет отображением кнопок вкладок, разделителем заголовка
+ * и переключением активной вкладки через мышь, клавиатуру (Ctrl+Tab, Ctrl+1..9) и программно.
  */
+@Environment(EnvType.CLIENT)
 public class TabNavigationWidget extends AbstractParentElement implements Drawable, Selectable {
 
 	private static final int NO_TAB_SELECTED = -1;
@@ -39,17 +40,17 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 	private final ImmutableList<TabButtonWidget> tabButtons;
 
 	TabNavigationWidget(int x, TabManager tabManager, Iterable<Tab> tabs) {
-		this.tabNavWidth = x;
+		tabNavWidth = x;
 		this.tabManager = tabManager;
 		this.tabs = ImmutableList.copyOf(tabs);
-		this.grid.getMainPositioner().alignHorizontalCenter();
-		com.google.common.collect.ImmutableList.Builder<TabButtonWidget> builder = ImmutableList.builder();
+		grid.getMainPositioner().alignHorizontalCenter();
 
+		ImmutableList.Builder<TabButtonWidget> builder = ImmutableList.builder();
 		for (Tab tab : tabs) {
-			builder.add(this.grid.add(new TabButtonWidget(tabManager, tab, 0, 24)));
+			builder.add(grid.add(new TabButtonWidget(tabManager, tab, 0, TAB_HEIGHT)));
 		}
 
-		this.tabButtons = builder.build();
+		tabButtons = builder.build();
 	}
 
 	public static TabNavigationWidget.Builder builder(TabManager tabManager, int width) {
@@ -57,22 +58,22 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 	}
 
 	public void setWidth(int width) {
-		this.tabNavWidth = width;
+		tabNavWidth = width;
 	}
 
 	@Override
 	public boolean isMouseOver(double mouseX, double mouseY) {
-		return mouseX >= this.grid.getX()
-				&& mouseY >= this.grid.getY()
-				&& mouseX < this.grid.getX() + this.grid.getWidth()
-				&& mouseY < this.grid.getY() + this.grid.getHeight();
+		return mouseX >= grid.getX()
+				&& mouseY >= grid.getY()
+				&& mouseX < grid.getX() + grid.getWidth()
+				&& mouseY < grid.getY() + grid.getHeight();
 	}
 
 	@Override
 	public void setFocused(boolean focused) {
 		super.setFocused(focused);
-		if (this.getFocused() != null) {
-			this.setFocused(null);
+		if (getFocused() != null) {
+			setFocused(null);
 		}
 	}
 
@@ -80,17 +81,19 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 	public void setFocused(@Nullable Element focused) {
 		super.setFocused(focused);
 		if (focused instanceof TabButtonWidget tabButtonWidget && tabButtonWidget.isInteractable()) {
-			this.tabManager.setCurrentTab(tabButtonWidget.getTab(), true);
+			tabManager.setCurrentTab(tabButtonWidget.getTab(), true);
 		}
 	}
 
 	@Override
 	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-		if (!this.isFocused()) {
-			TabButtonWidget tabButtonWidget = this.getCurrentTabButton();
-			if (tabButtonWidget != null) {
-				return GuiNavigationPath.of(this, GuiNavigationPath.of(tabButtonWidget));
-			}
+		if (isFocused()) {
+			return navigation instanceof GuiNavigation.Tab ? null : super.getNavigationPath(navigation);
+		}
+
+		TabButtonWidget currentButton = getCurrentTabButton();
+		if (currentButton != null) {
+			return GuiNavigationPath.of(this, GuiNavigationPath.of(currentButton));
 		}
 
 		return navigation instanceof GuiNavigation.Tab ? null : super.getNavigationPath(navigation);
@@ -98,16 +101,16 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 
 	@Override
 	public List<? extends Element> children() {
-		return this.tabButtons;
+		return tabButtons;
 	}
 
 	public List<Tab> getTabs() {
-		return this.tabs;
+		return tabs;
 	}
 
 	@Override
 	public Selectable.SelectionType getType() {
-		return this.tabButtons
+		return tabButtons
 				.stream()
 				.map(ClickableWidget::getType)
 				.max(Comparator.naturalOrder())
@@ -116,129 +119,92 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 
 	@Override
 	public void appendNarrations(NarrationMessageBuilder builder) {
-		Optional<TabButtonWidget> optional = this.tabButtons
+		Optional<TabButtonWidget> hoveredOrCurrent = tabButtons
 				.stream()
 				.filter(ClickableWidget::isHovered)
 				.findFirst()
-				.or(() -> Optional.ofNullable(this.getCurrentTabButton()));
-		optional.ifPresent(button -> {
-			this.appendNarrations(builder.nextMessage(), button);
+				.or(() -> Optional.ofNullable(getCurrentTabButton()));
+
+		hoveredOrCurrent.ifPresent(button -> {
+			appendNarrations(builder.nextMessage(), button);
 			button.appendNarrations(builder);
 		});
-		if (this.isFocused()) {
+
+		if (isFocused()) {
 			builder.put(NarrationPart.USAGE, USAGE_NARRATION_TEXT);
 		}
 	}
 
-	/**
-	 * Append narrations.
-	 *
-	 * @param builder builder
-	 * @param button button
-	 */
 	protected void appendNarrations(NarrationMessageBuilder builder, TabButtonWidget button) {
-		if (this.tabs.size() > 1) {
-			int i = this.tabButtons.indexOf(button);
-			if (i != -1) {
-				builder.put(
-						NarrationPart.POSITION,
-						Text.translatable("narrator.position.tab", i + 1, this.tabs.size())
-				);
-			}
+		if (tabs.size() <= 1) {
+			return;
+		}
+
+		int buttonIndex = tabButtons.indexOf(button);
+		if (buttonIndex != -1) {
+			builder.put(NarrationPart.POSITION, Text.translatable("narrator.position.tab", buttonIndex + 1, tabs.size()));
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				Screen.HEADER_SEPARATOR_TEXTURE,
-				0,
-				this.grid.getY() + this.grid.getHeight() - 2,
-				0.0F,
-				0.0F,
-				((TabButtonWidget) this.tabButtons.get(0)).getX(),
-				2,
-				32,
-				2
-		);
-		int i = ((TabButtonWidget) this.tabButtons.get(this.tabButtons.size() - 1)).getRight();
-		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				Screen.HEADER_SEPARATOR_TEXTURE,
-				i,
-				this.grid.getY() + this.grid.getHeight() - 2,
-				0.0F,
-				0.0F,
-				this.tabNavWidth,
-				2,
-				32,
-				2
-		);
-		UnmodifiableIterator var6 = this.tabButtons.iterator();
+		int separatorY = grid.getY() + grid.getHeight() - 2;
+		int firstTabX = tabButtons.get(0).getX();
+		int lastTabRight = tabButtons.get(tabButtons.size() - 1).getRight();
 
-		while (var6.hasNext()) {
-			TabButtonWidget tabButtonWidget = (TabButtonWidget) var6.next();
-			tabButtonWidget.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTexture(RenderPipelines.GUI_TEXTURED, Screen.HEADER_SEPARATOR_TEXTURE, 0, separatorY, 0.0F, 0.0F, firstTabX, 2, 32, 2);
+		context.drawTexture(RenderPipelines.GUI_TEXTURED, Screen.HEADER_SEPARATOR_TEXTURE, lastTabRight, separatorY, 0.0F, 0.0F, tabNavWidth, 2, 32, 2);
+
+		for (TabButtonWidget button : tabButtons) {
+			button.render(context, mouseX, mouseY, deltaTicks);
 		}
 	}
 
 	@Override
 	public ScreenRect getNavigationFocus() {
-		return this.grid.getNavigationFocus();
+		return grid.getNavigationFocus();
 	}
 
-	/**
-	 * Init.
-	 */
 	public void init() {
-		int i = Math.min(400, this.tabNavWidth) - 28;
-		int j = MathHelper.roundUpToMultiple(i / this.tabs.size(), 2);
-		UnmodifiableIterator var3 = this.tabButtons.iterator();
+		int availableWidth = Math.min(MAX_TAB_NAV_WIDTH, tabNavWidth) - TAB_SIDE_PADDING * 2;
+		int tabWidth = MathHelper.roundUpToMultiple(availableWidth / tabs.size(), 2);
 
-		while (var3.hasNext()) {
-			TabButtonWidget tabButtonWidget = (TabButtonWidget) var3.next();
-			tabButtonWidget.setWidth(j);
+		for (TabButtonWidget button : tabButtons) {
+			button.setWidth(tabWidth);
 		}
 
-		this.grid.refreshPositions();
-		this.grid.setX(MathHelper.roundUpToMultiple((this.tabNavWidth - i) / 2, 2));
-		this.grid.setY(0);
+		grid.refreshPositions();
+		grid.setX(MathHelper.roundUpToMultiple((tabNavWidth - availableWidth) / 2, 2));
+		grid.setY(0);
 	}
 
-	/**
-	 * Select tab.
-	 *
-	 * @param index index
-	 * @param clickSound click sound
-	 */
 	public void selectTab(int index, boolean clickSound) {
-		if (this.isFocused()) {
-			this.setFocused((Element) this.tabButtons.get(index));
+		if (isFocused()) {
+			setFocused(tabButtons.get(index));
 		}
-		else if (((TabButtonWidget) this.tabButtons.get(index)).isInteractable()) {
-			this.tabManager.setCurrentTab((Tab) this.tabs.get(index), clickSound);
+		else if (tabButtons.get(index).isInteractable()) {
+			tabManager.setCurrentTab(tabs.get(index), clickSound);
 		}
 	}
 
 	public void setTabActive(int index, boolean active) {
-		if (index >= 0 && index < this.tabButtons.size()) {
-			((TabButtonWidget) this.tabButtons.get(index)).active = active;
+		if (index >= 0 && index < tabButtons.size()) {
+			tabButtons.get(index).active = active;
 		}
 	}
 
 	public void setTabTooltip(int index, @Nullable Tooltip tooltip) {
-		if (index >= 0 && index < this.tabButtons.size()) {
-			((TabButtonWidget) this.tabButtons.get(index)).setTooltip(tooltip);
+		if (index >= 0 && index < tabButtons.size()) {
+			tabButtons.get(index).setTooltip(tooltip);
 		}
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.hasCtrlOrCmd()) {
-			int i = this.getTabForKey(input);
-			if (i != -1) {
-				this.selectTab(MathHelper.clamp(i, 0, this.tabs.size() - 1), true);
+			int tabIndex = getTabForKey(input);
+			if (tabIndex != -1) {
+				selectTab(MathHelper.clamp(tabIndex, 0, tabs.size() - 1), true);
 				return true;
 			}
 		}
@@ -247,39 +213,39 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 	}
 
 	private int getTabForKey(KeyInput keyInput) {
-		return this.getTabForKey(this.getCurrentTabIndex(), keyInput);
+		return getTabForKey(getCurrentTabIndex(), keyInput);
 	}
 
 	private int getTabForKey(int index, KeyInput keyInput) {
-		int i = keyInput.asNumber();
-		if (i != -1) {
-			return Math.floorMod(i - 1, 10);
+		int numericKey = keyInput.asNumber();
+		if (numericKey != -1) {
+			return Math.floorMod(numericKey - 1, 10);
 		}
-		else if (keyInput.isTab() && index != -1) {
-			int j = keyInput.hasShift() ? index - 1 : index + 1;
-			int k = Math.floorMod(j, this.tabs.size());
-			return ((TabButtonWidget) this.tabButtons.get(k)).active ? k : this.getTabForKey(k, keyInput);
+
+		if (keyInput.isTab() && index != -1) {
+			int nextIndex = keyInput.hasShift() ? index - 1 : index + 1;
+			int wrappedIndex = Math.floorMod(nextIndex, tabs.size());
+			return tabButtons.get(wrappedIndex).active ? wrappedIndex : getTabForKey(wrappedIndex, keyInput);
 		}
-		else {
-			return -1;
-		}
+
+		return NO_TAB_SELECTED;
 	}
 
 	private int getCurrentTabIndex() {
-		Tab tab = this.tabManager.getCurrentTab();
-		int i = this.tabs.indexOf(tab);
-		return i != -1 ? i : -1;
+		Tab currentTab = tabManager.getCurrentTab();
+		int index = tabs.indexOf(currentTab);
+		return index != -1 ? index : NO_TAB_SELECTED;
 	}
 
 	private @Nullable TabButtonWidget getCurrentTabButton() {
-		int i = this.getCurrentTabIndex();
-		return i != -1 ? (TabButtonWidget) this.tabButtons.get(i) : null;
+		int index = getCurrentTabIndex();
+		return index != NO_TAB_SELECTED ? tabButtons.get(index) : null;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link TabNavigationWidget}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final int width;
@@ -296,13 +262,8 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return TabNavigationWidget — результат операции
-		 */
 		public TabNavigationWidget build() {
-			return new TabNavigationWidget(this.width, this.tabManager, this.tabs);
+			return new TabNavigationWidget(width, tabManager, tabs);
 		}
 	}
 }

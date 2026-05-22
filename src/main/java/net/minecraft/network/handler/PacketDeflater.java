@@ -8,55 +8,56 @@ import net.minecraft.network.encoding.VarInts;
 import java.util.zip.Deflater;
 
 /**
- * Класс packet deflater.
+ * Netty-обработчик исходящих пакетов: сжимает данные алгоритмом DEFLATE.
+ * Если размер пакета меньше порога {@code compressionThreshold}, пакет передаётся без сжатия
+ * с VarInt-заголовком {@code 0} (признак отсутствия сжатия).
  */
 public class PacketDeflater extends MessageToByteEncoder<ByteBuf> {
 
-	private final byte[] deflateBuffer = new byte[8192];
+	private static final int MAX_PACKET_SIZE = 8388608;
+	private static final int DEFLATE_BUFFER_SIZE = 8192;
+
+	private final byte[] deflateBuffer = new byte[DEFLATE_BUFFER_SIZE];
 	private final Deflater deflater;
 	private int compressionThreshold;
 
 	public PacketDeflater(int compressionThreshold) {
 		this.compressionThreshold = compressionThreshold;
-		this.deflater = new Deflater();
+		deflater = new Deflater();
 	}
 
-	/**
-	 * Encode.
-	 *
-	 * @param channelHandlerContext channel handler context
-	 * @param byteBuf byte buf
-	 * @param byteBuf2 byte buf2
-	 */
-	protected void encode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2) {
-		int i = byteBuf.readableBytes();
-		if (i > 8388608) {
-			throw new IllegalArgumentException("Packet too big (is " + i + ", should be less than 8388608)");
-		}
-		else {
-			if (i < this.compressionThreshold) {
-				VarInts.write(byteBuf2, 0);
-				byteBuf2.writeBytes(byteBuf);
-			}
-			else {
-				byte[] bs = new byte[i];
-				byteBuf.readBytes(bs);
-				VarInts.write(byteBuf2, bs.length);
-				this.deflater.setInput(bs, 0, i);
-				this.deflater.finish();
+	@Override
+	protected void encode(ChannelHandlerContext ctx, ByteBuf input, ByteBuf output) {
+		int packetSize = input.readableBytes();
 
-				while (!this.deflater.finished()) {
-					int j = this.deflater.deflate(this.deflateBuffer);
-					byteBuf2.writeBytes(this.deflateBuffer, 0, j);
-				}
-
-				this.deflater.reset();
-			}
+		if (packetSize > MAX_PACKET_SIZE) {
+			throw new IllegalArgumentException(
+					"Packet too big (is " + packetSize + ", should be less than " + MAX_PACKET_SIZE + ")"
+			);
 		}
+
+		if (packetSize < compressionThreshold) {
+			VarInts.write(output, 0);
+			output.writeBytes(input);
+			return;
+		}
+
+		byte[] bytes = new byte[packetSize];
+		input.readBytes(bytes);
+		VarInts.write(output, bytes.length);
+		deflater.setInput(bytes, 0, packetSize);
+		deflater.finish();
+
+		while (!deflater.finished()) {
+			int written = deflater.deflate(deflateBuffer);
+			output.writeBytes(deflateBuffer, 0, written);
+		}
+
+		deflater.reset();
 	}
 
 	public int getCompressionThreshold() {
-		return this.compressionThreshold;
+		return compressionThreshold;
 	}
 
 	public void setCompressionThreshold(int compressionThreshold) {

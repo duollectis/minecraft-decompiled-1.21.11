@@ -10,159 +10,156 @@ import net.minecraft.client.texture.NativeImage;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.util.freetype.*;
+import org.lwjgl.util.freetype.FT_Face;
+import org.lwjgl.util.freetype.FT_GlyphSlot;
+import org.lwjgl.util.freetype.FT_Vector;
+import org.lwjgl.util.freetype.FreeType;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TrueTypeFont}.
+ * Реализация шрифта на основе FreeType (TrueType/OpenType).
+ * Загружает глифы лениво через {@link LazyGlyph}, используя индексы FreeType.
+ * Потокобезопасность обеспечивается синхронизацией по объекту {@link FT_Face}.
  */
+@Environment(EnvType.CLIENT)
 public class TrueTypeFont implements Font {
 
 	private @Nullable ByteBuffer buffer;
 	private @Nullable FT_Face face;
 	final float oversample;
-	private final GlyphContainer<TrueTypeFont.LazyGlyph>
-			container =
-			new GlyphContainer<>(TrueTypeFont.LazyGlyph[]::new, TrueTypeFont.LazyGlyph[][]::new);
+	private final GlyphContainer<TrueTypeFont.LazyGlyph> container =
+		new GlyphContainer<>(TrueTypeFont.LazyGlyph[]::new, TrueTypeFont.LazyGlyph[][]::new);
 
 	public TrueTypeFont(
-			ByteBuffer buffer,
-			FT_Face face,
-			float size,
-			float oversample,
-			float shiftX,
-			float shiftY,
-			String excludedCharacters
+		ByteBuffer buffer,
+		FT_Face face,
+		float size,
+		float oversample,
+		float shiftX,
+		float shiftY,
+		String excludedCharacters
 	) {
 		this.buffer = buffer;
 		this.face = face;
 		this.oversample = oversample;
-		IntSet intSet = new IntArraySet();
-		excludedCharacters.codePoints().forEach(intSet::add);
-		int i = Math.round(size * oversample);
-		FreeType.FT_Set_Pixel_Sizes(face, i, i);
-		float f = shiftX * oversample;
-		float g = -shiftY * oversample;
-		MemoryStack memoryStack = MemoryStack.stackPush();
 
-		try {
-			FT_Vector fT_Vector = FreeTypeUtil.set(FT_Vector.malloc(memoryStack), f, g);
-			FreeType.FT_Set_Transform(face, null, fT_Vector);
-			IntBuffer intBuffer = memoryStack.mallocInt(1);
-			int j = (int) FreeType.FT_Get_First_Char(face, intBuffer);
+		IntSet excluded = new IntArraySet();
+		excludedCharacters.codePoints().forEach(excluded::add);
+
+		int pixelSize = Math.round(size * oversample);
+		FreeType.FT_Set_Pixel_Sizes(face, pixelSize, pixelSize);
+
+		float scaledShiftX = shiftX * oversample;
+		float scaledShiftY = -shiftY * oversample;
+
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			FT_Vector transform = FreeTypeUtil.set(FT_Vector.malloc(stack), scaledShiftX, scaledShiftY);
+			FreeType.FT_Set_Transform(face, null, transform);
+
+			IntBuffer glyphIndexBuf = stack.mallocInt(1);
+			int codePoint = (int) FreeType.FT_Get_First_Char(face, glyphIndexBuf);
 
 			while (true) {
-				int k = intBuffer.get(0);
-				if (k == 0) {
+				int glyphIndex = glyphIndexBuf.get(0);
+				if (glyphIndex == 0) {
 					break;
 				}
 
-				if (!intSet.contains(j)) {
-					this.container.put(j, new TrueTypeFont.LazyGlyph(k));
+				if (!excluded.contains(codePoint)) {
+					container.put(codePoint, new TrueTypeFont.LazyGlyph(glyphIndex));
 				}
 
-				j = (int) FreeType.FT_Get_Next_Char(face, j, intBuffer);
+				codePoint = (int) FreeType.FT_Get_Next_Char(face, codePoint, glyphIndexBuf);
 			}
-		}
-		catch (Throwable var18) {
-			if (memoryStack != null) {
-				try {
-					memoryStack.close();
-				}
-				catch (Throwable var17) {
-					var18.addSuppressed(var17);
-				}
-			}
-
-			throw var18;
-		}
-
-		if (memoryStack != null) {
-			memoryStack.close();
 		}
 	}
 
 	@Override
 	public @Nullable Glyph getGlyph(int codePoint) {
-		TrueTypeFont.LazyGlyph lazyGlyph = this.container.get(codePoint);
-		return lazyGlyph != null ? this.getOrLoadGlyph(codePoint, lazyGlyph) : null;
+		TrueTypeFont.LazyGlyph lazyGlyph = container.get(codePoint);
+		return lazyGlyph != null ? getOrLoadGlyph(codePoint, lazyGlyph) : null;
 	}
 
-	private Glyph getOrLoadGlyph(int codePoint, TrueTypeFont.LazyGlyph glyph) {
-		Glyph glyph2 = glyph.glyph;
-		if (glyph2 == null) {
-			FT_Face fT_Face = this.getInfo();
-			synchronized (fT_Face) {
-				glyph2 = glyph.glyph;
-				if (glyph2 == null) {
-					glyph2 = this.loadGlyph(codePoint, fT_Face, glyph.index);
-					glyph.glyph = glyph2;
-				}
+	/**
+	 * Возвращает уже загруженный глиф или загружает его через FreeType.
+	 * Использует двойную проверку блокировки (double-checked locking) для потокобезопасности.
+	 */
+	private Glyph getOrLoadGlyph(int codePoint, TrueTypeFont.LazyGlyph lazy) {
+		Glyph loaded = lazy.glyph;
+		if (loaded != null) {
+			return loaded;
+		}
+
+		FT_Face ftFace = getInfo();
+		synchronized (ftFace) {
+			loaded = lazy.glyph;
+			if (loaded == null) {
+				loaded = loadGlyph(codePoint, ftFace, lazy.index);
+				lazy.glyph = loaded;
 			}
 		}
 
-		return glyph2;
+		return loaded;
 	}
 
-	private Glyph loadGlyph(int codePoint, FT_Face face, int index) {
-		int i = FreeType.FT_Load_Glyph(face, index, 4194312);
-		if (i != 0) {
-			FreeTypeUtil.checkFatalError(i, String.format(Locale.ROOT, "Loading glyph U+%06X", codePoint));
-		}
-
-		FT_GlyphSlot fT_GlyphSlot = face.glyph();
-		if (fT_GlyphSlot == null) {
-			throw new NullPointerException(String.format(Locale.ROOT, "Glyph U+%06X not initialized", codePoint));
-		}
-		else {
-			float f = FreeTypeUtil.getX(fT_GlyphSlot.advance());
-			FT_Bitmap fT_Bitmap = fT_GlyphSlot.bitmap();
-			int j = fT_GlyphSlot.bitmap_left();
-			int k = fT_GlyphSlot.bitmap_top();
-			int l = fT_Bitmap.width();
-			int m = fT_Bitmap.rows();
-			return (Glyph) (l > 0 && m > 0 ? new TrueTypeFont.TtfGlyph(j, k, l, m, f, index)
-			                               : new EmptyGlyph(f / this.oversample)
+	private Glyph loadGlyph(int codePoint, FT_Face ftFace, int glyphIndex) {
+		int errorCode = FreeType.FT_Load_Glyph(ftFace, glyphIndex, 4194312);
+		if (errorCode != 0) {
+			FreeTypeUtil.checkFatalError(
+				errorCode,
+				String.format(Locale.ROOT, "Loading glyph U+%06X", codePoint)
 			);
 		}
+
+		FT_GlyphSlot glyphSlot = ftFace.glyph();
+		if (glyphSlot == null) {
+			throw new NullPointerException(
+				String.format(Locale.ROOT, "Glyph U+%06X not initialized", codePoint)
+			);
+		}
+
+		float advance = FreeTypeUtil.getX(glyphSlot.advance());
+		int bitmapLeft = glyphSlot.bitmap_left();
+		int bitmapTop = glyphSlot.bitmap_top();
+		int bitmapWidth = glyphSlot.bitmap().width();
+		int bitmapRows = glyphSlot.bitmap().rows();
+
+		return bitmapWidth > 0 && bitmapRows > 0
+			? new TrueTypeFont.TtfGlyph(bitmapLeft, bitmapTop, bitmapWidth, bitmapRows, advance, glyphIndex)
+			: new EmptyGlyph(advance / oversample);
 	}
 
 	FT_Face getInfo() {
-		if (this.buffer != null && this.face != null) {
-			return this.face;
+		if (buffer != null && face != null) {
+			return face;
 		}
-		else {
-			throw new IllegalStateException("Provider already closed");
-		}
+
+		throw new IllegalStateException("Provider already closed");
 	}
 
 	@Override
 	public void close() {
-		if (this.face != null) {
+		if (face != null) {
 			synchronized (FreeTypeUtil.LOCK) {
-				FreeTypeUtil.checkError(FreeType.FT_Done_Face(this.face), "Deleting face");
+				FreeTypeUtil.checkError(FreeType.FT_Done_Face(face), "Deleting face");
 			}
 
-			this.face = null;
+			face = null;
 		}
 
-		MemoryUtil.memFree(this.buffer);
-		this.buffer = null;
+		MemoryUtil.memFree(buffer);
+		buffer = null;
 	}
 
 	@Override
 	public IntSet getProvidedGlyphs() {
-		return this.container.getProvidedGlyphs();
+		return container.getProvidedGlyphs();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LazyGlyph}.
-	 */
 	static class LazyGlyph {
 
 		final int index;
@@ -174,9 +171,6 @@ public class TrueTypeFont implements Font {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TtfGlyph}.
-	 */
 	class TtfGlyph implements Glyph {
 
 		final int width;
@@ -187,12 +181,12 @@ public class TrueTypeFont implements Font {
 		final int glyphIndex;
 
 		TtfGlyph(
-				final float bearingX,
-				final float ascent,
-				final int width,
-				final int height,
-				final float advance,
-				final int glyphIndex
+			final int bearingX,
+			final int ascent,
+			final int width,
+			final int height,
+			final float advance,
+			final int glyphIndex
 		) {
 			this.width = width;
 			this.height = height;
@@ -204,74 +198,73 @@ public class TrueTypeFont implements Font {
 
 		@Override
 		public GlyphMetrics getMetrics() {
-			return this.metrics;
+			return metrics;
 		}
 
 		@Override
 		public BakedGlyph bake(Glyph.AbstractGlyphBaker baker) {
 			return baker.bake(
-					this.metrics,
-					new UploadableGlyph() {
-						@Override
-						public int getWidth() {
-							return TtfGlyph.this.width;
-						}
+				metrics,
+				new UploadableGlyph() {
+					@Override
+					public int getWidth() {
+						return TtfGlyph.this.width;
+					}
 
-						@Override
-						public int getHeight() {
-							return TtfGlyph.this.height;
-						}
+					@Override
+					public int getHeight() {
+						return TtfGlyph.this.height;
+					}
 
-						@Override
-						public float getOversample() {
-							return TrueTypeFont.this.oversample;
-						}
+					@Override
+					public float getOversample() {
+						return TrueTypeFont.this.oversample;
+					}
 
-						@Override
-						public float getBearingX() {
-							return TtfGlyph.this.bearingX;
-						}
+					@Override
+					public float getBearingX() {
+						return TtfGlyph.this.bearingX;
+					}
 
-						@Override
-						public float getAscent() {
-							return TtfGlyph.this.ascent;
-						}
+					@Override
+					public float getAscent() {
+						return TtfGlyph.this.ascent;
+					}
 
-						@Override
-						public void upload(int x, int y, GpuTexture texture) {
-							FT_Face fT_Face = TrueTypeFont.this.getInfo();
+					@Override
+					public void upload(int x, int y, GpuTexture texture) {
+						FT_Face ftFace = TrueTypeFont.this.getInfo();
 
-							try (NativeImage nativeImage = new NativeImage(
-									NativeImage.Format.LUMINANCE,
-									TtfGlyph.this.width,
-									TtfGlyph.this.height,
-									false
-							)
-							) {
-								if (nativeImage.makeGlyphBitmapSubpixel(fT_Face, TtfGlyph.this.glyphIndex)) {
-									RenderSystem.getDevice()
-									            .createCommandEncoder()
-									            .writeToTexture(
-											            texture,
-											            nativeImage,
-											            0,
-											            0,
-											            x,
-											            y,
-											            TtfGlyph.this.width,
-											            TtfGlyph.this.height,
-											            0,
-											            0
-									            );
-								}
+						try (NativeImage image = new NativeImage(
+							NativeImage.Format.LUMINANCE,
+							TtfGlyph.this.width,
+							TtfGlyph.this.height,
+							false
+						)) {
+							if (image.makeGlyphBitmapSubpixel(ftFace, TtfGlyph.this.glyphIndex)) {
+								RenderSystem.getDevice()
+									.createCommandEncoder()
+									.writeToTexture(
+										texture,
+										image,
+										0,
+										0,
+										x,
+										y,
+										TtfGlyph.this.width,
+										TtfGlyph.this.height,
+										0,
+										0
+									);
 							}
 						}
-
-						@Override
-						public boolean hasColor() {
-							return false;
-						}
 					}
+
+					@Override
+					public boolean hasColor() {
+						return false;
+					}
+				}
 			);
 		}
 	}

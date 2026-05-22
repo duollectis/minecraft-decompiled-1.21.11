@@ -5,60 +5,66 @@ import net.minecraft.util.math.Interpolator;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code FloatModifier}.
+ * Модификатор числовых (float) атрибутов окружения.
+ * Определяет набор стандартных арифметических операций над значениями атрибутов.
+ *
+ * @param <Argument> тип аргумента операции
  */
 public interface FloatModifier<Argument> extends EnvironmentAttributeModifier<Float, Argument> {
 
-	FloatModifier<BlendArgument> ALPHA_BLEND = new FloatModifier<BlendArgument>() {
-		/**
-		 * Apply.
-		 *
-		 * @param float_ float_
-		 * @param blendArgument blend argument
-		 *
-		 * @return Float — результат операции
-		 */
-		public Float apply(Float float_, BlendArgument blendArgument) {
-			return MathHelper.lerp(blendArgument.alpha(), float_, blendArgument.value());
+	/**
+	 * Alpha-blend: плавно смешивает текущее значение с целевым по коэффициенту alpha.
+	 * Формула: {@code lerp(alpha, current, target)}.
+	 */
+	FloatModifier<BlendArgument> ALPHA_BLEND = new FloatModifier<>() {
+		@Override
+		public Float apply(Float current, BlendArgument argument) {
+			return MathHelper.lerp(argument.alpha(), current, argument.value());
 		}
 
 		@Override
-		public Codec<BlendArgument> argumentCodec(EnvironmentAttribute<Float> environmentAttribute) {
+		public Codec<BlendArgument> argumentCodec(EnvironmentAttribute<Float> attribute) {
 			return BlendArgument.CODEC;
 		}
 
 		@Override
-		public Interpolator<BlendArgument> argumentKeyframeLerp(EnvironmentAttribute<Float> environmentAttribute) {
-			return (f, blendArgument, blendArgument2) -> new BlendArgument(
-					MathHelper.lerp(f, blendArgument.value(), blendArgument2.value()),
-					MathHelper.lerp(f, blendArgument.alpha(), blendArgument2.alpha())
+		public Interpolator<BlendArgument> argumentKeyframeLerp(EnvironmentAttribute<Float> attribute) {
+			return (t, a, b) -> new BlendArgument(
+				MathHelper.lerp(t, a.value(), b.value()),
+				MathHelper.lerp(t, a.alpha(), b.alpha())
 			);
 		}
 	};
 
-	FloatModifier<Float> ADD = (FloatModifier.Binary) Float::sum;
+	/** Сложение: {@code current + argument}. */
+	FloatModifier<Float> ADD = (Binary) Float::sum;
 
-	FloatModifier<Float> SUBTRACT = (FloatModifier.Binary) (a, b) -> a - b;
+	/** Вычитание: {@code current - argument}. */
+	FloatModifier<Float> SUBTRACT = (Binary) (current, argument) -> current - argument;
 
-	FloatModifier<Float> MULTIPLY = (FloatModifier.Binary) (a, b) -> a * b;
+	/** Умножение: {@code current * argument}. */
+	FloatModifier<Float> MULTIPLY = (Binary) (current, argument) -> current * argument;
 
-	FloatModifier<Float> MINIMUM = (FloatModifier.Binary) Math::min;
+	/** Минимум: {@code min(current, argument)}. */
+	FloatModifier<Float> MINIMUM = (Binary) Math::min;
 
-	FloatModifier<Float> MAXIMUM = (FloatModifier.Binary) Math::max;
+	/** Максимум: {@code max(current, argument)}. */
+	FloatModifier<Float> MAXIMUM = (Binary) Math::max;
 
-	@FunctionalInterface
 	/**
-	 * {@code Binary}.
+	 * Бинарный float-модификатор: принимает два float-значения.
+	 * Codec аргумента — {@link Codec#FLOAT}, интерполятор — линейный.
 	 */
-	public interface Binary extends FloatModifier<Float> {
+	@FunctionalInterface
+	interface Binary extends FloatModifier<Float> {
 
 		@Override
-		default Codec<Float> argumentCodec(EnvironmentAttribute<Float> environmentAttribute) {
+		default Codec<Float> argumentCodec(EnvironmentAttribute<Float> attribute) {
 			return Codec.FLOAT;
 		}
 
 		@Override
-		default Interpolator<Float> argumentKeyframeLerp(EnvironmentAttribute<Float> environmentAttribute) {
+		default Interpolator<Float> argumentKeyframeLerp(EnvironmentAttribute<Float> attribute) {
 			return Interpolator.ofFloat();
 		}
 	}

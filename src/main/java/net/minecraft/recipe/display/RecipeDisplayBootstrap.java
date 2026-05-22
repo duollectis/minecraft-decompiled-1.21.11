@@ -3,7 +3,7 @@ package net.minecraft.recipe.display;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code RecipeDisplayBootstrap}.
+ * Регистрирует все стандартные реализации {@link RecipeDisplay} в реестре.
  */
 public class RecipeDisplayBootstrap {
 

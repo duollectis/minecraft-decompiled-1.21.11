@@ -15,7 +15,7 @@ import java.net.SocketTimeoutException;
 import java.util.List;
 
 /**
- * {@code RconListener}.
+ * Слушатель RCON-соединений: принимает входящие TCP-подключения к консоли управления.
  */
 public class RconListener extends RconBase {
 

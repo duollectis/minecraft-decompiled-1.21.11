@@ -8,7 +8,9 @@ import net.minecraft.util.Util;
 import java.util.List;
 
 /**
- * {@code EulerAngle}.
+ * Углы Эйлера (pitch, yaw, roll) в градусах.
+ * Все значения нормализуются в диапазон (-360, 360) при создании.
+ * Используется для хранения ориентации броней-стоек и других сущностей.
  */
 public record EulerAngle(float pitch, float yaw, float roll) {
 
@@ -24,24 +26,14 @@ public record EulerAngle(float pitch, float yaw, float roll) {
 							)),
 					angle -> List.of(angle.pitch(), angle.yaw(), angle.roll())
 			);
-	public static final PacketCodec<ByteBuf, EulerAngle> PACKET_CODEC = new PacketCodec<ByteBuf, EulerAngle>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return EulerAngle — результат операции
-		 */
+
+	public static final PacketCodec<ByteBuf, EulerAngle> PACKET_CODEC = new PacketCodec<>() {
+		@Override
 		public EulerAngle decode(ByteBuf byteBuf) {
 			return new EulerAngle(byteBuf.readFloat(), byteBuf.readFloat(), byteBuf.readFloat());
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param eulerAngle euler angle
-		 */
+		@Override
 		public void encode(ByteBuf byteBuf, EulerAngle eulerAngle) {
 			byteBuf.writeFloat(eulerAngle.pitch);
 			byteBuf.writeFloat(eulerAngle.yaw);
@@ -50,11 +42,12 @@ public record EulerAngle(float pitch, float yaw, float roll) {
 	};
 
 	public EulerAngle(float pitch, float yaw, float roll) {
-		pitch = !Float.isInfinite(pitch) && !Float.isNaN(pitch) ? pitch % 360.0F : 0.0F;
-		yaw = !Float.isInfinite(yaw) && !Float.isNaN(yaw) ? yaw % 360.0F : 0.0F;
-		roll = !Float.isInfinite(roll) && !Float.isNaN(roll) ? roll % 360.0F : 0.0F;
-		this.pitch = pitch;
-		this.yaw = yaw;
-		this.roll = roll;
+		this.pitch = isFinite(pitch) ? pitch % 360.0F : 0.0F;
+		this.yaw = isFinite(yaw) ? yaw % 360.0F : 0.0F;
+		this.roll = isFinite(roll) ? roll % 360.0F : 0.0F;
+	}
+
+	private static boolean isFinite(float value) {
+		return !Float.isInfinite(value) && !Float.isNaN(value);
 	}
 }

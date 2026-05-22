@@ -17,10 +17,11 @@ import org.slf4j.Logger;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UnstitchAtlasSource}.
+ * Источник атласа, вырезающий отдельные спрайты из одного большого изображения-текстуры.
+ * Каждый регион задаётся нормализованными координатами относительно делителей {@code divisorX}/{@code divisorY}.
  */
+@Environment(EnvType.CLIENT)
 public record UnstitchAtlasSource(
 		Identifier resource,
 		List<UnstitchAtlasSource.Region> regions,
@@ -66,10 +67,10 @@ public record UnstitchAtlasSource(
 		return CODEC;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Region}.
+	 * Описание одного вырезаемого региона: нормализованные координаты и размер в единицах делителя.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Region(Identifier sprite, double x, double y, double width, double height) {
 
 		public static final Codec<UnstitchAtlasSource.Region> CODEC = RecordCodecBuilder.create(
@@ -85,9 +86,6 @@ public record UnstitchAtlasSource(
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SpriteRegion}.
-	 */
 	static class SpriteRegion implements AtlasSource.SpriteRegion {
 
 		private final AtlasSprite sprite;

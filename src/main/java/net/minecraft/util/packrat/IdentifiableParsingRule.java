@@ -7,7 +7,9 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code IdentifiableParsingRule}.
+ * Базовый класс для правил разбора, которые сначала читают {@link Identifier},
+ * а затем выполняют дополнительную обработку на основе этого идентификатора.
+ * Обеспечивает единообразную обработку ошибок и автодополнение идентификаторов.
  */
 public abstract class IdentifiableParsingRule<C, V> implements ParsingRule<StringReader, V>, IdentifierSuggestable {
 
@@ -18,36 +20,28 @@ public abstract class IdentifiableParsingRule<C, V> implements ParsingRule<Strin
 	protected IdentifiableParsingRule(ParsingRuleEntry<StringReader, Identifier> idParsingRule, C callbacks) {
 		this.idParsingRule = idParsingRule;
 		this.callbacks = callbacks;
-		this.exception = CursorExceptionType.create(Identifier.COMMAND_EXCEPTION);
+		exception = CursorExceptionType.create(Identifier.COMMAND_EXCEPTION);
 	}
 
 	@Override
 	public @Nullable V parse(ParsingState<StringReader> state) {
 		state.getReader().skipWhitespace();
-		int i = state.getCursor();
-		Identifier identifier = state.parse(this.idParsingRule);
-		if (identifier != null) {
-			try {
-				return this.parse((ImmutableStringReader) state.getReader(), identifier);
-			}
-			catch (Exception var5) {
-				state.getErrors().add(i, this, var5);
-				return null;
-			}
+
+		int startCursor = state.getCursor();
+		Identifier identifier = state.parse(idParsingRule);
+
+		if (identifier == null) {
+			state.getErrors().add(startCursor, this, exception);
+			return null;
 		}
-		else {
-			state.getErrors().add(i, this, this.exception);
+
+		try {
+			return parse((ImmutableStringReader) state.getReader(), identifier);
+		} catch (Exception e) {
+			state.getErrors().add(startCursor, this, e);
 			return null;
 		}
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param reader reader
-	 * @param id id
-	 *
-	 * @return V — результат операции
-	 */
 	protected abstract V parse(ImmutableStringReader reader, Identifier id) throws Exception;
 }

@@ -18,7 +18,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 	private static final int NUM_TAIL_PARTS = 12;
 	private final ModelPart head;
 	private final ModelPart[] neckParts = new ModelPart[5];
-	private final ModelPart[] tailParts = new ModelPart[12];
+	private final ModelPart[] tailParts = new ModelPart[NUM_TAIL_PARTS];
 	private final ModelPart jaw;
 	private final ModelPart body;
 	private final ModelPart leftWing;
@@ -90,7 +90,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		ModelPartData modelPartData2 = modelPartData.addChild(
 				"head",
 				ModelPartBuilder.create()
-				                .cuboid("upperlip", -6.0F, -1.0F, -24.0F, 12, 5, 16, 176, 44)
+				                .cuboid("upperlip", -6.0F, -1.0F, -24.0F, NUM_TAIL_PARTS, 5, 16, 176, 44)
 				                .cuboid("upperhead", -8.0F, -8.0F, -10.0F, 16, 16, 16, 112, 30)
 				                .mirrored()
 				                .cuboid("scale", -5.0F, -12.0F, -4.0F, 2, 4, 6, 0, 0)
@@ -102,7 +102,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		);
 		modelPartData2.addChild(
 				"jaw",
-				ModelPartBuilder.create().cuboid("jaw", -6.0F, 0.0F, -16.0F, 12, 4, 16, 176, 65),
+				ModelPartBuilder.create().cuboid("jaw", -6.0F, 0.0F, -16.0F, NUM_TAIL_PARTS, 4, 16, 176, 65),
 				ModelTransform.origin(0.0F, 4.0F, -8.0F)
 		);
 		ModelPartBuilder modelPartBuilder = ModelPartBuilder.create()
@@ -113,7 +113,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 			modelPartData.addChild(neck(i), modelPartBuilder, ModelTransform.origin(0.0F, 20.0F, -12.0F - i * 10.0F));
 		}
 
-		for (int i = 0; i < 12; i++) {
+		for (int i = 0; i < NUM_TAIL_PARTS; i++) {
 			modelPartData.addChild(tail(i), modelPartBuilder, ModelTransform.origin(0.0F, 10.0F, 60.0F + i * 10.0F));
 		}
 
@@ -121,9 +121,9 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 				"body",
 				ModelPartBuilder.create()
 				                .cuboid("body", -12.0F, 1.0F, -16.0F, 24, 24, 64, 0, 0)
-				                .cuboid("scale", -1.0F, -5.0F, -10.0F, 2, 6, 12, 220, 53)
-				                .cuboid("scale", -1.0F, -5.0F, 10.0F, 2, 6, 12, 220, 53)
-				                .cuboid("scale", -1.0F, -5.0F, 30.0F, 2, 6, 12, 220, 53),
+				                .cuboid("scale", -1.0F, -5.0F, -10.0F, 2, 6, NUM_TAIL_PARTS, 220, 53)
+				                .cuboid("scale", -1.0F, -5.0F, 10.0F, 2, 6, NUM_TAIL_PARTS, 220, 53)
+				                .cuboid("scale", -1.0F, -5.0F, 30.0F, 2, 6, NUM_TAIL_PARTS, 220, 53),
 				ModelTransform.origin(0.0F, 3.0F, 8.0F)
 		);
 		ModelPartData modelPartData4 = modelPartData3.addChild(
@@ -166,7 +166,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		);
 		ModelPartData modelPartData8 = modelPartData7.addChild(
 				"left_hind_leg_tip",
-				ModelPartBuilder.create().cuboid("main", -6.0F, -2.0F, 0.0F, 12, 32, 12, 196, 0),
+				ModelPartBuilder.create().cuboid("main", -6.0F, -2.0F, 0.0F, NUM_TAIL_PARTS, 32, NUM_TAIL_PARTS, 196, 0),
 				ModelTransform.of(0.0F, 32.0F, -4.0F, 0.5F, 0.0F, 0.0F)
 		);
 		modelPartData8.addChild(
@@ -212,7 +212,7 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		);
 		ModelPartData modelPartData13 = modelPartData12.addChild(
 				"right_hind_leg_tip",
-				ModelPartBuilder.create().cuboid("main", -6.0F, -2.0F, 0.0F, 12, 32, 12, 196, 0),
+				ModelPartBuilder.create().cuboid("main", -6.0F, -2.0F, 0.0F, NUM_TAIL_PARTS, 32, NUM_TAIL_PARTS, 196, 0),
 				ModelTransform.of(0.0F, 32.0F, -4.0F, 0.5F, 0.0F, 0.0F)
 		);
 		modelPartData13.addChild(
@@ -305,8 +305,8 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		h = this.tailParts[0].originX;
 		frame = enderDragonEntityRenderState.getLerpedFrame(11);
 
-		for (int q = 0; q < 12; q++) {
-			EnderDragonFrameTracker.Frame frame4 = enderDragonEntityRenderState.getLerpedFrame(12 + q);
+		for (int q = 0; q < NUM_TAIL_PARTS; q++) {
+			EnderDragonFrameTracker.Frame frame4 = enderDragonEntityRenderState.getLerpedFrame(NUM_TAIL_PARTS + q);
 			p += MathHelper.sin(q * 0.45F + f) * 0.05F;
 			ModelPart modelPart2 = this.tailParts[q];
 			modelPart2.yaw =

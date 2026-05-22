@@ -31,7 +31,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code BubbleColumnBlock}.
+ * Блок столба пузырей, создаваемый над душевым песком (восходящий поток)
+ * или магмовым блоком (нисходящий поток). Свойство {@link #DRAG} определяет
+ * направление: {@code true} — тянет вниз (магма), {@code false} — толкает вверх (душевой песок).
  */
 public class BubbleColumnBlock extends Block implements FluidDrainable {
 
@@ -51,22 +53,24 @@ public class BubbleColumnBlock extends Block implements FluidDrainable {
 
 	@Override
 	protected void onEntityCollision(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Entity entity,
-			EntityCollisionHandler handler,
-			boolean bl
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Entity entity,
+		EntityCollisionHandler handler,
+		boolean isAboveSurface
 	) {
-		if (bl) {
-			BlockState blockState = world.getBlockState(pos.up());
-			boolean bl2 = blockState.getCollisionShape(world, pos).isEmpty() && blockState.getFluidState().isEmpty();
-			if (bl2) {
-				entity.onBubbleColumnSurfaceCollision(state.get(DRAG), pos);
-			}
-			else {
-				entity.onBubbleColumnCollision(state.get(DRAG));
-			}
+		if (isAboveSurface == false) {
+			return;
+		}
+
+		BlockState above = world.getBlockState(pos.up());
+		boolean isOpenAbove = above.getCollisionShape(world, pos).isEmpty() && above.getFluidState().isEmpty();
+
+		if (isOpenAbove) {
+			entity.onBubbleColumnSurfaceCollision(state.get(DRAG), pos);
+		} else {
+			entity.onBubbleColumnCollision(state.get(DRAG));
 		}
 	}
 
@@ -81,23 +85,25 @@ public class BubbleColumnBlock extends Block implements FluidDrainable {
 	}
 
 	/**
-	 * Update.
+	 * Обновляет столб пузырей снизу вверх, начиная с позиции {@code pos}.
+	 * Вызывается при изменении блока-источника (душевой песок / магма).
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
+	 * @param world мир
+	 * @param pos позиция нижнего блока столба
+	 * @param state состояние нового источника пузырей
 	 */
 	public static void update(WorldAccess world, BlockPos pos, BlockState state) {
 		update(world, pos, world.getBlockState(pos), state);
 	}
 
 	/**
-	 * Update.
+	 * Распространяет состояние столба пузырей вверх по колонне воды.
+	 * Останавливается, если блок не является стоячей водой или столбом пузырей.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param water water
-	 * @param bubbleSource bubble source
+	 * @param world мир
+	 * @param pos позиция начала обновления
+	 * @param water текущее состояние блока воды на позиции
+	 * @param bubbleSource блок-источник, определяющий тип столба (магма/душевой песок)
 	 */
 	public static void update(WorldAccess world, BlockPos pos, BlockState water, BlockState bubbleSource) {
 		if (isStillWater(water)) {
@@ -124,56 +130,59 @@ public class BubbleColumnBlock extends Block implements FluidDrainable {
 		if (state.isOf(Blocks.BUBBLE_COLUMN)) {
 			return state;
 		}
-		else if (state.isOf(Blocks.SOUL_SAND)) {
+
+		if (state.isOf(Blocks.SOUL_SAND)) {
 			return Blocks.BUBBLE_COLUMN.getDefaultState().with(DRAG, false);
 		}
-		else {
-			return state.isOf(Blocks.MAGMA_BLOCK) ? Blocks.BUBBLE_COLUMN.getDefaultState().with(DRAG, true)
-			                                      : Blocks.WATER.getDefaultState();
-		}
+
+		return state.isOf(Blocks.MAGMA_BLOCK)
+			? Blocks.BUBBLE_COLUMN.getDefaultState().with(DRAG, true)
+			: Blocks.WATER.getDefaultState();
 	}
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		double d = pos.getX();
-		double e = pos.getY();
-		double f = pos.getZ();
+		double x = pos.getX();
+		double y = pos.getY();
+		double z = pos.getZ();
+
 		if (state.get(DRAG)) {
-			world.addImportantParticleClient(ParticleTypes.CURRENT_DOWN, d + 0.5, e + 0.8, f, 0.0, 0.0, 0.0);
+			world.addImportantParticleClient(ParticleTypes.CURRENT_DOWN, x + 0.5, y + 0.8, z, 0.0, 0.0, 0.0);
+
 			if (random.nextInt(200) == 0) {
 				world.playSoundClient(
-						d,
-						e,
-						f,
-						SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
-						SoundCategory.BLOCKS,
-						0.2F + random.nextFloat() * 0.2F,
-						0.9F + random.nextFloat() * 0.15F,
-						false
+					x,
+					y,
+					z,
+					SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
+					SoundCategory.BLOCKS,
+					0.2F + random.nextFloat() * 0.2F,
+					0.9F + random.nextFloat() * 0.15F,
+					false
 				);
 			}
-		}
-		else {
-			world.addImportantParticleClient(ParticleTypes.BUBBLE_COLUMN_UP, d + 0.5, e, f + 0.5, 0.0, 0.04, 0.0);
+		} else {
+			world.addImportantParticleClient(ParticleTypes.BUBBLE_COLUMN_UP, x + 0.5, y, z + 0.5, 0.0, 0.04, 0.0);
 			world.addImportantParticleClient(
-					ParticleTypes.BUBBLE_COLUMN_UP,
-					d + random.nextFloat(),
-					e + random.nextFloat(),
-					f + random.nextFloat(),
-					0.0,
-					0.04,
-					0.0
+				ParticleTypes.BUBBLE_COLUMN_UP,
+				x + random.nextFloat(),
+				y + random.nextFloat(),
+				z + random.nextFloat(),
+				0.0,
+				0.04,
+				0.0
 			);
+
 			if (random.nextInt(200) == 0) {
 				world.playSoundClient(
-						d,
-						e,
-						f,
-						SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT,
-						SoundCategory.BLOCKS,
-						0.2F + random.nextFloat() * 0.2F,
-						0.9F + random.nextFloat() * 0.15F,
-						false
+					x,
+					y,
+					z,
+					SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT,
+					SoundCategory.BLOCKS,
+					0.2F + random.nextFloat() * 0.2F,
+					0.9F + random.nextFloat() * 0.15F,
+					false
 				);
 			}
 		}
@@ -181,32 +190,34 @@ public class BubbleColumnBlock extends Block implements FluidDrainable {
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+
 		if (!state.canPlaceAt(world, pos)
-				|| direction == Direction.DOWN
-				|| direction == Direction.UP && !neighborState.isOf(Blocks.BUBBLE_COLUMN)
-				&& isStillWater(neighborState)) {
-			tickView.scheduleBlockTick(pos, this, 5);
+			|| direction == Direction.DOWN
+			|| direction == Direction.UP && neighborState.isOf(Blocks.BUBBLE_COLUMN) == false
+			&& isStillWater(neighborState)
+		) {
+			tickView.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 		}
 
 		return super.getStateForNeighborUpdate(
-				state,
-				world,
-				tickView,
-				pos,
-				direction,
-				neighborPos,
-				neighborState,
-				random
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
 		);
 	}
 

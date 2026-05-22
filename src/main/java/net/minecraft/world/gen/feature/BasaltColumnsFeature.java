@@ -13,9 +13,7 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 import org.jspecify.annotations.Nullable;
 
-/**
- * {@code BasaltColumnsFeature}.
- */
+/** Генерирует колонны базальта в Нижнем мире, размещая плотные или редкие группы столбов вокруг точки происхождения. */
 public class BasaltColumnsFeature extends Feature<BasaltColumnsFeatureConfig> {
 
 	private static final ImmutableList<Block> CANNOT_REPLACE_BLOCKS = ImmutableList.of(
@@ -41,50 +39,44 @@ public class BasaltColumnsFeature extends Feature<BasaltColumnsFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<BasaltColumnsFeatureConfig> context) {
-		int i = context.getGenerator().getSeaLevel();
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		int seaLevel = context.getGenerator().getSeaLevel();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		BasaltColumnsFeatureConfig basaltColumnsFeatureConfig = context.getConfig();
-		if (!canPlaceAt(structureWorldAccess, i, blockPos.mutableCopy())) {
+		BasaltColumnsFeatureConfig config = context.getConfig();
+
+		if (!canPlaceAt(world, seaLevel, origin.mutableCopy())) {
 			return false;
 		}
-		else {
-			int j = basaltColumnsFeatureConfig.getHeight().get(random);
-			boolean bl = random.nextFloat() < 0.9F;
-			int k = Math.min(j, bl ? 5 : 8);
-			int l = bl ? 50 : 15;
-			boolean bl2 = false;
 
-			for (BlockPos blockPos2 : BlockPos.iterateRandomly(
-					random,
-					l,
-					blockPos.getX() - k,
-					blockPos.getY(),
-					blockPos.getZ() - k,
-					blockPos.getX() + k,
-					blockPos.getY(),
-					blockPos.getZ() + k
-			)) {
-				int m = j - blockPos2.getManhattanDistance(blockPos);
-				if (m >= 0) {
-					bl2 |=
-							this.placeBasaltColumn(
-									structureWorldAccess,
-									i,
-									blockPos2,
-									m,
-									basaltColumnsFeatureConfig.getReach().get(random)
-							);
-				}
+		int height = config.getHeight().get(random);
+		boolean isDense = random.nextFloat() < 0.9F;
+		int radius = Math.min(height, isDense ? DENSE_COLUMN_RADIUS : SPARSE_COLUMN_RADIUS);
+		int attempts = isDense ? DENSE_COLUMN_ATTEMPTS : SPARSE_COLUMN_ATTEMPTS;
+		boolean placed = false;
+
+		for (BlockPos candidate : BlockPos.iterateRandomly(
+				random,
+				attempts,
+				origin.getX() - radius,
+				origin.getY(),
+				origin.getZ() - radius,
+				origin.getX() + radius,
+				origin.getY(),
+				origin.getZ() + radius
+		)) {
+			int columnHeight = height - candidate.getManhattanDistance(origin);
+
+			if (columnHeight >= 0) {
+				placed |= placeBasaltColumn(world, seaLevel, candidate, columnHeight, config.getReach().get(random));
 			}
-
-			return bl2;
 		}
+
+		return placed;
 	}
 
 	private boolean placeBasaltColumn(WorldAccess world, int seaLevel, BlockPos pos, int height, int reach) {
-		boolean bl = false;
+		boolean placed = false;
 
 		for (BlockPos blockPos : BlockPos.iterate(
 				pos.getX() - reach,
@@ -94,31 +86,33 @@ public class BasaltColumnsFeature extends Feature<BasaltColumnsFeatureConfig> {
 				pos.getY(),
 				pos.getZ() + reach
 		)) {
-			int i = blockPos.getManhattanDistance(pos);
-			BlockPos blockPos2 = isAirOrLavaOcean(world, seaLevel, blockPos)
-			                     ? moveDownToGround(world, seaLevel, blockPos.mutableCopy(), i)
-			                     : moveUpToAir(world, blockPos.mutableCopy(), i);
-			if (blockPos2 != null) {
-				int j = height - i / 2;
+			int dist = blockPos.getManhattanDistance(pos);
+			BlockPos groundPos = isAirOrLavaOcean(world, seaLevel, blockPos)
+					? moveDownToGround(world, seaLevel, blockPos.mutableCopy(), dist)
+					: moveUpToAir(world, blockPos.mutableCopy(), dist);
 
-				for (BlockPos.Mutable mutable = blockPos2.mutableCopy(); j >= 0; j--) {
-					if (isAirOrLavaOcean(world, seaLevel, mutable)) {
-						this.setBlockState(world, mutable, Blocks.BASALT.getDefaultState());
-						mutable.move(Direction.UP);
-						bl = true;
-					}
-					else {
-						if (!world.getBlockState(mutable).isOf(Blocks.BASALT)) {
-							break;
-						}
+			if (groundPos == null) {
+				continue;
+			}
 
-						mutable.move(Direction.UP);
+			int columnHeight = height - dist / 2;
+
+			for (BlockPos.Mutable mutable = groundPos.mutableCopy(); columnHeight >= 0; columnHeight--) {
+				if (isAirOrLavaOcean(world, seaLevel, mutable)) {
+					setBlockState(world, mutable, Blocks.BASALT.getDefaultState());
+					mutable.move(Direction.UP);
+					placed = true;
+				} else {
+					if (!world.getBlockState(mutable).isOf(Blocks.BASALT)) {
+						break;
 					}
+
+					mutable.move(Direction.UP);
 				}
 			}
 		}
 
-		return bl;
+		return placed;
 	}
 
 	private static @Nullable BlockPos moveDownToGround(
@@ -143,11 +137,11 @@ public class BasaltColumnsFeature extends Feature<BasaltColumnsFeatureConfig> {
 		if (!isAirOrLavaOcean(world, seaLevel, mutablePos)) {
 			return false;
 		}
-		else {
-			BlockState blockState = world.getBlockState(mutablePos.move(Direction.DOWN));
-			mutablePos.move(Direction.UP);
-			return !blockState.isAir() && !CANNOT_REPLACE_BLOCKS.contains(blockState.getBlock());
-		}
+
+		BlockState below = world.getBlockState(mutablePos.move(Direction.DOWN));
+		mutablePos.move(Direction.UP);
+
+		return !below.isAir() && !CANNOT_REPLACE_BLOCKS.contains(below.getBlock());
 	}
 
 	private static @Nullable BlockPos moveUpToAir(WorldAccess world, BlockPos.Mutable mutablePos, int distance) {

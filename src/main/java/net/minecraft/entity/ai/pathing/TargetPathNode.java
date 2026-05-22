@@ -3,7 +3,8 @@ package net.minecraft.entity.ai.pathing;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code TargetPathNode}.
+ * Целевой узел пути в алгоритме A*.
+ * Отслеживает ближайший достигнутый узел и факт достижения цели.
  */
 public class TargetPathNode extends PathNode {
 
@@ -15,48 +16,35 @@ public class TargetPathNode extends PathNode {
 		super(node.x, node.y, node.z);
 	}
 
-	public TargetPathNode(int i, int j, int k) {
-		super(i, j, k);
+	public TargetPathNode(int x, int y, int z) {
+		super(x, y, z);
 	}
 
 	/**
-	 * Обновляет nearest node.
-	 *
-	 * @param distance distance
-	 * @param node node
+	 * Обновляет ближайший узел, если переданное расстояние меньше текущего минимума.
 	 */
 	public void updateNearestNode(float distance, PathNode node) {
-		if (distance < this.nearestNodeDistance) {
-			this.nearestNodeDistance = distance;
-			this.nearestNode = node;
+		if (distance < nearestNodeDistance) {
+			nearestNodeDistance = distance;
+			nearestNode = node;
 		}
 	}
 
 	public PathNode getNearestNode() {
-		return this.nearestNode;
+		return nearestNode;
 	}
 
-	/**
-	 * Mark reached.
-	 */
 	public void markReached() {
-		this.reached = true;
+		reached = true;
 	}
 
 	public boolean isReached() {
-		return this.reached;
+		return reached;
 	}
 
-	/**
-	 * From buffer.
-	 *
-	 * @param buffer buffer
-	 *
-	 * @return TargetPathNode — результат операции
-	 */
 	public static TargetPathNode fromBuffer(PacketByteBuf buffer) {
-		TargetPathNode targetPathNode = new TargetPathNode(buffer.readInt(), buffer.readInt(), buffer.readInt());
-		readFromBuf(buffer, targetPathNode);
-		return targetPathNode;
+		TargetPathNode node = new TargetPathNode(buffer.readInt(), buffer.readInt(), buffer.readInt());
+		readFromBuf(buffer, node);
+		return node;
 	}
 }

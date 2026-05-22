@@ -13,7 +13,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@code AllowedSymlinkPathMatcher}.
+ * Реализация {@link PathMatcher}, проверяющая, разрешён ли символьный путь
+ * согласно списку правил из конфигурационного файла. Поддерживает три типа правил:
+ * {@code prefix} (строковый префикс), {@code glob} и {@code regex}.
+ * Кэширует скомпилированные матчеры по схеме файловой системы.
  */
 public class AllowedSymlinkPathMatcher implements PathMatcher {
 
@@ -27,29 +30,31 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param fileSystem file system
-	 *
-	 * @return PathMatcher — 
+	 * Возвращает скомпилированный {@link PathMatcher} для заданной файловой системы.
+	 * Результат кэшируется по схеме провайдера ФС, чтобы не перекомпилировать паттерны
+	 * при каждом вызове.
 	 */
 	public PathMatcher get(FileSystem fileSystem) {
-		return this.matcherCache.computeIfAbsent(
-				fileSystem.provider().getScheme(), scheme -> {
-					List<PathMatcher> list;
+		return matcherCache.computeIfAbsent(
+				fileSystem.provider().getScheme(),
+				scheme -> {
+					List<PathMatcher> matchers;
+
 					try {
-						list = this.allowedEntries.stream().map(entry -> entry.compile(fileSystem)).toList();
-					}
-					catch (Exception var5) {
-						LOGGER.error("Failed to compile file pattern list", var5);
+						matchers = allowedEntries.stream()
+								.map(entry -> entry.compile(fileSystem))
+								.toList();
+					} catch (Exception ex) {
+						LOGGER.error("Failed to compile file pattern list", ex);
 						return path -> false;
 					}
-					return switch (list.size()) {
+
+					return switch (matchers.size()) {
 						case 0 -> path -> false;
-						case 1 -> (PathMatcher) list.get(0);
+						case 1 -> matchers.get(0);
 						default -> path -> {
-							for (PathMatcher pathMatcher : list) {
-								if (pathMatcher.matches(path)) {
+							for (PathMatcher matcher : matchers) {
+								if (matcher.matches(path)) {
 									return true;
 								}
 							}
@@ -63,72 +68,64 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 
 	@Override
 	public boolean matches(Path path) {
-		return this.get(path.getFileSystem()).matches(path);
+		return get(path.getFileSystem()).matches(path);
 	}
 
 	/**
-	 * From reader.
-	 *
-	 * @param reader reader
-	 *
-	 * @return AllowedSymlinkPathMatcher — результат операции
+	 * Создаёт экземпляр из текстового файла конфигурации. Строки, начинающиеся с {@code #}
+	 * или пустые, игнорируются. Остальные строки разбираются как записи разрешённых путей.
 	 */
 	public static AllowedSymlinkPathMatcher fromReader(BufferedReader reader) {
-		return new AllowedSymlinkPathMatcher(reader
-				.lines()
-				.flatMap(line -> AllowedSymlinkPathMatcher.Entry.readLine(line).stream())
-				.toList());
+		return new AllowedSymlinkPathMatcher(
+				reader.lines()
+						.flatMap(line -> AllowedSymlinkPathMatcher.Entry.readLine(line).stream())
+						.toList()
+		);
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Одна запись в списке разрешённых симлинков: тип правила и сам паттерн.
 	 */
 	public record Entry(AllowedSymlinkPathMatcher.EntryType type, String pattern) {
 
-		/**
-		 * Compile.
-		 *
-		 * @param fileSystem file system
-		 *
-		 * @return PathMatcher — результат операции
-		 */
 		public PathMatcher compile(FileSystem fileSystem) {
-			return this.type().compile(fileSystem, this.pattern);
+			return type().compile(fileSystem, pattern);
 		}
 
 		static Optional<AllowedSymlinkPathMatcher.Entry> readLine(String line) {
-			if (line.isBlank() || line.startsWith("#")) {
+			if (line.isBlank() || line.startsWith(COMMENT_LINE_PREFIX)) {
 				return Optional.empty();
 			}
-			else if (!line.startsWith("[")) {
+
+			if (!line.startsWith("[")) {
 				return Optional.of(new AllowedSymlinkPathMatcher.Entry(
 						AllowedSymlinkPathMatcher.EntryType.PREFIX,
 						line
 				));
 			}
-			else {
-				int i = line.indexOf(93, 1);
-				if (i == -1) {
-					throw new IllegalArgumentException("Unterminated type in line '" + line + "'");
-				}
-				else {
-					String string = line.substring(1, i);
-					String string2 = line.substring(i + 1);
 
-					return switch (string) {
-						case "glob", "regex" -> Optional.of(new AllowedSymlinkPathMatcher.Entry(
-								AllowedSymlinkPathMatcher.EntryType.DEFAULT,
-								string + ":" + string2
-						));
-						case "prefix" -> Optional.of(new AllowedSymlinkPathMatcher.Entry(
-								AllowedSymlinkPathMatcher.EntryType.PREFIX,
-								string2
-						));
-						default -> throw new IllegalArgumentException(
-								"Unsupported definition type in line '" + line + "'");
-					};
-				}
+			// ASCII 93 = ']'
+			int closingBracket = line.indexOf(93, 1);
+
+			if (closingBracket == -1) {
+				throw new IllegalArgumentException("Unterminated type in line '" + line + "'");
 			}
+
+			String typeName = line.substring(1, closingBracket);
+			String patternValue = line.substring(closingBracket + 1);
+
+			return switch (typeName) {
+				case "glob", "regex" -> Optional.of(new AllowedSymlinkPathMatcher.Entry(
+						AllowedSymlinkPathMatcher.EntryType.DEFAULT,
+						typeName + ":" + patternValue
+				));
+				case "prefix" -> Optional.of(new AllowedSymlinkPathMatcher.Entry(
+						AllowedSymlinkPathMatcher.EntryType.PREFIX,
+						patternValue
+				));
+				default -> throw new IllegalArgumentException(
+						"Unsupported definition type in line '" + line + "'");
+			};
 		}
 
 		static AllowedSymlinkPathMatcher.Entry glob(String pattern) {
@@ -136,7 +133,10 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 		}
 
 		static AllowedSymlinkPathMatcher.Entry regex(String pattern) {
-			return new AllowedSymlinkPathMatcher.Entry(AllowedSymlinkPathMatcher.EntryType.DEFAULT, "regex:" + pattern);
+			return new AllowedSymlinkPathMatcher.Entry(
+					AllowedSymlinkPathMatcher.EntryType.DEFAULT,
+					"regex:" + pattern
+			);
 		}
 
 		static AllowedSymlinkPathMatcher.Entry prefix(String prefix) {
@@ -144,10 +144,12 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code EntryType}.
+	 * Стратегия компиляции паттерна в {@link PathMatcher}.
+	 * {@link #DEFAULT} делегирует в {@link FileSystem#getPathMatcher(String)},
+	 * {@link #PREFIX} проверяет строковый префикс пути.
 	 */
+	@FunctionalInterface
 	public interface EntryType {
 
 		AllowedSymlinkPathMatcher.EntryType DEFAULT = FileSystem::getPathMatcher;

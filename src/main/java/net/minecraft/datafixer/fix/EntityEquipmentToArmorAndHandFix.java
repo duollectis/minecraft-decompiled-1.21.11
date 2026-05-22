@@ -12,6 +12,8 @@ import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -19,128 +21,151 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityEquipmentToArmorAndHandFix}.
+ * Мигрирует старый формат снаряжения сущностей: поле {@code Equipment} (единый список)
+ * разделяется на {@code ArmorItems}, {@code HandItems}, {@code body_armor_item} и {@code saddle}.
+ * Также переносит шансы выпадения из {@code DropChances} в {@code HandDropChances} и {@code ArmorDropChances}.
  */
 public class EntityEquipmentToArmorAndHandFix extends DataFix {
 
-	public EntityEquipmentToArmorAndHandFix(Schema schema) {
-		super(schema, true);
+	public EntityEquipmentToArmorAndHandFix(Schema outputSchema) {
+		super(outputSchema, true);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		return this.fixEquipment(
-				this.getInputSchema().getTypeRaw(TypeReferences.ITEM_STACK),
-				this.getOutputSchema().getTypeRaw(TypeReferences.ITEM_STACK)
+		return fixEquipment(
+				getInputSchema().getTypeRaw(TypeReferences.ITEM_STACK),
+				getOutputSchema().getTypeRaw(TypeReferences.ITEM_STACK)
 		);
 	}
 
+	/**
+	 * Строит правило перезаписи, которое конвертирует тип {@code ENTITY_EQUIPMENT}
+	 * из единого списка {@code Equipment} в четыре отдельных поля нового формата.
+	 *
+	 * @param oldItemType тип предмета во входной схеме
+	 * @param newItemType тип предмета в выходной схеме
+	 * @param <ItemStackOld> параметр типа предмета старой схемы
+	 * @param <ItemStackNew> параметр типа предмета новой схемы
+	 * @return составное правило перезаписи
+	 */
 	private <ItemStackOld, ItemStackNew> TypeRewriteRule fixEquipment(
-			Type<ItemStackOld> type,
-			Type<ItemStackNew> type2
+			Type<ItemStackOld> oldItemType,
+			Type<ItemStackNew> newItemType
 	) {
-		Type<Pair<String, Either<List<ItemStackOld>, Unit>>> type3 = DSL.named(
-				TypeReferences.ENTITY_EQUIPMENT.typeName(), DSL.optional(DSL.field("Equipment", DSL.list(type)))
+		Type<Pair<String, Either<List<ItemStackOld>, Unit>>> inputEquipmentType = DSL.named(
+				TypeReferences.ENTITY_EQUIPMENT.typeName(),
+				DSL.optional(DSL.field("Equipment", DSL.list(oldItemType)))
 		);
 		Type<Pair<String, Pair<Either<List<ItemStackNew>, Unit>, Pair<Either<List<ItemStackNew>, Unit>, Pair<Either<ItemStackNew, Unit>, Either<ItemStackNew, Unit>>>>>>
-				type4 =
-				DSL.named(
-						TypeReferences.ENTITY_EQUIPMENT.typeName(),
-						DSL.and(
-								DSL.optional(DSL.field("ArmorItems", DSL.list(type2))),
-								DSL.optional(DSL.field("HandItems", DSL.list(type2))),
-								DSL.optional(DSL.field("body_armor_item", type2)),
-								DSL.optional(DSL.field("saddle", type2))
-						)
-				);
-		if (!type3.equals(this.getInputSchema().getType(TypeReferences.ENTITY_EQUIPMENT))) {
+				outputEquipmentType = DSL.named(
+				TypeReferences.ENTITY_EQUIPMENT.typeName(),
+				DSL.and(
+						DSL.optional(DSL.field("ArmorItems", DSL.list(newItemType))),
+						DSL.optional(DSL.field("HandItems", DSL.list(newItemType))),
+						DSL.optional(DSL.field("body_armor_item", newItemType)),
+						DSL.optional(DSL.field("saddle", newItemType))
+				)
+		);
+
+		if (!inputEquipmentType.equals(getInputSchema().getType(TypeReferences.ENTITY_EQUIPMENT))) {
 			throw new IllegalStateException("Input entity_equipment type does not match expected");
 		}
-		else if (!type4.equals(this.getOutputSchema().getType(TypeReferences.ENTITY_EQUIPMENT))) {
+
+		if (!outputEquipmentType.equals(getOutputSchema().getType(TypeReferences.ENTITY_EQUIPMENT))) {
 			throw new IllegalStateException("Output entity_equipment type does not match expected");
 		}
-		else {
-			return TypeRewriteRule.seq(
-					this.fixTypeEverywhereTyped(
-							"EntityEquipmentToArmorAndHandFix - drop chances",
-							this.getInputSchema().getType(TypeReferences.ENTITY),
-							typed -> typed.update(DSL.remainderFinder(), EntityEquipmentToArmorAndHandFix::fixEquipmentData)
-					),
-					this.fixTypeEverywhere(
-							"EntityEquipmentToArmorAndHandFix - equipment",
-							type3,
-							type4,
-							dynamicOps -> {
-								ItemStackNew
-										object =
-										(ItemStackNew) ((Pair) type2.read(new Dynamic<>(dynamicOps).emptyMap())
-										                            .result()
-										                            .orElseThrow(() -> new IllegalStateException(
-												                            "Could not parse newly created empty itemstack."))
-										)
-												.getFirst();
-								Either<ItemStackNew, Unit> either = Either.right(DSL.unit());
-								return pair -> pair.mapSecond(either2 -> {
-									List<ItemStackOld>
-											list =
-											(List<ItemStackOld>) either2.map(Function.identity(), unit -> List.of());
-									Either<List<ItemStackNew>, Unit> either3 = Either.right(DSL.unit());
-									Either<List<ItemStackNew>, Unit> either4 = Either.right(DSL.unit());
-									if (!list.isEmpty()) {
-										either3 =
-												Either.left(new java.util.ArrayList<>(java.util.Arrays.asList(
-														(ItemStackNew) list.getFirst(),
-														object
-												)));
+
+		return TypeRewriteRule.seq(
+				fixTypeEverywhereTyped(
+						"EntityEquipmentToArmorAndHandFix - drop chances",
+						getInputSchema().getType(TypeReferences.ENTITY),
+						typed -> typed.update(DSL.remainderFinder(), EntityEquipmentToArmorAndHandFix::fixEquipmentData)
+				),
+				fixTypeEverywhere(
+						"EntityEquipmentToArmorAndHandFix - equipment",
+						inputEquipmentType,
+						outputEquipmentType,
+						dynamicOps -> {
+							ItemStackNew emptyItem = (ItemStackNew) ((Pair) newItemType
+									.read(new Dynamic<>(dynamicOps).emptyMap())
+									.result()
+									.orElseThrow(() -> new IllegalStateException(
+											"Could not parse newly created empty itemstack."
+									)))
+									.getFirst();
+
+							Either<ItemStackNew, Unit> absentItem = Either.right(DSL.unit());
+
+							return pair -> pair.mapSecond(equipmentEither -> {
+								List<ItemStackOld> equipment = (List<ItemStackOld>) equipmentEither.map(
+										Function.identity(),
+										unit -> List.of()
+								);
+
+								Either<List<ItemStackNew>, Unit> handItems = Either.right(DSL.unit());
+								Either<List<ItemStackNew>, Unit> armorItems = Either.right(DSL.unit());
+
+								if (!equipment.isEmpty()) {
+									handItems = Either.left(new ArrayList<>(Arrays.asList(
+											(ItemStackNew) equipment.getFirst(),
+											emptyItem
+									)));
+								}
+
+								if (equipment.size() > 1) {
+									List<ItemStackNew> armorSlots = Lists.newArrayList(
+											emptyItem,
+											emptyItem,
+											emptyItem,
+											emptyItem
+									);
+
+									for (int slotIndex = 1; slotIndex < Math.min(equipment.size(), 5); slotIndex++) {
+										armorSlots.set(slotIndex - 1, (ItemStackNew) equipment.get(slotIndex));
 									}
 
-									if (list.size() > 1) {
-										List<ItemStackNew>
-												list2 =
-												Lists.<ItemStackNew>newArrayList(object, object, object, object);
+									armorItems = Either.left(armorSlots);
+								}
 
-										for (int i = 1; i < Math.min(list.size(), 5); i++) {
-											list2.set(i - 1, (ItemStackNew) list.get(i));
-										}
+								return Pair.of(armorItems, Pair.of(handItems, Pair.of(absentItem, absentItem)));
+							});
+						}
+				)
+		);
+	}
 
-										either4 = Either.left(list2);
-									}
+	private static Dynamic<?> fixEquipmentData(Dynamic<?> entity) {
+		Optional<? extends Stream<? extends Dynamic<?>>> dropChances = entity.get("DropChances").asStreamOpt().result();
+		entity = entity.remove("DropChances");
 
-									return Pair.of(either4, Pair.of(either3, Pair.of(either, either)));
-								});
-							}
+		if (dropChances.isEmpty()) {
+			return entity;
+		}
+
+		Iterator<Float> chances = Stream
+				.concat(dropChances.get().map(d -> d.asFloat(0.0F)), Stream.generate(() -> 0.0F))
+				.iterator();
+
+		float mainHandChance = chances.next();
+
+		if (entity.get("HandDropChances").result().isEmpty()) {
+			entity = entity.set(
+					"HandDropChances",
+					entity.createList(Stream.of(mainHandChance, 0.0F).map(entity::createFloat))
+			);
+		}
+
+		if (entity.get("ArmorDropChances").result().isEmpty()) {
+			entity = entity.set(
+					"ArmorDropChances",
+					entity.createList(
+							Stream.of(chances.next(), chances.next(), chances.next(), chances.next())
+									.map(entity::createFloat)
 					)
 			);
 		}
-	}
 
-	private static Dynamic<?> fixEquipmentData(Dynamic<?> dynamic) {
-		Optional<? extends Stream<? extends Dynamic<?>>> optional = dynamic.get("DropChances").asStreamOpt().result();
-		dynamic = dynamic.remove("DropChances");
-		if (optional.isPresent()) {
-			Iterator<Float>
-					iterator =
-					Stream
-							.concat(optional.get().map(dynamicx -> dynamicx.asFloat(0.0F)), Stream.generate(() -> 0.0F))
-							.iterator();
-			float f = iterator.next();
-			if (dynamic.get("HandDropChances").result().isEmpty()) {
-				dynamic =
-						dynamic.set(
-								"HandDropChances",
-								dynamic.createList(Stream.of(f, 0.0F).map(dynamic::createFloat))
-						);
-			}
-
-			if (dynamic.get("ArmorDropChances").result().isEmpty()) {
-				dynamic = dynamic.set(
-						"ArmorDropChances",
-						dynamic.createList(Stream
-								.of(iterator.next(), iterator.next(), iterator.next(), iterator.next())
-								.map(dynamic::createFloat))
-				);
-			}
-		}
-
-		return dynamic;
+		return entity;
 	}
 }

@@ -11,33 +11,35 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * {@code PlayerSkinType}.
+ * Тип модели скина игрока: тонкая (slim) или широкая (wide/default).
+ * Определяет форму рук в 3D-модели.
  */
 public enum PlayerSkinType implements StringIdentifiable {
+
 	SLIM("slim", "slim"),
 	WIDE("wide", "default");
 
 	public static final Codec<PlayerSkinType> CODEC = StringIdentifiable.createCodec(PlayerSkinType::values);
-	private static final Function<String, PlayerSkinType> BY_MODEL_METADATA = StringIdentifiable.createMapper(
-			values(), playerSkinType -> playerSkinType.modelMetadata
-	);
-	public static final PacketCodec<ByteBuf, PlayerSkinType>
-			PACKET_CODEC =
-			PacketCodecs.BOOLEAN.xmap(slim -> slim ? SLIM : WIDE, model -> model == SLIM);
+	public static final PacketCodec<ByteBuf, PlayerSkinType> PACKET_CODEC =
+		PacketCodecs.BOOLEAN.xmap(slim -> slim ? SLIM : WIDE, model -> model == SLIM);
+
+	private static final Function<String, PlayerSkinType> BY_MODEL_METADATA =
+		StringIdentifiable.createMapper(values(), playerSkinType -> playerSkinType.modelMetadata);
+
 	private final String name;
 	private final String modelMetadata;
 
-	private PlayerSkinType(final String name, final String modelMetadata) {
+	PlayerSkinType(String name, String modelMetadata) {
 		this.name = name;
 		this.modelMetadata = modelMetadata;
 	}
 
 	/**
-	 * By model metadata.
+	 * Возвращает тип скина по строке метаданных модели из текстур профиля.
+	 * Если метаданные не распознаны или {@code null} — возвращает {@link #WIDE}.
 	 *
-	 * @param modelMetadata model metadata
-	 *
-	 * @return PlayerSkinType — результат операции
+	 * @param modelMetadata строка метаданных (например, {@code "slim"} или {@code "default"})
+	 * @return соответствующий тип скина
 	 */
 	public static PlayerSkinType byModelMetadata(@Nullable String modelMetadata) {
 		return Objects.requireNonNullElse(BY_MODEL_METADATA.apply(modelMetadata), WIDE);
@@ -45,6 +47,6 @@ public enum PlayerSkinType implements StringIdentifiable {
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

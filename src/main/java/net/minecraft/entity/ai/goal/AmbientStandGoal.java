@@ -4,28 +4,32 @@ import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.sound.SoundEvent;
 
 /**
- * {@code AmbientStandGoal}.
+ * Цель лошади, периодически встающей на дыбы с воспроизведением звука.
+ * Вероятность активации управляется кулдауном и случайным шансом {@code STAND_CHANCE}.
  */
 public class AmbientStandGoal extends Goal {
+
+	private static final int STAND_CHANCE = 10;
+	private static final int COOLDOWN_THRESHOLD = 1000;
 
 	private final AbstractHorseEntity entity;
 	private int cooldown;
 
 	public AmbientStandGoal(AbstractHorseEntity entity) {
 		this.entity = entity;
-		this.resetCooldown(entity);
+		resetCooldown(entity);
 	}
 
 	@Override
 	public void start() {
-		this.entity.updateAnger();
-		this.playAmbientStandSound();
+		entity.updateAnger();
+		playAmbientStandSound();
 	}
 
 	private void playAmbientStandSound() {
-		SoundEvent soundEvent = this.entity.getAmbientStandSound();
-		if (soundEvent != null) {
-			this.entity.playSoundIfNotSilent(soundEvent);
+		SoundEvent sound = entity.getAmbientStandSound();
+		if (sound != null) {
+			entity.playSoundIfNotSilent(sound);
 		}
 	}
 
@@ -36,18 +40,17 @@ public class AmbientStandGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		this.cooldown++;
-		if (this.cooldown > 0 && this.entity.getRandom().nextInt(1000) < this.cooldown) {
-			this.resetCooldown(this.entity);
-			return !this.entity.isImmobile() && this.entity.getRandom().nextInt(10) == 0;
+		cooldown++;
+		if (cooldown > 0 && entity.getRandom().nextInt(COOLDOWN_THRESHOLD) < cooldown) {
+			resetCooldown(entity);
+			return !entity.isImmobile() && entity.getRandom().nextInt(STAND_CHANCE) == 0;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
-	private void resetCooldown(AbstractHorseEntity entity) {
-		this.cooldown = -entity.getMinAmbientStandDelay();
+	private void resetCooldown(AbstractHorseEntity horse) {
+		cooldown = -horse.getMinAmbientStandDelay();
 	}
 
 	@Override

@@ -25,137 +25,144 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code StructurePool}.
+ * Пул структурных элементов для jigsaw-генерации.
+ * Хранит взвешенный список {@link StructurePoolElement} и ссылку на резервный пул {@code fallback},
+ * используемый когда ни один элемент текущего пула не подходит для размещения.
  */
 public class StructurePool {
 
-	private static final int DEFAULT_Y = Integer.MIN_VALUE;
-	private static final MutableObject<Codec<RegistryEntry<StructurePool>>> FALLBACK = new MutableObject();
+	private static final int UNSET_HIGHEST_Y = Integer.MIN_VALUE;
+	private static final MutableObject<Codec<RegistryEntry<StructurePool>>> FALLBACK_CODEC_REF = new MutableObject<>();
+
 	public static final Codec<StructurePool> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Codec.lazyInitialized(FALLBACK).fieldOf("fallback").forGetter(StructurePool::getFallback),
-					                    Codec
-							                    .mapPair(
-									                    StructurePoolElement.CODEC.fieldOf("element"),
-									                    Codec.intRange(1, 150).fieldOf("weight")
-							                    )
-							                    .codec()
-							                    .listOf()
-							                    .fieldOf("elements")
-							                    .forGetter(pool -> pool.elementWeights)
-			                    )
-			                    .apply(instance, StructurePool::new)
+		instance -> instance.group(
+			Codec.lazyInitialized(FALLBACK_CODEC_REF).fieldOf("fallback").forGetter(StructurePool::getFallback),
+			Codec.mapPair(
+				StructurePoolElement.CODEC.fieldOf("element"),
+				Codec.intRange(1, 150).fieldOf("weight")
+			).codec().listOf().fieldOf("elements").forGetter(pool -> pool.elementWeights)
+		).apply(instance, StructurePool::new)
 	);
+
 	public static final Codec<RegistryEntry<StructurePool>> REGISTRY_CODEC = Util.make(
-			RegistryElementCodec.of(RegistryKeys.TEMPLATE_POOL, CODEC), FALLBACK::setValue
+		RegistryElementCodec.of(RegistryKeys.TEMPLATE_POOL, CODEC),
+		FALLBACK_CODEC_REF::setValue
 	);
+
 	private final List<Pair<StructurePoolElement, Integer>> elementWeights;
 	private final ObjectArrayList<StructurePoolElement> elements;
 	private final RegistryEntry<StructurePool> fallback;
-	private int highestY = Integer.MIN_VALUE;
+	private int highestY = UNSET_HIGHEST_Y;
 
-	public StructurePool(
-			RegistryEntry<StructurePool> fallback,
-			List<Pair<StructurePoolElement, Integer>> elementWeights
-	) {
+	/**
+	 * Создаёт пул из взвешенного списка элементов.
+	 * Каждый элемент добавляется в плоский список {@code elements} столько раз, каков его вес,
+	 * что позволяет выбирать случайный элемент через {@code random.nextInt(size)}.
+	 */
+	public StructurePool(RegistryEntry<StructurePool> fallback, List<Pair<StructurePoolElement, Integer>> elementWeights) {
 		this.elementWeights = elementWeights;
-		this.elements = new ObjectArrayList();
+		elements = new ObjectArrayList<>();
+		this.fallback = fallback;
 
 		for (Pair<StructurePoolElement, Integer> pair : elementWeights) {
-			StructurePoolElement structurePoolElement = (StructurePoolElement) pair.getFirst();
-
-			for (int i = 0; i < pair.getSecond(); i++) {
-				this.elements.add(structurePoolElement);
+			StructurePoolElement element = pair.getFirst();
+			int weight = pair.getSecond();
+			for (int i = 0; i < weight; i++) {
+				elements.add(element);
 			}
 		}
-
-		this.fallback = fallback;
 	}
 
+	/**
+	 * Создаёт пул из фабричных функций элементов с заданной проекцией.
+	 * Используется при программном создании пулов в датагенераторах.
+	 */
 	public StructurePool(
-			RegistryEntry<StructurePool> fallback,
-			List<Pair<Function<StructurePool.Projection, ? extends StructurePoolElement>, Integer>> elementWeightsByGetters,
-			StructurePool.Projection projection
+		RegistryEntry<StructurePool> fallback,
+		List<Pair<Function<StructurePool.Projection, ? extends StructurePoolElement>, Integer>> elementGetters,
+		StructurePool.Projection projection
 	) {
-		this.elementWeights = Lists.newArrayList();
-		this.elements = new ObjectArrayList();
+		elementWeights = Lists.newArrayList();
+		elements = new ObjectArrayList<>();
+		this.fallback = fallback;
 
-		for (Pair<Function<StructurePool.Projection, ? extends StructurePoolElement>, Integer> pair : elementWeightsByGetters) {
-			StructurePoolElement
-					structurePoolElement =
-					(StructurePoolElement) ((Function) pair.getFirst()).apply(projection);
-			this.elementWeights.add(Pair.of(structurePoolElement, (Integer) pair.getSecond()));
-
-			for (int i = 0; i < pair.getSecond(); i++) {
-				this.elements.add(structurePoolElement);
+		for (Pair<Function<StructurePool.Projection, ? extends StructurePoolElement>, Integer> pair : elementGetters) {
+			StructurePoolElement element = pair.getFirst().apply(projection);
+			int weight = pair.getSecond();
+			elementWeights.add(Pair.of(element, weight));
+			for (int i = 0; i < weight; i++) {
+				elements.add(element);
 			}
 		}
-
-		this.fallback = fallback;
 	}
 
+	/**
+	 * Возвращает максимальную высоту (в блоках) среди всех элементов пула.
+	 * Результат кэшируется после первого вычисления.
+	 */
 	public int getHighestY(StructureTemplateManager structureTemplateManager) {
-		if (this.highestY == Integer.MIN_VALUE) {
-			this.highestY = this.elements
-					.stream()
-					.filter(element -> element != EmptyPoolElement.INSTANCE)
-					.mapToInt(element -> element
-							.getBoundingBox(structureTemplateManager, BlockPos.ORIGIN, BlockRotation.NONE)
-							.getBlockCountY())
-					.max()
-					.orElse(0);
+		if (highestY == UNSET_HIGHEST_Y) {
+			highestY = elements.stream()
+				.filter(element -> element != EmptyPoolElement.INSTANCE)
+				.mapToInt(element -> element
+					.getBoundingBox(structureTemplateManager, BlockPos.ORIGIN, BlockRotation.NONE)
+					.getBlockCountY()
+				)
+				.max()
+				.orElse(0);
 		}
 
-		return this.highestY;
+		return highestY;
 	}
 
 	@VisibleForTesting
 	public List<Pair<StructurePoolElement, Integer>> getElementWeights() {
-		return this.elementWeights;
+		return elementWeights;
 	}
 
 	public RegistryEntry<StructurePool> getFallback() {
-		return this.fallback;
+		return fallback;
 	}
 
 	public StructurePoolElement getRandomElement(Random random) {
-		return (StructurePoolElement) (this.elements.isEmpty()
-		                               ? EmptyPoolElement.INSTANCE
-		                               : (StructurePoolElement) this.elements.get(random.nextInt(this.elements.size()))
-		);
+		return elements.isEmpty()
+			? EmptyPoolElement.INSTANCE
+			: elements.get(random.nextInt(elements.size()));
 	}
 
 	public List<StructurePoolElement> getElementIndicesInRandomOrder(Random random) {
-		return Util.copyShuffled(this.elements, random);
+		return Util.copyShuffled(elements, random);
 	}
 
 	public int getElementCount() {
-		return this.elements.size();
+		return elements.size();
 	}
 
 	/**
-	 * {@code Projection}.
+	 * Режим проекции элемента пула на рельеф.
+	 * {@code TERRAIN_MATCHING} применяет {@link GravityStructureProcessor} для подгонки под поверхность,
+	 * {@code RIGID} размещает элемент без изменений по высоте.
 	 */
-	public static enum Projection implements StringIdentifiable {
+	public enum Projection implements StringIdentifiable {
 		TERRAIN_MATCHING(
-				"terrain_matching",
-				ImmutableList.of(new GravityStructureProcessor(Heightmap.Type.WORLD_SURFACE_WG, -1))
+			"terrain_matching",
+			ImmutableList.of(new GravityStructureProcessor(Heightmap.Type.WORLD_SURFACE_WG, -1))
 		),
 		RIGID("rigid", ImmutableList.of());
 
-		public static final StringIdentifiable.EnumCodec<StructurePool.Projection>
-				CODEC =
-				StringIdentifiable.createCodec(StructurePool.Projection::values);
+		public static final StringIdentifiable.EnumCodec<StructurePool.Projection> CODEC =
+			StringIdentifiable.createCodec(StructurePool.Projection::values);
+
 		private final String id;
 		private final ImmutableList<StructureProcessor> processors;
 
-		private Projection(final String id, final ImmutableList<StructureProcessor> processors) {
+		Projection(String id, ImmutableList<StructureProcessor> processors) {
 			this.id = id;
 			this.processors = processors;
 		}
 
 		public String getId() {
-			return this.id;
+			return id;
 		}
 
 		public static StructurePool.Projection getById(String id) {
@@ -163,12 +170,12 @@ public class StructurePool {
 		}
 
 		public ImmutableList<StructureProcessor> getProcessors() {
-			return this.processors;
+			return processors;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 }

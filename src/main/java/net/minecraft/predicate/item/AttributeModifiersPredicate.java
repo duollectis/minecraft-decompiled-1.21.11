@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code AttributeModifiersPredicate}.
+ * Предикат для проверки модификаторов атрибутов предмета.
  */
 public record AttributeModifiersPredicate(
 		Optional<CollectionPredicate<AttributeModifiersComponent.Entry, AttributeModifiersPredicate.AttributeModifierPredicate>> modifiers
@@ -28,11 +28,11 @@ public record AttributeModifiersPredicate(
 
 	public static final Codec<AttributeModifiersPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    CollectionPredicate.createCodec(AttributeModifiersPredicate.AttributeModifierPredicate.CODEC)
-					                                       .optionalFieldOf("modifiers")
-					                                       .forGetter(AttributeModifiersPredicate::modifiers)
-			                    )
-			                    .apply(instance, AttributeModifiersPredicate::new)
+					CollectionPredicate.createCodec(AttributeModifiersPredicate.AttributeModifierPredicate.CODEC)
+							.optionalFieldOf("modifiers")
+							.forGetter(AttributeModifiersPredicate::modifiers)
+			)
+			.apply(instance, AttributeModifiersPredicate::new)
 	);
 
 	@Override
@@ -40,12 +40,12 @@ public record AttributeModifiersPredicate(
 		return DataComponentTypes.ATTRIBUTE_MODIFIERS;
 	}
 
-	public boolean test(AttributeModifiersComponent attributeModifiersComponent) {
-		return !this.modifiers.isPresent() || this.modifiers.get().test(attributeModifiersComponent.modifiers());
+	public boolean test(AttributeModifiersComponent component) {
+		return modifiers.isEmpty() || modifiers.get().test(component.modifiers());
 	}
 
 	/**
-	 * {@code AttributeModifierPredicate}.
+	 * Предикат для одной записи модификатора атрибута.
 	 */
 	public record AttributeModifierPredicate(
 			Optional<RegistryEntryList<EntityAttribute>> attribute,
@@ -55,47 +55,45 @@ public record AttributeModifiersPredicate(
 			Optional<AttributeModifierSlot> slot
 	) implements Predicate<AttributeModifiersComponent.Entry> {
 
-		public static final Codec<AttributeModifiersPredicate.AttributeModifierPredicate>
-				CODEC =
-				RecordCodecBuilder.create(
-						instance -> instance.group(
-								                    RegistryCodecs.entryList(RegistryKeys.ATTRIBUTE)
-								                                  .optionalFieldOf("attribute")
-								                                  .forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::attribute),
-								                    Identifier.CODEC
-										                    .optionalFieldOf("id")
-										                    .forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::id),
-								                    NumberRange.DoubleRange.CODEC
-										                    .optionalFieldOf("amount", NumberRange.DoubleRange.ANY)
-										                    .forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::amount),
-								                    EntityAttributeModifier.Operation.CODEC
-										                    .optionalFieldOf("operation")
-										                    .forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::operation),
-								                    AttributeModifierSlot.CODEC
-										                    .optionalFieldOf("slot")
-										                    .forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::slot)
-						                    )
-						                    .apply(
-								                    instance,
-								                    AttributeModifiersPredicate.AttributeModifierPredicate::new
-						                    )
-				);
+		public static final Codec<AttributeModifiersPredicate.AttributeModifierPredicate> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						RegistryCodecs.entryList(RegistryKeys.ATTRIBUTE)
+								.optionalFieldOf("attribute")
+								.forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::attribute),
+						Identifier.CODEC
+								.optionalFieldOf("id")
+								.forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::id),
+						NumberRange.DoubleRange.CODEC
+								.optionalFieldOf("amount", NumberRange.DoubleRange.ANY)
+								.forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::amount),
+						EntityAttributeModifier.Operation.CODEC
+								.optionalFieldOf("operation")
+								.forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::operation),
+						AttributeModifierSlot.CODEC
+								.optionalFieldOf("slot")
+								.forGetter(AttributeModifiersPredicate.AttributeModifierPredicate::slot)
+				)
+				.apply(instance, AttributeModifiersPredicate.AttributeModifierPredicate::new)
+		);
 
 		public boolean test(AttributeModifiersComponent.Entry entry) {
-			if (this.attribute.isPresent() && !this.attribute.get().contains(entry.attribute())) {
+			if (attribute.isPresent() && !attribute.get().contains(entry.attribute())) {
 				return false;
 			}
-			else if (this.id.isPresent() && !this.id.get().equals(entry.modifier().id())) {
+
+			if (id.isPresent() && !id.get().equals(entry.modifier().id())) {
 				return false;
 			}
-			else if (!this.amount.test(entry.modifier().value())) {
+
+			if (!amount.test(entry.modifier().value())) {
 				return false;
 			}
-			else {
-				return this.operation.isPresent() && this.operation.get() != entry.modifier().operation()
-				       ? false
-				       : !this.slot.isPresent() || this.slot.get() == entry.slot();
+
+			if (operation.isPresent() && operation.get() != entry.modifier().operation()) {
+				return false;
 			}
+
+			return slot.isEmpty() || slot.get() == entry.slot();
 		}
 	}
 }

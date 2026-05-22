@@ -6,12 +6,18 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code SaddledComponent}.
+ * Компонент управления ускорением (boost) для осёдланных сущностей (свиньи, страйдеры).
+ * Хранит состояние буста и вычисляет множитель скорости движения на основе синусоиды.
  */
 public class SaddledComponent {
 
 	private static final int MIN_BOOST_TIME = 140;
 	private static final int MAX_BOOST_TIME = 700;
+	/**
+	 * Диапазон случайной части длительности буста: MAX_BOOST_TIME - MIN_BOOST_TIME.
+	 * Используется в {@link Random#nextInt} для генерации случайного значения.
+	 */
+	private static final int BOOST_TIME_RANDOM_RANGE = 841;
 	private final DataTracker dataTracker;
 	private final TrackedData<Integer> boostTime;
 	private boolean boosted;
@@ -22,48 +28,41 @@ public class SaddledComponent {
 		this.boostTime = boostTime;
 	}
 
-	/**
-	 * Boost.
-	 */
 	public void boost() {
-		this.boosted = true;
-		this.boostedTime = 0;
+		boosted = true;
+		boostedTime = 0;
 	}
 
 	/**
-	 * Boost.
+	 * Активирует буст со случайной длительностью в диапазоне
+	 * [{@code MIN_BOOST_TIME}, {@code MIN_BOOST_TIME + BOOST_TIME_RANDOM_RANGE}].
 	 *
-	 * @param random random
-	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если буст успешно активирован, {@code false} если уже активен
 	 */
 	public boolean boost(Random random) {
-		if (this.boosted) {
+		if (boosted) {
 			return false;
 		}
-		else {
-			this.boosted = true;
-			this.boostedTime = 0;
-			this.dataTracker.set(this.boostTime, random.nextInt(841) + 140);
-			return true;
-		}
+
+		boosted = true;
+		boostedTime = 0;
+		dataTracker.set(boostTime, random.nextInt(BOOST_TIME_RANDOM_RANGE) + MIN_BOOST_TIME);
+		return true;
 	}
 
-	/**
-	 * Выполняет тик обновления для boost.
-	 */
 	public void tickBoost() {
-		if (this.boosted && this.boostedTime++ > this.getBoostTime()) {
-			this.boosted = false;
+		if (boosted && boostedTime++ > getBoostTime()) {
+			boosted = false;
 		}
 	}
 
 	public float getMovementSpeedMultiplier() {
-		return this.boosted ? 1.0F + 1.15F * MathHelper.sin(
-				(float) this.boostedTime / this.getBoostTime() * (float) Math.PI) : 1.0F;
+		return boosted
+				? 1.0F + 1.15F * MathHelper.sin((float) boostedTime / getBoostTime() * (float) Math.PI)
+				: 1.0F;
 	}
 
 	private int getBoostTime() {
-		return this.dataTracker.get(this.boostTime);
+		return dataTracker.get(boostTime);
 	}
 }

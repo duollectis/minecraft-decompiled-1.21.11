@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema106}.
+ * Схема версии 106: регистрирует тип {@code UNTAGGED_SPAWNER} с полями
+ * {@code SpawnPotentials} и {@code SpawnData}, описывающими список
+ * возможных спавнов и текущие данные спавна мобов из спавнера.
  */
 public class Schema106 extends Schema {
 

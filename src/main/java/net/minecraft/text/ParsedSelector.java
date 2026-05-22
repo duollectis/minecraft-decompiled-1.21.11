@@ -8,43 +8,42 @@ import net.minecraft.command.EntitySelector;
 import net.minecraft.command.EntitySelectorReader;
 
 /**
- * {@code ParsedSelector}.
+ * Разобранный селектор сущностей (например, {@code @a}, {@code @p[distance=..5]}).
+ * Хранит исходную строку и скомпилированный {@link EntitySelector} для выполнения запросов.
+ * Равенство определяется только по исходной строке.
  */
-public record ParsedSelector(String comp_3067, EntitySelector comp_3068) {
+public record ParsedSelector(String raw, EntitySelector selector) {
 
-	public static final Codec<ParsedSelector>
-			CODEC =
-			Codec.STRING.comapFlatMap(ParsedSelector::parse, ParsedSelector::comp_3067);
+	public static final Codec<ParsedSelector> CODEC =
+		Codec.STRING.comapFlatMap(ParsedSelector::parse, ParsedSelector::raw);
 
 	/**
-	 * Parse.
+	 * Разбирает строку селектора сущностей.
 	 *
-	 * @param selector selector
-	 *
-	 * @return DataResult — результат операции
+	 * @param selector строка селектора (например, {@code @a} или {@code @e[type=zombie]})
+	 * @return успешный результат с {@link ParsedSelector} или ошибка с описанием
 	 */
 	public static DataResult<ParsedSelector> parse(String selector) {
 		try {
-			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(new StringReader(selector), true);
-			return DataResult.success(new ParsedSelector(selector, entitySelectorReader.read()));
-		}
-		catch (CommandSyntaxException var2) {
-			return DataResult.error(() -> "Invalid selector component: " + selector + ": " + var2.getMessage());
+			EntitySelectorReader reader = new EntitySelectorReader(new StringReader(selector), true);
+			return DataResult.success(new ParsedSelector(selector, reader.read()));
+		} catch (CommandSyntaxException e) {
+			return DataResult.error(() -> "Invalid selector component: " + selector + ": " + e.getMessage());
 		}
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return o instanceof ParsedSelector parsedSelector && this.comp_3067.equals(parsedSelector.comp_3067);
+		return o instanceof ParsedSelector other && raw.equals(other.raw);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.comp_3067.hashCode();
+		return raw.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.comp_3067;
+		return raw;
 	}
 }

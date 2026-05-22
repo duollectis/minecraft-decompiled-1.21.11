@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code ContextLootScoreProvider}.
+ * Провайдер очков таблицы лута, разрешающий держателя очков через контекст лута
+ * по ссылке на сущность (например, {@code THIS}, {@code KILLER}, {@code DIRECT_KILLER}).
  */
 public record ContextLootScoreProvider(LootContext.EntityReference target) implements LootScoreProvider {
 
@@ -25,13 +26,6 @@ public record ContextLootScoreProvider(LootContext.EntityReference target) imple
 	public static final Codec<ContextLootScoreProvider> INLINE_CODEC = LootContext.EntityReference.CODEC
 			.xmap(ContextLootScoreProvider::new, ContextLootScoreProvider::target);
 
-	/**
-	 * Create.
-	 *
-	 * @param target target
-	 *
-	 * @return LootScoreProvider — результат операции
-	 */
 	public static LootScoreProvider create(LootContext.EntityReference target) {
 		return new ContextLootScoreProvider(target);
 	}
@@ -43,11 +37,11 @@ public record ContextLootScoreProvider(LootContext.EntityReference target) imple
 
 	@Override
 	public @Nullable ScoreHolder getScoreHolder(LootContext context) {
-		return context.get(this.target.contextParam());
+		return context.get(target.contextParam());
 	}
 
 	@Override
 	public Set<ContextParameter<?>> getRequiredParameters() {
-		return Set.of(this.target.contextParam());
+		return Set.of(target.contextParam());
 	}
 }

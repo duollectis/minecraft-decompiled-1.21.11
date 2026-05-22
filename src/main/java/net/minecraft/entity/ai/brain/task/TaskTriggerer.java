@@ -16,22 +16,24 @@ import net.minecraft.server.world.ServerWorld;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
- * {@code TaskTriggerer}.
+ * Аппликативный функтор для построения условий запуска задач мозга.
+ * Позволяет декларативно комбинировать запросы к памяти мозга и предикаты
+ * для создания {@link SingleTickTask} через фабричные методы {@link #task} и {@link #runIf}.
+ *
+ * @param <E> тип сущности
+ * @param <M> тип результата функции-триггера
  */
 public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTriggerer.K1<E>, M> {
 
 	private final TaskTriggerer.TaskFunction<E, M> function;
 
-	/**
-	 * Cast.
-	 *
-	 * @param app app
-	 *
-	 * @return TaskTriggerer — результат операции
-	 */
 	public static <E extends LivingEntity, M> TaskTriggerer<E, M> cast(App<TaskTriggerer.K1<E>, M> app) {
 		return (TaskTriggerer<E, M>) app;
 	}
@@ -43,14 +45,14 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 	public static <E extends LivingEntity> SingleTickTask<E> task(
 			Function<TaskTriggerer.TaskContext<E>, ? extends App<TaskTriggerer.K1<E>, TaskRunnable<E>>> creator
 	) {
-		final TaskTriggerer.TaskFunction<E, TaskRunnable<E>>
-				taskFunction =
+		final TaskTriggerer.TaskFunction<E, TaskRunnable<E>> taskFunction =
 				getFunction((App<TaskTriggerer.K1<E>, TaskRunnable<E>>) creator.apply(newContext()));
+
 		return new SingleTickTask<E>() {
 			@Override
-			public boolean trigger(ServerWorld serverWorld, E livingEntity, long l) {
-				TaskRunnable<E> taskRunnable = taskFunction.run(serverWorld, livingEntity, l);
-				return taskRunnable == null ? false : taskRunnable.trigger(serverWorld, livingEntity, l);
+			public boolean trigger(ServerWorld world, E entity, long time) {
+				TaskRunnable<E> taskRunnable = taskFunction.run(world, entity, time);
+				return taskRunnable != null && taskRunnable.trigger(world, entity, time);
 			}
 
 			@Override
@@ -60,7 +62,7 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 			@Override
 			public String toString() {
-				return this.getName();
+				return getName();
 			}
 		};
 	}
@@ -79,24 +81,10 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 		return runIf(predicate(predicate), task);
 	}
 
-	/**
-	 * Predicate.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static <E extends LivingEntity> SingleTickTask<E> predicate(Predicate<E> predicate) {
 		return task(context -> context.point((world, entity, time) -> predicate.test(entity)));
 	}
 
-	/**
-	 * Predicate.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static <E extends LivingEntity> SingleTickTask<E> predicate(BiPredicate<ServerWorld, E> predicate) {
 		return task(context -> context.point((world, entity, time) -> predicate.test(world, entity)));
 	}
@@ -113,31 +101,16 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 		return new TaskTriggerer<>(function);
 	}
 
-	/**
-	 * {@code K1}.
-	 */
 	public static final class K1<E extends LivingEntity> implements com.mojang.datafixers.kinds.K1 {
 	}
 
-	/**
-	 * {@code QueryMemory}.
-	 */
 	static final class QueryMemory<E extends LivingEntity, F extends com.mojang.datafixers.kinds.K1, Value>
 			extends TaskTriggerer<E, MemoryQueryResult<F, Value>> {
 
 		QueryMemory(MemoryQuery<F, Value> query) {
 			super(new TaskTriggerer.TaskFunction<E, MemoryQueryResult<F, Value>>() {
-				/**
-				 * Run.
-				 *
-				 * @param serverWorld server world
-				 * @param livingEntity living entity
-				 * @param l l
-				 *
-				 * @return @Nullable MemoryQueryResult — результат операции
-				 */
-				public @Nullable MemoryQueryResult<F, Value> run(ServerWorld serverWorld, E livingEntity, long l) {
-					Brain<?> brain = livingEntity.getBrain();
+				public @Nullable MemoryQueryResult<F, Value> run(ServerWorld world, E entity, long time) {
+					Brain<?> brain = entity.getBrain();
 					Optional<Value> optional = brain.getOptionalMemory(query.memory());
 					return optional == null ? null : query.toQueryResult(brain, optional);
 				}
@@ -149,15 +122,12 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 				@Override
 				public String toString() {
-					return this.asString();
+					return asString();
 				}
 			});
 		}
 	}
 
-	/**
-	 * {@code Supply}.
-	 */
 	static final class Supply<E extends LivingEntity, A> extends TaskTriggerer<E, A> {
 
 		Supply(A value) {
@@ -178,15 +148,12 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 				@Override
 				public String toString() {
-					return this.asString();
+					return asString();
 				}
 			});
 		}
 	}
 
-	/**
-	 * {@code TaskContext}.
-	 */
 	public static final class TaskContext<E extends LivingEntity> implements Applicative<TaskTriggerer.K1<E>, TaskTriggerer.TaskContext.Mu<E>> {
 
 		public <Value> Optional<Value> getOptionalValue(MemoryQueryResult<com.mojang.datafixers.kinds.OptionalBox.Mu, Value> result) {
@@ -215,46 +182,24 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 			return new TaskTriggerer.QueryMemory<>(new MemoryQuery.Absent<>(type));
 		}
 
-		/**
-		 * Trigger.
-		 *
-		 * @param runnable runnable
-		 *
-		 * @return TaskTriggerer — результат операции
-		 */
 		public TaskTriggerer<E, Unit> trigger(TaskRunnable<? super E> runnable) {
 			return new TaskTriggerer.Trigger<>(runnable);
 		}
 
-		/**
-		 * Point.
-		 *
-		 * @param object object
-		 *
-		 * @return TaskTriggerer — результат операции
-		 */
 		public <A> TaskTriggerer<E, A> point(A object) {
 			return new TaskTriggerer.Supply<>(object);
 		}
 
-		/**
-		 * Supply.
-		 *
-		 * @param nameSupplier name supplier
-		 * @param value value
-		 *
-		 * @return TaskTriggerer — результат операции
-		 */
 		public <A> TaskTriggerer<E, A> supply(Supplier<String> nameSupplier, A value) {
 			return new TaskTriggerer.Supply<>(value, nameSupplier);
 		}
 
 		public <A, R> Function<App<TaskTriggerer.K1<E>, A>, App<TaskTriggerer.K1<E>, R>> lift1(App<TaskTriggerer.K1<E>, Function<A, R>> app) {
 			return app2 -> {
-				final TaskTriggerer.TaskFunction<E, A>
-						taskFunction =
+				final TaskTriggerer.TaskFunction<E, A> taskFunction =
 						(TaskTriggerer.TaskFunction<E, A>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app2);
 				final TaskTriggerer.TaskFunction<E, Function<A, R>> taskFunction2 = TaskTriggerer.getFunction(app);
+
 				return TaskTriggerer.of(new TaskTriggerer.TaskFunction<E, R>() {
 					@Override
 					public R run(ServerWorld world, E entity, long time) {
@@ -262,10 +207,9 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 						if (object == null) {
 							return null;
 						}
-						else {
-							Function<A, R> function = (Function<A, R>) taskFunction2.run(world, entity, time);
-							return (R) (function == null ? null : function.apply(object));
-						}
+
+						Function<A, R> function = (Function<A, R>) taskFunction2.run(world, entity, time);
+						return function == null ? null : function.apply(object);
 					}
 
 					@Override
@@ -275,7 +219,7 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 					@Override
 					public String toString() {
-						return this.asString();
+						return asString();
 					}
 				});
 			};
@@ -285,9 +229,9 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 				Function<? super T, ? extends R> function,
 				App<TaskTriggerer.K1<E>, T> app
 		) {
-			final TaskTriggerer.TaskFunction<E, T>
-					taskFunction =
+			final TaskTriggerer.TaskFunction<E, T> taskFunction =
 					(TaskTriggerer.TaskFunction<E, T>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app);
+
 			return TaskTriggerer.of(new TaskTriggerer.TaskFunction<E, R>() {
 				@Override
 				public R run(ServerWorld world, E entity, long time) {
@@ -302,7 +246,7 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 				@Override
 				public String toString() {
-					return this.asString();
+					return asString();
 				}
 			});
 		}
@@ -312,13 +256,12 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 				App<TaskTriggerer.K1<E>, A> app2,
 				App<TaskTriggerer.K1<E>, B> app3
 		) {
-			final TaskTriggerer.TaskFunction<E, A>
-					taskFunction =
+			final TaskTriggerer.TaskFunction<E, A> taskFunction =
 					(TaskTriggerer.TaskFunction<E, A>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app2);
-			final TaskTriggerer.TaskFunction<E, B>
-					taskFunction2 =
+			final TaskTriggerer.TaskFunction<E, B> taskFunction2 =
 					(TaskTriggerer.TaskFunction<E, B>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app3);
 			final TaskTriggerer.TaskFunction<E, BiFunction<A, B, R>> taskFunction3 = TaskTriggerer.getFunction(app);
+
 			return TaskTriggerer.of(new TaskTriggerer.TaskFunction<E, R>() {
 				@Override
 				public R run(ServerWorld world, E entity, long time) {
@@ -326,16 +269,14 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 					if (object == null) {
 						return null;
 					}
-					else {
-						B object2 = taskFunction2.run(world, entity, time);
-						if (object2 == null) {
-							return null;
-						}
-						else {
-							BiFunction<A, B, R> biFunction = taskFunction3.run(world, entity, time);
-							return biFunction == null ? null : biFunction.apply(object, object2);
-						}
+
+					B object2 = taskFunction2.run(world, entity, time);
+					if (object2 == null) {
+						return null;
 					}
+
+					BiFunction<A, B, R> biFunction = taskFunction3.run(world, entity, time);
+					return biFunction == null ? null : biFunction.apply(object, object2);
 				}
 
 				@Override
@@ -346,7 +287,7 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 				@Override
 				public String toString() {
-					return this.asString();
+					return asString();
 				}
 			});
 		}
@@ -357,18 +298,15 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 				App<TaskTriggerer.K1<E>, T2> app3,
 				App<TaskTriggerer.K1<E>, T3> app4
 		) {
-			final TaskTriggerer.TaskFunction<E, T1>
-					taskFunction =
+			final TaskTriggerer.TaskFunction<E, T1> taskFunction =
 					(TaskTriggerer.TaskFunction<E, T1>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app2);
-			final TaskTriggerer.TaskFunction<E, T2>
-					taskFunction2 =
+			final TaskTriggerer.TaskFunction<E, T2> taskFunction2 =
 					(TaskTriggerer.TaskFunction<E, T2>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app3);
-			final TaskTriggerer.TaskFunction<E, T3>
-					taskFunction3 =
+			final TaskTriggerer.TaskFunction<E, T3> taskFunction3 =
 					(TaskTriggerer.TaskFunction<E, T3>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app4);
-			final TaskTriggerer.TaskFunction<E, Function3<T1, T2, T3, R>>
-					taskFunction4 =
+			final TaskTriggerer.TaskFunction<E, Function3<T1, T2, T3, R>> taskFunction4 =
 					TaskTriggerer.getFunction(app);
+
 			return TaskTriggerer.of(new TaskTriggerer.TaskFunction<E, R>() {
 				@Override
 				public R run(ServerWorld world, E entity, long time) {
@@ -376,33 +314,30 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 					if (object == null) {
 						return null;
 					}
-					else {
-						T2 object2 = taskFunction2.run(world, entity, time);
-						if (object2 == null) {
-							return null;
-						}
-						else {
-							T3 object3 = taskFunction3.run(world, entity, time);
-							if (object3 == null) {
-								return null;
-							}
-							else {
-								Function3<T1, T2, T3, R> function3 = taskFunction4.run(world, entity, time);
-								return (R) (function3 == null ? null : function3.apply(object, object2, object3));
-							}
-						}
+
+					T2 object2 = taskFunction2.run(world, entity, time);
+					if (object2 == null) {
+						return null;
 					}
+
+					T3 object3 = taskFunction3.run(world, entity, time);
+					if (object3 == null) {
+						return null;
+					}
+
+					Function3<T1, T2, T3, R> function3 = taskFunction4.run(world, entity, time);
+					return (R) (function3 == null ? null : function3.apply(object, object2, object3));
 				}
 
 				@Override
 				public String asString() {
-					return taskFunction4.asString() + " * " + taskFunction.asString() + " * " + taskFunction2.asString()
-							+ " * " + taskFunction3.asString();
+					return taskFunction4.asString() + " * " + taskFunction.asString() + " * "
+							+ taskFunction2.asString() + " * " + taskFunction3.asString();
 				}
 
 				@Override
 				public String toString() {
-					return this.asString();
+					return asString();
 				}
 			});
 		}
@@ -414,85 +349,64 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 				App<TaskTriggerer.K1<E>, T3> app4,
 				App<TaskTriggerer.K1<E>, T4> app5
 		) {
-			final TaskTriggerer.TaskFunction<E, T1>
-					taskFunction =
+			final TaskTriggerer.TaskFunction<E, T1> taskFunction =
 					(TaskTriggerer.TaskFunction<E, T1>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app2);
-			final TaskTriggerer.TaskFunction<E, T2>
-					taskFunction2 =
+			final TaskTriggerer.TaskFunction<E, T2> taskFunction2 =
 					(TaskTriggerer.TaskFunction<E, T2>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app3);
-			final TaskTriggerer.TaskFunction<E, T3>
-					taskFunction3 =
+			final TaskTriggerer.TaskFunction<E, T3> taskFunction3 =
 					(TaskTriggerer.TaskFunction<E, T3>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app4);
-			final TaskTriggerer.TaskFunction<E, T4>
-					taskFunction4 =
+			final TaskTriggerer.TaskFunction<E, T4> taskFunction4 =
 					(TaskTriggerer.TaskFunction<E, T4>) TaskTriggerer.getFunction((App<TaskTriggerer.K1<E>, ?>) app5);
-			final TaskTriggerer.TaskFunction<E, Function4<T1, T2, T3, T4, R>>
-					taskFunction5 =
+			final TaskTriggerer.TaskFunction<E, Function4<T1, T2, T3, T4, R>> taskFunction5 =
 					TaskTriggerer.getFunction(app);
-			return TaskTriggerer.of(
-					new TaskTriggerer.TaskFunction<E, R>() {
-						@Override
-						public R run(ServerWorld world, E entity, long time) {
-							T1 object = taskFunction.run(world, entity, time);
-							if (object == null) {
-								return null;
-							}
-							else {
-								T2 object2 = taskFunction2.run(world, entity, time);
-								if (object2 == null) {
-									return null;
-								}
-								else {
-									T3 object3 = taskFunction3.run(world, entity, time);
-									if (object3 == null) {
-										return null;
-									}
-									else {
-										T4 object4 = taskFunction4.run(world, entity, time);
-										if (object4 == null) {
-											return null;
-										}
-										else {
-											Function4<T1, T2, T3, T4, R>
-													function4 =
-													taskFunction5.run(world, entity, time);
-											return (R) (function4 == null ? null : function4.apply(
-													object,
-													object2,
-													object3,
-													object4
-											)
-											);
-										}
-									}
-								}
-							}
-						}
 
-						@Override
-						public String asString() {
-							return taskFunction5.asString()
-									+ " * "
-									+ taskFunction.asString()
-									+ " * "
-									+ taskFunction2.asString()
-									+ " * "
-									+ taskFunction3.asString()
-									+ " * "
-									+ taskFunction4.asString();
-						}
-
-						@Override
-						public String toString() {
-							return this.asString();
-						}
+			return TaskTriggerer.of(new TaskTriggerer.TaskFunction<E, R>() {
+				@Override
+				public R run(ServerWorld world, E entity, long time) {
+					T1 object = taskFunction.run(world, entity, time);
+					if (object == null) {
+						return null;
 					}
-			);
+
+					T2 object2 = taskFunction2.run(world, entity, time);
+					if (object2 == null) {
+						return null;
+					}
+
+					T3 object3 = taskFunction3.run(world, entity, time);
+					if (object3 == null) {
+						return null;
+					}
+
+					T4 object4 = taskFunction4.run(world, entity, time);
+					if (object4 == null) {
+						return null;
+					}
+
+					Function4<T1, T2, T3, T4, R> function4 = taskFunction5.run(world, entity, time);
+					return (R) (function4 == null ? null : function4.apply(object, object2, object3, object4));
+				}
+
+				@Override
+				public String asString() {
+					return taskFunction5.asString()
+							+ " * "
+							+ taskFunction.asString()
+							+ " * "
+							+ taskFunction2.asString()
+							+ " * "
+							+ taskFunction3.asString()
+							+ " * "
+							+ taskFunction4.asString();
+				}
+
+				@Override
+				public String toString() {
+					return asString();
+				}
+			});
 		}
 
-		/**
-		 * {@code Mu}.
-		 */
 		static final class Mu<E extends LivingEntity> implements com.mojang.datafixers.kinds.Applicative.Mu {
 
 			private Mu() {
@@ -500,9 +414,6 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 		}
 	}
 
-	/**
-	 * {@code TaskFunction}.
-	 */
 	interface TaskFunction<E extends LivingEntity, R> {
 
 		@Nullable R run(ServerWorld world, E entity, long time);
@@ -510,24 +421,12 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 		String asString();
 	}
 
-	/**
-	 * {@code Trigger}.
-	 */
 	static final class Trigger<E extends LivingEntity> extends TaskTriggerer<E, Unit> {
 
 		Trigger(TaskRunnable<? super E> taskRunnable) {
 			super(new TaskTriggerer.TaskFunction<E, Unit>() {
-				/**
-				 * Run.
-				 *
-				 * @param serverWorld server world
-				 * @param livingEntity living entity
-				 * @param l l
-				 *
-				 * @return @Nullable Unit — результат операции
-				 */
-				public @Nullable Unit run(ServerWorld serverWorld, E livingEntity, long l) {
-					return taskRunnable.trigger(serverWorld, livingEntity, l) ? Unit.INSTANCE : null;
+				public @Nullable Unit run(ServerWorld world, E entity, long time) {
+					return taskRunnable.trigger(world, entity, time) ? Unit.INSTANCE : null;
 				}
 
 				@Override

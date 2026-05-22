@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code GameRuleRpcDispatcher}.
+ * Класс Game Rule Rpc Dispatcher.
  */
 public class GameRuleRpcDispatcher {
 
@@ -50,9 +50,6 @@ public class GameRuleRpcDispatcher {
 		return dispatcher.getGameRuleHandler().updateRule(rule, remote);
 	}
 
-	/**
-	 * {@code RuleEntry}.
-	 */
 	public record RuleEntry<T>(GameRule<T> gameRule, T value) {
 
 		public static final Codec<GameRuleRpcDispatcher.RuleEntry<?>> TYPED_CODEC = Registries.GAME_RULE

@@ -6,7 +6,11 @@ import com.mojang.datafixers.kinds.K1;
 import java.util.Optional;
 
 /**
- * {@code MemoryQueryResult}.
+ * Результат выполнения {@link MemoryQuery} — обёртка над значением памяти,
+ * позволяющая задаче читать и записывать память через типобезопасный API.
+ *
+ * @param <F>     тип функтора (Const, OptionalBox или IdF)
+ * @param <Value> тип значения памяти
  */
 public final class MemoryQueryResult<F extends K1, Value> {
 
@@ -21,41 +25,22 @@ public final class MemoryQueryResult<F extends K1, Value> {
 	}
 
 	public App<F, Value> getValue() {
-		return this.value;
+		return value;
 	}
 
-	/**
-	 * Remember.
-	 *
-	 * @param value value
-	 */
 	public void remember(Value value) {
-		this.brain.remember(this.memory, Optional.of(value));
+		brain.remember(memory, Optional.of(value));
 	}
 
-	/**
-	 * Remember.
-	 *
-	 * @param value value
-	 */
 	public void remember(Optional<Value> value) {
-		this.brain.remember(this.memory, value);
+		brain.remember(memory, value);
 	}
 
-	/**
-	 * Remember.
-	 *
-	 * @param value value
-	 * @param expiry expiry
-	 */
 	public void remember(Value value, long expiry) {
-		this.brain.remember(this.memory, value, expiry);
+		brain.remember(memory, value, expiry);
 	}
 
-	/**
-	 * Forget.
-	 */
 	public void forget() {
-		this.brain.forget(this.memory);
+		brain.forget(memory);
 	}
 }

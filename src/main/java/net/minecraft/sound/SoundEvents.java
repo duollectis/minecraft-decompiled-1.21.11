@@ -14,7 +14,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code SoundEvents}.
+ * Реестр всех звуковых событий игры.
+ *
+ * <p>Каждая константа соответствует одному звуковому событию, зарегистрированному
+ * в {@link net.minecraft.registry.Registries#SOUND_EVENT}. Константы типа
+ * {@link SoundEvent} используются напрямую, а {@link RegistryEntry.Reference} —
+ * там, где требуется ссылка на запись реестра (например, для биомов и предметов брони).
  */
 public class SoundEvents {
 
@@ -2148,6 +2153,10 @@ public class SoundEvents {
 		return register(id, id);
 	}
 
+	private static SoundEvent register(Identifier id, Identifier soundId) {
+		return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(soundId));
+	}
+
 	private static RegistryEntry.Reference<SoundEvent> registerReference(String id) {
 		return registerReference(Identifier.ofVanilla(id));
 	}
@@ -2156,38 +2165,43 @@ public class SoundEvents {
 		return registerReference(id, id);
 	}
 
-	private static SoundEvent register(Identifier id, Identifier soundId) {
-		return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(soundId));
-	}
-
 	private static RegistryEntry.Reference<SoundEvent> registerReference(Identifier id, Identifier soundId) {
 		return Registry.registerReference(Registries.SOUND_EVENT, id, SoundEvent.of(soundId));
 	}
 
+	/**
+	 * Регистрирует все 8 звуков козьего рога (item.goat_horn.sound.0 .. .7).
+	 *
+	 * @return иммутабельный список ссылок на зарегистрированные звуковые события
+	 */
 	private static ImmutableList<RegistryEntry.Reference<SoundEvent>> registerGoatHornSounds() {
-		return IntStream
-				.range(0, 8)
-				.mapToObj(variant -> registerReference("item.goat_horn.sound." + variant))
-				.collect(ImmutableList.toImmutableList());
+		return IntStream.range(0, 8)
+			.mapToObj(variant -> registerReference("item.goat_horn.sound." + variant))
+			.collect(ImmutableList.toImmutableList());
 	}
 
+	/**
+	 * Создаёт карту звуковых вариантов волка для каждого типа из {@link WolfSoundVariants.Type}.
+	 *
+	 * <p>Для каждого типа регистрируются 6 звуков: ambient, death, growl, hurt, pant, whine.
+	 *
+	 * @return иммутабельная карта тип → вариант звука волка
+	 */
 	private static Map<WolfSoundVariants.Type, WolfSoundVariant> createWolfSoundMap() {
 		return Stream.of(WolfSoundVariants.Type.values())
-		             .collect(
-				             Collectors.toMap(
-						             type -> (WolfSoundVariants.Type) type,
-						             type -> {
-							             String string = type.getSoundEventSuffix();
-							             return new WolfSoundVariant(
-									             registerReference("entity.wolf" + string + ".ambient"),
-									             registerReference("entity.wolf" + string + ".death"),
-									             registerReference("entity.wolf" + string + ".growl"),
-									             registerReference("entity.wolf" + string + ".hurt"),
-									             registerReference("entity.wolf" + string + ".pant"),
-									             registerReference("entity.wolf" + string + ".whine")
-							             );
-						             }
-				             )
-		             );
+			.collect(Collectors.toMap(
+				type -> type,
+				type -> {
+					String suffix = type.getSoundEventSuffix();
+					return new WolfSoundVariant(
+						registerReference("entity.wolf" + suffix + ".ambient"),
+						registerReference("entity.wolf" + suffix + ".death"),
+						registerReference("entity.wolf" + suffix + ".growl"),
+						registerReference("entity.wolf" + suffix + ".hurt"),
+						registerReference("entity.wolf" + suffix + ".pant"),
+						registerReference("entity.wolf" + suffix + ".whine")
+					);
+				}
+			));
 	}
 }

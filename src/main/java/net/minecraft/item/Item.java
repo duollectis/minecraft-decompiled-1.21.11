@@ -66,25 +66,39 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code Item}.
+ * Базовый класс всех предметов в игре.
+ * <p>Определяет поведение предмета: использование, добычу блоков, взаимодействие с сущностями,
+ * отображение подсказок и прочие игровые механики. Конкретные предметы наследуют этот класс
+ * и переопределяют нужные методы.</p>
+ * <p>Настройки предмета задаются через {@link Settings} — билдер, передаваемый в конструктор.</p>
  */
 public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 
 	public static final Codec<RegistryEntry<Item>> ENTRY_CODEC = Registries.ITEM
 			.getEntryCodec()
-			.validate(entry -> entry.matches(Items.AIR.getRegistryEntry())
-			                   ? DataResult.error(() -> "Item must not be minecraft:air") : DataResult.success(entry));
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Item>>
-			ENTRY_PACKET_CODEC =
+			.validate(
+					entry -> entry.matches(Items.AIR.getRegistryEntry())
+					         ? DataResult.error(() -> "Item must not be minecraft:air")
+					         : DataResult.success(entry)
+			);
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Item>> ENTRY_PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.ITEM);
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	/** Глобальная карта «блок → предмет», заполняется при регистрации {@link BlockItem}. */
 	public static final Map<Block, Item> BLOCK_ITEMS = Maps.newHashMap();
+
 	public static final Identifier BASE_ATTACK_DAMAGE_MODIFIER_ID = Identifier.ofVanilla("base_attack_damage");
 	public static final Identifier BASE_ATTACK_SPEED_MODIFIER_ID = Identifier.ofVanilla("base_attack_speed");
+
 	public static final int DEFAULT_MAX_COUNT = 64;
 	public static final int MAX_MAX_COUNT = 99;
+	/** Количество шагов полосы прочности предмета в инвентаре. */
 	public static final int ITEM_BAR_STEPS = 13;
+	/** Максимальное время использования для предметов с компонентом блокировки атак (72000 тиков = 1 час). */
 	protected static final int DEFAULT_BLOCKS_ATTACKS_MAX_USE_TIME = 72000;
+
 	private final RegistryEntry.Reference<Item> registryEntry = Registries.ITEM.createEntry(this);
 	private final ComponentMap components;
 	private final @Nullable Item recipeRemainder;
@@ -96,90 +110,78 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 	}
 
 	/**
-	 * By raw id.
+	 * Возвращает предмет по его числовому идентификатору в реестре.
 	 *
-	 * @param id id
-	 *
-	 * @return Item — результат операции
+	 * @param id числовой идентификатор предмета
+	 * @return предмет, соответствующий данному идентификатору
 	 */
 	public static Item byRawId(int id) {
 		return Registries.ITEM.get(id);
 	}
 
-	@Deprecated
 	/**
-	 * From block.
+	 * Возвращает предмет, связанный с данным блоком, или {@link Items#AIR} если связи нет.
 	 *
-	 * @param block block
-	 *
-	 * @return Item — результат операции
+	 * @param block блок, для которого ищется предмет
+	 * @return предмет-блок или {@link Items#AIR}
 	 */
+	@Deprecated
 	public static Item fromBlock(Block block) {
 		return BLOCK_ITEMS.getOrDefault(block, Items.AIR);
 	}
 
 	public Item(Item.Settings settings) {
-		this.translationKey = settings.getTranslationKey();
-		this.components =
-				settings.getValidatedComponents(Text.translatable(this.translationKey), settings.getModelId());
-		this.recipeRemainder = settings.recipeRemainder;
-		this.requiredFeatures = settings.requiredFeatures;
+		translationKey = settings.getTranslationKey();
+		components = settings.getValidatedComponents(Text.translatable(translationKey), settings.getModelId());
+		recipeRemainder = settings.recipeRemainder;
+		requiredFeatures = settings.requiredFeatures;
+
 		if (SharedConstants.isDevelopment) {
-			String string = this.getClass().getSimpleName();
-			if (!string.endsWith("Item")) {
-				LOGGER.error("Item classes should end with Item and {} doesn't.", string);
+			String className = getClass().getSimpleName();
+			if (!className.endsWith("Item")) {
+				LOGGER.error("Item classes should end with Item and {} doesn't.", className);
 			}
 		}
 	}
 
 	@Deprecated
 	public RegistryEntry.Reference<Item> getRegistryEntry() {
-		return this.registryEntry;
+		return registryEntry;
 	}
 
 	public ComponentMap getComponents() {
-		return this.components;
+		return components;
 	}
 
 	public int getMaxCount() {
-		return this.components.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1);
+		return components.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1);
 	}
 
-	/**
-	 * Usage tick.
-	 *
-	 * @param world world
-	 * @param user user
-	 * @param stack stack
-	 * @param remainingUseTicks remaining use ticks
-	 */
 	public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
 	}
 
-	/**
-	 * Обрабатывает событие item entity destroyed.
-	 *
-	 * @param entity entity
-	 */
 	public void onItemEntityDestroyed(ItemEntity entity) {
 	}
 
 	/**
-	 * Проверяет возможность mine.
+	 * Проверяет, может ли игрок добывать блок данным предметом.
+	 * <p>Если у предмета есть компонент {@code TOOL} с флагом {@code canDestroyBlocksInCreative = false},
+	 * то в режиме творчества добыча запрещена.</p>
 	 *
-	 * @param stack stack
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param user user
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param stack  стек предмета
+	 * @param state  состояние блока
+	 * @param world  мир
+	 * @param pos    позиция блока
+	 * @param user   сущность, добывающая блок
+	 * @return {@code true} если добыча разрешена
 	 */
 	public boolean canMine(ItemStack stack, BlockState state, World world, BlockPos pos, LivingEntity user) {
 		ToolComponent toolComponent = stack.get(DataComponentTypes.TOOL);
-		return toolComponent != null && !toolComponent.canDestroyBlocksInCreative()
-		       ? !(user instanceof PlayerEntity playerEntity && playerEntity.getAbilities().creativeMode)
-		       : true;
+		if (toolComponent == null || toolComponent.canDestroyBlocksInCreative()) {
+			return true;
+		}
+
+		return !(user instanceof PlayerEntity player) || !player.getAbilities().creativeMode;
 	}
 
 	@Override
@@ -187,13 +189,6 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return this;
 	}
 
-	/**
-	 * Использует on block.
-	 *
-	 * @param context context
-	 *
-	 * @return ActionResult — результат операции
-	 */
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		return ActionResult.PASS;
 	}
@@ -204,55 +199,46 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 	}
 
 	/**
-	 * Use.
+	 * Обрабатывает использование предмета игроком (нажатие ПКМ без цели).
+	 * <p>Последовательно проверяет компоненты: {@code CONSUMABLE} → {@code EQUIPPABLE} →
+	 * {@code BLOCKS_ATTACKS} → {@code KINETIC_WEAPON}.</p>
 	 *
-	 * @param world world
-	 * @param user user
-	 * @param hand hand
-	 *
-	 * @return ActionResult — результат операции
+	 * @param world мир
+	 * @param user  игрок, использующий предмет
+	 * @param hand  рука, в которой находится предмет
+	 * @return результат действия
 	 */
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
 		ItemStack itemStack = user.getStackInHand(hand);
-		ConsumableComponent consumableComponent = itemStack.get(DataComponentTypes.CONSUMABLE);
-		if (consumableComponent != null) {
-			return consumableComponent.consume(user, itemStack, hand);
+
+		ConsumableComponent consumable = itemStack.get(DataComponentTypes.CONSUMABLE);
+		if (consumable != null) {
+			return consumable.consume(user, itemStack, hand);
 		}
-		else {
-			EquippableComponent equippableComponent = itemStack.get(DataComponentTypes.EQUIPPABLE);
-			if (equippableComponent != null && equippableComponent.swappable()) {
-				return equippableComponent.equip(itemStack, user);
-			}
-			else if (itemStack.contains(DataComponentTypes.BLOCKS_ATTACKS)) {
-				user.setCurrentHand(hand);
-				return ActionResult.CONSUME;
-			}
-			else {
-				KineticWeaponComponent kineticWeaponComponent = itemStack.get(DataComponentTypes.KINETIC_WEAPON);
-				if (kineticWeaponComponent != null) {
-					user.setCurrentHand(hand);
-					kineticWeaponComponent.playSound(user);
-					return ActionResult.CONSUME;
-				}
-				else {
-					return ActionResult.PASS;
-				}
-			}
+
+		EquippableComponent equippable = itemStack.get(DataComponentTypes.EQUIPPABLE);
+		if (equippable != null && equippable.swappable()) {
+			return equippable.equip(itemStack, user);
 		}
+
+		if (itemStack.contains(DataComponentTypes.BLOCKS_ATTACKS)) {
+			user.setCurrentHand(hand);
+			return ActionResult.CONSUME;
+		}
+
+		KineticWeaponComponent kineticWeapon = itemStack.get(DataComponentTypes.KINETIC_WEAPON);
+		if (kineticWeapon != null) {
+			user.setCurrentHand(hand);
+			kineticWeapon.playSound(user);
+			return ActionResult.CONSUME;
+		}
+
+		return ActionResult.PASS;
 	}
 
-	/**
-	 * Finish using.
-	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param user user
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack finishUsing(ItemStack stack, World world, LivingEntity user) {
-		ConsumableComponent consumableComponent = stack.get(DataComponentTypes.CONSUMABLE);
-		return consumableComponent != null ? consumableComponent.finishConsumption(world, user, stack) : stack;
+		ConsumableComponent consumable = stack.get(DataComponentTypes.CONSUMABLE);
+		return consumable != null ? consumable.finishConsumption(world, user, stack) : stack;
 	}
 
 	public boolean isItemBarVisible(ItemStack stack) {
@@ -260,25 +246,27 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 	}
 
 	public int getItemBarStep(ItemStack stack) {
-		return MathHelper.clamp(Math.round(13.0F - stack.getDamage() * 13.0F / stack.getMaxDamage()), 0, 13);
-	}
-
-	public int getItemBarColor(ItemStack stack) {
-		int i = stack.getMaxDamage();
-		float f = Math.max(0.0F, ((float) i - stack.getDamage()) / i);
-		return MathHelper.hsvToRgb(f / 3.0F, 1.0F, 1.0F);
+		return MathHelper.clamp(
+				Math.round(ITEM_BAR_STEPS - stack.getDamage() * (float) ITEM_BAR_STEPS / stack.getMaxDamage()),
+				0,
+				ITEM_BAR_STEPS
+		);
 	}
 
 	/**
-	 * Обрабатывает событие stack clicked.
+	 * Вычисляет цвет полосы прочности предмета в формате RGB.
+	 * <p>Цвет плавно меняется от зелёного (полная прочность) до красного (минимальная)
+	 * через HSV-пространство с фиксированной насыщенностью и яркостью.</p>
 	 *
-	 * @param stack stack
-	 * @param slot slot
-	 * @param clickType click type
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
+	 * @param stack стек предмета
+	 * @return цвет в формате 0xRRGGBB
 	 */
+	public int getItemBarColor(ItemStack stack) {
+		int maxDamage = stack.getMaxDamage();
+		float durabilityFraction = Math.max(0.0F, ((float) maxDamage - stack.getDamage()) / maxDamage);
+		return MathHelper.hsvToRgb(durabilityFraction / 3.0F, 1.0F, 1.0F);
+	}
+
 	public boolean onStackClicked(ItemStack stack, Slot slot, ClickType clickType, PlayerEntity player) {
 		return false;
 	}
@@ -303,49 +291,35 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return null;
 	}
 
-	/**
-	 * Post hit.
-	 *
-	 * @param stack stack
-	 * @param target target
-	 * @param attacker attacker
-	 */
 	public void postHit(ItemStack stack, LivingEntity target, LivingEntity attacker) {
 	}
 
-	/**
-	 * Post damage entity.
-	 *
-	 * @param stack stack
-	 * @param target target
-	 * @param attacker attacker
-	 */
 	public void postDamageEntity(ItemStack stack, LivingEntity target, LivingEntity attacker) {
 	}
 
 	/**
-	 * Post mine.
+	 * Вызывается после добычи блока данным предметом.
+	 * <p>Если у предмета есть компонент {@code TOOL} с ненулевым {@code damagePerBlock},
+	 * наносит урон прочности предмета на сервере.</p>
 	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param state state
-	 * @param pos pos
-	 * @param miner miner
-	 *
-	 * @return boolean — результат операции
+	 * @param stack  стек предмета
+	 * @param world  мир
+	 * @param state  состояние добытого блока
+	 * @param pos    позиция блока
+	 * @param miner  сущность, добывающая блок
+	 * @return {@code true} если предмет является инструментом
 	 */
 	public boolean postMine(ItemStack stack, World world, BlockState state, BlockPos pos, LivingEntity miner) {
 		ToolComponent toolComponent = stack.get(DataComponentTypes.TOOL);
 		if (toolComponent == null) {
 			return false;
 		}
-		else {
-			if (!world.isClient() && state.getHardness(world, pos) != 0.0F && toolComponent.damagePerBlock() > 0) {
-				stack.damage(toolComponent.damagePerBlock(), miner, EquipmentSlot.MAINHAND);
-			}
 
-			return true;
+		if (!world.isClient() && state.getHardness(world, pos) != 0.0F && toolComponent.damagePerBlock() > 0) {
+			stack.damage(toolComponent.damagePerBlock(), miner, EquipmentSlot.MAINHAND);
 		}
+
+		return true;
 	}
 
 	public boolean isCorrectForDrops(ItemStack stack, BlockState state) {
@@ -353,16 +327,6 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return toolComponent != null && toolComponent.isCorrectForDrops(state);
 	}
 
-	/**
-	 * Использует on entity.
-	 *
-	 * @param stack stack
-	 * @param user user
-	 * @param entity entity
-	 * @param hand hand
-	 *
-	 * @return ActionResult — результат операции
-	 */
 	public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
 		return ActionResult.PASS;
 	}
@@ -373,73 +337,43 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 	}
 
 	public final ItemStack getRecipeRemainder() {
-		return this.recipeRemainder == null ? ItemStack.EMPTY : new ItemStack(this.recipeRemainder);
+		return recipeRemainder == null ? ItemStack.EMPTY : new ItemStack(recipeRemainder);
 	}
 
-	/**
-	 * Inventory tick.
-	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param entity entity
-	 * @param slot slot
-	 */
 	public void inventoryTick(ItemStack stack, ServerWorld world, Entity entity, @Nullable EquipmentSlot slot) {
 	}
 
-	/**
-	 * Обрабатывает событие craft by player.
-	 *
-	 * @param stack stack
-	 * @param player player
-	 */
 	public void onCraftByPlayer(ItemStack stack, PlayerEntity player) {
-		this.onCraft(stack, player.getEntityWorld());
+		onCraft(stack, player.getEntityWorld());
 	}
 
-	/**
-	 * Обрабатывает событие craft.
-	 *
-	 * @param stack stack
-	 * @param world world
-	 */
 	public void onCraft(ItemStack stack, World world) {
 	}
 
 	public UseAction getUseAction(ItemStack stack) {
-		ConsumableComponent consumableComponent = stack.get(DataComponentTypes.CONSUMABLE);
-		if (consumableComponent != null) {
-			return consumableComponent.useAction();
+		ConsumableComponent consumable = stack.get(DataComponentTypes.CONSUMABLE);
+		if (consumable != null) {
+			return consumable.useAction();
 		}
-		else if (stack.contains(DataComponentTypes.BLOCKS_ATTACKS)) {
+
+		if (stack.contains(DataComponentTypes.BLOCKS_ATTACKS)) {
 			return UseAction.BLOCK;
 		}
-		else {
-			return stack.contains(DataComponentTypes.KINETIC_WEAPON) ? UseAction.SPEAR : UseAction.NONE;
-		}
+
+		return stack.contains(DataComponentTypes.KINETIC_WEAPON) ? UseAction.SPEAR : UseAction.NONE;
 	}
 
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		ConsumableComponent consumableComponent = stack.get(DataComponentTypes.CONSUMABLE);
-		if (consumableComponent != null) {
-			return consumableComponent.getConsumeTicks();
+		ConsumableComponent consumable = stack.get(DataComponentTypes.CONSUMABLE);
+		if (consumable != null) {
+			return consumable.getConsumeTicks();
 		}
-		else {
-			return !stack.contains(DataComponentTypes.BLOCKS_ATTACKS)
-					       && !stack.contains(DataComponentTypes.KINETIC_WEAPON) ? 0 : 72000;
-		}
+
+		return stack.contains(DataComponentTypes.BLOCKS_ATTACKS) || stack.contains(DataComponentTypes.KINETIC_WEAPON)
+		       ? DEFAULT_BLOCKS_ATTACKS_MAX_USE_TIME
+		       : 0;
 	}
 
-	/**
-	 * Обрабатывает событие stopped using.
-	 *
-	 * @param stack stack
-	 * @param world world
-	 * @param user user
-	 * @param remainingUseTicks remaining use ticks
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
 		return false;
 	}
@@ -460,11 +394,11 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 
 	@VisibleForTesting
 	public final String getTranslationKey() {
-		return this.translationKey;
+		return translationKey;
 	}
 
 	public final Text getName() {
-		return this.components.getOrDefault(DataComponentTypes.ITEM_NAME, ScreenTexts.EMPTY);
+		return components.getOrDefault(DataComponentTypes.ITEM_NAME, ScreenTexts.EMPTY);
 	}
 
 	public Text getName(ItemStack stack) {
@@ -475,20 +409,27 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return stack.hasEnchantments();
 	}
 
+	/**
+	 * Выполняет рейкаст от глаз игрока в направлении взгляда на дальность взаимодействия с блоками.
+	 *
+	 * @param world         мир
+	 * @param player        игрок, от которого выполняется рейкаст
+	 * @param fluidHandling режим обработки жидкостей при рейкасте
+	 * @return результат попадания луча в блок
+	 */
 	protected static BlockHitResult raycast(
 			World world,
 			PlayerEntity player,
 			RaycastContext.FluidHandling fluidHandling
 	) {
-		Vec3d vec3d = player.getEyePos();
-		Vec3d
-				vec3d2 =
-				vec3d.add(player
-						.getRotationVector(player.getPitch(), player.getYaw())
-						.multiply(player.getBlockInteractionRange()));
+		Vec3d eyePos = player.getEyePos();
+		Vec3d targetPos = eyePos.add(
+				player.getRotationVector(player.getPitch(), player.getYaw())
+				      .multiply(player.getBlockInteractionRange())
+		);
 		return world.raycast(new RaycastContext(
-				vec3d,
-				vec3d2,
+				eyePos,
+				targetPos,
 				RaycastContext.ShapeType.OUTLINE,
 				fluidHandling,
 				player
@@ -503,81 +444,68 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return new ItemStack(this);
 	}
 
-	/**
-	 * Проверяет возможность be nested.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canBeNested() {
 		return true;
 	}
 
 	@Override
 	public FeatureSet getRequiredFeatures() {
-		return this.requiredFeatures;
+		return requiredFeatures;
 	}
 
-	/**
-	 * Определяет, следует ли show operator block warnings.
-	 *
-	 * @param stack stack
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowOperatorBlockWarnings(ItemStack stack, @Nullable PlayerEntity player) {
 		return false;
 	}
 
 	/**
-	 * {@code Settings}.
+	 * Билдер настроек предмета. Позволяет задать компоненты, прочность, редкость,
+	 * остаток рецепта, требуемые фичи и прочие параметры перед созданием экземпляра {@link Item}.
 	 */
 	public static class Settings implements net.fabricmc.fabric.api.item.v1.FabricItem.Settings {
 
-		private static final RegistryKeyedValue<Item, String>
-				BLOCK_PREFIXED_TRANSLATION_KEY =
+		private static final RegistryKeyedValue<Item, String> BLOCK_PREFIXED_TRANSLATION_KEY =
 				key -> Util.createTranslationKey("block", key.getValue());
-		private static final RegistryKeyedValue<Item, String>
-				ITEM_PREFIXED_TRANSLATION_KEY =
+		private static final RegistryKeyedValue<Item, String> ITEM_PREFIXED_TRANSLATION_KEY =
 				key -> Util.createTranslationKey("item", key.getValue());
-		private final ComponentMap.Builder
-				components =
+
+		private final ComponentMap.Builder components =
 				ComponentMap.builder().addAll(DataComponentTypes.DEFAULT_ITEM_COMPONENTS);
+
 		@Nullable Item recipeRemainder;
 		FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
+
 		private @Nullable RegistryKey<Item> registryKey;
 		private RegistryKeyedValue<Item, String> translationKey = ITEM_PREFIXED_TRANSLATION_KEY;
 		private final RegistryKeyedValue<Item, Identifier> modelId = RegistryKey::getValue;
 
 		public Item.Settings food(FoodComponent foodComponent) {
-			return this.food(foodComponent, ConsumableComponents.FOOD);
+			return food(foodComponent, ConsumableComponents.FOOD);
 		}
 
 		public Item.Settings food(FoodComponent foodComponent, ConsumableComponent consumableComponent) {
-			return this
-					.component(DataComponentTypes.FOOD, foodComponent)
+			return component(DataComponentTypes.FOOD, foodComponent)
 					.component(DataComponentTypes.CONSUMABLE, consumableComponent);
 		}
 
 		public Item.Settings useRemainder(Item convertInto) {
-			return this.component(
+			return component(
 					DataComponentTypes.USE_REMAINDER,
 					new UseRemainderComponent(new ItemStack(convertInto))
 			);
 		}
 
 		public Item.Settings useCooldown(float seconds) {
-			return this.component(DataComponentTypes.USE_COOLDOWN, new UseCooldownComponent(seconds));
+			return component(DataComponentTypes.USE_COOLDOWN, new UseCooldownComponent(seconds));
 		}
 
 		public Item.Settings maxCount(int maxCount) {
-			return this.component(DataComponentTypes.MAX_STACK_SIZE, maxCount);
+			return component(DataComponentTypes.MAX_STACK_SIZE, maxCount);
 		}
 
 		public Item.Settings maxDamage(int maxDamage) {
-			this.component(DataComponentTypes.MAX_DAMAGE, maxDamage);
-			this.component(DataComponentTypes.MAX_STACK_SIZE, 1);
-			this.component(DataComponentTypes.DAMAGE, 0);
+			component(DataComponentTypes.MAX_DAMAGE, maxDamage);
+			component(DataComponentTypes.MAX_STACK_SIZE, 1);
+			component(DataComponentTypes.DAMAGE, 0);
 			return this;
 		}
 
@@ -587,48 +515,48 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		}
 
 		public Item.Settings rarity(Rarity rarity) {
-			return this.component(DataComponentTypes.RARITY, rarity);
+			return component(DataComponentTypes.RARITY, rarity);
 		}
 
 		public Item.Settings fireproof() {
-			return this.component(
+			return component(
 					DataComponentTypes.DAMAGE_RESISTANT,
 					new DamageResistantComponent(DamageTypeTags.IS_FIRE)
 			);
 		}
 
 		public Item.Settings jukeboxPlayable(RegistryKey<JukeboxSong> songKey) {
-			return this.component(
+			return component(
 					DataComponentTypes.JUKEBOX_PLAYABLE,
 					new JukeboxPlayableComponent(new LazyRegistryEntryReference<>(songKey))
 			);
 		}
 
 		public Item.Settings enchantable(int enchantability) {
-			return this.component(DataComponentTypes.ENCHANTABLE, new EnchantableComponent(enchantability));
+			return component(DataComponentTypes.ENCHANTABLE, new EnchantableComponent(enchantability));
 		}
 
 		public Item.Settings repairable(Item repairIngredient) {
-			return this.component(
+			return component(
 					DataComponentTypes.REPAIRABLE,
 					new RepairableComponent(RegistryEntryList.of(repairIngredient.getRegistryEntry()))
 			);
 		}
 
 		public Item.Settings repairable(TagKey<Item> repairIngredientsTag) {
-			RegistryEntryLookup<Item> registryEntryLookup = Registries.createEntryLookup(Registries.ITEM);
-			return this.component(
+			RegistryEntryLookup<Item> lookup = Registries.createEntryLookup(Registries.ITEM);
+			return component(
 					DataComponentTypes.REPAIRABLE,
-					new RepairableComponent(registryEntryLookup.getOrThrow(repairIngredientsTag))
+					new RepairableComponent(lookup.getOrThrow(repairIngredientsTag))
 			);
 		}
 
 		public Item.Settings equippable(EquipmentSlot slot) {
-			return this.component(DataComponentTypes.EQUIPPABLE, EquippableComponent.builder(slot).build());
+			return component(DataComponentTypes.EQUIPPABLE, EquippableComponent.builder(slot).build());
 		}
 
 		public Item.Settings equippableUnswappable(EquipmentSlot slot) {
-			return this.component(
+			return component(
 					DataComponentTypes.EQUIPPABLE,
 					EquippableComponent.builder(slot).swappable(false).build()
 			);
@@ -641,35 +569,45 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 				float attackSpeed,
 				float disableBlockingForSeconds
 		) {
-			return material.applyToolSettings(
-					this,
-					effectiveBlocks,
-					attackDamage,
-					attackSpeed,
-					disableBlockingForSeconds
-			);
+			return material.applyToolSettings(this, effectiveBlocks, attackDamage, attackSpeed, disableBlockingForSeconds);
 		}
 
 		public Item.Settings pickaxe(ToolMaterial material, float attackDamage, float attackSpeed) {
-			return this.tool(material, BlockTags.PICKAXE_MINEABLE, attackDamage, attackSpeed, 0.0F);
+			return tool(material, BlockTags.PICKAXE_MINEABLE, attackDamage, attackSpeed, 0.0F);
 		}
 
 		public Item.Settings axe(ToolMaterial material, float attackDamage, float attackSpeed) {
-			return this.tool(material, BlockTags.AXE_MINEABLE, attackDamage, attackSpeed, 5.0F);
+			return tool(material, BlockTags.AXE_MINEABLE, attackDamage, attackSpeed, 5.0F);
 		}
 
 		public Item.Settings hoe(ToolMaterial material, float attackDamage, float attackSpeed) {
-			return this.tool(material, BlockTags.HOE_MINEABLE, attackDamage, attackSpeed, 0.0F);
+			return tool(material, BlockTags.HOE_MINEABLE, attackDamage, attackSpeed, 0.0F);
 		}
 
 		public Item.Settings shovel(ToolMaterial material, float attackDamage, float attackSpeed) {
-			return this.tool(material, BlockTags.SHOVEL_MINEABLE, attackDamage, attackSpeed, 0.0F);
+			return tool(material, BlockTags.SHOVEL_MINEABLE, attackDamage, attackSpeed, 0.0F);
 		}
 
 		public Item.Settings sword(ToolMaterial material, float attackDamage, float attackSpeed) {
 			return material.applySwordSettings(this, attackDamage, attackSpeed);
 		}
 
+		/**
+		 * Настраивает предмет как копьё (кинетическое оружие) с полным набором компонентов:
+		 * урон, скорость атаки, анимация замаха, пробивание, эффекты использования.
+		 *
+		 * @param material                          материал инструмента
+		 * @param swingAnimationSeconds             длительность анимации замаха в секундах
+		 * @param chargeDamageMultiplier            множитель урона при зарядке
+		 * @param chargeDelaySeconds                задержка перед началом зарядки в секундах
+		 * @param maxDurationForDismountSeconds     максимальная длительность для сброса с маунта
+		 * @param minSpeedForDismount               минимальная скорость для сброса с маунта
+		 * @param maxDurationForChargeKnockbackInSeconds максимальная длительность для отбрасывания при зарядке
+		 * @param minSpeedForChargeKnockback        минимальная скорость для отбрасывания при зарядке
+		 * @param maxDurationForChargeDamageInSeconds максимальная длительность для урона при зарядке
+		 * @param minRelativeSpeedForChargeDamage   минимальная относительная скорость для урона при зарядке
+		 * @return настройки предмета с применёнными параметрами копья
+		 */
 		public Item.Settings spear(
 				ToolMaterial material,
 				float swingAnimationSeconds,
@@ -682,308 +620,310 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 				float maxDurationForChargeDamageInSeconds,
 				float minRelativeSpeedForChargeDamage
 		) {
-			return this.maxDamage(material.durability())
-			           .repairable(material.repairItems())
-			           .enchantable(material.enchantmentValue())
-			           .component(DataComponentTypes.DAMAGE_TYPE, new LazyRegistryEntryReference<>(DamageTypes.SPEAR))
-			           .component(
-					           DataComponentTypes.KINETIC_WEAPON,
-					           new KineticWeaponComponent(
-							           10,
-							           (int) (chargeDelaySeconds * 20.0F),
-							           KineticWeaponComponent.Condition.ofMinSpeed(
-									           (int) (maxDurationForDismountSeconds * 20.0F), minSpeedForDismount),
-							           KineticWeaponComponent.Condition.ofMinSpeed(
-									           (int) (maxDurationForChargeKnockbackInSeconds * 20.0F),
-									           minSpeedForChargeKnockback
-							           ),
-							           KineticWeaponComponent.Condition.ofMinRelativeSpeed(
-									           (int) (maxDurationForChargeDamageInSeconds * 20.0F),
-									           minRelativeSpeedForChargeDamage
-							           ),
-							           0.38F,
-							           chargeDamageMultiplier,
-							           Optional.of(material == ToolMaterial.WOOD ? SoundEvents.ITEM_SPEAR_WOOD_USE
-							                                                     : SoundEvents.ITEM_SPEAR_USE),
-							           Optional.of(material == ToolMaterial.WOOD ? SoundEvents.ITEM_SPEAR_WOOD_HIT
-							                                                     : SoundEvents.ITEM_SPEAR_HIT)
-					           )
-			           )
-			           .component(
-					           DataComponentTypes.PIERCING_WEAPON,
-					           new PiercingWeaponComponent(
-							           true,
-							           false,
-							           Optional.of(material == ToolMaterial.WOOD ? SoundEvents.ITEM_SPEAR_WOOD_ATTACK
-							                                                     : SoundEvents.ITEM_SPEAR_ATTACK),
-							           Optional.of(material == ToolMaterial.WOOD ? SoundEvents.ITEM_SPEAR_WOOD_HIT
-							                                                     : SoundEvents.ITEM_SPEAR_HIT)
-					           )
-			           )
-			           .component(
-					           DataComponentTypes.ATTACK_RANGE,
-					           new AttackRangeComponent(2.0F, 4.5F, 2.0F, 6.5F, 0.125F, 0.5F)
-			           )
-			           .component(DataComponentTypes.MINIMUM_ATTACK_CHARGE, 1.0F)
-			           .component(
-					           DataComponentTypes.SWING_ANIMATION,
-					           new SwingAnimationComponent(
-							           SwingAnimationType.STAB,
-							           (int) (swingAnimationSeconds * 20.0F)
-					           )
-			           )
-			           .attributeModifiers(
-					           AttributeModifiersComponent.builder()
-					                                      .add(
-							                                      EntityAttributes.ATTACK_DAMAGE,
-							                                      new EntityAttributeModifier(
-									                                      Item.BASE_ATTACK_DAMAGE_MODIFIER_ID,
-									                                      0.0F + material.attackDamageBonus(),
-									                                      EntityAttributeModifier.Operation.ADD_VALUE
-							                                      ),
-							                                      AttributeModifierSlot.MAINHAND
-					                                      )
-					                                      .add(
-							                                      EntityAttributes.ATTACK_SPEED,
-							                                      new EntityAttributeModifier(
-									                                      Item.BASE_ATTACK_SPEED_MODIFIER_ID,
-									                                      1.0F / swingAnimationSeconds - 4.0,
-									                                      EntityAttributeModifier.Operation.ADD_VALUE
-							                                      ),
-							                                      AttributeModifierSlot.MAINHAND
-					                                      )
-					                                      .build()
-			           )
-			           .component(DataComponentTypes.USE_EFFECTS, new UseEffectsComponent(true, false, 1.0F))
-			           .component(DataComponentTypes.WEAPON, new WeaponComponent(1));
-		}
-
-		public Item.Settings spawnEgg(EntityType<?> entityType) {
-			return this.component(
-					DataComponentTypes.ENTITY_DATA,
-					TypedEntityData.create(entityType, new NbtCompound())
-			);
-		}
-
-		public Item.Settings armor(ArmorMaterial material, EquipmentType type) {
-			return this.maxDamage(type.getMaxDamage(material.durability()))
-			           .attributeModifiers(material.createAttributeModifiers(type))
-			           .enchantable(material.enchantmentValue())
-			           .component(
-					           DataComponentTypes.EQUIPPABLE,
-					           EquippableComponent
-							           .builder(type.getEquipmentSlot())
-							           .equipSound(material.equipSound())
-							           .model(material.assetId())
-							           .build()
-			           )
-			           .repairable(material.repairIngredient());
-		}
-
-		public Item.Settings wolfArmor(ArmorMaterial material) {
-			return this.maxDamage(EquipmentType.BODY.getMaxDamage(material.durability()))
-			           .attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
-			           .repairable(material.repairIngredient())
-			           .component(
-					           DataComponentTypes.EQUIPPABLE,
-					           EquippableComponent.builder(EquipmentSlot.BODY)
-					                              .equipSound(material.equipSound())
-					                              .model(material.assetId())
-					                              .allowedEntities(RegistryEntryList.of(EntityType.WOLF.getRegistryEntry()))
-					                              .canBeSheared(true)
-					                              .shearingSound(Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_ARMOR_UNEQUIP_WOLF))
-					                              .build()
-			           )
-			           .component(DataComponentTypes.BREAK_SOUND, SoundEvents.ITEM_WOLF_ARMOR_BREAK)
-			           .maxCount(1);
-		}
-
-		public Item.Settings horseArmor(ArmorMaterial material) {
-			RegistryEntryLookup<EntityType<?>>
-					registryEntryLookup =
-					Registries.createEntryLookup(Registries.ENTITY_TYPE);
-			return this.attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
-			           .component(
-					           DataComponentTypes.EQUIPPABLE,
-					           EquippableComponent.builder(EquipmentSlot.BODY)
-					                              .equipSound(SoundEvents.ENTITY_HORSE_ARMOR)
-					                              .model(material.assetId())
-					                              .allowedEntities(registryEntryLookup.getOrThrow(EntityTypeTags.CAN_WEAR_HORSE_ARMOR))
-					                              .damageOnHurt(false)
-					                              .canBeSheared(true)
-					                              .shearingSound(SoundEvents.ITEM_HORSE_ARMOR_UNEQUIP)
-					                              .build()
-			           )
-			           .maxCount(1);
-		}
-
-		public Item.Settings nautilusArmor(ArmorMaterial material) {
-			RegistryEntryLookup<EntityType<?>>
-					registryEntryLookup =
-					Registries.createEntryLookup(Registries.ENTITY_TYPE);
-			return this.attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
-			           .component(
-					           DataComponentTypes.EQUIPPABLE,
-					           EquippableComponent.builder(EquipmentSlot.BODY)
-					                              .equipSound(SoundEvents.ITEM_ARMOR_EQUIP_NAUTILUS)
-					                              .model(material.assetId())
-					                              .allowedEntities(registryEntryLookup.getOrThrow(EntityTypeTags.CAN_WEAR_NAUTILUS_ARMOR))
-					                              .damageOnHurt(false)
-					                              .equipOnInteract(true)
-					                              .canBeSheared(true)
-					                              .shearingSound(SoundEvents.ITEM_ARMOR_UNEQUIP_NAUTILUS)
-					                              .build()
-			           )
-			           .maxCount(1);
-		}
-
-		public Item.Settings trimMaterial(RegistryKey<ArmorTrimMaterial> trimMaterial) {
-			return this.component(
-					DataComponentTypes.PROVIDES_TRIM_MATERIAL,
-					new ProvidesTrimMaterialComponent(trimMaterial)
-			);
-		}
-
-		public Item.Settings requires(FeatureFlag... features) {
-			this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(features);
-			return this;
-		}
-
-		public Item.Settings registryKey(RegistryKey<Item> registryKey) {
-			this.registryKey = registryKey;
-			return this;
-		}
-
-		public Item.Settings translationKey(String translationKey) {
-			this.translationKey = RegistryKeyedValue.fixed(translationKey);
-			return this;
-		}
-
-		public Item.Settings useBlockPrefixedTranslationKey() {
-			this.translationKey = BLOCK_PREFIXED_TRANSLATION_KEY;
-			return this;
-		}
-
-		public Item.Settings useItemPrefixedTranslationKey() {
-			this.translationKey = ITEM_PREFIXED_TRANSLATION_KEY;
-			return this;
-		}
-
-		protected String getTranslationKey() {
-			return this.translationKey.get(Objects.requireNonNull(this.registryKey, "Item id not set"));
-		}
-
-		public Identifier getModelId() {
-			return this.modelId.get(Objects.requireNonNull(this.registryKey, "Item id not set"));
-		}
-
-		public <T> Item.Settings component(ComponentType<T> type, T value) {
-			this.components.add(type, value);
-			return this;
-		}
-
-		public Item.Settings attributeModifiers(AttributeModifiersComponent attributeModifiersComponent) {
-			return this.component(DataComponentTypes.ATTRIBUTE_MODIFIERS, attributeModifiersComponent);
-		}
-
-		ComponentMap getValidatedComponents(Text name, Identifier modelId) {
-			ComponentMap
-					componentMap =
-					this.components
-							.add(DataComponentTypes.ITEM_NAME, name)
-							.add(DataComponentTypes.ITEM_MODEL, modelId)
-							.build();
-			if (componentMap.contains(DataComponentTypes.DAMAGE)
-					&& componentMap.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1) > 1) {
-				throw new IllegalStateException("Item cannot have both durability and be stackable");
+			return maxDamage(material.durability())
+					.repairable(material.repairItems())
+					.enchantable(material.enchantmentValue())
+					.component(DataComponentTypes.DAMAGE_TYPE, new LazyRegistryEntryReference<>(DamageTypes.SPEAR))
+					.component(
+							DataComponentTypes.KINETIC_WEAPON,
+							new KineticWeaponComponent(
+									10,
+									(int) (chargeDelaySeconds * 20.0F),
+									KineticWeaponComponent.Condition.ofMinSpeed(
+											(int) (maxDurationForDismountSeconds * 20.0F), minSpeedForDismount),
+									KineticWeaponComponent.Condition.ofMinSpeed(
+											(int) (maxDurationForChargeKnockbackInSeconds * 20.0F),
+											minSpeedForChargeKnockback
+									),
+									KineticWeaponComponent.Condition.ofMinRelativeSpeed(
+											(int) (maxDurationForChargeDamageInSeconds * 20.0F),
+											minRelativeSpeedForChargeDamage
+									),
+									0.38F,
+									chargeDamageMultiplier,
+									Optional.of(material == ToolMaterial.WOOD
+									            ? SoundEvents.ITEM_SPEAR_WOOD_USE
+									            : SoundEvents.ITEM_SPEAR_USE),
+									Optional.of(material == ToolMaterial.WOOD
+									            ? SoundEvents.ITEM_SPEAR_WOOD_HIT
+									            : SoundEvents.ITEM_SPEAR_HIT)
+							)
+					)
+					.component(
+							DataComponentTypes.PIERCING_WEAPON,
+							new PiercingWeaponComponent(
+									true,
+									false,
+									Optional.of(material == ToolMaterial.WOOD
+									            ? SoundEvents.ITEM_SPEAR_WOOD_ATTACK
+									            : SoundEvents.ITEM_SPEAR_ATTACK),
+									Optional.of(material == ToolMaterial.WOOD
+									            ? SoundEvents.ITEM_SPEAR_WOOD_HIT
+									            : SoundEvents.ITEM_SPEAR_HIT)
+							)
+					)
+					.component(
+							DataComponentTypes.ATTACK_RANGE,
+							new AttackRangeComponent(2.0F, 4.5F, 2.0F, 6.5F, 0.125F, 0.5F)
+					)
+					.component(DataComponentTypes.MINIMUM_ATTACK_CHARGE, 1.0F)
+					.component(
+							DataComponentTypes.SWING_ANIMATION,
+							new SwingAnimationComponent(
+									SwingAnimationType.STAB,
+									(int) (swingAnimationSeconds * 20.0F)
+							)
+					)
+					.attributeModifiers(
+							AttributeModifiersComponent.builder()
+							                           .add(
+									                           EntityAttributes.ATTACK_DAMAGE,
+									                           new EntityAttributeModifier(
+											                           Item.BASE_ATTACK_DAMAGE_MODIFIER_ID,
+											                           material.attackDamageBonus(),
+											                           EntityAttributeModifier.Operation.ADD_VALUE
+									                           ),
+									                           AttributeModifierSlot.MAINHAND
+									                          )
+									                          .add(
+									                            EntityAttributes.ATTACK_SPEED,
+									                            new EntityAttributeModifier(
+									                              Item.BASE_ATTACK_SPEED_MODIFIER_ID,
+									                              1.0F / swingAnimationSeconds - 4.0,
+									                              EntityAttributeModifier.Operation.ADD_VALUE
+									                            ),
+									                            AttributeModifierSlot.MAINHAND
+									                          )
+									                          .build()
+						)
+						.component(DataComponentTypes.USE_EFFECTS, new UseEffectsComponent(true, false, 1.0F))
+						.component(DataComponentTypes.WEAPON, new WeaponComponent(1));
 			}
-			else {
+	
+			public Item.Settings spawnEgg(EntityType<?> entityType) {
+				return component(
+						DataComponentTypes.ENTITY_DATA,
+						TypedEntityData.create(entityType, new NbtCompound())
+				);
+			}
+	
+			public Item.Settings armor(ArmorMaterial material, EquipmentType type) {
+				return maxDamage(type.getMaxDamage(material.durability()))
+						.attributeModifiers(material.createAttributeModifiers(type))
+						.enchantable(material.enchantmentValue())
+						.component(
+								DataComponentTypes.EQUIPPABLE,
+								EquippableComponent
+									 .builder(type.getEquipmentSlot())
+									 .equipSound(material.equipSound())
+									 .model(material.assetId())
+									 .build()
+						)
+						.repairable(material.repairIngredient());
+			}
+	
+			public Item.Settings wolfArmor(ArmorMaterial material) {
+				return maxDamage(EquipmentType.BODY.getMaxDamage(material.durability()))
+						.attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
+						.repairable(material.repairIngredient())
+						.component(
+								DataComponentTypes.EQUIPPABLE,
+								EquippableComponent.builder(EquipmentSlot.BODY)
+									                  .equipSound(material.equipSound())
+									                  .model(material.assetId())
+									                  .allowedEntities(RegistryEntryList.of(EntityType.WOLF.getRegistryEntry()))
+									                  .canBeSheared(true)
+									                  .shearingSound(Registries.SOUND_EVENT.getEntry(SoundEvents.ITEM_ARMOR_UNEQUIP_WOLF))
+									                  .build()
+						)
+						.component(DataComponentTypes.BREAK_SOUND, SoundEvents.ITEM_WOLF_ARMOR_BREAK)
+						.maxCount(1);
+			}
+	
+			public Item.Settings horseArmor(ArmorMaterial material) {
+				RegistryEntryLookup<EntityType<?>> entityTypeLookup =
+						Registries.createEntryLookup(Registries.ENTITY_TYPE);
+				return attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
+						.component(
+								DataComponentTypes.EQUIPPABLE,
+								EquippableComponent.builder(EquipmentSlot.BODY)
+									                  .equipSound(SoundEvents.ENTITY_HORSE_ARMOR)
+									                  .model(material.assetId())
+									                  .allowedEntities(entityTypeLookup.getOrThrow(EntityTypeTags.CAN_WEAR_HORSE_ARMOR))
+									                  .damageOnHurt(false)
+									                  .canBeSheared(true)
+									                  .shearingSound(SoundEvents.ITEM_HORSE_ARMOR_UNEQUIP)
+									                  .build()
+						)
+						.maxCount(1);
+			}
+	
+			public Item.Settings nautilusArmor(ArmorMaterial material) {
+				RegistryEntryLookup<EntityType<?>> entityTypeLookup =
+						Registries.createEntryLookup(Registries.ENTITY_TYPE);
+				return attributeModifiers(material.createAttributeModifiers(EquipmentType.BODY))
+						.component(
+								DataComponentTypes.EQUIPPABLE,
+								EquippableComponent.builder(EquipmentSlot.BODY)
+									                  .equipSound(SoundEvents.ITEM_ARMOR_EQUIP_NAUTILUS)
+									                  .model(material.assetId())
+									                  .allowedEntities(entityTypeLookup.getOrThrow(EntityTypeTags.CAN_WEAR_NAUTILUS_ARMOR))
+									                  .damageOnHurt(false)
+									                  .equipOnInteract(true)
+									                  .canBeSheared(true)
+									                  .shearingSound(SoundEvents.ITEM_ARMOR_UNEQUIP_NAUTILUS)
+									                  .build()
+						)
+						.maxCount(1);
+			}
+	
+			public Item.Settings trimMaterial(RegistryKey<ArmorTrimMaterial> trimMaterial) {
+				return component(
+						DataComponentTypes.PROVIDES_TRIM_MATERIAL,
+						new ProvidesTrimMaterialComponent(trimMaterial)
+				);
+			}
+	
+			public Item.Settings requires(FeatureFlag... features) {
+				requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(features);
+				return this;
+			}
+	
+			public Item.Settings registryKey(RegistryKey<Item> registryKey) {
+				this.registryKey = registryKey;
+				return this;
+			}
+	
+			public Item.Settings translationKey(String translationKey) {
+				this.translationKey = RegistryKeyedValue.fixed(translationKey);
+				return this;
+			}
+	
+			public Item.Settings useBlockPrefixedTranslationKey() {
+				translationKey = BLOCK_PREFIXED_TRANSLATION_KEY;
+				return this;
+			}
+	
+			public Item.Settings useItemPrefixedTranslationKey() {
+				translationKey = ITEM_PREFIXED_TRANSLATION_KEY;
+				return this;
+			}
+	
+			protected String getTranslationKey() {
+				return translationKey.get(Objects.requireNonNull(registryKey, "Item id not set"));
+			}
+	
+			public Identifier getModelId() {
+				return modelId.get(Objects.requireNonNull(registryKey, "Item id not set"));
+			}
+	
+			public <T> Item.Settings component(ComponentType<T> type, T value) {
+				components.add(type, value);
+				return this;
+			}
+	
+			public Item.Settings attributeModifiers(AttributeModifiersComponent attributeModifiersComponent) {
+				return component(DataComponentTypes.ATTRIBUTE_MODIFIERS, attributeModifiersComponent);
+			}
+	
+			ComponentMap getValidatedComponents(Text name, Identifier modelId) {
+				ComponentMap componentMap = components
+						.add(DataComponentTypes.ITEM_NAME, name)
+						.add(DataComponentTypes.ITEM_MODEL, modelId)
+						.build();
+	
+				if (componentMap.contains(DataComponentTypes.DAMAGE)
+						&& componentMap.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1) > 1) {
+					throw new IllegalStateException("Item cannot have both durability and be stackable");
+				}
+	
 				return componentMap;
 			}
 		}
-	}
-
-	/**
-	 * {@code TooltipContext}.
-	 */
-	public interface TooltipContext {
-
-		Item.TooltipContext DEFAULT = new Item.TooltipContext() {
-			@Override
-			public RegistryWrapper.@Nullable WrapperLookup getRegistryLookup() {
-				return null;
-			}
-
-			@Override
-			public float getUpdateTickRate() {
-				return 20.0F;
-			}
-
-			@Override
-			public @Nullable MapState getMapState(MapIdComponent mapIdComponent) {
-				return null;
-			}
-
-			@Override
-			public boolean isDifficultyPeaceful() {
-				return false;
-			}
-		};
-
-		RegistryWrapper.@Nullable WrapperLookup getRegistryLookup();
-
-		float getUpdateTickRate();
-
-		@Nullable MapState getMapState(MapIdComponent mapIdComponent);
-
-		boolean isDifficultyPeaceful();
-
-		static Item.TooltipContext create(@Nullable World world) {
-			return world == null ? DEFAULT : new Item.TooltipContext() {
+	
+		/**
+			* Контекст для формирования подсказок (tooltip) предмета.
+			* <p>Предоставляет доступ к реестрам, состоянию карт, скорости тиков и сложности мира.
+			* Используется в {@link Item#appendTooltip} и связанных методах.</p>
+			*/
+		public interface TooltipContext {
+	
+			TooltipContext DEFAULT = new TooltipContext() {
 				@Override
-				public RegistryWrapper.WrapperLookup getRegistryLookup() {
-					return world.getRegistryManager();
+				public RegistryWrapper.@Nullable WrapperLookup getRegistryLookup() {
+					return null;
 				}
-
-				@Override
-				public float getUpdateTickRate() {
-					return world.getTickManager().getTickRate();
-				}
-
-				@Override
-				public MapState getMapState(MapIdComponent mapIdComponent) {
-					return world.getMapState(mapIdComponent);
-				}
-
-				@Override
-				public boolean isDifficultyPeaceful() {
-					return world.getDifficulty() == Difficulty.PEACEFUL;
-				}
-			};
-		}
-
-		static Item.TooltipContext create(RegistryWrapper.WrapperLookup registries) {
-			return new Item.TooltipContext() {
-				@Override
-				public RegistryWrapper.WrapperLookup getRegistryLookup() {
-					return registries;
-				}
-
+	
 				@Override
 				public float getUpdateTickRate() {
 					return 20.0F;
 				}
-
+	
 				@Override
 				public @Nullable MapState getMapState(MapIdComponent mapIdComponent) {
 					return null;
 				}
-
+	
 				@Override
 				public boolean isDifficultyPeaceful() {
 					return false;
 				}
 			};
+	
+			RegistryWrapper.@Nullable WrapperLookup getRegistryLookup();
+	
+			float getUpdateTickRate();
+	
+			@Nullable MapState getMapState(MapIdComponent mapIdComponent);
+	
+			boolean isDifficultyPeaceful();
+	
+			static TooltipContext create(@Nullable World world) {
+				return world == null ? DEFAULT : new TooltipContext() {
+					@Override
+					public RegistryWrapper.WrapperLookup getRegistryLookup() {
+						return world.getRegistryManager();
+					}
+	
+					@Override
+					public float getUpdateTickRate() {
+						return world.getTickManager().getTickRate();
+					}
+	
+					@Override
+					public MapState getMapState(MapIdComponent mapIdComponent) {
+						return world.getMapState(mapIdComponent);
+					}
+	
+					@Override
+					public boolean isDifficultyPeaceful() {
+						return world.getDifficulty() == Difficulty.PEACEFUL;
+					}
+				};
+			}
+	
+			static TooltipContext create(RegistryWrapper.WrapperLookup registries) {
+				return new TooltipContext() {
+					@Override
+					public RegistryWrapper.WrapperLookup getRegistryLookup() {
+						return registries;
+					}
+	
+					@Override
+					public float getUpdateTickRate() {
+						return 20.0F;
+					}
+	
+					@Override
+					public @Nullable MapState getMapState(MapIdComponent mapIdComponent) {
+						return null;
+					}
+	
+					@Override
+					public boolean isDifficultyPeaceful() {
+						return false;
+					}
+				};
+			}
 		}
 	}
-}

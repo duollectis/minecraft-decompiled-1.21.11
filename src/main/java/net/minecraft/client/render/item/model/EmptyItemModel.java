@@ -12,10 +12,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EmptyItemModel}.
+ * Модель предмета-заглушки, которая не рендерит ничего.
+ * Используется как нейтральный вариант в системе диспетчеризации моделей,
+ * когда для данного состояния предмета не требуется визуальное представление.
  */
+@Environment(EnvType.CLIENT)
 public class EmptyItemModel implements ItemModel {
 
 	public static final ItemModel INSTANCE = new EmptyItemModel();
@@ -33,10 +35,11 @@ public class EmptyItemModel implements ItemModel {
 		state.addModelKey(this);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма пустой модели предмета.
+	 * Всегда возвращает единственный экземпляр {@link EmptyItemModel#INSTANCE}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked() implements ItemModel.Unbaked {
 
 		public static final MapCodec<EmptyItemModel.Unbaked> CODEC = MapCodec.unit(EmptyItemModel.Unbaked::new);

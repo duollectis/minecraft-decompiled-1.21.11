@@ -14,12 +14,16 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpectralArrowEntity}.
+ * Спектральная стрела, накладывающая эффект свечения на цель.
+ * <p>
+ * При попадании применяет {@link StatusEffects#GLOWING} на {@code duration} тиков.
+ * В полёте испускает частицы эффекта для визуальной индикации.
  */
 public class SpectralArrowEntity extends PersistentProjectileEntity {
 
 	private static final int DEFAULT_DURATION = 200;
-	private int duration = 200;
+
+	private int duration = DEFAULT_DURATION;
 
 	public SpectralArrowEntity(EntityType<? extends SpectralArrowEntity> entityType, World world) {
 		super(entityType, world);
@@ -30,12 +34,12 @@ public class SpectralArrowEntity extends PersistentProjectileEntity {
 	}
 
 	public SpectralArrowEntity(
-			World world,
-			double x,
-			double y,
-			double z,
-			ItemStack stack,
-			@Nullable ItemStack shotFrom
+		World world,
+		double x,
+		double y,
+		double z,
+		ItemStack stack,
+		@Nullable ItemStack shotFrom
 	) {
 		super(EntityType.SPECTRAL_ARROW, x, y, z, world, stack, shotFrom);
 	}
@@ -43,38 +47,35 @@ public class SpectralArrowEntity extends PersistentProjectileEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient() && !this.isInGround()) {
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							EffectParticleEffect.of(ParticleTypes.EFFECT, -1, 1.0F),
-							this.getX(),
-							this.getY(),
-							this.getZ(),
-							0.0,
-							0.0,
-							0.0
-					);
+		if (getEntityWorld().isClient() && !isInGround()) {
+			getEntityWorld().addParticleClient(
+				EffectParticleEffect.of(ParticleTypes.EFFECT, -1, 1.0F),
+				getX(),
+				getY(),
+				getZ(),
+				0.0,
+				0.0,
+				0.0
+			);
 		}
 	}
 
 	@Override
 	protected void onHit(LivingEntity target) {
 		super.onHit(target);
-		StatusEffectInstance statusEffectInstance = new StatusEffectInstance(StatusEffects.GLOWING, this.duration, 0);
-		target.addStatusEffect(statusEffectInstance, this.getEffectCause());
+		target.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, duration, 0), getEffectCause());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.duration = view.getInt("Duration", 200);
+		duration = view.getInt("Duration", DEFAULT_DURATION);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Duration", this.duration);
+		view.putInt("Duration", duration);
 	}
 
 	@Override

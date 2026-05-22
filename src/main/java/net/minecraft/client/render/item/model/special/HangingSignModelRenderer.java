@@ -19,11 +19,17 @@ import org.joml.Vector3fc;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HangingSignModelRenderer}.
+ * Специализированный рендерер подвесной таблички как предмета.
+ * Использует модель типа {@link HangingSignBlockEntityRenderer.AttachmentType#CEILING_MIDDLE}
+ * для корректного отображения в инвентаре. Текстура может быть переопределена
+ * через опциональный идентификатор, иначе используется стандартная текстура типа дерева.
  */
+@Environment(EnvType.CLIENT)
 public class HangingSignModelRenderer implements SimpleSpecialModelRenderer {
+
+	private static final float SCALE_FLIP_Y = -1.0F;
+	private static final float SCALE_FLIP_Z = -1.0F;
 
 	private final SpriteHolder spriteHolder;
 	private final Model.SinglePartModel model;
@@ -43,39 +49,31 @@ public class HangingSignModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
-		HangingSignBlockEntityRenderer.renderAsItem(
-				this.spriteHolder,
-				matrices,
-				queue,
-				light,
-				overlay,
-				this.model,
-				this.texture
-		);
+		HangingSignBlockEntityRenderer.renderAsItem(spriteHolder, matrices, queue, light, overlay, model, texture);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		HangingSignBlockEntityRenderer.setAngles(matrixStack, 0.0F);
-		matrixStack.scale(1.0F, -1.0F, -1.0F);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		HangingSignBlockEntityRenderer.setAngles(matrices, 0.0F);
+		matrices.scale(1.0F, SCALE_FLIP_Y, SCALE_FLIP_Z);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера подвесной таблички.
+	 * Хранит тип дерева и опциональный идентификатор текстуры.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(WoodType woodType, Optional<Identifier> texture) implements SpecialModelRenderer.Unbaked {
 
 		public static final MapCodec<HangingSignModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    WoodType.CODEC.fieldOf("wood_type").forGetter(HangingSignModelRenderer.Unbaked::woodType),
-						                    Identifier.CODEC.optionalFieldOf("texture").forGetter(HangingSignModelRenderer.Unbaked::texture)
-				                    )
-				                    .apply(instance, HangingSignModelRenderer.Unbaked::new)
+						WoodType.CODEC.fieldOf("wood_type").forGetter(HangingSignModelRenderer.Unbaked::woodType),
+						Identifier.CODEC.optionalFieldOf("texture").forGetter(HangingSignModelRenderer.Unbaked::texture)
+				).apply(instance, HangingSignModelRenderer.Unbaked::new)
 		);
 
 		public Unbaked(WoodType woodType) {
@@ -89,15 +87,16 @@ public class HangingSignModelRenderer implements SimpleSpecialModelRenderer {
 
 		@Override
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			Model.SinglePartModel singlePartModel = HangingSignBlockEntityRenderer.createModel(
+			Model.SinglePartModel signModel = HangingSignBlockEntityRenderer.createModel(
 					context.entityModelSet(),
-					this.woodType,
+					woodType,
 					HangingSignBlockEntityRenderer.AttachmentType.CEILING_MIDDLE
 			);
-			SpriteIdentifier spriteIdentifier = this.texture
+			SpriteIdentifier spriteId = texture
 					.map(TexturedRenderLayers.HANGING_SIGN_SPRITE_MAPPER::map)
-					.orElseGet(() -> TexturedRenderLayers.getHangingSignTextureId(this.woodType));
-			return new HangingSignModelRenderer(context.spriteHolder(), singlePartModel, spriteIdentifier);
+					.orElseGet(() -> TexturedRenderLayers.getHangingSignTextureId(woodType));
+
+			return new HangingSignModelRenderer(context.spriteHolder(), signModel, spriteId);
 		}
 	}
 }

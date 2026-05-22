@@ -4,13 +4,24 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code EnchantmentProviderType}.
+ * Реестр типов провайдеров зачарований.
+ * Регистрирует все встроенные реализации {@link EnchantmentProvider}.
  */
 public interface EnchantmentProviderType {
 
-	static MapCodec<? extends EnchantmentProvider> registerAndGetDefault(Registry<MapCodec<? extends EnchantmentProvider>> registry) {
+	/**
+	 * Регистрирует все встроенные типы провайдеров и возвращает дефолтный (single).
+	 *
+	 * @param registry реестр кодеков провайдеров
+	 * @return кодек дефолтного типа провайдера
+	 */
+	static MapCodec<? extends EnchantmentProvider> registerAndGetDefault(
+		Registry<MapCodec<? extends EnchantmentProvider>> registry
+	) {
 		Registry.register(registry, "by_cost", ByCostEnchantmentProvider.CODEC);
 		Registry.register(registry, "by_cost_with_difficulty", ByCostWithDifficultyEnchantmentProvider.CODEC);
+
 		return Registry.register(registry, "single", SingleEnchantmentProvider.CODEC);
 	}
+
 }

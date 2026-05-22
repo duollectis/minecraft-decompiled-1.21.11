@@ -10,9 +10,7 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code BlockPileFeature}.
- */
+/** Генерирует кучу блоков в форме эллипса вокруг точки происхождения, опираясь на поверхность под ней. */
 public class BlockPileFeature extends Feature<BlockPileFeatureConfig> {
 
 	public BlockPileFeature(Codec<BlockPileFeatureConfig> codec) {
@@ -21,41 +19,42 @@ public class BlockPileFeature extends Feature<BlockPileFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<BlockPileFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		BlockPileFeatureConfig blockPileFeatureConfig = context.getConfig();
-		if (blockPos.getY() < structureWorldAccess.getBottomY() + 5) {
+		BlockPileFeatureConfig config = context.getConfig();
+
+		if (origin.getY() < world.getBottomY() + 5) {
 			return false;
 		}
-		else {
-			int i = 2 + random.nextInt(2);
-			int j = 2 + random.nextInt(2);
 
-			for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-i, 0, -j), blockPos.add(i, 1, j))) {
-				int k = blockPos.getX() - blockPos2.getX();
-				int l = blockPos.getZ() - blockPos2.getZ();
-				if (k * k + l * l <= random.nextFloat() * 10.0F - random.nextFloat() * 6.0F) {
-					this.addPileBlock(structureWorldAccess, blockPos2, random, blockPileFeatureConfig);
-				}
-				else if (random.nextFloat() < 0.031) {
-					this.addPileBlock(structureWorldAccess, blockPos2, random, blockPileFeatureConfig);
-				}
+		int radiusX = 2 + random.nextInt(2);
+		int radiusZ = 2 + random.nextInt(2);
+
+		for (BlockPos pos : BlockPos.iterate(origin.add(-radiusX, 0, -radiusZ), origin.add(radiusX, 1, radiusZ))) {
+			int dx = origin.getX() - pos.getX();
+			int dz = origin.getZ() - pos.getZ();
+			float distSq = dx * dx + dz * dz;
+
+			if (distSq <= random.nextFloat() * 10.0F - random.nextFloat() * 6.0F
+					|| random.nextFloat() < 0.031F) {
+				addPileBlock(world, pos, random, config);
 			}
-
-			return true;
 		}
+
+		return true;
 	}
 
 	private boolean canPlace(WorldAccess world, BlockPos pos, Random random) {
-		BlockPos blockPos = pos.down();
-		BlockState blockState = world.getBlockState(blockPos);
-		return blockState.isOf(Blocks.DIRT_PATH) ? random.nextBoolean()
-		                                         : blockState.isSideSolidFullSquare(world, blockPos, Direction.UP);
+		BlockPos below = pos.down();
+		BlockState belowState = world.getBlockState(below);
+		return belowState.isOf(Blocks.DIRT_PATH)
+				? random.nextBoolean()
+				: belowState.isSideSolidFullSquare(world, below, Direction.UP);
 	}
 
 	private void addPileBlock(WorldAccess world, BlockPos pos, Random random, BlockPileFeatureConfig config) {
-		if (world.isAir(pos) && this.canPlace(world, pos, random)) {
+		if (world.isAir(pos) && canPlace(world, pos, random)) {
 			world.setBlockState(pos, config.stateProvider.get(random, pos), 260);
 		}
 	}

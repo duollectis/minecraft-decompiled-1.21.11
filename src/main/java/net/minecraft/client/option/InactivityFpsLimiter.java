@@ -38,8 +38,8 @@ public class InactivityFpsLimiter {
 			case NONE -> this.maxFps;
 			case WINDOW_ICONIFIED -> 10;
 			case LONG_AFK -> 10;
-			case SHORT_AFK -> Math.min(this.maxFps, 30);
-			case OUT_OF_LEVEL_MENU -> 60;
+			case SHORT_AFK -> Math.min(this.maxFps, AFK_STAGE_1_FPS);
+			case OUT_OF_LEVEL_MENU -> IN_GUI_FPS;
 		};
 	}
 
@@ -51,11 +51,11 @@ public class InactivityFpsLimiter {
 		else {
 			if (inactivityFpsLimit == InactivityFpsLimit.AFK) {
 				long l = Util.getMeasuringTimeMs() - this.lastInputTime;
-				if (l > 600000L) {
+				if (l > AFK_STAGE_2_THRESHOLD) {
 					return InactivityFpsLimiter.LimitReason.LONG_AFK;
 				}
 
-				if (l > 60000L) {
+				if (l > AFK_STAGE_1_THRESHOLD) {
 					return InactivityFpsLimiter.LimitReason.SHORT_AFK;
 				}
 			}

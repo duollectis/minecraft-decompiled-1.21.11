@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema701}.
+ * Схема DataFixer версии 701, добавляющая сущности {@code WitherSkeleton}
+ * (скелет-иссушитель) и {@code Stray} (бродяга).
  */
 public class Schema701 extends Schema {
 

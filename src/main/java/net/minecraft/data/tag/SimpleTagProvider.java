@@ -23,7 +23,7 @@ public abstract class SimpleTagProvider<T> extends TagProvider<T> {
 	}
 
 	protected ProvidedTagBuilder<RegistryKey<T>, T> builder(TagKey<T> tag) {
-		TagBuilder tagBuilder = this.getTagBuilder(tag);
+		TagBuilder tagBuilder = getTagBuilder(tag);
 		return ProvidedTagBuilder.of(tagBuilder);
 	}
 }

@@ -22,20 +22,21 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code InstrumentComponent}.
- */
+	 * Компонент инструмента (козьего рога). Хранит ленивую ссылку на запись реестра
+	 * {@link Instrument} и отображает описание инструмента в тултипе предмета.
+	 */
 public record InstrumentComponent(LazyRegistryEntryReference<Instrument> instrument) implements TooltipAppender {
 
 	public static final Codec<InstrumentComponent>
 			CODEC =
 			LazyRegistryEntryReference.createCodec(RegistryKeys.INSTRUMENT, Instrument.ENTRY_CODEC)
-			                          .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
+										.xmap(InstrumentComponent::new, InstrumentComponent::instrument);
 	public static final PacketCodec<RegistryByteBuf, InstrumentComponent>
 			PACKET_CODEC =
 			LazyRegistryEntryReference.createPacketCodec(
-					                          RegistryKeys.INSTRUMENT, Instrument.ENTRY_PACKET_CODEC
-			                          )
-			                          .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
+												RegistryKeys.INSTRUMENT, Instrument.ENTRY_PACKET_CODEC
+										)
+										.xmap(InstrumentComponent::new, InstrumentComponent::instrument);
 
 	public InstrumentComponent(RegistryEntry<Instrument> instrument) {
 		this(new LazyRegistryEntryReference<>(instrument));

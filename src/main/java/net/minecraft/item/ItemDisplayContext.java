@@ -7,7 +7,9 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code ItemDisplayContext}.
+ * Контекст отображения предмета — определяет, в каком месте и как рендерится предмет.
+ * <p>Используется рендерером для выбора трансформации модели предмета
+ * (позиция, поворот, масштаб) в зависимости от контекста отображения.</p>
  */
 public enum ItemDisplayContext implements StringIdentifiable {
 	NONE(0, "none"),
@@ -25,21 +27,22 @@ public enum ItemDisplayContext implements StringIdentifiable {
 	public static final IntFunction<ItemDisplayContext> FROM_INDEX = ValueLists.createIndexToValueFunction(
 			ItemDisplayContext::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
+
 	private final byte index;
 	private final String name;
 
-	private ItemDisplayContext(final int index, final String name) {
+	ItemDisplayContext(final int index, final String name) {
 		this.name = name;
 		this.index = (byte) index;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	public byte getIndex() {
-		return this.index;
+		return index;
 	}
 
 	public boolean isFirstPerson() {

@@ -22,29 +22,32 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code SetEnchantmentsLootFunction}.
+ * Функция лута, устанавливающая зачарования предмета.
+ * Если {@code add = true}, уровни зачарований прибавляются к существующим (с зажимом в [0, 255]).
+ * Книга автоматически превращается в зачарованную книгу.
  */
 public class SetEnchantmentsLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetEnchantmentsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									Codec.unboundedMap(Enchantment.ENTRY_CODEC, LootNumberProviderTypes.CODEC)
-									     .optionalFieldOf("enchantments", Map.of())
-									     .forGetter(function -> function.enchantments),
-									Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
-							)
-					)
-					.apply(instance, SetEnchantmentsLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					Codec.unboundedMap(Enchantment.ENTRY_CODEC, LootNumberProviderTypes.CODEC)
+						.optionalFieldOf("enchantments", Map.of())
+						.forGetter(function -> function.enchantments),
+					Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
+				)
+			)
+			.apply(instance, SetEnchantmentsLootFunction::new)
 	);
+
 	private final Map<RegistryEntry<Enchantment>, LootNumberProvider> enchantments;
 	private final boolean add;
 
 	SetEnchantmentsLootFunction(
-			List<LootCondition> conditions,
-			Map<RegistryEntry<Enchantment>, LootNumberProvider> enchantments,
-			boolean add
+		List<LootCondition> conditions,
+		Map<RegistryEntry<Enchantment>, LootNumberProvider> enchantments,
+		boolean add
 	) {
 		super(conditions);
 		this.enchantments = Map.copyOf(enchantments);
@@ -58,11 +61,11 @@ public class SetEnchantmentsLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.enchantments
-				.values()
-				.stream()
-				.flatMap(numberProvider -> numberProvider.getAllowedParameters().stream())
-				.collect(ImmutableSet.toImmutableSet());
+		return enchantments
+			.values()
+			.stream()
+			.flatMap(numberProvider -> numberProvider.getAllowedParameters().stream())
+			.collect(ImmutableSet.toImmutableSet());
 	}
 
 	@Override
@@ -71,43 +74,27 @@ public class SetEnchantmentsLootFunction extends ConditionalLootFunction {
 			stack = stack.withItem(Items.ENCHANTED_BOOK);
 		}
 
-		EnchantmentHelper.apply(
-				stack,
-				builder -> {
-					if (this.add) {
-						this.enchantments
-								.forEach(
-										(enchantment, level) -> builder.set(
-												(RegistryEntry<Enchantment>) enchantment,
-												MathHelper.clamp(
-														builder.getLevel((RegistryEntry<Enchantment>) enchantment)
-																+ level.nextInt(context),
-														0,
-														255
-												)
-										)
-								);
-					}
-					else {
-						this.enchantments
-								.forEach((enchantment, level) -> builder.set(
-										(RegistryEntry<Enchantment>) enchantment,
-										MathHelper.clamp(level.nextInt(context), 0, 255)
-								));
-					}
-				}
-		);
+		EnchantmentHelper.apply(stack, builder -> {
+			if (add) {
+				enchantments.forEach((enchantment, level) -> builder.set(
+					enchantment,
+					MathHelper.clamp(builder.getLevel(enchantment) + level.nextInt(context), 0, 255)
+				));
+			} else {
+				enchantments.forEach((enchantment, level) -> builder.set(
+					enchantment,
+					MathHelper.clamp(level.nextInt(context), 0, 255)
+				));
+			}
+		});
 		return stack;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель функции установки зачарований. */
 	public static class Builder extends ConditionalLootFunction.Builder<SetEnchantmentsLootFunction.Builder> {
 
-		private final com.google.common.collect.ImmutableMap.Builder<RegistryEntry<Enchantment>, LootNumberProvider>
-				enchantments =
-				ImmutableMap.builder();
+		private final ImmutableMap.Builder<RegistryEntry<Enchantment>, LootNumberProvider> enchantments =
+			ImmutableMap.builder();
 		private final boolean add;
 
 		public Builder() {
@@ -118,21 +105,22 @@ public class SetEnchantmentsLootFunction extends ConditionalLootFunction {
 			this.add = add;
 		}
 
+		@Override
 		protected SetEnchantmentsLootFunction.Builder getThisBuilder() {
 			return this;
 		}
 
 		public SetEnchantmentsLootFunction.Builder enchantment(
-				RegistryEntry<Enchantment> enchantment,
-				LootNumberProvider level
+			RegistryEntry<Enchantment> enchantment,
+			LootNumberProvider level
 		) {
-			this.enchantments.put(enchantment, level);
+			enchantments.put(enchantment, level);
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new SetEnchantmentsLootFunction(this.getConditions(), this.enchantments.build(), this.add);
+			return new SetEnchantmentsLootFunction(getConditions(), enchantments.build(), add);
 		}
 	}
 }

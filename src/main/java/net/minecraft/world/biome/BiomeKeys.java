@@ -5,7 +5,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code BiomeKeys}.
+ * Реестр ключей всех ванильных биомов.
+ * Используется для ссылок на биомы через систему реестров без прямой зависимости от объектов биомов.
  */
 public abstract class BiomeKeys {
 

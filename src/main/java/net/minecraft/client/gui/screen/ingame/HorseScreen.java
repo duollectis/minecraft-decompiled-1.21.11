@@ -11,10 +11,10 @@ import net.minecraft.screen.HorseScreenHandler;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HorseScreen}.
+ * Экран инвентаря лошади. Отображает слоты седла, брони и сундука (если есть).
  */
+@Environment(EnvType.CLIENT)
 public class HorseScreen extends MountScreen<HorseScreenHandler> {
 
 	private static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("container/slot");
@@ -22,10 +22,10 @@ public class HorseScreen extends MountScreen<HorseScreenHandler> {
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/horse.png");
 
 	public HorseScreen(
-			HorseScreenHandler handler,
-			PlayerInventory inventory,
-			AbstractHorseEntity entity,
-			int slotColumnCount
+		HorseScreenHandler handler,
+		PlayerInventory inventory,
+		AbstractHorseEntity entity,
+		int slotColumnCount
 	) {
 		super(handler, inventory, entity.getDisplayName(), slotColumnCount, entity);
 	}
@@ -47,15 +47,13 @@ public class HorseScreen extends MountScreen<HorseScreenHandler> {
 
 	@Override
 	protected boolean canEquipSaddle() {
-		return this.mount.canUseSlot(EquipmentSlot.SADDLE) && this.mount
-				.getType()
-				.isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
+		return mount.canUseSlot(EquipmentSlot.SADDLE)
+			&& mount.getType().isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
 	}
 
 	@Override
 	protected boolean canEquipArmor() {
-		return this.mount.canUseSlot(EquipmentSlot.BODY) && (
-				this.mount.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || this.mount instanceof LlamaEntity
-		);
+		return mount.canUseSlot(EquipmentSlot.BODY)
+			&& (mount.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || mount instanceof LlamaEntity);
 	}
 }

@@ -3,7 +3,7 @@ package net.minecraft.network.listener;
 import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 
 /**
- * Интерфейс client ping result packet listener.
+ * Слушатель клиентских пакетов результата пинга от сервера.
  */
 public interface ClientPingResultPacketListener extends PacketListener {
 

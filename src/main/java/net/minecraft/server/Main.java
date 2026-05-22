@@ -65,7 +65,9 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 /**
- * {@code Main}.
+ * Точка входа выделенного сервера Minecraft.
+ * Парсит аргументы командной строки, инициализирует хранилище мира,
+ * загружает датапаки и запускает {@link MinecraftDedicatedServer}.
  */
 public class Main {
 
@@ -73,70 +75,68 @@ public class Main {
 
 	@SuppressLinter(reason = "System.out needed before bootstrap")
 	@DontObfuscate
-	/**
-	 * Main.
-	 *
-	 * @param args args
-	 */
 	public static void main(String[] args) {
 		SharedConstants.createGameVersion();
-		OptionParser optionParser = new OptionParser();
-		OptionSpec<Void> optionSpec = optionParser.accepts("nogui");
-		OptionSpec<Void>
-				optionSpec2 =
-				optionParser.accepts("initSettings", "Initializes 'server.properties' and 'eula.txt', then quits");
-		OptionSpec<Void> optionSpec3 = optionParser.accepts("demo");
-		OptionSpec<Void> optionSpec4 = optionParser.accepts("bonusChest");
-		OptionSpec<Void> optionSpec5 = optionParser.accepts("forceUpgrade");
-		OptionSpec<Void> optionSpec6 = optionParser.accepts("eraseCache");
-		OptionSpec<Void> optionSpec7 = optionParser.accepts("recreateRegionFiles");
-		OptionSpec<Void> optionSpec8 = optionParser.accepts("safeMode", "Loads level with vanilla datapack only");
-		OptionSpec<Void> optionSpec9 = optionParser.accepts("help").forHelp();
-		OptionSpec<String>
-				optionSpec10 =
-				optionParser.accepts("universe").withRequiredArg().defaultsTo(".", new String[0]);
-		OptionSpec<String> optionSpec11 = optionParser.accepts("world").withRequiredArg();
-		OptionSpec<Integer>
-				optionSpec12 =
-				optionParser.accepts("port").withRequiredArg().ofType(Integer.class).defaultsTo(-1, new Integer[0]);
-		OptionSpec<String> optionSpec13 = optionParser.accepts("serverId").withRequiredArg();
-		OptionSpec<Void> optionSpec14 = optionParser.accepts("jfrProfile");
-		OptionSpec<Path>
-				optionSpec15 =
-				optionParser
-						.accepts("pidFile")
-						.withRequiredArg()
-						.withValuesConvertedBy(new PathConverter(new PathProperties[0]));
-		OptionSpec<String> optionSpec16 = optionParser.nonOptions();
+
+		OptionParser parser = new OptionParser();
+		OptionSpec<Void> noGuiOption = parser.accepts("nogui");
+		OptionSpec<Void> initSettingsOption = parser.accepts(
+			"initSettings",
+			"Initializes 'server.properties' and 'eula.txt', then quits"
+		);
+		OptionSpec<Void> demoOption = parser.accepts("demo");
+		OptionSpec<Void> bonusChestOption = parser.accepts("bonusChest");
+		OptionSpec<Void> forceUpgradeOption = parser.accepts("forceUpgrade");
+		OptionSpec<Void> eraseCacheOption = parser.accepts("eraseCache");
+		OptionSpec<Void> recreateRegionFilesOption = parser.accepts("recreateRegionFiles");
+		OptionSpec<Void> safeModeOption = parser.accepts("safeMode", "Loads level with vanilla datapack only");
+		OptionSpec<Void> helpOption = parser.accepts("help").forHelp();
+		OptionSpec<String> universeOption = parser.accepts("universe").withRequiredArg().defaultsTo(".", new String[0]);
+		OptionSpec<String> worldOption = parser.accepts("world").withRequiredArg();
+		OptionSpec<Integer> portOption = parser.accepts("port")
+			.withRequiredArg()
+			.ofType(Integer.class)
+			.defaultsTo(-1, new Integer[0]);
+		OptionSpec<String> serverIdOption = parser.accepts("serverId").withRequiredArg();
+		OptionSpec<Void> jfrProfileOption = parser.accepts("jfrProfile");
+		OptionSpec<Path> pidFileOption = parser.accepts("pidFile")
+			.withRequiredArg()
+			.withValuesConvertedBy(new PathConverter(new PathProperties[0]));
+		OptionSpec<String> nonOptions = parser.nonOptions();
 
 		try {
-			OptionSet optionSet = optionParser.parse(args);
-			if (optionSet.has(optionSpec9)) {
-				optionParser.printHelpOn(System.err);
+			OptionSet options = parser.parse(args);
+
+			if (options.has(helpOption)) {
+				parser.printHelpOn(System.err);
 				return;
 			}
 
-			Path path = (Path) optionSet.valueOf(optionSpec15);
-			if (path != null) {
-				writePidFile(path);
+			Path pidFile = options.valueOf(pidFileOption);
+			if (pidFile != null) {
+				writePidFile(pidFile);
 			}
 
 			CrashReport.initCrashReport();
-			if (optionSet.has(optionSpec14)) {
+
+			if (options.has(jfrProfileOption)) {
 				FlightProfiler.INSTANCE.start(InstanceType.SERVER);
 			}
 
 			Bootstrap.initialize();
 			Bootstrap.logMissing();
 			Util.startTimerHack();
-			Path path2 = Paths.get("server.properties");
-			ServerPropertiesLoader serverPropertiesLoader = new ServerPropertiesLoader(path2);
-			serverPropertiesLoader.store();
-			ChunkCompressionFormat.setCurrentFormat(serverPropertiesLoader.getPropertiesHandler().regionFileCompression);
-			Path path3 = Paths.get("eula.txt");
-			EulaReader eulaReader = new EulaReader(path3);
-			if (optionSet.has(optionSpec2)) {
-				LOGGER.info("Initialized '{}' and '{}'", path2.toAbsolutePath(), path3.toAbsolutePath());
+
+			Path serverPropertiesPath = Paths.get("server.properties");
+			ServerPropertiesLoader propertiesLoader = new ServerPropertiesLoader(serverPropertiesPath);
+			propertiesLoader.store();
+			ChunkCompressionFormat.setCurrentFormat(propertiesLoader.getPropertiesHandler().regionFileCompression);
+
+			Path eulaPath = Paths.get("eula.txt");
+			EulaReader eulaReader = new EulaReader(eulaPath);
+
+			if (options.has(initSettingsOption)) {
+				LOGGER.info("Initialized '{}' and '{}'", serverPropertiesPath.toAbsolutePath(), eulaPath.toAbsolutePath());
 				return;
 			}
 
@@ -145,61 +145,20 @@ public class Main {
 				return;
 			}
 
-			File file = new File((String) optionSet.valueOf(optionSpec10));
-			ApiServices apiServices = ApiServices.create(new YggdrasilAuthenticationService(Proxy.NO_PROXY), file);
-			String
-					string =
-					(String) Optional
-							.ofNullable((String) optionSet.valueOf(optionSpec11))
-							.orElse(serverPropertiesLoader.getPropertiesHandler().levelName);
-			LevelStorage levelStorage = LevelStorage.create(file.toPath());
-			LevelStorage.Session session = levelStorage.createSession(string);
-			Dynamic<?> dynamic;
-			if (session.levelDatExists()) {
-				LevelSummary levelSummary;
-				try {
-					dynamic = session.readLevelProperties();
-					levelSummary = session.getLevelSummary(dynamic);
-				}
-				catch (NbtException | NbtCrashException | IOException var41) {
-					LevelStorage.LevelSave levelSave = session.getDirectory();
-					LOGGER.warn("Failed to load world data from {}", levelSave.getLevelDatPath(), var41);
-					LOGGER.info("Attempting to use fallback");
+			File universeDir = new File(options.valueOf(universeOption));
+			ApiServices apiServices = ApiServices.create(new YggdrasilAuthenticationService(Proxy.NO_PROXY), universeDir);
 
-					try {
-						dynamic = session.readOldLevelProperties();
-						levelSummary = session.getLevelSummary(dynamic);
-					}
-					catch (NbtException | NbtCrashException | IOException var40) {
-						LOGGER.error("Failed to load world data from {}", levelSave.getLevelDatOldPath(), var40);
-						LOGGER.error(
-								"Failed to load world data from {} and {}. World files may be corrupted. Shutting down.",
-								levelSave.getLevelDatPath(),
-								levelSave.getLevelDatOldPath()
-						);
-						return;
-					}
+			String levelName = Optional
+				.ofNullable(options.valueOf(worldOption))
+				.orElse(propertiesLoader.getPropertiesHandler().levelName);
 
-					session.tryRestoreBackup();
-				}
+			LevelStorage levelStorage = LevelStorage.create(universeDir.toPath());
+			LevelStorage.Session session = levelStorage.createSession(levelName);
 
-				if (levelSummary.requiresConversion()) {
-					LOGGER.info("This world must be opened in an older version (like 1.6.4) to be safely converted");
-					return;
-				}
+			Dynamic<?> levelData = readLevelData(session);
+			boolean safeMode = options.has(safeModeOption);
 
-				if (!levelSummary.isVersionAvailable()) {
-					LOGGER.info("This world was created by an incompatible version.");
-					return;
-				}
-			}
-			else {
-				dynamic = null;
-			}
-
-			Dynamic<?> dynamic2 = dynamic;
-			boolean bl = optionSet.has(optionSpec8);
-			if (bl) {
+			if (safeMode) {
 				LOGGER.warn("Safe mode active, only vanilla datapack will be loaded");
 			}
 
@@ -207,249 +166,297 @@ public class Main {
 
 			SaveLoader saveLoader;
 			try {
-				SaveLoading.ServerConfig
-						serverConfig =
-						createServerConfig(
-								serverPropertiesLoader.getPropertiesHandler(),
-								dynamic2,
-								bl,
-								resourcePackManager
-						);
+				SaveLoading.ServerConfig serverConfig = createServerConfig(
+					propertiesLoader.getPropertiesHandler(),
+					levelData,
+					safeMode,
+					resourcePackManager
+				);
 				saveLoader = Util.<SaveLoader>waitAndApply(
-						                 applyExecutor -> SaveLoading.load(
-								                 serverConfig,
-								                 loadContextSupplierContext -> {
-									                 Registry<DimensionOptions>
-											                 registry =
-											                 loadContextSupplierContext
-													                 .dimensionsRegistryManager()
-													                 .getOrThrow(RegistryKeys.DIMENSION);
-									                 if (dynamic2 != null) {
-										                 ParsedSaveProperties parsedSaveProperties = LevelStorage.parseSaveProperties(
-												                 dynamic2,
-												                 loadContextSupplierContext.dataConfiguration(),
-												                 registry,
-												                 loadContextSupplierContext.worldGenRegistryManager()
-										                 );
-										                 return new SaveLoading.LoadContext<>(
-												                 parsedSaveProperties.properties(),
-												                 parsedSaveProperties.dimensions().toDynamicRegistryManager()
-										                 );
-									                 }
-									                 else {
-										                 LOGGER.info("No existing world data, creating new world");
-										                 return createWorld(
-												                 serverPropertiesLoader,
-												                 loadContextSupplierContext,
-												                 registry,
-												                 optionSet.has(optionSpec3),
-												                 optionSet.has(optionSpec4)
-										                 );
-									                 }
-								                 },
-								                 SaveLoader::new,
-								                 Util.getMainWorkerExecutor(),
-								                 applyExecutor
-						                 )
-				                 )
-				                 .get();
-			}
-			catch (Exception var39) {
+					applyExecutor -> SaveLoading.load(
+						serverConfig,
+						context -> {
+							Registry<DimensionOptions> dimensionRegistry =
+								context.dimensionsRegistryManager().getOrThrow(RegistryKeys.DIMENSION);
+							if (levelData != null) {
+								ParsedSaveProperties parsed = LevelStorage.parseSaveProperties(
+									levelData,
+									context.dataConfiguration(),
+									dimensionRegistry,
+									context.worldGenRegistryManager()
+								);
+								return new SaveLoading.LoadContext<>(
+									parsed.properties(),
+									parsed.dimensions().toDynamicRegistryManager()
+								);
+							} else {
+								LOGGER.info("No existing world data, creating new world");
+								return createWorld(
+									propertiesLoader,
+									context,
+									dimensionRegistry,
+									options.has(demoOption),
+									options.has(bonusChestOption)
+								);
+							}
+						},
+						SaveLoader::new,
+						Util.getMainWorkerExecutor(),
+						applyExecutor
+					)
+				).get();
+			} catch (Exception e) {
 				LOGGER.warn(
-						"Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode",
-						var39
+					"Failed to load datapacks, can't proceed with server load. "
+						+ "You can either fix your datapacks or reset to vanilla with --safeMode",
+					e
 				);
 				return;
 			}
 
-			DynamicRegistryManager.Immutable
-					immutable =
-					saveLoader.combinedDynamicRegistries().getCombinedRegistryManager();
+			DynamicRegistryManager.Immutable registries =
+				saveLoader.combinedDynamicRegistries().getCombinedRegistryManager();
 			SaveProperties saveProperties = saveLoader.saveProperties();
-			boolean bl2 = optionSet.has(optionSpec7);
-			if (optionSet.has(optionSpec5) || bl2) {
+			boolean recreateRegionFiles = options.has(recreateRegionFilesOption);
+
+			if (options.has(forceUpgradeOption) || recreateRegionFiles) {
 				forceUpgradeWorld(
-						session,
-						saveProperties,
-						Schemas.getFixer(),
-						optionSet.has(optionSpec6),
-						() -> true,
-						immutable,
-						bl2
+					session,
+					saveProperties,
+					Schemas.getFixer(),
+					options.has(eraseCacheOption),
+					() -> true,
+					registries,
+					recreateRegionFiles
 				);
 			}
 
-			session.backupLevelDataFile(immutable, saveProperties);
-			final MinecraftDedicatedServer minecraftDedicatedServer = MinecraftServer.startServer(
-					threadx -> {
-						MinecraftDedicatedServer minecraftDedicatedServerx = new MinecraftDedicatedServer(
-								threadx,
-								session,
-								resourcePackManager,
-								saveLoader,
-								serverPropertiesLoader,
-								Schemas.getFixer(),
-								apiServices
-						);
-						minecraftDedicatedServerx.setServerPort((Integer) optionSet.valueOf(optionSpec12));
-						minecraftDedicatedServerx.setDemo(optionSet.has(optionSpec3));
-						minecraftDedicatedServerx.setServerId((String) optionSet.valueOf(optionSpec13));
-						boolean blx = !optionSet.has(optionSpec) && !optionSet.valuesOf(optionSpec16).contains("nogui");
-						if (blx && !GraphicsEnvironment.isHeadless()) {
-							minecraftDedicatedServerx.createGui();
-						}
+			session.backupLevelDataFile(registries, saveProperties);
 
-						return minecraftDedicatedServerx;
+			final MinecraftDedicatedServer dedicatedServer = MinecraftServer.startServer(
+				thread -> {
+					MinecraftDedicatedServer server = new MinecraftDedicatedServer(
+						thread,
+						session,
+						resourcePackManager,
+						saveLoader,
+						propertiesLoader,
+						Schemas.getFixer(),
+						apiServices
+					);
+					server.setServerPort(options.valueOf(portOption));
+					server.setDemo(options.has(demoOption));
+					server.setServerId(options.valueOf(serverIdOption));
+
+					boolean showGui = !options.has(noGuiOption)
+						&& !options.valuesOf(nonOptions).contains("nogui");
+					if (showGui && !GraphicsEnvironment.isHeadless()) {
+						server.createGui();
 					}
+
+					return server;
+				}
 			);
-			Thread thread = new Thread("Server Shutdown Thread") {
+
+			Thread shutdownThread = new Thread("Server Shutdown Thread") {
 				@Override
 				public void run() {
-					minecraftDedicatedServer.stop(true);
+					dedicatedServer.stop(true);
 				}
 			};
-			thread.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
-			Runtime.getRuntime().addShutdownHook(thread);
-		}
-		catch (Throwable var42) {
-			LOGGER.error(LogUtils.FATAL_MARKER, "Failed to start the minecraft server", var42);
+			shutdownThread.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
+			Runtime.getRuntime().addShutdownHook(shutdownThread);
+		} catch (Throwable e) {
+			LOGGER.error(LogUtils.FATAL_MARKER, "Failed to start the minecraft server", e);
 		}
 	}
 
+	/**
+	 * Читает данные уровня из сессии, при ошибке пытается восстановить из резервной копии.
+	 *
+	 * @return данные уровня или {@code null}, если файл level.dat отсутствует
+	 */
+	@Nullable
+	private static Dynamic<?> readLevelData(LevelStorage.Session session) throws Exception {
+		if (!session.levelDatExists()) {
+			return null;
+		}
+
+		try {
+			Dynamic<?> data = session.readLevelProperties();
+			LevelSummary summary = session.getLevelSummary(data);
+
+			if (summary.requiresConversion()) {
+				LOGGER.info("This world must be opened in an older version (like 1.6.4) to be safely converted");
+				return null;
+			}
+
+			if (!summary.isVersionAvailable()) {
+				LOGGER.info("This world was created by an incompatible version.");
+				return null;
+			}
+
+			return data;
+		} catch (NbtException | NbtCrashException | IOException e) {
+			LevelStorage.LevelSave levelSave = session.getDirectory();
+			LOGGER.warn("Failed to load world data from {}", levelSave.getLevelDatPath(), e);
+			LOGGER.info("Attempting to use fallback");
+
+			try {
+				Dynamic<?> fallback = session.readOldLevelProperties();
+				session.getLevelSummary(fallback);
+				session.tryRestoreBackup();
+				return fallback;
+			} catch (NbtException | NbtCrashException | IOException fallbackEx) {
+				LevelStorage.LevelSave levelSave2 = session.getDirectory();
+				LOGGER.error("Failed to load world data from {}", levelSave2.getLevelDatOldPath(), fallbackEx);
+				LOGGER.error(
+					"Failed to load world data from {} and {}. World files may be corrupted. Shutting down.",
+					levelSave2.getLevelDatPath(),
+					levelSave2.getLevelDatOldPath()
+				);
+				throw fallbackEx;
+			}
+		}
+	}
+
+	/**
+	 * Создаёт контекст загрузки для нового мира на основе настроек сервера.
+	 *
+	 * @param isDemo      режим демо-версии
+	 * @param bonusChest  добавить бонусный сундук при создании мира
+	 */
 	private static SaveLoading.LoadContext<SaveProperties> createWorld(
-			ServerPropertiesLoader serverPropertiesLoader,
-			SaveLoading.LoadContextSupplierContext loadContextSupplierContext,
-			Registry<DimensionOptions> registry,
-			boolean bl,
-			boolean bl2
+		ServerPropertiesLoader propertiesLoader,
+		SaveLoading.LoadContextSupplierContext context,
+		Registry<DimensionOptions> dimensionRegistry,
+		boolean isDemo,
+		boolean bonusChest
 	) {
 		LevelInfo levelInfo;
 		GeneratorOptions generatorOptions;
-		DimensionOptionsRegistryHolder dimensionOptionsRegistryHolder;
-		if (bl) {
+		DimensionOptionsRegistryHolder dimensionHolder;
+
+		if (isDemo) {
 			levelInfo = MinecraftServer.DEMO_LEVEL_INFO;
 			generatorOptions = GeneratorOptions.DEMO_OPTIONS;
-			dimensionOptionsRegistryHolder =
-					WorldPresets.createDemoOptions(loadContextSupplierContext.worldGenRegistryManager());
-		}
-		else {
-			ServerPropertiesHandler serverPropertiesHandler = serverPropertiesLoader.getPropertiesHandler();
+			dimensionHolder = WorldPresets.createDemoOptions(context.worldGenRegistryManager());
+		} else {
+			ServerPropertiesHandler props = propertiesLoader.getPropertiesHandler();
 			levelInfo = new LevelInfo(
-					serverPropertiesHandler.levelName,
-					serverPropertiesHandler.gameMode.get(),
-					serverPropertiesHandler.hardcore,
-					serverPropertiesHandler.difficulty.get(),
-					false,
-					new GameRules(loadContextSupplierContext.dataConfiguration().enabledFeatures()),
-					loadContextSupplierContext.dataConfiguration()
+				props.levelName,
+				props.gameMode.get(),
+				props.hardcore,
+				props.difficulty.get(),
+				false,
+				new GameRules(context.dataConfiguration().enabledFeatures()),
+				context.dataConfiguration()
 			);
-			generatorOptions =
-					bl2 ? serverPropertiesHandler.generatorOptions.withBonusChest(true)
-					    : serverPropertiesHandler.generatorOptions;
-			dimensionOptionsRegistryHolder =
-					serverPropertiesHandler.createDimensionsRegistryHolder(loadContextSupplierContext.worldGenRegistryManager());
+			generatorOptions = bonusChest
+				? props.generatorOptions.withBonusChest(true)
+				: props.generatorOptions;
+			dimensionHolder = props.createDimensionsRegistryHolder(context.worldGenRegistryManager());
 		}
 
-		DimensionOptionsRegistryHolder.DimensionsConfig
-				dimensionsConfig =
-				dimensionOptionsRegistryHolder.toConfig(registry);
-		Lifecycle
-				lifecycle =
-				dimensionsConfig
-						.getLifecycle()
-						.add(loadContextSupplierContext.worldGenRegistryManager().getLifecycle());
+		DimensionOptionsRegistryHolder.DimensionsConfig dimensionsConfig =
+			dimensionHolder.toConfig(dimensionRegistry);
+		Lifecycle lifecycle = dimensionsConfig
+			.getLifecycle()
+			.add(context.worldGenRegistryManager().getLifecycle());
+
 		return new SaveLoading.LoadContext<>(
-				new LevelProperties(levelInfo, generatorOptions, dimensionsConfig.specialWorldProperty(), lifecycle),
-				dimensionsConfig.toDynamicRegistryManager()
+			new LevelProperties(levelInfo, generatorOptions, dimensionsConfig.specialWorldProperty(), lifecycle),
+			dimensionsConfig.toDynamicRegistryManager()
 		);
 	}
 
 	private static void writePidFile(Path path) {
 		try {
-			long l = ProcessHandle.current().pid();
-			Files.writeString(path, Long.toString(l));
-		}
-		catch (IOException var3) {
-			throw new UncheckedIOException(var3);
+			long pid = ProcessHandle.current().pid();
+			Files.writeString(path, Long.toString(pid));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 
+	/**
+	 * Создаёт конфигурацию сервера для загрузки датапаков.
+	 * Если данные уровня существуют — читает конфигурацию из них, иначе использует настройки сервера.
+	 */
 	private static SaveLoading.ServerConfig createServerConfig(
-			ServerPropertiesHandler serverPropertiesHandler,
-			@Nullable Dynamic<?> dynamic,
-			boolean safeMode,
-			ResourcePackManager dataPackManager
+		ServerPropertiesHandler props,
+		@Nullable Dynamic<?> levelData,
+		boolean safeMode,
+		ResourcePackManager dataPackManager
 	) {
-		boolean bl;
-		DataConfiguration dataConfiguration2;
-		if (dynamic != null) {
-			DataConfiguration dataConfiguration = LevelStorage.parseDataPackSettings(dynamic);
-			bl = false;
-			dataConfiguration2 = dataConfiguration;
-		}
-		else {
-			bl = true;
-			dataConfiguration2 =
-					new DataConfiguration(
-							serverPropertiesHandler.dataPackSettings,
-							FeatureFlags.DEFAULT_ENABLED_FEATURES
-					);
+		DataConfiguration dataConfiguration;
+		boolean initMode;
+
+		if (levelData != null) {
+			dataConfiguration = LevelStorage.parseDataPackSettings(levelData);
+			initMode = false;
+		} else {
+			dataConfiguration = new DataConfiguration(props.dataPackSettings, FeatureFlags.DEFAULT_ENABLED_FEATURES);
+			initMode = true;
 		}
 
-		SaveLoading.DataPacks dataPacks = new SaveLoading.DataPacks(dataPackManager, dataConfiguration2, safeMode, bl);
+		SaveLoading.DataPacks dataPacks = new SaveLoading.DataPacks(dataPackManager, dataConfiguration, safeMode, initMode);
 		return new SaveLoading.ServerConfig(
-				dataPacks,
-				CommandManager.RegistrationEnvironment.DEDICATED,
-				serverPropertiesHandler.functionPermissionLevel
+			dataPacks,
+			CommandManager.RegistrationEnvironment.DEDICATED,
+			props.functionPermissionLevel
 		);
 	}
 
+	/**
+	 * Принудительно обновляет все чанки мира через {@link WorldUpdater}.
+	 * Логирует прогресс каждую секунду до завершения или отмены.
+	 */
 	private static void forceUpgradeWorld(
-			LevelStorage.Session session,
-			SaveProperties saveProperties,
-			DataFixer dataFixer,
-			boolean eraseCache,
-			BooleanSupplier continueCheck,
-			DynamicRegistryManager registries,
-			boolean recreateRegionFiles
+		LevelStorage.Session session,
+		SaveProperties saveProperties,
+		DataFixer dataFixer,
+		boolean eraseCache,
+		BooleanSupplier continueCheck,
+		DynamicRegistryManager registries,
+		boolean recreateRegionFiles
 	) {
 		LOGGER.info("Forcing world upgrade!");
 
-		try (WorldUpdater worldUpdater = new WorldUpdater(
-				session,
-				dataFixer,
-				saveProperties,
-				registries,
-				eraseCache,
-				recreateRegionFiles
-		)
-		) {
-			Text text = null;
+		try (WorldUpdater updater = new WorldUpdater(
+			session,
+			dataFixer,
+			saveProperties,
+			registries,
+			eraseCache,
+			recreateRegionFiles
+		)) {
+			Text lastStatus = null;
 
-			while (!worldUpdater.isDone()) {
-				Text text2 = worldUpdater.getStatus();
-				if (text != text2) {
-					text = text2;
-					LOGGER.info(worldUpdater.getStatus().getString());
+			while (!updater.isDone()) {
+				Text currentStatus = updater.getStatus();
+				if (currentStatus != lastStatus) {
+					lastStatus = currentStatus;
+					LOGGER.info(updater.getStatus().getString());
 				}
 
-				int i = worldUpdater.getTotalChunkCount();
-				if (i > 0) {
-					int j = worldUpdater.getUpgradedChunkCount() + worldUpdater.getSkippedChunkCount();
+				int totalChunks = updater.getTotalChunkCount();
+				if (totalChunks > 0) {
+					int processedChunks = updater.getUpgradedChunkCount() + updater.getSkippedChunkCount();
 					LOGGER.info(
-							"{}% completed ({} / {} chunks)...",
-							new Object[]{MathHelper.floor((float) j / i * 100.0F), j, i}
+						"{}% completed ({} / {} chunks)...",
+						MathHelper.floor((float) processedChunks / totalChunks * 100.0F),
+						processedChunks,
+						totalChunks
 					);
 				}
 
 				if (!continueCheck.getAsBoolean()) {
-					worldUpdater.cancel();
-				}
-				else {
+					updater.cancel();
+				} else {
 					try {
 						Thread.sleep(1000L);
-					}
-					catch (InterruptedException var13) {
+					} catch (InterruptedException ignored) {
 					}
 				}
 			}

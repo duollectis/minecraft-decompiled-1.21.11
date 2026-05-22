@@ -5,7 +5,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code LimitSlotsSlotSource}.
+ * Источник слотов, ограничивающий количество предметов из дочернего источника
+ * заданным положительным числом.
  */
 public class LimitSlotsSlotSource extends TransformSlotSource {
 
@@ -28,6 +29,6 @@ public class LimitSlotsSlotSource extends TransformSlotSource {
 
 	@Override
 	protected ItemStream transform(ItemStream stream) {
-		return stream.limit(this.limit);
+		return stream.limit(limit);
 	}
 }

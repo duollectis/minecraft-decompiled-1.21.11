@@ -67,12 +67,12 @@ public class SignBlockEntityRenderer extends AbstractSignBlockEntityRenderer {
 
 	@Override
 	protected float getSignScale() {
-		return 0.6666667F;
+		return SCALE;
 	}
 
 	@Override
 	protected float getTextScale() {
-		return 0.6666667F;
+		return SCALE;
 	}
 
 	private static void setAngles(MatrixStack matrices, float blockRotationDegrees) {
@@ -121,7 +121,7 @@ public class SignBlockEntityRenderer extends AbstractSignBlockEntityRenderer {
 
 	public static void setTransformsForItem(MatrixStack matrices) {
 		setAngles(matrices, 0.0F);
-		matrices.scale(0.6666667F, -0.6666667F, -0.6666667F);
+		matrices.scale(SCALE, -SCALE, -SCALE);
 	}
 
 	public static Model.SinglePartModel createSignModel(LoadedEntityModels models, WoodType type, boolean standing) {

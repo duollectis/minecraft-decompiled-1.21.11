@@ -12,60 +12,58 @@ import net.minecraft.util.context.ContextType;
 import java.util.Optional;
 
 /**
- * {@code EnchantmentEffectEntry}.
+ * Запись об эффекте зачарования с опциональным условием применения.
+ * Условие ({@code requirements}) проверяется через {@link LootCondition} в контексте лута —
+ * если условие не задано, эффект применяется всегда.
+ *
+ * @param <T> тип эффекта зачарования
  */
 public record EnchantmentEffectEntry<T>(T effect, Optional<LootCondition> requirements) {
 
 	/**
-	 * Создаёт requirements codec.
-	 *
-	 * @param lootContextType loot context type
-	 *
-	 * @return Codec — результат операции
+	 * Создаёт кодек для валидации условий применения эффекта.
+	 * Условие проверяется на корректность относительно указанного типа loot-контекста —
+	 * если валидация выявляет ошибки, кодек возвращает {@link DataResult#error}.
 	 */
 	public static Codec<LootCondition> createRequirementsCodec(ContextType lootContextType) {
 		return LootCondition.CODEC
-				.validate(
-						condition -> {
-							ErrorReporter.Impl impl = new ErrorReporter.Impl();
-							LootTableReporter lootTableReporter = new LootTableReporter(impl, lootContextType);
-							condition.validate(lootTableReporter);
-							return !impl.isEmpty()
-							       ? DataResult.error(() -> "Validation error in enchantment effect condition: "
-							                                + impl.getErrorsAsString())
-							       : DataResult.success(condition);
-						}
-				);
+				.validate(condition -> {
+					ErrorReporter.Impl reporter = new ErrorReporter.Impl();
+					LootTableReporter tableReporter = new LootTableReporter(reporter, lootContextType);
+					condition.validate(tableReporter);
+
+					return reporter.isEmpty()
+						? DataResult.success(condition)
+						: DataResult.error(() -> "Validation error in enchantment effect condition: "
+							+ reporter.getErrorsAsString());
+				});
 	}
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт кодек для записи эффекта зачарования с опциональным условием.
 	 *
-	 * @param effectCodec effect codec
-	 * @param lootContextType loot context type
-	 *
-	 * @return Codec> — результат операции
+	 * @param effectCodec     кодек конкретного типа эффекта
+	 * @param lootContextType тип loot-контекста для валидации условий
 	 */
-	public static <T> Codec<EnchantmentEffectEntry<T>> createCodec(Codec<T> effectCodec, ContextType lootContextType) {
+	public static <T> Codec<EnchantmentEffectEntry<T>> createCodec(
+			Codec<T> effectCodec,
+			ContextType lootContextType
+	) {
 		return RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    effectCodec.fieldOf("effect").forGetter(EnchantmentEffectEntry::effect),
-						                    createRequirementsCodec(lootContextType)
-								                    .optionalFieldOf("requirements")
-								                    .forGetter(EnchantmentEffectEntry::requirements)
-				                    )
-				                    .apply(instance, EnchantmentEffectEntry::new)
+						effectCodec.fieldOf("effect").forGetter(EnchantmentEffectEntry::effect),
+						createRequirementsCodec(lootContextType)
+								.optionalFieldOf("requirements")
+								.forGetter(EnchantmentEffectEntry::requirements)
+				).apply(instance, EnchantmentEffectEntry::new)
 		);
 	}
 
 	/**
-	 * Test.
-	 *
-	 * @param context context
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, выполнено ли условие применения эффекта в данном loot-контексте.
+	 * Если условие не задано — всегда возвращает {@code true}.
 	 */
 	public boolean test(LootContext context) {
-		return this.requirements.isEmpty() ? true : this.requirements.get().test(context);
+		return requirements.isEmpty() || requirements.get().test(context);
 	}
 }

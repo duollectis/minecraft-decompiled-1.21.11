@@ -83,7 +83,7 @@ public class VaultServerData {
 	 */
 	public void markPlayerAsRewarded(PlayerEntity player) {
 		this.rewardedPlayers.add(player.getUuid());
-		if (this.rewardedPlayers.size() > 128) {
+		if (this.rewardedPlayers.size() > MAX_STORED_REWARDED_PLAYERS) {
 			Iterator<UUID> iterator = this.rewardedPlayers.iterator();
 			if (iterator.hasNext()) {
 				iterator.next();

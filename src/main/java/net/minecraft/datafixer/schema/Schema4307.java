@@ -10,12 +10,14 @@ import java.util.SequencedMap;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4307}.
+ * Схема DataFixer версии 4307, добавляющая в компоненты данных предметов поддержку
+ * {@code minecraft:can_place_on} и {@code minecraft:can_break} — предикатов блоков,
+ * которые могут быть одиночным именем блока или списком имён.
  */
 public class Schema4307 extends IdentifierNormalizingSchema {
 
-	public Schema4307(int i, Schema schema) {
-		super(i, schema);
+	public Schema4307(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public static SequencedMap<String, Supplier<TypeTemplate>> createDataComponentsMap(Schema schema) {

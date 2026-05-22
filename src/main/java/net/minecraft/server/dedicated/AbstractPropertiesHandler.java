@@ -32,9 +32,6 @@ public abstract class AbstractPropertiesHandler<T extends AbstractPropertiesHand
 
 	protected final Properties properties;
 
-	/**
-	 * @param properties загруженные свойства сервера
-	 */
 	public AbstractPropertiesHandler(Properties properties) {
 		this.properties = properties;
 	}
@@ -131,9 +128,6 @@ public abstract class AbstractPropertiesHandler<T extends AbstractPropertiesHand
 		};
 	}
 
-	/**
-	 * @return строковое значение свойства по ключу, или {@code null} если отсутствует
-	 */
 	private @Nullable String getStringValue(String key) {
 		return (String) this.properties.get(key);
 	}

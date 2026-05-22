@@ -7,7 +7,8 @@ import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.Validate;
 
 /**
- * {@code BannerItem}.
+ * Предмет баннера, который можно размещать вертикально или на стене.
+ * Делегирует логику цвета к соответствующему {@link AbstractBannerBlock}.
  */
 public class BannerItem extends VerticallyAttachableBlockItem {
 
@@ -18,6 +19,6 @@ public class BannerItem extends VerticallyAttachableBlockItem {
 	}
 
 	public DyeColor getColor() {
-		return ((AbstractBannerBlock) this.getBlock()).getColor();
+		return ((AbstractBannerBlock) getBlock()).getColor();
 	}
 }

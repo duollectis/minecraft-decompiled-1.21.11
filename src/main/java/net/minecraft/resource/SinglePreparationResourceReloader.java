@@ -7,27 +7,44 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code SinglePreparationResourceReloader}.
+ * Базовый перезагрузчик с единственной фазой подготовки.
+ * Подготовка выполняется асинхронно, применение — в основном потоке.
+ *
+ * @param <T> тип подготовленных данных
  */
 public abstract class SinglePreparationResourceReloader<T> implements ResourceReloader {
 
 	@Override
 	public final CompletableFuture<Void> reload(
-			ResourceReloader.Store store,
-			Executor executor,
-			ResourceReloader.Synchronizer synchronizer,
-			Executor executor2
+		ResourceReloader.Store store,
+		Executor prepareExecutor,
+		ResourceReloader.Synchronizer synchronizer,
+		Executor applyExecutor
 	) {
 		ResourceManager resourceManager = store.getResourceManager();
-		return CompletableFuture.<T>supplyAsync(() -> this.prepare(resourceManager, Profilers.get()), executor)
-		                        .thenCompose(synchronizer::whenPrepared)
-		                        .thenAcceptAsync(
-				                        prepared -> this.apply((T) prepared, resourceManager, Profilers.get()),
-				                        executor2
-		                        );
+		return CompletableFuture.<T>supplyAsync(() -> prepare(resourceManager, Profilers.get()), prepareExecutor)
+			.thenCompose(synchronizer::whenPrepared)
+			.thenAcceptAsync(
+				prepared -> apply(prepared, resourceManager, Profilers.get()),
+				applyExecutor
+			);
 	}
 
+	/**
+	 * Фаза подготовки: загружает и обрабатывает данные асинхронно.
+	 *
+	 * @param manager  менеджер ресурсов
+	 * @param profiler профилировщик
+	 * @return подготовленные данные
+	 */
 	protected abstract T prepare(ResourceManager manager, Profiler profiler);
 
+	/**
+	 * Фаза применения: применяет подготовленные данные в основном потоке.
+	 *
+	 * @param prepared подготовленные данные
+	 * @param manager  менеджер ресурсов
+	 * @param profiler профилировщик
+	 */
 	protected abstract void apply(T prepared, ResourceManager manager, Profiler profiler);
 }

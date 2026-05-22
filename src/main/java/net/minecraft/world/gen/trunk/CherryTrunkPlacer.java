@@ -21,7 +21,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * {@code CherryTrunkPlacer}.
+ * Алгоритм размещения ствола вишнёвого дерева.
+ * Строит прямой ствол с 1–3 горизонтальными ветвями, расходящимися в противоположных направлениях.
+ * Каждая ветвь начинается на случайной высоте ниже вершины и изгибается к конечной точке,
+ * чередуя горизонтальные и вертикальные шаги пропорционально разнице высот.
  */
 public class CherryTrunkPlacer extends TrunkPlacer {
 
@@ -95,68 +98,49 @@ public class CherryTrunkPlacer extends TrunkPlacer {
 			TreeFeatureConfig config
 	) {
 		setToDirt(world, replacer, random, startPos.down(), config);
-		int i = Math.max(0, height - 1 + this.branchStartOffsetFromTop.get(random));
-		int j = Math.max(0, height - 1 + this.secondBranchStartOffsetFromTop.get(random));
-		if (j >= i) {
-			j++;
+		int firstBranchY = Math.max(0, height - 1 + branchStartOffsetFromTop.get(random));
+		int secondBranchY = Math.max(0, height - 1 + secondBranchStartOffsetFromTop.get(random));
+
+		if (secondBranchY >= firstBranchY) {
+			secondBranchY++;
 		}
 
-		int k = this.branchCount.get(random);
-		boolean bl = k == 3;
-		boolean bl2 = k >= 2;
-		int l;
-		if (bl) {
-			l = height;
-		}
-		else if (bl2) {
-			l = Math.max(i, j) + 1;
-		}
-		else {
-			l = i + 1;
+		int branchCountValue = branchCount.get(random);
+		boolean hasThreeBranches = branchCountValue == 3;
+		boolean hasTwoBranches = branchCountValue >= 2;
+		int trunkHeight = hasThreeBranches
+				? height
+				: hasTwoBranches
+						? Math.max(firstBranchY, secondBranchY) + 1
+						: firstBranchY + 1;
+
+		for (int y = 0; y < trunkHeight; y++) {
+			getAndSetState(world, replacer, random, startPos.up(y), config);
 		}
 
-		for (int m = 0; m < l; m++) {
-			this.getAndSetState(world, replacer, random, startPos.up(m), config);
-		}
+		List<FoliagePlacer.TreeNode> nodes = new ArrayList<>();
 
-		List<FoliagePlacer.TreeNode> list = new ArrayList<>();
-		if (bl) {
-			list.add(new FoliagePlacer.TreeNode(startPos.up(l), 0, false));
+		if (hasThreeBranches) {
+			nodes.add(new FoliagePlacer.TreeNode(startPos.up(trunkHeight), 0, false));
 		}
 
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 		Direction direction = Direction.Type.HORIZONTAL.random(random);
-		Function<BlockState, BlockState> function = state -> state.withIfExists(PillarBlock.AXIS, direction.getAxis());
-		list.add(this.generateBranch(
-				world,
-				replacer,
-				random,
-				height,
-				startPos,
-				config,
-				function,
-				direction,
-				i,
-				i < l - 1,
-				mutable
+		Function<BlockState, BlockState> withAxis = state -> state.withIfExists(PillarBlock.AXIS, direction.getAxis());
+
+		nodes.add(generateBranch(
+				world, replacer, random, height, startPos, config,
+				withAxis, direction, firstBranchY, firstBranchY < trunkHeight - 1, mutable
 		));
-		if (bl2) {
-			list.add(this.generateBranch(
-					world,
-					replacer,
-					random,
-					height,
-					startPos,
-					config,
-					function,
-					direction.getOpposite(),
-					j,
-					j < l - 1,
-					mutable
+
+		if (hasTwoBranches) {
+			nodes.add(generateBranch(
+					world, replacer, random, height, startPos, config,
+					withAxis, direction.getOpposite(), secondBranchY, secondBranchY < trunkHeight - 1, mutable
 			));
 		}
 
-		return list;
+		return nodes;
 	}
 
 	private FoliagePlacer.TreeNode generateBranch(
@@ -173,34 +157,31 @@ public class CherryTrunkPlacer extends TrunkPlacer {
 			BlockPos.Mutable mutablePos
 	) {
 		mutablePos.set(startPos).move(Direction.UP, branchStartOffset);
-		int i = height - 1 + this.branchEndOffsetFromTop.get(random);
-		boolean bl = branchBelowHeight || i < branchStartOffset;
-		int j = this.branchHorizontalLength.get(random) + (bl ? 1 : 0);
-		BlockPos blockPos = startPos.offset(direction, j).up(i);
-		int k = bl ? 2 : 1;
+		int endOffsetY = height - 1 + branchEndOffsetFromTop.get(random);
+		boolean needsExtraStep = branchBelowHeight || endOffsetY < branchStartOffset;
+		int horizontalLen = branchHorizontalLength.get(random) + (needsExtraStep ? 1 : 0);
+		BlockPos branchEnd = startPos.offset(direction, horizontalLen).up(endOffsetY);
+		int initialSteps = needsExtraStep ? 2 : 1;
 
-		for (int l = 0; l < k; l++) {
-			this.getAndSetState(world, replacer, random, mutablePos.move(direction), config, withAxisFunction);
+		for (int step = 0; step < initialSteps; step++) {
+			getAndSetState(world, replacer, random, mutablePos.move(direction), config, withAxisFunction);
 		}
 
-		Direction direction2 = blockPos.getY() > mutablePos.getY() ? Direction.UP : Direction.DOWN;
+		Direction verticalDir = branchEnd.getY() > mutablePos.getY() ? Direction.UP : Direction.DOWN;
 
 		while (true) {
-			int m = mutablePos.getManhattanDistance(blockPos);
-			if (m == 0) {
-				return new FoliagePlacer.TreeNode(blockPos.up(), 0, false);
+			int distance = mutablePos.getManhattanDistance(branchEnd);
+
+			if (distance == 0) {
+				return new FoliagePlacer.TreeNode(branchEnd.up(), 0, false);
 			}
 
-			float f = (float) Math.abs(blockPos.getY() - mutablePos.getY()) / m;
-			boolean bl2 = random.nextFloat() < f;
-			mutablePos.move(bl2 ? direction2 : direction);
-			this.getAndSetState(
-					world,
-					replacer,
-					random,
-					mutablePos,
-					config,
-					bl2 ? Function.identity() : withAxisFunction
+			float verticalBias = (float) Math.abs(branchEnd.getY() - mutablePos.getY()) / distance;
+			boolean moveVertical = random.nextFloat() < verticalBias;
+			mutablePos.move(moveVertical ? verticalDir : direction);
+			getAndSetState(
+					world, replacer, random, mutablePos, config,
+					moveVertical ? Function.identity() : withAxisFunction
 			);
 		}
 	}

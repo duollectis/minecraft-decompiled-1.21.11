@@ -7,7 +7,8 @@ import net.minecraft.network.packet.HandshakePackets;
 import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 
 /**
- * Класс handshake states.
+ * Состояния протокола для фазы {@link net.minecraft.network.NetworkPhase#HANDSHAKING}.
+ * Содержит единственный пакет рукопожатия клиент→сервер, определяющий следующую фазу.
  */
 public class HandshakeStates {
 

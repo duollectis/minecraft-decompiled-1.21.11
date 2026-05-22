@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema700}.
+ * Схема DataFixer версии 700, добавляющая сущность {@code ElderGuardian}
+ * (старший страж) в реестр сущностей.
  */
 public class Schema700 extends Schema {
 

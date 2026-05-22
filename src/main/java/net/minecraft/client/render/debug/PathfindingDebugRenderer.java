@@ -60,7 +60,7 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 	) {
 		drawPathLines(path, cameraX, cameraY, cameraZ);
 		BlockPos blockPos = path.getTarget();
-		if (getManhattanDistance(blockPos, cameraX, cameraY, cameraZ) <= 80.0F) {
+		if (getManhattanDistance(blockPos, cameraX, cameraY, cameraZ) <= RANGE) {
 			GizmoDrawing.box(
 					new Box(
 							blockPos.getX() + 0.25F,
@@ -75,7 +75,7 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 
 			for (int i = 0; i < path.getLength(); i++) {
 				PathNode pathNode = path.getNode(i);
-				if (getManhattanDistance(pathNode.getBlockPos(), cameraX, cameraY, cameraZ) <= 80.0F) {
+				if (getManhattanDistance(pathNode.getBlockPos(), cameraX, cameraY, cameraZ) <= RANGE) {
 					float f = i == path.getCurrentNodeIndex() ? 1.0F : 0.0F;
 					float g = i == path.getCurrentNodeIndex() ? 0.0F : 1.0F;
 					Box box = new Box(
@@ -94,7 +94,7 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 		Path.DebugNodeInfo debugNodeInfo = path.getDebugNodeInfos();
 		if (bl && debugNodeInfo != null) {
 			for (PathNode pathNode2 : debugNodeInfo.closedSet()) {
-				if (getManhattanDistance(pathNode2.getBlockPos(), cameraX, cameraY, cameraZ) <= 80.0F) {
+				if (getManhattanDistance(pathNode2.getBlockPos(), cameraX, cameraY, cameraZ) <= RANGE) {
 					GizmoDrawing.box(
 							new Box(
 									pathNode2.x + 0.5F - maxNodeDistance / 2.0F,
@@ -110,7 +110,7 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 			}
 
 			for (PathNode pathNode2x : debugNodeInfo.openSet()) {
-				if (getManhattanDistance(pathNode2x.getBlockPos(), cameraX, cameraY, cameraZ) <= 80.0F) {
+				if (getManhattanDistance(pathNode2x.getBlockPos(), cameraX, cameraY, cameraZ) <= RANGE) {
 					GizmoDrawing.box(
 							new Box(
 									pathNode2x.x + 0.5F - maxNodeDistance / 2.0F,
@@ -129,17 +129,17 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 		if (bl2) {
 			for (int j = 0; j < path.getLength(); j++) {
 				PathNode pathNode3 = path.getNode(j);
-				if (getManhattanDistance(pathNode3.getBlockPos(), cameraX, cameraY, cameraZ) <= 80.0F) {
+				if (getManhattanDistance(pathNode3.getBlockPos(), cameraX, cameraY, cameraZ) <= RANGE) {
 					GizmoDrawing.text(
 							            String.valueOf(pathNode3.type),
 							            new Vec3d(pathNode3.x + 0.5, pathNode3.y + 0.75, pathNode3.z + 0.5),
-							            TextGizmo.Style.left().scaled(0.32F)
+							            TextGizmo.Style.left().scaled(DRAWN_STRING_SIZE)
 					            )
 					            .ignoreOcclusion();
 					GizmoDrawing.text(
 							            String.format(Locale.ROOT, "%.2f", pathNode3.penalty),
 							            new Vec3d(pathNode3.x + 0.5, pathNode3.y + 0.25, pathNode3.z + 0.5),
-							            TextGizmo.Style.left().scaled(0.32F)
+							            TextGizmo.Style.left().scaled(DRAWN_STRING_SIZE)
 					            )
 					            .ignoreOcclusion();
 				}
@@ -161,7 +161,7 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 
 			for (int i = 1; i < path.getLength(); i++) {
 				PathNode pathNode = path.getNode(i);
-				if (getManhattanDistance(pathNode.getBlockPos(), cameraX, cameraY, cameraZ) > 80.0F) {
+				if (getManhattanDistance(pathNode.getBlockPos(), cameraX, cameraY, cameraZ) > RANGE) {
 					vec3d = pathNode.getPos();
 				}
 				else {

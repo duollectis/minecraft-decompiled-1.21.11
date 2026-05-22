@@ -35,7 +35,7 @@ public class PlayerSkinWidget extends ClickableWidget {
 	private final PlayerEntityModel slimModel;
 	private final Supplier<SkinTextures> skinSupplier;
 	private float xRotation = -5.0F;
-	private float yRotation = 30.0F;
+	private float yRotation = ROTATION_ANGLE;
 
 	public PlayerSkinWidget(
 			int width,
@@ -51,7 +51,7 @@ public class PlayerSkinWidget extends ClickableWidget {
 
 	@Override
 	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		float f = 0.97F * this.getHeight() / 2.125F;
+		float f = BODY_SCALE * this.getHeight() / SCALE;
 		float g = -1.0625F;
 		SkinTextures skinTextures = this.skinSupplier.get();
 		PlayerEntityModel
@@ -73,8 +73,8 @@ public class PlayerSkinWidget extends ClickableWidget {
 
 	@Override
 	protected void onDrag(Click click, double offsetX, double offsetY) {
-		this.xRotation = MathHelper.clamp(this.xRotation - (float) offsetY * 2.5F, -50.0F, 50.0F);
-		this.yRotation += (float) offsetX * 2.5F;
+		this.xRotation = MathHelper.clamp(this.xRotation - (float) offsetY * Y_OFFSET, -VIEW_ANGLE, VIEW_ANGLE);
+		this.yRotation += (float) offsetX * Y_OFFSET;
 	}
 
 	@Override

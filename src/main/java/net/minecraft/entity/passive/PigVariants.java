@@ -13,7 +13,8 @@ import net.minecraft.util.ModelAndTexture;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code PigVariants}.
+ * Реестр климатических вариантов свиньи.
+ * Умеренный вариант — запасной (fallback), тёплый и холодный — биомно-зависимые.
  */
 public class PigVariants {
 
@@ -22,14 +23,10 @@ public class PigVariants {
 	public static final RegistryKey<PigVariant> COLD = of(AnimalTemperature.COLD);
 	public static final RegistryKey<PigVariant> DEFAULT = TEMPERATE;
 
-	private static RegistryKey<PigVariant> of(Identifier id) {
-		return RegistryKey.of(RegistryKeys.PIG_VARIANT, id);
-	}
-
 	/**
-	 * Bootstrap.
+	 * Регистрирует все три климатических варианта свиньи в реестре.
 	 *
-	 * @param registry registry
+	 * @param registry реестр вариантов свиньи
 	 */
 	public static void bootstrap(Registerable<PigVariant> registry) {
 		register(
@@ -50,13 +47,13 @@ public class PigVariants {
 			String textureName,
 			TagKey<Biome> biomes
 	) {
-		RegistryEntryList<Biome> registryEntryList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
+		RegistryEntryList<Biome> biomeList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
 		register(
 				registry,
 				key,
 				model,
 				textureName,
-				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(registryEntryList), 1)
+				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(biomeList), 1)
 		);
 	}
 
@@ -67,7 +64,11 @@ public class PigVariants {
 			String textureName,
 			SpawnConditionSelectors spawnConditions
 	) {
-		Identifier identifier = Identifier.ofVanilla("entity/pig/" + textureName);
-		registry.register(key, new PigVariant(new ModelAndTexture<>(model, identifier), spawnConditions));
+		Identifier texture = Identifier.ofVanilla("entity/pig/" + textureName);
+		registry.register(key, new PigVariant(new ModelAndTexture<>(model, texture), spawnConditions));
+	}
+
+	private static RegistryKey<PigVariant> of(Identifier id) {
+		return RegistryKey.of(RegistryKeys.PIG_VARIANT, id);
 	}
 }

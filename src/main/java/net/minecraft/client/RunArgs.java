@@ -11,24 +11,25 @@ import java.io.File;
 import java.net.Proxy;
 import java.nio.file.Path;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RunArgs}.
+ * Аргументы запуска клиента, передаваемые в {@link MinecraftClient}.
+ * Группирует параметры по категориям: сеть, окно, директории, игра и быстрый старт.
  */
+@Environment(EnvType.CLIENT)
 public class RunArgs {
 
-	public final RunArgs.Network network;
+	public final Network network;
 	public final WindowSettings windowSettings;
-	public final RunArgs.Directories directories;
-	public final RunArgs.Game game;
-	public final RunArgs.QuickPlay quickPlay;
+	public final Directories directories;
+	public final Game game;
+	public final QuickPlay quickPlay;
 
 	public RunArgs(
-			RunArgs.Network network,
-			WindowSettings windowSettings,
-			RunArgs.Directories dirs,
-			RunArgs.Game game,
-			RunArgs.QuickPlay quickPlay
+		Network network,
+		WindowSettings windowSettings,
+		Directories dirs,
+		Game game,
+		QuickPlay quickPlay
 	) {
 		this.network = network;
 		this.windowSettings = windowSettings;
@@ -37,10 +38,25 @@ public class RunArgs {
 		this.quickPlay = quickPlay;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Directories}.
+	 * Сетевые параметры: сессия игрока и прокси-сервер.
 	 */
+	@Environment(EnvType.CLIENT)
+	public static class Network {
+
+		public final Session session;
+		public final Proxy netProxy;
+
+		public Network(Session session, Proxy proxy) {
+			this.session = session;
+			this.netProxy = proxy;
+		}
+	}
+
+	/**
+	 * Директории игры: рабочая, ресурс-паки, ассеты и индекс ассетов.
+	 */
+	@Environment(EnvType.CLIENT)
 	public static class Directories {
 
 		public final File runDir;
@@ -55,28 +71,23 @@ public class RunArgs {
 			this.assetIndex = assetIndex;
 		}
 
+		/**
+		 * Возвращает путь к директории ассетов.
+		 * Если задан индекс ассетов, строит виртуальную файловую систему через {@link ResourceIndex}.
+		 *
+		 * @return путь к директории ассетов или виртуальной ФС
+		 */
 		public Path getAssetDir() {
-			return this.assetIndex == null ? this.assetDir.toPath()
-			                               : ResourceIndex.buildFileSystem(this.assetDir.toPath(), this.assetIndex);
+			return assetIndex == null
+				? assetDir.toPath()
+				: ResourceIndex.buildFileSystem(assetDir.toPath(), assetIndex);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DisabledQuickPlay}.
+	 * Игровые параметры: версия, режим демо, флаги функций.
 	 */
-	public record DisabledQuickPlay() implements RunArgs.QuickPlayVariant {
-
-		@Override
-		public boolean isEnabled() {
-			return false;
-		}
-	}
-
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Game}.
-	 */
 	public static class Game {
 
 		public final boolean demo;
@@ -89,14 +100,14 @@ public class RunArgs {
 		public final boolean offlineDeveloperMode;
 
 		public Game(
-				boolean demo,
-				String version,
-				String versionType,
-				boolean multiplayerDisabled,
-				boolean onlineChatDisabled,
-				boolean tracyEnabled,
-				boolean renderDebugLabels,
-				boolean offlineDeveloperMode
+			boolean demo,
+			String version,
+			String versionType,
+			boolean multiplayerDisabled,
+			boolean onlineChatDisabled,
+			boolean tracyEnabled,
+			boolean renderDebugLabels,
+			boolean offlineDeveloperMode
 		) {
 			this.demo = demo;
 			this.version = version;
@@ -109,80 +120,63 @@ public class RunArgs {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MultiplayerQuickPlay}.
+	 * Параметры быстрого старта: путь к лог-файлу и вариант запуска.
 	 */
-	public record MultiplayerQuickPlay(String serverAddress) implements RunArgs.QuickPlayVariant {
-
-		@Override
-		public boolean isEnabled() {
-			return !StringHelper.isBlank(this.serverAddress);
-		}
-	}
-
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Network}.
-	 */
-	public static class Network {
-
-		public final Session session;
-		public final Proxy netProxy;
-
-		public Network(Session session, Proxy proxy) {
-			this.session = session;
-			this.netProxy = proxy;
-		}
-	}
-
-	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code QuickPlay}.
-	 */
-	public record QuickPlay(@Nullable String logPath, RunArgs.QuickPlayVariant variant) {
+	public record QuickPlay(@Nullable String logPath, QuickPlayVariant variant) {
 
 		public boolean isEnabled() {
-			return this.variant.isEnabled();
+			return variant.isEnabled();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * Интерфейс quick play variant.
+	 * Запечатанный интерфейс вариантов быстрого старта.
+	 * Каждый вариант определяет, активен ли быстрый старт.
 	 */
+	@Environment(EnvType.CLIENT)
 	public sealed interface QuickPlayVariant
-			permits RunArgs.SingleplayerQuickPlay,
-			RunArgs.MultiplayerQuickPlay,
-			RunArgs.RealmsQuickPlay,
-			RunArgs.DisabledQuickPlay {
+		permits SingleplayerQuickPlay, MultiplayerQuickPlay, RealmsQuickPlay, DisabledQuickPlay {
 
-		RunArgs.QuickPlayVariant DEFAULT = new RunArgs.DisabledQuickPlay();
+		QuickPlayVariant DEFAULT = new DisabledQuickPlay();
 
 		boolean isEnabled();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RealmsQuickPlay}.
-	 */
-	public record RealmsQuickPlay(String realmId) implements RunArgs.QuickPlayVariant {
+	public record DisabledQuickPlay() implements QuickPlayVariant {
 
 		@Override
 		public boolean isEnabled() {
-			return !StringHelper.isBlank(this.realmId);
+			return false;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SingleplayerQuickPlay}.
-	 */
-	public record SingleplayerQuickPlay(@Nullable String worldId) implements RunArgs.QuickPlayVariant {
+	public record SingleplayerQuickPlay(@Nullable String worldId) implements QuickPlayVariant {
 
 		@Override
 		public boolean isEnabled() {
 			return true;
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	public record MultiplayerQuickPlay(String serverAddress) implements QuickPlayVariant {
+
+		@Override
+		public boolean isEnabled() {
+			return !StringHelper.isBlank(serverAddress);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	public record RealmsQuickPlay(String realmId) implements QuickPlayVariant {
+
+		@Override
+		public boolean isEnabled() {
+			return !StringHelper.isBlank(realmId);
 		}
 	}
 }

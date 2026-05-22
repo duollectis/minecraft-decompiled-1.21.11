@@ -43,7 +43,12 @@ import net.minecraft.world.gen.structure.Structures;
 import java.util.List;
 
 /**
- * {@code BuiltinRegistries}.
+ * Точка входа для встроенных (builtin) динамических реестров Minecraft.
+ * Содержит {@link RegistryBuilder} со всеми bootstrap-функциями для
+ * регистрации биомов, структур, измерений и прочих мировых данных.
+ *
+ * <p>Используется при старте сервера и в датагене для создания
+ * {@link RegistryWrapper.WrapperLookup} с полным набором встроенных данных.</p>
  */
 public class BuiltinRegistries {
 
@@ -94,28 +99,39 @@ public class BuiltinRegistries {
 		validate(registries.getOrThrow(RegistryKeys.PLACED_FEATURE), registries.getOrThrow(RegistryKeys.BIOME));
 	}
 
+	/**
+	 * Проверяет, что все размещённые фичи в биомах содержат {@link BiomePlacementModifier}.
+	 * Отсутствие этого модификатора означает, что фича будет генерироваться вне биома.
+	 *
+	 * @param placedFeatureLookup lookup для поиска размещённых фич по ключу
+	 * @param biomeLookup         обёртка реестра биомов для итерации
+	 */
 	public static void validate(
 			RegistryEntryLookup<PlacedFeature> placedFeatureLookup,
 			RegistryWrapper<Biome> biomeLookup
 	) {
 		biomeLookup.streamEntries().forEach(biome -> {
-			Identifier identifier = biome.registryKey().getValue();
-			List<RegistryEntryList<PlacedFeature>> list = biome.value().getGenerationSettings().getFeatures();
-			list
-					.stream()
+			Identifier biomeId = biome.registryKey().getValue();
+			List<RegistryEntryList<PlacedFeature>> featureLists = biome.value().getGenerationSettings().getFeatures();
+
+			featureLists.stream()
 					.flatMap(RegistryEntryList::stream)
-					.forEach(placedFeature -> placedFeature.getKeyOrValue().ifLeft(key -> {
-						RegistryEntry.Reference<PlacedFeature> referencex = placedFeatureLookup.getOrThrow(key);
-						if (!hasBiomePlacementModifier(referencex.value())) {
-							Util.logErrorOrPause("Placed feature " + key.getValue() + " in biome " + identifier
-									+ " is missing BiomeFilter.biome()");
-						}
-					}).ifRight(value -> {
-						if (!hasBiomePlacementModifier(value)) {
-							Util.logErrorOrPause(
-									"Placed inline feature in biome " + biome + " is missing BiomeFilter.biome()");
-						}
-					}));
+					.forEach(placedFeature -> placedFeature.getKeyOrValue()
+							.ifLeft(key -> {
+								RegistryEntry.Reference<PlacedFeature> reference = placedFeatureLookup.getOrThrow(key);
+
+								if (!hasBiomePlacementModifier(reference.value())) {
+									Util.logErrorOrPause("Placed feature " + key.getValue()
+											+ " in biome " + biomeId + " is missing BiomeFilter.biome()");
+								}
+							})
+							.ifRight(value -> {
+								if (!hasBiomePlacementModifier(value)) {
+									Util.logErrorOrPause("Placed inline feature in biome " + biome
+											+ " is missing BiomeFilter.biome()");
+								}
+							})
+					);
 		});
 	}
 
@@ -123,6 +139,12 @@ public class BuiltinRegistries {
 		return placedFeature.placementModifiers().contains(BiomePlacementModifier.of());
 	}
 
+	/**
+	 * Создаёт {@link RegistryWrapper.WrapperLookup} со всеми встроенными реестрами.
+	 * Выполняет валидацию биомов и размещённых фич перед возвратом.
+	 *
+	 * @return полный lookup встроенных реестров
+	 */
 	public static RegistryWrapper.WrapperLookup createWrapperLookup() {
 		DynamicRegistryManager.Immutable immutable = DynamicRegistryManager.of(Registries.REGISTRIES);
 		RegistryWrapper.WrapperLookup wrapperLookup = REGISTRY_BUILDER.createWrapperLookup(immutable);

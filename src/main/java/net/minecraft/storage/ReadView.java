@@ -9,26 +9,89 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code ReadView}.
+ * Интерфейс для чтения структурированных данных из NBT-подобного хранилища.
+ * <p>
+ * Предоставляет типобезопасный API для извлечения примитивных значений,
+ * вложенных объектов и списков. Реализации обязаны сообщать об ошибках
+ * декодирования через {@link net.minecraft.util.ErrorReporter}, а не бросать исключения.
  */
 public interface ReadView extends FabricReadView {
 
+	/**
+	 * Читает значение по ключу, декодируя его через указанный кодек.
+	 *
+	 * @param key   ключ поля в хранилище
+	 * @param codec кодек для десериализации значения
+	 * @param <T>   тип результата
+	 * @return {@link Optional} с декодированным значением, либо пустой при отсутствии ключа или ошибке
+	 */
 	<T> Optional<T> read(String key, Codec<T> codec);
 
+	/**
+	 * Читает значение из текущего объекта целиком через {@link MapCodec}.
+	 *
+	 * @param mapCodec кодек для десериализации из плоской карты полей
+	 * @param <T>      тип результата
+	 * @return {@link Optional} с декодированным значением
+	 * @deprecated Предпочтительнее использовать {@link #read(String, Codec)}
+	 */
 	@Deprecated
 	<T> Optional<T> read(MapCodec<T> mapCodec);
 
+	/**
+	 * Возвращает дочернее представление для вложенного объекта, если ключ существует.
+	 *
+	 * @param key ключ вложенного объекта
+	 * @return {@link Optional} с дочерним {@link ReadView}, либо пустой
+	 */
 	Optional<ReadView> getOptionalReadView(String key);
 
+	/**
+	 * Возвращает дочернее представление для вложенного объекта.
+	 * При отсутствии ключа возвращает пустое представление (null-object).
+	 *
+	 * @param key ключ вложенного объекта
+	 * @return дочерний {@link ReadView}, никогда не {@code null}
+	 */
 	ReadView getReadView(String key);
 
-	Optional<ReadView.ListReadView> getOptionalListReadView(String key);
+	/**
+	 * Возвращает представление списка вложенных объектов, если ключ существует.
+	 *
+	 * @param key ключ списка
+	 * @return {@link Optional} с {@link ListReadView}, либо пустой
+	 */
+	Optional<ListReadView> getOptionalListReadView(String key);
 
-	ReadView.ListReadView getListReadView(String key);
+	/**
+	 * Возвращает представление списка вложенных объектов.
+	 * При отсутствии ключа возвращает пустое представление (null-object).
+	 *
+	 * @param key ключ списка
+	 * @return {@link ListReadView}, никогда не {@code null}
+	 */
+	ListReadView getListReadView(String key);
 
-	<T> Optional<ReadView.TypedListReadView<T>> getOptionalTypedListView(String key, Codec<T> typeCodec);
+	/**
+	 * Возвращает типизированное представление списка, если ключ существует.
+	 *
+	 * @param key       ключ списка
+	 * @param typeCodec кодек для элементов списка
+	 * @param <T>       тип элементов
+	 * @return {@link Optional} с {@link TypedListReadView}, либо пустой
+	 */
+	<T> Optional<TypedListReadView<T>> getOptionalTypedListView(String key, Codec<T> typeCodec);
 
-	<T> ReadView.TypedListReadView<T> getTypedListView(String key, Codec<T> typeCodec);
+	/**
+	 * Возвращает типизированное представление списка.
+	 * При отсутствии ключа возвращает пустое представление (null-object).
+	 *
+	 * @param key       ключ списка
+	 * @param typeCodec кодек для элементов списка
+	 * @param <T>       тип элементов
+	 * @return {@link TypedListReadView}, никогда не {@code null}
+	 */
+	<T> TypedListReadView<T> getTypedListView(String key, Codec<T> typeCodec);
 
 	boolean getBoolean(String key, boolean fallback);
 
@@ -54,13 +117,17 @@ public interface ReadView extends FabricReadView {
 
 	Optional<int[]> getOptionalIntArray(String key);
 
+	/**
+	 * @deprecated Используй {@link net.minecraft.registry.RegistryWrapper.WrapperLookup} напрямую
+	 */
 	@Deprecated
 	RegistryWrapper.WrapperLookup getRegistries();
 
 	/**
-	 * {@code ListReadView}.
+	 * Представление списка вложенных объектов ({@link ReadView}).
+	 * Поддерживает итерацию и потоковую обработку.
 	 */
-	public interface ListReadView extends Iterable<ReadView> {
+	interface ListReadView extends Iterable<ReadView> {
 
 		boolean isEmpty();
 
@@ -68,9 +135,11 @@ public interface ReadView extends FabricReadView {
 	}
 
 	/**
-	 * {@code TypedListReadView}.
+	 * Типизированное представление списка, элементы которого декодируются через кодек.
+	 *
+	 * @param <T> тип элементов списка
 	 */
-	public interface TypedListReadView<T> extends Iterable<T> {
+	interface TypedListReadView<T> extends Iterable<T> {
 
 		boolean isEmpty();
 

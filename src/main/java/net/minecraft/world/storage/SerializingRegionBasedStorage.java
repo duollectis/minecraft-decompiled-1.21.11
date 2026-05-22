@@ -33,14 +33,20 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 /**
- * {@code SerializingRegionBasedStorage}.
+ * Базовый класс для хранилищ, сериализующих данные секций чанков в NBT.
+ * Управляет жизненным циклом загрузки/выгрузки секций, отложенной записью
+ * и версионированием через {@link VersionedChunkStorage}.
+ *
+ * @param <R> тип рантайм-объекта секции (например, {@code PointOfInterestSet})
+ * @param <P> тип сериализованного представления секции
  */
 public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 
 	static final Logger LOGGER = LogUtils.getLogger();
 	private static final String SECTIONS_KEY = "Sections";
+
 	private final VersionedChunkStorage storageAccess;
-	private final Long2ObjectMap<Optional<R>> loadedElements = new Long2ObjectOpenHashMap();
+	private final Long2ObjectMap<Optional<R>> loadedElements = new Long2ObjectOpenHashMap<>();
 	private final LongLinkedOpenHashSet unsavedElements = new LongLinkedOpenHashSet();
 	private final Codec<P> codec;
 	private final Function<R, P> serializer;
@@ -50,20 +56,18 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 	private final ChunkErrorHandler errorHandler;
 	protected final HeightLimitView world;
 	private final LongSet loadedChunks = new LongOpenHashSet();
-	private final Long2ObjectMap<CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>>>
-			pendingLoads =
-			new Long2ObjectOpenHashMap();
+	private final Long2ObjectMap<CompletableFuture<Optional<LoadResult<P>>>> pendingLoads = new Long2ObjectOpenHashMap<>();
 	private final Object lock = new Object();
 
 	public SerializingRegionBasedStorage(
-			VersionedChunkStorage storageAccess,
-			Codec<P> codec,
-			Function<R, P> serializer,
-			BiFunction<P, Runnable, R> deserializer,
-			Function<Runnable, R> factory,
-			DynamicRegistryManager registryManager,
-			ChunkErrorHandler errorHandler,
-			HeightLimitView world
+		VersionedChunkStorage storageAccess,
+		Codec<P> codec,
+		Function<R, P> serializer,
+		BiFunction<P, Runnable, R> deserializer,
+		Function<Runnable, R> factory,
+		DynamicRegistryManager registryManager,
+		ChunkErrorHandler errorHandler,
+		HeightLimitView world
 	) {
 		this.storageAccess = storageAccess;
 		this.codec = codec;
@@ -76,213 +80,202 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 	}
 
 	/**
-	 * Tick.
+	 * Обрабатывает очередь несохранённых секций и завершённые асинхронные загрузки.
+	 * Вызывается каждый тик сервера.
 	 *
-	 * @param shouldKeepTicking should keep ticking
+	 * @param shouldKeepTicking условие продолжения обработки (ограничение по времени тика)
 	 */
 	protected void tick(BooleanSupplier shouldKeepTicking) {
-		LongIterator longIterator = this.unsavedElements.iterator();
+		LongIterator iterator = unsavedElements.iterator();
 
-		while (longIterator.hasNext() && shouldKeepTicking.getAsBoolean()) {
-			ChunkPos chunkPos = new ChunkPos(longIterator.nextLong());
-			longIterator.remove();
-			this.save(chunkPos);
+		while (iterator.hasNext() && shouldKeepTicking.getAsBoolean()) {
+			ChunkPos chunkPos = new ChunkPos(iterator.nextLong());
+			iterator.remove();
+			save(chunkPos);
 		}
 
-		this.tickPendingLoads();
+		tickPendingLoads();
 	}
 
 	private void tickPendingLoads() {
-		synchronized (this.lock) {
-			Iterator<Entry<CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>>>>
-					iterator =
-					Long2ObjectMaps.fastIterator(this.pendingLoads);
+		synchronized (lock) {
+			Iterator<Entry<CompletableFuture<Optional<LoadResult<P>>>>> iterator =
+				Long2ObjectMaps.fastIterator(pendingLoads);
 
 			while (iterator.hasNext()) {
-				Entry<CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>>> entry = iterator.next();
-				Optional<SerializingRegionBasedStorage.LoadResult<P>>
-						optional =
-						(Optional<SerializingRegionBasedStorage.LoadResult<P>>) ((CompletableFuture) entry.getValue())
-								.getNow(null);
-				if (optional != null) {
-					long l = entry.getLongKey();
-					this.onLoad(new ChunkPos(l), optional.orElse(null));
-					iterator.remove();
-					this.loadedChunks.add(l);
+				Entry<CompletableFuture<Optional<LoadResult<P>>>> entry = iterator.next();
+				Optional<LoadResult<P>> result = entry.getValue().getNow(null);
+
+				if (result == null) {
+					continue;
 				}
+
+				long packedPos = entry.getLongKey();
+				onLoad(new ChunkPos(packedPos), result.orElse(null));
+				iterator.remove();
+				loadedChunks.add(packedPos);
 			}
 		}
 	}
 
-	/**
-	 * Save.
-	 */
 	public void save() {
-		if (!this.unsavedElements.isEmpty()) {
-			this.unsavedElements.forEach(chunkPos -> this.save(new ChunkPos(chunkPos)));
-			this.unsavedElements.clear();
+		if (unsavedElements.isEmpty()) {
+			return;
 		}
+
+		unsavedElements.forEach(packedPos -> save(new ChunkPos(packedPos)));
+		unsavedElements.clear();
 	}
 
 	public boolean hasUnsavedElements() {
-		return !this.unsavedElements.isEmpty();
+		return !unsavedElements.isEmpty();
 	}
 
 	protected @Nullable Optional<R> getIfLoaded(long pos) {
-		return (Optional<R>) this.loadedElements.get(pos);
+		return loadedElements.get(pos);
 	}
 
 	/**
-	 * Get.
+	 * Возвращает секцию по упакованной позиции, при необходимости синхронно загружая чанк.
 	 *
-	 * @param pos pos
-	 *
-	 * @return Optional — 
+	 * @param pos упакованная позиция секции ({@link ChunkSectionPos#asLong})
+	 * @return {@link Optional} с данными секции, или пустой если позиция вне высотных границ
 	 */
 	protected Optional<R> get(long pos) {
-		if (this.isPosInvalid(pos)) {
+		if (isPosInvalid(pos)) {
 			return Optional.empty();
 		}
-		else {
-			Optional<R> optional = this.getIfLoaded(pos);
-			if (optional != null) {
-				return optional;
-			}
-			else {
-				this.loadAndWait(ChunkSectionPos.from(pos).toChunkPos());
-				optional = this.getIfLoaded(pos);
-				if (optional == null) {
-					throw (IllegalStateException) Util.getFatalOrPause(new IllegalStateException());
-				}
-				else {
-					return optional;
-				}
-			}
+
+		Optional<R> loaded = getIfLoaded(pos);
+
+		if (loaded != null) {
+			return loaded;
 		}
+
+		loadAndWait(ChunkSectionPos.from(pos).toChunkPos());
+		loaded = getIfLoaded(pos);
+
+		if (loaded == null) {
+			throw (IllegalStateException) Util.getFatalOrPause(new IllegalStateException());
+		}
+
+		return loaded;
 	}
 
 	protected boolean isPosInvalid(long pos) {
-		int i = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(pos));
-		return this.world.isOutOfHeightLimit(i);
+		int blockY = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(pos));
+		return world.isOutOfHeightLimit(blockY);
 	}
 
 	protected R getOrCreate(long pos) {
-		if (this.isPosInvalid(pos)) {
-			throw (IllegalArgumentException) Util.getFatalOrPause(new IllegalArgumentException(
-					"sectionPos out of bounds"));
+		if (isPosInvalid(pos)) {
+			throw (IllegalArgumentException) Util.getFatalOrPause(
+				new IllegalArgumentException("sectionPos out of bounds")
+			);
 		}
-		else {
-			Optional<R> optional = this.get(pos);
-			if (optional.isPresent()) {
-				return optional.get();
-			}
-			else {
-				R object = this.factory.apply(() -> this.onUpdate(pos));
-				this.loadedElements.put(pos, Optional.of(object));
-				return object;
-			}
+
+		Optional<R> existing = get(pos);
+
+		if (existing.isPresent()) {
+			return existing.get();
 		}
+
+		R created = factory.apply(() -> onUpdate(pos));
+		loadedElements.put(pos, Optional.of(created));
+		return created;
 	}
 
-	/**
-	 * Load.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return CompletableFuture — результат операции
-	 */
 	public CompletableFuture<?> load(ChunkPos chunkPos) {
-		synchronized (this.lock) {
-			long l = chunkPos.toLong();
-			return this.loadedChunks.contains(l)
-			       ? CompletableFuture.completedFuture(null)
-			       : (CompletableFuture) this.pendingLoads.computeIfAbsent(l, pos -> this.loadNbt(chunkPos));
+		synchronized (lock) {
+			long packedPos = chunkPos.toLong();
+
+			if (loadedChunks.contains(packedPos)) {
+				return CompletableFuture.completedFuture(null);
+			}
+
+			return pendingLoads.computeIfAbsent(packedPos, ignored -> loadNbt(chunkPos));
 		}
 	}
 
 	private void loadAndWait(ChunkPos chunkPos) {
-		long l = chunkPos.toLong();
-		CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>> completableFuture;
-		synchronized (this.lock) {
-			if (!this.loadedChunks.add(l)) {
+		long packedPos = chunkPos.toLong();
+		CompletableFuture<Optional<LoadResult<P>>> future;
+
+		synchronized (lock) {
+			if (!loadedChunks.add(packedPos)) {
 				return;
 			}
 
-			completableFuture =
-					(CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>>) this.pendingLoads
-							.computeIfAbsent(l, pos -> this.loadNbt(chunkPos));
+			future = pendingLoads.computeIfAbsent(packedPos, ignored -> loadNbt(chunkPos));
 		}
 
-		this.onLoad(chunkPos, completableFuture.join().orElse(null));
-		synchronized (this.lock) {
-			this.pendingLoads.remove(l);
+		onLoad(chunkPos, future.join().orElse(null));
+
+		synchronized (lock) {
+			pendingLoads.remove(packedPos);
 		}
 	}
 
-	private CompletableFuture<Optional<SerializingRegionBasedStorage.LoadResult<P>>> loadNbt(ChunkPos chunkPos) {
-		RegistryOps<NbtElement> registryOps = this.registryManager.getOps(NbtOps.INSTANCE);
-		return this.storageAccess
-				.getNbt(chunkPos)
-				.thenApplyAsync(
-						chunkNbt -> chunkNbt.map(nbt -> SerializingRegionBasedStorage.LoadResult.fromNbt(
-								this.codec,
-								registryOps,
-								nbt,
-								this.storageAccess,
-								this.world
-						)),
-						Util.getMainWorkerExecutor().named("parseSection")
-				)
-				.exceptionally(throwable -> {
-					if (throwable instanceof CompletionException) {
-						throwable = throwable.getCause();
-					}
+	private CompletableFuture<Optional<LoadResult<P>>> loadNbt(ChunkPos chunkPos) {
+		RegistryOps<NbtElement> registryOps = registryManager.getOps(NbtOps.INSTANCE);
 
-					if (throwable instanceof IOException iOException) {
-						LOGGER.error("Error reading chunk {} data from disk", chunkPos, iOException);
-						this.errorHandler.onChunkLoadFailure(iOException, this.storageAccess.getStorageKey(), chunkPos);
-						return Optional.empty();
-					}
-					else {
-						throw new CompletionException(throwable);
-					}
-				});
+		return storageAccess
+			.getNbt(chunkPos)
+			.thenApplyAsync(
+				chunkNbt -> chunkNbt.map(nbt -> LoadResult.fromNbt(
+					codec, registryOps, nbt, storageAccess, world
+				)),
+				Util.getMainWorkerExecutor().named("parseSection")
+			)
+			.exceptionally(throwable -> {
+				Throwable cause = throwable instanceof CompletionException ? throwable.getCause() : throwable;
+
+				if (cause instanceof IOException ioException) {
+					LOGGER.error("Error reading chunk {} data from disk", chunkPos, ioException);
+					errorHandler.onChunkLoadFailure(ioException, storageAccess.getStorageKey(), chunkPos);
+					return Optional.empty();
+				}
+
+				throw new CompletionException(cause);
+			});
 	}
 
-	private void onLoad(ChunkPos chunkPos, SerializingRegionBasedStorage.@Nullable LoadResult<P> result) {
+	@SuppressWarnings("unchecked")
+	private void onLoad(ChunkPos chunkPos, @Nullable LoadResult<P> result) {
 		if (result == null) {
-			for (int i = this.world.getBottomSectionCoord(); i <= this.world.getTopSectionCoord(); i++) {
-				this.loadedElements.put(chunkSectionPosAsLong(chunkPos, i), Optional.empty());
+			for (int sectionY = world.getBottomSectionCoord(); sectionY <= world.getTopSectionCoord(); sectionY++) {
+				loadedElements.put(chunkSectionPosAsLong(chunkPos, sectionY), Optional.empty());
 			}
-		}
-		else {
-			boolean bl = result.versionChanged();
 
-			for (int j = this.world.getBottomSectionCoord(); j <= this.world.getTopSectionCoord(); j++) {
-				long l = chunkSectionPosAsLong(chunkPos, j);
-				Optional<R>
-						optional =
-						Optional
-								.ofNullable(result.sectionsByY.get(j))
-								.map(section -> this.deserializer.apply((P) section, () -> this.onUpdate(l)));
-				this.loadedElements.put(l, optional);
-				optional.ifPresent(object -> {
-					this.onLoad(l);
-					if (bl) {
-						this.onUpdate(l);
-					}
-				});
-			}
+			return;
+		}
+
+		boolean versionChanged = result.versionChanged();
+
+		for (int sectionY = world.getBottomSectionCoord(); sectionY <= world.getTopSectionCoord(); sectionY++) {
+			long sectionPos = chunkSectionPosAsLong(chunkPos, sectionY);
+			Optional<R> optional = Optional
+				.ofNullable(result.sectionsByY.get(sectionY))
+				.map(section -> deserializer.apply((P) section, () -> onUpdate(sectionPos)));
+			loadedElements.put(sectionPos, optional);
+			optional.ifPresent(element -> {
+				onLoad(sectionPos);
+
+				if (versionChanged) {
+					onUpdate(sectionPos);
+				}
+			});
 		}
 	}
 
 	private void save(ChunkPos pos) {
-		RegistryOps<NbtElement> registryOps = this.registryManager.getOps(NbtOps.INSTANCE);
-		Dynamic<NbtElement> dynamic = this.serialize(pos, registryOps);
-		NbtElement nbtElement = (NbtElement) dynamic.getValue();
+		RegistryOps<NbtElement> registryOps = registryManager.getOps(NbtOps.INSTANCE);
+		Dynamic<NbtElement> dynamic = serialize(pos, registryOps);
+		NbtElement nbtElement = dynamic.getValue();
+
 		if (nbtElement instanceof NbtCompound nbtCompound) {
-			this.storageAccess.setNbt(pos, nbtCompound).exceptionally(throwable -> {
-				this.errorHandler.onChunkSaveFailure(throwable, this.storageAccess.getStorageKey(), pos);
+			storageAccess.setNbt(pos, nbtCompound).exceptionally(throwable -> {
+				errorHandler.onChunkSaveFailure(throwable, storageAccess.getStorageKey(), pos);
 				return null;
 			});
 		}
@@ -291,31 +284,33 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> Dynamic<T> serialize(ChunkPos chunkPos, DynamicOps<T> ops) {
-		Map<T, T> map = Maps.newHashMap();
+		Map<T, T> sectionsMap = Maps.newHashMap();
 
-		for (int i = this.world.getBottomSectionCoord(); i <= this.world.getTopSectionCoord(); i++) {
-			long l = chunkSectionPosAsLong(chunkPos, i);
-			Optional<R> optional = (Optional<R>) this.loadedElements.get(l);
-			if (optional != null && !optional.isEmpty()) {
-				DataResult<T> dataResult = this.codec.encodeStart(ops, this.serializer.apply(optional.get()));
-				String string = Integer.toString(i);
-				dataResult
-						.resultOrPartial(LOGGER::error)
-						.ifPresent(value -> map.put((T) ops.createString(string), (T) value));
+		for (int sectionY = world.getBottomSectionCoord(); sectionY <= world.getTopSectionCoord(); sectionY++) {
+			long sectionPos = chunkSectionPosAsLong(chunkPos, sectionY);
+			Optional<R> optional = (Optional<R>) loadedElements.get(sectionPos);
+
+			if (optional == null || optional.isEmpty()) {
+				continue;
 			}
+
+			DataResult<T> dataResult = codec.encodeStart(ops, serializer.apply(optional.get()));
+			String sectionKey = Integer.toString(sectionY);
+			dataResult
+				.resultOrPartial(LOGGER::error)
+				.ifPresent(value -> sectionsMap.put((T) ops.createString(sectionKey), (T) value));
 		}
 
-		return new Dynamic(
-				ops,
-				ops.createMap(
-						ImmutableMap.of(
-								ops.createString("Sections"),
-								ops.createMap(map),
-								ops.createString("DataVersion"),
-								ops.createInt(SharedConstants.getGameVersion().dataVersion().id())
-						)
+		return new Dynamic<>(
+			ops,
+			ops.createMap(
+				ImmutableMap.of(
+					ops.createString(SECTIONS_KEY), ops.createMap(sectionsMap),
+					ops.createString("DataVersion"), ops.createInt(SharedConstants.getGameVersion().dataVersion().id())
 				)
+			)
 		);
 	}
 
@@ -323,75 +318,75 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		return ChunkSectionPos.asLong(chunkPos.x, y, chunkPos.z);
 	}
 
-	/**
-	 * Обрабатывает событие load.
-	 *
-	 * @param pos pos
-	 */
 	protected void onLoad(long pos) {
 	}
 
 	/**
-	 * Обрабатывает событие update.
+	 * Помечает секцию как изменённую и добавляет её чанк в очередь сохранения.
+	 * Если секция не загружена — логирует предупреждение (возможная ошибка логики).
 	 *
-	 * @param pos pos
+	 * @param pos упакованная позиция секции
 	 */
+	@SuppressWarnings("unchecked")
 	protected void onUpdate(long pos) {
-		Optional<R> optional = (Optional<R>) this.loadedElements.get(pos);
+		Optional<R> optional = (Optional<R>) loadedElements.get(pos);
+
 		if (optional != null && !optional.isEmpty()) {
-			this.unsavedElements.add(ChunkPos.toLong(ChunkSectionPos.unpackX(pos), ChunkSectionPos.unpackZ(pos)));
+			unsavedElements.add(ChunkPos.toLong(ChunkSectionPos.unpackX(pos), ChunkSectionPos.unpackZ(pos)));
+			return;
 		}
-		else {
-			LOGGER.warn("No data for position: {}", ChunkSectionPos.from(pos));
-		}
+
+		LOGGER.warn("No data for position: {}", ChunkSectionPos.from(pos));
 	}
 
-	/**
-	 * Сохраняет chunk.
-	 *
-	 * @param pos pos
-	 */
 	public void saveChunk(ChunkPos pos) {
-		if (this.unsavedElements.remove(pos.toLong())) {
-			this.save(pos);
+		if (unsavedElements.remove(pos.toLong())) {
+			save(pos);
 		}
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.storageAccess.close();
+		storageAccess.close();
 	}
 
 	/**
-	 * {@code LoadResult}.
+	 * Результат загрузки чанка из NBT: карта секций по Y-координате
+	 * и флаг изменения версии данных.
 	 */
 	record LoadResult<T>(Int2ObjectMap<T> sectionsByY, boolean versionChanged) {
 
-		public static <T> SerializingRegionBasedStorage.LoadResult<T> fromNbt(
-				Codec<T> sectionCodec,
-				DynamicOps<NbtElement> ops,
-				NbtElement nbt,
-				VersionedChunkStorage storage,
-				HeightLimitView world
+		/**
+		 * Десериализует секции чанка из NBT, применяя DataFixer при необходимости.
+		 * Флаг {@code versionChanged} устанавливается, если данные были обновлены.
+		 */
+		public static <T> LoadResult<T> fromNbt(
+			Codec<T> sectionCodec,
+			DynamicOps<NbtElement> ops,
+			NbtElement nbt,
+			VersionedChunkStorage storage,
+			HeightLimitView world
 		) {
-			Dynamic<NbtElement> dynamic = new Dynamic(ops, nbt);
-			Dynamic<NbtElement> dynamic2 = storage.updateChunkNbt(dynamic, 1945);
-			boolean bl = dynamic != dynamic2;
-			OptionalDynamic<NbtElement> optionalDynamic = dynamic2.get("Sections");
-			Int2ObjectMap<T> int2ObjectMap = new Int2ObjectOpenHashMap();
+			Dynamic<NbtElement> original = new Dynamic<>(ops, nbt);
+			Dynamic<NbtElement> updated = storage.updateChunkNbt(original, 1945);
+			boolean versionChanged = original != updated;
+			OptionalDynamic<NbtElement> sections = updated.get(SECTIONS_KEY);
+			Int2ObjectMap<T> sectionsByY = new Int2ObjectOpenHashMap<>();
 
-			for (int i = world.getBottomSectionCoord(); i <= world.getTopSectionCoord(); i++) {
-				Optional<T> optional = optionalDynamic.get(Integer.toString(i))
-				                                      .result()
-				                                      .flatMap(section -> sectionCodec
-						                                      .parse(section)
-						                                      .resultOrPartial(SerializingRegionBasedStorage.LOGGER::error));
-				if (optional.isPresent()) {
-					int2ObjectMap.put(i, optional.get());
+			for (int sectionY = world.getBottomSectionCoord(); sectionY <= world.getTopSectionCoord(); sectionY++) {
+				Optional<T> section = sections.get(Integer.toString(sectionY))
+					.result()
+					.flatMap(data -> sectionCodec
+						.parse(data)
+						.resultOrPartial(SerializingRegionBasedStorage.LOGGER::error)
+					);
+
+				if (section.isPresent()) {
+					sectionsByY.put(sectionY, section.get());
 				}
 			}
 
-			return new SerializingRegionBasedStorage.LoadResult<>(int2ObjectMap, bl);
+			return new LoadResult<>(sectionsByY, versionChanged);
 		}
 	}
 }

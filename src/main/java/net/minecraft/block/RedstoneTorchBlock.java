@@ -21,7 +21,10 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * {@code RedstoneTorchBlock}.
+ * Факел редстоуна — излучает сигнал мощностью 15 во все стороны, кроме верхней.
+ * Гасится, если блок под ним получает сигнал редстоуна. При частом переключении
+ * (более {@link #MAX_BURNOUT_COUNT} раз за {@link #BURNOUT_WINDOW_TICKS} тиков)
+ * «перегорает» и перезажигается только через {@link #BURNOUT_RELIGHT_DELAY} тиков.
  */
 public class RedstoneTorchBlock extends AbstractTorchBlock {
 
@@ -40,7 +43,7 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 
 	public RedstoneTorchBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(LIT, true));
+		setDefaultState(stateManager.getDefaultState().with(LIT, true));
 	}
 
 	@Override
@@ -73,13 +76,7 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 	}
 
 	/**
-	 * Определяет, следует ли unpower.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, должен ли факел погаснуть — то есть получает ли блок под ним сигнал редстоуна.
 	 */
 	protected boolean shouldUnpower(World world, BlockPos pos, BlockState state) {
 		return world.isEmittingRedstonePower(pos.down(), Direction.DOWN);
@@ -87,23 +84,23 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		boolean bl = this.shouldUnpower(world, pos, state);
-		List<RedstoneTorchBlock.BurnoutEntry> list = BURNOUT_MAP.get(world);
+		boolean shouldUnpower = shouldUnpower(world, pos, state);
+		List<RedstoneTorchBlock.BurnoutEntry> burnoutList = BURNOUT_MAP.get(world);
 
-		while (list != null && !list.isEmpty() && world.getTime() - list.get(0).time > 60L) {
-			list.remove(0);
+		while (burnoutList != null && !burnoutList.isEmpty() && world.getTime() - burnoutList.get(0).time > BURNOUT_WINDOW_TICKS) {
+			burnoutList.remove(0);
 		}
 
 		if (state.get(LIT)) {
-			if (bl) {
+			if (shouldUnpower) {
 				world.setBlockState(pos, state.with(LIT, false), 3);
+
 				if (isBurnedOut(world, pos, true)) {
 					world.syncWorldEvent(1502, pos, 0);
-					world.scheduleBlockTick(pos, world.getBlockState(pos).getBlock(), 160);
+					world.scheduleBlockTick(pos, world.getBlockState(pos).getBlock(), BURNOUT_RELIGHT_DELAY);
 				}
 			}
-		}
-		else if (!bl && !isBurnedOut(world, pos, false)) {
+		} else if (!shouldUnpower && !isBurnedOut(world, pos, false)) {
 			world.setBlockState(pos, state.with(LIT, true), 3);
 		}
 	}
@@ -117,10 +114,10 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		if (state.get(LIT) == this.shouldUnpower(world, pos, state) && !world
-				.getBlockTickScheduler()
-				.isTicking(pos, this)) {
-			world.scheduleBlockTick(pos, this, 2);
+		if (state.get(LIT) == shouldUnpower(world, pos, state)
+				&& !world.getBlockTickScheduler().isTicking(pos, this)
+		) {
+			world.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 		}
 	}
 
@@ -149,17 +146,22 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 		builder.add(LIT);
 	}
 
+	/**
+	 * Проверяет, «перегорел» ли факел — то есть переключался ли он слишком часто.
+	 * Если {@code addNew} равен {@code true}, добавляет текущий момент в историю переключений.
+	 */
 	private static boolean isBurnedOut(World world, BlockPos pos, boolean addNew) {
-		List<RedstoneTorchBlock.BurnoutEntry> list = BURNOUT_MAP.computeIfAbsent(world, worldx -> Lists.newArrayList());
+		List<RedstoneTorchBlock.BurnoutEntry> entries = BURNOUT_MAP.computeIfAbsent(world, w -> Lists.newArrayList());
+
 		if (addNew) {
-			list.add(new RedstoneTorchBlock.BurnoutEntry(pos.toImmutable(), world.getTime()));
+			entries.add(new RedstoneTorchBlock.BurnoutEntry(pos.toImmutable(), world.getTime()));
 		}
 
-		int i = 0;
+		int count = 0;
 
-		for (RedstoneTorchBlock.BurnoutEntry burnoutEntry : list) {
-			if (burnoutEntry.pos.equals(pos)) {
-				if (++i >= 8) {
+		for (RedstoneTorchBlock.BurnoutEntry entry : entries) {
+			if (entry.pos.equals(pos)) {
+				if (++count >= MAX_BURNOUT_COUNT) {
 					return true;
 				}
 			}
@@ -172,9 +174,6 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 		return OrientationHelper.getEmissionOrientation(world, null, Direction.UP);
 	}
 
-	/**
-	 * {@code BurnoutEntry}.
-	 */
 	public static class BurnoutEntry {
 
 		final BlockPos pos;

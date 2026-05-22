@@ -21,11 +21,25 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AdvancementTab}.
+ * Вкладка экрана достижений, отображающая дерево достижений одной категории.
+ * Поддерживает прокрутку и перетаскивание дерева.
  */
+@Environment(EnvType.CLIENT)
 public class AdvancementTab {
+
+	private static final int PAGE_WIDTH = 234;
+	private static final int PAGE_HEIGHT = 113;
+	private static final int TILE_SIZE = 16;
+	private static final int TILE_COLS = 15;
+	private static final int TILE_ROWS = 8;
+	private static final int CENTER_X = 117;
+	private static final int CENTER_Y = 56;
+	private static final int WIDGET_WIDTH = 28;
+	private static final int WIDGET_HEIGHT = 27;
+	private static final float ALPHA_FADE_IN = 0.02F;
+	private static final float ALPHA_FADE_OUT = 0.04F;
+	private static final float ALPHA_MAX_TOOLTIP = 0.3F;
 
 	private final MinecraftClient client;
 	private final AdvancementsScreen screen;
@@ -47,12 +61,12 @@ public class AdvancementTab {
 	private boolean initialized;
 
 	public AdvancementTab(
-			MinecraftClient client,
-			AdvancementsScreen screen,
-			AdvancementTabType type,
-			int index,
-			PlacedAdvancement root,
-			AdvancementDisplay display
+		MinecraftClient client,
+		AdvancementsScreen screen,
+		AdvancementTabType type,
+		int index,
+		PlacedAdvancement root,
+		AdvancementDisplay display
 	) {
 		this.client = client;
 		this.screen = screen;
@@ -60,242 +74,184 @@ public class AdvancementTab {
 		this.index = index;
 		this.root = root;
 		this.display = display;
-		this.icon = display.getIcon();
-		this.title = display.getTitle();
-		this.rootWidget = new AdvancementWidget(this, client, root, display);
-		this.addWidget(this.rootWidget, root.getAdvancementEntry());
+		icon = display.getIcon();
+		title = display.getTitle();
+		rootWidget = new AdvancementWidget(this, client, root, display);
+		addWidget(rootWidget, root.getAdvancementEntry());
 	}
 
 	public AdvancementTabType getType() {
-		return this.type;
+		return type;
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
 	public PlacedAdvancement getRoot() {
-		return this.root;
+		return root;
 	}
 
 	public Text getTitle() {
-		return this.title;
+		return title;
 	}
 
 	public AdvancementDisplay getDisplay() {
-		return this.display;
+		return display;
 	}
 
-	/**
-	 * Draw background.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param selected selected
-	 */
 	public void drawBackground(DrawContext context, int x, int y, int mouseX, int mouseY, boolean selected) {
-		int i = x + this.type.getTabX(this.index);
-		int j = y + this.type.getTabY(this.index);
-		this.type.drawBackground(context, i, j, selected, this.index);
-		if (!selected && mouseX > i && mouseY > j && mouseX < i + this.type.getWidth()
-				&& mouseY < j + this.type.getHeight()) {
+		int tabX = x + type.getTabX(index);
+		int tabY = y + type.getTabY(index);
+		type.drawBackground(context, tabX, tabY, selected, index);
+		if (!selected && mouseX > tabX && mouseY > tabY
+			&& mouseX < tabX + type.getWidth()
+			&& mouseY < tabY + type.getHeight()) {
 			context.setCursor(StandardCursors.POINTING_HAND);
 		}
 	}
 
-	/**
-	 * Draw icon.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	public void drawIcon(DrawContext context, int x, int y) {
-		this.type.drawIcon(context, x, y, this.index, this.icon);
+		type.drawIcon(context, x, y, index, icon);
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	public void render(DrawContext context, int x, int y) {
-		if (!this.initialized) {
-			this.originX = 117 - (this.maxPanX + this.minPanX) / 2;
-			this.originY = 56 - (this.maxPanY + this.minPanY) / 2;
-			this.initialized = true;
+		if (!initialized) {
+			originX = CENTER_X - (maxPanX + minPanX) / 2;
+			originY = CENTER_Y - (maxPanY + minPanY) / 2;
+			initialized = true;
 		}
 
-		context.enableScissor(x, y, x + 234, y + 113);
+		context.enableScissor(x, y, x + PAGE_WIDTH, y + PAGE_HEIGHT);
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate(x, y);
-		Identifier
-				identifier =
-				this.display
-						.getBackground()
-						.map(AssetInfo.TextureAssetInfo::texturePath)
-						.orElse(TextureManager.MISSING_IDENTIFIER);
-		int i = MathHelper.floor(this.originX);
-		int j = MathHelper.floor(this.originY);
-		int k = i % 16;
-		int l = j % 16;
 
-		for (int m = -1; m <= 15; m++) {
-			for (int n = -1; n <= 8; n++) {
+		Identifier backgroundTexture = display
+			.getBackground()
+			.map(AssetInfo.TextureAssetInfo::texturePath)
+			.orElse(TextureManager.MISSING_IDENTIFIER);
+		int originFloorX = MathHelper.floor(originX);
+		int originFloorY = MathHelper.floor(originY);
+		int tileOffsetX = originFloorX % TILE_SIZE;
+		int tileOffsetY = originFloorY % TILE_SIZE;
+
+		for (int col = -1; col <= TILE_COLS; col++) {
+			for (int row = -1; row <= TILE_ROWS; row++) {
 				context.drawTexture(
-						RenderPipelines.GUI_TEXTURED,
-						identifier,
-						k + 16 * m,
-						l + 16 * n,
-						0.0F,
-						0.0F,
-						16,
-						16,
-						16,
-						16
+					RenderPipelines.GUI_TEXTURED,
+					backgroundTexture,
+					tileOffsetX + TILE_SIZE * col,
+					tileOffsetY + TILE_SIZE * row,
+					0.0F,
+					0.0F,
+					TILE_SIZE,
+					TILE_SIZE,
+					TILE_SIZE,
+					TILE_SIZE
 				);
 			}
 		}
 
-		this.rootWidget.renderLines(context, i, j, true);
-		this.rootWidget.renderLines(context, i, j, false);
-		this.rootWidget.renderWidgets(context, i, j);
+		rootWidget.renderLines(context, originFloorX, originFloorY, true);
+		rootWidget.renderLines(context, originFloorX, originFloorY, false);
+		rootWidget.renderWidgets(context, originFloorX, originFloorY);
 		context.getMatrices().popMatrix();
 		context.disableScissor();
 	}
 
-	/**
-	 * Draw widget tooltip.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param x x
-	 * @param y y
-	 */
 	public void drawWidgetTooltip(DrawContext context, int mouseX, int mouseY, int x, int y) {
-		context.fill(0, 0, 234, 113, MathHelper.floor(this.alpha * 255.0F) << 24);
-		boolean bl = false;
-		int i = MathHelper.floor(this.originX);
-		int j = MathHelper.floor(this.originY);
-		if (mouseX > 0 && mouseX < 234 && mouseY > 0 && mouseY < 113) {
-			for (AdvancementWidget advancementWidget : this.widgets.values()) {
-				if (advancementWidget.shouldRender(i, j, mouseX, mouseY)) {
-					bl = true;
-					advancementWidget.drawTooltip(context, i, j, this.alpha, x, y);
+		context.fill(0, 0, PAGE_WIDTH, PAGE_HEIGHT, MathHelper.floor(alpha * 255.0F) << 24);
+		boolean tooltipShown = false;
+		int originFloorX = MathHelper.floor(originX);
+		int originFloorY = MathHelper.floor(originY);
+
+		if (mouseX > 0 && mouseX < PAGE_WIDTH && mouseY > 0 && mouseY < PAGE_HEIGHT) {
+			for (AdvancementWidget widget : widgets.values()) {
+				if (widget.shouldRender(originFloorX, originFloorY, mouseX, mouseY)) {
+					tooltipShown = true;
+					widget.drawTooltip(context, originFloorX, originFloorY, alpha, x, y);
 					break;
 				}
 			}
 		}
 
-		if (bl) {
-			this.alpha = MathHelper.clamp(this.alpha + 0.02F, 0.0F, 0.3F);
-		}
-		else {
-			this.alpha = MathHelper.clamp(this.alpha - 0.04F, 0.0F, 1.0F);
-		}
+		alpha = tooltipShown
+			? MathHelper.clamp(alpha + ALPHA_FADE_IN, 0.0F, ALPHA_MAX_TOOLTIP)
+			: MathHelper.clamp(alpha - ALPHA_FADE_OUT, 0.0F, 1.0F);
 	}
 
 	public boolean isClickOnTab(int screenX, int screenY, double mouseX, double mouseY) {
-		return this.type.isClickOnTab(screenX, screenY, this.index, mouseX, mouseY);
+		return type.isClickOnTab(screenX, screenY, index, mouseX, mouseY);
 	}
 
 	public static @Nullable AdvancementTab create(
-			MinecraftClient client,
-			AdvancementsScreen screen,
-			int index,
-			PlacedAdvancement root
+		MinecraftClient client,
+		AdvancementsScreen screen,
+		int index,
+		PlacedAdvancement root
 	) {
-		Optional<AdvancementDisplay> optional = root.getAdvancement().display();
-		if (optional.isEmpty()) {
+		Optional<AdvancementDisplay> displayOpt = root.getAdvancement().display();
+		if (displayOpt.isEmpty()) {
 			return null;
 		}
-		else {
-			for (AdvancementTabType advancementTabType : AdvancementTabType.values()) {
-				if (index < advancementTabType.getTabCount()) {
-					return new AdvancementTab(client, screen, advancementTabType, index, root, optional.get());
-				}
 
-				index -= advancementTabType.getTabCount();
+		for (AdvancementTabType tabType : AdvancementTabType.values()) {
+			if (index < tabType.getTabCount()) {
+				return new AdvancementTab(client, screen, tabType, index, root, displayOpt.get());
 			}
 
-			return null;
+			index -= tabType.getTabCount();
 		}
+
+		return null;
 	}
 
-	/**
-	 * Move.
-	 *
-	 * @param offsetX offset x
-	 * @param offsetY offset y
-	 */
 	public void move(double offsetX, double offsetY) {
-		if (this.canScrollHorizontally()) {
-			this.originX = MathHelper.clamp(this.originX + offsetX, (double) (-(this.maxPanX - 234)), 0.0);
+		if (canScrollHorizontally()) {
+			originX = MathHelper.clamp(originX + offsetX, -(maxPanX - PAGE_WIDTH), 0.0);
 		}
 
-		if (this.canScrollVertically()) {
-			this.originY = MathHelper.clamp(this.originY + offsetY, (double) (-(this.maxPanY - 113)), 0.0);
+		if (canScrollVertically()) {
+			originY = MathHelper.clamp(originY + offsetY, -(maxPanY - PAGE_HEIGHT), 0.0);
 		}
 	}
 
-	/**
-	 * Проверяет возможность scroll horizontally.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canScrollHorizontally() {
-		return this.maxPanX - this.minPanX > 234;
+		return maxPanX - minPanX > PAGE_WIDTH;
 	}
 
-	/**
-	 * Проверяет возможность scroll vertically.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canScrollVertically() {
-		return this.maxPanY - this.minPanY > 113;
+		return maxPanY - minPanY > PAGE_HEIGHT;
 	}
 
-	/**
-	 * Добавляет advancement.
-	 *
-	 * @param advancement advancement
-	 */
 	public void addAdvancement(PlacedAdvancement advancement) {
-		Optional<AdvancementDisplay> optional = advancement.getAdvancement().display();
-		if (!optional.isEmpty()) {
-			AdvancementWidget advancementWidget = new AdvancementWidget(this, this.client, advancement, optional.get());
-			this.addWidget(advancementWidget, advancement.getAdvancementEntry());
-		}
+		advancement.getAdvancement().display().ifPresent(advDisplay -> {
+			AdvancementWidget widget = new AdvancementWidget(this, client, advancement, advDisplay);
+			addWidget(widget, advancement.getAdvancementEntry());
+		});
 	}
 
 	private void addWidget(AdvancementWidget widget, AdvancementEntry advancement) {
-		this.widgets.put(advancement, widget);
-		int i = widget.getX();
-		int j = i + 28;
-		int k = widget.getY();
-		int l = k + 27;
-		this.minPanX = Math.min(this.minPanX, i);
-		this.maxPanX = Math.max(this.maxPanX, j);
-		this.minPanY = Math.min(this.minPanY, k);
-		this.maxPanY = Math.max(this.maxPanY, l);
+		widgets.put(advancement, widget);
+		int widgetLeft = widget.getX();
+		int widgetRight = widgetLeft + WIDGET_WIDTH;
+		int widgetTop = widget.getY();
+		int widgetBottom = widgetTop + WIDGET_HEIGHT;
+		minPanX = Math.min(minPanX, widgetLeft);
+		maxPanX = Math.max(maxPanX, widgetRight);
+		minPanY = Math.min(minPanY, widgetTop);
+		maxPanY = Math.max(maxPanY, widgetBottom);
 
-		for (AdvancementWidget advancementWidget : this.widgets.values()) {
-			advancementWidget.addToTree();
+		for (AdvancementWidget advWidget : widgets.values()) {
+			advWidget.addToTree();
 		}
 	}
 
 	public @Nullable AdvancementWidget getWidget(AdvancementEntry advancement) {
-		return this.widgets.get(advancement);
+		return widgets.get(advancement);
 	}
 
 	public AdvancementsScreen getScreen() {
-		return this.screen;
+		return screen;
 	}
 }

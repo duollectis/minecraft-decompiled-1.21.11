@@ -46,26 +46,92 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code EnderDragonEntity}.
+ * Главная сущность Дракона Края. Управляет телом дракона, состоящим из нескольких
+ * {@link EnderDragonPart}, системой поиска пути по 24 узлам-точкам облёта острова,
+ * а также делегирует логику поведения текущей {@link Phase} через {@link PhaseManager}.
  */
 public class EnderDragonEntity extends MobEntity implements Monster {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final TrackedData<Integer>
-			PHASE_TYPE =
+
+	public static final TrackedData<Integer> PHASE_TYPE =
 			DataTracker.registerData(EnderDragonEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TargetPredicate
-			CLOSE_PLAYER_PREDICATE =
+
+	private static final TargetPredicate CLOSE_PLAYER_PREDICATE =
 			TargetPredicate.createAttackable().setBaseMaxDistance(64.0);
+
 	private static final int MAX_HEALTH = 200;
-	private static final int CRYSTAL_SEARCH_RADIUS = 400;
+	private static final int PATH_NODE_COUNT = 24;
+	private static final int OUTER_RING_COUNT = 12;
+	private static final int MIDDLE_RING_COUNT = 8;
+	private static final int INNER_RING_COUNT = 4;
+	private static final int MIDDLE_RING_START = 12;
+	private static final int INNER_RING_START = 20;
+	private static final float OUTER_RING_RADIUS = 60.0F;
+	private static final float MIDDLE_RING_RADIUS = 40.0F;
+	private static final float INNER_RING_RADIUS = 20.0F;
+	private static final int OUTER_RING_HEIGHT_OFFSET = 5;
+	private static final int MIDDLE_RING_HEIGHT_OFFSET = 15;
+	private static final int MIN_PATH_NODE_Y = 73;
 	private static final float TAKEOFF_THRESHOLD = 0.25F;
-	private static final String DRAGON_DEATH_TIME_KEY = "DragonDeathTime";
-	private static final String DRAGON_PHASE_KEY = "DragonPhase";
-	private static final int DEFAULT_TICKS_SINCE_DEATH = 0;
+	private static final float WING_SITTING_SPEED = 0.1F;
+	private static final float WING_SLOWED_FACTOR = 0.5F;
+	private static final float MOVEMENT_SPEED_FACTOR = 0.06F;
+	private static final float VELOCITY_DAMPING_XZ = 0.91F;
+	private static final float YAW_ACCELERATION_DAMPING = 0.8F;
+	private static final float YAW_ACCELERATION_SCALE = 0.1F;
+	private static final float MAX_YAW_DELTA = 50.0F;
+	private static final float VELOCITY_LATERAL_SCALE = 0.8F;
+	private static final float VELOCITY_LATERAL_BONUS = 0.15F;
+	private static final float WING_LAUNCH_THRESHOLD = -0.3F;
+	private static final int GROWL_INTERVAL_BASE = 200;
+	private static final int DEATH_EXPLOSION_SPREAD_XZ = 8;
+	private static final int DEATH_EXPLOSION_SPREAD_Y = 4;
+	private static final int DEATH_PARTICLE_START_TICK = 180;
+	private static final int DEATH_XP_TICK_INTERVAL = 5;
+	private static final int DEATH_XP_START_TICK = 150;
+	private static final int DEATH_TOTAL_TICKS = 200;
+	private static final int DEATH_XP_FIRST_KILL = 12000;
+	private static final int DEATH_XP_REPEAT_KILL = 500;
+	private static final float DEATH_XP_PERIODIC_FRACTION = 0.08F;
+	private static final float DEATH_XP_FINAL_FRACTION = 0.2F;
+	private static final int WORLD_EVENT_DRAGON_DEATH = 1028;
+	private static final int WORLD_EVENT_BLOCK_BREAK = 2008;
+	private static final float WING_DAMAGE = 5.0F;
+	private static final float HEAD_DAMAGE = 10.0F;
+	private static final float CRYSTAL_EXPLOSION_DAMAGE = 10.0F;
+	private static final float BODY_DAMAGE_REDUCTION = 4.0F;
+	private static final float BODY_DAMAGE_MIN = 1.0F;
+	private static final float DAMAGE_THRESHOLD = 0.01F;
+	private static final float DEATH_RISE_SPEED = 0.1F;
+	private static final int CRYSTAL_SEARCH_INTERVAL = 10;
+	private static final int CRYSTAL_SEARCH_RADIUS = 32;
+	private static final double WING_LAUNCH_FORCE = 4.0;
+	private static final double WING_LAUNCH_VERTICAL = 0.2;
+	private static final double MIN_HORIZONTAL_DIST_SQ = 0.1;
+	private static final int TAIL_SEGMENT_COUNT = 3;
+	private static final int TAIL_FRAME_BASE = 12;
+	private static final int TAIL_FRAME_STEP = 2;
+	private static final float TAIL_SEGMENT_SPACING = 1.5F;
+	private static final float HEAD_FORWARD_OFFSET = 6.5F;
+	private static final float NECK_FORWARD_OFFSET = 5.5F;
+	private static final float WING_LATERAL_OFFSET = 4.5F;
+	private static final float WING_VERTICAL_OFFSET = 2.0F;
+	private static final float BODY_LATERAL_OFFSET = 0.5F;
+	private static final int PITCH_FRAME_NEAR = 5;
+	private static final int PITCH_FRAME_FAR = 10;
+	private static final float PITCH_SCALE = 10.0F;
+	private static final float LANDING_PITCH_FACTOR = 6.0F;
+	private static final float LANDING_PITCH_MULTIPLIER = 1.5F;
+	private static final float LANDING_PITCH_DEGREES = 5.0F;
+	private static final float SITTING_PITCH_DEGREES = -45.0F;
+	private static final float LANDING_MIN_DISTANCE_FACTOR = 4.0F;
+	private static final float LANDING_MAX_PITCH_SCALE = 1.0F;
+
 	public final EnderDragonFrameTracker frameTracker = new EnderDragonFrameTracker();
 	private final EnderDragonPart[] parts;
 	public final EnderDragonPart head;
@@ -87,34 +153,24 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	private final PhaseManager phaseManager;
 	private int ticksUntilNextGrowl = 100;
 	private float damageDuringSitting;
-	private final PathNode[] pathNodes = new PathNode[24];
-	private final int[] pathNodeConnections = new int[24];
+	private final PathNode[] pathNodes = new PathNode[PATH_NODE_COUNT];
+	private final int[] pathNodeConnections = new int[PATH_NODE_COUNT];
 	private final PathMinHeap pathHeap = new PathMinHeap();
 
 	public EnderDragonEntity(EntityType<? extends EnderDragonEntity> entityType, World world) {
 		super(EntityType.ENDER_DRAGON, world);
-		this.head = new EnderDragonPart(this, "head", 1.0F, 1.0F);
-		this.neck = new EnderDragonPart(this, "neck", 3.0F, 3.0F);
-		this.body = new EnderDragonPart(this, "body", 5.0F, 3.0F);
-		this.tail1 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
-		this.tail2 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
-		this.tail3 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
-		this.rightWing = new EnderDragonPart(this, "wing", 4.0F, 2.0F);
-		this.leftWing = new EnderDragonPart(this, "wing", 4.0F, 2.0F);
-		this.parts =
-				new EnderDragonPart[]{
-						this.head,
-						this.neck,
-						this.body,
-						this.tail1,
-						this.tail2,
-						this.tail3,
-						this.rightWing,
-						this.leftWing
-				};
-		this.setHealth(this.getMaxHealth());
-		this.noClip = true;
-		this.phaseManager = new PhaseManager(this);
+		head = new EnderDragonPart(this, "head", 1.0F, 1.0F);
+		neck = new EnderDragonPart(this, "neck", 3.0F, 3.0F);
+		body = new EnderDragonPart(this, "body", 5.0F, 3.0F);
+		tail1 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
+		tail2 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
+		tail3 = new EnderDragonPart(this, "tail", 2.0F, 2.0F);
+		rightWing = new EnderDragonPart(this, "wing", 4.0F, 2.0F);
+		leftWing = new EnderDragonPart(this, "wing", 4.0F, 2.0F);
+		parts = new EnderDragonPart[]{head, neck, body, tail1, tail2, tail3, rightWing, leftWing};
+		setHealth(getMaxHealth());
+		noClip = true;
+		phaseManager = new PhaseManager(this);
 	}
 
 	public void setFight(EnderDragonFight fight) {
@@ -126,37 +182,36 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	}
 
 	public BlockPos getFightOrigin() {
-		return this.fightOrigin;
+		return fightOrigin;
 	}
 
 	public static DefaultAttributeContainer.Builder createEnderDragonAttributes() {
 		return MobEntity
 				.createMobAttributes()
-				.add(EntityAttributes.MAX_HEALTH, 200.0)
+				.add(EntityAttributes.MAX_HEALTH, MAX_HEALTH)
 				.add(EntityAttributes.CAMERA_DISTANCE, 16.0);
 	}
 
 	@Override
 	public boolean isFlappingWings() {
-		float f = MathHelper.cos(this.wingPosition * (float) (Math.PI * 2));
-		float g = MathHelper.cos(this.lastWingPosition * (float) (Math.PI * 2));
-		return g <= -0.3F && f >= -0.3F;
+		float currentCos = MathHelper.cos(wingPosition * (float) (Math.PI * 2));
+		float lastCos = MathHelper.cos(lastWingPosition * (float) (Math.PI * 2));
+		return lastCos <= WING_LAUNCH_THRESHOLD && currentCos >= WING_LAUNCH_THRESHOLD;
 	}
 
 	@Override
 	public void addFlapEffects() {
-		if (this.getEntityWorld().isClient() && !this.isSilent()) {
-			this.getEntityWorld()
-			    .playSoundClient(
-					    this.getX(),
-					    this.getY(),
-					    this.getZ(),
-					    SoundEvents.ENTITY_ENDER_DRAGON_FLAP,
-					    this.getSoundCategory(),
-					    5.0F,
-					    0.8F + this.random.nextFloat() * 0.3F,
-					    false
-			    );
+		if (getEntityWorld().isClient() && !isSilent()) {
+			getEntityWorld().playSoundClient(
+					getX(),
+					getY(),
+					getZ(),
+					SoundEvents.ENTITY_ENDER_DRAGON_FLAP,
+					getSoundCategory(),
+					5.0F,
+					0.8F + random.nextFloat() * 0.3F,
+					false
+			);
 		}
 	}
 
@@ -168,322 +223,360 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 
 	@Override
 	public void tickMovement() {
-		this.addAirTravelEffects();
-		if (this.getEntityWorld().isClient()) {
-			this.setHealth(this.getHealth());
-			if (!this.isSilent() && !this.phaseManager.getCurrent().isSittingOrHovering()
-					&& --this.ticksUntilNextGrowl < 0) {
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_ENDER_DRAGON_GROWL,
-						    this.getSoundCategory(),
-						    2.5F,
-						    0.8F + this.random.nextFloat() * 0.3F,
-						    false
-				    );
-				this.ticksUntilNextGrowl = 200 + this.random.nextInt(200);
-			}
+		addAirTravelEffects();
+		tickClientSide();
+		syncFightIfNeeded();
+
+		lastWingPosition = wingPosition;
+
+		if (isDead()) {
+			spawnDeathParticles();
+			return;
 		}
 
-		if (this.fight == null && this.getEntityWorld() instanceof ServerWorld serverWorld) {
+		tickWithEndCrystals();
+		updateWingPosition();
+
+		setYaw(MathHelper.wrapDegrees(getYaw()));
+
+		if (isAiDisabled()) {
+			wingPosition = 0.5F;
+			return;
+		}
+
+		frameTracker.tick(getY(), getYaw());
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			tickServerMovement(serverWorld);
+		} else {
+			interpolator.tick();
+			phaseManager.getCurrent().clientTick();
+		}
+
+		if (!getEntityWorld().isClient()) {
+			tickBlockCollision();
+		}
+
+		bodyYaw = getYaw();
+		updateBodyParts();
+	}
+
+	private void tickClientSide() {
+		if (!getEntityWorld().isClient()) {
+			return;
+		}
+
+		setHealth(getHealth());
+
+		if (isSilent() || phaseManager.getCurrent().isSittingOrHovering()) {
+			return;
+		}
+
+		if (--ticksUntilNextGrowl < 0) {
+			getEntityWorld().playSoundClient(
+					getX(),
+					getY(),
+					getZ(),
+					SoundEvents.ENTITY_ENDER_DRAGON_GROWL,
+					getSoundCategory(),
+					2.5F,
+					0.8F + random.nextFloat() * 0.3F,
+					false
+			);
+			ticksUntilNextGrowl = GROWL_INTERVAL_BASE + random.nextInt(GROWL_INTERVAL_BASE);
+		}
+	}
+
+	private void syncFightIfNeeded() {
+		if (fight != null) {
+			return;
+		}
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
 			EnderDragonFight enderDragonFight = serverWorld.getEnderDragonFight();
-			if (enderDragonFight != null && this.getUuid().equals(enderDragonFight.getDragonUuid())) {
-				this.fight = enderDragonFight;
-			}
-		}
-
-		this.lastWingPosition = this.wingPosition;
-		if (this.isDead()) {
-			float f = (this.random.nextFloat() - 0.5F) * 8.0F;
-			float g = (this.random.nextFloat() - 0.5F) * 4.0F;
-			float h = (this.random.nextFloat() - 0.5F) * 8.0F;
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							ParticleTypes.EXPLOSION,
-							this.getX() + f,
-							this.getY() + 2.0 + g,
-							this.getZ() + h,
-							0.0,
-							0.0,
-							0.0
-					);
-		}
-		else {
-			this.tickWithEndCrystals();
-			Vec3d vec3d = this.getVelocity();
-			float g = 0.2F / ((float) vec3d.horizontalLength() * 10.0F + 1.0F);
-			g *= (float) Math.pow(2.0, vec3d.y);
-			if (this.phaseManager.getCurrent().isSittingOrHovering()) {
-				this.wingPosition += 0.1F;
-			}
-			else if (this.slowedDownByBlock) {
-				this.wingPosition += g * 0.5F;
-			}
-			else {
-				this.wingPosition += g;
-			}
-
-			this.setYaw(MathHelper.wrapDegrees(this.getYaw()));
-			if (this.isAiDisabled()) {
-				this.wingPosition = 0.5F;
-			}
-			else {
-				this.frameTracker.tick(this.getY(), this.getYaw());
-				if (this.getEntityWorld() instanceof ServerWorld serverWorld2) {
-					Phase phase = this.phaseManager.getCurrent();
-					phase.serverTick(serverWorld2);
-					if (this.phaseManager.getCurrent() != phase) {
-						phase = this.phaseManager.getCurrent();
-						phase.serverTick(serverWorld2);
-					}
-
-					Vec3d vec3d2 = phase.getPathTarget();
-					if (vec3d2 != null) {
-						double d = vec3d2.x - this.getX();
-						double e = vec3d2.y - this.getY();
-						double i = vec3d2.z - this.getZ();
-						double j = d * d + e * e + i * i;
-						float k = phase.getMaxYAcceleration();
-						double l = Math.sqrt(d * d + i * i);
-						if (l > 0.0) {
-							e = MathHelper.clamp(e / l, (double) (-k), (double) k);
-						}
-
-						this.setVelocity(this.getVelocity().add(0.0, e * 0.01, 0.0));
-						this.setYaw(MathHelper.wrapDegrees(this.getYaw()));
-						Vec3d vec3d3 = vec3d2.subtract(this.getX(), this.getY(), this.getZ()).normalize();
-						Vec3d vec3d4 = new Vec3d(
-								MathHelper.sin(this.getYaw() * (float) (Math.PI / 180.0)),
-								this.getVelocity().y,
-								-MathHelper.cos(this.getYaw() * (float) (Math.PI / 180.0))
-						)
-								.normalize();
-						float m = Math.max(((float) vec3d4.dotProduct(vec3d3) + 0.5F) / 1.5F, 0.0F);
-						if (Math.abs(d) > 1.0E-5F || Math.abs(i) > 1.0E-5F) {
-							float n = MathHelper.clamp(
-									MathHelper.wrapDegrees(
-											180.0F - (float) MathHelper.atan2(d, i) * (180.0F / (float) Math.PI)
-													- this.getYaw()), -50.0F, 50.0F
-							);
-							this.yawAcceleration *= 0.8F;
-							this.yawAcceleration = this.yawAcceleration + n * phase.getYawAcceleration();
-							this.setYaw(this.getYaw() + this.yawAcceleration * 0.1F);
-						}
-
-						float n = (float) (2.0 / (j + 1.0));
-						float o = 0.06F;
-						this.updateVelocity(0.06F * (m * n + (1.0F - n)), new Vec3d(0.0, 0.0, -1.0));
-						if (this.slowedDownByBlock) {
-							this.move(MovementType.SELF, this.getVelocity().multiply(0.8F));
-						}
-						else {
-							this.move(MovementType.SELF, this.getVelocity());
-						}
-
-						Vec3d vec3d5 = this.getVelocity().normalize();
-						double p = 0.8 + 0.15 * (vec3d5.dotProduct(vec3d4) + 1.0) / 2.0;
-						this.setVelocity(this.getVelocity().multiply(p, 0.91F, p));
-					}
-				}
-				else {
-					this.interpolator.tick();
-					this.phaseManager.getCurrent().clientTick();
-				}
-
-				if (!this.getEntityWorld().isClient()) {
-					this.tickBlockCollision();
-				}
-
-				this.bodyYaw = this.getYaw();
-				Vec3d[] vec3ds = new Vec3d[this.parts.length];
-
-				for (int q = 0; q < this.parts.length; q++) {
-					vec3ds[q] = new Vec3d(this.parts[q].getX(), this.parts[q].getY(), this.parts[q].getZ());
-				}
-
-				float
-						r =
-						(float) (this.frameTracker.getFrame(5).y() - this.frameTracker.getFrame(10).y()) * 10.0F
-								* (float) (Math.PI / 180.0);
-				float s = MathHelper.cos(r);
-				float t = MathHelper.sin(r);
-				float u = this.getYaw() * (float) (Math.PI / 180.0);
-				float v = MathHelper.sin(u);
-				float w = MathHelper.cos(u);
-				this.movePart(this.body, v * 0.5F, 0.0, -w * 0.5F);
-				this.movePart(this.rightWing, w * 4.5F, 2.0, v * 4.5F);
-				this.movePart(this.leftWing, w * -4.5F, 2.0, v * -4.5F);
-				if (this.getEntityWorld() instanceof ServerWorld serverWorld3 && this.hurtTime == 0) {
-					this.launchLivingEntities(
-							serverWorld3,
-							serverWorld3.getOtherEntities(
-									this,
-									this.rightWing.getBoundingBox().expand(4.0, 2.0, 4.0).offset(0.0, -2.0, 0.0),
-									EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
-							)
-					);
-					this.launchLivingEntities(
-							serverWorld3,
-							serverWorld3.getOtherEntities(
-									this,
-									this.leftWing.getBoundingBox().expand(4.0, 2.0, 4.0).offset(0.0, -2.0, 0.0),
-									EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
-							)
-					);
-					this.damageLivingEntities(
-							serverWorld3,
-							serverWorld3.getOtherEntities(
-									this,
-									this.head.getBoundingBox().expand(1.0),
-									EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
-							)
-					);
-					this.damageLivingEntities(
-							serverWorld3,
-							serverWorld3.getOtherEntities(
-									this,
-									this.neck.getBoundingBox().expand(1.0),
-									EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
-							)
-					);
-				}
-
-				float x = MathHelper.sin(this.getYaw() * (float) (Math.PI / 180.0) - this.yawAcceleration * 0.01F);
-				float y = MathHelper.cos(this.getYaw() * (float) (Math.PI / 180.0) - this.yawAcceleration * 0.01F);
-				float z = this.getHeadVerticalMovement();
-				this.movePart(this.head, x * 6.5F * s, z + t * 6.5F, -y * 6.5F * s);
-				this.movePart(this.neck, x * 5.5F * s, z + t * 5.5F, -y * 5.5F * s);
-				EnderDragonFrameTracker.Frame frame = this.frameTracker.getFrame(5);
-
-				for (int aa = 0; aa < 3; aa++) {
-					EnderDragonPart enderDragonPart = null;
-					if (aa == 0) {
-						enderDragonPart = this.tail1;
-					}
-
-					if (aa == 1) {
-						enderDragonPart = this.tail2;
-					}
-
-					if (aa == 2) {
-						enderDragonPart = this.tail3;
-					}
-
-					EnderDragonFrameTracker.Frame frame2 = this.frameTracker.getFrame(12 + aa * 2);
-					float
-							ab =
-							this.getYaw() * (float) (Math.PI / 180.0)
-									+ this.wrapYawChange(frame2.yRot() - frame.yRot()) * (float) (Math.PI / 180.0);
-					float ac = MathHelper.sin(ab);
-					float mx = MathHelper.cos(ab);
-					float n = 1.5F;
-					float o = (aa + 1) * 2.0F;
-					this.movePart(
-							enderDragonPart,
-							-(v * 1.5F + ac * o) * s,
-							frame2.y() - frame.y() - (o + 1.5F) * t + 1.5,
-							(w * 1.5F + mx * o) * s
-					);
-				}
-
-				if (this.getEntityWorld() instanceof ServerWorld serverWorld4) {
-					this.slowedDownByBlock = this.destroyBlocks(serverWorld4, this.head.getBoundingBox())
-							| this.destroyBlocks(serverWorld4, this.neck.getBoundingBox())
-							| this.destroyBlocks(serverWorld4, this.body.getBoundingBox());
-					if (this.fight != null) {
-						this.fight.updateFight(this);
-					}
-				}
-
-				for (int aa = 0; aa < this.parts.length; aa++) {
-					this.parts[aa].lastX = vec3ds[aa].x;
-					this.parts[aa].lastY = vec3ds[aa].y;
-					this.parts[aa].lastZ = vec3ds[aa].z;
-					this.parts[aa].lastRenderX = vec3ds[aa].x;
-					this.parts[aa].lastRenderY = vec3ds[aa].y;
-					this.parts[aa].lastRenderZ = vec3ds[aa].z;
-				}
+			if (enderDragonFight != null && getUuid().equals(enderDragonFight.getDragonUuid())) {
+				fight = enderDragonFight;
 			}
 		}
 	}
 
-	private void movePart(EnderDragonPart enderDragonPart, double dx, double dy, double dz) {
-		enderDragonPart.setPosition(this.getX() + dx, this.getY() + dy, this.getZ() + dz);
+	private void spawnDeathParticles() {
+		float offsetX = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_XZ;
+		float offsetY = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_Y;
+		float offsetZ = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_XZ;
+		getEntityWorld().addParticleClient(
+				ParticleTypes.EXPLOSION,
+				getX() + offsetX,
+				getY() + 2.0 + offsetY,
+				getZ() + offsetZ,
+				0.0, 0.0, 0.0
+		);
+	}
+
+	private void updateWingPosition() {
+		Vec3d velocity = getVelocity();
+		float wingFactor = 0.2F / ((float) velocity.horizontalLength() * 10.0F + 1.0F);
+		wingFactor *= (float) Math.pow(2.0, velocity.y);
+
+		if (phaseManager.getCurrent().isSittingOrHovering()) {
+			wingPosition += WING_SITTING_SPEED;
+		} else if (slowedDownByBlock) {
+			wingPosition += wingFactor * WING_SLOWED_FACTOR;
+		} else {
+			wingPosition += wingFactor;
+		}
+	}
+
+	/**
+	 * Выполняет серверный тик движения: обновляет фазу, вычисляет вектор к цели,
+	 * применяет ускорение по рысканью и скорость, затем обновляет позиции частей тела.
+	 */
+	private void tickServerMovement(ServerWorld serverWorld) {
+		Phase phase = phaseManager.getCurrent();
+		phase.serverTick(serverWorld);
+
+		if (phaseManager.getCurrent() != phase) {
+			phase = phaseManager.getCurrent();
+			phase.serverTick(serverWorld);
+		}
+
+		Vec3d pathTarget = phase.getPathTarget();
+		if (pathTarget != null) {
+			applyPathTargetMovement(phase, pathTarget);
+		}
+
+		if (hurtTime == 0) {
+			applyWingCollisionDamage(serverWorld);
+		}
+
+		updateBodyPartPositions(serverWorld);
+	}
+
+	private void applyPathTargetMovement(Phase phase, Vec3d pathTarget) {
+		double dx = pathTarget.x - getX();
+		double dy = pathTarget.y - getY();
+		double dz = pathTarget.z - getZ();
+		double distanceSq = dx * dx + dy * dy + dz * dz;
+		float maxYAccel = phase.getMaxYAcceleration();
+		double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+		if (horizontalDist > 0.0) {
+			dy = MathHelper.clamp(dy / horizontalDist, -maxYAccel, maxYAccel);
+		}
+
+		setVelocity(getVelocity().add(0.0, dy * 0.01, 0.0));
+		setYaw(MathHelper.wrapDegrees(getYaw()));
+
+		Vec3d toTarget = pathTarget.subtract(getX(), getY(), getZ()).normalize();
+		Vec3d currentDir = new Vec3d(
+				MathHelper.sin(getYaw() * (float) (Math.PI / 180.0)),
+				getVelocity().y,
+				-MathHelper.cos(getYaw() * (float) (Math.PI / 180.0))
+		).normalize();
+
+		float alignment = Math.max(((float) currentDir.dotProduct(toTarget) + 0.5F) / 1.5F, 0.0F);
+
+		if (Math.abs(dx) > 1.0E-5F || Math.abs(dz) > 1.0E-5F) {
+			float yawDelta = MathHelper.clamp(
+					MathHelper.wrapDegrees(
+							180.0F - (float) MathHelper.atan2(dx, dz) * (180.0F / (float) Math.PI) - getYaw()
+					),
+					-MAX_YAW_DELTA, MAX_YAW_DELTA
+			);
+			yawAcceleration *= YAW_ACCELERATION_DAMPING;
+			yawAcceleration += yawDelta * phase.getYawAcceleration();
+			setYaw(getYaw() + yawAcceleration * YAW_ACCELERATION_SCALE);
+		}
+
+		float distanceFactor = (float) (2.0 / (distanceSq + 1.0));
+		updateVelocity(MOVEMENT_SPEED_FACTOR * (alignment * distanceFactor + (1.0F - distanceFactor)), new Vec3d(0.0, 0.0, -1.0));
+
+		if (slowedDownByBlock) {
+			move(MovementType.SELF, getVelocity().multiply(0.8F));
+		} else {
+			move(MovementType.SELF, getVelocity());
+		}
+
+		Vec3d normalizedVelocity = getVelocity().normalize();
+		double lateralDamping = VELOCITY_LATERAL_SCALE + VELOCITY_LATERAL_BONUS * (normalizedVelocity.dotProduct(currentDir) + 1.0) / 2.0;
+		setVelocity(getVelocity().multiply(lateralDamping, VELOCITY_DAMPING_XZ, lateralDamping));
+	}
+
+	private void applyWingCollisionDamage(ServerWorld serverWorld) {
+		launchLivingEntities(
+				serverWorld,
+				serverWorld.getOtherEntities(
+						this,
+						rightWing.getBoundingBox().expand(4.0, 2.0, 4.0).offset(0.0, -2.0, 0.0),
+						EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
+				)
+		);
+		launchLivingEntities(
+				serverWorld,
+				serverWorld.getOtherEntities(
+						this,
+						leftWing.getBoundingBox().expand(4.0, 2.0, 4.0).offset(0.0, -2.0, 0.0),
+						EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
+				)
+		);
+		damageLivingEntities(
+				serverWorld,
+				serverWorld.getOtherEntities(
+						this,
+						head.getBoundingBox().expand(1.0),
+						EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
+				)
+		);
+		damageLivingEntities(
+				serverWorld,
+				serverWorld.getOtherEntities(
+						this,
+						neck.getBoundingBox().expand(1.0),
+						EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
+				)
+		);
+	}
+
+	private void updateBodyParts() {
+		Vec3d[] previousPositions = new Vec3d[parts.length];
+		for (int idx = 0; idx < parts.length; idx++) {
+			previousPositions[idx] = new Vec3d(parts[idx].getX(), parts[idx].getY(), parts[idx].getZ());
+		}
+
+		float pitchAngle = (float) (frameTracker.getFrame(PITCH_FRAME_NEAR).y() - frameTracker.getFrame(PITCH_FRAME_FAR).y())
+				* PITCH_SCALE * (float) (Math.PI / 180.0);
+		float pitchCos = MathHelper.cos(pitchAngle);
+		float pitchSin = MathHelper.sin(pitchAngle);
+		float yawRad = getYaw() * (float) (Math.PI / 180.0);
+		float yawSin = MathHelper.sin(yawRad);
+		float yawCos = MathHelper.cos(yawRad);
+
+		movePart(body, yawSin * BODY_LATERAL_OFFSET, 0.0, -yawCos * BODY_LATERAL_OFFSET);
+		movePart(rightWing, yawCos * WING_LATERAL_OFFSET, WING_VERTICAL_OFFSET, yawSin * WING_LATERAL_OFFSET);
+		movePart(leftWing, yawCos * -WING_LATERAL_OFFSET, WING_VERTICAL_OFFSET, yawSin * -WING_LATERAL_OFFSET);
+
+		float headYawSin = MathHelper.sin(getYaw() * (float) (Math.PI / 180.0) - yawAcceleration * YAW_ACCELERATION_SCALE);
+		float headYawCos = MathHelper.cos(getYaw() * (float) (Math.PI / 180.0) - yawAcceleration * YAW_ACCELERATION_SCALE);
+		float headVertical = getHeadVerticalMovement();
+
+		movePart(head, headYawSin * HEAD_FORWARD_OFFSET * pitchCos, headVertical + pitchSin * HEAD_FORWARD_OFFSET, -headYawCos * HEAD_FORWARD_OFFSET * pitchCos);
+		movePart(neck, headYawSin * NECK_FORWARD_OFFSET * pitchCos, headVertical + pitchSin * NECK_FORWARD_OFFSET, -headYawCos * NECK_FORWARD_OFFSET * pitchCos);
+
+		EnderDragonFrameTracker.Frame baseFrame = frameTracker.getFrame(PITCH_FRAME_NEAR);
+		EnderDragonPart[] tailParts = {tail1, tail2, tail3};
+
+		for (int tailIdx = 0; tailIdx < TAIL_SEGMENT_COUNT; tailIdx++) {
+			EnderDragonFrameTracker.Frame tailFrame = frameTracker.getFrame(TAIL_FRAME_BASE + tailIdx * TAIL_FRAME_STEP);
+			float tailAngle = getYaw() * (float) (Math.PI / 180.0)
+					+ wrapYawChange(tailFrame.yRot() - baseFrame.yRot()) * (float) (Math.PI / 180.0);
+			float tailSin = MathHelper.sin(tailAngle);
+			float tailCos = MathHelper.cos(tailAngle);
+			float tailOffset = (tailIdx + 1) * 2.0F;
+
+			movePart(
+					tailParts[tailIdx],
+					-(yawSin * TAIL_SEGMENT_SPACING + tailSin * tailOffset) * pitchCos,
+					tailFrame.y() - baseFrame.y() - (tailOffset + TAIL_SEGMENT_SPACING) * pitchSin + 1.5,
+					(yawCos * TAIL_SEGMENT_SPACING + tailCos * tailOffset) * pitchCos
+			);
+		}
+
+		for (int idx = 0; idx < parts.length; idx++) {
+			parts[idx].lastX = previousPositions[idx].x;
+			parts[idx].lastY = previousPositions[idx].y;
+			parts[idx].lastZ = previousPositions[idx].z;
+			parts[idx].lastRenderX = previousPositions[idx].x;
+			parts[idx].lastRenderY = previousPositions[idx].y;
+			parts[idx].lastRenderZ = previousPositions[idx].z;
+		}
+	}
+
+	private void updateBodyPartPositions(ServerWorld serverWorld) {
+		slowedDownByBlock = destroyBlocks(serverWorld, head.getBoundingBox())
+				| destroyBlocks(serverWorld, neck.getBoundingBox())
+				| destroyBlocks(serverWorld, body.getBoundingBox());
+
+		if (fight != null) {
+			fight.updateFight(this);
+		}
+	}
+
+	private void movePart(EnderDragonPart part, double dx, double dy, double dz) {
+		part.setPosition(getX() + dx, getY() + dy, getZ() + dz);
 	}
 
 	private float getHeadVerticalMovement() {
-		if (this.phaseManager.getCurrent().isSittingOrHovering()) {
+		if (phaseManager.getCurrent().isSittingOrHovering()) {
 			return -1.0F;
 		}
-		else {
-			EnderDragonFrameTracker.Frame frame = this.frameTracker.getFrame(5);
-			EnderDragonFrameTracker.Frame frame2 = this.frameTracker.getFrame(0);
-			return (float) (frame.y() - frame2.y());
-		}
+
+		EnderDragonFrameTracker.Frame nearFrame = frameTracker.getFrame(PITCH_FRAME_NEAR);
+		EnderDragonFrameTracker.Frame originFrame = frameTracker.getFrame(0);
+		return (float) (nearFrame.y() - originFrame.y());
 	}
 
 	private void tickWithEndCrystals() {
-		if (this.connectedCrystal != null) {
-			if (this.connectedCrystal.isRemoved()) {
-				this.connectedCrystal = null;
-			}
-			else if (this.age % 10 == 0 && this.getHealth() < this.getMaxHealth()) {
-				this.setHealth(this.getHealth() + 1.0F);
+		if (connectedCrystal != null) {
+			if (connectedCrystal.isRemoved()) {
+				connectedCrystal = null;
+			} else if (age % CRYSTAL_SEARCH_INTERVAL == 0 && getHealth() < getMaxHealth()) {
+				setHealth(getHealth() + 1.0F);
 			}
 		}
 
-		if (this.random.nextInt(10) == 0) {
-			List<EndCrystalEntity>
-					list =
-					this
-							.getEntityWorld()
-							.getNonSpectatingEntities(EndCrystalEntity.class, this.getBoundingBox().expand(32.0));
-			EndCrystalEntity endCrystalEntity = null;
-			double d = Double.MAX_VALUE;
+		if (random.nextInt(CRYSTAL_SEARCH_INTERVAL) == 0) {
+			List<EndCrystalEntity> nearbyCrystals = getEntityWorld()
+					.getNonSpectatingEntities(EndCrystalEntity.class, getBoundingBox().expand(CRYSTAL_SEARCH_RADIUS));
+			EndCrystalEntity nearest = null;
+			double minDistSq = Double.MAX_VALUE;
 
-			for (EndCrystalEntity endCrystalEntity2 : list) {
-				double e = endCrystalEntity2.squaredDistanceTo(this);
-				if (e < d) {
-					d = e;
-					endCrystalEntity = endCrystalEntity2;
+			for (EndCrystalEntity crystal : nearbyCrystals) {
+				double distSq = crystal.squaredDistanceTo(this);
+				if (distSq < minDistSq) {
+					minDistSq = distSq;
+					nearest = crystal;
 				}
 			}
 
-			this.connectedCrystal = endCrystalEntity;
+			connectedCrystal = nearest;
 		}
 	}
 
 	private void launchLivingEntities(ServerWorld world, List<Entity> entities) {
-		double d = (this.body.getBoundingBox().minX + this.body.getBoundingBox().maxX) / 2.0;
-		double e = (this.body.getBoundingBox().minZ + this.body.getBoundingBox().maxZ) / 2.0;
+		double bodyCenterX = (body.getBoundingBox().minX + body.getBoundingBox().maxX) / 2.0;
+		double bodyCenterZ = (body.getBoundingBox().minZ + body.getBoundingBox().maxZ) / 2.0;
 
 		for (Entity entity : entities) {
-			if (entity instanceof LivingEntity livingEntity) {
-				double f = entity.getX() - d;
-				double g = entity.getZ() - e;
-				double h = Math.max(f * f + g * g, 0.1);
-				entity.addVelocity(f / h * 4.0, 0.2F, g / h * 4.0);
-				if (!this.phaseManager.getCurrent().isSittingOrHovering()
-						&& livingEntity.getLastAttackedTime() < entity.age - 2) {
-					DamageSource damageSource = this.getDamageSources().mobAttack(this);
-					entity.damage(world, damageSource, 5.0F);
-					EnchantmentHelper.onTargetDamaged(world, entity, damageSource);
-				}
+			if (!(entity instanceof LivingEntity livingEntity)) {
+				continue;
+			}
+
+			double relX = entity.getX() - bodyCenterX;
+			double relZ = entity.getZ() - bodyCenterZ;
+			double distSq = Math.max(relX * relX + relZ * relZ, MIN_HORIZONTAL_DIST_SQ);
+			entity.addVelocity(relX / distSq * WING_LAUNCH_FORCE, WING_LAUNCH_VERTICAL, relZ / distSq * WING_LAUNCH_FORCE);
+
+			if (phaseManager.getCurrent().isSittingOrHovering()) {
+				continue;
+			}
+
+			if (livingEntity.getLastAttackedTime() < entity.age - 2) {
+				DamageSource damageSource = getDamageSources().mobAttack(this);
+				entity.damage(world, damageSource, WING_DAMAGE);
+				EnchantmentHelper.onTargetDamaged(world, entity, damageSource);
 			}
 		}
 	}
 
 	private void damageLivingEntities(ServerWorld world, List<Entity> entities) {
 		for (Entity entity : entities) {
-			if (entity instanceof LivingEntity) {
-				DamageSource damageSource = this.getDamageSources().mobAttack(this);
-				entity.damage(world, damageSource, 10.0F);
-				EnchantmentHelper.onTargetDamaged(world, entity, damageSource);
+			if (!(entity instanceof LivingEntity)) {
+				continue;
 			}
+
+			DamageSource damageSource = getDamageSources().mobAttack(this);
+			entity.damage(world, damageSource, HEAD_DAMAGE);
+			EnchantmentHelper.onTargetDamaged(world, entity, damageSource);
 		}
 	}
 
@@ -492,399 +585,382 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	}
 
 	private boolean destroyBlocks(ServerWorld world, Box box) {
-		int i = MathHelper.floor(box.minX);
-		int j = MathHelper.floor(box.minY);
-		int k = MathHelper.floor(box.minZ);
-		int l = MathHelper.floor(box.maxX);
-		int m = MathHelper.floor(box.maxY);
-		int n = MathHelper.floor(box.maxZ);
-		boolean bl = false;
-		boolean bl2 = false;
+		int minX = MathHelper.floor(box.minX);
+		int minY = MathHelper.floor(box.minY);
+		int minZ = MathHelper.floor(box.minZ);
+		int maxX = MathHelper.floor(box.maxX);
+		int maxY = MathHelper.floor(box.maxY);
+		int maxZ = MathHelper.floor(box.maxZ);
+		boolean blockedByImmune = false;
+		boolean destroyedAny = false;
 
-		for (int o = i; o <= l; o++) {
-			for (int p = j; p <= m; p++) {
-				for (int q = k; q <= n; q++) {
-					BlockPos blockPos = new BlockPos(o, p, q);
+		for (int bx = minX; bx <= maxX; bx++) {
+			for (int by = minY; by <= maxY; by++) {
+				for (int bz = minZ; bz <= maxZ; bz++) {
+					BlockPos blockPos = new BlockPos(bx, by, bz);
 					BlockState blockState = world.getBlockState(blockPos);
-					if (!blockState.isAir() && !blockState.isIn(BlockTags.DRAGON_TRANSPARENT)) {
-						if (world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-								&& !blockState.isIn(BlockTags.DRAGON_IMMUNE)) {
-							bl2 = world.removeBlock(blockPos, false) || bl2;
-						}
-						else {
-							bl = true;
-						}
+
+					if (blockState.isAir() || blockState.isIn(BlockTags.DRAGON_TRANSPARENT)) {
+						continue;
+					}
+
+					if (world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+							&& !blockState.isIn(BlockTags.DRAGON_IMMUNE)) {
+						destroyedAny = world.removeBlock(blockPos, false) || destroyedAny;
+					} else {
+						blockedByImmune = true;
 					}
 				}
 			}
 		}
 
-		if (bl2) {
-			BlockPos
-					blockPos2 =
-					new BlockPos(
-							i + this.random.nextInt(l - i + 1),
-							j + this.random.nextInt(m - j + 1),
-							k + this.random.nextInt(n - k + 1)
-					);
-			world.syncWorldEvent(2008, blockPos2, 0);
+		if (destroyedAny) {
+			BlockPos particlePos = new BlockPos(
+					minX + random.nextInt(maxX - minX + 1),
+					minY + random.nextInt(maxY - minY + 1),
+					minZ + random.nextInt(maxZ - minZ + 1)
+			);
+			world.syncWorldEvent(WORLD_EVENT_BLOCK_BREAK, particlePos, 0);
 		}
 
-		return bl;
+		return blockedByImmune;
 	}
 
 	/**
-	 * Наносит урон part.
-	 *
-	 * @param world world
-	 * @param part part
-	 * @param source source
-	 * @param amount amount
-	 *
-	 * @return boolean — результат операции
-	 */
+		* Наносит урон конкретной части тела дракона. Если дракон сидит/парит,
+		* накапливает {@code damageDuringSitting} и при превышении порога {@code TAKEOFF_THRESHOLD}
+		* принудительно переводит дракона в фазу взлёта.
+		*/
 	public boolean damagePart(ServerWorld world, EnderDragonPart part, DamageSource source, float amount) {
-		if (this.phaseManager.getCurrent().getType() == PhaseType.DYING) {
+		if (phaseManager.getCurrent().getType() == PhaseType.DYING) {
 			return false;
 		}
-		else {
-			amount = this.phaseManager.getCurrent().modifyDamageTaken(source, amount);
-			if (part != this.head) {
-				amount = amount / 4.0F + Math.min(amount, 1.0F);
+
+		amount = phaseManager.getCurrent().modifyDamageTaken(source, amount);
+
+		if (part != head) {
+			amount = amount / BODY_DAMAGE_REDUCTION + Math.min(amount, BODY_DAMAGE_MIN);
+		}
+
+		if (amount < DAMAGE_THRESHOLD) {
+			return false;
+		}
+
+		if (source.getAttacker() instanceof PlayerEntity
+				|| source.isIn(DamageTypeTags.ALWAYS_HURTS_ENDER_DRAGONS)) {
+			float healthBefore = getHealth();
+			parentDamage(world, source, amount);
+
+			if (isDead() && !phaseManager.getCurrent().isSittingOrHovering()) {
+				setHealth(1.0F);
+				phaseManager.setPhase(PhaseType.DYING);
 			}
 
-			if (amount < 0.01F) {
-				return false;
-			}
-			else {
-				if (source.getAttacker() instanceof PlayerEntity
-						|| source.isIn(DamageTypeTags.ALWAYS_HURTS_ENDER_DRAGONS)) {
-					float f = this.getHealth();
-					this.parentDamage(world, source, amount);
-					if (this.isDead() && !this.phaseManager.getCurrent().isSittingOrHovering()) {
-						this.setHealth(1.0F);
-						this.phaseManager.setPhase(PhaseType.DYING);
-					}
-
-					if (this.phaseManager.getCurrent().isSittingOrHovering()) {
-						this.damageDuringSitting = this.damageDuringSitting + f - this.getHealth();
-						if (this.damageDuringSitting > 0.25F * this.getMaxHealth()) {
-							this.damageDuringSitting = 0.0F;
-							this.phaseManager.setPhase(PhaseType.TAKEOFF);
-						}
-					}
+			if (phaseManager.getCurrent().isSittingOrHovering()) {
+				damageDuringSitting += healthBefore - getHealth();
+				if (damageDuringSitting > TAKEOFF_THRESHOLD * getMaxHealth()) {
+					damageDuringSitting = 0.0F;
+					phaseManager.setPhase(PhaseType.TAKEOFF);
 				}
-
-				return true;
 			}
 		}
+
+		return true;
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		return this.damagePart(world, this.body, source, amount);
+		return damagePart(world, body, source, amount);
 	}
 
-	/**
-	 * Parent damage.
-	 *
-	 * @param world world
-	 * @param source source
-	 * @param amount amount
-	 */
 	protected void parentDamage(ServerWorld world, DamageSource source, float amount) {
 		super.damage(world, source, amount);
 	}
 
 	@Override
 	public void kill(ServerWorld world) {
-		this.remove(Entity.RemovalReason.KILLED);
-		this.emitGameEvent(GameEvent.ENTITY_DIE);
-		if (this.fight != null) {
-			this.fight.updateFight(this);
-			this.fight.dragonKilled(this);
+		remove(Entity.RemovalReason.KILLED);
+		emitGameEvent(GameEvent.ENTITY_DIE);
+
+		if (fight != null) {
+			fight.updateFight(this);
+			fight.dragonKilled(this);
 		}
 	}
 
 	@Override
 	protected void updatePostDeath() {
-		if (this.fight != null) {
-			this.fight.updateFight(this);
+		if (fight != null) {
+			fight.updateFight(this);
 		}
 
-		this.ticksSinceDeath++;
-		if (this.ticksSinceDeath >= 180 && this.ticksSinceDeath <= 200) {
-			float f = (this.random.nextFloat() - 0.5F) * 8.0F;
-			float g = (this.random.nextFloat() - 0.5F) * 4.0F;
-			float h = (this.random.nextFloat() - 0.5F) * 8.0F;
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							ParticleTypes.EXPLOSION_EMITTER,
-							this.getX() + f,
-							this.getY() + 2.0 + g,
-							this.getZ() + h,
-							0.0,
-							0.0,
-							0.0
-					);
+		ticksSinceDeath++;
+
+		if (ticksSinceDeath >= DEATH_PARTICLE_START_TICK && ticksSinceDeath <= DEATH_TOTAL_TICKS) {
+			float offsetX = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_XZ;
+			float offsetY = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_Y;
+			float offsetZ = (random.nextFloat() - 0.5F) * DEATH_EXPLOSION_SPREAD_XZ;
+			getEntityWorld().addParticleClient(
+					ParticleTypes.EXPLOSION_EMITTER,
+					getX() + offsetX,
+					getY() + 2.0 + offsetY,
+					getZ() + offsetZ,
+					0.0, 0.0, 0.0
+			);
 		}
 
-		int i = 500;
-		if (this.fight != null && !this.fight.hasPreviouslyKilled()) {
-			i = 12000;
-		}
+		int totalXp = fight != null && !fight.hasPreviouslyKilled()
+				? DEATH_XP_FIRST_KILL
+				: DEATH_XP_REPEAT_KILL;
 
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			if (this.ticksSinceDeath > 150 && this.ticksSinceDeath % 5 == 0 && serverWorld
-					.getGameRules()
-					.getValue(GameRules.DO_MOB_LOOT)) {
-				ExperienceOrbEntity.spawn(serverWorld, this.getEntityPos(), MathHelper.floor(i * 0.08F));
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			if (ticksSinceDeath > DEATH_XP_START_TICK
+					&& ticksSinceDeath % DEATH_XP_TICK_INTERVAL == 0
+					&& serverWorld.getGameRules().getValue(GameRules.DO_MOB_LOOT)) {
+				ExperienceOrbEntity.spawn(serverWorld, getEntityPos(), MathHelper.floor(totalXp * DEATH_XP_PERIODIC_FRACTION));
 			}
 
-			if (this.ticksSinceDeath == 1 && !this.isSilent()) {
-				serverWorld.syncGlobalEvent(1028, this.getBlockPos(), 0);
+			if (ticksSinceDeath == 1 && !isSilent()) {
+				serverWorld.syncGlobalEvent(WORLD_EVENT_DRAGON_DEATH, getBlockPos(), 0);
 			}
 		}
 
-		Vec3d vec3d = new Vec3d(0.0, 0.1F, 0.0);
-		this.move(MovementType.SELF, vec3d);
+		Vec3d riseVec = new Vec3d(0.0, DEATH_RISE_SPEED, 0.0);
+		move(MovementType.SELF, riseVec);
 
-		for (EnderDragonPart enderDragonPart : this.parts) {
-			enderDragonPart.resetPosition();
-			enderDragonPart.setPosition(enderDragonPart.getEntityPos().add(vec3d));
+		for (EnderDragonPart part : parts) {
+			part.resetPosition();
+			part.setPosition(part.getEntityPos().add(riseVec));
 		}
 
-		if (this.ticksSinceDeath == 200 && this.getEntityWorld() instanceof ServerWorld serverWorld2) {
+		if (ticksSinceDeath == DEATH_TOTAL_TICKS && getEntityWorld() instanceof ServerWorld serverWorld2) {
 			if (serverWorld2.getGameRules().getValue(GameRules.DO_MOB_LOOT)) {
-				ExperienceOrbEntity.spawn(serverWorld2, this.getEntityPos(), MathHelper.floor(i * 0.2F));
+				ExperienceOrbEntity.spawn(serverWorld2, getEntityPos(), MathHelper.floor(totalXp * DEATH_XP_FINAL_FRACTION));
 			}
 
-			if (this.fight != null) {
-				this.fight.dragonKilled(this);
+			if (fight != null) {
+				fight.dragonKilled(this);
 			}
 
-			this.remove(Entity.RemovalReason.KILLED);
-			this.emitGameEvent(GameEvent.ENTITY_DIE);
+			remove(Entity.RemovalReason.KILLED);
+			emitGameEvent(GameEvent.ENTITY_DIE);
 		}
-	}
-
-	public int getNearestPathNodeIndex() {
-		if (this.pathNodes[0] == null) {
-			for (int i = 0; i < 24; i++) {
-				int j = 5;
-				int l;
-				int m;
-				if (i < 12) {
-					l =
-							MathHelper.floor(
-									60.0F * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
-					m =
-							MathHelper.floor(
-									60.0F * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * i)));
-				}
-				else if (i < 20) {
-					int k = i - 12;
-					l = MathHelper.floor(40.0F * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * k)));
-					m = MathHelper.floor(40.0F * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * k)));
-					j += 10;
-				}
-				else {
-					int var7 = i - 20;
-					l =
-							MathHelper.floor(
-									20.0F * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
-					m =
-							MathHelper.floor(
-									20.0F * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * var7)));
-				}
-
-				int
-						n =
-						Math.max(
-								73,
-								this
-										.getEntityWorld()
-										.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, new BlockPos(l, 0, m))
-										.getY() + j
-						);
-				this.pathNodes[i] = new PathNode(l, n, m);
-			}
-
-			this.pathNodeConnections[0] = 6146;
-			this.pathNodeConnections[1] = 8197;
-			this.pathNodeConnections[2] = 8202;
-			this.pathNodeConnections[3] = 16404;
-			this.pathNodeConnections[4] = 32808;
-			this.pathNodeConnections[5] = 32848;
-			this.pathNodeConnections[6] = 65696;
-			this.pathNodeConnections[7] = 131392;
-			this.pathNodeConnections[8] = 131712;
-			this.pathNodeConnections[9] = 263424;
-			this.pathNodeConnections[10] = 526848;
-			this.pathNodeConnections[11] = 525313;
-			this.pathNodeConnections[12] = 1581057;
-			this.pathNodeConnections[13] = 3166214;
-			this.pathNodeConnections[14] = 2138120;
-			this.pathNodeConnections[15] = 6373424;
-			this.pathNodeConnections[16] = 4358208;
-			this.pathNodeConnections[17] = 12910976;
-			this.pathNodeConnections[18] = 9044480;
-			this.pathNodeConnections[19] = 9706496;
-			this.pathNodeConnections[20] = 15216640;
-			this.pathNodeConnections[21] = 13688832;
-			this.pathNodeConnections[22] = 11763712;
-			this.pathNodeConnections[23] = 8257536;
-		}
-
-		return this.getNearestPathNodeIndex(this.getX(), this.getY(), this.getZ());
-	}
-
-	public int getNearestPathNodeIndex(double x, double y, double z) {
-		float f = 10000.0F;
-		int i = 0;
-		PathNode pathNode = new PathNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
-		int j = 0;
-		if (this.fight == null || this.fight.getAliveEndCrystals() == 0) {
-			j = 12;
-		}
-
-		for (int k = j; k < 24; k++) {
-			if (this.pathNodes[k] != null) {
-				float g = this.pathNodes[k].getSquaredDistance(pathNode);
-				if (g < f) {
-					f = g;
-					i = k;
-				}
-			}
-		}
-
-		return i;
 	}
 
 	/**
-	 * Ищет path.
-	 *
-	 * @param from from
-	 * @param to to
-	 * @param pathNode path node
-	 *
-	 * @return @Nullable Path — path
-	 */
-	public @Nullable Path findPath(int from, int to, @Nullable PathNode pathNode) {
-		for (int i = 0; i < 24; i++) {
-			PathNode pathNode2 = this.pathNodes[i];
-			pathNode2.visited = false;
-			pathNode2.heapWeight = 0.0F;
-			pathNode2.penalizedPathLength = 0.0F;
-			pathNode2.distanceToNearestTarget = 0.0F;
-			pathNode2.previous = null;
-			pathNode2.heapIndex = -1;
+		* Инициализирует 24 узла пути облёта острова (три кольца: внешнее 12 узлов r=60,
+		* среднее 8 узлов r=40, внутреннее 4 узла r=20) и возвращает индекс ближайшего
+		* к текущей позиции дракона узла.
+		*/
+	public int getNearestPathNodeIndex() {
+		if (pathNodes[0] == null) {
+			initPathNodes();
 		}
 
-		PathNode pathNode3 = this.pathNodes[from];
-		PathNode pathNode2 = this.pathNodes[to];
-		pathNode3.penalizedPathLength = 0.0F;
-		pathNode3.distanceToNearestTarget = pathNode3.getDistance(pathNode2);
-		pathNode3.heapWeight = pathNode3.distanceToNearestTarget;
-		this.pathHeap.clear();
-		this.pathHeap.push(pathNode3);
-		PathNode pathNode4 = pathNode3;
-		int j = 0;
-		if (this.fight == null || this.fight.getAliveEndCrystals() == 0) {
-			j = 12;
+		return getNearestPathNodeIndex(getX(), getY(), getZ());
+	}
+
+	private void initPathNodes() {
+		for (int nodeIdx = 0; nodeIdx < PATH_NODE_COUNT; nodeIdx++) {
+			int heightOffset = OUTER_RING_HEIGHT_OFFSET;
+			int nodeX;
+			int nodeZ;
+
+			if (nodeIdx < OUTER_RING_COUNT) {
+				nodeX = MathHelper.floor(OUTER_RING_RADIUS * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * nodeIdx)));
+				nodeZ = MathHelper.floor(OUTER_RING_RADIUS * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 12) * nodeIdx)));
+			} else if (nodeIdx < MIDDLE_RING_START + MIDDLE_RING_COUNT) {
+				int ringIdx = nodeIdx - MIDDLE_RING_START;
+				nodeX = MathHelper.floor(MIDDLE_RING_RADIUS * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * ringIdx)));
+				nodeZ = MathHelper.floor(MIDDLE_RING_RADIUS * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 8) * ringIdx)));
+				heightOffset += MIDDLE_RING_HEIGHT_OFFSET;
+			} else {
+				int ringIdx = nodeIdx - INNER_RING_START;
+				nodeX = MathHelper.floor(INNER_RING_RADIUS * MathHelper.cos(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * ringIdx)));
+				nodeZ = MathHelper.floor(INNER_RING_RADIUS * MathHelper.sin(2.0F * ((float) -Math.PI + (float) (Math.PI / 4) * ringIdx)));
+			}
+
+			int nodeY = Math.max(
+					MIN_PATH_NODE_Y,
+					getEntityWorld()
+							.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, new BlockPos(nodeX, 0, nodeZ))
+							.getY() + heightOffset
+			);
+			pathNodes[nodeIdx] = new PathNode(nodeX, nodeY, nodeZ);
 		}
 
-		while (!this.pathHeap.isEmpty()) {
-			PathNode pathNode5 = this.pathHeap.pop();
-			if (pathNode5.equals(pathNode2)) {
-				if (pathNode != null) {
-					pathNode.previous = pathNode2;
-					pathNode2 = pathNode;
+		// Предвычисленные битовые маски смежности для графа из 24 узлов трёх колец
+		pathNodeConnections[0] = 6146;
+		pathNodeConnections[1] = 8197;
+		pathNodeConnections[2] = 8202;
+		pathNodeConnections[3] = 16404;
+		pathNodeConnections[4] = 32808;
+		pathNodeConnections[5] = 32848;
+		pathNodeConnections[6] = 65696;
+		pathNodeConnections[7] = 131392;
+		pathNodeConnections[8] = 131712;
+		pathNodeConnections[9] = 263424;
+		pathNodeConnections[10] = 526848;
+		pathNodeConnections[11] = 525313;
+		pathNodeConnections[12] = 1581057;
+		pathNodeConnections[13] = 3166214;
+		pathNodeConnections[14] = 2138120;
+		pathNodeConnections[15] = 6373424;
+		pathNodeConnections[16] = 4358208;
+		pathNodeConnections[17] = 12910976;
+		pathNodeConnections[18] = 9044480;
+		pathNodeConnections[19] = 9706496;
+		pathNodeConnections[20] = 15216640;
+		pathNodeConnections[21] = 13688832;
+		pathNodeConnections[22] = 11763712;
+		pathNodeConnections[23] = 8257536;
+	}
+
+	public int getNearestPathNodeIndex(double x, double y, double z) {
+		float minDistSq = 10000.0F;
+		int nearestIdx = 0;
+		PathNode queryNode = new PathNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
+		int startIdx = fight == null || fight.getAliveEndCrystals() == 0 ? OUTER_RING_COUNT : 0;
+
+		for (int nodeIdx = startIdx; nodeIdx < PATH_NODE_COUNT; nodeIdx++) {
+			if (pathNodes[nodeIdx] == null) {
+				continue;
+			}
+
+			float distSq = pathNodes[nodeIdx].getSquaredDistance(queryNode);
+			if (distSq < minDistSq) {
+				minDistSq = distSq;
+				nearestIdx = nodeIdx;
+			}
+		}
+
+		return nearestIdx;
+	}
+
+	/**
+		* Выполняет поиск пути алгоритмом A* по графу из 24 узлов от узла {@code from} до {@code to}.
+		* Если кристаллы живы, поиск ограничен только внешним кольцом (узлы 0–11).
+		*
+		* @param from      индекс начального узла
+		* @param to        индекс целевого узла
+		* @param extraNode дополнительный узел, добавляемый в конец пути (например, точка посадки)
+		* @return найденный путь или {@code null}, если путь не найден
+		*/
+	public @Nullable Path findPath(int from, int to, @Nullable PathNode extraNode) {
+		for (int nodeIdx = 0; nodeIdx < PATH_NODE_COUNT; nodeIdx++) {
+			PathNode node = pathNodes[nodeIdx];
+			node.visited = false;
+			node.heapWeight = 0.0F;
+			node.penalizedPathLength = 0.0F;
+			node.distanceToNearestTarget = 0.0F;
+			node.previous = null;
+			node.heapIndex = -1;
+		}
+
+		PathNode startNode = pathNodes[from];
+		PathNode targetNode = pathNodes[to];
+		startNode.penalizedPathLength = 0.0F;
+		startNode.distanceToNearestTarget = startNode.getDistance(targetNode);
+		startNode.heapWeight = startNode.distanceToNearestTarget;
+		pathHeap.clear();
+		pathHeap.push(startNode);
+
+		PathNode closestNode = startNode;
+		int searchStart = fight == null || fight.getAliveEndCrystals() == 0 ? OUTER_RING_COUNT : 0;
+
+		while (!pathHeap.isEmpty()) {
+			PathNode current = pathHeap.pop();
+
+			if (current.equals(targetNode)) {
+				if (extraNode != null) {
+					extraNode.previous = targetNode;
+					targetNode = extraNode;
 				}
 
-				return this.getPathOfAllPredecessors(pathNode3, pathNode2);
+				return getPathOfAllPredecessors(startNode, targetNode);
 			}
 
-			if (pathNode5.getDistance(pathNode2) < pathNode4.getDistance(pathNode2)) {
-				pathNode4 = pathNode5;
+			if (current.getDistance(targetNode) < closestNode.getDistance(targetNode)) {
+				closestNode = current;
 			}
 
-			pathNode5.visited = true;
-			int k = 0;
+			current.visited = true;
+			int currentIdx = 0;
 
-			for (int l = 0; l < 24; l++) {
-				if (this.pathNodes[l] == pathNode5) {
-					k = l;
+			for (int nodeIdx = 0; nodeIdx < PATH_NODE_COUNT; nodeIdx++) {
+				if (pathNodes[nodeIdx] == current) {
+					currentIdx = nodeIdx;
 					break;
 				}
 			}
 
-			for (int lx = j; lx < 24; lx++) {
-				if ((this.pathNodeConnections[k] & 1 << lx) > 0) {
-					PathNode pathNode6 = this.pathNodes[lx];
-					if (!pathNode6.visited) {
-						float f = pathNode5.penalizedPathLength + pathNode5.getDistance(pathNode6);
-						if (!pathNode6.isInHeap() || f < pathNode6.penalizedPathLength) {
-							pathNode6.previous = pathNode5;
-							pathNode6.penalizedPathLength = f;
-							pathNode6.distanceToNearestTarget = pathNode6.getDistance(pathNode2);
-							if (pathNode6.isInHeap()) {
-								this.pathHeap.setNodeWeight(
-										pathNode6,
-										pathNode6.penalizedPathLength + pathNode6.distanceToNearestTarget
-								);
-							}
-							else {
-								pathNode6.heapWeight =
-										pathNode6.penalizedPathLength + pathNode6.distanceToNearestTarget;
-								this.pathHeap.push(pathNode6);
-							}
-						}
-					}
+			for (int neighborIdx = searchStart; neighborIdx < PATH_NODE_COUNT; neighborIdx++) {
+				if ((pathNodeConnections[currentIdx] & 1 << neighborIdx) == 0) {
+					continue;
+				}
+
+				PathNode neighbor = pathNodes[neighborIdx];
+				if (neighbor.visited) {
+					continue;
+				}
+
+				float newPathLength = current.penalizedPathLength + current.getDistance(neighbor);
+				if (neighbor.isInHeap() && newPathLength >= neighbor.penalizedPathLength) {
+					continue;
+				}
+
+				neighbor.previous = current;
+				neighbor.penalizedPathLength = newPathLength;
+				neighbor.distanceToNearestTarget = neighbor.getDistance(targetNode);
+
+				if (neighbor.isInHeap()) {
+					pathHeap.setNodeWeight(neighbor, neighbor.penalizedPathLength + neighbor.distanceToNearestTarget);
+				} else {
+					neighbor.heapWeight = neighbor.penalizedPathLength + neighbor.distanceToNearestTarget;
+					pathHeap.push(neighbor);
 				}
 			}
 		}
 
-		if (pathNode4 == pathNode3) {
+		if (closestNode == startNode) {
 			return null;
 		}
-		else {
-			LOGGER.debug("Failed to find path from {} to {}", from, to);
-			if (pathNode != null) {
-				pathNode.previous = pathNode4;
-				pathNode4 = pathNode;
-			}
 
-			return this.getPathOfAllPredecessors(pathNode3, pathNode4);
+		LOGGER.debug("Failed to find path from {} to {}", from, to);
+
+		if (extraNode != null) {
+			extraNode.previous = closestNode;
+			closestNode = extraNode;
 		}
+
+		return getPathOfAllPredecessors(startNode, closestNode);
 	}
 
-	private Path getPathOfAllPredecessors(PathNode unused, PathNode node) {
-		List<PathNode> list = Lists.newArrayList();
-		PathNode pathNode = node;
-		list.add(0, node);
+	private Path getPathOfAllPredecessors(PathNode start, PathNode end) {
+		List<PathNode> pathList = new ArrayList<>();
+		PathNode current = end;
+		pathList.add(0, end);
 
-		while (pathNode.previous != null) {
-			pathNode = pathNode.previous;
-			list.add(0, pathNode);
+		while (current.previous != null) {
+			current = current.previous;
+			pathList.add(0, current);
 		}
 
-		return new Path(list, new BlockPos(node.x, node.y, node.z), true);
+		return new Path(pathList, new BlockPos(end.x, end.y, end.z), true);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("DragonPhase", this.phaseManager.getCurrent().getType().getTypeId());
-		view.putInt("DragonDeathTime", this.ticksSinceDeath);
+		view.putInt("DragonPhase", phaseManager.getCurrent().getType().getTypeId());
+		view.putInt("DragonDeathTime", ticksSinceDeath);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		view.getOptionalInt("DragonPhase").ifPresent(phase -> this.phaseManager.setPhase(PhaseType.getFromId(phase)));
-		this.ticksSinceDeath = view.getInt("DragonDeathTime", 0);
+		view.getOptionalInt("DragonPhase").ifPresent(phase -> phaseManager.setPhase(PhaseType.getFromId(phase)));
+		ticksSinceDeath = view.getInt("DragonDeathTime", 0);
 	}
 
 	@Override
@@ -892,7 +968,7 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	}
 
 	public EnderDragonPart[] getBodyParts() {
-		return this.parts;
+		return parts;
 	}
 
 	@Override
@@ -921,79 +997,61 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	}
 
 	public Vec3d getRotationVectorFromPhase(float tickProgress) {
-		Phase phase = this.phaseManager.getCurrent();
+		Phase phase = phaseManager.getCurrent();
 		PhaseType<? extends Phase> phaseType = phase.getType();
-		Vec3d vec3d;
+
 		if (phaseType == PhaseType.LANDING || phaseType == PhaseType.TAKEOFF) {
-			BlockPos
-					blockPos =
-					this
-							.getEntityWorld()
-							.getTopPosition(
-									Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-									EndPortalFeature.offsetOrigin(this.fightOrigin)
-							);
-			float f = Math.max((float) Math.sqrt(blockPos.getSquaredDistance(this.getEntityPos())) / 4.0F, 1.0F);
-			float g = 6.0F / f;
-			float h = this.getPitch();
-			float i = 1.5F;
-			this.setPitch(-g * 1.5F * 5.0F);
-			vec3d = this.getRotationVec(tickProgress);
-			this.setPitch(h);
-		}
-		else if (phase.isSittingOrHovering()) {
-			float j = this.getPitch();
-			float f = 1.5F;
-			this.setPitch(-45.0F);
-			vec3d = this.getRotationVec(tickProgress);
-			this.setPitch(j);
-		}
-		else {
-			vec3d = this.getRotationVec(tickProgress);
+			BlockPos topPos = getEntityWorld().getTopPosition(
+					Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+					EndPortalFeature.offsetOrigin(fightOrigin)
+			);
+			float distFactor = Math.max((float) Math.sqrt(topPos.getSquaredDistance(getEntityPos())) / LANDING_MIN_DISTANCE_FACTOR, LANDING_MAX_PITCH_SCALE);
+			float pitchScale = LANDING_PITCH_FACTOR / distFactor;
+			float savedPitch = getPitch();
+			setPitch(-pitchScale * LANDING_PITCH_MULTIPLIER * LANDING_PITCH_DEGREES);
+			Vec3d vec = getRotationVec(tickProgress);
+			setPitch(savedPitch);
+			return vec;
 		}
 
-		return vec3d;
+		if (phase.isSittingOrHovering()) {
+			float savedPitch = getPitch();
+			setPitch(SITTING_PITCH_DEGREES);
+			Vec3d vec = getRotationVec(tickProgress);
+			setPitch(savedPitch);
+			return vec;
+		}
+
+		return getRotationVec(tickProgress);
 	}
 
-	/**
-	 * Crystal destroyed.
-	 *
-	 * @param world world
-	 * @param crystal crystal
-	 * @param pos pos
-	 * @param source source
-	 */
 	public void crystalDestroyed(ServerWorld world, EndCrystalEntity crystal, BlockPos pos, DamageSource source) {
-		PlayerEntity playerEntity2;
-		if (source.getAttacker() instanceof PlayerEntity playerEntity) {
-			playerEntity2 = playerEntity;
-		}
-		else {
-			playerEntity2 = world.getClosestPlayer(CLOSE_PLAYER_PREDICATE, pos.getX(), pos.getY(), pos.getZ());
+		PlayerEntity attacker = source.getAttacker() instanceof PlayerEntity player
+				? player
+				: world.getClosestPlayer(CLOSE_PLAYER_PREDICATE, pos.getX(), pos.getY(), pos.getZ());
+
+		if (crystal == connectedCrystal) {
+			damagePart(world, head, getDamageSources().explosion(crystal, attacker), CRYSTAL_EXPLOSION_DAMAGE);
 		}
 
-		if (crystal == this.connectedCrystal) {
-			this.damagePart(world, this.head, this.getDamageSources().explosion(crystal, playerEntity2), 10.0F);
-		}
-
-		this.phaseManager.getCurrent().crystalDestroyed(crystal, pos, source, playerEntity2);
+		phaseManager.getCurrent().crystalDestroyed(crystal, pos, source, attacker);
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
-		if (PHASE_TYPE.equals(data) && this.getEntityWorld().isClient()) {
-			this.phaseManager.setPhase(PhaseType.getFromId(this.getDataTracker().get(PHASE_TYPE)));
+		if (PHASE_TYPE.equals(data) && getEntityWorld().isClient()) {
+			phaseManager.setPhase(PhaseType.getFromId(getDataTracker().get(PHASE_TYPE)));
 		}
 
 		super.onTrackedDataSet(data);
 	}
 
 	public PhaseManager getPhaseManager() {
-		return this.phaseManager;
+		return phaseManager;
 	}
 
 	public @Nullable EnderDragonFight getFight() {
-		return this.fight;
+		return fight;
 	}
 
 	@Override
@@ -1014,10 +1072,10 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		EnderDragonPart[] enderDragonParts = this.getBodyParts();
+		EnderDragonPart[] bodyParts = getBodyParts();
 
-		for (int i = 0; i < enderDragonParts.length; i++) {
-			enderDragonParts[i].setId(i + packet.getEntityId() + 1);
+		for (int idx = 0; idx < bodyParts.length; idx++) {
+			bodyParts[idx].setId(idx + packet.getEntityId() + 1);
 		}
 	}
 

@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code PendingResponse}.
+ * Класс Pending Response.
  */
 public record PendingResponse<Result>(
 		RegistryEntry.Reference<? extends OutgoingRpcMethod<?, ? extends Result>> method,

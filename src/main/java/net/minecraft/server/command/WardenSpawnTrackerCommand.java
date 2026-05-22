@@ -11,7 +11,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code WardenSpawnTrackerCommand}.
+ * Команда {@code /wardenspawntracker}: управление трекером спавна Хранителя (только dev-режим).
  */
 public class WardenSpawnTrackerCommand {
 

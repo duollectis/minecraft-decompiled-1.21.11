@@ -13,7 +13,12 @@ import java.net.URI;
 import java.util.*;
 
 /**
- * {@code Text}.
+ * Базовый интерфейс текстового компонента Minecraft.
+ * Текст состоит из {@link TextContent} (тип содержимого), {@link Style} и списка дочерних компонентов.
+ * Реализует {@link StringVisitable} для обхода строкового содержимого и {@link Message} для Brigadier.
+ *
+ * <p>Для создания экземпляров используйте статические фабричные методы:
+ * {@link #literal}, {@link #translatable}, {@link #empty} и другие.
  */
 public interface Text extends Message, StringVisitable {
 
@@ -26,109 +31,137 @@ public interface Text extends Message, StringVisitable {
 		return StringVisitable.super.getString();
 	}
 
+	/**
+	 * Возвращает строковое представление текста, обрезанное до {@code length} символов.
+	 * Обход прекращается досрочно, как только накоплено достаточно символов.
+	 *
+	 * @param length максимальное количество символов в результате
+	 */
 	default String asTruncatedString(int length) {
-		StringBuilder stringBuilder = new StringBuilder();
-		this.visit(string -> {
-			int j = length - stringBuilder.length();
-			if (j <= 0) {
+		StringBuilder builder = new StringBuilder();
+
+		visit(string -> {
+			int remaining = length - builder.length();
+
+			if (remaining <= 0) {
 				return TERMINATE_VISIT;
 			}
-			else {
-				stringBuilder.append(string.length() <= j ? string : string.substring(0, j));
-				return Optional.empty();
-			}
+
+			builder.append(string.length() <= remaining ? string : string.substring(0, remaining));
+			return Optional.empty();
 		});
-		return stringBuilder.toString();
+
+		return builder.toString();
 	}
 
 	List<Text> getSiblings();
 
+	/**
+	 * Возвращает строку, если текст является простым литералом без стиля и дочерних элементов.
+	 * Используется для оптимизации сериализации в {@link TextCodecs}.
+	 */
 	default @Nullable String getLiteralString() {
-		return this.getContent() instanceof PlainTextContent plainTextContent && this.getSiblings().isEmpty() && this
-				.getStyle()
-				.isEmpty()
-		       ? plainTextContent.string()
-		       : null;
+		return getContent() instanceof PlainTextContent plain
+			&& getSiblings().isEmpty()
+			&& getStyle().isEmpty()
+			? plain.string()
+			: null;
 	}
 
 	default MutableText copyContentOnly() {
-		return MutableText.of(this.getContent());
+		return MutableText.of(getContent());
 	}
 
 	default MutableText copy() {
-		return new MutableText(this.getContent(), new ArrayList<>(this.getSiblings()), this.getStyle());
+		return new MutableText(getContent(), new ArrayList<>(getSiblings()), getStyle());
 	}
 
 	OrderedText asOrderedText();
 
+	/**
+	 * Обходит текст со стилем, объединяя стиль текущего компонента с переданным {@code style}.
+	 * Обход прекращается, если посетитель вернул непустой {@link Optional}.
+	 */
 	@Override
 	default <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
-		Style style2 = this.getStyle().withParent(style);
-		Optional<T> optional = this.getContent().visit(styledVisitor, style2);
-		if (optional.isPresent()) {
-			return optional;
-		}
-		else {
-			for (Text text : this.getSiblings()) {
-				Optional<T> optional2 = text.visit(styledVisitor, style2);
-				if (optional2.isPresent()) {
-					return optional2;
-				}
-			}
+		Style mergedStyle = getStyle().withParent(style);
+		Optional<T> result = getContent().visit(styledVisitor, mergedStyle);
 
-			return Optional.empty();
+		if (result.isPresent()) {
+			return result;
 		}
+
+		for (Text sibling : getSiblings()) {
+			Optional<T> siblingResult = sibling.visit(styledVisitor, mergedStyle);
+
+			if (siblingResult.isPresent()) {
+				return siblingResult;
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	@Override
 	default <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-		Optional<T> optional = this.getContent().visit(visitor);
-		if (optional.isPresent()) {
-			return optional;
-		}
-		else {
-			for (Text text : this.getSiblings()) {
-				Optional<T> optional2 = text.visit(visitor);
-				if (optional2.isPresent()) {
-					return optional2;
-				}
-			}
+		Optional<T> result = getContent().visit(visitor);
 
-			return Optional.empty();
+		if (result.isPresent()) {
+			return result;
 		}
+
+		for (Text sibling : getSiblings()) {
+			Optional<T> siblingResult = sibling.visit(visitor);
+
+			if (siblingResult.isPresent()) {
+				return siblingResult;
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	default List<Text> withoutStyle() {
-		return this.getWithStyle(Style.EMPTY);
+		return getWithStyle(Style.EMPTY);
 	}
 
+	/**
+	 * Разбивает текст на плоский список литеральных фрагментов с применённым стилем.
+	 *
+	 * @param style базовый стиль для обхода
+	 */
 	default List<Text> getWithStyle(Style style) {
 		List<Text> list = Lists.newArrayList();
-		this.visit(
-				(styleOverride, text) -> {
-					if (!text.isEmpty()) {
-						list.add(literal(text).fillStyle(styleOverride));
-					}
 
-					return Optional.empty();
-				}, style
+		visit(
+			(styleOverride, fragment) -> {
+				if (!fragment.isEmpty()) {
+					list.add(literal(fragment).fillStyle(styleOverride));
+				}
+
+				return Optional.empty();
+			}, style
 		);
+
 		return list;
 	}
 
+	/**
+	 * Проверяет, содержит ли данный текст {@code text} как подпоследовательность
+	 * при сравнении плоских фрагментов без стиля.
+	 */
 	default boolean contains(Text text) {
-		if (this.equals(text)) {
+		if (equals(text)) {
 			return true;
 		}
-		else {
-			List<Text> list = this.withoutStyle();
-			List<Text> list2 = text.getWithStyle(this.getStyle());
-			return Collections.indexOfSubList(list, list2) != -1;
-		}
+
+		List<Text> thisFlat = withoutStyle();
+		List<Text> otherFlat = text.getWithStyle(getStyle());
+		return Collections.indexOfSubList(thisFlat, otherFlat) != -1;
 	}
 
 	static Text of(@Nullable String string) {
-		return (Text) (string != null ? literal(string) : ScreenTexts.EMPTY);
+		return string != null ? literal(string) : ScreenTexts.EMPTY;
 	}
 
 	static MutableText literal(String string) {
@@ -143,11 +176,16 @@ public interface Text extends Message, StringVisitable {
 		return MutableText.of(new TranslatableTextContent(key, null, args));
 	}
 
+	/**
+	 * Создаёт переводимый текст, предварительно преобразуя не-примитивные аргументы в строки.
+	 * Это предотвращает попытку сериализации произвольных объектов как {@link Text}.
+	 */
 	static MutableText stringifiedTranslatable(String key, Object... args) {
-		for (int i = 0; i < args.length; i++) {
-			Object object = args[i];
-			if (!TranslatableTextContent.isPrimitive(object) && !(object instanceof Text)) {
-				args[i] = String.valueOf(object);
+		for (int index = 0; index < args.length; index++) {
+			Object arg = args[index];
+
+			if (!TranslatableTextContent.isPrimitive(arg) && !(arg instanceof Text)) {
+				args[index] = String.valueOf(arg);
 			}
 		}
 
@@ -195,7 +233,7 @@ public interface Text extends Message, StringVisitable {
 	}
 
 	static Text of(Message message) {
-		return (Text) (message instanceof Text text ? text : literal(message.getString()));
+		return message instanceof Text text ? text : literal(message.getString());
 	}
 
 	static Text of(UUID uuid) {

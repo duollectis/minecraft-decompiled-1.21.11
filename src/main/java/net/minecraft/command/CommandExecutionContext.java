@@ -15,12 +15,16 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * {@code CommandExecutionContext}.
+ * Контекст выполнения команд — управляет очередью, лимитами и трассировкой.
+ * Реализует {@link AutoCloseable} для корректного закрытия трассировщика.
+ *
+ * @param <T> тип источника команды
  */
 public class CommandExecutionContext<T> implements AutoCloseable {
 
-	private static final int MAX_COMMAND_QUEUE_LENGTH = 10000000;
+	private static final int MAX_COMMAND_QUEUE_LENGTH = 10_000_000;
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final int maxCommandChainLength;
 	private final int forkLimit;
 	private final Profiler profiler;
@@ -28,16 +32,20 @@ public class CommandExecutionContext<T> implements AutoCloseable {
 	private int commandsRemaining;
 	private boolean queueOverflowed;
 	private final Deque<CommandQueueEntry<T>> commandQueue = Queues.newArrayDeque();
-	private final List<CommandQueueEntry<T>> pendingCommands = new ObjectArrayList();
+	private final List<CommandQueueEntry<T>> pendingCommands = new ObjectArrayList<>();
 	private int currentDepth;
 
 	public CommandExecutionContext(int maxCommandChainLength, int maxCommandForkCount, Profiler profiler) {
 		this.maxCommandChainLength = maxCommandChainLength;
-		this.forkLimit = maxCommandForkCount;
+		forkLimit = maxCommandForkCount;
 		this.profiler = profiler;
-		this.commandsRemaining = maxCommandChainLength;
+		commandsRemaining = maxCommandChainLength;
 	}
 
+	/**
+	 * Создаёт фрейм для вызова процедуры. На нулевой глубине очередь очищается полностью,
+	 * на остальных — только до текущей глубины.
+	 */
 	private static <T extends AbstractServerCommandSource<T>> Frame frame(
 			CommandExecutionContext<T> context,
 			ReturnValueConsumer returnValueConsumer
@@ -45,10 +53,9 @@ public class CommandExecutionContext<T> implements AutoCloseable {
 		if (context.currentDepth == 0) {
 			return new Frame(0, returnValueConsumer, context.commandQueue::clear);
 		}
-		else {
-			int i = context.currentDepth + 1;
-			return new Frame(i, returnValueConsumer, context.getEscapeControl(i));
-		}
+
+		int depth = context.currentDepth + 1;
+		return new Frame(depth, returnValueConsumer, context.getEscapeControl(depth));
 	}
 
 	public static <T extends AbstractServerCommandSource<T>> void enqueueProcedureCall(
@@ -81,67 +88,69 @@ public class CommandExecutionContext<T> implements AutoCloseable {
 	}
 
 	private void markQueueOverflowed() {
-		this.queueOverflowed = true;
-		this.pendingCommands.clear();
-		this.commandQueue.clear();
+		queueOverflowed = true;
+		pendingCommands.clear();
+		commandQueue.clear();
 	}
 
 	public void enqueueCommand(CommandQueueEntry<T> entry) {
-		if (this.pendingCommands.size() + this.commandQueue.size() > 10000000) {
-			this.markQueueOverflowed();
+		if (pendingCommands.size() + commandQueue.size() > MAX_COMMAND_QUEUE_LENGTH) {
+			markQueueOverflowed();
 		}
 
-		if (!this.queueOverflowed) {
-			this.pendingCommands.add(entry);
+		if (!queueOverflowed) {
+			pendingCommands.add(entry);
 		}
 	}
 
 	public void escape(int depth) {
-		while (!this.commandQueue.isEmpty() && this.commandQueue.peek().frame().depth() >= depth) {
-			this.commandQueue.removeFirst();
+		while (!commandQueue.isEmpty() && commandQueue.peek().frame().depth() >= depth) {
+			commandQueue.removeFirst();
 		}
 	}
 
 	public Frame.Control getEscapeControl(int depth) {
-		return () -> this.escape(depth);
+		return () -> escape(depth);
 	}
 
+	/**
+	 * Запускает основной цикл выполнения очереди команд до исчерпания лимита
+	 * или опустошения очереди.
+	 */
 	public void run() {
-		this.queuePendingCommands();
+		queuePendingCommands();
 
 		while (true) {
-			if (this.commandsRemaining <= 0) {
-				LOGGER.info(
-						"Command execution stopped due to limit (executed {} commands)",
-						this.maxCommandChainLength
-				);
+			if (commandsRemaining <= 0) {
+				LOGGER.info("Command execution stopped due to limit (executed {} commands)", maxCommandChainLength);
 				break;
 			}
 
-			CommandQueueEntry<T> commandQueueEntry = this.commandQueue.pollFirst();
-			if (commandQueueEntry == null) {
+			CommandQueueEntry<T> entry = commandQueue.pollFirst();
+			if (entry == null) {
 				return;
 			}
 
-			this.currentDepth = commandQueueEntry.frame().depth();
-			commandQueueEntry.execute(this);
-			if (this.queueOverflowed) {
-				LOGGER.error("Command execution stopped due to command queue overflow (max {})", 10000000);
+			currentDepth = entry.frame().depth();
+			entry.execute(this);
+
+			if (queueOverflowed) {
+				LOGGER.error("Command execution stopped due to command queue overflow (max {})", MAX_COMMAND_QUEUE_LENGTH);
 				break;
 			}
 
-			this.queuePendingCommands();
+			queuePendingCommands();
 		}
 
-		this.currentDepth = 0;
+		currentDepth = 0;
 	}
 
 	private void queuePendingCommands() {
-		for (int i = this.pendingCommands.size() - 1; i >= 0; i--) {
-			this.commandQueue.addFirst(this.pendingCommands.get(i));
+		for (int index = pendingCommands.size() - 1; index >= 0; index--) {
+			commandQueue.addFirst(pendingCommands.get(index));
 		}
 
-		this.pendingCommands.clear();
+		pendingCommands.clear();
 	}
 
 	public void setTracer(@Nullable Tracer tracer) {
@@ -149,25 +158,25 @@ public class CommandExecutionContext<T> implements AutoCloseable {
 	}
 
 	public @Nullable Tracer getTracer() {
-		return this.tracer;
+		return tracer;
 	}
 
 	public Profiler getProfiler() {
-		return this.profiler;
+		return profiler;
 	}
 
 	public int getForkLimit() {
-		return this.forkLimit;
+		return forkLimit;
 	}
 
 	public void decrementCommandQuota() {
-		this.commandsRemaining--;
+		commandsRemaining--;
 	}
 
 	@Override
 	public void close() {
-		if (this.tracer != null) {
-			this.tracer.close();
+		if (tracer != null) {
+			tracer.close();
 		}
 	}
 }

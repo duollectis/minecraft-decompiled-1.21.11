@@ -11,7 +11,8 @@ import net.minecraft.server.function.Tracer;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractServerCommandSource}.
+ * Базовый контракт источника серверной команды: управление потребителем возвращаемого значения,
+ * диспетчером команд и обработкой исключений. Реализуется {@link ServerCommandSource}.
  */
 public interface AbstractServerCommandSource<T extends AbstractServerCommandSource<T>> extends PermissionSource {
 

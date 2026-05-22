@@ -11,10 +11,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ButtonWidget}.
+ * Базовый абстрактный виджет кнопки с поддержкой нажатия, нарративного описания и тултипа.
+ * Конкретные реализации определяют способ отрисовки иконки через {@link #drawIcon}.
  */
+@Environment(EnvType.CLIENT)
 public abstract class ButtonWidget extends PressableWidget {
 
 	public static final int DEFAULT_WIDTH_SMALL = 120;
@@ -46,23 +47,24 @@ public abstract class ButtonWidget extends PressableWidget {
 
 	@Override
 	public void onPress(AbstractInput input) {
-		this.onPress.onPress(this);
+		onPress.onPress(this);
 	}
 
 	@Override
 	protected MutableText getNarrationMessage() {
-		return this.narrationSupplier.createNarrationMessage(() -> super.getNarrationMessage());
+		return narrationSupplier.createNarrationMessage(() -> super.getNarrationMessage());
 	}
 
 	@Override
 	public void appendClickableNarrations(NarrationMessageBuilder builder) {
-		this.appendDefaultNarrations(builder);
+		appendDefaultNarrations(builder);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link ButtonWidget} с заданными параметрами позиции,
+	 * размера, тултипа и поставщика нарративного описания.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final net.minecraft.text.Text message;
@@ -70,8 +72,8 @@ public abstract class ButtonWidget extends PressableWidget {
 		private @Nullable Tooltip tooltip;
 		private int x;
 		private int y;
-		private int width = 150;
-		private int height = 20;
+		private int width = DEFAULT_WIDTH;
+		private int height = DEFAULT_HEIGHT;
 		private ButtonWidget.NarrationSupplier narrationSupplier = ButtonWidget.DEFAULT_NARRATION_SUPPLIER;
 
 		public Builder(net.minecraft.text.Text message, ButtonWidget.PressAction onPress) {
@@ -110,68 +112,52 @@ public abstract class ButtonWidget extends PressableWidget {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ButtonWidget — результат операции
-		 */
 		public ButtonWidget build() {
-			ButtonWidget
-					buttonWidget =
-					new ButtonWidget.Text(
-							this.x,
-							this.y,
-							this.width,
-							this.height,
-							this.message,
-							this.onPress,
-							this.narrationSupplier
-					);
-			buttonWidget.setTooltip(this.tooltip);
+			ButtonWidget buttonWidget = new ButtonWidget.Text(
+					x,
+					y,
+					width,
+					height,
+					message,
+					onPress,
+					narrationSupplier
+			);
+			buttonWidget.setTooltip(tooltip);
 			return buttonWidget;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code NarrationSupplier}.
-	 */
 	public interface NarrationSupplier {
 
 		MutableText createNarrationMessage(Supplier<MutableText> textSupplier);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code PressAction}.
-	 */
 	public interface PressAction {
 
 		void onPress(ButtonWidget button);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Text}.
-	 */
 	public static class Text extends ButtonWidget {
 
 		protected Text(
-				int i,
-				int j,
-				int k,
-				int l,
+				int x,
+				int y,
+				int width,
+				int height,
 				net.minecraft.text.Text text,
 				ButtonWidget.PressAction pressAction,
 				ButtonWidget.NarrationSupplier narrationSupplier
 		) {
-			super(i, j, k, l, text, pressAction, narrationSupplier);
+			super(x, y, width, height, text, pressAction, narrationSupplier);
 		}
 
 		@Override
 		protected void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			this.drawButton(context);
-			this.drawLabel(context.getHoverListener(this, DrawContext.HoverType.NONE));
+			drawButton(context);
+			drawLabel(context.getHoverListener(this, DrawContext.HoverType.NONE));
 		}
 	}
 }

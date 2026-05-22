@@ -21,6 +21,7 @@ import net.minecraft.state.property.EnumProperty;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldEvents;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
@@ -28,7 +29,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code CarvedPumpkinBlock}.
+ * Блок вырезанной тыквы. При размещении проверяет наличие паттернов голема
+ * (снежного, железного или медного) и при совпадении спавнит соответствующую сущность.
  */
 public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 
@@ -51,7 +53,7 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 
 	public CarvedPumpkinBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH));
 	}
 
 	@Override
@@ -62,59 +64,55 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 	}
 
 	/**
-	 * Проверяет возможность dispense.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, можно ли использовать диспенсер для спавна голема в данной позиции.
+	 * Возвращает {@code true}, если рядом есть паттерн снежного, железного или медного голема.
 	 */
 	public boolean canDispense(WorldView world, BlockPos pos) {
-		return this.getSnowGolemDispenserPattern().searchAround(world, pos) != null
-				|| this.getIronGolemDispenserPattern().searchAround(world, pos) != null
-				|| this.getCopperGolemDispenserPattern().searchAround(world, pos) != null;
+		return getSnowGolemDispenserPattern().searchAround(world, pos) != null
+				|| getIronGolemDispenserPattern().searchAround(world, pos) != null
+				|| getCopperGolemDispenserPattern().searchAround(world, pos) != null;
 	}
 
 	private void trySpawnEntity(World world, BlockPos pos) {
-		BlockPattern.Result result = this.getSnowGolemPattern().searchAround(world, pos);
-		if (result != null) {
-			SnowGolemEntity snowGolemEntity = EntityType.SNOW_GOLEM.create(world, SpawnReason.TRIGGERED);
-			if (snowGolemEntity != null) {
-				spawnEntity(world, result, snowGolemEntity, result.translate(0, 2, 0).getBlockPos());
+		BlockPattern.Result snowResult = getSnowGolemPattern().searchAround(world, pos);
+		if (snowResult != null) {
+			SnowGolemEntity snowGolem = EntityType.SNOW_GOLEM.create(world, SpawnReason.TRIGGERED);
+			if (snowGolem != null) {
+				spawnEntity(world, snowResult, snowGolem, snowResult.translate(0, 2, 0).getBlockPos());
 				return;
 			}
 		}
 
-		BlockPattern.Result result2 = this.getIronGolemPattern().searchAround(world, pos);
-		if (result2 != null) {
-			IronGolemEntity ironGolemEntity = EntityType.IRON_GOLEM.create(world, SpawnReason.TRIGGERED);
-			if (ironGolemEntity != null) {
-				ironGolemEntity.setPlayerCreated(true);
-				spawnEntity(world, result2, ironGolemEntity, result2.translate(1, 2, 0).getBlockPos());
+		BlockPattern.Result ironResult = getIronGolemPattern().searchAround(world, pos);
+		if (ironResult != null) {
+			IronGolemEntity ironGolem = EntityType.IRON_GOLEM.create(world, SpawnReason.TRIGGERED);
+			if (ironGolem != null) {
+				ironGolem.setPlayerCreated(true);
+				spawnEntity(world, ironResult, ironGolem, ironResult.translate(1, 2, 0).getBlockPos());
 				return;
 			}
 		}
 
-		BlockPattern.Result result3 = this.getCopperGolemPattern().searchAround(world, pos);
-		if (result3 != null) {
-			CopperGolemEntity copperGolemEntity = EntityType.COPPER_GOLEM.create(world, SpawnReason.TRIGGERED);
-			if (copperGolemEntity != null) {
-				spawnEntity(world, result3, copperGolemEntity, result3.translate(0, 0, 0).getBlockPos());
-				this.replaceCopperBlockWithChest(world, result3);
-				copperGolemEntity.onSpawn(this.getOxidationLevel(result3));
+		BlockPattern.Result copperResult = getCopperGolemPattern().searchAround(world, pos);
+		if (copperResult != null) {
+			CopperGolemEntity copperGolem = EntityType.COPPER_GOLEM.create(world, SpawnReason.TRIGGERED);
+			if (copperGolem != null) {
+				spawnEntity(world, copperResult, copperGolem, copperResult.translate(0, 0, 0).getBlockPos());
+				replaceCopperBlockWithChest(world, copperResult);
+				copperGolem.onSpawn(getOxidationLevel(copperResult));
 			}
 		}
 	}
 
 	private Oxidizable.OxidationLevel getOxidationLevel(BlockPattern.Result patternResult) {
-		BlockState blockState = patternResult.translate(0, 1, 0).getBlockState();
-		return blockState.getBlock() instanceof Oxidizable oxidizable
-		       ? oxidizable.getDegradationLevel()
-		       : Optional.ofNullable((Block) HoneycombItem.WAXED_TO_UNWAXED_BLOCKS.get().get(blockState.getBlock()))
-		                 .filter(block -> block instanceof Oxidizable)
-		                 .map(block -> (Oxidizable) block)
-		                 .orElse((Oxidizable) Blocks.COPPER_BLOCK)
-		                 .getDegradationLevel();
+		BlockState bodyState = patternResult.translate(0, 1, 0).getBlockState();
+		return bodyState.getBlock() instanceof Oxidizable oxidizable
+			? oxidizable.getDegradationLevel()
+			: Optional.ofNullable((Block) HoneycombItem.WAXED_TO_UNWAXED_BLOCKS.get().get(bodyState.getBlock()))
+				.filter(block -> block instanceof Oxidizable)
+				.map(block -> (Oxidizable) block)
+				.orElse((Oxidizable) Blocks.COPPER_BLOCK)
+				.getDegradationLevel();
 	}
 
 	private static void spawnEntity(World world, BlockPattern.Result patternResult, Entity entity, BlockPos pos) {
@@ -122,47 +120,42 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 		entity.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5, 0.0F, 0.0F);
 		world.spawnEntity(entity);
 
-		for (ServerPlayerEntity serverPlayerEntity : world.getNonSpectatingEntities(
-				ServerPlayerEntity.class,
-				entity.getBoundingBox().expand(5.0)
+		for (ServerPlayerEntity nearbyPlayer : world.getNonSpectatingEntities(
+			ServerPlayerEntity.class,
+			entity.getBoundingBox().expand(5.0)
 		)) {
-			Criteria.SUMMONED_ENTITY.trigger(serverPlayerEntity, entity);
+			Criteria.SUMMONED_ENTITY.trigger(nearbyPlayer, entity);
 		}
 
 		updatePatternBlocks(world, patternResult);
 	}
 
 	/**
-	 * Ломает pattern blocks.
-	 *
-	 * @param world world
-	 * @param patternResult pattern result
+	 * Разрушает все блоки паттерна голема, заменяя их воздухом, и воспроизводит
+	 * звуковой эффект разрушения для каждого блока (world event 2001).
 	 */
 	public static void breakPatternBlocks(World world, BlockPattern.Result patternResult) {
-		for (int i = 0; i < patternResult.getWidth(); i++) {
-			for (int j = 0; j < patternResult.getHeight(); j++) {
-				CachedBlockPosition cachedBlockPosition = patternResult.translate(i, j, 0);
-				world.setBlockState(cachedBlockPosition.getBlockPos(), Blocks.AIR.getDefaultState(), 2);
+		for (int col = 0; col < patternResult.getWidth(); col++) {
+			for (int row = 0; row < patternResult.getHeight(); row++) {
+				CachedBlockPosition cached = patternResult.translate(col, row, 0);
+				world.setBlockState(cached.getBlockPos(), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
 				world.syncWorldEvent(
-						2001,
-						cachedBlockPosition.getBlockPos(),
-						Block.getRawIdFromState(cachedBlockPosition.getBlockState())
+					WorldEvents.BLOCK_BROKEN,
+					cached.getBlockPos(),
+					Block.getRawIdFromState(cached.getBlockState())
 				);
 			}
 		}
 	}
 
 	/**
-	 * Обновляет pattern blocks.
-	 *
-	 * @param world world
-	 * @param patternResult pattern result
+	 * Уведомляет соседей всех блоков паттерна об изменении (после спавна голема).
 	 */
 	public static void updatePatternBlocks(World world, BlockPattern.Result patternResult) {
-		for (int i = 0; i < patternResult.getWidth(); i++) {
-			for (int j = 0; j < patternResult.getHeight(); j++) {
-				CachedBlockPosition cachedBlockPosition = patternResult.translate(i, j, 0);
-				world.updateNeighbors(cachedBlockPosition.getBlockPos(), Blocks.AIR);
+		for (int col = 0; col < patternResult.getWidth(); col++) {
+			for (int row = 0; row < patternResult.getHeight(); row++) {
+				CachedBlockPosition cached = patternResult.translate(col, row, 0);
+				world.updateNeighbors(cached.getBlockPos(), Blocks.AIR);
 			}
 		}
 	}
@@ -292,18 +285,16 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 	}
 
 	/**
-	 * Replace copper block with chest.
-	 *
-	 * @param world world
-	 * @param patternResult pattern result
+	 * Заменяет медный блок в теле голема на медный сундук соответствующего уровня окисления.
+	 * Направление сундука берётся из состояния тыквы (головы голема).
 	 */
 	public void replaceCopperBlockWithChest(World world, BlockPattern.Result patternResult) {
-		CachedBlockPosition cachedBlockPosition = patternResult.translate(0, 1, 0);
-		CachedBlockPosition cachedBlockPosition2 = patternResult.translate(0, 0, 0);
-		Direction direction = cachedBlockPosition2.getBlockState().get(FACING);
-		BlockState blockState = CopperChestBlock.fromCopperBlock(
-				cachedBlockPosition.getBlockState().getBlock(), direction, world, cachedBlockPosition.getBlockPos()
+		CachedBlockPosition bodyPos = patternResult.translate(0, 1, 0);
+		CachedBlockPosition headPos = patternResult.translate(0, 0, 0);
+		Direction facing = headPos.getBlockState().get(FACING);
+		BlockState chestState = CopperChestBlock.fromCopperBlock(
+			bodyPos.getBlockState().getBlock(), facing, world, bodyPos.getBlockPos()
 		);
-		world.setBlockState(cachedBlockPosition.getBlockPos(), blockState, 2);
+		world.setBlockState(bodyPos.getBlockPos(), chestState, Block.NOTIFY_LISTENERS);
 	}
 }

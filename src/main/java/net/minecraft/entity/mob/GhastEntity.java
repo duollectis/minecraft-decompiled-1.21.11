@@ -34,7 +34,9 @@ import java.util.EnumSet;
 import java.util.function.BooleanSupplier;
 
 /**
- * {@code GhastEntity}.
+ * Гаст — летающий моб Нижнего мира, стреляющий огненными шарами.
+ * Атакует игроков в радиусе 64 блоков по вертикали ±4 блока.
+ * Отражённый игроком огненный шар наносит 1000 урона (мгновенная смерть).
  */
 public class GhastEntity extends MobEntity implements Monster {
 
@@ -46,39 +48,38 @@ public class GhastEntity extends MobEntity implements Monster {
 
 	public GhastEntity(EntityType<? extends GhastEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 5;
-		this.moveControl = new GhastEntity.GhastMoveControl(this, false, () -> false);
+		experiencePoints = 5;
+		moveControl = new GhastEntity.GhastMoveControl(this, false, () -> false);
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(5, new GhastEntity.FlyRandomlyGoal(this));
-		this.goalSelector.add(7, new GhastEntity.LookAtTargetGoal(this));
-		this.goalSelector.add(7, new GhastEntity.ShootFireballGoal(this));
-		this.targetSelector
-				.add(
-						1,
-						new ActiveTargetGoal<>(
-								this,
-								PlayerEntity.class,
-								10,
-								true,
-								false,
-								(entity, world) -> Math.abs(entity.getY() - this.getY()) <= 4.0
-						)
-				);
+		goalSelector.add(5, new GhastEntity.FlyRandomlyGoal(this));
+		goalSelector.add(7, new GhastEntity.LookAtTargetGoal(this));
+		goalSelector.add(7, new GhastEntity.ShootFireballGoal(this));
+		targetSelector.add(
+			1,
+			new ActiveTargetGoal<>(
+				this,
+				PlayerEntity.class,
+				10,
+				true,
+				false,
+				(entity, world) -> Math.abs(entity.getY() - getY()) <= 4.0
+			)
+		);
 	}
 
 	public boolean isShooting() {
-		return this.dataTracker.get(SHOOTING);
+		return dataTracker.get(SHOOTING);
 	}
 
 	public void setShooting(boolean shooting) {
-		this.dataTracker.set(SHOOTING, shooting);
+		dataTracker.set(SHOOTING, shooting);
 	}
 
 	public int getFireballStrength() {
-		return this.fireballStrength;
+		return fireballStrength;
 	}
 
 	private static boolean isFireballFromPlayer(DamageSource damageSource) {
@@ -87,8 +88,8 @@ public class GhastEntity extends MobEntity implements Monster {
 
 	@Override
 	public boolean isInvulnerableTo(ServerWorld world, DamageSource source) {
-		return this.isInvulnerable() && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)
-				|| !isFireballFromPlayer(source) && super.isInvulnerableTo(world, source);
+		return isInvulnerable() && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)
+			|| !isFireballFromPlayer(source) && super.isInvulnerableTo(world, source);
 	}
 
 	@Override
@@ -102,7 +103,7 @@ public class GhastEntity extends MobEntity implements Monster {
 
 	@Override
 	public void travel(Vec3d movementInput) {
-		this.travelFlying(movementInput, 0.02F);
+		travelFlying(movementInput, 0.02F);
 	}
 
 	@Override
@@ -111,9 +112,8 @@ public class GhastEntity extends MobEntity implements Monster {
 			super.damage(world, source, 1000.0F);
 			return true;
 		}
-		else {
-			return this.isInvulnerableTo(world, source) ? false : super.damage(world, source, amount);
-		}
+
+		return isInvulnerableTo(world, source) ? false : super.damage(world, source, amount);
 	}
 
 	@Override
@@ -179,13 +179,13 @@ public class GhastEntity extends MobEntity implements Monster {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putByte("ExplosionPower", (byte) this.fireballStrength);
+		view.putByte("ExplosionPower", (byte) fireballStrength);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.fireballStrength = view.getByte("ExplosionPower", (byte) 1);
+		fireballStrength = view.getByte("ExplosionPower", (byte) DEFAULT_FIREBALL_STRENGTH);
 	}
 
 	@Override
@@ -204,31 +204,27 @@ public class GhastEntity extends MobEntity implements Monster {
 	}
 
 	/**
-	 * Обновляет yaw.
-	 *
-	 * @param ghast ghast
+	 * Поворачивает гаста в сторону цели или по вектору скорости, если цели нет.
+	 * Используется как в основном классе, так и в {@link LookAtTargetGoal}.
 	 */
 	public static void updateYaw(MobEntity ghast) {
-		if (ghast.getTarget() == null) {
-			Vec3d vec3d = ghast.getVelocity();
-			ghast.setYaw(-((float) MathHelper.atan2(vec3d.x, vec3d.z)) * (180.0F / (float) Math.PI));
+		LivingEntity target = ghast.getTarget();
+
+		if (target == null) {
+			Vec3d velocity = ghast.getVelocity();
+			ghast.setYaw(-((float) MathHelper.atan2(velocity.x, velocity.z)) * (180.0F / (float) Math.PI));
 			ghast.bodyYaw = ghast.getYaw();
+			return;
 		}
-		else {
-			LivingEntity livingEntity = ghast.getTarget();
-			double d = 64.0;
-			if (livingEntity.squaredDistanceTo(ghast) < 4096.0) {
-				double e = livingEntity.getX() - ghast.getX();
-				double f = livingEntity.getZ() - ghast.getZ();
-				ghast.setYaw(-((float) MathHelper.atan2(e, f)) * (180.0F / (float) Math.PI));
-				ghast.bodyYaw = ghast.getYaw();
-			}
+
+		if (target.squaredDistanceTo(ghast) < 4096.0) {
+			double dx = target.getX() - ghast.getX();
+			double dz = target.getZ() - ghast.getZ();
+			ghast.setYaw(-((float) MathHelper.atan2(dx, dz)) * (180.0F / (float) Math.PI));
+			ghast.bodyYaw = ghast.getYaw();
 		}
 	}
 
-	/**
-	 * {@code FlyRandomlyGoal}.
-	 */
 	public static class FlyRandomlyGoal extends Goal {
 
 		private static final int MAX_RANDOM_ATTEMPTS = 64;
@@ -242,22 +238,23 @@ public class GhastEntity extends MobEntity implements Monster {
 		public FlyRandomlyGoal(MobEntity ghast, int blockCheckDistance) {
 			this.ghast = ghast;
 			this.blockCheckDistance = blockCheckDistance;
-			this.setControls(EnumSet.of(Goal.Control.MOVE));
+			setControls(EnumSet.of(Goal.Control.MOVE));
 		}
 
 		@Override
 		public boolean canStart() {
-			MoveControl moveControl = this.ghast.getMoveControl();
+			MoveControl moveControl = ghast.getMoveControl();
+
 			if (!moveControl.isMoving()) {
 				return true;
 			}
-			else {
-				double d = moveControl.getTargetX() - this.ghast.getX();
-				double e = moveControl.getTargetY() - this.ghast.getY();
-				double f = moveControl.getTargetZ() - this.ghast.getZ();
-				double g = d * d + e * e + f * f;
-				return g < 1.0 || g > 3600.0;
-			}
+
+			double dx = moveControl.getTargetX() - ghast.getX();
+			double dy = moveControl.getTargetY() - ghast.getY();
+			double dz = moveControl.getTargetZ() - ghast.getZ();
+			double distSq = dx * dx + dy * dy + dz * dz;
+
+			return distSq < 1.0 || distSq > 3600.0;
 		}
 
 		@Override
@@ -267,84 +264,81 @@ public class GhastEntity extends MobEntity implements Monster {
 
 		@Override
 		public void start() {
-			Vec3d vec3d = locateTarget(this.ghast, this.blockCheckDistance);
-			this.ghast.getMoveControl().moveTo(vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1.0);
+			Vec3d target = locateTarget(ghast, blockCheckDistance);
+			ghast.getMoveControl().moveTo(target.getX(), target.getY(), target.getZ(), 1.0);
 		}
 
 		/**
-		 * Locate target.
-		 *
-		 * @param ghast ghast
-		 * @param blockCheckDistance block check distance
-		 *
-		 * @return Vec3d — результат операции
+		 * Ищет случайную точку полёта для гаста с учётом ограничений позиции и высоты рельефа.
+		 * Если за {@code MAX_RANDOM_ATTEMPTS} попыток не найдена валидная точка — берётся последняя случайная.
 		 */
 		public static Vec3d locateTarget(MobEntity ghast, int blockCheckDistance) {
 			World world = ghast.getEntityWorld();
 			Random random = ghast.getRandom();
-			Vec3d vec3d = ghast.getEntityPos();
-			Vec3d vec3d2 = null;
+			Vec3d origin = ghast.getEntityPos();
+			Vec3d candidate = null;
 
-			for (int i = 0; i < 64; i++) {
-				vec3d2 = getTargetPos(ghast, vec3d, random);
-				if (vec3d2 != null && isTargetValid(world, vec3d2, blockCheckDistance)) {
-					return vec3d2;
+			for (int i = 0; i < MAX_RANDOM_ATTEMPTS; i++) {
+				candidate = getTargetPos(ghast, origin, random);
+
+				if (candidate != null && isTargetValid(world, candidate, blockCheckDistance)) {
+					return candidate;
 				}
 			}
 
-			if (vec3d2 == null) {
-				vec3d2 = addRandom(vec3d, random);
+			if (candidate == null) {
+				candidate = addRandom(origin, random);
 			}
 
-			BlockPos blockPos = BlockPos.ofFloored(vec3d2);
-			int j = world.getTopY(Heightmap.Type.MOTION_BLOCKING, blockPos.getX(), blockPos.getZ());
-			if (j < blockPos.getY() && j > world.getBottomY()) {
-				vec3d2 = new Vec3d(vec3d2.getX(), ghast.getY() - Math.abs(ghast.getY() - vec3d2.getY()), vec3d2.getZ());
+			BlockPos candidatePos = BlockPos.ofFloored(candidate);
+			int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, candidatePos.getX(), candidatePos.getZ());
+
+			if (topY < candidatePos.getY() && topY > world.getBottomY()) {
+				candidate = new Vec3d(candidate.getX(), ghast.getY() - Math.abs(ghast.getY() - candidate.getY()), candidate.getZ());
 			}
 
-			return vec3d2;
+			return candidate;
 		}
 
 		private static boolean isTargetValid(World world, Vec3d pos, int blockCheckDistance) {
 			if (blockCheckDistance <= 0) {
 				return true;
 			}
-			else {
-				BlockPos blockPos = BlockPos.ofFloored(pos);
-				if (!world.getBlockState(blockPos).isAir()) {
-					return false;
-				}
-				else {
-					for (Direction direction : Direction.values()) {
-						for (int i = 1; i < blockCheckDistance; i++) {
-							BlockPos blockPos2 = blockPos.offset(direction, i);
-							if (!world.getBlockState(blockPos2).isAir()) {
-								return true;
-							}
-						}
-					}
 
-					return false;
+			BlockPos blockPos = BlockPos.ofFloored(pos);
+
+			if (!world.getBlockState(blockPos).isAir()) {
+				return false;
+			}
+
+			for (Direction direction : Direction.values()) {
+				for (int i = 1; i < blockCheckDistance; i++) {
+					BlockPos neighbor = blockPos.offset(direction, i);
+
+					if (!world.getBlockState(neighbor).isAir()) {
+						return true;
+					}
 				}
 			}
+
+			return false;
 		}
 
 		private static Vec3d addRandom(Vec3d pos, Random random) {
-			double d = pos.getX() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
-			double e = pos.getY() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
-			double f = pos.getZ() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
-			return new Vec3d(d, e, f);
+			double x = pos.getX() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
+			double y = pos.getY() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
+			double z = pos.getZ() + (random.nextFloat() * 2.0F - 1.0F) * 16.0F;
+
+			return new Vec3d(x, y, z);
 		}
 
 		private static @Nullable Vec3d getTargetPos(MobEntity ghast, Vec3d pos, Random random) {
-			Vec3d vec3d = addRandom(pos, random);
-			return ghast.hasPositionTarget() && !ghast.isInPositionTargetRange(vec3d) ? null : vec3d;
+			Vec3d candidate = addRandom(pos, random);
+
+			return ghast.hasPositionTarget() && !ghast.isInPositionTargetRange(candidate) ? null : candidate;
 		}
 	}
 
-	/**
-	 * {@code GhastMoveControl}.
-	 */
 	public static class GhastMoveControl extends MoveControl {
 
 		private final MobEntity ghast;
@@ -361,131 +355,117 @@ public class GhastEntity extends MobEntity implements Monster {
 
 		@Override
 		public void tick() {
-			if (this.shouldStayStill.getAsBoolean()) {
-				this.state = MoveControl.State.WAIT;
-				this.ghast.stopMovement();
+			if (shouldStayStill.getAsBoolean()) {
+				state = MoveControl.State.WAIT;
+				ghast.stopMovement();
 			}
 
-			if (this.state == MoveControl.State.MOVE_TO) {
-				if (this.collisionCheckCooldown-- <= 0) {
-					this.collisionCheckCooldown = this.collisionCheckCooldown + this.ghast.getRandom().nextInt(5) + 2;
-					Vec3d
-							vec3d =
-							new Vec3d(
-									this.targetX - this.ghast.getX(),
-									this.targetY - this.ghast.getY(),
-									this.targetZ - this.ghast.getZ()
-							);
-					if (this.willCollide(vec3d)) {
-						this.ghast
-								.setVelocity(
-										this.ghast
-												.getVelocity()
-												.add(vec3d
-														.normalize()
-														.multiply(
-																this.ghast.getAttributeValue(EntityAttributes.FLYING_SPEED)
-																		* 5.0 / 3.0))
-								);
-					}
-					else {
-						this.state = MoveControl.State.WAIT;
-					}
+			if (state != MoveControl.State.MOVE_TO) {
+				return;
+			}
+
+			if (--collisionCheckCooldown <= 0) {
+				collisionCheckCooldown = collisionCheckCooldown + ghast.getRandom().nextInt(5) + 2;
+				Vec3d movement = new Vec3d(
+					targetX - ghast.getX(),
+					targetY - ghast.getY(),
+					targetZ - ghast.getZ()
+				);
+
+				if (willCollide(movement)) {
+					ghast.setVelocity(
+						ghast.getVelocity()
+							.add(movement
+								.normalize()
+								.multiply(ghast.getAttributeValue(EntityAttributes.FLYING_SPEED) * 5.0 / 3.0))
+					);
+				} else {
+					state = MoveControl.State.WAIT;
 				}
 			}
 		}
 
 		private boolean willCollide(Vec3d movement) {
-			Box box = this.ghast.getBoundingBox();
-			Box box2 = box.offset(movement);
-			if (this.happy) {
-				for (BlockPos blockPos : BlockPos.iterate(box2.expand(1.0))) {
-					if (!this.canPassThrough(this.ghast.getEntityWorld(), null, null, blockPos, false, false)) {
+			Box box = ghast.getBoundingBox();
+			Box expandedBox = box.offset(movement);
+
+			if (happy) {
+				for (BlockPos blockPos : BlockPos.iterate(expandedBox.expand(1.0))) {
+					if (!canPassThrough(ghast.getEntityWorld(), null, null, blockPos, false, false)) {
 						return false;
 					}
 				}
 			}
 
-			boolean bl = this.ghast.isTouchingWater();
-			boolean bl2 = this.ghast.isInLava();
-			Vec3d vec3d = this.ghast.getEntityPos();
-			Vec3d vec3d2 = vec3d.add(movement);
+			boolean inWater = ghast.isTouchingWater();
+			boolean inLava = ghast.isInLava();
+			Vec3d fromPos = ghast.getEntityPos();
+			Vec3d toPos = fromPos.add(movement);
+
 			return BlockView.collectCollisionsBetween(
-					vec3d,
-					vec3d2,
-					box2,
-					(pos, version) -> box.contains(pos) ? true : this.canPassThrough(
-							this.ghast.getEntityWorld(),
-							vec3d,
-							vec3d2,
-							pos,
-							bl,
-							bl2
-					)
+				fromPos,
+				toPos,
+				expandedBox,
+				(pos, version) -> box.contains(pos)
+					? true
+					: canPassThrough(ghast.getEntityWorld(), fromPos, toPos, pos, inWater, inLava)
 			);
 		}
 
 		private boolean canPassThrough(
-				BlockView world,
-				@Nullable Vec3d oldPos,
-				@Nullable Vec3d newPos,
-				BlockPos blockPos,
-				boolean waterAllowed,
-				boolean lavaAllowed
+			BlockView world,
+			@Nullable Vec3d oldPos,
+			@Nullable Vec3d newPos,
+			BlockPos blockPos,
+			boolean waterAllowed,
+			boolean lavaAllowed
 		) {
 			BlockState blockState = world.getBlockState(blockPos);
+
 			if (blockState.isAir()) {
 				return true;
 			}
-			else {
-				boolean bl = oldPos != null && newPos != null;
-				boolean bl2 = bl
-				              ? !this.ghast.collides(
-						oldPos,
-						newPos,
-						blockState.getCollisionShape(world, blockPos).offset(new Vec3d(blockPos)).getBoundingBoxes()
+
+			boolean hasPositions = oldPos != null && newPos != null;
+			boolean noCollision = hasPositions
+				? !ghast.collides(
+					oldPos,
+					newPos,
+					blockState.getCollisionShape(world, blockPos).offset(new Vec3d(blockPos)).getBoundingBoxes()
 				)
-				              : blockState.getCollisionShape(world, blockPos).isEmpty();
-				if (!this.happy) {
-					return bl2;
-				}
-				else if (blockState.isIn(BlockTags.HAPPY_GHAST_AVOIDS)) {
-					return false;
-				}
-				else {
-					FluidState fluidState = world.getFluidState(blockPos);
-					if (!fluidState.isEmpty() && (!bl || this.ghast.collidesWithFluid(
-							fluidState,
-							blockPos,
-							oldPos,
-							newPos
-					)
-					)) {
-						if (fluidState.isIn(FluidTags.WATER)) {
-							return waterAllowed;
-						}
+				: blockState.getCollisionShape(world, blockPos).isEmpty();
 
-						if (fluidState.isIn(FluidTags.LAVA)) {
-							return lavaAllowed;
-						}
-					}
+			if (!happy) {
+				return noCollision;
+			}
 
-					return bl2;
+			if (blockState.isIn(BlockTags.HAPPY_GHAST_AVOIDS)) {
+				return false;
+			}
+
+			FluidState fluidState = world.getFluidState(blockPos);
+
+			if (!fluidState.isEmpty() && (!hasPositions || ghast.collidesWithFluid(fluidState, blockPos, oldPos, newPos))) {
+				if (fluidState.isIn(FluidTags.WATER)) {
+					return waterAllowed;
+				}
+
+				if (fluidState.isIn(FluidTags.LAVA)) {
+					return lavaAllowed;
 				}
 			}
+
+			return noCollision;
 		}
 	}
 
-	/**
-	 * {@code LookAtTargetGoal}.
-	 */
 	public static class LookAtTargetGoal extends Goal {
 
 		private final MobEntity ghast;
 
 		public LookAtTargetGoal(MobEntity ghast) {
 			this.ghast = ghast;
-			this.setControls(EnumSet.of(Goal.Control.LOOK));
+			setControls(EnumSet.of(Goal.Control.LOOK));
 		}
 
 		@Override
@@ -500,13 +480,10 @@ public class GhastEntity extends MobEntity implements Monster {
 
 		@Override
 		public void tick() {
-			GhastEntity.updateYaw(this.ghast);
+			GhastEntity.updateYaw(ghast);
 		}
 	}
 
-	/**
-	 * {@code ShootFireballGoal}.
-	 */
 	static class ShootFireballGoal extends Goal {
 
 		private final GhastEntity ghast;
@@ -518,17 +495,17 @@ public class GhastEntity extends MobEntity implements Monster {
 
 		@Override
 		public boolean canStart() {
-			return this.ghast.getTarget() != null;
+			return ghast.getTarget() != null;
 		}
 
 		@Override
 		public void start() {
-			this.cooldown = 0;
+			cooldown = 0;
 		}
 
 		@Override
 		public void stop() {
-			this.ghast.setShooting(false);
+			ghast.setShooting(false);
 		}
 
 		@Override
@@ -538,50 +515,49 @@ public class GhastEntity extends MobEntity implements Monster {
 
 		@Override
 		public void tick() {
-			LivingEntity livingEntity = this.ghast.getTarget();
-			if (livingEntity != null) {
-				double d = 64.0;
-				if (livingEntity.squaredDistanceTo(this.ghast) < 4096.0 && this.ghast.canSee(livingEntity)) {
-					World world = this.ghast.getEntityWorld();
-					this.cooldown++;
-					if (this.cooldown == 10 && !this.ghast.isSilent()) {
-						world.syncWorldEvent(null, 1015, this.ghast.getBlockPos(), 0);
-					}
+			LivingEntity target = ghast.getTarget();
 
-					if (this.cooldown == 20) {
-						double e = 4.0;
-						Vec3d vec3d = this.ghast.getRotationVec(1.0F);
-						double f = livingEntity.getX() - (this.ghast.getX() + vec3d.x * 4.0);
-						double g = livingEntity.getBodyY(0.5) - (0.5 + this.ghast.getBodyY(0.5));
-						double h = livingEntity.getZ() - (this.ghast.getZ() + vec3d.z * 4.0);
-						Vec3d vec3d2 = new Vec3d(f, g, h);
-						if (!this.ghast.isSilent()) {
-							world.syncWorldEvent(null, 1016, this.ghast.getBlockPos(), 0);
-						}
-
-						FireballEntity
-								fireballEntity =
-								new FireballEntity(
-										world,
-										this.ghast,
-										vec3d2.normalize(),
-										this.ghast.getFireballStrength()
-								);
-						fireballEntity.setPosition(
-								this.ghast.getX() + vec3d.x * 4.0,
-								this.ghast.getBodyY(0.5) + 0.5,
-								fireballEntity.getZ() + vec3d.z * 4.0
-						);
-						world.spawnEntity(fireballEntity);
-						this.cooldown = -40;
-					}
-				}
-				else if (this.cooldown > 0) {
-					this.cooldown--;
-				}
-
-				this.ghast.setShooting(this.cooldown > 10);
+			if (target == null) {
+				return;
 			}
+
+			if (target.squaredDistanceTo(ghast) < 4096.0 && ghast.canSee(target)) {
+				World world = ghast.getEntityWorld();
+				cooldown++;
+
+				if (cooldown == 10 && !ghast.isSilent()) {
+					world.syncWorldEvent(null, 1015, ghast.getBlockPos(), 0);
+				}
+
+				if (cooldown == 20) {
+					Vec3d rotationVec = ghast.getRotationVec(1.0F);
+					double dx = target.getX() - (ghast.getX() + rotationVec.x * 4.0);
+					double dy = target.getBodyY(0.5) - (0.5 + ghast.getBodyY(0.5));
+					double dz = target.getZ() - (ghast.getZ() + rotationVec.z * 4.0);
+
+					if (!ghast.isSilent()) {
+						world.syncWorldEvent(null, 1016, ghast.getBlockPos(), 0);
+					}
+
+					FireballEntity fireball = new FireballEntity(
+						world,
+						ghast,
+						new Vec3d(dx, dy, dz).normalize(),
+						ghast.getFireballStrength()
+					);
+					fireball.setPosition(
+						ghast.getX() + rotationVec.x * 4.0,
+						ghast.getBodyY(0.5) + 0.5,
+						fireball.getZ() + rotationVec.z * 4.0
+					);
+					world.spawnEntity(fireball);
+					cooldown = -40;
+				}
+			} else if (cooldown > 0) {
+				cooldown--;
+			}
+
+			ghast.setShooting(cooldown > 10);
 		}
 	}
 }

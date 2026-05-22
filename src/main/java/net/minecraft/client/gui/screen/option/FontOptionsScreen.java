@@ -7,10 +7,11 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FontOptionsScreen}.
+ * Экран настроек шрифта — управляет принудительным Unicode-шрифтом
+ * и вариантами японских глифов.
  */
+@Environment(EnvType.CLIENT)
 public class FontOptionsScreen extends GameOptionsScreen {
 
 	private static SimpleOption<?>[] getOptions(GameOptions gameOptions) {
@@ -23,6 +24,6 @@ public class FontOptionsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void addOptions() {
-		this.body.addAll(getOptions(this.gameOptions));
+		body.addAll(getOptions(gameOptions));
 	}
 }

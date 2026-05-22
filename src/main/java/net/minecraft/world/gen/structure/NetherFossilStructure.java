@@ -15,10 +15,10 @@ import net.minecraft.world.gen.chunk.VerticalBlockSample;
 import net.minecraft.world.gen.heightprovider.HeightProvider;
 
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
- * {@code NetherFossilStructure}.
+ * Структура окаменелости Нижнего мира. Высота размещения определяется провайдером {@link HeightProvider},
+ * а позиция по X/Z выбирается случайно внутри чанка. Ищет первую позицию над душевым песком или твёрдым блоком.
  */
 public class NetherFossilStructure extends Structure {
 
@@ -40,23 +40,21 @@ public class NetherFossilStructure extends Structure {
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		ChunkRandom chunkRandom = context.random();
-		int i = context.chunkPos().getStartX() + chunkRandom.nextInt(16);
-		int j = context.chunkPos().getStartZ() + chunkRandom.nextInt(16);
-		int k = context.chunkGenerator().getSeaLevel();
+		int x = context.chunkPos().getStartX() + chunkRandom.nextInt(16);
+		int z = context.chunkPos().getStartZ() + chunkRandom.nextInt(16);
+		int seaLevel = context.chunkGenerator().getSeaLevel();
 		HeightContext heightContext = new HeightContext(context.chunkGenerator(), context.world());
-		int l = this.height.get(chunkRandom, heightContext);
-		VerticalBlockSample
-				verticalBlockSample =
-				context.chunkGenerator().getColumnSample(i, j, context.world(), context.noiseConfig());
-		BlockPos.Mutable mutable = new BlockPos.Mutable(i, l, j);
+		int y = height.get(chunkRandom, heightContext);
+		VerticalBlockSample columnSample = context.chunkGenerator().getColumnSample(x, z, context.world(), context.noiseConfig());
+		BlockPos.Mutable mutable = new BlockPos.Mutable(x, y, z);
 
-		while (l > k) {
-			BlockState blockState = verticalBlockSample.getState(l);
-			BlockState blockState2 = verticalBlockSample.getState(--l);
-			if (blockState.isAir()
-					&& (blockState2.isOf(Blocks.SOUL_SAND) || blockState2.isSideSolidFullSquare(
+		while (y > seaLevel) {
+			BlockState above = columnSample.getState(y);
+			BlockState below = columnSample.getState(--y);
+			if (above.isAir()
+					&& (below.isOf(Blocks.SOUL_SAND) || below.isSideSolidFullSquare(
 					EmptyBlockView.INSTANCE,
-					mutable.setY(l),
+					mutable.setY(y),
 					Direction.UP
 			)
 			)) {
@@ -64,24 +62,22 @@ public class NetherFossilStructure extends Structure {
 			}
 		}
 
-		if (l <= k) {
+		if (y <= seaLevel) {
 			return Optional.empty();
 		}
-		else {
-			BlockPos blockPos = new BlockPos(i, l, j);
-			return Optional.of(
-					new Structure.StructurePosition(
-							blockPos,
-							(Consumer<StructurePiecesCollector>) (holder -> NetherFossilGenerator.addPieces(
-									context.structureTemplateManager(),
-									holder,
-									chunkRandom,
-									blockPos
-							)
-							)
-					)
-			);
-		}
+
+		BlockPos spawnPos = new BlockPos(x, y, z);
+		return Optional.of(
+				new Structure.StructurePosition(
+						spawnPos,
+						collector -> NetherFossilGenerator.addPieces(
+								context.structureTemplateManager(),
+								collector,
+								chunkRandom,
+								spawnPos
+						)
+				)
+		);
 	}
 
 	@Override

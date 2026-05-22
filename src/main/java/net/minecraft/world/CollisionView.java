@@ -20,7 +20,9 @@ import java.util.Optional;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code CollisionView}.
+ * Интерфейс для проверки коллизий в мире: блоков, жидкостей, сущностей и границы мира.
+ * Предоставляет методы для определения свободного пространства, поиска опорных блоков
+ * и нахождения ближайшей точки столкновения.
  */
 public interface CollisionView extends BlockView {
 
@@ -33,41 +35,43 @@ public interface CollisionView extends BlockView {
 	}
 
 	default boolean canPlace(BlockState state, BlockPos pos, ShapeContext context) {
-		VoxelShape voxelShape = state.getCollisionShape(this, pos, context);
-		return voxelShape.isEmpty() || this.doesNotIntersectEntities(null, voxelShape.offset(pos));
+		VoxelShape shape = state.getCollisionShape(this, pos, context);
+		return shape.isEmpty() || doesNotIntersectEntities(null, shape.offset(pos));
 	}
 
 	default boolean doesNotIntersectEntities(Entity entity) {
-		return this.doesNotIntersectEntities(entity, VoxelShapes.cuboid(entity.getBoundingBox()));
+		return doesNotIntersectEntities(entity, VoxelShapes.cuboid(entity.getBoundingBox()));
 	}
 
 	default boolean isSpaceEmpty(Box box) {
-		return this.isSpaceEmpty(null, box);
+		return isSpaceEmpty(null, box);
 	}
 
 	default boolean isSpaceEmpty(Entity entity) {
-		return this.isSpaceEmpty(entity, entity.getBoundingBox());
+		return isSpaceEmpty(entity, entity.getBoundingBox());
 	}
 
 	default boolean isSpaceEmpty(@Nullable Entity entity, Box box) {
-		return this.isSpaceEmpty(entity, box, false);
+		return isSpaceEmpty(entity, box, false);
 	}
 
 	default boolean isSpaceEmpty(@Nullable Entity entity, Box box, boolean checkFluid) {
-		return this.hasNoBlockOrFluidCollisions(entity, box, checkFluid) && this.hasNoEntityCollisions(entity, box) && this.isWithinWorldBorder(
-				entity,
-				box
-		);
+		return hasNoBlockOrFluidCollisions(entity, box, checkFluid)
+			&& hasNoEntityCollisions(entity, box)
+			&& isWithinWorldBorder(entity, box);
 	}
 
 	default boolean isBlockSpaceEmpty(@Nullable Entity entity, Box box) {
-		return this.hasNoBlockOrFluidCollisions(entity, box, false);
+		return hasNoBlockOrFluidCollisions(entity, box, false);
 	}
 
-	default boolean hasNoBlockOrFluidCollisions(@Nullable Entity entity, Box box, boolean bl) {
-		for (VoxelShape voxelShape : bl ? this.getBlockOrFluidCollisions(entity, box)
-		                                : this.getBlockCollisions(entity, box)) {
-			if (!voxelShape.isEmpty()) {
+	default boolean hasNoBlockOrFluidCollisions(@Nullable Entity entity, Box box, boolean includeFluid) {
+		Iterable<VoxelShape> shapes = includeFluid
+			? getBlockOrFluidCollisions(entity, box)
+			: getBlockCollisions(entity, box);
+
+		for (VoxelShape shape : shapes) {
+			if (!shape.isEmpty()) {
 				return false;
 			}
 		}
@@ -76,78 +80,84 @@ public interface CollisionView extends BlockView {
 	}
 
 	default boolean hasNoEntityCollisions(@Nullable Entity entity, Box box) {
-		return this.getEntityCollisions(entity, box).isEmpty();
+		return getEntityCollisions(entity, box).isEmpty();
 	}
 
 	default boolean isWithinWorldBorder(@Nullable Entity entity, Box box) {
 		if (entity == null) {
 			return true;
 		}
-		else {
-			VoxelShape voxelShape = this.getWorldBorderCollisions(entity, box);
-			return voxelShape == null || !VoxelShapes.matchesAnywhere(
-					voxelShape,
-					VoxelShapes.cuboid(box),
-					BooleanBiFunction.AND
-			);
-		}
+
+		VoxelShape borderShape = getWorldBorderCollisions(entity, box);
+		return borderShape == null
+			|| !VoxelShapes.matchesAnywhere(borderShape, VoxelShapes.cuboid(box), BooleanBiFunction.AND);
 	}
 
 	List<VoxelShape> getEntityCollisions(@Nullable Entity entity, Box box);
 
 	default Iterable<VoxelShape> getCollisions(@Nullable Entity entity, Box box) {
-		List<VoxelShape> list = this.getEntityCollisions(entity, box);
-		Iterable<VoxelShape> iterable = this.getBlockCollisions(entity, box);
-		return list.isEmpty() ? iterable : Iterables.concat(list, iterable);
+		List<VoxelShape> entityShapes = getEntityCollisions(entity, box);
+		Iterable<VoxelShape> blockShapes = getBlockCollisions(entity, box);
+		return entityShapes.isEmpty() ? blockShapes : Iterables.concat(entityShapes, blockShapes);
 	}
 
 	default Iterable<VoxelShape> getCollisions(@Nullable Entity entity, Box box, Vec3d pos) {
-		List<VoxelShape> list = this.getEntityCollisions(entity, box);
-		Iterable<VoxelShape> iterable = this.getBlockOrFluidCollisions(ShapeContext.ofCollision(entity, pos.y), box);
-		return list.isEmpty() ? iterable : Iterables.concat(list, iterable);
+		List<VoxelShape> entityShapes = getEntityCollisions(entity, box);
+		Iterable<VoxelShape> blockShapes = getBlockOrFluidCollisions(ShapeContext.ofCollision(entity, pos.y), box);
+		return entityShapes.isEmpty() ? blockShapes : Iterables.concat(entityShapes, blockShapes);
 	}
 
 	default Iterable<VoxelShape> getBlockCollisions(@Nullable Entity entity, Box box) {
-		return this.getBlockOrFluidCollisions(entity == null ? ShapeContext.absent() : ShapeContext.of(entity), box);
+		return getBlockOrFluidCollisions(
+			entity == null ? ShapeContext.absent() : ShapeContext.of(entity),
+			box
+		);
 	}
 
 	default Iterable<VoxelShape> getBlockOrFluidCollisions(@Nullable Entity entity, Box box) {
-		return this.getBlockOrFluidCollisions(
-				entity == null ? ShapeContext.absentTreatingFluidAsCube() : ShapeContext.of(entity, true),
-				box
+		return getBlockOrFluidCollisions(
+			entity == null ? ShapeContext.absentTreatingFluidAsCube() : ShapeContext.of(entity, true),
+			box
 		);
 	}
 
 	private Iterable<VoxelShape> getBlockOrFluidCollisions(ShapeContext shapeContext, Box box) {
-		return () -> new BlockCollisionSpliterator<VoxelShape>(this, shapeContext, box, false, (pos, shape) -> shape);
+		return () -> new BlockCollisionSpliterator<>(this, shapeContext, box, false, (pos, shape) -> shape);
 	}
 
 	private @Nullable VoxelShape getWorldBorderCollisions(Entity entity, Box box) {
-		WorldBorder worldBorder = this.getWorldBorder();
+		WorldBorder worldBorder = getWorldBorder();
 		return worldBorder.canCollide(entity, box) ? worldBorder.asVoxelShape() : null;
 	}
 
+	/**
+	 * Выполняет рейкаст с учётом границы мира: если луч выходит за границу,
+	 * возвращает точку пересечения с границей вместо реального попадания.
+	 */
 	default BlockHitResult getCollisionsIncludingWorldBorder(RaycastContext context) {
-		BlockHitResult blockHitResult = this.raycast(context);
-		WorldBorder worldBorder = this.getWorldBorder();
-		if (worldBorder.contains(context.getStart()) && !worldBorder.contains(blockHitResult.getPos())) {
-			Vec3d vec3d = blockHitResult.getPos().subtract(context.getStart());
-			Direction direction = Direction.getFacing(vec3d.x, vec3d.y, vec3d.z);
-			Vec3d vec3d2 = worldBorder.clamp(blockHitResult.getPos());
-			return new BlockHitResult(vec3d2, direction, BlockPos.ofFloored(vec3d2), false, true);
+		BlockHitResult hit = raycast(context);
+		WorldBorder worldBorder = getWorldBorder();
+		if (worldBorder.contains(context.getStart()) && !worldBorder.contains(hit.getPos())) {
+			Vec3d direction = hit.getPos().subtract(context.getStart());
+			Direction facing = Direction.getFacing(direction.x, direction.y, direction.z);
+			Vec3d clampedPos = worldBorder.clamp(hit.getPos());
+			return new BlockHitResult(clampedPos, facing, BlockPos.ofFloored(clampedPos), false, true);
 		}
-		else {
-			return blockHitResult;
-		}
+
+		return hit;
 	}
 
+	/**
+	 * Проверяет, есть ли непустые коллизии блоков в заданном боксе.
+	 * Использует BlockCollisionSpliterator с флагом includeFluid=true.
+	 */
 	default boolean canCollide(@Nullable Entity entity, Box box) {
-		BlockCollisionSpliterator<VoxelShape> blockCollisionSpliterator = new BlockCollisionSpliterator<>(
-				this, entity, box, true, (pos, voxelShape) -> voxelShape
+		BlockCollisionSpliterator<VoxelShape> spliterator = new BlockCollisionSpliterator<>(
+			this, entity, box, true, (pos, shape) -> shape
 		);
 
-		while (blockCollisionSpliterator.hasNext()) {
-			if (!((VoxelShape) blockCollisionSpliterator.next()).isEmpty()) {
+		while (spliterator.hasNext()) {
+			if (!spliterator.next().isEmpty()) {
 				return true;
 			}
 		}
@@ -155,48 +165,55 @@ public interface CollisionView extends BlockView {
 		return false;
 	}
 
+	/**
+	 * Находит ближайший к сущности блок, на котором она стоит (опорный блок).
+	 * Среди равноудалённых блоков выбирает наименьший по компаратору BlockPos.
+	 */
 	default Optional<BlockPos> findSupportingBlockPos(Entity entity, Box box) {
-		BlockPos blockPos = null;
-		double d = Double.MAX_VALUE;
-		BlockCollisionSpliterator<BlockPos>
-				blockCollisionSpliterator =
-				new BlockCollisionSpliterator<>(this, entity, box, false, (pos, voxelShape) -> pos);
+		BlockPos closestPos = null;
+		double minDistSq = Double.MAX_VALUE;
+		BlockCollisionSpliterator<BlockPos> spliterator = new BlockCollisionSpliterator<>(
+			this, entity, box, false, (pos, shape) -> pos
+		);
 
-		while (blockCollisionSpliterator.hasNext()) {
-			BlockPos blockPos2 = (BlockPos) blockCollisionSpliterator.next();
-			double e = blockPos2.getSquaredDistance(entity.getEntityPos());
-			if (e < d || e == d && (blockPos == null || blockPos.compareTo(blockPos2) < 0)) {
-				blockPos = blockPos2.toImmutable();
-				d = e;
+		while (spliterator.hasNext()) {
+			BlockPos candidate = spliterator.next();
+			double distSq = candidate.getSquaredDistance(entity.getEntityPos());
+			if (distSq < minDistSq || (distSq == minDistSq && (closestPos == null || closestPos.compareTo(candidate) < 0))) {
+				closestPos = candidate.toImmutable();
+				minDistSq = distSq;
 			}
 		}
 
-		return Optional.ofNullable(blockPos);
+		return Optional.ofNullable(closestPos);
 	}
 
+	/**
+	 * Находит ближайшую к target точку внутри shape, не перекрытую блоками мира.
+	 * Расширяет бокс на (x, y, z) для учёта зазора вокруг формы.
+	 */
 	default Optional<Vec3d> findClosestCollision(
-			@Nullable Entity entity,
-			VoxelShape shape,
-			Vec3d target,
-			double x,
-			double y,
-			double z
+		@Nullable Entity entity,
+		VoxelShape shape,
+		Vec3d target,
+		double x,
+		double y,
+		double z
 	) {
 		if (shape.isEmpty()) {
 			return Optional.empty();
 		}
-		else {
-			Box box = shape.getBoundingBox().expand(x, y, z);
-			VoxelShape voxelShape = StreamSupport.stream(this.getBlockCollisions(entity, box).spliterator(), false)
-			                                     .filter(collision -> this.getWorldBorder() == null || this
-					                                     .getWorldBorder()
-					                                     .contains(collision.getBoundingBox()))
-			                                     .flatMap(collision -> collision.getBoundingBoxes().stream())
-			                                     .map(boxx -> boxx.expand(x / 2.0, y / 2.0, z / 2.0))
-			                                     .map(VoxelShapes::cuboid)
-			                                     .reduce(VoxelShapes.empty(), VoxelShapes::union);
-			VoxelShape voxelShape2 = VoxelShapes.combineAndSimplify(shape, voxelShape, BooleanBiFunction.ONLY_FIRST);
-			return voxelShape2.getClosestPointTo(target);
-		}
+
+		Box expandedBox = shape.getBoundingBox().expand(x, y, z);
+		VoxelShape worldCollisions = StreamSupport
+			.stream(getBlockCollisions(entity, expandedBox).spliterator(), false)
+			.filter(collision -> getWorldBorder() == null || getWorldBorder().contains(collision.getBoundingBox()))
+			.flatMap(collision -> collision.getBoundingBoxes().stream())
+			.map(boxx -> boxx.expand(x / 2.0, y / 2.0, z / 2.0))
+			.map(VoxelShapes::cuboid)
+			.reduce(VoxelShapes.empty(), VoxelShapes::union);
+
+		VoxelShape freeSpace = VoxelShapes.combineAndSimplify(shape, worldCollisions, BooleanBiFunction.ONLY_FIRST);
+		return freeSpace.getClosestPointTo(target);
 	}
 }

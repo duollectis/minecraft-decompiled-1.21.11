@@ -35,25 +35,44 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Mouse}.
+ * Обработчик событий мыши клиента.
+ * Управляет кликами, прокруткой, перетаскиванием файлов и движением курсора.
  */
+@Environment(EnvType.CLIENT)
 public class Mouse {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	/** Максимальный интервал между кликами для регистрации двойного клика (мс). */
 	public static final long DOUBLE_CLICK_INTERVAL_MS = 250L;
+
+	/** Смещение курсора по Y при отображении координат мыши в отладочном HUD. */
+	private static final double DEBUG_CURSOR_Y_OFFSET = 8.0;
+
+	/** Базовый множитель чувствительности мыши. */
+	private static final double SENSITIVITY_BASE = 0.6;
+	/** Смещение чувствительности мыши. */
+	private static final double SENSITIVITY_OFFSET = 0.2;
+	/** Множитель для режима подзорной трубы. */
+	private static final double SPYGLASS_SENSITIVITY_FACTOR = 8.0;
+
+	/** Максимальная скорость полёта в режиме спектатора при прокрутке. */
+	private static final float MAX_FLY_SPEED = 0.2F;
+	/** Шаг изменения скорости полёта при прокрутке. */
+	private static final float FLY_SPEED_SCROLL_STEP = 0.005F;
+
 	private final MinecraftClient client;
 	private boolean leftButtonClicked;
 	private boolean middleButtonClicked;
 	private boolean rightButtonClicked;
 	private double x;
 	private double y;
-	private Mouse.@Nullable MouseClickTime lastMouseClick;
+	private @Nullable MouseClickTime lastMouseClick;
 	@MouseInput.ButtonCode
 	protected int lastMouseButton;
 	private int controlLeftClicks;
-	private @Nullable MouseInput activeButton = null;
+	private @Nullable MouseInput activeButton;
 	private boolean hasResolutionChanged = true;
 	private int touchHoldTime;
 	private double glfwTime;
@@ -67,501 +86,502 @@ public class Mouse {
 
 	public Mouse(MinecraftClient client) {
 		this.client = client;
-		this.scroller = new Scroller();
+		scroller = new Scroller();
 	}
 
 	private void onMouseButton(long window, MouseInput input, @MouseInput.MouseAction int action) {
-		Window window2 = this.client.getWindow();
-		if (window == window2.getHandle()) {
-			this.client.getInactivityFpsLimiter().onInput();
-			if (this.client.currentScreen != null) {
-				this.client.setNavigationType(GuiNavigationType.MOUSE);
+		Window clientWindow = client.getWindow();
+		if (window != clientWindow.getHandle()) {
+			return;
+		}
+
+		client.getInactivityFpsLimiter().onInput();
+
+		if (client.currentScreen != null) {
+			client.setNavigationType(GuiNavigationType.MOUSE);
+		}
+
+		boolean pressed = action == InputUtil.GLFW_PRESS;
+		MouseInput effectiveInput = modifyMouseInput(input, pressed);
+
+		if (pressed) {
+			if (client.options.getTouchscreen().getValue() && touchHoldTime++ > 0) {
+				return;
 			}
 
-			boolean bl = action == 1;
-			MouseInput mouseInput = this.modifyMouseInput(input, bl);
-			if (bl) {
-				if (this.client.options.getTouchscreen().getValue() && this.touchHoldTime++ > 0) {
+			activeButton = effectiveInput;
+			glfwTime = GlfwUtil.getTime();
+		} else if (activeButton != null) {
+			if (client.options.getTouchscreen().getValue() && --touchHoldTime > 0) {
+				return;
+			}
+
+			activeButton = null;
+		}
+
+		if (client.getOverlay() != null) {
+			return;
+		}
+
+		if (client.currentScreen == null) {
+			if (!cursorLocked && pressed) {
+				lockCursor();
+				return;
+			}
+
+			InputUtil.Key key = InputUtil.Type.MOUSE.createFromCode(effectiveInput.button());
+			KeyBinding.setKeyPressed(key, pressed);
+
+			if (pressed) {
+				KeyBinding.onKeyPressed(key);
+			}
+
+			if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_LEFT) {
+				leftButtonClicked = pressed;
+			} else if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_MIDDLE) {
+				middleButtonClicked = pressed;
+			} else if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_RIGHT) {
+				rightButtonClicked = pressed;
+			}
+
+			return;
+		}
+
+		double scaledX = getScaledX(clientWindow);
+		double scaledY = getScaledY(clientWindow);
+		Screen screen = client.currentScreen;
+		Click click = new Click(scaledX, scaledY, effectiveInput);
+
+		if (pressed) {
+			screen.applyMousePressScrollNarratorDelay();
+
+			try {
+				long now = Util.getMeasuringTimeMs();
+				boolean isDoubleClick = lastMouseClick != null
+					&& now - lastMouseClick.time() < DOUBLE_CLICK_INTERVAL_MS
+					&& lastMouseClick.screen() == screen
+					&& lastMouseButton == click.button();
+
+				if (screen.mouseClicked(click, isDoubleClick)) {
+					lastMouseClick = new MouseClickTime(now, screen);
+					lastMouseButton = effectiveInput.button();
 					return;
 				}
-
-				this.activeButton = mouseInput;
-				this.glfwTime = GlfwUtil.getTime();
+			} catch (Throwable throwable) {
+				CrashReport crashReport = CrashReport.create(throwable, "mouseClicked event handler");
+				screen.addCrashReportSection(crashReport);
+				CrashReportSection section = crashReport.addElement("Mouse");
+				addCrashReportSection(section, clientWindow);
+				section.add("Button", click.button());
+				throw new CrashException(crashReport);
 			}
-			else if (this.activeButton != null) {
-				if (this.client.options.getTouchscreen().getValue() && --this.touchHoldTime > 0) {
+		} else {
+			try {
+				if (screen.mouseReleased(click)) {
 					return;
 				}
-
-				this.activeButton = null;
+			} catch (Throwable throwable) {
+				CrashReport crashReport = CrashReport.create(throwable, "mouseReleased event handler");
+				screen.addCrashReportSection(crashReport);
+				CrashReportSection section = crashReport.addElement("Mouse");
+				addCrashReportSection(section, clientWindow);
+				section.add("Button", click.button());
+				throw new CrashException(crashReport);
 			}
+		}
 
-			if (this.client.getOverlay() == null) {
-				if (this.client.currentScreen == null) {
-					if (!this.cursorLocked && bl) {
-						this.lockCursor();
-					}
-				}
-				else {
-					double d = this.getScaledX(window2);
-					double e = this.getScaledY(window2);
-					Screen screen = this.client.currentScreen;
-					Click click = new Click(d, e, mouseInput);
-					if (bl) {
-						screen.applyMousePressScrollNarratorDelay();
+		if (client.currentScreen != null || client.getOverlay() != null) {
+			return;
+		}
 
-						try {
-							long l = Util.getMeasuringTimeMs();
-							boolean bl2 = this.lastMouseClick != null
-									&& l - this.lastMouseClick.time() < 250L
-									&& this.lastMouseClick.screen() == screen
-									&& this.lastMouseButton == click.button();
-							if (screen.mouseClicked(click, bl2)) {
-								this.lastMouseClick = new Mouse.MouseClickTime(l, screen);
-								this.lastMouseButton = mouseInput.button();
-								return;
-							}
-						}
-						catch (Throwable var18) {
-							CrashReport crashReport = CrashReport.create(var18, "mouseClicked event handler");
-							screen.addCrashReportSection(crashReport);
-							CrashReportSection crashReportSection = crashReport.addElement("Mouse");
-							this.addCrashReportSection(crashReportSection, window2);
-							crashReportSection.add("Button", click.button());
-							throw new CrashException(crashReport);
-						}
-					}
-					else {
-						try {
-							if (screen.mouseReleased(click)) {
-								return;
-							}
-						}
-						catch (Throwable var17) {
-							CrashReport crashReport = CrashReport.create(var17, "mouseReleased event handler");
-							screen.addCrashReportSection(crashReport);
-							CrashReportSection crashReportSection = crashReport.addElement("Mouse");
-							this.addCrashReportSection(crashReportSection, window2);
-							crashReportSection.add("Button", click.button());
-							throw new CrashException(crashReport);
-						}
-					}
-				}
-			}
+		if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_LEFT) {
+			leftButtonClicked = pressed;
+		} else if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_MIDDLE) {
+			middleButtonClicked = pressed;
+		} else if (effectiveInput.button() == InputUtil.GLFW_MOUSE_BUTTON_RIGHT) {
+			rightButtonClicked = pressed;
+		}
 
-			if (this.client.currentScreen == null && this.client.getOverlay() == null) {
-				if (mouseInput.button() == 0) {
-					this.leftButtonClicked = bl;
-				}
-				else if (mouseInput.button() == 2) {
-					this.middleButtonClicked = bl;
-				}
-				else if (mouseInput.button() == 1) {
-					this.rightButtonClicked = bl;
-				}
+		InputUtil.Key key = InputUtil.Type.MOUSE.createFromCode(effectiveInput.button());
+		KeyBinding.setKeyPressed(key, pressed);
 
-				InputUtil.Key key = InputUtil.Type.MOUSE.createFromCode(mouseInput.button());
-				KeyBinding.setKeyPressed(key, bl);
-				if (bl) {
-					KeyBinding.onKeyPressed(key);
-				}
-			}
+		if (pressed) {
+			KeyBinding.onKeyPressed(key);
 		}
 	}
 
+	/**
+	 * Преобразует левый клик с зажатым Ctrl в правый клик на платформах с длинным нажатием.
+	 * Используется для поддержки однокнопочных мышей (macOS).
+	 *
+	 * @param input   исходное событие мыши
+	 * @param pressed {@code true} при нажатии, {@code false} при отпускании
+	 * @return модифицированное или исходное событие мыши
+	 */
 	private MouseInput modifyMouseInput(MouseInput input, boolean pressed) {
-		if (SystemKeycodes.USE_LONG_LEFT_PRESS && input.button() == 0) {
-			if (pressed) {
-				if ((input.modifiers() & 2) == 2) {
-					this.controlLeftClicks++;
-					return new MouseInput(1, input.modifiers());
-				}
+		if (!SystemKeycodes.USE_LONG_LEFT_PRESS || input.button() != InputUtil.GLFW_MOUSE_BUTTON_LEFT) {
+			return input;
+		}
+
+		if (pressed) {
+			if ((input.modifiers() & InputUtil.GLFW_MOD_CONTROL) == InputUtil.GLFW_MOD_CONTROL) {
+				controlLeftClicks++;
+				return new MouseInput(InputUtil.GLFW_MOUSE_BUTTON_RIGHT, input.modifiers());
 			}
-			else if (this.controlLeftClicks > 0) {
-				this.controlLeftClicks--;
-				return new MouseInput(1, input.modifiers());
-			}
+		} else if (controlLeftClicks > 0) {
+			controlLeftClicks--;
+			return new MouseInput(InputUtil.GLFW_MOUSE_BUTTON_RIGHT, input.modifiers());
 		}
 
 		return input;
 	}
 
-	/**
-	 * Добавляет crash report section.
-	 *
-	 * @param section section
-	 * @param window window
-	 */
 	public void addCrashReportSection(CrashReportSection section, Window window) {
 		section.add(
-				"Mouse location",
-				() -> String.format(
-						Locale.ROOT,
-						"Scaled: (%f, %f). Absolute: (%f, %f)",
-						scaleX(window, this.x),
-						scaleY(window, this.y),
-						this.x,
-						this.y
-				)
+			"Mouse location",
+			() -> String.format(
+				Locale.ROOT,
+				"Scaled: (%f, %f). Absolute: (%f, %f)",
+				scaleX(window, x),
+				scaleY(window, y),
+				x,
+				y
+			)
 		);
 		section.add(
-				"Screen size",
-				() -> String.format(
-						Locale.ROOT,
-						"Scaled: (%d, %d). Absolute: (%d, %d). Scale factor of %d",
-						window.getScaledWidth(),
-						window.getScaledHeight(),
-						window.getFramebufferWidth(),
-						window.getFramebufferHeight(),
-						window.getScaleFactor()
-				)
+			"Screen size",
+			() -> String.format(
+				Locale.ROOT,
+				"Scaled: (%d, %d). Absolute: (%d, %d). Scale factor of %d",
+				window.getScaledWidth(),
+				window.getScaledHeight(),
+				window.getFramebufferWidth(),
+				window.getFramebufferHeight(),
+				window.getScaleFactor()
+			)
 		);
 	}
 
 	private void onMouseScroll(long window, double horizontal, double vertical) {
-		if (window == this.client.getWindow().getHandle()) {
-			this.client.getInactivityFpsLimiter().onInput();
-			boolean bl = this.client.options.getDiscreteMouseScroll().getValue();
-			double d = this.client.options.getMouseWheelSensitivity().getValue();
-			double e = (bl ? Math.signum(horizontal) : horizontal) * d;
-			double f = (bl ? Math.signum(vertical) : vertical) * d;
-			if (this.client.getOverlay() == null) {
-				if (this.client.currentScreen != null) {
-					double g = this.getScaledX(this.client.getWindow());
-					double h = this.getScaledY(this.client.getWindow());
-					this.client.currentScreen.mouseScrolled(g, h, e, f);
-					this.client.currentScreen.applyMousePressScrollNarratorDelay();
-				}
-				else if (this.client.player != null) {
-					Vector2i vector2i = this.scroller.update(e, f);
-					if (vector2i.x == 0 && vector2i.y == 0) {
-						return;
-					}
+		if (window != client.getWindow().getHandle()) {
+			return;
+		}
 
-					int i = vector2i.y == 0 ? -vector2i.x : vector2i.y;
-					if (this.client.player.isSpectator()) {
-						if (this.client.inGameHud.getSpectatorHud().isOpen()) {
-							this.client.inGameHud.getSpectatorHud().cycleSlot(-i);
-						}
-						else {
-							float
-									j =
-									MathHelper.clamp(
-											this.client.player.getAbilities().getFlySpeed() + vector2i.y * 0.005F,
-											0.0F,
-											0.2F
-									);
-							this.client.player.getAbilities().setFlySpeed(j);
-						}
-					}
-					else {
-						PlayerInventory playerInventory = this.client.player.getInventory();
-						playerInventory.setSelectedSlot(Scroller.scrollCycling(
-								i,
-								playerInventory.getSelectedSlot(),
-								PlayerInventory.getHotbarSize()
-						));
-					}
-				}
+		client.getInactivityFpsLimiter().onInput();
+
+		boolean discrete = client.options.getDiscreteMouseScroll().getValue();
+		double sensitivity = client.options.getMouseWheelSensitivity().getValue();
+		double scaledHorizontal = (discrete ? Math.signum(horizontal) : horizontal) * sensitivity;
+		double scaledVertical = (discrete ? Math.signum(vertical) : vertical) * sensitivity;
+
+		if (client.getOverlay() != null) {
+			return;
+		}
+
+		if (client.currentScreen != null) {
+			double scaledX = getScaledX(client.getWindow());
+			double scaledY = getScaledY(client.getWindow());
+			client.currentScreen.mouseScrolled(scaledX, scaledY, scaledHorizontal, scaledVertical);
+			client.currentScreen.applyMousePressScrollNarratorDelay();
+			return;
+		}
+
+		if (client.player == null) {
+			return;
+		}
+
+		Vector2i scrollDelta = scroller.update(scaledHorizontal, scaledVertical);
+		if (scrollDelta.x == 0 && scrollDelta.y == 0) {
+			return;
+		}
+
+		int scrollAmount = scrollDelta.y == 0 ? -scrollDelta.x : scrollDelta.y;
+
+		if (client.player.isSpectator()) {
+			if (client.inGameHud.getSpectatorHud().isOpen()) {
+				client.inGameHud.getSpectatorHud().cycleSlot(-scrollAmount);
+			} else {
+				float newFlySpeed = MathHelper.clamp(
+					client.player.getAbilities().getFlySpeed() + scrollDelta.y * FLY_SPEED_SCROLL_STEP,
+					0.0F,
+					MAX_FLY_SPEED
+				);
+				client.player.getAbilities().setFlySpeed(newFlySpeed);
 			}
+		} else {
+			PlayerInventory inventory = client.player.getInventory();
+			inventory.setSelectedSlot(Scroller.scrollCycling(
+				scrollAmount,
+				inventory.getSelectedSlot(),
+				PlayerInventory.getHotbarSize()
+			));
 		}
 	}
 
 	private void onFilesDropped(long window, List<Path> paths, int invalidFilesCount) {
-		this.client.getInactivityFpsLimiter().onInput();
-		if (this.client.currentScreen != null) {
-			this.client.currentScreen.onFilesDropped(paths);
+		client.getInactivityFpsLimiter().onInput();
+
+		if (client.currentScreen != null) {
+			client.currentScreen.onFilesDropped(paths);
 		}
 
 		if (invalidFilesCount > 0) {
-			SystemToast.addFileDropFailure(this.client, invalidFilesCount);
+			SystemToast.addFileDropFailure(client, invalidFilesCount);
 		}
 	}
 
 	/**
-	 * Устанавливает up.
+	 * Регистрирует GLFW-коллбэки мыши: позиция курсора, кнопки, прокрутка, перетаскивание файлов.
 	 *
-	 * @param window window
+	 * @param window окно, для которого устанавливаются коллбэки
 	 */
 	public void setup(Window window) {
 		InputUtil.setMouseCallbacks(
-				window,
-				(windowx, x, y) -> this.client.execute(() -> this.onCursorPos(windowx, x, y)),
-				(windowx, button, action, modifiers) -> {
-					MouseInput mouseInput = new MouseInput(button, modifiers);
-					this.client.execute(() -> this.onMouseButton(windowx, mouseInput, action));
-				},
-				(windowx, offsetX, offsetY) -> this.client.execute(() -> this.onMouseScroll(windowx, offsetX, offsetY)),
-				(windowx, count, names) -> {
-					List<Path> list = new ArrayList<>(count);
-					int i = 0;
+			window,
+			(handle, posX, posY) -> client.execute(() -> onCursorPos(handle, posX, posY)),
+			(handle, button, action, modifiers) -> {
+				MouseInput mouseInput = new MouseInput(button, modifiers);
+				client.execute(() -> onMouseButton(handle, mouseInput, action));
+			},
+			(handle, offsetX, offsetY) -> client.execute(() -> onMouseScroll(handle, offsetX, offsetY)),
+			(handle, count, names) -> {
+				List<Path> paths = new ArrayList<>(count);
+				int invalidCount = 0;
 
-					for (int j = 0; j < count; j++) {
-						String string = GLFWDropCallback.getName(names, j);
+				for (int index = 0; index < count; index++) {
+					String pathString = GLFWDropCallback.getName(names, index);
 
-						try {
-							list.add(Paths.get(string));
-						}
-						catch (InvalidPathException var11) {
-							i++;
-							LOGGER.error("Failed to parse path '{}'", string, var11);
-						}
-					}
-
-					if (!list.isEmpty()) {
-						int j = i;
-						this.client.execute(() -> this.onFilesDropped(windowx, list, j));
+					try {
+						paths.add(Paths.get(pathString));
+					} catch (InvalidPathException exception) {
+						invalidCount++;
+						LOGGER.error("Failed to parse path '{}'", pathString, exception);
 					}
 				}
+
+				if (!paths.isEmpty()) {
+					int finalInvalidCount = invalidCount;
+					client.execute(() -> onFilesDropped(handle, paths, finalInvalidCount));
+				}
+			}
 		);
 	}
 
-	private void onCursorPos(long window, double x, double y) {
-		if (window == this.client.getWindow().getHandle()) {
-			if (this.hasResolutionChanged) {
-				this.x = x;
-				this.y = y;
-				this.hasResolutionChanged = false;
-			}
-			else {
-				if (this.client.isWindowFocused()) {
-					this.cursorDeltaX = this.cursorDeltaX + (x - this.x);
-					this.cursorDeltaY = this.cursorDeltaY + (y - this.y);
-				}
-
-				this.x = x;
-				this.y = y;
-			}
+	private void onCursorPos(long window, double newX, double newY) {
+		if (window != client.getWindow().getHandle()) {
+			return;
 		}
+
+		if (hasResolutionChanged) {
+			x = newX;
+			y = newY;
+			hasResolutionChanged = false;
+			return;
+		}
+
+		if (client.isWindowFocused()) {
+			cursorDeltaX += newX - x;
+			cursorDeltaY += newY - y;
+		}
+
+		x = newX;
+		y = newY;
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние мыши за тик: обрабатывает движение курсора, перетаскивание и вращение камеры.
 	 */
 	public void tick() {
-		double d = GlfwUtil.getTime();
-		double e = d - this.lastTickTime;
-		this.lastTickTime = d;
-		if (this.client.isWindowFocused()) {
-			Screen screen = this.client.currentScreen;
-			boolean bl = this.cursorDeltaX != 0.0 || this.cursorDeltaY != 0.0;
-			if (bl) {
-				this.client.getInactivityFpsLimiter().onInput();
-			}
+		double now = GlfwUtil.getTime();
+		double timeDelta = now - lastTickTime;
+		lastTickTime = now;
 
-			if (screen != null && this.client.getOverlay() == null && bl) {
-				Window window = this.client.getWindow();
-				double f = this.getScaledX(window);
-				double g = this.getScaledY(window);
-
-				try {
-					screen.mouseMoved(f, g);
-				}
-				catch (Throwable var20) {
-					CrashReport crashReport = CrashReport.create(var20, "mouseMoved event handler");
-					screen.addCrashReportSection(crashReport);
-					CrashReportSection crashReportSection = crashReport.addElement("Mouse");
-					this.addCrashReportSection(crashReportSection, window);
-					throw new CrashException(crashReport);
-				}
-
-				if (this.activeButton != null && this.glfwTime > 0.0) {
-					double h = scaleX(window, this.cursorDeltaX);
-					double i = scaleY(window, this.cursorDeltaY);
-
-					try {
-						screen.mouseDragged(new Click(f, g, this.activeButton), h, i);
-					}
-					catch (Throwable var19) {
-						CrashReport crashReport2 = CrashReport.create(var19, "mouseDragged event handler");
-						screen.addCrashReportSection(crashReport2);
-						CrashReportSection crashReportSection2 = crashReport2.addElement("Mouse");
-						this.addCrashReportSection(crashReportSection2, window);
-						throw new CrashException(crashReport2);
-					}
-				}
-
-				screen.applyMouseMoveNarratorDelay();
-			}
-
-			if (this.isCursorLocked() && this.client.player != null) {
-				this.updateMouse(e);
-			}
+		if (!client.isWindowFocused()) {
+			cursorDeltaX = 0.0;
+			cursorDeltaY = 0.0;
+			return;
 		}
 
-		this.cursorDeltaX = 0.0;
-		this.cursorDeltaY = 0.0;
+		Screen screen = client.currentScreen;
+		boolean hasCursorMoved = cursorDeltaX != 0.0 || cursorDeltaY != 0.0;
+
+		if (hasCursorMoved) {
+			client.getInactivityFpsLimiter().onInput();
+		}
+
+		if (screen != null && client.getOverlay() == null && hasCursorMoved) {
+			Window window = client.getWindow();
+			double scaledX = getScaledX(window);
+			double scaledY = getScaledY(window);
+
+			try {
+				screen.mouseMoved(scaledX, scaledY);
+			} catch (Throwable throwable) {
+				CrashReport crashReport = CrashReport.create(throwable, "mouseMoved event handler");
+				screen.addCrashReportSection(crashReport);
+				CrashReportSection section = crashReport.addElement("Mouse");
+				addCrashReportSection(section, window);
+				throw new CrashException(crashReport);
+			}
+
+			if (activeButton != null && glfwTime > 0.0) {
+				double dragDeltaX = scaleX(window, cursorDeltaX);
+				double dragDeltaY = scaleY(window, cursorDeltaY);
+
+				try {
+					screen.mouseDragged(new Click(scaledX, scaledY, activeButton), dragDeltaX, dragDeltaY);
+				} catch (Throwable throwable) {
+					CrashReport crashReport = CrashReport.create(throwable, "mouseDragged event handler");
+					screen.addCrashReportSection(crashReport);
+					CrashReportSection section = crashReport.addElement("Mouse");
+					addCrashReportSection(section, window);
+					throw new CrashException(crashReport);
+				}
+			}
+
+			screen.applyMouseMoveNarratorDelay();
+		}
+
+		if (isCursorLocked() && client.player != null) {
+			updateMouse(timeDelta);
+		}
+
+		cursorDeltaX = 0.0;
+		cursorDeltaY = 0.0;
 	}
 
-	/**
-	 * Scale x.
-	 *
-	 * @param window window
-	 * @param x x
-	 *
-	 * @return double — результат операции
-	 */
-	public static double scaleX(Window window, double x) {
-		return x * window.getScaledWidth() / window.getWidth();
+	public static double scaleX(Window window, double rawX) {
+		return rawX * window.getScaledWidth() / window.getWidth();
 	}
 
 	public double getScaledX(Window window) {
-		return scaleX(window, this.x);
+		return scaleX(window, x);
 	}
 
-	/**
-	 * Scale y.
-	 *
-	 * @param window window
-	 * @param y y
-	 *
-	 * @return double — результат операции
-	 */
-	public static double scaleY(Window window, double y) {
-		return y * window.getScaledHeight() / window.getHeight();
+	public static double scaleY(Window window, double rawY) {
+		return rawY * window.getScaledHeight() / window.getHeight();
 	}
 
 	public double getScaledY(Window window) {
-		return scaleY(window, this.y);
+		return scaleY(window, y);
 	}
 
+	/**
+	 * Применяет накопленное смещение курсора к направлению взгляда игрока.
+	 * Поддерживает сглаживание мыши и режим подзорной трубы.
+	 *
+	 * @param timeDelta время с последнего тика в секундах
+	 */
 	private void updateMouse(double timeDelta) {
-		double d = this.client.options.getMouseSensitivity().getValue() * 0.6F + 0.2F;
-		double e = d * d * d;
-		double f = e * 8.0;
-		double i;
-		double j;
-		if (this.client.options.smoothCameraEnabled) {
-			double g = this.cursorXSmoother.smooth(this.cursorDeltaX * f, timeDelta * f);
-			double h = this.cursorYSmoother.smooth(this.cursorDeltaY * f, timeDelta * f);
-			i = g;
-			j = h;
-		}
-		else if (this.client.options.getPerspective().isFirstPerson() && this.client.player.isUsingSpyglass()) {
-			this.cursorXSmoother.clear();
-			this.cursorYSmoother.clear();
-			i = this.cursorDeltaX * e;
-			j = this.cursorDeltaY * e;
-		}
-		else {
-			this.cursorXSmoother.clear();
-			this.cursorYSmoother.clear();
-			i = this.cursorDeltaX * f;
-			j = this.cursorDeltaY * f;
+		double rawSensitivity = client.options.getMouseSensitivity().getValue() * SENSITIVITY_BASE + SENSITIVITY_OFFSET;
+		double cubicSensitivity = rawSensitivity * rawSensitivity * rawSensitivity;
+		double fullSensitivity = cubicSensitivity * SPYGLASS_SENSITIVITY_FACTOR;
+
+		double lookX;
+		double lookY;
+
+		if (client.options.smoothCameraEnabled) {
+			lookX = cursorXSmoother.smooth(cursorDeltaX * fullSensitivity, timeDelta * fullSensitivity);
+			lookY = cursorYSmoother.smooth(cursorDeltaY * fullSensitivity, timeDelta * fullSensitivity);
+		} else if (client.options.getPerspective().isFirstPerson() && client.player.isUsingSpyglass()) {
+			cursorXSmoother.clear();
+			cursorYSmoother.clear();
+			lookX = cursorDeltaX * cubicSensitivity;
+			lookY = cursorDeltaY * cubicSensitivity;
+		} else {
+			cursorXSmoother.clear();
+			cursorYSmoother.clear();
+			lookX = cursorDeltaX * fullSensitivity;
+			lookY = cursorDeltaY * fullSensitivity;
 		}
 
-		this.client.getTutorialManager().onUpdateMouse(i, j);
-		if (this.client.player != null) {
-			this.client
-					.player
-					.changeLookDirection(
-							this.client.options.getInvertMouseX().getValue() ? -i : i,
-							this.client.options.getInvertMouseY().getValue() ? -j : j
-					);
+		client.getTutorialManager().onUpdateMouse(lookX, lookY);
+
+		if (client.player != null) {
+			client.player.changeLookDirection(
+				client.options.getInvertMouseX().getValue() ? -lookX : lookX,
+				client.options.getInvertMouseY().getValue() ? -lookY : lookY
+			);
 		}
 	}
 
-	/**
-	 * Was left button clicked.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean wasLeftButtonClicked() {
-		return this.leftButtonClicked;
+		return leftButtonClicked;
 	}
 
-	/**
-	 * Was middle button clicked.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean wasMiddleButtonClicked() {
-		return this.middleButtonClicked;
+		return middleButtonClicked;
 	}
 
-	/**
-	 * Was right button clicked.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean wasRightButtonClicked() {
-		return this.rightButtonClicked;
+		return rightButtonClicked;
 	}
 
 	public double getX() {
-		return this.x;
+		return x;
 	}
 
 	public double getY() {
-		return this.y;
+		return y;
 	}
 
-	/**
-	 * Обрабатывает событие resolution changed.
-	 */
 	public void onResolutionChanged() {
-		this.hasResolutionChanged = true;
+		hasResolutionChanged = true;
 	}
 
 	public boolean isCursorLocked() {
-		return this.cursorLocked;
+		return cursorLocked;
 	}
 
 	/**
-	 * Lock cursor.
+	 * Захватывает курсор мыши: скрывает его и блокирует в центре окна.
+	 * Вызывается при переходе в игровой режим (закрытие экрана).
 	 */
 	public void lockCursor() {
-		if (this.client.isWindowFocused()) {
-			if (!this.cursorLocked) {
-				if (SystemKeycodes.UPDATE_PRESSED_STATE_ON_MOUSE_GRAB) {
-					KeyBinding.updatePressedStates();
-				}
-
-				this.cursorLocked = true;
-				this.x = this.client.getWindow().getWidth() / 2;
-				this.y = this.client.getWindow().getHeight() / 2;
-				InputUtil.setCursorParameters(this.client.getWindow(), 212995, this.x, this.y);
-				this.client.setScreen(null);
-				this.client.attackCooldown = 10000;
-				this.hasResolutionChanged = true;
-			}
+		if (!client.isWindowFocused() || cursorLocked) {
+			return;
 		}
+
+		if (SystemKeycodes.UPDATE_PRESSED_STATE_ON_MOUSE_GRAB) {
+			KeyBinding.updatePressedStates();
+		}
+
+		cursorLocked = true;
+		x = client.getWindow().getWidth() / 2.0;
+		y = client.getWindow().getHeight() / 2.0;
+		InputUtil.setCursorParameters(client.getWindow(), InputUtil.GLFW_CURSOR_DISABLED, x, y);
+		client.setScreen(null);
+		client.attackCooldown = 10000;
+		hasResolutionChanged = true;
 	}
 
 	/**
-	 * Unlock cursor.
+	 * Освобождает курсор мыши: делает его видимым и возвращает в центр окна.
 	 */
 	public void unlockCursor() {
-		if (this.cursorLocked) {
-			this.cursorLocked = false;
-			this.x = this.client.getWindow().getWidth() / 2;
-			this.y = this.client.getWindow().getHeight() / 2;
-			InputUtil.setCursorParameters(this.client.getWindow(), 212993, this.x, this.y);
+		if (!cursorLocked) {
+			return;
 		}
+
+		cursorLocked = false;
+		x = client.getWindow().getWidth() / 2.0;
+		y = client.getWindow().getHeight() / 2.0;
+		InputUtil.setCursorParameters(client.getWindow(), InputUtil.GLFW_CURSOR_NORMAL, x, y);
 	}
 
 	public void setResolutionChanged() {
-		this.hasResolutionChanged = true;
+		hasResolutionChanged = true;
 	}
 
-	/**
-	 * Draw scaled pos.
-	 *
-	 * @param textRenderer text renderer
-	 * @param context context
-	 */
 	public void drawScaledPos(TextRenderer textRenderer, DrawContext context) {
-		Window window = this.client.getWindow();
-		double d = this.getScaledX(window);
-		double e = this.getScaledY(window) - 8.0;
-		String string = String.format(Locale.ROOT, "%.0f,%.0f", d, e);
-		context.drawTextWithShadow(textRenderer, string, (int) d, (int) e, -1);
+		Window window = client.getWindow();
+		double scaledX = getScaledX(window);
+		double scaledY = getScaledY(window) - DEBUG_CURSOR_Y_OFFSET;
+		String coords = String.format(Locale.ROOT, "%.0f,%.0f", scaledX, scaledY);
+		context.drawTextWithShadow(textRenderer, coords, (int) scaledX, (int) scaledY, -1);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code MouseClickTime}.
-	 */
 	record MouseClickTime(long time, Screen screen) {
 	}
 }

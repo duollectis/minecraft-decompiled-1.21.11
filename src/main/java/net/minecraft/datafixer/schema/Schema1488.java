@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1488}.
+ * Схема версии 1488: обновляет блок-сущность {@code minecraft:command_block},
+ * добавляя поддержку {@code CustomName} как текстового компонента
+ * в дополнение к уже существующему {@code LastOutput}.
  */
 public class Schema1488 extends IdentifierNormalizingSchema {
 
-	public Schema1488(int i, Schema schema) {
-		super(i, schema);
+	public Schema1488(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

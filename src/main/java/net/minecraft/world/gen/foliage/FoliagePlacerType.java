@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code FoliagePlacerType}.
+ * Реестровый тип размещателя листвы. Связывает идентификатор
+ * с конкретной реализацией {@link FoliagePlacer} через MapCodec.
  */
 public class FoliagePlacerType<P extends FoliagePlacer> {
 
@@ -53,6 +54,6 @@ public class FoliagePlacerType<P extends FoliagePlacer> {
 	}
 
 	public MapCodec<P> getCodec() {
-		return this.codec;
+		return codec;
 	}
 }

@@ -6,10 +6,8 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
+/** Группа команд спектаторского меню с заголовком-подсказкой. */
 @Environment(EnvType.CLIENT)
-/**
- * {@code SpectatorMenuCommandGroup}.
- */
 public interface SpectatorMenuCommandGroup {
 
 	List<SpectatorMenuCommand> getCommands();

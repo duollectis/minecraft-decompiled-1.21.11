@@ -25,7 +25,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BarrelBlock}.
+ * Блок бочки — контейнер с инвентарём, ориентированный по любой из 6 сторон.
+ * Поддерживает компаратор (выдаёт сигнал в зависимости от заполненности),
+ * уведомляет пиглинов при взаимодействии и рассыпает содержимое при разрушении.
  */
 public class BarrelBlock extends BlockWithEntity {
 
@@ -40,13 +42,14 @@ public class BarrelBlock extends BlockWithEntity {
 
 	public BarrelBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(OPEN, false));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH).with(OPEN, false));
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (world instanceof ServerWorld serverWorld
-				&& world.getBlockEntity(pos) instanceof BarrelBlockEntity barrelBlockEntity) {
+			&& world.getBlockEntity(pos) instanceof BarrelBlockEntity barrelBlockEntity
+		) {
 			player.openHandledScreen(barrelBlockEntity);
 			player.incrementStat(Stats.OPEN_BARREL);
 			PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
@@ -62,9 +65,8 @@ public class BarrelBlock extends BlockWithEntity {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof BarrelBlockEntity) {
-			((BarrelBlockEntity) blockEntity).tick();
+		if (world.getBlockEntity(pos) instanceof BarrelBlockEntity barrelBlockEntity) {
+			barrelBlockEntity.tick();
 		}
 	}
 
@@ -100,6 +102,6 @@ public class BarrelBlock extends BlockWithEntity {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
+		return getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
 	}
 }

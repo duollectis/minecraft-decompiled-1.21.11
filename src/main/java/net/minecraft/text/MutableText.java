@@ -9,7 +9,12 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code MutableText}.
+ * Изменяемый текстовый компонент Minecraft.
+ * Содержит {@link TextContent} (тип содержимого), список дочерних компонентов
+ * и {@link Style}. В отличие от {@link Text}, допускает мутацию стиля и добавление
+ * дочерних элементов через fluent-методы.
+ *
+ * <p>Кеш {@link OrderedText} инвалидируется при смене активного языка.
  */
 public final class MutableText implements Text {
 
@@ -25,25 +30,18 @@ public final class MutableText implements Text {
 		this.style = style;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param content content
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText of(TextContent content) {
 		return new MutableText(content, Lists.newArrayList(), Style.EMPTY);
 	}
 
 	@Override
 	public TextContent getContent() {
-		return this.content;
+		return content;
 	}
 
 	@Override
 	public List<Text> getSiblings() {
-		return this.siblings;
+		return siblings;
 	}
 
 	public MutableText setStyle(Style style) {
@@ -53,155 +51,121 @@ public final class MutableText implements Text {
 
 	@Override
 	public Style getStyle() {
-		return this.style;
+		return style;
 	}
 
-	/**
-	 * Append.
-	 *
-	 * @param text text
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public MutableText append(String text) {
-		return text.isEmpty() ? this : this.append(Text.literal(text));
+		return text.isEmpty() ? this : append(Text.literal(text));
 	}
 
-	/**
-	 * Append.
-	 *
-	 * @param text text
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public MutableText append(Text text) {
-		this.siblings.add(text);
+		siblings.add(text);
 		return this;
 	}
 
 	/**
-	 * Styled.
+	 * Применяет функцию-трансформер к текущему стилю и устанавливает результат.
 	 *
-	 * @param styleUpdater style updater
-	 *
-	 * @return MutableText — результат операции
+	 * @param styleUpdater функция преобразования стиля
 	 */
 	public MutableText styled(UnaryOperator<Style> styleUpdater) {
-		this.setStyle(styleUpdater.apply(this.getStyle()));
+		setStyle(styleUpdater.apply(getStyle()));
 		return this;
 	}
 
 	/**
-	 * Fill style.
+	 * Заполняет незаданные атрибуты стиля значениями из {@code styleOverride}.
+	 * Эквивалентно {@code setStyle(styleOverride.withParent(currentStyle))}.
 	 *
-	 * @param styleOverride style override
-	 *
-	 * @return MutableText — результат операции
+	 * @param styleOverride стиль-источник для незаданных атрибутов
 	 */
 	public MutableText fillStyle(Style styleOverride) {
-		this.setStyle(styleOverride.withParent(this.getStyle()));
+		setStyle(styleOverride.withParent(getStyle()));
 		return this;
 	}
 
-	/**
-	 * Форматирует ted.
-	 *
-	 * @param formattings formattings
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public MutableText formatted(Formatting... formattings) {
-		this.setStyle(this.getStyle().withFormatting(formattings));
+		setStyle(getStyle().withFormatting(formattings));
 		return this;
 	}
 
-	/**
-	 * Форматирует ted.
-	 *
-	 * @param formatting formatting
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public MutableText formatted(Formatting formatting) {
-		this.setStyle(this.getStyle().withFormatting(formatting));
+		setStyle(getStyle().withFormatting(formatting));
 		return this;
 	}
 
-	/**
-	 * With color.
-	 *
-	 * @param color color
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public MutableText withColor(int color) {
-		this.setStyle(this.getStyle().withColor(color));
+		setStyle(getStyle().withColor(color));
+		return this;
+	}
+
+	public MutableText withoutShadow() {
+		setStyle(getStyle().withoutShadow());
 		return this;
 	}
 
 	/**
-	 * Without shadow.
-	 *
-	 * @return MutableText — результат операции
+	 * Возвращает упорядоченное представление текста для рендеринга.
+	 * Кеш инвалидируется при смене активного экземпляра {@link Language}.
 	 */
-	public MutableText withoutShadow() {
-		this.setStyle(this.getStyle().withoutShadow());
-		return this;
-	}
-
 	@Override
 	public OrderedText asOrderedText() {
-		Language language = Language.getInstance();
-		if (this.language != language) {
-			this.ordered = language.reorder(this);
-			this.language = language;
+		Language currentLanguage = Language.getInstance();
+
+		if (language != currentLanguage) {
+			ordered = currentLanguage.reorder(this);
+			language = currentLanguage;
 		}
 
-		return this.ordered;
+		return ordered;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o
-		       ? true
-		       : o instanceof MutableText mutableText
-		         && this.content.equals(mutableText.content)
-		         && this.style.equals(mutableText.style)
-		         && this.siblings.equals(mutableText.siblings);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof MutableText other
+			&& content.equals(other.content)
+			&& style.equals(other.style)
+			&& siblings.equals(other.siblings);
 	}
 
 	@Override
 	public int hashCode() {
-		int i = 1;
-		i = 31 * i + this.content.hashCode();
-		i = 31 * i + this.style.hashCode();
-		return 31 * i + this.siblings.hashCode();
+		int hash = 1;
+		hash = 31 * hash + content.hashCode();
+		hash = 31 * hash + style.hashCode();
+		return 31 * hash + siblings.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder stringBuilder = new StringBuilder(this.content.toString());
-		boolean bl = !this.style.isEmpty();
-		boolean bl2 = !this.siblings.isEmpty();
-		if (bl || bl2) {
-			stringBuilder.append('[');
-			if (bl) {
-				stringBuilder.append("style=");
-				stringBuilder.append(this.style);
+		StringBuilder builder = new StringBuilder(content.toString());
+		boolean hasStyle = !style.isEmpty();
+		boolean hasSiblings = !siblings.isEmpty();
+
+		if (hasStyle || hasSiblings) {
+			builder.append('[');
+
+			if (hasStyle) {
+				builder.append("style=");
+				builder.append(style);
 			}
 
-			if (bl && bl2) {
-				stringBuilder.append(", ");
+			if (hasStyle && hasSiblings) {
+				builder.append(", ");
 			}
 
-			if (bl2) {
-				stringBuilder.append("siblings=");
-				stringBuilder.append(this.siblings);
+			if (hasSiblings) {
+				builder.append("siblings=");
+				builder.append(siblings);
 			}
 
-			stringBuilder.append(']');
+			builder.append(']');
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 }

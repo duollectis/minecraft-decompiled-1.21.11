@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 
 /**
- * {@code WoodRecipeMapping}.
+ * Содержит маппинги для преобразования данных.
  */
 public class WoodRecipeMapping {
 

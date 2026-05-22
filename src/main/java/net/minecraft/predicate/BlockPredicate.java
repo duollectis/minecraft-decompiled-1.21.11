@@ -27,7 +27,8 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code BlockPredicate}.
+ * Предикат для проверки блока по набору условий: тип блока, состояние, NBT и компоненты.
+ * Все поля опциональны — отсутствующее условие считается выполненным.
  */
 public record BlockPredicate(
 		Optional<RegistryEntryList<Block>> blocks,
@@ -38,63 +39,63 @@ public record BlockPredicate(
 
 	public static final Codec<BlockPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.BLOCK)
-							                    .optionalFieldOf("blocks")
-							                    .forGetter(BlockPredicate::blocks),
-					                    StatePredicate.CODEC.optionalFieldOf("state").forGetter(BlockPredicate::state),
-					                    NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(BlockPredicate::nbt),
-					                    ComponentsPredicate.CODEC.forGetter(BlockPredicate::components)
-			                    )
-			                    .apply(instance, BlockPredicate::new)
+					RegistryCodecs.entryList(RegistryKeys.BLOCK).optionalFieldOf("blocks").forGetter(BlockPredicate::blocks),
+					StatePredicate.CODEC.optionalFieldOf("state").forGetter(BlockPredicate::state),
+					NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(BlockPredicate::nbt),
+					ComponentsPredicate.CODEC.forGetter(BlockPredicate::components)
+			)
+			.apply(instance, BlockPredicate::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, BlockPredicate> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.optional(PacketCodecs.registryEntryList(RegistryKeys.BLOCK)),
-			BlockPredicate::blocks,
-			PacketCodecs.optional(StatePredicate.PACKET_CODEC),
-			BlockPredicate::state,
-			PacketCodecs.optional(NbtPredicate.PACKET_CODEC),
-			BlockPredicate::nbt,
-			ComponentsPredicate.PACKET_CODEC,
-			BlockPredicate::components,
+			PacketCodecs.optional(PacketCodecs.registryEntryList(RegistryKeys.BLOCK)), BlockPredicate::blocks,
+			PacketCodecs.optional(StatePredicate.PACKET_CODEC), BlockPredicate::state,
+			PacketCodecs.optional(NbtPredicate.PACKET_CODEC), BlockPredicate::nbt,
+			ComponentsPredicate.PACKET_CODEC, BlockPredicate::components,
 			BlockPredicate::new
 	);
 
+	/**
+	 * Проверяет блок в мире по всем условиям предиката.
+	 * Возвращает {@code false}, если позиция не загружена.
+	 */
 	public boolean test(ServerWorld world, BlockPos pos) {
 		if (!world.isPosLoaded(pos)) {
 			return false;
 		}
-		else if (!this.testState(world.getBlockState(pos))) {
+
+		if (!testState(world.getBlockState(pos))) {
 			return false;
 		}
-		else {
-			if (this.nbt.isPresent() || !this.components.isEmpty()) {
-				BlockEntity blockEntity = world.getBlockEntity(pos);
-				if (this.nbt.isPresent() && !testNbt(world, blockEntity, this.nbt.get())) {
-					return false;
-				}
 
-				if (!this.components.isEmpty() && !testComponents(blockEntity, this.components)) {
-					return false;
-				}
+		if (nbt.isPresent() || !components.isEmpty()) {
+			BlockEntity blockEntity = world.getBlockEntity(pos);
+
+			if (nbt.isPresent() && !testNbt(world, blockEntity, nbt.get())) {
+				return false;
 			}
 
-			return true;
+			if (!components.isEmpty() && !testComponents(blockEntity, components)) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	public boolean test(CachedBlockPosition pos) {
-		return !this.testState(pos.getBlockState()) ? false : !this.nbt.isPresent() || testNbt(
-				pos.getWorld(),
-				pos.getBlockEntity(),
-				this.nbt.get()
-		);
+		if (!testState(pos.getBlockState())) {
+			return false;
+		}
+
+		return nbt.isEmpty() || testNbt(pos.getWorld(), pos.getBlockEntity(), nbt.get());
 	}
 
 	private boolean testState(BlockState state) {
-		return this.blocks.isPresent() && !state.isIn(this.blocks.get()) ? false : !this.state.isPresent() || this.state
-		                                                                                                      .get()
-		                                                                                                      .test(state);
+		if (blocks.isPresent() && !state.isIn(blocks.get())) {
+			return false;
+		}
+
+		return this.state.isEmpty() || this.state.get().test(state);
 	}
 
 	private static boolean testNbt(WorldView world, @Nullable BlockEntity blockEntity, NbtPredicate nbtPredicate) {
@@ -107,12 +108,9 @@ public record BlockPredicate(
 	}
 
 	public boolean hasNbt() {
-		return this.nbt.isPresent();
+		return nbt.isPresent();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private Optional<RegistryEntryList<Block>> blocks = Optional.empty();
@@ -157,7 +155,7 @@ public record BlockPredicate(
 		}
 
 		public BlockPredicate build() {
-			return new BlockPredicate(this.blocks, this.state, this.nbt, this.components);
+			return new BlockPredicate(blocks, state, nbt, components);
 		}
 	}
 }

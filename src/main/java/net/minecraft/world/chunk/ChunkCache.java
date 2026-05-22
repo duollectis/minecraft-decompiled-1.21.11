@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * {@code ChunkCache}.
+ * Кеш чанков для операций коллизий и чтения блоков в ограниченной области мира.
+ * Предварительно загружает все чанки в диапазоне [minPos, maxPos] и предоставляет
+ * быстрый доступ без обращения к менеджеру чанков на каждый запрос.
  */
 public class ChunkCache implements CollisionView {
 
@@ -39,34 +41,31 @@ public class ChunkCache implements CollisionView {
 
 	public ChunkCache(World world, BlockPos minPos, BlockPos maxPos) {
 		this.world = world;
-		this.plainsEntryGetter =
-				Suppliers.memoize(() -> world
-						.getRegistryManager()
-						.getOrThrow(RegistryKeys.BIOME)
-						.getOrThrow(BiomeKeys.PLAINS));
-		this.minX = ChunkSectionPos.getSectionCoord(minPos.getX());
-		this.minZ = ChunkSectionPos.getSectionCoord(minPos.getZ());
-		int i = ChunkSectionPos.getSectionCoord(maxPos.getX());
-		int j = ChunkSectionPos.getSectionCoord(maxPos.getZ());
-		this.chunks = new Chunk[i - this.minX + 1][j - this.minZ + 1];
-		ChunkManager chunkManager = world.getChunkManager();
-		this.empty = true;
+		plainsEntryGetter = Suppliers.memoize(() -> world
+				.getRegistryManager()
+				.getOrThrow(RegistryKeys.BIOME)
+				.getOrThrow(BiomeKeys.PLAINS));
 
-		for (int k = this.minX; k <= i; k++) {
-			for (int l = this.minZ; l <= j; l++) {
-				this.chunks[k - this.minX][l - this.minZ] = chunkManager.getWorldChunk(k, l);
+		minX = ChunkSectionPos.getSectionCoord(minPos.getX());
+		minZ = ChunkSectionPos.getSectionCoord(minPos.getZ());
+		int maxChunkX = ChunkSectionPos.getSectionCoord(maxPos.getX());
+		int maxChunkZ = ChunkSectionPos.getSectionCoord(maxPos.getZ());
+		chunks = new Chunk[maxChunkX - minX + 1][maxChunkZ - minZ + 1];
+
+		ChunkManager chunkManager = world.getChunkManager();
+		empty = true;
+
+		for (int cx = minX; cx <= maxChunkX; cx++) {
+			for (int cz = minZ; cz <= maxChunkZ; cz++) {
+				chunks[cx - minX][cz - minZ] = chunkManager.getWorldChunk(cx, cz);
 			}
 		}
 
-		for (int k = ChunkSectionPos.getSectionCoord(minPos.getX());
-		     k <= ChunkSectionPos.getSectionCoord(maxPos.getX());
-		     k++) {
-			for (int l = ChunkSectionPos.getSectionCoord(minPos.getZ());
-			     l <= ChunkSectionPos.getSectionCoord(maxPos.getZ());
-			     l++) {
-				Chunk chunk = this.chunks[k - this.minX][l - this.minZ];
+		for (int cx = minX; cx <= maxChunkX; cx++) {
+			for (int cz = minZ; cz <= maxChunkZ; cz++) {
+				Chunk chunk = chunks[cx - minX][cz - minZ];
 				if (chunk != null && !chunk.areSectionsEmptyBetween(minPos.getY(), maxPos.getY())) {
-					this.empty = false;
+					empty = false;
 					return;
 				}
 			}
@@ -74,34 +73,29 @@ public class ChunkCache implements CollisionView {
 	}
 
 	private Chunk getChunk(BlockPos pos) {
-		return this.getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+		return getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
 	}
 
 	private Chunk getChunk(int chunkX, int chunkZ) {
-		int i = chunkX - this.minX;
-		int j = chunkZ - this.minZ;
-		if (i >= 0 && i < this.chunks.length && j >= 0 && j < this.chunks[i].length) {
-			Chunk chunk = this.chunks[i][j];
-			return (Chunk) (chunk != null ? chunk : new EmptyChunk(
-					this.world,
-					new ChunkPos(chunkX, chunkZ),
-					this.plainsEntryGetter.get()
-			)
-			);
+		int relX = chunkX - minX;
+		int relZ = chunkZ - minZ;
+
+		if (relX >= 0 && relX < chunks.length && relZ >= 0 && relZ < chunks[relX].length) {
+			Chunk chunk = chunks[relX][relZ];
+			return chunk != null ? chunk : new EmptyChunk(world, new ChunkPos(chunkX, chunkZ), plainsEntryGetter.get());
 		}
-		else {
-			return new EmptyChunk(this.world, new ChunkPos(chunkX, chunkZ), this.plainsEntryGetter.get());
-		}
+
+		return new EmptyChunk(world, new ChunkPos(chunkX, chunkZ), plainsEntryGetter.get());
 	}
 
 	@Override
 	public WorldBorder getWorldBorder() {
-		return this.world.getWorldBorder();
+		return world.getWorldBorder();
 	}
 
 	@Override
 	public BlockView getChunkAsView(int chunkX, int chunkZ) {
-		return this.getChunk(chunkX, chunkZ);
+		return getChunk(chunkX, chunkZ);
 	}
 
 	@Override
@@ -111,39 +105,34 @@ public class ChunkCache implements CollisionView {
 
 	@Override
 	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-		Chunk chunk = this.getChunk(pos);
-		return chunk.getBlockEntity(pos);
+		return getChunk(pos).getBlockEntity(pos);
 	}
 
 	@Override
 	public BlockState getBlockState(BlockPos pos) {
-		if (this.isOutOfHeightLimit(pos)) {
+		if (isOutOfHeightLimit(pos)) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			Chunk chunk = this.getChunk(pos);
-			return chunk.getBlockState(pos);
-		}
+
+		return getChunk(pos).getBlockState(pos);
 	}
 
 	@Override
 	public FluidState getFluidState(BlockPos pos) {
-		if (this.isOutOfHeightLimit(pos)) {
+		if (isOutOfHeightLimit(pos)) {
 			return Fluids.EMPTY.getDefaultState();
 		}
-		else {
-			Chunk chunk = this.getChunk(pos);
-			return chunk.getFluidState(pos);
-		}
+
+		return getChunk(pos).getFluidState(pos);
 	}
 
 	@Override
 	public int getBottomY() {
-		return this.world.getBottomY();
+		return world.getBottomY();
 	}
 
 	@Override
 	public int getHeight() {
-		return this.world.getHeight();
+		return world.getHeight();
 	}
 }

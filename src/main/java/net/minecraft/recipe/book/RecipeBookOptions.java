@@ -12,49 +12,47 @@ import net.minecraft.network.codec.PacketCodecs;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code RecipeBookOptions}.
+ * Настройки книги рецептов для всех четырёх типов станков.
+ * Хранит состояние открытости UI и фильтрации крафтабельных рецептов
+ * для каждого {@link RecipeBookType}.
  */
 public final class RecipeBookOptions {
 
 	public static final PacketCodec<PacketByteBuf, RecipeBookOptions> PACKET_CODEC = PacketCodec.tuple(
-			RecipeBookOptions.CategoryOption.PACKET_CODEC,
-			options -> options.crafting,
-			RecipeBookOptions.CategoryOption.PACKET_CODEC,
-			options -> options.furnace,
-			RecipeBookOptions.CategoryOption.PACKET_CODEC,
-			options -> options.blastFurnace,
-			RecipeBookOptions.CategoryOption.PACKET_CODEC,
-			options -> options.smoker,
+			CategoryOption.PACKET_CODEC, options -> options.crafting,
+			CategoryOption.PACKET_CODEC, options -> options.furnace,
+			CategoryOption.PACKET_CODEC, options -> options.blastFurnace,
+			CategoryOption.PACKET_CODEC, options -> options.smoker,
 			RecipeBookOptions::new
 	);
 	public static final MapCodec<RecipeBookOptions> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    RecipeBookOptions.CategoryOption.CRAFTING.forGetter(options -> options.crafting),
-					                    RecipeBookOptions.CategoryOption.FURNACE.forGetter(options -> options.furnace),
-					                    RecipeBookOptions.CategoryOption.BLAST_FURNACE.forGetter(options -> options.blastFurnace),
-					                    RecipeBookOptions.CategoryOption.SMOKER.forGetter(options -> options.smoker)
-			                    )
-			                    .apply(instance, RecipeBookOptions::new)
+					CategoryOption.CRAFTING.forGetter(options -> options.crafting),
+					CategoryOption.FURNACE.forGetter(options -> options.furnace),
+					CategoryOption.BLAST_FURNACE.forGetter(options -> options.blastFurnace),
+					CategoryOption.SMOKER.forGetter(options -> options.smoker)
+			).apply(instance, RecipeBookOptions::new)
 	);
-	private RecipeBookOptions.CategoryOption crafting;
-	private RecipeBookOptions.CategoryOption furnace;
-	private RecipeBookOptions.CategoryOption blastFurnace;
-	private RecipeBookOptions.CategoryOption smoker;
+
+	private CategoryOption crafting;
+	private CategoryOption furnace;
+	private CategoryOption blastFurnace;
+	private CategoryOption smoker;
 
 	public RecipeBookOptions() {
 		this(
-				RecipeBookOptions.CategoryOption.DEFAULT,
-				RecipeBookOptions.CategoryOption.DEFAULT,
-				RecipeBookOptions.CategoryOption.DEFAULT,
-				RecipeBookOptions.CategoryOption.DEFAULT
+				CategoryOption.DEFAULT,
+				CategoryOption.DEFAULT,
+				CategoryOption.DEFAULT,
+				CategoryOption.DEFAULT
 		);
 	}
 
 	private RecipeBookOptions(
-			RecipeBookOptions.CategoryOption crafting,
-			RecipeBookOptions.CategoryOption furnace,
-			RecipeBookOptions.CategoryOption blastFurnace,
-			RecipeBookOptions.CategoryOption smoker
+			CategoryOption crafting,
+			CategoryOption furnace,
+			CategoryOption blastFurnace,
+			CategoryOption smoker
 	) {
 		this.crafting = crafting;
 		this.furnace = furnace;
@@ -63,123 +61,93 @@ public final class RecipeBookOptions {
 	}
 
 	@VisibleForTesting
-	public RecipeBookOptions.CategoryOption getOption(RecipeBookType type) {
+	public CategoryOption getOption(RecipeBookType type) {
 		return switch (type) {
-			case CRAFTING -> this.crafting;
-			case FURNACE -> this.furnace;
-			case BLAST_FURNACE -> this.blastFurnace;
-			case SMOKER -> this.smoker;
+			case CRAFTING -> crafting;
+			case FURNACE -> furnace;
+			case BLAST_FURNACE -> blastFurnace;
+			case SMOKER -> smoker;
 		};
 	}
 
-	private void apply(RecipeBookType type, UnaryOperator<RecipeBookOptions.CategoryOption> modifier) {
+	private void apply(RecipeBookType type, UnaryOperator<CategoryOption> modifier) {
 		switch (type) {
-			case CRAFTING:
-				this.crafting = modifier.apply(this.crafting);
-				break;
-			case FURNACE:
-				this.furnace = modifier.apply(this.furnace);
-				break;
-			case BLAST_FURNACE:
-				this.blastFurnace = modifier.apply(this.blastFurnace);
-				break;
-			case SMOKER:
-				this.smoker = modifier.apply(this.smoker);
+			case CRAFTING -> crafting = modifier.apply(crafting);
+			case FURNACE -> furnace = modifier.apply(furnace);
+			case BLAST_FURNACE -> blastFurnace = modifier.apply(blastFurnace);
+			case SMOKER -> smoker = modifier.apply(smoker);
 		}
 	}
 
 	public boolean isGuiOpen(RecipeBookType category) {
-		return this.getOption(category).guiOpen;
+		return getOption(category).guiOpen;
 	}
 
 	public void setGuiOpen(RecipeBookType category, boolean open) {
-		this.apply(category, option -> option.withGuiOpen(open));
+		apply(category, option -> option.withGuiOpen(open));
 	}
 
 	public boolean isFilteringCraftable(RecipeBookType category) {
-		return this.getOption(category).filteringCraftable;
+		return getOption(category).filteringCraftable;
 	}
 
 	public void setFilteringCraftable(RecipeBookType category, boolean filtering) {
-		this.apply(category, option -> option.withFilteringCraftable(filtering));
+		apply(category, option -> option.withFilteringCraftable(filtering));
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return RecipeBookOptions — результат операции
-	 */
 	public RecipeBookOptions copy() {
-		return new RecipeBookOptions(this.crafting, this.furnace, this.blastFurnace, this.smoker);
+		return new RecipeBookOptions(crafting, furnace, blastFurnace, smoker);
 	}
 
-	/**
-	 * Создаёт копию from.
-	 *
-	 * @param other other
-	 */
 	public void copyFrom(RecipeBookOptions other) {
-		this.crafting = other.crafting;
-		this.furnace = other.furnace;
-		this.blastFurnace = other.blastFurnace;
-		this.smoker = other.smoker;
+		crafting = other.crafting;
+		furnace = other.furnace;
+		blastFurnace = other.blastFurnace;
+		smoker = other.smoker;
 	}
 
 	/**
-	 * {@code CategoryOption}.
+	 * Иммутабельное состояние одной категории книги рецептов:
+	 * открыт ли UI и включён ли фильтр «только крафтабельные».
 	 */
 	public record CategoryOption(boolean guiOpen, boolean filteringCraftable) {
 
-		public static final RecipeBookOptions.CategoryOption
-				DEFAULT =
-				new RecipeBookOptions.CategoryOption(false, false);
-		public static final MapCodec<RecipeBookOptions.CategoryOption>
-				CRAFTING =
-				createCodec("isGuiOpen", "isFilteringCraftable");
-		public static final MapCodec<RecipeBookOptions.CategoryOption>
-				FURNACE =
-				createCodec("isFurnaceGuiOpen", "isFurnaceFilteringCraftable");
-		public static final MapCodec<RecipeBookOptions.CategoryOption> BLAST_FURNACE = createCodec(
+		public static final CategoryOption DEFAULT = new CategoryOption(false, false);
+		public static final MapCodec<CategoryOption> CRAFTING = createCodec("isGuiOpen", "isFilteringCraftable");
+		public static final MapCodec<CategoryOption> FURNACE = createCodec(
+				"isFurnaceGuiOpen", "isFurnaceFilteringCraftable"
+		);
+		public static final MapCodec<CategoryOption> BLAST_FURNACE = createCodec(
 				"isBlastingFurnaceGuiOpen", "isBlastingFurnaceFilteringCraftable"
 		);
-		public static final MapCodec<RecipeBookOptions.CategoryOption>
-				SMOKER =
-				createCodec("isSmokerGuiOpen", "isSmokerFilteringCraftable");
-		public static final PacketCodec<ByteBuf, RecipeBookOptions.CategoryOption> PACKET_CODEC = PacketCodec.tuple(
-				PacketCodecs.BOOLEAN,
-				RecipeBookOptions.CategoryOption::guiOpen,
-				PacketCodecs.BOOLEAN,
-				RecipeBookOptions.CategoryOption::filteringCraftable,
-				RecipeBookOptions.CategoryOption::new
+		public static final MapCodec<CategoryOption> SMOKER = createCodec(
+				"isSmokerGuiOpen", "isSmokerFilteringCraftable"
+		);
+		public static final PacketCodec<ByteBuf, CategoryOption> PACKET_CODEC = PacketCodec.tuple(
+				PacketCodecs.BOOLEAN, CategoryOption::guiOpen,
+				PacketCodecs.BOOLEAN, CategoryOption::filteringCraftable,
+				CategoryOption::new
 		);
 
 		@Override
 		public String toString() {
-			return "[open=" + this.guiOpen + ", filtering=" + this.filteringCraftable + "]";
+			return "[open=" + guiOpen + ", filtering=" + filteringCraftable + "]";
 		}
 
-		public RecipeBookOptions.CategoryOption withGuiOpen(boolean guiOpen) {
-			return new RecipeBookOptions.CategoryOption(guiOpen, this.filteringCraftable);
+		public CategoryOption withGuiOpen(boolean open) {
+			return new CategoryOption(open, filteringCraftable);
 		}
 
-		public RecipeBookOptions.CategoryOption withFilteringCraftable(boolean filteringCraftable) {
-			return new RecipeBookOptions.CategoryOption(this.guiOpen, filteringCraftable);
+		public CategoryOption withFilteringCraftable(boolean filtering) {
+			return new CategoryOption(guiOpen, filtering);
 		}
 
-		private static MapCodec<RecipeBookOptions.CategoryOption> createCodec(
-				String guiOpenField,
-				String filteringCraftableField
-		) {
+		private static MapCodec<CategoryOption> createCodec(String guiOpenField, String filteringCraftableField) {
 			return RecordCodecBuilder.mapCodec(
 					instance -> instance.group(
-							                    Codec.BOOL
-									                    .optionalFieldOf(guiOpenField, false)
-									                    .forGetter(RecipeBookOptions.CategoryOption::guiOpen),
-							                    Codec.BOOL
-									                    .optionalFieldOf(filteringCraftableField, false)
-									                    .forGetter(RecipeBookOptions.CategoryOption::filteringCraftable)
-					                    )
-					                    .apply(instance, RecipeBookOptions.CategoryOption::new)
+							Codec.BOOL.optionalFieldOf(guiOpenField, false).forGetter(CategoryOption::guiOpen),
+							Codec.BOOL.optionalFieldOf(filteringCraftableField, false).forGetter(CategoryOption::filteringCraftable)
+					).apply(instance, CategoryOption::new)
 			);
 		}
 	}

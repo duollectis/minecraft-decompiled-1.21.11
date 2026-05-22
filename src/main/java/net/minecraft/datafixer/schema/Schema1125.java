@@ -9,12 +9,15 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1125}.
+ * Схема версии 1125: добавляет блок-сущность {@code minecraft:bed} и регистрирует
+ * типы {@code ADVANCEMENTS}, {@code BIOME} и {@code ENTITY_NAME}.
+ * Тип {@code ADVANCEMENTS} описывает критерии достижений, привязанные к биомам
+ * и именам сущностей.
  */
 public class Schema1125 extends IdentifierNormalizingSchema {
 
-	public Schema1125(int i, Schema schema) {
-		super(i, schema);
+	public Schema1125(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

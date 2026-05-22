@@ -4,29 +4,44 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
 import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code ChunkTickScheduler}.
+ * Планировщик тиков для отдельного чанка.
+ * Хранит очередь {@link OrderedTick} и опциональный список «замороженных» тиков,
+ * которые ещё не были активированы (чанк не загружен).
+ *
+ * @param <T> тип объекта, для которого планируются тики
  */
 public class ChunkTickScheduler<T> implements SerializableTickScheduler<T>, BasicTickScheduler<T> {
 
 	private final Queue<OrderedTick<T>> tickQueue = new PriorityQueue<>(OrderedTick.TRIGGER_TICK_COMPARATOR);
-	private @Nullable List<Tick<T>> ticks;
-	private final Set<OrderedTick<?>> queuedTicks = new ObjectOpenCustomHashSet(OrderedTick.HASH_STRATEGY);
+	private final Set<OrderedTick<?>> queuedTicks = new ObjectOpenCustomHashSet<>(OrderedTick.HASH_STRATEGY);
+	private @Nullable List<Tick<T>> pendingTicks;
 	private @Nullable BiConsumer<ChunkTickScheduler<T>, OrderedTick<T>> tickConsumer;
 
 	public ChunkTickScheduler() {
 	}
 
+	/**
+	 * Создаёт планировщик с предзагруженным списком тиков из сохранения.
+	 * Тики остаются «замороженными» до вызова {@link #disable(long)}.
+	 *
+	 * @param ticks список тиков, восстановленных из NBT
+	 */
 	public ChunkTickScheduler(List<Tick<T>> ticks) {
-		this.ticks = ticks;
+		this.pendingTicks = ticks;
 
 		for (Tick<T> tick : ticks) {
-			this.queuedTicks.add(OrderedTick.create(tick.type(), tick.pos()));
+			queuedTicks.add(OrderedTick.create(tick.type(), tick.pos()));
 		}
 	}
 
@@ -34,102 +49,104 @@ public class ChunkTickScheduler<T> implements SerializableTickScheduler<T>, Basi
 		this.tickConsumer = tickConsumer;
 	}
 
-	/**
-	 * Peek next tick.
-	 *
-	 * @return @Nullable OrderedTick — результат операции
-	 */
+	/** @return следующий тик в очереди без его извлечения, или {@code null} если очередь пуста */
 	public @Nullable OrderedTick<T> peekNextTick() {
-		return this.tickQueue.peek();
+		return tickQueue.peek();
 	}
 
 	/**
-	 * Poll next tick.
+	 * Извлекает и возвращает следующий тик из очереди, удаляя его из набора отслеживания.
 	 *
-	 * @return @Nullable OrderedTick — результат операции
+	 * @return извлечённый тик, или {@code null} если очередь пуста
 	 */
 	public @Nullable OrderedTick<T> pollNextTick() {
-		OrderedTick<T> orderedTick = this.tickQueue.poll();
-		if (orderedTick != null) {
-			this.queuedTicks.remove(orderedTick);
+		OrderedTick<T> tick = tickQueue.poll();
+
+		if (tick != null) {
+			queuedTicks.remove(tick);
 		}
 
-		return orderedTick;
+		return tick;
 	}
 
 	@Override
 	public void scheduleTick(OrderedTick<T> orderedTick) {
-		if (this.queuedTicks.add(orderedTick)) {
-			this.queueTick(orderedTick);
+		if (queuedTicks.add(orderedTick)) {
+			enqueueTick(orderedTick);
 		}
 	}
 
-	private void queueTick(OrderedTick<T> orderedTick) {
-		this.tickQueue.add(orderedTick);
-		if (this.tickConsumer != null) {
-			this.tickConsumer.accept(this, orderedTick);
+	private void enqueueTick(OrderedTick<T> orderedTick) {
+		tickQueue.add(orderedTick);
+
+		if (tickConsumer != null) {
+			tickConsumer.accept(this, orderedTick);
 		}
 	}
 
 	@Override
 	public boolean isQueued(BlockPos pos, T type) {
-		return this.queuedTicks.contains(OrderedTick.create(type, pos));
+		return queuedTicks.contains(OrderedTick.create(type, pos));
 	}
 
 	/**
-	 * Удаляет ticks if.
+	 * Удаляет из очереди все тики, удовлетворяющие предикату.
+	 * Используется, например, при выгрузке чанка или взрыве.
 	 *
-	 * @param predicate predicate
+	 * @param predicate условие удаления тика
 	 */
 	public void removeTicksIf(Predicate<OrderedTick<T>> predicate) {
-		Iterator<OrderedTick<T>> iterator = this.tickQueue.iterator();
+		Iterator<OrderedTick<T>> iterator = tickQueue.iterator();
 
 		while (iterator.hasNext()) {
-			OrderedTick<T> orderedTick = iterator.next();
-			if (predicate.test(orderedTick)) {
+			OrderedTick<T> tick = iterator.next();
+
+			if (predicate.test(tick)) {
 				iterator.remove();
-				this.queuedTicks.remove(orderedTick);
+				queuedTicks.remove(tick);
 			}
 		}
 	}
 
 	public Stream<OrderedTick<T>> getQueueAsStream() {
-		return this.tickQueue.stream();
+		return tickQueue.stream();
 	}
 
 	@Override
 	public int getTickCount() {
-		return this.tickQueue.size() + (this.ticks != null ? this.ticks.size() : 0);
+		return tickQueue.size() + (pendingTicks != null ? pendingTicks.size() : 0);
 	}
 
 	@Override
 	public List<Tick<T>> collectTicks(long time) {
-		List<Tick<T>> list = new ArrayList<>(this.tickQueue.size());
-		if (this.ticks != null) {
-			list.addAll(this.ticks);
+		List<Tick<T>> result = new ArrayList<>(tickQueue.size());
+
+		if (pendingTicks != null) {
+			result.addAll(pendingTicks);
 		}
 
-		for (OrderedTick<T> orderedTick : this.tickQueue) {
-			list.add(orderedTick.toTick(time));
+		for (OrderedTick<T> tick : tickQueue) {
+			result.add(tick.toTick(time));
 		}
 
-		return list;
+		return result;
 	}
 
 	/**
-	 * Disable.
+	 * Активирует «замороженные» тики, переводя их из списка ожидания в активную очередь.
+	 * Вызывается при загрузке чанка в мир.
 	 *
-	 * @param time time
+	 * @param time текущее игровое время в тиках
 	 */
 	public void disable(long time) {
-		if (this.ticks != null) {
-			int i = -this.ticks.size();
+		if (pendingTicks != null) {
+			int subTickOffset = -pendingTicks.size();
 
-			for (Tick<T> tick : this.ticks) {
-				this.queueTick(tick.createOrderedTick(time, i++));
+			for (Tick<T> tick : pendingTicks) {
+				enqueueTick(tick.createOrderedTick(time, subTickOffset++));
 			}
 		}
 
-		this.ticks = null;
+		pendingTicks = null;
 	}
 }

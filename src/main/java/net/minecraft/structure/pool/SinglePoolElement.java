@@ -37,36 +37,38 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code SinglePoolElement}.
+ * Элемент пула, основанный на одном структурном шаблоне (.nbt файле).
+ * Является наиболее распространённым типом элемента в jigsaw-генерации.
  */
 public class SinglePoolElement extends StructurePoolElement {
 
-	private static final Comparator<StructureTemplate.JigsawBlockInfo>
-			JIGSAW_BLOCK_INFO_COMPARATOR =
-			Comparator.comparingInt(
-					          StructureTemplate.JigsawBlockInfo::selectionPriority
-			          )
-			          .reversed();
+	private static final Comparator<StructureTemplate.JigsawBlockInfo> JIGSAW_BLOCK_INFO_COMPARATOR =
+		Comparator.comparingInt(StructureTemplate.JigsawBlockInfo::selectionPriority).reversed();
+
 	private static final Codec<Either<Identifier, StructureTemplate>> LOCATION_CODEC = Codec.of(
-			SinglePoolElement::encodeLocation, Identifier.CODEC.map(Either::left)
+		SinglePoolElement::encodeLocation,
+		Identifier.CODEC.map(Either::left)
 	);
+
 	public static final MapCodec<SinglePoolElement> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(locationGetter(), processorsGetter(), projectionGetter(), overrideLiquidSettingsGetter())
-					.apply(instance, SinglePoolElement::new)
+		instance -> instance
+			.group(locationGetter(), processorsGetter(), projectionGetter(), overrideLiquidSettingsGetter())
+			.apply(instance, SinglePoolElement::new)
 	);
+
 	protected final Either<Identifier, StructureTemplate> location;
 	protected final RegistryEntry<StructureProcessorList> processors;
 	protected final Optional<StructureLiquidSettings> overrideLiquidSettings;
 
 	private static <T> DataResult<T> encodeLocation(
-			Either<Identifier, StructureTemplate> location,
-			DynamicOps<T> ops,
-			T prefix
+		Either<Identifier, StructureTemplate> location,
+		DynamicOps<T> ops,
+		T prefix
 	) {
-		Optional<Identifier> optional = location.left();
-		return optional.isEmpty() ? DataResult.error(() -> "Can not serialize a runtime pool element")
-		                          : Identifier.CODEC.encode(optional.get(), ops, prefix);
+		Optional<Identifier> id = location.left();
+		return id.isEmpty()
+			? DataResult.error(() -> "Can not serialize a runtime pool element")
+			: Identifier.CODEC.encode(id.get(), ops, prefix);
 	}
 
 	protected static <E extends SinglePoolElement> RecordCodecBuilder<E, RegistryEntry<StructureProcessorList>> processorsGetter() {
@@ -75,8 +77,8 @@ public class SinglePoolElement extends StructurePoolElement {
 
 	protected static <E extends SinglePoolElement> RecordCodecBuilder<E, Optional<StructureLiquidSettings>> overrideLiquidSettingsGetter() {
 		return StructureLiquidSettings.codec
-				.optionalFieldOf("override_liquid_settings")
-				.forGetter(pool -> pool.overrideLiquidSettings);
+			.optionalFieldOf("override_liquid_settings")
+			.forGetter(pool -> pool.overrideLiquidSettings);
 	}
 
 	protected static <E extends SinglePoolElement> RecordCodecBuilder<E, Either<Identifier, StructureTemplate>> locationGetter() {
@@ -84,10 +86,10 @@ public class SinglePoolElement extends StructurePoolElement {
 	}
 
 	protected SinglePoolElement(
-			Either<Identifier, StructureTemplate> location,
-			RegistryEntry<StructureProcessorList> processors,
-			StructurePool.Projection projection,
-			Optional<StructureLiquidSettings> overrideLiquidSettings
+		Either<Identifier, StructureTemplate> location,
+		RegistryEntry<StructureProcessorList> processors,
+		StructurePool.Projection projection,
+		Optional<StructureLiquidSettings> overrideLiquidSettings
 	) {
 		super(projection);
 		this.location = location;
@@ -97,51 +99,59 @@ public class SinglePoolElement extends StructurePoolElement {
 
 	@Override
 	public Vec3i getStart(StructureTemplateManager structureTemplateManager, BlockRotation rotation) {
-		StructureTemplate structureTemplate = this.getStructure(structureTemplateManager);
-		return structureTemplate.getRotatedSize(rotation);
+		return getStructure(structureTemplateManager).getRotatedSize(rotation);
 	}
 
 	private StructureTemplate getStructure(StructureTemplateManager structureTemplateManager) {
-		return (StructureTemplate) this.location.map(structureTemplateManager::getTemplateOrBlank, Function.identity());
+		return location.map(structureTemplateManager::getTemplateOrBlank, Function.identity());
 	}
 
+	/**
+	 * Возвращает список блоков {@code structure_block} в режиме DATA из шаблона.
+	 * Используется для обработки метаданных после размещения структуры.
+	 */
 	public List<StructureTemplate.StructureBlockInfo> getDataStructureBlocks(
-			StructureTemplateManager structureTemplateManager,
-			BlockPos pos,
-			BlockRotation rotation,
-			boolean mirroredAndRotated
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation,
+		boolean mirroredAndRotated
 	) {
-		StructureTemplate structureTemplate = this.getStructure(structureTemplateManager);
-		List<StructureTemplate.StructureBlockInfo> list = structureTemplate.getInfosForBlock(
-				pos, new StructurePlacementData().setRotation(rotation), Blocks.STRUCTURE_BLOCK, mirroredAndRotated
+		StructureTemplate template = getStructure(structureTemplateManager);
+		List<StructureTemplate.StructureBlockInfo> allBlocks = template.getInfosForBlock(
+			pos,
+			new StructurePlacementData().setRotation(rotation),
+			Blocks.STRUCTURE_BLOCK,
+			mirroredAndRotated
 		);
-		List<StructureTemplate.StructureBlockInfo> list2 = Lists.newArrayList();
+		List<StructureTemplate.StructureBlockInfo> dataBlocks = Lists.newArrayList();
 
-		for (StructureTemplate.StructureBlockInfo structureBlockInfo : list) {
-			NbtCompound nbtCompound = structureBlockInfo.nbt();
-			if (nbtCompound != null) {
-				StructureBlockMode
-						structureBlockMode =
-						nbtCompound.<StructureBlockMode>get("mode", StructureBlockMode.CODEC).orElseThrow();
-				if (structureBlockMode == StructureBlockMode.DATA) {
-					list2.add(structureBlockInfo);
-				}
+		for (StructureTemplate.StructureBlockInfo blockInfo : allBlocks) {
+			NbtCompound nbt = blockInfo.nbt();
+			if (nbt == null) {
+				continue;
+			}
+
+			StructureBlockMode mode = nbt.<StructureBlockMode>get("mode", StructureBlockMode.CODEC).orElseThrow();
+			if (mode == StructureBlockMode.DATA) {
+				dataBlocks.add(blockInfo);
 			}
 		}
 
-		return list2;
+		return dataBlocks;
 	}
 
 	@Override
 	public List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
-			StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation,
+		Random random
 	) {
-		List<StructureTemplate.JigsawBlockInfo>
-				list =
-				this.getStructure(structureTemplateManager).getJigsawInfos(pos, rotation);
-		Util.shuffle(list, random);
-		sort(list);
-		return list;
+		List<StructureTemplate.JigsawBlockInfo> jigsawInfos =
+			getStructure(structureTemplateManager).getJigsawInfos(pos, rotation);
+		Util.shuffle(jigsawInfos, random);
+		sort(jigsawInfos);
+		return jigsawInfos;
 	}
 
 	@VisibleForTesting
@@ -151,71 +161,74 @@ public class SinglePoolElement extends StructurePoolElement {
 
 	@Override
 	public BlockBox getBoundingBox(
-			StructureTemplateManager structureTemplateManager,
-			BlockPos pos,
-			BlockRotation rotation
+		StructureTemplateManager structureTemplateManager,
+		BlockPos pos,
+		BlockRotation rotation
 	) {
-		StructureTemplate structureTemplate = this.getStructure(structureTemplateManager);
-		return structureTemplate.calculateBoundingBox(new StructurePlacementData().setRotation(rotation), pos);
+		return getStructure(structureTemplateManager)
+			.calculateBoundingBox(new StructurePlacementData().setRotation(rotation), pos);
 	}
 
 	@Override
 	public boolean generate(
-			StructureTemplateManager structureTemplateManager,
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			BlockPos pos,
-			BlockPos pivot,
-			BlockRotation rotation,
-			BlockBox box,
-			Random random,
-			StructureLiquidSettings liquidSettings,
-			boolean keepJigsaws
+		StructureTemplateManager structureTemplateManager,
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		BlockPos pos,
+		BlockPos pivot,
+		BlockRotation rotation,
+		BlockBox box,
+		Random random,
+		StructureLiquidSettings liquidSettings,
+		boolean keepJigsaws
 	) {
-		StructureTemplate structureTemplate = this.getStructure(structureTemplateManager);
-		StructurePlacementData
-				structurePlacementData =
-				this.createPlacementData(rotation, box, liquidSettings, keepJigsaws);
-		if (!structureTemplate.place(world, pos, pivot, structurePlacementData, random, 18)) {
+		StructureTemplate template = getStructure(structureTemplateManager);
+		StructurePlacementData placementData = createPlacementData(rotation, box, liquidSettings, keepJigsaws);
+
+		if (!template.place(world, pos, pivot, placementData, random, 18)) {
 			return false;
 		}
-		else {
-			for (StructureTemplate.StructureBlockInfo structureBlockInfo : StructureTemplate.process(
-					world,
-					pos,
-					pivot,
-					structurePlacementData,
-					this.getDataStructureBlocks(structureTemplateManager, pos, rotation, false)
-			)) {
-				this.handleJigsawBlock(world, structureBlockInfo, pos, rotation, random, box);
-			}
 
-			return true;
+		for (StructureTemplate.StructureBlockInfo blockInfo : StructureTemplate.process(
+			world,
+			pos,
+			pivot,
+			placementData,
+			getDataStructureBlocks(structureTemplateManager, pos, rotation, false)
+		)) {
+			handleJigsawBlock(world, blockInfo, pos, rotation, random, box);
 		}
+
+		return true;
 	}
 
+	/**
+	 * Создаёт конфигурацию размещения шаблона с нужными процессорами.
+	 * Если {@code keepJigsaws} равен {@code false}, добавляет процессор замены jigsaw-блоков.
+	 */
 	protected StructurePlacementData createPlacementData(
-			BlockRotation rotation,
-			BlockBox box,
-			StructureLiquidSettings liquidSettings,
-			boolean keepJigsaws
+		BlockRotation rotation,
+		BlockBox box,
+		StructureLiquidSettings liquidSettings,
+		boolean keepJigsaws
 	) {
-		StructurePlacementData structurePlacementData = new StructurePlacementData();
-		structurePlacementData.setBoundingBox(box);
-		structurePlacementData.setRotation(rotation);
-		structurePlacementData.setUpdateNeighbors(true);
-		structurePlacementData.setIgnoreEntities(false);
-		structurePlacementData.addProcessor(BlockIgnoreStructureProcessor.IGNORE_STRUCTURE_BLOCKS);
-		structurePlacementData.setInitializeMobs(true);
-		structurePlacementData.setLiquidSettings(this.overrideLiquidSettings.orElse(liquidSettings));
+		StructurePlacementData placementData = new StructurePlacementData();
+		placementData.setBoundingBox(box);
+		placementData.setRotation(rotation);
+		placementData.setUpdateNeighbors(true);
+		placementData.setIgnoreEntities(false);
+		placementData.addProcessor(BlockIgnoreStructureProcessor.IGNORE_STRUCTURE_BLOCKS);
+		placementData.setInitializeMobs(true);
+		placementData.setLiquidSettings(overrideLiquidSettings.orElse(liquidSettings));
+
 		if (!keepJigsaws) {
-			structurePlacementData.addProcessor(JigsawReplacementStructureProcessor.INSTANCE);
+			placementData.addProcessor(JigsawReplacementStructureProcessor.INSTANCE);
 		}
 
-		this.processors.value().getList().forEach(structurePlacementData::addProcessor);
-		this.getProjection().getProcessors().forEach(structurePlacementData::addProcessor);
-		return structurePlacementData;
+		processors.value().getList().forEach(placementData::addProcessor);
+		getProjection().getProcessors().forEach(placementData::addProcessor);
+		return placementData;
 	}
 
 	@Override
@@ -225,11 +238,11 @@ public class SinglePoolElement extends StructurePoolElement {
 
 	@Override
 	public String toString() {
-		return "Single[" + this.location + "]";
+		return "Single[" + location + "]";
 	}
 
 	@VisibleForTesting
 	public Identifier getIdOrThrow() {
-		return (Identifier) this.location.orThrow();
+		return location.orThrow();
 	}
 }

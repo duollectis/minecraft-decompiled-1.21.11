@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code AdvancementCommand}.
+ * Команда {@code /advancement}: управление прогрессом достижений игроков.
  */
 public class AdvancementCommand {
 
@@ -638,9 +638,6 @@ public class AdvancementCommand {
 		}
 	}
 
-	/**
-	 * {@code Operation}.
-	 */
 	static enum Operation {
 		GRANT("grant") {
 			@Override
@@ -748,9 +745,6 @@ public class AdvancementCommand {
 		}
 	}
 
-	/**
-	 * {@code Selection}.
-	 */
 	static enum Selection {
 		ONLY(false, false),
 		THROUGH(true, true),

@@ -12,12 +12,17 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code ReadContext}.
+ * Контекст чтения NBT-данных, хранящий реестры и операции сериализации.
+ * <p>
+ * Также является фабрикой пустых (null-object) представлений для случаев,
+ * когда запрошенный ключ отсутствует в хранилище — это позволяет избежать
+ * проверок на {@code null} в коде чтения.
  */
 public class ReadContext {
 
 	final RegistryWrapper.WrapperLookup registries;
 	private final DynamicOps<NbtElement> ops;
+
 	final ReadView.ListReadView emptyListReadView = new ReadView.ListReadView() {
 		@Override
 		public boolean isEmpty() {
@@ -34,7 +39,8 @@ public class ReadContext {
 			return Collections.emptyIterator();
 		}
 	};
-	private final ReadView.TypedListReadView<Object> emptyTypedListReadView = new ReadView.TypedListReadView<Object>() {
+
+	private final ReadView.TypedListReadView<Object> emptyTypedListReadView = new ReadView.TypedListReadView<>() {
 		@Override
 		public boolean isEmpty() {
 			return true;
@@ -50,6 +56,7 @@ public class ReadContext {
 			return Collections.emptyIterator();
 		}
 	};
+
 	private final ReadView emptyReadView = new ReadView() {
 		@Override
 		public <T> Optional<T> read(String key, Codec<T> codec) {
@@ -157,28 +164,37 @@ public class ReadContext {
 		}
 	};
 
+	/**
+	 * Создаёт контекст чтения с указанными реестрами и базовыми операциями.
+	 * Операции оборачиваются через {@link RegistryWrapper.WrapperLookup#getOps},
+	 * чтобы обеспечить корректное разрешение ссылок на реестровые объекты.
+	 *
+	 * @param registries реестры для разрешения ссылок при декодировании
+	 * @param ops        базовые операции сериализации (например, {@link net.minecraft.nbt.NbtOps#INSTANCE})
+	 */
 	public ReadContext(RegistryWrapper.WrapperLookup registries, DynamicOps<NbtElement> ops) {
 		this.registries = registries;
 		this.ops = registries.getOps(ops);
 	}
 
 	public DynamicOps<NbtElement> getOps() {
-		return this.ops;
+		return ops;
 	}
 
 	public RegistryWrapper.WrapperLookup getRegistries() {
-		return this.registries;
+		return registries;
 	}
 
 	public ReadView getEmptyReadView() {
-		return this.emptyReadView;
+		return emptyReadView;
 	}
 
 	public ReadView.ListReadView getEmptyListReadView() {
-		return this.emptyListReadView;
+		return emptyListReadView;
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T> ReadView.TypedListReadView<T> getEmptyTypedListReadView() {
-		return (ReadView.TypedListReadView<T>) this.emptyTypedListReadView;
+		return (ReadView.TypedListReadView<T>) emptyTypedListReadView;
 	}
 }

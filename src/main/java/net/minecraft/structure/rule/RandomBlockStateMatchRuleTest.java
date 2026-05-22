@@ -7,17 +7,19 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code RandomBlockStateMatchRuleTest}.
+ * Реализация {@link RuleTest}, проверяющая точное совпадение {@link BlockState} с вероятностной составляющей.
+ * Блок проходит тест только если совпадает его полное состояние И случайное число меньше заданной вероятности.
  */
 public class RandomBlockStateMatchRuleTest extends RuleTest {
 
 	public static final MapCodec<RandomBlockStateMatchRuleTest> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    BlockState.CODEC.fieldOf("block_state").forGetter(ruleTest -> ruleTest.blockState),
-					                    Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
-			                    )
-			                    .apply(instance, RandomBlockStateMatchRuleTest::new)
+		instance -> instance.group(
+			BlockState.CODEC.fieldOf("block_state").forGetter(ruleTest -> ruleTest.blockState),
+			Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
+		)
+		.apply(instance, RandomBlockStateMatchRuleTest::new)
 	);
+
 	private final BlockState blockState;
 	private final float probability;
 
@@ -28,7 +30,7 @@ public class RandomBlockStateMatchRuleTest extends RuleTest {
 
 	@Override
 	public boolean test(BlockState state, Random random) {
-		return state == this.blockState && random.nextFloat() < this.probability;
+		return state == blockState && random.nextFloat() < probability;
 	}
 
 	@Override

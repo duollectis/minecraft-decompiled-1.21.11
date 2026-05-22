@@ -7,29 +7,33 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.List;
 
 /**
- * {@code DisplayedItemFactory}.
+ * Фабрика для преобразования {@link ItemStack} в отображаемый тип {@code T}.
+ * Используется в {@link SlotDisplay#appendStacks} для абстрагирования
+ * от конкретного типа отображаемого элемента (стек, иконка, виджет и т.д.).
  */
 public interface DisplayedItemFactory<T> {
 
 	/**
-	 * {@code FromRemainder}.
+	 * Фабрика, которая дополнительно принимает список остатков (remainder)
+	 * для отображения предметов, возвращаемых после крафта.
 	 */
-	public interface FromRemainder<T> extends DisplayedItemFactory<T> {
+	interface FromRemainder<T> extends DisplayedItemFactory<T> {
 
 		T toDisplayed(T input, List<T> remainders);
 	}
 
 	/**
-	 * {@code FromStack}.
+	 * Фабрика, создающая отображаемый элемент из {@link ItemStack}.
+	 * Предоставляет удобные перегрузки для {@link RegistryEntry} и {@link Item}.
 	 */
-	public interface FromStack<T> extends DisplayedItemFactory<T> {
+	interface FromStack<T> extends DisplayedItemFactory<T> {
 
 		default T toDisplayed(RegistryEntry<Item> item) {
-			return this.toDisplayed(new ItemStack(item));
+			return toDisplayed(new ItemStack(item));
 		}
 
 		default T toDisplayed(Item item) {
-			return this.toDisplayed(new ItemStack(item));
+			return toDisplayed(new ItemStack(item));
 		}
 
 		T toDisplayed(ItemStack stack);

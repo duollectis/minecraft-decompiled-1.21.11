@@ -10,54 +10,35 @@ import java.util.Comparator;
 import java.util.Map;
 
 /**
- * {@code Quantiles}.
+ * Утилитарный класс для вычисления квантилей (p50, p75, p90, p99) по массивам числовых значений.
+ * Результат возвращается в виде иммутабельной карты, отсортированной по убыванию ключа (процентиля).
  */
 public class Quantiles {
 
-	public static final ScaleAndIndexes
-			QUANTILE_POINTS =
-			com.google.common.math.Quantiles.scale(100).indexes(new int[]{50, 75, 90, 99});
+	public static final ScaleAndIndexes QUANTILE_POINTS =
+		com.google.common.math.Quantiles.scale(100).indexes(new int[]{50, 75, 90, 99});
 
 	private Quantiles() {
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param values values
-	 *
-	 * @return Map — результат операции
-	 */
 	public static Map<Integer, Double> create(long[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param values values
-	 *
-	 * @return Map — результат операции
-	 */
 	public static Map<Integer, Double> create(int[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param values values
-	 *
-	 * @return Map — результат операции
-	 */
 	public static Map<Integer, Double> create(double[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}
 
 	private static Map<Integer, Double> reverseMap(Map<Integer, Double> map) {
-		Int2DoubleSortedMap
-				int2DoubleSortedMap =
-				Util.make(new Int2DoubleRBTreeMap(Comparator.reverseOrder()), reversedMap -> reversedMap.putAll(map));
-		return Int2DoubleSortedMaps.unmodifiable(int2DoubleSortedMap);
+		Int2DoubleSortedMap sorted = Util.make(
+			new Int2DoubleRBTreeMap(Comparator.reverseOrder()),
+			reversedMap -> reversedMap.putAll(map)
+		);
+
+		return Int2DoubleSortedMaps.unmodifiable(sorted);
 	}
 }

@@ -7,7 +7,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * {@code RuntimeTestInstances}.
+ * Реестр тестовых инстансов, зарегистрированных в рантайме (не через датапаки).
+ * Используется для динамической регистрации тестов во время работы сервера.
  */
 public class RuntimeTestInstances {
 

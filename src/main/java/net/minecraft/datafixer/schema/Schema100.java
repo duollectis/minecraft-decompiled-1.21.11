@@ -9,7 +9,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema100}.
+ * Схема версии 100: добавляет тип {@code ENTITY_EQUIPMENT} с поддержкой
+ * слотов брони, предметов в руках, нагрудника и седла.
  */
 public class Schema100 extends Schema {
 

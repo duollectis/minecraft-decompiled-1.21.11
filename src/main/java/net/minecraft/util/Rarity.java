@@ -9,7 +9,7 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code Rarity}.
+ * Редкость предмета, определяющая цвет его названия в интерфейсе.
  */
 public enum Rarity implements StringIdentifiable {
 	COMMON(0, "common", Formatting.WHITE),
@@ -19,27 +19,28 @@ public enum Rarity implements StringIdentifiable {
 
 	public static final Codec<Rarity> CODEC = StringIdentifiable.createBasicCodec(Rarity::values);
 	public static final IntFunction<Rarity> ID_TO_VALUE = ValueLists.createIndexToValueFunction(
-			(Rarity value) -> value.index, values(), ValueLists.OutOfBoundsHandling.ZERO
+		(Rarity value) -> value.index, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
-	public static final PacketCodec<ByteBuf, Rarity>
-			PACKET_CODEC =
-			PacketCodecs.indexed(ID_TO_VALUE, value -> value.index);
+	public static final PacketCodec<ByteBuf, Rarity> PACKET_CODEC = PacketCodecs.indexed(
+		ID_TO_VALUE, value -> value.index
+	);
+
 	private final int index;
 	private final String name;
 	private final Formatting formatting;
 
-	private Rarity(final int index, final String name, final Formatting formatting) {
+	Rarity(int index, String name, Formatting formatting) {
 		this.index = index;
 		this.name = name;
 		this.formatting = formatting;
 	}
 
 	public Formatting getFormatting() {
-		return this.formatting;
+		return formatting;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code NewVillageFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class NewVillageFix extends DataFix {
 
@@ -26,20 +26,20 @@ public class NewVillageFix extends DataFix {
 	protected TypeRewriteRule makeRule() {
 		CompoundListType<String, ?>
 				compoundListType =
-				DSL.compoundList(DSL.string(), this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE));
+				DSL.compoundList(DSL.string(), getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE));
 		OpticFinder<? extends List<? extends Pair<String, ?>>> opticFinder = compoundListType.finder();
 		return this.fix(compoundListType);
 	}
 
 	private <SF> TypeRewriteRule fix(CompoundListType<String, SF> compoundListType) {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
+		Type<?> type = getInputSchema().getType(TypeReferences.CHUNK);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
 		OpticFinder<?> opticFinder = type.findField("Level");
 		OpticFinder<?> opticFinder2 = opticFinder.type().findField("Structures");
 		OpticFinder<?> opticFinder3 = opticFinder2.type().findField("Starts");
 		OpticFinder<List<Pair<String, SF>>> opticFinder4 = compoundListType.finder();
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"NewVillageFix",
 						type,
 						typed -> typed.updateTyped(
@@ -88,7 +88,7 @@ public class NewVillageFix extends DataFix {
 								)
 						)
 				),
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"NewVillageStartFix",
 						type2,
 						typed -> typed.update(

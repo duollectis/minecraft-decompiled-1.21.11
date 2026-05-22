@@ -1,7 +1,8 @@
 package net.minecraft.resource;
 
 /**
- * {@code LifecycledResourceManager}.
+ * {@link ResourceManager}, имеющий жизненный цикл с явным закрытием.
+ * При закрытии освобождает все связанные ресурс-паки.
  */
 public interface LifecycledResourceManager extends ResourceManager, AutoCloseable {
 

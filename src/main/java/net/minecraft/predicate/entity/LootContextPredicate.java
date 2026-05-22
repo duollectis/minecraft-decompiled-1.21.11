@@ -11,19 +11,21 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code LootContextPredicate}.
+ * Предикат, объединяющий список {@link LootCondition} через логическое «И».
+ * Используется в системе достижений и наград для проверки контекста лута.
  */
 public class LootContextPredicate {
 
 	public static final Codec<LootContextPredicate> CODEC = LootCondition.CODEC
 			.listOf()
-			.xmap(LootContextPredicate::new, lootContextPredicate -> lootContextPredicate.conditions);
+			.xmap(LootContextPredicate::new, predicate -> predicate.conditions);
+
 	private final List<LootCondition> conditions;
 	private final Predicate<LootContext> combinedCondition;
 
 	LootContextPredicate(List<LootCondition> conditions) {
 		this.conditions = conditions;
-		this.combinedCondition = Util.allOf(conditions);
+		combinedCondition = Util.allOf(conditions);
 	}
 
 	public static LootContextPredicate create(LootCondition... conditions) {
@@ -31,13 +33,12 @@ public class LootContextPredicate {
 	}
 
 	public boolean test(LootContext context) {
-		return this.combinedCondition.test(context);
+		return combinedCondition.test(context);
 	}
 
 	public void validateConditions(LootTableReporter reporter) {
-		for (int i = 0; i < this.conditions.size(); i++) {
-			LootCondition lootCondition = this.conditions.get(i);
-			lootCondition.validate(reporter.makeChild(new ErrorReporter.ListElementContext(i)));
+		for (int index = 0; index < conditions.size(); index++) {
+			conditions.get(index).validate(reporter.makeChild(new ErrorReporter.ListElementContext(index)));
 		}
 	}
 }

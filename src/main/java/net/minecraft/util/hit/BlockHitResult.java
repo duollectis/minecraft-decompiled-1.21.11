@@ -5,7 +5,9 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code BlockHitResult}.
+ * Результат трассировки луча, попавшего в блок (или промахнувшегося).
+ * Иммутабелен: методы {@link #withSide}, {@link #withBlockPos} и {@link #againstWorldBorder}
+ * возвращают новый экземпляр с изменённым полем.
  */
 public class BlockHitResult extends HitResult {
 
@@ -15,15 +17,7 @@ public class BlockHitResult extends HitResult {
 	private final boolean insideBlock;
 	private final boolean againstWorldBorder;
 
-	/**
-	 * Создаёт missed.
-	 *
-	 * @param pos pos
-	 * @param side side
-	 * @param blockPos block pos
-	 *
-	 * @return BlockHitResult — результат операции
-	 */
+	/** Создаёт результат промаха — луч не попал ни в один блок. */
 	public static BlockHitResult createMissed(Vec3d pos, Direction side, BlockPos blockPos) {
 		return new BlockHitResult(true, pos, side, blockPos, false, false);
 	}
@@ -33,22 +27,22 @@ public class BlockHitResult extends HitResult {
 	}
 
 	public BlockHitResult(
-			Vec3d pos,
-			Direction side,
-			BlockPos blockPos,
-			boolean insideBlock,
-			boolean againstWorldBorder
+		Vec3d pos,
+		Direction side,
+		BlockPos blockPos,
+		boolean insideBlock,
+		boolean againstWorldBorder
 	) {
 		this(false, pos, side, blockPos, insideBlock, againstWorldBorder);
 	}
 
 	private BlockHitResult(
-			boolean missed,
-			Vec3d pos,
-			Direction side,
-			BlockPos blockPos,
-			boolean insideBlock,
-			boolean againstWorldBorder
+		boolean missed,
+		Vec3d pos,
+		Direction side,
+		BlockPos blockPos,
+		boolean insideBlock,
+		boolean againstWorldBorder
 	) {
 		super(pos);
 		this.missed = missed;
@@ -58,69 +52,36 @@ public class BlockHitResult extends HitResult {
 		this.againstWorldBorder = againstWorldBorder;
 	}
 
-	/**
-	 * With side.
-	 *
-	 * @param side side
-	 *
-	 * @return BlockHitResult — результат операции
-	 */
 	public BlockHitResult withSide(Direction side) {
-		return new BlockHitResult(
-				this.missed,
-				this.pos,
-				side,
-				this.blockPos,
-				this.insideBlock,
-				this.againstWorldBorder
-		);
+		return new BlockHitResult(missed, pos, side, blockPos, insideBlock, againstWorldBorder);
 	}
 
-	/**
-	 * With block pos.
-	 *
-	 * @param blockPos block pos
-	 *
-	 * @return BlockHitResult — результат операции
-	 */
 	public BlockHitResult withBlockPos(BlockPos blockPos) {
-		return new BlockHitResult(
-				this.missed,
-				this.pos,
-				this.side,
-				blockPos,
-				this.insideBlock,
-				this.againstWorldBorder
-		);
+		return new BlockHitResult(missed, pos, side, blockPos, insideBlock, againstWorldBorder);
 	}
 
-	/**
-	 * Against world border.
-	 *
-	 * @return BlockHitResult — результат операции
-	 */
 	public BlockHitResult againstWorldBorder() {
-		return new BlockHitResult(this.missed, this.pos, this.side, this.blockPos, this.insideBlock, true);
+		return new BlockHitResult(missed, pos, side, blockPos, insideBlock, true);
 	}
 
 	public BlockPos getBlockPos() {
-		return this.blockPos;
+		return blockPos;
 	}
 
 	public Direction getSide() {
-		return this.side;
+		return side;
 	}
 
 	@Override
-	public HitResult.Type getType() {
-		return this.missed ? HitResult.Type.MISS : HitResult.Type.BLOCK;
+	public Type getType() {
+		return missed ? Type.MISS : Type.BLOCK;
 	}
 
 	public boolean isInsideBlock() {
-		return this.insideBlock;
+		return insideBlock;
 	}
 
 	public boolean isAgainstWorldBorder() {
-		return this.againstWorldBorder;
+		return againstWorldBorder;
 	}
 }

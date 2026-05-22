@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code LegacyHoverEventFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LegacyHoverEventFix extends DataFix {
 
@@ -37,7 +37,7 @@ public class LegacyHoverEventFix extends DataFix {
 						.getInputSchema()
 						.getType(TypeReferences.TEXT_COMPONENT)
 						.findFieldType("hoverEvent");
-		return this.makeRewriteRule(this.getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT), type);
+		return this.makeRewriteRule(getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT), type);
 	}
 
 	private <C, H extends Pair<String, ?>> TypeRewriteRule makeRewriteRule(Type<C> type, Type<H> type2) {
@@ -55,7 +55,7 @@ public class LegacyHoverEventFix extends DataFix {
 								)
 						)
 				);
-		if (!type3.equals(this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
+		if (!type3.equals(getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
 			throw new IllegalStateException(
 					"Text component type did not match, expected " + type3 + " but got " + this
 							.getInputSchema()
@@ -63,7 +63,7 @@ public class LegacyHoverEventFix extends DataFix {
 			);
 		}
 		else {
-			return this.fixTypeEverywhere(
+			return fixTypeEverywhere(
 					"LegacyHoverEventFix",
 					type3,
 					dynamicOps -> pair -> pair.mapSecond(either -> either.mapRight(pairx -> pairx.mapSecond(pairxx -> pairxx.mapSecond(

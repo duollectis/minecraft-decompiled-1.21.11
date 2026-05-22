@@ -4,38 +4,47 @@ import net.minecraft.client.render.DrawStyle;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code CircleGizmo}.
+ * Отладочный примитив — горизонтальная окружность, аппроксимированная многоугольником.
+ * <p>
+ * Окружность лежит в плоскости XZ (Y = константа) и состоит из {@value #SEGMENT_COUNT}
+ * равномерно распределённых вершин. Поддерживает заливку и/или обводку через {@link DrawStyle}.
  */
 public record CircleGizmo(Vec3d pos, float radius, DrawStyle style) implements Gizmo {
 
-	private static final int NUM_VERTICES = 20;
-	private static final float ANGLE_INTERVAL = (float) (Math.PI / 10);
+	/** Количество сегментов аппроксимации окружности. */
+	private static final int SEGMENT_COUNT = 20;
+
+	/** Угловой шаг между соседними вершинами (2π / SEGMENT_COUNT). */
+	private static final float ANGLE_STEP = (float) (Math.PI / 10);
 
 	@Override
 	public void draw(GizmoDrawer consumer, float opacity) {
-		if (this.style.hasStroke() || this.style.hasFill()) {
-			Vec3d[] vec3ds = new Vec3d[21];
+		if (!style.hasStroke() && !style.hasFill()) {
+			return;
+		}
 
-			for (int i = 0; i < 20; i++) {
-				float f = i * (float) (Math.PI / 10);
-				Vec3d
-						vec3d =
-						this.pos.add((float) (this.radius * Math.cos(f)), 0.0, (float) (this.radius * Math.sin(f)));
-				vec3ds[i] = vec3d;
-			}
+		// Массив из SEGMENT_COUNT + 1 вершин: последняя совпадает с первой для замыкания контура
+		Vec3d[] vertices = new Vec3d[SEGMENT_COUNT + 1];
 
-			vec3ds[20] = vec3ds[0];
-			if (this.style.hasFill()) {
-				int i = this.style.fill(opacity);
-				consumer.addPolygon(vec3ds, i);
-			}
+		for (int segment = 0; segment < SEGMENT_COUNT; segment++) {
+			float angle = segment * ANGLE_STEP;
+			vertices[segment] = pos.add(
+					(float) (radius * Math.cos(angle)),
+					0.0,
+					(float) (radius * Math.sin(angle))
+			);
+		}
 
-			if (this.style.hasStroke()) {
-				int i = this.style.stroke(opacity);
+		vertices[SEGMENT_COUNT] = vertices[0];
 
-				for (int j = 0; j < 20; j++) {
-					consumer.addLine(vec3ds[j], vec3ds[j + 1], i, this.style.strokeWidth());
-				}
+		if (style.hasFill()) {
+			consumer.addPolygon(vertices, style.fill(opacity));
+		}
+
+		if (style.hasStroke()) {
+			int strokeColor = style.stroke(opacity);
+			for (int segment = 0; segment < SEGMENT_COUNT; segment++) {
+				consumer.addLine(vertices[segment], vertices[segment + 1], strokeColor, style.strokeWidth());
 			}
 		}
 	}

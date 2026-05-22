@@ -70,7 +70,7 @@ public class ScoreboardCriterionArgumentType implements ArgumentType<ScoreboardC
 	}
 
 	public <T> String getStatName(StatType<T> stat, Object value) {
-		return Stat.getName(stat, (T) value);
+		return Stat.buildName(stat, (T) value);
 	}
 
 	public Collection<String> getExamples() {

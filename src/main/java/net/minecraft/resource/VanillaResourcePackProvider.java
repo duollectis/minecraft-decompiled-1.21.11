@@ -19,24 +19,28 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * {@code VanillaResourcePackProvider}.
+ * Базовый провайдер ванильных ресурс-паков.
+ * Регистрирует встроенный пак по умолчанию и сканирует дополнительные паки
+ * из директории, соответствующей {@link #id} в classpath.
  */
 public abstract class VanillaResourcePackProvider implements ResourcePackProvider {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final String VANILLA_KEY = "vanilla";
 	public static final String TESTS_KEY = "tests";
 	public static final VersionedIdentifier VANILLA_ID = VersionedIdentifier.createVanilla("core");
+
 	private final ResourceType type;
 	private final DefaultResourcePack resourcePack;
 	private final Identifier id;
 	private final SymlinkFinder symlinkFinder;
 
 	public VanillaResourcePackProvider(
-			ResourceType type,
-			DefaultResourcePack resourcePack,
-			Identifier id,
-			SymlinkFinder symlinkFinder
+		ResourceType type,
+		DefaultResourcePack resourcePack,
+		Identifier id,
+		SymlinkFinder symlinkFinder
 	) {
 		this.type = type;
 		this.resourcePack = resourcePack;
@@ -46,12 +50,12 @@ public abstract class VanillaResourcePackProvider implements ResourcePackProvide
 
 	@Override
 	public void register(Consumer<ResourcePackProfile> profileAdder) {
-		ResourcePackProfile resourcePackProfile = this.createDefault(this.resourcePack);
-		if (resourcePackProfile != null) {
-			profileAdder.accept(resourcePackProfile);
+		ResourcePackProfile defaultProfile = createDefault(resourcePack);
+		if (defaultProfile != null) {
+			profileAdder.accept(defaultProfile);
 		}
 
-		this.forEachProfile(profileAdder);
+		forEachProfile(profileAdder);
 	}
 
 	protected abstract @Nullable ResourcePackProfile createDefault(ResourcePack pack);
@@ -59,46 +63,47 @@ public abstract class VanillaResourcePackProvider implements ResourcePackProvide
 	protected abstract Text getDisplayName(String id);
 
 	public DefaultResourcePack getResourcePack() {
-		return this.resourcePack;
+		return resourcePack;
 	}
 
 	private void forEachProfile(Consumer<ResourcePackProfile> consumer) {
-		Map<String, Function<String, ResourcePackProfile>> map = new HashMap<>();
-		this.forEachProfile(map::put);
-		map.forEach((id, packFactory) -> {
-			ResourcePackProfile resourcePackProfile = packFactory.apply(id);
-			if (resourcePackProfile != null) {
-				consumer.accept(resourcePackProfile);
+		Map<String, Function<String, ResourcePackProfile>> profileFactories = new HashMap<>();
+		forEachProfile(profileFactories::put);
+		profileFactories.forEach((packId, factory) -> {
+			ResourcePackProfile profile = factory.apply(packId);
+			if (profile != null) {
+				consumer.accept(profile);
 			}
 		});
 	}
 
 	protected void forEachProfile(BiConsumer<String, Function<String, ResourcePackProfile>> consumer) {
-		this.resourcePack.forEachNamespacedPath(
-				this.type,
-				this.id,
-				namespacedPath -> this.forEachProfile(namespacedPath, consumer)
+		resourcePack.forEachNamespacedPath(
+			type,
+			id,
+			namespacedPath -> forEachProfile(namespacedPath, consumer)
 		);
 	}
 
 	protected void forEachProfile(
-			@Nullable Path namespacedPath,
-			BiConsumer<String, Function<String, @Nullable ResourcePackProfile>> consumer
+		@Nullable Path namespacedPath,
+		BiConsumer<String, Function<String, @Nullable ResourcePackProfile>> consumer
 	) {
-		if (namespacedPath != null && Files.isDirectory(namespacedPath)) {
-			try {
-				FileResourcePackProvider.forEachProfile(
-						namespacedPath,
-						this.symlinkFinder,
-						(profilePath, factory) -> consumer.accept(
-								getFileName(profilePath),
-								id -> this.create(id, factory, this.getDisplayName(id))
-						)
-				);
-			}
-			catch (IOException var4) {
-				LOGGER.warn("Failed to discover packs in {}", namespacedPath, var4);
-			}
+		if (namespacedPath == null || !Files.isDirectory(namespacedPath)) {
+			return;
+		}
+
+		try {
+			FileResourcePackProvider.forEachProfile(
+				namespacedPath,
+				symlinkFinder,
+				(profilePath, factory) -> consumer.accept(
+					getFileName(profilePath),
+					packId -> create(packId, factory, getDisplayName(packId))
+				)
+			);
+		} catch (IOException exception) {
+			LOGGER.warn("Failed to discover packs in {}", namespacedPath, exception);
 		}
 	}
 
@@ -107,11 +112,18 @@ public abstract class VanillaResourcePackProvider implements ResourcePackProvide
 	}
 
 	protected abstract @Nullable ResourcePackProfile create(
-			String fileName,
-			ResourcePackProfile.PackFactory packFactory,
-			Text displayName
+		String fileName,
+		ResourcePackProfile.PackFactory packFactory,
+		Text displayName
 	);
 
+	/**
+	 * Создаёт фабрику пака, всегда возвращающую один и тот же экземпляр {@code pack}.
+	 * Используется для встроенных паков, которые не нужно пересоздавать.
+	 *
+	 * @param pack экземпляр пака
+	 * @return фабрика, делегирующая к переданному паку
+	 */
 	protected static ResourcePackProfile.PackFactory createPackFactory(ResourcePack pack) {
 		return new ResourcePackProfile.PackFactory() {
 			@Override

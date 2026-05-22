@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code OpCommand}.
+ * Команда {@code /op}: выдача прав оператора игроку (только dedicated).
  */
 public class OpCommand {
 

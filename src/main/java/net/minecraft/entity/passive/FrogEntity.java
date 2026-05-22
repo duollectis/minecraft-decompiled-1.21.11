@@ -55,7 +55,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * {@code FrogEntity}.
+ * Лягушка — земноводное существо, поедающее слизней и магм-кубов.
+ * Имеет три климатических варианта. Откладывает икру в воде.
  */
 public class FrogEntity extends AnimalEntity {
 
@@ -399,8 +400,8 @@ public class FrogEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code FrogLookControl}.
-	 */
+ * Задача лягушки: прыгать к цели.
+ */
 	class FrogLookControl extends LookControl {
 
 		FrogLookControl(final MobEntity entity) {
@@ -414,8 +415,8 @@ public class FrogEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code FrogSwimNavigation}.
-	 */
+ * Задача лягушки: атаковать языком.
+ */
 	static class FrogSwimNavigation extends AmphibiousSwimNavigation {
 
 		FrogSwimNavigation(FrogEntity frog, World world) {
@@ -435,8 +436,8 @@ public class FrogEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code FrogSwimPathNodeMaker}.
-	 */
+ * Задача лягушки: откладывать икру.
+ */
 	static class FrogSwimPathNodeMaker extends AmphibiousPathNodeMaker {
 
 		private final BlockPos.Mutable pos = new BlockPos.Mutable();

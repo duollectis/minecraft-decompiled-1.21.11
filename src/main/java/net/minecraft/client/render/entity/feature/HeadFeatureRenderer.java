@@ -73,7 +73,7 @@ public class HeadFeatureRenderer<S extends LivingEntityRenderState, M extends En
 			entityModel.applyTransform(matrixStack);
 			if (livingEntityRenderState.wearingSkullType != null) {
 				matrixStack.translate(0.0F, this.headTransformation.skullYOffset(), 0.0F);
-				matrixStack.scale(1.1875F, -1.1875F, -1.1875F);
+				matrixStack.scale(HEAD_Y_OFFSET, -HEAD_Y_OFFSET, -HEAD_Y_OFFSET);
 				matrixStack.translate(-0.5, 0.0, -0.5);
 				SkullBlock.SkullType skullType = livingEntityRenderState.wearingSkullType;
 				SkullBlockEntityModel skullBlockEntityModel = this.headModels.apply(skullType);
@@ -127,7 +127,7 @@ public class HeadFeatureRenderer<S extends LivingEntityRenderState, M extends En
 	public static void translate(MatrixStack matrices, HeadFeatureRenderer.HeadTransformation transformation) {
 		matrices.translate(0.0F, -0.25F + transformation.yOffset(), 0.0F);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F));
-		matrices.scale(0.625F, -0.625F, -0.625F);
+		matrices.scale(HEAD_SCALE, -HEAD_SCALE, -HEAD_SCALE);
 	}
 
 	@Environment(EnvType.CLIENT)

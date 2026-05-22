@@ -13,14 +13,16 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * {@code ConsecutiveExecutor}.
+ * Базовый исполнитель, гарантирующий последовательное (не параллельное) выполнение задач.
+ * Использует атомарный конечный автомат ({@link Status}) для управления состоянием:
+ * задача из очереди запускается только тогда, когда исполнитель переходит из {@code SLEEPING} в {@code RUNNING}.
+ * Это исключает одновременное выполнение нескольких задач из одной очереди.
  */
 public abstract class ConsecutiveExecutor<T extends Runnable> implements SampleableExecutor, TaskExecutor<T>, Runnable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private final AtomicReference<ConsecutiveExecutor.Status>
-			status =
-			new AtomicReference<>(ConsecutiveExecutor.Status.SLEEPING);
+
+	private final AtomicReference<Status> status = new AtomicReference<>(Status.SLEEPING);
 	private final TaskQueue<T> queue;
 	private final Executor executor;
 	private final String name;
@@ -33,129 +35,119 @@ public abstract class ConsecutiveExecutor<T extends Runnable> implements Samplea
 	}
 
 	private boolean canRun() {
-		return !this.isClosed() && !this.queue.isEmpty();
+		return !isClosed() && !queue.isEmpty();
 	}
 
 	@Override
 	public void close() {
-		this.status.set(ConsecutiveExecutor.Status.CLOSED);
+		status.set(Status.CLOSED);
 	}
 
 	private boolean runOnce() {
-		if (!this.isRunning()) {
+		if (!isRunning()) {
 			return false;
 		}
-		else {
-			Runnable runnable = this.queue.poll();
-			if (runnable == null) {
-				return false;
-			}
-			else {
-				Util.runInNamedZone(runnable, this.name);
-				return true;
-			}
+
+		Runnable runnable = queue.poll();
+
+		if (runnable == null) {
+			return false;
 		}
+
+		Util.runInNamedZone(runnable, name);
+		return true;
 	}
 
 	@Override
 	public void run() {
 		try {
-			this.runOnce();
+			runOnce();
 		}
 		finally {
-			this.sleep();
-			this.scheduleSelf();
+			sleep();
+			scheduleSelf();
 		}
 	}
 
-	/**
-	 * Run all.
-	 */
 	public void runAll() {
 		try {
-			while (this.runOnce()) {
+			while (runOnce()) {
 			}
 		}
 		finally {
-			this.sleep();
-			this.scheduleSelf();
+			sleep();
+			scheduleSelf();
 		}
 	}
 
 	@Override
 	public void send(T runnable) {
-		this.queue.add(runnable);
-		this.scheduleSelf();
+		queue.add(runnable);
+		scheduleSelf();
 	}
 
 	private void scheduleSelf() {
-		if (this.canRun() && this.wakeUp()) {
+		if (!canRun() || !wakeUp()) {
+			return;
+		}
+
+		try {
+			executor.execute(this);
+		}
+		catch (RejectedExecutionException firstReject) {
 			try {
-				this.executor.execute(this);
+				executor.execute(this);
 			}
-			catch (RejectedExecutionException var4) {
-				try {
-					this.executor.execute(this);
-				}
-				catch (RejectedExecutionException var3) {
-					LOGGER.error("Could not schedule ConsecutiveExecutor", var3);
-				}
+			catch (RejectedExecutionException secondReject) {
+				LOGGER.error("Could not schedule ConsecutiveExecutor", secondReject);
 			}
 		}
 	}
 
-	/**
-	 * Queue size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int queueSize() {
-		return this.queue.getSize();
+		return queue.getSize();
 	}
 
 	public boolean hasQueuedTasks() {
-		return this.isRunning() && !this.queue.isEmpty();
+		return isRunning() && !queue.isEmpty();
 	}
 
 	@Override
 	public String toString() {
-		return this.name + " " + this.status.get() + " " + this.queue.isEmpty();
+		return name + " " + status.get() + " " + queue.isEmpty();
 	}
 
 	@Override
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public List<Sampler> createSamplers() {
 		return ImmutableList.of(Sampler.create(
-				this.name + "-queue-size",
-				SampleType.CONSECUTIVE_EXECUTORS,
-				this::queueSize
+			name + "-queue-size",
+			SampleType.CONSECUTIVE_EXECUTORS,
+			this::queueSize
 		));
 	}
 
 	private boolean wakeUp() {
-		return this.status.compareAndSet(ConsecutiveExecutor.Status.SLEEPING, ConsecutiveExecutor.Status.RUNNING);
+		return status.compareAndSet(Status.SLEEPING, Status.RUNNING);
 	}
 
 	private void sleep() {
-		this.status.compareAndSet(ConsecutiveExecutor.Status.RUNNING, ConsecutiveExecutor.Status.SLEEPING);
+		status.compareAndSet(Status.RUNNING, Status.SLEEPING);
 	}
 
 	private boolean isRunning() {
-		return this.status.get() == ConsecutiveExecutor.Status.RUNNING;
+		return status.get() == Status.RUNNING;
 	}
 
 	private boolean isClosed() {
-		return this.status.get() == ConsecutiveExecutor.Status.CLOSED;
+		return status.get() == Status.CLOSED;
 	}
 
-	/**
-	 * {@code Status}.
-	 */
-	static enum Status {
+	enum Status {
 		SLEEPING,
 		RUNNING,
 		CLOSED;

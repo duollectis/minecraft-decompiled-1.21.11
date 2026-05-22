@@ -25,7 +25,7 @@ public class ThreePartsLayoutWidget implements LayoutWidget {
 	private int footerHeight;
 
 	public ThreePartsLayoutWidget(Screen screen) {
-		this(screen, 33);
+		this(screen, DEFAULT_HEADER_FOOTER_HEIGHT);
 	}
 
 	public ThreePartsLayoutWidget(Screen screen, int headerFooterHeight) {
@@ -109,7 +109,7 @@ public class ThreePartsLayoutWidget implements LayoutWidget {
 		this.footer.setY(this.screen.height - j);
 		this.body.setMinWidth(this.screen.width);
 		this.body.refreshPositions();
-		int k = i + 30;
+		int k = i + FOOTER_MARGIN_TOP;
 		int l = this.screen.height - j - this.body.getHeight();
 		this.body.setPosition(0, Math.min(k, l));
 	}

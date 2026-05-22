@@ -11,71 +11,48 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import java.util.stream.Stream;
 
 /**
- * {@code RandomOffsetPlacementModifier}.
+ * Модификатор размещения, добавляющий случайное смещение по XZ и Y
+ * к входной позиции.
  */
 public class RandomOffsetPlacementModifier extends PlacementModifier {
 
 	public static final MapCodec<RandomOffsetPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    IntProvider
-							                    .createValidatingCodec(-16, 16)
-							                    .fieldOf("xz_spread")
-							                    .forGetter(placementModifier -> placementModifier.spreadXz),
-					                    IntProvider
-							                    .createValidatingCodec(-16, 16)
-							                    .fieldOf("y_spread")
-							                    .forGetter(placementModifier -> placementModifier.spreadY)
-			                    )
-			                    .apply(instance, RandomOffsetPlacementModifier::new)
+		instance -> instance.group(
+			IntProvider.createValidatingCodec(-16, 16)
+				.fieldOf("xz_spread")
+				.forGetter(modifier -> modifier.spreadXz),
+			IntProvider.createValidatingCodec(-16, 16)
+				.fieldOf("y_spread")
+				.forGetter(modifier -> modifier.spreadY)
+		)
+		.apply(instance, RandomOffsetPlacementModifier::new)
 	);
 	private final IntProvider spreadXz;
 	private final IntProvider spreadY;
 
-	/**
-	 * Of.
-	 *
-	 * @param spreadXz spread xz
-	 * @param spreadY spread y
-	 *
-	 * @return RandomOffsetPlacementModifier — результат операции
-	 */
 	public static RandomOffsetPlacementModifier of(IntProvider spreadXz, IntProvider spreadY) {
 		return new RandomOffsetPlacementModifier(spreadXz, spreadY);
 	}
 
-	/**
-	 * Vertically.
-	 *
-	 * @param spreadY spread y
-	 *
-	 * @return RandomOffsetPlacementModifier — результат операции
-	 */
 	public static RandomOffsetPlacementModifier vertically(IntProvider spreadY) {
 		return new RandomOffsetPlacementModifier(ConstantIntProvider.create(0), spreadY);
 	}
 
-	/**
-	 * Horizontally.
-	 *
-	 * @param spreadXz spread xz
-	 *
-	 * @return RandomOffsetPlacementModifier — результат операции
-	 */
 	public static RandomOffsetPlacementModifier horizontally(IntProvider spreadXz) {
 		return new RandomOffsetPlacementModifier(spreadXz, ConstantIntProvider.create(0));
 	}
 
-	private RandomOffsetPlacementModifier(IntProvider xzSpread, IntProvider ySpread) {
-		this.spreadXz = xzSpread;
-		this.spreadY = ySpread;
+	private RandomOffsetPlacementModifier(IntProvider spreadXz, IntProvider spreadY) {
+		this.spreadXz = spreadXz;
+		this.spreadY = spreadY;
 	}
 
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		int i = pos.getX() + this.spreadXz.get(random);
-		int j = pos.getY() + this.spreadY.get(random);
-		int k = pos.getZ() + this.spreadXz.get(random);
-		return Stream.of(new BlockPos(i, j, k));
+		int x = pos.getX() + spreadXz.get(random);
+		int y = pos.getY() + spreadY.get(random);
+		int z = pos.getZ() + spreadXz.get(random);
+		return Stream.of(new BlockPos(x, y, z));
 	}
 
 	@Override

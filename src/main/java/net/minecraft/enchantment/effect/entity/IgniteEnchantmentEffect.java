@@ -10,7 +10,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code IgniteEnchantmentEffect}.
+ * Эффект зачарования, поджигающий сущность на заданное количество секунд.
+ * Длительность горения определяется уровнем зачарования через {@link EnchantmentLevelBasedValue}.
  */
 public record IgniteEnchantmentEffect(EnchantmentLevelBasedValue duration) implements EnchantmentEntityEffect {
 
@@ -18,13 +19,13 @@ public record IgniteEnchantmentEffect(EnchantmentLevelBasedValue duration) imple
 			instance -> instance
 					.group(EnchantmentLevelBasedValue.CODEC
 							.fieldOf("duration")
-							.forGetter(igniteEnchantmentEffect -> igniteEnchantmentEffect.duration))
+							.forGetter(IgniteEnchantmentEffect::duration))
 					.apply(instance, IgniteEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		user.setOnFireFor(this.duration.getValue(level));
+		user.setOnFireFor(duration.getValue(level));
 	}
 
 	@Override

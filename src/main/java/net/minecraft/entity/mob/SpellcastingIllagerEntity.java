@@ -21,15 +21,15 @@ import java.util.EnumSet;
 import java.util.function.IntFunction;
 
 /**
- * {@code SpellcastingIllagerEntity}.
+ * Базовый класс для иллагеров, использующих заклинания.
  */
 public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 
+	private static final int INITIAL_SPELL_COOLDOWN = 20;
 	private static final TrackedData<Byte>
 			SPELL =
 			DataTracker.registerData(SpellcastingIllagerEntity.class, TrackedDataHandlerRegistry.BYTE);
-	private static final int DEFAULT_SPELL_TICKS = 0;
-	protected int spellTicks = 0;
+	protected int spellTicks;
 	private SpellcastingIllagerEntity.Spell spell = SpellcastingIllagerEntity.Spell.NONE;
 
 	protected SpellcastingIllagerEntity(EntityType<? extends SpellcastingIllagerEntity> entityType, World world) {
@@ -45,92 +45,91 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.spellTicks = view.getInt("SpellTicks", 0);
+		spellTicks = view.getInt("SpellTicks", 0);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("SpellTicks", this.spellTicks);
+		view.putInt("SpellTicks", spellTicks);
 	}
 
 	@Override
 	public IllagerEntity.State getState() {
-		if (this.isSpellcasting()) {
+		if (isSpellcasting()) {
 			return IllagerEntity.State.SPELLCASTING;
 		}
-		else {
-			return this.isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
-		}
+
+		return isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
 	}
 
 	public boolean isSpellcasting() {
-		return this.getEntityWorld().isClient() ? this.dataTracker.get(SPELL) > 0 : this.spellTicks > 0;
+		return getEntityWorld().isClient() ? dataTracker.get(SPELL) > 0 : spellTicks > 0;
 	}
 
 	public void setSpell(SpellcastingIllagerEntity.Spell spell) {
 		this.spell = spell;
-		this.dataTracker.set(SPELL, (byte) spell.id);
+		dataTracker.set(SPELL, (byte) spell.id);
 	}
 
 	protected SpellcastingIllagerEntity.Spell getSpell() {
-		return !this.getEntityWorld().isClient() ? this.spell
-		                                         : SpellcastingIllagerEntity.Spell.byId(this.dataTracker.get(SPELL));
+		return getEntityWorld().isClient()
+				? SpellcastingIllagerEntity.Spell.byId(dataTracker.get(SPELL))
+				: spell;
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
 		super.mobTick(world);
-		if (this.spellTicks > 0) {
-			this.spellTicks--;
+		if (spellTicks > 0) {
+			spellTicks--;
 		}
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient() && this.isSpellcasting()) {
-			SpellcastingIllagerEntity.Spell spell = this.getSpell();
-			float f = (float) spell.particleVelocity[0];
-			float g = (float) spell.particleVelocity[1];
-			float h = (float) spell.particleVelocity[2];
-			float i = this.bodyYaw * (float) (Math.PI / 180.0) + MathHelper.cos(this.age * 0.6662F) * 0.25F;
-			float j = MathHelper.cos(i);
-			float k = MathHelper.sin(i);
-			double d = 0.6 * this.getScale();
-			double e = 1.8 * this.getScale();
-			this.getEntityWorld()
-			    .addParticleClient(
-					    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h),
-					    this.getX() + j * d,
-					    this.getY() + e,
-					    this.getZ() + k * d,
-					    0.0,
-					    0.0,
-					    0.0
-			    );
-			this.getEntityWorld()
-			    .addParticleClient(
-					    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h),
-					    this.getX() - j * d,
-					    this.getY() + e,
-					    this.getZ() - k * d,
-					    0.0,
-					    0.0,
-					    0.0
-			    );
+		if (!getEntityWorld().isClient() || !isSpellcasting()) {
+			return;
 		}
+
+		SpellcastingIllagerEntity.Spell currentSpell = getSpell();
+		float colorR = (float) currentSpell.particleVelocity[0];
+		float colorG = (float) currentSpell.particleVelocity[1];
+		float colorB = (float) currentSpell.particleVelocity[2];
+		float swingAngle = bodyYaw * (float) (Math.PI / 180.0) + MathHelper.cos(age * 0.6662F) * 0.25F;
+		float cosAngle = MathHelper.cos(swingAngle);
+		float sinAngle = MathHelper.sin(swingAngle);
+		double handOffset = 0.6 * getScale();
+		double handHeight = 1.8 * getScale();
+		TintedParticleEffect particleEffect = TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, colorR, colorG, colorB);
+
+		getEntityWorld().addParticleClient(
+				particleEffect,
+				getX() + cosAngle * handOffset,
+				getY() + handHeight,
+				getZ() + sinAngle * handOffset,
+				0.0,
+				0.0,
+				0.0
+		);
+		getEntityWorld().addParticleClient(
+				particleEffect,
+				getX() - cosAngle * handOffset,
+				getY() + handHeight,
+				getZ() - sinAngle * handOffset,
+				0.0,
+				0.0,
+				0.0
+		);
 	}
 
 	protected int getSpellTicks() {
-		return this.spellTicks;
+		return spellTicks;
 	}
 
 	protected abstract SoundEvent getCastSpellSound();
 
-	/**
-	 * {@code CastSpellGoal}.
-	 */
 	protected abstract class CastSpellGoal extends Goal {
 
 		protected int spellCooldown;
@@ -138,40 +137,43 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 
 		@Override
 		public boolean canStart() {
-			LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
-			if (livingEntity == null || !livingEntity.isAlive()) {
+			LivingEntity target = SpellcastingIllagerEntity.this.getTarget();
+			if (target == null || !target.isAlive()) {
 				return false;
 			}
-			else {
-				return SpellcastingIllagerEntity.this.isSpellcasting() ? false : SpellcastingIllagerEntity.this.age
-				                                                                 >= this.startTime;
+
+			if (SpellcastingIllagerEntity.this.isSpellcasting()) {
+				return false;
 			}
+
+			return SpellcastingIllagerEntity.this.age >= startTime;
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
-			return livingEntity != null && livingEntity.isAlive() && this.spellCooldown > 0;
+			LivingEntity target = SpellcastingIllagerEntity.this.getTarget();
+			return target != null && target.isAlive() && spellCooldown > 0;
 		}
 
 		@Override
 		public void start() {
-			this.spellCooldown = this.getTickCount(this.getInitialCooldown());
-			SpellcastingIllagerEntity.this.spellTicks = this.getSpellTicks();
-			this.startTime = SpellcastingIllagerEntity.this.age + this.startTimeDelay();
-			SoundEvent soundEvent = this.getSoundPrepare();
-			if (soundEvent != null) {
-				SpellcastingIllagerEntity.this.playSound(soundEvent, 1.0F, 1.0F);
+			spellCooldown = getTickCount(getInitialCooldown());
+			SpellcastingIllagerEntity.this.spellTicks = getSpellTicks();
+			startTime = SpellcastingIllagerEntity.this.age + startTimeDelay();
+			SoundEvent prepareSound = getSoundPrepare();
+
+			if (prepareSound != null) {
+				SpellcastingIllagerEntity.this.playSound(prepareSound, 1.0F, 1.0F);
 			}
 
-			SpellcastingIllagerEntity.this.setSpell(this.getSpell());
+			SpellcastingIllagerEntity.this.setSpell(getSpell());
 		}
 
 		@Override
 		public void tick() {
-			this.spellCooldown--;
-			if (this.spellCooldown == 0) {
-				this.castSpell();
+			spellCooldown--;
+			if (spellCooldown == 0) {
+				castSpell();
 				SpellcastingIllagerEntity.this.playSound(
 						SpellcastingIllagerEntity.this.getCastSpellSound(),
 						1.0F,
@@ -180,22 +182,14 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 			}
 		}
 
-		/**
-		 * Cast spell.
-		 */
 		protected abstract void castSpell();
 
 		protected int getInitialCooldown() {
-			return 20;
+			return INITIAL_SPELL_COOLDOWN;
 		}
 
 		protected abstract int getSpellTicks();
 
-		/**
-		 * Запускает time delay.
-		 *
-		 * @return int — результат операции
-		 */
 		protected abstract int startTimeDelay();
 
 		protected abstract @Nullable SoundEvent getSoundPrepare();
@@ -203,13 +197,10 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 		protected abstract SpellcastingIllagerEntity.Spell getSpell();
 	}
 
-	/**
-	 * {@code LookAtTargetGoal}.
-	 */
 	protected class LookAtTargetGoal extends Goal {
 
 		public LookAtTargetGoal() {
-			this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+			setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 		}
 
 		@Override
@@ -231,21 +222,22 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 
 		@Override
 		public void tick() {
-			if (SpellcastingIllagerEntity.this.getTarget() != null) {
-				SpellcastingIllagerEntity.this.getLookControl()
-				                              .lookAt(
-						                              SpellcastingIllagerEntity.this.getTarget(),
-						                              SpellcastingIllagerEntity.this.getMaxHeadRotation(),
-						                              SpellcastingIllagerEntity.this.getMaxLookPitchChange()
-				                              );
+			LivingEntity target = SpellcastingIllagerEntity.this.getTarget();
+			if (target == null) {
+				return;
 			}
+
+			SpellcastingIllagerEntity.this
+					.getLookControl()
+					.lookAt(
+							target,
+							SpellcastingIllagerEntity.this.getMaxHeadRotation(),
+							SpellcastingIllagerEntity.this.getMaxLookPitchChange()
+					);
 		}
 	}
 
-	/**
-	 * {@code Spell}.
-	 */
-	protected static enum Spell {
+	protected enum Spell {
 		NONE(0, 0.0, 0.0, 0.0),
 		SUMMON_VEX(1, 0.7, 0.7, 0.8),
 		FANGS(2, 0.4, 0.3, 0.35),

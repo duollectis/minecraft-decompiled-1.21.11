@@ -9,13 +9,26 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.text.Style;
 import org.joml.Matrix4f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BakedGlyphImpl}.
+ * Конкретная реализация {@link BakedGlyph}, хранящая UV-координаты в атласе
+ * и геометрические границы глифа. Умеет рисовать себя в буфер вершин
+ * с учётом курсива, жирности и тени.
  */
+@Environment(EnvType.CLIENT)
 public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 
+	/** Смещение по Z между слоями одного глифа (основной + жирный дубль). */
 	public static final float Z_OFFSET = 0.001F;
+
+	/** Смещение тени по Z относительно основного слоя. */
+	private static final float SHADOW_Z_STEP = 0.03F;
+
+	/** Коэффициент наклона для курсива: 1 пиксель на каждые 4 пикселя высоты. */
+	private static final float ITALIC_SLOPE = 0.25F;
+
+	/** Расширение границ глифа при жирном начертании. */
+	private static final float BOLD_EXPANSION = 0.1F;
+
 	final GlyphMetrics glyph;
 	final TextRenderLayerSet textRenderLayers;
 	final GpuTextureView textureView;
@@ -54,85 +67,71 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 		this.maxY = maxY;
 	}
 
-	float getEffectiveMinX(BakedGlyphImpl.BakedGlyphRect glyph) {
-		return glyph.x
-				+ this.minX
-				+ (glyph.style.isItalic() ? Math.min(this.getItalicOffsetAtMinY(), this.getItalicOffsetAtMaxY()) : 0.0F)
-				- getXExpansion(glyph.style.isBold());
+	float getEffectiveMinX(BakedGlyphImpl.BakedGlyphRect rect) {
+		return rect.x
+				+ minX
+				+ (rect.style.isItalic() ? Math.min(getItalicOffsetAtMinY(), getItalicOffsetAtMaxY()) : 0.0F)
+				- getXExpansion(rect.style.isBold());
 	}
 
-	float getEffectiveMinY(BakedGlyphImpl.BakedGlyphRect glyph) {
-		return glyph.y + this.minY - getXExpansion(glyph.style.isBold());
+	float getEffectiveMinY(BakedGlyphImpl.BakedGlyphRect rect) {
+		return rect.y + minY - getXExpansion(rect.style.isBold());
 	}
 
-	float getEffectiveMaxX(BakedGlyphImpl.BakedGlyphRect glyph) {
-		return glyph.x
-				+ this.maxX
-				+ (glyph.hasShadow() ? glyph.shadowOffset : 0.0F)
-				+ (glyph.style.isItalic() ? Math.max(this.getItalicOffsetAtMinY(), this.getItalicOffsetAtMaxY()) : 0.0F)
-				+ getXExpansion(glyph.style.isBold());
+	float getEffectiveMaxX(BakedGlyphImpl.BakedGlyphRect rect) {
+		return rect.x
+				+ maxX
+				+ (rect.hasShadow() ? rect.shadowOffset : 0.0F)
+				+ (rect.style.isItalic() ? Math.max(getItalicOffsetAtMinY(), getItalicOffsetAtMaxY()) : 0.0F)
+				+ getXExpansion(rect.style.isBold());
 	}
 
-	float getEffectiveMaxY(BakedGlyphImpl.BakedGlyphRect glyph) {
-		return glyph.y + this.maxY + (glyph.hasShadow() ? glyph.shadowOffset : 0.0F)
-				+ getXExpansion(glyph.style.isBold());
+	float getEffectiveMaxY(BakedGlyphImpl.BakedGlyphRect rect) {
+		return rect.y + maxY + (rect.hasShadow() ? rect.shadowOffset : 0.0F)
+				+ getXExpansion(rect.style.isBold());
 	}
 
+	/**
+	 * Рисует глиф (с тенью и жирным дублем, если нужно) в буфер вершин.
+	 * Порядок: сначала тень, затем основной слой — чтобы тень была позади.
+	 */
 	void draw(
-			BakedGlyphImpl.BakedGlyphRect glyph,
+			BakedGlyphImpl.BakedGlyphRect rect,
 			Matrix4f matrix,
 			VertexConsumer vertexConsumer,
 			int light,
 			boolean fixedZ
 	) {
-		Style style = glyph.style();
-		boolean bl = style.isItalic();
-		float f = glyph.x();
-		float g = glyph.y();
-		int i = glyph.color();
-		boolean bl2 = style.isBold();
-		float h = fixedZ ? 0.0F : 0.001F;
-		float k;
-		if (glyph.hasShadow()) {
-			int j = glyph.shadowColor();
-			this.draw(
-					bl,
-					f + glyph.shadowOffset(),
-					g + glyph.shadowOffset(),
-					0.0F,
-					matrix,
-					vertexConsumer,
-					j,
-					bl2,
-					light
-			);
-			if (bl2) {
-				this.draw(
-						bl,
-						f + glyph.boldOffset() + glyph.shadowOffset(),
-						g + glyph.shadowOffset(),
-						h,
-						matrix,
-						vertexConsumer,
-						j,
-						true,
-						light
-				);
+		Style style = rect.style();
+		boolean italic = style.isItalic();
+		float x = rect.x();
+		float y = rect.y();
+		int color = rect.color();
+		boolean bold = style.isBold();
+		float zStep = fixedZ ? 0.0F : Z_OFFSET;
+		float shadowZ;
+
+		if (rect.hasShadow()) {
+			int shadowColor = rect.shadowColor();
+			drawLayer(italic, x + rect.shadowOffset(), y + rect.shadowOffset(), 0.0F, matrix, vertexConsumer, shadowColor, bold, light);
+
+			if (bold) {
+				drawLayer(italic, x + rect.boldOffset() + rect.shadowOffset(), y + rect.shadowOffset(), zStep, matrix, vertexConsumer, shadowColor, true, light);
 			}
 
-			k = fixedZ ? 0.0F : 0.03F;
-		}
-		else {
-			k = 0.0F;
+			shadowZ = fixedZ ? 0.0F : SHADOW_Z_STEP;
+		} else {
+			shadowZ = 0.0F;
 		}
 
-		this.draw(bl, f, g, k, matrix, vertexConsumer, i, bl2, light);
-		if (bl2) {
-			this.draw(bl, f + glyph.boldOffset(), g, k + h, matrix, vertexConsumer, i, true, light);
+		drawLayer(italic, x, y, shadowZ, matrix, vertexConsumer, color, bold, light);
+
+		if (bold) {
+			drawLayer(italic, x + rect.boldOffset(), y, shadowZ + zStep, matrix, vertexConsumer, color, true, light);
 		}
 	}
 
-	private void draw(
+	private void drawLayer(
 			boolean italic,
 			float x,
 			float y,
@@ -143,29 +142,30 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 			boolean bold,
 			int light
 	) {
-		float f = x + this.minX;
-		float g = x + this.maxX;
-		float h = y + this.minY;
-		float i = y + this.maxY;
-		float j = italic ? this.getItalicOffsetAtMinY() : 0.0F;
-		float k = italic ? this.getItalicOffsetAtMaxY() : 0.0F;
-		float l = getXExpansion(bold);
-		vertexConsumer.vertex(matrix, f + j - l, h - l, z).color(color).texture(this.minU, this.minV).light(light);
-		vertexConsumer.vertex(matrix, f + k - l, i + l, z).color(color).texture(this.minU, this.maxV).light(light);
-		vertexConsumer.vertex(matrix, g + k + l, i + l, z).color(color).texture(this.maxU, this.maxV).light(light);
-		vertexConsumer.vertex(matrix, g + j + l, h - l, z).color(color).texture(this.maxU, this.minV).light(light);
+		float left = x + minX;
+		float right = x + maxX;
+		float top = y + minY;
+		float bottom = y + maxY;
+		float italicTopOffset = italic ? getItalicOffsetAtMinY() : 0.0F;
+		float italicBottomOffset = italic ? getItalicOffsetAtMaxY() : 0.0F;
+		float expansion = getXExpansion(bold);
+
+		vertexConsumer.vertex(matrix, left + italicTopOffset - expansion, top - expansion, z).color(color).texture(minU, minV).light(light);
+		vertexConsumer.vertex(matrix, left + italicBottomOffset - expansion, bottom + expansion, z).color(color).texture(minU, maxV).light(light);
+		vertexConsumer.vertex(matrix, right + italicBottomOffset + expansion, bottom + expansion, z).color(color).texture(maxU, maxV).light(light);
+		vertexConsumer.vertex(matrix, right + italicTopOffset + expansion, top - expansion, z).color(color).texture(maxU, minV).light(light);
 	}
 
 	private static float getXExpansion(boolean bold) {
-		return bold ? 0.1F : 0.0F;
+		return bold ? BOLD_EXPANSION : 0.0F;
 	}
 
 	private float getItalicOffsetAtMaxY() {
-		return 1.0F - 0.25F * this.maxY;
+		return 1.0F - ITALIC_SLOPE * maxY;
 	}
 
 	private float getItalicOffsetAtMinY() {
-		return 1.0F - 0.25F * this.minY;
+		return 1.0F - ITALIC_SLOPE * minY;
 	}
 
 	void drawRectangle(
@@ -175,24 +175,17 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 			int light,
 			boolean fixedZ
 	) {
-		float f = fixedZ ? 0.0F : rectangle.zIndex;
+		float z = fixedZ ? 0.0F : rectangle.zIndex;
+
 		if (rectangle.hasShadow()) {
-			this.drawRectangle(
-					rectangle,
-					rectangle.shadowOffset(),
-					f,
-					rectangle.shadowColor(),
-					vertexConsumer,
-					light,
-					matrix
-			);
-			f += fixedZ ? 0.0F : 0.03F;
+			drawRectangleLayer(rectangle, rectangle.shadowOffset(), z, rectangle.shadowColor(), vertexConsumer, light, matrix);
+			z += fixedZ ? 0.0F : SHADOW_Z_STEP;
 		}
 
-		this.drawRectangle(rectangle, 0.0F, f, rectangle.color, vertexConsumer, light, matrix);
+		drawRectangleLayer(rectangle, 0.0F, z, rectangle.color, vertexConsumer, light, matrix);
 	}
 
-	private void drawRectangle(
+	private void drawRectangleLayer(
 			BakedGlyphImpl.Rectangle rectangle,
 			float shadowOffset,
 			float zOffset,
@@ -203,25 +196,25 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 	) {
 		vertexConsumer.vertex(matrix, rectangle.minX + shadowOffset, rectangle.maxY + shadowOffset, zOffset)
 		              .color(color)
-		              .texture(this.minU, this.minV)
+		              .texture(minU, minV)
 		              .light(light);
 		vertexConsumer.vertex(matrix, rectangle.maxX + shadowOffset, rectangle.maxY + shadowOffset, zOffset)
 		              .color(color)
-		              .texture(this.minU, this.maxV)
+		              .texture(minU, maxV)
 		              .light(light);
 		vertexConsumer.vertex(matrix, rectangle.maxX + shadowOffset, rectangle.minY + shadowOffset, zOffset)
 		              .color(color)
-		              .texture(this.maxU, this.maxV)
+		              .texture(maxU, maxV)
 		              .light(light);
 		vertexConsumer.vertex(matrix, rectangle.minX + shadowOffset, rectangle.minY + shadowOffset, zOffset)
 		              .color(color)
-		              .texture(this.maxU, this.minV)
+		              .texture(maxU, minV)
 		              .light(light);
 	}
 
 	@Override
 	public GlyphMetrics getMetrics() {
-		return this.glyph;
+		return glyph;
 	}
 
 	@Override
@@ -251,10 +244,11 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 		return new BakedGlyphImpl.Rectangle(this, minX, minY, maxX, maxY, depth, color, shadowColor, shadowOffset);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakedGlyphRect}.
+	 * Запечённый прямоугольник глифа — хранит позицию, цвет и ссылку на родительский
+	 * {@link BakedGlyphImpl} для делегирования рендеринга.
 	 */
+	@Environment(EnvType.CLIENT)
 	record BakedGlyphRect(
 			float x,
 			float y,
@@ -269,58 +263,59 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 
 		@Override
 		public float getEffectiveMinX() {
-			return this.glyph.getEffectiveMinX(this);
+			return glyph.getEffectiveMinX(this);
 		}
 
 		@Override
 		public float getEffectiveMinY() {
-			return this.glyph.getEffectiveMinY(this);
+			return glyph.getEffectiveMinY(this);
 		}
 
 		@Override
 		public float getEffectiveMaxX() {
-			return this.glyph.getEffectiveMaxX(this);
+			return glyph.getEffectiveMaxX(this);
 		}
 
 		@Override
 		public float getRight() {
-			return this.x + this.glyph.glyph.getAdvance(this.style.isBold());
+			return x + glyph.glyph.getAdvance(style.isBold());
 		}
 
 		@Override
 		public float getEffectiveMaxY() {
-			return this.glyph.getEffectiveMaxY(this);
+			return glyph.getEffectiveMaxY(this);
 		}
 
 		boolean hasShadow() {
-			return this.shadowColor() != 0;
+			return shadowColor() != 0;
 		}
 
 		@Override
 		public void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth) {
-			this.glyph.draw(this, matrix4f, consumer, light, noDepth);
+			glyph.draw(this, matrix4f, consumer, light, noDepth);
 		}
 
 		@Override
 		public RenderLayer getRenderLayer(TextRenderer.TextLayerType type) {
-			return this.glyph.textRenderLayers.getRenderLayer(type);
+			return glyph.textRenderLayers.getRenderLayer(type);
 		}
 
 		@Override
 		public GpuTextureView textureView() {
-			return this.glyph.textureView;
+			return glyph.textureView;
 		}
 
 		@Override
 		public RenderPipeline getPipeline() {
-			return this.glyph.textRenderLayers.guiPipeline();
+			return glyph.textRenderLayers.guiPipeline();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Rectangle}.
+	 * Прямоугольный эффект (подчёркивание, зачёркивание, фон) — рисуется
+	 * через тот же атлас, что и глиф, используя белый пиксель.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Rectangle(
 			BakedGlyphImpl glyph,
 			float minX,
@@ -336,46 +331,46 @@ public class BakedGlyphImpl implements BakedGlyph, EffectGlyph {
 
 		@Override
 		public float getEffectiveMinX() {
-			return this.minX;
+			return minX;
 		}
 
 		@Override
 		public float getEffectiveMinY() {
-			return this.minY;
+			return minY;
 		}
 
 		@Override
 		public float getEffectiveMaxX() {
-			return this.maxX + (this.hasShadow() ? this.shadowOffset : 0.0F);
+			return maxX + (hasShadow() ? shadowOffset : 0.0F);
 		}
 
 		@Override
 		public float getEffectiveMaxY() {
-			return this.maxY + (this.hasShadow() ? this.shadowOffset : 0.0F);
+			return maxY + (hasShadow() ? shadowOffset : 0.0F);
 		}
 
 		boolean hasShadow() {
-			return this.shadowColor() != 0;
+			return shadowColor() != 0;
 		}
 
 		@Override
 		public void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth) {
-			this.glyph.drawRectangle(this, matrix4f, consumer, light, false);
+			glyph.drawRectangle(this, matrix4f, consumer, light, false);
 		}
 
 		@Override
 		public RenderLayer getRenderLayer(TextRenderer.TextLayerType type) {
-			return this.glyph.textRenderLayers.getRenderLayer(type);
+			return glyph.textRenderLayers.getRenderLayer(type);
 		}
 
 		@Override
 		public GpuTextureView textureView() {
-			return this.glyph.textureView;
+			return glyph.textureView;
 		}
 
 		@Override
 		public RenderPipeline getPipeline() {
-			return this.glyph.textRenderLayers.guiPipeline();
+			return glyph.textRenderLayers.guiPipeline();
 		}
 	}
 }

@@ -7,7 +7,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
 /**
- * {@code WritableBookItem}.
+ * Книга и перо — открывает интерфейс редактирования книги при использовании.
  */
 public class WritableBookItem extends Item {
 

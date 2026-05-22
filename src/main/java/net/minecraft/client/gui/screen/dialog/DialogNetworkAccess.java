@@ -13,10 +13,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogNetworkAccess}.
+ * Интерфейс сетевого доступа для диалоговых экранов.
+ * Предоставляет методы для отправки команд, показа диалогов и отключения от сервера.
  */
+@Environment(EnvType.CLIENT)
 public interface DialogNetworkAccess {
 
 	void disconnect(Text reason);

@@ -6,7 +6,9 @@ import net.minecraft.entity.ai.pathing.MobNavigation;
 import net.minecraft.entity.mob.PathAwareEntity;
 
 /**
- * {@code AvoidSunlightGoal}.
+ * Цель, заставляющая моба избегать прямого солнечного света, перестраивая маршрут
+ * через {@link MobNavigation#setAvoidSunlight(boolean)}. Активируется только днём,
+ * если голова моба не защищена шлемом.
  */
 public class AvoidSunlightGoal extends Goal {
 
@@ -18,21 +20,23 @@ public class AvoidSunlightGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.mob.getEntityWorld().isDay() && this.mob.getEquippedStack(EquipmentSlot.HEAD).isEmpty()
-				&& NavigationConditions.hasMobNavigation(this.mob);
+		return mob.getEntityWorld().isDay()
+			&& mob.getEquippedStack(EquipmentSlot.HEAD).isEmpty()
+			&& NavigationConditions.hasMobNavigation(mob);
 	}
 
 	@Override
 	public void start() {
-		if (this.mob.getNavigation() instanceof MobNavigation mobNavigation) {
+		if (mob.getNavigation() instanceof MobNavigation mobNavigation) {
 			mobNavigation.setAvoidSunlight(true);
 		}
 	}
 
 	@Override
 	public void stop() {
-		if (NavigationConditions.hasMobNavigation(this.mob)
-				&& this.mob.getNavigation() instanceof MobNavigation mobNavigation) {
+		if (NavigationConditions.hasMobNavigation(mob)
+			&& mob.getNavigation() instanceof MobNavigation mobNavigation
+		) {
 			mobNavigation.setAvoidSunlight(false);
 		}
 	}

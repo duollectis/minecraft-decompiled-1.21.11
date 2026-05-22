@@ -6,35 +6,42 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code StructureBlockMode}.
+ * Режим работы блока структуры (Structure Block).
+ * Определяет, в каком режиме находится блок: сохранение, загрузка, угловая метка или хранение данных.
  */
 public enum StructureBlockMode implements StringIdentifiable {
+
+	/** Режим сохранения структуры в файл. */
 	SAVE("save"),
+	/** Режим загрузки структуры из файла. */
 	LOAD("load"),
+	/** Угловая метка для определения границ структуры. */
 	CORNER("corner"),
+	/** Режим хранения произвольных данных (data tag). */
 	DATA("data");
 
 	@Deprecated
 	public static final Codec<StructureBlockMode> CODEC = Codecs.enumByName(StructureBlockMode::valueOf);
+
 	private final String name;
 	private final Text text;
 
-	private StructureBlockMode(final String name) {
+	StructureBlockMode(final String name) {
 		this.name = name;
 		this.text = Text.translatable("structure_block.mode_info." + name);
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * As text.
+	 * Возвращает локализованный текст для отображения в интерфейсе блока структуры.
 	 *
-	 * @return Text — результат операции
+	 * @return переведённый текст текущего режима
 	 */
 	public Text asText() {
-		return this.text;
+		return text;
 	}
 }

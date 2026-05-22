@@ -19,14 +19,19 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DrawnTextConsumer}.
+ * Потребитель отрисованного текста — абстракция над конкретным способом
+ * вывода текста (в буфер вершин, в обработчик кликов и т.д.).
+ * Содержит вспомогательные методы для бегущей строки (marquee) и
+ * статический хелпер для обработки наведения мыши.
  */
+@Environment(EnvType.CLIENT)
 public interface DrawnTextConsumer {
 
+	/** Период бегущей строки на единицу избыточной ширины (секунды/пиксель). */
 	double MARQUEE_PERIOD_PER_EXCESS_WIDTH = 0.5;
 
+	/** Минимальный период бегущей строки в секундах. */
 	double MARQUEE_MIN_PERIOD = 3.0;
 
 	DrawnTextConsumer.Transformation getTransformation();
@@ -34,25 +39,25 @@ public interface DrawnTextConsumer {
 	void setTransformation(DrawnTextConsumer.Transformation transformation);
 
 	default void text(int x, int y, OrderedText text) {
-		this.text(Alignment.LEFT, x, y, this.getTransformation(), text);
+		text(Alignment.LEFT, x, y, getTransformation(), text);
 	}
 
 	default void text(int x, int y, Text text) {
-		this.text(Alignment.LEFT, x, y, this.getTransformation(), text.asOrderedText());
+		text(Alignment.LEFT, x, y, getTransformation(), text.asOrderedText());
 	}
 
 	default void text(Alignment alignment, int x, int y, DrawnTextConsumer.Transformation transformation, Text text) {
-		this.text(alignment, x, y, transformation, text.asOrderedText());
+		text(alignment, x, y, transformation, text.asOrderedText());
 	}
 
 	void text(Alignment alignment, int x, int y, DrawnTextConsumer.Transformation transformation, OrderedText text);
 
 	default void text(Alignment alignment, int x, int y, Text text) {
-		this.text(alignment, x, y, text.asOrderedText());
+		text(alignment, x, y, text.asOrderedText());
 	}
 
 	default void text(Alignment alignment, int x, int y, OrderedText text) {
-		this.text(alignment, x, y, this.getTransformation(), text);
+		text(alignment, x, y, getTransformation(), text);
 	}
 
 	void marqueedText(
@@ -66,13 +71,27 @@ public interface DrawnTextConsumer {
 	);
 
 	default void marqueedText(Text text, int x, int left, int right, int top, int bottom) {
-		this.marqueedText(text, x, left, right, top, bottom, this.getTransformation());
+		marqueedText(text, x, left, right, top, bottom, getTransformation());
 	}
 
 	default void text(Text text, int left, int right, int top, int bottom) {
-		this.marqueedText(text, (left + right) / 2, left, right, top, bottom);
+		marqueedText(text, (left + right) / 2, left, right, top, bottom);
 	}
 
+	/**
+	 * Отрисовывает текст в виде бегущей строки, если он не помещается в отведённую ширину.
+	 * Использует синусоидальную интерполяцию для плавного движения.
+	 *
+	 * @param text           текст для отображения
+	 * @param x              X-координата центра для центрированного текста
+	 * @param left           левая граница области
+	 * @param right          правая граница области
+	 * @param top            верхняя граница области
+	 * @param bottom         нижняя граница области
+	 * @param width          измеренная ширина текста в пикселях
+	 * @param lineHeight     высота строки в пикселях
+	 * @param transformation трансформация (матрица, прозрачность, ножницы)
+	 */
 	default void marqueedText(
 			Text text,
 			int x,
@@ -84,23 +103,32 @@ public interface DrawnTextConsumer {
 			int lineHeight,
 			DrawnTextConsumer.Transformation transformation
 	) {
-		int i = (top + bottom - lineHeight) / 2 + 1;
-		int j = right - left;
-		if (width > j) {
-			int k = width - j;
-			double d = Util.getMeasuringTimeMs() / 1000.0;
-			double e = Math.max(k * 0.5, 3.0);
-			double f = Math.sin((Math.PI / 2) * Math.cos((Math.PI * 2) * d / e)) / 2.0 + 0.5;
-			double g = MathHelper.lerp(f, 0.0, (double) k);
-			DrawnTextConsumer.Transformation transformation2 = transformation.withScissor(left, right, top, bottom);
-			this.text(Alignment.LEFT, left - (int) g, i, transformation2, text.asOrderedText());
-		}
-		else {
-			int k = MathHelper.clamp(x, left + width / 2, right - width / 2);
-			this.text(Alignment.CENTER, k, i, text);
+		int centeredY = (top + bottom - lineHeight) / 2 + 1;
+		int availableWidth = right - left;
+
+		if (width > availableWidth) {
+			int excess = width - availableWidth;
+			double timeSeconds = Util.getMeasuringTimeMs() / 1000.0;
+			double period = Math.max(excess * MARQUEE_PERIOD_PER_EXCESS_WIDTH, MARQUEE_MIN_PERIOD);
+			double phase = Math.sin((Math.PI / 2) * Math.cos((Math.PI * 2) * timeSeconds / period)) / 2.0 + 0.5;
+			double scrollOffset = MathHelper.lerp(phase, 0.0, (double) excess);
+			DrawnTextConsumer.Transformation scissored = transformation.withScissor(left, right, top, bottom);
+			text(Alignment.LEFT, left - (int) scrollOffset, centeredY, scissored, text.asOrderedText());
+		} else {
+			int clampedX = MathHelper.clamp(x, left + width / 2, right - width / 2);
+			text(Alignment.CENTER, clampedX, centeredY, text);
 		}
 	}
 
+	/**
+	 * Обрабатывает наведение мыши на текстовый элемент: находит глиф под курсором
+	 * и вызывает {@code styleCallback} с его стилем.
+	 *
+	 * @param renderState   состояние рендеринга текстового элемента
+	 * @param mouseX        X-координата мыши в экранных пикселях
+	 * @param mouseY        Y-координата мыши в экранных пикселях
+	 * @param styleCallback обработчик стиля найденного глифа
+	 */
 	static void handleHover(
 			TextGuiElementRenderState renderState,
 			float mouseX,
@@ -108,52 +136,58 @@ public interface DrawnTextConsumer {
 			Consumer<Style> styleCallback
 	) {
 		ScreenRect screenRect = renderState.bounds();
-		if (screenRect != null && screenRect.contains((int) mouseX, (int) mouseY)) {
-			Vector2fc
-					vector2fc =
-					renderState.matrix.invert(new Matrix3x2f()).transformPosition(new Vector2f(mouseX, mouseY));
-			final float f = vector2fc.x();
-			final float g = vector2fc.y();
-			renderState.prepare().draw(new TextRenderer.GlyphDrawer() {
-				@Override
-				public void drawGlyph(TextDrawable.DrawnGlyphRect glyph) {
-					this.addGlyphInternal(glyph);
-				}
 
-				@Override
-				public void drawEmptyGlyphRect(EmptyGlyphRect rect) {
-					this.addGlyphInternal(rect);
-				}
-
-				private void addGlyphInternal(GlyphRect glyph) {
-					if (DrawnTextConsumer.isWithinBounds(
-							f,
-							g,
-							glyph.getLeft(),
-							glyph.getTop(),
-							glyph.getRight(),
-							glyph.getBottom()
-					)) {
-						styleCallback.accept(glyph.style());
-					}
-				}
-			});
+		if (screenRect == null || !screenRect.contains((int) mouseX, (int) mouseY)) {
+			return;
 		}
+
+		Vector2fc localPos = renderState.matrix.invert(new Matrix3x2f()).transformPosition(new Vector2f(mouseX, mouseY));
+		final float localX = localPos.x();
+		final float localY = localPos.y();
+
+		renderState.prepare().draw(new TextRenderer.GlyphDrawer() {
+			@Override
+			public void drawGlyph(TextDrawable.DrawnGlyphRect glyph) {
+				addGlyphInternal(glyph);
+			}
+
+			@Override
+			public void drawEmptyGlyphRect(EmptyGlyphRect rect) {
+				addGlyphInternal(rect);
+			}
+
+			private void addGlyphInternal(GlyphRect glyph) {
+				if (DrawnTextConsumer.isWithinBounds(
+						localX,
+						localY,
+						glyph.getLeft(),
+						glyph.getTop(),
+						glyph.getRight(),
+						glyph.getBottom()
+				)) {
+					styleCallback.accept(glyph.style());
+				}
+			}
+		});
 	}
 
 	static boolean isWithinBounds(float x, float y, float left, float top, float right, float bottom) {
 		return x >= left && x < right && y >= top && y < bottom;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ClickHandler}.
+	 * Реализация {@link DrawnTextConsumer} для обработки кликов по тексту.
+	 * Находит стиль глифа под координатами клика и сохраняет его для последующего использования.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class ClickHandler implements DrawnTextConsumer {
 
-		private static final DrawnTextConsumer.Transformation
-				DEFAULT_TRANSFORMATION =
+		private static final DrawnTextConsumer.Transformation DEFAULT_TRANSFORMATION =
 				new DrawnTextConsumer.Transformation(new Matrix3x2f());
+
+		/** Высота строки в пикселях (стандартная для Minecraft). */
+		private static final int LINE_HEIGHT = 9;
+
 		private final TextRenderer textRenderer;
 		private final int clickX;
 		private final int clickY;
@@ -161,7 +195,7 @@ public interface DrawnTextConsumer {
 		private boolean insert;
 		private @Nullable Style style;
 		private final Consumer<Style> setStyleCallback = style -> {
-			if (style.getClickEvent() != null || this.insert && style.getInsertion() != null) {
+			if (style.getClickEvent() != null || insert && style.getInsertion() != null) {
 				this.style = style;
 			}
 		};
@@ -174,7 +208,7 @@ public interface DrawnTextConsumer {
 
 		@Override
 		public DrawnTextConsumer.Transformation getTransformation() {
-			return this.transformation;
+			return transformation;
 		}
 
 		@Override
@@ -190,12 +224,12 @@ public interface DrawnTextConsumer {
 				DrawnTextConsumer.Transformation transformation,
 				OrderedText text
 		) {
-			int i = alignment.getAdjustedX(x, this.textRenderer, text);
-			TextGuiElementRenderState textGuiElementRenderState = new TextGuiElementRenderState(
-					this.textRenderer,
+			int adjustedX = alignment.getAdjustedX(x, textRenderer, text);
+			TextGuiElementRenderState renderState = new TextGuiElementRenderState(
+					textRenderer,
 					text,
 					transformation.pose(),
-					i,
+					adjustedX,
 					y,
 					ColorHelper.getWhite(transformation.opacity()),
 					0,
@@ -203,7 +237,7 @@ public interface DrawnTextConsumer {
 					true,
 					transformation.scissor()
 			);
-			DrawnTextConsumer.handleHover(textGuiElementRenderState, this.clickX, this.clickY, this.setStyleCallback);
+			DrawnTextConsumer.handleHover(renderState, clickX, clickY, setStyleCallback);
 		}
 
 		@Override
@@ -216,9 +250,8 @@ public interface DrawnTextConsumer {
 				int bottom,
 				DrawnTextConsumer.Transformation transformation
 		) {
-			int i = this.textRenderer.getWidth(text);
-			int j = 9;
-			this.marqueedText(text, x, left, right, top, bottom, i, j, transformation);
+			int textWidth = textRenderer.getWidth(text);
+			marqueedText(text, x, left, right, top, bottom, textWidth, LINE_HEIGHT, transformation);
 		}
 
 		public DrawnTextConsumer.ClickHandler insert(boolean insert) {
@@ -227,14 +260,15 @@ public interface DrawnTextConsumer {
 		}
 
 		public @Nullable Style getStyle() {
-			return this.style;
+			return style;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Transformation}.
+	 * Иммутабельная трансформация текстового элемента: матрица позиции,
+	 * прозрачность и область ножниц (scissor).
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Transformation(Matrix3x2fc pose, float opacity, @Nullable ScreenRect scissor) {
 
 		public Transformation(Matrix3x2fc pose) {
@@ -242,33 +276,37 @@ public interface DrawnTextConsumer {
 		}
 
 		public DrawnTextConsumer.Transformation withPose(Matrix3x2fc pose) {
-			return new DrawnTextConsumer.Transformation(pose, this.opacity, this.scissor);
+			return new DrawnTextConsumer.Transformation(pose, opacity, scissor);
 		}
 
 		public DrawnTextConsumer.Transformation scaled(float scale) {
-			return this.withPose(this.pose.scale(scale, scale, new Matrix3x2f()));
+			return withPose(pose.scale(scale, scale, new Matrix3x2f()));
 		}
 
 		public DrawnTextConsumer.Transformation withOpacity(float opacity) {
-			return this.opacity == opacity ? this
-			                               : new DrawnTextConsumer.Transformation(this.pose, opacity, this.scissor);
+			return this.opacity == opacity
+			       ? this
+			       : new DrawnTextConsumer.Transformation(pose, opacity, scissor);
 		}
 
 		public DrawnTextConsumer.Transformation withScissor(ScreenRect scissor) {
-			return scissor.equals(this.scissor) ? this : new DrawnTextConsumer.Transformation(
-					this.pose,
-					this.opacity,
-					scissor
-			);
+			return scissor.equals(this.scissor)
+			       ? this
+			       : new DrawnTextConsumer.Transformation(pose, opacity, scissor);
 		}
 
+		/**
+		 * Создаёт трансформацию с областью ножниц, пересечённой с текущей (если она есть).
+		 * Координаты задаются в локальном пространстве до применения матрицы.
+		 */
 		public DrawnTextConsumer.Transformation withScissor(int left, int right, int top, int bottom) {
-			ScreenRect screenRect = new ScreenRect(left, top, right - left, bottom - top).transform(this.pose);
+			ScreenRect newScissor = new ScreenRect(left, top, right - left, bottom - top).transform(pose);
+
 			if (this.scissor != null) {
-				screenRect = Objects.requireNonNullElse(this.scissor.intersection(screenRect), ScreenRect.empty());
+				newScissor = Objects.requireNonNullElse(this.scissor.intersection(newScissor), ScreenRect.empty());
 			}
 
-			return this.withScissor(screenRect);
+			return withScissor(newScissor);
 		}
 	}
 }

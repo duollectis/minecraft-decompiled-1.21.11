@@ -9,10 +9,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultiActionDialogScreen}.
+ * Экран диалога с несколькими действиями, отображаемыми в виде кнопок-колонок.
  */
+@Environment(EnvType.CLIENT)
 public class MultiActionDialogScreen extends ColumnsDialogScreen<MultiActionDialog> {
 
 	public MultiActionDialogScreen(

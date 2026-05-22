@@ -15,12 +15,30 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpecialModelRenderer}.
+ * Базовый интерфейс специализированного рендерера предмета.
+ * Используется для предметов с нетривиальной геометрией, которые не могут быть
+ * представлены стандартной блочной моделью: щиты, головы, сундуки, знамёна и т.д.
+ * Рендерер извлекает данные из стека предмета через {@link #getData} и использует
+ * их при вызове {@link #render}.
+ *
+ * @param <T> тип данных, извлекаемых из стека предмета
  */
+@Environment(EnvType.CLIENT)
 public interface SpecialModelRenderer<T> {
 
+	/**
+	 * Рендерит специальную модель предмета.
+	 *
+	 * @param data           данные, извлечённые из стека предмета; может быть {@code null}
+	 * @param displayContext контекст отображения предмета
+	 * @param matrices       стек матриц трансформации
+	 * @param queue          очередь команд рендера
+	 * @param light          упакованное значение освещения
+	 * @param overlay        упакованное значение оверлея
+	 * @param glint          нужно ли рендерить эффект зачарования
+	 * @param seed           случайное зерно для вариативности
+	 */
 	void render(
 			@Nullable T data,
 			ItemDisplayContext displayContext,
@@ -29,18 +47,30 @@ public interface SpecialModelRenderer<T> {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	);
 
+	/**
+	 * Собирает все вершины модели для расчёта bounding box и других геометрических операций.
+	 *
+	 * @param consumer получатель вершин модели
+	 */
 	void collectVertices(Consumer<Vector3fc> consumer);
 
+	/**
+	 * Извлекает данные для рендера из стека предмета.
+	 *
+	 * @param stack стек предмета
+	 * @return данные для рендера или {@code null}, если данные отсутствуют
+	 */
 	@Nullable T getData(ItemStack stack);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakeContext}.
+	 * Контекст запекания специальных рендереров, предоставляющий доступ
+	 * к загруженным моделям сущностей, атласу спрайтов и кэшу скинов игроков.
 	 */
-	public interface BakeContext {
+	@Environment(EnvType.CLIENT)
+	interface BakeContext {
 
 		LoadedEntityModels entityModelSet();
 
@@ -48,24 +78,24 @@ public interface SpecialModelRenderer<T> {
 
 		PlayerSkinCache playerSkinRenderCache();
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code Simple}.
+		 * Простая реализация контекста запекания на основе record.
 		 */
-		public record Simple(
+		@Environment(EnvType.CLIENT)
+		record Simple(
 				LoadedEntityModels entityModelSet,
 				SpriteHolder spriteHolder,
 				PlayerSkinCache playerSkinRenderCache
-		)
-				implements SpecialModelRenderer.BakeContext {
+		) implements SpecialModelRenderer.BakeContext {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма специального рендерера, способная запекаться
+	 * в готовый {@link SpecialModelRenderer}.
 	 */
-	public interface Unbaked {
+	@Environment(EnvType.CLIENT)
+	interface Unbaked {
 
 		@Nullable SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context);
 

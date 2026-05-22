@@ -19,7 +19,7 @@ public record StoreCookieS2CPacket(Identifier key, byte[] payload) implements Pa
 			CODEC =
 			Packet.createCodec(StoreCookieS2CPacket::write, StoreCookieS2CPacket::new);
 	private static final int MAX_COOKIE_LENGTH = 5120;
-	public static final PacketCodec<ByteBuf, byte[]> COOKIE_PACKET_CODEC = PacketCodecs.byteArray(5120);
+	public static final PacketCodec<ByteBuf, byte[]> COOKIE_PACKET_CODEC = PacketCodecs.byteArray(MAX_COOKIE_LENGTH);
 
 	private StoreCookieS2CPacket(PacketByteBuf buf) {
 		this(buf.readIdentifier(), COOKIE_PACKET_CODEC.decode(buf));

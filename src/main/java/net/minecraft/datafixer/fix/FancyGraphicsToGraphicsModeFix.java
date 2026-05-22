@@ -8,7 +8,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code FancyGraphicsToGraphicsModeFix}.
+ * Мигрирует булево поле {@code fancyGraphics} в числовое поле {@code graphicsMode}:
+ * {@code "true"} → {@code "1"} (Fancy), иначе → {@code "0"} (Fast).
  */
 public class FancyGraphicsToGraphicsModeFix extends DataFix {
 
@@ -16,21 +17,21 @@ public class FancyGraphicsToGraphicsModeFix extends DataFix {
 		super(schema, true);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				"fancyGraphics to graphicsMode",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
-				typed -> typed.update(DSL.remainderFinder(),
-						options -> options.renameAndFixField(
-								"fancyGraphics",
-								"graphicsMode",
-								FancyGraphicsToGraphicsModeFix::fx
-						)
-				)
+		return fixTypeEverywhereTyped(
+			"fancyGraphics to graphicsMode",
+			getInputSchema().getType(TypeReferences.OPTIONS),
+			typed -> typed.update(
+				DSL.remainderFinder(),
+				options -> options.renameAndFixField("fancyGraphics", "graphicsMode", this::convertGraphicsMode)
+			)
 		);
 	}
 
-	private static <T> Dynamic<T> fx(Dynamic<T> value) {
-		return "true".equals(value.asString("true")) ? value.createString("1") : value.createString("0");
+	private <T> Dynamic<T> convertGraphicsMode(Dynamic<T> value) {
+		return "true".equals(value.asString("true"))
+			? value.createString("1")
+			: value.createString("0");
 	}
 }

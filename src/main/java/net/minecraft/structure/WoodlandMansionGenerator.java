@@ -259,7 +259,7 @@ public class WoodlandMansionGenerator {
 									blockPos2,
 									rotation
 							));
-							if (flagMatrix4.get(n, m - 1) == 1 || (flagMatrix3.get(n, m - 1) & 8388608) == 8388608) {
+							if (flagMatrix4.get(n, m - 1) == 1 || (flagMatrix3.get(n, m - 1) & MansionParameters.CARPET_CELL_FLAG) == MansionParameters.CARPET_CELL_FLAG) {
 								pieces.add(
 										new WoodlandMansionGenerator.Piece(
 												this.manager,
@@ -270,7 +270,7 @@ public class WoodlandMansionGenerator {
 								);
 							}
 
-							if (flagMatrix4.get(n + 1, m) == 1 || (flagMatrix3.get(n + 1, m) & 8388608) == 8388608) {
+							if (flagMatrix4.get(n + 1, m) == 1 || (flagMatrix3.get(n + 1, m) & MansionParameters.CARPET_CELL_FLAG) == MansionParameters.CARPET_CELL_FLAG) {
 								pieces.add(
 										new WoodlandMansionGenerator.Piece(
 												this.manager,
@@ -284,7 +284,7 @@ public class WoodlandMansionGenerator {
 								);
 							}
 
-							if (flagMatrix4.get(n, m + 1) == 1 || (flagMatrix3.get(n, m + 1) & 8388608) == 8388608) {
+							if (flagMatrix4.get(n, m + 1) == 1 || (flagMatrix3.get(n, m + 1) & MansionParameters.CARPET_CELL_FLAG) == MansionParameters.CARPET_CELL_FLAG) {
 								pieces.add(
 										new WoodlandMansionGenerator.Piece(
 												this.manager,
@@ -297,7 +297,7 @@ public class WoodlandMansionGenerator {
 								);
 							}
 
-							if (flagMatrix4.get(n - 1, m) == 1 || (flagMatrix3.get(n - 1, m) & 8388608) == 8388608) {
+							if (flagMatrix4.get(n - 1, m) == 1 || (flagMatrix3.get(n - 1, m) & MansionParameters.CARPET_CELL_FLAG) == MansionParameters.CARPET_CELL_FLAG) {
 								pieces.add(
 										new WoodlandMansionGenerator.Piece(
 												this.manager,
@@ -322,11 +322,11 @@ public class WoodlandMansionGenerator {
 						boolean bl2 = lx == 2 && flagMatrix4.get(p, o) == 3;
 						if (flagMatrix4.get(p, o) == 2 || bl2) {
 							int q = flagMatrix3.get(p, o);
-							int r = q & 983040;
-							int s = q & 65535;
-							bl2 = bl2 && (q & 8388608) == 8388608;
+							int r = q & MansionParameters.ROOM_SIZE_MASK;
+							int s = q & MansionParameters.ROOM_ID_MASK;
+							bl2 = bl2 && (q & MansionParameters.CARPET_CELL_FLAG) == MansionParameters.CARPET_CELL_FLAG;
 							list.clear();
-							if ((q & 2097152) == 2097152) {
+							if ((q & MansionParameters.ENTRANCE_CELL_FLAG) == MansionParameters.ENTRANCE_CELL_FLAG) {
 								for (Direction direction : Direction.Type.HORIZONTAL) {
 									if (flagMatrix4.get(p + direction.getOffsetX(), o + direction.getOffsetZ()) == 1) {
 										list.add(direction);
@@ -338,7 +338,7 @@ public class WoodlandMansionGenerator {
 							if (!list.isEmpty()) {
 								direction2 = list.get(this.random.nextInt(list.size()));
 							}
-							else if ((q & 1048576) == 1048576) {
+							else if ((q & MansionParameters.ORIGIN_CELL_FLAG) == MansionParameters.ORIGIN_CELL_FLAG) {
 								direction2 = Direction.UP;
 							}
 
@@ -394,12 +394,12 @@ public class WoodlandMansionGenerator {
 								);
 							}
 
-							if (r == 65536) {
+							if (r == MansionParameters.SMALL_ROOM_FLAG) {
 								this.addSmallRoom(pieces, blockPos3, rotation, direction2, roomPools[lx]);
 							}
-							else if (r == 131072 && direction2 != null) {
+							else if (r == MansionParameters.MEDIUM_ROOM_FLAG && direction2 != null) {
 								Direction direction3 = parameters.findConnectedRoomDirection(flagMatrix4, p, o, lx, s);
-								boolean bl3 = (q & 4194304) == 4194304;
+								boolean bl3 = (q & MansionParameters.STAIRCASE_CELL_FLAG) == MansionParameters.STAIRCASE_CELL_FLAG;
 								this.addMediumRoom(
 										pieces,
 										blockPos3,
@@ -410,7 +410,7 @@ public class WoodlandMansionGenerator {
 										bl3
 								);
 							}
-							else if (r == 262144 && direction2 != null && direction2 != Direction.UP) {
+							else if (r == MansionParameters.BIG_ROOM_FLAG && direction2 != null && direction2 != Direction.UP) {
 								Direction direction3 = direction2.rotateYClockwise();
 								if (!parameters.isRoomId(
 										flagMatrix4,
@@ -424,7 +424,7 @@ public class WoodlandMansionGenerator {
 
 								this.addBigRoom(pieces, blockPos3, rotation, direction3, direction2, roomPools[lx]);
 							}
-							else if (r == 262144 && direction2 == Direction.UP) {
+							else if (r == MansionParameters.BIG_ROOM_FLAG && direction2 == Direction.UP) {
 								this.addBigSecretRoom(pieces, blockPos3, rotation, roomPools[lx]);
 							}
 						}
@@ -1157,10 +1157,10 @@ public class WoodlandMansionGenerator {
 
 		public MansionParameters(Random rng) {
 			this.random = rng;
-			int i = 11;
+			int i = SIZE;
 			this.entranceI = 7;
 			this.entranceJ = 4;
-			this.baseLayout = new WoodlandMansionGenerator.FlagMatrix(11, 11, 5);
+			this.baseLayout = new WoodlandMansionGenerator.FlagMatrix(SIZE, SIZE, 5);
 			this.baseLayout.fill(this.entranceI, this.entranceJ, this.entranceI + 1, this.entranceJ + 1, 3);
 			this.baseLayout.fill(this.entranceI - 1, this.entranceJ, this.entranceI - 1, this.entranceJ + 1, 2);
 			this.baseLayout.fill(this.entranceI + 2, this.entranceJ - 2, this.entranceI + 3, this.entranceJ + 3, 5);
@@ -1168,8 +1168,8 @@ public class WoodlandMansionGenerator {
 			this.baseLayout.fill(this.entranceI + 1, this.entranceJ + 2, this.entranceI + 1, this.entranceJ + 3, 1);
 			this.baseLayout.set(this.entranceI - 1, this.entranceJ - 1, 1);
 			this.baseLayout.set(this.entranceI - 1, this.entranceJ + 2, 1);
-			this.baseLayout.fill(0, 0, 11, 1, 5);
-			this.baseLayout.fill(0, 9, 11, 11, 5);
+			this.baseLayout.fill(0, 0, SIZE, 1, 5);
+			this.baseLayout.fill(0, 9, SIZE, SIZE, 5);
 			this.layoutCorridor(this.baseLayout, this.entranceI, this.entranceJ - 2, Direction.WEST, 6);
 			this.layoutCorridor(this.baseLayout, this.entranceI, this.entranceJ + 3, Direction.WEST, 6);
 			this.layoutCorridor(this.baseLayout, this.entranceI - 2, this.entranceJ - 1, Direction.WEST, 3);
@@ -1179,9 +1179,9 @@ public class WoodlandMansionGenerator {
 			}
 
 			this.roomFlagsByFloor = new WoodlandMansionGenerator.FlagMatrix[3];
-			this.roomFlagsByFloor[0] = new WoodlandMansionGenerator.FlagMatrix(11, 11, 5);
-			this.roomFlagsByFloor[1] = new WoodlandMansionGenerator.FlagMatrix(11, 11, 5);
-			this.roomFlagsByFloor[2] = new WoodlandMansionGenerator.FlagMatrix(11, 11, 5);
+			this.roomFlagsByFloor[0] = new WoodlandMansionGenerator.FlagMatrix(SIZE, SIZE, 5);
+			this.roomFlagsByFloor[1] = new WoodlandMansionGenerator.FlagMatrix(SIZE, SIZE, 5);
+			this.roomFlagsByFloor[2] = new WoodlandMansionGenerator.FlagMatrix(SIZE, SIZE, 5);
 			this.updateRoomFlags(this.baseLayout, this.roomFlagsByFloor[0]);
 			this.updateRoomFlags(this.baseLayout, this.roomFlagsByFloor[1]);
 			this.roomFlagsByFloor[0].fill(
@@ -1189,14 +1189,14 @@ public class WoodlandMansionGenerator {
 					this.entranceJ,
 					this.entranceI + 1,
 					this.entranceJ + 1,
-					8388608
+					CARPET_CELL_FLAG
 			);
 			this.roomFlagsByFloor[1].fill(
 					this.entranceI + 1,
 					this.entranceJ,
 					this.entranceI + 1,
 					this.entranceJ + 1,
-					8388608
+					CARPET_CELL_FLAG
 			);
 			this.thirdFloorLayout = new WoodlandMansionGenerator.FlagMatrix(this.baseLayout.n, this.baseLayout.m, 5);
 			this.layoutThirdFloor();
@@ -1209,7 +1209,7 @@ public class WoodlandMansionGenerator {
 		}
 
 		public boolean isRoomId(WoodlandMansionGenerator.FlagMatrix layout, int i, int j, int floor, int roomId) {
-			return (this.roomFlagsByFloor[floor].get(i, j) & 65535) == roomId;
+			return (this.roomFlagsByFloor[floor].get(i, j) & ROOM_ID_MASK) == roomId;
 		}
 
 		public @Nullable Direction findConnectedRoomDirection(
@@ -1322,8 +1322,8 @@ public class WoodlandMansionGenerator {
 			for (int i = 0; i < this.thirdFloorLayout.m; i++) {
 				for (int j = 0; j < this.thirdFloorLayout.n; j++) {
 					int k = flagMatrix.get(j, i);
-					int l = k & 983040;
-					if (l == 131072 && (k & 2097152) == 2097152) {
+					int l = k & ROOM_SIZE_MASK;
+					if (l == MEDIUM_ROOM_FLAG && (k & ENTRANCE_CELL_FLAG) == ENTRANCE_CELL_FLAG) {
 						list.add(new Pair<>(j, i));
 					}
 				}
@@ -1335,7 +1335,7 @@ public class WoodlandMansionGenerator {
 			else {
 				Pair<Integer, Integer> pair = list.get(this.random.nextInt(list.size()));
 				int jx = flagMatrix.get(pair.getLeft(), pair.getRight());
-				flagMatrix.set(pair.getLeft(), pair.getRight(), jx | 4194304);
+				flagMatrix.set(pair.getLeft(), pair.getRight(), jx | STAIRCASE_CELL_FLAG);
 				Direction
 						direction =
 						this.findConnectedRoomDirection(
@@ -1343,7 +1343,7 @@ public class WoodlandMansionGenerator {
 								pair.getLeft(),
 								pair.getRight(),
 								1,
-								jx & 65535
+								jx & ROOM_ID_MASK
 						);
 				int l = pair.getLeft() + direction.getOffsetX();
 				int m = pair.getRight() + direction.getOffsetZ();
@@ -1358,7 +1358,7 @@ public class WoodlandMansionGenerator {
 						}
 						else if (o == l && n == m) {
 							this.thirdFloorLayout.set(o, n, 3);
-							this.roomFlagsByFloor[2].set(o, n, 8388608);
+							this.roomFlagsByFloor[2].set(o, n, CARPET_CELL_FLAG);
 						}
 					}
 				}
@@ -1418,7 +1418,7 @@ public class WoodlandMansionGenerator {
 					int n = k;
 					int o = l;
 					int p = l;
-					int q = 65536;
+					int q = SMALL_ROOM_FLAG;
 					if (roomFlags.get(k + 1, l) == 0
 							&& roomFlags.get(k, l + 1) == 0
 							&& roomFlags.get(k + 1, l + 1) == 0
@@ -1427,7 +1427,7 @@ public class WoodlandMansionGenerator {
 							&& layout.get(k + 1, l + 1) == 2) {
 						n = k + 1;
 						p = l + 1;
-						q = 262144;
+						q = BIG_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k - 1, l) == 0
 							&& roomFlags.get(k, l + 1) == 0
@@ -1437,7 +1437,7 @@ public class WoodlandMansionGenerator {
 							&& layout.get(k - 1, l + 1) == 2) {
 						m = k - 1;
 						p = l + 1;
-						q = 262144;
+						q = BIG_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k - 1, l) == 0
 							&& roomFlags.get(k, l - 1) == 0
@@ -1447,28 +1447,28 @@ public class WoodlandMansionGenerator {
 							&& layout.get(k - 1, l - 1) == 2) {
 						m = k - 1;
 						o = l - 1;
-						q = 262144;
+						q = BIG_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k + 1, l) == 0 && layout.get(k + 1, l) == 2) {
 						n = k + 1;
-						q = 131072;
+						q = MEDIUM_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k, l + 1) == 0 && layout.get(k, l + 1) == 2) {
 						p = l + 1;
-						q = 131072;
+						q = MEDIUM_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k - 1, l) == 0 && layout.get(k - 1, l) == 2) {
 						m = k - 1;
-						q = 131072;
+						q = MEDIUM_ROOM_FLAG;
 					}
 					else if (roomFlags.get(k, l - 1) == 0 && layout.get(k, l - 1) == 2) {
 						o = l - 1;
-						q = 131072;
+						q = MEDIUM_ROOM_FLAG;
 					}
 
 					int r = this.random.nextBoolean() ? m : n;
 					int s = this.random.nextBoolean() ? o : p;
-					int t = 2097152;
+					int t = ENTRANCE_CELL_FLAG;
 					if (!layout.anyMatchAround(r, s, 1)) {
 						r = r == m ? n : m;
 						s = s == o ? p : o;
@@ -1489,7 +1489,7 @@ public class WoodlandMansionGenerator {
 					for (int u = o; u <= p; u++) {
 						for (int v = m; v <= n; v++) {
 							if (v == r && u == s) {
-								roomFlags.set(v, u, 1048576 | t | q | i);
+								roomFlags.set(v, u, ORIGIN_CELL_FLAG | t | q | i);
 							}
 							else {
 								roomFlags.set(v, u, q | i);

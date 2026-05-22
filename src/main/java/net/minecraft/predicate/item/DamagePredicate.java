@@ -8,7 +8,7 @@ import net.minecraft.predicate.NumberRange;
 import net.minecraft.predicate.component.ComponentPredicate;
 
 /**
- * {@code DamagePredicate}.
+ * Предикат для проверки прочности предмета: текущего урона и оставшейся прочности.
  */
 public record DamagePredicate(
 		NumberRange.IntRange durability,
@@ -17,29 +17,34 @@ public record DamagePredicate(
 
 	public static final Codec<DamagePredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("durability", NumberRange.IntRange.ANY)
-							                    .forGetter(DamagePredicate::durability),
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("damage", NumberRange.IntRange.ANY)
-							                    .forGetter(DamagePredicate::damage)
-			                    )
-			                    .apply(instance, DamagePredicate::new)
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("durability", NumberRange.IntRange.ANY)
+							.forGetter(DamagePredicate::durability),
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("damage", NumberRange.IntRange.ANY)
+							.forGetter(DamagePredicate::damage)
+			)
+			.apply(instance, DamagePredicate::new)
 	);
-
-	@Override
-	public boolean test(ComponentsAccess components) {
-		Integer integer = components.get(DataComponentTypes.DAMAGE);
-		if (integer == null) {
-			return false;
-		}
-		else {
-			int i = components.getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
-			return !this.durability.test(i - integer) ? false : this.damage.test(integer);
-		}
-	}
 
 	public static DamagePredicate durability(NumberRange.IntRange durability) {
 		return new DamagePredicate(durability, NumberRange.IntRange.ANY);
+	}
+
+	@Override
+	public boolean test(ComponentsAccess components) {
+		Integer currentDamage = components.get(DataComponentTypes.DAMAGE);
+
+		if (currentDamage == null) {
+			return false;
+		}
+
+		int maxDamage = components.getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
+
+		if (!durability.test(maxDamage - currentDamage)) {
+			return false;
+		}
+
+		return damage.test(currentDamage);
 	}
 }

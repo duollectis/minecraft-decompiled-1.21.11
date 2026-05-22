@@ -37,11 +37,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemModelGenerator}.
+ * Генератор моделей предметов: регистрирует {@link ItemAsset} для каждого предмета,
+ * загружает JSON-модели через {@link ModelSupplier} и применяет источники окраски ({@link TintSource}).
  */
+@Environment(EnvType.CLIENT)
 public class ItemModelGenerator {
+
+	/** Цвет кожаной брони по умолчанию (коричневый, #A06540). */
+	private static final int DEFAULT_LEATHER_COLOR = -6265536;
 
 	private static final TintSource UNTINTED = ItemModels.constantTintSource(-1);
 	public static final Identifier HELMET_TRIM_ID_PREFIX = getTrimAssetIdPrefix("helmet");
@@ -73,118 +77,51 @@ public class ItemModelGenerator {
 		this.modelCollector = modelCollector;
 	}
 
-	/**
-	 * Register.
-	 *
-	 * @param item item
-	 */
 	public final void register(Item item) {
-		this.output.accept(item, ItemModels.basic(ModelIds.getItemModelId(item)));
+		output.accept(item, ItemModels.basic(ModelIds.getItemModelId(item)));
 	}
 
-	/**
-	 * Upload.
-	 *
-	 * @param item item
-	 * @param model model
-	 *
-	 * @return Identifier — результат операции
-	 */
 	public final Identifier upload(Item item, Model model) {
-		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(item), this.modelCollector);
+		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(item), modelCollector);
 	}
 
-	/**
-	 * Register.
-	 *
-	 * @param item item
-	 * @param model model
-	 */
 	public final void register(Item item, Model model) {
-		this.output.accept(item, ItemModels.basic(this.upload(item, model)));
+		output.accept(item, ItemModels.basic(upload(item, model)));
 	}
 
-	/**
-	 * Регистрирует sub model.
-	 *
-	 * @param item item
-	 * @param suffix suffix
-	 * @param model model
-	 *
-	 * @return Identifier — результат операции
-	 */
 	public final Identifier registerSubModel(Item item, String suffix, Model model) {
 		return model.upload(
 				ModelIds.getItemSubModelId(item, suffix),
 				TextureMap.layer0(TextureMap.getSubId(item, suffix)),
-				this.modelCollector
+				modelCollector
 		);
 	}
 
-	/**
-	 * Upload with texture source.
-	 *
-	 * @param item item
-	 * @param textureSourceItem texture source item
-	 * @param model model
-	 *
-	 * @return Identifier — результат операции
-	 */
 	public final Identifier uploadWithTextureSource(Item item, Item textureSourceItem, Model model) {
-		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(textureSourceItem), this.modelCollector);
+		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(textureSourceItem), modelCollector);
 	}
 
-	/**
-	 * Регистрирует with texture source.
-	 *
-	 * @param item item
-	 * @param textureSourceItem texture source item
-	 * @param model model
-	 */
 	public final void registerWithTextureSource(Item item, Item textureSourceItem, Model model) {
-		this.output.accept(item, ItemModels.basic(this.uploadWithTextureSource(item, textureSourceItem, model)));
+		output.accept(item, ItemModels.basic(uploadWithTextureSource(item, textureSourceItem, model)));
 	}
 
-	/**
-	 * Регистрирует with tinted overlay.
-	 *
-	 * @param item item
-	 * @param tint tint
-	 */
 	public final void registerWithTintedOverlay(Item item, TintSource tint) {
-		this.registerWithTintedLayer(item, "_overlay", tint);
+		registerWithTintedLayer(item, "_overlay", tint);
 	}
 
-	/**
-	 * Регистрирует with tinted layer.
-	 *
-	 * @param item item
-	 * @param layer1Suffix layer1 suffix
-	 * @param tint tint
-	 */
 	public final void registerWithTintedLayer(Item item, String layer1Suffix, TintSource tint) {
-		Identifier
-				identifier =
-				this.uploadTwoLayers(item, TextureMap.getId(item), TextureMap.getSubId(item, layer1Suffix));
-		this.output.accept(item, ItemModels.tinted(identifier, UNTINTED, tint));
+		Identifier modelId = uploadTwoLayers(item, TextureMap.getId(item), TextureMap.getSubId(item, layer1Suffix));
+
+		output.accept(item, ItemModels.tinted(modelId, UNTINTED, tint));
 	}
 
-	/**
-	 * Регистрирует dyeable with overlay.
-	 *
-	 * @param item item
-	 * @param i i
-	 */
-	public final void registerDyeableWithOverlay(Item item, int i) {
-		Identifier identifier = TextureMap.getId(item);
-		Identifier identifier2 = TextureMap.getSubId(item, "_overlay");
-		Identifier identifier3 = ModelIds.getItemModelId(item);
-		Models.GENERATED_TWO_LAYERS.upload(
-				identifier3,
-				TextureMap.layered(identifier, identifier2),
-				this.modelCollector
-		);
-		this.output.accept(item, ItemModels.tinted(identifier3, new DyeTintSource(i)));
+	public final void registerDyeableWithOverlay(Item item, int defaultColor) {
+		Identifier baseTexture = TextureMap.getId(item);
+		Identifier overlayTexture = TextureMap.getSubId(item, "_overlay");
+		Identifier modelId = ModelIds.getItemModelId(item);
+
+		Models.GENERATED_TWO_LAYERS.upload(modelId, TextureMap.layered(baseTexture, overlayTexture), modelCollector);
+		output.accept(item, ItemModels.tinted(modelId, new DyeTintSource(defaultColor)));
 	}
 
 	public final List<RangeDispatchItemModel.Entry> createCompassRangeDispatchEntries(Item item) {
@@ -347,26 +284,26 @@ public class ItemModelGenerator {
 					trimIdPrefix.withSuffixedPath("_" + trimMaterial.assets().getAssetId(equipmentKey).suffix());
 			ItemModel.Unbaked unbaked;
 			if (dyeable) {
-				this.uploadArmor(identifier4, identifier2, identifier3, identifier5);
-				unbaked = ItemModels.tinted(identifier4, new DyeTintSource(-6265536));
+					this.uploadArmor(identifier4, identifier2, identifier3, identifier5);
+					unbaked = ItemModels.tinted(identifier4, new DyeTintSource(DEFAULT_LEATHER_COLOR));
+				}
+				else {
+					this.uploadArmor(identifier4, identifier2, identifier5);
+					unbaked = ItemModels.basic(identifier4);
+				}
+	
+				list.add(ItemModels.switchCase(trimMaterial.materialKey, unbaked));
 			}
-			else {
-				this.uploadArmor(identifier4, identifier2, identifier5);
-				unbaked = ItemModels.basic(identifier4);
+	
+			ItemModel.Unbaked unbaked2;
+			if (dyeable) {
+				Models.GENERATED_TWO_LAYERS.upload(
+						identifier,
+						TextureMap.layered(identifier2, identifier3),
+						this.modelCollector
+				);
+				unbaked2 = ItemModels.tinted(identifier, new DyeTintSource(DEFAULT_LEATHER_COLOR));
 			}
-
-			list.add(ItemModels.switchCase(trimMaterial.materialKey, unbaked));
-		}
-
-		ItemModel.Unbaked unbaked2;
-		if (dyeable) {
-			Models.GENERATED_TWO_LAYERS.upload(
-					identifier,
-					TextureMap.layered(identifier2, identifier3),
-					this.modelCollector
-			);
-			unbaked2 = ItemModels.tinted(identifier, new DyeTintSource(-6265536));
-		}
 		else {
 			Models.GENERATED.upload(identifier, TextureMap.layer0(identifier2), this.modelCollector);
 			unbaked2 = ItemModels.basic(identifier);
@@ -1015,7 +952,7 @@ public class ItemModelGenerator {
 		this.registerArmor(Items.NETHERITE_CHESTPLATE, EquipmentAssetKeys.NETHERITE, CHESTPLATE_TRIM_ID_PREFIX, false);
 		this.registerArmor(Items.NETHERITE_LEGGINGS, EquipmentAssetKeys.NETHERITE, LEGGINGS_TRIM_ID_PREFIX, false);
 		this.registerArmor(Items.NETHERITE_BOOTS, EquipmentAssetKeys.NETHERITE, BOOTS_TRIM_ID_PREFIX, false);
-		this.registerDyeableWithOverlay(Items.LEATHER_HORSE_ARMOR, -6265536);
+		this.registerDyeableWithOverlay(Items.LEATHER_HORSE_ARMOR, DEFAULT_LEATHER_COLOR);
 		this.register(Items.ANGLER_POTTERY_SHERD, Models.GENERATED);
 		this.register(Items.ARCHER_POTTERY_SHERD, Models.GENERATED);
 		this.register(Items.ARMS_UP_POTTERY_SHERD, Models.GENERATED);

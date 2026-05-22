@@ -18,7 +18,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * {@code AdvancementProvider}.
+ * Провайдер данных для генерации JSON-файлов достижений.
+ * Делегирует генерацию набору {@link AdvancementTabGenerator}-ов,
+ * проверяя уникальность идентификаторов достижений.
  */
 public class AdvancementProvider implements DataProvider {
 
@@ -38,30 +40,30 @@ public class AdvancementProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		return this.registriesFuture.thenCompose(registries -> {
-			Set<Identifier> set = new HashSet<>();
-			List<CompletableFuture<?>> list = new ArrayList<>();
-			Consumer<AdvancementEntry> consumer = advancement -> {
-				if (!set.add(advancement.id())) {
+		return registriesFuture.thenCompose(registries -> {
+			Set<Identifier> registeredIds = new HashSet<>();
+			List<CompletableFuture<?>> futures = new ArrayList<>();
+
+			Consumer<AdvancementEntry> exporter = advancement -> {
+				if (!registeredIds.add(advancement.id())) {
 					throw new IllegalStateException("Duplicate advancement " + advancement.id());
 				}
-				else {
-					Path path = this.pathResolver.resolveJson(advancement.id());
-					list.add(DataProvider.writeCodecToPath(
-							writer,
-							registries,
-							Advancement.CODEC,
-							advancement.value(),
-							path
-					));
-				}
+
+				Path path = pathResolver.resolveJson(advancement.id());
+				futures.add(DataProvider.writeCodecToPath(
+						writer,
+						registries,
+						Advancement.CODEC,
+						advancement.value(),
+						path
+				));
 			};
 
-			for (AdvancementTabGenerator advancementTabGenerator : this.tabGenerators) {
-				advancementTabGenerator.accept(registries, consumer);
+			for (AdvancementTabGenerator tabGenerator : tabGenerators) {
+				tabGenerator.accept(registries, exporter);
 			}
 
-			return CompletableFuture.allOf(list.toArray(CompletableFuture[]::new));
+			return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
 		});
 	}
 

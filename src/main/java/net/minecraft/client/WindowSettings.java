@@ -5,38 +5,24 @@ import net.fabricmc.api.Environment;
 
 import java.util.OptionalInt;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WindowSettings}.
+ * Иммутабельные настройки окна: размеры, режим полноэкранного отображения.
+ * Методы {@code with*} возвращают новый экземпляр с изменённым полем.
  */
+@Environment(EnvType.CLIENT)
 public record WindowSettings(
-		int width,
-		int height,
-		OptionalInt fullscreenWidth,
-		OptionalInt fullscreenHeight,
-		boolean fullscreen
+	int width,
+	int height,
+	OptionalInt fullscreenWidth,
+	OptionalInt fullscreenHeight,
+	boolean fullscreen
 ) {
 
-	/**
-	 * With dimensions.
-	 *
-	 * @param width width
-	 * @param height height
-	 *
-	 * @return WindowSettings — результат операции
-	 */
 	public WindowSettings withDimensions(int width, int height) {
-		return new WindowSettings(width, height, this.fullscreenWidth, this.fullscreenHeight, this.fullscreen);
+		return new WindowSettings(width, height, fullscreenWidth, fullscreenHeight, fullscreen);
 	}
 
-	/**
-	 * With fullscreen.
-	 *
-	 * @param fullscreen fullscreen
-	 *
-	 * @return WindowSettings — результат операции
-	 */
 	public WindowSettings withFullscreen(boolean fullscreen) {
-		return new WindowSettings(this.width, this.height, this.fullscreenWidth, this.fullscreenHeight, fullscreen);
+		return new WindowSettings(width, height, fullscreenWidth, fullscreenHeight, fullscreen);
 	}
 }

@@ -24,12 +24,13 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code BarrelBlockEntity}.
+ * Блок-сущность бочки. Поддерживает 27 слотов инвентаря, лут-таблицы и анимацию открытия крышки.
  */
 public class BarrelBlockEntity extends LootableContainerBlockEntity {
 
+	private static final int INVENTORY_SIZE = 27;
 	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.barrel");
-	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
 	private final ViewerCountManager stateManager = new ViewerCountManager() {
 		@Override
 		protected void onContainerOpen(World world, BlockPos pos, BlockState state) {
@@ -55,13 +56,11 @@ public class BarrelBlockEntity extends LootableContainerBlockEntity {
 
 		@Override
 		public boolean isPlayerViewing(PlayerEntity player) {
-			if (player.currentScreenHandler instanceof GenericContainerScreenHandler) {
-				Inventory inventory = ((GenericContainerScreenHandler) player.currentScreenHandler).getInventory();
-				return inventory == BarrelBlockEntity.this;
+			if (player.currentScreenHandler instanceof GenericContainerScreenHandler handler) {
+				return handler.getInventory() == BarrelBlockEntity.this;
 			}
-			else {
-				return false;
-			}
+
+			return false;
 		}
 	};
 
@@ -72,28 +71,30 @@ public class BarrelBlockEntity extends LootableContainerBlockEntity {
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.writeLootTable(view)) {
-			Inventories.writeData(view, this.inventory);
+
+		if (!writeLootTable(view)) {
+			Inventories.writeData(view, inventory);
 		}
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-		if (!this.readLootTable(view)) {
-			Inventories.readData(view, this.inventory);
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
+
+		if (!readLootTable(view)) {
+			Inventories.readData(view, inventory);
 		}
 	}
 
 	@Override
 	public int size() {
-		return 27;
+		return INVENTORY_SIZE;
 	}
 
 	@Override
 	protected DefaultedList<ItemStack> getHeldStacks() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
@@ -113,61 +114,48 @@ public class BarrelBlockEntity extends LootableContainerBlockEntity {
 
 	@Override
 	public void onOpen(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.openContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState(),
-					user.getContainerInteractionRange()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.openContainer(
+				user.asLivingEntity(),
+				getWorld(),
+				getPos(),
+				getCachedState(),
+				user.getContainerInteractionRange()
+		);
 	}
 
 	@Override
 	public void onClose(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.closeContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.closeContainer(user.asLivingEntity(), getWorld(), getPos(), getCachedState());
 	}
 
 	@Override
 	public List<ContainerUser> getViewingUsers() {
-		return this.stateManager.getViewingUsers(this.getWorld(), this.getPos());
+		return stateManager.getViewingUsers(getWorld(), getPos());
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (!this.removed) {
-			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());
+		if (!removed) {
+			stateManager.updateViewerCount(getWorld(), getPos(), getCachedState());
 		}
 	}
 
 	void setOpen(BlockState state, boolean open) {
-		this.world.setBlockState(this.getPos(), state.with(BarrelBlock.OPEN, open), 3);
+		world.setBlockState(getPos(), state.with(BarrelBlock.OPEN, open), 3);
 	}
 
 	void playSound(BlockState state, SoundEvent soundEvent) {
-		Vec3i vec3i = state.get(BarrelBlock.FACING).getVector();
-		double d = this.pos.getX() + 0.5 + vec3i.getX() / 2.0;
-		double e = this.pos.getY() + 0.5 + vec3i.getY() / 2.0;
-		double f = this.pos.getZ() + 0.5 + vec3i.getZ() / 2.0;
-		this.world.playSound(
-				null,
-				d,
-				e,
-				f,
-				soundEvent,
-				SoundCategory.BLOCKS,
-				0.5F,
-				this.world.random.nextFloat() * 0.1F + 0.9F
-		);
+		Vec3i facingVector = state.get(BarrelBlock.FACING).getVector();
+		double x = pos.getX() + 0.5 + facingVector.getX() / 2.0;
+		double y = pos.getY() + 0.5 + facingVector.getY() / 2.0;
+		double z = pos.getZ() + 0.5 + facingVector.getZ() / 2.0;
+		world.playSound(null, x, y, z, soundEvent, SoundCategory.BLOCKS, 0.5F, world.random.nextFloat() * 0.1F + 0.9F);
 	}
 }

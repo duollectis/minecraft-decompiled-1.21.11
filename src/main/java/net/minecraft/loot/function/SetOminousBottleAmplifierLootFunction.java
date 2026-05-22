@@ -16,17 +16,22 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code SetOminousBottleAmplifierLootFunction}.
+ * Функция лута, устанавливающая усилитель зловещей бутылки.
+ * Значение зажимается в допустимом диапазоне [{@code MIN_AMPLIFIER}, {@code MAX_AMPLIFIER}].
  */
 public class SetOminousBottleAmplifierLootFunction extends ConditionalLootFunction {
 
+	private static final int MIN_AMPLIFIER = 0;
+	private static final int MAX_AMPLIFIER = 4;
+
 	static final MapCodec<SetOminousBottleAmplifierLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(LootNumberProviderTypes.CODEC
-							.fieldOf("amplifier")
-							.forGetter(lootFunction -> lootFunction.amplifier))
-					.apply(instance, SetOminousBottleAmplifierLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(LootNumberProviderTypes.CODEC
+				.fieldOf("amplifier")
+				.forGetter(lootFunction -> lootFunction.amplifier))
+			.apply(instance, SetOminousBottleAmplifierLootFunction::new)
 	);
+
 	private final LootNumberProvider amplifier;
 
 	private SetOminousBottleAmplifierLootFunction(List<LootCondition> conditions, LootNumberProvider amplifier) {
@@ -36,7 +41,7 @@ public class SetOminousBottleAmplifierLootFunction extends ConditionalLootFuncti
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.amplifier.getAllowedParameters();
+		return amplifier.getAllowedParameters();
 	}
 
 	@Override
@@ -46,13 +51,9 @@ public class SetOminousBottleAmplifierLootFunction extends ConditionalLootFuncti
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		int i = MathHelper.clamp(this.amplifier.nextInt(context), 0, 4);
-		stack.set(DataComponentTypes.OMINOUS_BOTTLE_AMPLIFIER, new OminousBottleAmplifierComponent(i));
+		int clampedAmplifier = MathHelper.clamp(amplifier.nextInt(context), MIN_AMPLIFIER, MAX_AMPLIFIER);
+		stack.set(DataComponentTypes.OMINOUS_BOTTLE_AMPLIFIER, new OminousBottleAmplifierComponent(clampedAmplifier));
 		return stack;
-	}
-
-	public LootNumberProvider getAmplifier() {
-		return this.amplifier;
 	}
 
 	public static ConditionalLootFunction.Builder<?> builder(LootNumberProvider amplifier) {

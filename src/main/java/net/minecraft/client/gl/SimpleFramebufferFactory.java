@@ -5,64 +5,48 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.ClosableFactory;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleFramebufferFactory}.
+ * Фабрика для создания и управления жизненным циклом {@link SimpleFramebuffer}.
+ * Реализует {@link ClosableFactory}, что позволяет использовать её в контексте
+ * управляемых ресурсов пост-эффектов.
  */
+@Environment(EnvType.CLIENT)
 public record SimpleFramebufferFactory(
-		int width,
-		int height,
-		boolean useDepth,
-		int clearColor
+	int width,
+	int height,
+	boolean useDepth,
+	int clearColor
 ) implements ClosableFactory<Framebuffer> {
 
-	/**
-	 * Create.
-	 *
-	 * @return Framebuffer — результат операции
-	 */
 	public Framebuffer create() {
-		return new SimpleFramebuffer(null, this.width, this.height, this.useDepth);
+		return new SimpleFramebuffer(null, width, height, useDepth);
 	}
 
-	/**
-	 * Prepare.
-	 *
-	 * @param framebuffer framebuffer
-	 */
 	public void prepare(Framebuffer framebuffer) {
-		if (this.useDepth) {
+		if (useDepth) {
 			RenderSystem.getDevice()
-			            .createCommandEncoder()
-			            .clearColorAndDepthTextures(
-					            framebuffer.getColorAttachment(),
-					            this.clearColor,
-					            framebuffer.getDepthAttachment(),
-					            1.0
-			            );
-		}
-		else {
-			RenderSystem
-					.getDevice()
-					.createCommandEncoder()
-					.clearColorTexture(framebuffer.getColorAttachment(), this.clearColor);
+				.createCommandEncoder()
+				.clearColorAndDepthTextures(
+					framebuffer.getColorAttachment(),
+					clearColor,
+					framebuffer.getDepthAttachment(),
+					1.0
+				);
+		} else {
+			RenderSystem.getDevice()
+				.createCommandEncoder()
+				.clearColorTexture(framebuffer.getColorAttachment(), clearColor);
 		}
 	}
 
-	/**
-	 * Close.
-	 *
-	 * @param framebuffer framebuffer
-	 */
 	public void close(Framebuffer framebuffer) {
 		framebuffer.delete();
 	}
 
-	@Override
 	public boolean equals(ClosableFactory<?> factory) {
-		return !(factory instanceof SimpleFramebufferFactory simpleFramebufferFactory)
-		       ? false
-		       : this.width == simpleFramebufferFactory.width && this.height == simpleFramebufferFactory.height
-		         && this.useDepth == simpleFramebufferFactory.useDepth;
+		return factory instanceof SimpleFramebufferFactory other
+			&& width == other.width
+			&& height == other.height
+			&& useDepth == other.useDepth;
 	}
 }

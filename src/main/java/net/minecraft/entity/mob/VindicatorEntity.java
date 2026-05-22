@@ -34,7 +34,9 @@ import java.util.EnumSet;
 import java.util.function.Predicate;
 
 /**
- * {@code VindicatorEntity}.
+ * Карательный иллагер — ближний боец рейда с железным топором.
+ * При имени «Johnny» атакует всех живых существ (режим Johnny).
+ * На нормальной и сложной сложности умеет ломать двери во время рейда.
  */
 public class VindicatorEntity extends IllagerEntity {
 
@@ -43,8 +45,7 @@ public class VindicatorEntity extends IllagerEntity {
 			DIFFICULTY_ALLOWS_DOOR_BREAKING_PREDICATE =
 			difficulty -> difficulty == Difficulty.NORMAL
 					|| difficulty == Difficulty.HARD;
-	private static final boolean DEFAULT_JOHNNY = false;
-	boolean johnny = false;
+	boolean johnny;
 
 	public VindicatorEntity(EntityType<? extends VindicatorEntity> entityType, World world) {
 		super(entityType, world);
@@ -53,27 +54,26 @@ public class VindicatorEntity extends IllagerEntity {
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
-		this.goalSelector.add(2, new VindicatorEntity.BreakDoorGoal(this));
-		this.goalSelector.add(3, new IllagerEntity.LongDoorInteractGoal(this));
-		this.goalSelector.add(4, new RaiderEntity.PatrolApproachGoal(this, 10.0F));
-		this.goalSelector.add(5, new MeleeAttackGoal(this, 1.0, false));
-		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, MerchantEntity.class, true));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
-		this.targetSelector.add(4, new VindicatorEntity.TargetGoal(this));
-		this.goalSelector.add(8, new WanderAroundGoal(this, 0.6));
-		this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
-		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
+		goalSelector.add(2, new VindicatorEntity.BreakDoorGoal(this));
+		goalSelector.add(3, new IllagerEntity.LongDoorInteractGoal(this));
+		goalSelector.add(4, new RaiderEntity.PatrolApproachGoal(this, 10.0F));
+		goalSelector.add(5, new MeleeAttackGoal(this, 1.0, false));
+		targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, MerchantEntity.class, true));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
+		targetSelector.add(4, new VindicatorEntity.TargetGoal(this));
+		goalSelector.add(8, new WanderAroundGoal(this, 0.6));
+		goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
+		goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
-		if (!this.isAiDisabled() && NavigationConditions.hasMobNavigation(this)) {
-			boolean bl = world.hasRaidAt(this.getBlockPos());
-			this.getNavigation().setCanOpenDoors(bl);
+		if (!isAiDisabled() && NavigationConditions.hasMobNavigation(this)) {
+			getNavigation().setCanOpenDoors(world.hasRaidAt(getBlockPos()));
 		}
 
 		super.mobTick(world);
@@ -90,25 +90,24 @@ public class VindicatorEntity extends IllagerEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		if (this.johnny) {
-			view.putBoolean("Johnny", true);
+		if (johnny) {
+			view.putBoolean(JOHNNY_KEY, true);
 		}
 	}
 
 	@Override
 	public IllagerEntity.State getState() {
-		if (this.isAttacking()) {
+		if (isAttacking()) {
 			return IllagerEntity.State.ATTACKING;
 		}
-		else {
-			return this.isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
-		}
+
+		return isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.johnny = view.getBoolean("Johnny", false);
+		johnny = view.getBoolean(JOHNNY_KEY, false);
 	}
 
 	@Override
@@ -123,26 +122,26 @@ public class VindicatorEntity extends IllagerEntity {
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		EntityData entityData2 = super.initialize(world, difficulty, spawnReason, entityData);
-		this.getNavigation().setCanOpenDoors(true);
+		EntityData result = super.initialize(world, difficulty, spawnReason, entityData);
+		getNavigation().setCanOpenDoors(true);
 		Random random = world.getRandom();
-		this.initEquipment(random, difficulty);
-		this.updateEnchantments(world, random, difficulty);
-		return entityData2;
+		initEquipment(random, difficulty);
+		updateEnchantments(world, random, difficulty);
+		return result;
 	}
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		if (this.getRaid() == null) {
-			this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
+		if (getRaid() == null) {
+			equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
 		}
 	}
 
 	@Override
 	public void setCustomName(@Nullable Text name) {
 		super.setCustomName(name);
-		if (!this.johnny && name != null && name.getString().equals("Johnny")) {
-			this.johnny = true;
+		if (!johnny && name != null && name.getString().equals(JOHNNY_KEY)) {
+			johnny = true;
 		}
 	}
 
@@ -163,33 +162,30 @@ public class VindicatorEntity extends IllagerEntity {
 
 	@Override
 	public void addBonusForWave(ServerWorld world, int wave, boolean unused) {
-		ItemStack itemStack = new ItemStack(Items.IRON_AXE);
-		Raid raid = this.getRaid();
-		boolean bl = this.random.nextFloat() <= raid.getEnchantmentChance();
-		if (bl) {
-			RegistryKey<EnchantmentProvider> registryKey = wave > raid.getMaxWaves(Difficulty.NORMAL)
-			                                               ? EnchantmentProviders.VINDICATOR_POST_WAVE_5_RAID
-			                                               : EnchantmentProviders.VINDICATOR_RAID;
+		ItemStack axe = new ItemStack(Items.IRON_AXE);
+		Raid raid = getRaid();
+
+		if (random.nextFloat() <= raid.getEnchantmentChance()) {
+			RegistryKey<EnchantmentProvider> enchantKey = wave > raid.getMaxWaves(Difficulty.NORMAL)
+					? EnchantmentProviders.VINDICATOR_POST_WAVE_5_RAID
+					: EnchantmentProviders.VINDICATOR_RAID;
 			EnchantmentHelper.applyEnchantmentProvider(
-					itemStack,
+					axe,
 					world.getRegistryManager(),
-					registryKey,
-					world.getLocalDifficulty(this.getBlockPos()),
-					this.random
+					enchantKey,
+					world.getLocalDifficulty(getBlockPos()),
+					random
 			);
 		}
 
-		this.equipStack(EquipmentSlot.MAINHAND, itemStack);
+		equipStack(EquipmentSlot.MAINHAND, axe);
 	}
 
-	/**
-	 * {@code BreakDoorGoal}.
-	 */
 	static class BreakDoorGoal extends net.minecraft.entity.ai.goal.BreakDoorGoal {
 
 		public BreakDoorGoal(MobEntity mobEntity) {
 			super(mobEntity, 6, VindicatorEntity.DIFFICULTY_ALLOWS_DOOR_BREAKING_PREDICATE);
-			this.setControls(EnumSet.of(Goal.Control.MOVE));
+			setControls(EnumSet.of(Goal.Control.MOVE));
 		}
 
 		@Override
@@ -212,9 +208,6 @@ public class VindicatorEntity extends IllagerEntity {
 		}
 	}
 
-	/**
-	 * {@code TargetGoal}.
-	 */
 	static class TargetGoal extends ActiveTargetGoal<LivingEntity> {
 
 		public TargetGoal(VindicatorEntity vindicator) {

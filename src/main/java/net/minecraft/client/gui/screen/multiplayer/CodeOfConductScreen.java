@@ -16,68 +16,66 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CodeOfConductScreen}.
+ * Экран кодекса поведения сервера — показывается при первом подключении к серверу
+ * с установленным кодексом. Позволяет принять или отклонить условия.
  */
+@Environment(EnvType.CLIENT)
 public class CodeOfConductScreen extends WarningScreen {
 
-	private static final Text
-			TITLE_TEXT =
-			Text.translatable("multiplayer.codeOfConduct.title").formatted(Formatting.BOLD);
+	private static final Text TITLE_TEXT = Text.translatable("multiplayer.codeOfConduct.title").formatted(Formatting.BOLD);
 	private static final Text CHECK_TEXT = Text.translatable("multiplayer.codeOfConduct.check");
+
 	private final @Nullable ServerInfo serverInfo;
 	private final String rawCodeOfConduct;
 	private final BooleanConsumer callback;
 	private final Screen backgroundScreen;
 
 	private CodeOfConductScreen(
-			@Nullable ServerInfo serverInfo,
-			Screen screen,
-			Text text,
-			String string,
-			BooleanConsumer booleanConsumer
+		@Nullable ServerInfo serverInfo,
+		Screen screen,
+		Text text,
+		String rawCodeOfConduct,
+		BooleanConsumer callback
 	) {
 		super(TITLE_TEXT, text, CHECK_TEXT, TITLE_TEXT.copy().append("\n").append(text));
 		this.serverInfo = serverInfo;
-		this.backgroundScreen = screen;
-		this.rawCodeOfConduct = string;
-		this.callback = booleanConsumer;
+		backgroundScreen = screen;
+		this.rawCodeOfConduct = rawCodeOfConduct;
+		this.callback = callback;
 	}
 
 	public CodeOfConductScreen(
-			@Nullable ServerInfo serverInfo,
-			Screen screen,
-			String string,
-			BooleanConsumer booleanConsumer
+		@Nullable ServerInfo serverInfo,
+		Screen screen,
+		String rawCodeOfConduct,
+		BooleanConsumer callback
 	) {
-		this(serverInfo, screen, Text.literal(string), string, booleanConsumer);
+		this(serverInfo, screen, Text.literal(rawCodeOfConduct), rawCodeOfConduct, callback);
 	}
 
 	@Override
 	protected LayoutWidget getLayout() {
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(ScreenTexts.ACKNOWLEDGE, button -> this.onAnswer(true))
-				.build());
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(ScreenTexts.DISCONNECT, button -> this.onAnswer(false))
-				.build());
-		return directionalLayoutWidget;
+		DirectionalLayoutWidget layout = DirectionalLayoutWidget.horizontal().spacing(8);
+		layout.add(ButtonWidget.builder(ScreenTexts.ACKNOWLEDGE, button -> onAnswer(true)).build());
+		layout.add(ButtonWidget.builder(ScreenTexts.DISCONNECT, button -> onAnswer(false)).build());
+		return layout;
 	}
 
 	private void onAnswer(boolean acknowledged) {
-		this.callback.accept(acknowledged);
-		if (this.serverInfo != null) {
-			if (acknowledged && this.checkbox.isChecked()) {
-				this.serverInfo.setAcceptedCodeOfConduct(this.rawCodeOfConduct);
-			}
-			else {
-				this.serverInfo.resetAcceptedCodeOfConduct();
-			}
-
-			ServerList.updateServerListEntry(this.serverInfo);
+		callback.accept(acknowledged);
+		if (serverInfo == null) {
+			return;
 		}
+
+		if (acknowledged && checkbox.isChecked()) {
+			serverInfo.setAcceptedCodeOfConduct(rawCodeOfConduct);
+		}
+		else {
+			serverInfo.resetAcceptedCodeOfConduct();
+		}
+
+		ServerList.updateServerListEntry(serverInfo);
 	}
 
 	@Override
@@ -88,8 +86,8 @@ public class CodeOfConductScreen extends WarningScreen {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.backgroundScreen instanceof ConnectScreen || this.backgroundScreen instanceof ReconfiguringScreen) {
-			this.backgroundScreen.tick();
+		if (backgroundScreen instanceof ConnectScreen || backgroundScreen instanceof ReconfiguringScreen) {
+			backgroundScreen.tick();
 		}
 	}
 }

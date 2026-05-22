@@ -16,84 +16,119 @@ import net.minecraft.world.poi.PointOfInterestTypes;
 import java.util.List;
 
 /**
- * {@code CatSpawner}.
+ * Спаунер кошек. Периодически пытается заспаунить кошку рядом со случайным игроком:
+ * <ul>
+ *   <li>в домах деревни (если рядом есть занятые POI типа HOME)</li>
+ *   <li>в структурах, помеченных тегом {@link StructureTags#CATS_SPAWN_IN}</li>
+ * </ul>
  */
 public class CatSpawner implements SpecialSpawner {
 
 	private static final int SPAWN_INTERVAL = 1200;
+	private static final int SPAWN_OFFSET_MIN = 8;
+	private static final int SPAWN_OFFSET_MAX = 24;
+	private static final int REGION_CHECK_RADIUS = 10;
+	private static final int VILLAGE_POI_SEARCH_RADIUS = 48;
+	private static final int MAX_CATS_IN_VILLAGE = 5;
+	private static final int MIN_VILLAGE_POI_COUNT = 4;
+	private static final int STRUCTURE_SEARCH_RADIUS = 16;
+
 	private int cooldown;
 
 	@Override
 	public void spawn(ServerWorld world, boolean spawnMonsters) {
-		this.cooldown--;
-		if (this.cooldown <= 0) {
-			this.cooldown = 1200;
-			PlayerEntity playerEntity = world.getRandomAlivePlayer();
-			if (playerEntity != null) {
-				Random random = world.random;
-				int i = (8 + random.nextInt(24)) * (random.nextBoolean() ? -1 : 1);
-				int j = (8 + random.nextInt(24)) * (random.nextBoolean() ? -1 : 1);
-				BlockPos blockPos = playerEntity.getBlockPos().add(i, 0, j);
-				int k = 10;
-				if (world.isRegionLoaded(
-						blockPos.getX() - 10,
-						blockPos.getZ() - 10,
-						blockPos.getX() + 10,
-						blockPos.getZ() + 10
-				)) {
-					if (SpawnRestriction.isSpawnPosAllowed(EntityType.CAT, world, blockPos)) {
-						if (world.isNearOccupiedPointOfInterest(blockPos, 2)) {
-							this.spawnInHouse(world, blockPos);
-						}
-						else if (world
-								.getStructureAccessor()
-								.getStructureContaining(blockPos, StructureTags.CATS_SPAWN_IN)
-								.hasChildren()) {
-							this.spawnInStructure(world, blockPos);
-						}
-					}
-				}
-			}
+		cooldown--;
+
+		if (cooldown > 0) {
+			return;
+		}
+
+		cooldown = SPAWN_INTERVAL;
+		PlayerEntity player = world.getRandomAlivePlayer();
+
+		if (player == null) {
+			return;
+		}
+
+		Random random = world.random;
+		int offsetX = (SPAWN_OFFSET_MIN + random.nextInt(SPAWN_OFFSET_MAX)) * (random.nextBoolean() ? -1 : 1);
+		int offsetZ = (SPAWN_OFFSET_MIN + random.nextInt(SPAWN_OFFSET_MAX)) * (random.nextBoolean() ? -1 : 1);
+		BlockPos spawnPos = player.getBlockPos().add(offsetX, 0, offsetZ);
+
+		if (!world.isRegionLoaded(
+			spawnPos.getX() - REGION_CHECK_RADIUS,
+			spawnPos.getZ() - REGION_CHECK_RADIUS,
+			spawnPos.getX() + REGION_CHECK_RADIUS,
+			spawnPos.getZ() + REGION_CHECK_RADIUS
+		)) {
+			return;
+		}
+
+		if (!SpawnRestriction.isSpawnPosAllowed(EntityType.CAT, world, spawnPos)) {
+			return;
+		}
+
+		if (world.isNearOccupiedPointOfInterest(spawnPos, 2)) {
+			spawnInHouse(world, spawnPos);
+		} else if (world.getStructureAccessor().getStructureContaining(spawnPos, StructureTags.CATS_SPAWN_IN).hasChildren()) {
+			spawnInStructure(world, spawnPos);
 		}
 	}
 
+	/**
+	 * Спаунит кошку в деревне, если количество занятых домов превышает порог
+	 * и рядом ещё нет слишком много кошек.
+	 */
 	private void spawnInHouse(ServerWorld world, BlockPos pos) {
-		int i = 48;
-		if (world.getPointOfInterestStorage()
-		         .count(
-				         entry -> entry.matchesKey(PointOfInterestTypes.HOME),
-				         pos,
-				         48,
-				         PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
-		         )
-				> 4L) {
-			List<CatEntity>
-					list =
-					world.getNonSpectatingEntities(CatEntity.class, new Box(pos).expand(48.0, 8.0, 48.0));
-			if (list.size() < 5) {
-				this.spawn(pos, world, false);
-			}
+		long occupiedHomes = world.getPointOfInterestStorage().count(
+			entry -> entry.matchesKey(PointOfInterestTypes.HOME),
+			pos,
+			VILLAGE_POI_SEARCH_RADIUS,
+			PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
+		);
+
+		if (occupiedHomes <= MIN_VILLAGE_POI_COUNT) {
+			return;
+		}
+
+		List<CatEntity> nearbyCats = world.getNonSpectatingEntities(
+			CatEntity.class,
+			new Box(pos).expand(VILLAGE_POI_SEARCH_RADIUS, 8.0, VILLAGE_POI_SEARCH_RADIUS)
+		);
+
+		if (nearbyCats.size() < MAX_CATS_IN_VILLAGE) {
+			spawnCat(pos, world, false);
 		}
 	}
 
+	/**
+	 * Спаунит кошку в структуре, если рядом ещё нет ни одной кошки.
+	 */
 	private void spawnInStructure(ServerWorld world, BlockPos pos) {
-		int i = 16;
-		List<CatEntity> list = world.getNonSpectatingEntities(CatEntity.class, new Box(pos).expand(16.0, 8.0, 16.0));
-		if (list.isEmpty()) {
-			this.spawn(pos, world, true);
+		List<CatEntity> nearbyCats = world.getNonSpectatingEntities(
+			CatEntity.class,
+			new Box(pos).expand(STRUCTURE_SEARCH_RADIUS, 8.0, STRUCTURE_SEARCH_RADIUS)
+		);
+
+		if (nearbyCats.isEmpty()) {
+			spawnCat(pos, world, true);
 		}
 	}
 
-	private void spawn(BlockPos pos, ServerWorld world, boolean persistent) {
-		CatEntity catEntity = EntityType.CAT.create(world, SpawnReason.NATURAL);
-		if (catEntity != null) {
-			catEntity.initialize(world, world.getLocalDifficulty(pos), SpawnReason.NATURAL, null);
-			if (persistent) {
-				catEntity.setPersistent();
-			}
+	private void spawnCat(BlockPos pos, ServerWorld world, boolean persistent) {
+		CatEntity cat = EntityType.CAT.create(world, SpawnReason.NATURAL);
 
-			catEntity.refreshPositionAndAngles(pos, 0.0F, 0.0F);
-			world.spawnEntityAndPassengers(catEntity);
+		if (cat == null) {
+			return;
 		}
+
+		cat.initialize(world, world.getLocalDifficulty(pos), SpawnReason.NATURAL, null);
+
+		if (persistent) {
+			cat.setPersistent();
+		}
+
+		cat.refreshPositionAndAngles(pos, 0.0F, 0.0F);
+		world.spawnEntityAndPassengers(cat);
 	}
 }

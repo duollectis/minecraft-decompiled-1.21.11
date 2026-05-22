@@ -9,7 +9,8 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
 /**
- * {@code EmptyItemInVillagerTradeFix}.
+ * Удаляет пустой второй слот покупки ({@code buyB}) из торговли жителя,
+ * если предмет является воздухом или имеет нулевое количество.
  */
 public class EmptyItemInVillagerTradeFix extends DataFix {
 
@@ -18,14 +19,20 @@ public class EmptyItemInVillagerTradeFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.VILLAGER_TRADE);
-		return this.writeFixAndRead(
-				"EmptyItemInVillagerTradeFix", type, type, villagerTradeDynamic -> {
-					Dynamic<?> dynamic = villagerTradeDynamic.get("buyB").orElseEmptyMap();
-					String string = IdentifierNormalizingSchema.normalize(dynamic.get("id").asString("minecraft:air"));
-					int i = dynamic.get("count").asInt(0);
-					return !string.equals("minecraft:air") && i != 0 ? villagerTradeDynamic
-					                                                 : villagerTradeDynamic.remove("buyB");
+		Type<?> tradeType = getInputSchema().getType(TypeReferences.VILLAGER_TRADE);
+
+		return writeFixAndRead(
+				"EmptyItemInVillagerTradeFix",
+				tradeType,
+				tradeType,
+				trade -> {
+					Dynamic<?> buyB = trade.get("buyB").orElseEmptyMap();
+					String itemId = IdentifierNormalizingSchema.normalize(buyB.get("id").asString("minecraft:air"));
+					int count = buyB.get("count").asInt(0);
+
+					return "minecraft:air".equals(itemId) || count == 0
+							? trade.remove("buyB")
+							: trade;
 				}
 		);
 	}

@@ -10,9 +10,13 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 
 /**
- * {@code DigTask}.
+ * Задача мозга стража, запускающая анимацию закапывания и удаляющая сущность из мира.
+ * При нахождении в воздухе или жидкости воспроизводит звук возбуждения и немедленно завершается.
  */
 public class DigTask<E extends WardenEntity> extends MultiTickTask<E> {
+
+	private static final float SOUND_VOLUME = 5.0F;
+	private static final float SOUND_PITCH = 1.0F;
 
 	public DigTask(int duration) {
 		super(
@@ -26,59 +30,31 @@ public class DigTask<E extends WardenEntity> extends MultiTickTask<E> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
-		return wardenEntity.getRemovalReason() == null;
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
+		return entity.getRemovalReason() == null;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, E wardenEntity) {
-		return wardenEntity.isOnGround() || wardenEntity.isTouchingWater() || wardenEntity.isInLava();
+	@Override
+	protected boolean shouldRun(ServerWorld world, E entity) {
+		return entity.isOnGround() || entity.isTouchingWater() || entity.isInLava();
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
-		if (wardenEntity.isOnGround()) {
-			wardenEntity.setPose(EntityPose.DIGGING);
-			wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_DIG, 5.0F, 1.0F);
-		}
-		else {
-			wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_AGITATED, 5.0F, 1.0F);
-			this.finishRunning(serverWorld, wardenEntity, l);
+	@Override
+	protected void run(ServerWorld world, E entity, long time) {
+		if (entity.isOnGround()) {
+			entity.setPose(EntityPose.DIGGING);
+			entity.playSound(SoundEvents.ENTITY_WARDEN_DIG, SOUND_VOLUME, SOUND_PITCH);
+		} else {
+			entity.playSound(SoundEvents.ENTITY_WARDEN_AGITATED, SOUND_VOLUME, SOUND_PITCH);
+			finishRunning(world, entity, time);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
-		if (wardenEntity.getRemovalReason() == null) {
-			wardenEntity.remove(Entity.RemovalReason.DISCARDED);
+	@Override
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+		if (entity.getRemovalReason() == null) {
+			entity.remove(Entity.RemovalReason.DISCARDED);
 		}
 	}
 }

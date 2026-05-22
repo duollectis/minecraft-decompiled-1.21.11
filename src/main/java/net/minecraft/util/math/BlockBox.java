@@ -16,19 +16,23 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code BlockBox}.
+ * Ограничивающий прямоугольник (AABB) в блочных координатах.
+ * Хранит минимальные и максимальные координаты по каждой оси.
+ * Используется в структурных генераторах, командах fill/clone и системе чанков.
  */
 public class BlockBox {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final Codec<BlockBox> CODEC = Codec.INT_STREAM
 			.comapFlatMap(
 					values -> Util
-							.decodeFixedLengthArray(values, 6)
+							.decodeFixedLengthIntArray(values, 6)
 							.map(array -> new BlockBox(array[0], array[1], array[2], array[3], array[4], array[5])),
 					box -> IntStream.of(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ)
 			)
 			.stable();
+
 	public static final PacketCodec<ByteBuf, BlockBox> PACKET_CODEC = PacketCodec.tuple(
 			BlockPos.PACKET_CODEC,
 			box -> new BlockPos(box.minX, box.minY, box.minZ),
@@ -36,6 +40,7 @@ public class BlockBox {
 			box -> new BlockPos(box.maxX, box.maxY, box.maxZ),
 			(min, max) -> new BlockBox(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ())
 	);
+
 	private int minX;
 	private int minY;
 	private int minZ;
@@ -47,6 +52,10 @@ public class BlockBox {
 		this(pos.getX(), pos.getY(), pos.getZ(), pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Создаёт ограничивающий прямоугольник. Если переданные координаты инвертированы
+	 * (max < min), автоматически исправляет их и логирует предупреждение.
+	 */
 	public BlockBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		this.minX = minX;
 		this.minY = minY;
@@ -54,6 +63,7 @@ public class BlockBox {
 		this.maxX = maxX;
 		this.maxY = maxY;
 		this.maxZ = maxZ;
+
 		if (maxX < minX || maxY < minY || maxZ < minZ) {
 			Util.logErrorOrPause("Invalid bounding box data, inverted bounds for: " + this);
 			this.minX = Math.min(minX, maxX);
@@ -65,14 +75,6 @@ public class BlockBox {
 		}
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public static BlockBox create(Vec3i first, Vec3i second) {
 		return new BlockBox(
 				Math.min(first.getX(), second.getX()),
@@ -84,11 +86,6 @@ public class BlockBox {
 		);
 	}
 
-	/**
-	 * Infinite.
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public static BlockBox infinite() {
 		return new BlockBox(
 				Integer.MIN_VALUE,
@@ -112,164 +109,102 @@ public class BlockBox {
 			int sizeZ,
 			Direction facing
 	) {
-		switch (facing) {
-			case SOUTH:
-			default:
-				return new BlockBox(
-						x + offsetX,
-						y + offsetY,
-						z + offsetZ,
-						x + sizeX - 1 + offsetX,
-						y + sizeY - 1 + offsetY,
-						z + sizeZ - 1 + offsetZ
-				);
-			case NORTH:
-				return new BlockBox(
-						x + offsetX,
-						y + offsetY,
-						z - sizeZ + 1 + offsetZ,
-						x + sizeX - 1 + offsetX,
-						y + sizeY - 1 + offsetY,
-						z + offsetZ
-				);
-			case WEST:
-				return new BlockBox(
-						x - sizeZ + 1 + offsetZ,
-						y + offsetY,
-						z + offsetX,
-						x + offsetZ,
-						y + sizeY - 1 + offsetY,
-						z + sizeX - 1 + offsetX
-				);
-			case EAST:
-				return new BlockBox(
-						x + offsetZ,
-						y + offsetY,
-						z + offsetX,
-						x + sizeZ - 1 + offsetZ,
-						y + sizeY - 1 + offsetY,
-						z + sizeX - 1 + offsetX
-				);
-		}
+		return switch (facing) {
+			case NORTH -> new BlockBox(
+					x + offsetX,
+					y + offsetY,
+					z - sizeZ + 1 + offsetZ,
+					x + sizeX - 1 + offsetX,
+					y + sizeY - 1 + offsetY,
+					z + offsetZ
+			);
+			case WEST -> new BlockBox(
+					x - sizeZ + 1 + offsetZ,
+					y + offsetY,
+					z + offsetX,
+					x + offsetZ,
+					y + sizeY - 1 + offsetY,
+					z + sizeX - 1 + offsetX
+			);
+			case EAST -> new BlockBox(
+					x + offsetZ,
+					y + offsetY,
+					z + offsetX,
+					x + sizeZ - 1 + offsetZ,
+					y + sizeY - 1 + offsetY,
+					z + sizeX - 1 + offsetX
+			);
+			default -> new BlockBox(
+					x + offsetX,
+					y + offsetY,
+					z + offsetZ,
+					x + sizeX - 1 + offsetX,
+					y + sizeY - 1 + offsetY,
+					z + sizeZ - 1 + offsetZ
+			);
+		};
 	}
 
-	/**
-	 * Stream chunk pos.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<ChunkPos> streamChunkPos() {
-		int i = ChunkSectionPos.getSectionCoord(this.getMinX());
-		int j = ChunkSectionPos.getSectionCoord(this.getMinZ());
-		int k = ChunkSectionPos.getSectionCoord(this.getMaxX());
-		int l = ChunkSectionPos.getSectionCoord(this.getMaxZ());
-		return ChunkPos.stream(new ChunkPos(i, j), new ChunkPos(k, l));
+		int minChunkX = ChunkSectionPos.getSectionCoord(minX);
+		int minChunkZ = ChunkSectionPos.getSectionCoord(minZ);
+		int maxChunkX = ChunkSectionPos.getSectionCoord(maxX);
+		int maxChunkZ = ChunkSectionPos.getSectionCoord(maxZ);
+		return ChunkPos.stream(new ChunkPos(minChunkX, minChunkZ), new ChunkPos(maxChunkX, maxChunkZ));
 	}
 
-	/**
-	 * Intersects.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean intersects(BlockBox other) {
-		return this.maxX >= other.minX
-				&& this.minX <= other.maxX
-				&& this.maxZ >= other.minZ
-				&& this.minZ <= other.maxZ
-				&& this.maxY >= other.minY
-				&& this.minY <= other.maxY;
+		return maxX >= other.minX
+				&& minX <= other.maxX
+				&& maxZ >= other.minZ
+				&& minZ <= other.maxZ
+				&& maxY >= other.minY
+				&& minY <= other.maxY;
 	}
 
-	/**
-	 * Intersects x z.
-	 *
-	 * @param minX min x
-	 * @param minZ min z
-	 * @param maxX max x
-	 * @param maxZ max z
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean intersectsXZ(int minX, int minZ, int maxX, int maxZ) {
 		return this.maxX >= minX && this.minX <= maxX && this.maxZ >= minZ && this.minZ <= maxZ;
 	}
 
-	/**
-	 * Encompass positions.
-	 *
-	 * @param positions positions
-	 *
-	 * @return Optional — результат операции
-	 */
 	public static Optional<BlockBox> encompassPositions(Iterable<BlockPos> positions) {
 		Iterator<BlockPos> iterator = positions.iterator();
-		if (!iterator.hasNext()) {
+
+		if (iterator.hasNext() == false) {
 			return Optional.empty();
 		}
-		else {
-			BlockBox blockBox = new BlockBox(iterator.next());
-			iterator.forEachRemaining(blockBox::encompass);
-			return Optional.of(blockBox);
-		}
+
+		BlockBox box = new BlockBox(iterator.next());
+		iterator.forEachRemaining(box::encompass);
+		return Optional.of(box);
 	}
 
-	/**
-	 * Encompass.
-	 *
-	 * @param boxes boxes
-	 *
-	 * @return Optional — результат операции
-	 */
 	public static Optional<BlockBox> encompass(Iterable<BlockBox> boxes) {
 		Iterator<BlockBox> iterator = boxes.iterator();
-		if (!iterator.hasNext()) {
+
+		if (iterator.hasNext() == false) {
 			return Optional.empty();
 		}
-		else {
-			BlockBox blockBox = iterator.next();
-			BlockBox
-					blockBox2 =
-					new BlockBox(
-							blockBox.minX,
-							blockBox.minY,
-							blockBox.minZ,
-							blockBox.maxX,
-							blockBox.maxY,
-							blockBox.maxZ
-					);
-			iterator.forEachRemaining(blockBox2::encompass);
-			return Optional.of(blockBox2);
-		}
+
+		BlockBox first = iterator.next();
+		BlockBox result = new BlockBox(first.minX, first.minY, first.minZ, first.maxX, first.maxY, first.maxZ);
+		iterator.forEachRemaining(result::encompass);
+		return Optional.of(result);
 	}
 
-	@Deprecated
 	/**
-	 * Encompass.
-	 *
-	 * @param box box
-	 *
-	 * @return BlockBox — результат операции
+	 * @deprecated Мутирующий метод. Используй {@link #createEncompassing(BlockBox, BlockBox)} для иммутабельного варианта.
 	 */
+	@Deprecated
 	public BlockBox encompass(BlockBox box) {
-		this.minX = Math.min(this.minX, box.minX);
-		this.minY = Math.min(this.minY, box.minY);
-		this.minZ = Math.min(this.minZ, box.minZ);
-		this.maxX = Math.max(this.maxX, box.maxX);
-		this.maxY = Math.max(this.maxY, box.maxY);
-		this.maxZ = Math.max(this.maxZ, box.maxZ);
+		minX = Math.min(minX, box.minX);
+		minY = Math.min(minY, box.minY);
+		minZ = Math.min(minZ, box.minZ);
+		maxX = Math.max(maxX, box.maxX);
+		maxY = Math.max(maxY, box.maxY);
+		maxZ = Math.max(maxZ, box.maxZ);
 		return this;
 	}
 
-	/**
-	 * Создаёт encompassing.
-	 *
-	 * @param box1 box1
-	 * @param box2 box2
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public static BlockBox createEncompassing(BlockBox box1, BlockBox box2) {
 		return new BlockBox(
 				Math.min(box1.minX, box2.minX),
@@ -281,175 +216,115 @@ public class BlockBox {
 		);
 	}
 
-	@Deprecated
 	/**
-	 * Encompass.
-	 *
-	 * @param pos pos
-	 *
-	 * @return BlockBox — результат операции
+	 * @deprecated Мутирующий метод. Предпочтительно использовать иммутабельные операции.
 	 */
+	@Deprecated
 	public BlockBox encompass(BlockPos pos) {
-		this.minX = Math.min(this.minX, pos.getX());
-		this.minY = Math.min(this.minY, pos.getY());
-		this.minZ = Math.min(this.minZ, pos.getZ());
-		this.maxX = Math.max(this.maxX, pos.getX());
-		this.maxY = Math.max(this.maxY, pos.getY());
-		this.maxZ = Math.max(this.maxZ, pos.getZ());
+		minX = Math.min(minX, pos.getX());
+		minY = Math.min(minY, pos.getY());
+		minZ = Math.min(minZ, pos.getZ());
+		maxX = Math.max(maxX, pos.getX());
+		maxY = Math.max(maxY, pos.getY());
+		maxZ = Math.max(maxZ, pos.getZ());
 		return this;
 	}
 
-	@Deprecated
 	/**
-	 * Move.
-	 *
-	 * @param dx dx
-	 * @param dy dy
-	 * @param dz dz
-	 *
-	 * @return BlockBox — результат операции
+	 * @deprecated Мутирующий метод. Используй {@link #offset(int, int, int)} для иммутабельного варианта.
 	 */
+	@Deprecated
 	public BlockBox move(int dx, int dy, int dz) {
-		this.minX += dx;
-		this.minY += dy;
-		this.minZ += dz;
-		this.maxX += dx;
-		this.maxY += dy;
-		this.maxZ += dz;
+		minX += dx;
+		minY += dy;
+		minZ += dz;
+		maxX += dx;
+		maxY += dy;
+		maxZ += dz;
 		return this;
 	}
 
+	/**
+	 * @deprecated Мутирующий метод. Используй {@link #offset(int, int, int)} для иммутабельного варианта.
+	 */
 	@Deprecated
-	/**
-	 * Move.
-	 *
-	 * @param vec vec
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public BlockBox move(Vec3i vec) {
-		return this.move(vec.getX(), vec.getY(), vec.getZ());
+		return move(vec.getX(), vec.getY(), vec.getZ());
 	}
 
-	/**
-	 * Offset.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public BlockBox offset(int x, int y, int z) {
-		return new BlockBox(this.minX + x, this.minY + y, this.minZ + z, this.maxX + x, this.maxY + y, this.maxZ + z);
+		return new BlockBox(minX + x, minY + y, minZ + z, maxX + x, maxY + y, maxZ + z);
 	}
 
-	/**
-	 * Expand.
-	 *
-	 * @param offset offset
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public BlockBox expand(int offset) {
-		return this.expand(offset, offset, offset);
+		return expand(offset, offset, offset);
 	}
 
-	/**
-	 * Expand.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return BlockBox — результат операции
-	 */
 	public BlockBox expand(int x, int y, int z) {
 		return new BlockBox(
-				this.getMinX() - x,
-				this.getMinY() - y,
-				this.getMinZ() - z,
-				this.getMaxX() + x,
-				this.getMaxY() + y,
-				this.getMaxZ() + z
+				getMinX() - x,
+				getMinY() - y,
+				getMinZ() - z,
+				getMaxX() + x,
+				getMaxY() + y,
+				getMaxZ() + z
 		);
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(Vec3i pos) {
-		return this.contains(pos.getX(), pos.getY(), pos.getZ());
+		return contains(pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(int x, int y, int z) {
-		return x >= this.minX && x <= this.maxX && z >= this.minZ && z <= this.maxZ && y >= this.minY && y <= this.maxY;
+		return x >= minX && x <= maxX && z >= minZ && z <= maxZ && y >= minY && y <= maxY;
 	}
 
 	public Vec3i getDimensions() {
-		return new Vec3i(this.maxX - this.minX, this.maxY - this.minY, this.maxZ - this.minZ);
+		return new Vec3i(maxX - minX, maxY - minY, maxZ - minZ);
 	}
 
 	public int getBlockCountX() {
-		return this.maxX - this.minX + 1;
+		return maxX - minX + 1;
 	}
 
 	public int getBlockCountY() {
-		return this.maxY - this.minY + 1;
+		return maxY - minY + 1;
 	}
 
 	public int getBlockCountZ() {
-		return this.maxZ - this.minZ + 1;
+		return maxZ - minZ + 1;
 	}
 
 	public BlockPos getCenter() {
 		return new BlockPos(
-				this.minX + (this.maxX - this.minX + 1) / 2,
-				this.minY + (this.maxY - this.minY + 1) / 2,
-				this.minZ + (this.maxZ - this.minZ + 1) / 2
+				minX + (maxX - minX + 1) / 2,
+				minY + (maxY - minY + 1) / 2,
+				minZ + (maxZ - minZ + 1) / 2
 		);
 	}
 
-	/**
-	 * For each vertex.
-	 *
-	 * @param consumer consumer
-	 */
 	public void forEachVertex(Consumer<BlockPos> consumer) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		consumer.accept(mutable.set(this.maxX, this.maxY, this.maxZ));
-		consumer.accept(mutable.set(this.minX, this.maxY, this.maxZ));
-		consumer.accept(mutable.set(this.maxX, this.minY, this.maxZ));
-		consumer.accept(mutable.set(this.minX, this.minY, this.maxZ));
-		consumer.accept(mutable.set(this.maxX, this.maxY, this.minZ));
-		consumer.accept(mutable.set(this.minX, this.maxY, this.minZ));
-		consumer.accept(mutable.set(this.maxX, this.minY, this.minZ));
-		consumer.accept(mutable.set(this.minX, this.minY, this.minZ));
+		consumer.accept(mutable.set(maxX, maxY, maxZ));
+		consumer.accept(mutable.set(minX, maxY, maxZ));
+		consumer.accept(mutable.set(maxX, minY, maxZ));
+		consumer.accept(mutable.set(minX, minY, maxZ));
+		consumer.accept(mutable.set(maxX, maxY, minZ));
+		consumer.accept(mutable.set(minX, maxY, minZ));
+		consumer.accept(mutable.set(maxX, minY, minZ));
+		consumer.accept(mutable.set(minX, minY, minZ));
 	}
 
 	@Override
 	public String toString() {
 		return MoreObjects.toStringHelper(this)
-		                  .add("minX", this.minX)
-		                  .add("minY", this.minY)
-		                  .add("minZ", this.minZ)
-		                  .add("maxX", this.maxX)
-		                  .add("maxY", this.maxY)
-		                  .add("maxZ", this.maxZ)
-		                  .toString();
+				.add("minX", minX)
+				.add("minY", minY)
+				.add("minZ", minZ)
+				.add("maxX", maxX)
+				.add("maxY", maxY)
+				.add("maxZ", maxZ)
+				.toString();
 	}
 
 	@Override
@@ -457,44 +332,42 @@ public class BlockBox {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return !(o instanceof BlockBox blockBox)
-			       ? false
-			       : this.minX == blockBox.minX
-			         && this.minY == blockBox.minY
-			         && this.minZ == blockBox.minZ
-			         && this.maxX == blockBox.maxX
-			         && this.maxY == blockBox.maxY
-			         && this.maxZ == blockBox.maxZ;
-		}
+
+		return o instanceof BlockBox other
+				&& minX == other.minX
+				&& minY == other.minY
+				&& minZ == other.minZ
+				&& maxX == other.maxX
+				&& maxY == other.maxY
+				&& maxZ == other.maxZ;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ);
+		return Objects.hash(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	public int getMinX() {
-		return this.minX;
+		return minX;
 	}
 
 	public int getMinY() {
-		return this.minY;
+		return minY;
 	}
 
 	public int getMinZ() {
-		return this.minZ;
+		return minZ;
 	}
 
 	public int getMaxX() {
-		return this.maxX;
+		return maxX;
 	}
 
 	public int getMaxY() {
-		return this.maxY;
+		return maxY;
 	}
 
 	public int getMaxZ() {
-		return this.maxZ;
+		return maxZ;
 	}
 }

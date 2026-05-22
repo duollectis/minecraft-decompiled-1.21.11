@@ -19,12 +19,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code DataPackContents}.
+ * Контейнер всех ресурсов, загружаемых из датапаков: рецепты, команды, функции, достижения.
+ * Создаётся через {@link #reload} и живёт до следующей перезагрузки датапаков.
  */
 public class DataPackContents {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final CompletableFuture<Unit> COMPLETED_UNIT = CompletableFuture.completedFuture(Unit.INSTANCE);
+
 	private final ReloadableRegistries.Lookup reloadableRegistries;
 	private final CommandManager commandManager;
 	private final ServerRecipeManager recipeManager;
@@ -33,84 +35,87 @@ public class DataPackContents {
 	private final List<Registry.PendingTagLoad<?>> pendingTagLoads;
 
 	private DataPackContents(
-			CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
-			RegistryWrapper.WrapperLookup registries,
-			FeatureSet enabledFeatures,
-			CommandManager.RegistrationEnvironment environment,
-			List<Registry.PendingTagLoad<?>> pendingTagLoads,
-			PermissionPredicate permissions
+		CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
+		RegistryWrapper.WrapperLookup registries,
+		FeatureSet enabledFeatures,
+		CommandManager.RegistrationEnvironment environment,
+		List<Registry.PendingTagLoad<?>> pendingTagLoads,
+		PermissionPredicate permissions
 	) {
 		this.reloadableRegistries = new ReloadableRegistries.Lookup(dynamicRegistries.getCombinedRegistryManager());
 		this.pendingTagLoads = pendingTagLoads;
 		this.recipeManager = new ServerRecipeManager(registries);
 		this.commandManager = new CommandManager(environment, CommandRegistryAccess.of(registries, enabledFeatures));
 		this.serverAdvancementLoader = new ServerAdvancementLoader(registries);
-		this.functionLoader = new FunctionLoader(permissions, this.commandManager.getDispatcher());
+		this.functionLoader = new FunctionLoader(permissions, commandManager.getDispatcher());
 	}
 
 	public FunctionLoader getFunctionLoader() {
-		return this.functionLoader;
+		return functionLoader;
 	}
 
 	public ReloadableRegistries.Lookup getReloadableRegistries() {
-		return this.reloadableRegistries;
+		return reloadableRegistries;
 	}
 
 	public ServerRecipeManager getRecipeManager() {
-		return this.recipeManager;
+		return recipeManager;
 	}
 
 	public CommandManager getCommandManager() {
-		return this.commandManager;
+		return commandManager;
 	}
 
 	public ServerAdvancementLoader getServerAdvancementLoader() {
-		return this.serverAdvancementLoader;
+		return serverAdvancementLoader;
 	}
 
 	public List<ResourceReloader> getContents() {
-		return List.of(this.recipeManager, this.functionLoader, this.serverAdvancementLoader);
-	}
-
-	public static CompletableFuture<DataPackContents> reload(
-			ResourceManager resourceManager,
-			CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
-			List<Registry.PendingTagLoad<?>> pendingTagLoads,
-			FeatureSet enabledFeatures,
-			CommandManager.RegistrationEnvironment environment,
-			PermissionPredicate permissions,
-			Executor prepareExecutor,
-			Executor applyExecutor
-	) {
-		return ReloadableRegistries.reload(dynamicRegistries, pendingTagLoads, resourceManager, prepareExecutor)
-		                           .thenCompose(
-				                           reloadResult -> {
-					                           DataPackContents dataPackContents = new DataPackContents(
-							                           reloadResult.layers(),
-							                           reloadResult.lookupWithUpdatedTags(),
-							                           enabledFeatures,
-							                           environment,
-							                           pendingTagLoads,
-							                           permissions
-					                           );
-					                           return SimpleResourceReload.start(
-							                                                      resourceManager,
-							                                                      dataPackContents.getContents(),
-							                                                      prepareExecutor,
-							                                                      applyExecutor,
-							                                                      COMPLETED_UNIT,
-							                                                      LOGGER.isDebugEnabled()
-					                                                      )
-					                                                      .whenComplete()
-					                                                      .thenApply(void_ -> dataPackContents);
-				                           }
-		                           );
+		return List.of(recipeManager, functionLoader, serverAdvancementLoader);
 	}
 
 	/**
-	 * Применяет pending tag loads.
+	 * Запускает асинхронную перезагрузку всех датапак-ресурсов.
+	 * Сначала перезагружает динамические реестры, затем создаёт новый {@link DataPackContents}
+	 * и запускает {@link SimpleResourceReload} для рецептов, функций и достижений.
 	 */
+	public static CompletableFuture<DataPackContents> reload(
+		ResourceManager resourceManager,
+		CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
+		List<Registry.PendingTagLoad<?>> pendingTagLoads,
+		FeatureSet enabledFeatures,
+		CommandManager.RegistrationEnvironment environment,
+		PermissionPredicate permissions,
+		Executor prepareExecutor,
+		Executor applyExecutor
+	) {
+		return ReloadableRegistries
+			.reload(dynamicRegistries, pendingTagLoads, resourceManager, prepareExecutor)
+			.thenCompose(reloadResult -> {
+				DataPackContents contents = new DataPackContents(
+					reloadResult.layers(),
+					reloadResult.lookupWithUpdatedTags(),
+					enabledFeatures,
+					environment,
+					pendingTagLoads,
+					permissions
+				);
+				return SimpleResourceReload
+					.start(
+						resourceManager,
+						contents.getContents(),
+						prepareExecutor,
+						applyExecutor,
+						COMPLETED_UNIT,
+						LOGGER.isDebugEnabled()
+					)
+					.whenComplete()
+					.thenApply(ignored -> contents);
+			});
+	}
+
+	/** Применяет все отложенные загрузки тегов реестров после завершения перезагрузки. */
 	public void applyPendingTagLoads() {
-		this.pendingTagLoads.forEach(Registry.PendingTagLoad::apply);
+		pendingTagLoads.forEach(Registry.PendingTagLoad::apply);
 	}
 }

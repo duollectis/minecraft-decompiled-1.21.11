@@ -14,9 +14,14 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code MinecartEntity}.
+ * Обычная вагонетка для перевозки пассажиров.
+ * При включённых улучшениях вагонеток плавно поворачивает игрока вместе с вагонеткой.
  */
 public class MinecartEntity extends AbstractMinecartEntity {
+
+	private static final double LERP_FACTOR = 0.5;
+	private static final double MIN_MOVE_DISTANCE = 0.01;
+	private static final float WOBBLE_STRENGTH_ON_ACTIVATOR = 50.0F;
 
 	private float currentYawAngle;
 	private float prevYawAngle;
@@ -25,22 +30,27 @@ public class MinecartEntity extends AbstractMinecartEntity {
 		super(entityType, world);
 	}
 
+	/**
+	 * Обрабатывает посадку игрока в вагонетку.
+	 * На сервере возвращает {@code CONSUME} при успешной посадке, {@code PASS} — при неудаче.
+	 */
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		if (!player.shouldCancelInteraction() && !this.hasPassengers() && (this.getEntityWorld().isClient()
-				|| player.startRiding(this)
-		)) {
-			this.prevYawAngle = this.currentYawAngle;
-			if (!this.getEntityWorld().isClient()) {
-				return (ActionResult) (player.startRiding(this) ? ActionResult.CONSUME : ActionResult.PASS);
-			}
-			else {
-				return ActionResult.SUCCESS;
-			}
-		}
-		else {
+		if (player.shouldCancelInteraction() || hasPassengers()) {
 			return ActionResult.PASS;
 		}
+
+		if (!getEntityWorld().isClient() && !player.startRiding(this)) {
+			return ActionResult.PASS;
+		}
+
+		prevYawAngle = currentYawAngle;
+
+		if (!getEntityWorld().isClient()) {
+			return player.startRiding(this) ? ActionResult.CONSUME : ActionResult.PASS;
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -54,18 +64,20 @@ public class MinecartEntity extends AbstractMinecartEntity {
 	}
 
 	@Override
-	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-		if (bl) {
-			if (this.hasPassengers()) {
-				this.removeAllPassengers();
-			}
+	public void onActivatorRail(ServerWorld serverWorld, int x, int y, int z, boolean powered) {
+		if (!powered) {
+			return;
+		}
 
-			if (this.getDamageWobbleTicks() == 0) {
-				this.setDamageWobbleSide(-this.getDamageWobbleSide());
-				this.setDamageWobbleTicks(10);
-				this.setDamageWobbleStrength(50.0F);
-				this.scheduleVelocityUpdate();
-			}
+		if (hasPassengers()) {
+			removeAllPassengers();
+		}
+
+		if (getDamageWobbleTicks() == 0) {
+			setDamageWobbleSide(-getDamageWobbleSide());
+			setDamageWobbleTicks(10);
+			setDamageWobbleStrength(WOBBLE_STRENGTH_ON_ACTIVATOR);
+			scheduleVelocityUpdate();
 		}
 	}
 
@@ -74,28 +86,48 @@ public class MinecartEntity extends AbstractMinecartEntity {
 		return true;
 	}
 
+	/**
+	 * Отслеживает изменение угла поворота за тик для плавного вращения пассажира-игрока.
+	 */
 	@Override
 	public void tick() {
-		double d = this.getYaw();
-		Vec3d vec3d = this.getEntityPos();
+		double yawBefore = getYaw();
+		Vec3d posBefore = getEntityPos();
 		super.tick();
-		double e = (this.getYaw() - d) % 360.0;
-		if (this.getEntityWorld().isClient() && vec3d.distanceTo(this.getEntityPos()) > 0.01) {
-			this.currentYawAngle += (float) e;
-			this.currentYawAngle %= 360.0F;
+		double yawDelta = (getYaw() - yawBefore) % 360.0;
+
+		if (getEntityWorld().isClient() && posBefore.distanceTo(getEntityPos()) > MIN_MOVE_DISTANCE) {
+			currentYawAngle += (float) yawDelta;
+			currentYawAngle %= 360.0F;
 		}
 	}
 
+	/**
+	 * При включённых улучшениях вагонеток плавно интерполирует поворот игрока-пассажира
+	 * вместе с вагонеткой для устранения резких рывков.
+	 */
 	@Override
 	protected void updatePassengerPosition(Entity passenger, Entity.PositionUpdater positionUpdater) {
 		super.updatePassengerPosition(passenger, positionUpdater);
-		if (this.getEntityWorld().isClient()
-				&& passenger instanceof PlayerEntity playerEntity
-				&& playerEntity.shouldRotateWithMinecart()
-				&& areMinecartImprovementsEnabled(this.getEntityWorld())) {
-			float f = (float) MathHelper.lerpAngleDegrees(0.5, (double) this.prevYawAngle, (double) this.currentYawAngle);
-			playerEntity.setYaw(playerEntity.getYaw() - (f - this.prevYawAngle));
-			this.prevYawAngle = f;
+
+		if (!getEntityWorld().isClient()) {
+			return;
 		}
+
+		if (!(passenger instanceof PlayerEntity playerEntity)) {
+			return;
+		}
+
+		if (!playerEntity.shouldRotateWithMinecart()) {
+			return;
+		}
+
+		if (!areMinecartImprovementsEnabled(getEntityWorld())) {
+			return;
+		}
+
+		float interpolatedYaw = (float) MathHelper.lerpAngleDegrees(LERP_FACTOR, prevYawAngle, currentYawAngle);
+		playerEntity.setYaw(playerEntity.getYaw() - (interpolatedYaw - prevYawAngle));
+		prevYawAngle = interpolatedYaw;
 	}
 }

@@ -7,7 +7,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code EntityBrushableBlockFieldsRenameFix}.
+ * Переименовывает поля блок-энтити {@code minecraft:brushable_block}:
+ * {@code loot_table} → {@code LootTable} и {@code loot_table_seed} → {@code LootTableSeed}.
  */
 public class EntityBrushableBlockFieldsRenameFix extends ChoiceFix {
 
@@ -21,12 +22,14 @@ public class EntityBrushableBlockFieldsRenameFix extends ChoiceFix {
 		);
 	}
 
-	public Dynamic<?> renameFields(Dynamic<?> dynamic) {
-		return dynamic.renameField("loot_table", "LootTable").renameField("loot_table_seed", "LootTableSeed");
-	}
-
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
 		return inputTyped.update(DSL.remainderFinder(), this::renameFields);
+	}
+
+	private Dynamic<?> renameFields(Dynamic<?> dynamic) {
+		return dynamic
+				.renameField("loot_table", "LootTable")
+				.renameField("loot_table_seed", "LootTableSeed");
 	}
 }

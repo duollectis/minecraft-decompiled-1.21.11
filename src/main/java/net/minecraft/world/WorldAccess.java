@@ -23,7 +23,9 @@ import net.minecraft.world.tick.TickPriority;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code WorldAccess}.
+ * Расширенный интерфейс доступа к миру, объединяющий реестровое представление,
+ * вид мира и планировщик тиков. Предоставляет методы для воспроизведения звуков,
+ * частиц, синхронизации событий и генерации игровых событий.
  */
 public interface WorldAccess extends RegistryWorldView, WorldView, ScheduledTickView {
 
@@ -31,31 +33,31 @@ public interface WorldAccess extends RegistryWorldView, WorldView, ScheduledTick
 
 	@Override
 	default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay, TickPriority priority) {
-		return new OrderedTick<>(type, pos, this.getTime() + delay, priority, this.getTickOrder());
+		return new OrderedTick<>(type, pos, getTime() + delay, priority, getTickOrder());
 	}
 
 	@Override
 	default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay) {
-		return new OrderedTick<>(type, pos, this.getTime() + delay, this.getTickOrder());
+		return new OrderedTick<>(type, pos, getTime() + delay, getTickOrder());
 	}
 
 	WorldProperties getLevelProperties();
 
 	default long getTime() {
-		return this.getLevelProperties().getTime();
+		return getLevelProperties().getTime();
 	}
 
 	@Nullable MinecraftServer getServer();
 
 	default Difficulty getDifficulty() {
-		return this.getLevelProperties().getDifficulty();
+		return getLevelProperties().getDifficulty();
 	}
 
 	ChunkManager getChunkManager();
 
 	@Override
 	default boolean isChunkLoaded(int chunkX, int chunkZ) {
-		return this.getChunkManager().isChunkLoaded(chunkX, chunkZ);
+		return getChunkManager().isChunkLoaded(chunkX, chunkZ);
 	}
 
 	Random getRandom();
@@ -64,72 +66,72 @@ public interface WorldAccess extends RegistryWorldView, WorldView, ScheduledTick
 	}
 
 	default void replaceWithStateForNeighborUpdate(
-			Direction direction,
-			BlockPos pos,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			@Block.SetBlockStateFlag int flags,
-			int maxUpdateDepth
+		Direction direction,
+		BlockPos pos,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		@Block.SetBlockStateFlag int flags,
+		int maxUpdateDepth
 	) {
 		NeighborUpdater.replaceWithStateForNeighborUpdate(
-				this,
-				direction,
-				pos,
-				neighborPos,
-				neighborState,
-				flags,
-				maxUpdateDepth - 1
+			this,
+			direction,
+			pos,
+			neighborPos,
+			neighborState,
+			flags,
+			maxUpdateDepth - 1
 		);
 	}
 
 	default void playSound(@Nullable Entity source, BlockPos pos, SoundEvent sound, SoundCategory category) {
-		this.playSound(source, pos, sound, category, 1.0F, 1.0F);
+		playSound(source, pos, sound, category, 1.0F, 1.0F);
 	}
 
 	void playSound(
-			@Nullable Entity source,
-			BlockPos pos,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		@Nullable Entity source,
+		BlockPos pos,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	);
 
 	void addParticleClient(
-			ParticleEffect parameters,
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ
+		ParticleEffect parameters,
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ
 	);
 
 	void syncWorldEvent(@Nullable Entity source, int eventId, BlockPos pos, int data);
 
 	default void syncWorldEvent(int eventId, BlockPos pos, int data) {
-		this.syncWorldEvent(null, eventId, pos, data);
+		syncWorldEvent(null, eventId, pos, data);
 	}
 
 	void emitGameEvent(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter);
 
 	default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, Vec3d pos) {
-		this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
+		emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
 	}
 
 	default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, BlockPos pos) {
-		this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
+		emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
 	}
 
 	default void emitGameEvent(RegistryEntry<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
-		this.emitGameEvent(event, Vec3d.ofCenter(pos), emitter);
+		emitGameEvent(event, Vec3d.ofCenter(pos), emitter);
 	}
 
 	default void emitGameEvent(RegistryKey<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
-		this.emitGameEvent(
-				this.getRegistryManager().getOrThrow(RegistryKeys.GAME_EVENT).getOrThrow(event),
-				pos,
-				emitter
+		emitGameEvent(
+			getRegistryManager().getOrThrow(RegistryKeys.GAME_EVENT).getOrThrow(event),
+			pos,
+			emitter
 		);
 	}
 }

@@ -10,7 +10,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code MegaPineFoliagePlacer}.
+ * Размещает листву мегасосны: конусообразная крона, радиус каждого слоя
+ * вычисляется пропорционально расстоянию от вершины.
  */
 public class MegaPineFoliagePlacer extends FoliagePlacer {
 
@@ -46,31 +47,30 @@ public class MegaPineFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		BlockPos blockPos = treeNode.getCenter();
-		int i = 0;
+		BlockPos center = treeNode.getCenter();
+		int prevRadius = 0;
 
-		for (int j = blockPos.getY() - foliageHeight + offset; j <= blockPos.getY() + offset; j++) {
-			int k = blockPos.getY() - j;
-			int l = radius + treeNode.getFoliageRadius() + MathHelper.floor((float) k / foliageHeight * 3.5F);
-			int m;
-			if (k > 0 && l == i && (j & 1) == 0) {
-				m = l + 1;
-			}
-			else {
-				m = l;
-			}
+		for (int worldY = center.getY() - foliageHeight + offset; worldY <= center.getY() + offset; worldY++) {
+			int distFromTop = center.getY() - worldY;
+			int baseLayerRadius = radius + treeNode.getFoliageRadius()
+					+ MathHelper.floor((float) distFromTop / foliageHeight * 3.5F);
 
-			this.generateSquare(
+			// Нечётные слои с тем же радиусом получают +1 для визуального разнообразия
+			int layerRadius = distFromTop > 0 && baseLayerRadius == prevRadius && (worldY & 1) == 0
+					? baseLayerRadius + 1
+					: baseLayerRadius;
+
+			generateSquare(
 					world,
 					placer,
 					random,
 					config,
-					new BlockPos(blockPos.getX(), j, blockPos.getZ()),
-					m,
+					new BlockPos(center.getX(), worldY, center.getZ()),
+					layerRadius,
 					0,
 					treeNode.isGiantTrunk()
 			);
-			i = l;
+			prevRadius = baseLayerRadius;
 		}
 	}
 
@@ -81,6 +81,6 @@ public class MegaPineFoliagePlacer extends FoliagePlacer {
 
 	@Override
 	protected boolean isInvalidForLeaves(Random random, int dx, int y, int dz, int radius, boolean giantTrunk) {
-		return dx + dz >= 7 ? true : dx * dx + dz * dz > radius * radius;
+		return dx + dz >= 7 || dx * dx + dz * dz > radius * radius;
 	}
 }

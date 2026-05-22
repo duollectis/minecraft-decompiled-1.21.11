@@ -18,86 +18,96 @@ import net.minecraft.util.crash.CrashReportSection;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
 /**
- * {@code WinNativeModuleUtil}.
+ * Утилита для сбора информации о нативных модулях Windows через JNA.
+ * Используется для диагностики в отчётах о сбоях.
  */
 public class WinNativeModuleUtil {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int CODE_PAGE_MASK = 65535;
-	private static final int EN_US_CODE_PAGE = 1033;
-	private static final int LANGUAGE_ID_MASK = -65536;
-	private static final int LANGUAGE_ID = 78643200;
 
-	public static List<WinNativeModuleUtil.NativeModule> collectNativeModules() {
+	// Коды ошибок Win32: файл ресурсов не найден / тип ресурса не найден
+	private static final int ERROR_RESOURCE_DATA_NOT_FOUND = 1812;
+	private static final int ERROR_RESOURCE_TYPE_NOT_FOUND = 1813;
+
+	private static final int CODE_PAGE_MASK = 0xFFFF;
+	private static final int LANGUAGE_ID_SHIFT = 16;
+	private static final int EN_US_CODE_PAGE = 1033;
+	// Языковой идентификатор английского (США): 0x0409 << 16 = 0x04090000
+	private static final int LANGUAGE_ID = 0x04B00000;
+
+	/**
+	 * Собирает список нативных модулей текущего процесса Windows.
+	 * На не-Windows платформах возвращает пустой список.
+	 *
+	 * @return список нативных модулей
+	 */
+	public static List<NativeModule> collectNativeModules() {
 		if (!Platform.isWindows()) {
 			return ImmutableList.of();
 		}
-		else {
-			int i = Kernel32.INSTANCE.GetCurrentProcessId();
-			Builder<WinNativeModuleUtil.NativeModule> builder = ImmutableList.builder();
 
-			for (MODULEENTRY32W mODULEENTRY32W : Kernel32Util.getModules(i)) {
-				String string = mODULEENTRY32W.szModule();
-				Optional<WinNativeModuleUtil.NativeModuleInfo>
-						optional =
-						createNativeModuleInfo(mODULEENTRY32W.szExePath());
-				builder.add(new WinNativeModuleUtil.NativeModule(string, optional));
-			}
+		int processId = Kernel32.INSTANCE.GetCurrentProcessId();
+		Builder<NativeModule> builder = ImmutableList.builder();
 
-			return builder.build();
+		for (MODULEENTRY32W entry : Kernel32Util.getModules(processId)) {
+			String moduleName = entry.szModule();
+			Optional<NativeModuleInfo> info = createNativeModuleInfo(entry.szExePath());
+			builder.add(new NativeModule(moduleName, info));
 		}
+
+		return builder.build();
 	}
 
-	private static Optional<WinNativeModuleUtil.NativeModuleInfo> createNativeModuleInfo(String path) {
+	private static Optional<NativeModuleInfo> createNativeModuleInfo(String path) {
 		try {
-			IntByReference intByReference = new IntByReference();
-			int i = Version.INSTANCE.GetFileVersionInfoSize(path, intByReference);
-			if (i == 0) {
-				int j = Native.getLastError();
-				if (j != 1813 && j != 1812) {
-					throw new Win32Exception(j);
-				}
-				else {
+			IntByReference dummy = new IntByReference();
+			int infoSize = Version.INSTANCE.GetFileVersionInfoSize(path, dummy);
+
+			if (infoSize == 0) {
+				int errorCode = Native.getLastError();
+
+				if (errorCode == ERROR_RESOURCE_TYPE_NOT_FOUND || errorCode == ERROR_RESOURCE_DATA_NOT_FOUND) {
 					return Optional.empty();
 				}
+
+				throw new Win32Exception(errorCode);
 			}
-			else {
-				Pointer pointer = new Memory(i);
-				if (!Version.INSTANCE.GetFileVersionInfo(path, 0, i, pointer)) {
-					throw new Win32Exception(Native.getLastError());
-				}
-				else {
-					IntByReference intByReference2 = new IntByReference();
-					Pointer pointer2 = query(pointer, "\\VarFileInfo\\Translation", intByReference2);
-					int[] is = pointer2.getIntArray(0L, intByReference2.getValue() / 4);
-					OptionalInt optionalInt = getEnglishTranslationIndex(is);
-					if (optionalInt.isEmpty()) {
-						return Optional.empty();
-					}
-					else {
-						int k = optionalInt.getAsInt();
-						int l = k & 65535;
-						int m = (k & -65536) >> 16;
-						String
-								string =
-								queryString(pointer, getStringFileInfoPath("FileDescription", l, m), intByReference2);
-						String
-								string2 =
-								queryString(pointer, getStringFileInfoPath("CompanyName", l, m), intByReference2);
-						String
-								string3 =
-								queryString(pointer, getStringFileInfoPath("FileVersion", l, m), intByReference2);
-						return Optional.of(new WinNativeModuleUtil.NativeModuleInfo(string, string3, string2));
-					}
-				}
+
+			Pointer versionInfo = new Memory(infoSize);
+
+			if (!Version.INSTANCE.GetFileVersionInfo(path, 0, infoSize, versionInfo)) {
+				throw new Win32Exception(Native.getLastError());
 			}
+
+			IntByReference lengthRef = new IntByReference();
+			Pointer translationsPointer = query(versionInfo, "\\VarFileInfo\\Translation", lengthRef);
+			int[] translations = translationsPointer.getIntArray(0L, lengthRef.getValue() / 4);
+			OptionalInt translationIndex = getEnglishTranslationIndex(translations);
+
+			if (translationIndex.isEmpty()) {
+				return Optional.empty();
+			}
+
+			int translation = translationIndex.getAsInt();
+			int languageId = translation & CODE_PAGE_MASK;
+			int codePage = (translation & ~CODE_PAGE_MASK) >> LANGUAGE_ID_SHIFT;
+
+			String description = queryString(versionInfo, getStringFileInfoPath("FileDescription", languageId, codePage), lengthRef);
+			String companyName = queryString(versionInfo, getStringFileInfoPath("CompanyName", languageId, codePage), lengthRef);
+			String fileVersion = queryString(versionInfo, getStringFileInfoPath("FileVersion", languageId, codePage), lengthRef);
+
+			return Optional.of(new NativeModuleInfo(description, fileVersion, companyName));
 		}
-		catch (Exception var14) {
-			LOGGER.info("Failed to find module info for {}", path, var14);
+		catch (Exception exception) {
+			LOGGER.info("Failed to find module info for {}", path, exception);
 			return Optional.empty();
 		}
 	}
@@ -107,44 +117,45 @@ public class WinNativeModuleUtil {
 	}
 
 	private static OptionalInt getEnglishTranslationIndex(int[] indices) {
-		OptionalInt optionalInt = OptionalInt.empty();
+		OptionalInt fallback = OptionalInt.empty();
 
-		for (int i : indices) {
-			if ((i & -65536) == 78643200 && (i & 65535) == 1033) {
-				return OptionalInt.of(i);
+		for (int index : indices) {
+			if ((index & ~CODE_PAGE_MASK) == LANGUAGE_ID && (index & CODE_PAGE_MASK) == EN_US_CODE_PAGE) {
+				return OptionalInt.of(index);
 			}
 
-			optionalInt = OptionalInt.of(i);
+			fallback = OptionalInt.of(index);
 		}
 
-		return optionalInt;
+		return fallback;
 	}
 
 	private static Pointer query(Pointer pointer, String path, IntByReference lengthPointer) {
-		PointerByReference pointerByReference = new PointerByReference();
-		if (!Version.INSTANCE.VerQueryValue(pointer, path, pointerByReference, lengthPointer)) {
+		PointerByReference result = new PointerByReference();
+
+		if (!Version.INSTANCE.VerQueryValue(pointer, path, result, lengthPointer)) {
 			throw new UnsupportedOperationException("Can't get version value " + path);
 		}
-		else {
-			return pointerByReference.getValue();
-		}
+
+		return result.getValue();
 	}
 
 	private static String queryString(Pointer pointer, String path, IntByReference lengthPointer) {
 		try {
-			Pointer pointer2 = query(pointer, path, lengthPointer);
-			byte[] bs = pointer2.getByteArray(0L, (lengthPointer.getValue() - 1) * 2);
-			return new String(bs, StandardCharsets.UTF_16LE);
+			Pointer stringPointer = query(pointer, path, lengthPointer);
+			byte[] bytes = stringPointer.getByteArray(0L, (lengthPointer.getValue() - 1) * 2);
+			return new String(bytes, StandardCharsets.UTF_16LE);
 		}
-		catch (Exception var5) {
+		catch (Exception ignored) {
 			return "";
 		}
 	}
 
 	/**
-	 * Добавляет detail to.
+	 * Добавляет в секцию отчёта о сбое список нативных модулей Windows,
+	 * отсортированных по имени.
 	 *
-	 * @param section section
+	 * @param section секция отчёта о сбое
 	 */
 	public static void addDetailTo(CrashReportSection section) {
 		section.add(
@@ -152,33 +163,27 @@ public class WinNativeModuleUtil {
 				() -> collectNativeModules()
 						.stream()
 						.sorted(Comparator.comparing(module -> module.path))
-						.map(moduleName -> "\n\t\t" + moduleName)
+						.map(module -> "\n\t\t" + module)
 						.collect(Collectors.joining())
 		);
 	}
 
-	/**
-	 * {@code NativeModule}.
-	 */
 	public static class NativeModule {
 
 		public final String path;
-		public final Optional<WinNativeModuleUtil.NativeModuleInfo> info;
+		public final Optional<NativeModuleInfo> info;
 
-		public NativeModule(String path, Optional<WinNativeModuleUtil.NativeModuleInfo> info) {
+		public NativeModule(String path, Optional<NativeModuleInfo> info) {
 			this.path = path;
 			this.info = info;
 		}
 
 		@Override
 		public String toString() {
-			return this.info.<String>map(info -> this.path + ":" + info).orElse(this.path);
+			return info.<String>map(moduleInfo -> path + ":" + moduleInfo).orElse(path);
 		}
 	}
 
-	/**
-	 * {@code NativeModuleInfo}.
-	 */
 	public static class NativeModuleInfo {
 
 		public final String fileDescription;
@@ -193,7 +198,7 @@ public class WinNativeModuleUtil {
 
 		@Override
 		public String toString() {
-			return this.fileDescription + ":" + this.fileVersion + ":" + this.companyName;
+			return fileDescription + ":" + fileVersion + ":" + companyName;
 		}
 	}
 }

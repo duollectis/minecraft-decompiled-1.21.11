@@ -9,7 +9,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code LargeOakFoliagePlacer}.
+ * Размещает листву большого дуба: крайние слои имеют увеличенный радиус,
+ * форма листвы определяется круговым расстоянием (Fancy Oak).
  */
 public class LargeOakFoliagePlacer extends BlobFoliagePlacer {
 
@@ -17,8 +18,8 @@ public class LargeOakFoliagePlacer extends BlobFoliagePlacer {
 			instance -> createCodec(instance).apply(instance, LargeOakFoliagePlacer::new)
 	);
 
-	public LargeOakFoliagePlacer(IntProvider intProvider, IntProvider intProvider2, int i) {
-		super(intProvider, intProvider2, i);
+	public LargeOakFoliagePlacer(IntProvider radius, IntProvider offset, int height) {
+		super(radius, offset, height);
 	}
 
 	@Override
@@ -38,9 +39,9 @@ public class LargeOakFoliagePlacer extends BlobFoliagePlacer {
 			int radius,
 			int offset
 	) {
-		for (int i = offset; i >= offset - foliageHeight; i--) {
-			int j = radius + (i != offset && i != offset - foliageHeight ? 1 : 0);
-			this.generateSquare(world, placer, random, config, treeNode.getCenter(), j, i, treeNode.isGiantTrunk());
+		for (int dy = offset; dy >= offset - foliageHeight; dy--) {
+			int layerRadius = radius + (dy != offset && dy != offset - foliageHeight ? 1 : 0);
+			generateSquare(world, placer, random, config, treeNode.getCenter(), layerRadius, dy, treeNode.isGiantTrunk());
 		}
 	}
 

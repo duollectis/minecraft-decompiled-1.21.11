@@ -10,20 +10,23 @@ import net.minecraft.text.StringVisitable;
 import net.minecraft.text.Text;
 import net.minecraft.util.Language;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextWidget}.
+ * Виджет однострочного текста с поддержкой ограничения ширины и двух режимов переполнения:
+ * обрезки с многоточием ({@link TextOverflow#CLAMPED}) и прокрутки ({@link TextOverflow#SCROLLING}).
  */
+@Environment(EnvType.CLIENT)
 public class TextWidget extends AbstractTextWidget {
 
-	private static final int PADDING = 2;
+	private static final int LINE_HEIGHT = 9;
+	private static final int SCROLL_MARGIN = 2;
+
 	private int maxWidth = 0;
 	private int cachedWidth = 0;
 	private boolean cachedWidthDirty = true;
 	private TextWidget.TextOverflow textOverflow = TextWidget.TextOverflow.CLAMPED;
 
 	public TextWidget(Text message, TextRenderer textRenderer) {
-		this(0, 0, textRenderer.getWidth(message.asOrderedText()), 9, message, textRenderer);
+		this(0, 0, textRenderer.getWidth(message.asOrderedText()), LINE_HEIGHT, message, textRenderer);
 	}
 
 	public TextWidget(int width, int height, Text message, TextRenderer textRenderer) {
@@ -32,17 +35,17 @@ public class TextWidget extends AbstractTextWidget {
 
 	public TextWidget(int x, int y, int width, int height, Text message, TextRenderer textRenderer) {
 		super(x, y, width, height, message, textRenderer);
-		this.active = false;
+		active = false;
 	}
 
 	@Override
 	public void setMessage(Text message) {
 		super.setMessage(message);
-		this.cachedWidthDirty = true;
+		cachedWidthDirty = true;
 	}
 
 	public TextWidget setMaxWidth(int width) {
-		return this.setMaxWidth(width, TextWidget.TextOverflow.CLAMPED);
+		return setMaxWidth(width, TextWidget.TextOverflow.CLAMPED);
 	}
 
 	public TextWidget setMaxWidth(int width, TextWidget.TextOverflow textOverflow) {
@@ -53,65 +56,46 @@ public class TextWidget extends AbstractTextWidget {
 
 	@Override
 	public int getWidth() {
-		if (this.maxWidth > 0) {
-			if (this.cachedWidthDirty) {
-				this.cachedWidth =
-						Math.min(this.maxWidth, this.getTextRenderer().getWidth(this.getMessage().asOrderedText()));
-				this.cachedWidthDirty = false;
-			}
-
-			return this.cachedWidth;
-		}
-		else {
+		if (maxWidth <= 0) {
 			return super.getWidth();
 		}
+
+		if (cachedWidthDirty) {
+			cachedWidth = Math.min(maxWidth, getTextRenderer().getWidth(getMessage().asOrderedText()));
+			cachedWidthDirty = false;
+		}
+
+		return cachedWidth;
 	}
 
 	@Override
 	public void draw(DrawnTextConsumer textConsumer) {
-		Text text = this.getMessage();
-		TextRenderer textRenderer = this.getTextRenderer();
-		int i = this.maxWidth > 0 ? this.maxWidth : this.getWidth();
-		int j = textRenderer.getWidth(text);
-		int k = this.getX();
-		int l = this.getY() + (this.getHeight() - 9) / 2;
-		boolean bl = j > i;
-		if (bl) {
-			switch (this.textOverflow) {
-				case CLAMPED:
-					textConsumer.text(k, l, trim(text, textRenderer, i));
-					break;
-				case SCROLLING:
-					this.drawTextWithMargin(textConsumer, text, 2);
-			}
+		Text text = getMessage();
+		TextRenderer textRenderer = getTextRenderer();
+		int availableWidth = maxWidth > 0 ? maxWidth : getWidth();
+		int textWidth = textRenderer.getWidth(text);
+		int drawX = getX();
+		int drawY = getY() + (getHeight() - LINE_HEIGHT) / 2;
+
+		if (textWidth <= availableWidth) {
+			textConsumer.text(drawX, drawY, text.asOrderedText());
+			return;
 		}
-		else {
-			textConsumer.text(k, l, text.asOrderedText());
+
+		switch (textOverflow) {
+			case CLAMPED -> textConsumer.text(drawX, drawY, trim(text, textRenderer, availableWidth));
+			case SCROLLING -> drawTextWithMargin(textConsumer, text, SCROLL_MARGIN);
 		}
 	}
 
-	/**
-	 * Trim.
-	 *
-	 * @param text text
-	 * @param textRenderer text renderer
-	 * @param width width
-	 *
-	 * @return OrderedText — результат операции
-	 */
 	public static OrderedText trim(Text text, TextRenderer textRenderer, int width) {
-		StringVisitable
-				stringVisitable =
-				textRenderer.trimToWidth(text, width - textRenderer.getWidth(ScreenTexts.ELLIPSIS));
-		return Language.getInstance().reorder(StringVisitable.concat(stringVisitable, ScreenTexts.ELLIPSIS));
+		StringVisitable trimmed = textRenderer.trimToWidth(text, width - textRenderer.getWidth(ScreenTexts.ELLIPSIS));
+		return Language.getInstance().reorder(StringVisitable.concat(trimmed, ScreenTexts.ELLIPSIS));
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TextOverflow}.
-	 */
-	public static enum TextOverflow {
+	public enum TextOverflow {
 		CLAMPED,
-		SCROLLING;
+		SCROLLING
 	}
 }

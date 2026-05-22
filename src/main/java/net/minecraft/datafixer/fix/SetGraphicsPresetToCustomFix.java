@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code SetGraphicsPresetToCustomFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class SetGraphicsPresetToCustomFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class SetGraphicsPresetToCustomFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"graphicsPreset set to \"custom\"",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						options -> options.set("graphicsPreset", options.createString("custom"))

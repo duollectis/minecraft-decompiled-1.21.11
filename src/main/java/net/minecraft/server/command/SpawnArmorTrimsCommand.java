@@ -29,7 +29,7 @@ import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 
 /**
- * {@code SpawnArmorTrimsCommand}.
+ * Команда {@code /spawnarmortrims}: спавн брони с обрезками (только dev-режим).
  */
 public class SpawnArmorTrimsCommand {
 

@@ -190,10 +190,10 @@ public class AxolotlEntityModel extends EntityModel<AxolotlEntityRenderState> {
 			this.leftGills.yaw += l;
 			this.rightGills.yaw -= l;
 			this.tail.yaw = this.tail.yaw + 0.3F * MathHelper.cos(h * 0.9F) * g;
-			this.leftHindLeg.pitch += 1.8849558F * g;
+			this.leftHindLeg.pitch += MOVING_IN_WATER_LEG_PITCH * g;
 			this.leftHindLeg.yaw += -0.4F * i * g;
 			this.leftHindLeg.roll += (float) (Math.PI / 2) * g;
-			this.leftFrontLeg.pitch += 1.8849558F * g;
+			this.leftFrontLeg.pitch += MOVING_IN_WATER_LEG_PITCH * g;
 			this.leftFrontLeg.yaw += (-0.2F * j - 0.1F) * g;
 			this.leftFrontLeg.roll += (float) (Math.PI / 2) * g;
 		}

@@ -9,328 +9,287 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@code ParseResults}.
+ * Стек фреймов для хранения промежуточных результатов разбора.
+ * Каждый фрейм содержит пары (Symbol, value), соответствующие
+ * успешно разобранным нетерминалам текущего правила.
+ * Поддерживает откат (popFrame), дублирование (duplicateFrames) и
+ * выбор текущего фрейма (chooseCurrentFrame) для реализации альтернатив PEG.
  */
 public final class ParseResults {
 
 	private static final int MISSING = -1;
+	private static final int ENTRY_SIZE = 2;
 	private static final Object FRAME = new Object() {
 		@Override
 		public String toString() {
 			return "frame";
 		}
 	};
-	private static final int ENTRY_SIZE = 2;
+
 	private @Nullable Object[] stack = new Object[128];
 	private int stackTop = 0;
 	private int stackBottom = 0;
 
 	public ParseResults() {
-		this.stack[0] = FRAME;
-		this.stack[1] = null;
+		stack[0] = FRAME;
+		stack[1] = null;
 	}
 
 	private int indexOf(Symbol<?> symbol) {
-		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-			Object object = this.stack[i];
+		for (int i = stackTop; i > stackBottom; i -= ENTRY_SIZE) {
+			Object entry = stack[i];
 
-			assert object instanceof Symbol;
+			assert entry instanceof Symbol;
 
-			if (object == symbol) {
+			if (entry == symbol) {
 				return i + 1;
 			}
 		}
 
-		return -1;
+		return MISSING;
 	}
 
-	/**
-	 * Index of.
-	 *
-	 * @param symbols symbols
-	 *
-	 * @return int — результат операции
-	 */
 	public int indexOf(Symbol<?>... symbols) {
-		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-			Object object = this.stack[i];
+		for (int i = stackTop; i > stackBottom; i -= ENTRY_SIZE) {
+			Object entry = stack[i];
 
-			assert object instanceof Symbol;
+			assert entry instanceof Symbol;
 
 			for (Symbol<?> symbol : symbols) {
-				if (symbol == object) {
+				if (symbol == entry) {
 					return i + 1;
 				}
 			}
 		}
 
-		return -1;
+		return MISSING;
 	}
 
 	private void expandIfNeeded(int amount) {
-		int i = this.stack.length;
-		int j = this.stackTop + 1;
-		int k = j + amount * 2;
-		if (k >= i) {
-			int l = Util.nextCapacity(i, k + 1);
-			Object[] objects = new Object[l];
-			System.arraycopy(this.stack, 0, objects, 0, i);
-			this.stack = objects;
+		int capacity = stack.length;
+		int needed = stackTop + 1 + amount * ENTRY_SIZE;
+
+		if (needed >= capacity) {
+			int newCapacity = Util.nextCapacity(capacity, needed + 1);
+			Object[] expanded = new Object[newCapacity];
+			System.arraycopy(stack, 0, expanded, 0, capacity);
+			stack = expanded;
 		}
 
-		assert this.isValid();
+		assert isValid();
 	}
 
 	private void addFrame() {
-		this.stackTop += 2;
-		this.stack[this.stackTop] = FRAME;
-		this.stack[this.stackTop + 1] = this.stackBottom;
-		this.stackBottom = this.stackTop;
+		stackTop += ENTRY_SIZE;
+		stack[stackTop] = FRAME;
+		stack[stackTop + 1] = stackBottom;
+		stackBottom = stackTop;
 	}
 
-	/**
-	 * Push frame.
-	 */
 	public void pushFrame() {
-		this.expandIfNeeded(1);
-		this.addFrame();
+		expandIfNeeded(1);
+		addFrame();
 
-		assert this.isValid();
+		assert isValid();
 	}
 
 	private int getPreviousStackBottom(int current) {
-		return (Integer) this.stack[current + 1];
+		return (Integer) stack[current + 1];
 	}
 
-	/**
-	 * Pop frame.
-	 */
 	public void popFrame() {
-		assert this.stackBottom != 0;
+		assert stackBottom != 0;
 
-		this.stackTop = this.stackBottom - 2;
-		this.stackBottom = this.getPreviousStackBottom(this.stackBottom);
+		stackTop = stackBottom - ENTRY_SIZE;
+		stackBottom = getPreviousStackBottom(stackBottom);
 
-		assert this.isValid();
+		assert isValid();
 	}
 
-	/**
-	 * Duplicate frames.
-	 */
 	public void duplicateFrames() {
-		int i = this.stackBottom;
-		int j = (this.stackTop - this.stackBottom) / 2;
-		this.expandIfNeeded(j + 1);
-		this.addFrame();
-		int k = i + 2;
-		int l = this.stackTop;
+		int savedBottom = stackBottom;
+		int frameSize = (stackTop - stackBottom) / ENTRY_SIZE;
 
-		for (int m = 0; m < j; m++) {
-			l += 2;
-			Object object = this.stack[k];
+		expandIfNeeded(frameSize + 1);
+		addFrame();
 
-			assert object != null;
+		int src = savedBottom + ENTRY_SIZE;
+		int dst = stackTop;
 
-			this.stack[l] = object;
-			this.stack[l + 1] = null;
-			k += 2;
+		for (int i = 0; i < frameSize; i++) {
+			dst += ENTRY_SIZE;
+			Object symbol = stack[src];
+
+			assert symbol != null;
+
+			stack[dst] = symbol;
+			stack[dst + 1] = null;
+			src += ENTRY_SIZE;
 		}
 
-		this.stackTop = l;
+		stackTop = dst;
 
-		assert this.isValid();
+		assert isValid();
 	}
 
-	/**
-	 * Очищает frame values.
-	 */
 	public void clearFrameValues() {
-		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-			assert this.stack[i] instanceof Symbol;
+		for (int i = stackTop; i > stackBottom; i -= ENTRY_SIZE) {
+			assert stack[i] instanceof Symbol;
 
-			this.stack[i + 1] = null;
+			stack[i + 1] = null;
 		}
 
-		assert this.isValid();
+		assert isValid();
 	}
 
-	/**
-	 * Choose current frame.
-	 */
 	public void chooseCurrentFrame() {
-		int i = this.getPreviousStackBottom(this.stackBottom);
-		int j = i;
-		int k = this.stackBottom;
+		int prevBottom = getPreviousStackBottom(stackBottom);
+		int dst = prevBottom;
+		int src = stackBottom;
 
-		while (k < this.stackTop) {
-			j += 2;
-			k += 2;
-			Object object = this.stack[k];
+		while (src < stackTop) {
+			dst += ENTRY_SIZE;
+			src += ENTRY_SIZE;
 
-			assert object instanceof Symbol;
+			Object symbol = stack[src];
 
-			Object object2 = this.stack[k + 1];
-			Object object3 = this.stack[j];
-			if (object3 != object) {
-				this.stack[j] = object;
-				this.stack[j + 1] = object2;
-			}
-			else if (object2 != null) {
-				this.stack[j + 1] = object2;
+			assert symbol instanceof Symbol;
+
+			Object value = stack[src + 1];
+			Object existing = stack[dst];
+
+			if (existing != symbol) {
+				stack[dst] = symbol;
+				stack[dst + 1] = value;
+			} else if (value != null) {
+				stack[dst + 1] = value;
 			}
 		}
 
-		this.stackTop = j;
-		this.stackBottom = i;
+		stackTop = dst;
+		stackBottom = prevBottom;
 
-		assert this.isValid();
+		assert isValid();
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param symbol symbol
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void put(Symbol<T> symbol, @Nullable T value) {
-		int i = this.indexOf(symbol);
-		if (i != -1) {
-			this.stack[i] = value;
-		}
-		else {
-			this.expandIfNeeded(1);
-			this.stackTop += 2;
-			this.stack[this.stackTop] = symbol;
-			this.stack[this.stackTop + 1] = value;
+		int index = indexOf(symbol);
+
+		if (index != MISSING) {
+			stack[index] = value;
+		} else {
+			expandIfNeeded(1);
+			stackTop += ENTRY_SIZE;
+			stack[stackTop] = symbol;
+			stack[stackTop + 1] = value;
 		}
 
-		assert this.isValid();
+		assert isValid();
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param symbol symbol
-	 *
-	 * @return @Nullable T — 
-	 */
 	public <T> @Nullable T get(Symbol<T> symbol) {
-		int i = this.indexOf(symbol);
-		return (T) (i != -1 ? this.stack[i] : null);
+		int index = indexOf(symbol);
+		return (T) (index != MISSING ? stack[index] : null);
 	}
 
 	public <T> T getOrThrow(Symbol<T> symbol) {
-		int i = this.indexOf(symbol);
-		if (i == -1) {
+		int index = indexOf(symbol);
+
+		if (index == MISSING) {
 			throw new IllegalArgumentException("No value for atom " + symbol);
 		}
-		else {
-			return (T) this.stack[i];
-		}
+
+		return (T) stack[index];
 	}
 
 	public <T> T getOrDefault(Symbol<T> symbol, T fallback) {
-		int i = this.indexOf(symbol);
-		return (T) (i != -1 ? this.stack[i] : fallback);
+		int index = indexOf(symbol);
+		return (T) (index != MISSING ? stack[index] : fallback);
 	}
 
 	@SafeVarargs
 	public final <T> @Nullable T getAny(Symbol<? extends T>... symbols) {
-		int i = this.indexOf(symbols);
-		return (T) (i != -1 ? this.stack[i] : null);
+		int index = indexOf(symbols);
+		return (T) (index != MISSING ? stack[index] : null);
 	}
 
 	@SafeVarargs
 	public final <T> T getAnyOrThrow(Symbol<? extends T>... symbols) {
-		int i = this.indexOf(symbols);
-		if (i == -1) {
+		int index = indexOf(symbols);
+
+		if (index == MISSING) {
 			throw new IllegalArgumentException("No value for atoms " + Arrays.toString((Object[]) symbols));
 		}
-		else {
-			return (T) this.stack[i];
-		}
+
+		return (T) stack[index];
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder stringBuilder = new StringBuilder();
-		boolean bl = true;
+		StringBuilder sb = new StringBuilder();
+		boolean firstInFrame = true;
 
-		for (int i = 0; i <= this.stackTop; i += 2) {
-			Object object = this.stack[i];
-			Object object2 = this.stack[i + 1];
-			if (object == FRAME) {
-				stringBuilder.append('|');
-				bl = true;
-			}
-			else {
-				if (!bl) {
-					stringBuilder.append(',');
+		for (int i = 0; i <= stackTop; i += ENTRY_SIZE) {
+			Object entry = stack[i];
+
+			if (entry == FRAME) {
+				sb.append('|');
+				firstInFrame = true;
+			} else {
+				if (!firstInFrame) {
+					sb.append(',');
 				}
 
-				bl = false;
-				stringBuilder.append(object).append(':').append(object2);
+				firstInFrame = false;
+				sb.append(entry).append(':').append(stack[i + 1]);
 			}
 		}
 
-		return stringBuilder.toString();
+		return sb.toString();
 	}
 
-	@VisibleForTesting
 	/**
-	 * To symbol keyed map.
-	 *
-	 * @return Map, ?> — результат операции
+	 * Возвращает содержимое текущего фрейма в виде Map для отладки и тестирования.
 	 */
+	@VisibleForTesting
 	public Map<Symbol<?>, ?> toSymbolKeyedMap() {
-		HashMap<Symbol<?>, Object> hashMap = new HashMap<>();
+		HashMap<Symbol<?>, Object> map = new HashMap<>();
 
-		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-			Object object = this.stack[i];
-			Object object2 = this.stack[i + 1];
-			hashMap.put((Symbol<?>) object, object2);
+		for (int i = stackTop; i > stackBottom; i -= ENTRY_SIZE) {
+			map.put((Symbol<?>) stack[i], stack[i + 1]);
 		}
 
-		return hashMap;
+		return map;
 	}
 
-	/**
-	 * Are frames placed correctly.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean areFramesPlacedCorrectly() {
-		for (int i = this.stackTop; i > 0; i--) {
-			if (this.stack[i] == FRAME) {
+		for (int i = stackTop; i > 0; i--) {
+			if (stack[i] == FRAME) {
 				return false;
 			}
 		}
 
-		if (this.stack[0] != FRAME) {
+		if (stack[0] != FRAME) {
 			throw new IllegalStateException("Corrupted stack");
 		}
-		else {
-			return true;
-		}
+
+		return true;
 	}
 
 	private boolean isValid() {
-		assert this.stackBottom >= 0;
+		assert stackBottom >= 0;
+		assert stackTop >= stackBottom;
 
-		assert this.stackTop >= this.stackBottom;
+		for (int i = 0; i <= stackTop; i += ENTRY_SIZE) {
+			Object entry = stack[i];
 
-		for (int i = 0; i <= this.stackTop; i += 2) {
-			Object object = this.stack[i];
-			if (object != FRAME && !(object instanceof Symbol)) {
+			if (entry != FRAME && !(entry instanceof Symbol)) {
 				return false;
 			}
 		}
 
-		for (int ix = this.stackBottom; ix != 0; ix = this.getPreviousStackBottom(ix)) {
-			Object object = this.stack[ix];
-			if (object != FRAME) {
+		for (int bottom = stackBottom; bottom != 0; bottom = getPreviousStackBottom(bottom)) {
+			if (stack[bottom] != FRAME) {
 				return false;
 			}
 		}

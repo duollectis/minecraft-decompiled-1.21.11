@@ -13,7 +13,8 @@ import net.minecraft.world.BlockView;
 import java.util.Map;
 
 /**
- * {@code RodBlock}.
+ * Абстрактный блок-стержень (молниеотвод, стержень конца и т.д.).
+ * Форма зависит от оси направления {@link FacingBlock#FACING}.
  */
 public abstract class RodBlock extends FacingBlock {
 

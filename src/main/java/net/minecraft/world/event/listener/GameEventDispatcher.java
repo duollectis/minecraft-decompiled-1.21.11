@@ -5,10 +5,12 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code GameEventDispatcher}.
+ * Диспетчер игровых событий для одной секции чанка.
+ * Хранит список слушателей и рассылает им события в пределах радиуса действия.
  */
 public interface GameEventDispatcher {
 
+	/** Пустая реализация-заглушка для секций без слушателей. */
 	GameEventDispatcher EMPTY = new GameEventDispatcher() {
 		@Override
 		public boolean isEmpty() {
@@ -25,10 +27,10 @@ public interface GameEventDispatcher {
 
 		@Override
 		public boolean dispatch(
-				RegistryEntry<GameEvent> event,
-				Vec3d pos,
-				GameEvent.Emitter emitter,
-				GameEventDispatcher.DispatchCallback callback
+			RegistryEntry<GameEvent> event,
+			Vec3d pos,
+			GameEvent.Emitter emitter,
+			DispatchCallback callback
 		) {
 			return false;
 		}
@@ -40,18 +42,24 @@ public interface GameEventDispatcher {
 
 	void removeListener(GameEventListener listener);
 
+	/**
+	 * Рассылает событие всем слушателям в радиусе действия.
+	 *
+	 * @param callback вызывается для каждого слушателя, находящегося в радиусе
+	 * @return {@code true}, если хотя бы один слушатель получил событие
+	 */
 	boolean dispatch(
-			RegistryEntry<GameEvent> event,
-			Vec3d pos,
-			GameEvent.Emitter emitter,
-			GameEventDispatcher.DispatchCallback callback
+		RegistryEntry<GameEvent> event,
+		Vec3d pos,
+		GameEvent.Emitter emitter,
+		DispatchCallback callback
 	);
 
-	@FunctionalInterface
 	/**
-	 * {@code DispatchCallback}.
+	 * Колбэк, вызываемый для каждого слушателя, находящегося в радиусе события.
 	 */
-	public interface DispatchCallback {
+	@FunctionalInterface
+	interface DispatchCallback {
 
 		void visit(GameEventListener listener, Vec3d listenerPos);
 	}

@@ -15,7 +15,9 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /**
- * {@code Oxidizable}.
+ * Интерфейс окисляемых медных блоков. Хранит двунаправленные маппинги
+ * всех стадий окисления (от чистой меди до окисленной) и предоставляет
+ * утилитарные методы для перехода между стадиями.
  */
 public interface Oxidizable extends Degradable<Oxidizable.OxidationLevel> {
 
@@ -109,10 +111,7 @@ public interface Oxidizable extends Degradable<Oxidizable.OxidationLevel> {
 		return this.getDegradationLevel() == Oxidizable.OxidationLevel.UNAFFECTED ? 0.75F : 1.0F;
 	}
 
-	/**
-	 * {@code OxidationLevel}.
-	 */
-	public static enum OxidationLevel implements StringIdentifiable {
+	enum OxidationLevel implements StringIdentifiable {
 		UNAFFECTED("unaffected"),
 		EXPOSED("exposed"),
 		WEATHERED("weathered"),

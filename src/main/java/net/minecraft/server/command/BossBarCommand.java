@@ -28,7 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code BossBarCommand}.
+ * Команда {@code /bossbar}: создание и управление полосами здоровья боссов.
  */
 public class BossBarCommand {
 

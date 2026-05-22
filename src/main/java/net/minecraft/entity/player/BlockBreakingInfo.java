@@ -3,38 +3,43 @@ package net.minecraft.entity.player;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code BlockBreakingInfo}.
+ * Хранит информацию о процессе разрушения блока одним из игроков или сущностей.
+ * Используется для синхронизации анимации разрушения между клиентом и сервером.
  */
 public class BlockBreakingInfo implements Comparable<BlockBreakingInfo> {
+
+	private static final int MAX_STAGE = 10;
 
 	private final int actorNetworkId;
 	private final BlockPos pos;
 	private int stage;
 	private int lastUpdateTick;
 
-	public BlockBreakingInfo(int breakingEntityId, BlockPos pos) {
-		this.actorNetworkId = breakingEntityId;
+	public BlockBreakingInfo(int actorNetworkId, BlockPos pos) {
+		this.actorNetworkId = actorNetworkId;
 		this.pos = pos;
 	}
 
 	public int getActorId() {
-		return this.actorNetworkId;
+		return actorNetworkId;
 	}
 
 	public BlockPos getPos() {
-		return this.pos;
+		return pos;
 	}
 
+	/**
+	 * Устанавливает стадию разрушения блока.
+	 * Значение ограничено сверху константой {@link #MAX_STAGE}.
+	 *
+	 * @param stage новая стадия разрушения (0–10)
+	 */
 	public void setStage(int stage) {
-		if (stage > 10) {
-			stage = 10;
-		}
-
-		this.stage = stage;
+		this.stage = Math.min(stage, MAX_STAGE);
 	}
 
 	public int getStage() {
-		return this.stage;
+		return stage;
 	}
 
 	public void setLastUpdateTick(int lastUpdateTick) {
@@ -42,7 +47,7 @@ public class BlockBreakingInfo implements Comparable<BlockBreakingInfo> {
 	}
 
 	public int getLastUpdateTick() {
-		return this.lastUpdateTick;
+		return lastUpdateTick;
 	}
 
 	@Override
@@ -50,30 +55,28 @@ public class BlockBreakingInfo implements Comparable<BlockBreakingInfo> {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			BlockBreakingInfo blockBreakingInfo = (BlockBreakingInfo) o;
-			return this.actorNetworkId == blockBreakingInfo.actorNetworkId;
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		BlockBreakingInfo other = (BlockBreakingInfo) o;
+		return actorNetworkId == other.actorNetworkId;
 	}
 
 	@Override
 	public int hashCode() {
-		return Integer.hashCode(this.actorNetworkId);
+		return Integer.hashCode(actorNetworkId);
 	}
 
 	/**
-	 * Compare to.
-	 *
-	 * @param blockBreakingInfo block breaking info
-	 *
-	 * @return int — результат операции
+	 * Сравнивает по стадии разрушения, при равенстве — по ID актора.
+	 * Используется для сортировки при отображении анимации разрушения.
 	 */
-	public int compareTo(BlockBreakingInfo blockBreakingInfo) {
-		return this.stage != blockBreakingInfo.stage
-		       ? Integer.compare(this.stage, blockBreakingInfo.stage)
-		       : Integer.compare(this.actorNetworkId, blockBreakingInfo.actorNetworkId);
+	@Override
+	public int compareTo(BlockBreakingInfo other) {
+		return stage != other.stage
+			? Integer.compare(stage, other.stage)
+			: Integer.compare(actorNetworkId, other.actorNetworkId);
 	}
 }

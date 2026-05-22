@@ -1,20 +1,41 @@
 package net.minecraft.world.timer.stopwatch;
 
 /**
- * {@code Stopwatch}.
+ * Иммутабельный секундомер, отсчитывающий время от момента создания.
+ * Хранит время создания и накопленное время из предыдущих сессий,
+ * что позволяет корректно восстанавливать состояние после перезагрузки сервера.
+ *
+ * @param creationTime           системное время создания секундомера в миллисекундах
+ * @param accumulatedElapsedTime накопленное время из предыдущих сессий в миллисекундах
  */
 public record Stopwatch(long creationTime, long accumulatedElapsedTime) {
 
+	/**
+	 * Создаёт новый секундомер с нулевым накопленным временем.
+	 *
+	 * @param creationTimeMs системное время создания в миллисекундах
+	 */
 	public Stopwatch(long creationTimeMs) {
 		this(creationTimeMs, 0L);
 	}
 
-	public long getElapsedTimeMs(long timeMs) {
-		long l = timeMs - this.creationTime;
-		return this.accumulatedElapsedTime + l;
+	/**
+	 * Возвращает суммарное прошедшее время с момента создания секундомера.
+	 *
+	 * @param currentTimeMs текущее системное время в миллисекундах
+	 * @return прошедшее время в миллисекундах
+	 */
+	public long getElapsedTimeMs(long currentTimeMs) {
+		return accumulatedElapsedTime + (currentTimeMs - creationTime);
 	}
 
-	public double getElapsedTimeSeconds(long timeMs) {
-		return this.getElapsedTimeMs(timeMs) / 1000.0;
+	/**
+	 * Возвращает суммарное прошедшее время в секундах.
+	 *
+	 * @param currentTimeMs текущее системное время в миллисекундах
+	 * @return прошедшее время в секундах
+	 */
+	public double getElapsedTimeSeconds(long currentTimeMs) {
+		return getElapsedTimeMs(currentTimeMs) / 1000.0;
 	}
 }

@@ -54,9 +54,9 @@ public class HeightmapDebugRenderer implements DebugRenderer.Renderer {
 						for (int l = 0; l < 16; l++) {
 							int m = ChunkSectionPos.getOffsetPos(chunkPos.x, k);
 							int n = ChunkSectionPos.getOffsetPos(chunkPos.z, l);
-							float f = worldAccess.getTopY(type, m, n) + type.ordinal() * 0.09375F;
+							float f = worldAccess.getTopY(type, m, n) + type.ordinal() * BOX_HEIGHT;
 							GizmoDrawing.box(
-									new Box(m + 0.25F, f, n + 0.25F, m + 0.75F, f + 0.09375F, n + 0.75F),
+									new Box(m + 0.25F, f, n + 0.25F, m + 0.75F, f + BOX_HEIGHT, n + 0.75F),
 									DrawStyle.filled(ColorHelper.fromFloats(
 											1.0F,
 											vector3f.x(),

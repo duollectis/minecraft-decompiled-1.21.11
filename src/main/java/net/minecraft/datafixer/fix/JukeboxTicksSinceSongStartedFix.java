@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code JukeboxTicksSinceSongStartedFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class JukeboxTicksSinceSongStartedFix extends ChoiceFix {
 

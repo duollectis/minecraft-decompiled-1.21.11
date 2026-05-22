@@ -29,12 +29,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
 
 /**
- * {@code AbstractChestBoatEntity}.
+ * Базовый класс для лодок и плотов со встроенным сундуком.
+ * Вмещает одного пассажира; при уничтожении рассыпает содержимое инвентаря.
  */
 public abstract class AbstractChestBoatEntity extends AbstractBoatEntity implements RideableInventory, VehicleInventory {
 
 	private static final int INVENTORY_SIZE = 27;
-	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
 	private @Nullable RegistryKey<LootTable> lootTable;
 	private long lootTableSeed;
 
@@ -59,92 +61,99 @@ public abstract class AbstractChestBoatEntity extends AbstractBoatEntity impleme
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.writeInventoryToData(view);
+		writeInventoryToData(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.readInventoryFromData(view);
+		readInventoryFromData(view);
 	}
 
 	@Override
 	public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
-		this.killAndDropItem(world, this.asItem());
-		this.onBroken(damageSource, world, this);
+		killAndDropItem(world, asItem());
+		onBroken(damageSource, world, this);
 	}
 
 	@Override
 	public void remove(Entity.RemovalReason reason) {
-		if (!this.getEntityWorld().isClient() && reason.shouldDestroy()) {
-			ItemScatterer.spawn(this.getEntityWorld(), this, this);
+		if (!getEntityWorld().isClient() && reason.shouldDestroy()) {
+			ItemScatterer.spawn(getEntityWorld(), this, this);
 		}
 
 		super.remove(reason);
 	}
 
+	/**
+	 * Обрабатывает взаимодействие игрока: если пассажир может сесть и не отменяет взаимодействие —
+	 * пропускает открытие инвентаря; иначе открывает сундук.
+	 */
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		ActionResult actionResult = super.interact(player, hand);
-		if (actionResult != ActionResult.PASS) {
-			return actionResult;
+		ActionResult result = super.interact(player, hand);
+
+		if (result != ActionResult.PASS) {
+			return result;
 		}
-		else if (this.canAddPassenger(player) && !player.shouldCancelInteraction()) {
+
+		if (canAddPassenger(player) && !player.shouldCancelInteraction()) {
 			return ActionResult.PASS;
 		}
-		else {
-			ActionResult actionResult2 = this.open(player);
-			if (actionResult2.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
-				this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
-				PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
-			}
 
-			return actionResult2;
+		ActionResult openResult = open(player);
+
+		if (openResult.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
+			emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+			PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
 		}
+
+		return openResult;
 	}
 
 	@Override
 	public void openInventory(PlayerEntity player) {
 		player.openHandledScreen(this);
+
 		if (player.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+			emitGameEvent(GameEvent.CONTAINER_OPEN, player);
 			PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
 		}
 	}
 
 	@Override
 	public void clear() {
-		this.clearInventory();
+		clearInventory();
 	}
 
 	@Override
 	public int size() {
-		return 27;
+		return INVENTORY_SIZE;
 	}
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return this.getInventoryStack(slot);
+		return getInventoryStack(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		return this.removeInventoryStack(slot, amount);
+		return removeInventoryStack(slot, amount);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		return this.removeInventoryStack(slot);
+		return removeInventoryStack(slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		this.setInventoryStack(slot, stack);
+		setInventoryStack(slot, stack);
 	}
 
 	@Override
 	public StackReference getStackReference(int slot) {
-		return this.getInventoryStackReference(slot);
+		return getInventoryStackReference(slot);
 	}
 
 	@Override
@@ -153,32 +162,26 @@ public abstract class AbstractChestBoatEntity extends AbstractBoatEntity impleme
 
 	@Override
 	public boolean canPlayerUse(PlayerEntity player) {
-		return this.canPlayerAccess(player);
+		return canPlayerAccess(player);
 	}
 
 	@Override
-	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		if (this.lootTable != null && playerEntity.isSpectator()) {
+	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (lootTable != null && player.isSpectator()) {
 			return null;
 		}
-		else {
-			this.generateLoot(playerInventory.player);
-			return GenericContainerScreenHandler.createGeneric9x3(i, playerInventory, this);
-		}
+
+		generateLoot(playerInventory.player);
+		return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param player player
-	 */
 	public void generateLoot(@Nullable PlayerEntity player) {
-		this.generateInventoryLoot(player);
+		generateInventoryLoot(player);
 	}
 
 	@Override
 	public @Nullable RegistryKey<LootTable> getLootTable() {
-		return this.lootTable;
+		return lootTable;
 	}
 
 	@Override
@@ -188,32 +191,30 @@ public abstract class AbstractChestBoatEntity extends AbstractBoatEntity impleme
 
 	@Override
 	public long getLootTableSeed() {
-		return this.lootTableSeed;
+		return lootTableSeed;
 	}
 
 	@Override
-	public void setLootTableSeed(long lootTableSeed) {
-		this.lootTableSeed = lootTableSeed;
+	public void setLootTableSeed(long seed) {
+		lootTableSeed = seed;
 	}
 
 	@Override
 	public DefaultedList<ItemStack> getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
 	public void resetInventory() {
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
 	}
 
 	@Override
 	public void onClose(ContainerUser user) {
-		this
-				.getEntityWorld()
-				.emitGameEvent(
-						GameEvent.CONTAINER_CLOSE,
-						this.getEntityPos(),
-						GameEvent.Emitter.of(user.asLivingEntity())
-				);
+		getEntityWorld().emitGameEvent(
+				GameEvent.CONTAINER_CLOSE,
+				getEntityPos(),
+				GameEvent.Emitter.of(user.asLivingEntity())
+		);
 	}
 }

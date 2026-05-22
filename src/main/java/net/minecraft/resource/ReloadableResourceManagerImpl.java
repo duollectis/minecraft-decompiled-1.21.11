@@ -17,7 +17,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ReloadableResourceManagerImpl}.
+ * Реализация {@link ResourceManager} с поддержкой перезагрузки ресурсов.
+ * Хранит список зарегистрированных {@link ResourceReloader} и при вызове
+ * {@link #reload} создаёт новый {@link LifecycledResourceManagerImpl} из переданных паков.
  */
 public class ReloadableResourceManagerImpl implements ResourceManager, AutoCloseable {
 
@@ -28,70 +30,85 @@ public class ReloadableResourceManagerImpl implements ResourceManager, AutoClose
 
 	public ReloadableResourceManagerImpl(ResourceType type) {
 		this.type = type;
-		this.activeManager = new LifecycledResourceManagerImpl(type, List.of());
+		activeManager = new LifecycledResourceManagerImpl(type, List.of());
 	}
 
 	@Override
 	public void close() {
-		this.activeManager.close();
+		activeManager.close();
 	}
 
+	/**
+	 * Регистрирует перезагрузчик, который будет вызываться при каждой перезагрузке ресурсов.
+	 *
+	 * @param reloader перезагрузчик для регистрации
+	 */
 	public void registerReloader(ResourceReloader reloader) {
-		this.reloaders.add(reloader);
+		reloaders.add(reloader);
 	}
 
+	/**
+	 * Запускает асинхронную перезагрузку ресурсов с новым набором паков.
+	 * Закрывает предыдущий менеджер и создаёт новый из переданных паков.
+	 *
+	 * @param prepareExecutor исполнитель фазы подготовки
+	 * @param applyExecutor   исполнитель фазы применения
+	 * @param initialStage    начальная стадия (барьер синхронизации)
+	 * @param packs           новый список паков
+	 * @return объект отслеживания прогресса перезагрузки
+	 */
 	public ResourceReload reload(
-			Executor prepareExecutor,
-			Executor applyExecutor,
-			CompletableFuture<Unit> initialStage,
-			List<ResourcePack> packs
+		Executor prepareExecutor,
+		Executor applyExecutor,
+		CompletableFuture<Unit> initialStage,
+		List<ResourcePack> packs
 	) {
 		LOGGER.info(
-				"Reloading ResourceManager: {}",
-				LogUtils.defer(() -> packs.stream().map(ResourcePack::getId).collect(Collectors.joining(", ")))
+			"Reloading ResourceManager: {}",
+			LogUtils.defer(() -> packs.stream().map(ResourcePack::getId).collect(Collectors.joining(", ")))
 		);
-		this.activeManager.close();
-		this.activeManager = new LifecycledResourceManagerImpl(this.type, packs);
+		activeManager.close();
+		activeManager = new LifecycledResourceManagerImpl(type, packs);
 		return SimpleResourceReload.start(
-				this.activeManager,
-				this.reloaders,
-				prepareExecutor,
-				applyExecutor,
-				initialStage,
-				LOGGER.isDebugEnabled()
+			activeManager,
+			reloaders,
+			prepareExecutor,
+			applyExecutor,
+			initialStage,
+			LOGGER.isDebugEnabled()
 		);
 	}
 
 	@Override
 	public Optional<Resource> getResource(Identifier identifier) {
-		return this.activeManager.getResource(identifier);
+		return activeManager.getResource(identifier);
 	}
 
 	@Override
 	public Set<String> getAllNamespaces() {
-		return this.activeManager.getAllNamespaces();
+		return activeManager.getAllNamespaces();
 	}
 
 	@Override
 	public List<Resource> getAllResources(Identifier id) {
-		return this.activeManager.getAllResources(id);
+		return activeManager.getAllResources(id);
 	}
 
 	@Override
 	public Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
-		return this.activeManager.findResources(startingPath, allowedPathPredicate);
+		return activeManager.findResources(startingPath, allowedPathPredicate);
 	}
 
 	@Override
 	public Map<Identifier, List<Resource>> findAllResources(
-			String startingPath,
-			Predicate<Identifier> allowedPathPredicate
+		String startingPath,
+		Predicate<Identifier> allowedPathPredicate
 	) {
-		return this.activeManager.findAllResources(startingPath, allowedPathPredicate);
+		return activeManager.findAllResources(startingPath, allowedPathPredicate);
 	}
 
 	@Override
 	public Stream<ResourcePack> streamResourcePacks() {
-		return this.activeManager.streamResourcePacks();
+		return activeManager.streamResourcePacks();
 	}
 }

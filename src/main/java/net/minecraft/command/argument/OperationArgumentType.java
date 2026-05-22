@@ -18,16 +18,20 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code OperationArgumentType}.
+ * Тип аргумента команды для разбора арифметической операции над очками скорборда.
+ *
+ * <p>Поддерживаемые операторы: {@code =}, {@code +=}, {@code -=}, {@code *=},
+ * {@code /=}, {@code %=}, {@code <} (min), {@code >} (max), {@code ><} (swap).
+ * Деление и взятие остатка используют математическое (floor) деление, а не Java-деление.
  */
 public class OperationArgumentType implements ArgumentType<OperationArgumentType.Operation> {
 
 	private static final Collection<String> EXAMPLES = Arrays.asList("=", ">", "<");
-	private static final SimpleCommandExceptionType
-			INVALID_OPERATION =
+
+	private static final SimpleCommandExceptionType INVALID_OPERATION =
 			new SimpleCommandExceptionType(Text.translatable("arguments.operation.invalid"));
-	private static final SimpleCommandExceptionType
-			DIVISION_ZERO_EXCEPTION =
+
+	private static final SimpleCommandExceptionType DIVISION_ZERO_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("arguments.operation.div0"));
 
 	public static OperationArgumentType operation() {
@@ -41,25 +45,30 @@ public class OperationArgumentType implements ArgumentType<OperationArgumentType
 		return (OperationArgumentType.Operation) context.getArgument(name, OperationArgumentType.Operation.class);
 	}
 
-	public OperationArgumentType.Operation parse(StringReader stringReader) throws CommandSyntaxException {
-		if (!stringReader.canRead()) {
-			throw INVALID_OPERATION.createWithContext(stringReader);
+	@Override
+	public OperationArgumentType.Operation parse(StringReader reader) throws CommandSyntaxException {
+		if (!reader.canRead()) {
+			throw INVALID_OPERATION.createWithContext(reader);
 		}
-		else {
-			int i = stringReader.getCursor();
 
-			while (stringReader.canRead() && stringReader.peek() != ' ') {
-				stringReader.skip();
-			}
+		int start = reader.getCursor();
 
-			return getOperator(stringReader.getString().substring(i, stringReader.getCursor()));
+		while (reader.canRead() && reader.peek() != ' ') {
+			reader.skip();
 		}
+
+		return getOperator(reader.getString().substring(start, reader.getCursor()));
 	}
 
+	@Override
 	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-		return CommandSource.suggestMatching(new String[]{"=", "+=", "-=", "*=", "/=", "%=", "<", ">", "><"}, builder);
+		return CommandSource.suggestMatching(
+				new String[]{"=", "+=", "-=", "*=", "/=", "%=", "<", ">", "><"},
+				builder
+		);
 	}
 
+	@Override
 	public Collection<String> getExamples() {
 		return EXAMPLES;
 	}
@@ -67,9 +76,9 @@ public class OperationArgumentType implements ArgumentType<OperationArgumentType
 	private static OperationArgumentType.Operation getOperator(String operator) throws CommandSyntaxException {
 		if (operator.equals("><")) {
 			return (a, b) -> {
-				int i = a.getScore();
+				int temp = a.getScore();
 				a.setScore(b.getScore());
-				b.setScore(i);
+				b.setScore(temp);
 			};
 		}
 
@@ -86,17 +95,15 @@ public class OperationArgumentType implements ArgumentType<OperationArgumentType
 				if (b == 0) {
 					throw DIVISION_ZERO_EXCEPTION.create();
 				}
-				else {
-					return MathHelper.floorDiv(a, b);
-				}
+
+				return MathHelper.floorDiv(a, b);
 			};
 			case "%=" -> (a, b) -> {
 				if (b == 0) {
 					throw DIVISION_ZERO_EXCEPTION.create();
 				}
-				else {
-					return MathHelper.floorMod(a, b);
-				}
+
+				return MathHelper.floorMod(a, b);
 			};
 			case "<" -> Math::min;
 			case ">" -> Math::max;
@@ -104,26 +111,30 @@ public class OperationArgumentType implements ArgumentType<OperationArgumentType
 		};
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code IntOperator}.
+	 * Операция над двумя целочисленными значениями очков скорборда.
+	 * Реализует {@link Operation} через делегирование к {@link ScoreAccess#setScore}.
 	 */
+	@FunctionalInterface
 	interface IntOperator extends OperationArgumentType.Operation {
 
 		int apply(int a, int b) throws CommandSyntaxException;
 
 		@Override
-		default void apply(ScoreAccess scoreAccess, ScoreAccess scoreAccess2) throws CommandSyntaxException {
-			scoreAccess.setScore(this.apply(scoreAccess.getScore(), scoreAccess2.getScore()));
+		default void apply(ScoreAccess a, ScoreAccess b) throws CommandSyntaxException {
+			a.setScore(apply(a.getScore(), b.getScore()));
 		}
+
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Operation}.
+	 * Функциональный интерфейс операции над двумя {@link ScoreAccess}.
 	 */
+	@FunctionalInterface
 	public interface Operation {
 
 		void apply(ScoreAccess a, ScoreAccess b) throws CommandSyntaxException;
+
 	}
+
 }

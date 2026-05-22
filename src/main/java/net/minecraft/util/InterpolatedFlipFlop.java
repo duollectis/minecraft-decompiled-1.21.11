@@ -4,7 +4,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.attribute.timeline.EasingType;
 
 /**
- * {@code InterpolatedFlipFlop}.
+ * Интерполированный переключатель состояния (вкл/выкл) с плавным переходом.
+ * <p>
+ * Хранит текущее и предыдущее значения счётчика в диапазоне {@code [0, frames]}.
+ * При вызове {@link #tick(boolean)} счётчик плавно движется к целевому значению.
+ * Метод {@link #getValue(float)} возвращает интерполированное значение в диапазоне {@code [0.0, 1.0]}
+ * с применением функции сглаживания.
  */
 public class InterpolatedFlipFlop {
 
@@ -23,24 +28,32 @@ public class InterpolatedFlipFlop {
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние переключателя за один тик.
+	 * Если {@code active = true}, счётчик увеличивается до {@link #frames}.
+	 * Если {@code active = false}, счётчик уменьшается до 0.
 	 *
-	 * @param active active
+	 * @param active целевое состояние переключателя
 	 */
 	public void tick(boolean active) {
-		this.previous = this.current;
+		previous = current;
+
 		if (active) {
-			if (this.current < this.frames) {
-				this.current++;
+			if (current < frames) {
+				current++;
 			}
-		}
-		else if (this.current > 0) {
-			this.current--;
+		} else if (current > 0) {
+			current--;
 		}
 	}
 
+	/**
+	 * Возвращает интерполированное значение переключателя в диапазоне {@code [0.0, 1.0]}.
+	 *
+	 * @param tickProgress прогресс текущего тика в диапазоне {@code [0.0, 1.0]}
+	 * @return сглаженное значение переключателя
+	 */
 	public float getValue(float tickProgress) {
-		float f = MathHelper.lerp(tickProgress, (float) this.previous, (float) this.current) / this.frames;
-		return this.smoothingFunction.apply(f);
+		float normalized = MathHelper.lerp(tickProgress, (float) previous, (float) current) / frames;
+		return smoothingFunction.apply(normalized);
 	}
 }

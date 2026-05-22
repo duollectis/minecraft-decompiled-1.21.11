@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * {@code ViewerCountManager}.
+ * Менеджер счётчика просматривающих игроков для контейнеров (сундук, эндер-сундук).
+ * Отслеживает количество открывших контейнер игроков и уведомляет подклассы
+ * об открытии/закрытии для воспроизведения звуков и обновления состояния блока.
  */
 public abstract class ViewerCountManager {
 
@@ -22,22 +24,8 @@ public abstract class ViewerCountManager {
 	private int viewerCount;
 	private double maxBlockInteractionRange;
 
-	/**
-	 * Обрабатывает событие container open.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	protected abstract void onContainerOpen(World world, BlockPos pos, BlockState state);
 
-	/**
-	 * Обрабатывает событие container close.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	protected abstract void onContainerClose(World world, BlockPos pos, BlockState state);
 
 	protected abstract void onViewerCountUpdate(
@@ -57,95 +45,88 @@ public abstract class ViewerCountManager {
 			BlockState state,
 			double userInteractionRange
 	) {
-		int i = this.viewerCount++;
-		if (i == 0) {
-			this.onContainerOpen(world, pos, state);
+		int previousCount = viewerCount++;
+
+		if (previousCount == 0) {
+			onContainerOpen(world, pos, state);
 			world.emitGameEvent(user, GameEvent.CONTAINER_OPEN, pos);
 			scheduleBlockTick(world, pos, state);
 		}
 
-		this.onViewerCountUpdate(world, pos, state, i, this.viewerCount);
-		this.maxBlockInteractionRange = Math.max(userInteractionRange, this.maxBlockInteractionRange);
+		onViewerCountUpdate(world, pos, state, previousCount, viewerCount);
+		maxBlockInteractionRange = Math.max(userInteractionRange, maxBlockInteractionRange);
 	}
 
-	/**
-	 * Закрывает container.
-	 *
-	 * @param user user
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	public void closeContainer(LivingEntity user, World world, BlockPos pos, BlockState state) {
-		int i = this.viewerCount--;
-		if (this.viewerCount == 0) {
-			this.onContainerClose(world, pos, state);
+		int previousCount = viewerCount--;
+
+		if (viewerCount == 0) {
+			onContainerClose(world, pos, state);
 			world.emitGameEvent(user, GameEvent.CONTAINER_CLOSE, pos);
-			this.maxBlockInteractionRange = 0.0;
+			maxBlockInteractionRange = 0.0;
 		}
 
-		this.onViewerCountUpdate(world, pos, state, i, this.viewerCount);
+		onViewerCountUpdate(world, pos, state, previousCount, viewerCount);
 	}
 
 	public List<ContainerUser> getViewingUsers(World world, BlockPos pos) {
-		double d = this.maxBlockInteractionRange + 4.0;
-		Box box = new Box(pos).expand(d);
-		return world.getOtherEntities((Entity) null, box, entity -> this.hasViewingUsers(entity, pos))
-		            .stream()
-		            .map(entity -> (ContainerUser) entity)
-		            .collect(Collectors.toList());
+		double searchRadius = maxBlockInteractionRange + 4.0;
+		Box searchBox = new Box(pos).expand(searchRadius);
+
+		return world.getOtherEntities((Entity) null, searchBox, entity -> hasViewingUsers(entity, pos))
+				.stream()
+				.map(entity -> (ContainerUser) entity)
+				.collect(Collectors.toList());
 	}
 
 	private boolean hasViewingUsers(Entity entity, BlockPos blockPos) {
 		return entity instanceof ContainerUser containerUser && !containerUser.asLivingEntity().isSpectator()
-		       ? containerUser.isViewingContainerAt(this, blockPos)
-		       : false;
+				? containerUser.isViewingContainerAt(this, blockPos)
+				: false;
 	}
 
 	/**
-	 * Обновляет viewer count.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
+	 * Пересчитывает реальное количество просматривающих игроков путём поиска сущностей
+	 * в радиусе взаимодействия. Вызывается по расписанию тика блока.
 	 */
 	public void updateViewerCount(World world, BlockPos pos, BlockState state) {
-		List<ContainerUser> list = this.getViewingUsers(world, pos);
-		this.maxBlockInteractionRange = 0.0;
+		List<ContainerUser> viewers = getViewingUsers(world, pos);
+		maxBlockInteractionRange = 0.0;
 
-		for (ContainerUser containerUser : list) {
-			this.maxBlockInteractionRange =
-					Math.max(containerUser.getContainerInteractionRange(), this.maxBlockInteractionRange);
+		for (ContainerUser viewer : viewers) {
+			maxBlockInteractionRange = Math.max(viewer.getContainerInteractionRange(), maxBlockInteractionRange);
 		}
 
-		int i = list.size();
-		int j = this.viewerCount;
-		if (j != i) {
-			boolean bl = i != 0;
-			boolean bl2 = j != 0;
-			if (bl && !bl2) {
-				this.onContainerOpen(world, pos, state);
+		int newCount = viewers.size();
+		int oldCount = viewerCount;
+
+		if (oldCount != newCount) {
+			boolean wasOpen = oldCount != 0;
+			boolean isOpen = newCount != 0;
+
+			if (isOpen && !wasOpen) {
+				onContainerOpen(world, pos, state);
 				world.emitGameEvent(null, GameEvent.CONTAINER_OPEN, pos);
-			}
-			else if (!bl) {
-				this.onContainerClose(world, pos, state);
+			} else if (!isOpen) {
+				onContainerClose(world, pos, state);
 				world.emitGameEvent(null, GameEvent.CONTAINER_CLOSE, pos);
 			}
 
-			this.viewerCount = i;
+			viewerCount = newCount;
 		}
 
-		this.onViewerCountUpdate(world, pos, state, j, i);
-		if (i > 0) {
+		onViewerCountUpdate(world, pos, state, oldCount, newCount);
+
+		if (newCount > 0) {
 			scheduleBlockTick(world, pos, state);
 		}
 	}
 
 	public int getViewerCount() {
-		return this.viewerCount;
+		return viewerCount;
 	}
 
 	private static void scheduleBlockTick(World world, BlockPos pos, BlockState state) {
-		world.scheduleBlockTick(pos, state.getBlock(), 5);
+		world.scheduleBlockTick(pos, state.getBlock(), SCHEDULE_TICK_DELAY);
 	}
 }

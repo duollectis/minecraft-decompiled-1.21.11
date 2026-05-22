@@ -5,7 +5,8 @@ import it.unimi.dsi.fastutil.floats.Float2FloatFunction;
 import java.util.function.Function;
 
 /**
- * {@code ToFloatFunction}.
+ * Функция, отображающая значение типа {@code C} в примитивный {@code float}.
+ * Дополнительно предоставляет контракт диапазона через {@link #min()} и {@link #max()}.
  */
 public interface ToFloatFunction<C> {
 
@@ -17,17 +18,18 @@ public interface ToFloatFunction<C> {
 
 	float max();
 
+	/**
+	 * Создаёт {@code ToFloatFunction<Float>} на основе примитивной функции {@code float → float}.
+	 * Диапазон результата не ограничен: {@code [-∞, +∞]}.
+	 *
+	 * @param delegate примитивная функция преобразования
+	 * @return обёртка над {@code delegate}
+	 */
 	static ToFloatFunction<Float> fromFloat(Float2FloatFunction delegate) {
-		return new ToFloatFunction<Float>() {
-			/**
-			 * Apply.
-			 *
-			 * @param float_ float_
-			 *
-			 * @return float — результат операции
-			 */
-			public float apply(Float float_) {
-				return (Float) delegate.apply(float_);
+		return new ToFloatFunction<>() {
+			@Override
+			public float apply(Float value) {
+				return delegate.apply(value);
 			}
 
 			@Override
@@ -43,21 +45,21 @@ public interface ToFloatFunction<C> {
 	}
 
 	default <C2> ToFloatFunction<C2> compose(Function<C2, C> before) {
-		final ToFloatFunction<C> toFloatFunction = this;
-		return new ToFloatFunction<C2>() {
+		ToFloatFunction<C> outer = this;
+		return new ToFloatFunction<>() {
 			@Override
 			public float apply(C2 x) {
-				return toFloatFunction.apply(before.apply(x));
+				return outer.apply(before.apply(x));
 			}
 
 			@Override
 			public float min() {
-				return toFloatFunction.min();
+				return outer.min();
 			}
 
 			@Override
 			public float max() {
-				return toFloatFunction.max();
+				return outer.max();
 			}
 		};
 	}

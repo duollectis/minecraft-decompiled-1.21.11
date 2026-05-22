@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code ListCommand}.
+ * Команда {@code /list}: вывод списка подключённых игроков.
  */
 public class ListCommand {
 

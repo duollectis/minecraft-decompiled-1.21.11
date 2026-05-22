@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1470}.
+ * Схема версии 1470: добавляет водных мобов Update Aquatic — черепаху, треску,
+ * тропическую рыбу, лосося, рыбу-шар, фантома, дельфина, утопленника,
+ * а также трезубец как сущность-снаряд.
  */
 public class Schema1470 extends IdentifierNormalizingSchema {
 
-	public Schema1470(int i, Schema schema) {
-		super(i, schema);
+	public Schema1470(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	protected static void targetEntityItems(Schema schema, Map<String, Supplier<TypeTemplate>> map, String entityId) {

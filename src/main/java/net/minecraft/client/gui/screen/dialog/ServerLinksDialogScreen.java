@@ -14,10 +14,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ServerLinksDialogScreen}.
+ * Экран диалога со ссылками сервера, отображаемыми в виде кнопок-колонок.
  */
+@Environment(EnvType.CLIENT)
 public class ServerLinksDialogScreen extends ColumnsDialogScreen<ServerLinksDialog> {
 
 	public ServerLinksDialogScreen(

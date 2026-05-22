@@ -8,7 +8,10 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * {@code ScreenTexts}.
+ * Утилитарный класс с предзагруженными текстовыми константами для стандартных элементов GUI.
+ * <p>
+ * Все константы — транслируемые тексты, загружаемые один раз при инициализации класса.
+ * Методы-утилиты предоставляют удобные способы форматирования и объединения текстов.
  */
 public class ScreenTexts {
 
@@ -37,132 +40,63 @@ public class ScreenTexts {
 	public static final Text ELLIPSIS = Text.literal("...");
 	public static final Text SPACE = space();
 
-	/**
-	 * Space.
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText space() {
 		return Text.literal(" ");
 	}
 
-	/**
-	 * Days.
-	 *
-	 * @param days days
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText days(long days) {
 		return Text.translatable("gui.days", days);
 	}
 
-	/**
-	 * Hours.
-	 *
-	 * @param hours hours
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText hours(long hours) {
 		return Text.translatable("gui.hours", hours);
 	}
 
-	/**
-	 * Minutes.
-	 *
-	 * @param minutes minutes
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText minutes(long minutes) {
 		return Text.translatable("gui.minutes", minutes);
 	}
 
-	/**
-	 * Обрабатывает событие or off.
-	 *
-	 * @param on on
-	 *
-	 * @return Text — результат операции
-	 */
 	public static Text onOrOff(boolean on) {
 		return on ? ON : OFF;
 	}
 
-	/**
-	 * Return to menu or disconnect.
-	 *
-	 * @param singleplayer singleplayer
-	 *
-	 * @return Text — результат операции
-	 */
 	public static Text returnToMenuOrDisconnect(boolean singleplayer) {
 		return singleplayer ? RETURN_TO_MENU : DISCONNECT;
 	}
 
-	/**
-	 * Compose toggle text.
-	 *
-	 * @param text text
-	 * @param value value
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText composeToggleText(Text text, boolean value) {
 		return Text.translatable(value ? "options.on.composed" : "options.off.composed", text);
 	}
 
-	/**
-	 * Compose generic option text.
-	 *
-	 * @param text text
-	 * @param value value
-	 *
-	 * @return MutableText — результат операции
-	 */
 	public static MutableText composeGenericOptionText(Text text, Text value) {
 		return Text.translatable("options.generic_value", text, value);
 	}
 
 	/**
-	 * Join sentences.
+	 * Объединяет предложения через разделитель {@link #SENTENCE_SEPARATOR} (". ").
+	 * Последнее предложение разделителем не завершается.
 	 *
-	 * @param sentences sentences
-	 *
-	 * @return MutableText — результат операции
+	 * @param sentences предложения для объединения
+	 * @return объединённый изменяемый текст
 	 */
 	public static MutableText joinSentences(Text... sentences) {
-		MutableText mutableText = Text.empty();
+		MutableText result = Text.empty();
 
-		for (int i = 0; i < sentences.length; i++) {
-			mutableText.append(sentences[i]);
-			if (i != sentences.length - 1) {
-				mutableText.append(SENTENCE_SEPARATOR);
+		for (int index = 0; index < sentences.length; index++) {
+			result.append(sentences[index]);
+
+			if (index != sentences.length - 1) {
+				result.append(SENTENCE_SEPARATOR);
 			}
 		}
 
-		return mutableText;
+		return result;
 	}
 
-	/**
-	 * Join lines.
-	 *
-	 * @param texts texts
-	 *
-	 * @return Text — результат операции
-	 */
 	public static Text joinLines(Text... texts) {
 		return joinLines(Arrays.asList(texts));
 	}
 
-	/**
-	 * Join lines.
-	 *
-	 * @param texts texts
-	 *
-	 * @return Text — результат операции
-	 */
 	public static Text joinLines(Collection<? extends Text> texts) {
 		return Texts.join(texts, LINE_BREAK);
 	}

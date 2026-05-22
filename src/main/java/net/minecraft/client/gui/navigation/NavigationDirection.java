@@ -4,17 +4,17 @@ import it.unimi.dsi.fastutil.ints.IntComparator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NavigationDirection}.
+ * Направление навигации по GUI-элементам с помощью клавиатуры.
  */
+@Environment(EnvType.CLIENT)
 public enum NavigationDirection {
 	UP,
 	DOWN,
 	LEFT,
 	RIGHT;
 
-	private final IntComparator comparator = (a, b) -> a == b ? 0 : (this.isBefore(a, b) ? -1 : 1);
+	private final IntComparator comparator = (a, b) -> a == b ? 0 : (isBefore(a, b) ? -1 : 1);
 
 	public NavigationAxis getAxis() {
 		return switch (this) {
@@ -40,14 +40,14 @@ public enum NavigationDirection {
 	}
 
 	public boolean isAfter(int a, int b) {
-		return this.isPositive() ? a > b : b > a;
+		return isPositive() ? a > b : b > a;
 	}
 
 	public boolean isBefore(int a, int b) {
-		return this.isPositive() ? a < b : b < a;
+		return isPositive() ? a < b : b < a;
 	}
 
 	public IntComparator getComparator() {
-		return this.comparator;
+		return comparator;
 	}
 }

@@ -22,10 +22,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SearchManager}.
+ * Управляет поисковыми провайдерами для предметов, тегов и рецептов.
+ * Каждый провайдер регистрируется через {@link #addReloader} и пересоздаётся
+ * при вызове {@link #refresh()} — например, после перезагрузки ресурсов.
  */
+@Environment(EnvType.CLIENT)
 public class SearchManager {
 
 	private static final SearchManager.Key RECIPE_OUTPUT = new SearchManager.Key();
@@ -165,10 +167,11 @@ public class SearchManager {
 		return this.itemTooltipReloadFuture.join();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Key}.
+	 * Непрозрачный ключ для идентификации конкретного поискового провайдера
+	 * в карте {@link #reloaders}. Использует identity-сравнение.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Key {
 	}
 }

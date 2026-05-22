@@ -9,41 +9,43 @@ import net.minecraft.screen.HopperScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HopperScreen}.
+ * Экран воронки.
  */
+@Environment(EnvType.CLIENT)
 public class HopperScreen extends HandledScreen<HopperScreenHandler> {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/hopper.png");
+	private static final int BACKGROUND_HEIGHT_HOPPER = 133;
+	private static final int PLAYER_INVENTORY_OFFSET = 94;
 
 	public HopperScreen(HopperScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
-		this.backgroundHeight = 133;
-		this.playerInventoryTitleY = this.backgroundHeight - 94;
+		backgroundHeight = BACKGROUND_HEIGHT_HOPPER;
+		playerInventoryTitleY = backgroundHeight - PLAYER_INVENTORY_OFFSET;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
 	}
 }

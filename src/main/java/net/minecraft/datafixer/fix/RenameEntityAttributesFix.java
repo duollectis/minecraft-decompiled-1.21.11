@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code RenameEntityAttributesFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameEntityAttributesFix extends DataFix {
 
@@ -23,23 +23,23 @@ public class RenameEntityAttributesFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<?> opticFinder = type.findField("tag");
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						this.description + " (ItemStack)",
 						type,
 						itemStackTyped -> itemStackTyped.updateTyped(opticFinder, this::updateAttributeModifiers)
 				),
 				new TypeRewriteRule[]{
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								this.description + " (Entity)",
-								this.getInputSchema().getType(TypeReferences.ENTITY),
+								getInputSchema().getType(TypeReferences.ENTITY),
 								this::updateEntityAttributes
 						),
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								this.description + " (Player)",
-								this.getInputSchema().getType(TypeReferences.PLAYER),
+								getInputSchema().getType(TypeReferences.PLAYER),
 								this::updateEntityAttributes
 						)
 				}

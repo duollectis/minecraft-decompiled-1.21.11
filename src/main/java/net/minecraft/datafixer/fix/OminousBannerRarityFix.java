@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
 /**
- * {@code OminousBannerRarityFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OminousBannerRarityFix extends DataFix {
 
@@ -19,9 +19,9 @@ public class OminousBannerRarityFix extends DataFix {
 
 	@SuppressWarnings("unchecked")
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
-		TaggedChoiceType<?> taggedChoiceType = this.getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
+		Type<?> type = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.ITEM_STACK);
+		TaggedChoiceType<?> taggedChoiceType = getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
@@ -34,7 +34,7 @@ public class OminousBannerRarityFix extends DataFix {
 						.getInputSchema()
 						.getType(TypeReferences.TEXT_COMPONENT));
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"Ominous Banner block entity common rarity to uncommon rarity fix", type, typed -> {
 							Object object = ((Pair) typed.get(taggedChoiceType.finder())).getFirst();
 							return object.equals("minecraft:banner") ? this.fixNameAndRarity(
@@ -44,7 +44,7 @@ public class OminousBannerRarityFix extends DataFix {
 									opticFinder5
 							) : typed;
 						}
-				), this.fixTypeEverywhereTyped(
+				), fixTypeEverywhereTyped(
 						"Ominous Banner item stack common rarity to uncommon rarity fix", type2, typed -> {
 							String string = typed.getOptional(opticFinder).<String>map(Pair::getSecond).orElse("");
 							return string.equals("minecraft:white_banner") ? this.fixNameAndRarity(

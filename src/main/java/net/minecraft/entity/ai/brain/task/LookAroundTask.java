@@ -12,7 +12,8 @@ import net.minecraft.util.math.intprovider.IntProvider;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code LookAroundTask}.
+ * Задача мозга, заставляющая моба смотреть в случайном направлении с заданным диапазоном угла.
+ * Устанавливает кулдаун взгляда через память {@code GAZE_COOLDOWN_TICKS}.
  */
 public class LookAroundTask extends MultiTickTask<MobEntity> {
 
@@ -29,32 +30,22 @@ public class LookAroundTask extends MultiTickTask<MobEntity> {
 				MemoryModuleState.VALUE_ABSENT
 		));
 		if (minPitch > maxPitch) {
-			throw new IllegalArgumentException(
-					"Minimum pitch is larger than maximum pitch! " + minPitch + " > " + maxPitch);
+			throw new IllegalArgumentException("Minimum pitch is larger than maximum pitch! " + minPitch + " > " + maxPitch);
 		}
-		else {
-			this.cooldown = cooldown;
-			this.maxYaw = maxYaw;
-			this.minPitch = minPitch;
-			this.pitchRange = maxPitch - minPitch;
-		}
+
+		this.cooldown = cooldown;
+		this.maxYaw = maxYaw;
+		this.minPitch = minPitch;
+		this.pitchRange = maxPitch - minPitch;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		Random random = mobEntity.getRandom();
-		float f = MathHelper.clamp(random.nextFloat() * this.pitchRange + this.minPitch, -90.0F, 90.0F);
-		float g = MathHelper.wrapDegrees(mobEntity.getYaw() + 2.0F * random.nextFloat() * this.maxYaw - this.maxYaw);
-		Vec3d vec3d = Vec3d.fromPolar(f, g);
-		mobEntity
-				.getBrain()
-				.remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(mobEntity.getEyePos().add(vec3d)));
-		mobEntity.getBrain().remember(MemoryModuleType.GAZE_COOLDOWN_TICKS, this.cooldown.get(random));
+	@Override
+	protected void run(ServerWorld world, MobEntity entity, long time) {
+		Random random = entity.getRandom();
+		float pitch = MathHelper.clamp(random.nextFloat() * pitchRange + minPitch, -90.0F, 90.0F);
+		float yaw = MathHelper.wrapDegrees(entity.getYaw() + 2.0F * random.nextFloat() * maxYaw - maxYaw);
+		Vec3d lookDir = Vec3d.fromPolar(pitch, yaw);
+		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(entity.getEyePos().add(lookDir)));
+		entity.getBrain().remember(MemoryModuleType.GAZE_COOLDOWN_TICKS, cooldown.get(random));
 	}
 }

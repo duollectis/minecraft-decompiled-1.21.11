@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.nbt.InvalidNbtException;
 
 /**
- * {@code WorldGenSettingsDisallowOldCustomWorldsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WorldGenSettingsDisallowOldCustomWorldsFix extends DataFix {
 
@@ -18,10 +18,10 @@ public class WorldGenSettingsDisallowOldCustomWorldsFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
+		Type<?> type = getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
 		OpticFinder<?> opticFinder = type.findField("dimensions");
-		return this.fixTypeEverywhereTyped(
-				"WorldGenSettingsDisallowOldCustomWorldsFix_" + this.getOutputSchema().getVersionKey(),
+		return fixTypeEverywhereTyped(
+				"WorldGenSettingsDisallowOldCustomWorldsFix_" + getOutputSchema().getVersionKey(),
 				type,
 				worldGenSettingsTyped -> worldGenSettingsTyped.updateTyped(
 						opticFinder, dimensionsTyped -> {

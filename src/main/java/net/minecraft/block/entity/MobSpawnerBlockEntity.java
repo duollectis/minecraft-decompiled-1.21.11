@@ -17,7 +17,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code MobSpawnerBlockEntity}.
+ * Блок-сущность спавнера мобов. Делегирует всю логику спавна в {@link MobSpawnerLogic},
+ * синхронизирует состояние через синхронизированные события блока.
  */
 public class MobSpawnerBlockEntity extends BlockEntity implements Spawner {
 
@@ -44,67 +45,47 @@ public class MobSpawnerBlockEntity extends BlockEntity implements Spawner {
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.logic.readData(this.world, this.pos, view);
+		logic.readData(world, pos, view);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		this.logic.writeData(view);
+		logic.writeData(view);
 	}
 
-	/**
-	 * Client tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, MobSpawnerBlockEntity blockEntity) {
 		blockEntity.logic.clientTick(world, pos);
 	}
 
-	/**
-	 * Server tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, MobSpawnerBlockEntity blockEntity) {
 		blockEntity.logic.serverTick((ServerWorld) world, pos);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		NbtCompound nbtCompound = this.createComponentlessNbt(registries);
-		nbtCompound.remove("SpawnPotentials");
-		return nbtCompound;
+		NbtCompound nbt = createComponentlessNbt(registries);
+		nbt.remove("SpawnPotentials");
+		return nbt;
 	}
 
 	@Override
 	public boolean onSyncedBlockEvent(int type, int data) {
-		return this.logic.handleStatus(this.world, type) ? true : super.onSyncedBlockEvent(type, data);
+		return logic.handleStatus(world, type) ? true : super.onSyncedBlockEvent(type, data);
 	}
 
 	@Override
 	public void setEntityType(EntityType<?> type, Random random) {
-		this.logic.setEntityId(type, this.world, random, this.pos);
-		this.markDirty();
+		logic.setEntityId(type, world, random, pos);
+		markDirty();
 	}
 
 	public MobSpawnerLogic getLogic() {
-		return this.logic;
+		return logic;
 	}
 }

@@ -27,18 +27,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * {@code ProfileComponent}.
- */
+	 * Компонент профиля игрока для предметов (голова игрока). Существует в двух вариантах:
+	 * {@link Static} — с уже разрешённым {@link GameProfile}, и {@link Dynamic} — с именем или UUID,
+	 * требующим асинхронного разрешения через {@link GameProfileResolver}.
+	 */
 public abstract sealed class ProfileComponent implements TooltipAppender permits ProfileComponent.Static, ProfileComponent.Dynamic {
 
 	private static final Codec<ProfileComponent> COMPONENT_CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codec
-							                    .mapEither(Codecs.INT_STREAM_UUID_GAME_PROFILE_CODEC, ProfileComponent.Data.CODEC)
-							                    .forGetter(ProfileComponent::get),
-					                    SkinTextures.SkinOverride.CODEC.forGetter(ProfileComponent::getOverride)
-			                    )
-			                    .apply(instance, ProfileComponent::ofDispatched)
+										Codec
+												.mapEither(Codecs.INT_STREAM_UUID_GAME_PROFILE_CODEC, ProfileComponent.Data.CODEC)
+												.forGetter(ProfileComponent::get),
+										SkinTextures.SkinOverride.CODEC.forGetter(ProfileComponent::getOverride)
+								)
+								.apply(instance, ProfileComponent::ofDispatched)
 	);
 	public static final Codec<ProfileComponent>
 			CODEC =
@@ -57,50 +59,50 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 			Either<GameProfile, ProfileComponent.Data> profileOrData,
 			SkinTextures.SkinOverride override
 	) {
-		return (ProfileComponent) profileOrData.map(
-				profile -> new ProfileComponent.Static(Either.left(profile), override),
-				data -> (ProfileComponent) (data.properties.isEmpty() && data.id.isPresent() != data.name.isPresent()
-				                            ? data.name
-				                              .<ProfileComponent>map(name -> new ProfileComponent.Dynamic(
-						                              Either.left(name), override))
-				                              .orElseGet(() -> new ProfileComponent.Dynamic(
-						                              Either.right(data.id.get()),
-						                              override
-				                              ))
-				                            : new ProfileComponent.Static(Either.right(data), override)
-				)
+		return profileOrData.map(
+				profile -> new Static(Either.left(profile), override),
+				data -> {
+					boolean isDynamic = data.properties.isEmpty()
+							&& data.id.isPresent() != data.name.isPresent();
+					if (isDynamic) {
+						return data.name
+								.<ProfileComponent>map(name -> new Dynamic(Either.left(name), override))
+								.orElseGet(() -> new Dynamic(Either.right(data.id.get()), override));
+					}
+
+					return new Static(Either.right(data), override);
+				}
 		);
 	}
 
 	/**
-	 * Of static.
-	 *
-	 * @param profile profile
-	 *
-	 * @return ProfileComponent — результат операции
-	 */
+		 * Создаёт статический компонент профиля из уже разрешённого {@link GameProfile}.
+		 *
+		 * @param profile разрешённый профиль игрока
+		 * @return {@link Static}-вариант компонента
+		 */
 	public static ProfileComponent ofStatic(GameProfile profile) {
 		return new ProfileComponent.Static(Either.left(profile), SkinTextures.SkinOverride.EMPTY);
 	}
 
 	/**
-	 * Of dynamic.
-	 *
-	 * @param name name
-	 *
-	 * @return ProfileComponent — результат операции
-	 */
+		 * Создаёт динамический компонент профиля по имени игрока.
+		 * Разрешение профиля происходит асинхронно через {@link GameProfileResolver}.
+		 *
+		 * @param name имя игрока
+		 * @return {@link Dynamic}-вариант компонента
+		 */
 	public static ProfileComponent ofDynamic(String name) {
 		return new ProfileComponent.Dynamic(Either.left(name), SkinTextures.SkinOverride.EMPTY);
 	}
 
 	/**
-	 * Of dynamic.
-	 *
-	 * @param id id
-	 *
-	 * @return ProfileComponent — результат операции
-	 */
+		 * Создаёт динамический компонент профиля по UUID игрока.
+		 * Разрешение профиля происходит асинхронно через {@link GameProfileResolver}.
+		 *
+		 * @param id UUID игрока
+		 * @return {@link Dynamic}-вариант компонента
+		 */
 	public static ProfileComponent ofDynamic(UUID id) {
 		return new ProfileComponent.Dynamic(Either.right(id), SkinTextures.SkinOverride.EMPTY);
 	}
@@ -112,21 +114,22 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		this.override = override;
 	}
 
+
 	/**
-	 * Resolve.
-	 *
-	 * @param resolver resolver
-	 *
-	 * @return CompletableFuture — результат операции
-	 */
+		 * Асинхронно разрешает профиль игрока через {@link GameProfileResolver}.
+		 * Для {@link Static} возвращает уже готовый профиль, для {@link Dynamic} — запрашивает его.
+		 *
+		 * @param resolver резолвер профилей
+		 * @return {@link CompletableFuture} с разрешённым {@link GameProfile}
+		 */
 	public abstract CompletableFuture<GameProfile> resolve(GameProfileResolver resolver);
 
 	public GameProfile getGameProfile() {
-		return this.profile;
+		return profile;
 	}
 
 	public SkinTextures.SkinOverride getOverride() {
-		return this.override;
+		return override;
 	}
 
 	static GameProfile createGameProfile(Optional<String> name, Optional<UUID> id, PropertyMap properties) {
@@ -137,9 +140,6 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 
 	public abstract Optional<String> getName();
 
-	/**
-	 * {@code Data}.
-	 */
 	protected record Data(Optional<String> name, Optional<UUID> id, PropertyMap properties) {
 
 		public static final ProfileComponent.Data
@@ -147,13 +147,13 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 				new ProfileComponent.Data(Optional.empty(), Optional.empty(), PropertyMap.EMPTY);
 		static final MapCodec<ProfileComponent.Data> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codecs.PLAYER_NAME.optionalFieldOf("name").forGetter(ProfileComponent.Data::name),
-						                    Uuids.INT_STREAM_CODEC.optionalFieldOf("id").forGetter(ProfileComponent.Data::id),
-						                    Codecs.GAME_PROFILE_PROPERTY_MAP
-								                    .optionalFieldOf("properties", PropertyMap.EMPTY)
-								                    .forGetter(ProfileComponent.Data::properties)
-				                    )
-				                    .apply(instance, ProfileComponent.Data::new)
+											Codecs.PLAYER_NAME.optionalFieldOf("name").forGetter(ProfileComponent.Data::name),
+											Uuids.INT_STREAM_CODEC.optionalFieldOf("id").forGetter(ProfileComponent.Data::id),
+											Codecs.GAME_PROFILE_PROPERTY_MAP
+													.optionalFieldOf("properties", PropertyMap.EMPTY)
+													.forGetter(ProfileComponent.Data::properties)
+									)
+									.apply(instance, ProfileComponent.Data::new)
 		);
 		public static final PacketCodec<ByteBuf, ProfileComponent.Data> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.PLAYER_NAME.collect(PacketCodecs::optional),
@@ -166,13 +166,10 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		);
 
 		private GameProfile createGameProfile() {
-			return ProfileComponent.createGameProfile(this.name, this.id, this.properties);
+			return ProfileComponent.createGameProfile(name, id, properties);
 		}
 	}
 
-	/**
-	 * {@code Dynamic}.
-	 */
 	public static final class Dynamic extends ProfileComponent {
 
 		private static final Text TEXT = Text.translatable("component.profile.dynamic").formatted(Formatting.GRAY);
@@ -185,34 +182,31 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 
 		@Override
 		public Optional<String> getName() {
-			return this.nameOrId.left();
+			return nameOrId.left();
 		}
 
 		@Override
 		public boolean equals(Object o) {
-			return this == o || o instanceof ProfileComponent.Dynamic dynamic && this.nameOrId.equals(dynamic.nameOrId)
-					&& this.override.equals(dynamic.override);
+			return this == o
+					|| o instanceof Dynamic dynamic
+					&& nameOrId.equals(dynamic.nameOrId)
+					&& override.equals(dynamic.override);
 		}
 
 		@Override
 		public int hashCode() {
-			int i = 31 + this.nameOrId.hashCode();
-			return 31 * i + this.override.hashCode();
+			return 31 * (31 + nameOrId.hashCode()) + override.hashCode();
 		}
 
 		@Override
-		protected Either<GameProfile, ProfileComponent.Data> get() {
-			return Either.right(new ProfileComponent.Data(
-					this.nameOrId.left(),
-					this.nameOrId.right(),
-					PropertyMap.EMPTY
-			));
+		protected Either<GameProfile, Data> get() {
+			return Either.right(new Data(nameOrId.left(), nameOrId.right(), PropertyMap.EMPTY));
 		}
 
 		@Override
 		public CompletableFuture<GameProfile> resolve(GameProfileResolver resolver) {
 			return CompletableFuture.supplyAsync(
-					() -> resolver.getProfile(this.nameOrId).orElse(this.profile),
+					() -> resolver.getProfile(nameOrId).orElse(profile),
 					Util.getDownloadWorkerExecutor()
 			);
 		}
@@ -228,9 +222,6 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		}
 	}
 
-	/**
-	 * {@code Static}.
-	 */
 	public static final class Static extends ProfileComponent {
 
 		public static final ProfileComponent.Static EMPTY = new ProfileComponent.Static(
@@ -238,40 +229,37 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		);
 		private final Either<GameProfile, ProfileComponent.Data> profileOrData;
 
-		Static(Either<GameProfile, ProfileComponent.Data> profileOrData, SkinTextures.SkinOverride override) {
-			super(
-					(GameProfile) profileOrData.map(profile -> profile, ProfileComponent.Data::createGameProfile),
-					override
-			);
+		Static(Either<GameProfile, Data> profileOrData, SkinTextures.SkinOverride override) {
+			super(profileOrData.map(p -> p, Data::createGameProfile), override);
 			this.profileOrData = profileOrData;
 		}
 
 		@Override
 		public CompletableFuture<GameProfile> resolve(GameProfileResolver resolver) {
-			return CompletableFuture.completedFuture(this.profile);
+			return CompletableFuture.completedFuture(profile);
 		}
 
 		@Override
-		protected Either<GameProfile, ProfileComponent.Data> get() {
-			return this.profileOrData;
+		protected Either<GameProfile, Data> get() {
+			return profileOrData;
 		}
 
 		@Override
 		public Optional<String> getName() {
-			return (Optional<String>) this.profileOrData.map(profile -> Optional.of(profile.name()), data -> data.name);
+			return profileOrData.map(p -> Optional.of(p.name()), data -> data.name);
 		}
 
 		@Override
 		public boolean equals(Object o) {
 			return this == o
-					|| o instanceof ProfileComponent.Static static_ && this.profileOrData.equals(static_.profileOrData)
-					&& this.override.equals(static_.override);
+					|| o instanceof Static other
+					&& profileOrData.equals(other.profileOrData)
+					&& override.equals(other.override);
 		}
 
 		@Override
 		public int hashCode() {
-			int i = 31 + this.profileOrData.hashCode();
-			return 31 * i + this.override.hashCode();
+			return 31 * (31 + profileOrData.hashCode()) + override.hashCode();
 		}
 
 		@Override

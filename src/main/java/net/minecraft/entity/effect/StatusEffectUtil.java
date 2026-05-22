@@ -14,38 +14,60 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code StatusEffectUtil}.
+ * Утилитарные методы для работы со статусными эффектами.
+ *
+ * <p>Содержит хелперы для проверки наличия эффектов, получения их параметров
+ * и массового применения к игрокам в радиусе.</p>
  */
 public final class StatusEffectUtil {
 
+	private StatusEffectUtil() {
+	}
+
+	/**
+	 * Возвращает локализованный текст длительности эффекта для отображения в UI.
+	 *
+	 * @param effect     экземпляр эффекта
+	 * @param multiplier множитель длительности (например, для замедленного времени)
+	 * @param tickRate   количество тиков в секунду
+	 * @return текст «∞» для бесконечных эффектов, иначе форматированное время
+	 */
 	public static Text getDurationText(StatusEffectInstance effect, float multiplier, float tickRate) {
 		if (effect.isInfinite()) {
 			return Text.translatable("effect.duration.infinite");
 		}
-		else {
-			int i = MathHelper.floor(effect.getDuration() * multiplier);
-			return Text.literal(StringHelper.formatTicks(i, tickRate));
-		}
+
+		int scaledDuration = MathHelper.floor(effect.getDuration() * multiplier);
+		return Text.literal(StringHelper.formatTicks(scaledDuration, tickRate));
 	}
 
+	/**
+	 * Проверяет, обладает ли сущность каким-либо эффектом ускорения добычи
+	 * (Haste или Conduit Power).
+	 */
 	public static boolean hasHaste(LivingEntity entity) {
-		return entity.hasStatusEffect(StatusEffects.HASTE) || entity.hasStatusEffect(StatusEffects.CONDUIT_POWER);
+		return entity.hasStatusEffect(StatusEffects.HASTE)
+				|| entity.hasStatusEffect(StatusEffects.CONDUIT_POWER);
 	}
 
+	/**
+	 * Возвращает эффективный уровень усиления ускорения добычи.
+	 * Учитывает оба источника (Haste и Conduit Power) и берёт максимальный.
+	 */
 	public static int getHasteAmplifier(LivingEntity entity) {
-		int i = 0;
-		int j = 0;
-		if (entity.hasStatusEffect(StatusEffects.HASTE)) {
-			i = entity.getStatusEffect(StatusEffects.HASTE).getAmplifier();
-		}
-
-		if (entity.hasStatusEffect(StatusEffects.CONDUIT_POWER)) {
-			j = entity.getStatusEffect(StatusEffects.CONDUIT_POWER).getAmplifier();
-		}
-
-		return Math.max(i, j);
+		int hasteAmplifier = entity.hasStatusEffect(StatusEffects.HASTE)
+				? entity.getStatusEffect(StatusEffects.HASTE).getAmplifier()
+				: 0;
+		int conduitAmplifier = entity.hasStatusEffect(StatusEffects.CONDUIT_POWER)
+				? entity.getStatusEffect(StatusEffects.CONDUIT_POWER).getAmplifier()
+				: 0;
+		return Math.max(hasteAmplifier, conduitAmplifier);
 	}
 
+	/**
+	 * Проверяет, может ли сущность дышать под водой через любой из трёх эффектов:
+	 * Water Breathing, Conduit Power или Breath of the Nautilus.
+	 */
 	public static boolean hasWaterBreathing(LivingEntity entity) {
 		return entity.hasStatusEffect(StatusEffects.WATER_BREATHING)
 				|| entity.hasStatusEffect(StatusEffects.CONDUIT_POWER)
@@ -53,11 +75,10 @@ public final class StatusEffectUtil {
 	}
 
 	/**
-	 * Проверяет возможность increase air on land.
+	 * Определяет, может ли сущность восстанавливать воздух на суше.
 	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * <p>Breath of the Nautilus блокирует восстановление воздуха на суше,
+	 * если только не активен Water Breathing или Conduit Power.</p>
 	 */
 	public static boolean canIncreaseAirOnLand(LivingEntity entity) {
 		return !entity.hasStatusEffect(StatusEffects.BREATH_OF_THE_NAUTILUS)
@@ -65,6 +86,26 @@ public final class StatusEffectUtil {
 				|| entity.hasStatusEffect(StatusEffects.CONDUIT_POWER);
 	}
 
+	/**
+	 * Применяет статусный эффект ко всем подходящим игрокам в радиусе от точки.
+	 *
+	 * <p>Игрок считается подходящим, если он:
+	 * <ul>
+	 *   <li>находится в режиме выживания;</li>
+	 *   <li>не является союзником источника эффекта;</li>
+	 *   <li>находится в пределах {@code range} блоков от {@code origin};</li>
+	 *   <li>не имеет эффекта того же типа с равным или большим уровнем и достаточной длительностью.</li>
+	 * </ul>
+	 * </p>
+	 *
+	 * @param world                серверный мир
+	 * @param entity               источник эффекта (союзники исключаются), может быть {@code null}
+	 * @param origin               центр области применения
+	 * @param range                радиус применения в блоках
+	 * @param statusEffectInstance применяемый эффект (копируется для каждого игрока)
+	 * @param duration             минимальная длительность для перезаписи существующего эффекта
+	 * @return список игроков, которым был применён эффект
+	 */
 	public static List<ServerPlayerEntity> addEffectToPlayersWithinDistance(
 			ServerWorld world,
 			@Nullable Entity entity,
@@ -73,19 +114,18 @@ public final class StatusEffectUtil {
 			StatusEffectInstance statusEffectInstance,
 			int duration
 	) {
-		RegistryEntry<StatusEffect> registryEntry = statusEffectInstance.getEffectType();
-		List<ServerPlayerEntity> list = world.getPlayers(
+		RegistryEntry<StatusEffect> effectType = statusEffectInstance.getEffectType();
+		List<ServerPlayerEntity> affected = world.getPlayers(
 				player -> player.interactionManager.isSurvivalLike()
 						&& (entity == null || !entity.isTeammate(player))
 						&& origin.isInRange(player.getEntityPos(), range)
 						&& (
-						!player.hasStatusEffect(registryEntry)
-								|| player.getStatusEffect(registryEntry).getAmplifier()
-								< statusEffectInstance.getAmplifier()
-								|| player.getStatusEffect(registryEntry).isDurationBelow(duration - 1)
+						!player.hasStatusEffect(effectType)
+								|| player.getStatusEffect(effectType).getAmplifier() < statusEffectInstance.getAmplifier()
+								|| player.getStatusEffect(effectType).isDurationBelow(duration - 1)
 				)
 		);
-		list.forEach(player -> player.addStatusEffect(new StatusEffectInstance(statusEffectInstance), entity));
-		return list;
+		affected.forEach(player -> player.addStatusEffect(new StatusEffectInstance(statusEffectInstance), entity));
+		return affected;
 	}
 }

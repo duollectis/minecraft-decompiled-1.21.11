@@ -28,7 +28,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(EntityTypeTags.SKELETONS)
+		builder(EntityTypeTags.SKELETONS)
 		    .add(
 				    EntityType.SKELETON,
 				    EntityType.STRAY,
@@ -37,7 +37,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.BOGGED,
 				    EntityType.PARCHED
 		    );
-		this.builder(EntityTypeTags.ZOMBIES)
+		builder(EntityTypeTags.ZOMBIES)
 		    .add(
 				    EntityType.ZOMBIE_HORSE,
 				    EntityType.CAMEL_HUSK,
@@ -49,7 +49,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.HUSK,
 				    EntityType.ZOMBIE_NAUTILUS
 		    );
-		this.builder(EntityTypeTags.RAIDERS)
+		builder(EntityTypeTags.RAIDERS)
 		    .add(
 				    EntityType.EVOKER,
 				    EntityType.PILLAGER,
@@ -64,7 +64,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				.addTag(EntityTypeTags.ZOMBIES)
 				.add(EntityType.WITHER)
 				.add(EntityType.PHANTOM);
-		this.builder(EntityTypeTags.BURN_IN_DAYLIGHT)
+		builder(EntityTypeTags.BURN_IN_DAYLIGHT)
 		    .add(EntityType.SKELETON, EntityType.STRAY, EntityType.WITHER_SKELETON, EntityType.BOGGED)
 		    .add(
 				    EntityType.ZOMBIE,
@@ -74,9 +74,9 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.ZOMBIE_NAUTILUS
 		    )
 		    .add(EntityType.PHANTOM);
-		this.builder(EntityTypeTags.BEEHIVE_INHABITORS).add(EntityType.BEE);
-		this.builder(EntityTypeTags.ARROWS).add(EntityType.ARROW, EntityType.SPECTRAL_ARROW);
-		this.builder(EntityTypeTags.IMPACT_PROJECTILES)
+		builder(EntityTypeTags.BEEHIVE_INHABITORS).add(EntityType.BEE);
+		builder(EntityTypeTags.ARROWS).add(EntityType.ARROW, EntityType.SPECTRAL_ARROW);
+		builder(EntityTypeTags.IMPACT_PROJECTILES)
 		    .addTag(EntityTypeTags.ARROWS)
 		    .add(EntityType.FIREWORK_ROCKET)
 		    .add(
@@ -93,7 +93,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 		this
 				.builder(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS)
 				.add(EntityType.RABBIT, EntityType.ENDERMITE, EntityType.SILVERFISH, EntityType.FOX);
-		this.builder(EntityTypeTags.AXOLOTL_HUNT_TARGETS)
+		builder(EntityTypeTags.AXOLOTL_HUNT_TARGETS)
 		    .add(
 				    EntityType.TROPICAL_FISH,
 				    EntityType.PUFFERFISH,
@@ -112,7 +112,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 		this
 				.builder(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES)
 				.add(EntityType.STRIDER, EntityType.BLAZE, EntityType.MAGMA_CUBE);
-		this.builder(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
+		builder(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
 		    .addTag(EntityTypeTags.UNDEAD)
 		    .add(
 				    EntityType.AXOLOTL,
@@ -131,8 +131,8 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.COPPER_GOLEM,
 				    EntityType.NAUTILUS
 		    );
-		this.builder(EntityTypeTags.FROG_FOOD).add(EntityType.SLIME, EntityType.MAGMA_CUBE);
-		this.builder(EntityTypeTags.FALL_DAMAGE_IMMUNE)
+		builder(EntityTypeTags.FROG_FOOD).add(EntityType.SLIME, EntityType.MAGMA_CUBE);
+		builder(EntityTypeTags.FALL_DAMAGE_IMMUNE)
 		    .add(
 				    EntityType.COPPER_GOLEM,
 				    EntityType.IRON_GOLEM,
@@ -153,7 +153,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.WITHER,
 				    EntityType.BREEZE
 		    );
-		this.builder(EntityTypeTags.DISMOUNTS_UNDERWATER)
+		builder(EntityTypeTags.DISMOUNTS_UNDERWATER)
 		    .add(
 				    EntityType.CAMEL,
 				    EntityType.CHICKEN,
@@ -169,14 +169,14 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.TRADER_LLAMA,
 				    EntityType.ZOMBIE_HORSE
 		    );
-		this.builder(EntityTypeTags.NON_CONTROLLING_RIDER).add(EntityType.SLIME, EntityType.MAGMA_CUBE);
+		builder(EntityTypeTags.NON_CONTROLLING_RIDER).add(EntityType.SLIME, EntityType.MAGMA_CUBE);
 		this
 				.builder(EntityTypeTags.ILLAGER)
 				.add(EntityType.EVOKER)
 				.add(EntityType.ILLUSIONER)
 				.add(EntityType.PILLAGER)
 				.add(EntityType.VINDICATOR);
-		this.builder(EntityTypeTags.AQUATIC)
+		builder(EntityTypeTags.AQUATIC)
 		    .add(EntityType.TURTLE)
 		    .add(EntityType.AXOLOTL)
 		    .add(EntityType.GUARDIAN)
@@ -191,17 +191,17 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 		    .add(EntityType.TADPOLE)
 		    .add(EntityType.NAUTILUS)
 		    .add(EntityType.ZOMBIE_NAUTILUS);
-		this.builder(EntityTypeTags.ARTHROPOD)
+		builder(EntityTypeTags.ARTHROPOD)
 		    .add(EntityType.BEE)
 		    .add(EntityType.ENDERMITE)
 		    .add(EntityType.SILVERFISH)
 		    .add(EntityType.SPIDER)
 		    .add(EntityType.CAVE_SPIDER);
-		this.builder(EntityTypeTags.IGNORES_POISON_AND_REGEN).addTag(EntityTypeTags.UNDEAD);
-		this.builder(EntityTypeTags.INVERTED_HEALING_AND_HARM).addTag(EntityTypeTags.UNDEAD);
-		this.builder(EntityTypeTags.WITHER_FRIENDS).addTag(EntityTypeTags.UNDEAD);
-		this.builder(EntityTypeTags.ILLAGER_FRIENDS).addTag(EntityTypeTags.ILLAGER);
-		this.builder(EntityTypeTags.NOT_SCARY_FOR_PUFFERFISH)
+		builder(EntityTypeTags.IGNORES_POISON_AND_REGEN).addTag(EntityTypeTags.UNDEAD);
+		builder(EntityTypeTags.INVERTED_HEALING_AND_HARM).addTag(EntityTypeTags.UNDEAD);
+		builder(EntityTypeTags.WITHER_FRIENDS).addTag(EntityTypeTags.UNDEAD);
+		builder(EntityTypeTags.ILLAGER_FRIENDS).addTag(EntityTypeTags.ILLAGER);
+		builder(EntityTypeTags.NOT_SCARY_FOR_PUFFERFISH)
 		    .add(EntityType.TURTLE)
 		    .add(EntityType.GUARDIAN)
 		    .add(EntityType.ELDER_GUARDIAN)
@@ -215,15 +215,15 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 		    .add(EntityType.TADPOLE)
 		    .add(EntityType.NAUTILUS)
 		    .add(EntityType.ZOMBIE_NAUTILUS);
-		this.builder(EntityTypeTags.SENSITIVE_TO_IMPALING).addTag(EntityTypeTags.AQUATIC);
-		this.builder(EntityTypeTags.SENSITIVE_TO_BANE_OF_ARTHROPODS).addTag(EntityTypeTags.ARTHROPOD);
-		this.builder(EntityTypeTags.SENSITIVE_TO_SMITE).addTag(EntityTypeTags.UNDEAD);
+		builder(EntityTypeTags.SENSITIVE_TO_IMPALING).addTag(EntityTypeTags.AQUATIC);
+		builder(EntityTypeTags.SENSITIVE_TO_BANE_OF_ARTHROPODS).addTag(EntityTypeTags.ARTHROPOD);
+		builder(EntityTypeTags.SENSITIVE_TO_SMITE).addTag(EntityTypeTags.UNDEAD);
 		this
 				.builder(EntityTypeTags.REDIRECTABLE_PROJECTILE)
 				.add(EntityType.FIREBALL, EntityType.WIND_CHARGE, EntityType.BREEZE_WIND_CHARGE);
-		this.builder(EntityTypeTags.DEFLECTS_PROJECTILES).add(EntityType.BREEZE);
-		this.builder(EntityTypeTags.CAN_TURN_IN_BOATS).add(EntityType.BREEZE);
-		this.builder(EntityTypeTags.NO_ANGER_FROM_WIND_CHARGE)
+		builder(EntityTypeTags.DEFLECTS_PROJECTILES).add(EntityType.BREEZE);
+		builder(EntityTypeTags.CAN_TURN_IN_BOATS).add(EntityType.BREEZE);
+		builder(EntityTypeTags.NO_ANGER_FROM_WIND_CHARGE)
 		    .add(
 				    EntityType.BREEZE,
 				    EntityType.SKELETON,
@@ -235,9 +235,9 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.CAVE_SPIDER,
 				    EntityType.SLIME
 		    );
-		this.builder(EntityTypeTags.IMMUNE_TO_INFESTED).add(EntityType.SILVERFISH);
-		this.builder(EntityTypeTags.IMMUNE_TO_OOZING).add(EntityType.SLIME);
-		this.builder(EntityTypeTags.BOAT)
+		builder(EntityTypeTags.IMMUNE_TO_INFESTED).add(EntityType.SILVERFISH);
+		builder(EntityTypeTags.IMMUNE_TO_OOZING).add(EntityType.SLIME);
+		builder(EntityTypeTags.BOAT)
 		    .add(
 				    EntityType.OAK_BOAT,
 				    EntityType.SPRUCE_BOAT,
@@ -250,7 +250,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.MANGROVE_BOAT,
 				    EntityType.BAMBOO_RAFT
 		    );
-		this.builder(EntityTypeTags.CAN_EQUIP_SADDLE)
+		builder(EntityTypeTags.CAN_EQUIP_SADDLE)
 		    .add(
 				    EntityType.HORSE,
 				    EntityType.SKELETON_HORSE,
@@ -264,10 +264,10 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.NAUTILUS,
 				    EntityType.ZOMBIE_NAUTILUS
 		    );
-		this.builder(EntityTypeTags.CAN_EQUIP_HARNESS).add(EntityType.HAPPY_GHAST);
-		this.builder(EntityTypeTags.CAN_WEAR_HORSE_ARMOR).add(EntityType.HORSE).add(EntityType.ZOMBIE_HORSE);
-		this.builder(EntityTypeTags.CAN_WEAR_NAUTILUS_ARMOR).add(EntityType.NAUTILUS, EntityType.ZOMBIE_NAUTILUS);
-		this.builder(EntityTypeTags.FOLLOWABLE_FRIENDLY_MOBS)
+		builder(EntityTypeTags.CAN_EQUIP_HARNESS).add(EntityType.HAPPY_GHAST);
+		builder(EntityTypeTags.CAN_WEAR_HORSE_ARMOR).add(EntityType.HORSE).add(EntityType.ZOMBIE_HORSE);
+		builder(EntityTypeTags.CAN_WEAR_NAUTILUS_ARMOR).add(EntityType.NAUTILUS, EntityType.ZOMBIE_NAUTILUS);
+		builder(EntityTypeTags.FOLLOWABLE_FRIENDLY_MOBS)
 		    .add(
 				    EntityType.ARMADILLO,
 				    EntityType.BEE,
@@ -295,7 +295,7 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 				    EntityType.VILLAGER,
 				    EntityType.WOLF
 		    );
-		this.builder(EntityTypeTags.CANNOT_BE_PUSHED_ONTO_BOATS)
+		builder(EntityTypeTags.CANNOT_BE_PUSHED_ONTO_BOATS)
 		    .add(EntityType.PLAYER)
 		    .add(EntityType.ELDER_GUARDIAN)
 		    .add(EntityType.COD)
@@ -309,13 +309,13 @@ public class VanillaEntityTypeTagProvider extends ValueLookupTagProvider<EntityT
 		    .add(EntityType.CREAKING)
 		    .add(EntityType.NAUTILUS)
 		    .add(EntityType.ZOMBIE_NAUTILUS);
-		this.builder(EntityTypeTags.ACCEPTS_IRON_GOLEM_GIFT).add(EntityType.COPPER_GOLEM);
+		builder(EntityTypeTags.ACCEPTS_IRON_GOLEM_GIFT).add(EntityType.COPPER_GOLEM);
 		this
 				.builder(EntityTypeTags.CANDIDATE_FOR_IRON_GOLEM_GIFT)
 				.add(EntityType.VILLAGER)
 				.addTag(EntityTypeTags.ACCEPTS_IRON_GOLEM_GIFT);
-		this.builder(EntityTypeTags.NAUTILUS_HOSTILES).add(EntityType.PUFFERFISH);
-		this.builder(EntityTypeTags.CAN_FLOAT_WHILE_RIDDEN)
+		builder(EntityTypeTags.NAUTILUS_HOSTILES).add(EntityType.PUFFERFISH);
+		builder(EntityTypeTags.CAN_FLOAT_WHILE_RIDDEN)
 		    .add(
 				    EntityType.HORSE,
 				    EntityType.ZOMBIE_HORSE,

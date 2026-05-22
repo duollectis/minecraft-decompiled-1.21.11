@@ -16,10 +16,13 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BedModelRenderer}.
+ * Специализированный рендерер кровати как предмета.
+ * Делегирует рендер {@link BedBlockEntityRenderer}, используя текстуру,
+ * определённую идентификатором спрайта. Поддерживает все 16 цветов кровати
+ * через вспомогательный конструктор {@link Unbaked#Unbaked(DyeColor)}.
  */
+@Environment(EnvType.CLIENT)
 public class BedModelRenderer implements SimpleSpecialModelRenderer {
 
 	private final BedBlockEntityRenderer blockEntityRenderer;
@@ -38,20 +41,21 @@ public class BedModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
-		this.blockEntityRenderer.renderAsItem(matrices, queue, light, overlay, this.textureId, i);
+		blockEntityRenderer.renderAsItem(matrices, queue, light, overlay, textureId, seed);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		this.blockEntityRenderer.collectVertices(consumer);
+		blockEntityRenderer.collectVertices(consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера кровати.
+	 * Хранит идентификатор текстуры кровати.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(Identifier texture) implements SpecialModelRenderer.Unbaked {
 
 		public static final MapCodec<BedModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
@@ -73,7 +77,7 @@ public class BedModelRenderer implements SimpleSpecialModelRenderer {
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
 			return new BedModelRenderer(
 					new BedBlockEntityRenderer(context),
-					TexturedRenderLayers.BED_SPRITE_MAPPER.map(this.texture)
+					TexturedRenderLayers.BED_SPRITE_MAPPER.map(texture)
 			);
 		}
 	}

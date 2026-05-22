@@ -10,7 +10,8 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Set;
 
 /**
- * {@code FixedLootScoreProvider}.
+ * Провайдер очков таблицы лута с фиксированным именем держателя очков.
+ * Имя задаётся статически и не зависит от контекста лута.
  */
 public record FixedLootScoreProvider(String name) implements LootScoreProvider {
 
@@ -20,13 +21,6 @@ public record FixedLootScoreProvider(String name) implements LootScoreProvider {
 					.apply(instance, FixedLootScoreProvider::new)
 	);
 
-	/**
-	 * Create.
-	 *
-	 * @param name name
-	 *
-	 * @return LootScoreProvider — результат операции
-	 */
 	public static LootScoreProvider create(String name) {
 		return new FixedLootScoreProvider(name);
 	}
@@ -38,7 +32,7 @@ public record FixedLootScoreProvider(String name) implements LootScoreProvider {
 
 	@Override
 	public ScoreHolder getScoreHolder(LootContext context) {
-		return ScoreHolder.fromName(this.name);
+		return ScoreHolder.fromName(name);
 	}
 
 	@Override

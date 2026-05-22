@@ -12,7 +12,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code AddFieldFix}.
+ * Добавляет новое поле с дефолтным значением в указанный тип данных.
+ * Поддерживает опциональный путь вложенности через {@code copiedFields}.
  */
 public class AddFieldFix extends DataFix {
 
@@ -23,37 +24,42 @@ public class AddFieldFix extends DataFix {
 	private final Function<Dynamic<?>, Dynamic<?>> defaultValueGetter;
 
 	public AddFieldFix(
-			Schema outputSchema,
-			TypeReference typeReference,
-			String fieldName,
-			Function<Dynamic<?>, Dynamic<?>> defaultValueGetter,
-			String... copiedFields
+		Schema outputSchema,
+		TypeReference typeReference,
+		String fieldName,
+		Function<Dynamic<?>, Dynamic<?>> defaultValueGetter,
+		String... copiedFields
 	) {
 		super(outputSchema, false);
-		this.description =
-				"Adding field `" + fieldName + "` to type `" + typeReference.typeName().toLowerCase(Locale.ROOT) + "`";
+		description = "Adding field `" + fieldName + "` to type `"
+			+ typeReference.typeName().toLowerCase(Locale.ROOT) + "`";
 		this.typeReference = typeReference;
 		this.fieldName = fieldName;
 		this.copiedFields = copiedFields;
 		this.defaultValueGetter = defaultValueGetter;
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				this.description,
-				this.getInputSchema().getType(this.typeReference),
-				this.getOutputSchema().getType(this.typeReference),
-				typed -> typed.update(DSL.remainderFinder(), value -> this.fix(value, 0))
+		return fixTypeEverywhereTyped(
+			description,
+			getInputSchema().getType(typeReference),
+			getOutputSchema().getType(typeReference),
+			typed -> typed.update(DSL.remainderFinder(), value -> fix(value, 0))
 		);
 	}
 
+	/**
+	 * Рекурсивно спускается по цепочке copiedFields, чтобы найти вложенный Dynamic,
+	 * в который нужно добавить поле. Если цепочка исчерпана — добавляет поле с дефолтным значением.
+	 */
 	private Dynamic<?> fix(Dynamic<?> value, int index) {
-		if (index >= this.copiedFields.length) {
-			return value.set(this.fieldName, this.defaultValueGetter.apply(value));
+		if (index >= copiedFields.length) {
+			return value.set(fieldName, defaultValueGetter.apply(value));
 		}
-		else {
-			Optional<? extends Dynamic<?>> optional = value.get(this.copiedFields[index]).result();
-			return optional.isEmpty() ? value : this.fix((Dynamic<?>) optional.get(), index + 1);
-		}
+
+		Optional<? extends Dynamic<?>> nested = value.get(copiedFields[index]).result();
+
+		return nested.isEmpty() ? value : fix(nested.get(), index + 1);
 	}
 }

@@ -34,7 +34,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * {@code FillBiomeCommand}.
+ * Команда {@code /fillbiome}: заполнение области указанным биомом.
  */
 public class FillBiomeCommand {
 

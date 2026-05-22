@@ -7,17 +7,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3799}.
+ * Схема версии 3799 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Регистрирует тип данных для сущности броненосца ({@code minecraft:armadillo}),
+ * добавленного в обновлении 1.21 как пассивный моб саванны, способный
+ * сворачиваться в шар при угрозе.
  */
 public class Schema3799 extends IdentifierNormalizingSchema {
 
-	public Schema3799(int i, Schema schema) {
-		super(i, schema);
+	public Schema3799(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:armadillo");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:armadillo");
+		return entityTypes;
 	}
 }

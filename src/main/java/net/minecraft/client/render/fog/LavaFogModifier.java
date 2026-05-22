@@ -21,7 +21,7 @@ public class LavaFogModifier extends FogModifier {
 
 	@Override
 	public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
-		return -6743808;
+		return COLOR;
 	}
 
 	@Override

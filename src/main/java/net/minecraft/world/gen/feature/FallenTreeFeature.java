@@ -17,9 +17,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-/**
- * {@code FallenTreeFeature}.
- */
+/** Генерирует упавшее дерево: пень на месте происхождения и горизонтальный ствол в случайном направлении. */
 public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 
 	private static final int MIN_LOG_OFFSET = 1;
@@ -34,26 +32,27 @@ public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<FallenTreeFeatureConfig> context) {
-		this.generate(context.getConfig(), context.getOrigin(), context.getWorld(), context.getRandom());
+		generate(context.getConfig(), context.getOrigin(), context.getWorld(), context.getRandom());
 		return true;
 	}
 
 	private void generate(FallenTreeFeatureConfig config, BlockPos pos, StructureWorldAccess world, Random random) {
-		this.generateStump(config, world, random, pos.mutableCopy());
+		generateStump(config, world, random, pos.mutableCopy());
 		Direction direction = Direction.Type.HORIZONTAL.random(random);
-		int i = config.logLength.get(random) - 2;
-		BlockPos.Mutable mutable = pos.offset(direction, 2 + random.nextInt(2)).mutableCopy();
-		this.moveToGroundPos(world, mutable);
-		if (this.canPlaceLog(world, i, mutable, direction)) {
-			this.generateLog(config, world, random, i, mutable, direction);
+		int logLength = config.logLength.get(random) - LOG_PLACEMENT_OFFSET;
+		BlockPos.Mutable logStart = pos.offset(direction, LOG_PLACEMENT_OFFSET + random.nextInt(MIN_LOG_OFFSET)).mutableCopy();
+		moveToGroundPos(world, logStart);
+
+		if (canPlaceLog(world, logLength, logStart, direction)) {
+			generateLog(config, world, random, logLength, logStart, direction);
 		}
 	}
 
 	private void moveToGroundPos(StructureWorldAccess world, BlockPos.Mutable pos) {
 		pos.move(Direction.UP, 1);
 
-		for (int i = 0; i < 6; i++) {
-			if (this.canReplaceAndHasSolidBelow(world, pos)) {
+		for (int step = 0; step < MAX_GROUND_SEARCH_STEPS + 1; step++) {
+			if (canReplaceAndHasSolidBelow(world, pos)) {
 				return;
 			}
 
@@ -67,25 +66,24 @@ public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 			Random random,
 			BlockPos.Mutable pos
 	) {
-		BlockPos blockPos = this.setBlockStateAndGetPos(config, world, random, pos, Function.identity());
-		this.applyDecorators(world, random, Set.of(blockPos), config.stumpDecorators);
+		BlockPos stumpPos = setBlockStateAndGetPos(config, world, random, pos, Function.identity());
+		applyDecorators(world, random, Set.of(stumpPos), config.stumpDecorators);
 	}
 
 	private boolean canPlaceLog(StructureWorldAccess world, int length, BlockPos.Mutable pos, Direction direction) {
-		int i = 0;
+		int unsupportedCount = 0;
 
-		for (int j = 0; j < length; j++) {
+		for (int step = 0; step < length; step++) {
 			if (!TreeFeature.canReplace(world, pos)) {
 				return false;
 			}
 
-			if (!this.isSolidBelow(world, pos)) {
-				if (++i > 2) {
+			if (!isSolidBelow(world, pos)) {
+				if (++unsupportedCount > MAX_UNSUPPORTED_LOG_BLOCKS) {
 					return false;
 				}
-			}
-			else {
-				i = 0;
+			} else {
+				unsupportedCount = 0;
 			}
 
 			pos.move(direction);
@@ -103,18 +101,18 @@ public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 			BlockPos.Mutable pos,
 			Direction direction
 	) {
-		Set<BlockPos> set = new HashSet<>();
+		Set<BlockPos> logPositions = new HashSet<>();
 
-		for (int i = 0; i < length; i++) {
-			set.add(this.setBlockStateAndGetPos(config, world, random, pos, createAxisApplier(direction)));
+		for (int step = 0; step < length; step++) {
+			logPositions.add(setBlockStateAndGetPos(config, world, random, pos, createAxisApplier(direction)));
 			pos.move(direction);
 		}
 
-		this.applyDecorators(world, random, set, config.logDecorators);
+		applyDecorators(world, random, logPositions, config.logDecorators);
 	}
 
 	private boolean canReplaceAndHasSolidBelow(WorldAccess world, BlockPos pos) {
-		return TreeFeature.canReplace(world, pos) && this.isSolidBelow(world, pos);
+		return TreeFeature.canReplace(world, pos) && isSolidBelow(world, pos);
 	}
 
 	private boolean isSolidBelow(WorldAccess world, BlockPos pos) {
@@ -129,7 +127,7 @@ public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 			Function<BlockState, BlockState> stateFunction
 	) {
 		world.setBlockState(pos, stateFunction.apply(config.trunkProvider.get(random, pos)), 3);
-		this.markBlocksAboveForPostProcessing(world, pos);
+		markBlocksAboveForPostProcessing(world, pos);
 		return pos.toImmutable();
 	}
 
@@ -139,19 +137,19 @@ public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
 			Set<BlockPos> positions,
 			List<TreeDecorator> decorators
 	) {
-		if (!decorators.isEmpty()) {
-			TreeDecorator.Generator
-					generator =
-					new TreeDecorator.Generator(
-							world,
-							this.createStatePlacer(world),
-							random,
-							positions,
-							Set.of(),
-							Set.of()
-					);
-			decorators.forEach(decorator -> decorator.generate(generator));
+		if (decorators.isEmpty()) {
+			return;
 		}
+
+		TreeDecorator.Generator generator = new TreeDecorator.Generator(
+				world,
+				createStatePlacer(world),
+				random,
+				positions,
+				Set.of(),
+				Set.of()
+		);
+		decorators.forEach(decorator -> decorator.generate(generator));
 	}
 
 	private BiConsumer<BlockPos, BlockState> createStatePlacer(StructureWorldAccess world) {

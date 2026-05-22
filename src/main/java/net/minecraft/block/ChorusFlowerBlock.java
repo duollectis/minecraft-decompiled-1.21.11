@@ -16,12 +16,16 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldEvents;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChorusFlowerBlock}.
+ * Блок цветка хоруса — верхушка растения хоруса в Крае.
+ * <p>
+ * Случайно растёт вверх или в стороны, пока не достигнет максимального возраста ({@link #MAX_AGE}).
+ * При достижении максимального возраста рост прекращается. Разрушается снарядами.
  */
 public class ChorusFlowerBlock extends Block {
 
@@ -46,7 +50,7 @@ public class ChorusFlowerBlock extends Block {
 	public ChorusFlowerBlock(Block plantBlock, AbstractBlock.Settings settings) {
 		super(settings);
 		this.plantBlock = plantBlock;
-		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
+		setDefaultState(stateManager.getDefaultState().with(AGE, 0));
 	}
 
 	@Override
@@ -58,7 +62,7 @@ public class ChorusFlowerBlock extends Block {
 
 	@Override
 	protected boolean hasRandomTicks(BlockState state) {
-		return state.get(AGE) < 5;
+		return state.get(AGE) < MAX_AGE;
 	}
 
 	@Override
@@ -68,98 +72,98 @@ public class ChorusFlowerBlock extends Block {
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockPos blockPos = pos.up();
-		if (world.isAir(blockPos) && blockPos.getY() <= world.getTopYInclusive()) {
-			int i = state.get(AGE);
-			if (i < 5) {
-				boolean bl = false;
-				boolean bl2 = false;
-				BlockState blockState = world.getBlockState(pos.down());
-				if (blockState.isOf(Blocks.END_STONE)) {
-					bl = true;
-				}
-				else if (blockState.isOf(this.plantBlock)) {
-					int j = 1;
+		BlockPos above = pos.up();
+		if (!world.isAir(above) || above.getY() > world.getTopYInclusive()) {
+			return;
+		}
 
-					for (int k = 0; k < 4; k++) {
-						BlockState blockState2 = world.getBlockState(pos.down(j + 1));
-						if (!blockState2.isOf(this.plantBlock)) {
-							if (blockState2.isOf(Blocks.END_STONE)) {
-								bl2 = true;
-							}
-							break;
-						}
+		int age = state.get(AGE);
+		if (age >= MAX_AGE) {
+			return;
+		}
 
-						j++;
+		boolean canGrowUp = false;
+		boolean hasEndStoneBelow = false;
+		BlockState belowState = world.getBlockState(pos.down());
+
+		if (belowState.isOf(Blocks.END_STONE)) {
+			canGrowUp = true;
+		} else if (belowState.isOf(plantBlock)) {
+			int stemHeight = 1;
+
+			for (int step = 0; step < 4; step++) {
+				BlockState deeper = world.getBlockState(pos.down(stemHeight + 1));
+				if (!deeper.isOf(plantBlock)) {
+					if (deeper.isOf(Blocks.END_STONE)) {
+						hasEndStoneBelow = true;
 					}
 
-					if (j < 2 || j <= random.nextInt(bl2 ? 5 : 4)) {
-						bl = true;
-					}
-				}
-				else if (blockState.isAir()) {
-					bl = true;
+					break;
 				}
 
-				if (bl && isSurroundedByAir(world, blockPos, null) && world.isAir(pos.up(2))) {
-					world.setBlockState(
-							pos,
-							ChorusPlantBlock.withConnectionProperties(world, pos, this.plantBlock.getDefaultState()),
-							2
-					);
-					this.grow(world, blockPos, i);
-				}
-				else if (i < 4) {
-					int j = random.nextInt(4);
-					if (bl2) {
-						j++;
-					}
-
-					boolean bl3 = false;
-
-					for (int l = 0; l < j; l++) {
-						Direction direction = Direction.Type.HORIZONTAL.random(random);
-						BlockPos blockPos2 = pos.offset(direction);
-						if (world.isAir(blockPos2) && world.isAir(blockPos2.down()) && isSurroundedByAir(
-								world,
-								blockPos2,
-								direction.getOpposite()
-						)) {
-							this.grow(world, blockPos2, i + 1);
-							bl3 = true;
-						}
-					}
-
-					if (bl3) {
-						world.setBlockState(
-								pos,
-								ChorusPlantBlock.withConnectionProperties(
-										world,
-										pos,
-										this.plantBlock.getDefaultState()
-								),
-								2
-						);
-					}
-					else {
-						this.die(world, pos);
-					}
-				}
-				else {
-					this.die(world, pos);
-				}
+				stemHeight++;
 			}
+
+			if (stemHeight < 2 || stemHeight <= random.nextInt(hasEndStoneBelow ? 5 : 4)) {
+				canGrowUp = true;
+			}
+		} else if (belowState.isAir()) {
+			canGrowUp = true;
+		}
+
+		if (canGrowUp && isSurroundedByAir(world, above, null) && world.isAir(pos.up(2))) {
+			world.setBlockState(
+					pos,
+					ChorusPlantBlock.withConnectionProperties(world, pos, plantBlock.getDefaultState()),
+					Block.NOTIFY_LISTENERS
+			);
+			grow(world, above, age);
+			return;
+		}
+
+		if (age >= 4) {
+			die(world, pos);
+			return;
+		}
+
+		int branchCount = random.nextInt(4);
+		if (hasEndStoneBelow) {
+			branchCount++;
+		}
+
+		boolean didBranch = false;
+
+		for (int attempt = 0; attempt < branchCount; attempt++) {
+			Direction direction = Direction.Type.HORIZONTAL.random(random);
+			BlockPos branchPos = pos.offset(direction);
+			if (world.isAir(branchPos)
+					&& world.isAir(branchPos.down())
+					&& isSurroundedByAir(world, branchPos, direction.getOpposite())
+			) {
+				grow(world, branchPos, age + 1);
+				didBranch = true;
+			}
+		}
+
+		if (didBranch) {
+			world.setBlockState(
+					pos,
+					ChorusPlantBlock.withConnectionProperties(world, pos, plantBlock.getDefaultState()),
+					Block.NOTIFY_LISTENERS
+			);
+		} else {
+			die(world, pos);
 		}
 	}
 
 	private void grow(World world, BlockPos pos, int age) {
-		world.setBlockState(pos, this.getDefaultState().with(AGE, age), 2);
-		world.syncWorldEvent(1033, pos, 0);
+		world.setBlockState(pos, getDefaultState().with(AGE, age), Block.NOTIFY_LISTENERS);
+		world.syncWorldEvent(WorldEvents.CHORUS_FLOWER_GROWS, pos, 0);
 	}
 
 	private void die(World world, BlockPos pos) {
-		world.setBlockState(pos, this.getDefaultState().with(AGE, 5), 2);
-		world.syncWorldEvent(1034, pos, 0);
+		world.setBlockState(pos, getDefaultState().with(AGE, MAX_AGE), Block.NOTIFY_LISTENERS);
+		world.syncWorldEvent(WorldEvents.CHORUS_FLOWER_DIES, pos, 0);
 	}
 
 	private static boolean isSurroundedByAir(WorldView world, BlockPos pos, @Nullable Direction exceptDirection) {
@@ -201,34 +205,31 @@ public class ChorusFlowerBlock extends Block {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.down());
-		if (!blockState.isOf(this.plantBlock) && !blockState.isOf(Blocks.END_STONE)) {
-			if (!blockState.isAir()) {
-				return false;
-			}
-			else {
-				boolean bl = false;
-
-				for (Direction direction : Direction.Type.HORIZONTAL) {
-					BlockState blockState2 = world.getBlockState(pos.offset(direction));
-					if (blockState2.isOf(this.plantBlock)) {
-						if (bl) {
-							return false;
-						}
-
-						bl = true;
-					}
-					else if (!blockState2.isAir()) {
-						return false;
-					}
-				}
-
-				return bl;
-			}
-		}
-		else {
+		BlockState belowState = world.getBlockState(pos.down());
+		if (belowState.isOf(plantBlock) || belowState.isOf(Blocks.END_STONE)) {
 			return true;
 		}
+
+		if (!belowState.isAir()) {
+			return false;
+		}
+
+		boolean foundNeighborStem = false;
+
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			BlockState neighborState = world.getBlockState(pos.offset(direction));
+			if (neighborState.isOf(plantBlock)) {
+				if (foundNeighborStem) {
+					return false;
+				}
+
+				foundNeighborStem = true;
+			} else if (!neighborState.isAir()) {
+				return false;
+			}
+		}
+
+		return foundNeighborStem;
 	}
 
 	@Override
@@ -237,18 +238,21 @@ public class ChorusFlowerBlock extends Block {
 	}
 
 	/**
-	 * Generate.
+	 * Генерирует структуру хоруса начиная с указанной позиции.
+	 * <p>
+	 * Используется при генерации мира для создания начального ствола и ветвей.
+	 * Параметр {@code size} ограничивает горизонтальный разброс ветвей от корня.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 * @param size size
+	 * @param world  мир, в котором генерируется структура
+	 * @param pos    начальная позиция (основание)
+	 * @param random источник случайности
+	 * @param size   максимальный горизонтальный радиус ветвления от корня
 	 */
 	public static void generate(WorldAccess world, BlockPos pos, Random random, int size) {
 		world.setBlockState(
 				pos,
 				ChorusPlantBlock.withConnectionProperties(world, pos, Blocks.CHORUS_PLANT.getDefaultState()),
-				2
+				Block.NOTIFY_LISTENERS
 		);
 		generate(world, pos, random, pos, size, 0);
 	}
@@ -261,67 +265,65 @@ public class ChorusFlowerBlock extends Block {
 			int size,
 			int layer
 	) {
-		Block block = Blocks.CHORUS_PLANT;
-		int i = random.nextInt(4) + 1;
+		Block chorusPlant = Blocks.CHORUS_PLANT;
+		int height = random.nextInt(4) + 1;
 		if (layer == 0) {
-			i++;
+			height++;
 		}
 
-		for (int j = 0; j < i; j++) {
-			BlockPos blockPos = pos.up(j + 1);
-			if (!isSurroundedByAir(world, blockPos, null)) {
+		for (int step = 0; step < height; step++) {
+			BlockPos current = pos.up(step + 1);
+			if (!isSurroundedByAir(world, current, null)) {
 				return;
 			}
 
 			world.setBlockState(
-					blockPos,
-					ChorusPlantBlock.withConnectionProperties(world, blockPos, block.getDefaultState()),
-					2
+					current,
+					ChorusPlantBlock.withConnectionProperties(world, current, chorusPlant.getDefaultState()),
+					Block.NOTIFY_LISTENERS
 			);
 			world.setBlockState(
-					blockPos.down(),
-					ChorusPlantBlock.withConnectionProperties(world, blockPos.down(), block.getDefaultState()),
-					2
+					current.down(),
+					ChorusPlantBlock.withConnectionProperties(world, current.down(), chorusPlant.getDefaultState()),
+					Block.NOTIFY_LISTENERS
 			);
 		}
 
-		boolean bl = false;
+		boolean didBranch = false;
 		if (layer < 4) {
-			int k = random.nextInt(4);
+			int branchCount = random.nextInt(4);
 			if (layer == 0) {
-				k++;
+				branchCount++;
 			}
 
-			for (int l = 0; l < k; l++) {
+			for (int attempt = 0; attempt < branchCount; attempt++) {
 				Direction direction = Direction.Type.HORIZONTAL.random(random);
-				BlockPos blockPos2 = pos.up(i).offset(direction);
-				if (Math.abs(blockPos2.getX() - rootPos.getX()) < size
-						&& Math.abs(blockPos2.getZ() - rootPos.getZ()) < size
-						&& world.isAir(blockPos2)
-						&& world.isAir(blockPos2.down())
-						&& isSurroundedByAir(world, blockPos2, direction.getOpposite())) {
-					bl = true;
+				BlockPos branchPos = pos.up(height).offset(direction);
+				if (Math.abs(branchPos.getX() - rootPos.getX()) < size
+						&& Math.abs(branchPos.getZ() - rootPos.getZ()) < size
+						&& world.isAir(branchPos)
+						&& world.isAir(branchPos.down())
+						&& isSurroundedByAir(world, branchPos, direction.getOpposite())
+				) {
+					didBranch = true;
 					world.setBlockState(
-							blockPos2,
-							ChorusPlantBlock.withConnectionProperties(world, blockPos2, block.getDefaultState()),
-							2
+							branchPos,
+							ChorusPlantBlock.withConnectionProperties(world, branchPos, chorusPlant.getDefaultState()),
+							Block.NOTIFY_LISTENERS
 					);
+					BlockPos connectBack = branchPos.offset(direction.getOpposite());
 					world.setBlockState(
-							blockPos2.offset(direction.getOpposite()),
-							ChorusPlantBlock.withConnectionProperties(
-									world,
-									blockPos2.offset(direction.getOpposite()),
-									block.getDefaultState()
-							),
-							2
+							connectBack,
+							ChorusPlantBlock.withConnectionProperties(world, connectBack, chorusPlant.getDefaultState()),
+							Block.NOTIFY_LISTENERS
 					);
-					generate(world, blockPos2, random, rootPos, size, layer + 1);
+					generate(world, branchPos, random, rootPos, size, layer + 1);
 				}
 			}
 		}
 
-		if (!bl) {
-			world.setBlockState(pos.up(i), Blocks.CHORUS_FLOWER.getDefaultState().with(AGE, 5), 2);
+		if (!didBranch) {
+			world.setBlockState(pos.up(height), Blocks.CHORUS_FLOWER.getDefaultState().with(AGE, MAX_AGE), Block.NOTIFY_LISTENERS);
 		}
 	}
 

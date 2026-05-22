@@ -14,7 +14,9 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Optional;
 
 /**
- * {@code BoatSplitFix}.
+ * Разделяет устаревший тип сущности {@code minecraft:boat} на отдельные типы
+ * по материалу дерева (например, {@code minecraft:spruce_boat}).
+ * Аналогично обрабатывает {@code minecraft:chest_boat}.
  */
 public class BoatSplitFix extends DataFix {
 
@@ -34,8 +36,8 @@ public class BoatSplitFix extends DataFix {
 		return isBoat(id) || isChestBoat(id);
 	}
 
-	private static String getNewBoatIdFromOldType(String type) {
-		return switch (type) {
+	private static String getNewBoatIdFromOldType(String woodType) {
+		return switch (woodType) {
 			case "spruce" -> "minecraft:spruce_boat";
 			case "birch" -> "minecraft:birch_boat";
 			case "jungle" -> "minecraft:jungle_boat";
@@ -48,8 +50,8 @@ public class BoatSplitFix extends DataFix {
 		};
 	}
 
-	private static String getNewChestBoatIdFromOldType(String type) {
-		return switch (type) {
+	private static String getNewChestBoatIdFromOldType(String woodType) {
+		return switch (woodType) {
 			case "spruce" -> "minecraft:spruce_chest_boat";
 			case "birch" -> "minecraft:birch_chest_boat";
 			case "jungle" -> "minecraft:jungle_chest_boat";
@@ -63,34 +65,30 @@ public class BoatSplitFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		OpticFinder<String> opticFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.ENTITY);
-		return this.fixTypeEverywhereTyped(
-				"BoatSplitFix", type, type2, typed -> {
-					Optional<String> optional = typed.getOptional(opticFinder);
-					if (optional.isPresent() && isBoatOrChestBoat(optional.get())) {
-						Dynamic<?> dynamic = (Dynamic<?>) typed.getOrCreate(DSL.remainderFinder());
-						Optional<String> optional2 = dynamic.get("Type").asString().result();
-						String string;
-						if (isChestBoat(optional.get())) {
-							string =
-									optional2
-											.map(BoatSplitFix::getNewChestBoatIdFromOldType)
-											.orElse("minecraft:oak_chest_boat");
-						}
-						else {
-							string = optional2.map(BoatSplitFix::getNewBoatIdFromOldType).orElse("minecraft:oak_boat");
-						}
+		OpticFinder<String> idFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
+		Type<?> inputType = getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> outputType = getOutputSchema().getType(TypeReferences.ENTITY);
+
+		return fixTypeEverywhereTyped(
+				"BoatSplitFix", inputType, outputType, typed -> {
+					Optional<String> entityId = typed.getOptional(idFinder);
+
+					if (entityId.isPresent() && isBoatOrChestBoat(entityId.get())) {
+						Dynamic<?> remainder = (Dynamic<?>) typed.getOrCreate(DSL.remainderFinder());
+						Optional<String> woodType = remainder.get("Type").asString().result();
+						String newId = isChestBoat(entityId.get())
+						               ? woodType.map(BoatSplitFix::getNewChestBoatIdFromOldType)
+								               .orElse("minecraft:oak_chest_boat")
+						               : woodType.map(BoatSplitFix::getNewBoatIdFromOldType)
+								               .orElse("minecraft:oak_boat");
 
 						return FixUtil
-								.withType(type2, typed)
-								.update(DSL.remainderFinder(), dynamicx -> dynamicx.remove("Type"))
-								.set(opticFinder, string);
+								.withType(outputType, typed)
+								.update(DSL.remainderFinder(), dynamic -> dynamic.remove("Type"))
+								.set(idFinder, newId);
 					}
-					else {
-						return FixUtil.withType(type2, typed);
-					}
+
+					return FixUtil.withType(outputType, typed);
 				}
 		);
 	}

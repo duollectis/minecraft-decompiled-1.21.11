@@ -7,7 +7,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code FeatureFlags}.
+ * Реестр всех известных флагов экспериментальных фич игры.
+ * Инициализируется статически через {@link FeatureManager.Builder}.
  */
 public class FeatureFlags {
 
@@ -18,26 +19,49 @@ public class FeatureFlags {
 	public static final FeatureManager FEATURE_MANAGER;
 	public static final Codec<FeatureSet> CODEC;
 	public static final FeatureSet VANILLA_FEATURES;
+	/** Набор фич, включённых по умолчанию (только ванильные). */
 	public static final FeatureSet DEFAULT_ENABLED_FEATURES;
 
+	/**
+	 * Формирует строку с перечислением флагов из {@code featuresToCheck},
+	 * которые отсутствуют в {@code features}.
+	 *
+	 * @param featuresToCheck набор фич для проверки
+	 * @param features        набор включённых фич
+	 * @return строка с отсутствующими флагами через запятую
+	 */
 	public static String printMissingFlags(FeatureSet featuresToCheck, FeatureSet features) {
 		return printMissingFlags(FEATURE_MANAGER, featuresToCheck, features);
 	}
 
+	/**
+	 * Формирует строку с перечислением флагов из {@code featuresToCheck},
+	 * которые отсутствуют в {@code features}, используя указанный менеджер.
+	 *
+	 * @param featureManager  менеджер для преобразования флагов в идентификаторы
+	 * @param featuresToCheck набор фич для проверки
+	 * @param features        набор включённых фич
+	 * @return строка с отсутствующими флагами через запятую
+	 */
 	public static String printMissingFlags(
-			FeatureManager featureManager,
-			FeatureSet featuresToCheck,
-			FeatureSet features
+		FeatureManager featureManager,
+		FeatureSet featuresToCheck,
+		FeatureSet features
 	) {
-		Set<Identifier> set = featureManager.toId(features);
-		Set<Identifier> set2 = featureManager.toId(featuresToCheck);
-		return set
-				.stream()
-				.filter(id -> !set2.contains(id))
-				.map(Identifier::toString)
-				.collect(Collectors.joining(", "));
+		Set<Identifier> required = featureManager.toId(featuresToCheck);
+		Set<Identifier> enabled = featureManager.toId(features);
+		return required.stream()
+			.filter(id -> !enabled.contains(id))
+			.map(Identifier::toString)
+			.collect(Collectors.joining(", "));
 	}
 
+	/**
+	 * Проверяет, содержит ли набор фич что-либо помимо ванильных.
+	 *
+	 * @param features проверяемый набор
+	 * @return {@code true}, если набор выходит за рамки ванильных фич
+	 */
 	public static boolean isNotVanilla(FeatureSet features) {
 		return !features.isSubsetOf(VANILLA_FEATURES);
 	}

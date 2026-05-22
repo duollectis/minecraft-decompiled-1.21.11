@@ -89,7 +89,7 @@ public class FishingBobberEntityRenderer extends EntityRenderer<FishingBobberEnt
 		int i = getArmHoldingRod(player) == Arm.RIGHT ? 1 : -1;
 		if (this.dispatcher.gameOptions.getPerspective().isFirstPerson()
 				&& player == MinecraftClient.getInstance().player) {
-			double l = 960.0 / this.dispatcher.gameOptions.getFov().getValue().intValue();
+			double l = MAX_RENDER_DISTANCE_SQ / this.dispatcher.gameOptions.getFov().getValue().intValue();
 			Vec3d vec3d = this.dispatcher
 					.camera
 					.getProjection()

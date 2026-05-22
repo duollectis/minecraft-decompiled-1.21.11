@@ -60,10 +60,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameOptions}.
+ * Хранилище всех клиентских настроек игры: графика, звук, управление, доступность.
+ * Загружает и сохраняет параметры в файл {@code options.txt}. Каждая настройка
+ * представлена экземпляром {@link SimpleOption} с кодеком для сериализации.
+ * <p>
+ * Паттерн Visitor ({@link Visitor}) используется для единообразного обхода всех
+ * опций при загрузке и сохранении, что позволяет избежать дублирования кода.
  */
+@Environment(EnvType.CLIENT)
 public class GameOptions {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -73,6 +78,8 @@ public class GameOptions {
 	public static final int RENDER_DISTANCE_NEAR = 12;
 	public static final int RENDER_DISTANCE_NORMAL = 16;
 	public static final int RENDER_DISTANCE_FAR = 32;
+	/** GLFW keycode для клавиши Space — используется как привязка прыжка по умолчанию. */
+	private static final int KEY_SPACE = 32;
 	private static final Splitter COLON_SPLITTER = Splitter.on(':').limit(2);
 	public static final String EMPTY_STRING = "";
 	private static final Text
@@ -121,7 +128,7 @@ public class GameOptions {
 	private final SimpleOption<Integer> maxFps = new SimpleOption<>(
 			"options.framerateLimit",
 			SimpleOption.emptyTooltip(),
-			(optionText, value) -> value == 260
+			(optionText, value) -> value == MAX_FPS_LIMIT
 			                       ? getGenericValueText(optionText, Text.translatable("options.framerateLimit.max"))
 			                       : getGenericValueText(optionText, Text.translatable("options.framerate", value)),
 			new SimpleOption.ValidatingIntSliderCallbacks(1, 26).withModifier(
@@ -129,7 +136,7 @@ public class GameOptions {
 					value -> value / 10,
 					true
 			),
-			Codec.intRange(10, 260),
+			Codec.intRange(10, MAX_FPS_LIMIT),
 			120,
 			value -> MinecraftClient.getInstance().getInactivityFpsLimiter().setMaxFps(value)
 	);
@@ -717,7 +724,7 @@ public class GameOptions {
 	public final KeyBinding leftKey = new KeyBinding("key.left", 65, KeyBinding.Category.MOVEMENT);
 	public final KeyBinding backKey = new KeyBinding("key.back", 83, KeyBinding.Category.MOVEMENT);
 	public final KeyBinding rightKey = new KeyBinding("key.right", 68, KeyBinding.Category.MOVEMENT);
-	public final KeyBinding jumpKey = new KeyBinding("key.jump", 32, KeyBinding.Category.MOVEMENT);
+	public final KeyBinding jumpKey = new KeyBinding("key.jump", KEY_SPACE, KeyBinding.Category.MOVEMENT);
 	public final KeyBinding
 			sneakKey =
 			new StickyKeyBinding("key.sneak", 340, KeyBinding.Category.MOVEMENT, this.sneakToggled::getValue, true);
@@ -1032,13 +1039,13 @@ public class GameOptions {
 			new SimpleOption.MaxSuppliableIntCallbacks(
 					0, () -> {
 				MinecraftClient minecraftClient = MinecraftClient.getInstance();
-				return !minecraftClient.isRunning() ? 2147483646 : minecraftClient
+				return !minecraftClient.isRunning() ? MAX_SERIALIZABLE_GUI_SCALE : minecraftClient
 				                                                   .getWindow()
 				                                                   .calculateScaleFactor(
 						                                                   0,
 						                                                   minecraftClient.forcesUnicodeFont()
 				                                                   );
-			}, 2147483646
+			}, MAX_SERIALIZABLE_GUI_SCALE
 			),
 			0,
 			value -> this.client.onResolutionChanged()
@@ -1170,14 +1177,15 @@ public class GameOptions {
 	}
 
 	/**
-	 * Применяет graphics mode.
+	 * Применяет пресет графики и временно блокирует обратный вызов {@link #onChangeGraphicsOption()},
+	 * чтобы избежать рекурсивного сброса пресета в {@code CUSTOM} во время его же применения.
 	 *
-	 * @param mode mode
+	 * @param mode пресет графики для применения
 	 */
 	public void applyGraphicsMode(GraphicsMode mode) {
-		this.applyingGraphicsMode = true;
-		mode.apply(this.client);
-		this.applyingGraphicsMode = false;
+		applyingGraphicsMode = true;
+		mode.apply(client);
+		applyingGraphicsMode = false;
 	}
 
 	public SimpleOption<GraphicsMode> getPreset() {
@@ -1225,28 +1233,33 @@ public class GameOptions {
 	}
 
 	/**
-	 * Refresh resource packs.
+	 * Синхронизирует список активных ресурспаков с менеджером и перезагружает ресурсы,
+	 * если набор включённых паков изменился.
 	 *
-	 * @param resourcePackManager resource pack manager
+	 * @param resourcePackManager менеджер ресурспаков для синхронизации
 	 */
 	public void refreshResourcePacks(ResourcePackManager resourcePackManager) {
-		List<String> list = ImmutableList.copyOf(this.resourcePacks);
-		this.resourcePacks.clear();
-		this.incompatibleResourcePacks.clear();
+		List<String> previousPacks = ImmutableList.copyOf(resourcePacks);
+		resourcePacks.clear();
+		incompatibleResourcePacks.clear();
 
-		for (ResourcePackProfile resourcePackProfile : resourcePackManager.getEnabledProfiles()) {
-			if (!resourcePackProfile.isPinned()) {
-				this.resourcePacks.add(resourcePackProfile.getId());
-				if (!resourcePackProfile.getCompatibility().isCompatible()) {
-					this.incompatibleResourcePacks.add(resourcePackProfile.getId());
-				}
+		for (ResourcePackProfile profile : resourcePackManager.getEnabledProfiles()) {
+			if (profile.isPinned()) {
+				continue;
+			}
+
+			resourcePacks.add(profile.getId());
+
+			if (!profile.getCompatibility().isCompatible()) {
+				incompatibleResourcePacks.add(profile.getId());
 			}
 		}
 
-		this.write();
-		List<String> list2 = ImmutableList.copyOf(this.resourcePacks);
-		if (!list2.equals(list)) {
-			this.client.reloadResources();
+		write();
+		List<String> currentPacks = ImmutableList.copyOf(resourcePacks);
+
+		if (!currentPacks.equals(previousPacks)) {
+			client.reloadResources();
 		}
 	}
 
@@ -1616,13 +1629,13 @@ public class GameOptions {
 	public GameOptions(MinecraftClient client, File optionsFile) {
 		this.client = client;
 		this.optionsFile = new File(optionsFile, "options.txt");
-		boolean bl = Runtime.getRuntime().maxMemory() >= 1000000000L;
+		boolean hasEnoughMemory = Runtime.getRuntime().maxMemory() >= 1_000_000_000L;
 		this.viewDistance = new SimpleOption<>(
 				"options.renderDistance",
 				SimpleOption.emptyTooltip(),
 				(optionText, value) -> getGenericValueText(optionText, Text.translatable("options.chunks", value)),
-				new SimpleOption.ValidatingIntSliderCallbacks(2, bl ? 32 : 16, false),
-				12,
+				new SimpleOption.ValidatingIntSliderCallbacks(2, hasEnoughMemory ? RENDER_DISTANCE_FAR : RENDER_DISTANCE_NORMAL, false),
+				RENDER_DISTANCE_NEAR,
 				value -> {
 					refreshWorldRenderer(WorldRenderer::scheduleTerrainUpdate);
 					this.onChangeGraphicsOption();
@@ -1634,10 +1647,10 @@ public class GameOptions {
 				(optionText, value) -> getGenericValueText(optionText, Text.translatable("options.chunks", value)),
 				new SimpleOption.ValidatingIntSliderCallbacks(
 						SharedConstants.ALLOW_LOW_SIM_DISTANCE ? 2 : 5,
-						bl ? 32 : 16,
+						hasEnoughMemory ? RENDER_DISTANCE_FAR : RENDER_DISTANCE_NORMAL,
 						false
 				),
-				12,
+				RENDER_DISTANCE_NEAR,
 				value -> this.onChangeGraphicsOption()
 		);
 		this.syncChunkWrites = Util.getOperatingSystem() == Util.OperatingSystem.WINDOWS;
@@ -1802,7 +1815,8 @@ public class GameOptions {
 	}
 
 	/**
-	 * Load.
+	 * Загружает настройки из файла {@code options.txt}, применяя DataFixer для миграции
+	 * устаревших форматов. Каждая строка файла имеет формат {@code key:value}.
 	 */
 	public void load() {
 		try {
@@ -1942,19 +1956,19 @@ public class GameOptions {
 	}
 
 	private NbtCompound update(NbtCompound nbt) {
-		int i = 0;
+		int dataVersion = 0;
 
 		try {
-			i = nbt.getString("version").map(Integer::parseInt).orElse(0);
-		}
-		catch (RuntimeException var4) {
+			dataVersion = nbt.getString("version").map(Integer::parseInt).orElse(0);
+		} catch (RuntimeException ignored) {
 		}
 
-		return DataFixTypes.OPTIONS.update(this.client.getDataFixer(), nbt, i);
+		return DataFixTypes.OPTIONS.update(client.getDataFixer(), nbt, dataVersion);
 	}
 
 	/**
-	 * Write.
+	 * Сохраняет все текущие настройки в файл {@code options.txt} и отправляет
+	 * синхронизированные параметры на сервер через {@link #sendClientSettings()}.
 	 */
 	public void write() {
 		try (final PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(
@@ -1965,11 +1979,6 @@ public class GameOptions {
 			printWriter.println("version:" + SharedConstants.getGameVersion().dataVersion().id());
 			this.accept(
 					new GameOptions.Visitor() {
-						/**
-						 * Print.
-						 *
-						 * @param key key
-						 */
 						public void print(String key) {
 							printWriter.print(key);
 							printWriter.print(':');
@@ -2055,40 +2064,38 @@ public class GameOptions {
 	}
 
 	public SyncedClientOptions getSyncedOptions() {
-		int i = 0;
+		int modelPartFlags = 0;
 
-		for (PlayerModelPart playerModelPart : this.enabledPlayerModelParts) {
-			i |= playerModelPart.getBitFlag();
+		for (PlayerModelPart part : enabledPlayerModelParts) {
+			modelPartFlags |= part.getBitFlag();
 		}
 
 		return new SyncedClientOptions(
-				this.language,
-				this.viewDistance.getValue(),
-				this.chatVisibility.getValue(),
-				this.chatColors.getValue(),
-				i,
-				this.mainArm.getValue(),
-				this.client.shouldFilterText(),
-				this.allowServerListing.getValue(),
-				this.particles.getValue()
+				language,
+				viewDistance.getValue(),
+				chatVisibility.getValue(),
+				chatColors.getValue(),
+				modelPartFlags,
+				mainArm.getValue(),
+				client.shouldFilterText(),
+				allowServerListing.getValue(),
+				particles.getValue()
 		);
 	}
 
-	/**
-	 * Отправляет client settings.
-	 */
 	public void sendClientSettings() {
-		if (this.client.player != null) {
-			this.client.player.networkHandler.syncOptions(this.getSyncedOptions());
+		if (client.player == null) {
+			return;
 		}
+
+		client.player.networkHandler.syncOptions(getSyncedOptions());
 	}
 
 	public void setPlayerModelPart(PlayerModelPart part, boolean enabled) {
 		if (enabled) {
-			this.enabledPlayerModelParts.add(part);
-		}
-		else {
-			this.enabledPlayerModelParts.remove(part);
+			enabledPlayerModelParts.add(part);
+		} else {
+			enabledPlayerModelParts.remove(part);
 		}
 	}
 
@@ -2100,19 +2107,15 @@ public class GameOptions {
 		return this.cloudRenderMode.getValue();
 	}
 
-	/**
-	 * Определяет, следует ли use native transport.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldUseNativeTransport() {
-		return this.useNativeTransport;
+		return useNativeTransport;
 	}
 
 	/**
-	 * Добавляет resource pack profiles to manager.
+	 * Синхронизирует список ресурспаков из настроек с менеджером, удаляя несуществующие
+	 * или несовместимые паки и обновляя список несовместимых.
 	 *
-	 * @param manager manager
+	 * @param manager менеджер ресурспаков для обновления
 	 */
 	public void addResourcePackProfilesToManager(ResourcePackManager manager) {
 		Set<String> set = Sets.newLinkedHashSet();
@@ -2165,9 +2168,9 @@ public class GameOptions {
 	}
 
 	/**
-	 * Collect profiled options.
+	 * Собирает все профилируемые настройки в строку для диагностики и отчётов о производительности.
 	 *
-	 * @return String — результат операции
+	 * @return отсортированная строка вида {@code key: value}, разделённая переносами строк
 	 */
 	public String collectProfiledOptions() {
 		final List<Pair<String, Object>> list = new ArrayList<>();
@@ -2223,19 +2226,21 @@ public class GameOptions {
 		return value == 0.0 ? getGenericValueText(prefix, ScreenTexts.OFF) : getPercentValueText(prefix, value);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code OptionVisitor}.
+	 * Минимальный посетитель для обхода только профилируемых настроек.
+	 * Используется в {@link #collectProfiledOptions()} и {@link #acceptProfiledOptions(OptionVisitor)}.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface OptionVisitor {
 
 		<T> void accept(String key, SimpleOption<T> option);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Visitor}.
+	 * Расширенный посетитель для полного обхода всех настроек при загрузке и сохранении.
+	 * Реализации предоставляются анонимными классами внутри {@link #load()} и {@link #write()}.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface Visitor extends GameOptions.OptionVisitor {
 
 		int visitInt(String key, int current);

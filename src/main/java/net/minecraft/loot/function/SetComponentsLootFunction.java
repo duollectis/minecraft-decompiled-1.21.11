@@ -11,15 +11,17 @@ import net.minecraft.loot.context.LootContext;
 import java.util.List;
 
 /**
- * {@code SetComponentsLootFunction}.
+ * Функция лута, применяющая набор изменений компонентов данных к предмету.
+ * Позволяет добавлять, изменять или удалять произвольные компоненты через {@link ComponentChanges}.
  */
 public class SetComponentsLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetComponentsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(ComponentChanges.CODEC.fieldOf("components").forGetter(function -> function.changes))
-					.apply(instance, SetComponentsLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(ComponentChanges.CODEC.fieldOf("components").forGetter(function -> function.changes))
+			.apply(instance, SetComponentsLootFunction::new)
 	);
+
 	private final ComponentChanges changes;
 
 	private SetComponentsLootFunction(List<LootCondition> conditions, ComponentChanges changes) {
@@ -34,14 +36,14 @@ public class SetComponentsLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		stack.applyChanges(this.changes);
+		stack.applyChanges(changes);
 		return stack;
 	}
 
 	public static <T> ConditionalLootFunction.Builder<?> builder(ComponentType<T> componentType, T value) {
 		return builder(conditions -> new SetComponentsLootFunction(
-				conditions,
-				ComponentChanges.builder().add(componentType, value).build()
+			conditions,
+			ComponentChanges.builder().add(componentType, value).build()
 		));
 	}
 }

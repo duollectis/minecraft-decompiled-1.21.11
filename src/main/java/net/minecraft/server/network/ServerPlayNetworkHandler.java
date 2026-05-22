@@ -531,11 +531,11 @@ public class ServerPlayNetworkHandler
 				.getCompletionSuggestions(parseResults)
 				.thenAccept(
 						suggestions -> {
-							Suggestions suggestions2 = suggestions.getList().size() <= 1000
+							Suggestions suggestions2 = suggestions.getList().size() <= MAX_CHAT_MESSAGE_LENGTH
 							                           ? suggestions
 							                           : new Suggestions(
 									                           suggestions.getRange(),
-									                           suggestions.getList().subList(0, 1000)
+									                           suggestions.getList().subList(0, MAX_CHAT_MESSAGE_LENGTH)
 							                           );
 							this.sendPacket(new CommandSuggestionsS2CPacket(packet.getCompletionId(), suggestions2));
 						}
@@ -1912,7 +1912,7 @@ public class ServerPlayNetworkHandler
 				i = this.acknowledgmentValidator.getMessageCount();
 			}
 
-			if (i > 4096) {
+			if (i > MAX_PENDING_ACKNOWLEDGMENTS) {
 				this.disconnect(Text.translatable("multiplayer.disconnect.too_many_pending_chats"));
 			}
 		}
@@ -2458,13 +2458,10 @@ public class ServerPlayNetworkHandler
 
 	private void markRespawned() {
 		this.dead = false;
-		this.remainingLoadingTicks = 60;
+		this.remainingLoadingTicks = LOADING_TICKS_TIMEOUT;
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Interaction}.
-	 */
 	interface Interaction {
 
 		ActionResult run(ServerPlayerEntity player, Entity entity, Hand hand);

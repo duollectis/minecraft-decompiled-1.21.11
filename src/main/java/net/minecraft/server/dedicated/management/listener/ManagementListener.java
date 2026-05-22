@@ -8,7 +8,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.rule.GameRule;
 
 /**
- * {@code ManagementListener}.
+ * Слушатель событий управления сервером: уведомления об изменениях конфигурации.
  */
 public interface ManagementListener {
 

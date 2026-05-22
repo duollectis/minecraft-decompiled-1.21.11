@@ -15,26 +15,27 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code BlockIgnoreStructureProcessor}.
+ * Процессор структур, пропускающий (игнорирующий) блоки из заданного списка.
+ * Если блок шаблона входит в список {@code blocks}, он не размещается в мире
+ * (метод возвращает {@code null}).
  */
 public class BlockIgnoreStructureProcessor extends StructureProcessor {
 
 	public static final MapCodec<BlockIgnoreStructureProcessor> CODEC = BlockState.CODEC
-			.xmap(AbstractBlock.AbstractBlockState::getBlock, Block::getDefaultState)
-			.listOf()
-			.fieldOf("blocks")
-			.xmap(BlockIgnoreStructureProcessor::new, processor -> processor.blocks);
-	public static final BlockIgnoreStructureProcessor
-			IGNORE_STRUCTURE_BLOCKS =
-			new BlockIgnoreStructureProcessor(ImmutableList.of(Blocks.STRUCTURE_BLOCK));
-	public static final BlockIgnoreStructureProcessor
-			IGNORE_AIR =
-			new BlockIgnoreStructureProcessor(ImmutableList.of(Blocks.AIR));
-	public static final BlockIgnoreStructureProcessor
-			IGNORE_AIR_AND_STRUCTURE_BLOCKS =
-			new BlockIgnoreStructureProcessor(
-					ImmutableList.of(Blocks.AIR, Blocks.STRUCTURE_BLOCK)
-			);
+		.xmap(AbstractBlock.AbstractBlockState::getBlock, Block::getDefaultState)
+		.listOf()
+		.fieldOf("blocks")
+		.xmap(BlockIgnoreStructureProcessor::new, processor -> processor.blocks);
+
+	public static final BlockIgnoreStructureProcessor IGNORE_STRUCTURE_BLOCKS =
+		new BlockIgnoreStructureProcessor(ImmutableList.of(Blocks.STRUCTURE_BLOCK));
+
+	public static final BlockIgnoreStructureProcessor IGNORE_AIR =
+		new BlockIgnoreStructureProcessor(ImmutableList.of(Blocks.AIR));
+
+	public static final BlockIgnoreStructureProcessor IGNORE_AIR_AND_STRUCTURE_BLOCKS =
+		new BlockIgnoreStructureProcessor(ImmutableList.of(Blocks.AIR, Blocks.STRUCTURE_BLOCK));
+
 	private final ImmutableList<Block> blocks;
 
 	public BlockIgnoreStructureProcessor(List<Block> blocks) {
@@ -43,14 +44,14 @@ public class BlockIgnoreStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
-		return this.blocks.contains(currentBlockInfo.state().getBlock()) ? null : currentBlockInfo;
+		return blocks.contains(currentBlockInfo.state().getBlock()) ? null : currentBlockInfo;
 	}
 
 	@Override

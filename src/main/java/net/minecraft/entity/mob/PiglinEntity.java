@@ -51,7 +51,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code PiglinEntity}.
+ * Пиглин — агрессивный житель Нижнего мира, торгующий золотом и охотящийся на хоглинов.
+ * Использует Brain-архитектуру ({@link PiglinBrain}) для управления поведением:
+ * бартер, охота, атака, танец при получении золота.
+ * Детёныши пиглинов не охотятся и имеют уменьшенные размеры.
  */
 public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, InventoryOwner {
 
@@ -69,19 +72,20 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 			BABY_SPEED_BOOST_ID, 0.2F, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
 	);
 	private static final int DETECTION_RANGE = 16;
+	private static final float MOVEMENT_SPEED = 0.35F;
 	private static final float BARTER_CHANCE = 0.35F;
 	private static final int BARTER_COOLDOWN_TICKS = 5;
-	private static final float DANCE_CHANCE = 0.1F;
+	private static final float ARMOR_EQUIP_CHANCE = 0.1F;
 	private static final int DANCE_TICKS = 3;
 	private static final float HUNT_CHANCE = 0.2F;
+	private static final float INITIAL_WEAPON_CROSSBOW_CHANCE = 0.5F;
+	private static final int GOLDEN_SPEAR_RARITY = 10;
 	private static final EntityDimensions
 			BABY_BASE_DIMENSIONS =
 			EntityType.PIGLIN.getDimensions().scaled(0.5F).withEyeHeight(0.97F);
 	private static final double BABY_SPEED = 0.5;
-	private static final boolean DEFAULT_IS_BABY = false;
-	private static final boolean DEFAULT_CANNOT_HUNT = false;
 	private final SimpleInventory inventory = new SimpleInventory(8);
-	private boolean cannotHunt = false;
+	private boolean cannotHunt;
 	protected static final ImmutableList<SensorType<? extends Sensor<? super PiglinEntity>>>
 			SENSOR_TYPES =
 			ImmutableList.of(
@@ -142,57 +146,43 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 
 	public PiglinEntity(EntityType<? extends AbstractPiglinEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 5;
+		experiencePoints = 5;
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("IsBaby", this.isBaby());
-		view.putBoolean("CannotHunt", this.cannotHunt);
-		this.writeInventory(view);
+		view.putBoolean("IsBaby", isBaby());
+		view.putBoolean("CannotHunt", cannotHunt);
+		writeInventory(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setBaby(view.getBoolean("IsBaby", false));
-		this.setCannotHunt(view.getBoolean("CannotHunt", false));
-		this.readInventory(view);
+		setBaby(view.getBoolean("IsBaby", false));
+		setCannotHunt(view.getBoolean("CannotHunt", false));
+		readInventory(view);
 	}
 
 	@Debug
 	@Override
 	public SimpleInventory getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
 	protected void dropEquipment(ServerWorld world, DamageSource source, boolean causedByPlayer) {
 		super.dropEquipment(world, source, causedByPlayer);
-		this.inventory.clearToList().forEach(stack -> this.dropStack(world, stack));
+		inventory.clearToList().forEach(stack -> dropStack(world, stack));
 	}
 
-	/**
-	 * Добавляет item.
-	 *
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	protected ItemStack addItem(ItemStack stack) {
-		return this.inventory.addStack(stack);
+		return inventory.addStack(stack);
 	}
 
-	/**
-	 * Проверяет возможность insert into inventory.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canInsertIntoInventory(ItemStack stack) {
-		return this.inventory.canInsert(stack);
+		return inventory.canInsert(stack);
 	}
 
 	@Override
@@ -206,15 +196,16 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
+
 		if (BABY.equals(data)) {
-			this.calculateDimensions();
+			calculateDimensions();
 		}
 	}
 
 	public static DefaultAttributeContainer.Builder createPiglinAttributes() {
 		return HostileEntity.createHostileAttributes()
 		                    .add(EntityAttributes.MAX_HEALTH, 16.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.35F)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, MOVEMENT_SPEED)
 		                    .add(EntityAttributes.ATTACK_DAMAGE, 5.0);
 	}
 
@@ -228,6 +219,10 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 		return !world.getBlockState(pos.down()).isOf(Blocks.NETHER_WART_BLOCK);
 	}
 
+	/**
+	 * Инициализирует пиглина при спавне: с шансом {@link #HUNT_CHANCE} создаёт детёныша,
+	 * иначе выдаёт взрослому начальное оружие. Устанавливает флаг недавней охоты.
+	 */
 	@Override
 	public @Nullable EntityData initialize(
 			ServerWorldAccess world,
@@ -236,39 +231,41 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 			@Nullable EntityData entityData
 	) {
 		Random random = world.getRandom();
+
 		if (spawnReason != SpawnReason.STRUCTURE) {
-			if (random.nextFloat() < 0.2F) {
-				this.setBaby(true);
+			if (random.nextFloat() < HUNT_CHANCE) {
+				setBaby(true);
 			}
-			else if (this.isAdult()) {
-				this.equipStack(EquipmentSlot.MAINHAND, this.makeInitialWeapon());
+			else if (isAdult()) {
+				equipStack(EquipmentSlot.MAINHAND, makeInitialWeapon());
 			}
 		}
 
 		PiglinBrain.setHuntedRecently(this, world.getRandom());
-		this.initEquipment(random, difficulty);
-		this.updateEnchantments(world, random, difficulty);
+		initEquipment(random, difficulty);
+		updateEnchantments(world, random, difficulty);
+
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	public boolean canImmediatelyDespawn(double distanceSquared) {
-		return !this.isPersistent();
+		return !isPersistent();
 	}
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		if (this.isAdult()) {
-			this.equipAtChance(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET), random);
-			this.equipAtChance(EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_CHESTPLATE), random);
-			this.equipAtChance(EquipmentSlot.LEGS, new ItemStack(Items.GOLDEN_LEGGINGS), random);
-			this.equipAtChance(EquipmentSlot.FEET, new ItemStack(Items.GOLDEN_BOOTS), random);
+		if (isAdult()) {
+			equipAtChance(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET), random);
+			equipAtChance(EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_CHESTPLATE), random);
+			equipAtChance(EquipmentSlot.LEGS, new ItemStack(Items.GOLDEN_LEGGINGS), random);
+			equipAtChance(EquipmentSlot.FEET, new ItemStack(Items.GOLDEN_BOOTS), random);
 		}
 	}
 
 	private void equipAtChance(EquipmentSlot slot, ItemStack stack, Random random) {
-		if (random.nextFloat() < 0.1F) {
-			this.equipStack(slot, stack);
+		if (random.nextFloat() < ARMOR_EQUIP_CHANCE) {
+			equipStack(slot, stack);
 		}
 	}
 
@@ -279,7 +276,7 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 
 	@Override
 	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-		return PiglinBrain.create(this, this.createBrainProfile().deserialize(dynamic));
+		return PiglinBrain.create(this, createBrainProfile().deserialize(dynamic));
 	}
 
 	@Override
@@ -290,43 +287,48 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
 		ActionResult actionResult = super.interactMob(player, hand);
+
 		if (actionResult.isAccepted()) {
 			return actionResult;
 		}
-		else if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
 			return PiglinBrain.playerInteract(serverWorld, this, player, hand);
 		}
-		else {
-			boolean
-					bl =
-					PiglinBrain.isWillingToTrade(this, player.getStackInHand(hand))
-							&& this.getActivity() != PiglinActivity.ADMIRING_ITEM;
-			return (ActionResult) (bl ? ActionResult.SUCCESS : ActionResult.PASS);
-		}
+
+		boolean willingToTrade = PiglinBrain.isWillingToTrade(this, player.getStackInHand(hand))
+				&& getActivity() != PiglinActivity.ADMIRING_ITEM;
+
+		return willingToTrade ? ActionResult.SUCCESS : ActionResult.PASS;
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 
+	/**
+	 * Устанавливает флаг детёныша и применяет/снимает модификатор скорости {@link #BABY_SPEED_BOOST}.
+	 */
 	@Override
 	public void setBaby(boolean baby) {
-		this.getDataTracker().set(BABY, baby);
-		if (!this.getEntityWorld().isClient()) {
-			EntityAttributeInstance
-					entityAttributeInstance =
-					this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-			entityAttributeInstance.removeModifier(BABY_SPEED_BOOST.id());
-			if (baby) {
-				entityAttributeInstance.addTemporaryModifier(BABY_SPEED_BOOST);
-			}
+		getDataTracker().set(BABY, baby);
+
+		if (getEntityWorld().isClient()) {
+			return;
+		}
+
+		EntityAttributeInstance speedAttribute = getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+		speedAttribute.removeModifier(BABY_SPEED_BOOST.id());
+
+		if (baby) {
+			speedAttribute.addTemporaryModifier(BABY_SPEED_BOOST);
 		}
 	}
 
 	@Override
 	public boolean isBaby() {
-		return this.getDataTracker().get(BABY);
+		return getDataTracker().get(BABY);
 	}
 
 	private void setCannotHunt(boolean cannotHunt) {
@@ -335,14 +337,14 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 
 	@Override
 	protected boolean canHunt() {
-		return !this.cannotHunt;
+		return !cannotHunt;
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("piglinBrain");
-		this.getBrain().tick(world, this);
+		getBrain().tick(world, this);
 		profiler.pop();
 		PiglinBrain.tickActivities(this);
 		super.mobTick(world);
@@ -350,82 +352,89 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 
 	@Override
 	protected int getExperienceToDrop(ServerWorld world) {
-		return this.experiencePoints;
+		return experiencePoints;
 	}
 
 	@Override
 	protected void zombify(ServerWorld world) {
 		PiglinBrain.pickupItemWithOffHand(world, this);
-		this.inventory.clearToList().forEach(stack -> this.dropStack(world, stack));
+		inventory.clearToList().forEach(stack -> dropStack(world, stack));
 		super.zombify(world);
 	}
 
 	private ItemStack makeInitialWeapon() {
-		return this.random.nextFloat() < 0.5
-		       ? new ItemStack(Items.CROSSBOW)
-		       : new ItemStack(this.random.nextInt(10) == 0 ? Items.GOLDEN_SPEAR : Items.GOLDEN_SWORD);
+		if (random.nextFloat() < INITIAL_WEAPON_CROSSBOW_CHANCE) {
+			return new ItemStack(Items.CROSSBOW);
+		}
+
+		Item meleeWeapon = random.nextInt(GOLDEN_SPEAR_RARITY) == 0 ? Items.GOLDEN_SPEAR : Items.GOLDEN_SWORD;
+		return new ItemStack(meleeWeapon);
 	}
 
 	@Override
 	public @Nullable TagKey<Item> getPreferredWeapons() {
-		return this.isBaby() ? null : ItemTags.PIGLIN_PREFERRED_WEAPONS;
+		return isBaby() ? null : ItemTags.PIGLIN_PREFERRED_WEAPONS;
 	}
 
 	private boolean isCharging() {
-		return this.dataTracker.get(CHARGING);
+		return dataTracker.get(CHARGING);
 	}
 
 	@Override
 	public void setCharging(boolean charging) {
-		this.dataTracker.set(CHARGING, charging);
+		dataTracker.set(CHARGING, charging);
 	}
 
 	@Override
 	public void postShoot() {
-		this.despawnCounter = 0;
+		despawnCounter = 0;
 	}
 
 	@Override
 	public PiglinActivity getActivity() {
-		if (this.isDancing()) {
+		if (isDancing()) {
 			return PiglinActivity.DANCING;
 		}
-		else if (PiglinBrain.isGoldenItem(this.getOffHandStack())) {
+
+		if (PiglinBrain.isGoldenItem(getOffHandStack())) {
 			return PiglinActivity.ADMIRING_ITEM;
 		}
-		else if (this.isAttacking() && this.isHoldingTool()) {
+
+		if (isAttacking() && isHoldingTool()) {
 			return PiglinActivity.ATTACKING_WITH_MELEE_WEAPON;
 		}
-		else if (this.isCharging()) {
+
+		if (isCharging()) {
 			return PiglinActivity.CROSSBOW_CHARGE;
 		}
-		else {
-			return this.isHolding(Items.CROSSBOW) && CrossbowItem.isCharged(this.getWeaponStack())
-			       ? PiglinActivity.CROSSBOW_HOLD : PiglinActivity.DEFAULT;
-		}
+
+		return isHolding(Items.CROSSBOW) && CrossbowItem.isCharged(getWeaponStack())
+			? PiglinActivity.CROSSBOW_HOLD
+			: PiglinActivity.DEFAULT;
 	}
 
 	public boolean isDancing() {
-		return this.dataTracker.get(DANCING);
+		return dataTracker.get(DANCING);
 	}
 
 	public void setDancing(boolean dancing) {
-		this.dataTracker.set(DANCING, dancing);
+		dataTracker.set(DANCING, dancing);
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		boolean bl = super.damage(world, source, amount);
-		if (bl && source.getAttacker() instanceof LivingEntity livingEntity) {
-			PiglinBrain.onAttacked(world, this, livingEntity);
+		boolean damaged = super.damage(world, source, amount);
+
+		if (damaged && source.getAttacker() instanceof LivingEntity attacker) {
+			PiglinBrain.onAttacked(world, this, attacker);
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		this.shoot(this, 1.6F);
+		shoot(this, 1.6F);
 	}
 
 	@Override
@@ -434,48 +443,48 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 	}
 
 	/**
-	 * Equip to main hand.
-	 *
-	 * @param stack stack
+	 * Экипирует предмет в основную руку через механизм лута (с учётом шансов выпадения).
 	 */
 	protected void equipToMainHand(ItemStack stack) {
-		this.equipLootStack(EquipmentSlot.MAINHAND, stack);
+		equipLootStack(EquipmentSlot.MAINHAND, stack);
 	}
 
 	/**
-	 * Equip to off hand.
-	 *
-	 * @param stack stack
+	 * Экипирует предмет в левую руку: предмет бартера идёт с гарантированным дропом,
+	 * остальные — через механизм лута.
 	 */
 	protected void equipToOffHand(ItemStack stack) {
 		if (stack.isOf(PiglinBrain.BARTERING_ITEM)) {
-			this.equipStack(EquipmentSlot.OFFHAND, stack);
-			this.setDropGuaranteed(EquipmentSlot.OFFHAND);
+			equipStack(EquipmentSlot.OFFHAND, stack);
+			setDropGuaranteed(EquipmentSlot.OFFHAND);
 		}
 		else {
-			this.equipLootStack(EquipmentSlot.OFFHAND, stack);
+			equipLootStack(EquipmentSlot.OFFHAND, stack);
 		}
 	}
 
 	@Override
 	public boolean canGather(ServerWorld world, ItemStack stack) {
-		return world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING) && this.canPickUpLoot()
+		return world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+				&& canPickUpLoot()
 				&& PiglinBrain.canGather(this, stack);
 	}
 
 	/**
-	 * Проверяет возможность equip stack.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли пиглин надеть предмет: сравнивает новый предмет с текущим
+	 * в соответствующем слоте через {@link #prefersNewEquipment}.
 	 */
 	protected boolean canEquipStack(ItemStack stack) {
-		EquipmentSlot equipmentSlot = this.getPreferredEquipmentSlot(stack);
-		ItemStack itemStack = this.getEquippedStack(equipmentSlot);
-		return this.prefersNewEquipment(stack, itemStack, equipmentSlot);
+		EquipmentSlot slot = getPreferredEquipmentSlot(stack);
+		ItemStack current = getEquippedStack(slot);
+		return prefersNewEquipment(stack, current, slot);
 	}
 
+	/**
+	 * Определяет приоритет нового предмета над текущим: золотые предметы всегда предпочтительнее
+	 * не-золотых, а предметы из тега предпочтительного оружия — над остальными.
+	 * Зачарование {@code PREVENT_ARMOR_CHANGE} блокирует замену.
+	 */
 	@Override
 	protected boolean prefersNewEquipment(ItemStack newStack, ItemStack currentStack, EquipmentSlot slot) {
 		if (EnchantmentHelper.hasAnyEnchantmentsWith(
@@ -484,42 +493,49 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 		)) {
 			return false;
 		}
-		else {
-			TagKey<Item> tagKey = this.getPreferredWeapons();
-			boolean bl = PiglinBrain.isGoldenItem(newStack) || tagKey != null && newStack.isIn(tagKey);
-			boolean bl2 = PiglinBrain.isGoldenItem(currentStack) || tagKey != null && currentStack.isIn(tagKey);
-			if (bl && !bl2) {
-				return true;
-			}
-			else {
-				return !bl && bl2 ? false : super.prefersNewEquipment(newStack, currentStack, slot);
-			}
+
+		TagKey<Item> preferredWeapons = getPreferredWeapons();
+		boolean newIsGolden = PiglinBrain.isGoldenItem(newStack)
+				|| preferredWeapons != null && newStack.isIn(preferredWeapons);
+		boolean currentIsGolden = PiglinBrain.isGoldenItem(currentStack)
+				|| preferredWeapons != null && currentStack.isIn(preferredWeapons);
+
+		if (newIsGolden && !currentIsGolden) {
+			return true;
 		}
+
+		if (newIsGolden || currentIsGolden) {
+			return !newIsGolden;
+		}
+
+		return super.prefersNewEquipment(newStack, currentStack, slot);
 	}
 
 	@Override
 	protected void loot(ServerWorld world, ItemEntity itemEntity) {
-		this.triggerItemPickedUpByEntityCriteria(itemEntity);
+		triggerItemPickedUpByEntityCriteria(itemEntity);
 		PiglinBrain.loot(world, this, itemEntity);
 	}
 
 	@Override
 	public boolean startRiding(Entity entity, boolean force, boolean emitEvent) {
-		if (this.isBaby() && entity.getType() == EntityType.HOGLIN) {
-			entity = this.getTopMostPassenger(entity, 3);
+		if (isBaby() && entity.getType() == EntityType.HOGLIN) {
+			entity = getTopMostPassenger(entity, 3);
 		}
 
 		return super.startRiding(entity, force, emitEvent);
 	}
 
 	private Entity getTopMostPassenger(Entity entity, int maxLevel) {
-		List<Entity> list = entity.getPassengerList();
-		return maxLevel != 1 && !list.isEmpty() ? this.getTopMostPassenger(list.getFirst(), maxLevel - 1) : entity;
+		List<Entity> passengers = entity.getPassengerList();
+		return maxLevel != 1 && !passengers.isEmpty()
+			? getTopMostPassenger(passengers.getFirst(), maxLevel - 1)
+			: entity;
 	}
 
 	@Override
 	protected @Nullable SoundEvent getAmbientSound() {
-		return this.getEntityWorld().isClient() ? null : PiglinBrain.getCurrentActivitySound(this).orElse(null);
+		return getEntityWorld().isClient() ? null : PiglinBrain.getCurrentActivitySound(this).orElse(null);
 	}
 
 	@Override
@@ -534,11 +550,11 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_PIGLIN_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_PIGLIN_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	protected void playZombificationSound() {
-		this.playSound(SoundEvents.ENTITY_PIGLIN_CONVERTED_TO_ZOMBIFIED);
+		playSound(SoundEvents.ENTITY_PIGLIN_CONVERTED_TO_ZOMBIFIED);
 	}
 }

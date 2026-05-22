@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code Term}.
+ * Базовый элемент PEG-грамматики (Parsing Expression Grammar).
+ * Каждый терм проверяет, соответствует ли текущая позиция в потоке ввода
+ * некоторому шаблону, и при успехе записывает результаты в {@link ParseResults}.
+ * Термы комбинируются в правила через фабричные методы этого интерфейса.
  */
 public interface Term<S> {
 
@@ -123,76 +126,79 @@ public interface Term<S> {
 	}
 
 	/**
-	 * {@code AlwaysTerm}.
+	 * Терм, безусловно записывающий фиксированное значение в результаты разбора.
 	 */
 	public record AlwaysTerm<S, T>(Symbol<T> name, T value) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			results.put(this.name, this.value);
+			results.put(name, value);
 			return true;
 		}
 	}
 
 	/**
-	 * {@code AnyOfTerm}.
+	 * Терм выбора (PEG-оператор «/»): пробует каждый вариант по порядку,
+	 * возвращает первый успешный. Поддерживает отсечение через {@link Cut}.
 	 */
 	public record AnyOfTerm<S>(Term<S>[] elements) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			Cut cut2 = state.pushCutter();
+			Cut innerCut = state.pushCutter();
 
 			try {
-				int i = state.getCursor();
+				int savedCursor = state.getCursor();
 				results.duplicateFrames();
 
-				for (Term<S> term : this.elements) {
-					if (term.matches(state, results, cut2)) {
+				for (Term<S> term : elements) {
+					if (term.matches(state, results, innerCut)) {
 						results.chooseCurrentFrame();
 						return true;
 					}
 
 					results.clearFrameValues();
-					state.setCursor(i);
-					if (cut2.isCut()) {
+					state.setCursor(savedCursor);
+
+					if (innerCut.isCut()) {
 						break;
 					}
 				}
 
 				results.popFrame();
 				return false;
-			}
-			finally {
+			} finally {
 				state.popCutter();
 			}
 		}
 	}
 
 	/**
-	 * {@code LookaheadTerm}.
+	 * Lookahead-терм: проверяет совпадение без продвижения курсора.
+	 * {@code positive=true} — позитивный lookahead (&amp;term), {@code false} — негативный (!term).
 	 */
 	public record LookaheadTerm<S>(Term<S> term, boolean positive) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			int i = state.getCursor();
-			boolean bl = this.term.matches(state.getErrorSuppressingState(), results, cut);
-			state.setCursor(i);
-			return this.positive == bl;
+			int savedCursor = state.getCursor();
+			boolean matched = term.matches(state.getErrorSuppressingState(), results, cut);
+			state.setCursor(savedCursor);
+			return positive == matched;
 		}
 	}
 
 	/**
-	 * {@code OptionalTerm}.
+	 * Опциональный терм: всегда возвращает {@code true}, откатывая курсор при неудаче.
 	 */
 	public record OptionalTerm<S>(Term<S> term) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			int i = state.getCursor();
-			if (!this.term.matches(state, results, cut)) {
-				state.setCursor(i);
+			int savedCursor = state.getCursor();
+
+			if (!term.matches(state, results, cut)) {
+				state.setCursor(savedCursor);
 			}
 
 			return true;
@@ -200,7 +206,8 @@ public interface Term<S> {
 	}
 
 	/**
-	 * {@code RepeatWithSeparatorTerm}.
+	 * Терм повторения с разделителем. Параметр {@code allowTrailingSeparator} управляет
+	 * допустимостью завершающего разделителя (например, запятой в конце списка).
 	 */
 	public record RepeatWithSeparatorTerm<S, T>(
 			ParsingRuleEntry<S, T> element,
@@ -212,51 +219,50 @@ public interface Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			int i = state.getCursor();
-			List<T> list = new ArrayList<>(this.minRepetitions);
-			boolean bl = true;
+			int startCursor = state.getCursor();
+			List<T> collected = new ArrayList<>(minRepetitions);
+			boolean isFirst = true;
 
 			while (true) {
-				int j = state.getCursor();
-				if (!bl && !this.separator.matches(state, results, cut)) {
-					state.setCursor(j);
+				int beforeSeparator = state.getCursor();
+
+				if (!isFirst && !separator.matches(state, results, cut)) {
+					state.setCursor(beforeSeparator);
 					break;
 				}
 
-				int k = state.getCursor();
-				T object = state.parse(this.element);
-				if (object == null) {
-					if (bl) {
-						state.setCursor(k);
-					}
-					else {
-						if (!this.allowTrailingSeparator) {
-							state.setCursor(i);
-							return false;
-						}
+				int beforeElement = state.getCursor();
+				T parsed = state.parse(element);
 
-						state.setCursor(k);
+				if (parsed == null) {
+					if (isFirst) {
+						state.setCursor(beforeElement);
+					} else if (!allowTrailingSeparator) {
+						state.setCursor(startCursor);
+						return false;
+					} else {
+						state.setCursor(beforeElement);
 					}
+
 					break;
 				}
 
-				list.add(object);
-				bl = false;
+				collected.add(parsed);
+				isFirst = false;
 			}
 
-			if (list.size() < this.minRepetitions) {
-				state.setCursor(i);
+			if (collected.size() < minRepetitions) {
+				state.setCursor(startCursor);
 				return false;
 			}
-			else {
-				results.put(this.listName, list);
-				return true;
-			}
+
+			results.put(listName, collected);
+			return true;
 		}
 	}
 
 	/**
-	 * {@code RepeatedTerm}.
+	 * Терм безразделительного повторения: собирает элементы до первой неудачи.
 	 */
 	public record RepeatedTerm<S, T>(
 			ParsingRuleEntry<S, T> element,
@@ -266,41 +272,43 @@ public interface Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			int i = state.getCursor();
-			List<T> list = new ArrayList<>(this.minRepetitions);
+			int startCursor = state.getCursor();
+			List<T> collected = new ArrayList<>(minRepetitions);
 
 			while (true) {
-				int j = state.getCursor();
-				T object = state.parse(this.element);
-				if (object == null) {
-					state.setCursor(j);
-					if (list.size() < this.minRepetitions) {
-						state.setCursor(i);
+				int beforeElement = state.getCursor();
+				T parsed = state.parse(element);
+
+				if (parsed == null) {
+					state.setCursor(beforeElement);
+
+					if (collected.size() < minRepetitions) {
+						state.setCursor(startCursor);
 						return false;
 					}
-					else {
-						results.put(this.listName, list);
-						return true;
-					}
+
+					results.put(listName, collected);
+					return true;
 				}
 
-				list.add(object);
+				collected.add(parsed);
 			}
 		}
 	}
 
 	/**
-	 * {@code SequenceTerm}.
+	 * Терм последовательности (PEG-конкатенация): все элементы должны совпасть по порядку.
+	 * При неудаче любого элемента курсор откатывается к началу последовательности.
 	 */
 	public record SequenceTerm<S>(Term<S>[] elements) implements Term<S> {
 
 		@Override
 		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-			int i = state.getCursor();
+			int savedCursor = state.getCursor();
 
-			for (Term<S> term : this.elements) {
+			for (Term<S> term : elements) {
 				if (!term.matches(state, results, cut)) {
-					state.setCursor(i);
+					state.setCursor(savedCursor);
 					return false;
 				}
 			}

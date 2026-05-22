@@ -9,7 +9,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * {@code ConstantArgumentSerializer}.
+ * Сериализатор аргументов Brigadier, у которых нет параметров конфигурации.
+ * <p>
+ * Используется для типов аргументов, которые всегда создаются одинаково
+ * (например, {@code BoolArgumentType}, {@code NbtCompoundArgumentType}).
+ * При сериализации не записывает никаких данных в пакет или JSON.
+ *
+ * @param <A> тип аргумента Brigadier
  */
 public class ConstantArgumentSerializer<A extends ArgumentType<?>> implements ArgumentSerializer<A, ConstantArgumentSerializer<A>.Properties> {
 
@@ -42,7 +48,7 @@ public class ConstantArgumentSerializer<A extends ArgumentType<?>> implements Ar
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит фабрику для создания экземпляра типа аргумента.
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<A> {
 

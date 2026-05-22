@@ -33,7 +33,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractSkeletonEntity}.
+ * Базовый класс для скелетов. Реализует стрельбу из лука и конвертацию при попадании молнии.
  */
 public abstract class AbstractSkeletonEntity extends HostileEntity implements RangedAttackMob {
 
@@ -41,7 +41,7 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 	private static final int REGULAR_ATTACK_INTERVAL = 40;
 	protected static final int VARIANT_HARD_ATTACK_INTERVAL = 50;
 	protected static final int VARIANT_REGULAR_ATTACK_INTERVAL = 70;
-	private final BowAttackGoal<AbstractSkeletonEntity> bowAttackGoal = new BowAttackGoal<>(this, 1.0, 20, 15.0F);
+	private final BowAttackGoal<AbstractSkeletonEntity> bowAttackGoal = new BowAttackGoal<>(this, 1.0, HARD_ATTACK_INTERVAL, 15.0F);
 	private final MeleeAttackGoal meleeAttackGoal = new MeleeAttackGoal(this, 1.2, false) {
 		@Override
 		public void stop() {
@@ -58,21 +58,21 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 
 	protected AbstractSkeletonEntity(EntityType<? extends AbstractSkeletonEntity> entityType, World world) {
 		super(entityType, world);
-		this.updateAttackType();
+		updateAttackType();
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(2, new AvoidSunlightGoal(this));
-		this.goalSelector.add(3, new EscapeSunlightGoal(this, 1.0));
-		this.goalSelector.add(3, new FleeEntityGoal<>(this, WolfEntity.class, 6.0F, 1.0, 1.2));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(6, new LookAroundGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this));
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
-		this.targetSelector.add(
+		goalSelector.add(2, new AvoidSunlightGoal(this));
+		goalSelector.add(3, new EscapeSunlightGoal(this, 1.0));
+		goalSelector.add(3, new FleeEntityGoal<>(this, WolfEntity.class, 6.0F, 1.0, 1.2));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(6, new LookAroundGoal(this));
+		targetSelector.add(1, new RevengeGoal(this));
+		targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
+		targetSelector.add(
 				3,
 				new ActiveTargetGoal<>(
 						this,
@@ -91,7 +91,7 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(this.getStepSound(), 0.15F, 1.0F);
+		playSound(getStepSound(), 0.15F, 1.0F);
 	}
 
 	abstract SoundEvent getStepSound();
@@ -99,15 +99,15 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 	@Override
 	public void tickRiding() {
 		super.tickRiding();
-		if (this.getControllingVehicle() instanceof PathAwareEntity pathAwareEntity) {
-			this.bodyYaw = pathAwareEntity.bodyYaw;
+		if (getControllingVehicle() instanceof PathAwareEntity pathAwareEntity) {
+			bodyYaw = pathAwareEntity.bodyYaw;
 		}
 	}
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
 		super.initEquipment(random, localDifficulty);
-		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+		equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
 	}
 
 	@Override
@@ -119,78 +119,81 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 	) {
 		entityData = super.initialize(world, difficulty, spawnReason, entityData);
 		Random random = world.getRandom();
-		this.initEquipment(random, difficulty);
-		this.updateEnchantments(world, random, difficulty);
-		this.updateAttackType();
-		this.setCanPickUpLoot(random.nextFloat() < 0.55F * difficulty.getClampedLocalDifficulty());
-		if (this.getEquippedStack(EquipmentSlot.HEAD).isEmpty() && Holidays.isHalloween()
+		initEquipment(random, difficulty);
+		updateEnchantments(world, random, difficulty);
+		updateAttackType();
+		setCanPickUpLoot(random.nextFloat() < 0.55F * difficulty.getClampedLocalDifficulty());
+		if (getEquippedStack(EquipmentSlot.HEAD).isEmpty() && Holidays.isHalloween()
 				&& random.nextFloat() < 0.25F) {
-			this.equipStack(
+			equipStack(
 					EquipmentSlot.HEAD,
 					new ItemStack(random.nextFloat() < 0.1F ? Blocks.JACK_O_LANTERN : Blocks.CARVED_PUMPKIN)
 			);
-			this.setEquipmentDropChance(EquipmentSlot.HEAD, 0.0F);
+			setEquipmentDropChance(EquipmentSlot.HEAD, 0.0F);
 		}
 
 		return entityData;
 	}
 
 	/**
-	 * Обновляет attack type.
+	 * Переключает режим атаки между луком и ближним боем в зависимости от предмета в руке.
+	 * Интервал атаки лука зависит от сложности: на HARD — короче.
 	 */
 	public void updateAttackType() {
-		if (this.getEntityWorld() != null && !this.getEntityWorld().isClient()) {
-			this.goalSelector.remove(this.meleeAttackGoal);
-			this.goalSelector.remove(this.bowAttackGoal);
-			ItemStack itemStack = this.getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
-			if (itemStack.isOf(Items.BOW)) {
-				int i = this.getHardAttackInterval();
-				if (this.getEntityWorld().getDifficulty() != Difficulty.HARD) {
-					i = this.getRegularAttackInterval();
-				}
+		if (getEntityWorld() == null || getEntityWorld().isClient()) {
+			return;
+		}
 
-				this.bowAttackGoal.setAttackInterval(i);
-				this.goalSelector.add(4, this.bowAttackGoal);
-			}
-			else {
-				this.goalSelector.add(4, this.meleeAttackGoal);
-			}
+		goalSelector.remove(meleeAttackGoal);
+		goalSelector.remove(bowAttackGoal);
+		ItemStack heldStack = getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
+
+		if (heldStack.isOf(Items.BOW)) {
+			int attackInterval = getEntityWorld().getDifficulty() == Difficulty.HARD
+					? getHardAttackInterval()
+					: getRegularAttackInterval();
+
+			bowAttackGoal.setAttackInterval(attackInterval);
+			goalSelector.add(4, bowAttackGoal);
+		}
+		else {
+			goalSelector.add(4, meleeAttackGoal);
 		}
 	}
 
 	protected int getHardAttackInterval() {
-		return 20;
+		return HARD_ATTACK_INTERVAL;
 	}
 
 	protected int getRegularAttackInterval() {
-		return 40;
+		return REGULAR_ATTACK_INTERVAL;
 	}
 
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		ItemStack itemStack = this.getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
-		ItemStack itemStack2 = this.getProjectileType(itemStack);
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				this.createArrowProjectile(itemStack2, pullProgress, itemStack);
-		double d = target.getX() - this.getX();
-		double e = target.getBodyY(0.3333333333333333) - persistentProjectileEntity.getY();
-		double f = target.getZ() - this.getZ();
-		double g = Math.sqrt(d * d + f * f);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+		ItemStack bowStack = getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
+		ItemStack arrowStack = getProjectileType(bowStack);
+		PersistentProjectileEntity arrow = createArrowProjectile(arrowStack, pullProgress, bowStack);
+
+		double dx = target.getX() - getX();
+		double dy = target.getBodyY(0.3333333333333333) - arrow.getY();
+		double dz = target.getZ() - getZ();
+		double horizDist = Math.sqrt(dx * dx + dz * dz);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
 			ProjectileEntity.spawnWithVelocity(
-					persistentProjectileEntity,
+					arrow,
 					serverWorld,
-					itemStack2,
-					d,
-					e + g * 0.2F,
-					f,
+					arrowStack,
+					dx,
+					dy + horizDist * 0.2F,
+					dz,
 					1.6F,
 					14 - serverWorld.getDifficulty().getId() * 4
 			);
 		}
 
-		this.playSound(SoundEvents.ENTITY_SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+		playSound(SoundEvents.ENTITY_SKELETON_SHOOT, 1.0F, 1.0F / (getRandom().nextFloat() * 0.4F + 0.8F));
 	}
 
 	protected PersistentProjectileEntity createArrowProjectile(
@@ -214,23 +217,27 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.updateAttackType();
+		updateAttackType();
 	}
 
 	@Override
 	public void onEquipStack(EquipmentSlot slot, ItemStack oldStack, ItemStack newStack) {
 		super.onEquipStack(slot, oldStack, newStack);
-		if (!this.getEntityWorld().isClient()) {
-			this.updateAttackType();
+		if (!getEntityWorld().isClient()) {
+			updateAttackType();
 		}
 	}
 
 	public boolean isShaking() {
-		return this.isFrozen();
+		return isFrozen();
 	}
 
 	@Override
 	public boolean canGather(ServerWorld world, ItemStack stack) {
-		return stack.isIn(ItemTags.SPEARS) ? false : super.canGather(world, stack);
+		if (stack.isIn(ItemTags.SPEARS)) {
+			return false;
+		}
+
+		return super.canGather(world, stack);
 	}
 }

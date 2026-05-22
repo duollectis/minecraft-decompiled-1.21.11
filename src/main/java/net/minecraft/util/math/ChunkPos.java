@@ -16,56 +16,58 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code ChunkPos}.
+ * Позиция чанка в координатах чанков (не блоков).
+ * Один чанк = 16 блоков по X и Z. Регион = 32 чанка по каждой оси.
  */
 public class ChunkPos {
 
-	public static final Codec<ChunkPos> CODEC = Codec.INT_STREAM
-			.comapFlatMap(
-					stream -> Util.decodeFixedLengthArray(stream, 2).map(coords -> new ChunkPos(coords[0], coords[1])),
-					chunkPos -> IntStream.of(chunkPos.x, chunkPos.z)
-			)
-			.stable();
-	public static final PacketCodec<ByteBuf, ChunkPos> PACKET_CODEC = new PacketCodec<ByteBuf, ChunkPos>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return ChunkPos — результат операции
-		 */
-		public ChunkPos decode(ByteBuf byteBuf) {
-			return PacketByteBuf.readChunkPos(byteBuf);
-		}
-
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param chunkPos chunk pos
-		 */
-		public void encode(ByteBuf byteBuf, ChunkPos chunkPos) {
-			PacketByteBuf.writeChunkPos(byteBuf, chunkPos);
-		}
-	};
-	private static final int SPIRAL_ITERATOR_SIZE = 1056;
-	public static final long MARKER = toLong(1875066, 1875066);
-	private static final int
-			GENERATION_AREA_MARGIN =
-			(32 + ChunkGenerationSteps.GENERATION.get(ChunkStatus.FULL).accumulatedDependencies().size() + 1) * 2;
-	public static final int MAX_COORDINATE = ChunkSectionPos.getSectionCoord(BlockPos.MAX_XZ) - GENERATION_AREA_MARGIN;
-	public static final ChunkPos ORIGIN = new ChunkPos(0, 0);
+	// --- Упаковка long ---
 	private static final long LONG_PACK_SHIFT = 32L;
 	private static final long LONG_PACK_MASK = 4294967295L;
+
+	// --- Регионы ---
 	private static final int REGION_COORD_SHIFT = 5;
 	public static final int CHUNKS_PER_REGION = 32;
 	private static final int REGION_COORD_MASK = 31;
 	public static final int REGION_COORD_MAX = 31;
-	public final int x;
-	public final int z;
+
+	// --- Генерация ---
+	private static final int GENERATION_AREA_MARGIN =
+		(CHUNKS_PER_REGION + ChunkGenerationSteps.GENERATION.get(ChunkStatus.FULL).accumulatedDependencies().size() + 1) * 2;
+	public static final int MAX_COORDINATE = ChunkSectionPos.getSectionCoord(BlockPos.MAX_XZ) - GENERATION_AREA_MARGIN;
+
+	// --- Хэш (LCG) ---
 	private static final int LCG_MULTIPLIER = 1664525;
 	private static final int LCG_INCREMENT = 1013904223;
 	private static final int LCG_HASH_SEED = -559038737;
+
+	// --- Прочие константы ---
+	private static final int SPIRAL_ITERATOR_SIZE = 1056;
+
+	public static final long MARKER = toLong(1875066, 1875066);
+	public static final ChunkPos ORIGIN = new ChunkPos(0, 0);
+
+	public static final Codec<ChunkPos> CODEC = Codec.INT_STREAM
+		.comapFlatMap(
+			stream -> Util.decodeFixedLengthIntArray(stream, 2).map(coords -> new ChunkPos(coords[0], coords[1])),
+			chunkPos -> IntStream.of(chunkPos.x, chunkPos.z)
+		)
+		.stable();
+
+	public static final PacketCodec<ByteBuf, ChunkPos> PACKET_CODEC = new PacketCodec<>() {
+		@Override
+		public ChunkPos decode(ByteBuf byteBuf) {
+			return PacketByteBuf.readChunkPos(byteBuf);
+		}
+
+		@Override
+		public void encode(ByteBuf byteBuf, ChunkPos chunkPos) {
+			PacketByteBuf.writeChunkPos(byteBuf, chunkPos);
+		}
+	};
+
+	public final int x;
+	public final int z;
 
 	public ChunkPos(int x, int z) {
 		this.x = x;
@@ -79,79 +81,50 @@ public class ChunkPos {
 
 	public ChunkPos(long pos) {
 		this.x = (int) pos;
-		this.z = (int) (pos >> 32);
+		this.z = (int) (pos >> CHUNKS_PER_REGION);
 	}
 
-	/**
-	 * From region.
-	 *
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return ChunkPos — результат операции
-	 */
 	public static ChunkPos fromRegion(int x, int z) {
-		return new ChunkPos(x << 5, z << 5);
+		return new ChunkPos(x << REGION_COORD_SHIFT, z << REGION_COORD_SHIFT);
 	}
 
-	/**
-	 * From region center.
-	 *
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return ChunkPos — результат операции
-	 */
 	public static ChunkPos fromRegionCenter(int x, int z) {
-		return new ChunkPos((x << 5) + 31, (z << 5) + 31);
+		return new ChunkPos((x << REGION_COORD_SHIFT) + REGION_COORD_MASK, (z << REGION_COORD_SHIFT) + REGION_COORD_MASK);
 	}
 
 	public boolean isWithinGenerationArea() {
 		return isWithinGenerationArea(this.x, this.z);
 	}
 
-	public static boolean isWithinGenerationArea(int i, int j) {
-		return MathHelper.chebyshevDistance(i, j) <= MAX_COORDINATE;
+	public static boolean isWithinGenerationArea(int x, int z) {
+		return MathHelper.chebyshevDistance(x, z) <= MAX_COORDINATE;
 	}
 
-	/**
-	 * To long.
-	 *
-	 * @return long — результат операции
-	 */
 	public long toLong() {
 		return toLong(this.x, this.z);
 	}
 
 	/**
-	 * To long.
-	 *
-	 * @param chunkX chunk x
-	 * @param chunkZ chunk z
-	 *
-	 * @return long — результат операции
+	 * Упаковывает координаты чанка в одно long-значение для эффективного хранения и сравнения.
+	 * Используется как ключ в хэш-картах и для передачи по сети.
 	 */
 	public static long toLong(int chunkX, int chunkZ) {
-		return chunkX & 4294967295L | (chunkZ & 4294967295L) << 32;
+		return chunkX & LONG_PACK_MASK | (chunkZ & LONG_PACK_MASK) << CHUNKS_PER_REGION;
 	}
 
-	/**
-	 * To long.
-	 *
-	 * @param pos pos
-	 *
-	 * @return long — результат операции
-	 */
 	public static long toLong(BlockPos pos) {
-		return toLong(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+		return toLong(
+			ChunkSectionPos.getSectionCoord(pos.getX()),
+			ChunkSectionPos.getSectionCoord(pos.getZ())
+		);
 	}
 
 	public static int getPackedX(long pos) {
-		return (int) (pos & 4294967295L);
+		return (int) (pos & LONG_PACK_MASK);
 	}
 
 	public static int getPackedZ(long pos) {
-		return (int) (pos >>> 32 & 4294967295L);
+		return (int) (pos >>> CHUNKS_PER_REGION & LONG_PACK_MASK);
 	}
 
 	@Override
@@ -160,27 +133,22 @@ public class ChunkPos {
 	}
 
 	/**
-	 * Проверяет наличие h code.
-	 *
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return int — {@code true} если условие выполнено
+	 * Вычисляет хэш-код для пары координат чанка через LCG-алгоритм.
+	 * Используется для равномерного распределения в хэш-таблицах.
 	 */
 	public static int hashCode(int x, int z) {
-		int i = 1664525 * x + 1013904223;
-		int j = 1664525 * (z ^ -559038737) + 1013904223;
-		return i ^ j;
+		int hashX = LCG_MULTIPLIER * x + LCG_INCREMENT;
+		int hashZ = LCG_MULTIPLIER * (z ^ LCG_HASH_SEED) + LCG_INCREMENT;
+		return hashX ^ hashZ;
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
+	public boolean equals(Object other) {
+		if (this == other) {
 			return true;
 		}
-		else {
-			return !(o instanceof ChunkPos chunkPos) ? false : this.x == chunkPos.x && this.z == chunkPos.z;
-		}
+
+		return other instanceof ChunkPos chunkPos && this.x == chunkPos.x && this.z == chunkPos.z;
 	}
 
 	public int getCenterX() {
@@ -208,19 +176,19 @@ public class ChunkPos {
 	}
 
 	public int getRegionX() {
-		return this.x >> 5;
+		return this.x >> REGION_COORD_SHIFT;
 	}
 
 	public int getRegionZ() {
-		return this.z >> 5;
+		return this.z >> REGION_COORD_SHIFT;
 	}
 
 	public int getRegionRelativeX() {
-		return this.x & 31;
+		return this.x & REGION_COORD_MASK;
 	}
 
 	public int getRegionRelativeZ() {
-		return this.z & 31;
+		return this.z & REGION_COORD_MASK;
 	}
 
 	public BlockPos getBlockPos(int offsetX, int y, int offsetZ) {
@@ -239,16 +207,11 @@ public class ChunkPos {
 		return new BlockPos(this.getCenterX(), y, this.getCenterZ());
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(BlockPos pos) {
-		return pos.getX() >= this.getStartX() && pos.getZ() >= this.getStartZ() && pos.getX() <= this.getEndX()
-				&& pos.getZ() <= this.getEndZ();
+		return pos.getX() >= this.getStartX()
+			&& pos.getZ() >= this.getStartZ()
+			&& pos.getX() <= this.getEndX()
+			&& pos.getZ() <= this.getEndZ();
 	}
 
 	@Override
@@ -277,18 +240,13 @@ public class ChunkPos {
 	}
 
 	private int getSquaredDistance(int x, int z) {
-		int i = x - this.x;
-		int j = z - this.z;
-		return i * i + j * j;
+		int deltaX = x - this.x;
+		int deltaZ = z - this.z;
+		return deltaX * deltaX + deltaZ * deltaZ;
 	}
 
 	/**
-	 * Stream.
-	 *
-	 * @param center center
-	 * @param radius radius
-	 *
-	 * @return Stream — результат операции
+	 * Создаёт поток всех позиций чанков в квадрате радиуса {@code radius} вокруг {@code center}.
 	 */
 	public static Stream<ChunkPos> stream(ChunkPos center, int radius) {
 		return stream(
@@ -298,46 +256,43 @@ public class ChunkPos {
 	}
 
 	/**
-	 * Stream.
-	 *
-	 * @param pos1 pos1
-	 * @param pos2 pos2
-	 *
-	 * @return Stream — результат операции
+	 * Создаёт поток всех позиций чанков в прямоугольнике между {@code pos1} и {@code pos2} включительно.
+	 * Обход идёт строка за строкой по оси X, затем по Z.
 	 */
 	public static Stream<ChunkPos> stream(ChunkPos pos1, ChunkPos pos2) {
-		int i = Math.abs(pos1.x - pos2.x) + 1;
-		int j = Math.abs(pos1.z - pos2.z) + 1;
-		final int k = pos1.x < pos2.x ? 1 : -1;
-		final int l = pos1.z < pos2.z ? 1 : -1;
+		int countX = Math.abs(pos1.x - pos2.x) + 1;
+		int countZ = Math.abs(pos1.z - pos2.z) + 1;
+		final int stepX = pos1.x < pos2.x ? 1 : -1;
+		final int stepZ = pos1.z < pos2.z ? 1 : -1;
+
 		return StreamSupport.stream(
-				new AbstractSpliterator<ChunkPos>(i * j, 64) {
+				new AbstractSpliterator<ChunkPos>(countX * countZ, 64) {
 					private @Nullable ChunkPos position;
 
 					@Override
 					public boolean tryAdvance(Consumer<? super ChunkPos> consumer) {
 						if (this.position == null) {
 							this.position = pos1;
-						}
-						else {
-							int ix = this.position.x;
-							int jx = this.position.z;
-							if (ix == pos2.x) {
-								if (jx == pos2.z) {
+						} else {
+							int currentX = this.position.x;
+							int currentZ = this.position.z;
+
+							if (currentX == pos2.x) {
+								if (currentZ == pos2.z) {
 									return false;
 								}
 
-								this.position = new ChunkPos(pos1.x, jx + l);
-							}
-							else {
-								this.position = new ChunkPos(ix + k, jx);
+								this.position = new ChunkPos(pos1.x, currentZ + stepZ);
+							} else {
+								this.position = new ChunkPos(currentX + stepX, currentZ);
 							}
 						}
 
 						consumer.accept(this.position);
 						return true;
 					}
-				}, false
+				},
+				false
 		);
 	}
 }

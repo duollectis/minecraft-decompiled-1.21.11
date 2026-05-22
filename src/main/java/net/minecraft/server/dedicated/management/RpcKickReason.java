@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code RpcKickReason}.
+ * Класс Rpc Kick Reason.
  */
 public record RpcKickReason(
 		Optional<String> literal,

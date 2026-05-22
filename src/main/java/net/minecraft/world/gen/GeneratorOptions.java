@@ -10,27 +10,29 @@ import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
- * {@code GeneratorOptions}.
+ * Параметры генератора мира: сид, флаги структур и бонусного сундука.
+ * Иммутабельный объект — все «мутирующие» методы возвращают новый экземпляр.
  */
 public class GeneratorOptions {
 
 	public static final MapCodec<GeneratorOptions> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.LONG.fieldOf("seed").stable().forGetter(GeneratorOptions::getSeed),
-					                    Codec.BOOL
-							                    .fieldOf("generate_features")
-							                    .orElse(true)
-							                    .stable()
-							                    .forGetter(GeneratorOptions::shouldGenerateStructures),
-					                    Codec.BOOL.fieldOf("bonus_chest").orElse(false).stable().forGetter(GeneratorOptions::hasBonusChest),
-					                    Codec.STRING
-							                    .lenientOptionalFieldOf("legacy_custom_options")
-							                    .stable()
-							                    .forGetter(generatorOptions -> generatorOptions.legacyCustomOptions)
-			                    )
-			                    .apply(instance, instance.stable(GeneratorOptions::new))
+		instance -> instance.group(
+			Codec.LONG.fieldOf("seed").stable().forGetter(GeneratorOptions::getSeed),
+			Codec.BOOL
+				.fieldOf("generate_features")
+				.orElse(true)
+				.stable()
+				.forGetter(GeneratorOptions::shouldGenerateStructures),
+			Codec.BOOL.fieldOf("bonus_chest").orElse(false).stable().forGetter(GeneratorOptions::hasBonusChest),
+			Codec.STRING
+				.lenientOptionalFieldOf("legacy_custom_options")
+				.stable()
+				.forGetter(options -> options.legacyCustomOptions)
+		).apply(instance, instance.stable(GeneratorOptions::new))
 	);
+
 	public static final GeneratorOptions DEMO_OPTIONS = new GeneratorOptions("North Carolina".hashCode(), true, true);
+
 	private final long seed;
 	private final boolean generateStructures;
 	private final boolean bonusChest;
@@ -40,29 +42,11 @@ public class GeneratorOptions {
 		this(seed, generateStructures, bonusChest, Optional.empty());
 	}
 
-	/**
-	 * Создаёт random.
-	 *
-	 * @return GeneratorOptions — результат операции
-	 */
-	public static GeneratorOptions createRandom() {
-		return new GeneratorOptions(getRandomSeed(), true, false);
-	}
-
-	/**
-	 * Создаёт test world.
-	 *
-	 * @return GeneratorOptions — результат операции
-	 */
-	public static GeneratorOptions createTestWorld() {
-		return new GeneratorOptions(getRandomSeed(), false, false);
-	}
-
 	private GeneratorOptions(
-			long seed,
-			boolean generateStructures,
-			boolean bonusChest,
-			Optional<String> legacyCustomOptions
+		long seed,
+		boolean generateStructures,
+		boolean bonusChest,
+		Optional<String> legacyCustomOptions
 	) {
 		this.seed = seed;
 		this.generateStructures = generateStructures;
@@ -70,84 +54,68 @@ public class GeneratorOptions {
 		this.legacyCustomOptions = legacyCustomOptions;
 	}
 
-	public long getSeed() {
-		return this.seed;
+	/** Создаёт опции с случайным сидом, структурами включены, бонусный сундук выключен. */
+	public static GeneratorOptions createRandom() {
+		return new GeneratorOptions(getRandomSeed(), true, false);
 	}
 
-	/**
-	 * Определяет, следует ли generate structures.
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Создаёт опции для тестового мира: случайный сид, структуры отключены. */
+	public static GeneratorOptions createTestWorld() {
+		return new GeneratorOptions(getRandomSeed(), false, false);
+	}
+
+	public long getSeed() {
+		return seed;
+	}
+
 	public boolean shouldGenerateStructures() {
-		return this.generateStructures;
+		return generateStructures;
 	}
 
 	public boolean hasBonusChest() {
-		return this.bonusChest;
+		return bonusChest;
 	}
 
 	public boolean isLegacyCustomizedType() {
-		return this.legacyCustomOptions.isPresent();
+		return legacyCustomOptions.isPresent();
 	}
 
-	/**
-	 * With bonus chest.
-	 *
-	 * @param bonusChest bonus chest
-	 *
-	 * @return GeneratorOptions — результат операции
-	 */
 	public GeneratorOptions withBonusChest(boolean bonusChest) {
-		return new GeneratorOptions(this.seed, this.generateStructures, bonusChest, this.legacyCustomOptions);
+		return new GeneratorOptions(seed, generateStructures, bonusChest, legacyCustomOptions);
 	}
 
-	/**
-	 * With structures.
-	 *
-	 * @param structures structures
-	 *
-	 * @return GeneratorOptions — результат операции
-	 */
 	public GeneratorOptions withStructures(boolean structures) {
-		return new GeneratorOptions(this.seed, structures, this.bonusChest, this.legacyCustomOptions);
+		return new GeneratorOptions(seed, structures, bonusChest, legacyCustomOptions);
 	}
 
 	/**
-	 * With seed.
-	 *
-	 * @param seed seed
-	 *
-	 * @return GeneratorOptions — результат операции
+	 * Возвращает новые опции с заданным сидом.
+	 * Если {@code seed} пуст — генерируется случайный сид.
 	 */
 	public GeneratorOptions withSeed(OptionalLong seed) {
 		return new GeneratorOptions(
-				seed.orElse(getRandomSeed()),
-				this.generateStructures,
-				this.bonusChest,
-				this.legacyCustomOptions
+			seed.orElse(getRandomSeed()),
+			generateStructures,
+			bonusChest,
+			legacyCustomOptions
 		);
 	}
 
 	/**
-	 * Разбирает seed.
-	 *
-	 * @param seed seed
-	 *
-	 * @return OptionalLong — результат операции
+	 * Разбирает строку сида: числовая строка → long, иначе → hashCode строки.
+	 * Пустая строка возвращает {@link OptionalLong#empty()}.
 	 */
 	public static OptionalLong parseSeed(String seed) {
 		seed = seed.trim();
+
 		if (StringUtils.isEmpty(seed)) {
 			return OptionalLong.empty();
 		}
-		else {
-			try {
-				return OptionalLong.of(Long.parseLong(seed));
-			}
-			catch (NumberFormatException var2) {
-				return OptionalLong.of(seed.hashCode());
-			}
+
+		try {
+			return OptionalLong.of(Long.parseLong(seed));
+		} catch (NumberFormatException ignored) {
+			return OptionalLong.of(seed.hashCode());
 		}
 	}
 

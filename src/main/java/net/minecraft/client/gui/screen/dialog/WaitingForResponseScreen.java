@@ -43,33 +43,34 @@ public class WaitingForResponseScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		this.layout.addHeader(TITLE, this.textRenderer);
-		this.layout.addBody(this.backButton);
-		this.backButton.visible = false;
-		this.backButton.active = false;
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		layout.addHeader(TITLE, textRenderer);
+		layout.addBody(backButton);
+		backButton.visible = false;
+		backButton.active = false;
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, getNavigationFocus());
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (!this.backButton.active) {
-			int i = this.inactiveTicks++ / 20;
-			this.backButton.visible = i >= 1;
-			this.backButton.setMessage(BUTTON_TEXTS[i]);
-			if (i == 5) {
-				this.backButton.active = true;
-				this.narrateScreenIfNarrationEnabled(true);
-			}
+		if (backButton.active) {
+			return;
+		}
+
+		int elapsedSeconds = inactiveTicks++ / 20;
+		backButton.visible = elapsedSeconds >= SECONDS_BEFORE_BACK_BUTTON_APPEARS;
+		backButton.setMessage(BUTTON_TEXTS[elapsedSeconds]);
+
+		if (elapsedSeconds == SECONDS_BEFORE_BACK_BUTTON_ACTIVATES) {
+			backButton.active = true;
+			narrateScreenIfNarrationEnabled(true);
 		}
 	}
 
@@ -80,15 +81,15 @@ public class WaitingForResponseScreen extends Screen {
 
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return this.backButton.active;
+		return backButton.active;
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	public @Nullable Screen getParentScreen() {
-		return this.parent;
+		return parent;
 	}
 }

@@ -9,32 +9,30 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * {@code BiomeEffects}.
+ * Визуальные эффекты биома: цвет воды, листвы, травы и модификатор цвета травы.
+ * Используется при рендеринге мира на клиенте.
  */
 public record BiomeEffects(
-		int waterColor,
-		Optional<Integer> foliageColor,
-		Optional<Integer> dryFoliageColor,
-		Optional<Integer> grassColor,
-		BiomeEffects.GrassColorModifier grassColorModifier
+	int waterColor,
+	Optional<Integer> foliageColor,
+	Optional<Integer> dryFoliageColor,
+	Optional<Integer> grassColor,
+	BiomeEffects.GrassColorModifier grassColorModifier
 ) {
 
 	public static final Codec<BiomeEffects> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Codecs.HEX_RGB.fieldOf("water_color").forGetter(BiomeEffects::waterColor),
-					                    Codecs.HEX_RGB.optionalFieldOf("foliage_color").forGetter(BiomeEffects::foliageColor),
-					                    Codecs.HEX_RGB.optionalFieldOf("dry_foliage_color").forGetter(BiomeEffects::dryFoliageColor),
-					                    Codecs.HEX_RGB.optionalFieldOf("grass_color").forGetter(BiomeEffects::grassColor),
-					                    BiomeEffects.GrassColorModifier.CODEC
-							                    .optionalFieldOf("grass_color_modifier", BiomeEffects.GrassColorModifier.NONE)
-							                    .forGetter(BiomeEffects::grassColorModifier)
-			                    )
-			                    .apply(instance, BiomeEffects::new)
+		instance -> instance.group(
+			Codecs.HEX_RGB.fieldOf("water_color").forGetter(BiomeEffects::waterColor),
+			Codecs.HEX_RGB.optionalFieldOf("foliage_color").forGetter(BiomeEffects::foliageColor),
+			Codecs.HEX_RGB.optionalFieldOf("dry_foliage_color").forGetter(BiomeEffects::dryFoliageColor),
+			Codecs.HEX_RGB.optionalFieldOf("grass_color").forGetter(BiomeEffects::grassColor),
+			BiomeEffects.GrassColorModifier.CODEC
+				.optionalFieldOf("grass_color_modifier", BiomeEffects.GrassColorModifier.NONE)
+				.forGetter(BiomeEffects::grassColorModifier)
+		)
+		.apply(instance, BiomeEffects::new)
 	);
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private OptionalInt waterColor = OptionalInt.empty();
@@ -68,26 +66,22 @@ public record BiomeEffects(
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return BiomeEffects — результат операции
-		 */
 		public BiomeEffects build() {
 			return new BiomeEffects(
-					this.waterColor.orElseThrow(() -> new IllegalStateException("Missing 'water' color.")),
-					this.foliageColor,
-					this.dryFoliageColor,
-					this.grassColor,
-					this.grassColorModifier
+				waterColor.orElseThrow(() -> new IllegalStateException("Missing 'water' color.")),
+				foliageColor,
+				dryFoliageColor,
+				grassColor,
+				grassColorModifier
 			);
 		}
 	}
 
 	/**
-	 * {@code GrassColorModifier}.
+	 * Модификатор цвета травы, применяемый поверх базового цвета из карты цветов.
+	 * DARK_FOREST и SWAMP переопределяют цвет специфичной для биома логикой.
 	 */
-	public static enum GrassColorModifier implements StringIdentifiable {
+	public enum GrassColorModifier implements StringIdentifiable {
 		NONE("none") {
 			@Override
 			public int getModifiedGrassColor(double x, double z, int color) {
@@ -95,37 +89,41 @@ public record BiomeEffects(
 			}
 		},
 		DARK_FOREST("dark_forest") {
+			// Усредняет цвет травы с тёмно-зелёным оттенком тёмного леса (0x28340A)
 			@Override
 			public int getModifiedGrassColor(double x, double z, int color) {
-				return (color & 16711422) + 2634762 >> 1;
+				return (color & 0xFEFEFE) + 0x28340A >> 1;
 			}
 		},
 		SWAMP("swamp") {
+			// Цвет травы болота зависит от шума Фолиажа: тёмно-зелёный или оливковый
 			@Override
 			public int getModifiedGrassColor(double x, double z, int color) {
-				double d = Biome.FOLIAGE_NOISE.sample(x * 0.0225, z * 0.0225, false);
-				return d < -0.1 ? 5011004 : 6975545;
+				double noiseSample = Biome.FOLIAGE_NOISE.sample(x * 0.0225, z * 0.0225, false);
+				return noiseSample < -0.1 ? 0x4C763C : 0x6A7039;
 			}
 		};
 
-		private final String name;
-		public static final Codec<BiomeEffects.GrassColorModifier>
-				CODEC =
-				StringIdentifiable.createCodec(BiomeEffects.GrassColorModifier::values);
+		private static final int DARK_FOREST_TINT = 0x28340A;
 
-		public abstract int getModifiedGrassColor(double x, double z, int color);
+		private final String name;
+
+		public static final Codec<BiomeEffects.GrassColorModifier>
+			CODEC = StringIdentifiable.createCodec(BiomeEffects.GrassColorModifier::values);
 
 		GrassColorModifier(final String name) {
 			this.name = name;
 		}
 
+		public abstract int getModifiedGrassColor(double x, double z, int color);
+
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

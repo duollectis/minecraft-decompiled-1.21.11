@@ -9,12 +9,15 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4300}.
+ * Схема DataFixer версии 4300, обновляющая регистрацию вьючных животных:
+ * лама, торговая лама, осёл и мул теперь имеют инвентарь {@code Items},
+ * а лошадь, скелетная лошадь и зомби-лошадь регистрируются как простые сущности
+ * (без инвентаря, поскольку их снаряжение перенесено в компонент {@code ENTITY_EQUIPMENT}).
  */
 public class Schema4300 extends IdentifierNormalizingSchema {
 
-	public Schema4300(int i, Schema schema) {
-		super(i, schema);
+	public Schema4300(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

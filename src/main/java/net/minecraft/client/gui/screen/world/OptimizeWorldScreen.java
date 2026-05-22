@@ -29,21 +29,30 @@ import org.slf4j.Logger;
 
 import java.util.function.ToIntFunction;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OptimizeWorldScreen}.
+ * Экран оптимизации (обновления) мира до текущей версии.
+ * Отображает прогресс обновления чанков по измерениям с цветовой индикацией.
  */
+@Environment(EnvType.CLIENT)
 public class OptimizeWorldScreen extends Screen {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int TITLE_Y = 20;
+	private static final int INFO_Y = 40;
+	private static final int INFO_LINE_SPACING = 12;
+	private static final int COLOR_OVERWORLD = -13408734;
+	private static final int COLOR_NETHER = -10075085;
+	private static final int COLOR_END = -8943531;
+	private static final int COLOR_DEFAULT = -2236963;
 	private static final ToIntFunction<RegistryKey<World>> DIMENSION_COLORS = Util.make(
 			new Reference2IntOpenHashMap(), map -> {
-				map.put(World.OVERWORLD, -13408734);
-				map.put(World.NETHER, -10075085);
-				map.put(World.END, -8943531);
-				map.defaultReturnValue(-2236963);
+				map.put(World.OVERWORLD, COLOR_OVERWORLD);
+				map.put(World.NETHER, COLOR_NETHER);
+				map.put(World.END, COLOR_END);
+				map.defaultReturnValue(COLOR_DEFAULT);
 			}
 	);
+
 	private final BooleanConsumer callback;
 	private final WorldUpdater updater;
 
@@ -55,36 +64,27 @@ public class OptimizeWorldScreen extends Screen {
 			boolean eraseCache
 	) {
 		try {
-			IntegratedServerLoader integratedServerLoader = client.createIntegratedServerLoader();
+			IntegratedServerLoader serverLoader = client.createIntegratedServerLoader();
 			ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(storageSession);
 
-			OptimizeWorldScreen var10;
-			try (SaveLoader saveLoader = integratedServerLoader.load(
+			try (SaveLoader saveLoader = serverLoader.load(
 					storageSession.readLevelProperties(),
 					false,
 					resourcePackManager
-			)
-			) {
+			)) {
 				SaveProperties saveProperties = saveLoader.saveProperties();
-				DynamicRegistryManager.Immutable
-						immutable =
-						saveLoader.combinedDynamicRegistries().getCombinedRegistryManager();
-				storageSession.backupLevelDataFile(immutable, saveProperties);
-				var10 =
-						new OptimizeWorldScreen(
-								callback,
-								dataFixer,
-								storageSession,
-								saveProperties,
-								eraseCache,
-								immutable
-						);
-			}
+				DynamicRegistryManager.Immutable registries = saveLoader
+						.combinedDynamicRegistries()
+						.getCombinedRegistryManager();
+				storageSession.backupLevelDataFile(registries, saveProperties);
 
-			return var10;
+				return new OptimizeWorldScreen(
+						callback, dataFixer, storageSession, saveProperties, eraseCache, registries
+				);
+			}
 		}
-		catch (Exception var13) {
-			LOGGER.warn("Failed to load datapacks, can't optimize world", var13);
+		catch (Exception exception) {
+			LOGGER.warn("Failed to load datapacks, can't optimize world", exception);
 			return null;
 		}
 	}
@@ -105,92 +105,96 @@ public class OptimizeWorldScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		this.addDrawableChild(ButtonWidget.builder(
+		addDrawableChild(ButtonWidget.builder(
 				ScreenTexts.CANCEL, button -> {
-					this.updater.cancel();
-					this.callback.accept(false);
+					updater.cancel();
+					callback.accept(false);
 				}
-		).dimensions(this.width / 2 - 100, this.height / 4 + 150, 200, 20).build());
+		).dimensions(width / 2 - 100, height / 4 + 150, 200, 20).build());
 	}
 
 	@Override
 	public void tick() {
-		if (this.updater.isDone()) {
-			this.callback.accept(true);
+		if (updater.isDone()) {
+			callback.accept(true);
 		}
 	}
 
 	@Override
 	public void close() {
-		this.callback.accept(false);
+		callback.accept(false);
 	}
 
 	@Override
 	public void removed() {
-		this.updater.cancel();
-		this.updater.close();
+		updater.cancel();
+		updater.close();
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
-		int i = this.width / 2 - 150;
-		int j = this.width / 2 + 150;
-		int k = this.height / 4 + 100;
-		int l = k + 10;
+
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
+
+		int barLeft = width / 2 - 150;
+		int barRight = width / 2 + 150;
+		int barTop = height / 4 + 100;
+		int barBottom = barTop + 10;
+
 		context.drawCenteredTextWithShadow(
-				this.textRenderer,
-				this.updater.getStatus(),
-				this.width / 2,
-				k - 9 - 2,
+				textRenderer,
+				updater.getStatus(),
+				width / 2,
+				barTop - 9 - 2,
 				-6250336
 		);
-		if (this.updater.getTotalChunkCount() > 0) {
-			context.fill(i - 1, k - 1, j + 1, l + 1, -16777216);
-			context.drawTextWithShadow(
-					this.textRenderer,
-					Text.translatable("optimizeWorld.info.converted", this.updater.getUpgradedChunkCount()),
-					i,
-					40,
-					-6250336
-			);
-			context.drawTextWithShadow(
-					this.textRenderer,
-					Text.translatable("optimizeWorld.info.skipped", this.updater.getSkippedChunkCount()),
-					i,
-					40 + 9 + 3,
-					-6250336
-			);
-			context.drawTextWithShadow(
-					this.textRenderer,
-					Text.translatable("optimizeWorld.info.total", this.updater.getTotalChunkCount()),
-					i,
-					40 + (9 + 3) * 2,
-					-6250336
-			);
-			int m = 0;
 
-			for (RegistryKey<World> registryKey : this.updater.getWorlds()) {
-				int n = MathHelper.floor(this.updater.getProgress(registryKey) * (j - i));
-				context.fill(i + m, k, i + m + n, l, DIMENSION_COLORS.applyAsInt(registryKey));
-				m += n;
+		if (updater.getTotalChunkCount() > 0) {
+			context.fill(barLeft - 1, barTop - 1, barRight + 1, barBottom + 1, -16777216);
+
+			context.drawTextWithShadow(
+					textRenderer,
+					Text.translatable("optimizeWorld.info.converted", updater.getUpgradedChunkCount()),
+					barLeft,
+					INFO_Y,
+					-6250336
+			);
+			context.drawTextWithShadow(
+					textRenderer,
+					Text.translatable("optimizeWorld.info.skipped", updater.getSkippedChunkCount()),
+					barLeft,
+					INFO_Y + INFO_LINE_SPACING,
+					-6250336
+			);
+			context.drawTextWithShadow(
+					textRenderer,
+					Text.translatable("optimizeWorld.info.total", updater.getTotalChunkCount()),
+					barLeft,
+					INFO_Y + INFO_LINE_SPACING * 2,
+					-6250336
+			);
+
+			int barOffset = 0;
+			for (RegistryKey<World> dimension : updater.getWorlds()) {
+				int segmentWidth = MathHelper.floor(updater.getProgress(dimension) * (barRight - barLeft));
+				context.fill(barLeft + barOffset, barTop, barLeft + barOffset + segmentWidth, barBottom, DIMENSION_COLORS.applyAsInt(dimension));
+				barOffset += segmentWidth;
 			}
 
-			int o = this.updater.getUpgradedChunkCount() + this.updater.getSkippedChunkCount();
-			Text text = Text.translatable("optimizeWorld.progress.counter", o, this.updater.getTotalChunkCount());
-			Text
-					text2 =
-					Text.translatable(
-							"optimizeWorld.progress.percentage",
-							MathHelper.floor(this.updater.getProgress() * 100.0F)
-					);
-			context.drawCenteredTextWithShadow(this.textRenderer, text, this.width / 2, k + 2 * 9 + 2, -6250336);
+			int processedChunks = updater.getUpgradedChunkCount() + updater.getSkippedChunkCount();
+			Text counterText = Text.translatable("optimizeWorld.progress.counter", processedChunks, updater.getTotalChunkCount());
+			Text percentText = Text.translatable(
+					"optimizeWorld.progress.percentage",
+					MathHelper.floor(updater.getProgress() * 100.0F)
+			);
+
+			context.drawCenteredTextWithShadow(textRenderer, counterText, width / 2, barTop + 2 * 9 + 2, -6250336);
 			context.drawCenteredTextWithShadow(
-					this.textRenderer,
-					text2,
-					this.width / 2,
-					k + (l - k) / 2 - 9 / 2,
+					textRenderer,
+					percentText,
+					width / 2,
+					barTop + (barBottom - barTop) / 2 - 9 / 2,
 					-6250336
 			);
 		}

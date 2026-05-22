@@ -11,10 +11,17 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
- * {@code DoubleBlockProperties}.
+ * Утилитарный класс для работы с двойными блоками (сундуки, кровати и т.д.).
+ * Предоставляет механизм получения свойств из одного или обоих блоков пары
+ * через паттерн {@link PropertyRetriever}.
  */
 public class DoubleBlockProperties {
 
+	/**
+	 * Создаёт {@link PropertySource} для двойного блока, определяя, является ли
+	 * блок одиночным, первым или вторым в паре, и находя соответствующий блок-сосед.
+	 * Возвращает fallback, если блок-сущность отсутствует или не прошёл проверку.
+	 */
 	public static <S extends BlockEntity> DoubleBlockProperties.PropertySource<S> toPropertySource(
 			BlockEntityType<S> blockEntityType,
 			Function<BlockState, DoubleBlockProperties.Type> typeMapper,
@@ -26,47 +33,47 @@ public class DoubleBlockProperties {
 			BiPredicate<WorldAccess, BlockPos> fallbackTester
 	) {
 		S blockEntity = blockEntityType.get(world, pos);
-		if (blockEntity == null) {
-			return DoubleBlockProperties.PropertyRetriever::getFallback;
-		}
-		else if (fallbackTester.test(world, pos)) {
-			return DoubleBlockProperties.PropertyRetriever::getFallback;
-		}
-		else {
-			DoubleBlockProperties.Type type = typeMapper.apply(state);
-			boolean bl = type == DoubleBlockProperties.Type.SINGLE;
-			boolean bl2 = type == DoubleBlockProperties.Type.FIRST;
-			if (bl) {
-				return new DoubleBlockProperties.PropertySource.Single<>(blockEntity);
-			}
-			else {
-				BlockPos blockPos = pos.offset(directionMapper.apply(state));
-				BlockState blockState = world.getBlockState(blockPos);
-				if (blockState.isOf(state.getBlock())) {
-					DoubleBlockProperties.Type type2 = typeMapper.apply(blockState);
-					if (type2 != DoubleBlockProperties.Type.SINGLE && type != type2
-							&& blockState.get(facingProperty) == state.get(facingProperty)) {
-						if (fallbackTester.test(world, blockPos)) {
-							return DoubleBlockProperties.PropertyRetriever::getFallback;
-						}
 
-						S blockEntity2 = blockEntityType.get(world, blockPos);
-						if (blockEntity2 != null) {
-							S blockEntity3 = bl2 ? blockEntity : blockEntity2;
-							S blockEntity4 = bl2 ? blockEntity2 : blockEntity;
-							return new DoubleBlockProperties.PropertySource.Pair<>(blockEntity3, blockEntity4);
-						}
-					}
+		if (blockEntity == null || fallbackTester.test(world, pos)) {
+			return DoubleBlockProperties.PropertyRetriever::getFallback;
+		}
+
+		DoubleBlockProperties.Type type = typeMapper.apply(state);
+		boolean isSingle = type == DoubleBlockProperties.Type.SINGLE;
+		boolean isFirst = type == DoubleBlockProperties.Type.FIRST;
+
+		if (isSingle) {
+			return new DoubleBlockProperties.PropertySource.Single<>(blockEntity);
+		}
+
+		BlockPos neighborPos = pos.offset(directionMapper.apply(state));
+		BlockState neighborState = world.getBlockState(neighborPos);
+
+		if (neighborState.isOf(state.getBlock())) {
+			DoubleBlockProperties.Type neighborType = typeMapper.apply(neighborState);
+
+			if (neighborType != DoubleBlockProperties.Type.SINGLE
+					&& type != neighborType
+					&& neighborState.get(facingProperty) == state.get(facingProperty)
+			) {
+				if (fallbackTester.test(world, neighborPos)) {
+					return DoubleBlockProperties.PropertyRetriever::getFallback;
 				}
 
-				return new DoubleBlockProperties.PropertySource.Single<>(blockEntity);
+				S neighborEntity = blockEntityType.get(world, neighborPos);
+
+				if (neighborEntity != null) {
+					S primary = isFirst ? blockEntity : neighborEntity;
+					S secondary = isFirst ? neighborEntity : blockEntity;
+
+					return new DoubleBlockProperties.PropertySource.Pair<>(primary, secondary);
+				}
 			}
 		}
+
+		return new DoubleBlockProperties.PropertySource.Single<>(blockEntity);
 	}
 
-	/**
-	 * {@code PropertyRetriever}.
-	 */
 	public interface PropertyRetriever<S, T> {
 
 		T getFromBoth(S first, S second);
@@ -76,16 +83,10 @@ public class DoubleBlockProperties {
 		T getFallback();
 	}
 
-	/**
-	 * {@code PropertySource}.
-	 */
 	public interface PropertySource<S> {
 
 		<T> T apply(DoubleBlockProperties.PropertyRetriever<? super S, T> retriever);
 
-		/**
-		 * {@code Pair}.
-		 */
 		public static final class Pair<S> implements DoubleBlockProperties.PropertySource<S> {
 
 			private final S first;
@@ -98,13 +99,10 @@ public class DoubleBlockProperties {
 
 			@Override
 			public <T> T apply(DoubleBlockProperties.PropertyRetriever<? super S, T> propertyRetriever) {
-				return propertyRetriever.getFromBoth(this.first, this.second);
+				return propertyRetriever.getFromBoth(first, second);
 			}
 		}
 
-		/**
-		 * {@code Single}.
-		 */
 		public static final class Single<S> implements DoubleBlockProperties.PropertySource<S> {
 
 			private final S single;
@@ -115,15 +113,12 @@ public class DoubleBlockProperties {
 
 			@Override
 			public <T> T apply(DoubleBlockProperties.PropertyRetriever<? super S, T> propertyRetriever) {
-				return propertyRetriever.getFrom(this.single);
+				return propertyRetriever.getFrom(single);
 			}
 		}
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		SINGLE,
 		FIRST,
 		SECOND;

@@ -12,76 +12,77 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code EntityHealthFix}.
+ * Нормализует поле здоровья сущности: устаревшее поле {@code HealF} (float) переносится
+ * в {@code Health}, а само значение приводится к типу float для единообразия формата.
  */
 public class EntityHealthFix extends DataFix {
 
 	private static final Set<String> ENTITIES = Sets.newHashSet(
-			new String[]{
-					"ArmorStand",
-					"Bat",
-					"Blaze",
-					"CaveSpider",
-					"Chicken",
-					"Cow",
-					"Creeper",
-					"EnderDragon",
-					"Enderman",
-					"Endermite",
-					"EntityHorse",
-					"Ghast",
-					"Giant",
-					"Guardian",
-					"LavaSlime",
-					"MushroomCow",
-					"Ozelot",
-					"Pig",
-					"PigZombie",
-					"Rabbit",
-					"Sheep",
-					"Shulker",
-					"Silverfish",
-					"Skeleton",
-					"Slime",
-					"SnowMan",
-					"Spider",
-					"Squid",
-					"Villager",
-					"VillagerGolem",
-					"Witch",
-					"WitherBoss",
-					"Wolf",
-					"Zombie"
-			}
+			"ArmorStand",
+			"Bat",
+			"Blaze",
+			"CaveSpider",
+			"Chicken",
+			"Cow",
+			"Creeper",
+			"EnderDragon",
+			"Enderman",
+			"Endermite",
+			"EntityHorse",
+			"Ghast",
+			"Giant",
+			"Guardian",
+			"LavaSlime",
+			"MushroomCow",
+			"Ozelot",
+			"Pig",
+			"PigZombie",
+			"Rabbit",
+			"Sheep",
+			"Shulker",
+			"Silverfish",
+			"Skeleton",
+			"Slime",
+			"SnowMan",
+			"Spider",
+			"Squid",
+			"Villager",
+			"VillagerGolem",
+			"Witch",
+			"WitherBoss",
+			"Wolf",
+			"Zombie"
 	);
 
-	public EntityHealthFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public EntityHealthFix(Schema outputSchema, boolean changesType) {
+		super(outputSchema, changesType);
 	}
 
-	public Dynamic<?> fixHealth(Dynamic<?> entityDynamic) {
-		Optional<Number> optional = entityDynamic.get("HealF").asNumber().result();
-		Optional<Number> optional2 = entityDynamic.get("Health").asNumber().result();
-		float f;
-		if (optional.isPresent()) {
-			f = optional.get().floatValue();
-			entityDynamic = entityDynamic.remove("HealF");
-		}
-		else {
-			if (!optional2.isPresent()) {
-				return entityDynamic;
+	private Dynamic<?> fixHealth(Dynamic<?> entity) {
+		Optional<Number> healF = entity.get("HealF").asNumber().result();
+		Optional<Number> health = entity.get("Health").asNumber().result();
+
+		float healthValue;
+
+		if (healF.isPresent()) {
+			healthValue = healF.get().floatValue();
+			entity = entity.remove("HealF");
+		} else {
+			if (health.isEmpty()) {
+				return entity;
 			}
 
-			f = optional2.get().floatValue();
+			healthValue = health.get().floatValue();
 		}
 
-		return entityDynamic.set("Health", entityDynamic.createFloat(f));
+		return entity.set("Health", entity.createFloat(healthValue));
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"EntityHealthFix",
-				this.getInputSchema().getType(TypeReferences.ENTITY),
+				getInputSchema().getType(TypeReferences.ENTITY),
 				entityTyped -> entityTyped.update(DSL.remainderFinder(), this::fixHealth)
 		);
 	}

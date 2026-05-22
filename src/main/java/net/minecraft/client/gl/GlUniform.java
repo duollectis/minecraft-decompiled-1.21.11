@@ -5,27 +5,30 @@ import com.mojang.blaze3d.textures.TextureFormat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlUniform}.
+ * Запечатанный интерфейс, описывающий привязку uniform-ресурса к шейдерной программе.
+ * Три варианта: UBO-блок ({@link UniformBuffer}), текстурный буфер ({@link TexelBuffer})
+ * и обычный сэмплер ({@link Sampler}).
  */
+@Environment(EnvType.CLIENT)
 public sealed interface GlUniform extends AutoCloseable permits GlUniform.UniformBuffer, GlUniform.TexelBuffer, GlUniform.Sampler {
 
 	@Override
 	default void close() {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Sampler}.
+	 * Привязка uniform buffer object (UBO) к индексу блока шейдера.
 	 */
-	public record Sampler(int location, int samplerIndex) implements GlUniform {
+	@Environment(EnvType.CLIENT)
+	public record UniformBuffer(int blockBinding) implements GlUniform {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TexelBuffer}.
+	 * Привязка текстурного буфера (TBO) к uniform-сэмплеру.
+	 * При создании без явного {@code texture} автоматически генерирует новый GL-объект текстуры.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record TexelBuffer(int location, int samplerIndex, TextureFormat format, int texture) implements GlUniform {
 
 		public TexelBuffer(int location, int samplerIndex, TextureFormat format) {
@@ -34,14 +37,14 @@ public sealed interface GlUniform extends AutoCloseable permits GlUniform.Unifor
 
 		@Override
 		public void close() {
-			GlStateManager._deleteTexture(this.texture);
+			GlStateManager._deleteTexture(texture);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code UniformBuffer}.
+	 * Привязка обычного 2D/кубической текстуры к uniform-сэмплеру по индексу текстурного юнита.
 	 */
-	public record UniformBuffer(int blockBinding) implements GlUniform {
+	@Environment(EnvType.CLIENT)
+	public record Sampler(int location, int samplerIndex) implements GlUniform {
 	}
 }

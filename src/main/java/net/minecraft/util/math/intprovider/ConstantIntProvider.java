@@ -5,23 +5,18 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code ConstantIntProvider}.
+ * Поставщик целых чисел, всегда возвращающий одно и то же константное значение.
+ * Оптимизирован: для нуля возвращает кешированный экземпляр {@link #ZERO}.
  */
 public class ConstantIntProvider extends IntProvider {
 
 	public static final ConstantIntProvider ZERO = new ConstantIntProvider(0);
-	public static final MapCodec<ConstantIntProvider>
-			CODEC =
-			Codec.INT.fieldOf("value").xmap(ConstantIntProvider::create, ConstantIntProvider::getValue);
+	public static final MapCodec<ConstantIntProvider> CODEC = Codec.INT
+		.fieldOf("value")
+		.xmap(ConstantIntProvider::create, ConstantIntProvider::getValue);
+
 	private final int value;
 
-	/**
-	 * Create.
-	 *
-	 * @param value value
-	 *
-	 * @return ConstantIntProvider — результат операции
-	 */
 	public static ConstantIntProvider create(int value) {
 		return value == 0 ? ZERO : new ConstantIntProvider(value);
 	}
@@ -31,22 +26,22 @@ public class ConstantIntProvider extends IntProvider {
 	}
 
 	public int getValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int get(Random random) {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int getMin() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int getMax() {
-		return this.value;
+		return value;
 	}
 
 	@Override
@@ -56,6 +51,6 @@ public class ConstantIntProvider extends IntProvider {
 
 	@Override
 	public String toString() {
-		return Integer.toString(this.value);
+		return Integer.toString(value);
 	}
 }

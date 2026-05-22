@@ -7,7 +7,7 @@ import java.security.PrivateKey;
 import java.security.Signature;
 
 /**
- * Интерфейс signer.
+ * Интерфейс для создания криптографических подписей сообщений чата.
  */
 public interface Signer {
 
@@ -16,7 +16,7 @@ public interface Signer {
 	byte[] sign(SignatureUpdatable updatable);
 
 	default byte[] sign(byte[] data) {
-		return this.sign(updater -> updater.update(data));
+		return sign(updater -> updater.update(data));
 	}
 
 	static Signer create(PrivateKey privateKey, String algorithm) {
@@ -26,9 +26,8 @@ public interface Signer {
 				signature.initSign(privateKey);
 				updatable.update(signature::update);
 				return signature.sign();
-			}
-			catch (Exception var4) {
-				throw new IllegalStateException("Failed to sign message", var4);
+			} catch (Exception e) {
+				throw new IllegalStateException("Failed to sign message", e);
 			}
 		};
 	}

@@ -17,7 +17,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Function;
 
 /**
- * Класс player interact entity c2 s packet.
+ * Пакет клиент→сервер для взаимодействия игрока с сущностью.
+ * Поддерживает три типа взаимодействия: {@code INTERACT}, {@code INTERACT_AT} и {@code ATTACK},
+ * каждый из которых инкапсулирован в отдельный {@link InteractTypeHandler}.
  */
 public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketListener> {
 
@@ -160,7 +162,9 @@ public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketLis
 	}
 
 	/**
-	 * Интерфейс handler.
+	 * Серверный обработчик взаимодействия игрока с сущностью.
+	 * Реализуется на стороне сервера и вызывается диспетчером пакета для трёх
+	 * сценариев: обычное взаимодействие, взаимодействие в точке и атака.
 	 */
 	public interface Handler {
 
@@ -233,7 +237,7 @@ public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketLis
 		}
 	}
 
-	static enum InteractType {
+	enum InteractType {
 		INTERACT(PlayerInteractEntityC2SPacket.InteractHandler::new),
 		ATTACK(buf -> PlayerInteractEntityC2SPacket.ATTACK),
 		INTERACT_AT(PlayerInteractEntityC2SPacket.InteractAtHandler::new);

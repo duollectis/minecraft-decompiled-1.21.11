@@ -13,58 +13,55 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code LevitationCriterion}.
+ * Критерий: игрок левитировал на определённое расстояние за определённое время.
  */
 public class LevitationCriterion extends AbstractCriterion<LevitationCriterion.Conditions> {
 
 	@Override
-	public Codec<LevitationCriterion.Conditions> getConditionsCodec() {
-		return LevitationCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Vec3d startPos, int duration) {
-		this.trigger(player, conditions -> conditions.matches(player, startPos, duration));
+		trigger(player, conditions -> conditions.matches(player, startPos, duration));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<DistancePredicate> distance,
 			NumberRange.IntRange duration
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<LevitationCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(LevitationCriterion.Conditions::player),
-						                    DistancePredicate.CODEC
-								                    .optionalFieldOf("distance")
-								                    .forGetter(LevitationCriterion.Conditions::distance),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("duration", NumberRange.IntRange.ANY)
-								                    .forGetter(LevitationCriterion.Conditions::duration)
-				                    )
-				                    .apply(instance, LevitationCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						DistancePredicate.CODEC
+								.optionalFieldOf("distance")
+								.forGetter(Conditions::distance),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("duration", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::duration)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<LevitationCriterion.Conditions> create(DistancePredicate distance) {
-			return Criteria.LEVITATION.create(new LevitationCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> create(DistancePredicate distance) {
+			return Criteria.LEVITATION.create(new Conditions(
 					Optional.empty(),
 					Optional.of(distance),
 					NumberRange.IntRange.ANY
 			));
 		}
 
-		public boolean matches(ServerPlayerEntity player, Vec3d distance, int duration) {
-			return this.distance.isPresent() && !this.distance
-					.get()
-					.test(distance.x, distance.y, distance.z, player.getX(), player.getY(), player.getZ())
-			       ? false
-			       : this.duration.test(duration);
+		public boolean matches(ServerPlayerEntity player, Vec3d startPos, int duration) {
+			if (this.distance.isPresent()
+					&& !this.distance.get().test(startPos.x, startPos.y, startPos.z, player.getX(), player.getY(), player.getZ())
+			) {
+				return false;
+			}
+
+			return this.duration.test(duration);
 		}
 	}
 }

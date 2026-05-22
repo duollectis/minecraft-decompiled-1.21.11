@@ -8,15 +8,23 @@ import net.minecraft.world.rule.GameRules;
 import java.util.function.Predicate;
 
 /**
- * {@code BreakDoorGoal}.
+ * Цель взлома двери: постепенно разрушает дверь, если сложность и правила мира позволяют.
+ * Прогресс взлома отображается анимацией разрушения блока.
  */
 public class BreakDoorGoal extends DoorInteractGoal {
 
 	private static final int MIN_MAX_PROGRESS = 240;
+	private static final int SWING_CHANCE = 20;
+	private static final int BREAK_STAGES = 10;
+	private static final int DOOR_SWING_EVENT = 1019;
+	private static final int DOOR_BREAK_EVENT = 1021;
+	private static final int BLOCK_BREAK_EVENT = 2001;
+	private static final int BREAK_STAGE_RESET = -1;
+
 	private final Predicate<Difficulty> difficultySufficientPredicate;
 	protected int breakProgress;
-	protected int lastBreakProgress = -1;
-	protected int maxProgress = -1;
+	protected int lastBreakProgress = BREAK_STAGE_RESET;
+	protected int maxProgress = BREAK_STAGE_RESET;
 
 	public BreakDoorGoal(MobEntity mob, Predicate<Difficulty> difficultySufficientPredicate) {
 		super(mob);
@@ -29,7 +37,7 @@ public class BreakDoorGoal extends DoorInteractGoal {
 	}
 
 	protected int getMaxProgress() {
-		return Math.max(240, this.maxProgress);
+		return Math.max(MIN_MAX_PROGRESS, maxProgress);
 	}
 
 	@Override
@@ -37,66 +45,63 @@ public class BreakDoorGoal extends DoorInteractGoal {
 		if (!super.canStart()) {
 			return false;
 		}
-		else {
-			return !getServerWorld(this.mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-			       ? false
-			       : this.isDifficultySufficient(this.mob.getEntityWorld().getDifficulty()) && !this.isDoorOpen();
+
+		if (!getServerWorld(mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+			return false;
 		}
+
+		return isDifficultySufficient(mob.getEntityWorld().getDifficulty()) && !isDoorOpen();
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.breakProgress = 0;
+		breakProgress = 0;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.breakProgress <= this.getMaxProgress()
-				&& !this.isDoorOpen()
-				&& this.doorPos.isWithinDistance(this.mob.getEntityPos(), 2.0)
-				&& this.isDifficultySufficient(this.mob.getEntityWorld().getDifficulty());
+		return breakProgress <= getMaxProgress()
+				&& !isDoorOpen()
+				&& doorPos.isWithinDistance(mob.getEntityPos(), 2.0)
+				&& isDifficultySufficient(mob.getEntityWorld().getDifficulty());
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.mob.getEntityWorld().setBlockBreakingInfo(this.mob.getId(), this.doorPos, -1);
+		mob.getEntityWorld().setBlockBreakingInfo(mob.getId(), doorPos, BREAK_STAGE_RESET);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.mob.getRandom().nextInt(20) == 0) {
-			this.mob.getEntityWorld().syncWorldEvent(1019, this.doorPos, 0);
-			if (!this.mob.handSwinging) {
-				this.mob.swingHand(this.mob.getActiveHand());
+		if (mob.getRandom().nextInt(SWING_CHANCE) == 0) {
+			mob.getEntityWorld().syncWorldEvent(DOOR_SWING_EVENT, doorPos, 0);
+			if (!mob.handSwinging) {
+				mob.swingHand(mob.getActiveHand());
 			}
 		}
 
-		this.breakProgress++;
-		int i = (int) ((float) this.breakProgress / this.getMaxProgress() * 10.0F);
-		if (i != this.lastBreakProgress) {
-			this.mob.getEntityWorld().setBlockBreakingInfo(this.mob.getId(), this.doorPos, i);
-			this.lastBreakProgress = i;
+		breakProgress++;
+		int stage = (int) ((float) breakProgress / getMaxProgress() * BREAK_STAGES);
+		if (stage != lastBreakProgress) {
+			mob.getEntityWorld().setBlockBreakingInfo(mob.getId(), doorPos, stage);
+			lastBreakProgress = stage;
 		}
 
-		if (this.breakProgress == this.getMaxProgress() && this.isDifficultySufficient(this.mob
-				.getEntityWorld()
-				.getDifficulty())) {
-			this.mob.getEntityWorld().removeBlock(this.doorPos, false);
-			this.mob.getEntityWorld().syncWorldEvent(1021, this.doorPos, 0);
-			this.mob
-					.getEntityWorld()
-					.syncWorldEvent(
-							2001,
-							this.doorPos,
-							Block.getRawIdFromState(this.mob.getEntityWorld().getBlockState(this.doorPos))
-					);
+		if (breakProgress == getMaxProgress() && isDifficultySufficient(mob.getEntityWorld().getDifficulty())) {
+			mob.getEntityWorld().removeBlock(doorPos, false);
+			mob.getEntityWorld().syncWorldEvent(DOOR_BREAK_EVENT, doorPos, 0);
+			mob.getEntityWorld().syncWorldEvent(
+					BLOCK_BREAK_EVENT,
+					doorPos,
+					Block.getRawIdFromState(mob.getEntityWorld().getBlockState(doorPos))
+			);
 		}
 	}
 
 	private boolean isDifficultySufficient(Difficulty difficulty) {
-		return this.difficultySufficientPredicate.test(difficulty);
+		return difficultySufficientPredicate.test(difficulty);
 	}
 }

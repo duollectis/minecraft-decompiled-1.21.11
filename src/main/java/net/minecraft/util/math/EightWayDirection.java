@@ -6,7 +6,8 @@ import java.util.Arrays;
 import java.util.Set;
 
 /**
- * {@code EightWayDirection}.
+ * Восемь горизонтальных направлений (стороны света + диагонали).
+ * Каждое направление хранит набор составляющих {@link Direction} и суммарный смещающий вектор.
  */
 public enum EightWayDirection {
 	NORTH(Direction.NORTH),
@@ -21,27 +22,27 @@ public enum EightWayDirection {
 	private final Set<Direction> directions;
 	private final Vec3i offset;
 
-	private EightWayDirection(final Direction... directions) {
+	EightWayDirection(final Direction... directions) {
 		this.directions = Sets.immutableEnumSet(Arrays.asList(directions));
-		this.offset = new Vec3i(0, 0, 0);
+		offset = new Vec3i(0, 0, 0);
 
 		for (Direction direction : directions) {
-			this.offset
-					.setX(this.offset.getX() + direction.getOffsetX())
-					.setY(this.offset.getY() + direction.getOffsetY())
-					.setZ(this.offset.getZ() + direction.getOffsetZ());
+			offset
+					.setX(offset.getX() + direction.getOffsetX())
+					.setY(offset.getY() + direction.getOffsetY())
+					.setZ(offset.getZ() + direction.getOffsetZ());
 		}
 	}
 
 	public Set<Direction> getDirections() {
-		return this.directions;
+		return directions;
 	}
 
 	public int getOffsetX() {
-		return this.offset.getX();
+		return offset.getX();
 	}
 
 	public int getOffsetZ() {
-		return this.offset.getZ();
+		return offset.getZ();
 	}
 }

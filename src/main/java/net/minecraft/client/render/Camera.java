@@ -28,16 +28,24 @@ import org.joml.Vector3fc;
 
 import java.util.Arrays;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Camera}.
+ * Управляет позицией и ориентацией игровой камеры в мировом пространстве.
+ * Поддерживает режимы от первого и третьего лица, обрабатывает столкновения камеры
+ * с геометрией мира через рейкаст, а также определяет тип погружения (вода, лава, снег).
+ * Реализует {@link TrackedWaypoint.YawProvider} для интеграции с системой путевых точек.
  */
+@Environment(EnvType.CLIENT)
 public class Camera implements TrackedWaypoint.YawProvider {
 
 	private static final float BASE_CAMERA_DISTANCE = 4.0F;
+	/** Смещение угловых точек проекции при рейкасте столкновений камеры. */
+	private static final float CLIP_CORNER_OFFSET = 0.1F;
+	/** Смещение камеры вверх при режиме сна сущности. */
+	private static final float SLEEP_VERTICAL_OFFSET = 0.3F;
 	private static final Vector3f HORIZONTAL = new Vector3f(0.0F, 0.0F, -1.0F);
 	private static final Vector3f VERTICAL = new Vector3f(0.0F, 1.0F, 0.0F);
 	private static final Vector3f DIAGONAL = new Vector3f(-1.0F, 0.0F, 0.0F);
+
 	private boolean ready;
 	private World area;
 	private Entity focusedEntity;
@@ -53,113 +61,116 @@ public class Camera implements TrackedWaypoint.YawProvider {
 	private float cameraY;
 	private float lastCameraY;
 	private float lastTickProgress;
-	private final EnvironmentAttributeInterpolator
-			environmentAttributeInterpolator =
-			new EnvironmentAttributeInterpolator();
+	private final EnvironmentAttributeInterpolator environmentAttributeInterpolator = new EnvironmentAttributeInterpolator();
 
 	/**
-	 * Update.
+	 * Обновляет позицию и ориентацию камеры для текущего кадра.
+	 * В режиме третьего лица отодвигает камеру назад с учётом масштаба сущности
+	 * и атрибута {@link EntityAttributes#CAMERA_DISTANCE}, обрезая дистанцию по геометрии мира.
 	 *
-	 * @param area area
-	 * @param focusedEntity focused entity
-	 * @param thirdPerson third person
-	 * @param inverseView inverse view
-	 * @param tickProgress tick progress
+	 * @param area          мир, в котором находится сущность
+	 * @param focusedEntity сущность, за которой следит камера
+	 * @param thirdPerson   {@code true} — режим третьего лица
+	 * @param inverseView   {@code true} — инвертированный вид (камера смотрит спереди)
+	 * @param tickProgress  интерполяционный прогресс между тиками [0..1]
 	 */
 	public void update(World area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress) {
-		this.ready = true;
+		ready = true;
 		this.area = area;
 		this.focusedEntity = focusedEntity;
 		this.thirdPerson = thirdPerson;
-		this.lastTickProgress = tickProgress;
+		lastTickProgress = tickProgress;
+
 		if (focusedEntity.hasVehicle()
 				&& focusedEntity.getVehicle() instanceof MinecartEntity minecartEntity
 				&& minecartEntity.getController() instanceof ExperimentalMinecartController experimentalMinecartController
-				&& experimentalMinecartController.hasCurrentLerpSteps()) {
-			Vec3d vec3d = minecartEntity.getPassengerRidingPos(focusedEntity)
-			                            .subtract(minecartEntity.getEntityPos())
-			                            .subtract(focusedEntity.getVehicleAttachmentPos(minecartEntity))
-			                            .add(new Vec3d(
-					                            0.0,
-					                            MathHelper.lerp(tickProgress, this.lastCameraY, this.cameraY),
-					                            0.0
-			                            ));
-			this.setRotation(focusedEntity.getYaw(tickProgress), focusedEntity.getPitch(tickProgress));
-			this.setPos(experimentalMinecartController.getLerpedPosition(tickProgress).add(vec3d));
+				&& experimentalMinecartController.hasCurrentLerpSteps()
+		) {
+			Vec3d passengerOffset = minecartEntity.getPassengerRidingPos(focusedEntity)
+					.subtract(minecartEntity.getEntityPos())
+					.subtract(focusedEntity.getVehicleAttachmentPos(minecartEntity))
+					.add(new Vec3d(0.0, MathHelper.lerp(tickProgress, lastCameraY, cameraY), 0.0));
+			setRotation(focusedEntity.getYaw(tickProgress), focusedEntity.getPitch(tickProgress));
+			setPos(experimentalMinecartController.getLerpedPosition(tickProgress).add(passengerOffset));
 		}
 		else {
-			this.setRotation(focusedEntity.getYaw(tickProgress), focusedEntity.getPitch(tickProgress));
-			this.setPos(
+			setRotation(focusedEntity.getYaw(tickProgress), focusedEntity.getPitch(tickProgress));
+			setPos(
 					MathHelper.lerp((double) tickProgress, focusedEntity.lastX, focusedEntity.getX()),
-					MathHelper.lerp((double) tickProgress, focusedEntity.lastY, focusedEntity.getY()) + MathHelper.lerp(
-							tickProgress,
-							this.lastCameraY,
-							this.cameraY
-					),
+					MathHelper.lerp((double) tickProgress, focusedEntity.lastY, focusedEntity.getY())
+							+ MathHelper.lerp(tickProgress, lastCameraY, cameraY),
 					MathHelper.lerp((double) tickProgress, focusedEntity.lastZ, focusedEntity.getZ())
 			);
 		}
 
 		if (thirdPerson) {
 			if (inverseView) {
-				this.setRotation(this.yaw + 180.0F, -this.pitch);
+				setRotation(yaw + 180.0F, -pitch);
 			}
 
-			float f = 4.0F;
-			float g = 1.0F;
+			float entityScale = 1.0F;
+			float cameraDistance = BASE_CAMERA_DISTANCE;
 			if (focusedEntity instanceof LivingEntity livingEntity) {
-				g = livingEntity.getScale();
-				f = (float) livingEntity.getAttributeValue(EntityAttributes.CAMERA_DISTANCE);
+				entityScale = livingEntity.getScale();
+				cameraDistance = (float) livingEntity.getAttributeValue(EntityAttributes.CAMERA_DISTANCE);
 			}
 
-			float h = g;
-			float i = f;
-			if (focusedEntity.hasVehicle() && focusedEntity.getVehicle() instanceof LivingEntity livingEntity2) {
-				h = livingEntity2.getScale();
-				i = (float) livingEntity2.getAttributeValue(EntityAttributes.CAMERA_DISTANCE);
+			float vehicleScale = entityScale;
+			float vehicleDistance = cameraDistance;
+			if (focusedEntity.hasVehicle() && focusedEntity.getVehicle() instanceof LivingEntity vehicleEntity) {
+				vehicleScale = vehicleEntity.getScale();
+				vehicleDistance = (float) vehicleEntity.getAttributeValue(EntityAttributes.CAMERA_DISTANCE);
 			}
 
-			this.moveBy(-this.clipToSpace(Math.max(g * f, h * i)), 0.0F, 0.0F);
+			moveBy(-clipToSpace(Math.max(entityScale * cameraDistance, vehicleScale * vehicleDistance)), 0.0F, 0.0F);
 		}
-		else if (focusedEntity instanceof LivingEntity && ((LivingEntity) focusedEntity).isSleeping()) {
-			Direction direction = ((LivingEntity) focusedEntity).getSleepingDirection();
-			this.setRotation(direction != null ? direction.getPositiveHorizontalDegrees() - 180.0F : 0.0F, 0.0F);
-			this.moveBy(0.0F, 0.3F, 0.0F);
+		else if (focusedEntity instanceof LivingEntity livingEntity && livingEntity.isSleeping()) {
+			Direction sleepDirection = livingEntity.getSleepingDirection();
+			setRotation(sleepDirection != null ? sleepDirection.getPositiveHorizontalDegrees() - 180.0F : 0.0F, 0.0F);
+			moveBy(0.0F, SLEEP_VERTICAL_OFFSET, 0.0F);
 		}
 	}
 
 	/**
-	 * Обновляет eye height.
+	 * Плавно интерполирует высоту глаз камеры к текущей высоте глаз сущности.
+	 * Вызывается каждый тик для сглаживания перехода при приседании/вставании.
 	 */
 	public void updateEyeHeight() {
-		if (this.focusedEntity != null) {
-			this.lastCameraY = this.cameraY;
-			this.cameraY = this.cameraY + (this.focusedEntity.getStandingEyeHeight() - this.cameraY) * 0.5F;
-			this.environmentAttributeInterpolator.update(this.area, this.pos);
+		if (focusedEntity == null) {
+			return;
 		}
+
+		lastCameraY = cameraY;
+		cameraY = cameraY + (focusedEntity.getStandingEyeHeight() - cameraY) * 0.5F;
+		environmentAttributeInterpolator.update(area, pos);
 	}
 
+	/**
+	 * Обрезает дистанцию камеры до ближайшего препятствия в мире.
+	 * Проверяет 8 угловых точек вокруг позиции камеры, чтобы избежать клиппинга через стены.
+	 *
+	 * @param distance желаемая дистанция отдаления камеры
+	 * @return фактическая дистанция, не превышающая расстояние до ближайшего блока
+	 */
 	private float clipToSpace(float distance) {
-		float f = 0.1F;
+		for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++) {
+			float offsetX = ((cornerIndex & 1) * 2 - 1) * CLIP_CORNER_OFFSET;
+			float offsetY = ((cornerIndex >> 1 & 1) * 2 - 1) * CLIP_CORNER_OFFSET;
+			float offsetZ = ((cornerIndex >> 2 & 1) * 2 - 1) * CLIP_CORNER_OFFSET;
+			Vec3d rayStart = pos.add(offsetX, offsetY, offsetZ);
+			Vec3d rayEnd = rayStart.add(new Vec3d(horizontalPlane).multiply(-distance));
+			HitResult hitResult = area.raycast(new RaycastContext(
+					rayStart,
+					rayEnd,
+					RaycastContext.ShapeType.VISUAL,
+					RaycastContext.FluidHandling.NONE,
+					focusedEntity
+			));
 
-		for (int i = 0; i < 8; i++) {
-			float g = (i & 1) * 2 - 1;
-			float h = (i >> 1 & 1) * 2 - 1;
-			float j = (i >> 2 & 1) * 2 - 1;
-			Vec3d vec3d = this.pos.add(g * 0.1F, h * 0.1F, j * 0.1F);
-			Vec3d vec3d2 = vec3d.add(new Vec3d(this.horizontalPlane).multiply(-distance));
-			HitResult hitResult = this.area
-					.raycast(new RaycastContext(
-							vec3d,
-							vec3d2,
-							RaycastContext.ShapeType.VISUAL,
-							RaycastContext.FluidHandling.NONE,
-							this.focusedEntity
-					));
 			if (hitResult.getType() != HitResult.Type.MISS) {
-				float k = (float) hitResult.getPos().squaredDistanceTo(this.pos);
-				if (k < MathHelper.square(distance)) {
-					distance = MathHelper.sqrt(k);
+				float squaredDist = (float) hitResult.getPos().squaredDistanceTo(pos);
+				if (squaredDist < MathHelper.square(distance)) {
+					distance = MathHelper.sqrt(squaredDist);
 				}
 			}
 		}
@@ -167,173 +178,167 @@ public class Camera implements TrackedWaypoint.YawProvider {
 		return distance;
 	}
 
-	/**
-	 * Перемещает by.
-	 *
-	 * @param surge surge
-	 * @param heave heave
-	 * @param sway sway
-	 */
 	protected void moveBy(float surge, float heave, float sway) {
-		Vector3f vector3f = new Vector3f(sway, heave, -surge).rotate(this.rotation);
-		this.setPos(new Vec3d(this.pos.x + vector3f.x, this.pos.y + vector3f.y, this.pos.z + vector3f.z));
+		Vector3f offset = new Vector3f(sway, heave, -surge).rotate(rotation);
+		setPos(new Vec3d(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z));
 	}
 
 	protected void setRotation(float yaw, float pitch) {
 		this.pitch = pitch;
 		this.yaw = yaw;
-		this.rotation.rotationYXZ(
+		rotation.rotationYXZ(
 				(float) Math.PI - yaw * (float) (Math.PI / 180.0),
 				-pitch * (float) (Math.PI / 180.0),
 				0.0F
 		);
-		HORIZONTAL.rotate(this.rotation, this.horizontalPlane);
-		VERTICAL.rotate(this.rotation, this.verticalPlane);
-		DIAGONAL.rotate(this.rotation, this.diagonalPlane);
+		HORIZONTAL.rotate(rotation, horizontalPlane);
+		VERTICAL.rotate(rotation, verticalPlane);
+		DIAGONAL.rotate(rotation, diagonalPlane);
 	}
 
 	protected void setPos(double x, double y, double z) {
-		this.setPos(new Vec3d(x, y, z));
+		setPos(new Vec3d(x, y, z));
 	}
 
 	protected void setPos(Vec3d pos) {
 		this.pos = pos;
-		this.blockPos.set(pos.x, pos.y, pos.z);
+		blockPos.set(pos.x, pos.y, pos.z);
 	}
 
 	@Override
 	public Vec3d getCameraPos() {
-		return this.pos;
+		return pos;
 	}
 
 	public BlockPos getBlockPos() {
-		return this.blockPos;
+		return blockPos;
 	}
 
 	public float getPitch() {
-		return this.pitch;
+		return pitch;
 	}
 
 	public float getYaw() {
-		return this.yaw;
+		return yaw;
 	}
 
 	@Override
 	public float getCameraYaw() {
-		return MathHelper.wrapDegrees(this.getYaw());
+		return MathHelper.wrapDegrees(getYaw());
 	}
 
 	public Quaternionf getRotation() {
-		return this.rotation;
+		return rotation;
 	}
 
 	public Entity getFocusedEntity() {
-		return this.focusedEntity;
+		return focusedEntity;
 	}
 
 	public boolean isReady() {
-		return this.ready;
+		return ready;
 	}
 
 	public boolean isThirdPerson() {
-		return this.thirdPerson;
+		return thirdPerson;
 	}
 
 	public EnvironmentAttributeInterpolator getEnvironmentAttributeInterpolator() {
-		return this.environmentAttributeInterpolator;
+		return environmentAttributeInterpolator;
 	}
 
+	/**
+	 * Вычисляет проекцию ближней плоскости камеры в мировых координатах.
+	 * Используется для определения типа погружения камеры (вода, лава, снег).
+	 *
+	 * @return объект {@link Projection} с центром и осями ближней плоскости
+	 */
 	public Camera.Projection getProjection() {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		double
-				d =
-				(double) minecraftClient.getWindow().getFramebufferWidth() / minecraftClient
-						.getWindow()
-						.getFramebufferHeight();
-		double
-				e =
-				Math.tan(minecraftClient.options.getFov().getValue().intValue() * (float) (Math.PI / 180.0) / 2.0)
-						* 0.05F;
-		double f = e * d;
-		Vec3d vec3d = new Vec3d(this.horizontalPlane).multiply(0.05F);
-		Vec3d vec3d2 = new Vec3d(this.diagonalPlane).multiply(f);
-		Vec3d vec3d3 = new Vec3d(this.verticalPlane).multiply(e);
-		return new Camera.Projection(vec3d, vec3d2, vec3d3);
+		MinecraftClient client = MinecraftClient.getInstance();
+		double aspectRatio = (double) client.getWindow().getFramebufferWidth() / client.getWindow().getFramebufferHeight();
+		double halfFovTan = Math.tan(client.options.getFov().getValue().intValue() * (float) (Math.PI / 180.0) / 2.0) * 0.05F;
+		double halfFovTanX = halfFovTan * aspectRatio;
+		Vec3d center = new Vec3d(horizontalPlane).multiply(0.05F);
+		Vec3d axisX = new Vec3d(diagonalPlane).multiply(halfFovTanX);
+		Vec3d axisY = new Vec3d(verticalPlane).multiply(halfFovTan);
+		return new Camera.Projection(center, axisX, axisY);
 	}
 
+	/**
+	 * Определяет тип среды, в которую погружена камера (вода, лава, порошковый снег).
+	 * Проверяет центр и четыре угла ближней плоскости проекции.
+	 *
+	 * @return тип погружения камеры
+	 */
 	public CameraSubmersionType getSubmersionType() {
-		if (!this.ready) {
+		if (!ready) {
 			return CameraSubmersionType.NONE;
 		}
-		else {
-			FluidState fluidState = this.area.getFluidState(this.blockPos);
-			if (fluidState.isIn(FluidTags.WATER) && this.pos.y < this.blockPos.getY() + fluidState.getHeight(
-					this.area,
-					this.blockPos
-			)) {
-				return CameraSubmersionType.WATER;
+
+		FluidState fluidState = area.getFluidState(blockPos);
+		if (fluidState.isIn(FluidTags.WATER)
+				&& pos.y < blockPos.getY() + fluidState.getHeight(area, blockPos)
+		) {
+			return CameraSubmersionType.WATER;
+		}
+
+		Camera.Projection projection = getProjection();
+
+		for (Vec3d corner : Arrays.asList(
+				projection.center,
+				projection.getBottomRight(),
+				projection.getTopRight(),
+				projection.getBottomLeft(),
+				projection.getTopLeft()
+		)) {
+			Vec3d checkPos = pos.add(corner);
+			BlockPos checkBlock = BlockPos.ofFloored(checkPos);
+			FluidState lavaState = area.getFluidState(checkBlock);
+
+			if (lavaState.isIn(FluidTags.LAVA)) {
+				if (checkPos.y <= lavaState.getHeight(area, checkBlock) + checkBlock.getY()) {
+					return CameraSubmersionType.LAVA;
+				}
 			}
 			else {
-				Camera.Projection projection = this.getProjection();
-
-				for (Vec3d vec3d : Arrays.asList(
-						projection.center,
-						projection.getBottomRight(),
-						projection.getTopRight(),
-						projection.getBottomLeft(),
-						projection.getTopLeft()
-				)) {
-					Vec3d vec3d2 = this.pos.add(vec3d);
-					BlockPos blockPos = BlockPos.ofFloored(vec3d2);
-					FluidState fluidState2 = this.area.getFluidState(blockPos);
-					if (fluidState2.isIn(FluidTags.LAVA)) {
-						if (vec3d2.y <= fluidState2.getHeight(this.area, blockPos) + blockPos.getY()) {
-							return CameraSubmersionType.LAVA;
-						}
-					}
-					else {
-						BlockState blockState = this.area.getBlockState(blockPos);
-						if (blockState.isOf(Blocks.POWDER_SNOW)) {
-							return CameraSubmersionType.POWDER_SNOW;
-						}
-					}
+				BlockState blockState = area.getBlockState(checkBlock);
+				if (blockState.isOf(Blocks.POWDER_SNOW)) {
+					return CameraSubmersionType.POWDER_SNOW;
 				}
-
-				return CameraSubmersionType.NONE;
 			}
 		}
+
+		return CameraSubmersionType.NONE;
 	}
 
 	public Vector3fc getHorizontalPlane() {
-		return this.horizontalPlane;
+		return horizontalPlane;
 	}
 
 	public Vector3fc getVerticalPlane() {
-		return this.verticalPlane;
+		return verticalPlane;
 	}
 
 	public Vector3fc getDiagonalPlane() {
-		return this.diagonalPlane;
+		return diagonalPlane;
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
-		this.area = null;
-		this.focusedEntity = null;
-		this.environmentAttributeInterpolator.clear();
-		this.ready = false;
+		area = null;
+		focusedEntity = null;
+		environmentAttributeInterpolator.clear();
+		ready = false;
 	}
 
 	public float getLastTickProgress() {
-		return this.lastTickProgress;
+		return lastTickProgress;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Projection}.
+	 * Описывает ближнюю плоскость проекции камеры в мировых координатах.
+	 * Используется для проверки погружения камеры в жидкости и блоки.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Projection {
 
 		final Vec3d center;
@@ -347,23 +352,23 @@ public class Camera implements TrackedWaypoint.YawProvider {
 		}
 
 		public Vec3d getBottomRight() {
-			return this.center.add(this.y).add(this.x);
+			return center.add(y).add(x);
 		}
 
 		public Vec3d getTopRight() {
-			return this.center.add(this.y).subtract(this.x);
+			return center.add(y).subtract(x);
 		}
 
 		public Vec3d getBottomLeft() {
-			return this.center.subtract(this.y).add(this.x);
+			return center.subtract(y).add(x);
 		}
 
 		public Vec3d getTopLeft() {
-			return this.center.subtract(this.y).subtract(this.x);
+			return center.subtract(y).subtract(x);
 		}
 
 		public Vec3d getPosition(float factorX, float factorY) {
-			return this.center.add(this.y.multiply(factorY)).subtract(this.x.multiply(factorX));
+			return center.add(y.multiply(factorY)).subtract(x.multiply(factorX));
 		}
 	}
 }

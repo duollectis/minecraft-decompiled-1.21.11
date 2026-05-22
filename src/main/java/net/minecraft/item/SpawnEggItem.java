@@ -37,7 +37,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code SpawnEggItem}.
+ * Предмет «Яйцо призыва». При использовании на блоке-спавнере меняет тип существа.
+ * При использовании на жидкости или твёрдом блоке — спавнит существо рядом.
+ * Поддерживает спавн детёнышей при использовании на уже существующем существе.
  */
 public class SpawnEggItem extends Item {
 
@@ -45,140 +47,166 @@ public class SpawnEggItem extends Item {
 
 	public SpawnEggItem(Item.Settings settings) {
 		super(settings);
-		TypedEntityData<EntityType<?>> typedEntityData = this.getComponents().get(DataComponentTypes.ENTITY_DATA);
-		if (typedEntityData != null) {
-			SPAWN_EGGS.put(typedEntityData.getType(), this);
+		TypedEntityData<EntityType<?>> entityData = getComponents().get(DataComponentTypes.ENTITY_DATA);
+
+		if (entityData != null) {
+			SPAWN_EGGS.put(entityData.getType(), this);
 		}
 	}
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		if (!(world instanceof ServerWorld serverWorld)) {
-			return ActionResult.SUCCESS;
-		}
-		else {
-			ItemStack itemStack = context.getStack();
-			BlockPos blockPos = context.getBlockPos();
-			Direction direction = context.getSide();
-			BlockState blockState = world.getBlockState(blockPos);
-			if (world.getBlockEntity(blockPos) instanceof Spawner spawner) {
-				EntityType<?> entityType = this.getEntityType(itemStack);
-				if (entityType == null) {
-					return ActionResult.FAIL;
-				}
-				else if (!serverWorld.areSpawnerBlocksEnabled()) {
-					if (context.getPlayer() instanceof ServerPlayerEntity serverPlayerEntity) {
-						serverPlayerEntity.sendMessage(Text.translatable("advMode.notEnabled.spawner"));
-					}
 
-					return ActionResult.FAIL;
-				}
-				else {
-					spawner.setEntityType(entityType, world.getRandom());
-					world.updateListeners(blockPos, blockState, blockState, 3);
-					world.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_CHANGE, blockPos);
-					itemStack.decrement(1);
-					return ActionResult.SUCCESS;
-				}
-			}
-			else {
-				BlockPos blockPos2;
-				if (blockState.getCollisionShape(world, blockPos).isEmpty()) {
-					blockPos2 = blockPos;
-				}
-				else {
-					blockPos2 = blockPos.offset(direction);
-				}
-
-				return this.spawnMobEntity(
-						context.getPlayer(),
-						itemStack,
-						world,
-						blockPos2,
-						true,
-						!Objects.equals(blockPos, blockPos2) && direction == Direction.UP
-				);
-			}
+		if (world instanceof ServerWorld serverWorld) {
+			return useOnBlockServer(context, serverWorld);
 		}
+
+		return ActionResult.SUCCESS;
 	}
 
-	private ActionResult spawnMobEntity(
-			@Nullable LivingEntity entity,
-			ItemStack stack,
-			World world,
-			BlockPos pos,
-			boolean bl,
-			boolean bl2
+	private ActionResult useOnBlockServer(ItemUsageContext context, ServerWorld serverWorld) {
+		ItemStack stack = context.getStack();
+		BlockPos pos = context.getBlockPos();
+		Direction side = context.getSide();
+		BlockState blockState = serverWorld.getBlockState(pos);
+
+		if (serverWorld.getBlockEntity(pos) instanceof Spawner spawner) {
+			return useOnSpawner(context, serverWorld, stack, pos, blockState, spawner);
+		}
+
+		BlockPos spawnPos = blockState.getCollisionShape(serverWorld, pos).isEmpty()
+			? pos
+			: pos.offset(side);
+
+		return spawnMobEntity(
+			context.getPlayer(),
+			stack,
+			serverWorld,
+			spawnPos,
+			true,
+			!Objects.equals(pos, spawnPos) && side == Direction.UP
+		);
+	}
+
+	private ActionResult useOnSpawner(
+		ItemUsageContext context,
+		ServerWorld serverWorld,
+		ItemStack stack,
+		BlockPos pos,
+		BlockState blockState,
+		Spawner spawner
 	) {
-		EntityType<?> entityType = this.getEntityType(stack);
+		EntityType<?> entityType = getEntityType(stack);
+
 		if (entityType == null) {
 			return ActionResult.FAIL;
 		}
-		else if (!entityType.isAllowedInPeaceful() && world.getDifficulty() == Difficulty.PEACEFUL) {
-			return ActionResult.FAIL;
-		}
-		else {
-			if (entityType.spawnFromItemStack(
-					(ServerWorld) world,
-					stack,
-					entity,
-					pos,
-					SpawnReason.SPAWN_ITEM_USE,
-					bl,
-					bl2
-			) != null) {
-				stack.decrementUnlessCreative(1, entity);
-				world.emitGameEvent(entity, GameEvent.ENTITY_PLACE, pos);
+
+		if (!serverWorld.areSpawnerBlocksEnabled()) {
+			if (context.getPlayer() instanceof ServerPlayerEntity serverPlayer) {
+				serverPlayer.sendMessage(Text.translatable("advMode.notEnabled.spawner"));
 			}
 
-			return ActionResult.SUCCESS;
+			return ActionResult.FAIL;
 		}
+
+		spawner.setEntityType(entityType, serverWorld.getRandom());
+		serverWorld.updateListeners(pos, blockState, blockState, 3);
+		serverWorld.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_CHANGE, pos);
+		stack.decrement(1);
+
+		return ActionResult.SUCCESS;
+	}
+
+	private ActionResult spawnMobEntity(
+		@Nullable LivingEntity entity,
+		ItemStack stack,
+		World world,
+		BlockPos pos,
+		boolean onGround,
+		boolean offsetY
+	) {
+		EntityType<?> entityType = getEntityType(stack);
+
+		if (entityType == null) {
+			return ActionResult.FAIL;
+		}
+
+		if (!entityType.isAllowedInPeaceful() && world.getDifficulty() == Difficulty.PEACEFUL) {
+			return ActionResult.FAIL;
+		}
+
+		boolean spawned = entityType.spawnFromItemStack(
+			(ServerWorld) world,
+			stack,
+			entity,
+			pos,
+			SpawnReason.SPAWN_ITEM_USE,
+			onGround,
+			offsetY
+		) != null;
+
+		if (spawned) {
+			stack.decrementUnlessCreative(1, entity);
+			world.emitGameEvent(entity, GameEvent.ENTITY_PLACE, pos);
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		BlockHitResult blockHitResult = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
-		if (blockHitResult.getType() != HitResult.Type.BLOCK) {
+		ItemStack stack = user.getStackInHand(hand);
+		BlockHitResult hitResult = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
+
+		if (hitResult.getType() != HitResult.Type.BLOCK) {
 			return ActionResult.PASS;
 		}
-		else if (world instanceof ServerWorld serverWorld) {
-			BlockPos blockPos = blockHitResult.getBlockPos();
-			if (!(world.getBlockState(blockPos).getBlock() instanceof FluidBlock)) {
-				return ActionResult.PASS;
-			}
-			else if (world.canEntityModifyAt(user, blockPos) && user.canPlaceOn(
-					blockPos,
-					blockHitResult.getSide(),
-					itemStack
-			)) {
-				ActionResult actionResult = this.spawnMobEntity(user, itemStack, world, blockPos, false, false);
-				if (actionResult == ActionResult.SUCCESS) {
-					user.incrementStat(Stats.USED.getOrCreateStat(this));
-				}
 
-				return actionResult;
-			}
-			else {
-				return ActionResult.FAIL;
-			}
+		if (world instanceof ServerWorld serverWorld) {
+			return useOnFluidServer(serverWorld, user, stack, hitResult);
 		}
-		else {
-			return ActionResult.SUCCESS;
+
+		return ActionResult.SUCCESS;
+	}
+
+	private ActionResult useOnFluidServer(
+		ServerWorld serverWorld,
+		PlayerEntity user,
+		ItemStack stack,
+		BlockHitResult hitResult
+	) {
+		BlockPos pos = hitResult.getBlockPos();
+
+		if (!(serverWorld.getBlockState(pos).getBlock() instanceof FluidBlock)) {
+			return ActionResult.PASS;
 		}
+
+		if (!serverWorld.canEntityModifyAt(user, pos)
+			|| !user.canPlaceOn(pos, hitResult.getSide(), stack)
+		) {
+			return ActionResult.FAIL;
+		}
+
+		ActionResult result = spawnMobEntity(user, stack, serverWorld, pos, false, false);
+
+		if (result == ActionResult.SUCCESS) {
+			user.incrementStat(Stats.USED.getOrCreateStat(this));
+		}
+
+		return result;
 	}
 
 	public boolean isOfSameEntityType(ItemStack stack, EntityType<?> entityType) {
-		return Objects.equals(this.getEntityType(stack), entityType);
+		return Objects.equals(getEntityType(stack), entityType);
 	}
 
 	/**
-	 * For entity.
+	 * Возвращает яйцо призыва для указанного типа сущности, или {@code null} если не найдено.
 	 *
-	 * @param type type
-	 *
-	 * @return @Nullable SpawnEggItem — результат операции
+	 * @param type тип сущности
+	 * @return яйцо призыва или {@code null}
 	 */
 	public static @Nullable SpawnEggItem forEntity(@Nullable EntityType<?> type) {
 		return SPAWN_EGGS.get(type);
@@ -189,66 +217,72 @@ public class SpawnEggItem extends Item {
 	}
 
 	public @Nullable EntityType<?> getEntityType(ItemStack stack) {
-		TypedEntityData<EntityType<?>> typedEntityData = stack.get(DataComponentTypes.ENTITY_DATA);
-		return typedEntityData != null ? typedEntityData.getType() : null;
+		TypedEntityData<EntityType<?>> entityData = stack.get(DataComponentTypes.ENTITY_DATA);
+		return entityData != null ? entityData.getType() : null;
 	}
 
 	@Override
 	public FeatureSet getRequiredFeatures() {
-		return Optional.ofNullable(this.getComponents().get(DataComponentTypes.ENTITY_DATA))
-		               .map(TypedEntityData::getType)
-		               .map(EntityType::getRequiredFeatures)
-		               .orElseGet(FeatureSet::empty);
+		return Optional.ofNullable(getComponents().get(DataComponentTypes.ENTITY_DATA))
+			.map(TypedEntityData::getType)
+			.map(EntityType::getRequiredFeatures)
+			.orElseGet(FeatureSet::empty);
 	}
 
+	/**
+	 * Спавнит детёныша существа при использовании яйца на взрослой особи.
+	 * Если тип яйца не совпадает с типом существа — возвращает пустой Optional.
+	 *
+	 * @param user       игрок, использующий яйцо
+	 * @param entity     существо, на которое использовано яйцо
+	 * @param entityType тип существа для спавна детёныша
+	 * @param world      серверный мир
+	 * @param pos        позиция спавна
+	 * @param stack      стек яйца призыва
+	 * @return Optional с заспавненным детёнышем или пустой
+	 */
 	public Optional<MobEntity> spawnBaby(
-			PlayerEntity user,
-			MobEntity entity,
-			EntityType<? extends MobEntity> entityType,
-			ServerWorld world,
-			Vec3d pos,
-			ItemStack stack
+		PlayerEntity user,
+		MobEntity entity,
+		EntityType<? extends MobEntity> entityType,
+		ServerWorld world,
+		Vec3d pos,
+		ItemStack stack
 	) {
-		if (!this.isOfSameEntityType(stack, entityType)) {
+		if (!isOfSameEntityType(stack, entityType)) {
 			return Optional.empty();
 		}
-		else {
-			MobEntity mobEntity;
-			if (entity instanceof PassiveEntity) {
-				mobEntity = ((PassiveEntity) entity).createChild(world, (PassiveEntity) entity);
-			}
-			else {
-				mobEntity = entityType.create(world, SpawnReason.SPAWN_ITEM_USE);
-			}
 
-			if (mobEntity == null) {
-				return Optional.empty();
-			}
-			else {
-				mobEntity.setBaby(true);
-				if (!mobEntity.isBaby()) {
-					return Optional.empty();
-				}
-				else {
-					mobEntity.refreshPositionAndAngles(pos.getX(), pos.getY(), pos.getZ(), 0.0F, 0.0F);
-					mobEntity.copyComponentsFrom(stack);
-					world.spawnEntityAndPassengers(mobEntity);
-					stack.decrementUnlessCreative(1, user);
-					return Optional.of(mobEntity);
-				}
-			}
+		MobEntity baby = entity instanceof PassiveEntity passive
+			? passive.createChild(world, passive)
+			: entityType.create(world, SpawnReason.SPAWN_ITEM_USE);
+
+		if (baby == null) {
+			return Optional.empty();
 		}
+
+		baby.setBaby(true);
+
+		if (!baby.isBaby()) {
+			return Optional.empty();
+		}
+
+		baby.refreshPositionAndAngles(pos.getX(), pos.getY(), pos.getZ(), 0.0F, 0.0F);
+		baby.copyComponentsFrom(stack);
+		world.spawnEntityAndPassengers(baby);
+		stack.decrementUnlessCreative(1, user);
+
+		return Optional.of(baby);
 	}
 
 	@Override
 	public boolean shouldShowOperatorBlockWarnings(ItemStack stack, @Nullable PlayerEntity player) {
-		if (player != null && player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS)) {
-			TypedEntityData<EntityType<?>> typedEntityData = stack.get(DataComponentTypes.ENTITY_DATA);
-			if (typedEntityData != null) {
-				return typedEntityData.getType().canPotentiallyExecuteCommands();
-			}
+		if (player == null || !player.getPermissions().hasPermission(DefaultPermissions.GAMEMASTERS)) {
+			return false;
 		}
 
-		return false;
+		TypedEntityData<EntityType<?>> entityData = stack.get(DataComponentTypes.ENTITY_DATA);
+
+		return entityData != null && entityData.getType().canPotentiallyExecuteCommands();
 	}
 }

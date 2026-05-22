@@ -6,36 +6,46 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-@FunctionalInterface
 /**
- * {@code ResourceReloader}.
+ * Перезагрузчик ресурсов: выполняет двухфазную перезагрузку (подготовка + применение).
+ * Фаза подготовки выполняется асинхронно, фаза применения — в основном потоке.
  */
+@FunctionalInterface
 public interface ResourceReloader {
 
+	/**
+	 * Запускает перезагрузку ресурсов.
+	 *
+	 * @param store              хранилище общего состояния между перезагрузчиками
+	 * @param prepareExecutor    исполнитель фазы подготовки (фоновый поток)
+	 * @param reloadSynchronizer синхронизатор между фазами
+	 * @param applyExecutor      исполнитель фазы применения (основной поток)
+	 * @return future, завершающийся по окончании обеих фаз
+	 */
 	CompletableFuture<Void> reload(
-			ResourceReloader.Store store,
-			Executor prepareExecutor,
-			ResourceReloader.Synchronizer reloadSynchronizer,
-			Executor applyExecutor
+		ResourceReloader.Store store,
+		Executor prepareExecutor,
+		ResourceReloader.Synchronizer reloadSynchronizer,
+		Executor applyExecutor
 	);
 
-	default void prepareSharedState(ResourceReloader.Store store) {
-	}
+	default void prepareSharedState(ResourceReloader.Store store) {}
 
 	default String getName() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 
 	/**
-	 * {@code Key}.
+	 * Типизированный ключ для хранения общего состояния в {@link Store}.
+	 *
+	 * @param <T> тип значения
 	 */
-	public static final class Key<T> {
-	}
+	final class Key<T> {}
 
 	/**
-	 * {@code Store}.
+	 * Хранилище общего состояния, передаваемого между перезагрузчиками в рамках одной перезагрузки.
 	 */
-	public static final class Store {
+	final class Store {
 
 		private final ResourceManager resourceManager;
 		private final Map<ResourceReloader.Key<?>, Object> store = new IdentityHashMap<>();
@@ -45,23 +55,26 @@ public interface ResourceReloader {
 		}
 
 		public ResourceManager getResourceManager() {
-			return this.resourceManager;
+			return resourceManager;
 		}
 
 		public <T> void put(ResourceReloader.Key<T> key, T value) {
-			this.store.put(key, value);
+			store.put(key, value);
 		}
 
+		@SuppressWarnings("unchecked")
 		public <T> T getOrThrow(ResourceReloader.Key<T> key) {
-			return Objects.requireNonNull((T) this.store.get(key));
+			return Objects.requireNonNull((T) store.get(key));
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Synchronizer}.
+	 * Синхронизатор между фазой подготовки и фазой применения.
+	 * Вызов {@link #whenPrepared} сигнализирует о завершении подготовки
+	 * и возвращает future, который разрешится, когда все перезагрузчики будут готовы.
 	 */
-	public interface Synchronizer {
+	@FunctionalInterface
+	interface Synchronizer {
 
 		<T> CompletableFuture<T> whenPrepared(T preparedObject);
 	}

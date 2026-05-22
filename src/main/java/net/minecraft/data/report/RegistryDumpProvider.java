@@ -14,7 +14,10 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RegistryDumpProvider}.
+ * Генерирует JSON-дамп всех реестров игры с их записями и protocol_id.
+ * Для каждого реестра из {@link Registries#REGISTRIES} создаёт объект с полями:
+ * {@code default} (только для {@link DefaultedRegistry}), {@code protocol_id} и {@code entries}.
+ * Результат записывается в {@code reports/registries.json}.
  */
 public class RegistryDumpProvider implements DataProvider {
 
@@ -26,37 +29,46 @@ public class RegistryDumpProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		JsonObject jsonObject = new JsonObject();
+		JsonObject root = new JsonObject();
+
 		Registries.REGISTRIES
-				.streamEntries()
-				.forEach(entry -> jsonObject.add(
-						entry.registryKey().getValue().toString(),
-						toJson((Registry<?>) entry.value())
-				));
-		Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("registries.json");
-		return DataProvider.writeToPath(writer, jsonObject, path);
+			.streamEntries()
+			.forEach(entry -> root.add(
+				entry.registryKey().getValue().toString(),
+				toJson(entry.value())
+			));
+
+		Path path = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("registries.json");
+		return DataProvider.writeToPath(writer, root, path);
 	}
 
+	/**
+	 * Сериализует один реестр в JSON-объект.
+	 * Если реестр является {@link DefaultedRegistry}, добавляет поле {@code default} с идентификатором
+	 * элемента по умолчанию. Для каждой записи реестра добавляет её {@code protocol_id}.
+	 */
 	private static <T> JsonElement toJson(Registry<T> registry) {
-		JsonObject jsonObject = new JsonObject();
-		if (registry instanceof DefaultedRegistry) {
-			Identifier identifier = ((DefaultedRegistry) registry).getDefaultId();
-			jsonObject.addProperty("default", identifier.toString());
+		JsonObject registryJson = new JsonObject();
+
+		if (registry instanceof DefaultedRegistry<T> defaulted) {
+			Identifier defaultId = defaulted.getDefaultId();
+			registryJson.addProperty("default", defaultId.toString());
 		}
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		int i = ((Registry) Registries.REGISTRIES).getRawId(registry);
-		jsonObject.addProperty("protocol_id", i);
-		JsonObject jsonObject2 = new JsonObject();
+		int protocolId = ((Registry) Registries.REGISTRIES).getRawId(registry);
+		registryJson.addProperty("protocol_id", protocolId);
+
+		JsonObject entriesJson = new JsonObject();
 		registry.streamEntries().forEach(entry -> {
-			T object = entry.value();
-			int ix = registry.getRawId(object);
-			JsonObject jsonObject2x = new JsonObject();
-			jsonObject2x.addProperty("protocol_id", ix);
-			jsonObject2.add(entry.registryKey().getValue().toString(), jsonObject2x);
+			int entryProtocolId = registry.getRawId(entry.value());
+			JsonObject entryJson = new JsonObject();
+			entryJson.addProperty("protocol_id", entryProtocolId);
+			entriesJson.add(entry.registryKey().getValue().toString(), entryJson);
 		});
-		jsonObject.add("entries", jsonObject2);
-		return jsonObject;
+
+		registryJson.add("entries", entriesJson);
+		return registryJson;
 	}
 
 	@Override

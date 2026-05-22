@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Map;
 
 /**
- * {@code MapIdFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class MapIdFix extends DataFix {
 
@@ -18,9 +18,9 @@ public class MapIdFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Map id fix",
-				this.getInputSchema().getType(TypeReferences.SAVED_DATA_IDCOUNTS),
+				getInputSchema().getType(TypeReferences.SAVED_DATA_IDCOUNTS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> dynamic.createMap(Map.of(dynamic.createString("data"), dynamic))

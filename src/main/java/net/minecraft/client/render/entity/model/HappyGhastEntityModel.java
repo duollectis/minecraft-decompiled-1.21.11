@@ -95,9 +95,9 @@ public class HappyGhastEntityModel extends EntityModel<HappyGhastEntityRenderSta
 	public void setAngles(HappyGhastEntityRenderState happyGhastEntityRenderState) {
 		super.setAngles(happyGhastEntityRenderState);
 		if (!happyGhastEntityRenderState.harnessStack.isEmpty()) {
-			this.body.xScale = 0.9375F;
-			this.body.yScale = 0.9375F;
-			this.body.zScale = 0.9375F;
+			this.body.xScale = HARNESSED_SCALE;
+			this.body.yScale = HARNESSED_SCALE;
+			this.body.zScale = HARNESSED_SCALE;
 		}
 
 		GhastEntityModel.setTentacleAngles(happyGhastEntityRenderState, this.tentacles);

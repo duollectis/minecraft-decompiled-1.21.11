@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code ParticleUnflatteningFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ParticleUnflatteningFix extends DataFix {
 
@@ -34,9 +34,9 @@ public class ParticleUnflatteningFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.PARTICLE);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.PARTICLE);
-		return this.writeFixAndRead("ParticleUnflatteningFix", type, type2, this::fixParticle);
+		Type<?> type = getInputSchema().getType(TypeReferences.PARTICLE);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.PARTICLE);
+		return writeFixAndRead("ParticleUnflatteningFix", type, type2, this::fixParticle);
 	}
 
 	private <T> Dynamic<T> fixParticle(Dynamic<T> dynamic) {

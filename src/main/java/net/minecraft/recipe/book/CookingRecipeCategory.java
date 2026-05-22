@@ -10,7 +10,8 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code CookingRecipeCategory}.
+ * Категория рецепта приготовления (плавки) для отображения в книге рецептов.
+ * Определяет, в какую вкладку печи/коптильни/доменной печи попадёт рецепт.
  */
 public enum CookingRecipeCategory implements StringIdentifiable {
 	FOOD(0, "food"),
@@ -20,22 +21,21 @@ public enum CookingRecipeCategory implements StringIdentifiable {
 	private static final IntFunction<CookingRecipeCategory> BY_ID = ValueLists.createIndexToValueFunction(
 			(CookingRecipeCategory category) -> category.id, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
-	public static final Codec<CookingRecipeCategory>
-			CODEC =
-			StringIdentifiable.createCodec(CookingRecipeCategory::values);
-	public static final PacketCodec<ByteBuf, CookingRecipeCategory>
-			PACKET_CODEC =
-			PacketCodecs.indexed(BY_ID, category -> category.id);
+	public static final Codec<CookingRecipeCategory> CODEC = StringIdentifiable.createCodec(CookingRecipeCategory::values);
+	public static final PacketCodec<ByteBuf, CookingRecipeCategory> PACKET_CODEC = PacketCodecs.indexed(
+			BY_ID, category -> category.id
+	);
+
 	private final int id;
 	private final String name;
 
-	private CookingRecipeCategory(final int id, final String name) {
+	CookingRecipeCategory(final int id, final String name) {
 		this.id = id;
 		this.name = name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

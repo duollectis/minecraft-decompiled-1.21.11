@@ -73,13 +73,13 @@ public class FrogEntityModel extends EntityModel<FrogEntityRenderState> {
 				modelPartData4.addChild("eyes", ModelPartBuilder.create(), ModelTransform.origin(-0.5F, 0.0F, 2.0F));
 		modelPartData5.addChild(
 				"right_eye",
-				ModelPartBuilder.create().uv(0, 0).cuboid(-1.5F, -1.0F, -1.5F, 3.0F, 2.0F, 3.0F),
-				ModelTransform.origin(-1.5F, -3.0F, -6.5F)
+				ModelPartBuilder.create().uv(0, 0).cuboid(-WALKING_LIMB_ANGLE_SCALE, -1.0F, -WALKING_LIMB_ANGLE_SCALE, 3.0F, 2.0F, 3.0F),
+				ModelTransform.origin(-WALKING_LIMB_ANGLE_SCALE, -3.0F, -6.5F)
 		);
 		modelPartData5.addChild(
 				"left_eye",
-				ModelPartBuilder.create().uv(0, 5).cuboid(-1.5F, -1.0F, -1.5F, 3.0F, 2.0F, 3.0F),
-				ModelTransform.origin(2.5F, -3.0F, -6.5F)
+				ModelPartBuilder.create().uv(0, 5).cuboid(-WALKING_LIMB_ANGLE_SCALE, -1.0F, -WALKING_LIMB_ANGLE_SCALE, 3.0F, 2.0F, 3.0F),
+				ModelTransform.origin(LIMB_DISTANCE_SCALE, -3.0F, -6.5F)
 		);
 		modelPartData3.addChild(
 				"croaking_body",
@@ -144,15 +144,15 @@ public class FrogEntityModel extends EntityModel<FrogEntityRenderState> {
 					frogEntityRenderState.limbSwingAnimationProgress,
 					frogEntityRenderState.limbSwingAmplitude,
 					1.0F,
-					2.5F
+					LIMB_DISTANCE_SCALE
 			);
 		}
 		else {
 			this.walkingAnimation.applyWalking(
 					frogEntityRenderState.limbSwingAnimationProgress,
 					frogEntityRenderState.limbSwingAmplitude,
-					1.5F,
-					2.5F
+					WALKING_LIMB_ANGLE_SCALE,
+					LIMB_DISTANCE_SCALE
 			);
 		}
 

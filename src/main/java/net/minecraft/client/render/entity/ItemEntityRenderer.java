@@ -31,7 +31,7 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 	public ItemEntityRenderer(EntityRendererFactory.Context context) {
 		super(context);
 		this.itemModelManager = context.getItemModelManager();
-		this.shadowRadius = 0.15F;
+		this.shadowRadius = ITEM_Y_OFFSET;
 		this.shadowOpacity = 0.75F;
 	}
 
@@ -110,14 +110,14 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 			random.setSeed(state.seed);
 			ItemRenderState itemRenderState = state.itemRenderState;
 			float f = (float) boundingBox.getLengthZ();
-			if (f > 0.0625F) {
+			if (f > ITEM_PIXEL) {
 				itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 
 				for (int j = 1; j < i; j++) {
 					matrices.push();
-					float g = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
-					float h = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
-					float k = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
+					float g = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
+					float h = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
+					float k = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
 					matrices.translate(g, h, k);
 					itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 					matrices.pop();
@@ -131,8 +131,8 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 
 				for (int m = 1; m < i; m++) {
 					matrices.push();
-					float h = (random.nextFloat() * 2.0F - 1.0F) * 0.15F * 0.5F;
-					float k = (random.nextFloat() * 2.0F - 1.0F) * 0.15F * 0.5F;
+					float h = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET * 0.5F;
+					float k = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET * 0.5F;
 					matrices.translate(h, k, 0.0F);
 					itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 					matrices.pop();
@@ -155,14 +155,14 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 			random.setSeed(state.seed);
 			ItemRenderState itemRenderState = state.itemRenderState;
 			float f = (float) box.getLengthZ();
-			if (f > 0.0625F) {
+			if (f > ITEM_PIXEL) {
 				itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 
 				for (int j = 1; j < i; j++) {
 					matrices.push();
-					float g = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
-					float h = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
-					float k = (random.nextFloat() * 2.0F - 1.0F) * 0.15F;
+					float g = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
+					float h = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
+					float k = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET;
 					matrices.translate(g, h, k);
 					itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 					matrices.pop();
@@ -176,8 +176,8 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 
 				for (int m = 1; m < i; m++) {
 					matrices.push();
-					float h = (random.nextFloat() * 2.0F - 1.0F) * 0.15F * 0.5F;
-					float k = (random.nextFloat() * 2.0F - 1.0F) * 0.15F * 0.5F;
+					float h = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET * 0.5F;
+					float k = (random.nextFloat() * 2.0F - 1.0F) * ITEM_Y_OFFSET * 0.5F;
 					matrices.translate(h, k, 0.0F);
 					itemRenderState.render(matrices, queue, light, OverlayTexture.DEFAULT_UV, state.outlineColor);
 					matrices.pop();

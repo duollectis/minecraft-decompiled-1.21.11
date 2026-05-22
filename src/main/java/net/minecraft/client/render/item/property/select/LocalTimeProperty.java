@@ -22,10 +22,11 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LocalTimeProperty}.
+ * Свойство выбора, возвращающее текущее локальное время в виде отформатированной строки.
+ * Обновляется раз в секунду. Формат задаётся паттерном ICU {@code SimpleDateFormat}.
  */
+@Environment(EnvType.CLIENT)
 public class LocalTimeProperty implements SelectProperty<String> {
 
 	public static final String DEFAULT_FORMATTED_TIME = "";
@@ -59,15 +60,6 @@ public class LocalTimeProperty implements SelectProperty<String> {
 		this.dateFormat = dateFormat;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param pattern pattern
-	 * @param locale locale
-	 * @param timeZone time zone
-	 *
-	 * @return LocalTimeProperty — результат операции
-	 */
 	public static LocalTimeProperty create(String pattern, String locale, Optional<TimeZone> timeZone) {
 		return (LocalTimeProperty) validate(new LocalTimeProperty.Data(pattern, locale, timeZone))
 				.getOrThrow(format -> new IllegalStateException("Failed to validate format: " + format));
@@ -75,38 +67,36 @@ public class LocalTimeProperty implements SelectProperty<String> {
 
 	private static DataResult<LocalTimeProperty> validate(LocalTimeProperty.Data data) {
 		ULocale uLocale = new ULocale(data.localeId);
-		Calendar
-				calendar =
-				data.timeZone
-						.<Calendar>map(timeZone -> Calendar.getInstance(timeZone, uLocale))
-						.orElseGet(() -> Calendar.getInstance(uLocale));
+		Calendar calendar = data.timeZone
+				.<Calendar>map(timeZone -> Calendar.getInstance(timeZone, uLocale))
+				.orElseGet(() -> Calendar.getInstance(uLocale));
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(data.format, uLocale);
 		simpleDateFormat.setCalendar(calendar);
 
 		try {
 			simpleDateFormat.format(new Date());
 		}
-		catch (Exception var5) {
-			return DataResult.error(() -> "Invalid time format '" + simpleDateFormat + "': " + var5.getMessage());
+		catch (Exception error) {
+			return DataResult.error(() -> "Invalid time format '" + simpleDateFormat + "': " + error.getMessage());
 		}
 
 		return DataResult.success(new LocalTimeProperty(data, simpleDateFormat));
 	}
 
 	public @Nullable String getValue(
-			ItemStack itemStack,
-			@Nullable ClientWorld clientWorld,
-			@Nullable LivingEntity livingEntity,
-			int i,
-			ItemDisplayContext itemDisplayContext
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity user,
+			int seed,
+			ItemDisplayContext displayContext
 	) {
-		long l = Util.getMeasuringTimeMs();
-		if (l > this.nextUpdateTime) {
-			this.currentTimeFormatted = this.formatCurrentTime();
-			this.nextUpdateTime = l + MILLIS_PER_SECOND;
+		long now = Util.getMeasuringTimeMs();
+		if (now > nextUpdateTime) {
+			currentTimeFormatted = formatCurrentTime();
+			nextUpdateTime = now + MILLIS_PER_SECOND;
 		}
 
-		return this.currentTimeFormatted;
+		return currentTimeFormatted;
 	}
 
 	private String formatCurrentTime() {
@@ -123,10 +113,10 @@ public class LocalTimeProperty implements SelectProperty<String> {
 		return VALUE_CODEC;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Data}.
+	 * Параметры форматирования времени: паттерн, локаль и опциональный часовой пояс.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Data(String format, String localeId, Optional<TimeZone> timeZone) {
 	}
 }

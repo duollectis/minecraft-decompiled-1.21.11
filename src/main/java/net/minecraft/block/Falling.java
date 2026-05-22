@@ -7,7 +7,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code Falling}.
+ * Маркерный интерфейс для блоков, реагирующих на приземление падающего блока-сущности.
+ * Реализуется блоками, которые должны выполнять особую логику при падении (например, бетонный порошок).
  */
 public interface Falling {
 

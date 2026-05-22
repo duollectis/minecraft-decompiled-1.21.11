@@ -13,21 +13,22 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code EntityPropertiesLootCondition}.
+ * Условие, проверяющее свойства сущности через {@link EntityPredicate}.
+ *
+ * <p>Тип сущности задаётся через {@link LootContext.EntityReference} (например, THIS, KILLER).
+ * Если предикат отсутствует — условие выполняется при наличии сущности в контексте.</p>
  */
 public record EntityPropertiesLootCondition(
-		Optional<EntityPredicate> predicate,
-		LootContext.EntityReference entity
+	Optional<EntityPredicate> predicate,
+	LootContext.EntityReference entity
 ) implements LootCondition {
 
 	public static final MapCodec<EntityPropertiesLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    EntityPredicate.CODEC
-							                    .optionalFieldOf("predicate")
-							                    .forGetter(EntityPropertiesLootCondition::predicate),
-					                    LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityPropertiesLootCondition::entity)
-			                    )
-			                    .apply(instance, EntityPropertiesLootCondition::new)
+		instance -> instance.group(
+			EntityPredicate.CODEC.optionalFieldOf("predicate").forGetter(EntityPropertiesLootCondition::predicate),
+			LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityPropertiesLootCondition::entity)
+		)
+		.apply(instance, EntityPropertiesLootCondition::new)
 	);
 
 	@Override
@@ -37,20 +38,13 @@ public record EntityPropertiesLootCondition(
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Set.of(LootContextParameters.ORIGIN, this.entity.contextParam());
+		return Set.of(LootContextParameters.ORIGIN, entity.contextParam());
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
-		Entity entity = lootContext.get(this.entity.contextParam());
-		Vec3d vec3d = lootContext.get(LootContextParameters.ORIGIN);
-		return this.predicate.isEmpty() || this.predicate.get().test(lootContext.getWorld(), vec3d, entity);
+		Entity target = lootContext.get(entity.contextParam());
+		Vec3d origin = lootContext.get(LootContextParameters.ORIGIN);
+		return predicate.isEmpty() || predicate.get().test(lootContext.getWorld(), origin, target);
 	}
 
 	public static LootCondition.Builder create(LootContext.EntityReference entity) {
@@ -58,8 +52,8 @@ public record EntityPropertiesLootCondition(
 	}
 
 	public static LootCondition.Builder builder(
-			LootContext.EntityReference entity,
-			EntityPredicate.Builder predicateBuilder
+		LootContext.EntityReference entity,
+		EntityPredicate.Builder predicateBuilder
 	) {
 		return () -> new EntityPropertiesLootCondition(Optional.of(predicateBuilder.build()), entity);
 	}

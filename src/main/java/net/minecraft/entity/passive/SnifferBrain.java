@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code SnifferBrain}.
+ * Мозг снифера: регистрирует сенсоры и задачи поведения.
  */
 public class SnifferBrain {
 
@@ -141,7 +141,7 @@ public class SnifferBrain {
 								}
 						),
 						Pair.of(
-								1, new TemptTask(sniffer -> 1.25F, sniffer -> sniffer.isBaby() ? 2.5 : 3.5) {
+								1, new TemptTask(sniffer -> TEMPT_SPEED, sniffer -> sniffer.isBaby() ? 2.5 : 3.5) {
 									@Override
 									protected void run(
 											ServerWorld serverWorld,
@@ -178,8 +178,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code DiggingTask}.
-	 */
+ * Задача снифера: нюхать землю в поисках семян.
+ */
 	static class DiggingTask extends MultiTickTask<SnifferEntity> {
 
 		DiggingTask(int minRunTime, int maxRunTime) {
@@ -247,7 +247,7 @@ public class SnifferBrain {
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			boolean bl = this.isTimeLimitExceeded(l);
 			if (bl) {
-				snifferEntity.getBrain().remember(MemoryModuleType.SNIFF_COOLDOWN, Unit.INSTANCE, 9600L);
+				snifferEntity.getBrain().remember(MemoryModuleType.SNIFF_COOLDOWN, Unit.INSTANCE, SNIFF_COOLDOWN_EXPIRY);
 			}
 			else {
 				SnifferBrain.stopDiggingOrSniffing(snifferEntity);
@@ -256,8 +256,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code FeelHappyTask}.
-	 */
+ * Задача снифера: копать найденное место.
+ */
 	static class FeelHappyTask extends MultiTickTask<SnifferEntity> {
 
 		FeelHappyTask(int minRunTime, int maxRunTime) {
@@ -302,8 +302,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code FinishDiggingTask}.
-	 */
+ * Задача снифера: выкапывать предмет.
+ */
 	static class FinishDiggingTask extends MultiTickTask<SnifferEntity> {
 
 		FinishDiggingTask(int runTime) {
@@ -375,8 +375,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code ScentingTask}.
-	 */
+ * Задача снифера: бродить в поисках места для нюхания.
+ */
 	static class ScentingTask extends MultiTickTask<SnifferEntity> {
 
 		ScentingTask(int minRunTime, int maxRunTime) {
@@ -447,8 +447,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code SearchingTask}.
-	 */
+ * Задача снифера: чувствовать запах.
+ */
 	static class SearchingTask extends MultiTickTask<SnifferEntity> {
 
 		SearchingTask() {
@@ -532,8 +532,8 @@ public class SnifferBrain {
 	}
 
 	/**
-	 * {@code SniffingTask}.
-	 */
+ * Задача снифера: подниматься после копания.
+ */
 	static class SniffingTask extends MultiTickTask<SnifferEntity> {
 
 		SniffingTask(int minRunTime, int maxRunTime) {
@@ -600,7 +600,7 @@ public class SnifferBrain {
 			if (bl) {
 				snifferEntity.findSniffingTargetPos().ifPresent(pos -> {
 					snifferEntity.getBrain().remember(MemoryModuleType.SNIFFER_SNIFFING_TARGET, pos);
-					snifferEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, 1.25F, 0));
+					snifferEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, TEMPT_SPEED, 0));
 				});
 			}
 		}

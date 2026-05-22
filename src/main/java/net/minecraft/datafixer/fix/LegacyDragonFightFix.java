@@ -10,7 +10,7 @@ import net.minecraft.datafixer.FixUtil;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code LegacyDragonFightFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LegacyDragonFightFix extends DataFix {
 
@@ -23,8 +23,8 @@ public class LegacyDragonFightFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				"LegacyDragonFightFix", this.getInputSchema().getType(TypeReferences.LEVEL), typed -> typed.update(
+		return fixTypeEverywhereTyped(
+				"LegacyDragonFightFix", getInputSchema().getType(TypeReferences.LEVEL), typed -> typed.update(
 						DSL.remainderFinder(), levelData -> {
 							OptionalDynamic<?> optionalDynamic = levelData.get("DragonFight");
 							if (optionalDynamic.result().isPresent()) {

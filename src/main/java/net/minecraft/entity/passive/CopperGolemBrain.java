@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code CopperGolemBrain}.
+ * Мозг медного голема: регистрирует сенсоры и задачи поведения.
  */
 public class CopperGolemBrain {
 
@@ -100,7 +100,7 @@ public class CopperGolemBrain {
 				Activity.CORE,
 				0,
 				ImmutableList.<Task<? super CopperGolemEntity>>of(
-						new FleeTask(1.5F),
+						new FleeTask(FLEEING_SPEED),
 						new UpdateLookControlTask(45, 90),
 						new MoveToTargetTask(),
 						OpenDoorsTask.create(),
@@ -120,7 +120,7 @@ public class CopperGolemBrain {
 										1.0F,
 										INPUT_CHEST_PREDICATE,
 										OUTPUT_CHEST_PREDICATE,
-										32,
+										HORIZONTAL_RANGE,
 										8,
 										createInteractionCallbacks(),
 										createResetToIdleCallback(),
@@ -211,8 +211,7 @@ public class CopperGolemBrain {
 	}
 
 	private static Predicate<MoveItemsTask.Storage> createStoragePredicate() {
-		return storage -> storage.blockEntity() instanceof ChestBlockEntity chestBlockEntity ? !chestBlockEntity
-		                                                                                        .getViewingUsers()
-		                                                                                        .isEmpty() : false;
+		return storage -> storage.blockEntity() instanceof ChestBlockEntity chestBlockEntity
+				&& !chestBlockEntity.getViewingUsers().isEmpty();
 	}
 }

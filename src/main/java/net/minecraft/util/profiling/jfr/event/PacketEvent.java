@@ -4,12 +4,13 @@ import jdk.jfr.*;
 
 import java.net.SocketAddress;
 
+/**
+ * Абстрактное JFR-событие сетевого пакета (отправка или получение).
+ * Фиксирует идентификатор протокола, направление, тип пакета и размер в байтах.
+ */
 @Category({"Minecraft", "Network"})
 @StackTrace(false)
 @Enabled(false)
-/**
- * {@code PacketEvent}.
- */
 public abstract class PacketEvent extends Event {
 
 	@Name("protocolId")
@@ -43,9 +44,6 @@ public abstract class PacketEvent extends Event {
 		this.bytes = bytes;
 	}
 
-	/**
-	 * {@code Names}.
-	 */
 	public static final class Names {
 
 		public static final String REMOTE_ADDRESS = "remoteAddress";

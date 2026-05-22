@@ -27,38 +27,28 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatAbuseReport}.
+ * Жалоба на нарушение правил в чате. Содержит набор индексов выбранных сообщений
+ * из лога чата, которые будут включены в доказательную базу при отправке.
  */
+@Environment(EnvType.CLIENT)
 public class ChatAbuseReport extends AbuseReport {
 
 	final IntSet selectedMessages = new IntOpenHashSet();
 
-	ChatAbuseReport(UUID uUID, Instant instant, UUID uUID2) {
-		super(uUID, instant, uUID2);
+	ChatAbuseReport(UUID reportId, Instant currentTime, UUID reportedPlayerUuid) {
+		super(reportId, currentTime, reportedPlayerUuid);
 	}
 
-	/**
-	 * Toggle message selection.
-	 *
-	 * @param index index
-	 * @param limits limits
-	 */
 	public void toggleMessageSelection(int index, AbuseReportLimits limits) {
-		if (this.selectedMessages.contains(index)) {
-			this.selectedMessages.remove(index);
+		if (selectedMessages.contains(index)) {
+			selectedMessages.remove(index);
 		}
-		else if (this.selectedMessages.size() < limits.maxReportedMessageCount()) {
-			this.selectedMessages.add(index);
+		else if (selectedMessages.size() < limits.maxReportedMessageCount()) {
+			selectedMessages.add(index);
 		}
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return ChatAbuseReport — результат операции
-	 */
 	public ChatAbuseReport copy() {
 		ChatAbuseReport chatAbuseReport = new ChatAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid);
 		chatAbuseReport.selectedMessages.addAll(this.selectedMessages);
@@ -73,10 +63,8 @@ public class ChatAbuseReport extends AbuseReport {
 		return new ChatReportScreen(parent, context, this);
 	}
 
+	/** Строитель жалобы на чат: управляет выбором сообщений и сборкой доказательной базы. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends AbuseReport.Builder<ChatAbuseReport> {
 
 		public Builder(ChatAbuseReport report, AbuseReportLimits limits) {
@@ -88,20 +76,15 @@ public class ChatAbuseReport extends AbuseReport {
 		}
 
 		public IntSet getSelectedMessages() {
-			return this.report.selectedMessages;
+			return report.selectedMessages;
 		}
 
-		/**
-		 * Toggle message selection.
-		 *
-		 * @param index index
-		 */
 		public void toggleMessageSelection(int index) {
-			this.report.toggleMessageSelection(index, this.limits);
+			report.toggleMessageSelection(index, limits);
 		}
 
 		public boolean isMessageSelected(int index) {
-			return this.report.selectedMessages.contains(index);
+			return report.selectedMessages.contains(index);
 		}
 
 		@Override

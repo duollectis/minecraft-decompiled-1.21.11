@@ -16,10 +16,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NeighborUpdateDebugRenderer}.
+ * Отладочный рендерер обновлений соседних блоков.
+ * <p>
+ * Визуализирует события {@code NEIGHBOR_UPDATES}: для каждой позиции блока рисует
+ * сжимающийся куб (чем старше событие — тем меньше куб) и счётчик накопленных
+ * обновлений в виде текстовой метки.
  */
+@Environment(EnvType.CLIENT)
 public class NeighborUpdateDebugRenderer implements DebugRenderer.Renderer {
 
 	@Override
@@ -31,50 +35,51 @@ public class NeighborUpdateDebugRenderer implements DebugRenderer.Renderer {
 			Frustum frustum,
 			float tickProgress
 	) {
-		int i = DebugSubscriptionTypes.NEIGHBOR_UPDATES.getExpiry();
-		double d = 1.0 / (i * 2);
-		Map<BlockPos, NeighborUpdateDebugRenderer.Update> map = new HashMap<>();
+		int expiry = DebugSubscriptionTypes.NEIGHBOR_UPDATES.getExpiry();
+		double shrinkPerAge = 1.0 / (expiry * 2);
+
+		Map<BlockPos, Update> updatesByPos = new HashMap<>();
+
 		store.forEachEvent(
-				DebugSubscriptionTypes.NEIGHBOR_UPDATES, (blockPosx, ix, j) -> {
-					long l = j - ix;
-					NeighborUpdateDebugRenderer.Update
-							updatex =
-							map.getOrDefault(blockPosx, NeighborUpdateDebugRenderer.Update.EMPTY);
-					map.put(blockPosx, updatex.withAge((int) l));
+				DebugSubscriptionTypes.NEIGHBOR_UPDATES, (blockPos, currentTime, eventTime) -> {
+					long age = eventTime - currentTime;
+					Update existing = updatesByPos.getOrDefault(blockPos, Update.EMPTY);
+					updatesByPos.put(blockPos, existing.withAge((int) age));
 				}
 		);
 
-		for (Entry<BlockPos, NeighborUpdateDebugRenderer.Update> entry : map.entrySet()) {
+		for (Entry<BlockPos, Update> entry : updatesByPos.entrySet()) {
 			BlockPos blockPos = entry.getKey();
-			NeighborUpdateDebugRenderer.Update update = entry.getValue();
-			Box box = new Box(blockPos).expand(0.002).contract(d * update.age);
+			Update update = entry.getValue();
+			Box box = new Box(blockPos).expand(0.002).contract(shrinkPerAge * update.age);
 			GizmoDrawing.box(box, DrawStyle.stroked(-1));
 		}
 
-		for (Entry<BlockPos, NeighborUpdateDebugRenderer.Update> entry : map.entrySet()) {
+		for (Entry<BlockPos, Update> entry : updatesByPos.entrySet()) {
 			BlockPos blockPos = entry.getKey();
-			NeighborUpdateDebugRenderer.Update update = entry.getValue();
+			Update update = entry.getValue();
 			GizmoDrawing.text(String.valueOf(update.count), Vec3d.ofCenter(blockPos), TextGizmo.Style.left());
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Update}.
+	 * Агрегированное состояние обновлений для одной позиции блока.
+	 * <p>
+	 * Хранит количество накопленных обновлений ({@code count}) и возраст
+	 * самого свежего из них ({@code age}). Чем меньше {@code age} — тем
+	 * новее событие и тем крупнее будет отрисованный куб.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Update(int count, int age) {
 
-		static final NeighborUpdateDebugRenderer.Update
-				EMPTY =
-				new NeighborUpdateDebugRenderer.Update(0, Integer.MAX_VALUE);
+		static final Update EMPTY = new Update(0, Integer.MAX_VALUE);
 
-		public NeighborUpdateDebugRenderer.Update withAge(int age) {
-			if (age == this.age) {
-				return new NeighborUpdateDebugRenderer.Update(this.count + 1, age);
+		Update withAge(int newAge) {
+			if (newAge == age) {
+				return new Update(count + 1, newAge);
 			}
-			else {
-				return age < this.age ? new NeighborUpdateDebugRenderer.Update(1, age) : this;
-			}
+
+			return newAge < age ? new Update(1, newAge) : this;
 		}
 	}
 }

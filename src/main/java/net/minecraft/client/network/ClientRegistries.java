@@ -241,21 +241,10 @@ public class ClientRegistries {
 
 		private final Map<RegistryKey<? extends Registry<?>>, TagPacketSerializer.Serialized> tags = new HashMap<>();
 
-		/**
-		 * Put.
-		 *
-		 * @param registryRef registry ref
-		 * @param serialized serialized
-		 */
 		public void put(RegistryKey<? extends Registry<?>> registryRef, TagPacketSerializer.Serialized serialized) {
 			tags.put(registryRef, serialized);
 		}
 
-		/**
-		 * For each.
-		 *
-		 * @param consumer consumer
-		 */
 		public void forEach(BiConsumer<? super RegistryKey<? extends Registry<?>>, ? super TagPacketSerializer.Serialized> consumer) {
 			tags.forEach(consumer);
 		}

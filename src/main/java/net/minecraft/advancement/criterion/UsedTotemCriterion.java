@@ -15,57 +15,54 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code UsedTotemCriterion}.
+ * Критерий выполняется, когда игрок использует тотем бессмертия для предотвращения смерти.
  */
 public class UsedTotemCriterion extends AbstractCriterion<UsedTotemCriterion.Conditions> {
 
 	@Override
-	public Codec<UsedTotemCriterion.Conditions> getConditionsCodec() {
-		return UsedTotemCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ItemStack stack) {
-		this.trigger(player, conditions -> conditions.matches(stack));
+		trigger(player, conditions -> conditions.matches(stack));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> item
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<UsedTotemCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(UsedTotemCriterion.Conditions::player),
-						                    ItemPredicate.CODEC.optionalFieldOf("item").forGetter(UsedTotemCriterion.Conditions::item)
-				                    )
-				                    .apply(instance, UsedTotemCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<UsedTotemCriterion.Conditions> create(ItemPredicate itemPredicate) {
-			return Criteria.USED_TOTEM.create(new UsedTotemCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> create(ItemPredicate itemPredicate) {
+			return Criteria.USED_TOTEM.create(new Conditions(
 					Optional.empty(),
 					Optional.of(itemPredicate)
 			));
 		}
 
-		public static AdvancementCriterion<UsedTotemCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				RegistryEntryLookup<Item> itemRegistry,
 				ItemConvertible item
 		) {
-			return Criteria.USED_TOTEM
-					.create(new UsedTotemCriterion.Conditions(
-							Optional.empty(),
-							Optional.of(ItemPredicate.Builder.create().items(itemRegistry, item).build())
-					));
+			return Criteria.USED_TOTEM.create(new Conditions(
+					Optional.empty(),
+					Optional.of(ItemPredicate.Builder.create().items(itemRegistry, item).build())
+			));
 		}
 
 		public boolean matches(ItemStack stack) {
-			return this.item.isEmpty() || this.item.get().test(stack);
+			return item.isEmpty() || item.get().test(stack);
 		}
 	}
 }

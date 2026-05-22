@@ -6,10 +6,11 @@ import net.minecraft.client.item.ItemAsset;
 import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.item.Item;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemModelOutput}.
+ * Приёмник моделей предметов для генерации данных.
+ * Принимает пары предмет → модель и регистрирует псевдонимы между предметами.
  */
+@Environment(EnvType.CLIENT)
 public interface ItemModelOutput {
 
 	default void accept(Item item, ItemModel.Unbaked model) {

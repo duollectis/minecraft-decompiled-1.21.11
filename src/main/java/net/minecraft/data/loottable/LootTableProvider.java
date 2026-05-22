@@ -11,7 +11,10 @@ import net.minecraft.loot.LootTable;
 import net.minecraft.loot.LootTableReporter;
 import net.minecraft.loot.context.LootContextTypes;
 import net.minecraft.registry.*;
+import com.mojang.serialization.Lifecycle;
 import net.minecraft.registry.entry.RegistryEntryInfo;
+
+import java.util.Optional;
 import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
@@ -28,7 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * {@code LootTableProvider}.
+ * Провайдер данных для генерации таблиц лута.
+ * Собирает все таблицы из зарегистрированных {@link LootTypeGenerator}, проверяет их валидность
+ * (коллизии seed-ов, отсутствующие обязательные таблицы, структурные ошибки) и записывает на диск.
  */
 public class LootTableProvider implements DataProvider {
 
@@ -39,10 +44,10 @@ public class LootTableProvider implements DataProvider {
 	private final CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture;
 
 	public LootTableProvider(
-			DataOutput output,
-			Set<RegistryKey<LootTable>> lootTableIds,
-			List<LootTableProvider.LootTypeGenerator> lootTypeGenerators,
-			CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture
+		DataOutput output,
+		Set<RegistryKey<LootTable>> lootTableIds,
+		List<LootTableProvider.LootTypeGenerator> lootTypeGenerators,
+		CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture
 	) {
 		this.pathResolver = output.getResolver(RegistryKeys.LOOT_TABLE);
 		this.lootTypeGenerators = lootTypeGenerators;
@@ -52,63 +57,70 @@ public class LootTableProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		return this.registriesFuture.thenCompose(registries -> this.run(writer, registries));
+		return registriesFuture.thenCompose(registries -> run(writer, registries));
 	}
 
+	/**
+	 * Основная логика генерации: собирает все таблицы лута из генераторов, проверяет коллизии
+	 * random seed-ов, валидирует структуру каждой таблицы и записывает результат в JSON-файлы.
+	 */
 	private CompletableFuture<?> run(DataWriter writer, RegistryWrapper.WrapperLookup registries) {
-		MutableRegistry<LootTable>
-				mutableRegistry =
-				new SimpleRegistry<>(RegistryKeys.LOOT_TABLE, Lifecycle.experimental());
-		Map<RandomSeed.XoroshiroSeed, Identifier> map = new Object2ObjectOpenHashMap();
-		this.lootTypeGenerators.forEach(lootTypeGenerator -> lootTypeGenerator
-				.provider()
-				.apply(registries)
-				.accept((lootTable, builder) -> {
-					Identifier identifier = getId(lootTable);
-					Identifier identifier2 = map.put(RandomSequence.createSeed(identifier), identifier);
-					if (identifier2 != null) {
-						Util.logErrorOrPause("Loot table random sequence seed collision on " + identifier2 + " and "
-								+ lootTable.getValue());
-					}
+		MutableRegistry<LootTable> registry = new SimpleRegistry<>(RegistryKeys.LOOT_TABLE, Lifecycle.experimental());
+		Map<RandomSeed.XoroshiroSeed, Identifier> seedToId = new Object2ObjectOpenHashMap<>();
 
-					builder.randomSequenceId(identifier);
-					LootTable lootTable2 = builder.type(lootTypeGenerator.paramSet).build();
-					mutableRegistry.add(lootTable, lootTable2, RegistryEntryInfo.DEFAULT);
-				}));
-		mutableRegistry.freeze();
-		ErrorReporter.Impl impl = new ErrorReporter.Impl();
-		RegistryEntryLookup.RegistryLookup
-				registryLookup =
-				new DynamicRegistryManager.ImmutableImpl(List.of(mutableRegistry)).toImmutable();
-		LootTableReporter lootTableReporter = new LootTableReporter(impl, LootContextTypes.GENERIC, registryLookup);
+		lootTypeGenerators.forEach(lootTypeGenerator -> lootTypeGenerator
+			.provider()
+			.apply(registries)
+			.accept((tableKey, builder) -> {
+				Identifier tableId = getId(tableKey);
+				Identifier conflictingId = seedToId.put(RandomSequence.createSeed(tableId), tableId);
 
-		for (RegistryKey<LootTable> registryKey : Sets.difference(this.lootTableIds, mutableRegistry.getKeys())) {
-			impl.report(new LootTableProvider.MissingTableError(registryKey));
+				if (conflictingId != null) {
+					Util.logErrorOrPause(
+						"Loot table random sequence seed collision on " + conflictingId + " and " + tableKey.getValue()
+					);
+				}
+
+				builder.randomSequenceId(tableId);
+				LootTable builtTable = builder.type(lootTypeGenerator.paramSet).build();
+				registry.add(tableKey, builtTable, new RegistryEntryInfo(Optional.empty(), Lifecycle.stable()));
+			})
+		);
+
+		registry.freeze();
+
+		ErrorReporter.Impl errorReporter = new ErrorReporter.Impl();
+		RegistryEntryLookup.RegistryLookup registryLookup =
+			new DynamicRegistryManager.ImmutableImpl(List.of(registry)).toImmutable();
+		LootTableReporter reporter = new LootTableReporter(errorReporter, LootContextTypes.GENERIC, registryLookup);
+
+		for (RegistryKey<LootTable> missingKey : Sets.difference(lootTableIds, registry.getKeys())) {
+			errorReporter.report(new LootTableProvider.MissingTableError(missingKey));
 		}
 
-		mutableRegistry.streamEntries()
-		               .forEach(
-				               entry -> entry.value()
-				                             .validate(
-						                             lootTableReporter.withContextType(entry.value().getType())
-						                                              .makeChild(
-								                                              new ErrorReporter.LootTableContext(entry.registryKey()),
-								                                              entry.registryKey()
-						                                              )
-				                             )
-		               );
-		if (!impl.isEmpty()) {
-			impl.apply((name, error) -> LOGGER.warn("Found validation problem in {}: {}", name, error.getMessage()));
-			throw new IllegalStateException("Failed to validate loot tables, see logs");
+		registry.streamEntries().forEach(entry ->
+			entry.value().validate(
+				reporter.withContextType(entry.value().getType())
+					.makeChild(
+						new ErrorReporter.LootTableContext(entry.registryKey()),
+						entry.registryKey()
+					)
+			)
+		);
+
+		if (errorReporter.isEmpty()) {
+			return CompletableFuture.allOf(
+				registry.getEntrySet().stream().map(entry -> {
+					RegistryKey<LootTable> tableKey = entry.getKey();
+					LootTable lootTable = entry.getValue();
+					Path path = pathResolver.resolveJson(tableKey.getValue());
+					return DataProvider.writeCodecToPath(writer, registries, LootTable.CODEC, lootTable, path);
+				}).toArray(CompletableFuture[]::new)
+			);
 		}
-		else {
-			return CompletableFuture.allOf(mutableRegistry.getEntrySet().stream().map(entry -> {
-				RegistryKey<LootTable> registryKeyx = entry.getKey();
-				LootTable lootTable = entry.getValue();
-				Path path = this.pathResolver.resolveJson(registryKeyx.getValue());
-				return DataProvider.writeCodecToPath(writer, registries, LootTable.CODEC, lootTable, path);
-			}).toArray(CompletableFuture[]::new));
-		}
+
+		errorReporter.apply((name, error) -> LOGGER.warn("Found validation problem in {}: {}", name, error.getMessage()));
+		throw new IllegalStateException("Failed to validate loot tables, see logs");
 	}
 
 	private static Identifier getId(RegistryKey<LootTable> lootTableKey) {
@@ -121,22 +133,22 @@ public class LootTableProvider implements DataProvider {
 	}
 
 	/**
-	 * {@code LootTypeGenerator}.
+	 * Связывает фабрику генератора таблиц лута с типом контекста лута (блок, сущность, сундук и т.д.).
 	 */
 	public record LootTypeGenerator(
-			Function<RegistryWrapper.WrapperLookup, LootTableGenerator> provider,
-			ContextType paramSet
+		Function<RegistryWrapper.WrapperLookup, LootTableGenerator> provider,
+		ContextType paramSet
 	) {
 	}
 
 	/**
-	 * {@code MissingTableError}.
+	 * Ошибка валидации: обязательная таблица лута не была сгенерирована ни одним из провайдеров.
 	 */
 	public record MissingTableError(RegistryKey<LootTable> id) implements ErrorReporter.Error {
 
 		@Override
 		public String getMessage() {
-			return "Missing built-in table: " + this.id.getValue();
+			return "Missing built-in table: " + id.getValue();
 		}
 	}
 }

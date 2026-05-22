@@ -7,7 +7,8 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code RootsBlock}.
+ * Блок корней (нижнемировые корни, скрученные лозы и т.п.).
+ * Может расти на нилии, душевом грунте и обычной земле.
  */
 public class RootsBlock extends PlantBlock {
 

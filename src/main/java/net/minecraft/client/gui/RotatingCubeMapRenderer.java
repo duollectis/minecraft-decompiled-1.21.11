@@ -7,10 +7,11 @@ import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RotatingCubeMapRenderer}.
+ * Рендерит вращающуюся панораму главного меню поверх {@link CubeMapRenderer}.
+ * Накладывает текстуру-оверлей и управляет углом поворота через pitch.
  */
+@Environment(EnvType.CLIENT)
 public class RotatingCubeMapRenderer {
 
 	public static final Identifier

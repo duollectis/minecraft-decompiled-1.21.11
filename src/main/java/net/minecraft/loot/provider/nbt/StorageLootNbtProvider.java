@@ -9,15 +9,13 @@ import net.minecraft.util.context.ContextParameter;
 
 import java.util.Set;
 
-/**
- * {@code StorageLootNbtProvider}.
- */
+/** Провайдер NBT-данных, извлекающий данные из командного хранилища данных по идентификатору. */
 public record StorageLootNbtProvider(Identifier source) implements LootNbtProvider {
 
 	public static final MapCodec<StorageLootNbtProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Identifier.CODEC.fieldOf("source").forGetter(StorageLootNbtProvider::source))
-					.apply(instance, StorageLootNbtProvider::new)
+		instance -> instance
+			.group(Identifier.CODEC.fieldOf("source").forGetter(StorageLootNbtProvider::source))
+			.apply(instance, StorageLootNbtProvider::new)
 	);
 
 	@Override
@@ -27,7 +25,7 @@ public record StorageLootNbtProvider(Identifier source) implements LootNbtProvid
 
 	@Override
 	public NbtElement getNbt(LootContext context) {
-		return context.getWorld().getServer().getDataCommandStorage().get(this.source);
+		return context.getWorld().getServer().getDataCommandStorage().get(source);
 	}
 
 	@Override

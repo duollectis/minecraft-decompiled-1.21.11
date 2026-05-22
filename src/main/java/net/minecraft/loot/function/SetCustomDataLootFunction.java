@@ -13,15 +13,16 @@ import net.minecraft.nbt.StringNbtReader;
 import java.util.List;
 
 /**
- * {@code SetCustomDataLootFunction}.
+ * Функция лута, устанавливающая произвольные NBT-данные компонента {@code custom_data} предмета.
  */
 public class SetCustomDataLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetCustomDataLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(StringNbtReader.NBT_COMPOUND_CODEC.fieldOf("tag").forGetter(function -> function.nbt))
-					.apply(instance, SetCustomDataLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(StringNbtReader.NBT_COMPOUND_CODEC.fieldOf("tag").forGetter(function -> function.nbt))
+			.apply(instance, SetCustomDataLootFunction::new)
 	);
+
 	private final NbtCompound nbt;
 
 	private SetCustomDataLootFunction(List<LootCondition> conditions, NbtCompound nbt) {
@@ -36,7 +37,7 @@ public class SetCustomDataLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		NbtComponent.set(DataComponentTypes.CUSTOM_DATA, stack, nbt -> nbt.copyFrom(this.nbt));
+		NbtComponent.set(DataComponentTypes.CUSTOM_DATA, stack, existing -> existing.copyFrom(nbt));
 		return stack;
 	}
 

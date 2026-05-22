@@ -21,52 +21,33 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code DataPackStructureProvider}.
+ * Провайдер данных для генерации отчёта {@code reports/datapack.json}.
+ * Описывает структуру всех реестров: какие поддерживают элементы, теги и являются стабильными.
  */
 public class DataPackStructureProvider implements DataProvider {
 
-	private final DataOutput output;
-	private static final DataPackStructureProvider.Entry
-			RELOADABLE_REGISTRY =
-			new DataPackStructureProvider.Entry(true, false, true);
-	private static final DataPackStructureProvider.Entry
-			RELOADABLE_REGISTRY_WITH_TAGS =
-			new DataPackStructureProvider.Entry(true, true, true);
-	private static final DataPackStructureProvider.Entry
-			DYNAMIC_REGISTRY =
-			new DataPackStructureProvider.Entry(true, true, false);
-	private static final DataPackStructureProvider.Entry
-			STATIC_REGISTRY =
-			new DataPackStructureProvider.Entry(false, true, true);
-	private static final Map<RegistryKey<? extends Registry<?>>, DataPackStructureProvider.Entry>
-			RELOADABLE_REGISTRIES =
-			Map.of(
-					RegistryKeys.RECIPE,
-					RELOADABLE_REGISTRY,
-					RegistryKeys.ADVANCEMENT,
-					RELOADABLE_REGISTRY,
-					RegistryKeys.LOOT_TABLE,
-					RELOADABLE_REGISTRY_WITH_TAGS,
-					RegistryKeys.ITEM_MODIFIER,
-					RELOADABLE_REGISTRY_WITH_TAGS,
-					RegistryKeys.PREDICATE,
-					RELOADABLE_REGISTRY_WITH_TAGS
-			);
-	private static final Map<String, DataPackStructureProvider.FakeRegistry> FAKE_REGISTRIES = Map.of(
-			"structure",
-			new DataPackStructureProvider.FakeRegistry(
-					DataPackStructureProvider.Format.STRUCTURE,
-					new DataPackStructureProvider.Entry(true, false, true)
-			),
-			"function",
-			new DataPackStructureProvider.FakeRegistry(
-					DataPackStructureProvider.Format.MCFUNCTION,
-					new DataPackStructureProvider.Entry(true, true, true)
-			)
+	private static final Entry RELOADABLE_REGISTRY = new Entry(true, false, true);
+	private static final Entry RELOADABLE_REGISTRY_WITH_TAGS = new Entry(true, true, true);
+	private static final Entry DYNAMIC_REGISTRY = new Entry(true, true, false);
+	private static final Entry STATIC_REGISTRY = new Entry(false, true, true);
+
+	private static final Map<RegistryKey<? extends Registry<?>>, Entry> RELOADABLE_REGISTRIES = Map.of(
+			RegistryKeys.RECIPE, RELOADABLE_REGISTRY,
+			RegistryKeys.ADVANCEMENT, RELOADABLE_REGISTRY,
+			RegistryKeys.LOOT_TABLE, RELOADABLE_REGISTRY_WITH_TAGS,
+			RegistryKeys.ITEM_MODIFIER, RELOADABLE_REGISTRY_WITH_TAGS,
+			RegistryKeys.PREDICATE, RELOADABLE_REGISTRY_WITH_TAGS
 	);
-	static final Codec<RegistryKey<? extends Registry<?>>>
-			REGISTRY_KEY_CODEC =
+
+	private static final Map<String, FakeRegistry> FAKE_REGISTRIES = Map.of(
+			"structure", new FakeRegistry(Format.STRUCTURE, new Entry(true, false, true)),
+			"function", new FakeRegistry(Format.MCFUNCTION, new Entry(true, true, true))
+	);
+
+	static final Codec<RegistryKey<? extends Registry<?>>> REGISTRY_KEY_CODEC =
 			Identifier.CODEC.xmap(RegistryKey::ofRegistry, RegistryKey::getValue);
+
+	private final DataOutput output;
 
 	public DataPackStructureProvider(DataOutput output) {
 		this.output = output;
@@ -74,15 +55,11 @@ public class DataPackStructureProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		DataPackStructureProvider.Registries
-				registries =
-				new DataPackStructureProvider.Registries(this.buildEntries(), FAKE_REGISTRIES);
-		Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("datapack.json");
+		Registries registries = new Registries(buildEntries(), FAKE_REGISTRIES);
+		Path path = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("datapack.json");
 		return DataProvider.writeToPath(
 				writer,
-				(JsonElement) DataPackStructureProvider.Registries.CODEC
-						.encodeStart(JsonOps.INSTANCE, registries)
-						.getOrThrow(),
+				Registries.CODEC.encodeStart(JsonOps.INSTANCE, registries).getOrThrow(),
 				path
 		);
 	}
@@ -93,109 +70,83 @@ public class DataPackStructureProvider implements DataProvider {
 	}
 
 	private void addEntry(
-			Map<RegistryKey<? extends Registry<?>>, DataPackStructureProvider.Entry> map,
+			Map<RegistryKey<? extends Registry<?>>, Entry> map,
 			RegistryKey<? extends Registry<?>> key,
-			DataPackStructureProvider.Entry entry
+			Entry entry
 	) {
-		DataPackStructureProvider.Entry entry2 = map.putIfAbsent(key, entry);
-		if (entry2 != null) {
+		Entry existing = map.putIfAbsent(key, entry);
+		if (existing != null) {
 			throw new IllegalStateException("Duplicate entry for key " + key.getValue());
 		}
 	}
 
-	private Map<RegistryKey<? extends Registry<?>>, DataPackStructureProvider.Entry> buildEntries() {
-		Map<RegistryKey<? extends Registry<?>>, DataPackStructureProvider.Entry> map = new HashMap<>();
-		net.minecraft.registry.Registries.REGISTRIES.forEach(registry -> this.addEntry(
-				map,
-				registry.getKey(),
-				STATIC_REGISTRY
-		));
-		RegistryLoader.DYNAMIC_REGISTRIES.forEach(registry -> this.addEntry(map, registry.key(), DYNAMIC_REGISTRY));
-		RegistryLoader.DIMENSION_REGISTRIES.forEach(registry -> this.addEntry(map, registry.key(), DYNAMIC_REGISTRY));
-		RELOADABLE_REGISTRIES.forEach((key, entry) -> this.addEntry(
-				map,
-				(RegistryKey<? extends Registry<?>>) key,
-				entry
-		));
+	private Map<RegistryKey<? extends Registry<?>>, Entry> buildEntries() {
+		Map<RegistryKey<? extends Registry<?>>, Entry> map = new HashMap<>();
+		net.minecraft.registry.Registries.REGISTRIES.forEach(registry -> addEntry(map, registry.getKey(), STATIC_REGISTRY));
+		RegistryLoader.DYNAMIC_REGISTRIES.forEach(registry -> addEntry(map, registry.key(), DYNAMIC_REGISTRY));
+		RegistryLoader.DIMENSION_REGISTRIES.forEach(registry -> addEntry(map, registry.key(), DYNAMIC_REGISTRY));
+		RELOADABLE_REGISTRIES.forEach((key, entry) -> addEntry(map, key, entry));
 		return map;
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	record Entry(boolean elements, boolean tags, boolean stable) {
 
-		public static final MapCodec<DataPackStructureProvider.Entry> MAP_CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<Entry> MAP_CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codec.BOOL.fieldOf("elements").forGetter(DataPackStructureProvider.Entry::elements),
-						                    Codec.BOOL.fieldOf("tags").forGetter(DataPackStructureProvider.Entry::tags),
-						                    Codec.BOOL.fieldOf("stable").forGetter(DataPackStructureProvider.Entry::stable)
-				                    )
-				                    .apply(instance, DataPackStructureProvider.Entry::new)
+						Codec.BOOL.fieldOf("elements").forGetter(Entry::elements),
+						Codec.BOOL.fieldOf("tags").forGetter(Entry::tags),
+						Codec.BOOL.fieldOf("stable").forGetter(Entry::stable)
+				).apply(instance, Entry::new)
 		);
-		public static final Codec<DataPackStructureProvider.Entry> CODEC = MAP_CODEC.codec();
+
+		public static final Codec<Entry> CODEC = MAP_CODEC.codec();
 	}
 
-	/**
-	 * {@code FakeRegistry}.
-	 */
-	record FakeRegistry(DataPackStructureProvider.Format format, DataPackStructureProvider.Entry entry) {
+	record FakeRegistry(Format format, Entry entry) {
 
-		public static final Codec<DataPackStructureProvider.FakeRegistry> CODEC = RecordCodecBuilder.create(
+		public static final Codec<FakeRegistry> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    DataPackStructureProvider.Format.CODEC
-								                    .fieldOf("format")
-								                    .forGetter(DataPackStructureProvider.FakeRegistry::format),
-						                    DataPackStructureProvider.Entry.MAP_CODEC.forGetter(DataPackStructureProvider.FakeRegistry::entry)
-				                    )
-				                    .apply(instance, DataPackStructureProvider.FakeRegistry::new)
+						Format.CODEC.fieldOf("format").forGetter(FakeRegistry::format),
+						Entry.MAP_CODEC.forGetter(FakeRegistry::entry)
+				).apply(instance, FakeRegistry::new)
 		);
 	}
 
 	/**
-	 * {@code Format}.
+	 * Формат файлов для нестандартных (fake) реестров.
 	 */
-	static enum Format implements StringIdentifiable {
+	enum Format implements StringIdentifiable {
 		STRUCTURE("structure"),
 		MCFUNCTION("mcfunction");
 
-		public static final Codec<DataPackStructureProvider.Format>
-				CODEC =
-				StringIdentifiable.createCodec(DataPackStructureProvider.Format::values);
+		public static final Codec<Format> CODEC = StringIdentifiable.createCodec(Format::values);
+
 		private final String id;
 
-		private Format(final String id) {
+		Format(String id) {
 			this.id = id;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 
-	/**
-	 * {@code Registries}.
-	 */
 	record Registries(
-			Map<RegistryKey<? extends Registry<?>>, DataPackStructureProvider.Entry> registries,
-			Map<String, DataPackStructureProvider.FakeRegistry> others
+			Map<RegistryKey<? extends Registry<?>>, Entry> registries,
+			Map<String, FakeRegistry> others
 	) {
 
-		public static final Codec<DataPackStructureProvider.Registries> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Registries> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec
-								                    .unboundedMap(
-										                    DataPackStructureProvider.REGISTRY_KEY_CODEC,
-										                    DataPackStructureProvider.Entry.CODEC
-								                    )
-								                    .fieldOf("registries")
-								                    .forGetter(DataPackStructureProvider.Registries::registries),
-						                    Codec.unboundedMap(Codec.STRING, DataPackStructureProvider.FakeRegistry.CODEC)
-						                         .fieldOf("others")
-						                         .forGetter(DataPackStructureProvider.Registries::others)
-				                    )
-				                    .apply(instance, DataPackStructureProvider.Registries::new)
+						Codec.unboundedMap(REGISTRY_KEY_CODEC, Entry.CODEC)
+								.fieldOf("registries")
+								.forGetter(Registries::registries),
+						Codec.unboundedMap(Codec.STRING, FakeRegistry.CODEC)
+								.fieldOf("others")
+								.forGetter(Registries::others)
+				).apply(instance, Registries::new)
 		);
 	}
 }

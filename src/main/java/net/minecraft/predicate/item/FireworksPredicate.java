@@ -13,7 +13,7 @@ import net.minecraft.predicate.component.ComponentSubPredicate;
 import java.util.Optional;
 
 /**
- * {@code FireworksPredicate}.
+ * Предикат для проверки компонента фейерверка: взрывы и длительность полёта.
  */
 public record FireworksPredicate(
 		Optional<CollectionPredicate<FireworkExplosionComponent, FireworkExplosionPredicate.Predicate>> explosions,
@@ -22,15 +22,14 @@ public record FireworksPredicate(
 
 	public static final Codec<FireworksPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    CollectionPredicate
-							                    .createCodec(FireworkExplosionPredicate.Predicate.CODEC)
-							                    .optionalFieldOf("explosions")
-							                    .forGetter(FireworksPredicate::explosions),
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("flight_duration", NumberRange.IntRange.ANY)
-							                    .forGetter(FireworksPredicate::flightDuration)
-			                    )
-			                    .apply(instance, FireworksPredicate::new)
+					CollectionPredicate.createCodec(FireworkExplosionPredicate.Predicate.CODEC)
+							.optionalFieldOf("explosions")
+							.forGetter(FireworksPredicate::explosions),
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("flight_duration", NumberRange.IntRange.ANY)
+							.forGetter(FireworksPredicate::flightDuration)
+			)
+			.apply(instance, FireworksPredicate::new)
 	);
 
 	@Override
@@ -38,9 +37,11 @@ public record FireworksPredicate(
 		return DataComponentTypes.FIREWORKS;
 	}
 
-	public boolean test(FireworksComponent fireworksComponent) {
-		return this.explosions.isPresent() && !this.explosions.get().test(fireworksComponent.explosions())
-		       ? false
-		       : this.flightDuration.test(fireworksComponent.flightDuration());
+	public boolean test(FireworksComponent component) {
+		if (explosions.isPresent() && !explosions.get().test(component.explosions())) {
+			return false;
+		}
+
+		return flightDuration.test(component.flightDuration());
 	}
 }

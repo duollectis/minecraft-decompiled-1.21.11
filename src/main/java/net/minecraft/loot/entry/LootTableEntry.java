@@ -19,33 +19,33 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code LootTableEntry}.
+ * Запись пула лута, делегирующая генерацию другой таблице лута.
+ * Поддерживает как ссылку по ключу реестра, так и встроенную таблицу.
  */
 public class LootTableEntry extends LeafEntry {
 
 	public static final MapCodec<LootTableEntry> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Codec
-							.either(LootTable.TABLE_KEY, LootTable.CODEC)
-							.fieldOf("value")
-							.forGetter(entry -> entry.value))
-					.and(addLeafFields(instance))
-					.apply(instance, LootTableEntry::new)
+		instance -> instance
+			.group(Codec.either(LootTable.TABLE_KEY, LootTable.CODEC).fieldOf("value").forGetter(entry -> entry.value))
+			.and(addLeafFields(instance))
+			.apply(instance, LootTableEntry::new)
 	);
+
 	public static final ErrorReporter.Context INLINE_CONTEXT = new ErrorReporter.Context() {
 		@Override
 		public String getName() {
 			return "->{inline}";
 		}
 	};
+
 	private final Either<RegistryKey<LootTable>, LootTable> value;
 
 	private LootTableEntry(
-			Either<RegistryKey<LootTable>, LootTable> value,
-			int weight,
-			int quality,
-			List<LootCondition> conditions,
-			List<LootFunction> functions
+		Either<RegistryKey<LootTable>, LootTable> value,
+		int weight,
+		int quality,
+		List<LootCondition> conditions,
+		List<LootFunction> functions
 	) {
 		super(weight, quality, conditions, functions);
 		this.value = value;
@@ -58,64 +58,64 @@ public class LootTableEntry extends LeafEntry {
 
 	@Override
 	public void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
-		((LootTable) this.value.map(
-				key -> context
-						.getLookup()
-						.getOptionalEntry(key)
-						.map(RegistryEntry::value)
-						.orElse(LootTable.EMPTY), table -> table
-		)
-		)
-				.generateUnprocessedLoot(context, lootConsumer);
+		LootTable table = value.map(
+			key -> context.getLookup()
+				.getOptionalEntry(key)
+				.map(RegistryEntry::value)
+				.orElse(LootTable.EMPTY),
+			inlineTable -> inlineTable
+		);
+		table.generateUnprocessedLoot(context, lootConsumer);
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
-		Optional<RegistryKey<LootTable>> optional = this.value.left();
-		if (optional.isPresent()) {
-			RegistryKey<LootTable> registryKey = optional.get();
+		Optional<RegistryKey<LootTable>> keyOptional = value.left();
+
+		if (keyOptional.isPresent()) {
+			RegistryKey<LootTable> key = keyOptional.get();
+
 			if (!reporter.canUseReferences()) {
-				reporter.report(new LootTableReporter.ReferenceNotAllowedError(registryKey));
+				reporter.report(new LootTableReporter.ReferenceNotAllowedError(key));
 				return;
 			}
 
-			if (reporter.isInStack(registryKey)) {
-				reporter.report(new LootTableReporter.RecursionError(registryKey));
+			if (reporter.isInStack(key)) {
+				reporter.report(new LootTableReporter.RecursionError(key));
 				return;
 			}
 		}
 
 		super.validate(reporter);
-		this.value
-				.ifLeft(
-						key -> reporter.getDataLookup()
-						               .getOptionalEntry(key)
-						               .ifPresentOrElse(
-								               entry -> ((LootTable) entry.value()).validate(reporter.makeChild(
-										               new ErrorReporter.ReferenceLootTableContext(key), key)),
-								               () -> reporter.report(new LootTableReporter.MissingElementError(key))
-						               )
+		value.ifLeft(
+			key -> reporter.getDataLookup()
+				.getOptionalEntry(key)
+				.ifPresentOrElse(
+					entry -> ((LootTable) entry.value()).validate(
+						reporter.makeChild(new ErrorReporter.ReferenceLootTableContext(key), key)
+					),
+					() -> reporter.report(new LootTableReporter.MissingElementError(key))
 				)
-				.ifRight(table -> table.validate(reporter.makeChild(INLINE_CONTEXT)));
+		).ifRight(table -> table.validate(reporter.makeChild(INLINE_CONTEXT)));
 	}
 
 	public static LeafEntry.Builder<?> builder(RegistryKey<LootTable> key) {
 		return builder((weight, quality, conditions, functions) -> new LootTableEntry(
-				Either.left(key),
-				weight,
-				quality,
-				conditions,
-				functions
+			Either.left(key),
+			weight,
+			quality,
+			conditions,
+			functions
 		));
 	}
 
 	public static LeafEntry.Builder<?> builder(LootTable table) {
 		return builder((weight, quality, conditions, functions) -> new LootTableEntry(
-				Either.right(table),
-				weight,
-				quality,
-				conditions,
-				functions
+			Either.right(table),
+			weight,
+			quality,
+			conditions,
+			functions
 		));
 	}
 }

@@ -9,7 +9,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code GameEventDebugData}.
+ * Отладочные данные игрового события: тип события и позиция его возникновения.
  */
 public record GameEventDebugData(RegistryEntry<GameEvent> event, Vec3d pos) {
 

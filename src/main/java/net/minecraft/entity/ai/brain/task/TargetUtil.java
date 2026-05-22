@@ -5,7 +5,13 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.NoPenaltyTargeting;
-import net.minecraft.entity.ai.brain.*;
+import net.minecraft.entity.ai.brain.BlockPosLookTarget;
+import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.EntityLookTarget;
+import net.minecraft.entity.ai.brain.LivingTargetCache;
+import net.minecraft.entity.ai.brain.LookTarget;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
@@ -23,9 +29,12 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * {@code TargetUtil}.
+ * Утилитарный класс с вспомогательными методами для задач мозга:
+ * управление взглядом, навигацией, проверка видимости и дистанции до цели.
  */
 public class TargetUtil {
+
+	private static final int MAX_FIND_ATTEMPTS = 10;
 
 	private TargetUtil() {
 	}
@@ -40,14 +49,6 @@ public class TargetUtil {
 		walkTowardsEachOther(first, second, speed, walkCompletionRange);
 	}
 
-	/**
-	 * Проверяет возможность see.
-	 *
-	 * @param brain brain
-	 * @param target target
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canSee(Brain<?> brain, LivingEntity target) {
 		Optional<LivingTargetCache> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
 		return optional.isPresent() && optional.get().contains(target);
@@ -80,10 +81,8 @@ public class TargetUtil {
 	}
 
 	/**
-	 * Look at.
-	 *
-	 * @param entity entity
-	 * @param target target
+	 * Записывает в память {@code LOOK_TARGET} сущности цель взгляда на указанный живой объект.
+	 * Используется для синхронизации направления взгляда через систему мозга, а не напрямую.
 	 */
 	public static void lookAt(LivingEntity entity, LivingEntity target) {
 		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(target, true));
@@ -99,54 +98,23 @@ public class TargetUtil {
 		walkTowards(second, first, speed, completionRange);
 	}
 
-	/**
-	 * Walk towards.
-	 *
-	 * @param entity entity
-	 * @param target target
-	 * @param speed speed
-	 * @param completionRange completion range
-	 */
 	public static void walkTowards(LivingEntity entity, Entity target, float speed, int completionRange) {
 		walkTowards(entity, new EntityLookTarget(target, true), speed, completionRange);
 	}
 
-	/**
-	 * Walk towards.
-	 *
-	 * @param entity entity
-	 * @param target target
-	 * @param speed speed
-	 * @param completionRange completion range
-	 */
 	public static void walkTowards(LivingEntity entity, BlockPos target, float speed, int completionRange) {
 		walkTowards(entity, new BlockPosLookTarget(target), speed, completionRange);
 	}
 
-	/**
-	 * Walk towards.
-	 *
-	 * @param entity entity
-	 * @param target target
-	 * @param speed speed
-	 * @param completionRange completion range
-	 */
 	public static void walkTowards(LivingEntity entity, LookTarget target, float speed, int completionRange) {
 		WalkTarget walkTarget = new WalkTarget(target, speed, completionRange);
 		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, target);
 		entity.getBrain().remember(MemoryModuleType.WALK_TARGET, walkTarget);
 	}
 
-	/**
-	 * Give.
-	 *
-	 * @param entity entity
-	 * @param stack stack
-	 * @param targetLocation target location
-	 */
 	public static void give(LivingEntity entity, ItemStack stack, Vec3d targetLocation) {
-		Vec3d vec3d = new Vec3d(0.3F, 0.3F, 0.3F);
-		give(entity, stack, targetLocation, vec3d, 0.3F);
+		Vec3d velocityFactor = new Vec3d(0.3F, 0.3F, 0.3F);
+		give(entity, stack, targetLocation, velocityFactor, 0.3F);
 	}
 
 	public static void give(
@@ -156,12 +124,12 @@ public class TargetUtil {
 			Vec3d velocityFactor,
 			float yOffset
 	) {
-		double d = entity.getEyeY() - yOffset;
-		ItemEntity itemEntity = new ItemEntity(entity.getEntityWorld(), entity.getX(), d, entity.getZ(), stack);
+		double eyeY = entity.getEyeY() - yOffset;
+		ItemEntity itemEntity = new ItemEntity(entity.getEntityWorld(), entity.getX(), eyeY, entity.getZ(), stack);
 		itemEntity.setThrower(entity);
-		Vec3d vec3d = targetLocation.subtract(entity.getEntityPos());
-		vec3d = vec3d.normalize().multiply(velocityFactor.x, velocityFactor.y, velocityFactor.z);
-		itemEntity.setVelocity(vec3d);
+		Vec3d velocity = targetLocation.subtract(entity.getEntityPos());
+		velocity = velocity.normalize().multiply(velocityFactor.x, velocityFactor.y, velocityFactor.z);
+		itemEntity.setVelocity(velocity);
 		itemEntity.setToDefaultPickupDelay();
 		entity.getEntityWorld().spawnEntity(itemEntity);
 	}
@@ -171,9 +139,9 @@ public class TargetUtil {
 			ChunkSectionPos center,
 			int radius
 	) {
-		int i = world.getOccupiedPointOfInterestDistance(center);
+		int centerDistance = world.getOccupiedPointOfInterestDistance(center);
 		return ChunkSectionPos.stream(center, radius)
-		                      .filter(sectionPos -> world.getOccupiedPointOfInterestDistance(sectionPos) < i)
+		                      .filter(sectionPos -> world.getOccupiedPointOfInterestDistance(sectionPos) < centerDistance)
 		                      .min(Comparator.comparingInt(world::getOccupiedPointOfInterestDistance))
 		                      .orElse(center);
 	}
@@ -185,31 +153,33 @@ public class TargetUtil {
 	) {
 		if (mob.getMainHandStack().getItem() instanceof RangedWeaponItem rangedWeaponItem
 				&& mob.canUseRangedWeapon(mob.getMainHandStack())) {
-			int i = rangedWeaponItem.getRange() - rangedWeaponReachReduction;
-			return mob.isInRange(target, i);
+			int effectiveRange = rangedWeaponItem.getRange() - rangedWeaponReachReduction;
+			return mob.isInRange(target, effectiveRange);
 		}
-		else {
-			return mob.isInAttackRange(target);
-		}
+
+		return mob.isInAttackRange(target);
 	}
 
 	public static boolean isNewTargetTooFar(LivingEntity source, LivingEntity target, double extraDistance) {
-		Optional<LivingEntity> optional = source.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET);
-		if (optional.isEmpty()) {
+		Optional<LivingEntity> currentTarget = source.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET);
+
+		if (currentTarget.isEmpty()) {
 			return false;
 		}
-		else {
-			double d = source.squaredDistanceTo(optional.get().getEntityPos());
-			double e = source.squaredDistanceTo(target.getEntityPos());
-			return e > d + extraDistance * extraDistance;
-		}
+
+		double currentDistSq = source.squaredDistanceTo(currentTarget.get().getEntityPos());
+		double newDistSq = source.squaredDistanceTo(target.getEntityPos());
+		return newDistSq > currentDistSq + extraDistance * extraDistance;
 	}
 
 	public static boolean isVisibleInMemory(LivingEntity source, LivingEntity target) {
 		Brain<?> brain = source.getBrain();
-		return !brain.hasMemoryModule(MemoryModuleType.VISIBLE_MOBS)
-		       ? false
-		       : brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS).get().contains(target);
+
+		if (!brain.hasMemoryModule(MemoryModuleType.VISIBLE_MOBS)) {
+			return false;
+		}
+
+		return brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS).get().contains(target);
 	}
 
 	public static LivingEntity getCloserEntity(LivingEntity source, Optional<LivingEntity> first, LivingEntity second) {
@@ -217,38 +187,29 @@ public class TargetUtil {
 	}
 
 	public static LivingEntity getCloserEntity(LivingEntity source, LivingEntity first, LivingEntity second) {
-		Vec3d vec3d = first.getEntityPos();
-		Vec3d vec3d2 = second.getEntityPos();
-		return source.squaredDistanceTo(vec3d) < source.squaredDistanceTo(vec3d2) ? first : second;
+		Vec3d firstPos = first.getEntityPos();
+		Vec3d secondPos = second.getEntityPos();
+		return source.squaredDistanceTo(firstPos) < source.squaredDistanceTo(secondPos) ? first : second;
 	}
 
 	public static Optional<LivingEntity> getEntity(LivingEntity entity, MemoryModuleType<UUID> uuidMemoryModule) {
-		Optional<UUID> optional = entity.getBrain().getOptionalRegisteredMemory(uuidMemoryModule);
-		return optional.<Entity>map(uuid -> entity.getEntityWorld().getEntity(uuid))
-		               .map(target -> target instanceof LivingEntity livingEntity ? livingEntity : null);
+		Optional<UUID> uuidOpt = entity.getBrain().getOptionalRegisteredMemory(uuidMemoryModule);
+		return uuidOpt.<Entity>map(uuid -> entity.getEntityWorld().getEntity(uuid))
+		              .map(target -> target instanceof LivingEntity livingEntity ? livingEntity : null);
 	}
 
-	/**
-	 * Find.
-	 *
-	 * @param entity entity
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 *
-	 * @return @Nullable Vec3d — 
-	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
-		Vec3d vec3d = NoPenaltyTargeting.find(entity, horizontalRange, verticalRange);
-		int i = 0;
+		Vec3d candidate = NoPenaltyTargeting.find(entity, horizontalRange, verticalRange);
+		int attempts = 0;
 
-		while (vec3d != null && !entity
-				.getEntityWorld()
-				.getBlockState(BlockPos.ofFloored(vec3d))
-				.canPathfindThrough(NavigationType.WATER) && i++ < 10) {
-			vec3d = NoPenaltyTargeting.find(entity, horizontalRange, verticalRange);
+		while (candidate != null
+				&& !entity.getEntityWorld().getBlockState(BlockPos.ofFloored(candidate)).canPathfindThrough(NavigationType.WATER)
+				&& attempts++ < MAX_FIND_ATTEMPTS
+		) {
+			candidate = NoPenaltyTargeting.find(entity, horizontalRange, verticalRange);
 		}
 
-		return vec3d;
+		return candidate;
 	}
 
 	public static boolean hasBreedTarget(LivingEntity entity) {

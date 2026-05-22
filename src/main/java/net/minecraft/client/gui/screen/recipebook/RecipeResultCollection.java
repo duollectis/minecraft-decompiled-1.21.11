@@ -13,13 +13,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RecipeResultCollection}.
+ * Коллекция результатов рецептов для одной группы отображения.
+ * Хранит множества крафтабельных и отображаемых рецептов, обновляемые через {@link #populateRecipes}.
  */
+@Environment(EnvType.CLIENT)
 public class RecipeResultCollection {
 
 	public static final RecipeResultCollection EMPTY = new RecipeResultCollection(List.of());
+
 	private final List<RecipeDisplayEntry> entries;
 	private final Set<NetworkRecipeId> craftableRecipes = new HashSet<>();
 	private final Set<NetworkRecipeId> displayableRecipes = new HashSet<>();
@@ -29,78 +31,74 @@ public class RecipeResultCollection {
 	}
 
 	/**
-	 * Populate recipes.
+	 * Обновляет множества крафтабельных и отображаемых рецептов на основе текущего инвентаря.
 	 *
-	 * @param finder finder
-	 * @param displayablePredicate displayable predicate
+	 * @param finder              поисковик рецептов с текущим содержимым инвентаря
+	 * @param displayablePredicate предикат, определяющий, должен ли рецепт отображаться
 	 */
 	public void populateRecipes(RecipeFinder finder, Predicate<RecipeDisplay> displayablePredicate) {
-		for (RecipeDisplayEntry recipeDisplayEntry : this.entries) {
-			boolean bl = displayablePredicate.test(recipeDisplayEntry.display());
-			if (bl) {
-				this.displayableRecipes.add(recipeDisplayEntry.id());
-			}
-			else {
-				this.displayableRecipes.remove(recipeDisplayEntry.id());
+		for (RecipeDisplayEntry entry : entries) {
+			boolean displayable = displayablePredicate.test(entry.display());
+
+			if (displayable) {
+				displayableRecipes.add(entry.id());
+			} else {
+				displayableRecipes.remove(entry.id());
 			}
 
-			if (bl && recipeDisplayEntry.isCraftable(finder)) {
-				this.craftableRecipes.add(recipeDisplayEntry.id());
-			}
-			else {
-				this.craftableRecipes.remove(recipeDisplayEntry.id());
+			if (displayable && entry.isCraftable(finder)) {
+				craftableRecipes.add(entry.id());
+			} else {
+				craftableRecipes.remove(entry.id());
 			}
 		}
 	}
 
 	public boolean isCraftable(NetworkRecipeId recipeId) {
-		return this.craftableRecipes.contains(recipeId);
+		return craftableRecipes.contains(recipeId);
 	}
 
 	public boolean hasCraftableRecipes() {
-		return !this.craftableRecipes.isEmpty();
+		return !craftableRecipes.isEmpty();
 	}
 
 	public boolean hasDisplayableRecipes() {
-		return !this.displayableRecipes.isEmpty();
+		return !displayableRecipes.isEmpty();
 	}
 
 	public List<RecipeDisplayEntry> getAllRecipes() {
-		return this.entries;
+		return entries;
 	}
 
 	/**
-	 * Filter.
+	 * Возвращает отфильтрованный список рецептов согласно режиму фильтрации.
 	 *
-	 * @param filterMode filter mode
-	 *
-	 * @return List — результат операции
+	 * @param filterMode режим фильтрации: любые, крафтабельные или некрафтабельные
+	 * @return список записей рецептов, прошедших фильтр
 	 */
 	public List<RecipeDisplayEntry> filter(RecipeResultCollection.RecipeFilterMode filterMode) {
 		Predicate<NetworkRecipeId> predicate = switch (filterMode) {
-			case ANY -> this.displayableRecipes::contains;
-			case CRAFTABLE -> this.craftableRecipes::contains;
+			case ANY -> displayableRecipes::contains;
+			case CRAFTABLE -> craftableRecipes::contains;
 			case NOT_CRAFTABLE ->
-					recipeId -> this.displayableRecipes.contains(recipeId) && !this.craftableRecipes.contains(recipeId);
+					recipeId -> displayableRecipes.contains(recipeId) && !craftableRecipes.contains(recipeId);
 		};
-		List<RecipeDisplayEntry> list = new ArrayList<>();
 
-		for (RecipeDisplayEntry recipeDisplayEntry : this.entries) {
-			if (predicate.test(recipeDisplayEntry.id())) {
-				list.add(recipeDisplayEntry);
+		List<RecipeDisplayEntry> result = new ArrayList<>();
+
+		for (RecipeDisplayEntry entry : entries) {
+			if (predicate.test(entry.id())) {
+				result.add(entry);
 			}
 		}
 
-		return list;
+		return result;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RecipeFilterMode}.
-	 */
-	public static enum RecipeFilterMode {
+	public enum RecipeFilterMode {
 		ANY,
 		CRAFTABLE,
-		NOT_CRAFTABLE;
+		NOT_CRAFTABLE
 	}
 }

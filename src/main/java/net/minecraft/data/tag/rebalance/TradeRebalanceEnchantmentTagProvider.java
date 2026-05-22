@@ -45,12 +45,12 @@ public class TradeRebalanceEnchantmentTagProvider extends SimpleTagProvider<Ench
 		this
 				.builder(EnchantmentTags.TAIGA_COMMON_TRADE)
 				.add(Enchantments.BLAST_PROTECTION, Enchantments.FIRE_ASPECT, Enchantments.FLAME);
-		this.builder(EnchantmentTags.DESERT_SPECIAL_TRADE).add(Enchantments.EFFICIENCY);
-		this.builder(EnchantmentTags.JUNGLE_SPECIAL_TRADE).add(Enchantments.UNBREAKING);
-		this.builder(EnchantmentTags.PLAINS_SPECIAL_TRADE).add(Enchantments.PROTECTION);
-		this.builder(EnchantmentTags.SAVANNA_SPECIAL_TRADE).add(Enchantments.SHARPNESS);
-		this.builder(EnchantmentTags.SNOW_SPECIAL_TRADE).add(Enchantments.SILK_TOUCH);
-		this.builder(EnchantmentTags.SWAMP_SPECIAL_TRADE).add(Enchantments.MENDING);
-		this.builder(EnchantmentTags.TAIGA_SPECIAL_TRADE).add(Enchantments.FORTUNE);
+		builder(EnchantmentTags.DESERT_SPECIAL_TRADE).add(Enchantments.EFFICIENCY);
+		builder(EnchantmentTags.JUNGLE_SPECIAL_TRADE).add(Enchantments.UNBREAKING);
+		builder(EnchantmentTags.PLAINS_SPECIAL_TRADE).add(Enchantments.PROTECTION);
+		builder(EnchantmentTags.SAVANNA_SPECIAL_TRADE).add(Enchantments.SHARPNESS);
+		builder(EnchantmentTags.SNOW_SPECIAL_TRADE).add(Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.SWAMP_SPECIAL_TRADE).add(Enchantments.MENDING);
+		builder(EnchantmentTags.TAIGA_SPECIAL_TRADE).add(Enchantments.FORTUNE);
 	}
 }

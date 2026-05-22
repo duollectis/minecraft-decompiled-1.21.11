@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code ObjectiveRenderTypeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ObjectiveRenderTypeFix extends DataFix {
 
@@ -23,8 +23,8 @@ public class ObjectiveRenderTypeFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.OBJECTIVE);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.OBJECTIVE);
+		return fixTypeEverywhereTyped(
 				"ObjectiveRenderTypeFix", type, typed -> typed.update(
 						DSL.remainderFinder(), objective -> {
 							Optional<String> optional = objective.get("RenderType").asString().result();

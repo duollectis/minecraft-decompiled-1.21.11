@@ -9,21 +9,23 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1909}.
+ * Схема версии 1909: добавляет блок-сущность {@code minecraft:jigsaw}
+ * с полем {@code final_state}, хранящим финальное состояние блока
+ * после сборки структуры.
  */
 public class Schema1909 extends IdentifierNormalizingSchema {
 
-	public Schema1909(int i, Schema schema) {
-		super(i, schema);
+	public Schema1909(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
 		schema.register(
-				map,
+				blockEntityTypes,
 				"minecraft:jigsaw",
 				() -> DSL.optionalFields("final_state", TypeReferences.FLAT_BLOCK_STATE.in(schema))
 		);
-		return map;
+		return blockEntityTypes;
 	}
 }

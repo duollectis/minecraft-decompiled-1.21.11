@@ -8,16 +8,16 @@ import net.minecraft.registry.tag.EntityTypeTags;
 import java.util.Optional;
 
 /**
- * {@code NearestFollowableFriendlyMobSensor}.
+ * Сенсор поиска ближайшего взрослого дружественного моба, за которым можно следовать.
+ * Фильтрует по тегу {@code FOLLOWABLE_FRIENDLY_MOBS} вместо точного совпадения типа.
  */
 public class NearestFollowableFriendlyMobSensor extends NearestVisibleAdultSensor {
 
 	@Override
 	protected void find(LivingEntity entity, LivingTargetCache targetCache) {
-		Optional<LivingEntity> optional = targetCache.findFirst(
-				potentialFriend -> potentialFriend.getType().isIn(EntityTypeTags.FOLLOWABLE_FRIENDLY_MOBS)
-						&& !potentialFriend.isBaby()
+		Optional<LivingEntity> nearest = targetCache.findFirst(
+				mob -> mob.getType().isIn(EntityTypeTags.FOLLOWABLE_FRIENDLY_MOBS) && !mob.isBaby()
 		);
-		entity.getBrain().remember(MemoryModuleType.NEAREST_VISIBLE_ADULT, optional);
+		entity.getBrain().remember(MemoryModuleType.NEAREST_VISIBLE_ADULT, nearest);
 	}
 }

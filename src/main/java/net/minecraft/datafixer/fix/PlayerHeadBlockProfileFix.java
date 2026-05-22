@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code PlayerHeadBlockProfileFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PlayerHeadBlockProfileFix extends ChoiceFix {
 

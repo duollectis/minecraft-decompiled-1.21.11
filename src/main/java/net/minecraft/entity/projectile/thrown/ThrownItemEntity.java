@@ -13,12 +13,15 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
 /**
- * {@code ThrownItemEntity}.
+ * Базовый класс для бросаемых снарядов, имеющих визуальное представление предмета.
+ * <p>
+ * Хранит {@link ItemStack} в {@link DataTracker} для синхронизации с клиентом.
+ * Подклассы обязаны реализовать {@link #getDefaultItem()} для инициализации
+ * дефолтного стека при создании через конструктор типа.
  */
 public abstract class ThrownItemEntity extends ThrownEntity implements FlyingItemEntity {
 
-	private static final TrackedData<ItemStack>
-			ITEM =
+	private static final TrackedData<ItemStack> ITEM =
 			DataTracker.registerData(ThrownItemEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
 
 	public ThrownItemEntity(EntityType<? extends ThrownItemEntity> entityType, World world) {
@@ -34,7 +37,7 @@ public abstract class ThrownItemEntity extends ThrownEntity implements FlyingIte
 			ItemStack stack
 	) {
 		super(type, x, y, z, world);
-		this.setItem(stack);
+		setItem(stack);
 	}
 
 	public ThrownItemEntity(
@@ -44,36 +47,35 @@ public abstract class ThrownItemEntity extends ThrownEntity implements FlyingIte
 			ItemStack stack
 	) {
 		this(type, owner.getX(), owner.getEyeY() - 0.1F, owner.getZ(), world, stack);
-		this.setOwner(owner);
+		setOwner(owner);
 	}
 
 	public void setItem(ItemStack stack) {
-		this.getDataTracker().set(ITEM, stack.copyWithCount(1));
+		getDataTracker().set(ITEM, stack.copyWithCount(1));
 	}
 
 	protected abstract Item getDefaultItem();
 
 	@Override
 	public ItemStack getStack() {
-		return this.getDataTracker().get(ITEM);
+		return getDataTracker().get(ITEM);
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
-		builder.add(ITEM, new ItemStack(this.getDefaultItem()));
+		builder.add(ITEM, new ItemStack(getDefaultItem()));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("Item", ItemStack.CODEC, this.getStack());
+		view.put("Item", ItemStack.CODEC, getStack());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setItem(view
-				.<ItemStack>read("Item", ItemStack.CODEC)
-				.orElseGet(() -> new ItemStack(this.getDefaultItem())));
+		setItem(view.<ItemStack>read("Item", ItemStack.CODEC)
+				.orElseGet(() -> new ItemStack(getDefaultItem())));
 	}
 }

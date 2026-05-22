@@ -10,7 +10,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.world.World;
 
 /**
- * {@code GlobalPos}.
+ * Глобальная позиция: пара (измерение, блочная позиция).
+ * Используется для хранения межмировых ссылок (например, точки возрождения, цели ИИ).
  */
 public record GlobalPos(RegistryKey<World> dimension, BlockPos pos) {
 
@@ -31,24 +32,16 @@ public record GlobalPos(RegistryKey<World> dimension, BlockPos pos) {
 			GlobalPos::create
 	);
 
-	/**
-	 * Create.
-	 *
-	 * @param dimension dimension
-	 * @param pos pos
-	 *
-	 * @return GlobalPos — результат операции
-	 */
 	public static GlobalPos create(RegistryKey<World> dimension, BlockPos pos) {
 		return new GlobalPos(dimension, pos);
 	}
 
 	@Override
 	public String toString() {
-		return this.dimension + " " + this.pos;
+		return dimension + " " + pos;
 	}
 
 	public boolean isWithinRange(RegistryKey<World> dimension, BlockPos otherPos, int maxDistance) {
-		return this.dimension.equals(dimension) && this.pos.getChebyshevDistance(otherPos) <= maxDistance;
+		return this.dimension.equals(dimension) && pos.getChebyshevDistance(otherPos) <= maxDistance;
 	}
 }

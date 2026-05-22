@@ -12,7 +12,10 @@ import net.minecraft.world.CollisionView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EntityShapeContext}.
+ * Реализация {@link ShapeContext} для сущностей.
+ * <p>Хранит контекст формы столкновения, специфичный для конкретной сущности:
+ * её позицию по Y, предмет в руке, флаг спуска и признак обработки жидкости как куба.
+ * Используется при расчёте коллизий и проверке проходимости блоков.</p>
  */
 public class EntityShapeContext implements ShapeContext {
 
@@ -93,7 +96,8 @@ public class EntityShapeContext implements ShapeContext {
 	}
 
 	/**
-	 * {@code Absent}.
+	 * Реализация контекста формы для случая отсутствия сущности.
+	 * Используется как заглушка при расчётах коллизий без привязки к конкретной сущности.
 	 */
 	protected static class Absent extends EntityShapeContext {
 

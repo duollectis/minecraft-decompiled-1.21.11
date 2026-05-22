@@ -42,24 +42,39 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code BedBlock}.
+ * Блок кровати — двухблочный объект для сна и установки точки возрождения.
+ * <p>
+ * Состоит из двух частей: {@link BedPart#FOOT} (ножная) и {@link BedPart#HEAD} (головная).
+ * При размещении автоматически создаёт вторую часть в направлении взгляда игрока.
+ * В измерениях без правила сна ({@link BedRule#explodes()}) взрыв заменяет сон.
+ * Поддерживает отскок сущностей при падении (коэффициент {@link #BOUNCE_MULTIPLIER}).
  */
 public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvider {
 
 	public static final MapCodec<BedBlock> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(DyeColor.CODEC.fieldOf("color").forGetter(BedBlock::getColor), createSettingsCodec())
-					.apply(instance, BedBlock::new)
+		instance -> instance
+			.group(DyeColor.CODEC.fieldOf("color").forGetter(BedBlock::getColor), createSettingsCodec())
+			.apply(instance, BedBlock::new)
 	);
 	public static final EnumProperty<BedPart> PART = Properties.BED_PART;
 	public static final BooleanProperty OCCUPIED = Properties.OCCUPIED;
+	/** Множитель отскока по оси Y при падении на кровать. */
+	private static final float BOUNCE_MULTIPLIER = 0.66f;
+	/** Множитель отскока для живых существ (выше, чем для предметов). */
+	private static final double LIVING_BOUNCE_FACTOR = 1.0;
+	/** Множитель отскока для неживых сущностей. */
+	private static final double NONLIVING_BOUNCE_FACTOR = 0.8;
+	/** Флаги обновления блока при разрушении второй части кровати. */
+	private static final int BREAK_UPDATE_FLAGS = 35;
+	/** Сила взрыва кровати в измерениях без правила сна. */
+	private static final float BED_EXPLOSION_POWER = 5.0f;
 	private static final Map<Direction, VoxelShape> SHAPES_BY_DIRECTION = Util.make(() -> {
-		VoxelShape voxelShape = Block.createCuboidShape(0.0, 0.0, 0.0, 3.0, 3.0, 3.0);
-		VoxelShape voxelShape2 = VoxelShapes.transform(voxelShape, DirectionTransformation.ROT_90_Z_POS);
+		VoxelShape legShape = Block.createCuboidShape(0.0, 0.0, 0.0, 3.0, 3.0, 3.0);
+		VoxelShape legShapeRotated = VoxelShapes.transform(legShape, DirectionTransformation.ROT_90_Z_POS);
 		return VoxelShapes.createHorizontalFacingShapeMap(VoxelShapes.union(
-				Block.createColumnShape(16.0, 3.0, 9.0),
-				voxelShape,
-				voxelShape2
+			Block.createColumnShape(16.0, 3.0, 9.0),
+			legShape,
+			legShapeRotated
 		));
 	});
 	private final DyeColor color;
@@ -72,7 +87,7 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 	public BedBlock(DyeColor color, AbstractBlock.Settings settings) {
 		super(settings);
 		this.color = color;
-		this.setDefaultState(this.stateManager.getDefaultState().with(PART, BedPart.FOOT).with(OCCUPIED, false));
+		setDefaultState(stateManager.getDefaultState().with(PART, BedPart.FOOT).with(OCCUPIED, false));
 	}
 
 	public static @Nullable Direction getDirection(BlockView world, BlockPos pos) {
@@ -80,72 +95,82 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 		return blockState.getBlock() instanceof BedBlock ? blockState.get(FACING) : null;
 	}
 
+	/**
+	 * Обрабатывает взаимодействие с кроватью: сон, пробуждение жителя или взрыв
+	 * в измерениях, где сон запрещён правилом {@link BedRule}.
+	 */
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (world.isClient()) {
 			return ActionResult.SUCCESS_SERVER;
 		}
-		else {
-			if (state.get(PART) != BedPart.HEAD) {
-				pos = pos.offset(state.get(FACING));
-				state = world.getBlockState(pos);
-				if (!state.isOf(this)) {
-					return ActionResult.CONSUME;
-				}
-			}
 
-			BedRule
-					bedRule =
-					world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.BED_RULE_GAMEPLAY, pos);
-			if (bedRule.explodes()) {
-				bedRule.errorMessage().ifPresent(message -> player.sendMessage(message, true));
-				world.removeBlock(pos, false);
-				BlockPos blockPos = pos.offset(state.get(FACING).getOpposite());
-				if (world.getBlockState(blockPos).isOf(this)) {
-					world.removeBlock(blockPos, false);
-				}
+		if (state.get(PART) != BedPart.HEAD) {
+			pos = pos.offset(state.get(FACING));
+			state = world.getBlockState(pos);
 
-				Vec3d vec3d = pos.toCenterPos();
-				world.createExplosion(
-						null,
-						world.getDamageSources().badRespawnPoint(vec3d),
-						null,
-						vec3d,
-						5.0F,
-						true,
-						World.ExplosionSourceType.BLOCK
-				);
-				return ActionResult.SUCCESS_SERVER;
-			}
-			else if (state.get(OCCUPIED)) {
-				if (!this.wakeVillager(world, pos)) {
-					player.sendMessage(Text.translatable("block.minecraft.bed.occupied"), true);
-				}
-
-				return ActionResult.SUCCESS_SERVER;
-			}
-			else {
-				player.trySleep(pos).ifLeft(reason -> {
-					if (reason.message() != null) {
-						player.sendMessage(reason.message(), true);
-					}
-				});
-				return ActionResult.SUCCESS_SERVER;
+			if (state.isOf(this) == false) {
+				return ActionResult.CONSUME;
 			}
 		}
+
+		BedRule bedRule = world.getEnvironmentAttributes()
+			.getAttributeValue(EnvironmentAttributes.BED_RULE_GAMEPLAY, pos);
+
+		if (bedRule.explodes()) {
+			bedRule.errorMessage().ifPresent(message -> player.sendMessage(message, true));
+			world.removeBlock(pos, false);
+
+			BlockPos footPos = pos.offset(state.get(FACING).getOpposite());
+
+			if (world.getBlockState(footPos).isOf(this)) {
+				world.removeBlock(footPos, false);
+			}
+
+			Vec3d center = pos.toCenterPos();
+			world.createExplosion(
+				null,
+				world.getDamageSources().badRespawnPoint(center),
+				null,
+				center,
+				BED_EXPLOSION_POWER,
+				true,
+				World.ExplosionSourceType.BLOCK
+			);
+
+			return ActionResult.SUCCESS_SERVER;
+		}
+
+		if (state.get(OCCUPIED)) {
+			if (wakeVillager(world, pos) == false) {
+				player.sendMessage(Text.translatable("block.minecraft.bed.occupied"), true);
+			}
+
+			return ActionResult.SUCCESS_SERVER;
+		}
+
+		player.trySleep(pos).ifLeft(reason -> {
+			if (reason.message() != null) {
+				player.sendMessage(reason.message(), true);
+			}
+		});
+
+		return ActionResult.SUCCESS_SERVER;
 	}
 
 	private boolean wakeVillager(World world, BlockPos pos) {
-		List<VillagerEntity>
-				list =
-				world.getEntitiesByClass(VillagerEntity.class, new Box(pos), LivingEntity::isSleeping);
-		if (list.isEmpty()) {
+		List<VillagerEntity> sleepingVillagers = world.getEntitiesByClass(
+			VillagerEntity.class,
+			new Box(pos),
+			LivingEntity::isSleeping
+		);
+
+		if (sleepingVillagers.isEmpty()) {
 			return false;
 		}
-		else {
-			list.get(0).wakeUp();
-			return true;
-		}
+
+		sleepingVillagers.get(0).wakeUp();
+		return true;
 	}
 
 	@Override
@@ -157,48 +182,47 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 	public void onEntityLand(BlockView world, Entity entity) {
 		if (entity.bypassesLandingEffects()) {
 			super.onEntityLand(world, entity);
-		}
-		else {
-			this.bounceEntity(entity);
+		} else {
+			bounceEntity(entity);
 		}
 	}
 
 	private void bounceEntity(Entity entity) {
-		Vec3d vec3d = entity.getVelocity();
-		if (vec3d.y < 0.0) {
-			double d = entity instanceof LivingEntity ? 1.0 : 0.8;
-			entity.setVelocity(vec3d.x, -vec3d.y * 0.66F * d, vec3d.z);
+		Vec3d velocity = entity.getVelocity();
+
+		if (velocity.y < 0.0) {
+			double bounceFactor = entity instanceof LivingEntity ? LIVING_BOUNCE_FACTOR : NONLIVING_BOUNCE_FACTOR;
+			entity.setVelocity(velocity.x, -velocity.y * BOUNCE_MULTIPLIER * bounceFactor, velocity.z);
 		}
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		if (direction == getDirectionTowardsOtherPart(state.get(PART), state.get(FACING))) {
-			return neighborState.isOf(this) && neighborState.get(PART) != state.get(PART)
-			       ? state.with(OCCUPIED, neighborState.get(OCCUPIED))
-			       : Blocks.AIR.getDefaultState();
-		}
-		else {
+		if (direction != getDirectionTowardsOtherPart(state.get(PART), state.get(FACING))) {
 			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
 			);
 		}
+
+		return neighborState.isOf(this) && neighborState.get(PART) != state.get(PART)
+			? state.with(OCCUPIED, neighborState.get(OCCUPIED))
+			: Blocks.AIR.getDefaultState();
 	}
 
 	private static Direction getDirectionTowardsOtherPart(BedPart part, Direction direction) {
@@ -207,14 +231,16 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 
 	@Override
 	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-		if (!world.isClient() && player.shouldSkipBlockDrops()) {
+		if (world.isClient() == false && player.shouldSkipBlockDrops()) {
 			BedPart bedPart = state.get(PART);
+
 			if (bedPart == BedPart.FOOT) {
-				BlockPos blockPos = pos.offset(getDirectionTowardsOtherPart(bedPart, state.get(FACING)));
-				BlockState blockState = world.getBlockState(blockPos);
-				if (blockState.isOf(this) && blockState.get(PART) == BedPart.HEAD) {
-					world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 35);
-					world.syncWorldEvent(player, 2001, blockPos, Block.getRawIdFromState(blockState));
+				BlockPos headPos = pos.offset(getDirectionTowardsOtherPart(bedPart, state.get(FACING)));
+				BlockState headState = world.getBlockState(headPos);
+
+				if (headState.isOf(this) && headState.get(PART) == BedPart.HEAD) {
+					world.setBlockState(headPos, Blocks.AIR.getDefaultState(), BREAK_UPDATE_FLAGS);
+					world.syncWorldEvent(player, 2001, headPos, Block.getRawIdFromState(headState));
 				}
 			}
 		}
@@ -225,12 +251,13 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		Direction direction = ctx.getHorizontalPlayerFacing();
-		BlockPos blockPos = ctx.getBlockPos();
-		BlockPos blockPos2 = blockPos.offset(direction);
+		BlockPos footPos = ctx.getBlockPos();
+		BlockPos headPos = footPos.offset(direction);
 		World world = ctx.getWorld();
-		return world.getBlockState(blockPos2).canReplace(ctx) && world.getWorldBorder().contains(blockPos2)
-		       ? this.getDefaultState().with(FACING, direction)
-		       : null;
+
+		return world.getBlockState(headPos).canReplace(ctx) && world.getWorldBorder().contains(headPos)
+			? getDefaultState().with(FACING, direction)
+			: null;
 	}
 
 	@Override
@@ -252,77 +279,86 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 		return world.getBlockState(pos.down()).getBlock() instanceof BedBlock;
 	}
 
+	/**
+	 * Ищет позицию пробуждения вокруг кровати с учётом направления кровати и угла спауна.
+	 * Если под кроватью есть другая кровать, делегирует поиск с учётом этого.
+	 *
+	 * @param type тип сущности, которая просыпается
+	 * @param world мир
+	 * @param pos позиция головной части кровати
+	 * @param bedDirection направление кровати
+	 * @param spawnAngle угол спауна игрока
+	 * @return позиция пробуждения или {@link Optional#empty()}
+	 */
 	public static Optional<Vec3d> findWakeUpPosition(
-			EntityType<?> type,
-			CollisionView world,
-			BlockPos pos,
-			Direction bedDirection,
-			float spawnAngle
+		EntityType<?> type,
+		CollisionView world,
+		BlockPos pos,
+		Direction bedDirection,
+		float spawnAngle
 	) {
-		Direction direction = bedDirection.rotateYClockwise();
-		Direction direction2 = direction.pointsTo(spawnAngle) ? direction.getOpposite() : direction;
+		Direction sideDirection = bedDirection.rotateYClockwise();
+		Direction respawnDirection = sideDirection.pointsTo(spawnAngle) ? sideDirection.getOpposite() : sideDirection;
+
 		if (isBedBelow(world, pos)) {
-			return findWakeUpPosition(type, world, pos, bedDirection, direction2);
+			return findWakeUpPosition(type, world, pos, bedDirection, respawnDirection);
 		}
-		else {
-			int[][] is = getAroundAndOnBedOffsets(bedDirection, direction2);
-			Optional<Vec3d> optional = findWakeUpPosition(type, world, pos, is, true);
-			return optional.isPresent() ? optional : findWakeUpPosition(type, world, pos, is, false);
-		}
+
+		int[][] offsets = getAroundAndOnBedOffsets(bedDirection, respawnDirection);
+		Optional<Vec3d> result = findWakeUpPosition(type, world, pos, offsets, true);
+		return result.isPresent() ? result : findWakeUpPosition(type, world, pos, offsets, false);
 	}
 
 	private static Optional<Vec3d> findWakeUpPosition(
-			EntityType<?> type,
-			CollisionView world,
-			BlockPos pos,
-			Direction bedDirection,
-			Direction respawnDirection
+		EntityType<?> type,
+		CollisionView world,
+		BlockPos pos,
+		Direction bedDirection,
+		Direction respawnDirection
 	) {
-		int[][] is = getAroundBedOffsets(bedDirection, respawnDirection);
-		Optional<Vec3d> optional = findWakeUpPosition(type, world, pos, is, true);
-		if (optional.isPresent()) {
-			return optional;
+		int[][] aroundOffsets = getAroundBedOffsets(bedDirection, respawnDirection);
+		int[][] onOffsets = getOnBedOffsets(bedDirection);
+		BlockPos belowPos = pos.down();
+
+		Optional<Vec3d> result = findWakeUpPosition(type, world, pos, aroundOffsets, true);
+		if (result.isPresent()) {
+			return result;
 		}
-		else {
-			BlockPos blockPos = pos.down();
-			Optional<Vec3d> optional2 = findWakeUpPosition(type, world, blockPos, is, true);
-			if (optional2.isPresent()) {
-				return optional2;
-			}
-			else {
-				int[][] js = getOnBedOffsets(bedDirection);
-				Optional<Vec3d> optional3 = findWakeUpPosition(type, world, pos, js, true);
-				if (optional3.isPresent()) {
-					return optional3;
-				}
-				else {
-					Optional<Vec3d> optional4 = findWakeUpPosition(type, world, pos, is, false);
-					if (optional4.isPresent()) {
-						return optional4;
-					}
-					else {
-						Optional<Vec3d> optional5 = findWakeUpPosition(type, world, blockPos, is, false);
-						return optional5.isPresent() ? optional5 : findWakeUpPosition(type, world, pos, js, false);
-					}
-				}
-			}
+
+		result = findWakeUpPosition(type, world, belowPos, aroundOffsets, true);
+		if (result.isPresent()) {
+			return result;
 		}
+
+		result = findWakeUpPosition(type, world, pos, onOffsets, true);
+		if (result.isPresent()) {
+			return result;
+		}
+
+		result = findWakeUpPosition(type, world, pos, aroundOffsets, false);
+		if (result.isPresent()) {
+			return result;
+		}
+
+		result = findWakeUpPosition(type, world, belowPos, aroundOffsets, false);
+		return result.isPresent() ? result : findWakeUpPosition(type, world, pos, onOffsets, false);
 	}
 
 	private static Optional<Vec3d> findWakeUpPosition(
-			EntityType<?> type,
-			CollisionView world,
-			BlockPos pos,
-			int[][] possibleOffsets,
-			boolean ignoreInvalidPos
+		EntityType<?> type,
+		CollisionView world,
+		BlockPos pos,
+		int[][] possibleOffsets,
+		boolean ignoreInvalidPos
 	) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int[] is : possibleOffsets) {
-			mutable.set(pos.getX() + is[0], pos.getY(), pos.getZ() + is[1]);
-			Vec3d vec3d = Dismounting.findRespawnPos(type, world, mutable, ignoreInvalidPos);
-			if (vec3d != null) {
-				return Optional.of(vec3d);
+		for (int[] offset : possibleOffsets) {
+			mutable.set(pos.getX() + offset[0], pos.getY(), pos.getZ() + offset[1]);
+			Vec3d respawnPos = Dismounting.findRespawnPos(type, world, mutable, ignoreInvalidPos);
+
+			if (respawnPos != null) {
+				return Optional.of(respawnPos);
 			}
 		}
 
@@ -336,34 +372,35 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 
 	@Override
 	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-		return new BedBlockEntity(pos, state, this.color);
+		return new BedBlockEntity(pos, state, color);
 	}
 
 	@Override
 	public void onPlaced(
-			World world,
-			BlockPos pos,
-			BlockState state,
-			@Nullable LivingEntity placer,
-			ItemStack itemStack
+		World world,
+		BlockPos pos,
+		BlockState state,
+		@Nullable LivingEntity placer,
+		ItemStack itemStack
 	) {
 		super.onPlaced(world, pos, state, placer, itemStack);
-		if (!world.isClient()) {
-			BlockPos blockPos = pos.offset(state.get(FACING));
-			world.setBlockState(blockPos, state.with(PART, BedPart.HEAD), 3);
+
+		if (world.isClient() == false) {
+			BlockPos headPos = pos.offset(state.get(FACING));
+			world.setBlockState(headPos, state.with(PART, BedPart.HEAD), 3);
 			world.updateNeighbors(pos, Blocks.AIR);
 			state.updateNeighbors(world, pos, 3);
 		}
 	}
 
 	public DyeColor getColor() {
-		return this.color;
+		return color;
 	}
 
 	@Override
 	protected long getRenderingSeed(BlockState state, BlockPos pos) {
-		BlockPos blockPos = pos.offset(state.get(FACING), state.get(PART) == BedPart.HEAD ? 0 : 1);
-		return MathHelper.hashCode(blockPos.getX(), pos.getY(), blockPos.getZ());
+		BlockPos seedPos = pos.offset(state.get(FACING), state.get(PART) == BedPart.HEAD ? 0 : 1);
+		return MathHelper.hashCode(seedPos.getX(), pos.getY(), seedPos.getZ());
 	}
 
 	@Override
@@ -373,41 +410,41 @@ public class BedBlock extends HorizontalFacingBlock implements BlockEntityProvid
 
 	private static int[][] getAroundAndOnBedOffsets(Direction bedDirection, Direction respawnDirection) {
 		return (int[][]) ArrayUtils.addAll(
-				getAroundBedOffsets(bedDirection, respawnDirection),
-				getOnBedOffsets(bedDirection)
+			getAroundBedOffsets(bedDirection, respawnDirection),
+			getOnBedOffsets(bedDirection)
 		);
 	}
 
 	private static int[][] getAroundBedOffsets(Direction bedDirection, Direction respawnDirection) {
 		return new int[][]{
-				{respawnDirection.getOffsetX(), respawnDirection.getOffsetZ()},
-				{
-						respawnDirection.getOffsetX() - bedDirection.getOffsetX(),
-						respawnDirection.getOffsetZ() - bedDirection.getOffsetZ()
-				},
-				{
-						respawnDirection.getOffsetX() - bedDirection.getOffsetX() * 2,
-						respawnDirection.getOffsetZ() - bedDirection.getOffsetZ() * 2
-				},
-				{-bedDirection.getOffsetX() * 2, -bedDirection.getOffsetZ() * 2},
-				{
-						-respawnDirection.getOffsetX() - bedDirection.getOffsetX() * 2,
-						-respawnDirection.getOffsetZ() - bedDirection.getOffsetZ() * 2
-				},
-				{
-						-respawnDirection.getOffsetX() - bedDirection.getOffsetX(),
-						-respawnDirection.getOffsetZ() - bedDirection.getOffsetZ()
-				},
-				{-respawnDirection.getOffsetX(), -respawnDirection.getOffsetZ()},
-				{
-						-respawnDirection.getOffsetX() + bedDirection.getOffsetX(),
-						-respawnDirection.getOffsetZ() + bedDirection.getOffsetZ()
-				},
-				{bedDirection.getOffsetX(), bedDirection.getOffsetZ()},
-				{
-						respawnDirection.getOffsetX() + bedDirection.getOffsetX(),
-						respawnDirection.getOffsetZ() + bedDirection.getOffsetZ()
-				}
+			{respawnDirection.getOffsetX(), respawnDirection.getOffsetZ()},
+			{
+				respawnDirection.getOffsetX() - bedDirection.getOffsetX(),
+				respawnDirection.getOffsetZ() - bedDirection.getOffsetZ()
+			},
+			{
+				respawnDirection.getOffsetX() - bedDirection.getOffsetX() * 2,
+				respawnDirection.getOffsetZ() - bedDirection.getOffsetZ() * 2
+			},
+			{-bedDirection.getOffsetX() * 2, -bedDirection.getOffsetZ() * 2},
+			{
+				-respawnDirection.getOffsetX() - bedDirection.getOffsetX() * 2,
+				-respawnDirection.getOffsetZ() - bedDirection.getOffsetZ() * 2
+			},
+			{
+				-respawnDirection.getOffsetX() - bedDirection.getOffsetX(),
+				-respawnDirection.getOffsetZ() - bedDirection.getOffsetZ()
+			},
+			{-respawnDirection.getOffsetX(), -respawnDirection.getOffsetZ()},
+			{
+				-respawnDirection.getOffsetX() + bedDirection.getOffsetX(),
+				-respawnDirection.getOffsetZ() + bedDirection.getOffsetZ()
+			},
+			{bedDirection.getOffsetX(), bedDirection.getOffsetZ()},
+			{
+				respawnDirection.getOffsetX() + bedDirection.getOffsetX(),
+				respawnDirection.getOffsetZ() + bedDirection.getOffsetZ()
+			}
 		};
 	}
 

@@ -22,7 +22,15 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code TimeArgumentType}.
+ * Тип аргумента команды Brigadier для ввода временных интервалов в игровых тиках.
+ * <p>
+ * Поддерживает суффиксы единиц времени:
+ * <ul>
+ *   <li>{@code d} — игровые дни (1d = 24000 тиков)</li>
+ *   <li>{@code s} — секунды (1s = 20 тиков)</li>
+ *   <li>{@code t} или без суффикса — тики (1:1)</li>
+ * </ul>
+ * Результат всегда возвращается в тиках. Поддерживает минимальное значение.
  */
 public class TimeArgumentType implements ArgumentType<Integer> {
 
@@ -49,36 +57,36 @@ public class TimeArgumentType implements ArgumentType<Integer> {
 	}
 
 	public Integer parse(StringReader stringReader) throws CommandSyntaxException {
-		float f = stringReader.readFloat();
-		String string = stringReader.readUnquotedString();
-		int i = UNITS.getOrDefault(string, 0);
-		if (i == 0) {
+		float amount = stringReader.readFloat();
+		String unit = stringReader.readUnquotedString();
+		int ticksPerUnit = UNITS.getOrDefault(unit, 0);
+
+		if (ticksPerUnit == 0) {
 			throw INVALID_UNIT_EXCEPTION.createWithContext(stringReader);
 		}
-		else {
-			int j = Math.round(f * i);
-			if (j < this.minimum) {
-				throw TICK_COUNT_TOO_LOW_EXCEPTION.createWithContext(stringReader, j, this.minimum);
-			}
-			else {
-				return j;
-			}
+
+		int totalTicks = Math.round(amount * ticksPerUnit);
+
+		if (totalTicks < minimum) {
+			throw TICK_COUNT_TOO_LOW_EXCEPTION.createWithContext(stringReader, totalTicks, minimum);
 		}
+
+		return totalTicks;
 	}
 
 	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-		StringReader stringReader = new StringReader(builder.getRemaining());
+		StringReader remaining = new StringReader(builder.getRemaining());
 
 		try {
-			stringReader.readFloat();
+			remaining.readFloat();
 		}
-		catch (CommandSyntaxException var5) {
+		catch (CommandSyntaxException ignored) {
 			return builder.buildFuture();
 		}
 
 		return CommandSource.suggestMatching(
 				UNITS.keySet(),
-				builder.createOffset(builder.getStart() + stringReader.getCursor())
+				builder.createOffset(builder.getStart() + remaining.getCursor())
 		);
 	}
 
@@ -94,7 +102,8 @@ public class TimeArgumentType implements ArgumentType<Integer> {
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
+	 * Передаёт минимально допустимое значение в тиках.
 	 */
 	public static class Serializer implements ArgumentSerializer<TimeArgumentType, TimeArgumentType.Serializer.Properties> {
 
@@ -103,8 +112,9 @@ public class TimeArgumentType implements ArgumentType<Integer> {
 		}
 
 		public TimeArgumentType.Serializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-			int i = packetByteBuf.readInt();
-			return new TimeArgumentType.Serializer.Properties(i);
+			int minimum = packetByteBuf.readInt();
+
+			return new TimeArgumentType.Serializer.Properties(minimum);
 		}
 
 		public void writeJson(TimeArgumentType.Serializer.Properties properties, JsonObject jsonObject) {
@@ -116,7 +126,7 @@ public class TimeArgumentType implements ArgumentType<Integer> {
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит минимально допустимое значение в тиках.
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<TimeArgumentType> {
 

@@ -6,7 +6,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkLoadMap}.
+ * Карта требуемых статусов загрузки чанков в радиусе вокруг точки спавна.
+ * Используется при начальной загрузке мира для определения, какие чанки
+ * и до какого статуса нужно загрузить.
  */
 public interface ChunkLoadMap {
 

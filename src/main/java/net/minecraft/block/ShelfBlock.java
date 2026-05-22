@@ -43,7 +43,9 @@ import java.util.Map;
 import java.util.OptionalInt;
 
 /**
- * {@code ShelfBlock}.
+ * Блок полки. Хранит до 3 предметов, поддерживает боковое цепочное соединение
+ * (SideChaining) при активации редстоуном. Выдаёт компараторный сигнал
+ * в зависимости от заполненности слотов.
  */
 public class ShelfBlock extends BlockWithEntity implements InteractibleSlotContainer, SideChaining, Waterloggable {
 
@@ -118,17 +120,17 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 			boolean notify
 	) {
 		if (!world.isClient()) {
-			boolean bl = world.isReceivingRedstonePower(pos);
-			if (state.get(POWERED) != bl) {
-				BlockState blockState = state.with(POWERED, bl);
-				if (!bl) {
+			boolean isPowered = world.isReceivingRedstonePower(pos);
+			if (state.get(POWERED) != isPowered) {
+				BlockState blockState = state.with(POWERED, isPowered);
+				if (!isPowered) {
 					blockState = blockState.with(SIDE_CHAIN, SideChainPart.UNCONNECTED);
 				}
 
 				world.setBlockState(pos, blockState, 3);
-				this.playSound(world, pos, bl ? SoundEvents.BLOCK_SHELF_ACTIVATE : SoundEvents.BLOCK_SHELF_DEACTIVATE);
+				this.playSound(world, pos, isPowered ? SoundEvents.BLOCK_SHELF_ACTIVATE : SoundEvents.BLOCK_SHELF_DEACTIVATE);
 				world.emitGameEvent(
-						bl ? GameEvent.BLOCK_ACTIVATE : GameEvent.BLOCK_DEACTIVATE,
+						isPowered ? GameEvent.BLOCK_ACTIVATE : GameEvent.BLOCK_DEACTIVATE,
 						pos,
 						GameEvent.Emitter.of(blockState)
 				);
@@ -188,10 +190,8 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 					);
 				}
 				else if (!state.get(POWERED)) {
-					boolean
-							bl =
-							swapSingleStack(stack, player, shelfBlockEntity, optionalInt.getAsInt(), playerInventory);
-					if (bl) {
+					boolean swapped = swapSingleStack(stack, player, shelfBlockEntity, optionalInt.getAsInt(), playerInventory);
+					if (swapped) {
 						this.playSound(
 								world,
 								pos,
@@ -211,8 +211,8 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 				}
 				else {
 					ItemStack itemStack = playerInventory.getSelectedStack();
-					boolean bl2 = this.swapAllStacks(world, pos, playerInventory);
-					if (!bl2) {
+						boolean swapped = this.swapAllStacks(world, pos, playerInventory);
+						if (!swapped) {
 						return ActionResult.CONSUME;
 					}
 					else {
@@ -256,19 +256,19 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 			return false;
 		}
 		else {
-			boolean bl = false;
+			boolean anySwapped = false;
 
-			for (int i = 0; i < list.size(); i++) {
-				ShelfBlockEntity shelfBlockEntity = (ShelfBlockEntity) world.getBlockEntity(list.get(i));
+			for (int shelfIndex = 0; shelfIndex < list.size(); shelfIndex++) {
+				ShelfBlockEntity shelfBlockEntity = (ShelfBlockEntity) world.getBlockEntity(list.get(shelfIndex));
 				if (shelfBlockEntity != null) {
-					for (int j = 0; j < shelfBlockEntity.size(); j++) {
-						int k = 9 - (list.size() - i) * shelfBlockEntity.size() + j;
-						if (k >= 0 && k <= playerInventory.size()) {
-							ItemStack itemStack = playerInventory.removeStack(k);
-							ItemStack itemStack2 = shelfBlockEntity.swapStackNoMarkDirty(j, itemStack);
+					for (int slotIndex = 0; slotIndex < shelfBlockEntity.size(); slotIndex++) {
+						int hotbarSlot = 9 - (list.size() - shelfIndex) * shelfBlockEntity.size() + slotIndex;
+						if (hotbarSlot >= 0 && hotbarSlot <= playerInventory.size()) {
+							ItemStack itemStack = playerInventory.removeStack(hotbarSlot);
+							ItemStack itemStack2 = shelfBlockEntity.swapStackNoMarkDirty(slotIndex, itemStack);
 							if (!itemStack.isEmpty() || !itemStack2.isEmpty()) {
-								playerInventory.setStack(k, itemStack2);
-								bl = true;
+								playerInventory.setStack(hotbarSlot, itemStack2);
+								anySwapped = true;
 							}
 						}
 					}
@@ -278,7 +278,7 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 				}
 			}
 
-			return bl;
+			return anySwapped;
 		}
 	}
 
@@ -367,10 +367,10 @@ public class ShelfBlock extends BlockWithEntity implements InteractibleSlotConta
 			return 0;
 		}
 		else if (world.getBlockEntity(pos) instanceof ShelfBlockEntity shelfBlockEntity) {
-			int i = shelfBlockEntity.getStack(0).isEmpty() ? 0 : 1;
-			int j = shelfBlockEntity.getStack(1).isEmpty() ? 0 : 1;
-			int k = shelfBlockEntity.getStack(2).isEmpty() ? 0 : 1;
-			return i | j << 1 | k << 2;
+			int slot0 = shelfBlockEntity.getStack(0).isEmpty() ? 0 : 1;
+			int slot1 = shelfBlockEntity.getStack(1).isEmpty() ? 0 : 1;
+			int slot2 = shelfBlockEntity.getStack(2).isEmpty() ? 0 : 1;
+			return slot0 | slot1 << 1 | slot2 << 2;
 		}
 		else {
 			return 0;

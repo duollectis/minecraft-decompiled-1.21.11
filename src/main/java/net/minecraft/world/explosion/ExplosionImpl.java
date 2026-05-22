@@ -4,12 +4,17 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.block.AbstractFireBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.*;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.fluid.FluidState;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.tag.EntityTypeTags;
 import net.minecraft.server.world.ServerWorld;
@@ -26,16 +31,47 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * {@code ExplosionImpl}.
+ * Серверная реализация взрыва. Выполняет полный цикл взрыва:
+ * трассировку лучей для определения разрушаемых блоков, нанесение урона
+ * и отбрасывание сущностей, разрушение блоков с выпадением предметов
+ * и опциональное создание огня.
  */
 public class ExplosionImpl implements Explosion {
 
 	private static final ExplosionBehavior DEFAULT_BEHAVIOR = new ExplosionBehavior();
+
+	/** Количество точек сетки по каждой оси при трассировке лучей взрыва. */
 	private static final int RAY_GRID_SIZE = 16;
-	private static final float RAY_STEP_SIZE = 2.0F;
+
+	/** Последний индекс сетки (RAY_GRID_SIZE - 1), используется для определения граней куба. */
+	private static final int RAY_GRID_LAST = RAY_GRID_SIZE - 1;
+
+	/** Шаг продвижения луча взрыва в блоках за одну итерацию. */
+	private static final float RAY_STEP = 0.3F;
+
+	/**
+	 * Затухание мощности луча за один шаг без учёта сопротивления блоков.
+	 * Равно {@code RAY_STEP * 0.75F = 0.225F}. Значение {@code 0.22500001F}
+	 * — артефакт точности float в оригинальном коде.
+	 */
+	private static final float RAY_ATTENUATION_PER_STEP = 0.22500001F;
+
+	/** Случайный диапазон начальной мощности луча: {@code power * (0.7 + random * 0.6)}. */
+	private static final float RAY_POWER_RANDOM_MIN = 0.7F;
+	private static final float RAY_POWER_RANDOM_RANGE = 0.6F;
+
+	/** Минимальная мощность взрыва, ниже которой урон сущностям не наносится. */
+	private static final float MIN_DAMAGE_POWER = 1.0E-5F;
+
 	private final boolean createFire;
 	private final Explosion.DestructionType destructionType;
 	private final ServerWorld world;
@@ -63,300 +99,366 @@ public class ExplosionImpl implements Explosion {
 		this.createFire = createFire;
 		this.destructionType = destructionType;
 		this.damageSource = damageSource == null ? world.getDamageSources().explosion(this) : damageSource;
-		this.behavior = behavior == null ? this.makeBehavior(entity) : behavior;
-	}
-
-	private ExplosionBehavior makeBehavior(@Nullable Entity entity) {
-		return (ExplosionBehavior) (entity == null ? DEFAULT_BEHAVIOR : new EntityExplosionBehavior(entity));
+		this.behavior = behavior == null ? resolveBehavior(entity) : behavior;
 	}
 
 	/**
-	 * Вычисляет received damage.
+	 * Вычисляет долю лучей, достигающих сущности из центра взрыва без препятствий.
+	 * Используется как коэффициент воздействия (exposure) при расчёте урона и отбрасывания.
+	 * <p>
+	 * Алгоритм: равномерная сетка точек на AABB сущности, из каждой точки
+	 * пускается рейкаст к центру взрыва. Возвращает долю незаблокированных лучей.
 	 *
-	 * @param pos pos
-	 * @param entity entity
-	 *
-	 * @return float — результат операции
+	 * @param explosionPos позиция центра взрыва
+	 * @param entity       сущность, для которой вычисляется воздействие
+	 * @return коэффициент воздействия от 0.0 (полностью заблокирован) до 1.0 (открыт)
 	 */
-	public static float calculateReceivedDamage(Vec3d pos, Entity entity) {
+	public static float calculateReceivedDamage(Vec3d explosionPos, Entity entity) {
 		Box box = entity.getBoundingBox();
-		double d = 1.0 / ((box.maxX - box.minX) * 2.0 + 1.0);
-		double e = 1.0 / ((box.maxY - box.minY) * 2.0 + 1.0);
-		double f = 1.0 / ((box.maxZ - box.minZ) * 2.0 + 1.0);
-		double g = (1.0 - Math.floor(1.0 / d) * d) / 2.0;
-		double h = (1.0 - Math.floor(1.0 / f) * f) / 2.0;
-		if (!(d < 0.0) && !(e < 0.0) && !(f < 0.0)) {
-			int i = 0;
-			int j = 0;
+		double stepX = 1.0 / ((box.maxX - box.minX) * 2.0 + 1.0);
+		double stepY = 1.0 / ((box.maxY - box.minY) * 2.0 + 1.0);
+		double stepZ = 1.0 / ((box.maxZ - box.minZ) * 2.0 + 1.0);
 
-			for (double k = 0.0; k <= 1.0; k += d) {
-				for (double l = 0.0; l <= 1.0; l += e) {
-					for (double m = 0.0; m <= 1.0; m += f) {
-						double n = MathHelper.lerp(k, box.minX, box.maxX);
-						double o = MathHelper.lerp(l, box.minY, box.maxY);
-						double p = MathHelper.lerp(m, box.minZ, box.maxZ);
-						Vec3d vec3d = new Vec3d(n + g, o, p + h);
-						if (entity.getEntityWorld()
-						          .raycast(new RaycastContext(
-								          vec3d,
-								          pos,
-								          RaycastContext.ShapeType.COLLIDER,
-								          RaycastContext.FluidHandling.NONE,
-								          entity
-						          ))
-						          .getType()
-								== HitResult.Type.MISS) {
-							i++;
-						}
-
-						j++;
-					}
-				}
-			}
-
-			return (float) i / j;
-		}
-		else {
+		if (stepX < 0.0 || stepY < 0.0 || stepZ < 0.0) {
 			return 0.0F;
 		}
+
+		double offsetX = (1.0 - Math.floor(1.0 / stepX) * stepX) / 2.0;
+		double offsetZ = (1.0 - Math.floor(1.0 / stepZ) * stepZ) / 2.0;
+		int hitCount = 0;
+		int totalCount = 0;
+
+		for (double tx = 0.0; tx <= 1.0; tx += stepX) {
+			for (double ty = 0.0; ty <= 1.0; ty += stepY) {
+				for (double tz = 0.0; tz <= 1.0; tz += stepZ) {
+					double sampleX = MathHelper.lerp(tx, box.minX, box.maxX);
+					double sampleY = MathHelper.lerp(ty, box.minY, box.maxY);
+					double sampleZ = MathHelper.lerp(tz, box.minZ, box.maxZ);
+					Vec3d samplePoint = new Vec3d(sampleX + offsetX, sampleY, sampleZ + offsetZ);
+
+					boolean isVisible = entity.getEntityWorld()
+						.raycast(new RaycastContext(
+							samplePoint,
+							explosionPos,
+							RaycastContext.ShapeType.COLLIDER,
+							RaycastContext.FluidHandling.NONE,
+							entity
+						))
+						.getType() == HitResult.Type.MISS;
+
+					if (isVisible) {
+						hitCount++;
+					}
+
+					totalCount++;
+				}
+			}
+		}
+
+		return (float) hitCount / totalCount;
 	}
 
 	@Override
 	public float getPower() {
-		return this.power;
+		return power;
 	}
 
 	@Override
 	public Vec3d getPosition() {
-		return this.pos;
+		return pos;
 	}
 
+	/**
+	 * Запускает полный цикл взрыва: испускает игровое событие, определяет
+	 * разрушаемые блоки, наносит урон сущностям, разрушает блоки и создаёт огонь.
+	 *
+	 * @return количество блоков, затронутых взрывом
+	 */
+	public int explode() {
+		world.emitGameEvent(entity, GameEvent.EXPLODE, pos);
+		List<BlockPos> affectedBlocks = getBlocksToDestroy();
+		damageEntities();
+
+		if (shouldDestroyBlocks()) {
+			Profiler profiler = Profilers.get();
+			profiler.push("explosion_blocks");
+			destroyBlocks(affectedBlocks);
+			profiler.pop();
+		}
+
+		if (createFire) {
+			createFire(affectedBlocks);
+		}
+
+		return affectedBlocks.size();
+	}
+
+	public Map<PlayerEntity, Vec3d> getKnockbackByPlayer() {
+		return knockbackByPlayer;
+	}
+
+	@Override
+	public ServerWorld getWorld() {
+		return world;
+	}
+
+	@Override
+	public @Nullable LivingEntity getCausingEntity() {
+		return Explosion.getCausingEntity(entity);
+	}
+
+	@Override
+	public @Nullable Entity getEntity() {
+		return entity;
+	}
+
+	public DamageSource getDamageSource() {
+		return damageSource;
+	}
+
+	@Override
+	public Explosion.DestructionType getDestructionType() {
+		return destructionType;
+	}
+
+	/**
+	 * Взрыв типа {@link Explosion.DestructionType#TRIGGER_BLOCK} может активировать блоки
+	 * только если это не заряд ветра бриза, либо если включено правило {@code mobGriefing}.
+	 */
+	@Override
+	public boolean canTriggerBlocks() {
+		if (destructionType != Explosion.DestructionType.TRIGGER_BLOCK) {
+			return false;
+		}
+
+		boolean isBreezeWindCharge = entity != null && entity.getType() == EntityType.BREEZE_WIND_CHARGE;
+		return !isBreezeWindCharge || world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING);
+	}
+
+	/**
+	 * Декоративные сущности (рамки, картины и т.п.) сохраняются при взрыве,
+	 * если источник — заряд ветра (бриза или обычный), либо если {@code mobGriefing} отключён
+	 * и взрыв не разрушает блоки.
+	 */
+	@Override
+	public boolean preservesDecorativeEntities() {
+		boolean mobGriefingEnabled = world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING);
+		boolean isWindCharge = entity != null
+			&& (entity.getType() == EntityType.BREEZE_WIND_CHARGE
+				|| entity.getType() == EntityType.WIND_CHARGE);
+
+		return mobGriefingEnabled
+			? !isWindCharge
+			: destructionType.destroysBlocks() && !isWindCharge;
+	}
+
+	/**
+	 * Взрыв считается малым, если его мощность меньше 2 или он не разрушает блоки.
+	 * Используется для оптимизации клиентских эффектов.
+	 */
+	public boolean isSmall() {
+		return power < 2.0F || !shouldDestroyBlocks();
+	}
+
+	/**
+	 * Трассирует лучи из центра взрыва по всем направлениям от граней куба
+	 * {@code RAY_GRID_SIZE × RAY_GRID_SIZE × RAY_GRID_SIZE} и собирает блоки,
+	 * которые должны быть разрушены.
+	 * <p>
+	 * Каждый луч начинается с мощностью {@code power * (0.7 + random * 0.6)}.
+	 * На каждом шаге мощность уменьшается на {@link #RAY_ATTENUATION_PER_STEP}
+	 * плюс сопротивление блока. Блок добавляется в список, если луч ещё имеет
+	 * положительную мощность после прохождения через него.
+	 */
 	private List<BlockPos> getBlocksToDestroy() {
-		Set<BlockPos> set = new HashSet<>();
-		int i = 16;
+		Set<BlockPos> affectedBlocks = new HashSet<>();
 
-		for (int j = 0; j < 16; j++) {
-			for (int k = 0; k < 16; k++) {
-				for (int l = 0; l < 16; l++) {
-					if (j == 0 || j == 15 || k == 0 || k == 15 || l == 0 || l == 15) {
-						double d = j / 15.0F * 2.0F - 1.0F;
-						double e = k / 15.0F * 2.0F - 1.0F;
-						double f = l / 15.0F * 2.0F - 1.0F;
-						double g = Math.sqrt(d * d + e * e + f * f);
-						d /= g;
-						e /= g;
-						f /= g;
-						float h = this.power * (0.7F + this.world.random.nextFloat() * 0.6F);
-						double m = this.pos.x;
-						double n = this.pos.y;
-						double o = this.pos.z;
+		for (int gx = 0; gx < RAY_GRID_SIZE; gx++) {
+			for (int gy = 0; gy < RAY_GRID_SIZE; gy++) {
+				for (int gz = 0; gz < RAY_GRID_SIZE; gz++) {
+					if (gx != 0 && gx != RAY_GRID_LAST
+							&& gy != 0 && gy != RAY_GRID_LAST
+							&& gz != 0 && gz != RAY_GRID_LAST) {
+						continue;
+					}
 
-						for (float p = 0.3F; h > 0.0F; h -= 0.22500001F) {
-							BlockPos blockPos = BlockPos.ofFloored(m, n, o);
-							BlockState blockState = this.world.getBlockState(blockPos);
-							FluidState fluidState = this.world.getFluidState(blockPos);
-							if (!this.world.isInBuildLimit(blockPos)) {
-								break;
-							}
+					double dirX = gx / (float) RAY_GRID_LAST * 2.0F - 1.0F;
+					double dirY = gy / (float) RAY_GRID_LAST * 2.0F - 1.0F;
+					double dirZ = gz / (float) RAY_GRID_LAST * 2.0F - 1.0F;
+					double length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+					dirX /= length;
+					dirY /= length;
+					dirZ /= length;
 
-							Optional<Float>
-									optional =
-									this.behavior.getBlastResistance(
-											this,
-											this.world,
-											blockPos,
-											blockState,
-											fluidState
-									);
-							if (optional.isPresent()) {
-								h -= (optional.get() + 0.3F) * 0.3F;
-							}
+					float rayPower = power * (RAY_POWER_RANDOM_MIN + world.random.nextFloat() * RAY_POWER_RANDOM_RANGE);
+					double rayX = pos.x;
+					double rayY = pos.y;
+					double rayZ = pos.z;
 
-							if (h > 0.0F && this.behavior.canDestroyBlock(this, this.world, blockPos, blockState, h)) {
-								set.add(blockPos);
-							}
+					for (; rayPower > 0.0F; rayPower -= RAY_ATTENUATION_PER_STEP) {
+						BlockPos blockPos = BlockPos.ofFloored(rayX, rayY, rayZ);
+						BlockState blockState = world.getBlockState(blockPos);
+						FluidState fluidState = world.getFluidState(blockPos);
 
-							m += d * 0.3F;
-							n += e * 0.3F;
-							o += f * 0.3F;
+						if (!world.isInBuildLimit(blockPos)) {
+							break;
 						}
+
+						Optional<Float> resistance = behavior.getBlastResistance(
+							this,
+							world,
+							blockPos,
+							blockState,
+							fluidState
+						);
+
+						if (resistance.isPresent()) {
+							rayPower -= (resistance.get() + RAY_STEP) * RAY_STEP;
+						}
+
+						if (rayPower > 0.0F && behavior.canDestroyBlock(this, world, blockPos, blockState, rayPower)) {
+							affectedBlocks.add(blockPos);
+						}
+
+						rayX += dirX * RAY_STEP;
+						rayY += dirY * RAY_STEP;
+						rayZ += dirZ * RAY_STEP;
 					}
 				}
 			}
 		}
 
-		return new ObjectArrayList(set);
+		return new ObjectArrayList<>(affectedBlocks);
 	}
 
+	/**
+	 * Наносит урон и отбрасывает все сущности в радиусе взрыва.
+	 * Урон масштабируется по расстоянию и коэффициенту воздействия (exposure).
+	 * Отбрасывание уменьшается атрибутом {@link EntityAttributes#EXPLOSION_KNOCKBACK_RESISTANCE}.
+	 * Перенаправляемые снаряды меняют владельца на атакующего.
+	 * Позиции игроков для отбрасывания сохраняются в {@link #knockbackByPlayer}.
+	 */
 	private void damageEntities() {
-		if (!(this.power < 1.0E-5F)) {
-			float f = this.power * 2.0F;
-			int i = MathHelper.floor(this.pos.x - f - 1.0);
-			int j = MathHelper.floor(this.pos.x + f + 1.0);
-			int k = MathHelper.floor(this.pos.y - f - 1.0);
-			int l = MathHelper.floor(this.pos.y + f + 1.0);
-			int m = MathHelper.floor(this.pos.z - f - 1.0);
-			int n = MathHelper.floor(this.pos.z + f + 1.0);
+		if (power < MIN_DAMAGE_POWER) {
+			return;
+		}
 
-			for (Entity entity : this.world.getOtherEntities(this.entity, new Box(i, k, m, j, l, n))) {
-				if (!entity.isImmuneToExplosion(this)) {
-					double d = Math.sqrt(entity.squaredDistanceTo(this.pos)) / f;
-					if (!(d > 1.0)) {
-						Vec3d vec3d = entity instanceof TntEntity ? entity.getEntityPos() : entity.getEyePos();
-						Vec3d vec3d2 = vec3d.subtract(this.pos).normalize();
-						boolean bl = this.behavior.shouldDamage(this, entity);
-						float g = this.behavior.getKnockbackModifier(entity);
-						float h = !bl && g == 0.0F ? 0.0F : calculateReceivedDamage(this.pos, entity);
-						if (bl) {
-							entity.damage(
-									this.world,
-									this.damageSource,
-									this.behavior.calculateDamage(this, entity, h)
-							);
-						}
+		float diameter = power * 2.0F;
+		int minX = MathHelper.floor(pos.x - diameter - 1.0);
+		int maxX = MathHelper.floor(pos.x + diameter + 1.0);
+		int minY = MathHelper.floor(pos.y - diameter - 1.0);
+		int maxY = MathHelper.floor(pos.y + diameter + 1.0);
+		int minZ = MathHelper.floor(pos.z - diameter - 1.0);
+		int maxZ = MathHelper.floor(pos.z + diameter + 1.0);
 
-						double e = entity instanceof LivingEntity livingEntity
-						           ? livingEntity.getAttributeValue(EntityAttributes.EXPLOSION_KNOCKBACK_RESISTANCE)
-						           : 0.0;
-						double o = (1.0 - d) * h * g * (1.0 - e);
-						Vec3d vec3d3 = vec3d2.multiply(o);
-						entity.addVelocity(vec3d3);
-						if (entity.getType().isIn(EntityTypeTags.REDIRECTABLE_PROJECTILE)
-								&& entity instanceof ProjectileEntity projectileEntity) {
-							projectileEntity.setOwner(this.damageSource.getAttacker());
-						}
-						else if (entity instanceof PlayerEntity playerEntity
-								&& !playerEntity.isSpectator()
-								&& (!playerEntity.isCreative() || !playerEntity.getAbilities().flying)) {
-							this.knockbackByPlayer.put(playerEntity, vec3d3);
-						}
-
-						entity.onExplodedBy(this.entity);
-					}
-				}
+		for (Entity target : world.getOtherEntities(entity, new Box(minX, minY, minZ, maxX, maxY, maxZ))) {
+			if (target.isImmuneToExplosion(this)) {
+				continue;
 			}
-		}
-	}
 
-	private void destroyBlocks(List<BlockPos> positions) {
-		List<ExplosionImpl.DroppedItem> list = new ArrayList<>();
-		Util.shuffle(positions, this.world.random);
-
-		for (BlockPos blockPos : positions) {
-			this.world
-					.getBlockState(blockPos)
-					.onExploded(this.world, blockPos, this, (item, pos) -> addDroppedItem(list, item, pos));
-		}
-
-		for (ExplosionImpl.DroppedItem droppedItem : list) {
-			Block.dropStack(this.world, droppedItem.pos, droppedItem.item);
-		}
-	}
-
-	private void createFire(List<BlockPos> positions) {
-		for (BlockPos blockPos : positions) {
-			if (this.world.random.nextInt(3) == 0 && this.world.getBlockState(blockPos).isAir() && this.world
-					.getBlockState(blockPos.down())
-					.isOpaqueFullCube()) {
-				this.world.setBlockState(blockPos, AbstractFireBlock.getState(this.world, blockPos));
+			double distance = Math.sqrt(target.squaredDistanceTo(pos)) / diameter;
+			if (distance > 1.0) {
+				continue;
 			}
+
+			Vec3d eyePos = target instanceof TntEntity ? target.getEntityPos() : target.getEyePos();
+			Vec3d knockbackDir = eyePos.subtract(pos).normalize();
+			boolean shouldDamage = behavior.shouldDamage(this, target);
+			float knockbackMod = behavior.getKnockbackModifier(target);
+			float exposure = (!shouldDamage && knockbackMod == 0.0F)
+				? 0.0F
+				: calculateReceivedDamage(pos, target);
+
+			if (shouldDamage) {
+				target.damage(world, damageSource, behavior.calculateDamage(this, target, exposure));
+			}
+
+			double knockbackResistance = target instanceof LivingEntity living
+				? living.getAttributeValue(EntityAttributes.EXPLOSION_KNOCKBACK_RESISTANCE)
+				: 0.0;
+			double knockbackStrength = (1.0 - distance) * exposure * knockbackMod * (1.0 - knockbackResistance);
+			Vec3d knockbackVelocity = knockbackDir.multiply(knockbackStrength);
+			target.addVelocity(knockbackVelocity);
+
+			if (target.getType().isIn(EntityTypeTags.REDIRECTABLE_PROJECTILE)
+					&& target instanceof ProjectileEntity projectile) {
+				projectile.setOwner(damageSource.getAttacker());
+			} else if (target instanceof PlayerEntity player
+					&& !player.isSpectator()
+					&& (!player.isCreative() || !player.getAbilities().flying)) {
+				knockbackByPlayer.put(player, knockbackVelocity);
+			}
+
+			target.onExplodedBy(entity);
 		}
 	}
 
 	/**
-	 * Explode.
-	 *
-	 * @return int — результат операции
+	 * Разрушает блоки из переданного списка в случайном порядке.
+	 * Выпавшие предметы накапливаются и объединяются перед спавном в мире.
 	 */
-	public int explode() {
-		this.world.emitGameEvent(this.entity, GameEvent.EXPLODE, this.pos);
-		List<BlockPos> list = this.getBlocksToDestroy();
-		this.damageEntities();
-		if (this.shouldDestroyBlocks()) {
-			Profiler profiler = Profilers.get();
-			profiler.push("explosion_blocks");
-			this.destroyBlocks(list);
-			profiler.pop();
+	private void destroyBlocks(List<BlockPos> positions) {
+		List<DroppedItem> droppedItems = new ArrayList<>();
+		Util.shuffle(positions, world.random);
+
+		for (BlockPos blockPos : positions) {
+			world.getBlockState(blockPos)
+				.onExploded(world, blockPos, this, (item, dropPos) -> addDroppedItem(droppedItems, item, dropPos));
 		}
 
-		if (this.createFire) {
-			this.createFire(list);
+		for (DroppedItem droppedItem : droppedItems) {
+			Block.dropStack(world, droppedItem.pos, droppedItem.item);
 		}
-
-		return list.size();
 	}
 
-	private static void addDroppedItem(List<ExplosionImpl.DroppedItem> droppedItemsOut, ItemStack item, BlockPos pos) {
-		for (ExplosionImpl.DroppedItem droppedItem : droppedItemsOut) {
-			droppedItem.merge(item);
+	/**
+	 * Случайно расставляет огонь на воздушных блоках поверх непрозрачных,
+	 * затронутых взрывом (вероятность 1/3 для каждого блока).
+	 */
+	private void createFire(List<BlockPos> positions) {
+		for (BlockPos blockPos : positions) {
+			if (world.random.nextInt(3) != 0) {
+				continue;
+			}
+
+			if (!world.getBlockState(blockPos).isAir()) {
+				continue;
+			}
+
+			if (!world.getBlockState(blockPos.down()).isOpaqueFullCube()) {
+				continue;
+			}
+
+			world.setBlockState(blockPos, AbstractFireBlock.getState(world, blockPos));
+		}
+	}
+
+	/**
+	 * Добавляет предмет в список выпавших, объединяя со стеком того же типа,
+	 * если это возможно. Если стек полностью поглощён — возврат без добавления.
+	 */
+	private static void addDroppedItem(List<DroppedItem> droppedItems, ItemStack item, BlockPos pos) {
+		for (DroppedItem existing : droppedItems) {
+			existing.merge(item);
 			if (item.isEmpty()) {
 				return;
 			}
 		}
 
-		droppedItemsOut.add(new ExplosionImpl.DroppedItem(pos, item));
+		droppedItems.add(new DroppedItem(pos, item));
 	}
 
 	private boolean shouldDestroyBlocks() {
-		return this.destructionType != Explosion.DestructionType.KEEP;
+		return destructionType != Explosion.DestructionType.KEEP;
 	}
 
-	public Map<PlayerEntity, Vec3d> getKnockbackByPlayer() {
-		return this.knockbackByPlayer;
-	}
-
-	@Override
-	public ServerWorld getWorld() {
-		return this.world;
-	}
-
-	@Override
-	public @Nullable LivingEntity getCausingEntity() {
-		return Explosion.getCausingEntity(this.entity);
-	}
-
-	@Override
-	public @Nullable Entity getEntity() {
-		return this.entity;
-	}
-
-	public DamageSource getDamageSource() {
-		return this.damageSource;
-	}
-
-	@Override
-	public Explosion.DestructionType getDestructionType() {
-		return this.destructionType;
-	}
-
-	@Override
-	public boolean canTriggerBlocks() {
-		if (this.destructionType != Explosion.DestructionType.TRIGGER_BLOCK) {
-			return false;
-		}
-		else {
-			return this.entity != null && this.entity.getType() == EntityType.BREEZE_WIND_CHARGE
-			       ? this.world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-			       : true;
-		}
-	}
-
-	@Override
-	public boolean preservesDecorativeEntities() {
-		boolean bl = this.world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING);
-		boolean
-				bl2 =
-				this.entity == null || this.entity.getType() != EntityType.BREEZE_WIND_CHARGE
-						&& this.entity.getType() != EntityType.WIND_CHARGE;
-		return bl ? bl2 : this.destructionType.destroysBlocks() && bl2;
-	}
-
-	public boolean isSmall() {
-		return this.power < 2.0F || !this.shouldDestroyBlocks();
+	private static ExplosionBehavior resolveBehavior(@Nullable Entity entity) {
+		return entity == null ? DEFAULT_BEHAVIOR : new EntityExplosionBehavior(entity);
 	}
 
 	/**
-	 * {@code DroppedItem}.
+	 * Накопленный выпавший предмет с позицией спавна.
+	 * Объединяет стеки одного типа для уменьшения количества сущностей в мире.
 	 */
 	static class DroppedItem {
 
@@ -369,13 +471,14 @@ public class ExplosionImpl implements Explosion {
 		}
 
 		/**
-		 * Merge.
+		 * Пытается объединить переданный стек с текущим.
+		 * Если типы совместимы — поглощает часть или весь стек {@code other}.
 		 *
-		 * @param other other
+		 * @param other стек для объединения (изменяется in-place при поглощении)
 		 */
 		public void merge(ItemStack other) {
-			if (ItemEntity.canMerge(this.item, other)) {
-				this.item = ItemEntity.merge(this.item, other, 16);
+			if (ItemEntity.canMerge(item, other)) {
+				item = ItemEntity.merge(item, other, Item.DEFAULT_MAX_COUNT);
 			}
 		}
 	}

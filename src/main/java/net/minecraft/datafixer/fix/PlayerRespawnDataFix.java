@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code PlayerRespawnDataFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PlayerRespawnDataFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class PlayerRespawnDataFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"PlayerRespawnDataFix",
-				this.getInputSchema().getType(TypeReferences.PLAYER),
+				getInputSchema().getType(TypeReferences.PLAYER),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> dynamic.update(

@@ -17,93 +17,90 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PressableWidget}.
+ * Базовый класс нажимаемого виджета-кнопки.
+ * Реализует стандартную логику нажатия мышью и клавишей Enter/Space,
+ * отрисовку фона кнопки с поддержкой состояний (активна/неактивна/выделена)
+ * и опциональное переопределение состояния фокуса через {@link #setFocusOverride}.
+ *
+ * <p>Подклассы обязаны реализовать {@link #onPress} и {@link #drawIcon}.</p>
  */
+@Environment(EnvType.CLIENT)
 public abstract class PressableWidget extends ClickableWidget.InactivityIndicatingWidget {
 
 	protected static final int TEXT_MARGIN = 2;
+
 	private static final ButtonTextures TEXTURES = new ButtonTextures(
-			Identifier.ofVanilla("widget/button"),
-			Identifier.ofVanilla("widget/button_disabled"),
-			Identifier.ofVanilla("widget/button_highlighted")
+		Identifier.ofVanilla("widget/button"),
+		Identifier.ofVanilla("widget/button_disabled"),
+		Identifier.ofVanilla("widget/button_highlighted")
 	);
+
 	private @Nullable Supplier<Boolean> focusOverride;
 
-	public PressableWidget(int i, int j, int k, int l, Text text) {
-		super(i, j, k, l, text);
+	public PressableWidget(int x, int y, int width, int height, Text text) {
+		super(x, y, width, height, text);
 	}
 
-	/**
-	 * Обрабатывает событие press.
-	 *
-	 * @param input input
-	 */
+	/** Вызывается при нажатии кнопки (мышь или клавиша). */
 	public abstract void onPress(AbstractInput input);
 
 	@Override
 	protected final void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		this.drawIcon(context, mouseX, mouseY, deltaTicks);
-		this.setCursor(context);
+		drawIcon(context, mouseX, mouseY, deltaTicks);
+		setCursor(context);
 	}
 
-	/**
-	 * Draw icon.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param deltaTicks delta ticks
-	 */
+	/** Отрисовывает содержимое кнопки поверх фона. */
 	protected abstract void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
-	/**
-	 * Draw label.
-	 *
-	 * @param drawer drawer
-	 */
 	protected void drawLabel(DrawnTextConsumer drawer) {
-		this.drawTextWithMargin(drawer, this.getMessage(), 2);
+		drawTextWithMargin(drawer, getMessage(), TEXT_MARGIN);
 	}
 
 	/**
-	 * Draw button.
-	 *
-	 * @param context context
+	 * Отрисовывает стандартный фон кнопки с учётом состояния активности и фокуса.
+	 * Если задан {@link #focusOverride}, он используется вместо {@link #isSelected()}.
 	 */
 	protected final void drawButton(DrawContext context) {
+		boolean focused = focusOverride != null ? focusOverride.get() : isSelected();
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURES.get(this.active, this.focusOverride != null ? this.focusOverride.get() : this.isSelected()),
-				this.getX(),
-				this.getY(),
-				this.getWidth(),
-				this.getHeight(),
-				ColorHelper.getWhite(this.alpha)
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURES.get(active, focused),
+			getX(),
+			getY(),
+			getWidth(),
+			getHeight(),
+			ColorHelper.getWhite(alpha)
 		);
 	}
 
 	@Override
 	public void onClick(Click click, boolean doubled) {
-		this.onPress(click);
+		onPress(click);
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (!this.isInteractable()) {
+		if (!isInteractable()) {
 			return false;
 		}
-		else if (input.isEnterOrSpace()) {
-			this.playDownSound(MinecraftClient.getInstance().getSoundManager());
-			this.onPress(input);
+
+		if (input.isEnterOrSpace()) {
+			playDownSound(MinecraftClient.getInstance().getSoundManager());
+			onPress(input);
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
+	/**
+	 * Устанавливает поставщик состояния фокуса, переопределяющий стандартный {@link #isSelected()}.
+	 * Используется для синхронизации визуального выделения кнопки с внешним состоянием.
+	 *
+	 * @param focusOverride поставщик булевого значения: {@code true} — кнопка выглядит выделенной
+	 */
 	public void setFocusOverride(Supplier<Boolean> focusOverride) {
 		this.focusOverride = focusOverride;
 	}

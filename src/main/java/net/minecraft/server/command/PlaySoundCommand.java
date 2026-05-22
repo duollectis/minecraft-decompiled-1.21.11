@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code PlaySoundCommand}.
+ * Команда {@code /playsound}: воспроизведение звука для игроков.
  */
 public class PlaySoundCommand {
 

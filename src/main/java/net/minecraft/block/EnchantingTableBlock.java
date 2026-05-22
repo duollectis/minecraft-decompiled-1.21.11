@@ -26,7 +26,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code EnchantingTableBlock}.
+ * Блок стола зачарований. Испускает частицы {@code ENCHANT} в сторону ближайших
+ * книжных полок, если между ними нет препятствий (проверяется через тег
+ * {@code ENCHANTMENT_POWER_TRANSMITTER}).
  */
 public class EnchantingTableBlock extends BlockWithEntity {
 
@@ -48,13 +50,9 @@ public class EnchantingTableBlock extends BlockWithEntity {
 	}
 
 	/**
-	 * Проверяет возможность access power provider.
-	 *
-	 * @param world world
-	 * @param tablePos table pos
-	 * @param providerOffset provider offset
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, доступна ли книжная полка для усиления зачарований: полка должна
+	 * находиться в теге {@code ENCHANTMENT_POWER_PROVIDER}, а блок между ней и столом —
+	 * в теге {@code ENCHANTMENT_POWER_TRANSMITTER} (обычно воздух).
 	 */
 	public static boolean canAccessPowerProvider(World world, BlockPos tablePos, BlockPos providerOffset) {
 		return world.getBlockState(tablePos.add(providerOffset)).isIn(BlockTags.ENCHANTMENT_POWER_PROVIDER)
@@ -116,7 +114,7 @@ public class EnchantingTableBlock extends BlockWithEntity {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient()) {
+		if (world.isClient() == false) {
 			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
 		}
 
@@ -129,19 +127,18 @@ public class EnchantingTableBlock extends BlockWithEntity {
 			World world,
 			BlockPos pos
 	) {
-		if (world.getBlockEntity(pos) instanceof EnchantingTableBlockEntity enchantingTableBlockEntity) {
-			Text text = enchantingTableBlockEntity.getDisplayName();
+		if (world.getBlockEntity(pos) instanceof EnchantingTableBlockEntity table) {
 			return new SimpleNamedScreenHandlerFactory(
 					(syncId, inventory, player) -> new EnchantmentScreenHandler(
 							syncId,
 							inventory,
 							ScreenHandlerContext.create(world, pos)
-					), text
+					),
+					table.getDisplayName()
 			);
 		}
-		else {
-			return null;
-		}
+
+		return null;
 	}
 
 	@Override

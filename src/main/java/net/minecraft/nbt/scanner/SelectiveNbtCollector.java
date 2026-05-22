@@ -10,7 +10,14 @@ import java.util.Deque;
 import java.util.Set;
 
 /**
- * {@code SelectiveNbtCollector}.
+ * Расширение {@link NbtCollector}, которое читает только запрошенные поля.
+ * <p>
+ * Принимает набор {@link NbtScanQuery} и при сканировании пропускает все поля,
+ * не входящие в запросы. Останавливается досрочно, когда все запросы выполнены
+ * ({@link #getQueriesLeft()} == 0).
+ * <p>
+ * Используется для эффективного чтения отдельных полей из больших NBT-структур
+ * без полной десериализации.
  */
 public class SelectiveNbtCollector extends NbtCollector {
 
@@ -19,18 +26,18 @@ public class SelectiveNbtCollector extends NbtCollector {
 	private final Deque<NbtTreeNode> selectionStack = new ArrayDeque<>();
 
 	public SelectiveNbtCollector(NbtScanQuery... queries) {
-		this.queriesLeft = queries.length;
+		queriesLeft = queries.length;
 		Builder<NbtType<?>> builder = ImmutableSet.builder();
-		NbtTreeNode nbtTreeNode = NbtTreeNode.createRoot();
+		NbtTreeNode rootNode = NbtTreeNode.createRoot();
 
-		for (NbtScanQuery nbtScanQuery : queries) {
-			nbtTreeNode.add(nbtScanQuery);
-			builder.add(nbtScanQuery.type());
+		for (NbtScanQuery query : queries) {
+			rootNode.add(query);
+			builder.add(query.type());
 		}
 
-		this.selectionStack.push(nbtTreeNode);
+		selectionStack.push(rootNode);
 		builder.add(NbtCompound.TYPE);
-		this.allPossibleTypes = builder.build();
+		allPossibleTypes = builder.build();
 	}
 
 	@Override
@@ -40,51 +47,54 @@ public class SelectiveNbtCollector extends NbtCollector {
 
 	@Override
 	public NbtScanner.NestedResult visitSubNbtType(NbtType<?> type) {
-		NbtTreeNode nbtTreeNode = this.selectionStack.element();
-		if (this.getDepth() > nbtTreeNode.depth()) {
+		NbtTreeNode currentNode = selectionStack.element();
+
+		if (getDepth() > currentNode.depth()) {
 			return super.visitSubNbtType(type);
 		}
-		else if (this.queriesLeft <= 0) {
+
+		if (queriesLeft <= 0) {
 			return NbtScanner.NestedResult.BREAK;
 		}
-		else {
-			return !this.allPossibleTypes.contains(type) ? NbtScanner.NestedResult.SKIP : super.visitSubNbtType(type);
-		}
+
+		return allPossibleTypes.contains(type) ? super.visitSubNbtType(type) : NbtScanner.NestedResult.SKIP;
 	}
 
 	@Override
 	public NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key) {
-		NbtTreeNode nbtTreeNode = this.selectionStack.element();
-		if (this.getDepth() > nbtTreeNode.depth()) {
-			return super.startSubNbt(type, key);
-		}
-		else if (nbtTreeNode.selectedFields().remove(key, type)) {
-			this.queriesLeft--;
-			return super.startSubNbt(type, key);
-		}
-		else {
-			if (type == NbtCompound.TYPE) {
-				NbtTreeNode nbtTreeNode2 = nbtTreeNode.fieldsToRecurse().get(key);
-				if (nbtTreeNode2 != null) {
-					this.selectionStack.push(nbtTreeNode2);
-					return super.startSubNbt(type, key);
-				}
-			}
+		NbtTreeNode currentNode = selectionStack.element();
 
-			return NbtScanner.NestedResult.SKIP;
+		if (getDepth() > currentNode.depth()) {
+			return super.startSubNbt(type, key);
 		}
+
+		if (currentNode.selectedFields().remove(key, type)) {
+			queriesLeft--;
+			return super.startSubNbt(type, key);
+		}
+
+		if (type == NbtCompound.TYPE) {
+			NbtTreeNode childNode = currentNode.fieldsToRecurse().get(key);
+			if (childNode != null) {
+				selectionStack.push(childNode);
+				return super.startSubNbt(type, key);
+			}
+		}
+
+		return NbtScanner.NestedResult.SKIP;
 	}
 
 	@Override
 	public NbtScanner.Result endNested() {
-		if (this.getDepth() == this.selectionStack.element().depth()) {
-			this.selectionStack.pop();
+		if (getDepth() == selectionStack.element().depth()) {
+			selectionStack.pop();
 		}
 
 		return super.endNested();
 	}
 
+	/** Возвращает количество ещё не выполненных запросов. */
 	public int getQueriesLeft() {
-		return this.queriesLeft;
+		return queriesLeft;
 	}
 }

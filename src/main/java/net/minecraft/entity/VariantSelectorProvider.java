@@ -6,60 +6,63 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.random.Random;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code VariantSelectorProvider}.
+ * Провайдер для выбора варианта сущности на основе набора условий и приоритетов.
+ * Каждый вариант содержит список {@link Selector}, которые фильтруются по контексту спауна.
  */
 public interface VariantSelectorProvider<Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>> {
 
 	List<VariantSelectorProvider.Selector<Context, Condition>> getSelectors();
 
+	/**
+	 * Выбирает все подходящие варианты из потока записей реестра для заданного контекста.
+	 * Алгоритм: разворачивает все селекторы, сортирует по убыванию приоритета,
+	 * затем оставляет только те, чьё условие выполнено при наивысшем приоритете.
+	 */
+	@SuppressWarnings("unchecked")
 	static <C, T> Stream<T> select(
 			Stream<T> entries,
 			Function<T, VariantSelectorProvider<C, ?>> providerGetter,
 			C context
 	) {
-		List<VariantSelectorProvider.UnwrappedSelector<C, T>> list = new ArrayList<>();
-		entries.forEach(
-				entry -> {
-					VariantSelectorProvider<C, ?> variantSelectorProvider = providerGetter.apply((T) entry);
+		List<UnwrappedSelector<C, T>> candidates = new ArrayList<>();
 
-					for (VariantSelectorProvider.Selector<C, ?> selector : variantSelectorProvider.getSelectors()) {
-						list.add(
-								new VariantSelectorProvider.UnwrappedSelector<>(
-										(T) entry,
-										selector.priority(),
-										(VariantSelectorProvider.SelectorCondition<C>) DataFixUtils.orElseGet(
-												selector.condition(),
-												VariantSelectorProvider.SelectorCondition::alwaysTrue
-										)
-								)
-						);
-					}
-				}
-		);
-		list.sort(VariantSelectorProvider.UnwrappedSelector.PRIORITY_COMPARATOR);
-		Iterator<VariantSelectorProvider.UnwrappedSelector<C, T>> iterator = list.iterator();
-		int i = Integer.MIN_VALUE;
+		entries.forEach(entry -> {
+			VariantSelectorProvider<C, ?> provider = providerGetter.apply(entry);
 
-		while (iterator.hasNext()) {
-			VariantSelectorProvider.UnwrappedSelector<C, T> unwrappedSelector = iterator.next();
-			if (unwrappedSelector.priority < i) {
-				iterator.remove();
+			for (Selector<C, ?> selector : provider.getSelectors()) {
+				SelectorCondition<C> condition = (SelectorCondition<C>) DataFixUtils.orElseGet(
+						selector.condition(),
+						SelectorCondition::alwaysTrue
+				);
+				candidates.add(new UnwrappedSelector<>(entry, selector.priority(), condition));
 			}
-			else if (unwrappedSelector.condition.test(context)) {
-				i = unwrappedSelector.priority;
-			}
-			else {
-				iterator.remove();
+		});
+
+		candidates.sort(UnwrappedSelector.PRIORITY_COMPARATOR);
+
+		// Двухпроходный алгоритм: сначала находим наивысший приоритет среди подходящих,
+		// затем оставляем только кандидатов с этим приоритетом, чьё условие выполнено.
+		int highestMatchedPriority = Integer.MIN_VALUE;
+
+		for (UnwrappedSelector<C, T> candidate : candidates) {
+			if (candidate.priority >= highestMatchedPriority && candidate.condition.test(context)) {
+				highestMatchedPriority = candidate.priority;
 			}
 		}
 
-		return list.stream().map(VariantSelectorProvider.UnwrappedSelector::entry);
+		final int finalPriority = highestMatchedPriority;
+		candidates.removeIf(candidate -> candidate.priority < finalPriority || !candidate.condition.test(context));
+
+		return candidates.stream().map(UnwrappedSelector::entry);
 	}
 
 	static <C, T> Optional<T> select(
@@ -68,26 +71,26 @@ public interface VariantSelectorProvider<Context, Condition extends VariantSelec
 			Random random,
 			C context
 	) {
-		List<T> list = select(entries, providerGetter, context).toList();
-		return Util.getRandomOrEmpty(list, random);
+		List<T> matched = select(entries, providerGetter, context).toList();
+		return Util.getRandomOrEmpty(matched, random);
 	}
 
-	static <Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>> List<VariantSelectorProvider.Selector<Context, Condition>> createSingle(
+	static <Context, Condition extends SelectorCondition<Context>> List<Selector<Context, Condition>> createSingle(
 			Condition condition, int priority
 	) {
-		return List.of(new VariantSelectorProvider.Selector<>(condition, priority));
+		return List.of(new Selector<>(condition, priority));
 	}
 
-	static <Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>> List<VariantSelectorProvider.Selector<Context, Condition>> createFallback(
+	static <Context, Condition extends SelectorCondition<Context>> List<Selector<Context, Condition>> createFallback(
 			int priority
 	) {
-		return List.of(new VariantSelectorProvider.Selector<>(Optional.empty(), priority));
+		return List.of(new Selector<>(Optional.empty(), priority));
 	}
 
 	/**
-	 * {@code Selector}.
+	 * Пара «условие + приоритет», определяющая, когда данный вариант может быть выбран.
 	 */
-	public record Selector<Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>>(
+	record Selector<Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>>(
 			Optional<Condition> condition,
 			int priority
 	) {
@@ -100,43 +103,40 @@ public interface VariantSelectorProvider<Context, Condition extends VariantSelec
 			this(Optional.empty(), priority);
 		}
 
-		public static <Context, Condition extends VariantSelectorProvider.SelectorCondition<Context>> Codec<VariantSelectorProvider.Selector<Context, Condition>> createCodec(
+		public static <Context, Condition extends SelectorCondition<Context>> Codec<Selector<Context, Condition>> createCodec(
 				Codec<Condition> conditionCodec
 		) {
 			return RecordCodecBuilder.create(
 					instance -> instance.group(
-							                    conditionCodec
-									                    .optionalFieldOf("condition")
-									                    .forGetter(VariantSelectorProvider.Selector::condition),
-							                    Codec.INT.fieldOf("priority").forGetter(VariantSelectorProvider.Selector::priority)
-					                    )
-					                    .apply(instance, VariantSelectorProvider.Selector::new)
+							conditionCodec.optionalFieldOf("condition").forGetter(Selector::condition),
+							Codec.INT.fieldOf("priority").forGetter(Selector::priority)
+					).apply(instance, Selector::new)
 			);
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code SelectorCondition}.
-	 */
-	public interface SelectorCondition<C> extends Predicate<C> {
+		* Условие выбора варианта, проверяемое против контекста спауна.
+		*/
+	@FunctionalInterface
+	interface SelectorCondition<C> extends Predicate<C> {
 
-		static <C> VariantSelectorProvider.SelectorCondition<C> alwaysTrue() {
+		static <C> SelectorCondition<C> alwaysTrue() {
 			return context -> true;
 		}
 	}
 
 	/**
-	 * {@code UnwrappedSelector}.
-	 */
-	public record UnwrappedSelector<C, T>(
+		* Развёрнутый селектор: хранит ссылку на вариант, его приоритет и условие без {@link Optional}.
+		*/
+	record UnwrappedSelector<C, T>(
 			T entry,
 			int priority,
-			VariantSelectorProvider.SelectorCondition<C> condition
+			SelectorCondition<C> condition
 	) {
 
-		public static final Comparator<VariantSelectorProvider.UnwrappedSelector<?, ?>> PRIORITY_COMPARATOR = Comparator
-				.<VariantSelectorProvider.UnwrappedSelector<?, ?>, Integer>comparing(selector -> selector.priority())
+		public static final Comparator<UnwrappedSelector<?, ?>> PRIORITY_COMPARATOR = Comparator
+				.<UnwrappedSelector<?, ?>, Integer>comparing(s -> s.priority())
 				.reversed();
 	}
 }

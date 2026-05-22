@@ -8,10 +8,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * {@code DataWriter}.
+ * Интерфейс записи сгенерированных данных на диск.
+ * Реализации могут использовать кэш для пропуска неизменившихся файлов.
  */
 public interface DataWriter {
 
+	/**
+	 * Реализация без кэша — всегда записывает файл на диск.
+	 * Используется в тестах и при принудительной перегенерации.
+	 */
 	DataWriter UNCACHED = (path, data, hashCode) -> {
 		PathUtil.createDirectories(path.getParent());
 		Files.write(path, data);

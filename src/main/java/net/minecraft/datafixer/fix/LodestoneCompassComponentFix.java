@@ -6,7 +6,7 @@ import com.mojang.serialization.Dynamic;
 import java.util.Optional;
 
 /**
- * {@code LodestoneCompassComponentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LodestoneCompassComponentFix extends ComponentFix {
 

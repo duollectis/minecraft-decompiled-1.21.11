@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code ChargedProjectilesComponent}.
- */
+	 * Компонент заряженных снарядов (арбалет). Хранит список снарядов в виде иммутабельных копий.
+	 */
 public final class ChargedProjectilesComponent implements TooltipAppender {
 
 	public static final ChargedProjectilesComponent DEFAULT = new ChargedProjectilesComponent(List.of());
@@ -39,34 +39,31 @@ public final class ChargedProjectilesComponent implements TooltipAppender {
 	}
 
 	/**
-	 * Of.
-	 *
-	 * @param projectile projectile
-	 *
-	 * @return ChargedProjectilesComponent — результат операции
-	 */
+		 * Создаёт компонент с одним снарядом (копия стека).
+		 *
+		 * @param projectile стек снаряда
+		 * @return компонент с одним снарядом
+		 */
 	public static ChargedProjectilesComponent of(ItemStack projectile) {
 		return new ChargedProjectilesComponent(List.of(projectile.copy()));
 	}
 
 	/**
-	 * Of.
-	 *
-	 * @param projectiles projectiles
-	 *
-	 * @return ChargedProjectilesComponent — результат операции
-	 */
+		 * Создаёт компонент из списка снарядов (каждый стек копируется).
+		 *
+		 * @param projectiles список стеков снарядов
+		 * @return компонент с иммутабельным списком копий снарядов
+		 */
 	public static ChargedProjectilesComponent of(List<ItemStack> projectiles) {
 		return new ChargedProjectilesComponent(List.copyOf(Lists.transform(projectiles, ItemStack::copy)));
 	}
 
 	/**
-	 * Contains.
-	 *
-	 * @param item item
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, содержит ли компонент хотя бы один снаряд указанного типа предмета.
+		 *
+		 * @param item тип предмета для поиска
+		 * @return {@code true} если снаряд данного типа присутствует
+		 */
 	public boolean contains(Item item) {
 		for (ItemStack itemStack : this.projectiles) {
 			if (itemStack.isOf(item)) {
@@ -88,9 +85,9 @@ public final class ChargedProjectilesComponent implements TooltipAppender {
 	@Override
 	public boolean equals(Object o) {
 		return this == o
-		       ? true
-		       : o instanceof ChargedProjectilesComponent chargedProjectilesComponent
-		         && ItemStack.stacksEqual(this.projectiles, chargedProjectilesComponent.projectiles);
+				? true
+				: o instanceof ChargedProjectilesComponent chargedProjectilesComponent
+					&& ItemStack.stacksEqual(this.projectiles, chargedProjectilesComponent.projectiles);
 	}
 
 	@Override
@@ -110,26 +107,26 @@ public final class ChargedProjectilesComponent implements TooltipAppender {
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		ItemStack itemStack = null;
-		int i = 0;
+		ItemStack current = null;
+		int count = 0;
 
-		for (ItemStack itemStack2 : this.projectiles) {
-			if (itemStack == null) {
-				itemStack = itemStack2;
-				i = 1;
+		for (ItemStack projectile : projectiles) {
+			if (current == null) {
+				current = projectile;
+				count = 1;
 			}
-			else if (ItemStack.areEqual(itemStack, itemStack2)) {
-				i++;
+			else if (ItemStack.areEqual(current, projectile)) {
+				count++;
 			}
 			else {
-				appendProjectileTooltip(context, textConsumer, itemStack, i);
-				itemStack = itemStack2;
-				i = 1;
+				appendProjectileTooltip(context, textConsumer, current, count);
+				current = projectile;
+				count = 1;
 			}
 		}
 
-		if (itemStack != null) {
-			appendProjectileTooltip(context, textConsumer, itemStack, i);
+		if (current != null) {
+			appendProjectileTooltip(context, textConsumer, current, count);
 		}
 	}
 

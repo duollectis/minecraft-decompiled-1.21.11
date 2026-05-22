@@ -5,27 +5,23 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * Интерфейс signed command arguments.
+ * Контейнер подписанных аргументов команды.
+ * Позволяет получить подписанное сообщение по имени аргумента.
  */
 public interface SignedCommandArguments {
 
-	SignedCommandArguments EMPTY = new SignedCommandArguments() {
-		@Override
-		public @Nullable SignedMessage getMessage(String argumentName) {
-			return null;
-		}
-	};
+	SignedCommandArguments EMPTY = argumentName -> null;
 
 	@Nullable SignedMessage getMessage(String argumentName);
 
 	/**
-	 * Запись impl.
+	 * Реализация на основе карты имя→сообщение.
 	 */
-	public record Impl(Map<String, SignedMessage> arguments) implements SignedCommandArguments {
+	record Impl(Map<String, SignedMessage> arguments) implements SignedCommandArguments {
 
 		@Override
 		public @Nullable SignedMessage getMessage(String argumentName) {
-			return this.arguments.get(argumentName);
+			return arguments.get(argumentName);
 		}
 	}
 }

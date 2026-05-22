@@ -20,12 +20,19 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code HoeItem}.
+ * Предмет «Мотыга». Вспахивает землю, превращая блоки в грядки или другие блоки.
+ * Таблица преобразований хранится в {@link #TILLING_ACTIONS}.
  */
 public class HoeItem extends Item {
 
-	protected static final Map<Block, Pair<Predicate<ItemUsageContext>, Consumer<ItemUsageContext>>>
-			TILLING_ACTIONS =
+	/** Флаги обновления блока при вспашке. */
+	private static final int TILL_UPDATE_FLAGS = 11;
+
+	/**
+	 * Таблица действий вспашки: блок → (условие применения, действие преобразования).
+	 * Используется в {@link #useOnBlock} для определения результата взаимодействия.
+	 */
+	protected static final Map<Block, Pair<Predicate<ItemUsageContext>, Consumer<ItemUsageContext>>> TILLING_ACTIONS =
 			Maps.newHashMap(
 					ImmutableMap.of(
 							Blocks.GRASS_BLOCK,
@@ -38,7 +45,7 @@ public class HoeItem extends Item {
 							Pair.of(HoeItem::canTillFarmland, createTillAction(Blocks.DIRT.getDefaultState())),
 							Blocks.ROOTED_DIRT,
 							Pair.of(
-									(Predicate<ItemUsageContext>) itemUsageContext -> true,
+									(Predicate<ItemUsageContext>) context -> true,
 									createTillAndDropAction(Blocks.DIRT.getDefaultState(), Items.HANGING_ROOTS)
 							)
 					)
@@ -51,87 +58,81 @@ public class HoeItem extends Item {
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		Pair<Predicate<ItemUsageContext>, Consumer<ItemUsageContext>>
-				pair =
-				TILLING_ACTIONS.get(world.getBlockState(blockPos).getBlock());
-		if (pair == null) {
+		BlockPos pos = context.getBlockPos();
+		Pair<Predicate<ItemUsageContext>, Consumer<ItemUsageContext>> action =
+				TILLING_ACTIONS.get(world.getBlockState(pos).getBlock());
+
+		if (action == null) {
 			return ActionResult.PASS;
 		}
-		else {
-			Predicate<ItemUsageContext> predicate = (Predicate<ItemUsageContext>) pair.getFirst();
-			Consumer<ItemUsageContext> consumer = (Consumer<ItemUsageContext>) pair.getSecond();
-			if (predicate.test(context)) {
-				PlayerEntity playerEntity = context.getPlayer();
-				world.playSound(playerEntity, blockPos, SoundEvents.ITEM_HOE_TILL, SoundCategory.BLOCKS, 1.0F, 1.0F);
-				if (!world.isClient()) {
-					consumer.accept(context);
-					if (playerEntity != null) {
-						context.getStack().damage(1, playerEntity, context.getHand().getEquipmentSlot());
-					}
-				}
 
-				return ActionResult.SUCCESS;
-			}
-			else {
-				return ActionResult.PASS;
+		Predicate<ItemUsageContext> condition = action.getFirst();
+		Consumer<ItemUsageContext> tillAction = action.getSecond();
+
+		if (!condition.test(context)) {
+			return ActionResult.PASS;
+		}
+
+		PlayerEntity player = context.getPlayer();
+		world.playSound(player, pos, SoundEvents.ITEM_HOE_TILL, SoundCategory.BLOCKS, 1.0F, 1.0F);
+
+		if (!world.isClient()) {
+			tillAction.accept(context);
+
+			if (player != null) {
+				context.getStack().damage(1, player, context.getHand().getEquipmentSlot());
 			}
 		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	/**
-	 * Создаёт till action.
+	 * Создаёт действие вспашки, которое заменяет блок на указанное состояние.
 	 *
-	 * @param result result
-	 *
-	 * @return Consumer — результат операции
+	 * @param result целевое состояние блока после вспашки
+	 * @return потребитель контекста использования
 	 */
 	public static Consumer<ItemUsageContext> createTillAction(BlockState result) {
 		return context -> {
-			context.getWorld().setBlockState(context.getBlockPos(), result, 11);
-			context
-					.getWorld()
-					.emitGameEvent(
-							GameEvent.BLOCK_CHANGE,
-							context.getBlockPos(),
-							GameEvent.Emitter.of(context.getPlayer(), result)
-					);
+			context.getWorld().setBlockState(context.getBlockPos(), result, TILL_UPDATE_FLAGS);
+			context.getWorld().emitGameEvent(
+					GameEvent.BLOCK_CHANGE,
+					context.getBlockPos(),
+					GameEvent.Emitter.of(context.getPlayer(), result)
+			);
 		};
 	}
 
 	/**
-	 * Создаёт till and drop action.
+	 * Создаёт действие вспашки с выпадением предмета.
+	 * Используется для корневой земли: заменяет блок и выбрасывает подвесные корни.
 	 *
-	 * @param result result
-	 * @param droppedItem dropped item
-	 *
-	 * @return Consumer — результат операции
+	 * @param result      целевое состояние блока
+	 * @param droppedItem предмет, который выпадает при вспашке
+	 * @return потребитель контекста использования
 	 */
 	public static Consumer<ItemUsageContext> createTillAndDropAction(BlockState result, ItemConvertible droppedItem) {
 		return context -> {
-			context.getWorld().setBlockState(context.getBlockPos(), result, 11);
-			context
-					.getWorld()
-					.emitGameEvent(
-							GameEvent.BLOCK_CHANGE,
-							context.getBlockPos(),
-							GameEvent.Emitter.of(context.getPlayer(), result)
-					);
+			context.getWorld().setBlockState(context.getBlockPos(), result, TILL_UPDATE_FLAGS);
+			context.getWorld().emitGameEvent(
+					GameEvent.BLOCK_CHANGE,
+					context.getBlockPos(),
+					GameEvent.Emitter.of(context.getPlayer(), result)
+			);
 			Block.dropStack(context.getWorld(), context.getBlockPos(), context.getSide(), new ItemStack(droppedItem));
 		};
 	}
 
 	/**
-	 * Проверяет возможность till farmland.
+	 * Проверяет, можно ли вспахать блок в грядку.
+	 * Требует: клик не снизу и блок сверху — воздух.
 	 *
-	 * @param context context
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param context контекст использования предмета
+	 * @return {@code true} если вспашка возможна
 	 */
 	public static boolean canTillFarmland(ItemUsageContext context) {
-		return context.getSide() != Direction.DOWN && context
-				.getWorld()
-				.getBlockState(context.getBlockPos().up())
-				.isAir();
+		return context.getSide() != Direction.DOWN
+				&& context.getWorld().getBlockState(context.getBlockPos().up()).isAir();
 	}
 }

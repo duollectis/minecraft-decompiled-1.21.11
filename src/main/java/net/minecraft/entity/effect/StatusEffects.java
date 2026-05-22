@@ -11,11 +11,16 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code StatusEffects}.
+ * Реестр всех стандартных статусных эффектов игры.
+ *
+ * <p>Каждый эффект регистрируется через {@link #register} и доступен как статическое поле.
+ * Метод {@link #registerAndGetDefault} вызывается при инициализации реестра.</p>
  */
 public class StatusEffects {
 
+	/** Длительность padding-затухания для эффекта Darkness (тики). */
 	private static final int DARKNESS_PADDING_DURATION = 22;
+
 	public static final RegistryEntry<StatusEffect> SPEED = register(
 			"speed",
 			new StatusEffect(StatusEffectCategory.BENEFICIAL, 3402751)
@@ -67,10 +72,12 @@ public class StatusEffects {
 					)
 	);
 	public static final RegistryEntry<StatusEffect> INSTANT_HEALTH = register(
-			"instant_health", new InstantHealthOrDamageStatusEffect(StatusEffectCategory.BENEFICIAL, 16262179, false)
+			"instant_health",
+			new InstantHealthOrDamageStatusEffect(StatusEffectCategory.BENEFICIAL, 16262179, false)
 	);
 	public static final RegistryEntry<StatusEffect> INSTANT_DAMAGE = register(
-			"instant_damage", new InstantHealthOrDamageStatusEffect(StatusEffectCategory.HARMFUL, 11101546, true)
+			"instant_damage",
+			new InstantHealthOrDamageStatusEffect(StatusEffectCategory.HARMFUL, 11101546, true)
 	);
 	public static final RegistryEntry<StatusEffect> JUMP_BOOST = register(
 			"jump_boost",
@@ -82,21 +89,26 @@ public class StatusEffects {
 							EntityAttributeModifier.Operation.ADD_VALUE
 					)
 	);
-	public static final RegistryEntry<StatusEffect>
-			NAUSEA =
-			register("nausea", new StatusEffect(StatusEffectCategory.HARMFUL, 5578058).fadeTicks(150, 20, 60));
-	public static final RegistryEntry<StatusEffect> REGENERATION = register(
-			"regeneration", new RegenerationStatusEffect(StatusEffectCategory.BENEFICIAL, 13458603)
+	public static final RegistryEntry<StatusEffect> NAUSEA = register(
+			"nausea",
+			new StatusEffect(StatusEffectCategory.HARMFUL, 5578058).fadeTicks(150, 20, 60)
 	);
-	public static final RegistryEntry<StatusEffect>
-			RESISTANCE =
-			register("resistance", new StatusEffect(StatusEffectCategory.BENEFICIAL, 9520880));
-	public static final RegistryEntry<StatusEffect>
-			FIRE_RESISTANCE =
-			register("fire_resistance", new StatusEffect(StatusEffectCategory.BENEFICIAL, 16750848));
-	public static final RegistryEntry<StatusEffect>
-			WATER_BREATHING =
-			register("water_breathing", new StatusEffect(StatusEffectCategory.BENEFICIAL, 10017472));
+	public static final RegistryEntry<StatusEffect> REGENERATION = register(
+			"regeneration",
+			new RegenerationStatusEffect(StatusEffectCategory.BENEFICIAL, 13458603)
+	);
+	public static final RegistryEntry<StatusEffect> RESISTANCE = register(
+			"resistance",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 9520880)
+	);
+	public static final RegistryEntry<StatusEffect> FIRE_RESISTANCE = register(
+			"fire_resistance",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 16750848)
+	);
+	public static final RegistryEntry<StatusEffect> WATER_BREATHING = register(
+			"water_breathing",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 10017472)
+	);
 	public static final RegistryEntry<StatusEffect> INVISIBILITY = register(
 			"invisibility",
 			new StatusEffect(StatusEffectCategory.BENEFICIAL, 16185078)
@@ -107,15 +119,18 @@ public class StatusEffects {
 							EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
 					)
 	);
-	public static final RegistryEntry<StatusEffect>
-			BLINDNESS =
-			register("blindness", new StatusEffect(StatusEffectCategory.HARMFUL, 2039587));
-	public static final RegistryEntry<StatusEffect>
-			NIGHT_VISION =
-			register("night_vision", new StatusEffect(StatusEffectCategory.BENEFICIAL, 12779366));
-	public static final RegistryEntry<StatusEffect>
-			HUNGER =
-			register("hunger", new HungerStatusEffect(StatusEffectCategory.HARMFUL, 5797459));
+	public static final RegistryEntry<StatusEffect> BLINDNESS = register(
+			"blindness",
+			new StatusEffect(StatusEffectCategory.HARMFUL, 2039587)
+	);
+	public static final RegistryEntry<StatusEffect> NIGHT_VISION = register(
+			"night_vision",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 12779366)
+	);
+	public static final RegistryEntry<StatusEffect> HUNGER = register(
+			"hunger",
+			new HungerStatusEffect(StatusEffectCategory.HARMFUL, 5797459)
+	);
 	public static final RegistryEntry<StatusEffect> WEAKNESS = register(
 			"weakness",
 			new StatusEffect(StatusEffectCategory.HARMFUL, 4738376)
@@ -126,12 +141,14 @@ public class StatusEffects {
 							EntityAttributeModifier.Operation.ADD_VALUE
 					)
 	);
-	public static final RegistryEntry<StatusEffect>
-			POISON =
-			register("poison", new PoisonStatusEffect(StatusEffectCategory.HARMFUL, 8889187));
-	public static final RegistryEntry<StatusEffect>
-			WITHER =
-			register("wither", new WitherStatusEffect(StatusEffectCategory.HARMFUL, 7561558));
+	public static final RegistryEntry<StatusEffect> POISON = register(
+			"poison",
+			new PoisonStatusEffect(StatusEffectCategory.HARMFUL, 8889187)
+	);
+	public static final RegistryEntry<StatusEffect> WITHER = register(
+			"wither",
+			new WitherStatusEffect(StatusEffectCategory.HARMFUL, 7561558)
+	);
 	public static final RegistryEntry<StatusEffect> HEALTH_BOOST = register(
 			"health_boost",
 			new StatusEffect(StatusEffectCategory.BENEFICIAL, 16284963)
@@ -152,15 +169,18 @@ public class StatusEffects {
 							EntityAttributeModifier.Operation.ADD_VALUE
 					)
 	);
-	public static final RegistryEntry<StatusEffect>
-			SATURATION =
-			register("saturation", new SaturationStatusEffect(StatusEffectCategory.BENEFICIAL, 16262179));
-	public static final RegistryEntry<StatusEffect>
-			GLOWING =
-			register("glowing", new StatusEffect(StatusEffectCategory.NEUTRAL, 9740385));
-	public static final RegistryEntry<StatusEffect>
-			LEVITATION =
-			register("levitation", new StatusEffect(StatusEffectCategory.HARMFUL, 13565951));
+	public static final RegistryEntry<StatusEffect> SATURATION = register(
+			"saturation",
+			new SaturationStatusEffect(StatusEffectCategory.BENEFICIAL, 16262179)
+	);
+	public static final RegistryEntry<StatusEffect> GLOWING = register(
+			"glowing",
+			new StatusEffect(StatusEffectCategory.NEUTRAL, 9740385)
+	);
+	public static final RegistryEntry<StatusEffect> LEVITATION = register(
+			"levitation",
+			new StatusEffect(StatusEffectCategory.HARMFUL, 13565951)
+	);
 	public static final RegistryEntry<StatusEffect> LUCK = register(
 			"luck",
 			new StatusEffect(StatusEffectCategory.BENEFICIAL, 5882118)
@@ -181,44 +201,45 @@ public class StatusEffects {
 							EntityAttributeModifier.Operation.ADD_VALUE
 					)
 	);
-	public static final RegistryEntry<StatusEffect>
-			SLOW_FALLING =
-			register("slow_falling", new StatusEffect(StatusEffectCategory.BENEFICIAL, 15978425));
-	public static final RegistryEntry<StatusEffect>
-			CONDUIT_POWER =
-			register("conduit_power", new StatusEffect(StatusEffectCategory.BENEFICIAL, 1950417));
-	public static final RegistryEntry<StatusEffect>
-			DOLPHINS_GRACE =
-			register("dolphins_grace", new StatusEffect(StatusEffectCategory.BENEFICIAL, 8954814));
+	public static final RegistryEntry<StatusEffect> SLOW_FALLING = register(
+			"slow_falling",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 15978425)
+	);
+	public static final RegistryEntry<StatusEffect> CONDUIT_POWER = register(
+			"conduit_power",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 1950417)
+	);
+	public static final RegistryEntry<StatusEffect> DOLPHINS_GRACE = register(
+			"dolphins_grace",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 8954814)
+	);
 	public static final RegistryEntry<StatusEffect> BAD_OMEN = register(
 			"bad_omen",
-			new BadOmenStatusEffect(
-					StatusEffectCategory.NEUTRAL,
-					745784
-			).applySound(SoundEvents.EVENT_MOB_EFFECT_BAD_OMEN)
+			new BadOmenStatusEffect(StatusEffectCategory.NEUTRAL, 745784)
+					.applySound(SoundEvents.EVENT_MOB_EFFECT_BAD_OMEN)
 	);
 	public static final RegistryEntry<StatusEffect> HERO_OF_THE_VILLAGE = register(
-			"hero_of_the_village", new StatusEffect(StatusEffectCategory.BENEFICIAL, 4521796)
+			"hero_of_the_village",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 4521796)
 	);
-	public static final RegistryEntry<StatusEffect>
-			DARKNESS =
-			register("darkness", new StatusEffect(StatusEffectCategory.HARMFUL, 2696993).fadeTicks(22));
+	public static final RegistryEntry<StatusEffect> DARKNESS = register(
+			"darkness",
+			new StatusEffect(StatusEffectCategory.HARMFUL, 2696993).fadeTicks(DARKNESS_PADDING_DURATION)
+	);
 	public static final RegistryEntry<StatusEffect> TRIAL_OMEN = register(
 			"trial_omen",
-			new StatusEffect(
-					StatusEffectCategory.NEUTRAL,
-					1484454,
-					ParticleTypes.TRIAL_OMEN
-			).applySound(SoundEvents.EVENT_MOB_EFFECT_TRIAL_OMEN)
+			new StatusEffect(StatusEffectCategory.NEUTRAL, 1484454, ParticleTypes.TRIAL_OMEN)
+					.applySound(SoundEvents.EVENT_MOB_EFFECT_TRIAL_OMEN)
 	);
 	public static final RegistryEntry<StatusEffect> RAID_OMEN = register(
 			"raid_omen",
-			new RaidOmenStatusEffect(StatusEffectCategory.NEUTRAL, 14565464, ParticleTypes.RAID_OMEN).applySound(
-					SoundEvents.EVENT_MOB_EFFECT_RAID_OMEN)
+			new RaidOmenStatusEffect(StatusEffectCategory.NEUTRAL, 14565464, ParticleTypes.RAID_OMEN)
+					.applySound(SoundEvents.EVENT_MOB_EFFECT_RAID_OMEN)
 	);
-	public static final RegistryEntry<StatusEffect>
-			WIND_CHARGED =
-			register("wind_charged", new WindChargedStatusEffect(StatusEffectCategory.HARMFUL, 12438015));
+	public static final RegistryEntry<StatusEffect> WIND_CHARGED = register(
+			"wind_charged",
+			new WindChargedStatusEffect(StatusEffectCategory.HARMFUL, 12438015)
+	);
 	public static final RegistryEntry<StatusEffect> WEAVING = register(
 			"weaving",
 			new WeavingStatusEffect(
@@ -227,9 +248,10 @@ public class StatusEffects {
 					random -> MathHelper.nextBetween(random, 2, 3)
 			)
 	);
-	public static final RegistryEntry<StatusEffect>
-			OOZING =
-			register("oozing", new OozingStatusEffect(StatusEffectCategory.HARMFUL, 10092451, random -> 2));
+	public static final RegistryEntry<StatusEffect> OOZING = register(
+			"oozing",
+			new OozingStatusEffect(StatusEffectCategory.HARMFUL, 10092451, random -> 2)
+	);
 	public static final RegistryEntry<StatusEffect> INFESTED = register(
 			"infested",
 			new InfestedStatusEffect(
@@ -240,20 +262,14 @@ public class StatusEffects {
 			)
 	);
 	public static final RegistryEntry<StatusEffect> BREATH_OF_THE_NAUTILUS = register(
-			"breath_of_the_nautilus", new StatusEffect(StatusEffectCategory.BENEFICIAL, 65518)
+			"breath_of_the_nautilus",
+			new StatusEffect(StatusEffectCategory.BENEFICIAL, 65518)
 	);
 
 	private static RegistryEntry<StatusEffect> register(String id, StatusEffect statusEffect) {
 		return Registry.registerReference(Registries.STATUS_EFFECT, Identifier.ofVanilla(id), statusEffect);
 	}
 
-	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return RegistryEntry — результат операции
-	 */
 	public static RegistryEntry<StatusEffect> registerAndGetDefault(Registry<StatusEffect> registry) {
 		return SPEED;
 	}

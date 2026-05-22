@@ -9,9 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.context.ContextParameter;
 import net.minecraft.util.math.Vec3d;
 
-/**
- * {@code LootContextParameters}.
- */
+/** Реестр всех стандартных параметров контекста таблиц лута. */
 public class LootContextParameters {
 
 	public static final ContextParameter<Entity> THIS_ENTITY = ContextParameter.of("this_entity");
@@ -20,9 +18,7 @@ public class LootContextParameters {
 	public static final ContextParameter<PlayerEntity> LAST_DAMAGE_PLAYER = ContextParameter.of("last_damage_player");
 	public static final ContextParameter<DamageSource> DAMAGE_SOURCE = ContextParameter.of("damage_source");
 	public static final ContextParameter<Entity> ATTACKING_ENTITY = ContextParameter.of("attacking_entity");
-	public static final ContextParameter<Entity>
-			DIRECT_ATTACKING_ENTITY =
-			ContextParameter.of("direct_attacking_entity");
+	public static final ContextParameter<Entity> DIRECT_ATTACKING_ENTITY = ContextParameter.of("direct_attacking_entity");
 	public static final ContextParameter<Vec3d> ORIGIN = ContextParameter.of("origin");
 	public static final ContextParameter<BlockState> BLOCK_STATE = ContextParameter.of("block_state");
 	public static final ContextParameter<BlockEntity> BLOCK_ENTITY = ContextParameter.of("block_entity");

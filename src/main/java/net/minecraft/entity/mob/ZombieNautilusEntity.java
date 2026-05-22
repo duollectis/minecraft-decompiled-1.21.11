@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ZombieNautilusEntity}.
+ * Зомби-наутилус — водный враждебный моб.
  */
 public class ZombieNautilusEntity extends AbstractNautilusEntity {
 
@@ -49,14 +49,6 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 		return AbstractNautilusEntity.createNautilusAttributes().add(EntityAttributes.MOVEMENT_SPEED, 1.1F);
 	}
 
-	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable ZombieNautilusEntity — результат операции
-	 */
 	public @Nullable ZombieNautilusEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return null;
 	}
@@ -73,7 +65,7 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 
 	@Override
 	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-		return ZombieNautilusBrain.create(this.createBrainProfile().deserialize(dynamic));
+		return ZombieNautilusBrain.create(createBrainProfile().deserialize(dynamic));
 	}
 
 	@Override
@@ -85,7 +77,7 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("zombieNautilusBrain");
-		this.getBrain().tick(world, this);
+		getBrain().tick(world, this);
 		profiler.pop();
 		profiler.push("zombieNautilusActivityUpdate");
 		ZombieNautilusBrain.updateActivities(this);
@@ -95,37 +87,42 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isSubmergedInWater() ? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_AMBIENT
-		                                 : SoundEvents.ENTITY_ZOMBIE_NAUTILUS_AMBIENT_LAND;
+		return isSubmergedInWater()
+				? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_AMBIENT
+				: SoundEvents.ENTITY_ZOMBIE_NAUTILUS_AMBIENT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getHurtSound(DamageSource source) {
-		return this.isSubmergedInWater() ? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_HURT
-		                                 : SoundEvents.ENTITY_ZOMBIE_NAUTILUS_HURT_LAND;
+		return isSubmergedInWater()
+				? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_HURT
+				: SoundEvents.ENTITY_ZOMBIE_NAUTILUS_HURT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getDeathSound() {
-		return this.isSubmergedInWater() ? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DEATH
-		                                 : SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DEATH_LAND;
+		return isSubmergedInWater()
+				? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DEATH
+				: SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DEATH_LAND;
 	}
 
 	@Override
 	protected SoundEvent getDashSound() {
-		return this.isSubmergedInWater() ? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH
-		                                 : SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_LAND;
+		return isSubmergedInWater()
+				? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH
+				: SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_LAND;
 	}
 
 	@Override
 	protected SoundEvent getDashReadySound() {
-		return this.isSubmergedInWater() ? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_READY
-		                                 : SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_READY_LAND;
+		return isSubmergedInWater()
+				? SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_READY
+				: SoundEvents.ENTITY_ZOMBIE_NAUTILUS_DASH_READY_LAND;
 	}
 
 	@Override
 	protected void playEatSound() {
-		this.playSound(SoundEvents.ENTITY_ZOMBIE_NAUTILUS_EAT);
+		playSound(SoundEvents.ENTITY_ZOMBIE_NAUTILUS_EAT);
 	}
 
 	@Override
@@ -136,7 +133,7 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), ZombieNautilusVariants.TEMPERATE));
+		builder.add(VARIANT, Variants.getOrDefaultOrThrow(getRegistryManager(), ZombieNautilusVariants.TEMPERATE));
 	}
 
 	@Override
@@ -148,48 +145,46 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		Variants.writeData(view, this.getVariant());
+		Variants.writeData(view, getVariant());
 	}
 
 	public void setVariant(RegistryEntry<ZombieNautilusVariant> variant) {
-		this.dataTracker.set(VARIANT, variant);
+		dataTracker.set(VARIANT, variant);
 	}
 
 	public RegistryEntry<ZombieNautilusVariant> getVariant() {
-		return this.dataTracker.get(VARIANT);
+		return dataTracker.get(VARIANT);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
 		return type == DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT
-		       ? castComponentValue((ComponentType<T>) type, new LazyRegistryEntryReference<>(this.getVariant()))
-		       : super.get(type);
+				? castComponentValue((ComponentType<T>) type, new LazyRegistryEntryReference<>(getVariant()))
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT) {
-			Optional<RegistryEntry<ZombieNautilusVariant>>
-					optional =
-					castComponentValue(DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT, value)
-							.resolveEntry(this.getRegistryManager());
-			if (optional.isPresent()) {
-				this.setVariant(optional.get());
-				return true;
-			}
-			else {
+			Optional<RegistryEntry<ZombieNautilusVariant>> resolved = castComponentValue(
+					DataComponentTypes.ZOMBIE_NAUTILUS_VARIANT, value
+			).resolveEntry(getRegistryManager());
+
+			if (resolved.isEmpty()) {
 				return false;
 			}
+
+			setVariant(resolved.get());
+			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
 	@Override
@@ -207,7 +202,7 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 
 	@Override
 	public boolean canBeLeashed() {
-		return !this.hasAttackTarget() && !this.isControlledByMob();
+		return !hasAttackTarget() && !isControlledByMob();
 	}
 
 	@Override

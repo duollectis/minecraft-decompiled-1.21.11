@@ -9,56 +9,42 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * {@code Nullables}.
+ * Утилитарные методы для безопасной работы с null-значениями.
+ * Дополняет {@link Objects} и {@link java.util.Optional} для случаев,
+ * когда использование Optional нецелесообразно по соображениям производительности.
  */
 public class Nullables {
 
-	@Deprecated
 	/**
-	 * Require non null else.
+	 * Применяет функцию к значению, если оно не null.
 	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return T — результат операции
-	 */
-	public static <T> T requireNonNullElse(@Nullable T first, T second) {
-		return Objects.requireNonNullElse(first, second);
-	}
-
-	/**
-	 * Map.
-	 *
-	 * @param value value
-	 * @param mapper mapper
-	 *
-	 * @return @Nullable R — результат операции
+	 * @param value исходное значение (может быть null)
+	 * @param mapper функция преобразования
+	 * @return результат применения функции или null
 	 */
 	public static <T, R> @Nullable R map(@Nullable T value, Function<T, R> mapper) {
 		return value == null ? null : mapper.apply(value);
 	}
 
 	/**
-	 * Map or else.
+	 * Применяет функцию к значению, если оно не null, иначе возвращает запасное значение.
 	 *
-	 * @param value value
-	 * @param mapper mapper
-	 * @param other other
-	 *
-	 * @return R — результат операции
+	 * @param value исходное значение (может быть null)
+	 * @param mapper функция преобразования
+	 * @param other запасное значение
+	 * @return результат применения функции или {@code other}
 	 */
 	public static <T, R> R mapOrElse(@Nullable T value, Function<T, R> mapper, R other) {
 		return value == null ? other : mapper.apply(value);
 	}
 
 	/**
-	 * Map or else get.
+	 * Применяет функцию к значению, если оно не null, иначе вызывает поставщика запасного значения.
 	 *
-	 * @param value value
-	 * @param mapper mapper
-	 * @param getter getter
-	 *
-	 * @return R — результат операции
+	 * @param value исходное значение (может быть null)
+	 * @param mapper функция преобразования
+	 * @param getter поставщик запасного значения
+	 * @return результат применения функции или результат вызова {@code getter}
 	 */
 	public static <T, R> R mapOrElseGet(@Nullable T value, Function<T, R> mapper, Supplier<R> getter) {
 		return value == null ? getter.get() : mapper.apply(value);
@@ -113,5 +99,10 @@ public class Nullables {
 
 	public static boolean isEmpty(double @Nullable [] array) {
 		return array == null || array.length == 0;
+	}
+
+	@Deprecated
+	public static <T> T requireNonNullElse(@Nullable T first, T second) {
+		return Objects.requireNonNullElse(first, second);
 	}
 }

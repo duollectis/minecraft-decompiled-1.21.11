@@ -15,26 +15,23 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import java.util.Optional;
 
 /**
- * {@code TrimPredicate}.
+ * Предикат для проверки украшения брони (trim): материал и узор.
  */
 public record TrimPredicate(
 		Optional<RegistryEntryList<ArmorTrimMaterial>> material,
 		Optional<RegistryEntryList<ArmorTrimPattern>> pattern
-)
-		implements ComponentSubPredicate<ArmorTrim> {
+) implements ComponentSubPredicate<ArmorTrim> {
 
 	public static final Codec<TrimPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.TRIM_MATERIAL)
-							                    .optionalFieldOf("material")
-							                    .forGetter(TrimPredicate::material),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.TRIM_PATTERN)
-							                    .optionalFieldOf("pattern")
-							                    .forGetter(TrimPredicate::pattern)
-			                    )
-			                    .apply(instance, TrimPredicate::new)
+					RegistryCodecs.entryList(RegistryKeys.TRIM_MATERIAL)
+							.optionalFieldOf("material")
+							.forGetter(TrimPredicate::material),
+					RegistryCodecs.entryList(RegistryKeys.TRIM_PATTERN)
+							.optionalFieldOf("pattern")
+							.forGetter(TrimPredicate::pattern)
+			)
+			.apply(instance, TrimPredicate::new)
 	);
 
 	@Override
@@ -43,8 +40,10 @@ public record TrimPredicate(
 	}
 
 	public boolean test(ArmorTrim armorTrim) {
-		return this.material.isPresent() && !this.material.get().contains(armorTrim.material())
-		       ? false
-		       : !this.pattern.isPresent() || this.pattern.get().contains(armorTrim.pattern());
+		if (material.isPresent() && !material.get().contains(armorTrim.material())) {
+			return false;
+		}
+
+		return pattern.isEmpty() || pattern.get().contains(armorTrim.pattern());
 	}
 }

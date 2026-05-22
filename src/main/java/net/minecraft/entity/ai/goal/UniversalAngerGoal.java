@@ -11,7 +11,8 @@ import net.minecraft.world.rule.GameRules;
 import java.util.List;
 
 /**
- * {@code UniversalAngerGoal}.
+ * Цель универсального гнева: при включённом правиле {@code UNIVERSAL_ANGER} атакует
+ * любого игрока, ударившего моба, и опционально оповещает соседних мобов того же типа.
  */
 public class UniversalAngerGoal<T extends MobEntity & Angerable> extends Goal {
 
@@ -27,24 +28,25 @@ public class UniversalAngerGoal<T extends MobEntity & Angerable> extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return getServerWorld(this.mob).getGameRules().getValue(GameRules.UNIVERSAL_ANGER)
-				&& this.canStartUniversalAnger();
+		return getServerWorld(mob).getGameRules().getValue(GameRules.UNIVERSAL_ANGER)
+				&& canStartUniversalAnger();
 	}
 
 	private boolean canStartUniversalAnger() {
-		return this.mob.getAttacker() != null && this.mob.getAttacker().getType() == EntityType.PLAYER
-				&& this.mob.getLastAttackedTime() > this.lastAttackedTime;
+		return mob.getAttacker() != null
+				&& mob.getAttacker().getType() == EntityType.PLAYER
+				&& mob.getLastAttackedTime() > lastAttackedTime;
 	}
 
 	@Override
 	public void start() {
-		this.lastAttackedTime = this.mob.getLastAttackedTime();
-		this.mob.universallyAnger();
-		if (this.triggerOthers) {
-			this
-					.getOthersInRange()
+		lastAttackedTime = mob.getLastAttackedTime();
+		mob.universallyAnger();
+
+		if (triggerOthers) {
+			getOthersInRange()
 					.stream()
-					.filter(entity -> entity != this.mob)
+					.filter(entity -> entity != mob)
 					.map(entity -> (Angerable) entity)
 					.forEach(Angerable::universallyAnger);
 		}
@@ -53,12 +55,13 @@ public class UniversalAngerGoal<T extends MobEntity & Angerable> extends Goal {
 	}
 
 	private List<? extends MobEntity> getOthersInRange() {
-		double d = this.mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-		Box box = Box.from(this.mob.getEntityPos()).expand(d, 10.0, d);
-		return this.mob
+		double followRange = mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+		Box box = Box.from(mob.getEntityPos()).expand(followRange, BOX_VERTICAL_EXPANSION, followRange);
+
+		return mob
 				.getEntityWorld()
 				.getEntitiesByClass(
-						(Class<? extends MobEntity>) this.mob.getClass(),
+						(Class<? extends MobEntity>) mob.getClass(),
 						box,
 						EntityPredicates.EXCEPT_SPECTATOR
 				);

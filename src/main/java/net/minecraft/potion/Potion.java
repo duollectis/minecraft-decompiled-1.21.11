@@ -16,14 +16,16 @@ import net.minecraft.resource.featuretoggle.ToggleableFeature;
 import java.util.List;
 
 /**
- * {@code Potion}.
+ * Зелье — именованный набор эффектов статуса, применяемых при употреблении.
+ * Базовое имя ({@code baseName}) используется для формирования ключа перевода.
+ * Несколько зелий могут разделять одно базовое имя (например, обычное, длинное и усиленное).
  */
 public class Potion implements ToggleableFeature {
 
 	public static final Codec<RegistryEntry<Potion>> CODEC = Registries.POTION.getEntryCodec();
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Potion>>
-			PACKET_CODEC =
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Potion>> PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.POTION);
+
 	private final String baseName;
 	private final List<StatusEffectInstance> effects;
 	private FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
@@ -33,6 +35,13 @@ public class Potion implements ToggleableFeature {
 		this.effects = List.of(effects);
 	}
 
+	/**
+	 * Помечает зелье как требующее включённых флагов функций.
+	 * Используется для зелий, доступных только в экспериментальных режимах.
+	 *
+	 * @param requiredFeatures флаги функций, необходимые для активации зелья
+	 * @return {@code this} для цепочки вызовов
+	 */
 	public Potion requires(FeatureFlag... requiredFeatures) {
 		this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
 		return this;
@@ -40,20 +49,26 @@ public class Potion implements ToggleableFeature {
 
 	@Override
 	public FeatureSet getRequiredFeatures() {
-		return this.requiredFeatures;
+		return requiredFeatures;
 	}
 
 	public List<StatusEffectInstance> getEffects() {
-		return this.effects;
+		return effects;
 	}
 
 	public String getBaseName() {
-		return this.baseName;
+		return baseName;
 	}
 
+	/**
+	 * Проверяет, содержит ли зелье хотя бы один мгновенный эффект.
+	 * Мгновенные зелья (лечение, урон) применяются сразу, без длительности.
+	 *
+	 * @return {@code true}, если среди эффектов есть мгновенный
+	 */
 	public boolean hasInstantEffect() {
-		for (StatusEffectInstance statusEffectInstance : this.effects) {
-			if (statusEffectInstance.getEffectType().value().isInstant()) {
+		for (StatusEffectInstance effect : effects) {
+			if (effect.getEffectType().value().isInstant()) {
 				return true;
 			}
 		}

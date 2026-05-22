@@ -12,7 +12,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Set;
 
 /**
- * {@code WallPropertyFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WallPropertyFix extends DataFix {
 
@@ -40,9 +40,9 @@ public class WallPropertyFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"WallPropertyFix",
-				this.getInputSchema().getType(TypeReferences.BLOCK_STATE),
+				getInputSchema().getType(TypeReferences.BLOCK_STATE),
 				blockStateTyped -> blockStateTyped.update(DSL.remainderFinder(), WallPropertyFix::updateWallProperties)
 		);
 	}

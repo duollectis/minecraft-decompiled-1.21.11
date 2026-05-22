@@ -15,7 +15,7 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code GrateBlock}.
+ * Блок решётки — прозрачный блок с поддержкой заполнения водой (Waterloggable).
  */
 public class GrateBlock extends TransparentBlock implements Waterloggable {
 
@@ -29,7 +29,7 @@ public class GrateBlock extends TransparentBlock implements Waterloggable {
 
 	public GrateBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.getDefaultState().with(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override

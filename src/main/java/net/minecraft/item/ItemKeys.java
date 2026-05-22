@@ -5,7 +5,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code ItemKeys}.
+ * Ключи реестра для предметов, требующих явной ссылки вне основного класса {@link Items}.
  */
 public class ItemKeys {
 

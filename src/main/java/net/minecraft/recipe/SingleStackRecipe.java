@@ -13,7 +13,12 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SingleStackRecipe}.
+ * Базовый класс для рецептов, принимающих ровно один стак предмета на входе
+ * (плавка, обжиг, копчение, обработка на камнерезе и т.д.).
+ * <p>
+ * Хранит единственный {@link Ingredient}, результат и группу рецепта.
+ * Ленивая инициализация {@link IngredientPlacement} позволяет избежать
+ * лишних вычислений до первого обращения к слотам.
  */
 public abstract class SingleStackRecipe implements Recipe<SingleStackRecipeInput> {
 
@@ -34,65 +39,53 @@ public abstract class SingleStackRecipe implements Recipe<SingleStackRecipeInput
 	@Override
 	public abstract RecipeType<? extends SingleStackRecipe> getType();
 
-	public boolean matches(SingleStackRecipeInput singleStackRecipeInput, World world) {
-		return this.ingredient.test(singleStackRecipeInput.item());
+	@Override
+	public boolean matches(SingleStackRecipeInput input, World world) {
+		return ingredient.test(input.item());
 	}
 
 	@Override
 	public String getGroup() {
-		return this.group;
+		return group;
 	}
 
-	/**
-	 * Ingredient.
-	 *
-	 * @return Ingredient — результат операции
-	 */
 	public Ingredient ingredient() {
-		return this.ingredient;
+		return ingredient;
 	}
 
-	/**
-	 * Result.
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	protected ItemStack result() {
-		return this.result;
+		return result;
 	}
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement = IngredientPlacement.forSingleSlot(this.ingredient);
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forSingleSlot(ingredient);
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
+	}
+
+	@Override
+	public ItemStack craft(SingleStackRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		return result.copy();
 	}
 
 	/**
-	 * Craft.
+	 * Фабричный интерфейс для создания конкретных подтипов рецептов с одним стаком.
 	 *
-	 * @param singleStackRecipeInput single stack recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
+	 * @param <T> конкретный подтип {@link SingleStackRecipe}
 	 */
-	public ItemStack craft(SingleStackRecipeInput singleStackRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		return this.result.copy();
-	}
-
 	@FunctionalInterface
-	/**
-	 * {@code RecipeFactory}.
-	 */
 	public interface RecipeFactory<T extends SingleStackRecipe> {
 
 		T create(String group, Ingredient ingredient, ItemStack result);
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Универсальный сериализатор для рецептов с одним входным стаком.
+	 *
+	 * @param <T> конкретный подтип {@link SingleStackRecipe}
 	 */
 	public static class Serializer<T extends SingleStackRecipe> implements RecipeSerializer<T> {
 
@@ -101,32 +94,28 @@ public abstract class SingleStackRecipe implements Recipe<SingleStackRecipeInput
 
 		protected Serializer(SingleStackRecipe.RecipeFactory<T> recipeFactory) {
 			this.codec = RecordCodecBuilder.mapCodec(
-					instance -> instance.group(
-							                    Codec.STRING.optionalFieldOf("group", "").forGetter(SingleStackRecipe::getGroup),
-							                    Ingredient.CODEC.fieldOf("ingredient").forGetter(SingleStackRecipe::ingredient),
-							                    ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(SingleStackRecipe::result)
-					                    )
-					                    .apply(instance, recipeFactory::create)
+				instance -> instance.group(
+					Codec.STRING.optionalFieldOf("group", "").forGetter(SingleStackRecipe::getGroup),
+					Ingredient.CODEC.fieldOf("ingredient").forGetter(SingleStackRecipe::ingredient),
+					ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(SingleStackRecipe::result)
+				).apply(instance, recipeFactory::create)
 			);
 			this.packetCodec = PacketCodec.tuple(
-					PacketCodecs.STRING,
-					SingleStackRecipe::getGroup,
-					Ingredient.PACKET_CODEC,
-					SingleStackRecipe::ingredient,
-					ItemStack.PACKET_CODEC,
-					SingleStackRecipe::result,
-					recipeFactory::create
+				PacketCodecs.STRING, SingleStackRecipe::getGroup,
+				Ingredient.PACKET_CODEC, SingleStackRecipe::ingredient,
+				ItemStack.PACKET_CODEC, SingleStackRecipe::result,
+				recipeFactory::create
 			);
 		}
 
 		@Override
 		public MapCodec<T> codec() {
-			return this.codec;
+			return codec;
 		}
 
 		@Override
 		public PacketCodec<RegistryByteBuf, T> packetCodec() {
-			return this.packetCodec;
+			return packetCodec;
 		}
 	}
 }

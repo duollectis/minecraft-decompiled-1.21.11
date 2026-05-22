@@ -9,13 +9,17 @@ import java.util.EnumSet;
 import java.util.List;
 
 /**
- * {@code AnimalMateGoal}.
+ * Цель спаривания животных: ищет ближайшего партнёра в радиусе 8 блоков
+ * и инициирует размножение при достаточном сближении.
  */
 public class AnimalMateGoal extends Goal {
 
-	private static final TargetPredicate
-			VALID_MATE_PREDICATE =
+	private static final TargetPredicate VALID_MATE_PREDICATE =
 			TargetPredicate.createNonAttackable().setBaseMaxDistance(8.0).ignoreVisibility();
+	private static final double MATE_SEARCH_RADIUS = 8.0;
+	private static final double BREED_DISTANCE_SQ = 9.0;
+	private static final int BREED_TIMER_TICKS = 60;
+
 	protected final AnimalEntity animal;
 	private final Class<? extends AnimalEntity> entityClass;
 	protected final ServerWorld world;
@@ -32,68 +36,62 @@ public class AnimalMateGoal extends Goal {
 		this.world = getServerWorld(animal);
 		this.entityClass = entityClass;
 		this.speed = speed;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (!this.animal.isInLove()) {
+		if (!animal.isInLove()) {
 			return false;
 		}
-		else {
-			this.mate = this.findMate();
-			return this.mate != null;
-		}
+
+		mate = findMate();
+		return mate != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.mate.isAlive() && this.mate.isInLove() && this.timer < 60 && !this.mate.isPanicking();
+		return mate.isAlive() && mate.isInLove() && timer < BREED_TIMER_TICKS && !mate.isPanicking();
 	}
 
 	@Override
 	public void stop() {
-		this.mate = null;
-		this.timer = 0;
+		mate = null;
+		timer = 0;
 	}
 
 	@Override
 	public void tick() {
-		this.animal.getLookControl().lookAt(this.mate, 10.0F, this.animal.getMaxLookPitchChange());
-		this.animal.getNavigation().startMovingTo(this.mate, this.speed);
-		this.timer++;
-		if (this.timer >= this.getTickCount(60) && this.animal.squaredDistanceTo(this.mate) < 9.0) {
-			this.breed();
+		animal.getLookControl().lookAt(mate, 10.0F, animal.getMaxLookPitchChange());
+		animal.getNavigation().startMovingTo(mate, speed);
+		timer++;
+		if (timer >= getTickCount(BREED_TIMER_TICKS) && animal.squaredDistanceTo(mate) < BREED_DISTANCE_SQ) {
+			breed();
 		}
 	}
 
 	private @Nullable AnimalEntity findMate() {
-		List<? extends AnimalEntity>
-				list =
-				this.world.getTargets(
-						this.entityClass,
-						VALID_MATE_PREDICATE,
-						this.animal,
-						this.animal.getBoundingBox().expand(8.0)
-				);
-		double d = Double.MAX_VALUE;
-		AnimalEntity animalEntity = null;
+		List<? extends AnimalEntity> candidates = world.getTargets(
+				entityClass,
+				VALID_MATE_PREDICATE,
+				animal,
+				animal.getBoundingBox().expand(MATE_SEARCH_RADIUS)
+		);
+		double closestDistSq = Double.MAX_VALUE;
+		AnimalEntity closest = null;
 
-		for (AnimalEntity animalEntity2 : list) {
-			if (this.animal.canBreedWith(animalEntity2) && !animalEntity2.isPanicking()
-					&& this.animal.squaredDistanceTo(animalEntity2) < d) {
-				animalEntity = animalEntity2;
-				d = this.animal.squaredDistanceTo(animalEntity2);
+		for (AnimalEntity candidate : candidates) {
+			double distSq = animal.squaredDistanceTo(candidate);
+			if (animal.canBreedWith(candidate) && !candidate.isPanicking() && distSq < closestDistSq) {
+				closest = candidate;
+				closestDistSq = distSq;
 			}
 		}
 
-		return animalEntity;
+		return closest;
 	}
 
-	/**
-	 * Breed.
-	 */
 	protected void breed() {
-		this.animal.breed(this.world, this.mate);
+		animal.breed(world, mate);
 	}
 }

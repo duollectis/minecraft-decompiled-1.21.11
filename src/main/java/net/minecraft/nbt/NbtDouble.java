@@ -10,23 +10,22 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtDouble}.
+ * NBT-элемент, хранящий значение типа {@code double}.
+ *
+ * <p>Нулевое значение кэшируется в {@link #ZERO}. Используйте фабричный метод
+ * {@link #of(double)} вместо конструктора record.</p>
  */
 public record NbtDouble(double value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 8 байт данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 16;
+
 	public static final NbtDouble ZERO = new NbtDouble(0.0);
-	public static final NbtType<NbtDouble> TYPE = new NbtType.OfFixedSize<NbtDouble>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtDouble — результат операции
-		 */
-		public NbtDouble read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtDouble.of(readDouble(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtDouble> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtDouble read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtDouble.of(readDouble(input, tracker));
 		}
 
 		@Override
@@ -36,7 +35,7 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 		}
 
 		private static double readDouble(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(16L);
+			tracker.add(SIZE);
 			return input.readDouble();
 		}
 
@@ -62,11 +61,10 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает {@link #ZERO} для нулевого значения, иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtDouble — результат операции
+	 * @param value значение double
+	 * @return {@link NbtDouble} для заданного значения
 	 */
 	public static NbtDouble of(double value) {
 		return value == 0.0 ? ZERO : new NbtDouble(value);
@@ -74,17 +72,17 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeDouble(this.value);
+		output.writeDouble(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 16;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 6;
+		return DOUBLE_TYPE;
 	}
 
 	@Override
@@ -92,11 +90,7 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtDouble — результат операции
-	 */
+	@Override
 	public NbtDouble copy() {
 		return this;
 	}
@@ -106,50 +100,58 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 		visitor.visitDouble(this);
 	}
 
+	/**
+	 * Конвертирует double в long через {@link Math#floor} для корректной обработки
+	 * отрицательных значений (в отличие от простого приведения типа).
+	 */
 	@Override
 	public long longValue() {
-		return (long) Math.floor(this.value);
+		return (long) Math.floor(value);
 	}
 
+	/**
+	 * Возвращает целую часть double через {@link MathHelper#floor} для корректной обработки
+	 * отрицательных значений.
+	 */
 	@Override
 	public int intValue() {
-		return MathHelper.floor(this.value);
+		return MathHelper.floor(value);
 	}
 
 	@Override
 	public short shortValue() {
-		return (short) (MathHelper.floor(this.value) & 65535);
+		return (short) (MathHelper.floor(value) & 0xFFFF);
 	}
 
 	@Override
 	public byte byteValue() {
-		return (byte) (MathHelper.floor(this.value) & 0xFF);
+		return (byte) (MathHelper.floor(value) & 0xFF);
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return (float) this.value;
+		return (float) value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitDouble(this.value);
+		return visitor.visitDouble(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitDouble(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitDouble(this);
+		return writer.getString();
 	}
 }

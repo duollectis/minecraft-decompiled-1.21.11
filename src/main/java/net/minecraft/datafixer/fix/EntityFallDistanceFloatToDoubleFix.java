@@ -8,7 +8,8 @@ import com.mojang.datafixers.Typed;
 import com.mojang.datafixers.schemas.Schema;
 
 /**
- * {@code EntityFallDistanceFloatToDoubleFix}.
+ * Конвертирует поле {@code FallDistance} (float) в {@code fall_distance} (double)
+ * для указанного типа сущности. Применяется к нескольким типам данных через {@code typeReference}.
  */
 public class EntityFallDistanceFloatToDoubleFix extends DataFix {
 
@@ -19,10 +20,11 @@ public class EntityFallDistanceFloatToDoubleFix extends DataFix {
 		this.typeReference = typeReference;
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				"EntityFallDistanceFloatToDoubleFixFor" + this.typeReference.typeName(),
-				this.getOutputSchema().getType(this.typeReference),
+		return fixTypeEverywhereTyped(
+				"EntityFallDistanceFloatToDoubleFixFor" + typeReference.typeName(),
+				getOutputSchema().getType(typeReference),
 				EntityFallDistanceFloatToDoubleFix::fixFallDistance
 		);
 	}
@@ -33,7 +35,7 @@ public class EntityFallDistanceFloatToDoubleFix extends DataFix {
 				dynamic -> dynamic.renameAndFixField(
 						"FallDistance",
 						"fall_distance",
-						dynamicx -> dynamicx.createDouble(dynamicx.asFloat(0.0F))
+						fallDynamic -> fallDynamic.createDouble(fallDynamic.asFloat(0.0F))
 				)
 		);
 	}

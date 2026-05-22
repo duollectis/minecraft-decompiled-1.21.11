@@ -11,22 +11,23 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code BlockPositionSource}.
+ * Источник позиции, привязанный к конкретному блоку в мире.
+ * Возвращает центр блока как позицию для вибрационных событий.
  */
 public record BlockPositionSource(BlockPos pos) implements PositionSource {
 
 	public static final MapCodec<BlockPositionSource> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(BlockPos.CODEC.fieldOf("pos").forGetter(BlockPositionSource::pos))
-					.apply(instance, BlockPositionSource::new)
+		instance -> instance
+			.group(BlockPos.CODEC.fieldOf("pos").forGetter(BlockPositionSource::pos))
+			.apply(instance, BlockPositionSource::new)
 	);
 	public static final PacketCodec<ByteBuf, BlockPositionSource> PACKET_CODEC = PacketCodec.tuple(
-			BlockPos.PACKET_CODEC, BlockPositionSource::pos, BlockPositionSource::new
+		BlockPos.PACKET_CODEC, BlockPositionSource::pos, BlockPositionSource::new
 	);
 
 	@Override
 	public Optional<Vec3d> getPos(World world) {
-		return Optional.of(Vec3d.ofCenter(this.pos));
+		return Optional.of(Vec3d.ofCenter(pos));
 	}
 
 	@Override
@@ -35,7 +36,7 @@ public record BlockPositionSource(BlockPos pos) implements PositionSource {
 	}
 
 	/**
-	 * {@code Type}.
+	 * Реализация {@link PositionSourceType} для блочного источника позиции.
 	 */
 	public static class Type implements PositionSourceType<BlockPositionSource> {
 

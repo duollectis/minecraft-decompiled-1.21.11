@@ -48,7 +48,8 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractNautilusEntity}.
+ * Базовый класс для наутилусов — верховых водных животных.
+ * Реализует логику инвентаря седла, управления через предмет и прыжков.
  */
 public abstract class AbstractNautilusEntity extends TameableEntity implements RideableInventory, JumpingMount {
 
@@ -82,7 +83,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 
 	protected AbstractNautilusEntity(EntityType<? extends AbstractNautilusEntity> entityType, World world) {
 		super(entityType, world);
-		this.moveControl = new AquaticMoveControl(this, 85, 10, 0.011F, 0.0F, true);
+		this.moveControl = new AquaticMoveControl(this, 85, 10, MOVE_CONTROL_SPEED_WATER, 0.0F, true);
 		this.lookControl = new YawAdjustingLookControl(this, 10);
 		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 		this.initInventory();
@@ -220,14 +221,14 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		float f = this.getMovementSpeed();
 		this.updateVelocity(f, movementInput);
 		this.move(MovementType.SELF, this.getVelocity());
-		this.setVelocity(this.getVelocity().multiply(0.9));
+		this.setVelocity(this.getVelocity().multiply(DASH_WATER_MULTIPLIER));
 	}
 
 	@Override
 	protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
 		return this.isTouchingWater()
-		       ? 0.0325F * (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
-		       : 0.02F * (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
+		       ? SADDLED_SPEED_WATER * (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
+		       : SADDLED_SPEED_LAND * (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
 	}
 
 	/**
@@ -245,7 +246,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 	}
 
 	private int getMaxTargetRange() {
-		return !this.isBaby() && this.getEquippedStack(EquipmentSlot.SADDLE).isEmpty() ? 32 : 16;
+		return !this.isBaby() && this.getEquippedStack(EquipmentSlot.SADDLE).isEmpty() ? UNSADDLED_TARGET_RANGE : SADDLE_TARGET_RANGE;
 	}
 
 	/**
@@ -270,11 +271,11 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 	private void tickController(World world) {
 		if (this.getFirstPassenger() instanceof PlayerEntity playerEntity) {
 			boolean bl = playerEntity.hasStatusEffect(StatusEffects.BREATH_OF_THE_NAUTILUS);
-			boolean bl2 = world.getTime() % 40L == 0L;
+			boolean bl2 = world.getTime() % BREATH_EFFECT_REFRESH_INTERVAL == 0L;
 			if (!bl || bl2) {
 				playerEntity.addStatusEffect(new StatusEffectInstance(
 						StatusEffects.BREATH_OF_THE_NAUTILUS,
-						60,
+						BREATH_EFFECT_DURATION,
 						0,
 						true,
 						true,
@@ -286,7 +287,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 
 	private void spawnParticles() {
 		double d = this.getVelocity().length();
-		double e = MathHelper.clamp(d * 2.0, 0.15F, 1.0);
+		double e = MathHelper.clamp(d * 2.0, PARTICLE_SPAWN_CHANCE, 1.0);
 		if (this.random.nextFloat() < e) {
 			float f = this.getYaw();
 			float g = MathHelper.clamp(this.getPitch(), -10.0F, 10.0F);
@@ -298,9 +299,9 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 			this.getEntityWorld()
 			    .addParticleClient(
 					    ParticleTypes.BUBBLE,
-					    this.getX() - vec3d.x * 1.1,
-					    this.getY() - vec3d.y + 0.25,
-					    this.getZ() - vec3d.z * 1.1,
+					    this.getX() - vec3d.x * PARTICLE_VELOCITY_MAX,
+					    this.getY() - vec3d.y + PARTICLE_SPREAD_MIN,
+					    this.getZ() - vec3d.z * PARTICLE_VELOCITY_MAX,
 					    i,
 					    j,
 					    k
@@ -367,11 +368,11 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		this.addVelocityInternal(
 				controller.getRotationVector()
 				          .multiply(
-						          (this.isTouchingWater() ? 1.2F : 0.5F) * strength * this.getAttributeValue(
+						          (this.isTouchingWater() ? DASH_WATER_STRENGTH : 0.5F) * strength * this.getAttributeValue(
 								          EntityAttributes.MOVEMENT_SPEED) * this.getVelocityMultiplier()
 				          )
 		);
-		this.jumpCooldown = 40;
+		this.jumpCooldown = DASH_COOLDOWN_TICKS;
 		this.setDashing(true);
 		this.velocityDirty = true;
 	}
@@ -391,7 +392,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		if (!this.firstUpdate && DASHING.equals(data)) {
-			this.jumpCooldown = this.jumpCooldown == 0 ? 40 : this.jumpCooldown;
+			this.jumpCooldown = this.jumpCooldown == 0 ? DASH_COOLDOWN_TICKS : this.jumpCooldown;
 		}
 
 		super.onTrackedDataSet(data);
@@ -491,7 +492,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 
 	@Override
 	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-		return effect.getEffectType() == StatusEffects.POISON ? false : super.canHaveStatusEffect(effect);
+		return effect.getEffectType() != StatusEffects.POISON && super.canHaveStatusEffect(effect);
 	}
 
 	@Override
@@ -555,7 +556,7 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 
 	@Override
 	public @Nullable StackReference getStackReference(int slot) {
-		int i = slot - 500;
+		int i = slot - TAMING_CHANCE_DENOMINATOR;
 		return i >= 0 && i < this.inventory.size() ? this.inventory.getStackReference(i)
 		                                           : super.getStackReference(slot);
 	}

@@ -13,10 +13,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GeneratedItemModel}.
+ * Незапечённая модель для предметов, генерируемая процедурно из спрайтов слоёв.
+ * Создаёт геометрию куба для каждого непрозрачного пикселя каждого слоя ({@code layer0..layer4}).
  */
+@Environment(EnvType.CLIENT)
 public class GeneratedItemModel implements UnbakedModel {
 
 	public static final Identifier GENERATED = Identifier.ofVanilla("builtin/generated");
@@ -75,140 +76,163 @@ public class GeneratedItemModel implements UnbakedModel {
 				new ModelElementFace(null, tintIndex, name, FACING_NORTH_UV, AxisRotation.R0)
 		);
 		List<ModelElement> list = new ArrayList<>();
-		list.add(new ModelElement(new Vector3f(0.0F, 0.0F, 7.5F), new Vector3f(16.0F, 16.0F, 8.5F), map));
+		list.add(new ModelElement(new Vector3f(0.0F, 0.0F, LAYER_OFFSET_MIN), new Vector3f(16.0F, 16.0F, LAYER_OFFSET_MAX), map));
 		list.addAll(addSubComponents(spriteContents, name, tintIndex));
 		return list;
 	}
 
-	private static List<ModelElement> addSubComponents(SpriteContents spriteContents, String string, int i) {
-		float f = 16.0F / spriteContents.getWidth();
-		float g = 16.0F / spriteContents.getHeight();
-		List<ModelElement> list = new ArrayList<>();
+	private static List<ModelElement> addSubComponents(SpriteContents spriteContents, String layerName, int tintIndex) {
+		float scaleX = 16.0F / spriteContents.getWidth();
+		float scaleY = 16.0F / spriteContents.getHeight();
+		List<ModelElement> elements = new ArrayList<>();
 
-		for (GeneratedItemModel.PixelFaceCoord lv : getFrames(spriteContents)) {
-			float h = lv.x();
-			float j = lv.y();
-			GeneratedItemModel.Side side = lv.facing();
-			float k = h + 0.1F;
-			float l = h + 1.0F - 0.1F;
-			float m;
-			float n;
+		for (GeneratedItemModel.PixelFaceCoord coord : getFrames(spriteContents)) {
+			float px = coord.x();
+			float py = coord.y();
+			GeneratedItemModel.Side side = coord.facing();
+			float innerMin = px + 0.1F;
+			float innerMax = px + 1.0F - 0.1F;
+			float depthMin;
+			float depthMax;
+
 			if (side.isVertical()) {
-				m = j + 0.1F;
-				n = j + 1.0F - 0.1F;
+				depthMin = py + LAYER_DEPTH;
+				depthMax = py + 1.0F - LAYER_DEPTH;
 			}
 			else {
-				m = j + 1.0F - 0.1F;
-				n = j + 0.1F;
+				depthMin = py + 1.0F - LAYER_DEPTH;
+				depthMax = py + LAYER_DEPTH;
 			}
 
-			float o = h;
-			float p = j;
-			float q = h;
-			float r = j;
+			float u0 = px;
+			float v0 = py;
+			float u1 = px;
+			float v1 = py;
+
 			switch (side) {
 				case UP:
-					q = h + 1.0F;
+					u1 = px + 1.0F;
 					break;
 				case DOWN:
-					q = h + 1.0F;
-					p = j + 1.0F;
-					r = j + 1.0F;
+					u1 = px + 1.0F;
+					v0 = py + 1.0F;
+					v1 = py + 1.0F;
 					break;
 				case LEFT:
-					r = j + 1.0F;
+					v1 = py + 1.0F;
 					break;
 				case RIGHT:
-					o = h + 1.0F;
-					q = h + 1.0F;
-					r = j + 1.0F;
+					u0 = px + 1.0F;
+					u1 = px + 1.0F;
+					v1 = py + 1.0F;
 			}
 
-			o *= f;
-			q *= f;
-			p *= g;
-			r *= g;
-			p = 16.0F - p;
-			r = 16.0F - r;
-			Map<Direction, ModelElementFace> map = Map.of(
+			u0 *= scaleX;
+			u1 *= scaleX;
+			v0 *= scaleY;
+			v1 *= scaleY;
+			v0 = 16.0F - v0;
+			v1 = 16.0F - v1;
+
+			Map<Direction, ModelElementFace> faces = Map.of(
 					side.getDirection(),
 					new ModelElementFace(
 							null,
-							i,
-							string,
-							new ModelElementFace.UV(k * f, m * f, l * g, n * g),
+							tintIndex,
+							layerName,
+							new ModelElementFace.UV(innerMin * scaleX, depthMin * scaleX, innerMax * scaleY, depthMax * scaleY),
 							AxisRotation.R0
 					)
 			);
+
 			switch (side) {
 				case UP:
-					list.add(new ModelElement(new Vector3f(o, p, 7.5F), new Vector3f(q, p, 8.5F), map));
+					elements.add(new ModelElement(
+							new Vector3f(u0, v0, LAYER_OFFSET_MIN),
+							new Vector3f(u1, v0, LAYER_OFFSET_MAX),
+							faces
+					));
 					break;
 				case DOWN:
-					list.add(new ModelElement(new Vector3f(o, r, 7.5F), new Vector3f(q, r, 8.5F), map));
+					elements.add(new ModelElement(
+							new Vector3f(u0, v1, LAYER_OFFSET_MIN),
+							new Vector3f(u1, v1, LAYER_OFFSET_MAX),
+							faces
+					));
 					break;
 				case LEFT:
-					list.add(new ModelElement(new Vector3f(o, p, 7.5F), new Vector3f(o, r, 8.5F), map));
+					elements.add(new ModelElement(
+							new Vector3f(u0, v0, LAYER_OFFSET_MIN),
+							new Vector3f(u0, v1, LAYER_OFFSET_MAX),
+							faces
+					));
 					break;
 				case RIGHT:
-					list.add(new ModelElement(new Vector3f(q, p, 7.5F), new Vector3f(q, r, 8.5F), map));
+					elements.add(new ModelElement(
+							new Vector3f(u1, v0, LAYER_OFFSET_MIN),
+							new Vector3f(u1, v1, LAYER_OFFSET_MAX),
+							faces
+					));
 			}
 		}
 
-		return list;
+		return elements;
 	}
 
 	private static Collection<GeneratedItemModel.PixelFaceCoord> getFrames(SpriteContents spriteContents) {
-		int i = spriteContents.getWidth();
-		int j = spriteContents.getHeight();
-		Set<GeneratedItemModel.PixelFaceCoord> set = new HashSet<>();
-		spriteContents.getDistinctFrameCount().forEach(k -> {
-			for (int l = 0; l < j; l++) {
-				for (int m = 0; m < i; m++) {
-					boolean bl = !isPixelTransparent(spriteContents, k, m, l, i, j);
-					if (bl) {
-						buildCube(GeneratedItemModel.Side.UP, set, spriteContents, k, m, l, i, j);
-						buildCube(GeneratedItemModel.Side.DOWN, set, spriteContents, k, m, l, i, j);
-						buildCube(GeneratedItemModel.Side.LEFT, set, spriteContents, k, m, l, i, j);
-						buildCube(GeneratedItemModel.Side.RIGHT, set, spriteContents, k, m, l, i, j);
+		int width = spriteContents.getWidth();
+		int height = spriteContents.getHeight();
+		Set<GeneratedItemModel.PixelFaceCoord> faces = new HashSet<>();
+
+		spriteContents.getDistinctFrameCount().forEach(frame -> {
+			for (int row = 0; row < height; row++) {
+				for (int col = 0; col < width; col++) {
+					if (!isPixelTransparent(spriteContents, frame, col, row, width, height)) {
+						buildCube(GeneratedItemModel.Side.UP, faces, spriteContents, frame, col, row, width, height);
+						buildCube(GeneratedItemModel.Side.DOWN, faces, spriteContents, frame, col, row, width, height);
+						buildCube(GeneratedItemModel.Side.LEFT, faces, spriteContents, frame, col, row, width, height);
+						buildCube(GeneratedItemModel.Side.RIGHT, faces, spriteContents, frame, col, row, width, height);
 					}
 				}
 			}
 		});
-		return set;
+
+		return faces;
 	}
 
 	private static void buildCube(
 			GeneratedItemModel.Side side,
-			Set<GeneratedItemModel.PixelFaceCoord> set,
+			Set<GeneratedItemModel.PixelFaceCoord> faces,
 			SpriteContents spriteContents,
-			int i,
-			int j,
-			int k,
-			int l,
-			int m
+			int frame,
+			int col,
+			int row,
+			int width,
+			int height
 	) {
 		if (isPixelTransparent(
 				spriteContents,
-				i,
-				j - side.direction.getOffsetX(),
-				k - side.direction.getOffsetY(),
-				l,
-				m
+				frame,
+				col - side.direction.getOffsetX(),
+				row - side.direction.getOffsetY(),
+				width,
+				height
 		)) {
-			set.add(new GeneratedItemModel.PixelFaceCoord(side, j, k));
+			faces.add(new GeneratedItemModel.PixelFaceCoord(side, col, row));
 		}
 	}
 
-	private static boolean isPixelTransparent(SpriteContents spriteContents, int i, int j, int k, int l, int m) {
-		return j >= 0 && k >= 0 && j < l && k < m ? spriteContents.isPixelTransparent(i, j, k) : true;
+	private static boolean isPixelTransparent(SpriteContents spriteContents, int frame, int col, int row, int width, int height) {
+		return col >= 0 && row >= 0 && col < width && row < height
+		       ? spriteContents.isPixelTransparent(frame, col, row)
+		       : true;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Side}.
+	 * Направление грани пикселя при генерации геометрии предмета.
 	 */
-	static enum Side {
+	@Environment(EnvType.CLIENT)
+	enum Side {
 		UP(Direction.UP),
 		DOWN(Direction.DOWN),
 		LEFT(Direction.EAST),

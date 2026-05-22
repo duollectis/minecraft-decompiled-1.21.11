@@ -15,7 +15,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * {@code WireOrientation}.
+ * Ориентация провода (редстоун-сигнала) в трёхмерном пространстве.
+ * Определяется тремя компонентами: направление «вверх», направление «вперёд»
+ * и смещение стороны ({@link SideBias}). Используется системой редстоун-экспериментов
+ * для корректной передачи сигнала с учётом ориентации блока.
  */
 public class WireOrientation {
 
@@ -272,16 +275,11 @@ public class WireOrientation {
 		}
 	}
 
-	@VisibleForTesting
 	/**
-	 * Ordinal from components.
-	 *
-	 * @param up up
-	 * @param front front
-	 * @param sideBias side bias
-	 *
-	 * @return int — результат операции
+	 * Вычисляет порядковый номер ориентации по трём компонентам.
+	 * Используется для индексации в массиве {@code VALUES} размером 48.
 	 */
+	@VisibleForTesting
 	protected static int ordinalFromComponents(Direction up, Direction front, WireOrientation.SideBias sideBias) {
 		if (up.getAxis() == front.getAxis()) {
 			throw new IllegalStateException("Up-vector and front-vector can not be on the same axis");
@@ -301,9 +299,10 @@ public class WireOrientation {
 	}
 
 	/**
-	 * {@code SideBias}.
+	 * Смещение стороны провода: LEFT (левое) или RIGHT (правое).
+	 * Определяет, в какую сторону «смотрит» провод при одинаковом направлении.
 	 */
-	public static enum SideBias {
+	public enum SideBias {
 		LEFT("left"),
 		RIGHT("right");
 

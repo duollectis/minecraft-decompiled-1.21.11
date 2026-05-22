@@ -10,9 +10,12 @@ import net.minecraft.util.Unit;
 import java.util.Map;
 
 /**
- * {@code BreezeShootIfStuckTask}.
+ * Задача мозга бриза, принудительно активирующая стрельбу когда прыжок невозможен:
+ * при езде на транспорте, нахождении в воде или под эффектом левитации.
  */
 public class BreezeShootIfStuckTask extends MultiTickTask<BreezeEntity> {
+
+	private static final long SHOOT_DURATION = 60L;
 
 	public BreezeShootIfStuckTask() {
 		super(
@@ -31,40 +34,20 @@ public class BreezeShootIfStuckTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
-		return breezeEntity.hasVehicle() || breezeEntity.isTouchingWater()
-				|| breezeEntity.getStatusEffect(StatusEffects.LEVITATION) != null;
+	@Override
+	protected boolean shouldRun(ServerWorld world, BreezeEntity entity) {
+		return entity.hasVehicle()
+				|| entity.isTouchingWater()
+				|| entity.getStatusEffect(StatusEffects.LEVITATION) != null;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, BreezeEntity entity, long time) {
 		return false;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		breezeEntity.getBrain().remember(MemoryModuleType.BREEZE_SHOOT, Unit.INSTANCE, 60L);
+	@Override
+	protected void run(ServerWorld world, BreezeEntity entity, long time) {
+		entity.getBrain().remember(MemoryModuleType.BREEZE_SHOOT, Unit.INSTANCE, SHOOT_DURATION);
 	}
 }

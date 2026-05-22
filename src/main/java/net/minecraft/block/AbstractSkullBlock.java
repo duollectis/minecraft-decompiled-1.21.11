@@ -16,17 +16,19 @@ import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractSkullBlock}.
+ * Базовый класс для всех типов черепов и голов (скелет, зомби, дракон и т.п.).
+ * Управляет анимацией через тикер и реакцией на редстоун-сигнал.
  */
 public abstract class AbstractSkullBlock extends BlockWithEntity {
 
 	public static final BooleanProperty POWERED = Properties.POWERED;
+
 	private final SkullBlock.SkullType type;
 
 	public AbstractSkullBlock(SkullBlock.SkullType type, AbstractBlock.Settings settings) {
 		super(settings);
 		this.type = type;
-		this.setDefaultState(this.stateManager.getDefaultState().with(POWERED, false));
+		setDefaultState(stateManager.getDefaultState().with(POWERED, false));
 	}
 
 	@Override
@@ -37,27 +39,30 @@ public abstract class AbstractSkullBlock extends BlockWithEntity {
 		return new SkullBlockEntity(pos, state);
 	}
 
+	/**
+	 * Возвращает тикер только для черепов с анимацией (дракон, пиглин),
+	 * и только на клиенте — анимация не требует серверной логики.
+	 */
 	@Override
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
-			World world,
-			BlockState state,
-			BlockEntityType<T> type
+		World world,
+		BlockState state,
+		BlockEntityType<T> type
 	) {
-		if (world.isClient()) {
-			boolean bl = state.isOf(Blocks.DRAGON_HEAD)
-					|| state.isOf(Blocks.DRAGON_WALL_HEAD)
-					|| state.isOf(Blocks.PIGLIN_HEAD)
-					|| state.isOf(Blocks.PIGLIN_WALL_HEAD);
-			if (bl) {
-				return validateTicker(type, BlockEntityType.SKULL, SkullBlockEntity::tick);
-			}
+		if (!world.isClient()) {
+			return null;
 		}
 
-		return null;
+		boolean hasAnimation = state.isOf(Blocks.DRAGON_HEAD)
+			|| state.isOf(Blocks.DRAGON_WALL_HEAD)
+			|| state.isOf(Blocks.PIGLIN_HEAD)
+			|| state.isOf(Blocks.PIGLIN_WALL_HEAD);
+
+		return hasAnimation ? validateTicker(type, BlockEntityType.SKULL, SkullBlockEntity::tick) : null;
 	}
 
 	public SkullBlock.SkullType getSkullType() {
-		return this.type;
+		return type;
 	}
 
 	@Override
@@ -72,23 +77,26 @@ public abstract class AbstractSkullBlock extends BlockWithEntity {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
+		return getDefaultState().with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
 	}
 
 	@Override
 	protected void neighborUpdate(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Block sourceBlock,
-			@Nullable WireOrientation wireOrientation,
-			boolean notify
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Block sourceBlock,
+		@Nullable WireOrientation wireOrientation,
+		boolean notify
 	) {
-		if (!world.isClient()) {
-			boolean bl = world.isReceivingRedstonePower(pos);
-			if (bl != state.get(POWERED)) {
-				world.setBlockState(pos, state.with(POWERED, bl), 2);
-			}
+		if (world.isClient()) {
+			return;
+		}
+
+		boolean powered = world.isReceivingRedstonePower(pos);
+
+		if (powered != state.get(POWERED)) {
+			world.setBlockState(pos, state.with(POWERED, powered), 2);
 		}
 	}
 }

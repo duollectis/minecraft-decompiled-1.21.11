@@ -11,42 +11,43 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 
 /**
- * {@code EntityRedundantChanceTagsFix}.
+ * Удаляет избыточные теги шансов выпадения {@code HandDropChances} и {@code ArmorDropChances},
+ * если все их значения равны нулю — такие теги не несут смысловой нагрузки.
  */
 public class EntityRedundantChanceTagsFix extends DataFix {
 
+	private static final int HAND_SLOTS_COUNT = 2;
+	private static final int ARMOR_SLOTS_COUNT = 4;
 	private static final Codec<List<Float>> FLOAT_LIST_CODEC = Codec.FLOAT.listOf();
 
-	public EntityRedundantChanceTagsFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public EntityRedundantChanceTagsFix(Schema outputSchema, boolean changesType) {
+		super(outputSchema, changesType);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"EntityRedundantChanceTagsFix",
-				this.getInputSchema().getType(TypeReferences.ENTITY),
-				typed -> typed.update(
-						DSL.remainderFinder(), entityTyped -> {
-							if (hasZeroDropChance(entityTyped.get("HandDropChances"), 2)) {
-								entityTyped = entityTyped.remove("HandDropChances");
-							}
+				getInputSchema().getType(TypeReferences.ENTITY),
+				typed -> typed.update(DSL.remainderFinder(), entity -> {
+					if (hasZeroDropChance(entity.get("HandDropChances"), HAND_SLOTS_COUNT)) {
+						entity = entity.remove("HandDropChances");
+					}
 
-							if (hasZeroDropChance(entityTyped.get("ArmorDropChances"), 4)) {
-								entityTyped = entityTyped.remove("ArmorDropChances");
-							}
+					if (hasZeroDropChance(entity.get("ArmorDropChances"), ARMOR_SLOTS_COUNT)) {
+						entity = entity.remove("ArmorDropChances");
+					}
 
-							return entityTyped;
-						}
-				)
+					return entity;
+				})
 		);
 	}
 
 	private static boolean hasZeroDropChance(OptionalDynamic<?> listTag, int expectedLength) {
 		return listTag.flatMap(FLOAT_LIST_CODEC::parse)
-		              .map(chances -> chances.size() == expectedLength && chances
-				              .stream()
-				              .allMatch(chance -> chance == 0.0F))
-		              .result()
-		              .orElse(false);
+				.map(chances -> chances.size() == expectedLength
+						&& chances.stream().allMatch(chance -> chance == 0.0F))
+				.result()
+				.orElse(false);
 	}
 }

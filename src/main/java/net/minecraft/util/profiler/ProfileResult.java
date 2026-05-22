@@ -4,7 +4,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * {@code ProfileResult}.
+ * Результат профилирования за диапазон тиков: иерархия замеров, временные метки
+ * и возможность сохранения в текстовый файл.
  */
 public interface ProfileResult {
 
@@ -23,11 +24,11 @@ public interface ProfileResult {
 	int getEndTick();
 
 	default long getTimeSpan() {
-		return this.getEndTime() - this.getStartTime();
+		return getEndTime() - getStartTime();
 	}
 
 	default int getTickSpan() {
-		return this.getEndTick() - this.getStartTick();
+		return getEndTick() - getStartTick();
 	}
 
 	String getRootTimings();

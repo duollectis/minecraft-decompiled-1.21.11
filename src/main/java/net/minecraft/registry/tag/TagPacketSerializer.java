@@ -15,96 +15,98 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code TagPacketSerializer}.
+ * Сериализует и десериализует теги реестров для передачи по сети.
+ *
+ * <p>При синхронизации клиента сервер отправляет теги в виде карты
+ * {@code registryKey -> Serialized}, где {@link Serialized} хранит
+ * карту {@code tagId -> список raw-идентификаторов элементов}.</p>
  */
 public class TagPacketSerializer {
 
-	public static Map<RegistryKey<? extends Registry<?>>, TagPacketSerializer.Serialized> serializeTags(
+	/**
+	 * Сериализует все теги из всех синхронизируемых реестров.
+	 *
+	 * @param dynamicRegistryManager менеджер динамических реестров сервера
+	 * @return карта {@code registryKey -> сериализованные теги} (только непустые)
+	 */
+	public static Map<RegistryKey<? extends Registry<?>>, Serialized> serializeTags(
 			CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistryManager
 	) {
 		return SerializableRegistries.streamRegistryManagerEntries(dynamicRegistryManager)
-		                             .map(registry -> Pair.of(registry.key(), serializeTags(registry.value())))
-		                             .filter(pair -> !((TagPacketSerializer.Serialized) pair.getSecond()).isEmpty())
-		                             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+				.map(registry -> Pair.of(registry.key(), serializeTags(registry.value())))
+				.filter(pair -> !((Serialized) pair.getSecond()).isEmpty())
+				.collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
 	}
 
-	private static <T> TagPacketSerializer.Serialized serializeTags(Registry<T> registry) {
-		Map<Identifier, IntList> map = new HashMap<>();
+	private static <T> Serialized serializeTags(Registry<T> registry) {
+		Map<Identifier, IntList> tagMap = new HashMap<>();
+
 		registry.streamTags().forEach(tag -> {
-			IntList intList = new IntArrayList(tag.size());
+			IntList rawIds = new IntArrayList(tag.size());
 
 			for (RegistryEntry<T> registryEntry : tag) {
 				if (registryEntry.getType() != RegistryEntry.Type.REFERENCE) {
 					throw new IllegalStateException("Can't serialize unregistered value " + registryEntry);
 				}
 
-				intList.add(registry.getRawId(registryEntry.value()));
+				rawIds.add(registry.getRawId(registryEntry.value()));
 			}
 
-			map.put(tag.getTag().id(), intList);
+			tagMap.put(tag.getTag().id(), rawIds);
 		});
-		return new TagPacketSerializer.Serialized(map);
+
+		return new Serialized(tagMap);
 	}
 
-	static <T> TagGroupLoader.RegistryTags<T> toRegistryTags(
-			Registry<T> registry,
-			TagPacketSerializer.Serialized tags
-	) {
+	static <T> TagGroupLoader.RegistryTags<T> toRegistryTags(Registry<T> registry, Serialized tags) {
 		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
-		Map<TagKey<T>, List<RegistryEntry<T>>> map = new HashMap<>();
+		Map<TagKey<T>, List<RegistryEntry<T>>> tagMap = new HashMap<>();
+
 		tags.contents.forEach((tagId, rawIds) -> {
 			TagKey<T> tagKey = TagKey.of(registryKey, tagId);
-			List<RegistryEntry<T>>
-					list =
-					rawIds
-							.intStream()
-							.mapToObj(registry::getEntry)
-							.flatMap(Optional::stream)
-							.collect(Collectors.toUnmodifiableList());
-			map.put(tagKey, list);
+			List<RegistryEntry<T>> entries = rawIds.intStream()
+					.mapToObj(registry::getEntry)
+					.flatMap(Optional::stream)
+					.collect(Collectors.toUnmodifiableList());
+			tagMap.put(tagKey, entries);
 		});
-		return new TagGroupLoader.RegistryTags<>(registryKey, map);
+
+		return new TagGroupLoader.RegistryTags<>(registryKey, tagMap);
 	}
 
 	/**
-	 * {@code Serialized}.
+	 * Сериализованное представление тегов одного реестра для передачи по сети.
+	 *
+	 * <p>Хранит карту {@code tagId -> список raw-идентификаторов (int)} вместо
+	 * полных объектов, что значительно уменьшает размер пакета.</p>
 	 */
 	public static final class Serialized {
 
-		public static final TagPacketSerializer.Serialized NONE = new TagPacketSerializer.Serialized(Map.of());
+		public static final Serialized NONE = new Serialized(Map.of());
+
 		final Map<Identifier, IntList> contents;
 
 		Serialized(Map<Identifier, IntList> contents) {
 			this.contents = contents;
 		}
 
-		/**
-		 * Записывает buf.
-		 *
-		 * @param buf buf
-		 */
 		public void writeBuf(PacketByteBuf buf) {
-			buf.writeMap(this.contents, PacketByteBuf::writeIdentifier, PacketByteBuf::writeIntList);
+			buf.writeMap(contents, PacketByteBuf::writeIdentifier, PacketByteBuf::writeIntList);
 		}
 
-		public static TagPacketSerializer.Serialized fromBuf(PacketByteBuf buf) {
-			return new TagPacketSerializer.Serialized(buf.readMap(
+		public static Serialized fromBuf(PacketByteBuf buf) {
+			return new Serialized(buf.readMap(
 					PacketByteBuf::readIdentifier,
 					PacketByteBuf::readIntList
 			));
 		}
 
 		public boolean isEmpty() {
-			return this.contents.isEmpty();
+			return contents.isEmpty();
 		}
 
-		/**
-		 * Size.
-		 *
-		 * @return int — результат операции
-		 */
 		public int size() {
-			return this.contents.size();
+			return contents.size();
 		}
 
 		public <T> TagGroupLoader.RegistryTags<T> toRegistryTags(Registry<T> registry) {

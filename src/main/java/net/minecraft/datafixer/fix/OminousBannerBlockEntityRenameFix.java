@@ -8,7 +8,7 @@ import com.mojang.datafixers.util.Pair;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OminousBannerBlockEntityRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OminousBannerBlockEntityRenameFix extends ChoiceFix {
 

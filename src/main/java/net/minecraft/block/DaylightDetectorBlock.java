@@ -24,7 +24,9 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DaylightDetectorBlock}.
+ * Датчик дневного света — блок, выдающий сигнал редстоуна пропорционально уровню
+ * освещения неба. В инвертированном режиме работает как датчик ночи.
+ * Переключение режима — правым кликом игрока.
  */
 public class DaylightDetectorBlock extends BlockWithEntity {
 
@@ -40,7 +42,7 @@ public class DaylightDetectorBlock extends BlockWithEntity {
 
 	public DaylightDetectorBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(POWER, 0).with(INVERTED, false));
+		setDefaultState(stateManager.getDefaultState().with(POWER, 0).with(INVERTED, false));
 	}
 
 	@Override
@@ -58,43 +60,46 @@ public class DaylightDetectorBlock extends BlockWithEntity {
 		return state.get(POWER);
 	}
 
+	/**
+	 * Пересчитывает мощность сигнала на основе текущего уровня освещения неба.
+	 * В обычном режиме учитывает угол солнца для плавного изменения сигнала на рассвете/закате.
+	 */
 	private static void updateState(BlockState state, World world, BlockPos pos) {
-		int i = world.getLightLevel(LightType.SKY, pos) - world.getAmbientDarkness();
-		float
-				f =
-				world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.SUN_ANGLE_VISUAL, pos)
-						* (float) (Math.PI / 180.0);
-		boolean bl = state.get(INVERTED);
-		if (bl) {
-			i = 15 - i;
-		}
-		else if (i > 0) {
-			float g = f < (float) Math.PI ? 0.0F : (float) (Math.PI * 2);
-			f += (g - f) * 0.2F;
-			i = Math.round(i * MathHelper.cos(f));
+		int skyLight = world.getLightLevel(LightType.SKY, pos) - world.getAmbientDarkness();
+		float sunAngle = world.getEnvironmentAttributes()
+			.getAttributeValue(EnvironmentAttributes.SUN_ANGLE_VISUAL, pos)
+			* (float) (Math.PI / 180.0);
+		boolean inverted = state.get(INVERTED);
+
+		if (inverted) {
+			skyLight = 15 - skyLight;
+		} else if (skyLight > 0) {
+			float target = sunAngle < (float) Math.PI ? 0.0F : (float) (Math.PI * 2);
+			sunAngle += (target - sunAngle) * 0.2F;
+			skyLight = Math.round(skyLight * MathHelper.cos(sunAngle));
 		}
 
-		i = MathHelper.clamp(i, 0, 15);
-		if (state.get(POWER) != i) {
-			world.setBlockState(pos, state.with(POWER, i), 3);
+		int power = MathHelper.clamp(skyLight, 0, 15);
+
+		if (state.get(POWER) != power) {
+			world.setBlockState(pos, state.with(POWER, power), Block.NOTIFY_ALL);
 		}
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!player.canModifyBlocks()) {
+		if (player.canModifyBlocks() == false) {
 			return super.onUse(state, world, pos, player, hit);
 		}
-		else {
-			if (!world.isClient()) {
-				BlockState blockState = state.cycle(INVERTED);
-				world.setBlockState(pos, blockState, 2);
-				world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, blockState));
-				updateState(blockState, world, pos);
-			}
 
-			return ActionResult.SUCCESS;
+		if (world.isClient() == false) {
+			BlockState toggled = state.cycle(INVERTED);
+			world.setBlockState(pos, toggled, Block.NOTIFY_LISTENERS);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, toggled));
+			updateState(toggled, world, pos);
 		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override

@@ -20,9 +20,26 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code SplashPotionEntity}.
+ * Плескательное зелье — при взрыве применяет эффекты ко всем сущностям
+ * в радиусе {@link PotionEntity#POTION_EXPLOSION_RADIUS} блоков.
+ * <p>
+ * Сила эффекта масштабируется по расстоянию: чем дальше сущность от точки
+ * взрыва, тем короче длительность эффекта. Мгновенные эффекты применяются
+ * с масштабированной интенсивностью, длительные — с масштабированной длительностью.
  */
 public class SplashPotionEntity extends PotionEntity {
+
+	/** Квадрат радиуса взрыва для проверки попадания сущностей. */
+	private static final double EXPLOSION_RADIUS_SQUARED = 16.0;
+
+	/** Делитель для расчёта коэффициента силы эффекта по расстоянию. */
+	private static final double EFFECT_RADIUS_DIVISOR = 4.0;
+
+	/** Минимальная длительность эффекта (в тиках), ниже которой эффект не применяется. */
+	private static final int MIN_EFFECT_DURATION = 20;
+
+	/** Смещение при округлении длительности эффекта. */
+	private static final float DURATION_ROUNDING_OFFSET = 0.5F;
 
 	public SplashPotionEntity(EntityType<? extends SplashPotionEntity> entityType, World world) {
 		super(entityType, world);
@@ -43,56 +60,62 @@ public class SplashPotionEntity extends PotionEntity {
 
 	@Override
 	public void spawnAreaEffectCloud(ServerWorld world, ItemStack stack, HitResult hitResult) {
-		PotionContentsComponent
-				potionContentsComponent =
-				stack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-		float f = stack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F);
-		Iterable<StatusEffectInstance> iterable = potionContentsComponent.getEffects();
-		Box box = this.getBoundingBox().offset(hitResult.getPos().subtract(this.getEntityPos()));
-		Box box2 = box.expand(4.0, 2.0, 4.0);
-		List<LivingEntity> list = this.getEntityWorld().getNonSpectatingEntities(LivingEntity.class, box2);
-		float g = ProjectileUtil.getToleranceMargin(this);
-		if (!list.isEmpty()) {
-			Entity entity = this.getEffectCause();
+		PotionContentsComponent contents = stack.getOrDefault(
+				DataComponentTypes.POTION_CONTENTS,
+				PotionContentsComponent.DEFAULT
+		);
+		float durationScale = stack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F);
+		Iterable<StatusEffectInstance> effects = contents.getEffects();
 
-			for (LivingEntity livingEntity : list) {
-				if (livingEntity.isAffectedBySplashPotions()) {
-					double d = box.squaredMagnitude(livingEntity.getBoundingBox().expand(g));
-					if (d < 16.0) {
-						double e = 1.0 - Math.sqrt(d) / 4.0;
+		Box hitBox = getBoundingBox().offset(hitResult.getPos().subtract(getEntityPos()));
+		Box searchBox = hitBox.expand(POTION_EXPLOSION_RADIUS, 2.0, POTION_EXPLOSION_RADIUS);
+		List<LivingEntity> nearbyEntities = getEntityWorld().getNonSpectatingEntities(LivingEntity.class, searchBox);
 
-						for (StatusEffectInstance statusEffectInstance : iterable) {
-							RegistryEntry<StatusEffect> registryEntry = statusEffectInstance.getEffectType();
-							if (registryEntry.value().isInstant()) {
-								registryEntry
-										.value()
-										.applyInstantEffect(
-												world,
-												this,
-												this.getOwner(),
-												livingEntity,
-												statusEffectInstance.getAmplifier(),
-												e
-										);
-							}
-							else {
-								int
-										i =
-										statusEffectInstance.mapDuration(baseDuration -> (int) (e * baseDuration * f
-												+ 0.5
-										));
-								StatusEffectInstance statusEffectInstance2 = new StatusEffectInstance(
-										registryEntry,
-										i,
-										statusEffectInstance.getAmplifier(),
-										statusEffectInstance.isAmbient(),
-										statusEffectInstance.shouldShowParticles()
-								);
-								if (!statusEffectInstance2.isDurationBelow(20)) {
-									livingEntity.addStatusEffect(statusEffectInstance2, entity);
-								}
-							}
-						}
+		if (nearbyEntities.isEmpty()) {
+			return;
+		}
+
+		float toleranceMargin = ProjectileUtil.getToleranceMargin(this);
+		Entity effectCause = getEffectCause();
+
+		for (LivingEntity target : nearbyEntities) {
+			if (!target.isAffectedBySplashPotions()) {
+				continue;
+			}
+
+			double distanceSquared = hitBox.squaredMagnitude(target.getBoundingBox().expand(toleranceMargin));
+			if (distanceSquared >= EXPLOSION_RADIUS_SQUARED) {
+				continue;
+			}
+
+			double effectStrength = 1.0 - Math.sqrt(distanceSquared) / EFFECT_RADIUS_DIVISOR;
+
+			for (StatusEffectInstance effectInstance : effects) {
+				RegistryEntry<StatusEffect> effectType = effectInstance.getEffectType();
+
+				if (effectType.value().isInstant()) {
+					effectType.value().applyInstantEffect(
+							world,
+							this,
+							getOwner(),
+							target,
+							effectInstance.getAmplifier(),
+							effectStrength
+					);
+				} else {
+					int scaledDuration = effectInstance.mapDuration(
+							baseDuration -> (int) (effectStrength * baseDuration * durationScale + DURATION_ROUNDING_OFFSET)
+					);
+					StatusEffectInstance scaledEffect = new StatusEffectInstance(
+							effectType,
+							scaledDuration,
+							effectInstance.getAmplifier(),
+							effectInstance.isAmbient(),
+							effectInstance.shouldShowParticles()
+					);
+
+					if (!scaledEffect.isDurationBelow(MIN_EFFECT_DURATION)) {
+						target.addStatusEffect(scaledEffect, effectCause);
 					}
 				}
 			}

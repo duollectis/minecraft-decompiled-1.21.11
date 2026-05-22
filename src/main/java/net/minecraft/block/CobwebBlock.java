@@ -10,7 +10,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code CobwebBlock}.
+ * Блок паутины — замедляет движение сущностей при столкновении.
+ * Существа с эффектом «Плетение» замедляются значительно меньше.
  */
 public class CobwebBlock extends Block {
 
@@ -32,13 +33,12 @@ public class CobwebBlock extends Block {
 			BlockPos pos,
 			Entity entity,
 			EntityCollisionHandler handler,
-			boolean bl
+			boolean firstCollision
 	) {
-		Vec3d vec3d = new Vec3d(0.25, 0.05F, 0.25);
-		if (entity instanceof LivingEntity livingEntity && livingEntity.hasStatusEffect(StatusEffects.WEAVING)) {
-			vec3d = new Vec3d(0.5, 0.25, 0.5);
-		}
+		Vec3d slowdown = entity instanceof LivingEntity living && living.hasStatusEffect(StatusEffects.WEAVING)
+				? new Vec3d(0.5, 0.25, 0.5)
+				: new Vec3d(0.25, 0.05F, 0.25);
 
-		entity.slowMovement(state, vec3d);
+		entity.slowMovement(state, slowdown);
 	}
 }

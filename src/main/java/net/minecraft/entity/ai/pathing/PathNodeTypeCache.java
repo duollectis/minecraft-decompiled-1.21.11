@@ -6,55 +6,48 @@ import net.minecraft.world.BlockView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PathNodeTypeCache}.
+ * Кэш типов узлов пути для ускорения повторных запросов на сервере.
+ * Использует открытую адресацию с хэш-функцией для O(1) доступа.
  */
 public class PathNodeTypeCache {
 
 	private static final int CACHE_SIZE = 4096;
-	private static final int CACHE_MASK = 4095;
-	private final long[] positions = new long[4096];
-	private final PathNodeType[] cache = new PathNodeType[4096];
+	private static final int CACHE_MASK = CACHE_SIZE - 1;
+
+	private final long[] positions = new long[CACHE_SIZE];
+	private final PathNodeType[] cache = new PathNodeType[CACHE_SIZE];
 
 	/**
-	 * Add.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return PathNodeType — результат операции
+	 * Возвращает тип узла для позиции, используя кэш для повторных запросов.
 	 */
 	public PathNodeType add(BlockView world, BlockPos pos) {
-		long l = pos.asLong();
-		int i = hash(l);
-		PathNodeType pathNodeType = this.get(i, l);
-		return pathNodeType != null ? pathNodeType : this.compute(world, pos, i, l);
+		long longPos = pos.asLong();
+		int index = hash(longPos);
+		PathNodeType cached = get(index, longPos);
+		return cached != null ? cached : compute(world, pos, index, longPos);
 	}
 
 	private @Nullable PathNodeType get(int index, long pos) {
-		return this.positions[index] == pos ? this.cache[index] : null;
+		return positions[index] == pos ? cache[index] : null;
 	}
 
 	private PathNodeType compute(BlockView world, BlockPos pos, int index, long longPos) {
-		PathNodeType pathNodeType = LandPathNodeMaker.getCommonNodeType(world, pos);
-		this.positions[index] = longPos;
-		this.cache[index] = pathNodeType;
-		return pathNodeType;
+		PathNodeType nodeType = LandPathNodeMaker.getCommonNodeType(world, pos);
+		positions[index] = longPos;
+		cache[index] = nodeType;
+		return nodeType;
 	}
 
-	/**
-	 * Invalidate.
-	 *
-	 * @param pos pos
-	 */
 	public void invalidate(BlockPos pos) {
-		long l = pos.asLong();
-		int i = hash(l);
-		if (this.positions[i] == l) {
-			this.cache[i] = null;
+		long longPos = pos.asLong();
+		int index = hash(longPos);
+
+		if (positions[index] == longPos) {
+			cache[index] = null;
 		}
 	}
 
 	private static int hash(long pos) {
-		return (int) HashCommon.mix(pos) & 4095;
+		return (int) HashCommon.mix(pos) & CACHE_MASK;
 	}
 }

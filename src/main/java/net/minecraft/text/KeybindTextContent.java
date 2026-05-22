@@ -9,7 +9,10 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * {@code KeybindTextContent}.
+ * Содержимое текстового компонента, отображающее локализованное название клавиши управления.
+ *
+ * <p>Перевод клавиши разрешается лениво через {@link KeybindTranslations#factory} при первом обращении.
+ * Это позволяет обновлять отображение при смене раскладки без пересоздания компонента.</p>
  */
 public class KeybindTextContent implements TextContent {
 
@@ -18,6 +21,7 @@ public class KeybindTextContent implements TextContent {
 					.group(Codec.STRING.fieldOf("keybind").forGetter(content -> content.key))
 					.apply(instance, KeybindTextContent::new)
 	);
+
 	private final String key;
 	private @Nullable Supplier<Text> translated;
 
@@ -25,46 +29,49 @@ public class KeybindTextContent implements TextContent {
 		this.key = key;
 	}
 
-	private Text getTranslated() {
-		if (this.translated == null) {
-			this.translated = KeybindTranslations.factory.apply(this.key);
-		}
-
-		return this.translated.get();
-	}
-
-	@Override
-	public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-		return this.getTranslated().visit(visitor);
-	}
-
-	@Override
-	public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-		return this.getTranslated().visit(visitor, style);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof KeybindTextContent keybindTextContent && this.key.equals(
-				keybindTextContent.key);
-	}
-
-	@Override
-	public int hashCode() {
-		return this.key.hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return "keybind{" + this.key + "}";
-	}
-
 	public String getKey() {
-		return this.key;
+		return key;
 	}
 
 	@Override
 	public MapCodec<KeybindTextContent> getCodec() {
 		return CODEC;
+	}
+
+	private Text getTranslated() {
+		if (translated == null) {
+			translated = KeybindTranslations.factory.apply(key);
+		}
+
+		return translated.get();
+	}
+
+	@Override
+	public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+		return getTranslated().visit(visitor);
+	}
+
+	@Override
+	public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
+		return getTranslated().visit(visitor, style);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof KeybindTextContent other && key.equals(other.key);
+	}
+
+	@Override
+	public int hashCode() {
+		return key.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return "keybind{" + key + "}";
 	}
 }

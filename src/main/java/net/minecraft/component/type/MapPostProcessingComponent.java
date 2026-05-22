@@ -8,8 +8,10 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code MapPostProcessingComponent}.
- */
+	 * Компонент постобработки карты. Указывает, какое действие нужно выполнить
+	 * с картой при следующем тике: заблокировать ({@link #LOCK}) или увеличить
+	 * масштаб ({@link #SCALE}).
+	 */
 public enum MapPostProcessingComponent {
 	LOCK(0),
 	SCALE(1);

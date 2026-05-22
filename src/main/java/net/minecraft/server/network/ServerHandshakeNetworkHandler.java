@@ -13,7 +13,7 @@ import net.minecraft.server.ServerMetadata;
 import net.minecraft.text.Text;
 
 /**
- * {@code ServerHandshakeNetworkHandler}.
+ * Класс Server Handshake Network Handler.
  */
 public class ServerHandshakeNetworkHandler implements ServerHandshakePacketListener {
 

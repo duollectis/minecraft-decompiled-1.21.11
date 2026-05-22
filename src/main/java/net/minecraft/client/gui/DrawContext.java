@@ -56,10 +56,12 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DrawContext}.
+ * Контекст отрисовки GUI — центральный API для рендеринга всех элементов интерфейса.
+ * Предоставляет методы для рисования текстур, текста, предметов, тултипов и геометрических примитивов.
+ * Все операции буферизуются в {@link GuiRenderState} и применяются пакетно.
  */
+@Environment(EnvType.CLIENT)
 public class DrawContext {
 
 	private static final int BACKGROUND_MARGIN = 2;
@@ -136,40 +138,24 @@ public class DrawContext {
 		return this.matrices;
 	}
 
-	/**
-	 * Draw horizontal line.
-	 *
-	 * @param x1 x1
-	 * @param x2 x2
-	 * @param y y
-	 * @param color color
-	 */
 	public void drawHorizontalLine(int x1, int x2, int y, int color) {
 		if (x2 < x1) {
-			int i = x1;
+			int temp = x1;
 			x1 = x2;
-			x2 = i;
+			x2 = temp;
 		}
 
-		this.fill(x1, y, x2 + 1, y + 1, color);
+		fill(x1, y, x2 + 1, y + 1, color);
 	}
 
-	/**
-	 * Draw vertical line.
-	 *
-	 * @param x x
-	 * @param y1 y1
-	 * @param y2 y2
-	 * @param color color
-	 */
 	public void drawVerticalLine(int x, int y1, int y2, int color) {
 		if (y2 < y1) {
-			int i = y1;
+			int temp = y1;
 			y1 = y2;
-			y2 = i;
+			y2 = temp;
 		}
 
-		this.fill(x, y1 + 1, x + 1, y2, color);
+		fill(x, y1 + 1, x + 1, y2, color);
 	}
 
 	/**
@@ -204,71 +190,32 @@ public class DrawContext {
 		return this.scissorStack.contains(x, y);
 	}
 
-	/**
-	 * Fill.
-	 *
-	 * @param x1 x1
-	 * @param y1 y1
-	 * @param x2 x2
-	 * @param y2 y2
-	 * @param color color
-	 */
 	public void fill(int x1, int y1, int x2, int y2, int color) {
-		this.fill(RenderPipelines.GUI, x1, y1, x2, y2, color);
+		fill(RenderPipelines.GUI, x1, y1, x2, y2, color);
 	}
 
-	/**
-	 * Fill.
-	 *
-	 * @param pipeline pipeline
-	 * @param x1 x1
-	 * @param y1 y1
-	 * @param x2 x2
-	 * @param y2 y2
-	 * @param color color
-	 */
 	public void fill(RenderPipeline pipeline, int x1, int y1, int x2, int y2, int color) {
 		if (x1 < x2) {
-			int i = x1;
+			int temp = x1;
 			x1 = x2;
-			x2 = i;
+			x2 = temp;
 		}
 
 		if (y1 < y2) {
-			int i = y1;
+			int temp = y1;
 			y1 = y2;
-			y2 = i;
+			y2 = temp;
 		}
 
-		this.fill(pipeline, TextureSetup.empty(), x1, y1, x2, y2, color, null);
+		fill(pipeline, TextureSetup.empty(), x1, y1, x2, y2, color, null);
 	}
 
-	/**
-	 * Fill gradient.
-	 *
-	 * @param startX start x
-	 * @param startY start y
-	 * @param endX end x
-	 * @param endY end y
-	 * @param colorStart color start
-	 * @param colorEnd color end
-	 */
 	public void fillGradient(int startX, int startY, int endX, int endY, int colorStart, int colorEnd) {
-		this.fill(RenderPipelines.GUI, TextureSetup.empty(), startX, startY, endX, endY, colorStart, colorEnd);
+		fill(RenderPipelines.GUI, TextureSetup.empty(), startX, startY, endX, endY, colorStart, colorEnd);
 	}
 
-	/**
-	 * Fill.
-	 *
-	 * @param pipeline pipeline
-	 * @param textureSetup texture setup
-	 * @param x1 x1
-	 * @param y1 y1
-	 * @param x2 x2
-	 * @param y2 y2
-	 */
 	public void fill(RenderPipeline pipeline, TextureSetup textureSetup, int x1, int y1, int x2, int y2) {
-		this.fill(pipeline, textureSetup, x1, y1, x2, y2, -1, null);
+		fill(pipeline, textureSetup, x1, y1, x2, y2, -1, null);
 	}
 
 	private void fill(
@@ -487,54 +434,24 @@ public class DrawContext {
 		}
 	}
 
-	/**
-	 * Draw text with background.
-	 *
-	 * @param textRenderer text renderer
-	 * @param text text
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param color color
-	 */
 	public void drawTextWithBackground(TextRenderer textRenderer, Text text, int x, int y, int width, int color) {
-		int i = this.client.options.getTextBackgroundColor(0.0F);
-		if (i != 0) {
-			int j = 2;
-			this.fill(x - 2, y - 2, x + width + 2, y + 9 + 2, ColorHelper.mix(i, color));
+		int backgroundColor = client.options.getTextBackgroundColor(0.0F);
+		if (backgroundColor != 0) {
+			fill(x - BACKGROUND_MARGIN, y - BACKGROUND_MARGIN, x + width + BACKGROUND_MARGIN, y + 9 + BACKGROUND_MARGIN, ColorHelper.mix(backgroundColor, color));
 		}
 
-		this.drawText(textRenderer, text, x, y, color, true);
+		drawText(textRenderer, text, x, y, color, true);
 	}
 
-	/**
-	 * Draw stroked rectangle.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param height height
-	 * @param color color
-	 */
 	public void drawStrokedRectangle(int x, int y, int width, int height, int color) {
-		this.fill(x, y, x + width, y + 1, color);
-		this.fill(x, y + height - 1, x + width, y + height, color);
-		this.fill(x, y + 1, x + 1, y + height - 1, color);
-		this.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
+		fill(x, y, x + width, y + 1, color);
+		fill(x, y + height - 1, x + width, y + height, color);
+		fill(x, y + 1, x + 1, y + height - 1, color);
+		fill(x + width - 1, y + 1, x + width, y + height - 1, color);
 	}
 
-	/**
-	 * Draw gui texture.
-	 *
-	 * @param pipeline pipeline
-	 * @param sprite sprite
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param height height
-	 */
 	public void drawGuiTexture(RenderPipeline pipeline, Identifier sprite, int x, int y, int width, int height) {
-		this.drawGuiTexture(pipeline, sprite, x, y, width, height, -1);
+		drawGuiTexture(pipeline, sprite, x, y, width, height, -1);
 	}
 
 	public void drawGuiTexture(
@@ -1637,20 +1554,31 @@ public class DrawContext {
 		}
 	}
 
+	private static final int ITEM_BAR_X_OFFSET = 2;
+	private static final int ITEM_BAR_Y_OFFSET = 13;
+	private static final int ITEM_BAR_WIDTH = 13;
+	private static final int ITEM_BAR_HEIGHT = 2;
+	private static final int ITEM_BAR_COLOR_BLACK = -16777216;
+	private static final int ITEM_SIZE = 16;
+	private static final int STACK_COUNT_X_OFFSET = 19;
+	private static final int STACK_COUNT_Y_OFFSET = 9;
+
 	private void drawItemBar(ItemStack stack, int x, int y) {
-		if (stack.isItemBarVisible()) {
-			int i = x + 2;
-			int j = y + 13;
-			this.fill(RenderPipelines.GUI, i, j, i + 13, j + 2, -16777216);
-			this.fill(
-					RenderPipelines.GUI,
-					i,
-					j,
-					i + stack.getItemBarStep(),
-					j + 1,
-					ColorHelper.fullAlpha(stack.getItemBarColor())
-			);
+		if (!stack.isItemBarVisible()) {
+			return;
 		}
+
+		int barX = x + ITEM_BAR_X_OFFSET;
+		int barY = y + ITEM_BAR_Y_OFFSET;
+		fill(RenderPipelines.GUI, barX, barY, barX + ITEM_BAR_WIDTH, barY + ITEM_BAR_HEIGHT, ITEM_BAR_COLOR_BLACK);
+		fill(
+				RenderPipelines.GUI,
+				barX,
+				barY,
+				barX + stack.getItemBarStep(),
+				barY + 1,
+				ColorHelper.fullAlpha(stack.getItemBarColor())
+		);
 	}
 
 	private void drawStackCount(
@@ -1660,58 +1588,60 @@ public class DrawContext {
 			int y,
 			@Nullable String stackCountText
 	) {
-		if (stack.getCount() != 1 || stackCountText != null) {
-			String string = stackCountText == null ? String.valueOf(stack.getCount()) : stackCountText;
-			this.drawText(textRenderer, string, x + 19 - 2 - textRenderer.getWidth(string), y + 6 + 3, -1, true);
+		if (stack.getCount() == 1 && stackCountText == null) {
+			return;
 		}
+
+		String countText = stackCountText == null ? String.valueOf(stack.getCount()) : stackCountText;
+		drawText(textRenderer, countText, x + STACK_COUNT_X_OFFSET - BACKGROUND_MARGIN - textRenderer.getWidth(countText), y + 6 + 3, -1, true);
 	}
 
 	private void drawCooldownProgress(ItemStack stack, int x, int y) {
-		ClientPlayerEntity clientPlayerEntity = this.client.player;
-		float f = clientPlayerEntity == null
-		          ? 0.0F
-		          : clientPlayerEntity
-		            .getItemCooldownManager()
-		            .getCooldownProgress(stack, this.client.getRenderTickCounter().getTickProgress(true));
-		if (f > 0.0F) {
-			int i = y + MathHelper.floor(16.0F * (1.0F - f));
-			int j = i + MathHelper.ceil(16.0F * f);
-			this.fill(RenderPipelines.GUI, x, i, x + 16, j, Integer.MAX_VALUE);
+		ClientPlayerEntity player = client.player;
+		float cooldown = player == null
+				? 0.0F
+				: player
+				.getItemCooldownManager()
+				.getCooldownProgress(stack, client.getRenderTickCounter().getTickProgress(true));
+		if (cooldown > 0.0F) {
+			int top = y + MathHelper.floor(ITEM_SIZE * (1.0F - cooldown));
+			int bottom = top + MathHelper.ceil(ITEM_SIZE * cooldown);
+			fill(RenderPipelines.GUI, x, top, x + ITEM_SIZE, bottom, Integer.MAX_VALUE);
 		}
 	}
 
 	/**
-	 * Draw hover event.
+	 * Отрисовывает всплывающую подсказку для hover-события текстового стиля.
+	 * Поддерживает три типа событий: ShowItem, ShowEntity, ShowText.
 	 *
-	 * @param textRenderer text renderer
-	 * @param style style
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
+	 * @param textRenderer рендерер текста
+	 * @param style стиль с hover-событием (может быть null)
+	 * @param mouseX координата X курсора
+	 * @param mouseY координата Y курсора
 	 */
 	public void drawHoverEvent(TextRenderer textRenderer, @Nullable Style style, int mouseX, int mouseY) {
-		if (style != null) {
-			if (style.getHoverEvent() != null) {
-				switch (style.getHoverEvent()) {
-					case HoverEvent.ShowItem(ItemStack var17):
-						this.drawItemTooltip(textRenderer, var17, mouseX, mouseY);
-						break;
-					case HoverEvent.ShowEntity(HoverEvent.EntityContent var22):
-						HoverEvent.EntityContent var18 = var22;
-						if (this.client.options.advancedItemTooltips) {
-							this.drawTooltip(textRenderer, var18.asTooltip(), mouseX, mouseY);
-						}
-						break;
-					case HoverEvent.ShowText(Text var13):
-						this.drawOrderedTooltip(
-								textRenderer,
-								textRenderer.wrapLines(var13, Math.max(this.getScaledWindowWidth() / 2, 200)),
-								mouseX,
-								mouseY
-						);
-						break;
-					default:
+		if (style == null || style.getHoverEvent() == null) {
+			return;
+		}
+
+		switch (style.getHoverEvent()) {
+			case HoverEvent.ShowItem(ItemStack itemStack):
+				drawItemTooltip(textRenderer, itemStack, mouseX, mouseY);
+				break;
+			case HoverEvent.ShowEntity(HoverEvent.EntityContent entityContent):
+				if (client.options.advancedItemTooltips) {
+					drawTooltip(textRenderer, entityContent.asTooltip(), mouseX, mouseY);
 				}
-			}
+				break;
+			case HoverEvent.ShowText(Text hoverText):
+				drawOrderedTooltip(
+						textRenderer,
+						textRenderer.wrapLines(hoverText, Math.max(getScaledWindowWidth() / 2, 200)),
+						mouseX,
+						mouseY
+				);
+				break;
+			default:
 		}
 	}
 
@@ -1978,11 +1908,11 @@ public class DrawContext {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code HoverType}.
+	 * Определяет режим обработки hover-событий при рендеринге текста.
 	 */
-	public static enum HoverType {
+	@Environment(EnvType.CLIENT)
+	public enum HoverType {
 		NONE(false, false),
 		TOOLTIP_ONLY(true, false),
 		TOOLTIP_AND_CURSOR(true, true);
@@ -1990,20 +1920,21 @@ public class DrawContext {
 		public final boolean tooltip;
 		public final boolean cursor;
 
-		private HoverType(final boolean tooltip, final boolean cursor) {
+		HoverType(boolean tooltip, boolean cursor) {
 			this.tooltip = tooltip;
 			this.cursor = cursor;
 		}
 
-		public static DrawContext.HoverType fromTooltip(boolean tooltip) {
+		public static HoverType fromTooltip(boolean tooltip) {
 			return tooltip ? TOOLTIP_ONLY : NONE;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ScissorStack}.
+	 * Стек прямоугольников отсечения (scissor), поддерживающий вложенные области.
+	 * При вложении вычисляется пересечение с родительским прямоугольником.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class ScissorStack {
 
 		private final Deque<ScreenRect> stack = new ArrayDeque<>();
@@ -2011,76 +1942,46 @@ public class DrawContext {
 		ScissorStack() {
 		}
 
-		/**
-		 * Push.
-		 *
-		 * @param rect rect
-		 *
-		 * @return ScreenRect — результат операции
-		 */
 		public ScreenRect push(ScreenRect rect) {
-			ScreenRect screenRect = this.stack.peekLast();
-			if (screenRect != null) {
-				ScreenRect screenRect2 = Objects.requireNonNullElse(rect.intersection(screenRect), ScreenRect.empty());
-				this.stack.addLast(screenRect2);
-				return screenRect2;
+			ScreenRect current = stack.peekLast();
+			if (current != null) {
+				ScreenRect clipped = Objects.requireNonNullElse(rect.intersection(current), ScreenRect.empty());
+				stack.addLast(clipped);
+				return clipped;
 			}
-			else {
-				this.stack.addLast(rect);
-				return rect;
-			}
+
+			stack.addLast(rect);
+			return rect;
 		}
 
-		/**
-		 * Pop.
-		 *
-		 * @return @Nullable ScreenRect — результат операции
-		 */
 		public @Nullable ScreenRect pop() {
-			if (this.stack.isEmpty()) {
+			if (stack.isEmpty()) {
 				throw new IllegalStateException("Scissor stack underflow");
 			}
-			else {
-				this.stack.removeLast();
-				return this.stack.peekLast();
-			}
+
+			stack.removeLast();
+			return stack.peekLast();
 		}
 
-		/**
-		 * Peek last.
-		 *
-		 * @return @Nullable ScreenRect — результат операции
-		 */
 		public @Nullable ScreenRect peekLast() {
-			return this.stack.peekLast();
+			return stack.peekLast();
 		}
 
-		/**
-		 * Contains.
-		 *
-		 * @param x x
-		 * @param y y
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean contains(int x, int y) {
-			return this.stack.isEmpty() ? true : this.stack.peek().contains(x, y);
+			return stack.isEmpty() ? true : stack.peek().contains(x, y);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TextConsumerImpl}.
-	 */
 	class TextConsumerImpl implements DrawnTextConsumer, Consumer<Style> {
 
 		private DrawnTextConsumer.Transformation transformation;
-		private final DrawContext.HoverType hoverType;
+		private final HoverType hoverType;
 		private final @Nullable Consumer<Style> styleCallback;
 
 		TextConsumerImpl(
 				final DrawnTextConsumer.Transformation transformation,
-				final DrawContext.@Nullable HoverType hoverType,
+				final @Nullable HoverType hoverType,
 				final Consumer<Style> styleCallback
 		) {
 			this.transformation = transformation;
@@ -2090,7 +1991,7 @@ public class DrawContext {
 
 		@Override
 		public DrawnTextConsumer.Transformation getTransformation() {
-			return this.transformation;
+			return transformation;
 		}
 
 		@Override
@@ -2098,22 +1999,17 @@ public class DrawContext {
 			this.transformation = transformation;
 		}
 
-		/**
-		 * Accept.
-		 *
-		 * @param style style
-		 */
 		public void accept(Style style) {
-			if (this.hoverType.tooltip && style.getHoverEvent() != null) {
+			if (hoverType.tooltip && style.getHoverEvent() != null) {
 				DrawContext.this.hoverStyle = style;
 			}
 
-			if (this.hoverType.cursor && style.getClickEvent() != null) {
+			if (hoverType.cursor && style.getClickEvent() != null) {
 				DrawContext.this.clickStyle = style;
 			}
 
-			if (this.styleCallback != null) {
-				this.styleCallback.accept(style);
+			if (styleCallback != null) {
+				styleCallback.accept(style);
 			}
 		}
 
@@ -2125,27 +2021,27 @@ public class DrawContext {
 				DrawnTextConsumer.Transformation transformation,
 				OrderedText text
 		) {
-			boolean bl = this.hoverType.cursor || this.hoverType.tooltip || this.styleCallback != null;
-			int i = alignment.getAdjustedX(x, DrawContext.this.client.textRenderer, text);
-			TextGuiElementRenderState textGuiElementRenderState = new TextGuiElementRenderState(
+			boolean needsHover = hoverType.cursor || hoverType.tooltip || styleCallback != null;
+			int adjustedX = alignment.getAdjustedX(x, DrawContext.this.client.textRenderer, text);
+			TextGuiElementRenderState renderState = new TextGuiElementRenderState(
 					DrawContext.this.client.textRenderer,
 					text,
 					transformation.pose(),
-					i,
+					adjustedX,
 					y,
 					ColorHelper.getWhite(transformation.opacity()),
 					0,
 					true,
-					bl,
+					needsHover,
 					transformation.scissor()
 			);
 			if (ColorHelper.channelFromFloat(transformation.opacity()) != 0) {
-				DrawContext.this.state.addText(textGuiElementRenderState);
+				DrawContext.this.state.addText(renderState);
 			}
 
-			if (bl) {
+			if (needsHover) {
 				DrawnTextConsumer.handleHover(
-						textGuiElementRenderState,
+						renderState,
 						DrawContext.this.mouseX,
 						DrawContext.this.mouseY,
 						this

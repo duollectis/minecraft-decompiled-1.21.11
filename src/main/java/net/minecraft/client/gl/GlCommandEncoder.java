@@ -36,13 +36,43 @@ import java.util.OptionalInt;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlCommandEncoder}.
+ * Реализация {@link CommandEncoder} для OpenGL.
+ * Транслирует высокоуровневые команды рендеринга в вызовы OpenGL API.
+ * Управляет состоянием активного render pass и текущего шейдерного конвейера.
  */
+@Environment(EnvType.CLIENT)
 public class GlCommandEncoder implements CommandEncoder {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	// GL-константы для операций с фреймбуферами и текстурами
+	private static final int GL_FRAMEBUFFER = 36160;
+	private static final int GL_READ_FRAMEBUFFER = 36008;
+	private static final int GL_COLOR_ATTACHMENT0 = 36064;
+	private static final int GL_DEPTH_ATTACHMENT = 36096;
+	private static final int GL_TEXTURE_2D = 3553;
+	private static final int GL_TEXTURE_CUBE_MAP = 34067;
+	private static final int GL_TEXTURE_BUFFER = 35882;
+	private static final int GL_UNIFORM_BUFFER = 35345;
+	private static final int GL_PIXEL_PACK_BUFFER = 35051;
+	private static final int GL_UNSIGNED_BYTE = 5121;
+	private static final int GL_NEAREST = 9728;
+	private static final int GL_TEXTURE_BASE_LEVEL = 33084;
+	private static final int GL_TEXTURE_MAX_LEVEL = 33085;
+	private static final int GL_TEXTURE_UNIT_0 = 33984;
+	private static final int GL_UNPACK_ROW_LENGTH = 3314;
+	private static final int GL_UNPACK_SKIP_PIXELS = 3316;
+	private static final int GL_UNPACK_SKIP_ROWS = 3315;
+	private static final int GL_UNPACK_ALIGNMENT = 3317;
+	private static final int GL_PACK_ROW_LENGTH = 3330;
+	private static final int GL_COLOR_BUFFER_BIT = 16384;
+	private static final int GL_DEPTH_BUFFER_BIT = 256;
+	private static final int GL_COLOR_AND_DEPTH_BUFFER_BIT = 16640;
+	private static final int GL_TIME_ELAPSED = 35007;
+	private static final int GL_FRONT_AND_BACK = 1032;
+	private static final int GL_OR_REVERSE = 5387;
+
 	private final GlBackend backend;
 	private final int temporaryFb1;
 	private final int temporaryFb2;
@@ -53,1072 +83,960 @@ public class GlCommandEncoder implements CommandEncoder {
 
 	protected GlCommandEncoder(GlBackend backend) {
 		this.backend = backend;
-		this.temporaryFb1 = backend.getBufferManager().createFramebuffer();
-		this.temporaryFb2 = backend.getBufferManager().createFramebuffer();
+		temporaryFb1 = backend.getBufferManager().createFramebuffer();
+		temporaryFb2 = backend.getBufferManager().createFramebuffer();
 	}
 
 	@Override
 	public RenderPass createRenderPass(
-			Supplier<String> supplier,
-			GpuTextureView gpuTextureView,
-			OptionalInt optionalInt
+		Supplier<String> labelSupplier,
+		GpuTextureView colorTexture,
+		OptionalInt clearColor
 	) {
-		return this.createRenderPass(supplier, gpuTextureView, optionalInt, null, OptionalDouble.empty());
+		return createRenderPass(labelSupplier, colorTexture, clearColor, null, OptionalDouble.empty());
 	}
 
+	/**
+	 * Создаёт новый render pass с привязкой цветового и опционального глубинного вложений.
+	 * Выполняет очистку буферов если переданы значения clearColor / clearDepth.
+	 */
 	@Override
 	public RenderPass createRenderPass(
-			Supplier<String> supplier,
-			GpuTextureView gpuTextureView,
-			OptionalInt optionalInt,
-			@Nullable GpuTextureView gpuTextureView2,
-			OptionalDouble optionalDouble
+		Supplier<String> labelSupplier,
+		GpuTextureView colorTexture,
+		OptionalInt clearColor,
+		@Nullable GpuTextureView depthTexture,
+		OptionalDouble clearDepth
 	) {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before creating a new one!");
 		}
-		else {
-			if (optionalDouble.isPresent() && gpuTextureView2 == null) {
-				LOGGER.warn("Depth clear value was provided but no depth texture is being used");
+
+		if (clearDepth.isPresent() && depthTexture == null) {
+			LOGGER.warn("Depth clear value was provided but no depth texture is being used");
+		}
+
+		if (colorTexture.isClosed()) {
+			throw new IllegalStateException("Color texture is closed");
+		}
+
+		if ((colorTexture.texture().usage() & 8) == 0) {
+			throw new IllegalStateException("Color texture must have USAGE_RENDER_ATTACHMENT");
+		}
+
+		if (colorTexture.texture().getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Textures with multiple depths or layers are not yet supported as an attachment"
+			);
+		}
+
+		if (depthTexture != null) {
+			if (depthTexture.isClosed()) {
+				throw new IllegalStateException("Depth texture is closed");
 			}
 
-			if (gpuTextureView.isClosed()) {
-				throw new IllegalStateException("Color texture is closed");
+			if ((depthTexture.texture().usage() & 8) == 0) {
+				throw new IllegalStateException("Depth texture must have USAGE_RENDER_ATTACHMENT");
 			}
-			else if ((gpuTextureView.texture().usage() & 8) == 0) {
-				throw new IllegalStateException("Color texture must have USAGE_RENDER_ATTACHMENT");
-			}
-			else if (gpuTextureView.texture().getDepthOrLayers() > 1) {
+
+			if (depthTexture.texture().getDepthOrLayers() > 1) {
 				throw new UnsupportedOperationException(
-						"Textures with multiple depths or layers are not yet supported as an attachment");
-			}
-			else {
-				if (gpuTextureView2 != null) {
-					if (gpuTextureView2.isClosed()) {
-						throw new IllegalStateException("Depth texture is closed");
-					}
-
-					if ((gpuTextureView2.texture().usage() & 8) == 0) {
-						throw new IllegalStateException("Depth texture must have USAGE_RENDER_ATTACHMENT");
-					}
-
-					if (gpuTextureView2.texture().getDepthOrLayers() > 1) {
-						throw new UnsupportedOperationException(
-								"Textures with multiple depths or layers are not yet supported as an attachment");
-					}
-				}
-
-				this.renderPassOpen = true;
-				this.backend.getDebugLabelManager().pushDebugGroup(supplier);
-				int i = ((GlTextureView) gpuTextureView)
-						.getOrCreateFramebuffer(
-								this.backend.getBufferManager(),
-								gpuTextureView2 == null ? null : gpuTextureView2.texture()
-						);
-				GlStateManager._glBindFramebuffer(36160, i);
-				int j = 0;
-				if (optionalInt.isPresent()) {
-					int k = optionalInt.getAsInt();
-					GL11.glClearColor(
-							ColorHelper.getRedFloat(k),
-							ColorHelper.getGreenFloat(k),
-							ColorHelper.getBlueFloat(k),
-							ColorHelper.getAlphaFloat(k)
-					);
-					j |= 16384;
-				}
-
-				if (gpuTextureView2 != null && optionalDouble.isPresent()) {
-					GL11.glClearDepth(optionalDouble.getAsDouble());
-					j |= 256;
-				}
-
-				if (j != 0) {
-					GlStateManager._disableScissorTest();
-					GlStateManager._depthMask(true);
-					GlStateManager._colorMask(true, true, true, true);
-					GlStateManager._clear(j);
-				}
-
-				GlStateManager._viewport(0, 0, gpuTextureView.getWidth(0), gpuTextureView.getHeight(0));
-				this.currentPipeline = null;
-				return new RenderPassImpl(this, gpuTextureView2 != null);
+					"Textures with multiple depths or layers are not yet supported as an attachment"
+				);
 			}
 		}
-	}
 
-	@Override
-	public void clearColorTexture(GpuTexture gpuTexture, int i) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before creating a new one!");
-		}
-		else {
-			this.validateColorAttachment(gpuTexture);
-			this.backend
-					.getBufferManager()
-					.setupFramebuffer(this.temporaryFb2, ((GlTexture) gpuTexture).glId, 0, 0, 36160);
-			GL11.glClearColor(
-					ColorHelper.getRedFloat(i),
-					ColorHelper.getGreenFloat(i),
-					ColorHelper.getBlueFloat(i),
-					ColorHelper.getAlphaFloat(i)
-			);
-			GlStateManager._disableScissorTest();
-			GlStateManager._colorMask(true, true, true, true);
-			GlStateManager._clear(16384);
-			GlStateManager._glFramebufferTexture2D(36160, 36064, 3553, 0, 0);
-			GlStateManager._glBindFramebuffer(36160, 0);
-		}
-	}
+		renderPassOpen = true;
+		backend.getDebugLabelManager().pushDebugGroup(labelSupplier);
 
-	@Override
-	public void clearColorAndDepthTextures(GpuTexture gpuTexture, int i, GpuTexture gpuTexture2, double d) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before creating a new one!");
-		}
-		else {
-			this.validateColorAttachment(gpuTexture);
-			this.validateDepthAttachment(gpuTexture2);
-			int j = ((GlTexture) gpuTexture).getOrCreateFramebuffer(this.backend.getBufferManager(), gpuTexture2);
-			GlStateManager._glBindFramebuffer(36160, j);
-			GlStateManager._disableScissorTest();
-			GL11.glClearDepth(d);
+		int framebufferId = ((GlTextureView) colorTexture).getOrCreateFramebuffer(
+			backend.getBufferManager(),
+			depthTexture == null ? null : depthTexture.texture()
+		);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, framebufferId);
+
+		int clearMask = 0;
+
+		if (clearColor.isPresent()) {
+			int color = clearColor.getAsInt();
 			GL11.glClearColor(
-					ColorHelper.getRedFloat(i),
-					ColorHelper.getGreenFloat(i),
-					ColorHelper.getBlueFloat(i),
-					ColorHelper.getAlphaFloat(i)
+				ColorHelper.getRedFloat(color),
+				ColorHelper.getGreenFloat(color),
+				ColorHelper.getBlueFloat(color),
+				ColorHelper.getAlphaFloat(color)
 			);
+			clearMask |= GL_COLOR_BUFFER_BIT;
+		}
+
+		if (depthTexture != null && clearDepth.isPresent()) {
+			GL11.glClearDepth(clearDepth.getAsDouble());
+			clearMask |= GL_DEPTH_BUFFER_BIT;
+		}
+
+		if (clearMask != 0) {
+			GlStateManager._disableScissorTest();
 			GlStateManager._depthMask(true);
 			GlStateManager._colorMask(true, true, true, true);
-			GlStateManager._clear(16640);
-			GlStateManager._glBindFramebuffer(36160, 0);
+			GlStateManager._clear(clearMask);
 		}
+
+		GlStateManager._viewport(0, 0, colorTexture.getWidth(0), colorTexture.getHeight(0));
+		currentPipeline = null;
+		return new RenderPassImpl(this, depthTexture != null);
+	}
+
+	@Override
+	public void clearColorTexture(GpuTexture texture, int color) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before creating a new one!");
+		}
+
+		validateColorAttachment(texture);
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb2, ((GlTexture) texture).glId, 0, 0, GL_FRAMEBUFFER
+		);
+		GL11.glClearColor(
+			ColorHelper.getRedFloat(color),
+			ColorHelper.getGreenFloat(color),
+			ColorHelper.getBlueFloat(color),
+			ColorHelper.getAlphaFloat(color)
+		);
+		GlStateManager._disableScissorTest();
+		GlStateManager._colorMask(true, true, true, true);
+		GlStateManager._clear(GL_COLOR_BUFFER_BIT);
+		GlStateManager._glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	@Override
+	public void clearColorAndDepthTextures(GpuTexture colorTexture, int color, GpuTexture depthTexture, double depth) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before creating a new one!");
+		}
+
+		validateColorAttachment(colorTexture);
+		validateDepthAttachment(depthTexture);
+		int framebufferId = ((GlTexture) colorTexture).getOrCreateFramebuffer(
+			backend.getBufferManager(), depthTexture
+		);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, framebufferId);
+		GlStateManager._disableScissorTest();
+		GL11.glClearDepth(depth);
+		GL11.glClearColor(
+			ColorHelper.getRedFloat(color),
+			ColorHelper.getGreenFloat(color),
+			ColorHelper.getBlueFloat(color),
+			ColorHelper.getAlphaFloat(color)
+		);
+		GlStateManager._depthMask(true);
+		GlStateManager._colorMask(true, true, true, true);
+		GlStateManager._clear(GL_COLOR_AND_DEPTH_BUFFER_BIT);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	@Override
 	public void clearColorAndDepthTextures(
-			GpuTexture gpuTexture,
-			int i,
-			GpuTexture gpuTexture2,
-			double d,
-			int j,
-			int k,
-			int l,
-			int m
+		GpuTexture colorTexture,
+		int color,
+		GpuTexture depthTexture,
+		double depth,
+		int regionX,
+		int regionY,
+		int regionWidth,
+		int regionHeight
 	) {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before creating a new one!");
 		}
-		else {
-			this.validateColorAttachment(gpuTexture);
-			this.validateDepthAttachment(gpuTexture2);
-			this.validate(gpuTexture, j, k, l, m);
-			int n = ((GlTexture) gpuTexture).getOrCreateFramebuffer(this.backend.getBufferManager(), gpuTexture2);
-			GlStateManager._glBindFramebuffer(36160, n);
-			GlStateManager._scissorBox(j, k, l, m);
-			GlStateManager._enableScissorTest();
-			GL11.glClearDepth(d);
-			GL11.glClearColor(
-					ColorHelper.getRedFloat(i),
-					ColorHelper.getGreenFloat(i),
-					ColorHelper.getBlueFloat(i),
-					ColorHelper.getAlphaFloat(i)
-			);
-			GlStateManager._depthMask(true);
-			GlStateManager._colorMask(true, true, true, true);
-			GlStateManager._clear(16640);
-			GlStateManager._glBindFramebuffer(36160, 0);
-		}
-	}
 
-	private void validate(GpuTexture texture, int regionX, int regionY, int regionWidth, int regionHeight) {
-		if (regionX < 0 || regionX >= texture.getWidth(0)) {
-			throw new IllegalArgumentException("regionX should not be outside of the texture");
-		}
-		else if (regionY < 0 || regionY >= texture.getHeight(0)) {
-			throw new IllegalArgumentException("regionY should not be outside of the texture");
-		}
-		else if (regionWidth <= 0) {
-			throw new IllegalArgumentException("regionWidth should be greater than 0");
-		}
-		else if (regionX + regionWidth > texture.getWidth(0)) {
-			throw new IllegalArgumentException("regionWidth + regionX should be less than the texture width");
-		}
-		else if (regionHeight <= 0) {
-			throw new IllegalArgumentException("regionHeight should be greater than 0");
-		}
-		else if (regionY + regionHeight > texture.getHeight(0)) {
-			throw new IllegalArgumentException("regionWidth + regionX should be less than the texture height");
-		}
+		validateColorAttachment(colorTexture);
+		validateDepthAttachment(depthTexture);
+		validateRegion(colorTexture, regionX, regionY, regionWidth, regionHeight);
+		int framebufferId = ((GlTexture) colorTexture).getOrCreateFramebuffer(
+			backend.getBufferManager(), depthTexture
+		);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, framebufferId);
+		GlStateManager._scissorBox(regionX, regionY, regionWidth, regionHeight);
+		GlStateManager._enableScissorTest();
+		GL11.glClearDepth(depth);
+		GL11.glClearColor(
+			ColorHelper.getRedFloat(color),
+			ColorHelper.getGreenFloat(color),
+			ColorHelper.getBlueFloat(color),
+			ColorHelper.getAlphaFloat(color)
+		);
+		GlStateManager._depthMask(true);
+		GlStateManager._colorMask(true, true, true, true);
+		GlStateManager._clear(GL_COLOR_AND_DEPTH_BUFFER_BIT);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	@Override
-	public void clearDepthTexture(GpuTexture gpuTexture, double d) {
-		if (this.renderPassOpen) {
+	public void clearDepthTexture(GpuTexture texture, double depth) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before creating a new one!");
 		}
-		else {
-			this.validateDepthAttachment(gpuTexture);
-			this.backend
-					.getBufferManager()
-					.setupFramebuffer(this.temporaryFb2, 0, ((GlTexture) gpuTexture).glId, 0, 36160);
-			GL11.glDrawBuffer(0);
-			GL11.glClearDepth(d);
-			GlStateManager._depthMask(true);
-			GlStateManager._disableScissorTest();
-			GlStateManager._clear(256);
-			GL11.glDrawBuffer(36064);
-			GlStateManager._glFramebufferTexture2D(36160, 36096, 3553, 0, 0);
-			GlStateManager._glBindFramebuffer(36160, 0);
-		}
-	}
 
-	private void validateColorAttachment(GpuTexture texture) {
-		if (!texture.getFormat().hasColorAspect()) {
-			throw new IllegalStateException("Trying to clear a non-color texture as color");
-		}
-		else if (texture.isClosed()) {
-			throw new IllegalStateException("Color texture is closed");
-		}
-		else if ((texture.usage() & 8) == 0) {
-			throw new IllegalStateException("Color texture must have USAGE_RENDER_ATTACHMENT");
-		}
-		else if (texture.getDepthOrLayers() > 1) {
-			throw new UnsupportedOperationException(
-					"Clearing a texture with multiple layers or depths is not yet supported");
-		}
-	}
-
-	private void validateDepthAttachment(GpuTexture texture) {
-		if (!texture.getFormat().hasDepthAspect()) {
-			throw new IllegalStateException("Trying to clear a non-depth texture as depth");
-		}
-		else if (texture.isClosed()) {
-			throw new IllegalStateException("Depth texture is closed");
-		}
-		else if ((texture.usage() & 8) == 0) {
-			throw new IllegalStateException("Depth texture must have USAGE_RENDER_ATTACHMENT");
-		}
-		else if (texture.getDepthOrLayers() > 1) {
-			throw new UnsupportedOperationException(
-					"Clearing a texture with multiple layers or depths is not yet supported");
-		}
+		validateDepthAttachment(texture);
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb2, 0, ((GlTexture) texture).glId, 0, GL_FRAMEBUFFER
+		);
+		GL11.glDrawBuffer(0);
+		GL11.glClearDepth(depth);
+		GlStateManager._depthMask(true);
+		GlStateManager._disableScissorTest();
+		GlStateManager._clear(GL_DEPTH_BUFFER_BIT);
+		GL11.glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		GlStateManager._glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	@Override
-	public void writeToBuffer(GpuBufferSlice gpuBufferSlice, ByteBuffer byteBuffer) {
-		if (this.renderPassOpen) {
+	public void writeToBuffer(GpuBufferSlice slice, ByteBuffer data) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else {
-			GlGpuBuffer glGpuBuffer = (GlGpuBuffer) gpuBufferSlice.buffer();
-			if (glGpuBuffer.closed) {
-				throw new IllegalStateException("Buffer already closed");
-			}
-			else if ((glGpuBuffer.usage() & 8) == 0) {
-				throw new IllegalStateException("Buffer needs USAGE_COPY_DST to be a destination for a copy");
-			}
-			else {
-				int i = byteBuffer.remaining();
-				if (i > gpuBufferSlice.length()) {
-					throw new IllegalArgumentException(
-							"Cannot write more data than the slice allows (attempting to write " + i
-									+ " bytes into a slice of length " + gpuBufferSlice.length() + ")"
-					);
-				}
-				else if (gpuBufferSlice.length() + gpuBufferSlice.offset() > glGpuBuffer.size()) {
-					throw new IllegalArgumentException(
-							"Cannot write more data than this buffer can hold (attempting to write "
-									+ i
-									+ " bytes at offset "
-									+ gpuBufferSlice.offset()
-									+ " to "
-									+ glGpuBuffer.size()
-									+ " size buffer)"
-					);
-				}
-				else {
-					this.backend
-							.getBufferManager()
-							.setBufferSubData(glGpuBuffer.id, gpuBufferSlice.offset(), byteBuffer, glGpuBuffer.usage());
-				}
-			}
+
+		GlGpuBuffer glBuffer = (GlGpuBuffer) slice.buffer();
+
+		if (glBuffer.closed) {
+			throw new IllegalStateException("Buffer already closed");
 		}
-	}
 
-	@Override
-	public GpuBuffer.MappedView mapBuffer(GpuBuffer gpuBuffer, boolean bl, boolean bl2) {
-		return this.mapBuffer(gpuBuffer.slice(), bl, bl2);
-	}
-
-	@Override
-	public GpuBuffer.MappedView mapBuffer(GpuBufferSlice gpuBufferSlice, boolean bl, boolean bl2) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before performing additional commands");
+		if ((glBuffer.usage() & 8) == 0) {
+			throw new IllegalStateException("Buffer needs USAGE_COPY_DST to be a destination for a copy");
 		}
-		else {
-			GlGpuBuffer glGpuBuffer = (GlGpuBuffer) gpuBufferSlice.buffer();
-			if (glGpuBuffer.closed) {
-				throw new IllegalStateException("Buffer already closed");
-			}
-			else if (!bl && !bl2) {
-				throw new IllegalArgumentException("At least read or write must be true");
-			}
-			else if (bl && (glGpuBuffer.usage() & 1) == 0) {
-				throw new IllegalStateException("Buffer is not readable");
-			}
-			else if (bl2 && (glGpuBuffer.usage() & 2) == 0) {
-				throw new IllegalStateException("Buffer is not writable");
-			}
-			else if (gpuBufferSlice.offset() + gpuBufferSlice.length() > glGpuBuffer.size()) {
-				throw new IllegalArgumentException(
-						"Cannot map more data than this buffer can hold (attempting to map "
-								+ gpuBufferSlice.length()
-								+ " bytes at offset "
-								+ gpuBufferSlice.offset()
-								+ " from "
-								+ glGpuBuffer.size()
-								+ " size buffer)"
-				);
-			}
-			else {
-				int i = 0;
-				if (bl) {
-					i |= 1;
-				}
 
-				if (bl2) {
-					i |= 34;
-				}
+		int dataSize = data.remaining();
 
-				return this.backend
-						.getGpuBufferManager()
-						.mapBufferRange(
-								this.backend.getBufferManager(),
-								glGpuBuffer,
-								gpuBufferSlice.offset(),
-								gpuBufferSlice.length(),
-								i
-						);
-			}
-		}
-	}
-
-	@Override
-	public void copyToBuffer(GpuBufferSlice gpuBufferSlice, GpuBufferSlice gpuBufferSlice2) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before performing additional commands");
-		}
-		else {
-			GlGpuBuffer glGpuBuffer = (GlGpuBuffer) gpuBufferSlice.buffer();
-			if (glGpuBuffer.closed) {
-				throw new IllegalStateException("Source buffer already closed");
-			}
-			else if ((glGpuBuffer.usage() & 16) == 0) {
-				throw new IllegalStateException("Source buffer needs USAGE_COPY_SRC to be a source for a copy");
-			}
-			else {
-				GlGpuBuffer glGpuBuffer2 = (GlGpuBuffer) gpuBufferSlice2.buffer();
-				if (glGpuBuffer2.closed) {
-					throw new IllegalStateException("Target buffer already closed");
-				}
-				else if ((glGpuBuffer2.usage() & 8) == 0) {
-					throw new IllegalStateException("Target buffer needs USAGE_COPY_DST to be a destination for a copy");
-				}
-				else if (gpuBufferSlice.length() != gpuBufferSlice2.length()) {
-					throw new IllegalArgumentException(
-							"Cannot copy from slice of size " + gpuBufferSlice.length() + " to slice of size "
-									+ gpuBufferSlice2.length() + ", they must be equal"
-					);
-				}
-				else if (gpuBufferSlice.offset() + gpuBufferSlice.length() > glGpuBuffer.size()) {
-					throw new IllegalArgumentException(
-							"Cannot copy more data than the source buffer holds (attempting to copy "
-									+ gpuBufferSlice.length()
-									+ " bytes at offset "
-									+ gpuBufferSlice.offset()
-									+ " from "
-									+ glGpuBuffer.size()
-									+ " size buffer)"
-					);
-				}
-				else if (gpuBufferSlice2.offset() + gpuBufferSlice2.length() > glGpuBuffer2.size()) {
-					throw new IllegalArgumentException(
-							"Cannot copy more data than the target buffer can hold (attempting to copy "
-									+ gpuBufferSlice2.length()
-									+ " bytes at offset "
-									+ gpuBufferSlice2.offset()
-									+ " to "
-									+ glGpuBuffer2.size()
-									+ " size buffer)"
-					);
-				}
-				else {
-					this.backend
-							.getBufferManager()
-							.copyBufferSubData(
-									glGpuBuffer.id,
-									glGpuBuffer2.id,
-									gpuBufferSlice.offset(),
-									gpuBufferSlice2.offset(),
-									gpuBufferSlice.length()
-							);
-				}
-			}
-		}
-	}
-
-	@Override
-	public void writeToTexture(GpuTexture gpuTexture, NativeImage nativeImage) {
-		int i = gpuTexture.getWidth(0);
-		int j = gpuTexture.getHeight(0);
-		if (nativeImage.getWidth() != i || nativeImage.getHeight() != j) {
+		if (dataSize > slice.length()) {
 			throw new IllegalArgumentException(
-					"Cannot replace texture of size " + i + "x" + j + " with image of size " + nativeImage.getWidth()
-							+ "x" + nativeImage.getHeight()
+				"Cannot write more data than the slice allows (attempting to write " + dataSize
+					+ " bytes into a slice of length " + slice.length() + ")"
 			);
 		}
-		else if (gpuTexture.isClosed()) {
+
+		if (slice.length() + slice.offset() > glBuffer.size()) {
+			throw new IllegalArgumentException(
+				"Cannot write more data than this buffer can hold (attempting to write "
+					+ dataSize + " bytes at offset " + slice.offset()
+					+ " to " + glBuffer.size() + " size buffer)"
+			);
+		}
+
+		backend.getBufferManager().setBufferSubData(glBuffer.id, slice.offset(), data, glBuffer.usage());
+	}
+
+	@Override
+	public GpuBuffer.MappedView mapBuffer(GpuBuffer buffer, boolean read, boolean write) {
+		return mapBuffer(buffer.slice(), read, write);
+	}
+
+	@Override
+	public GpuBuffer.MappedView mapBuffer(GpuBufferSlice slice, boolean read, boolean write) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before performing additional commands");
+		}
+
+		GlGpuBuffer glBuffer = (GlGpuBuffer) slice.buffer();
+
+		if (glBuffer.closed) {
+			throw new IllegalStateException("Buffer already closed");
+		}
+
+		if (!read && !write) {
+			throw new IllegalArgumentException("At least read or write must be true");
+		}
+
+		if (read && (glBuffer.usage() & 1) == 0) {
+			throw new IllegalStateException("Buffer is not readable");
+		}
+
+		if (write && (glBuffer.usage() & 2) == 0) {
+			throw new IllegalStateException("Buffer is not writable");
+		}
+
+		if (slice.offset() + slice.length() > glBuffer.size()) {
+			throw new IllegalArgumentException(
+				"Cannot map more data than this buffer can hold (attempting to map "
+					+ slice.length() + " bytes at offset " + slice.offset()
+					+ " from " + glBuffer.size() + " size buffer)"
+			);
+		}
+
+		int accessFlags = 0;
+
+		if (read) {
+			accessFlags |= 1;
+		}
+
+		if (write) {
+			accessFlags |= 34;
+		}
+
+		return backend.getGpuBufferManager().mapBufferRange(
+			backend.getBufferManager(),
+			glBuffer,
+			slice.offset(),
+			slice.length(),
+			accessFlags
+		);
+	}
+
+	@Override
+	public void copyToBuffer(GpuBufferSlice source, GpuBufferSlice destination) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before performing additional commands");
+		}
+
+		GlGpuBuffer srcBuffer = (GlGpuBuffer) source.buffer();
+
+		if (srcBuffer.closed) {
+			throw new IllegalStateException("Source buffer already closed");
+		}
+
+		if ((srcBuffer.usage() & GpuBuffer.USAGE_COPY_SRC) == 0) {
+			throw new IllegalStateException("Source buffer needs USAGE_COPY_SRC to be a source for a copy");
+		}
+
+		GlGpuBuffer dstBuffer = (GlGpuBuffer) destination.buffer();
+
+		if (dstBuffer.closed) {
+			throw new IllegalStateException("Target buffer already closed");
+		}
+
+		if ((dstBuffer.usage() & 8) == 0) {
+			throw new IllegalStateException("Target buffer needs USAGE_COPY_DST to be a destination for a copy");
+		}
+
+		if (source.length() != destination.length()) {
+			throw new IllegalArgumentException(
+				"Cannot copy from slice of size " + source.length()
+					+ " to slice of size " + destination.length() + ", they must be equal"
+			);
+		}
+
+		if (source.offset() + source.length() > srcBuffer.size()) {
+			throw new IllegalArgumentException(
+				"Cannot copy more data than the source buffer holds (attempting to copy "
+					+ source.length() + " bytes at offset " + source.offset()
+					+ " from " + srcBuffer.size() + " size buffer)"
+			);
+		}
+
+		if (destination.offset() + destination.length() > dstBuffer.size()) {
+			throw new IllegalArgumentException(
+				"Cannot copy more data than the target buffer can hold (attempting to copy "
+					+ destination.length() + " bytes at offset " + destination.offset()
+					+ " to " + dstBuffer.size() + " size buffer)"
+			);
+		}
+
+		backend.getBufferManager().copyBufferSubData(
+			srcBuffer.id,
+			dstBuffer.id,
+			source.offset(),
+			destination.offset(),
+			source.length()
+		);
+	}
+
+	@Override
+	public void writeToTexture(GpuTexture texture, NativeImage image) {
+		int width = texture.getWidth(0);
+		int height = texture.getHeight(0);
+
+		if (image.getWidth() != width || image.getHeight() != height) {
+			throw new IllegalArgumentException(
+				"Cannot replace texture of size " + width + "x" + height
+					+ " with image of size " + image.getWidth() + "x" + image.getHeight()
+			);
+		}
+
+		if (texture.isClosed()) {
 			throw new IllegalStateException("Destination texture is closed");
 		}
-		else if ((gpuTexture.usage() & 1) == 0) {
+
+		if ((texture.usage() & 1) == 0) {
 			throw new IllegalStateException("Color texture must have USAGE_COPY_DST to be a destination for a write");
 		}
-		else {
-			this.writeToTexture(gpuTexture, nativeImage, 0, 0, 0, 0, i, j, 0, 0);
-		}
+
+		writeToTexture(texture, image, 0, 0, 0, 0, width, height, 0, 0);
 	}
 
 	@Override
 	public void writeToTexture(
-			GpuTexture gpuTexture,
-			NativeImage nativeImage,
-			int i,
-			int j,
-			int k,
-			int l,
-			int m,
-			int n,
-			int o,
-			int p
+		GpuTexture texture,
+		NativeImage image,
+		int mipLevel,
+		int layer,
+		int destX,
+		int destY,
+		int width,
+		int height,
+		int srcX,
+		int srcY
 	) {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else if (i >= 0 && i < gpuTexture.getMipLevels()) {
-			if (o + m > nativeImage.getWidth() || p + n > nativeImage.getHeight()) {
-				throw new IllegalArgumentException(
-						"Copy source ("
-								+ nativeImage.getWidth()
-								+ "x"
-								+ nativeImage.getHeight()
-								+ ") is not large enough to read a rectangle of "
-								+ m
-								+ "x"
-								+ n
-								+ " from "
-								+ o
-								+ "x"
-								+ p
-				);
-			}
-			else if (k + m > gpuTexture.getWidth(i) || l + n > gpuTexture.getHeight(i)) {
-				throw new IllegalArgumentException(
-						"Dest texture ("
-								+ m
-								+ "x"
-								+ n
-								+ ") is not large enough to write a rectangle of "
-								+ m
-								+ "x"
-								+ n
-								+ " at "
-								+ k
-								+ "x"
-								+ l
-								+ " (at mip level "
-								+ i
-								+ ")"
-				);
-			}
-			else if (gpuTexture.isClosed()) {
-				throw new IllegalStateException("Destination texture is closed");
-			}
-			else if ((gpuTexture.usage() & 1) == 0) {
-				throw new IllegalStateException("Color texture must have USAGE_COPY_DST to be a destination for a write");
-			}
-			else if (j >= gpuTexture.getDepthOrLayers()) {
-				throw new UnsupportedOperationException(
-						"Depth or layer is out of range, must be >= 0 and < " + gpuTexture.getDepthOrLayers());
-			}
-			else {
-				int q;
-				if ((gpuTexture.usage() & 16) != 0) {
-					q = GlConst.CUBEMAP_TARGETS[j % 6];
-					GL11.glBindTexture(34067, ((GlTexture) gpuTexture).glId);
-				}
-				else {
-					q = 3553;
-					GlStateManager._bindTexture(((GlTexture) gpuTexture).glId);
-				}
 
-				GlStateManager._pixelStore(3314, nativeImage.getWidth());
-				GlStateManager._pixelStore(3316, o);
-				GlStateManager._pixelStore(3315, p);
-				GlStateManager._pixelStore(3317, nativeImage.getFormat().getChannelCount());
-				GlStateManager._texSubImage2D(
-						q,
-						i,
-						k,
-						l,
-						m,
-						n,
-						GlConst.toGl(nativeImage.getFormat()),
-						5121,
-						nativeImage.imageId()
-				);
-			}
-		}
-		else {
+		if (mipLevel < 0 || mipLevel >= texture.getMipLevels()) {
 			throw new IllegalArgumentException(
-					"Invalid mipLevel " + i + ", must be >= 0 and < " + gpuTexture.getMipLevels());
-		}
-	}
-
-	@Override
-	public void writeToTexture(
-			GpuTexture gpuTexture,
-			ByteBuffer byteBuffer,
-			NativeImage.Format format,
-			int i,
-			int j,
-			int k,
-			int l,
-			int m,
-			int n
-	) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before performing additional commands");
-		}
-		else if (i >= 0 && i < gpuTexture.getMipLevels()) {
-			if (m * n * format.getChannelCount() > byteBuffer.remaining()) {
-				throw new IllegalArgumentException(
-						"Copy would overrun the source buffer (remaining length of "
-								+ byteBuffer.remaining()
-								+ ", but copy is "
-								+ m
-								+ "x"
-								+ n
-								+ " of format "
-								+ format
-								+ ")"
-				);
-			}
-			else if (k + m > gpuTexture.getWidth(i) || l + n > gpuTexture.getHeight(i)) {
-				throw new IllegalArgumentException(
-						"Dest texture ("
-								+ gpuTexture.getWidth(i)
-								+ "x"
-								+ gpuTexture.getHeight(i)
-								+ ") is not large enough to write a rectangle of "
-								+ m
-								+ "x"
-								+ n
-								+ " at "
-								+ k
-								+ "x"
-								+ l
-				);
-			}
-			else if (gpuTexture.isClosed()) {
-				throw new IllegalStateException("Destination texture is closed");
-			}
-			else if ((gpuTexture.usage() & 1) == 0) {
-				throw new IllegalStateException("Color texture must have USAGE_COPY_DST to be a destination for a write");
-			}
-			else if (j >= gpuTexture.getDepthOrLayers()) {
-				throw new UnsupportedOperationException(
-						"Depth or layer is out of range, must be >= 0 and < " + gpuTexture.getDepthOrLayers());
-			}
-			else {
-				int o;
-				if ((gpuTexture.usage() & 16) != 0) {
-					o = GlConst.CUBEMAP_TARGETS[j % 6];
-					GL11.glBindTexture(34067, ((GlTexture) gpuTexture).glId);
-				}
-				else {
-					o = 3553;
-					GlStateManager._bindTexture(((GlTexture) gpuTexture).glId);
-				}
-
-				GlStateManager._pixelStore(3314, m);
-				GlStateManager._pixelStore(3316, 0);
-				GlStateManager._pixelStore(3315, 0);
-				GlStateManager._pixelStore(3317, format.getChannelCount());
-				GlStateManager._texSubImage2D(o, i, k, l, m, n, GlConst.toGl(format), 5121, byteBuffer);
-			}
-		}
-		else {
-			throw new IllegalArgumentException("Invalid mipLevel, must be >= 0 and < " + gpuTexture.getMipLevels());
-		}
-	}
-
-	@Override
-	public void copyTextureToBuffer(GpuTexture gpuTexture, GpuBuffer gpuBuffer, long l, Runnable runnable, int i) {
-		if (this.renderPassOpen) {
-			throw new IllegalStateException("Close the existing render pass before performing additional commands");
-		}
-		else {
-			this.copyTextureToBuffer(
-					gpuTexture,
-					gpuBuffer,
-					l,
-					runnable,
-					i,
-					0,
-					0,
-					gpuTexture.getWidth(i),
-					gpuTexture.getHeight(i)
+				"Invalid mipLevel " + mipLevel + ", must be >= 0 and < " + texture.getMipLevels()
 			);
 		}
+
+		if (srcX + width > image.getWidth() || srcY + height > image.getHeight()) {
+			throw new IllegalArgumentException(
+				"Copy source (" + image.getWidth() + "x" + image.getHeight()
+					+ ") is not large enough to read a rectangle of "
+					+ width + "x" + height + " from " + srcX + "x" + srcY
+			);
+		}
+
+		if (destX + width > texture.getWidth(mipLevel) || destY + height > texture.getHeight(mipLevel)) {
+			throw new IllegalArgumentException(
+				"Dest texture (" + width + "x" + height
+					+ ") is not large enough to write a rectangle of "
+					+ width + "x" + height + " at " + destX + "x" + destY
+					+ " (at mip level " + mipLevel + ")"
+			);
+		}
+
+		if (texture.isClosed()) {
+			throw new IllegalStateException("Destination texture is closed");
+		}
+
+		if ((texture.usage() & 1) == 0) {
+			throw new IllegalStateException("Color texture must have USAGE_COPY_DST to be a destination for a write");
+		}
+
+		if (layer >= texture.getDepthOrLayers()) {
+			throw new UnsupportedOperationException(
+				"Depth or layer is out of range, must be >= 0 and < " + texture.getDepthOrLayers()
+			);
+		}
+
+		int target;
+
+		if ((texture.usage() & GpuTexture.USAGE_CUBEMAP_COMPATIBLE) != 0) {
+			target = GlConst.CUBEMAP_TARGETS[layer % 6];
+			GL11.glBindTexture(GL_TEXTURE_CUBE_MAP, ((GlTexture) texture).glId);
+		}
+		else {
+			target = GL_TEXTURE_2D;
+			GlStateManager._bindTexture(((GlTexture) texture).glId);
+		}
+
+		GlStateManager._pixelStore(GL_UNPACK_ROW_LENGTH, image.getWidth());
+		GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, srcX);
+		GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, srcY);
+		GlStateManager._pixelStore(GL_UNPACK_ALIGNMENT, image.getFormat().getChannelCount());
+		GlStateManager._texSubImage2D(
+			target, mipLevel, destX, destY, width, height,
+			GlConst.toGl(image.getFormat()), GL_UNSIGNED_BYTE, image.imageId()
+		);
 	}
 
 	@Override
-	public void copyTextureToBuffer(
-			GpuTexture gpuTexture,
-			GpuBuffer gpuBuffer,
-			long l,
-			Runnable runnable,
-			int i,
-			int j,
-			int k,
-			int m,
-			int n
+	public void writeToTexture(
+		GpuTexture texture,
+		ByteBuffer data,
+		NativeImage.Format format,
+		int mipLevel,
+		int layer,
+		int destX,
+		int destY,
+		int width,
+		int height
 	) {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else if (i >= 0 && i < gpuTexture.getMipLevels()) {
-			if (gpuTexture.getWidth(i) * gpuTexture.getHeight(i) * gpuTexture.getFormat().pixelSize() + l
-					> gpuBuffer.size()) {
-				throw new IllegalArgumentException(
-						"Buffer of size "
-								+ gpuBuffer.size()
-								+ " is not large enough to hold "
-								+ m
-								+ "x"
-								+ n
-								+ " pixels ("
-								+ gpuTexture.getFormat().pixelSize()
-								+ " bytes each) starting from offset "
-								+ l
-				);
-			}
-			else if ((gpuTexture.usage() & 2) == 0) {
-				throw new IllegalArgumentException("Texture needs USAGE_COPY_SRC to be a source for a copy");
-			}
-			else if ((gpuBuffer.usage() & 8) == 0) {
-				throw new IllegalArgumentException("Buffer needs USAGE_COPY_DST to be a destination for a copy");
-			}
-			else if (j + m > gpuTexture.getWidth(i) || k + n > gpuTexture.getHeight(i)) {
-				throw new IllegalArgumentException(
-						"Copy source texture ("
-								+ gpuTexture.getWidth(i)
-								+ "x"
-								+ gpuTexture.getHeight(i)
-								+ ") is not large enough to read a rectangle of "
-								+ m
-								+ "x"
-								+ n
-								+ " from "
-								+ j
-								+ ","
-								+ k
-				);
-			}
-			else if (gpuTexture.isClosed()) {
-				throw new IllegalStateException("Source texture is closed");
-			}
-			else if (gpuBuffer.isClosed()) {
-				throw new IllegalStateException("Destination buffer is closed");
-			}
-			else if (gpuTexture.getDepthOrLayers() > 1) {
-				throw new UnsupportedOperationException(
-						"Textures with multiple depths or layers are not yet supported for copying");
-			}
-			else {
-				GlStateManager.clearGlErrors();
-				this.backend
-						.getBufferManager()
-						.setupFramebuffer(this.temporaryFb1, ((GlTexture) gpuTexture).getGlId(), 0, i, 36008);
-				GlStateManager._glBindBuffer(35051, ((GlGpuBuffer) gpuBuffer).id);
-				GlStateManager._pixelStore(3330, m);
-				GlStateManager._readPixels(
-						j,
-						k,
-						m,
-						n,
-						GlConst.toGlExternalId(gpuTexture.getFormat()),
-						GlConst.toGlType(gpuTexture.getFormat()),
-						l
-				);
-				RenderSystem.queueFencedTask(runnable);
-				GlStateManager._glFramebufferTexture2D(36008, 36064, 3553, 0, i);
-				GlStateManager._glBindFramebuffer(36008, 0);
-				GlStateManager._glBindBuffer(35051, 0);
-				int o = GlStateManager._getError();
-				if (o != 0) {
-					throw new IllegalStateException(
-							"Couldn't perform copyTobuffer for texture " + gpuTexture.getLabel() + ": GL error " + o);
-				}
-			}
+
+		if (mipLevel < 0 || mipLevel >= texture.getMipLevels()) {
+			throw new IllegalArgumentException(
+				"Invalid mipLevel, must be >= 0 and < " + texture.getMipLevels()
+			);
+		}
+
+		if (width * height * format.getChannelCount() > data.remaining()) {
+			throw new IllegalArgumentException(
+				"Copy would overrun the source buffer (remaining length of "
+					+ data.remaining() + ", but copy is "
+					+ width + "x" + height + " of format " + format + ")"
+			);
+		}
+
+		if (destX + width > texture.getWidth(mipLevel) || destY + height > texture.getHeight(mipLevel)) {
+			throw new IllegalArgumentException(
+				"Dest texture (" + texture.getWidth(mipLevel) + "x" + texture.getHeight(mipLevel)
+					+ ") is not large enough to write a rectangle of "
+					+ width + "x" + height + " at " + destX + "x" + destY
+			);
+		}
+
+		if (texture.isClosed()) {
+			throw new IllegalStateException("Destination texture is closed");
+		}
+
+		if ((texture.usage() & 1) == 0) {
+			throw new IllegalStateException("Color texture must have USAGE_COPY_DST to be a destination for a write");
+		}
+
+		if (layer >= texture.getDepthOrLayers()) {
+			throw new UnsupportedOperationException(
+				"Depth or layer is out of range, must be >= 0 and < " + texture.getDepthOrLayers()
+			);
+		}
+
+		int target;
+
+		if ((texture.usage() & GpuTexture.USAGE_CUBEMAP_COMPATIBLE) != 0) {
+			target = GlConst.CUBEMAP_TARGETS[layer % 6];
+			GL11.glBindTexture(GL_TEXTURE_CUBE_MAP, ((GlTexture) texture).glId);
 		}
 		else {
+			target = GL_TEXTURE_2D;
+			GlStateManager._bindTexture(((GlTexture) texture).glId);
+		}
+
+		GlStateManager._pixelStore(GL_UNPACK_ROW_LENGTH, width);
+		GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, 0);
+		GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, 0);
+		GlStateManager._pixelStore(GL_UNPACK_ALIGNMENT, format.getChannelCount());
+		GlStateManager._texSubImage2D(
+			target, mipLevel, destX, destY, width, height,
+			GlConst.toGl(format), GlConst.GL_UNSIGNED_BYTE, data
+		);
+	}
+
+	@Override
+	public void copyTextureToBuffer(GpuTexture texture, GpuBuffer buffer, long bufferOffset, Runnable callback, int mipLevel) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before performing additional commands");
+		}
+
+		copyTextureToBuffer(
+			texture, buffer, bufferOffset, callback, mipLevel,
+			0, 0, texture.getWidth(mipLevel), texture.getHeight(mipLevel)
+		);
+	}
+
+	/**
+	 * Копирует прямоугольную область текстуры в GPU-буфер через временный фреймбуфер.
+	 * Использует {@code GL_READ_FRAMEBUFFER} и {@code glReadPixels} с PBO.
+	 */
+	@Override
+	public void copyTextureToBuffer(
+		GpuTexture texture,
+		GpuBuffer buffer,
+		long bufferOffset,
+		Runnable callback,
+		int mipLevel,
+		int srcX,
+		int srcY,
+		int width,
+		int height
+	) {
+		if (renderPassOpen) {
+			throw new IllegalStateException("Close the existing render pass before performing additional commands");
+		}
+
+		if (mipLevel < 0 || mipLevel >= texture.getMipLevels()) {
 			throw new IllegalArgumentException(
-					"Invalid mipLevel " + i + ", must be >= 0 and < " + gpuTexture.getMipLevels());
+				"Invalid mipLevel " + mipLevel + ", must be >= 0 and < " + texture.getMipLevels()
+			);
+		}
+
+		if (texture.getWidth(mipLevel) * texture.getHeight(mipLevel) * texture.getFormat().pixelSize() + bufferOffset
+			> buffer.size()
+		) {
+			throw new IllegalArgumentException(
+				"Buffer of size " + buffer.size() + " is not large enough to hold "
+					+ width + "x" + height + " pixels (" + texture.getFormat().pixelSize()
+					+ " bytes each) starting from offset " + bufferOffset
+			);
+		}
+
+		if ((texture.usage() & 2) == 0) {
+			throw new IllegalArgumentException("Texture needs USAGE_COPY_SRC to be a source for a copy");
+		}
+
+		if ((buffer.usage() & 8) == 0) {
+			throw new IllegalArgumentException("Buffer needs USAGE_COPY_DST to be a destination for a copy");
+		}
+
+		if (srcX + width > texture.getWidth(mipLevel) || srcY + height > texture.getHeight(mipLevel)) {
+			throw new IllegalArgumentException(
+				"Copy source texture (" + texture.getWidth(mipLevel) + "x" + texture.getHeight(mipLevel)
+					+ ") is not large enough to read a rectangle of "
+					+ width + "x" + height + " from " + srcX + "," + srcY
+			);
+		}
+
+		if (texture.isClosed()) {
+			throw new IllegalStateException("Source texture is closed");
+		}
+
+		if (buffer.isClosed()) {
+			throw new IllegalStateException("Destination buffer is closed");
+		}
+
+		if (texture.getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Textures with multiple depths or layers are not yet supported for copying"
+			);
+		}
+
+		GlStateManager.clearGlErrors();
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb1, ((GlTexture) texture).getGlId(), 0, mipLevel, GL_READ_FRAMEBUFFER
+		);
+		GlStateManager._glBindBuffer(GL_PIXEL_PACK_BUFFER, ((GlGpuBuffer) buffer).id);
+		GlStateManager._pixelStore(GL_PACK_ROW_LENGTH, width);
+		GlStateManager._readPixels(
+			srcX, srcY, width, height,
+			GlConst.toGlExternalId(texture.getFormat()),
+			GlConst.toGlType(texture.getFormat()),
+			bufferOffset
+		);
+		RenderSystem.queueFencedTask(callback);
+		GlStateManager._glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, mipLevel);
+		GlStateManager._glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		GlStateManager._glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+		int glError = GlStateManager._getError();
+
+		if (glError != 0) {
+			throw new IllegalStateException(
+				"Couldn't perform copyTobuffer for texture " + texture.getLabel() + ": GL error " + glError
+			);
 		}
 	}
 
 	@Override
 	public void copyTextureToTexture(
-			GpuTexture gpuTexture,
-			GpuTexture gpuTexture2,
-			int i,
-			int j,
-			int k,
-			int l,
-			int m,
-			int n,
-			int o
+		GpuTexture source,
+		GpuTexture destination,
+		int mipLevel,
+		int destX,
+		int destY,
+		int srcX,
+		int srcY,
+		int width,
+		int height
 	) {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else if (i >= 0 && i < gpuTexture.getMipLevels() && i < gpuTexture2.getMipLevels()) {
-			if (j + n > gpuTexture2.getWidth(i) || k + o > gpuTexture2.getHeight(i)) {
-				throw new IllegalArgumentException(
-						"Dest texture ("
-								+ gpuTexture2.getWidth(i)
-								+ "x"
-								+ gpuTexture2.getHeight(i)
-								+ ") is not large enough to write a rectangle of "
-								+ n
-								+ "x"
-								+ o
-								+ " at "
-								+ j
-								+ "x"
-								+ k
-				);
-			}
-			else if (l + n > gpuTexture.getWidth(i) || m + o > gpuTexture.getHeight(i)) {
-				throw new IllegalArgumentException(
-						"Source texture ("
-								+ gpuTexture.getWidth(i)
-								+ "x"
-								+ gpuTexture.getHeight(i)
-								+ ") is not large enough to read a rectangle of "
-								+ n
-								+ "x"
-								+ o
-								+ " at "
-								+ l
-								+ "x"
-								+ m
-				);
-			}
-			else if (gpuTexture.isClosed()) {
-				throw new IllegalStateException("Source texture is closed");
-			}
-			else if (gpuTexture2.isClosed()) {
-				throw new IllegalStateException("Destination texture is closed");
-			}
-			else if ((gpuTexture.usage() & 2) == 0) {
-				throw new IllegalArgumentException("Texture needs USAGE_COPY_SRC to be a source for a copy");
-			}
-			else if ((gpuTexture2.usage() & 1) == 0) {
-				throw new IllegalArgumentException("Texture needs USAGE_COPY_DST to be a destination for a copy");
-			}
-			else if (gpuTexture.getDepthOrLayers() > 1) {
-				throw new UnsupportedOperationException(
-						"Textures with multiple depths or layers are not yet supported for copying");
-			}
-			else if (gpuTexture2.getDepthOrLayers() > 1) {
-				throw new UnsupportedOperationException(
-						"Textures with multiple depths or layers are not yet supported for copying");
-			}
-			else {
-				GlStateManager.clearGlErrors();
-				GlStateManager._disableScissorTest();
-				boolean bl = gpuTexture.getFormat().hasDepthAspect();
-				int p = ((GlTexture) gpuTexture).getGlId();
-				int q = ((GlTexture) gpuTexture2).getGlId();
-				this.backend.getBufferManager().setupFramebuffer(this.temporaryFb1, bl ? 0 : p, bl ? p : 0, 0, 0);
-				this.backend.getBufferManager().setupFramebuffer(this.temporaryFb2, bl ? 0 : q, bl ? q : 0, 0, 0);
-				this.backend
-						.getBufferManager()
-						.setupBlitFramebuffer(
-								this.temporaryFb1,
-								this.temporaryFb2,
-								l,
-								m,
-								n,
-								o,
-								j,
-								k,
-								n,
-								o,
-								bl ? 256 : 16384,
-								9728
-						);
-				int r = GlStateManager._getError();
-				if (r != 0) {
-					throw new IllegalStateException(
-							"Couldn't perform copyToTexture for texture " + gpuTexture.getLabel() + " to "
-									+ gpuTexture2.getLabel() + ": GL error " + r
-					);
-				}
-			}
-		}
-		else {
+
+		if (mipLevel < 0 || mipLevel >= source.getMipLevels() || mipLevel >= destination.getMipLevels()) {
 			throw new IllegalArgumentException(
-					"Invalid mipLevel " + i + ", must be >= 0 and < " + gpuTexture.getMipLevels() + " and < "
-							+ gpuTexture2.getMipLevels()
+				"Invalid mipLevel " + mipLevel + ", must be >= 0 and < " + source.getMipLevels()
+					+ " and < " + destination.getMipLevels()
+			);
+		}
+
+		if (destX + width > destination.getWidth(mipLevel) || destY + height > destination.getHeight(mipLevel)) {
+			throw new IllegalArgumentException(
+				"Dest texture (" + destination.getWidth(mipLevel) + "x" + destination.getHeight(mipLevel)
+					+ ") is not large enough to write a rectangle of "
+					+ width + "x" + height + " at " + destX + "x" + destY
+			);
+		}
+
+		if (srcX + width > source.getWidth(mipLevel) || srcY + height > source.getHeight(mipLevel)) {
+			throw new IllegalArgumentException(
+				"Source texture (" + source.getWidth(mipLevel) + "x" + source.getHeight(mipLevel)
+					+ ") is not large enough to read a rectangle of "
+					+ width + "x" + height + " at " + srcX + "x" + srcY
+			);
+		}
+
+		if (source.isClosed()) {
+			throw new IllegalStateException("Source texture is closed");
+		}
+
+		if (destination.isClosed()) {
+			throw new IllegalStateException("Destination texture is closed");
+		}
+
+		if ((source.usage() & 2) == 0) {
+			throw new IllegalArgumentException("Texture needs USAGE_COPY_SRC to be a source for a copy");
+		}
+
+		if ((destination.usage() & 1) == 0) {
+			throw new IllegalArgumentException("Texture needs USAGE_COPY_DST to be a destination for a copy");
+		}
+
+		if (source.getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Textures with multiple depths or layers are not yet supported for copying"
+			);
+		}
+
+		if (destination.getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Textures with multiple depths or layers are not yet supported for copying"
+			);
+		}
+
+		GlStateManager.clearGlErrors();
+		GlStateManager._disableScissorTest();
+
+		boolean isDepth = source.getFormat().hasDepthAspect();
+		int srcGlId = ((GlTexture) source).getGlId();
+		int dstGlId = ((GlTexture) destination).getGlId();
+
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb1, isDepth ? 0 : srcGlId, isDepth ? srcGlId : 0, 0, 0
+		);
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb2, isDepth ? 0 : dstGlId, isDepth ? dstGlId : 0, 0, 0
+		);
+		backend.getBufferManager().setupBlitFramebuffer(
+			temporaryFb1, temporaryFb2,
+			srcX, srcY, width, height,
+			destX, destY, width, height,
+			isDepth ? GL_DEPTH_BUFFER_BIT : GL_COLOR_BUFFER_BIT,
+			GL_NEAREST
+		);
+
+		int glError = GlStateManager._getError();
+
+		if (glError != 0) {
+			throw new IllegalStateException(
+				"Couldn't perform copyToTexture for texture " + source.getLabel()
+					+ " to " + destination.getLabel() + ": GL error " + glError
 			);
 		}
 	}
 
 	@Override
-	public void presentTexture(GpuTextureView gpuTextureView) {
-		if (this.renderPassOpen) {
+	public void presentTexture(GpuTextureView textureView) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else if (!gpuTextureView.texture().getFormat().hasColorAspect()) {
+
+		if (!textureView.texture().getFormat().hasColorAspect()) {
 			throw new IllegalStateException("Cannot present a non-color texture!");
 		}
-		else if ((gpuTextureView.texture().usage() & 8) == 0) {
+
+		if ((textureView.texture().usage() & 8) == 0) {
 			throw new IllegalStateException("Color texture must have USAGE_RENDER_ATTACHMENT to presented to the screen");
 		}
-		else if (gpuTextureView.texture().getDepthOrLayers() > 1) {
+
+		if (textureView.texture().getDepthOrLayers() > 1) {
 			throw new UnsupportedOperationException(
-					"Textures with multiple depths or layers are not yet supported for presentation");
+				"Textures with multiple depths or layers are not yet supported for presentation"
+			);
 		}
-		else {
-			GlStateManager._disableScissorTest();
-			GlStateManager._viewport(0, 0, gpuTextureView.getWidth(0), gpuTextureView.getHeight(0));
-			GlStateManager._depthMask(true);
-			GlStateManager._colorMask(true, true, true, true);
-			this.backend
-					.getBufferManager()
-					.setupFramebuffer(this.temporaryFb2, ((GlTexture) gpuTextureView.texture()).getGlId(), 0, 0, 0);
-			this.backend
-					.getBufferManager()
-					.setupBlitFramebuffer(
-							this.temporaryFb2,
-							0,
-							0,
-							0,
-							gpuTextureView.getWidth(0),
-							gpuTextureView.getHeight(0),
-							0,
-							0,
-							gpuTextureView.getWidth(0),
-							gpuTextureView.getHeight(0),
-							16384,
-							9728
-					);
-		}
+
+		GlStateManager._disableScissorTest();
+		GlStateManager._viewport(0, 0, textureView.getWidth(0), textureView.getHeight(0));
+		GlStateManager._depthMask(true);
+		GlStateManager._colorMask(true, true, true, true);
+		backend.getBufferManager().setupFramebuffer(
+			temporaryFb2, ((GlTexture) textureView.texture()).getGlId(), 0, 0, 0
+		);
+		backend.getBufferManager().setupBlitFramebuffer(
+			temporaryFb2, 0,
+			0, 0, textureView.getWidth(0), textureView.getHeight(0),
+			0, 0, textureView.getWidth(0), textureView.getHeight(0),
+			GL_COLOR_BUFFER_BIT,
+			GL_NEAREST
+		);
 	}
 
 	@Override
 	public GpuFence createFence() {
-		if (this.renderPassOpen) {
+		if (renderPassOpen) {
 			throw new IllegalStateException("Close the existing render pass before performing additional commands");
 		}
-		else {
-			return new GlGpuFence();
-		}
+
+		return new GlGpuFence();
 	}
 
 	protected <T> void drawObjectsWithRenderPass(
-			RenderPassImpl pass,
-			Collection<RenderPass.RenderObject<T>> objects,
-			@Nullable GpuBuffer indexBuffer,
-			VertexFormat.@Nullable IndexType indexType,
-			Collection<String> validationSkippedUniforms,
-			T object
+		RenderPassImpl pass,
+		Collection<RenderPass.RenderObject<T>> objects,
+		@Nullable GpuBuffer indexBuffer,
+		VertexFormat.@Nullable IndexType indexType,
+		Collection<String> validationSkippedUniforms,
+		T object
 	) {
-		if (this.setupRenderPass(pass, validationSkippedUniforms)) {
-			if (indexType == null) {
-				indexType = VertexFormat.IndexType.SHORT;
-			}
+		if (!setupRenderPass(pass, validationSkippedUniforms)) {
+			return;
+		}
 
-			for (RenderPass.RenderObject<T> renderObject : objects) {
-				VertexFormat.IndexType
-						indexType2 =
-						renderObject.indexType() == null ? indexType : renderObject.indexType();
-				pass.setIndexBuffer(
-						renderObject.indexBuffer() == null ? indexBuffer : renderObject.indexBuffer(),
-						indexType2
-				);
-				pass.setVertexBuffer(renderObject.slot(), renderObject.vertexBuffer());
-				if (RenderPassImpl.IS_DEVELOPMENT) {
-					if (pass.indexBuffer == null) {
-						throw new IllegalStateException("Missing index buffer");
-					}
+		VertexFormat.IndexType effectiveIndexType =
+			indexType == null ? VertexFormat.IndexType.SHORT : indexType;
 
-					if (pass.indexBuffer.isClosed()) {
-						throw new IllegalStateException("Index buffer has been closed!");
-					}
+		for (RenderPass.RenderObject<T> renderObject : objects) {
+			VertexFormat.IndexType objectIndexType =
+				renderObject.indexType() == null ? effectiveIndexType : renderObject.indexType();
+			pass.setIndexBuffer(
+				renderObject.indexBuffer() == null ? indexBuffer : renderObject.indexBuffer(),
+				objectIndexType
+			);
+			pass.setVertexBuffer(renderObject.slot(), renderObject.vertexBuffer());
 
-					if (pass.vertexBuffers[0] == null) {
-						throw new IllegalStateException("Missing vertex buffer at slot 0");
-					}
-
-					if (pass.vertexBuffers[0].isClosed()) {
-						throw new IllegalStateException("Vertex buffer at slot 0 has been closed!");
-					}
+			if (RenderPassImpl.IS_DEVELOPMENT) {
+				if (pass.indexBuffer == null) {
+					throw new IllegalStateException("Missing index buffer");
 				}
 
-				BiConsumer<T, RenderPass.UniformUploader> biConsumer = renderObject.uniformUploaderConsumer();
-				if (biConsumer != null) {
-					biConsumer.accept(
-							object, (name, gpuBufferSlice) -> {
-								if (pass.pipeline
-										.program()
-										.getUniform(name) instanceof GlUniform.UniformBuffer(int i)) {
-									GL32.glBindBufferRange(
-											35345,
-											i,
-											((GlGpuBuffer) gpuBufferSlice.buffer()).id,
-											gpuBufferSlice.offset(),
-											gpuBufferSlice.length()
-									);
-								}
-							}
-					);
+				if (pass.indexBuffer.isClosed()) {
+					throw new IllegalStateException("Index buffer has been closed!");
 				}
 
-				this.drawObjectWithRenderPass(
-						pass,
-						0,
-						renderObject.firstIndex(),
-						renderObject.indexCount(),
-						indexType2,
-						pass.pipeline,
-						1
+				if (pass.vertexBuffers[0] == null) {
+					throw new IllegalStateException("Missing vertex buffer at slot 0");
+				}
+
+				if (pass.vertexBuffers[0].isClosed()) {
+					throw new IllegalStateException("Vertex buffer at slot 0 has been closed!");
+				}
+			}
+
+			BiConsumer<T, RenderPass.UniformUploader> uniformConsumer = renderObject.uniformUploaderConsumer();
+
+			if (uniformConsumer != null) {
+				uniformConsumer.accept(
+					object, (name, gpuBufferSlice) -> {
+						if (pass.pipeline.program().getUniform(name) instanceof GlUniform.UniformBuffer(int bindingIndex)) {
+							GL32.glBindBufferRange(
+								GL_UNIFORM_BUFFER,
+								bindingIndex,
+								((GlGpuBuffer) gpuBufferSlice.buffer()).id,
+								gpuBufferSlice.offset(),
+								gpuBufferSlice.length()
+							);
+						}
+					}
 				);
 			}
+
+			drawObjectWithRenderPass(
+				pass, 0, renderObject.firstIndex(), renderObject.indexCount(),
+				objectIndexType, pass.pipeline, 1
+			);
 		}
 	}
 
 	protected void drawBoundObjectWithRenderPass(
-			RenderPassImpl pass,
-			int baseVertex,
-			int firstIndex,
-			int count,
-			VertexFormat.@Nullable IndexType indexType,
-			int instanceCount
+		RenderPassImpl pass,
+		int baseVertex,
+		int firstIndex,
+		int count,
+		VertexFormat.@Nullable IndexType indexType,
+		int instanceCount
 	) {
-		if (this.setupRenderPass(pass, Collections.emptyList())) {
-			if (RenderPassImpl.IS_DEVELOPMENT) {
-				if (indexType != null) {
-					if (pass.indexBuffer == null) {
-						throw new IllegalStateException("Missing index buffer");
-					}
+		if (!setupRenderPass(pass, Collections.emptyList())) {
+			return;
+		}
 
-					if (pass.indexBuffer.isClosed()) {
-						throw new IllegalStateException("Index buffer has been closed!");
-					}
-
-					if ((pass.indexBuffer.usage() & 64) == 0) {
-						throw new IllegalStateException("Index buffer must have GpuBuffer.USAGE_INDEX!");
-					}
+		if (RenderPassImpl.IS_DEVELOPMENT) {
+			if (indexType != null) {
+				if (pass.indexBuffer == null) {
+					throw new IllegalStateException("Missing index buffer");
 				}
 
-				CompiledShaderPipeline compiledShaderPipeline = pass.pipeline;
-				if (pass.vertexBuffers[0] == null && compiledShaderPipeline != null && !compiledShaderPipeline
-						.info()
-						.getVertexFormat()
-						.getElements()
-						.isEmpty()) {
-					throw new IllegalStateException(
-							"Vertex format contains elements but vertex buffer at slot 0 is null");
+				if (pass.indexBuffer.isClosed()) {
+					throw new IllegalStateException("Index buffer has been closed!");
 				}
 
-				if (pass.vertexBuffers[0] != null && pass.vertexBuffers[0].isClosed()) {
-					throw new IllegalStateException("Vertex buffer at slot 0 has been closed!");
-				}
-
-				if (pass.vertexBuffers[0] != null && (pass.vertexBuffers[0].usage() & 32) == 0) {
-					throw new IllegalStateException("Vertex buffer must have GpuBuffer.USAGE_VERTEX!");
+				if ((pass.indexBuffer.usage() & GpuBuffer.USAGE_INDEX) == 0) {
+					throw new IllegalStateException("Index buffer must have GpuBuffer.USAGE_INDEX!");
 				}
 			}
 
-			this.drawObjectWithRenderPass(pass, baseVertex, firstIndex, count, indexType, pass.pipeline, instanceCount);
+			CompiledShaderPipeline compiledPipeline = pass.pipeline;
+
+			if (pass.vertexBuffers[0] == null
+				&& compiledPipeline != null
+				&& !compiledPipeline.info().getVertexFormat().getElements().isEmpty()
+			) {
+				throw new IllegalStateException(
+					"Vertex format contains elements but vertex buffer at slot 0 is null"
+				);
+			}
+
+			if (pass.vertexBuffers[0] != null && pass.vertexBuffers[0].isClosed()) {
+				throw new IllegalStateException("Vertex buffer at slot 0 has been closed!");
+			}
+
+			if (pass.vertexBuffers[0] != null && (pass.vertexBuffers[0].usage() & GpuBuffer.USAGE_VERTEX) == 0) {
+				throw new IllegalStateException("Vertex buffer must have GpuBuffer.USAGE_VERTEX!");
+			}
 		}
+
+		drawObjectWithRenderPass(pass, baseVertex, firstIndex, count, indexType, pass.pipeline, instanceCount);
 	}
 
 	private void drawObjectWithRenderPass(
-			RenderPassImpl pass,
-			int baseVertex,
-			int firstIndex,
-			int count,
-			VertexFormat.@Nullable IndexType indexType,
-			CompiledShaderPipeline pipeline,
-			int instanceCount
+		RenderPassImpl pass,
+		int baseVertex,
+		int firstIndex,
+		int count,
+		VertexFormat.@Nullable IndexType indexType,
+		CompiledShaderPipeline pipeline,
+		int instanceCount
 	) {
-		this.backend
-				.getVertexBufferManager()
-				.setupBuffer(pipeline.info().getVertexFormat(), (GlGpuBuffer) pass.vertexBuffers[0]);
+		backend.getVertexBufferManager().setupBuffer(
+			pipeline.info().getVertexFormat(), (GlGpuBuffer) pass.vertexBuffers[0]
+		);
+
 		if (indexType != null) {
 			GlStateManager._glBindBuffer(34963, ((GlGpuBuffer) pass.indexBuffer).id);
+
 			if (instanceCount > 1) {
 				if (baseVertex > 0) {
 					GL32.glDrawElementsInstancedBaseVertex(
-							GlConst.toGl(pipeline.info().getVertexFormatMode()),
-							count,
-							GlConst.toGl(indexType),
-							(long) firstIndex * indexType.size,
-							instanceCount,
-							baseVertex
+						GlConst.toGl(pipeline.info().getVertexFormatMode()),
+						count,
+						GlConst.toGl(indexType),
+						(long) firstIndex * indexType.size,
+						instanceCount,
+						baseVertex
 					);
 				}
 				else {
 					GL31.glDrawElementsInstanced(
-							GlConst.toGl(pipeline.info().getVertexFormatMode()),
-							count,
-							GlConst.toGl(indexType),
-							(long) firstIndex * indexType.size,
-							instanceCount
+						GlConst.toGl(pipeline.info().getVertexFormatMode()),
+						count,
+						GlConst.toGl(indexType),
+						(long) firstIndex * indexType.size,
+						instanceCount
 					);
 				}
 			}
 			else if (baseVertex > 0) {
 				GL32.glDrawElementsBaseVertex(
-						GlConst.toGl(pipeline.info().getVertexFormatMode()),
-						count,
-						GlConst.toGl(indexType),
-						(long) firstIndex * indexType.size,
-						baseVertex
+					GlConst.toGl(pipeline.info().getVertexFormatMode()),
+					count,
+					GlConst.toGl(indexType),
+					(long) firstIndex * indexType.size,
+					baseVertex
 				);
 			}
 			else {
 				GlStateManager._drawElements(
-						GlConst.toGl(pipeline.info().getVertexFormatMode()),
-						count,
-						GlConst.toGl(indexType),
-						(long) firstIndex * indexType.size
+					GlConst.toGl(pipeline.info().getVertexFormatMode()),
+					count,
+					GlConst.toGl(indexType),
+					(long) firstIndex * indexType.size
 				);
 			}
 		}
 		else if (instanceCount > 1) {
 			GL31.glDrawArraysInstanced(
-					GlConst.toGl(pipeline.info().getVertexFormatMode()),
-					baseVertex,
-					count,
-					instanceCount
+				GlConst.toGl(pipeline.info().getVertexFormatMode()),
+				baseVertex,
+				count,
+				instanceCount
 			);
 		}
 		else {
@@ -1126,6 +1044,10 @@ public class GlCommandEncoder implements CommandEncoder {
 		}
 	}
 
+	/**
+		* Настраивает состояние OpenGL для выполнения draw-вызова: применяет конвейер, загружает юниформы,
+		* привязывает текстуры и сэмплеры. Возвращает {@code false} если конвейер невалиден (в release-режиме).
+		*/
 	private boolean setupRenderPass(RenderPassImpl pass, Collection<String> validationSkippedUniforms) {
 		if (RenderPassImpl.IS_DEVELOPMENT) {
 			if (pass.pipeline == null) {
@@ -1136,75 +1058,84 @@ public class GlCommandEncoder implements CommandEncoder {
 				throw new IllegalStateException("Pipeline contains invalid shader program");
 			}
 
-			for (RenderPipeline.UniformDescription uniformDescription : pass.pipeline.info().getUniforms()) {
-				GpuBufferSlice gpuBufferSlice = pass.simpleUniforms.get(uniformDescription.name());
-				if (!validationSkippedUniforms.contains(uniformDescription.name())) {
-					if (gpuBufferSlice == null) {
-						throw new IllegalStateException("Missing uniform " + uniformDescription.name() + " (should be "
-								+ uniformDescription.type() + ")");
+			for (RenderPipeline.UniformDescription uniform : pass.pipeline.info().getUniforms()) {
+				GpuBufferSlice slice = pass.simpleUniforms.get(uniform.name());
+
+				if (validationSkippedUniforms.contains(uniform.name())) {
+					continue;
+				}
+
+				if (slice == null) {
+					throw new IllegalStateException(
+						"Missing uniform " + uniform.name() + " (should be " + uniform.type() + ")"
+					);
+				}
+
+				if (uniform.type() == UniformType.UNIFORM_BUFFER) {
+					if (slice.buffer().isClosed()) {
+						throw new IllegalStateException("Uniform buffer " + uniform.name() + " is already closed");
 					}
 
-					if (uniformDescription.type() == UniformType.UNIFORM_BUFFER) {
-						if (gpuBufferSlice.buffer().isClosed()) {
-							throw new IllegalStateException(
-									"Uniform buffer " + uniformDescription.name() + " is already closed");
-						}
+					if ((slice.buffer().usage() & GpuBuffer.USAGE_UNIFORM) == 0) {
+						throw new IllegalStateException(
+							"Uniform buffer " + uniform.name() + " must have GpuBuffer.USAGE_UNIFORM"
+						);
+					}
+				}
 
-						if ((gpuBufferSlice.buffer().usage() & 128) == 0) {
-							throw new IllegalStateException("Uniform buffer " + uniformDescription.name()
-									+ " must have GpuBuffer.USAGE_UNIFORM");
-						}
+				if (uniform.type() == UniformType.TEXEL_BUFFER) {
+					if (slice.offset() != 0L || slice.length() != slice.buffer().size()) {
+						throw new IllegalStateException(
+							"Uniform texel buffers do not support a slice of a buffer, must be entire buffer"
+						);
 					}
 
-					if (uniformDescription.type() == UniformType.TEXEL_BUFFER) {
-						if (gpuBufferSlice.offset() != 0L || gpuBufferSlice.length() != gpuBufferSlice
-								.buffer()
-								.size()) {
-							throw new IllegalStateException(
-									"Uniform texel buffers do not support a slice of a buffer, must be entire buffer");
-						}
-
-						if (uniformDescription.textureFormat() == null) {
-							throw new IllegalStateException("Invalid uniform texel buffer " + uniformDescription.name()
-									+ " (missing a texture format)");
-						}
+					if (uniform.textureFormat() == null) {
+						throw new IllegalStateException(
+							"Invalid uniform texel buffer " + uniform.name() + " (missing a texture format)"
+						);
 					}
 				}
 			}
 
 			for (Entry<String, GlUniform> entry : pass.pipeline.program().getUniforms().entrySet()) {
-				if (entry.getValue() instanceof GlUniform.Sampler) {
-					String string = entry.getKey();
-					RenderPassImpl.SamplerUniform samplerUniform = pass.samplerUniforms.get(string);
-					if (samplerUniform == null) {
-						throw new IllegalStateException("Missing sampler " + string);
-					}
+				if (!(entry.getValue() instanceof GlUniform.Sampler)) {
+					continue;
+				}
 
-					GlTextureView glTextureView = samplerUniform.view();
-					if (glTextureView.isClosed()) {
-						throw new IllegalStateException(
-								"Texture view " + string + " (" + glTextureView.texture().getLabel()
-										+ ") has been closed!");
-					}
+				String samplerName = entry.getKey();
+				RenderPassImpl.SamplerUniform samplerUniform = pass.samplerUniforms.get(samplerName);
 
-					if ((glTextureView.texture().usage() & 4) == 0) {
-						throw new IllegalStateException(
-								"Texture view " + string + " (" + glTextureView.texture().getLabel()
-										+ ") must have USAGE_TEXTURE_BINDING!");
-					}
+				if (samplerUniform == null) {
+					throw new IllegalStateException("Missing sampler " + samplerName);
+				}
 
-					if (samplerUniform.sampler().isClosed()) {
-						throw new IllegalStateException(
-								"Sampler for " + string + " (" + glTextureView.texture().getLabel()
-										+ ") has been closed!");
-					}
+				GlTextureView textureView = samplerUniform.view();
+
+				if (textureView.isClosed()) {
+					throw new IllegalStateException(
+						"Texture view " + samplerName + " (" + textureView.texture().getLabel() + ") has been closed!"
+					);
+				}
+
+				if ((textureView.texture().usage() & 4) == 0) {
+					throw new IllegalStateException(
+						"Texture view " + samplerName + " (" + textureView.texture().getLabel()
+							+ ") must have USAGE_TEXTURE_BINDING!"
+					);
+				}
+
+				if (samplerUniform.sampler().isClosed()) {
+					throw new IllegalStateException(
+						"Sampler for " + samplerName + " (" + textureView.texture().getLabel() + ") has been closed!"
+					);
 				}
 			}
 
 			if (pass.pipeline.info().wantsDepthTexture() && !pass.hasDepth()) {
 				LOGGER.warn(
-						"Render pipeline {} wants a depth texture but none was provided - this is probably a bug",
-						pass.pipeline.info().getLocation()
+					"Render pipeline {} wants a depth texture but none was provided - this is probably a bug",
+					pass.pipeline.info().getLocation()
 				);
 			}
 		}
@@ -1214,92 +1145,96 @@ public class GlCommandEncoder implements CommandEncoder {
 
 		RenderPipeline renderPipeline = pass.pipeline.info();
 		ShaderProgram shaderProgram = pass.pipeline.program();
-		this.setPipelineAndApplyState(renderPipeline);
-		boolean bl = this.currentProgram != shaderProgram;
-		if (bl) {
+		setPipelineAndApplyState(renderPipeline);
+
+		boolean programChanged = currentProgram != shaderProgram;
+
+		if (programChanged) {
 			GlStateManager._glUseProgram(shaderProgram.getGlRef());
-			this.currentProgram = shaderProgram;
+			currentProgram = shaderProgram;
 		}
 
-		for (Entry<String, GlUniform> entry2 : shaderProgram.getUniforms().entrySet()) {
-			String string2 = entry2.getKey();
-			boolean bl2 = pass.setSimpleUniforms.contains(string2);
-			switch ((GlUniform) entry2.getValue()) {
-				case GlUniform.UniformBuffer(int var63):
-					int var41 = var63;
-					if (bl2) {
-						GpuBufferSlice gpuBufferSlice2 = pass.simpleUniforms.get(string2);
+		for (Entry<String, GlUniform> entry : shaderProgram.getUniforms().entrySet()) {
+			String uniformName = entry.getKey();
+			boolean uniformChanged = pass.setSimpleUniforms.contains(uniformName);
+
+			switch ((GlUniform) entry.getValue()) {
+				case GlUniform.UniformBuffer(int bindingIndex) -> {
+					if (uniformChanged) {
+						GpuBufferSlice slice = pass.simpleUniforms.get(uniformName);
 						GL32.glBindBufferRange(
-								35345,
-								var41,
-								((GlGpuBuffer) gpuBufferSlice2.buffer()).id,
-								gpuBufferSlice2.offset(),
-								gpuBufferSlice2.length()
+							GL_UNIFORM_BUFFER,
+							bindingIndex,
+							((GlGpuBuffer) slice.buffer()).id,
+							slice.offset(),
+							slice.length()
 						);
 					}
-					break;
-				case GlUniform.TexelBuffer(int var43, int var44, TextureFormat var45, int var61):
-					int var46 = var61;
-					if (bl || bl2) {
-						GlStateManager._glUniform1i(var43, var44);
+				}
+				case GlUniform.TexelBuffer(int location, int samplerIndex, TextureFormat format, int textureId) -> {
+					if (programChanged || uniformChanged) {
+						GlStateManager._glUniform1i(location, samplerIndex);
 					}
 
-					GlStateManager._activeTexture(33984 + var44);
-					GL11C.glBindTexture(35882, var46);
-					if (bl2) {
-						GpuBufferSlice gpuBufferSlice3 = pass.simpleUniforms.get(string2);
+					GlStateManager._activeTexture(GL_TEXTURE_UNIT_0 + samplerIndex);
+					GL11C.glBindTexture(GL_TEXTURE_BUFFER, textureId);
+
+					if (uniformChanged) {
+						GpuBufferSlice slice = pass.simpleUniforms.get(uniformName);
 						GL31.glTexBuffer(
-								35882,
-								GlConst.toGlInternalId(var45),
-								((GlGpuBuffer) gpuBufferSlice3.buffer()).id
+							GL_TEXTURE_BUFFER,
+							GlConst.toGlInternalId(format),
+							((GlGpuBuffer) slice.buffer()).id
 						);
 					}
-					break;
-				case GlUniform.Sampler(int samplerUniform2, int var53):
-					int var48 = var53;
-					RenderPassImpl.SamplerUniform samplerUniform2x = pass.samplerUniforms.get(string2);
-					if (samplerUniform2x == null) {
+				}
+				case GlUniform.Sampler(int location, int samplerIndex) -> {
+					RenderPassImpl.SamplerUniform samplerUniform = pass.samplerUniforms.get(uniformName);
+
+					if (samplerUniform == null) {
 						break;
 					}
 
-					GlTextureView glTextureView2 = samplerUniform2x.view();
-					if (bl || bl2) {
-						GlStateManager._glUniform1i(samplerUniform2, var48);
+					GlTextureView textureView = samplerUniform.view();
+
+					if (programChanged || uniformChanged) {
+						GlStateManager._glUniform1i(location, samplerIndex);
 					}
 
-					GlStateManager._activeTexture(33984 + var48);
-					GlTexture glTexture = glTextureView2.texture();
-					int o;
+					GlStateManager._activeTexture(GL_TEXTURE_UNIT_0 + samplerIndex);
+					GlTexture glTexture = textureView.texture();
+					int target;
+
 					if ((glTexture.usage() & 16) != 0) {
-						o = 34067;
-						GL11.glBindTexture(34067, glTexture.glId);
+						target = GL_TEXTURE_CUBE_MAP;
+						GL11.glBindTexture(GL_TEXTURE_CUBE_MAP, glTexture.glId);
 					}
 					else {
-						o = 3553;
+						target = GL_TEXTURE_2D;
 						GlStateManager._bindTexture(glTexture.glId);
 					}
 
-					GL33C.glBindSampler(var48, samplerUniform2x.sampler().getSamplerId());
-					GlStateManager._texParameter(o, 33084, glTextureView2.baseMipLevel());
+					GL33C.glBindSampler(samplerIndex, samplerUniform.sampler().getSamplerId());
+					GlStateManager._texParameter(target, GL_TEXTURE_BASE_LEVEL, textureView.baseMipLevel());
 					GlStateManager._texParameter(
-							o,
-							33085,
-							glTextureView2.baseMipLevel() + glTextureView2.mipLevels() - 1
+						target,
+						GL_TEXTURE_MAX_LEVEL,
+						textureView.baseMipLevel() + textureView.mipLevels() - 1
 					);
-					break;
-				default:
-					throw new MatchException(null, null);
+				}
+				default -> throw new MatchException(null, null);
 			}
 		}
 
 		pass.setSimpleUniforms.clear();
+
 		if (pass.isScissorEnabled()) {
 			GlStateManager._enableScissorTest();
 			GlStateManager._scissorBox(
-					pass.getScissorX(),
-					pass.getScissorY(),
-					pass.getScissorWidth(),
-					pass.getScissorHeight()
+				pass.getScissorX(),
+				pass.getScissorY(),
+				pass.getScissorWidth(),
+				pass.getScissorHeight()
 			);
 		}
 		else {
@@ -1310,100 +1245,166 @@ public class GlCommandEncoder implements CommandEncoder {
 	}
 
 	private void setPipelineAndApplyState(RenderPipeline pipeline) {
-		if (this.currentPipeline != pipeline) {
-			this.currentPipeline = pipeline;
-			if (pipeline.getDepthTestFunction() != DepthTestFunction.NO_DEPTH_TEST) {
-				GlStateManager._enableDepthTest();
-				GlStateManager._depthFunc(GlConst.toGl(pipeline.getDepthTestFunction()));
-			}
-			else {
-				GlStateManager._disableDepthTest();
-			}
+		if (currentPipeline == pipeline) {
+			return;
+		}
 
-			if (pipeline.isCull()) {
-				GlStateManager._enableCull();
-			}
-			else {
-				GlStateManager._disableCull();
-			}
+		currentPipeline = pipeline;
 
-			if (pipeline.getBlendFunction().isPresent()) {
-				GlStateManager._enableBlend();
-				BlendFunction blendFunction = pipeline.getBlendFunction().get();
-				GlStateManager._blendFuncSeparate(
-						GlConst.toGl(blendFunction.sourceColor()),
-						GlConst.toGl(blendFunction.destColor()),
-						GlConst.toGl(blendFunction.sourceAlpha()),
-						GlConst.toGl(blendFunction.destAlpha())
-				);
-			}
-			else {
-				GlStateManager._disableBlend();
-			}
+		if (pipeline.getDepthTestFunction() != DepthTestFunction.NO_DEPTH_TEST) {
+			GlStateManager._enableDepthTest();
+			GlStateManager._depthFunc(GlConst.toGl(pipeline.getDepthTestFunction()));
+		}
+		else {
+			GlStateManager._disableDepthTest();
+		}
 
-			GlStateManager._polygonMode(1032, GlConst.toGl(pipeline.getPolygonMode()));
-			GlStateManager._depthMask(pipeline.isWriteDepth());
-			GlStateManager._colorMask(
-					pipeline.isWriteColor(),
-					pipeline.isWriteColor(),
-					pipeline.isWriteColor(),
-					pipeline.isWriteAlpha()
+		if (pipeline.isCull()) {
+			GlStateManager._enableCull();
+		}
+		else {
+			GlStateManager._disableCull();
+		}
+
+		if (pipeline.getBlendFunction().isPresent()) {
+			GlStateManager._enableBlend();
+			BlendFunction blend = pipeline.getBlendFunction().get();
+			GlStateManager._blendFuncSeparate(
+				GlConst.toGl(blend.sourceColor()),
+				GlConst.toGl(blend.destColor()),
+				GlConst.toGl(blend.sourceAlpha()),
+				GlConst.toGl(blend.destAlpha())
 			);
-			if (pipeline.getDepthBiasConstant() == 0.0F && pipeline.getDepthBiasScaleFactor() == 0.0F) {
-				GlStateManager._disablePolygonOffset();
-			}
-			else {
-				GlStateManager._polygonOffset(pipeline.getDepthBiasScaleFactor(), pipeline.getDepthBiasConstant());
-				GlStateManager._enablePolygonOffset();
-			}
+		}
+		else {
+			GlStateManager._disableBlend();
+		}
 
-			switch (pipeline.getColorLogic()) {
-				case NONE:
-					GlStateManager._disableColorLogicOp();
-					break;
-				case OR_REVERSE:
-					GlStateManager._enableColorLogicOp();
-					GlStateManager._logicOp(5387);
+		GlStateManager._polygonMode(GL_FRONT_AND_BACK, GlConst.toGl(pipeline.getPolygonMode()));
+		GlStateManager._depthMask(pipeline.isWriteDepth());
+		GlStateManager._colorMask(
+			pipeline.isWriteColor(),
+			pipeline.isWriteColor(),
+			pipeline.isWriteColor(),
+			pipeline.isWriteAlpha()
+		);
+
+		if (pipeline.getDepthBiasConstant() == 0.0F && pipeline.getDepthBiasScaleFactor() == 0.0F) {
+			GlStateManager._disablePolygonOffset();
+		}
+		else {
+			GlStateManager._polygonOffset(pipeline.getDepthBiasScaleFactor(), pipeline.getDepthBiasConstant());
+			GlStateManager._enablePolygonOffset();
+		}
+
+		switch (pipeline.getColorLogic()) {
+			case NONE -> GlStateManager._disableColorLogicOp();
+			case OR_REVERSE -> {
+				GlStateManager._enableColorLogicOp();
+				GlStateManager._logicOp(GL_OR_REVERSE);
 			}
 		}
 	}
 
-	/**
-	 * Закрывает pass.
-	 */
 	public void closePass() {
-		this.renderPassOpen = false;
-		GlStateManager._glBindFramebuffer(36160, 0);
-		this.backend.getDebugLabelManager().popDebugGroup();
+		renderPassOpen = false;
+		GlStateManager._glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		backend.getDebugLabelManager().popDebugGroup();
 	}
 
 	protected GlBackend getBackend() {
-		return this.backend;
+		return backend;
 	}
 
 	@Override
 	public GpuQuery timerQueryBegin() {
 		RenderSystem.assertOnRenderThread();
-		if (this.timerQuery != null) {
+
+		if (timerQuery != null) {
 			throw new IllegalStateException("A GL_TIME_ELAPSED query is already active");
 		}
-		else {
-			int i = GL32C.glGenQueries();
-			GL32C.glBeginQuery(35007, i);
-			this.timerQuery = new GlTimerQuery(i);
-			return this.timerQuery;
-		}
+
+		int queryId = GL32C.glGenQueries();
+		GL32C.glBeginQuery(GL_TIME_ELAPSED, queryId);
+		timerQuery = new GlTimerQuery(queryId);
+		return timerQuery;
 	}
 
 	@Override
-	public void timerQueryEnd(GpuQuery gpuQuery) {
+	public void timerQueryEnd(GpuQuery query) {
 		RenderSystem.assertOnRenderThread();
-		if (gpuQuery != this.timerQuery) {
+
+		if (query != timerQuery) {
 			throw new IllegalStateException("Mismatched or duplicate GpuQuery when ending timerQuery");
 		}
-		else {
-			GL32C.glEndQuery(35007);
-			this.timerQuery = null;
+
+		GL32C.glEndQuery(GL_TIME_ELAPSED);
+		timerQuery = null;
+	}
+
+	private void validateRegion(GpuTexture texture, int regionX, int regionY, int regionWidth, int regionHeight) {
+		if (regionX < 0 || regionX >= texture.getWidth(0)) {
+			throw new IllegalArgumentException("regionX should not be outside of the texture");
+		}
+
+		if (regionY < 0 || regionY >= texture.getHeight(0)) {
+			throw new IllegalArgumentException("regionY should not be outside of the texture");
+		}
+
+		if (regionWidth <= 0) {
+			throw new IllegalArgumentException("regionWidth should be greater than 0");
+		}
+
+		if (regionX + regionWidth > texture.getWidth(0)) {
+			throw new IllegalArgumentException("regionWidth + regionX should be less than the texture width");
+		}
+
+		if (regionHeight <= 0) {
+			throw new IllegalArgumentException("regionHeight should be greater than 0");
+		}
+
+		if (regionY + regionHeight > texture.getHeight(0)) {
+			throw new IllegalArgumentException("regionWidth + regionX should be less than the texture height");
+		}
+	}
+
+	private void validateColorAttachment(GpuTexture texture) {
+		if (!texture.getFormat().hasColorAspect()) {
+			throw new IllegalStateException("Trying to clear a non-color texture as color");
+		}
+
+		if (texture.isClosed()) {
+			throw new IllegalStateException("Color texture is closed");
+		}
+
+		if ((texture.usage() & 8) == 0) {
+			throw new IllegalStateException("Color texture must have USAGE_RENDER_ATTACHMENT");
+		}
+
+		if (texture.getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Clearing a texture with multiple layers or depths is not yet supported"
+			);
+		}
+	}
+
+	private void validateDepthAttachment(GpuTexture texture) {
+		if (!texture.getFormat().hasDepthAspect()) {
+			throw new IllegalStateException("Trying to clear a non-depth texture as depth");
+		}
+
+		if (texture.isClosed()) {
+			throw new IllegalStateException("Depth texture is closed");
+		}
+
+		if ((texture.usage() & 8) == 0) {
+			throw new IllegalStateException("Depth texture must have USAGE_RENDER_ATTACHMENT");
+		}
+
+		if (texture.getDepthOrLayers() > 1) {
+			throw new UnsupportedOperationException(
+				"Clearing a texture with multiple layers or depths is not yet supported"
+			);
 		}
 	}
 }

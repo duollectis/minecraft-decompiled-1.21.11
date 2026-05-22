@@ -4,7 +4,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 
 /**
- * {@code SimpleConsecutiveExecutor}.
+ * Простейшая реализация {@link ConsecutiveExecutor} с неприоритетной очередью задач.
+ * Задачи выполняются в порядке FIFO через {@link ConcurrentLinkedQueue}.
  */
 public class SimpleConsecutiveExecutor extends ConsecutiveExecutor<Runnable> {
 

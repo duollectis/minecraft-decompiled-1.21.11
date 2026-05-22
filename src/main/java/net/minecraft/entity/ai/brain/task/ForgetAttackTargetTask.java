@@ -8,39 +8,21 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Optional;
 
 /**
- * {@code ForgetAttackTargetTask}.
+ * Фабричный класс задачи мозга, сбрасывающей цель атаки при выполнении условий забывания.
+ * Поддерживает настраиваемые условия и колбэк при сбросе цели.
  */
 public class ForgetAttackTargetTask {
 
 	private static final int REMEMBER_TIME = 200;
 
-	/**
-	 * Create.
-	 *
-	 * @param callback callback
-	 *
-	 * @return Task — результат операции
-	 */
 	public static <E extends MobEntity> Task<E> create(ForgetAttackTargetTask.ForgetCallback<E> callback) {
 		return create((world, target) -> false, callback, true);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param condition condition
-	 *
-	 * @return Task — результат операции
-	 */
 	public static <E extends MobEntity> Task<E> create(ForgetAttackTargetTask.AlternativeCondition condition) {
 		return create(condition, (world, entity, target) -> {}, true);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static <E extends MobEntity> Task<E> create() {
 		return create((world, target) -> false, (world, entity, target) -> {}, true);
 	}
@@ -52,51 +34,44 @@ public class ForgetAttackTargetTask {
 	) {
 		return TaskTriggerer.task(
 				context -> context.group(
-						                  context.queryMemoryValue(MemoryModuleType.ATTACK_TARGET),
-						                  context.queryMemoryOptional(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE)
-				                  )
-				                  .apply(
-						                  context,
-						                  (attackTarget, cantReachWalkTargetSince) -> (world, entity, time) -> {
-							                  LivingEntity livingEntity = context.getValue(attackTarget);
-							                  if (entity.canTarget(livingEntity)
-									                  && (!shouldForgetIfTargetUnreachable || !cannotReachTarget(
-									                  entity,
-									                  context.getOptionalValue(cantReachWalkTargetSince)
-							                  )
-							                  )
-									                  && livingEntity.isAlive()
-									                  && livingEntity.getEntityWorld() == entity.getEntityWorld()
-									                  && !condition.test(world, livingEntity)) {
-								                  return true;
-							                  }
-							                  else {
-								                  callback.accept(world, (E) entity, livingEntity);
-								                  attackTarget.forget();
-								                  return true;
-							                  }
-						                  }
-				                  )
+						context.queryMemoryValue(MemoryModuleType.ATTACK_TARGET),
+						context.queryMemoryOptional(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE)
+				).apply(
+						context,
+						(attackTarget, cantReachWalkTargetSince) -> (world, entity, time) -> {
+							LivingEntity target = context.getValue(attackTarget);
+							boolean targetReachable = !shouldForgetIfTargetUnreachable
+									|| !cannotReachTarget(entity, context.getOptionalValue(cantReachWalkTargetSince));
+							boolean shouldKeep = entity.canTarget(target)
+									&& targetReachable
+									&& target.isAlive()
+									&& target.getEntityWorld() == entity.getEntityWorld()
+									&& !condition.test(world, target);
+
+							if (shouldKeep) {
+								return true;
+							}
+
+							callback.accept(world, (E) entity, target);
+							attackTarget.forget();
+							return true;
+						}
+				)
 		);
 	}
 
-	private static boolean cannotReachTarget(LivingEntity target, Optional<Long> lastReachTime) {
-		return lastReachTime.isPresent() && target.getEntityWorld().getTime() - lastReachTime.get() > 200L;
+	private static boolean cannotReachTarget(LivingEntity entity, Optional<Long> lastReachTime) {
+		return lastReachTime.isPresent()
+				&& entity.getEntityWorld().getTime() - lastReachTime.get() > REMEMBER_TIME;
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code AlternativeCondition}.
-	 */
 	public interface AlternativeCondition {
 
 		boolean test(ServerWorld world, LivingEntity target);
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ForgetCallback}.
-	 */
 	public interface ForgetCallback<E> {
 
 		void accept(ServerWorld world, E entity, LivingEntity target);

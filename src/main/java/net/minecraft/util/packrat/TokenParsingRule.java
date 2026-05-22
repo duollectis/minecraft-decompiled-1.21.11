@@ -5,7 +5,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TokenParsingRule}.
+ * Абстрактное правило разбора токена — непрерывной последовательности символов,
+ * удовлетворяющих условию {@link #isValidChar(char)}. Поддерживает ограничение
+ * минимальной и максимальной длины токена.
  */
 public abstract class TokenParsingRule implements ParsingRule<StringReader, String> {
 
@@ -27,32 +29,26 @@ public abstract class TokenParsingRule implements ParsingRule<StringReader, Stri
 		this.tooShortException = tooShortException;
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return @Nullable String — результат операции
-	 */
+	@Override
 	public @Nullable String parse(ParsingState<StringReader> parsingState) {
-		StringReader stringReader = parsingState.getReader();
-		String string = stringReader.getString();
-		int i = stringReader.getCursor();
-		int j = i;
+		StringReader reader = parsingState.getReader();
+		String input = reader.getString();
+		int start = reader.getCursor();
+		int end = start;
 
-		while (j < string.length() && this.isValidChar(string.charAt(j)) && j - i < this.maxLength) {
-			j++;
+		while (end < input.length() && isValidChar(input.charAt(end)) && end - start < maxLength) {
+			end++;
 		}
 
-		int k = j - i;
-		if (k < this.minLength) {
-			parsingState.getErrors().add(parsingState.getCursor(), this.tooShortException);
+		int length = end - start;
+
+		if (length < minLength) {
+			parsingState.getErrors().add(parsingState.getCursor(), tooShortException);
 			return null;
 		}
-		else {
-			stringReader.setCursor(j);
-			return string.substring(i, j);
-		}
+
+		reader.setCursor(end);
+		return input.substring(start, end);
 	}
 
 	protected abstract boolean isValidChar(char c);

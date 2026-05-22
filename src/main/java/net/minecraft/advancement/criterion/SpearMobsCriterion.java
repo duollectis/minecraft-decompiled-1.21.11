@@ -11,39 +11,37 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.Optional;
 
 /**
- * {@code SpearMobsCriterion}.
+ * Критерий выполняется, когда игрок поражает трезубцем заданное количество мобов.
  */
 public class SpearMobsCriterion extends AbstractCriterion<SpearMobsCriterion.Conditions> {
 
 	@Override
-	public Codec<SpearMobsCriterion.Conditions> getConditionsCodec() {
-		return SpearMobsCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, int count) {
-		this.trigger(player, conditions -> conditions.test(count));
+		trigger(player, conditions -> conditions.test(count));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<Integer> count
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<SpearMobsCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(SpearMobsCriterion.Conditions::player),
-						                    Codecs.POSITIVE_INT.optionalFieldOf("count").forGetter(SpearMobsCriterion.Conditions::count)
-				                    )
-				                    .apply(instance, SpearMobsCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						Codecs.POSITIVE_INT
+								.optionalFieldOf("count")
+								.forGetter(Conditions::count)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<SpearMobsCriterion.Conditions> create(int i) {
-			return Criteria.SPEAR_MOBS.create(new SpearMobsCriterion.Conditions(Optional.empty(), Optional.of(i)));
+		public static AdvancementCriterion<Conditions> create(int count) {
+			return Criteria.SPEAR_MOBS.create(new Conditions(Optional.empty(), Optional.of(count)));
 		}
 
 		public boolean test(int count) {

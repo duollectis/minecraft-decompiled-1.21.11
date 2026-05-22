@@ -17,41 +17,42 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code ForgetCompletedPointOfInterestTask}.
+ * Фабричный класс задачи мозга, сбрасывающей память о точке интереса (POI), если та более не валидна.
+ * Освобождает тикет POI, если кровать занята другой сущностью и там нет спящего жителя.
  */
 public class ForgetCompletedPointOfInterestTask {
 
-	private static final int MAX_RANGE = 16;
+	private static final double CHECK_RANGE = 16.0;
 
 	public static Task<LivingEntity> create(
 			Predicate<RegistryEntry<PointOfInterestType>> poiTypePredicate,
 			MemoryModuleType<GlobalPos> poiPosModule
 	) {
 		return TaskTriggerer.task(context -> context.group(context.queryMemoryValue(poiPosModule)).apply(
-				context, poiPos -> (world, entity, time) -> {
+				context,
+				poiPos -> (world, entity, time) -> {
 					GlobalPos globalPos = context.getValue(poiPos);
 					BlockPos blockPos = globalPos.pos();
-					if (world.getRegistryKey() == globalPos.dimension()
-							&& blockPos.isWithinDistance(entity.getEntityPos(), 16.0)) {
-						ServerWorld serverWorld = world.getServer().getWorld(globalPos.dimension());
-						if (serverWorld == null || !serverWorld
-								.getPointOfInterestStorage()
-								.test(blockPos, poiTypePredicate)) {
-							poiPos.forget();
-						}
-						else if (isBedOccupiedByOthers(serverWorld, blockPos, entity)) {
-							poiPos.forget();
-							if (!isSleepingVillagerAt(serverWorld, blockPos)) {
-								world.getPointOfInterestStorage().releaseTicket(blockPos);
-								world.getSubscriptionTracker().onPoiUpdated(blockPos);
-							}
-						}
 
-						return true;
-					}
-					else {
+					if (world.getRegistryKey() != globalPos.dimension()
+							|| !blockPos.isWithinDistance(entity.getEntityPos(), CHECK_RANGE)) {
 						return false;
 					}
+
+					ServerWorld poiWorld = world.getServer().getWorld(globalPos.dimension());
+
+					if (poiWorld == null || !poiWorld.getPointOfInterestStorage().test(blockPos, poiTypePredicate)) {
+						poiPos.forget();
+					} else if (isBedOccupiedByOthers(poiWorld, blockPos, entity)) {
+						poiPos.forget();
+
+						if (!isSleepingVillagerAt(poiWorld, blockPos)) {
+							world.getPointOfInterestStorage().releaseTicket(blockPos);
+							world.getSubscriptionTracker().onPoiUpdated(blockPos);
+						}
+					}
+
+					return true;
 				}
 		));
 	}
@@ -62,9 +63,7 @@ public class ForgetCompletedPointOfInterestTask {
 	}
 
 	private static boolean isSleepingVillagerAt(ServerWorld world, BlockPos pos) {
-		List<VillagerEntity>
-				list =
-				world.getEntitiesByClass(VillagerEntity.class, new Box(pos), LivingEntity::isSleeping);
-		return !list.isEmpty();
+		List<VillagerEntity> sleepers = world.getEntitiesByClass(VillagerEntity.class, new Box(pos), LivingEntity::isSleeping);
+		return !sleepers.isEmpty();
 	}
 }

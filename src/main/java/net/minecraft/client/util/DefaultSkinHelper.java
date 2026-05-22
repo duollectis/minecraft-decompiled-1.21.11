@@ -10,31 +10,34 @@ import net.minecraft.util.Identifier;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DefaultSkinHelper}.
+ * Вспомогательный класс для получения скинов игрока по умолчанию.
+ * Содержит 18 предустановленных скинов (9 slim + 9 wide), выбираемых детерминированно по UUID.
  */
+@Environment(EnvType.CLIENT)
 public class DefaultSkinHelper {
 
-	private static final SkinTextures[] SKINS = new SkinTextures[]{
-			createSkinTextures("entity/player/slim/alex", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/ari", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/efe", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/kai", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/makena", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/noor", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/steve", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/sunny", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/slim/zuri", PlayerSkinType.SLIM),
-			createSkinTextures("entity/player/wide/alex", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/ari", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/efe", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/kai", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/makena", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/noor", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/steve", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/sunny", PlayerSkinType.WIDE),
-			createSkinTextures("entity/player/wide/zuri", PlayerSkinType.WIDE)
+	private static final int STEVE_INDEX = 6;
+
+	private static final SkinTextures[] SKINS = {
+		createSkinTextures("entity/player/slim/alex", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/ari", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/efe", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/kai", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/makena", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/noor", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/steve", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/sunny", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/slim/zuri", PlayerSkinType.SLIM),
+		createSkinTextures("entity/player/wide/alex", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/ari", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/efe", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/kai", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/makena", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/noor", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/steve", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/sunny", PlayerSkinType.WIDE),
+		createSkinTextures("entity/player/wide/zuri", PlayerSkinType.WIDE)
 	};
 
 	public static Identifier getTexture() {
@@ -42,7 +45,7 @@ public class DefaultSkinHelper {
 	}
 
 	public static SkinTextures getSteve() {
-		return SKINS[6];
+		return SKINS[STEVE_INDEX];
 	}
 
 	public static SkinTextures getSkinTextures(UUID uuid) {

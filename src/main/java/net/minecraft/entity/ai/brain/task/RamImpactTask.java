@@ -27,19 +27,30 @@ import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 /**
- * {@code RamImpactTask}.
+ * Задача мозга козла, реализующая таранный удар по цели.
+ * При столкновении наносит урон, применяет нокбэк с учётом скорости и эффектов,
+ * а также может сломать рог при ударе о блок из тега {@code SNAPS_GOAT_HORN}.
  */
 public class RamImpactTask extends MultiTickTask<GoatEntity> {
 
 	public static final int RUN_TIME = 200;
 	public static final float SPEED_STRENGTH_MULTIPLIER = 1.65F;
+
+	private static final byte STATUS_FINISH_RAM = 59;
+	private static final float MIN_KNOCKBACK_SPEED = 0.2F;
+	private static final float MAX_KNOCKBACK_SPEED = 3.0F;
+	private static final float SPEED_EFFECT_MULTIPLIER = 0.25F;
+	private static final float KNOCKBACK_BLOCKED_FACTOR = 0.5F;
+	private static final float KNOCKBACK_UNBLOCKED_FACTOR = 1.0F;
+	private static final double RAM_REACHED_THRESHOLD = 0.25;
+
 	private final Function<GoatEntity, UniformIntProvider> cooldownRangeFactory;
 	private final TargetPredicate targetPredicate;
 	private final float speed;
 	private final ToDoubleFunction<GoatEntity> strengthMultiplierFactory;
-	private Vec3d direction;
 	private final Function<GoatEntity, SoundEvent> impactSoundFactory;
 	private final Function<GoatEntity, SoundEvent> hornBreakSoundFactory;
+	private Vec3d direction;
 
 	public RamImpactTask(
 			Function<GoatEntity, UniformIntProvider> cooldownRangeFactory,
@@ -56,7 +67,7 @@ public class RamImpactTask extends MultiTickTask<GoatEntity> {
 						MemoryModuleType.RAM_TARGET,
 						MemoryModuleState.VALUE_PRESENT
 				),
-				200
+				RUN_TIME
 		);
 		this.cooldownRangeFactory = cooldownRangeFactory;
 		this.targetPredicate = targetPredicate;
@@ -64,160 +75,120 @@ public class RamImpactTask extends MultiTickTask<GoatEntity> {
 		this.strengthMultiplierFactory = strengthMultiplierFactory;
 		this.impactSoundFactory = impactSoundFactory;
 		this.hornBreakSoundFactory = hornBreakSoundFactory;
-		this.direction = Vec3d.ZERO;
+		direction = Vec3d.ZERO;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param goatEntity goat entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, GoatEntity goatEntity) {
-		return goatEntity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
+	@Override
+	protected boolean shouldRun(ServerWorld world, GoatEntity entity) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param goatEntity goat entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
-		return goatEntity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, GoatEntity entity, long time) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param goatEntity goat entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
-		BlockPos blockPos = goatEntity.getBlockPos();
-		Brain<?> brain = goatEntity.getBrain();
-		Vec3d vec3d = brain.getOptionalRegisteredMemory(MemoryModuleType.RAM_TARGET).get();
-		this.direction = new Vec3d(blockPos.getX() - vec3d.getX(), 0.0, blockPos.getZ() - vec3d.getZ()).normalize();
-		brain.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(vec3d, this.speed, 0));
+	@Override
+	protected void run(ServerWorld world, GoatEntity entity, long time) {
+		BlockPos entityPos = entity.getBlockPos();
+		Brain<?> brain = entity.getBrain();
+		Vec3d ramTarget = brain.getOptionalRegisteredMemory(MemoryModuleType.RAM_TARGET).get();
+
+		direction = new Vec3d(entityPos.getX() - ramTarget.getX(), 0.0, entityPos.getZ() - ramTarget.getZ()).normalize();
+		brain.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(ramTarget, speed, 0));
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param goatEntity goat entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
-		List<LivingEntity>
-				list =
-				serverWorld.getTargets(
-						LivingEntity.class,
-						this.targetPredicate,
-						goatEntity,
-						goatEntity.getBoundingBox()
-				);
-		Brain<?> brain = goatEntity.getBrain();
-		if (!list.isEmpty()) {
-			LivingEntity livingEntity = list.get(0);
-			DamageSource damageSource = serverWorld.getDamageSources().mobAttackNoAggro(goatEntity);
-			float f = (float) goatEntity.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-			if (livingEntity.damage(serverWorld, damageSource, f)) {
-				EnchantmentHelper.onTargetDamaged(serverWorld, livingEntity, damageSource);
+	@Override
+	protected void keepRunning(ServerWorld world, GoatEntity entity, long time) {
+		List<LivingEntity> targets = world.getTargets(
+				LivingEntity.class,
+				targetPredicate,
+				entity,
+				entity.getBoundingBox()
+		);
+		Brain<?> brain = entity.getBrain();
+
+		if (!targets.isEmpty()) {
+			LivingEntity target = targets.get(0);
+			DamageSource damageSource = world.getDamageSources().mobAttackNoAggro(entity);
+			float attackDamage = (float) entity.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+
+			if (target.damage(world, damageSource, attackDamage)) {
+				EnchantmentHelper.onTargetDamaged(world, target, damageSource);
 			}
 
-			int
-					i =
-					goatEntity.hasStatusEffect(StatusEffects.SPEED) ?
-					goatEntity.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1 : 0;
-			int
-					j =
-					goatEntity.hasStatusEffect(StatusEffects.SLOWNESS) ?
-					goatEntity.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1 : 0;
-			float g = 0.25F * (i - j);
-			float h = MathHelper.clamp(goatEntity.getMovementSpeed() * 1.65F, 0.2F, 3.0F) + g;
-			DamageSource damageSource2 = serverWorld.getDamageSources().mobAttack(goatEntity);
-			float k = livingEntity.getDamageBlockedAmount(serverWorld, damageSource2, f);
-			float m = k > 0.0F ? 0.5F : 1.0F;
-			livingEntity.takeKnockback(
-					m * h * this.strengthMultiplierFactory.applyAsDouble(goatEntity),
-					this.direction.getX(),
-					this.direction.getZ()
+			int speedAmplifier = entity.hasStatusEffect(StatusEffects.SPEED)
+					? entity.getStatusEffect(StatusEffects.SPEED).getAmplifier() + 1
+					: 0;
+			int slownessAmplifier = entity.hasStatusEffect(StatusEffects.SLOWNESS)
+					? entity.getStatusEffect(StatusEffects.SLOWNESS).getAmplifier() + 1
+					: 0;
+			float effectBonus = SPEED_EFFECT_MULTIPLIER * (speedAmplifier - slownessAmplifier);
+			float knockbackSpeed = MathHelper.clamp(
+					entity.getMovementSpeed() * SPEED_STRENGTH_MULTIPLIER,
+					MIN_KNOCKBACK_SPEED,
+					MAX_KNOCKBACK_SPEED
+			) + effectBonus;
+
+			DamageSource blockCheckSource = world.getDamageSources().mobAttack(entity);
+			float blockedAmount = target.getDamageBlockedAmount(world, blockCheckSource, attackDamage);
+			float knockbackFactor = blockedAmount > 0.0F ? KNOCKBACK_BLOCKED_FACTOR : KNOCKBACK_UNBLOCKED_FACTOR;
+
+			target.takeKnockback(
+					knockbackFactor * knockbackSpeed * strengthMultiplierFactory.applyAsDouble(entity),
+					direction.getX(),
+					direction.getZ()
 			);
-			this.finishRam(serverWorld, goatEntity);
-			serverWorld.playSoundFromEntity(
-					null,
-					goatEntity,
-					this.impactSoundFactory.apply(goatEntity),
-					SoundCategory.NEUTRAL,
-					1.0F,
-					1.0F
-			);
+			finishRam(world, entity);
+			world.playSoundFromEntity(null, entity, impactSoundFactory.apply(entity), SoundCategory.NEUTRAL, 1.0F, 1.0F);
+			return;
 		}
-		else if (this.shouldSnapHorn(serverWorld, goatEntity)) {
-			serverWorld.playSoundFromEntity(
-					null,
-					goatEntity,
-					this.impactSoundFactory.apply(goatEntity),
-					SoundCategory.NEUTRAL,
-					1.0F,
-					1.0F
-			);
-			boolean bl = goatEntity.dropHorn();
-			if (bl) {
-				serverWorld.playSoundFromEntity(
+
+		if (shouldSnapHorn(world, entity)) {
+			world.playSoundFromEntity(null, entity, impactSoundFactory.apply(entity), SoundCategory.NEUTRAL, 1.0F, 1.0F);
+
+			boolean hornDropped = entity.dropHorn();
+
+			if (hornDropped) {
+				world.playSoundFromEntity(
 						null,
-						goatEntity,
-						this.hornBreakSoundFactory.apply(goatEntity),
+						entity,
+						hornBreakSoundFactory.apply(entity),
 						SoundCategory.NEUTRAL,
 						1.0F,
 						1.0F
 				);
 			}
 
-			this.finishRam(serverWorld, goatEntity);
+			finishRam(world, entity);
+			return;
 		}
-		else {
-			Optional<WalkTarget> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.WALK_TARGET);
-			Optional<Vec3d> optional2 = brain.getOptionalRegisteredMemory(MemoryModuleType.RAM_TARGET);
-			boolean
-					bl2 =
-					optional.isEmpty() || optional2.isEmpty() || optional
-							.get()
-							.getLookTarget()
-							.getPos()
-							.isInRange(optional2.get(), 0.25);
-			if (bl2) {
-				this.finishRam(serverWorld, goatEntity);
-			}
+
+		Optional<WalkTarget> walkTarget = brain.getOptionalRegisteredMemory(MemoryModuleType.WALK_TARGET);
+		Optional<Vec3d> ramTarget = brain.getOptionalRegisteredMemory(MemoryModuleType.RAM_TARGET);
+		boolean reachedTarget = walkTarget.isEmpty()
+				|| ramTarget.isEmpty()
+				|| walkTarget.get().getLookTarget().getPos().isInRange(ramTarget.get(), RAM_REACHED_THRESHOLD);
+
+		if (reachedTarget) {
+			finishRam(world, entity);
 		}
 	}
 
 	private boolean shouldSnapHorn(ServerWorld world, GoatEntity goat) {
-		Vec3d vec3d = goat.getVelocity().multiply(1.0, 0.0, 1.0).normalize();
-		BlockPos blockPos = BlockPos.ofFloored(goat.getEntityPos().add(vec3d));
-		return world.getBlockState(blockPos).isIn(BlockTags.SNAPS_GOAT_HORN) || world
-				.getBlockState(blockPos.up())
-				.isIn(BlockTags.SNAPS_GOAT_HORN);
+		Vec3d moveDir = goat.getVelocity().multiply(1.0, 0.0, 1.0).normalize();
+		BlockPos frontPos = BlockPos.ofFloored(goat.getEntityPos().add(moveDir));
+
+		return world.getBlockState(frontPos).isIn(BlockTags.SNAPS_GOAT_HORN)
+				|| world.getBlockState(frontPos.up()).isIn(BlockTags.SNAPS_GOAT_HORN);
 	}
 
-	/**
-	 * Finish ram.
-	 *
-	 * @param world world
-	 * @param goat goat
-	 */
 	protected void finishRam(ServerWorld world, GoatEntity goat) {
-		world.sendEntityStatus(goat, (byte) 59);
-		goat
-				.getBrain()
-				.remember(MemoryModuleType.RAM_COOLDOWN_TICKS, this.cooldownRangeFactory.apply(goat).get(world.random));
+		world.sendEntityStatus(goat, STATUS_FINISH_RAM);
+		goat.getBrain().remember(
+				MemoryModuleType.RAM_COOLDOWN_TICKS,
+				cooldownRangeFactory.apply(goat).get(world.random)
+		);
 		goat.getBrain().forget(MemoryModuleType.RAM_TARGET);
 	}
 }

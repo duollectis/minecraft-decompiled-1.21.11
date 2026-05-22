@@ -1,7 +1,6 @@
 package net.minecraft.client.gui.screen;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.UnmodifiableIterator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.font.Alignment;
@@ -15,18 +14,22 @@ import net.minecraft.text.Texts;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GraphicsWarningScreen}.
+ * Экран предупреждения о настройках графики с набором кнопок выбора.
+ * Используется для отображения несовместимых или рискованных параметров рендеринга.
  */
+@Environment(EnvType.CLIENT)
 public class GraphicsWarningScreen extends Screen {
 
 	private static final int BUTTON_PADDING = 20;
 	private static final int BUTTON_MARGIN = 5;
 	private static final int BUTTON_HEIGHT = 20;
+	private static final int LINE_HEIGHT = 9;
+	private static final int TITLE_Y_OFFSET = 2;
+
 	private final Text narrationMessage;
 	private final List<Text> message;
-	private final ImmutableList<GraphicsWarningScreen.ChoiceButton> choiceButtons;
+	private final ImmutableList<ChoiceButton> choiceButtons;
 	private MultilineText lines = MultilineText.EMPTY;
 	private int linesY;
 	private int buttonWidth;
@@ -34,7 +37,7 @@ public class GraphicsWarningScreen extends Screen {
 	public GraphicsWarningScreen(
 			Text title,
 			List<Text> messages,
-			ImmutableList<GraphicsWarningScreen.ChoiceButton> choiceButtons
+			ImmutableList<ChoiceButton> choiceButtons
 	) {
 		super(title);
 		this.message = messages;
@@ -44,41 +47,44 @@ public class GraphicsWarningScreen extends Screen {
 
 	@Override
 	public Text getNarratedTitle() {
-		return this.narrationMessage;
+		return narrationMessage;
 	}
 
 	@Override
 	public void init() {
-		UnmodifiableIterator i = this.choiceButtons.iterator();
-
-		while (i.hasNext()) {
-			GraphicsWarningScreen.ChoiceButton choiceButton = (GraphicsWarningScreen.ChoiceButton) i.next();
-			this.buttonWidth = Math.max(this.buttonWidth, 20 + this.textRenderer.getWidth(choiceButton.message) + 20);
+		for (ChoiceButton choiceButton : choiceButtons) {
+			buttonWidth = Math.max(
+				buttonWidth,
+				BUTTON_PADDING + textRenderer.getWidth(choiceButton.message) + BUTTON_PADDING
+			);
 		}
 
-		int ix = 5 + this.buttonWidth + 5;
-		int j = ix * this.choiceButtons.size();
-		this.lines = MultilineText.create(this.textRenderer, j, this.message.toArray(new Text[0]));
-		int k = this.lines.getLineCount() * 9;
-		this.linesY = (int) (this.height / 2.0 - k / 2.0);
-		int l = this.linesY + k + 9 * 2;
-		int m = (int) (this.width / 2.0 - j / 2.0);
+		int buttonStride = BUTTON_MARGIN + buttonWidth + BUTTON_MARGIN;
+		int totalButtonsWidth = buttonStride * choiceButtons.size();
+		lines = MultilineText.create(textRenderer, totalButtonsWidth, message.toArray(new Text[0]));
 
-		for (UnmodifiableIterator var6 = this.choiceButtons.iterator(); var6.hasNext(); m += ix) {
-			GraphicsWarningScreen.ChoiceButton choiceButton2 = (GraphicsWarningScreen.ChoiceButton) var6.next();
-			this.addDrawableChild(ButtonWidget
-					.builder(choiceButton2.message, choiceButton2.pressAction)
-					.dimensions(m, l, this.buttonWidth, 20)
-					.build());
+		int linesHeight = lines.getLineCount() * LINE_HEIGHT;
+		linesY = (int) (height / 2.0 - linesHeight / 2.0);
+
+		int buttonsY = linesY + linesHeight + LINE_HEIGHT * TITLE_Y_OFFSET;
+		int buttonX = (int) (width / 2.0 - totalButtonsWidth / 2.0);
+
+		for (ChoiceButton choiceButton : choiceButtons) {
+			addDrawableChild(
+				ButtonWidget.builder(choiceButton.message, choiceButton.pressAction)
+					.dimensions(buttonX, buttonsY, buttonWidth, BUTTON_HEIGHT)
+					.build()
+			);
+			buttonX += buttonStride;
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, this.linesY - 9 * 2, -1);
-		this.lines.draw(Alignment.CENTER, this.width / 2, this.linesY, 9, drawnTextConsumer);
+		DrawnTextConsumer textConsumer = context.getTextConsumer();
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, linesY - LINE_HEIGHT * TITLE_Y_OFFSET, -1);
+		lines.draw(Alignment.CENTER, width / 2, linesY, LINE_HEIGHT, textConsumer);
 	}
 
 	@Override
@@ -86,10 +92,10 @@ public class GraphicsWarningScreen extends Screen {
 		return false;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ChoiceButton}.
+	 * Кнопка выбора с текстом и обработчиком нажатия для экрана предупреждения.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static final class ChoiceButton {
 
 		final Text message;

@@ -21,7 +21,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code BigDripleafStemBlock}.
+ * Стебель большого листа капли. Промежуточный блок колонии {@link BigDripleafBlock}:
+ * должен иметь снизу другой стебель или подходящий блок ({@code BIG_DRIPLEAF_PLACEABLE}),
+ * а сверху — стебель или лист. При нарушении опоры планирует разрушение через 1 тик.
  */
 public class BigDripleafStemBlock extends HorizontalFacingBlock implements Fertilizable, Waterloggable {
 
@@ -38,7 +40,7 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 
 	public BigDripleafStemBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(WATERLOGGED, false)
 				.with(FACING, Direction.NORTH));
@@ -61,32 +63,22 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		BlockState blockState = world.getBlockState(blockPos);
-		BlockState blockState2 = world.getBlockState(pos.up());
-		return (blockState.isOf(this) || blockState.isIn(BlockTags.BIG_DRIPLEAF_PLACEABLE)) && (blockState2.isOf(this)
-				|| blockState2.isOf(Blocks.BIG_DRIPLEAF)
-		);
+		BlockState belowState = world.getBlockState(pos.down());
+		BlockState aboveState = world.getBlockState(pos.up());
+
+		boolean hasValidBase = belowState.isOf(this) || belowState.isIn(BlockTags.BIG_DRIPLEAF_PLACEABLE);
+		boolean hasValidTop = aboveState.isOf(this) || aboveState.isOf(Blocks.BIG_DRIPLEAF);
+
+		return hasValidBase && hasValidTop;
 	}
 
-	/**
-	 * Размещает stem at.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param fluidState fluid state
-	 * @param direction direction
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected static boolean placeStemAt(WorldAccess world, BlockPos pos, FluidState fluidState, Direction direction) {
-		BlockState
-				blockState =
-				Blocks.BIG_DRIPLEAF_STEM
-						.getDefaultState()
-						.with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
-						.with(FACING, direction);
-		return world.setBlockState(pos, blockState, 3);
+		BlockState stemState = Blocks.BIG_DRIPLEAF_STEM
+				.getDefaultState()
+				.with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
+				.with(FACING, direction);
+
+		return world.setBlockState(pos, stemState, 3);
 	}
 
 	@Override
@@ -100,7 +92,9 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 			BlockState neighborState,
 			Random random
 	) {
-		if ((direction == Direction.DOWN || direction == Direction.UP) && !state.canPlaceAt(world, pos)) {
+		boolean isVertical = direction == Direction.DOWN || direction == Direction.UP;
+
+		if (isVertical && state.canPlaceAt(world, pos) == false) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
@@ -122,24 +116,23 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (!state.canPlaceAt(world, pos)) {
+		if (state.canPlaceAt(world, pos) == false) {
 			world.breakBlock(pos, true);
 		}
 	}
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		Optional<BlockPos>
-				optional =
-				BlockLocating.findColumnEnd(world, pos, state.getBlock(), Direction.UP, Blocks.BIG_DRIPLEAF);
-		if (optional.isEmpty()) {
+		Optional<BlockPos> leafPos = BlockLocating.findColumnEnd(world, pos, state.getBlock(), Direction.UP, Blocks.BIG_DRIPLEAF);
+
+		if (leafPos.isEmpty()) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = optional.get().up();
-			BlockState blockState = world.getBlockState(blockPos);
-			return BigDripleafBlock.canGrowInto(world, blockPos, blockState);
-		}
+
+		BlockPos aboveLeaf = leafPos.get().up();
+		BlockState aboveState = world.getBlockState(aboveLeaf);
+
+		return BigDripleafBlock.canGrowInto(world, aboveLeaf, aboveState);
 	}
 
 	@Override
@@ -149,16 +142,18 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		Optional<BlockPos>
-				optional =
-				BlockLocating.findColumnEnd(world, pos, state.getBlock(), Direction.UP, Blocks.BIG_DRIPLEAF);
-		if (!optional.isEmpty()) {
-			BlockPos blockPos = optional.get();
-			BlockPos blockPos2 = blockPos.up();
-			Direction direction = state.get(FACING);
-			placeStemAt(world, blockPos, world.getFluidState(blockPos), direction);
-			BigDripleafBlock.placeDripleafAt(world, blockPos2, world.getFluidState(blockPos2), direction);
+		Optional<BlockPos> leafPos = BlockLocating.findColumnEnd(world, pos, state.getBlock(), Direction.UP, Blocks.BIG_DRIPLEAF);
+
+		if (leafPos.isEmpty()) {
+			return;
 		}
+
+		BlockPos topLeaf = leafPos.get();
+		BlockPos aboveLeaf = topLeaf.up();
+		Direction facing = state.get(FACING);
+
+		placeStemAt(world, topLeaf, world.getFluidState(topLeaf), facing);
+		BigDripleafBlock.placeDripleafAt(world, aboveLeaf, world.getFluidState(aboveLeaf), facing);
 	}
 
 	@Override

@@ -28,59 +28,71 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * {@code StorageIoWorker}.
+ * Асинхронный I/O-воркер для чтения и записи данных чанков.
+ * Буферизует незаписанные результаты в {@link #results} и сбрасывает их
+ * в фоновом приоритете через {@link PrioritizedConsecutiveExecutor}.
+ *
+ * <p>Приоритеты задач: {@link Priority#FOREGROUND} — пользовательские запросы,
+ * {@link Priority#BACKGROUND} — фоновая запись, {@link Priority#SHUTDOWN} — завершение.
  */
 public class StorageIoWorker implements NbtScannable, AutoCloseable {
 
+	/** Поставщик, возвращающий {@code null} — используется для удаления данных чанка. */
 	public static final Supplier<NbtCompound> NULL_NBT_SUPPLIER = () -> null;
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int MAX_BLENDING_CACHE_SIZE = 1024;
+	/** DataVersion, до которого чанки требуют blending при загрузке в новый движок. */
+	private static final int BLENDING_REQUIRED_BEFORE_VERSION = 4295;
+
 	private final AtomicBoolean closed = new AtomicBoolean();
 	private final PrioritizedConsecutiveExecutor executor;
 	private final RegionBasedStorage storage;
-	private final SequencedMap<ChunkPos, StorageIoWorker.Result> results = new LinkedHashMap<>();
-	private final Long2ObjectLinkedOpenHashMap<CompletableFuture<BitSet>>
-			blendingStatusCaches =
-			new Long2ObjectLinkedOpenHashMap();
-	private static final int MAX_CACHE_SIZE = 1024;
+	private final SequencedMap<ChunkPos, Result> results = new LinkedHashMap<>();
+	private final Long2ObjectLinkedOpenHashMap<CompletableFuture<BitSet>> blendingStatusCaches =
+		new Long2ObjectLinkedOpenHashMap<>();
 
 	protected StorageIoWorker(StorageKey storageKey, Path directory, boolean dsync) {
 		this.storage = new RegionBasedStorage(storageKey, directory, dsync);
-		this.executor =
-				new PrioritizedConsecutiveExecutor(
-						StorageIoWorker.Priority.values().length,
-						Util.getIoWorkerExecutor(),
-						"IOWorker-" + storageKey.type()
-				);
+		this.executor = new PrioritizedConsecutiveExecutor(
+			Priority.values().length,
+			Util.getIoWorkerExecutor(),
+			"IOWorker-" + storageKey.type()
+		);
 	}
 
 	/**
-	 * Needs blending.
+	 * Проверяет, нужен ли blending хотя бы для одного чанка в заданном радиусе.
+	 * Результаты кэшируются по регионам для повторных запросов.
 	 *
-	 * @param chunkPos chunk pos
-	 * @param checkRadius check radius
-	 *
-	 * @return boolean — результат операции
+	 * @param chunkPos центральный чанк
+	 * @param checkRadius радиус проверки в чанках
+	 * @return {@code true}, если хотя бы один чанк в радиусе требует blending
 	 */
 	public boolean needsBlending(ChunkPos chunkPos, int checkRadius) {
-		ChunkPos chunkPos2 = new ChunkPos(chunkPos.x - checkRadius, chunkPos.z - checkRadius);
-		ChunkPos chunkPos3 = new ChunkPos(chunkPos.x + checkRadius, chunkPos.z + checkRadius);
+		ChunkPos minPos = new ChunkPos(chunkPos.x - checkRadius, chunkPos.z - checkRadius);
+		ChunkPos maxPos = new ChunkPos(chunkPos.x + checkRadius, chunkPos.z + checkRadius);
 
-		for (int i = chunkPos2.getRegionX(); i <= chunkPos3.getRegionX(); i++) {
-			for (int j = chunkPos2.getRegionZ(); j <= chunkPos3.getRegionZ(); j++) {
-				BitSet bitSet = this.getOrComputeBlendingStatus(i, j).join();
-				if (!bitSet.isEmpty()) {
-					ChunkPos chunkPos4 = ChunkPos.fromRegion(i, j);
-					int k = Math.max(chunkPos2.x - chunkPos4.x, 0);
-					int l = Math.max(chunkPos2.z - chunkPos4.z, 0);
-					int m = Math.min(chunkPos3.x - chunkPos4.x, 31);
-					int n = Math.min(chunkPos3.z - chunkPos4.z, 31);
+		for (int regionX = minPos.getRegionX(); regionX <= maxPos.getRegionX(); regionX++) {
+			for (int regionZ = minPos.getRegionZ(); regionZ <= maxPos.getRegionZ(); regionZ++) {
+				BitSet blendingBits = getOrComputeBlendingStatus(regionX, regionZ).join();
 
-					for (int o = k; o <= m; o++) {
-						for (int p = l; p <= n; p++) {
-							int q = p * 32 + o;
-							if (bitSet.get(q)) {
-								return true;
-							}
+				if (blendingBits.isEmpty()) {
+					continue;
+				}
+
+				ChunkPos regionOrigin = ChunkPos.fromRegion(regionX, regionZ);
+				int localMinX = Math.max(minPos.x - regionOrigin.x, 0);
+				int localMinZ = Math.max(minPos.z - regionOrigin.z, 0);
+				int localMaxX = Math.min(maxPos.x - regionOrigin.x, 31);
+				int localMaxZ = Math.min(maxPos.z - regionOrigin.z, 31);
+
+				for (int localX = localMinX; localX <= localMaxX; localX++) {
+					for (int localZ = localMinZ; localZ <= localMaxZ; localZ++) {
+						int bitIndex = localZ * 32 + localX;
+
+						if (blendingBits.get(bitIndex)) {
+							return true;
 						}
 					}
 				}
@@ -90,274 +102,262 @@ public class StorageIoWorker implements NbtScannable, AutoCloseable {
 		return false;
 	}
 
-	private CompletableFuture<BitSet> getOrComputeBlendingStatus(int chunkX, int chunkZ) {
-		long l = ChunkPos.toLong(chunkX, chunkZ);
-		synchronized (this.blendingStatusCaches) {
-			CompletableFuture<BitSet>
-					completableFuture =
-					(CompletableFuture<BitSet>) this.blendingStatusCaches.getAndMoveToFirst(l);
-			if (completableFuture == null) {
-				completableFuture = this.computeBlendingStatus(chunkX, chunkZ);
-				this.blendingStatusCaches.putAndMoveToFirst(l, completableFuture);
-				if (this.blendingStatusCaches.size() > 1024) {
-					this.blendingStatusCaches.removeLast();
+	private CompletableFuture<BitSet> getOrComputeBlendingStatus(int regionX, int regionZ) {
+		long regionKey = ChunkPos.toLong(regionX, regionZ);
+
+		synchronized (blendingStatusCaches) {
+			CompletableFuture<BitSet> cached = blendingStatusCaches.getAndMoveToFirst(regionKey);
+
+			if (cached == null) {
+				cached = computeBlendingStatus(regionX, regionZ);
+				blendingStatusCaches.putAndMoveToFirst(regionKey, cached);
+
+				if (blendingStatusCaches.size() > MAX_BLENDING_CACHE_SIZE) {
+					blendingStatusCaches.removeLast();
 				}
 			}
 
-			return completableFuture;
+			return cached;
 		}
 	}
 
-	private CompletableFuture<BitSet> computeBlendingStatus(int chunkX, int chunkZ) {
+	private CompletableFuture<BitSet> computeBlendingStatus(int regionX, int regionZ) {
 		return CompletableFuture.supplyAsync(
-				() -> {
-					ChunkPos chunkPos = ChunkPos.fromRegion(chunkX, chunkZ);
-					ChunkPos chunkPos2 = ChunkPos.fromRegionCenter(chunkX, chunkZ);
-					BitSet bitSet = new BitSet();
-					ChunkPos.stream(chunkPos, chunkPos2)
-					        .forEach(
-							        chunkPosx -> {
-								        SelectiveNbtCollector selectiveNbtCollector = new SelectiveNbtCollector(
-										        new NbtScanQuery(NbtInt.TYPE, "DataVersion"),
-										        new NbtScanQuery(NbtCompound.TYPE, "blending_data")
-								        );
+			() -> {
+				ChunkPos regionStart = ChunkPos.fromRegion(regionX, regionZ);
+				ChunkPos regionCenter = ChunkPos.fromRegionCenter(regionX, regionZ);
+				BitSet blendingBits = new BitSet();
 
-								        try {
-									        this.scanChunk(chunkPosx, selectiveNbtCollector).join();
-								        }
-								        catch (Exception var7) {
-									        LOGGER.warn("Failed to scan chunk {}", chunkPosx, var7);
-									        return;
-								        }
+				ChunkPos.stream(regionStart, regionCenter).forEach(chunkPos -> {
+					SelectiveNbtCollector collector = new SelectiveNbtCollector(
+						new NbtScanQuery(NbtInt.TYPE, "DataVersion"),
+						new NbtScanQuery(NbtCompound.TYPE, "blending_data")
+					);
 
-								        if (selectiveNbtCollector.getRoot() instanceof NbtCompound nbtCompound
-										        && this.needsBlending(nbtCompound)) {
-									        int
-											        ix =
-											        chunkPosx.getRegionRelativeZ() * 32
-													        + chunkPosx.getRegionRelativeX();
-									        bitSet.set(ix);
-								        }
-							        }
-					        );
-					return bitSet;
-				},
-				Util.getMainWorkerExecutor()
+					try {
+						scanChunk(chunkPos, collector).join();
+					}
+					catch (Exception exception) {
+						LOGGER.warn("Failed to scan chunk {}", chunkPos, exception);
+						return;
+					}
+
+					if (collector.getRoot() instanceof NbtCompound nbtCompound && requiresBlending(nbtCompound)) {
+						int bitIndex = chunkPos.getRegionRelativeZ() * ChunkPos.CHUNKS_PER_REGION
+							+ chunkPos.getRegionRelativeX();
+						blendingBits.set(bitIndex);
+					}
+				});
+
+				return blendingBits;
+			},
+			Util.getMainWorkerExecutor()
 		);
 	}
 
-	private boolean needsBlending(NbtCompound nbt) {
-		return nbt.getInt("DataVersion", 0) < 4295 ? true : nbt.getCompound("blending_data").isPresent();
+	private boolean requiresBlending(NbtCompound nbt) {
+		return nbt.getInt("DataVersion", 0) < BLENDING_REQUIRED_BEFORE_VERSION
+			|| nbt.getCompound("blending_data").isPresent();
 	}
 
 	public CompletableFuture<Void> setResult(ChunkPos pos, NbtCompound nbt) {
-		return this.setResult(pos, () -> nbt);
-	}
-
-	public CompletableFuture<Void> setResult(ChunkPos pos, Supplier<NbtCompound> nbtSupplier) {
-		return this.<CompletableFuture<Void>>run((Supplier<CompletableFuture<Void>>) (() -> {
-			NbtCompound nbtCompound = nbtSupplier.get();
-			StorageIoWorker.Result
-					result =
-					this.results.computeIfAbsent(pos, pos2 -> new StorageIoWorker.Result(nbtCompound));
-			result.nbt = nbtCompound;
-			return result.future;
-		}
-		)).thenCompose(Function.identity());
+		return setResult(pos, () -> nbt);
 	}
 
 	/**
-	 * Читает chunk data.
-	 *
-	 * @param pos pos
-	 *
-	 * @return CompletableFuture> — результат операции
+	 * Буферизует NBT-данные чанка для последующей записи на диск.
+	 * Если запись для этой позиции уже ожидает — обновляет данные, сохраняя тот же Future.
+	 */
+	public CompletableFuture<Void> setResult(ChunkPos pos, Supplier<NbtCompound> nbtSupplier) {
+		return this.<CompletableFuture<Void>>run(() -> {
+			NbtCompound nbt = nbtSupplier.get();
+			Result result = results.computeIfAbsent(pos, ignored -> new Result(nbt));
+			result.nbt = nbt;
+			return result.future;
+		}).thenCompose(Function.identity());
+	}
+
+	/**
+	 * Асинхронно читает данные чанка.
+	 * Если чанк ожидает записи в буфере — возвращает его копию без обращения к диску.
 	 */
 	public CompletableFuture<Optional<NbtCompound>> readChunkData(ChunkPos pos) {
-		return this.run((StorageIoWorker.Callable<Optional<NbtCompound>>) (() -> {
-			StorageIoWorker.Result result = this.results.get(pos);
-			if (result != null) {
-				return Optional.ofNullable(result.copyNbt());
+		return runChecked(() -> {
+			Result buffered = results.get(pos);
+
+			if (buffered != null) {
+				return Optional.ofNullable(buffered.copyNbt());
 			}
-			else {
-				try {
-					NbtCompound nbtCompound = this.storage.getTagAt(pos);
-					return Optional.ofNullable(nbtCompound);
-				}
-				catch (Exception var4) {
-					LOGGER.warn("Failed to read chunk {}", pos, var4);
-					throw var4;
-				}
+
+			try {
+				return Optional.ofNullable(storage.getTagAt(pos));
 			}
-		}
-		));
+			catch (Exception exception) {
+				LOGGER.warn("Failed to read chunk {}", pos, exception);
+				throw exception;
+			}
+		});
 	}
 
 	/**
-	 * Complete all.
+	 * Ожидает завершения всех ожидающих операций записи.
 	 *
-	 * @param sync sync
-	 *
-	 * @return CompletableFuture — результат операции
+	 * @param sync если {@code true} — дополнительно синхронизирует файлы на диск (fsync)
 	 */
 	public CompletableFuture<Void> completeAll(boolean sync) {
-		CompletableFuture<Void> completableFuture = this.<CompletableFuture<Void>>run(
-				                                                (Supplier<CompletableFuture<Void>>) (() -> CompletableFuture.allOf(
-						                                                this.results.values().stream().map(result -> result.future).toArray(CompletableFuture[]::new)
-				                                                )
-				                                                )
-		                                                )
-		                                                .thenCompose(Function.identity());
-		return sync ? completableFuture.thenCompose(void_ -> this.run((StorageIoWorker.Callable<Void>) (() -> {
-			try {
-				this.storage.sync();
-				return null;
-			}
-			catch (Exception var2x) {
-				LOGGER.warn("Failed to synchronize chunks", var2x);
-				throw var2x;
-			}
+		CompletableFuture<Void> allPending = this.<CompletableFuture<Void>>run(
+			() -> CompletableFuture.allOf(
+				results.values().stream()
+					.map(result -> result.future)
+					.toArray(CompletableFuture[]::new)
+			)
+		).thenCompose(Function.identity());
+
+		if (sync) {
+			return allPending.thenCompose(ignored -> runChecked(() -> {
+				try {
+					storage.sync();
+					return null;
+				}
+				catch (Exception exception) {
+					LOGGER.warn("Failed to synchronize chunks", exception);
+					throw exception;
+				}
+			}));
 		}
-		))) : completableFuture.thenCompose(void_ -> this.run((Supplier<Void>) (() -> null)));
+
+		return allPending.thenCompose(ignored -> run(() -> (Void) null));
 	}
 
 	@Override
 	public CompletableFuture<Void> scanChunk(ChunkPos pos, NbtScanner scanner) {
-		return this.run((StorageIoWorker.Callable<Void>) (() -> {
+		return runChecked(() -> {
 			try {
-				StorageIoWorker.Result result = this.results.get(pos);
-				if (result != null) {
-					if (result.nbt != null) {
-						result.nbt.accept(scanner);
+				Result buffered = results.get(pos);
+
+				if (buffered != null) {
+					if (buffered.nbt != null) {
+						buffered.nbt.accept(scanner);
 					}
 				}
 				else {
-					this.storage.scanChunk(pos, scanner);
+					storage.scanChunk(pos, scanner);
 				}
 
 				return null;
 			}
-			catch (Exception var4) {
-				LOGGER.warn("Failed to bulk scan chunk {}", pos, var4);
-				throw var4;
+			catch (Exception exception) {
+				LOGGER.warn("Failed to bulk scan chunk {}", pos, exception);
+				throw exception;
 			}
-		}
-		));
+		});
 	}
 
-	private <T> CompletableFuture<T> run(StorageIoWorker.Callable<T> task) {
-		return this.executor.executeAsync(
-				StorageIoWorker.Priority.FOREGROUND.ordinal(), future -> {
-					if (!this.closed.get()) {
-						try {
-							future.complete(task.get());
-						}
-						catch (Exception var4) {
-							future.completeExceptionally(var4);
-						}
+	private <T> CompletableFuture<T> runChecked(Callable<T> task) {
+		return executor.executeAsync(
+			Priority.FOREGROUND.ordinal(), future -> {
+				if (!closed.get()) {
+					try {
+						future.complete(task.get());
 					}
-
-					this.writeRemainingResults();
+					catch (Exception exception) {
+						future.completeExceptionally(exception);
+					}
 				}
+
+				writeRemainingResults();
+			}
 		);
 	}
 
 	private <T> CompletableFuture<T> run(Supplier<T> task) {
-		return this.executor.executeAsync(
-				StorageIoWorker.Priority.FOREGROUND.ordinal(), completableFuture -> {
-					if (!this.closed.get()) {
-						completableFuture.complete(task.get());
-					}
-
-					this.writeRemainingResults();
+		return executor.executeAsync(
+			Priority.FOREGROUND.ordinal(), future -> {
+				if (!closed.get()) {
+					future.complete(task.get());
 				}
+
+				writeRemainingResults();
+			}
 		);
 	}
 
 	private void writeResult() {
-		Entry<ChunkPos, StorageIoWorker.Result> entry = this.results.pollFirstEntry();
-		if (entry != null) {
-			this.write(entry.getKey(), entry.getValue());
-			this.writeRemainingResults();
+		Entry<ChunkPos, Result> entry = results.pollFirstEntry();
+
+		if (entry == null) {
+			return;
 		}
+
+		write(entry.getKey(), entry.getValue());
+		writeRemainingResults();
 	}
 
 	private void writeRemainingResults() {
-		this.executor.send(new TaskQueue.PrioritizedTask(
-				StorageIoWorker.Priority.BACKGROUND.ordinal(),
-				this::writeResult
-		));
+		executor.send(new TaskQueue.PrioritizedTask(Priority.BACKGROUND.ordinal(), this::writeResult));
 	}
 
-	private void write(ChunkPos pos, StorageIoWorker.Result result) {
+	private void write(ChunkPos pos, Result result) {
 		try {
-			this.storage.write(pos, result.nbt);
+			storage.write(pos, result.nbt);
 			result.future.complete(null);
 		}
-		catch (Exception var4) {
-			LOGGER.error("Failed to store chunk {}", pos, var4);
-			result.future.completeExceptionally(var4);
+		catch (Exception exception) {
+			LOGGER.error("Failed to store chunk {}", pos, exception);
+			result.future.completeExceptionally(exception);
 		}
 	}
 
 	@Override
 	public void close() throws IOException {
-		if (this.closed.compareAndSet(false, true)) {
-			this.runRemainingTasks();
-			this.executor.close();
+		if (!closed.compareAndSet(false, true)) {
+			return;
+		}
 
-			try {
-				this.storage.close();
-			}
-			catch (Exception var2) {
-				LOGGER.error("Failed to close storage", var2);
-			}
+		runRemainingTasks();
+		executor.close();
+
+		try {
+			storage.close();
+		}
+		catch (Exception exception) {
+			LOGGER.error("Failed to close storage", exception);
 		}
 	}
 
 	private void runRemainingTasks() {
-		this.executor
-				.executeAsync(StorageIoWorker.Priority.SHUTDOWN.ordinal(), future -> future.complete(Unit.INSTANCE))
-				.join();
+		executor
+			.executeAsync(Priority.SHUTDOWN.ordinal(), future -> future.complete(Unit.INSTANCE))
+			.join();
 	}
 
 	public StorageKey getStorageKey() {
-		return this.storage.getStorageKey();
+		return storage.getStorageKey();
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Callable}.
-	 */
 	interface Callable<T> {
 
 		@Nullable T get() throws Exception;
 	}
 
-	/**
-	 * {@code Priority}.
-	 */
-	static enum Priority {
+	enum Priority {
 		FOREGROUND,
 		BACKGROUND,
-		SHUTDOWN;
+		SHUTDOWN
 	}
 
-	/**
-	 * {@code Result}.
-	 */
 	static class Result {
 
 		@Nullable NbtCompound nbt;
 		final CompletableFuture<Void> future = new CompletableFuture<>();
 
-		public Result(@Nullable NbtCompound nbt) {
+		Result(@Nullable NbtCompound nbt) {
 			this.nbt = nbt;
 		}
 
 		@Nullable NbtCompound copyNbt() {
-			NbtCompound nbtCompound = this.nbt;
-			return nbtCompound == null ? null : nbtCompound.copy();
+			return nbt == null ? null : nbt.copy();
 		}
 	}
 }

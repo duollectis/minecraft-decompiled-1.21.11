@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema135}.
+ * Схема версии 135: добавляет тип {@code PLAYER} с поддержкой пассажиров
+ * и жемчуга Края, а также тип {@code ENTITY_TREE} — рекурсивное дерево
+ * сущностей с вложенными пассажирами.
  */
 public class Schema135 extends Schema {
 

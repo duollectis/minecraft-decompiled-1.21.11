@@ -14,16 +14,19 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.Optional;
 
 /**
- * {@code UseCooldownComponent}.
- */
+	 * Компонент кулдауна использования предмета. Задаёт время перезарядки в секундах
+	 * и опциональную группу кулдауна (предметы одной группы делят общий кулдаун).
+	 */
 public record UseCooldownComponent(float seconds, Optional<Identifier> cooldownGroup) {
+
+	private static final float TICKS_PER_SECOND = 20.0F;
 
 	public static final Codec<UseCooldownComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.POSITIVE_FLOAT.fieldOf("seconds").forGetter(UseCooldownComponent::seconds),
-					                    Identifier.CODEC.optionalFieldOf("cooldown_group").forGetter(UseCooldownComponent::cooldownGroup)
-			                    )
-			                    .apply(instance, UseCooldownComponent::new)
+										Codecs.POSITIVE_FLOAT.fieldOf("seconds").forGetter(UseCooldownComponent::seconds),
+										Identifier.CODEC.optionalFieldOf("cooldown_group").forGetter(UseCooldownComponent::cooldownGroup)
+								)
+								.apply(instance, UseCooldownComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, UseCooldownComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.FLOAT,
@@ -38,18 +41,19 @@ public record UseCooldownComponent(float seconds, Optional<Identifier> cooldownG
 	}
 
 	public int getCooldownTicks() {
-		return (int) (this.seconds * 20.0F);
+		return (int) (seconds * TICKS_PER_SECOND);
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param stack stack
-	 * @param user user
-	 */
+		 * Устанавливает кулдаун для данного стека предмета игроку.
+		 * Для не-игровых сущностей кулдаун не применяется.
+		 *
+		 * @param stack стек предмета, для которого устанавливается кулдаун
+		 * @param user  сущность, использующая предмет
+		 */
 	public void set(ItemStack stack, LivingEntity user) {
 		if (user instanceof PlayerEntity playerEntity) {
-			playerEntity.getItemCooldownManager().set(stack, this.getCooldownTicks());
+			playerEntity.getItemCooldownManager().set(stack, getCooldownTicks());
 		}
 	}
 }

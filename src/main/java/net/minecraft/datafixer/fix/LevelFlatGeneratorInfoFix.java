@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code LevelFlatGeneratorInfoFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LevelFlatGeneratorInfoFix extends DataFix {
 
@@ -35,9 +35,9 @@ public class LevelFlatGeneratorInfoFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"LevelFlatGeneratorInfoFix",
-				this.getInputSchema().getType(TypeReferences.LEVEL),
+				getInputSchema().getType(TypeReferences.LEVEL),
 				levelTyped -> levelTyped.update(DSL.remainderFinder(), this::fixGeneratorOptions)
 		);
 	}

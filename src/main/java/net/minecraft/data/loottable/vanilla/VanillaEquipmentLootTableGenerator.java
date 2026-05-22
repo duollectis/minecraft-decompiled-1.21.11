@@ -29,15 +29,15 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<ArmorTrimPattern> impl = this.registries.getOrThrow(RegistryKeys.TRIM_PATTERN);
-		RegistryWrapper.Impl<ArmorTrimMaterial> impl2 = this.registries.getOrThrow(RegistryKeys.TRIM_MATERIAL);
-		RegistryWrapper.Impl<Enchantment> impl3 = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<ArmorTrimPattern> trimPatternLookup = registries.getOrThrow(RegistryKeys.TRIM_PATTERN);
+		RegistryWrapper.Impl<ArmorTrimMaterial> trimMaterialLookup = registries.getOrThrow(RegistryKeys.TRIM_MATERIAL);
+		RegistryWrapper.Impl<Enchantment> enchantmentLookup = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		ArmorTrim
 				armorTrim =
-				new ArmorTrim(impl2.getOrThrow(ArmorTrimMaterials.COPPER), impl.getOrThrow(ArmorTrimPatterns.FLOW));
+				new ArmorTrim(trimMaterialLookup.getOrThrow(ArmorTrimMaterials.COPPER), trimPatternLookup.getOrThrow(ArmorTrimPatterns.FLOW));
 		ArmorTrim
 				armorTrim2 =
-				new ArmorTrim(impl2.getOrThrow(ArmorTrimMaterials.COPPER), impl.getOrThrow(ArmorTrimPatterns.BOLT));
+				new ArmorTrim(trimMaterialLookup.getOrThrow(ArmorTrimMaterials.COPPER), trimPatternLookup.getOrThrow(ArmorTrimPatterns.BOLT));
 		lootTableBiConsumer.accept(
 				LootTables.TRIAL_CHAMBER_EQUIPMENT,
 				LootTable.builder()
@@ -50,7 +50,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 												                 Items.CHAINMAIL_HELMET,
 												                 Items.CHAINMAIL_CHESTPLATE,
 												                 armorTrim2,
-												                 impl3
+												                 enchantmentLookup
 										                 ).build())
 										                 .weight(4)
 						                 )
@@ -59,7 +59,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 										                 Items.IRON_HELMET,
 										                 Items.IRON_CHESTPLATE,
 										                 armorTrim,
-										                 impl3
+										                 enchantmentLookup
 								                 ).build())
 								                 .weight(2))
 						                 .with(LootTableEntry
@@ -67,7 +67,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 										                 Items.DIAMOND_HELMET,
 										                 Items.DIAMOND_CHESTPLATE,
 										                 armorTrim,
-										                 impl3
+										                 enchantmentLookup
 								                 ).build())
 								                 .weight(1))
 				         )
@@ -88,7 +88,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 								                          .apply(
 										                          new SetEnchantmentsLootFunction.Builder()
 												                          .enchantment(
-														                          impl3.getOrThrow(Enchantments.SHARPNESS),
+														                          enchantmentLookup.getOrThrow(Enchantments.SHARPNESS),
 														                          ConstantLootNumberProvider.create(1.0F)
 												                          )
 								                          )
@@ -98,7 +98,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 								                          .apply(
 										                          new SetEnchantmentsLootFunction.Builder()
 												                          .enchantment(
-														                          impl3.getOrThrow(Enchantments.KNOCKBACK),
+														                          enchantmentLookup.getOrThrow(Enchantments.KNOCKBACK),
 														                          ConstantLootNumberProvider.create(1.0F)
 												                          )
 								                          )
@@ -121,7 +121,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 								                 ItemEntry.builder(Items.BOW)
 								                          .apply(
 										                          new SetEnchantmentsLootFunction.Builder().enchantment(
-												                          impl3.getOrThrow(Enchantments.POWER),
+												                          enchantmentLookup.getOrThrow(Enchantments.POWER),
 												                          ConstantLootNumberProvider.create(1.0F)
 										                          )
 								                          )
@@ -130,7 +130,7 @@ public record VanillaEquipmentLootTableGenerator(RegistryWrapper.WrapperLookup r
 								                 ItemEntry.builder(Items.BOW)
 								                          .apply(
 										                          new SetEnchantmentsLootFunction.Builder().enchantment(
-												                          impl3.getOrThrow(Enchantments.PUNCH),
+												                          enchantmentLookup.getOrThrow(Enchantments.PUNCH),
 												                          ConstantLootNumberProvider.create(1.0F)
 										                          )
 								                          )

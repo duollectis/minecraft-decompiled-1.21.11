@@ -16,7 +16,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code LoomBlock}.
+ * Блок ткацкого станка. Открывает экран нанесения узоров на знамёна.
+ * Ориентируется горизонтально при установке.
  */
 public class LoomBlock extends HorizontalFacingBlock {
 

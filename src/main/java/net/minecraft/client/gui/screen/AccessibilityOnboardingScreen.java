@@ -15,26 +15,34 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.MathHelper;
+import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AccessibilityOnboardingScreen}.
+ * Экран первоначальной настройки доступности, отображаемый при первом запуске игры.
+ * Предлагает включить нарратор, перейти в настройки доступности или сменить язык.
+ * Поддерживает анимацию появления и исчезновения (fade-in/fade-out).
  */
+@Environment(EnvType.CLIENT)
 public class AccessibilityOnboardingScreen extends Screen {
 
 	private static final Text TITLE_TEXT = Text.translatable("accessibility.onboarding.screen.title");
 	private static final Text NARRATOR_PROMPT = Text.translatable("accessibility.onboarding.screen.narrator");
 	private static final int WIDGET_MARGIN = 4;
-	private static final int NARRATOR_PROMPT_TICKS = 16;
+	private static final int NARRATOR_PROMPT_TICKS = 40;
 	private static final float CLOSE_FADE_DURATION_MS = 1000.0F;
+	private static final float OPEN_FADE_DURATION_MS = 2000.0F;
 	private static final int CONTENT_WIDTH = 374;
+	private static final int LOGO_Y_MARGIN = 90;
+	private static final int LAYOUT_HEADER_HEIGHT = 33;
+
 	private final LogoDrawer logoDrawer;
 	private final GameOptions gameOptions;
 	private final boolean isNarratorUsable;
+	private final Runnable onClose;
+	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this, LOGO_Y_MARGIN, LAYOUT_HEADER_HEIGHT);
+	private @Nullable CyclingButtonWidget<?> narratorToggleButton;
 	private boolean narratorPrompted;
 	private float narratorPromptTimer;
-	private final Runnable onClose;
-	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this, this.yMargin(), 33);
 	private float fadeTime;
 	private boolean fading = true;
 	private float closeTime;
@@ -43,127 +51,100 @@ public class AccessibilityOnboardingScreen extends Screen {
 		super(TITLE_TEXT);
 		this.gameOptions = gameOptions;
 		this.onClose = onClose;
-		this.logoDrawer = new LogoDrawer(true);
-		this.isNarratorUsable = MinecraftClient.getInstance().getNarratorManager().isActive();
+		logoDrawer = new LogoDrawer(true);
+		isNarratorUsable = MinecraftClient.getInstance().getNarratorManager().isActive();
 	}
 
 	@Override
 	public void init() {
-		DirectionalLayoutWidget directionalLayoutWidget = this.layout.addBody(DirectionalLayoutWidget.vertical());
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter().margin(4);
-		directionalLayoutWidget.add(
-				NarratedMultilineTextWidget
-						.builder(this.title, this.textRenderer)
-						.width(374)
-						.build(), positioner -> positioner.margin(8)
+		DirectionalLayoutWidget contentLayout = layout.addBody(DirectionalLayoutWidget.vertical());
+		contentLayout.getMainPositioner().alignHorizontalCenter().margin(WIDGET_MARGIN);
+		contentLayout.add(
+			NarratedMultilineTextWidget.builder(title, textRenderer).width(CONTENT_WIDTH).build(),
+			positioner -> positioner.margin(8)
 		);
-		if (this.gameOptions
-				.getNarrator()
-				.createWidget(this.gameOptions) instanceof CyclingButtonWidget cyclingButtonWidget) {
-			this.narratorToggleButton = cyclingButtonWidget;
-			this.narratorToggleButton.active = this.isNarratorUsable;
-			directionalLayoutWidget.add(this.narratorToggleButton);
+
+		if (gameOptions.getNarrator().createWidget(gameOptions) instanceof CyclingButtonWidget<?> cyclingButton) {
+			narratorToggleButton = cyclingButton;
+			narratorToggleButton.active = isNarratorUsable;
+			contentLayout.add(narratorToggleButton);
 		}
 
-		directionalLayoutWidget.add(
-				AccessibilityOnboardingButtons.createAccessibilityButton(
-						150, button -> this.setScreen(new AccessibilityOptionsScreen(this, this.client.options)), false
-				)
+		contentLayout.add(
+			AccessibilityOnboardingButtons.createAccessibilityButton(
+				150, button -> setScreen(new AccessibilityOptionsScreen(this, client.options)), false
+			)
 		);
-		directionalLayoutWidget.add(
-				AccessibilityOnboardingButtons.createLanguageButton(
-						150,
-						button -> this.setScreen(new LanguageOptionsScreen(
-								this,
-								this.client.options,
-								this.client.getLanguageManager()
-						)),
-						false
-				)
+		contentLayout.add(
+			AccessibilityOnboardingButtons.createLanguageButton(
+				150,
+				button -> setScreen(new LanguageOptionsScreen(this, client.options, client.getLanguageManager())),
+				false
+			)
 		);
-		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.CONTINUE, button -> this.close()).build());
-		this.layout.forEachChild(this::addDrawableChild);
-		this.refreshWidgetPositions();
+
+		layout.addFooter(ButtonWidget.builder(ScreenTexts.CONTINUE, button -> close()).build());
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		if (this.isNarratorUsable && this.narratorToggleButton != null) {
-			this.setInitialFocus(this.narratorToggleButton);
+		if (isNarratorUsable && narratorToggleButton != null) {
+			setInitialFocus(narratorToggleButton);
+			return;
 		}
-		else {
-			super.setInitialFocus();
-		}
-	}
 
-	private int yMargin() {
-		return 90;
+		super.setInitialFocus();
 	}
 
 	@Override
 	public void close() {
-		if (this.closeTime == 0.0F) {
-			this.closeTime = (float) Util.getMeasuringTimeMs();
+		if (closeTime == 0.0F) {
+			closeTime = (float) Util.getMeasuringTimeMs();
 		}
-	}
-
-	private void setScreen(Screen screen) {
-		this.saveAndRun(false, () -> this.client.setScreen(screen));
-	}
-
-	private void saveAndRun(boolean dontShowAgain, Runnable callback) {
-		if (dontShowAgain) {
-			this.gameOptions.setAccessibilityOnboarded();
-		}
-
-		Narrator.getNarrator().clear();
-		callback.run();
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.tickNarratorPrompt();
-		if (this.fadeTime == 0.0F && this.fading) {
-			this.fadeTime = (float) Util.getMeasuringTimeMs();
+		tickNarratorPrompt();
+
+		if (fadeTime == 0.0F && fading) {
+			fadeTime = (float) Util.getMeasuringTimeMs();
 		}
 
-		if (this.fadeTime > 0.0F) {
-			float f = ((float) Util.getMeasuringTimeMs() - this.fadeTime) / 2000.0F;
-			float g = 1.0F;
-			if (f >= 1.0F) {
-				this.fading = false;
-				this.fadeTime = 0.0F;
-			}
-			else {
-				f = MathHelper.clamp(f, 0.0F, 1.0F);
-				g = MathHelper.clampedMap(f, 0.5F, 1.0F, 0.0F, 1.0F);
-			}
+		if (fadeTime > 0.0F) {
+			float progress = ((float) Util.getMeasuringTimeMs() - fadeTime) / OPEN_FADE_DURATION_MS;
 
-			this.setWidgetAlpha(g);
+			if (progress >= 1.0F) {
+				fading = false;
+				fadeTime = 0.0F;
+				setWidgetAlpha(1.0F);
+			} else {
+				float alpha = MathHelper.clampedMap(MathHelper.clamp(progress, 0.0F, 1.0F), 0.5F, 1.0F, 0.0F, 1.0F);
+				setWidgetAlpha(alpha);
+			}
 		}
 
-		if (this.closeTime > 0.0F) {
-			float f = 1.0F - ((float) Util.getMeasuringTimeMs() - this.closeTime) / 1000.0F;
-			float g = 0.0F;
-			if (f <= 0.0F) {
-				this.closeTime = 0.0F;
-				this.saveAndRun(true, this.onClose);
-			}
-			else {
-				f = MathHelper.clamp(f, 0.0F, 1.0F);
-				g = MathHelper.clampedMap(f, 0.5F, 1.0F, 0.0F, 1.0F);
-			}
+		if (closeTime > 0.0F) {
+			float remaining = 1.0F - ((float) Util.getMeasuringTimeMs() - closeTime) / CLOSE_FADE_DURATION_MS;
 
-			this.setWidgetAlpha(g);
+			if (remaining <= 0.0F) {
+				closeTime = 0.0F;
+				saveAndRun(true, onClose);
+			} else {
+				float alpha = MathHelper.clampedMap(MathHelper.clamp(remaining, 0.0F, 1.0F), 0.5F, 1.0F, 0.0F, 1.0F);
+				setWidgetAlpha(alpha);
+			}
 		}
 
-		this.logoDrawer.draw(context, this.width, 1.0F);
+		logoDrawer.draw(context, width, 1.0F);
 	}
 
 	@Override
@@ -171,21 +152,36 @@ public class AccessibilityOnboardingScreen extends Screen {
 		return false;
 	}
 
+	private void setScreen(Screen screen) {
+		saveAndRun(false, () -> client.setScreen(screen));
+	}
+
+	private void saveAndRun(boolean dontShowAgain, Runnable callback) {
+		if (dontShowAgain) {
+			gameOptions.setAccessibilityOnboarded();
+		}
+
+		Narrator.getNarrator().clear();
+		callback.run();
+	}
+
 	private void tickNarratorPrompt() {
-		if (!this.narratorPrompted && this.isNarratorUsable) {
-			if (this.narratorPromptTimer < 40.0F) {
-				this.narratorPromptTimer++;
-			}
-			else if (this.client.isWindowFocused()) {
-				Narrator
-						.getNarrator()
-						.say(
-								NARRATOR_PROMPT.getString(),
-								true,
-								this.client.options.getSoundVolume(SoundCategory.VOICE)
-						);
-				this.narratorPrompted = true;
-			}
+		if (narratorPrompted || !isNarratorUsable) {
+			return;
+		}
+
+		if (narratorPromptTimer < NARRATOR_PROMPT_TICKS) {
+			narratorPromptTimer++;
+			return;
+		}
+
+		if (client.isWindowFocused()) {
+			Narrator.getNarrator().say(
+				NARRATOR_PROMPT.getString(),
+				true,
+				client.options.getSoundVolume(SoundCategory.VOICE)
+			);
+			narratorPrompted = true;
 		}
 	}
 }

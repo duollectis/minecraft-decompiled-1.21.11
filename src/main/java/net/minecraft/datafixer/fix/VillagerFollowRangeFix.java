@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code VillagerFollowRangeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerFollowRangeFix extends ChoiceFix {
 
@@ -35,10 +35,10 @@ public class VillagerFollowRangeFix extends ChoiceFix {
 										                                     .equals("generic.follow_range")
 										                                     &&
 										                                     attributeDynamic.get("Base").asDouble(0.0)
-												                                     == 16.0
+												                                     == OLD_RANGE
 								                                     ? attributeDynamic.set(
 										                 "Base",
-										                 attributeDynamic.createDouble(48.0)
+										                 attributeDynamic.createDouble(NEW_RANGE)
 								                 )
 								                                     : attributeDynamic
 						                 )

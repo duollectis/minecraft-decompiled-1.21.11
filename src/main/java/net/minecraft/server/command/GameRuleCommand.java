@@ -10,7 +10,7 @@ import net.minecraft.world.rule.GameRuleVisitor;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code GameRuleCommand}.
+ * Команда {@code /gamerule}: чтение и изменение правил игры.
  */
 public class GameRuleCommand {
 

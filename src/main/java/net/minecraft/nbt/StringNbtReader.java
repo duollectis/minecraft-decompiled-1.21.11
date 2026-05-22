@@ -11,37 +11,56 @@ import net.minecraft.text.Text;
 import net.minecraft.util.packrat.PackratParser;
 
 /**
- * {@code StringNbtReader}.
+ * Читает NBT-данные из строки в формате SNBT (Stringified NBT).
+ * <p>
+ * Поддерживает два режима работы:
+ * <ul>
+ *   <li>{@link #read(String)} — читает всю строку целиком, выбрасывает исключение при наличии хвостовых символов.</li>
+ *   <li>{@link #readAsArgument(StringReader)} — читает NBT как часть более длинной строки (для команд).</li>
+ * </ul>
+ * Использует {@link SnbtParsing#createParser(DynamicOps)} для построения packrat-парсера,
+ * что обеспечивает поддержку всех типов NBT, включая числа с суффиксами, массивы и вложенные структуры.
+ *
+ * @param <T> целевой тип данных, определяемый переданным {@link DynamicOps}
  */
 public class StringNbtReader<T> {
 
-	public static final SimpleCommandExceptionType
-			TRAILING =
-			new SimpleCommandExceptionType(Text.translatable("argument.nbt.trailing"));
-	public static final SimpleCommandExceptionType
-			EXPECTED_COMPOUND =
-			new SimpleCommandExceptionType(Text.translatable("argument.nbt.expected.compound"));
+	public static final SimpleCommandExceptionType TRAILING = new SimpleCommandExceptionType(
+		Text.translatable("argument.nbt.trailing")
+	);
+	public static final SimpleCommandExceptionType EXPECTED_COMPOUND = new SimpleCommandExceptionType(
+		Text.translatable("argument.nbt.expected.compound")
+	);
 	public static final char COMMA = ',';
 	public static final char COLON = ':';
+
 	private static final StringNbtReader<NbtElement> DEFAULT_READER = fromOps(NbtOps.INSTANCE);
+
+	/**
+	 * Кодек для десериализации {@link NbtCompound} из SNBT-строки.
+	 * При сериализации использует {@link NbtCompound#toString()}.
+	 */
 	public static final Codec<NbtCompound> STRINGIFIED_CODEC = Codec.STRING
-			.comapFlatMap(
-					snbt -> {
-						try {
-							NbtElement nbtElement = DEFAULT_READER.read(snbt);
-							return nbtElement instanceof NbtCompound nbtCompound
-							       ? DataResult.success(nbtCompound, Lifecycle.stable())
-							       : DataResult.error(() -> "Expected compound tag, got " + nbtElement);
-						}
-						catch (CommandSyntaxException var3) {
-							return DataResult.error(var3::getMessage);
-						}
-					},
-					NbtCompound::toString
-			);
-	public static final Codec<NbtCompound>
-			NBT_COMPOUND_CODEC =
-			Codec.withAlternative(STRINGIFIED_CODEC, NbtCompound.CODEC);
+		.comapFlatMap(
+			snbt -> {
+				try {
+					NbtElement parsed = DEFAULT_READER.read(snbt);
+					return parsed instanceof NbtCompound compound
+					       ? DataResult.success(compound, Lifecycle.stable())
+					       : DataResult.error(() -> "Expected compound tag, got " + parsed);
+				}
+				catch (CommandSyntaxException exception) {
+					return DataResult.error(exception::getMessage);
+				}
+			},
+			NbtCompound::toString
+		);
+
+	public static final Codec<NbtCompound> NBT_COMPOUND_CODEC = Codec.withAlternative(
+		STRINGIFIED_CODEC,
+		NbtCompound.CODEC
+	);
+
 	private final DynamicOps<T> ops;
 	private final PackratParser<T> parser;
 
@@ -51,91 +70,96 @@ public class StringNbtReader<T> {
 	}
 
 	public DynamicOps<T> getOps() {
-		return this.ops;
+		return ops;
 	}
 
 	/**
-	 * From ops.
+	 * Создаёт {@link StringNbtReader} для заданного {@link DynamicOps}.
+	 * Каждый вызов создаёт новый экземпляр с собственным парсером.
 	 *
-	 * @param ops ops
-	 *
-	 * @return StringNbtReader — результат операции
+	 * @param ops операции сериализации целевого типа
+	 * @param <T> целевой тип данных
+	 * @return новый ридер для указанного типа
 	 */
 	public static <T> StringNbtReader<T> fromOps(DynamicOps<T> ops) {
 		return new StringNbtReader<>(ops, SnbtParsing.createParser(ops));
 	}
 
-	private static NbtCompound expectCompound(StringReader reader, NbtElement nbtElement)
-	throws CommandSyntaxException {
-		if (nbtElement instanceof NbtCompound nbtCompound) {
-			return nbtCompound;
-		}
-		else {
-			throw EXPECTED_COMPOUND.createWithContext(reader);
-		}
-	}
-
 	/**
-	 * Читает compound.
+	 * Читает SNBT-строку и возвращает {@link NbtCompound}.
+	 * Выбрасывает исключение, если результат не является compound-тегом.
 	 *
-	 * @param snbt snbt
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param snbt строка в формате SNBT
+	 * @return распарсенный {@link NbtCompound}
+	 * @throws CommandSyntaxException если строка не является валидным compound-тегом
 	 */
 	public static NbtCompound readCompound(String snbt) throws CommandSyntaxException {
-		StringReader stringReader = new StringReader(snbt);
-		return expectCompound(stringReader, DEFAULT_READER.read(stringReader));
+		StringReader reader = new StringReader(snbt);
+		return expectCompound(reader, DEFAULT_READER.read(reader));
 	}
 
 	/**
-	 * Read.
+	 * Читает всю строку как NBT-элемент.
+	 * Выбрасывает исключение, если после элемента остались непрочитанные символы.
 	 *
-	 * @param snbt snbt
-	 *
-	 * @return T — результат операции
+	 * @param snbt строка в формате SNBT
+	 * @return распарсенный элемент
+	 * @throws CommandSyntaxException при синтаксической ошибке или хвостовых символах
 	 */
 	public T read(String snbt) throws CommandSyntaxException {
-		return this.read(new StringReader(snbt));
+		return read(new StringReader(snbt));
 	}
 
 	/**
-	 * Read.
+	 * Читает NBT-элемент из {@link StringReader}, потребляя всю оставшуюся строку.
+	 * Выбрасывает исключение, если после элемента остались непрочитанные символы.
 	 *
-	 * @param reader reader
-	 *
-	 * @return T — результат операции
+	 * @param reader источник символов
+	 * @return распарсенный элемент
+	 * @throws CommandSyntaxException при синтаксической ошибке или хвостовых символах
 	 */
 	public T read(StringReader reader) throws CommandSyntaxException {
-		T object = this.parser.parse(reader);
+		T parsed = parser.parse(reader);
 		reader.skipWhitespace();
+
 		if (reader.canRead()) {
 			throw TRAILING.createWithContext(reader);
 		}
-		else {
-			return object;
-		}
+
+		return parsed;
 	}
 
 	/**
-	 * Читает as argument.
+	 * Читает NBT-элемент из {@link StringReader} как аргумент команды.
+	 * В отличие от {@link #read(StringReader)}, не требует, чтобы строка была прочитана до конца.
 	 *
-	 * @param reader reader
-	 *
-	 * @return T — результат операции
+	 * @param reader источник символов
+	 * @return распарсенный элемент
+	 * @throws CommandSyntaxException при синтаксической ошибке
 	 */
 	public T readAsArgument(StringReader reader) throws CommandSyntaxException {
-		return this.parser.parse(reader);
+		return parser.parse(reader);
 	}
 
 	/**
-	 * Читает compound as argument.
+	 * Читает {@link NbtCompound} из {@link StringReader} как аргумент команды.
+	 * Выбрасывает исключение, если результат не является compound-тегом.
 	 *
-	 * @param reader reader
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param reader источник символов
+	 * @return распарсенный {@link NbtCompound}
+	 * @throws CommandSyntaxException если результат не является compound-тегом
 	 */
 	public static NbtCompound readCompoundAsArgument(StringReader reader) throws CommandSyntaxException {
-		NbtElement nbtElement = DEFAULT_READER.readAsArgument(reader);
-		return expectCompound(reader, nbtElement);
+		NbtElement parsed = DEFAULT_READER.readAsArgument(reader);
+		return expectCompound(reader, parsed);
+	}
+
+	private static NbtCompound expectCompound(StringReader reader, NbtElement element)
+	throws CommandSyntaxException {
+		if (element instanceof NbtCompound compound) {
+			return compound;
+		}
+
+		throw EXPECTED_COMPOUND.createWithContext(reader);
 	}
 }

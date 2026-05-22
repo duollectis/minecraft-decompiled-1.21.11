@@ -13,25 +13,24 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * {@code ItemEntry}.
- */
+/** Запись пула лута, генерирующая конкретный предмет по его реестровой записи. */
 public class ItemEntry extends LeafEntry {
 
 	public static final MapCodec<ItemEntry> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Item.ENTRY_CODEC.fieldOf("name").forGetter(entry -> entry.item))
-					.and(addLeafFields(instance))
-					.apply(instance, ItemEntry::new)
+		instance -> instance
+			.group(Item.ENTRY_CODEC.fieldOf("name").forGetter(entry -> entry.item))
+			.and(addLeafFields(instance))
+			.apply(instance, ItemEntry::new)
 	);
+
 	private final RegistryEntry<Item> item;
 
 	private ItemEntry(
-			RegistryEntry<Item> item,
-			int weight,
-			int quality,
-			List<LootCondition> conditions,
-			List<LootFunction> functions
+		RegistryEntry<Item> item,
+		int weight,
+		int quality,
+		List<LootCondition> conditions,
+		List<LootFunction> functions
 	) {
 		super(weight, quality, conditions, functions);
 		this.item = item;
@@ -44,16 +43,16 @@ public class ItemEntry extends LeafEntry {
 
 	@Override
 	public void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
-		lootConsumer.accept(new ItemStack(this.item));
+		lootConsumer.accept(new ItemStack(item));
 	}
 
 	public static LeafEntry.Builder<?> builder(ItemConvertible drop) {
 		return builder((weight, quality, conditions, functions) -> new ItemEntry(
-				drop.asItem().getRegistryEntry(),
-				weight,
-				quality,
-				conditions,
-				functions
+			drop.asItem().getRegistryEntry(),
+			weight,
+			quality,
+			conditions,
+			functions
 		));
 	}
 }

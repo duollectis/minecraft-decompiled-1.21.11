@@ -23,78 +23,110 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * {@code TagGroupLoader}.
+ * Загружает и строит группы тегов из ресурсов датапаков.
+ *
+ * <p>Процесс двухэтапный: сначала {@link #loadTags} читает JSON-файлы тегов
+ * из всех датапаков (с поддержкой {@code replace: true}), затем {@link #buildGroup}
+ * разрешает зависимости между тегами через {@link DependencyTracker} и возвращает
+ * финальную карту {@code tagId -> List<T>}.</p>
+ *
+ * @param <T> тип элементов реестра, которые хранятся в тегах
  */
 public class TagGroupLoader<T> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	final TagGroupLoader.EntrySupplier<T> entrySupplier;
+
+	final EntrySupplier<T> entrySupplier;
 	private final String dataType;
 
-	public TagGroupLoader(TagGroupLoader.EntrySupplier<T> entrySupplier, String dataType) {
+	public TagGroupLoader(EntrySupplier<T> entrySupplier, String dataType) {
 		this.entrySupplier = entrySupplier;
 		this.dataType = dataType;
 	}
 
-	public Map<Identifier, List<TagGroupLoader.TrackedEntry>> loadTags(ResourceManager resourceManager) {
-		Map<Identifier, List<TagGroupLoader.TrackedEntry>> map = new HashMap<>();
-		ResourceFinder resourceFinder = ResourceFinder.json(this.dataType);
+	/**
+	 * Читает все JSON-файлы тегов из датапаков и собирает их в карту.
+	 *
+	 * <p>Если файл тега содержит {@code "replace": true}, предыдущие записи
+	 * для этого тега очищаются — это стандартный механизм переопределения тегов
+	 * в датапаках с более высоким приоритетом.</p>
+	 *
+	 * @param resourceManager менеджер ресурсов для поиска файлов тегов
+	 * @return карта {@code tagId -> список отслеживаемых записей} со всеми загруженными тегами
+	 */
+	public Map<Identifier, List<TrackedEntry>> loadTags(ResourceManager resourceManager) {
+		Map<Identifier, List<TrackedEntry>> result = new HashMap<>();
+		ResourceFinder resourceFinder = ResourceFinder.json(dataType);
 
 		for (Entry<Identifier, List<Resource>> entry : resourceFinder.findAllResources(resourceManager).entrySet()) {
-			Identifier identifier = entry.getKey();
-			Identifier identifier2 = resourceFinder.toResourceId(identifier);
+			Identifier resourcePath = entry.getKey();
+			Identifier tagId = resourceFinder.toResourceId(resourcePath);
 
 			for (Resource resource : entry.getValue()) {
 				try (Reader reader = resource.getReader()) {
 					JsonElement jsonElement = StrictJsonParser.parse(reader);
-					List<TagGroupLoader.TrackedEntry> list = map.computeIfAbsent(identifier2, id -> new ArrayList<>());
-					TagFile
-							tagFile =
-							(TagFile) TagFile.CODEC.parse(new Dynamic(JsonOps.INSTANCE, jsonElement)).getOrThrow();
+					List<TrackedEntry> tagEntries = result.computeIfAbsent(tagId, id -> new ArrayList<>());
+					TagFile tagFile = (TagFile) TagFile.CODEC
+							.parse(new Dynamic<>(JsonOps.INSTANCE, jsonElement))
+							.getOrThrow();
+
 					if (tagFile.replace()) {
-						list.clear();
+						tagEntries.clear();
 					}
 
-					String string = resource.getPackId();
-					tagFile.entries().forEach(entryx -> list.add(new TagGroupLoader.TrackedEntry(entryx, string)));
-				}
-				catch (Exception var17) {
+					String packId = resource.getPackId();
+					tagFile.entries().forEach(tagEntry -> tagEntries.add(new TrackedEntry(tagEntry, packId)));
+				} catch (Exception exception) {
 					LOGGER.error(
 							"Couldn't read tag list {} from {} in data pack {}",
-							new Object[]{identifier2, identifier, resource.getPackId(), var17}
+							tagId,
+							resourcePath,
+							resource.getPackId(),
+							exception
 					);
 				}
 			}
 		}
 
-		return map;
-	}
-
-	private Either<List<TagGroupLoader.TrackedEntry>, List<T>> resolveAll(
-			TagEntry.ValueGetter<T> valueGetter,
-			List<TagGroupLoader.TrackedEntry> entries
-	) {
-		SequencedSet<T> sequencedSet = new LinkedHashSet<>();
-		List<TagGroupLoader.TrackedEntry> list = new ArrayList<>();
-
-		for (TagGroupLoader.TrackedEntry trackedEntry : entries) {
-			if (!trackedEntry.entry().resolve(valueGetter, sequencedSet::add)) {
-				list.add(trackedEntry);
-			}
-		}
-
-		return list.isEmpty() ? Either.right(List.copyOf(sequencedSet)) : Either.left(list);
+		return result;
 	}
 
 	/**
-	 * Строит group.
+	 * Разрешает все записи тега, рекурсивно подставляя значения из уже построенных тегов.
 	 *
-	 * @param tags tags
-	 *
-	 * @return Map> — результат операции
+	 * @param valueGetter поставщик значений по идентификатору
+	 * @param entries     список отслеживаемых записей тега
+	 * @return {@code Either.right} со списком значений при успехе,
+	 *         {@code Either.left} со списком нерезолвленных записей при ошибке
 	 */
-	public Map<Identifier, List<T>> buildGroup(Map<Identifier, List<TagGroupLoader.TrackedEntry>> tags) {
-		final Map<Identifier, List<T>> map = new HashMap<>();
+	private Either<List<TrackedEntry>, List<T>> resolveAll(
+			TagEntry.ValueGetter<T> valueGetter,
+			List<TrackedEntry> entries
+	) {
+		SequencedSet<T> resolved = new LinkedHashSet<>();
+		List<TrackedEntry> missing = new ArrayList<>();
+
+		for (TrackedEntry trackedEntry : entries) {
+			if (!trackedEntry.entry().resolve(valueGetter, resolved::add)) {
+				missing.add(trackedEntry);
+			}
+		}
+
+		return missing.isEmpty() ? Either.right(List.copyOf(resolved)) : Either.left(missing);
+	}
+
+	/**
+	 * Строит финальную карту тегов, разрешая все зависимости между ними.
+	 *
+	 * <p>Использует {@link DependencyTracker} для топологической сортировки тегов
+	 * по зависимостям. Теги, ссылающиеся на другие теги, обрабатываются после
+	 * тех, на которые они ссылаются. Нерезолвленные ссылки логируются как ошибки.</p>
+	 *
+	 * @param tags карта {@code tagId -> список записей}, полученная из {@link #loadTags}
+	 * @return финальная карта {@code tagId -> список значений реестра}
+	 */
+	public Map<Identifier, List<T>> buildGroup(Map<Identifier, List<TrackedEntry>> tags) {
+		final Map<Identifier, List<T>> builtTags = new HashMap<>();
 		TagEntry.ValueGetter<T> valueGetter = new TagEntry.ValueGetter<T>() {
 			@Override
 			public @Nullable T direct(Identifier id, boolean required) {
@@ -103,78 +135,84 @@ public class TagGroupLoader<T> {
 
 			@Override
 			public @Nullable Collection<T> tag(Identifier id) {
-				return map.get(id);
+				return builtTags.get(id);
 			}
 		};
-		DependencyTracker<Identifier, TagGroupLoader.TagDependencies> dependencyTracker = new DependencyTracker<>();
-		tags.forEach((id, entries) -> dependencyTracker.add(
-				id,
-				new TagGroupLoader.TagDependencies((List<TagGroupLoader.TrackedEntry>) entries)
-		));
+
+		DependencyTracker<Identifier, TagDependencies> dependencyTracker = new DependencyTracker<>();
+		tags.forEach((id, entries) -> dependencyTracker.add(id, new TagDependencies(entries)));
+
 		dependencyTracker.traverse(
-				(id, dependencies) -> this.resolveAll(valueGetter, dependencies.entries)
-				                          .ifLeft(
-						                          missingReferences -> LOGGER.error(
-								                          "Couldn't load tag {} as it is missing following references: {}",
-								                          id,
-								                          missingReferences
-										                          .stream()
-										                          .map(Objects::toString)
-										                          .collect(Collectors.joining(", "))
-						                          )
-				                          )
-				                          .ifRight(values -> map.put(id, values))
+				(id, dependencies) -> resolveAll(valueGetter, dependencies.entries)
+						.ifLeft(missingReferences -> LOGGER.error(
+								"Couldn't load tag {} as it is missing following references: {}",
+								id,
+								missingReferences
+										.stream()
+										.map(Objects::toString)
+										.collect(Collectors.joining(", "))
+						))
+						.ifRight(values -> builtTags.put(id, values))
 		);
-		return map;
+
+		return builtTags;
 	}
 
 	/**
-	 * Загружает from network.
+	 * Применяет теги из сетевого пакета к изменяемому реестру.
 	 *
-	 * @param tags tags
-	 * @param registry registry
-	 *
-	 * @return void — результат операции
+	 * @param tags     сериализованные теги из сетевого пакета
+	 * @param registry целевой изменяемый реестр
 	 */
 	public static <T> void loadFromNetwork(TagPacketSerializer.Serialized tags, MutableRegistry<T> registry) {
 		tags.toRegistryTags(registry).tags.forEach(registry::setEntries);
 	}
 
+	/**
+	 * Запускает асинхронную перезагрузку тегов для всех реестров в менеджере.
+	 *
+	 * @param resourceManager менеджер ресурсов
+	 * @param registryManager менеджер динамических реестров
+	 * @return список объектов ожидающей загрузки тегов для каждого реестра
+	 */
 	public static List<Registry.PendingTagLoad<?>> startReload(
 			ResourceManager resourceManager,
 			DynamicRegistryManager registryManager
 	) {
 		return registryManager.streamAllRegistries()
-		                      .map(registry -> startReload(resourceManager, registry.value()))
-		                      .flatMap(Optional::stream)
-		                      .collect(Collectors.toUnmodifiableList());
+				.map(registry -> startReload(resourceManager, registry.value()))
+				.flatMap(Optional::stream)
+				.collect(Collectors.toUnmodifiableList());
 	}
 
 	/**
-	 * Загружает initial.
+	 * Загружает и применяет теги к реестру при первоначальной инициализации сервера.
 	 *
-	 * @param resourceManager resource manager
-	 * @param registry registry
+	 * <p>В отличие от {@link #startReload}, этот метод применяет теги немедленно,
+	 * без создания объекта ожидающей загрузки.</p>
 	 *
-	 * @return void — результат операции
+	 * @param resourceManager менеджер ресурсов
+	 * @param registry        целевой изменяемый реестр
 	 */
 	public static <T> void loadInitial(ResourceManager resourceManager, MutableRegistry<T> registry) {
 		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
-		TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
-				TagGroupLoader.EntrySupplier.forInitial(registry), RegistryKeys.getTagPath(registryKey)
+		TagGroupLoader<RegistryEntry<T>> loader = new TagGroupLoader<>(
+				EntrySupplier.forInitial(registry),
+				RegistryKeys.getTagPath(registryKey)
 		);
-		tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager))
-		              .forEach((id, entries) -> registry.setEntries(
-				              TagKey.of(registryKey, id),
-				              (List<RegistryEntry<T>>) entries
-		              ));
+
+		loader.buildGroup(loader.loadTags(resourceManager))
+				.forEach((id, entries) -> registry.setEntries(
+						TagKey.of(registryKey, id),
+						(List<RegistryEntry<T>>) entries
+				));
 	}
 
 	private static <T> Map<TagKey<T>, List<RegistryEntry<T>>> toTagKeyedMap(
-			RegistryKey<? extends Registry<T>> registryRef, Map<Identifier, List<RegistryEntry<T>>> tags
+			RegistryKey<? extends Registry<T>> registryRef,
+			Map<Identifier, List<RegistryEntry<T>>> tags
 	) {
-		return tags
-				.entrySet()
+		return tags.entrySet()
 				.stream()
 				.collect(Collectors.toUnmodifiableMap(
 						entry -> TagKey.of(registryRef, entry.getKey()),
@@ -187,28 +225,42 @@ public class TagGroupLoader<T> {
 			Registry<T> registry
 	) {
 		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
-		TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
-				(TagGroupLoader.EntrySupplier<RegistryEntry<T>>) TagGroupLoader.EntrySupplier.forReload(registry),
+		TagGroupLoader<RegistryEntry<T>> loader = new TagGroupLoader<>(
+				(EntrySupplier<RegistryEntry<T>>) EntrySupplier.forReload(registry),
 				RegistryKeys.getTagPath(registryKey)
 		);
-		TagGroupLoader.RegistryTags<T> registryTags = new TagGroupLoader.RegistryTags<>(
+
+		RegistryTags<T> registryTags = new RegistryTags<>(
 				registryKey,
-				toTagKeyedMap(registry.getKey(), tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager)))
+				toTagKeyedMap(registry.getKey(), loader.buildGroup(loader.loadTags(resourceManager)))
 		);
-		return registryTags.tags().isEmpty() ? Optional.empty() : Optional.of(registry.startTagReload(registryTags));
+
+		return registryTags.tags().isEmpty()
+				? Optional.empty()
+				: Optional.of(registry.startTagReload(registryTags));
 	}
 
+	/**
+	 * Собирает список обёрток реестров, подставляя ожидающие загрузки тегов там, где они есть.
+	 *
+	 * @param registryManager менеджер иммутабельных реестров
+	 * @param tagLoads        список ожидающих загрузок тегов
+	 * @return список обёрток реестров с актуальными тегами
+	 */
 	public static List<RegistryWrapper.Impl<?>> collectRegistries(
 			DynamicRegistryManager.Immutable registryManager,
 			List<Registry.PendingTagLoad<?>> tagLoads
 	) {
-		List<RegistryWrapper.Impl<?>> list = new ArrayList<>();
+		List<RegistryWrapper.Impl<?>> wrappers = new ArrayList<>();
+
 		registryManager.streamAllRegistries().forEach(registry -> {
 			Registry.PendingTagLoad<?> pendingTagLoad = find(tagLoads, registry.key());
-			list.add((RegistryWrapper.Impl<?>) (pendingTagLoad != null ? pendingTagLoad.getLookup() : registry.value()
-			));
+			wrappers.add((RegistryWrapper.Impl<?>) (pendingTagLoad != null
+					? pendingTagLoad.getLookup()
+					: registry.value()));
 		});
-		return list;
+
+		return wrappers;
 	}
 
 	private static Registry.@Nullable PendingTagLoad<?> find(
@@ -225,53 +277,65 @@ public class TagGroupLoader<T> {
 	}
 
 	/**
-	 * {@code EntrySupplier}.
+	 * Поставщик элементов реестра по идентификатору.
+	 *
+	 * <p>Используется в {@link TagEntry.ValueGetter} для разрешения прямых ссылок
+	 * на элементы реестра при построении тегов.</p>
 	 */
 	public interface EntrySupplier<T> {
 
 		Optional<? extends T> get(Identifier id, boolean required);
 
-		static <T> TagGroupLoader.EntrySupplier<? extends RegistryEntry<T>> forReload(Registry<T> registry) {
+		static <T> EntrySupplier<? extends RegistryEntry<T>> forReload(Registry<T> registry) {
 			return (id, required) -> registry.getEntry(id);
 		}
 
-		static <T> TagGroupLoader.EntrySupplier<RegistryEntry<T>> forInitial(MutableRegistry<T> registry) {
-			RegistryEntryLookup<T> registryEntryLookup = registry.createMutableRegistryLookup();
-			return (id, required) -> ((RegistryEntryLookup<T>) (required ? registryEntryLookup : registry)).getOptional(
-					RegistryKey.of(registry.getKey(), id));
+		static <T> EntrySupplier<RegistryEntry<T>> forInitial(MutableRegistry<T> registry) {
+			RegistryEntryLookup<T> mutableLookup = registry.createMutableRegistryLookup();
+			return (id, required) -> ((RegistryEntryLookup<T>) (required ? mutableLookup : registry))
+					.getOptional(RegistryKey.of(registry.getKey(), id));
 		}
 	}
 
 	/**
-	 * {@code RegistryTags}.
+	 * Результат загрузки тегов для конкретного реестра.
+	 *
+	 * @param key  ключ реестра
+	 * @param tags карта тегов с их содержимым
 	 */
-	public record RegistryTags<T>(RegistryKey<? extends Registry<T>> key, Map<TagKey<T>, List<RegistryEntry<T>>> tags) {
+	public record RegistryTags<T>(
+			RegistryKey<? extends Registry<T>> key,
+			Map<TagKey<T>, List<RegistryEntry<T>>> tags
+	) {
 	}
 
 	/**
-	 * {@code TagDependencies}.
+	 * Зависимости тега — список его записей с информацией об обязательных ссылках на другие теги.
 	 */
-	record TagDependencies(List<TagGroupLoader.TrackedEntry> entries) implements DependencyTracker.Dependencies<Identifier> {
+	record TagDependencies(List<TrackedEntry> entries) implements DependencyTracker.Dependencies<Identifier> {
 
 		@Override
 		public void forDependencies(Consumer<Identifier> callback) {
-			this.entries.forEach(entry -> entry.entry.forEachRequiredTagId(callback));
+			entries.forEach(entry -> entry.entry.forEachRequiredTagId(callback));
 		}
 
 		@Override
 		public void forOptionalDependencies(Consumer<Identifier> callback) {
-			this.entries.forEach(entry -> entry.entry.forEachOptionalTagId(callback));
+			entries.forEach(entry -> entry.entry.forEachOptionalTagId(callback));
 		}
 	}
 
 	/**
-	 * {@code TrackedEntry}.
+	 * Запись тега с информацией об источнике (имя датапака).
+	 *
+	 * @param entry  запись тега
+	 * @param source идентификатор датапака-источника
 	 */
 	public record TrackedEntry(TagEntry entry, String source) {
 
 		@Override
 		public String toString() {
-			return this.entry + " (from " + this.source + ")";
+			return entry + " (from " + source + ")";
 		}
 	}
 }

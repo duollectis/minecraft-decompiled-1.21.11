@@ -13,7 +13,8 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code ShipwreckStructure}.
+ * Структура затонувшего корабля. Поддерживает два режима: обычный (на дне океана)
+ * и выброшенный на берег ({@code beached}), где корабль размещается на поверхности.
  */
 public class ShipwreckStructure extends Structure {
 
@@ -34,43 +35,41 @@ public class ShipwreckStructure extends Structure {
 
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
-		Heightmap.Type type = this.beached ? Heightmap.Type.WORLD_SURFACE_WG : Heightmap.Type.OCEAN_FLOOR_WG;
-		return getStructurePosition(context, type, collector -> this.addPieces(collector, context));
+		Heightmap.Type heightmapType = beached ? Heightmap.Type.WORLD_SURFACE_WG : Heightmap.Type.OCEAN_FLOOR_WG;
+		return getStructurePosition(context, heightmapType, collector -> addPieces(collector, context));
 	}
 
 	private void addPieces(StructurePiecesCollector collector, Structure.Context context) {
 		BlockRotation blockRotation = BlockRotation.random(context.random());
-		BlockPos blockPos = new BlockPos(context.chunkPos().getStartX(), 90, context.chunkPos().getStartZ());
+		BlockPos startPos = new BlockPos(context.chunkPos().getStartX(), 90, context.chunkPos().getStartZ());
 		ShipwreckGenerator.Piece piece = ShipwreckGenerator.addParts(
-				context.structureTemplateManager(), blockPos, blockRotation, collector, context.random(), this.beached
+				context.structureTemplateManager(), startPos, blockRotation, collector, context.random(), beached
 		);
+
 		if (piece.isTooLargeForNormalGeneration()) {
 			BlockBox blockBox = piece.getBoundingBox();
-			int j;
-			if (this.beached) {
-				int
-						i =
-						Structure.getMinCornerHeight(
-								context,
-								blockBox.getMinX(),
-								blockBox.getBlockCountX(),
-								blockBox.getMinZ(),
-								blockBox.getBlockCountZ()
-						);
-				j = piece.findGroundedY(i, context.random());
-			}
-			else {
-				j =
-						Structure.getAverageCornerHeights(
-								context,
-								blockBox.getMinX(),
-								blockBox.getBlockCountX(),
-								blockBox.getMinZ(),
-								blockBox.getBlockCountZ()
-						);
+			int groundedY;
+
+			if (beached) {
+				int minCornerY = Structure.getMinCornerHeight(
+						context,
+						blockBox.getMinX(),
+						blockBox.getBlockCountX(),
+						blockBox.getMinZ(),
+						blockBox.getBlockCountZ()
+				);
+				groundedY = piece.findGroundedY(minCornerY, context.random());
+			} else {
+				groundedY = Structure.getAverageCornerHeights(
+						context,
+						blockBox.getMinX(),
+						blockBox.getBlockCountX(),
+						blockBox.getMinZ(),
+						blockBox.getBlockCountZ()
+				);
 			}
 
-			piece.setY(j);
+			piece.setY(groundedY);
 		}
 	}
 

@@ -4,7 +4,7 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code CopperGolemOxidationLevel}.
+ * Уровень окисления медного голема: от нового до полностью окисленного.
  */
 public record CopperGolemOxidationLevel(
 		SoundEvent spinHeadSound,

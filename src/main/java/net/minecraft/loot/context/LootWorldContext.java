@@ -12,9 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/**
- * {@code LootWorldContext}.
- */
+/** Контекст мира для таблиц лута: параметры, динамические дропы и удача. */
 public class LootWorldContext {
 
 	private final ServerWorld world;
@@ -23,10 +21,10 @@ public class LootWorldContext {
 	private final float luck;
 
 	public LootWorldContext(
-			ServerWorld world,
-			ContextParameterMap parameters,
-			Map<Identifier, LootWorldContext.DynamicDrop> dynamicDrops,
-			float luck
+		ServerWorld world,
+		ContextParameterMap parameters,
+		Map<Identifier, LootWorldContext.DynamicDrop> dynamicDrops,
+		float luck
 	) {
 		this.world = world;
 		this.parameters = parameters;
@@ -35,33 +33,26 @@ public class LootWorldContext {
 	}
 
 	public ServerWorld getWorld() {
-		return this.world;
+		return world;
 	}
 
 	public ContextParameterMap getParameters() {
-		return this.parameters;
+		return parameters;
 	}
 
-	/**
-	 * Добавляет dynamic drops.
-	 *
-	 * @param id id
-	 * @param lootConsumer loot consumer
-	 */
 	public void addDynamicDrops(Identifier id, Consumer<ItemStack> lootConsumer) {
-		LootWorldContext.DynamicDrop dynamicDrop = this.dynamicDrops.get(id);
+		LootWorldContext.DynamicDrop dynamicDrop = dynamicDrops.get(id);
+
 		if (dynamicDrop != null) {
 			dynamicDrop.add(lootConsumer);
 		}
 	}
 
 	public float getLuck() {
-		return this.luck;
+		return luck;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель контекста мира с поддержкой параметров и динамических дропов. */
 	public static class Builder {
 
 		private final ServerWorld world;
@@ -74,42 +65,35 @@ public class LootWorldContext {
 		}
 
 		public ServerWorld getWorld() {
-			return this.world;
+			return world;
 		}
 
 		public <T> LootWorldContext.Builder add(ContextParameter<T> parameter, T value) {
-			this.parameters.add(parameter, value);
+			parameters.add(parameter, value);
 			return this;
 		}
 
 		public <T> LootWorldContext.Builder addOptional(ContextParameter<T> parameter, @Nullable T value) {
-			this.parameters.addNullable(parameter, value);
+			parameters.addNullable(parameter, value);
 			return this;
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @param parameter parameter
-		 *
-		 * @return T — 
-		 */
 		public <T> T get(ContextParameter<T> parameter) {
-			return this.parameters.getOrThrow(parameter);
+			return parameters.getOrThrow(parameter);
 		}
 
 		public <T> @Nullable T getOptional(ContextParameter<T> parameter) {
-			return this.parameters.getNullable(parameter);
+			return parameters.getNullable(parameter);
 		}
 
 		public LootWorldContext.Builder addDynamicDrop(Identifier id, LootWorldContext.DynamicDrop dynamicDrop) {
-			LootWorldContext.DynamicDrop dynamicDrop2 = this.dynamicDrops.put(id, dynamicDrop);
-			if (dynamicDrop2 != null) {
-				throw new IllegalStateException("Duplicated dynamic drop '" + this.dynamicDrops + "'");
+			LootWorldContext.DynamicDrop existing = dynamicDrops.put(id, dynamicDrop);
+
+			if (existing != null) {
+				throw new IllegalStateException("Duplicated dynamic drop '" + dynamicDrops + "'");
 			}
-			else {
-				return this;
-			}
+
+			return this;
 		}
 
 		public LootWorldContext.Builder luck(float luck) {
@@ -117,23 +101,14 @@ public class LootWorldContext {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param contextType context type
-		 *
-		 * @return LootWorldContext — результат операции
-		 */
 		public LootWorldContext build(ContextType contextType) {
-			ContextParameterMap contextParameterMap = this.parameters.build(contextType);
-			return new LootWorldContext(this.world, contextParameterMap, this.dynamicDrops, this.luck);
+			ContextParameterMap builtParameters = parameters.build(contextType);
+			return new LootWorldContext(world, builtParameters, dynamicDrops, luck);
 		}
 	}
 
+	/** Функциональный интерфейс для динамических дропов, добавляемых в контекст. */
 	@FunctionalInterface
-	/**
-	 * {@code DynamicDrop}.
-	 */
 	public interface DynamicDrop {
 
 		void add(Consumer<ItemStack> lootConsumer);

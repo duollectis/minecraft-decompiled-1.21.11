@@ -26,9 +26,26 @@ import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * {@code EnderPearlEntity}.
+ * Жемчуг Эндера — бросаемый снаряд, телепортирующий владельца к точке попадания.
+ * <p>
+ * При телепортации игрока с шансом {@link #ENDERMITE_SPAWN_CHANCE} спавнится эндермит.
+ * Жемчуг отслеживает чанки через {@link ServerPlayerEntity#handleThrownEnderPearl},
+ * чтобы не выгружать чанки по пути полёта. При смерти игрока (если включено правило
+ * {@link GameRules#ENDER_PEARLS_VANISH_ON_DEATH}) жемчуг уничтожается.
  */
 public class EnderPearlEntity extends ThrownItemEntity {
+
+	/** Урон от телепортации через жемчуг. */
+	private static final float TELEPORT_DAMAGE = 5.0F;
+
+	/** Вероятность спавна эндермита при телепортации (1 из N). */
+	private static final int ENDERMITE_SPAWN_CHANCE = 20;
+
+	/** Количество портальных частиц при столкновении. */
+	private static final int PORTAL_PARTICLE_COUNT = 32;
+
+	/** Вертикальный разброс портальных частиц. */
+	private static final double PORTAL_PARTICLE_Y_SPREAD = 2.0;
 
 	private long chunkTicketExpiryTicks = 0L;
 
@@ -47,176 +64,188 @@ public class EnderPearlEntity extends ThrownItemEntity {
 
 	@Override
 	protected void setOwner(@Nullable LazyEntityReference<Entity> owner) {
-		this.removeFromOwner();
+		removeFromOwner();
 		super.setOwner(owner);
-		this.addToOwner();
+		addToOwner();
 	}
 
 	private void removeFromOwner() {
-		if (this.getOwner() instanceof ServerPlayerEntity serverPlayerEntity) {
-			serverPlayerEntity.removeEnderPearl(this);
+		if (getOwner() instanceof ServerPlayerEntity serverPlayer) {
+			serverPlayer.removeEnderPearl(this);
 		}
 	}
 
 	private void addToOwner() {
-		if (this.getOwner() instanceof ServerPlayerEntity serverPlayerEntity) {
-			serverPlayerEntity.addEnderPearl(this);
+		if (getOwner() instanceof ServerPlayerEntity serverPlayer) {
+			serverPlayer.addEnderPearl(this);
 		}
 	}
 
 	@Override
 	public @Nullable Entity getOwner() {
-		return this.owner != null && this.getEntityWorld() instanceof ServerWorld serverWorld
-		       ? this.owner.getEntityByClass(serverWorld, Entity.class)
-		       : super.getOwner();
+		return owner != null && getEntityWorld() instanceof ServerWorld serverWorld
+				? owner.getEntityByClass(serverWorld, Entity.class)
+				: super.getOwner();
 	}
 
 	private static @Nullable Entity getPlayer(ServerWorld world, UUID uuid) {
 		Entity entity = world.getEntityAnyDimension(uuid);
-		return (Entity) (entity != null ? entity : world.getServer().getPlayerManager().getPlayer(uuid));
+		return entity != null ? entity : world.getServer().getPlayerManager().getPlayer(uuid);
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		entityHitResult.getEntity().serverDamage(this.getDamageSources().thrown(this, this.getOwner()), 0.0F);
+		entityHitResult.getEntity().serverDamage(getDamageSources().thrown(this, getOwner()), 0.0F);
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
+		spawnPortalParticles();
 
-		for (int i = 0; i < 32; i++) {
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.PORTAL,
-					    this.getX(),
-					    this.getY() + this.random.nextDouble() * 2.0,
-					    this.getZ(),
-					    this.random.nextGaussian(),
-					    0.0,
-					    this.random.nextGaussian()
-			    );
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld) || isRemoved()) {
+			return;
 		}
 
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && !this.isRemoved()) {
-			Entity entity = this.getOwner();
-			if (entity != null && canTeleportEntityTo(entity, serverWorld)) {
-				Vec3d vec3d = this.getLastRenderPos();
-				if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
-					if (serverPlayerEntity.networkHandler.isConnectionOpen()) {
-						if (this.random.nextFloat() < 0.05F && serverWorld.shouldSpawnMonsters()) {
-							EndermiteEntity
-									endermiteEntity =
-									EntityType.ENDERMITE.create(serverWorld, SpawnReason.TRIGGERED);
-							if (endermiteEntity != null) {
-								endermiteEntity.refreshPositionAndAngles(
-										entity.getX(),
-										entity.getY(),
-										entity.getZ(),
-										entity.getYaw(),
-										entity.getPitch()
-								);
-								serverWorld.spawnEntity(endermiteEntity);
-							}
-						}
+		Entity owner = getOwner();
+		if (owner == null || !canTeleportEntityTo(owner, serverWorld)) {
+			discard();
+			return;
+		}
 
-						if (this.hasPortalCooldown()) {
-							entity.resetPortalCooldown();
-						}
+		Vec3d destination = getLastRenderPos();
 
-						ServerPlayerEntity serverPlayerEntity2 = serverPlayerEntity.teleportTo(
-								new TeleportTarget(
-										serverWorld,
-										vec3d,
-										Vec3d.ZERO,
-										0.0F,
-										0.0F,
-										PositionFlag.combine(PositionFlag.ROT, PositionFlag.DELTA),
-										TeleportTarget.NO_OP
-								)
-						);
-						if (serverPlayerEntity2 != null) {
-							serverPlayerEntity2.onLanding();
-							serverPlayerEntity2.clearCurrentExplosion();
-							serverPlayerEntity2.damage(
-									serverPlayerEntity.getEntityWorld(),
-									this.getDamageSources().enderPearl(),
-									5.0F
-							);
-						}
+		if (owner instanceof ServerPlayerEntity serverPlayer) {
+			teleportPlayer(serverPlayer, serverWorld, destination);
+		} else {
+			teleportEntity(owner, serverWorld, destination);
+		}
 
-						this.playTeleportSound(serverWorld, vec3d);
-					}
-				}
-				else {
-					Entity entity2 = entity.teleportTo(
-							new TeleportTarget(
-									serverWorld,
-									vec3d,
-									entity.getVelocity(),
-									entity.getYaw(),
-									entity.getPitch(),
-									TeleportTarget.NO_OP
-							)
-					);
-					if (entity2 != null) {
-						entity2.onLanding();
-					}
+		discard();
+	}
 
-					this.playTeleportSound(serverWorld, vec3d);
-				}
-
-				this.discard();
-			}
-			else {
-				this.discard();
-			}
+	private void spawnPortalParticles() {
+		for (int index = 0; index < PORTAL_PARTICLE_COUNT; index++) {
+			getEntityWorld().addParticleClient(
+					ParticleTypes.PORTAL,
+					getX(),
+					getY() + random.nextDouble() * PORTAL_PARTICLE_Y_SPREAD,
+					getZ(),
+					random.nextGaussian(),
+					0.0,
+					random.nextGaussian()
+			);
 		}
 	}
 
-	private static boolean canTeleportEntityTo(Entity entity, World world) {
-		if (entity.getEntityWorld().getRegistryKey() == world.getRegistryKey()) {
-			return !(entity instanceof LivingEntity livingEntity) ? entity.isAlive() : livingEntity.isAlive()
-			                                                                           && !livingEntity.isSleeping();
+	private void teleportPlayer(ServerPlayerEntity player, ServerWorld world, Vec3d destination) {
+		if (!player.networkHandler.isConnectionOpen()) {
+			return;
 		}
-		else {
+
+		trySpawnEndermite(player, world, destination);
+
+		if (hasPortalCooldown()) {
+			player.resetPortalCooldown();
+		}
+
+		ServerPlayerEntity teleported = player.teleportTo(new TeleportTarget(
+				world,
+				destination,
+				Vec3d.ZERO,
+				0.0F,
+				0.0F,
+				PositionFlag.combine(PositionFlag.ROT, PositionFlag.DELTA),
+				TeleportTarget.NO_OP
+		));
+
+		if (teleported != null) {
+			teleported.onLanding();
+			teleported.clearCurrentExplosion();
+			teleported.damage(
+					player.getEntityWorld(),
+					getDamageSources().enderPearl(),
+					TELEPORT_DAMAGE
+			);
+		}
+
+		playTeleportSound(world, destination);
+	}
+
+	private void trySpawnEndermite(ServerPlayerEntity player, ServerWorld world, Vec3d destination) {
+		if (random.nextFloat() >= 1.0F / ENDERMITE_SPAWN_CHANCE || !world.shouldSpawnMonsters()) {
+			return;
+		}
+
+		EndermiteEntity endermite = EntityType.ENDERMITE.create(world, SpawnReason.TRIGGERED);
+		if (endermite != null) {
+			endermite.refreshPositionAndAngles(
+					player.getX(),
+					player.getY(),
+					player.getZ(),
+					player.getYaw(),
+					player.getPitch()
+			);
+			world.spawnEntity(endermite);
+		}
+	}
+
+	private void teleportEntity(Entity entity, ServerWorld world, Vec3d destination) {
+		Entity teleported = entity.teleportTo(new TeleportTarget(
+				world,
+				destination,
+				entity.getVelocity(),
+				entity.getYaw(),
+				entity.getPitch(),
+				TeleportTarget.NO_OP
+		));
+
+		if (teleported != null) {
+			teleported.onLanding();
+		}
+
+		playTeleportSound(world, destination);
+	}
+
+	private static boolean canTeleportEntityTo(Entity entity, World world) {
+		if (entity.getEntityWorld().getRegistryKey() != world.getRegistryKey()) {
 			return entity.canUsePortals(true);
 		}
+
+		return entity instanceof LivingEntity living
+				? living.isAlive() && !living.isSleeping()
+				: entity.isAlive();
 	}
 
 	@Override
 	public void tick() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			int var7 = ChunkSectionPos.getSectionCoordFloored(this.getEntityPos().getX());
-			int j = ChunkSectionPos.getSectionCoordFloored(this.getEntityPos().getZ());
-			Entity entity = this.owner != null ? getPlayer(serverWorld, this.owner.getUuid()) : null;
-			if (entity instanceof ServerPlayerEntity serverPlayerEntity
-					&& !entity.isAlive()
-					&& !serverPlayerEntity.notInAnyWorld
-					&& serverPlayerEntity
-					.getEntityWorld()
-					.getGameRules()
-					.getValue(GameRules.ENDER_PEARLS_VANISH_ON_DEATH)) {
-				this.discard();
-			}
-			else {
-				super.tick();
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			int sectionX = ChunkSectionPos.getSectionCoordFloored(getEntityPos().getX());
+			int sectionZ = ChunkSectionPos.getSectionCoordFloored(getEntityPos().getZ());
+			Entity ownerEntity = owner != null ? getPlayer(serverWorld, owner.getUuid()) : null;
+
+			if (ownerEntity instanceof ServerPlayerEntity serverPlayer
+					&& !ownerEntity.isAlive()
+					&& !serverPlayer.notInAnyWorld
+					&& serverPlayer.getEntityWorld().getGameRules().getValue(GameRules.ENDER_PEARLS_VANISH_ON_DEATH)) {
+				discard();
+				return;
 			}
 
-			if (this.isAlive()) {
-				BlockPos blockPos = BlockPos.ofFloored(this.getEntityPos());
-				if ((
-						--this.chunkTicketExpiryTicks <= 0L
-								|| var7 != ChunkSectionPos.getSectionCoord(blockPos.getX())
-								|| j != ChunkSectionPos.getSectionCoord(blockPos.getZ())
-				)
-						&& entity instanceof ServerPlayerEntity serverPlayerEntity2) {
-					this.chunkTicketExpiryTicks = serverPlayerEntity2.handleThrownEnderPearl(this);
+			super.tick();
+
+			if (isAlive()) {
+				BlockPos currentBlock = BlockPos.ofFloored(getEntityPos());
+				boolean sectionChanged = sectionX != ChunkSectionPos.getSectionCoord(currentBlock.getX())
+						|| sectionZ != ChunkSectionPos.getSectionCoord(currentBlock.getZ());
+
+				if ((--chunkTicketExpiryTicks <= 0L || sectionChanged)
+						&& ownerEntity instanceof ServerPlayerEntity serverPlayer2) {
+					chunkTicketExpiryTicks = serverPlayer2.handleThrownEnderPearl(this);
 				}
 			}
-		}
-		else {
+		} else {
 			super.tick();
 		}
 	}
@@ -227,34 +256,36 @@ public class EnderPearlEntity extends ThrownItemEntity {
 
 	@Override
 	public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
-		Entity entity = super.teleportTo(teleportTarget);
-		if (entity != null) {
-			entity.addPortalChunkTicketAt(BlockPos.ofFloored(entity.getEntityPos()));
+		Entity teleported = super.teleportTo(teleportTarget);
+		if (teleported != null) {
+			teleported.addPortalChunkTicketAt(BlockPos.ofFloored(teleported.getEntityPos()));
 		}
 
-		return entity;
+		return teleported;
 	}
 
 	@Override
 	public boolean canTeleportBetween(World from, World to) {
-		return from.getRegistryKey() == World.END && to.getRegistryKey() == World.OVERWORLD
-				       && this.getOwner() instanceof ServerPlayerEntity serverPlayerEntity
-		       ? super.canTeleportBetween(from, to) && serverPlayerEntity.seenCredits
-		       : super.canTeleportBetween(from, to);
+		boolean isEndToOverworld = from.getRegistryKey() == World.END && to.getRegistryKey() == World.OVERWORLD;
+		if (isEndToOverworld && getOwner() instanceof ServerPlayerEntity serverPlayer) {
+			return super.canTeleportBetween(from, to) && serverPlayer.seenCredits;
+		}
+
+		return super.canTeleportBetween(from, to);
 	}
 
 	@Override
 	protected void onBlockCollision(BlockState state) {
 		super.onBlockCollision(state);
-		if (state.isOf(Blocks.END_GATEWAY) && this.getOwner() instanceof ServerPlayerEntity serverPlayerEntity) {
-			serverPlayerEntity.onBlockCollision(state);
+		if (state.isOf(Blocks.END_GATEWAY) && getOwner() instanceof ServerPlayerEntity serverPlayer) {
+			serverPlayer.onBlockCollision(state);
 		}
 	}
 
 	@Override
 	public void onRemove(Entity.RemovalReason reason) {
 		if (reason != Entity.RemovalReason.UNLOADED_WITH_PLAYER) {
-			this.removeFromOwner();
+			removeFromOwner();
 		}
 
 		super.onRemove(reason);

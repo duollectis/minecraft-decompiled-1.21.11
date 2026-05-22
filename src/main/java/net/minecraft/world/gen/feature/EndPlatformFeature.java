@@ -7,9 +7,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code EndPlatformFeature}.
- */
+/** Генерирует стартовую платформу из обсидиана в Крае (5×5 блоков) с очисткой воздуха над ней. */
 public class EndPlatformFeature extends Feature<DefaultFeatureConfig> {
 
 	public EndPlatformFeature(Codec<DefaultFeatureConfig> codec) {
@@ -23,27 +21,27 @@ public class EndPlatformFeature extends Feature<DefaultFeatureConfig> {
 	}
 
 	/**
-	 * Generate.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param breakBlocks break blocks
+	 * Генерирует или восстанавливает стартовую платформу Края.
+	 * При {@code breakBlocks = true} разрушает существующие блоки с дропом предметов перед заменой.
 	 */
 	public static void generate(ServerWorldAccess world, BlockPos pos, boolean breakBlocks) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
 
-		for (int i = -2; i <= 2; i++) {
-			for (int j = -2; j <= 2; j++) {
-				for (int k = -1; k < 3; k++) {
-					BlockPos blockPos = mutable.set(pos).move(j, k, i);
-					Block block = k == -1 ? Blocks.OBSIDIAN : Blocks.AIR;
-					if (!world.getBlockState(blockPos).isOf(block)) {
-						if (breakBlocks) {
-							world.breakBlock(blockPos, true, null);
-						}
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				for (int dy = -1; dy < 3; dy++) {
+					BlockPos blockPos = mutable.set(pos).move(dz, dy, dx);
+					Block block = dy == -1 ? Blocks.OBSIDIAN : Blocks.AIR;
 
-						world.setBlockState(blockPos, block.getDefaultState(), 3);
+					if (world.getBlockState(blockPos).isOf(block)) {
+						continue;
 					}
+
+					if (breakBlocks) {
+						world.breakBlock(blockPos, true, null);
+					}
+
+					world.setBlockState(blockPos, block.getDefaultState(), 3);
 				}
 			}
 		}

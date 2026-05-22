@@ -7,9 +7,17 @@ import net.minecraft.util.math.Vec3d;
 import java.util.EnumSet;
 
 /**
- * {@code PounceAtTargetGoal}.
+ * Цель прыжка на цель: моб прыгает в направлении цели, если находится
+ * на земле и цель в диапазоне от 2 до 4 блоков.
  */
 public class PounceAtTargetGoal extends Goal {
+
+	private static final double MIN_POUNCE_DISTANCE_SQ = 4.0;
+	private static final double MAX_POUNCE_DISTANCE_SQ = 16.0;
+	private static final int POUNCE_CHANCE_TICKS = 5;
+	private static final double HORIZONTAL_IMPULSE = 0.4;
+	private static final double VELOCITY_CARRY = 0.2;
+	private static final double MIN_DIRECTION_LENGTH_SQ = 1.0E-7;
 
 	private final MobEntity mob;
 	private LivingEntity target;
@@ -18,44 +26,41 @@ public class PounceAtTargetGoal extends Goal {
 	public PounceAtTargetGoal(MobEntity mob, float velocity) {
 		this.mob = mob;
 		this.velocity = velocity;
-		this.setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.mob.hasControllingPassenger()) {
+		if (mob.hasControllingPassenger()) {
 			return false;
 		}
-		else {
-			this.target = this.mob.getTarget();
-			if (this.target == null) {
-				return false;
-			}
-			else {
-				double d = this.mob.squaredDistanceTo(this.target);
-				if (d < 4.0 || d > 16.0) {
-					return false;
-				}
-				else {
-					return !this.mob.isOnGround() ? false : this.mob.getRandom().nextInt(toGoalTicks(5)) == 0;
-				}
-			}
+
+		target = mob.getTarget();
+		if (target == null) {
+			return false;
 		}
+
+		double distSq = mob.squaredDistanceTo(target);
+		if (distSq < MIN_POUNCE_DISTANCE_SQ || distSq > MAX_POUNCE_DISTANCE_SQ) {
+			return false;
+		}
+
+		return mob.isOnGround() && mob.getRandom().nextInt(toGoalTicks(POUNCE_CHANCE_TICKS)) == 0;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.mob.isOnGround();
+		return !mob.isOnGround();
 	}
 
 	@Override
 	public void start() {
-		Vec3d vec3d = this.mob.getVelocity();
-		Vec3d vec3d2 = new Vec3d(this.target.getX() - this.mob.getX(), 0.0, this.target.getZ() - this.mob.getZ());
-		if (vec3d2.lengthSquared() > 1.0E-7) {
-			vec3d2 = vec3d2.normalize().multiply(0.4).add(vec3d.multiply(0.2));
+		Vec3d currentVelocity = mob.getVelocity();
+		Vec3d direction = new Vec3d(target.getX() - mob.getX(), 0.0, target.getZ() - mob.getZ());
+		if (direction.lengthSquared() > MIN_DIRECTION_LENGTH_SQ) {
+			direction = direction.normalize().multiply(HORIZONTAL_IMPULSE).add(currentVelocity.multiply(VELOCITY_CARRY));
 		}
 
-		this.mob.setVelocity(vec3d2.x, this.velocity, vec3d2.z);
+		mob.setVelocity(direction.x, velocity, direction.z);
 	}
 }

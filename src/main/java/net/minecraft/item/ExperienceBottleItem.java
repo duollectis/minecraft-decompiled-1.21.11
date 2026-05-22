@@ -14,9 +14,15 @@ import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
 /**
- * {@code ExperienceBottleItem}.
+ * Предмет «Бутылка опыта». При броске запускает снаряд {@link ExperienceBottleEntity},
+ * который при приземлении рассыпает шарики опыта.
+ * Имеет повышенную точность и мощность по сравнению с обычными снарядами.
  */
 public class ExperienceBottleItem extends Item implements ProjectileItem {
+
+	/** Угол наклона броска вниз (отрицательный — вверх по оси Y). */
+	private static final float THROW_PITCH = -20.0F;
+	private static final float THROW_POWER = 0.7F;
 
 	public ExperienceBottleItem(Item.Settings settings) {
 		super(settings);
@@ -24,7 +30,8 @@ public class ExperienceBottleItem extends Item implements ProjectileItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		world.playSound(
 				null,
 				user.getX(),
@@ -35,20 +42,22 @@ public class ExperienceBottleItem extends Item implements ProjectileItem {
 				0.5F,
 				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
 		);
+
 		if (world instanceof ServerWorld serverWorld) {
 			ProjectileEntity.spawnWithVelocity(
 					ExperienceBottleEntity::new,
 					serverWorld,
-					itemStack,
+					stack,
 					user,
-					-20.0F,
-					0.7F,
+					THROW_PITCH,
+					THROW_POWER,
 					1.0F
 			);
 		}
 
 		user.incrementStat(Stats.USED.getOrCreateStat(this));
-		itemStack.decrementUnlessCreative(1, user);
+		stack.decrementUnlessCreative(1, user);
+
 		return ActionResult.SUCCESS;
 	}
 
@@ -60,8 +69,8 @@ public class ExperienceBottleItem extends Item implements ProjectileItem {
 	@Override
 	public ProjectileItem.Settings getProjectileSettings() {
 		return ProjectileItem.Settings.builder()
-		                              .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
-		                              .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
-		                              .build();
+				.uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
+				.power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
+				.build();
 	}
 }

@@ -19,53 +19,55 @@ import net.minecraft.world.event.GameEvent;
 import java.util.Optional;
 
 /**
- * {@code GoatHornItem}.
+ * Предмет «Рог козла». Воспроизводит звук инструмента из компонента {@link InstrumentComponent}.
+ * Длительность использования и кулдаун определяются параметрами инструмента.
  */
 public class GoatHornItem extends Item {
+
+	/** Количество тиков в секунде для перевода длительности инструмента. */
+	private static final float TICKS_PER_SECOND = 20.0F;
 
 	public GoatHornItem(Item.Settings settings) {
 		super(settings);
 	}
 
+	/**
+	 * Создаёт стек рога с привязанным инструментом.
+	 *
+	 * @param item       предмет рога
+	 * @param instrument запись реестра инструмента
+	 * @return стек с установленным компонентом инструмента
+	 */
 	public static ItemStack getStackForInstrument(Item item, RegistryEntry<Instrument> instrument) {
-		ItemStack itemStack = new ItemStack(item);
-		itemStack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(instrument));
-		return itemStack;
+		ItemStack stack = new ItemStack(item);
+		stack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(instrument));
+		return stack;
 	}
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		Optional<? extends RegistryEntry<Instrument>>
-				optional =
-				this.getInstrument(itemStack, user.getRegistryManager());
-		if (optional.isPresent()) {
-			Instrument instrument = optional.get().value();
-			user.setCurrentHand(hand);
-			playSound(world, user, instrument);
-			user.getItemCooldownManager().set(itemStack, MathHelper.floor(instrument.useDuration() * 20.0F));
-			user.incrementStat(Stats.USED.getOrCreateStat(this));
-			return ActionResult.CONSUME;
-		}
-		else {
+		ItemStack stack = user.getStackInHand(hand);
+		Optional<? extends RegistryEntry<Instrument>> instrumentEntry = getInstrument(stack, user.getRegistryManager());
+
+		if (instrumentEntry.isEmpty()) {
 			return ActionResult.FAIL;
 		}
+
+		Instrument instrument = instrumentEntry.get().value();
+		user.setCurrentHand(hand);
+		playSound(world, user, instrument);
+		user.getItemCooldownManager().set(stack, MathHelper.floor(instrument.useDuration() * TICKS_PER_SECOND));
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+
+		return ActionResult.CONSUME;
 	}
 
 	@Override
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		Optional<RegistryEntry<Instrument>> optional = this.getInstrument(stack, user.getRegistryManager());
-		return optional
-				.<Integer>map(instrument -> MathHelper.floor(instrument.value().useDuration() * 20.0F))
+		Optional<RegistryEntry<Instrument>> instrumentEntry = getInstrument(stack, user.getRegistryManager());
+		return instrumentEntry
+				.<Integer>map(entry -> MathHelper.floor(entry.value().useDuration() * TICKS_PER_SECOND))
 				.orElse(0);
-	}
-
-	private Optional<RegistryEntry<Instrument>> getInstrument(
-			ItemStack stack,
-			RegistryWrapper.WrapperLookup registries
-	) {
-		InstrumentComponent instrumentComponent = stack.get(DataComponentTypes.INSTRUMENT);
-		return instrumentComponent != null ? instrumentComponent.getInstrument(registries) : Optional.empty();
 	}
 
 	@Override
@@ -73,10 +75,15 @@ public class GoatHornItem extends Item {
 		return UseAction.TOOT_HORN;
 	}
 
+	private Optional<RegistryEntry<Instrument>> getInstrument(ItemStack stack, RegistryWrapper.WrapperLookup registries) {
+		InstrumentComponent component = stack.get(DataComponentTypes.INSTRUMENT);
+		return component != null ? component.getInstrument(registries) : Optional.empty();
+	}
+
 	private static void playSound(World world, PlayerEntity player, Instrument instrument) {
-		SoundEvent soundEvent = instrument.soundEvent().value();
-		float f = instrument.range() / 16.0F;
-		world.playSoundFromEntity(player, player, soundEvent, SoundCategory.RECORDS, f, 1.0F);
+		SoundEvent sound = instrument.soundEvent().value();
+		float volume = instrument.range() / 16.0F;
+		world.playSoundFromEntity(player, player, sound, SoundCategory.RECORDS, volume, 1.0F);
 		world.emitGameEvent(GameEvent.INSTRUMENT_PLAY, player.getEntityPos(), GameEvent.Emitter.of(player));
 	}
 }

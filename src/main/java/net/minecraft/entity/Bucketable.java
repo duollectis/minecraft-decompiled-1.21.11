@@ -18,7 +18,9 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code Bucketable}.
+ * Маркерный интерфейс для существ, которых можно поймать в ведро с водой.
+ * Реализующие классы обязаны хранить флаг {@code fromBucket} и уметь
+ * сериализовать/десериализовать свои данные в/из {@link net.minecraft.item.ItemStack}.
  */
 public interface Bucketable {
 
@@ -38,29 +40,29 @@ public interface Bucketable {
 	static void copyDataToStack(MobEntity entity, ItemStack stack) {
 		stack.copy(DataComponentTypes.CUSTOM_NAME, entity);
 		NbtComponent.set(
-				DataComponentTypes.BUCKET_ENTITY_DATA, stack, nbtCompound -> {
-					if (entity.isAiDisabled()) {
-						nbtCompound.putBoolean("NoAI", entity.isAiDisabled());
-					}
-
-					if (entity.isSilent()) {
-						nbtCompound.putBoolean("Silent", entity.isSilent());
-					}
-
-					if (entity.hasNoGravity()) {
-						nbtCompound.putBoolean("NoGravity", entity.hasNoGravity());
-					}
-
-					if (entity.isGlowingLocal()) {
-						nbtCompound.putBoolean("Glowing", entity.isGlowingLocal());
-					}
-
-					if (entity.isInvulnerable()) {
-						nbtCompound.putBoolean("Invulnerable", entity.isInvulnerable());
-					}
-
-					nbtCompound.putFloat("Health", entity.getHealth());
+			DataComponentTypes.BUCKET_ENTITY_DATA, stack, nbt -> {
+				if (entity.isAiDisabled()) {
+					nbt.putBoolean("NoAI", entity.isAiDisabled());
 				}
+
+				if (entity.isSilent()) {
+					nbt.putBoolean("Silent", entity.isSilent());
+				}
+
+				if (entity.hasNoGravity()) {
+					nbt.putBoolean("NoGravity", entity.hasNoGravity());
+				}
+
+				if (entity.isGlowingLocal()) {
+					nbt.putBoolean("Glowing", entity.isGlowingLocal());
+				}
+
+				if (entity.isInvulnerable()) {
+					nbt.putBoolean("Invulnerable", entity.isInvulnerable());
+				}
+
+				nbt.putFloat("Health", entity.getHealth());
+			}
 		);
 	}
 
@@ -74,28 +76,38 @@ public interface Bucketable {
 		nbt.getFloat("Health").ifPresent(entity::setHealth);
 	}
 
+	/**
+	 * Пытается поймать сущность в ведро с водой.
+	 * Срабатывает только если игрок держит ведро с водой и сущность жива.
+	 * После поимки сущность удаляется из мира, а ведро заменяется на ведро с существом.
+	 *
+	 * @param player игрок, взаимодействующий с сущностью
+	 * @param hand   рука, в которой держится ведро
+	 * @param entity целевая сущность
+	 * @return результат взаимодействия, или {@link Optional#empty()} если условия не выполнены
+	 */
 	static <T extends LivingEntity & Bucketable> Optional<ActionResult> tryBucket(
-			PlayerEntity player,
-			Hand hand,
-			T entity
+		PlayerEntity player,
+		Hand hand,
+		T entity
 	) {
-		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.getItem() == Items.WATER_BUCKET && entity.isAlive()) {
-			entity.playSound(entity.getBucketFillSound(), 1.0F, 1.0F);
-			ItemStack itemStack2 = entity.getBucketItem();
-			entity.copyDataToStack(itemStack2);
-			ItemStack itemStack3 = ItemUsage.exchangeStack(itemStack, player, itemStack2, false);
-			player.setStackInHand(hand, itemStack3);
-			World world = entity.getEntityWorld();
-			if (!world.isClient()) {
-				Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity) player, itemStack2);
-			}
-
-			entity.discard();
-			return Optional.of(ActionResult.SUCCESS);
-		}
-		else {
+		ItemStack heldStack = player.getStackInHand(hand);
+		if (heldStack.getItem() != Items.WATER_BUCKET || !entity.isAlive()) {
 			return Optional.empty();
 		}
+
+		entity.playSound(entity.getBucketFillSound(), 1.0F, 1.0F);
+		ItemStack bucketItem = entity.getBucketItem();
+		entity.copyDataToStack(bucketItem);
+		ItemStack resultStack = ItemUsage.exchangeStack(heldStack, player, bucketItem, false);
+		player.setStackInHand(hand, resultStack);
+
+		World world = entity.getEntityWorld();
+		if (!world.isClient()) {
+			Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity) player, bucketItem);
+		}
+
+		entity.discard();
+		return Optional.of(ActionResult.SUCCESS);
 	}
 }

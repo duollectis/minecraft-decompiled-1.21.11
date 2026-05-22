@@ -6,7 +6,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectListIterator;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.TrialSpawnerBlock;
 import net.minecraft.block.dispenser.ItemDispenserBehavior;
@@ -52,7 +51,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code TrialSpawnerLogic}.
+ * Основная логика спаунера испытаний: управляет циклом жизни спаунера
+ * (активация, спаун мобов, перезарядка), обнаружением игроков,
+ * зловещим режимом и выбросом лута по завершении волны.
  */
 public final class TrialSpawnerLogic {
 
@@ -95,11 +96,6 @@ public final class TrialSpawnerLogic {
 		return this.fullConfig.ominous.value();
 	}
 
-	/**
-	 * Читает data.
-	 *
-	 * @param view view
-	 */
 	public void readData(ReadView view) {
 		view.<TrialSpawnerData.Packed>read(TrialSpawnerData.Packed.CODEC).ifPresent(this.data::unpack);
 		this.fullConfig =
@@ -108,11 +104,6 @@ public final class TrialSpawnerLogic {
 						.orElse(TrialSpawnerLogic.FullConfig.DEFAULT);
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param view view
-	 */
 	public void writeData(WriteView view) {
 		view.put(TrialSpawnerData.Packed.CODEC, this.data.pack());
 		view.put(TrialSpawnerLogic.FullConfig.CODEC, this.fullConfig);
@@ -154,9 +145,6 @@ public final class TrialSpawnerLogic {
 		this.trialSpawner.setSpawnerState(world, spawnerState);
 	}
 
-	/**
-	 * Обновляет listeners.
-	 */
 	public void updateListeners() {
 		this.trialSpawner.updateListeners();
 	}
@@ -169,13 +157,6 @@ public final class TrialSpawnerLogic {
 		return this.entitySelector;
 	}
 
-	/**
-	 * Проверяет возможность activate.
-	 *
-	 * @param world world
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canActivate(ServerWorld world) {
 		if (!world.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK)) {
 			return false;
@@ -190,19 +171,11 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
-	/**
-	 * Try spawn mob.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return Optional — результат операции
-	 */
 	public Optional<UUID> trySpawnMob(ServerWorld world, BlockPos pos) {
 		Random random = world.getRandom();
 		MobSpawnerEntry mobSpawnerEntry = this.data.getSpawnData(this, world.getRandom());
 
-		Optional var24;
+		Optional<UUID> spawnedEntityUuid;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(() -> "spawner@" + pos, LOGGER)) {
 			ReadView readView = NbtReadView.create(logging, world.getRegistryManager(), mobSpawnerEntry.entity());
 			Optional<EntityType<?>> optional = EntityType.fromData(readView);
@@ -288,28 +261,18 @@ public final class TrialSpawnerLogic {
 			world.syncWorldEvent(3011, pos, type.getIndex());
 			world.syncWorldEvent(3012, blockPos, type.getIndex());
 			world.emitGameEvent(entity, GameEvent.ENTITY_PLACE, blockPos);
-			var24 = Optional.of(entity.getUuid());
+			spawnedEntityUuid = Optional.of(entity.getUuid());
 		}
 
-		return var24;
+		return spawnedEntityUuid;
 	}
 
-	/**
-	 * Eject loot table.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param lootTable loot table
-	 */
 	public void ejectLootTable(ServerWorld world, BlockPos pos, RegistryKey<LootTable> lootTable) {
 		LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world).build(LootContextTypes.EMPTY);
 		ObjectArrayList<ItemStack> objectArrayList = lootTable2.generateLoot(lootWorldContext);
 		if (!objectArrayList.isEmpty()) {
-			ObjectListIterator var7 = objectArrayList.iterator();
-
-			while (var7.hasNext()) {
-				ItemStack itemStack = (ItemStack) var7.next();
+			for (ItemStack itemStack : objectArrayList) {
 				ItemDispenserBehavior.spawnItem(
 						world,
 						itemStack,
@@ -323,13 +286,6 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
-	/**
-	 * Выполняет тик обновления для client.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param ominous ominous
-	 */
 	public void tickClient(World world, BlockPos pos, boolean ominous) {
 		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
 		trialSpawnerState.emitParticles(world, pos, ominous);
@@ -343,7 +299,7 @@ public final class TrialSpawnerLogic {
 
 		if (trialSpawnerState.playsSound()) {
 			Random random = world.getRandom();
-			if (random.nextFloat() <= 0.02F) {
+			if (random.nextFloat() <= SOUND_RATE_PER_TICK) {
 				SoundEvent
 						soundEvent =
 						ominous ? SoundEvents.BLOCK_TRIAL_SPAWNER_AMBIENT_OMINOUS
@@ -360,13 +316,6 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
-	/**
-	 * Выполняет тик обновления для server.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param ominous ominous
-	 */
 	public void tickServer(ServerWorld world, BlockPos pos, boolean ominous) {
 		this.ominous = ominous;
 		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
@@ -402,14 +351,6 @@ public final class TrialSpawnerLogic {
 				|| blockHitResult.getType() == HitResult.Type.MISS;
 	}
 
-	/**
-	 * Добавляет mob spawn particles.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 * @param particle particle
-	 */
 	public static void addMobSpawnParticles(World world, BlockPos pos, Random random, SimpleParticleType particle) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
@@ -420,13 +361,6 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
-	/**
-	 * Добавляет trial omen particles.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 */
 	public static void addTrialOmenParticles(World world, BlockPos pos, Random random) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
@@ -457,13 +391,6 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
-	/**
-	 * Добавляет eject item particles.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 */
 	public static void addEjectItemParticles(World world, BlockPos pos, Random random) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.4 + random.nextDouble() * 0.2;
@@ -489,17 +416,19 @@ public final class TrialSpawnerLogic {
 		this.entityDetector = detector;
 	}
 
+	/**
+	 * Принудительно активирует спаунер вне зависимости от игровых правил.
+	 * Используется исключительно в тестах — не вызывать в продакшн-коде.
+	 */
 	@Deprecated(forRemoval = true)
 	@VisibleForTesting
-	/**
-	 * Force activate.
-	 */
 	public void forceActivate() {
 		this.forceActivate = true;
 	}
 
 	/**
-	 * {@code FullConfig}.
+	 * Полная конфигурация спаунера испытаний, объединяющая обычный и зловещий
+	 * варианты {@link TrialSpawnerConfig}, а также параметры обнаружения игроков.
 	 */
 	public record FullConfig(
 			RegistryEntry<TrialSpawnerConfig> normal,
@@ -517,17 +446,17 @@ public final class TrialSpawnerLogic {
 								                    .optionalFieldOf("ominous_config", RegistryEntry.of(TrialSpawnerConfig.DEFAULT))
 								                    .forGetter(TrialSpawnerLogic.FullConfig::ominous),
 						                    Codecs.NON_NEGATIVE_INT
-								                    .optionalFieldOf("target_cooldown_length", 36000)
+								                    .optionalFieldOf("target_cooldown_length", DEFAULT_COOLDOWN_LENGTH)
 								                    .forGetter(TrialSpawnerLogic.FullConfig::targetCooldownLength),
 						                    Codec
 								                    .intRange(1, 128)
-								                    .optionalFieldOf("required_player_range", 14)
+								                    .optionalFieldOf("required_player_range", DEFAULT_ENTITY_DETECTION_RANGE)
 								                    .forGetter(TrialSpawnerLogic.FullConfig::requiredPlayerRange)
 				                    )
 				                    .apply(instance, TrialSpawnerLogic.FullConfig::new)
 		);
 		public static final TrialSpawnerLogic.FullConfig DEFAULT = new TrialSpawnerLogic.FullConfig(
-				RegistryEntry.of(TrialSpawnerConfig.DEFAULT), RegistryEntry.of(TrialSpawnerConfig.DEFAULT), 36000, 14
+				RegistryEntry.of(TrialSpawnerConfig.DEFAULT), RegistryEntry.of(TrialSpawnerConfig.DEFAULT), DEFAULT_COOLDOWN_LENGTH, DEFAULT_ENTITY_DETECTION_RANGE
 		);
 
 		public TrialSpawnerLogic.FullConfig withEntityType(EntityType<?> entityType) {
@@ -541,7 +470,9 @@ public final class TrialSpawnerLogic {
 	}
 
 	/**
-	 * {@code TrialSpawner}.
+	 * Контракт блока, реализующего логику спаунера испытаний.
+	 * Позволяет {@link TrialSpawnerLogic} управлять состоянием блока
+	 * без прямой зависимости от конкретной реализации блок-сущности.
 	 */
 	public interface TrialSpawner {
 
@@ -553,9 +484,10 @@ public final class TrialSpawnerLogic {
 	}
 
 	/**
-	 * {@code Type}.
+	 * Тип спаунера испытаний, определяющий визуальные эффекты частиц
+	 * для обычного и зловещего режимов.
 	 */
-	public static enum Type {
+	public enum Type {
 		NORMAL(ParticleTypes.FLAME),
 		OMINOUS(ParticleTypes.SOUL_FIRE_FLAME);
 

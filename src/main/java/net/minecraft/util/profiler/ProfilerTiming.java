@@ -1,9 +1,14 @@
 package net.minecraft.util.profiler;
 
 /**
- * {@code ProfilerTiming}.
+ * Результат замера одной секции профайлера: имя, процент от родителя,
+ * процент от общего времени тика и количество посещений.
  */
 public final class ProfilerTiming implements Comparable<ProfilerTiming> {
+
+	// 0xFF4B4B4B — тёмно-серый базовый цвет для визуализации секций
+	private static final int BASE_COLOR = -12303292;
+	private static final int COLOR_MASK = 0xAAAAAA;
 
 	public final double parentSectionUsagePercentage;
 	public final double totalUsagePercentage;
@@ -17,25 +22,18 @@ public final class ProfilerTiming implements Comparable<ProfilerTiming> {
 		this.visitCount = visitCount;
 	}
 
-	/**
-	 * Compare to.
-	 *
-	 * @param profilerTiming profiler timing
-	 *
-	 * @return int — результат операции
-	 */
-	public int compareTo(ProfilerTiming profilerTiming) {
-		if (profilerTiming.parentSectionUsagePercentage < this.parentSectionUsagePercentage) {
+	@Override
+	public int compareTo(ProfilerTiming other) {
+		if (other.parentSectionUsagePercentage < parentSectionUsagePercentage) {
 			return -1;
 		}
-		else {
-			return profilerTiming.parentSectionUsagePercentage > this.parentSectionUsagePercentage ? 1
-			                                                                                       : profilerTiming.name.compareTo(
-					                                                                                       this.name);
-		}
+
+		return other.parentSectionUsagePercentage > parentSectionUsagePercentage
+			? 1
+			: other.name.compareTo(name);
 	}
 
 	public int getColor() {
-		return (this.name.hashCode() & 11184810) + -12303292;
+		return (name.hashCode() & COLOR_MASK) + BASE_COLOR;
 	}
 }

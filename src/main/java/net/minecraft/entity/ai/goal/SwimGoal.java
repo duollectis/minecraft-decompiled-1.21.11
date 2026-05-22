@@ -5,23 +5,23 @@ import net.minecraft.registry.tag.FluidTags;
 
 import java.util.EnumSet;
 
-/**
- * {@code SwimGoal}.
- */
+/** Цель плавания: активирует прыжок, чтобы моб держался на поверхности воды или лавы. */
 public class SwimGoal extends Goal {
+
+	private static final float JUMP_CHANCE = 0.8F;
 
 	private final MobEntity mob;
 
 	public SwimGoal(MobEntity mob) {
 		this.mob = mob;
-		this.setControls(EnumSet.of(Goal.Control.JUMP));
+		setControls(EnumSet.of(Goal.Control.JUMP));
 		mob.getNavigation().setCanSwim(true);
 	}
 
 	@Override
 	public boolean canStart() {
-		return this.mob.isTouchingWater() && this.mob.getFluidHeight(FluidTags.WATER) > this.mob.getSwimHeight()
-				|| this.mob.isInLava();
+		return (mob.isTouchingWater() && mob.getFluidHeight(FluidTags.WATER) > mob.getSwimHeight())
+				|| mob.isInLava();
 	}
 
 	@Override
@@ -31,8 +31,8 @@ public class SwimGoal extends Goal {
 
 	@Override
 	public void tick() {
-		if (this.mob.getRandom().nextFloat() < 0.8F) {
-			this.mob.getJumpControl().setActive();
+		if (mob.getRandom().nextFloat() < JUMP_CHANCE) {
+			mob.getJumpControl().setActive();
 		}
 	}
 }

@@ -17,48 +17,52 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * {@code PlaySoundEnchantmentEffect}.
+ * Эффект зачарования, воспроизводящий звук в позиции сущности.
+ * Звук выбирается из списка по индексу {@code level - 1} (зажатому в допустимый диапазон),
+ * что позволяет использовать разные звуки для разных уровней зачарования.
+ * Не воспроизводится для беззвучных сущностей.
  */
 public record PlaySoundEnchantmentEffect(
 		List<RegistryEntry<SoundEvent>> soundEvents,
 		FloatProvider volume,
 		FloatProvider pitch
-)
-		implements EnchantmentEntityEffect {
+) implements EnchantmentEntityEffect {
 
 	public static final MapCodec<PlaySoundEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Codecs.listOrSingle(SoundEvent.ENTRY_CODEC, SoundEvent.ENTRY_CODEC.sizeLimitedListOf(255))
-					                          .fieldOf("sound")
-					                          .forGetter(PlaySoundEnchantmentEffect::soundEvents),
-					                    FloatProvider
-							                    .createValidatedCodec(1.0E-5F, 10.0F)
-							                    .fieldOf("volume")
-							                    .forGetter(PlaySoundEnchantmentEffect::volume),
-					                    FloatProvider
-							                    .createValidatedCodec(1.0E-5F, 2.0F)
-							                    .fieldOf("pitch")
-							                    .forGetter(PlaySoundEnchantmentEffect::pitch)
-			                    )
-			                    .apply(instance, PlaySoundEnchantmentEffect::new)
+					Codecs.listOrSingle(SoundEvent.ENTRY_CODEC, SoundEvent.ENTRY_CODEC.sizeLimitedListOf(255))
+							.fieldOf("sound")
+							.forGetter(PlaySoundEnchantmentEffect::soundEvents),
+					FloatProvider
+							.createValidatedCodec(1.0E-5F, 10.0F)
+							.fieldOf("volume")
+							.forGetter(PlaySoundEnchantmentEffect::volume),
+					FloatProvider
+							.createValidatedCodec(1.0E-5F, 2.0F)
+							.fieldOf("pitch")
+							.forGetter(PlaySoundEnchantmentEffect::pitch)
+			).apply(instance, PlaySoundEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		if (!user.isSilent()) {
-			Random random = user.getRandom();
-			int i = MathHelper.clamp(level - 1, 0, this.soundEvents.size() - 1);
-			world.playSound(
-					null,
-					pos.getX(),
-					pos.getY(),
-					pos.getZ(),
-					this.soundEvents.get(i),
-					user.getSoundCategory(),
-					this.volume.get(random),
-					this.pitch.get(random)
-			);
+		if (user.isSilent()) {
+			return;
 		}
+
+		Random random = user.getRandom();
+		int soundIndex = MathHelper.clamp(level - 1, 0, soundEvents.size() - 1);
+
+		world.playSound(
+				null,
+				pos.getX(),
+				pos.getY(),
+				pos.getZ(),
+				soundEvents.get(soundIndex),
+				user.getSoundCategory(),
+				volume.get(random),
+				pitch.get(random)
+		);
 	}
 
 	@Override

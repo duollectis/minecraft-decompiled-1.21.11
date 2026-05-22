@@ -6,7 +6,8 @@ import net.minecraft.predicate.NumberRange;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code MovementPredicate}.
+ * Предикат движения сущности. Проверяет скорость по осям, горизонтальную,
+ * вертикальную скорость и дистанцию падения.
  */
 public record MovementPredicate(
 		NumberRange.DoubleRange x,
@@ -20,29 +21,22 @@ public record MovementPredicate(
 
 	public static final Codec<MovementPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("x", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::x),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("y", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::y),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("z", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::z),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("speed", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::speed),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("horizontal_speed", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::horizontalSpeed),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("vertical_speed", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::verticalSpeed),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("fall_distance", NumberRange.DoubleRange.ANY)
-							                    .forGetter(MovementPredicate::fallDistance)
-			                    )
-			                    .apply(instance, MovementPredicate::new)
+					NumberRange.DoubleRange.CODEC.optionalFieldOf("x", NumberRange.DoubleRange.ANY).forGetter(MovementPredicate::x),
+					NumberRange.DoubleRange.CODEC.optionalFieldOf("y", NumberRange.DoubleRange.ANY).forGetter(MovementPredicate::y),
+					NumberRange.DoubleRange.CODEC.optionalFieldOf("z", NumberRange.DoubleRange.ANY).forGetter(MovementPredicate::z),
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("speed", NumberRange.DoubleRange.ANY)
+							.forGetter(MovementPredicate::speed),
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("horizontal_speed", NumberRange.DoubleRange.ANY)
+							.forGetter(MovementPredicate::horizontalSpeed),
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("vertical_speed", NumberRange.DoubleRange.ANY)
+							.forGetter(MovementPredicate::verticalSpeed),
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("fall_distance", NumberRange.DoubleRange.ANY)
+							.forGetter(MovementPredicate::fallDistance)
+			).apply(instance, MovementPredicate::new)
 	);
 
 	public static MovementPredicate speed(NumberRange.DoubleRange speed) {
@@ -94,24 +88,22 @@ public record MovementPredicate(
 	}
 
 	public boolean test(double x, double y, double z, double fallDistance) {
-		if (this.x.test(x) && this.y.test(y) && this.z.test(z)) {
-			double d = MathHelper.squaredMagnitude(x, y, z);
-			if (!this.speed.testSqrt(d)) {
-				return false;
-			}
-			else {
-				double e = MathHelper.squaredHypot(x, z);
-				if (!this.horizontalSpeed.testSqrt(e)) {
-					return false;
-				}
-				else {
-					double f = Math.abs(y);
-					return !this.verticalSpeed.test(f) ? false : this.fallDistance.test(fallDistance);
-				}
-			}
-		}
-		else {
+		if (!this.x.test(x) || !this.y.test(y) || !this.z.test(z)) {
 			return false;
 		}
+
+		if (!speed.testSqrt(MathHelper.squaredMagnitude(x, y, z))) {
+			return false;
+		}
+
+		if (!horizontalSpeed.testSqrt(MathHelper.squaredHypot(x, z))) {
+			return false;
+		}
+
+		if (!verticalSpeed.test(Math.abs(y))) {
+			return false;
+		}
+
+		return this.fallDistance.test(fallDistance);
 	}
 }

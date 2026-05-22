@@ -8,7 +8,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code StructurePiecesCollector}.
+ * Коллектор кусков структуры с поддержкой вертикального смещения.
+ * Реализует {@link StructurePiecesHolder} и накапливает куски для последующей
+ * конвертации в иммутабельный {@link StructurePiecesList}.
  */
 public class StructurePiecesCollector implements StructurePiecesHolder {
 
@@ -16,66 +18,72 @@ public class StructurePiecesCollector implements StructurePiecesHolder {
 
 	@Override
 	public void addPiece(StructurePiece piece) {
-		this.pieces.add(piece);
+		pieces.add(piece);
 	}
 
 	@Override
 	public @Nullable StructurePiece getIntersecting(BlockBox box) {
-		return StructurePiece.firstIntersecting(this.pieces, box);
-	}
-
-	@Deprecated
-	public void shift(int y) {
-		for (StructurePiece structurePiece : this.pieces) {
-			structurePiece.translate(0, y, 0);
-		}
-	}
-
-	@Deprecated
-	public int shiftInto(int topY, int bottomY, Random random, int topPenalty) {
-		int i = topY - topPenalty;
-		BlockBox blockBox = this.getBoundingBox();
-		int j = blockBox.getBlockCountY() + bottomY + 1;
-		if (j < i) {
-			j += random.nextInt(i - j);
-		}
-
-		int k = j - blockBox.getMaxY();
-		this.shift(k);
-		return k;
+		return StructurePiece.firstIntersecting(pieces, box);
 	}
 
 	/**
-	 * @deprecated
+	 * Смещает все куски по оси Y на заданное значение.
+	 *
+	 * @deprecated используйте {@link #shiftInto(int, int, Random, int)} или {@link #shiftInto(Random, int, int)}
 	 */
-	public void shiftInto(Random random, int baseY, int topY) {
-		BlockBox blockBox = this.getBoundingBox();
-		int i = topY - baseY + 1 - blockBox.getBlockCountY();
-		int j;
-		if (i > 1) {
-			j = baseY + random.nextInt(i);
+	@Deprecated
+	public void shift(int y) {
+		for (StructurePiece piece : pieces) {
+			piece.translate(0, y, 0);
 		}
-		else {
-			j = baseY;
+	}
+
+	/**
+	 * Смещает куски так, чтобы верхняя граница оказалась в диапазоне [{@code bottomY}, {@code topY - topPenalty}].
+	 *
+	 * @return величина смещения по Y
+	 * @deprecated используйте {@link #shiftInto(Random, int, int)}
+	 */
+	@Deprecated
+	public int shiftInto(int topY, int bottomY, Random random, int topPenalty) {
+		int maxY = topY - topPenalty;
+		BlockBox box = getBoundingBox();
+		int targetY = box.getBlockCountY() + bottomY + 1;
+		if (targetY < maxY) {
+			targetY += random.nextInt(maxY - targetY);
 		}
 
-		int k = j - blockBox.getMinY();
-		this.shift(k);
+		int delta = targetY - box.getMaxY();
+		shift(delta);
+		return delta;
+	}
+
+	/**
+	 * Смещает куски так, чтобы нижняя граница оказалась в диапазоне [{@code baseY}, {@code topY}].
+	 *
+	 * @deprecated
+	 */
+	@Deprecated
+	public void shiftInto(Random random, int baseY, int topY) {
+		BlockBox box = getBoundingBox();
+		int range = topY - baseY + 1 - box.getBlockCountY();
+		int targetY = range > 1 ? baseY + random.nextInt(range) : baseY;
+		shift(targetY - box.getMinY());
 	}
 
 	public StructurePiecesList toList() {
-		return new StructurePiecesList(this.pieces);
+		return new StructurePiecesList(pieces);
 	}
 
 	public void clear() {
-		this.pieces.clear();
+		pieces.clear();
 	}
 
 	public boolean isEmpty() {
-		return this.pieces.isEmpty();
+		return pieces.isEmpty();
 	}
 
 	public BlockBox getBoundingBox() {
-		return StructurePiece.boundingBox(this.pieces.stream());
+		return StructurePiece.boundingBox(pieces.stream());
 	}
 }

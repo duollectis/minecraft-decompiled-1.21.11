@@ -37,13 +37,20 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code WitchEntity}.
+ * Ведьма — рейдер дальнего боя, бросающая зелья. В бою выбирает тип зелья
+ * в зависимости от состояния цели и дистанции. Периодически пьёт зелья
+ * для самолечения и защиты (огнестойкость, скорость, дыхание под водой).
  */
 public class WitchEntity extends RaiderEntity implements RangedAttackMob {
 
+	private static final float WITCH_SPEED = 0.25F;
+	private static final float SPEED_PENALTY = -0.25F;
+	private static final float PARTICLE_CHANCE = 7.5E-4F;
+	private static final byte PARTICLE_STATUS = 15;
+	private static final double SWIFTNESS_RANGE_SQUARED = 121.0;
 	private static final Identifier DRINKING_SPEED_PENALTY_MODIFIER_ID = Identifier.ofVanilla("drinking");
 	private static final EntityAttributeModifier DRINKING_SPEED_PENALTY_MODIFIER = new EntityAttributeModifier(
-			DRINKING_SPEED_PENALTY_MODIFIER_ID, -0.25, EntityAttributeModifier.Operation.ADD_VALUE
+			DRINKING_SPEED_PENALTY_MODIFIER_ID, SPEED_PENALTY, EntityAttributeModifier.Operation.ADD_VALUE
 	);
 	private static final TrackedData<Boolean>
 			DRINKING =
@@ -59,22 +66,21 @@ public class WitchEntity extends RaiderEntity implements RangedAttackMob {
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.raidGoal =
-				new RaidGoal<>(
-						this,
-						RaiderEntity.class,
-						true,
-						(target, world) -> this.hasActiveRaid() && target.getType() != EntityType.WITCH
-				);
-		this.attackPlayerGoal = new DisableableFollowTargetGoal<>(this, PlayerEntity.class, 10, true, false, null);
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(2, new ProjectileAttackGoal(this, 1.0, 60, 10.0F));
-		this.goalSelector.add(2, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(3, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(3, new LookAroundGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class));
-		this.targetSelector.add(2, this.raidGoal);
-		this.targetSelector.add(3, this.attackPlayerGoal);
+		raidGoal = new RaidGoal<>(
+				this,
+				RaiderEntity.class,
+				true,
+				(target, world) -> hasActiveRaid() && target.getType() != EntityType.WITCH
+		);
+		attackPlayerGoal = new DisableableFollowTargetGoal<>(this, PlayerEntity.class, 10, true, false, null);
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(2, new ProjectileAttackGoal(this, 1.0, 60, 10.0F));
+		goalSelector.add(2, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(3, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(3, new LookAroundGoal(this));
+		targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class));
+		targetSelector.add(2, raidGoal);
+		targetSelector.add(3, attackPlayerGoal);
 	}
 
 	@Override
@@ -99,109 +105,121 @@ public class WitchEntity extends RaiderEntity implements RangedAttackMob {
 	}
 
 	public void setDrinking(boolean drinking) {
-		this.getDataTracker().set(DRINKING, drinking);
+		getDataTracker().set(DRINKING, drinking);
 	}
 
 	public boolean isDrinking() {
-		return this.getDataTracker().get(DRINKING);
+		return getDataTracker().get(DRINKING);
 	}
 
 	public static DefaultAttributeContainer.Builder createWitchAttributes() {
 		return HostileEntity
 				.createHostileAttributes()
 				.add(EntityAttributes.MAX_HEALTH, 26.0)
-				.add(EntityAttributes.MOVEMENT_SPEED, 0.25);
+				.add(EntityAttributes.MOVEMENT_SPEED, WITCH_SPEED);
 	}
 
 	@Override
 	public void tickMovement() {
-		if (!this.getEntityWorld().isClient() && this.isAlive()) {
-			this.raidGoal.decreaseCooldown();
-			if (this.raidGoal.getCooldown() <= 0) {
-				this.attackPlayerGoal.setEnabled(true);
-			}
-			else {
-				this.attackPlayerGoal.setEnabled(false);
-			}
+		if (!getEntityWorld().isClient() && isAlive()) {
+			raidGoal.decreaseCooldown();
+			attackPlayerGoal.setEnabled(raidGoal.getCooldown() <= 0);
 
-			if (this.isDrinking()) {
-				if (this.drinkTimeLeft-- <= 0) {
-					this.setDrinking(false);
-					ItemStack itemStack = this.getMainHandStack();
-					this.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-					PotionContentsComponent potionContentsComponent = itemStack.get(DataComponentTypes.POTION_CONTENTS);
-					if (itemStack.isOf(Items.POTION) && potionContentsComponent != null) {
-						potionContentsComponent.forEachEffect(
-								this::addStatusEffect,
-								itemStack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F)
-						);
-					}
-
-					this.emitGameEvent(GameEvent.DRINK);
-					this
-							.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED)
-							.removeModifier(DRINKING_SPEED_PENALTY_MODIFIER.id());
-				}
-			}
-			else {
-				RegistryEntry<Potion> registryEntry = null;
-				if (this.random.nextFloat() < 0.15F && this.isSubmergedIn(FluidTags.WATER) && !this.hasStatusEffect(
-						StatusEffects.WATER_BREATHING)) {
-					registryEntry = Potions.WATER_BREATHING;
-				}
-				else if (this.random.nextFloat() < 0.15F
-						&& (this.isOnFire() || this.getRecentDamageSource() != null && this
-						.getRecentDamageSource()
-						.isIn(DamageTypeTags.IS_FIRE)
-				)
-						&& !this.hasStatusEffect(StatusEffects.FIRE_RESISTANCE)) {
-					registryEntry = Potions.FIRE_RESISTANCE;
-				}
-				else if (this.random.nextFloat() < 0.05F && this.getHealth() < this.getMaxHealth()) {
-					registryEntry = Potions.HEALING;
-				}
-				else if (this.random.nextFloat() < 0.5F
-						&& this.getTarget() != null
-						&& !this.hasStatusEffect(StatusEffects.SPEED)
-						&& this.getTarget().squaredDistanceTo(this) > 121.0) {
-					registryEntry = Potions.SWIFTNESS;
-				}
-
-				if (registryEntry != null) {
-					this.equipStack(
-							EquipmentSlot.MAINHAND,
-							PotionContentsComponent.createStack(Items.POTION, registryEntry)
-					);
-					this.drinkTimeLeft = this.getMainHandStack().getMaxUseTime(this);
-					this.setDrinking(true);
-					if (!this.isSilent()) {
-						this.getEntityWorld()
-						    .playSound(
-								    null,
-								    this.getX(),
-								    this.getY(),
-								    this.getZ(),
-								    SoundEvents.ENTITY_WITCH_DRINK,
-								    this.getSoundCategory(),
-								    1.0F,
-								    0.8F + this.random.nextFloat() * 0.4F
-						    );
-					}
-
-					EntityAttributeInstance
-							entityAttributeInstance =
-							this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-					entityAttributeInstance.removeModifier(DRINKING_SPEED_PENALTY_MODIFIER_ID);
-					entityAttributeInstance.addTemporaryModifier(DRINKING_SPEED_PENALTY_MODIFIER);
-				}
+			if (isDrinking()) {
+				tickDrinking();
+			} else {
+				tickPotionSelection();
 			}
 
-			if (this.random.nextFloat() < 7.5E-4F) {
-				this.getEntityWorld().sendEntityStatus(this, (byte) 15);
+			if (random.nextFloat() < PARTICLE_CHANCE) {
+				getEntityWorld().sendEntityStatus(this, PARTICLE_STATUS);
 			}
 		}
 
 		super.tickMovement();
+	}
+
+	private void tickDrinking() {
+		if (drinkTimeLeft-- > 0) {
+			return;
+		}
+
+		setDrinking(false);
+		ItemStack drinkStack = getMainHandStack();
+		equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		PotionContentsComponent potionContents = drinkStack.get(DataComponentTypes.POTION_CONTENTS);
+
+		if (drinkStack.isOf(Items.POTION) && potionContents != null) {
+			potionContents.forEachEffect(
+					this::addStatusEffect,
+					drinkStack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F)
+			);
+		}
+
+		emitGameEvent(GameEvent.DRINK);
+		getAttributeInstance(EntityAttributes.MOVEMENT_SPEED)
+				.removeModifier(DRINKING_SPEED_PENALTY_MODIFIER.id());
+	}
+
+	private void tickPotionSelection() {
+		RegistryEntry<Potion> potion = selectSelfPotion();
+		if (potion == null) {
+			return;
+		}
+
+		equipStack(EquipmentSlot.MAINHAND, PotionContentsComponent.createStack(Items.POTION, potion));
+		drinkTimeLeft = getMainHandStack().getMaxUseTime(this);
+		setDrinking(true);
+
+		if (!isSilent()) {
+			getEntityWorld().playSound(
+					null,
+					getX(),
+					getY(),
+					getZ(),
+					SoundEvents.ENTITY_WITCH_DRINK,
+					getSoundCategory(),
+					1.0F,
+					0.8F + random.nextFloat() * 0.4F
+			);
+		}
+
+		EntityAttributeInstance speedAttr = getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+		speedAttr.removeModifier(DRINKING_SPEED_PENALTY_MODIFIER_ID);
+		speedAttr.addTemporaryModifier(DRINKING_SPEED_PENALTY_MODIFIER);
+	}
+
+	/**
+	 * Выбирает зелье для самолечения/защиты ведьмы на основе текущего состояния.
+	 * Возвращает {@code null}, если ни одно условие не выполнено.
+	 */
+	private RegistryEntry<Potion> selectSelfPotion() {
+		if (random.nextFloat() < 0.15F && isSubmergedIn(FluidTags.WATER) && !hasStatusEffect(StatusEffects.WATER_BREATHING)) {
+			return Potions.WATER_BREATHING;
+		}
+
+		DamageSource recentDamage = getRecentDamageSource();
+		if (random.nextFloat() < 0.15F
+				&& (isOnFire() || (recentDamage != null && recentDamage.isIn(DamageTypeTags.IS_FIRE)))
+				&& !hasStatusEffect(StatusEffects.FIRE_RESISTANCE)
+		) {
+			return Potions.FIRE_RESISTANCE;
+		}
+
+		if (random.nextFloat() < 0.05F && getHealth() < getMaxHealth()) {
+			return Potions.HEALING;
+		}
+
+		LivingEntity currentTarget = getTarget();
+		if (random.nextFloat() < 0.5F
+				&& currentTarget != null
+				&& !hasStatusEffect(StatusEffects.SPEED)
+				&& currentTarget.squaredDistanceTo(this) > SWIFTNESS_RANGE_SQUARED
+		) {
+			return Potions.SWIFTNESS;
+		}
+
+		return null;
 	}
 
 	@Override
@@ -211,28 +229,29 @@ public class WitchEntity extends RaiderEntity implements RangedAttackMob {
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 15) {
-			for (int i = 0; i < this.random.nextInt(35) + 10; i++) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    ParticleTypes.WITCH,
-						    this.getX() + this.random.nextGaussian() * 0.13F,
-						    this.getBoundingBox().maxY + 0.5 + this.random.nextGaussian() * 0.13F,
-						    this.getZ() + this.random.nextGaussian() * 0.13F,
-						    0.0,
-						    0.0,
-						    0.0
-				    );
-			}
-		}
-		else {
+		if (status != PARTICLE_STATUS) {
 			super.handleStatus(status);
+			return;
+		}
+
+		int count = random.nextInt(35) + 10;
+		for (int particleIndex = 0; particleIndex < count; particleIndex++) {
+			getEntityWorld().addParticleClient(
+					ParticleTypes.WITCH,
+					getX() + random.nextGaussian() * 0.13F,
+					getBoundingBox().maxY + 0.5 + random.nextGaussian() * 0.13F,
+					getZ() + random.nextGaussian() * 0.13F,
+					0.0,
+					0.0,
+					0.0
+			);
 		}
 	}
 
 	@Override
 	protected float modifyAppliedDamage(DamageSource source, float amount) {
 		amount = super.modifyAppliedDamage(source, amount);
+
 		if (source.getAttacker() == this) {
 			amount = 0.0F;
 		}
@@ -244,64 +263,79 @@ public class WitchEntity extends RaiderEntity implements RangedAttackMob {
 		return amount;
 	}
 
+	/**
+	 * Выбирает тип зелья для броска в зависимости от цели и дистанции,
+	 * затем создаёт снаряд {@link SplashPotionEntity} с нужной траекторией.
+	 */
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		if (!this.isDrinking()) {
-			Vec3d vec3d = target.getVelocity();
-			double d = target.getX() + vec3d.x - this.getX();
-			double e = target.getEyeY() - 1.1F - this.getY();
-			double f = target.getZ() + vec3d.z - this.getZ();
-			double g = Math.sqrt(d * d + f * f);
-			RegistryEntry<Potion> registryEntry = Potions.HARMING;
-			if (target instanceof RaiderEntity) {
-				if (target.getHealth() <= 4.0F) {
-					registryEntry = Potions.HEALING;
-				}
-				else {
-					registryEntry = Potions.REGENERATION;
-				}
-
-				this.setTarget(null);
-			}
-			else if (g >= 8.0 && !target.hasStatusEffect(StatusEffects.SLOWNESS)) {
-				registryEntry = Potions.SLOWNESS;
-			}
-			else if (target.getHealth() >= 8.0F && !target.hasStatusEffect(StatusEffects.POISON)) {
-				registryEntry = Potions.POISON;
-			}
-			else if (g <= 3.0 && !target.hasStatusEffect(StatusEffects.WEAKNESS) && this.random.nextFloat() < 0.25F) {
-				registryEntry = Potions.WEAKNESS;
-			}
-
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-				ItemStack itemStack = PotionContentsComponent.createStack(Items.SPLASH_POTION, registryEntry);
-				ProjectileEntity.spawnWithVelocity(
-						SplashPotionEntity::new,
-						serverWorld,
-						itemStack,
-						this,
-						d,
-						e + g * 0.2,
-						f,
-						0.75F,
-						8.0F
-				);
-			}
-
-			if (!this.isSilent()) {
-				this.getEntityWorld()
-				    .playSound(
-						    null,
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_WITCH_THROW,
-						    this.getSoundCategory(),
-						    1.0F,
-						    0.8F + this.random.nextFloat() * 0.4F
-				    );
-			}
+		if (isDrinking()) {
+			return;
 		}
+
+		Vec3d targetVelocity = target.getVelocity();
+		double dx = target.getX() + targetVelocity.x - getX();
+		double dy = target.getEyeY() - 1.1F - getY();
+		double dz = target.getZ() + targetVelocity.z - getZ();
+		double horizDist = Math.sqrt(dx * dx + dz * dz);
+
+		RegistryEntry<Potion> potion = selectAttackPotion(target, horizDist);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			ItemStack potionStack = PotionContentsComponent.createStack(Items.SPLASH_POTION, potion);
+			ProjectileEntity.spawnWithVelocity(
+					SplashPotionEntity::new,
+					serverWorld,
+					potionStack,
+					this,
+					dx,
+					dy + horizDist * 0.2,
+					dz,
+					0.75F,
+					8.0F
+			);
+		}
+
+		if (!isSilent()) {
+			getEntityWorld().playSound(
+					null,
+					getX(),
+					getY(),
+					getZ(),
+					SoundEvents.ENTITY_WITCH_THROW,
+					getSoundCategory(),
+					1.0F,
+					0.8F + random.nextFloat() * 0.4F
+			);
+		}
+	}
+
+	/**
+	 * Выбирает зелье для атаки на основе типа цели, её здоровья и дистанции.
+	 * Если цель — союзный рейдер, ведьма лечит его и сбрасывает свою цель.
+	 */
+	private RegistryEntry<Potion> selectAttackPotion(LivingEntity target, double horizDist) {
+		if (target instanceof RaiderEntity) {
+			RegistryEntry<Potion> allyPotion = target.getHealth() <= 4.0F
+					? Potions.HEALING
+					: Potions.REGENERATION;
+			setTarget(null);
+			return allyPotion;
+		}
+
+		if (horizDist >= 8.0 && !target.hasStatusEffect(StatusEffects.SLOWNESS)) {
+			return Potions.SLOWNESS;
+		}
+
+		if (target.getHealth() >= 8.0F && !target.hasStatusEffect(StatusEffects.POISON)) {
+			return Potions.POISON;
+		}
+
+		if (horizDist <= 3.0 && !target.hasStatusEffect(StatusEffects.WEAKNESS) && random.nextFloat() < 0.25F) {
+			return Potions.WEAKNESS;
+		}
+
+		return Potions.HARMING;
 	}
 
 	@Override

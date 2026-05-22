@@ -55,125 +55,140 @@ import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
 
 /**
- * {@code TestServer}.
+ * Специализированный сервер для запуска игровых тестов в headless-режиме.
+ * Создаёт плоский мир, размещает тесты в случайной позиции и завершает процесс
+ * с кодом, равным количеству упавших обязательных тестов.
  */
 public class TestServer extends MinecraftServer {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int RESULT_STRING_LOG_INTERVAL = 20;
 	private static final int TEST_POS_XZ_RANGE = 14999992;
+	/** Y-координата спавна тестов: достаточно низко, чтобы не мешать небу. */
+	private static final int TEST_SPAWN_Y = -59;
+	private static final int VERIFICATION_RUNS_PER_ROTATION = 100;
+
 	private static final ApiServices NONE_API_SERVICES = new ApiServices(
-			null,
-			ServicesKeySet.EMPTY,
-			null,
-			new TestServer.DummyNameToIdCache(),
-			new TestServer.DummyGameProfileResolver()
+		null,
+		ServicesKeySet.EMPTY,
+		null,
+		new DummyNameToIdCache(),
+		new DummyGameProfileResolver()
 	);
 	private static final FeatureSet ENABLED_FEATURES = FeatureFlags.FEATURE_MANAGER
-			.getFeatureSet()
-			.subtract(FeatureSet.of(FeatureFlags.REDSTONE_EXPERIMENTS, FeatureFlags.MINECART_IMPROVEMENTS));
+		.getFeatureSet()
+		.subtract(FeatureSet.of(FeatureFlags.REDSTONE_EXPERIMENTS, FeatureFlags.MINECART_IMPROVEMENTS));
+	private static final GeneratorOptions TEST_LEVEL = new GeneratorOptions(0L, false, false);
+
 	private final MultiValueDebugSampleLogImpl debugSampleLog = new MultiValueDebugSampleLogImpl(4);
 	private final Optional<String> tests;
 	private final boolean verify;
 	private List<GameTestBatch> batches = new ArrayList<>();
 	private final Stopwatch stopwatch = Stopwatch.createUnstarted();
-	private static final GeneratorOptions TEST_LEVEL = new GeneratorOptions(0L, false, false);
 	private @Nullable TestSet testSet;
 
+	/**
+	 * Создаёт и инициализирует тестовый сервер: загружает датапаки, создаёт плоский мир.
+	 *
+	 * @param tests   селектор тестов (пустой = все тесты)
+	 * @param verify  если true — каждый тест запускается {@value VERIFICATION_RUNS_PER_ROTATION} раз
+	 *                для каждого из 4 поворотов структуры
+	 */
 	public static TestServer create(
-			Thread thread,
-			LevelStorage.Session session,
-			ResourcePackManager resourcePackManager,
-			Optional<String> tests,
-			boolean verify
+		Thread thread,
+		LevelStorage.Session session,
+		ResourcePackManager resourcePackManager,
+		Optional<String> tests,
+		boolean verify
 	) {
 		resourcePackManager.scanPacks();
-		ArrayList<String> arrayList = new ArrayList<>(resourcePackManager.getIds());
-		arrayList.remove("vanilla");
-		arrayList.addFirst("vanilla");
-		DataConfiguration
-				dataConfiguration =
-				new DataConfiguration(new DataPackSettings(arrayList, List.of()), ENABLED_FEATURES);
-		LevelInfo
-				levelInfo =
-				new LevelInfo(
-						"Test Level",
-						GameMode.CREATIVE,
-						false,
-						Difficulty.NORMAL,
-						true,
-						new GameRules(ENABLED_FEATURES),
-						dataConfiguration
-				);
-		SaveLoading.DataPacks
-				dataPacks =
-				new SaveLoading.DataPacks(resourcePackManager, dataConfiguration, false, true);
+		ArrayList<String> packIds = new ArrayList<>(resourcePackManager.getIds());
+		packIds.remove("vanilla");
+		packIds.addFirst("vanilla");
+
+		DataConfiguration dataConfiguration = new DataConfiguration(
+			new DataPackSettings(packIds, List.of()),
+			ENABLED_FEATURES
+		);
+		LevelInfo levelInfo = new LevelInfo(
+			"Test Level",
+			GameMode.CREATIVE,
+			false,
+			Difficulty.NORMAL,
+			true,
+			new GameRules(ENABLED_FEATURES),
+			dataConfiguration
+		);
+		SaveLoading.DataPacks dataPacks = new SaveLoading.DataPacks(
+			resourcePackManager,
+			dataConfiguration,
+			false,
+			true
+		);
 		SaveLoading.ServerConfig serverConfig = new SaveLoading.ServerConfig(
-				dataPacks, CommandManager.RegistrationEnvironment.DEDICATED, LeveledPermissionPredicate.OWNERS
+			dataPacks,
+			CommandManager.RegistrationEnvironment.DEDICATED,
+			LeveledPermissionPredicate.OWNERS
 		);
 
 		try {
 			LOGGER.debug("Starting resource loading");
-			Stopwatch stopwatch = Stopwatch.createStarted();
+			Stopwatch loadStopwatch = Stopwatch.createStarted();
 			SaveLoader saveLoader = Util.<SaveLoader>waitAndApply(
-					                            executor -> SaveLoading.load(
-							                            serverConfig,
-							                            context -> {
-								                            Registry<DimensionOptions>
-										                            registry =
-										                            new SimpleRegistry<>(RegistryKeys.DIMENSION, Lifecycle.stable()).freeze();
-								                            DimensionOptionsRegistryHolder.DimensionsConfig
-										                            dimensionsConfig =
-										                            context.worldGenRegistryManager()
-										                                   .getOrThrow(RegistryKeys.WORLD_PRESET)
-										                                   .getOrThrow(WorldPresets.FLAT)
-										                                   .value()
-										                                   .createDimensionsRegistryHolder()
-										                                   .toConfig(registry);
-								                            return new SaveLoading.LoadContext<>(
-										                            new LevelProperties(
-												                            levelInfo,
-												                            TEST_LEVEL,
-												                            dimensionsConfig.specialWorldProperty(),
-												                            dimensionsConfig.getLifecycle()
-										                            ),
-										                            dimensionsConfig.toDynamicRegistryManager()
-								                            );
-							                            },
-							                            SaveLoader::new,
-							                            Util.getMainWorkerExecutor(),
-							                            executor
-					                            )
-			                            )
-			                            .get();
-			stopwatch.stop();
-			LOGGER.debug("Finished resource loading after {} ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
+				executor -> SaveLoading.load(
+					serverConfig,
+					context -> {
+						Registry<DimensionOptions> dimensionRegistry =
+							new SimpleRegistry<>(RegistryKeys.DIMENSION, Lifecycle.stable()).freeze();
+						DimensionOptionsRegistryHolder.DimensionsConfig dimensionsConfig =
+							context.worldGenRegistryManager()
+								.getOrThrow(RegistryKeys.WORLD_PRESET)
+								.getOrThrow(WorldPresets.FLAT)
+								.value()
+								.createDimensionsRegistryHolder()
+								.toConfig(dimensionRegistry);
+						return new SaveLoading.LoadContext<>(
+							new LevelProperties(
+								levelInfo,
+								TEST_LEVEL,
+								dimensionsConfig.specialWorldProperty(),
+								dimensionsConfig.getLifecycle()
+							),
+							dimensionsConfig.toDynamicRegistryManager()
+						);
+					},
+					SaveLoader::new,
+					Util.getMainWorkerExecutor(),
+					executor
+				)
+			).get();
+			loadStopwatch.stop();
+			LOGGER.debug("Finished resource loading after {} ms", loadStopwatch.elapsed(TimeUnit.MILLISECONDS));
 			return new TestServer(thread, session, resourcePackManager, saveLoader, tests, verify);
-		}
-		catch (Exception var12) {
-			LOGGER.warn("Failed to load vanilla datapack, bit oops", var12);
+		} catch (Exception ex) {
+			LOGGER.warn("Failed to load vanilla datapack, bit oops", ex);
 			System.exit(-1);
 			throw new IllegalStateException();
 		}
 	}
 
 	private TestServer(
-			Thread serverThread,
-			LevelStorage.Session session,
-			ResourcePackManager dataPackManager,
-			SaveLoader saveLoader,
-			Optional<String> tests,
-			boolean verify
+		Thread serverThread,
+		LevelStorage.Session session,
+		ResourcePackManager dataPackManager,
+		SaveLoader saveLoader,
+		Optional<String> tests,
+		boolean verify
 	) {
 		super(
-				serverThread,
-				session,
-				dataPackManager,
-				saveLoader,
-				Proxy.NO_PROXY,
-				Schemas.getFixer(),
-				NONE_API_SERVICES,
-				LoggingChunkLoadProgress.withoutPlayer()
+			serverThread,
+			session,
+			dataPackManager,
+			saveLoader,
+			Proxy.NO_PROXY,
+			Schemas.getFixer(),
+			NONE_API_SERVICES,
+			LoggingChunkLoadProgress.withoutPlayer()
 		);
 		this.tests = tests;
 		this.verify = verify;
@@ -181,59 +196,59 @@ public class TestServer extends MinecraftServer {
 
 	@Override
 	public boolean setupServer() {
-		this.setPlayerManager(new PlayerManager(
-				this,
-				this.getCombinedDynamicRegistries(),
-				this.saveHandler,
-				new BlankManagementListener()
+		setPlayerManager(new PlayerManager(
+			this,
+			getCombinedDynamicRegistries(),
+			saveHandler,
+			new BlankManagementListener()
 		) {});
 		GizmoDrawing.using(GizmoCollector.EMPTY);
-		this.loadWorld();
-		ServerWorld serverWorld = this.getOverworld();
-		this.batches = this.batch(serverWorld);
+		loadWorld();
+		batches = batch(getOverworld());
 		LOGGER.info("Started game test server");
 		return true;
 	}
 
 	private List<GameTestBatch> batch(ServerWorld world) {
 		Registry<TestInstance> registry = world.getRegistryManager().getOrThrow(RegistryKeys.TEST_INSTANCE);
-		Collection<RegistryEntry.Reference<TestInstance>> collection;
+		Collection<RegistryEntry.Reference<TestInstance>> instances;
 		Batches.Decorator decorator;
-		if (this.tests.isPresent()) {
-			collection =
-					selectInstances(world.getRegistryManager(), this.tests.get())
-							.filter(instance -> !instance.value().isManualOnly())
-							.toList();
-			if (this.verify) {
+
+		if (tests.isPresent()) {
+			instances = selectInstances(world.getRegistryManager(), tests.get())
+				.filter(instance -> !instance.value().isManualOnly())
+				.toList();
+
+			if (verify) {
 				decorator = TestServer::makeVerificationBatches;
 				LOGGER.info(
-						"Verify requested. Will run each test that matches {} {} times",
-						this.tests.get(),
-						100 * BlockRotation.values().length
+					"Verify requested. Will run each test that matches {} {} times",
+					tests.get(),
+					VERIFICATION_RUNS_PER_ROTATION * BlockRotation.values().length
 				);
-			}
-			else {
+			} else {
 				decorator = Batches.DEFAULT_DECORATOR;
-				LOGGER.info("Will run tests matching {} ({} tests)", this.tests.get(), collection.size());
+				LOGGER.info("Will run tests matching {} ({} tests)", tests.get(), instances.size());
 			}
-		}
-		else {
-			collection = registry.streamEntries().filter(instance -> !instance.value().isManualOnly()).toList();
+		} else {
+			instances = registry.streamEntries()
+				.filter(instance -> !instance.value().isManualOnly())
+				.toList();
 			decorator = Batches.DEFAULT_DECORATOR;
 		}
 
-		return Batches.batch(collection, decorator, world);
+		return Batches.batch(instances, decorator, world);
 	}
 
 	private static Stream<GameTestState> makeVerificationBatches(
-			RegistryEntry.Reference<TestInstance> instance,
-			ServerWorld world
+		RegistryEntry.Reference<TestInstance> instance,
+		ServerWorld world
 	) {
 		Builder<GameTestState> builder = Stream.builder();
 
-		for (BlockRotation blockRotation : BlockRotation.values()) {
-			for (int i = 0; i < 100; i++) {
-				builder.add(new GameTestState(instance, blockRotation, world, TestAttemptConfig.once()));
+		for (BlockRotation rotation : BlockRotation.values()) {
+			for (int run = 0; run < VERIFICATION_RUNS_PER_ROTATION; run++) {
+				builder.add(new GameTestState(instance, rotation, world, TestAttemptConfig.once()));
 			}
 		}
 
@@ -241,46 +256,47 @@ public class TestServer extends MinecraftServer {
 	}
 
 	public static Stream<RegistryEntry.Reference<TestInstance>> selectInstances(
-			DynamicRegistryManager registryManager,
-			String selector
+		DynamicRegistryManager registryManager,
+		String selector
 	) {
 		return RegistrySelectorArgumentType
-				.select(new StringReader(selector), registryManager.getOrThrow(RegistryKeys.TEST_INSTANCE))
-				.stream();
+			.select(new StringReader(selector), registryManager.getOrThrow(RegistryKeys.TEST_INSTANCE))
+			.stream();
 	}
 
 	@Override
 	public void tick(BooleanSupplier shouldKeepTicking) {
 		super.tick(shouldKeepTicking);
-		ServerWorld serverWorld = this.getOverworld();
-		if (!this.isTesting()) {
-			this.runTestBatches(serverWorld);
+		ServerWorld overworld = getOverworld();
+
+		if (!isTesting()) {
+			runTestBatches(overworld);
 		}
 
-		if (serverWorld.getTime() % 20L == 0L) {
-			LOGGER.info(this.testSet.getResultString());
+		if (overworld.getTime() % RESULT_STRING_LOG_INTERVAL == 0L) {
+			LOGGER.info(testSet.getResultString());
 		}
 
-		if (this.testSet.isDone()) {
-			this.stop(false);
-			LOGGER.info(this.testSet.getResultString());
+		if (testSet.isDone()) {
+			stop(false);
+			LOGGER.info(testSet.getResultString());
 			TestFailureLogger.stop();
 			LOGGER.info(
-					"========= {} GAME TESTS COMPLETE IN {} ======================",
-					this.testSet.getTestCount(),
-					this.stopwatch.stop()
+				"========= {} GAME TESTS COMPLETE IN {} ======================",
+				testSet.getTestCount(),
+				stopwatch.stop()
 			);
-			if (this.testSet.failed()) {
-				LOGGER.info("{} required tests failed :(", this.testSet.getFailedRequiredTestCount());
-				this.testSet.getRequiredTests().forEach(TestServer::logFailure);
-			}
-			else {
-				LOGGER.info("All {} required tests passed :)", this.testSet.getTestCount());
+
+			if (testSet.failed()) {
+				LOGGER.info("{} required tests failed :(", testSet.getFailedRequiredTestCount());
+				testSet.getRequiredTests().forEach(TestServer::logFailure);
+			} else {
+				LOGGER.info("All {} required tests passed :)", testSet.getTestCount());
 			}
 
-			if (this.testSet.hasFailedOptionalTests()) {
-				LOGGER.info("{} optional tests failed", this.testSet.getFailedOptionalTestCount());
-				this.testSet.getOptionalTests().forEach(TestServer::logFailure);
+			if (testSet.hasFailedOptionalTests()) {
+				LOGGER.info("{} optional tests failed", testSet.getFailedOptionalTestCount());
+				testSet.getOptionalTests().forEach(TestServer::logFailure);
 			}
 
 			LOGGER.info("====================================================");
@@ -290,22 +306,19 @@ public class TestServer extends MinecraftServer {
 	private static void logFailure(GameTestState state) {
 		if (state.getRotation() != BlockRotation.NONE) {
 			LOGGER.info(
-					"   - {} with rotation {}: {}",
-					new Object[]{
-							state.getId(),
-							state.getRotation().asString(),
-							state.getThrowable().getText().getString()
-					}
+				"   - {} with rotation {}: {}",
+				state.getId(),
+				state.getRotation().asString(),
+				state.getThrowable().getText().getString()
 			);
-		}
-		else {
+		} else {
 			LOGGER.info("   - {}: {}", state.getId(), state.getThrowable().getText().getString());
 		}
 	}
 
 	@Override
 	public DebugSampleLog getDebugSampleLog() {
-		return this.debugSampleLog;
+		return debugSampleLog;
 	}
 
 	@Override
@@ -315,7 +328,7 @@ public class TestServer extends MinecraftServer {
 
 	@Override
 	public void runTasksTillTickEnd() {
-		this.runTasks();
+		runTasks();
 	}
 
 	@Override
@@ -328,7 +341,7 @@ public class TestServer extends MinecraftServer {
 	public void exit() {
 		super.exit();
 		LOGGER.info("Game test server shutting down");
-		System.exit(this.testSet != null ? this.testSet.getFailedRequiredTestCount() : -1);
+		System.exit(testSet != null ? testSet.getFailedRequiredTestCount() : -1);
 	}
 
 	@Override
@@ -339,30 +352,28 @@ public class TestServer extends MinecraftServer {
 	}
 
 	private void runTestBatches(ServerWorld world) {
-		BlockPos
-				blockPos =
-				new BlockPos(
-						world.random.nextBetween(-14999992, 14999992),
-						-59,
-						world.random.nextBetween(-14999992, 14999992)
-				);
-		world.setSpawnPoint(WorldProperties.SpawnPoint.create(world.getRegistryKey(), blockPos, 0.0F, 0.0F));
-		TestRunContext
-				testRunContext =
-				TestRunContext.Builder
-						.of(this.batches, world)
-						.initialSpawner(new TestStructurePlacer(blockPos, 8, false))
-						.build();
-		Collection<GameTestState> collection = testRunContext.getStates();
-		this.testSet = new TestSet(collection);
-		LOGGER.info("{} tests are now running at position {}!", this.testSet.getTestCount(), blockPos.toShortString());
-		this.stopwatch.reset();
-		this.stopwatch.start();
-		testRunContext.start();
+		BlockPos spawnPos = new BlockPos(
+			world.random.nextBetween(-TEST_POS_XZ_RANGE, TEST_POS_XZ_RANGE),
+			TEST_SPAWN_Y,
+			world.random.nextBetween(-TEST_POS_XZ_RANGE, TEST_POS_XZ_RANGE)
+		);
+		world.setSpawnPoint(WorldProperties.SpawnPoint.create(world.getRegistryKey(), spawnPos, 0.0F, 0.0F));
+
+		TestRunContext runContext = TestRunContext.Builder
+			.of(batches, world)
+			.initialSpawner(new TestStructurePlacer(spawnPos, 8, false))
+			.build();
+
+		Collection<GameTestState> allStates = runContext.getStates();
+		testSet = new TestSet(allStates);
+		LOGGER.info("{} tests are now running at position {}!", testSet.getTestCount(), spawnPos.toShortString());
+		stopwatch.reset();
+		stopwatch.start();
+		runContext.start();
 	}
 
 	private boolean isTesting() {
-		return this.testSet != null;
+		return testSet != null;
 	}
 
 	@Override
@@ -420,9 +431,6 @@ public class TestServer extends MinecraftServer {
 		return 1;
 	}
 
-	/**
-	 * {@code DummyGameProfileResolver}.
-	 */
 	static class DummyGameProfileResolver implements GameProfileResolver {
 
 		@Override
@@ -436,30 +444,26 @@ public class TestServer extends MinecraftServer {
 		}
 	}
 
-	/**
-	 * {@code DummyNameToIdCache}.
-	 */
 	static class DummyNameToIdCache implements NameToIdCache {
 
 		private final Set<PlayerConfigEntry> players = new HashSet<>();
 
 		@Override
 		public void add(PlayerConfigEntry player) {
-			this.players.add(player);
+			players.add(player);
 		}
 
 		@Override
 		public Optional<PlayerConfigEntry> findByName(String name) {
-			return this.players
-					.stream()
-					.filter(player -> player.name().equals(name))
-					.findFirst()
-					.or(() -> Optional.of(PlayerConfigEntry.fromNickname(name)));
+			return players.stream()
+				.filter(player -> player.name().equals(name))
+				.findFirst()
+				.or(() -> Optional.of(PlayerConfigEntry.fromNickname(name)));
 		}
 
 		@Override
 		public Optional<PlayerConfigEntry> getByUuid(UUID uuid) {
-			return this.players.stream().filter(player -> player.id().equals(uuid)).findFirst();
+			return players.stream().filter(player -> player.id().equals(uuid)).findFirst();
 		}
 
 		@Override

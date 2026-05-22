@@ -24,13 +24,29 @@ import net.minecraft.world.World;
 import java.util.function.Predicate;
 
 /**
- * {@code PotionEntity}.
+ * Базовый класс для всех бросаемых зелий (плескательных и длительных).
+ * <p>
+ * Обрабатывает попадание в блок (тушение огня для водяного зелья),
+ * попадание в сущность и общую логику взрыва при столкновении.
+ * Конкретный эффект при взрыве делегируется в {@link #spawnAreaEffectCloud}.
  */
 public abstract class PotionEntity extends ThrownItemEntity {
 
 	public static final double POTION_EXPLOSION_RADIUS = 4.0;
 	protected static final double WATER_POTION_EXPLOSION_SQUARED_RADIUS = 16.0;
-	public static final Predicate<LivingEntity> AFFECTED_BY_WATER = entity -> entity.hurtByWater() || entity.isOnFire();
+
+	/** Предикат: сущности, на которых действует водяное зелье (горящие или уязвимые к воде). */
+	public static final Predicate<LivingEntity> AFFECTED_BY_WATER =
+			entity -> entity.hurtByWater() || entity.isOnFire();
+
+	/** Код мирового события для мгновенного зелья. */
+	private static final int INSTANT_EFFECT_WORLD_EVENT = 2007;
+
+	/** Код мирового события для обычного зелья. */
+	private static final int NORMAL_EFFECT_WORLD_EVENT = 2002;
+
+	/** Расширение области поиска сущностей по вертикали. */
+	private static final double ENTITY_SEARCH_Y_EXPAND = 2.0;
 
 	public PotionEntity(EntityType<? extends PotionEntity> entityType, World world) {
 		super(entityType, world);
@@ -59,103 +75,109 @@ public abstract class PotionEntity extends ThrownItemEntity {
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		super.onBlockHit(blockHitResult);
-		if (!this.getEntityWorld().isClient()) {
-			ItemStack itemStack = this.getStack();
-			Direction direction = blockHitResult.getSide();
-			BlockPos blockPos = blockHitResult.getBlockPos();
-			BlockPos blockPos2 = blockPos.offset(direction);
-			PotionContentsComponent
-					potionContentsComponent =
-					itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-			if (potionContentsComponent.matches(Potions.WATER)) {
-				this.extinguishFire(blockPos2);
-				this.extinguishFire(blockPos2.offset(direction.getOpposite()));
+		if (getEntityWorld().isClient()) {
+			return;
+		}
 
-				for (Direction direction2 : Direction.Type.HORIZONTAL) {
-					this.extinguishFire(blockPos2.offset(direction2));
-				}
-			}
+		ItemStack itemStack = getStack();
+		PotionContentsComponent contents = itemStack.getOrDefault(
+				DataComponentTypes.POTION_CONTENTS,
+				PotionContentsComponent.DEFAULT
+		);
+
+		if (!contents.matches(Potions.WATER)) {
+			return;
+		}
+
+		Direction hitSide = blockHitResult.getSide();
+		BlockPos hitPos = blockHitResult.getBlockPos();
+		BlockPos offsetPos = hitPos.offset(hitSide);
+
+		extinguishFire(offsetPos);
+		extinguishFire(offsetPos.offset(hitSide.getOpposite()));
+
+		for (Direction horizontal : Direction.Type.HORIZONTAL) {
+			extinguishFire(offsetPos.offset(horizontal));
 		}
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			ItemStack itemStack = this.getStack();
-			PotionContentsComponent
-					potionContentsComponent =
-					itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-			if (potionContentsComponent.matches(Potions.WATER)) {
-				this.explodeWaterPotion(serverWorld);
-			}
-			else if (potionContentsComponent.hasEffects()) {
-				this.spawnAreaEffectCloud(serverWorld, itemStack, hitResult);
-			}
-
-			int
-					i =
-					potionContentsComponent.potion().isPresent() && potionContentsComponent
-							.potion()
-							.get()
-							.value()
-							.hasInstantEffect() ? 2007 : 2002;
-			serverWorld.syncWorldEvent(i, this.getBlockPos(), potionContentsComponent.getColor());
-			this.discard();
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		ItemStack itemStack = getStack();
+		PotionContentsComponent contents = itemStack.getOrDefault(
+				DataComponentTypes.POTION_CONTENTS,
+				PotionContentsComponent.DEFAULT
+		);
+
+		if (contents.matches(Potions.WATER)) {
+			explodeWaterPotion(serverWorld);
+		} else if (contents.hasEffects()) {
+			spawnAreaEffectCloud(serverWorld, itemStack, hitResult);
+		}
+
+		boolean isInstant = contents.potion().isPresent()
+				&& contents.potion().get().value().hasInstantEffect();
+		int worldEvent = isInstant ? INSTANT_EFFECT_WORLD_EVENT : NORMAL_EFFECT_WORLD_EVENT;
+		serverWorld.syncWorldEvent(worldEvent, getBlockPos(), contents.getColor());
+		discard();
 	}
 
 	private void explodeWaterPotion(ServerWorld world) {
-		Box box = this.getBoundingBox().expand(4.0, 2.0, 4.0);
+		Box searchBox = getBoundingBox().expand(POTION_EXPLOSION_RADIUS, ENTITY_SEARCH_Y_EXPAND, POTION_EXPLOSION_RADIUS);
 
-		for (LivingEntity livingEntity : this
-				.getEntityWorld()
-				.getEntitiesByClass(LivingEntity.class, box, AFFECTED_BY_WATER)) {
-			double d = this.squaredDistanceTo(livingEntity);
-			if (d < 16.0) {
-				if (livingEntity.hurtByWater()) {
-					livingEntity.damage(world, this.getDamageSources().indirectMagic(this, this.getOwner()), 1.0F);
-				}
+		for (LivingEntity entity : getEntityWorld().getEntitiesByClass(LivingEntity.class, searchBox, AFFECTED_BY_WATER)) {
+			if (squaredDistanceTo(entity) >= WATER_POTION_EXPLOSION_SQUARED_RADIUS) {
+				continue;
+			}
 
-				if (livingEntity.isOnFire() && livingEntity.isAlive()) {
-					livingEntity.extinguishWithSound();
-				}
+			if (entity.hurtByWater()) {
+				entity.damage(world, getDamageSources().indirectMagic(this, getOwner()), 1.0F);
+			}
+
+			if (entity.isOnFire() && entity.isAlive()) {
+				entity.extinguishWithSound();
 			}
 		}
 
-		for (AxolotlEntity axolotlEntity : this.getEntityWorld().getNonSpectatingEntities(AxolotlEntity.class, box)) {
-			axolotlEntity.hydrateFromPotion();
+		for (AxolotlEntity axolotl : getEntityWorld().getNonSpectatingEntities(AxolotlEntity.class, searchBox)) {
+			axolotl.hydrateFromPotion();
 		}
 	}
 
 	/**
-	 * Создаёт (спавнит) area effect cloud.
+	 * Создаёт облако эффекта (или применяет эффекты напрямую) при взрыве зелья.
+	 * Реализация зависит от типа зелья: плескательное применяет эффекты мгновенно,
+	 * длительное создаёт {@link net.minecraft.entity.AreaEffectCloudEntity}.
 	 *
-	 * @param world world
-	 * @param stack stack
-	 * @param hitResult hit result
+	 * @param world     серверный мир
+	 * @param stack     стек зелья с компонентами эффектов
+	 * @param hitResult результат столкновения для определения позиции
 	 */
 	protected abstract void spawnAreaEffectCloud(ServerWorld world, ItemStack stack, HitResult hitResult);
 
 	private void extinguishFire(BlockPos pos) {
-		BlockState blockState = this.getEntityWorld().getBlockState(pos);
+		BlockState blockState = getEntityWorld().getBlockState(pos);
+
 		if (blockState.isIn(BlockTags.FIRE)) {
-			this.getEntityWorld().breakBlock(pos, false, this);
-		}
-		else if (AbstractCandleBlock.isLitCandle(blockState)) {
-			AbstractCandleBlock.extinguish(null, blockState, this.getEntityWorld(), pos);
-		}
-		else if (CampfireBlock.isLitCampfire(blockState)) {
-			this.getEntityWorld().syncWorldEvent(null, 1009, pos, 0);
-			CampfireBlock.extinguish(this.getOwner(), this.getEntityWorld(), pos, blockState);
-			this.getEntityWorld().setBlockState(pos, blockState.with(CampfireBlock.LIT, false));
+			getEntityWorld().breakBlock(pos, false, this);
+		} else if (AbstractCandleBlock.isLitCandle(blockState)) {
+			AbstractCandleBlock.extinguish(null, blockState, getEntityWorld(), pos);
+		} else if (CampfireBlock.isLitCampfire(blockState)) {
+			getEntityWorld().syncWorldEvent(null, 1009, pos, 0);
+			CampfireBlock.extinguish(getOwner(), getEntityWorld(), pos, blockState);
+			getEntityWorld().setBlockState(pos, blockState.with(CampfireBlock.LIT, false));
 		}
 	}
 
 	@Override
 	public DoubleDoubleImmutablePair getKnockback(LivingEntity target, DamageSource source) {
-		double d = target.getEntityPos().x - this.getEntityPos().x;
-		double e = target.getEntityPos().z - this.getEntityPos().z;
-		return DoubleDoubleImmutablePair.of(d, e);
+		double deltaX = target.getEntityPos().x - getEntityPos().x;
+		double deltaZ = target.getEntityPos().z - getEntityPos().z;
+		return DoubleDoubleImmutablePair.of(deltaX, deltaZ);
 	}
 }

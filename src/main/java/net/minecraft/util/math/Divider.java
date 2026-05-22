@@ -6,7 +6,9 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import java.util.NoSuchElementException;
 
 /**
- * {@code Divider}.
+ * Итератор, равномерно распределяющий {@code dividend} по {@code divisor} частям.
+ * Каждый вызов {@link #nextInt()} возвращает очередную часть (quotient ± 1),
+ * гарантируя, что сумма всех возвращённых значений равна {@code dividend}.
  */
 public class Divider implements IntIterator {
 
@@ -18,51 +20,38 @@ public class Divider implements IntIterator {
 
 	public Divider(int dividend, int divisor) {
 		this.divisor = divisor;
+
 		if (divisor > 0) {
-			this.quotient = dividend / divisor;
-			this.mod = dividend % divisor;
-		}
-		else {
-			this.quotient = 0;
-			this.mod = 0;
+			quotient = dividend / divisor;
+			mod = dividend % divisor;
+		} else {
+			quotient = 0;
+			mod = 0;
 		}
 	}
 
 	public boolean hasNext() {
-		return this.returnedCount < this.divisor;
+		return returnedCount < divisor;
 	}
 
-	/**
-	 * Next int.
-	 *
-	 * @return int — результат операции
-	 */
 	public int nextInt() {
-		if (!this.hasNext()) {
+		if (hasNext() == false) {
 			throw new NoSuchElementException();
 		}
-		else {
-			int i = this.quotient;
-			this.remainder = this.remainder + this.mod;
-			if (this.remainder >= this.divisor) {
-				this.remainder = this.remainder - this.divisor;
-				i++;
-			}
 
-			this.returnedCount++;
-			return i;
+		int value = quotient;
+		remainder += mod;
+
+		if (remainder >= divisor) {
+			remainder -= divisor;
+			value++;
 		}
+
+		returnedCount++;
+		return value;
 	}
 
 	@VisibleForTesting
-	/**
-	 * As iterable.
-	 *
-	 * @param dividend dividend
-	 * @param divisor divisor
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public static Iterable<Integer> asIterable(int dividend, int divisor) {
 		return () -> new Divider(dividend, divisor);
 	}

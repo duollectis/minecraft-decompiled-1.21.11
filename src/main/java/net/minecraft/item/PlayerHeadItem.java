@@ -7,7 +7,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code PlayerHeadItem}.
+ * Предмет «Голова игрока». Если в компоненте {@link DataComponentTypes#PROFILE}
+ * задано имя профиля, отображает его в названии предмета через ключ перевода
+ * {@code <translationKey>.named}.
  */
 public class PlayerHeadItem extends VerticallyAttachableBlockItem {
 
@@ -17,10 +19,10 @@ public class PlayerHeadItem extends VerticallyAttachableBlockItem {
 
 	@Override
 	public Text getName(ItemStack stack) {
-		ProfileComponent profileComponent = stack.get(DataComponentTypes.PROFILE);
-		return (Text) (profileComponent != null && profileComponent.getName().isPresent()
-		               ? Text.translatable(this.translationKey + ".named", profileComponent.getName().get())
-		               : super.getName(stack)
-		);
+		ProfileComponent profile = stack.get(DataComponentTypes.PROFILE);
+
+		return profile != null && profile.getName().isPresent()
+			? Text.translatable(translationKey + ".named", profile.getName().get())
+			: super.getName(stack);
 	}
 }

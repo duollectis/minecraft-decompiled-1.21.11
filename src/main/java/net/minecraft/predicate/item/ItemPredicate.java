@@ -2,7 +2,6 @@ package net.minecraft.predicate.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.component.ComponentsAccess;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemConvertible;
 import net.minecraft.item.ItemStack;
@@ -18,7 +17,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code ItemPredicate}.
+ * Предикат для проверки предмета: тип, количество и компоненты.
  */
 public record ItemPredicate(
 		Optional<RegistryEntryList<Item>> items,
@@ -28,29 +27,31 @@ public record ItemPredicate(
 
 	public static final Codec<ItemPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ITEM)
-							                    .optionalFieldOf("items")
-							                    .forGetter(ItemPredicate::items),
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("count", NumberRange.IntRange.ANY)
-							                    .forGetter(ItemPredicate::count),
-					                    ComponentsPredicate.CODEC.forGetter(ItemPredicate::components)
-			                    )
-			                    .apply(instance, ItemPredicate::new)
+					RegistryCodecs.entryList(RegistryKeys.ITEM)
+							.optionalFieldOf("items")
+							.forGetter(ItemPredicate::items),
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("count", NumberRange.IntRange.ANY)
+							.forGetter(ItemPredicate::count),
+					ComponentsPredicate.CODEC.forGetter(ItemPredicate::components)
+			)
+			.apply(instance, ItemPredicate::new)
 	);
 
 	public boolean test(ItemStack stack) {
-		if (this.items.isPresent() && !stack.isIn(this.items.get())) {
+		if (items.isPresent() && !stack.isIn(items.get())) {
 			return false;
 		}
-		else {
-			return !this.count.test(stack.getCount()) ? false : this.components.test((ComponentsAccess) stack);
+
+		if (!count.test(stack.getCount())) {
+			return false;
 		}
+
+		return components.test(stack);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель {@link ItemPredicate}.
 	 */
 	public static class Builder {
 
@@ -63,12 +64,12 @@ public record ItemPredicate(
 		}
 
 		public ItemPredicate.Builder items(RegistryEntryLookup<Item> itemRegistry, ItemConvertible... items) {
-			this.item = Optional.of(RegistryEntryList.of(item -> item.asItem().getRegistryEntry(), items));
+			item = Optional.of(RegistryEntryList.of(entry -> entry.asItem().getRegistryEntry(), items));
 			return this;
 		}
 
 		public ItemPredicate.Builder tag(RegistryEntryLookup<Item> itemRegistry, TagKey<Item> tag) {
-			this.item = Optional.of(itemRegistry.getOrThrow(tag));
+			item = Optional.of(itemRegistry.getOrThrow(tag));
 			return this;
 		}
 
@@ -83,7 +84,7 @@ public record ItemPredicate(
 		}
 
 		public ItemPredicate build() {
-			return new ItemPredicate(this.item, this.count, this.components);
+			return new ItemPredicate(item, count, components);
 		}
 	}
 }

@@ -16,13 +16,15 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code KeybindsScreen}.
+ * Экран привязки клавиш — позволяет переназначать клавиши управления
+ * и сбрасывать все привязки к значениям по умолчанию.
  */
+@Environment(EnvType.CLIENT)
 public class KeybindsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE_TEXT = Text.translatable("controls.keybinds.title");
+
 	public @Nullable KeyBinding selectedKeyBinding;
 	public long lastKeyCodeUpdateTime;
 	private ControlsListWidget controlsList;
@@ -34,7 +36,7 @@ public class KeybindsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void initBody() {
-		this.controlsList = this.layout.addBody(new ControlsListWidget(this, this.client));
+		controlsList = layout.addBody(new ControlsListWidget(this, client));
 	}
 
 	@Override
@@ -43,73 +45,68 @@ public class KeybindsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void initFooter() {
-		this.resetAllButton = ButtonWidget.builder(
+		resetAllButton = ButtonWidget.builder(
 				Text.translatable("controls.resetAll"), button -> {
-					for (KeyBinding keyBinding : this.gameOptions.allKeys) {
+					for (KeyBinding keyBinding : gameOptions.allKeys) {
 						keyBinding.setBoundKey(keyBinding.getDefaultKey());
 					}
 
-					this.controlsList.update();
+					controlsList.update();
 				}
 		).build();
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget.add(this.resetAllButton);
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).build());
+		DirectionalLayoutWidget footerLayout = layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		footerLayout.add(resetAllButton);
+		footerLayout.add(ButtonWidget.builder(ScreenTexts.DONE, button -> close()).build());
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		this.controlsList.position(this.width, this.layout);
+		layout.refreshPositions();
+		controlsList.position(width, layout);
 	}
 
 	@Override
 	public boolean mouseClicked(Click click, boolean doubled) {
-		if (this.selectedKeyBinding != null) {
-			this.selectedKeyBinding.setBoundKey(InputUtil.Type.MOUSE.createFromCode(click.button()));
-			this.selectedKeyBinding = null;
-			this.controlsList.update();
-			return true;
-		}
-		else {
+		if (selectedKeyBinding == null) {
 			return super.mouseClicked(click, doubled);
 		}
+
+		selectedKeyBinding.setBoundKey(InputUtil.Type.MOUSE.createFromCode(click.button()));
+		selectedKeyBinding = null;
+		controlsList.update();
+		return true;
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.selectedKeyBinding != null) {
-			if (input.isEscape()) {
-				this.selectedKeyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
-			}
-			else {
-				this.selectedKeyBinding.setBoundKey(InputUtil.fromKeyCode(input));
-			}
-
-			this.selectedKeyBinding = null;
-			this.lastKeyCodeUpdateTime = Util.getMeasuringTimeMs();
-			this.controlsList.update();
-			return true;
-		}
-		else {
+		if (selectedKeyBinding == null) {
 			return super.keyPressed(input);
 		}
+
+		if (input.isEscape()) {
+			selectedKeyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
+		} else {
+			selectedKeyBinding.setBoundKey(InputUtil.fromKeyCode(input));
+		}
+
+		selectedKeyBinding = null;
+		lastKeyCodeUpdateTime = Util.getMeasuringTimeMs();
+		controlsList.update();
+		return true;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		boolean bl = false;
+		boolean hasNonDefault = false;
 
-		for (KeyBinding keyBinding : this.gameOptions.allKeys) {
+		for (KeyBinding keyBinding : gameOptions.allKeys) {
 			if (!keyBinding.isDefault()) {
-				bl = true;
+				hasNonDefault = true;
 				break;
 			}
 		}
 
-		this.resetAllButton.active = bl;
+		resetAllButton.active = hasNonDefault;
 	}
 }

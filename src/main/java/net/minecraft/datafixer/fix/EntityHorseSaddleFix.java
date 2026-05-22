@@ -13,35 +13,46 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Optional;
 
 /**
- * {@code EntityHorseSaddleFix}.
+ * Мигрирует старый булев флаг {@code Saddle} у лошади в полноценный предмет {@code SaddleItem}.
+ * До этого фикса сёдла хранились как простой флаг, а не как предмет в слоте снаряжения.
  */
 public class EntityHorseSaddleFix extends ChoiceFix {
 
-	public EntityHorseSaddleFix(Schema schema, boolean bl) {
-		super(schema, bl, "EntityHorseSaddleFix", TypeReferences.ENTITY, "EntityHorse");
+	public EntityHorseSaddleFix(Schema outputSchema, boolean changesType) {
+		super(outputSchema, changesType, "EntityHorseSaddleFix", TypeReferences.ENTITY, "EntityHorse");
 	}
 
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
-				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
+		OpticFinder<Pair<String, String>> idFinder = DSL.fieldFinder(
+				"id",
+				DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
-		Type<?> type = this.getInputSchema().getTypeRaw(TypeReferences.ITEM_STACK);
-		OpticFinder<?> opticFinder2 = DSL.fieldFinder("SaddleItem", type);
-		Optional<? extends Typed<?>> optional = inputTyped.getOptionalTyped(opticFinder2);
-		Dynamic<?> dynamic = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
-		if (optional.isEmpty() && dynamic.get("Saddle").asBoolean(false)) {
-			Typed<?> typed = (Typed<?>) type.pointTyped(inputTyped.getOps()).orElseThrow(IllegalStateException::new);
-			typed = typed.set(opticFinder, Pair.of(TypeReferences.ITEM_NAME.typeName(), "minecraft:saddle"));
-			Dynamic<?> dynamic2 = dynamic.emptyMap();
-			dynamic2 = dynamic2.set("Count", dynamic2.createByte((byte) 1));
-			dynamic2 = dynamic2.set("Damage", dynamic2.createShort((short) 0));
-			typed = typed.set(DSL.remainderFinder(), dynamic2);
-			dynamic.remove("Saddle");
-			return inputTyped.set(opticFinder2, typed).set(DSL.remainderFinder(), dynamic);
-		}
-		else {
+		Type<?> itemStackType = getInputSchema().getTypeRaw(TypeReferences.ITEM_STACK);
+		OpticFinder<?> saddleItemFinder = DSL.fieldFinder("SaddleItem", itemStackType);
+
+		Optional<? extends Typed<?>> existingSaddle = inputTyped.getOptionalTyped(saddleItemFinder);
+		Dynamic<?> horse = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
+
+		if (existingSaddle.isPresent() || !horse.get("Saddle").asBoolean(false)) {
 			return inputTyped;
 		}
+
+		Typed<?> saddleItem = (Typed<?>) itemStackType
+				.pointTyped(inputTyped.getOps())
+				.orElseThrow(IllegalStateException::new);
+
+		saddleItem = saddleItem.set(idFinder, Pair.of(TypeReferences.ITEM_NAME.typeName(), "minecraft:saddle"));
+
+		Dynamic<?> saddleNbt = horse.emptyMap();
+		saddleNbt = saddleNbt.set("Count", saddleNbt.createByte((byte) 1));
+		saddleNbt = saddleNbt.set("Damage", saddleNbt.createShort((short) 0));
+		saddleItem = saddleItem.set(DSL.remainderFinder(), saddleNbt);
+
+		horse = horse.remove("Saddle");
+
+		return inputTyped
+				.set(saddleItemFinder, saddleItem)
+				.set(DSL.remainderFinder(), horse);
 	}
 }

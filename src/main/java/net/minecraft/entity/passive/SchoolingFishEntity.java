@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code SchoolingFishEntity}.
+ * Базовый класс для стайных рыб (треска, лосось, тропические рыбы).
+ * Реализует логику лидерства в стае: одна рыба становится лидером,
+ * остальные следуют за ней через {@link net.minecraft.entity.ai.goal.FollowGroupLeaderGoal}.
  */
 public abstract class SchoolingFishEntity extends FishEntity {
 
@@ -149,8 +151,8 @@ public abstract class SchoolingFishEntity extends FishEntity {
 	}
 
 	/**
-	 * {@code FishData}.
-	 */
+ * Данные спавна стайных рыб: хранит лидера стаи.
+ */
 	public static class FishData implements EntityData {
 
 		public final SchoolingFishEntity leader;

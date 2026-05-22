@@ -6,10 +6,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Buffers}.
+ * Хранит GPU-буферы одной отрисованной секции чанка: вершинный буфер и опциональный
+ * индексный буфер (используется для прозрачных слоёв с сортировкой вершин).
+ * Реализует {@link AutoCloseable} — оба буфера освобождаются при закрытии.
  */
+@Environment(EnvType.CLIENT)
 public final class Buffers implements AutoCloseable {
 
 	private GpuBuffer vertexBuffer;
@@ -30,11 +32,11 @@ public final class Buffers implements AutoCloseable {
 	}
 
 	public GpuBuffer getVertexBuffer() {
-		return this.vertexBuffer;
+		return vertexBuffer;
 	}
 
 	public @Nullable GpuBuffer getIndexBuffer() {
-		return this.indexBuffer;
+		return indexBuffer;
 	}
 
 	public void setIndexBuffer(@Nullable GpuBuffer indexBuffer) {
@@ -42,11 +44,11 @@ public final class Buffers implements AutoCloseable {
 	}
 
 	public int getIndexCount() {
-		return this.indexCount;
+		return indexCount;
 	}
 
 	public VertexFormat.IndexType getIndexType() {
-		return this.indexType;
+		return indexType;
 	}
 
 	public void setIndexType(VertexFormat.IndexType indexType) {
@@ -63,9 +65,10 @@ public final class Buffers implements AutoCloseable {
 
 	@Override
 	public void close() {
-		this.vertexBuffer.close();
-		if (this.indexBuffer != null) {
-			this.indexBuffer.close();
+		vertexBuffer.close();
+
+		if (indexBuffer != null) {
+			indexBuffer.close();
 		}
 	}
 }

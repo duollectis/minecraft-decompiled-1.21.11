@@ -14,7 +14,8 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * Запись custom click action c2 s packet.
+ * Пакет C→S, отправляемый при нажатии клиентом на кастомный элемент интерфейса.
+ * Содержит идентификатор действия и опциональные NBT-данные полезной нагрузки (до 32 КБ).
  */
 public record CustomClickActionC2SPacket(
 		Identifier id,
@@ -38,12 +39,8 @@ public record CustomClickActionC2SPacket(
 		return CommonPackets.CUSTOM_CLICK_ACTION;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onCustomClickAction(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onCustomClickAction(this);
 	}
 }

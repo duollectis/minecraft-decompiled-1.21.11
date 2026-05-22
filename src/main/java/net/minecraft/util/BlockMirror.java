@@ -7,7 +7,9 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.DirectionTransformation;
 
 /**
- * {@code BlockMirror}.
+ * Тип зеркального отражения блока при размещении структур.
+ * Используется в системе структур для корректного отражения блоков
+ * относительно осей X и Z.
  */
 public enum BlockMirror implements StringIdentifiable {
 	NONE("none", DirectionTransformation.IDENTITY),
@@ -17,70 +19,80 @@ public enum BlockMirror implements StringIdentifiable {
 	public static final Codec<BlockMirror> CODEC = StringIdentifiable.createCodec(BlockMirror::values);
 	@Deprecated
 	public static final Codec<BlockMirror> ENUM_NAME_CODEC = Codecs.enumByName(BlockMirror::valueOf);
+
 	private final String id;
 	private final Text name;
 	private final DirectionTransformation directionTransformation;
 
-	private BlockMirror(final String id, final DirectionTransformation directionTransformation) {
+	BlockMirror(String id, DirectionTransformation directionTransformation) {
 		this.id = id;
 		this.name = Text.translatable("mirror." + id);
 		this.directionTransformation = directionTransformation;
 	}
 
 	/**
-	 * Mirror.
+	 * Применяет зеркальное отражение к числовому значению поворота.
+	 * <p>
+	 * Используется для корректного отражения угловых значений (например, поворот блока)
+	 * в диапазоне {@code [0, fullTurn)}.
 	 *
-	 * @param rotation rotation
-	 * @param fullTurn full turn
-	 *
-	 * @return int — результат операции
+	 * @param rotation  исходное значение поворота
+	 * @param fullTurn  полный оборот (например, 16 для блоков с 16 состояниями поворота)
+	 * @return отражённое значение поворота
 	 */
 	public int mirror(int rotation, int fullTurn) {
-		int i = fullTurn / 2;
-		int j = rotation > i ? rotation - fullTurn : rotation;
-		switch (this) {
-			case LEFT_RIGHT:
-				return (i - j + fullTurn) % fullTurn;
-			case FRONT_BACK:
-				return (fullTurn - j) % fullTurn;
-			default:
-				return rotation;
-		}
-	}
+		int half = fullTurn / 2;
+		int normalized = rotation > half ? rotation - fullTurn : rotation;
 
-	public BlockRotation getRotation(Direction direction) {
-		Direction.Axis axis = direction.getAxis();
-		return (this != LEFT_RIGHT || axis != Direction.Axis.Z) && (this != FRONT_BACK || axis != Direction.Axis.X)
-		       ? BlockRotation.NONE
-		       : BlockRotation.CLOCKWISE_180;
+		return switch (this) {
+			case LEFT_RIGHT -> (half - normalized + fullTurn) % fullTurn;
+			case FRONT_BACK -> (fullTurn - normalized) % fullTurn;
+			default -> rotation;
+		};
 	}
 
 	/**
-	 * Apply.
+	 * Возвращает поворот блока, необходимый для компенсации данного отражения
+	 * при заданном направлении.
 	 *
-	 * @param direction direction
+	 * @param direction направление, для которого вычисляется компенсирующий поворот
+	 * @return {@link BlockRotation#CLOCKWISE_180} если отражение применимо к оси направления,
+	 *         иначе {@link BlockRotation#NONE}
+	 */
+	public BlockRotation getRotation(Direction direction) {
+		Direction.Axis axis = direction.getAxis();
+		boolean isLeftRightOnZ = this == LEFT_RIGHT && axis == Direction.Axis.Z;
+		boolean isFrontBackOnX = this == FRONT_BACK && axis == Direction.Axis.X;
+
+		return isLeftRightOnZ || isFrontBackOnX ? BlockRotation.CLOCKWISE_180 : BlockRotation.NONE;
+	}
+
+	/**
+	 * Применяет зеркальное отражение к направлению.
 	 *
-	 * @return Direction — результат операции
+	 * @param direction исходное направление
+	 * @return отражённое направление, или то же самое если отражение не применимо
 	 */
 	public Direction apply(Direction direction) {
 		if (this == FRONT_BACK && direction.getAxis() == Direction.Axis.X) {
 			return direction.getOpposite();
 		}
-		else {
-			return this == LEFT_RIGHT && direction.getAxis() == Direction.Axis.Z ? direction.getOpposite() : direction;
-		}
+
+		return this == LEFT_RIGHT && direction.getAxis() == Direction.Axis.Z
+			? direction.getOpposite()
+			: direction;
 	}
 
 	public DirectionTransformation getDirectionTransformation() {
-		return this.directionTransformation;
+		return directionTransformation;
 	}
 
 	public Text getName() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 }

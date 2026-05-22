@@ -9,16 +9,24 @@ import org.slf4j.Logger;
 
 import java.lang.StackWalker.Option;
 import java.lang.StackWalker.StackFrame;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * {@code TracyProfiler}.
+ * Реализация {@link Profiler}, интегрирующаяся с профайлером Tracy через JTracy.
+ * В режиме разработки ({@link SharedConstants#isDevelopment}) дополнительно
+ * захватывает имя метода, файл и номер строки вызывающего кода через StackWalker.
  */
 public class TracyProfiler implements Profiler {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final StackWalker STACK_WALKER = StackWalker.getInstance(Set.of(Option.RETAIN_CLASS_REFERENCE), 5);
+
 	private final List<Zone> zones = new ArrayList<>();
 	private final Map<String, TracyProfiler.Marker> markers = new HashMap<>();
 	private final String threadName = Thread.currentThread().getName();
@@ -29,61 +37,62 @@ public class TracyProfiler implements Profiler {
 
 	@Override
 	public void endTick() {
-		for (TracyProfiler.Marker marker : this.markers.values()) {
+		for (TracyProfiler.Marker marker : markers.values()) {
 			marker.setCount(0);
 		}
 	}
 
 	@Override
 	public void push(String location) {
-		String string = "";
-		String string2 = "";
-		int i = 0;
+		String methodName = "";
+		String fileName = "";
+		int lineNumber = 0;
+
 		if (SharedConstants.isDevelopment) {
-			Optional<StackFrame> optional = STACK_WALKER.walk(
-					stream -> stream
-							.filter(frame -> frame.getDeclaringClass() != TracyProfiler.class
-									&& frame.getDeclaringClass() != Profiler.UnionProfiler.class)
-							.findFirst()
+			Optional<StackFrame> frame = STACK_WALKER.walk(stream -> stream
+				.filter(f -> f.getDeclaringClass() != TracyProfiler.class
+					&& f.getDeclaringClass() != Profiler.UnionProfiler.class)
+				.findFirst()
 			);
-			if (optional.isPresent()) {
-				StackFrame stackFrame = optional.get();
-				string = stackFrame.getMethodName();
-				string2 = stackFrame.getFileName();
-				i = stackFrame.getLineNumber();
+
+			if (frame.isPresent()) {
+				StackFrame stackFrame = frame.get();
+				methodName = stackFrame.getMethodName();
+				fileName = stackFrame.getFileName();
+				lineNumber = stackFrame.getLineNumber();
 			}
 		}
 
-		Zone zone = TracyClient.beginZone(location, string, string2, i);
-		this.zones.add(zone);
+		Zone zone = TracyClient.beginZone(location, methodName, fileName, lineNumber);
+		zones.add(zone);
 	}
 
 	@Override
 	public void push(Supplier<String> locationGetter) {
-		this.push(locationGetter.get());
+		push(locationGetter.get());
 	}
 
 	@Override
 	public void pop() {
-		if (this.zones.isEmpty()) {
+		if (zones.isEmpty()) {
 			LOGGER.error("Tried to pop one too many times! Mismatched push() and pop()?");
+			return;
 		}
-		else {
-			Zone zone = this.zones.removeLast();
-			zone.close();
-		}
+
+		Zone zone = zones.removeLast();
+		zone.close();
 	}
 
 	@Override
 	public void swap(String location) {
-		this.pop();
-		this.push(location);
+		pop();
+		push(location);
 	}
 
 	@Override
 	public void swap(Supplier<String> locationGetter) {
-		this.pop();
-		this.push(locationGetter.get());
+		pop();
+		push(locationGetter.get());
 	}
 
 	@Override
@@ -92,37 +101,38 @@ public class TracyProfiler implements Profiler {
 
 	@Override
 	public void visit(String marker, int num) {
-		this.markers
-				.computeIfAbsent(marker, markerName -> new TracyProfiler.Marker(this.threadName + " " + marker))
-				.increment(num);
+		markers
+			.computeIfAbsent(marker, name -> new TracyProfiler.Marker(threadName + " " + name))
+			.increment(num);
 	}
 
 	@Override
 	public void visit(Supplier<String> markerGetter, int num) {
-		this.visit(markerGetter.get(), num);
+		visit(markerGetter.get(), num);
 	}
 
 	private Zone getCurrentZone() {
-		return this.zones.getLast();
+		return zones.getLast();
 	}
 
 	@Override
 	public void addZoneText(String label) {
-		this.getCurrentZone().addText(label);
+		getCurrentZone().addText(label);
 	}
 
 	@Override
 	public void addZoneValue(long value) {
-		this.getCurrentZone().addValue(value);
+		getCurrentZone().addValue(value);
 	}
 
 	@Override
 	public void setZoneColor(int color) {
-		this.getCurrentZone().setColor(color);
+		getCurrentZone().setColor(color);
 	}
 
 	/**
-	 * {@code Marker}.
+	 * Обёртка над Tracy Plot: накапливает счётчик посещений маркера за тик
+	 * и сбрасывает его в ноль при {@link #endTick()}.
 	 */
 	static final class Marker {
 
@@ -136,11 +146,11 @@ public class TracyProfiler implements Profiler {
 
 		void setCount(int count) {
 			this.count = count;
-			this.plot.setValue(count);
+			plot.setValue(count);
 		}
 
-		void increment(int count) {
-			this.setCount(this.count + count);
+		void increment(int delta) {
+			setCount(count + delta);
 		}
 	}
 }

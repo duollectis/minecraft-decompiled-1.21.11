@@ -13,10 +13,10 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FurnaceScreen}.
+ * Экран обычной печи. Наследует логику плавки из {@link AbstractFurnaceScreen}.
  */
+@Environment(EnvType.CLIENT)
 public class FurnaceScreen extends AbstractFurnaceScreen<FurnaceScreenHandler> {
 
 	private static final Identifier LIT_PROGRESS_TEXTURE = Identifier.ofVanilla("container/furnace/lit_progress");
@@ -24,22 +24,22 @@ public class FurnaceScreen extends AbstractFurnaceScreen<FurnaceScreenHandler> {
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/furnace.png");
 	private static final Text TOGGLE_SMELTABLE_TEXT = Text.translatable("gui.recipebook.toggleRecipes.smeltable");
 	private static final List<RecipeBookWidget.Tab> TABS = List.of(
-			new RecipeBookWidget.Tab(RecipeBookType.FURNACE),
-			new RecipeBookWidget.Tab(Items.PORKCHOP, RecipeBookCategories.FURNACE_FOOD),
-			new RecipeBookWidget.Tab(Items.STONE, RecipeBookCategories.FURNACE_BLOCKS),
-			new RecipeBookWidget.Tab(Items.LAVA_BUCKET, Items.EMERALD, RecipeBookCategories.FURNACE_MISC)
+		new RecipeBookWidget.Tab(RecipeBookType.FURNACE),
+		new RecipeBookWidget.Tab(Items.PORKCHOP, RecipeBookCategories.FURNACE_FOOD),
+		new RecipeBookWidget.Tab(Items.STONE, RecipeBookCategories.FURNACE_BLOCKS),
+		new RecipeBookWidget.Tab(Items.LAVA_BUCKET, Items.EMERALD, RecipeBookCategories.FURNACE_MISC)
 	);
 
 	public FurnaceScreen(FurnaceScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(
-				handler,
-				inventory,
-				title,
-				TOGGLE_SMELTABLE_TEXT,
-				TEXTURE,
-				LIT_PROGRESS_TEXTURE,
-				BURN_PROGRESS_TEXTURE,
-				TABS
+			handler,
+			inventory,
+			title,
+			TOGGLE_SMELTABLE_TEXT,
+			TEXTURE,
+			LIT_PROGRESS_TEXTURE,
+			BURN_PROGRESS_TEXTURE,
+			TABS
 		);
 	}
 }

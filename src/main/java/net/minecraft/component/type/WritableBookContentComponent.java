@@ -11,15 +11,16 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code WritableBookContentComponent}.
- */
+	 * Компонент содержимого редактируемой книги (книга и перо). Хранит страницы в виде
+	 * отфильтрованных пар строк с ограничением по длине и количеству.
+	 */
 public record WritableBookContentComponent(List<RawFilteredPair<String>> pages) implements BookContent<String, WritableBookContentComponent> {
 
 	public static final WritableBookContentComponent DEFAULT = new WritableBookContentComponent(List.of());
 	public static final int MAX_PAGE_LENGTH = 1024;
 	public static final int MAX_PAGE_COUNT = 100;
-	private static final Codec<RawFilteredPair<String>> PAGE_CODEC = RawFilteredPair.createCodec(Codec.string(0, 1024));
-	public static final Codec<List<RawFilteredPair<String>>> PAGES_CODEC = PAGE_CODEC.sizeLimitedListOf(100);
+	private static final Codec<RawFilteredPair<String>> PAGE_CODEC = RawFilteredPair.createCodec(Codec.string(0, MAX_PAGE_LENGTH));
+	public static final Codec<List<RawFilteredPair<String>>> PAGES_CODEC = PAGE_CODEC.sizeLimitedListOf(MAX_PAGE_COUNT);
 	public static final Codec<WritableBookContentComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance
 					.group(PAGES_CODEC
@@ -29,38 +30,25 @@ public record WritableBookContentComponent(List<RawFilteredPair<String>> pages) 
 	);
 	public static final PacketCodec<ByteBuf, WritableBookContentComponent>
 			PACKET_CODEC =
-			RawFilteredPair.createPacketCodec(PacketCodecs.string(1024))
-			               .collect(PacketCodecs.toList(100))
-			               .xmap(WritableBookContentComponent::new, WritableBookContentComponent::pages);
+			RawFilteredPair.createPacketCodec(PacketCodecs.string(MAX_PAGE_LENGTH))
+							.collect(PacketCodecs.toList(MAX_PAGE_COUNT))
+							.xmap(WritableBookContentComponent::new, WritableBookContentComponent::pages);
 
 	public WritableBookContentComponent(List<RawFilteredPair<String>> pages) {
-		if (pages.size() > 100) {
-			throw new IllegalArgumentException("Got " + pages.size() + " pages, but maximum is 100");
+		if (pages.size() > MAX_PAGE_COUNT) {
+			throw new IllegalArgumentException(
+				"Got " + pages.size() + " pages, but maximum is " + MAX_PAGE_COUNT
+			);
 		}
-		else {
-			this.pages = pages;
-		}
+
+		this.pages = pages;
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @param shouldFilter should filter
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<String> stream(boolean shouldFilter) {
-		return this.pages.stream().map(page -> page.get(shouldFilter));
+		return pages.stream().map(page -> page.get(shouldFilter));
 	}
 
-	/**
-	 * With pages.
-	 *
-	 * @param list list
-	 *
-	 * @return WritableBookContentComponent — результат операции
-	 */
-	public WritableBookContentComponent withPages(List<RawFilteredPair<String>> list) {
-		return new WritableBookContentComponent(list);
+	public WritableBookContentComponent withPages(List<RawFilteredPair<String>> newPages) {
+		return new WritableBookContentComponent(newPages);
 	}
 }

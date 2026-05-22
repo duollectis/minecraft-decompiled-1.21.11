@@ -27,12 +27,21 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code BrushItem}.
+ * Предмет кисти для раскопок. Используется на раскапываемых блоках
+ * ({@link BrushableBlock}) для постепенного извлечения предметов.
  */
 public class BrushItem extends Item {
 
 	public static final int ANIMATION_DURATION = 10;
 	private static final int MAX_BRUSH_TIME = 200;
+	/** Тик внутри анимационного цикла, на котором происходит реальное взаимодействие. */
+	private static final int BRUSH_TICK_OFFSET = 5;
+	/** Скорость разлёта частиц пыли. */
+	private static final double DUST_PARTICLE_SPEED = 3.0;
+	/** Минимальное количество частиц пыли за одно взаимодействие. */
+	private static final int DUST_PARTICLE_MIN = 7;
+	/** Максимальное количество частиц пыли за одно взаимодействие. */
+	private static final int DUST_PARTICLE_MAX = 12;
 
 	public BrushItem(Item.Settings settings) {
 		super(settings);
@@ -40,9 +49,10 @@ public class BrushItem extends Item {
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
-		PlayerEntity playerEntity = context.getPlayer();
-		if (playerEntity != null && this.getHitResult(playerEntity).getType() == HitResult.Type.BLOCK) {
-			playerEntity.setCurrentHand(context.getHand());
+		PlayerEntity player = context.getPlayer();
+
+		if (player != null && getHitResult(player).getType() == HitResult.Type.BLOCK) {
+			player.setCurrentHand(context.getHand());
 		}
 
 		return ActionResult.CONSUME;
@@ -55,65 +65,59 @@ public class BrushItem extends Item {
 
 	@Override
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		return 200;
+		return MAX_BRUSH_TIME;
 	}
 
 	@Override
 	public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
-		if (remainingUseTicks >= 0 && user instanceof PlayerEntity playerEntity) {
-			HitResult hitResult = this.getHitResult(playerEntity);
-			if (hitResult instanceof BlockHitResult blockHitResult && hitResult.getType() == HitResult.Type.BLOCK) {
-				int i = this.getMaxUseTime(stack, user) - remainingUseTicks + 1;
-				boolean bl = i % 10 == 5;
-				if (bl) {
-					BlockPos blockPos = blockHitResult.getBlockPos();
-					BlockState blockState = world.getBlockState(blockPos);
-					Arm
-							arm =
-							user.getActiveHand() == Hand.MAIN_HAND ? playerEntity.getMainArm()
-							                                       : playerEntity.getMainArm().getOpposite();
-					if (blockState.hasBlockBreakParticles()
-							&& blockState.getRenderType() != BlockRenderType.INVISIBLE) {
-						this.addDustParticles(world, blockHitResult, blockState, user.getRotationVec(0.0F), arm);
-					}
-
-					SoundEvent soundEvent;
-					if (blockState.getBlock() instanceof BrushableBlock brushableBlock) {
-						soundEvent = brushableBlock.getBrushingSound();
-					}
-					else {
-						soundEvent = SoundEvents.ITEM_BRUSH_BRUSHING_GENERIC;
-					}
-
-					world.playSound(playerEntity, blockPos, soundEvent, SoundCategory.BLOCKS);
-					if (world instanceof ServerWorld serverWorld
-							&& world.getBlockEntity(blockPos) instanceof BrushableBlockEntity brushableBlockEntity) {
-						boolean
-								bl2 =
-								brushableBlockEntity.brush(
-										world.getTime(),
-										serverWorld,
-										playerEntity,
-										blockHitResult.getSide(),
-										stack
-								);
-						if (bl2) {
-							EquipmentSlot
-									equipmentSlot =
-									stack.equals(playerEntity.getEquippedStack(EquipmentSlot.OFFHAND))
-									? EquipmentSlot.OFFHAND
-									: EquipmentSlot.MAINHAND;
-							stack.damage(1, playerEntity, equipmentSlot);
-						}
-					}
-				}
-			}
-			else {
-				user.stopUsingItem();
-			}
-		}
-		else {
+		if (remainingUseTicks < 0 || !(user instanceof PlayerEntity player)) {
 			user.stopUsingItem();
+			return;
+		}
+
+		HitResult hitResult = getHitResult(player);
+
+		if (!(hitResult instanceof BlockHitResult blockHitResult) || hitResult.getType() != HitResult.Type.BLOCK) {
+			user.stopUsingItem();
+			return;
+		}
+
+		int usedTicks = getMaxUseTime(stack, user) - remainingUseTicks + 1;
+		boolean isBrushTick = usedTicks % ANIMATION_DURATION == BRUSH_TICK_OFFSET;
+
+		if (!isBrushTick) {
+			return;
+		}
+
+		BlockPos blockPos = blockHitResult.getBlockPos();
+		BlockState blockState = world.getBlockState(blockPos);
+		Arm arm = user.getActiveHand() == Hand.MAIN_HAND
+			? player.getMainArm()
+			: player.getMainArm().getOpposite();
+
+		if (blockState.hasBlockBreakParticles() && blockState.getRenderType() != BlockRenderType.INVISIBLE) {
+			addDustParticles(world, blockHitResult, blockState, user.getRotationVec(0.0F), arm);
+		}
+
+		SoundEvent brushSound = blockState.getBlock() instanceof BrushableBlock brushable
+			? brushable.getBrushingSound()
+			: SoundEvents.ITEM_BRUSH_BRUSHING_GENERIC;
+
+		world.playSound(player, blockPos, brushSound, SoundCategory.BLOCKS);
+
+		if (world instanceof ServerWorld serverWorld
+			&& world.getBlockEntity(blockPos) instanceof BrushableBlockEntity brushableEntity
+		) {
+			boolean didBrush = brushableEntity.brush(
+				world.getTime(), serverWorld, player, blockHitResult.getSide(), stack
+			);
+
+			if (didBrush) {
+				EquipmentSlot slot = stack.equals(player.getEquippedStack(EquipmentSlot.OFFHAND))
+					? EquipmentSlot.OFFHAND
+					: EquipmentSlot.MAINHAND;
+				stack.damage(1, player, slot);
+			}
 		}
 	}
 
@@ -122,52 +126,47 @@ public class BrushItem extends Item {
 	}
 
 	private void addDustParticles(
-			World world,
-			BlockHitResult hitResult,
-			BlockState state,
-			Vec3d userRotation,
-			Arm arm
+		World world,
+		BlockHitResult hitResult,
+		BlockState state,
+		Vec3d userRotation,
+		Arm arm
 	) {
-		double d = 3.0;
-		int i = arm == Arm.RIGHT ? 1 : -1;
-		int j = world.getRandom().nextBetweenExclusive(7, 12);
-		BlockStateParticleEffect blockStateParticleEffect = new BlockStateParticleEffect(ParticleTypes.BLOCK, state);
-		Direction direction = hitResult.getSide();
-		BrushItem.DustParticlesOffset
-				dustParticlesOffset =
-				BrushItem.DustParticlesOffset.fromSide(userRotation, direction);
-		Vec3d vec3d = hitResult.getPos();
+		int armSign = arm == Arm.RIGHT ? 1 : -1;
+		int particleCount = world.getRandom().nextBetweenExclusive(DUST_PARTICLE_MIN, DUST_PARTICLE_MAX);
+		BlockStateParticleEffect particleEffect = new BlockStateParticleEffect(ParticleTypes.BLOCK, state);
+		Direction side = hitResult.getSide();
+		DustParticlesOffset offset = DustParticlesOffset.fromSide(userRotation, side);
+		Vec3d hitPos = hitResult.getPos();
 
-		for (int k = 0; k < j; k++) {
+		for (int index = 0; index < particleCount; index++) {
 			world.addParticleClient(
-					blockStateParticleEffect,
-					vec3d.x - (direction == Direction.WEST ? 1.0E-6F : 0.0F),
-					vec3d.y,
-					vec3d.z - (direction == Direction.NORTH ? 1.0E-6F : 0.0F),
-					dustParticlesOffset.xd() * i * 3.0 * world.getRandom().nextDouble(),
-					0.0,
-					dustParticlesOffset.zd() * i * 3.0 * world.getRandom().nextDouble()
+				particleEffect,
+				hitPos.x - (side == Direction.WEST ? 1.0E-6F : 0.0F),
+				hitPos.y,
+				hitPos.z - (side == Direction.NORTH ? 1.0E-6F : 0.0F),
+				offset.xd() * armSign * DUST_PARTICLE_SPEED * world.getRandom().nextDouble(),
+				0.0,
+				offset.zd() * armSign * DUST_PARTICLE_SPEED * world.getRandom().nextDouble()
 			);
 		}
 	}
 
 	/**
-	 * {@code DustParticlesOffset}.
+	 * Смещение частиц пыли в зависимости от стороны блока и направления взгляда игрока.
 	 */
 	record DustParticlesOffset(double xd, double yd, double zd) {
 
 		private static final double BRUSH_REACH = 1.0;
 		private static final double BRUSH_OFFSET = 0.1;
 
-		public static BrushItem.DustParticlesOffset fromSide(Vec3d userRotation, Direction side) {
-			double d = 0.0;
-
+		public static DustParticlesOffset fromSide(Vec3d userRotation, Direction side) {
 			return switch (side) {
-				case DOWN, UP -> new BrushItem.DustParticlesOffset(userRotation.getZ(), 0.0, -userRotation.getX());
-				case NORTH -> new BrushItem.DustParticlesOffset(1.0, 0.0, -0.1);
-				case SOUTH -> new BrushItem.DustParticlesOffset(-1.0, 0.0, 0.1);
-				case WEST -> new BrushItem.DustParticlesOffset(-0.1, 0.0, -1.0);
-				case EAST -> new BrushItem.DustParticlesOffset(0.1, 0.0, 1.0);
+				case DOWN, UP -> new DustParticlesOffset(userRotation.getZ(), 0.0, -userRotation.getX());
+				case NORTH -> new DustParticlesOffset(BRUSH_REACH, 0.0, -BRUSH_OFFSET);
+				case SOUTH -> new DustParticlesOffset(-BRUSH_REACH, 0.0, BRUSH_OFFSET);
+				case WEST -> new DustParticlesOffset(-BRUSH_OFFSET, 0.0, -BRUSH_REACH);
+				case EAST -> new DustParticlesOffset(BRUSH_OFFSET, 0.0, BRUSH_REACH);
 			};
 		}
 	}

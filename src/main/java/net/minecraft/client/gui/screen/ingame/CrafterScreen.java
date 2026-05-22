@@ -16,51 +16,58 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CrafterScreen}.
+ * Экран автоматического крафтера. Поддерживает отключение отдельных слотов
+ * для управления рецептом крафта.
  */
+@Environment(EnvType.CLIENT)
 public class CrafterScreen extends HandledScreen<CrafterScreenHandler> {
 
 	private static final Identifier DISABLED_SLOT_TEXTURE = Identifier.ofVanilla("container/crafter/disabled_slot");
-	private static final Identifier
-			POWERED_REDSTONE_TEXTURE =
-			Identifier.ofVanilla("container/crafter/powered_redstone");
-	private static final Identifier
-			UNPOWERED_REDSTONE_TEXTURE =
-			Identifier.ofVanilla("container/crafter/unpowered_redstone");
+	private static final Identifier POWERED_REDSTONE_TEXTURE = Identifier.ofVanilla("container/crafter/powered_redstone");
+	private static final Identifier UNPOWERED_REDSTONE_TEXTURE = Identifier.ofVanilla("container/crafter/unpowered_redstone");
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/crafter.png");
 	private static final Text TOGGLEABLE_SLOT_TEXT = Text.translatable("gui.togglable_slot");
+	private static final int SLOT_HOVER_SIZE = 19;
+	private static final int SLOT_HOVER_OFFSET = 2;
+	private static final int REDSTONE_ICON_SIZE = 16;
+	private static final float SOUND_PITCH_ENABLED = 1.0F;
+	private static final float SOUND_PITCH_DISABLED = 0.75F;
+	private static final float SOUND_VOLUME = 0.4F;
+
 	private final PlayerEntity player;
 
 	public CrafterScreen(CrafterScreenHandler handler, PlayerInventory playerInventory, Text title) {
 		super(handler, playerInventory, title);
-		this.player = playerInventory.player;
+		player = playerInventory.player;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.titleX = (this.backgroundWidth - this.textRenderer.getWidth(this.title)) / 2;
+		titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
 	}
 
 	@Override
 	protected void onMouseClick(Slot slot, int slotId, int button, SlotActionType actionType) {
-		if (slot instanceof CrafterInputSlot && !slot.hasStack() && !this.player.isSpectator()) {
+		if (slot instanceof CrafterInputSlot && !slot.hasStack() && !player.isSpectator()) {
 			switch (actionType) {
-				case PICKUP:
-					if (this.handler.isSlotDisabled(slotId)) {
-						this.enableSlot(slotId);
+				case PICKUP -> {
+					if (handler.isSlotDisabled(slotId)) {
+						enableSlot(slotId);
+					} else if (handler.getCursorStack().isEmpty()) {
+						disableSlot(slotId);
 					}
-					else if (this.handler.getCursorStack().isEmpty()) {
-						this.disableSlot(slotId);
+				}
+				case SWAP -> {
+					ItemStack hotbarStack = player.getInventory().getStack(button);
+
+					if (handler.isSlotDisabled(slotId) && !hotbarStack.isEmpty()) {
+						enableSlot(slotId);
 					}
-					break;
-				case SWAP:
-					ItemStack itemStack = this.player.getInventory().getStack(button);
-					if (this.handler.isSlotDisabled(slotId) && !itemStack.isEmpty()) {
-						this.enableSlot(slotId);
-					}
+				}
+				default -> {
+				}
 			}
 		}
 
@@ -68,37 +75,39 @@ public class CrafterScreen extends HandledScreen<CrafterScreenHandler> {
 	}
 
 	private void enableSlot(int slotId) {
-		this.setSlotEnabled(slotId, true);
+		setSlotEnabled(slotId, true);
 	}
 
 	private void disableSlot(int slotId) {
-		this.setSlotEnabled(slotId, false);
+		setSlotEnabled(slotId, false);
 	}
 
 	private void setSlotEnabled(int slotId, boolean enabled) {
-		this.handler.setSlotEnabled(slotId, enabled);
-		super.onSlotChangedState(slotId, this.handler.syncId, enabled);
-		float f = enabled ? 1.0F : 0.75F;
-		this.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.4F, f);
+		handler.setSlotEnabled(slotId, enabled);
+		super.onSlotChangedState(slotId, handler.syncId, enabled);
+		float pitch = enabled ? SOUND_PITCH_ENABLED : SOUND_PITCH_DISABLED;
+		player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), SOUND_VOLUME, pitch);
 	}
 
 	@Override
 	public void drawSlot(DrawContext context, Slot slot, int mouseX, int mouseY) {
 		if (slot instanceof CrafterInputSlot crafterInputSlot) {
-			if (this.handler.isSlotDisabled(slot.id)) {
-				this.drawDisabledSlot(context, crafterInputSlot);
-			}
-			else {
+			if (handler.isSlotDisabled(slot.id)) {
+				drawDisabledSlot(context, crafterInputSlot);
+			} else {
 				super.drawSlot(context, slot, mouseX, mouseY);
 			}
 
-			int i = this.x + crafterInputSlot.x - 2;
-			int j = this.y + crafterInputSlot.y - 2;
-			if (mouseX > i && mouseY > j && mouseX < i + 19 && mouseY < j + 19) {
+			int slotScreenX = x + crafterInputSlot.x - SLOT_HOVER_OFFSET;
+			int slotScreenY = y + crafterInputSlot.y - SLOT_HOVER_OFFSET;
+
+			if (mouseX > slotScreenX && mouseY > slotScreenY
+				&& mouseX < slotScreenX + SLOT_HOVER_SIZE
+				&& mouseY < slotScreenY + SLOT_HOVER_SIZE
+			) {
 				context.setCursor(StandardCursors.POINTING_HAND);
 			}
-		}
-		else {
+		} else {
 			super.drawSlot(context, slot, mouseX, mouseY);
 		}
 	}
@@ -110,46 +119,41 @@ public class CrafterScreen extends HandledScreen<CrafterScreenHandler> {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawArrowTexture(context);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
-		if (this.focusedSlot instanceof CrafterInputSlot
-				&& !this.handler.isSlotDisabled(this.focusedSlot.id)
-				&& this.handler.getCursorStack().isEmpty()
-				&& !this.focusedSlot.hasStack()
-				&& !this.player.isSpectator()) {
-			context.drawTooltip(this.textRenderer, TOGGLEABLE_SLOT_TEXT, mouseX, mouseY);
+		drawArrowTexture(context);
+		drawMouseoverTooltip(context, mouseX, mouseY);
+
+		if (focusedSlot instanceof CrafterInputSlot
+			&& !handler.isSlotDisabled(focusedSlot.id)
+			&& handler.getCursorStack().isEmpty()
+			&& !focusedSlot.hasStack()
+			&& !player.isSpectator()
+		) {
+			context.drawTooltip(textRenderer, TOGGLEABLE_SLOT_TEXT, mouseX, mouseY);
 		}
 	}
 
 	private void drawArrowTexture(DrawContext context) {
-		int i = this.width / 2 + 9;
-		int j = this.height / 2 - 48;
-		Identifier identifier;
-		if (this.handler.isTriggered()) {
-			identifier = POWERED_REDSTONE_TEXTURE;
-		}
-		else {
-			identifier = UNPOWERED_REDSTONE_TEXTURE;
-		}
-
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, i, j, 16, 16);
+		int arrowX = width / 2 + 9;
+		int arrowY = height / 2 - 48;
+		Identifier arrowTexture = handler.isTriggered() ? POWERED_REDSTONE_TEXTURE : UNPOWERED_REDSTONE_TEXTURE;
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, arrowTexture, arrowX, arrowY, REDSTONE_ICON_SIZE, REDSTONE_ICON_SIZE);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
 	}
 }

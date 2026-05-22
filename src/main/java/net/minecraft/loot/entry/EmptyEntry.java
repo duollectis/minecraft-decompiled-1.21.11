@@ -10,14 +10,11 @@ import net.minecraft.loot.function.LootFunction;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * {@code EmptyEntry}.
- */
+/** Запись пула лута, не генерирующая никаких предметов (пустой слот). */
 public class EmptyEntry extends LeafEntry {
 
-	public static final MapCodec<EmptyEntry>
-			CODEC =
-			RecordCodecBuilder.mapCodec(instance -> addLeafFields(instance).apply(instance, EmptyEntry::new));
+	public static final MapCodec<EmptyEntry> CODEC =
+		RecordCodecBuilder.mapCodec(instance -> addLeafFields(instance).apply(instance, EmptyEntry::new));
 
 	private EmptyEntry(int weight, int quality, List<LootCondition> conditions, List<LootFunction> functions) {
 		super(weight, quality, conditions, functions);

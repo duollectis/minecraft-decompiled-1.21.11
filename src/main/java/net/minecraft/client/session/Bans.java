@@ -18,10 +18,11 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Bans}.
+ * Утилитарный класс для создания экранов уведомления о блокировке аккаунта.
+ * Формирует тексты заголовков и описаний на основе данных {@link BanDetails} от Mojang.
  */
+@Environment(EnvType.CLIENT)
 public class Bans {
 
 	private static final Text
@@ -63,15 +64,15 @@ public class Bans {
 	 * @return ConfirmLinkScreen — результат операции
 	 */
 	public static ConfirmLinkScreen createSkinBanScreen(Runnable onClose) {
-		URI uRI = Urls.JAVA_MODERATION;
+		URI uri = Urls.JAVA_MODERATION;
 		return new ConfirmLinkScreen(
 				confirmed -> {
 					if (confirmed) {
-						Util.getOperatingSystem().open(uRI);
+						Util.getOperatingSystem().open(uri);
 					}
 
 					onClose.run();
-				}, SKIN_TITLE, SKIN_DESCRIPTION, uRI, ScreenTexts.ACKNOWLEDGE, true
+				}, SKIN_TITLE, SKIN_DESCRIPTION, uri, ScreenTexts.ACKNOWLEDGE, true
 		);
 	}
 
@@ -84,11 +85,11 @@ public class Bans {
 	 * @return ConfirmLinkScreen — результат операции
 	 */
 	public static ConfirmLinkScreen createUsernameBanScreen(String username, Runnable onClose) {
-		URI uRI = Urls.JAVA_MODERATION;
+		URI uri = Urls.JAVA_MODERATION;
 		return new ConfirmLinkScreen(
 				confirmed -> {
 					if (confirmed) {
-						Util.getOperatingSystem().open(uRI);
+						Util.getOperatingSystem().open(uri);
 					}
 
 					onClose.run();
@@ -99,7 +100,7 @@ public class Bans {
 						Text.literal(username).formatted(Formatting.YELLOW),
 						Text.of(Urls.JAVA_MODERATION)
 				),
-				uRI,
+				uri,
 				ScreenTexts.ACKNOWLEDGE,
 				true
 		);
@@ -119,30 +120,30 @@ public class Bans {
 	}
 
 	private static Text getReasonText(BanDetails banDetails) {
-		String string = banDetails.reason();
-		String string2 = banDetails.reasonMessage();
-		if (StringUtils.isNumeric(string)) {
-			int i = Integer.parseInt(string);
-			BanReason banReason = BanReason.byId(i);
-			Text text;
-			if (banReason != null) {
-				text = Texts.withStyle(banReason.getDescription(), Style.EMPTY.withBold(true));
-			}
-			else if (string2 != null) {
-				text =
-						Text
-								.translatable("gui.banned.description.reason_id_message", i, string2)
-								.formatted(Formatting.BOLD);
-			}
-			else {
-				text = Text.translatable("gui.banned.description.reason_id", i).formatted(Formatting.BOLD);
-			}
+		String reason = banDetails.reason();
+		String reasonMessage = banDetails.reasonMessage();
 
-			return Text.translatable("gui.banned.description.reason", text);
-		}
-		else {
+		if (!StringUtils.isNumeric(reason)) {
 			return Text.translatable("gui.banned.description.unknownreason");
 		}
+
+		int reasonId = Integer.parseInt(reason);
+		BanReason banReason = BanReason.byId(reasonId);
+
+		Text reasonText;
+		if (banReason != null) {
+			reasonText = Texts.withStyle(banReason.getDescription(), Style.EMPTY.withBold(true));
+		}
+		else if (reasonMessage != null) {
+			reasonText = Text
+					.translatable("gui.banned.description.reason_id_message", reasonId, reasonMessage)
+					.formatted(Formatting.BOLD);
+		}
+		else {
+			reasonText = Text.translatable("gui.banned.description.reason_id", reasonId).formatted(Formatting.BOLD);
+		}
+
+		return Text.translatable("gui.banned.description.reason", reasonText);
 	}
 
 	private static Text getDurationText(BanDetails banDetails) {
@@ -160,13 +161,15 @@ public class Bans {
 
 	private static Text getTemporaryBanDurationText(BanDetails banDetails) {
 		Duration duration = Duration.between(Instant.now(), banDetails.expires());
-		long l = duration.toHours();
-		if (l > 72L) {
+		long hours = duration.toHours();
+
+		if (hours > 72L) {
 			return ScreenTexts.days(duration.toDays());
 		}
-		else {
-			return l < 1L ? ScreenTexts.minutes(duration.toMinutes()) : ScreenTexts.hours(duration.toHours());
-		}
+
+		return hours < 1L
+				? ScreenTexts.minutes(duration.toMinutes())
+				: ScreenTexts.hours(hours);
 	}
 
 	private static boolean isTemporary(BanDetails banDetails) {

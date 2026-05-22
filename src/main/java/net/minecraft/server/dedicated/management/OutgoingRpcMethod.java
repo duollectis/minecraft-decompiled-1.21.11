@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code OutgoingRpcMethod}.
+ * Класс Outgoing Rpc Method.
  */
 public interface OutgoingRpcMethod<Params, Result> {
 
@@ -44,15 +44,9 @@ public interface OutgoingRpcMethod<Params, Result> {
 		return new OutgoingRpcMethod.Builder<>(OutgoingRpcMethod.Parameterized::new);
 	}
 
-	/**
-	 * {@code Attributes}.
-	 */
 	public record Attributes(boolean discoverable) {
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder<Params, Result> {
 
 		public static final OutgoingRpcMethod.Attributes DEFAULT_ATTRIBUTES = new OutgoingRpcMethod.Attributes(true);
@@ -97,9 +91,6 @@ public interface OutgoingRpcMethod<Params, Result> {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Factory}.
-	 */
 	public interface Factory<Params, Result> {
 
 		OutgoingRpcMethod<Params, Result> create(
@@ -108,9 +99,6 @@ public interface OutgoingRpcMethod<Params, Result> {
 		);
 	}
 
-	/**
-	 * {@code Notification}.
-	 */
 	public record Notification<Params>(
 			RpcMethodInfo<Params, Void> info,
 			OutgoingRpcMethod.Attributes attributes
@@ -133,9 +121,6 @@ public interface OutgoingRpcMethod<Params, Result> {
 		}
 	}
 
-	/**
-	 * {@code Parameterized}.
-	 */
 	public record Parameterized<Params, Result>(
 			RpcMethodInfo<Params, Result> info,
 			OutgoingRpcMethod.Attributes attributes
@@ -169,9 +154,6 @@ public interface OutgoingRpcMethod<Params, Result> {
 		}
 	}
 
-	/**
-	 * {@code Parameterless}.
-	 */
 	public record Parameterless<Result>(
 			RpcMethodInfo<Void, Result> info,
 			OutgoingRpcMethod.Attributes attributes
@@ -188,9 +170,6 @@ public interface OutgoingRpcMethod<Params, Result> {
 		}
 	}
 
-	/**
-	 * {@code Simple}.
-	 */
 	public record Simple(
 			RpcMethodInfo<Void, Void> info,
 			OutgoingRpcMethod.Attributes attributes

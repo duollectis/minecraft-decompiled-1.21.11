@@ -58,8 +58,8 @@ public class MovingMinecartSoundInstance extends MovingSoundInstance {
 					!this.minecart.isOnRail()
 							&& this.minecart.getController() instanceof ExperimentalMinecartController;
 			if (f >= 0.01F && this.minecart.getEntityWorld().getTickManager().shouldTick() && !bl) {
-				this.distance = MathHelper.clamp(this.distance + 0.0025F, 0.0F, 1.0F);
-				this.volume = MathHelper.lerp(MathHelper.clamp(f, 0.0F, 0.5F), 0.0F, 0.7F);
+				this.distance = MathHelper.clamp(this.distance + DISTANCE_INCREMENT, 0.0F, 1.0F);
+				this.volume = MathHelper.lerp(MathHelper.clamp(f, 0.0F, 0.5F), 0.0F, MAX_VOLUME);
 			}
 			else {
 				this.distance = 0.0F;

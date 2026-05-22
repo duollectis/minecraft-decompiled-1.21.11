@@ -23,7 +23,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code EnchantCommand}.
+ * Команда {@code /enchant}: наложение зачарований на предметы в руке игрока.
  */
 public class EnchantCommand {
 

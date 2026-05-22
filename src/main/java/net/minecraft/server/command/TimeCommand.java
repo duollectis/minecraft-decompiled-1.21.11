@@ -8,7 +8,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
 /**
- * {@code TimeCommand}.
+ * Команда {@code /time}: управление временем суток в мире.
  */
 public class TimeCommand {
 

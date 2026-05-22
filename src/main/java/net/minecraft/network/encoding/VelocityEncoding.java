@@ -5,7 +5,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Класс velocity encoding.
+ * Утилитарный класс для компактного кодирования вектора скорости сущности в сетевом протоколе.
+ *
+ * <p>Скорость кодируется в 6 байт (или 10 при «быстром» режиме): три 15-битных компонента
+ * нормализуются относительно максимальной составляющей, которая хранится отдельно.
+ * Бит {@code FAST_MARKER_BIT} сигнализирует, что масштаб не помещается в 2 бита и
+ * дополнительно читается как VarInt.</p>
  */
 public class VelocityEncoding {
 
@@ -22,74 +27,76 @@ public class VelocityEncoding {
 	public static final double MIN_VELOCITY = 3.051944088384301E-5;
 
 	public static boolean hasFastMarkerBit(int maxDirectionalVelocity) {
-		return (maxDirectionalVelocity & 4) == 4;
+		return (maxDirectionalVelocity & FAST_MARKER_BIT) == FAST_MARKER_BIT;
 	}
 
 	/**
-	 * Читает velocity.
-	 *
-	 * @param buf buf
-	 *
-	 * @return Vec3d — результат операции
+	 * Читает вектор скорости из буфера.
+	 * Первый байт {@code 0} означает нулевую скорость ({@link Vec3d#ZERO}).
 	 */
 	public static Vec3d readVelocity(ByteBuf buf) {
-		int i = buf.readUnsignedByte();
-		if (i == 0) {
+		int firstByte = buf.readUnsignedByte();
+		if (firstByte == 0) {
 			return Vec3d.ZERO;
 		}
-		else {
-			int j = buf.readUnsignedByte();
-			long l = buf.readUnsignedInt();
-			long m = l << 16 | j << 8 | i;
-			long n = i & 3;
-			if (hasFastMarkerBit(i)) {
-				n |= (VarInts.read(buf) & 4294967295L) << 2;
-			}
 
-			return new Vec3d(fromLong(m >> 3) * n, fromLong(m >> 18) * n, fromLong(m >> 33) * n);
+		int secondByte = buf.readUnsignedByte();
+		long packed = buf.readUnsignedInt();
+		long combined = packed << 16 | secondByte << 8 | firstByte;
+		long scale = firstByte & SLOW_BIT_MASK;
+
+		if (hasFastMarkerBit(firstByte)) {
+			scale |= (VarInts.read(buf) & 4294967295L) << SLOW_BITS;
 		}
+
+		return new Vec3d(
+				fromLong(combined >> X_SHIFT) * scale,
+				fromLong(combined >> Y_SHIFT) * scale,
+				fromLong(combined >> Z_SHIFT) * scale
+		);
 	}
 
 	/**
-	 * Записывает velocity.
-	 *
-	 * @param buf buf
-	 * @param velocity velocity
+	 * Записывает вектор скорости в буфер.
+	 * Если максимальная составляющая меньше {@link #MIN_VELOCITY}, записывается один нулевой байт.
 	 */
 	public static void writeVelocity(ByteBuf buf, Vec3d velocity) {
-		double d = clampValue(velocity.x);
-		double e = clampValue(velocity.y);
-		double f = clampValue(velocity.z);
-		double g = MathHelper.absMax(d, MathHelper.absMax(e, f));
-		if (g < 3.051944088384301E-5) {
+		double vx = clampValue(velocity.x);
+		double vy = clampValue(velocity.y);
+		double vz = clampValue(velocity.z);
+		double maxComponent = MathHelper.absMax(vx, MathHelper.absMax(vy, vz));
+
+		if (maxComponent < MIN_VELOCITY) {
 			buf.writeByte(0);
+			return;
 		}
-		else {
-			long l = MathHelper.ceilLong(g);
-			boolean bl = (l & 3L) != l;
-			long m = bl ? l & 3L | 4L : l;
-			long n = toLong(d / l) << 3;
-			long o = toLong(e / l) << 18;
-			long p = toLong(f / l) << 33;
-			long q = m | n | o | p;
-			buf.writeByte((byte) q);
-			buf.writeByte((byte) (q >> 8));
-			buf.writeInt((int) (q >> 16));
-			if (bl) {
-				VarInts.write(buf, (int) (l >> 2));
-			}
+
+		long scale = MathHelper.ceilLong(maxComponent);
+		boolean needsExtraScale = (scale & SLOW_BIT_MASK) != scale;
+		long scaleBits = needsExtraScale ? scale & SLOW_BIT_MASK | FAST_MARKER_BIT : scale;
+		long xBits = toLong(vx / scale) << X_SHIFT;
+		long yBits = toLong(vy / scale) << Y_SHIFT;
+		long zBits = toLong(vz / scale) << Z_SHIFT;
+		long encoded = scaleBits | xBits | yBits | zBits;
+
+		buf.writeByte((byte) encoded);
+		buf.writeByte((byte) (encoded >> 8));
+		buf.writeInt((int) (encoded >> 16));
+
+		if (needsExtraScale) {
+			VarInts.write(buf, (int) (scale >> SLOW_BITS));
 		}
 	}
 
 	private static double clampValue(double value) {
-		return Double.isNaN(value) ? 0.0 : Math.clamp(value, -1.7179869183E10, 1.7179869183E10);
+		return Double.isNaN(value) ? 0.0 : Math.clamp(value, -MAX_VELOCITY, MAX_VELOCITY);
 	}
 
 	private static long toLong(double value) {
-		return Math.round((value * 0.5 + 0.5) * 32766.0);
+		return Math.round((value * 0.5 + 0.5) * MAX_VELOCITY_VALUE);
 	}
 
 	private static double fromLong(long value) {
-		return Math.min((double) (value & 32767L), 32766.0) * 2.0 / 32766.0 - 1.0;
+		return Math.min((double) (value & MAX_15_BIT_INT), MAX_VELOCITY_VALUE) * 2.0 / MAX_VELOCITY_VALUE - 1.0;
 	}
 }

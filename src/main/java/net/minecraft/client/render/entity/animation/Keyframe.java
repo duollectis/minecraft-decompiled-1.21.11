@@ -4,10 +4,15 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.joml.Vector3fc;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Keyframe}.
+ * Ключевой кадр анимации: момент времени и целевое значение трансформации.
+ * <p>
+ * Хранит два вектора — {@code preTarget} (значение на выходе из предыдущего кадра)
+ * и {@code postTarget} (значение на входе в следующий кадр). Для большинства
+ * кадров они совпадают; разные значения используются при кубической интерполяции
+ * для управления касательными кривой Катмулла–Рома.
  */
+@Environment(EnvType.CLIENT)
 public record Keyframe(
 		float timestamp,
 		Vector3fc preTarget,
@@ -15,7 +20,8 @@ public record Keyframe(
 		Transformation.Interpolation interpolation
 ) {
 
-	public Keyframe(float f, Vector3fc vector3fc, Transformation.Interpolation interpolation) {
-		this(f, vector3fc, vector3fc, interpolation);
+	/** Создаёт кадр с одинаковыми {@code preTarget} и {@code postTarget}. */
+	public Keyframe(float timestamp, Vector3fc target, Transformation.Interpolation interpolation) {
+		this(timestamp, target, target, interpolation);
 	}
 }

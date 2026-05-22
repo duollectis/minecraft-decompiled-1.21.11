@@ -15,7 +15,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CartographyTableBlock}.
+ * Блок стола картографа. Открывает экран картографии при взаимодействии
+ * и увеличивает счётчик статистики {@code INTERACT_WITH_CARTOGRAPHY_TABLE}.
  */
 public class CartographyTableBlock extends Block {
 

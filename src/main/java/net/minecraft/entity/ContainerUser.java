@@ -4,7 +4,8 @@ import net.minecraft.block.entity.ViewerCountManager;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code ContainerUser}.
+ * Интерфейс для сущностей, способных взаимодействовать с контейнерами (сундуки, бочки и т.д.).
+ * Реализующая сущность обязана быть {@link LivingEntity}.
  */
 public interface ContainerUser {
 
@@ -12,12 +13,19 @@ public interface ContainerUser {
 
 	double getContainerInteractionRange();
 
+	/**
+	 * Приводит текущую сущность к {@link LivingEntity}.
+	 * Выбрасывает исключение, если реализующий класс не является {@code LivingEntity},
+	 * что является нарушением контракта интерфейса.
+	 *
+	 * @return эта сущность как {@link LivingEntity}
+	 * @throws IllegalStateException если реализующий класс не является {@link LivingEntity}
+	 */
 	default LivingEntity asLivingEntity() {
-		if (this instanceof LivingEntity) {
-			return (LivingEntity) this;
+		if (this instanceof LivingEntity livingEntity) {
+			return livingEntity;
 		}
-		else {
-			throw new IllegalStateException("A container user must be a LivingEntity");
-		}
+
+		throw new IllegalStateException("A container user must be a LivingEntity");
 	}
 }

@@ -3,7 +3,7 @@ package net.minecraft.entity;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code FlyingItemEntity}.
+ * Интерфейс для летящих снарядов, визуально представленных предметом (яйцо, снежок, эндер-жемчуг и т.д.).
  */
 public interface FlyingItemEntity {
 

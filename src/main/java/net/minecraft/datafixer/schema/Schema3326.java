@@ -7,17 +7,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3326}.
+ * Схема версии 3326 (Minecraft 1.20 — Trails & Tales).
+ * <p>
+ * Регистрирует тип данных для сущности нюхача ({@code minecraft:sniffer}),
+ * добавленного в обновлении 1.20 как пассивный моб, способный откапывать
+ * семена древних растений.
  */
 public class Schema3326 extends IdentifierNormalizingSchema {
 
-	public Schema3326(int i, Schema schema) {
-		super(i, schema);
+	public Schema3326(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:sniffer");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:sniffer");
+		return entityTypes;
 	}
 }

@@ -20,7 +20,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code WoodlandMansionStructure}.
+ * Структура лесного особняка. Генерирует многоэтажное здание из случайных комнат.
+ * После размещения заполняет пустоты под фундаментом булыжником.
  */
 public class WoodlandMansionStructure extends Structure {
 
@@ -33,21 +34,16 @@ public class WoodlandMansionStructure extends Structure {
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		BlockRotation blockRotation = BlockRotation.random(context.random());
-		BlockPos blockPos = this.getShiftedPos(context, blockRotation);
-		return blockPos.getY() < 60
-		       ? Optional.empty()
-		       : Optional.of(
-				       new Structure.StructurePosition(
-						       blockPos,
-						       (Consumer<StructurePiecesCollector>) (collector -> this.addPieces(
-								       collector,
-								       context,
-								       blockPos,
-								       blockRotation
-						       )
-						       )
-				       )
-		       );
+		BlockPos pos = getShiftedPos(context, blockRotation);
+
+		return pos.getY() < 60
+				? Optional.empty()
+				: Optional.of(
+						new Structure.StructurePosition(
+								pos,
+								collector -> addPieces(collector, context, pos, blockRotation)
+						)
+				);
 	}
 
 	private void addPieces(
@@ -56,9 +52,9 @@ public class WoodlandMansionStructure extends Structure {
 			BlockPos pos,
 			BlockRotation rotation
 	) {
-		List<WoodlandMansionGenerator.Piece> list = Lists.newLinkedList();
-		WoodlandMansionGenerator.addPieces(context.structureTemplateManager(), pos, rotation, list, context.random());
-		list.forEach(collector::addPiece);
+		List<WoodlandMansionGenerator.Piece> pieces = Lists.newLinkedList();
+		WoodlandMansionGenerator.addPieces(context.structureTemplateManager(), pos, rotation, pieces, context.random());
+		pieces.forEach(collector::addPiece);
 	}
 
 	@Override
@@ -72,16 +68,16 @@ public class WoodlandMansionStructure extends Structure {
 			StructurePiecesList pieces
 	) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		int i = world.getBottomY();
-		BlockBox blockBox = pieces.getBoundingBox();
-		int j = blockBox.getMinY();
+		int worldBottomY = world.getBottomY();
+		BlockBox structureBox = pieces.getBoundingBox();
+		int mansionFloorY = structureBox.getMinY();
 
-		for (int k = box.getMinX(); k <= box.getMaxX(); k++) {
-			for (int l = box.getMinZ(); l <= box.getMaxZ(); l++) {
-				mutable.set(k, j, l);
-				if (!world.isAir(mutable) && blockBox.contains(mutable) && pieces.contains(mutable)) {
-					for (int m = j - 1; m > i; m--) {
-						mutable.setY(m);
+		for (int x = box.getMinX(); x <= box.getMaxX(); x++) {
+			for (int z = box.getMinZ(); z <= box.getMaxZ(); z++) {
+				mutable.set(x, mansionFloorY, z);
+				if (!world.isAir(mutable) && structureBox.contains(mutable) && pieces.contains(mutable)) {
+					for (int y = mansionFloorY - 1; y > worldBottomY; y--) {
+						mutable.setY(y);
 						if (!world.isAir(mutable) && !world.getBlockState(mutable).isLiquid()) {
 							break;
 						}

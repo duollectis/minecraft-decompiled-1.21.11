@@ -41,11 +41,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code ProtoChunk}.
+ * Прото-чанк: промежуточное представление чанка в процессе генерации мира.
+ * Используется на всех стадиях генерации от {@link ChunkStatus#EMPTY} до {@link ChunkStatus#FULL}.
+ * После завершения генерации конвертируется в {@link WorldChunk}.
  */
 public class ProtoChunk extends Chunk {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private volatile @Nullable LightingProvider lightingProvider;
 	private volatile ChunkStatus status = ChunkStatus.EMPTY;
 	private final List<NbtCompound> entities = Lists.newArrayList();
@@ -55,33 +58,33 @@ public class ProtoChunk extends Chunk {
 	private final SimpleTickScheduler<Fluid> fluidTickScheduler;
 
 	public ProtoChunk(
-			ChunkPos pos,
-			UpgradeData upgradeData,
-			HeightLimitView world,
-			PalettesFactory palettesFactory,
-			@Nullable BlendingData blendingData
+		ChunkPos pos,
+		UpgradeData upgradeData,
+		HeightLimitView world,
+		PalettesFactory palettesFactory,
+		@Nullable BlendingData blendingData
 	) {
 		this(
-				pos,
-				upgradeData,
-				null,
-				new SimpleTickScheduler<>(),
-				new SimpleTickScheduler<>(),
-				world,
-				palettesFactory,
-				blendingData
+			pos,
+			upgradeData,
+			null,
+			new SimpleTickScheduler<>(),
+			new SimpleTickScheduler<>(),
+			world,
+			palettesFactory,
+			blendingData
 		);
 	}
 
 	public ProtoChunk(
-			ChunkPos pos,
-			UpgradeData upgradeData,
-			ChunkSection @Nullable [] sections,
-			SimpleTickScheduler<Block> blockTickScheduler,
-			SimpleTickScheduler<Fluid> fluidTickScheduler,
-			HeightLimitView world,
-			PalettesFactory palettesFactory,
-			@Nullable BlendingData blendingData
+		ChunkPos pos,
+		UpgradeData upgradeData,
+		ChunkSection @Nullable [] sections,
+		SimpleTickScheduler<Block> blockTickScheduler,
+		SimpleTickScheduler<Fluid> fluidTickScheduler,
+		HeightLimitView world,
+		PalettesFactory palettesFactory,
+		@Nullable BlendingData blendingData
 	) {
 		super(pos, upgradeData, world, palettesFactory, 0L, sections, blendingData);
 		this.blockTickScheduler = blockTickScheduler;
@@ -90,150 +93,158 @@ public class ProtoChunk extends Chunk {
 
 	@Override
 	public BasicTickScheduler<Block> getBlockTickScheduler() {
-		return this.blockTickScheduler;
+		return blockTickScheduler;
 	}
 
 	@Override
 	public BasicTickScheduler<Fluid> getFluidTickScheduler() {
-		return this.fluidTickScheduler;
+		return fluidTickScheduler;
 	}
 
 	@Override
 	public Chunk.TickSchedulers getTickSchedulers(long time) {
 		return new Chunk.TickSchedulers(
-				this.blockTickScheduler.collectTicks(time),
-				this.fluidTickScheduler.collectTicks(time)
+			blockTickScheduler.collectTicks(time),
+			fluidTickScheduler.collectTicks(time)
 		);
 	}
 
 	@Override
 	public BlockState getBlockState(BlockPos pos) {
-		int i = pos.getY();
-		if (this.isOutOfHeightLimit(i)) {
+		int y = pos.getY();
+
+		if (isOutOfHeightLimit(y)) {
 			return Blocks.VOID_AIR.getDefaultState();
 		}
-		else {
-			ChunkSection chunkSection = this.getSection(this.getSectionIndex(i));
-			return chunkSection.isEmpty() ? Blocks.AIR.getDefaultState()
-			                              : chunkSection.getBlockState(pos.getX() & 15, i & 15, pos.getZ() & 15);
-		}
+
+		ChunkSection section = getSection(getSectionIndex(y));
+		return section.isEmpty()
+			? Blocks.AIR.getDefaultState()
+			: section.getBlockState(pos.getX() & 15, y & 15, pos.getZ() & 15);
 	}
 
 	@Override
 	public FluidState getFluidState(BlockPos pos) {
-		int i = pos.getY();
-		if (this.isOutOfHeightLimit(i)) {
+		int y = pos.getY();
+
+		if (isOutOfHeightLimit(y)) {
 			return Fluids.EMPTY.getDefaultState();
 		}
-		else {
-			ChunkSection chunkSection = this.getSection(this.getSectionIndex(i));
-			return chunkSection.isEmpty() ? Fluids.EMPTY.getDefaultState()
-			                              : chunkSection.getFluidState(pos.getX() & 15, i & 15, pos.getZ() & 15);
-		}
+
+		ChunkSection section = getSection(getSectionIndex(y));
+		return section.isEmpty()
+			? Fluids.EMPTY.getDefaultState()
+			: section.getFluidState(pos.getX() & 15, y & 15, pos.getZ() & 15);
 	}
 
+	/**
+	 * Устанавливает состояние блока в прото-чанке. Обновляет освещение (если статус
+	 * достиг {@link ChunkStatus#INITIALIZE_LIGHT}) и карты высот текущего статуса.
+	 */
 	@Override
 	public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-		int i = pos.getX();
-		int j = pos.getY();
-		int k = pos.getZ();
-		if (this.isOutOfHeightLimit(j)) {
+		int x = pos.getX();
+		int y = pos.getY();
+		int z = pos.getZ();
+
+		if (isOutOfHeightLimit(y)) {
 			return Blocks.VOID_AIR.getDefaultState();
 		}
-		else {
-			int l = this.getSectionIndex(j);
-			ChunkSection chunkSection = this.getSection(l);
-			boolean bl = chunkSection.isEmpty();
-			if (bl && state.isOf(Blocks.AIR)) {
-				return state;
+
+		int sectionIndex = getSectionIndex(y);
+		ChunkSection section = getSection(sectionIndex);
+		boolean wasEmpty = section.isEmpty();
+
+		if (wasEmpty && state.isOf(Blocks.AIR)) {
+			return state;
+		}
+
+		int localX = ChunkSectionPos.getLocalCoord(x);
+		int localY = ChunkSectionPos.getLocalCoord(y);
+		int localZ = ChunkSectionPos.getLocalCoord(z);
+		BlockState previousState = section.setBlockState(localX, localY, localZ, state);
+
+		if (status.isAtLeast(ChunkStatus.INITIALIZE_LIGHT)) {
+			boolean nowEmpty = section.isEmpty();
+			if (nowEmpty != wasEmpty) {
+				lightingProvider.setSectionStatus(pos, nowEmpty);
 			}
-			else {
-				int m = ChunkSectionPos.getLocalCoord(i);
-				int n = ChunkSectionPos.getLocalCoord(j);
-				int o = ChunkSectionPos.getLocalCoord(k);
-				BlockState blockState = chunkSection.setBlockState(m, n, o, state);
-				if (this.status.isAtLeast(ChunkStatus.INITIALIZE_LIGHT)) {
-					boolean bl2 = chunkSection.isEmpty();
-					if (bl2 != bl) {
-						this.lightingProvider.setSectionStatus(pos, bl2);
-					}
 
-					if (ChunkLightProvider.needsLightUpdate(blockState, state)) {
-						this.chunkSkyLight.isSkyLightAccessible(this, m, j, o);
-						this.lightingProvider.checkBlock(pos);
-					}
-				}
-
-				EnumSet<Heightmap.Type> enumSet = this.getStatus().getHeightmapTypes();
-				EnumSet<Heightmap.Type> enumSet2 = null;
-
-				for (Heightmap.Type type : enumSet) {
-					Heightmap heightmap = this.heightmaps.get(type);
-					if (heightmap == null) {
-						if (enumSet2 == null) {
-							enumSet2 = EnumSet.noneOf(Heightmap.Type.class);
-						}
-
-						enumSet2.add(type);
-					}
-				}
-
-				if (enumSet2 != null) {
-					Heightmap.populateHeightmaps(this, enumSet2);
-				}
-
-				for (Heightmap.Type typex : enumSet) {
-					this.heightmaps.get(typex).trackUpdate(m, j, o, state);
-				}
-
-				return blockState;
+			if (ChunkLightProvider.needsLightUpdate(previousState, state)) {
+				chunkSkyLight.isSkyLightAccessible(this, localX, y, localZ);
+				lightingProvider.checkBlock(pos);
 			}
 		}
+
+		EnumSet<Heightmap.Type> requiredTypes = getStatus().getHeightmapTypes();
+		EnumSet<Heightmap.Type> missingTypes = null;
+
+		for (Heightmap.Type type : requiredTypes) {
+			if (heightmaps.get(type) == null) {
+				if (missingTypes == null) {
+					missingTypes = EnumSet.noneOf(Heightmap.Type.class);
+				}
+
+				missingTypes.add(type);
+			}
+		}
+
+		if (missingTypes != null) {
+			Heightmap.populateHeightmaps(this, missingTypes);
+		}
+
+		for (Heightmap.Type type : requiredTypes) {
+			heightmaps.get(type).trackUpdate(localX, y, localZ, state);
+		}
+
+		return previousState;
 	}
 
 	@Override
 	public void setBlockEntity(BlockEntity blockEntity) {
-		this.blockEntityNbts.remove(blockEntity.getPos());
-		this.blockEntities.put(blockEntity.getPos(), blockEntity);
+		blockEntityNbts.remove(blockEntity.getPos());
+		blockEntities.put(blockEntity.getPos(), blockEntity);
 	}
 
 	@Override
 	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-		return this.blockEntities.get(pos);
+		return blockEntities.get(pos);
 	}
 
 	public Map<BlockPos, BlockEntity> getBlockEntities() {
-		return this.blockEntities;
+		return blockEntities;
 	}
 
-	/**
-	 * Добавляет entity.
-	 *
-	 * @param entityNbt entity nbt
-	 */
 	public void addEntity(NbtCompound entityNbt) {
-		this.entities.add(entityNbt);
+		entities.add(entityNbt);
 	}
 
 	@Override
 	public void addEntity(Entity entity) {
-		if (!entity.hasVehicle()) {
-			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
-				NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
-				entity.saveData(nbtWriteView);
-				this.addEntity(nbtWriteView.getNbt());
-			}
+		if (entity.hasVehicle()) {
+			return;
+		}
+
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
+			entity.saveData(nbtWriteView);
+			addEntity(nbtWriteView.getNbt());
 		}
 	}
 
+	/**
+	 * Устанавливает старт структуры, проверяя что её ограничивающий бокс
+	 * не выходит за пределы высотного диапазона при наличии {@link BelowZeroRetrogen}.
+	 */
 	@Override
 	public void setStructureStart(Structure structure, StructureStart start) {
-		BelowZeroRetrogen belowZeroRetrogen = this.getBelowZeroRetrogen();
-		if (belowZeroRetrogen != null && start.hasChildren()) {
-			BlockBox blockBox = start.getBoundingBox();
-			HeightLimitView heightLimitView = this.getHeightLimitView();
-			if (blockBox.getMinY() < heightLimitView.getBottomY()
-					|| blockBox.getMaxY() > heightLimitView.getTopYInclusive()) {
+		BelowZeroRetrogen retrogen = getBelowZeroRetrogen();
+		if (retrogen != null && start.hasChildren()) {
+			BlockBox boundingBox = start.getBoundingBox();
+			HeightLimitView heightLimit = getHeightLimitView();
+			if (boundingBox.getMinY() < heightLimit.getBottomY()
+				|| boundingBox.getMaxY() > heightLimit.getTopYInclusive()
+			) {
 				return;
 			}
 		}
@@ -242,100 +253,104 @@ public class ProtoChunk extends Chunk {
 	}
 
 	public List<NbtCompound> getEntities() {
-		return this.entities;
+		return entities;
 	}
 
 	@Override
 	public ChunkStatus getStatus() {
-		return this.status;
+		return status;
 	}
 
+	/**
+	 * Устанавливает статус генерации чанка. Если статус достиг цели ретрогенерации
+	 * ниже нуля — сбрасывает {@link BelowZeroRetrogen}.
+	 */
 	public void setStatus(ChunkStatus status) {
 		this.status = status;
-		if (this.belowZeroRetrogen != null && status.isAtLeast(this.belowZeroRetrogen.getTargetStatus())) {
-			this.setBelowZeroRetrogen(null);
+		if (belowZeroRetrogen != null && status.isAtLeast(belowZeroRetrogen.getTargetStatus())) {
+			setBelowZeroRetrogen(null);
 		}
 
-		this.markNeedsSaving();
+		markNeedsSaving();
 	}
 
 	@Override
 	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-		if (this.getMaxStatus().isAtLeast(ChunkStatus.BIOMES)) {
-			return super.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
-		}
-		else {
+		if (!getMaxStatus().isAtLeast(ChunkStatus.BIOMES)) {
 			throw new IllegalStateException("Asking for biomes before we have biomes");
 		}
-	}
 
-	public static short getPackedSectionRelative(BlockPos pos) {
-		int i = pos.getX();
-		int j = pos.getY();
-		int k = pos.getZ();
-		int l = i & 15;
-		int m = j & 15;
-		int n = k & 15;
-		return (short) (l | m << 4 | n << 8);
+		return super.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
 	}
 
 	/**
-	 * Join block pos.
+	 * Упаковывает локальные координаты блока внутри секции в 12-битное short-значение.
+	 * Формат: биты 0-3 = X, биты 4-7 = Y, биты 8-11 = Z.
+	 */
+	public static short getPackedSectionRelative(BlockPos pos) {
+		int localX = pos.getX() & 15;
+		int localY = pos.getY() & 15;
+		int localZ = pos.getZ() & 15;
+		return (short) (localX | localY << 4 | localZ << 8);
+	}
+
+	/**
+	 * Восстанавливает абсолютную позицию блока из упакованного short-значения секции.
 	 *
-	 * @param sectionRel section rel
-	 * @param sectionY section y
-	 * @param chunkPos chunk pos
-	 *
-	 * @return BlockPos — результат операции
+	 * @param sectionRel упакованные локальные координаты (формат см. {@link #getPackedSectionRelative})
+	 * @param sectionY   Y-координата секции
+	 * @param chunkPos   позиция чанка
 	 */
 	public static BlockPos joinBlockPos(short sectionRel, int sectionY, ChunkPos chunkPos) {
-		int i = ChunkSectionPos.getOffsetPos(chunkPos.x, sectionRel & 15);
-		int j = ChunkSectionPos.getOffsetPos(sectionY, sectionRel >>> 4 & 15);
-		int k = ChunkSectionPos.getOffsetPos(chunkPos.z, sectionRel >>> 8 & 15);
-		return new BlockPos(i, j, k);
+		int x = ChunkSectionPos.getOffsetPos(chunkPos.x, sectionRel & 15);
+		int y = ChunkSectionPos.getOffsetPos(sectionY, sectionRel >>> 4 & 15);
+		int z = ChunkSectionPos.getOffsetPos(chunkPos.z, sectionRel >>> 8 & 15);
+		return new BlockPos(x, y, z);
 	}
 
 	@Override
 	public void markBlockForPostProcessing(BlockPos pos) {
-		if (!this.isOutOfHeightLimit(pos)) {
-			Chunk
-					.getList(this.postProcessingLists, this.getSectionIndex(pos.getY()))
-					.add(getPackedSectionRelative(pos));
+		if (isOutOfHeightLimit(pos)) {
+			return;
 		}
+
+		Chunk.getList(postProcessingLists, getSectionIndex(pos.getY()))
+			.add(getPackedSectionRelative(pos));
 	}
 
 	@Override
 	public void markBlocksForPostProcessing(ShortList packedPositions, int index) {
-		Chunk.getList(this.postProcessingLists, index).addAll(packedPositions);
+		Chunk.getList(postProcessingLists, index).addAll(packedPositions);
 	}
 
 	public Map<BlockPos, NbtCompound> getBlockEntityNbts() {
-		return Collections.unmodifiableMap(this.blockEntityNbts);
+		return Collections.unmodifiableMap(blockEntityNbts);
 	}
 
 	@Override
 	public @Nullable NbtCompound getPackedBlockEntityNbt(BlockPos pos, RegistryWrapper.WrapperLookup registries) {
-		BlockEntity blockEntity = this.getBlockEntity(pos);
-		return blockEntity != null ? blockEntity.createNbtWithIdentifyingData(registries)
-		                           : this.blockEntityNbts.get(pos);
+		BlockEntity blockEntity = getBlockEntity(pos);
+		return blockEntity != null
+			? blockEntity.createNbtWithIdentifyingData(registries)
+			: blockEntityNbts.get(pos);
 	}
 
 	@Override
 	public void removeBlockEntity(BlockPos pos) {
-		this.blockEntities.remove(pos);
-		this.blockEntityNbts.remove(pos);
+		blockEntities.remove(pos);
+		blockEntityNbts.remove(pos);
 	}
 
 	public @Nullable CarvingMask getCarvingMask() {
-		return this.carvingMask;
+		return carvingMask;
 	}
 
 	public CarvingMask getOrCreateCarvingMask() {
-		if (this.carvingMask == null) {
-			this.carvingMask = new CarvingMask(this.getHeight(), this.getBottomY());
+		if (carvingMask == null) {
+			carvingMask = new CarvingMask(getHeight(), getBottomY());
 		}
 
-		return this.carvingMask;
+		return carvingMask;
 	}
 
 	public void setCarvingMask(CarvingMask carvingMask) {
@@ -352,7 +367,7 @@ public class ProtoChunk extends Chunk {
 
 	@Override
 	public @Nullable BelowZeroRetrogen getBelowZeroRetrogen() {
-		return this.belowZeroRetrogen;
+		return belowZeroRetrogen;
 	}
 
 	private static <T> ChunkTickScheduler<T> createProtoTickScheduler(SimpleTickScheduler<T> tickScheduler) {
@@ -360,15 +375,15 @@ public class ProtoChunk extends Chunk {
 	}
 
 	public ChunkTickScheduler<Block> getBlockProtoTickScheduler() {
-		return createProtoTickScheduler(this.blockTickScheduler);
+		return createProtoTickScheduler(blockTickScheduler);
 	}
 
 	public ChunkTickScheduler<Fluid> getFluidProtoTickScheduler() {
-		return createProtoTickScheduler(this.fluidTickScheduler);
+		return createProtoTickScheduler(fluidTickScheduler);
 	}
 
 	@Override
 	public HeightLimitView getHeightLimitView() {
-		return (HeightLimitView) (this.hasBelowZeroRetrogen() ? BelowZeroRetrogen.BELOW_ZERO_VIEW : this);
+		return hasBelowZeroRetrogen() ? BelowZeroRetrogen.BELOW_ZERO_VIEW : this;
 	}
 }

@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code KickCommand}.
+ * Команда {@code /kick}: отключение игрока от сервера.
  */
 public class KickCommand {
 

@@ -1,7 +1,8 @@
 package net.minecraft.util.math;
 
 /**
- * {@code Smoother}.
+ * Сглаживает входящий поток значений, ограничивая скорость изменения через адаптивную задержку движения.
+ * Используется для плавной интерполяции позиций и углов в клиентской логике.
  */
 public class Smoother {
 
@@ -10,33 +11,33 @@ public class Smoother {
 	private double movementLatency;
 
 	/**
-	 * Smooth.
+	 * Вычисляет сглаженное приращение для текущего кадра.
+	 * Алгоритм ограничивает скорость изменения через экспоненциальное сглаживание задержки,
+	 * предотвращая резкие скачки при внезапных изменениях входного значения.
 	 *
-	 * @param original original
-	 * @param smoother smoother
-	 *
-	 * @return double — результат операции
+	 * @param original  исходное приращение за текущий тик
+	 * @param smoother  коэффициент сглаживания (0..1), чем меньше — тем плавнее
+	 * @return сглаженное приращение, готовое к применению
 	 */
 	public double smooth(double original, double smoother) {
-		this.actualSum += original;
-		double d = this.actualSum - this.smoothedSum;
-		double e = MathHelper.lerp(0.5, this.movementLatency, d);
-		double f = Math.signum(d);
-		if (f * d > f * this.movementLatency) {
-			d = e;
+		actualSum += original;
+		double delta = actualSum - smoothedSum;
+		double latency = MathHelper.lerp(0.5, movementLatency, delta);
+		double sign = Math.signum(delta);
+
+		if (sign * delta > sign * movementLatency) {
+			delta = latency;
 		}
 
-		this.movementLatency = e;
-		this.smoothedSum += d * smoother;
-		return d * smoother;
+		movementLatency = latency;
+		smoothedSum += delta * smoother;
+
+		return delta * smoother;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.actualSum = 0.0;
-		this.smoothedSum = 0.0;
-		this.movementLatency = 0.0;
+		actualSum = 0.0;
+		smoothedSum = 0.0;
+		movementLatency = 0.0;
 	}
 }

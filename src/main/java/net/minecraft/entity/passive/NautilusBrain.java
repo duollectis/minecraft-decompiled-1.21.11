@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code NautilusBrain}.
+ * Мозг наутилуса: регистрирует сенсоры и задачи поведения.
  */
 public class NautilusBrain {
 
@@ -118,7 +118,7 @@ public class NautilusBrain {
 				Activity.CORE,
 				0,
 				ImmutableList.<Task<? super NautilusEntity>>of(
-						new FleeTask(1.6F),
+						new FleeTask(FLEE_MOVE_SPEED),
 						new UpdateLookControlTask(45, 90),
 						new MoveToTargetTask(),
 						new TickCooldownTask(MemoryModuleType.TEMPTATION_COOLDOWN_TICKS),
@@ -132,8 +132,8 @@ public class NautilusBrain {
 		brain.setTaskList(
 				Activity.IDLE,
 				ImmutableList.of(
-						Pair.of(1, new BreedTask(EntityType.NAUTILUS, 0.4F, 2)),
-						Pair.of(2, new TemptTask(entity -> 1.3F, entity -> entity.isBaby() ? 2.5 : 3.5)),
+						Pair.of(1, new BreedTask(EntityType.NAUTILUS, BREED_MOVE_SPEED, 2)),
+						Pair.of(2, new TemptTask(entity -> TEMPT_MOVE_SPEED, entity -> entity.isBaby() ? 2.5 : 3.5)),
 						Pair.of(3, UpdateAttackTargetTask.create(NautilusBrain::findAttackTarget)),
 						Pair.of(
 								4,
@@ -158,12 +158,12 @@ public class NautilusBrain {
 				ImmutableList.of(Pair.of(
 						0,
 						new DashAttackTask(
-								80,
+								DASH_ATTACK_COOLDOWN,
 								FIGHT_TARGET_PREDICATE,
-								0.6F,
+								DASH_ATTACK_SPEED,
 								2.0F,
-								12.0,
-								11.0,
+								DASH_ATTACK_RANGE,
+								DASH_ATTACK_MIN_RANGE,
 								SoundEvents.ENTITY_NAUTILUS_DASH
 						)
 				)),
@@ -222,7 +222,7 @@ public class NautilusBrain {
 	protected static void onDamage(ServerWorld world, AbstractNautilusEntity nautilus, LivingEntity attacker) {
 		if (Sensor.testAttackableTargetPredicateIgnoreVisibility(world, nautilus, attacker)) {
 			nautilus.getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
-			nautilus.getBrain().remember(MemoryModuleType.ANGRY_AT, attacker.getUuid(), 400L);
+			nautilus.getBrain().remember(MemoryModuleType.ANGRY_AT, attacker.getUuid(), ANGRY_AT_MEMORY_DURATION);
 		}
 	}
 

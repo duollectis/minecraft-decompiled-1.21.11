@@ -21,16 +21,22 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LightDebugRenderer}.
+ * Визуализирует состояние освещения секций чанков вокруг игрока.
+ * Секции с полными данными освещения ({@code LIGHT_AND_DATA}) отображаются ярким цветом,
+ * секции только с данными освещения ({@code LIGHT_ONLY}) — приглушённым.
+ * Данные обновляются не чаще одного раза в {@code UPDATE_INTERVAL}.
  */
+@Environment(EnvType.CLIENT)
 public class LightDebugRenderer implements DebugRenderer.Renderer {
 
 	private static final Duration UPDATE_INTERVAL = Duration.ofMillis(500L);
 	private static final int RADIUS = 10;
+	// Размер секции в блоках
+	private static final int SECTION_SIZE = 16;
 	private static final int READY_SHAPE_COLOR = ColorHelper.fromFloats(0.25F, 1.0F, 1.0F, 0.0F);
 	private static final int DEFAULT_SHAPE_COLOR = ColorHelper.fromFloats(0.125F, 0.25F, 0.125F, 0.0F);
+
 	private final MinecraftClient client;
 	private final LightType lightType;
 	private Instant lastUpdateTime = Instant.now();
@@ -50,73 +56,73 @@ public class LightDebugRenderer implements DebugRenderer.Renderer {
 			Frustum frustum,
 			float tickProgress
 	) {
-		Instant instant = Instant.now();
-		if (this.data == null || Duration.between(this.lastUpdateTime, instant).compareTo(UPDATE_INTERVAL) > 0) {
-			this.lastUpdateTime = instant;
-			this.data = new LightDebugRenderer.Data(
-					this.client.world.getLightingProvider(),
-					ChunkSectionPos.from(this.client.player.getBlockPos()),
-					10,
-					this.lightType
+		Instant now = Instant.now();
+
+		if (data == null || Duration.between(lastUpdateTime, now).compareTo(UPDATE_INTERVAL) > 0) {
+			lastUpdateTime = now;
+			data = new LightDebugRenderer.Data(
+					client.world.getLightingProvider(),
+					ChunkSectionPos.from(client.player.getBlockPos()),
+					RADIUS,
+					lightType
 			);
 		}
 
-		drawEdges(this.data.readyShape, this.data.minSectionPos, READY_SHAPE_COLOR);
-		drawEdges(this.data.shape, this.data.minSectionPos, DEFAULT_SHAPE_COLOR);
-		drawFaces(this.data.readyShape, this.data.minSectionPos, READY_SHAPE_COLOR);
-		drawFaces(this.data.shape, this.data.minSectionPos, DEFAULT_SHAPE_COLOR);
+		drawEdges(data.readyShape, data.minSectionPos, READY_SHAPE_COLOR);
+		drawEdges(data.shape, data.minSectionPos, DEFAULT_SHAPE_COLOR);
+		drawFaces(data.readyShape, data.minSectionPos, READY_SHAPE_COLOR);
+		drawFaces(data.shape, data.minSectionPos, DEFAULT_SHAPE_COLOR);
 	}
 
-	private static void drawFaces(VoxelSet voxelSet, ChunkSectionPos chunkSectionPos, int i) {
-		voxelSet.forEachDirection((direction, j, k, l) -> {
-			int m = j + chunkSectionPos.getX();
-			int n = k + chunkSectionPos.getY();
-			int o = l + chunkSectionPos.getZ();
-			drawFace(direction, m, n, o, i);
+	private static void drawFaces(VoxelSet voxelSet, ChunkSectionPos sectionPos, int color) {
+		voxelSet.forEachDirection((direction, localX, localY, localZ) -> {
+			int sectionX = localX + sectionPos.getX();
+			int sectionY = localY + sectionPos.getY();
+			int sectionZ = localZ + sectionPos.getZ();
+			drawFace(direction, sectionX, sectionY, sectionZ, color);
 		});
 	}
 
-	private static void drawEdges(VoxelSet voxelSet, ChunkSectionPos chunkSectionPos, int i) {
+	private static void drawEdges(VoxelSet voxelSet, ChunkSectionPos sectionPos, int color) {
 		voxelSet.forEachEdge(
-				(j, k, l, m, n, o) -> {
-					int p = j + chunkSectionPos.getX();
-					int q = k + chunkSectionPos.getY();
-					int r = l + chunkSectionPos.getZ();
-					int s = m + chunkSectionPos.getX();
-					int t = n + chunkSectionPos.getY();
-					int u = o + chunkSectionPos.getZ();
-					drawEdge(p, q, r, s, t, u, i);
+				(x1, y1, z1, x2, y2, z2) -> {
+					int sectionX1 = x1 + sectionPos.getX();
+					int sectionY1 = y1 + sectionPos.getY();
+					int sectionZ1 = z1 + sectionPos.getZ();
+					int sectionX2 = x2 + sectionPos.getX();
+					int sectionY2 = y2 + sectionPos.getY();
+					int sectionZ2 = z2 + sectionPos.getZ();
+					drawEdge(sectionX1, sectionY1, sectionZ1, sectionX2, sectionY2, sectionZ2, color);
 				}, true
 		);
 	}
 
-	private static void drawFace(Direction direction, int i, int j, int k, int l) {
-		Vec3d
-				vec3d =
-				new Vec3d(
-						ChunkSectionPos.getBlockCoord(i),
-						ChunkSectionPos.getBlockCoord(j),
-						ChunkSectionPos.getBlockCoord(k)
-				);
-		Vec3d vec3d2 = vec3d.add(16.0, 16.0, 16.0);
-		GizmoDrawing.face(vec3d, vec3d2, direction, DrawStyle.filled(l));
+	private static void drawFace(Direction direction, int sectionX, int sectionY, int sectionZ, int color) {
+		Vec3d minCorner = new Vec3d(
+				ChunkSectionPos.getBlockCoord(sectionX),
+				ChunkSectionPos.getBlockCoord(sectionY),
+				ChunkSectionPos.getBlockCoord(sectionZ)
+		);
+		Vec3d maxCorner = minCorner.add(SECTION_SIZE, SECTION_SIZE, SECTION_SIZE);
+		GizmoDrawing.face(minCorner, maxCorner, direction, DrawStyle.filled(color));
 	}
 
-	private static void drawEdge(int i, int j, int k, int l, int m, int n, int o) {
-		double d = ChunkSectionPos.getBlockCoord(i);
-		double e = ChunkSectionPos.getBlockCoord(j);
-		double f = ChunkSectionPos.getBlockCoord(k);
-		double g = ChunkSectionPos.getBlockCoord(l);
-		double h = ChunkSectionPos.getBlockCoord(m);
-		double p = ChunkSectionPos.getBlockCoord(n);
-		int q = ColorHelper.fullAlpha(o);
-		GizmoDrawing.line(new Vec3d(d, e, f), new Vec3d(g, h, p), q);
+	private static void drawEdge(int x1, int y1, int z1, int x2, int y2, int z2, int color) {
+		Vec3d from = new Vec3d(
+				ChunkSectionPos.getBlockCoord(x1),
+				ChunkSectionPos.getBlockCoord(y1),
+				ChunkSectionPos.getBlockCoord(z1)
+		);
+		Vec3d to = new Vec3d(
+				ChunkSectionPos.getBlockCoord(x2),
+				ChunkSectionPos.getBlockCoord(y2),
+				ChunkSectionPos.getBlockCoord(z2)
+		);
+		GizmoDrawing.line(from, to, ColorHelper.fullAlpha(color));
 	}
 
+	/** Снимок состояния освещения секций в радиусе {@code RADIUS} от игрока. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Data}.
-	 */
 	static final class Data {
 
 		final VoxelSet readyShape;
@@ -124,36 +130,36 @@ public class LightDebugRenderer implements DebugRenderer.Renderer {
 		final ChunkSectionPos minSectionPos;
 
 		Data(LightingProvider lightingProvider, ChunkSectionPos sectionPos, int radius, LightType lightType) {
-			int i = radius * 2 + 1;
-			this.readyShape = new BitSetVoxelSet(i, i, i);
-			this.shape = new BitSetVoxelSet(i, i, i);
+			int diameter = radius * 2 + 1;
+			readyShape = new BitSetVoxelSet(diameter, diameter, diameter);
+			shape = new BitSetVoxelSet(diameter, diameter, diameter);
 
-			for (int j = 0; j < i; j++) {
-				for (int k = 0; k < i; k++) {
-					for (int l = 0; l < i; l++) {
-						ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(
-								sectionPos.getSectionX() + l - radius,
-								sectionPos.getSectionY() + k - radius,
-								sectionPos.getSectionZ() + j - radius
+			for (int z = 0; z < diameter; z++) {
+				for (int y = 0; y < diameter; y++) {
+					for (int x = 0; x < diameter; x++) {
+						ChunkSectionPos pos = ChunkSectionPos.from(
+								sectionPos.getSectionX() + x - radius,
+								sectionPos.getSectionY() + y - radius,
+								sectionPos.getSectionZ() + z - radius
 						);
-						LightStorage.Status status = lightingProvider.getStatus(lightType, chunkSectionPos);
+						LightStorage.Status status = lightingProvider.getStatus(lightType, pos);
+
 						if (status == LightStorage.Status.LIGHT_AND_DATA) {
-							this.readyShape.set(l, k, j);
-							this.shape.set(l, k, j);
+							readyShape.set(x, y, z);
+							shape.set(x, y, z);
 						}
 						else if (status == LightStorage.Status.LIGHT_ONLY) {
-							this.shape.set(l, k, j);
+							shape.set(x, y, z);
 						}
 					}
 				}
 			}
 
-			this.minSectionPos =
-					ChunkSectionPos.from(
-							sectionPos.getSectionX() - radius,
-							sectionPos.getSectionY() - radius,
-							sectionPos.getSectionZ() - radius
-					);
+			minSectionPos = ChunkSectionPos.from(
+					sectionPos.getSectionX() - radius,
+					sectionPos.getSectionY() - radius,
+					sectionPos.getSectionZ() - radius
+			);
 		}
 	}
 }

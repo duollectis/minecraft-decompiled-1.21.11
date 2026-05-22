@@ -13,7 +13,9 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
- * {@code SideChaining}.
+ * Интерфейс боковой цепочки блоков (например, полок). Позволяет блокам
+ * соединяться в горизонтальную цепочку при активации редстоуном и синхронно
+ * обмениваться предметами с инвентарём игрока.
  */
 public interface SideChaining {
 
@@ -124,9 +126,6 @@ public interface SideChaining {
 		}
 	}
 
-	/**
-	 * {@code EmptyNeighbor}.
-	 */
 	public record EmptyNeighbor(BlockPos pos) implements SideChaining.Neighbor {
 
 		@Override
@@ -145,9 +144,6 @@ public interface SideChaining {
 		}
 	}
 
-	/**
-	 * {@code Neighbor}.
-	 */
 	public sealed interface Neighbor permits SideChaining.EmptyNeighbor, SideChaining.SideChainNeighbor {
 
 		BlockPos pos();
@@ -171,9 +167,6 @@ public interface SideChaining {
 		}
 	}
 
-	/**
-	 * {@code Neighbors}.
-	 */
 	public record Neighbors(
 			SideChaining block,
 			WorldAccess world,
@@ -223,9 +216,6 @@ public interface SideChaining {
 		}
 	}
 
-	/**
-	 * {@code SideChainNeighbor}.
-	 */
 	public record SideChainNeighbor(
 			WorldAccess level,
 			SideChaining block,

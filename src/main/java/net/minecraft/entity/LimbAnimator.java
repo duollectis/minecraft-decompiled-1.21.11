@@ -3,9 +3,12 @@ package net.minecraft.entity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code LimbAnimator}.
+ * Управляет анимацией конечностей сущности (ходьба, бег).
+ * Хранит текущую скорость, предыдущую скорость и прогресс анимации.
  */
 public class LimbAnimator {
+
+	private static final float LIMB_MOVING_THRESHOLD = 1.0E-5F;
 
 	private float lastSpeed;
 	private float speed;
@@ -17,45 +20,42 @@ public class LimbAnimator {
 	}
 
 	/**
-	 * Обновляет limbs.
+	 * Обновляет скорость конечностей с плавным переходом и накапливает прогресс анимации.
 	 *
-	 * @param targetSpeed target speed
-	 * @param speedChangeRate speed change rate
-	 * @param timeScale time scale
+	 * @param targetSpeed      целевая скорость движения
+	 * @param speedChangeRate  скорость интерполяции к целевому значению (0–1)
+	 * @param timeScale        масштаб времени для воспроизведения анимации
 	 */
 	public void updateLimbs(float targetSpeed, float speedChangeRate, float timeScale) {
-		this.lastSpeed = this.speed;
-		this.speed = this.speed + (targetSpeed - this.speed) * speedChangeRate;
-		this.animationProgress = this.animationProgress + this.speed;
+		lastSpeed = speed;
+		speed = speed + (targetSpeed - speed) * speedChangeRate;
+		animationProgress = animationProgress + speed;
 		this.timeScale = timeScale;
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
-		this.lastSpeed = 0.0F;
-		this.speed = 0.0F;
-		this.animationProgress = 0.0F;
+		lastSpeed = 0.0F;
+		speed = 0.0F;
+		animationProgress = 0.0F;
 	}
 
 	public float getSpeed() {
-		return this.speed;
+		return speed;
 	}
 
 	public float getAmplitude(float tickProgress) {
-		return Math.min(MathHelper.lerp(tickProgress, this.lastSpeed, this.speed), 1.0F);
+		return Math.min(MathHelper.lerp(tickProgress, lastSpeed, speed), 1.0F);
 	}
 
 	public float getAnimationProgress() {
-		return this.animationProgress * this.timeScale;
+		return animationProgress * timeScale;
 	}
 
 	public float getAnimationProgress(float tickProgress) {
-		return (this.animationProgress - this.speed * (1.0F - tickProgress)) * this.timeScale;
+		return (animationProgress - speed * (1.0F - tickProgress)) * timeScale;
 	}
 
 	public boolean isLimbMoving() {
-		return this.speed > 1.0E-5F;
+		return speed > LIMB_MOVING_THRESHOLD;
 	}
 }

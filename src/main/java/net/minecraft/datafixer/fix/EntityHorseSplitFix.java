@@ -12,32 +12,37 @@ import net.minecraft.util.Util;
 import java.util.Objects;
 
 /**
- * {@code EntityHorseSplitFix}.
+ * Разделяет старый тип {@code EntityHorse} на отдельные типы лошадей по полю {@code Type}:
+ * {@code Horse}, {@code Donkey}, {@code Mule}, {@code ZombieHorse}, {@code SkeletonHorse}.
  */
 public class EntityHorseSplitFix extends EntityTransformFix {
 
-	public EntityHorseSplitFix(Schema schema, boolean bl) {
-		super("EntityHorseSplitFix", schema, bl);
+	public EntityHorseSplitFix(Schema outputSchema, boolean changesType) {
+		super("EntityHorseSplitFix", outputSchema, changesType);
 	}
 
 	@Override
 	protected Pair<String, Typed<?>> transform(String choice, Typed<?> entityTyped) {
-		if (Objects.equals("EntityHorse", choice)) {
-			Dynamic<?> dynamic = (Dynamic<?>) entityTyped.get(DSL.remainderFinder());
-			int i = dynamic.get("Type").asInt(0);
-
-			String string = switch (i) {
-				case 1 -> "Donkey";
-				case 2 -> "Mule";
-				case 3 -> "ZombieHorse";
-				case 4 -> "SkeletonHorse";
-				default -> "Horse";
-			};
-			Type<?> type = (Type<?>) this.getOutputSchema().findChoiceType(TypeReferences.ENTITY).types().get(string);
-			return Pair.of(string, Util.apply(entityTyped, type, dynamicx -> dynamicx.remove("Type")));
-		}
-		else {
+		if (!Objects.equals("EntityHorse", choice)) {
 			return Pair.of(choice, entityTyped);
 		}
+
+		Dynamic<?> entityData = (Dynamic<?>) entityTyped.get(DSL.remainderFinder());
+		int horseType = entityData.get("Type").asInt(0);
+
+		String newEntityId = switch (horseType) {
+			case 1 -> "Donkey";
+			case 2 -> "Mule";
+			case 3 -> "ZombieHorse";
+			case 4 -> "SkeletonHorse";
+			default -> "Horse";
+		};
+
+		Type<?> outputType = (Type<?>) getOutputSchema()
+				.findChoiceType(TypeReferences.ENTITY)
+				.types()
+				.get(newEntityId);
+
+		return Pair.of(newEntityId, Util.apply(entityTyped, outputType, d -> d.remove("Type")));
 	}
 }

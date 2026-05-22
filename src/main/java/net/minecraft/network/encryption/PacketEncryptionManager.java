@@ -7,7 +7,8 @@ import javax.crypto.Cipher;
 import javax.crypto.ShortBufferException;
 
 /**
- * Класс packet encryption manager.
+ * Управляет потоковым шифрованием/дешифрованием пакетов через {@link Cipher} (AES/CFB8).
+ * Переиспользует внутренние буферы для минимизации аллокаций.
  */
 public class PacketEncryptionManager {
 
@@ -20,45 +21,31 @@ public class PacketEncryptionManager {
 	}
 
 	private byte[] toByteArray(ByteBuf buf) {
-		int i = buf.readableBytes();
-		if (this.conversionBuffer.length < i) {
-			this.conversionBuffer = new byte[i];
+		int length = buf.readableBytes();
+		if (conversionBuffer.length < length) {
+			conversionBuffer = new byte[length];
 		}
 
-		buf.readBytes(this.conversionBuffer, 0, i);
-		return this.conversionBuffer;
+		buf.readBytes(conversionBuffer, 0, length);
+		return conversionBuffer;
 	}
 
-	/**
-	 * Decrypt.
-	 *
-	 * @param context context
-	 * @param buf buf
-	 *
-	 * @return ByteBuf — результат операции
-	 */
 	protected ByteBuf decrypt(ChannelHandlerContext context, ByteBuf buf) throws ShortBufferException {
-		int i = buf.readableBytes();
-		byte[] bs = this.toByteArray(buf);
-		ByteBuf byteBuf = context.alloc().heapBuffer(this.cipher.getOutputSize(i));
-		byteBuf.writerIndex(this.cipher.update(bs, 0, i, byteBuf.array(), byteBuf.arrayOffset()));
-		return byteBuf;
+		int length = buf.readableBytes();
+		byte[] bytes = toByteArray(buf);
+		ByteBuf result = context.alloc().heapBuffer(cipher.getOutputSize(length));
+		result.writerIndex(cipher.update(bytes, 0, length, result.array(), result.arrayOffset()));
+		return result;
 	}
 
-	/**
-	 * Encrypt.
-	 *
-	 * @param buf buf
-	 * @param result result
-	 */
 	protected void encrypt(ByteBuf buf, ByteBuf result) throws ShortBufferException {
-		int i = buf.readableBytes();
-		byte[] bs = this.toByteArray(buf);
-		int j = this.cipher.getOutputSize(i);
-		if (this.encryptionBuffer.length < j) {
-			this.encryptionBuffer = new byte[j];
+		int length = buf.readableBytes();
+		byte[] bytes = toByteArray(buf);
+		int outputSize = cipher.getOutputSize(length);
+		if (encryptionBuffer.length < outputSize) {
+			encryptionBuffer = new byte[outputSize];
 		}
 
-		result.writeBytes(this.encryptionBuffer, 0, this.cipher.update(bs, 0, i, this.encryptionBuffer));
+		result.writeBytes(encryptionBuffer, 0, cipher.update(bytes, 0, length, encryptionBuffer));
 	}
 }

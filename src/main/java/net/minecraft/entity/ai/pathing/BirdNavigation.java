@@ -8,7 +8,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code BirdNavigation}.
+ * Навигация летающего существа: движется напрямую через воздух,
+ * проверяя отсутствие коллизий по прямой линии.
  */
 public class BirdNavigation extends EntityNavigation {
 
@@ -18,60 +19,67 @@ public class BirdNavigation extends EntityNavigation {
 
 	@Override
 	protected PathNodeNavigator createPathNodeNavigator(int range) {
-		this.nodeMaker = new BirdPathNodeMaker();
-		return new PathNodeNavigator(this.nodeMaker, range);
+		nodeMaker = new BirdPathNodeMaker();
+		return new PathNodeNavigator(nodeMaker, range);
 	}
 
 	@Override
 	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
-		return doesNotCollide(this.entity, origin, target, true);
+		return doesNotCollide(entity, origin, target, true);
 	}
 
 	@Override
 	protected boolean isAtValidPosition() {
-		return this.canSwim() && this.entity.isInFluid() || !this.entity.hasVehicle();
+		return canSwim() && entity.isInFluid() || !entity.hasVehicle();
 	}
 
 	@Override
 	protected Vec3d getPos() {
-		return this.entity.getEntityPos();
+		return entity.getEntityPos();
 	}
 
 	@Override
 	public Path findPathTo(Entity entity, int distance) {
-		return this.findPathTo(entity.getBlockPos(), distance);
+		return findPathTo(entity.getBlockPos(), distance);
 	}
 
+	/**
+	 * Переопределяет tick: для летающих существ переход к следующему узлу происходит
+	 * при совпадении блочных координат, а не по расстоянию.
+	 */
 	@Override
 	public void tick() {
-		this.tickCount++;
-		if (this.inRecalculationCooldown) {
-			this.recalculatePath();
+		tickCount++;
+
+		if (inRecalculationCooldown) {
+			recalculatePath();
 		}
 
-		if (!this.isIdle()) {
-			if (this.isAtValidPosition()) {
-				this.continueFollowingPath();
-			}
-			else if (this.currentPath != null && !this.currentPath.isFinished()) {
-				Vec3d vec3d = this.currentPath.getNodePosition(this.entity);
-				if (this.entity.getBlockX() == MathHelper.floor(vec3d.x)
-						&& this.entity.getBlockY() == MathHelper.floor(vec3d.y)
-						&& this.entity.getBlockZ() == MathHelper.floor(vec3d.z)) {
-					this.currentPath.next();
-				}
-			}
+		if (isIdle()) {
+			return;
+		}
 
-			if (!this.isIdle()) {
-				Vec3d vec3d = this.currentPath.getNodePosition(this.entity);
-				this.entity.getMoveControl().moveTo(vec3d.x, vec3d.y, vec3d.z, this.speed);
+		if (isAtValidPosition()) {
+			continueFollowingPath();
+		} else if (currentPath != null && !currentPath.isFinished()) {
+			Vec3d nodePos = currentPath.getNodePosition(entity);
+
+			if (entity.getBlockX() == MathHelper.floor(nodePos.x)
+					&& entity.getBlockY() == MathHelper.floor(nodePos.y)
+					&& entity.getBlockZ() == MathHelper.floor(nodePos.z)) {
+				currentPath.next();
 			}
+		}
+
+		if (!isIdle()) {
+			Vec3d targetPos = currentPath.getNodePosition(entity);
+			entity.getMoveControl().moveTo(targetPos.x, targetPos.y, targetPos.z, speed);
 		}
 	}
 
 	@Override
 	public boolean isValidPosition(BlockPos pos) {
-		return this.world.getBlockState(pos).hasSolidTopSurface(this.world, pos, this.entity);
+		return world.getBlockState(pos).hasSolidTopSurface(world, pos, entity);
 	}
 
 	@Override

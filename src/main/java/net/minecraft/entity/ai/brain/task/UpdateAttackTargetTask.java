@@ -8,17 +8,11 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Optional;
 
 /**
- * {@code UpdateAttackTargetTask}.
+ * Фабричный класс задачи мозга, устанавливающей цель атаки из внешнего поставщика.
+ * Поддерживает опциональное условие запуска; при успехе сбрасывает таймер недостижимости цели.
  */
 public class UpdateAttackTargetTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param targetGetter target getter
-	 *
-	 * @return Task — результат операции
-	 */
 	public static <E extends MobEntity> Task<E> create(UpdateAttackTargetTask.TargetGetter<E> targetGetter) {
 		return create((world, entity) -> true, targetGetter);
 	}
@@ -38,43 +32,34 @@ public class UpdateAttackTargetTask {
 							                  if (!condition.test(world, (E) entity)) {
 								                  return false;
 							                  }
-							                  else {
-								                  Optional<? extends LivingEntity>
-										                  optional =
-										                  targetGetter.get(world, (E) entity);
-								                  if (optional.isEmpty()) {
-									                  return false;
-								                  }
-								                  else {
-									                  LivingEntity livingEntity = optional.get();
-									                  if (!entity.canTarget(livingEntity)) {
-										                  return false;
-									                  }
-									                  else {
-										                  attackTarget.remember(livingEntity);
-										                  cantReachWalkTargetSince.forget();
-										                  return true;
-									                  }
-								                  }
+
+							                  Optional<? extends LivingEntity> targetOpt = targetGetter.get(world, (E) entity);
+
+							                  if (targetOpt.isEmpty()) {
+								                  return false;
 							                  }
+
+							                  LivingEntity newTarget = targetOpt.get();
+
+							                  if (!entity.canTarget(newTarget)) {
+								                  return false;
+							                  }
+
+							                  attackTarget.remember(newTarget);
+							                  cantReachWalkTargetSince.forget();
+							                  return true;
 						                  }
 				                  )
 		);
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code StartCondition}.
-	 */
 	public interface StartCondition<E> {
 
 		boolean test(ServerWorld world, E entity);
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code TargetGetter}.
-	 */
 	public interface TargetGetter<E> {
 
 		Optional<? extends LivingEntity> get(ServerWorld world, E entity);

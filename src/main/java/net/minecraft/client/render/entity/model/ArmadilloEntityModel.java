@@ -146,7 +146,7 @@ public class ArmadilloEntityModel extends EntityModel<ArmadilloEntityRenderState
 			this.tail.visible = true;
 			this.cube.visible = false;
 			this.head.pitch =
-					MathHelper.clamp(armadilloEntityRenderState.pitch, -22.5F, 25.0F) * (float) (Math.PI / 180.0);
+					MathHelper.clamp(armadilloEntityRenderState.pitch, -MIN_HEAD_PITCH, MAX_HEAD_PITCH) * (float) (Math.PI / 180.0);
 			this.head.yaw =
 					MathHelper.clamp(armadilloEntityRenderState.relativeHeadYaw, -32.5F, 32.5F) * (float) (Math.PI
 							/ 180.0
@@ -156,8 +156,8 @@ public class ArmadilloEntityModel extends EntityModel<ArmadilloEntityRenderState
 		this.walkingAnimation.applyWalking(
 				armadilloEntityRenderState.limbSwingAnimationProgress,
 				armadilloEntityRenderState.limbSwingAmplitude,
-				16.5F,
-				2.5F
+				WALK_ANIMATION_SPEED,
+				WALK_ANIMATION_AMPLITUDE
 		);
 		this.unrollingAnimation.apply(
 				armadilloEntityRenderState.unrollingAnimationState,

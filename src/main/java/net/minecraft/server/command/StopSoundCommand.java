@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code StopSoundCommand}.
+ * Команда {@code /stopsound}: остановка воспроизведения звуков.
  */
 public class StopSoundCommand {
 

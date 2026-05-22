@@ -6,7 +6,12 @@ import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
 /**
- * {@code PackFeatureSetMetadata}.
+ * Метаданные секции {@code "features"} файла {@code pack.mcmeta}.
+ *
+ * <p>Объявляет набор экспериментальных флагов функций, которые требуются для работы пакета.
+ * При загрузке мира эти флаги объединяются с флагами из других активных пакетов.</p>
+ *
+ * @param flags набор флагов функций, объявленных пакетом
  */
 public record PackFeatureSetMetadata(FeatureSet flags) {
 
@@ -15,7 +20,8 @@ public record PackFeatureSetMetadata(FeatureSet flags) {
 					.group(FeatureFlags.CODEC.fieldOf("enabled").forGetter(PackFeatureSetMetadata::flags))
 					.apply(instance, PackFeatureSetMetadata::new)
 	);
+
+	/** Сериализатор для секции {@code "features"} в {@code pack.mcmeta}. */
 	public static final ResourceMetadataSerializer<PackFeatureSetMetadata>
-			SERIALIZER =
-			new ResourceMetadataSerializer<>("features", CODEC);
+			SERIALIZER = new ResourceMetadataSerializer<>("features", CODEC);
 }

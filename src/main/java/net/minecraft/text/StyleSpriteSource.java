@@ -6,10 +6,24 @@ import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code StyleSpriteSource}.
+ * Источник спрайта для стиля текстового компонента.
+ *
+ * <p>Определяет, откуда рендерер берёт глиф для отображения символа.
+ * Три реализации:
+ * <ul>
+ *   <li>{@link Font} — стандартный шрифт по идентификатору атласа;</li>
+ *   <li>{@link Player} — скин игрока (голова);</li>
+ *   <li>{@link Sprite} — конкретный спрайт из атласа текстур.</li>
+ * </ul>
+ * Codec {@link #FONT_CODEC} сериализует только {@link Font} через {@link Identifier},
+ * остальные типы передаются только по сети через отдельные механизмы.</p>
  */
 public interface StyleSpriteSource {
 
+	/**
+	 * Codec для сериализации источника шрифта как {@link Identifier}.
+	 * Поддерживает только {@link Font}; другие реализации вернут ошибку при кодировании.
+	 */
 	Codec<StyleSpriteSource> FONT_CODEC = Identifier.CODEC
 			.flatComapMap(
 					StyleSpriteSource.Font::new,
@@ -18,23 +32,32 @@ public interface StyleSpriteSource {
 					            : DataResult.error(() -> "Unsupported font description type: " + instance)
 			);
 
+	/** Шрифт по умолчанию — стандартный шрифт Minecraft. */
 	StyleSpriteSource.Font DEFAULT = new StyleSpriteSource.Font(Identifier.ofVanilla("default"));
 
 	/**
-	 * {@code Font}.
+	 * Стандартный шрифт, идентифицируемый по {@link Identifier} атласа.
+	 *
+	 * @param id идентификатор атласа шрифта (например, {@code minecraft:default})
 	 */
-	public record Font(Identifier id) implements StyleSpriteSource {
+	record Font(Identifier id) implements StyleSpriteSource {
 	}
 
 	/**
-	 * {@code Player}.
+	 * Источник спрайта на основе скина игрока.
+	 *
+	 * @param profile профиль игрока, содержащий UUID и текстуры
+	 * @param hat {@code true} — использовать слой шляпы (второй слой скина)
 	 */
-	public record Player(ProfileComponent profile, boolean hat) implements StyleSpriteSource {
+	record Player(ProfileComponent profile, boolean hat) implements StyleSpriteSource {
 	}
 
 	/**
-	 * {@code Sprite}.
+	 * Конкретный спрайт из атласа текстур.
+	 *
+	 * @param atlasId идентификатор атласа текстур
+	 * @param spriteId идентификатор спрайта внутри атласа
 	 */
-	public record Sprite(Identifier atlasId, Identifier spriteId) implements StyleSpriteSource {
+	record Sprite(Identifier atlasId, Identifier spriteId) implements StyleSpriteSource {
 	}
 }

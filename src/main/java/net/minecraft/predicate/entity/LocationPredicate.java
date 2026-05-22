@@ -21,7 +21,8 @@ import net.minecraft.world.gen.structure.Structure;
 import java.util.Optional;
 
 /**
- * {@code LocationPredicate}.
+ * Предикат местоположения. Проверяет позицию в мире по биому, структуре, измерению,
+ * дыму, освещению, блоку, жидкости и видимости неба.
  */
 public record LocationPredicate(
 		Optional<LocationPredicate.PositionRange> position,
@@ -37,78 +38,72 @@ public record LocationPredicate(
 
 	public static final Codec<LocationPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    LocationPredicate.PositionRange.CODEC
-							                    .optionalFieldOf("position")
-							                    .forGetter(LocationPredicate::position),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.BIOME)
-							                    .optionalFieldOf("biomes")
-							                    .forGetter(LocationPredicate::biomes),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.STRUCTURE)
-							                    .optionalFieldOf("structures")
-							                    .forGetter(LocationPredicate::structures),
-					                    RegistryKey
-							                    .createCodec(RegistryKeys.WORLD)
-							                    .optionalFieldOf("dimension")
-							                    .forGetter(LocationPredicate::dimension),
-					                    Codec.BOOL.optionalFieldOf("smokey").forGetter(LocationPredicate::smokey),
-					                    LightPredicate.CODEC.optionalFieldOf("light").forGetter(LocationPredicate::light),
-					                    BlockPredicate.CODEC.optionalFieldOf("block").forGetter(LocationPredicate::block),
-					                    FluidPredicate.CODEC.optionalFieldOf("fluid").forGetter(LocationPredicate::fluid),
-					                    Codec.BOOL.optionalFieldOf("can_see_sky").forGetter(LocationPredicate::canSeeSky)
-			                    )
-			                    .apply(instance, LocationPredicate::new)
+					LocationPredicate.PositionRange.CODEC
+							.optionalFieldOf("position")
+							.forGetter(LocationPredicate::position),
+					RegistryCodecs.entryList(RegistryKeys.BIOME).optionalFieldOf("biomes").forGetter(LocationPredicate::biomes),
+					RegistryCodecs
+							.entryList(RegistryKeys.STRUCTURE)
+							.optionalFieldOf("structures")
+							.forGetter(LocationPredicate::structures),
+					RegistryKey.createCodec(RegistryKeys.WORLD)
+							.optionalFieldOf("dimension")
+							.forGetter(LocationPredicate::dimension),
+					Codec.BOOL.optionalFieldOf("smokey").forGetter(LocationPredicate::smokey),
+					LightPredicate.CODEC.optionalFieldOf("light").forGetter(LocationPredicate::light),
+					BlockPredicate.CODEC.optionalFieldOf("block").forGetter(LocationPredicate::block),
+					FluidPredicate.CODEC.optionalFieldOf("fluid").forGetter(LocationPredicate::fluid),
+					Codec.BOOL.optionalFieldOf("can_see_sky").forGetter(LocationPredicate::canSeeSky)
+			).apply(instance, LocationPredicate::new)
 	);
 
 	public boolean test(ServerWorld world, double x, double y, double z) {
-		if (this.position.isPresent() && !this.position.get().test(x, y, z)) {
+		if (position.isPresent() && !position.get().test(x, y, z)) {
 			return false;
 		}
-		else if (this.dimension.isPresent() && this.dimension.get() != world.getRegistryKey()) {
+
+		if (dimension.isPresent() && dimension.get() != world.getRegistryKey()) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = BlockPos.ofFloored(x, y, z);
-			boolean bl = world.isPosLoaded(blockPos);
-			if (!this.biomes.isPresent() || bl && this.biomes.get().contains(world.getBiome(blockPos))) {
-				if (!this.structures.isPresent() || bl && world
-						.getStructureAccessor()
-						.getStructureContaining(blockPos, this.structures.get())
-						.hasChildren()) {
-					if (!this.smokey.isPresent() || bl && this.smokey.get() == CampfireBlock.isLitCampfireInRange(
-							world,
-							blockPos
-					)) {
-						if (this.light.isPresent() && !this.light.get().test(world, blockPos)) {
-							return false;
-						}
-						else if (this.block.isPresent() && !this.block.get().test(world, blockPos)) {
-							return false;
-						}
-						else {
-							return this.fluid.isPresent() && !this.fluid.get().test(world, blockPos)
-							       ? false
-							       : !this.canSeeSky.isPresent()
-							         || this.canSeeSky.get() == world.isSkyVisible(blockPos);
-						}
-					}
-					else {
-						return false;
-					}
-				}
-				else {
-					return false;
-				}
-			}
-			else {
-				return false;
-			}
+
+		BlockPos blockPos = BlockPos.ofFloored(x, y, z);
+		boolean loaded = world.isPosLoaded(blockPos);
+
+		if (biomes.isPresent() && !(loaded && biomes.get().contains(world.getBiome(blockPos)))) {
+			return false;
 		}
+
+		if (structures.isPresent()
+				&& !(loaded && world.getStructureAccessor()
+						.getStructureContaining(blockPos, structures.get())
+						.hasChildren())
+		) {
+			return false;
+		}
+
+		if (smokey.isPresent()
+				&& !(loaded && smokey.get() == CampfireBlock.isLitCampfireInRange(world, blockPos))
+		) {
+			return false;
+		}
+
+		if (light.isPresent() && !light.get().test(world, blockPos)) {
+			return false;
+		}
+
+		if (block.isPresent() && !block.get().test(world, blockPos)) {
+			return false;
+		}
+
+		if (fluid.isPresent() && !fluid.get().test(world, blockPos)) {
+			return false;
+		}
+
+		return canSeeSky.isEmpty() || canSeeSky.get() == world.isSkyVisible(blockPos);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link LocationPredicate} с фильтрами по координатам, биому, измерению и видимости неба.
 	 */
 	public static class Builder {
 
@@ -165,7 +160,7 @@ public record LocationPredicate(
 		}
 
 		public LocationPredicate.Builder structure(RegistryEntryList<Structure> structure) {
-			this.feature = Optional.of(structure);
+			feature = Optional.of(structure);
 			return this;
 		}
 
@@ -200,41 +195,29 @@ public record LocationPredicate(
 		}
 
 		public LocationPredicate build() {
-			Optional<LocationPredicate.PositionRange>
-					optional =
-					LocationPredicate.PositionRange.create(this.x, this.y, this.z);
-			return new LocationPredicate(
-					optional,
-					this.biome,
-					this.feature,
-					this.dimension,
-					this.smokey,
-					this.light,
-					this.block,
-					this.fluid,
-					this.canSeeSky
-			);
+			Optional<LocationPredicate.PositionRange> positionRange =
+					LocationPredicate.PositionRange.create(x, y, z);
+			return new LocationPredicate(positionRange, biome, feature, dimension, smokey, light, block, fluid, canSeeSky);
 		}
 	}
 
 	/**
-	 * {@code PositionRange}.
+	 * Диапазон координат позиции по трём осям.
 	 */
 	record PositionRange(NumberRange.DoubleRange x, NumberRange.DoubleRange y, NumberRange.DoubleRange z) {
 
 		public static final Codec<LocationPredicate.PositionRange> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    NumberRange.DoubleRange.CODEC
-								                    .optionalFieldOf("x", NumberRange.DoubleRange.ANY)
-								                    .forGetter(LocationPredicate.PositionRange::x),
-						                    NumberRange.DoubleRange.CODEC
-								                    .optionalFieldOf("y", NumberRange.DoubleRange.ANY)
-								                    .forGetter(LocationPredicate.PositionRange::y),
-						                    NumberRange.DoubleRange.CODEC
-								                    .optionalFieldOf("z", NumberRange.DoubleRange.ANY)
-								                    .forGetter(LocationPredicate.PositionRange::z)
-				                    )
-				                    .apply(instance, LocationPredicate.PositionRange::new)
+						NumberRange.DoubleRange.CODEC
+								.optionalFieldOf("x", NumberRange.DoubleRange.ANY)
+								.forGetter(LocationPredicate.PositionRange::x),
+						NumberRange.DoubleRange.CODEC
+								.optionalFieldOf("y", NumberRange.DoubleRange.ANY)
+								.forGetter(LocationPredicate.PositionRange::y),
+						NumberRange.DoubleRange.CODEC
+								.optionalFieldOf("z", NumberRange.DoubleRange.ANY)
+								.forGetter(LocationPredicate.PositionRange::z)
+				).apply(instance, LocationPredicate.PositionRange::new)
 		);
 
 		static Optional<LocationPredicate.PositionRange> create(
@@ -242,12 +225,9 @@ public record LocationPredicate(
 				NumberRange.DoubleRange y,
 				NumberRange.DoubleRange z
 		) {
-			return x.isDummy() && y.isDummy() && z.isDummy() ? Optional.empty()
-			                                                 : Optional.of(new LocationPredicate.PositionRange(
-					                                                 x,
-					                                                 y,
-					                                                 z
-			                                                 ));
+			return x.isDummy() && y.isDummy() && z.isDummy()
+					? Optional.empty()
+					: Optional.of(new LocationPredicate.PositionRange(x, y, z));
 		}
 
 		public boolean test(double x, double y, double z) {

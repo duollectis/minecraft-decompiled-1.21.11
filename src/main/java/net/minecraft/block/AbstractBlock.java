@@ -70,6 +70,12 @@ import java.util.stream.Stream;
  */
 public abstract class AbstractBlock implements ToggleableFeature {
 
+	private static final int OPACITY_FULL = 15;
+	private static final int OPACITY_TRANSPARENT = 0;
+	private static final int OPACITY_PARTIAL = 1;
+	private static final int BREAK_SPEED_DIVISOR_WITH_TOOL = 30;
+	private static final int BREAK_SPEED_DIVISOR_WITHOUT_TOOL = 100;
+	private static final int BLOCK_UPDATE_FLAGS = 3;
 	protected static final Direction[] DIRECTIONS = new Direction[]{
 			Direction.WEST, Direction.EAST, Direction.NORTH, Direction.SOUTH, Direction.DOWN, Direction.UP
 	};
@@ -112,11 +118,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	}
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт {@link MapCodec} для блока, принимающего только {@link AbstractBlock.Settings}.
+	 * Используется как стандартная фабрика кодека для простых блоков без дополнительных полей.
 	 *
-	 * @param blockFromSettings block from settings
-	 *
-	 * @return MapCodec — результат операции
+	 * @param blockFromSettings фабричная функция, создающая блок из настроек
+	 * @return готовый {@link MapCodec} для сериализации блока
 	 */
 	public static <B extends Block> MapCodec<B> createCodec(Function<AbstractBlock.Settings, B> blockFromSettings) {
 		return RecordCodecBuilder.mapCodec(instance -> instance
@@ -134,12 +140,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	}
 
 	/**
-	 * Проверяет возможность pathfind through.
+	 * Определяет, может ли моб пройти сквозь блок при навигации.
+	 * Для {@link NavigationType#LAND} и {@link NavigationType#AIR} — блок не должен быть полным кубом.
+	 * Для {@link NavigationType#WATER} — блок должен содержать воду.
 	 *
-	 * @param state state
-	 * @param type type
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param state состояние блока
+	 * @param type  тип навигации моба
+	 * @return {@code true}, если моб может пройти сквозь блок
 	 */
 	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
 		switch (type) {
@@ -181,26 +188,9 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	) {
 	}
 
-	/**
-	 * Обрабатывает событие block added.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param oldState old state
-	 * @param notify notify
-	 */
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
 	}
 
-	/**
-	 * Обрабатывает событие state replaced.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param moved moved
-	 */
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
 	}
 
@@ -211,40 +201,33 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			Explosion explosion,
 			BiConsumer<ItemStack, BlockPos> stackMerger
 	) {
-		if (!state.isAir() && explosion.getDestructionType() != Explosion.DestructionType.TRIGGER_BLOCK) {
-			Block block = state.getBlock();
-			boolean bl = explosion.getCausingEntity() instanceof PlayerEntity;
-			if (block.shouldDropItemsOnExplosion(explosion)) {
-				BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
-				LootWorldContext.Builder builder = new LootWorldContext.Builder(world)
-						.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
-						.add(LootContextParameters.TOOL, ItemStack.EMPTY)
-						.addOptional(LootContextParameters.BLOCK_ENTITY, blockEntity)
-						.addOptional(LootContextParameters.THIS_ENTITY, explosion.getEntity());
-				if (explosion.getDestructionType() == Explosion.DestructionType.DESTROY_WITH_DECAY) {
-					builder.add(LootContextParameters.EXPLOSION_RADIUS, explosion.getPower());
-				}
+		if (state.isAir() || explosion.getDestructionType() == Explosion.DestructionType.TRIGGER_BLOCK) {
+			return;
+		}
 
-				state.onStacksDropped(world, pos, ItemStack.EMPTY, bl);
-				state.getDroppedStacks(builder).forEach(stack -> stackMerger.accept(stack, pos));
+		Block block = state.getBlock();
+		boolean causedByPlayer = explosion.getCausingEntity() instanceof PlayerEntity;
+
+		if (block.shouldDropItemsOnExplosion(explosion)) {
+			BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
+			LootWorldContext.Builder lootBuilder = new LootWorldContext.Builder(world)
+					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
+					.add(LootContextParameters.TOOL, ItemStack.EMPTY)
+					.addOptional(LootContextParameters.BLOCK_ENTITY, blockEntity)
+					.addOptional(LootContextParameters.THIS_ENTITY, explosion.getEntity());
+
+			if (explosion.getDestructionType() == Explosion.DestructionType.DESTROY_WITH_DECAY) {
+				lootBuilder.add(LootContextParameters.EXPLOSION_RADIUS, explosion.getPower());
 			}
 
-			world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
-			block.onDestroyedByExplosion(world, pos, explosion);
+			state.onStacksDropped(world, pos, ItemStack.EMPTY, causedByPlayer);
+			state.getDroppedStacks(lootBuilder).forEach(stack -> stackMerger.accept(stack, pos));
 		}
+
+		world.setBlockState(pos, Blocks.AIR.getDefaultState(), BLOCK_UPDATE_FLAGS);
+		block.onDestroyedByExplosion(world, pos, explosion);
 	}
 
-	/**
-	 * Обрабатывает событие use.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param player player
-	 * @param hit hit
-	 *
-	 * @return ActionResult — результат операции
-	 */
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		return ActionResult.PASS;
 	}
@@ -261,17 +244,6 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
 	}
 
-	/**
-	 * Обрабатывает событие synced block event.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param type type
-	 * @param data data
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean onSyncedBlockEvent(BlockState state, World world, BlockPos pos, int type, int data) {
 		return false;
 	}
@@ -284,13 +256,6 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return false;
 	}
 
-	/**
-	 * Emits redstone power.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean emitsRedstonePower(BlockState state) {
 		return false;
 	}
@@ -316,79 +281,40 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.requiredFeatures;
 	}
 
-	/**
-	 * Keep block entity when replaced with.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean keepBlockEntityWhenReplacedWith(BlockState state) {
 		return false;
 	}
 
-	/**
-	 * Rotate.
-	 *
-	 * @param state state
-	 * @param rotation rotation
-	 *
-	 * @return BlockState — результат операции
-	 */
 	protected BlockState rotate(BlockState state, BlockRotation rotation) {
 		return state;
 	}
 
-	/**
-	 * Mirror.
-	 *
-	 * @param state state
-	 * @param mirror mirror
-	 *
-	 * @return BlockState — результат операции
-	 */
 	protected BlockState mirror(BlockState state, BlockMirror mirror) {
 		return state;
 	}
 
-	/**
-	 * Проверяет возможность replace.
-	 *
-	 * @param state state
-	 * @param context context
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
-		return state.isReplaceable() && (context.getStack().isEmpty() || !context.getStack().isOf(this.asItem()));
+		return state.isReplaceable() && (context.getStack().isEmpty() || !context.getStack().isOf(asItem()));
 	}
 
-	/**
-	 * Проверяет возможность bucket place.
-	 *
-	 * @param state state
-	 * @param fluid fluid
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canBucketPlace(BlockState state, Fluid fluid) {
 		return state.isReplaceable() || !state.isSolid();
 	}
 
 	protected List<ItemStack> getDroppedStacks(BlockState state, LootWorldContext.Builder builder) {
-		if (this.lootTableKey.isEmpty()) {
+		if (lootTableKey.isEmpty()) {
 			return Collections.emptyList();
 		}
-		else {
-			LootWorldContext
-					lootWorldContext =
-					builder.add(LootContextParameters.BLOCK_STATE, state).build(LootContextTypes.BLOCK);
-			ServerWorld serverWorld = lootWorldContext.getWorld();
-			LootTable
-					resolvedLootTable =
-					serverWorld.getServer().getReloadableRegistries().getLootTable(this.lootTableKey.get());
-			return resolvedLootTable.generateLoot(lootWorldContext);
-		}
+
+		LootWorldContext lootContext = builder
+				.add(LootContextParameters.BLOCK_STATE, state)
+				.build(LootContextTypes.BLOCK);
+		ServerWorld serverWorld = lootContext.getWorld();
+		LootTable lootTable = serverWorld.getServer()
+				.getReloadableRegistries()
+				.getLootTable(lootTableKey.get());
+
+		return lootTable.generateLoot(lootContext);
 	}
 
 	protected long getRenderingSeed(BlockState state, BlockPos pos) {
@@ -409,11 +335,10 @@ public abstract class AbstractBlock implements ToggleableFeature {
 
 	protected int getOpacity(BlockState state) {
 		if (state.isOpaqueFullCube()) {
-			return 15;
+			return OPACITY_FULL;
 		}
-		else {
-			return state.isTransparent() ? 0 : 1;
-		}
+
+		return state.isTransparent() ? OPACITY_TRANSPARENT : OPACITY_PARTIAL;
 	}
 
 	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
@@ -424,15 +349,6 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return null;
 	}
 
-	/**
-	 * Проверяет возможность place at.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
 		return true;
 	}
@@ -470,47 +386,35 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.getCollisionShape(state, world, pos, context);
 	}
 
-	/**
-	 * Random tick.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 */
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 	}
 
-	/**
-	 * Scheduled tick.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param random random
-	 */
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 	}
 
 	/**
-	 * Calc block breaking delta.
+	 * Вычисляет скорость разрушения блока игроком за один тик.
+	 * Делитель 30 применяется при наличии подходящего инструмента, 100 — без него.
+	 * Значение -1 означает неразрушаемый блок (возвращается 0).
 	 *
-	 * @param state state
-	 * @param player player
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return float — результат операции
+	 * @param state  состояние блока
+	 * @param player игрок, разрушающий блок
+	 * @param world  представление мира
+	 * @param pos    позиция блока
+	 * @return дельта прогресса разрушения за тик (от 0 до 1)
 	 */
 	protected float calcBlockBreakingDelta(BlockState state, PlayerEntity player, BlockView world, BlockPos pos) {
-		float f = state.getHardness(world, pos);
-		if (f == -1.0F) {
+		float hardness = state.getHardness(world, pos);
+
+		if (hardness == -1.0F) {
 			return 0.0F;
 		}
-		else {
-			int i = player.canHarvest(state) ? 30 : 100;
-			return player.getBlockBreakingSpeed(state) / f / i;
-		}
+
+		int speedDivisor = player.canHarvest(state)
+				? BREAK_SPEED_DIVISOR_WITH_TOOL
+				: BREAK_SPEED_DIVISOR_WITHOUT_TOOL;
+
+		return player.getBlockBreakingSpeed(state) / hardness / speedDivisor;
 	}
 
 	protected void onStacksDropped(
@@ -522,14 +426,6 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	) {
 	}
 
-	/**
-	 * Обрабатывает событие block break start.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param player player
-	 */
 	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 	}
 
@@ -559,21 +455,12 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.translationKey;
 	}
 
-	/**
-	 * Обрабатывает событие projectile hit.
-	 *
-	 * @param world world
-	 * @param state state
-	 * @param hit hit
-	 * @param projectile projectile
-	 */
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
 	}
 
 	protected boolean isTransparent(BlockState state) {
-		return !Block.isShapeFullCube(state.getOutlineShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)) && state
-				.getFluidState()
-				.isEmpty();
+		return !Block.isShapeFullCube(state.getOutlineShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN))
+				&& state.getFluidState().isEmpty();
 	}
 
 	protected boolean hasRandomTicks(BlockState state) {
@@ -588,18 +475,8 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return new ItemStack(this.asItem());
 	}
 
-	/**
-	 * As item.
-	 *
-	 * @return Item — результат операции
-	 */
 	public abstract Item asItem();
 
-	/**
-	 * As block.
-	 *
-	 * @return Block — результат операции
-	 */
 	protected abstract Block asBlock();
 
 	public MapColor getDefaultMapColor() {
@@ -1415,7 +1292,9 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		}
 
 		/**
-		 * {@code ShapeCache}.
+		 * Кеш предвычисленных геометрических данных для конкретного {@link BlockState}.
+		 * Хранит форму коллизии, флаги сплошности граней и признак полного куба,
+		 * чтобы не пересчитывать их при каждом обращении к состоянию блока.
 		 */
 		static final class ShapeCache {
 

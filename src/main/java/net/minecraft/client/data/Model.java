@@ -17,10 +17,12 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Model}.
+ * Описание модели блока или предмета: родительская модель, суффикс варианта
+ * и набор обязательных текстурных слотов. При загрузке генерирует JSON-файл модели
+ * с секцией {@code parent} и {@code textures}.
  */
+@Environment(EnvType.CLIENT)
 public class Model {
 
 	private final Optional<Identifier> parent;
@@ -118,10 +120,9 @@ public class Model {
 	@SuppressWarnings("unchecked")
 	private Map<TextureKey, Identifier> createTextureMap(TextureMap textures) {
 		return ((Stream<TextureKey>) Streams.concat(new Stream[]{
-				this.requiredTextures.stream(),
+				requiredTextures.stream(),
 				textures.getInherited()
-		})
-		)
+		}))
 				.collect(ImmutableMap.toImmutableMap(Function.identity(), textures::getTexture));
 	}
 }

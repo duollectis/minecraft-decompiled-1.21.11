@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code ServerRecipeBook}.
+ * Класс Server Recipe Book.
  */
 public class ServerRecipeBook extends RecipeBook {
 
@@ -218,17 +218,11 @@ public class ServerRecipeBook extends RecipeBook {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code DisplayCollector}.
-	 */
 	public interface DisplayCollector {
 
 		void displaysForRecipe(RegistryKey<Recipe<?>> recipeKey, Consumer<RecipeDisplayEntry> adder);
 	}
 
-	/**
-	 * {@code Packed}.
-	 */
 	public record Packed(
 			RecipeBookOptions settings,
 			List<RegistryKey<Recipe<?>>> known,

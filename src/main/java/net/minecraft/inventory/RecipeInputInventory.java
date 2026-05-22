@@ -7,7 +7,9 @@ import net.minecraft.recipe.input.CraftingRecipeInput;
 import java.util.List;
 
 /**
- * {@code RecipeInputInventory}.
+ * Инвентарь, служащий входными данными для рецептов крафта.
+ * Предоставляет размеры сетки крафта и список хранимых стаков,
+ * а также методы создания {@link CraftingRecipeInput} для проверки рецептов.
  */
 public interface RecipeInputInventory extends Inventory, RecipeInputProvider {
 
@@ -18,10 +20,17 @@ public interface RecipeInputInventory extends Inventory, RecipeInputProvider {
 	List<ItemStack> getHeldStacks();
 
 	default CraftingRecipeInput createRecipeInput() {
-		return this.createPositionedRecipeInput().input();
+		return createPositionedRecipeInput().input();
 	}
 
+	/**
+	 * Создаёт позиционированный ввод рецепта с учётом размеров сетки крафта.
+	 * Позиционирование необходимо для корректного определения смещения рецепта
+	 * внутри сетки при поиске совпадений.
+	 *
+	 * @return позиционированный ввод рецепта крафта
+	 */
 	default CraftingRecipeInput.Positioned createPositionedRecipeInput() {
-		return CraftingRecipeInput.createPositioned(this.getWidth(), this.getHeight(), this.getHeldStacks());
+		return CraftingRecipeInput.createPositioned(getWidth(), getHeight(), getHeldStacks());
 	}
 }

@@ -12,108 +12,112 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.stream.Collectors;
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code ZipCompressor}.
+ * Создаёт ZIP-архив через временный файл с атомарным переименованием при закрытии.
+ * Реализует {@link Closeable}: при вызове {@link #close()} архив финализируется
+ * и перемещается на целевой путь.
  */
 public class ZipCompressor implements Closeable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final Path file;
 	private final Path temp;
 	private final FileSystem zip;
 
 	public ZipCompressor(Path file) {
 		this.file = file;
-		this.temp = file.resolveSibling(file.getFileName().toString() + "_tmp");
+		temp = file.resolveSibling(file.getFileName().toString() + "_tmp");
 
 		try {
-			this.zip = Util.JAR_FILE_SYSTEM_PROVIDER.newFileSystem(this.temp, ImmutableMap.of("create", "true"));
+			zip = Util.JAR_FILE_SYSTEM_PROVIDER.newFileSystem(temp, ImmutableMap.of("create", "true"));
 		}
-		catch (IOException var3) {
-			throw new UncheckedIOException(var3);
+		catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 
 	/**
-	 * Write.
+	 * Записывает строковое содержимое в файл внутри архива по указанному пути.
 	 *
-	 * @param target target
-	 * @param content content
+	 * @param target  путь внутри архива
+	 * @param content содержимое файла в кодировке UTF-8
 	 */
 	public void write(Path target, String content) {
 		try {
-			Path path = this.zip.getPath(File.separator);
-			Path path2 = path.resolve(target.toString());
-			Files.createDirectories(path2.getParent());
-			Files.write(path2, content.getBytes(StandardCharsets.UTF_8));
+			Path root = zip.getPath(File.separator);
+			Path destination = root.resolve(target.toString());
+			Files.createDirectories(destination.getParent());
+			Files.write(destination, content.getBytes(StandardCharsets.UTF_8));
 		}
-		catch (IOException var5) {
-			throw new UncheckedIOException(var5);
+		catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 
 	/**
-	 * Copy.
+	 * Копирует файл {@code source} в архив по указанному пути {@code target}.
 	 *
-	 * @param target target
-	 * @param source source
+	 * @param target путь внутри архива
+	 * @param source исходный файл
 	 */
 	public void copy(Path target, File source) {
 		try {
-			Path path = this.zip.getPath(File.separator);
-			Path path2 = path.resolve(target.toString());
-			Files.createDirectories(path2.getParent());
-			Files.copy(source.toPath(), path2);
+			Path root = zip.getPath(File.separator);
+			Path destination = root.resolve(target.toString());
+			Files.createDirectories(destination.getParent());
+			Files.copy(source.toPath(), destination);
 		}
-		catch (IOException var5) {
-			throw new UncheckedIOException(var5);
+		catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 
 	/**
-	 * Создаёт копию all.
+	 * Рекурсивно копирует все файлы из {@code source} в архив, сохраняя относительную структуру.
 	 *
-	 * @param source source
+	 * @param source исходный файл или директория
 	 */
 	public void copyAll(Path source) {
 		try {
-			Path path = this.zip.getPath(File.separator);
+			Path root = zip.getPath(File.separator);
+
 			if (Files.isRegularFile(source)) {
-				Path path2 = path.resolve(source.getParent().relativize(source).toString());
-				Files.copy(path2, source);
+				Path destination = root.resolve(source.getParent().relativize(source).toString());
+				Files.copy(source, destination);
+				return;
 			}
-			else {
-				try (Stream<Path> stream = Files.find(
-						source,
-						Integer.MAX_VALUE,
-						(pathx, attributes) -> attributes.isRegularFile()
-				)
-				) {
-					for (Path path3 : stream.collect(Collectors.toList())) {
-						Path path4 = path.resolve(source.relativize(path3).toString());
-						Files.createDirectories(path4.getParent());
-						Files.copy(path3, path4);
-					}
+
+			try (Stream<Path> stream = Files.find(source, Integer.MAX_VALUE, (path, attrs) -> attrs.isRegularFile())) {
+				List<Path> files = stream.toList();
+
+				for (Path file : files) {
+					Path destination = root.resolve(source.relativize(file).toString());
+					Files.createDirectories(destination.getParent());
+					Files.copy(file, destination);
 				}
 			}
 		}
-		catch (IOException var9) {
-			throw new UncheckedIOException(var9);
+		catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 
+	/**
+	 * Закрывает ZIP-файловую систему и атомарно перемещает временный файл на целевой путь.
+	 */
 	@Override
 	public void close() {
 		try {
-			this.zip.close();
-			Files.move(this.temp, this.file);
-			LOGGER.info("Compressed to {}", this.file);
+			zip.close();
+			Files.move(temp, file);
+			LOGGER.info("Compressed to {}", file);
 		}
-		catch (IOException var2) {
-			throw new UncheckedIOException(var2);
+		catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 }

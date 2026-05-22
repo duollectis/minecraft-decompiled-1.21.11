@@ -1,14 +1,50 @@
 package net.minecraft.state.property;
 
 import net.minecraft.block.CopperGolemStatueBlock;
-import net.minecraft.block.enums.*;
+import net.minecraft.block.enums.Attachment;
+import net.minecraft.block.enums.BambooLeaves;
+import net.minecraft.block.enums.BedPart;
+import net.minecraft.block.enums.BlockFace;
+import net.minecraft.block.enums.BlockHalf;
+import net.minecraft.block.enums.ChestType;
+import net.minecraft.block.enums.ComparatorMode;
+import net.minecraft.block.enums.CreakingHeartState;
+import net.minecraft.block.enums.DoorHinge;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.block.enums.NoteBlockInstrument;
+import net.minecraft.block.enums.Orientation;
+import net.minecraft.block.enums.PistonType;
+import net.minecraft.block.enums.RailShape;
+import net.minecraft.block.enums.SculkSensorPhase;
+import net.minecraft.block.enums.SideChainPart;
+import net.minecraft.block.enums.SlabType;
+import net.minecraft.block.enums.StairShape;
+import net.minecraft.block.enums.StructureBlockMode;
+import net.minecraft.block.enums.TestBlockMode;
+import net.minecraft.block.enums.Thickness;
+import net.minecraft.block.enums.Tilt;
+import net.minecraft.block.enums.TrialSpawnerState;
+import net.minecraft.block.enums.VaultState;
+import net.minecraft.block.enums.WallShape;
+import net.minecraft.block.enums.WireConnection;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationPropertyHelper;
 
 /**
- * {@code Properties}.
+ * Реестр всех стандартных свойств блоков Minecraft.
+ *
+ * <p>Каждое свойство является синглтоном — одним и тем же объектом, разделяемым
+ * между всеми блоками, которые его используют. Это позволяет использовать
+ * сравнение по ссылке (identity) вместо {@code equals} в горячих путях кода.
+ *
+ * <p>Числовые константы вида {@code AGE_*_MAX}, {@code LEVEL_*}, {@code DISTANCE_*}
+ * экспортируются для использования в логике блоков без дублирования магических чисел.
  */
 public class Properties {
+
+	// -------------------------------------------------------------------------
+	// Булевые свойства
+	// -------------------------------------------------------------------------
 
 	public static final BooleanProperty ATTACHED = BooleanProperty.of("attached");
 	public static final BooleanProperty BERRIES = BooleanProperty.of("berries");
@@ -45,65 +81,177 @@ public class Properties {
 	public static final BooleanProperty TRIGGERED = BooleanProperty.of("triggered");
 	public static final BooleanProperty UNSTABLE = BooleanProperty.of("unstable");
 	public static final BooleanProperty WATERLOGGED = BooleanProperty.of("waterlogged");
-	public static final EnumProperty<Direction.Axis>
-			HORIZONTAL_AXIS =
-			EnumProperty.of("axis", Direction.Axis.class, Direction.Axis.X, Direction.Axis.Z);
-	public static final EnumProperty<Direction.Axis> AXIS = EnumProperty.of("axis", Direction.Axis.class);
 	public static final BooleanProperty UP = BooleanProperty.of("up");
 	public static final BooleanProperty DOWN = BooleanProperty.of("down");
 	public static final BooleanProperty NORTH = BooleanProperty.of("north");
 	public static final BooleanProperty EAST = BooleanProperty.of("east");
 	public static final BooleanProperty SOUTH = BooleanProperty.of("south");
 	public static final BooleanProperty WEST = BooleanProperty.of("west");
+	public static final BooleanProperty SLOT_0_OCCUPIED = BooleanProperty.of("slot_0_occupied");
+	public static final BooleanProperty SLOT_1_OCCUPIED = BooleanProperty.of("slot_1_occupied");
+	public static final BooleanProperty SLOT_2_OCCUPIED = BooleanProperty.of("slot_2_occupied");
+	public static final BooleanProperty SLOT_3_OCCUPIED = BooleanProperty.of("slot_3_occupied");
+	public static final BooleanProperty SLOT_4_OCCUPIED = BooleanProperty.of("slot_4_occupied");
+	public static final BooleanProperty SLOT_5_OCCUPIED = BooleanProperty.of("slot_5_occupied");
+	public static final BooleanProperty CRACKED = BooleanProperty.of("cracked");
+	public static final BooleanProperty CRAFTING = BooleanProperty.of("crafting");
+	public static final BooleanProperty OMINOUS = BooleanProperty.of("ominous");
+	public static final BooleanProperty MAP = BooleanProperty.of("map");
+
+	// -------------------------------------------------------------------------
+	// Свойства направления и оси
+	// -------------------------------------------------------------------------
+
+	public static final EnumProperty<Direction.Axis> HORIZONTAL_AXIS =
+		EnumProperty.of("axis", Direction.Axis.class, Direction.Axis.X, Direction.Axis.Z);
+
+	public static final EnumProperty<Direction.Axis> AXIS =
+		EnumProperty.of("axis", Direction.Axis.class);
+
 	public static final EnumProperty<Direction> FACING = EnumProperty.of(
-			"facing",
-			Direction.class,
-			Direction.NORTH,
-			Direction.EAST,
-			Direction.SOUTH,
-			Direction.WEST,
-			Direction.UP,
-			Direction.DOWN
+		"facing",
+		Direction.class,
+		Direction.NORTH,
+		Direction.EAST,
+		Direction.SOUTH,
+		Direction.WEST,
+		Direction.UP,
+		Direction.DOWN
 	);
-	public static final EnumProperty<Direction>
-			HOPPER_FACING =
-			EnumProperty.of("facing", Direction.class, facing -> facing != Direction.UP);
-	public static final EnumProperty<Direction>
-			HORIZONTAL_FACING =
-			EnumProperty.of("facing", Direction.class, Direction.Type.HORIZONTAL);
-	public static final IntProperty FLOWER_AMOUNT = IntProperty.of("flower_amount", 1, 4);
-	public static final IntProperty SEGMENT_AMOUNT = IntProperty.of("segment_amount", 1, 4);
-	public static final EnumProperty<Orientation> ORIENTATION = EnumProperty.of("orientation", Orientation.class);
-	public static final EnumProperty<BlockFace> BLOCK_FACE = EnumProperty.of("face", BlockFace.class);
-	public static final EnumProperty<Attachment> ATTACHMENT = EnumProperty.of("attachment", Attachment.class);
-	public static final EnumProperty<WallShape> EAST_WALL_SHAPE = EnumProperty.of("east", WallShape.class);
-	public static final EnumProperty<WallShape> NORTH_WALL_SHAPE = EnumProperty.of("north", WallShape.class);
-	public static final EnumProperty<WallShape> SOUTH_WALL_SHAPE = EnumProperty.of("south", WallShape.class);
-	public static final EnumProperty<WallShape> WEST_WALL_SHAPE = EnumProperty.of("west", WallShape.class);
-	public static final EnumProperty<WireConnection>
-			EAST_WIRE_CONNECTION =
-			EnumProperty.of("east", WireConnection.class);
-	public static final EnumProperty<WireConnection>
-			NORTH_WIRE_CONNECTION =
-			EnumProperty.of("north", WireConnection.class);
-	public static final EnumProperty<WireConnection>
-			SOUTH_WIRE_CONNECTION =
-			EnumProperty.of("south", WireConnection.class);
-	public static final EnumProperty<WireConnection>
-			WEST_WIRE_CONNECTION =
-			EnumProperty.of("west", WireConnection.class);
-	public static final EnumProperty<DoubleBlockHalf>
-			DOUBLE_BLOCK_HALF =
-			EnumProperty.of("half", DoubleBlockHalf.class);
-	public static final EnumProperty<BlockHalf> BLOCK_HALF = EnumProperty.of("half", BlockHalf.class);
-	public static final EnumProperty<SideChainPart> SIDE_CHAIN = EnumProperty.of("side_chain", SideChainPart.class);
-	public static final EnumProperty<RailShape> RAIL_SHAPE = EnumProperty.of("shape", RailShape.class);
+
+	public static final EnumProperty<Direction> HOPPER_FACING =
+		EnumProperty.of("facing", Direction.class, facing -> facing != Direction.UP);
+
+	public static final EnumProperty<Direction> HORIZONTAL_FACING =
+		EnumProperty.of("facing", Direction.class, Direction.Type.HORIZONTAL);
+
+	public static final EnumProperty<Direction> VERTICAL_DIRECTION =
+		EnumProperty.of("vertical_direction", Direction.class, Direction.UP, Direction.DOWN);
+
+	// -------------------------------------------------------------------------
+	// Форма рельсов
+	// -------------------------------------------------------------------------
+
+	public static final EnumProperty<RailShape> RAIL_SHAPE =
+		EnumProperty.of("shape", RailShape.class);
+
 	public static final EnumProperty<RailShape> STRAIGHT_RAIL_SHAPE = EnumProperty.of(
-			"shape",
-			RailShape.class,
-			shape -> shape != RailShape.NORTH_EAST && shape != RailShape.NORTH_WEST && shape != RailShape.SOUTH_EAST
-					&& shape != RailShape.SOUTH_WEST
+		"shape",
+		RailShape.class,
+		shape -> shape != RailShape.NORTH_EAST
+			&& shape != RailShape.NORTH_WEST
+			&& shape != RailShape.SOUTH_EAST
+			&& shape != RailShape.SOUTH_WEST
 	);
+
+	// -------------------------------------------------------------------------
+	// Форма стен и проводов
+	// -------------------------------------------------------------------------
+
+	public static final EnumProperty<WallShape> EAST_WALL_SHAPE =
+		EnumProperty.of("east", WallShape.class);
+
+	public static final EnumProperty<WallShape> NORTH_WALL_SHAPE =
+		EnumProperty.of("north", WallShape.class);
+
+	public static final EnumProperty<WallShape> SOUTH_WALL_SHAPE =
+		EnumProperty.of("south", WallShape.class);
+
+	public static final EnumProperty<WallShape> WEST_WALL_SHAPE =
+		EnumProperty.of("west", WallShape.class);
+
+	public static final EnumProperty<WireConnection> EAST_WIRE_CONNECTION =
+		EnumProperty.of("east", WireConnection.class);
+
+	public static final EnumProperty<WireConnection> NORTH_WIRE_CONNECTION =
+		EnumProperty.of("north", WireConnection.class);
+
+	public static final EnumProperty<WireConnection> SOUTH_WIRE_CONNECTION =
+		EnumProperty.of("south", WireConnection.class);
+
+	public static final EnumProperty<WireConnection> WEST_WIRE_CONNECTION =
+		EnumProperty.of("west", WireConnection.class);
+
+	// -------------------------------------------------------------------------
+	// Прочие enum-свойства
+	// -------------------------------------------------------------------------
+
+	public static final EnumProperty<Orientation> ORIENTATION =
+		EnumProperty.of("orientation", Orientation.class);
+
+	public static final EnumProperty<BlockFace> BLOCK_FACE =
+		EnumProperty.of("face", BlockFace.class);
+
+	public static final EnumProperty<Attachment> ATTACHMENT =
+		EnumProperty.of("attachment", Attachment.class);
+
+	public static final EnumProperty<DoubleBlockHalf> DOUBLE_BLOCK_HALF =
+		EnumProperty.of("half", DoubleBlockHalf.class);
+
+	public static final EnumProperty<BlockHalf> BLOCK_HALF =
+		EnumProperty.of("half", BlockHalf.class);
+
+	public static final EnumProperty<SideChainPart> SIDE_CHAIN =
+		EnumProperty.of("side_chain", SideChainPart.class);
+
+	public static final EnumProperty<BedPart> BED_PART =
+		EnumProperty.of("part", BedPart.class);
+
+	public static final EnumProperty<ChestType> CHEST_TYPE =
+		EnumProperty.of("type", ChestType.class);
+
+	public static final EnumProperty<ComparatorMode> COMPARATOR_MODE =
+		EnumProperty.of("mode", ComparatorMode.class);
+
+	public static final EnumProperty<DoorHinge> DOOR_HINGE =
+		EnumProperty.of("hinge", DoorHinge.class);
+
+	public static final EnumProperty<NoteBlockInstrument> INSTRUMENT =
+		EnumProperty.of("instrument", NoteBlockInstrument.class);
+
+	public static final EnumProperty<PistonType> PISTON_TYPE =
+		EnumProperty.of("type", PistonType.class);
+
+	public static final EnumProperty<SlabType> SLAB_TYPE =
+		EnumProperty.of("type", SlabType.class);
+
+	public static final EnumProperty<StairShape> STAIR_SHAPE =
+		EnumProperty.of("shape", StairShape.class);
+
+	public static final EnumProperty<StructureBlockMode> STRUCTURE_BLOCK_MODE =
+		EnumProperty.of("mode", StructureBlockMode.class);
+
+	public static final EnumProperty<BambooLeaves> BAMBOO_LEAVES =
+		EnumProperty.of("leaves", BambooLeaves.class);
+
+	public static final EnumProperty<Tilt> TILT =
+		EnumProperty.of("tilt", Tilt.class);
+
+	public static final EnumProperty<Thickness> THICKNESS =
+		EnumProperty.of("thickness", Thickness.class);
+
+	public static final EnumProperty<SculkSensorPhase> SCULK_SENSOR_PHASE =
+		EnumProperty.of("sculk_sensor_phase", SculkSensorPhase.class);
+
+	public static final EnumProperty<TrialSpawnerState> TRIAL_SPAWNER_STATE =
+		EnumProperty.of("trial_spawner_state", TrialSpawnerState.class);
+
+	public static final EnumProperty<VaultState> VAULT_STATE =
+		EnumProperty.of("vault_state", VaultState.class);
+
+	public static final EnumProperty<CreakingHeartState> CREAKING_HEART_STATE =
+		EnumProperty.of("creaking_heart_state", CreakingHeartState.class);
+
+	public static final EnumProperty<TestBlockMode> TEST_BLOCK_MODE =
+		EnumProperty.of("mode", TestBlockMode.class);
+
+	public static final EnumProperty<CopperGolemStatueBlock.Pose> COPPER_GOLEM_POSE =
+		EnumProperty.of("copper_golem_pose", CopperGolemStatueBlock.Pose.class);
+
+	// -------------------------------------------------------------------------
+	// Числовые константы — границы диапазонов свойств
+	// -------------------------------------------------------------------------
+
 	public static final int AGE_1_MAX = 1;
 	public static final int AGE_2_MAX = 2;
 	public static final int AGE_3_MAX = 3;
@@ -112,86 +260,68 @@ public class Properties {
 	public static final int AGE_7_MAX = 7;
 	public static final int AGE_15_MAX = 15;
 	public static final int AGE_25_MAX = 25;
-	public static final IntProperty AGE_1 = IntProperty.of("age", 0, 1);
-	public static final IntProperty AGE_2 = IntProperty.of("age", 0, 2);
-	public static final IntProperty AGE_3 = IntProperty.of("age", 0, 3);
-	public static final IntProperty AGE_4 = IntProperty.of("age", 0, 4);
-	public static final IntProperty AGE_5 = IntProperty.of("age", 0, 5);
-	public static final IntProperty AGE_7 = IntProperty.of("age", 0, 7);
-	public static final IntProperty AGE_15 = IntProperty.of("age", 0, 15);
-	public static final IntProperty AGE_25 = IntProperty.of("age", 0, 25);
-	public static final IntProperty BITES = IntProperty.of("bites", 0, 6);
-	public static final IntProperty CANDLES = IntProperty.of("candles", 1, 4);
-	public static final IntProperty DELAY = IntProperty.of("delay", 1, 4);
+
 	public static final int DISTANCE_1_7_MAX = 7;
-	public static final IntProperty DISTANCE_1_7 = IntProperty.of("distance", 1, 7);
-	public static final IntProperty EGGS = IntProperty.of("eggs", 1, 4);
-	public static final IntProperty HATCH = IntProperty.of("hatch", 0, 2);
-	public static final IntProperty LAYERS = IntProperty.of("layers", 1, 8);
+	public static final int DISTANCE_0_7_MAX = 7;
+
+	public static final int LEVEL_3_MAX = 3;
 	public static final int LEVEL_8_MIN = 0;
 	public static final int LEVEL_1_8_MIN = 1;
-	public static final int LEVEL_3_MAX = 3;
 	public static final int LEVEL_1_8_MAX = 8;
-	public static final IntProperty LEVEL_3 = IntProperty.of("level", 1, 3);
-	public static final IntProperty LEVEL_8 = IntProperty.of("level", 0, 8);
-	public static final IntProperty LEVEL_1_8 = IntProperty.of("level", 1, 8);
-	public static final IntProperty HONEY_LEVEL = IntProperty.of("honey_level", 0, 5);
 	public static final int LEVEL_15_MAX = 15;
-	public static final IntProperty LEVEL_15 = IntProperty.of("level", 0, 15);
-	public static final IntProperty MOISTURE = IntProperty.of("moisture", 0, 7);
-	public static final IntProperty NOTE = IntProperty.of("note", 0, 24);
-	public static final IntProperty PICKLES = IntProperty.of("pickles", 1, 4);
-	public static final IntProperty POWER = IntProperty.of("power", 0, 15);
-	public static final IntProperty STAGE = IntProperty.of("stage", 0, 1);
-	public static final int DISTANCE_0_7_MAX = 7;
-	public static final IntProperty DISTANCE_0_7 = IntProperty.of("distance", 0, 7);
+
 	public static final int CHARGES_MIN = 0;
 	public static final int CHARGES_MAX = 4;
-	public static final IntProperty CHARGES = IntProperty.of("charges", 0, 4);
-	public static final IntProperty HYDRATION = IntProperty.of("hydration", 0, 3);
+
+	// -------------------------------------------------------------------------
+	// Целочисленные свойства — возраст (age)
+	// -------------------------------------------------------------------------
+
+	public static final IntProperty AGE_1 = IntProperty.of("age", 0, AGE_1_MAX);
+	public static final IntProperty AGE_2 = IntProperty.of("age", 0, AGE_2_MAX);
+	public static final IntProperty AGE_3 = IntProperty.of("age", 0, AGE_3_MAX);
+	public static final IntProperty AGE_4 = IntProperty.of("age", 0, AGE_4_MAX);
+	public static final IntProperty AGE_5 = IntProperty.of("age", 0, AGE_5_MAX);
+	public static final IntProperty AGE_7 = IntProperty.of("age", 0, AGE_7_MAX);
+	public static final IntProperty AGE_15 = IntProperty.of("age", 0, AGE_15_MAX);
+	public static final IntProperty AGE_25 = IntProperty.of("age", 0, AGE_25_MAX);
+
+	// -------------------------------------------------------------------------
+	// Целочисленные свойства — уровень (level)
+	// -------------------------------------------------------------------------
+
+	public static final IntProperty LEVEL_3 = IntProperty.of("level", LEVEL_1_8_MIN, LEVEL_3_MAX);
+	public static final IntProperty LEVEL_8 = IntProperty.of("level", LEVEL_8_MIN, LEVEL_1_8_MAX);
+	public static final IntProperty LEVEL_1_8 = IntProperty.of("level", LEVEL_1_8_MIN, LEVEL_1_8_MAX);
+	public static final IntProperty LEVEL_15 = IntProperty.of("level", LEVEL_8_MIN, LEVEL_15_MAX);
+	public static final IntProperty HONEY_LEVEL = IntProperty.of("honey_level", 0, AGE_5_MAX);
+
+	// -------------------------------------------------------------------------
+	// Целочисленные свойства — дистанция (distance)
+	// -------------------------------------------------------------------------
+
+	public static final IntProperty DISTANCE_1_7 = IntProperty.of("distance", 1, DISTANCE_1_7_MAX);
+	public static final IntProperty DISTANCE_0_7 = IntProperty.of("distance", 0, DISTANCE_0_7_MAX);
+
+	// -------------------------------------------------------------------------
+	// Прочие целочисленные свойства
+	// -------------------------------------------------------------------------
+
+	public static final IntProperty FLOWER_AMOUNT = IntProperty.of("flower_amount", 1, AGE_4_MAX);
+	public static final IntProperty SEGMENT_AMOUNT = IntProperty.of("segment_amount", 1, AGE_4_MAX);
+	public static final IntProperty BITES = IntProperty.of("bites", 0, 6);
+	public static final IntProperty CANDLES = IntProperty.of("candles", 1, AGE_4_MAX);
+	public static final IntProperty DELAY = IntProperty.of("delay", 1, AGE_4_MAX);
+	public static final IntProperty EGGS = IntProperty.of("eggs", 1, AGE_4_MAX);
+	public static final IntProperty HATCH = IntProperty.of("hatch", 0, 2);
+	public static final IntProperty LAYERS = IntProperty.of("layers", 1, 8);
+	public static final IntProperty MOISTURE = IntProperty.of("moisture", 0, AGE_7_MAX);
+	public static final IntProperty NOTE = IntProperty.of("note", 0, 24);
+	public static final IntProperty PICKLES = IntProperty.of("pickles", 1, AGE_4_MAX);
+	public static final IntProperty POWER = IntProperty.of("power", 0, AGE_15_MAX);
+	public static final IntProperty STAGE = IntProperty.of("stage", 0, AGE_1_MAX);
+	public static final IntProperty CHARGES = IntProperty.of("charges", CHARGES_MIN, CHARGES_MAX);
+	public static final IntProperty HYDRATION = IntProperty.of("hydration", 0, LEVEL_3_MAX);
+	public static final IntProperty DUSTED = IntProperty.of("dusted", 0, LEVEL_3_MAX);
 	public static final IntProperty ROTATION = IntProperty.of("rotation", 0, RotationPropertyHelper.getMax());
-	public static final EnumProperty<BedPart> BED_PART = EnumProperty.of("part", BedPart.class);
-	public static final EnumProperty<ChestType> CHEST_TYPE = EnumProperty.of("type", ChestType.class);
-	public static final EnumProperty<ComparatorMode> COMPARATOR_MODE = EnumProperty.of("mode", ComparatorMode.class);
-	public static final EnumProperty<DoorHinge> DOOR_HINGE = EnumProperty.of("hinge", DoorHinge.class);
-	public static final EnumProperty<NoteBlockInstrument>
-			INSTRUMENT =
-			EnumProperty.of("instrument", NoteBlockInstrument.class);
-	public static final EnumProperty<PistonType> PISTON_TYPE = EnumProperty.of("type", PistonType.class);
-	public static final EnumProperty<SlabType> SLAB_TYPE = EnumProperty.of("type", SlabType.class);
-	public static final EnumProperty<StairShape> STAIR_SHAPE = EnumProperty.of("shape", StairShape.class);
-	public static final EnumProperty<StructureBlockMode>
-			STRUCTURE_BLOCK_MODE =
-			EnumProperty.of("mode", StructureBlockMode.class);
-	public static final EnumProperty<BambooLeaves> BAMBOO_LEAVES = EnumProperty.of("leaves", BambooLeaves.class);
-	public static final EnumProperty<Tilt> TILT = EnumProperty.of("tilt", Tilt.class);
-	public static final EnumProperty<Direction>
-			VERTICAL_DIRECTION =
-			EnumProperty.of("vertical_direction", Direction.class, Direction.UP, Direction.DOWN);
-	public static final EnumProperty<Thickness> THICKNESS = EnumProperty.of("thickness", Thickness.class);
-	public static final EnumProperty<SculkSensorPhase>
-			SCULK_SENSOR_PHASE =
-			EnumProperty.of("sculk_sensor_phase", SculkSensorPhase.class);
-	public static final BooleanProperty SLOT_0_OCCUPIED = BooleanProperty.of("slot_0_occupied");
-	public static final BooleanProperty SLOT_1_OCCUPIED = BooleanProperty.of("slot_1_occupied");
-	public static final BooleanProperty SLOT_2_OCCUPIED = BooleanProperty.of("slot_2_occupied");
-	public static final BooleanProperty SLOT_3_OCCUPIED = BooleanProperty.of("slot_3_occupied");
-	public static final BooleanProperty SLOT_4_OCCUPIED = BooleanProperty.of("slot_4_occupied");
-	public static final BooleanProperty SLOT_5_OCCUPIED = BooleanProperty.of("slot_5_occupied");
-	public static final IntProperty DUSTED = IntProperty.of("dusted", 0, 3);
-	public static final BooleanProperty CRACKED = BooleanProperty.of("cracked");
-	public static final BooleanProperty CRAFTING = BooleanProperty.of("crafting");
-	public static final EnumProperty<TrialSpawnerState>
-			TRIAL_SPAWNER_STATE =
-			EnumProperty.of("trial_spawner_state", TrialSpawnerState.class);
-	public static final EnumProperty<VaultState> VAULT_STATE = EnumProperty.of("vault_state", VaultState.class);
-	public static final EnumProperty<CreakingHeartState>
-			CREAKING_HEART_STATE =
-			EnumProperty.of("creaking_heart_state", CreakingHeartState.class);
-	public static final BooleanProperty OMINOUS = BooleanProperty.of("ominous");
-	public static final EnumProperty<TestBlockMode> TEST_BLOCK_MODE = EnumProperty.of("mode", TestBlockMode.class);
-	public static final BooleanProperty MAP = BooleanProperty.of("map");
-	public static final EnumProperty<CopperGolemStatueBlock.Pose>
-			COPPER_GOLEM_POSE =
-			EnumProperty.of("copper_golem_pose", CopperGolemStatueBlock.Pose.class);
 }

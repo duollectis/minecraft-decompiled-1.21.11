@@ -21,7 +21,12 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code WindChargeEntity}.
+ * Заряд ветра, выпускаемый игроком.
+ * <p>
+ * В отличие от {@link BreezeWindChargeEntity}, имеет меньшую мощность взрыва
+ * и может быть отражён другими снарядами или атаками, но только по истечении
+ * начального кулдауна ({@link #DEFLECT_COOLDOWN_TICKS} тиков).
+ * Также не отображается в первые 2 тика при близком расстоянии до камеры.
  */
 public class WindChargeEntity extends AbstractWindChargeEntity {
 
@@ -31,9 +36,14 @@ public class WindChargeEntity extends AbstractWindChargeEntity {
 			Optional.of(1.22F),
 			Registries.BLOCK.getOptional(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).map(Function.identity())
 	);
+
 	private static final float EXPLOSION_POWER = 1.2F;
-	private static final float MAX_RENDER_DISTANCE_WHEN_NEWLY_SPAWNED = MathHelper.square(3.5F);
-	private int deflectCooldown = 5;
+	private static final float MAX_RENDER_DISTANCE_SQUARED_NEW = MathHelper.square(3.5F);
+
+	/** Количество тиков после спавна, в течение которых снаряд нельзя отразить. */
+	private static final int DEFLECT_COOLDOWN_TICKS = 5;
+
+	private int deflectCooldown = DEFLECT_COOLDOWN_TICKS;
 
 	public WindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
 		super(entityType, world);
@@ -50,8 +60,8 @@ public class WindChargeEntity extends AbstractWindChargeEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.deflectCooldown > 0) {
-			this.deflectCooldown--;
+		if (deflectCooldown > 0) {
+			deflectCooldown--;
 		}
 	}
 
@@ -62,31 +72,35 @@ public class WindChargeEntity extends AbstractWindChargeEntity {
 			@Nullable LazyEntityReference<Entity> lazyEntityReference,
 			boolean fromAttack
 	) {
-		return this.deflectCooldown > 0 ? false : super.deflect(deflection, deflector, lazyEntityReference, fromAttack);
+		return deflectCooldown > 0
+				? false
+				: super.deflect(deflection, deflector, lazyEntityReference, fromAttack);
 	}
 
 	@Override
 	protected void createExplosion(Vec3d pos) {
-		this.getEntityWorld()
-		    .createExplosion(
-				    this,
-				    null,
-				    EXPLOSION_BEHAVIOR,
-				    pos.getX(),
-				    pos.getY(),
-				    pos.getZ(),
-				    1.2F,
-				    false,
-				    World.ExplosionSourceType.TRIGGER,
-				    ParticleTypes.GUST_EMITTER_SMALL,
-				    ParticleTypes.GUST_EMITTER_LARGE,
-				    Pool.empty(),
-				    SoundEvents.ENTITY_WIND_CHARGE_WIND_BURST
-		    );
+		getEntityWorld()
+				.createExplosion(
+						this,
+						null,
+						EXPLOSION_BEHAVIOR,
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						EXPLOSION_POWER,
+						false,
+						World.ExplosionSourceType.TRIGGER,
+						ParticleTypes.GUST_EMITTER_SMALL,
+						ParticleTypes.GUST_EMITTER_LARGE,
+						Pool.empty(),
+						SoundEvents.ENTITY_WIND_CHARGE_WIND_BURST
+				);
 	}
 
 	@Override
 	public boolean shouldRender(double distance) {
-		return this.age < 2 && distance < MAX_RENDER_DISTANCE_WHEN_NEWLY_SPAWNED ? false : super.shouldRender(distance);
+		return age < 2 && distance < MAX_RENDER_DISTANCE_SQUARED_NEW
+				? false
+				: super.shouldRender(distance);
 	}
 }

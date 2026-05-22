@@ -1,6 +1,15 @@
 package net.minecraft.util;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.Strictness;
 import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
@@ -12,7 +21,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.Nullable;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -22,86 +35,86 @@ import java.util.List;
 import java.util.Map.Entry;
 
 /**
- * {@code JsonHelper}.
+ * Утилитарный класс для работы с JSON через Gson.
+ * Предоставляет типобезопасные методы чтения полей из {@link JsonObject} и {@link JsonElement},
+ * а также сериализацию/десериализацию с поддержкой строгого режима парсинга.
  */
 public class JsonHelper {
 
 	private static final Gson GSON = new GsonBuilder().create();
 
 	public static boolean hasString(JsonObject object, String element) {
-		return !hasPrimitive(object, element) ? false : object.getAsJsonPrimitive(element).isString();
+		return hasPrimitive(object, element) && object.getAsJsonPrimitive(element).isString();
 	}
 
 	public static boolean isString(JsonElement element) {
-		return !element.isJsonPrimitive() ? false : element.getAsJsonPrimitive().isString();
+		return element.isJsonPrimitive() && element.getAsJsonPrimitive().isString();
 	}
 
 	public static boolean hasNumber(JsonObject object, String element) {
-		return !hasPrimitive(object, element) ? false : object.getAsJsonPrimitive(element).isNumber();
+		return hasPrimitive(object, element) && object.getAsJsonPrimitive(element).isNumber();
 	}
 
 	public static boolean isNumber(JsonElement element) {
-		return !element.isJsonPrimitive() ? false : element.getAsJsonPrimitive().isNumber();
+		return element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber();
 	}
 
 	public static boolean hasBoolean(JsonObject object, String element) {
-		return !hasPrimitive(object, element) ? false : object.getAsJsonPrimitive(element).isBoolean();
+		return hasPrimitive(object, element) && object.getAsJsonPrimitive(element).isBoolean();
 	}
 
 	public static boolean isBoolean(JsonElement object) {
-		return !object.isJsonPrimitive() ? false : object.getAsJsonPrimitive().isBoolean();
+		return object.isJsonPrimitive() && object.getAsJsonPrimitive().isBoolean();
 	}
 
 	public static boolean hasArray(JsonObject object, String element) {
-		return !hasElement(object, element) ? false : object.get(element).isJsonArray();
+		return hasElement(object, element) && object.get(element).isJsonArray();
 	}
 
 	public static boolean hasJsonObject(JsonObject object, String element) {
-		return !hasElement(object, element) ? false : object.get(element).isJsonObject();
+		return hasElement(object, element) && object.get(element).isJsonObject();
 	}
 
 	public static boolean hasPrimitive(JsonObject object, String element) {
-		return !hasElement(object, element) ? false : object.get(element).isJsonPrimitive();
+		return hasElement(object, element) && object.get(element).isJsonPrimitive();
 	}
 
 	public static boolean hasElement(@Nullable JsonObject object, String element) {
-		return object == null ? false : object.get(element) != null;
-	}
-
-	public static JsonElement getElement(JsonObject object, String name) {
-		JsonElement jsonElement = object.get(name);
-		if (jsonElement != null && !jsonElement.isJsonNull()) {
-			return jsonElement;
-		}
-		else {
-			throw new JsonSyntaxException("Missing field " + name);
-		}
+		return object != null && object.get(element) != null;
 	}
 
 	/**
-	 * As string.
+	 * Возвращает элемент JSON по имени поля, выбрасывая исключение если поле отсутствует или null.
 	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return String — результат операции
+	 * @param object JSON-объект
+	 * @param name имя поля
+	 * @return найденный элемент
+	 * @throws JsonSyntaxException если поле отсутствует или имеет значение null
 	 */
+	public static JsonElement getElement(JsonObject object, String name) {
+		JsonElement jsonElement = object.get(name);
+
+		if (jsonElement != null && !jsonElement.isJsonNull()) {
+			return jsonElement;
+		}
+
+		throw new JsonSyntaxException("Missing field " + name);
+	}
+
 	public static String asString(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
 			return element.getAsString();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a string, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a string, was " + getType(element));
 	}
 
 	public static String getString(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asString(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a string");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a string");
 	}
 
 	@Contract("_,_,!null->!null;_,_,null->_")
@@ -109,404 +122,275 @@ public class JsonHelper {
 		return object.has(element) ? asString(object.get(element), element) : defaultStr;
 	}
 
-	/**
-	 * As item.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return RegistryEntry — результат операции
-	 */
 	public static RegistryEntry<Item> asItem(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
-			String string = element.getAsString();
+			String id = element.getAsString();
 			return Registries.ITEM
-					.getEntry(Identifier.of(string))
-					.orElseThrow(() -> new JsonSyntaxException(
-							"Expected " + name + " to be an item, was unknown string '" + string + "'"));
+				.getEntry(Identifier.of(id))
+				.orElseThrow(() -> new JsonSyntaxException(
+					"Expected " + name + " to be an item, was unknown string '" + id + "'"
+				));
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be an item, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be an item, was " + getType(element));
 	}
 
 	public static RegistryEntry<Item> getItem(JsonObject object, String key) {
 		if (object.has(key)) {
 			return asItem(object.get(key), key);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + key + ", expected to find an item");
-		}
+
+		throw new JsonSyntaxException("Missing " + key + ", expected to find an item");
 	}
 
 	@Contract("_,_,!null->!null;_,_,null->_")
 	public static @Nullable RegistryEntry<Item> getItem(
-			JsonObject object,
-			String key,
-			@Nullable RegistryEntry<Item> defaultValue
+		JsonObject object,
+		String key,
+		@Nullable RegistryEntry<Item> defaultValue
 	) {
 		return object.has(key) ? asItem(object.get(key), key) : defaultValue;
 	}
 
-	/**
-	 * As boolean.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean asBoolean(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
 			return element.getAsBoolean();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Boolean, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Boolean, was " + getType(element));
 	}
 
 	public static boolean getBoolean(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asBoolean(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Boolean");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Boolean");
 	}
 
 	public static boolean getBoolean(JsonObject object, String element, boolean defaultBoolean) {
 		return object.has(element) ? asBoolean(object.get(element), element) : defaultBoolean;
 	}
 
-	/**
-	 * As double.
-	 *
-	 * @param object object
-	 * @param name name
-	 *
-	 * @return double — результат операции
-	 */
 	public static double asDouble(JsonElement object, String name) {
 		if (object.isJsonPrimitive() && object.getAsJsonPrimitive().isNumber()) {
 			return object.getAsDouble();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Double, was " + getType(object));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Double, was " + getType(object));
 	}
 
 	public static double getDouble(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asDouble(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Double");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Double");
 	}
 
 	public static double getDouble(JsonObject object, String element, double defaultDouble) {
 		return object.has(element) ? asDouble(object.get(element), element) : defaultDouble;
 	}
 
-	/**
-	 * As float.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return float — результат операции
-	 */
 	public static float asFloat(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsFloat();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Float, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Float, was " + getType(element));
 	}
 
 	public static float getFloat(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asFloat(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Float");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Float");
 	}
 
 	public static float getFloat(JsonObject object, String element, float defaultFloat) {
 		return object.has(element) ? asFloat(object.get(element), element) : defaultFloat;
 	}
 
-	/**
-	 * As long.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return long — результат операции
-	 */
 	public static long asLong(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsLong();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Long, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Long, was " + getType(element));
 	}
 
 	public static long getLong(JsonObject object, String name) {
 		if (object.has(name)) {
 			return asLong(object.get(name), name);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + name + ", expected to find a Long");
-		}
+
+		throw new JsonSyntaxException("Missing " + name + ", expected to find a Long");
 	}
 
 	public static long getLong(JsonObject object, String element, long defaultLong) {
 		return object.has(element) ? asLong(object.get(element), element) : defaultLong;
 	}
 
-	/**
-	 * As int.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return int — результат операции
-	 */
 	public static int asInt(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsInt();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Int, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Int, was " + getType(element));
 	}
 
 	public static int getInt(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asInt(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Int");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Int");
 	}
 
 	public static int getInt(JsonObject object, String element, int defaultInt) {
 		return object.has(element) ? asInt(object.get(element), element) : defaultInt;
 	}
 
-	/**
-	 * As byte.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return byte — результат операции
-	 */
 	public static byte asByte(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsByte();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Byte, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Byte, was " + getType(element));
 	}
 
 	public static byte getByte(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asByte(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Byte");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Byte");
 	}
 
 	public static byte getByte(JsonObject object, String element, byte defaultByte) {
 		return object.has(element) ? asByte(object.get(element), element) : defaultByte;
 	}
 
-	/**
-	 * As char.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return char — результат операции
-	 */
 	public static char asChar(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsCharacter();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Character, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Character, was " + getType(element));
 	}
 
 	public static char getChar(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asChar(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Character");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Character");
 	}
 
 	public static char getChar(JsonObject object, String element, char defaultChar) {
 		return object.has(element) ? asChar(object.get(element), element) : defaultChar;
 	}
 
-	/**
-	 * As big decimal.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return BigDecimal — результат операции
-	 */
 	public static BigDecimal asBigDecimal(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsBigDecimal();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a BigDecimal, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a BigDecimal, was " + getType(element));
 	}
 
 	public static BigDecimal getBigDecimal(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asBigDecimal(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a BigDecimal");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a BigDecimal");
 	}
 
 	public static BigDecimal getBigDecimal(JsonObject object, String element, BigDecimal defaultBigDecimal) {
 		return object.has(element) ? asBigDecimal(object.get(element), element) : defaultBigDecimal;
 	}
 
-	/**
-	 * As big integer.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return BigInteger — результат операции
-	 */
 	public static BigInteger asBigInteger(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsBigInteger();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a BigInteger, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a BigInteger, was " + getType(element));
 	}
 
 	public static BigInteger getBigInteger(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asBigInteger(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a BigInteger");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a BigInteger");
 	}
 
 	public static BigInteger getBigInteger(JsonObject object, String element, BigInteger defaultBigInteger) {
 		return object.has(element) ? asBigInteger(object.get(element), element) : defaultBigInteger;
 	}
 
-	/**
-	 * As short.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return short — результат операции
-	 */
 	public static short asShort(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsShort();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a Short, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a Short, was " + getType(element));
 	}
 
 	public static short getShort(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asShort(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a Short");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a Short");
 	}
 
 	public static short getShort(JsonObject object, String element, short defaultShort) {
 		return object.has(element) ? asShort(object.get(element), element) : defaultShort;
 	}
 
-	/**
-	 * As object.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return JsonObject — результат операции
-	 */
 	public static JsonObject asObject(JsonElement element, String name) {
 		if (element.isJsonObject()) {
 			return element.getAsJsonObject();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a JsonObject, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a JsonObject, was " + getType(element));
 	}
 
 	public static JsonObject getObject(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asObject(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a JsonObject");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a JsonObject");
 	}
 
 	@Contract("_,_,!null->!null;_,_,null->_")
 	public static @Nullable JsonObject getObject(
-			JsonObject object,
-			String element,
-			@Nullable JsonObject defaultObject
+		JsonObject object,
+		String element,
+		@Nullable JsonObject defaultObject
 	) {
 		return object.has(element) ? asObject(object.get(element), element) : defaultObject;
 	}
 
-	/**
-	 * As array.
-	 *
-	 * @param element element
-	 * @param name name
-	 *
-	 * @return JsonArray — результат операции
-	 */
 	public static JsonArray asArray(JsonElement element, String name) {
 		if (element.isJsonArray()) {
 			return element.getAsJsonArray();
 		}
-		else {
-			throw new JsonSyntaxException("Expected " + name + " to be a JsonArray, was " + getType(element));
-		}
+
+		throw new JsonSyntaxException("Expected " + name + " to be a JsonArray, was " + getType(element));
 	}
 
 	public static JsonArray getArray(JsonObject object, String element) {
 		if (object.has(element)) {
 			return asArray(object.get(element), element);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element + ", expected to find a JsonArray");
-		}
+
+		throw new JsonSyntaxException("Missing " + element + ", expected to find a JsonArray");
 	}
 
 	@Contract("_,_,!null->!null;_,_,null->_")
@@ -515,215 +399,176 @@ public class JsonHelper {
 	}
 
 	public static <T> T deserialize(
-			@Nullable JsonElement element,
-			String name,
-			JsonDeserializationContext context,
-			Class<? extends T> type
+		@Nullable JsonElement element,
+		String name,
+		JsonDeserializationContext context,
+		Class<? extends T> type
 	) {
 		if (element != null) {
-			return (T) context.deserialize(element, type);
+			return context.deserialize(element, type);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + name);
-		}
+
+		throw new JsonSyntaxException("Missing " + name);
 	}
 
 	public static <T> T deserialize(
-			JsonObject object,
-			String element,
-			JsonDeserializationContext context,
-			Class<? extends T> type
+		JsonObject object,
+		String element,
+		JsonDeserializationContext context,
+		Class<? extends T> type
 	) {
 		if (object.has(element)) {
 			return deserialize(object.get(element), element, context, type);
 		}
-		else {
-			throw new JsonSyntaxException("Missing " + element);
-		}
+
+		throw new JsonSyntaxException("Missing " + element);
 	}
 
 	@Contract("_,_,!null,_,_->!null;_,_,null,_,_->_")
 	public static <T> @Nullable T deserialize(
-			JsonObject object,
-			String element,
-			@Nullable T defaultValue,
-			JsonDeserializationContext context,
-			Class<? extends T> type
+		JsonObject object,
+		String element,
+		@Nullable T defaultValue,
+		JsonDeserializationContext context,
+		Class<? extends T> type
 	) {
 		return object.has(element) ? deserialize(object.get(element), element, context, type) : defaultValue;
 	}
 
+	/**
+	 * Возвращает человекочитаемое описание типа JSON-элемента для сообщений об ошибках.
+	 *
+	 * @param element JSON-элемент (может быть null)
+	 * @return строковое описание типа элемента
+	 */
 	public static String getType(@Nullable JsonElement element) {
-		String string = StringUtils.abbreviateMiddle(String.valueOf(element), "...", 10);
+		String abbreviated = StringUtils.abbreviateMiddle(String.valueOf(element), "...", 10);
+
 		if (element == null) {
 			return "null (missing)";
 		}
-		else if (element.isJsonNull()) {
+
+		if (element.isJsonNull()) {
 			return "null (json)";
 		}
-		else if (element.isJsonArray()) {
-			return "an array (" + string + ")";
-		}
-		else if (element.isJsonObject()) {
-			return "an object (" + string + ")";
-		}
-		else {
-			if (element.isJsonPrimitive()) {
-				JsonPrimitive jsonPrimitive = element.getAsJsonPrimitive();
-				if (jsonPrimitive.isNumber()) {
-					return "a number (" + string + ")";
-				}
 
-				if (jsonPrimitive.isBoolean()) {
-					return "a boolean (" + string + ")";
-				}
+		if (element.isJsonArray()) {
+			return "an array (" + abbreviated + ")";
+		}
+
+		if (element.isJsonObject()) {
+			return "an object (" + abbreviated + ")";
+		}
+
+		if (element.isJsonPrimitive()) {
+			JsonPrimitive primitive = element.getAsJsonPrimitive();
+
+			if (primitive.isNumber()) {
+				return "a number (" + abbreviated + ")";
 			}
 
-			return string;
+			if (primitive.isBoolean()) {
+				return "a boolean (" + abbreviated + ")";
+			}
 		}
+
+		return abbreviated;
 	}
 
 	/**
-	 * Deserialize.
+	 * Десериализует JSON из потока в объект указанного типа.
+	 * Использует строгий режим парсинга ({@link Strictness#STRICT}).
 	 *
-	 * @param gson gson
-	 * @param reader reader
-	 * @param type type
-	 *
-	 * @return T — результат операции
+	 * @param gson экземпляр Gson
+	 * @param reader источник JSON
+	 * @param type целевой класс
+	 * @return десериализованный объект
+	 * @throws JsonParseException если данные пусты или содержат ошибки
 	 */
 	public static <T> T deserialize(Gson gson, Reader reader, Class<T> type) {
 		try {
 			JsonReader jsonReader = new JsonReader(reader);
 			jsonReader.setStrictness(Strictness.STRICT);
-			T object = (T) gson.getAdapter(type).read(jsonReader);
+			T object = gson.getAdapter(type).read(jsonReader);
+
 			if (object == null) {
 				throw new JsonParseException("JSON data was null or empty");
 			}
-			else {
-				return object;
-			}
-		}
-		catch (IOException var5) {
-			throw new JsonParseException(var5);
+
+			return object;
+		} catch (IOException exception) {
+			throw new JsonParseException(exception);
 		}
 	}
 
 	/**
-	 * Десериализует nullable.
+	 * Десериализует JSON из потока в объект по {@link TypeToken}, допуская null-результат.
 	 *
-	 * @param gson gson
-	 * @param reader reader
-	 * @param typeToken type token
-	 *
-	 * @return @Nullable T — результат операции
+	 * @param gson экземпляр Gson
+	 * @param reader источник JSON
+	 * @param typeToken токен типа для обобщённых типов
+	 * @return десериализованный объект или null
+	 * @throws JsonParseException если данные содержат ошибки
 	 */
 	public static <T> @Nullable T deserializeNullable(Gson gson, Reader reader, TypeToken<T> typeToken) {
 		try {
 			JsonReader jsonReader = new JsonReader(reader);
 			jsonReader.setStrictness(Strictness.STRICT);
-			return (T) gson.getAdapter(typeToken).read(jsonReader);
-		}
-		catch (IOException var4) {
-			throw new JsonParseException(var4);
+			return gson.getAdapter(typeToken).read(jsonReader);
+		} catch (IOException exception) {
+			throw new JsonParseException(exception);
 		}
 	}
 
 	/**
-	 * Deserialize.
+	 * Десериализует JSON из потока в объект по {@link TypeToken}, выбрасывая исключение при null.
 	 *
-	 * @param gson gson
-	 * @param reader reader
-	 * @param typeToken type token
-	 *
-	 * @return T — результат операции
+	 * @param gson экземпляр Gson
+	 * @param reader источник JSON
+	 * @param typeToken токен типа для обобщённых типов
+	 * @return десериализованный объект
+	 * @throws JsonParseException если данные пусты или содержат ошибки
 	 */
 	public static <T> T deserialize(Gson gson, Reader reader, TypeToken<T> typeToken) {
 		T object = deserializeNullable(gson, reader, typeToken);
+
 		if (object == null) {
 			throw new JsonParseException("JSON data was null or empty");
 		}
-		else {
-			return object;
-		}
+
+		return object;
 	}
 
-	/**
-	 * Deserialize.
-	 *
-	 * @param gson gson
-	 * @param content content
-	 * @param typeToken type token
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public static <T> @Nullable T deserialize(Gson gson, String content, TypeToken<T> typeToken) {
 		return deserializeNullable(gson, new StringReader(content), typeToken);
 	}
 
-	/**
-	 * Deserialize.
-	 *
-	 * @param gson gson
-	 * @param content content
-	 * @param type type
-	 *
-	 * @return T — результат операции
-	 */
 	public static <T> T deserialize(Gson gson, String content, Class<T> type) {
 		return deserialize(gson, new StringReader(content), type);
 	}
 
-	/**
-	 * Deserialize.
-	 *
-	 * @param content content
-	 *
-	 * @return JsonObject — результат операции
-	 */
 	public static JsonObject deserialize(String content) {
 		return deserialize(new StringReader(content));
 	}
 
-	/**
-	 * Deserialize.
-	 *
-	 * @param reader reader
-	 *
-	 * @return JsonObject — результат операции
-	 */
 	public static JsonObject deserialize(Reader reader) {
 		return deserialize(GSON, reader, JsonObject.class);
 	}
 
-	/**
-	 * Десериализует array.
-	 *
-	 * @param content content
-	 *
-	 * @return JsonArray — результат операции
-	 */
 	public static JsonArray deserializeArray(String content) {
 		return deserializeArray(new StringReader(content));
 	}
 
-	/**
-	 * Десериализует array.
-	 *
-	 * @param reader reader
-	 *
-	 * @return JsonArray — результат операции
-	 */
 	public static JsonArray deserializeArray(Reader reader) {
 		return deserialize(GSON, reader, JsonArray.class);
 	}
 
 	/**
-	 * To sorted string.
+	 * Сериализует JSON-элемент в строку с ключами, отсортированными в натуральном порядке.
+	 * Используется для детерминированного сравнения JSON-структур.
 	 *
-	 * @param json json
-	 *
-	 * @return String — результат операции
+	 * @param json JSON-элемент для сериализации
+	 * @return строковое представление с отсортированными ключами
 	 */
 	public static String toSortedString(JsonElement json) {
 		StringWriter stringWriter = new StringWriter();
@@ -731,91 +576,109 @@ public class JsonHelper {
 
 		try {
 			writeSorted(jsonWriter, json, Comparator.naturalOrder());
-		}
-		catch (IOException var4) {
-			throw new AssertionError(var4);
+		} catch (IOException exception) {
+			throw new AssertionError(exception);
 		}
 
 		return stringWriter.toString();
 	}
 
+	/**
+	 * Рекурсивно записывает JSON-элемент в {@link JsonWriter} с опциональной сортировкой ключей объектов.
+	 *
+	 * @param writer целевой JSON-writer
+	 * @param json элемент для записи (null допустим)
+	 * @param comparator компаратор для сортировки ключей объектов, или null для сохранения порядка
+	 * @throws IOException при ошибке записи
+	 */
 	public static void writeSorted(
-			JsonWriter writer,
-			@Nullable JsonElement json,
-			@Nullable Comparator<String> comparator
+		JsonWriter writer,
+		@Nullable JsonElement json,
+		@Nullable Comparator<String> comparator
 	) throws IOException {
 		if (json == null || json.isJsonNull()) {
 			writer.nullValue();
+			return;
 		}
-		else if (json.isJsonPrimitive()) {
-			JsonPrimitive jsonPrimitive = json.getAsJsonPrimitive();
-			if (jsonPrimitive.isNumber()) {
-				writer.value(jsonPrimitive.getAsNumber());
+
+		if (json.isJsonPrimitive()) {
+			JsonPrimitive primitive = json.getAsJsonPrimitive();
+
+			if (primitive.isNumber()) {
+				writer.value(primitive.getAsNumber());
+			} else if (primitive.isBoolean()) {
+				writer.value(primitive.getAsBoolean());
+			} else {
+				writer.value(primitive.getAsString());
 			}
-			else if (jsonPrimitive.isBoolean()) {
-				writer.value(jsonPrimitive.getAsBoolean());
-			}
-			else {
-				writer.value(jsonPrimitive.getAsString());
-			}
+
+			return;
 		}
-		else if (json.isJsonArray()) {
+
+		if (json.isJsonArray()) {
 			writer.beginArray();
 
-			for (JsonElement jsonElement : json.getAsJsonArray()) {
-				writeSorted(writer, jsonElement, comparator);
+			for (JsonElement element : json.getAsJsonArray()) {
+				writeSorted(writer, element, comparator);
 			}
 
 			writer.endArray();
+			return;
 		}
-		else {
-			if (!json.isJsonObject()) {
-				throw new IllegalArgumentException("Couldn't write " + json.getClass());
-			}
 
-			writer.beginObject();
-
-			for (Entry<String, JsonElement> entry : sort(json.getAsJsonObject().entrySet(), comparator)) {
-				writer.name(entry.getKey());
-				writeSorted(writer, entry.getValue(), comparator);
-			}
-
-			writer.endObject();
+		if (!json.isJsonObject()) {
+			throw new IllegalArgumentException("Couldn't write " + json.getClass());
 		}
+
+		writer.beginObject();
+
+		for (Entry<String, JsonElement> entry : sort(json.getAsJsonObject().entrySet(), comparator)) {
+			writer.name(entry.getKey());
+			writeSorted(writer, entry.getValue(), comparator);
+		}
+
+		writer.endObject();
 	}
 
 	private static Collection<Entry<String, JsonElement>> sort(
-			Collection<Entry<String, JsonElement>> entries,
-			@Nullable Comparator<String> comparator
+		Collection<Entry<String, JsonElement>> entries,
+		@Nullable Comparator<String> comparator
 	) {
 		if (comparator == null) {
 			return entries;
 		}
-		else {
-			List<Entry<String, JsonElement>> list = new ArrayList<>(entries);
-			list.sort(Entry.comparingByKey(comparator));
-			return list;
-		}
+
+		List<Entry<String, JsonElement>> sorted = new ArrayList<>(entries);
+		sorted.sort(Entry.comparingByKey(comparator));
+		return sorted;
 	}
 
+	/**
+	 * Проверяет, превышает ли сериализованный JSON-элемент заданный лимит символов.
+	 * Использует счётчик символов без реальной записи в буфер.
+	 *
+	 * @param json проверяемый элемент
+	 * @param maxLength максимально допустимое количество символов
+	 * @return {@code true} если элемент превышает лимит
+	 */
 	public static boolean isTooLarge(JsonElement json, int maxLength) {
 		try {
 			Streams.write(
-					json,
-					new JsonWriter(Streams.writerForAppendable(new JsonHelper.CharacterCounter(maxLength)))
+				json,
+				new JsonWriter(Streams.writerForAppendable(new CharacterCounter(maxLength)))
 			);
 			return false;
-		}
-		catch (IllegalStateException var3) {
+		} catch (IllegalStateException exception) {
 			return true;
-		}
-		catch (IOException var4) {
-			throw new UncheckedIOException(var4);
+		} catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 	}
 
 	/**
-	 * {@code CharacterCounter}.
+	 * Счётчик символов, реализующий {@link Appendable}.
+	 * Выбрасывает {@link IllegalStateException} при превышении лимита,
+	 * что позволяет прервать сериализацию без реальной записи данных.
 	 */
 	static class CharacterCounter implements Appendable {
 
@@ -827,28 +690,28 @@ public class JsonHelper {
 		}
 
 		private Appendable addCharacters(int count) {
-			this.length += count;
-			if (this.length > this.maxLength) {
-				throw new IllegalStateException("Character count over limit: " + this.length + " > " + this.maxLength);
+			length += count;
+
+			if (length > maxLength) {
+				throw new IllegalStateException("Character count over limit: " + length + " > " + maxLength);
 			}
-			else {
-				return this;
-			}
+
+			return this;
 		}
 
 		@Override
 		public Appendable append(CharSequence charSequence) {
-			return this.addCharacters(charSequence.length());
+			return addCharacters(charSequence.length());
 		}
 
 		@Override
 		public Appendable append(CharSequence charSequence, int from, int to) {
-			return this.addCharacters(to - from);
+			return addCharacters(to - from);
 		}
 
 		@Override
 		public Appendable append(char c) {
-			return this.addCharacters(1);
+			return addCharacters(1);
 		}
 	}
 }

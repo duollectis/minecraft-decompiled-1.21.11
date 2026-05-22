@@ -7,10 +7,13 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GustEmitterParticle}.
+ * Невидимый эмиттер порывов ветра: каждые {@code interval+1} тиков порождает
+ * три дочерних частицы {@link ParticleTypes#GUST} в случайных точках вокруг
+ * своего центра. Используется для создания визуального эффекта порыва ветра
+ * от атаки Breeze-моба.
  */
+@Environment(EnvType.CLIENT)
 public class GustEmitterParticle extends NoRenderParticle {
 
 	private final double deviation;
@@ -26,11 +29,11 @@ public class GustEmitterParticle extends NoRenderParticle {
 	@Override
 	public void tick() {
 		if (this.age % (this.interval + 1) == 0) {
-			for (int i = 0; i < 3; i++) {
-				double d = this.x + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
-				double e = this.y + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
-				double f = this.z + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
-				this.world.addParticleClient(ParticleTypes.GUST, d, e, f, (float) this.age / this.maxAge, 0.0, 0.0);
+			for (int spawnIndex = 0; spawnIndex < 3; spawnIndex++) {
+				double spawnX = this.x + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
+				double spawnY = this.y + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
+				double spawnZ = this.z + (this.random.nextDouble() - this.random.nextDouble()) * this.deviation;
+				this.world.addParticleClient(ParticleTypes.GUST, spawnX, spawnY, spawnZ, (float) this.age / this.maxAge, 0.0, 0.0);
 			}
 		}
 
@@ -39,10 +42,11 @@ public class GustEmitterParticle extends NoRenderParticle {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания {@link GustEmitterParticle} с настраиваемыми параметрами
+	 * разброса, времени жизни и интервала спавна дочерних частиц.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final double deviation;
@@ -55,18 +59,19 @@ public class GustEmitterParticle extends NoRenderParticle {
 			this.interval = interval;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new GustEmitterParticle(clientWorld, d, e, f, this.deviation, this.maxAge, this.interval);
+			return new GustEmitterParticle(world, x, y, z, this.deviation, this.maxAge, this.interval);
 		}
 	}
 }

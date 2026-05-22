@@ -12,7 +12,8 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.Function;
 
 /**
- * {@code ArrowPickupFix}.
+ * Мигрирует устаревшее булево поле {@code player} стрел и трезубца в числовое поле {@code pickup}.
+ * Значение 1 означает «может подобрать игрок», 0 — нельзя подобрать.
  */
 public class ArrowPickupFix extends DataFix {
 
@@ -20,38 +21,38 @@ public class ArrowPickupFix extends DataFix {
 		super(outputSchema, false);
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		Schema schema = this.getInputSchema();
-		return this.fixTypeEverywhereTyped(
-				"AbstractArrowPickupFix",
-				schema.getType(TypeReferences.ENTITY),
-				this::update
+		return fixTypeEverywhereTyped(
+			"AbstractArrowPickupFix",
+			getInputSchema().getType(TypeReferences.ENTITY),
+			this::update
 		);
 	}
 
 	private Typed<?> update(Typed<?> typed) {
-		typed = this.updateEntity(typed, "minecraft:arrow", ArrowPickupFix::update);
-		typed = this.updateEntity(typed, "minecraft:spectral_arrow", ArrowPickupFix::update);
-		return this.updateEntity(typed, "minecraft:trident", ArrowPickupFix::update);
+		typed = updateEntity(typed, "minecraft:arrow", ArrowPickupFix::fixPickup);
+		typed = updateEntity(typed, "minecraft:spectral_arrow", ArrowPickupFix::fixPickup);
+		return updateEntity(typed, "minecraft:trident", ArrowPickupFix::fixPickup);
 	}
 
-	private static Dynamic<?> update(Dynamic<?> arrowData) {
+	private static Dynamic<?> fixPickup(Dynamic<?> arrowData) {
 		if (arrowData.get("pickup").result().isPresent()) {
 			return arrowData;
 		}
-		else {
-			boolean bl = arrowData.get("player").asBoolean(true);
-			return arrowData.set("pickup", arrowData.createByte((byte) (bl ? 1 : 0))).remove("player");
-		}
+
+		boolean canPickup = arrowData.get("player").asBoolean(true);
+		return arrowData.set("pickup", arrowData.createByte((byte) (canPickup ? 1 : 0))).remove("player");
 	}
 
 	private Typed<?> updateEntity(Typed<?> typed, String choiceName, Function<Dynamic<?>, Dynamic<?>> updater) {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, choiceName);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.ENTITY, choiceName);
+		Type<?> inputType = getInputSchema().getChoiceType(TypeReferences.ENTITY, choiceName);
+		Type<?> outputType = getOutputSchema().getChoiceType(TypeReferences.ENTITY, choiceName);
+
 		return typed.updateTyped(
-				DSL.namedChoice(choiceName, type),
-				type2,
-				t -> t.update(DSL.remainderFinder(), updater)
+			DSL.namedChoice(choiceName, inputType),
+			outputType,
+			inner -> inner.update(DSL.remainderFinder(), updater)
 		);
 	}
 }

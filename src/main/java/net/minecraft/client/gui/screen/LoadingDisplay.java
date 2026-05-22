@@ -3,24 +3,18 @@ package net.minecraft.client.gui.screen;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LoadingDisplay}.
+ * Утилитарный класс для анимированного индикатора загрузки.
+ * Циклически переключает кадры анимации с интервалом {@value #INTERVAL} мс.
  */
+@Environment(EnvType.CLIENT)
 public class LoadingDisplay {
 
 	private static final String[] TEXTS = new String[]{"O o o", "o O o", "o o O", "o O o"};
 	private static final long INTERVAL = 300L;
 
-	/**
-	 * Get.
-	 *
-	 * @param tick tick
-	 *
-	 * @return String — 
-	 */
 	public static String get(long tick) {
-		int i = (int) (tick / 300L % TEXTS.length);
-		return TEXTS[i];
+		int frameIndex = (int) (tick / INTERVAL % TEXTS.length);
+		return TEXTS[frameIndex];
 	}
 }

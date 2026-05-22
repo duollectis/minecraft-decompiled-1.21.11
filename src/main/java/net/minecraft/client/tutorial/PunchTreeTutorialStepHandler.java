@@ -57,7 +57,7 @@ public class PunchTreeTutorialStepHandler implements TutorialStepHandler {
 				}
 			}
 
-			if ((this.ticks >= 600 || this.punches > 3) && this.toast == null) {
+			if ((this.ticks >= DELAY || this.punches > 3) && this.toast == null) {
 				this.toast =
 						new TutorialToast(
 								minecraftClient.textRenderer,

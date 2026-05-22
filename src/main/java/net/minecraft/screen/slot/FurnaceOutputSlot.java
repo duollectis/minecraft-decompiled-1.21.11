@@ -7,7 +7,10 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
- * {@code FurnaceOutputSlot}.
+ * Выходной слот печи.
+ * <p>
+ * Запрещает вставку предметов вручную. При взятии предмета начисляет опыт
+ * за использованные рецепты и вызывает колбэк крафта для статистики.
  */
 public class FurnaceOutputSlot extends Slot {
 
@@ -26,8 +29,8 @@ public class FurnaceOutputSlot extends Slot {
 
 	@Override
 	public ItemStack takeStack(int amount) {
-		if (this.hasStack()) {
-			this.amount = this.amount + Math.min(amount, this.getStack().getCount());
+		if (hasStack()) {
+			this.amount += Math.min(amount, getStack().getCount());
 		}
 
 		return super.takeStack(amount);
@@ -35,24 +38,25 @@ public class FurnaceOutputSlot extends Slot {
 
 	@Override
 	public void onTakeItem(PlayerEntity player, ItemStack stack) {
-		this.onCrafted(stack);
+		onCrafted(stack);
 		super.onTakeItem(player, stack);
 	}
 
 	@Override
 	protected void onCrafted(ItemStack stack, int amount) {
 		this.amount += amount;
-		this.onCrafted(stack);
+		onCrafted(stack);
 	}
 
 	@Override
 	protected void onCrafted(ItemStack stack) {
-		stack.onCraftByPlayer(this.player, this.amount);
-		if (this.player instanceof ServerPlayerEntity serverPlayerEntity
-				&& this.inventory instanceof AbstractFurnaceBlockEntity abstractFurnaceBlockEntity) {
-			abstractFurnaceBlockEntity.dropExperienceForRecipesUsed(serverPlayerEntity);
+		stack.onCraftByPlayer(player, amount);
+
+		if (player instanceof ServerPlayerEntity serverPlayer
+				&& inventory instanceof AbstractFurnaceBlockEntity furnace) {
+			furnace.dropExperienceForRecipesUsed(serverPlayer);
 		}
 
-		this.amount = 0;
+		amount = 0;
 	}
 }

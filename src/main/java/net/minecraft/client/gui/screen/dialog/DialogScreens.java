@@ -10,10 +10,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogScreens}.
+ * Реестр фабрик диалоговых экранов. Сопоставляет кодек типа диалога с фабрикой экрана.
  */
+@Environment(EnvType.CLIENT)
 public class DialogScreens {
 
 	private static final Map<MapCodec<? extends Dialog>, DialogScreens.Factory<?>>
@@ -44,11 +44,11 @@ public class DialogScreens {
 		register(ServerLinksDialog.CODEC, ServerLinksDialogScreen::new);
 	}
 
+	/**
+	 * Фабрика диалогового экрана для конкретного типа диалога.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public interface Factory<T extends Dialog> {
 
 		DialogScreen<T> create(@Nullable Screen parent, T dialog, DialogNetworkAccess networkAccess);

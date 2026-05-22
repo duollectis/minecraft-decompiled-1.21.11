@@ -13,7 +13,7 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.text.Text;
 
 /**
- * {@code RideCommand}.
+ * Команда {@code /ride}: управление верховой ездой сущностей.
  */
 public class RideCommand {
 

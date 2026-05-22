@@ -44,7 +44,9 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
- * {@code TestInstanceBlockEntity}.
+ * Блок-сущность тестового экземпляра ({@code test_instance_block}).
+ * Управляет жизненным циклом одного игрового теста: хранит привязанный тест, его статус,
+ * размер структуры, вращение и список ошибок. Отображает цветной луч в зависимости от результата.
  */
 public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter, StructureBoxRendering {
 
@@ -68,19 +70,19 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 
 	public TestInstanceBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.TEST_INSTANCE_BLOCK, pos, state);
-		this.data = new TestInstanceBlockEntity.Data(
+		data = new Data(
 				Optional.empty(),
 				Vec3i.ZERO,
 				BlockRotation.NONE,
 				false,
-				TestInstanceBlockEntity.Status.CLEARED,
+				Status.CLEARED,
 				Optional.empty()
 		);
 	}
 
-	public void setData(TestInstanceBlockEntity.Data data) {
+	public void setData(Data data) {
 		this.data = data;
-		this.markDirty();
+		markDirty();
 	}
 
 	public static Optional<Vec3i> getStructureSize(ServerWorld world, RegistryKey<TestInstance> testInstance) {
@@ -108,93 +110,84 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 	}
 
 	public Optional<RegistryKey<TestInstance>> getTestKey() {
-		return this.data.test();
+		return data.test();
 	}
 
 	public Text getTestName() {
-		return this.getTestKey()
-		           .<Text>map(key -> Text.literal(key.getValue().toString()))
-		           .orElse(INVALID_TEST_TEXT);
+		return getTestKey()
+				.<Text>map(key -> Text.literal(key.getValue().toString()))
+				.orElse(INVALID_TEST_TEXT);
 	}
 
 	private Optional<RegistryEntry.Reference<TestInstance>> getTestEntry() {
-		return this.getTestKey().flatMap(this.world.getRegistryManager()::getOptionalEntry);
+		return getTestKey().flatMap(world.getRegistryManager()::getOptionalEntry);
 	}
 
-	/**
-	 * Определяет, следует ли ignore entities.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldIgnoreEntities() {
-		return this.data.ignoreEntities();
+		return data.ignoreEntities();
 	}
 
 	public Vec3i getSize() {
-		return this.data.size();
+		return data.size();
 	}
 
 	public BlockRotation getRotation() {
-		return this
-				.getTestEntry()
+		return getTestEntry()
 				.map(RegistryEntry::value)
 				.map(TestInstance::getRotation)
 				.orElse(BlockRotation.NONE)
-				.rotate(this.data.rotation());
+				.rotate(data.rotation());
 	}
 
 	public Optional<Text> getErrorMessage() {
-		return this.data.errorMessage();
+		return data.errorMessage();
 	}
 
 	public void setErrorMessage(Text errorMessage) {
-		this.setData(this.data.withErrorMessage(errorMessage));
+		setData(data.withErrorMessage(errorMessage));
 	}
 
 	public void setFinished() {
-		this.setData(this.data.withStatus(TestInstanceBlockEntity.Status.FINISHED));
+		setData(data.withStatus(Status.FINISHED));
 	}
 
 	public void setRunning() {
-		this.setData(this.data.withStatus(TestInstanceBlockEntity.Status.RUNNING));
+		setData(data.withStatus(Status.RUNNING));
 	}
 
 	@Override
 	public void markDirty() {
 		super.markDirty();
-		if (this.world instanceof ServerWorld) {
-			this.world.updateListeners(this.getPos(), Blocks.AIR.getDefaultState(), this.getCachedState(), 3);
+		if (world instanceof ServerWorld) {
+			world.updateListeners(getPos(), Blocks.AIR.getDefaultState(), getCachedState(), 3);
 		}
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
-		view.<TestInstanceBlockEntity.Data>read("data", TestInstanceBlockEntity.Data.CODEC).ifPresent(this::setData);
-		this.errors.clear();
-		this.errors.addAll(view
-				.<List<TestInstanceBlockEntity.Error>>read("errors", TestInstanceBlockEntity.Error.LIST_CODEC)
-				.orElse(List.of()));
+		view.<Data>read("data", Data.CODEC).ifPresent(this::setData);
+		errors.clear();
+		errors.addAll(
+				view.<List<Error>>read("errors", Error.LIST_CODEC)
+						.orElse(List.of())
+		);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
-		view.put("data", TestInstanceBlockEntity.Data.CODEC, this.data);
-		if (!this.errors.isEmpty()) {
-			view.put("errors", TestInstanceBlockEntity.Error.LIST_CODEC, this.errors);
+		view.put("data", Data.CODEC, data);
+		if (!errors.isEmpty()) {
+			view.put("errors", Error.LIST_CODEC, errors);
 		}
 	}
 
@@ -204,7 +197,7 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 	}
 
 	public BlockPos getStructurePos() {
-		return getStructurePos(this.getPos());
+		return getStructurePos(getPos());
 	}
 
 	public static BlockPos getStructurePos(BlockPos pos) {
@@ -213,480 +206,387 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 
 	@Override
 	public StructureBoxRendering.StructureBox getStructureBox() {
-		return new StructureBoxRendering.StructureBox(new BlockPos(STRUCTURE_OFFSET), this.getTransformedSize());
+		return new StructureBoxRendering.StructureBox(new BlockPos(STRUCTURE_OFFSET), getTransformedSize());
 	}
 
 	@Override
 	public List<BeamEmitter.BeamSegment> getBeamSegments() {
-		return switch (this.data.status()) {
+		return switch (data.status()) {
 			case CLEARED -> CLEARED_BEAM_SEGMENTS;
 			case RUNNING -> RUNNING_BEAM_SEGMENTS;
-			case FINISHED -> this.getErrorMessage().isEmpty()
-			                 ? SUCCESS_BEAM_SEGMENTS
-			                 : (
-					                 this
-							                 .getTestEntry()
-							                 .map(RegistryEntry::value)
-							                 .map(TestInstance::isRequired)
-							                 .orElse(true)
-					                 ? REQUIRED_FAIL_BEAM_SEGMENTS
-					                 : OPTIONAL_FAIL_BEAM_SEGMENTS
-			                 );
+			case FINISHED -> getErrorMessage().isEmpty()
+					? SUCCESS_BEAM_SEGMENTS
+					: (
+							getTestEntry()
+									.map(RegistryEntry::value)
+									.map(TestInstance::isRequired)
+									.orElse(true)
+							? REQUIRED_FAIL_BEAM_SEGMENTS
+							: OPTIONAL_FAIL_BEAM_SEGMENTS
+					);
 		};
 	}
 
 	private Vec3i getTransformedSize() {
-		Vec3i vec3i = this.getSize();
-		BlockRotation blockRotation = this.getRotation();
-		boolean bl = blockRotation == BlockRotation.CLOCKWISE_90 || blockRotation == BlockRotation.COUNTERCLOCKWISE_90;
-		int i = bl ? vec3i.getZ() : vec3i.getX();
-		int j = bl ? vec3i.getX() : vec3i.getZ();
-		return new Vec3i(i, vec3i.getY(), j);
+		Vec3i size = getSize();
+		BlockRotation rotation = getRotation();
+		boolean isRotated90 = rotation == BlockRotation.CLOCKWISE_90
+				|| rotation == BlockRotation.COUNTERCLOCKWISE_90;
+
+		int sizeX = isRotated90 ? size.getZ() : size.getX();
+		int sizeZ = isRotated90 ? size.getX() : size.getZ();
+
+		return new Vec3i(sizeX, size.getY(), sizeZ);
 	}
 
-	/**
-	 * Reset.
-	 *
-	 * @param messageConsumer message consumer
-	 */
 	public void reset(Consumer<Text> messageConsumer) {
-		this.clearBarriers();
-		this.clearErrors();
-		boolean bl = this.placeStructure();
-		if (bl) {
-			messageConsumer.accept(Text
-					.translatable("test_instance_block.reset_success", this.getTestName())
-					.formatted(Formatting.GREEN));
+		clearBarriers();
+		clearErrors();
+		boolean placed = placeStructure();
+
+		if (placed) {
+			messageConsumer.accept(
+					Text.translatable("test_instance_block.reset_success", getTestName())
+							.formatted(Formatting.GREEN)
+			);
 		}
 
-		this.setData(this.data.withStatus(TestInstanceBlockEntity.Status.CLEARED));
+		setData(data.withStatus(Status.CLEARED));
 	}
 
 	/**
-	 * Сохраняет structure.
-	 *
-	 * @param messageConsumer message consumer
-	 *
-	 * @return Optional — результат операции
+	 * Определяет идентификатор структуры для сохранения: берёт из зарегистрированного теста
+	 * или из ключа теста напрямую, если тест ещё не зарегистрирован.
 	 */
 	public Optional<Identifier> saveStructure(Consumer<Text> messageConsumer) {
-		Optional<RegistryEntry.Reference<TestInstance>> optional = this.getTestEntry();
-		Optional<Identifier> optional2;
-		if (optional.isPresent()) {
-			optional2 = Optional.of(optional.get().value().getStructure());
-		}
-		else {
-			optional2 = this.getTestKey().map(RegistryKey::getValue);
-		}
+		Optional<RegistryEntry.Reference<TestInstance>> testEntry = getTestEntry();
+		Optional<Identifier> structureId = testEntry.isPresent()
+				? Optional.of(testEntry.get().value().getStructure())
+				: getTestKey().map(RegistryKey::getValue);
 
-		if (optional2.isEmpty()) {
-			BlockPos blockPos = this.getPos();
+		if (structureId.isEmpty()) {
+			BlockPos blockPos = getPos();
 			messageConsumer.accept(
-					Text
-							.translatable(
-									"test_instance_block.error.unable_to_save",
-									blockPos.getX(),
-									blockPos.getY(),
-									blockPos.getZ()
-							)
-							.formatted(Formatting.RED)
+					Text.translatable(
+							"test_instance_block.error.unable_to_save",
+							blockPos.getX(),
+							blockPos.getY(),
+							blockPos.getZ()
+					).formatted(Formatting.RED)
 			);
-			return optional2;
+			return structureId;
 		}
-		else {
-			if (this.world instanceof ServerWorld serverWorld) {
-				StructureBlockBlockEntity.saveStructure(
-						serverWorld,
-						optional2.get(),
-						this.getStructurePos(),
-						this.getSize(),
-						this.shouldIgnoreEntities(),
-						"",
-						true,
-						List.of(Blocks.AIR)
-				);
-			}
 
-			return optional2;
+		if (world instanceof ServerWorld serverWorld) {
+			StructureBlockBlockEntity.saveStructure(
+					serverWorld,
+					structureId.get(),
+					getStructurePos(),
+					getSize(),
+					shouldIgnoreEntities(),
+					"",
+					true,
+					List.of(Blocks.AIR)
+			);
 		}
+
+		return structureId;
 	}
 
-	/**
-	 * Export.
-	 *
-	 * @param messageConsumer message consumer
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean export(Consumer<Text> messageConsumer) {
-		Optional<Identifier> optional = this.saveStructure(messageConsumer);
-		return !optional.isEmpty() && this.world instanceof ServerWorld serverWorld ? exportData(
-				serverWorld,
-				optional.get(),
-				messageConsumer
-		) : false;
+		Optional<Identifier> structureId = saveStructure(messageConsumer);
+		return structureId.isPresent() && world instanceof ServerWorld serverWorld
+				? exportData(serverWorld, structureId.get(), messageConsumer)
+				: false;
 	}
 
-	/**
-	 * Export data.
-	 *
-	 * @param world world
-	 * @param structureId structure id
-	 * @param messageConsumer message consumer
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean exportData(ServerWorld world, Identifier structureId, Consumer<Text> messageConsumer) {
-		Path path = TestInstanceUtil.testStructuresDirectoryName;
-		Path path2 = world.getStructureTemplateManager().getTemplatePath(structureId, ".nbt");
-		Path path3 = NbtProvider.convertNbtToSnbt(
+		Path structuresDir = TestInstanceUtil.testStructuresDirectoryName;
+		Path nbtPath = world.getStructureTemplateManager().getTemplatePath(structureId, ".nbt");
+		Path snbtPath = NbtProvider.convertNbtToSnbt(
 				DataWriter.UNCACHED,
-				path2,
+				nbtPath,
 				structureId.getPath(),
-				path.resolve(structureId.getNamespace()).resolve("structure")
+				structuresDir.resolve(structureId.getNamespace()).resolve("structure")
 		);
-		if (path3 == null) {
-			messageConsumer.accept(Text.literal("Failed to export " + path2).formatted(Formatting.RED));
+
+		if (snbtPath == null) {
+			messageConsumer.accept(Text.literal("Failed to export " + nbtPath).formatted(Formatting.RED));
 			return true;
 		}
-		else {
-			try {
-				PathUtil.createDirectories(path3.getParent());
-			}
-			catch (IOException var7) {
-				messageConsumer.accept(Text
-						.literal("Could not create folder " + path3.getParent())
-						.formatted(Formatting.RED));
-				return true;
-			}
 
-			messageConsumer.accept(Text.literal("Exported " + structureId + " to " + path3.toAbsolutePath()));
-			return false;
-		}
-	}
-
-	/**
-	 * Start.
-	 *
-	 * @param messageConsumer message consumer
-	 */
-	public void start(Consumer<Text> messageConsumer) {
-		if (this.world instanceof ServerWorld serverWorld) {
-			Optional var7 = this.getTestEntry();
-			BlockPos blockPos = this.getPos();
-			if (var7.isEmpty()) {
-				messageConsumer.accept(
-						Text
-								.translatable(
-										"test_instance_block.error.no_test",
-										blockPos.getX(),
-										blockPos.getY(),
-										blockPos.getZ()
-								)
-								.formatted(Formatting.RED)
-				);
-			}
-			else if (!this.placeStructure()) {
-				messageConsumer.accept(
-						Text
-								.translatable(
-										"test_instance_block.error.no_test_structure",
-										blockPos.getX(),
-										blockPos.getY(),
-										blockPos.getZ()
-								)
-								.formatted(Formatting.RED)
-				);
-			}
-			else {
-				this.clearErrors();
-				TestManager.INSTANCE.clear();
-				RuntimeTestInstances.clear();
-				messageConsumer.accept(Text.translatable(
-						"test_instance_block.starting",
-						((RegistryEntry.Reference) var7.get()).getIdAsString()
-				));
-				GameTestState gameTestState = new GameTestState(
-						(RegistryEntry.Reference<TestInstance>) var7.get(),
-						this.data.rotation(),
-						serverWorld,
-						TestAttemptConfig.once()
-				);
-				gameTestState.setTestBlockPos(blockPos);
-				TestRunContext
-						testRunContext =
-						TestRunContext.Builder.ofStates(List.of(gameTestState), serverWorld).build();
-				TestCommand.start(serverWorld.getServer().getCommandSource(), testRunContext);
-			}
-		}
-	}
-
-	/**
-	 * Размещает structure.
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean placeStructure() {
-		if (this.world instanceof ServerWorld serverWorld) {
-			Optional<StructureTemplate>
-					optional =
-					this.data
-							.test()
-							.flatMap(template -> getStructureTemplate(
-									serverWorld,
-									(RegistryKey<TestInstance>) template
-							));
-			if (optional.isPresent()) {
-				this.placeStructure(serverWorld, optional.get());
-				return true;
-			}
+		try {
+			PathUtil.createDirectories(snbtPath.getParent());
+		} catch (IOException exception) {
+			messageConsumer.accept(
+					Text.literal("Could not create folder " + snbtPath.getParent())
+							.formatted(Formatting.RED)
+			);
+			return true;
 		}
 
+		messageConsumer.accept(Text.literal("Exported " + structureId + " to " + snbtPath.toAbsolutePath()));
 		return false;
 	}
 
+	public void start(Consumer<Text> messageConsumer) {
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		Optional<RegistryEntry.Reference<TestInstance>> testEntry = getTestEntry();
+		BlockPos blockPos = getPos();
+
+		if (testEntry.isEmpty()) {
+			messageConsumer.accept(
+					Text.translatable(
+							"test_instance_block.error.no_test",
+							blockPos.getX(),
+							blockPos.getY(),
+							blockPos.getZ()
+					).formatted(Formatting.RED)
+			);
+			return;
+		}
+
+		if (!placeStructure()) {
+			messageConsumer.accept(
+					Text.translatable(
+							"test_instance_block.error.no_test_structure",
+							blockPos.getX(),
+							blockPos.getY(),
+							blockPos.getZ()
+					).formatted(Formatting.RED)
+			);
+			return;
+		}
+
+		clearErrors();
+		TestManager.INSTANCE.clear();
+		RuntimeTestInstances.clear();
+
+		RegistryEntry.Reference<TestInstance> entry = testEntry.get();
+		messageConsumer.accept(Text.translatable("test_instance_block.starting", entry.getIdAsString()));
+
+		GameTestState gameTestState = new GameTestState(entry, data.rotation(), serverWorld, TestAttemptConfig.once());
+		gameTestState.setTestBlockPos(blockPos);
+
+		TestRunContext testRunContext = TestRunContext.Builder
+				.ofStates(List.of(gameTestState), serverWorld)
+				.build();
+		TestCommand.start(serverWorld.getServer().getCommandSource(), testRunContext);
+	}
+
+	public boolean placeStructure() {
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return false;
+		}
+
+		Optional<StructureTemplate> template = data
+				.test()
+				.flatMap(testKey -> getStructureTemplate(serverWorld, testKey));
+
+		if (template.isEmpty()) {
+			return false;
+		}
+
+		placeStructure(serverWorld, template.get());
+		return true;
+	}
+
 	private void placeStructure(ServerWorld world, StructureTemplate template) {
-		StructurePlacementData structurePlacementData = new StructurePlacementData()
-				.setRotation(this.getRotation())
-				.setIgnoreEntities(this.data.ignoreEntities())
+		StructurePlacementData placementData = new StructurePlacementData()
+				.setRotation(getRotation())
+				.setIgnoreEntities(data.ignoreEntities())
 				.setUpdateNeighbors(true);
-		BlockPos blockPos = this.getStartPos();
-		this.setChunksForced();
-		TestInstanceUtil.clearArea(this.getBlockBox(), world);
-		this.discardEntities();
-		template.place(world, blockPos, blockPos, structurePlacementData, world.getRandom(), 818);
+		BlockPos startPos = getStartPos();
+
+		setChunksForced();
+		TestInstanceUtil.clearArea(getBlockBox(), world);
+		discardEntities();
+		template.place(world, startPos, startPos, placementData, world.getRandom(), 818);
 	}
 
 	private void discardEntities() {
-		this.world
-				.getOtherEntities(null, this.getBox())
+		world.getOtherEntities(null, getBox())
 				.stream()
 				.filter(entity -> !(entity instanceof PlayerEntity))
 				.forEach(Entity::discard);
 	}
 
 	private void setChunksForced() {
-		if (this.world instanceof ServerWorld serverWorld) {
-			this.getBlockBox().streamChunkPos().forEach(pos -> serverWorld.setChunkForced(pos.x, pos.z, true));
+		if (world instanceof ServerWorld serverWorld) {
+			getBlockBox().streamChunkPos().forEach(pos -> serverWorld.setChunkForced(pos.x, pos.z, true));
 		}
 	}
 
 	public BlockPos getStartPos() {
-		Vec3i vec3i = this.getSize();
-		BlockRotation blockRotation = this.getRotation();
-		BlockPos blockPos = this.getStructurePos();
+		Vec3i size = getSize();
+		BlockRotation rotation = getRotation();
+		BlockPos structurePos = getStructurePos();
 
-		return switch (blockRotation) {
-			case NONE -> blockPos;
-			case CLOCKWISE_90 -> blockPos.add(vec3i.getZ() - 1, 0, 0);
-			case CLOCKWISE_180 -> blockPos.add(vec3i.getX() - 1, 0, vec3i.getZ() - 1);
-			case COUNTERCLOCKWISE_90 -> blockPos.add(0, 0, vec3i.getX() - 1);
+		return switch (rotation) {
+			case NONE -> structurePos;
+			case CLOCKWISE_90 -> structurePos.add(size.getZ() - 1, 0, 0);
+			case CLOCKWISE_180 -> structurePos.add(size.getX() - 1, 0, size.getZ() - 1);
+			case COUNTERCLOCKWISE_90 -> structurePos.add(0, 0, size.getX() - 1);
 		};
 	}
 
-	/**
-	 * Размещает barriers.
-	 */
 	public void placeBarriers() {
-		this.forEachPos(pos -> {
-			if (!this.world.getBlockState(pos).isOf(Blocks.TEST_INSTANCE_BLOCK)) {
-				this.world.setBlockState(pos, Blocks.BARRIER.getDefaultState());
+		forEachPos(pos -> {
+			if (!world.getBlockState(pos).isOf(Blocks.TEST_INSTANCE_BLOCK)) {
+				world.setBlockState(pos, Blocks.BARRIER.getDefaultState());
 			}
 		});
 	}
 
-	/**
-	 * Очищает barriers.
-	 */
 	public void clearBarriers() {
-		this.forEachPos(pos -> {
-			if (this.world.getBlockState(pos).isOf(Blocks.BARRIER)) {
-				this.world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		forEachPos(pos -> {
+			if (world.getBlockState(pos).isOf(Blocks.BARRIER)) {
+				world.setBlockState(pos, Blocks.AIR.getDefaultState());
 			}
 		});
 	}
 
 	/**
-	 * For each pos.
-	 *
-	 * @param posConsumer pos consumer
+	 * Итерирует все позиции ограничивающего бокса теста (стены, пол и, если тест требует
+	 * доступа к небу, потолок), передавая каждую позицию в {@code posConsumer}.
 	 */
 	public void forEachPos(Consumer<BlockPos> posConsumer) {
-		Box box = this.getBox();
-		boolean bl = !this.getTestEntry().map(entry -> entry.value().requiresSkyAccess()).orElse(false);
-		BlockPos blockPos = BlockPos.ofFloored(box.minX, box.minY, box.minZ).add(-1, -1, -1);
-		BlockPos blockPos2 = BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ);
-		BlockPos.stream(blockPos, blockPos2)
-		        .forEach(
-				        pos -> {
-					        boolean bl2 = pos.getX() == blockPos.getX()
-							        || pos.getX() == blockPos2.getX()
-							        || pos.getZ() == blockPos.getZ()
-							        || pos.getZ() == blockPos2.getZ()
-							        || pos.getY() == blockPos.getY();
-					        boolean bl3 = pos.getY() == blockPos2.getY();
-					        if (bl2 || bl3 && bl) {
-						        posConsumer.accept(pos);
-					        }
-				        }
-		        );
+		Box box = getBox();
+		boolean includeRoof = !getTestEntry()
+				.map(entry -> entry.value().requiresSkyAccess())
+				.orElse(false);
+
+		BlockPos minCorner = BlockPos.ofFloored(box.minX, box.minY, box.minZ).add(-1, -1, -1);
+		BlockPos maxCorner = BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ);
+
+		BlockPos.stream(minCorner, maxCorner).forEach(pos -> {
+			boolean isWallOrFloor = pos.getX() == minCorner.getX()
+					|| pos.getX() == maxCorner.getX()
+					|| pos.getZ() == minCorner.getZ()
+					|| pos.getZ() == maxCorner.getZ()
+					|| pos.getY() == minCorner.getY();
+			boolean isRoof = pos.getY() == maxCorner.getY();
+
+			if (isWallOrFloor || isRoof && includeRoof) {
+				posConsumer.accept(pos);
+			}
+		});
 	}
 
-	/**
-	 * Добавляет error.
-	 *
-	 * @param pos pos
-	 * @param message message
-	 */
 	public void addError(BlockPos pos, Text message) {
-		this.errors.add(new TestInstanceBlockEntity.Error(pos, message));
-		this.markDirty();
+		errors.add(new Error(pos, message));
+		markDirty();
 	}
 
-	/**
-	 * Очищает errors.
-	 */
 	public void clearErrors() {
-		if (!this.errors.isEmpty()) {
-			this.errors.clear();
-			this.markDirty();
+		if (!errors.isEmpty()) {
+			errors.clear();
+			markDirty();
 		}
 	}
 
-	public List<TestInstanceBlockEntity.Error> getErrors() {
-		return this.errors;
+	public List<Error> getErrors() {
+		return errors;
 	}
 
-	/**
-	 * {@code Data}.
-	 */
 	public record Data(
 			Optional<RegistryKey<TestInstance>> test,
 			Vec3i size,
 			BlockRotation rotation,
 			boolean ignoreEntities,
-			TestInstanceBlockEntity.Status status,
+			Status status,
 			Optional<Text> errorMessage
 	) {
 
-		public static final Codec<TestInstanceBlockEntity.Data> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Data> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    RegistryKey
-								                    .createCodec(RegistryKeys.TEST_INSTANCE)
-								                    .optionalFieldOf("test")
-								                    .forGetter(TestInstanceBlockEntity.Data::test),
-						                    Vec3i.CODEC.fieldOf("size").forGetter(TestInstanceBlockEntity.Data::size),
-						                    BlockRotation.CODEC.fieldOf("rotation").forGetter(TestInstanceBlockEntity.Data::rotation),
-						                    Codec.BOOL.fieldOf("ignore_entities").forGetter(TestInstanceBlockEntity.Data::ignoreEntities),
-						                    TestInstanceBlockEntity.Status.CODEC
-								                    .fieldOf("status")
-								                    .forGetter(TestInstanceBlockEntity.Data::status),
-						                    TextCodecs.CODEC
-								                    .optionalFieldOf("error_message")
-								                    .forGetter(TestInstanceBlockEntity.Data::errorMessage)
-				                    )
-				                    .apply(instance, TestInstanceBlockEntity.Data::new)
+						RegistryKey.createCodec(RegistryKeys.TEST_INSTANCE)
+								.optionalFieldOf("test")
+								.forGetter(Data::test),
+						Vec3i.CODEC.fieldOf("size").forGetter(Data::size),
+						BlockRotation.CODEC.fieldOf("rotation").forGetter(Data::rotation),
+						Codec.BOOL.fieldOf("ignore_entities").forGetter(Data::ignoreEntities),
+						Status.CODEC.fieldOf("status").forGetter(Data::status),
+						TextCodecs.CODEC.optionalFieldOf("error_message").forGetter(Data::errorMessage)
+				).apply(instance, Data::new)
 		);
-		public static final PacketCodec<RegistryByteBuf, TestInstanceBlockEntity.Data> PACKET_CODEC = PacketCodec.tuple(
+
+		public static final PacketCodec<RegistryByteBuf, Data> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.optional(RegistryKey.createPacketCodec(RegistryKeys.TEST_INSTANCE)),
-				TestInstanceBlockEntity.Data::test,
+				Data::test,
 				Vec3i.PACKET_CODEC,
-				TestInstanceBlockEntity.Data::size,
+				Data::size,
 				BlockRotation.PACKET_CODEC,
-				TestInstanceBlockEntity.Data::rotation,
+				Data::rotation,
 				PacketCodecs.BOOLEAN,
-				TestInstanceBlockEntity.Data::ignoreEntities,
-				TestInstanceBlockEntity.Status.PACKET_CODEC,
-				TestInstanceBlockEntity.Data::status,
+				Data::ignoreEntities,
+				Status.PACKET_CODEC,
+				Data::status,
 				PacketCodecs.optional(TextCodecs.REGISTRY_PACKET_CODEC),
-				TestInstanceBlockEntity.Data::errorMessage,
-				TestInstanceBlockEntity.Data::new
+				Data::errorMessage,
+				Data::new
 		);
 
-		public TestInstanceBlockEntity.Data withSize(Vec3i size) {
-			return new TestInstanceBlockEntity.Data(
-					this.test,
-					size,
-					this.rotation,
-					this.ignoreEntities,
-					this.status,
-					this.errorMessage
-			);
+		public Data withSize(Vec3i size) {
+			return new Data(test, size, rotation, ignoreEntities, status, errorMessage);
 		}
 
-		public TestInstanceBlockEntity.Data withStatus(TestInstanceBlockEntity.Status status) {
-			return new TestInstanceBlockEntity.Data(
-					this.test,
-					this.size,
-					this.rotation,
-					this.ignoreEntities,
-					status,
-					Optional.empty()
-			);
+		public Data withStatus(Status status) {
+			return new Data(test, this.size, rotation, ignoreEntities, status, Optional.empty());
 		}
 
-		public TestInstanceBlockEntity.Data withErrorMessage(Text errorMessage) {
-			return new TestInstanceBlockEntity.Data(
-					this.test,
-					this.size,
-					this.rotation,
-					this.ignoreEntities,
-					TestInstanceBlockEntity.Status.FINISHED,
-					Optional.of(errorMessage)
-			);
+		public Data withErrorMessage(Text errorMessage) {
+			return new Data(test, size, rotation, ignoreEntities, Status.FINISHED, Optional.of(errorMessage));
 		}
 	}
 
-	/**
-	 * {@code Error}.
-	 */
 	public record Error(BlockPos pos, Text text) {
 
-		public static final Codec<TestInstanceBlockEntity.Error> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Error> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    BlockPos.CODEC.fieldOf("pos").forGetter(TestInstanceBlockEntity.Error::pos),
-						                    TextCodecs.CODEC.fieldOf("text").forGetter(TestInstanceBlockEntity.Error::text)
-				                    )
-				                    .apply(instance, TestInstanceBlockEntity.Error::new)
+						BlockPos.CODEC.fieldOf("pos").forGetter(Error::pos),
+						TextCodecs.CODEC.fieldOf("text").forGetter(Error::text)
+				).apply(instance, Error::new)
 		);
-		public static final Codec<List<TestInstanceBlockEntity.Error>> LIST_CODEC = CODEC.listOf();
+
+		public static final Codec<List<Error>> LIST_CODEC = CODEC.listOf();
 	}
 
-	/**
-	 * {@code Status}.
-	 */
-	public static enum Status implements StringIdentifiable {
+	public enum Status implements StringIdentifiable {
 		CLEARED("cleared", 0),
 		RUNNING("running", 1),
 		FINISHED("finished", 2);
 
-		private static final IntFunction<TestInstanceBlockEntity.Status>
-				INDEX_MAPPER =
-				ValueLists.createIndexToValueFunction(
-						(TestInstanceBlockEntity.Status status) -> status.index,
-						values(),
-						ValueLists.OutOfBoundsHandling.ZERO
-				);
-		public static final Codec<TestInstanceBlockEntity.Status>
-				CODEC =
-				StringIdentifiable.createCodec(TestInstanceBlockEntity.Status::values);
-		public static final PacketCodec<ByteBuf, TestInstanceBlockEntity.Status> PACKET_CODEC = PacketCodecs.indexed(
-				TestInstanceBlockEntity.Status::fromIndex, status -> status.index
+		private static final IntFunction<Status> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
+				(Status status) -> status.index,
+				values(),
+				ValueLists.OutOfBoundsHandling.ZERO
 		);
+
+		public static final Codec<Status> CODEC = StringIdentifiable.createCodec(Status::values);
+
+		public static final PacketCodec<ByteBuf, Status> PACKET_CODEC = PacketCodecs.indexed(
+				Status::fromIndex,
+				status -> status.index
+		);
+
 		private final String id;
 		private final int index;
 
-		private Status(final String id, final int index) {
+		Status(final String id, final int index) {
 			this.id = id;
 			this.index = index;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 
-		public static TestInstanceBlockEntity.Status fromIndex(int index) {
+		public static Status fromIndex(int index) {
 			return INDEX_MAPPER.apply(index);
 		}
 	}

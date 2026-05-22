@@ -19,7 +19,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code CompassItem}.
+ * Предмет компаса. При использовании на блоке лодочного камня привязывается к нему,
+ * превращаясь в компас лодочного камня с особым именем и блеском.
  */
 public class CompassItem extends Item {
 
@@ -36,44 +37,56 @@ public class CompassItem extends Item {
 
 	@Override
 	public void inventoryTick(ItemStack stack, ServerWorld world, Entity entity, @Nullable EquipmentSlot slot) {
-		LodestoneTrackerComponent lodestoneTrackerComponent = stack.get(DataComponentTypes.LODESTONE_TRACKER);
-		if (lodestoneTrackerComponent != null) {
-			LodestoneTrackerComponent lodestoneTrackerComponent2 = lodestoneTrackerComponent.forWorld(world);
-			if (lodestoneTrackerComponent2 != lodestoneTrackerComponent) {
-				stack.set(DataComponentTypes.LODESTONE_TRACKER, lodestoneTrackerComponent2);
-			}
+		LodestoneTrackerComponent tracker = stack.get(DataComponentTypes.LODESTONE_TRACKER);
+
+		if (tracker == null) {
+			return;
+		}
+
+		LodestoneTrackerComponent updatedTracker = tracker.forWorld(world);
+
+		if (updatedTracker != tracker) {
+			stack.set(DataComponentTypes.LODESTONE_TRACKER, updatedTracker);
 		}
 	}
 
+	/**
+	 * При использовании на блоке лодочного камня привязывает компас к его позиции.
+	 * Если стек содержит более одного предмета или игрок в режиме творчества,
+	 * создаётся новый стек с привязкой, а исходный уменьшается.
+	 */
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		BlockPos blockPos = context.getBlockPos();
 		World world = context.getWorld();
+
 		if (!world.getBlockState(blockPos).isOf(Blocks.LODESTONE)) {
 			return super.useOnBlock(context);
 		}
-		else {
-			world.playSound(null, blockPos, SoundEvents.ITEM_LODESTONE_COMPASS_LOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
-			PlayerEntity playerEntity = context.getPlayer();
-			ItemStack itemStack = context.getStack();
-			boolean bl = !playerEntity.isInCreativeMode() && itemStack.getCount() == 1;
-			LodestoneTrackerComponent lodestoneTrackerComponent = new LodestoneTrackerComponent(
-					Optional.of(GlobalPos.create(world.getRegistryKey(), blockPos)), true
-			);
-			if (bl) {
-				itemStack.set(DataComponentTypes.LODESTONE_TRACKER, lodestoneTrackerComponent);
-			}
-			else {
-				ItemStack itemStack2 = itemStack.copyComponentsToNewStack(Items.COMPASS, 1);
-				itemStack.decrementUnlessCreative(1, playerEntity);
-				itemStack2.set(DataComponentTypes.LODESTONE_TRACKER, lodestoneTrackerComponent);
-				if (!playerEntity.getInventory().insertStack(itemStack2)) {
-					playerEntity.dropItem(itemStack2, false);
-				}
-			}
 
-			return ActionResult.SUCCESS;
+		world.playSound(null, blockPos, SoundEvents.ITEM_LODESTONE_COMPASS_LOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
+
+		PlayerEntity player = context.getPlayer();
+		ItemStack stack = context.getStack();
+		boolean canModifyInPlace = !player.isInCreativeMode() && stack.getCount() == 1;
+		LodestoneTrackerComponent tracker = new LodestoneTrackerComponent(
+			Optional.of(GlobalPos.create(world.getRegistryKey(), blockPos)),
+			true
+		);
+
+		if (canModifyInPlace) {
+			stack.set(DataComponentTypes.LODESTONE_TRACKER, tracker);
+		} else {
+			ItemStack linkedCompass = stack.copyComponentsToNewStack(Items.COMPASS, 1);
+			stack.decrementUnlessCreative(1, player);
+			linkedCompass.set(DataComponentTypes.LODESTONE_TRACKER, tracker);
+
+			if (!player.getInventory().insertStack(linkedCompass)) {
+				player.dropItem(linkedCompass, false);
+			}
 		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override

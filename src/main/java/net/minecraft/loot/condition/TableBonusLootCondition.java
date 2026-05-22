@@ -17,22 +17,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code TableBonusLootCondition}.
+ * Условие лута: срабатывает с вероятностью из таблицы шансов, индексированной уровнем зачарования инструмента.
+ * Если уровень превышает размер таблицы — используется последний элемент.
  */
 public record TableBonusLootCondition(
-		RegistryEntry<Enchantment> enchantment,
-		List<Float> chances
+	RegistryEntry<Enchantment> enchantment,
+	List<Float> chances
 ) implements LootCondition {
 
 	public static final MapCodec<TableBonusLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Enchantment.ENTRY_CODEC.fieldOf("enchantment").forGetter(TableBonusLootCondition::enchantment),
-					                    Codecs
-							                    .nonEmptyList(Codec.FLOAT.listOf())
-							                    .fieldOf("chances")
-							                    .forGetter(TableBonusLootCondition::chances)
-			                    )
-			                    .apply(instance, TableBonusLootCondition::new)
+		instance -> instance.group(
+			Enchantment.ENTRY_CODEC.fieldOf("enchantment").forGetter(TableBonusLootCondition::enchantment),
+			Codecs.nonEmptyList(Codec.FLOAT.listOf()).fieldOf("chances").forGetter(TableBonusLootCondition::chances)
+		).apply(instance, TableBonusLootCondition::new)
 	);
 
 	@Override
@@ -45,27 +42,21 @@ public record TableBonusLootCondition(
 		return Set.of(LootContextParameters.TOOL);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
-		int i = itemStack != null ? EnchantmentHelper.getLevel(this.enchantment, itemStack) : 0;
-		float f = this.chances.get(Math.min(i, this.chances.size() - 1));
-		return lootContext.getRandom().nextFloat() < f;
+		ItemStack tool = lootContext.get(LootContextParameters.TOOL);
+		int enchantLevel = tool != null ? EnchantmentHelper.getLevel(enchantment, tool) : 0;
+		float chance = chances.get(Math.min(enchantLevel, chances.size() - 1));
+		return lootContext.getRandom().nextFloat() < chance;
 	}
 
 	public static LootCondition.Builder builder(RegistryEntry<Enchantment> enchantment, float... chances) {
-		List<Float> list = new ArrayList<>(chances.length);
+		List<Float> chanceList = new ArrayList<>(chances.length);
 
-		for (float f : chances) {
-			list.add(f);
+		for (float chance : chances) {
+			chanceList.add(chance);
 		}
 
-		return () -> new TableBonusLootCondition(enchantment, list);
+		return () -> new TableBonusLootCondition(enchantment, chanceList);
 	}
 }

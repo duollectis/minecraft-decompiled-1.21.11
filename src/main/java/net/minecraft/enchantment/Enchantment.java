@@ -10,7 +10,14 @@ import net.minecraft.component.ComponentMap;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.EnchantmentEffectComponentTypes;
 import net.minecraft.component.type.AttributeModifierSlot;
-import net.minecraft.enchantment.effect.*;
+import net.minecraft.enchantment.effect.AttributeEnchantmentEffect;
+import net.minecraft.enchantment.effect.DamageImmunityEnchantmentEffect;
+import net.minecraft.enchantment.effect.EnchantmentEffectEntry;
+import net.minecraft.enchantment.effect.EnchantmentEffectTarget;
+import net.minecraft.enchantment.effect.EnchantmentEntityEffect;
+import net.minecraft.enchantment.effect.EnchantmentLocationBasedEffect;
+import net.minecraft.enchantment.effect.EnchantmentValueEffect;
+import net.minecraft.enchantment.effect.TargetedEnchantmentEffect;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
@@ -33,7 +40,11 @@ import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.registry.tag.EnchantmentTags;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.*;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
+import net.minecraft.text.TextCodecs;
+import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Unit;
@@ -43,11 +54,20 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import org.apache.commons.lang3.mutable.MutableFloat;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@code Enchantment}.
+ * Описывает зачарование — его метаданные, стоимость, слоты применения и набор компонентных эффектов.
+ * <p>
+ * Зачарование является иммутабельным record-ом и хранится в реестре {@link RegistryKeys#ENCHANTMENT}.
+ * Все эффекты описываются через {@link ComponentMap}, что позволяет гибко расширять поведение
+ * без изменения базового класса.
  */
 public record Enchantment(
 		Text description,
@@ -57,23 +77,24 @@ public record Enchantment(
 ) {
 
 	public static final int MAX_LEVEL = 255;
+
 	public static final Codec<Enchantment> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    TextCodecs.CODEC.fieldOf("description").forGetter(Enchantment::description),
-					                    Enchantment.Definition.CODEC.forGetter(Enchantment::definition),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ENCHANTMENT)
-							                    .optionalFieldOf("exclusive_set", RegistryEntryList.of())
-							                    .forGetter(Enchantment::exclusiveSet),
-					                    EnchantmentEffectComponentTypes.COMPONENT_MAP_CODEC
-							                    .optionalFieldOf("effects", ComponentMap.EMPTY)
-							                    .forGetter(Enchantment::effects)
-			                    )
-			                    .apply(instance, Enchantment::new)
+					TextCodecs.CODEC.fieldOf("description").forGetter(Enchantment::description),
+					Enchantment.Definition.CODEC.forGetter(Enchantment::definition),
+					RegistryCodecs.entryList(RegistryKeys.ENCHANTMENT)
+							.optionalFieldOf("exclusive_set", RegistryEntryList.of())
+							.forGetter(Enchantment::exclusiveSet),
+					EnchantmentEffectComponentTypes.COMPONENT_MAP_CODEC
+							.optionalFieldOf("effects", ComponentMap.EMPTY)
+							.forGetter(Enchantment::effects)
+			).apply(instance, Enchantment::new)
 	);
-	public static final Codec<RegistryEntry<Enchantment>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.ENCHANTMENT);
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Enchantment>>
-			ENTRY_PACKET_CODEC =
+
+	public static final Codec<RegistryEntry<Enchantment>> ENTRY_CODEC =
+			RegistryFixedCodec.of(RegistryKeys.ENCHANTMENT);
+
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Enchantment>> ENTRY_PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.ENCHANTMENT);
 
 	public static Enchantment.Cost constantCost(int base) {
@@ -84,6 +105,18 @@ public record Enchantment(
 		return new Enchantment.Cost(base, perLevel);
 	}
 
+	/**
+	 * Создаёт определение зачарования с явным списком основных предметов.
+	 *
+	 * @param supportedItems предметы, которые поддерживают зачарование
+	 * @param primaryItems   предметы, для которых зачарование является основным (влияет на шанс в столе)
+	 * @param weight         вес при случайном выборе
+	 * @param maxLevel       максимальный уровень зачарования
+	 * @param minCost        минимальная стоимость для каждого уровня
+	 * @param maxCost        максимальная стоимость для каждого уровня
+	 * @param anvilCost      стоимость объединения на наковальне
+	 * @param slots          слоты экипировки, в которых зачарование активно
+	 */
 	public static Enchantment.Definition definition(
 			RegistryEntryList<Item> supportedItems,
 			RegistryEntryList<Item> primaryItems,
@@ -106,6 +139,10 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Создаёт определение зачарования без явного списка основных предметов.
+	 * В этом случае все поддерживаемые предметы считаются основными.
+	 */
 	public static Enchantment.Definition definition(
 			RegistryEntryList<Item> supportedItems,
 			int weight,
@@ -127,52 +164,63 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Возвращает карту слот → предмет для всех слотов сущности, в которых активно это зачарование.
+	 *
+	 * @param entity сущность, чья экипировка проверяется
+	 * @return карта активных слотов с предметами
+	 */
 	public Map<EquipmentSlot, ItemStack> getEquipment(LivingEntity entity) {
-		Map<EquipmentSlot, ItemStack> map = Maps.newEnumMap(EquipmentSlot.class);
+		Map<EquipmentSlot, ItemStack> equipment = Maps.newEnumMap(EquipmentSlot.class);
 
-		for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
-			if (this.slotMatches(equipmentSlot)) {
-				ItemStack itemStack = entity.getEquippedStack(equipmentSlot);
-				if (!itemStack.isEmpty()) {
-					map.put(equipmentSlot, itemStack);
-				}
+		for (EquipmentSlot slot : EquipmentSlot.VALUES) {
+			if (!slotMatches(slot)) {
+				continue;
+			}
+
+			ItemStack stack = entity.getEquippedStack(slot);
+
+			if (!stack.isEmpty()) {
+				equipment.put(slot, stack);
 			}
 		}
 
-		return map;
+		return equipment;
 	}
 
 	public RegistryEntryList<Item> getApplicableItems() {
-		return this.definition.supportedItems();
+		return definition.supportedItems();
 	}
 
 	/**
-	 * Slot matches.
+	 * Проверяет, активно ли зачарование в указанном слоте экипировки.
 	 *
-	 * @param slot slot
-	 *
-	 * @return boolean — результат операции
+	 * @param slot проверяемый слот
+	 * @return {@code true}, если хотя бы один слот из определения совпадает
 	 */
 	public boolean slotMatches(EquipmentSlot slot) {
-		return this.definition.slots().stream().anyMatch(slotx -> slotx.matches(slot));
+		return definition.slots().stream().anyMatch(s -> s.matches(slot));
 	}
 
+	/**
+	 * Проверяет, является ли предмет основным для этого зачарования.
+	 * Основной предмет — тот, для которого зачарование появляется в столе зачарований.
+	 */
 	public boolean isPrimaryItem(ItemStack stack) {
-		return this.isSupportedItem(stack) && (this.definition.primaryItems.isEmpty()
-				|| stack.isIn(this.definition.primaryItems.get())
-		);
+		return isSupportedItem(stack)
+				&& (definition.primaryItems.isEmpty() || stack.isIn(definition.primaryItems.get()));
 	}
 
 	public boolean isSupportedItem(ItemStack stack) {
-		return stack.isIn(this.definition.supportedItems);
+		return stack.isIn(definition.supportedItems);
 	}
 
 	public int getWeight() {
-		return this.definition.weight();
+		return definition.weight();
 	}
 
 	public int getAnvilCost() {
-		return this.definition.anvilCost();
+		return definition.anvilCost();
 	}
 
 	public int getMinLevel() {
@@ -180,65 +228,79 @@ public record Enchantment(
 	}
 
 	public int getMaxLevel() {
-		return this.definition.maxLevel();
+		return definition.maxLevel();
 	}
 
 	public int getMinPower(int level) {
-		return this.definition.minCost().forLevel(level);
+		return definition.minCost().forLevel(level);
 	}
 
 	public int getMaxPower(int level) {
-		return this.definition.maxCost().forLevel(level);
+		return definition.maxCost().forLevel(level);
 	}
 
 	@Override
 	public String toString() {
-		return "Enchantment " + this.description.getString();
+		return "Enchantment " + description.getString();
 	}
 
 	/**
-	 * Проверяет возможность be combined.
-	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, можно ли объединить два зачарования (не конфликтуют ли они).
+	 * Зачарования конфликтуют, если они одинаковы или входят в эксклюзивные наборы друг друга.
 	 */
 	public static boolean canBeCombined(RegistryEntry<Enchantment> first, RegistryEntry<Enchantment> second) {
-		return !first.equals(second) && !first.value().exclusiveSet.contains(second)
+		return !first.equals(second)
+				&& !first.value().exclusiveSet.contains(second)
 				&& !second.value().exclusiveSet.contains(first);
 	}
 
+	/**
+	 * Формирует отображаемое имя зачарования с уровнем.
+	 * Проклятия окрашиваются красным, обычные зачарования — серым.
+	 * Уровень не отображается, если зачарование одноуровневое и уровень равен 1.
+	 */
 	public static Text getName(RegistryEntry<Enchantment> enchantment, int level) {
-		MutableText mutableText = enchantment.value().description.copy();
-		if (enchantment.isIn(EnchantmentTags.CURSE)) {
-			mutableText = Texts.setStyleIfAbsent(mutableText, Style.EMPTY.withColor(Formatting.RED));
-		}
-		else {
-			mutableText = Texts.setStyleIfAbsent(mutableText, Style.EMPTY.withColor(Formatting.GRAY));
-		}
+		MutableText name = enchantment.value().description.copy();
+
+		name = enchantment.isIn(EnchantmentTags.CURSE)
+				? Texts.setStyleIfAbsent(name, Style.EMPTY.withColor(Formatting.RED))
+				: Texts.setStyleIfAbsent(name, Style.EMPTY.withColor(Formatting.GRAY));
 
 		if (level != 1 || enchantment.value().getMaxLevel() != 1) {
-			mutableText.append(ScreenTexts.SPACE).append(Text.translatable("enchantment.level." + level));
+			name.append(ScreenTexts.SPACE).append(Text.translatable("enchantment.level." + level));
 		}
 
-		return mutableText;
+		return name;
 	}
 
 	public boolean isAcceptableItem(ItemStack stack) {
-		return this.definition.supportedItems().contains(stack.getRegistryEntry());
+		return definition.supportedItems().contains(stack.getRegistryEntry());
 	}
 
 	public <T> List<T> getEffect(ComponentType<List<T>> type) {
-		return this.effects.getOrDefault(type, List.of());
+		return effects.getOrDefault(type, List.of());
 	}
 
-	public boolean hasDamageImmunityTo(ServerWorld world, int level, Entity user, DamageSource damageSource) {
+	/**
+	 * Проверяет, даёт ли зачарование иммунитет к указанному источнику урона.
+	 *
+	 * @param world       серверный мир
+	 * @param level       уровень зачарования
+	 * @param user        сущность с зачарованием
+	 * @param damageSource источник урона
+	 * @return {@code true}, если хотя бы один эффект иммунитета срабатывает
+	 */
+	public boolean hasDamageImmunityTo(
+			ServerWorld world,
+			int level,
+			Entity user,
+			DamageSource damageSource
+	) {
 		LootContext lootContext = createEnchantedDamageLootContext(world, level, user, damageSource);
 
-		for (EnchantmentEffectEntry<DamageImmunityEnchantmentEffect> enchantmentEffectEntry : this.getEffect(
-				EnchantmentEffectComponentTypes.DAMAGE_IMMUNITY)) {
-			if (enchantmentEffectEntry.test(lootContext)) {
+		for (EnchantmentEffectEntry<DamageImmunityEnchantmentEffect> entry
+				: getEffect(EnchantmentEffectComponentTypes.DAMAGE_IMMUNITY)) {
+			if (entry.test(lootContext)) {
 				return true;
 			}
 		}
@@ -256,38 +318,22 @@ public record Enchantment(
 	) {
 		LootContext lootContext = createEnchantedDamageLootContext(world, level, user, damageSource);
 
-		for (EnchantmentEffectEntry<EnchantmentValueEffect> enchantmentEffectEntry : this.getEffect(
-				EnchantmentEffectComponentTypes.DAMAGE_PROTECTION)) {
-			if (enchantmentEffectEntry.test(lootContext)) {
-				damageProtection.setValue(enchantmentEffectEntry
-						.effect()
-						.apply(level, user.getRandom(), damageProtection.floatValue()));
+		for (EnchantmentEffectEntry<EnchantmentValueEffect> entry
+				: getEffect(EnchantmentEffectComponentTypes.DAMAGE_PROTECTION)) {
+			if (entry.test(lootContext)) {
+				damageProtection.setValue(
+						entry.effect().apply(level, user.getRandom(), damageProtection.floatValue())
+				);
 			}
 		}
 	}
 
-	/**
-	 * Modify item damage.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param stack stack
-	 * @param itemDamage item damage
-	 */
 	public void modifyItemDamage(ServerWorld world, int level, ItemStack stack, MutableFloat itemDamage) {
-		this.modifyValue(EnchantmentEffectComponentTypes.ITEM_DAMAGE, world, level, stack, itemDamage);
+		modifyValue(EnchantmentEffectComponentTypes.ITEM_DAMAGE, world, level, stack, itemDamage);
 	}
 
-	/**
-	 * Modify ammo use.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param projectileStack projectile stack
-	 * @param ammoUse ammo use
-	 */
 	public void modifyAmmoUse(ServerWorld world, int level, ItemStack projectileStack, MutableFloat ammoUse) {
-		this.modifyValue(EnchantmentEffectComponentTypes.AMMO_USE, world, level, projectileStack, ammoUse);
+		modifyValue(EnchantmentEffectComponentTypes.AMMO_USE, world, level, projectileStack, ammoUse);
 	}
 
 	public void modifyProjectilePiercing(
@@ -296,19 +342,16 @@ public record Enchantment(
 			ItemStack stack,
 			MutableFloat projectilePiercing
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_PIERCING, world, level, stack, projectilePiercing);
+		modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_PIERCING, world, level, stack, projectilePiercing);
 	}
 
-	/**
-	 * Modify block experience.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param stack stack
-	 * @param blockExperience block experience
-	 */
-	public void modifyBlockExperience(ServerWorld world, int level, ItemStack stack, MutableFloat blockExperience) {
-		this.modifyValue(EnchantmentEffectComponentTypes.BLOCK_EXPERIENCE, world, level, stack, blockExperience);
+	public void modifyBlockExperience(
+			ServerWorld world,
+			int level,
+			ItemStack stack,
+			MutableFloat blockExperience
+	) {
+		modifyValue(EnchantmentEffectComponentTypes.BLOCK_EXPERIENCE, world, level, stack, blockExperience);
 	}
 
 	public void modifyMobExperience(
@@ -318,7 +361,7 @@ public record Enchantment(
 			Entity user,
 			MutableFloat mobExperience
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.MOB_EXPERIENCE, world, level, stack, user, mobExperience);
+		modifyValue(EnchantmentEffectComponentTypes.MOB_EXPERIENCE, world, level, stack, user, mobExperience);
 	}
 
 	public void modifyRepairWithExperience(
@@ -327,7 +370,7 @@ public record Enchantment(
 			ItemStack stack,
 			MutableFloat repairWithExperience
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.REPAIR_WITH_XP, world, level, stack, repairWithExperience);
+		modifyValue(EnchantmentEffectComponentTypes.REPAIR_WITH_XP, world, level, stack, repairWithExperience);
 	}
 
 	public void modifyTridentReturnAcceleration(
@@ -337,7 +380,7 @@ public record Enchantment(
 			Entity user,
 			MutableFloat tridentReturnAcceleration
 	) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.TRIDENT_RETURN_ACCELERATION,
 				world,
 				level,
@@ -347,15 +390,8 @@ public record Enchantment(
 		);
 	}
 
-	/**
-	 * Modify trident spin attack strength.
-	 *
-	 * @param random random
-	 * @param level level
-	 * @param tridentSpinAttackStrength trident spin attack strength
-	 */
 	public void modifyTridentSpinAttackStrength(Random random, int level, MutableFloat tridentSpinAttackStrength) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.TRIDENT_SPIN_ATTACK_STRENGTH,
 				random,
 				level,
@@ -370,7 +406,7 @@ public record Enchantment(
 			Entity user,
 			MutableFloat fishingTimeReduction
 	) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.FISHING_TIME_REDUCTION,
 				world,
 				level,
@@ -387,7 +423,7 @@ public record Enchantment(
 			Entity user,
 			MutableFloat fishingLuckBonus
 	) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.FISHING_LUCK_BONUS,
 				world,
 				level,
@@ -405,7 +441,7 @@ public record Enchantment(
 			DamageSource damageSource,
 			MutableFloat damage
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.DAMAGE, world, level, stack, user, damageSource, damage);
+		modifyValue(EnchantmentEffectComponentTypes.DAMAGE, world, level, stack, user, damageSource, damage);
 	}
 
 	public void modifySmashDamagePerFallenBlock(
@@ -416,7 +452,7 @@ public record Enchantment(
 			DamageSource damageSource,
 			MutableFloat smashDamagePerFallenBlock
 	) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.SMASH_DAMAGE_PER_FALLEN_BLOCK,
 				world,
 				level,
@@ -435,7 +471,7 @@ public record Enchantment(
 			DamageSource damageSource,
 			MutableFloat knockback
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.KNOCKBACK, world, level, stack, user, damageSource, knockback);
+		modifyValue(EnchantmentEffectComponentTypes.KNOCKBACK, world, level, stack, user, damageSource, knockback);
 	}
 
 	public void modifyArmorEffectiveness(
@@ -446,7 +482,7 @@ public record Enchantment(
 			DamageSource damageSource,
 			MutableFloat armorEffectiveness
 	) {
-		this.modifyValue(
+		modifyValue(
 				EnchantmentEffectComponentTypes.ARMOR_EFFECTIVENESS,
 				world,
 				level,
@@ -457,6 +493,14 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Вызывается после нанесения урона цели. Применяет POST_ATTACK эффекты
+	 * для указанной роли (атакующий или жертва).
+	 *
+	 * @param target      роль, для которой проверяются эффекты (ATTACKER или VICTIM)
+	 * @param user        сущность, получившая урон (жертва атаки)
+	 * @param damageSource источник урона
+	 */
 	public void onTargetDamaged(
 			ServerWorld world,
 			int level,
@@ -465,14 +509,18 @@ public record Enchantment(
 			Entity user,
 			DamageSource damageSource
 	) {
-		for (TargetedEnchantmentEffect<EnchantmentEntityEffect> targetedEnchantmentEffect : this.getEffect(
-				EnchantmentEffectComponentTypes.POST_ATTACK)) {
-			if (target == targetedEnchantmentEffect.enchanted()) {
-				applyTargetedEffect(targetedEnchantmentEffect, world, level, context, user, damageSource);
+		for (TargetedEnchantmentEffect<EnchantmentEntityEffect> effect
+				: getEffect(EnchantmentEffectComponentTypes.POST_ATTACK)) {
+			if (target == effect.enchanted()) {
+				applyTargetedEffect(effect, world, level, context, user, damageSource);
 			}
 		}
 	}
 
+	/**
+	 * Применяет направленный эффект зачарования, определяя целевую сущность
+	 * по роли (ATTACKER, DAMAGING_ENTITY или VICTIM).
+	 */
 	public static void applyTargetedEffect(
 			TargetedEnchantmentEffect<EnchantmentEntityEffect> effect,
 			ServerWorld world,
@@ -481,29 +529,27 @@ public record Enchantment(
 			Entity user,
 			DamageSource damageSource
 	) {
-		if (effect.test(createEnchantedDamageLootContext(world, level, user, damageSource))) {
-			Entity entity = switch (effect.affected()) {
-				case ATTACKER -> damageSource.getAttacker();
-				case DAMAGING_ENTITY -> damageSource.getSource();
-				case VICTIM -> user;
-			};
-			if (entity != null) {
-				effect.effect().apply(world, level, context, entity, entity.getEntityPos());
-			}
+		if (!effect.test(createEnchantedDamageLootContext(world, level, user, damageSource))) {
+			return;
+		}
+
+		Entity target = switch (effect.affected()) {
+			case ATTACKER -> damageSource.getAttacker();
+			case DAMAGING_ENTITY -> damageSource.getSource();
+			case VICTIM -> user;
+		};
+
+		if (target != null) {
+			effect.effect().apply(world, level, context, target, target.getEntityPos());
 		}
 	}
 
 	/**
-	 * Обрабатывает событие piercing attack.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param context context
-	 * @param attacker attacker
+	 * Вызывается при пробивающей атаке (POST_PIERCING_ATTACK).
 	 */
 	public void onPiercingAttack(ServerWorld world, int level, EnchantmentEffectContext context, Entity attacker) {
 		applyEffects(
-				this.getEffect(EnchantmentEffectComponentTypes.POST_PIERCING_ATTACK),
+				getEffect(EnchantmentEffectComponentTypes.POST_PIERCING_ATTACK),
 				createEnchantedEntityLootContext(world, level, attacker, attacker.getEntityPos()),
 				effect -> effect.apply(world, level, context, attacker, attacker.getEntityPos())
 		);
@@ -516,7 +562,7 @@ public record Enchantment(
 			Entity user,
 			MutableFloat projectileCount
 	) {
-		this.modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_COUNT, world, level, stack, user, projectileCount);
+		modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_COUNT, world, level, stack, user, projectileCount);
 	}
 
 	public void modifyProjectileSpread(
@@ -526,69 +572,41 @@ public record Enchantment(
 			Entity user,
 			MutableFloat projectileSpread
 	) {
-		this.modifyValue(
-				EnchantmentEffectComponentTypes.PROJECTILE_SPREAD,
-				world,
-				level,
-				stack,
-				user,
-				projectileSpread
-		);
+		modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_SPREAD, world, level, stack, user, projectileSpread);
 	}
 
-	/**
-	 * Modify crossbow charge time.
-	 *
-	 * @param random random
-	 * @param level level
-	 * @param crossbowChargeTime crossbow charge time
-	 */
 	public void modifyCrossbowChargeTime(Random random, int level, MutableFloat crossbowChargeTime) {
-		this.modifyValue(EnchantmentEffectComponentTypes.CROSSBOW_CHARGE_TIME, random, level, crossbowChargeTime);
+		modifyValue(EnchantmentEffectComponentTypes.CROSSBOW_CHARGE_TIME, random, level, crossbowChargeTime);
 	}
 
 	/**
-	 * Modify value.
-	 *
-	 * @param type type
-	 * @param random random
-	 * @param level level
-	 * @param value value
+	 * Применяет одиночный (не списочный) эффект изменения значения.
+	 * Используется для компонентов типа {@link EnchantmentValueEffect}, хранящихся напрямую (не в списке).
 	 */
-	public void modifyValue(ComponentType<EnchantmentValueEffect> type, Random random, int level, MutableFloat value) {
-		EnchantmentValueEffect enchantmentValueEffect = this.effects.get(type);
-		if (enchantmentValueEffect != null) {
-			value.setValue(enchantmentValueEffect.apply(level, random, value.floatValue()));
+	public void modifyValue(
+			ComponentType<EnchantmentValueEffect> type,
+			Random random,
+			int level,
+			MutableFloat value
+	) {
+		EnchantmentValueEffect effect = effects.get(type);
+
+		if (effect != null) {
+			value.setValue(effect.apply(level, random, value.floatValue()));
 		}
 	}
 
-	/**
-	 * Обрабатывает событие tick.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param context context
-	 * @param user user
-	 */
 	public void onTick(ServerWorld world, int level, EnchantmentEffectContext context, Entity user) {
 		applyEffects(
-				this.getEffect(EnchantmentEffectComponentTypes.TICK),
+				getEffect(EnchantmentEffectComponentTypes.TICK),
 				createEnchantedEntityLootContext(world, level, user, user.getEntityPos()),
 				effect -> effect.apply(world, level, context, user, user.getEntityPos())
 		);
 	}
 
-	/**
-	 * Обрабатывает событие projectile spawned.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param context context
-	 * @param user user
-	 */
 	public void onProjectileSpawned(ServerWorld world, int level, EnchantmentEffectContext context, Entity user) {
 		applyEffects(
-				this.getEffect(EnchantmentEffectComponentTypes.PROJECTILE_SPAWNED),
+				getEffect(EnchantmentEffectComponentTypes.PROJECTILE_SPAWNED),
 				createEnchantedEntityLootContext(world, level, user, user.getEntityPos()),
 				effect -> effect.apply(world, level, context, user, user.getEntityPos())
 		);
@@ -603,7 +621,7 @@ public record Enchantment(
 			BlockState state
 	) {
 		applyEffects(
-				this.getEffect(EnchantmentEffectComponentTypes.HIT_BLOCK),
+				getEffect(EnchantmentEffectComponentTypes.HIT_BLOCK),
 				createHitBlockLootContext(world, level, enchantedEntity, pos, state),
 				effect -> effect.apply(world, level, context, enchantedEntity, pos)
 		);
@@ -617,7 +635,7 @@ public record Enchantment(
 			MutableFloat value
 	) {
 		applyEffects(
-				this.getEffect(type),
+				getEffect(type),
 				createEnchantedItemLootContext(world, level, stack),
 				effect -> value.setValue(effect.apply(level, world.getRandom(), value.floatValue()))
 		);
@@ -632,7 +650,7 @@ public record Enchantment(
 			MutableFloat value
 	) {
 		applyEffects(
-				this.getEffect(type),
+				getEffect(type),
 				createEnchantedEntityLootContext(world, level, user, user.getEntityPos()),
 				effect -> value.setValue(effect.apply(level, user.getRandom(), value.floatValue()))
 		);
@@ -648,12 +666,17 @@ public record Enchantment(
 			MutableFloat value
 	) {
 		applyEffects(
-				this.getEffect(type),
+				getEffect(type),
 				createEnchantedDamageLootContext(world, level, user, damageSource),
 				effect -> value.setValue(effect.apply(level, user.getRandom(), value.floatValue()))
 		);
 	}
 
+	/**
+	 * Создаёт контекст лута для эффектов, связанных с нанесением урона.
+	 * Включает параметры: сущность, уровень зачарования, позицию, источник урона,
+	 * атакующего и прямого атакующего.
+	 */
 	public static LootContext createEnchantedDamageLootContext(
 			ServerWorld world,
 			int level,
@@ -668,26 +691,27 @@ public record Enchantment(
 				.addOptional(LootContextParameters.ATTACKING_ENTITY, damageSource.getAttacker())
 				.addOptional(LootContextParameters.DIRECT_ATTACKING_ENTITY, damageSource.getSource())
 				.build(LootContextTypes.ENCHANTED_DAMAGE);
+
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
 	/**
-	 * Создаёт enchanted item loot context.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param stack stack
-	 *
-	 * @return LootContext — результат операции
+	 * Создаёт контекст лута для эффектов, привязанных к инструменту/предмету.
+	 * Включает параметры: инструмент и уровень зачарования.
 	 */
 	public static LootContext createEnchantedItemLootContext(ServerWorld world, int level, ItemStack stack) {
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.TOOL, stack)
 				.add(LootContextParameters.ENCHANTMENT_LEVEL, level)
 				.build(LootContextTypes.ENCHANTED_ITEM);
+
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
+	/**
+	 * Создаёт контекст лута для локационных эффектов зачарования.
+	 * Параметр {@code enchantmentActive} указывает, был ли эффект уже активен в предыдущем тике.
+	 */
 	public static LootContext createEnchantedLocationLootContext(
 			ServerWorld world,
 			int level,
@@ -700,28 +724,31 @@ public record Enchantment(
 				.add(LootContextParameters.ORIGIN, entity.getEntityPos())
 				.add(LootContextParameters.ENCHANTMENT_ACTIVE, enchantmentActive)
 				.build(LootContextTypes.ENCHANTED_LOCATION);
+
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
 	/**
-	 * Создаёт enchanted entity loot context.
-	 *
-	 * @param world world
-	 * @param level level
-	 * @param entity entity
-	 * @param pos pos
-	 *
-	 * @return LootContext — результат операции
+	 * Создаёт контекст лута для эффектов, привязанных к сущности и позиции.
 	 */
-	public static LootContext createEnchantedEntityLootContext(ServerWorld world, int level, Entity entity, Vec3d pos) {
+	public static LootContext createEnchantedEntityLootContext(
+			ServerWorld world,
+			int level,
+			Entity entity,
+			Vec3d pos
+	) {
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.THIS_ENTITY, entity)
 				.add(LootContextParameters.ENCHANTMENT_LEVEL, level)
 				.add(LootContextParameters.ORIGIN, pos)
 				.build(LootContextTypes.ENCHANTED_ENTITY);
+
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
+	/**
+	 * Создаёт контекст лута для эффектов при попадании снаряда в блок.
+	 */
 	public static LootContext createHitBlockLootContext(
 			ServerWorld world,
 			int level,
@@ -735,21 +762,38 @@ public record Enchantment(
 				.add(LootContextParameters.ORIGIN, pos)
 				.add(LootContextParameters.BLOCK_STATE, state)
 				.build(LootContextTypes.HIT_BLOCK);
+
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
+	/**
+	 * Применяет все эффекты из списка, прошедшие проверку условий лута.
+	 *
+	 * @param entries        список записей эффектов с условиями
+	 * @param lootContext    контекст лута для проверки условий
+	 * @param effectConsumer потребитель, применяющий эффект
+	 */
 	public static <T> void applyEffects(
 			List<EnchantmentEffectEntry<T>> entries,
 			LootContext lootContext,
 			Consumer<T> effectConsumer
 	) {
-		for (EnchantmentEffectEntry<T> enchantmentEffectEntry : entries) {
-			if (enchantmentEffectEntry.test(lootContext)) {
-				effectConsumer.accept(enchantmentEffectEntry.effect());
+		for (EnchantmentEffectEntry<T> entry : entries) {
+			if (entry.test(lootContext)) {
+				effectConsumer.accept(entry.effect());
 			}
 		}
 	}
 
+	/**
+	 * Применяет или снимает локационные эффекты зачарования в зависимости от текущего слота
+	 * и результата проверки условий. Управляет набором активных эффектов для данного слота.
+	 *
+	 * @param world   серверный мир
+	 * @param level   уровень зачарования
+	 * @param context контекст эффекта (содержит слот и предмет)
+	 * @param user    сущность-носитель зачарования
+	 */
 	public void applyLocationBasedEffects(
 			ServerWorld world,
 			int level,
@@ -757,66 +801,71 @@ public record Enchantment(
 			LivingEntity user
 	) {
 		EquipmentSlot equipmentSlot = context.slot();
-		if (equipmentSlot != null) {
-			Map<Enchantment, Set<EnchantmentLocationBasedEffect>>
-					map =
-					user.getLocationBasedEnchantmentEffects(equipmentSlot);
-			if (!this.slotMatches(equipmentSlot)) {
-				Set<EnchantmentLocationBasedEffect> set = map.remove(this);
-				if (set != null) {
-					set.forEach(effect -> effect.remove(context, user, user.getEntityPos(), level));
-				}
+
+		if (equipmentSlot == null) {
+			return;
+		}
+
+		Map<Enchantment, Set<EnchantmentLocationBasedEffect>> effectMap =
+				user.getLocationBasedEnchantmentEffects(equipmentSlot);
+
+		if (!slotMatches(equipmentSlot)) {
+			Set<EnchantmentLocationBasedEffect> removed = effectMap.remove(this);
+
+			if (removed != null) {
+				removed.forEach(effect -> effect.remove(context, user, user.getEntityPos(), level));
 			}
-			else {
-				Set<EnchantmentLocationBasedEffect> set = map.get(this);
 
-				for (EnchantmentEffectEntry<EnchantmentLocationBasedEffect> enchantmentEffectEntry : this.getEffect(
-						EnchantmentEffectComponentTypes.LOCATION_CHANGED
-				)) {
-					EnchantmentLocationBasedEffect enchantmentLocationBasedEffect = enchantmentEffectEntry.effect();
-					boolean bl = set != null && set.contains(enchantmentLocationBasedEffect);
-					if (enchantmentEffectEntry.test(createEnchantedLocationLootContext(world, level, user, bl))) {
-						if (!bl) {
-							if (set == null) {
-								set = new ObjectArraySet();
-								map.put(this, set);
-							}
+			return;
+		}
 
-							set.add(enchantmentLocationBasedEffect);
-						}
+		Set<EnchantmentLocationBasedEffect> activeEffects = effectMap.get(this);
 
-						enchantmentLocationBasedEffect.apply(world, level, context, user, user.getEntityPos(), !bl);
+		for (EnchantmentEffectEntry<EnchantmentLocationBasedEffect> entry
+				: getEffect(EnchantmentEffectComponentTypes.LOCATION_CHANGED)) {
+			EnchantmentLocationBasedEffect locationEffect = entry.effect();
+			boolean wasActive = activeEffects != null && activeEffects.contains(locationEffect);
+
+			if (entry.test(createEnchantedLocationLootContext(world, level, user, wasActive))) {
+				if (!wasActive) {
+					if (activeEffects == null) {
+						activeEffects = new ObjectArraySet<>();
+						effectMap.put(this, activeEffects);
 					}
-					else if (set != null && set.remove(enchantmentLocationBasedEffect)) {
-						enchantmentLocationBasedEffect.remove(context, user, user.getEntityPos(), level);
-					}
+
+					activeEffects.add(locationEffect);
 				}
 
-				if (set != null && set.isEmpty()) {
-					map.remove(this);
-				}
+				locationEffect.apply(world, level, context, user, user.getEntityPos(), !wasActive);
+			} else if (activeEffects != null && activeEffects.remove(locationEffect)) {
+				locationEffect.remove(context, user, user.getEntityPos(), level);
 			}
+		}
+
+		if (activeEffects != null && activeEffects.isEmpty()) {
+			effectMap.remove(this);
 		}
 	}
 
 	/**
-	 * Удаляет location based effects.
-	 *
-	 * @param level level
-	 * @param context context
-	 * @param user user
+	 * Снимает все активные локационные эффекты зачарования для указанного слота.
 	 */
 	public void removeLocationBasedEffects(int level, EnchantmentEffectContext context, LivingEntity user) {
 		EquipmentSlot equipmentSlot = context.slot();
-		if (equipmentSlot != null) {
-			Set<EnchantmentLocationBasedEffect>
-					set =
-					user.getLocationBasedEnchantmentEffects(equipmentSlot).remove(this);
-			if (set != null) {
-				for (EnchantmentLocationBasedEffect enchantmentLocationBasedEffect : set) {
-					enchantmentLocationBasedEffect.remove(context, user, user.getEntityPos(), level);
-				}
-			}
+
+		if (equipmentSlot == null) {
+			return;
+		}
+
+		Set<EnchantmentLocationBasedEffect> activeEffects =
+				user.getLocationBasedEnchantmentEffects(equipmentSlot).remove(this);
+
+		if (activeEffects == null) {
+			return;
+		}
+
+		for (EnchantmentLocationBasedEffect effect : activeEffects) {
+			effect.remove(context, user, user.getEntityPos(), level);
 		}
 	}
 
@@ -825,7 +874,8 @@ public record Enchantment(
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель зачарования. Позволяет декларативно задавать эксклюзивные наборы
+	 * и добавлять компонентные эффекты перед финальной сборкой через {@link #build(Identifier)}.
 	 */
 	public static class Builder {
 
@@ -835,7 +885,7 @@ public record Enchantment(
 		private final ComponentMap.Builder effectMap = ComponentMap.builder();
 
 		public Builder(Enchantment.Definition properties) {
-			this.definition = properties;
+			definition = properties;
 		}
 
 		public Enchantment.Builder exclusiveSet(RegistryEntryList<Enchantment> exclusiveSet) {
@@ -848,14 +898,15 @@ public record Enchantment(
 				E effect,
 				LootCondition.Builder requirements
 		) {
-			this
-					.getEffectsList(effectType)
-					.add(new EnchantmentEffectEntry<>(effect, Optional.of(requirements.build())));
+			getEffectsList(effectType).add(new EnchantmentEffectEntry<>(effect, Optional.of(requirements.build())));
 			return this;
 		}
 
-		public <E> Enchantment.Builder addEffect(ComponentType<List<EnchantmentEffectEntry<E>>> effectType, E effect) {
-			this.getEffectsList(effectType).add(new EnchantmentEffectEntry<>(effect, Optional.empty()));
+		public <E> Enchantment.Builder addEffect(
+				ComponentType<List<EnchantmentEffectEntry<E>>> effectType,
+				E effect
+		) {
+			getEffectsList(effectType).add(new EnchantmentEffectEntry<>(effect, Optional.empty()));
 			return this;
 		}
 
@@ -866,14 +917,12 @@ public record Enchantment(
 				E effect,
 				LootCondition.Builder requirements
 		) {
-			this
-					.getEffectsList(type)
-					.add(new TargetedEnchantmentEffect<>(
-							enchanted,
-							affected,
-							effect,
-							Optional.of(requirements.build())
-					));
+			getEffectsList(type).add(new TargetedEnchantmentEffect<>(
+					enchanted,
+					affected,
+					effect,
+					Optional.of(requirements.build())
+			));
 			return this;
 		}
 
@@ -883,9 +932,7 @@ public record Enchantment(
 				EnchantmentEffectTarget affected,
 				E effect
 		) {
-			this
-					.getEffectsList(type)
-					.add(new TargetedEnchantmentEffect<>(enchanted, affected, effect, Optional.empty()));
+			getEffectsList(type).add(new TargetedEnchantmentEffect<>(enchanted, affected, effect, Optional.empty()));
 			return this;
 		}
 
@@ -893,74 +940,67 @@ public record Enchantment(
 				ComponentType<List<AttributeEnchantmentEffect>> type,
 				AttributeEnchantmentEffect effect
 		) {
-			this.getEffectsList(type).add(effect);
+			getEffectsList(type).add(effect);
 			return this;
 		}
 
 		public <E> Enchantment.Builder addNonListEffect(ComponentType<E> type, E effect) {
-			this.effectMap.add(type, effect);
+			effectMap.add(type, effect);
 			return this;
 		}
 
 		public Enchantment.Builder addEffect(ComponentType<Unit> type) {
-			this.effectMap.add(type, Unit.INSTANCE);
+			effectMap.add(type, Unit.INSTANCE);
 			return this;
 		}
 
+		@SuppressWarnings("unchecked")
 		private <E> List<E> getEffectsList(ComponentType<List<E>> type) {
-			return (List<E>) this.effectLists.computeIfAbsent(
-					type, typex -> {
-						ArrayList<E> arrayList = new ArrayList<>();
-						this.effectMap.add(type, arrayList);
-						return arrayList;
-					}
-			);
+			return (List<E>) effectLists.computeIfAbsent(type, key -> {
+				ArrayList<E> list = new ArrayList<>();
+				effectMap.add(type, list);
+				return list;
+			});
 		}
 
 		/**
-		 * Build.
+		 * Собирает зачарование, генерируя ключ перевода из переданного идентификатора.
 		 *
-		 * @param id id
-		 *
-		 * @return Enchantment — результат операции
+		 * @param id идентификатор зачарования в реестре
+		 * @return готовый экземпляр {@link Enchantment}
 		 */
 		public Enchantment build(Identifier id) {
 			return new Enchantment(
 					Text.translatable(Util.createTranslationKey("enchantment", id)),
-					this.definition,
-					this.exclusiveSet,
-					this.effectMap.build()
+					definition,
+					exclusiveSet,
+					effectMap.build()
 			);
 		}
 	}
 
 	/**
-	 * {@code Cost}.
+	 * Описывает стоимость зачарования в единицах «силы зачарования» для конкретного уровня.
+	 * Формула: {@code base + perLevelAboveFirst * (level - 1)}.
 	 */
 	public record Cost(int base, int perLevelAboveFirst) {
 
 		public static final Codec<Enchantment.Cost> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.INT.fieldOf("base").forGetter(Enchantment.Cost::base),
-						                    Codec.INT.fieldOf("per_level_above_first").forGetter(Enchantment.Cost::perLevelAboveFirst)
-				                    )
-				                    .apply(instance, Enchantment.Cost::new)
+						Codec.INT.fieldOf("base").forGetter(Enchantment.Cost::base),
+						Codec.INT.fieldOf("per_level_above_first").forGetter(Enchantment.Cost::perLevelAboveFirst)
+				).apply(instance, Enchantment.Cost::new)
 		);
 
-		/**
-		 * For level.
-		 *
-		 * @param level level
-		 *
-		 * @return int — результат операции
-		 */
+		/** Вычисляет стоимость для указанного уровня зачарования. */
 		public int forLevel(int level) {
-			return this.base + this.perLevelAboveFirst * (level - 1);
+			return base + perLevelAboveFirst * (level - 1);
 		}
 	}
 
 	/**
-	 * {@code Definition}.
+	 * Содержит статические параметры зачарования: поддерживаемые предметы, вес,
+	 * диапазон уровней, стоимость и активные слоты экипировки.
 	 */
 	public record Definition(
 			RegistryEntryList<Item> supportedItems,
@@ -975,22 +1015,19 @@ public record Enchantment(
 
 		public static final MapCodec<Enchantment.Definition> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    RegistryCodecs
-								                    .entryList(RegistryKeys.ITEM)
-								                    .fieldOf("supported_items")
-								                    .forGetter(Enchantment.Definition::supportedItems),
-						                    RegistryCodecs
-								                    .entryList(RegistryKeys.ITEM)
-								                    .optionalFieldOf("primary_items")
-								                    .forGetter(Enchantment.Definition::primaryItems),
-						                    Codecs.rangedInt(1, 1024).fieldOf("weight").forGetter(Enchantment.Definition::weight),
-						                    Codecs.rangedInt(1, 255).fieldOf("max_level").forGetter(Enchantment.Definition::maxLevel),
-						                    Enchantment.Cost.CODEC.fieldOf("min_cost").forGetter(Enchantment.Definition::minCost),
-						                    Enchantment.Cost.CODEC.fieldOf("max_cost").forGetter(Enchantment.Definition::maxCost),
-						                    Codecs.NON_NEGATIVE_INT.fieldOf("anvil_cost").forGetter(Enchantment.Definition::anvilCost),
-						                    AttributeModifierSlot.CODEC.listOf().fieldOf("slots").forGetter(Enchantment.Definition::slots)
-				                    )
-				                    .apply(instance, Enchantment.Definition::new)
+						RegistryCodecs.entryList(RegistryKeys.ITEM)
+								.fieldOf("supported_items")
+								.forGetter(Enchantment.Definition::supportedItems),
+						RegistryCodecs.entryList(RegistryKeys.ITEM)
+								.optionalFieldOf("primary_items")
+								.forGetter(Enchantment.Definition::primaryItems),
+						Codecs.rangedInt(1, 1024).fieldOf("weight").forGetter(Enchantment.Definition::weight),
+						Codecs.rangedInt(1, MAX_LEVEL).fieldOf("max_level").forGetter(Enchantment.Definition::maxLevel),
+						Enchantment.Cost.CODEC.fieldOf("min_cost").forGetter(Enchantment.Definition::minCost),
+						Enchantment.Cost.CODEC.fieldOf("max_cost").forGetter(Enchantment.Definition::maxCost),
+						Codecs.NON_NEGATIVE_INT.fieldOf("anvil_cost").forGetter(Enchantment.Definition::anvilCost),
+						AttributeModifierSlot.CODEC.listOf().fieldOf("slots").forGetter(Enchantment.Definition::slots)
+				).apply(instance, Enchantment.Definition::new)
 		);
 	}
 }

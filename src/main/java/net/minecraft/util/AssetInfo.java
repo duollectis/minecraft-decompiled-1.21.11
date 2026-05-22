@@ -6,15 +6,14 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code AssetInfo}.
+ * Описание игрового ассета (текстуры, скина и т.д.). Предоставляет идентификатор
+ * ресурса и базовый контракт для всех типов ассетов, используемых в системе
+ * рендеринга и сети.
  */
 public interface AssetInfo {
 
 	Identifier id();
 
-	/**
-	 * {@code SkinAssetInfo}.
-	 */
 	public record SkinAssetInfo(Identifier texturePath, String url) implements AssetInfo.TextureAsset {
 
 		@Override
@@ -23,9 +22,6 @@ public interface AssetInfo {
 		}
 	}
 
-	/**
-	 * {@code TextureAsset}.
-	 */
 	public interface TextureAsset extends AssetInfo {
 
 		Identifier texturePath();

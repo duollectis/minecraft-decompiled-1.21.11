@@ -15,111 +15,106 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@code ChunkToProtoChunkFix}.
+ * Конвертирует старый формат чанка в формат протo-чанка: определяет статус генерации
+ * по флагам {@code TerrainPopulated}/{@code LightPopulated}, конвертирует биомы из байтового
+ * массива в int-массив и преобразует {@code TileTicks} в {@code ToBeTicked} по секциям.
  */
 public class ChunkToProtoChunkFix extends DataFix {
 
-	private static final int SECTION_SIZE = 16;
+	private static final int SECTION_COUNT = 16;
+	private static final int BIOME_ARRAY_SIZE = 256;
+	private static final int BYTE_MASK = 0xFF;
+	private static final int SECTION_Y_SHIFT = 4;
+	private static final int LOCAL_COORD_MASK = 15;
 
-	public ChunkToProtoChunkFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public ChunkToProtoChunkFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.writeFixAndRead(
+		return writeFixAndRead(
 				"ChunkToProtoChunkFix",
-				this.getInputSchema().getType(TypeReferences.CHUNK),
-				this.getOutputSchema().getType(TypeReferences.CHUNK),
+				getInputSchema().getType(TypeReferences.CHUNK),
+				getOutputSchema().getType(TypeReferences.CHUNK),
 				chunkDynamic -> chunkDynamic.update("Level", ChunkToProtoChunkFix::fixLevel)
 		);
 	}
 
-	private static <T> Dynamic<T> fixLevel(Dynamic<T> levelDynamic) {
-		boolean bl = levelDynamic.get("TerrainPopulated").asBoolean(false);
-		boolean
-				bl2 =
-				levelDynamic.get("LightPopulated").asNumber().result().isEmpty() || levelDynamic
-						.get("LightPopulated")
-						.asBoolean(false);
-		String string;
-		if (bl) {
-			if (bl2) {
-				string = "mobs_spawned";
-			}
-			else {
-				string = "decorated";
-			}
+	private static <T> Dynamic<T> fixLevel(Dynamic<T> level) {
+		boolean terrainPopulated = level.get("TerrainPopulated").asBoolean(false);
+		boolean lightPopulated = level.get("LightPopulated").asNumber().result().isEmpty()
+				|| level.get("LightPopulated").asBoolean(false);
+
+		String status;
+		if (terrainPopulated) {
+			status = lightPopulated ? "mobs_spawned" : "decorated";
 		}
 		else {
-			string = "carved";
+			status = "carved";
 		}
 
-		return fixTileTicks(fixBiomes(levelDynamic))
-				.set("Status", levelDynamic.createString(string))
-				.set("hasLegacyStructureData", levelDynamic.createBoolean(true));
+		return fixTileTicks(fixBiomes(level))
+				.set("Status", level.createString(status))
+				.set("hasLegacyStructureData", level.createBoolean(true));
 	}
 
-	private static <T> Dynamic<T> fixBiomes(Dynamic<T> levelDynamic) {
-		return levelDynamic.update(
-				"Biomes", biomesDynamic -> (Dynamic) DataFixUtils.orElse(
-						biomesDynamic.asByteBufferOpt().result().map(biomes -> {
-							int[] is = new int[256];
+	private static <T> Dynamic<T> fixBiomes(Dynamic<T> level) {
+		return level.update(
+				"Biomes",
+				biomes -> (Dynamic) DataFixUtils.orElse(
+						biomes.asByteBufferOpt().result().map(byteBuffer -> {
+							int[] biomeIds = new int[BIOME_ARRAY_SIZE];
 
-							for (int i = 0; i < is.length; i++) {
-								if (i < biomes.capacity()) {
-									is[i] = biomes.get(i) & 255;
+							for (int i = 0; i < biomeIds.length; i++) {
+								if (i < byteBuffer.capacity()) {
+									biomeIds[i] = byteBuffer.get(i) & BYTE_MASK;
 								}
 							}
 
-							return levelDynamic.createIntList(Arrays.stream(is));
-						}), biomesDynamic
+							return level.createIntList(Arrays.stream(biomeIds));
+						}),
+						biomes
 				)
 		);
 	}
 
-	private static <T> Dynamic<T> fixTileTicks(Dynamic<T> levelDynamic) {
+	private static <T> Dynamic<T> fixTileTicks(Dynamic<T> level) {
 		return (Dynamic<T>) DataFixUtils.orElse(
-				levelDynamic.get("TileTicks")
-				            .asStreamOpt()
-				            .result()
-				            .map(
-						            tileTicksDynamic -> {
-							            List<ShortList>
-									            list =
-									            IntStream
-											            .range(0, 16)
-											            .mapToObj(sectionY -> new ShortArrayList())
-											            .collect(Collectors.toList());
-							            tileTicksDynamic.forEach(tickTag -> {
-								            int i = tickTag.get("x").asInt(0);
-								            int j = tickTag.get("y").asInt(0);
-								            int k = tickTag.get("z").asInt(0);
-								            short s = packChunkSectionPos(i, j, k);
-								            list.get(j >> 4).add(s);
-							            });
-							            return levelDynamic.remove("TileTicks")
-							                               .set(
-									                               "ToBeTicked",
-									                               levelDynamic.createList(
-											                               list.stream()
-											                                   .map(
-													                                   section -> levelDynamic.createList(
-															                                   section
-																	                                   .intStream()
-																	                                   .mapToObj(
-																			                                   packedLocalPos -> levelDynamic.createShort(
-																					                                   (short) packedLocalPos))
-													                                   )
-											                                   )
-									                               )
-							                               );
-						            }
-				            ),
-				levelDynamic
+				level.get("TileTicks")
+						.asStreamOpt()
+						.result()
+						.map(tileTicks -> {
+							List<ShortList> ticksBySection = IntStream
+									.range(0, SECTION_COUNT)
+									.mapToObj(sectionY -> (ShortList) new ShortArrayList())
+									.collect(Collectors.toList());
+
+							tileTicks.forEach(tick -> {
+								int x = tick.get("x").asInt(0);
+								int y = tick.get("y").asInt(0);
+								int z = tick.get("z").asInt(0);
+								ticksBySection.get(y >> SECTION_Y_SHIFT).add(packChunkSectionPos(x, y, z));
+							});
+
+							return level.remove("TileTicks")
+									.set(
+											"ToBeTicked",
+											level.createList(
+													ticksBySection.stream().map(
+															section -> level.createList(
+																	section.intStream().mapToObj(
+																			packed -> level.createShort((short) packed)
+																	)
+															)
+													)
+											)
+									);
+						}),
+				level
 		);
 	}
 
 	private static short packChunkSectionPos(int x, int y, int z) {
-		return (short) (x & 15 | (y & 15) << 4 | (z & 15) << 8);
+		return (short) (x & LOCAL_COORD_MASK | (y & LOCAL_COORD_MASK) << 4 | (z & LOCAL_COORD_MASK) << 8);
 	}
 }

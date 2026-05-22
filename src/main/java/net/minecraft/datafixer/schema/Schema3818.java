@@ -9,24 +9,29 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3818}.
+ * Схема версии 3818 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Обновляет тип данных улья ({@code minecraft:beehive}): поле {@code Bees}
+ * переименовывается в {@code bees}, а {@code EntityData} — в {@code entity_data},
+ * приводя структуру к единому стилю именования в нижнем регистре.
  */
 public class Schema3818 extends IdentifierNormalizingSchema {
 
-	public Schema3818(int i, Schema schema) {
-		super(i, schema);
+	public Schema3818(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
 		schema.register(
-				map,
-				"minecraft:beehive",
-				() -> DSL.optionalFields(
-						"bees",
-						DSL.list(DSL.optionalFields("entity_data", TypeReferences.ENTITY_TREE.in(schema)))
-				)
+			blockEntityTypes,
+			"minecraft:beehive",
+			() -> DSL.optionalFields(
+				"bees",
+				DSL.list(DSL.optionalFields("entity_data", TypeReferences.ENTITY_TREE.in(schema)))
+			)
 		);
-		return map;
+		return blockEntityTypes;
 	}
 }

@@ -4,7 +4,10 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code SingleTickTask}.
+ * Задача мозга, выполняющаяся ровно один тик.
+ * После успешного запуска через {@link #tryStarting} немедленно останавливается на следующем тике.
+ *
+ * @param <E> тип сущности
  */
 public abstract class SingleTickTask<E extends LivingEntity> implements Task<E>, TaskRunnable<E> {
 
@@ -12,32 +15,31 @@ public abstract class SingleTickTask<E extends LivingEntity> implements Task<E>,
 
 	@Override
 	public final MultiTickTask.Status getStatus() {
-		return this.status;
+		return status;
 	}
 
 	@Override
 	public final boolean tryStarting(ServerWorld world, E entity, long time) {
-		if (this.trigger(world, entity, time)) {
-			this.status = MultiTickTask.Status.RUNNING;
-			return true;
-		}
-		else {
+		if (!trigger(world, entity, time)) {
 			return false;
 		}
+
+		status = MultiTickTask.Status.RUNNING;
+		return true;
 	}
 
 	@Override
 	public final void tick(ServerWorld world, E entity, long time) {
-		this.stop(world, entity, time);
+		stop(world, entity, time);
 	}
 
 	@Override
 	public final void stop(ServerWorld world, E entity, long time) {
-		this.status = MultiTickTask.Status.STOPPED;
+		status = MultiTickTask.Status.STOPPED;
 	}
 
 	@Override
 	public String getName() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 }

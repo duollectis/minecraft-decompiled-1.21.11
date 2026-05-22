@@ -10,9 +10,7 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code BasaltPillarFeature}.
- */
+/** Генерирует вертикальный столб базальта с боковыми ответвлениями и основанием из разбросанных блоков. */
 public class BasaltPillarFeature extends Feature<DefaultFeatureConfig> {
 
 	public BasaltPillarFeature(Codec<DefaultFeatureConfig> codec) {
@@ -21,79 +19,67 @@ public class BasaltPillarFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		if (structureWorldAccess.isAir(blockPos) && !structureWorldAccess.isAir(blockPos.up())) {
-			BlockPos.Mutable mutable = blockPos.mutableCopy();
-			BlockPos.Mutable mutable2 = blockPos.mutableCopy();
-			boolean bl = true;
-			boolean bl2 = true;
-			boolean bl3 = true;
-			boolean bl4 = true;
 
-			while (structureWorldAccess.isAir(mutable)) {
-				if (structureWorldAccess.isOutOfHeightLimit(mutable)) {
-					return true;
-				}
+		if (!world.isAir(origin) || world.isAir(origin.up())) {
+			return false;
+		}
 
-				structureWorldAccess.setBlockState(mutable, Blocks.BASALT.getDefaultState(), 2);
-				bl = bl && this.stopOrPlaceBasalt(structureWorldAccess, random, mutable2.set(mutable, Direction.NORTH));
-				bl2 =
-						bl2 && this.stopOrPlaceBasalt(
-								structureWorldAccess,
-								random,
-								mutable2.set(mutable, Direction.SOUTH)
-						);
-				bl3 =
-						bl3 && this.stopOrPlaceBasalt(
-								structureWorldAccess,
-								random,
-								mutable2.set(mutable, Direction.WEST)
-						);
-				bl4 =
-						bl4 && this.stopOrPlaceBasalt(
-								structureWorldAccess,
-								random,
-								mutable2.set(mutable, Direction.EAST)
-						);
-				mutable.move(Direction.DOWN);
+		BlockPos.Mutable pos = origin.mutableCopy();
+		BlockPos.Mutable neighbor = origin.mutableCopy();
+		boolean northActive = true;
+		boolean southActive = true;
+		boolean westActive = true;
+		boolean eastActive = true;
+
+		while (world.isAir(pos)) {
+			if (world.isOutOfHeightLimit(pos)) {
+				return true;
 			}
 
-			mutable.move(Direction.UP);
-			this.tryPlaceBasalt(structureWorldAccess, random, mutable2.set(mutable, Direction.NORTH));
-			this.tryPlaceBasalt(structureWorldAccess, random, mutable2.set(mutable, Direction.SOUTH));
-			this.tryPlaceBasalt(structureWorldAccess, random, mutable2.set(mutable, Direction.WEST));
-			this.tryPlaceBasalt(structureWorldAccess, random, mutable2.set(mutable, Direction.EAST));
-			mutable.move(Direction.DOWN);
-			BlockPos.Mutable mutable3 = new BlockPos.Mutable();
+			world.setBlockState(pos, Blocks.BASALT.getDefaultState(), 2);
+			northActive = northActive && stopOrPlaceBasalt(world, random, neighbor.set(pos, Direction.NORTH));
+			southActive = southActive && stopOrPlaceBasalt(world, random, neighbor.set(pos, Direction.SOUTH));
+			westActive = westActive && stopOrPlaceBasalt(world, random, neighbor.set(pos, Direction.WEST));
+			eastActive = eastActive && stopOrPlaceBasalt(world, random, neighbor.set(pos, Direction.EAST));
+			pos.move(Direction.DOWN);
+		}
 
-			for (int i = -3; i < 4; i++) {
-				for (int j = -3; j < 4; j++) {
-					int k = MathHelper.abs(i) * MathHelper.abs(j);
-					if (random.nextInt(10) < 10 - k) {
-						mutable3.set(mutable.add(i, 0, j));
-						int l = 3;
+		pos.move(Direction.UP);
+		tryPlaceBasalt(world, random, neighbor.set(pos, Direction.NORTH));
+		tryPlaceBasalt(world, random, neighbor.set(pos, Direction.SOUTH));
+		tryPlaceBasalt(world, random, neighbor.set(pos, Direction.WEST));
+		tryPlaceBasalt(world, random, neighbor.set(pos, Direction.EAST));
+		pos.move(Direction.DOWN);
 
-						while (structureWorldAccess.isAir(mutable2.set(mutable3, Direction.DOWN))) {
-							mutable3.move(Direction.DOWN);
-							if (--l <= 0) {
-								break;
-							}
+		BlockPos.Mutable basePos = new BlockPos.Mutable();
+
+		for (int dx = -3; dx < 4; dx++) {
+			for (int dz = -3; dz < 4; dz++) {
+				int spread = MathHelper.abs(dx) * MathHelper.abs(dz);
+
+				if (random.nextInt(10) < 10 - spread) {
+					basePos.set(pos.add(dx, 0, dz));
+					int searchDepth = 3;
+
+					while (world.isAir(neighbor.set(basePos, Direction.DOWN))) {
+						basePos.move(Direction.DOWN);
+
+						if (--searchDepth <= 0) {
+							break;
 						}
+					}
 
-						if (!structureWorldAccess.isAir(mutable2.set(mutable3, Direction.DOWN))) {
-							structureWorldAccess.setBlockState(mutable3, Blocks.BASALT.getDefaultState(), 2);
-						}
+					if (!world.isAir(neighbor.set(basePos, Direction.DOWN))) {
+						world.setBlockState(basePos, Blocks.BASALT.getDefaultState(), 2);
 					}
 				}
 			}
+		}
 
-			return true;
-		}
-		else {
-			return false;
-		}
+		return true;
 	}
 
 	private void tryPlaceBasalt(WorldAccess world, Random random, BlockPos pos) {
@@ -103,12 +89,11 @@ public class BasaltPillarFeature extends Feature<DefaultFeatureConfig> {
 	}
 
 	private boolean stopOrPlaceBasalt(WorldAccess world, Random random, BlockPos pos) {
-		if (random.nextInt(10) != 0) {
-			world.setBlockState(pos, Blocks.BASALT.getDefaultState(), 2);
-			return true;
-		}
-		else {
+		if (random.nextInt(10) == 0) {
 			return false;
 		}
+
+		world.setBlockState(pos, Blocks.BASALT.getDefaultState(), 2);
+		return true;
 	}
 }

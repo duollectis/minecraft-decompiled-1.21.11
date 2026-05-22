@@ -9,27 +9,27 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameVersionDebugHudEntry}.
+ * Запись отладочного HUD: версия игры и название клиентского мода.
  */
+@Environment(EnvType.CLIENT)
 class GameVersionDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
 		lines.addPriorityLine(
-				"Minecraft "
-						+ SharedConstants.getGameVersion().name()
-						+ " ("
-						+ MinecraftClient.getInstance().getGameVersion()
-						+ "/"
-						+ ClientBrandRetriever.getClientModName()
-						+ ")"
+			"Minecraft "
+				+ SharedConstants.getGameVersion().name()
+				+ " ("
+				+ MinecraftClient.getInstance().getGameVersion()
+				+ "/"
+				+ ClientBrandRetriever.getClientModName()
+				+ ")"
 		);
 	}
 

@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ServerMetadata}.
+ * Метаданные сервера, отображаемые в списке серверов клиента: описание, список игроков,
+ * версия, иконка и флаг принудительного безопасного чата.
  */
 public record ServerMetadata(
 		Text description,
@@ -40,9 +41,6 @@ public record ServerMetadata(
 			                    .apply(instance, ServerMetadata::new)
 	);
 
-	/**
-	 * {@code Favicon}.
-	 */
 	public record Favicon(byte[] iconBytes) {
 
 		private static final String DATA_URI_PREFIX = "data:image/png;base64,";
@@ -69,9 +67,6 @@ public record ServerMetadata(
 		);
 	}
 
-	/**
-	 * {@code Players}.
-	 */
 	public record Players(int max, int online, List<PlayerConfigEntry> sample) {
 
 		public static final Codec<ServerMetadata.Players> CODEC = RecordCodecBuilder.create(
@@ -87,9 +82,6 @@ public record ServerMetadata(
 		);
 	}
 
-	/**
-	 * {@code Version}.
-	 */
 	public record Version(String gameVersion, int protocolVersion) {
 
 		public static final Codec<ServerMetadata.Version> CODEC = RecordCodecBuilder.create(

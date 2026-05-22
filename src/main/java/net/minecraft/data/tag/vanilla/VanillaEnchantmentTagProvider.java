@@ -68,17 +68,17 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				Enchantments.INFINITY,
 				Enchantments.MENDING
 		);
-		this.builder(EnchantmentTags.ARMOR_EXCLUSIVE_SET)
+		builder(EnchantmentTags.ARMOR_EXCLUSIVE_SET)
 		    .add(
 				    Enchantments.PROTECTION,
 				    Enchantments.BLAST_PROTECTION,
 				    Enchantments.FIRE_PROTECTION,
 				    Enchantments.PROJECTILE_PROTECTION
 		    );
-		this.builder(EnchantmentTags.BOOTS_EXCLUSIVE_SET).add(Enchantments.FROST_WALKER, Enchantments.DEPTH_STRIDER);
-		this.builder(EnchantmentTags.BOW_EXCLUSIVE_SET).add(Enchantments.INFINITY, Enchantments.MENDING);
-		this.builder(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET).add(Enchantments.MULTISHOT, Enchantments.PIERCING);
-		this.builder(EnchantmentTags.DAMAGE_EXCLUSIVE_SET)
+		builder(EnchantmentTags.BOOTS_EXCLUSIVE_SET).add(Enchantments.FROST_WALKER, Enchantments.DEPTH_STRIDER);
+		builder(EnchantmentTags.BOW_EXCLUSIVE_SET).add(Enchantments.INFINITY, Enchantments.MENDING);
+		builder(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET).add(Enchantments.MULTISHOT, Enchantments.PIERCING);
+		builder(EnchantmentTags.DAMAGE_EXCLUSIVE_SET)
 		    .add(
 				    Enchantments.SHARPNESS,
 				    Enchantments.SMITE,
@@ -87,9 +87,9 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				    Enchantments.DENSITY,
 				    Enchantments.BREACH
 		    );
-		this.builder(EnchantmentTags.MINING_EXCLUSIVE_SET).add(Enchantments.FORTUNE, Enchantments.SILK_TOUCH);
-		this.builder(EnchantmentTags.RIPTIDE_EXCLUSIVE_SET).add(Enchantments.LOYALTY, Enchantments.CHANNELING);
-		this.builder(EnchantmentTags.TREASURE)
+		builder(EnchantmentTags.MINING_EXCLUSIVE_SET).add(Enchantments.FORTUNE, Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.RIPTIDE_EXCLUSIVE_SET).add(Enchantments.LOYALTY, Enchantments.CHANNELING);
+		builder(EnchantmentTags.TREASURE)
 		    .add(
 				    Enchantments.BINDING_CURSE,
 				    Enchantments.VANISHING_CURSE,
@@ -99,7 +99,7 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				    Enchantments.MENDING,
 				    Enchantments.WIND_BURST
 		    );
-		this.builder(EnchantmentTags.NON_TREASURE)
+		builder(EnchantmentTags.NON_TREASURE)
 		    .add(
 				    Enchantments.PROTECTION,
 				    Enchantments.FIRE_PROTECTION,
@@ -138,11 +138,11 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				    Enchantments.BREACH,
 				    Enchantments.LUNGE
 		    );
-		this.builder(EnchantmentTags.DOUBLE_TRADE_PRICE).addTag(EnchantmentTags.TREASURE);
-		this.builder(EnchantmentTags.IN_ENCHANTING_TABLE).addTag(EnchantmentTags.NON_TREASURE);
-		this.builder(EnchantmentTags.ON_MOB_SPAWN_EQUIPMENT).addTag(EnchantmentTags.NON_TREASURE);
-		this.builder(EnchantmentTags.ON_TRADED_EQUIPMENT).addTag(EnchantmentTags.NON_TREASURE);
-		this.builder(EnchantmentTags.ON_RANDOM_LOOT)
+		builder(EnchantmentTags.DOUBLE_TRADE_PRICE).addTag(EnchantmentTags.TREASURE);
+		builder(EnchantmentTags.IN_ENCHANTING_TABLE).addTag(EnchantmentTags.NON_TREASURE);
+		builder(EnchantmentTags.ON_MOB_SPAWN_EQUIPMENT).addTag(EnchantmentTags.NON_TREASURE);
+		builder(EnchantmentTags.ON_TRADED_EQUIPMENT).addTag(EnchantmentTags.NON_TREASURE);
+		builder(EnchantmentTags.ON_RANDOM_LOOT)
 		    .addTag(EnchantmentTags.NON_TREASURE)
 		    .add(
 				    Enchantments.BINDING_CURSE,
@@ -150,7 +150,7 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				    Enchantments.FROST_WALKER,
 				    Enchantments.MENDING
 		    );
-		this.builder(EnchantmentTags.TRADEABLE)
+		builder(EnchantmentTags.TRADEABLE)
 		    .addTag(EnchantmentTags.NON_TREASURE)
 		    .add(
 				    Enchantments.BINDING_CURSE,
@@ -158,11 +158,11 @@ public class VanillaEnchantmentTagProvider extends EnchantmentTagProvider {
 				    Enchantments.FROST_WALKER,
 				    Enchantments.MENDING
 		    );
-		this.builder(EnchantmentTags.CURSE).add(Enchantments.BINDING_CURSE, Enchantments.VANISHING_CURSE);
-		this.builder(EnchantmentTags.SMELTS_LOOT).add(Enchantments.FIRE_ASPECT);
-		this.builder(EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING).add(Enchantments.SILK_TOUCH);
-		this.builder(EnchantmentTags.PREVENTS_DECORATED_POT_SHATTERING).add(Enchantments.SILK_TOUCH);
-		this.builder(EnchantmentTags.PREVENTS_ICE_MELTING).add(Enchantments.SILK_TOUCH);
-		this.builder(EnchantmentTags.PREVENTS_INFESTED_SPAWNS).add(Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.CURSE).add(Enchantments.BINDING_CURSE, Enchantments.VANISHING_CURSE);
+		builder(EnchantmentTags.SMELTS_LOOT).add(Enchantments.FIRE_ASPECT);
+		builder(EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING).add(Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.PREVENTS_DECORATED_POT_SHATTERING).add(Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.PREVENTS_ICE_MELTING).add(Enchantments.SILK_TOUCH);
+		builder(EnchantmentTags.PREVENTS_INFESTED_SPAWNS).add(Enchantments.SILK_TOUCH);
 	}
 }

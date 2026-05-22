@@ -7,42 +7,56 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PortalParticle}.
+ * Частица портала Нижнего мира. Движется от стартовой точки к центру портала
+ * по нелинейной траектории (ускоряется к концу), постепенно увеличиваясь в
+ * размере. Яркость нарастает по мере приближения к порталу.
  */
+@Environment(EnvType.CLIENT)
 public class PortalParticle extends BillboardParticle {
+
+	private static final float SCALE_BASE = 0.1F;
+	private static final float SCALE_VARIANCE = 0.2F;
+	private static final float SCALE_MIN = 0.5F;
+	private static final float COLOR_VARIANCE = 0.6F;
+	private static final float COLOR_MIN = 0.4F;
+	private static final float RED_FACTOR = 0.9F;
+	private static final float GREEN_FACTOR = 0.3F;
+	private static final int MIN_LIFETIME = 40;
+	private static final int LIFETIME_VARIANCE = 10;
+	private static final int MAX_SKY_BRIGHTNESS = 240;
+	private static final float SKY_BRIGHTNESS_SCALE = 15.0F * 16.0F;
 
 	private final double startX;
 	private final double startY;
 	private final double startZ;
 
 	protected PortalParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
 			Sprite sprite
 	) {
-		super(clientWorld, d, e, f, sprite);
-		this.velocityX = g;
-		this.velocityY = h;
-		this.velocityZ = i;
-		this.x = d;
-		this.y = e;
-		this.z = f;
-		this.startX = this.x;
-		this.startY = this.y;
-		this.startZ = this.z;
-		this.scale = 0.1F * (this.random.nextFloat() * 0.2F + 0.5F);
-		float j = this.random.nextFloat() * 0.6F + 0.4F;
-		this.red = j * 0.9F;
-		this.green = j * 0.3F;
-		this.blue = j;
-		this.maxAge = (int) (this.random.nextFloat() * 10.0F) + 40;
+		super(world, x, y, z, sprite);
+		this.velocityX = velocityX;
+		this.velocityY = velocityY;
+		this.velocityZ = velocityZ;
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.startX = x;
+		this.startY = y;
+		this.startZ = z;
+		this.scale = SCALE_BASE * (this.random.nextFloat() * SCALE_VARIANCE + SCALE_MIN);
+		float colorBase = this.random.nextFloat() * COLOR_VARIANCE + COLOR_MIN;
+		this.red = colorBase * RED_FACTOR;
+		this.green = colorBase * GREEN_FACTOR;
+		this.blue = colorBase;
+		this.maxAge = (int) (this.random.nextFloat() * LIFETIME_VARIANCE) + MIN_LIFETIME;
 	}
 
 	@Override
@@ -58,27 +72,25 @@ public class PortalParticle extends BillboardParticle {
 
 	@Override
 	public float getSize(float tickProgress) {
-		float f = (this.age + tickProgress) / this.maxAge;
-		f = 1.0F - f;
-		f *= f;
-		f = 1.0F - f;
-		return this.scale * f;
+		float lifeProgress = (this.age + tickProgress) / this.maxAge;
+		float invProgress = 1.0F - lifeProgress;
+		float eased = 1.0F - invProgress * invProgress;
+		return this.scale * eased;
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		int i = super.getBrightness(tint);
-		float f = (float) this.age / this.maxAge;
-		f *= f;
-		f *= f;
-		int j = i & 0xFF;
-		int k = i >> 16 & 0xFF;
-		k += (int) (f * 15.0F * 16.0F);
-		if (k > 240) {
-			k = 240;
+		int baseBrightness = super.getBrightness(tint);
+		float lifeProgress = (float) this.age / this.maxAge;
+		float lifeProgressQuad = lifeProgress * lifeProgress * lifeProgress * lifeProgress;
+		int blockLight = baseBrightness & 0xFF;
+		int skyLight = baseBrightness >> 16 & 0xFF;
+		skyLight += (int) (lifeProgressQuad * SKY_BRIGHTNESS_SCALE);
+		if (skyLight > MAX_SKY_BRIGHTNESS) {
+			skyLight = MAX_SKY_BRIGHTNESS;
 		}
 
-		return j | k << 16;
+		return blockLight | skyLight << 16;
 	}
 
 	@Override
@@ -86,23 +98,22 @@ public class PortalParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
+
 		if (this.age++ >= this.maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			float f = (float) this.age / this.maxAge;
-			float var3 = -f + f * f * 2.0F;
-			float var4 = 1.0F - var3;
-			this.x = this.startX + this.velocityX * var4;
-			this.y = this.startY + this.velocityY * var4 + (1.0F - f);
-			this.z = this.startZ + this.velocityZ * var4;
-		}
+
+		float lifeProgress = (float) this.age / this.maxAge;
+		// Нелинейная траектория: частица ускоряется к концу жизни
+		float easeOut = -lifeProgress + lifeProgress * lifeProgress * 2.0F;
+		float remaining = 1.0F - easeOut;
+		this.x = this.startX + this.velocityX * remaining;
+		this.y = this.startY + this.velocityY * remaining + (1.0F - lifeProgress);
+		this.z = this.startZ + this.velocityZ * remaining;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -111,18 +122,19 @@ public class PortalParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new PortalParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new PortalParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
 		}
 	}
 }

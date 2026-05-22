@@ -12,7 +12,8 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractPlantPartBlock}.
+ * Базовый класс для частей многоблочных растений (стебель и тело).
+ * Определяет направление роста, форму и условия размещения.
  */
 public abstract class AbstractPlantPartBlock extends Block {
 
@@ -21,10 +22,10 @@ public abstract class AbstractPlantPartBlock extends Block {
 	protected final VoxelShape outlineShape;
 
 	protected AbstractPlantPartBlock(
-			AbstractBlock.Settings settings,
-			Direction growthDirection,
-			VoxelShape outlineShape,
-			boolean tickWater
+		AbstractBlock.Settings settings,
+		Direction growthDirection,
+		VoxelShape outlineShape,
+		boolean tickWater
 	) {
 		super(settings);
 		this.growthDirection = growthDirection;
@@ -37,24 +38,28 @@ public abstract class AbstractPlantPartBlock extends Block {
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().offset(this.growthDirection));
-		return !blockState.isOf(this.getStem()) && !blockState.isOf(this.getPlant())
-		       ? this.getRandomGrowthState(ctx.getWorld().random)
-		       : this.getPlant().getDefaultState();
+		BlockState neighbor = ctx.getWorld().getBlockState(ctx.getBlockPos().offset(growthDirection));
+		return neighbor.isOf(getStem()) || neighbor.isOf(getPlant())
+			? getPlant().getDefaultState()
+			: getRandomGrowthState(ctx.getWorld().random);
 	}
 
 	public BlockState getRandomGrowthState(Random random) {
-		return this.getDefaultState();
+		return getDefaultState();
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.offset(this.growthDirection.getOpposite());
-		BlockState blockState = world.getBlockState(blockPos);
-		return !this.canAttachTo(blockState)
-		       ? false
-		       : blockState.isOf(this.getStem()) || blockState.isOf(this.getPlant())
-		         || blockState.isSideSolidFullSquare(world, blockPos, this.growthDirection);
+		BlockPos attachPos = pos.offset(growthDirection.getOpposite());
+		BlockState attachState = world.getBlockState(attachPos);
+
+		if (!canAttachTo(attachState)) {
+			return false;
+		}
+
+		return attachState.isOf(getStem())
+			|| attachState.isOf(getPlant())
+			|| attachState.isSideSolidFullSquare(world, attachPos, growthDirection);
 	}
 
 	@Override
@@ -65,11 +70,8 @@ public abstract class AbstractPlantPartBlock extends Block {
 	}
 
 	/**
-	 * Проверяет возможность attach to.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли данная часть растения прикрепиться к соседнему блоку.
+	 * По умолчанию разрешено прикрепление к любому блоку.
 	 */
 	protected boolean canAttachTo(BlockState state) {
 		return true;
@@ -77,7 +79,7 @@ public abstract class AbstractPlantPartBlock extends Block {
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.outlineShape;
+		return outlineShape;
 	}
 
 	protected abstract AbstractPlantStemBlock getStem();

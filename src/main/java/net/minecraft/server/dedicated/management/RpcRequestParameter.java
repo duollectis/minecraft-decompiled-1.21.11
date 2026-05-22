@@ -6,7 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 
 /**
- * {@code RpcRequestParameter}.
+ * Класс Rpc Request Parameter.
  */
 public record RpcRequestParameter<Param>(String name, RpcSchema<Param> schema, boolean required) {
 

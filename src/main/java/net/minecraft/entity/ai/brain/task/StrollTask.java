@@ -16,72 +16,35 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * {@code StrollTask}.
+ * Фабричный класс задач мозга для случайного блуждания сущности по миру.
+ * Поддерживает несколько стратегий выбора цели: нечёткую, твёрдую поверхность и динамический радиус.
  */
 public class StrollTask {
 
 	private static final int DEFAULT_HORIZONTAL_RADIUS = 10;
 	private static final int DEFAULT_VERTICAL_RADIUS = 7;
-	private static final int[][] RADII = new int[][]{{1, 1}, {3, 3}, {5, 5}, {6, 5}, {7, 7}, {10, 7}};
+	private static final int[][] RADII = new int[][]{{1, 1}, {3, 3}, {5, 5}, {6, 5}, {7, 7}, {DEFAULT_HORIZONTAL_RADIUS, 7}};
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<PathAwareEntity> create(float speed) {
 		return create(speed, true);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 * @param strollInsideWater stroll inside water
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<PathAwareEntity> create(float speed, boolean strollInsideWater) {
 		return create(
 				speed,
-				entity -> FuzzyTargeting.find(entity, 10, 7),
+				entity -> FuzzyTargeting.find(entity, DEFAULT_HORIZONTAL_RADIUS, DEFAULT_VERTICAL_RADIUS),
 				strollInsideWater ? entity -> true : entity -> !entity.isTouchingWater()
 		);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 * @param horizontalRadius horizontal radius
-	 * @param verticalRadius vertical radius
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PathAwareEntity> create(float speed, int horizontalRadius, int verticalRadius) {
 		return create(speed, entity -> FuzzyTargeting.find(entity, horizontalRadius, verticalRadius), entity -> true);
 	}
 
-	/**
-	 * Создаёт solid targeting.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PathAwareEntity> createSolidTargeting(float speed) {
-		return create(speed, entity -> findTargetPos(entity, 10, 7), entity -> true);
+		return create(speed, entity -> findTargetPos(entity, DEFAULT_HORIZONTAL_RADIUS, DEFAULT_VERTICAL_RADIUS), entity -> true);
 	}
 
-	/**
-	 * Создаёт dynamic radius.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PathAwareEntity> createDynamicRadius(float speed) {
 		return create(speed, StrollTask::findTargetPos, Entity::isTouchingWater);
 	}
@@ -97,42 +60,41 @@ public class StrollTask {
 							if (!shouldRun.test(entity)) {
 								return false;
 							}
-							else {
-								Optional<Vec3d> optional = Optional.ofNullable(targetGetter.apply(entity));
-								walkTarget.remember(optional.map(pos -> new WalkTarget(pos, speed, 0)));
-								return true;
-							}
+
+							Optional<Vec3d> targetPosOpt = Optional.ofNullable(targetGetter.apply(entity));
+							walkTarget.remember(targetPosOpt.map(pos -> new WalkTarget(pos, speed, 0)));
+							return true;
 						}
 				)
 		);
 	}
 
 	private static @Nullable Vec3d findTargetPos(PathAwareEntity entity) {
-		Vec3d vec3d = null;
-		Vec3d vec3d2 = null;
+		Vec3d bestPos = null;
+		Vec3d candidate = null;
 
-		for (int[] is : RADII) {
-			if (vec3d == null) {
-				vec3d2 = TargetUtil.find(entity, is[0], is[1]);
-			}
-			else {
-				vec3d2 =
-						entity
-								.getEntityPos()
-								.add(entity.getEntityPos().relativize(vec3d).normalize().multiply(is[0], is[1], is[0]));
+		for (int[] radii : RADII) {
+			if (bestPos == null) {
+				candidate = TargetUtil.find(entity, radii[0], radii[1]);
+			} else {
+				candidate = entity
+						.getEntityPos()
+						.add(entity.getEntityPos().relativize(bestPos).normalize().multiply(radii[0], radii[1], radii[0]));
 			}
 
-			boolean bl = NavigationConditions.isPositionTargetInRange(entity, is[0]);
-			if (vec3d2 == null
-					|| entity.getEntityWorld().getFluidState(BlockPos.ofFloored(vec3d2)).isEmpty()
-					|| NavigationConditions.isPositionTargetOutOfWalkRange(bl, entity, vec3d2)) {
-				return vec3d;
+			boolean inRange = NavigationConditions.isPositionTargetInRange(entity, radii[0]);
+
+			if (candidate == null
+					|| entity.getEntityWorld().getFluidState(BlockPos.ofFloored(candidate)).isEmpty()
+					|| NavigationConditions.isPositionTargetOutOfWalkRange(inRange, entity, candidate)
+			) {
+				return bestPos;
 			}
 
-			vec3d = vec3d2;
+			bestPos = candidate;
 		}
 
-		return vec3d2;
+		return candidate;
 	}
 
 	private static @Nullable Vec3d findTargetPos(PathAwareEntity entity, int horizontalRadius, int verticalRadius) {

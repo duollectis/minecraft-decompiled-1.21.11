@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code AllowlistRpcDispatcher}.
+ * Класс Allowlist Rpc Dispatcher.
  */
 public class AllowlistRpcDispatcher {
 

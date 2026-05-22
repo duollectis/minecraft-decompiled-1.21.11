@@ -41,10 +41,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockStateModelGenerator}.
+ * Генератор состояний блоков и их моделей: регистрирует JSON-определения blockstate,
+ * загружает модели через {@link ModelSupplier} и связывает предметы с моделями блоков.
  */
+@Environment(EnvType.CLIENT)
 public class BlockStateModelGenerator {
 
 	public final Consumer<BlockModelDefinitionCreator> blockStateCollector;
@@ -9375,7 +9376,10 @@ public class BlockStateModelGenerator {
 
 	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CrossType}.
+	 * Стратегия выбора модели крестообразного блока (цветок, трава, водоросль и т.п.).
+	 * Определяет, используется ли тонирование биомом ({@code TINTED}), нейтральная модель
+	 * ({@code NOT_TINTED}) или эмиссивная без тонирования ({@code EMISSIVE_NOT_TINTED}),
+	 * а также соответствующую модель для горшка с цветком.
 	 */
 	public static enum CrossType {
 		TINTED(Models.TINTED_CROSS, Models.TINTED_FLOWER_POT_CROSS, false),

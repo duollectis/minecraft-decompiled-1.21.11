@@ -9,7 +9,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code StringHelper}.
+ * Утилитарные методы для работы со строками в контексте Minecraft:
+ * форматирование времени, обрезка текста, валидация имён игроков и символов.
  */
 public class StringHelper {
 
@@ -17,30 +18,45 @@ public class StringHelper {
 	private static final Pattern LINE_BREAK = Pattern.compile("\\r\\n|\\v");
 	private static final Pattern ENDS_WITH_LINE_BREAK = Pattern.compile("(?:\\r\\n|\\v)$");
 
+	/** Максимальная длина сообщения в чате. */
+	private static final int MAX_CHAT_LENGTH = 256;
+
+	/** Максимальная длина имени игрока. */
+	private static final int MAX_PLAYER_NAME_LENGTH = 16;
+
+	/** Код символа параграфа (§), используемого для форматирования. */
+	private static final int SECTION_SIGN = 167;
+
+	/** Код символа DEL, недопустимого в именах и сообщениях. */
+	private static final int DEL_CHAR = 127;
+
+	/** Минимальный допустимый код символа (пробел). */
+	private static final int MIN_VALID_CHAR = 32;
+
 	/**
-	 * Форматирует ticks.
+	 * Форматирует количество тиков в строку вида {@code ЧЧ:ММ:СС} или {@code ММ:СС}.
 	 *
-	 * @param ticks ticks
-	 * @param tickRate tick rate
-	 *
-	 * @return String — результат операции
+	 * @param ticks количество тиков
+	 * @param tickRate тиков в секунду
+	 * @return отформатированная строка времени
 	 */
 	public static String formatTicks(int ticks, float tickRate) {
-		int i = MathHelper.floor(ticks / tickRate);
-		int j = i / 60;
-		i %= 60;
-		int k = j / 60;
-		j %= 60;
-		return k > 0 ? String.format(Locale.ROOT, "%02d:%02d:%02d", k, j, i)
-		             : String.format(Locale.ROOT, "%02d:%02d", j, i);
+		int totalSeconds = MathHelper.floor(ticks / tickRate);
+		int seconds = totalSeconds % 60;
+		int totalMinutes = totalSeconds / 60;
+		int minutes = totalMinutes % 60;
+		int hours = totalMinutes / 60;
+
+		return hours > 0
+			? String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds)
+			: String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
 	}
 
 	/**
-	 * Strip text format.
+	 * Удаляет коды форматирования Minecraft (§X) из строки.
 	 *
-	 * @param text text
-	 *
-	 * @return String — результат операции
+	 * @param text строка с кодами форматирования
+	 * @return строка без кодов форматирования
 	 */
 	public static String stripTextFormat(String text) {
 		return FORMATTING_CODE.matcher(text).replaceAll("");
@@ -51,109 +67,104 @@ public class StringHelper {
 	}
 
 	/**
-	 * Truncate.
+	 * Обрезает строку до заданной длины с опциональным добавлением многоточия.
 	 *
-	 * @param text text
-	 * @param maxLength max length
-	 * @param addEllipsis add ellipsis
-	 *
-	 * @return String — результат операции
+	 * @param text исходная строка
+	 * @param maxLength максимальная длина результата
+	 * @param addEllipsis добавить «...» в конец (требует maxLength > 3)
+	 * @return обрезанная строка
 	 */
 	public static String truncate(String text, int maxLength, boolean addEllipsis) {
 		if (text.length() <= maxLength) {
 			return text;
 		}
-		else {
-			return addEllipsis && maxLength > 3 ? text.substring(0, maxLength - 3) + "..."
-			                                    : text.substring(0, maxLength);
-		}
+
+		return addEllipsis && maxLength > 3
+			? text.substring(0, maxLength - 3) + "..."
+			: text.substring(0, maxLength);
 	}
 
 	/**
-	 * Count lines.
+	 * Подсчитывает количество строк в тексте (минимум 1 для непустой строки).
 	 *
-	 * @param text text
-	 *
-	 * @return int — результат операции
+	 * @param text текст для подсчёта строк
+	 * @return количество строк
 	 */
 	public static int countLines(String text) {
 		if (text.isEmpty()) {
 			return 0;
 		}
-		else {
-			Matcher matcher = LINE_BREAK.matcher(text);
-			int i = 1;
 
-			while (matcher.find()) {
-				i++;
-			}
+		Matcher matcher = LINE_BREAK.matcher(text);
+		int lineCount = 1;
 
-			return i;
+		while (matcher.find()) {
+			lineCount++;
 		}
+
+		return lineCount;
 	}
 
-	/**
-	 * Ends with line break.
-	 *
-	 * @param text text
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean endsWithLineBreak(String text) {
 		return ENDS_WITH_LINE_BREAK.matcher(text).find();
 	}
 
 	/**
-	 * Truncate chat.
+	 * Обрезает строку до максимальной длины сообщения чата ({@value MAX_CHAT_LENGTH} символов).
 	 *
-	 * @param text text
-	 *
-	 * @return String — результат операции
+	 * @param text исходная строка
+	 * @return обрезанная строка
 	 */
 	public static String truncateChat(String text) {
-		return truncate(text, 256, false);
-	}
-
-	public static boolean isValidChar(int c) {
-		return c != 167 && c >= 32 && c != 127;
-	}
-
-	public static boolean isValidPlayerName(String name) {
-		return name.length() > 16 ? false : name.chars().filter(c -> c <= 32 || c >= 127).findAny().isEmpty();
+		return truncate(text, MAX_CHAT_LENGTH, false);
 	}
 
 	/**
-	 * Strip invalid chars.
+	 * Проверяет допустимость символа для ввода в текстовые поля Minecraft.
+	 * Запрещены: символ параграфа (§), управляющие символы (< 32) и DEL (127).
 	 *
-	 * @param string string
-	 *
-	 * @return String — результат операции
+	 * @param c код символа
+	 * @return {@code true} если символ допустим
 	 */
+	public static boolean isValidChar(int c) {
+		return c != SECTION_SIGN && c >= MIN_VALID_CHAR && c != DEL_CHAR;
+	}
+
+	/**
+	 * Проверяет допустимость имени игрока: не длиннее 16 символов и содержит только
+	 * символы с кодами от 33 до 126 включительно.
+	 *
+	 * @param name проверяемое имя
+	 * @return {@code true} если имя допустимо
+	 */
+	public static boolean isValidPlayerName(String name) {
+		return name.length() <= MAX_PLAYER_NAME_LENGTH
+			&& name.chars().filter(c -> c <= MIN_VALID_CHAR || c >= DEL_CHAR).findAny().isEmpty();
+	}
+
 	public static String stripInvalidChars(String string) {
 		return stripInvalidChars(string, false);
 	}
 
 	/**
-	 * Strip invalid chars.
+	 * Удаляет недопустимые символы из строки с опциональным сохранением переносов строк.
 	 *
-	 * @param string string
-	 * @param allowLinebreak allow linebreak
-	 *
-	 * @return String — результат операции
+	 * @param string исходная строка
+	 * @param allowLinebreak разрешить символ переноса строки {@code \n}
+	 * @return строка без недопустимых символов
 	 */
 	public static String stripInvalidChars(String string, boolean allowLinebreak) {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder result = new StringBuilder();
 
 		for (char c : string.toCharArray()) {
 			if (isValidChar(c)) {
-				stringBuilder.append(c);
-			}
-			else if (allowLinebreak && c == '\n') {
-				stringBuilder.append(c);
+				result.append(c);
+			} else if (allowLinebreak && c == '\n') {
+				result.append(c);
 			}
 		}
 
-		return stringBuilder.toString();
+		return result.toString();
 	}
 
 	public static boolean isWhitespace(int c) {
@@ -161,6 +172,6 @@ public class StringHelper {
 	}
 
 	public static boolean isBlank(@Nullable String string) {
-		return string != null && !string.isEmpty() ? string.chars().allMatch(StringHelper::isWhitespace) : true;
+		return string == null || string.isEmpty() || string.chars().allMatch(StringHelper::isWhitespace);
 	}
 }

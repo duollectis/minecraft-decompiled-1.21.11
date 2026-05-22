@@ -16,72 +16,68 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code SlideDownBlockCriterion}.
+ * Критерий выполняется, когда игрок скользит вниз по блоку (например, по мёду).
+ * Поддерживает проверку конкретного типа блока и его состояния.
  */
 public class SlideDownBlockCriterion extends AbstractCriterion<SlideDownBlockCriterion.Conditions> {
 
 	@Override
-	public Codec<SlideDownBlockCriterion.Conditions> getConditionsCodec() {
-		return SlideDownBlockCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, BlockState state) {
-		this.trigger(player, conditions -> conditions.test(state));
+		trigger(player, conditions -> conditions.test(state));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<RegistryEntry<Block>> block,
 			Optional<StatePredicate> state
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<SlideDownBlockCriterion.Conditions>
-				CODEC =
-				RecordCodecBuilder.<SlideDownBlockCriterion.Conditions>create(
-						                  instance -> instance.group(
-								                                      EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-										                                      .optionalFieldOf("player")
-										                                      .forGetter(SlideDownBlockCriterion.Conditions::player),
-								                                      Registries.BLOCK.getEntryCodec().optionalFieldOf("block").forGetter(
-										                                      (SlideDownBlockCriterion.Conditions c) -> c.block()
-								                                      ),
-								                                      StatePredicate.CODEC
-										                                      .optionalFieldOf("state")
-										                                      .forGetter(SlideDownBlockCriterion.Conditions::state)
-						                                      )
-						                                      .apply(instance, SlideDownBlockCriterion.Conditions::new)
-				                  )
-				                  .validate(SlideDownBlockCriterion.Conditions::validate);
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.<Conditions>create(
+				instance -> instance.group(
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						Registries.BLOCK.getEntryCodec()
+								.optionalFieldOf("block")
+								.forGetter(Conditions::block),
+						StatePredicate.CODEC
+								.optionalFieldOf("state")
+								.forGetter(Conditions::state)
+				).apply(instance, Conditions::new)
+		).validate(Conditions::validate);
 
-		private static DataResult<SlideDownBlockCriterion.Conditions> validate(SlideDownBlockCriterion.Conditions conditions) {
+		/**
+		 * Проверяет, что все свойства из предиката состояния существуют у указанного блока.
+		 * Предотвращает создание условий с несуществующими свойствами блока.
+		 */
+		private static DataResult<Conditions> validate(Conditions conditions) {
 			return conditions.block
-					.<DataResult<SlideDownBlockCriterion.Conditions>>flatMap(
-							block -> conditions.state
-									.<String>flatMap(state -> state.findMissing(((Block) block.value()).getStateManager()))
-									.map(property -> DataResult.error(() -> "Block" + block + " has no property "
-											+ property))
+					.<DataResult<Conditions>>flatMap(
+							blockEntry -> conditions.state
+									.<String>flatMap(statePredicate -> statePredicate.findMissing(blockEntry.value().getStateManager()))
+									.map(property -> DataResult.error(() -> "Block " + blockEntry + " has no property " + property))
 					)
 					.orElseGet(() -> DataResult.success(conditions));
 		}
 
-		public static AdvancementCriterion<SlideDownBlockCriterion.Conditions> create(Block block) {
-			return Criteria.SLIDE_DOWN_BLOCK
-					.create(new SlideDownBlockCriterion.Conditions(
-							Optional.empty(),
-							Optional.of(block.getRegistryEntry()),
-							Optional.empty()
-					));
+		public static AdvancementCriterion<Conditions> create(Block block) {
+			return Criteria.SLIDE_DOWN_BLOCK.create(new Conditions(
+					Optional.empty(),
+					Optional.of(block.getRegistryEntry()),
+					Optional.empty()
+			));
 		}
 
 		public boolean test(BlockState state) {
-			return this.block.isPresent() && !state.isOf(this.block.get()) ? false
-			                                                               : !this.state.isPresent() || this.state
-			                                                                                            .get()
-			                                                                                            .test(state);
+			if (block.isPresent() && !state.isOf(block.get())) {
+				return false;
+			}
+
+			return this.state.isEmpty() || this.state.get().test(state);
 		}
 	}
 }

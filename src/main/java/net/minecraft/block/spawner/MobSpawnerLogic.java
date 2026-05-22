@@ -41,17 +41,17 @@ public abstract class MobSpawnerLogic {
 	private static final int DEFAULT_MAX_NEARBY_ENTITIES = 6;
 	private static final int DEFAULT_REQUIRED_PLAYER_RANGE = 16;
 	private static final int DEFAULT_SPAWN_RANGE = 4;
-	private int spawnDelay = 20;
+	private int spawnDelay = DEFAULT_SPAWN_DELAY;
 	private Pool<MobSpawnerEntry> spawnPotentials = Pool.empty();
 	private @Nullable MobSpawnerEntry spawnEntry;
 	private double rotation;
 	private double lastRotation;
-	private int minSpawnDelay = 200;
-	private int maxSpawnDelay = 800;
+	private int minSpawnDelay = DEFAULT_MIN_SPAWN_DELAY;
+	private int maxSpawnDelay = DEFAULT_MAX_SPAWN_DELAY;
 	private int spawnCount = 4;
 	private @Nullable Entity renderedEntity;
 	private int maxNearbyEntities = 6;
-	private int requiredPlayerRange = 16;
+	private int requiredPlayerRange = DEFAULT_REQUIRED_PLAYER_RANGE;
 	private int spawnRange = 4;
 
 	public void setEntityId(EntityType<?> type, @Nullable World world, Random random, BlockPos pos) {
@@ -270,18 +270,18 @@ public abstract class MobSpawnerLogic {
 	 * @param view view
 	 */
 	public void readData(@Nullable World world, BlockPos pos, ReadView view) {
-		this.spawnDelay = view.getShort("Delay", (short) 20);
+		this.spawnDelay = view.getShort("Delay", (short) DEFAULT_SPAWN_DELAY);
 		view
 				.<MobSpawnerEntry>read("SpawnData", MobSpawnerEntry.CODEC)
 				.ifPresent(mobSpawnerEntry -> this.setSpawnEntry(world, pos, mobSpawnerEntry));
 		this.spawnPotentials = view.<Pool<MobSpawnerEntry>>read("SpawnPotentials", MobSpawnerEntry.DATA_POOL_CODEC)
 		                           .orElseGet(() -> Pool.of(
 				                           this.spawnEntry != null ? this.spawnEntry : new MobSpawnerEntry()));
-		this.minSpawnDelay = view.getInt("MinSpawnDelay", 200);
-		this.maxSpawnDelay = view.getInt("MaxSpawnDelay", 800);
+		this.minSpawnDelay = view.getInt("MinSpawnDelay", DEFAULT_MIN_SPAWN_DELAY);
+		this.maxSpawnDelay = view.getInt("MaxSpawnDelay", DEFAULT_MAX_SPAWN_DELAY);
 		this.spawnCount = view.getInt("SpawnCount", 4);
 		this.maxNearbyEntities = view.getInt("MaxNearbyEntities", 6);
-		this.requiredPlayerRange = view.getInt("RequiredPlayerRange", 16);
+		this.requiredPlayerRange = view.getInt("RequiredPlayerRange", DEFAULT_REQUIRED_PLAYER_RANGE);
 		this.spawnRange = view.getInt("SpawnRange", 4);
 		this.renderedEntity = null;
 	}

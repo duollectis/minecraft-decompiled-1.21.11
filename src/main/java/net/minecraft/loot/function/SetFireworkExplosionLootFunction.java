@@ -14,32 +14,35 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SetFireworkExplosionLootFunction}.
+ * Функция лута, устанавливающая параметры взрыва фейерверка.
+ * Все поля опциональны — если не указаны, сохраняются текущие значения компонента.
  */
 public class SetFireworkExplosionLootFunction extends ConditionalLootFunction {
 
-	public static final MapCodec<SetFireworkExplosionLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									FireworkExplosionComponent.Type.CODEC
-											.optionalFieldOf("shape")
-											.forGetter(function -> function.shape),
-									FireworkExplosionComponent.COLORS_CODEC
-											.optionalFieldOf("colors")
-											.forGetter(function -> function.colors),
-									FireworkExplosionComponent.COLORS_CODEC
-											.optionalFieldOf("fade_colors")
-											.forGetter(function -> function.fadeColors),
-									Codec.BOOL.optionalFieldOf("trail").forGetter(function -> function.trail),
-									Codec.BOOL.optionalFieldOf("twinkle").forGetter(function -> function.twinkle)
-							)
-					)
-					.apply(instance, SetFireworkExplosionLootFunction::new)
-	);
 	public static final FireworkExplosionComponent DEFAULT_EXPLOSION = new FireworkExplosionComponent(
-			FireworkExplosionComponent.Type.SMALL_BALL, IntList.of(), IntList.of(), false, false
+		FireworkExplosionComponent.Type.SMALL_BALL, IntList.of(), IntList.of(), false, false
 	);
+
+	public static final MapCodec<SetFireworkExplosionLootFunction> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					FireworkExplosionComponent.Type.CODEC
+						.optionalFieldOf("shape")
+						.forGetter(function -> function.shape),
+					FireworkExplosionComponent.COLORS_CODEC
+						.optionalFieldOf("colors")
+						.forGetter(function -> function.colors),
+					FireworkExplosionComponent.COLORS_CODEC
+						.optionalFieldOf("fade_colors")
+						.forGetter(function -> function.fadeColors),
+					Codec.BOOL.optionalFieldOf("trail").forGetter(function -> function.trail),
+					Codec.BOOL.optionalFieldOf("twinkle").forGetter(function -> function.twinkle)
+				)
+			)
+			.apply(instance, SetFireworkExplosionLootFunction::new)
+	);
+
 	final Optional<FireworkExplosionComponent.Type> shape;
 	final Optional<IntList> colors;
 	final Optional<IntList> fadeColors;
@@ -47,12 +50,12 @@ public class SetFireworkExplosionLootFunction extends ConditionalLootFunction {
 	final Optional<Boolean> twinkle;
 
 	public SetFireworkExplosionLootFunction(
-			List<LootCondition> conditions,
-			Optional<FireworkExplosionComponent.Type> shape,
-			Optional<IntList> colors,
-			Optional<IntList> fadeColors,
-			Optional<Boolean> trail,
-			Optional<Boolean> twinkle
+		List<LootCondition> conditions,
+		Optional<FireworkExplosionComponent.Type> shape,
+		Optional<IntList> colors,
+		Optional<IntList> fadeColors,
+		Optional<Boolean> trail,
+		Optional<Boolean> twinkle
 	) {
 		super(conditions);
 		this.shape = shape;
@@ -64,17 +67,17 @@ public class SetFireworkExplosionLootFunction extends ConditionalLootFunction {
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		stack.apply(DataComponentTypes.FIREWORK_EXPLOSION, DEFAULT_EXPLOSION, this::apply);
+		stack.apply(DataComponentTypes.FIREWORK_EXPLOSION, DEFAULT_EXPLOSION, this::applyToExplosion);
 		return stack;
 	}
 
-	private FireworkExplosionComponent apply(FireworkExplosionComponent current) {
+	private FireworkExplosionComponent applyToExplosion(FireworkExplosionComponent current) {
 		return new FireworkExplosionComponent(
-				this.shape.orElseGet(current::shape),
-				this.colors.orElseGet(current::colors),
-				this.fadeColors.orElseGet(current::fadeColors),
-				this.trail.orElseGet(current::hasTrail),
-				this.twinkle.orElseGet(current::hasTwinkle)
+			shape.orElseGet(current::shape),
+			colors.orElseGet(current::colors),
+			fadeColors.orElseGet(current::fadeColors),
+			trail.orElseGet(current::hasTrail),
+			twinkle.orElseGet(current::hasTwinkle)
 		);
 	}
 

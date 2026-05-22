@@ -28,18 +28,18 @@ public interface CraftingRecipeJsonBuilder {
 	void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey);
 
 	default void offerTo(RecipeExporter exporter) {
-		this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, getItemId(this.getOutputItem())));
+		offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, getItemId(getOutputItem())));
 	}
 
 	default void offerTo(RecipeExporter exporter, String recipePath) {
-		Identifier identifier = getItemId(this.getOutputItem());
+		Identifier identifier = getItemId(getOutputItem());
 		Identifier identifier2 = Identifier.of(recipePath);
 		if (identifier2.equals(identifier)) {
 			throw new IllegalStateException(
 					"Recipe " + recipePath + " should remove its 'save' argument as it is equal to default one");
 		}
 		else {
-			this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, identifier2));
+			offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, identifier2));
 		}
 	}
 

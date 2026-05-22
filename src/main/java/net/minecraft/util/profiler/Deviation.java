@@ -3,7 +3,8 @@ package net.minecraft.util.profiler;
 import java.time.Instant;
 
 /**
- * {@code Deviation}.
+ * Зафиксированное отклонение метрики: момент времени, номер тика
+ * и снимок результатов профилирования в момент отклонения.
  */
 public final class Deviation {
 

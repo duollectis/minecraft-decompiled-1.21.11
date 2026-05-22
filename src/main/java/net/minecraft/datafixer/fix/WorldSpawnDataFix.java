@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.stream.IntStream;
 
 /**
- * {@code WorldSpawnDataFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WorldSpawnDataFix extends DataFix {
 
@@ -19,9 +19,9 @@ public class WorldSpawnDataFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"WorldSpawnDataFix",
-				this.getInputSchema().getType(TypeReferences.LEVEL),
+				getInputSchema().getType(TypeReferences.LEVEL),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> {

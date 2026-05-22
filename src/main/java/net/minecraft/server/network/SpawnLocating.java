@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code SpawnLocating}.
+ * Класс Spawn Locating.
  */
 public class SpawnLocating {
 
@@ -44,7 +44,7 @@ public class SpawnLocating {
 		this.spawnPos = spawnPos;
 		this.spawnRadius = spawnRadius;
 		long l = spawnRadius * 2L + 1L;
-		this.spawnArea = (int) Math.min(1024L, l * l);
+		this.spawnArea = (int) Math.min(MAX_SPAWN_AREA, l * l);
 		this.shiftAmount = calculateShiftAmount(this.spawnArea);
 		this.offset = Random.create().nextInt(this.spawnArea);
 	}

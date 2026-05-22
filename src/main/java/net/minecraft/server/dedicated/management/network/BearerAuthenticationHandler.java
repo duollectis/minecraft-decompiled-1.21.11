@@ -20,7 +20,7 @@ import java.util.Set;
 
 @Sharable
 /**
- * {@code BearerAuthenticationHandler}.
+ * Класс Bearer Authentication Handler.
  */
 public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 
@@ -166,9 +166,6 @@ public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 		context.writeAndFlush(defaultFullHttpResponse).addListener(future -> context.close());
 	}
 
-	/**
-	 * {@code Result}.
-	 */
 	static class Result {
 
 		private final boolean successful;

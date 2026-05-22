@@ -11,13 +11,20 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code HorseScreenHandler}.
+ * Обработчик экрана лошади (и ламы).
+ * <p>
+ * Добавляет слоты седла и брони (для ламы — попона, для лошади — броня),
+ * а также сетку инвентаря лошади (если есть) и инвентарь игрока.
  */
 public class HorseScreenHandler extends MountScreenHandler {
 
 	private static final Identifier EMPTY_SADDLE_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/saddle");
 	private static final Identifier EMPTY_LLAMA_ARMOR_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/llama_armor");
 	private static final Identifier EMPTY_HORSE_ARMOR_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/horse_armor");
+	private static final int SLOT_STEP = 18;
+	private static final int INVENTORY_ROWS = 3;
+	private static final int INVENTORY_START_X = 80;
+	private static final int INVENTORY_START_Y = 18;
 
 	public HorseScreenHandler(
 			int syncId,
@@ -27,39 +34,45 @@ public class HorseScreenHandler extends MountScreenHandler {
 			int slotColumnCount
 	) {
 		super(syncId, playerInventory, inventory, entity);
-		Inventory inventory2 = entity.createEquipmentInventory(EquipmentSlot.SADDLE);
-		this.addSlot(new ArmorSlot(inventory2, entity, EquipmentSlot.SADDLE, 0, 8, 18, EMPTY_SADDLE_SLOT_TEXTURE) {
+
+		Inventory saddleInventory = entity.createEquipmentInventory(EquipmentSlot.SADDLE);
+		addSlot(new ArmorSlot(saddleInventory, entity, EquipmentSlot.SADDLE, 0, 8, 18, EMPTY_SADDLE_SLOT_TEXTURE) {
 			@Override
 			public boolean isEnabled() {
-				return entity.canUseSlot(EquipmentSlot.SADDLE) && entity
-						.getType()
-						.isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
+				return entity.canUseSlot(EquipmentSlot.SADDLE)
+						&& entity.getType().isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
 			}
 		});
-		final boolean bl = entity instanceof LlamaEntity;
-		Identifier identifier = bl ? EMPTY_LLAMA_ARMOR_SLOT_TEXTURE : EMPTY_HORSE_ARMOR_SLOT_TEXTURE;
-		Inventory inventory3 = entity.createEquipmentInventory(EquipmentSlot.BODY);
-		this.addSlot(new ArmorSlot(inventory3, entity, EquipmentSlot.BODY, 0, 8, 36, identifier) {
+
+		boolean isLlama = entity instanceof LlamaEntity;
+		Identifier armorTexture = isLlama ? EMPTY_LLAMA_ARMOR_SLOT_TEXTURE : EMPTY_HORSE_ARMOR_SLOT_TEXTURE;
+		Inventory bodyInventory = entity.createEquipmentInventory(EquipmentSlot.BODY);
+		addSlot(new ArmorSlot(bodyInventory, entity, EquipmentSlot.BODY, 0, 8, 36, armorTexture) {
 			@Override
 			public boolean isEnabled() {
-				return entity.canUseSlot(EquipmentSlot.BODY) && (
-						entity.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || bl
-				);
+				return entity.canUseSlot(EquipmentSlot.BODY)
+						&& (entity.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || isLlama);
 			}
 		});
+
 		if (slotColumnCount > 0) {
-			for (int i = 0; i < 3; i++) {
-				for (int j = 0; j < slotColumnCount; j++) {
-					this.addSlot(new Slot(inventory, j + i * slotColumnCount, 80 + j * 18, 18 + i * 18));
+			for (int row = 0; row < INVENTORY_ROWS; row++) {
+				for (int col = 0; col < slotColumnCount; col++) {
+					addSlot(new Slot(
+							inventory,
+							col + row * slotColumnCount,
+							INVENTORY_START_X + col * SLOT_STEP,
+							INVENTORY_START_Y + row * SLOT_STEP
+					));
 				}
 			}
 		}
 
-		this.addPlayerSlots(playerInventory, 8, 84);
+		addPlayerSlots(playerInventory, 8, 84);
 	}
 
 	@Override
 	protected boolean areInventoriesDifferent(Inventory inventory) {
-		return ((AbstractHorseEntity) this.mount).areInventoriesDifferent(inventory);
+		return ((AbstractHorseEntity) mount).areInventoriesDifferent(inventory);
 	}
 }

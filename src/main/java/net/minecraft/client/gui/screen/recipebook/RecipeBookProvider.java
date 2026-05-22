@@ -4,10 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.recipe.display.RecipeDisplay;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RecipeBookProvider}.
+ * Контракт для экранов, содержащих книгу рецептов.
  */
+@Environment(EnvType.CLIENT)
 public interface RecipeBookProvider {
 
 	void refreshRecipeBook();

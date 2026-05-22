@@ -9,7 +9,7 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code BuriedTreasureStructure}.
+ * Структура зарытого клада — одиночный кусок, размещаемый на дне океана.
  */
 public class BuriedTreasureStructure extends Structure {
 

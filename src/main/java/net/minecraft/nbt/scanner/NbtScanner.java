@@ -3,7 +3,18 @@ package net.minecraft.nbt.scanner;
 import net.minecraft.nbt.NbtType;
 
 /**
- * {@code NbtScanner}.
+ * Интерфейс потокового сканера NBT-данных.
+ * <p>
+ * Позволяет обходить структуру NBT без полной десериализации в объекты.
+ * Каждый метод возвращает {@link Result} или {@link NestedResult}, управляющий дальнейшим обходом:
+ * <ul>
+ *   <li>{@link Result#CONTINUE} — продолжить обход</li>
+ *   <li>{@link Result#BREAK} — завершить текущий вложенный блок</li>
+ *   <li>{@link Result#HALT} — немедленно прервать весь обход</li>
+ * </ul>
+ *
+ * @see SimpleNbtScanner
+ * @see NbtCollector
  */
 public interface NbtScanner {
 
@@ -42,21 +53,23 @@ public interface NbtScanner {
 	NbtScanner.Result start(NbtType<?> rootType);
 
 	/**
-	 * {@code NestedResult}.
+	 * Результат обхода вложенного элемента (компаунда или списка).
+	 * Управляет тем, нужно ли входить внутрь, пропустить или прервать обход.
 	 */
-	public static enum NestedResult {
+	enum NestedResult {
 		ENTER,
 		SKIP,
 		BREAK,
-		HALT;
+		HALT
 	}
 
 	/**
-	 * {@code Result}.
+	 * Результат обхода примитивного элемента.
+	 * Управляет продолжением, завершением блока или полной остановкой.
 	 */
-	public static enum Result {
+	enum Result {
 		CONTINUE,
 		BREAK,
-		HALT;
+		HALT
 	}
 }

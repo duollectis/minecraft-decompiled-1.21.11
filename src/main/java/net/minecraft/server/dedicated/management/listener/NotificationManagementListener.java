@@ -14,7 +14,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.rule.GameRule;
 
 /**
- * {@code NotificationManagementListener}.
+ * Класс Notification Management Listener.
  */
 public class NotificationManagementListener implements ManagementListener {
 

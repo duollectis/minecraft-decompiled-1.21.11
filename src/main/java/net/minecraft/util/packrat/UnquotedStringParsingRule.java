@@ -5,7 +5,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code UnquotedStringParsingRule}.
+ * Правило разбора строки без кавычек через {@link StringReader#readUnquotedString()}.
+ * Перед чтением пропускает пробельные символы. Проверяет минимальную длину
+ * прочитанной строки и регистрирует ошибку, если строка слишком короткая.
  */
 public class UnquotedStringParsingRule implements ParsingRule<StringReader, String> {
 
@@ -17,23 +19,17 @@ public class UnquotedStringParsingRule implements ParsingRule<StringReader, Stri
 		this.tooShortException = tooShortException;
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return @Nullable String — результат операции
-	 */
+	@Override
 	public @Nullable String parse(ParsingState<StringReader> parsingState) {
 		parsingState.getReader().skipWhitespace();
-		int i = parsingState.getCursor();
-		String string = parsingState.getReader().readUnquotedString();
-		if (string.length() < this.minLength) {
-			parsingState.getErrors().add(i, this.tooShortException);
+		int startCursor = parsingState.getCursor();
+		String value = parsingState.getReader().readUnquotedString();
+
+		if (value.length() < minLength) {
+			parsingState.getErrors().add(startCursor, tooShortException);
 			return null;
 		}
-		else {
-			return string;
-		}
+
+		return value;
 	}
 }

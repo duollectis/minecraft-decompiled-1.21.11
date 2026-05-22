@@ -26,340 +26,463 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code ProjectileUtil}.
+ * Утилитарный класс для работы со снарядами: трассировка лучей, поиск столкновений,
+ * вычисление допуска попадания и вспомогательные методы создания снарядов.
  */
 public final class ProjectileUtil {
 
+	/** Стандартный допуск (margin) для расширения хитбокса при трассировке снарядов. */
 	public static final float DEFAULT_MARGIN = 0.3F;
 
+	private static final float ROTATION_OFFSET_YAW = 90.0F;
+	private static final float ROTATION_OFFSET_PITCH = 90.0F;
+	private static final float HALF_ROTATION = 180.0F;
+	private static final float FULL_ROTATION = 360.0F;
+	private static final float TOLERANCE_RAMP_TICKS = 20.0F;
+	private static final int TOLERANCE_RAMP_START_AGE = 2;
+
+	/**
+	 * Вычисляет столкновение снаряда с блоками и сущностями на основе его текущей позиции и скорости.
+	 * Использует форму коллайдера и стандартный допуск.
+	 *
+	 * @param entity    снаряд
+	 * @param predicate фильтр сущностей для попадания
+	 * @return ближайший результат столкновения
+	 */
 	public static HitResult getCollision(Entity entity, Predicate<Entity> predicate) {
-		Vec3d vec3d = entity.getVelocity();
+		Vec3d velocity = entity.getVelocity();
 		World world = entity.getEntityWorld();
-		Vec3d vec3d2 = entity.getEntityPos();
+		Vec3d pos = entity.getEntityPos();
 		return getCollision(
-				vec3d2,
-				entity,
-				predicate,
-				vec3d,
-				world,
-				getToleranceMargin(entity),
-				RaycastContext.ShapeType.COLLIDER
+			pos,
+			entity,
+			predicate,
+			velocity,
+			world,
+			getToleranceMargin(entity),
+			RaycastContext.ShapeType.COLLIDER
 		);
 	}
 
+	/**
+	 * Собирает все столкновения снаряда с пробиванием (piercing) в заданном диапазоне атаки.
+	 * Возвращает либо первый блок на пути, либо коллекцию поражённых сущностей.
+	 *
+	 * @param entity       снаряд
+	 * @param attackRange  компонент дальности атаки
+	 * @param hitPredicate фильтр сущностей
+	 * @param shapeType    тип формы для трассировки блоков
+	 * @return Either с блоком (Left) или коллекцией сущностей (Right)
+	 */
 	public static Either<BlockHitResult, Collection<EntityHitResult>> collectPiercingCollisions(
-			Entity entity,
-			AttackRangeComponent attackRange,
-			Predicate<Entity> hitPredicate,
-			RaycastContext.ShapeType shapeType
+		Entity entity,
+		AttackRangeComponent attackRange,
+		Predicate<Entity> hitPredicate,
+		RaycastContext.ShapeType shapeType
 	) {
-		Vec3d vec3d = entity.getHeadRotationVector();
-		Vec3d vec3d2 = entity.getEyePos();
-		Vec3d vec3d3 = vec3d2.add(vec3d.multiply(attackRange.getEffectiveMinRange(entity)));
-		double d = entity.getMovement().dotProduct(vec3d);
-		Vec3d vec3d4 = vec3d2.add(vec3d.multiply(attackRange.getEffectiveMaxRange(entity) + Math.max(0.0, d)));
+		Vec3d lookVec = entity.getHeadRotationVector();
+		Vec3d eyePos = entity.getEyePos();
+		Vec3d minReach = eyePos.add(lookVec.multiply(attackRange.getEffectiveMinRange(entity)));
+		double movementDot = entity.getMovement().dotProduct(lookVec);
+		Vec3d maxReach = eyePos.add(lookVec.multiply(attackRange.getEffectiveMaxRange(entity) + Math.max(0.0, movementDot)));
 		return collectPiercingCollisions(
-				entity,
-				vec3d2,
-				vec3d3,
-				hitPredicate,
-				vec3d4,
-				attackRange.hitboxMargin(),
-				shapeType
+			entity,
+			eyePos,
+			minReach,
+			hitPredicate,
+			maxReach,
+			attackRange.hitboxMargin(),
+			shapeType
 		);
 	}
 
+	/**
+	 * Вычисляет столкновение снаряда с заданным типом формы трассировки.
+	 *
+	 * @param entity           снаряд
+	 * @param predicate        фильтр сущностей
+	 * @param raycastShapeType тип формы для трассировки блоков
+	 * @return ближайший результат столкновения
+	 */
 	public static HitResult getCollision(
-			Entity entity,
-			Predicate<Entity> predicate,
-			RaycastContext.ShapeType raycastShapeType
+		Entity entity,
+		Predicate<Entity> predicate,
+		RaycastContext.ShapeType raycastShapeType
 	) {
-		Vec3d vec3d = entity.getVelocity();
+		Vec3d velocity = entity.getVelocity();
 		World world = entity.getEntityWorld();
-		Vec3d vec3d2 = entity.getEntityPos();
-		return getCollision(vec3d2, entity, predicate, vec3d, world, getToleranceMargin(entity), raycastShapeType);
+		Vec3d pos = entity.getEntityPos();
+		return getCollision(pos, entity, predicate, velocity, world, getToleranceMargin(entity), raycastShapeType);
 	}
 
+	/**
+	 * Вычисляет столкновение снаряда в заданном диапазоне от глаз сущности.
+	 * Используется для атак ближнего боя с трассировкой луча.
+	 *
+	 * @param entity    сущность
+	 * @param predicate фильтр сущностей
+	 * @param range     дальность трассировки
+	 * @return ближайший результат столкновения
+	 */
 	public static HitResult getCollision(Entity entity, Predicate<Entity> predicate, double range) {
-		Vec3d vec3d = entity.getRotationVec(0.0F).multiply(range);
+		Vec3d velocity = entity.getRotationVec(0.0F).multiply(range);
 		World world = entity.getEntityWorld();
-		Vec3d vec3d2 = entity.getEyePos();
-		return getCollision(vec3d2, entity, predicate, vec3d, world, 0.0F, RaycastContext.ShapeType.COLLIDER);
+		Vec3d eyePos = entity.getEyePos();
+		return getCollision(eyePos, entity, predicate, velocity, world, 0.0F, RaycastContext.ShapeType.COLLIDER);
 	}
 
 	private static HitResult getCollision(
-			Vec3d pos,
-			Entity entity,
-			Predicate<Entity> predicate,
-			Vec3d velocity,
-			World world,
-			float margin,
-			RaycastContext.ShapeType raycastShapeType
+		Vec3d pos,
+		Entity entity,
+		Predicate<Entity> predicate,
+		Vec3d velocity,
+		World world,
+		float margin,
+		RaycastContext.ShapeType raycastShapeType
 	) {
-		Vec3d vec3d = pos.add(velocity);
-		HitResult
-				hitResult =
-				world.getCollisionsIncludingWorldBorder(new RaycastContext(
-						pos,
-						vec3d,
-						raycastShapeType,
-						RaycastContext.FluidHandling.NONE,
-						entity
-				));
-		if (hitResult.getType() != HitResult.Type.MISS) {
-			vec3d = hitResult.getPos();
+		Vec3d endPos = pos.add(velocity);
+		HitResult blockHit = world.getCollisionsIncludingWorldBorder(
+			new RaycastContext(pos, endPos, raycastShapeType, RaycastContext.FluidHandling.NONE, entity)
+		);
+		if (blockHit.getType() != HitResult.Type.MISS) {
+			endPos = blockHit.getPos();
 		}
 
-		HitResult
-				hitResult2 =
-				getEntityCollision(
-						world,
-						entity,
-						pos,
-						vec3d,
-						entity.getBoundingBox().stretch(velocity).expand(1.0),
-						predicate,
-						margin
-				);
-		if (hitResult2 != null) {
-			hitResult = hitResult2;
+		HitResult entityHit = getEntityCollision(
+			world,
+			entity,
+			pos,
+			endPos,
+			entity.getBoundingBox().stretch(velocity).expand(1.0),
+			predicate,
+			margin
+		);
+		if (entityHit != null) {
+			return entityHit;
 		}
 
-		return hitResult;
+		return blockHit;
 	}
 
 	private static Either<BlockHitResult, Collection<EntityHitResult>> collectPiercingCollisions(
-			Entity entity,
-			Vec3d pos,
-			Vec3d minReach,
-			Predicate<Entity> hitPredicate,
-			Vec3d maxReach,
-			float hitboxMargin,
-			RaycastContext.ShapeType shapeType
+		Entity entity,
+		Vec3d pos,
+		Vec3d minReach,
+		Predicate<Entity> hitPredicate,
+		Vec3d maxReach,
+		float hitboxMargin,
+		RaycastContext.ShapeType shapeType
 	) {
 		World world = entity.getEntityWorld();
-		BlockHitResult blockHitResult = world.getCollisionsIncludingWorldBorder(
-				new RaycastContext(pos, maxReach, shapeType, RaycastContext.FluidHandling.NONE, entity)
+		BlockHitResult blockHit = world.getCollisionsIncludingWorldBorder(
+			new RaycastContext(pos, maxReach, shapeType, RaycastContext.FluidHandling.NONE, entity)
 		);
-		if (blockHitResult.getType() != HitResult.Type.MISS) {
-			maxReach = blockHitResult.getPos();
+		if (blockHit.getType() != HitResult.Type.MISS) {
+			maxReach = blockHit.getPos();
 			if (pos.squaredDistanceTo(maxReach) < pos.squaredDistanceTo(minReach)) {
-				return Either.left(blockHitResult);
+				return Either.left(blockHit);
 			}
 		}
 
-		Box
-				box =
-				Box
-						.of(minReach, hitboxMargin, hitboxMargin, hitboxMargin)
-						.stretch(maxReach.subtract(minReach))
-						.expand(1.0);
-		Collection<EntityHitResult>
-				collection =
-				collectPiercingCollisions(
-						world,
-						entity,
-						minReach,
-						maxReach,
-						box,
-						hitPredicate,
-						hitboxMargin,
-						shapeType,
-						true
-				);
-		return !collection.isEmpty() ? Either.right(collection) : Either.left(blockHitResult);
+		Box searchBox = Box.of(minReach, hitboxMargin, hitboxMargin, hitboxMargin)
+			.stretch(maxReach.subtract(minReach))
+			.expand(1.0);
+		Collection<EntityHitResult> hits = collectPiercingCollisions(
+			world,
+			entity,
+			minReach,
+			maxReach,
+			searchBox,
+			hitPredicate,
+			hitboxMargin,
+			shapeType,
+			true
+		);
+		return hits.isEmpty() ? Either.left(blockHit) : Either.right(hits);
 	}
 
+	/**
+	 * Выполняет трассировку луча для поиска ближайшей сущности в заданном объёме.
+	 * Если начальная точка находится внутри хитбокса — сущность считается поражённой немедленно.
+	 *
+	 * @param entity      снаряд (исключается из поиска)
+	 * @param min         начальная точка луча
+	 * @param max         конечная точка луча
+	 * @param box         ограничивающий объём для поиска сущностей
+	 * @param predicate   фильтр сущностей
+	 * @param maxDistance максимальное расстояние до цели
+	 * @return результат попадания или null
+	 */
 	public static @Nullable EntityHitResult raycast(
-			Entity entity,
-			Vec3d min,
-			Vec3d max,
-			Box box,
-			Predicate<Entity> predicate,
-			double maxDistance
+		Entity entity,
+		Vec3d min,
+		Vec3d max,
+		Box box,
+		Predicate<Entity> predicate,
+		double maxDistance
 	) {
 		World world = entity.getEntityWorld();
-		double d = maxDistance;
-		Entity entity2 = null;
-		Vec3d vec3d = null;
+		double closestDist = maxDistance;
+		Entity closestEntity = null;
+		Vec3d hitPos = null;
 
-		for (Entity entity3 : world.getOtherEntities(entity, box, predicate)) {
-			Box box2 = entity3.getBoundingBox().expand(entity3.getTargetingMargin());
-			Optional<Vec3d> optional = box2.raycast(min, max);
-			if (box2.contains(min)) {
-				if (d >= 0.0) {
-					entity2 = entity3;
-					vec3d = optional.orElse(min);
-					d = 0.0;
+		for (Entity candidate : world.getOtherEntities(entity, box, predicate)) {
+			Box expandedBox = candidate.getBoundingBox().expand(candidate.getTargetingMargin());
+			Optional<Vec3d> intersection = expandedBox.raycast(min, max);
+			if (expandedBox.contains(min)) {
+				if (closestDist >= 0.0) {
+					closestEntity = candidate;
+					hitPos = intersection.orElse(min);
+					closestDist = 0.0;
 				}
-			}
-			else if (optional.isPresent()) {
-				Vec3d vec3d2 = optional.get();
-				double e = min.squaredDistanceTo(vec3d2);
-				if (e < d || d == 0.0) {
-					if (entity3.getRootVehicle() == entity.getRootVehicle()) {
-						if (d == 0.0) {
-							entity2 = entity3;
-							vec3d = vec3d2;
+			} else if (intersection.isPresent()) {
+				Vec3d intersectPos = intersection.get();
+				double distSq = min.squaredDistanceTo(intersectPos);
+				if (distSq < closestDist || closestDist == 0.0) {
+					if (candidate.getRootVehicle() == entity.getRootVehicle()) {
+						if (closestDist == 0.0) {
+							closestEntity = candidate;
+							hitPos = intersectPos;
 						}
-					}
-					else {
-						entity2 = entity3;
-						vec3d = vec3d2;
-						d = e;
+					} else {
+						closestEntity = candidate;
+						hitPos = intersectPos;
+						closestDist = distSq;
 					}
 				}
 			}
 		}
 
-		return entity2 == null ? null : new EntityHitResult(entity2, vec3d);
+		return closestEntity == null ? null : new EntityHitResult(closestEntity, hitPos);
 	}
 
 	public static @Nullable EntityHitResult getEntityCollision(
-			World world, ProjectileEntity projectile, Vec3d min, Vec3d max, Box box, Predicate<Entity> predicate
+		World world,
+		ProjectileEntity projectile,
+		Vec3d min,
+		Vec3d max,
+		Box box,
+		Predicate<Entity> predicate
 	) {
 		return getEntityCollision(world, projectile, min, max, box, predicate, getToleranceMargin(projectile));
 	}
 
+	/**
+	 * Вычисляет допуск (margin) для расширения хитбокса при трассировке снаряда.
+	 * Допуск плавно нарастает от 0 до {@link #DEFAULT_MARGIN} в течение первых 20 тиков после спавна.
+	 *
+	 * @param entity снаряд
+	 * @return значение допуска в диапазоне [0, DEFAULT_MARGIN]
+	 */
 	public static float getToleranceMargin(Entity entity) {
-		return Math.max(0.0F, Math.min(0.3F, (entity.age - 2) / 20.0F));
+		return Math.max(0.0F, Math.min(DEFAULT_MARGIN, (entity.age - TOLERANCE_RAMP_START_AGE) / TOLERANCE_RAMP_TICKS));
 	}
 
+	/**
+	 * Находит ближайшую сущность на пути луча в заданном объёме с учётом допуска хитбокса.
+	 *
+	 * @param world     мир
+	 * @param entity    снаряд (исключается из поиска)
+	 * @param min       начальная точка луча
+	 * @param max       конечная точка луча
+	 * @param box       ограничивающий объём для поиска
+	 * @param predicate фильтр сущностей
+	 * @param margin    допуск расширения хитбокса
+	 * @return результат попадания или null
+	 */
 	public static @Nullable EntityHitResult getEntityCollision(
-			World world, Entity entity, Vec3d min, Vec3d max, Box box, Predicate<Entity> predicate, float margin
+		World world,
+		Entity entity,
+		Vec3d min,
+		Vec3d max,
+		Box box,
+		Predicate<Entity> predicate,
+		float margin
 	) {
-		double d = Double.MAX_VALUE;
-		Optional<Vec3d> optional = Optional.empty();
-		Entity entity2 = null;
+		double closestDistSq = Double.MAX_VALUE;
+		Optional<Vec3d> closestHitPos = Optional.empty();
+		Entity closestEntity = null;
 
-		for (Entity entity3 : world.getOtherEntities(entity, box, predicate)) {
-			Box box2 = entity3.getBoundingBox().expand(margin);
-			Optional<Vec3d> optional2 = box2.raycast(min, max);
-			if (optional2.isPresent()) {
-				double e = min.squaredDistanceTo(optional2.get());
-				if (e < d) {
-					entity2 = entity3;
-					d = e;
-					optional = optional2;
+		for (Entity candidate : world.getOtherEntities(entity, box, predicate)) {
+			Box expandedBox = candidate.getBoundingBox().expand(margin);
+			Optional<Vec3d> intersection = expandedBox.raycast(min, max);
+			if (intersection.isPresent()) {
+				double distSq = min.squaredDistanceTo(intersection.get());
+				if (distSq < closestDistSq) {
+					closestEntity = candidate;
+					closestDistSq = distSq;
+					closestHitPos = intersection;
 				}
 			}
 		}
 
-		return entity2 == null ? null : new EntityHitResult(entity2, optional.get());
+		return closestEntity == null ? null : new EntityHitResult(closestEntity, closestHitPos.get());
 	}
 
 	public static Collection<EntityHitResult> collectPiercingCollisions(
-			World world,
-			Entity entity,
-			Vec3d from,
-			Vec3d to,
-			Box box,
-			Predicate<Entity> hitPredicate,
-			boolean skipRaycast
+		World world,
+		Entity entity,
+		Vec3d from,
+		Vec3d to,
+		Box box,
+		Predicate<Entity> hitPredicate,
+		boolean skipRaycast
 	) {
 		return collectPiercingCollisions(
-				world,
-				entity,
-				from,
-				to,
-				box,
-				hitPredicate,
-				getToleranceMargin(entity),
-				RaycastContext.ShapeType.COLLIDER,
-				skipRaycast
+			world,
+			entity,
+			from,
+			to,
+			box,
+			hitPredicate,
+			getToleranceMargin(entity),
+			RaycastContext.ShapeType.COLLIDER,
+			skipRaycast
 		);
 	}
 
+	/**
+	 * Собирает все сущности, пронизанные лучом снаряда (для пробивающих снарядов).
+	 * При ненулевом допуске дополнительно проверяет расширенный хитбокс и трассирует
+	 * луч к центру сущности для исключения ложных попаданий через стены.
+	 *
+	 * @param world        мир
+	 * @param entity       снаряд
+	 * @param from         начальная точка
+	 * @param to           конечная точка
+	 * @param box          ограничивающий объём
+	 * @param hitPredicate фильтр сущностей
+	 * @param hitboxMargin допуск расширения хитбокса
+	 * @param shapeType    тип формы для трассировки блоков
+	 * @param skipRaycast  если true — сущности внутри начальной точки добавляются без трассировки
+	 * @return коллекция результатов попаданий
+	 */
 	public static Collection<EntityHitResult> collectPiercingCollisions(
-			World world,
-			Entity entity,
-			Vec3d from,
-			Vec3d to,
-			Box box,
-			Predicate<Entity> hitPredicate,
-			float hitboxMargin,
-			RaycastContext.ShapeType shapeType,
-			boolean bl
+		World world,
+		Entity entity,
+		Vec3d from,
+		Vec3d to,
+		Box box,
+		Predicate<Entity> hitPredicate,
+		float hitboxMargin,
+		RaycastContext.ShapeType shapeType,
+		boolean skipRaycast
 	) {
-		List<EntityHitResult> list = new ArrayList<>();
+		List<EntityHitResult> hits = new ArrayList<>();
 
-		for (Entity entity2 : world.getOtherEntities(entity, box, hitPredicate)) {
-			Box box2 = entity2.getBoundingBox();
-			if (bl && box2.contains(from)) {
-				list.add(new EntityHitResult(entity2, from));
+		for (Entity candidate : world.getOtherEntities(entity, box, hitPredicate)) {
+			Box candidateBox = candidate.getBoundingBox();
+			if (skipRaycast && candidateBox.contains(from)) {
+				hits.add(new EntityHitResult(candidate, from));
+				continue;
 			}
-			else {
-				Optional<Vec3d> optional = box2.raycast(from, to);
-				if (optional.isPresent()) {
-					list.add(new EntityHitResult(entity2, optional.get()));
-				}
-				else if (!(hitboxMargin <= 0.0)) {
-					Optional<Vec3d> optional2 = box2.expand(hitboxMargin).raycast(from, to);
-					if (!optional2.isEmpty()) {
-						Vec3d vec3d = optional2.get();
-						Vec3d vec3d2 = box2.getCenter();
-						BlockHitResult blockHitResult = world.getCollisionsIncludingWorldBorder(
-								new RaycastContext(vec3d, vec3d2, shapeType, RaycastContext.FluidHandling.NONE, entity)
-						);
-						if (blockHitResult.getType() != HitResult.Type.MISS) {
-							vec3d2 = blockHitResult.getPos();
-						}
 
-						Optional<Vec3d> optional3 = entity2.getBoundingBox().raycast(vec3d, vec3d2);
-						if (optional3.isPresent()) {
-							list.add(new EntityHitResult(entity2, optional3.get()));
-						}
-					}
-				}
+			Optional<Vec3d> directHit = candidateBox.raycast(from, to);
+			if (directHit.isPresent()) {
+				hits.add(new EntityHitResult(candidate, directHit.get()));
+				continue;
+			}
+
+			if (hitboxMargin <= 0.0) {
+				continue;
+			}
+
+			Optional<Vec3d> expandedHit = candidateBox.expand(hitboxMargin).raycast(from, to);
+			if (expandedHit.isEmpty()) {
+				continue;
+			}
+
+			// Проверяем, не загорожена ли цель блоком между точкой попадания и центром хитбокса
+			Vec3d hitPoint = expandedHit.get();
+			Vec3d boxCenter = candidateBox.getCenter();
+			BlockHitResult blockCheck = world.getCollisionsIncludingWorldBorder(
+				new RaycastContext(hitPoint, boxCenter, shapeType, RaycastContext.FluidHandling.NONE, entity)
+			);
+			if (blockCheck.getType() != HitResult.Type.MISS) {
+				boxCenter = blockCheck.getPos();
+			}
+
+			Optional<Vec3d> confirmedHit = candidate.getBoundingBox().raycast(hitPoint, boxCenter);
+			if (confirmedHit.isPresent()) {
+				hits.add(new EntityHitResult(candidate, confirmedHit.get()));
 			}
 		}
 
-		return list;
+		return hits;
 	}
 
+	/**
+	 * Устанавливает углы поворота сущности на основе вектора скорости с интерполяцией.
+	 * Используется для плавного вращения снарядов типа шулкерской пули.
+	 *
+	 * @param entity       сущность
+	 * @param tickProgress прогресс интерполяции (0.0 — предыдущий тик, 1.0 — текущий)
+	 */
 	public static void setRotationFromVelocity(Entity entity, float tickProgress) {
-		Vec3d vec3d = entity.getVelocity();
-		if (vec3d.lengthSquared() != 0.0) {
-			double d = vec3d.horizontalLength();
-			entity.setYaw((float) (MathHelper.atan2(vec3d.z, vec3d.x) * 180.0F / (float) Math.PI) + 90.0F);
-			entity.setPitch((float) (MathHelper.atan2(d, vec3d.y) * 180.0F / (float) Math.PI) - 90.0F);
-
-			while (entity.getPitch() - entity.lastPitch < -180.0F) {
-				entity.lastPitch -= 360.0F;
-			}
-
-			while (entity.getPitch() - entity.lastPitch >= 180.0F) {
-				entity.lastPitch += 360.0F;
-			}
-
-			while (entity.getYaw() - entity.lastYaw < -180.0F) {
-				entity.lastYaw -= 360.0F;
-			}
-
-			while (entity.getYaw() - entity.lastYaw >= 180.0F) {
-				entity.lastYaw += 360.0F;
-			}
-
-			entity.setPitch(MathHelper.lerp(tickProgress, entity.lastPitch, entity.getPitch()));
-			entity.setYaw(MathHelper.lerp(tickProgress, entity.lastYaw, entity.getYaw()));
+		Vec3d velocity = entity.getVelocity();
+		if (velocity.lengthSquared() == 0.0) {
+			return;
 		}
+
+		double horizontalLen = velocity.horizontalLength();
+		entity.setYaw(
+			(float) (MathHelper.atan2(velocity.z, velocity.x) * HALF_ROTATION / (float) Math.PI) + ROTATION_OFFSET_YAW
+		);
+		entity.setPitch(
+			(float) (MathHelper.atan2(horizontalLen, velocity.y) * HALF_ROTATION / (float) Math.PI) - ROTATION_OFFSET_PITCH
+		);
+
+		while (entity.getPitch() - entity.lastPitch < -HALF_ROTATION) {
+			entity.lastPitch -= FULL_ROTATION;
+		}
+
+		while (entity.getPitch() - entity.lastPitch >= HALF_ROTATION) {
+			entity.lastPitch += FULL_ROTATION;
+		}
+
+		while (entity.getYaw() - entity.lastYaw < -HALF_ROTATION) {
+			entity.lastYaw -= FULL_ROTATION;
+		}
+
+		while (entity.getYaw() - entity.lastYaw >= HALF_ROTATION) {
+			entity.lastYaw += FULL_ROTATION;
+		}
+
+		entity.setPitch(MathHelper.lerp(tickProgress, entity.lastPitch, entity.getPitch()));
+		entity.setYaw(MathHelper.lerp(tickProgress, entity.lastYaw, entity.getYaw()));
 	}
 
+	/**
+	 * Определяет руку, в которой сущность держит указанный предмет.
+	 * Приоритет — основная рука.
+	 *
+	 * @param entity сущность
+	 * @param item   искомый предмет
+	 * @return рука, держащая предмет
+	 */
 	public static Hand getHandPossiblyHolding(LivingEntity entity, Item item) {
 		return entity.getMainHandStack().isOf(item) ? Hand.MAIN_HAND : Hand.OFF_HAND;
 	}
 
+	/**
+	 * Создаёт снаряд-стрелу из стека предмета с применением модификатора урона.
+	 * Если предмет не является {@link ArrowItem} — используется обычная стрела.
+	 *
+	 * @param entity         стрелок
+	 * @param stack          стек предмета-стрелы
+	 * @param damageModifier множитель базового урона
+	 * @param bow            стек лука (может быть null)
+	 * @return созданный снаряд-стрела
+	 */
 	public static PersistentProjectileEntity createArrowProjectile(
-			LivingEntity entity,
-			ItemStack stack,
-			float damageModifier,
-			@Nullable ItemStack bow
+		LivingEntity entity,
+		ItemStack stack,
+		float damageModifier,
+		@Nullable ItemStack bow
 	) {
-		ArrowItem arrowItem = (ArrowItem) (stack.getItem() instanceof ArrowItem ? stack.getItem() : Items.ARROW);
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				arrowItem.createArrow(entity.getEntityWorld(), stack, entity, bow);
-		persistentProjectileEntity.applyDamageModifier(damageModifier);
-		return persistentProjectileEntity;
+		ArrowItem arrowItem = stack.getItem() instanceof ArrowItem arrow ? arrow : (ArrowItem) Items.ARROW.asItem();
+		PersistentProjectileEntity arrow = arrowItem.createArrow(entity.getEntityWorld(), stack, entity, bow);
+		arrow.applyDamageModifier(damageModifier);
+		return arrow;
 	}
 }

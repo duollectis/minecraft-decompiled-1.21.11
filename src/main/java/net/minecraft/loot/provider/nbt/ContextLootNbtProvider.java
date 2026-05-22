@@ -15,23 +15,25 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code ContextLootNbtProvider}.
+ * Провайдер NBT-данных, извлекающий данные из сущности или блок-сущности контекста лута.
  */
 public class ContextLootNbtProvider implements LootNbtProvider {
 
 	private static final Codec<LootEntityValueSource<NbtElement>> TARGET_CODEC = LootEntityValueSource.createCodec(
-			builder -> builder
-					.forBlockEntities(ContextLootNbtProvider.BlockEntityTarget::new)
-					.forEntities(ContextLootNbtProvider.EntityTarget::new)
+		builder -> builder
+			.forBlockEntities(ContextLootNbtProvider.BlockEntityTarget::new)
+			.forEntities(ContextLootNbtProvider.EntityTarget::new)
 	);
+
 	public static final MapCodec<ContextLootNbtProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(TARGET_CODEC.fieldOf("target").forGetter(provider -> provider.target))
-					.apply(instance, ContextLootNbtProvider::new)
+		instance -> instance
+			.group(TARGET_CODEC.fieldOf("target").forGetter(provider -> provider.target))
+			.apply(instance, ContextLootNbtProvider::new)
 	);
-	public static final Codec<ContextLootNbtProvider>
-			INLINE_CODEC =
-			TARGET_CODEC.xmap(ContextLootNbtProvider::new, provider -> provider.target);
+
+	public static final Codec<ContextLootNbtProvider> INLINE_CODEC =
+		TARGET_CODEC.xmap(ContextLootNbtProvider::new, provider -> provider.target);
+
 	private final LootEntityValueSource<NbtElement> target;
 
 	private ContextLootNbtProvider(LootEntityValueSource<NbtElement> target) {
@@ -45,55 +47,31 @@ public class ContextLootNbtProvider implements LootNbtProvider {
 
 	@Override
 	public @Nullable NbtElement getNbt(LootContext context) {
-		return this.target.get(context);
+		return target.get(context);
 	}
 
 	@Override
 	public Set<ContextParameter<?>> getRequiredParameters() {
-		return Set.of(this.target.contextParam());
+		return Set.of(target.contextParam());
 	}
 
-	/**
-	 * From target.
-	 *
-	 * @param target target
-	 *
-	 * @return LootNbtProvider — результат операции
-	 */
 	public static LootNbtProvider fromTarget(LootContext.EntityReference target) {
 		return new ContextLootNbtProvider(new ContextLootNbtProvider.EntityTarget(target.contextParam()));
 	}
 
-	/**
-	 * {@code BlockEntityTarget}.
-	 */
 	record BlockEntityTarget(ContextParameter<? extends BlockEntity> contextParam)
-			implements LootEntityValueSource.ContextComponentBased<BlockEntity, NbtElement> {
+		implements LootEntityValueSource.ContextComponentBased<BlockEntity, NbtElement> {
 
-		/**
-		 * Get.
-		 *
-		 * @param blockEntity block entity
-		 *
-		 * @return NbtElement — 
-		 */
+		@Override
 		public NbtElement get(BlockEntity blockEntity) {
 			return blockEntity.createNbtWithIdentifyingData(blockEntity.getWorld().getRegistryManager());
 		}
 	}
 
-	/**
-	 * {@code EntityTarget}.
-	 */
-	record EntityTarget(ContextParameter<? extends Entity> contextParam) implements LootEntityValueSource.ContextComponentBased<Entity, NbtElement> {
+	record EntityTarget(ContextParameter<? extends Entity> contextParam)
+		implements LootEntityValueSource.ContextComponentBased<Entity, NbtElement> {
 
-		/**
-		 * Get.
-		 *
-		 * @param entity entity
-		 *
-		 * @return NbtElement — 
-		 */
+		@Override
 		public NbtElement get(Entity entity) {
 			return NbtPredicate.entityToNbt(entity);
 		}

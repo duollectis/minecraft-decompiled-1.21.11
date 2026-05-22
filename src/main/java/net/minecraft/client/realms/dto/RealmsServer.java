@@ -20,18 +20,30 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.util.*;
-import java.util.Map.Entry;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsServer}.
+ * DTO сервера Realms (MCO-сервера).
+ * Содержит полное состояние сервера: слоты миров, список игроков, совместимость версий.
+ * После десериализации через Gson необходимо вызвать {@link #replaceNullsWithDefaults(RealmsServer)}
+ * для заполнения отсутствующих полей значениями по умолчанию.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsServer extends ValueObject implements RealmsSerializable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int NO_PARENT = -1;
+	private static final long NO_PARENT_ID = -1L;
+	private static final int SLOT_COUNT = 3;
+
 	public static final Text REALM_CLOSED_TEXT = Text.translatable("mco.play.button.realm.closed");
+
 	@SerializedName("id")
 	public long id = -1L;
 	@SerializedName("remoteSubscriptionId")
@@ -85,15 +97,15 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 	public @Nullable RealmsRegionSelectionPreference regionSelectionPreference;
 
 	public String getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public @Nullable String getName() {
-		return this.name;
+		return name;
 	}
 
 	public @Nullable String getMinigameName() {
-		return this.minigameName;
+		return minigameName;
 	}
 
 	public void setName(String name) {
@@ -105,35 +117,35 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 	}
 
 	/**
-	 * Parse.
+	 * Парсит сервер Realms из JSON-строки.
+	 * При ошибке возвращает пустой объект с дефолтными значениями.
 	 *
-	 * @param gson gson
-	 * @param json json
-	 *
-	 * @return RealmsServer — результат операции
+	 * @param gson настроенный экземпляр Gson
+	 * @param json JSON-строка с данными сервера
+	 * @return распарсенный сервер или пустой объект при ошибке
 	 */
 	public static RealmsServer parse(CheckedGson gson, String json) {
 		try {
-			RealmsServer realmsServer = gson.fromJson(json, RealmsServer.class);
-			if (realmsServer == null) {
+			RealmsServer server = gson.fromJson(json, RealmsServer.class);
+
+			if (server == null) {
 				LOGGER.error("Could not parse McoServer: {}", json);
 				return new RealmsServer();
 			}
-			else {
-				replaceNullsWithDefaults(realmsServer);
-				return realmsServer;
-			}
-		}
-		catch (Exception var3) {
-			LOGGER.error("Could not parse McoServer", var3);
+
+			replaceNullsWithDefaults(server);
+			return server;
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse McoServer", ex);
 			return new RealmsServer();
 		}
 	}
 
 	/**
-	 * Replace nulls with defaults.
+	 * Заполняет null-поля сервера значениями по умолчанию после десериализации.
+	 * Также сортирует список приглашённых и заполняет карту слотов.
 	 *
-	 * @param server server
+	 * @param server сервер для нормализации
 	 */
 	public static void replaceNullsWithDefaults(RealmsServer server) {
 		if (server.players == null) {
@@ -149,7 +161,7 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		}
 
 		if (server.worldType == null) {
-			server.worldType = RealmsServer.WorldType.NORMAL;
+			server.worldType = WorldType.NORMAL;
 		}
 
 		if (server.activeVersion == null) {
@@ -157,7 +169,7 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		}
 
 		if (server.compatibility == null) {
-			server.compatibility = RealmsServer.Compatibility.UNVERIFIABLE;
+			server.compatibility = Compatibility.UNVERIFIABLE;
 		}
 
 		if (server.regionSelectionPreference == null) {
@@ -169,192 +181,160 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 	}
 
 	private static void sortInvited(RealmsServer server) {
-		server.players
-				.sort(
-						(a, b) -> ComparisonChain.start()
-						                         .compareFalseFirst(b.accepted, a.accepted)
-						                         .compare(
-								                         a.name.toLowerCase(Locale.ROOT),
-								                         b.name.toLowerCase(Locale.ROOT)
-						                         )
-						                         .result()
-				);
+		server.players.sort(
+				(a, b) -> ComparisonChain.start()
+						.compareFalseFirst(b.accepted, a.accepted)
+						.compare(a.name.toLowerCase(Locale.ROOT), b.name.toLowerCase(Locale.ROOT))
+						.result()
+		);
 	}
 
 	private static void populateSlots(RealmsServer server) {
 		server.emptySlots.forEach(slot -> server.slots.put(slot.slotId, slot));
 
-		for (int i = 1; i <= 3; i++) {
-			if (!server.slots.containsKey(i)) {
-				server.slots.put(i, RealmsSlot.create(i));
+		for (int slotId = 1; slotId <= SLOT_COUNT; slotId++) {
+			if (!server.slots.containsKey(slotId)) {
+				server.slots.put(slotId, RealmsSlot.create(slotId));
 			}
 		}
 	}
 
 	private static List<RealmsSlot> getEmptySlots() {
-		List<RealmsSlot> list = new ArrayList<>();
-		list.add(RealmsSlot.create(1));
-		list.add(RealmsSlot.create(2));
-		list.add(RealmsSlot.create(3));
-		return list;
+		List<RealmsSlot> slots = new ArrayList<>();
+		slots.add(RealmsSlot.create(1));
+		slots.add(RealmsSlot.create(2));
+		slots.add(RealmsSlot.create(3));
+		return slots;
 	}
 
 	public boolean isCompatible() {
-		return this.compatibility.isCompatible();
+		return compatibility.isCompatible();
 	}
 
-	/**
-	 * Needs upgrade.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean needsUpgrade() {
-		return this.compatibility.needsUpgrade();
+		return compatibility.needsUpgrade();
 	}
 
-	/**
-	 * Needs downgrade.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean needsDowngrade() {
-		return this.compatibility.needsDowngrade();
+		return compatibility.needsDowngrade();
 	}
 
 	/**
-	 * Определяет, следует ли allow play.
+	 * Определяет, разрешено ли игроку подключиться к серверу.
+	 * Подключение разрешено если сервер открыт, не истёк срок подписки,
+	 * и версия совместима (или требует апгрейда, или игрок — владелец).
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если подключение разрешено
 	 */
 	public boolean shouldAllowPlay() {
-		boolean bl = !this.expired && this.state == RealmsServer.State.OPEN;
-		return bl && (this.isCompatible() || this.needsUpgrade() || this.isPlayerOwner());
+		boolean openAndActive = !expired && state == State.OPEN;
+		return openAndActive && (isCompatible() || needsUpgrade() || isPlayerOwner());
 	}
 
 	private boolean isPlayerOwner() {
-		return MinecraftClient.getInstance().uuidEquals(this.ownerUUID);
+		return MinecraftClient.getInstance().uuidEquals(ownerUUID);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.id, this.name, this.description, this.state, this.owner, this.expired);
+		return Objects.hash(id, name, description, state, owner, expired);
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (o == null) {
+	public boolean equals(Object other) {
+		if (other == null) {
 			return false;
 		}
-		else if (o == this) {
+
+		if (other == this) {
 			return true;
 		}
-		else if (o.getClass() != this.getClass()) {
+
+		if (other.getClass() != getClass()) {
 			return false;
 		}
-		else {
-			RealmsServer realmsServer = (RealmsServer) o;
-			return new EqualsBuilder()
-					.append(this.id, realmsServer.id)
-					.append(this.name, realmsServer.name)
-					.append(this.description, realmsServer.description)
-					.append(this.state, realmsServer.state)
-					.append(this.owner, realmsServer.owner)
-					.append(this.expired, realmsServer.expired)
-					.append(this.worldType, this.worldType)
-					.isEquals();
-		}
+
+		RealmsServer that = (RealmsServer) other;
+		return new EqualsBuilder()
+				.append(id, that.id)
+				.append(name, that.name)
+				.append(description, that.description)
+				.append(state, that.state)
+				.append(owner, that.owner)
+				.append(expired, that.expired)
+				.append(worldType, worldType)
+				.isEquals();
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return RealmsServer — результат операции
-	 */
 	public RealmsServer copy() {
-		RealmsServer realmsServer = new RealmsServer();
-		realmsServer.id = this.id;
-		realmsServer.remoteSubscriptionId = this.remoteSubscriptionId;
-		realmsServer.name = this.name;
-		realmsServer.description = this.description;
-		realmsServer.state = this.state;
-		realmsServer.owner = this.owner;
-		realmsServer.players = this.players;
-		realmsServer.emptySlots = this.emptySlots.stream().map(RealmsSlot::copy).toList();
-		realmsServer.slots = this.cloneSlots(this.slots);
-		realmsServer.expired = this.expired;
-		realmsServer.expiredTrial = this.expiredTrial;
-		realmsServer.daysLeft = this.daysLeft;
-		realmsServer.worldType = this.worldType;
-		realmsServer.hardcore = this.hardcore;
-		realmsServer.gameMode = this.gameMode;
-		realmsServer.ownerUUID = this.ownerUUID;
-		realmsServer.minigameName = this.minigameName;
-		realmsServer.activeSlot = this.activeSlot;
-		realmsServer.minigameId = this.minigameId;
-		realmsServer.minigameImage = this.minigameImage;
-		realmsServer.parentWorldName = this.parentWorldName;
-		realmsServer.parentWorldId = this.parentWorldId;
-		realmsServer.activeVersion = this.activeVersion;
-		realmsServer.compatibility = this.compatibility;
-		realmsServer.regionSelectionPreference =
-				this.regionSelectionPreference != null ? this.regionSelectionPreference.copy() : null;
-		return realmsServer;
+		RealmsServer copy = new RealmsServer();
+		copy.id = id;
+		copy.remoteSubscriptionId = remoteSubscriptionId;
+		copy.name = name;
+		copy.description = description;
+		copy.state = state;
+		copy.owner = owner;
+		copy.players = players;
+		copy.emptySlots = emptySlots.stream().map(RealmsSlot::copy).toList();
+		copy.slots = cloneSlots(slots);
+		copy.expired = expired;
+		copy.expiredTrial = expiredTrial;
+		copy.daysLeft = daysLeft;
+		copy.worldType = worldType;
+		copy.hardcore = hardcore;
+		copy.gameMode = gameMode;
+		copy.ownerUUID = ownerUUID;
+		copy.minigameName = minigameName;
+		copy.activeSlot = activeSlot;
+		copy.minigameId = minigameId;
+		copy.minigameImage = minigameImage;
+		copy.parentWorldName = parentWorldName;
+		copy.parentWorldId = parentWorldId;
+		copy.activeVersion = activeVersion;
+		copy.compatibility = compatibility;
+		copy.regionSelectionPreference = regionSelectionPreference != null
+				? regionSelectionPreference.copy()
+				: null;
+		return copy;
 	}
 
-	/**
-	 * Клонирует slots.
-	 *
-	 * @param slots slots
-	 *
-	 * @return Map — результат операции
-	 */
-	public Map<Integer, RealmsSlot> cloneSlots(Map<Integer, RealmsSlot> slots) {
-		Map<Integer, RealmsSlot> map = Maps.newHashMap();
+	public Map<Integer, RealmsSlot> cloneSlots(Map<Integer, RealmsSlot> source) {
+		Map<Integer, RealmsSlot> result = Maps.newHashMap();
 
-		for (Entry<Integer, RealmsSlot> entry : slots.entrySet()) {
-			map.put(
+		for (Map.Entry<Integer, RealmsSlot> entry : source.entrySet()) {
+			result.put(
 					entry.getKey(),
 					new RealmsSlot(entry.getKey(), entry.getValue().options.copy(), entry.getValue().settings)
 			);
 		}
 
-		return map;
+		return result;
 	}
 
 	public boolean isPrerelease() {
-		return this.parentWorldId != -1L;
+		return parentWorldId != NO_PARENT_ID;
 	}
 
 	public boolean isMinigame() {
-		return this.worldType == RealmsServer.WorldType.MINIGAME;
+		return worldType == WorldType.MINIGAME;
 	}
 
 	public String getWorldName(int slotId) {
-		return this.name == null
-		       ? this.slots.get(slotId).options.getSlotName(slotId)
-		       : this.name + " (" + this.slots.get(slotId).options.getSlotName(slotId) + ")";
+		return name == null
+				? slots.get(slotId).options.getSlotName(slotId)
+				: name + " (" + slots.get(slotId).options.getSlotName(slotId) + ")";
 	}
 
-	/**
-	 * Создаёт server info.
-	 *
-	 * @param address address
-	 *
-	 * @return ServerInfo — результат операции
-	 */
 	public ServerInfo createServerInfo(String address) {
 		return new ServerInfo(
-				Objects.requireNonNullElse(this.name, "unknown server"),
+				Objects.requireNonNullElse(name, "unknown server"),
 				address,
 				ServerInfo.ServerType.REALM
 		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Compatibility}.
-	 */
-	public static enum Compatibility {
+	public enum Compatibility {
 		UNVERIFIABLE,
 		INCOMPATIBLE,
 		RELEASE_TYPE_INCOMPATIBLE,
@@ -366,29 +346,20 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 			return this == COMPATIBLE;
 		}
 
-		/**
-		 * Needs upgrade.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean needsUpgrade() {
 			return this == NEEDS_UPGRADE;
 		}
 
-		/**
-		 * Needs downgrade.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean needsDowngrade() {
 			return this == NEEDS_DOWNGRADE;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code McoServerComparator}.
+	 * Компаратор для сортировки серверов Realms в списке.
+	 * Приоритет: пре-релизы → неинициализированные → пробные → собственные → не истёкшие → открытые → по ID.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class McoServerComparator implements Comparator<RealmsServer> {
 
 		private final String refOwner;
@@ -397,51 +368,29 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 			this.refOwner = owner;
 		}
 
-		/**
-		 * Compare.
-		 *
-		 * @param realmsServer realms server
-		 * @param realmsServer2 realms server2
-		 *
-		 * @return int — результат операции
-		 */
-		public int compare(RealmsServer realmsServer, RealmsServer realmsServer2) {
+		@Override
+		public int compare(RealmsServer first, RealmsServer second) {
 			return ComparisonChain.start()
-			                      .compareTrueFirst(realmsServer.isPrerelease(), realmsServer2.isPrerelease())
-			                      .compareTrueFirst(
-					                      realmsServer.state == RealmsServer.State.UNINITIALIZED,
-					                      realmsServer2.state == RealmsServer.State.UNINITIALIZED
-			                      )
-			                      .compareTrueFirst(realmsServer.expiredTrial, realmsServer2.expiredTrial)
-			                      .compareTrueFirst(
-					                      Objects.equals(realmsServer.owner, this.refOwner),
-					                      Objects.equals(realmsServer2.owner, this.refOwner)
-			                      )
-			                      .compareFalseFirst(realmsServer.expired, realmsServer2.expired)
-			                      .compareTrueFirst(
-					                      realmsServer.state == RealmsServer.State.OPEN,
-					                      realmsServer2.state == RealmsServer.State.OPEN
-			                      )
-			                      .compare(realmsServer.id, realmsServer2.id)
-			                      .result();
+					.compareTrueFirst(first.isPrerelease(), second.isPrerelease())
+					.compareTrueFirst(first.state == State.UNINITIALIZED, second.state == State.UNINITIALIZED)
+					.compareTrueFirst(first.expiredTrial, second.expiredTrial)
+					.compareTrueFirst(Objects.equals(first.owner, refOwner), Objects.equals(second.owner, refOwner))
+					.compareFalseFirst(first.expired, second.expired)
+					.compareTrueFirst(first.state == State.OPEN, second.state == State.OPEN)
+					.compare(first.id, second.id)
+					.result();
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code State}.
-	 */
-	public static enum State {
+	public enum State {
 		CLOSED,
 		OPEN,
-		UNINITIALIZED;
+		UNINITIALIZED
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WorldType}.
-	 */
-	public static enum WorldType {
+	public enum WorldType {
 		NORMAL("normal"),
 		MINIGAME("minigame"),
 		ADVENTUREMAP("adventureMap"),
@@ -449,15 +398,16 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		INSPIRATION("inspiration"),
 		UNKNOWN("unknown");
 
-		private static final String WORLD_TYPE_TRANSLATION_PREFIX = "mco.backup.entry.worldType.";
+		private static final String TRANSLATION_PREFIX = "mco.backup.entry.worldType.";
+
 		private final Text displayText;
 
-		private WorldType(final String string2) {
-			this.displayText = Text.translatable("mco.backup.entry.worldType." + string2);
+		WorldType(String translationSuffix) {
+			this.displayText = Text.translatable(TRANSLATION_PREFIX + translationSuffix);
 		}
 
 		public Text getDisplayText() {
-			return this.displayText;
+			return displayText;
 		}
 	}
 }

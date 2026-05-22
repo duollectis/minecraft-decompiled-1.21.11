@@ -15,7 +15,11 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code InlineBlockPosFormatFix}.
+ * Конвертирует раздельные координатные поля сущностей и игрока в компактный
+ * формат {@code BlockPos}: объединяет {@code SleepingX/Y/Z} → {@code sleeping_pos},
+ * {@code SpawnX/Y/Z} → {@code respawn.pos}, {@code BoundX/Y/Z} → {@code bound_pos}
+ * (Vex), {@code AX/AY/AZ} → {@code anchor_pos} (Phantom), {@code HomePosX/Y/Z} →
+ * {@code home_pos} (Turtle), {@code TileX/Y/Z} → {@code block_pos} (декорации).
  */
 public class InlineBlockPosFormatFix extends DataFix {
 
@@ -23,143 +27,123 @@ public class InlineBlockPosFormatFix extends DataFix {
 		super(outputSchema, false);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		OpticFinder<?> opticFinder = this.getEntityFinder("minecraft:vex");
-		OpticFinder<?> opticFinder2 = this.getEntityFinder("minecraft:phantom");
-		OpticFinder<?> opticFinder3 = this.getEntityFinder("minecraft:turtle");
-		List<OpticFinder<?>> list = List.of(
-				this.getEntityFinder("minecraft:item_frame"),
-				this.getEntityFinder("minecraft:glow_item_frame"),
-				this.getEntityFinder("minecraft:painting"),
-				this.getEntityFinder("minecraft:leash_knot")
+		OpticFinder<?> vexFinder = getEntityFinder("minecraft:vex");
+		OpticFinder<?> phantomFinder = getEntityFinder("minecraft:phantom");
+		OpticFinder<?> turtleFinder = getEntityFinder("minecraft:turtle");
+
+		List<OpticFinder<?>> decorationFinders = List.of(
+			getEntityFinder("minecraft:item_frame"),
+			getEntityFinder("minecraft:glow_item_frame"),
+			getEntityFinder("minecraft:painting"),
+			getEntityFinder("minecraft:leash_knot")
 		);
+
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
-						"InlineBlockPosFormatFix - player",
-						this.getInputSchema().getType(TypeReferences.PLAYER),
-						playerTyped -> playerTyped.update(DSL.remainderFinder(), this::fixPlayerFields)
-				),
-				this.fixTypeEverywhereTyped(
-						"InlineBlockPosFormatFix - entity",
-						this.getInputSchema().getType(TypeReferences.ENTITY),
-						entityTyped -> {
-							entityTyped = entityTyped.update(DSL.remainderFinder(), this::fixSleeping)
-							                         .updateTyped(
-									                         opticFinder,
-									                         vexTyped -> vexTyped.update(
-											                         DSL.remainderFinder(),
-											                         this::fixVexFields
-									                         )
-							                         )
-							                         .updateTyped(
-									                         opticFinder2,
-									                         phantomTyped -> phantomTyped.update(
-											                         DSL.remainderFinder(),
-											                         this::fixPhantomFields
-									                         )
-							                         )
-							                         .updateTyped(
-									                         opticFinder3,
-									                         turtleTyped -> turtleTyped.update(
-											                         DSL.remainderFinder(),
-											                         this::fixTurtleFields
-									                         )
-							                         );
+			fixTypeEverywhereTyped(
+				"InlineBlockPosFormatFix - player",
+				getInputSchema().getType(TypeReferences.PLAYER),
+				player -> player.update(DSL.remainderFinder(), this::fixPlayerFields)
+			),
+			fixTypeEverywhereTyped(
+				"InlineBlockPosFormatFix - entity",
+				getInputSchema().getType(TypeReferences.ENTITY),
+				entity -> {
+					entity = entity.update(DSL.remainderFinder(), this::fixSleeping)
+						.updateTyped(vexFinder, vex -> vex.update(DSL.remainderFinder(), this::fixVexFields))
+						.updateTyped(phantomFinder, phantom -> phantom.update(DSL.remainderFinder(), this::fixPhantomFields))
+						.updateTyped(turtleFinder, turtle -> turtle.update(DSL.remainderFinder(), this::fixTurtleFields));
 
-							for (OpticFinder<?> opticFinder4 : list) {
-								entityTyped = entityTyped.updateTyped(
-										opticFinder4,
-										decorationTyped -> decorationTyped.update(
-												DSL.remainderFinder(),
-												this::fixDecorationFields
-										)
-								);
-							}
+					for (OpticFinder<?> decorationFinder : decorationFinders) {
+						entity = entity.updateTyped(
+							decorationFinder,
+							decoration -> decoration.update(DSL.remainderFinder(), this::fixDecorationFields)
+						);
+					}
 
-							return entityTyped;
-						}
-				)
+					return entity;
+				}
+			)
 		);
 	}
 
 	private OpticFinder<?> getEntityFinder(String entityId) {
-		return DSL.namedChoice(entityId, this.getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId));
+		return DSL.namedChoice(entityId, getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId));
 	}
 
-	private Dynamic<?> fixPlayerFields(Dynamic<?> dynamic) {
-		dynamic = this.fixSleeping(dynamic);
-		Optional<Number> optional = dynamic.get("SpawnX").asNumber().result();
-		Optional<Number> optional2 = dynamic.get("SpawnY").asNumber().result();
-		Optional<Number> optional3 = dynamic.get("SpawnZ").asNumber().result();
-		if (optional.isPresent() && optional2.isPresent() && optional3.isPresent()) {
-			Dynamic<?> dynamic2 = dynamic.createMap(
-					Map.of(
-							dynamic.createString("pos"),
-							FixUtil.createBlockPos(
-									dynamic,
-									optional.get().intValue(),
-									optional2.get().intValue(),
-									optional3.get().intValue()
-							)
+	private Dynamic<?> fixPlayerFields(Dynamic<?> player) {
+		player = fixSleeping(player);
+
+		Optional<Number> spawnX = player.get("SpawnX").asNumber().result();
+		Optional<Number> spawnY = player.get("SpawnY").asNumber().result();
+		Optional<Number> spawnZ = player.get("SpawnZ").asNumber().result();
+
+		if (spawnX.isPresent() && spawnY.isPresent() && spawnZ.isPresent()) {
+			Dynamic<?> respawn = player.createMap(
+				Map.of(
+					player.createString("pos"),
+					FixUtil.createBlockPos(
+						player,
+						spawnX.get().intValue(),
+						spawnY.get().intValue(),
+						spawnZ.get().intValue()
 					)
+				)
 			);
-			dynamic2 = Dynamic.copyField(dynamic, "SpawnAngle", dynamic2, "angle");
-			dynamic2 = Dynamic.copyField(dynamic, "SpawnDimension", dynamic2, "dimension");
-			dynamic2 = Dynamic.copyField(dynamic, "SpawnForced", dynamic2, "forced");
-			dynamic =
-					dynamic
-							.remove("SpawnX")
-							.remove("SpawnY")
-							.remove("SpawnZ")
-							.remove("SpawnAngle")
-							.remove("SpawnDimension")
-							.remove("SpawnForced");
-			dynamic = dynamic.set("respawn", dynamic2);
+
+			respawn = Dynamic.copyField(player, "SpawnAngle", respawn, "angle");
+			respawn = Dynamic.copyField(player, "SpawnDimension", respawn, "dimension");
+			respawn = Dynamic.copyField(player, "SpawnForced", respawn, "forced");
+
+			player = player
+				.remove("SpawnX").remove("SpawnY").remove("SpawnZ")
+				.remove("SpawnAngle").remove("SpawnDimension").remove("SpawnForced")
+				.set("respawn", respawn);
 		}
 
-		Optional<? extends Dynamic<?>> optional4 = dynamic.get("enteredNetherPosition").result();
-		if (optional4.isPresent()) {
-			dynamic = dynamic.remove("enteredNetherPosition")
-			                 .set(
-					                 "entered_nether_pos",
-					                 dynamic.createList(
-							                 Stream.of(
-									                 dynamic.createDouble(optional4.get().get("x").asDouble(0.0)),
-									                 dynamic.createDouble(optional4.get().get("y").asDouble(0.0)),
-									                 dynamic.createDouble(optional4.get().get("z").asDouble(0.0))
-							                 )
-					                 )
-			                 );
+		Optional<? extends Dynamic<?>> netherPos = player.get("enteredNetherPosition").result();
+
+		if (netherPos.isPresent()) {
+			Dynamic<?> pos = netherPos.get();
+			player = player.remove("enteredNetherPosition").set(
+				"entered_nether_pos",
+				player.createList(Stream.of(
+					player.createDouble(pos.get("x").asDouble(0.0)),
+					player.createDouble(pos.get("y").asDouble(0.0)),
+					player.createDouble(pos.get("z").asDouble(0.0))
+				))
+			);
 		}
 
-		return dynamic;
+		return player;
 	}
 
-	private Dynamic<?> fixSleeping(Dynamic<?> dynamic) {
-		return FixUtil.consolidateBlockPos(dynamic, "SleepingX", "SleepingY", "SleepingZ", "sleeping_pos");
+	private Dynamic<?> fixSleeping(Dynamic<?> entity) {
+		return FixUtil.consolidateBlockPos(entity, "SleepingX", "SleepingY", "SleepingZ", "sleeping_pos");
 	}
 
-	private Dynamic<?> fixVexFields(Dynamic<?> dynamic) {
+	private Dynamic<?> fixVexFields(Dynamic<?> vex) {
 		return FixUtil.consolidateBlockPos(
-				dynamic.renameField("LifeTicks", "life_ticks"),
-				"BoundX",
-				"BoundY",
-				"BoundZ",
-				"bound_pos"
+			vex.renameField("LifeTicks", "life_ticks"),
+			"BoundX", "BoundY", "BoundZ", "bound_pos"
 		);
 	}
 
-	private Dynamic<?> fixPhantomFields(Dynamic<?> dynamic) {
-		return FixUtil.consolidateBlockPos(dynamic.renameField("Size", "size"), "AX", "AY", "AZ", "anchor_pos");
+	private Dynamic<?> fixPhantomFields(Dynamic<?> phantom) {
+		return FixUtil.consolidateBlockPos(
+			phantom.renameField("Size", "size"),
+			"AX", "AY", "AZ", "anchor_pos"
+		);
 	}
 
-	private Dynamic<?> fixTurtleFields(Dynamic<?> dynamic) {
-		dynamic = dynamic.remove("TravelPosX").remove("TravelPosY").remove("TravelPosZ");
-		dynamic = FixUtil.consolidateBlockPos(dynamic, "HomePosX", "HomePosY", "HomePosZ", "home_pos");
-		return dynamic.renameField("HasEgg", "has_egg");
+	private Dynamic<?> fixTurtleFields(Dynamic<?> turtle) {
+		turtle = turtle.remove("TravelPosX").remove("TravelPosY").remove("TravelPosZ");
+		turtle = FixUtil.consolidateBlockPos(turtle, "HomePosX", "HomePosY", "HomePosZ", "home_pos");
+		return turtle.renameField("HasEgg", "has_egg");
 	}
 
-	private Dynamic<?> fixDecorationFields(Dynamic<?> dynamic) {
-		return FixUtil.consolidateBlockPos(dynamic, "TileX", "TileY", "TileZ", "block_pos");
+	private Dynamic<?> fixDecorationFields(Dynamic<?> decoration) {
+		return FixUtil.consolidateBlockPos(decoration, "TileX", "TileY", "TileZ", "block_pos");
 	}
 }

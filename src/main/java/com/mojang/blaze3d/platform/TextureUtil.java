@@ -25,205 +25,258 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
+/**
+ * Утилитарный класс для работы с текстурами: чтение из потоков,
+ * экспорт в PNG, заполнение прозрачных областей цветом.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code TextureUtil}.
- */
 public class TextureUtil {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final int MIN_MIPMAP_LEVEL = 0;
-	private static final int DEFAULT_IMAGE_BUFFER_SIZE = 8192;
-	private static final int[][] DIRECTIONS = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
+	public static final int MIN_MIPMAP_LEVEL = 0;
+
+	private static final int DEFAULT_IMAGE_BUFFER_SIZE = 8192;
+
+	/** Направления для BFS-обхода соседних пикселей: право, лево, вниз, вверх. */
+	private static final int[][] DIRECTIONS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+	/**
+	 * Читает ресурс из входного потока в нативный буфер памяти.
+	 * Если поток поддерживает {@link SeekableByteChannel}, размер буфера определяется заранее.
+	 * Возвращённый буфер необходимо освободить через {@code MemoryUtil.memFree()}.
+	 *
+	 * @param inputStream входной поток с данными ресурса
+	 * @return нативный {@link ByteBuffer} с содержимым потока (позиция = 0, лимит = размер данных)
+	 * @throws IOException при ошибке чтения
+	 */
 	public static ByteBuffer readResource(InputStream inputStream) throws IOException {
-		ReadableByteChannel readableByteChannel = Channels.newChannel(inputStream);
-		return readableByteChannel instanceof SeekableByteChannel seekableByteChannel
-		       ? readResource(readableByteChannel, (int) seekableByteChannel.size() + 1)
-		       : readResource(readableByteChannel, 8192);
+		ReadableByteChannel channel = Channels.newChannel(inputStream);
+		int initialSize = channel instanceof SeekableByteChannel seekable
+			? (int) seekable.size() + 1
+			: DEFAULT_IMAGE_BUFFER_SIZE;
+
+		return readResource(channel, initialSize);
 	}
 
 	private static ByteBuffer readResource(ReadableByteChannel channel, int bufSize) throws IOException {
-		ByteBuffer byteBuffer = MemoryUtil.memAlloc(bufSize);
+		ByteBuffer buffer = MemoryUtil.memAlloc(bufSize);
 
 		try {
-			while (channel.read(byteBuffer) != -1) {
-				if (!byteBuffer.hasRemaining()) {
-					byteBuffer = MemoryUtil.memRealloc(byteBuffer, byteBuffer.capacity() * 2);
+			while (channel.read(buffer) != -1) {
+				if (!buffer.hasRemaining()) {
+					buffer = MemoryUtil.memRealloc(buffer, buffer.capacity() * 2);
 				}
 			}
 
-			byteBuffer.flip();
-			return byteBuffer;
-		}
-		catch (IOException var4) {
-			MemoryUtil.memFree(byteBuffer);
-			throw var4;
+			buffer.flip();
+			return buffer;
+		} catch (IOException exception) {
+			MemoryUtil.memFree(buffer);
+			throw exception;
 		}
 	}
 
+	/**
+	 * Асинхронно экспортирует все уровни мипмапов текстуры в PNG-файлы.
+	 * Файлы сохраняются в директорию {@code directory} с именами вида {@code prefix_N.png}.
+	 * Операция выполняется через GPU-буфер и завершается асинхронно.
+	 *
+	 * @param directory     директория для сохранения файлов
+	 * @param prefix        префикс имени файла
+	 * @param texture       исходная GPU-текстура
+	 * @param scales        количество уровней мипмапов (0 = только базовый)
+	 * @param colorFunction функция преобразования цвета пикселя перед сохранением
+	 * @throws IllegalArgumentException если суммарный размер текстур превышает 2 ГБ
+	 */
 	public static void writeAsPNG(
-			Path directory,
-			String prefix,
-			GpuTexture texture,
-			int scales,
-			IntUnaryOperator colorFunction
+		Path directory,
+		String prefix,
+		GpuTexture texture,
+		int scales,
+		IntUnaryOperator colorFunction
 	) {
 		RenderSystem.assertOnRenderThread();
-		long l = 0L;
 
-		for (int i = 0; i <= scales; i++) {
-			l += (long) texture.getFormat().pixelSize() * texture.getWidth(i) * texture.getHeight(i);
+		long totalBytes = 0L;
+
+		for (int mip = 0; mip <= scales; mip++) {
+			totalBytes += (long) texture.getFormat().pixelSize() * texture.getWidth(mip) * texture.getHeight(mip);
 		}
 
-		if (l > 2147483647L) {
+		if (totalBytes > Integer.MAX_VALUE) {
 			throw new IllegalArgumentException("Exporting textures larger than 2GB is not supported");
 		}
-		else {
-			GpuBuffer gpuBuffer = RenderSystem.getDevice().createBuffer(() -> "Texture output buffer", 9, l);
-			CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
-			Runnable runnable = () -> {
-				try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(gpuBuffer, true, false)) {
-					int jx = 0;
 
-					for (int kx = 0; kx <= scales; kx++) {
-						int lx = texture.getWidth(kx);
-						int m = texture.getHeight(kx);
+		GpuBuffer outputBuffer = RenderSystem.getDevice().createBuffer(() -> "Texture output buffer", 9, totalBytes);
+		CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
 
-						try (NativeImage nativeImage = new NativeImage(lx, m, false)) {
-							for (int n = 0; n < m; n++) {
-								for (int o = 0; o < lx; o++) {
-									int
-											p =
-											mappedView
-													.data()
-													.getInt(jx + (o + n * lx) * texture.getFormat().pixelSize());
-									nativeImage.setColor(o, n, colorFunction.applyAsInt(p));
-								}
+		Runnable readbackTask = () -> {
+			try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(outputBuffer, true, false)) {
+				int byteOffset = 0;
+
+				for (int mip = 0; mip <= scales; mip++) {
+					int mipWidth = texture.getWidth(mip);
+					int mipHeight = texture.getHeight(mip);
+					int pixelSize = texture.getFormat().pixelSize();
+
+					try (NativeImage image = new NativeImage(mipWidth, mipHeight, false)) {
+						for (int row = 0; row < mipHeight; row++) {
+							for (int col = 0; col < mipWidth; col++) {
+								int rawColor = mappedView.data().getInt(byteOffset + (col + row * mipWidth) * pixelSize);
+								image.setColor(col, row, colorFunction.applyAsInt(rawColor));
 							}
-
-							Path path2 = directory.resolve(prefix + "_" + kx + ".png");
-							nativeImage.writeTo(path2);
-							LOGGER.debug("Exported png to: {}", path2.toAbsolutePath());
-						}
-						catch (IOException var19) {
-							LOGGER.debug("Unable to write: ", var19);
 						}
 
-						jx += texture.getFormat().pixelSize() * lx * m;
+						Path outputPath = directory.resolve(prefix + "_" + mip + ".png");
+
+						try {
+							image.writeTo(outputPath);
+							LOGGER.debug("Exported png to: {}", outputPath.toAbsolutePath());
+						} catch (IOException exception) {
+							LOGGER.debug("Unable to write: ", exception);
+						}
 					}
+
+					byteOffset += pixelSize * mipWidth * mipHeight;
 				}
-
-				gpuBuffer.close();
-			};
-			AtomicInteger atomicInteger = new AtomicInteger();
-			int j = 0;
-
-			for (int k = 0; k <= scales; k++) {
-				commandEncoder.copyTextureToBuffer(
-						texture, gpuBuffer, j, () -> {
-							if (atomicInteger.getAndIncrement() == scales) {
-								runnable.run();
-							}
-						}, k
-				);
-				j += texture.getFormat().pixelSize() * texture.getWidth(k) * texture.getHeight(k);
 			}
+
+			outputBuffer.close();
+		};
+
+		AtomicInteger completedMips = new AtomicInteger();
+		int bufferOffset = 0;
+
+		for (int mip = 0; mip <= scales; mip++) {
+			final int currentMip = mip;
+			commandEncoder.copyTextureToBuffer(
+				texture, outputBuffer, bufferOffset, () -> {
+					if (completedMips.getAndIncrement() == scales) {
+						readbackTask.run();
+					}
+				}, currentMip
+			);
+			bufferOffset += texture.getFormat().pixelSize() * texture.getWidth(mip) * texture.getHeight(mip);
 		}
 	}
 
+	/** Возвращает путь к директории отладочных текстур относительно заданного пути. */
 	public static Path getDebugTexturePath(Path path) {
 		return path.resolve("screenshots").resolve("debug");
 	}
 
+	/** Возвращает путь к директории отладочных текстур относительно текущей директории. */
 	public static Path getDebugTexturePath() {
 		return getDebugTexturePath(Path.of("."));
 	}
 
+	/**
+	 * Заполняет прозрачные пиксели изображения цветом ближайшего непрозрачного пикселя.
+	 * Использует BFS (поиск в ширину) для распространения цвета от непрозрачных пикселей.
+	 * Альфа-канал заполненных пикселей устанавливается в 0 (остаются прозрачными).
+	 *
+	 * <p>Применяется для устранения артефактов на краях текстур при билинейной фильтрации.
+	 *
+	 * @param image изображение для обработки (модифицируется на месте)
+	 */
 	public static void solidify(NativeImage image) {
-		int i = image.getWidth();
-		int j = image.getHeight();
-		int[] is = new int[i * j];
-		int[] js = new int[i * j];
-		Arrays.fill(js, Integer.MAX_VALUE);
-		IntArrayFIFOQueue intArrayFIFOQueue = new IntArrayFIFOQueue();
+		int width = image.getWidth();
+		int height = image.getHeight();
+		int[] colors = new int[width * height];
+		int[] distances = new int[width * height];
+		Arrays.fill(distances, Integer.MAX_VALUE);
 
-		for (int k = 0; k < i; k++) {
-			for (int l = 0; l < j; l++) {
-				int m = image.getColorArgb(k, l);
-				if (ColorHelper.getAlpha(m) != 0) {
-					int n = pack(k, l, i);
-					js[n] = 0;
-					is[n] = m;
-					intArrayFIFOQueue.enqueue(n);
+		IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
+
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				int color = image.getColorArgb(x, y);
+
+				if (ColorHelper.getAlpha(color) != 0) {
+					int packed = pack(x, y, width);
+					distances[packed] = 0;
+					colors[packed] = color;
+					queue.enqueue(packed);
 				}
 			}
 		}
 
-		while (!intArrayFIFOQueue.isEmpty()) {
-			int k = intArrayFIFOQueue.dequeueInt();
-			int lx = x(k, i);
-			int m = y(k, i);
+		while (!queue.isEmpty()) {
+			int packed = queue.dequeueInt();
+			int px = x(packed, width);
+			int py = y(packed, width);
 
-			for (int[] ks : DIRECTIONS) {
-				int o = lx + ks[0];
-				int p = m + ks[1];
-				int q = pack(o, p, i);
-				if (o >= 0 && p >= 0 && o < i && p < j && js[q] > js[k] + 1) {
-					js[q] = js[k] + 1;
-					is[q] = is[k];
-					intArrayFIFOQueue.enqueue(q);
+			for (int[] direction : DIRECTIONS) {
+				int nx = px + direction[0];
+				int ny = py + direction[1];
+				int neighborPacked = pack(nx, ny, width);
+
+				if (nx >= 0 && ny >= 0 && nx < width && ny < height
+					&& distances[neighborPacked] > distances[packed] + 1
+				) {
+					distances[neighborPacked] = distances[packed] + 1;
+					colors[neighborPacked] = colors[packed];
+					queue.enqueue(neighborPacked);
 				}
 			}
 		}
 
-		for (int k = 0; k < i; k++) {
-			for (int lx = 0; lx < j; lx++) {
-				int m = image.getColorArgb(k, lx);
-				if (ColorHelper.getAlpha(m) == 0) {
-					image.setColorArgb(k, lx, ColorHelper.withAlpha(0, is[pack(k, lx, i)]));
-				}
-				else {
-					image.setColorArgb(k, lx, m);
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				int color = image.getColorArgb(x, y);
+
+				if (ColorHelper.getAlpha(color) == 0) {
+					image.setColorArgb(x, y, ColorHelper.withAlpha(0, colors[pack(x, y, width)]));
+				} else {
+					image.setColorArgb(x, y, color);
 				}
 			}
 		}
 	}
 
+	/**
+	 * Заполняет прозрачные пиксели изображения затемнённой версией наиболее тёмного
+	 * непрозрачного цвета (75% от минимального по сумме RGB-каналов).
+	 *
+	 * <p>Применяется для создания фонового цвета под прозрачными областями текстур.
+	 *
+	 * @param image изображение для обработки (модифицируется на месте)
+	 */
 	public static void fillEmptyAreasWithDarkColor(NativeImage image) {
-		int i = image.getWidth();
-		int j = image.getHeight();
-		int k = -1;
-		int l = Integer.MAX_VALUE;
+		int width = image.getWidth();
+		int height = image.getHeight();
+		int darkestColor = -1;
+		int minBrightness = Integer.MAX_VALUE;
 
-		for (int m = 0; m < i; m++) {
-			for (int n = 0; n < j; n++) {
-				int o = image.getColorArgb(m, n);
-				int p = ColorHelper.getAlpha(o);
-				if (p != 0) {
-					int q = ColorHelper.getRed(o);
-					int r = ColorHelper.getGreen(o);
-					int s = ColorHelper.getBlue(o);
-					int t = q + r + s;
-					if (t < l) {
-						l = t;
-						k = o;
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				int color = image.getColorArgb(x, y);
+
+				if (ColorHelper.getAlpha(color) != 0) {
+					int brightness = ColorHelper.getRed(color) + ColorHelper.getGreen(color) + ColorHelper.getBlue(color);
+
+					if (brightness < minBrightness) {
+						minBrightness = brightness;
+						darkestColor = color;
 					}
 				}
 			}
 		}
 
-		int m = 3 * ColorHelper.getRed(k) / 4;
-		int nx = 3 * ColorHelper.getGreen(k) / 4;
-		int o = 3 * ColorHelper.getBlue(k) / 4;
-		int p = ColorHelper.getArgb(0, m, nx, o);
+		// Затемняем до 75% от найденного минимального цвета
+		int fillRed = 3 * ColorHelper.getRed(darkestColor) / 4;
+		int fillGreen = 3 * ColorHelper.getGreen(darkestColor) / 4;
+		int fillBlue = 3 * ColorHelper.getBlue(darkestColor) / 4;
+		int fillColor = ColorHelper.getArgb(0, fillRed, fillGreen, fillBlue);
 
-		for (int q = 0; q < i; q++) {
-			for (int r = 0; r < j; r++) {
-				int s = image.getColorArgb(q, r);
-				if (ColorHelper.getAlpha(s) == 0) {
-					image.setColorArgb(q, r, p);
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				int color = image.getColorArgb(x, y);
+
+				if (ColorHelper.getAlpha(color) == 0) {
+					image.setColorArgb(x, y, fillColor);
 				}
 			}
 		}

@@ -16,12 +16,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code WaterPathNodeMaker}.
+ * Построитель узлов пути для водных существ (кальмары, рыбы и т.п.).
+ * Разрешает движение только через блоки воды; опционально допускает
+ * узлы типа {@link PathNodeType#BREACH} для существ, умеющих выпрыгивать из воды.
  */
 public class WaterPathNodeMaker extends PathNodeMaker {
 
+	private static final float AIR_PENALTY = 8.0F;
+
 	private final boolean canJumpOutOfWater;
-	private final Long2ObjectMap<PathNodeType> nodePosToType = new Long2ObjectOpenHashMap();
+	private final Long2ObjectMap<PathNodeType> nodePosToType = new Long2ObjectOpenHashMap<>();
 
 	public WaterPathNodeMaker(boolean canJumpOutOfWater) {
 		this.canJumpOutOfWater = canJumpOutOfWater;
@@ -30,63 +34,64 @@ public class WaterPathNodeMaker extends PathNodeMaker {
 	@Override
 	public void init(ChunkCache cachedWorld, MobEntity entity) {
 		super.init(cachedWorld, entity);
-		this.nodePosToType.clear();
+		nodePosToType.clear();
 	}
 
 	@Override
 	public void clear() {
 		super.clear();
-		this.nodePosToType.clear();
+		nodePosToType.clear();
 	}
 
 	@Override
 	public PathNode getStart() {
-		return this.getNode(
-				MathHelper.floor(this.entity.getBoundingBox().minX),
-				MathHelper.floor(this.entity.getBoundingBox().minY + 0.5),
-				MathHelper.floor(this.entity.getBoundingBox().minZ)
+		return getNode(
+				MathHelper.floor(entity.getBoundingBox().minX),
+				MathHelper.floor(entity.getBoundingBox().minY + 0.5),
+				MathHelper.floor(entity.getBoundingBox().minZ)
 		);
 	}
 
 	@Override
 	public TargetPathNode getNode(double x, double y, double z) {
-		return this.createNode(x, y, z);
+		return createNode(x, y, z);
 	}
 
 	@Override
 	public int getSuccessors(PathNode[] successors, PathNode node) {
-		int i = 0;
-		Map<Direction, PathNode> map = Maps.newEnumMap(Direction.class);
+		int count = 0;
+		Map<Direction, PathNode> neighborMap = Maps.newEnumMap(Direction.class);
 
 		for (Direction direction : Direction.values()) {
-			PathNode
-					pathNode =
-					this.getPassableNode(
-							node.x + direction.getOffsetX(),
-							node.y + direction.getOffsetY(),
-							node.z + direction.getOffsetZ()
-					);
-			map.put(direction, pathNode);
-			if (this.hasNotVisited(pathNode)) {
-				successors[i++] = pathNode;
+			PathNode neighbor = getPassableNode(
+					node.x + direction.getOffsetX(),
+					node.y + direction.getOffsetY(),
+					node.z + direction.getOffsetZ()
+			);
+			neighborMap.put(direction, neighbor);
+
+			if (hasNotVisited(neighbor)) {
+				successors[count++] = neighbor;
 			}
 		}
 
-		for (Direction direction2 : Direction.Type.HORIZONTAL) {
-			Direction direction3 = direction2.rotateYClockwise();
-			if (hasPenalty(map.get(direction2)) && hasPenalty(map.get(direction3))) {
-				PathNode pathNode2 = this.getPassableNode(
-						node.x + direction2.getOffsetX() + direction3.getOffsetX(),
+		for (Direction horizontal : Direction.Type.HORIZONTAL) {
+			Direction clockwise = horizontal.rotateYClockwise();
+
+			if (hasPenalty(neighborMap.get(horizontal)) && hasPenalty(neighborMap.get(clockwise))) {
+				PathNode diagonal = getPassableNode(
+						node.x + horizontal.getOffsetX() + clockwise.getOffsetX(),
 						node.y,
-						node.z + direction2.getOffsetZ() + direction3.getOffsetZ()
+						node.z + horizontal.getOffsetZ() + clockwise.getOffsetZ()
 				);
-				if (this.hasNotVisited(pathNode2)) {
-					successors[i++] = pathNode2;
+
+				if (hasNotVisited(diagonal)) {
+					successors[count++] = diagonal;
 				}
 			}
 		}
 
-		return i;
+		return count;
 	}
 
 	protected boolean hasNotVisited(@Nullable PathNode node) {
@@ -97,56 +102,65 @@ public class WaterPathNodeMaker extends PathNodeMaker {
 		return node != null && node.penalty >= 0.0F;
 	}
 
+	/**
+	 * Возвращает проходимый узел в позиции (x, y, z), если тип узла допустим
+	 * для данного существа. Добавляет штраф {@link #AIR_PENALTY} за нахождение
+	 * в воздушном блоке (тип BREACH без жидкости).
+	 */
 	protected @Nullable PathNode getPassableNode(int x, int y, int z) {
-		PathNode pathNode = null;
-		PathNodeType pathNodeType = this.addPathNodePos(x, y, z);
-		if (this.canJumpOutOfWater && pathNodeType == PathNodeType.BREACH || pathNodeType == PathNodeType.WATER) {
-			float f = this.entity.getPathfindingPenalty(pathNodeType);
-			if (f >= 0.0F) {
-				pathNode = this.getNode(x, y, z);
-				pathNode.type = pathNodeType;
-				pathNode.penalty = Math.max(pathNode.penalty, f);
-				if (this.context.getWorld().getFluidState(new BlockPos(x, y, z)).isEmpty()) {
-					pathNode.penalty += 8.0F;
-				}
-			}
+		PathNodeType nodeType = addPathNodePos(x, y, z);
+		boolean isAllowed = (canJumpOutOfWater && nodeType == PathNodeType.BREACH)
+				|| nodeType == PathNodeType.WATER;
+
+		if (!isAllowed) {
+			return null;
+		}
+
+		float penalty = entity.getPathfindingPenalty(nodeType);
+
+		if (penalty < 0.0F) {
+			return null;
+		}
+
+		PathNode pathNode = getNode(x, y, z);
+		pathNode.type = nodeType;
+		pathNode.penalty = Math.max(pathNode.penalty, penalty);
+
+		if (context.getWorld().getFluidState(new BlockPos(x, y, z)).isEmpty()) {
+			pathNode.penalty += AIR_PENALTY;
 		}
 
 		return pathNode;
 	}
 
-	/**
-	 * Добавляет path node pos.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return PathNodeType — результат операции
-	 */
 	protected PathNodeType addPathNodePos(int x, int y, int z) {
-		return (PathNodeType) this.nodePosToType.computeIfAbsent(
+		return nodePosToType.computeIfAbsent(
 				BlockPos.asLong(x, y, z),
-				pos -> this.getDefaultNodeType(this.context, x, y, z)
+				pos -> getDefaultNodeType(context, x, y, z)
 		);
 	}
 
 	@Override
 	public PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z) {
-		return this.getNodeType(context, x, y, z, this.entity);
+		return getNodeType(context, x, y, z, entity);
 	}
 
+	/**
+	 * Определяет тип узла с учётом всего объёма существа.
+	 * Возвращает {@link PathNodeType#BREACH} для воздушных блоков (выпрыгивание),
+	 * {@link PathNodeType#WATER} для водных и {@link PathNodeType#BLOCKED} для остальных.
+	 */
 	@Override
 	public PathNodeType getNodeType(PathContext context, int x, int y, int z, MobEntity mob) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = x; i < x + this.entityBlockXSize; i++) {
-			for (int j = y; j < y + this.entityBlockYSize; j++) {
-				for (int k = z; k < z + this.entityBlockZSize; k++) {
-					BlockState blockState = context.getBlockState(mutable.set(i, j, k));
+		for (int bx = x; bx < x + entityBlockXSize; bx++) {
+			for (int by = y; by < y + entityBlockYSize; by++) {
+				for (int bz = z; bz < z + entityBlockZSize; bz++) {
+					BlockState blockState = context.getBlockState(mutable.set(bx, by, bz));
 					FluidState fluidState = blockState.getFluidState();
-					if (fluidState.isEmpty() && blockState.canPathfindThrough(NavigationType.WATER)
-							&& blockState.isAir()) {
+
+					if (fluidState.isEmpty() && blockState.canPathfindThrough(NavigationType.WATER) && blockState.isAir()) {
 						return PathNodeType.BREACH;
 					}
 
@@ -157,7 +171,7 @@ public class WaterPathNodeMaker extends PathNodeMaker {
 			}
 		}
 
-		BlockState blockState2 = context.getBlockState(mutable);
-		return blockState2.canPathfindThrough(NavigationType.WATER) ? PathNodeType.WATER : PathNodeType.BLOCKED;
+		BlockState finalState = context.getBlockState(mutable);
+		return finalState.canPathfindThrough(NavigationType.WATER) ? PathNodeType.WATER : PathNodeType.BLOCKED;
 	}
 }

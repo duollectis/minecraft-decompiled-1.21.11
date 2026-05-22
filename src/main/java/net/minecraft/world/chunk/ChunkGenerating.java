@@ -20,7 +20,9 @@ import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code ChunkGenerating}.
+ * Набор статических методов-задач генерации чанка, реализующих каждый шаг
+ * пайплайна {@link ChunkGenerationSteps}. Каждый метод соответствует одному
+ * {@link ChunkStatus} и принимает единый набор параметров через {@link ChunkGenerationContext}.
  */
 public class ChunkGenerating {
 
@@ -45,20 +47,19 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		if (serverWorld.getServer().getSaveProperties().getGeneratorOptions().shouldGenerateStructures()) {
-			context.generator()
-			       .setStructureStarts(
-					       serverWorld.getRegistryManager(),
-					       serverWorld.getChunkManager().getStructurePlacementCalculator(),
-					       serverWorld.getStructureAccessor(),
-					       chunk,
-					       context.structureManager(),
-					       serverWorld.getRegistryKey()
-			       );
+		ServerWorld world = context.world();
+		if (world.getServer().getSaveProperties().getGeneratorOptions().shouldGenerateStructures()) {
+			context.generator().setStructureStarts(
+					world.getRegistryManager(),
+					world.getChunkManager().getStructurePlacementCalculator(),
+					world.getStructureAccessor(),
+					chunk,
+					context.structureManager(),
+					world.getRegistryKey()
+			);
 		}
 
-		serverWorld.cacheStructures(chunk);
+		world.cacheStructures(chunk);
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -78,11 +79,9 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
-		context
-				.generator()
-				.addStructureReferences(chunkRegion, serverWorld.getStructureAccessor().forRegion(chunkRegion), chunk);
+		ServerWorld world = context.world();
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
+		context.generator().addStructureReferences(region, world.getStructureAccessor().forRegion(region), chunk);
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -92,15 +91,14 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
-		return context.generator()
-		              .populateBiomes(
-				              serverWorld.getChunkManager().getNoiseConfig(),
-				              Blender.getBlender(chunkRegion),
-				              serverWorld.getStructureAccessor().forRegion(chunkRegion),
-				              chunk
-		              );
+		ServerWorld world = context.world();
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
+		return context.generator().populateBiomes(
+				world.getChunkManager().getNoiseConfig(),
+				Blender.getBlender(region),
+				world.getStructureAccessor().forRegion(region),
+				chunk
+		);
 	}
 
 	static CompletableFuture<Chunk> populateNoise(
@@ -109,28 +107,28 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
+		ServerWorld world = context.world();
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
 		return context.generator()
-		              .populateNoise(
-				              Blender.getBlender(chunkRegion),
-				              serverWorld.getChunkManager().getNoiseConfig(),
-				              serverWorld.getStructureAccessor().forRegion(chunkRegion),
-				              chunk
-		              )
-		              .thenApply(populated -> {
-			              if (populated instanceof ProtoChunk protoChunk) {
-				              BelowZeroRetrogen belowZeroRetrogen = protoChunk.getBelowZeroRetrogen();
-				              if (belowZeroRetrogen != null) {
-					              BelowZeroRetrogen.replaceOldBedrock(protoChunk);
-					              if (belowZeroRetrogen.hasMissingBedrock()) {
-						              belowZeroRetrogen.fillColumnsWithAirIfMissingBedrock(protoChunk);
-					              }
-				              }
-			              }
+				.populateNoise(
+						Blender.getBlender(region),
+						world.getChunkManager().getNoiseConfig(),
+						world.getStructureAccessor().forRegion(region),
+						chunk
+				)
+				.thenApply(populated -> {
+					if (populated instanceof ProtoChunk protoChunk) {
+						BelowZeroRetrogen retrogen = protoChunk.getBelowZeroRetrogen();
+						if (retrogen != null) {
+							BelowZeroRetrogen.replaceOldBedrock(protoChunk);
+							if (retrogen.hasMissingBedrock()) {
+								retrogen.fillColumnsWithAirIfMissingBedrock(protoChunk);
+							}
+						}
+					}
 
-			              return (Chunk) populated;
-		              });
+					return (Chunk) populated;
+				});
 	}
 
 	static CompletableFuture<Chunk> buildSurface(
@@ -139,15 +137,14 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
-		context.generator()
-		       .buildSurface(
-				       chunkRegion,
-				       serverWorld.getStructureAccessor().forRegion(chunkRegion),
-				       serverWorld.getChunkManager().getNoiseConfig(),
-				       chunk
-		       );
+		ServerWorld world = context.world();
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
+		context.generator().buildSurface(
+				region,
+				world.getStructureAccessor().forRegion(region),
+				world.getChunkManager().getNoiseConfig(),
+				chunk
+		);
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -157,21 +154,20 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
+		ServerWorld world = context.world();
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
 		if (chunk instanceof ProtoChunk protoChunk) {
-			Blender.createCarvingMasks(chunkRegion, protoChunk);
+			Blender.createCarvingMasks(region, protoChunk);
 		}
 
-		context.generator()
-		       .carve(
-				       chunkRegion,
-				       serverWorld.getSeed(),
-				       serverWorld.getChunkManager().getNoiseConfig(),
-				       serverWorld.getBiomeAccess(),
-				       serverWorld.getStructureAccessor().forRegion(chunkRegion),
-				       chunk
-		       );
+		context.generator().carve(
+				region,
+				world.getSeed(),
+				world.getChunkManager().getNoiseConfig(),
+				world.getBiomeAccess(),
+				world.getStructureAccessor().forRegion(region),
+				chunk
+		);
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -181,7 +177,7 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerWorld serverWorld = context.world();
+		ServerWorld world = context.world();
 		Heightmap.populateHeightmaps(
 				chunk,
 				EnumSet.of(
@@ -191,14 +187,13 @@ public class ChunkGenerating {
 						Heightmap.Type.WORLD_SURFACE
 				)
 		);
-		ChunkRegion chunkRegion = new ChunkRegion(serverWorld, chunks, step, chunk);
+
+		ChunkRegion region = new ChunkRegion(world, chunks, step, chunk);
 		if (!SharedConstants.DISABLE_FEATURES) {
-			context
-					.generator()
-					.generateFeatures(chunkRegion, chunk, serverWorld.getStructureAccessor().forRegion(chunkRegion));
+			context.generator().generateFeatures(region, chunk, world.getStructureAccessor().forRegion(region));
 		}
 
-		Blender.tickLeavesAndFluids(chunkRegion, chunk);
+		Blender.tickLeavesAndFluids(region, chunk);
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -208,11 +203,10 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		ServerLightingProvider serverLightingProvider = context.lightingProvider();
+		ServerLightingProvider lightingProvider = context.lightingProvider();
 		chunk.refreshSurfaceY();
-		((ProtoChunk) chunk).setLightingProvider(serverLightingProvider);
-		boolean bl = isLightOn(chunk);
-		return serverLightingProvider.initializeLight(chunk, bl);
+		((ProtoChunk) chunk).setLightingProvider(lightingProvider);
+		return lightingProvider.initializeLight(chunk, isLightOn(chunk));
 	}
 
 	static CompletableFuture<Chunk> light(
@@ -221,8 +215,7 @@ public class ChunkGenerating {
 			BoundedRegionArray<AbstractChunkHolder> chunks,
 			Chunk chunk
 	) {
-		boolean bl = isLightOn(chunk);
-		return context.lightingProvider().light(chunk, bl);
+		return context.lightingProvider().light(chunk, isLightOn(chunk));
 	}
 
 	static CompletableFuture<Chunk> generateEntities(
@@ -238,6 +231,11 @@ public class ChunkGenerating {
 		return CompletableFuture.completedFuture(chunk);
 	}
 
+	/**
+	 * Финализирует генерацию: конвертирует {@link ProtoChunk} в {@link WorldChunk},
+	 * загружает сущности и блок-энтити, регистрирует тик-планировщики.
+	 * Выполняется в главном потоке через {@link ChunkGenerationContext#mainThreadExecutor()}.
+	 */
 	static CompletableFuture<Chunk> convertToFullChunk(
 			ChunkGenerationContext context,
 			ChunkGenerationStep step,
@@ -245,45 +243,43 @@ public class ChunkGenerating {
 			Chunk chunk
 	) {
 		ChunkPos chunkPos = chunk.getPos();
-		AbstractChunkHolder abstractChunkHolder = chunks.get(chunkPos.x, chunkPos.z);
+		AbstractChunkHolder holder = chunks.get(chunkPos.x, chunkPos.z);
+
 		return CompletableFuture.supplyAsync(
 				() -> {
 					ProtoChunk protoChunk = (ProtoChunk) chunk;
-					ServerWorld serverWorld = context.world();
+					ServerWorld world = context.world();
 					WorldChunk worldChunk;
-					if (protoChunk instanceof WrapperProtoChunk wrapperProtoChunk) {
-						worldChunk = wrapperProtoChunk.getWrappedChunk();
-					}
-					else {
-						worldChunk = new WorldChunk(
-								serverWorld, protoChunk, worldChunkx -> {
+
+					if (protoChunk instanceof WrapperProtoChunk wrapper) {
+						worldChunk = wrapper.getWrappedChunk();
+					} else {
+						worldChunk = new WorldChunk(world, protoChunk, loadedChunk -> {
 							try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-									chunk.getErrorReporterContext(),
-									LOGGER
-							)
+									chunk.getErrorReporterContext(), LOGGER)
 							) {
 								addEntities(
-										serverWorld,
+										world,
 										NbtReadView.createList(
 												logging,
-												serverWorld.getRegistryManager(),
+												world.getRegistryManager(),
 												protoChunk.getEntities()
 										)
 								);
 							}
-						}
-						);
-						abstractChunkHolder.replaceWith(new WrapperProtoChunk(worldChunk, false));
+						});
+						holder.replaceWith(new WrapperProtoChunk(worldChunk, false));
 					}
 
-					worldChunk.setLevelTypeProvider(abstractChunkHolder::getLevelType);
+					worldChunk.setLevelTypeProvider(holder::getLevelType);
 					worldChunk.loadEntities();
 					worldChunk.setLoadedToWorld(true);
 					worldChunk.updateAllBlockEntities();
-					worldChunk.addChunkTickSchedulers(serverWorld);
+					worldChunk.addChunkTickSchedulers(world);
 					worldChunk.setUnsavedListener(context.unsavedListener());
 					return worldChunk;
-				}, context.mainThreadExecutor()
+				},
+				context.mainThreadExecutor()
 		);
 	}
 

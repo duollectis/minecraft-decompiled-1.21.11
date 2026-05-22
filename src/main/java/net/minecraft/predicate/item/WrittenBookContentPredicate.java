@@ -16,7 +16,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code WrittenBookContentPredicate}.
+ * Предикат для проверки содержимого написанной книги:
+ * страницы, автор, название, поколение и флаг разрешения.
  */
 public record WrittenBookContentPredicate(
 		Optional<CollectionPredicate<RawFilteredPair<Text>, WrittenBookContentPredicate.RawTextPredicate>> pages,
@@ -28,17 +29,17 @@ public record WrittenBookContentPredicate(
 
 	public static final Codec<WrittenBookContentPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    CollectionPredicate.createCodec(WrittenBookContentPredicate.RawTextPredicate.CODEC)
-					                                       .optionalFieldOf("pages")
-					                                       .forGetter(WrittenBookContentPredicate::pages),
-					                    Codec.STRING.optionalFieldOf("author").forGetter(WrittenBookContentPredicate::author),
-					                    Codec.STRING.optionalFieldOf("title").forGetter(WrittenBookContentPredicate::title),
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("generation", NumberRange.IntRange.ANY)
-							                    .forGetter(WrittenBookContentPredicate::generation),
-					                    Codec.BOOL.optionalFieldOf("resolved").forGetter(WrittenBookContentPredicate::resolved)
-			                    )
-			                    .apply(instance, WrittenBookContentPredicate::new)
+					CollectionPredicate.createCodec(WrittenBookContentPredicate.RawTextPredicate.CODEC)
+							.optionalFieldOf("pages")
+							.forGetter(WrittenBookContentPredicate::pages),
+					Codec.STRING.optionalFieldOf("author").forGetter(WrittenBookContentPredicate::author),
+					Codec.STRING.optionalFieldOf("title").forGetter(WrittenBookContentPredicate::title),
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("generation", NumberRange.IntRange.ANY)
+							.forGetter(WrittenBookContentPredicate::generation),
+					Codec.BOOL.optionalFieldOf("resolved").forGetter(WrittenBookContentPredicate::resolved)
+			)
+			.apply(instance, WrittenBookContentPredicate::new)
 	);
 
 	@Override
@@ -46,25 +47,28 @@ public record WrittenBookContentPredicate(
 		return DataComponentTypes.WRITTEN_BOOK_CONTENT;
 	}
 
-	public boolean test(WrittenBookContentComponent writtenBookContentComponent) {
-		if (this.author.isPresent() && !this.author.get().equals(writtenBookContentComponent.author())) {
+	public boolean test(WrittenBookContentComponent component) {
+		if (author.isPresent() && !author.get().equals(component.author())) {
 			return false;
 		}
-		else if (this.title.isPresent() && !this.title.get().equals(writtenBookContentComponent.title().raw())) {
+
+		if (title.isPresent() && !title.get().equals(component.title().raw())) {
 			return false;
 		}
-		else if (!this.generation.test(writtenBookContentComponent.generation())) {
+
+		if (!generation.test(component.generation())) {
 			return false;
 		}
-		else {
-			return this.resolved.isPresent() && this.resolved.get() != writtenBookContentComponent.resolved()
-			       ? false
-			       : !this.pages.isPresent() || this.pages.get().test(writtenBookContentComponent.pages());
+
+		if (resolved.isPresent() && resolved.get() != component.resolved()) {
+			return false;
 		}
+
+		return pages.isEmpty() || pages.get().test(component.pages());
 	}
 
 	/**
-	 * {@code RawTextPredicate}.
+	 * Предикат для проверки сырого (нефильтрованного) текста страницы книги.
 	 */
 	public record RawTextPredicate(Text contents) implements Predicate<RawFilteredPair<Text>> {
 
@@ -74,8 +78,8 @@ public record WrittenBookContentPredicate(
 						WrittenBookContentPredicate.RawTextPredicate::contents
 				);
 
-		public boolean test(RawFilteredPair<Text> rawFilteredPair) {
-			return rawFilteredPair.raw().equals(this.contents);
+		public boolean test(RawFilteredPair<Text> page) {
+			return page.raw().equals(contents);
 		}
 	}
 }

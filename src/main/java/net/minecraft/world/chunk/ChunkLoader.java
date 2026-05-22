@@ -13,7 +13,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code ChunkLoader}.
+ * Управляет последовательной загрузкой чанка через все статусы генерации
+ * вплоть до {@link #targetStatus}. Поддерживает отложенную выгрузку через
+ * {@link #markPendingDisposal()} и освобождает захваченные соседние чанки
+ * при завершении работы.
  */
 public class ChunkLoader {
 
@@ -39,118 +42,105 @@ public class ChunkLoader {
 	}
 
 	/**
-	 * Create.
-	 *
-	 * @param chunkLoadingManager chunk loading manager
-	 * @param targetStatus target status
-	 * @param pos pos
-	 *
-	 * @return ChunkLoader — результат операции
+	 * Создаёт загрузчик для указанного чанка, захватывая все необходимые соседние
+	 * чанки в радиусе, определённом зависимостями шага генерации {@code EMPTY}.
 	 */
 	public static ChunkLoader create(ChunkLoadingManager chunkLoadingManager, ChunkStatus targetStatus, ChunkPos pos) {
-		int i = ChunkGenerationSteps.GENERATION.get(targetStatus).getAdditionalLevel(ChunkStatus.EMPTY);
-		BoundedRegionArray<AbstractChunkHolder> boundedRegionArray = BoundedRegionArray.create(
-				pos.x, pos.z, i, (x, z) -> chunkLoadingManager.acquire(ChunkPos.toLong(x, z))
+		int radius = ChunkGenerationSteps.GENERATION.get(targetStatus).getAdditionalLevel(ChunkStatus.EMPTY);
+		BoundedRegionArray<AbstractChunkHolder> region = BoundedRegionArray.create(
+				pos.x, pos.z, radius, (x, z) -> chunkLoadingManager.acquire(ChunkPos.toLong(x, z))
 		);
-		return new ChunkLoader(chunkLoadingManager, targetStatus, pos, boundedRegionArray);
+		return new ChunkLoader(chunkLoadingManager, targetStatus, pos, region);
 	}
 
 	/**
-	 * Run.
-	 *
-	 * @return @Nullable CompletableFuture — результат операции
+	 * Продвигает загрузку на один шаг: возвращает незавершённый фьючерс если он есть,
+	 * либо запускает следующий статус. Возвращает {@code null} когда загрузка завершена.
 	 */
 	public @Nullable CompletableFuture<?> run() {
 		while (true) {
-			CompletableFuture<?> completableFuture = this.getLatestPendingFuture();
-			if (completableFuture != null) {
-				return completableFuture;
+			CompletableFuture<?> pending = getLatestPendingFuture();
+			if (pending != null) {
+				return pending;
 			}
 
-			if (this.pendingDisposal || this.currentlyLoadingStatus == this.targetStatus) {
-				this.dispose();
+			if (pendingDisposal || currentlyLoadingStatus == targetStatus) {
+				dispose();
 				return null;
 			}
 
-			this.loadNextStatus();
+			loadNextStatus();
 		}
 	}
 
 	private void loadNextStatus() {
-		ChunkStatus chunkStatus;
-		if (this.currentlyLoadingStatus == null) {
-			chunkStatus = ChunkStatus.EMPTY;
-		}
-		else if (!this.allowGeneration && this.currentlyLoadingStatus == ChunkStatus.EMPTY
-				&& !this.isGenerationUnnecessary()) {
-			this.allowGeneration = true;
-			chunkStatus = ChunkStatus.EMPTY;
-		}
-		else {
-			chunkStatus = ChunkStatus.createOrderedList().get(this.currentlyLoadingStatus.getIndex() + 1);
+		ChunkStatus nextStatus;
+		if (currentlyLoadingStatus == null) {
+			nextStatus = ChunkStatus.EMPTY;
+		} else if (!allowGeneration && currentlyLoadingStatus == ChunkStatus.EMPTY && !isGenerationUnnecessary()) {
+			allowGeneration = true;
+			nextStatus = ChunkStatus.EMPTY;
+		} else {
+			nextStatus = ChunkStatus.createOrderedList().get(currentlyLoadingStatus.getIndex() + 1);
 		}
 
-		this.loadAll(chunkStatus, this.allowGeneration);
-		this.currentlyLoadingStatus = chunkStatus;
+		loadAll(nextStatus, allowGeneration);
+		currentlyLoadingStatus = nextStatus;
 	}
 
-	/**
-	 * Mark pending disposal.
-	 */
 	public void markPendingDisposal() {
-		this.pendingDisposal = true;
+		pendingDisposal = true;
 	}
 
 	private void dispose() {
-		AbstractChunkHolder abstractChunkHolder = this.chunks.get(this.pos.x, this.pos.z);
-		abstractChunkHolder.clearLoader(this);
-		this.chunks.forEach(this.chunkLoadingManager::release);
+		chunks.get(pos.x, pos.z).clearLoader(this);
+		chunks.forEach(chunkLoadingManager::release);
 	}
 
+	/**
+	 * Проверяет, можно ли пропустить генерацию и загрузить чанк только из диска.
+	 * Возвращает {@code true} если все соседние чанки уже достигли требуемых статусов.
+	 */
 	private boolean isGenerationUnnecessary() {
-		if (this.targetStatus == ChunkStatus.EMPTY) {
+		if (targetStatus == ChunkStatus.EMPTY) {
 			return true;
 		}
-		else {
-			ChunkStatus chunkStatus = this.chunks.get(this.pos.x, this.pos.z).getActualStatus();
-			if (chunkStatus != null && !chunkStatus.isEarlierThan(this.targetStatus)) {
-				GenerationDependencies
-						generationDependencies =
-						ChunkGenerationSteps.LOADING.get(this.targetStatus).accumulatedDependencies();
-				int i = generationDependencies.getMaxLevel();
 
-				for (int j = this.pos.x - i; j <= this.pos.x + i; j++) {
-					for (int k = this.pos.z - i; k <= this.pos.z + i; k++) {
-						int l = this.pos.getChebyshevDistance(j, k);
-						ChunkStatus chunkStatus2 = generationDependencies.get(l);
-						ChunkStatus chunkStatus3 = this.chunks.get(j, k).getActualStatus();
-						if (chunkStatus3 == null || chunkStatus3.isEarlierThan(chunkStatus2)) {
-							return false;
-						}
-					}
+		ChunkStatus actualStatus = chunks.get(pos.x, pos.z).getActualStatus();
+		if (actualStatus == null || actualStatus.isEarlierThan(targetStatus)) {
+			return false;
+		}
+
+		GenerationDependencies dependencies = ChunkGenerationSteps.LOADING.get(targetStatus).accumulatedDependencies();
+		int maxRadius = dependencies.getMaxLevel();
+
+		for (int cx = pos.x - maxRadius; cx <= pos.x + maxRadius; cx++) {
+			for (int cz = pos.z - maxRadius; cz <= pos.z + maxRadius; cz++) {
+				int distance = pos.getChebyshevDistance(cx, cz);
+				ChunkStatus required = dependencies.get(distance);
+				ChunkStatus neighborStatus = chunks.get(cx, cz).getActualStatus();
+				if (neighborStatus == null || neighborStatus.isEarlierThan(required)) {
+					return false;
 				}
-
-				return true;
-			}
-			else {
-				return false;
 			}
 		}
+
+		return true;
 	}
 
 	public AbstractChunkHolder getHolder() {
-		return this.chunks.get(this.pos.x, this.pos.z);
+		return chunks.get(pos.x, pos.z);
 	}
 
 	private void loadAll(ChunkStatus targetStatus, boolean allowGeneration) {
-		try (ScopedProfiler scopedProfiler = Profilers.get().scoped("scheduleLayer")) {
-			scopedProfiler.addLabel(targetStatus::getId);
-			int i = this.getAdditionalLevel(targetStatus, allowGeneration);
+		try (ScopedProfiler profiler = Profilers.get().scoped("scheduleLayer")) {
+			profiler.addLabel(targetStatus::getId);
+			int radius = getAdditionalLevel(targetStatus, allowGeneration);
 
-			for (int j = this.pos.x - i; j <= this.pos.x + i; j++) {
-				for (int k = this.pos.z - i; k <= this.pos.z + i; k++) {
-					AbstractChunkHolder abstractChunkHolder = this.chunks.get(j, k);
-					if (this.pendingDisposal || !this.load(targetStatus, allowGeneration, abstractChunkHolder)) {
+			for (int cx = pos.x - radius; cx <= pos.x + radius; cx++) {
+				for (int cz = pos.z - radius; cz <= pos.z + radius; cz++) {
+					AbstractChunkHolder holder = chunks.get(cx, cz);
+					if (pendingDisposal || !load(targetStatus, allowGeneration, holder)) {
 						return;
 					}
 				}
@@ -159,49 +149,49 @@ public class ChunkLoader {
 	}
 
 	private int getAdditionalLevel(ChunkStatus status, boolean generate) {
-		ChunkGenerationSteps
-				chunkGenerationSteps =
-				generate ? ChunkGenerationSteps.GENERATION : ChunkGenerationSteps.LOADING;
-		return chunkGenerationSteps.get(this.targetStatus).getAdditionalLevel(status);
+		ChunkGenerationSteps steps = generate ? ChunkGenerationSteps.GENERATION : ChunkGenerationSteps.LOADING;
+		return steps.get(targetStatus).getAdditionalLevel(status);
 	}
 
 	private boolean load(ChunkStatus targetStatus, boolean allowGeneration, AbstractChunkHolder chunkHolder) {
-		ChunkStatus chunkStatus = chunkHolder.getActualStatus();
-		boolean bl = chunkStatus != null && targetStatus.isLaterThan(chunkStatus);
-		ChunkGenerationSteps chunkGenerationSteps = bl ? ChunkGenerationSteps.GENERATION : ChunkGenerationSteps.LOADING;
-		if (bl && !allowGeneration) {
+		ChunkStatus actualStatus = chunkHolder.getActualStatus();
+		boolean needsGeneration = actualStatus != null && targetStatus.isLaterThan(actualStatus);
+		ChunkGenerationSteps steps = needsGeneration ? ChunkGenerationSteps.GENERATION : ChunkGenerationSteps.LOADING;
+
+		if (needsGeneration && !allowGeneration) {
 			throw new IllegalStateException("Can't load chunk, but didn't expect to need to generate");
 		}
-		else {
-			CompletableFuture<OptionalChunk<Chunk>> completableFuture = chunkHolder.generate(
-					chunkGenerationSteps.get(targetStatus), this.chunkLoadingManager, this.chunks
-			);
-			OptionalChunk<Chunk> optionalChunk = completableFuture.getNow(null);
-			if (optionalChunk == null) {
-				this.futures.add(completableFuture);
-				return true;
-			}
-			else if (optionalChunk.isPresent()) {
-				return true;
-			}
-			else {
-				this.markPendingDisposal();
-				return false;
-			}
+
+		CompletableFuture<OptionalChunk<Chunk>> future = chunkHolder.generate(
+				steps.get(targetStatus), chunkLoadingManager, chunks
+		);
+		OptionalChunk<Chunk> result = future.getNow(null);
+
+		if (result == null) {
+			futures.add(future);
+			return true;
 		}
+
+		if (result.isPresent()) {
+			return true;
+		}
+
+		markPendingDisposal();
+		return false;
 	}
 
 	private @Nullable CompletableFuture<?> getLatestPendingFuture() {
-		while (!this.futures.isEmpty()) {
-			CompletableFuture<OptionalChunk<Chunk>> completableFuture = this.futures.getLast();
-			OptionalChunk<Chunk> optionalChunk = completableFuture.getNow(null);
-			if (optionalChunk == null) {
-				return completableFuture;
+		while (!futures.isEmpty()) {
+			CompletableFuture<OptionalChunk<Chunk>> future = futures.getLast();
+			OptionalChunk<Chunk> result = future.getNow(null);
+
+			if (result == null) {
+				return future;
 			}
 
-			this.futures.removeLast();
-			if (!optionalChunk.isPresent()) {
-				this.markPendingDisposal();
+			futures.removeLast();
+			if (!result.isPresent()) {
+				markPendingDisposal();
 			}
 		}
 

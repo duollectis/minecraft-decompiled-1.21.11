@@ -13,8 +13,9 @@ import java.util.List;
 import java.util.SequencedSet;
 
 /**
- * {@code TooltipDisplayComponent}.
- */
+	 * Компонент управления отображением тултипа. Позволяет полностью скрыть тултип
+	 * предмета или скрыть отдельные компоненты из него.
+	 */
 public record TooltipDisplayComponent(boolean hideTooltip, SequencedSet<ComponentType<?>> hiddenComponents) {
 
 	private static final Codec<SequencedSet<ComponentType<?>>> HIDDEN_COMPONENTS_CODEC = ComponentType.CODEC
@@ -22,12 +23,12 @@ public record TooltipDisplayComponent(boolean hideTooltip, SequencedSet<Componen
 			.xmap(ReferenceLinkedOpenHashSet::new, List::copyOf);
 	public static final Codec<TooltipDisplayComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codec.BOOL.optionalFieldOf("hide_tooltip", false).forGetter(TooltipDisplayComponent::hideTooltip),
-					                    HIDDEN_COMPONENTS_CODEC
-							                    .optionalFieldOf("hidden_components", ReferenceSortedSets.emptySet())
-							                    .forGetter(TooltipDisplayComponent::hiddenComponents)
-			                    )
-			                    .apply(instance, TooltipDisplayComponent::new)
+										Codec.BOOL.optionalFieldOf("hide_tooltip", false).forGetter(TooltipDisplayComponent::hideTooltip),
+										HIDDEN_COMPONENTS_CODEC
+												.optionalFieldOf("hidden_components", ReferenceSortedSets.emptySet())
+												.forGetter(TooltipDisplayComponent::hiddenComponents)
+								)
+								.apply(instance, TooltipDisplayComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, TooltipDisplayComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.BOOLEAN,
@@ -41,38 +42,40 @@ public record TooltipDisplayComponent(boolean hideTooltip, SequencedSet<Componen
 			new TooltipDisplayComponent(false, ReferenceSortedSets.emptySet());
 
 	/**
-	 * With.
-	 *
-	 * @param component component
-	 * @param hidden hidden
-	 *
-	 * @return TooltipDisplayComponent — результат операции
-	 */
+		 * Возвращает новый компонент с изменённым состоянием видимости указанного компонента.
+		 * Если состояние уже совпадает — возвращает {@code this} без создания нового объекта.
+		 *
+		 * @param component компонент, видимость которого нужно изменить
+		 * @param hidden    {@code true} — скрыть компонент, {@code false} — показать
+		 * @return обновлённый {@code TooltipDisplayComponent}
+		 */
 	public TooltipDisplayComponent with(ComponentType<?> component, boolean hidden) {
-		if (this.hiddenComponents.contains(component) == hidden) {
+		if (hiddenComponents.contains(component) == hidden) {
 			return this;
 		}
-		else {
-			SequencedSet<ComponentType<?>> sequencedSet = new ReferenceLinkedOpenHashSet(this.hiddenComponents);
-			if (hidden) {
-				sequencedSet.add(component);
-			}
-			else {
-				sequencedSet.remove(component);
-			}
 
-			return new TooltipDisplayComponent(this.hideTooltip, sequencedSet);
+		SequencedSet<ComponentType<?>> updated = new ReferenceLinkedOpenHashSet(hiddenComponents);
+
+		if (hidden) {
+			updated.add(component);
+		} else {
+			updated.remove(component);
 		}
+
+		return new TooltipDisplayComponent(hideTooltip, updated);
 	}
 
 	/**
-	 * Определяет, следует ли display.
-	 *
-	 * @param component component
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, должен ли указанный компонент отображаться в тултипе.
+		 *
+		 * @param component проверяемый компонент
+		 * @return {@code true} если тултип не скрыт и компонент не в списке скрытых
+		 */
 	public boolean shouldDisplay(ComponentType<?> component) {
-		return !this.hideTooltip && !this.hiddenComponents.contains(component);
+		if (hideTooltip) {
+			return false;
+		}
+
+		return !hiddenComponents.contains(component);
 	}
 }

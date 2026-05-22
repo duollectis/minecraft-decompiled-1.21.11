@@ -21,22 +21,20 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ReportScreen}.
+ * Абстрактный базовый экран для всех форм отправки жалоб на игроков.
+ * Управляет общей структурой: заголовок, контент, чекбокс аттестации и кнопка отправки.
+ * Реализует логику отправки жалобы через {@link AbuseReportContext} и обработку ошибок.
+ *
+ * @param <B> тип строителя жалобы, расширяющий {@link AbuseReport.Builder}
  */
+@Environment(EnvType.CLIENT)
 public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Screen {
 
 	private static final Text REPORT_SENT_MESSAGE_TEXT = Text.translatable("gui.abuseReport.report_sent_msg");
-	private static final Text
-			SENDING_TITLE_TEXT =
-			Text.translatable("gui.abuseReport.sending.title").formatted(Formatting.BOLD);
-	private static final Text
-			SENT_TITLE_TEXT =
-			Text.translatable("gui.abuseReport.sent.title").formatted(Formatting.BOLD);
-	private static final Text
-			ERROR_TITLE_TEXT =
-			Text.translatable("gui.abuseReport.error.title").formatted(Formatting.BOLD);
+	private static final Text SENDING_TITLE_TEXT = Text.translatable("gui.abuseReport.sending.title").formatted(Formatting.BOLD);
+	private static final Text SENT_TITLE_TEXT = Text.translatable("gui.abuseReport.sent.title").formatted(Formatting.BOLD);
+	private static final Text ERROR_TITLE_TEXT = Text.translatable("gui.abuseReport.error.title").formatted(Formatting.BOLD);
 	private static final Text GENERIC_ERROR_TEXT = Text.translatable("gui.abuseReport.send.generic_error");
 	protected static final Text SEND_TEXT = Text.translatable("gui.abuseReport.send");
 	protected static final Text OBSERVED_WHAT_TEXT = Text.translatable("gui.abuseReport.observed_what");
@@ -50,6 +48,7 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 	protected static final int CONTENT_WIDTH = 280;
 	protected static final int PADDING = 8;
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	protected final Screen parent;
 	protected final AbuseReportContext context;
 	protected final DirectionalLayoutWidget layout = DirectionalLayoutWidget.vertical().spacing(8);
@@ -65,190 +64,169 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 	}
 
 	/**
-	 * Создаёт comments box.
-	 *
-	 * @param width width
-	 * @param height height
-	 * @param changeListener change listener
-	 *
-	 * @return EditBoxWidget — результат операции
+	 * Создаёт поле для ввода дополнительных комментариев к жалобе.
+	 * Автоматически устанавливает максимальную длину из лимитов платформы
+	 * и восстанавливает ранее введённый текст из строителя жалобы.
 	 */
 	protected EditBoxWidget createCommentsBox(int width, int height, Consumer<String> changeListener) {
-		AbuseReportLimits abuseReportLimits = this.context.getSender().getLimits();
-		EditBoxWidget
-				editBoxWidget =
-				EditBoxWidget
-						.builder()
-						.placeholder(DESCRIBE_TEXT)
-						.build(this.textRenderer, width, height, COMMENTS_TEXT);
-		editBoxWidget.setText(this.reportBuilder.getOpinionComments());
-		editBoxWidget.setMaxLength(abuseReportLimits.maxOpinionCommentsLength());
-		editBoxWidget.setChangeListener(changeListener);
-		return editBoxWidget;
+		AbuseReportLimits limits = context.getSender().getLimits();
+		EditBoxWidget editBox = EditBoxWidget
+				.builder()
+				.placeholder(DESCRIBE_TEXT)
+				.build(textRenderer, width, height, COMMENTS_TEXT);
+
+		editBox.setText(reportBuilder.getOpinionComments());
+		editBox.setMaxLength(limits.maxOpinionCommentsLength());
+		editBox.setChangeListener(changeListener);
+
+		return editBox;
 	}
 
 	@Override
 	protected void init() {
-		this.layout.getMainPositioner().alignHorizontalCenter();
-		this.addTitle();
-		this.addContent();
-		this.addAttestationCheckboxAndSendButton();
-		this.onChange();
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		layout.getMainPositioner().alignHorizontalCenter();
+		addTitle();
+		addContent();
+		addAttestationCheckboxAndSendButton();
+		onChange();
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
-	/**
-	 * Добавляет title.
-	 */
 	protected void addTitle() {
-		this.layout.add(new TextWidget(this.title, this.textRenderer));
+		layout.add(new TextWidget(title, textRenderer));
 	}
 
-	/**
-	 * Добавляет content.
-	 */
 	protected abstract void addContent();
 
-	/**
-	 * Добавляет attestation checkbox and send button.
-	 */
 	protected void addAttestationCheckboxAndSendButton() {
-		this.checkbox = this.layout
-				.add(
-						CheckboxWidget.builder(ATTESTATION_TEXT, this.textRenderer)
-						              .checked(this.reportBuilder.isAttested())
-						              .maxWidth(280)
-						              .callback((checkbox, attested) -> {
-							              this.reportBuilder.setAttested(attested);
-							              this.onChange();
-						              })
-						              .build()
-				);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.add(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).width(120).build());
-		this.sendButton =
-				directionalLayoutWidget.add(ButtonWidget
-						.builder(SEND_TEXT, button -> this.trySend())
-						.width(120)
-						.build());
+		checkbox = layout.add(
+				CheckboxWidget.builder(ATTESTATION_TEXT, textRenderer)
+				              .checked(reportBuilder.isAttested())
+				              .maxWidth(CONTENT_WIDTH)
+				              .callback((cb, attested) -> {
+					              reportBuilder.setAttested(attested);
+					              onChange();
+				              })
+				              .build()
+		);
+
+		DirectionalLayoutWidget buttonRow = layout.add(DirectionalLayoutWidget.horizontal().spacing(8));
+		buttonRow.add(ButtonWidget.builder(ScreenTexts.BACK, button -> close()).width(COMMENT_BOX_HEIGHT).build());
+		sendButton = buttonRow.add(
+				ButtonWidget.builder(SEND_TEXT, button -> trySend())
+				            .width(COMMENT_BOX_HEIGHT)
+				            .build()
+		);
 	}
 
-	/**
-	 * Обрабатывает событие change.
-	 */
 	protected void onChange() {
-		AbuseReport.ValidationError validationError = this.reportBuilder.validate();
-		this.sendButton.active = validationError == null && this.checkbox.isChecked();
-		this.sendButton.setTooltip(Nullables.map(validationError, AbuseReport.ValidationError::createTooltip));
+		AbuseReport.ValidationError validationError = reportBuilder.validate();
+		sendButton.active = validationError == null && checkbox.isChecked();
+		sendButton.setTooltip(Nullables.map(validationError, AbuseReport.ValidationError::createTooltip));
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, getNavigationFocus());
 	}
 
 	/**
-	 * Try send.
+	 * Выполняет попытку отправки жалобы.
+	 * При успехе показывает экран ожидания с возможностью отмены.
+	 * При ошибке валидации — отображает сообщение об ошибке.
 	 */
 	protected void trySend() {
-		this.reportBuilder.build(this.context).ifLeft(reportWithId -> {
-			CompletableFuture<?>
-					completableFuture =
-					this.context.getSender().send(reportWithId.id(), reportWithId.reportType(), reportWithId.report());
-			this.client.setScreen(TaskScreen.createRunningScreen(
+		reportBuilder.build(context).ifLeft(reportWithId -> {
+			CompletableFuture<?> sendFuture = context.getSender()
+					.send(reportWithId.id(), reportWithId.reportType(), reportWithId.report());
+
+			client.setScreen(TaskScreen.createRunningScreen(
 					SENDING_TITLE_TEXT, ScreenTexts.CANCEL, () -> {
-						this.client.setScreen(this);
-						completableFuture.cancel(true);
+						client.setScreen(this);
+						sendFuture.cancel(true);
 					}
 			));
-			completableFuture.handleAsync(
-					(v, throwable) -> {
+
+			sendFuture.handleAsync(
+					(result, throwable) -> {
 						if (throwable == null) {
-							this.onSent();
-						}
-						else {
-							if (throwable instanceof CancellationException) {
-								return null;
-							}
-
-							this.onSendError(throwable);
+							onSent();
+							return null;
 						}
 
+						if (throwable instanceof CancellationException) {
+							return null;
+						}
+
+						onSendError(throwable);
 						return null;
-					}, this.client
+					}, client
 			);
-		}).ifRight(validationError -> this.showError(validationError.message()));
+		}).ifRight(validationError -> showError(validationError.message()));
 	}
 
 	private void onSent() {
-		this.resetDraft();
-		this.client.setScreen(TaskScreen.createResultScreen(
+		resetDraft();
+		client.setScreen(TaskScreen.createResultScreen(
 				SENT_TITLE_TEXT,
 				REPORT_SENT_MESSAGE_TEXT,
 				ScreenTexts.DONE,
-				() -> this.client.setScreen(null)
+				() -> client.setScreen(null)
 		));
 	}
 
 	private void onSendError(Throwable error) {
 		LOGGER.error("Encountered error while sending abuse report", error);
-		Text text;
-		if (error.getCause() instanceof TextifiedException textifiedException) {
-			text = textifiedException.getMessageText();
-		}
-		else {
-			text = GENERIC_ERROR_TEXT;
-		}
+		Text errorText = error.getCause() instanceof TextifiedException textifiedException
+				? textifiedException.getMessageText()
+				: GENERIC_ERROR_TEXT;
 
-		this.showError(text);
+		showError(errorText);
 	}
 
 	private void showError(Text errorMessage) {
-		Text text = errorMessage.copy().formatted(Formatting.RED);
-		this.client.setScreen(TaskScreen.createResultScreen(
+		Text formatted = errorMessage.copy().formatted(Formatting.RED);
+		client.setScreen(TaskScreen.createResultScreen(
 				ERROR_TITLE_TEXT,
-				text,
+				formatted,
 				ScreenTexts.BACK,
-				() -> this.client.setScreen(this)
+				() -> client.setScreen(this)
 		));
 	}
 
 	void saveDraft() {
-		if (this.reportBuilder.hasEnoughInfo()) {
-			this.context.setDraft(this.reportBuilder.getReport().copy());
+		if (reportBuilder.hasEnoughInfo()) {
+			context.setDraft(reportBuilder.getReport().copy());
 		}
 	}
 
 	void resetDraft() {
-		this.context.setDraft(null);
+		context.setDraft(null);
 	}
 
 	@Override
 	public void close() {
-		if (this.reportBuilder.hasEnoughInfo()) {
-			this.client.setScreen(new ReportScreen.DiscardWarningScreen());
+		if (reportBuilder.hasEnoughInfo()) {
+			client.setScreen(new DiscardWarningScreen());
 		}
 		else {
-			this.client.setScreen(this.parent);
+			client.setScreen(parent);
 		}
 	}
 
 	@Override
 	public void removed() {
-		this.saveDraft();
+		saveDraft();
 		super.removed();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DiscardWarningScreen}.
+	 * Экран предупреждения при попытке закрыть форму жалобы с незавершёнными данными.
+	 * Предлагает три варианта: вернуться к форме, сохранить черновик или отбросить изменения.
 	 */
+	@Environment(EnvType.CLIENT)
 	class DiscardWarningScreen extends WarningScreen {
 
 		private static final Text TITLE = Text.translatable("gui.abuseReport.discard.title").formatted(Formatting.BOLD);
@@ -263,30 +241,31 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 
 		@Override
 		protected LayoutWidget getLayout() {
-			DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.vertical().spacing(8);
-			directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-			DirectionalLayoutWidget
-					directionalLayoutWidget2 =
-					directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(8));
-			directionalLayoutWidget2.add(ButtonWidget.builder(RETURN_BUTTON_TEXT, button -> this.close()).build());
-			directionalLayoutWidget2.add(ButtonWidget.builder(
+			DirectionalLayoutWidget root = DirectionalLayoutWidget.vertical().spacing(8);
+			root.getMainPositioner().alignHorizontalCenter();
+
+			DirectionalLayoutWidget topRow = root.add(DirectionalLayoutWidget.horizontal().spacing(8));
+			topRow.add(ButtonWidget.builder(RETURN_BUTTON_TEXT, button -> close()).build());
+			topRow.add(ButtonWidget.builder(
 					DRAFT_BUTTON_TEXT, button -> {
 						ReportScreen.this.saveDraft();
-						this.client.setScreen(ReportScreen.this.parent);
+						client.setScreen(ReportScreen.this.parent);
 					}
 			).build());
-			directionalLayoutWidget.add(ButtonWidget.builder(
+
+			root.add(ButtonWidget.builder(
 					DISCARD_BUTTON_TEXT, button -> {
 						ReportScreen.this.resetDraft();
-						this.client.setScreen(ReportScreen.this.parent);
+						client.setScreen(ReportScreen.this.parent);
 					}
 			).build());
-			return directionalLayoutWidget;
+
+			return root;
 		}
 
 		@Override
 		public void close() {
-			this.client.setScreen(ReportScreen.this);
+			client.setScreen(ReportScreen.this);
 		}
 
 		@Override

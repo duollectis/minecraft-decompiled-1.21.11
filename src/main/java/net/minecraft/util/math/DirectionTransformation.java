@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@code DirectionTransformation}.
+ * Перечисление всех 48 ортогональных преобразований направлений в 3D-пространстве
+ * (группа симметрий куба O_h). Каждое преобразование задаётся перестановкой осей
+ * ({@link AxisTransformation}) и набором флагов инверсии по каждой оси.
  */
 public enum DirectionTransformation implements StringIdentifiable {
 	IDENTITY("identity", AxisTransformation.P123, false, false, false),
@@ -74,6 +76,38 @@ public enum DirectionTransformation implements StringIdentifiable {
 	public static final DirectionTransformation ROT_Z_POS_270 = ROT_90_Z_POS;
 	public static final DirectionTransformation ROT_Z_180 = ROT_180_FACE_XY;
 	public static final DirectionTransformation ROT_Z_NEG_270 = ROT_90_Z_NEG;
+
+	private static final DirectionTransformation[][] COMBINATIONS = Util.make(
+			() -> {
+				DirectionTransformation[] all = values();
+				DirectionTransformation[][] result = new DirectionTransformation[all.length][all.length];
+				Map<Integer, DirectionTransformation> byIndex = Arrays.stream(all)
+						.collect(Collectors.toMap(DirectionTransformation::getIndex, t -> t));
+
+				for (DirectionTransformation a : all) {
+					for (DirectionTransformation b : all) {
+						AxisTransformation combined = b.axisTransformation.prepend(a.axisTransformation);
+						boolean flipX = a.shouldFlipDirection(Direction.Axis.X)
+								^ b.shouldFlipDirection(a.axisTransformation.map(Direction.Axis.X));
+						boolean flipY = a.shouldFlipDirection(Direction.Axis.Y)
+								^ b.shouldFlipDirection(a.axisTransformation.map(Direction.Axis.Y));
+						boolean flipZ = a.shouldFlipDirection(Direction.Axis.Z)
+								^ b.shouldFlipDirection(a.axisTransformation.map(Direction.Axis.Z));
+						result[a.ordinal()][b.ordinal()] = byIndex.get(toIndex(flipX, flipY, flipZ, combined));
+					}
+				}
+
+				return result;
+			}
+	);
+
+	private static final DirectionTransformation[] INVERSES = Arrays.stream(values())
+			.map(a -> Arrays.stream(values())
+					.filter(b -> a.prepend(b) == IDENTITY)
+					.findAny()
+					.get())
+			.toArray(DirectionTransformation[]::new);
+
 	private final Matrix3fc matrix;
 	private final String name;
 	private @Nullable Map<Direction, Direction> mappings;
@@ -81,51 +115,8 @@ public enum DirectionTransformation implements StringIdentifiable {
 	private final boolean flipY;
 	private final boolean flipZ;
 	private final AxisTransformation axisTransformation;
-	private static final DirectionTransformation[][] COMBINATIONS = Util.make(
-			() -> {
-				DirectionTransformation[] directionTransformations = values();
-				DirectionTransformation[][]
-						directionTransformations2 =
-						new DirectionTransformation[directionTransformations.length][directionTransformations.length];
-				Map<Integer, DirectionTransformation> map = Arrays.stream(directionTransformations)
-				                                                  .collect(Collectors.toMap(
-						                                                  DirectionTransformation::getIndex,
-						                                                  transformation -> (DirectionTransformation) transformation
-				                                                  ));
 
-				for (DirectionTransformation directionTransformation : directionTransformations) {
-					for (DirectionTransformation directionTransformation2 : directionTransformations) {
-						AxisTransformation
-								axisTransformation =
-								directionTransformation2.axisTransformation.prepend(directionTransformation.axisTransformation);
-						boolean bl = directionTransformation.shouldFlipDirection(Direction.Axis.X)
-								^ directionTransformation2.shouldFlipDirection(directionTransformation.axisTransformation.map(
-								Direction.Axis.X));
-						boolean bl2 = directionTransformation.shouldFlipDirection(Direction.Axis.Y)
-								^ directionTransformation2.shouldFlipDirection(directionTransformation.axisTransformation.map(
-								Direction.Axis.Y));
-						boolean bl3 = directionTransformation.shouldFlipDirection(Direction.Axis.Z)
-								^ directionTransformation2.shouldFlipDirection(directionTransformation.axisTransformation.map(
-								Direction.Axis.Z));
-						directionTransformations2[directionTransformation.ordinal()][directionTransformation2.ordinal()] =
-								map.get(
-										toIndex(bl, bl2, bl3, axisTransformation)
-								);
-					}
-				}
-
-				return directionTransformations2;
-			}
-	);
-	private static final DirectionTransformation[] INVERSES = Arrays.stream(values())
-	                                                                .map(a -> Arrays
-			                                                                .stream(values())
-			                                                                .filter(b -> a.prepend(b) == IDENTITY)
-			                                                                .findAny()
-			                                                                .get())
-	                                                                .toArray(DirectionTransformation[]::new);
-
-	private DirectionTransformation(
+	DirectionTransformation(
 			final String name,
 			final AxisTransformation axisTransformation,
 			final boolean flipX,
@@ -137,122 +128,81 @@ public enum DirectionTransformation implements StringIdentifiable {
 		this.flipY = flipY;
 		this.flipZ = flipZ;
 		this.axisTransformation = axisTransformation;
-		this.matrix =
-				new Matrix3f()
-						.scaling(flipX ? -1.0F : 1.0F, flipY ? -1.0F : 1.0F, flipZ ? -1.0F : 1.0F)
-						.mul(axisTransformation.getMatrix());
+		matrix = new Matrix3f()
+				.scaling(flipX ? -1.0F : 1.0F, flipY ? -1.0F : 1.0F, flipZ ? -1.0F : 1.0F)
+				.mul(axisTransformation.getMatrix());
 	}
 
 	private static int toIndex(boolean flipX, boolean flipY, boolean flipZ, AxisTransformation axisTransformation) {
-		int i = (flipZ ? 4 : 0) + (flipY ? 2 : 0) + (flipX ? 1 : 0);
-		return axisTransformation.ordinal() << 3 | i;
+		int flags = (flipZ ? 4 : 0) + (flipY ? 2 : 0) + (flipX ? 1 : 0);
+		return axisTransformation.ordinal() << 3 | flags;
 	}
 
 	private int getIndex() {
-		return toIndex(this.flipX, this.flipY, this.flipZ, this.axisTransformation);
+		return toIndex(flipX, flipY, flipZ, axisTransformation);
 	}
 
-	/**
-	 * Prepend.
-	 *
-	 * @param transformation transformation
-	 *
-	 * @return DirectionTransformation — результат операции
-	 */
 	public DirectionTransformation prepend(DirectionTransformation transformation) {
-		return COMBINATIONS[this.ordinal()][transformation.ordinal()];
+		return COMBINATIONS[ordinal()][transformation.ordinal()];
 	}
 
-	/**
-	 * Inverse.
-	 *
-	 * @return DirectionTransformation — результат операции
-	 */
 	public DirectionTransformation inverse() {
-		return INVERSES[this.ordinal()];
+		return INVERSES[ordinal()];
 	}
 
 	public Matrix3fc getMatrix() {
-		return this.matrix;
+		return matrix;
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
-	/**
-	 * Map.
-	 *
-	 * @param direction direction
-	 *
-	 * @return Direction — результат операции
-	 */
 	public Direction map(Direction direction) {
-		if (this.mappings == null) {
-			this.mappings = Util.mapEnum(
+		if (mappings == null) {
+			mappings = Util.mapEnum(
 					Direction.class, d -> {
 						Direction.Axis axis = d.getAxis();
 						Direction.AxisDirection axisDirection = d.getDirection();
-						Direction.Axis axis2 = this.axisTransformation.getInverse().map(axis);
-						Direction.AxisDirection
-								axisDirection2 =
-								this.shouldFlipDirection(axis2) ? axisDirection.getOpposite() : axisDirection;
-						return Direction.from(axis2, axisDirection2);
+						Direction.Axis mappedAxis = axisTransformation.getInverse().map(axis);
+						Direction.AxisDirection mappedAxisDirection = shouldFlipDirection(mappedAxis)
+								? axisDirection.getOpposite()
+								: axisDirection;
+						return Direction.from(mappedAxis, mappedAxisDirection);
 					}
 			);
 		}
 
-		return this.mappings.get(direction);
+		return mappings.get(direction);
 	}
 
-	/**
-	 * Map.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vector3i — результат операции
-	 */
 	public Vector3i map(Vector3i vec) {
-		this.axisTransformation.map(vec);
-		vec.x = vec.x * (this.flipX ? -1 : 1);
-		vec.y = vec.y * (this.flipY ? -1 : 1);
-		vec.z = vec.z * (this.flipZ ? -1 : 1);
+		axisTransformation.map(vec);
+		vec.x = vec.x * (flipX ? -1 : 1);
+		vec.y = vec.y * (flipY ? -1 : 1);
+		vec.z = vec.z * (flipZ ? -1 : 1);
 		return vec;
 	}
 
-	/**
-	 * Определяет, следует ли flip direction.
-	 *
-	 * @param axis axis
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldFlipDirection(Direction.Axis axis) {
 		return switch (axis) {
-			case X -> this.flipX;
-			case Y -> this.flipY;
-			case Z -> this.flipZ;
+			case X -> flipX;
+			case Y -> flipY;
+			case Z -> flipZ;
 		};
 	}
 
 	public AxisTransformation getAxisTransformation() {
-		return this.axisTransformation;
+		return axisTransformation;
 	}
 
-	/**
-	 * Map jigsaw orientation.
-	 *
-	 * @param orientation orientation
-	 *
-	 * @return Orientation — результат операции
-	 */
 	public Orientation mapJigsawOrientation(Orientation orientation) {
-		return Orientation.byDirections(this.map(orientation.getFacing()), this.map(orientation.getRotation()));
+		return Orientation.byDirections(map(orientation.getFacing()), map(orientation.getRotation()));
 	}
 }

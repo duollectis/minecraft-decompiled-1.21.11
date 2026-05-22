@@ -3,19 +3,20 @@ package net.minecraft.test;
 import net.minecraft.text.Text;
 
 /**
- * {@code UnknownTestException}.
+ * Обёртка для непредвиденных исключений, возникших во время выполнения теста.
+ * Используется когда тест упал с исключением, не являющимся {@link TestException}.
  */
 public class UnknownTestException extends TestException {
 
-	private final Throwable throwable;
+	private final Throwable cause;
 
-	public UnknownTestException(Throwable throwable) {
-		super(throwable.getMessage());
-		this.throwable = throwable;
+	public UnknownTestException(Throwable cause) {
+		super(cause.getMessage());
+		this.cause = cause;
 	}
 
 	@Override
 	public Text getText() {
-		return Text.translatable("test.error.unknown", this.throwable.getMessage());
+		return Text.translatable("test.error.unknown", cause.getMessage());
 	}
 }

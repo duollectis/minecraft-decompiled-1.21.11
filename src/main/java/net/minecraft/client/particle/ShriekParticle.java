@@ -10,23 +10,32 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import org.joml.Quaternionf;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ShriekParticle}.
+ * Частица крика Warden'а: отображается как два перекрещенных спрайта,
+ * наклонённых под углом ~60° к горизонту. Поддерживает задержку перед
+ * появлением (параметр {@code delay} из эффекта). Плавно исчезает к концу
+ * жизни (30 тиков). Движется вертикально вверх.
  */
+@Environment(EnvType.CLIENT)
 public class ShriekParticle extends BillboardParticle {
 
+	/** Угол наклона спрайта в радианах (~60°). */
 	private static final float X_ROTATION = 1.0472F;
+	private static final float INITIAL_SCALE = 0.85F;
+	private static final int LIFETIME = 30;
+	private static final float VERTICAL_VELOCITY = 0.1F;
+	private static final int FULL_BRIGHTNESS = 240;
+
 	private int delay;
 
 	ShriekParticle(ClientWorld world, double x, double y, double z, int delay, Sprite sprite) {
 		super(world, x, y, z, 0.0, 0.0, 0.0, sprite);
-		this.scale = 0.85F;
+		this.scale = INITIAL_SCALE;
 		this.delay = delay;
-		this.maxAge = 30;
+		this.maxAge = LIFETIME;
 		this.gravityStrength = 0.0F;
 		this.velocityX = 0.0;
-		this.velocityY = 0.1;
+		this.velocityY = VERTICAL_VELOCITY;
 		this.velocityZ = 0.0;
 	}
 
@@ -35,21 +44,27 @@ public class ShriekParticle extends BillboardParticle {
 		return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * 0.75F, 0.0F, 1.0F);
 	}
 
+	/**
+	 * Рендерит два перекрещенных спрайта для создания объёмного эффекта крика.
+	 * Первый спрайт наклонён вперёд, второй — назад, образуя X-образную форму.
+	 */
 	@Override
 	public void render(BillboardParticleSubmittable submittable, Camera camera, float tickProgress) {
-		if (this.delay <= 0) {
-			this.alpha = 1.0F - MathHelper.clamp((this.age + tickProgress) / this.maxAge, 0.0F, 1.0F);
-			Quaternionf quaternionf = new Quaternionf();
-			quaternionf.rotationX(-1.0472F);
-			this.render(submittable, camera, quaternionf, tickProgress);
-			quaternionf.rotationYXZ((float) -Math.PI, 1.0472F, 0.0F);
-			this.render(submittable, camera, quaternionf, tickProgress);
+		if (this.delay > 0) {
+			return;
 		}
+
+		this.alpha = 1.0F - MathHelper.clamp((this.age + tickProgress) / this.maxAge, 0.0F, 1.0F);
+		Quaternionf rotation = new Quaternionf();
+		rotation.rotationX(-X_ROTATION);
+		this.render(submittable, camera, rotation, tickProgress);
+		rotation.rotationYXZ((float) -Math.PI, X_ROTATION, 0.0F);
+		this.render(submittable, camera, rotation, tickProgress);
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -61,16 +76,13 @@ public class ShriekParticle extends BillboardParticle {
 	public void tick() {
 		if (this.delay > 0) {
 			this.delay--;
+			return;
 		}
-		else {
-			super.tick();
-		}
+
+		super.tick();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<ShriekParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -79,29 +91,25 @@ public class ShriekParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				ShriekParticleEffect shriekParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				ShriekParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			ShriekParticle
-					shriekParticle =
-					new ShriekParticle(
-							clientWorld,
-							d,
-							e,
-							f,
-							shriekParticleEffect.getDelay(),
-							this.spriteProvider.getSprite(random)
-					);
-			shriekParticle.setAlpha(1.0F);
-			return shriekParticle;
+			ShriekParticle particle = new ShriekParticle(
+					world, x, y, z,
+					effect.getDelay(),
+					this.spriteProvider.getSprite(random)
+			);
+			particle.setAlpha(1.0F);
+			return particle;
 		}
 	}
 }

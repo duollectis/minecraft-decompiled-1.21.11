@@ -17,12 +17,12 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * {@code SaveProperties}.
+ * Свойства сохранения мира (уровня).
+ * Содержит метаданные уровня: режим игры, сложность, правила, бренды серверов и т.д.
  */
 public interface SaveProperties {
 
 	int ANVIL_FORMAT_ID = 19133;
-
 	int MCREGION_FORMAT_ID = 19132;
 
 	DataConfiguration getDataConfiguration();
@@ -38,26 +38,21 @@ public interface SaveProperties {
 	void addServerBrand(String brand, boolean modded);
 
 	default void populateCrashReport(CrashReportSection section) {
-		section.add("Known server brands", () -> String.join(", ", this.getServerBrands()));
-		section.add("Removed feature flags", () -> String.join(", ", this.getRemovedFeatures()));
-		section.add("Level was modded", () -> Boolean.toString(this.isModded()));
-		section.add(
-				"Level storage version", () -> {
-					int i = this.getVersion();
-					return String.format(Locale.ROOT, "0x%05X - %s", i, this.getFormatName(i));
-				}
-		);
+		section.add("Known server brands", () -> String.join(", ", getServerBrands()));
+		section.add("Removed feature flags", () -> String.join(", ", getRemovedFeatures()));
+		section.add("Level was modded", () -> Boolean.toString(isModded()));
+		section.add("Level storage version", () -> {
+			int version = getVersion();
+			return String.format(Locale.ROOT, "0x%05X - %s", version, getFormatName(version));
+		});
 	}
 
 	default String getFormatName(int id) {
-		switch (id) {
-			case 19132:
-				return "McRegion";
-			case 19133:
-				return "Anvil";
-			default:
-				return "Unknown?";
-		}
+		return switch (id) {
+			case MCREGION_FORMAT_ID -> "McRegion";
+			case ANVIL_FORMAT_ID -> "Anvil";
+			default -> "Unknown?";
+		};
 	}
 
 	@Nullable NbtCompound getCustomBossEvents();
@@ -107,6 +102,6 @@ public interface SaveProperties {
 	Lifecycle getLifecycle();
 
 	default FeatureSet getEnabledFeatures() {
-		return this.getDataConfiguration().enabledFeatures();
+		return getDataConfiguration().enabledFeatures();
 	}
 }

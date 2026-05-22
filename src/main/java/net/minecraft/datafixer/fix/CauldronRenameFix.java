@@ -10,32 +10,37 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code CauldronRenameFix}.
+ * Переименовывает блок {@code minecraft:cauldron} в {@code minecraft:water_cauldron},
+ * если уровень воды больше нуля. Пустой котёл теряет тег {@code Properties}.
  */
 public class CauldronRenameFix extends DataFix {
 
-	public CauldronRenameFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	private static final String CAULDRON_ID = "minecraft:cauldron";
+	private static final String WATER_CAULDRON_ID = "minecraft:water_cauldron";
+	private static final String EMPTY_LEVEL = "0";
+
+	public CauldronRenameFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	private static Dynamic<?> rename(Dynamic<?> cauldronDynamic) {
-		Optional<String> optional = cauldronDynamic.get("Name").asString().result();
-		if (optional.equals(Optional.of("minecraft:cauldron"))) {
-			Dynamic<?> dynamic = cauldronDynamic.get("Properties").orElseEmptyMap();
-			return dynamic.get("level").asString("0").equals("0")
-			       ? cauldronDynamic.remove("Properties")
-			       : cauldronDynamic.set("Name", cauldronDynamic.createString("minecraft:water_cauldron"));
-		}
-		else {
+		Optional<String> nameOpt = cauldronDynamic.get("Name").asString().result();
+
+		if (nameOpt.isEmpty() || !CAULDRON_ID.equals(nameOpt.get())) {
 			return cauldronDynamic;
 		}
+
+		Dynamic<?> properties = cauldronDynamic.get("Properties").orElseEmptyMap();
+		return properties.get("level").asString(EMPTY_LEVEL).equals(EMPTY_LEVEL)
+			? cauldronDynamic.remove("Properties")
+			: cauldronDynamic.set("Name", cauldronDynamic.createString(WATER_CAULDRON_ID));
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				"cauldron_rename_fix",
-				this.getInputSchema().getType(TypeReferences.BLOCK_STATE),
-				typed -> typed.update(DSL.remainderFinder(), CauldronRenameFix::rename)
+		return fixTypeEverywhereTyped(
+			"cauldron_rename_fix",
+			getInputSchema().getType(TypeReferences.BLOCK_STATE),
+			typed -> typed.update(DSL.remainderFinder(), CauldronRenameFix::rename)
 		);
 	}
 }

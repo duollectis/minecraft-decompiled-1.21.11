@@ -7,7 +7,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code Profilers}.
+ * Утилитарный класс для управления текущим активным профайлером в рамках потока.
+ * Поддерживает интеграцию с Tracy и встроенным профайлером через thread-local хранилище.
  */
 public final class Profilers {
 
@@ -27,12 +28,11 @@ public final class Profilers {
 		if (BUILTIN_PROFILER.get() != null) {
 			throw new IllegalStateException("Profiler is already active");
 		}
-		else {
-			Profiler profiler2 = union(profiler);
-			BUILTIN_PROFILER.set(profiler2);
-			ACTIVE_BUILTIN_PROFILER_COUNT.incrementAndGet();
-			profiler2.startTick();
-		}
+
+		Profiler combined = union(profiler);
+		BUILTIN_PROFILER.set(combined);
+		ACTIVE_BUILTIN_PROFILER_COUNT.incrementAndGet();
+		combined.startTick();
 	}
 
 	private static void deactivate() {
@@ -40,11 +40,10 @@ public final class Profilers {
 		if (profiler == null) {
 			throw new IllegalStateException("Profiler was not active");
 		}
-		else {
-			BUILTIN_PROFILER.remove();
-			ACTIVE_BUILTIN_PROFILER_COUNT.decrementAndGet();
-			profiler.endTick();
-		}
+
+		BUILTIN_PROFILER.remove();
+		ACTIVE_BUILTIN_PROFILER_COUNT.decrementAndGet();
+		profiler.endTick();
 	}
 
 	private static Profiler union(Profiler builtinProfiler) {
@@ -52,23 +51,21 @@ public final class Profilers {
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @return Profiler — 
+	 * Возвращает активный профайлер для текущего потока.
+	 * Если встроенный профайлер не активен — возвращает Tracy или заглушку.
 	 */
 	public static Profiler get() {
-		return ACTIVE_BUILTIN_PROFILER_COUNT.get() == 0 ? getDefault() : Objects.requireNonNullElseGet(
-				BUILTIN_PROFILER.get(),
-				Profilers::getDefault
-		);
+		return ACTIVE_BUILTIN_PROFILER_COUNT.get() == 0
+			? getDefault()
+			: Objects.requireNonNullElseGet(BUILTIN_PROFILER.get(), Profilers::getDefault);
 	}
 
 	private static Profiler getDefault() {
-		return (Profiler) (TracyClient.isAvailable() ? TRACY_PROFILER.get() : DummyProfiler.INSTANCE);
+		return TracyClient.isAvailable() ? TRACY_PROFILER.get() : DummyProfiler.INSTANCE;
 	}
 
 	/**
-	 * {@code Scoped}.
+	 * Маркер автоматического закрытия области профилирования (try-with-resources).
 	 */
 	public interface Scoped extends AutoCloseable {
 

@@ -24,32 +24,24 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 /**
- * {@code CocoaBlock}.
+ * Блок какао-бобов — растение, прикреплённое к стволу джунглей.
+ * Имеет три стадии роста (AGE 0–2); при достижении максимального возраста
+ * перестаёт тикать и готово к сбору урожая.
  */
 public class CocoaBlock extends HorizontalFacingBlock implements Fertilizable {
 
 	public static final MapCodec<CocoaBlock> CODEC = createCodec(CocoaBlock::new);
 	public static final int MAX_AGE = 2;
 	public static final IntProperty AGE = Properties.AGE_2;
-	private static final List<Map<Direction, VoxelShape>> SHAPES = IntStream.rangeClosed(0, 2)
-	                                                                        .mapToObj(
-			                                                                        age -> VoxelShapes.createHorizontalFacingShapeMap(
-					                                                                        Block
-							                                                                        .createColumnShape(
-									                                                                        4 + age * 2,
-									                                                                        7 - age * 2,
-									                                                                        12.0
-							                                                                        )
-							                                                                        .offset(
-									                                                                        0.0,
-									                                                                        0.0,
-									                                                                        (age - 5)
-											                                                                        / 16.0
-							                                                                        )
-							                                                                        .simplify()
-			                                                                        )
-	                                                                        )
-	                                                                        .toList();
+	private static final List<Map<Direction, VoxelShape>> SHAPES = IntStream.rangeClosed(0, MAX_AGE)
+			.mapToObj(
+					age -> VoxelShapes.createHorizontalFacingShapeMap(
+							Block.createColumnShape(4 + age * 2, 7 - age * 2, 12.0)
+									.offset(0.0, 0.0, (age - 5) / 16.0)
+									.simplify()
+					)
+			)
+			.toList();
 
 	@Override
 	public MapCodec<CocoaBlock> getCodec() {
@@ -58,28 +50,31 @@ public class CocoaBlock extends HorizontalFacingBlock implements Fertilizable {
 
 	public CocoaBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(AGE, 0));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH).with(AGE, 0));
 	}
 
 	@Override
 	protected boolean hasRandomTicks(BlockState state) {
-		return state.get(AGE) < 2;
+		return state.get(AGE) < MAX_AGE;
 	}
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (world.random.nextInt(5) == 0) {
-			int i = state.get(AGE);
-			if (i < 2) {
-				world.setBlockState(pos, state.with(AGE, i + 1), 2);
-			}
+		if (world.random.nextInt(5) != 0) {
+			return;
+		}
+
+		int age = state.get(AGE);
+
+		if (age < MAX_AGE) {
+			world.setBlockState(pos, state.with(AGE, age + 1), Block.NOTIFY_LISTENERS);
 		}
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.offset(state.get(FACING)));
-		return blockState.isIn(BlockTags.JUNGLE_LOGS);
+		BlockState attachedState = world.getBlockState(pos.offset(state.get(FACING)));
+		return attachedState.isIn(BlockTags.JUNGLE_LOGS);
 	}
 
 	@Override
@@ -89,15 +84,16 @@ public class CocoaBlock extends HorizontalFacingBlock implements Fertilizable {
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = this.getDefaultState();
 		WorldView worldView = ctx.getWorld();
 		BlockPos blockPos = ctx.getBlockPos();
+		BlockState candidate = getDefaultState();
 
 		for (Direction direction : ctx.getPlacementDirections()) {
 			if (direction.getAxis().isHorizontal()) {
-				blockState = blockState.with(FACING, direction);
-				if (blockState.canPlaceAt(worldView, blockPos)) {
-					return blockState;
+				candidate = candidate.with(FACING, direction);
+
+				if (candidate.canPlaceAt(worldView, blockPos)) {
+					return candidate;
 				}
 			}
 		}
@@ -117,22 +113,22 @@ public class CocoaBlock extends HorizontalFacingBlock implements Fertilizable {
 			Random random
 	) {
 		return direction == state.get(FACING) && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+				? Blocks.AIR.getDefaultState()
+				: super.getStateForNeighborUpdate(
+						state,
+						world,
+						tickView,
+						pos,
+						direction,
+						neighborPos,
+						neighborState,
+						random
+				);
 	}
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		return state.get(AGE) < 2;
+		return state.get(AGE) < MAX_AGE;
 	}
 
 	@Override
@@ -142,7 +138,7 @@ public class CocoaBlock extends HorizontalFacingBlock implements Fertilizable {
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		world.setBlockState(pos, state.with(AGE, state.get(AGE) + 1), 2);
+		world.setBlockState(pos, state.with(AGE, state.get(AGE) + 1), Block.NOTIFY_LISTENERS);
 	}
 
 	@Override

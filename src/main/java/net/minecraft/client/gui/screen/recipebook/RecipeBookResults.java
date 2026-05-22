@@ -24,10 +24,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RecipeBookResults}.
+ * Область результатов книги рецептов: управляет сеткой кнопок результатов,
+ * пагинацией страниц и виджетом альтернативных рецептов.
  */
+@Environment(EnvType.CLIENT)
 public class RecipeBookResults {
 
 	public static final int RESULTS_PER_PAGE = 20;
@@ -43,7 +44,15 @@ public class RecipeBookResults {
 	private static final Text PREVIOUS_PAGE_TOOLTIP = Text.translatable("gui.recipebook.previous_page");
 	private static final int GRID_COLUMNS = 12;
 	private static final int GRID_ROWS = 17;
-	private final List<AnimatedResultButton> resultButtons = Lists.newArrayListWithCapacity(20);
+	private static final int BUTTON_COLUMN_COUNT = 5;
+	private static final int BUTTON_SPACING = 25;
+	private static final int BUTTON_GRID_OFFSET_X = 11;
+	private static final int BUTTON_GRID_OFFSET_Y = 31;
+	private static final int NEXT_PAGE_OFFSET_X = 93;
+	private static final int PREV_PAGE_OFFSET_X = 38;
+	private static final int PAGE_BUTTONS_OFFSET_Y = 137;
+
+	private final List<AnimatedResultButton> resultButtons = Lists.newArrayListWithCapacity(RESULTS_PER_PAGE);
 	private @Nullable AnimatedResultButton hoveredResultButton;
 	private final RecipeAlternativesWidget alternatesWidget;
 	private MinecraftClient client;
@@ -64,48 +73,48 @@ public class RecipeBookResults {
 			boolean furnace
 	) {
 		this.recipeBookWidget = recipeBookWidget;
-		this.alternatesWidget = new RecipeAlternativesWidget(currentIndexProvider, furnace);
+		alternatesWidget = new RecipeAlternativesWidget(currentIndexProvider, furnace);
 
-		for (int i = 0; i < 20; i++) {
-			this.resultButtons.add(new AnimatedResultButton(currentIndexProvider));
+		for (int index = 0; index < RESULTS_PER_PAGE; index++) {
+			resultButtons.add(new AnimatedResultButton(currentIndexProvider));
 		}
 	}
 
 	/**
-	 * Инициализирует ialize.
-	 *
-	 * @param client client
-	 * @param parentLeft parent left
-	 * @param parentTop parent top
+	 * Инициализирует позиции кнопок результатов и кнопок пагинации относительно родительского виджета.
 	 */
 	public void initialize(MinecraftClient client, int parentLeft, int parentTop) {
 		this.client = client;
-		this.recipeBook = client.player.getRecipeBook();
+		recipeBook = client.player.getRecipeBook();
 
-		for (int i = 0; i < this.resultButtons.size(); i++) {
-			this.resultButtons.get(i).setPosition(parentLeft + 11 + 25 * (i % 5), parentTop + 31 + 25 * (i / 5));
+		for (int index = 0; index < resultButtons.size(); index++) {
+			resultButtons.get(index).setPosition(
+					parentLeft + BUTTON_GRID_OFFSET_X + BUTTON_SPACING * (index % BUTTON_COLUMN_COUNT),
+					parentTop + BUTTON_GRID_OFFSET_Y + BUTTON_SPACING * (index / BUTTON_COLUMN_COUNT)
+			);
 		}
 
-		this.nextPageButton = new TexturedButtonWidget(
-				parentLeft + 93,
-				parentTop + 137,
-				12,
-				17,
+		nextPageButton = new TexturedButtonWidget(
+				parentLeft + NEXT_PAGE_OFFSET_X,
+				parentTop + PAGE_BUTTONS_OFFSET_Y,
+				GRID_COLUMNS,
+				GRID_ROWS,
 				PAGE_FORWARD_TEXTURES,
-				buttonWidget -> this.hideShowPageButtons(),
+				buttonWidget -> hideShowPageButtons(),
 				NEXT_PAGE_TOOLTIP
 		);
-		this.nextPageButton.setTooltip(Tooltip.of(NEXT_PAGE_TOOLTIP));
-		this.prevPageButton = new TexturedButtonWidget(
-				parentLeft + 38,
-				parentTop + 137,
-				12,
-				17,
+		nextPageButton.setTooltip(Tooltip.of(NEXT_PAGE_TOOLTIP));
+
+		prevPageButton = new TexturedButtonWidget(
+				parentLeft + PREV_PAGE_OFFSET_X,
+				parentTop + PAGE_BUTTONS_OFFSET_Y,
+				GRID_COLUMNS,
+				GRID_ROWS,
 				PAGE_BACKWARD_TEXTURES,
-				buttonWidget -> this.hideShowPageButtons(),
+				buttonWidget -> hideShowPageButtons(),
 				PREVIOUS_PAGE_TOOLTIP
 		);
-		this.prevPageButton.setTooltip(Tooltip.of(PREVIOUS_PAGE_TOOLTIP));
+		prevPageButton.setTooltip(Tooltip.of(PREVIOUS_PAGE_TOOLTIP));
 	}
 
 	public void setResults(
@@ -115,210 +124,173 @@ public class RecipeBookResults {
 	) {
 		this.resultCollections = resultCollections;
 		this.filteringCraftable = filteringCraftable;
-		this.pageCount = (int) Math.ceil(resultCollections.size() / 20.0);
-		if (this.pageCount <= this.currentPage || resetCurrentPage) {
-			this.currentPage = 0;
+		pageCount = (int) Math.ceil(resultCollections.size() / 20.0);
+
+		if (pageCount <= currentPage || resetCurrentPage) {
+			currentPage = 0;
 		}
 
-		this.refreshResultButtons();
+		refreshResultButtons();
 	}
 
 	private void refreshResultButtons() {
-		int i = 20 * this.currentPage;
-		ContextParameterMap contextParameterMap = SlotDisplayContexts.createParameters(this.client.world);
+		int pageOffset = RESULTS_PER_PAGE * currentPage;
+		ContextParameterMap context = SlotDisplayContexts.createParameters(client.world);
 
-		for (int j = 0; j < this.resultButtons.size(); j++) {
-			AnimatedResultButton animatedResultButton = this.resultButtons.get(j);
-			if (i + j < this.resultCollections.size()) {
-				RecipeResultCollection recipeResultCollection = this.resultCollections.get(i + j);
-				animatedResultButton.showResultCollection(
-						recipeResultCollection,
-						this.filteringCraftable,
+		for (int index = 0; index < resultButtons.size(); index++) {
+			AnimatedResultButton button = resultButtons.get(index);
+
+			if (pageOffset + index < resultCollections.size()) {
+				button.showResultCollection(
+						resultCollections.get(pageOffset + index),
+						filteringCraftable,
 						this,
-						contextParameterMap
+						context
 				);
-				animatedResultButton.visible = true;
-			}
-			else {
-				animatedResultButton.visible = false;
+				button.visible = true;
+			} else {
+				button.visible = false;
 			}
 		}
 
-		this.hideShowPageButtons();
+		hideShowPageButtons();
 	}
 
 	private void hideShowPageButtons() {
-		if (this.nextPageButton != null) {
-			this.nextPageButton.visible = this.pageCount > 1 && this.currentPage < this.pageCount - 1;
+		if (nextPageButton != null) {
+			nextPageButton.visible = pageCount > 1 && currentPage < pageCount - 1;
 		}
 
-		if (this.prevPageButton != null) {
-			this.prevPageButton.visible = this.pageCount > 1 && this.currentPage > 0;
+		if (prevPageButton != null) {
+			prevPageButton.visible = pageCount > 1 && currentPage > 0;
 		}
 	}
 
-	/**
-	 * Draw.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 * @param deltaTicks delta ticks
-	 */
 	public void draw(DrawContext context, int x, int y, int mouseX, int mouseY, float deltaTicks) {
-		if (this.pageCount > 1) {
-			Text text = Text.translatable("gui.recipebook.page", this.currentPage + 1, this.pageCount);
-			int i = this.client.textRenderer.getWidth(text);
-			context.drawTextWithShadow(this.client.textRenderer, text, x - i / 2 + 73, y + 141, -1);
+		if (pageCount > 1) {
+			Text pageText = Text.translatable("gui.recipebook.page", currentPage + 1, pageCount);
+			int textWidth = client.textRenderer.getWidth(pageText);
+			context.drawTextWithShadow(client.textRenderer, pageText, x - textWidth / 2 + 73, y + 141, -1);
 		}
 
-		this.hoveredResultButton = null;
+		hoveredResultButton = null;
 
-		for (AnimatedResultButton animatedResultButton : this.resultButtons) {
-			animatedResultButton.render(context, mouseX, mouseY, deltaTicks);
-			if (animatedResultButton.visible && animatedResultButton.isSelected()) {
-				this.hoveredResultButton = animatedResultButton;
+		for (AnimatedResultButton button : resultButtons) {
+			button.render(context, mouseX, mouseY, deltaTicks);
+
+			if (button.visible && button.isSelected()) {
+				hoveredResultButton = button;
 			}
 		}
 
-		if (this.nextPageButton != null) {
-			this.nextPageButton.render(context, mouseX, mouseY, deltaTicks);
+		if (nextPageButton != null) {
+			nextPageButton.render(context, mouseX, mouseY, deltaTicks);
 		}
 
-		if (this.prevPageButton != null) {
-			this.prevPageButton.render(context, mouseX, mouseY, deltaTicks);
+		if (prevPageButton != null) {
+			prevPageButton.render(context, mouseX, mouseY, deltaTicks);
 		}
 
 		context.createNewRootLayer();
-		this.alternatesWidget.render(context, mouseX, mouseY, deltaTicks);
+		alternatesWidget.render(context, mouseX, mouseY, deltaTicks);
 	}
 
-	/**
-	 * Draw tooltip.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	public void drawTooltip(DrawContext context, int x, int y) {
-		if (this.client.currentScreen != null && this.hoveredResultButton != null
-				&& !this.alternatesWidget.isVisible()) {
-			ItemStack itemStack = this.hoveredResultButton.getDisplayStack();
-			Identifier identifier = itemStack.get(DataComponentTypes.TOOLTIP_STYLE);
-			context.drawTooltip(
-					this.client.textRenderer,
-					this.hoveredResultButton.getTooltip(itemStack),
-					x,
-					y,
-					identifier
-			);
+		if (client.currentScreen == null || hoveredResultButton == null || alternatesWidget.isVisible()) {
+			return;
 		}
+
+		ItemStack displayStack = hoveredResultButton.getDisplayStack();
+		context.drawTooltip(
+				client.textRenderer,
+				hoveredResultButton.getTooltip(displayStack),
+				x,
+				y,
+				displayStack.get(DataComponentTypes.TOOLTIP_STYLE)
+		);
 	}
 
 	public @Nullable NetworkRecipeId getLastClickedRecipe() {
-		return this.lastClickedRecipe;
+		return lastClickedRecipe;
 	}
 
 	public @Nullable RecipeResultCollection getLastClickedResults() {
-		return this.resultCollection;
+		return resultCollection;
 	}
 
-	/**
-	 * Hide alternates.
-	 */
 	public void hideAlternates() {
-		this.alternatesWidget.setVisible(false);
+		alternatesWidget.setVisible(false);
 	}
 
 	/**
-	 * Mouse clicked.
-	 *
-	 * @param click click
-	 * @param left left
-	 * @param top top
-	 * @param width width
-	 * @param height height
-	 * @param doubled doubled
-	 *
-	 * @return boolean — результат операции
+	 * Обрабатывает клик мыши: делегирует виджету альтернатив, кнопкам пагинации
+	 * или кнопкам результатов. При правом клике открывает виджет альтернативных рецептов.
 	 */
 	public boolean mouseClicked(Click click, int left, int top, int width, int height, boolean doubled) {
-		this.lastClickedRecipe = null;
-		this.resultCollection = null;
-		if (this.alternatesWidget.isVisible()) {
-			if (this.alternatesWidget.mouseClicked(click, doubled)) {
-				this.lastClickedRecipe = this.alternatesWidget.getLastClickedRecipe();
-				this.resultCollection = this.alternatesWidget.getResults();
-			}
-			else {
-				this.alternatesWidget.setVisible(false);
+		lastClickedRecipe = null;
+		resultCollection = null;
+
+		if (alternatesWidget.isVisible()) {
+			if (alternatesWidget.mouseClicked(click, doubled)) {
+				lastClickedRecipe = alternatesWidget.getLastClickedRecipe();
+				resultCollection = alternatesWidget.getResults();
+			} else {
+				alternatesWidget.setVisible(false);
 			}
 
 			return true;
 		}
-		else if (this.nextPageButton.mouseClicked(click, doubled)) {
-			this.currentPage++;
-			this.refreshResultButtons();
+
+		if (nextPageButton.mouseClicked(click, doubled)) {
+			currentPage++;
+			refreshResultButtons();
 			return true;
 		}
-		else if (this.prevPageButton.mouseClicked(click, doubled)) {
-			this.currentPage--;
-			this.refreshResultButtons();
+
+		if (prevPageButton.mouseClicked(click, doubled)) {
+			currentPage--;
+			refreshResultButtons();
 			return true;
 		}
-		else {
-			ContextParameterMap contextParameterMap = SlotDisplayContexts.createParameters(this.client.world);
 
-			for (AnimatedResultButton animatedResultButton : this.resultButtons) {
-				if (animatedResultButton.mouseClicked(click, doubled)) {
-					if (click.button() == 0) {
-						this.lastClickedRecipe = animatedResultButton.getCurrentId();
-						this.resultCollection = animatedResultButton.getResultCollection();
-					}
-					else if (click.button() == 1 && !this.alternatesWidget.isVisible()
-							&& !animatedResultButton.hasSingleResult()) {
-						this.alternatesWidget
-								.showAlternativesForResult(
-										animatedResultButton.getResultCollection(),
-										contextParameterMap,
-										this.filteringCraftable,
-										animatedResultButton.getX(),
-										animatedResultButton.getY(),
-										left + width / 2,
-										top + 13 + height / 2,
-										animatedResultButton.getWidth()
-								);
-					}
+		ContextParameterMap context = SlotDisplayContexts.createParameters(client.world);
 
-					return true;
-				}
+		for (AnimatedResultButton button : resultButtons) {
+			if (!button.mouseClicked(click, doubled)) {
+				continue;
 			}
 
-			return false;
+			if (click.button() == 0) {
+				lastClickedRecipe = button.getCurrentId();
+				resultCollection = button.getResultCollection();
+			} else if (click.button() == 1 && !alternatesWidget.isVisible() && !button.hasSingleResult()) {
+				alternatesWidget.showAlternativesForResult(
+						button.getResultCollection(),
+						context,
+						filteringCraftable,
+						button.getX(),
+						button.getY(),
+						left + width / 2,
+						top + 13 + height / 2,
+						button.getWidth()
+				);
+			}
+
+			return true;
 		}
+
+		return false;
 	}
 
-	/**
-	 * Обрабатывает событие recipe displayed.
-	 *
-	 * @param recipeId recipe id
-	 */
 	public void onRecipeDisplayed(NetworkRecipeId recipeId) {
-		this.recipeBookWidget.onRecipeDisplayed(recipeId);
+		recipeBookWidget.onRecipeDisplayed(recipeId);
 	}
 
 	public ClientRecipeBook getRecipeBook() {
-		return this.recipeBook;
+		return recipeBook;
 	}
 
-	/**
-	 * For each button.
-	 *
-	 * @param action action
-	 */
 	protected void forEachButton(Consumer<ClickableWidget> action) {
-		this.resultButtons.forEach(action);
+		resultButtons.forEach(action);
 	}
 }

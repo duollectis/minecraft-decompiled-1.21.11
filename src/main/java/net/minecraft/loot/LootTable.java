@@ -6,7 +6,6 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectListIterator;
 import net.fabricmc.fabric.api.loot.v3.FabricLootTableBuilder;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
@@ -35,37 +34,41 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/**
- * {@code LootTable}.
- */
 public class LootTable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final Codec<RegistryKey<LootTable>> TABLE_KEY = RegistryKey.createCodec(RegistryKeys.LOOT_TABLE);
 	public static final ContextType GENERIC = LootContextTypes.GENERIC;
 	public static final long DEFAULT_SEED = 0L;
+
 	public static final Codec<LootTable> CODEC = Codec.lazyInitialized(
 			() -> RecordCodecBuilder.create(
 					instance -> instance.group(
-							                    LootContextTypes.CODEC
-									                    .lenientOptionalFieldOf("type", GENERIC)
-									                    .forGetter(table -> table.type),
-							                    Identifier.CODEC
-									                    .optionalFieldOf("random_sequence")
-									                    .forGetter(table -> table.randomSequenceId),
-							                    LootPool.CODEC.listOf().optionalFieldOf("pools", List.of()).forGetter(table -> table.pools),
-							                    LootFunctionTypes.CODEC
-									                    .listOf()
-									                    .optionalFieldOf("functions", List.of())
-									                    .forGetter(table -> table.functions)
-					                    )
-					                    .apply(instance, LootTable::new)
+							LootContextTypes.CODEC
+									.lenientOptionalFieldOf("type", GENERIC)
+									.forGetter(table -> table.type),
+							Identifier.CODEC
+									.optionalFieldOf("random_sequence")
+									.forGetter(table -> table.randomSequenceId),
+							LootPool.CODEC
+									.listOf()
+									.optionalFieldOf("pools", List.of())
+									.forGetter(table -> table.pools),
+							LootFunctionTypes.CODEC
+									.listOf()
+									.optionalFieldOf("functions", List.of())
+									.forGetter(table -> table.functions)
+					).apply(instance, LootTable::new)
 			)
 	);
-	public static final Codec<RegistryEntry<LootTable>>
-			ENTRY_CODEC =
+
+	public static final Codec<RegistryEntry<LootTable>> ENTRY_CODEC =
 			RegistryElementCodec.of(RegistryKeys.LOOT_TABLE, CODEC);
-	public static final LootTable EMPTY = new LootTable(LootContextTypes.EMPTY, Optional.empty(), List.of(), List.of());
+
+	public static final LootTable EMPTY =
+			new LootTable(LootContextTypes.EMPTY, Optional.empty(), List.of(), List.of());
+
 	private final ContextType type;
 	private final Optional<Identifier> randomSequenceId;
 	private final List<LootPool> pools;
@@ -82,262 +85,204 @@ public class LootTable {
 		this.randomSequenceId = randomSequenceId;
 		this.pools = pools;
 		this.functions = functions;
-		this.combinedFunction = LootFunctionTypes.join(functions);
+		combinedFunction = LootFunctionTypes.join(functions);
 	}
 
 	/**
-	 * Обрабатывает stacks.
+	 * Оборачивает consumer так, чтобы стаки автоматически разбивались на части,
+	 * если их количество превышает максимальный размер стака предмета.
+	 * Также фильтрует предметы, отключённые флагами фич.
 	 *
-	 * @param world world
-	 * @param consumer consumer
-	 *
-	 * @return Consumer — результат операции
+	 * @param world мир, из которого берутся активные флаги фич
+	 * @param consumer целевой consumer для обработанных стаков
+	 * @return обёрнутый consumer
 	 */
 	public static Consumer<ItemStack> processStacks(ServerWorld world, Consumer<ItemStack> consumer) {
 		return stack -> {
-			if (stack.isItemEnabled(world.getEnabledFeatures())) {
-				if (stack.getCount() < stack.getMaxCount()) {
-					consumer.accept(stack);
-				}
-				else {
-					int i = stack.getCount();
+			if (!stack.isItemEnabled(world.getEnabledFeatures())) {
+				return;
+			}
 
-					while (i > 0) {
-						ItemStack itemStack = stack.copyWithCount(Math.min(stack.getMaxCount(), i));
-						i -= itemStack.getCount();
-						consumer.accept(itemStack);
-					}
-				}
+			if (stack.getCount() < stack.getMaxCount()) {
+				consumer.accept(stack);
+				return;
+			}
+
+			int remaining = stack.getCount();
+
+			while (remaining > 0) {
+				ItemStack chunk = stack.copyWithCount(Math.min(stack.getMaxCount(), remaining));
+				remaining -= chunk.getCount();
+				consumer.accept(chunk);
 			}
 		};
 	}
 
-	/**
-	 * Generate unprocessed loot.
-	 *
-	 * @param parameters parameters
-	 * @param lootConsumer loot consumer
-	 */
 	public void generateUnprocessedLoot(LootWorldContext parameters, Consumer<ItemStack> lootConsumer) {
-		this.generateUnprocessedLoot(new LootContext.Builder(parameters).build(this.randomSequenceId), lootConsumer);
+		generateUnprocessedLoot(new LootContext.Builder(parameters).build(randomSequenceId), lootConsumer);
 	}
 
-	/**
-	 * Generate unprocessed loot.
-	 *
-	 * @param context context
-	 * @param lootConsumer loot consumer
-	 */
 	public void generateUnprocessedLoot(LootContext context, Consumer<ItemStack> lootConsumer) {
 		LootContext.Entry<?> entry = LootContext.table(this);
-		if (context.markActive(entry)) {
-			Consumer<ItemStack> consumer = LootFunction.apply(this.combinedFunction, lootConsumer, context);
 
-			for (LootPool lootPool : this.pools) {
-				lootPool.addGeneratedLoot(consumer, context);
-			}
-
-			context.markInactive(entry);
-		}
-		else {
+		if (!context.markActive(entry)) {
 			LOGGER.warn("Detected infinite loop in loot tables");
+			return;
 		}
+
+		Consumer<ItemStack> consumer = LootFunction.apply(combinedFunction, lootConsumer, context);
+
+		for (LootPool pool : pools) {
+			pool.addGeneratedLoot(consumer, context);
+		}
+
+		context.markInactive(entry);
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param parameters parameters
-	 * @param seed seed
-	 * @param lootConsumer loot consumer
-	 */
 	public void generateLoot(LootWorldContext parameters, long seed, Consumer<ItemStack> lootConsumer) {
-		this.generateUnprocessedLoot(
-				new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId),
+		generateUnprocessedLoot(
+				new LootContext.Builder(parameters).random(seed).build(randomSequenceId),
 				processStacks(parameters.getWorld(), lootConsumer)
 		);
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param parameters parameters
-	 * @param lootConsumer loot consumer
-	 */
 	public void generateLoot(LootWorldContext parameters, Consumer<ItemStack> lootConsumer) {
-		this.generateUnprocessedLoot(parameters, processStacks(parameters.getWorld(), lootConsumer));
+		generateUnprocessedLoot(parameters, processStacks(parameters.getWorld(), lootConsumer));
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param context context
-	 * @param lootConsumer loot consumer
-	 */
 	public void generateLoot(LootContext context, Consumer<ItemStack> lootConsumer) {
-		this.generateUnprocessedLoot(context, processStacks(context.getWorld(), lootConsumer));
+		generateUnprocessedLoot(context, processStacks(context.getWorld(), lootConsumer));
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param parameters parameters
-	 * @param random random
-	 *
-	 * @return ObjectArrayList — результат операции
-	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters, Random random) {
-		return this.generateLoot(new LootContext.Builder(parameters).random(random).build(this.randomSequenceId));
+		return generateLoot(new LootContext.Builder(parameters).random(random).build(randomSequenceId));
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param parameters parameters
-	 * @param seed seed
-	 *
-	 * @return ObjectArrayList — результат операции
-	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters, long seed) {
-		return this.generateLoot(new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId));
+		return generateLoot(new LootContext.Builder(parameters).random(seed).build(randomSequenceId));
 	}
 
-	/**
-	 * Generate loot.
-	 *
-	 * @param parameters parameters
-	 *
-	 * @return ObjectArrayList — результат операции
-	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters) {
-		return this.generateLoot(new LootContext.Builder(parameters).build(this.randomSequenceId));
+		return generateLoot(new LootContext.Builder(parameters).build(randomSequenceId));
 	}
 
 	private ObjectArrayList<ItemStack> generateLoot(LootContext context) {
-		ObjectArrayList<ItemStack> objectArrayList = new ObjectArrayList();
-		this.generateLoot(context, objectArrayList::add);
-		return objectArrayList;
+		ObjectArrayList<ItemStack> result = new ObjectArrayList<>();
+		generateLoot(context, result::add);
+
+		return result;
 	}
 
 	public ContextType getType() {
-		return this.type;
+		return type;
 	}
 
-	/**
-	 * Validate.
-	 *
-	 * @param reporter reporter
-	 */
 	public void validate(LootTableReporter reporter) {
-		for (int i = 0; i < this.pools.size(); i++) {
-			this.pools.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("pools", i)));
+		for (int index = 0; index < pools.size(); index++) {
+			pools.get(index).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("pools", index)));
 		}
 
-		for (int i = 0; i < this.functions.size(); i++) {
-			this.functions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", i)));
+		for (int index = 0; index < functions.size(); index++) {
+			functions.get(index)
+					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", index)));
 		}
 	}
 
 	/**
-	 * Supply inventory.
+	 * Заполняет инвентарь предметами из лут-таблицы, равномерно распределяя их по свободным слотам.
+	 * Стаки с количеством больше 1 могут быть случайно разбиты на части для более реалистичного распределения.
 	 *
-	 * @param inventory inventory
-	 * @param parameters parameters
-	 * @param seed seed
+	 * @param inventory инвентарь для заполнения
+	 * @param parameters параметры мирового контекста лута
+	 * @param seed сид для воспроизводимой генерации
 	 */
 	public void supplyInventory(Inventory inventory, LootWorldContext parameters, long seed) {
-		LootContext lootContext = new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId);
-		ObjectArrayList<ItemStack> objectArrayList = this.generateLoot(lootContext);
+		LootContext lootContext = new LootContext.Builder(parameters).random(seed).build(randomSequenceId);
+		ObjectArrayList<ItemStack> generatedStacks = generateLoot(lootContext);
 		Random random = lootContext.getRandom();
-		List<Integer> list = this.getFreeSlots(inventory, random);
-		this.spreadStacks(objectArrayList, list.size(), random);
-		ObjectListIterator var9 = objectArrayList.iterator();
+		List<Integer> freeSlots = getFreeSlots(inventory, random);
 
-		while (var9.hasNext()) {
-			ItemStack itemStack = (ItemStack) var9.next();
-			if (list.isEmpty()) {
+		spreadStacks(generatedStacks, freeSlots.size(), random);
+
+		for (ItemStack stack : generatedStacks) {
+			if (freeSlots.isEmpty()) {
 				LOGGER.warn("Tried to over-fill a container");
 				return;
 			}
 
-			if (itemStack.isEmpty()) {
-				inventory.setStack(list.remove(list.size() - 1), ItemStack.EMPTY);
-			}
-			else {
-				inventory.setStack(list.remove(list.size() - 1), itemStack);
-			}
+			int targetSlot = freeSlots.remove(freeSlots.size() - 1);
+			inventory.setStack(targetSlot, stack.isEmpty() ? ItemStack.EMPTY : stack);
 		}
 	}
 
+	/**
+	 * Случайно разбивает стаки с количеством > 1 на части, чтобы заполнить больше слотов.
+	 * Алгоритм продолжает разбивать, пока есть свободные слоты и стаки для разбивки.
+	 */
 	private void spreadStacks(ObjectArrayList<ItemStack> stacks, int freeSlots, Random random) {
-		List<ItemStack> list = Lists.newArrayList();
+		List<ItemStack> splittable = Lists.newArrayList();
 		Iterator<ItemStack> iterator = stacks.iterator();
 
 		while (iterator.hasNext()) {
-			ItemStack itemStack = iterator.next();
-			if (itemStack.isEmpty()) {
+			ItemStack stack = iterator.next();
+
+			if (stack.isEmpty()) {
 				iterator.remove();
-			}
-			else if (itemStack.getCount() > 1) {
-				list.add(itemStack);
+			} else if (stack.getCount() > 1) {
+				splittable.add(stack);
 				iterator.remove();
 			}
 		}
 
-		while (freeSlots - stacks.size() - list.size() > 0 && !list.isEmpty()) {
-			ItemStack itemStack2 = list.remove(MathHelper.nextInt(random, 0, list.size() - 1));
-			int i = MathHelper.nextInt(random, 1, itemStack2.getCount() / 2);
-			ItemStack itemStack3 = itemStack2.split(i);
-			if (itemStack2.getCount() > 1 && random.nextBoolean()) {
-				list.add(itemStack2);
-			}
-			else {
-				stacks.add(itemStack2);
+		while (freeSlots - stacks.size() - splittable.size() > 0 && !splittable.isEmpty()) {
+			ItemStack source = splittable.remove(MathHelper.nextInt(random, 0, splittable.size() - 1));
+			int splitCount = MathHelper.nextInt(random, 1, source.getCount() / 2);
+			ItemStack split = source.split(splitCount);
+
+			if (source.getCount() > 1 && random.nextBoolean()) {
+				splittable.add(source);
+			} else {
+				stacks.add(source);
 			}
 
-			if (itemStack3.getCount() > 1 && random.nextBoolean()) {
-				list.add(itemStack3);
-			}
-			else {
-				stacks.add(itemStack3);
+			if (split.getCount() > 1 && random.nextBoolean()) {
+				splittable.add(split);
+			} else {
+				stacks.add(split);
 			}
 		}
 
-		stacks.addAll(list);
+		stacks.addAll(splittable);
 		Util.shuffle(stacks, random);
 	}
 
 	private List<Integer> getFreeSlots(Inventory inventory, Random random) {
-		ObjectArrayList<Integer> objectArrayList = new ObjectArrayList();
+		ObjectArrayList<Integer> freeSlots = new ObjectArrayList<>();
 
-		for (int i = 0; i < inventory.size(); i++) {
-			if (inventory.getStack(i).isEmpty()) {
-				objectArrayList.add(i);
+		for (int slot = 0; slot < inventory.size(); slot++) {
+			if (inventory.getStack(slot).isEmpty()) {
+				freeSlots.add(slot);
 			}
 		}
 
-		Util.shuffle(objectArrayList, random);
-		return objectArrayList;
+		Util.shuffle(freeSlots, random);
+
+		return freeSlots;
 	}
 
 	public static LootTable.Builder builder() {
 		return new LootTable.Builder();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder implements LootFunctionConsumingBuilder<LootTable.Builder>, FabricLootTableBuilder {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootPool> pools = ImmutableList.builder();
-		private final com.google.common.collect.ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
+		private final ImmutableList.Builder<LootPool> pools = ImmutableList.builder();
+		private final ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
 		private ContextType type = LootTable.GENERIC;
 		private Optional<Identifier> randomSequenceId = Optional.empty();
 
 		public LootTable.Builder pool(LootPool.Builder poolBuilder) {
-			this.pools.add(poolBuilder.build());
+			pools.add(poolBuilder.build());
 			return this;
 		}
 
@@ -352,7 +297,7 @@ public class LootTable {
 		}
 
 		public LootTable.Builder apply(LootFunction.Builder builder) {
-			this.functions.add(builder.build());
+			functions.add(builder.build());
 			return this;
 		}
 
@@ -360,13 +305,8 @@ public class LootTable {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return LootTable — результат операции
-		 */
 		public LootTable build() {
-			return new LootTable(this.type, this.randomSequenceId, this.pools.build(), this.functions.build());
+			return new LootTable(type, randomSequenceId, pools.build(), functions.build());
 		}
 	}
 }

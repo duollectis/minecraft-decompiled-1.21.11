@@ -3,10 +3,14 @@ package net.minecraft.client.gui.widget;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Positioner}.
+ * Интерфейс позиционера виджета в лейауте: задаёт отступы (margins) и
+ * относительное выравнивание (0.0 = начало, 0.5 = центр, 1.0 = конец).
+ * Все методы возвращают {@code this} для fluent-цепочек.
+ *
+ * <p>Создаётся через {@link #create()}, конкретная реализация — {@link Impl}.</p>
  */
+@Environment(EnvType.CLIENT)
 public interface Positioner {
 
 	Positioner margin(int value);
@@ -34,27 +38,27 @@ public interface Positioner {
 	Positioner relativeY(float relativeY);
 
 	default Positioner alignLeft() {
-		return this.relativeX(0.0F);
+		return relativeX(0.0F);
 	}
 
 	default Positioner alignHorizontalCenter() {
-		return this.relativeX(0.5F);
+		return relativeX(0.5F);
 	}
 
 	default Positioner alignRight() {
-		return this.relativeX(1.0F);
+		return relativeX(1.0F);
 	}
 
 	default Positioner alignTop() {
-		return this.relativeY(0.0F);
+		return relativeY(0.0F);
 	}
 
 	default Positioner alignVerticalCenter() {
-		return this.relativeY(0.5F);
+		return relativeY(0.5F);
 	}
 
 	default Positioner alignBottom() {
-		return this.relativeY(1.0F);
+		return relativeY(1.0F);
 	}
 
 	Positioner copy();
@@ -65,11 +69,12 @@ public interface Positioner {
 		return new Positioner.Impl();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Impl}.
+	 * Конкретная реализация позиционера с изменяемыми полями отступов и выравнивания.
+	 * Поля публичны для прямого доступа из лейаут-движка без лишних вызовов геттеров.
 	 */
-	public static class Impl implements Positioner {
+	@Environment(EnvType.CLIENT)
+	class Impl implements Positioner {
 
 		public int marginLeft;
 		public int marginTop;
@@ -82,67 +87,67 @@ public interface Positioner {
 		}
 
 		public Impl(Positioner.Impl original) {
-			this.marginLeft = original.marginLeft;
-			this.marginTop = original.marginTop;
-			this.marginRight = original.marginRight;
-			this.marginBottom = original.marginBottom;
-			this.relativeX = original.relativeX;
-			this.relativeY = original.relativeY;
+			marginLeft = original.marginLeft;
+			marginTop = original.marginTop;
+			marginRight = original.marginRight;
+			marginBottom = original.marginBottom;
+			relativeX = original.relativeX;
+			relativeY = original.relativeY;
 		}
 
-		public Positioner.Impl margin(int i) {
-			return this.margin(i, i);
+		public Positioner.Impl margin(int value) {
+			return margin(value, value);
 		}
 
-		public Positioner.Impl margin(int i, int j) {
-			return this.marginX(i).marginY(j);
+		public Positioner.Impl margin(int x, int y) {
+			return marginX(x).marginY(y);
 		}
 
-		public Positioner.Impl margin(int i, int j, int k, int l) {
-			return this.marginLeft(i).marginRight(k).marginTop(j).marginBottom(l);
+		public Positioner.Impl margin(int left, int top, int right, int bottom) {
+			return marginLeft(left).marginRight(right).marginTop(top).marginBottom(bottom);
 		}
 
-		public Positioner.Impl marginLeft(int i) {
-			this.marginLeft = i;
+		public Positioner.Impl marginLeft(int value) {
+			marginLeft = value;
 			return this;
 		}
 
-		public Positioner.Impl marginTop(int i) {
-			this.marginTop = i;
+		public Positioner.Impl marginTop(int value) {
+			marginTop = value;
 			return this;
 		}
 
-		public Positioner.Impl marginRight(int i) {
-			this.marginRight = i;
+		public Positioner.Impl marginRight(int value) {
+			marginRight = value;
 			return this;
 		}
 
-		public Positioner.Impl marginBottom(int i) {
-			this.marginBottom = i;
+		public Positioner.Impl marginBottom(int value) {
+			marginBottom = value;
 			return this;
 		}
 
-		public Positioner.Impl marginX(int i) {
-			return this.marginLeft(i).marginRight(i);
+		public Positioner.Impl marginX(int value) {
+			return marginLeft(value).marginRight(value);
 		}
 
-		public Positioner.Impl marginY(int i) {
-			return this.marginTop(i).marginBottom(i);
+		public Positioner.Impl marginY(int value) {
+			return marginTop(value).marginBottom(value);
 		}
 
-		public Positioner.Impl relative(float f, float g) {
-			this.relativeX = f;
-			this.relativeY = g;
+		public Positioner.Impl relative(float x, float y) {
+			relativeX = x;
+			relativeY = y;
 			return this;
 		}
 
-		public Positioner.Impl relativeX(float f) {
-			this.relativeX = f;
+		public Positioner.Impl relativeX(float value) {
+			relativeX = value;
 			return this;
 		}
 
-		public Positioner.Impl relativeY(float f) {
-			this.relativeY = f;
+		public Positioner.Impl relativeY(float value) {
+			relativeY = value;
 			return this;
 		}
 

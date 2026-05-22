@@ -16,7 +16,8 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 /**
- * {@code ConnectingBlock}.
+ * Абстрактный блок с шестью направленными соединениями (север/юг/восток/запад/вверх/вниз).
+ * Форма блока динамически строится из центрального куба и «рукавов» по активным направлениям.
  */
 public abstract class ConnectingBlock extends Block {
 

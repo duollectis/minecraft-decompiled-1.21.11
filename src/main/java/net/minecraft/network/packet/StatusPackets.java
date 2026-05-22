@@ -8,7 +8,8 @@ import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс status packets.
+ * Реестр типов пакетов фазы {@code STATUS}: клиент запрашивает MOTD
+ * ({@code STATUS_REQUEST}), сервер отвечает JSON-описанием ({@code STATUS_RESPONSE}).
  */
 public class StatusPackets {
 

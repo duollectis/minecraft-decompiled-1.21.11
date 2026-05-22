@@ -18,7 +18,7 @@ import net.minecraft.util.StringIdentifiable;
 import java.util.List;
 
 /**
- * {@code ZombieNautilusVariant}.
+ * Вариант зомби-наутилуса.
  */
 public record ZombieNautilusVariant(
 		ModelAndTexture<ZombieNautilusVariant.Model> modelAndTexture,
@@ -63,10 +63,7 @@ public record ZombieNautilusVariant(
 		return this.spawnConditions.selectors();
 	}
 
-	/**
-	 * {@code Model}.
-	 */
-	public static enum Model implements StringIdentifiable {
+	public enum Model implements StringIdentifiable {
 		NORMAL("normal"),
 		WARM("warm");
 

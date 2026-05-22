@@ -8,7 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * {@code BreezeDebugData}.
+ * Отладочные данные моба Breeze: цель атаки и целевая позиция прыжка.
  */
 public record BreezeDebugData(Optional<Integer> attackTarget, Optional<BlockPos> jumpTarget) {
 

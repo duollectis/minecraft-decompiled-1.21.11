@@ -6,20 +6,21 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HoverPhase}.
+ * Фаза зависания дракона на месте. Используется как начальное состояние
+ * до первого тика сервера, когда позиция ещё не известна.
  */
 public class HoverPhase extends AbstractPhase {
 
 	private @Nullable Vec3d target;
 
-	public HoverPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public HoverPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		if (this.target == null) {
-			this.target = this.dragon.getEntityPos();
+		if (target == null) {
+			target = dragon.getEntityPos();
 		}
 	}
 
@@ -30,7 +31,7 @@ public class HoverPhase extends AbstractPhase {
 
 	@Override
 	public void beginPhase() {
-		this.target = null;
+		target = null;
 	}
 
 	@Override
@@ -40,7 +41,7 @@ public class HoverPhase extends AbstractPhase {
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.target;
+		return target;
 	}
 
 	@Override

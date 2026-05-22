@@ -8,7 +8,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code RedstoneConnectionsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RedstoneConnectionsFix extends DataFix {
 
@@ -17,8 +17,8 @@ public class RedstoneConnectionsFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Schema schema = this.getInputSchema();
-		return this.fixTypeEverywhereTyped(
+		Schema schema = getInputSchema();
+		return fixTypeEverywhereTyped(
 				"RedstoneConnectionsFix",
 				schema.getType(TypeReferences.BLOCK_STATE),
 				blockStateTyped -> blockStateTyped.update(DSL.remainderFinder(), this::updateBlockState)

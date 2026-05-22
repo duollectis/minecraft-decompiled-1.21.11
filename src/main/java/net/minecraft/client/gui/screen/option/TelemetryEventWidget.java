@@ -20,19 +20,20 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.DoubleConsumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TelemetryEventWidget}.
+ * Виджет отображения телеметрических событий — прокручиваемый список событий
+ * с описанием их свойств и статуса (обязательное/опциональное/отключённое).
  */
+@Environment(EnvType.CLIENT)
 public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 
 	private static final int MARGIN_X = 32;
 	private static final String REQUIRED_TRANSLATION_KEY = "telemetry.event.required";
 	private static final String OPTIONAL_TRANSLATION_KEY = "telemetry.event.optional";
 	private static final String DISABLED_TRANSLATION_KEY = "telemetry.event.optional.disabled";
-	private static final Text
-			PROPERTY_TITLE_TEXT =
+	private static final Text PROPERTY_TITLE_TEXT =
 			Text.translatable("telemetry_info.property_title").formatted(Formatting.UNDERLINE);
+
 	private final TextRenderer textRenderer;
 	private TelemetryEventWidget.Contents contents;
 	private @Nullable DoubleConsumer scrollConsumer;
@@ -40,44 +41,37 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 	public TelemetryEventWidget(int x, int y, int width, int height, TextRenderer textRenderer) {
 		super(x, y, width, height, Text.empty());
 		this.textRenderer = textRenderer;
-		this.contents = this.collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
+		contents = collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
 	}
 
 	/**
-	 * Refresh.
-	 *
-	 * @param optionalTelemetryEnabled optional telemetry enabled
+	 * Обновляет список событий в зависимости от того, включена ли опциональная телеметрия.
 	 */
 	public void refresh(boolean optionalTelemetryEnabled) {
-		this.contents = this.collectContents(optionalTelemetryEnabled);
-		this.refreshScroll();
+		contents = collectContents(optionalTelemetryEnabled);
+		refreshScroll();
 	}
 
-	/**
-	 * Инициализирует contents.
-	 */
 	public void initContents() {
-		this.contents = this.collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
-		this.refreshScroll();
+		contents = collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
+		refreshScroll();
 	}
 
 	private TelemetryEventWidget.Contents collectContents(boolean optionalTelemetryEnabled) {
-		TelemetryEventWidget.ContentsBuilder
-				contentsBuilder =
-				new TelemetryEventWidget.ContentsBuilder(this.getGridWidth());
-		List<TelemetryEventType> list = new ArrayList<>(TelemetryEventType.getTypes());
-		list.sort(Comparator.comparing(TelemetryEventType::isOptional));
+		TelemetryEventWidget.ContentsBuilder builder = new TelemetryEventWidget.ContentsBuilder(getGridWidth());
+		List<TelemetryEventType> eventTypes = new ArrayList<>(TelemetryEventType.getTypes());
+		eventTypes.sort(Comparator.comparing(TelemetryEventType::isOptional));
 
-		for (int i = 0; i < list.size(); i++) {
-			TelemetryEventType telemetryEventType = list.get(i);
-			boolean bl = telemetryEventType.isOptional() && !optionalTelemetryEnabled;
-			this.appendEventInfo(contentsBuilder, telemetryEventType, bl);
-			if (i < list.size() - 1) {
-				contentsBuilder.appendSpace(9);
+		for (int index = 0; index < eventTypes.size(); index++) {
+			TelemetryEventType eventType = eventTypes.get(index);
+			boolean disabled = eventType.isOptional() && !optionalTelemetryEnabled;
+			appendEventInfo(builder, eventType, disabled);
+			if (index < eventTypes.size() - 1) {
+				builder.appendSpace(9);
 			}
 		}
 
-		return contentsBuilder.build();
+		return builder.build();
 	}
 
 	public void setScrollConsumer(@Nullable DoubleConsumer scrollConsumer) {
@@ -87,14 +81,14 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 	@Override
 	public void setScrollY(double scrollY) {
 		super.setScrollY(scrollY);
-		if (this.scrollConsumer != null) {
-			this.scrollConsumer.accept(this.getScrollY());
+		if (scrollConsumer != null) {
+			scrollConsumer.accept(getScrollY());
 		}
 	}
 
 	@Override
 	protected int getContentsHeight() {
-		return this.contents.grid().getHeight();
+		return contents.grid().getHeight();
 	}
 
 	@Override
@@ -104,21 +98,21 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 
 	@Override
 	protected void renderContents(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		int i = this.getTextY();
-		int j = this.getTextX();
+		int textY = getTextY();
+		int textX = getTextX();
 		context.getMatrices().pushMatrix();
-		context.getMatrices().translate(j, i);
-		this.contents.grid().forEachChild(widget -> widget.render(context, mouseX, mouseY, deltaTicks));
+		context.getMatrices().translate(textX, textY);
+		contents.grid().forEachChild(widget -> widget.render(context, mouseX, mouseY, deltaTicks));
 		context.getMatrices().popMatrix();
 	}
 
 	@Override
 	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, this.contents.narration());
+		builder.put(NarrationPart.TITLE, contents.narration());
 	}
 
 	private Text formatTitleText(Text title, boolean disabled) {
-		return (Text) (disabled ? title.copy().formatted(Formatting.GRAY) : title);
+		return disabled ? title.copy().formatted(Formatting.GRAY) : title;
 	}
 
 	private void appendEventInfo(
@@ -126,18 +120,14 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 			TelemetryEventType eventType,
 			boolean disabled
 	) {
-		String
-				string =
-				eventType.isOptional() ? (disabled ? "telemetry.event.optional.disabled" : "telemetry.event.optional")
-				                       : "telemetry.event.required";
-		builder.appendText(
-				this.textRenderer,
-				this.formatTitleText(Text.translatable(string, eventType.getTitle()), disabled)
-		);
-		builder.appendText(this.textRenderer, eventType.getDescription().formatted(Formatting.GRAY));
+		String translationKey = eventType.isOptional()
+				? (disabled ? DISABLED_TRANSLATION_KEY : OPTIONAL_TRANSLATION_KEY)
+				: REQUIRED_TRANSLATION_KEY;
+		builder.appendText(textRenderer, formatTitleText(Text.translatable(translationKey, eventType.getTitle()), disabled));
+		builder.appendText(textRenderer, eventType.getDescription().formatted(Formatting.GRAY));
 		builder.appendSpace(9 / 2);
-		builder.appendTitle(this.textRenderer, this.formatTitleText(PROPERTY_TITLE_TEXT, disabled), 2);
-		this.appendProperties(eventType, builder, disabled);
+		builder.appendTitle(textRenderer, formatTitleText(PROPERTY_TITLE_TEXT, disabled), 2);
+		appendProperties(eventType, builder, disabled);
 	}
 
 	private void appendProperties(
@@ -145,26 +135,26 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 			TelemetryEventWidget.ContentsBuilder builder,
 			boolean disabled
 	) {
-		for (TelemetryEventProperty<?> telemetryEventProperty : eventType.getProperties()) {
-			builder.appendTitle(this.textRenderer, this.formatTitleText(telemetryEventProperty.getTitle(), disabled));
+		for (TelemetryEventProperty<?> property : eventType.getProperties()) {
+			builder.appendTitle(textRenderer, formatTitleText(property.getTitle(), disabled));
 		}
 	}
 
 	private int getGridWidth() {
-		return this.width - this.getPadding();
+		return width - getPadding();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Contents}.
+	 * Иммутабельный снимок содержимого виджета: сетка виджетов и текст для нарратора.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Contents(LayoutWidget grid, Text narration) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ContentsBuilder}.
+	 * Построитель содержимого виджета телеметрии — накапливает виджеты и нарративный текст.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class ContentsBuilder {
 
 		private final int gridWidth;
@@ -173,65 +163,40 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 
 		public ContentsBuilder(int gridWidth) {
 			this.gridWidth = gridWidth;
-			this.layout = DirectionalLayoutWidget.vertical();
-			this.layout.getMainPositioner().alignLeft();
-			this.layout.add(EmptyWidget.ofWidth(gridWidth));
+			layout = DirectionalLayoutWidget.vertical();
+			layout.getMainPositioner().alignLeft();
+			layout.add(EmptyWidget.ofWidth(gridWidth));
 		}
 
-		/**
-		 * Append title.
-		 *
-		 * @param textRenderer text renderer
-		 * @param title title
-		 */
 		public void appendTitle(TextRenderer textRenderer, Text title) {
-			this.appendTitle(textRenderer, title, 0);
+			appendTitle(textRenderer, title, 0);
 		}
 
-		/**
-		 * Append title.
-		 *
-		 * @param textRenderer text renderer
-		 * @param title title
-		 * @param marginBottom margin bottom
-		 */
 		public void appendTitle(TextRenderer textRenderer, Text title, int marginBottom) {
-			this.layout.add(
-					new MultilineTextWidget(title, textRenderer).setMaxWidth(this.gridWidth),
+			layout.add(
+					new MultilineTextWidget(title, textRenderer).setMaxWidth(gridWidth),
 					positioner -> positioner.marginBottom(marginBottom)
 			);
-			this.narration.append(title).append("\n");
+			narration.append(title).append("\n");
 		}
 
-		/**
-		 * Append text.
-		 *
-		 * @param textRenderer text renderer
-		 * @param text text
-		 */
 		public void appendText(TextRenderer textRenderer, Text text) {
-			this.layout
-					.add(
-							new MultilineTextWidget(text, textRenderer)
-									.setMaxWidth(this.gridWidth - 64)
-									.setCentered(true),
-							positioner -> positioner.alignHorizontalCenter().marginX(32)
-					);
-			this.narration.append(text).append("\n");
+			layout.add(
+					new MultilineTextWidget(text, textRenderer)
+							.setMaxWidth(gridWidth - 64)
+							.setCentered(true),
+					positioner -> positioner.alignHorizontalCenter().marginX(MARGIN_X)
+			);
+			narration.append(text).append("\n");
 		}
 
-		/**
-		 * Append space.
-		 *
-		 * @param height height
-		 */
 		public void appendSpace(int height) {
-			this.layout.add(EmptyWidget.ofHeight(height));
+			layout.add(EmptyWidget.ofHeight(height));
 		}
 
 		public TelemetryEventWidget.Contents build() {
-			this.layout.refreshPositions();
-			return new TelemetryEventWidget.Contents(this.layout, this.narration);
+			layout.refreshPositions();
+			return new TelemetryEventWidget.Contents(layout, narration);
 		}
 	}
 }

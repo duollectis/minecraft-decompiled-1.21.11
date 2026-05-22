@@ -17,7 +17,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SmithingTransformRecipe}.
+ * Рецепт кузнечного стола, преобразующий базовый предмет в новый тип с сохранением компонентов.
+ * Шаблон и добавка опциональны — позволяет создавать рецепты без обязательного шаблона.
  */
 public class SmithingTransformRecipe implements SmithingRecipe {
 
@@ -28,10 +29,10 @@ public class SmithingTransformRecipe implements SmithingRecipe {
 	private @Nullable IngredientPlacement ingredientPlacement;
 
 	public SmithingTransformRecipe(
-			Optional<Ingredient> template,
-			Ingredient base,
-			Optional<Ingredient> addition,
-			TransmuteRecipeResult result
+		Optional<Ingredient> template,
+		Ingredient base,
+		Optional<Ingredient> addition,
+		TransmuteRecipeResult result
 	) {
 		this.template = template;
 		this.base = base;
@@ -39,31 +40,24 @@ public class SmithingTransformRecipe implements SmithingRecipe {
 		this.result = result;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param smithingRecipeInput smithing recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(SmithingRecipeInput smithingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		return this.result.apply(smithingRecipeInput.base());
+	@Override
+	public ItemStack craft(SmithingRecipeInput input, RegistryWrapper.WrapperLookup wrapperLookup) {
+		return result.apply(input.base());
 	}
 
 	@Override
 	public Optional<Ingredient> template() {
-		return this.template;
+		return template;
 	}
 
 	@Override
 	public Ingredient base() {
-		return this.base;
+		return base;
 	}
 
 	@Override
 	public Optional<Ingredient> addition() {
-		return this.addition;
+		return addition;
 	}
 
 	@Override
@@ -73,51 +67,49 @@ public class SmithingTransformRecipe implements SmithingRecipe {
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement =
-					IngredientPlacement.forMultipleSlots(List.of(this.template, Optional.of(this.base), this.addition));
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forMultipleSlots(
+				List.of(template, Optional.of(base), addition)
+			);
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
 	}
 
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new SmithingRecipeDisplay(
-						Ingredient.toDisplay(this.template),
-						this.base.toDisplay(),
-						Ingredient.toDisplay(this.addition),
-						this.result.createSlotDisplay(),
-						new SlotDisplay.ItemSlotDisplay(Items.SMITHING_TABLE)
-				)
+			new SmithingRecipeDisplay(
+				Ingredient.toDisplay(template),
+				base.toDisplay(),
+				Ingredient.toDisplay(addition),
+				result.createSlotDisplay(),
+				new SlotDisplay.ItemSlotDisplay(Items.SMITHING_TABLE)
+			)
 		);
 	}
 
-	/**
-	 * {@code Serializer}.
-	 */
 	public static class Serializer implements RecipeSerializer<SmithingTransformRecipe> {
 
 		private static final MapCodec<SmithingTransformRecipe> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Ingredient.CODEC.optionalFieldOf("template").forGetter(recipe -> recipe.template),
-						                    Ingredient.CODEC.fieldOf("base").forGetter(recipe -> recipe.base),
-						                    Ingredient.CODEC.optionalFieldOf("addition").forGetter(recipe -> recipe.addition),
-						                    TransmuteRecipeResult.CODEC.fieldOf("result").forGetter(recipe -> recipe.result)
-				                    )
-				                    .apply(instance, SmithingTransformRecipe::new)
+			instance -> instance.group(
+				Ingredient.CODEC.optionalFieldOf("template").forGetter(recipe -> recipe.template),
+				Ingredient.CODEC.fieldOf("base").forGetter(recipe -> recipe.base),
+				Ingredient.CODEC.optionalFieldOf("addition").forGetter(recipe -> recipe.addition),
+				TransmuteRecipeResult.CODEC.fieldOf("result").forGetter(recipe -> recipe.result)
+			).apply(instance, SmithingTransformRecipe::new)
 		);
+
 		public static final PacketCodec<RegistryByteBuf, SmithingTransformRecipe> PACKET_CODEC = PacketCodec.tuple(
-				Ingredient.OPTIONAL_PACKET_CODEC,
-				recipe -> recipe.template,
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.base,
-				Ingredient.OPTIONAL_PACKET_CODEC,
-				recipe -> recipe.addition,
-				TransmuteRecipeResult.PACKET_CODEC,
-				recipe -> recipe.result,
-				SmithingTransformRecipe::new
+			Ingredient.OPTIONAL_PACKET_CODEC,
+			recipe -> recipe.template,
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.base,
+			Ingredient.OPTIONAL_PACKET_CODEC,
+			recipe -> recipe.addition,
+			TransmuteRecipeResult.PACKET_CODEC,
+			recipe -> recipe.result,
+			SmithingTransformRecipe::new
 		);
 
 		@Override

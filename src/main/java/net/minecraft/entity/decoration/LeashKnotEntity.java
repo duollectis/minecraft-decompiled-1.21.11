@@ -26,10 +26,13 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LeashKnotEntity}.
+ * Узел поводка — невидимая сущность, прикреплённая к забору.
+ * Позволяет привязывать к ней мобов через поводок.
+ * Автоматически исчезает, когда все привязанные мобы отвязаны.
  */
 public class LeashKnotEntity extends BlockAttachedEntity {
 
+	/** Вертикальное смещение центра узла относительно нижней грани блока. */
 	public static final double KNOT_Y_OFFSET = 0.375;
 
 	public LeashKnotEntity(EntityType<? extends LeashKnotEntity> entityType, World world) {
@@ -38,7 +41,7 @@ public class LeashKnotEntity extends BlockAttachedEntity {
 
 	public LeashKnotEntity(World world, BlockPos pos) {
 		super(EntityType.LEASH_KNOT, world, pos);
-		this.setPosition(pos.getX(), pos.getY(), pos.getZ());
+		setPosition(pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	@Override
@@ -47,20 +50,16 @@ public class LeashKnotEntity extends BlockAttachedEntity {
 
 	@Override
 	protected void updateAttachmentPosition() {
-		this.setPos(
-				this.attachedBlockPos.getX() + 0.5,
-				this.attachedBlockPos.getY() + 0.375,
-				this.attachedBlockPos.getZ() + 0.5
+		setPos(
+				attachedBlockPos.getX() + 0.5,
+				attachedBlockPos.getY() + KNOT_Y_OFFSET,
+				attachedBlockPos.getZ() + 0.5
 		);
-		double d = this.getType().getWidth() / 2.0;
-		double e = this.getType().getHeight();
-		this.setBoundingBox(new Box(
-				this.getX() - d,
-				this.getY(),
-				this.getZ() - d,
-				this.getX() + d,
-				this.getY() + e,
-				this.getZ() + d
+		double halfWidth = getType().getWidth() / 2.0;
+		double height = getType().getHeight();
+		setBoundingBox(new Box(
+				getX() - halfWidth, getY(), getZ() - halfWidth,
+				getX() + halfWidth, getY() + height, getZ() + halfWidth
 		));
 	}
 
@@ -71,7 +70,7 @@ public class LeashKnotEntity extends BlockAttachedEntity {
 
 	@Override
 	public void onBreak(ServerWorld world, @Nullable Entity breaker) {
-		this.playSound(SoundEvents.ITEM_LEAD_UNTIED, 1.0F, 1.0F);
+		playSound(SoundEvents.ITEM_LEAD_UNTIED, 1.0F, 1.0F);
 	}
 
 	@Override
@@ -82,94 +81,101 @@ public class LeashKnotEntity extends BlockAttachedEntity {
 	protected void readCustomData(ReadView view) {
 	}
 
+	/**
+	 * Обрабатывает взаимодействие игрока с узлом:
+	 * <ul>
+	 *   <li>Ножницы — стандартное взаимодействие (отвязка).</li>
+	 *   <li>Игрок держит мобов на поводке — привязывает их к узлу.</li>
+	 *   <li>Иначе — передаёт поводки от узла игроку.</li>
+	 * </ul>
+	 */
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		if (this.getEntityWorld().isClient()) {
+		if (getEntityWorld().isClient()) {
 			return ActionResult.SUCCESS;
 		}
-		else {
-			if (player.getStackInHand(hand).isOf(Items.SHEARS)) {
-				ActionResult actionResult = super.interact(player, hand);
-				if (actionResult instanceof ActionResult.Success success && success.shouldIncrementStat()) {
-					return actionResult;
-				}
-			}
 
-			boolean bl = false;
-
-			for (Leashable leashable : Leashable.collectLeashablesHeldBy(player)) {
-				if (leashable.canBeLeashedTo(this)) {
-					leashable.attachLeash(this, true);
-					bl = true;
-				}
-			}
-
-			boolean bl2 = false;
-			if (!bl && !player.shouldCancelInteraction()) {
-				for (Leashable leashable2 : Leashable.collectLeashablesHeldBy(this)) {
-					if (leashable2.canBeLeashedTo(player)) {
-						leashable2.attachLeash(player, true);
-						bl2 = true;
-					}
-				}
-			}
-
-			if (!bl && !bl2) {
-				return super.interact(player, hand);
-			}
-			else {
-				this.emitGameEvent(GameEvent.BLOCK_ATTACH, player);
-				this.playSoundIfNotSilent(SoundEvents.ITEM_LEAD_TIED);
-				return ActionResult.SUCCESS;
+		if (player.getStackInHand(hand).isOf(Items.SHEARS)) {
+			ActionResult actionResult = super.interact(player, hand);
+			if (actionResult instanceof ActionResult.Success success && success.shouldIncrementStat()) {
+				return actionResult;
 			}
 		}
+
+		boolean attachedToKnot = false;
+		for (Leashable leashable : Leashable.collectLeashablesHeldBy(player)) {
+			if (leashable.canBeLeashedTo(this)) {
+				leashable.attachLeash(this, true);
+				attachedToKnot = true;
+			}
+		}
+
+		boolean transferredToPlayer = false;
+		if (!attachedToKnot && !player.shouldCancelInteraction()) {
+			for (Leashable leashable : Leashable.collectLeashablesHeldBy(this)) {
+				if (leashable.canBeLeashedTo(player)) {
+					leashable.attachLeash(player, true);
+					transferredToPlayer = true;
+				}
+			}
+		}
+
+		if (!attachedToKnot && !transferredToPlayer) {
+			return super.interact(player, hand);
+		}
+
+		emitGameEvent(GameEvent.BLOCK_ATTACH, player);
+		playSoundIfNotSilent(SoundEvents.ITEM_LEAD_TIED);
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	public void onHeldLeashUpdate(Leashable heldLeashable) {
 		if (Leashable.collectLeashablesHeldBy(this).isEmpty()) {
-			this.discard();
+			discard();
 		}
 	}
 
 	@Override
 	public boolean canStayAttached() {
-		return this.getEntityWorld().getBlockState(this.attachedBlockPos).isIn(BlockTags.FENCES);
-	}
-
-	public static LeashKnotEntity getOrCreate(World world, BlockPos pos) {
-		int i = pos.getX();
-		int j = pos.getY();
-		int k = pos.getZ();
-
-		for (LeashKnotEntity leashKnotEntity : world.getNonSpectatingEntities(
-				LeashKnotEntity.class, new Box(i - 1.0, j - 1.0, k - 1.0, i + 1.0, j + 1.0, k + 1.0)
-		)) {
-			if (leashKnotEntity.getAttachedBlockPos().equals(pos)) {
-				return leashKnotEntity;
-			}
-		}
-
-		LeashKnotEntity leashKnotEntity2 = new LeashKnotEntity(world, pos);
-		world.spawnEntity(leashKnotEntity2);
-		return leashKnotEntity2;
+		return getEntityWorld().getBlockState(attachedBlockPos).isIn(BlockTags.FENCES);
 	}
 
 	/**
-	 * Обрабатывает событие place.
+	 * Возвращает существующий узел поводка на заборе или создаёт новый.
+	 * Поиск ведётся в радиусе 1 блока от указанной позиции.
 	 */
+	public static LeashKnotEntity getOrCreate(World world, BlockPos pos) {
+		int x = pos.getX();
+		int y = pos.getY();
+		int z = pos.getZ();
+
+		for (LeashKnotEntity knot : world.getNonSpectatingEntities(
+				LeashKnotEntity.class,
+				new Box(x - 1.0, y - 1.0, z - 1.0, x + 1.0, y + 1.0, z + 1.0)
+		)) {
+			if (knot.getAttachedBlockPos().equals(pos)) {
+				return knot;
+			}
+		}
+
+		LeashKnotEntity newKnot = new LeashKnotEntity(world, pos);
+		world.spawnEntity(newKnot);
+		return newKnot;
+	}
+
 	public void onPlace() {
-		this.playSound(SoundEvents.ITEM_LEAD_TIED, 1.0F, 1.0F);
+		playSound(SoundEvents.ITEM_LEAD_TIED, 1.0F, 1.0F);
 	}
 
 	@Override
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-		return new EntitySpawnS2CPacket(this, 0, this.getAttachedBlockPos());
+		return new EntitySpawnS2CPacket(this, 0, getAttachedBlockPos());
 	}
 
 	@Override
 	public Vec3d getLeashPos(float tickProgress) {
-		return this.getLerpedPos(tickProgress).add(0.0, 0.2, 0.0);
+		return getLerpedPos(tickProgress).add(0.0, 0.2, 0.0);
 	}
 
 	@Override

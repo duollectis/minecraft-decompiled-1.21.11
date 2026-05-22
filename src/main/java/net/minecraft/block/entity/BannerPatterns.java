@@ -6,7 +6,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code BannerPatterns}.
+ * Реестр всех ванильных узоров баннеров. Каждый ключ соответствует записи в {@link net.minecraft.registry.RegistryKeys#BANNER_PATTERN}.
  */
 public class BannerPatterns {
 
@@ -58,11 +58,6 @@ public class BannerPatterns {
 		return RegistryKey.of(RegistryKeys.BANNER_PATTERN, Identifier.ofVanilla(id));
 	}
 
-	/**
-	 * Bootstrap.
-	 *
-	 * @param registry registry
-	 */
 	public static void bootstrap(Registerable<BannerPattern> registry) {
 		register(registry, BASE);
 		register(registry, SQUARE_BOTTOM_LEFT);
@@ -109,12 +104,6 @@ public class BannerPatterns {
 		register(registry, GUSTER);
 	}
 
-	/**
-	 * Register.
-	 *
-	 * @param registry registry
-	 * @param key key
-	 */
 	public static void register(Registerable<BannerPattern> registry, RegistryKey<BannerPattern> key) {
 		registry.register(
 				key,

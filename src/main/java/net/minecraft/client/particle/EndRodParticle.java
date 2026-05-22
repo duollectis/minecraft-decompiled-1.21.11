@@ -6,11 +6,18 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EndRodParticle}.
+ * Частица стержня Края (End Rod) — светящаяся анимированная искра
+ * бело-жёлтого цвета (0xF2E9C9). Не сталкивается с блоками,
+ * живёт 60–71 тик и плавно меняет спрайт по анимации.
  */
+@Environment(EnvType.CLIENT)
 public class EndRodParticle extends AnimatedParticle {
+
+	private static final int TARGET_COLOR = 15916745;
+	private static final int BASE_MAX_AGE = 60;
+	private static final int MAX_AGE_VARIANCE = 12;
+	private static final float SCALE_FACTOR = 0.75F;
 
 	EndRodParticle(
 			ClientWorld world,
@@ -26,9 +33,9 @@ public class EndRodParticle extends AnimatedParticle {
 		this.velocityX = velocityX;
 		this.velocityY = velocityY;
 		this.velocityZ = velocityZ;
-		this.scale *= 0.75F;
-		this.maxAge = 60 + this.random.nextInt(12);
-		this.setTargetColor(15916745);
+		this.scale *= SCALE_FACTOR;
+		this.maxAge = BASE_MAX_AGE + this.random.nextInt(MAX_AGE_VARIANCE);
+		this.setTargetColor(TARGET_COLOR);
 		this.updateSprite(spriteProvider);
 	}
 
@@ -38,10 +45,10 @@ public class EndRodParticle extends AnimatedParticle {
 		this.repositionFromBoundingBox();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц стержня Края.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -50,18 +57,19 @@ public class EndRodParticle extends AnimatedParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new EndRodParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			return new EndRodParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
 		}
 	}
 }

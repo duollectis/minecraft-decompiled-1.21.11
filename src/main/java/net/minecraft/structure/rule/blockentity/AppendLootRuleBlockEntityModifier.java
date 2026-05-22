@@ -9,15 +9,18 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AppendLootRuleBlockEntityModifier}.
+ * Реализация {@link RuleBlockEntityModifier}, назначающая таблицу лута блок-сущности.
+ * Записывает ключ таблицы лута и случайный seed в NBT, что заставляет блок-сущность
+ * (например, сундук) генерировать содержимое из указанной таблицы при первом открытии.
  */
 public class AppendLootRuleBlockEntityModifier implements RuleBlockEntityModifier {
 
 	public static final MapCodec<AppendLootRuleBlockEntityModifier> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(modifier -> modifier.lootTable))
-					.apply(instance, AppendLootRuleBlockEntityModifier::new)
+		instance -> instance
+			.group(LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(modifier -> modifier.lootTable))
+			.apply(instance, AppendLootRuleBlockEntityModifier::new)
 	);
+
 	private final RegistryKey<LootTable> lootTable;
 
 	public AppendLootRuleBlockEntityModifier(RegistryKey<LootTable> lootTable) {
@@ -26,10 +29,11 @@ public class AppendLootRuleBlockEntityModifier implements RuleBlockEntityModifie
 
 	@Override
 	public NbtCompound modifyBlockEntityNbt(Random random, @Nullable NbtCompound nbt) {
-		NbtCompound nbtCompound = nbt == null ? new NbtCompound() : nbt.copy();
-		nbtCompound.put("LootTable", LootTable.TABLE_KEY, this.lootTable);
-		nbtCompound.putLong("LootTableSeed", random.nextLong());
-		return nbtCompound;
+		NbtCompound result = nbt == null ? new NbtCompound() : nbt.copy();
+		result.put("LootTable", LootTable.TABLE_KEY, lootTable);
+		result.putLong("LootTableSeed", random.nextLong());
+
+		return result;
 	}
 
 	@Override

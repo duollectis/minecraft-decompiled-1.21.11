@@ -6,7 +6,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code TrunkVineTreeDecorator}.
+ * Декоратор дерева, размещающий лозу (vine) на брёвнах ствола.
+ * Для каждого бревна с вероятностью 2/3 проверяются четыре горизонтальных направления,
+ * и если соседний блок является воздухом, там размещается лоза.
  */
 public class TrunkVineTreeDecorator extends TreeDecorator {
 
@@ -21,33 +23,26 @@ public class TrunkVineTreeDecorator extends TreeDecorator {
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
+
 		generator.getLogPositions().forEach(pos -> {
-			if (random.nextInt(3) > 0) {
-				BlockPos blockPos = pos.west();
-				if (generator.isAir(blockPos)) {
-					generator.replaceWithVine(blockPos, VineBlock.EAST);
-				}
+			BlockPos west = pos.west();
+			if (random.nextInt(3) > 0 && generator.isAir(west)) {
+				generator.replaceWithVine(west, VineBlock.EAST);
 			}
 
-			if (random.nextInt(3) > 0) {
-				BlockPos blockPos = pos.east();
-				if (generator.isAir(blockPos)) {
-					generator.replaceWithVine(blockPos, VineBlock.WEST);
-				}
+			BlockPos east = pos.east();
+			if (random.nextInt(3) > 0 && generator.isAir(east)) {
+				generator.replaceWithVine(east, VineBlock.WEST);
 			}
 
-			if (random.nextInt(3) > 0) {
-				BlockPos blockPos = pos.north();
-				if (generator.isAir(blockPos)) {
-					generator.replaceWithVine(blockPos, VineBlock.SOUTH);
-				}
+			BlockPos north = pos.north();
+			if (random.nextInt(3) > 0 && generator.isAir(north)) {
+				generator.replaceWithVine(north, VineBlock.SOUTH);
 			}
 
-			if (random.nextInt(3) > 0) {
-				BlockPos blockPos = pos.south();
-				if (generator.isAir(blockPos)) {
-					generator.replaceWithVine(blockPos, VineBlock.NORTH);
-				}
+			BlockPos south = pos.south();
+			if (random.nextInt(3) > 0 && generator.isAir(south)) {
+				generator.replaceWithVine(south, VineBlock.NORTH);
 			}
 		});
 	}

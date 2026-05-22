@@ -5,13 +5,13 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code RootPlacerType}.
+ * Реестр типов размещателей корней деревьев — связывает строковый идентификатор
+ * с {@link MapCodec} конкретного размещателя.
  */
 public class RootPlacerType<P extends RootPlacer> {
 
-	public static final RootPlacerType<MangroveRootPlacer>
-			MANGROVE_ROOT_PLACER =
-			register("mangrove_root_placer", MangroveRootPlacer.CODEC);
+	public static final RootPlacerType<MangroveRootPlacer> MANGROVE_ROOT_PLACER =
+		register("mangrove_root_placer", MangroveRootPlacer.CODEC);
 	private final MapCodec<P> codec;
 
 	private static <P extends RootPlacer> RootPlacerType<P> register(String id, MapCodec<P> codec) {
@@ -23,6 +23,6 @@ public class RootPlacerType<P extends RootPlacer> {
 	}
 
 	public MapCodec<P> getCodec() {
-		return this.codec;
+		return codec;
 	}
 }

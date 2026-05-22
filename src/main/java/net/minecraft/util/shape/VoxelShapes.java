@@ -90,7 +90,7 @@ public final class VoxelShapes {
 			double maxY,
 			double maxZ
 	) {
-		if (!(maxX - minX < 1.0E-7) && !(maxY - minY < 1.0E-7) && !(maxZ - minZ < 1.0E-7)) {
+		if (!(maxX - minX < MIN_SIZE) && !(maxY - minY < MIN_SIZE) && !(maxZ - minZ < MIN_SIZE)) {
 			int i = findRequiredBitResolution(minX, maxX);
 			int j = findRequiredBitResolution(minY, maxY);
 			int k = findRequiredBitResolution(minZ, maxZ);
@@ -149,13 +149,13 @@ public final class VoxelShapes {
 	 * @return int — required bit resolution
 	 */
 	protected static int findRequiredBitResolution(double min, double max) {
-		if (!(min < -1.0E-7) && !(max > 1.0000001)) {
+		if (!(min < -MIN_SIZE) && !(max > 1.0000001)) {
 			for (int i = 0; i <= 3; i++) {
 				int j = 1 << i;
 				double d = min * j;
 				double e = max * j;
-				boolean bl = Math.abs(d - Math.round(d)) < 1.0E-7 * j;
-				boolean bl2 = Math.abs(e - Math.round(e)) < 1.0E-7 * j;
+				boolean bl = Math.abs(d - Math.round(d)) < MIN_SIZE * j;
+				boolean bl2 = Math.abs(e - Math.round(e)) < MIN_SIZE * j;
 				if (bl && bl2) {
 					return i;
 				}
@@ -310,11 +310,11 @@ public final class VoxelShapes {
 					boolean bl4 = predicate.apply(false, true);
 
 					for (Direction.Axis axis : AxisCycleDirection.AXES) {
-						if (shape1.getMax(axis) < shape2.getMin(axis) - 1.0E-7) {
+						if (shape1.getMax(axis) < shape2.getMin(axis) - MIN_SIZE) {
 							return bl3 || bl4;
 						}
 
-						if (shape2.getMax(axis) < shape1.getMin(axis) - 1.0E-7) {
+						if (shape2.getMax(axis) < shape1.getMin(axis) - MIN_SIZE) {
 							return bl3 || bl4;
 						}
 					}
@@ -383,7 +383,7 @@ public final class VoxelShapes {
 	 */
 	public static double calculateMaxOffset(Direction.Axis axis, Box box, Iterable<VoxelShape> shapes, double maxDist) {
 		for (VoxelShape voxelShape : shapes) {
-			if (Math.abs(maxDist) < 1.0E-7) {
+			if (Math.abs(maxDist) < MIN_SIZE) {
 				return 0.0;
 			}
 
@@ -409,8 +409,8 @@ public final class VoxelShapes {
 					booleanBiFunction =
 					axisDirection == Direction.AxisDirection.POSITIVE ? BooleanBiFunction.ONLY_FIRST
 					                                                  : BooleanBiFunction.ONLY_SECOND;
-			return DoubleMath.fuzzyEquals(voxelShape.getMax(axis), 1.0, 1.0E-7)
-					&& DoubleMath.fuzzyEquals(voxelShape2.getMin(axis), 0.0, 1.0E-7)
+			return DoubleMath.fuzzyEquals(voxelShape.getMax(axis), 1.0, MIN_SIZE)
+					&& DoubleMath.fuzzyEquals(voxelShape2.getMin(axis), 0.0, MIN_SIZE)
 					&& !matchesAnywhere(
 					new SlicedVoxelShape(voxelShape, axis, voxelShape.voxels.getSize(axis) - 1),
 					new SlicedVoxelShape(voxelShape2, axis, 0),
@@ -434,11 +434,11 @@ public final class VoxelShapes {
 			Direction.AxisDirection axisDirection = direction.getDirection();
 			VoxelShape voxelShape = axisDirection == Direction.AxisDirection.POSITIVE ? one : two;
 			VoxelShape voxelShape2 = axisDirection == Direction.AxisDirection.POSITIVE ? two : one;
-			if (!DoubleMath.fuzzyEquals(voxelShape.getMax(axis), 1.0, 1.0E-7)) {
+			if (!DoubleMath.fuzzyEquals(voxelShape.getMax(axis), 1.0, MIN_SIZE)) {
 				voxelShape = empty();
 			}
 
-			if (!DoubleMath.fuzzyEquals(voxelShape2.getMin(axis), 0.0, 1.0E-7)) {
+			if (!DoubleMath.fuzzyEquals(voxelShape2.getMin(axis), 0.0, MIN_SIZE)) {
 				voxelShape2 = empty();
 			}
 
@@ -495,10 +495,10 @@ public final class VoxelShapes {
 			}
 		}
 
-		if (first.getDouble(i) < second.getDouble(0) - 1.0E-7) {
+		if (first.getDouble(i) < second.getDouble(0) - MIN_SIZE) {
 			return new DisjointPairList(first, second, false);
 		}
-		else if (second.getDouble(j) < first.getDouble(0) - 1.0E-7) {
+		else if (second.getDouble(j) < first.getDouble(0) - MIN_SIZE) {
 			return new DisjointPairList(second, first, true);
 		}
 		else {

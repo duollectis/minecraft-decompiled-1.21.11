@@ -5,10 +5,13 @@ import net.fabricmc.api.Environment;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EmptyWidget}.
+ * Невидимый виджет-заглушка, занимающий пространство в лейауте без отображения.
+ * Используется для создания отступов и выравнивания в {@link LayoutWidget}.
+ * Фабричные методы {@link #ofWidth} и {@link #ofHeight} удобны для горизонтальных
+ * и вертикальных разделителей соответственно.
  */
+@Environment(EnvType.CLIENT)
 public class EmptyWidget implements Widget {
 
 	private int x;
@@ -27,24 +30,12 @@ public class EmptyWidget implements Widget {
 		this.height = height;
 	}
 
-	/**
-	 * Of width.
-	 *
-	 * @param width width
-	 *
-	 * @return EmptyWidget — результат операции
-	 */
+	/** Создаёт горизонтальный разделитель заданной ширины с нулевой высотой. */
 	public static EmptyWidget ofWidth(int width) {
 		return new EmptyWidget(width, 0);
 	}
 
-	/**
-	 * Of height.
-	 *
-	 * @param height height
-	 *
-	 * @return EmptyWidget — результат операции
-	 */
+	/** Создаёт вертикальный разделитель заданной высоты с нулевой шириной. */
 	public static EmptyWidget ofHeight(int height) {
 		return new EmptyWidget(0, height);
 	}
@@ -61,22 +52,22 @@ public class EmptyWidget implements Widget {
 
 	@Override
 	public int getX() {
-		return this.x;
+		return x;
 	}
 
 	@Override
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	@Override
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	@Override
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	@Override

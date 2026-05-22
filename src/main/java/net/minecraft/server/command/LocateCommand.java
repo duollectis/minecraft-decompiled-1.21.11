@@ -33,7 +33,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * {@code LocateCommand}.
+ * Команда {@code /locate}: поиск ближайшей структуры или биома.
  */
 public class LocateCommand {
 
@@ -168,7 +168,7 @@ public class LocateCommand {
 				                                                           serverWorld,
 				                                                           registryEntryList,
 				                                                           blockPos,
-				                                                           100,
+				                                                           LOCATE_STRUCTURE_RADIUS,
 				                                                           false
 		                                                           );
 		stopwatch.stop();
@@ -194,7 +194,7 @@ public class LocateCommand {
 	) throws CommandSyntaxException {
 		BlockPos blockPos = BlockPos.ofFloored(source.getPosition());
 		Stopwatch stopwatch = Stopwatch.createStarted(Util.TICKER);
-		Pair<BlockPos, RegistryEntry<Biome>> pair = source.getWorld().locateBiome(predicate, blockPos, 6400, 32, 64);
+		Pair<BlockPos, RegistryEntry<Biome>> pair = source.getWorld().locateBiome(predicate, blockPos, LOCATE_BIOME_RADIUS, LOCATE_BIOME_HORIZONTAL_BLOCK_CHECK_INTERVAL, LOCATE_BIOME_VERTICAL_BLOCK_CHECK_INTERVAL);
 		stopwatch.stop();
 		if (pair == null) {
 			throw BIOME_NOT_FOUND_EXCEPTION.create(predicate.asString());
@@ -223,7 +223,7 @@ public class LocateCommand {
 		                                                                                   .getNearestTypeAndPosition(
 				                                                                                   predicate,
 				                                                                                   blockPos,
-				                                                                                   256,
+				                                                                                   LOCATE_POI_RADIUS,
 				                                                                                   PointOfInterestStorage.OccupationStatus.ANY
 		                                                                                   );
 		stopwatch.stop();

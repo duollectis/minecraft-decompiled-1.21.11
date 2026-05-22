@@ -26,8 +26,9 @@ import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
 
 /**
- * {@code AttackRangeComponent}.
- */
+	 * Компонент дальности атаки предмета. Определяет минимальный и максимальный радиус атаки
+	 * как для обычного, так и для творческого режима, а также поправку на хитбокс и множитель для мобов.
+	 */
 public record AttackRangeComponent(
 		float minRange,
 		float maxRange,
@@ -39,32 +40,32 @@ public record AttackRangeComponent(
 
 	public static final Codec<AttackRangeComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs
-							                    .rangedInclusiveFloat(0.0F, 64.0F)
-							                    .optionalFieldOf("min_reach", 0.0F)
-							                    .forGetter(AttackRangeComponent::minRange),
-					                    Codecs
-							                    .rangedInclusiveFloat(0.0F, 64.0F)
-							                    .optionalFieldOf("max_reach", 3.0F)
-							                    .forGetter(AttackRangeComponent::maxRange),
-					                    Codecs
-							                    .rangedInclusiveFloat(0.0F, 64.0F)
-							                    .optionalFieldOf("min_creative_reach", 0.0F)
-							                    .forGetter(AttackRangeComponent::minCreativeRange),
-					                    Codecs
-							                    .rangedInclusiveFloat(0.0F, 64.0F)
-							                    .optionalFieldOf("max_creative_reach", 5.0F)
-							                    .forGetter(AttackRangeComponent::maxCreativeRange),
-					                    Codecs
-							                    .rangedInclusiveFloat(0.0F, 1.0F)
-							                    .optionalFieldOf("hitbox_margin", 0.3F)
-							                    .forGetter(AttackRangeComponent::hitboxMargin),
-					                    Codec
-							                    .floatRange(0.0F, 2.0F)
-							                    .optionalFieldOf("mob_factor", 1.0F)
-							                    .forGetter(AttackRangeComponent::mobFactor)
-			                    )
-			                    .apply(instance, AttackRangeComponent::new)
+										Codecs
+												.rangedInclusiveFloat(0.0F, 64.0F)
+												.optionalFieldOf("min_reach", 0.0F)
+												.forGetter(AttackRangeComponent::minRange),
+										Codecs
+												.rangedInclusiveFloat(0.0F, 64.0F)
+												.optionalFieldOf("max_reach", 3.0F)
+												.forGetter(AttackRangeComponent::maxRange),
+										Codecs
+												.rangedInclusiveFloat(0.0F, 64.0F)
+												.optionalFieldOf("min_creative_reach", 0.0F)
+												.forGetter(AttackRangeComponent::minCreativeRange),
+										Codecs
+												.rangedInclusiveFloat(0.0F, 64.0F)
+												.optionalFieldOf("max_creative_reach", 5.0F)
+												.forGetter(AttackRangeComponent::maxCreativeRange),
+										Codecs
+												.rangedInclusiveFloat(0.0F, 1.0F)
+												.optionalFieldOf("hitbox_margin", 0.3F)
+												.forGetter(AttackRangeComponent::hitboxMargin),
+										Codec
+												.floatRange(0.0F, 2.0F)
+												.optionalFieldOf("mob_factor", 1.0F)
+												.forGetter(AttackRangeComponent::mobFactor)
+								)
+								.apply(instance, AttackRangeComponent::new)
 	);
 	public static final PacketCodec<ByteBuf, AttackRangeComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.FLOAT,
@@ -83,12 +84,12 @@ public record AttackRangeComponent(
 	);
 
 	/**
-	 * Default for entity.
-	 *
-	 * @param entity entity
-	 *
-	 * @return AttackRangeComponent — результат операции
-	 */
+		 * Создаёт компонент дальности атаки по умолчанию для сущности, используя её атрибут
+		 * {@code ENTITY_INTERACTION_RANGE} как максимальный радиус (и для обычного, и для творческого режима).
+		 *
+		 * @param entity сущность, для которой создаётся компонент
+		 * @return компонент с дальностью, равной текущему значению атрибута взаимодействия
+		 */
 	public static AttackRangeComponent defaultForEntity(LivingEntity entity) {
 		return new AttackRangeComponent(
 				0.0F,
@@ -100,36 +101,44 @@ public record AttackRangeComponent(
 		);
 	}
 
+	/**
+		 * Вычисляет результат трассировки луча атаки от сущности. Среди всех попаданий по сущностям
+		 * выбирает ближайшее к камере; если попаданий нет — возвращает промах по блоку.
+		 *
+		 * @param entity       атакующая сущность
+		 * @param tickProgress интерполяция тика для позиции камеры
+		 * @param hitPredicate фильтр допустимых целей
+		 * @return результат трассировки (блок или сущность)
+		 */
 	public HitResult getHitResult(Entity entity, float tickProgress, Predicate<Entity> hitPredicate) {
 		Either<BlockHitResult, Collection<EntityHitResult>> either = ProjectileUtil.collectPiercingCollisions(
 				entity, this, hitPredicate, RaycastContext.ShapeType.OUTLINE
 		);
+
 		if (either.left().isPresent()) {
-			return (HitResult) either.left().get();
+			return either.left().get();
 		}
-		else {
-			Collection<EntityHitResult> collection = (Collection<EntityHitResult>) either.right().get();
-			EntityHitResult entityHitResult = null;
-			Vec3d vec3d = entity.getCameraPosVec(tickProgress);
-			double d = Double.MAX_VALUE;
 
-			for (EntityHitResult entityHitResult2 : collection) {
-				double e = vec3d.squaredDistanceTo(entityHitResult2.getPos());
-				if (e < d) {
-					d = e;
-					entityHitResult = entityHitResult2;
-				}
-			}
+		Collection<EntityHitResult> hits = either.right().get();
+		Vec3d cameraPos = entity.getCameraPosVec(tickProgress);
+		EntityHitResult closest = null;
+		double minDistSq = Double.MAX_VALUE;
 
-			if (entityHitResult != null) {
-				return entityHitResult;
-			}
-			else {
-				Vec3d vec3d2 = entity.getHeadRotationVector();
-				Vec3d vec3d3 = entity.getCameraPosVec(tickProgress).add(vec3d2);
-				return BlockHitResult.createMissed(vec3d3, Direction.getFacing(vec3d2), BlockPos.ofFloored(vec3d3));
+		for (EntityHitResult hit : hits) {
+			double distSq = cameraPos.squaredDistanceTo(hit.getPos());
+			if (distSq < minDistSq) {
+				minDistSq = distSq;
+				closest = hit;
 			}
 		}
+
+		if (closest != null) {
+			return closest;
+		}
+
+		Vec3d lookVec = entity.getHeadRotationVector();
+		Vec3d missPos = entity.getCameraPosVec(tickProgress).add(lookVec);
+		return BlockHitResult.createMissed(missPos, Direction.getFacing(lookVec), BlockPos.ofFloored(missPos));
 	}
 
 	public float getEffectiveMinRange(Entity entity) {
@@ -137,30 +146,27 @@ public record AttackRangeComponent(
 			if (playerEntity.isSpectator()) {
 				return 0.0F;
 			}
-			else {
-				return playerEntity.isCreative() ? this.minCreativeRange : this.minRange;
-			}
+
+			return playerEntity.isCreative() ? minCreativeRange : minRange;
 		}
-		else {
-			return this.minRange * this.mobFactor;
-		}
+
+		return minRange * mobFactor;
 	}
 
 	public float getEffectiveMaxRange(Entity entity) {
 		if (entity instanceof PlayerEntity playerEntity) {
-			return playerEntity.isCreative() ? this.maxCreativeRange : this.maxRange;
+			return playerEntity.isCreative() ? maxCreativeRange : maxRange;
 		}
-		else {
-			return this.maxRange * this.mobFactor;
-		}
+
+		return maxRange * mobFactor;
 	}
 
 	public boolean isWithinRange(LivingEntity entity, Vec3d pos) {
-		return this.isWithinRange(entity, pos::squaredDistanceTo, 0.0);
+		return isWithinRange(entity, pos::squaredDistanceTo, 0.0);
 	}
 
 	public boolean isWithinRange(LivingEntity entity, Box box, double extraHitboxMargin) {
-		return this.isWithinRange(entity, box::squaredMagnitude, extraHitboxMargin);
+		return isWithinRange(entity, box::squaredMagnitude, extraHitboxMargin);
 	}
 
 	private boolean isWithinRange(
@@ -168,9 +174,9 @@ public record AttackRangeComponent(
 			ToDoubleFunction<Vec3d> squaredDistanceFunction,
 			double extraHitboxMargin
 	) {
-		double d = Math.sqrt(squaredDistanceFunction.applyAsDouble(entity.getEyePos()));
-		double e = this.getEffectiveMinRange(entity) - this.hitboxMargin - extraHitboxMargin;
-		double f = this.getEffectiveMaxRange(entity) + this.hitboxMargin + extraHitboxMargin;
-		return d >= e && d <= f;
+		double distance = Math.sqrt(squaredDistanceFunction.applyAsDouble(entity.getEyePos()));
+		double minRange = getEffectiveMinRange(entity) - hitboxMargin - extraHitboxMargin;
+		double maxRange = getEffectiveMaxRange(entity) + hitboxMargin + extraHitboxMargin;
+		return distance >= minRange && distance <= maxRange;
 	}
 }

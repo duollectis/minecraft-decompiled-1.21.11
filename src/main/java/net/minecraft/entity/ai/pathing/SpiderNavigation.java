@@ -7,7 +7,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpiderNavigation}.
+ * Навигация паука: умеет карабкаться по стенам.
+ * При отсутствии пути продолжает двигаться напрямую к цели.
  */
 public class SpiderNavigation extends MobNavigation {
 
@@ -19,50 +20,53 @@ public class SpiderNavigation extends MobNavigation {
 
 	@Override
 	public Path findPathTo(BlockPos target, int distance) {
-		this.targetPos = target;
+		targetPos = target;
 		return super.findPathTo(target, distance);
 	}
 
 	@Override
 	public Path findPathTo(Entity entity, int distance) {
-		this.targetPos = entity.getBlockPos();
+		targetPos = entity.getBlockPos();
 		return super.findPathTo(entity, distance);
 	}
 
 	@Override
 	public boolean startMovingTo(Entity entity, double speed) {
-		Path path = this.findPathTo(entity, 0);
+		Path path = findPathTo(entity, 0);
+
 		if (path != null) {
-			return this.startMovingAlong(path, speed);
+			return startMovingAlong(path, speed);
 		}
-		else {
-			this.targetPos = entity.getBlockPos();
-			this.speed = speed;
-			return true;
-		}
+
+		targetPos = entity.getBlockPos();
+		this.speed = speed;
+		return true;
 	}
 
+	/**
+	 * При отсутствии пути (паук карабкается по стене) двигается напрямую к цели,
+	 * пока не окажется в пределах ширины существа или не поднимется выше цели.
+	 */
 	@Override
 	public void tick() {
-		if (!this.isIdle()) {
+		if (!isIdle()) {
 			super.tick();
+			return;
 		}
-		else {
-			if (this.targetPos != null) {
-				if (!this.targetPos.isWithinDistance(this.entity.getEntityPos(), this.entity.getWidth())
-						&& (
-						!(this.entity.getY() > this.targetPos.getY())
-								|| !BlockPos.ofFloored(this.targetPos.getX(), this.entity.getY(), this.targetPos.getZ())
-								            .isWithinDistance(this.entity.getEntityPos(), this.entity.getWidth())
-				)) {
-					this.entity
-							.getMoveControl()
-							.moveTo(this.targetPos.getX(), this.targetPos.getY(), this.targetPos.getZ(), this.speed);
-				}
-				else {
-					this.targetPos = null;
-				}
-			}
+
+		if (targetPos == null) {
+			return;
+		}
+
+		boolean withinWidth = targetPos.isWithinDistance(entity.getEntityPos(), entity.getWidth());
+		boolean aboveTargetAndAligned = entity.getY() > targetPos.getY()
+				&& BlockPos.ofFloored(targetPos.getX(), entity.getY(), targetPos.getZ())
+				.isWithinDistance(entity.getEntityPos(), entity.getWidth());
+
+		if (withinWidth || aboveTargetAndAligned) {
+			targetPos = null;
+		} else {
+			entity.getMoveControl().moveTo(targetPos.getX(), targetPos.getY(), targetPos.getZ(), speed);
 		}
 	}
 }

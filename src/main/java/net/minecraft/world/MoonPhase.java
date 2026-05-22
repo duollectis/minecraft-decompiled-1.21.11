@@ -4,7 +4,9 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code MoonPhase}.
+ * Фаза луны в игровом мире.
+ * Полный цикл состоит из 8 фаз, каждая длится ровно один игровой день ({@link #TICKS_PER_DAY} тиков).
+ * Фаза луны влияет на спавн слизней и другие игровые механики.
  */
 public enum MoonPhase implements StringIdentifiable {
 	FULL_MOON(0, "full_moon"),
@@ -18,30 +20,30 @@ public enum MoonPhase implements StringIdentifiable {
 
 	public static final Codec<MoonPhase> CODEC = StringIdentifiable.createCodec(MoonPhase::values);
 	public static final int COUNT = values().length;
-	public static final int DAY_LENGTH = 24000;
+	public static final int TICKS_PER_DAY = 24000;
+
 	private final int index;
 	private final String name;
 
-	private MoonPhase(final int index, final String name) {
+	MoonPhase(final int index, final String name) {
 		this.index = index;
 		this.name = name;
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
 	/**
-	 * Phase ticks.
-	 *
-	 * @return int — результат операции
+	 * Возвращает количество тиков от начала лунного цикла до начала данной фазы.
+	 * Используется для вычисления текущей фазы луны по мировому времени.
 	 */
 	public int phaseTicks() {
-		return this.index * 24000;
+		return index * TICKS_PER_DAY;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

@@ -13,13 +13,19 @@ import java.util.EnumSet;
 import java.util.List;
 
 /**
- * {@code TrackIronGolemTargetGoal}.
+ * Цель железного голема: атаковать игрока, чья репутация у любого жителя
+ * в радиусе 10 блоков опустилась ниже {@link #MIN_REPUTATION}.
  */
 public class TrackIronGolemTargetGoal extends TrackTargetGoal {
 
+	private static final double SEARCH_RANGE_XZ = 10.0;
+	private static final double SEARCH_RANGE_Y = 8.0;
+	private static final int MIN_REPUTATION = -100;
+	private static final double TARGET_RANGE = 64.0;
+
 	private final IronGolemEntity golem;
 	private @Nullable LivingEntity target;
-	private final TargetPredicate targetPredicate = TargetPredicate.createAttackable().setBaseMaxDistance(64.0);
+	private final TargetPredicate targetPredicate = TargetPredicate.createAttackable().setBaseMaxDistance(TARGET_RANGE);
 
 	public TrackIronGolemTargetGoal(IronGolemEntity golem) {
 		super(golem, false, true);
@@ -29,34 +35,31 @@ public class TrackIronGolemTargetGoal extends TrackTargetGoal {
 
 	@Override
 	public boolean canStart() {
-		Box box = this.golem.getBoundingBox().expand(10.0, 8.0, 10.0);
-		ServerWorld serverWorld = getServerWorld(this.golem);
-		List<? extends LivingEntity>
-				list =
-				serverWorld.getTargets(VillagerEntity.class, this.targetPredicate, this.golem, box);
-		List<PlayerEntity> list2 = serverWorld.getPlayers(this.targetPredicate, this.golem, box);
+		Box searchBox = golem.getBoundingBox().expand(SEARCH_RANGE_XZ, SEARCH_RANGE_Y, SEARCH_RANGE_XZ);
+		ServerWorld serverWorld = getServerWorld(golem);
+		List<? extends LivingEntity> villagers = serverWorld.getTargets(VillagerEntity.class, targetPredicate, golem, searchBox);
+		List<PlayerEntity> players = serverWorld.getPlayers(targetPredicate, golem, searchBox);
 
-		for (LivingEntity livingEntity : list) {
-			VillagerEntity villagerEntity = (VillagerEntity) livingEntity;
+		for (LivingEntity entity : villagers) {
+			VillagerEntity villager = (VillagerEntity) entity;
 
-			for (PlayerEntity playerEntity : list2) {
-				int i = villagerEntity.getReputation(playerEntity);
-				if (i <= -100) {
-					this.target = playerEntity;
+			for (PlayerEntity player : players) {
+				if (villager.getReputation(player) <= MIN_REPUTATION) {
+					target = player;
 				}
 			}
 		}
 
-		return this.target == null ? false
-		                           : !(this.target instanceof PlayerEntity playerEntity2 && (playerEntity2.isSpectator()
-		                                                                                     || playerEntity2.isCreative()
-		                           )
-		                           );
+		if (target == null) {
+			return false;
+		}
+
+		return !(target instanceof PlayerEntity player && (player.isSpectator() || player.isCreative()));
 	}
 
 	@Override
 	public void start() {
-		this.golem.setTarget(this.target);
+		golem.setTarget(target);
 		super.start();
 	}
 }

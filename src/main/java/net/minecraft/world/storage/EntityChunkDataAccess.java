@@ -27,13 +27,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code EntityChunkDataAccess}.
+ * Реализация {@link ChunkDataAccess} для сущностей ({@link Entity}).
+ * Читает и записывает данные сущностей в NBT-формате через {@link VersionedChunkStorage}.
+ * Десериализация выполняется асинхронно в выделенном {@link SimpleConsecutiveExecutor}.
  */
 public class EntityChunkDataAccess implements ChunkDataAccess<Entity> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final String ENTITIES_KEY = "Entities";
 	private static final String POSITION_KEY = "Position";
+
 	private final ServerWorld world;
 	private final VersionedChunkStorage storage;
 	private final LongSet emptyChunks = new LongOpenHashSet();
@@ -45,58 +48,58 @@ public class EntityChunkDataAccess implements ChunkDataAccess<Entity> {
 		this.taskExecutor = new SimpleConsecutiveExecutor(executor, "entity-deserializer");
 	}
 
+	/**
+	 * Асинхронно читает список сущностей для чанка.
+	 * Если чанк ранее был определён как пустой — возвращает пустой список без обращения к диску.
+	 */
 	@Override
 	public CompletableFuture<ChunkDataList<Entity>> readChunkData(ChunkPos pos) {
-		if (this.emptyChunks.contains(pos.toLong())) {
+		if (emptyChunks.contains(pos.toLong())) {
 			return CompletableFuture.completedFuture(emptyDataList(pos));
 		}
-		else {
-			CompletableFuture<Optional<NbtCompound>> completableFuture = this.storage.getNbt(pos);
-			this.handleLoadFailure(completableFuture, pos);
-			return completableFuture.thenApplyAsync(
-					nbt -> {
-						if (nbt.isEmpty()) {
-							this.emptyChunks.add(pos.toLong());
-							return emptyDataList(pos);
-						}
-						else {
-							try {
-								ChunkPos chunkPos2 = nbt.get().<ChunkPos>get("Position", ChunkPos.CODEC).orElseThrow();
-								if (!Objects.equals(pos, chunkPos2)) {
-									LOGGER.error(
-											"Chunk file at {} is in the wrong location. (Expected {}, got {})",
-											new Object[]{pos, pos, chunkPos2}
-									);
-									this.world
-											.getServer()
-											.onChunkMisplacement(chunkPos2, pos, this.storage.getStorageKey());
-								}
-							}
-							catch (Exception var11) {
-								LOGGER.warn("Failed to parse chunk {} position info", pos, var11);
-								this.world.getServer().onChunkLoadFailure(var11, this.storage.getStorageKey(), pos);
-							}
 
-							NbtCompound nbtCompound = this.storage.updateChunkNbt(nbt.get(), -1);
+		CompletableFuture<Optional<NbtCompound>> nbtFuture = storage.getNbt(pos);
+		handleLoadFailure(nbtFuture, pos);
 
-							ChunkDataList var8;
-							try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-									Chunk.createErrorReporterContext(pos), LOGGER)
-							) {
-								ReadView
-										readView =
-										NbtReadView.create(logging, this.world.getRegistryManager(), nbtCompound);
-								ReadView.ListReadView listReadView = readView.getListReadView("Entities");
-								List<Entity>
-										list =
-										EntityType.streamFromData(listReadView, this.world, SpawnReason.LOAD).toList();
-								var8 = new ChunkDataList<>(pos, list);
-							}
+		return nbtFuture.thenApplyAsync(
+			nbt -> {
+				if (nbt.isEmpty()) {
+					emptyChunks.add(pos.toLong());
+					return emptyDataList(pos);
+				}
 
-							return var8;
-						}
-					}, this.taskExecutor::send
-			);
+				validateChunkPosition(nbt.get(), pos);
+
+				NbtCompound updatedNbt = storage.updateChunkNbt(nbt.get(), -1);
+
+				try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
+					Chunk.createErrorReporterContext(pos), LOGGER)
+				) {
+					ReadView readView = NbtReadView.create(logging, world.getRegistryManager(), updatedNbt);
+					ReadView.ListReadView listReadView = readView.getListReadView(ENTITIES_KEY);
+					List<Entity> entities = EntityType.streamFromData(listReadView, world, SpawnReason.LOAD).toList();
+					return new ChunkDataList<>(pos, entities);
+				}
+			},
+			taskExecutor::send
+		);
+	}
+
+	private void validateChunkPosition(NbtCompound nbt, ChunkPos expectedPos) {
+		try {
+			ChunkPos storedPos = nbt.<ChunkPos>get(POSITION_KEY, ChunkPos.CODEC).orElseThrow();
+
+			if (!Objects.equals(expectedPos, storedPos)) {
+				LOGGER.error(
+					"Chunk file at {} is in the wrong location. (Expected {}, got {})",
+					new Object[]{expectedPos, expectedPos, storedPos}
+				);
+				world.getServer().onChunkMisplacement(storedPos, expectedPos, storage.getStorageKey());
+			}
+		}
+		catch (Exception exception) {
+			LOGGER.warn("Failed to parse chunk {} position info", expectedPos, exception);
+			world.getServer().onChunkLoadFailure(exception, storage.getStorageKey(), expectedPos);
 		}
 	}
 
@@ -107,43 +110,42 @@ public class EntityChunkDataAccess implements ChunkDataAccess<Entity> {
 	@Override
 	public void writeChunkData(ChunkDataList<Entity> dataList) {
 		ChunkPos chunkPos = dataList.getChunkPos();
+
 		if (dataList.isEmpty()) {
-			if (this.emptyChunks.add(chunkPos.toLong())) {
-				this.handleSaveFailure(this.storage.set(chunkPos, StorageIoWorker.NULL_NBT_SUPPLIER), chunkPos);
+			if (emptyChunks.add(chunkPos.toLong())) {
+				handleSaveFailure(storage.set(chunkPos, StorageIoWorker.NULL_NBT_SUPPLIER), chunkPos);
 			}
+
+			return;
 		}
-		else {
-			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-					Chunk.createErrorReporterContext(chunkPos),
-					LOGGER
-			)
-			) {
-				NbtList nbtList = new NbtList();
-				dataList.stream().forEach(entity -> {
-					NbtWriteView
-							nbtWriteView =
-							NbtWriteView.create(
-									logging.makeChild(entity.getErrorReporterContext()),
-									entity.getRegistryManager()
-							);
-					if (entity.saveData(nbtWriteView)) {
-						NbtCompound nbtCompoundx = nbtWriteView.getNbt();
-						nbtList.add(nbtCompoundx);
-					}
-				});
-				NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
-				nbtCompound.put("Entities", nbtList);
-				nbtCompound.put("Position", ChunkPos.CODEC, chunkPos);
-				this.handleSaveFailure(this.storage.setNbt(chunkPos, nbtCompound), chunkPos);
-				this.emptyChunks.remove(chunkPos.toLong());
-			}
+
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
+			Chunk.createErrorReporterContext(chunkPos), LOGGER)
+		) {
+			NbtList nbtList = new NbtList();
+			dataList.stream().forEach(entity -> {
+				NbtWriteView nbtWriteView = NbtWriteView.create(
+					logging.makeChild(entity.getErrorReporterContext()),
+					entity.getRegistryManager()
+				);
+
+				if (entity.saveData(nbtWriteView)) {
+					nbtList.add(nbtWriteView.getNbt());
+				}
+			});
+
+			NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
+			nbtCompound.put(ENTITIES_KEY, nbtList);
+			nbtCompound.put(POSITION_KEY, ChunkPos.CODEC, chunkPos);
+			handleSaveFailure(storage.setNbt(chunkPos, nbtCompound), chunkPos);
+			emptyChunks.remove(chunkPos.toLong());
 		}
 	}
 
 	private void handleSaveFailure(CompletableFuture<?> future, ChunkPos pos) {
 		future.exceptionally(throwable -> {
 			LOGGER.error("Failed to store entity chunk {}", pos, throwable);
-			this.world.getServer().onChunkSaveFailure(throwable, this.storage.getStorageKey(), pos);
+			world.getServer().onChunkSaveFailure(throwable, storage.getStorageKey(), pos);
 			return null;
 		});
 	}
@@ -151,19 +153,19 @@ public class EntityChunkDataAccess implements ChunkDataAccess<Entity> {
 	private void handleLoadFailure(CompletableFuture<?> future, ChunkPos pos) {
 		future.exceptionally(throwable -> {
 			LOGGER.error("Failed to load entity chunk {}", pos, throwable);
-			this.world.getServer().onChunkLoadFailure(throwable, this.storage.getStorageKey(), pos);
+			world.getServer().onChunkLoadFailure(throwable, storage.getStorageKey(), pos);
 			return null;
 		});
 	}
 
 	@Override
 	public void awaitAll(boolean sync) {
-		this.storage.completeAll(sync).join();
-		this.taskExecutor.runAll();
+		storage.completeAll(sync).join();
+		taskExecutor.runAll();
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.storage.close();
+		storage.close();
 	}
 }

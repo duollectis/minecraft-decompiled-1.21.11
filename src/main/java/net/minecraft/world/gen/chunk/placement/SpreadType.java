@@ -5,31 +5,30 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code SpreadType}.
+ * Стратегия распределения смещения структуры внутри региона размещения.
+ * {@link #LINEAR} даёт равномерное распределение, {@link #TRIANGULAR} — нормальное
+ * (среднее значение более вероятно), что создаёт более органичное расположение структур.
  */
 public enum SpreadType implements StringIdentifiable {
 	LINEAR("linear"),
 	TRIANGULAR("triangular");
 
 	public static final Codec<SpreadType> CODEC = StringIdentifiable.createCodec(SpreadType::values);
+
 	private final String name;
 
-	private SpreadType(final String name) {
+	SpreadType(String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param random random
-	 * @param bound bound
-	 *
-	 * @return int — 
+	 * Возвращает случайное смещение в диапазоне {@code [0, bound)}.
+	 * Для {@link #TRIANGULAR} усредняет два броска, смещая результат к центру диапазона.
 	 */
 	public int get(Random random, int bound) {
 		return switch (this) {

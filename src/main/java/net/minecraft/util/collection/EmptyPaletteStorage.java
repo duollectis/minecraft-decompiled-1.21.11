@@ -6,11 +6,14 @@ import java.util.Arrays;
 import java.util.function.IntConsumer;
 
 /**
- * {@code EmptyPaletteStorage}.
+ * Реализация {@link PaletteStorage} для палитры с единственным элементом (0 бит на запись).
+ * Все операции чтения возвращают 0, запись допускает только значение 0.
+ * Используется как оптимизация, когда весь чанк заполнен одним блоком.
  */
 public class EmptyPaletteStorage implements PaletteStorage {
 
 	public static final long[] EMPTY_DATA = new long[0];
+
 	private final int size;
 
 	public EmptyPaletteStorage(int size) {
@@ -19,20 +22,20 @@ public class EmptyPaletteStorage implements PaletteStorage {
 
 	@Override
 	public int swap(int index, int value) {
-		Validate.inclusiveBetween(0L, this.size - 1, index);
+		Validate.inclusiveBetween(0L, size - 1, index);
 		Validate.inclusiveBetween(0L, 0L, value);
 		return 0;
 	}
 
 	@Override
 	public void set(int index, int value) {
-		Validate.inclusiveBetween(0L, this.size - 1, index);
+		Validate.inclusiveBetween(0L, size - 1, index);
 		Validate.inclusiveBetween(0L, 0L, value);
 	}
 
 	@Override
 	public int get(int index) {
-		Validate.inclusiveBetween(0L, this.size - 1, index);
+		Validate.inclusiveBetween(0L, size - 1, index);
 		return 0;
 	}
 
@@ -43,7 +46,7 @@ public class EmptyPaletteStorage implements PaletteStorage {
 
 	@Override
 	public int getSize() {
-		return this.size;
+		return size;
 	}
 
 	@Override
@@ -53,14 +56,14 @@ public class EmptyPaletteStorage implements PaletteStorage {
 
 	@Override
 	public void forEach(IntConsumer action) {
-		for (int i = 0; i < this.size; i++) {
+		for (int i = 0; i < size; i++) {
 			action.accept(0);
 		}
 	}
 
 	@Override
 	public void writePaletteIndices(int[] out) {
-		Arrays.fill(out, 0, this.size, 0);
+		Arrays.fill(out, 0, size, 0);
 	}
 
 	@Override

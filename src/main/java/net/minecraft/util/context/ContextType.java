@@ -6,7 +6,9 @@ import com.google.common.collect.Sets;
 import java.util.Set;
 
 /**
- * {@code ContextType}.
+ * Описание типа контекста: набор обязательных и допустимых параметров.
+ * Используется для валидации {@link ContextParameterMap} при построении —
+ * гарантирует наличие всех обязательных параметров и отсутствие лишних.
  */
 public class ContextType {
 
@@ -38,9 +40,6 @@ public class ContextType {
 				+ "]";
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final Set<ContextParameter<?>> required = Sets.newIdentityHashSet();
@@ -50,27 +49,20 @@ public class ContextType {
 			if (this.allowed.contains(parameter)) {
 				throw new IllegalArgumentException("Parameter " + parameter.getId() + " is already optional");
 			}
-			else {
-				this.required.add(parameter);
-				return this;
-			}
+
+			this.required.add(parameter);
+			return this;
 		}
 
 		public ContextType.Builder allow(ContextParameter<?> parameter) {
 			if (this.required.contains(parameter)) {
 				throw new IllegalArgumentException("Parameter " + parameter.getId() + " is already required");
 			}
-			else {
-				this.allowed.add(parameter);
-				return this;
-			}
+
+			this.allowed.add(parameter);
+			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ContextType — результат операции
-		 */
 		public ContextType build() {
 			return new ContextType(this.required, this.allowed);
 		}

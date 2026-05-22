@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code BlockEntityLockToComponentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class BlockEntityLockToComponentFix extends DataFix {
 
@@ -19,9 +19,9 @@ public class BlockEntityLockToComponentFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"BlockEntityLockToComponentFix",
-				this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY),
+				getInputSchema().getType(TypeReferences.BLOCK_ENTITY),
 				typed -> typed.update(
 						DSL.remainderFinder(), dynamic -> {
 							Optional<? extends Dynamic<?>> optional = dynamic.get("lock").result();

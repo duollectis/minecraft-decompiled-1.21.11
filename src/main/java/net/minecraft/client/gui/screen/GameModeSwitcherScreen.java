@@ -25,10 +25,11 @@ import net.minecraft.world.GameMode;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameModeSwitcherScreen}.
+ * Экран быстрого переключения режима игры (F3+F4).
+ * Отображается поверх игры и закрывается при отпускании клавиши-модификатора.
  */
+@Environment(EnvType.CLIENT)
 public class GameModeSwitcherScreen extends Screen {
 
 	static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("gamemode_switcher/slot");
@@ -37,143 +38,136 @@ public class GameModeSwitcherScreen extends Screen {
 	private static final int TEXTURE_WIDTH = 128;
 	private static final int TEXTURE_HEIGHT = 128;
 	private static final int BUTTON_SIZE = 26;
-	private static final int ICON_OFFSET = 5;
 	private static final int BUTTON_STRIDE = 31;
 	private static final int BUTTON_GAP = 5;
-	private static final int UI_WIDTH = GameModeSwitcherScreen.GameModeSelection.values().length * 31 - 5;
-	private final GameModeSwitcherScreen.GameModeSelection currentGameMode;
-	private GameModeSwitcherScreen.GameModeSelection gameMode;
+	private static final int ICON_OFFSET = 5;
+	private static final int UI_WIDTH = GameModeSelection.values().length * BUTTON_STRIDE - BUTTON_GAP;
+	private static final int LABEL_Y_OFFSET = 20;
+	private static final int HINT_Y_OFFSET = 5;
+	private static final int BG_X_OFFSET = 62;
+	private static final int BG_Y_OFFSET = 27;
+	private static final int BG_WIDTH = 125;
+	private static final int BG_HEIGHT = 75;
+
+	private final GameModeSelection currentGameMode;
+	private GameModeSelection gameMode;
 	private int lastMouseX;
 	private int lastMouseY;
 	private boolean mouseUsedForSelection;
-	private final List<GameModeSwitcherScreen.ButtonWidget> gameModeButtons = Lists.newArrayList();
+	private final List<ButtonWidget> gameModeButtons = Lists.newArrayList();
 
 	public GameModeSwitcherScreen() {
 		super(NarratorManager.EMPTY);
-		this.currentGameMode = GameModeSwitcherScreen.GameModeSelection.of(this.getPreviousGameMode());
-		this.gameMode = this.currentGameMode;
+		currentGameMode = GameModeSelection.of(getPreviousGameMode());
+		gameMode = currentGameMode;
 	}
 
 	private GameMode getPreviousGameMode() {
-		ClientPlayerInteractionManager
-				clientPlayerInteractionManager =
-				MinecraftClient.getInstance().interactionManager;
-		GameMode gameMode = clientPlayerInteractionManager.getPreviousGameMode();
-		if (gameMode != null) {
-			return gameMode;
-		}
-		else {
-			return clientPlayerInteractionManager.getCurrentGameMode() == GameMode.CREATIVE ? GameMode.SURVIVAL
-			                                                                                : GameMode.CREATIVE;
-		}
+		ClientPlayerInteractionManager interactionManager = MinecraftClient.getInstance().interactionManager;
+		GameMode previous = interactionManager.getPreviousGameMode();
+		return previous != null
+			? previous
+			: interactionManager.getCurrentGameMode() == GameMode.CREATIVE ? GameMode.SURVIVAL : GameMode.CREATIVE;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.gameModeButtons.clear();
-		this.gameMode = this.currentGameMode;
+		gameModeButtons.clear();
+		gameMode = currentGameMode;
 
-		for (int i = 0; i < GameModeSwitcherScreen.GameModeSelection.VALUES.length; i++) {
-			GameModeSwitcherScreen.GameModeSelection
-					gameModeSelection =
-					GameModeSwitcherScreen.GameModeSelection.VALUES[i];
-			this.gameModeButtons.add(new GameModeSwitcherScreen.ButtonWidget(
-					gameModeSelection,
-					this.width / 2 - UI_WIDTH / 2 + i * 31,
-					this.height / 2 - 31
+		for (int index = 0; index < GameModeSelection.VALUES.length; index++) {
+			GameModeSelection selection = GameModeSelection.VALUES[index];
+			gameModeButtons.add(new ButtonWidget(
+				selection,
+				width / 2 - UI_WIDTH / 2 + index * BUTTON_STRIDE,
+				height / 2 - BUTTON_STRIDE
 			));
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		context.drawCenteredTextWithShadow(
-				this.textRenderer,
-				this.gameMode.text,
-				this.width / 2,
-				this.height / 2 - 31 - 20,
-				-1
+		context.drawCenteredTextWithShadow(textRenderer, gameMode.text, width / 2, height / 2 - BUTTON_STRIDE - LABEL_Y_OFFSET, -1);
+
+		MutableText hint = Text.translatable(
+			"debug.gamemodes.select_next",
+			client.options.debugSwitchGameModeKey.getBoundKeyLocalizedText().copy().formatted(Formatting.AQUA)
 		);
-		MutableText mutableText = Text.translatable(
-				"debug.gamemodes.select_next",
-				this.client.options.debugSwitchGameModeKey.getBoundKeyLocalizedText().copy().formatted(Formatting.AQUA)
-		);
-		context.drawCenteredTextWithShadow(this.textRenderer, mutableText, this.width / 2, this.height / 2 + 5, -1);
-		if (!this.mouseUsedForSelection) {
-			this.lastMouseX = mouseX;
-			this.lastMouseY = mouseY;
-			this.mouseUsedForSelection = true;
+		context.drawCenteredTextWithShadow(textRenderer, hint, width / 2, height / 2 + HINT_Y_OFFSET, -1);
+
+		if (!mouseUsedForSelection) {
+			lastMouseX = mouseX;
+			lastMouseY = mouseY;
+			mouseUsedForSelection = true;
 		}
 
-		boolean bl = this.lastMouseX == mouseX && this.lastMouseY == mouseY;
+		boolean mouseSteady = lastMouseX == mouseX && lastMouseY == mouseY;
 
-		for (GameModeSwitcherScreen.ButtonWidget buttonWidget : this.gameModeButtons) {
-			buttonWidget.render(context, mouseX, mouseY, deltaTicks);
-			buttonWidget.setSelected(this.gameMode == buttonWidget.gameMode);
-			if (!bl && buttonWidget.isSelected()) {
-				this.gameMode = buttonWidget.gameMode;
+		for (ButtonWidget button : gameModeButtons) {
+			button.render(context, mouseX, mouseY, deltaTicks);
+			button.setSelected(gameMode == button.gameMode);
+
+			if (!mouseSteady && button.isSelected()) {
+				gameMode = button.gameMode;
 			}
 		}
 	}
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		int i = this.width / 2 - 62;
-		int j = this.height / 2 - 31 - 27;
-		context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, 125, 75, 128, 128);
+		int bgX = width / 2 - BG_X_OFFSET;
+		int bgY = height / 2 - BUTTON_STRIDE - BG_Y_OFFSET;
+		context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, bgX, bgY, 0.0F, 0.0F, BG_WIDTH, BG_HEIGHT, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 	}
 
 	private void apply() {
-		apply(this.client, this.gameMode);
+		apply(client, gameMode);
 	}
 
-	private static void apply(MinecraftClient client, GameModeSwitcherScreen.GameModeSelection gameModeSelection) {
-		if (client.canSwitchGameMode()) {
-			GameModeSwitcherScreen.GameModeSelection gameModeSelection2 = GameModeSwitcherScreen.GameModeSelection.of(
-					client.interactionManager.getCurrentGameMode()
-			);
-			if (gameModeSelection != gameModeSelection2
-					&& GameModeCommand.PERMISSION_CHECK.allows(client.player.getPermissions())) {
-				client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(gameModeSelection.gameMode));
-			}
+	private static void apply(MinecraftClient client, GameModeSelection selection) {
+		if (!client.canSwitchGameMode()) {
+			return;
+		}
+
+		GameModeSelection current = GameModeSelection.of(client.interactionManager.getCurrentGameMode());
+
+		if (selection != current && GameModeCommand.PERMISSION_CHECK.allows(client.player.getPermissions())) {
+			client.player.networkHandler.sendPacket(new ChangeGameModeC2SPacket(selection.gameMode));
 		}
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.client.options.debugSwitchGameModeKey.matchesKey(input)) {
-			this.mouseUsedForSelection = false;
-			this.gameMode = this.gameMode.next();
+		if (client.options.debugSwitchGameModeKey.matchesKey(input)) {
+			mouseUsedForSelection = false;
+			gameMode = gameMode.next();
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
 	@Override
 	public boolean keyReleased(KeyInput input) {
-		if (this.client.options.debugModifierKey.matchesKey(input)) {
-			this.apply();
-			this.client.setScreen(null);
+		if (client.options.debugModifierKey.matchesKey(input)) {
+			apply();
+			client.setScreen(null);
 			return true;
 		}
-		else {
-			return super.keyReleased(input);
-		}
+
+		return super.keyReleased(input);
 	}
 
 	@Override
 	public boolean mouseReleased(Click click) {
-		if (this.client.options.debugModifierKey.matchesMouse(click)) {
-			this.apply();
-			this.client.setScreen(null);
+		if (client.options.debugModifierKey.matchesMouse(click)) {
+			apply();
+			client.setScreen(null);
 			return true;
 		}
-		else {
-			return super.mouseReleased(click);
-		}
+
+		return super.mouseReleased(click);
 	}
 
 	@Override
@@ -182,37 +176,35 @@ public class GameModeSwitcherScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ButtonWidget}.
-	 */
 	public static class ButtonWidget extends ClickableWidget {
 
-		final GameModeSwitcherScreen.GameModeSelection gameMode;
+		final GameModeSelection gameMode;
 		private boolean selected;
 
-		public ButtonWidget(GameModeSwitcherScreen.GameModeSelection gameMode, int x, int y) {
-			super(x, y, 26, 26, gameMode.text);
+		public ButtonWidget(GameModeSelection gameMode, int x, int y) {
+			super(x, y, BUTTON_SIZE, BUTTON_SIZE, gameMode.text);
 			this.gameMode = gameMode;
 		}
 
 		@Override
 		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			this.drawBackground(context);
-			if (this.selected) {
-				this.drawSelectionBox(context);
+			drawBackground(context);
+
+			if (selected) {
+				drawSelectionBox(context);
 			}
 
-			this.gameMode.renderIcon(context, this.getX() + 5, this.getY() + 5);
+			gameMode.renderIcon(context, getX() + ICON_OFFSET, getY() + ICON_OFFSET);
 		}
 
 		@Override
 		public void appendClickableNarrations(NarrationMessageBuilder builder) {
-			this.appendDefaultNarrations(builder);
+			appendDefaultNarrations(builder);
 		}
 
 		@Override
 		public boolean isSelected() {
-			return super.isSelected() || this.selected;
+			return super.isSelected() || selected;
 		}
 
 		public void setSelected(boolean selected) {
@@ -220,56 +212,39 @@ public class GameModeSwitcherScreen extends Screen {
 		}
 
 		private void drawBackground(DrawContext context) {
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					GameModeSwitcherScreen.SLOT_TEXTURE,
-					this.getX(),
-					this.getY(),
-					26,
-					26
-			);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, GameModeSwitcherScreen.SLOT_TEXTURE, getX(), getY(), BUTTON_SIZE, BUTTON_SIZE);
 		}
 
 		private void drawSelectionBox(DrawContext context) {
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					GameModeSwitcherScreen.SELECTION_TEXTURE,
-					this.getX(),
-					this.getY(),
-					26,
-					26
-			);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, GameModeSwitcherScreen.SELECTION_TEXTURE, getX(), getY(), BUTTON_SIZE, BUTTON_SIZE);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code GameModeSelection}.
-	 */
-	static enum GameModeSelection {
+	enum GameModeSelection {
 		CREATIVE(Text.translatable("gameMode.creative"), GameMode.CREATIVE, new ItemStack(Blocks.GRASS_BLOCK)),
 		SURVIVAL(Text.translatable("gameMode.survival"), GameMode.SURVIVAL, new ItemStack(Items.IRON_SWORD)),
 		ADVENTURE(Text.translatable("gameMode.adventure"), GameMode.ADVENTURE, new ItemStack(Items.MAP)),
 		SPECTATOR(Text.translatable("gameMode.spectator"), GameMode.SPECTATOR, new ItemStack(Items.ENDER_EYE));
 
-		static final GameModeSwitcherScreen.GameModeSelection[] VALUES = values();
+		static final GameModeSelection[] VALUES = values();
 		private static final int ICON_SIZE = 16;
-		private static final int ICON_OFFSET_INNER = 5;
+
 		final Text text;
 		final GameMode gameMode;
 		private final ItemStack icon;
 
-		private GameModeSelection(final Text text, final GameMode gameMode, final ItemStack icon) {
+		GameModeSelection(Text text, GameMode gameMode, ItemStack icon) {
 			this.text = text;
 			this.gameMode = gameMode;
 			this.icon = icon;
 		}
 
 		void renderIcon(DrawContext context, int x, int y) {
-			context.drawItem(this.icon, x, y);
+			context.drawItem(icon, x, y);
 		}
 
-		GameModeSwitcherScreen.GameModeSelection next() {
+		GameModeSelection next() {
 			return switch (this) {
 				case CREATIVE -> SURVIVAL;
 				case SURVIVAL -> ADVENTURE;
@@ -278,7 +253,7 @@ public class GameModeSwitcherScreen extends Screen {
 			};
 		}
 
-		static GameModeSwitcherScreen.GameModeSelection of(GameMode gameMode) {
+		static GameModeSelection of(GameMode gameMode) {
 			return switch (gameMode) {
 				case SPECTATOR -> SPECTATOR;
 				case SURVIVAL -> SURVIVAL;

@@ -4,12 +4,18 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code AbsorptionStatusEffect}.
+ * Эффект поглощения урона (Absorption).
+ *
+ * <p>При применении устанавливает минимальный уровень поглощения в зависимости от усиления.
+ * Эффект считается активным, пока у сущности есть очки поглощения.</p>
  */
 class AbsorptionStatusEffect extends StatusEffect {
 
-	protected AbsorptionStatusEffect(StatusEffectCategory statusEffectCategory, int i) {
-		super(statusEffectCategory, i);
+	/** Базовое количество очков поглощения на уровень I. */
+	private static final float BASE_ABSORPTION_PER_LEVEL = 4.0F;
+
+	protected AbsorptionStatusEffect(StatusEffectCategory category, int color) {
+		super(category, color);
 	}
 
 	@Override
@@ -22,9 +28,15 @@ class AbsorptionStatusEffect extends StatusEffect {
 		return true;
 	}
 
+	/**
+	 * При применении эффекта гарантирует минимальный уровень поглощения.
+	 * Формула: {@code 4 * (amplifier + 1)} очков поглощения.
+	 * Не уменьшает существующее поглощение, если оно уже выше.
+	 */
 	@Override
 	public void onApplied(LivingEntity entity, int amplifier) {
 		super.onApplied(entity, amplifier);
-		entity.setAbsorptionAmount(Math.max(entity.getAbsorptionAmount(), (float) (4 * (1 + amplifier))));
+		float minAbsorption = BASE_ABSORPTION_PER_LEVEL * (amplifier + 1);
+		entity.setAbsorptionAmount(Math.max(entity.getAbsorptionAmount(), minAbsorption));
 	}
 }

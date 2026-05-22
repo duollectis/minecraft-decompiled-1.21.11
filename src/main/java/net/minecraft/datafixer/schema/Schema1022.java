@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1022}.
+ * Схема версии 1022: добавляет типы {@code RECIPE}, {@code PLAYER} и {@code HOTBAR}.
+ * Тип {@code PLAYER} расширен полями рецептурной книги ({@code recipeBook}),
+ * а {@code HOTBAR} описывает сохранённые слоты быстрого доступа.
  */
 public class Schema1022 extends Schema {
 

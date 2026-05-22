@@ -7,10 +7,11 @@ import org.slf4j.Logger;
 
 import java.util.function.BooleanSupplier;
 
-@FunctionalInterface
 /**
- * Интерфейс message verifier.
+ * Верификатор входящих подписанных сообщений.
+ * Проверяет корректность подписи, порядок сообщений и срок действия ключа.
  */
+@FunctionalInterface
 public interface MessageVerifier {
 
 	Logger LOGGER = LogUtils.getLogger();
@@ -27,7 +28,12 @@ public interface MessageVerifier {
 
 	@Nullable SignedMessage ensureVerified(SignedMessage message);
 
-	public static class Impl implements MessageVerifier {
+	/**
+	 * Полная реализация верификатора с отслеживанием состояния цепочки.
+	 * Проверяет: срок действия ключа, корректность подписи, порядок сообщений.
+	 * После первой ошибки все последующие сообщения отклоняются.
+	 */
+	class Impl implements MessageVerifier {
 
 		private final SignatureVerifier signatureVerifier;
 		private final BooleanSupplier expirationChecker;
@@ -40,29 +46,29 @@ public interface MessageVerifier {
 		}
 
 		private boolean verifyPrecedingSignature(SignedMessage message) {
-			if (message.equals(this.lastVerifiedMessage)) {
+			if (message.equals(lastVerifiedMessage)) {
 				return true;
 			}
-			else if (this.lastVerifiedMessage != null && !message.link().linksTo(this.lastVerifiedMessage.link())) {
+
+			if (lastVerifiedMessage != null && !message.link().linksTo(lastVerifiedMessage.link())) {
 				LOGGER.error(
 						"Received out-of-order chat message from {}: expected index > {} for session {}, but was {} for session {}",
 						new Object[]{
 								message.getSender(),
-								this.lastVerifiedMessage.link().index(),
-								this.lastVerifiedMessage.link().sessionId(),
+								lastVerifiedMessage.link().index(),
+								lastVerifiedMessage.link().sessionId(),
 								message.link().index(),
 								message.link().sessionId()
 						}
 				);
 				return false;
 			}
-			else {
-				return true;
-			}
+
+			return true;
 		}
 
 		private boolean verify(SignedMessage message) {
-			if (this.expirationChecker.getAsBoolean()) {
+			if (expirationChecker.getAsBoolean()) {
 				LOGGER.error(
 						"Received message with expired profile public key from {} with session {}",
 						message.getSender(),
@@ -70,28 +76,28 @@ public interface MessageVerifier {
 				);
 				return false;
 			}
-			else if (!message.verify(this.signatureVerifier)) {
+
+			if (!message.verify(signatureVerifier)) {
 				LOGGER.error(
 						"Received message with invalid signature (is the session wrong, or signature cache out of sync?): {}",
 						SignedMessage.toString(message)
 				);
 				return false;
 			}
-			else {
-				return this.verifyPrecedingSignature(message);
-			}
+
+			return verifyPrecedingSignature(message);
 		}
 
 		@Override
 		public @Nullable SignedMessage ensureVerified(SignedMessage message) {
-			this.lastMessageVerified = this.lastMessageVerified && this.verify(message);
-			if (!this.lastMessageVerified) {
+			lastMessageVerified = lastMessageVerified && verify(message);
+
+			if (!lastMessageVerified) {
 				return null;
 			}
-			else {
-				this.lastVerifiedMessage = message;
-				return message;
-			}
+
+			lastVerifiedMessage = message;
+			return message;
 		}
 	}
 }

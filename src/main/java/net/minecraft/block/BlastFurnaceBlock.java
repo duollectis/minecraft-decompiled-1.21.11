@@ -18,11 +18,14 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BlastFurnaceBlock}.
+ * Блок доменной печи. Плавит только руды и металлические предметы, но вдвое быстрее
+ * обычной печи. Визуально отображает дым и звук потрескивания огня при активном горении.
  */
 public class BlastFurnaceBlock extends AbstractFurnaceBlock {
 
 	public static final MapCodec<BlastFurnaceBlock> CODEC = createCodec(BlastFurnaceBlock::new);
+	private static final double SMOKE_OFFSET = 0.52;
+	private static final double SMOKE_SOUND_CHANCE = 0.1;
 
 	@Override
 	public MapCodec<BlastFurnaceBlock> getCodec() {
@@ -49,40 +52,42 @@ public class BlastFurnaceBlock extends AbstractFurnaceBlock {
 
 	@Override
 	protected void openScreen(World world, BlockPos pos, PlayerEntity player) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof BlastFurnaceBlockEntity) {
-			player.openHandledScreen((NamedScreenHandlerFactory) blockEntity);
+		if (world.getBlockEntity(pos) instanceof BlastFurnaceBlockEntity furnace) {
+			player.openHandledScreen(furnace);
 			player.incrementStat(Stats.INTERACT_WITH_BLAST_FURNACE);
 		}
 	}
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (state.get(LIT)) {
-			double d = pos.getX() + 0.5;
-			double e = pos.getY();
-			double f = pos.getZ() + 0.5;
-			if (random.nextDouble() < 0.1) {
-				world.playSoundClient(
-						d,
-						e,
-						f,
-						SoundEvents.BLOCK_BLASTFURNACE_FIRE_CRACKLE,
-						SoundCategory.BLOCKS,
-						1.0F,
-						1.0F,
-						false
-				);
-			}
-
-			Direction direction = state.get(FACING);
-			Direction.Axis axis = direction.getAxis();
-			double g = 0.52;
-			double h = random.nextDouble() * 0.6 - 0.3;
-			double i = axis == Direction.Axis.X ? direction.getOffsetX() * 0.52 : h;
-			double j = random.nextDouble() * 9.0 / 16.0;
-			double k = axis == Direction.Axis.Z ? direction.getOffsetZ() * 0.52 : h;
-			world.addParticleClient(ParticleTypes.SMOKE, d + i, e + j, f + k, 0.0, 0.0, 0.0);
+		if (state.get(LIT) == false) {
+			return;
 		}
+
+		double centerX = pos.getX() + 0.5;
+		double baseY = pos.getY();
+		double centerZ = pos.getZ() + 0.5;
+
+		if (random.nextDouble() < SMOKE_SOUND_CHANCE) {
+			world.playSoundClient(
+					centerX,
+					baseY,
+					centerZ,
+					SoundEvents.BLOCK_BLASTFURNACE_FIRE_CRACKLE,
+					SoundCategory.BLOCKS,
+					1.0F,
+					1.0F,
+					false
+			);
+		}
+
+		Direction facing = state.get(FACING);
+		Direction.Axis axis = facing.getAxis();
+		double spread = random.nextDouble() * 0.6 - 0.3;
+		double offsetX = axis == Direction.Axis.X ? facing.getOffsetX() * SMOKE_OFFSET : spread;
+		double offsetY = random.nextDouble() * 9.0 / 16.0;
+		double offsetZ = axis == Direction.Axis.Z ? facing.getOffsetZ() * SMOKE_OFFSET : spread;
+
+		world.addParticleClient(ParticleTypes.SMOKE, centerX + offsetX, baseY + offsetY, centerZ + offsetZ, 0.0, 0.0, 0.0);
 	}
 }

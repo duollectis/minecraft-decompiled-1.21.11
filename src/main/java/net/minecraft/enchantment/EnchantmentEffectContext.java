@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * {@code EnchantmentEffectContext}.
+ * Контекст применения эффекта зачарования: содержит предмет, слот экипировки,
+ * владельца и колбэк для обработки поломки предмета.
  */
 public record EnchantmentEffectContext(
 		ItemStack stack,
@@ -18,6 +19,10 @@ public record EnchantmentEffectContext(
 		Consumer<Item> breakCallback
 ) {
 
+	/**
+	 * Создаёт контекст для предмета, надетого в конкретный слот живой сущностью.
+	 * Колбэк поломки автоматически отправляет статус сломанного предмета.
+	 */
 	public EnchantmentEffectContext(ItemStack stack, EquipmentSlot slot, LivingEntity owner) {
 		this(stack, slot, owner, item -> owner.sendEquipmentBreakStatus(item, slot));
 	}

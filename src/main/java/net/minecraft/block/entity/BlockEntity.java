@@ -35,7 +35,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * {@code BlockEntity}.
+ * Базовый класс для всех блок-сущностей (Block Entities) в Minecraft.
+ * <p>
+ * Блок-сущность — это объект, прикреплённый к конкретному блоку в мире и хранящий
+ * дополнительные данные (инвентарь, состояние, прогресс крафта и т.д.).
+ * Жизненный цикл управляется через {@link BlockEntityType}, сериализацию NBT
+ * и систему компонентов {@link ComponentMap}.
  */
 public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEntity, AttachmentTarget {
 
@@ -62,38 +67,30 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		}
 	}
 
-	/**
-	 * Supports.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean supports(BlockState state) {
-		return this.type.supports(state);
+		return type.supports(state);
 	}
 
 	/**
-	 * Pos from nbt.
-	 *
-	 * @param chunkPos chunk pos
-	 * @param nbt nbt
-	 *
-	 * @return BlockPos — результат операции
+	 * Восстанавливает позицию блок-сущности из NBT с коррекцией при несовпадении чанка.
+	 * <p>
+	 * Если координаты X/Z из NBT указывают на другой чанк (артефакт повреждённых данных),
+	 * позиция принудительно корректируется до ближайшей валидной точки внутри {@code chunkPos}.
 	 */
 	public static BlockPos posFromNbt(ChunkPos chunkPos, NbtCompound nbt) {
-		int i = nbt.getInt("x", 0);
-		int j = nbt.getInt("y", 0);
-		int k = nbt.getInt("z", 0);
-		int l = ChunkSectionPos.getSectionCoord(i);
-		int m = ChunkSectionPos.getSectionCoord(k);
-		if (l != chunkPos.x || m != chunkPos.z) {
+		int x = nbt.getInt("x", 0);
+		int y = nbt.getInt("y", 0);
+		int z = nbt.getInt("z", 0);
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+
+		if (chunkX != chunkPos.x || chunkZ != chunkPos.z) {
 			LOGGER.warn("Block entity {} found in a wrong chunk, expected position from chunk {}", nbt, chunkPos);
-			i = chunkPos.getOffsetX(ChunkSectionPos.getLocalCoord(i));
-			k = chunkPos.getOffsetZ(ChunkSectionPos.getLocalCoord(k));
+			x = chunkPos.getOffsetX(ChunkSectionPos.getLocalCoord(x));
+			z = chunkPos.getOffsetZ(ChunkSectionPos.getLocalCoord(z));
 		}
 
-		return new BlockPos(i, j, k);
+		return new BlockPos(x, y, z);
 	}
 
 	public @Nullable World getWorld() {
@@ -108,155 +105,95 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.world != null;
 	}
 
-	/**
-	 * Читает data.
-	 *
-	 * @param view view
-	 */
 	protected void readData(ReadView view) {
 	}
 
-	/**
-	 * Read.
-	 *
-	 * @param view view
-	 */
 	public final void read(ReadView view) {
-		this.readData(view);
-		this.components = view.<ComponentMap>read("components", ComponentMap.CODEC).orElse(ComponentMap.EMPTY);
+		readData(view);
+		components = view.<ComponentMap>read("components", ComponentMap.CODEC).orElse(ComponentMap.EMPTY);
 	}
 
-	/**
-	 * Читает componentless data.
-	 *
-	 * @param view view
-	 */
 	public final void readComponentlessData(ReadView view) {
-		this.readData(view);
+		readData(view);
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param view view
-	 */
 	protected void writeData(WriteView view) {
 	}
 
-	/**
-	 * Создаёт nbt with identifying data.
-	 *
-	 * @param registries registries
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public final NbtCompound createNbtWithIdentifyingData(RegistryWrapper.WrapperLookup registries) {
-		NbtCompound var4;
-		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+		NbtCompound result;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(getReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-			this.writeFullData(nbtWriteView);
-			var4 = nbtWriteView.getNbt();
+			writeFullData(nbtWriteView);
+			result = nbtWriteView.getNbt();
 		}
 
-		return var4;
+		return result;
 	}
 
-	/**
-	 * Записывает full data.
-	 *
-	 * @param view view
-	 */
 	public void writeFullData(WriteView view) {
-		this.writeDataWithoutId(view);
-		this.writeIdentifyingData(view);
+		writeDataWithoutId(view);
+		writeIdentifyingData(view);
 	}
 
-	/**
-	 * Записывает data with id.
-	 *
-	 * @param view view
-	 */
 	public void writeDataWithId(WriteView view) {
-		this.writeDataWithoutId(view);
-		this.writeId(view);
+		writeDataWithoutId(view);
+		writeId(view);
 	}
 
-	/**
-	 * Создаёт nbt.
-	 *
-	 * @param registries registries
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public final NbtCompound createNbt(RegistryWrapper.WrapperLookup registries) {
-		NbtCompound var4;
-		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+		NbtCompound result;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(getReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-			this.writeDataWithoutId(nbtWriteView);
-			var4 = nbtWriteView.getNbt();
+			writeDataWithoutId(nbtWriteView);
+			result = nbtWriteView.getNbt();
 		}
 
-		return var4;
+		return result;
 	}
 
-	/**
-	 * Записывает data without id.
-	 *
-	 * @param data data
-	 */
 	public void writeDataWithoutId(WriteView data) {
-		this.writeData(data);
-		data.put("components", ComponentMap.CODEC, this.components);
+		writeData(data);
+		data.put("components", ComponentMap.CODEC, components);
 	}
 
-	/**
-	 * Создаёт componentless nbt.
-	 *
-	 * @param registries registries
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public final NbtCompound createComponentlessNbt(RegistryWrapper.WrapperLookup registries) {
-		NbtCompound var4;
-		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+		NbtCompound result;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(getReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-			this.writeComponentlessData(nbtWriteView);
-			var4 = nbtWriteView.getNbt();
+			writeComponentlessData(nbtWriteView);
+			result = nbtWriteView.getNbt();
 		}
 
-		return var4;
+		return result;
 	}
 
-	/**
-	 * Записывает componentless data.
-	 *
-	 * @param view view
-	 */
 	public void writeComponentlessData(WriteView view) {
-		this.writeData(view);
+		writeData(view);
 	}
 
 	private void writeId(WriteView view) {
-		writeId(view, this.getType());
+		writeId(view, getType());
 	}
 
-	/**
-	 * Записывает id.
-	 *
-	 * @param view view
-	 * @param type type
-	 */
 	public static void writeId(WriteView view, BlockEntityType<?> type) {
 		view.put("id", TYPE_CODEC, type);
 	}
 
 	private void writeIdentifyingData(WriteView view) {
-		this.writeId(view);
-		view.putInt("x", this.pos.getX());
-		view.putInt("y", this.pos.getY());
-		view.putInt("z", this.pos.getZ());
+		writeId(view);
+		view.putInt("x", pos.getX());
+		view.putInt("y", pos.getY());
+		view.putInt("z", pos.getZ());
 	}
 
+	/**
+	 * Создаёт блок-сущность из NBT-данных с полной обработкой ошибок.
+	 * <p>
+	 * Сначала определяет тип по ключу {@code "id"}, затем инстанцирует объект
+	 * и десериализует его данные. При любой ошибке возвращает {@code null} и логирует причину,
+	 * чтобы не ронять загрузку чанка из-за одного повреждённого блока.
+	 */
 	public static @Nullable BlockEntity createFromNbt(
 			BlockPos pos,
 			BlockState state,
@@ -264,64 +201,47 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 			RegistryWrapper.WrapperLookup registries
 	) {
 		BlockEntityType<?> blockEntityType = nbt.<BlockEntityType<?>>get("id", TYPE_CODEC).orElse(null);
+
 		if (blockEntityType == null) {
 			LOGGER.error("Skipping block entity with invalid type: {}", nbt.get("id"));
 			return null;
 		}
-		else {
-			BlockEntity blockEntity;
-			try {
-				blockEntity = blockEntityType.instantiate(pos, state);
-			}
-			catch (Throwable var12) {
-				LOGGER.error(
-						"Failed to create block entity {} for block {} at position {} ",
-						new Object[]{blockEntityType, pos, state, var12}
-				);
-				return null;
+
+		BlockEntity blockEntity;
+		try {
+			blockEntity = blockEntityType.instantiate(pos, state);
+		} catch (Throwable instantiationError) {
+			LOGGER.error(
+					"Failed to create block entity {} for block {} at position {} ",
+					blockEntityType, pos, state, instantiationError
+			);
+			return null;
+		}
+
+		try {
+			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
+				blockEntity.read(NbtReadView.create(logging, registries, nbt));
 			}
 
-			try {
-				BlockEntity var7;
-				try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-						blockEntity.getReporterContext(),
-						LOGGER
-				)
-				) {
-					blockEntity.read(NbtReadView.create(logging, registries, nbt));
-					var7 = blockEntity;
-				}
-
-				return var7;
-			}
-			catch (Throwable var11) {
-				LOGGER.error(
-						"Failed to load data for block entity {} for block {} at position {}",
-						new Object[]{blockEntityType, pos, state, var11}
-				);
-				return null;
-			}
+			return blockEntity;
+		} catch (Throwable readError) {
+			LOGGER.error(
+					"Failed to load data for block entity {} for block {} at position {}",
+					blockEntityType, pos, state, readError
+			);
+			return null;
 		}
 	}
 
-	/**
-	 * Mark dirty.
-	 */
 	public void markDirty() {
-		if (this.world != null) {
-			markDirty(this.world, this.pos, this.cachedState);
+		if (world != null) {
+			markDirty(world, pos, cachedState);
 		}
 	}
 
-	/**
-	 * Mark dirty.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	protected static void markDirty(World world, BlockPos pos, BlockState state) {
 		world.markDirty(pos);
+
 		if (!state.isAir()) {
 			world.updateComparators(pos, state.getBlock());
 		}
@@ -335,22 +255,10 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.cachedState;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return @Nullable Packet — результат операции
-	 */
 	public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
 		return null;
 	}
 
-	/**
-	 * To initial chunk data nbt.
-	 *
-	 * @param registries registries
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
 		return new NbtCompound();
 	}
@@ -359,58 +267,33 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.removed;
 	}
 
-	/**
-	 * Mark removed.
-	 */
 	public void markRemoved() {
-		this.removed = true;
+		removed = true;
 	}
 
-	/**
-	 * Проверяет возможность cel removal.
-	 */
 	public void cancelRemoval() {
-		this.removed = false;
+		removed = false;
 	}
 
-	/**
-	 * Обрабатывает событие block replaced.
-	 *
-	 * @param pos pos
-	 * @param oldState old state
-	 */
 	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
-		if (this instanceof Inventory inventory && this.world != null) {
-			ItemScatterer.spawn(this.world, pos, inventory);
+		if (this instanceof Inventory inventory && world != null) {
+			ItemScatterer.spawn(world, pos, inventory);
 		}
 	}
 
-	/**
-	 * Обрабатывает событие synced block event.
-	 *
-	 * @param type type
-	 * @param data data
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean onSyncedBlockEvent(int type, int data) {
 		return false;
 	}
 
-	/**
-	 * Populate crash report.
-	 *
-	 * @param crashReportSection crash report section
-	 */
 	public void populateCrashReport(CrashReportSection crashReportSection) {
 		crashReportSection.add("Name", this::getNameForReport);
 		crashReportSection.add("Cached block", this.getCachedState()::toString);
-		if (this.world == null) {
-			crashReportSection.add("Block location", () -> this.pos + " (world missing)");
-		}
-		else {
-			crashReportSection.add("Actual block", this.world.getBlockState(this.pos)::toString);
-			CrashReportSection.addBlockLocation(crashReportSection, this.world, this.pos);
+
+		if (world == null) {
+			crashReportSection.add("Block location", () -> pos + " (world missing)");
+		} else {
+			crashReportSection.add("Actual block", world.getBlockState(pos)::toString);
+			CrashReportSection.addBlockLocation(crashReportSection, world, pos);
 		}
 	}
 
@@ -419,125 +302,97 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 	}
 
 	public BlockEntityType<?> getType() {
-		return this.type;
-	}
-
-	@Deprecated
-	public void setCachedState(BlockState state) {
-		this.validateSupports(state);
-		this.cachedState = state;
+		return type;
 	}
 
 	/**
-	 * Читает components.
-	 *
-	 * @param components components
+	 * @deprecated Используй только при необходимости принудительной смены типа блока без пересоздания сущности.
 	 */
+	@Deprecated
+	public void setCachedState(BlockState state) {
+		validateSupports(state);
+		cachedState = state;
+	}
+
 	protected void readComponents(ComponentsAccess components) {
 	}
 
-	/**
-	 * Читает components.
-	 *
-	 * @param stack stack
-	 */
 	public final void readComponents(ItemStack stack) {
-		this.readComponents(stack.getDefaultComponents(), stack.getComponentChanges());
+		readComponents(stack.getDefaultComponents(), stack.getComponentChanges());
 	}
 
 	/**
-	 * Читает components.
-	 *
-	 * @param defaultComponents default components
-	 * @param components components
+	 * Применяет компоненты из ItemStack к блок-сущности, отслеживая какие типы были прочитаны.
+	 * <p>
+	 * Компоненты {@code BLOCK_ENTITY_DATA} и {@code BLOCK_STATE} исключаются из финального
+	 * {@link ComponentMap}, чтобы не дублировать данные, уже хранящиеся в NBT и состоянии блока.
 	 */
 	public final void readComponents(ComponentMap defaultComponents, ComponentChanges components) {
-		final Set<ComponentType<?>> set = new HashSet<>();
-		set.add(DataComponentTypes.BLOCK_ENTITY_DATA);
-		set.add(DataComponentTypes.BLOCK_STATE);
+		final Set<ComponentType<?>> readTypes = new HashSet<>();
+		readTypes.add(DataComponentTypes.BLOCK_ENTITY_DATA);
+		readTypes.add(DataComponentTypes.BLOCK_STATE);
+
 		final ComponentMap componentMap = MergedComponentMap.create(defaultComponents, components);
-		this.readComponents(new ComponentsAccess() {
+		readComponents(new ComponentsAccess() {
 			@Override
 			public <T> @Nullable T get(ComponentType<? extends T> type) {
-				set.add(type);
+				readTypes.add(type);
 				return componentMap.get(type);
 			}
 
 			@Override
 			public <T> T getOrDefault(ComponentType<? extends T> type, T fallback) {
-				set.add(type);
+				readTypes.add(type);
 				return componentMap.getOrDefault(type, fallback);
 			}
 		});
-		ComponentChanges componentChanges = components.withRemovedIf(set::contains);
-		this.components = componentChanges.toAddedRemovedPair().added();
+
+		ComponentChanges filteredChanges = components.withRemovedIf(readTypes::contains);
+		this.components = filteredChanges.toAddedRemovedPair().added();
 	}
 
-	/**
-	 * Добавляет components.
-	 *
-	 * @param builder builder
-	 */
 	protected void addComponents(ComponentMap.Builder builder) {
 	}
 
-	@Deprecated
 	/**
-	 * Удаляет from copied stack data.
-	 *
-	 * @param view view
+	 * @deprecated Метод-заглушка для совместимости; переопределяй при необходимости очистки данных при копировании стека.
 	 */
+	@Deprecated
 	public void removeFromCopiedStackData(WriteView view) {
 	}
 
-	/**
-	 * Создаёт component map.
-	 *
-	 * @return ComponentMap — результат операции
-	 */
 	public final ComponentMap createComponentMap() {
 		ComponentMap.Builder builder = ComponentMap.builder();
-		builder.addAll(this.components);
-		this.addComponents(builder);
+		builder.addAll(components);
+		addComponents(builder);
 		return builder.build();
 	}
 
 	public ComponentMap getComponents() {
-		return this.components;
+		return components;
 	}
 
 	public void setComponents(ComponentMap components) {
 		this.components = components;
 	}
 
-	/**
-	 * Try parse custom name.
-	 *
-	 * @param view view
-	 * @param key key
-	 *
-	 * @return @Nullable Text — результат операции
-	 */
 	public static @Nullable Text tryParseCustomName(ReadView view, String key) {
 		return view.<Text>read(key, TextCodecs.CODEC).orElse(null);
 	}
 
 	public ErrorReporter.Context getReporterContext() {
-		return new BlockEntity.ReporterContext(this);
+		return new ReporterContext(this);
 	}
 
 	@Override
 	public void registerTracking(ServerWorld world, DebugTrackable.Tracker tracker) {
 	}
 
-	/**
-	 * {@code ReporterContext}.
-	 */
 	record ReporterContext(BlockEntity blockEntity) implements ErrorReporter.Context {
 
 		@Override
 		public String getName() {
-			return this.blockEntity.getNameForReport() + "@" + this.blockEntity.getPos();
+			return blockEntity.getNameForReport() + "@" + blockEntity.getPos();
 		}
 	}
 }

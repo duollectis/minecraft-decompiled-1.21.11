@@ -6,7 +6,10 @@ import net.minecraft.screen.sync.TrackedSlot;
 import java.util.List;
 
 /**
- * {@code ScreenHandlerSyncHandler}.
+ * Обработчик синхронизации состояния {@link ScreenHandler} между сервером и клиентом.
+ * <p>
+ * Реализуется сетевым слоем (ServerPlayNetworkHandler) и отвечает за отправку
+ * пакетов обновления слотов, свойств и курсора конкретному игроку.
  */
 public interface ScreenHandlerSyncHandler {
 

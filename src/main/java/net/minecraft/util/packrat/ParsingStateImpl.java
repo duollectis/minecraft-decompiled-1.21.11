@@ -4,7 +4,10 @@ import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ParsingStateImpl}.
+ * Базовая реализация {@link ParsingState}, обеспечивающая мемоизацию результатов разбора
+ * (packrat-кэш) и стек отсечений (cut). Мемоизация гарантирует, что каждое правило
+ * вычисляется не более одного раза для каждой позиции курсора, что даёт линейную
+ * сложность разбора PEG-грамматик.
  */
 public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 
@@ -21,83 +24,87 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 
 	@Override
 	public ParseResults getResults() {
-		return this.results;
+		return results;
 	}
 
 	@Override
 	public ParseErrorList<S> getErrors() {
-		return this.errors;
+		return errors;
 	}
 
+	/**
+	 * Выполняет разбор по заданному правилу с мемоизацией результата.
+	 * Если результат для текущей позиции курсора уже вычислен — возвращает его из кэша,
+	 * не вызывая правило повторно.
+	 */
 	@Override
 	public <T> @Nullable T parse(ParsingRuleEntry<S, T> rule) {
-		int i = this.getCursor();
-		ParsingStateImpl.MemoizedData memoizedData = this.pushMemoizedData(i);
-		int j = memoizedData.get(rule.getSymbol());
-		if (j != -1) {
-			ParsingStateImpl.MemoizedValue<T> memoizedValue = memoizedData.get(j);
-			if (memoizedValue != null) {
-				if (memoizedValue == ParsingStateImpl.MemoizedValue.EMPTY) {
+		int cursor = getCursor();
+		ParsingStateImpl.MemoizedData memoizedData = pushMemoizedData(cursor);
+		int slotIndex = memoizedData.get(rule.getSymbol());
+
+		if (slotIndex != -1) {
+			ParsingStateImpl.MemoizedValue<T> cached = memoizedData.get(slotIndex);
+
+			if (cached != null) {
+				if (cached == ParsingStateImpl.MemoizedValue.EMPTY) {
 					return null;
 				}
 
-				this.setCursor(memoizedValue.markAfterParse);
-				return memoizedValue.value;
+				setCursor(cached.markAfterParse());
+				return cached.value();
 			}
-		}
-		else {
-			j = memoizedData.push(rule.getSymbol());
-		}
-
-		T object = rule.getRule().parse(this);
-		ParsingStateImpl.MemoizedValue<T> memoizedValue2;
-		if (object == null) {
-			memoizedValue2 = ParsingStateImpl.MemoizedValue.empty();
-		}
-		else {
-			int k = this.getCursor();
-			memoizedValue2 = new ParsingStateImpl.MemoizedValue<>(object, k);
+		} else {
+			slotIndex = memoizedData.push(rule.getSymbol());
 		}
 
-		memoizedData.put(j, memoizedValue2);
-		return object;
+		T parsed = rule.getRule().parse(this);
+		ParsingStateImpl.MemoizedValue<T> memoValue = parsed == null
+				? ParsingStateImpl.MemoizedValue.empty()
+				: new ParsingStateImpl.MemoizedValue<>(parsed, getCursor());
+
+		memoizedData.put(slotIndex, memoValue);
+		return parsed;
 	}
 
 	private ParsingStateImpl.MemoizedData pushMemoizedData(int cursor) {
-		int i = this.memoStack.length;
-		if (cursor >= i) {
-			int j = Util.nextCapacity(i, cursor + 1);
-			ParsingStateImpl.MemoizedData[] memoizedDatas = new ParsingStateImpl.MemoizedData[j];
-			System.arraycopy(this.memoStack, 0, memoizedDatas, 0, i);
-			this.memoStack = memoizedDatas;
+		int currentLength = memoStack.length;
+
+		if (cursor >= currentLength) {
+			int newLength = Util.nextCapacity(currentLength, cursor + 1);
+			ParsingStateImpl.MemoizedData[] expanded = new ParsingStateImpl.MemoizedData[newLength];
+			System.arraycopy(memoStack, 0, expanded, 0, currentLength);
+			memoStack = expanded;
 		}
 
-		ParsingStateImpl.MemoizedData memoizedData = this.memoStack[cursor];
-		if (memoizedData == null) {
-			memoizedData = new ParsingStateImpl.MemoizedData();
-			this.memoStack[cursor] = memoizedData;
+		ParsingStateImpl.MemoizedData slot = memoStack[cursor];
+
+		if (slot == null) {
+			slot = new ParsingStateImpl.MemoizedData();
+			memoStack[cursor] = slot;
 		}
 
-		return memoizedData;
+		return slot;
 	}
 
 	@Override
 	public Cut pushCutter() {
-		int i = this.cutters.length;
-		if (this.topCutterIndex >= i) {
-			int j = Util.nextCapacity(i, this.topCutterIndex + 1);
-			ParsingStateImpl.Cutter[] cutters = new ParsingStateImpl.Cutter[j];
-			System.arraycopy(this.cutters, 0, cutters, 0, i);
-			this.cutters = cutters;
+		int currentLength = cutters.length;
+
+		if (topCutterIndex >= currentLength) {
+			int newLength = Util.nextCapacity(currentLength, topCutterIndex + 1);
+			ParsingStateImpl.Cutter[] expanded = new ParsingStateImpl.Cutter[newLength];
+			System.arraycopy(cutters, 0, expanded, 0, currentLength);
+			cutters = expanded;
 		}
 
-		int j = this.topCutterIndex++;
-		ParsingStateImpl.Cutter cutter = this.cutters[j];
+		int index = topCutterIndex++;
+		ParsingStateImpl.Cutter cutter = cutters[index];
+
 		if (cutter == null) {
 			cutter = new ParsingStateImpl.Cutter();
-			this.cutters[j] = cutter;
-		}
-		else {
+			cutters[index] = cutter;
+		} else {
 			cutter.reset();
 		}
 
@@ -106,16 +113,17 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 
 	@Override
 	public void popCutter() {
-		this.topCutterIndex--;
+		topCutterIndex--;
 	}
 
 	@Override
 	public ParsingState<S> getErrorSuppressingState() {
-		return this.errorSuppressingState;
+		return errorSuppressingState;
 	}
 
 	/**
-	 * {@code Cutter}.
+	 * Изменяемый флаг отсечения (cut). Переиспользуется через {@link #reset()},
+	 * чтобы избежать лишних аллокаций при каждом вызове {@code anyOf}.
 	 */
 	static class Cutter implements Cut {
 
@@ -123,24 +131,22 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 
 		@Override
 		public void cut() {
-			this.cut = true;
+			cut = true;
 		}
 
 		@Override
 		public boolean isCut() {
-			return this.cut;
+			return cut;
 		}
 
-		/**
-		 * Reset.
-		 */
 		public void reset() {
-			this.cut = false;
+			cut = false;
 		}
 	}
 
 	/**
-	 * {@code ErrorSuppressing}.
+	 * Делегирующая обёртка над внешним состоянием, которая подавляет накопление ошибок.
+	 * Используется в lookahead-термах, где неудача не должна загрязнять список ошибок.
 	 */
 	class ErrorSuppressing implements ParsingState<S> {
 
@@ -148,7 +154,7 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 
 		@Override
 		public ParseErrorList<S> getErrors() {
-			return this.errors;
+			return errors;
 		}
 
 		@Override
@@ -193,7 +199,9 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 	}
 
 	/**
-	 * {@code MemoizedData}.
+	 * Плоский массив-кэш для одной позиции курсора. Хранит пары (Symbol, MemoizedValue)
+	 * в чередующихся слотах: чётный индекс — символ, нечётный — значение.
+	 * Линейный поиск оправдан, так как количество правил на позицию невелико.
 	 */
 	static class MemoizedData {
 
@@ -202,67 +210,49 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 		private Object[] values = new Object[16];
 		private int top;
 
-		/**
-		 * Get.
-		 *
-		 * @param symbol symbol
-		 *
-		 * @return int — 
-		 */
 		public int get(Symbol<?> symbol) {
-			for (int i = 0; i < this.top; i += 2) {
-				if (this.values[i] == symbol) {
+			for (int i = 0; i < top; i += 2) {
+				if (values[i] == symbol) {
 					return i;
 				}
 			}
 
-			return -1;
+			return MISSING;
 		}
 
-		/**
-		 * Push.
-		 *
-		 * @param symbol symbol
-		 *
-		 * @return int — результат операции
-		 */
 		public int push(Symbol<?> symbol) {
-			int i = this.top;
-			this.top += 2;
-			int j = i + 1;
-			int k = this.values.length;
-			if (j >= k) {
-				int l = Util.nextCapacity(k, j + 1);
-				Object[] objects = new Object[l];
-				System.arraycopy(this.values, 0, objects, 0, k);
-				this.values = objects;
+			int slotIndex = top;
+			top += 2;
+			int valueSlot = slotIndex + 1;
+			int currentLength = values.length;
+
+			if (valueSlot >= currentLength) {
+				int newLength = Util.nextCapacity(currentLength, valueSlot + 1);
+				Object[] expanded = new Object[newLength];
+				System.arraycopy(values, 0, expanded, 0, currentLength);
+				values = expanded;
 			}
 
-			this.values[i] = symbol;
-			return i;
+			values[slotIndex] = symbol;
+			return slotIndex;
 		}
 
 		public <T> ParsingStateImpl.@Nullable MemoizedValue<T> get(int index) {
-			return (ParsingStateImpl.MemoizedValue<T>) this.values[index + 1];
+			return (ParsingStateImpl.MemoizedValue<T>) values[index + 1];
 		}
 
-		/**
-		 * Put.
-		 *
-		 * @param index index
-		 * @param value value
-		 */
 		public void put(int index, ParsingStateImpl.MemoizedValue<?> value) {
-			this.values[index + 1] = value;
+			values[index + 1] = value;
 		}
 	}
 
 	/**
-	 * {@code MemoizedValue}.
+	 * Иммутабельный контейнер для мемоизированного результата разбора.
+	 * {@link #EMPTY} — сентинел для неудачного разбора (null-результат).
 	 */
 	record MemoizedValue<T>(@Nullable T value, int markAfterParse) {
 
-		public static final ParsingStateImpl.MemoizedValue<?> EMPTY = new ParsingStateImpl.MemoizedValue(null, -1);
+		public static final ParsingStateImpl.MemoizedValue<?> EMPTY = new ParsingStateImpl.MemoizedValue<>(null, -1);
 
 		public static <T> ParsingStateImpl.MemoizedValue<T> empty() {
 			return (ParsingStateImpl.MemoizedValue<T>) EMPTY;

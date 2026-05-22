@@ -17,7 +17,9 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code ElderGuardianEntity}.
+ * Старший страж — усиленная версия стража. Постоянный моб (не деспавнится).
+ * Каждые {@value #EFFECT_APPLY_INTERVAL} тиков накладывает усталость горняка III
+ * на всех игроков в радиусе {@value #AFFECTED_PLAYER_RANGE} блоков.
  */
 public class ElderGuardianEntity extends GuardianEntity {
 
@@ -30,9 +32,9 @@ public class ElderGuardianEntity extends GuardianEntity {
 
 	public ElderGuardianEntity(EntityType<? extends ElderGuardianEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPersistent();
-		if (this.wanderGoal != null) {
-			this.wanderGoal.setChance(400);
+		setPersistent();
+		if (wanderGoal != null) {
+			wanderGoal.setChance(400);
 		}
 	}
 
@@ -50,20 +52,23 @@ public class ElderGuardianEntity extends GuardianEntity {
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_ELDER_GUARDIAN_AMBIENT
-		                              : SoundEvents.ENTITY_ELDER_GUARDIAN_AMBIENT_LAND;
+		return isTouchingWater()
+				? SoundEvents.ENTITY_ELDER_GUARDIAN_AMBIENT
+				: SoundEvents.ENTITY_ELDER_GUARDIAN_AMBIENT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getHurtSound(DamageSource source) {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_ELDER_GUARDIAN_HURT
-		                              : SoundEvents.ENTITY_ELDER_GUARDIAN_HURT_LAND;
+		return isTouchingWater()
+				? SoundEvents.ENTITY_ELDER_GUARDIAN_HURT
+				: SoundEvents.ENTITY_ELDER_GUARDIAN_HURT_LAND;
 	}
 
 	@Override
 	protected SoundEvent getDeathSound() {
-		return this.isTouchingWater() ? SoundEvents.ENTITY_ELDER_GUARDIAN_DEATH
-		                              : SoundEvents.ENTITY_ELDER_GUARDIAN_DEATH_LAND;
+		return isTouchingWater()
+				? SoundEvents.ENTITY_ELDER_GUARDIAN_DEATH
+				: SoundEvents.ENTITY_ELDER_GUARDIAN_DEATH_LAND;
 	}
 
 	@Override
@@ -71,32 +76,38 @@ public class ElderGuardianEntity extends GuardianEntity {
 		return SoundEvents.ENTITY_ELDER_GUARDIAN_FLOP;
 	}
 
+	/**
+	 * Периодически накладывает эффект усталости горняка на всех игроков в радиусе {@code AFFECTED_PLAYER_RANGE} блоков.
+	 * Также отправляет клиентский пакет для отображения анимации появления старшего стража.
+	 */
 	@Override
 	protected void mobTick(ServerWorld world) {
 		super.mobTick(world);
-		if ((this.age + this.getId()) % 1200 == 0) {
-			StatusEffectInstance statusEffectInstance = new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 6000, 2);
-			List<ServerPlayerEntity>
-					list =
-					StatusEffectUtil.addEffectToPlayersWithinDistance(
-							world,
-							this,
-							this.getEntityPos(),
-							50.0,
-							statusEffectInstance,
-							1200
-					);
-			list.forEach(
-					player -> player.networkHandler
-							.sendPacket(new GameStateChangeS2CPacket(
-									GameStateChangeS2CPacket.ELDER_GUARDIAN_EFFECT,
-									this.isSilent() ? 0.0F : 1.0F
-							))
+
+		if ((age + getId()) % EFFECT_APPLY_INTERVAL == 0) {
+			StatusEffectInstance miningFatigue = new StatusEffectInstance(
+					StatusEffects.MINING_FATIGUE,
+					MINING_FATIGUE_DURATION,
+					MINING_FATIGUE_AMPLIFIER
+			);
+			List<ServerPlayerEntity> affectedPlayers = StatusEffectUtil.addEffectToPlayersWithinDistance(
+					world,
+					this,
+					getEntityPos(),
+					AFFECTED_PLAYER_RANGE,
+					miningFatigue,
+					EFFECT_APPLY_INTERVAL
+			);
+			affectedPlayers.forEach(
+					player -> player.networkHandler.sendPacket(new GameStateChangeS2CPacket(
+							GameStateChangeS2CPacket.ELDER_GUARDIAN_EFFECT,
+							isSilent() ? 0.0F : 1.0F
+					))
 			);
 		}
 
-		if (!this.hasPositionTarget()) {
-			this.setPositionTarget(this.getBlockPos(), 16);
+		if (!hasPositionTarget()) {
+			setPositionTarget(getBlockPos(), 16);
 		}
 	}
 }

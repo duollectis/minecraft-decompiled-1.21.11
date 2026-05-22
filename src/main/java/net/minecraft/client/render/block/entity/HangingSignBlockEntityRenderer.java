@@ -26,10 +26,12 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HangingSignBlockEntityRenderer}.
+ * Рендерер подвесных табличек. Поддерживает три типа крепления:
+ * к стене, к потолку (с цепями) и к центру потолка (с вертикальными цепями).
+ * Модели предварительно строятся для каждой комбинации типа дерева и крепления.
  */
+@Environment(EnvType.CLIENT)
 public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRenderer {
 
 	private static final String PLANK = "plank";
@@ -43,20 +45,16 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 	public static final float MODEL_SCALE = 1.0F;
 	private static final float TEXT_SCALE = 0.9F;
 	private static final Vec3d TEXT_OFFSET = new Vec3d(0.0, -0.32F, 0.073F);
+
 	private final Map<HangingSignBlockEntityRenderer.Variant, Model.SinglePartModel> models;
 
 	public HangingSignBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 		super(context);
-		Stream<HangingSignBlockEntityRenderer.Variant> stream = WoodType.stream()
-		                                                                .flatMap(
-				                                                                woodType -> Arrays
-						                                                                .stream(HangingSignBlockEntityRenderer.AttachmentType.values())
-						                                                                .map(attachmentType -> new HangingSignBlockEntityRenderer.Variant(
-								                                                                woodType,
-								                                                                attachmentType
-						                                                                ))
-		                                                                );
-		this.models = stream.collect(
+		Stream<HangingSignBlockEntityRenderer.Variant> variants = WoodType.stream()
+				.flatMap(woodType -> Arrays.stream(HangingSignBlockEntityRenderer.AttachmentType.values())
+						.map(attachmentType -> new HangingSignBlockEntityRenderer.Variant(woodType, attachmentType))
+				);
+		models = variants.collect(
 				ImmutableMap.toImmutableMap(
 						variant -> variant,
 						variant -> createModel(context.loadedEntityModels(), variant.woodType, variant.attachmentType)
@@ -70,21 +68,19 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 			HangingSignBlockEntityRenderer.AttachmentType attachmentType
 	) {
 		return new Model.SinglePartModel(
-				models.getModelPart(EntityModelLayers.createHangingSign(
-						woodType,
-						attachmentType
-				)), RenderLayers::entityCutoutNoCull
+				models.getModelPart(EntityModelLayers.createHangingSign(woodType, attachmentType)),
+				RenderLayers::entityCutoutNoCull
 		);
 	}
 
 	@Override
 	protected float getSignScale() {
-		return 1.0F;
+		return MODEL_SCALE;
 	}
 
 	@Override
 	protected float getTextScale() {
-		return 0.9F;
+		return TEXT_SCALE;
 	}
 
 	public static void setAngles(MatrixStack matrices, float blockRotationDegrees) {
@@ -100,10 +96,8 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 
 	@Override
 	protected Model.SinglePartModel getModel(BlockState state, WoodType woodType) {
-		HangingSignBlockEntityRenderer.AttachmentType
-				attachmentType =
-				HangingSignBlockEntityRenderer.AttachmentType.from(state);
-		return this.models.get(new HangingSignBlockEntityRenderer.Variant(woodType, attachmentType));
+		HangingSignBlockEntityRenderer.AttachmentType attachmentType = HangingSignBlockEntityRenderer.AttachmentType.from(state);
+		return models.get(new HangingSignBlockEntityRenderer.Variant(woodType, attachmentType));
 	}
 
 	@Override
@@ -120,8 +114,8 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 			SpriteHolder spriteHolder,
 			MatrixStack matrixStack,
 			OrderedRenderCommandQueue orderedRenderCommandQueue,
-			int i,
-			int j,
+			int light,
+			int overlay,
 			Model.SinglePartModel singlePartModel,
 			SpriteIdentifier spriteIdentifier
 	) {
@@ -133,8 +127,8 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 				Unit.INSTANCE,
 				matrixStack,
 				spriteIdentifier.getRenderLayer(singlePartModel::getLayer),
-				i,
-				j,
+				light,
+				overlay,
 				-1,
 				spriteHolder.getSprite(spriteIdentifier),
 				OverlayTexture.DEFAULT_UV,
@@ -145,50 +139,50 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 
 	public static TexturedModelData getTexturedModelData(HangingSignBlockEntityRenderer.AttachmentType attachmentType) {
 		ModelData modelData = new ModelData();
-		ModelPartData modelPartData = modelData.getRoot();
-		modelPartData.addChild(
-				"board",
+		ModelPartData root = modelData.getRoot();
+		root.addChild(
+				BOARD,
 				ModelPartBuilder.create().uv(0, 12).cuboid(-7.0F, 0.0F, -1.0F, 14.0F, 10.0F, 2.0F),
 				ModelTransform.NONE
 		);
+
 		if (attachmentType == HangingSignBlockEntityRenderer.AttachmentType.WALL) {
-			modelPartData.addChild(
-					"plank",
+			root.addChild(
+					PLANK,
 					ModelPartBuilder.create().uv(0, 0).cuboid(-8.0F, -6.0F, -2.0F, 16.0F, 2.0F, 4.0F),
 					ModelTransform.NONE
 			);
 		}
 
 		if (attachmentType == HangingSignBlockEntityRenderer.AttachmentType.WALL
-				|| attachmentType == HangingSignBlockEntityRenderer.AttachmentType.CEILING) {
-			ModelPartData
-					modelPartData2 =
-					modelPartData.addChild("normalChains", ModelPartBuilder.create(), ModelTransform.NONE);
-			modelPartData2.addChild(
-					"chainL1",
+				|| attachmentType == HangingSignBlockEntityRenderer.AttachmentType.CEILING
+		) {
+			ModelPartData chains = root.addChild(NORMAL_CHAINS, ModelPartBuilder.create(), ModelTransform.NONE);
+			chains.addChild(
+					CHAIN_L1,
 					ModelPartBuilder.create().uv(0, 6).cuboid(-1.5F, 0.0F, 0.0F, 3.0F, 6.0F, 0.0F),
 					ModelTransform.of(-5.0F, -6.0F, 0.0F, 0.0F, (float) (-Math.PI / 4), 0.0F)
 			);
-			modelPartData2.addChild(
-					"chainL2",
+			chains.addChild(
+					CHAIN_L2,
 					ModelPartBuilder.create().uv(6, 6).cuboid(-1.5F, 0.0F, 0.0F, 3.0F, 6.0F, 0.0F),
 					ModelTransform.of(-5.0F, -6.0F, 0.0F, 0.0F, (float) (Math.PI / 4), 0.0F)
 			);
-			modelPartData2.addChild(
-					"chainR1",
+			chains.addChild(
+					CHAIN_R1,
 					ModelPartBuilder.create().uv(0, 6).cuboid(-1.5F, 0.0F, 0.0F, 3.0F, 6.0F, 0.0F),
 					ModelTransform.of(5.0F, -6.0F, 0.0F, 0.0F, (float) (-Math.PI / 4), 0.0F)
 			);
-			modelPartData2.addChild(
-					"chainR2",
+			chains.addChild(
+					CHAIN_R2,
 					ModelPartBuilder.create().uv(6, 6).cuboid(-1.5F, 0.0F, 0.0F, 3.0F, 6.0F, 0.0F),
 					ModelTransform.of(5.0F, -6.0F, 0.0F, 0.0F, (float) (Math.PI / 4), 0.0F)
 			);
 		}
 
 		if (attachmentType == HangingSignBlockEntityRenderer.AttachmentType.CEILING_MIDDLE) {
-			modelPartData.addChild(
-					"vChains",
+			root.addChild(
+					V_CHAINS,
 					ModelPartBuilder.create().uv(14, 6).cuboid(-6.0F, -6.0F, 0.0F, 12.0F, 6.0F, 0.0F),
 					ModelTransform.NONE
 			);
@@ -197,18 +191,16 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 		return TexturedModelData.of(modelData, 64, 32);
 	}
 
+	/** Тип крепления подвесной таблички: к стене, к потолку или к центру потолка. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code AttachmentType}.
-	 */
-	public static enum AttachmentType implements StringIdentifiable {
+	public enum AttachmentType implements StringIdentifiable {
 		WALL("wall"),
 		CEILING("ceiling"),
 		CEILING_MIDDLE("ceiling_middle");
 
 		private final String id;
 
-		private AttachmentType(final String id) {
+		AttachmentType(final String id) {
 			this.id = id;
 		}
 
@@ -216,21 +208,18 @@ public class HangingSignBlockEntityRenderer extends AbstractSignBlockEntityRende
 			if (state.getBlock() instanceof HangingSignBlock) {
 				return state.get(Properties.ATTACHED) ? CEILING_MIDDLE : CEILING;
 			}
-			else {
-				return WALL;
-			}
+
+			return WALL;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 
+	/** Уникальный ключ модели: комбинация типа дерева и типа крепления. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Variant}.
-	 */
 	public record Variant(WoodType woodType, HangingSignBlockEntityRenderer.AttachmentType attachmentType) {
 	}
 }

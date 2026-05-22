@@ -6,7 +6,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code AmphibiousSwimNavigation}.
+ * Навигация земноводного существа: одинаково хорошо работает на суше и в воде.
+ * В воде проверяет прямую видимость, на суше всегда использует A*.
  */
 public class AmphibiousSwimNavigation extends EntityNavigation {
 
@@ -16,8 +17,8 @@ public class AmphibiousSwimNavigation extends EntityNavigation {
 
 	@Override
 	protected PathNodeNavigator createPathNodeNavigator(int range) {
-		this.nodeMaker = new AmphibiousPathNodeMaker(false);
-		return new PathNodeNavigator(this.nodeMaker, range);
+		nodeMaker = new AmphibiousPathNodeMaker(false);
+		return new PathNodeNavigator(nodeMaker, range);
 	}
 
 	@Override
@@ -27,7 +28,7 @@ public class AmphibiousSwimNavigation extends EntityNavigation {
 
 	@Override
 	protected Vec3d getPos() {
-		return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
+		return new Vec3d(entity.getX(), entity.getBodyY(0.5), entity.getZ());
 	}
 
 	@Override
@@ -37,14 +38,15 @@ public class AmphibiousSwimNavigation extends EntityNavigation {
 
 	@Override
 	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
-		return this.entity.isInFluid() ? doesNotCollide(this.entity, origin, target, false) : false;
+		return entity.isInFluid() && doesNotCollide(entity, origin, target, false);
 	}
 
 	@Override
 	public boolean isValidPosition(BlockPos pos) {
-		return !this.world.getBlockState(pos.down()).isAir();
+		return !world.getBlockState(pos.down()).isAir();
 	}
 
+	/** Земноводное всегда может плавать — флаг не используется. */
 	@Override
 	public void setCanSwim(boolean canSwim) {
 	}

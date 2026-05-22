@@ -3,22 +3,23 @@ package net.minecraft.util;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
-@FunctionalInterface
 /**
- * {@code TimeSupplier}.
+ * Поставщик текущего времени с возможностью конвертации в произвольные единицы.
  */
+@FunctionalInterface
 public interface TimeSupplier {
 
 	long get(TimeUnit timeUnit);
 
 	/**
-	 * {@code Nanoseconds}.
+	 * Специализация {@link TimeSupplier} для наносекундного разрешения,
+	 * совместимая с {@link LongSupplier}.
 	 */
-	public interface Nanoseconds extends TimeSupplier, LongSupplier {
+	interface Nanoseconds extends TimeSupplier, LongSupplier {
 
 		@Override
 		default long get(TimeUnit timeUnit) {
-			return timeUnit.convert(this.getAsLong(), TimeUnit.NANOSECONDS);
+			return timeUnit.convert(getAsLong(), TimeUnit.NANOSECONDS);
 		}
 	}
 }

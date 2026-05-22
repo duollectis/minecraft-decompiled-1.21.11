@@ -7,50 +7,66 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ExplosionEmitterParticle}.
+ * Невидимая частица-эмиттер взрыва. За 8 тиков своей жизни каждый тик
+ * порождает 6 дочерних частиц {@link ParticleTypes#EXPLOSION}, разлетающихся
+ * в случайных направлениях в радиусе 4 блоков. Сама не рендерится.
  */
+@Environment(EnvType.CLIENT)
 public class ExplosionEmitterParticle extends NoRenderParticle {
 
-	ExplosionEmitterParticle(ClientWorld clientWorld, double d, double e, double f) {
-		super(clientWorld, d, e, f, 0.0, 0.0, 0.0);
-		this.maxAge = 8;
+	private static final int MAX_AGE = 8;
+	private static final int PARTICLES_PER_TICK = 6;
+	private static final double SPREAD_RADIUS = 4.0;
+
+	ExplosionEmitterParticle(ClientWorld world, double x, double y, double z) {
+		super(world, x, y, z, 0.0, 0.0, 0.0);
+		this.maxAge = MAX_AGE;
 	}
 
 	@Override
 	public void tick() {
-		for (int i = 0; i < 6; i++) {
-			double d = this.x + (this.random.nextDouble() - this.random.nextDouble()) * 4.0;
-			double e = this.y + (this.random.nextDouble() - this.random.nextDouble()) * 4.0;
-			double f = this.z + (this.random.nextDouble() - this.random.nextDouble()) * 4.0;
-			this.world.addParticleClient(ParticleTypes.EXPLOSION, d, e, f, (float) this.age / this.maxAge, 0.0, 0.0);
+		for (int spawnIndex = 0; spawnIndex < PARTICLES_PER_TICK; spawnIndex++) {
+			double spawnX = this.x + (this.random.nextDouble() - this.random.nextDouble()) * SPREAD_RADIUS;
+			double spawnY = this.y + (this.random.nextDouble() - this.random.nextDouble()) * SPREAD_RADIUS;
+			double spawnZ = this.z + (this.random.nextDouble() - this.random.nextDouble()) * SPREAD_RADIUS;
+			this.world.addParticleClient(
+					ParticleTypes.EXPLOSION,
+					spawnX,
+					spawnY,
+					spawnZ,
+					(float) this.age / this.maxAge,
+					0.0,
+					0.0
+			);
 		}
 
 		this.age++;
+
 		if (this.age == this.maxAge) {
 			this.markDead();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания эмиттера взрыва.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new ExplosionEmitterParticle(clientWorld, d, e, f);
+			return new ExplosionEmitterParticle(world, x, y, z);
 		}
 	}
 }

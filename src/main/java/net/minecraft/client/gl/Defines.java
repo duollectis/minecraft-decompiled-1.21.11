@@ -12,26 +12,26 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Defines}.
+ * Набор препроцессорных директив GLSL: именованные значения ({@code #define KEY VALUE})
+ * и флаги ({@code #define FLAG}). Используется при компиляции шейдеров для передачи
+ * конфигурационных параметров.
  */
+@Environment(EnvType.CLIENT)
 public record Defines(Map<String, String> values, Set<String> flags) {
 
 	public static final Defines EMPTY = new Defines(Map.of(), Set.of());
 	public static final Codec<Defines> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Codec
-							                    .unboundedMap(Codec.STRING, Codec.STRING)
-							                    .optionalFieldOf("values", Map.of())
-							                    .forGetter(Defines::values),
-					                    Codec.STRING
-							                    .listOf()
-							                    .xmap(Set::copyOf, List::copyOf)
-							                    .optionalFieldOf("flags", Set.of())
-							                    .forGetter(Defines::flags)
-			                    )
-			                    .apply(instance, Defines::new)
+		instance -> instance.group(
+			Codec.unboundedMap(Codec.STRING, Codec.STRING)
+				.optionalFieldOf("values", Map.of())
+				.forGetter(Defines::values),
+			Codec.STRING
+				.listOf()
+				.xmap(Set::copyOf, List::copyOf)
+				.optionalFieldOf("flags", Set.of())
+				.forGetter(Defines::flags)
+		).apply(instance, Defines::new)
 	);
 
 	public static Defines.Builder builder() {
@@ -39,67 +39,62 @@ public record Defines(Map<String, String> values, Set<String> flags) {
 	}
 
 	/**
-	 * With merged.
-	 *
-	 * @param other other
-	 *
-	 * @return Defines — результат операции
+	 * Объединяет текущий набор директив с {@code other}, возвращая новый экземпляр.
+	 * При конфликте ключей побеждает значение из {@code other} (keepingLast).
 	 */
 	public Defines withMerged(Defines other) {
-		if (this.isEmpty()) {
+		if (isEmpty()) {
 			return other;
 		}
-		else if (other.isEmpty()) {
+
+		if (other.isEmpty()) {
 			return this;
 		}
-		else {
-			com.google.common.collect.ImmutableMap.Builder<String, String>
-					builder =
-					ImmutableMap.builderWithExpectedSize(this.values.size() + other.values.size());
-			builder.putAll(this.values);
-			builder.putAll(other.values);
-			com.google.common.collect.ImmutableSet.Builder<String>
-					builder2 =
-					ImmutableSet.builderWithExpectedSize(this.flags.size() + other.flags.size());
-			builder2.addAll(this.flags);
-			builder2.addAll(other.flags);
-			return new Defines(builder.buildKeepingLast(), builder2.build());
-		}
+
+		ImmutableMap.Builder<String, String> mergedValues =
+			ImmutableMap.builderWithExpectedSize(values.size() + other.values.size());
+		mergedValues.putAll(values);
+		mergedValues.putAll(other.values);
+
+		ImmutableSet.Builder<String> mergedFlags =
+			ImmutableSet.builderWithExpectedSize(flags.size() + other.flags.size());
+		mergedFlags.addAll(flags);
+		mergedFlags.addAll(other.flags);
+
+		return new Defines(mergedValues.buildKeepingLast(), mergedFlags.build());
 	}
 
 	/**
-	 * To source.
-	 *
-	 * @return String — результат операции
+	 * Сериализует все директивы в строку GLSL-препроцессора.
+	 * Именованные значения выводятся как {@code #define KEY VALUE\n},
+	 * флаги — как {@code #define FLAG\n}.
 	 */
 	public String toSource() {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder source = new StringBuilder();
 
-		for (Entry<String, String> entry : this.values.entrySet()) {
-			String string = entry.getKey();
-			String string2 = entry.getValue();
-			stringBuilder.append("#define ").append(string).append(" ").append(string2).append('\n');
+		for (Entry<String, String> entry : values.entrySet()) {
+			source.append("#define ").append(entry.getKey()).append(" ").append(entry.getValue()).append('\n');
 		}
 
-		for (String string3 : this.flags) {
-			stringBuilder.append("#define ").append(string3).append('\n');
+		for (String flag : flags) {
+			source.append("#define ").append(flag).append('\n');
 		}
 
-		return stringBuilder.toString();
+		return source.toString();
 	}
 
 	public boolean isEmpty() {
-		return this.values.isEmpty() && this.flags.isEmpty();
+		return values.isEmpty() && flags.isEmpty();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошагового формирования набора директив {@link Defines}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableMap.Builder<String, String> values = ImmutableMap.builder();
-		private final com.google.common.collect.ImmutableSet.Builder<String> flags = ImmutableSet.builder();
+		private final ImmutableMap.Builder<String, String> values = ImmutableMap.builder();
+		private final ImmutableSet.Builder<String> flags = ImmutableSet.builder();
 
 		Builder() {
 		}
@@ -108,38 +103,32 @@ public record Defines(Map<String, String> values, Set<String> flags) {
 			if (value.isBlank()) {
 				throw new IllegalArgumentException("Cannot define empty string");
 			}
-			else {
-				this.values.put(key, escapeLinebreak(value));
-				return this;
-			}
-		}
 
-		private static String escapeLinebreak(String string) {
-			return string.replaceAll("\n", "\\\\\n");
-		}
-
-		public Defines.Builder define(String key, float value) {
-			this.values.put(key, String.valueOf(value));
+			values.put(key, escapeLinebreak(value));
 			return this;
 		}
 
-		public Defines.Builder define(String name, int value) {
-			this.values.put(name, String.valueOf(value));
+		public Defines.Builder define(String key, float value) {
+			values.put(key, String.valueOf(value));
+			return this;
+		}
+
+		public Defines.Builder define(String key, int value) {
+			values.put(key, String.valueOf(value));
 			return this;
 		}
 
 		public Defines.Builder flag(String flag) {
-			this.flags.add(flag);
+			flags.add(flag);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return Defines — результат операции
-		 */
 		public Defines build() {
-			return new Defines(this.values.build(), this.flags.build());
+			return new Defines(values.build(), flags.build());
+		}
+
+		private static String escapeLinebreak(String value) {
+			return value.replaceAll("\n", "\\\\\n");
 		}
 	}
 }

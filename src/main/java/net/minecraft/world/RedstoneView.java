@@ -8,112 +8,111 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code RedstoneView}.
+ * Представление мира для работы с редстоун-сигналами.
+ * Предоставляет методы для получения мощности сигнала от блоков
+ * во всех направлениях.
  */
 public interface RedstoneView extends BlockView {
+
+	/** Максимальная мощность редстоун-сигнала. */
+	int MAX_REDSTONE_POWER = 15;
 
 	Direction[] DIRECTIONS = Direction.values();
 
 	default int getStrongRedstonePower(BlockPos pos, Direction direction) {
-		return this.getBlockState(pos).getStrongRedstonePower(this, pos, direction);
+		return getBlockState(pos).getStrongRedstonePower(this, pos, direction);
 	}
 
+	/**
+	 * Возвращает максимальную сильную мощность редстоун-сигнала,
+	 * получаемую блоком в позиции {@code pos} со всех сторон.
+	 * Прерывает поиск досрочно при достижении максимума (15).
+	 */
 	default int getReceivedStrongRedstonePower(BlockPos pos) {
-		int i = 0;
-		i = Math.max(i, this.getStrongRedstonePower(pos.down(), Direction.DOWN));
-		if (i >= 15) {
-			return i;
+		int power = 0;
+
+		power = Math.max(power, getStrongRedstonePower(pos.down(), Direction.DOWN));
+		if (power >= MAX_REDSTONE_POWER) {
+			return power;
 		}
-		else {
-			i = Math.max(i, this.getStrongRedstonePower(pos.up(), Direction.UP));
-			if (i >= 15) {
-				return i;
-			}
-			else {
-				i = Math.max(i, this.getStrongRedstonePower(pos.north(), Direction.NORTH));
-				if (i >= 15) {
-					return i;
-				}
-				else {
-					i = Math.max(i, this.getStrongRedstonePower(pos.south(), Direction.SOUTH));
-					if (i >= 15) {
-						return i;
-					}
-					else {
-						i = Math.max(i, this.getStrongRedstonePower(pos.west(), Direction.WEST));
-						if (i >= 15) {
-							return i;
-						}
-						else {
-							i = Math.max(i, this.getStrongRedstonePower(pos.east(), Direction.EAST));
-							return i >= 15 ? i : i;
-						}
-					}
-				}
-			}
+
+		power = Math.max(power, getStrongRedstonePower(pos.up(), Direction.UP));
+		if (power >= MAX_REDSTONE_POWER) {
+			return power;
 		}
+
+		power = Math.max(power, getStrongRedstonePower(pos.north(), Direction.NORTH));
+		if (power >= MAX_REDSTONE_POWER) {
+			return power;
+		}
+
+		power = Math.max(power, getStrongRedstonePower(pos.south(), Direction.SOUTH));
+		if (power >= MAX_REDSTONE_POWER) {
+			return power;
+		}
+
+		power = Math.max(power, getStrongRedstonePower(pos.west(), Direction.WEST));
+		if (power >= MAX_REDSTONE_POWER) {
+			return power;
+		}
+
+		return Math.max(power, getStrongRedstonePower(pos.east(), Direction.EAST));
 	}
 
 	default int getEmittedRedstonePower(BlockPos pos, Direction direction, boolean onlyFromGate) {
-		BlockState blockState = this.getBlockState(pos);
+		BlockState blockState = getBlockState(pos);
+
 		if (onlyFromGate) {
-			return AbstractRedstoneGateBlock.isRedstoneGate(blockState) ? this.getStrongRedstonePower(pos, direction)
-			                                                            : 0;
+			return AbstractRedstoneGateBlock.isRedstoneGate(blockState)
+				? getStrongRedstonePower(pos, direction)
+				: 0;
 		}
-		else if (blockState.isOf(Blocks.REDSTONE_BLOCK)) {
-			return 15;
+
+		if (blockState.isOf(Blocks.REDSTONE_BLOCK)) {
+			return MAX_REDSTONE_POWER;
 		}
-		else if (blockState.isOf(Blocks.REDSTONE_WIRE)) {
+
+		if (blockState.isOf(Blocks.REDSTONE_WIRE)) {
 			return blockState.get(RedstoneWireBlock.POWER);
 		}
-		else {
-			return blockState.emitsRedstonePower() ? this.getStrongRedstonePower(pos, direction) : 0;
-		}
+
+		return blockState.emitsRedstonePower() ? getStrongRedstonePower(pos, direction) : 0;
 	}
 
 	default boolean isEmittingRedstonePower(BlockPos pos, Direction direction) {
-		return this.getEmittedRedstonePower(pos, direction) > 0;
+		return getEmittedRedstonePower(pos, direction) > 0;
 	}
 
 	default int getEmittedRedstonePower(BlockPos pos, Direction direction) {
-		BlockState blockState = this.getBlockState(pos);
-		int i = blockState.getWeakRedstonePower(this, pos, direction);
-		return blockState.isSolidBlock(this, pos) ? Math.max(i, this.getReceivedStrongRedstonePower(pos)) : i;
+		BlockState blockState = getBlockState(pos);
+		int weakPower = blockState.getWeakRedstonePower(this, pos, direction);
+		return blockState.isSolidBlock(this, pos) ? Math.max(weakPower, getReceivedStrongRedstonePower(pos)) : weakPower;
 	}
 
 	default boolean isReceivingRedstonePower(BlockPos pos) {
-		if (this.getEmittedRedstonePower(pos.down(), Direction.DOWN) > 0) {
-			return true;
-		}
-		else if (this.getEmittedRedstonePower(pos.up(), Direction.UP) > 0) {
-			return true;
-		}
-		else if (this.getEmittedRedstonePower(pos.north(), Direction.NORTH) > 0) {
-			return true;
-		}
-		else if (this.getEmittedRedstonePower(pos.south(), Direction.SOUTH) > 0) {
-			return true;
-		}
-		else {
-			return this.getEmittedRedstonePower(pos.west(), Direction.WEST) > 0 ? true :
-			       this.getEmittedRedstonePower(pos.east(), Direction.EAST) > 0;
-		}
+		return getEmittedRedstonePower(pos.down(), Direction.DOWN) > 0
+			|| getEmittedRedstonePower(pos.up(), Direction.UP) > 0
+			|| getEmittedRedstonePower(pos.north(), Direction.NORTH) > 0
+			|| getEmittedRedstonePower(pos.south(), Direction.SOUTH) > 0
+			|| getEmittedRedstonePower(pos.west(), Direction.WEST) > 0
+			|| getEmittedRedstonePower(pos.east(), Direction.EAST) > 0;
 	}
 
 	default int getReceivedRedstonePower(BlockPos pos) {
-		int i = 0;
+		int maxPower = 0;
 
 		for (Direction direction : DIRECTIONS) {
-			int j = this.getEmittedRedstonePower(pos.offset(direction), direction);
-			if (j >= 15) {
-				return 15;
+			int power = getEmittedRedstonePower(pos.offset(direction), direction);
+
+			if (power >= MAX_REDSTONE_POWER) {
+				return MAX_REDSTONE_POWER;
 			}
 
-			if (j > i) {
-				i = j;
+			if (power > maxPower) {
+				maxPower = power;
 			}
 		}
 
-		return i;
+		return maxPower;
 	}
 }

@@ -14,13 +14,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EntityRenderState}.
+ * Снимок состояния сущности для рендеринга на клиенте.
+ * <p>
+ * Заполняется на игровом потоке методом {@code updateRenderState} и затем
+ * читается на рендер-потоке. Содержит все данные, необходимые для отрисовки:
+ * позицию, размеры, видимость, подсветку, поводок, тень и метку имени.
+ * Подклассы добавляют специфичные для типа сущности поля.
  */
+@Environment(EnvType.CLIENT)
 public class EntityRenderState implements FabricRenderState {
 
 	public static final int NO_OUTLINE = 0;
+
 	public EntityType<?> entityType;
 	public double x;
 	public double y;
@@ -43,26 +49,19 @@ public class EntityRenderState implements FabricRenderState {
 	public final List<EntityRenderState.ShadowPiece> shadowPieces = new ArrayList<>();
 
 	public boolean hasOutline() {
-		return this.outlineColor != 0;
+		return outlineColor != NO_OUTLINE;
 	}
 
-	/**
-	 * Добавляет crash report details.
-	 *
-	 * @param crashReportSection crash report section
-	 */
 	public void addCrashReportDetails(CrashReportSection crashReportSection) {
-		crashReportSection.add("EntityRenderState", this.getClass().getCanonicalName());
+		crashReportSection.add("EntityRenderState", getClass().getCanonicalName());
 		crashReportSection.add(
 				"Entity's Exact location",
-				String.format(Locale.ROOT, "%.2f, %.2f, %.2f", this.x, this.y, this.z)
+				String.format(Locale.ROOT, "%.2f, %.2f, %.2f", x, y, z)
 		);
 	}
 
+	/** Данные поводка: позиции начала и конца, уровни освещения обоих концов. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LeashData}.
-	 */
 	public static class LeashData {
 
 		public Vec3d offset = Vec3d.ZERO;
@@ -75,10 +74,8 @@ public class EntityRenderState implements FabricRenderState {
 		public boolean slack = true;
 	}
 
+	/** Один фрагмент тени сущности: относительная позиция, форма блока под ним и прозрачность. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ShadowPiece}.
-	 */
 	public record ShadowPiece(float relativeX, float relativeY, float relativeZ, VoxelShape shapeBelow, float alpha) {
 	}
 }

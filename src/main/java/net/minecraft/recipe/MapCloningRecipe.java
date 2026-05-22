@@ -9,87 +9,82 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
 /**
- * {@code MapCloningRecipe}.
+ * Рецепт клонирования заполненной карты на пустые карты.
+ * <p>
+ * Принимает ровно одну заполненную карту (с компонентом {@code MAP_ID})
+ * и одну или несколько пустых карт ({@link Items#MAP}).
+ * Результат — стак копий заполненной карты в количестве (пустые карты + 1).
  */
 public class MapCloningRecipe extends SpecialCraftingRecipe {
 
-	public MapCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public MapCloningRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (itemStack.contains(DataComponentTypes.MAP_ID)) {
-						if (bl2) {
-							return false;
-						}
+		boolean hasFilledMap = false;
+		boolean hasEmptyMap = false;
 
-						bl2 = true;
-					}
-					else {
-						if (!itemStack.isOf(Items.MAP)) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						bl = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl2 && bl;
+			if (stack.contains(DataComponentTypes.MAP_ID)) {
+				if (hasFilledMap) {
+					return false;
+				}
+
+				hasFilledMap = true;
+			} else {
+				if (!stack.isOf(Items.MAP)) {
+					return false;
+				}
+
+				hasEmptyMap = true;
+			}
 		}
+
+		return hasFilledMap && hasEmptyMap;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		int i = 0;
-		ItemStack itemStack = ItemStack.EMPTY;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		int emptyMapCount = 0;
+		ItemStack filledMap = ItemStack.EMPTY;
 
-		for (int j = 0; j < craftingRecipeInput.size(); j++) {
-			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
-			if (!itemStack2.isEmpty()) {
-				if (itemStack2.contains(DataComponentTypes.MAP_ID)) {
-					if (!itemStack.isEmpty()) {
-						return ItemStack.EMPTY;
-					}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-					itemStack = itemStack2;
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			if (stack.contains(DataComponentTypes.MAP_ID)) {
+				if (!filledMap.isEmpty()) {
+					return ItemStack.EMPTY;
 				}
-				else {
-					if (!itemStack2.isOf(Items.MAP)) {
-						return ItemStack.EMPTY;
-					}
 
-					i++;
+				filledMap = stack;
+			} else {
+				if (!stack.isOf(Items.MAP)) {
+					return ItemStack.EMPTY;
 				}
+
+				emptyMapCount++;
 			}
 		}
 
-		return !itemStack.isEmpty() && i >= 1 ? itemStack.copyWithCount(i + 1) : ItemStack.EMPTY;
+		return !filledMap.isEmpty() && emptyMapCount >= 1
+			? filledMap.copyWithCount(emptyMapCount + 1)
+			: ItemStack.EMPTY;
 	}
 
 	@Override

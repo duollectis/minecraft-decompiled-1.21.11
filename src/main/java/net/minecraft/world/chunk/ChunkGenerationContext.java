@@ -8,7 +8,8 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import java.util.concurrent.Executor;
 
 /**
- * {@code ChunkGenerationContext}.
+ * Контекст генерации чанка, передаваемый в каждый шаг пайплайна {@link ChunkGenerationSteps}.
+ * Содержит все зависимости, необходимые для выполнения задач генерации.
  */
 public record ChunkGenerationContext(
 		ServerWorld world,

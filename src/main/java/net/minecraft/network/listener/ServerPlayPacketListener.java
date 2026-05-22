@@ -4,7 +4,9 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.c2s.play.*;
 
 /**
- * Интерфейс server play packet listener.
+ * Слушатель серверных пакетов фазы {@link net.minecraft.network.NetworkPhase#PLAY}.
+ * Содержит обработчики для всех игровых действий клиента: движение, взаимодействие,
+ * инвентарь, чат, команды, строительство и административные операции.
  */
 public interface ServerPlayPacketListener extends ServerCommonPacketListener, ServerQueryPingPacketListener {
 

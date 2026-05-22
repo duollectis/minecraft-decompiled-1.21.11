@@ -23,10 +23,11 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SplashOverlay}.
+ * Оверлей заставки Mojang Studios, отображаемый при загрузке ресурсов.
+ * Управляет анимацией логотипа, прогресс-баром и плавным переходом к основному экрану.
  */
+@Environment(EnvType.CLIENT)
 public class SplashOverlay extends Overlay {
 
 	public static final Identifier LOGO = Identifier.ofVanilla("textures/gui/title/mojangstudios.png");
@@ -63,13 +64,8 @@ public class SplashOverlay extends Overlay {
 		this.reloading = reloading;
 	}
 
-	/**
-	 * Init.
-	 *
-	 * @param textureManager texture manager
-	 */
 	public static void init(TextureManager textureManager) {
-		textureManager.registerTexture(LOGO, (ReloadableTexture) (new SplashOverlay.LogoTexture()));
+		textureManager.registerTexture(LOGO, new LogoTexture());
 	}
 
 	private static int withAlpha(int color, int alpha) {
@@ -78,133 +74,143 @@ public class SplashOverlay extends Overlay {
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		int i = context.getScaledWindowWidth();
-		int j = context.getScaledWindowHeight();
-		long l = Util.getMeasuringTimeMs();
-		if (this.reloading && this.reloadStartTime == -1L) {
-			this.reloadStartTime = l;
+		int windowWidth = context.getScaledWindowWidth();
+		int windowHeight = context.getScaledWindowHeight();
+		long now = Util.getMeasuringTimeMs();
+
+		if (reloading && reloadStartTime == -1L) {
+			reloadStartTime = now;
 		}
 
-		float f = this.reloadCompleteTime > -1L ? (float) (l - this.reloadCompleteTime) / 1000.0F : -1.0F;
-		float g = this.reloadStartTime > -1L ? (float) (l - this.reloadStartTime) / 500.0F : -1.0F;
-		float h;
-		if (f >= 1.0F) {
-			if (this.client.currentScreen != null) {
-				this.client.currentScreen.renderWithTooltip(context, 0, 0, deltaTicks);
-			}
-			else {
-				this.client.inGameHud.renderDeferredSubtitles();
+		float fadeOutProgress = reloadCompleteTime > -1L
+			? (float) (now - reloadCompleteTime) / (float) RELOAD_COMPLETE_FADE_DURATION
+			: -1.0F;
+		float fadeInProgress = reloadStartTime > -1L
+			? (float) (now - reloadStartTime) / (float) RELOAD_START_FADE_DURATION
+			: -1.0F;
+
+		float logoAlpha;
+		if (fadeOutProgress >= 1.0F) {
+			if (client.currentScreen != null) {
+				client.currentScreen.renderWithTooltip(context, 0, 0, deltaTicks);
+			} else {
+				client.inGameHud.renderDeferredSubtitles();
 			}
 
-			int k = MathHelper.ceil((1.0F - MathHelper.clamp(f - 1.0F, 0.0F, 1.0F)) * 255.0F);
+			int overlayAlpha = MathHelper.ceil((1.0F - MathHelper.clamp(fadeOutProgress - 1.0F, 0.0F, 1.0F)) * 255.0F);
 			context.createNewRootLayer();
-			context.fill(0, 0, i, j, withAlpha(BRAND_ARGB.getAsInt(), k));
-			h = 1.0F - MathHelper.clamp(f - 1.0F, 0.0F, 1.0F);
-		}
-		else if (this.reloading) {
-			if (this.client.currentScreen != null && g < 1.0F) {
-				this.client.currentScreen.renderWithTooltip(context, mouseX, mouseY, deltaTicks);
-			}
-			else {
-				this.client.inGameHud.renderDeferredSubtitles();
+			context.fill(0, 0, windowWidth, windowHeight, withAlpha(BRAND_ARGB.getAsInt(), overlayAlpha));
+			logoAlpha = 1.0F - MathHelper.clamp(fadeOutProgress - 1.0F, 0.0F, 1.0F);
+		} else if (reloading) {
+			if (client.currentScreen != null && fadeInProgress < 1.0F) {
+				client.currentScreen.renderWithTooltip(context, mouseX, mouseY, deltaTicks);
+			} else {
+				client.inGameHud.renderDeferredSubtitles();
 			}
 
-			int k = MathHelper.ceil(MathHelper.clamp((double) g, 0.15, 1.0) * 255.0);
+			int overlayAlpha = MathHelper.ceil(MathHelper.clamp((double) fadeInProgress, 0.15, 1.0) * 255.0);
 			context.createNewRootLayer();
-			context.fill(0, 0, i, j, withAlpha(BRAND_ARGB.getAsInt(), k));
-			h = MathHelper.clamp(g, 0.0F, 1.0F);
-		}
-		else {
-			int k = BRAND_ARGB.getAsInt();
+			context.fill(0, 0, windowWidth, windowHeight, withAlpha(BRAND_ARGB.getAsInt(), overlayAlpha));
+			logoAlpha = MathHelper.clamp(fadeInProgress, 0.0F, 1.0F);
+		} else {
+			int brandColor = BRAND_ARGB.getAsInt();
 			RenderSystem
-					.getDevice()
-					.createCommandEncoder()
-					.clearColorTexture(this.client.getFramebuffer().getColorAttachment(), k);
-			h = 1.0F;
+				.getDevice()
+				.createCommandEncoder()
+				.clearColorTexture(client.getFramebuffer().getColorAttachment(), brandColor);
+			logoAlpha = 1.0F;
 		}
 
-		int k = (int) (context.getScaledWindowWidth() * 0.5);
-		int m = (int) (context.getScaledWindowHeight() * 0.5);
-		double d = Math.min(context.getScaledWindowWidth() * 0.75, (double) context.getScaledWindowHeight()) * 0.25;
-		int n = (int) (d * 0.5);
-		double e = d * 4.0;
-		int o = (int) (e * 0.5);
-		int p = ColorHelper.getWhite(h);
+		int centerX = (int) (context.getScaledWindowWidth() * 0.5);
+		int centerY = (int) (context.getScaledWindowHeight() * 0.5);
+		double logoHeight = Math.min(context.getScaledWindowWidth() * 0.75, (double) context.getScaledWindowHeight()) * 0.25;
+		int halfLogoHeight = (int) (logoHeight * 0.5);
+		double logoWidth = logoHeight * 4.0;
+		int halfLogoWidth = (int) (logoWidth * 0.5);
+		int logoColor = ColorHelper.getWhite(logoAlpha);
+
 		context.drawTexture(
-				RenderPipelines.MOJANG_LOGO,
-				LOGO,
-				k - o,
-				m - n,
-				-0.0625F,
-				0.0F,
-				o,
-				(int) d,
-				120,
-				60,
-				120,
-				120,
-				p
+			RenderPipelines.MOJANG_LOGO,
+			LOGO,
+			centerX - halfLogoWidth,
+			centerY - halfLogoHeight,
+			-LOGO_OVERLAP,
+			0.0F,
+			halfLogoWidth,
+			(int) logoHeight,
+			FADE_OUT_TICKS,
+			FADE_IN_TICKS,
+			FADE_OUT_TICKS,
+			FADE_OUT_TICKS,
+			logoColor
 		);
 		context.drawTexture(
-				RenderPipelines.MOJANG_LOGO,
-				LOGO,
-				k,
-				m - n,
-				0.0625F,
-				60.0F,
-				o,
-				(int) d,
-				120,
-				60,
-				120,
-				120,
-				p
+			RenderPipelines.MOJANG_LOGO,
+			LOGO,
+			centerX,
+			centerY - halfLogoHeight,
+			LOGO_OVERLAP,
+			LOGO_RIGHT_HALF_V,
+			halfLogoWidth,
+			(int) logoHeight,
+			FADE_OUT_TICKS,
+			FADE_IN_TICKS,
+			FADE_OUT_TICKS,
+			FADE_OUT_TICKS,
+			logoColor
 		);
-		int q = (int) (context.getScaledWindowHeight() * 0.8325);
-		float r = this.reload.getProgress();
-		this.progress = MathHelper.clamp(this.progress * 0.95F + r * 0.050000012F, 0.0F, 1.0F);
-		if (f < 1.0F) {
-			this.renderProgressBar(context, i / 2 - o, q - 5, i / 2 + o, q + 5, 1.0F - MathHelper.clamp(f, 0.0F, 1.0F));
+
+		int progressBarY = (int) (context.getScaledWindowHeight() * 0.8325);
+		progress = MathHelper.clamp(progress * PROGRESS_LERP_DELTA + reload.getProgress() * 0.050000012F, 0.0F, 1.0F);
+
+		if (fadeOutProgress < 1.0F) {
+			renderProgressBar(
+				context,
+				windowWidth / 2 - halfLogoWidth,
+				progressBarY - 5,
+				windowWidth / 2 + halfLogoWidth,
+				progressBarY + 5,
+				1.0F - MathHelper.clamp(fadeOutProgress, 0.0F, 1.0F)
+			);
 		}
 
-		if (f >= 2.0F) {
-			this.client.setOverlay(null);
+		if (fadeOutProgress >= 2.0F) {
+			client.setOverlay(null);
 		}
 	}
 
 	@Override
 	public void tick() {
-		if (this.reloadCompleteTime == -1L && this.reload.isComplete() && this.isInGracePeriod()) {
+		if (reloadCompleteTime == -1L && reload.isComplete() && isInGracePeriod()) {
 			try {
-				this.reload.throwException();
-				this.exceptionHandler.accept(Optional.empty());
-			}
-			catch (Throwable var2) {
-				this.exceptionHandler.accept(Optional.of(var2));
+				reload.throwException();
+				exceptionHandler.accept(Optional.empty());
+			} catch (Throwable throwable) {
+				exceptionHandler.accept(Optional.of(throwable));
 			}
 
-			this.reloadCompleteTime = Util.getMeasuringTimeMs();
-			if (this.client.currentScreen != null) {
-				Window window = this.client.getWindow();
-				this.client.currentScreen.init(window.getScaledWidth(), window.getScaledHeight());
+			reloadCompleteTime = Util.getMeasuringTimeMs();
+			if (client.currentScreen != null) {
+				Window window = client.getWindow();
+				client.currentScreen.init(window.getScaledWidth(), window.getScaledHeight());
 			}
 		}
 	}
 
 	private boolean isInGracePeriod() {
-		return !this.reloading
-				|| this.reloadStartTime > -1L && Util.getMeasuringTimeMs() - this.reloadStartTime >= 1000L;
+		return !reloading
+			|| reloadStartTime > -1L && Util.getMeasuringTimeMs() - reloadStartTime >= RELOAD_COMPLETE_FADE_DURATION;
 	}
 
 	private void renderProgressBar(DrawContext context, int minX, int minY, int maxX, int maxY, float opacity) {
-		int i = MathHelper.ceil((maxX - minX - 2) * this.progress);
-		int j = Math.round(opacity * 255.0F);
-		int k = ColorHelper.getArgb(j, 255, 255, 255);
-		context.fill(minX + 2, minY + 2, minX + i, maxY - 2, k);
-		context.fill(minX + 1, minY, maxX - 1, minY + 1, k);
-		context.fill(minX + 1, maxY, maxX - 1, maxY - 1, k);
-		context.fill(minX, minY, minX + 1, maxY, k);
-		context.fill(maxX, minY, maxX - 1, maxY, k);
+		int filledWidth = MathHelper.ceil((maxX - minX - 2) * progress);
+		int alpha = Math.round(opacity * 255.0F);
+		int color = ColorHelper.getArgb(alpha, 255, 255, 255);
+		context.fill(minX + 2, minY + 2, minX + filledWidth, maxY - 2, color);
+		context.fill(minX + 1, minY, maxX - 1, minY + 1, color);
+		context.fill(minX + 1, maxY, maxX - 1, maxY - 1, color);
+		context.fill(minX, minY, minX + 1, maxY, color);
+		context.fill(maxX, minY, maxX - 1, maxY, color);
 	}
 
 	@Override
@@ -212,10 +218,10 @@ public class SplashOverlay extends Overlay {
 		return true;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LogoTexture}.
+	 * Текстура логотипа Mojang, загружаемая из встроенного пакета ресурсов.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class LogoTexture extends ReloadableTexture {
 
 		public LogoTexture() {
@@ -226,16 +232,12 @@ public class SplashOverlay extends Overlay {
 		public TextureContents loadContents(ResourceManager resourceManager) throws IOException {
 			ResourceFactory resourceFactory = MinecraftClient.getInstance().getDefaultResourcePack().getFactory();
 
-			TextureContents var4;
 			try (InputStream inputStream = resourceFactory.open(SplashOverlay.LOGO)) {
-				var4 =
-						new TextureContents(
-								NativeImage.read(inputStream),
-								new TextureResourceMetadata(true, true, MipmapStrategy.MEAN, 0.0F)
-						);
+				return new TextureContents(
+					NativeImage.read(inputStream),
+					new TextureResourceMetadata(true, true, MipmapStrategy.MEAN, 0.0F)
+				);
 			}
-
-			return var4;
 		}
 	}
 }

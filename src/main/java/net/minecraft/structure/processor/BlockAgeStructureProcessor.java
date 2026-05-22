@@ -18,19 +18,24 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BlockAgeStructureProcessor}.
+ * Процессор структур, имитирующий «состаривание» каменных блоков.
+ * Заменяет каменные кирпичи, ступени, плиты, стены и обсидиан на замшелые,
+ * потрескавшиеся или другие «состаренные» варианты с вероятностью, зависящей от {@code mossiness}.
  */
 public class BlockAgeStructureProcessor extends StructureProcessor {
 
 	public static final MapCodec<BlockAgeStructureProcessor> CODEC = Codec.FLOAT
-			.fieldOf("mossiness")
-			.xmap(BlockAgeStructureProcessor::new, processor -> processor.mossiness);
+		.fieldOf("mossiness")
+		.xmap(BlockAgeStructureProcessor::new, processor -> processor.mossiness);
+
 	private static final float BLOCK_REPLACE_THRESHOLD = 0.5F;
-	private static final float STAIR_REPLACE_THRESHOLD = 0.5F;
 	private static final float OBSIDIAN_REPLACE_THRESHOLD = 0.15F;
-	private static final BlockState[]
-			AGEABLE_SLABS =
-			new BlockState[]{Blocks.STONE_SLAB.getDefaultState(), Blocks.STONE_BRICK_SLAB.getDefaultState()};
+
+	private static final BlockState[] AGEABLE_SLABS = {
+		Blocks.STONE_SLAB.getDefaultState(),
+		Blocks.STONE_BRICK_SLAB.getDefaultState()
+	};
+
 	private final float mossiness;
 
 	public BlockAgeStructureProcessor(float mossiness) {
@@ -39,96 +44,109 @@ public class BlockAgeStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
 		Random random = data.getRandom(currentBlockInfo.pos());
 		BlockState blockState = currentBlockInfo.state();
 		BlockPos blockPos = currentBlockInfo.pos();
-		BlockState blockState2 = null;
-		if (blockState.isOf(Blocks.STONE_BRICKS) || blockState.isOf(Blocks.STONE)
-				|| blockState.isOf(Blocks.CHISELED_STONE_BRICKS)) {
-			blockState2 = this.processBlocks(random);
-		}
-		else if (blockState.isIn(BlockTags.STAIRS)) {
-			blockState2 = this.processStairs(blockState, random);
-		}
-		else if (blockState.isIn(BlockTags.SLABS)) {
-			blockState2 = this.processSlabs(blockState, random);
-		}
-		else if (blockState.isIn(BlockTags.WALLS)) {
-			blockState2 = this.processWalls(blockState, random);
-		}
-		else if (blockState.isOf(Blocks.OBSIDIAN)) {
-			blockState2 = this.processObsidian(random);
+
+		BlockState aged = computeAgedState(blockState, random);
+
+		return aged != null
+			? new StructureTemplate.StructureBlockInfo(blockPos, aged, currentBlockInfo.nbt())
+			: currentBlockInfo;
+	}
+
+	private @Nullable BlockState computeAgedState(BlockState blockState, Random random) {
+		if (blockState.isOf(Blocks.STONE_BRICKS)
+			|| blockState.isOf(Blocks.STONE)
+			|| blockState.isOf(Blocks.CHISELED_STONE_BRICKS)
+		) {
+			return processBlocks(random);
 		}
 
-		return blockState2 != null ? new StructureTemplate.StructureBlockInfo(
-				blockPos,
-				blockState2,
-				currentBlockInfo.nbt()
-		) : currentBlockInfo;
+		if (blockState.isIn(BlockTags.STAIRS)) {
+			return processStairs(blockState, random);
+		}
+
+		if (blockState.isIn(BlockTags.SLABS)) {
+			return processSlabs(blockState, random);
+		}
+
+		if (blockState.isIn(BlockTags.WALLS)) {
+			return processWalls(blockState, random);
+		}
+
+		if (blockState.isOf(Blocks.OBSIDIAN)) {
+			return processObsidian(random);
+		}
+
+		return null;
 	}
 
 	private @Nullable BlockState processBlocks(Random random) {
-		if (random.nextFloat() >= 0.5F) {
+		if (random.nextFloat() >= BLOCK_REPLACE_THRESHOLD) {
 			return null;
 		}
-		else {
-			BlockState[]
-					blockStates =
-					new BlockState[]{
-							Blocks.CRACKED_STONE_BRICKS.getDefaultState(),
-							randomStairProperties(random, Blocks.STONE_BRICK_STAIRS)
-					};
-			BlockState[] blockStates2 = new BlockState[]{
-					Blocks.MOSSY_STONE_BRICKS.getDefaultState(),
-					randomStairProperties(random, Blocks.MOSSY_STONE_BRICK_STAIRS)
-			};
-			return this.process(random, blockStates, blockStates2);
-		}
+
+		BlockState[] regularStates = {
+			Blocks.CRACKED_STONE_BRICKS.getDefaultState(),
+			randomStairProperties(random, Blocks.STONE_BRICK_STAIRS)
+		};
+		BlockState[] mossyStates = {
+			Blocks.MOSSY_STONE_BRICKS.getDefaultState(),
+			randomStairProperties(random, Blocks.MOSSY_STONE_BRICK_STAIRS)
+		};
+
+		return selectByMossiness(random, regularStates, mossyStates);
 	}
 
 	private @Nullable BlockState processStairs(BlockState blockState, Random random) {
-		if (random.nextFloat() >= 0.5F) {
+		if (random.nextFloat() >= BLOCK_REPLACE_THRESHOLD) {
 			return null;
 		}
-		else {
-			BlockState[] blockStates = new BlockState[]{
-					Blocks.MOSSY_STONE_BRICK_STAIRS.getStateWithProperties(blockState),
-					Blocks.MOSSY_STONE_BRICK_SLAB.getDefaultState()
-			};
-			return this.process(random, AGEABLE_SLABS, blockStates);
-		}
+
+		BlockState[] mossyStates = {
+			Blocks.MOSSY_STONE_BRICK_STAIRS.getStateWithProperties(blockState),
+			Blocks.MOSSY_STONE_BRICK_SLAB.getDefaultState()
+		};
+
+		return selectByMossiness(random, AGEABLE_SLABS, mossyStates);
 	}
 
 	private @Nullable BlockState processSlabs(BlockState blockState, Random random) {
-		return random.nextFloat() < this.mossiness ? Blocks.MOSSY_STONE_BRICK_SLAB.getStateWithProperties(blockState)
-		                                           : null;
+		return random.nextFloat() < mossiness
+			? Blocks.MOSSY_STONE_BRICK_SLAB.getStateWithProperties(blockState)
+			: null;
 	}
 
 	private @Nullable BlockState processWalls(BlockState blockState, Random random) {
-		return random.nextFloat() < this.mossiness ? Blocks.MOSSY_STONE_BRICK_WALL.getStateWithProperties(blockState)
-		                                           : null;
+		return random.nextFloat() < mossiness
+			? Blocks.MOSSY_STONE_BRICK_WALL.getStateWithProperties(blockState)
+			: null;
 	}
 
 	private @Nullable BlockState processObsidian(Random random) {
-		return random.nextFloat() < 0.15F ? Blocks.CRYING_OBSIDIAN.getDefaultState() : null;
+		return random.nextFloat() < OBSIDIAN_REPLACE_THRESHOLD
+			? Blocks.CRYING_OBSIDIAN.getDefaultState()
+			: null;
 	}
 
 	private static BlockState randomStairProperties(Random random, Block stairs) {
 		return stairs.getDefaultState()
-		             .with(StairsBlock.FACING, Direction.Type.HORIZONTAL.random(random))
-		             .with(StairsBlock.HALF, Util.getRandom(BlockHalf.values(), random));
+			.with(StairsBlock.FACING, Direction.Type.HORIZONTAL.random(random))
+			.with(StairsBlock.HALF, Util.getRandom(BlockHalf.values(), random));
 	}
 
-	private BlockState process(Random random, BlockState[] regularStates, BlockState[] mossyStates) {
-		return random.nextFloat() < this.mossiness ? randomState(random, mossyStates)
-		                                           : randomState(random, regularStates);
+	private BlockState selectByMossiness(Random random, BlockState[] regularStates, BlockState[] mossyStates) {
+		return random.nextFloat() < mossiness
+			? randomState(random, mossyStates)
+			: randomState(random, regularStates);
 	}
 
 	private static BlockState randomState(Random random, BlockState[] states) {

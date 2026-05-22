@@ -15,74 +15,49 @@ import org.slf4j.Logger;
 import java.util.function.Function;
 
 /**
- * {@code Weighted}.
+ * Иммутабельная запись, связывающая значение с целочисленным весом.
+ * Используется в {@link Pool} и {@link WeightedList} для взвешенного случайного выбора.
+ *
+ * @param <T>    тип значения
+ * @param value  хранимое значение
+ * @param weight вес (должен быть >= 0)
  */
 public record Weighted<T>(T value, int weight) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
-	public Weighted(T value, int weight) {
+	public Weighted {
 		if (weight < 0) {
-			throw (IllegalArgumentException) Util.getFatalOrPause(new IllegalArgumentException("Weight should be >= 0"));
+			throw (IllegalArgumentException) Util.getFatalOrPause(
+				new IllegalArgumentException("Weight should be >= 0")
+			);
 		}
-		else {
-			if (weight == 0 && SharedConstants.isDevelopment) {
-				LOGGER.warn("Found 0 weight, make sure this is intentional!");
-			}
 
-			this.value = value;
-			this.weight = weight;
+		if (weight == 0 && SharedConstants.isDevelopment) {
+			LOGGER.warn("Found 0 weight, make sure this is intentional!");
 		}
 	}
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param dataCodec data codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Weighted<E>> createCodec(Codec<E> dataCodec) {
 		return createCodec(dataCodec.fieldOf("data"));
 	}
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param dataCodec data codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Weighted<E>> createCodec(MapCodec<E> dataCodec) {
 		return RecordCodecBuilder.create(
-				instance -> instance
-						.group(
-								dataCodec.forGetter(Weighted::value),
-								Codecs.NON_NEGATIVE_INT.fieldOf("weight").forGetter(Weighted::weight)
-						)
-						.apply(instance, Weighted::new)
+			instance -> instance
+				.group(
+					dataCodec.forGetter(Weighted::value),
+					Codecs.NON_NEGATIVE_INT.fieldOf("weight").forGetter(Weighted::weight)
+				)
+				.apply(instance, Weighted::new)
 		);
 	}
 
-	/**
-	 * Создаёт packet codec.
-	 *
-	 * @param dataCodec data codec
-	 *
-	 * @return PacketCodec> — результат операции
-	 */
 	public static <B extends ByteBuf, T> PacketCodec<B, Weighted<T>> createPacketCodec(PacketCodec<B, T> dataCodec) {
 		return PacketCodec.tuple(dataCodec, Weighted::value, PacketCodecs.VAR_INT, Weighted::weight, Weighted::new);
 	}
 
-	/**
-	 * Transform.
-	 *
-	 * @param function function
-	 *
-	 * @return Weighted — результат операции
-	 */
 	public <U> Weighted<U> transform(Function<T, U> function) {
-		return new Weighted<>(function.apply(this.value()), this.weight);
+		return new Weighted<>(function.apply(value()), weight);
 	}
 }

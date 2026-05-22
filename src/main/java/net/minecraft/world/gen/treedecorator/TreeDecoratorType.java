@@ -7,6 +7,10 @@ import net.minecraft.registry.Registry;
 /**
  * {@code TreeDecoratorType}.
  */
+/**
+ * Реестровый тип декоратора дерева. Связывает кодек сериализации с конкретной реализацией
+ * {@link TreeDecorator}.
+ */
 public class TreeDecoratorType<P extends TreeDecorator> {
 
 	public static final TreeDecoratorType<TrunkVineTreeDecorator>

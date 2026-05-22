@@ -12,114 +12,94 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 
 /**
- * {@code Sensor}.
+ * Базовый класс датчика мозга сущности.
+ * Датчик периодически опрашивает мир и записывает результаты в память {@link net.minecraft.entity.ai.brain.Brain}.
+ * Интервал опроса задаётся в конструкторе; первый запуск смещается случайно для равномерной нагрузки.
+ *
+ * @param <E> тип сущности, которой принадлежит датчик
  */
 public abstract class Sensor<E extends LivingEntity> {
 
 	private static final Random RANDOM = Random.createThreadSafe();
 	private static final int DEFAULT_RUN_TIME = 20;
 	private static final int BASE_MAX_DISTANCE = 16;
-	private static final TargetPredicate
-			TARGET_PREDICATE =
-			TargetPredicate.createNonAttackable().setBaseMaxDistance(16.0);
-	private static final TargetPredicate
-			TARGET_PREDICATE_IGNORE_DISTANCE_SCALING =
+
+	private static final TargetPredicate TARGET_PREDICATE =
+			TargetPredicate.createNonAttackable().setBaseMaxDistance(BASE_MAX_DISTANCE);
+	private static final TargetPredicate TARGET_PREDICATE_IGNORE_DISTANCE_SCALING =
 			TargetPredicate.createNonAttackable()
-			               .setBaseMaxDistance(16.0)
-			               .ignoreDistanceScalingFactor();
-	private static final TargetPredicate
-			ATTACKABLE_TARGET_PREDICATE =
-			TargetPredicate.createAttackable().setBaseMaxDistance(16.0);
-	private static final TargetPredicate
-			ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING =
+					.setBaseMaxDistance(BASE_MAX_DISTANCE)
+					.ignoreDistanceScalingFactor();
+	private static final TargetPredicate ATTACKABLE_TARGET_PREDICATE =
+			TargetPredicate.createAttackable().setBaseMaxDistance(BASE_MAX_DISTANCE);
+	private static final TargetPredicate ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING =
 			TargetPredicate.createAttackable()
-			               .setBaseMaxDistance(16.0)
-			               .ignoreDistanceScalingFactor();
-	private static final TargetPredicate
-			ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY =
+					.setBaseMaxDistance(BASE_MAX_DISTANCE)
+					.ignoreDistanceScalingFactor();
+	private static final TargetPredicate ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY =
 			TargetPredicate.createAttackable()
-			               .setBaseMaxDistance(16.0)
-			               .ignoreVisibility();
-	private static final TargetPredicate
-			ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING =
+					.setBaseMaxDistance(BASE_MAX_DISTANCE)
+					.ignoreVisibility();
+	private static final TargetPredicate ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING =
 			TargetPredicate.createAttackable()
-			               .setBaseMaxDistance(16.0)
-			               .ignoreVisibility()
-			               .ignoreDistanceScalingFactor();
+					.setBaseMaxDistance(BASE_MAX_DISTANCE)
+					.ignoreVisibility()
+					.ignoreDistanceScalingFactor();
+
 	private final int senseInterval;
 	private long lastSenseTime;
 
 	public Sensor(int senseInterval) {
 		this.senseInterval = senseInterval;
-		this.lastSenseTime = RANDOM.nextInt(senseInterval);
+		lastSenseTime = RANDOM.nextInt(senseInterval);
 	}
 
 	public Sensor() {
-		this(20);
+		this(DEFAULT_RUN_TIME);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 */
 	public final void tick(ServerWorld world, E entity) {
-		if (--this.lastSenseTime <= 0L) {
-			this.lastSenseTime = this.senseInterval;
-			this.updateRange(entity);
-			this.sense(world, entity);
+		if (--lastSenseTime <= 0L) {
+			lastSenseTime = senseInterval;
+			updateRange(entity);
+			sense(world, entity);
 		}
 	}
 
+	/**
+	 * Обновляет дальность обнаружения всех предикатов по атрибуту {@code FOLLOW_RANGE} сущности.
+	 */
 	private void updateRange(E entity) {
-		double d = entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-		TARGET_PREDICATE.setBaseMaxDistance(d);
-		TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.setBaseMaxDistance(d);
-		ATTACKABLE_TARGET_PREDICATE.setBaseMaxDistance(d);
-		ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.setBaseMaxDistance(d);
-		ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY.setBaseMaxDistance(d);
-		ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING.setBaseMaxDistance(d);
+		double followRange = entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+		TARGET_PREDICATE.setBaseMaxDistance(followRange);
+		TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.setBaseMaxDistance(followRange);
+		ATTACKABLE_TARGET_PREDICATE.setBaseMaxDistance(followRange);
+		ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.setBaseMaxDistance(followRange);
+		ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY.setBaseMaxDistance(followRange);
+		ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING.setBaseMaxDistance(followRange);
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 */
 	protected abstract void sense(ServerWorld world, E entity);
 
 	public abstract Set<MemoryModuleType<?>> getOutputMemoryModules();
 
 	/**
-	 * Test target predicate.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param target target
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет видимость цели с учётом того, является ли она текущей целью атаки.
+	 * Если цель — текущая цель атаки, масштабирование дистанции игнорируется.
 	 */
 	public static boolean testTargetPredicate(ServerWorld world, LivingEntity entity, LivingEntity target) {
 		return entity.getBrain().hasMemoryModuleWithValue(MemoryModuleType.ATTACK_TARGET, target)
-		       ? TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)
-		       : TARGET_PREDICATE.test(world, entity, target);
+				? TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)
+				: TARGET_PREDICATE.test(world, entity, target);
 	}
 
 	/**
-	 * Test attackable target predicate.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param target target
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет атакуемость цели с учётом того, является ли она текущей целью атаки.
 	 */
 	public static boolean testAttackableTargetPredicate(ServerWorld world, LivingEntity entity, LivingEntity target) {
 		return entity.getBrain().hasMemoryModuleWithValue(MemoryModuleType.ATTACK_TARGET, target)
-		       ? ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)
-		       : ATTACKABLE_TARGET_PREDICATE.test(world, entity, target);
+				? ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)
+				: ATTACKABLE_TARGET_PREDICATE.test(world, entity, target);
 	}
 
 	public static BiPredicate<ServerWorld, LivingEntity> hasTargetBeenAttackableRecently(
@@ -138,20 +118,23 @@ public abstract class Sensor<E extends LivingEntity> {
 			LivingEntity target
 	) {
 		return entity.getBrain().hasMemoryModuleWithValue(MemoryModuleType.ATTACK_TARGET, target)
-		       ? ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING.test(world, entity, target)
-		       : ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY.test(world, entity, target);
+				? ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING.test(world, entity, target)
+				: ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY.test(world, entity, target);
 	}
 
+	/**
+	 * Создаёт предикат, который возвращает {@code true} в течение {@code times} тиков
+	 * после последнего успешного прохождения исходного предиката.
+	 */
 	static <T, U> BiPredicate<T, U> hasPredicatePassedRecently(int times, BiPredicate<T, U> predicate) {
-		AtomicInteger atomicInteger = new AtomicInteger(0);
+		AtomicInteger counter = new AtomicInteger(0);
 		return (world, target) -> {
 			if (predicate.test(world, target)) {
-				atomicInteger.set(times);
+				counter.set(times);
 				return true;
 			}
-			else {
-				return atomicInteger.decrementAndGet() >= 0;
-			}
+
+			return counter.decrementAndGet() >= 0;
 		};
 	}
 }

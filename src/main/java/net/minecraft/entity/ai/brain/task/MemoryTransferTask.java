@@ -7,7 +7,7 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import java.util.function.Predicate;
 
 /**
- * {@code MemoryTransferTask}.
+ * Фабричный класс задачи мозга, копирующей значение из одного модуля памяти в другой с заданным временем жизни.
  */
 public class MemoryTransferTask {
 
@@ -24,10 +24,9 @@ public class MemoryTransferTask {
 							                  if (!runPredicate.test((E) entity)) {
 								                  return false;
 							                  }
-							                  else {
-								                  target.remember(context.getValue(source), expiry.get(world.random));
-								                  return true;
-							                  }
+
+							                  target.remember(context.getValue(source), expiry.get(world.random));
+							                  return true;
 						                  }
 				                  )
 		);

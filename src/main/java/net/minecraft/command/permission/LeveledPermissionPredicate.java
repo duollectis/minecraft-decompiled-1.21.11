@@ -3,7 +3,8 @@ package net.minecraft.command.permission;
 import net.minecraft.command.DefaultPermissions;
 
 /**
- * {@code LeveledPermissionPredicate}.
+ * Предикат разрешений на основе уровня доступа {@link PermissionLevel}.
+ * Разрешение считается выданным, если уровень источника не ниже требуемого.
  */
 public interface LeveledPermissionPredicate extends PermissionPredicate {
 
@@ -23,24 +24,22 @@ public interface LeveledPermissionPredicate extends PermissionPredicate {
 	@Override
 	default boolean hasPermission(Permission permission) {
 		if (permission instanceof Permission.Level level) {
-			return this.getLevel().isAtLeast(level.level());
+			return getLevel().isAtLeast(level.level());
 		}
-		else {
-			return permission.equals(DefaultPermissions.ENTITY_SELECTORS) ? this
-			                                                                .getLevel()
-			                                                                .isAtLeast(PermissionLevel.GAMEMASTERS)
-			                                                              : false;
-		}
+
+		// Атомарное разрешение на использование @-селекторов требует уровня GAMEMASTERS
+		return permission.equals(DefaultPermissions.ENTITY_SELECTORS)
+				&& getLevel().isAtLeast(PermissionLevel.GAMEMASTERS);
 	}
 
 	@Override
 	default PermissionPredicate or(PermissionPredicate other) {
-		if (other instanceof LeveledPermissionPredicate leveledPermissionPredicate) {
-			return this.getLevel().isAtLeast(leveledPermissionPredicate.getLevel()) ? leveledPermissionPredicate : this;
+		if (other instanceof LeveledPermissionPredicate otherLeveled) {
+			// Возвращаем предикат с меньшим уровнем — он покрывает больше источников
+			return getLevel().isAtLeast(otherLeveled.getLevel()) ? otherLeveled : this;
 		}
-		else {
-			return PermissionPredicate.super.or(other);
-		}
+
+		return PermissionPredicate.super.or(other);
 	}
 
 	static LeveledPermissionPredicate fromLevel(PermissionLevel level) {

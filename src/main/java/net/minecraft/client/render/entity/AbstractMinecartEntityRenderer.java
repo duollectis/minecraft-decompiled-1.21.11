@@ -22,14 +22,19 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractMinecartEntityRenderer}.
+ * Базовый рендерер вагонетки. Обрабатывает два режима контроллера:
+ * экспериментальный (lerp по позиции/углам) и стандартный (snap-to-rail с симуляцией движения).
+ * Также рендерит содержимое блока внутри вагонетки и применяет wobble-анимацию при уроне.
  */
-public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartEntity, S extends MinecartEntityRenderState> extends EntityRenderer<T, S> {
+@Environment(EnvType.CLIENT)
+public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartEntity, S extends MinecartEntityRenderState>
+		extends EntityRenderer<T, S> {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/minecart.png");
 	private static final float CART_SCALE = 0.75F;
+	private static final float WOBBLE_DIVISOR = 10.0F;
+
 	protected final MinecartEntityModel model;
 
 	public AbstractMinecartEntityRenderer(EntityRendererFactory.Context ctx, EntityModelLayer layer) {
@@ -38,6 +43,7 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 		this.model = new MinecartEntityModel(ctx.getPart(layer));
 	}
 
+	@Override
 	public void render(
 			S minecartEntityRenderState,
 			MatrixStack matrixStack,
@@ -46,37 +52,38 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 	) {
 		super.render(minecartEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 		matrixStack.push();
-		long l = minecartEntityRenderState.hash;
-		float f = (((float) (l >> 16 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
-		float g = (((float) (l >> 20 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
-		float h = (((float) (l >> 24 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
-		matrixStack.translate(f, g, h);
+
+		long hash = minecartEntityRenderState.hash;
+		float offsetX = (((float) (hash >> 16 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
+		float offsetY = (((float) (hash >> 20 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
+		float offsetZ = (((float) (hash >> 24 & 7L) + 0.5F) / 8.0F - 0.5F) * 0.004F;
+		matrixStack.translate(offsetX, offsetY, offsetZ);
+
 		if (minecartEntityRenderState.usesExperimentalController) {
 			transformExperimentalControllerMinecart(minecartEntityRenderState, matrixStack);
-		}
-		else {
+		} else {
 			transformDefaultControllerMinecart(minecartEntityRenderState, matrixStack);
 		}
 
-		float i = minecartEntityRenderState.damageWobbleTicks;
-		if (i > 0.0F) {
+		float wobbleTicks = minecartEntityRenderState.damageWobbleTicks;
+		if (wobbleTicks > 0.0F) {
 			matrixStack.multiply(
-					RotationAxis.POSITIVE_X
-							.rotationDegrees(
-									MathHelper.sin(i) * i * minecartEntityRenderState.damageWobbleStrength / 10.0F
-											* minecartEntityRenderState.damageWobbleSide)
+					RotationAxis.POSITIVE_X.rotationDegrees(
+							MathHelper.sin(wobbleTicks) * wobbleTicks * minecartEntityRenderState.damageWobbleStrength
+									/ WOBBLE_DIVISOR * minecartEntityRenderState.damageWobbleSide
+					)
 			);
 		}
 
-		BlockState blockState = minecartEntityRenderState.containedBlock;
-		if (blockState.getRenderType() != BlockRenderType.INVISIBLE) {
+		BlockState containedBlock = minecartEntityRenderState.containedBlock;
+		if (containedBlock.getRenderType() != BlockRenderType.INVISIBLE) {
 			matrixStack.push();
-			matrixStack.scale(0.75F, 0.75F, 0.75F);
+			matrixStack.scale(CART_SCALE, CART_SCALE, CART_SCALE);
 			matrixStack.translate(-0.5F, (minecartEntityRenderState.blockOffset - 8) / 16.0F, 0.5F);
 			matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F));
 			this.renderBlock(
 					minecartEntityRenderState,
-					blockState,
+					containedBlock,
 					matrixStack,
 					orderedRenderCommandQueue,
 					minecartEntityRenderState.light
@@ -107,79 +114,67 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 		matrices.translate(0.0F, 0.375F, 0.0F);
 	}
 
+	/**
+	 * Применяет трансформации для стандартного контроллера: вычисляет угол наклона
+	 * по двум соседним точкам рельса (futurePos и pastPos) для плавного поворота вагонетки.
+	 */
 	private static <S extends MinecartEntityRenderState> void transformDefaultControllerMinecart(
 			S state,
 			MatrixStack matrices
 	) {
-		double d = state.x;
-		double e = state.y;
-		double f = state.z;
-		float g = state.lerpedPitch;
-		float h = state.lerpedYaw;
+		float pitch = state.lerpedPitch;
+		float yaw = state.lerpedYaw;
+
 		if (state.presentPos != null && state.futurePos != null && state.pastPos != null) {
-			Vec3d vec3d = state.futurePos;
-			Vec3d vec3d2 = state.pastPos;
-			matrices.translate(state.presentPos.x - d, (vec3d.y + vec3d2.y) / 2.0 - e, state.presentPos.z - f);
-			Vec3d vec3d3 = vec3d2.add(-vec3d.x, -vec3d.y, -vec3d.z);
-			if (vec3d3.length() != 0.0) {
-				vec3d3 = vec3d3.normalize();
-				h = (float) (Math.atan2(vec3d3.z, vec3d3.x) * 180.0 / Math.PI);
-				g = (float) (Math.atan(vec3d3.y) * 73.0);
+			Vec3d futurePos = state.futurePos;
+			Vec3d pastPos = state.pastPos;
+			matrices.translate(state.presentPos.x - state.x, (futurePos.y + pastPos.y) / 2.0 - state.y, state.presentPos.z - state.z);
+
+			Vec3d railDirection = pastPos.add(-futurePos.x, -futurePos.y, -futurePos.z);
+			if (railDirection.length() != 0.0) {
+				railDirection = railDirection.normalize();
+				yaw = (float) (Math.atan2(railDirection.z, railDirection.x) * 180.0 / Math.PI);
+				pitch = (float) (Math.atan(railDirection.y) * 73.0);
 			}
 		}
 
 		matrices.translate(0.0F, 0.375F, 0.0F);
-		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - h));
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-g));
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - yaw));
+		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pitch));
 	}
 
-	/**
-	 * Обновляет render state.
-	 *
-	 * @param abstractMinecartEntity abstract minecart entity
-	 * @param minecartEntityRenderState minecart entity render state
-	 * @param f f
-	 */
-	public void updateRenderState(T abstractMinecartEntity, S minecartEntityRenderState, float f) {
-		super.updateRenderState(abstractMinecartEntity, minecartEntityRenderState, f);
-		if (abstractMinecartEntity.getController() instanceof ExperimentalMinecartController experimentalMinecartController) {
-			updateFromExperimentalController(
-					abstractMinecartEntity,
-					experimentalMinecartController,
-					minecartEntityRenderState,
-					f
-			);
+	@Override
+	public void updateRenderState(T abstractMinecartEntity, S minecartEntityRenderState, float tickProgress) {
+		super.updateRenderState(abstractMinecartEntity, minecartEntityRenderState, tickProgress);
+
+		if (abstractMinecartEntity.getController() instanceof ExperimentalMinecartController experimentalController) {
+			updateFromExperimentalController(abstractMinecartEntity, experimentalController, minecartEntityRenderState, tickProgress);
 			minecartEntityRenderState.usesExperimentalController = true;
-		}
-		else if (abstractMinecartEntity.getController() instanceof DefaultMinecartController defaultMinecartController) {
-			updateFromDefaultController(
-					abstractMinecartEntity,
-					defaultMinecartController,
-					minecartEntityRenderState,
-					f
-			);
+		} else if (abstractMinecartEntity.getController() instanceof DefaultMinecartController defaultController) {
+			updateFromDefaultController(abstractMinecartEntity, defaultController, minecartEntityRenderState, tickProgress);
 			minecartEntityRenderState.usesExperimentalController = false;
 		}
 
-		long l = abstractMinecartEntity.getId() * 493286711L;
-		minecartEntityRenderState.hash = l * l * 4392167121L + l * 98761L;
-		minecartEntityRenderState.damageWobbleTicks = abstractMinecartEntity.getDamageWobbleTicks() - f;
+		long entityId = abstractMinecartEntity.getId() * 493286711L;
+		minecartEntityRenderState.hash = entityId * entityId * 4392167121L + entityId * 98761L;
+		minecartEntityRenderState.damageWobbleTicks = abstractMinecartEntity.getDamageWobbleTicks() - tickProgress;
 		minecartEntityRenderState.damageWobbleSide = abstractMinecartEntity.getDamageWobbleSide();
-		minecartEntityRenderState.damageWobbleStrength =
-				Math.max(abstractMinecartEntity.getDamageWobbleStrength() - f, 0.0F);
+		minecartEntityRenderState.damageWobbleStrength = Math.max(abstractMinecartEntity.getDamageWobbleStrength() - tickProgress, 0.0F);
 		minecartEntityRenderState.blockOffset = abstractMinecartEntity.getBlockOffset();
 		minecartEntityRenderState.containedBlock = abstractMinecartEntity.getContainedBlock();
 	}
 
 	private static <T extends AbstractMinecartEntity, S extends MinecartEntityRenderState> void updateFromExperimentalController(
-			T minecart, ExperimentalMinecartController controller, S state, float tickProgress
+			T minecart,
+			ExperimentalMinecartController controller,
+			S state,
+			float tickProgress
 	) {
 		if (controller.hasCurrentLerpSteps()) {
 			state.lerpedPos = controller.getLerpedPosition(tickProgress);
 			state.lerpedPitch = controller.getLerpedPitch(tickProgress);
 			state.lerpedYaw = controller.getLerpedYaw(tickProgress);
-		}
-		else {
+		} else {
 			state.lerpedPos = null;
 			state.lerpedPitch = minecart.getPitch();
 			state.lerpedYaw = minecart.getYaw();
@@ -187,23 +182,20 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 	}
 
 	private static <T extends AbstractMinecartEntity, S extends MinecartEntityRenderState> void updateFromDefaultController(
-			T minecart, DefaultMinecartController controller, S state, float tickProgress
+			T minecart,
+			DefaultMinecartController controller,
+			S state,
+			float tickProgress
 	) {
-		float f = 0.3F;
 		state.lerpedPitch = minecart.getLerpedPitch(tickProgress);
 		state.lerpedYaw = minecart.getLerpedYaw(tickProgress);
-		double d = state.x;
-		double e = state.y;
-		double g = state.z;
-		Vec3d vec3d = controller.snapPositionToRail(d, e, g);
-		if (vec3d != null) {
-			state.presentPos = vec3d;
-			Vec3d vec3d2 = controller.simulateMovement(d, e, g, 0.3F);
-			Vec3d vec3d3 = controller.simulateMovement(d, e, g, -0.3F);
-			state.futurePos = Objects.requireNonNullElse(vec3d2, vec3d);
-			state.pastPos = Objects.requireNonNullElse(vec3d3, vec3d);
-		}
-		else {
+
+		Vec3d currentPos = controller.snapPositionToRail(state.x, state.y, state.z);
+		if (currentPos != null) {
+			state.presentPos = currentPos;
+			state.futurePos = Objects.requireNonNullElse(controller.simulateMovement(state.x, state.y, state.z, 0.3F), currentPos);
+			state.pastPos = Objects.requireNonNullElse(controller.simulateMovement(state.x, state.y, state.z, -0.3F), currentPos);
+		} else {
 			state.presentPos = null;
 			state.futurePos = null;
 			state.pastPos = null;
@@ -226,23 +218,23 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 		);
 	}
 
+	@Override
 	protected Box getBoundingBox(T abstractMinecartEntity) {
 		Box box = super.getBoundingBox(abstractMinecartEntity);
-		return !abstractMinecartEntity.getContainedBlock().isAir() ? box.stretch(
-				0.0,
-				abstractMinecartEntity.getBlockOffset() * 0.75F / 16.0F,
-				0.0
-		) : box;
+		return !abstractMinecartEntity.getContainedBlock().isAir()
+				? box.stretch(0.0, abstractMinecartEntity.getBlockOffset() * CART_SCALE / 16.0F, 0.0)
+				: box;
 	}
 
+	@Override
 	public Vec3d getPositionOffset(S minecartEntityRenderState) {
-		Vec3d vec3d = super.getPositionOffset(minecartEntityRenderState);
+		Vec3d baseOffset = super.getPositionOffset(minecartEntityRenderState);
 		return minecartEntityRenderState.usesExperimentalController && minecartEntityRenderState.lerpedPos != null
-		       ? vec3d.add(
-				minecartEntityRenderState.lerpedPos.x - minecartEntityRenderState.x,
-				minecartEntityRenderState.lerpedPos.y - minecartEntityRenderState.y,
-				minecartEntityRenderState.lerpedPos.z - minecartEntityRenderState.z
-		)
-		       : vec3d;
+				? baseOffset.add(
+						minecartEntityRenderState.lerpedPos.x - minecartEntityRenderState.x,
+						minecartEntityRenderState.lerpedPos.y - minecartEntityRenderState.y,
+						minecartEntityRenderState.lerpedPos.z - minecartEntityRenderState.z
+				)
+				: baseOffset;
 	}
 }

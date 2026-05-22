@@ -20,7 +20,7 @@ import java.net.SocketAddress;
 
 @Environment(EnvType.CLIENT)
 /**
- * {@code IntegratedPlayerManager}.
+ * Менеджер игроков интегрированного сервера (одиночная игра / LAN).
  */
 public class IntegratedPlayerManager extends PlayerManager {
 

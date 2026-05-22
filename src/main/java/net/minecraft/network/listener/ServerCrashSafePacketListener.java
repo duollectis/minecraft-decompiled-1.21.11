@@ -6,7 +6,9 @@ import net.minecraft.util.crash.CrashException;
 import org.slf4j.Logger;
 
 /**
- * Интерфейс server crash safe packet listener.
+ * Расширение {@link ServerPacketListener}, которое перехватывает исключения при обработке пакетов
+ * и логирует их вместо краша сервера. Используется для всех серверных слушателей,
+ * где недопустимо прерывать работу сервера из-за некорректного пакета клиента.
  */
 public interface ServerCrashSafePacketListener extends ServerPacketListener {
 

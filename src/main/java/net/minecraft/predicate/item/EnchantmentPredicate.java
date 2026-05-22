@@ -2,7 +2,7 @@ package net.minecraft.predicate.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.predicate.NumberRange;
@@ -14,21 +14,22 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import java.util.Optional;
 
 /**
- * {@code EnchantmentPredicate}.
+ * Предикат для проверки наличия конкретного зачарования с заданным диапазоном уровней.
+ * Если {@code enchantments} пуст — проверяет любое зачарование в указанном диапазоне уровней.
+ * Если оба поля не заданы — проверяет наличие хотя бы одного зачарования.
  */
 public record EnchantmentPredicate(Optional<RegistryEntryList<Enchantment>> enchantments, NumberRange.IntRange levels) {
 
 	public static final Codec<EnchantmentPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ENCHANTMENT)
-							                    .optionalFieldOf("enchantments")
-							                    .forGetter(EnchantmentPredicate::enchantments),
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("levels", NumberRange.IntRange.ANY)
-							                    .forGetter(EnchantmentPredicate::levels)
-			                    )
-			                    .apply(instance, EnchantmentPredicate::new)
+					RegistryCodecs.entryList(RegistryKeys.ENCHANTMENT)
+							.optionalFieldOf("enchantments")
+							.forGetter(EnchantmentPredicate::enchantments),
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("levels", NumberRange.IntRange.ANY)
+							.forGetter(EnchantmentPredicate::levels)
+			)
+			.apply(instance, EnchantmentPredicate::new)
 	);
 
 	public EnchantmentPredicate(RegistryEntry<Enchantment> enchantment, NumberRange.IntRange levels) {
@@ -40,36 +41,36 @@ public record EnchantmentPredicate(Optional<RegistryEntryList<Enchantment>> ench
 	}
 
 	public boolean test(ItemEnchantmentsComponent enchantmentsComponent) {
-		if (this.enchantments.isPresent()) {
-			for (RegistryEntry<Enchantment> registryEntry : this.enchantments.get()) {
-				if (this.testLevel(enchantmentsComponent, registryEntry)) {
+		if (enchantments.isPresent()) {
+			for (RegistryEntry<Enchantment> enchantment : enchantments.get()) {
+				if (testLevel(enchantmentsComponent, enchantment)) {
 					return true;
 				}
 			}
 
 			return false;
 		}
-		else if (this.levels != NumberRange.IntRange.ANY) {
-			for (Entry<RegistryEntry<Enchantment>> entry : enchantmentsComponent.getEnchantmentEntries()) {
-				if (this.levels.test(entry.getIntValue())) {
+
+		if (levels != NumberRange.IntRange.ANY) {
+			for (Object2IntMap.Entry<RegistryEntry<Enchantment>> entry : enchantmentsComponent.getEnchantmentEntries()) {
+				if (levels.test(entry.getIntValue())) {
 					return true;
 				}
 			}
 
 			return false;
 		}
-		else {
-			return !enchantmentsComponent.isEmpty();
-		}
+
+		return !enchantmentsComponent.isEmpty();
 	}
 
 	private boolean testLevel(ItemEnchantmentsComponent enchantmentsComponent, RegistryEntry<Enchantment> enchantment) {
-		int i = enchantmentsComponent.getLevel(enchantment);
-		if (i == 0) {
+		int level = enchantmentsComponent.getLevel(enchantment);
+
+		if (level == 0) {
 			return false;
 		}
-		else {
-			return this.levels == NumberRange.IntRange.ANY ? true : this.levels.test(i);
-		}
+
+		return levels == NumberRange.IntRange.ANY || levels.test(level);
 	}
 }

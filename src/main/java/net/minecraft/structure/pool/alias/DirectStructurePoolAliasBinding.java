@@ -11,38 +11,34 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 /**
- * {@code DirectStructurePoolAliasBinding}.
+ * Прямая привязка псевдонима пула: всегда отображает {@code alias} на {@code target},
+ * независимо от случайности. Наиболее простой и предсказуемый тип привязки.
  */
 public record DirectStructurePoolAliasBinding(
-		RegistryKey<StructurePool> alias,
-		RegistryKey<StructurePool> target
+	RegistryKey<StructurePool> alias,
+	RegistryKey<StructurePool> target
 ) implements StructurePoolAliasBinding {
 
-	static MapCodec<DirectStructurePoolAliasBinding> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryKey
-							                    .createCodec(RegistryKeys.TEMPLATE_POOL)
-							                    .fieldOf("alias")
-							                    .forGetter(DirectStructurePoolAliasBinding::alias),
-					                    RegistryKey
-							                    .createCodec(RegistryKeys.TEMPLATE_POOL)
-							                    .fieldOf("target")
-							                    .forGetter(DirectStructurePoolAliasBinding::target)
-			                    )
-			                    .apply(instance, DirectStructurePoolAliasBinding::new)
+	static final MapCodec<DirectStructurePoolAliasBinding> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> instance.group(
+			RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL).fieldOf("alias")
+				.forGetter(DirectStructurePoolAliasBinding::alias),
+			RegistryKey.createCodec(RegistryKeys.TEMPLATE_POOL).fieldOf("target")
+				.forGetter(DirectStructurePoolAliasBinding::target)
+		).apply(instance, DirectStructurePoolAliasBinding::new)
 	);
 
 	@Override
 	public void forEach(
-			Random random,
-			BiConsumer<RegistryKey<StructurePool>, RegistryKey<StructurePool>> aliasConsumer
+		Random random,
+		BiConsumer<RegistryKey<StructurePool>, RegistryKey<StructurePool>> aliasConsumer
 	) {
-		aliasConsumer.accept(this.alias, this.target);
+		aliasConsumer.accept(alias, target);
 	}
 
 	@Override
 	public Stream<RegistryKey<StructurePool>> streamTargets() {
-		return Stream.of(this.target);
+		return Stream.of(target);
 	}
 
 	@Override

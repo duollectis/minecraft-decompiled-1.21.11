@@ -24,10 +24,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SelectItemModel}.
+ * Модель предмета с диспетчеризацией по перечислимому свойству (switch-логика).
+ * Вычисляет значение {@link SelectProperty} и выбирает соответствующую дочернюю модель
+ * из таблицы соответствий. Поддерживает контекстную замену значений через {@link ContextSwapper}
+ * для корректной работы в разных реестровых контекстах.
+ *
+ * @param <T> тип значения свойства выбора
  */
+@Environment(EnvType.CLIENT)
 public class SelectItemModel<T> implements ItemModel {
 
 	private final SelectProperty<T> property;
@@ -49,55 +54,58 @@ public class SelectItemModel<T> implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		T
-				object =
-				this.property.getValue(
-						stack,
-						world,
-						heldItemContext == null ? null : heldItemContext.getEntity(),
-						seed,
-						displayContext
-				);
-		ItemModel itemModel = this.selector.get(object, world);
-		if (itemModel != null) {
-			itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+
+		T value = property.getValue(
+				stack,
+				world,
+				heldItemContext == null ? null : heldItemContext.getEntity(),
+				seed,
+				displayContext
+		);
+
+		ItemModel selected = selector.get(value, world);
+
+		if (selected != null) {
+			selected.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
 		}
 	}
 
+	/**
+	 * Функциональный интерфейс для выбора модели по значению свойства и миру.
+	 *
+	 * @param <T> тип значения свойства
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ModelSelector}.
-	 */
 	public interface ModelSelector<T> {
 
 		@Nullable ItemModel get(@Nullable T propertyValue, @Nullable ClientWorld world);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SwitchCase}.
+	 * Один вариант switch-выражения: список значений, при которых активируется данная модель.
+	 *
+	 * @param <T> тип значения свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public record SwitchCase<T>(List<T> values, ItemModel.Unbaked model) {
 
 		public static <T> Codec<SelectItemModel.SwitchCase<T>> createCodec(Codec<T> conditionCodec) {
 			return RecordCodecBuilder.create(
 					instance -> instance.group(
-							                    Codecs
-									                    .nonEmptyList(Codecs.listOrSingle(conditionCodec))
-									                    .fieldOf("when")
-									                    .forGetter(SelectItemModel.SwitchCase::values),
-							                    ItemModelTypes.CODEC.fieldOf("model").forGetter(SelectItemModel.SwitchCase::model)
-					                    )
-					                    .apply(instance, SelectItemModel.SwitchCase::new)
+							Codecs.nonEmptyList(Codecs.listOrSingle(conditionCodec))
+									.fieldOf("when")
+									.forGetter(SelectItemModel.SwitchCase::values),
+							ItemModelTypes.CODEC.fieldOf("model").forGetter(SelectItemModel.SwitchCase::model)
+					).apply(instance, SelectItemModel.SwitchCase::new)
 			);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма модели с выбором по свойству.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			SelectItemModel.UnbakedSwitch<?, ?> unbakedSwitch,
 			Optional<ItemModel.Unbaked> fallback
@@ -105,10 +113,9 @@ public class SelectItemModel<T> implements ItemModel {
 
 		public static final MapCodec<SelectItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    SelectItemModel.UnbakedSwitch.CODEC.forGetter(SelectItemModel.Unbaked::unbakedSwitch),
-						                    ItemModelTypes.CODEC.optionalFieldOf("fallback").forGetter(SelectItemModel.Unbaked::fallback)
-				                    )
-				                    .apply(instance, SelectItemModel.Unbaked::new)
+						SelectItemModel.UnbakedSwitch.CODEC.forGetter(SelectItemModel.Unbaked::unbakedSwitch),
+						ItemModelTypes.CODEC.optionalFieldOf("fallback").forGetter(SelectItemModel.Unbaked::fallback)
+				).apply(instance, SelectItemModel.Unbaked::new)
 		);
 
 		@Override
@@ -118,24 +125,33 @@ public class SelectItemModel<T> implements ItemModel {
 
 		@Override
 		public ItemModel bake(ItemModel.BakeContext context) {
-			ItemModel
-					itemModel =
-					this.fallback.<ItemModel>map(model -> model.bake(context)).orElse(context.missingItemModel());
-			return this.unbakedSwitch.bake(context, itemModel);
+			ItemModel bakedFallback = fallback
+					.<ItemModel>map(model -> model.bake(context))
+					.orElse(context.missingItemModel());
+
+			return unbakedSwitch.bake(context, bakedFallback);
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.unbakedSwitch.resolveCases(resolver);
-			this.fallback.ifPresent(model -> model.resolve(resolver));
+			unbakedSwitch.resolveCases(resolver);
+			fallback.ifPresent(model -> model.resolve(resolver));
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code UnbakedSwitch}.
+	 * Несериализованный switch-блок, связывающий свойство с набором вариантов.
+	 * При запекании строит карту значений → моделей и при наличии {@link ContextSwapper}
+	 * создаёт кэшированный селектор с поддержкой замены контекста реестра.
+	 *
+	 * @param <P> тип свойства выбора
+	 * @param <T> тип значения свойства
 	 */
-	public record UnbakedSwitch<P extends SelectProperty<T>, T>(P property, List<SelectItemModel.SwitchCase<T>> cases) {
+	@Environment(EnvType.CLIENT)
+	public record UnbakedSwitch<P extends SelectProperty<T>, T>(
+			P property,
+			List<SelectItemModel.SwitchCase<T>> cases
+	) {
 
 		public static final MapCodec<SelectItemModel.UnbakedSwitch<?, ?>> CODEC = SelectProperties.CODEC
 				.dispatchMap(
@@ -145,30 +161,28 @@ public class SelectItemModel<T> implements ItemModel {
 				);
 
 		/**
-		 * Bake.
+		 * Запекает switch-блок в готовую {@link SelectItemModel}.
+		 * Строит карту значений → запечённых моделей. Если задан {@link ContextSwapper},
+		 * создаёт кэшированный по миру селектор с поддержкой замены контекста реестра.
 		 *
-		 * @param context context
-		 * @param fallback fallback
-		 *
-		 * @return ItemModel — результат операции
+		 * @param context  контекст запекания
+		 * @param fallback модель-заглушка для неизвестных значений
+		 * @return готовая модель с диспетчеризацией по значению свойства
 		 */
 		public ItemModel bake(ItemModel.BakeContext context, ItemModel fallback) {
-			Object2ObjectMap<T, ItemModel> object2ObjectMap = new Object2ObjectOpenHashMap();
+			Object2ObjectMap<T, ItemModel> modelMap = new Object2ObjectOpenHashMap<>();
 
-			for (SelectItemModel.SwitchCase<T> switchCase : this.cases) {
-				ItemModel.Unbaked unbaked = switchCase.model;
-				ItemModel itemModel = unbaked.bake(context);
+			for (SelectItemModel.SwitchCase<T> switchCase : cases) {
+				ItemModel bakedModel = switchCase.model().bake(context);
 
-				for (T object : switchCase.values) {
-					object2ObjectMap.put(object, itemModel);
+				for (T value : switchCase.values()) {
+					modelMap.put(value, bakedModel);
 				}
 			}
 
-			object2ObjectMap.defaultReturnValue(fallback);
-			return new SelectItemModel<>(
-					this.property,
-					this.buildModelSelector(object2ObjectMap, context.contextSwapper())
-			);
+			modelMap.defaultReturnValue(fallback);
+
+			return new SelectItemModel<>(property, buildModelSelector(modelMap, context.contextSwapper()));
 		}
 
 		private SelectItemModel.ModelSelector<T> buildModelSelector(
@@ -176,43 +190,40 @@ public class SelectItemModel<T> implements ItemModel {
 				@Nullable ContextSwapper contextSwapper
 		) {
 			if (contextSwapper == null) {
-				return (value, world) -> (ItemModel) models.get(value);
+				return (value, world) -> models.get(value);
 			}
-			else {
-				ItemModel itemModel = (ItemModel) models.defaultReturnValue();
-				DataCache<ClientWorld, Object2ObjectMap<T, ItemModel>> dataCache = new DataCache<>(
-						world -> {
-							Object2ObjectMap<T, ItemModel>
-									object2ObjectMap2 =
-									new Object2ObjectOpenHashMap(models.size());
-							object2ObjectMap2.defaultReturnValue(itemModel);
-							models.forEach(
-									(value, worldx) -> contextSwapper
-											.swapContext(this.property.valueCodec(), value, world.getRegistryManager())
-											.ifSuccess(swappedValue -> object2ObjectMap2.put(swappedValue, worldx))
-							);
-							return object2ObjectMap2;
-						}
-				);
-				return (value, world) -> {
-					if (world == null) {
-						return (ItemModel) models.get(value);
+
+			ItemModel defaultModel = models.defaultReturnValue();
+			DataCache<ClientWorld, Object2ObjectMap<T, ItemModel>> dataCache = new DataCache<>(
+					world -> {
+						Object2ObjectMap<T, ItemModel> swapped = new Object2ObjectOpenHashMap<>(models.size());
+						swapped.defaultReturnValue(defaultModel);
+						models.forEach(
+								(value, model) -> contextSwapper
+										.swapContext(property.valueCodec(), value, world.getRegistryManager())
+										.ifSuccess(swappedValue -> swapped.put(swappedValue, model))
+						);
+						return swapped;
 					}
-					else {
-						return value == null ? itemModel : (ItemModel) dataCache.compute(world).get(value);
-					}
-				};
-			}
+			);
+
+			return (value, world) -> {
+				if (world == null) {
+					return models.get(value);
+				}
+
+				return value == null ? defaultModel : dataCache.compute(world).get(value);
+			};
 		}
 
 		/**
-		 * Resolve cases.
+		 * Разрешает зависимости всех вариантов switch-блока.
 		 *
-		 * @param resolver resolver
+		 * @param resolver резолвер зависимостей моделей
 		 */
 		public void resolveCases(ResolvableModel.Resolver resolver) {
-			for (SelectItemModel.SwitchCase<?> switchCase : this.cases) {
-				switchCase.model.resolve(resolver);
+			for (SelectItemModel.SwitchCase<?> switchCase : cases) {
+				switchCase.model().resolve(resolver);
 			}
 		}
 	}

@@ -3,9 +3,7 @@ package net.minecraft.util.hit;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 
-/**
- * {@code EntityHitResult}.
- */
+/** Результат трассировки луча, попавшего в сущность. */
 public class EntityHitResult extends HitResult {
 
 	private final Entity entity;
@@ -20,11 +18,11 @@ public class EntityHitResult extends HitResult {
 	}
 
 	public Entity getEntity() {
-		return this.entity;
+		return entity;
 	}
 
 	@Override
-	public HitResult.Type getType() {
-		return HitResult.Type.ENTITY;
+	public Type getType() {
+		return Type.ENTITY;
 	}
 }

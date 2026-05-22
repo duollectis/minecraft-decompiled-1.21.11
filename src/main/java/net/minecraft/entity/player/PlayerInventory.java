@@ -2,7 +2,6 @@ package net.minecraft.entity.player;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.EntityEquipment;
 import net.minecraft.entity.EquipmentSlot;
@@ -29,7 +28,8 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * {@code PlayerInventory}.
+ * Инвентарь игрока: 36 основных слотов, хотбар (первые 9), слот внеруки и слоты экипировки.
+ * Является реализацией {@link Inventory} и делегирует операции с экипировкой в {@link EntityEquipment}.
  */
 public class PlayerInventory implements Inventory, Nameable {
 
@@ -40,26 +40,22 @@ public class PlayerInventory implements Inventory, Nameable {
 	public static final int BODY_SLOT = 41;
 	public static final int SADDLE_SLOT = 42;
 	public static final int NOT_FOUND = -1;
-	public static final Int2ObjectMap<EquipmentSlot> EQUIPMENT_SLOTS = new Int2ObjectArrayMap(
-			Map.of(
-					EquipmentSlot.FEET.getOffsetEntitySlotId(36),
-					EquipmentSlot.FEET,
-					EquipmentSlot.LEGS.getOffsetEntitySlotId(36),
-					EquipmentSlot.LEGS,
-					EquipmentSlot.CHEST.getOffsetEntitySlotId(36),
-					EquipmentSlot.CHEST,
-					EquipmentSlot.HEAD.getOffsetEntitySlotId(36),
-					EquipmentSlot.HEAD,
-					40,
-					EquipmentSlot.OFFHAND,
-					41,
-					EquipmentSlot.BODY,
-					42,
-					EquipmentSlot.SADDLE
-			)
+
+	public static final Int2ObjectMap<EquipmentSlot> EQUIPMENT_SLOTS = new Int2ObjectArrayMap<>(
+		Map.of(
+			EquipmentSlot.FEET.getOffsetEntitySlotId(MAIN_SIZE), EquipmentSlot.FEET,
+			EquipmentSlot.LEGS.getOffsetEntitySlotId(MAIN_SIZE), EquipmentSlot.LEGS,
+			EquipmentSlot.CHEST.getOffsetEntitySlotId(MAIN_SIZE), EquipmentSlot.CHEST,
+			EquipmentSlot.HEAD.getOffsetEntitySlotId(MAIN_SIZE), EquipmentSlot.HEAD,
+			OFF_HAND_SLOT, EquipmentSlot.OFFHAND,
+			BODY_SLOT, EquipmentSlot.BODY,
+			SADDLE_SLOT, EquipmentSlot.SADDLE
+		)
 	);
+
 	private static final Text NAME = Text.translatable("container.inventory");
-	private final DefaultedList<ItemStack> main = DefaultedList.ofSize(36, ItemStack.EMPTY);
+
+	private final DefaultedList<ItemStack> main = DefaultedList.ofSize(MAIN_SIZE, ItemStack.EMPTY);
 	private int selectedSlot;
 	public final PlayerEntity player;
 	private final EntityEquipment equipment;
@@ -71,384 +67,429 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	public int getSelectedSlot() {
-		return this.selectedSlot;
+		return selectedSlot;
 	}
 
+	/**
+	 * Устанавливает выбранный слот хотбара.
+	 *
+	 * @param slot индекс слота (0–8)
+	 * @throws IllegalArgumentException если индекс вне диапазона хотбара
+	 */
 	public void setSelectedSlot(int slot) {
 		if (!isValidHotbarIndex(slot)) {
 			throw new IllegalArgumentException("Invalid selected slot");
 		}
-		else {
-			this.selectedSlot = slot;
-		}
+
+		selectedSlot = slot;
 	}
 
 	public ItemStack getSelectedStack() {
-		return this.main.get(this.selectedSlot);
+		return main.get(selectedSlot);
 	}
 
 	public ItemStack setSelectedStack(ItemStack stack) {
-		return this.main.set(this.selectedSlot, stack);
+		return main.set(selectedSlot, stack);
 	}
 
 	public static int getHotbarSize() {
-		return 9;
+		return HOTBAR_SIZE;
 	}
 
 	public DefaultedList<ItemStack> getMainStacks() {
-		return this.main;
+		return main;
 	}
 
 	private boolean canStackAddMore(ItemStack existingStack, ItemStack stack) {
 		return !existingStack.isEmpty()
-				&& ItemStack.areItemsAndComponentsEqual(existingStack, stack)
-				&& existingStack.isStackable()
-				&& existingStack.getCount() < this.getMaxCount(existingStack);
-	}
-
-	public int getEmptySlot() {
-		for (int i = 0; i < this.main.size(); i++) {
-			if (this.main.get(i).isEmpty()) {
-				return i;
-			}
-		}
-
-		return -1;
+			&& ItemStack.areItemsAndComponentsEqual(existingStack, stack)
+			&& existingStack.isStackable()
+			&& existingStack.getCount() < getMaxCount(existingStack);
 	}
 
 	/**
-	 * Swap stack with hotbar.
+	 * Возвращает первый пустой слот в основном инвентаре, или {@link #NOT_FOUND}.
+	 */
+	public int getEmptySlot() {
+		for (int slot = 0; slot < main.size(); slot++) {
+			if (main.get(slot).isEmpty()) {
+				return slot;
+			}
+		}
+
+		return NOT_FOUND;
+	}
+
+	/**
+	 * Перемещает предмет в хотбар, освобождая место при необходимости.
+	 * Выбирает подходящий слот через {@link #getSwappableHotbarSlot()}.
 	 *
-	 * @param stack stack
+	 * @param stack предмет для помещения в хотбар
 	 */
 	public void swapStackWithHotbar(ItemStack stack) {
-		this.setSelectedSlot(this.getSwappableHotbarSlot());
-		if (!this.main.get(this.selectedSlot).isEmpty()) {
-			int i = this.getEmptySlot();
-			if (i != -1) {
-				this.main.set(i, this.main.get(this.selectedSlot));
+		setSelectedSlot(getSwappableHotbarSlot());
+
+		if (!main.get(selectedSlot).isEmpty()) {
+			int emptySlot = getEmptySlot();
+
+			if (emptySlot != NOT_FOUND) {
+				main.set(emptySlot, main.get(selectedSlot));
 			}
 		}
 
-		this.main.set(this.selectedSlot, stack);
+		main.set(selectedSlot, stack);
 	}
 
 	/**
-	 * Swap slot with hotbar.
+	 * Меняет местами содержимое указанного слота и выбранного слота хотбара.
 	 *
-	 * @param slot slot
+	 * @param slot слот для обмена с хотбаром
 	 */
 	public void swapSlotWithHotbar(int slot) {
-		this.setSelectedSlot(this.getSwappableHotbarSlot());
-		ItemStack itemStack = this.main.get(this.selectedSlot);
-		this.main.set(this.selectedSlot, this.main.get(slot));
-		this.main.set(slot, itemStack);
+		setSelectedSlot(getSwappableHotbarSlot());
+		ItemStack temp = main.get(selectedSlot);
+		main.set(selectedSlot, main.get(slot));
+		main.set(slot, temp);
 	}
 
 	public static boolean isValidHotbarIndex(int slot) {
-		return slot >= 0 && slot < 9;
-	}
-
-	public int getSlotWithStack(ItemStack stack) {
-		for (int i = 0; i < this.main.size(); i++) {
-			if (!this.main.get(i).isEmpty() && ItemStack.areItemsAndComponentsEqual(stack, this.main.get(i))) {
-				return i;
-			}
-		}
-
-		return -1;
+		return slot >= 0 && slot < HOTBAR_SIZE;
 	}
 
 	/**
-	 * Usable when filling slot.
+	 * Ищет слот с предметом, идентичным по типу и компонентам.
 	 *
-	 * @param stack stack
+	 * @param stack эталонный предмет
+	 * @return индекс слота или {@link #NOT_FOUND}
+	 */
+	public int getSlotWithStack(ItemStack stack) {
+		for (int slot = 0; slot < main.size(); slot++) {
+			if (!main.get(slot).isEmpty() && ItemStack.areItemsAndComponentsEqual(stack, main.get(slot))) {
+				return slot;
+			}
+		}
+
+		return NOT_FOUND;
+	}
+
+	/**
+	 * Проверяет, пригоден ли предмет для автозаполнения слота (не повреждён, без зачарований и кастомного имени).
 	 *
-	 * @return boolean — результат операции
+	 * @param stack проверяемый предмет
+	 * @return {@code true} если предмет можно использовать для заполнения слота
 	 */
 	public static boolean usableWhenFillingSlot(ItemStack stack) {
 		return !stack.isDamaged() && !stack.hasEnchantments() && !stack.contains(DataComponentTypes.CUSTOM_NAME);
 	}
 
+	/**
+	 * Ищет слот с предметом указанного типа, пригодным для заполнения.
+	 *
+	 * @param item  тип предмета
+	 * @param stack опциональный эталон для сравнения компонентов (может быть пустым)
+	 * @return индекс слота или {@link #NOT_FOUND}
+	 */
 	public int getMatchingSlot(RegistryEntry<Item> item, ItemStack stack) {
-		for (int i = 0; i < this.main.size(); i++) {
-			ItemStack itemStack = this.main.get(i);
-			if (!itemStack.isEmpty()
-					&& itemStack.itemMatches(item)
-					&& usableWhenFillingSlot(itemStack)
-					&& (stack.isEmpty() || ItemStack.areItemsAndComponentsEqual(stack, itemStack))) {
-				return i;
+		for (int slot = 0; slot < main.size(); slot++) {
+			ItemStack candidate = main.get(slot);
+
+			if (!candidate.isEmpty()
+				&& candidate.itemMatches(item)
+				&& usableWhenFillingSlot(candidate)
+				&& (stack.isEmpty() || ItemStack.areItemsAndComponentsEqual(stack, candidate))) {
+				return slot;
 			}
 		}
 
-		return -1;
-	}
-
-	public int getSwappableHotbarSlot() {
-		for (int i = 0; i < 9; i++) {
-			int j = (this.selectedSlot + i) % 9;
-			if (this.main.get(j).isEmpty()) {
-				return j;
-			}
-		}
-
-		for (int ix = 0; ix < 9; ix++) {
-			int j = (this.selectedSlot + ix) % 9;
-			if (!this.main.get(j).hasEnchantments()) {
-				return j;
-			}
-		}
-
-		return this.selectedSlot;
+		return NOT_FOUND;
 	}
 
 	/**
-	 * Remove.
+	 * Находит наиболее подходящий слот хотбара для замены.
+	 * Приоритет: пустой слот → слот без зачарований → текущий выбранный слот.
+	 * Поиск начинается с текущего выбранного слота по кругу.
 	 *
-	 * @param shouldRemove should remove
-	 * @param maxCount max count
-	 * @param craftingInventory crafting inventory
+	 * @return индекс слота хотбара
+	 */
+	public int getSwappableHotbarSlot() {
+		for (int offset = 0; offset < HOTBAR_SIZE; offset++) {
+			int slot = (selectedSlot + offset) % HOTBAR_SIZE;
+
+			if (main.get(slot).isEmpty()) {
+				return slot;
+			}
+		}
+
+		for (int offset = 0; offset < HOTBAR_SIZE; offset++) {
+			int slot = (selectedSlot + offset) % HOTBAR_SIZE;
+
+			if (!main.get(slot).hasEnchantments()) {
+				return slot;
+			}
+		}
+
+		return selectedSlot;
+	}
+
+	/**
+	 * Удаляет предметы из инвентаря, курсора и крафтового инвентаря по предикату.
 	 *
-	 * @return int — результат операции
+	 * @param shouldRemove     предикат отбора предметов для удаления
+	 * @param maxCount         максимальное количество для удаления (0 = без ограничений)
+	 * @param craftingInventory крафтовый инвентарь для дополнительного поиска
+	 * @return суммарное количество удалённых предметов
 	 */
 	public int remove(Predicate<ItemStack> shouldRemove, int maxCount, Inventory craftingInventory) {
-		int i = 0;
-		boolean bl = maxCount == 0;
-		i += Inventories.remove(this, shouldRemove, maxCount - i, bl);
-		i += Inventories.remove(craftingInventory, shouldRemove, maxCount - i, bl);
-		ItemStack itemStack = this.player.currentScreenHandler.getCursorStack();
-		i += Inventories.remove(itemStack, shouldRemove, maxCount - i, bl);
-		if (itemStack.isEmpty()) {
-			this.player.currentScreenHandler.setCursorStack(ItemStack.EMPTY);
+		boolean unlimited = maxCount == 0;
+		int removed = 0;
+		removed += Inventories.remove(this, shouldRemove, maxCount - removed, unlimited);
+		removed += Inventories.remove(craftingInventory, shouldRemove, maxCount - removed, unlimited);
+
+		ItemStack cursorStack = player.currentScreenHandler.getCursorStack();
+		removed += Inventories.remove(cursorStack, shouldRemove, maxCount - removed, unlimited);
+
+		if (cursorStack.isEmpty()) {
+			player.currentScreenHandler.setCursorStack(ItemStack.EMPTY);
 		}
 
-		return i;
-	}
-
-	private int addStack(ItemStack stack) {
-		int i = this.getOccupiedSlotWithRoomForStack(stack);
-		if (i == -1) {
-			i = this.getEmptySlot();
-		}
-
-		return i == -1 ? stack.getCount() : this.addStack(i, stack);
-	}
-
-	private int addStack(int slot, ItemStack stack) {
-		int i = stack.getCount();
-		ItemStack itemStack = this.getStack(slot);
-		if (itemStack.isEmpty()) {
-			itemStack = stack.copyWithCount(0);
-			this.setStack(slot, itemStack);
-		}
-
-		int j = this.getMaxCount(itemStack) - itemStack.getCount();
-		int k = Math.min(i, j);
-		if (k == 0) {
-			return i;
-		}
-		else {
-			i -= k;
-			itemStack.increment(k);
-			itemStack.setBobbingAnimationTime(5);
-			return i;
-		}
-	}
-
-	public int getOccupiedSlotWithRoomForStack(ItemStack stack) {
-		if (this.canStackAddMore(this.getStack(this.selectedSlot), stack)) {
-			return this.selectedSlot;
-		}
-		else if (this.canStackAddMore(this.getStack(40), stack)) {
-			return 40;
-		}
-		else {
-			for (int i = 0; i < this.main.size(); i++) {
-				if (this.canStackAddMore(this.main.get(i), stack)) {
-					return i;
-				}
-			}
-
-			return -1;
-		}
+		return removed;
 	}
 
 	/**
-	 * Обновляет items.
+	 * Добавляет предмет в первый подходящий слот (с местом или пустой).
+	 *
+	 * @param stack предмет для добавления
+	 * @return оставшееся количество, которое не удалось добавить
+	 */
+	private int addStack(ItemStack stack) {
+		int slot = getOccupiedSlotWithRoomForStack(stack);
+
+		if (slot == NOT_FOUND) {
+			slot = getEmptySlot();
+		}
+
+		return slot == NOT_FOUND ? stack.getCount() : addStack(slot, stack);
+	}
+
+	/**
+	 * Добавляет предмет в конкретный слот, учитывая максимальный стак.
+	 *
+	 * @param slot  целевой слот
+	 * @param stack предмет для добавления
+	 * @return оставшееся количество после добавления
+	 */
+	private int addStack(int slot, ItemStack stack) {
+		int incoming = stack.getCount();
+		ItemStack existing = getStack(slot);
+
+		if (existing.isEmpty()) {
+			existing = stack.copyWithCount(0);
+			setStack(slot, existing);
+		}
+
+		int available = getMaxCount(existing) - existing.getCount();
+		int toAdd = Math.min(incoming, available);
+
+		if (toAdd == 0) {
+			return incoming;
+		}
+
+		existing.increment(toAdd);
+		existing.setBobbingAnimationTime(ITEM_USAGE_COOLDOWN);
+		return incoming - toAdd;
+	}
+
+	/**
+	 * Ищет слот с предметом того же типа, в котором есть место для добавления.
+	 * Проверяет сначала выбранный слот, затем внеруку, затем весь основной инвентарь.
+	 *
+	 * @param stack предмет для добавления
+	 * @return индекс слота или {@link #NOT_FOUND}
+	 */
+	public int getOccupiedSlotWithRoomForStack(ItemStack stack) {
+		if (canStackAddMore(getStack(selectedSlot), stack)) {
+			return selectedSlot;
+		}
+
+		if (canStackAddMore(getStack(OFF_HAND_SLOT), stack)) {
+			return OFF_HAND_SLOT;
+		}
+
+		for (int slot = 0; slot < main.size(); slot++) {
+			if (canStackAddMore(main.get(slot), stack)) {
+				return slot;
+			}
+		}
+
+		return NOT_FOUND;
+	}
+
+	/**
+	 * Выполняет тиковое обновление всех предметов в основном инвентаре.
+	 * Передаёт слот экипировки {@link EquipmentSlot#MAINHAND} только для выбранного слота.
 	 */
 	public void updateItems() {
-		for (int i = 0; i < this.main.size(); i++) {
-			ItemStack itemStack = this.getStack(i);
-			if (!itemStack.isEmpty()) {
-				itemStack.inventoryTick(
-						this.player.getEntityWorld(),
-						this.player,
-						i == this.selectedSlot ? EquipmentSlot.MAINHAND : null
+		for (int slot = 0; slot < main.size(); slot++) {
+			ItemStack stack = getStack(slot);
+
+			if (!stack.isEmpty()) {
+				stack.inventoryTick(
+					player.getEntityWorld(),
+					player,
+					slot == selectedSlot ? EquipmentSlot.MAINHAND : null
 				);
 			}
 		}
 	}
 
 	/**
-	 * Insert stack.
+	 * Вставляет предмет в инвентарь, выбирая слот автоматически.
 	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
+	 * @param stack предмет для вставки
+	 * @return {@code true} если хотя бы часть предмета была добавлена
 	 */
 	public boolean insertStack(ItemStack stack) {
-		return this.insertStack(-1, stack);
+		return insertStack(NOT_FOUND, stack);
 	}
 
 	/**
-	 * Insert stack.
+	 * Вставляет предмет в указанный слот (или автоматически при {@code slot == -1}).
+	 * Повреждённые предметы помещаются целиком в один слот.
 	 *
-	 * @param slot slot
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
+	 * @param slot  целевой слот или {@link #NOT_FOUND} для автовыбора
+	 * @param stack предмет для вставки
+	 * @return {@code true} если хотя бы часть предмета была добавлена
 	 */
 	public boolean insertStack(int slot, ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
 		}
-		else {
-			try {
-				if (stack.isDamaged()) {
-					if (slot == -1) {
-						slot = this.getEmptySlot();
-					}
 
-					if (slot >= 0) {
-						this.main.set(slot, stack.copyAndEmpty());
-						this.main.get(slot).setBobbingAnimationTime(5);
-						return true;
-					}
-					else if (this.player.isInCreativeMode()) {
-						stack.setCount(0);
-						return true;
-					}
-					else {
-						return false;
-					}
-				}
-				else {
-					int i;
-					do {
-						i = stack.getCount();
-						if (slot == -1) {
-							stack.setCount(this.addStack(stack));
-						}
-						else {
-							stack.setCount(this.addStack(slot, stack));
-						}
-					}
-					while (!stack.isEmpty() && stack.getCount() < i);
+		try {
+			if (stack.isDamaged()) {
+				int targetSlot = slot == NOT_FOUND ? getEmptySlot() : slot;
 
-					if (stack.getCount() == i && this.player.isInCreativeMode()) {
-						stack.setCount(0);
-						return true;
-					}
-					else {
-						return stack.getCount() < i;
-					}
+				if (targetSlot >= 0) {
+					main.set(targetSlot, stack.copyAndEmpty());
+					main.get(targetSlot).setBobbingAnimationTime(ITEM_USAGE_COOLDOWN);
+					return true;
 				}
+
+				if (player.isInCreativeMode()) {
+					stack.setCount(0);
+					return true;
+				}
+
+				return false;
 			}
-			catch (Throwable var6) {
-				CrashReport crashReport = CrashReport.create(var6, "Adding item to inventory");
-				CrashReportSection crashReportSection = crashReport.addElement("Item being added");
-				crashReportSection.add("Item ID", Item.getRawId(stack.getItem()));
-				crashReportSection.add("Item data", stack.getDamage());
-				crashReportSection.add("Item name", () -> stack.getName().getString());
-				throw new CrashException(crashReport);
+
+			int prevCount;
+
+			do {
+				prevCount = stack.getCount();
+				stack.setCount(slot == NOT_FOUND ? addStack(stack) : addStack(slot, stack));
+			} while (!stack.isEmpty() && stack.getCount() < prevCount);
+
+			if (stack.getCount() == prevCount && player.isInCreativeMode()) {
+				stack.setCount(0);
+				return true;
 			}
+
+			return stack.getCount() < prevCount;
+		} catch (Throwable throwable) {
+			CrashReport crashReport = CrashReport.create(throwable, "Adding item to inventory");
+			CrashReportSection section = crashReport.addElement("Item being added");
+			section.add("Item ID", Item.getRawId(stack.getItem()));
+			section.add("Item data", stack.getDamage());
+			section.add("Item name", () -> stack.getName().getString());
+			throw new CrashException(crashReport);
 		}
 	}
 
 	/**
-	 * Offer or drop.
+	 * Предлагает предмет инвентарю, при невозможности добавить — бросает его на землю.
 	 *
-	 * @param stack stack
+	 * @param stack предмет для добавления или выброса
 	 */
 	public void offerOrDrop(ItemStack stack) {
-		this.offer(stack, true);
+		offer(stack, true);
 	}
 
 	/**
-	 * Offer.
+	 * Добавляет предмет в инвентарь, при переполнении — бросает остаток на землю.
+	 * При {@code notifiesClient == true} отправляет пакет обновления слота серверному игроку.
 	 *
-	 * @param stack stack
-	 * @param notifiesClient notifies client
+	 * @param stack           предмет для добавления
+	 * @param notifiesClient  отправлять ли пакет клиенту
 	 */
 	public void offer(ItemStack stack, boolean notifiesClient) {
 		while (!stack.isEmpty()) {
-			int i = this.getOccupiedSlotWithRoomForStack(stack);
-			if (i == -1) {
-				i = this.getEmptySlot();
+			int slot = getOccupiedSlotWithRoomForStack(stack);
+
+			if (slot == NOT_FOUND) {
+				slot = getEmptySlot();
 			}
 
-			if (i == -1) {
-				this.player.dropItem(stack, false);
+			if (slot == NOT_FOUND) {
+				player.dropItem(stack, false);
 				break;
 			}
 
-			int j = stack.getMaxCount() - this.getStack(i).getCount();
-			if (this.insertStack(i, stack.split(j)) && notifiesClient
-					&& this.player instanceof ServerPlayerEntity serverPlayerEntity) {
-				serverPlayerEntity.networkHandler.sendPacket(this.createSlotSetPacket(i));
+			int available = stack.getMaxCount() - getStack(slot).getCount();
+
+			if (insertStack(slot, stack.split(available)) && notifiesClient
+				&& player instanceof ServerPlayerEntity serverPlayer) {
+				serverPlayer.networkHandler.sendPacket(createSlotSetPacket(slot));
 			}
 		}
 	}
 
 	/**
-	 * Создаёт slot set packet.
+	 * Создаёт пакет синхронизации слота инвентаря для отправки клиенту.
 	 *
-	 * @param slot slot
-	 *
-	 * @return SetPlayerInventoryS2CPacket — результат операции
+	 * @param slot индекс слота
+	 * @return пакет с копией содержимого слота
 	 */
 	public SetPlayerInventoryS2CPacket createSlotSetPacket(int slot) {
-		return new SetPlayerInventoryS2CPacket(slot, this.getStack(slot).copy());
+		return new SetPlayerInventoryS2CPacket(slot, getStack(slot).copy());
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		if (slot < this.main.size()) {
-			return Inventories.splitStack(this.main, slot, amount);
+		if (slot < main.size()) {
+			return Inventories.splitStack(main, slot, amount);
 		}
-		else {
-			EquipmentSlot equipmentSlot = (EquipmentSlot) EQUIPMENT_SLOTS.get(slot);
-			if (equipmentSlot != null) {
-				ItemStack itemStack = this.equipment.get(equipmentSlot);
-				if (!itemStack.isEmpty()) {
-					return itemStack.split(amount);
-				}
-			}
 
-			return ItemStack.EMPTY;
+		EquipmentSlot equipmentSlot = EQUIPMENT_SLOTS.get(slot);
+
+		if (equipmentSlot != null) {
+			ItemStack stack = equipment.get(equipmentSlot);
+
+			if (!stack.isEmpty()) {
+				return stack.split(amount);
+			}
 		}
+
+		return ItemStack.EMPTY;
 	}
 
 	/**
-	 * Удаляет one.
+	 * Удаляет конкретный экземпляр предмета из инвентаря (по ссылке).
+	 * Ищет сначала в основном инвентаре, затем в слотах экипировки.
 	 *
-	 * @param stack stack
+	 * @param stack предмет для удаления (сравнение по ссылке {@code ==})
 	 */
 	public void removeOne(ItemStack stack) {
-		for (int i = 0; i < this.main.size(); i++) {
-			if (this.main.get(i) == stack) {
-				this.main.set(i, ItemStack.EMPTY);
+		for (int slot = 0; slot < main.size(); slot++) {
+			if (main.get(slot) == stack) {
+				main.set(slot, ItemStack.EMPTY);
 				return;
 			}
 		}
 
-		ObjectIterator var5 = EQUIPMENT_SLOTS.values().iterator();
-
-		while (var5.hasNext()) {
-			EquipmentSlot equipmentSlot = (EquipmentSlot) var5.next();
-			ItemStack itemStack = this.equipment.get(equipmentSlot);
-			if (itemStack == stack) {
-				this.equipment.put(equipmentSlot, ItemStack.EMPTY);
+		for (EquipmentSlot equipmentSlot : EQUIPMENT_SLOTS.values()) {
+			if (equipment.get(equipmentSlot) == stack) {
+				equipment.put(equipmentSlot, ItemStack.EMPTY);
 				return;
 			}
 		}
@@ -456,76 +497,76 @@ public class PlayerInventory implements Inventory, Nameable {
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		if (slot < this.main.size()) {
-			ItemStack itemStack = this.main.get(slot);
-			this.main.set(slot, ItemStack.EMPTY);
-			return itemStack;
+		if (slot < main.size()) {
+			ItemStack stack = main.get(slot);
+			main.set(slot, ItemStack.EMPTY);
+			return stack;
 		}
-		else {
-			EquipmentSlot equipmentSlot = (EquipmentSlot) EQUIPMENT_SLOTS.get(slot);
-			return equipmentSlot != null ? this.equipment.put(equipmentSlot, ItemStack.EMPTY) : ItemStack.EMPTY;
-		}
+
+		EquipmentSlot equipmentSlot = EQUIPMENT_SLOTS.get(slot);
+		return equipmentSlot != null
+			? equipment.put(equipmentSlot, ItemStack.EMPTY)
+			: ItemStack.EMPTY;
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		if (slot < this.main.size()) {
-			this.main.set(slot, stack);
+		if (slot < main.size()) {
+			main.set(slot, stack);
 		}
 
-		EquipmentSlot equipmentSlot = (EquipmentSlot) EQUIPMENT_SLOTS.get(slot);
+		EquipmentSlot equipmentSlot = EQUIPMENT_SLOTS.get(slot);
+
 		if (equipmentSlot != null) {
-			this.equipment.put(equipmentSlot, stack);
+			equipment.put(equipmentSlot, stack);
 		}
 	}
 
 	/**
-	 * Записывает data.
+	 * Записывает непустые предметы основного инвентаря в список NBT.
 	 *
-	 * @param list list
+	 * @param list приёмник данных
 	 */
 	public void writeData(WriteView.ListAppender<StackWithSlot> list) {
-		for (int i = 0; i < this.main.size(); i++) {
-			ItemStack itemStack = this.main.get(i);
-			if (!itemStack.isEmpty()) {
-				list.add(new StackWithSlot(i, itemStack));
+		for (int slot = 0; slot < main.size(); slot++) {
+			ItemStack stack = main.get(slot);
+
+			if (!stack.isEmpty()) {
+				list.add(new StackWithSlot(slot, stack));
 			}
 		}
 	}
 
 	/**
-	 * Читает data.
+	 * Читает предметы инвентаря из NBT-списка, игнорируя невалидные слоты.
 	 *
-	 * @param list list
+	 * @param list источник данных
 	 */
 	public void readData(ReadView.TypedListReadView<StackWithSlot> list) {
-		this.main.clear();
+		main.clear();
 
 		for (StackWithSlot stackWithSlot : list) {
-			if (stackWithSlot.isValidSlot(this.main.size())) {
-				this.setStack(stackWithSlot.slot(), stackWithSlot.stack());
+			if (stackWithSlot.isValidSlot(main.size())) {
+				setStack(stackWithSlot.slot(), stackWithSlot.stack());
 			}
 		}
 	}
 
 	@Override
 	public int size() {
-		return this.main.size() + EQUIPMENT_SLOTS.size();
+		return main.size() + EQUIPMENT_SLOTS.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		for (ItemStack itemStack : this.main) {
-			if (!itemStack.isEmpty()) {
+		for (ItemStack stack : main) {
+			if (!stack.isEmpty()) {
 				return false;
 			}
 		}
 
-		ObjectIterator var3 = EQUIPMENT_SLOTS.values().iterator();
-
-		while (var3.hasNext()) {
-			EquipmentSlot equipmentSlot = (EquipmentSlot) var3.next();
-			if (!this.equipment.get(equipmentSlot).isEmpty()) {
+		for (EquipmentSlot equipmentSlot : EQUIPMENT_SLOTS.values()) {
+			if (!equipment.get(equipmentSlot).isEmpty()) {
 				return false;
 			}
 		}
@@ -535,13 +576,12 @@ public class PlayerInventory implements Inventory, Nameable {
 
 	@Override
 	public ItemStack getStack(int slot) {
-		if (slot < this.main.size()) {
-			return this.main.get(slot);
+		if (slot < main.size()) {
+			return main.get(slot);
 		}
-		else {
-			EquipmentSlot equipmentSlot = (EquipmentSlot) EQUIPMENT_SLOTS.get(slot);
-			return equipmentSlot != null ? this.equipment.get(equipmentSlot) : ItemStack.EMPTY;
-		}
+
+		EquipmentSlot equipmentSlot = EQUIPMENT_SLOTS.get(slot);
+		return equipmentSlot != null ? equipment.get(equipmentSlot) : ItemStack.EMPTY;
 	}
 
 	@Override
@@ -550,27 +590,28 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	/**
-	 * Бросает all.
+	 * Выбрасывает все предметы из основного инвентаря и экипировки на землю.
 	 */
 	public void dropAll() {
-		for (int i = 0; i < this.main.size(); i++) {
-			ItemStack itemStack = this.main.get(i);
-			if (!itemStack.isEmpty()) {
-				this.player.dropItem(itemStack, true, false);
-				this.main.set(i, ItemStack.EMPTY);
+		for (int slot = 0; slot < main.size(); slot++) {
+			ItemStack stack = main.get(slot);
+
+			if (!stack.isEmpty()) {
+				player.dropItem(stack, true, false);
+				main.set(slot, ItemStack.EMPTY);
 			}
 		}
 
-		this.equipment.dropAll(this.player);
+		equipment.dropAll(player);
 	}
 
 	@Override
 	public void markDirty() {
-		this.changeCount++;
+		changeCount++;
 	}
 
 	public int getChangeCount() {
-		return this.changeCount;
+		return changeCount;
 	}
 
 	@Override
@@ -579,15 +620,14 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет наличие предмета с идентичными типом и компонентами.
 	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
+	 * @param stack эталонный предмет
+	 * @return {@code true} если такой предмет найден
 	 */
 	public boolean contains(ItemStack stack) {
-		for (ItemStack itemStack : this) {
-			if (!itemStack.isEmpty() && ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
+		for (ItemStack candidate : this) {
+			if (!candidate.isEmpty() && ItemStack.areItemsAndComponentsEqual(candidate, stack)) {
 				return true;
 			}
 		}
@@ -596,15 +636,14 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет наличие предмета с указанным тегом.
 	 *
-	 * @param tag tag
-	 *
-	 * @return boolean — результат операции
+	 * @param tag тег предмета
+	 * @return {@code true} если найден предмет с данным тегом
 	 */
 	public boolean contains(TagKey<Item> tag) {
-		for (ItemStack itemStack : this) {
-			if (!itemStack.isEmpty() && itemStack.isIn(tag)) {
+		for (ItemStack stack : this) {
+			if (!stack.isEmpty() && stack.isIn(tag)) {
 				return true;
 			}
 		}
@@ -613,15 +652,14 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет наличие предмета, удовлетворяющего предикату.
 	 *
-	 * @param predicate predicate
-	 *
-	 * @return boolean — результат операции
+	 * @param predicate условие поиска
+	 * @return {@code true} если найден подходящий предмет
 	 */
 	public boolean contains(Predicate<ItemStack> predicate) {
-		for (ItemStack itemStack : this) {
-			if (predicate.test(itemStack)) {
+		for (ItemStack stack : this) {
+			if (predicate.test(stack)) {
 				return true;
 			}
 		}
@@ -630,45 +668,45 @@ public class PlayerInventory implements Inventory, Nameable {
 	}
 
 	/**
-	 * Clone.
+	 * Копирует содержимое другого инвентаря в этот, включая выбранный слот.
 	 *
-	 * @param other other
+	 * @param other исходный инвентарь
 	 */
 	public void clone(PlayerInventory other) {
-		for (int i = 0; i < this.size(); i++) {
-			this.setStack(i, other.getStack(i));
+		for (int slot = 0; slot < size(); slot++) {
+			setStack(slot, other.getStack(slot));
 		}
 
-		this.setSelectedSlot(other.getSelectedSlot());
+		setSelectedSlot(other.getSelectedSlot());
 	}
 
 	@Override
 	public void clear() {
-		this.main.clear();
-		this.equipment.clear();
+		main.clear();
+		equipment.clear();
 	}
 
 	/**
-	 * Populate recipe finder.
+	 * Заполняет {@link RecipeFinder} предметами из основного инвентаря для поиска рецептов.
 	 *
-	 * @param finder finder
+	 * @param finder объект поиска рецептов
 	 */
 	public void populateRecipeFinder(RecipeFinder finder) {
-		for (ItemStack itemStack : this.main) {
-			finder.addInputIfUsable(itemStack);
+		for (ItemStack stack : main) {
+			finder.addInputIfUsable(stack);
 		}
 	}
 
 	/**
-	 * Бросает selected item.
+	 * Выбрасывает выбранный предмет из хотбара.
 	 *
-	 * @param entireStack entire stack
-	 *
-	 * @return ItemStack — результат операции
+	 * @param entireStack {@code true} — выбросить весь стак, {@code false} — только один предмет
+	 * @return выброшенный предмет или {@link ItemStack#EMPTY}
 	 */
 	public ItemStack dropSelectedItem(boolean entireStack) {
-		ItemStack itemStack = this.getSelectedStack();
-		return itemStack.isEmpty() ? ItemStack.EMPTY
-		                           : this.removeStack(this.selectedSlot, entireStack ? itemStack.getCount() : 1);
+		ItemStack stack = getSelectedStack();
+		return stack.isEmpty()
+			? ItemStack.EMPTY
+			: removeStack(selectedSlot, entireStack ? stack.getCount() : 1);
 	}
 }

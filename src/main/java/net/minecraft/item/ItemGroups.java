@@ -34,10 +34,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code ItemGroups}.
+ * Реестр групп предметов (вкладок творческого инвентаря). Содержит ключи всех стандартных
+ * групп и логику наполнения каждой вкладки конкретными стеками предметов.
  */
 public class ItemGroups {
 
+	private static final int MAX_OMINOUS_BOTTLE_AMPLIFIER = 4;
 	private static final Identifier INVENTORY_TAB_TEXTURE_ID = ItemGroup.getTabTextureId("inventory");
 	private static final Identifier ITEM_SEARCH_TAB_TEXTURE_ID = ItemGroup.getTabTextureId("item_search");
 	public static final RegistryKey<ItemGroup> BUILDING_BLOCKS = register("building_blocks");
@@ -2116,7 +2118,7 @@ public class ItemGroups {
 	}
 
 	private static void addOminousBottles(ItemGroup.Entries entries, ItemGroup.StackVisibility visibility) {
-		for (int i = 0; i <= 4; i++) {
+		for (int i = 0; i <= MAX_OMINOUS_BOTTLE_AMPLIFIER; i++) {
 			ItemStack itemStack = new ItemStack(Items.OMINOUS_BOTTLE);
 			itemStack.set(DataComponentTypes.OMINOUS_BOTTLE_AMPLIFIER, new OminousBottleAmplifierComponent(i));
 			entries.add(itemStack, visibility);

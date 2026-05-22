@@ -12,40 +12,45 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.LocalDifficulty;
 
 /**
- * {@code SingleEnchantmentProvider}.
+ * Провайдер зачарований, добавляющий ровно одно конкретное зачарование с уровнем,
+ * зажатым в допустимый диапазон {@code [minLevel, maxLevel]} зачарования.
  */
 public record SingleEnchantmentProvider(
-		RegistryEntry<Enchantment> enchantment,
-		IntProvider level
+	RegistryEntry<Enchantment> enchantment,
+	IntProvider level
 ) implements EnchantmentProvider {
 
 	public static final MapCodec<SingleEnchantmentProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Enchantment.ENTRY_CODEC.fieldOf("enchantment").forGetter(SingleEnchantmentProvider::enchantment),
-					                    IntProvider.VALUE_CODEC.fieldOf("level").forGetter(SingleEnchantmentProvider::level)
-			                    )
-			                    .apply(instance, SingleEnchantmentProvider::new)
+		instance -> instance.group(
+			Enchantment.ENTRY_CODEC
+				.fieldOf("enchantment")
+				.forGetter(SingleEnchantmentProvider::enchantment),
+			IntProvider.VALUE_CODEC
+				.fieldOf("level")
+				.forGetter(SingleEnchantmentProvider::level)
+		)
+		.apply(instance, SingleEnchantmentProvider::new)
 	);
 
 	@Override
 	public void provideEnchantments(
-			ItemStack stack,
-			ItemEnchantmentsComponent.Builder componentBuilder,
-			Random random,
-			LocalDifficulty localDifficulty
+		ItemStack stack,
+		ItemEnchantmentsComponent.Builder componentBuilder,
+		Random random,
+		LocalDifficulty localDifficulty
 	) {
-		componentBuilder.add(
-				this.enchantment,
-				MathHelper.clamp(
-						this.level.get(random),
-						this.enchantment.value().getMinLevel(),
-						this.enchantment.value().getMaxLevel()
-				)
+		int clampedLevel = MathHelper.clamp(
+			level.get(random),
+			enchantment.value().getMinLevel(),
+			enchantment.value().getMaxLevel()
 		);
+
+		componentBuilder.add(enchantment, clampedLevel);
 	}
 
 	@Override
 	public MapCodec<SingleEnchantmentProvider> getCodec() {
 		return CODEC;
 	}
+
 }

@@ -24,16 +24,17 @@ import java.util.Map.Entry;
 import java.util.function.Consumer;
 
 /**
- * {@code BlockStateComponent}.
- */
+	 * Компонент состояния блока предмета. Хранит свойства блока в виде строковых пар
+	 * ключ-значение и применяет их к {@link BlockState} при размещении блока.
+	 */
 public record BlockStateComponent(Map<String, String> properties) implements TooltipAppender {
 
 	public static final BlockStateComponent DEFAULT = new BlockStateComponent(Map.of());
 	public static final Codec<BlockStateComponent> CODEC = Codec.unboundedMap(Codec.STRING, Codec.STRING)
-	                                                            .xmap(
-			                                                            BlockStateComponent::new,
-			                                                            BlockStateComponent::properties
-	                                                            );
+																.xmap(
+																		BlockStateComponent::new,
+																		BlockStateComponent::properties
+																);
 	private static final PacketCodec<ByteBuf, Map<String, String>> MAP_PACKET_CODEC = PacketCodecs.map(
 			Object2ObjectOpenHashMap::new, PacketCodecs.STRING, PacketCodecs.STRING
 	);
@@ -42,25 +43,23 @@ public record BlockStateComponent(Map<String, String> properties) implements Too
 			MAP_PACKET_CODEC.xmap(BlockStateComponent::new, BlockStateComponent::properties);
 
 	/**
-	 * With.
-	 *
-	 * @param property property
-	 * @param value value
-	 *
-	 * @return > BlockStateComponent — результат операции
-	 */
+		 * Возвращает новый компонент с добавленным или обновлённым свойством блока.
+		 *
+		 * @param property свойство блока
+		 * @param value    новое значение свойства
+		 * @return новый компонент с обновлённым свойством
+		 */
 	public <T extends Comparable<T>> BlockStateComponent with(Property<T> property, T value) {
 		return new BlockStateComponent(Util.mapWith(this.properties, property.getName(), property.name(value)));
 	}
 
 	/**
-	 * With.
-	 *
-	 * @param property property
-	 * @param fromState from state
-	 *
-	 * @return > BlockStateComponent — результат операции
-	 */
+		 * Возвращает новый компонент, скопировав значение свойства из переданного {@link BlockState}.
+		 *
+		 * @param property  свойство блока
+		 * @param fromState состояние блока, из которого берётся значение
+		 * @return новый компонент с обновлённым свойством
+		 */
 	public <T extends Comparable<T>> BlockStateComponent with(Property<T> property, BlockState fromState) {
 		return this.with(property, fromState.get(property));
 	}
@@ -71,12 +70,12 @@ public record BlockStateComponent(Map<String, String> properties) implements Too
 	}
 
 	/**
-	 * Применяет to state.
-	 *
-	 * @param state state
-	 *
-	 * @return BlockState — результат операции
-	 */
+		 * Применяет все сохранённые свойства к переданному {@link BlockState}.
+		 * Свойства, отсутствующие у блока или имеющие некорректные значения, игнорируются.
+		 *
+		 * @param state исходное состояние блока
+		 * @return состояние блока с применёнными свойствами
+		 */
 	public BlockState applyToState(BlockState state) {
 		StateManager<Block, BlockState> stateManager = state.getBlock().getStateManager();
 
@@ -95,7 +94,7 @@ public record BlockStateComponent(Map<String, String> properties) implements Too
 			Property<T> property,
 			String value
 	) {
-		return property.parse(value).map(valuex -> state.with(property, valuex)).orElse(state);
+		return property.parse(value).map(parsed -> state.with(property, parsed)).orElse(state);
 	}
 
 	public boolean isEmpty() {

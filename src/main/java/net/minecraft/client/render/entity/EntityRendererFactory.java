@@ -20,19 +20,26 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Atlases;
 import net.minecraft.util.Identifier;
 
+/**
+ * Фабрика для создания рендереров сущностей.
+ * <p>
+ * Функциональный интерфейс: принимает {@link Context} со всеми необходимыми
+ * зависимостями и возвращает готовый {@link EntityRenderer}. Регистрируется
+ * в {@code EntityRenderers} для каждого типа сущности.
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
-/**
- * {@code EntityRendererFactory}.
- */
 public interface EntityRendererFactory<T extends Entity> {
 
 	EntityRenderer<T, ?> create(EntityRendererFactory.Context ctx);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Context}.
+	 * Контейнер зависимостей, передаваемый фабрике при создании рендерера.
+	 * <p>
+	 * Агрегирует все клиентские сервисы, необходимые для инициализации
+	 * рендереров сущностей: менеджеры моделей, текстур, шрифтов и т.д.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Context {
 
 		private final EntityRenderManager renderDispatcher;
@@ -74,55 +81,55 @@ public interface EntityRendererFactory<T extends Entity> {
 		}
 
 		public EntityRenderManager getRenderDispatcher() {
-			return this.renderDispatcher;
+			return renderDispatcher;
 		}
 
 		public ItemModelManager getItemModelManager() {
-			return this.itemModelManager;
+			return itemModelManager;
 		}
 
 		public MapRenderer getMapRenderer() {
-			return this.mapRenderer;
+			return mapRenderer;
 		}
 
 		public BlockRenderManager getBlockRenderManager() {
-			return this.blockRenderManager;
+			return blockRenderManager;
 		}
 
 		public ResourceManager getResourceManager() {
-			return this.resourceManager;
+			return resourceManager;
 		}
 
 		public LoadedEntityModels getEntityModels() {
-			return this.entityModels;
+			return entityModels;
 		}
 
 		public EquipmentModelLoader getEquipmentModelLoader() {
-			return this.equipmentModelLoader;
+			return equipmentModelLoader;
 		}
 
 		public EquipmentRenderer getEquipmentRenderer() {
-			return this.equipmentRenderer;
+			return equipmentRenderer;
 		}
 
 		public SpriteHolder getSpriteHolder() {
-			return this.spriteHolder;
+			return spriteHolder;
 		}
 
 		public SpriteAtlasTexture getSpriteAtlasTexture(Identifier id) {
-			return this.spriteHolder.getAtlasTexture(id);
+			return spriteHolder.getAtlasTexture(id);
 		}
 
 		public ModelPart getPart(EntityModelLayer layer) {
-			return this.entityModels.getModelPart(layer);
+			return entityModels.getModelPart(layer);
 		}
 
 		public TextRenderer getTextRenderer() {
-			return this.textRenderer;
+			return textRenderer;
 		}
 
 		public PlayerSkinCache getPlayerSkinCache() {
-			return this.playerSkinCache;
+			return playerSkinCache;
 		}
 	}
 }

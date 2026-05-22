@@ -8,17 +8,20 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.TagKey;
 
 /**
- * {@code TagPredicate}.
+ * Предикат для проверки принадлежности записи реестра к тегу.
+ * Поле {@code expected} позволяет проверять как наличие, так и отсутствие тега.
+ *
+ * @param <T> тип элемента реестра
  */
 public record TagPredicate<T>(TagKey<T> tag, boolean expected) {
 
 	public static <T> Codec<TagPredicate<T>> createCodec(RegistryKey<? extends Registry<T>> registryRef) {
 		return RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    TagKey.unprefixedCodec(registryRef).fieldOf("id").forGetter(TagPredicate::tag),
-						                    Codec.BOOL.fieldOf("expected").forGetter(TagPredicate::expected)
-				                    )
-				                    .apply(instance, TagPredicate::new)
+						TagKey.unprefixedCodec(registryRef).fieldOf("id").forGetter(TagPredicate::tag),
+						Codec.BOOL.fieldOf("expected").forGetter(TagPredicate::expected)
+				)
+				.apply(instance, TagPredicate::new)
 		);
 	}
 
@@ -31,6 +34,6 @@ public record TagPredicate<T>(TagKey<T> tag, boolean expected) {
 	}
 
 	public boolean test(RegistryEntry<T> registryEntry) {
-		return registryEntry.isIn(this.tag) == this.expected;
+		return registryEntry.isIn(tag) == expected;
 	}
 }

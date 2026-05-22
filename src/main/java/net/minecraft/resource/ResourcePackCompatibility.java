@@ -5,7 +5,8 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.dynamic.Range;
 
 /**
- * {@code ResourcePackCompatibility}.
+ * Совместимость ресурс-пака с текущей версией игры.
+ * Определяется путём сравнения диапазона поддерживаемых версий пака с версией игры.
  */
 public enum ResourcePackCompatibility {
 	TOO_OLD("old"),
@@ -13,36 +14,45 @@ public enum ResourcePackCompatibility {
 	UNKNOWN("unknown"),
 	COMPATIBLE("compatible");
 
+	/** Версия, при которой пак считается совместимым с любой версией игры. */
 	public static final int ALWAYS_COMPATIBLE_VERSION = Integer.MAX_VALUE;
+
 	private final Text notification;
 	private final Text confirmMessage;
 
-	private ResourcePackCompatibility(final String translationSuffix) {
-		this.notification = Text.translatable("pack.incompatible." + translationSuffix).formatted(Formatting.GRAY);
-		this.confirmMessage = Text.translatable("pack.incompatible.confirm." + translationSuffix);
+	ResourcePackCompatibility(final String translationSuffix) {
+		notification = Text.translatable("pack.incompatible." + translationSuffix).formatted(Formatting.GRAY);
+		confirmMessage = Text.translatable("pack.incompatible.confirm." + translationSuffix);
 	}
 
 	public boolean isCompatible() {
 		return this == COMPATIBLE;
 	}
 
+	/**
+	 * Определяет совместимость пака по диапазону поддерживаемых версий и текущей версии игры.
+	 *
+	 * @param range       диапазон версий, поддерживаемых паком
+	 * @param packVersion текущая версия пака игры
+	 * @return статус совместимости
+	 */
 	public static ResourcePackCompatibility from(Range<PackVersion> range, PackVersion packVersion) {
 		if (range.minInclusive().major() == Integer.MAX_VALUE) {
 			return UNKNOWN;
 		}
-		else if (range.maxInclusive().compareTo(packVersion) < 0) {
+
+		if (range.maxInclusive().compareTo(packVersion) < 0) {
 			return TOO_OLD;
 		}
-		else {
-			return packVersion.compareTo(range.minInclusive()) < 0 ? TOO_NEW : COMPATIBLE;
-		}
+
+		return packVersion.compareTo(range.minInclusive()) < 0 ? TOO_NEW : COMPATIBLE;
 	}
 
 	public Text getNotification() {
-		return this.notification;
+		return notification;
 	}
 
 	public Text getConfirmMessage() {
-		return this.confirmMessage;
+		return confirmMessage;
 	}
 }

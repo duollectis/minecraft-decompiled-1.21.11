@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkLevels}.
+ * Класс Chunk Levels.
  */
 public class ChunkLevels {
 
@@ -23,7 +23,7 @@ public class ChunkLevels {
 	public static final int INACCESSIBLE = 33 + FULL_GENERATION_REQUIRED_LEVEL;
 
 	public static @Nullable ChunkStatus getStatus(int level) {
-		return getStatusForAdditionalLevel(level - 33, null);
+		return getStatusForAdditionalLevel(level - FULL, null);
 	}
 
 	@Contract("_,!null->!null;_,_->_")
@@ -45,27 +45,27 @@ public class ChunkLevels {
 	}
 
 	public static int getLevelFromStatus(ChunkStatus status) {
-		return 33 + FULL_GENERATION_STEP.getAdditionalLevel(status);
+		return FULL + FULL_GENERATION_STEP.getAdditionalLevel(status);
 	}
 
 	public static ChunkLevelType getType(int level) {
-		if (level <= 31) {
+		if (level <= ENTITY_TICKING) {
 			return ChunkLevelType.ENTITY_TICKING;
 		}
-		else if (level <= 32) {
+		else if (level <= BLOCK_TICKING) {
 			return ChunkLevelType.BLOCK_TICKING;
 		}
 		else {
-			return level <= 33 ? ChunkLevelType.FULL : ChunkLevelType.INACCESSIBLE;
+			return level <= FULL ? ChunkLevelType.FULL : ChunkLevelType.INACCESSIBLE;
 		}
 	}
 
 	public static int getLevelFromType(ChunkLevelType type) {
 		return switch (type) {
 			case INACCESSIBLE -> INACCESSIBLE;
-			case FULL -> 33;
-			case BLOCK_TICKING -> 32;
-			case ENTITY_TICKING -> 31;
+			case FULL -> FULL;
+			case BLOCK_TICKING -> BLOCK_TICKING;
+			case ENTITY_TICKING -> ENTITY_TICKING;
 		};
 	}
 
@@ -77,7 +77,7 @@ public class ChunkLevels {
 	 * @return boolean — результат операции
 	 */
 	public static boolean shouldTickEntities(int level) {
-		return level <= 31;
+		return level <= ENTITY_TICKING;
 	}
 
 	/**
@@ -88,7 +88,7 @@ public class ChunkLevels {
 	 * @return boolean — результат операции
 	 */
 	public static boolean shouldTickBlocks(int level) {
-		return level <= 32;
+		return level <= BLOCK_TICKING;
 	}
 
 	public static boolean isAccessible(int level) {

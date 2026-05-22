@@ -13,10 +13,12 @@ import org.joml.Vector3f;
 import java.util.*;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelCommandRenderer}.
+ * Рендерит команды рисования моделей сущностей ({@link OrderedRenderCommandQueueImpl.ModelCommand}).
+ * Непрозрачные модели рендерятся сгруппированно по слою, полупрозрачные — сортируются
+ * по убыванию расстояния от камеры для корректного альфа-блендинга.
  */
+@Environment(EnvType.CLIENT)
 public class ModelCommandRenderer {
 
 	private final MatrixStack matrices = new MatrixStack();
@@ -28,21 +30,9 @@ public class ModelCommandRenderer {
 			VertexConsumerProvider.Immediate crumblingOverlayVertexConsumers
 	) {
 		ModelCommandRenderer.Commands commands = queue.getModelCommands();
-		this.renderAll(
-				vertexConsumers,
-				outlineVertexConsumers,
-				commands.opaqueModelCommands,
-				crumblingOverlayVertexConsumers
-		);
-		commands.blendedModelCommands.sort(Comparator.comparingDouble(modelCommand -> -modelCommand
-				.position()
-				.lengthSquared()));
-		this.renderAllBlended(
-				vertexConsumers,
-				outlineVertexConsumers,
-				commands.blendedModelCommands,
-				crumblingOverlayVertexConsumers
-		);
+		renderAll(vertexConsumers, outlineVertexConsumers, commands.opaqueModelCommands, crumblingOverlayVertexConsumers);
+		commands.blendedModelCommands.sort(Comparator.comparingDouble(cmd -> -cmd.position().lengthSquared()));
+		renderAllBlended(vertexConsumers, outlineVertexConsumers, commands.blendedModelCommands, crumblingOverlayVertexConsumers);
 	}
 
 	private void renderAllBlended(
@@ -51,14 +41,8 @@ public class ModelCommandRenderer {
 			List<OrderedRenderCommandQueueImpl.BlendedModelCommand<?>> blendedModelCommands,
 			VertexConsumerProvider.Immediate crumblingOverlayVertexConsumers
 	) {
-		for (OrderedRenderCommandQueueImpl.BlendedModelCommand<?> blendedModelCommand : blendedModelCommands) {
-			this.render(
-					blendedModelCommand.model(),
-					blendedModelCommand.renderType(),
-					vertexConsumers.getBuffer(blendedModelCommand.renderType()),
-					outlineVertexConsumers,
-					crumblingOverlayVertexConsumers
-			);
+		for (OrderedRenderCommandQueueImpl.BlendedModelCommand<?> cmd : blendedModelCommands) {
+			render(cmd.model(), cmd.renderType(), vertexConsumers.getBuffer(cmd.renderType()), outlineVertexConsumers, crumblingOverlayVertexConsumers);
 		}
 	}
 
@@ -68,147 +52,108 @@ public class ModelCommandRenderer {
 			Map<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> modelCommands,
 			VertexConsumerProvider.Immediate crumblingOverlayVertexConsumers
 	) {
-		Iterable<Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>>> iterable;
+		Iterable<Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>>> entries;
+
 		if (SharedConstants.SHUFFLE_MODELS) {
-			List<Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>>>
-					list =
-					new ArrayList<>(modelCommands.entrySet());
-			Collections.shuffle(list);
-			iterable = list;
+			List<Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>>> shuffled = new ArrayList<>(modelCommands.entrySet());
+			Collections.shuffle(shuffled);
+			entries = shuffled;
 		}
 		else {
-			iterable = modelCommands.entrySet();
+			entries = modelCommands.entrySet();
 		}
 
-		for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> entry : iterable) {
+		for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> entry : entries) {
 			VertexConsumer vertexConsumer = vertexConsumers.getBuffer(entry.getKey());
 
-			for (OrderedRenderCommandQueueImpl.ModelCommand<?> modelCommand : entry.getValue()) {
-				this.render(
-						modelCommand,
-						entry.getKey(),
-						vertexConsumer,
-						outlineVertexConsumers,
-						crumblingOverlayVertexConsumers
-				);
+			for (OrderedRenderCommandQueueImpl.ModelCommand<?> cmd : entry.getValue()) {
+				render(cmd, entry.getKey(), vertexConsumer, outlineVertexConsumers, crumblingOverlayVertexConsumers);
 			}
 		}
 	}
 
 	private <S> void render(
-			OrderedRenderCommandQueueImpl.ModelCommand<S> model,
+			OrderedRenderCommandQueueImpl.ModelCommand<S> cmd,
 			RenderLayer renderLayer,
 			VertexConsumer vertexConsumer,
 			OutlineVertexConsumerProvider outlineVertexConsumers,
 			VertexConsumerProvider.Immediate crumblingOverlayVertexConsumers
 	) {
-		this.matrices.push();
-		this.matrices.peek().copy(model.matricesEntry());
-		Model<? super S> model2 = model.model();
-		VertexConsumer
-				vertexConsumer2 =
-				model.sprite() == null ? vertexConsumer
-				                       : model.sprite().getTextureSpecificVertexConsumer(vertexConsumer);
-		model2.setAngles(model.state());
-		model2.render(this.matrices, vertexConsumer2, model.lightCoords(), model.overlayCoords(), model.tintedColor());
-		if (model.outlineColor() != 0 && (renderLayer.getAffectedOutline().isPresent() || renderLayer.isOutline())) {
-			outlineVertexConsumers.setColor(model.outlineColor());
-			VertexConsumer vertexConsumer3 = outlineVertexConsumers.getBuffer(renderLayer);
-			model2.render(
-					this.matrices,
-					model.sprite() == null ? vertexConsumer3
-					                       : model.sprite().getTextureSpecificVertexConsumer(vertexConsumer3),
-					model.lightCoords(),
-					model.overlayCoords(),
-					model.tintedColor()
+		matrices.push();
+		matrices.peek().copy(cmd.matricesEntry());
+		Model<? super S> model = cmd.model();
+		VertexConsumer mainConsumer = cmd.sprite() == null
+				? vertexConsumer
+				: cmd.sprite().getTextureSpecificVertexConsumer(vertexConsumer);
+		model.setAngles(cmd.state());
+		model.render(matrices, mainConsumer, cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor());
+
+		if (cmd.outlineColor() != 0 && (renderLayer.getAffectedOutline().isPresent() || renderLayer.isOutline())) {
+			outlineVertexConsumers.setColor(cmd.outlineColor());
+			VertexConsumer outlineConsumer = outlineVertexConsumers.getBuffer(renderLayer);
+			model.render(
+					matrices,
+					cmd.sprite() == null ? outlineConsumer : cmd.sprite().getTextureSpecificVertexConsumer(outlineConsumer),
+					cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor()
 			);
 		}
 
-		if (model.crumblingOverlay() != null && renderLayer.hasCrumbling()) {
-			VertexConsumer vertexConsumer3 = new OverlayVertexConsumer(
-					crumblingOverlayVertexConsumers.getBuffer(ModelBaker.BLOCK_DESTRUCTION_RENDER_LAYERS.get(model
-							.crumblingOverlay()
-							.progress())),
-					model.crumblingOverlay().cameraMatricesEntry(),
+		if (cmd.crumblingOverlay() != null && renderLayer.hasCrumbling()) {
+			VertexConsumer crumblingConsumer = new OverlayVertexConsumer(
+					crumblingOverlayVertexConsumers.getBuffer(ModelBaker.BLOCK_DESTRUCTION_RENDER_LAYERS.get(cmd.crumblingOverlay().progress())),
+					cmd.crumblingOverlay().cameraMatricesEntry(),
 					1.0F
 			);
-			model2.render(
-					this.matrices,
-					model.sprite() == null ? vertexConsumer3
-					                       : model.sprite().getTextureSpecificVertexConsumer(vertexConsumer3),
-					model.lightCoords(),
-					model.overlayCoords(),
-					model.tintedColor()
+			model.render(
+					matrices,
+					cmd.sprite() == null ? crumblingConsumer : cmd.sprite().getTextureSpecificVertexConsumer(crumblingConsumer),
+					cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor()
 			);
 		}
 
-		this.matrices.pop();
+		matrices.pop();
 	}
 
+	/** Накопитель команд рисования моделей, разделённых на непрозрачные и полупрозрачные. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Commands}.
-	 */
 	public static class Commands {
 
-		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>>
-				opaqueModelCommands =
-				new HashMap<>();
+		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> opaqueModelCommands = new HashMap<>();
 		final List<OrderedRenderCommandQueueImpl.BlendedModelCommand<?>> blendedModelCommands = new ArrayList<>();
 		private final Set<RenderLayer> usedModelRenderLayers = new ObjectOpenHashSet();
 
-		/**
-		 * Add.
-		 *
-		 * @param renderLayer render layer
-		 * @param modelCommand model command
-		 */
 		public void add(RenderLayer renderLayer, OrderedRenderCommandQueueImpl.ModelCommand<?> modelCommand) {
 			if (renderLayer.getRenderPipeline().getBlendFunction().isEmpty()) {
-				this.opaqueModelCommands
-						.computeIfAbsent(renderLayer, renderLayerx -> new ArrayList<>())
+				opaqueModelCommands
+						.computeIfAbsent(renderLayer, layer -> new ArrayList<>())
 						.add(modelCommand);
 			}
 			else {
-				Vector3f vector3f = modelCommand.matricesEntry().getPositionMatrix().transformPosition(new Vector3f());
-				this.blendedModelCommands.add(new OrderedRenderCommandQueueImpl.BlendedModelCommand<>(
-						modelCommand,
-						renderLayer,
-						vector3f
-				));
+				Vector3f position = modelCommand.matricesEntry().getPositionMatrix().transformPosition(new Vector3f());
+				blendedModelCommands.add(new OrderedRenderCommandQueueImpl.BlendedModelCommand<>(modelCommand, renderLayer, position));
 			}
 		}
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			this.blendedModelCommands.clear();
+			blendedModelCommands.clear();
 
-			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> entry : this.opaqueModelCommands.entrySet()) {
-				List<OrderedRenderCommandQueueImpl.ModelCommand<?>> list = entry.getValue();
-				if (!list.isEmpty()) {
-					this.usedModelRenderLayers.add(entry.getKey());
-					list.clear();
+			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelCommand<?>>> entry : opaqueModelCommands.entrySet()) {
+				List<OrderedRenderCommandQueueImpl.ModelCommand<?>> commands = entry.getValue();
+				if (!commands.isEmpty()) {
+					usedModelRenderLayers.add(entry.getKey());
+					commands.clear();
 				}
 			}
 		}
 
-		/**
-		 * Next frame.
-		 */
 		public void nextFrame() {
-			this.opaqueModelCommands
-					.keySet()
-					.removeIf(renderLayer -> !this.usedModelRenderLayers.contains(renderLayer));
-			this.usedModelRenderLayers.clear();
+			opaqueModelCommands.keySet().removeIf(layer -> !usedModelRenderLayers.contains(layer));
+			usedModelRenderLayers.clear();
 		}
 	}
 
+	/** Данные оверлея разрушения блока, применяемого поверх модели сущности. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CrumblingOverlayCommand}.
-	 */
 	public record CrumblingOverlayCommand(int progress, MatrixStack.Entry cameraMatricesEntry) {
 	}
 }

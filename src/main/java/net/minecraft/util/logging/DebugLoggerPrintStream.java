@@ -7,23 +7,25 @@ import org.slf4j.Logger;
 import java.io.OutputStream;
 
 /**
- * {@code DebugLoggerPrintStream}.
+ * Расширение {@link LoggerPrintStream}, которое дополнительно логирует
+ * имя файла и номер строки вызывающего кода для отладки.
  */
 public class DebugLoggerPrintStream extends LoggerPrintStream {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int CALLER_STACK_DEPTH = 3;
 
-	public DebugLoggerPrintStream(String string, OutputStream outputStream) {
-		super(string, outputStream);
+	public DebugLoggerPrintStream(String name, OutputStream outputStream) {
+		super(name, outputStream);
 	}
 
 	@Override
 	protected void log(@Nullable String message) {
-		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-		StackTraceElement stackTraceElement = stackTraceElements[Math.min(3, stackTraceElements.length)];
+		StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+		StackTraceElement caller = stack[Math.min(CALLER_STACK_DEPTH, stack.length)];
 		LOGGER.info(
 				"[{}]@.({}:{}): {}",
-				new Object[]{this.name, stackTraceElement.getFileName(), stackTraceElement.getLineNumber(), message}
+				name, caller.getFileName(), caller.getLineNumber(), message
 		);
 	}
 }

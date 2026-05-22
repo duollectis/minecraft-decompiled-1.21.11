@@ -15,73 +15,68 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code VillagerTradeCriterion}.
+ * Критерий, срабатывающий при совершении торговли с жителем деревни.
  */
 public class VillagerTradeCriterion extends AbstractCriterion<VillagerTradeCriterion.Conditions> {
 
 	@Override
-	public Codec<VillagerTradeCriterion.Conditions> getConditionsCodec() {
-		return VillagerTradeCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, MerchantEntity merchant, ItemStack stack) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, merchant);
-		this.trigger(player, conditions -> conditions.matches(lootContext, stack));
+		LootContext villagerContext = EntityPredicate.createAdvancementEntityLootContext(player, merchant);
+		trigger(player, conditions -> conditions.matches(villagerContext, stack));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> villager,
 			Optional<ItemPredicate> item
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<VillagerTradeCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(VillagerTradeCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("villager")
-								                    .forGetter(VillagerTradeCriterion.Conditions::villager),
-						                    ItemPredicate.CODEC.optionalFieldOf("item").forGetter(VillagerTradeCriterion.Conditions::item)
-				                    )
-				                    .apply(instance, VillagerTradeCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("villager")
+								.forGetter(Conditions::villager),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<VillagerTradeCriterion.Conditions> any() {
-			return Criteria.VILLAGER_TRADE.create(new VillagerTradeCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> any() {
+			return Criteria.VILLAGER_TRADE.create(new Conditions(
 					Optional.empty(),
 					Optional.empty(),
 					Optional.empty()
 			));
 		}
 
-		public static AdvancementCriterion<VillagerTradeCriterion.Conditions> create(EntityPredicate.Builder playerPredicate) {
-			return Criteria.VILLAGER_TRADE
-					.create(
-							new VillagerTradeCriterion.Conditions(
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(playerPredicate)),
-									Optional.empty(),
-									Optional.empty()
-							)
-					);
+		public static AdvancementCriterion<Conditions> create(EntityPredicate.Builder playerPredicate) {
+			return Criteria.VILLAGER_TRADE.create(new Conditions(
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(playerPredicate)),
+					Optional.empty(),
+					Optional.empty()
+			));
 		}
 
-		public boolean matches(LootContext villager, ItemStack stack) {
-			return this.villager.isPresent() && !this.villager.get().test(villager) ? false : !this.item.isPresent()
-			                                                                                  || this.item
-			                                                                                     .get()
-			                                                                                     .test(stack);
+		public boolean matches(LootContext villagerContext, ItemStack stack) {
+			if (villager.isPresent() && !villager.get().test(villagerContext)) {
+				return false;
+			}
+
+			return item.isEmpty() || item.get().test(stack);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.villager, "villager");
+			validator.validateEntityPredicate(villager, "villager");
 		}
 	}
 }

@@ -7,7 +7,8 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.gen.HeightContext;
 
 /**
- * {@code WeightedListHeightProvider}.
+ * Провайдер высоты, выбирающий случайный вложенный провайдер
+ * из взвешенного пула и делегирующий ему вычисление Y-координаты.
  */
 public class WeightedListHeightProvider extends HeightProvider {
 
@@ -27,7 +28,7 @@ public class WeightedListHeightProvider extends HeightProvider {
 
 	@Override
 	public int get(Random random, HeightContext context) {
-		return this.weightedList.get(random).get(random, context);
+		return weightedList.get(random).get(random, context);
 	}
 
 	@Override

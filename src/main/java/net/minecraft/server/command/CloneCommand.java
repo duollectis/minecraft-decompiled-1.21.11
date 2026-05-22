@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code CloneCommand}.
+ * Команда {@code /clone}: копирование блоков из одной области в другую.
  */
 public class CloneCommand {
 
@@ -479,15 +479,9 @@ public class CloneCommand {
 		}
 	}
 
-	/**
-	 * {@code BlockEntityInfo}.
-	 */
 	record BlockEntityInfo(NbtCompound nbt, ComponentMap components) {
 	}
 
-	/**
-	 * {@code BlockInfo}.
-	 */
 	record BlockInfo(
 			BlockPos pos,
 			BlockState state,
@@ -496,15 +490,9 @@ public class CloneCommand {
 	) {
 	}
 
-	/**
-	 * {@code DimensionalPos}.
-	 */
 	record DimensionalPos(ServerWorld dimension, BlockPos position) {
 	}
 
-	/**
-	 * {@code Mode}.
-	 */
 	static enum Mode {
 		FORCE(true),
 		MOVE(true),

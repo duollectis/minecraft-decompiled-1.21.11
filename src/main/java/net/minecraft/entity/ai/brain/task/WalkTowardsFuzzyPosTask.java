@@ -6,7 +6,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code WalkTowardsFuzzyPosTask}.
+ * Фабричный класс задачи мозга, направляющей существо к случайно смещённой позиции из памяти.
+ * Смещение ±1 блок по осям X и Z добавляет естественность движения.
  */
 public class WalkTowardsFuzzyPosTask {
 
@@ -34,17 +35,11 @@ public class WalkTowardsFuzzyPosTask {
 				                  .apply(
 						                  context,
 						                  (pos, attackTarget, walkTarget, lookTarget) -> (world, entity, time) -> {
-							                  BlockPos blockPos = context.getValue(pos);
-							                  boolean
-									                  bl =
-									                  blockPos.isWithinDistance(entity.getBlockPos(), completionRange);
-							                  if (!bl) {
-								                  TargetUtil.walkTowards(
-										                  entity,
-										                  fuzz(entity, blockPos),
-										                  speed,
-										                  completionRange
-								                  );
+							                  BlockPos targetPos = context.getValue(pos);
+							                  boolean alreadyInRange = targetPos.isWithinDistance(entity.getBlockPos(), completionRange);
+
+							                  if (!alreadyInRange) {
+								                  TargetUtil.walkTowards(entity, fuzz(entity, targetPos), speed, completionRange);
 							                  }
 
 							                  return true;

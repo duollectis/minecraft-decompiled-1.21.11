@@ -53,7 +53,12 @@ import java.util.function.*;
 import java.util.stream.LongStream;
 
 /**
- * {@code TestContext}.
+ * Контекст выполнения игрового теста.
+ * <p>
+ * Предоставляет богатый API для взаимодействия с миром в рамках тестовой структуры:
+ * спавн сущностей, проверка блоков, управление временем, создание игроков-заглушек и т.д.
+ * Все позиции, принимаемые методами, являются <em>относительными</em> (внутри структуры);
+ * преобразование в абсолютные координаты выполняется автоматически.
  */
 public class TestContext {
 
@@ -65,260 +70,273 @@ public class TestContext {
 	}
 
 	public GameTestException createError(Text message) {
-		return new GameTestException(message, this.test.getTick());
+		return new GameTestException(message, test.getTick());
 	}
 
 	public GameTestException createError(String translationKey, Object... args) {
-		return this.createError(Text.stringifiedTranslatable(translationKey, args));
+		return createError(Text.stringifiedTranslatable(translationKey, args));
 	}
 
 	public PositionedException createError(BlockPos pos, Text message) {
-		return new PositionedException(message, this.getAbsolutePos(pos), pos, this.test.getTick());
+		return new PositionedException(message, getAbsolutePos(pos), pos, test.getTick());
 	}
 
 	public PositionedException createError(BlockPos pos, String translationKey, Object... args) {
-		return this.createError(pos, Text.stringifiedTranslatable(translationKey, args));
+		return createError(pos, Text.stringifiedTranslatable(translationKey, args));
 	}
 
 	public ServerWorld getWorld() {
-		return this.test.getWorld();
+		return test.getWorld();
 	}
 
 	public BlockState getBlockState(BlockPos pos) {
-		return this.getWorld().getBlockState(this.getAbsolutePos(pos));
+		return getWorld().getBlockState(getAbsolutePos(pos));
 	}
 
+	/**
+	 * Возвращает блок-сущность по относительной позиции, приведённую к заданному типу.
+	 *
+	 * @throws PositionedException если блок-сущность отсутствует или имеет неверный тип
+	 */
 	public <T extends BlockEntity> T getBlockEntity(BlockPos pos, Class<T> clazz) {
-		BlockEntity blockEntity = this.getWorld().getBlockEntity(this.getAbsolutePos(pos));
+		BlockEntity blockEntity = getWorld().getBlockEntity(getAbsolutePos(pos));
 		if (blockEntity == null) {
-			throw this.createError(pos, "test.error.missing_block_entity");
+			throw createError(pos, "test.error.missing_block_entity");
 		}
-		else if (clazz.isInstance(blockEntity)) {
-			return clazz.cast(blockEntity);
-		}
-		else {
-			throw this.createError(
+
+		if (!clazz.isInstance(blockEntity)) {
+			throw createError(
 					pos,
 					"test.error.wrong_block_entity",
 					blockEntity.getType().getRegistryEntry().getIdAsString()
 			);
 		}
+
+		return clazz.cast(blockEntity);
 	}
 
 	public void killAllEntities() {
-		this.killAllEntities(Entity.class);
+		killAllEntities(Entity.class);
 	}
 
 	public void killAllEntities(Class<? extends Entity> entityClass) {
-		Box box = this.getTestBox();
-		List<? extends Entity>
-				list =
-				this
-						.getWorld()
-						.getEntitiesByClass(entityClass, box.expand(1.0), entity -> !(entity instanceof PlayerEntity));
-		list.forEach(entity -> entity.kill(this.getWorld()));
+		Box box = getTestBox();
+		List<? extends Entity> entities = getWorld().getEntitiesByClass(
+				entityClass,
+				box.expand(1.0),
+				entity -> !(entity instanceof PlayerEntity)
+		);
+		entities.forEach(entity -> entity.kill(getWorld()));
 	}
 
 	public ItemEntity spawnItem(Item item, Vec3d pos) {
-		ServerWorld serverWorld = this.getWorld();
-		Vec3d vec3d = this.getAbsolute(pos);
-		ItemEntity itemEntity = new ItemEntity(serverWorld, vec3d.x, vec3d.y, vec3d.z, new ItemStack(item, 1));
+		ServerWorld world = getWorld();
+		Vec3d absolute = getAbsolute(pos);
+		ItemEntity itemEntity = new ItemEntity(world, absolute.x, absolute.y, absolute.z, new ItemStack(item, 1));
 		itemEntity.setVelocity(0.0, 0.0, 0.0);
-		serverWorld.spawnEntity(itemEntity);
+		world.spawnEntity(itemEntity);
 		return itemEntity;
 	}
 
 	public ItemEntity spawnItem(Item item, float x, float y, float z) {
-		return this.spawnItem(item, new Vec3d(x, y, z));
+		return spawnItem(item, new Vec3d(x, y, z));
 	}
 
 	public ItemEntity spawnItem(Item item, BlockPos pos) {
-		return this.spawnItem(item, pos.getX(), pos.getY(), pos.getZ());
+		return spawnItem(item, pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	public <E extends Entity> E spawnEntity(EntityType<E> type, BlockPos pos) {
-		return this.spawnEntity(type, Vec3d.ofBottomCenter(pos));
+		return spawnEntity(type, Vec3d.ofBottomCenter(pos));
 	}
 
 	public <E extends Entity> List<E> spawnEntities(EntityType<E> type, BlockPos pos, int count) {
-		return this.spawnEntities(type, Vec3d.ofBottomCenter(pos), count);
+		return spawnEntities(type, Vec3d.ofBottomCenter(pos), count);
 	}
 
 	public <E extends Entity> List<E> spawnEntities(EntityType<E> type, Vec3d pos, int count) {
-		List<E> list = new ArrayList<>();
-
-		for (int i = 0; i < count; i++) {
-			list.add(this.spawnEntity(type, pos));
+		List<E> entities = new ArrayList<>();
+		for (int index = 0; index < count; index++) {
+			entities.add(spawnEntity(type, pos));
 		}
 
-		return list;
+		return entities;
 	}
 
 	public <E extends Entity> E spawnEntity(EntityType<E> type, Vec3d pos) {
-		return this.spawnEntity(type, pos, null);
+		return spawnEntity(type, pos, null);
 	}
 
+	/**
+	 * Спавнит сущность заданного типа в относительной позиции с опциональной причиной спавна.
+	 * Для {@link MobEntity} автоматически устанавливает флаг persistent и применяет поворот.
+	 *
+	 * @throws PositionedException если сущность не удалось создать
+	 */
 	public <E extends Entity> E spawnEntity(EntityType<E> type, Vec3d pos, @Nullable SpawnReason reason) {
-		ServerWorld serverWorld = this.getWorld();
-		E entity = type.create(serverWorld, SpawnReason.STRUCTURE);
+		ServerWorld world = getWorld();
+		E entity = type.create(world, SpawnReason.STRUCTURE);
 		if (entity == null) {
-			throw this.createError(
+			throw createError(
 					BlockPos.ofFloored(pos),
 					"test.error.spawn_failure",
 					type.getRegistryEntry().getIdAsString()
 			);
 		}
-		else {
-			if (entity instanceof MobEntity mobEntity) {
-				mobEntity.setPersistent();
-			}
 
-			Vec3d vec3d = this.getAbsolute(pos);
-			float f = entity.applyRotation(this.getRotation());
-			entity.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, f, entity.getPitch());
-			entity.setBodyYaw(f);
-			entity.setHeadYaw(f);
-			if (reason != null && entity instanceof MobEntity mobEntity2) {
-				mobEntity2.initialize(
-						this.getWorld(),
-						this.getWorld().getLocalDifficulty(mobEntity2.getBlockPos()),
-						reason,
-						null
-				);
-			}
-
-			serverWorld.spawnEntityAndPassengers(entity);
-			return entity;
+		if (entity instanceof MobEntity mob) {
+			mob.setPersistent();
 		}
+
+		Vec3d absolute = getAbsolute(pos);
+		float yaw = entity.applyRotation(getRotation());
+		entity.refreshPositionAndAngles(absolute.x, absolute.y, absolute.z, yaw, entity.getPitch());
+		entity.setBodyYaw(yaw);
+		entity.setHeadYaw(yaw);
+
+		if (reason != null && entity instanceof MobEntity mob) {
+			mob.initialize(
+					world,
+					world.getLocalDifficulty(mob.getBlockPos()),
+					reason,
+					null
+			);
+		}
+
+		world.spawnEntityAndPassengers(entity);
+		return entity;
 	}
 
 	public <E extends MobEntity> E spawnEntity(EntityType<E> type, int x, int y, int z, SpawnReason reason) {
-		return this.spawnEntity(type, new Vec3d(x, y, z), reason);
+		return spawnEntity(type, new Vec3d(x, y, z), reason);
 	}
 
 	public void damage(Entity entity, DamageSource damageSource, float amount) {
-		entity.damage(this.getWorld(), damageSource, amount);
+		entity.damage(getWorld(), damageSource, amount);
 	}
 
 	public void killEntity(Entity entity) {
-		entity.kill(this.getWorld());
+		entity.kill(getWorld());
 	}
 
 	public <E extends Entity> E expectEntityInWorld(EntityType<E> type) {
-		return this.expectEntity(type, 0, 0, 0, 2.147483647E9);
+		return expectEntity(type, 0, 0, 0, 2.147483647E9);
 	}
 
+	/**
+	 * Ищет ровно одну сущность заданного типа в радиусе от точки.
+	 * Бросает исключение если сущностей нет или их больше одной.
+	 */
 	public <E extends Entity> E expectEntity(EntityType<E> type, int x, int y, int z, double margin) {
-		List<E> list = this.getEntitiesAround(type, x, y, z, margin);
-		if (list.isEmpty()) {
-			throw this.createError("test.error.expected_entity_around", type.getName(), x, y, z);
+		List<E> entities = getEntitiesAround(type, x, y, z, margin);
+		if (entities.isEmpty()) {
+			throw createError("test.error.expected_entity_around", type.getName(), x, y, z);
 		}
-		else if (list.size() > 1) {
-			throw this.createError("test.error.too_many_entities", type.getUntranslatedName(), x, y, z, list.size());
+
+		if (entities.size() > 1) {
+			throw createError("test.error.too_many_entities", type.getUntranslatedName(), x, y, z, entities.size());
 		}
-		else {
-			Vec3d vec3d = this.getAbsolute(new Vec3d(x, y, z));
-			list.sort((a, b) -> {
-				double d = a.getEntityPos().distanceTo(vec3d);
-				double e = b.getEntityPos().distanceTo(vec3d);
-				return Double.compare(d, e);
-			});
-			return list.get(0);
-		}
+
+		Vec3d center = getAbsolute(new Vec3d(x, y, z));
+		entities.sort((a, b) -> Double.compare(
+				a.getEntityPos().distanceTo(center),
+				b.getEntityPos().distanceTo(center)
+		));
+		return entities.get(0);
 	}
 
 	public <E extends Entity> List<E> getEntitiesAround(EntityType<E> type, int x, int y, int z, double margin) {
-		return this.getEntitiesAround(type, Vec3d.ofBottomCenter(new BlockPos(x, y, z)), margin);
+		return getEntitiesAround(type, Vec3d.ofBottomCenter(new BlockPos(x, y, z)), margin);
 	}
 
 	public <E extends Entity> List<E> getEntitiesAround(EntityType<E> type, Vec3d pos, double margin) {
-		ServerWorld serverWorld = this.getWorld();
-		Vec3d vec3d = this.getAbsolute(pos);
-		Box box = this.test.getBoundingBox();
-		Box box2 = new Box(vec3d.add(-margin, -margin, -margin), vec3d.add(margin, margin, margin));
-		return serverWorld.getEntitiesByType(
+		Vec3d absolute = getAbsolute(pos);
+		Box testBox = test.getBoundingBox();
+		Box searchBox = new Box(
+				absolute.add(-margin, -margin, -margin),
+				absolute.add(margin, margin, margin)
+		);
+		return getWorld().getEntitiesByType(
 				type,
-				box,
-				entity -> entity.getBoundingBox().intersects(box2) && entity.isAlive()
+				testBox,
+				entity -> entity.getBoundingBox().intersects(searchBox) && entity.isAlive()
 		);
 	}
 
 	public <E extends Entity> E spawnEntity(EntityType<E> type, int x, int y, int z) {
-		return this.spawnEntity(type, new BlockPos(x, y, z));
+		return spawnEntity(type, new BlockPos(x, y, z));
 	}
 
 	public <E extends Entity> E spawnEntity(EntityType<E> type, float x, float y, float z) {
-		return this.spawnEntity(type, new Vec3d(x, y, z));
+		return spawnEntity(type, new Vec3d(x, y, z));
 	}
 
 	public <E extends MobEntity> E spawnMob(EntityType<E> type, BlockPos pos) {
-		E mobEntity = (E) this.spawnEntity(type, pos);
-		mobEntity.clearGoalsAndTasks();
-		return mobEntity;
+		@SuppressWarnings("unchecked")
+		E mob = (E) spawnEntity(type, pos);
+		mob.clearGoalsAndTasks();
+		return mob;
 	}
 
 	public <E extends MobEntity> E spawnMob(EntityType<E> type, int x, int y, int z) {
-		return this.spawnMob(type, new BlockPos(x, y, z));
+		return spawnMob(type, new BlockPos(x, y, z));
 	}
 
 	public <E extends MobEntity> E spawnMob(EntityType<E> type, Vec3d pos) {
-		E mobEntity = (E) this.spawnEntity(type, pos);
-		mobEntity.clearGoalsAndTasks();
-		return mobEntity;
+		@SuppressWarnings("unchecked")
+		E mob = (E) spawnEntity(type, pos);
+		mob.clearGoalsAndTasks();
+		return mob;
 	}
 
 	public <E extends MobEntity> E spawnMob(EntityType<E> type, float x, float y, float z) {
-		return this.spawnMob(type, new Vec3d(x, y, z));
+		return spawnMob(type, new Vec3d(x, y, z));
 	}
 
 	public void setEntityPos(MobEntity entity, float x, float y, float z) {
-		Vec3d vec3d = this.getAbsolute(new Vec3d(x, y, z));
-		entity.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, entity.getYaw(), entity.getPitch());
+		Vec3d absolute = getAbsolute(new Vec3d(x, y, z));
+		entity.refreshPositionAndAngles(absolute.x, absolute.y, absolute.z, entity.getYaw(), entity.getPitch());
 	}
 
 	public TimedTaskRunner startMovingTowards(MobEntity entity, BlockPos pos, float speed) {
-		return this.createTimedTaskRunner().expectMinDurationAndRun(
-				2, () -> {
-					Path path = entity.getNavigation().findPathTo(this.getAbsolutePos(pos), 0);
-					entity.getNavigation().startMovingAlong(path, speed);
-				}
-		);
+		return createTimedTaskRunner().expectMinDurationAndRun(2, () -> {
+			Path path = entity.getNavigation().findPathTo(getAbsolutePos(pos), 0);
+			entity.getNavigation().startMovingAlong(path, speed);
+		});
 	}
 
 	public void pushButton(int x, int y, int z) {
-		this.pushButton(new BlockPos(x, y, z));
+		pushButton(new BlockPos(x, y, z));
 	}
 
 	public void pushButton(BlockPos pos) {
-		this.expectBlockIn(BlockTags.BUTTONS, pos);
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		BlockState blockState = this.getWorld().getBlockState(blockPos);
-		ButtonBlock buttonBlock = (ButtonBlock) blockState.getBlock();
-		buttonBlock.powerOn(blockState, this.getWorld(), blockPos, null);
+		expectBlockIn(BlockTags.BUTTONS, pos);
+		BlockPos absolute = getAbsolutePos(pos);
+		BlockState state = getWorld().getBlockState(absolute);
+		ButtonBlock button = (ButtonBlock) state.getBlock();
+		button.powerOn(state, getWorld(), absolute, null);
 	}
 
 	public void useBlock(BlockPos pos) {
-		this.useBlock(pos, this.createMockPlayer(GameMode.CREATIVE));
+		useBlock(pos, createMockPlayer(GameMode.CREATIVE));
 	}
 
 	public void useBlock(BlockPos pos, PlayerEntity player) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		this.useBlock(pos, player, new BlockHitResult(Vec3d.ofCenter(blockPos), Direction.NORTH, blockPos, true));
+		BlockPos absolute = getAbsolutePos(pos);
+		useBlock(pos, player, new BlockHitResult(Vec3d.ofCenter(absolute), Direction.NORTH, absolute, true));
 	}
 
 	public void useBlock(BlockPos pos, PlayerEntity player, BlockHitResult result) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		BlockState blockState = this.getWorld().getBlockState(blockPos);
+		BlockPos absolute = getAbsolutePos(pos);
+		BlockState state = getWorld().getBlockState(absolute);
 		Hand hand = Hand.MAIN_HAND;
-		ActionResult
-				actionResult =
-				blockState.onUseWithItem(player.getStackInHand(hand), this.getWorld(), player, hand, result);
+		ActionResult actionResult = state.onUseWithItem(player.getStackInHand(hand), getWorld(), player, hand, result);
+
 		if (!actionResult.isAccepted()) {
-			if (!(actionResult instanceof ActionResult.PassToDefaultBlockAction) || !blockState
-					.onUse(this.getWorld(), player, result)
-					.isAccepted()) {
-				ItemUsageContext itemUsageContext = new ItemUsageContext(player, hand, result);
-				player.getStackInHand(hand).useOnBlock(itemUsageContext);
+			if (!(actionResult instanceof ActionResult.PassToDefaultBlockAction)
+					|| !state.onUse(getWorld(), player, result).isAccepted()) {
+				ItemUsageContext usageContext = new ItemUsageContext(player, hand, result);
+				player.getStackInHand(hand).useOnBlock(usageContext);
 			}
 		}
 	}
@@ -335,7 +353,7 @@ public class TestContext {
 	}
 
 	public PlayerEntity createMockPlayer(GameMode gameMode) {
-		return new PlayerEntity(this.getWorld(), new GameProfile(UUID.randomUUID(), "test-mock-player")) {
+		return new PlayerEntity(getWorld(), new GameProfile(UUID.randomUUID(), "test-mock-player")) {
 			@Override
 			public GameMode getGameMode() {
 				return gameMode;
@@ -350,111 +368,108 @@ public class TestContext {
 
 	@Deprecated(forRemoval = true)
 	public ServerPlayerEntity createMockCreativeServerPlayerInWorld() {
-		ConnectedClientData
-				connectedClientData =
-				ConnectedClientData.createDefault(new GameProfile(UUID.randomUUID(), "test-mock-player"), false);
-		ServerPlayerEntity serverPlayerEntity = new ServerPlayerEntity(
-				this.getWorld().getServer(),
-				this.getWorld(),
-				connectedClientData.gameProfile(),
-				connectedClientData.syncedOptions()
+		ConnectedClientData clientData = ConnectedClientData.createDefault(
+				new GameProfile(UUID.randomUUID(), "test-mock-player"),
+				false
+		);
+		ServerPlayerEntity player = new ServerPlayerEntity(
+				getWorld().getServer(),
+				getWorld(),
+				clientData.gameProfile(),
+				clientData.syncedOptions()
 		) {
 			@Override
 			public GameMode getGameMode() {
 				return GameMode.CREATIVE;
 			}
 		};
-		ClientConnection clientConnection = new ClientConnection(NetworkSide.SERVERBOUND);
-		new EmbeddedChannel(new ChannelHandler[]{clientConnection});
-		this
-				.getWorld()
-				.getServer()
-				.getPlayerManager()
-				.onPlayerConnect(clientConnection, serverPlayerEntity, connectedClientData);
-		return serverPlayerEntity;
+		ClientConnection connection = new ClientConnection(NetworkSide.SERVERBOUND);
+		new EmbeddedChannel(new ChannelHandler[]{connection});
+		getWorld().getServer().getPlayerManager().onPlayerConnect(connection, player, clientData);
+		return player;
 	}
 
 	public void toggleLever(int x, int y, int z) {
-		this.toggleLever(new BlockPos(x, y, z));
+		toggleLever(new BlockPos(x, y, z));
 	}
 
 	public void toggleLever(BlockPos pos) {
-		this.expectBlock(Blocks.LEVER, pos);
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		BlockState blockState = this.getWorld().getBlockState(blockPos);
-		LeverBlock leverBlock = (LeverBlock) blockState.getBlock();
-		leverBlock.togglePower(blockState, this.getWorld(), blockPos, null);
+		expectBlock(Blocks.LEVER, pos);
+		BlockPos absolute = getAbsolutePos(pos);
+		BlockState state = getWorld().getBlockState(absolute);
+		LeverBlock lever = (LeverBlock) state.getBlock();
+		lever.togglePower(state, getWorld(), absolute, null);
 	}
 
 	public void putAndRemoveRedstoneBlock(BlockPos pos, long delay) {
-		this.setBlockState(pos, Blocks.REDSTONE_BLOCK);
-		this.waitAndRun(delay, () -> this.setBlockState(pos, Blocks.AIR));
+		setBlockState(pos, Blocks.REDSTONE_BLOCK);
+		waitAndRun(delay, () -> setBlockState(pos, Blocks.AIR));
 	}
 
 	public void removeBlock(BlockPos pos) {
-		this.getWorld().breakBlock(this.getAbsolutePos(pos), false, null);
+		getWorld().breakBlock(getAbsolutePos(pos), false, null);
 	}
 
 	public void setBlockState(int x, int y, int z, Block block) {
-		this.setBlockState(new BlockPos(x, y, z), block);
+		setBlockState(new BlockPos(x, y, z), block);
 	}
 
 	public void setBlockState(int x, int y, int z, BlockState state) {
-		this.setBlockState(new BlockPos(x, y, z), state);
+		setBlockState(new BlockPos(x, y, z), state);
 	}
 
 	public void setBlockState(BlockPos pos, Block block) {
-		this.setBlockState(pos, block.getDefaultState());
+		setBlockState(pos, block.getDefaultState());
 	}
 
 	public void setBlockState(BlockPos pos, BlockState state) {
-		this.getWorld().setBlockState(this.getAbsolutePos(pos), state, 3);
+		getWorld().setBlockState(getAbsolutePos(pos), state, 3);
 	}
 
 	public void setBlockFacing(BlockPos pos, Block block, Direction facing) {
-		this.setBlockFacing(pos, block.getDefaultState(), facing);
+		setBlockFacing(pos, block.getDefaultState(), facing);
 	}
 
 	public void setBlockFacing(BlockPos pos, BlockState block, Direction facing) {
-		BlockState blockState = block;
+		BlockState state = block;
 		if (block.contains(HorizontalFacingBlock.FACING)) {
-			blockState = block.with(HorizontalFacingBlock.FACING, facing);
+			state = block.with(HorizontalFacingBlock.FACING, facing);
 		}
 
 		if (block.contains(Properties.FACING)) {
-			blockState = block.with(Properties.FACING, facing);
+			state = block.with(Properties.FACING, facing);
 		}
 
-		this.getWorld().setBlockState(this.getAbsolutePos(pos), blockState, 3);
+		getWorld().setBlockState(getAbsolutePos(pos), state, 3);
 	}
 
 	public void expectBlock(Block block, int x, int y, int z) {
-		this.expectBlock(block, new BlockPos(x, y, z));
+		expectBlock(block, new BlockPos(x, y, z));
 	}
 
 	public void expectBlock(Block block, BlockPos pos) {
-		BlockState blockState = this.getBlockState(pos);
-		this.checkBlock(
+		BlockState state = getBlockState(pos);
+		checkBlock(
 				pos,
-				block1 -> blockState.isOf(block),
-				actualBlock -> Text.translatable("test.error.expected_block", block.getName(), actualBlock.getName())
+				b -> state.isOf(block),
+				actual -> Text.translatable("test.error.expected_block", block.getName(), actual.getName())
 		);
 	}
 
 	public void dontExpectBlock(Block block, int x, int y, int z) {
-		this.dontExpectBlock(block, new BlockPos(x, y, z));
+		dontExpectBlock(block, new BlockPos(x, y, z));
 	}
 
 	public void dontExpectBlock(Block block, BlockPos pos) {
-		this.checkBlock(
+		checkBlock(
 				pos,
-				block1 -> !this.getBlockState(pos).isOf(block),
-				actualBlock -> Text.translatable("test.error.unexpected_block", block.getName())
+				b -> !getBlockState(pos).isOf(block),
+				actual -> Text.translatable("test.error.unexpected_block", block.getName())
 		);
 	}
 
 	public void expectBlockIn(TagKey<Block> tag, BlockPos pos) {
-		this.checkBlockState(
+		checkBlockState(
 				pos,
 				state -> state.isIn(tag),
 				state -> Text.translatable(
@@ -466,15 +481,15 @@ public class TestContext {
 	}
 
 	public void expectBlockAtEnd(Block block, int x, int y, int z) {
-		this.expectBlockAtEnd(block, new BlockPos(x, y, z));
+		expectBlockAtEnd(block, new BlockPos(x, y, z));
 	}
 
 	public void expectBlockAtEnd(Block block, BlockPos pos) {
-		this.addInstantFinalTask(() -> this.expectBlock(block, pos));
+		addInstantFinalTask(() -> expectBlock(block, pos));
 	}
 
 	public void checkBlock(BlockPos pos, Predicate<Block> predicate, Function<Block, Text> messageGetter) {
-		this.checkBlockState(
+		checkBlockState(
 				pos,
 				state -> predicate.test(state.getBlock()),
 				state -> messageGetter.apply(state.getBlock())
@@ -482,18 +497,18 @@ public class TestContext {
 	}
 
 	public <T extends Comparable<T>> void expectBlockProperty(BlockPos pos, Property<T> property, T value) {
-		BlockState blockState = this.getBlockState(pos);
-		boolean bl = blockState.contains(property);
-		if (!bl) {
-			throw this.createError(pos, "test.error.block_property_missing", property.getName(), value);
+		BlockState state = getBlockState(pos);
+		if (!state.contains(property)) {
+			throw createError(pos, "test.error.block_property_missing", property.getName(), value);
 		}
-		else if (!blockState.<T>get(property).equals(value)) {
-			throw this.createError(
+
+		if (!state.<T>get(property).equals(value)) {
+			throw createError(
 					pos,
 					"test.error.block_property_mismatch",
 					property.getName(),
 					value,
-					blockState.get(property)
+					state.get(property)
 			);
 		}
 	}
@@ -504,23 +519,19 @@ public class TestContext {
 			Predicate<T> predicate,
 			Text message
 	) {
-		this.checkBlockState(
-				pos, state -> {
-					if (!state.contains(property)) {
-						return false;
-					}
-					else {
-						T comparable = state.get(property);
-						return predicate.test(comparable);
-					}
-				}, state -> message
-		);
+		checkBlockState(pos, state -> {
+			if (!state.contains(property)) {
+				return false;
+			}
+
+			return predicate.test(state.get(property));
+		}, state -> message);
 	}
 
 	public void expectBlockState(BlockPos pos, BlockState state) {
-		BlockState blockState = this.getBlockState(pos);
-		if (!blockState.equals(state)) {
-			throw this.createError(pos, "test.error.state_not_equal", state, blockState);
+		BlockState actual = getBlockState(pos);
+		if (!actual.equals(state)) {
+			throw createError(pos, "test.error.state_not_equal", state, actual);
 		}
 	}
 
@@ -529,9 +540,9 @@ public class TestContext {
 			Predicate<BlockState> predicate,
 			Function<BlockState, Text> messageGetter
 	) {
-		BlockState blockState = this.getBlockState(pos);
-		if (!predicate.test(blockState)) {
-			throw this.createError(pos, messageGetter.apply(blockState));
+		BlockState state = getBlockState(pos);
+		if (!predicate.test(state)) {
+			throw createError(pos, messageGetter.apply(state));
 		}
 	}
 
@@ -541,9 +552,9 @@ public class TestContext {
 			Predicate<T> predicate,
 			Supplier<Text> messageGetter
 	) {
-		T blockEntity = this.getBlockEntity(pos, clazz);
+		T blockEntity = getBlockEntity(pos, clazz);
 		if (!predicate.test(blockEntity)) {
-			throw this.createError(pos, messageGetter.get());
+			throw createError(pos, messageGetter.get());
 		}
 	}
 
@@ -553,180 +564,180 @@ public class TestContext {
 			IntPredicate powerPredicate,
 			Supplier<Text> messageGetter
 	) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		ServerWorld serverWorld = this.getWorld();
-		BlockState blockState = serverWorld.getBlockState(blockPos);
-		int i = blockState.getWeakRedstonePower(serverWorld, blockPos, direction);
-		if (!powerPredicate.test(i)) {
-			throw this.createError(pos, messageGetter.get());
+		BlockPos absolute = getAbsolutePos(pos);
+		ServerWorld world = getWorld();
+		BlockState state = world.getBlockState(absolute);
+		int power = state.getWeakRedstonePower(world, absolute, direction);
+		if (!powerPredicate.test(power)) {
+			throw createError(pos, messageGetter.get());
 		}
 	}
 
 	public void expectEntity(EntityType<?> type) {
-		if (!this.getWorld().hasEntities(type, this.getTestBox(), Entity::isAlive)) {
-			throw this.createError("test.error.expected_entity_in_test", type.getName());
+		if (!getWorld().hasEntities(type, getTestBox(), Entity::isAlive)) {
+			throw createError("test.error.expected_entity_in_test", type.getName());
 		}
 	}
 
 	public void expectEntityAt(EntityType<?> type, int x, int y, int z) {
-		this.expectEntityAt(type, new BlockPos(x, y, z));
+		expectEntityAt(type, new BlockPos(x, y, z));
 	}
 
 	public void expectEntityAt(EntityType<?> type, BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		if (!this.getWorld().hasEntities(type, new Box(blockPos), Entity::isAlive)) {
-			throw this.createError(pos, "test.error.expected_entity", type.getName());
+		BlockPos absolute = getAbsolutePos(pos);
+		if (!getWorld().hasEntities(type, new Box(absolute), Entity::isAlive)) {
+			throw createError(pos, "test.error.expected_entity", type.getName());
 		}
 	}
 
 	public void expectEntityInside(EntityType<?> type, Box box) {
-		Box box2 = this.getAbsolute(box);
-		if (!this.getWorld().hasEntities(type, box2, Entity::isAlive)) {
-			throw this.createError(BlockPos.ofFloored(box.getCenter()), "test.error.expected_entity", type.getName());
+		Box absolute = getAbsolute(box);
+		if (!getWorld().hasEntities(type, absolute, Entity::isAlive)) {
+			throw createError(BlockPos.ofFloored(box.getCenter()), "test.error.expected_entity", type.getName());
 		}
 	}
 
 	public void expectEntityIn(EntityType<?> type, Box box, Text message) {
-		Box box2 = this.getAbsolute(box);
-		if (!this.getWorld().hasEntities(type, box2, Entity::isAlive)) {
-			throw this.createError(BlockPos.ofFloored(box.getCenter()), message);
+		Box absolute = getAbsolute(box);
+		if (!getWorld().hasEntities(type, absolute, Entity::isAlive)) {
+			throw createError(BlockPos.ofFloored(box.getCenter()), message);
 		}
 	}
 
 	public void expectEntities(EntityType<?> type, int amount) {
-		List<? extends Entity> list = this.getWorld().getEntitiesByType(type, this.getTestBox(), Entity::isAlive);
-		if (list.size() != amount) {
-			throw this.createError("test.error.expected_entity_count", amount, type.getName(), list.size());
+		List<? extends Entity> entities = getWorld().getEntitiesByType(type, getTestBox(), Entity::isAlive);
+		if (entities.size() != amount) {
+			throw createError("test.error.expected_entity_count", amount, type.getName(), entities.size());
 		}
 	}
 
 	public void expectEntitiesAround(EntityType<?> type, BlockPos pos, int amount, double radius) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<? extends Entity> list = this.getEntitiesAround((EntityType<? extends Entity>) type, pos, radius);
-		if (list.size() != amount) {
-			throw this.createError(pos, "test.error.expected_entity_count", amount, type.getName(), list.size());
+		List<? extends Entity> entities = getEntitiesAround((EntityType<? extends Entity>) type, pos, radius);
+		if (entities.size() != amount) {
+			throw createError(pos, "test.error.expected_entity_count", amount, type.getName(), entities.size());
 		}
 	}
 
 	public void expectEntityAround(EntityType<?> type, BlockPos pos, double radius) {
-		List<? extends Entity> list = this.getEntitiesAround((EntityType<? extends Entity>) type, pos, radius);
-		if (list.isEmpty()) {
-			BlockPos blockPos = this.getAbsolutePos(pos);
-			throw this.createError(pos, "test.error.expected_entity", type.getName());
+		List<? extends Entity> entities = getEntitiesAround((EntityType<? extends Entity>) type, pos, radius);
+		if (entities.isEmpty()) {
+			throw createError(pos, "test.error.expected_entity", type.getName());
 		}
 	}
 
 	public <T extends Entity> List<T> getEntitiesAround(EntityType<T> type, BlockPos pos, double radius) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		return this.getWorld().getEntitiesByType(type, new Box(blockPos).expand(radius), Entity::isAlive);
+		BlockPos absolute = getAbsolutePos(pos);
+		return getWorld().getEntitiesByType(type, new Box(absolute).expand(radius), Entity::isAlive);
 	}
 
 	public <T extends Entity> List<T> getEntities(EntityType<T> type) {
-		return this.getWorld().getEntitiesByType(type, this.getTestBox(), Entity::isAlive);
+		return getWorld().getEntitiesByType(type, getTestBox(), Entity::isAlive);
 	}
 
 	public void expectEntityAt(Entity entity, int x, int y, int z) {
-		this.expectEntityAt(entity, new BlockPos(x, y, z));
+		expectEntityAt(entity, new BlockPos(x, y, z));
 	}
 
 	public void expectEntityAt(Entity entity, BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<? extends Entity>
-				list =
-				this.getWorld().getEntitiesByType(entity.getType(), new Box(blockPos), Entity::isAlive);
-		list
-				.stream()
+		BlockPos absolute = getAbsolutePos(pos);
+		List<? extends Entity> entities = getWorld().getEntitiesByType(
+				entity.getType(),
+				new Box(absolute),
+				Entity::isAlive
+		);
+		entities.stream()
 				.filter(e -> e == entity)
 				.findFirst()
-				.orElseThrow(() -> this.createError(pos, "test.error.expected_entity", entity.getType().getName()));
+				.orElseThrow(() -> createError(pos, "test.error.expected_entity", entity.getType().getName()));
 	}
 
 	public void expectItemsAt(Item item, BlockPos pos, double radius, int amount) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<ItemEntity>
-				list =
-				this.getWorld().getEntitiesByType(EntityType.ITEM, new Box(blockPos).expand(radius), Entity::isAlive);
-		int i = 0;
-
-		for (ItemEntity itemEntity : list) {
-			ItemStack itemStack = itemEntity.getStack();
-			if (itemStack.isOf(item)) {
-				i += itemStack.getCount();
+		BlockPos absolute = getAbsolutePos(pos);
+		List<ItemEntity> itemEntities = getWorld().getEntitiesByType(
+				EntityType.ITEM,
+				new Box(absolute).expand(radius),
+				Entity::isAlive
+		);
+		int totalCount = 0;
+		for (ItemEntity itemEntity : itemEntities) {
+			ItemStack stack = itemEntity.getStack();
+			if (stack.isOf(item)) {
+				totalCount += stack.getCount();
 			}
 		}
 
-		if (i != amount) {
-			throw this.createError(pos, "test.error.expected_items_count", amount, item.getName(), i);
+		if (totalCount != amount) {
+			throw createError(pos, "test.error.expected_items_count", amount, item.getName(), totalCount);
 		}
 	}
 
 	public void expectItemAt(Item item, BlockPos pos, double radius) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
+		BlockPos absolute = getAbsolutePos(pos);
 		Predicate<ItemEntity> predicate = entity -> entity.isAlive() && entity.getStack().isOf(item);
-		if (!this.getWorld().hasEntities(EntityType.ITEM, new Box(blockPos).expand(radius), predicate)) {
-			throw this.createError(pos, "test.error.expected_item", item.getName());
+		if (!getWorld().hasEntities(EntityType.ITEM, new Box(absolute).expand(radius), predicate)) {
+			throw createError(pos, "test.error.expected_item", item.getName());
 		}
 	}
 
 	public void dontExpectItemAt(Item item, BlockPos pos, double radius) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
+		BlockPos absolute = getAbsolutePos(pos);
 		Predicate<ItemEntity> predicate = entity -> entity.isAlive() && entity.getStack().isOf(item);
-		if (this.getWorld().hasEntities(EntityType.ITEM, new Box(blockPos).expand(radius), predicate)) {
-			throw this.createError(pos, "test.error.unexpected_item", item.getName());
+		if (getWorld().hasEntities(EntityType.ITEM, new Box(absolute).expand(radius), predicate)) {
+			throw createError(pos, "test.error.unexpected_item", item.getName());
 		}
 	}
 
 	public void expectItem(Item item) {
 		Predicate<ItemEntity> predicate = entity -> entity.isAlive() && entity.getStack().isOf(item);
-		if (!this.getWorld().hasEntities(EntityType.ITEM, this.getTestBox(), predicate)) {
-			throw this.createError("test.error.expected_item", item.getName());
+		if (!getWorld().hasEntities(EntityType.ITEM, getTestBox(), predicate)) {
+			throw createError("test.error.expected_item", item.getName());
 		}
 	}
 
 	public void dontExpectItem(Item item) {
 		Predicate<ItemEntity> predicate = entity -> entity.isAlive() && entity.getStack().isOf(item);
-		if (this.getWorld().hasEntities(EntityType.ITEM, this.getTestBox(), predicate)) {
-			throw this.createError("test.error.unexpected_item", item.getName());
+		if (getWorld().hasEntities(EntityType.ITEM, getTestBox(), predicate)) {
+			throw createError("test.error.unexpected_item", item.getName());
 		}
 	}
 
 	public void dontExpectEntity(EntityType<?> type) {
-		List<? extends Entity> list = this.getWorld().getEntitiesByType(type, this.getTestBox(), Entity::isAlive);
-		if (!list.isEmpty()) {
-			throw this.createError(list.getFirst().getBlockPos(), "test.error.unexpected_entity", type.getName());
+		List<? extends Entity> entities = getWorld().getEntitiesByType(type, getTestBox(), Entity::isAlive);
+		if (!entities.isEmpty()) {
+			throw createError(entities.getFirst().getBlockPos(), "test.error.unexpected_entity", type.getName());
 		}
 	}
 
 	public void dontExpectEntityAt(EntityType<?> type, int x, int y, int z) {
-		this.dontExpectEntityAt(type, new BlockPos(x, y, z));
+		dontExpectEntityAt(type, new BlockPos(x, y, z));
 	}
 
 	public void dontExpectEntityAt(EntityType<?> type, BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		if (this.getWorld().hasEntities(type, new Box(blockPos), Entity::isAlive)) {
-			throw this.createError(pos, "test.error.unexpected_entity", type.getName());
+		BlockPos absolute = getAbsolutePos(pos);
+		if (getWorld().hasEntities(type, new Box(absolute), Entity::isAlive)) {
+			throw createError(pos, "test.error.unexpected_entity", type.getName());
 		}
 	}
 
 	public void dontExpectEntityBetween(EntityType<?> type, Box box) {
-		Box box2 = this.getAbsolute(box);
-		List<? extends Entity> list = this.getWorld().getEntitiesByType(type, box2, Entity::isAlive);
-		if (!list.isEmpty()) {
-			throw this.createError(list.getFirst().getBlockPos(), "test.error.unexpected_entity", type.getName());
+		Box absolute = getAbsolute(box);
+		List<? extends Entity> entities = getWorld().getEntitiesByType(type, absolute, Entity::isAlive);
+		if (!entities.isEmpty()) {
+			throw createError(entities.getFirst().getBlockPos(), "test.error.unexpected_entity", type.getName());
 		}
 	}
 
 	public void expectEntityToTouch(EntityType<?> type, double x, double y, double z) {
-		Vec3d vec3d = new Vec3d(x, y, z);
-		Vec3d vec3d2 = this.getAbsolute(vec3d);
-		Predicate<? super Entity> predicate = entity -> entity.getBoundingBox().intersects(vec3d2, vec3d2);
-		if (!this.getWorld().hasEntities(type, this.getTestBox(), predicate)) {
-			throw this.createError(
+		Vec3d relative = new Vec3d(x, y, z);
+		Vec3d absolute = getAbsolute(relative);
+		Predicate<? super Entity> predicate = entity -> entity.getBoundingBox().intersects(absolute, absolute);
+		if (!getWorld().hasEntities(type, getTestBox(), predicate)) {
+			throw createError(
 					"test.error.expected_entity_touching",
 					type.getName(),
-					vec3d2.getX(),
-					vec3d2.getY(),
-					vec3d2.getZ(),
+					absolute.getX(),
+					absolute.getY(),
+					absolute.getZ(),
 					x,
 					y,
 					z
@@ -735,16 +746,16 @@ public class TestContext {
 	}
 
 	public void dontExpectEntityToTouch(EntityType<?> type, double x, double y, double z) {
-		Vec3d vec3d = new Vec3d(x, y, z);
-		Vec3d vec3d2 = this.getAbsolute(vec3d);
-		Predicate<? super Entity> predicate = entity -> !entity.getBoundingBox().intersects(vec3d2, vec3d2);
-		if (!this.getWorld().hasEntities(type, this.getTestBox(), predicate)) {
-			throw this.createError(
+		Vec3d relative = new Vec3d(x, y, z);
+		Vec3d absolute = getAbsolute(relative);
+		Predicate<? super Entity> predicate = entity -> !entity.getBoundingBox().intersects(absolute, absolute);
+		if (!getWorld().hasEntities(type, getTestBox(), predicate)) {
+			throw createError(
 					"test.error.expected_entity_not_touching",
 					type.getName(),
-					vec3d2.getX(),
-					vec3d2.getY(),
-					vec3d2.getZ(),
+					absolute.getX(),
+					absolute.getY(),
+					absolute.getZ(),
 					x,
 					y,
 					z
@@ -753,20 +764,19 @@ public class TestContext {
 	}
 
 	public <E extends Entity, T> void expectEntity(BlockPos pos, EntityType<E> type, Predicate<E> predicate) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<E> list = this.getWorld().getEntitiesByType(type, new Box(blockPos), Entity::isAlive);
-		if (list.isEmpty()) {
-			throw this.createError(pos, "test.error.expected_entity", type.getName());
+		BlockPos absolute = getAbsolutePos(pos);
+		List<E> entities = getWorld().getEntitiesByType(type, new Box(absolute), Entity::isAlive);
+		if (entities.isEmpty()) {
+			throw createError(pos, "test.error.expected_entity", type.getName());
 		}
-		else {
-			for (E entity : list) {
-				if (!predicate.test(entity)) {
-					throw this.createError(
-							entity.getBlockPos(),
-							"test.error.expected_entity_data_predicate",
-							entity.getName()
-					);
-				}
+
+		for (E entity : entities) {
+			if (!predicate.test(entity)) {
+				throw createError(
+						entity.getBlockPos(),
+						"test.error.expected_entity_data_predicate",
+						entity.getName()
+				);
 			}
 		}
 	}
@@ -777,7 +787,7 @@ public class TestContext {
 			Function<? super E, T> entityDataGetter,
 			@Nullable T data
 	) {
-		this.expectEntityWithData(new Box(pos), type, entityDataGetter, data);
+		expectEntityWithData(new Box(pos), type, entityDataGetter, data);
 	}
 
 	public <E extends Entity, T> void expectEntityWithData(
@@ -786,44 +796,42 @@ public class TestContext {
 			Function<? super E, T> entityDataGetter,
 			@Nullable T data
 	) {
-		List<E> list = this.getWorld().getEntitiesByType(type, this.getAbsolute(box), Entity::isAlive);
-		if (list.isEmpty()) {
-			throw this.createError(
+		List<E> entities = getWorld().getEntitiesByType(type, getAbsolute(box), Entity::isAlive);
+		if (entities.isEmpty()) {
+			throw createError(
 					BlockPos.ofFloored(box.getHorizontalCenter()),
 					"test.error.expected_entity",
 					type.getName()
 			);
 		}
-		else {
-			for (E entity : list) {
-				T object = entityDataGetter.apply(entity);
-				if (!Objects.equals(object, data)) {
-					throw this.createError(
-							BlockPos.ofFloored(box.getHorizontalCenter()),
-							"test.error.expected_entity_data",
-							data,
-							object
-					);
-				}
+
+		for (E entity : entities) {
+			T actual = entityDataGetter.apply(entity);
+			if (!Objects.equals(actual, data)) {
+				throw createError(
+						BlockPos.ofFloored(box.getHorizontalCenter()),
+						"test.error.expected_entity_data",
+						data,
+						actual
+				);
 			}
 		}
 	}
 
 	public <E extends LivingEntity> void expectEntityHoldingItem(BlockPos pos, EntityType<E> entityType, Item item) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<E> list = this.getWorld().getEntitiesByType(entityType, new Box(blockPos), Entity::isAlive);
-		if (list.isEmpty()) {
-			throw this.createError(pos, "test.error.expected_entity", entityType.getName());
+		BlockPos absolute = getAbsolutePos(pos);
+		List<E> entities = getWorld().getEntitiesByType(entityType, new Box(absolute), Entity::isAlive);
+		if (entities.isEmpty()) {
+			throw createError(pos, "test.error.expected_entity", entityType.getName());
 		}
-		else {
-			for (E livingEntity : list) {
-				if (livingEntity.isHolding(item)) {
-					return;
-				}
-			}
 
-			throw this.createError(pos, "test.error.expected_entity_holding", item.getName());
+		for (E entity : entities) {
+			if (entity.isHolding(item)) {
+				return;
+			}
 		}
+
+		throw createError(pos, "test.error.expected_entity_holding", item.getName());
 	}
 
 	public <E extends Entity & InventoryOwner> void expectEntityWithItem(
@@ -831,81 +839,71 @@ public class TestContext {
 			EntityType<E> entityType,
 			Item item
 	) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		List<E>
-				list =
-				this
-						.getWorld()
-						.getEntitiesByType(entityType, new Box(blockPos), entityx -> ((Entity) entityx).isAlive());
-		if (list.isEmpty()) {
-			throw this.createError(pos, "test.error.expected_entity", entityType.getName());
+		BlockPos absolute = getAbsolutePos(pos);
+		List<E> entities = getWorld().getEntitiesByType(
+				entityType,
+				new Box(absolute),
+				entity -> ((Entity) entity).isAlive()
+		);
+		if (entities.isEmpty()) {
+			throw createError(pos, "test.error.expected_entity", entityType.getName());
 		}
-		else {
-			for (E entity : list) {
-				if (entity.getInventory().containsAny(stack -> stack.isOf(item))) {
-					return;
-				}
-			}
 
-			throw this.createError(pos, "test.error.expected_entity_having", item.getName());
+		for (E entity : entities) {
+			if (entity.getInventory().containsAny(stack -> stack.isOf(item))) {
+				return;
+			}
 		}
+
+		throw createError(pos, "test.error.expected_entity_having", item.getName());
 	}
 
 	public void expectEmptyContainer(BlockPos pos) {
-		LockableContainerBlockEntity
-				lockableContainerBlockEntity =
-				this.getBlockEntity(pos, LockableContainerBlockEntity.class);
-		if (!lockableContainerBlockEntity.isEmpty()) {
-			throw this.createError(pos, "test.error.expected_empty_container");
+		LockableContainerBlockEntity container = getBlockEntity(pos, LockableContainerBlockEntity.class);
+		if (!container.isEmpty()) {
+			throw createError(pos, "test.error.expected_empty_container");
 		}
 	}
 
 	public void expectContainerWithSingle(BlockPos pos, Item item) {
-		LockableContainerBlockEntity
-				lockableContainerBlockEntity =
-				this.getBlockEntity(pos, LockableContainerBlockEntity.class);
-		if (lockableContainerBlockEntity.count(item) != 1) {
-			throw this.createError(pos, "test.error.expected_container_contents_single", item.getName());
+		LockableContainerBlockEntity container = getBlockEntity(pos, LockableContainerBlockEntity.class);
+		if (container.count(item) != 1) {
+			throw createError(pos, "test.error.expected_container_contents_single", item.getName());
 		}
 	}
 
 	public void expectContainerWith(BlockPos pos, Item item) {
-		LockableContainerBlockEntity
-				lockableContainerBlockEntity =
-				this.getBlockEntity(pos, LockableContainerBlockEntity.class);
-		if (lockableContainerBlockEntity.count(item) == 0) {
-			throw this.createError(pos, "test.error.expected_container_contents", item.getName());
+		LockableContainerBlockEntity container = getBlockEntity(pos, LockableContainerBlockEntity.class);
+		if (container.count(item) == 0) {
+			throw createError(pos, "test.error.expected_container_contents", item.getName());
 		}
 	}
 
 	public void expectSameStates(BlockBox checkedBlockBox, BlockPos correctStatePos) {
-		BlockPos.stream(checkedBlockBox)
-		        .forEach(
-				        checkedPos -> {
-					        BlockPos blockPos2 = correctStatePos.add(
-							        checkedPos.getX() - checkedBlockBox.getMinX(),
-							        checkedPos.getY() - checkedBlockBox.getMinY(),
-							        checkedPos.getZ() - checkedBlockBox.getMinZ()
-					        );
-					        this.expectSameStates(checkedPos, blockPos2);
-				        }
-		        );
+		BlockPos.stream(checkedBlockBox).forEach(checkedPos -> {
+			BlockPos referencePos = correctStatePos.add(
+					checkedPos.getX() - checkedBlockBox.getMinX(),
+					checkedPos.getY() - checkedBlockBox.getMinY(),
+					checkedPos.getZ() - checkedBlockBox.getMinZ()
+			);
+			expectSameStates(checkedPos, referencePos);
+		});
 	}
 
 	public void expectSameStates(BlockPos checkedPos, BlockPos correctStatePos) {
-		BlockState blockState = this.getBlockState(checkedPos);
-		BlockState blockState2 = this.getBlockState(correctStatePos);
-		if (blockState != blockState2) {
-			throw this.createError(checkedPos, "test.error.state_not_equal", blockState2, blockState);
+		BlockState actual = getBlockState(checkedPos);
+		BlockState expected = getBlockState(correctStatePos);
+		if (actual != expected) {
+			throw createError(checkedPos, "test.error.state_not_equal", expected, actual);
 		}
 	}
 
 	public void expectContainerWith(long delay, BlockPos pos, Item item) {
-		this.runAtTick(delay, () -> this.expectContainerWithSingle(pos, item));
+		runAtTick(delay, () -> expectContainerWithSingle(pos, item));
 	}
 
 	public void expectEmptyContainer(long delay, BlockPos pos) {
-		this.runAtTick(delay, () -> this.expectEmptyContainer(pos));
+		runAtTick(delay, () -> expectEmptyContainer(pos));
 	}
 
 	public <E extends Entity, T> void expectEntityWithDataEnd(
@@ -914,12 +912,12 @@ public class TestContext {
 			Function<E, T> entityDataGetter,
 			T data
 	) {
-		this.addInstantFinalTask(() -> this.expectEntityWithData(pos, type, entityDataGetter, data));
+		addInstantFinalTask(() -> expectEntityWithData(pos, type, entityDataGetter, data));
 	}
 
 	public <E extends Entity> void testEntity(E entity, Predicate<E> predicate, Text message) {
 		if (!predicate.test(entity)) {
-			throw this.createError(entity.getBlockPos(), "test.error.entity_property", entity.getName(), message);
+			throw createError(entity.getBlockPos(), "test.error.entity_property", entity.getName(), message);
 		}
 	}
 
@@ -929,23 +927,23 @@ public class TestContext {
 			T value,
 			Text message
 	) {
-		T object = propertyGetter.apply(entity);
-		if (!object.equals(value)) {
-			throw this.createError(
+		T actual = propertyGetter.apply(entity);
+		if (!actual.equals(value)) {
+			throw createError(
 					entity.getBlockPos(),
 					"test.error.entity_property_details",
 					entity.getName(),
 					message,
-					object,
+					actual,
 					value
 			);
 		}
 	}
 
 	public void expectEntityHasEffect(LivingEntity entity, RegistryEntry<StatusEffect> effect, int amplifier) {
-		StatusEffectInstance statusEffectInstance = entity.getStatusEffect(effect);
-		if (statusEffectInstance == null || statusEffectInstance.getAmplifier() != amplifier) {
-			throw this.createError(
+		StatusEffectInstance instance = entity.getStatusEffect(effect);
+		if (instance == null || instance.getAmplifier() != amplifier) {
+			throw createError(
 					"test.error.expected_entity_effect",
 					entity.getName(),
 					PotionContentsComponent.getEffectText(effect, amplifier)
@@ -954,258 +952,265 @@ public class TestContext {
 	}
 
 	public void expectEntityAtEnd(EntityType<?> type, int x, int y, int z) {
-		this.expectEntityAtEnd(type, new BlockPos(x, y, z));
+		expectEntityAtEnd(type, new BlockPos(x, y, z));
 	}
 
 	public void expectEntityAtEnd(EntityType<?> type, BlockPos pos) {
-		this.addInstantFinalTask(() -> this.expectEntityAt(type, pos));
+		addInstantFinalTask(() -> expectEntityAt(type, pos));
 	}
 
 	public void dontExpectEntityAtEnd(EntityType<?> type, int x, int y, int z) {
-		this.dontExpectEntityAtEnd(type, new BlockPos(x, y, z));
+		dontExpectEntityAtEnd(type, new BlockPos(x, y, z));
 	}
 
 	public void dontExpectEntityAtEnd(EntityType<?> type, BlockPos pos) {
-		this.addInstantFinalTask(() -> this.dontExpectEntityAt(type, pos));
+		addInstantFinalTask(() -> dontExpectEntityAt(type, pos));
 	}
 
 	public void complete() {
-		this.test.completeIfSuccessful();
-	}
-
-	private void markFinalCause() {
-		if (this.hasFinalClause) {
-			throw new IllegalStateException("This test already has final clause");
-		}
-		else {
-			this.hasFinalClause = true;
-		}
+		test.completeIfSuccessful();
 	}
 
 	public void addFinalTask(Runnable runnable) {
-		this.markFinalCause();
-		this.test.createTimedTaskRunner().createAndAdd(0L, runnable).completeIfSuccessful();
+		markFinalCause();
+		test.createTimedTaskRunner().createAndAdd(0L, runnable).completeIfSuccessful();
 	}
 
 	public void addInstantFinalTask(Runnable runnable) {
-		this.markFinalCause();
-		this.test.createTimedTaskRunner().createAndAdd(runnable).completeIfSuccessful();
+		markFinalCause();
+		test.createTimedTaskRunner().createAndAdd(runnable).completeIfSuccessful();
 	}
 
 	public void addFinalTaskWithDuration(int duration, Runnable runnable) {
-		this.markFinalCause();
-		this.test.createTimedTaskRunner().createAndAdd(duration, runnable).completeIfSuccessful();
+		markFinalCause();
+		test.createTimedTaskRunner().createAndAdd(duration, runnable).completeIfSuccessful();
 	}
 
 	public void runAtTick(long tick, Runnable runnable) {
-		this.test.runAtTick(tick, runnable);
+		test.runAtTick(tick, runnable);
 	}
 
 	public void waitAndRun(long ticks, Runnable runnable) {
-		this.runAtTick(this.test.getTick() + ticks, runnable);
+		runAtTick(test.getTick() + ticks, runnable);
 	}
 
 	public void forceRandomTick(BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		ServerWorld serverWorld = this.getWorld();
-		serverWorld.getBlockState(blockPos).randomTick(serverWorld, blockPos, serverWorld.random);
+		BlockPos absolute = getAbsolutePos(pos);
+		ServerWorld world = getWorld();
+		world.getBlockState(absolute).randomTick(world, absolute, world.random);
 	}
 
 	public void forceScheduledTick(BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		ServerWorld serverWorld = this.getWorld();
-		serverWorld.getBlockState(blockPos).scheduledTick(serverWorld, blockPos, serverWorld.random);
+		BlockPos absolute = getAbsolutePos(pos);
+		ServerWorld world = getWorld();
+		world.getBlockState(absolute).scheduledTick(world, absolute, world.random);
 	}
 
 	public void forceTickIceAndSnow(BlockPos pos) {
-		BlockPos blockPos = this.getAbsolutePos(pos);
-		ServerWorld serverWorld = this.getWorld();
-		serverWorld.tickIceAndSnow(blockPos);
+		BlockPos absolute = getAbsolutePos(pos);
+		ServerWorld world = getWorld();
+		world.tickIceAndSnow(absolute);
 	}
 
 	public void forceTickIceAndSnow() {
-		Box box = this.getRelativeTestBox();
-		int i = (int) Math.floor(box.maxX);
-		int j = (int) Math.floor(box.maxZ);
-		int k = (int) Math.floor(box.maxY);
+		Box box = getRelativeTestBox();
+		int maxX = (int) Math.floor(box.maxX);
+		int maxZ = (int) Math.floor(box.maxZ);
+		int maxY = (int) Math.floor(box.maxY);
 
-		for (int l = (int) Math.floor(box.minX); l < i; l++) {
-			for (int m = (int) Math.floor(box.minZ); m < j; m++) {
-				this.forceTickIceAndSnow(new BlockPos(l, k, m));
+		for (int x = (int) Math.floor(box.minX); x < maxX; x++) {
+			for (int z = (int) Math.floor(box.minZ); z < maxZ; z++) {
+				forceTickIceAndSnow(new BlockPos(x, maxY, z));
 			}
 		}
 	}
 
 	public int getRelativeTopY(Heightmap.Type heightmap, int x, int z) {
-		BlockPos blockPos = this.getAbsolutePos(new BlockPos(x, 0, z));
-		return this.getRelativePos(this.getWorld().getTopPosition(heightmap, blockPos)).getY();
+		BlockPos absolute = getAbsolutePos(new BlockPos(x, 0, z));
+		return getRelativePos(getWorld().getTopPosition(heightmap, absolute)).getY();
 	}
 
 	public void throwPositionedException(Text message, BlockPos pos) {
-		throw this.createError(pos, message);
+		throw createError(pos, message);
 	}
 
 	public void throwPositionedException(Text message, Entity entity) {
-		throw this.createError(entity.getBlockPos(), message);
+		throw createError(entity.getBlockPos(), message);
 	}
 
 	public void throwGameTestException(Text message) {
-		throw this.createError(message);
+		throw createError(message);
 	}
 
 	public void throwGameTestException(String message) {
-		throw this.createError(Text.literal(message));
+		throw createError(Text.literal(message));
 	}
 
 	public void addTask(Runnable task) {
-		this.test.createTimedTaskRunner().createAndAdd(task).fail(() -> this.createError("test.error.fail"));
+		test.createTimedTaskRunner().createAndAdd(task).fail(() -> createError("test.error.fail"));
 	}
 
 	public void runAtEveryTick(Runnable task) {
-		LongStream
-				.range(this.test.getTick(), this.test.getTickLimit())
-				.forEach(tick -> this.test.runAtTick(tick, task::run));
+		LongStream.range(test.getTick(), test.getTickLimit())
+				.forEach(tick -> test.runAtTick(tick, task::run));
 	}
 
 	public TimedTaskRunner createTimedTaskRunner() {
-		return this.test.createTimedTaskRunner();
+		return test.createTimedTaskRunner();
 	}
 
+	/**
+	 * Преобразует относительную позицию блока в абсолютную с учётом поворота структуры.
+	 */
 	public BlockPos getAbsolutePos(BlockPos pos) {
-		BlockPos blockPos = this.test.getOrigin();
-		BlockPos blockPos2 = blockPos.add(pos);
-		return StructureTemplate.transformAround(blockPos2, BlockMirror.NONE, this.test.getRotation(), blockPos);
+		BlockPos origin = test.getOrigin();
+		BlockPos shifted = origin.add(pos);
+		return StructureTemplate.transformAround(shifted, BlockMirror.NONE, test.getRotation(), origin);
 	}
 
+	/**
+	 * Преобразует абсолютную позицию блока в относительную (внутри структуры).
+	 */
 	public BlockPos getRelativePos(BlockPos pos) {
-		BlockPos blockPos = this.test.getOrigin();
-		BlockRotation blockRotation = this.test.getRotation().rotate(BlockRotation.CLOCKWISE_180);
-		BlockPos blockPos2 = StructureTemplate.transformAround(pos, BlockMirror.NONE, blockRotation, blockPos);
-		return blockPos2.subtract(blockPos);
+		BlockPos origin = test.getOrigin();
+		BlockRotation inverse = test.getRotation().rotate(BlockRotation.CLOCKWISE_180);
+		BlockPos transformed = StructureTemplate.transformAround(pos, BlockMirror.NONE, inverse, origin);
+		return transformed.subtract(origin);
 	}
 
 	public Box getAbsolute(Box box) {
-		Vec3d vec3d = this.getAbsolute(box.getMinPos());
-		Vec3d vec3d2 = this.getAbsolute(box.getMaxPos());
-		return new Box(vec3d, vec3d2);
+		Vec3d min = getAbsolute(box.getMinPos());
+		Vec3d max = getAbsolute(box.getMaxPos());
+		return new Box(min, max);
 	}
 
 	public Box getRelative(Box box) {
-		Vec3d vec3d = this.getRelative(box.getMinPos());
-		Vec3d vec3d2 = this.getRelative(box.getMaxPos());
-		return new Box(vec3d, vec3d2);
+		Vec3d min = getRelative(box.getMinPos());
+		Vec3d max = getRelative(box.getMaxPos());
+		return new Box(min, max);
 	}
 
 	public Vec3d getAbsolute(Vec3d pos) {
-		Vec3d vec3d = Vec3d.of(this.test.getOrigin());
+		Vec3d origin = Vec3d.of(test.getOrigin());
 		return StructureTemplate.transformAround(
-				vec3d.add(pos),
+				origin.add(pos),
 				BlockMirror.NONE,
-				this.test.getRotation(),
-				this.test.getOrigin()
+				test.getRotation(),
+				test.getOrigin()
 		);
 	}
 
 	public Vec3d getRelative(Vec3d pos) {
-		Vec3d vec3d = Vec3d.of(this.test.getOrigin());
+		Vec3d origin = Vec3d.of(test.getOrigin());
 		return StructureTemplate.transformAround(
-				pos.subtract(vec3d),
+				pos.subtract(origin),
 				BlockMirror.NONE,
-				this.test.getRotation(),
-				this.test.getOrigin()
+				test.getRotation(),
+				test.getOrigin()
 		);
 	}
 
 	public BlockRotation getRotation() {
-		return this.test.getRotation();
+		return test.getRotation();
 	}
 
 	public Direction getDirection() {
-		return this.test.getRotation().rotate(Direction.SOUTH);
+		return test.getRotation().rotate(Direction.SOUTH);
 	}
 
 	public Direction rotate(Direction direction) {
-		return this.getRotation().rotate(direction);
+		return getRotation().rotate(direction);
 	}
 
 	public void assertTrue(boolean condition, Text message) {
 		if (!condition) {
-			throw this.createError(message);
+			throw createError(message);
 		}
 	}
 
 	public void assertTrue(boolean condition, String message) {
-		this.assertTrue(condition, Text.literal(message));
+		assertTrue(condition, Text.literal(message));
 	}
 
 	public <N> void assertEquals(N expected, N value, String message) {
-		this.assertEquals(expected, value, Text.literal(message));
+		assertEquals(expected, value, Text.literal(message));
 	}
 
 	public <N> void assertEquals(N expected, N value, Text message) {
 		if (!expected.equals(value)) {
-			throw this.createError("test.error.value_not_equal", message, expected, value);
+			throw createError("test.error.value_not_equal", message, expected, value);
 		}
 	}
 
 	public void assertFalse(boolean condition, Text message) {
-		this.assertTrue(!condition, message);
+		assertTrue(!condition, message);
 	}
 
 	public void assertFalse(boolean condition, String message) {
-		this.assertFalse(condition, Text.literal(message));
+		assertFalse(condition, Text.literal(message));
 	}
 
 	public long getTick() {
-		return this.test.getTick();
+		return test.getTick();
 	}
 
 	public Box getTestBox() {
-		return this.test.getBoundingBox();
+		return test.getBoundingBox();
 	}
 
 	public Box getRelativeTestBox() {
-		Box box = this.test.getBoundingBox();
-		BlockRotation blockRotation = this.test.getRotation();
-		switch (blockRotation) {
-			case COUNTERCLOCKWISE_90:
-			case CLOCKWISE_90:
-				return new Box(0.0, 0.0, 0.0, box.getLengthZ(), box.getLengthY(), box.getLengthX());
-			default:
-				return new Box(0.0, 0.0, 0.0, box.getLengthX(), box.getLengthY(), box.getLengthZ());
-		}
+		Box box = test.getBoundingBox();
+		BlockRotation rotation = test.getRotation();
+		return switch (rotation) {
+			case COUNTERCLOCKWISE_90, CLOCKWISE_90 ->
+					new Box(0.0, 0.0, 0.0, box.getLengthZ(), box.getLengthY(), box.getLengthX());
+			default ->
+					new Box(0.0, 0.0, 0.0, box.getLengthX(), box.getLengthY(), box.getLengthZ());
+		};
 	}
 
 	public void forEachRelativePos(Consumer<BlockPos> posConsumer) {
-		Box box = this.getRelativeTestBox().shrink(1.0, 1.0, 1.0);
+		Box box = getRelativeTestBox().shrink(1.0, 1.0, 1.0);
 		BlockPos.Mutable.stream(box).forEach(posConsumer);
 	}
 
 	public void forEachRemainingTick(Runnable runnable) {
-		LongStream
-				.range(this.test.getTick(), this.test.getTickLimit())
-				.forEach(tick -> this.test.runAtTick(tick, runnable::run));
+		LongStream.range(test.getTick(), test.getTickLimit())
+				.forEach(tick -> test.runAtTick(tick, runnable::run));
 	}
 
 	public void useStackOnBlock(PlayerEntity player, ItemStack stack, BlockPos pos, Direction direction) {
-		BlockPos blockPos = this.getAbsolutePos(pos.offset(direction));
-		BlockHitResult blockHitResult = new BlockHitResult(Vec3d.ofCenter(blockPos), direction, blockPos, false);
-		ItemUsageContext itemUsageContext = new ItemUsageContext(player, Hand.MAIN_HAND, blockHitResult);
-		stack.useOnBlock(itemUsageContext);
+		BlockPos absolute = getAbsolutePos(pos.offset(direction));
+		BlockHitResult hitResult = new BlockHitResult(Vec3d.ofCenter(absolute), direction, absolute, false);
+		ItemUsageContext usageContext = new ItemUsageContext(player, Hand.MAIN_HAND, hitResult);
+		stack.useOnBlock(usageContext);
 	}
 
+	/**
+	 * Заполняет биом в границах тестовой структуры.
+	 *
+	 * @throws GameTestException если команда заполнения биома завершилась ошибкой
+	 */
 	public void setBiome(RegistryKey<Biome> biome) {
-		Box box = this.getTestBox();
-		BlockPos blockPos = BlockPos.ofFloored(box.minX, box.minY, box.minZ);
-		BlockPos blockPos2 = BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ);
-		Either<Integer, CommandSyntaxException> either = FillBiomeCommand.fillBiome(
-				this.getWorld(),
-				blockPos,
-				blockPos2,
-				this.getWorld().getRegistryManager().getOrThrow(RegistryKeys.BIOME).getOrThrow(biome)
+		Box box = getTestBox();
+		BlockPos min = BlockPos.ofFloored(box.minX, box.minY, box.minZ);
+		BlockPos max = BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ);
+		Either<Integer, CommandSyntaxException> result = FillBiomeCommand.fillBiome(
+				getWorld(),
+				min,
+				max,
+				getWorld().getRegistryManager().getOrThrow(RegistryKeys.BIOME).getOrThrow(biome)
 		);
-		if (either.right().isPresent()) {
-			throw this.createError("test.error.set_biome");
+		if (result.right().isPresent()) {
+			throw createError("test.error.set_biome");
 		}
+	}
+
+	private void markFinalCause() {
+		if (hasFinalClause) {
+			throw new IllegalStateException("This test already has final clause");
+		}
+
+		hasFinalClause = true;
 	}
 }

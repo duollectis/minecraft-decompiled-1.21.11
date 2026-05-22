@@ -19,58 +19,57 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ConcentricRingsStructurePlacement}.
+ * Размещение структур по концентрическим кольцам вокруг центра мира.
+ * Используется для Крепостей (Strongholds): структуры равномерно распределяются
+ * по кольцам, каждое из которых расположено дальше от центра, чем предыдущее.
+ * Позиции вычисляются асинхронно через {@link StructurePlacementCalculator}.
  */
 public class ConcentricRingsStructurePlacement extends StructurePlacement {
 
 	public static final MapCodec<ConcentricRingsStructurePlacement> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> buildConcentricRingsCodec(instance).apply(instance, ConcentricRingsStructurePlacement::new)
 	);
+
 	private final int distance;
 	private final int spread;
 	private final int count;
 	private final RegistryEntryList<Biome> preferredBiomes;
 
-	private static P9<Mu<ConcentricRingsStructurePlacement>, Vec3i, StructurePlacement.FrequencyReductionMethod, Float, Integer, Optional<StructurePlacement.ExclusionZone>, Integer, Integer, Integer, RegistryEntryList<Biome>> buildConcentricRingsCodec(
+	private static P9<Mu<ConcentricRingsStructurePlacement>, Vec3i, FrequencyReductionMethod, Float, Integer, Optional<ExclusionZone>, Integer, Integer, Integer, RegistryEntryList<Biome>> buildConcentricRingsCodec(
 			Instance<ConcentricRingsStructurePlacement> instance
 	) {
-		P5<Mu<ConcentricRingsStructurePlacement>, Vec3i, StructurePlacement.FrequencyReductionMethod, Float, Integer, Optional<StructurePlacement.ExclusionZone>>
-				p5 =
-				buildCodec(
-						instance
-				);
+		P5<Mu<ConcentricRingsStructurePlacement>, Vec3i, FrequencyReductionMethod, Float, Integer, Optional<ExclusionZone>>
+				base = buildCodec(instance);
 		P4<Mu<ConcentricRingsStructurePlacement>, Integer, Integer, Integer, RegistryEntryList<Biome>>
-				p4 =
-				instance.group(
-						Codec
-								.intRange(0, 1023)
-								.fieldOf("distance")
-								.forGetter(ConcentricRingsStructurePlacement::getDistance),
-						Codec
-								.intRange(0, 1023)
-								.fieldOf("spread")
-								.forGetter(ConcentricRingsStructurePlacement::getSpread),
-						Codec.intRange(1, 4095).fieldOf("count").forGetter(ConcentricRingsStructurePlacement::getCount),
-						RegistryCodecs
-								.entryList(RegistryKeys.BIOME)
-								.fieldOf("preferred_biomes")
-								.forGetter(ConcentricRingsStructurePlacement::getPreferredBiomes)
-				);
-		return new P9(p5.t1(), p5.t2(), p5.t3(), p5.t4(), p5.t5(), p4.t1(), p4.t2(), p4.t3(), p4.t4());
+				rings = instance.group(
+				Codec.intRange(0, 1023)
+				     .fieldOf("distance")
+				     .forGetter(ConcentricRingsStructurePlacement::getDistance),
+				Codec.intRange(0, 1023)
+				     .fieldOf("spread")
+				     .forGetter(ConcentricRingsStructurePlacement::getSpread),
+				Codec.intRange(1, 4095)
+				     .fieldOf("count")
+				     .forGetter(ConcentricRingsStructurePlacement::getCount),
+				RegistryCodecs.entryList(RegistryKeys.BIOME)
+				              .fieldOf("preferred_biomes")
+				              .forGetter(ConcentricRingsStructurePlacement::getPreferredBiomes)
+		);
+		return new P9(base.t1(), base.t2(), base.t3(), base.t4(), base.t5(), rings.t1(), rings.t2(), rings.t3(), rings.t4());
 	}
 
 	public ConcentricRingsStructurePlacement(
 			Vec3i locateOffset,
-			StructurePlacement.FrequencyReductionMethod generationPredicateType,
+			FrequencyReductionMethod frequencyReductionMethod,
 			float frequency,
 			int salt,
-			Optional<StructurePlacement.ExclusionZone> exclusionZone,
+			Optional<ExclusionZone> exclusionZone,
 			int distance,
 			int spread,
 			int structureCount,
 			RegistryEntryList<Biome> preferredBiomes
 	) {
-		super(locateOffset, generationPredicateType, frequency, salt, exclusionZone);
+		super(locateOffset, frequencyReductionMethod, frequency, salt, exclusionZone);
 		this.distance = distance;
 		this.spread = spread;
 		this.count = structureCount;
@@ -85,7 +84,7 @@ public class ConcentricRingsStructurePlacement extends StructurePlacement {
 	) {
 		this(
 				Vec3i.ZERO,
-				StructurePlacement.FrequencyReductionMethod.DEFAULT,
+				FrequencyReductionMethod.DEFAULT,
 				1.0F,
 				0,
 				Optional.empty(),
@@ -97,25 +96,25 @@ public class ConcentricRingsStructurePlacement extends StructurePlacement {
 	}
 
 	public int getDistance() {
-		return this.distance;
+		return distance;
 	}
 
 	public int getSpread() {
-		return this.spread;
+		return spread;
 	}
 
 	public int getCount() {
-		return this.count;
+		return count;
 	}
 
 	public RegistryEntryList<Biome> getPreferredBiomes() {
-		return this.preferredBiomes;
+		return preferredBiomes;
 	}
 
 	@Override
 	protected boolean isStartChunk(StructurePlacementCalculator calculator, int chunkX, int chunkZ) {
-		List<ChunkPos> list = calculator.getPlacementPositions(this);
-		return list == null ? false : list.contains(new ChunkPos(chunkX, chunkZ));
+		List<ChunkPos> positions = calculator.getPlacementPositions(this);
+		return positions != null && positions.contains(new ChunkPos(chunkX, chunkZ));
 	}
 
 	@Override

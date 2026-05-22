@@ -19,255 +19,213 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@code EntityAttributeInstance}.
+ * Экземпляр атрибута сущности, хранящий базовое значение и набор активных модификаторов.
+ * <p>
+ * Итоговое значение вычисляется лениво (при первом обращении после изменения) по трёхэтапной формуле:
+ * <ol>
+ *   <li>Суммируются все {@link EntityAttributeModifier.Operation#ADD_VALUE} модификаторы к базе.</li>
+ *   <li>К результату прибавляются {@link EntityAttributeModifier.Operation#ADD_MULTIPLIED_BASE} × база.</li>
+ *   <li>Результат умножается на {@code (1 + value)} для каждого {@link EntityAttributeModifier.Operation#ADD_MULTIPLIED_TOTAL}.</li>
+ * </ol>
  */
 public class EntityAttributeInstance {
 
 	private final RegistryEntry<EntityAttribute> type;
-	private final Map<EntityAttributeModifier.Operation, Map<Identifier, EntityAttributeModifier>>
-			operationToModifiers =
-			Maps.newEnumMap(
-					EntityAttributeModifier.Operation.class
-			);
-	private final Map<Identifier, EntityAttributeModifier> idToModifiers = new Object2ObjectArrayMap();
-	private final Map<Identifier, EntityAttributeModifier> persistentModifiers = new Object2ObjectArrayMap();
+	private final Map<EntityAttributeModifier.Operation, Map<Identifier, EntityAttributeModifier>> operationToModifiers =
+			Maps.newEnumMap(EntityAttributeModifier.Operation.class);
+	private final Map<Identifier, EntityAttributeModifier> idToModifiers = new Object2ObjectArrayMap<>();
+	private final Map<Identifier, EntityAttributeModifier> persistentModifiers = new Object2ObjectArrayMap<>();
+	private final Consumer<EntityAttributeInstance> updateCallback;
 	private double baseValue;
 	private boolean dirty = true;
 	private double value;
-	private final Consumer<EntityAttributeInstance> updateCallback;
 
-	public EntityAttributeInstance(
-			RegistryEntry<EntityAttribute> type,
-			Consumer<EntityAttributeInstance> updateCallback
-	) {
+	public EntityAttributeInstance(RegistryEntry<EntityAttribute> type, Consumer<EntityAttributeInstance> updateCallback) {
 		this.type = type;
 		this.updateCallback = updateCallback;
 		this.baseValue = type.value().getDefaultValue();
 	}
 
 	public RegistryEntry<EntityAttribute> getAttribute() {
-		return this.type;
+		return type;
 	}
 
 	public double getBaseValue() {
-		return this.baseValue;
+		return baseValue;
 	}
 
 	public void setBaseValue(double baseValue) {
-		if (baseValue != this.baseValue) {
-			this.baseValue = baseValue;
-			this.onUpdate();
+		if (baseValue == this.baseValue) {
+			return;
 		}
+
+		this.baseValue = baseValue;
+		onUpdate();
 	}
 
 	@VisibleForTesting
 	Map<Identifier, EntityAttributeModifier> getModifiers(EntityAttributeModifier.Operation operation) {
-		return this.operationToModifiers.computeIfAbsent(operation, operationx -> new Object2ObjectOpenHashMap());
+		return operationToModifiers.computeIfAbsent(operation, op -> new Object2ObjectOpenHashMap<>());
 	}
 
 	public Set<EntityAttributeModifier> getModifiers() {
-		return ImmutableSet.copyOf(this.idToModifiers.values());
+		return ImmutableSet.copyOf(idToModifiers.values());
 	}
 
 	public Set<EntityAttributeModifier> getPersistentModifiers() {
-		return ImmutableSet.copyOf(this.persistentModifiers.values());
+		return ImmutableSet.copyOf(persistentModifiers.values());
 	}
 
 	public @Nullable EntityAttributeModifier getModifier(Identifier id) {
-		return this.idToModifiers.get(id);
+		return idToModifiers.get(id);
 	}
 
 	public boolean hasModifier(Identifier id) {
-		return this.idToModifiers.get(id) != null;
+		return idToModifiers.containsKey(id);
 	}
 
 	private void addModifier(EntityAttributeModifier modifier) {
-		EntityAttributeModifier entityAttributeModifier = this.idToModifiers.putIfAbsent(modifier.id(), modifier);
-		if (entityAttributeModifier != null) {
+		EntityAttributeModifier existing = idToModifiers.putIfAbsent(modifier.id(), modifier);
+		if (existing != null) {
 			throw new IllegalArgumentException("Modifier is already applied on this attribute!");
 		}
-		else {
-			this.getModifiers(modifier.operation()).put(modifier.id(), modifier);
-			this.onUpdate();
-		}
+
+		getModifiers(modifier.operation()).put(modifier.id(), modifier);
+		onUpdate();
 	}
 
 	/**
-	 * Обновляет modifier.
-	 *
-	 * @param modifier modifier
+	 * Обновляет существующий модификатор по идентификатору. Если модификатор не изменился — пропускает обновление.
 	 */
 	public void updateModifier(EntityAttributeModifier modifier) {
-		EntityAttributeModifier entityAttributeModifier = this.idToModifiers.put(modifier.id(), modifier);
-		if (modifier != entityAttributeModifier) {
-			this.getModifiers(modifier.operation()).put(modifier.id(), modifier);
-			this.onUpdate();
+		EntityAttributeModifier previous = idToModifiers.put(modifier.id(), modifier);
+		if (modifier == previous) {
+			return;
 		}
+
+		getModifiers(modifier.operation()).put(modifier.id(), modifier);
+		onUpdate();
 	}
 
-	/**
-	 * Добавляет temporary modifier.
-	 *
-	 * @param modifier modifier
-	 */
 	public void addTemporaryModifier(EntityAttributeModifier modifier) {
-		this.addModifier(modifier);
+		addModifier(modifier);
 	}
 
 	/**
-	 * Overwrite persistent modifier.
-	 *
-	 * @param modifier modifier
+	 * Перезаписывает постоянный модификатор: удаляет старый и добавляет новый с тем же id.
 	 */
 	public void overwritePersistentModifier(EntityAttributeModifier modifier) {
-		this.removeModifier(modifier.id());
-		this.addModifier(modifier);
-		this.persistentModifiers.put(modifier.id(), modifier);
+		removeModifier(modifier.id());
+		addModifier(modifier);
+		persistentModifiers.put(modifier.id(), modifier);
 	}
 
-	/**
-	 * Добавляет persistent modifier.
-	 *
-	 * @param modifier modifier
-	 */
 	public void addPersistentModifier(EntityAttributeModifier modifier) {
-		this.addModifier(modifier);
-		this.persistentModifiers.put(modifier.id(), modifier);
+		addModifier(modifier);
+		persistentModifiers.put(modifier.id(), modifier);
 	}
 
-	/**
-	 * Добавляет persistent modifiers.
-	 *
-	 * @param modifiers modifiers
-	 */
 	public void addPersistentModifiers(Collection<EntityAttributeModifier> modifiers) {
-		for (EntityAttributeModifier entityAttributeModifier : modifiers) {
-			this.addPersistentModifier(entityAttributeModifier);
+		for (EntityAttributeModifier modifier : modifiers) {
+			addPersistentModifier(modifier);
 		}
 	}
 
-	/**
-	 * Обрабатывает событие update.
-	 */
 	protected void onUpdate() {
-		this.dirty = true;
-		this.updateCallback.accept(this);
+		dirty = true;
+		updateCallback.accept(this);
 	}
 
-	/**
-	 * Удаляет modifier.
-	 *
-	 * @param modifier modifier
-	 */
 	public void removeModifier(EntityAttributeModifier modifier) {
-		this.removeModifier(modifier.id());
+		removeModifier(modifier.id());
 	}
 
-	/**
-	 * Удаляет modifier.
-	 *
-	 * @param id id
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean removeModifier(Identifier id) {
-		EntityAttributeModifier entityAttributeModifier = this.idToModifiers.remove(id);
-		if (entityAttributeModifier == null) {
+		EntityAttributeModifier removed = idToModifiers.remove(id);
+		if (removed == null) {
 			return false;
 		}
-		else {
-			this.getModifiers(entityAttributeModifier.operation()).remove(id);
-			this.persistentModifiers.remove(id);
-			this.onUpdate();
-			return true;
-		}
+
+		getModifiers(removed.operation()).remove(id);
+		persistentModifiers.remove(id);
+		onUpdate();
+		return true;
 	}
 
-	/**
-	 * Очищает modifiers.
-	 */
 	public void clearModifiers() {
-		for (EntityAttributeModifier entityAttributeModifier : this.getModifiers()) {
-			this.removeModifier(entityAttributeModifier);
+		for (EntityAttributeModifier modifier : getModifiers()) {
+			removeModifier(modifier);
 		}
 	}
 
 	public double getValue() {
-		if (this.dirty) {
-			this.value = this.computeValue();
-			this.dirty = false;
+		if (dirty) {
+			value = computeValue();
+			dirty = false;
 		}
 
-		return this.value;
+		return value;
 	}
 
+	/**
+	 * Вычисляет итоговое значение атрибута по трёхэтапной формуле модификаторов.
+	 */
 	private double computeValue() {
-		double d = this.getBaseValue();
+		double base = getBaseValue();
 
-		for (EntityAttributeModifier entityAttributeModifier : this.getModifiersByOperation(EntityAttributeModifier.Operation.ADD_VALUE)) {
-			d += entityAttributeModifier.value();
+		for (EntityAttributeModifier modifier : getModifiersByOperation(EntityAttributeModifier.Operation.ADD_VALUE)) {
+			base += modifier.value();
 		}
 
-		double e = d;
+		double total = base;
 
-		for (EntityAttributeModifier entityAttributeModifier2 : this.getModifiersByOperation(EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE)) {
-			e += d * entityAttributeModifier2.value();
+		for (EntityAttributeModifier modifier : getModifiersByOperation(EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE)) {
+			total += base * modifier.value();
 		}
 
-		for (EntityAttributeModifier entityAttributeModifier2 : this.getModifiersByOperation(EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)) {
-			e *= 1.0 + entityAttributeModifier2.value();
+		for (EntityAttributeModifier modifier : getModifiersByOperation(EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)) {
+			total *= 1.0 + modifier.value();
 		}
 
-		return this.type.value().clamp(e);
+		return type.value().clamp(total);
 	}
 
 	private Collection<EntityAttributeModifier> getModifiersByOperation(EntityAttributeModifier.Operation operation) {
-		return this.operationToModifiers.getOrDefault(operation, Map.of()).values();
+		return operationToModifiers.getOrDefault(operation, Map.of()).values();
 	}
 
 	public void setFrom(EntityAttributeInstance other) {
-		this.baseValue = other.baseValue;
-		this.idToModifiers.clear();
-		this.idToModifiers.putAll(other.idToModifiers);
-		this.persistentModifiers.clear();
-		this.persistentModifiers.putAll(other.persistentModifiers);
-		this.operationToModifiers.clear();
-		other.operationToModifiers
-				.forEach((operation, modifiers) -> this
-						.getModifiers(operation)
-						.putAll((Map<? extends Identifier, ? extends EntityAttributeModifier>) modifiers));
-		this.onUpdate();
+		baseValue = other.baseValue;
+		idToModifiers.clear();
+		idToModifiers.putAll(other.idToModifiers);
+		persistentModifiers.clear();
+		persistentModifiers.putAll(other.persistentModifiers);
+		operationToModifiers.clear();
+		other.operationToModifiers.forEach((operation, modifiers) -> getModifiers(operation).putAll(modifiers));
+		onUpdate();
 	}
 
-	public EntityAttributeInstance.Packed pack() {
-		return new EntityAttributeInstance.Packed(
-				this.type,
-				this.baseValue,
-				List.copyOf(this.persistentModifiers.values())
-		);
+	public Packed pack() {
+		return new Packed(type, baseValue, List.copyOf(persistentModifiers.values()));
 	}
 
 	/**
-	 * Unpack.
-	 *
-	 * @param packed packed
+	 * Восстанавливает состояние экземпляра из упакованного представления (используется при синхронизации по сети).
 	 */
-	public void unpack(EntityAttributeInstance.Packed packed) {
-		this.baseValue = packed.baseValue;
+	public void unpack(Packed packed) {
+		baseValue = packed.baseValue;
 
-		for (EntityAttributeModifier entityAttributeModifier : packed.modifiers) {
-			this.idToModifiers.put(entityAttributeModifier.id(), entityAttributeModifier);
-			this
-					.getModifiers(entityAttributeModifier.operation())
-					.put(entityAttributeModifier.id(), entityAttributeModifier);
-			this.persistentModifiers.put(entityAttributeModifier.id(), entityAttributeModifier);
+		for (EntityAttributeModifier modifier : packed.modifiers) {
+			idToModifiers.put(modifier.id(), modifier);
+			getModifiers(modifier.operation()).put(modifier.id(), modifier);
+			persistentModifiers.put(modifier.id(), modifier);
 		}
 
-		this.onUpdate();
+		onUpdate();
 	}
 
 	/**
-	 * {@code Packed}.
+	 * Компактное сетевое/NBT-представление экземпляра атрибута: только базовое значение и постоянные модификаторы.
 	 */
 	public record Packed(
 			RegistryEntry<EntityAttribute> attribute,
@@ -275,20 +233,13 @@ public class EntityAttributeInstance {
 			List<EntityAttributeModifier> modifiers
 	) {
 
-		public static final Codec<EntityAttributeInstance.Packed> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Packed> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Registries.ATTRIBUTE
-								                    .getEntryCodec()
-								                    .fieldOf("id")
-								                    .forGetter(EntityAttributeInstance.Packed::attribute),
-						                    Codec.DOUBLE.fieldOf("base").orElse(0.0).forGetter(EntityAttributeInstance.Packed::baseValue),
-						                    EntityAttributeModifier.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("modifiers", List.of())
-								                    .forGetter(EntityAttributeInstance.Packed::modifiers)
-				                    )
-				                    .apply(instance, EntityAttributeInstance.Packed::new)
+						Registries.ATTRIBUTE.getEntryCodec().fieldOf("id").forGetter(Packed::attribute),
+						Codec.DOUBLE.fieldOf("base").orElse(0.0).forGetter(Packed::baseValue),
+						EntityAttributeModifier.CODEC.listOf().optionalFieldOf("modifiers", List.of()).forGetter(Packed::modifiers)
+				).apply(instance, Packed::new)
 		);
-		public static final Codec<List<EntityAttributeInstance.Packed>> LIST_CODEC = CODEC.listOf();
+		public static final Codec<List<Packed>> LIST_CODEC = CODEC.listOf();
 	}
 }

@@ -10,7 +10,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code CarpetBlock}.
+ * Блок ковра. Тонкий (1 пиксель высотой) декоративный блок, который разрушается,
+ * если под ним нет твёрдого блока.
  */
 public class CarpetBlock extends Block {
 

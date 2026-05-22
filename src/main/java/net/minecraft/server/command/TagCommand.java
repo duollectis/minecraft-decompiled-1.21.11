@@ -17,7 +17,7 @@ import java.util.Collection;
 import java.util.Set;
 
 /**
- * {@code TagCommand}.
+ * Команда {@code /tag}: управление тегами сущностей.
  */
 public class TagCommand {
 

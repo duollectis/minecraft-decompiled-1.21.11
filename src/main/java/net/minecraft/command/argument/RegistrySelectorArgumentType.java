@@ -26,7 +26,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RegistrySelectorArgumentType}.
+ * Тип аргумента команды Brigadier, поддерживающий выбор нескольких записей реестра
+ * через шаблоны с подстановочными символами ({@code *} и {@code ?}).
+ * <p>
+ * Примеры допустимых значений: {@code minecraft:*}, {@code *:stone}, {@code minecraft:stone}.
+ * Если пространство имён не указано, по умолчанию используется {@code minecraft:}.
+ *
+ * @param <T> тип объекта реестра
  */
 public class RegistrySelectorArgumentType<T> implements ArgumentType<Collection<RegistryEntry.Reference<T>>> {
 
@@ -47,31 +53,35 @@ public class RegistrySelectorArgumentType<T> implements ArgumentType<Collection<
 	}
 
 	public Collection<RegistryEntry.Reference<T>> parse(StringReader stringReader) throws CommandSyntaxException {
-		String string = addNamespace(read(stringReader));
-		List<RegistryEntry.Reference<T>>
-				list =
-				this.registry.streamEntries().filter(entry -> matches(string, entry.registryKey().getValue())).toList();
-		if (list.isEmpty()) {
-			throw NOT_FOUND_EXCEPTION.createWithContext(stringReader, string, this.registryRef.getValue());
+		String selector = addNamespace(read(stringReader));
+		List<RegistryEntry.Reference<T>> matches = this.registry
+				.streamEntries()
+				.filter(entry -> matches(selector, entry.registryKey().getValue()))
+				.toList();
+
+		if (matches.isEmpty()) {
+			throw NOT_FOUND_EXCEPTION.createWithContext(stringReader, selector, this.registryRef.getValue());
 		}
-		else {
-			return list;
-		}
+
+		return matches;
 	}
 
 	public static <T> Collection<RegistryEntry.Reference<T>> select(StringReader reader, RegistryWrapper<T> registry) {
-		String string = addNamespace(read(reader));
-		return registry.streamEntries().filter(entry -> matches(string, entry.registryKey().getValue())).toList();
+		String selector = addNamespace(read(reader));
+
+		return registry.streamEntries()
+				.filter(entry -> matches(selector, entry.registryKey().getValue()))
+				.toList();
 	}
 
 	private static String read(StringReader reader) {
-		int i = reader.getCursor();
+		int startCursor = reader.getCursor();
 
 		while (reader.canRead() && isSelectorChar(reader.peek())) {
 			reader.skip();
 		}
 
-		return reader.getString().substring(i, reader.getCursor());
+		return reader.getString().substring(startCursor, reader.getCursor());
 	}
 
 	private static boolean isSelectorChar(char c) {
@@ -114,7 +124,7 @@ public class RegistrySelectorArgumentType<T> implements ArgumentType<Collection<
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
 	 */
 	public static class Serializer<T> implements ArgumentSerializer<RegistrySelectorArgumentType<T>, RegistrySelectorArgumentType.Serializer<T>.Properties> {
 
@@ -140,7 +150,7 @@ public class RegistrySelectorArgumentType<T> implements ArgumentType<Collection<
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит ключ реестра для восстановления типа аргумента.
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistrySelectorArgumentType<T>> {
 

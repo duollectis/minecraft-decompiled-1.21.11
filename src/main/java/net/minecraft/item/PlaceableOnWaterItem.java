@@ -9,7 +9,10 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 
 /**
- * {@code PlaceableOnWaterItem}.
+ * Предмет, который можно разместить на поверхности воды. Переопределяет
+ * {@link #useOnBlock} чтобы запретить прямое взаимодействие с блоком, и
+ * перенаправляет {@link #use} на размещение блока над поверхностью воды
+ * через рейкаст с учётом источников жидкости.
  */
 public class PlaceableOnWaterItem extends BlockItem {
 
@@ -24,8 +27,9 @@ public class PlaceableOnWaterItem extends BlockItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		BlockHitResult blockHitResult = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
-		BlockHitResult blockHitResult2 = blockHitResult.withBlockPos(blockHitResult.getBlockPos().up());
-		return super.useOnBlock(new ItemUsageContext(user, hand, blockHitResult2));
+		BlockHitResult waterHit = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
+		BlockHitResult aboveWater = waterHit.withBlockPos(waterHit.getBlockPos().up());
+
+		return super.useOnBlock(new ItemUsageContext(user, hand, aboveWater));
 	}
 }

@@ -35,18 +35,26 @@ import net.minecraft.world.biome.Biome;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PolarBearEntity}.
+ * Белый медведь — нейтральное существо, атакующее при угрозе детёнышам или при прямой атаке.
+ * Реализует интерфейс {@link Angerable} для управления состоянием гнева.
+ * При приближении врага встаёт на задние лапы (анимация предупреждения).
  */
 public class PolarBearEntity extends AnimalEntity implements Angerable {
 
-	private static final TrackedData<Boolean>
-			WARNING =
-			DataTracker.registerData(PolarBearEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final TrackedData<Boolean> WARNING = DataTracker.registerData(
+		PolarBearEntity.class, TrackedDataHandlerRegistry.BOOLEAN
+	);
+
 	private static final float DEFAULT_ATTACK_DAMAGE = 6.0F;
+	private static final float WARNING_ANIMATION_MAX = 6.0F;
+	private static final int WARNING_SOUND_COOLDOWN_TICKS = 40;
+	private static final int WARNING_ATTACK_COOLDOWN_THRESHOLD = 10;
+
+	private static final UniformIntProvider ANGER_TIME_RANGE = TimeHelper.betweenSeconds(20, 39);
+
 	private float lastWarningAnimationProgress;
 	private float warningAnimationProgress;
 	private int warningSoundCooldown;
-	private static final UniformIntProvider ANGER_TIME_RANGE = TimeHelper.betweenSeconds(20, 39);
 	private long angerEndTime;
 	private @Nullable LazyEntityReference<LivingEntity> angryAt;
 
@@ -67,70 +75,61 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new PolarBearEntity.AttackGoal());
-		this.goalSelector
-				.add(
-						1,
-						new EscapeDangerGoal(
-								this,
-								2.0,
-								polarBear -> polarBear.isBaby() ? DamageTypeTags.PANIC_CAUSES
-								                                : DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES
-						)
-				);
-		this.goalSelector.add(4, new FollowParentGoal(this, 1.25));
-		this.goalSelector.add(5, new WanderAroundGoal(this, 1.0));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-		this.goalSelector.add(7, new LookAroundGoal(this));
-		this.targetSelector.add(1, new PolarBearEntity.PolarBearRevengeGoal());
-		this.targetSelector.add(2, new PolarBearEntity.ProtectBabiesGoal());
-		this.targetSelector.add(
-				3,
-				new ActiveTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::shouldAngerAt)
-		);
-		this.targetSelector.add(4, new ActiveTargetGoal<>(this, FoxEntity.class, 10, true, true, null));
-		this.targetSelector.add(5, new UniversalAngerGoal<>(this, false));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new PolarBearEntity.AttackGoal());
+		goalSelector.add(1, new EscapeDangerGoal(
+			this,
+			2.0,
+			polarBear -> polarBear.isBaby() ? DamageTypeTags.PANIC_CAUSES : DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES
+		));
+		goalSelector.add(4, new FollowParentGoal(this, 1.25));
+		goalSelector.add(5, new WanderAroundGoal(this, 1.0));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		goalSelector.add(7, new LookAroundGoal(this));
+		targetSelector.add(1, new PolarBearEntity.PolarBearRevengeGoal());
+		targetSelector.add(2, new PolarBearEntity.ProtectBabiesGoal());
+		targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::shouldAngerAt));
+		targetSelector.add(4, new ActiveTargetGoal<>(this, FoxEntity.class, 10, true, true, null));
+		targetSelector.add(5, new UniversalAngerGoal<>(this, false));
 	}
 
 	public static DefaultAttributeContainer.Builder createPolarBearAttributes() {
 		return AnimalEntity.createAnimalAttributes()
-		                   .add(EntityAttributes.MAX_HEALTH, 30.0)
-		                   .add(EntityAttributes.FOLLOW_RANGE, 20.0)
-		                   .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
-		                   .add(EntityAttributes.ATTACK_DAMAGE, 6.0);
+			.add(EntityAttributes.MAX_HEALTH, 30.0)
+			.add(EntityAttributes.FOLLOW_RANGE, 20.0)
+			.add(EntityAttributes.MOVEMENT_SPEED, 0.25)
+			.add(EntityAttributes.ATTACK_DAMAGE, DEFAULT_ATTACK_DAMAGE);
 	}
 
 	public static boolean canSpawn(
-			EntityType<PolarBearEntity> type,
-			WorldAccess world,
-			SpawnReason spawnReason,
-			BlockPos pos,
-			Random random
+		EntityType<PolarBearEntity> type,
+		WorldAccess world,
+		SpawnReason spawnReason,
+		BlockPos pos,
+		Random random
 	) {
-		RegistryEntry<Biome> registryEntry = world.getBiome(pos);
-		return !registryEntry.isIn(BiomeTags.POLAR_BEARS_SPAWN_ON_ALTERNATE_BLOCKS)
-		       ? isValidNaturalSpawn(type, world, spawnReason, pos, random)
-		       : isLightLevelValidForNaturalSpawn(world, pos) && world
-		                                                         .getBlockState(pos.down())
-		                                                         .isIn(BlockTags.POLAR_BEARS_SPAWNABLE_ON_ALTERNATE);
+		RegistryEntry<Biome> biome = world.getBiome(pos);
+		return biome.isIn(BiomeTags.POLAR_BEARS_SPAWN_ON_ALTERNATE_BLOCKS)
+			? isLightLevelValidForNaturalSpawn(world, pos)
+				&& world.getBlockState(pos.down()).isIn(BlockTags.POLAR_BEARS_SPAWNABLE_ON_ALTERNATE)
+			: isValidNaturalSpawn(type, world, spawnReason, pos, random);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.readAngerFromData(this.getEntityWorld(), view);
+		readAngerFromData(getEntityWorld(), view);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.writeAngerToData(view);
+		writeAngerToData(view);
 	}
 
 	@Override
 	public void chooseRandomAngerTime() {
-		this.setAngerDuration(ANGER_TIME_RANGE.get(this.random));
+		setAngerDuration(ANGER_TIME_RANGE.get(random));
 	}
 
 	@Override
@@ -140,7 +139,7 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 
 	@Override
 	public long getAngerEndTime() {
-		return this.angerEndTime;
+		return angerEndTime;
 	}
 
 	@Override
@@ -150,12 +149,12 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 
 	@Override
 	public @Nullable LazyEntityReference<LivingEntity> getAngryAt() {
-		return this.angryAt;
+		return angryAt;
 	}
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isBaby() ? SoundEvents.ENTITY_POLAR_BEAR_AMBIENT_BABY : SoundEvents.ENTITY_POLAR_BEAR_AMBIENT;
+		return isBaby() ? SoundEvents.ENTITY_POLAR_BEAR_AMBIENT_BABY : SoundEvents.ENTITY_POLAR_BEAR_AMBIENT;
 	}
 
 	@Override
@@ -170,17 +169,16 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_POLAR_BEAR_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_POLAR_BEAR_STEP, 0.15F, 1.0F);
 	}
 
-	/**
-	 * Play warning sound.
-	 */
 	protected void playWarningSound() {
-		if (this.warningSoundCooldown <= 0) {
-			this.playSound(SoundEvents.ENTITY_POLAR_BEAR_WARNING);
-			this.warningSoundCooldown = 40;
+		if (warningSoundCooldown > 0) {
+			return;
 		}
+
+		playSound(SoundEvents.ENTITY_POLAR_BEAR_WARNING);
+		warningSoundCooldown = WARNING_SOUND_COOLDOWN_TICKS;
 	}
 
 	@Override
@@ -192,51 +190,45 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			if (this.warningAnimationProgress != this.lastWarningAnimationProgress) {
-				this.calculateDimensions();
+		if (getEntityWorld().isClient()) {
+			if (warningAnimationProgress != lastWarningAnimationProgress) {
+				calculateDimensions();
 			}
 
-			this.lastWarningAnimationProgress = this.warningAnimationProgress;
-			if (this.isWarning()) {
-				this.warningAnimationProgress = MathHelper.clamp(this.warningAnimationProgress + 1.0F, 0.0F, 6.0F);
-			}
-			else {
-				this.warningAnimationProgress = MathHelper.clamp(this.warningAnimationProgress - 1.0F, 0.0F, 6.0F);
-			}
+			lastWarningAnimationProgress = warningAnimationProgress;
+			float delta = isWarning() ? 1.0F : -1.0F;
+			warningAnimationProgress = MathHelper.clamp(warningAnimationProgress + delta, 0.0F, WARNING_ANIMATION_MAX);
 		}
 
-		if (this.warningSoundCooldown > 0) {
-			this.warningSoundCooldown--;
+		if (warningSoundCooldown > 0) {
+			warningSoundCooldown--;
 		}
 
-		if (!this.getEntityWorld().isClient()) {
-			this.tickAngerLogic((ServerWorld) this.getEntityWorld(), true);
+		if (!getEntityWorld().isClient()) {
+			tickAngerLogic((ServerWorld) getEntityWorld(), true);
 		}
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		if (this.warningAnimationProgress > 0.0F) {
-			float f = this.warningAnimationProgress / 6.0F;
-			float g = 1.0F + f;
-			return super.getBaseDimensions(pose).scaled(1.0F, g);
-		}
-		else {
+		if (warningAnimationProgress <= 0.0F) {
 			return super.getBaseDimensions(pose);
 		}
+
+		float scale = 1.0F + warningAnimationProgress / WARNING_ANIMATION_MAX;
+		return super.getBaseDimensions(pose).scaled(1.0F, scale);
 	}
 
 	public boolean isWarning() {
-		return this.dataTracker.get(WARNING);
+		return dataTracker.get(WARNING);
 	}
 
 	public void setWarning(boolean warning) {
-		this.dataTracker.set(WARNING, warning);
+		dataTracker.set(WARNING, warning);
 	}
 
 	public float getWarningAnimationProgress(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastWarningAnimationProgress, this.warningAnimationProgress) / 6.0F;
+		return MathHelper.lerp(tickProgress, lastWarningAnimationProgress, warningAnimationProgress) / WARNING_ANIMATION_MAX;
 	}
 
 	@Override
@@ -246,10 +238,10 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 
 	@Override
 	public EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		if (entityData == null) {
 			entityData = new PassiveEntity.PassiveData(1.0F);
@@ -258,9 +250,6 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
-	/**
-	 * {@code AttackGoal}.
-	 */
 	class AttackGoal extends MeleeAttackGoal {
 
 		public AttackGoal() {
@@ -269,24 +258,23 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 
 		@Override
 		protected void attack(LivingEntity target) {
-			if (this.canAttack(target)) {
-				this.resetCooldown();
-				this.mob.tryAttack(getServerWorld(this.mob), target);
+			float targetWidthSq = (target.getWidth() + 3.0F) * (target.getWidth() + 3.0F);
+			if (canAttack(target)) {
+				resetCooldown();
+				mob.tryAttack(getServerWorld(mob), target);
 				PolarBearEntity.this.setWarning(false);
-			}
-			else if (this.mob.squaredDistanceTo(target) < (target.getWidth() + 3.0F) * (target.getWidth() + 3.0F)) {
-				if (this.isCooledDown()) {
+			} else if (mob.squaredDistanceTo(target) < targetWidthSq) {
+				if (isCooledDown()) {
 					PolarBearEntity.this.setWarning(false);
-					this.resetCooldown();
+					resetCooldown();
 				}
 
-				if (this.getCooldown() <= 10) {
+				if (getCooldown() <= WARNING_ATTACK_COOLDOWN_THRESHOLD) {
 					PolarBearEntity.this.setWarning(true);
 					PolarBearEntity.this.playWarningSound();
 				}
-			}
-			else {
-				this.resetCooldown();
+			} else {
+				resetCooldown();
 				PolarBearEntity.this.setWarning(false);
 			}
 		}
@@ -298,9 +286,6 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 		}
 	}
 
-	/**
-	 * {@code PolarBearRevengeGoal}.
-	 */
 	class PolarBearRevengeGoal extends RevengeGoal {
 
 		public PolarBearRevengeGoal() {
@@ -311,21 +296,22 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 		public void start() {
 			super.start();
 			if (PolarBearEntity.this.isBaby()) {
-				this.callSameTypeForRevenge();
-				this.stop();
+				callSameTypeForRevenge();
+				stop();
 			}
 		}
 
 		@Override
 		protected void setMobEntityTarget(MobEntity mob, LivingEntity target) {
-			if (mob instanceof PolarBearEntity && !mob.isBaby()) {
+			if (mob instanceof PolarBearEntity bear && !bear.isBaby()) {
 				super.setMobEntityTarget(mob, target);
 			}
 		}
 	}
 
 	/**
-	 * {@code ProtectBabiesGoal}.
+	 * Цель защиты детёнышей: взрослый медведь атакует игроков, если рядом есть медвежата.
+	 * Радиус поиска детёнышей — 8×4×8 блоков, дальность преследования вдвое меньше стандартной.
 	 */
 	class ProtectBabiesGoal extends ActiveTargetGoal<PlayerEntity> {
 
@@ -338,23 +324,23 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 			if (PolarBearEntity.this.isBaby()) {
 				return false;
 			}
-			else {
-				if (super.canStart()) {
-					for (PolarBearEntity polarBearEntity : PolarBearEntity.this.getEntityWorld()
-					                                                           .getNonSpectatingEntities(
-							                                                           PolarBearEntity.class,
-							                                                           PolarBearEntity.this
-									                                                           .getBoundingBox()
-									                                                           .expand(8.0, 4.0, 8.0)
-					                                                           )) {
-						if (polarBearEntity.isBaby()) {
-							return true;
-						}
-					}
-				}
 
+			if (!super.canStart()) {
 				return false;
 			}
+
+			for (PolarBearEntity nearby : PolarBearEntity.this.getEntityWorld()
+				.getNonSpectatingEntities(
+					PolarBearEntity.class,
+					PolarBearEntity.this.getBoundingBox().expand(8.0, 4.0, 8.0)
+				)
+			) {
+				if (nearby.isBaby()) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		@Override

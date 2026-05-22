@@ -2,7 +2,6 @@ package net.minecraft.client.texture;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.MapColor;
@@ -10,13 +9,17 @@ import net.minecraft.component.type.MapIdComponent;
 import net.minecraft.item.map.MapState;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MapTextureManager}.
+ * Управляет GL-текстурами карт предметов. Для каждого уникального ID карты
+ * создаётся {@link NativeImageBackedTexture} размером 128×128 пикселей,
+ * которая обновляется при изменении {@link MapState}.
  */
+@Environment(EnvType.CLIENT)
 public class MapTextureManager implements AutoCloseable {
 
-	private final Int2ObjectMap<MapTextureManager.MapTexture> texturesByMapId = new Int2ObjectOpenHashMap();
+	private static final int MAP_SIZE = 128;
+
+	private final Int2ObjectMap<MapTextureManager.MapTexture> texturesByMapId = new Int2ObjectOpenHashMap<>();
 	final TextureManager textureManager;
 
 	public MapTextureManager(TextureManager textureManager) {
@@ -24,52 +27,40 @@ public class MapTextureManager implements AutoCloseable {
 	}
 
 	public void setNeedsUpdate(MapIdComponent mapIdComponent, MapState mapState) {
-		this.getMapTexture(mapIdComponent, mapState).setNeedsUpdate();
+		getMapTexture(mapIdComponent, mapState).setNeedsUpdate();
 	}
 
 	public Identifier getTextureId(MapIdComponent mapIdComponent, MapState mapState) {
-		MapTextureManager.MapTexture mapTexture = this.getMapTexture(mapIdComponent, mapState);
+		MapTextureManager.MapTexture mapTexture = getMapTexture(mapIdComponent, mapState);
 		mapTexture.updateTexture();
 		return mapTexture.textureId;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		ObjectIterator var1 = this.texturesByMapId.values().iterator();
-
-		while (var1.hasNext()) {
-			MapTextureManager.MapTexture mapTexture = (MapTextureManager.MapTexture) var1.next();
+		for (MapTextureManager.MapTexture mapTexture : texturesByMapId.values()) {
 			mapTexture.close();
 		}
 
-		this.texturesByMapId.clear();
+		texturesByMapId.clear();
 	}
 
 	private MapTextureManager.MapTexture getMapTexture(MapIdComponent mapId, MapState mapState) {
-		return (MapTextureManager.MapTexture) this.texturesByMapId.compute(
-				mapId.id(), (id, mapTexture) -> {
-					if (mapTexture == null) {
-						return new MapTextureManager.MapTexture(id, mapState);
-					}
-					else {
-						mapTexture.setState(mapState);
-						return mapTexture;
-					}
-				}
-		);
+		return texturesByMapId.compute(mapId.id(), (id, existing) -> {
+			if (existing == null) {
+				return new MapTextureManager.MapTexture(id, mapState);
+			}
+
+			existing.setState(mapState);
+			return existing;
+		});
 	}
 
 	@Override
 	public void close() {
-		this.clear();
+		clear();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code MapTexture}.
-	 */
 	class MapTexture implements AutoCloseable {
 
 		private MapState state;
@@ -79,41 +70,43 @@ public class MapTextureManager implements AutoCloseable {
 
 		MapTexture(final int id, final MapState state) {
 			this.state = state;
-			this.texture = new NativeImageBackedTexture(() -> "Map " + id, 128, 128, true);
-			this.textureId = Identifier.ofVanilla("map/" + id);
-			MapTextureManager.this.textureManager.registerTexture(this.textureId, this.texture);
+			texture = new NativeImageBackedTexture(() -> "Map " + id, MAP_SIZE, MAP_SIZE, true);
+			textureId = Identifier.ofVanilla("map/" + id);
+			MapTextureManager.this.textureManager.registerTexture(textureId, texture);
 		}
 
 		void setState(MapState state) {
-			boolean bl = this.state != state;
+			boolean changed = this.state != state;
 			this.state = state;
-			this.needsUpdate |= bl;
+			needsUpdate |= changed;
 		}
 
 		public void setNeedsUpdate() {
-			this.needsUpdate = true;
+			needsUpdate = true;
 		}
 
 		void updateTexture() {
-			if (this.needsUpdate) {
-				NativeImage nativeImage = this.texture.getImage();
-				if (nativeImage != null) {
-					for (int i = 0; i < 128; i++) {
-						for (int j = 0; j < 128; j++) {
-							int k = j + i * 128;
-							nativeImage.setColorArgb(j, i, MapColor.getRenderColor(this.state.colors[k]));
-						}
+			if (!needsUpdate) {
+				return;
+			}
+
+			NativeImage image = texture.getImage();
+			if (image != null) {
+				for (int row = 0; row < MAP_SIZE; row++) {
+					for (int col = 0; col < MAP_SIZE; col++) {
+						int colorIndex = col + row * MAP_SIZE;
+						image.setColorArgb(col, row, MapColor.getRenderColor(state.colors[colorIndex]));
 					}
 				}
-
-				this.texture.upload();
-				this.needsUpdate = false;
 			}
+
+			texture.upload();
+			needsUpdate = false;
 		}
 
 		@Override
 		public void close() {
-			this.texture.close();
+			texture.close();
 		}
 	}
 }

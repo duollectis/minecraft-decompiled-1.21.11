@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerEntityManager}.
+ * Класс Server Entity Manager.
  */
 public class ServerEntityManager<T extends EntityLike> implements AutoCloseable {
 
@@ -290,9 +290,6 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		}
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		this.loadChunks();
 		this.unloadChunks();
@@ -312,9 +309,6 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return longSet;
 	}
 
-	/**
-	 * Save.
-	 */
 	public void save() {
 		this.getLoadedChunks().forEach(pos -> {
 			boolean bl = this.trackingStatuses.get(pos) == EntityTrackingStatus.HIDDEN;
@@ -327,9 +321,6 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		});
 	}
 
-	/**
-	 * Flush.
-	 */
 	public void flush() {
 		LongSet longSet = this.getLoadedChunks();
 
@@ -463,9 +454,6 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return this.index.size();
 	}
 
-	/**
-	 * {@code Listener}.
-	 */
 	class Listener implements EntityChangeListener {
 
 		private final T entity;
@@ -567,9 +555,6 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		}
 	}
 
-	/**
-	 * {@code Status}.
-	 */
 	static enum Status {
 		FRESH,
 		PENDING,

@@ -19,7 +19,7 @@ import net.minecraft.util.math.MathHelper;
 import java.util.List;
 
 /**
- * {@code WardenBrain}.
+ * Мозг (Brain) для Стража. Управляет поведением и памятью.
  */
 public class WardenBrain {
 
@@ -68,7 +68,7 @@ public class WardenBrain {
 			context -> context.group(context.queryMemoryOptional(MemoryModuleType.DIG_COOLDOWN)).apply(
 					context, digCooldown -> (world, entity, time) -> {
 						if (context.getOptionalValue(digCooldown).isPresent()) {
-							digCooldown.remember(Unit.INSTANCE, 1200L);
+							digCooldown.remember(Unit.INSTANCE, DIG_COOLDOWN);
 						}
 
 						return true;
@@ -76,11 +76,6 @@ public class WardenBrain {
 			)
 	);
 
-	/**
-	 * Обновляет activities.
-	 *
-	 * @param warden warden
-	 */
 	public static void updateActivities(WardenEntity warden) {
 		warden.getBrain()
 		      .resetPossibleActivities(
@@ -96,14 +91,6 @@ public class WardenBrain {
 		      );
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param warden warden
-	 * @param dynamic dynamic
-	 *
-	 * @return Brain — результат операции
-	 */
 	protected static Brain<?> create(WardenEntity warden, Dynamic<?> dynamic) {
 		Brain.Profile<WardenEntity> profile = Brain.createProfile(MEMORY_MODULES, SENSORS);
 		Brain<WardenEntity> brain = profile.deserialize(dynamic);
@@ -175,7 +162,7 @@ public class WardenBrain {
 				5,
 				ImmutableList.of(
 						FindRoarTargetTask.create(WardenEntity::getPrimeSuspect),
-						WalkTowardsFuzzyPosTask.create(MemoryModuleType.DISTURBANCE_LOCATION, 2, 0.7F)
+						WalkTowardsFuzzyPosTask.create(MemoryModuleType.DISTURBANCE_LOCATION, 2, CELEBRATE_TIME)
 				),
 				MemoryModuleType.DISTURBANCE_LOCATION
 		);
@@ -212,9 +199,9 @@ public class WardenBrain {
 								entity -> isTargeting(warden, entity),
 								(float) warden.getAttributeValue(EntityAttributes.FOLLOW_RANGE)
 						),
-						RangedApproachTask.create(1.2F),
+						RangedApproachTask.create(RANGED_APPROACH_SPEED),
 						new SonicBoomTask(),
-						MeleeAttackTask.create(18)
+						MeleeAttackTask.create(MELEE_ATTACK_INTERVAL)
 				),
 				MemoryModuleType.ATTACK_TARGET
 		);
@@ -236,23 +223,12 @@ public class WardenBrain {
 		resetDigCooldown(warden);
 	}
 
-	/**
-	 * Сбрасывает dig cooldown.
-	 *
-	 * @param warden warden
-	 */
 	public static void resetDigCooldown(LivingEntity warden) {
 		if (warden.getBrain().hasMemoryModule(MemoryModuleType.DIG_COOLDOWN)) {
-			warden.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 1200L);
+			warden.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, DIG_COOLDOWN);
 		}
 	}
 
-	/**
-	 * Look at disturbance.
-	 *
-	 * @param warden warden
-	 * @param pos pos
-	 */
 	public static void lookAtDisturbance(WardenEntity warden, BlockPos pos) {
 		if (warden.getEntityWorld().getWorldBorder().contains(pos)
 				&& !warden.getPrimeSuspect().isPresent()

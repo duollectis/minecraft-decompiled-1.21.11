@@ -13,7 +13,10 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code EmptyFluid}.
+ * Реализация «пустой» жидкости — отсутствие жидкости в блоке.
+ *
+ * <p>Используется как нейтральный заполнитель там, где жидкость отсутствует.
+ * Все физические параметры равны нулю, форма — пустая, блок-состояние — воздух.</p>
  */
 public class EmptyFluid extends Fluid {
 
@@ -24,11 +27,11 @@ public class EmptyFluid extends Fluid {
 
 	@Override
 	public boolean canBeReplacedWith(
-			FluidState state,
-			BlockView world,
-			BlockPos pos,
-			Fluid fluid,
-			Direction direction
+		FluidState state,
+		BlockView world,
+		BlockPos pos,
+		Fluid fluid,
+		Direction direction
 	) {
 		return true;
 	}

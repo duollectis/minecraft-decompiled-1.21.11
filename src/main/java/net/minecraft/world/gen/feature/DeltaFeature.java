@@ -12,9 +12,7 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code DeltaFeature}.
- */
+/** Генерирует дельту (лужу) в Нижнем мире: заполняет область содержимым со смещённым ободком из другого блока. */
 public class DeltaFeature extends Feature<DeltaFeatureConfig> {
 
 	private static final ImmutableList<Block> CANNOT_REPLACE_BLOCKS = ImmutableList.of(
@@ -35,58 +33,67 @@ public class DeltaFeature extends Feature<DeltaFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DeltaFeatureConfig> context) {
-		boolean bl = false;
+		boolean placed = false;
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		DeltaFeatureConfig deltaFeatureConfig = context.getConfig();
-		BlockPos blockPos = context.getOrigin();
-		boolean bl2 = random.nextDouble() < 0.9;
-		int i = bl2 ? deltaFeatureConfig.getRimSize().get(random) : 0;
-		int j = bl2 ? deltaFeatureConfig.getRimSize().get(random) : 0;
-		boolean bl3 = bl2 && i != 0 && j != 0;
-		int k = deltaFeatureConfig.getSize().get(random);
-		int l = deltaFeatureConfig.getSize().get(random);
-		int m = Math.max(k, l);
+		StructureWorldAccess world = context.getWorld();
+		DeltaFeatureConfig config = context.getConfig();
+		BlockPos origin = context.getOrigin();
+		boolean hasRim = random.nextDouble() < DELTA_SCALE;
+		int rimOffsetX = hasRim ? config.getRimSize().get(random) : 0;
+		int rimOffsetZ = hasRim ? config.getRimSize().get(random) : 0;
+		boolean placeRim = hasRim && rimOffsetX != 0 && rimOffsetZ != 0;
+		int sizeX = config.getSize().get(random);
+		int sizeZ = config.getSize().get(random);
+		int maxSize = Math.max(sizeX, sizeZ);
 
-		for (BlockPos blockPos2 : BlockPos.iterateOutwards(blockPos, k, 0, l)) {
-			if (blockPos2.getManhattanDistance(blockPos) > m) {
+		for (BlockPos pos : BlockPos.iterateOutwards(origin, sizeX, 0, sizeZ)) {
+			if (pos.getManhattanDistance(origin) > maxSize) {
 				break;
 			}
 
-			if (canPlace(structureWorldAccess, blockPos2, deltaFeatureConfig)) {
-				if (bl3) {
-					bl = true;
-					this.setBlockState(structureWorldAccess, blockPos2, deltaFeatureConfig.getRim());
-				}
+			if (!canPlace(world, pos, config)) {
+				continue;
+			}
 
-				BlockPos blockPos3 = blockPos2.add(i, 0, j);
-				if (canPlace(structureWorldAccess, blockPos3, deltaFeatureConfig)) {
-					bl = true;
-					this.setBlockState(structureWorldAccess, blockPos3, deltaFeatureConfig.getContents());
-				}
+			if (placeRim) {
+				placed = true;
+				setBlockState(world, pos, config.getRim());
+			}
+
+			BlockPos contentsPos = pos.add(rimOffsetX, 0, rimOffsetZ);
+
+			if (canPlace(world, contentsPos, config)) {
+				placed = true;
+				setBlockState(world, contentsPos, config.getContents());
 			}
 		}
 
-		return bl;
+		return placed;
 	}
 
 	private static boolean canPlace(WorldAccess world, BlockPos pos, DeltaFeatureConfig config) {
-		BlockState blockState = world.getBlockState(pos);
-		if (blockState.isOf(config.getContents().getBlock())) {
+		BlockState state = world.getBlockState(pos);
+
+		if (state.isOf(config.getContents().getBlock())) {
 			return false;
 		}
-		else if (CANNOT_REPLACE_BLOCKS.contains(blockState.getBlock())) {
+
+		if (CANNOT_REPLACE_BLOCKS.contains(state.getBlock())) {
 			return false;
 		}
-		else {
-			for (Direction direction : DIRECTIONS) {
-				boolean bl = world.getBlockState(pos.offset(direction)).isAir();
-				if (bl && direction != Direction.UP || !bl && direction == Direction.UP) {
-					return false;
-				}
+
+		for (Direction direction : DIRECTIONS) {
+			boolean neighborIsAir = world.getBlockState(pos.offset(direction)).isAir();
+
+			if (neighborIsAir && direction != Direction.UP) {
+				return false;
 			}
 
-			return true;
+			if (!neighborIsAir && direction == Direction.UP) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 }

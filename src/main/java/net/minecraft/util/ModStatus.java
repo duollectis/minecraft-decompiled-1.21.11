@@ -5,56 +5,63 @@ import org.apache.commons.lang3.ObjectUtils;
 import java.util.function.Supplier;
 
 /**
- * {@code ModStatus}.
+ * Статус модификации клиента или сервера, определяемый по бренду JAR-файла и его подписи.
+ * Используется для отображения предупреждений в отчётах об ошибках.
  */
-public record ModStatus(ModStatus.Confidence confidence, String description) {
+public record ModStatus(Confidence confidence, String description) {
 
+	/**
+	 * Определяет статус модификации среды выполнения.
+	 * Сначала проверяет бренд JAR, затем — наличие цифровой подписи.
+	 *
+	 * @param vanillaBrand ожидаемый бренд ванильного клиента/сервера
+	 * @param brandSupplier поставщик текущего бренда
+	 * @param environment название среды ("client" или "server") для сообщений
+	 * @param clazz класс для проверки подписи JAR
+	 * @return статус модификации с уровнем уверенности
+	 */
 	public static ModStatus check(
-			String vanillaBrand,
-			Supplier<String> brandSupplier,
-			String environment,
-			Class<?> clazz
+		String vanillaBrand,
+		Supplier<String> brandSupplier,
+		String environment,
+		Class<?> clazz
 	) {
-		String string = brandSupplier.get();
-		if (!vanillaBrand.equals(string)) {
-			return new ModStatus(ModStatus.Confidence.DEFINITELY, environment + " brand changed to '" + string + "'");
+		String currentBrand = brandSupplier.get();
+
+		if (!vanillaBrand.equals(currentBrand)) {
+			return new ModStatus(Confidence.DEFINITELY, environment + " brand changed to '" + currentBrand + "'");
 		}
-		else {
-			return clazz.getSigners() == null
-			       ? new ModStatus(ModStatus.Confidence.VERY_LIKELY, environment + " jar signature invalidated")
-			       : new ModStatus(
-					       ModStatus.Confidence.PROBABLY_NOT,
-					       environment + " jar signature and brand is untouched"
-			       );
-		}
+
+		return clazz.getSigners() == null
+			? new ModStatus(Confidence.VERY_LIKELY, environment + " jar signature invalidated")
+			: new ModStatus(Confidence.PROBABLY_NOT, environment + " jar signature and brand is untouched");
 	}
 
 	public boolean isModded() {
-		return this.confidence.modded;
+		return confidence.modded;
 	}
 
 	/**
-	 * Combine.
+	 * Объединяет два статуса, выбирая максимальный уровень уверенности и конкатенируя описания.
 	 *
-	 * @param brand brand
-	 *
-	 * @return ModStatus — результат операции
+	 * @param other второй статус для объединения
+	 * @return объединённый статус
 	 */
-	public ModStatus combine(ModStatus brand) {
+	public ModStatus combine(ModStatus other) {
 		return new ModStatus(
-				(ModStatus.Confidence) ObjectUtils.max(new ModStatus.Confidence[]{this.confidence, brand.confidence}),
-				this.description + "; " + brand.description
+			ObjectUtils.max(confidence, other.confidence),
+			description + "; " + other.description
 		);
 	}
 
 	public String getMessage() {
-		return this.confidence.description + " " + this.description;
+		return confidence.description + " " + description;
 	}
 
 	/**
-	 * {@code Confidence}.
+	 * Уровень уверенности в том, что среда была модифицирована.
 	 */
-	public static enum Confidence {
+	public enum Confidence {
 		PROBABLY_NOT("Probably not.", false),
 		VERY_LIKELY("Very likely;", true),
 		DEFINITELY("Definitely;", true);
@@ -62,7 +69,7 @@ public record ModStatus(ModStatus.Confidence confidence, String description) {
 		final String description;
 		final boolean modded;
 
-		private Confidence(final String description, final boolean modded) {
+		Confidence(String description, boolean modded) {
 			this.description = description;
 			this.modded = modded;
 		}

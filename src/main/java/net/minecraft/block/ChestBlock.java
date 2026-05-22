@@ -51,7 +51,10 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 /**
- * {@code ChestBlock}.
+ * Блок сундука — хранилище предметов с поддержкой объединения в двойной сундук.
+ * <p>
+ * Поддерживает водозаполнение, ориентацию по горизонтали и блокировку крышки
+ * при наличии твёрдого блока или кошки сверху.
  */
 public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements Waterloggable {
 
@@ -86,15 +89,12 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	private static final DoubleBlockProperties.PropertyRetriever<ChestBlockEntity, Optional<Inventory>>
 			INVENTORY_RETRIEVER =
 			new DoubleBlockProperties.PropertyRetriever<ChestBlockEntity, Optional<Inventory>>() {
-				public Optional<Inventory> getFromBoth(
-						ChestBlockEntity chestBlockEntity,
-						ChestBlockEntity chestBlockEntity2
-				) {
-					return Optional.of(new DoubleInventory(chestBlockEntity, chestBlockEntity2));
+				public Optional<Inventory> getFromBoth(ChestBlockEntity primary, ChestBlockEntity secondary) {
+					return Optional.of(new DoubleInventory(primary, secondary));
 				}
 
-				public Optional<Inventory> getFrom(ChestBlockEntity chestBlockEntity) {
-					return Optional.of(chestBlockEntity);
+				public Optional<Inventory> getFrom(ChestBlockEntity primary) {
+					return Optional.of(primary);
 				}
 
 				public Optional<Inventory> getFallback() {
@@ -105,51 +105,45 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 			NAME_RETRIEVER =
 			new DoubleBlockProperties.PropertyRetriever<ChestBlockEntity, Optional<NamedScreenHandlerFactory>>() {
 				public Optional<NamedScreenHandlerFactory> getFromBoth(
-						ChestBlockEntity chestBlockEntity,
-						ChestBlockEntity chestBlockEntity2
+						ChestBlockEntity primary,
+						ChestBlockEntity secondary
 				) {
-					final Inventory inventory = new DoubleInventory(chestBlockEntity, chestBlockEntity2);
+					final Inventory inventory = new DoubleInventory(primary, secondary);
 					return Optional.of(new NamedScreenHandlerFactory() {
 						@Override
 						public @Nullable ScreenHandler createMenu(
-								int i,
+								int syncId,
 								PlayerInventory playerInventory,
-								PlayerEntity playerEntity
+								PlayerEntity player
 						) {
-							if (chestBlockEntity.checkUnlocked(playerEntity) && chestBlockEntity2.checkUnlocked(
-									playerEntity)) {
-								chestBlockEntity.generateLoot(playerInventory.player);
-								chestBlockEntity2.generateLoot(playerInventory.player);
-								return GenericContainerScreenHandler.createGeneric9x6(i, playerInventory, inventory);
+							if (primary.checkUnlocked(player) && secondary.checkUnlocked(player)) {
+								primary.generateLoot(playerInventory.player);
+								secondary.generateLoot(playerInventory.player);
+								return GenericContainerScreenHandler.createGeneric9x6(syncId, playerInventory, inventory);
 							}
-							else {
-								Direction direction = ChestBlock.getFacing(chestBlockEntity.getCachedState());
-								Vec3d vec3d = chestBlockEntity.getPos().toCenterPos();
-								Vec3d
-										vec3d2 =
-										vec3d.add(direction.getOffsetX() / 2.0, 0.0, direction.getOffsetZ() / 2.0);
-								LockableContainerBlockEntity.handleLocked(vec3d2, playerEntity, this.getDisplayName());
-								return null;
-							}
+
+							Direction facing = ChestBlock.getFacing(primary.getCachedState());
+							Vec3d center = primary.getPos().toCenterPos();
+							Vec3d lockedPos = center.add(facing.getOffsetX() / 2.0, 0.0, facing.getOffsetZ() / 2.0);
+							LockableContainerBlockEntity.handleLocked(lockedPos, player, this.getDisplayName());
+							return null;
 						}
 
 						@Override
 						public Text getDisplayName() {
-							if (chestBlockEntity.hasCustomName()) {
-								return chestBlockEntity.getDisplayName();
+							if (primary.hasCustomName()) {
+								return primary.getDisplayName();
 							}
-							else {
-								return (Text) (chestBlockEntity2.hasCustomName() ? chestBlockEntity2.getDisplayName()
-								                                                 : Text.translatable(
-										                                                 "container.chestDouble")
-								);
-							}
+
+							return secondary.hasCustomName()
+									? secondary.getDisplayName()
+									: Text.translatable("container.chestDouble");
 						}
 					});
 				}
 
-				public Optional<NamedScreenHandlerFactory> getFrom(ChestBlockEntity chestBlockEntity) {
-					return Optional.of(chestBlockEntity);
+				public Optional<NamedScreenHandlerFactory> getFrom(ChestBlockEntity primary) {
+					return Optional.of(primary);
 				}
 
 				public Optional<NamedScreenHandlerFactory> getFallback() {
@@ -171,21 +165,26 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 		super(settings, blockEntityTypeSupplier);
 		this.openSound = openSound;
 		this.closeSound = closeSound;
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(FACING, Direction.NORTH)
 				.with(CHEST_TYPE, ChestType.SINGLE)
 				.with(WATERLOGGED, false));
 	}
 
+	/**
+	 * Определяет тип двойного блока (одиночный, первый или второй) по состоянию сундука.
+	 * <p>
+	 * {@link ChestType#RIGHT} считается «первым» (главным) блоком двойного сундука,
+	 * {@link ChestType#LEFT} — «вторым» (зависимым).
+	 */
 	public static DoubleBlockProperties.Type getDoubleBlockType(BlockState state) {
 		ChestType chestType = state.get(CHEST_TYPE);
 		if (chestType == ChestType.SINGLE) {
 			return DoubleBlockProperties.Type.SINGLE;
 		}
-		else {
-			return chestType == ChestType.RIGHT ? DoubleBlockProperties.Type.FIRST : DoubleBlockProperties.Type.SECOND;
-		}
+
+		return chestType == ChestType.RIGHT ? DoubleBlockProperties.Type.FIRST : DoubleBlockProperties.Type.SECOND;
 	}
 
 	@Override
@@ -229,11 +228,10 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	}
 
 	/**
-	 * Проверяет возможность merge with.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли соседний блок объединиться с этим сундуком в двойной.
+	 * <p>
+	 * По умолчанию разрешает слияние только с блоком того же типа.
+	 * Переопределяется в подклассах (например, медный сундук) для ограничения слияния.
 	 */
 	public boolean canMergeWith(BlockState state) {
 		return state.isOf(this);
@@ -261,41 +259,39 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		ChestType chestType = ChestType.SINGLE;
-		Direction direction = ctx.getHorizontalPlayerFacing().getOpposite();
+		Direction facing = ctx.getHorizontalPlayerFacing().getOpposite();
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		boolean bl = ctx.shouldCancelInteraction();
-		Direction direction2 = ctx.getSide();
-		if (direction2.getAxis().isHorizontal() && bl) {
-			Direction
-					direction3 =
-					this.getNeighborChestDirection(ctx.getWorld(), ctx.getBlockPos(), direction2.getOpposite());
-			if (direction3 != null && direction3.getAxis() != direction2.getAxis()) {
-				direction = direction3;
-				chestType =
-						direction3.rotateYCounterclockwise() == direction2.getOpposite() ? ChestType.RIGHT
-						                                                                 : ChestType.LEFT;
+		boolean isCrouching = ctx.shouldCancelInteraction();
+		Direction placedSide = ctx.getSide();
+
+		if (placedSide.getAxis().isHorizontal() && isCrouching) {
+			Direction neighborFacing = getNeighborChestDirection(ctx.getWorld(), ctx.getBlockPos(), placedSide.getOpposite());
+			if (neighborFacing != null && neighborFacing.getAxis() != placedSide.getAxis()) {
+				facing = neighborFacing;
+				chestType = neighborFacing.rotateYCounterclockwise() == placedSide.getOpposite()
+						? ChestType.RIGHT
+						: ChestType.LEFT;
 			}
 		}
 
-		if (chestType == ChestType.SINGLE && !bl) {
-			chestType = this.getChestType(ctx.getWorld(), ctx.getBlockPos(), direction);
+		if (chestType == ChestType.SINGLE && !isCrouching) {
+			chestType = getChestType(ctx.getWorld(), ctx.getBlockPos(), facing);
 		}
 
-		return this
-				.getDefaultState()
-				.with(FACING, direction)
+		return getDefaultState()
+				.with(FACING, facing)
 				.with(CHEST_TYPE, chestType)
 				.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
 	}
 
 	protected ChestType getChestType(World world, BlockPos pos, Direction facing) {
-		if (facing == this.getNeighborChestDirection(world, pos, facing.rotateYClockwise())) {
+		if (facing == getNeighborChestDirection(world, pos, facing.rotateYClockwise())) {
 			return ChestType.LEFT;
 		}
-		else {
-			return facing == this.getNeighborChestDirection(world, pos, facing.rotateYCounterclockwise())
-			       ? ChestType.RIGHT : ChestType.SINGLE;
-		}
+
+		return facing == getNeighborChestDirection(world, pos, facing.rotateYCounterclockwise())
+				? ChestType.RIGHT
+				: ChestType.SINGLE;
 	}
 
 	@Override
@@ -304,9 +300,10 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	}
 
 	private @Nullable Direction getNeighborChestDirection(World world, BlockPos pos, Direction neighborOffset) {
-		BlockState blockState = world.getBlockState(pos.offset(neighborOffset));
-		return this.canMergeWith(blockState) && blockState.get(CHEST_TYPE) == ChestType.SINGLE ? blockState.get(FACING)
-		                                                                                       : null;
+		BlockState neighborState = world.getBlockState(pos.offset(neighborOffset));
+		return canMergeWith(neighborState) && neighborState.get(CHEST_TYPE) == ChestType.SINGLE
+				? neighborState.get(FACING)
+				: null;
 	}
 
 	@Override
@@ -350,23 +347,19 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	public DoubleBlockProperties.PropertySource<? extends ChestBlockEntity> getBlockEntitySource(
 			BlockState state, World world, BlockPos pos, boolean ignoreBlocked
 	) {
-		BiPredicate<WorldAccess, BlockPos> biPredicate;
-		if (ignoreBlocked) {
-			biPredicate = (worldx, posx) -> false;
-		}
-		else {
-			biPredicate = ChestBlock::isChestBlocked;
-		}
+		BiPredicate<WorldAccess, BlockPos> blockedPredicate = ignoreBlocked
+				? (w, p) -> false
+				: ChestBlock::isChestBlocked;
 
 		return DoubleBlockProperties.toPropertySource(
-				this.entityTypeRetriever.get(),
+				entityTypeRetriever.get(),
 				ChestBlock::getDoubleBlockType,
 				ChestBlock::getFacing,
 				FACING,
 				state,
 				world,
 				pos,
-				biPredicate
+				blockedPredicate
 		);
 	}
 
@@ -379,22 +372,25 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 		return this.getBlockEntitySource(state, world, pos, false).apply(NAME_RETRIEVER).orElse(null);
 	}
 
+	/**
+	 * Создаёт ретривер прогресса анимации крышки для одиночного или двойного сундука.
+	 * <p>
+	 * Для двойного сундука берётся максимальный прогресс из обеих половин,
+	 * чтобы крышка открывалась синхронно при взаимодействии с любой из них.
+	 */
 	public static DoubleBlockProperties.PropertyRetriever<ChestBlockEntity, Float2FloatFunction> getAnimationProgressRetriever(
 			LidOpenable progress
 	) {
 		return new DoubleBlockProperties.PropertyRetriever<ChestBlockEntity, Float2FloatFunction>() {
-			public Float2FloatFunction getFromBoth(
-					ChestBlockEntity chestBlockEntity,
-					ChestBlockEntity chestBlockEntity2
-			) {
+			public Float2FloatFunction getFromBoth(ChestBlockEntity primary, ChestBlockEntity secondary) {
 				return tickProgress -> Math.max(
-						chestBlockEntity.getAnimationProgress(tickProgress),
-						chestBlockEntity2.getAnimationProgress(tickProgress)
+						primary.getAnimationProgress(tickProgress),
+						secondary.getAnimationProgress(tickProgress)
 				);
 			}
 
-			public Float2FloatFunction getFrom(ChestBlockEntity chestBlockEntity) {
-				return chestBlockEntity::getAnimationProgress;
+			public Float2FloatFunction getFrom(ChestBlockEntity primary) {
+				return primary::getAnimationProgress;
 			}
 
 			public Float2FloatFunction getFallback() {
@@ -428,15 +424,14 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 	}
 
 	private static boolean hasCatOnTop(WorldAccess world, BlockPos pos) {
-		List<CatEntity> list = world.getNonSpectatingEntities(
+		List<CatEntity> cats = world.getNonSpectatingEntities(
 				CatEntity.class,
 				new Box(pos.getX(), pos.getY() + 1, pos.getZ(), pos.getX() + 1, pos.getY() + 2, pos.getZ() + 1)
 		);
-		if (!list.isEmpty()) {
-			for (CatEntity catEntity : list) {
-				if (catEntity.isInSittingPose()) {
-					return true;
-				}
+
+		for (CatEntity cat : cats) {
+			if (cat.isInSittingPose()) {
+				return true;
 			}
 		}
 
@@ -475,9 +470,8 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof ChestBlockEntity) {
-			((ChestBlockEntity) blockEntity).onScheduledTick();
+		if (world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+			chest.onScheduledTick();
 		}
 	}
 

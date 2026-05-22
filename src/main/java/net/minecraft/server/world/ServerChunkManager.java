@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * {@code ServerChunkManager}.
+ * Класс Server Chunk Manager.
  */
 public class ServerChunkManager extends ChunkManager {
 
@@ -720,9 +720,6 @@ public class ServerChunkManager extends ChunkManager {
 		}
 	}
 
-	/**
-	 * {@code MainThreadExecutor}.
-	 */
 	final class MainThreadExecutor extends ThreadExecutor<Runnable> {
 
 		MainThreadExecutor(final World world) {

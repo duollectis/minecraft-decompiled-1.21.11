@@ -11,7 +11,7 @@ import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.sound.SoundEvent;
 
 /**
- * {@code WolfSoundVariant}.
+ * Звуковой вариант волка: определяет набор звуков для конкретной породы.
  */
 public record WolfSoundVariant(
 		RegistryEntry<SoundEvent> ambientSound,

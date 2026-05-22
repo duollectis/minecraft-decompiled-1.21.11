@@ -22,49 +22,36 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * {@code CopyStateLootFunction}.
- */
+/** Функция лута, копирующая свойства состояния блока в компонент предмета. */
 public class CopyStateLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<CopyStateLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									Registries.BLOCK
-											.getEntryCodec()
-											.fieldOf("block")
-											.forGetter(function -> function.block),
-									Codec.STRING
-											.listOf()
-											.fieldOf("properties")
-											.forGetter(function -> function.properties
-													.stream()
-													.map(Property::getName)
-													.toList())
-							)
-					)
-					.apply(instance, CopyStateLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				Registries.BLOCK.getEntryCodec().fieldOf("block").forGetter(function -> function.block),
+				Codec.STRING.listOf().fieldOf("properties").forGetter(
+					function -> function.properties.stream().map(Property::getName).toList()
+				)
+			))
+			.apply(instance, CopyStateLootFunction::new)
 	);
+
 	private final RegistryEntry<Block> block;
 	private final Set<Property<?>> properties;
+
+	CopyStateLootFunction(List<LootCondition> conditions, RegistryEntry<Block> block, List<String> propertyNames) {
+		super(conditions);
+		this.block = block;
+		this.properties = propertyNames.stream()
+			.map(name -> block.value().getStateManager().getProperty(name))
+			.filter(Objects::nonNull)
+			.collect(Collectors.toUnmodifiableSet());
+	}
 
 	CopyStateLootFunction(List<LootCondition> conditions, RegistryEntry<Block> block, Set<Property<?>> properties) {
 		super(conditions);
 		this.block = block;
-		this.properties = properties;
-	}
-
-	private CopyStateLootFunction(List<LootCondition> conditions, RegistryEntry<Block> block, List<String> properties) {
-		this(
-				conditions,
-				block,
-				properties
-						.stream()
-						.map(block.value().getStateManager()::getProperty)
-						.filter(Objects::nonNull)
-						.collect(Collectors.toSet())
-		);
+		this.properties = ImmutableSet.copyOf(properties);
 	}
 
 	@Override
@@ -78,58 +65,68 @@ public class CopyStateLootFunction extends ConditionalLootFunction {
 	}
 
 	@Override
-	protected ItemStack process(ItemStack stack, LootContext context) {
+	public ItemStack process(ItemStack stack, LootContext context) {
 		BlockState blockState = context.get(LootContextParameters.BLOCK_STATE);
-		if (blockState != null) {
-			stack.apply(
-					DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT, component -> {
-						for (Property<?> property : this.properties) {
-							if (blockState.contains(property)) {
-								component = component.with(property, blockState);
-							}
-						}
 
-						return component;
-					}
-			);
+		if (blockState == null) {
+			return stack;
 		}
+
+		BlockStateComponent component = stack.getOrDefault(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT);
+
+		for (Property<?> property : properties) {
+			if (blockState.contains(property)) {
+				component = copyProperty(component, blockState, property);
+			}
+		}
+
+		stack.set(DataComponentTypes.BLOCK_STATE, component);
 
 		return stack;
 	}
 
-	public static CopyStateLootFunction.Builder builder(Block block) {
-		return new CopyStateLootFunction.Builder(block);
+	private static <T extends Comparable<T>> BlockStateComponent copyProperty(
+		BlockStateComponent component,
+		BlockState state,
+		Property<T> property
+	) {
+		return component.with(property, state.get(property));
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<CopyStateLootFunction.Builder> {
+	public static Builder builder(Block block) {
+		return new Builder(Registries.BLOCK.getEntry(block));
+	}
+
+	/** Строитель функции копирования свойств блока. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private final RegistryEntry<Block> block;
-		private final com.google.common.collect.ImmutableSet.Builder<Property<?>> properties = ImmutableSet.builder();
+		private final ImmutableSet.Builder<Property<?>> properties = ImmutableSet.builder();
 
-		Builder(Block block) {
-			this.block = block.getRegistryEntry();
+		Builder(RegistryEntry<Block> block) {
+			this.block = block;
 		}
 
-		public CopyStateLootFunction.Builder addProperty(Property<?> property) {
-			if (!this.block.value().getStateManager().getProperties().contains(property)) {
-				throw new IllegalStateException("Property " + property + " is not present on block " + this.block);
+		public Builder addProperty(Property<?> property) {
+			if (!block.value().getStateManager().getProperties().contains(property)) {
+				throw new IllegalArgumentException(
+					"Property " + property + " is not present on block " + block.value()
+				);
 			}
-			else {
-				this.properties.add(property);
-				return this;
-			}
+
+			properties.add(property);
+
+			return this;
 		}
 
-		protected CopyStateLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new CopyStateLootFunction(this.getConditions(), this.block, this.properties.build());
+			return new CopyStateLootFunction(getConditions(), block, properties.build());
 		}
 	}
 }

@@ -12,7 +12,8 @@ import java.util.function.DoubleSupplier;
 import java.util.function.ToDoubleFunction;
 
 /**
- * {@code Sampler}.
+ * Сэмплер метрики: периодически снимает значение через {@link DoubleSupplier}
+ * и накапливает пары (тик → значение) в буферах Netty для последующего дампа.
  */
 public class Sampler {
 
@@ -27,11 +28,11 @@ public class Sampler {
 	private double currentSample;
 
 	protected Sampler(
-			String name,
-			SampleType type,
-			DoubleSupplier retriever,
-			@Nullable Runnable startAction,
-			Sampler.@Nullable DeviationChecker deviationChecker
+		String name,
+		SampleType type,
+		DoubleSupplier retriever,
+		@Nullable Runnable startAction,
+		Sampler.@Nullable DeviationChecker deviationChecker
 	) {
 		this.name = name;
 		this.type = type;
@@ -43,125 +44,89 @@ public class Sampler {
 		this.active = true;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param name name
-	 * @param type type
-	 * @param retriever retriever
-	 *
-	 * @return Sampler — результат операции
-	 */
 	public static Sampler create(String name, SampleType type, DoubleSupplier retriever) {
 		return new Sampler(name, type, retriever, null, null);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param name name
-	 * @param type type
-	 * @param context context
-	 * @param retriever retriever
-	 *
-	 * @return Sampler — результат операции
-	 */
 	public static <T> Sampler create(String name, SampleType type, T context, ToDoubleFunction<T> retriever) {
 		return builder(name, type, retriever, context).build();
 	}
 
-	public static <T> Sampler.Builder<T> builder(
-			String name,
-			SampleType type,
-			ToDoubleFunction<T> retriever,
-			T context
-	) {
+	public static <T> Sampler.Builder<T> builder(String name, SampleType type, ToDoubleFunction<T> retriever, T context) {
 		if (retriever == null) {
 			throw new IllegalStateException();
 		}
-		else {
-			return new Sampler.Builder<>(name, type, retriever, context);
-		}
+
+		return new Sampler.Builder<>(name, type, retriever, context);
 	}
 
-	/**
-	 * Start.
-	 */
 	public void start() {
-		if (!this.active) {
+		if (!active) {
 			throw new IllegalStateException("Not running");
 		}
-		else {
-			if (this.startAction != null) {
-				this.startAction.run();
-			}
+
+		if (startAction != null) {
+			startAction.run();
 		}
 	}
 
-	/**
-	 * Sample.
-	 *
-	 * @param tick tick
-	 */
 	public void sample(int tick) {
-		this.ensureActive();
-		this.currentSample = this.retriever.getAsDouble();
-		this.valueBuffer.writeDouble(this.currentSample);
-		this.ticksBuffer.writeInt(tick);
+		ensureActive();
+		currentSample = retriever.getAsDouble();
+		valueBuffer.writeDouble(currentSample);
+		ticksBuffer.writeInt(tick);
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.ensureActive();
-		this.valueBuffer.release();
-		this.ticksBuffer.release();
-		this.active = false;
+		ensureActive();
+		valueBuffer.release();
+		ticksBuffer.release();
+		active = false;
 	}
 
 	private void ensureActive() {
-		if (!this.active) {
-			throw new IllegalStateException(String.format(
-					Locale.ROOT,
-					"Sampler for metric %s not started!",
-					this.name
-			));
+		if (!active) {
+			throw new IllegalStateException(String.format(Locale.ROOT, "Sampler for metric %s not started!", name));
 		}
 	}
 
 	public DoubleSupplier getRetriever() {
-		return this.retriever;
+		return retriever;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public SampleType getType() {
-		return this.type;
+		return type;
 	}
 
+	/**
+	 * Собирает накопленные данные из буферов в карту тик→значение.
+	 * После вызова буферы остаются в состоянии «прочитано».
+	 */
 	public Sampler.Data collectData() {
-		Int2DoubleMap int2DoubleMap = new Int2DoubleOpenHashMap();
-		int i = Integer.MIN_VALUE;
-		int j = Integer.MIN_VALUE;
+		Int2DoubleMap values = new Int2DoubleOpenHashMap();
+		int startTick = Integer.MIN_VALUE;
+		int endTick = Integer.MIN_VALUE;
 
-		while (this.valueBuffer.isReadable(8)) {
-			int k = this.ticksBuffer.readInt();
-			if (i == Integer.MIN_VALUE) {
-				i = k;
+		while (valueBuffer.isReadable(8)) {
+			int tick = ticksBuffer.readInt();
+
+			if (startTick == Integer.MIN_VALUE) {
+				startTick = tick;
 			}
 
-			int2DoubleMap.put(k, this.valueBuffer.readDouble());
-			j = k;
+			values.put(tick, valueBuffer.readDouble());
+			endTick = tick;
 		}
 
-		return new Sampler.Data(i, j, int2DoubleMap);
+		return new Sampler.Data(startTick, endTick, values);
 	}
 
 	public boolean hasDeviated() {
-		return this.deviationChecker != null && this.deviationChecker.check(this.currentSample);
+		return deviationChecker != null && deviationChecker.check(currentSample);
 	}
 
 	@Override
@@ -169,22 +134,22 @@ public class Sampler {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			Sampler sampler = (Sampler) o;
-			return this.name.equals(sampler.name) && this.type.equals(sampler.type);
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		Sampler sampler = (Sampler) o;
+		return name.equals(sampler.name) && type.equals(sampler.type);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.name.hashCode();
+		return name.hashCode();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель сэмплера с поддержкой стартового действия и детектора отклонений.
 	 */
 	public static class Builder<T> {
 
@@ -203,27 +168,22 @@ public class Sampler {
 		}
 
 		public Sampler.Builder<T> startAction(Consumer<T> action) {
-			this.startAction = () -> action.accept(this.context);
+			startAction = () -> action.accept(context);
 			return this;
 		}
 
-		public Sampler.Builder<T> deviationChecker(Sampler.DeviationChecker deviationChecker) {
-			this.deviationChecker = deviationChecker;
+		public Sampler.Builder<T> deviationChecker(Sampler.DeviationChecker checker) {
+			deviationChecker = checker;
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return Sampler — результат операции
-		 */
 		public Sampler build() {
-			return new Sampler(this.name, this.type, this.timeGetter, this.startAction, this.deviationChecker);
+			return new Sampler(name, type, timeGetter, startAction, deviationChecker);
 		}
 	}
 
 	/**
-	 * {@code Data}.
+	 * Снимок данных сэмплера: карта тик→значение с диапазоном тиков.
 	 */
 	public static class Data {
 
@@ -238,20 +198,20 @@ public class Sampler {
 		}
 
 		public double getValue(int tick) {
-			return this.values.get(tick);
+			return values.get(tick);
 		}
 
 		public int getStartTick() {
-			return this.startTick;
+			return startTick;
 		}
 
 		public int getEndTick() {
-			return this.endTick;
+			return endTick;
 		}
 	}
 
 	/**
-	 * {@code DeviationChecker}.
+	 * Стратегия определения аномального отклонения значения сэмплера.
 	 */
 	public interface DeviationChecker {
 
@@ -259,7 +219,8 @@ public class Sampler {
 	}
 
 	/**
-	 * {@code RatioDeviationChecker}.
+	 * Детектор отклонений на основе отношения: срабатывает, если значение выросло
+	 * относительно предыдущего более чем на заданный порог.
 	 */
 	public static class RatioDeviationChecker implements Sampler.DeviationChecker {
 
@@ -272,16 +233,14 @@ public class Sampler {
 
 		@Override
 		public boolean check(double value) {
-			boolean bl;
-			if (this.lastValue != Double.MIN_VALUE && !(value <= this.lastValue)) {
-				bl = (value - this.lastValue) / this.lastValue >= this.threshold;
-			}
-			else {
-				bl = false;
+			if (lastValue == Double.MIN_VALUE || value <= lastValue) {
+				lastValue = value;
+				return false;
 			}
 
-			this.lastValue = value;
-			return bl;
+			boolean deviated = (value - lastValue) / lastValue >= threshold;
+			lastValue = value;
+			return deviated;
 		}
 	}
 }

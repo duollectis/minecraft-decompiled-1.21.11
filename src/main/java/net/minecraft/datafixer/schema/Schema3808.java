@@ -9,21 +9,26 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3808}.
+ * Схема версии 3808 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Обновляет тип данных лошади ({@code minecraft:horse}): теперь она хранит
+ * только поле {@code SaddleItem} (предмет седла), так как броня лошади
+ * была перенесена в компоненты предмета в рамках обновления системы инвентаря.
  */
 public class Schema3808 extends IdentifierNormalizingSchema {
 
-	public Schema3808(int i, Schema schema) {
-		super(i, schema);
+	public Schema3808(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
 		schema.register(
-				map,
-				"minecraft:horse",
-				string -> DSL.optionalFields("SaddleItem", TypeReferences.ITEM_STACK.in(schema))
+			entityTypes,
+			"minecraft:horse",
+			name -> DSL.optionalFields("SaddleItem", TypeReferences.ITEM_STACK.in(schema))
 		);
-		return map;
+		return entityTypes;
 	}
 }

@@ -4,7 +4,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code HitResult}.
+ * Базовый класс результата трассировки луча (raycasting).
+ * Хранит точку попадания и предоставляет метод вычисления расстояния до сущности.
  */
 public abstract class HitResult {
 
@@ -14,32 +15,23 @@ public abstract class HitResult {
 		this.pos = pos;
 	}
 
-	/**
-	 * Squared distance to.
-	 *
-	 * @param entity entity
-	 *
-	 * @return double — результат операции
-	 */
-	public double squaredDistanceTo(Entity entity) {
-		double d = this.pos.x - entity.getX();
-		double e = this.pos.y - entity.getY();
-		double f = this.pos.z - entity.getZ();
-		return d * d + e * e + f * f;
-	}
-
-	public abstract HitResult.Type getType();
+	public abstract Type getType();
 
 	public Vec3d getPos() {
-		return this.pos;
+		return pos;
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public double squaredDistanceTo(Entity entity) {
+		double dx = pos.x - entity.getX();
+		double dy = pos.y - entity.getY();
+		double dz = pos.z - entity.getZ();
+		return dx * dx + dy * dy + dz * dz;
+	}
+
+	/** Тип результата трассировки луча. */
+	public enum Type {
 		MISS,
 		BLOCK,
-		ENTITY;
+		ENTITY
 	}
 }

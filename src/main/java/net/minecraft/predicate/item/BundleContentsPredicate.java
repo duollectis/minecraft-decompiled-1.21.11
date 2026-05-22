@@ -12,16 +12,19 @@ import net.minecraft.predicate.component.ComponentSubPredicate;
 import java.util.Optional;
 
 /**
- * {@code BundleContentsPredicate}.
+ * Предикат для проверки содержимого сумки (bundle).
  */
-public record BundleContentsPredicate(Optional<CollectionPredicate<ItemStack, ItemPredicate>> items) implements ComponentSubPredicate<BundleContentsComponent> {
+public record BundleContentsPredicate(
+		Optional<CollectionPredicate<ItemStack, ItemPredicate>> items
+) implements ComponentSubPredicate<BundleContentsComponent> {
 
 	public static final Codec<BundleContentsPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance
-					.group(CollectionPredicate
-							.createCodec(ItemPredicate.CODEC)
-							.optionalFieldOf("items")
-							.forGetter(BundleContentsPredicate::items))
+					.group(
+							CollectionPredicate.createCodec(ItemPredicate.CODEC)
+									.optionalFieldOf("items")
+									.forGetter(BundleContentsPredicate::items)
+					)
 					.apply(instance, BundleContentsPredicate::new)
 	);
 
@@ -30,7 +33,7 @@ public record BundleContentsPredicate(Optional<CollectionPredicate<ItemStack, It
 		return DataComponentTypes.BUNDLE_CONTENTS;
 	}
 
-	public boolean test(BundleContentsComponent bundleContentsComponent) {
-		return !this.items.isPresent() || this.items.get().test(bundleContentsComponent.iterate());
+	public boolean test(BundleContentsComponent component) {
+		return items.isEmpty() || items.get().test(component.iterate());
 	}
 }

@@ -1,10 +1,13 @@
 package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.TargetPredicate;
-import net.minecraft.entity.ai.brain.*;
+import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.EntityLookTarget;
+import net.minecraft.entity.ai.brain.MemoryModuleState;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.pathing.EntityNavigation;
 import net.minecraft.entity.ai.pathing.LandPathNodeMaker;
 import net.minecraft.entity.ai.pathing.Path;
@@ -17,6 +20,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -24,11 +28,17 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code PrepareRamTask}.
+ * Задача мозга, подготавливающая таранный удар: ищет позицию разгона и ждёт время подготовки.
+ * После завершения подготовки устанавливает память {@code RAM_TARGET} для выполнения удара.
  */
 public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 
 	public static final int RUN_TIME = 160;
+
+	private static final double RAM_TARGET_OFFSET = 0.5;
+	private static final byte STATUS_CANCEL_RAM = 59;
+	private static final byte STATUS_START_PREPARE = 58;
+
 	private final ToIntFunction<E> cooldownFactory;
 	private final int minRamDistance;
 	private final int maxRamDistance;
@@ -59,7 +69,7 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 						MemoryModuleType.RAM_TARGET,
 						MemoryModuleState.VALUE_ABSENT
 				),
-				160
+				RUN_TIME
 		);
 		this.cooldownFactory = cooldownFactory;
 		this.minRamDistance = minDistance;
@@ -70,140 +80,118 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 		this.soundFactory = soundFactory;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		Brain<?> brain = pathAwareEntity.getBrain();
-		brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
-		     .flatMap(mobs -> mobs.findFirst(mob -> this.targetPredicate.test(serverWorld, pathAwareEntity, mob)))
-		     .ifPresent(mob -> this.findRam(pathAwareEntity, mob));
+	@Override
+	protected void run(ServerWorld world, E entity, long time) {
+		entity.getBrain()
+		      .getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
+		      .flatMap(mobs -> mobs.findFirst(mob -> targetPredicate.test(world, entity, mob)))
+		      .ifPresent(mob -> findRam(entity, mob));
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
-		Brain<?> brain = pathAwareEntity.getBrain();
+	@Override
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+		Brain<?> brain = entity.getBrain();
+
 		if (!brain.hasMemoryModule(MemoryModuleType.RAM_TARGET)) {
-			serverWorld.sendEntityStatus(pathAwareEntity, (byte) 59);
-			brain.remember(MemoryModuleType.RAM_COOLDOWN_TICKS, this.cooldownFactory.applyAsInt(pathAwareEntity));
+			world.sendEntityStatus(entity, STATUS_CANCEL_RAM);
+			brain.remember(MemoryModuleType.RAM_COOLDOWN_TICKS, cooldownFactory.applyAsInt(entity));
 		}
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return this.ram.isPresent() && this.ram.get().getEntity().isAlive();
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
+		return ram.isPresent() && ram.get().entity().isAlive();
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
-		if (!this.ram.isEmpty()) {
-			pathAwareEntity
-					.getBrain()
-					.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(this.ram.get().getStart(), this.speed, 0));
-			pathAwareEntity
-					.getBrain()
-					.remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(this.ram.get().getEntity(), true));
-			boolean bl = !this.ram.get().getEntity().getBlockPos().equals(this.ram.get().getEnd());
-			if (bl) {
-				serverWorld.sendEntityStatus(pathAwareEntity, (byte) 59);
-				pathAwareEntity.getNavigation().stop();
-				this.findRam(pathAwareEntity, this.ram.get().entity);
-			}
-			else {
-				BlockPos blockPos = pathAwareEntity.getBlockPos();
-				if (blockPos.equals(this.ram.get().getStart())) {
-					serverWorld.sendEntityStatus(pathAwareEntity, (byte) 58);
-					if (this.prepareStartTime.isEmpty()) {
-						this.prepareStartTime = Optional.of(l);
-					}
-
-					if (l - this.prepareStartTime.get() >= this.prepareTime) {
-						pathAwareEntity
-								.getBrain()
-								.remember(
-										MemoryModuleType.RAM_TARGET,
-										this.calculateRamTarget(blockPos, this.ram.get().getEnd())
-								);
-						serverWorld.playSoundFromEntity(
-								null,
-								pathAwareEntity,
-								this.soundFactory.apply(pathAwareEntity),
-								SoundCategory.NEUTRAL,
-								1.0F,
-								pathAwareEntity.getSoundPitch()
-						);
-						this.ram = Optional.empty();
-					}
-				}
-			}
+	@Override
+	protected void keepRunning(ServerWorld world, E entity, long time) {
+		if (ram.isEmpty()) {
+			return;
 		}
+
+		entity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(ram.get().start(), speed, 0));
+		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(ram.get().entity(), true));
+
+		boolean targetMoved = !ram.get().entity().getBlockPos().equals(ram.get().end());
+
+		if (targetMoved) {
+			world.sendEntityStatus(entity, STATUS_CANCEL_RAM);
+			entity.getNavigation().stop();
+			findRam(entity, ram.get().entity());
+			return;
+		}
+
+		BlockPos entityPos = entity.getBlockPos();
+
+		if (!entityPos.equals(ram.get().start())) {
+			return;
+		}
+
+		world.sendEntityStatus(entity, STATUS_START_PREPARE);
+
+		if (prepareStartTime.isEmpty()) {
+			prepareStartTime = Optional.of(time);
+		}
+
+		if (time - prepareStartTime.get() < prepareTime) {
+			return;
+		}
+
+		entity.getBrain().remember(
+				MemoryModuleType.RAM_TARGET,
+				calculateRamTarget(entityPos, ram.get().end())
+		);
+		world.playSoundFromEntity(
+				null,
+				entity,
+				soundFactory.apply(entity),
+				SoundCategory.NEUTRAL,
+				1.0F,
+				entity.getSoundPitch()
+		);
+		ram = Optional.empty();
 	}
 
 	private Vec3d calculateRamTarget(BlockPos start, BlockPos end) {
-		double d = 0.5;
-		double e = 0.5 * MathHelper.sign(end.getX() - start.getX());
-		double f = 0.5 * MathHelper.sign(end.getZ() - start.getZ());
-		return Vec3d.ofBottomCenter(end).add(e, 0.0, f);
+		double offsetX = RAM_TARGET_OFFSET * MathHelper.sign(end.getX() - start.getX());
+		double offsetZ = RAM_TARGET_OFFSET * MathHelper.sign(end.getZ() - start.getZ());
+		return Vec3d.ofBottomCenter(end).add(offsetX, 0.0, offsetZ);
 	}
 
 	private Optional<BlockPos> findRamStart(PathAwareEntity entity, LivingEntity target) {
-		BlockPos blockPos = target.getBlockPos();
-		if (!this.canReach(entity, blockPos)) {
+		BlockPos targetPos = target.getBlockPos();
+
+		if (!canReach(entity, targetPos)) {
 			return Optional.empty();
 		}
-		else {
-			List<BlockPos> list = Lists.newArrayList();
-			BlockPos.Mutable mutable = blockPos.mutableCopy();
 
-			for (Direction direction : Direction.Type.HORIZONTAL) {
-				mutable.set(blockPos);
+		List<BlockPos> candidates = new ArrayList<>();
+		BlockPos.Mutable mutable = targetPos.mutableCopy();
 
-				for (int i = 0; i < this.maxRamDistance; i++) {
-					if (!this.canReach(entity, mutable.move(direction))) {
-						mutable.move(direction.getOpposite());
-						break;
-					}
-				}
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			mutable.set(targetPos);
 
-				if (mutable.getManhattanDistance(blockPos) >= this.minRamDistance) {
-					list.add(mutable.toImmutable());
+			for (int step = 0; step < maxRamDistance; step++) {
+				if (!canReach(entity, mutable.move(direction))) {
+					mutable.move(direction.getOpposite());
+					break;
 				}
 			}
 
-			EntityNavigation entityNavigation = entity.getNavigation();
-			return list
-					.stream()
-					.sorted(Comparator.comparingDouble(entity.getBlockPos()::getSquaredDistance))
-					.filter(start -> {
-						Path path = entityNavigation.findPathTo(start, 0);
-						return path != null && path.reachesTarget();
-					})
-					.findFirst();
+			if (mutable.getManhattanDistance(targetPos) >= minRamDistance) {
+				candidates.add(mutable.toImmutable());
+			}
 		}
+
+		EntityNavigation navigation = entity.getNavigation();
+
+		return candidates.stream()
+		                 .sorted(Comparator.comparingDouble(entity.getBlockPos()::getSquaredDistance))
+		                 .filter(start -> {
+			                 Path path = navigation.findPathTo(start, 0);
+			                 return path != null && path.reachesTarget();
+		                 })
+		                 .findFirst();
 	}
 
 	private boolean canReach(PathAwareEntity entity, BlockPos target) {
@@ -212,38 +200,11 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 	}
 
 	private void findRam(PathAwareEntity entity, LivingEntity target) {
-		this.prepareStartTime = Optional.empty();
-		this.ram =
-				this
-						.findRamStart(entity, target)
-						.map(start -> new PrepareRamTask.Ram(start, target.getBlockPos(), target));
+		prepareStartTime = Optional.empty();
+		ram = findRamStart(entity, target)
+				.map(start -> new PrepareRamTask.Ram(start, target.getBlockPos(), target));
 	}
 
-	/**
-	 * {@code Ram}.
-	 */
-	public static class Ram {
-
-		private final BlockPos start;
-		private final BlockPos end;
-		final LivingEntity entity;
-
-		public Ram(BlockPos start, BlockPos end, LivingEntity entity) {
-			this.start = start;
-			this.end = end;
-			this.entity = entity;
-		}
-
-		public BlockPos getStart() {
-			return this.start;
-		}
-
-		public BlockPos getEnd() {
-			return this.end;
-		}
-
-		public LivingEntity getEntity() {
-			return this.entity;
-		}
+	public record Ram(BlockPos start, BlockPos end, LivingEntity entity) {
 	}
 }

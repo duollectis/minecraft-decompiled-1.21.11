@@ -10,7 +10,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpectralArrowItem}.
+ * Стрела-призрак, накладывающая эффект свечения на поражённую цель.
+ * При выстреле из диспенсера создаёт стрелу с разрешённым подбором.
  */
 public class SpectralArrowItem extends ArrowItem {
 
@@ -30,10 +31,15 @@ public class SpectralArrowItem extends ArrowItem {
 
 	@Override
 	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-		SpectralArrowEntity
-				spectralArrowEntity =
-				new SpectralArrowEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(1), null);
-		spectralArrowEntity.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
-		return spectralArrowEntity;
+		SpectralArrowEntity arrow = new SpectralArrowEntity(
+			world,
+			pos.getX(),
+			pos.getY(),
+			pos.getZ(),
+			stack.copyWithCount(1),
+			null
+		);
+		arrow.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
+		return arrow;
 	}
 }

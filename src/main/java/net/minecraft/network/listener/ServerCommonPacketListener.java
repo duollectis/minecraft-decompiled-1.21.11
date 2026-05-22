@@ -3,7 +3,8 @@ package net.minecraft.network.listener;
 import net.minecraft.network.packet.c2s.common.*;
 
 /**
- * Интерфейс server common packet listener.
+ * Слушатель серверных пакетов, общих для фаз {@code CONFIGURATION} и {@code PLAY}:
+ * keep-alive, pong, кастомные payload, статус ресурс-паков, настройки клиента и кастомные действия.
  */
 public interface ServerCommonPacketListener extends ServerCookieResponsePacketListener {
 

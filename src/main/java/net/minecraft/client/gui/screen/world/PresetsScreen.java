@@ -41,10 +41,11 @@ import org.slf4j.Logger;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PresetsScreen}.
+ * Экран выбора пресета плоского мира (Superflat).
+ * Позволяет выбрать готовый пресет или ввести строку конфигурации вручную.
  */
+@Environment(EnvType.CLIENT)
 public class PresetsScreen extends Screen {
 
 	static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("container/slot");
@@ -75,70 +76,72 @@ public class PresetsScreen extends Screen {
 			String layer,
 			int layerStartHeight
 	) {
-		List<String> list = Splitter.on('*').limit(2).splitToList(layer);
-		int i;
-		String string;
-		if (list.size() == 2) {
-			string = list.get(1);
+		List<String> parts = Splitter.on('*').limit(2).splitToList(layer);
+		String blockId;
+		int layerCount;
 
+		if (parts.size() == 2) {
+			blockId = parts.get(1);
 			try {
-				i = Math.max(Integer.parseInt(list.get(0)), 0);
+				layerCount = Math.max(Integer.parseInt(parts.get(0)), 0);
 			}
-			catch (NumberFormatException var11) {
-				LOGGER.error("Error while parsing flat world string", var11);
+			catch (NumberFormatException exception) {
+				LOGGER.error("Error while parsing flat world string", exception);
 				return null;
 			}
 		}
 		else {
-			string = list.get(0);
-			i = 1;
+			blockId = parts.get(0);
+			layerCount = 1;
 		}
 
-		int j = Math.min(layerStartHeight + i, DimensionType.MAX_HEIGHT);
-		int k = j - layerStartHeight;
+		int maxHeight = Math.min(layerStartHeight + layerCount, DimensionType.MAX_HEIGHT);
+		int actualThickness = maxHeight - layerStartHeight;
 
-		Optional<RegistryEntry.Reference<Block>> optional;
+		Optional<RegistryEntry.Reference<Block>> blockEntry;
 		try {
-			optional = blockLookup.getOptional(RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(string)));
+			blockEntry = blockLookup.getOptional(RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(blockId)));
 		}
-		catch (Exception var10) {
-			LOGGER.error("Error while parsing flat world string", var10);
+		catch (Exception exception) {
+			LOGGER.error("Error while parsing flat world string", exception);
 			return null;
 		}
 
-		if (optional.isEmpty()) {
-			LOGGER.error("Error while parsing flat world string => Unknown block, {}", string);
+		if (blockEntry.isEmpty()) {
+			LOGGER.error("Error while parsing flat world string => Unknown block, {}", blockId);
 			return null;
 		}
-		else {
-			return new FlatChunkGeneratorLayer(k, optional.get().value());
-		}
+
+		return new FlatChunkGeneratorLayer(actualThickness, blockEntry.get().value());
 	}
 
 	private static List<FlatChunkGeneratorLayer> parsePresetLayersString(
 			RegistryEntryLookup<Block> blockLookup,
 			String layers
 	) {
-		List<FlatChunkGeneratorLayer> list = Lists.newArrayList();
-		String[] strings = layers.split(",");
-		int i = 0;
+		List<FlatChunkGeneratorLayer> result = Lists.newArrayList();
+		int currentHeight = 0;
 
-		for (String string : strings) {
-			FlatChunkGeneratorLayer flatChunkGeneratorLayer = parseLayerString(blockLookup, string, i);
-			if (flatChunkGeneratorLayer == null) {
+		for (String layerStr : layers.split(",")) {
+			FlatChunkGeneratorLayer layer = parseLayerString(blockLookup, layerStr, currentHeight);
+			if (layer == null) {
 				return Collections.emptyList();
 			}
 
-			int j = DimensionType.MAX_HEIGHT - i;
-			if (j > 0) {
-				list.add(flatChunkGeneratorLayer.withMaxThickness(j));
-				i += flatChunkGeneratorLayer.getThickness();
+			int remainingHeight = DimensionType.MAX_HEIGHT - currentHeight;
+			if (remainingHeight > 0) {
+				result.add(layer.withMaxThickness(remainingHeight));
+				currentHeight += layer.getThickness();
 			}
 		}
 
-		return list;
+		return result;
 	}
 
+	/**
+	 * Парсит строку пресета плоского мира формата "слои;биом" в конфигурацию генератора.
+	 * Если строка некорректна или пуста — возвращает конфигурацию по умолчанию.
+	 */
 	public static FlatChunkGeneratorConfig parsePresetString(
 			RegistryEntryLookup<Block> blockLookup,
 			RegistryEntryLookup<Biome> biomeLookup,
@@ -147,146 +150,131 @@ public class PresetsScreen extends Screen {
 			String preset,
 			FlatChunkGeneratorConfig config
 	) {
-		Iterator<String> iterator = Splitter.on(';').split(preset).iterator();
-		if (!iterator.hasNext()) {
+		Iterator<String> parts = Splitter.on(';').split(preset).iterator();
+		if (!parts.hasNext()) {
 			return FlatChunkGeneratorConfig.getDefaultConfig(biomeLookup, structureSetLookup, placedFeatureLookup);
 		}
-		else {
-			List<FlatChunkGeneratorLayer> list = parsePresetLayersString(blockLookup, iterator.next());
-			if (list.isEmpty()) {
-				return FlatChunkGeneratorConfig.getDefaultConfig(biomeLookup, structureSetLookup, placedFeatureLookup);
-			}
-			else {
-				RegistryEntry.Reference<Biome> reference = biomeLookup.getOrThrow(BIOME_KEY);
-				RegistryEntry<Biome> registryEntry = reference;
-				if (iterator.hasNext()) {
-					String string = iterator.next();
-					registryEntry = Optional.ofNullable(Identifier.tryParse(string))
-					                        .map(biomeId -> RegistryKey.of(RegistryKeys.BIOME, biomeId))
-					                        .flatMap(biomeLookup::getOptional)
-					                        .orElseGet(() -> {
-						                        LOGGER.warn("Invalid biome: {}", string);
-						                        return reference;
-					                        });
-				}
 
-				return config.with(list, config.getStructureOverrides(), registryEntry);
-			}
+		List<FlatChunkGeneratorLayer> layers = parsePresetLayersString(blockLookup, parts.next());
+		if (layers.isEmpty()) {
+			return FlatChunkGeneratorConfig.getDefaultConfig(biomeLookup, structureSetLookup, placedFeatureLookup);
 		}
+
+		RegistryEntry.Reference<Biome> defaultBiome = biomeLookup.getOrThrow(BIOME_KEY);
+		RegistryEntry<Biome> biome = defaultBiome;
+
+		if (parts.hasNext()) {
+			String biomeStr = parts.next();
+			biome = Optional.ofNullable(Identifier.tryParse(biomeStr))
+					.map(biomeId -> RegistryKey.of(RegistryKeys.BIOME, biomeId))
+					.flatMap(biomeLookup::getOptional)
+					.orElseGet(() -> {
+						LOGGER.warn("Invalid biome: {}", biomeStr);
+						return defaultBiome;
+					});
+		}
+
+		return config.with(layers, config.getStructureOverrides(), biome);
 	}
 
 	static String getGeneratorConfigString(FlatChunkGeneratorConfig config) {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
+		List<FlatChunkGeneratorLayer> configLayers = config.getLayers();
 
-		for (int i = 0; i < config.getLayers().size(); i++) {
+		for (int i = 0; i < configLayers.size(); i++) {
 			if (i > 0) {
-				stringBuilder.append(",");
+				builder.append(",");
 			}
 
-			stringBuilder.append(config.getLayers().get(i));
+			builder.append(configLayers.get(i));
 		}
 
-		stringBuilder.append(";");
-		stringBuilder.append(config
+		builder.append(";");
+		builder.append(config
 				.getBiome()
 				.getKey()
 				.map(RegistryKey::getValue)
 				.orElseThrow(() -> new IllegalStateException("Biome not registered")));
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 
 	@Override
 	protected void init() {
-		this.shareText = Text.translatable("createWorld.customize.presets.share");
-		this.listText = Text.translatable("createWorld.customize.presets.list");
-		this.customPresetField = new TextFieldWidget(this.textRenderer, 50, 40, this.width - 100, 20, this.shareText);
-		this.customPresetField.setMaxLength(1230);
-		GeneratorOptionsHolder
-				generatorOptionsHolder =
-				this.parent.parent.getWorldCreator().getGeneratorOptionsHolder();
-		DynamicRegistryManager dynamicRegistryManager = generatorOptionsHolder.getCombinedRegistryManager();
+		shareText = Text.translatable("createWorld.customize.presets.share");
+		listText = Text.translatable("createWorld.customize.presets.list");
+		customPresetField = new TextFieldWidget(textRenderer, 50, 40, width - 100, BUTTON_HEIGHT, shareText);
+		customPresetField.setMaxLength(1230);
+
+		GeneratorOptionsHolder generatorOptionsHolder = parent.parent.getWorldCreator().getGeneratorOptionsHolder();
+		DynamicRegistryManager registryManager = generatorOptionsHolder.getCombinedRegistryManager();
 		FeatureSet featureSet = generatorOptionsHolder.dataConfiguration().enabledFeatures();
-		RegistryEntryLookup<Biome> registryEntryLookup = dynamicRegistryManager.getOrThrow(RegistryKeys.BIOME);
-		RegistryEntryLookup<StructureSet>
-				registryEntryLookup2 =
-				dynamicRegistryManager.getOrThrow(RegistryKeys.STRUCTURE_SET);
-		RegistryEntryLookup<PlacedFeature>
-				registryEntryLookup3 =
-				dynamicRegistryManager.getOrThrow(RegistryKeys.PLACED_FEATURE);
-		RegistryEntryLookup<Block>
-				registryEntryLookup4 =
-				dynamicRegistryManager.getOrThrow(RegistryKeys.BLOCK).withFeatureFilter(featureSet);
-		this.customPresetField.setText(getGeneratorConfigString(this.parent.getConfig()));
-		this.config = this.parent.getConfig();
-		this.addSelectableChild(this.customPresetField);
-		this.listWidget =
-				this.addDrawableChild(new PresetsScreen.SuperflatPresetsListWidget(dynamicRegistryManager, featureSet));
-		this.selectPresetButton = this.addDrawableChild(
+		RegistryEntryLookup<Biome> biomeLookup = registryManager.getOrThrow(RegistryKeys.BIOME);
+		RegistryEntryLookup<StructureSet> structureLookup = registryManager.getOrThrow(RegistryKeys.STRUCTURE_SET);
+		RegistryEntryLookup<PlacedFeature> featureLookup = registryManager.getOrThrow(RegistryKeys.PLACED_FEATURE);
+		RegistryEntryLookup<Block> blockLookup = registryManager.getOrThrow(RegistryKeys.BLOCK).withFeatureFilter(featureSet);
+
+		customPresetField.setText(getGeneratorConfigString(parent.getConfig()));
+		config = parent.getConfig();
+		addSelectableChild(customPresetField);
+		listWidget = addDrawableChild(new PresetsScreen.SuperflatPresetsListWidget(registryManager, featureSet));
+		selectPresetButton = addDrawableChild(
 				ButtonWidget.builder(
-						            Text.translatable("createWorld.customize.presets.select"),
-						            buttonWidget -> {
-							            FlatChunkGeneratorConfig flatChunkGeneratorConfig = parsePresetString(
-									            registryEntryLookup4,
-									            registryEntryLookup,
-									            registryEntryLookup2,
-									            registryEntryLookup3,
-									            this.customPresetField.getText(),
-									            this.config
-							            );
-							            this.parent.setConfig(flatChunkGeneratorConfig);
-							            this.client.setScreen(this.parent);
-						            }
-				            )
-				            .dimensions(this.width / 2 - 155, this.height - 28, 150, 20)
-				            .build()
+						Text.translatable("createWorld.customize.presets.select"),
+						button -> {
+							FlatChunkGeneratorConfig parsed = parsePresetString(
+									blockLookup,
+									biomeLookup,
+									structureLookup,
+									featureLookup,
+									customPresetField.getText(),
+									config
+							);
+							parent.setConfig(parsed);
+							client.setScreen(parent);
+						}
+				)
+				.dimensions(width / 2 - 155, height - 28, 150, BUTTON_HEIGHT)
+				.build()
 		);
-		this.addDrawableChild(
-				ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.client.setScreen(this.parent))
-				            .dimensions(this.width / 2 + 5, this.height - 28, 150, 20)
-				            .build()
+		addDrawableChild(
+				ButtonWidget.builder(ScreenTexts.CANCEL, button -> client.setScreen(parent))
+						.dimensions(width / 2 + 5, height - 28, 150, BUTTON_HEIGHT)
+						.build()
 		);
-		this.updateSelectButton(this.listWidget.getSelectedOrNull() != null);
+		updateSelectButton(listWidget.getSelectedOrNull() != null);
 	}
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-		return this.listWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+		return listWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
 	}
 
 	@Override
 	public void resize(int width, int height) {
-		String string = this.customPresetField.getText();
-		this.init(width, height);
-		this.customPresetField.setText(string);
+		String savedText = customPresetField.getText();
+		init(width, height);
+		customPresetField.setText(savedText);
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 8, -1);
-		context.drawTextWithShadow(this.textRenderer, this.shareText, 51, 30, -6250336);
-		context.drawTextWithShadow(this.textRenderer, this.listText, 51, 68, -6250336);
-		this.customPresetField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 8, -1);
+		context.drawTextWithShadow(textRenderer, shareText, 51, 30, -6250336);
+		context.drawTextWithShadow(textRenderer, listText, 51, 68, -6250336);
+		customPresetField.render(context, mouseX, mouseY, deltaTicks);
 	}
 
-	/**
-	 * Обновляет select button.
-	 *
-	 * @param hasSelected has selected
-	 */
 	public void updateSelectButton(boolean hasSelected) {
-		this.selectPresetButton.active = hasSelected || this.customPresetField.getText().length() > 1;
+		selectPresetButton.active = hasSelected || customPresetField.getText().length() > 1;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SuperflatPresetsListWidget}.
-	 */
 	class SuperflatPresetsListWidget extends AlwaysSelectedEntryListWidget<PresetsScreen.SuperflatPresetsListWidget.SuperflatPresetEntry> {
 
 		public SuperflatPresetsListWidget(
@@ -339,9 +327,6 @@ public class PresetsScreen extends Screen {
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code SuperflatPresetEntry}.
-		 */
 		public class SuperflatPresetEntry extends AlwaysSelectedEntryListWidget.Entry<PresetsScreen.SuperflatPresetsListWidget.SuperflatPresetEntry> {
 
 			private static final Identifier
@@ -365,7 +350,7 @@ public class PresetsScreen extends Screen {
 				context.drawTextWithShadow(
 						PresetsScreen.this.textRenderer,
 						this.text,
-						this.getContentX() + 18 + 5,
+						this.getContentX() + ICON_SIZE + 5,
 						this.getContentY() + 6,
 						-1
 				);
@@ -390,7 +375,7 @@ public class PresetsScreen extends Screen {
 			}
 
 			private void drawIconBackground(DrawContext context, int x, int y) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PresetsScreen.SLOT_TEXTURE, x, y, 18, 18);
+				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PresetsScreen.SLOT_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 			}
 
 			@Override

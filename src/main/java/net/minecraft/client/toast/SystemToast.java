@@ -16,17 +16,23 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SystemToast}.
+ * Системное уведомление (toast) для отображения коротких сообщений об ошибках,
+ * предупреждениях и событиях (сохранение мира, нехватка диска, сбой чанков и т.д.).
+ *
+ * <p>Поддерживает обновление содержимого без пересоздания через {@link #setContent},
+ * а также принудительное скрытие через {@link #hide()}.
  */
+@Environment(EnvType.CLIENT)
 public class SystemToast implements Toast {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("toast/system");
 	private static final int MIN_WIDTH = 200;
 	private static final int LINE_HEIGHT = 12;
 	private static final int PADDING_Y = 10;
-	private final SystemToast.Type type;
+	private static final long DEFAULT_DISPLAY_DURATION_MS = 5000L;
+
+	private final Type type;
 	private Text title;
 	private List<OrderedText> lines;
 	private long startTime;
@@ -35,41 +41,33 @@ public class SystemToast implements Toast {
 	private boolean hidden;
 	private Toast.Visibility visibility = Toast.Visibility.HIDE;
 
-	public SystemToast(SystemToast.Type type, Text title, @Nullable Text description) {
+	public SystemToast(Type type, Text title, @Nullable Text description) {
 		this(
-				type,
-				title,
-				getTextAsList(description),
-				Math.max(
-						160,
-						30
-								+ Math.max(
-								MinecraftClient.getInstance().textRenderer.getWidth(title),
-								description == null ? 0
-								                    : MinecraftClient.getInstance().textRenderer.getWidth(description)
-						)
+			type,
+			title,
+			getTextAsList(description),
+			Math.max(
+				Toast.BASE_WIDTH,
+				30 + Math.max(
+					MinecraftClient.getInstance().textRenderer.getWidth(title),
+					description == null ? 0 : MinecraftClient.getInstance().textRenderer.getWidth(description)
 				)
+			)
 		);
 	}
 
 	/**
-	 * Create.
-	 *
-	 * @param client client
-	 * @param type type
-	 * @param title title
-	 * @param description description
-	 *
-	 * @return SystemToast — результат операции
+	 * Создаёт toast с переносом строк описания по ширине {@link #MIN_WIDTH}.
+	 * Ширина toast подстраивается под самую длинную строку.
 	 */
-	public static SystemToast create(MinecraftClient client, SystemToast.Type type, Text title, Text description) {
+	public static SystemToast create(MinecraftClient client, Type type, Text title, Text description) {
 		TextRenderer textRenderer = client.textRenderer;
-		List<OrderedText> list = textRenderer.wrapLines(description, 200);
-		int i = Math.max(200, list.stream().mapToInt(textRenderer::getWidth).max().orElse(200));
-		return new SystemToast(type, title, list, i + 30);
+		List<OrderedText> wrappedLines = textRenderer.wrapLines(description, MIN_WIDTH);
+		int maxLineWidth = Math.max(MIN_WIDTH, wrappedLines.stream().mapToInt(textRenderer::getWidth).max().orElse(MIN_WIDTH));
+		return new SystemToast(type, title, wrappedLines, maxLineWidth + 30);
 	}
 
-	private SystemToast(SystemToast.Type type, Text title, List<OrderedText> lines, int width) {
+	private SystemToast(Type type, Text title, List<OrderedText> lines, int width) {
 		this.type = type;
 		this.title = title;
 		this.lines = lines;
@@ -82,227 +80,167 @@ public class SystemToast implements Toast {
 
 	@Override
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	@Override
 	public int getHeight() {
-		return 20 + Math.max(this.lines.size(), 1) * 12;
+		return 20 + Math.max(lines.size(), 1) * LINE_HEIGHT;
 	}
 
-	/**
-	 * Hide.
-	 */
 	public void hide() {
-		this.hidden = true;
+		hidden = true;
 	}
 
 	@Override
 	public Toast.Visibility getVisibility() {
-		return this.visibility;
+		return visibility;
 	}
 
 	@Override
 	public void update(ToastManager manager, long time) {
-		if (this.justUpdated) {
-			this.startTime = time;
-			this.justUpdated = false;
+		if (justUpdated) {
+			startTime = time;
+			justUpdated = false;
 		}
 
-		double d = this.type.displayDuration * manager.getNotificationDisplayTimeMultiplier();
-		long l = time - this.startTime;
-		this.visibility = !this.hidden && l < d ? Toast.Visibility.SHOW : Toast.Visibility.HIDE;
+		double displayDuration = type.displayDuration * manager.getNotificationDisplayTimeMultiplier();
+		long elapsed = time - startTime;
+		visibility = !hidden && elapsed < displayDuration
+			? Toast.Visibility.SHOW
+			: Toast.Visibility.HIDE;
 	}
 
 	@Override
 	public void draw(DrawContext context, TextRenderer textRenderer, long startTime) {
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, this.getWidth(), this.getHeight());
-		if (this.lines.isEmpty()) {
-			context.drawText(textRenderer, this.title, 18, 12, -256, false);
-		}
-		else {
-			context.drawText(textRenderer, this.title, 18, 7, -256, false);
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, getWidth(), getHeight());
 
-			for (int i = 0; i < this.lines.size(); i++) {
-				context.drawText(textRenderer, this.lines.get(i), 18, 18 + i * 12, -1, false);
+		if (lines.isEmpty()) {
+			context.drawText(textRenderer, title, 18, LINE_HEIGHT, -256, false);
+		} else {
+			context.drawText(textRenderer, title, 18, 7, -256, false);
+
+			for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+				context.drawText(textRenderer, lines.get(lineIndex), 18, 18 + lineIndex * LINE_HEIGHT, -1, false);
 			}
 		}
 	}
 
 	public void setContent(Text title, @Nullable Text description) {
 		this.title = title;
-		this.lines = getTextAsList(description);
-		this.justUpdated = true;
+		lines = getTextAsList(description);
+		justUpdated = true;
 	}
 
-	public SystemToast.Type getType() {
-		return this.type;
+	public Type getType() {
+		return type;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param manager manager
-	 * @param type type
-	 * @param title title
-	 * @param description description
-	 */
-	public static void add(ToastManager manager, SystemToast.Type type, Text title, @Nullable Text description) {
+	public static void add(ToastManager manager, Type type, Text title, @Nullable Text description) {
 		manager.add(new SystemToast(type, title, description));
 	}
 
 	/**
-	 * Show.
-	 *
-	 * @param manager manager
-	 * @param type type
-	 * @param title title
-	 * @param description description
+	 * Показывает toast данного типа: если уже отображается — обновляет содержимое,
+	 * иначе добавляет новый в очередь.
 	 */
-	public static void show(ToastManager manager, SystemToast.Type type, Text title, @Nullable Text description) {
-		SystemToast systemToast = manager.getToast(SystemToast.class, type);
-		if (systemToast == null) {
+	public static void show(ToastManager manager, Type type, Text title, @Nullable Text description) {
+		SystemToast existing = manager.getToast(SystemToast.class, type);
+
+		if (existing == null) {
 			add(manager, type, title, description);
-		}
-		else {
-			systemToast.setContent(title, description);
-		}
-	}
-
-	/**
-	 * Hide.
-	 *
-	 * @param manager manager
-	 * @param type type
-	 */
-	public static void hide(ToastManager manager, SystemToast.Type type) {
-		SystemToast systemToast = manager.getToast(SystemToast.class, type);
-		if (systemToast != null) {
-			systemToast.hide();
+		} else {
+			existing.setContent(title, description);
 		}
 	}
 
-	/**
-	 * Добавляет world access failure toast.
-	 *
-	 * @param client client
-	 * @param worldName world name
-	 */
+	public static void hide(ToastManager manager, Type type) {
+		SystemToast existing = manager.getToast(SystemToast.class, type);
+
+		if (existing != null) {
+			existing.hide();
+		}
+	}
+
 	public static void addWorldAccessFailureToast(MinecraftClient client, String worldName) {
 		add(
-				client.getToastManager(),
-				SystemToast.Type.WORLD_ACCESS_FAILURE,
-				Text.translatable("selectWorld.access_failure"),
-				Text.literal(worldName)
+			client.getToastManager(),
+			Type.WORLD_ACCESS_FAILURE,
+			Text.translatable("selectWorld.access_failure"),
+			Text.literal(worldName)
 		);
 	}
 
-	/**
-	 * Добавляет world delete failure toast.
-	 *
-	 * @param client client
-	 * @param worldName world name
-	 */
 	public static void addWorldDeleteFailureToast(MinecraftClient client, String worldName) {
 		add(
-				client.getToastManager(),
-				SystemToast.Type.WORLD_ACCESS_FAILURE,
-				Text.translatable("selectWorld.delete_failure"),
-				Text.literal(worldName)
+			client.getToastManager(),
+			Type.WORLD_ACCESS_FAILURE,
+			Text.translatable("selectWorld.delete_failure"),
+			Text.literal(worldName)
 		);
 	}
 
-	/**
-	 * Добавляет pack copy failure.
-	 *
-	 * @param client client
-	 * @param directory directory
-	 */
 	public static void addPackCopyFailure(MinecraftClient client, String directory) {
 		add(
-				client.getToastManager(),
-				SystemToast.Type.PACK_COPY_FAILURE,
-				Text.translatable("pack.copyFailure"),
-				Text.literal(directory)
+			client.getToastManager(),
+			Type.PACK_COPY_FAILURE,
+			Text.translatable("pack.copyFailure"),
+			Text.literal(directory)
 		);
 	}
 
-	/**
-	 * Добавляет file drop failure.
-	 *
-	 * @param client client
-	 * @param count count
-	 */
 	public static void addFileDropFailure(MinecraftClient client, int count) {
 		add(
-				client.getToastManager(),
-				SystemToast.Type.FILE_DROP_FAILURE,
-				Text.translatable("gui.fileDropFailure.title"),
-				Text.translatable("gui.fileDropFailure.detail", count)
+			client.getToastManager(),
+			Type.FILE_DROP_FAILURE,
+			Text.translatable("gui.fileDropFailure.title"),
+			Text.translatable("gui.fileDropFailure.detail", count)
 		);
 	}
 
-	/**
-	 * Добавляет low disk space.
-	 *
-	 * @param client client
-	 */
 	public static void addLowDiskSpace(MinecraftClient client) {
 		show(
-				client.getToastManager(),
-				SystemToast.Type.LOW_DISK_SPACE,
-				Text.translatable("chunk.toast.lowDiskSpace"),
-				Text.translatable("chunk.toast.lowDiskSpace.description")
+			client.getToastManager(),
+			Type.LOW_DISK_SPACE,
+			Text.translatable("chunk.toast.lowDiskSpace"),
+			Text.translatable("chunk.toast.lowDiskSpace.description")
 		);
 	}
 
-	/**
-	 * Добавляет chunk load failure.
-	 *
-	 * @param client client
-	 * @param pos pos
-	 */
 	public static void addChunkLoadFailure(MinecraftClient client, ChunkPos pos) {
 		show(
-				client.getToastManager(),
-				SystemToast.Type.CHUNK_LOAD_FAILURE,
-				Text.translatable("chunk.toast.loadFailure", Text.of(pos)).formatted(Formatting.RED),
-				Text.translatable("chunk.toast.checkLog")
+			client.getToastManager(),
+			Type.CHUNK_LOAD_FAILURE,
+			Text.translatable("chunk.toast.loadFailure", Text.of(pos)).formatted(Formatting.RED),
+			Text.translatable("chunk.toast.checkLog")
 		);
 	}
 
-	/**
-	 * Добавляет chunk save failure.
-	 *
-	 * @param client client
-	 * @param pos pos
-	 */
 	public static void addChunkSaveFailure(MinecraftClient client, ChunkPos pos) {
 		show(
-				client.getToastManager(),
-				SystemToast.Type.CHUNK_SAVE_FAILURE,
-				Text.translatable("chunk.toast.saveFailure", Text.of(pos)).formatted(Formatting.RED),
-				Text.translatable("chunk.toast.checkLog")
+			client.getToastManager(),
+			Type.CHUNK_SAVE_FAILURE,
+			Text.translatable("chunk.toast.saveFailure", Text.of(pos)).formatted(Formatting.RED),
+			Text.translatable("chunk.toast.checkLog")
 		);
 	}
 
+	/** Тип системного toast, используемый для дедупликации в {@link ToastManager}. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
 	public static class Type {
 
-		public static final SystemToast.Type NARRATOR_TOGGLE = new SystemToast.Type();
-		public static final SystemToast.Type WORLD_BACKUP = new SystemToast.Type();
-		public static final SystemToast.Type PACK_LOAD_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type WORLD_ACCESS_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type PACK_COPY_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type FILE_DROP_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type PERIODIC_NOTIFICATION = new SystemToast.Type();
-		public static final SystemToast.Type LOW_DISK_SPACE = new SystemToast.Type(10000L);
-		public static final SystemToast.Type CHUNK_LOAD_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type CHUNK_SAVE_FAILURE = new SystemToast.Type();
-		public static final SystemToast.Type UNSECURE_SERVER_WARNING = new SystemToast.Type(10000L);
+		public static final Type NARRATOR_TOGGLE = new Type();
+		public static final Type WORLD_BACKUP = new Type();
+		public static final Type PACK_LOAD_FAILURE = new Type();
+		public static final Type WORLD_ACCESS_FAILURE = new Type();
+		public static final Type PACK_COPY_FAILURE = new Type();
+		public static final Type FILE_DROP_FAILURE = new Type();
+		public static final Type PERIODIC_NOTIFICATION = new Type();
+		public static final Type LOW_DISK_SPACE = new Type(10000L);
+		public static final Type CHUNK_LOAD_FAILURE = new Type();
+		public static final Type CHUNK_SAVE_FAILURE = new Type();
+		public static final Type UNSECURE_SERVER_WARNING = new Type(10000L);
+
 		final long displayDuration;
 
 		public Type(long displayDuration) {
@@ -310,7 +248,7 @@ public class SystemToast implements Toast {
 		}
 
 		public Type() {
-			this(5000L);
+			this(DEFAULT_DISPLAY_DURATION_MS);
 		}
 	}
 }

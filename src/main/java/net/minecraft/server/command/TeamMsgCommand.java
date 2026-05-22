@@ -20,7 +20,7 @@ import net.minecraft.text.Text;
 import java.util.List;
 
 /**
- * {@code TeamMsgCommand}.
+ * Команда {@code /teammsg}: отправка сообщения членам своей команды.
  */
 public class TeamMsgCommand {
 

@@ -9,7 +9,8 @@ import net.minecraft.util.Formatting;
 import java.util.function.Consumer;
 
 /**
- * {@code DiscFragmentItem}.
+ * Предмет — фрагмент музыкального диска.
+ * При наведении отображает описание, из которого можно собрать полный диск.
  */
 public class DiscFragmentItem extends Item {
 
@@ -25,10 +26,10 @@ public class DiscFragmentItem extends Item {
 			Consumer<Text> textConsumer,
 			TooltipType type
 	) {
-		textConsumer.accept(this.getDescription().formatted(Formatting.GRAY));
+		textConsumer.accept(getDescription().formatted(Formatting.GRAY));
 	}
 
 	public MutableText getDescription() {
-		return Text.translatable(this.translationKey + ".desc");
+		return Text.translatable(translationKey + ".desc");
 	}
 }

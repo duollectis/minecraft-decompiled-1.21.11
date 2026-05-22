@@ -11,16 +11,18 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultiplayerWarningScreen}.
+ * Предупреждение о безопасности мультиплеера — показывается при первом входе
+ * в раздел мультиплеера. Позволяет запомнить выбор через чекбокс.
  */
+@Environment(EnvType.CLIENT)
 public class MultiplayerWarningScreen extends WarningScreen {
 
 	private static final Text HEADER = Text.translatable("multiplayerWarning.header").formatted(Formatting.BOLD);
 	private static final Text MESSAGE = Text.translatable("multiplayerWarning.message");
 	private static final Text CHECK_MESSAGE = Text.translatable("multiplayerWarning.check").withColor(-2039584);
 	private static final Text NARRATED_TEXT = HEADER.copy().append("\n").append(MESSAGE);
+
 	private final Screen parent;
 
 	public MultiplayerWarningScreen(Screen parent) {
@@ -30,23 +32,23 @@ public class MultiplayerWarningScreen extends WarningScreen {
 
 	@Override
 	protected LayoutWidget getLayout() {
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
-		directionalLayoutWidget.add(ButtonWidget.builder(
-				ScreenTexts.PROCEED, button -> {
-					if (this.checkbox.isChecked()) {
-						this.client.options.skipMultiplayerWarning = true;
-						this.client.options.write();
-					}
-
-					this.client.setScreen(new MultiplayerScreen(this.parent));
+		DirectionalLayoutWidget layout = DirectionalLayoutWidget.horizontal().spacing(8);
+		layout.add(ButtonWidget.builder(
+			ScreenTexts.PROCEED, button -> {
+				if (checkbox.isChecked()) {
+					client.options.skipMultiplayerWarning = true;
+					client.options.write();
 				}
+
+				client.setScreen(new MultiplayerScreen(parent));
+			}
 		).build());
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
-		return directionalLayoutWidget;
+		layout.add(ButtonWidget.builder(ScreenTexts.BACK, button -> close()).build());
+		return layout;
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 }

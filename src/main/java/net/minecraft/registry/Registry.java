@@ -4,7 +4,10 @@ import com.mojang.datafixers.DataFixUtils;
 import com.mojang.serialization.*;
 import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.minecraft.registry.entry.RegistryEntry;
+import com.mojang.serialization.Lifecycle;
 import net.minecraft.registry.entry.RegistryEntryInfo;
+
+import java.util.Optional;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.registry.tag.TagKey;
@@ -15,6 +18,7 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -23,52 +27,67 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code Registry}.
+ * Базовый интерфейс реестра Minecraft. Реестр — это двунаправленное отображение между
+ * идентификаторами ({@link Identifier}, {@link RegistryKey}) и значениями типа {@code T}.
+ * Каждый элемент имеет числовой raw-id для сетевой передачи.
+ *
+ * <p>Реестры могут быть заморожены ({@link #freeze()}), после чего добавление новых элементов
+ * запрещено. Теги загружаются отдельно через {@link #startTagReload}.
+ *
+ * @param <T> тип элементов реестра
  */
 public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIterable<T>, FabricRegistry {
 
 	@Override
 	RegistryKey<? extends Registry<T>> getKey();
 
+	/**
+	 * Возвращает codec для сериализации значений реестра по их идентификатору.
+	 * При декодировании ищет элемент в реестре по {@link Identifier}.
+	 */
 	default Codec<T> getCodec() {
-		return this
-				.getReferenceEntryCodec()
+		return getReferenceEntryCodec()
 				.flatComapMap(
 						RegistryEntry.Reference::value,
-						value -> this.validateReference(this.getEntry((T) value))
+						value -> validateReference(getEntry((T) value))
 				);
 	}
 
+	/**
+	 * Возвращает codec для сериализации {@link RegistryEntry} по идентификатору элемента.
+	 */
 	default Codec<RegistryEntry<T>> getEntryCodec() {
-		return this.getReferenceEntryCodec().flatComapMap(entry -> entry, this::validateReference);
+		return getReferenceEntryCodec().flatComapMap(entry -> entry, this::validateReference);
 	}
 
 	private Codec<RegistryEntry.Reference<T>> getReferenceEntryCodec() {
 		Codec<RegistryEntry.Reference<T>> codec = Identifier.CODEC
 				.comapFlatMap(
-						id -> this.getEntry(id)
-						          .map(DataResult::success)
-						          .orElseGet(() -> DataResult.error(() -> "Unknown registry key in " + this.getKey()
-								          + ": " + id)),
+						id -> getEntry(id)
+								.map(DataResult::success)
+								.orElseGet(() -> DataResult.error(
+										() -> "Unknown registry key in " + getKey() + ": " + id
+								)),
 						entry -> entry.getKey().orElseThrow().getValue()
 				);
-		return Codecs.withLifecycle(
-				codec,
-				entry -> this
-						.getEntryInfo(entry.getKey().orElseThrow())
+
+		Function<RegistryEntry.Reference<T>, Lifecycle> lifecycleGetter = entry ->
+				getEntryInfo(entry.getKey().orElseThrow())
 						.map(RegistryEntryInfo::lifecycle)
-						.orElse(Lifecycle.experimental())
-		);
+						.orElse(Lifecycle.experimental());
+
+		return Codecs.withLifecycle(codec, lifecycleGetter, lifecycleGetter);
 	}
 
 	private DataResult<RegistryEntry.Reference<T>> validateReference(RegistryEntry<T> entry) {
 		return entry instanceof RegistryEntry.Reference<T> reference
-		       ? DataResult.success(reference)
-		       : DataResult.error(() -> "Unregistered holder in " + this.getKey() + ": " + entry);
+				? DataResult.success(reference)
+				: DataResult.error(() -> "Unregistered holder in " + getKey() + ": " + entry);
 	}
 
+	@Override
 	default <U> Stream<U> keys(DynamicOps<U> ops) {
-		return this.getIds().stream().map(id -> (U) ops.createString(id.toString()));
+		return getIds().stream().map(id -> (U) ops.createString(id.toString()));
 	}
 
 	@Nullable Identifier getId(T value);
@@ -85,23 +104,29 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 	Optional<RegistryEntryInfo> getEntryInfo(RegistryKey<T> key);
 
 	default Optional<T> getOptionalValue(@Nullable Identifier id) {
-		return Optional.ofNullable(this.get(id));
+		return Optional.ofNullable(get(id));
 	}
 
 	default Optional<T> getOptionalValue(@Nullable RegistryKey<T> key) {
-		return Optional.ofNullable(this.get(key));
+		return Optional.ofNullable(get(key));
 	}
 
 	Optional<RegistryEntry.Reference<T>> getDefaultEntry();
 
+	/**
+	 * Возвращает значение по ключу или бросает {@link IllegalStateException}, если ключ не найден.
+	 *
+	 * @param key ключ реестра
+	 * @return значение, гарантированно не null
+	 * @throws IllegalStateException если ключ отсутствует в реестре
+	 */
 	default T getValueOrThrow(RegistryKey<T> key) {
-		T object = this.get(key);
-		if (object == null) {
-			throw new IllegalStateException("Missing key in " + this.getKey() + ": " + key);
+		T value = get(key);
+		if (value == null) {
+			throw new IllegalStateException("Missing key in " + getKey() + ": " + key);
 		}
-		else {
-			return object;
-		}
+
+		return value;
 	}
 
 	Set<Identifier> getIds();
@@ -113,7 +138,7 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 	Optional<RegistryEntry.Reference<T>> getRandom(Random random);
 
 	default Stream<T> stream() {
-		return StreamSupport.stream(this.spliterator(), false);
+		return StreamSupport.stream(spliterator(), false);
 	}
 
 	boolean containsId(Identifier id);
@@ -129,19 +154,24 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 	}
 
 	static <V, T extends V> T register(Registry<V> registry, RegistryKey<V> key, T entry) {
-		((MutableRegistry) registry).add(key, (V) entry, RegistryEntryInfo.DEFAULT);
+		((MutableRegistry<V>) registry).add(key, entry, new RegistryEntryInfo(Optional.empty(), Lifecycle.stable()));
 		return entry;
 	}
 
+	@SuppressWarnings("unchecked")
 	static <R, T extends R> RegistryEntry.Reference<T> registerReference(
 			Registry<R> registry,
 			RegistryKey<R> key,
 			T entry
 	) {
-		return ((MutableRegistry) registry).add(key, (R) entry, RegistryEntryInfo.DEFAULT);
+		return (RegistryEntry.Reference<T>) ((MutableRegistry<R>) registry).add(key, entry, new RegistryEntryInfo(Optional.empty(), Lifecycle.stable()));
 	}
 
-	static <R, T extends R> RegistryEntry.Reference<T> registerReference(Registry<R> registry, Identifier id, T entry) {
+	static <R, T extends R> RegistryEntry.Reference<T> registerReference(
+			Registry<R> registry,
+			Identifier id,
+			T entry
+	) {
 		return registerReference(registry, RegistryKey.of(registry.getKey(), id), entry);
 	}
 
@@ -156,26 +186,25 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 	RegistryEntry<T> getEntry(T value);
 
 	default Iterable<RegistryEntry<T>> iterateEntries(TagKey<T> tag) {
-		return (Iterable<RegistryEntry<T>>) DataFixUtils.orElse(this.getOptional(tag), List.of());
+		return (Iterable<RegistryEntry<T>>) DataFixUtils.orElse(getOptional(tag), List.of());
 	}
 
 	Stream<RegistryEntryList.Named<T>> streamTags();
 
+	/**
+	 * Возвращает {@link IndexedIterable} по {@link RegistryEntry}, где raw-id соответствует
+	 * raw-id значения в реестре. Используется для сетевой синхронизации.
+	 */
 	default IndexedIterable<RegistryEntry<T>> getIndexedEntries() {
-		return new IndexedIterable<RegistryEntry<T>>() {
+		return new IndexedIterable<>() {
+			@Override
 			public int getRawId(RegistryEntry<T> registryEntry) {
 				return Registry.this.getRawId(registryEntry.value());
 			}
 
-			/**
-			 * Get.
-			 *
-			 * @param i i
-			 *
-			 * @return @Nullable RegistryEntry — 
-			 */
-			public @Nullable RegistryEntry<T> get(int i) {
-				return (RegistryEntry<T>) Registry.this.getEntry(i).orElse(null);
+			@Override
+			public @Nullable RegistryEntry<T> get(int rawId) {
+				return (RegistryEntry<T>) Registry.this.getEntry(rawId).orElse(null);
 			}
 
 			@Override
@@ -193,9 +222,10 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 	Registry.PendingTagLoad<T> startTagReload(TagGroupLoader.RegistryTags<T> tags);
 
 	/**
-	 * {@code PendingTagLoad}.
+	 * Представляет незавершённую загрузку тегов для реестра.
+	 * Теги применяются атомарно через {@link #apply()}.
 	 */
-	public interface PendingTagLoad<T> {
+	interface PendingTagLoad<T> {
 
 		RegistryKey<? extends Registry<? extends T>> getKey();
 

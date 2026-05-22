@@ -14,7 +14,7 @@ import net.minecraft.util.Util;
 import java.util.Set;
 
 /**
- * {@code SaddleEquipmentSlotFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class SaddleEquipmentSlotFix extends DataFix {
 
@@ -40,12 +40,12 @@ public class SaddleEquipmentSlotFix extends DataFix {
 	protected TypeRewriteRule makeRule() {
 		TaggedChoiceType<String>
 				taggedChoiceType =
-				(TaggedChoiceType<String>) this.getInputSchema().findChoiceType(TypeReferences.ENTITY);
+				(TaggedChoiceType<String>) getInputSchema().findChoiceType(TypeReferences.ENTITY);
 		OpticFinder<Pair<String, ?>> opticFinder = DSL.typeFinder(taggedChoiceType);
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.ENTITY);
+		Type<?> type = getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.ENTITY);
 		Type<?> type3 = FixUtil.withTypeChanged(type, type, type2);
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"SaddleEquipmentSlotFix",
 				type,
 				type2,

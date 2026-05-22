@@ -7,10 +7,10 @@ import net.minecraft.client.gui.navigation.Navigable;
 import java.util.Collection;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Selectable}.
+ * Интерфейс для элементов GUI, поддерживающих выделение и нарративный доступ.
  */
+@Environment(EnvType.CLIENT)
 public interface Selectable extends Navigable, Narratable {
 
 	Selectable.SelectionType getType();
@@ -23,11 +23,11 @@ public interface Selectable extends Navigable, Narratable {
 		return List.of(this);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SelectionType}.
+	 * Тип выделения элемента: не выделен, наведён курсор или сфокусирован клавиатурой.
 	 */
-	public static enum SelectionType {
+	@Environment(EnvType.CLIENT)
+	public enum SelectionType {
 		NONE,
 		HOVERED,
 		FOCUSED;

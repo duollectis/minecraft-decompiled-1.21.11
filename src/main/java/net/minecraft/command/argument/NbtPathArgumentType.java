@@ -24,28 +24,41 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * {@code NbtPathArgumentType}.
+ * Тип аргумента команды для разбора пути в NBT-структуре.
+ *
+ * <p>Поддерживаемые узлы пути:
+ * <ul>
+ *   <li>{@code foo} — именованный дочерний элемент компаунда</li>
+ *   <li>{@code foo.bar} — вложенный путь</li>
+ *   <li>{@code foo[0]} — элемент списка по индексу</li>
+ *   <li>{@code foo[]} — все элементы списка</li>
+ *   <li>{@code foo[{key=val}]} — элементы списка, соответствующие фильтру</li>
+ *   <li>{@code {key=val}} — корневой фильтр (только в начале пути)</li>
+ * </ul>
  */
 public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.NbtPath> {
 
-	private static final Collection<String>
-			EXAMPLES =
+	private static final Collection<String> EXAMPLES =
 			Arrays.asList("foo", "foo.bar", "foo[0]", "[0]", "[]", "{foo=bar}");
-	public static final SimpleCommandExceptionType INVALID_PATH_NODE_EXCEPTION = new SimpleCommandExceptionType(
-			Text.translatable("arguments.nbtpath.node.invalid")
-	);
-	public static final SimpleCommandExceptionType
-			TOO_DEEP_EXCEPTION =
+
+	public static final SimpleCommandExceptionType INVALID_PATH_NODE_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("arguments.nbtpath.node.invalid"));
+
+	public static final SimpleCommandExceptionType TOO_DEEP_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("arguments.nbtpath.too_deep"));
+
 	public static final DynamicCommandExceptionType NOTHING_FOUND_EXCEPTION = new DynamicCommandExceptionType(
 			path -> Text.stringifiedTranslatable("arguments.nbtpath.nothing_found", path)
 	);
+
 	static final DynamicCommandExceptionType EXPECTED_LIST_EXCEPTION = new DynamicCommandExceptionType(
 			nbt -> Text.stringifiedTranslatable("commands.data.modify.expected_list", nbt)
 	);
+
 	static final DynamicCommandExceptionType INVALID_INDEX_EXCEPTION = new DynamicCommandExceptionType(
 			index -> Text.stringifiedTranslatable("commands.data.modify.invalid_index", index)
 	);
+
 	private static final char LEFT_SQUARE_BRACKET = '[';
 	private static final char RIGHT_SQUARE_BRACKET = ']';
 	private static final char LEFT_CURLY_BRACKET = '{';
@@ -61,65 +74,70 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		return (NbtPathArgumentType.NbtPath) context.getArgument(name, NbtPathArgumentType.NbtPath.class);
 	}
 
-	public NbtPathArgumentType.NbtPath parse(StringReader stringReader) throws CommandSyntaxException {
-		List<NbtPathArgumentType.PathNode> list = Lists.newArrayList();
-		int i = stringReader.getCursor();
-		Object2IntMap<NbtPathArgumentType.PathNode> object2IntMap = new Object2IntOpenHashMap();
-		boolean bl = true;
+	@Override
+	public NbtPathArgumentType.NbtPath parse(StringReader reader) throws CommandSyntaxException {
+		List<NbtPathArgumentType.PathNode> nodes = Lists.newArrayList();
+		int start = reader.getCursor();
+		Object2IntMap<NbtPathArgumentType.PathNode> nodeEndIndices = new Object2IntOpenHashMap<>();
+		boolean isRoot = true;
 
-		while (stringReader.canRead() && stringReader.peek() != ' ') {
-			NbtPathArgumentType.PathNode pathNode = parseNode(stringReader, bl);
-			list.add(pathNode);
-			object2IntMap.put(pathNode, stringReader.getCursor() - i);
-			bl = false;
-			if (stringReader.canRead()) {
-				char c = stringReader.peek();
-				if (c != ' ' && c != '[' && c != '{') {
-					stringReader.expect('.');
+		while (reader.canRead() && reader.peek() != ' ') {
+			NbtPathArgumentType.PathNode node = parseNode(reader, isRoot);
+			nodes.add(node);
+			nodeEndIndices.put(node, reader.getCursor() - start);
+			isRoot = false;
+
+			if (reader.canRead()) {
+				char next = reader.peek();
+
+				if (next != ' ' && next != LEFT_SQUARE_BRACKET && next != LEFT_CURLY_BRACKET) {
+					reader.expect('.');
 				}
+
 			}
+
 		}
 
 		return new NbtPathArgumentType.NbtPath(
-				stringReader.getString().substring(i, stringReader.getCursor()),
-				list.toArray(new NbtPathArgumentType.PathNode[0]),
-				object2IntMap
+				reader.getString().substring(start, reader.getCursor()),
+				nodes.toArray(new NbtPathArgumentType.PathNode[0]),
+				nodeEndIndices
 		);
 	}
 
 	private static NbtPathArgumentType.PathNode parseNode(StringReader reader, boolean root)
 	throws CommandSyntaxException {
-		return (NbtPathArgumentType.PathNode) (switch (reader.peek()) {
-			case '"', '\'' -> readCompoundChildNode(reader, reader.readString());
-			case '[' -> {
+		return switch (reader.peek()) {
+			case DOUBLE_QUOTE, SINGLE_QUOTE -> readCompoundChildNode(reader, reader.readString());
+			case LEFT_SQUARE_BRACKET -> {
 				reader.skip();
-				int i = reader.peek();
-				if (i == 123) {
-					NbtCompound nbtCompound2 = StringNbtReader.readCompoundAsArgument(reader);
-					reader.expect(']');
-					yield new NbtPathArgumentType.FilteredListElementNode(nbtCompound2);
+				int next = reader.peek();
+
+				if (next == LEFT_CURLY_BRACKET) {
+					NbtCompound filter = StringNbtReader.readCompoundAsArgument(reader);
+					reader.expect(RIGHT_SQUARE_BRACKET);
+					yield new NbtPathArgumentType.FilteredListElementNode(filter);
 				}
-				else if (i == 93) {
+
+				if (next == RIGHT_SQUARE_BRACKET) {
 					reader.skip();
 					yield NbtPathArgumentType.AllListElementNode.INSTANCE;
 				}
-				else {
-					int j = reader.readInt();
-					reader.expect(']');
-					yield new NbtPathArgumentType.IndexedListElementNode(j);
-				}
+
+				int index = reader.readInt();
+				reader.expect(RIGHT_SQUARE_BRACKET);
+				yield new NbtPathArgumentType.IndexedListElementNode(index);
 			}
-			case '{' -> {
+			case LEFT_CURLY_BRACKET -> {
 				if (!root) {
 					throw INVALID_PATH_NODE_EXCEPTION.createWithContext(reader);
 				}
 
-				NbtCompound nbtCompound = StringNbtReader.readCompoundAsArgument(reader);
-				yield new NbtPathArgumentType.FilteredRootNode(nbtCompound);
+				NbtCompound filter = StringNbtReader.readCompoundAsArgument(reader);
+				yield new NbtPathArgumentType.FilteredRootNode(filter);
 			}
 			default -> readCompoundChildNode(reader, readName(reader));
-		}
-		);
+		};
 	}
 
 	private static NbtPathArgumentType.PathNode readCompoundChildNode(StringReader reader, String name)
@@ -127,74 +145,86 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		if (name.isEmpty()) {
 			throw INVALID_PATH_NODE_EXCEPTION.createWithContext(reader);
 		}
-		else if (reader.canRead() && reader.peek() == '{') {
-			NbtCompound nbtCompound = StringNbtReader.readCompoundAsArgument(reader);
-			return new NbtPathArgumentType.FilteredNamedNode(name, nbtCompound);
+
+		if (reader.canRead() && reader.peek() == LEFT_CURLY_BRACKET) {
+			NbtCompound filter = StringNbtReader.readCompoundAsArgument(reader);
+			return new NbtPathArgumentType.FilteredNamedNode(name, filter);
 		}
-		else {
-			return new NbtPathArgumentType.NamedNode(name);
-		}
+
+		return new NbtPathArgumentType.NamedNode(name);
 	}
 
 	private static String readName(StringReader reader) throws CommandSyntaxException {
-		int i = reader.getCursor();
+		int start = reader.getCursor();
 
 		while (reader.canRead() && isNameCharacter(reader.peek())) {
 			reader.skip();
 		}
 
-		if (reader.getCursor() == i) {
+		if (reader.getCursor() == start) {
 			throw INVALID_PATH_NODE_EXCEPTION.createWithContext(reader);
 		}
-		else {
-			return reader.getString().substring(i, reader.getCursor());
-		}
+
+		return reader.getString().substring(start, reader.getCursor());
 	}
 
+	@Override
 	public Collection<String> getExamples() {
 		return EXAMPLES;
 	}
 
 	private static boolean isNameCharacter(char c) {
-		return c != ' ' && c != '"' && c != '\'' && c != '[' && c != ']' && c != '.' && c != '{' && c != '}';
+		return c != ' '
+				&& c != DOUBLE_QUOTE
+				&& c != SINGLE_QUOTE
+				&& c != LEFT_SQUARE_BRACKET
+				&& c != RIGHT_SQUARE_BRACKET
+				&& c != '.'
+				&& c != LEFT_CURLY_BRACKET
+				&& c != RIGHT_CURLY_BRACKET;
 	}
 
 	static Predicate<NbtElement> getPredicate(NbtCompound filter) {
 		return nbt -> NbtHelper.matches(filter, nbt, true);
 	}
 
-	/**
-	 * {@code AllListElementNode}.
-	 */
+	// -------------------------------------------------------------------------
+	// Реализации узлов пути
+	// -------------------------------------------------------------------------
+
 	static class AllListElementNode implements NbtPathArgumentType.PathNode {
 
-		public static final NbtPathArgumentType.AllListElementNode
-				INSTANCE =
-				new NbtPathArgumentType.AllListElementNode();
+		public static final NbtPathArgumentType.AllListElementNode INSTANCE = new NbtPathArgumentType.AllListElementNode();
 
 		private AllListElementNode() {
 		}
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				Iterables.addAll(results, abstractNbtList);
+			if (current instanceof AbstractNbtList list) {
+				Iterables.addAll(results, list);
 			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				if (abstractNbtList.isEmpty()) {
-					NbtElement nbtElement = source.get();
-					if (abstractNbtList.addElement(0, nbtElement)) {
-						results.add(nbtElement);
-					}
-				}
-				else {
-					Iterables.addAll(results, abstractNbtList);
-				}
+			if (!(current instanceof AbstractNbtList list)) {
+				return;
 			}
+
+			if (list.isEmpty()) {
+				NbtElement element = source.get();
+
+				if (list.addElement(0, element)) {
+					results.add(element);
+				}
+
+			}
+			else {
+				Iterables.addAll(results, list);
+			}
+
 		}
 
 		@Override
@@ -204,55 +234,55 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int set(NbtElement current, Supplier<NbtElement> source) {
-			if (!(current instanceof AbstractNbtList abstractNbtList)) {
+			if (!(current instanceof AbstractNbtList list)) {
 				return 0;
 			}
-			else {
-				int i = abstractNbtList.size();
-				if (i == 0) {
-					abstractNbtList.addElement(0, source.get());
-					return 1;
-				}
-				else {
-					NbtElement nbtElement = source.get();
-					int j = i - (int) abstractNbtList.stream().filter(nbtElement::equals).count();
-					if (j == 0) {
-						return 0;
-					}
-					else {
-						abstractNbtList.clear();
-						if (!abstractNbtList.addElement(0, nbtElement)) {
-							return 0;
-						}
-						else {
-							for (int k = 1; k < i; k++) {
-								abstractNbtList.addElement(k, source.get());
-							}
 
-							return j;
-						}
-					}
-				}
+			int size = list.size();
+
+			if (size == 0) {
+				list.addElement(0, source.get());
+				return 1;
 			}
+
+			NbtElement newElement = source.get();
+			int changed = size - (int) list.stream().filter(newElement::equals).count();
+
+			if (changed == 0) {
+				return 0;
+			}
+
+			list.clear();
+
+			if (!list.addElement(0, newElement)) {
+				return 0;
+			}
+
+			for (int i = 1; i < size; i++) {
+				list.addElement(i, source.get());
+			}
+
+			return changed;
 		}
 
 		@Override
 		public int clear(NbtElement current) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				int i = abstractNbtList.size();
-				if (i > 0) {
-					abstractNbtList.clear();
-					return i;
-				}
+			if (!(current instanceof AbstractNbtList list)) {
+				return 0;
 			}
 
-			return 0;
+			int size = list.size();
+
+			if (size == 0) {
+				return 0;
+			}
+
+			list.clear();
+			return size;
 		}
+
 	}
 
-	/**
-	 * {@code FilteredListElementNode}.
-	 */
 	static class FilteredListElementNode implements NbtPathArgumentType.PathNode {
 
 		private final NbtCompound filter;
@@ -260,30 +290,35 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		public FilteredListElementNode(NbtCompound filter) {
 			this.filter = filter;
-			this.predicate = NbtPathArgumentType.getPredicate(filter);
+			predicate = NbtPathArgumentType.getPredicate(filter);
 		}
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof NbtList nbtList) {
-				nbtList.stream().filter(this.predicate).forEach(results::add);
+			if (current instanceof NbtList list) {
+				list.stream().filter(predicate).forEach(results::add);
 			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			MutableBoolean mutableBoolean = new MutableBoolean();
-			if (current instanceof NbtList nbtList) {
-				nbtList.stream().filter(this.predicate).forEach(nbt -> {
-					results.add(nbt);
-					mutableBoolean.setTrue();
-				});
-				if (mutableBoolean.isFalse()) {
-					NbtCompound nbtCompound = this.filter.copy();
-					nbtList.add(nbtCompound);
-					results.add(nbtCompound);
-				}
+			if (!(current instanceof NbtList list)) {
+				return;
 			}
+
+			MutableBoolean found = new MutableBoolean();
+			list.stream().filter(predicate).forEach(nbt -> {
+				results.add(nbt);
+				found.setTrue();
+			});
+
+			if (found.isFalse()) {
+				NbtCompound copy = filter.copy();
+				list.add(copy);
+				results.add(copy);
+			}
+
 		}
 
 		@Override
@@ -293,48 +328,56 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int set(NbtElement current, Supplier<NbtElement> source) {
-			int i = 0;
-			if (current instanceof NbtList nbtList) {
-				int j = nbtList.size();
-				if (j == 0) {
-					nbtList.add(source.get());
-					i++;
-				}
-				else {
-					for (int k = 0; k < j; k++) {
-						NbtElement nbtElement = nbtList.get(k);
-						if (this.predicate.test(nbtElement)) {
-							NbtElement nbtElement2 = source.get();
-							if (!nbtElement2.equals(nbtElement) && nbtList.setElement(k, nbtElement2)) {
-								i++;
-							}
-						}
-					}
-				}
+			if (!(current instanceof NbtList list)) {
+				return 0;
 			}
 
-			return i;
+			int count = 0;
+			int size = list.size();
+
+			if (size == 0) {
+				list.add(source.get());
+				return 1;
+			}
+
+			for (int i = 0; i < size; i++) {
+				NbtElement existing = list.get(i);
+
+				if (predicate.test(existing)) {
+					NbtElement replacement = source.get();
+
+					if (!replacement.equals(existing) && list.setElement(i, replacement)) {
+						count++;
+					}
+
+				}
+
+			}
+
+			return count;
 		}
 
 		@Override
 		public int clear(NbtElement current) {
-			int i = 0;
-			if (current instanceof NbtList nbtList) {
-				for (int j = nbtList.size() - 1; j >= 0; j--) {
-					if (this.predicate.test(nbtList.get(j))) {
-						nbtList.remove(j);
-						i++;
-					}
-				}
+			if (!(current instanceof NbtList list)) {
+				return 0;
 			}
 
-			return i;
+			int count = 0;
+
+			for (int i = list.size() - 1; i >= 0; i--) {
+				if (predicate.test(list.get(i))) {
+					list.remove(i);
+					count++;
+				}
+
+			}
+
+			return count;
 		}
+
 	}
 
-	/**
-	 * {@code FilteredNamedNode}.
-	 */
 	static class FilteredNamedNode implements NbtPathArgumentType.PathNode {
 
 		private final String name;
@@ -344,32 +387,40 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		public FilteredNamedNode(String name, NbtCompound filter) {
 			this.name = name;
 			this.filter = filter;
-			this.predicate = NbtPathArgumentType.getPredicate(filter);
+			predicate = NbtPathArgumentType.getPredicate(filter);
 		}
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof NbtCompound) {
-				NbtElement nbtElement = ((NbtCompound) current).get(this.name);
-				if (this.predicate.test(nbtElement)) {
-					results.add(nbtElement);
-				}
+			if (!(current instanceof NbtCompound compound)) {
+				return;
 			}
+
+			NbtElement element = compound.get(name);
+
+			if (predicate.test(element)) {
+				results.add(element);
+			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			if (current instanceof NbtCompound nbtCompound) {
-				NbtElement nbtElement = nbtCompound.get(this.name);
-				if (nbtElement == null) {
-					NbtElement var6 = this.filter.copy();
-					nbtCompound.put(this.name, var6);
-					results.add(var6);
-				}
-				else if (this.predicate.test(nbtElement)) {
-					results.add(nbtElement);
-				}
+			if (!(current instanceof NbtCompound compound)) {
+				return;
 			}
+
+			NbtElement element = compound.get(name);
+
+			if (element == null) {
+				NbtElement copy = filter.copy();
+				compound.put(name, copy);
+				results.add(copy);
+			}
+			else if (predicate.test(element)) {
+				results.add(element);
+			}
+
 		}
 
 		@Override
@@ -379,15 +430,20 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int set(NbtElement current, Supplier<NbtElement> source) {
-			if (current instanceof NbtCompound nbtCompound) {
-				NbtElement nbtElement = nbtCompound.get(this.name);
-				if (this.predicate.test(nbtElement)) {
-					NbtElement nbtElement2 = source.get();
-					if (!nbtElement2.equals(nbtElement)) {
-						nbtCompound.put(this.name, nbtElement2);
-						return 1;
-					}
+			if (!(current instanceof NbtCompound compound)) {
+				return 0;
+			}
+
+			NbtElement existing = compound.get(name);
+
+			if (predicate.test(existing)) {
+				NbtElement replacement = source.get();
+
+				if (!replacement.equals(existing)) {
+					compound.put(name, replacement);
+					return 1;
 				}
+
 			}
 
 			return 0;
@@ -395,39 +451,41 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int clear(NbtElement current) {
-			if (current instanceof NbtCompound nbtCompound) {
-				NbtElement nbtElement = nbtCompound.get(this.name);
-				if (this.predicate.test(nbtElement)) {
-					nbtCompound.remove(this.name);
-					return 1;
-				}
+			if (!(current instanceof NbtCompound compound)) {
+				return 0;
+			}
+
+			NbtElement element = compound.get(name);
+
+			if (predicate.test(element)) {
+				compound.remove(name);
+				return 1;
 			}
 
 			return 0;
 		}
+
 	}
 
-	/**
-	 * {@code FilteredRootNode}.
-	 */
 	static class FilteredRootNode implements NbtPathArgumentType.PathNode {
 
 		private final Predicate<NbtElement> matcher;
 
 		public FilteredRootNode(NbtCompound filter) {
-			this.matcher = NbtPathArgumentType.getPredicate(filter);
+			matcher = NbtPathArgumentType.getPredicate(filter);
 		}
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof NbtCompound && this.matcher.test(current)) {
+			if (current instanceof NbtCompound && matcher.test(current)) {
 				results.add(current);
 			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			this.get(current, results);
+			get(current, results);
 		}
 
 		@Override
@@ -444,11 +502,9 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		public int clear(NbtElement current) {
 			return 0;
 		}
+
 	}
 
-	/**
-	 * {@code IndexedListElementNode}.
-	 */
 	static class IndexedListElementNode implements NbtPathArgumentType.PathNode {
 
 		private final int index;
@@ -459,18 +515,22 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				int i = abstractNbtList.size();
-				int j = this.index < 0 ? i + this.index : this.index;
-				if (0 <= j && j < i) {
-					results.add(abstractNbtList.get(j));
-				}
+			if (!(current instanceof AbstractNbtList list)) {
+				return;
 			}
+
+			int size = list.size();
+			int resolved = index < 0 ? size + index : index;
+
+			if (0 <= resolved && resolved < size) {
+				results.add(list.get(resolved));
+			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			this.get(current, results);
+			get(current, results);
 		}
 
 		@Override
@@ -480,16 +540,21 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int set(NbtElement current, Supplier<NbtElement> source) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				int i = abstractNbtList.size();
-				int j = this.index < 0 ? i + this.index : this.index;
-				if (0 <= j && j < i) {
-					NbtElement nbtElement = abstractNbtList.get(j);
-					NbtElement nbtElement2 = source.get();
-					if (!nbtElement2.equals(nbtElement) && abstractNbtList.setElement(j, nbtElement2)) {
-						return 1;
-					}
+			if (!(current instanceof AbstractNbtList list)) {
+				return 0;
+			}
+
+			int size = list.size();
+			int resolved = index < 0 ? size + index : index;
+
+			if (0 <= resolved && resolved < size) {
+				NbtElement existing = list.get(resolved);
+				NbtElement replacement = source.get();
+
+				if (!replacement.equals(existing) && list.setElement(resolved, replacement)) {
+					return 1;
 				}
+
 			}
 
 			return 0;
@@ -497,22 +562,23 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int clear(NbtElement current) {
-			if (current instanceof AbstractNbtList abstractNbtList) {
-				int i = abstractNbtList.size();
-				int j = this.index < 0 ? i + this.index : this.index;
-				if (0 <= j && j < i) {
-					abstractNbtList.remove(j);
-					return 1;
-				}
+			if (!(current instanceof AbstractNbtList list)) {
+				return 0;
+			}
+
+			int size = list.size();
+			int resolved = index < 0 ? size + index : index;
+
+			if (0 <= resolved && resolved < size) {
+				list.remove(resolved);
+				return 1;
 			}
 
 			return 0;
 		}
+
 	}
 
-	/**
-	 * {@code NamedNode}.
-	 */
 	static class NamedNode implements NbtPathArgumentType.PathNode {
 
 		private final String name;
@@ -523,28 +589,35 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public void get(NbtElement current, List<NbtElement> results) {
-			if (current instanceof NbtCompound) {
-				NbtElement nbtElement = ((NbtCompound) current).get(this.name);
-				if (nbtElement != null) {
-					results.add(nbtElement);
-				}
+			if (!(current instanceof NbtCompound compound)) {
+				return;
 			}
+
+			NbtElement element = compound.get(name);
+
+			if (element != null) {
+				results.add(element);
+			}
+
 		}
 
 		@Override
 		public void getOrInit(NbtElement current, Supplier<NbtElement> source, List<NbtElement> results) {
-			if (current instanceof NbtCompound nbtCompound) {
-				NbtElement nbtElement;
-				if (nbtCompound.contains(this.name)) {
-					nbtElement = nbtCompound.get(this.name);
-				}
-				else {
-					nbtElement = source.get();
-					nbtCompound.put(this.name, nbtElement);
-				}
-
-				results.add(nbtElement);
+			if (!(current instanceof NbtCompound compound)) {
+				return;
 			}
+
+			NbtElement element;
+
+			if (compound.contains(name)) {
+				element = compound.get(name);
+			}
+			else {
+				element = source.get();
+				compound.put(name, element);
+			}
+
+			results.add(element);
 		}
 
 		@Override
@@ -554,47 +627,48 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 
 		@Override
 		public int set(NbtElement current, Supplier<NbtElement> source) {
-			if (current instanceof NbtCompound nbtCompound) {
-				NbtElement nbtElement = source.get();
-				NbtElement nbtElement2 = nbtCompound.put(this.name, nbtElement);
-				if (!nbtElement.equals(nbtElement2)) {
-					return 1;
-				}
+			if (!(current instanceof NbtCompound compound)) {
+				return 0;
+			}
+
+			NbtElement newElement = source.get();
+			NbtElement previous = compound.put(name, newElement);
+			return newElement.equals(previous) ? 0 : 1;
+		}
+
+		@Override
+		public int clear(NbtElement current) {
+			if (current instanceof NbtCompound compound && compound.contains(name)) {
+				compound.remove(name);
+				return 1;
 			}
 
 			return 0;
 		}
 
-		@Override
-		public int clear(NbtElement current) {
-			if (current instanceof NbtCompound nbtCompound && nbtCompound.contains(this.name)) {
-				nbtCompound.remove(this.name);
-				return 1;
-			}
-			else {
-				return 0;
-			}
-		}
 	}
 
 	/**
-	 * {@code NbtPath}.
+	 * Разобранный путь в NBT-структуре, состоящий из последовательности узлов.
+	 * Поддерживает операции чтения, записи, вставки и удаления элементов.
 	 */
 	public static class NbtPath {
 
 		private final String string;
 		private final Object2IntMap<NbtPathArgumentType.PathNode> nodeEndIndices;
 		private final NbtPathArgumentType.PathNode[] nodes;
+
 		public static final Codec<NbtPathArgumentType.NbtPath> CODEC = Codec.STRING.comapFlatMap(
 				path -> {
 					try {
-						NbtPathArgumentType.NbtPath nbtPath = new NbtPathArgumentType().parse(new StringReader(path));
-						return DataResult.success(nbtPath);
+						NbtPathArgumentType.NbtPath parsed = new NbtPathArgumentType().parse(new StringReader(path));
+						return DataResult.success(parsed);
 					}
-					catch (CommandSyntaxException var2) {
-						return DataResult.error(() -> "Failed to parse path " + path + ": " + var2.getMessage());
+					catch (CommandSyntaxException ex) {
+						return DataResult.error(() -> "Failed to parse path " + path + ": " + ex.getMessage());
 					}
-				}, NbtPathArgumentType.NbtPath::getString
+				},
+				NbtPathArgumentType.NbtPath::getString
 		);
 
 		public static NbtPathArgumentType.NbtPath parse(String path) throws CommandSyntaxException {
@@ -612,185 +686,202 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		}
 
 		public List<NbtElement> get(NbtElement element) throws CommandSyntaxException {
-			List<NbtElement> list = Collections.singletonList(element);
+			List<NbtElement> results = Collections.singletonList(element);
 
-			for (NbtPathArgumentType.PathNode pathNode : this.nodes) {
-				list = pathNode.get(list);
-				if (list.isEmpty()) {
-					throw this.createNothingFoundException(pathNode);
+			for (NbtPathArgumentType.PathNode node : nodes) {
+				results = node.get(results);
+
+				if (results.isEmpty()) {
+					throw createNothingFoundException(node);
 				}
+
 			}
 
-			return list;
+			return results;
 		}
 
 		public int count(NbtElement element) {
-			List<NbtElement> list = Collections.singletonList(element);
+			List<NbtElement> results = Collections.singletonList(element);
 
-			for (NbtPathArgumentType.PathNode pathNode : this.nodes) {
-				list = pathNode.get(list);
-				if (list.isEmpty()) {
+			for (NbtPathArgumentType.PathNode node : nodes) {
+				results = node.get(results);
+
+				if (results.isEmpty()) {
 					return 0;
 				}
+
 			}
 
-			return list.size();
+			return results.size();
 		}
 
 		private List<NbtElement> getTerminals(NbtElement start) throws CommandSyntaxException {
-			List<NbtElement> list = Collections.singletonList(start);
+			List<NbtElement> results = Collections.singletonList(start);
 
-			for (int i = 0; i < this.nodes.length - 1; i++) {
-				NbtPathArgumentType.PathNode pathNode = this.nodes[i];
-				int j = i + 1;
-				list = pathNode.getOrInit(list, this.nodes[j]::init);
-				if (list.isEmpty()) {
-					throw this.createNothingFoundException(pathNode);
+			for (int i = 0; i < nodes.length - 1; i++) {
+				NbtPathArgumentType.PathNode node = nodes[i];
+				results = node.getOrInit(results, nodes[i + 1]::init);
+
+				if (results.isEmpty()) {
+					throw createNothingFoundException(node);
 				}
+
 			}
 
-			return list;
+			return results;
 		}
 
 		public List<NbtElement> getOrInit(NbtElement element, Supplier<NbtElement> source)
 		throws CommandSyntaxException {
-			List<NbtElement> list = this.getTerminals(element);
-			NbtPathArgumentType.PathNode pathNode = this.nodes[this.nodes.length - 1];
-			return pathNode.getOrInit(list, source);
+			List<NbtElement> terminals = getTerminals(element);
+			NbtPathArgumentType.PathNode lastNode = nodes[nodes.length - 1];
+			return lastNode.getOrInit(terminals, source);
 		}
 
 		private static int forEach(List<NbtElement> elements, Function<NbtElement, Integer> operation) {
-			return elements.stream().map(operation).reduce(0, (a, b) -> a + b);
+			return elements.stream().map(operation).reduce(0, Integer::sum);
 		}
 
+		/**
+		 * Проверяет, превышает ли глубина вложенности NBT-элемента допустимый предел (512).
+		 * Используется перед записью, чтобы предотвратить переполнение стека при обходе.
+		 */
 		public static boolean isTooDeep(NbtElement element, int depth) {
 			if (depth >= 512) {
 				return true;
 			}
-			else {
-				if (element instanceof NbtCompound nbtCompound) {
-					for (NbtElement nbtElement : nbtCompound.values()) {
-						if (isTooDeep(nbtElement, depth + 1)) {
-							return true;
-						}
+
+			if (element instanceof NbtCompound compound) {
+				for (NbtElement child : compound.values()) {
+					if (isTooDeep(child, depth + 1)) {
+						return true;
 					}
-				}
-				else if (element instanceof NbtList) {
-					for (NbtElement nbtElementx : (NbtList) element) {
-						if (isTooDeep(nbtElementx, depth + 1)) {
-							return true;
-						}
-					}
+
 				}
 
-				return false;
 			}
+			else if (element instanceof NbtList list) {
+				for (NbtElement child : list) {
+					if (isTooDeep(child, depth + 1)) {
+						return true;
+					}
+
+				}
+
+			}
+
+			return false;
 		}
 
 		public int put(NbtElement element, NbtElement source) throws CommandSyntaxException {
-			if (isTooDeep(source, this.getDepth())) {
+			if (isTooDeep(source, getDepth())) {
 				throw NbtPathArgumentType.TOO_DEEP_EXCEPTION.create();
 			}
-			else {
-				NbtElement nbtElement = source.copy();
-				List<NbtElement> list = this.getTerminals(element);
-				if (list.isEmpty()) {
-					return 0;
-				}
-				else {
-					NbtPathArgumentType.PathNode pathNode = this.nodes[this.nodes.length - 1];
-					MutableBoolean mutableBoolean = new MutableBoolean(false);
-					return forEach(
-							list, nbt -> pathNode.set(
-									nbt, () -> {
-										if (mutableBoolean.isFalse()) {
-											mutableBoolean.setTrue();
-											return nbtElement;
-										}
-										else {
-											return nbtElement.copy();
-										}
-									}
-							)
-					);
-				}
+
+			NbtElement copy = source.copy();
+			List<NbtElement> terminals = getTerminals(element);
+
+			if (terminals.isEmpty()) {
+				return 0;
 			}
+
+			NbtPathArgumentType.PathNode lastNode = nodes[nodes.length - 1];
+			MutableBoolean firstUsed = new MutableBoolean(false);
+
+			return forEach(
+					terminals, nbt -> lastNode.set(
+							nbt, () -> {
+								if (firstUsed.isFalse()) {
+									firstUsed.setTrue();
+									return copy;
+								}
+
+								return copy.copy();
+							}
+					)
+			);
 		}
 
 		private int getDepth() {
-			return this.nodes.length;
+			return nodes.length;
 		}
 
-		public int insert(int index, NbtCompound compound, List<NbtElement> elements) throws CommandSyntaxException {
-			List<NbtElement> list = new ArrayList<>(elements.size());
+		public int insert(int index, NbtCompound compound, List<NbtElement> elements)
+		throws CommandSyntaxException {
+			List<NbtElement> copies = new ArrayList<>(elements.size());
 
-			for (NbtElement nbtElement : elements) {
-				NbtElement nbtElement2 = nbtElement.copy();
-				list.add(nbtElement2);
-				if (isTooDeep(nbtElement2, this.getDepth())) {
+			for (NbtElement element : elements) {
+				NbtElement copy = element.copy();
+				copies.add(copy);
+
+				if (isTooDeep(copy, getDepth())) {
 					throw NbtPathArgumentType.TOO_DEEP_EXCEPTION.create();
 				}
+
 			}
 
-			Collection<NbtElement> collection = this.getOrInit(compound, NbtList::new);
-			int i = 0;
-			boolean bl = false;
+			Collection<NbtElement> targets = getOrInit(compound, NbtList::new);
+			int insertCount = 0;
+			boolean needCopy = false;
 
-			for (NbtElement nbtElement3 : collection) {
-				if (!(nbtElement3 instanceof AbstractNbtList abstractNbtList)) {
-					throw NbtPathArgumentType.EXPECTED_LIST_EXCEPTION.create(nbtElement3);
+			for (NbtElement target : targets) {
+				if (!(target instanceof AbstractNbtList list)) {
+					throw NbtPathArgumentType.EXPECTED_LIST_EXCEPTION.create(target);
 				}
 
-				boolean bl2 = false;
-				int j = index < 0 ? abstractNbtList.size() + index + 1 : index;
+				boolean inserted = false;
+				int insertPos = index < 0 ? list.size() + index + 1 : index;
 
-				for (NbtElement nbtElement4 : list) {
+				for (NbtElement copy : copies) {
 					try {
-						if (abstractNbtList.addElement(j, bl ? nbtElement4.copy() : nbtElement4)) {
-							j++;
-							bl2 = true;
+						if (list.addElement(insertPos, needCopy ? copy.copy() : copy)) {
+							insertPos++;
+							inserted = true;
 						}
+
 					}
-					catch (IndexOutOfBoundsException var16) {
-						throw NbtPathArgumentType.INVALID_INDEX_EXCEPTION.create(j);
+					catch (IndexOutOfBoundsException ex) {
+						throw NbtPathArgumentType.INVALID_INDEX_EXCEPTION.create(insertPos);
 					}
+
 				}
 
-				bl = true;
-				i += bl2 ? 1 : 0;
+				needCopy = true;
+				insertCount += inserted ? 1 : 0;
 			}
 
-			return i;
+			return insertCount;
 		}
 
 		public int remove(NbtElement element) {
-			List<NbtElement> list = Collections.singletonList(element);
+			List<NbtElement> results = Collections.singletonList(element);
 
-			for (int i = 0; i < this.nodes.length - 1; i++) {
-				list = this.nodes[i].get(list);
+			for (int i = 0; i < nodes.length - 1; i++) {
+				results = nodes[i].get(results);
 			}
 
-			NbtPathArgumentType.PathNode pathNode = this.nodes[this.nodes.length - 1];
-			return forEach(list, pathNode::clear);
+			NbtPathArgumentType.PathNode lastNode = nodes[nodes.length - 1];
+			return forEach(results, lastNode::clear);
 		}
 
 		private CommandSyntaxException createNothingFoundException(NbtPathArgumentType.PathNode node) {
-			int i = this.nodeEndIndices.getInt(node);
-			return NbtPathArgumentType.NOTHING_FOUND_EXCEPTION.create(this.string.substring(0, i));
+			int endIndex = nodeEndIndices.getInt(node);
+			return NbtPathArgumentType.NOTHING_FOUND_EXCEPTION.create(string.substring(0, endIndex));
 		}
 
 		@Override
 		public String toString() {
-			return this.string;
+			return string;
 		}
 
 		public String getString() {
-			return this.string;
+			return string;
 		}
+
 	}
 
 	/**
-	 * {@code PathNode}.
+	 * Узел пути NBT — атомарная операция навигации по NBT-структуре.
 	 */
 	interface PathNode {
 
@@ -805,21 +896,23 @@ public class NbtPathArgumentType implements ArgumentType<NbtPathArgumentType.Nbt
 		int clear(NbtElement current);
 
 		default List<NbtElement> get(List<NbtElement> elements) {
-			return this.process(elements, this::get);
+			return process(elements, this::get);
 		}
 
 		default List<NbtElement> getOrInit(List<NbtElement> elements, Supplier<NbtElement> supplier) {
-			return this.process(elements, (current, results) -> this.getOrInit(current, supplier, results));
+			return process(elements, (current, results) -> getOrInit(current, supplier, results));
 		}
 
 		default List<NbtElement> process(List<NbtElement> elements, BiConsumer<NbtElement, List<NbtElement>> action) {
-			List<NbtElement> list = Lists.newArrayList();
+			List<NbtElement> results = Lists.newArrayList();
 
-			for (NbtElement nbtElement : elements) {
-				action.accept(nbtElement, list);
+			for (NbtElement element : elements) {
+				action.accept(element, results);
 			}
 
-			return list;
+			return results;
 		}
+
 	}
+
 }

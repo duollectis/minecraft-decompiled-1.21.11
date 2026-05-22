@@ -9,7 +9,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code DarkOakFoliagePlacer}.
+ * Размещает листву тёмного дуба: широкая многоуровневая крона,
+ * для гигантских стволов добавляется дополнительный верхний слой.
  */
 public class DarkOakFoliagePlacer extends FoliagePlacer {
 
@@ -17,8 +18,8 @@ public class DarkOakFoliagePlacer extends FoliagePlacer {
 			instance -> fillFoliagePlacerFields(instance).apply(instance, DarkOakFoliagePlacer::new)
 	);
 
-	public DarkOakFoliagePlacer(IntProvider intProvider, IntProvider intProvider2) {
-		super(intProvider, intProvider2);
+	public DarkOakFoliagePlacer(IntProvider radius, IntProvider offset) {
+		super(radius, offset);
 	}
 
 	@Override
@@ -38,19 +39,20 @@ public class DarkOakFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		BlockPos blockPos = treeNode.getCenter().up(offset);
-		boolean bl = treeNode.isGiantTrunk();
-		if (bl) {
-			this.generateSquare(world, placer, random, config, blockPos, radius + 2, -1, bl);
-			this.generateSquare(world, placer, random, config, blockPos, radius + 3, 0, bl);
-			this.generateSquare(world, placer, random, config, blockPos, radius + 2, 1, bl);
+		BlockPos center = treeNode.getCenter().up(offset);
+		boolean isGiantTrunk = treeNode.isGiantTrunk();
+
+		if (isGiantTrunk) {
+			generateSquare(world, placer, random, config, center, radius + 2, -1, isGiantTrunk);
+			generateSquare(world, placer, random, config, center, radius + 3, 0, isGiantTrunk);
+			generateSquare(world, placer, random, config, center, radius + 2, 1, isGiantTrunk);
+
 			if (random.nextBoolean()) {
-				this.generateSquare(world, placer, random, config, blockPos, radius, 2, bl);
+				generateSquare(world, placer, random, config, center, radius, 2, isGiantTrunk);
 			}
-		}
-		else {
-			this.generateSquare(world, placer, random, config, blockPos, radius + 2, -1, bl);
-			this.generateSquare(world, placer, random, config, blockPos, radius + 1, 0, bl);
+		} else {
+			generateSquare(world, placer, random, config, center, radius + 2, -1, isGiantTrunk);
+			generateSquare(world, placer, random, config, center, radius + 1, 0, isGiantTrunk);
 		}
 	}
 
@@ -61,9 +63,12 @@ public class DarkOakFoliagePlacer extends FoliagePlacer {
 
 	@Override
 	protected boolean isPositionInvalid(Random random, int dx, int y, int dz, int radius, boolean giantTrunk) {
-		return y != 0 || !giantTrunk || dx != -radius && dx < radius || dz != -radius && dz < radius
-		       ? super.isPositionInvalid(random, dx, y, dz, radius, giantTrunk)
-		       : true;
+		boolean isOuterCornerAtTop = y == 0
+				&& giantTrunk
+				&& (dx == -radius || dx >= radius)
+				&& (dz == -radius || dz >= radius);
+
+		return isOuterCornerAtTop || super.isPositionInvalid(random, dx, y, dz, radius, giantTrunk);
 	}
 
 	@Override
@@ -71,8 +76,7 @@ public class DarkOakFoliagePlacer extends FoliagePlacer {
 		if (y == -1 && !giantTrunk) {
 			return dx == radius && dz == radius;
 		}
-		else {
-			return y == 1 ? dx + dz > radius * 2 - 2 : false;
-		}
+
+		return y == 1 && dx + dz > radius * 2 - 2;
 	}
 }

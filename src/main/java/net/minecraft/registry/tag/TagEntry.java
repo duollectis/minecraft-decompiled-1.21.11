@@ -12,29 +12,32 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code TagEntry}.
+ * Одна запись в файле тега. Может ссылаться на конкретный объект реестра
+ * или на другой тег (через префикс {@code #}). Запись может быть обязательной
+ * или опциональной (суффикс {@code ?}).
  */
 public class TagEntry {
 
 	private static final Codec<TagEntry> ENTRY_CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.TAG_ENTRY_ID.fieldOf("id").forGetter(TagEntry::getIdForCodec),
-					                    Codec.BOOL.optionalFieldOf("required", true).forGetter(entry -> entry.required)
-			                    )
-			                    .apply(instance, TagEntry::new)
+							Codecs.TAG_ENTRY_ID.fieldOf("id").forGetter(TagEntry::getIdForCodec),
+							Codec.BOOL.optionalFieldOf("required", true).forGetter(entry -> entry.required)
+					)
+					.apply(instance, TagEntry::new)
 	);
+
+	/**
+	 * Кодек для {@link TagEntry}: поддерживает как краткую форму (просто строка-идентификатор),
+	 * так и расширенную (объект с полями {@code id} и {@code required}).
+	 */
 	public static final Codec<TagEntry> CODEC = Codec.either(Codecs.TAG_ENTRY_ID, ENTRY_CODEC)
-	                                                 .xmap(
-			                                                 either -> (TagEntry) either.map(
-					                                                 id -> new TagEntry(
-							                                                 id,
-							                                                 true
-					                                                 ), entry -> entry
-			                                                 ),
-			                                                 entry -> entry.required
-			                                                          ? Either.left(entry.getIdForCodec())
-			                                                          : Either.right(entry)
-	                                                 );
+			.xmap(
+					either -> (TagEntry) either.map(id -> new TagEntry(id, true), entry -> entry),
+					entry -> entry.required
+							? Either.left(entry.getIdForCodec())
+							: Either.right(entry)
+			);
+
 	private final Identifier id;
 	private final boolean tag;
 	private final boolean required;
@@ -52,74 +55,47 @@ public class TagEntry {
 	}
 
 	private Codecs.TagEntryId getIdForCodec() {
-		return new Codecs.TagEntryId(this.id, this.tag);
+		return new Codecs.TagEntryId(id, tag);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param id id
-	 *
-	 * @return TagEntry — результат операции
-	 */
 	public static TagEntry create(Identifier id) {
 		return new TagEntry(id, false, true);
 	}
 
-	/**
-	 * Создаёт optional.
-	 *
-	 * @param id id
-	 *
-	 * @return TagEntry — результат операции
-	 */
 	public static TagEntry createOptional(Identifier id) {
 		return new TagEntry(id, false, false);
 	}
 
-	/**
-	 * Создаёт tag.
-	 *
-	 * @param id id
-	 *
-	 * @return TagEntry — результат операции
-	 */
 	public static TagEntry createTag(Identifier id) {
 		return new TagEntry(id, true, true);
 	}
 
-	/**
-	 * Создаёт optional tag.
-	 *
-	 * @param id id
-	 *
-	 * @return TagEntry — результат операции
-	 */
 	public static TagEntry createOptionalTag(Identifier id) {
 		return new TagEntry(id, true, false);
 	}
 
 	/**
-	 * Resolve.
+	 * Разрешает запись тега в конкретные значения через {@link ValueGetter}.
+	 * Для тегов — рекурсивно разворачивает содержимое тега.
+	 * Для прямых ссылок — получает значение по идентификатору.
 	 *
-	 * @param valueGetter value getter
-	 * @param idConsumer id consumer
-	 *
-	 * @return boolean — результат операции
+	 * @param valueGetter поставщик значений по идентификатору
+	 * @param idConsumer  получатель разрешённых значений
+	 * @return {@code true} если разрешение прошло успешно,
+	 *         {@code false} если обязательная ссылка не найдена
 	 */
 	public <T> boolean resolve(TagEntry.ValueGetter<T> valueGetter, Consumer<T> idConsumer) {
-		if (this.tag) {
-			Collection<T> collection = valueGetter.tag(this.id);
+		if (tag) {
+			Collection<T> collection = valueGetter.tag(id);
 			if (collection == null) {
-				return !this.required;
+				return !required;
 			}
 
 			collection.forEach(idConsumer);
-		}
-		else {
-			T object = valueGetter.direct(this.id, this.required);
+		} else {
+			T object = valueGetter.direct(id, required);
 			if (object == null) {
-				return !this.required;
+				return !required;
 			}
 
 			idConsumer.accept(object);
@@ -128,62 +104,59 @@ public class TagEntry {
 		return true;
 	}
 
-	/**
-	 * For each required tag id.
-	 *
-	 * @param idConsumer id consumer
-	 */
 	public void forEachRequiredTagId(Consumer<Identifier> idConsumer) {
-		if (this.tag && this.required) {
-			idConsumer.accept(this.id);
+		if (tag && required) {
+			idConsumer.accept(id);
 		}
 	}
 
-	/**
-	 * For each optional tag id.
-	 *
-	 * @param idConsumer id consumer
-	 */
 	public void forEachOptionalTagId(Consumer<Identifier> idConsumer) {
-		if (this.tag && !this.required) {
-			idConsumer.accept(this.id);
+		if (tag && !required) {
+			idConsumer.accept(id);
 		}
 	}
 
-	/**
-	 * Проверяет возможность add.
-	 *
-	 * @param directEntryPredicate direct entry predicate
-	 * @param tagEntryPredicate tag entry predicate
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canAdd(Predicate<Identifier> directEntryPredicate, Predicate<Identifier> tagEntryPredicate) {
-		return !this.required || (this.tag ? tagEntryPredicate : directEntryPredicate).test(this.id);
+		return !required || (tag ? tagEntryPredicate : directEntryPredicate).test(id);
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder stringBuilder = new StringBuilder();
-		if (this.tag) {
-			stringBuilder.append('#');
+		StringBuilder builder = new StringBuilder();
+		if (tag) {
+			builder.append('#');
 		}
 
-		stringBuilder.append(this.id);
-		if (!this.required) {
-			stringBuilder.append('?');
+		builder.append(id);
+		if (!required) {
+			builder.append('?');
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 
 	/**
-	 * {@code ValueGetter}.
+	 * Поставщик значений для разрешения записей тега.
+	 *
+	 * @param <T> тип значений реестра
 	 */
 	public interface ValueGetter<T> {
 
+		/**
+		 * Возвращает прямое значение по идентификатору.
+		 *
+		 * @param id       идентификатор объекта
+		 * @param required если {@code true} — объект обязан существовать
+		 * @return значение или {@code null}, если не найдено
+		 */
 		@Nullable T direct(Identifier id, boolean required);
 
+		/**
+		 * Возвращает все значения тега по его идентификатору.
+		 *
+		 * @param id идентификатор тега
+		 * @return коллекция значений или {@code null}, если тег не найден
+		 */
 		@Nullable Collection<T> tag(Identifier id);
 	}
 }

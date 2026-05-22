@@ -7,7 +7,7 @@ import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.FixUtil;
 
 /**
- * {@code TypeChangeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TypeChangeFix extends ChoiceFix {
 
@@ -17,7 +17,7 @@ public class TypeChangeFix extends ChoiceFix {
 
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		Type<?> type = this.getOutputSchema().getChoiceType(this.type, this.choiceName);
+		Type<?> type = getOutputSchema().getChoiceType(this.type, this.choiceName);
 		return FixUtil.withType(type, inputTyped);
 	}
 }

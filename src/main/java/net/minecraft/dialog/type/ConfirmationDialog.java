@@ -10,21 +10,23 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ConfirmationDialog}.
+ * Диалог подтверждения с двумя кнопками: «Да» и «Нет».
+ *
+ * <p>Действие кнопки «Нет» используется как действие отмены диалога.</p>
  */
 public record ConfirmationDialog(
-		DialogCommonData common,
-		DialogActionButtonData yesButton,
-		DialogActionButtonData noButton
+	DialogCommonData common,
+	DialogActionButtonData yesButton,
+	DialogActionButtonData noButton
 ) implements SimpleDialog {
 
 	public static final MapCodec<ConfirmationDialog> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    DialogCommonData.CODEC.forGetter(ConfirmationDialog::common),
-					                    DialogActionButtonData.CODEC.fieldOf("yes").forGetter(ConfirmationDialog::yesButton),
-					                    DialogActionButtonData.CODEC.fieldOf("no").forGetter(ConfirmationDialog::noButton)
-			                    )
-			                    .apply(instance, ConfirmationDialog::new)
+		instance -> instance.group(
+			DialogCommonData.CODEC.forGetter(ConfirmationDialog::common),
+			DialogActionButtonData.CODEC.fieldOf("yes").forGetter(ConfirmationDialog::yesButton),
+			DialogActionButtonData.CODEC.fieldOf("no").forGetter(ConfirmationDialog::noButton)
+		)
+		.apply(instance, ConfirmationDialog::new)
 	);
 
 	@Override
@@ -34,11 +36,11 @@ public record ConfirmationDialog(
 
 	@Override
 	public Optional<DialogAction> getCancelAction() {
-		return this.noButton.action();
+		return noButton.action();
 	}
 
 	@Override
 	public List<DialogActionButtonData> getButtons() {
-		return List.of(this.yesButton, this.noButton);
+		return List.of(yesButton, noButton);
 	}
 }

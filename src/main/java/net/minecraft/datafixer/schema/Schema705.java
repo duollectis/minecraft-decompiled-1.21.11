@@ -1,7 +1,6 @@
 package net.minecraft.datafixer.schema;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.templates.Hook.HookFunction;
@@ -12,9 +11,14 @@ import net.minecraft.datafixer.TypeReferences;
 
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.HashMap;
 
 /**
- * {@code Schema705}.
+ * Схема DataFixer версии 705, вводящая полный реестр сущностей с namespaced-идентификаторами
+ * (переход с устаревших имён вроде {@code "Zombie"} на {@code "minecraft:zombie"}).
+ * Содержит маппинг {@code ITEM_TO_ENTITY} для яиц призыва и транспортных средств,
+ * а также применяет {@code ITEM_STACK_HOOK} для обновления тегов {@code EntityTag}
+ * внутри стеков предметов.
  */
 public class Schema705 extends IdentifierNormalizingSchema {
 
@@ -313,7 +317,7 @@ public class Schema705 extends IdentifierNormalizingSchema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		schema.register(
 				map,
 				"minecraft:area_effect_cloud",

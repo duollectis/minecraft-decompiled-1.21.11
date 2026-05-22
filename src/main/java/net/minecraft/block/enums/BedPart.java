@@ -3,25 +3,27 @@ package net.minecraft.block.enums;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code BedPart}.
+ * Определяет, какая часть кровати представлена данным блоком.
  */
 public enum BedPart implements StringIdentifiable {
+	/** Изголовье кровати. */
 	HEAD("head"),
+	/** Изножье кровати. */
 	FOOT("foot");
 
 	private final String name;
 
-	private BedPart(final String name) {
+	BedPart(String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

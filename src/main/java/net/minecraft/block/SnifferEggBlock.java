@@ -108,10 +108,10 @@ public class SnifferEggBlock extends Block {
 			world.syncWorldEvent(3009, pos, 0);
 		}
 
-		int i = bl ? 12000 : 24000;
+		int i = bl ? BOOSTED_HATCHING_TIME : HATCHING_TIME;
 		int j = i / 3;
 		world.emitGameEvent(GameEvent.BLOCK_PLACE, pos, GameEvent.Emitter.of(state));
-		world.scheduleBlockTick(pos, this, j + world.random.nextInt(300));
+		world.scheduleBlockTick(pos, this, j + world.random.nextInt(MAX_RANDOM_CRACK_TIME_OFFSET));
 	}
 
 	@Override

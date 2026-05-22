@@ -5,7 +5,9 @@ import net.minecraft.util.Util;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code Orientation}.
+ * Ориентация блока джигсо (Jigsaw Block), задающая пару направлений:
+ * куда «смотрит» блок ({@code facing}) и куда направлена его «верхняя» сторона ({@code rotation}).
+ * Используется для точного позиционирования структур при генерации мира.
  */
 public enum Orientation implements StringIdentifiable {
 	DOWN_EAST("down_east", Direction.DOWN, Direction.EAST),
@@ -33,11 +35,7 @@ public enum Orientation implements StringIdentifiable {
 	private final Direction rotation;
 	private final Direction facing;
 
-	private static int getIndex(Direction facing, Direction rotation) {
-		return facing.ordinal() * DIRECTIONS + rotation.ordinal();
-	}
-
-	private Orientation(final String name, final Direction facing, final Direction rotation) {
+	Orientation(final String name, final Direction facing, final Direction rotation) {
 		this.name = name;
 		this.facing = facing;
 		this.rotation = rotation;
@@ -45,26 +43,31 @@ public enum Orientation implements StringIdentifiable {
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * By directions.
+	 * Возвращает ориентацию по паре направлений.
+	 * Поиск выполняется за O(1) через предвычисленный массив {@code VALUES},
+	 * индексированный по комбинации {@code facing} и {@code rotation}.
 	 *
-	 * @param facing facing
-	 * @param rotation rotation
-	 *
-	 * @return Orientation — результат операции
+	 * @param facing направление «взгляда» блока
+	 * @param rotation направление «верха» блока
+	 * @return соответствующая ориентация, или {@code null} если комбинация недопустима
 	 */
 	public static Orientation byDirections(Direction facing, Direction rotation) {
 		return VALUES[getIndex(facing, rotation)];
 	}
 
 	public Direction getFacing() {
-		return this.facing;
+		return facing;
 	}
 
 	public Direction getRotation() {
-		return this.rotation;
+		return rotation;
+	}
+
+	private static int getIndex(Direction facing, Direction rotation) {
+		return facing.ordinal() * DIRECTIONS + rotation.ordinal();
 	}
 }

@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code CommandSyntaxProvider}.
+ * Генерирует JSON-отчёт о синтаксисе всех серверных команд.
+ * Создаёт полный граф дерева команд через {@link CommandManager} и сериализует его
+ * в {@code reports/commands.json} с помощью {@link ArgumentHelper#toJson}.
  */
 public class CommandSyntaxProvider implements DataProvider {
 
@@ -27,22 +29,20 @@ public class CommandSyntaxProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("commands.json");
-		return this.registriesFuture
-				.thenCompose(
-						registries -> {
-							CommandDispatcher<ServerCommandSource> commandDispatcher = new CommandManager(
-									CommandManager.RegistrationEnvironment.ALL,
-									CommandManager.createRegistryAccess(registries)
-							)
-									.getDispatcher();
-							return DataProvider.writeToPath(
-									writer,
-									ArgumentHelper.toJson(commandDispatcher, commandDispatcher.getRoot()),
-									path
-							);
-						}
-				);
+		Path path = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("commands.json");
+
+		return registriesFuture.thenCompose(registries -> {
+			CommandDispatcher<ServerCommandSource> dispatcher = new CommandManager(
+				CommandManager.RegistrationEnvironment.ALL,
+				CommandManager.createRegistryAccess(registries)
+			).getDispatcher();
+
+			return DataProvider.writeToPath(
+				writer,
+				ArgumentHelper.toJson(dispatcher, dispatcher.getRoot()),
+				path
+			);
+		});
 	}
 
 	@Override

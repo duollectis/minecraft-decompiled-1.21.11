@@ -22,37 +22,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelTextures}.
+ * Разрешённые текстуры модели: отображение имён текстурных слотов на {@link SpriteIdentifier}.
+ * Строится через {@link Builder} путём послойного наложения {@link Textures} из иерархии моделей.
  */
+@Environment(EnvType.CLIENT)
 public class ModelTextures {
 
 	public static final ModelTextures EMPTY = new ModelTextures(Map.of());
 	private static final char TEXTURE_REFERENCE_PREFIX = '#';
+
 	private final Map<String, SpriteIdentifier> textures;
 
 	ModelTextures(Map<String, SpriteIdentifier> textures) {
 		this.textures = textures;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param textureId texture id
-	 *
-	 * @return @Nullable SpriteIdentifier — 
-	 */
 	public @Nullable SpriteIdentifier get(String textureId) {
 		if (isTextureReference(textureId)) {
 			textureId = textureId.substring(1);
 		}
 
-		return this.textures.get(textureId);
+		return textures.get(textureId);
 	}
 
 	private static boolean isTextureReference(String textureId) {
-		return textureId.charAt(0) == '#';
+		return textureId.charAt(0) == TEXTURE_REFERENCE_PREFIX;
 	}
 
 	public static ModelTextures.Textures fromJson(JsonObject json) {
@@ -65,171 +60,149 @@ public class ModelTextures {
 		return builder.build();
 	}
 
-	private static void add(String string, String string2, ModelTextures.Textures.Builder builder) {
-		if (isTextureReference(string2)) {
-			builder.addTextureReference(string, string2.substring(1));
+	private static void add(String textureId, String value, ModelTextures.Textures.Builder builder) {
+		if (isTextureReference(value)) {
+			builder.addTextureReference(textureId, value.substring(1));
 		}
 		else {
-			Identifier identifier = Identifier.tryParse(string2);
+			Identifier identifier = Identifier.tryParse(value);
+
 			if (identifier == null) {
-				throw new JsonParseException(string2 + " is not valid resource location");
+				throw new JsonParseException(value + " is not valid resource location");
 			}
 
-			builder.addSprite(string, new SpriteIdentifier(BakedModelManager.BLOCK_OR_ITEM_ATLAS_ID, identifier));
+			builder.addSprite(textureId, new SpriteIdentifier(BakedModelManager.BLOCK_OR_ITEM_ATLAS_ID, identifier));
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель разрешённых текстур: накапливает слои {@link Textures} в порядке приоритета
+	 * (последний добавленный имеет наивысший приоритет) и разрешает цепочки ссылок.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private static final Logger LOGGER = LogUtils.getLogger();
-		private final List<ModelTextures.Textures> textures = new ArrayList<>();
+		private final List<ModelTextures.Textures> layers = new ArrayList<>();
 
 		public ModelTextures.Builder addLast(ModelTextures.Textures textures) {
-			this.textures.addLast(textures);
+			layers.addLast(textures);
 			return this;
 		}
 
 		public ModelTextures.Builder addFirst(ModelTextures.Textures textures) {
-			this.textures.addFirst(textures);
+			layers.addFirst(textures);
 			return this;
 		}
 
 		/**
-		 * Build.
-		 *
-		 * @param modelNameSupplier model name supplier
-		 *
-		 * @return ModelTextures — результат операции
+		 * Строит итоговую карту текстур, разрешая все ссылки вида {@code #slot}.
+		 * Неразрешённые ссылки логируются как предупреждение.
 		 */
-		public ModelTextures build(SimpleModel modelNameSupplier) {
-			if (this.textures.isEmpty()) {
+		public ModelTextures build(SimpleModel model) {
+			if (layers.isEmpty()) {
 				return ModelTextures.EMPTY;
 			}
-			else {
-				Object2ObjectMap<String, SpriteIdentifier> object2ObjectMap = new Object2ObjectArrayMap();
-				Object2ObjectMap<String, ModelTextures.TextureReferenceEntry>
-						object2ObjectMap2 =
-						new Object2ObjectArrayMap();
 
-				for (ModelTextures.Textures textures : Lists.reverse(this.textures)) {
-					textures.values.forEach((textureId, entryx) -> {
-						switch (entryx) {
-							case ModelTextures.SpriteEntry spriteEntry:
-								object2ObjectMap2.remove(textureId);
-								object2ObjectMap.put(textureId, spriteEntry.material());
-								break;
-							case ModelTextures.TextureReferenceEntry textureReferenceEntry:
-								object2ObjectMap.remove(textureId);
-								object2ObjectMap2.put(textureId, textureReferenceEntry);
-								break;
-							default:
-								throw new MatchException(null, null);
+			Object2ObjectMap<String, SpriteIdentifier> resolved = new Object2ObjectArrayMap<>();
+			Object2ObjectMap<String, ModelTextures.TextureReferenceEntry> unresolved = new Object2ObjectArrayMap<>();
+
+			for (ModelTextures.Textures layer : Lists.reverse(layers)) {
+				layer.values.forEach((textureId, entry) -> {
+					switch (entry) {
+						case ModelTextures.SpriteEntry spriteEntry -> {
+							unresolved.remove(textureId);
+							resolved.put(textureId, spriteEntry.material());
 						}
-					});
-				}
-
-				if (object2ObjectMap2.isEmpty()) {
-					return new ModelTextures(object2ObjectMap);
-				}
-				else {
-					boolean bl = true;
-
-					while (bl) {
-						bl = false;
-						ObjectIterator<it.unimi.dsi.fastutil.objects.Object2ObjectMap.Entry<String, ModelTextures.TextureReferenceEntry>>
-								objectIterator =
-								Object2ObjectMaps.fastIterator(
-										object2ObjectMap2
-								);
-
-						while (objectIterator.hasNext()) {
-							it.unimi.dsi.fastutil.objects.Object2ObjectMap.Entry<String, ModelTextures.TextureReferenceEntry>
-									entry =
-									(it.unimi.dsi.fastutil.objects.Object2ObjectMap.Entry<String, ModelTextures.TextureReferenceEntry>) objectIterator.next();
-							SpriteIdentifier
-									spriteIdentifier =
-									(SpriteIdentifier) object2ObjectMap.get(((ModelTextures.TextureReferenceEntry) entry.getValue()).target);
-							if (spriteIdentifier != null) {
-								object2ObjectMap.put((String) entry.getKey(), spriteIdentifier);
-								objectIterator.remove();
-								bl = true;
-							}
+						case ModelTextures.TextureReferenceEntry refEntry -> {
+							resolved.remove(textureId);
+							unresolved.put(textureId, refEntry);
 						}
+						default -> throw new MatchException(null, null);
 					}
+				});
+			}
 
-					if (!object2ObjectMap2.isEmpty()) {
-						LOGGER.warn(
-								"Unresolved texture references in {}:\n{}",
-								modelNameSupplier.name(),
-								object2ObjectMap2.entrySet()
-								                 .stream()
-								                 .map(entryx -> "\t#" + (String) entryx.getKey() + "-> #"
-										                 + ((ModelTextures.TextureReferenceEntry) entryx.getValue()).target
-										                 + "\n")
-								                 .collect(Collectors.joining())
-						);
+			if (unresolved.isEmpty()) {
+				return new ModelTextures(resolved);
+			}
+
+			// Итеративно разрешаем цепочки ссылок пока есть прогресс
+			boolean progress = true;
+
+			while (progress) {
+				progress = false;
+				ObjectIterator<Object2ObjectMap.Entry<String, ModelTextures.TextureReferenceEntry>> iterator =
+						Object2ObjectMaps.fastIterator(unresolved);
+
+				while (iterator.hasNext()) {
+					Object2ObjectMap.Entry<String, ModelTextures.TextureReferenceEntry> entry = iterator.next();
+					SpriteIdentifier sprite = resolved.get(entry.getValue().target());
+
+					if (sprite != null) {
+						resolved.put(entry.getKey(), sprite);
+						iterator.remove();
+						progress = true;
 					}
-
-					return new ModelTextures(object2ObjectMap);
 				}
 			}
+
+			if (!unresolved.isEmpty()) {
+				LOGGER.warn(
+						"Unresolved texture references in {}:\n{}",
+						model.name(),
+						unresolved.entrySet()
+						          .stream()
+						          .map(e -> "\t#" + e.getKey() + "-> #" + e.getValue().target() + "\n")
+						          .collect(Collectors.joining())
+				);
+			}
+
+			return new ModelTextures(resolved);
 		}
 	}
 
+	/** Запечатанный тип записи текстуры: либо прямой спрайт, либо ссылка на другой слот. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Entry}.
-	 */
 	public sealed interface Entry permits ModelTextures.SpriteEntry, ModelTextures.TextureReferenceEntry {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SpriteEntry}.
-	 */
 	record SpriteEntry(SpriteIdentifier material) implements ModelTextures.Entry {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TextureReferenceEntry}.
-	 */
 	record TextureReferenceEntry(String target) implements ModelTextures.Entry {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Textures}.
+	 * Набор текстурных записей одного слоя модели (из JSON-поля {@code textures}).
+	 * Строится через вложенный {@link Builder}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Textures(Map<String, ModelTextures.Entry> values) {
 
 		public static final ModelTextures.Textures EMPTY = new ModelTextures.Textures(Map.of());
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code Builder}.
-		 */
 		public static class Builder {
 
 			private final Map<String, ModelTextures.Entry> entries = new HashMap<>();
 
 			public ModelTextures.Textures.Builder addTextureReference(String textureId, String target) {
-				this.entries.put(textureId, new ModelTextures.TextureReferenceEntry(target));
+				entries.put(textureId, new ModelTextures.TextureReferenceEntry(target));
 				return this;
 			}
 
 			public ModelTextures.Textures.Builder addSprite(String textureId, SpriteIdentifier spriteId) {
-				this.entries.put(textureId, new ModelTextures.SpriteEntry(spriteId));
+				entries.put(textureId, new ModelTextures.SpriteEntry(spriteId));
 				return this;
 			}
 
 			public ModelTextures.Textures build() {
-				return this.entries.isEmpty() ? ModelTextures.Textures.EMPTY
-				                              : new ModelTextures.Textures(Map.copyOf(this.entries));
+				return entries.isEmpty()
+						? ModelTextures.Textures.EMPTY
+						: new ModelTextures.Textures(Map.copyOf(entries));
 			}
 		}
 	}

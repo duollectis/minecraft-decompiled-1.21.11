@@ -19,7 +19,7 @@ import java.util.function.BiPredicate;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code ExperienceCommand}.
+ * Команда {@code /experience}: управление очками опыта и уровнями игроков.
  */
 public class ExperienceCommand {
 
@@ -305,9 +305,6 @@ public class ExperienceCommand {
 		}
 	}
 
-	/**
-	 * {@code Component}.
-	 */
 	static enum Component {
 		POINTS(
 				"points", PlayerEntity::addExperience, (player, experience) -> {

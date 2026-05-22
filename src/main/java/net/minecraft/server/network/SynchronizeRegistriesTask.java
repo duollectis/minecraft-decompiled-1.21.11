@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@code SynchronizeRegistriesTask}.
+ * Класс Synchronize Registries Task.
  */
 public class SynchronizeRegistriesTask implements ServerPlayerConfigurationTask {
 

@@ -11,29 +11,29 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.function.Predicate;
 
 /**
- * {@code LootCondition}.
+ * Базовый интерфейс для всех условий лут-таблиц.
+ *
+ * <p>Условие проверяется в контексте генерации лута и возвращает {@code true},
+ * если условие выполнено. Поддерживает логические операции через {@link Builder}:
+ * {@link Builder#and}, {@link Builder#or}, {@link Builder#invert}.</p>
  */
 public interface LootCondition extends LootContextAware, Predicate<LootContext> {
 
-	Codec<LootCondition>
-			BASE_CODEC =
-			Registries.LOOT_CONDITION_TYPE
-					.getCodec()
-					.dispatch("condition", LootCondition::getType, LootConditionType::codec);
+	Codec<LootCondition> BASE_CODEC = Registries.LOOT_CONDITION_TYPE
+		.getCodec()
+		.dispatch("condition", LootCondition::getType, LootConditionType::codec);
 
-	Codec<LootCondition>
-			CODEC =
-			Codec.lazyInitialized(() -> Codec.withAlternative(BASE_CODEC, AllOfLootCondition.INLINE_CODEC));
+	Codec<LootCondition> CODEC = Codec.lazyInitialized(
+		() -> Codec.withAlternative(BASE_CODEC, AllOfLootCondition.INLINE_CODEC)
+	);
 
 	Codec<RegistryEntry<LootCondition>> ENTRY_CODEC = RegistryElementCodec.of(RegistryKeys.PREDICATE, CODEC);
 
 	LootConditionType getType();
 
+	/** Строитель условия с поддержкой логических операций. */
 	@FunctionalInterface
-	/**
-	 * {@code Builder}.
-	 */
-	public interface Builder {
+	interface Builder {
 
 		LootCondition build();
 

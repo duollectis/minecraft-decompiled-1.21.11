@@ -11,17 +11,19 @@ import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 import java.util.stream.Stream;
 
 /**
- * {@code CheckerboardBiomeSource}.
+ * Источник биомов, расставляющий биомы в шахматном порядке по сетке заданного масштаба.
+ * Используется преимущественно в отладочных и тестовых целях.
  */
 public class CheckerboardBiomeSource extends BiomeSource {
 
 	public static final MapCodec<CheckerboardBiomeSource> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Biome.REGISTRY_ENTRY_LIST_CODEC.fieldOf("biomes").forGetter(biomeSource -> biomeSource.biomeArray),
-					                    Codec.intRange(0, 62).fieldOf("scale").orElse(2).forGetter(biomeSource -> biomeSource.scale)
-			                    )
-			                    .apply(instance, CheckerboardBiomeSource::new)
+		instance -> instance.group(
+			Biome.REGISTRY_ENTRY_LIST_CODEC.fieldOf("biomes").forGetter(source -> source.biomeArray),
+			Codec.intRange(0, 62).fieldOf("scale").orElse(2).forGetter(source -> source.scale)
+		)
+		.apply(instance, CheckerboardBiomeSource::new)
 	);
+
 	private final RegistryEntryList<Biome> biomeArray;
 	private final int gridSize;
 	private final int scale;
@@ -34,7 +36,7 @@ public class CheckerboardBiomeSource extends BiomeSource {
 
 	@Override
 	protected Stream<RegistryEntry<Biome>> biomeStream() {
-		return this.biomeArray.stream();
+		return biomeArray.stream();
 	}
 
 	@Override
@@ -44,6 +46,6 @@ public class CheckerboardBiomeSource extends BiomeSource {
 
 	@Override
 	public RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise) {
-		return this.biomeArray.get(Math.floorMod((x >> this.gridSize) + (z >> this.gridSize), this.biomeArray.size()));
+		return biomeArray.get(Math.floorMod((x >> gridSize) + (z >> gridSize), biomeArray.size()));
 	}
 }

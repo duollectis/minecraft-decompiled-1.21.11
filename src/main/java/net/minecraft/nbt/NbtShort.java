@@ -9,22 +9,20 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtShort}.
+ * NBT-элемент, хранящий значение типа {@code short}.
+ *
+ * <p>Значения в диапазоне [{@link Cache#MIN}, {@link Cache#MAX}] кэшируются.
+ * Используйте фабричный метод {@link #of(short)} вместо конструктора record.</p>
  */
 public record NbtShort(short value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 2 байта данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 10;
-	public static final NbtType<NbtShort> TYPE = new NbtType.OfFixedSize<NbtShort>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtShort — результат операции
-		 */
-		public NbtShort read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtShort.of(readShort(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtShort> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtShort read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtShort.of(readShort(input, tracker));
 		}
 
 		@Override
@@ -34,7 +32,7 @@ public record NbtShort(short value) implements AbstractNbtNumber {
 		}
 
 		private static short readShort(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(10L);
+			tracker.add(SIZE);
 			return input.readShort();
 		}
 
@@ -60,29 +58,31 @@ public record NbtShort(short value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает кэшированный экземпляр для значений в диапазоне кэша,
+	 * иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtShort — результат операции
+	 * @param value значение short
+	 * @return {@link NbtShort} для заданного значения
 	 */
 	public static NbtShort of(short value) {
-		return value >= -128 && value <= 1024 ? NbtShort.Cache.VALUES[value - -128] : new NbtShort(value);
+		return value >= Cache.MIN && value <= Cache.MAX
+				? Cache.VALUES[value - Cache.MIN]
+				: new NbtShort(value);
 	}
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeShort(this.value);
+		output.writeShort(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 10;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 2;
+		return SHORT_TYPE;
 	}
 
 	@Override
@@ -90,11 +90,7 @@ public record NbtShort(short value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtShort — результат операции
-	 */
+	@Override
 	public NbtShort copy() {
 		return this;
 	}
@@ -106,66 +102,64 @@ public record NbtShort(short value) implements AbstractNbtNumber {
 
 	@Override
 	public long longValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int intValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public short shortValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public byte byteValue() {
-		return (byte) (this.value & 255);
+		return (byte) (value & 0xFF);
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitShort(this.value);
+		return visitor.visitShort(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitShort(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitShort(this);
+		return writer.getString();
 	}
 
-	/**
-	 * {@code Cache}.
-	 */
+	/** Кэш часто используемых значений short. */
 	static class Cache {
 
-		private static final int MAX = 1024;
-		private static final int MIN = -128;
-		static final NbtShort[] VALUES = new NbtShort[1153];
+		static final int MIN = -128;
+		static final int MAX = 1024;
+		static final NbtShort[] VALUES = new NbtShort[MAX - MIN + 1];
 
 		private Cache() {
 		}
 
 		static {
-			for (int i = 0; i < VALUES.length; i++) {
-				VALUES[i] = new NbtShort((short) (-128 + i));
+			for (int index = 0; index < VALUES.length; index++) {
+				VALUES[index] = new NbtShort((short) (MIN + index));
 			}
 		}
 	}

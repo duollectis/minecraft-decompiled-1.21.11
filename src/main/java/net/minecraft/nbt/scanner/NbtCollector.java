@@ -7,91 +7,96 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * {@code NbtCollector}.
+ * Реализация {@link NbtScanner}, которая собирает NBT-структуру в памяти.
+ * <p>
+ * Использует стек {@link Node} для отслеживания текущего контекста:
+ * при входе в компаунд или список добавляет соответствующий узел,
+ * при выходе — извлекает и добавляет результат в родительский узел.
+ * Корневой элемент доступен через {@link #getRoot()}.
  */
 public class NbtCollector implements NbtScanner {
 
 	private final Deque<NbtCollector.Node> queue = new ArrayDeque<>();
 
 	public NbtCollector() {
-		this.queue.addLast(new NbtCollector.RootNode());
+		queue.addLast(new NbtCollector.RootNode());
 	}
 
 	public @Nullable NbtElement getRoot() {
-		return this.queue.getFirst().getValue();
+		return queue.getFirst().getValue();
 	}
 
 	protected int getDepth() {
-		return this.queue.size() - 1;
+		return queue.size() - 1;
 	}
 
 	private void append(NbtElement nbt) {
-		this.queue.getLast().append(nbt);
+		queue.getLast().append(nbt);
 	}
 
 	@Override
 	public NbtScanner.Result visitEnd() {
-		this.append(NbtEnd.INSTANCE);
+		append(NbtEnd.INSTANCE);
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitString(String value) {
-		this.append(NbtString.of(value));
+		append(NbtString.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitByte(byte value) {
-		this.append(NbtByte.of(value));
+		append(NbtByte.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitShort(short value) {
-		this.append(NbtShort.of(value));
+		append(NbtShort.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitInt(int value) {
-		this.append(NbtInt.of(value));
+		append(NbtInt.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitLong(long value) {
-		this.append(NbtLong.of(value));
+		append(NbtLong.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitFloat(float value) {
-		this.append(NbtFloat.of(value));
+		append(NbtFloat.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitDouble(double value) {
-		this.append(NbtDouble.of(value));
+		append(NbtDouble.of(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitByteArray(byte[] value) {
-		this.append(new NbtByteArray(value));
+		append(new NbtByteArray(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitIntArray(int[] value) {
-		this.append(new NbtIntArray(value));
+		append(new NbtIntArray(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	@Override
 	public NbtScanner.Result visitLongArray(long[] value) {
-		this.append(new NbtLongArray(value));
+		append(new NbtLongArray(value));
 		return NbtScanner.Result.CONTINUE;
 	}
 
@@ -102,7 +107,7 @@ public class NbtCollector implements NbtScanner {
 
 	@Override
 	public NbtScanner.NestedResult startListItem(NbtType<?> type, int index) {
-		this.pushStack(type);
+		pushStack(type);
 		return NbtScanner.NestedResult.ENTER;
 	}
 
@@ -113,26 +118,26 @@ public class NbtCollector implements NbtScanner {
 
 	@Override
 	public NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key) {
-		this.queue.getLast().setKey(key);
-		this.pushStack(type);
+		queue.getLast().setKey(key);
+		pushStack(type);
 		return NbtScanner.NestedResult.ENTER;
 	}
 
 	private void pushStack(NbtType<?> type) {
 		if (type == NbtList.TYPE) {
-			this.queue.addLast(new NbtCollector.ListNode());
+			queue.addLast(new NbtCollector.ListNode());
 		}
 		else if (type == NbtCompound.TYPE) {
-			this.queue.addLast(new NbtCollector.CompoundNode());
+			queue.addLast(new NbtCollector.CompoundNode());
 		}
 	}
 
 	@Override
 	public NbtScanner.Result endNested() {
-		NbtCollector.Node node = this.queue.removeLast();
-		NbtElement nbtElement = node.getValue();
-		if (nbtElement != null) {
-			this.queue.getLast().append(nbtElement);
+		NbtCollector.Node node = queue.removeLast();
+		NbtElement element = node.getValue();
+		if (element != null) {
+			queue.getLast().append(element);
 		}
 
 		return NbtScanner.Result.CONTINUE;
@@ -140,12 +145,13 @@ public class NbtCollector implements NbtScanner {
 
 	@Override
 	public NbtScanner.Result start(NbtType<?> rootType) {
-		this.pushStack(rootType);
+		pushStack(rootType);
 		return NbtScanner.Result.CONTINUE;
 	}
 
 	/**
-	 * {@code CompoundNode}.
+	 * Узел для сборки {@link NbtCompound}.
+	 * Хранит текущий ключ, который устанавливается перед добавлением каждого поля.
 	 */
 	static class CompoundNode implements NbtCollector.Node {
 
@@ -159,35 +165,37 @@ public class NbtCollector implements NbtScanner {
 
 		@Override
 		public void append(NbtElement value) {
-			this.value.put(this.key, value);
+			this.value.put(key, value);
 		}
 
 		@Override
 		public NbtElement getValue() {
-			return this.value;
+			return value;
 		}
 	}
 
 	/**
-	 * {@code ListNode}.
+	 * Узел для сборки {@link NbtList}.
+	 * Добавляет элементы через {@link NbtList#unwrapAndAdd} для корректной обработки обёрток.
 	 */
 	static class ListNode implements NbtCollector.Node {
 
 		private final NbtList value = new NbtList();
 
 		@Override
-		public void append(NbtElement value) {
-			this.value.unwrapAndAdd(value);
+		public void append(NbtElement element) {
+			value.unwrapAndAdd(element);
 		}
 
 		@Override
 		public NbtElement getValue() {
-			return this.value;
+			return value;
 		}
 	}
 
 	/**
-	 * {@code Node}.
+	 * Интерфейс узла стека сборки.
+	 * Каждый узел накапливает дочерние элементы и возвращает готовый результат.
 	 */
 	interface Node {
 
@@ -200,7 +208,7 @@ public class NbtCollector implements NbtScanner {
 	}
 
 	/**
-	 * {@code RootNode}.
+	 * Корневой узел — хранит единственный элемент верхнего уровня.
 	 */
 	static class RootNode implements NbtCollector.Node {
 
@@ -213,7 +221,7 @@ public class NbtCollector implements NbtScanner {
 
 		@Override
 		public @Nullable NbtElement getValue() {
-			return this.value;
+			return value;
 		}
 	}
 }

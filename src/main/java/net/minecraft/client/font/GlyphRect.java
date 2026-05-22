@@ -4,10 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.Style;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphRect}.
+ * Прямоугольная область глифа в экранных координатах.
+ * Используется для позиционирования эффектов (подчёркивание, зачёркивание, тень).
  */
+@Environment(EnvType.CLIENT)
 public interface GlyphRect {
 
 	Style style();

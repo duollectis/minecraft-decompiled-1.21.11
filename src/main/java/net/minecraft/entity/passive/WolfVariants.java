@@ -14,7 +14,7 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 
 /**
- * {@code WolfVariants}.
+ * Реестр вариантов волка.
  */
 public class WolfVariants {
 

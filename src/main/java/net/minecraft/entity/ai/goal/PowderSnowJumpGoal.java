@@ -11,7 +11,8 @@ import net.minecraft.world.World;
 import java.util.EnumSet;
 
 /**
- * {@code PowderSnowJumpGoal}.
+ * Цель прыжка из порошкового снега: активируется, если моб находится в снегу
+ * и над ним есть ещё один слой снега или пустое пространство.
  */
 public class PowderSnowJumpGoal extends Goal {
 
@@ -26,16 +27,16 @@ public class PowderSnowJumpGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		boolean bl = this.entity.wasInPowderSnow || this.entity.inPowderSnow;
-		if (bl && this.entity.getType().isIn(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS)) {
-			BlockPos blockPos = this.entity.getBlockPos().up();
-			BlockState blockState = this.world.getBlockState(blockPos);
-			return blockState.isOf(Blocks.POWDER_SNOW)
-					|| blockState.getCollisionShape(this.world, blockPos) == VoxelShapes.empty();
-		}
-		else {
+		boolean inSnow = entity.wasInPowderSnow || entity.inPowderSnow;
+
+		if (!inSnow || !entity.getType().isIn(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS)) {
 			return false;
 		}
+
+		BlockPos above = entity.getBlockPos().up();
+		BlockState aboveState = world.getBlockState(above);
+		return aboveState.isOf(Blocks.POWDER_SNOW)
+			|| aboveState.getCollisionShape(world, above) == VoxelShapes.empty();
 	}
 
 	@Override
@@ -45,6 +46,6 @@ public class PowderSnowJumpGoal extends Goal {
 
 	@Override
 	public void tick() {
-		this.entity.getJumpControl().setActive();
+		entity.getJumpControl().setActive();
 	}
 }

@@ -1,26 +1,17 @@
 package net.minecraft.recipe.book;
 
 /**
- * {@code RecipeCategory}.
+ * Категория рецепта в книге рецептов, используемая для группировки
+ * рецептов крафтового стола по тематическим вкладкам.
  */
 public enum RecipeCategory {
-	BUILDING_BLOCKS("building_blocks"),
-	DECORATIONS("decorations"),
-	REDSTONE("redstone"),
-	TRANSPORTATION("transportation"),
-	TOOLS("tools"),
-	COMBAT("combat"),
-	FOOD("food"),
-	BREWING("brewing"),
-	MISC("misc");
-
-	private final String name;
-
-	private RecipeCategory(final String name) {
-		this.name = name;
-	}
-
-	public String getName() {
-		return this.name;
-	}
+	BUILDING_BLOCKS,
+	DECORATIONS,
+	REDSTONE,
+	TRANSPORTATION,
+	MISC,
+	FOOD,
+	TOOLS,
+	COMBAT,
+	BREWING
 }

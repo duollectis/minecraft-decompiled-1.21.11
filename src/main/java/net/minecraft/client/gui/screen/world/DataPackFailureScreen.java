@@ -11,11 +11,15 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DataPackFailureScreen}.
+ * Экран ошибки загрузки датапаков при открытии мира.
+ * Предлагает запустить сервер в безопасном режиме или вернуться назад.
  */
+@Environment(EnvType.CLIENT)
 public class DataPackFailureScreen extends Screen {
+
+	private static final int TEXT_Y = 70;
+	private static final int LINE_HEIGHT = 9;
 
 	private MultilineText wrappedText = MultilineText.EMPTY;
 	private final Runnable goBack;
@@ -30,20 +34,21 @@ public class DataPackFailureScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		this.wrappedText = MultilineText.create(this.textRenderer, this.getTitle(), this.width - 50);
-		this.addDrawableChild(
+		wrappedText = MultilineText.create(textRenderer, getTitle(), width - 50);
+
+		addDrawableChild(
 				ButtonWidget
 						.builder(
 								Text.translatable("datapackFailure.safeMode"),
-								button -> this.runServerInSafeMode.run()
+								button -> runServerInSafeMode.run()
 						)
-						.dimensions(this.width / 2 - 155, this.height / 6 + 96, 150, 20)
+						.dimensions(width / 2 - 155, height / 6 + 96, 150, 20)
 						.build()
 		);
-		this.addDrawableChild(
+		addDrawableChild(
 				ButtonWidget
-						.builder(ScreenTexts.BACK, button -> this.goBack.run())
-						.dimensions(this.width / 2 - 155 + 160, this.height / 6 + 96, 150, 20)
+						.builder(ScreenTexts.BACK, button -> goBack.run())
+						.dimensions(width / 2 - 155 + 160, height / 6 + 96, 150, 20)
 						.build()
 		);
 	}
@@ -51,8 +56,8 @@ public class DataPackFailureScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		this.wrappedText.draw(Alignment.CENTER, this.width / 2, 70, 9, drawnTextConsumer);
+		DrawnTextConsumer textConsumer = context.getTextConsumer();
+		wrappedText.draw(Alignment.CENTER, width / 2, TEXT_Y, LINE_HEIGHT, textConsumer);
 	}
 
 	@Override

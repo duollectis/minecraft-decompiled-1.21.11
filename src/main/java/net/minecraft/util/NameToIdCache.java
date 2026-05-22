@@ -6,7 +6,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code NameToIdCache}.
+ * Кэш для поиска записей конфигурации игроков по имени или UUID.
+ * Используется для разрешения имён игроков в offline-режиме и при управлении белым списком.
  */
 public interface NameToIdCache {
 

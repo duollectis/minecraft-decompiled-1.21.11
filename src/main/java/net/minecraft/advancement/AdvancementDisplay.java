@@ -12,32 +12,34 @@ import net.minecraft.util.AssetInfo;
 import java.util.Optional;
 
 /**
- * {@code AdvancementDisplay}.
+ * Описывает визуальное представление достижения: иконку, заголовок, описание,
+ * фоновое изображение, тип рамки и флаги видимости.
+ * <p>
+ * Позиция {@code x}/{@code y} на дереве достижений задаётся отдельно через {@link #setPos}.
  */
 public class AdvancementDisplay {
 
+	// Битовые флаги для сериализации в пакет
+	private static final int FLAG_HAS_BACKGROUND = 1;
+	private static final int FLAG_SHOW_TOAST = 2;
+	private static final int FLAG_HIDDEN = 4;
+
 	public static final Codec<AdvancementDisplay> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    ItemStack.VALIDATED_CODEC.fieldOf("icon").forGetter(AdvancementDisplay::getIcon),
-					                    TextCodecs.CODEC.fieldOf("title").forGetter(AdvancementDisplay::getTitle),
-					                    TextCodecs.CODEC.fieldOf("description").forGetter(AdvancementDisplay::getDescription),
-					                    AssetInfo.TextureAssetInfo.CODEC
-							                    .optionalFieldOf("background")
-							                    .forGetter(AdvancementDisplay::getBackground),
-					                    AdvancementFrame.CODEC
-							                    .optionalFieldOf("frame", AdvancementFrame.TASK)
-							                    .forGetter(AdvancementDisplay::getFrame),
-					                    Codec.BOOL.optionalFieldOf("show_toast", true).forGetter(AdvancementDisplay::shouldShowToast),
-					                    Codec.BOOL
-							                    .optionalFieldOf("announce_to_chat", true)
-							                    .forGetter(AdvancementDisplay::shouldAnnounceToChat),
-					                    Codec.BOOL.optionalFieldOf("hidden", false).forGetter(AdvancementDisplay::isHidden)
-			                    )
-			                    .apply(instance, AdvancementDisplay::new)
+		instance -> instance.group(
+			ItemStack.VALIDATED_CODEC.fieldOf("icon").forGetter(AdvancementDisplay::getIcon),
+			TextCodecs.CODEC.fieldOf("title").forGetter(AdvancementDisplay::getTitle),
+			TextCodecs.CODEC.fieldOf("description").forGetter(AdvancementDisplay::getDescription),
+			AssetInfo.TextureAssetInfo.CODEC.optionalFieldOf("background").forGetter(AdvancementDisplay::getBackground),
+			AdvancementFrame.CODEC.optionalFieldOf("frame", AdvancementFrame.TASK).forGetter(AdvancementDisplay::getFrame),
+			Codec.BOOL.optionalFieldOf("show_toast", true).forGetter(AdvancementDisplay::shouldShowToast),
+			Codec.BOOL.optionalFieldOf("announce_to_chat", true).forGetter(AdvancementDisplay::shouldAnnounceToChat),
+			Codec.BOOL.optionalFieldOf("hidden", false).forGetter(AdvancementDisplay::isHidden)
+		).apply(instance, AdvancementDisplay::new)
 	);
-	public static final PacketCodec<RegistryByteBuf, AdvancementDisplay> PACKET_CODEC = PacketCodec.of(
-			AdvancementDisplay::toPacket, AdvancementDisplay::fromPacket
-	);
+
+	public static final PacketCodec<RegistryByteBuf, AdvancementDisplay> PACKET_CODEC =
+		PacketCodec.of(AdvancementDisplay::toPacket, AdvancementDisplay::fromPacket);
+
 	private final Text title;
 	private final Text description;
 	private final ItemStack icon;
@@ -50,14 +52,14 @@ public class AdvancementDisplay {
 	private float y;
 
 	public AdvancementDisplay(
-			ItemStack icon,
-			Text title,
-			Text description,
-			Optional<AssetInfo.TextureAssetInfo> background,
-			AdvancementFrame frame,
-			boolean showToast,
-			boolean announceToChat,
-			boolean hidden
+		ItemStack icon,
+		Text title,
+		Text description,
+		Optional<AssetInfo.TextureAssetInfo> background,
+		AdvancementFrame frame,
+		boolean showToast,
+		boolean announceToChat,
+		boolean hidden
 	) {
 		this.title = title;
 		this.description = description;
@@ -75,84 +77,84 @@ public class AdvancementDisplay {
 	}
 
 	public Text getTitle() {
-		return this.title;
+		return title;
 	}
 
 	public Text getDescription() {
-		return this.description;
+		return description;
 	}
 
 	public ItemStack getIcon() {
-		return this.icon;
+		return icon;
 	}
 
 	public Optional<AssetInfo.TextureAssetInfo> getBackground() {
-		return this.background;
+		return background;
 	}
 
 	public AdvancementFrame getFrame() {
-		return this.frame;
+		return frame;
 	}
 
 	public float getX() {
-		return this.x;
+		return x;
 	}
 
 	public float getY() {
-		return this.y;
+		return y;
 	}
 
 	public boolean shouldShowToast() {
-		return this.showToast;
+		return showToast;
 	}
 
 	public boolean shouldAnnounceToChat() {
-		return this.announceToChat;
+		return announceToChat;
 	}
 
 	public boolean isHidden() {
-		return this.hidden;
+		return hidden;
 	}
 
 	private void toPacket(RegistryByteBuf buf) {
-		TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.title);
-		TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.description);
-		ItemStack.PACKET_CODEC.encode(buf, this.icon);
-		buf.writeEnumConstant(this.frame);
-		int i = 0;
-		if (this.background.isPresent()) {
-			i |= 1;
+		TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, title);
+		TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, description);
+		ItemStack.PACKET_CODEC.encode(buf, icon);
+		buf.writeEnumConstant(frame);
+
+		int flags = 0;
+		if (background.isPresent()) {
+			flags |= FLAG_HAS_BACKGROUND;
+		}
+		if (showToast) {
+			flags |= FLAG_SHOW_TOAST;
+		}
+		if (hidden) {
+			flags |= FLAG_HIDDEN;
 		}
 
-		if (this.showToast) {
-			i |= 2;
-		}
-
-		if (this.hidden) {
-			i |= 4;
-		}
-
-		buf.writeInt(i);
-		this.background.map(AssetInfo::id).ifPresent(buf::writeIdentifier);
-		buf.writeFloat(this.x);
-		buf.writeFloat(this.y);
+		buf.writeInt(flags);
+		background.map(AssetInfo::id).ifPresent(buf::writeIdentifier);
+		buf.writeFloat(x);
+		buf.writeFloat(y);
 	}
 
 	private static AdvancementDisplay fromPacket(RegistryByteBuf buf) {
-		Text text = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-		Text text2 = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-		ItemStack itemStack = ItemStack.PACKET_CODEC.decode(buf);
-		AdvancementFrame advancementFrame = buf.readEnumConstant(AdvancementFrame.class);
-		int i = buf.readInt();
-		Optional<AssetInfo.TextureAssetInfo>
-				optional =
-				(i & 1) != 0 ? Optional.of(new AssetInfo.TextureAssetInfo(buf.readIdentifier())) : Optional.empty();
-		boolean bl = (i & 2) != 0;
-		boolean bl2 = (i & 4) != 0;
-		AdvancementDisplay
-				advancementDisplay =
-				new AdvancementDisplay(itemStack, text, text2, optional, advancementFrame, bl, false, bl2);
-		advancementDisplay.setPos(buf.readFloat(), buf.readFloat());
-		return advancementDisplay;
+		Text title = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+		Text description = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+		ItemStack icon = ItemStack.PACKET_CODEC.decode(buf);
+		AdvancementFrame frame = buf.readEnumConstant(AdvancementFrame.class);
+		int flags = buf.readInt();
+
+		Optional<AssetInfo.TextureAssetInfo> background = (flags & FLAG_HAS_BACKGROUND) != 0
+			? Optional.of(new AssetInfo.TextureAssetInfo(buf.readIdentifier()))
+			: Optional.empty();
+
+		boolean showToast = (flags & FLAG_SHOW_TOAST) != 0;
+		boolean hidden = (flags & FLAG_HIDDEN) != 0;
+
+		AdvancementDisplay display = new AdvancementDisplay(icon, title, description, background, frame, showToast, false, hidden);
+		display.setPos(buf.readFloat(), buf.readFloat());
+		return display;
 	}
 }

@@ -12,7 +12,10 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code LivingTargetCache}.
+ * Кэш видимых живых сущностей для мозга.
+ * Хранит список ближайших сущностей и лениво вычисляет их видимость
+ * через {@link Sensor#testTargetPredicate}, кэшируя результат в {@link Object2BooleanOpenHashMap}.
+ * Это позволяет избежать повторных дорогостоящих raycast-проверок за один тик.
  */
 public class LivingTargetCache {
 
@@ -21,88 +24,46 @@ public class LivingTargetCache {
 	private final Predicate<LivingEntity> targetPredicate;
 
 	private LivingTargetCache() {
-		this.entities = List.of();
-		this.targetPredicate = entity -> false;
+		entities = List.of();
+		targetPredicate = entity -> false;
 	}
 
 	public LivingTargetCache(ServerWorld world, LivingEntity owner, List<LivingEntity> entities) {
 		this.entities = entities;
-		Object2BooleanOpenHashMap<LivingEntity>
-				object2BooleanOpenHashMap =
-				new Object2BooleanOpenHashMap(entities.size());
-		Predicate<LivingEntity> predicate = target -> Sensor.testTargetPredicate(world, owner, target);
-		this.targetPredicate = entity -> object2BooleanOpenHashMap.computeIfAbsent(entity, predicate);
+		Object2BooleanOpenHashMap<LivingEntity> visibilityCache = new Object2BooleanOpenHashMap<>(entities.size());
+		Predicate<LivingEntity> visibilityTest = target -> Sensor.testTargetPredicate(world, owner, target);
+		targetPredicate = entity -> visibilityCache.computeIfAbsent(entity, visibilityTest);
 	}
 
-	/**
-	 * Empty.
-	 *
-	 * @return LivingTargetCache — результат операции
-	 */
 	public static LivingTargetCache empty() {
 		return EMPTY;
 	}
 
-	/**
-	 * Ищет first.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return Optional — first
-	 */
 	public Optional<LivingEntity> findFirst(Predicate<LivingEntity> predicate) {
-		for (LivingEntity livingEntity : this.entities) {
-			if (predicate.test(livingEntity) && this.targetPredicate.test(livingEntity)) {
-				return Optional.of(livingEntity);
+		for (LivingEntity entity : entities) {
+			if (predicate.test(entity) && targetPredicate.test(entity)) {
+				return Optional.of(entity);
 			}
 		}
 
 		return Optional.empty();
 	}
 
-	/**
-	 * Iterate.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public Iterable<LivingEntity> iterate(Predicate<LivingEntity> predicate) {
-		return Iterables.filter(this.entities, entity -> predicate.test(entity) && this.targetPredicate.test(entity));
+		return Iterables.filter(entities, entity -> predicate.test(entity) && targetPredicate.test(entity));
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<LivingEntity> stream(Predicate<LivingEntity> predicate) {
-		return this.entities.stream().filter(entity -> predicate.test(entity) && this.targetPredicate.test(entity));
+		return entities.stream().filter(entity -> predicate.test(entity) && targetPredicate.test(entity));
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(LivingEntity entity) {
-		return this.entities.contains(entity) && this.targetPredicate.test(entity);
+		return entities.contains(entity) && targetPredicate.test(entity);
 	}
 
-	/**
-	 * Any match.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean anyMatch(Predicate<LivingEntity> predicate) {
-		for (LivingEntity livingEntity : this.entities) {
-			if (predicate.test(livingEntity) && this.targetPredicate.test(livingEntity)) {
+		for (LivingEntity entity : entities) {
+			if (predicate.test(entity) && targetPredicate.test(entity)) {
 				return true;
 			}
 		}

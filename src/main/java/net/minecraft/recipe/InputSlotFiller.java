@@ -13,11 +13,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code InputSlotFiller}.
+ * Заполняет слоты сетки крафта предметами из инвентаря игрока для выбранного рецепта.
+ * Поддерживает режим «скрафтить всё» (craftAll) и обычный одиночный крафт.
+ * Перед заполнением проверяет, можно ли вернуть текущие предметы из сетки в инвентарь.
  */
 public class InputSlotFiller<R extends Recipe<?>> {
 
 	private static final int NO_SLOT = -1;
+
 	private final PlayerInventory inventory;
 	private final InputSlotFiller.Handler<R> handler;
 	private final boolean craftAll;
@@ -26,39 +29,42 @@ public class InputSlotFiller<R extends Recipe<?>> {
 	private final List<Slot> inputSlots;
 	private final List<Slot> slotsToReturn;
 
+	/**
+	 * Создаёт заполнитель и немедленно выполняет заполнение сетки.
+	 * Если инвентарь не в режиме creative и предметы нельзя вернуть — возвращает {@code PLACE_GHOST_RECIPE}.
+	 */
 	public static <I extends RecipeInput, R extends Recipe<I>> AbstractRecipeScreenHandler.PostFillAction fill(
-			InputSlotFiller.Handler<R> handler,
-			int width,
-			int height,
-			List<Slot> inputSlots,
-			List<Slot> slotsToReturn,
-			PlayerInventory inventory,
-			RecipeEntry<R> recipe,
-			boolean craftAll,
-			boolean creative
+		InputSlotFiller.Handler<R> handler,
+		int width,
+		int height,
+		List<Slot> inputSlots,
+		List<Slot> slotsToReturn,
+		PlayerInventory inventory,
+		RecipeEntry<R> recipe,
+		boolean craftAll,
+		boolean creative
 	) {
-		InputSlotFiller<R>
-				inputSlotFiller =
-				new InputSlotFiller<>(handler, inventory, craftAll, width, height, inputSlots, slotsToReturn);
-		if (!creative && !inputSlotFiller.canReturnInputs()) {
+		InputSlotFiller<R> filler = new InputSlotFiller<>(handler, inventory, craftAll, width, height, inputSlots, slotsToReturn);
+
+		if (!creative && !filler.canReturnInputs()) {
 			return AbstractRecipeScreenHandler.PostFillAction.NOTHING;
 		}
-		else {
-			RecipeFinder recipeFinder = new RecipeFinder();
-			inventory.populateRecipeFinder(recipeFinder);
-			handler.populateRecipeFinder(recipeFinder);
-			return inputSlotFiller.tryFill(recipe, recipeFinder);
-		}
+
+		RecipeFinder recipeFinder = new RecipeFinder();
+		inventory.populateRecipeFinder(recipeFinder);
+		handler.populateRecipeFinder(recipeFinder);
+
+		return filler.tryFill(recipe, recipeFinder);
 	}
 
 	private InputSlotFiller(
-			InputSlotFiller.Handler<R> handler,
-			PlayerInventory inventory,
-			boolean craftAll,
-			int width,
-			int height,
-			List<Slot> inputSlots,
-			List<Slot> slotsToReturn
+		InputSlotFiller.Handler<R> handler,
+		PlayerInventory inventory,
+		boolean craftAll,
+		int width,
+		int height,
+		List<Slot> inputSlots,
+		List<Slot> slotsToReturn
 	) {
 		this.handler = handler;
 		this.inventory = inventory;
@@ -71,165 +77,175 @@ public class InputSlotFiller<R extends Recipe<?>> {
 
 	private AbstractRecipeScreenHandler.PostFillAction tryFill(RecipeEntry<R> recipe, RecipeFinder finder) {
 		if (finder.isCraftable(recipe.value(), null)) {
-			this.fill(recipe, finder);
-			this.inventory.markDirty();
+			fill(recipe, finder);
+			inventory.markDirty();
 			return AbstractRecipeScreenHandler.PostFillAction.NOTHING;
 		}
-		else {
-			this.returnInputs();
-			this.inventory.markDirty();
-			return AbstractRecipeScreenHandler.PostFillAction.PLACE_GHOST_RECIPE;
-		}
+
+		returnInputs();
+		inventory.markDirty();
+
+		return AbstractRecipeScreenHandler.PostFillAction.PLACE_GHOST_RECIPE;
 	}
 
 	private void returnInputs() {
-		for (Slot slot : this.slotsToReturn) {
-			ItemStack itemStack = slot.getStack().copy();
-			this.inventory.offer(itemStack, false);
-			slot.setStackNoCallbacks(itemStack);
+		for (Slot slot : slotsToReturn) {
+			ItemStack stack = slot.getStack().copy();
+			inventory.offer(stack, false);
+			slot.setStackNoCallbacks(stack);
 		}
 
-		this.handler.clear();
+		handler.clear();
 	}
 
 	private void fill(RecipeEntry<R> recipe, RecipeFinder finder) {
-		boolean bl = this.handler.matches(recipe);
-		int i = finder.countCrafts(recipe.value(), null);
-		if (bl) {
-			for (Slot slot : this.inputSlots) {
-				ItemStack itemStack = slot.getStack();
-				if (!itemStack.isEmpty() && Math.min(i, itemStack.getMaxCount()) < itemStack.getCount() + 1) {
+		boolean alreadyMatches = handler.matches(recipe);
+		int maxCrafts = finder.countCrafts(recipe.value(), null);
+
+		if (alreadyMatches) {
+			for (Slot slot : inputSlots) {
+				ItemStack stack = slot.getStack();
+
+				if (!stack.isEmpty() && Math.min(maxCrafts, stack.getMaxCount()) < stack.getCount() + 1) {
 					return;
 				}
 			}
 		}
 
-		int j = this.calculateCraftAmount(i, bl);
-		List<RegistryEntry<Item>> list = new ArrayList<>();
-		if (finder.isCraftable(recipe.value(), j, list::add)) {
-			int k = clampToMaxCount(j, list);
-			if (k != j) {
-				list.clear();
-				if (!finder.isCraftable(recipe.value(), k, list::add)) {
+		int craftAmount = calculateCraftAmount(maxCrafts, alreadyMatches);
+		List<RegistryEntry<Item>> consumedItems = new ArrayList<>();
+
+		if (finder.isCraftable(recipe.value(), craftAmount, consumedItems::add)) {
+			int clampedAmount = clampToMaxCount(craftAmount, consumedItems);
+
+			if (clampedAmount != craftAmount) {
+				consumedItems.clear();
+
+				if (!finder.isCraftable(recipe.value(), clampedAmount, consumedItems::add)) {
 					return;
 				}
 			}
 
-			this.returnInputs();
-			RecipeGridAligner.alignRecipeToGrid(
-					this.width,
-					this.height,
-					recipe.value(),
-					recipe.value().getIngredientPlacement().getPlacementSlots(),
-					(slotx, index, x, y) -> {
-						if (slotx != -1) {
-							Slot slot2 = this.inputSlots.get(index);
-							RegistryEntry<Item> registryEntry = list.get(slotx);
-							int jx = k;
+			returnInputs();
 
-							while (jx > 0) {
-								jx = this.fillInputSlot(slot2, registryEntry, jx);
-								if (jx == -1) {
-									return;
-								}
-							}
+			RecipeGridAligner.alignRecipeToGrid(
+				width,
+				height,
+				recipe.value(),
+				recipe.value().getIngredientPlacement().getPlacementSlots(),
+				(slotIngredientIndex, index, x, y) -> {
+					if (slotIngredientIndex == NO_SLOT) {
+						return;
+					}
+
+					Slot targetSlot = inputSlots.get(index);
+					RegistryEntry<Item> item = consumedItems.get(slotIngredientIndex);
+					int remaining = clampedAmount;
+
+					while (remaining > 0) {
+						remaining = fillInputSlot(targetSlot, item, remaining);
+
+						if (remaining == NO_SLOT) {
+							return;
 						}
 					}
+				}
 			);
 		}
 	}
 
 	private static int clampToMaxCount(int count, List<RegistryEntry<Item>> entries) {
-		for (RegistryEntry<Item> registryEntry : entries) {
-			count = Math.min(count, registryEntry.value().getMaxCount());
+		for (RegistryEntry<Item> entry : entries) {
+			count = Math.min(count, entry.value().getMaxCount());
 		}
 
 		return count;
 	}
 
-	private int calculateCraftAmount(int forCraftAll, boolean match) {
-		if (this.craftAll) {
-			return forCraftAll;
+	private int calculateCraftAmount(int maxCrafts, boolean alreadyMatches) {
+		if (craftAll) {
+			return maxCrafts;
 		}
-		else if (match) {
-			int i = Integer.MAX_VALUE;
 
-			for (Slot slot : this.inputSlots) {
-				ItemStack itemStack = slot.getStack();
-				if (!itemStack.isEmpty() && i > itemStack.getCount()) {
-					i = itemStack.getCount();
+		if (alreadyMatches) {
+			int minCount = Integer.MAX_VALUE;
+
+			for (Slot slot : inputSlots) {
+				ItemStack stack = slot.getStack();
+
+				if (!stack.isEmpty() && minCount > stack.getCount()) {
+					minCount = stack.getCount();
 				}
 			}
 
-			if (i != Integer.MAX_VALUE) {
-				i++;
-			}
+			return minCount == Integer.MAX_VALUE ? 1 : minCount + 1;
+		}
 
-			return i;
-		}
-		else {
-			return 1;
-		}
+		return 1;
 	}
 
 	private int fillInputSlot(Slot slot, RegistryEntry<Item> item, int count) {
-		ItemStack itemStack = slot.getStack();
-		int i = this.inventory.getMatchingSlot(item, itemStack);
-		if (i == -1) {
-			return -1;
-		}
-		else {
-			ItemStack itemStack2 = this.inventory.getStack(i);
-			ItemStack itemStack3;
-			if (count < itemStack2.getCount()) {
-				itemStack3 = this.inventory.removeStack(i, count);
-			}
-			else {
-				itemStack3 = this.inventory.removeStack(i);
-			}
+		ItemStack existing = slot.getStack();
+		int inventorySlot = inventory.getMatchingSlot(item, existing);
 
-			int j = itemStack3.getCount();
-			if (itemStack.isEmpty()) {
-				slot.setStackNoCallbacks(itemStack3);
-			}
-			else {
-				itemStack.increment(j);
-			}
-
-			return count - j;
+		if (inventorySlot == NO_SLOT) {
+			return NO_SLOT;
 		}
+
+		ItemStack inventoryStack = inventory.getStack(inventorySlot);
+		ItemStack taken = count < inventoryStack.getCount()
+			? inventory.removeStack(inventorySlot, count)
+			: inventory.removeStack(inventorySlot);
+
+		int takenCount = taken.getCount();
+
+		if (existing.isEmpty()) {
+			slot.setStackNoCallbacks(taken);
+		} else {
+			existing.increment(takenCount);
+		}
+
+		return count - takenCount;
 	}
 
+	/**
+	 * Проверяет, можно ли вернуть все предметы из сетки крафта в инвентарь.
+	 * Симулирует возврат без реального перемещения предметов.
+	 */
 	private boolean canReturnInputs() {
-		List<ItemStack> list = Lists.newArrayList();
-		int i = this.getFreeInventorySlots();
+		List<ItemStack> pendingReturn = Lists.newArrayList();
+		int freeSlots = getFreeInventorySlots();
 
-		for (Slot slot : this.inputSlots) {
-			ItemStack itemStack = slot.getStack().copy();
-			if (!itemStack.isEmpty()) {
-				int j = this.inventory.getOccupiedSlotWithRoomForStack(itemStack);
-				if (j == -1 && list.size() <= i) {
-					for (ItemStack itemStack2 : list) {
-						if (ItemStack.areItemsEqual(itemStack2, itemStack)
-								&& itemStack2.getCount() != itemStack2.getMaxCount()
-								&& itemStack2.getCount() + itemStack.getCount() <= itemStack2.getMaxCount()) {
-							itemStack2.increment(itemStack.getCount());
-							itemStack.setCount(0);
-							break;
-						}
-					}
+		for (Slot slot : inputSlots) {
+			ItemStack stack = slot.getStack().copy();
 
-					if (!itemStack.isEmpty()) {
-						if (list.size() >= i) {
-							return false;
-						}
+			if (stack.isEmpty()) {
+				continue;
+			}
 
-						list.add(itemStack);
+			int existingSlot = inventory.getOccupiedSlotWithRoomForStack(stack);
+
+			if (existingSlot == NO_SLOT && pendingReturn.size() <= freeSlots) {
+				for (ItemStack pending : pendingReturn) {
+					if (ItemStack.areItemsEqual(pending, stack)
+						&& pending.getCount() != pending.getMaxCount()
+						&& pending.getCount() + stack.getCount() <= pending.getMaxCount()
+					) {
+						pending.increment(stack.getCount());
+						stack.setCount(0);
+						break;
 					}
 				}
-				else if (j == -1) {
-					return false;
+
+				if (!stack.isEmpty()) {
+					if (pendingReturn.size() >= freeSlots) {
+						return false;
+					}
+
+					pendingReturn.add(stack);
 				}
+			} else if (existingSlot == NO_SLOT) {
+				return false;
 			}
 		}
 
@@ -237,20 +253,17 @@ public class InputSlotFiller<R extends Recipe<?>> {
 	}
 
 	private int getFreeInventorySlots() {
-		int i = 0;
+		int count = 0;
 
-		for (ItemStack itemStack : this.inventory.getMainStacks()) {
-			if (itemStack.isEmpty()) {
-				i++;
+		for (ItemStack stack : inventory.getMainStacks()) {
+			if (stack.isEmpty()) {
+				count++;
 			}
 		}
 
-		return i;
+		return count;
 	}
 
-	/**
-	 * {@code Handler}.
-	 */
 	public interface Handler<T extends Recipe<?>> {
 
 		void populateRecipeFinder(RecipeFinder finder);

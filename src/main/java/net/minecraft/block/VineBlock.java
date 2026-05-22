@@ -24,7 +24,10 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 /**
- * {@code VineBlock}.
+ * Блок лианы, прикрепляющийся к вертикальным поверхностям и растущий вниз.
+ * Поддерживает пять направлений (UP, N, E, S, W). При случайном тике
+ * распространяется в соседние позиции, если плотность лиан в радиусе 4 блоков
+ * не превышает {@link #MAX_VINES_IN_AREA}.
  */
 public class VineBlock extends Block {
 
@@ -124,15 +127,6 @@ public class VineBlock extends Block {
 		}
 	}
 
-	/**
-	 * Определяет, следует ли connect to.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param direction direction
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean shouldConnectTo(BlockView world, BlockPos pos, Direction direction) {
 		return MultifaceBlock.canGrowOn(world, direction, pos, world.getBlockState(pos));
 	}
@@ -206,18 +200,18 @@ public class VineBlock extends Block {
 						if (blockState.isAir()) {
 							Direction direction2 = direction.rotateYClockwise();
 							Direction direction3 = direction.rotateYCounterclockwise();
-							boolean bl = state.get(getFacingProperty(direction2));
-							boolean bl2 = state.get(getFacingProperty(direction3));
+							boolean hasClockwiseSide = state.get(getFacingProperty(direction2));
+							boolean hasCounterClockwiseSide = state.get(getFacingProperty(direction3));
 							BlockPos blockPos3 = blockPos2.offset(direction2);
 							BlockPos blockPos4 = blockPos2.offset(direction3);
-							if (bl && shouldConnectTo(world, blockPos3, direction2)) {
+							if (hasClockwiseSide && shouldConnectTo(world, blockPos3, direction2)) {
 								world.setBlockState(
 										blockPos2,
 										this.getDefaultState().with(getFacingProperty(direction2), true),
 										2
 								);
 							}
-							else if (bl2 && shouldConnectTo(world, blockPos4, direction3)) {
+							else if (hasCounterClockwiseSide && shouldConnectTo(world, blockPos4, direction3)) {
 								world.setBlockState(
 										blockPos2,
 										this.getDefaultState().with(getFacingProperty(direction3), true),
@@ -226,7 +220,7 @@ public class VineBlock extends Block {
 							}
 							else {
 								Direction direction4 = direction.getOpposite();
-								if (bl && world.isAir(blockPos3) && shouldConnectTo(
+								if (hasClockwiseSide && world.isAir(blockPos3) && shouldConnectTo(
 										world,
 										pos.offset(direction2),
 										direction4
@@ -237,7 +231,7 @@ public class VineBlock extends Block {
 											2
 									);
 								}
-								else if (bl2 && world.isAir(blockPos4) && shouldConnectTo(
+								else if (hasCounterClockwiseSide && world.isAir(blockPos4) && shouldConnectTo(
 										world,
 										pos.offset(direction3),
 										direction4
@@ -327,23 +321,22 @@ public class VineBlock extends Block {
 		return state.get(NORTH) || state.get(EAST) || state.get(SOUTH) || state.get(WEST);
 	}
 
-	private boolean canGrowAt(BlockView world, BlockPos pos) {
-		int i = 4;
-		Iterable<BlockPos>
-				iterable =
-				BlockPos.iterate(
-						pos.getX() - 4,
-						pos.getY() - 1,
-						pos.getZ() - 4,
-						pos.getX() + 4,
-						pos.getY() + 1,
-						pos.getZ() + 4
-				);
-		int j = 5;
+	private static final int GROWTH_RADIUS = 4;
+	private static final int MAX_VINES_IN_AREA = 5;
 
-		for (BlockPos blockPos : iterable) {
+	private boolean canGrowAt(BlockView world, BlockPos pos) {
+		int vineCount = MAX_VINES_IN_AREA;
+
+		for (BlockPos blockPos : BlockPos.iterate(
+				pos.getX() - GROWTH_RADIUS,
+				pos.getY() - 1,
+				pos.getZ() - GROWTH_RADIUS,
+				pos.getX() + GROWTH_RADIUS,
+				pos.getY() + 1,
+				pos.getZ() + GROWTH_RADIUS
+		)) {
 			if (world.getBlockState(blockPos).isOf(this)) {
-				if (--j <= 0) {
+				if (--vineCount <= 0) {
 					return false;
 				}
 			}
@@ -362,20 +355,20 @@ public class VineBlock extends Block {
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos());
-		boolean bl = blockState.isOf(this);
-		BlockState blockState2 = bl ? blockState : this.getDefaultState();
+		boolean isVine = blockState.isOf(this);
+		BlockState blockState2 = isVine ? blockState : this.getDefaultState();
 
 		for (Direction direction : ctx.getPlacementDirections()) {
 			if (direction != Direction.DOWN) {
 				BooleanProperty booleanProperty = getFacingProperty(direction);
-				boolean bl2 = bl && blockState.get(booleanProperty);
-				if (!bl2 && this.shouldHaveSide(ctx.getWorld(), ctx.getBlockPos(), direction)) {
+				boolean alreadyHasSide = isVine && blockState.get(booleanProperty);
+				if (!alreadyHasSide && this.shouldHaveSide(ctx.getWorld(), ctx.getBlockPos(), direction)) {
 					return blockState2.with(booleanProperty, true);
 				}
 			}
 		}
 
-		return bl ? blockState2 : null;
+		return isVine ? blockState2 : null;
 	}
 
 	@Override

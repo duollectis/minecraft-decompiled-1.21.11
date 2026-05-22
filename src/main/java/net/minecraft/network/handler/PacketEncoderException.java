@@ -3,7 +3,8 @@ package net.minecraft.network.handler;
 import io.netty.handler.codec.EncoderException;
 
 /**
- * Класс packet encoder exception.
+ * Исключение кодирования пакета, которое не оборачивается дополнительным контекстом
+ * в {@link PacketCodecDispatcher} благодаря маркерному интерфейсу {@link PacketCodecDispatcher.UndecoratedException}.
  */
 public class PacketEncoderException extends EncoderException implements PacketCodecDispatcher.UndecoratedException, PacketException {
 

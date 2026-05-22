@@ -7,136 +7,145 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * {@code AdvancementManager}.
+ * Хранит все загруженные достижения в виде дерева {@link PlacedAdvancement}.
+ * Уведомляет {@link Listener} о добавлении, удалении и очистке достижений.
  */
 public class AdvancementManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private final Map<Identifier, PlacedAdvancement> advancements = new Object2ObjectOpenHashMap();
-	private final Set<PlacedAdvancement> roots = new ObjectLinkedOpenHashSet();
-	private final Set<PlacedAdvancement> dependents = new ObjectLinkedOpenHashSet();
-	private AdvancementManager.@Nullable Listener listener;
+
+	private final Map<Identifier, PlacedAdvancement> advancements = new Object2ObjectOpenHashMap<>();
+	private final Set<PlacedAdvancement> roots = new ObjectLinkedOpenHashSet<>();
+	private final Set<PlacedAdvancement> dependents = new ObjectLinkedOpenHashSet<>();
+	private @Nullable Listener listener;
 
 	private void remove(PlacedAdvancement advancement) {
-		for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
-			this.remove(placedAdvancement);
+		for (PlacedAdvancement child : advancement.getChildren()) {
+			remove(child);
 		}
 
 		LOGGER.info("Forgot about advancement {}", advancement.getAdvancementEntry());
-		this.advancements.remove(advancement.getAdvancementEntry().id());
+		advancements.remove(advancement.getAdvancementEntry().id());
+
 		if (advancement.getParent() == null) {
-			this.roots.remove(advancement);
-			if (this.listener != null) {
-				this.listener.onRootRemoved(advancement);
+			roots.remove(advancement);
+			if (listener != null) {
+				listener.onRootRemoved(advancement);
 			}
-		}
-		else {
-			this.dependents.remove(advancement);
-			if (this.listener != null) {
-				this.listener.onDependentRemoved(advancement);
-			}
-		}
-	}
-
-	public void removeAll(Set<Identifier> advancements) {
-		for (Identifier identifier : advancements) {
-			PlacedAdvancement placedAdvancement = this.advancements.get(identifier);
-			if (placedAdvancement == null) {
-				LOGGER.warn("Told to remove advancement {} but I don't know what that is", identifier);
-			}
-			else {
-				this.remove(placedAdvancement);
+		} else {
+			dependents.remove(advancement);
+			if (listener != null) {
+				listener.onDependentRemoved(advancement);
 			}
 		}
 	}
 
-	public void addAll(Collection<AdvancementEntry> advancements) {
-		List<AdvancementEntry> list = new ArrayList<>(advancements);
-
-		while (!list.isEmpty()) {
-			if (!list.removeIf(this::tryAdd)) {
-				LOGGER.error("Couldn't load advancements: {}", list);
-				break;
-			}
-		}
-
-		LOGGER.info("Loaded {} advancements", this.advancements.size());
-	}
-
-	private boolean tryAdd(AdvancementEntry advancement) {
-		Optional<Identifier> optional = advancement.value().parent();
-		PlacedAdvancement placedAdvancement = optional.map(this.advancements::get).orElse(null);
-		if (placedAdvancement == null && optional.isPresent()) {
-			return false;
-		}
-		else {
-			PlacedAdvancement placedAdvancement2 = new PlacedAdvancement(advancement, placedAdvancement);
-			if (placedAdvancement != null) {
-				placedAdvancement.addChild(placedAdvancement2);
-			}
-
-			this.advancements.put(advancement.id(), placedAdvancement2);
-			if (placedAdvancement == null) {
-				this.roots.add(placedAdvancement2);
-				if (this.listener != null) {
-					this.listener.onRootAdded(placedAdvancement2);
-				}
-			}
-			else {
-				this.dependents.add(placedAdvancement2);
-				if (this.listener != null) {
-					this.listener.onDependentAdded(placedAdvancement2);
-				}
-			}
-
-			return true;
-		}
-	}
-
-	public void clear() {
-		this.advancements.clear();
-		this.roots.clear();
-		this.dependents.clear();
-		if (this.listener != null) {
-			this.listener.onClear();
-		}
-	}
-
-	public Iterable<PlacedAdvancement> getRoots() {
-		return this.roots;
-	}
-
-	public Collection<PlacedAdvancement> getAdvancements() {
-		return this.advancements.values();
-	}
-
-	public @Nullable PlacedAdvancement get(Identifier id) {
-		return this.advancements.get(id);
-	}
-
-	public @Nullable PlacedAdvancement get(AdvancementEntry advancement) {
-		return this.advancements.get(advancement.id());
-	}
-
-	public void setListener(AdvancementManager.@Nullable Listener listener) {
-		this.listener = listener;
-		if (listener != null) {
-			for (PlacedAdvancement placedAdvancement : this.roots) {
-				listener.onRootAdded(placedAdvancement);
-			}
-
-			for (PlacedAdvancement placedAdvancement : this.dependents) {
-				listener.onDependentAdded(placedAdvancement);
+	public void removeAll(Set<Identifier> ids) {
+		for (Identifier id : ids) {
+			PlacedAdvancement placed = advancements.get(id);
+			if (placed == null) {
+				LOGGER.warn("Told to remove advancement {} but I don't know what that is", id);
+			} else {
+				remove(placed);
 			}
 		}
 	}
 
 	/**
-	 * {@code Listener}.
+	 * Добавляет коллекцию достижений, разрешая зависимости родитель→ребёнок.
+	 * Достижения без ещё не загруженного родителя откладываются до следующей итерации.
 	 */
+	public void addAll(Collection<AdvancementEntry> entries) {
+		ArrayList<AdvancementEntry> pending = new ArrayList<>(entries);
+
+		while (!pending.isEmpty()) {
+			if (!pending.removeIf(this::tryAdd)) {
+				LOGGER.error("Couldn't load advancements: {}", pending);
+				break;
+			}
+		}
+
+		LOGGER.info("Loaded {} advancements", advancements.size());
+	}
+
+	private boolean tryAdd(AdvancementEntry entry) {
+		Optional<Identifier> parentId = entry.value().parent();
+		PlacedAdvancement parent = parentId.map(advancements::get).orElse(null);
+
+		if (parent == null && parentId.isPresent()) {
+			return false;
+		}
+
+		PlacedAdvancement placed = new PlacedAdvancement(entry, parent);
+		if (parent != null) {
+			parent.addChild(placed);
+		}
+
+		advancements.put(entry.id(), placed);
+
+		if (parent == null) {
+			roots.add(placed);
+			if (listener != null) {
+				listener.onRootAdded(placed);
+			}
+		} else {
+			dependents.add(placed);
+			if (listener != null) {
+				listener.onDependentAdded(placed);
+			}
+		}
+
+		return true;
+	}
+
+	public void clear() {
+		advancements.clear();
+		roots.clear();
+		dependents.clear();
+		if (listener != null) {
+			listener.onClear();
+		}
+	}
+
+	public Iterable<PlacedAdvancement> getRoots() {
+		return roots;
+	}
+
+	public Collection<PlacedAdvancement> getAdvancements() {
+		return advancements.values();
+	}
+
+	public @Nullable PlacedAdvancement get(Identifier id) {
+		return advancements.get(id);
+	}
+
+	public @Nullable PlacedAdvancement get(AdvancementEntry entry) {
+		return advancements.get(entry.id());
+	}
+
+	/**
+	 * Устанавливает слушателя и немедленно уведомляет его о всех уже загруженных достижениях.
+	 */
+	public void setListener(@Nullable Listener listener) {
+		this.listener = listener;
+		if (listener == null) {
+			return;
+		}
+		for (PlacedAdvancement root : roots) {
+			listener.onRootAdded(root);
+		}
+		for (PlacedAdvancement dependent : dependents) {
+			listener.onDependentAdded(dependent);
+		}
+	}
+
 	public interface Listener {
 
 		void onRootAdded(PlacedAdvancement root);

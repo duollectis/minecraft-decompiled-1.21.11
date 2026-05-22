@@ -8,7 +8,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.RegistryKeys;
 
 /**
- * {@code BeeHiveDebugData}.
+ * Отладочные данные улья: тип блока, количество жильцов, уровень мёда и признак задымления.
  */
 public record BeeHiveDebugData(Block type, int occupantCount, int honeyLevel, boolean sedated) {
 
@@ -25,11 +25,10 @@ public record BeeHiveDebugData(Block type, int occupantCount, int honeyLevel, bo
 	);
 
 	/**
-	 * From beehive.
+	 * Создаёт снимок отладочных данных из блок-сущности улья.
 	 *
-	 * @param beehive beehive
-	 *
-	 * @return BeeHiveDebugData — результат операции
+	 * @param beehive блок-сущность улья
+	 * @return снимок текущего состояния улья
 	 */
 	public static BeeHiveDebugData fromBeehive(BeehiveBlockEntity beehive) {
 		return new BeeHiveDebugData(

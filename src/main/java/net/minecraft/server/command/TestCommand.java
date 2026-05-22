@@ -48,7 +48,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code TestCommand}.
+ * Команда {@code /test}: запуск игровых тестов (только dev-режим).
  */
 public class TestCommand {
 
@@ -174,7 +174,7 @@ public class TestCommand {
 			for (BlockRotation blockRotation : BlockRotation.values()) {
 				Collection<GameTestState> collection3 = new ArrayList<>();
 
-				for (int i = 0; i < 100; i++) {
+				for (int i = 0; i < DEFAULT_ROTATION_STEPS; i++) {
 					GameTestState
 							gameTestState2 =
 							new GameTestState(
@@ -198,9 +198,9 @@ public class TestCommand {
 			}
 		}
 
-		TestStructurePlacer testStructurePlacer = new TestStructurePlacer(blockPos, 10, true);
+		TestStructurePlacer testStructurePlacer = new TestStructurePlacer(blockPos, DEFAULT_TESTS_PER_ROW, true);
 		TestRunContext testRunContext = TestRunContext.Builder.of(collection2, serverWorld)
-		                                                      .batcher(Batches.batcher(100))
+		                                                      .batcher(Batches.batcher(DEFAULT_ROTATION_STEPS))
 		                                                      .initialSpawner(testStructurePlacer)
 		                                                      .reuseSpawner(testStructurePlacer)
 		                                                      .stopAfterFailure()
@@ -597,7 +597,7 @@ public class TestCommand {
 						.then(
 								((LiteralArgumentBuilder) CommandManager
 										.literal("clearall")
-										.executes(context -> clear(TestFinder.builder().surface(context, 250)))
+										.executes(context -> clear(TestFinder.builder().surface(context, DEFAULT_MAX_TESTS)))
 								)
 										.then(
 												CommandManager.argument("radius", IntegerArgumentType.integer())
@@ -613,7 +613,7 @@ public class TestCommand {
 																								              "radius"
 																						              ),
 																						              0,
-																						              1024
+																						              MAX_TESTS_COUNT
 																				              )
 																		              )
 														              )
@@ -878,9 +878,9 @@ public class TestCommand {
 		BlockHitResult blockHitResult = (BlockHitResult) serverPlayerEntity.raycast(10.0, 1.0F, false);
 		BlockPos blockPos = blockHitResult.getBlockPos();
 		ServerWorld serverWorld = source.getWorld();
-		Optional<BlockPos> optional = TestInstanceUtil.findContainingTestInstanceBlock(blockPos, 15, serverWorld);
+		Optional<BlockPos> optional = TestInstanceUtil.findContainingTestInstanceBlock(blockPos, DEFAULT_SEARCH_RADIUS, serverWorld);
 		if (optional.isEmpty()) {
-			optional = TestInstanceUtil.findContainingTestInstanceBlock(blockPos, 250, serverWorld);
+			optional = TestInstanceUtil.findContainingTestInstanceBlock(blockPos, DEFAULT_MAX_TESTS, serverWorld);
 		}
 
 		if (optional.isEmpty()) {
@@ -958,9 +958,6 @@ public class TestCommand {
 		return new BlockPos(blockPos.getX(), i, blockPos.getZ() + 3);
 	}
 
-	/**
-	 * {@code Listener}.
-	 */
 	public record Listener(ServerCommandSource source, TestSet tests) implements TestListener {
 
 		@Override
@@ -1013,9 +1010,6 @@ public class TestCommand {
 		}
 	}
 
-	/**
-	 * {@code ReportingBatchListener}.
-	 */
 	record ReportingBatchListener(ServerCommandSource source) implements BatchListener {
 
 		@Override

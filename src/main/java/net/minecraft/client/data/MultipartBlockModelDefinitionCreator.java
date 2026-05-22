@@ -9,14 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultipartBlockModelDefinitionCreator}.
+ * Создатель определения модели блока в формате multipart.
+ * Позволяет добавлять части модели с опциональными условиями на свойства блока,
+ * что соответствует секции {@code multipart} в JSON-файле blockstate.
  */
+@Environment(EnvType.CLIENT)
 public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitionCreator {
 
 	private final Block block;
-	private final List<MultipartBlockModelDefinitionCreator.Part> multiparts = new ArrayList<>();
+	private final List<Part> multiparts = new ArrayList<>();
 
 	private MultipartBlockModelDefinitionCreator(Block block) {
 		this.block = block;
@@ -24,47 +26,44 @@ public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitio
 
 	@Override
 	public Block getBlock() {
-		return this.block;
+		return block;
 	}
 
 	/**
-	 * Create.
+	 * Создаёт новый экземпляр для заданного блока.
 	 *
-	 * @param block block
-	 *
-	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 * @param block блок, для которого создаётся определение
+	 * @return новый создатель multipart-определения
 	 */
 	public static MultipartBlockModelDefinitionCreator create(Block block) {
 		return new MultipartBlockModelDefinitionCreator(block);
 	}
 
 	/**
-	 * With.
+	 * Добавляет безусловную часть модели (применяется всегда).
 	 *
-	 * @param part part
-	 *
-	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 * @param part вариант модели
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public MultipartBlockModelDefinitionCreator with(WeightedVariant part) {
-		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.empty(), part));
+		multiparts.add(new Part(Optional.empty(), part));
 		return this;
 	}
 
 	private void validate(MultipartModelCondition selector) {
-		selector.instantiate(this.block.getStateManager());
+		selector.instantiate(block.getStateManager());
 	}
 
 	/**
-	 * With.
+	 * Добавляет условную часть модели.
 	 *
-	 * @param condition condition
-	 * @param part part
-	 *
-	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 * @param condition условие на свойства блока
+	 * @param part      вариант модели, применяемый при выполнении условия
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public MultipartBlockModelDefinitionCreator with(MultipartModelCondition condition, WeightedVariant part) {
-		this.validate(condition);
-		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.of(condition), part));
+		validate(condition);
+		multiparts.add(new Part(Optional.of(condition), part));
 		return this;
 	}
 
@@ -72,33 +71,29 @@ public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitio
 			MultipartModelConditionBuilder conditionBuilder,
 			WeightedVariant part
 	) {
-		return this.with(conditionBuilder.build(), part);
+		return with(conditionBuilder.build(), part);
 	}
 
 	@Override
 	public BlockModelDefinition createBlockModelDefinition() {
 		return new BlockModelDefinition(
 				Optional.empty(),
-				Optional.of(new BlockModelDefinition.Multipart(this.multiparts
-						.stream()
-						.map(MultipartBlockModelDefinitionCreator.Part::toComponent)
-						.toList()))
+				Optional.of(new BlockModelDefinition.Multipart(
+						multiparts.stream()
+								.map(Part::toComponent)
+								.toList()
+				))
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Part}.
+	 * Одна часть multipart-определения: опциональное условие и вариант модели.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Part(Optional<MultipartModelCondition> condition, WeightedVariant variants) {
 
-		/**
-		 * To component.
-		 *
-		 * @return MultipartModelComponent — результат операции
-		 */
 		public MultipartModelComponent toComponent() {
-			return new MultipartModelComponent(this.condition, this.variants.toModel());
+			return new MultipartModelComponent(condition, variants.toModel());
 		}
 	}
 }

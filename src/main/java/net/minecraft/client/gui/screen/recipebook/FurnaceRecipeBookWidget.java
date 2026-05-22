@@ -14,10 +14,11 @@ import net.minecraft.util.context.ContextParameterMap;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FurnaceRecipeBookWidget}.
+ * Виджет книги рецептов для печей (плавильня, коптильня, доменная печь).
+ * Фильтрует рецепты по типу {@link FurnaceRecipeDisplay}.
  */
+@Environment(EnvType.CLIENT)
 public class FurnaceRecipeBookWidget extends RecipeBookWidget<AbstractFurnaceScreenHandler> {
 
 	private static final ButtonTextures FILTER_BUTTON_TEXTURES = new ButtonTextures(
@@ -26,6 +27,7 @@ public class FurnaceRecipeBookWidget extends RecipeBookWidget<AbstractFurnaceScr
 			Identifier.ofVanilla("recipe_book/furnace_filter_enabled_highlighted"),
 			Identifier.ofVanilla("recipe_book/furnace_filter_disabled_highlighted")
 	);
+
 	private final Text toggleCraftableButtonText;
 
 	public FurnaceRecipeBookWidget(
@@ -52,19 +54,22 @@ public class FurnaceRecipeBookWidget extends RecipeBookWidget<AbstractFurnaceScr
 
 	@Override
 	protected void showGhostRecipe(GhostRecipe ghostRecipe, RecipeDisplay display, ContextParameterMap context) {
-		ghostRecipe.addResults(this.craftingScreenHandler.getOutputSlot(), context, display.result());
-		if (display instanceof FurnaceRecipeDisplay furnaceRecipeDisplay) {
-			ghostRecipe.addInputs(this.craftingScreenHandler.slots.get(0), context, furnaceRecipeDisplay.ingredient());
-			Slot slot = this.craftingScreenHandler.slots.get(1);
-			if (slot.getStack().isEmpty()) {
-				ghostRecipe.addInputs(slot, context, furnaceRecipeDisplay.fuel());
+		ghostRecipe.addResults(craftingScreenHandler.getOutputSlot(), context, display.result());
+
+		if (display instanceof FurnaceRecipeDisplay furnaceDisplay) {
+			ghostRecipe.addInputs(craftingScreenHandler.slots.get(0), context, furnaceDisplay.ingredient());
+
+			Slot fuelSlot = craftingScreenHandler.slots.get(1);
+
+			if (fuelSlot.getStack().isEmpty()) {
+				ghostRecipe.addInputs(fuelSlot, context, furnaceDisplay.fuel());
 			}
 		}
 	}
 
 	@Override
 	protected Text getToggleCraftableButtonText() {
-		return this.toggleCraftableButtonText;
+		return toggleCraftableButtonText;
 	}
 
 	@Override

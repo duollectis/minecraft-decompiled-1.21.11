@@ -5,6 +5,10 @@ import net.minecraft.util.math.random.Random;
 /**
  * {@code VineLogic}.
  */
+/**
+ * Утилитарный класс для расчёта длины роста лиан.
+ * Длина роста определяется случайно с учётом биномиального распределения.
+ */
 public class VineLogic {
 
 	private static final double GROWTH_DECAY_FACTOR = 0.826;
@@ -19,7 +23,7 @@ public class VineLogic {
 
 		int i;
 		for (i = 0; random.nextDouble() < d; i++) {
-			d *= 0.826;
+			d *= GROWTH_DECAY_FACTOR;
 		}
 
 		return i;

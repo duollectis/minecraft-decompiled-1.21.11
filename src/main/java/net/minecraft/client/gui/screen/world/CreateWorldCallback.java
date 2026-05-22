@@ -9,11 +9,12 @@ import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 
+/**
+ * Колбэк, вызываемый при подтверждении создания нового мира.
+ * Возвращает {@code true} если мир был успешно создан.
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
-/**
- * {@code CreateWorldCallback}.
- */
 public interface CreateWorldCallback {
 
 	boolean create(

@@ -5,10 +5,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.slf4j.Logger;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Backoff}.
+ * Стратегия повторных попыток с поддержкой экспоненциальной задержки.
+ * Возвращает количество циклов, которые следует пропустить перед следующей попыткой.
  */
+@Environment(EnvType.CLIENT)
 public interface Backoff {
 
 	Backoff ONE_CYCLE = new Backoff() {
@@ -27,6 +28,13 @@ public interface Backoff {
 
 	long fail();
 
+	/**
+	 * Создаёт стратегию с экспоненциальным ростом задержки при ошибках.
+	 * Задержка удваивается с каждой неудачей, но не превышает {@code maxSkippableCycles}.
+	 *
+	 * @param maxSkippableCycles максимальное количество пропускаемых циклов
+	 * @return экземпляр {@code Backoff} с экспоненциальной задержкой
+	 */
 	static Backoff exponential(int maxSkippableCycles) {
 		return new Backoff() {
 			private static final Logger LOGGER = LogUtils.getLogger();
@@ -34,16 +42,16 @@ public interface Backoff {
 
 			@Override
 			public long success() {
-				this.failureCount = 0;
+				failureCount = 0;
 				return 1L;
 			}
 
 			@Override
 			public long fail() {
-				this.failureCount++;
-				long l = Math.min(1L << this.failureCount, (long) maxSkippableCycles);
-				LOGGER.debug("Skipping for {} extra cycles", l);
-				return l;
+				failureCount++;
+				long skippedCycles = Math.min(1L << failureCount, (long) maxSkippableCycles);
+				LOGGER.debug("Skipping for {} extra cycles", skippedCycles);
+				return skippedCycles;
 			}
 		};
 	}

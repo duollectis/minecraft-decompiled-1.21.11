@@ -1,7 +1,7 @@
 package net.minecraft.command.permission;
 
 /**
- * {@code PermissionPredicate}.
+ * Предикат, проверяющий наличие разрешения у источника команды.
  */
 public interface PermissionPredicate {
 
@@ -12,8 +12,8 @@ public interface PermissionPredicate {
 	boolean hasPermission(Permission perm);
 
 	default PermissionPredicate or(PermissionPredicate other) {
-		return (PermissionPredicate) (other instanceof OrPermissionPredicate ? other.or(this)
-		                                                                     : new OrPermissionPredicate(this, other)
-		);
+		return other instanceof OrPermissionPredicate
+				? other.or(this)
+				: new OrPermissionPredicate(this, other);
 	}
 }

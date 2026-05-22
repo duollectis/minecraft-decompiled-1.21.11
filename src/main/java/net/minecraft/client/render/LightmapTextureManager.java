@@ -63,7 +63,7 @@ public class LightmapTextureManager implements AutoCloseable {
 		this.renderer = gameRenderer;
 		this.client = client;
 		GpuDevice gpuDevice = RenderSystem.getDevice();
-		this.glTexture = gpuDevice.createTexture("Light Texture", 12, TextureFormat.RGBA8, 16, 16, 1, 1);
+		this.glTexture = gpuDevice.createTexture("Light Texture", 12, TextureFormat.RGBA8, BLOCK_LIGHT_STEP, BLOCK_LIGHT_STEP, 1, 1);
 		this.glTextureView = gpuDevice.createTextureView(this.glTexture);
 		gpuDevice.createCommandEncoder().clearColorTexture(this.glTexture, -1);
 		this.buffer = new MappableRingBuffer(() -> "Lightmap UBO", 130, UBO_SIZE);

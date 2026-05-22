@@ -12,7 +12,8 @@ import net.minecraft.util.math.Direction;
 import org.slf4j.Logger;
 
 /**
- * {@code BlockPlacementDispenserBehavior}.
+ * Поведение диспенсера для блоков-предметов ({@link BlockItem}): размещает блок перед диспенсером.
+ * Используется, в частности, для шалкеровых ящиков.
  */
 public class BlockPlacementDispenserBehavior extends FallibleItemDispenserBehavior {
 
@@ -20,26 +21,26 @@ public class BlockPlacementDispenserBehavior extends FallibleItemDispenserBehavi
 
 	@Override
 	protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
-		this.setSuccess(false);
+		setSuccess(false);
 		Item item = stack.getItem();
-		if (item instanceof BlockItem) {
+
+		if (item instanceof BlockItem blockItem) {
 			Direction direction = pointer.state().get(DispenserBlock.FACING);
-			BlockPos blockPos = pointer.pos().offset(direction);
-			Direction direction2 = pointer.world().isAir(blockPos.down()) ? direction : Direction.UP;
+			BlockPos targetPos = pointer.pos().offset(direction);
+			Direction placementFace = pointer.world().isAir(targetPos.down()) ? direction : Direction.UP;
 
 			try {
-				this.setSuccess(((BlockItem) item)
-						.place(new AutomaticItemPlacementContext(
+				setSuccess(
+						blockItem.place(new AutomaticItemPlacementContext(
 								pointer.world(),
-								blockPos,
+								targetPos,
 								direction,
 								stack,
-								direction2
-						))
-						.isAccepted());
-			}
-			catch (Exception var8) {
-				LOGGER.error("Error trying to place shulker box at {}", blockPos, var8);
+								placementFace
+						)).isAccepted()
+				);
+			} catch (Exception exception) {
+				LOGGER.error("Error trying to place block from dispenser at {}", targetPos, exception);
 			}
 		}
 

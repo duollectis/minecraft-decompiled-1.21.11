@@ -14,7 +14,8 @@ import net.minecraft.nbt.NbtOps;
 import java.util.Set;
 
 /**
- * {@code DataFixTypes}.
+ * Перечисление всех типов данных Minecraft, которые подлежат миграции через DataFixer.
+ * Каждый элемент связан с соответствующим {@link TypeReference} из {@link TypeReferences}.
  */
 public enum DataFixTypes {
 	LEVEL(TypeReferences.LEVEL),
@@ -41,10 +42,11 @@ public enum DataFixTypes {
 	ENTITY_CHUNK(TypeReferences.ENTITY_CHUNK),
 	DEBUG_PROFILE(TypeReferences.DEBUG_PROFILE);
 
-	public static final Set<TypeReference> REQUIRED_TYPES;
+	public static final Set<TypeReference> REQUIRED_TYPES = Set.of(LEVEL_SUMMARY.typeReference);
+
 	private final TypeReference typeReference;
 
-	private DataFixTypes(final TypeReference typeReference) {
+	DataFixTypes(final TypeReference typeReference) {
 		this.typeReference = typeReference;
 	}
 
@@ -52,52 +54,62 @@ public enum DataFixTypes {
 		return SharedConstants.getGameVersion().dataVersion().id();
 	}
 
+	/**
+	 * Создаёт {@link Codec}, который автоматически применяет DataFixer при декодировании
+	 * и записывает текущую версию данных при кодировании.
+	 *
+	 * @param baseCodec          базовый кодек для сериализации объекта
+	 * @param dataFixer          фиксер для миграции данных
+	 * @param currentDataVersion версия данных, используемая как fallback при отсутствии поля DataVersion
+	 */
 	public <A> Codec<A> createDataFixingCodec(Codec<A> baseCodec, DataFixer dataFixer, int currentDataVersion) {
-		return new Codec<A>() {
+		return new Codec<>() {
 			public <T> DataResult<T> encode(A input, DynamicOps<T> ops, T prefix) {
 				return baseCodec.encode(input, ops, prefix)
-				                .flatMap(encoded -> ops.mergeToMap(
-						                encoded,
-						                ops.createString("DataVersion"),
-						                ops.createInt(DataFixTypes.getSaveVersionId())
-				                ));
+					.flatMap(encoded -> ops.mergeToMap(
+						encoded,
+						ops.createString("DataVersion"),
+						ops.createInt(DataFixTypes.getSaveVersionId())
+					));
 			}
 
 			public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
-				int
-						i =
-						ops
-								.get(input, "DataVersion")
-								.flatMap(ops::getNumberValue)
-								.map(Number::intValue)
-								.result()
-								.orElse(currentDataVersion);
-				Dynamic<T> dynamic = new Dynamic(ops, ops.remove(input, "DataVersion"));
-				Dynamic<T> dynamic2 = DataFixTypes.this.update(dataFixer, dynamic, i);
-				return baseCodec.decode(dynamic2);
+				int version = ops.get(input, "DataVersion")
+					.flatMap(ops::getNumberValue)
+					.map(Number::intValue)
+					.result()
+					.orElse(currentDataVersion);
+
+				Dynamic<T> dynamic = new Dynamic<>(ops, ops.remove(input, "DataVersion"));
+				Dynamic<T> updated = DataFixTypes.this.update(dataFixer, dynamic, version);
+
+				return baseCodec.decode(updated);
 			}
 		};
 	}
 
+	/**
+	 * Обновляет данные с указанной старой версии до указанной новой версии.
+	 *
+	 * @param dataFixer  фиксер данных
+	 * @param dynamic    входные данные
+	 * @param oldVersion исходная версия данных
+	 * @param newVersion целевая версия данных
+	 */
 	public <T> Dynamic<T> update(DataFixer dataFixer, Dynamic<T> dynamic, int oldVersion, int newVersion) {
-		return dataFixer.update(this.typeReference, dynamic, oldVersion, newVersion);
+		return dataFixer.update(typeReference, dynamic, oldVersion, newVersion);
 	}
 
 	public <T> Dynamic<T> update(DataFixer dataFixer, Dynamic<T> dynamic, int oldVersion) {
-		return this.update(dataFixer, dynamic, oldVersion, getSaveVersionId());
+		return update(dataFixer, dynamic, oldVersion, getSaveVersionId());
 	}
 
 	public NbtCompound update(DataFixer dataFixer, NbtCompound nbt, int oldVersion, int newVersion) {
-		return (NbtCompound) this
-				.update(dataFixer, new Dynamic(NbtOps.INSTANCE, nbt), oldVersion, newVersion)
-				.getValue();
+		return (NbtCompound) update(dataFixer, new Dynamic<>(NbtOps.INSTANCE, nbt), oldVersion, newVersion)
+			.getValue();
 	}
 
 	public NbtCompound update(DataFixer dataFixer, NbtCompound nbt, int oldVersion) {
-		return this.update(dataFixer, nbt, oldVersion, getSaveVersionId());
-	}
-
-	static {
-		REQUIRED_TYPES = Set.of(LEVEL_SUMMARY.typeReference);
+		return update(dataFixer, nbt, oldVersion, getSaveVersionId());
 	}
 }

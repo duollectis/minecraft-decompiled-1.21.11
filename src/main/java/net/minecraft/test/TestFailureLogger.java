@@ -1,7 +1,9 @@
 package net.minecraft.test;
 
 /**
- * {@code TestFailureLogger}.
+ * Глобальный диспетчер событий завершения тестов.
+ * Делегирует вызовы текущему {@link TestCompletionListener}, который можно подменить
+ * через {@link #setCompletionListener(TestCompletionListener)} для кастомной обработки результатов.
  */
 public class TestFailureLogger {
 

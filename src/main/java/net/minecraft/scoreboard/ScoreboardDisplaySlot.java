@@ -8,7 +8,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code ScoreboardDisplaySlot}.
+ * Слот отображения скорборда — определяет, где на экране показывается цель.
+ * <p>
+ * Слоты {@code TEAM_*} отображают боковую панель только для игроков
+ * соответствующей цветовой команды.
  */
 public enum ScoreboardDisplaySlot implements StringIdentifiable {
 	LIST(0, "list"),
@@ -31,29 +34,35 @@ public enum ScoreboardDisplaySlot implements StringIdentifiable {
 	TEAM_YELLOW(17, "sidebar.team.yellow"),
 	TEAM_WHITE(18, "sidebar.team.white");
 
-	public static final StringIdentifiable.EnumCodec<ScoreboardDisplaySlot>
-			CODEC =
+	public static final StringIdentifiable.EnumCodec<ScoreboardDisplaySlot> CODEC =
 			StringIdentifiable.createCodec(ScoreboardDisplaySlot::values);
 	public static final IntFunction<ScoreboardDisplaySlot> FROM_ID = ValueLists.createIndexToValueFunction(
-			ScoreboardDisplaySlot::getId, values(), ValueLists.OutOfBoundsHandling.ZERO
+			ScoreboardDisplaySlot::getId,
+			values(),
+			ValueLists.OutOfBoundsHandling.ZERO
 	);
+
 	private final int id;
 	private final String name;
 
-	private ScoreboardDisplaySlot(final int id, final String name) {
+	ScoreboardDisplaySlot(int id, String name) {
 		this.id = id;
 		this.name = name;
 	}
 
 	public int getId() {
-		return this.id;
+		return id;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
+	/**
+	 * Возвращает слот командной боковой панели, соответствующий цвету форматирования,
+	 * или {@code null}, если форматирование не является цветом команды.
+	 */
 	public static @Nullable ScoreboardDisplaySlot fromFormatting(Formatting formatting) {
 		return switch (formatting) {
 			case BLACK -> TEAM_BLACK;

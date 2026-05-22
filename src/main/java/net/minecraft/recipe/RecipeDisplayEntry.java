@@ -14,35 +14,38 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * {@code RecipeDisplayEntry}.
+ * Описывает отображение рецепта на клиенте: визуальное представление, категорию книги рецептов
+ * и список ингредиентов для проверки возможности крафта.
  */
 public record RecipeDisplayEntry(
-		NetworkRecipeId id,
-		RecipeDisplay display,
-		OptionalInt group,
-		RecipeBookCategory category,
-		Optional<List<Ingredient>> craftingRequirements
+	NetworkRecipeId id,
+	RecipeDisplay display,
+	OptionalInt group,
+	RecipeBookCategory category,
+	Optional<List<Ingredient>> craftingRequirements
 ) {
 
 	public static final PacketCodec<RegistryByteBuf, RecipeDisplayEntry> PACKET_CODEC = PacketCodec.tuple(
-			NetworkRecipeId.PACKET_CODEC,
-			RecipeDisplayEntry::id,
-			RecipeDisplay.PACKET_CODEC,
-			RecipeDisplayEntry::display,
-			PacketCodecs.OPTIONAL_INT,
-			RecipeDisplayEntry::group,
-			PacketCodecs.registryValue(RegistryKeys.RECIPE_BOOK_CATEGORY),
-			RecipeDisplayEntry::category,
-			Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()).collect(PacketCodecs::optional),
-			RecipeDisplayEntry::craftingRequirements,
-			RecipeDisplayEntry::new
+		NetworkRecipeId.PACKET_CODEC,
+		RecipeDisplayEntry::id,
+		RecipeDisplay.PACKET_CODEC,
+		RecipeDisplayEntry::display,
+		PacketCodecs.OPTIONAL_INT,
+		RecipeDisplayEntry::group,
+		PacketCodecs.registryValue(RegistryKeys.RECIPE_BOOK_CATEGORY),
+		RecipeDisplayEntry::category,
+		Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()).collect(PacketCodecs::optional),
+		RecipeDisplayEntry::craftingRequirements,
+		RecipeDisplayEntry::new
 	);
 
 	public List<ItemStack> getStacks(ContextParameterMap context) {
-		return this.display.result().getStacks(context);
+		return display.result().getStacks(context);
 	}
 
 	public boolean isCraftable(RecipeFinder finder) {
-		return this.craftingRequirements.isEmpty() ? false : finder.isCraftable(this.craftingRequirements.get(), null);
+		return craftingRequirements.isEmpty()
+			? false
+			: finder.isCraftable(craftingRequirements.get(), null);
 	}
 }

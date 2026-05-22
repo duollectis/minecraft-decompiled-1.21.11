@@ -20,7 +20,9 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code CactusBlock}.
+ * Блок кактуса. Растёт вверх при случайных тиках, достигая максимальной высоты 3 блока.
+ * При достижении возраста {@link #FLOWER_GROWTH_AGE} может вырастить цветок кактуса.
+ * Наносит урон сущностям при столкновении.
  */
 public class CactusBlock extends Block {
 
@@ -41,7 +43,7 @@ public class CactusBlock extends Block {
 
 	public CactusBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
+		setDefaultState(stateManager.getDefaultState().with(AGE, 0));
 	}
 
 	@Override
@@ -53,33 +55,36 @@ public class CactusBlock extends Block {
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockPos blockPos = pos.up();
-		if (world.isAir(blockPos)) {
-			int i = 1;
-			int j = state.get(AGE);
+		BlockPos above = pos.up();
 
-			while (world.getBlockState(pos.down(i)).isOf(this)) {
-				if (++i == 3 && j == 15) {
-					return;
-				}
-			}
+		if (world.isAir(above) == false) {
+			return;
+		}
 
-			if (j == 8 && this.canPlaceAt(this.getDefaultState(), world, pos.up())) {
-				double d = i >= 3 ? 0.25 : 0.1;
-				if (random.nextDouble() <= d) {
-					world.setBlockState(blockPos, Blocks.CACTUS_FLOWER.getDefaultState());
-				}
-			}
-			else if (j == 15 && i < 3) {
-				world.setBlockState(blockPos, this.getDefaultState());
-				BlockState blockState = state.with(AGE, 0);
-				world.setBlockState(pos, blockState, 260);
-				world.updateNeighbor(blockState, blockPos, this, null, false);
-			}
+		int height = 1;
+		int age = state.get(AGE);
 
-			if (j < 15) {
-				world.setBlockState(pos, state.with(AGE, j + 1), 260);
+		while (world.getBlockState(pos.down(height)).isOf(this)) {
+			if (++height == TALL_THRESHOLD && age == MAX_AGE) {
+				return;
 			}
+		}
+
+		if (age == FLOWER_GROWTH_AGE && canPlaceAt(getDefaultState(), world, above)) {
+			double flowerChance = height >= TALL_THRESHOLD ? FLOWER_CHANCE_WHEN_TALL : FLOWER_CHANCE_WHEN_SHORT;
+
+			if (random.nextDouble() <= flowerChance) {
+				world.setBlockState(above, Blocks.CACTUS_FLOWER.getDefaultState());
+			}
+		} else if (age == MAX_AGE && height < TALL_THRESHOLD) {
+			world.setBlockState(above, getDefaultState());
+			BlockState resetState = state.with(AGE, 0);
+			world.setBlockState(pos, resetState, 260);
+			world.updateNeighbor(resetState, above, this, null, false);
+		}
+
+		if (age < MAX_AGE) {
+			world.setBlockState(pos, state.with(AGE, age + 1), 260);
 		}
 	}
 
@@ -95,54 +100,54 @@ public class CactusBlock extends Block {
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		if (!state.canPlaceAt(world, pos)) {
+		if (state.canPlaceAt(world, pos) == false) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
 		return super.getStateForNeighborUpdate(
-				state,
-				world,
-				tickView,
-				pos,
-				direction,
-				neighborPos,
-				neighborState,
-				random
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
 		);
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockState blockState = world.getBlockState(pos.offset(direction));
-			if (blockState.isSolid() || world.getFluidState(pos.offset(direction)).isIn(FluidTags.LAVA)) {
+			BlockState neighbor = world.getBlockState(pos.offset(direction));
+
+			if (neighbor.isSolid() || world.getFluidState(pos.offset(direction)).isIn(FluidTags.LAVA)) {
 				return false;
 			}
 		}
 
-		BlockState blockState2 = world.getBlockState(pos.down());
-		return (blockState2.isOf(Blocks.CACTUS) || blockState2.isIn(BlockTags.SAND)) && !world
-				.getBlockState(pos.up())
-				.isLiquid();
+		BlockState below = world.getBlockState(pos.down());
+		return (below.isOf(Blocks.CACTUS) || below.isIn(BlockTags.SAND))
+			&& world.getBlockState(pos.up()).isLiquid() == false;
 	}
 
 	@Override
 	protected void onEntityCollision(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Entity entity,
-			EntityCollisionHandler handler,
-			boolean bl
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Entity entity,
+		EntityCollisionHandler handler,
+		boolean isAboveSurface
 	) {
 		entity.serverDamage(world.getDamageSources().cactus(), 1.0F);
 	}

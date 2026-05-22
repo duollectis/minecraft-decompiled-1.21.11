@@ -21,35 +21,26 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@code FeatureDebugLogger}.
+ * Отладочный логгер статистики генерации фич. Ведёт кэш счётчиков по мирам:
+ * количество чанков с фичами и частота появления каждой фичи. Используется
+ * только в режиме отладки генерации мира.
  */
 public class FeatureDebugLogger {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final LoadingCache<ServerWorld, FeatureDebugLogger.Features> FEATURES = CacheBuilder.newBuilder()
-	                                                                                                   .weakKeys()
-	                                                                                                   .expireAfterAccess(
-			                                                                                                   5L,
-			                                                                                                   TimeUnit.MINUTES
-	                                                                                                   )
-	                                                                                                   .build(new CacheLoader<ServerWorld, FeatureDebugLogger.Features>() {
-		                                                                                                   public FeatureDebugLogger.Features load(
-				                                                                                                   ServerWorld serverWorld
-		                                                                                                   ) {
-			                                                                                                   return new FeatureDebugLogger.Features(
-					                                                                                                   Object2IntMaps.synchronize(
-							                                                                                                   new Object2IntOpenHashMap()),
-					                                                                                                   new MutableInt(
-							                                                                                                   0)
-			                                                                                                   );
-		                                                                                                   }
-	                                                                                                   });
+			.weakKeys()
+			.expireAfterAccess(5L, TimeUnit.MINUTES)
+			.build(new CacheLoader<>() {
+				@Override
+				public FeatureDebugLogger.Features load(ServerWorld serverWorld) {
+					return new FeatureDebugLogger.Features(
+							Object2IntMaps.synchronize(new Object2IntOpenHashMap()),
+							new MutableInt(0)
+					);
+				}
+			});
 
-	/**
-	 * Increment total chunks count.
-	 *
-	 * @param world world
-	 */
 	public static void incrementTotalChunksCount(ServerWorld world) {
 		try {
 			((FeatureDebugLogger.Features) FEATURES.get(world)).chunksWithFeatures().increment();
@@ -77,17 +68,11 @@ public class FeatureDebugLogger {
 		}
 	}
 
-	/**
-	 * Clear.
-	 */
 	public static void clear() {
 		FEATURES.invalidateAll();
 		LOGGER.debug("Cleared feature counts");
 	}
 
-	/**
-	 * Dump.
-	 */
 	public static void dump() {
 		LOGGER.debug("Logging feature counts:");
 		FEATURES.asMap()
@@ -120,15 +105,11 @@ public class FeatureDebugLogger {
 		        );
 	}
 
-	/**
-	 * {@code FeatureData}.
-	 */
+	/** Ключ кэша: связка сконфигурированной фичи и опционального размещённого варианта. */
 	record FeatureData(ConfiguredFeature<?, ?> feature, Optional<PlacedFeature> topFeature) {
 	}
 
-	/**
-	 * {@code Features}.
-	 */
+	/** Агрегат статистики одного мира: счётчики по фичам и общее число чанков с фичами. */
 	record Features(Object2IntMap<FeatureDebugLogger.FeatureData> featureData, MutableInt chunksWithFeatures) {
 	}
 }

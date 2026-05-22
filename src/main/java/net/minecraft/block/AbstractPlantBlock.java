@@ -18,75 +18,80 @@ import net.minecraft.world.tick.ScheduledTickView;
 import java.util.Optional;
 
 /**
- * {@code AbstractPlantBlock}.
+ * Базовый класс для тела многоблочных растений (водоросли, лоза и т.п.).
+ * Реализует логику роста через {@link Fertilizable} и делегирует
+ * фактический рост к головному стеблю {@link AbstractPlantStemBlock}.
  */
 public abstract class AbstractPlantBlock extends AbstractPlantPartBlock implements Fertilizable {
 
 	protected AbstractPlantBlock(
-			AbstractBlock.Settings settings,
-			Direction direction,
-			VoxelShape voxelShape,
-			boolean bl
+		AbstractBlock.Settings settings,
+		Direction direction,
+		VoxelShape voxelShape,
+		boolean tickWater
 	) {
-		super(settings, direction, voxelShape, bl);
+		super(settings, direction, voxelShape, tickWater);
 	}
 
 	@Override
 	protected abstract MapCodec<? extends AbstractPlantBlock> getCodec();
 
+	/**
+	 * Копирует свойства состояния при переходе от одного блока к другому.
+	 * По умолчанию возвращает целевое состояние без изменений;
+	 * переопределяется подклассами для переноса специфических свойств (например, AGE).
+	 */
 	protected BlockState copyState(BlockState from, BlockState to) {
 		return to;
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		if (direction == this.growthDirection.getOpposite() && !state.canPlaceAt(world, pos)) {
+		if (direction == growthDirection.getOpposite() && !state.canPlaceAt(world, pos)) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
-		AbstractPlantStemBlock abstractPlantStemBlock = this.getStem();
-		if (direction == this.growthDirection && !neighborState.isOf(this)
-				&& !neighborState.isOf(abstractPlantStemBlock)) {
-			return this.copyState(state, abstractPlantStemBlock.getRandomGrowthState(random));
-		}
-		else {
-			if (this.tickWater) {
-				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-			}
+		AbstractPlantStemBlock stem = getStem();
 
-			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
-			);
+		if (direction == growthDirection && !neighborState.isOf(this) && !neighborState.isOf(stem)) {
+			return copyState(state, stem.getRandomGrowthState(random));
 		}
+
+		if (tickWater) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
+
+		return super.getStateForNeighborUpdate(
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
+		);
 	}
 
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-		return new ItemStack(this.getStem());
+		return new ItemStack(getStem());
 	}
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		Optional<BlockPos> optional = this.getStemHeadPos(world, pos, state.getBlock());
-		return optional.isPresent() && this
-				.getStem()
-				.chooseStemState(world.getBlockState(optional.get().offset(this.growthDirection)));
+		Optional<BlockPos> headPos = getStemHeadPos(world, pos, state.getBlock());
+		return headPos.isPresent()
+			&& getStem().chooseStemState(world.getBlockState(headPos.get().offset(growthDirection)));
 	}
 
 	@Override
@@ -96,21 +101,22 @@ public abstract class AbstractPlantBlock extends AbstractPlantPartBlock implemen
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		Optional<BlockPos> optional = this.getStemHeadPos(world, pos, state.getBlock());
-		if (optional.isPresent()) {
-			BlockState blockState = world.getBlockState(optional.get());
-			((AbstractPlantStemBlock) blockState.getBlock()).grow(world, random, optional.get(), blockState);
+		Optional<BlockPos> headPos = getStemHeadPos(world, pos, state.getBlock());
+
+		if (headPos.isPresent()) {
+			BlockState headState = world.getBlockState(headPos.get());
+			((AbstractPlantStemBlock) headState.getBlock()).grow(world, random, headPos.get(), headState);
 		}
 	}
 
 	private Optional<BlockPos> getStemHeadPos(BlockView world, BlockPos pos, Block block) {
-		return BlockLocating.findColumnEnd(world, pos, block, this.growthDirection, this.getStem());
+		return BlockLocating.findColumnEnd(world, pos, block, growthDirection, getStem());
 	}
 
 	@Override
 	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
-		boolean bl = super.canReplace(state, context);
-		return bl && context.getStack().isOf(this.getStem().asItem()) ? false : bl;
+		boolean canReplace = super.canReplace(state, context);
+		return canReplace && context.getStack().isOf(getStem().asItem()) ? false : canReplace;
 	}
 
 	@Override

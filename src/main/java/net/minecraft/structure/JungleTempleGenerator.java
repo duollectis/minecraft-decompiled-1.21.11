@@ -30,7 +30,7 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 			new JungleTempleGenerator.CobblestoneRandomizer();
 
 	public JungleTempleGenerator(Random random, int x, int z) {
-		super(StructurePieceType.JUNGLE_TEMPLE, x, 64, z, 12, 10, 15, getRandomHorizontalDirection(random));
+		super(StructurePieceType.JUNGLE_TEMPLE, x, 64, z, TEMPLE_SIZE, 10, DEPTH, getRandomHorizontalDirection(random));
 	}
 
 	public JungleTempleGenerator(NbtCompound nbt) {
@@ -75,24 +75,24 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 					COBBLESTONE_RANDOMIZER
 			);
 			this.fillWithOutline(world, chunkBox, 2, 1, 2, 9, 2, 2, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 2, 1, 12, 9, 2, 12, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 2, 1, TEMPLE_SIZE, 9, 2, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 2, 1, 3, 2, 2, 11, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 9, 1, 3, 9, 2, 11, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 1, 3, 1, 10, 6, 1, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 1, 3, 13, 10, 6, 13, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 1, 3, 2, 1, 6, 12, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 10, 3, 2, 10, 6, 12, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 2, 3, 2, 9, 3, 12, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 2, 6, 2, 9, 6, 12, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 1, 3, 2, 1, 6, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 10, 3, 2, 10, 6, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 2, 3, 2, 9, 3, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 2, 6, 2, 9, 6, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 3, 7, 3, 8, 7, 11, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 4, 8, 4, 7, 8, 10, false, random, COBBLESTONE_RANDOMIZER);
 			this.fill(world, chunkBox, 3, 1, 3, 8, 2, 11);
 			this.fill(world, chunkBox, 4, 3, 6, 7, 3, 9);
-			this.fill(world, chunkBox, 2, 4, 2, 9, 5, 12);
+			this.fill(world, chunkBox, 2, 4, 2, 9, 5, TEMPLE_SIZE);
 			this.fill(world, chunkBox, 4, 6, 5, 7, 6, 9);
 			this.fill(world, chunkBox, 5, 7, 6, 6, 7, 8);
 			this.fill(world, chunkBox, 5, 1, 2, 6, 2, 2);
-			this.fill(world, chunkBox, 5, 2, 12, 6, 2, 12);
+			this.fill(world, chunkBox, 5, 2, TEMPLE_SIZE, 6, 2, TEMPLE_SIZE);
 			this.fill(world, chunkBox, 5, 5, 1, 6, 5, 1);
 			this.fill(world, chunkBox, 5, 5, 13, 6, 5, 13);
 			this.addBlock(world, Blocks.AIR.getDefaultState(), 1, 5, 5, chunkBox);
@@ -110,7 +110,7 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 			this.fillWithOutline(world, chunkBox, 5, 6, 0, 6, 6, 0, false, random, COBBLESTONE_RANDOMIZER);
 
 			for (int i = 0; i <= 11; i += 11) {
-				for (int j = 2; j <= 12; j += 2) {
+				for (int j = 2; j <= TEMPLE_SIZE; j += 2) {
 					this.fillWithOutline(world, chunkBox, i, 4, j, i, 5, j, false, random, COBBLESTONE_RANDOMIZER);
 				}
 
@@ -120,8 +120,8 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 
 			this.fillWithOutline(world, chunkBox, 2, 7, 2, 2, 9, 2, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 9, 7, 2, 9, 9, 2, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 2, 7, 12, 2, 9, 12, false, random, COBBLESTONE_RANDOMIZER);
-			this.fillWithOutline(world, chunkBox, 9, 7, 12, 9, 9, 12, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 2, 7, TEMPLE_SIZE, 2, 9, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
+			this.fillWithOutline(world, chunkBox, 9, 7, TEMPLE_SIZE, 9, 9, TEMPLE_SIZE, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 4, 9, 4, 4, 9, 4, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 7, 9, 4, 7, 9, 4, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 4, 9, 10, 4, 9, 10, false, random, COBBLESTONE_RANDOMIZER);
@@ -166,7 +166,7 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 				this.fill(world, chunkBox, 5, 0 - k, 7 + k, 6, 0 - k, 9 + k);
 			}
 
-			this.fill(world, chunkBox, 1, -3, 12, 10, -1, 13);
+			this.fill(world, chunkBox, 1, -3, TEMPLE_SIZE, 10, -1, 13);
 			this.fill(world, chunkBox, 1, -3, 1, 3, -1, 13);
 			this.fill(world, chunkBox, 1, -3, 1, 9, -1, 5);
 
@@ -174,7 +174,7 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 				this.fillWithOutline(world, chunkBox, 1, -3, k, 1, -2, k, false, random, COBBLESTONE_RANDOMIZER);
 			}
 
-			for (int k = 2; k <= 12; k += 2) {
+			for (int k = 2; k <= TEMPLE_SIZE; k += 2) {
 				this.fillWithOutline(world, chunkBox, 1, -1, k, 3, -1, k, false, random, COBBLESTONE_RANDOMIZER);
 			}
 
@@ -409,9 +409,9 @@ public class JungleTempleGenerator extends ShiftableStructurePiece {
 							.getDefaultState()
 							.with(LeverBlock.FACING, Direction.NORTH)
 							.with(LeverBlock.FACE, BlockFace.WALL);
-			this.addBlock(world, blockState6, 8, -2, 12, chunkBox);
-			this.addBlock(world, blockState6, 9, -2, 12, chunkBox);
-			this.addBlock(world, blockState6, 10, -2, 12, chunkBox);
+			this.addBlock(world, blockState6, 8, -2, TEMPLE_SIZE, chunkBox);
+			this.addBlock(world, blockState6, 9, -2, TEMPLE_SIZE, chunkBox);
+			this.addBlock(world, blockState6, 10, -2, TEMPLE_SIZE, chunkBox);
 			this.fillWithOutline(world, chunkBox, 8, -3, 8, 8, -3, 10, false, random, COBBLESTONE_RANDOMIZER);
 			this.fillWithOutline(world, chunkBox, 10, -3, 8, 10, -3, 10, false, random, COBBLESTONE_RANDOMIZER);
 			this.addBlock(world, Blocks.MOSSY_COBBLESTONE.getDefaultState(), 10, -2, 9, chunkBox);

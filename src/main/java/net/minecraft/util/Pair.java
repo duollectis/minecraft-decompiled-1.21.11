@@ -1,7 +1,11 @@
 package net.minecraft.util;
 
 /**
- * {@code Pair}.
+ * Изменяемая пара значений произвольных типов.
+ * Используется там, где нужно передать два связанных значения без создания отдельного класса.
+ *
+ * @param <A> тип левого значения
+ * @param <B> тип правого значения
  */
 public class Pair<A, B> {
 
@@ -14,7 +18,7 @@ public class Pair<A, B> {
 	}
 
 	public A getLeft() {
-		return this.left;
+		return left;
 	}
 
 	public void setLeft(A left) {
@@ -22,7 +26,7 @@ public class Pair<A, B> {
 	}
 
 	public B getRight() {
-		return this.right;
+		return right;
 	}
 
 	public void setRight(B right) {

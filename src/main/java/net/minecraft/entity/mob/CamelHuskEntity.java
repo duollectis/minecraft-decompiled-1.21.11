@@ -21,7 +21,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CamelHuskEntity}.
+ * Верблюжий хаск — вариант хаска, связанный с верблюдами.
  */
 public class CamelHuskEntity extends CamelEntity {
 
@@ -36,18 +36,18 @@ public class CamelHuskEntity extends CamelEntity {
 
 	@Override
 	public boolean isControlledByMob() {
-		return this.getFirstPassenger() instanceof MobEntity;
+		return getFirstPassenger() instanceof MobEntity;
 	}
 
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		this.setPersistent();
+		setPersistent();
 		return super.interact(player, hand);
 	}
 
 	@Override
 	public boolean canBeLeashed() {
-		return !this.isControlledByMob();
+		return !isControlledByMob();
 	}
 
 	@Override
@@ -88,10 +88,9 @@ public class CamelHuskEntity extends CamelEntity {
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
 		if (state.isIn(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS)) {
-			this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP_SAND, 0.4F, 1.0F);
-		}
-		else {
-			this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP, 0.4F, 1.0F);
+			playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP_SAND, 0.4F, 1.0F);
+		} else {
+			playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP, 0.4F, 1.0F);
 		}
 	}
 

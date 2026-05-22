@@ -3,7 +3,7 @@ package net.minecraft.world.rule;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code GameRuleType}.
+ * Тип данных правила игры — определяет, является ли значение целым числом или булевым.
  */
 public enum GameRuleType implements StringIdentifiable {
 	INT("integer"),
@@ -11,12 +11,12 @@ public enum GameRuleType implements StringIdentifiable {
 
 	private final String name;
 
-	private GameRuleType(final String name) {
+	GameRuleType(String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

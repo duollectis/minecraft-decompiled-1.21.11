@@ -7,28 +7,32 @@ import net.minecraft.command.argument.ArgumentHelper;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code IntegerArgumentSerializer}.
+ * Сериализатор аргумента {@link IntegerArgumentType} для передачи по сети и записи в JSON.
+ * Передаёт минимальное и максимальное допустимые значения через битовый флаг присутствия.
  */
 public class IntegerArgumentSerializer implements ArgumentSerializer<IntegerArgumentType, IntegerArgumentSerializer.Properties> {
 
 	public void writePacket(IntegerArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
-		boolean bl = properties.min != Integer.MIN_VALUE;
-		boolean bl2 = properties.max != Integer.MAX_VALUE;
-		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(bl, bl2));
-		if (bl) {
+		boolean hasMin = properties.min != Integer.MIN_VALUE;
+		boolean hasMax = properties.max != Integer.MAX_VALUE;
+
+		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(hasMin, hasMax));
+
+		if (hasMin) {
 			packetByteBuf.writeInt(properties.min);
 		}
 
-		if (bl2) {
+		if (hasMax) {
 			packetByteBuf.writeInt(properties.max);
 		}
 	}
 
 	public IntegerArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-		byte b = packetByteBuf.readByte();
-		int i = ArgumentHelper.hasMinFlag(b) ? packetByteBuf.readInt() : Integer.MIN_VALUE;
-		int j = ArgumentHelper.hasMaxFlag(b) ? packetByteBuf.readInt() : Integer.MAX_VALUE;
-		return new IntegerArgumentSerializer.Properties(i, j);
+		byte flags = packetByteBuf.readByte();
+		int min = ArgumentHelper.hasMinFlag(flags) ? packetByteBuf.readInt() : Integer.MIN_VALUE;
+		int max = ArgumentHelper.hasMaxFlag(flags) ? packetByteBuf.readInt() : Integer.MAX_VALUE;
+
+		return new IntegerArgumentSerializer.Properties(min, max);
 	}
 
 	public void writeJson(IntegerArgumentSerializer.Properties properties, JsonObject jsonObject) {
@@ -49,7 +53,7 @@ public class IntegerArgumentSerializer implements ArgumentSerializer<IntegerArgu
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит диапазон допустимых значений.
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<IntegerArgumentType> {
 

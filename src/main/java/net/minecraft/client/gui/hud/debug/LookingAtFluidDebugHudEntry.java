@@ -22,55 +22,63 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LookingAtFluidDebugHudEntry}.
+ * Запись отладочного HUD: жидкость, на которую смотрит игрок,
+ * её идентификатор, состояния свойств и теги.
  */
+@Environment(EnvType.CLIENT)
 public class LookingAtFluidDebugHudEntry implements DebugHudEntry {
 
 	private static final Identifier SECTION_ID = Identifier.ofVanilla("looking_at_fluid");
+	private static final double RAYCAST_DISTANCE = 20.0;
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		Entity entity = MinecraftClient.getInstance().getCameraEntity();
-		World world2 = (World) (SharedConstants.SHOW_SERVER_DEBUG_VALUES ? world : MinecraftClient.getInstance().world);
-		if (entity != null && world2 != null) {
-			HitResult hitResult = entity.raycast(20.0, 0.0F, true);
-			List<String> list = new ArrayList<>();
-			if (hitResult.getType() == HitResult.Type.BLOCK) {
-				BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
-				FluidState fluidState = world2.getFluidState(blockPos);
-				list.add(Formatting.UNDERLINE + "Targeted Fluid: " + blockPos.getX() + ", " + blockPos.getY() + ", "
-						+ blockPos.getZ());
-				list.add(String.valueOf(Registries.FLUID.getId(fluidState.getFluid())));
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
+		World targetWorld = (World) (SharedConstants.SHOW_SERVER_DEBUG_VALUES ? world : client.world);
 
-				for (Entry<Property<?>, Comparable<?>> entry : fluidState.getEntries().entrySet()) {
-					list.add(this.getFluidPropertyLine(entry));
-				}
+		if (cameraEntity == null || targetWorld == null) {
+			lines.addLinesToSection(SECTION_ID, List.of());
+			return;
+		}
 
-				fluidState.streamTags().map(tag -> "#" + tag.id()).forEach(list::add);
+		HitResult hitResult = cameraEntity.raycast(RAYCAST_DISTANCE, 0.0F, true);
+		List<String> debugLines = new ArrayList<>();
+
+		if (hitResult.getType() == HitResult.Type.BLOCK) {
+			BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
+			FluidState fluidState = targetWorld.getFluidState(blockPos);
+
+			debugLines.add(Formatting.UNDERLINE + "Targeted Fluid: " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ());
+			debugLines.add(String.valueOf(Registries.FLUID.getId(fluidState.getFluid())));
+
+			for (Entry<Property<?>, Comparable<?>> entry : fluidState.getEntries().entrySet()) {
+				debugLines.add(getFluidPropertyLine(entry));
 			}
 
-			lines.addLinesToSection(SECTION_ID, list);
+			fluidState.streamTags().map(tag -> "#" + tag.id()).forEach(debugLines::add);
 		}
+
+		lines.addLinesToSection(SECTION_ID, debugLines);
 	}
 
 	private String getFluidPropertyLine(Entry<Property<?>, Comparable<?>> propertyAndValue) {
 		Property<?> property = propertyAndValue.getKey();
-		Comparable<?> comparable = propertyAndValue.getValue();
-		String string = Util.getValueAsString(property, comparable);
-		if (Boolean.TRUE.equals(comparable)) {
-			string = Formatting.GREEN + string;
-		}
-		else if (Boolean.FALSE.equals(comparable)) {
-			string = Formatting.RED + string;
+		Comparable<?> value = propertyAndValue.getValue();
+		String valueString = Util.getValueAsString(property, value);
+
+		if (Boolean.TRUE.equals(value)) {
+			valueString = Formatting.GREEN + valueString;
+		} else if (Boolean.FALSE.equals(value)) {
+			valueString = Formatting.RED + valueString;
 		}
 
-		return property.getName() + ": " + string;
+		return property.getName() + ": " + valueString;
 	}
 }

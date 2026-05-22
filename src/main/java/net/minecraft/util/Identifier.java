@@ -14,28 +14,34 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code Identifier}.
+ * Уникальный идентификатор ресурса в формате {@code namespace:path}.
+ * <p>
+ * Пространство имён ({@code namespace}) может содержать символы {@code [a-z0-9_.-]}.
+ * Путь ({@code path}) может содержать символы {@code [a-z0-9/_.-]}.
+ * Если пространство имён не указано, используется {@value #DEFAULT_NAMESPACE}.
+ * <p>
+ * Примеры: {@code minecraft:stone}, {@code mymod:items/sword}.
  */
 public final class Identifier implements Comparable<Identifier> {
 
-	public static final Codec<Identifier>
-			CODEC =
-			Codec.STRING.comapFlatMap(Identifier::validate, Identifier::toString).stable();
-	public static final PacketCodec<ByteBuf, Identifier>
-			PACKET_CODEC =
-			PacketCodecs.STRING.xmap(Identifier::of, Identifier::toString);
-	public static final SimpleCommandExceptionType
-			COMMAND_EXCEPTION =
-			new SimpleCommandExceptionType(Text.translatable("argument.id.invalid"));
+	public static final Codec<Identifier> CODEC = Codec.STRING
+		.comapFlatMap(Identifier::validate, Identifier::toString)
+		.stable();
+	public static final PacketCodec<ByteBuf, Identifier> PACKET_CODEC = PacketCodecs.STRING
+		.xmap(Identifier::of, Identifier::toString);
+	public static final SimpleCommandExceptionType COMMAND_EXCEPTION = new SimpleCommandExceptionType(
+		Text.translatable("argument.id.invalid")
+	);
+
 	public static final char NAMESPACE_SEPARATOR = ':';
 	public static final String DEFAULT_NAMESPACE = "minecraft";
 	public static final String REALMS_NAMESPACE = "realms";
+
 	private final String namespace;
 	private final String path;
 
 	private Identifier(String namespace, String path) {
 		assert isNamespaceValid(namespace);
-
 		assert isPathValid(path);
 
 		this.namespace = namespace;
@@ -47,335 +53,290 @@ public final class Identifier implements Comparable<Identifier> {
 	}
 
 	/**
-	 * Of.
+	 * Создаёт идентификатор из пространства имён и пути.
 	 *
-	 * @param namespace namespace
-	 * @param path path
-	 *
-	 * @return Identifier — результат операции
+	 * @param namespace пространство имён
+	 * @param path      путь
+	 * @return новый идентификатор
+	 * @throws InvalidIdentifierException если namespace или path содержат недопустимые символы
 	 */
 	public static Identifier of(String namespace, String path) {
 		return ofValidated(namespace, path);
 	}
 
 	/**
-	 * Of.
+	 * Создаёт идентификатор из строки вида {@code namespace:path} или {@code path}.
+	 * Если разделитель {@code :} отсутствует, используется пространство имён {@value #DEFAULT_NAMESPACE}.
 	 *
-	 * @param id id
-	 *
-	 * @return Identifier — результат операции
+	 * @param id строка идентификатора
+	 * @return новый идентификатор
+	 * @throws InvalidIdentifierException если строка содержит недопустимые символы
 	 */
 	public static Identifier of(String id) {
-		return splitOn(id, ':');
+		return splitOn(id, NAMESPACE_SEPARATOR);
 	}
 
 	/**
-	 * Of vanilla.
+	 * Создаёт идентификатор в пространстве имён {@value #DEFAULT_NAMESPACE}.
 	 *
-	 * @param path path
-	 *
-	 * @return Identifier — результат операции
+	 * @param path путь ресурса
+	 * @return новый идентификатор в пространстве имён minecraft
+	 * @throws InvalidIdentifierException если path содержит недопустимые символы
 	 */
 	public static Identifier ofVanilla(String path) {
-		return new Identifier("minecraft", validatePath("minecraft", path));
+		return new Identifier(DEFAULT_NAMESPACE, validatePath(DEFAULT_NAMESPACE, path));
 	}
 
 	/**
-	 * Try parse.
+	 * Пытается создать идентификатор из строки, возвращая {@code null} при ошибке.
 	 *
-	 * @param id id
-	 *
-	 * @return @Nullable Identifier — результат операции
+	 * @param id строка идентификатора
+	 * @return идентификатор или {@code null} если строка невалидна
 	 */
 	public static @Nullable Identifier tryParse(String id) {
-		return trySplitOn(id, ':');
+		return trySplitOn(id, NAMESPACE_SEPARATOR);
 	}
 
 	/**
-	 * Try parse.
+	 * Пытается создать идентификатор из пространства имён и пути, возвращая {@code null} при ошибке.
 	 *
-	 * @param namespace namespace
-	 * @param path path
-	 *
-	 * @return @Nullable Identifier — результат операции
+	 * @param namespace пространство имён
+	 * @param path      путь
+	 * @return идентификатор или {@code null} если аргументы невалидны
 	 */
 	public static @Nullable Identifier tryParse(String namespace, String path) {
 		return isNamespaceValid(namespace) && isPathValid(path) ? new Identifier(namespace, path) : null;
 	}
 
 	/**
-	 * Split on.
+	 * Разбивает строку по указанному разделителю и создаёт идентификатор.
+	 * Если разделитель не найден или стоит в начале, используется {@value #DEFAULT_NAMESPACE}.
 	 *
-	 * @param id id
-	 * @param delimiter delimiter
-	 *
-	 * @return Identifier — результат операции
+	 * @param id        строка идентификатора
+	 * @param delimiter символ-разделитель
+	 * @return новый идентификатор
+	 * @throws InvalidIdentifierException если строка содержит недопустимые символы
 	 */
 	public static Identifier splitOn(String id, char delimiter) {
-		int i = id.indexOf(delimiter);
-		if (i >= 0) {
-			String string = id.substring(i + 1);
-			if (i != 0) {
-				String string2 = id.substring(0, i);
-				return ofValidated(string2, string);
-			}
-			else {
-				return ofVanilla(string);
-			}
-		}
-		else {
+		int separatorIndex = id.indexOf(delimiter);
+
+		if (separatorIndex < 0) {
 			return ofVanilla(id);
 		}
+
+		String path = id.substring(separatorIndex + 1);
+
+		if (separatorIndex == 0) {
+			return ofVanilla(path);
+		}
+
+		return ofValidated(id.substring(0, separatorIndex), path);
 	}
 
 	/**
-	 * Try split on.
+	 * Пытается разбить строку по разделителю и создать идентификатор, возвращая {@code null} при ошибке.
 	 *
-	 * @param id id
-	 * @param delimiter delimiter
-	 *
-	 * @return @Nullable Identifier — результат операции
+	 * @param id        строка идентификатора
+	 * @param delimiter символ-разделитель
+	 * @return идентификатор или {@code null} если строка невалидна
 	 */
 	public static @Nullable Identifier trySplitOn(String id, char delimiter) {
-		int i = id.indexOf(delimiter);
-		if (i >= 0) {
-			String string = id.substring(i + 1);
-			if (!isPathValid(string)) {
-				return null;
-			}
-			else if (i != 0) {
-				String string2 = id.substring(0, i);
-				return isNamespaceValid(string2) ? new Identifier(string2, string) : null;
-			}
-			else {
-				return new Identifier("minecraft", string);
-			}
+		int separatorIndex = id.indexOf(delimiter);
+
+		if (separatorIndex < 0) {
+			return isPathValid(id) ? new Identifier(DEFAULT_NAMESPACE, id) : null;
 		}
-		else {
-			return isPathValid(id) ? new Identifier("minecraft", id) : null;
+
+		String path = id.substring(separatorIndex + 1);
+
+		if (!isPathValid(path)) {
+			return null;
 		}
+
+		if (separatorIndex == 0) {
+			return new Identifier(DEFAULT_NAMESPACE, path);
+		}
+
+		String namespace = id.substring(0, separatorIndex);
+		return isNamespaceValid(namespace) ? new Identifier(namespace, path) : null;
 	}
 
 	/**
-	 * Validate.
+	 * Валидирует строку и возвращает {@link DataResult} с идентификатором или ошибкой.
+	 * Используется в кодеках сериализации.
 	 *
-	 * @param id id
-	 *
-	 * @return DataResult — результат операции
+	 * @param id строка идентификатора
+	 * @return успешный результат или ошибка с описанием
 	 */
 	public static DataResult<Identifier> validate(String id) {
 		try {
 			return DataResult.success(of(id));
-		}
-		catch (InvalidIdentifierException var2) {
-			return DataResult.error(() -> "Not a valid resource location: " + id + " " + var2.getMessage());
+		} catch (InvalidIdentifierException exception) {
+			return DataResult.error(() -> "Not a valid resource location: " + id + " " + exception.getMessage());
 		}
 	}
 
 	public String getPath() {
-		return this.path;
+		return path;
 	}
 
 	public String getNamespace() {
-		return this.namespace;
+		return namespace;
 	}
 
 	/**
-	 * With path.
+	 * Создаёт новый идентификатор с тем же пространством имён, но другим путём.
 	 *
-	 * @param path path
-	 *
-	 * @return Identifier — результат операции
+	 * @param newPath новый путь
+	 * @return новый идентификатор
 	 */
-	public Identifier withPath(String path) {
-		return new Identifier(this.namespace, validatePath(this.namespace, path));
+	public Identifier withPath(String newPath) {
+		return new Identifier(namespace, validatePath(namespace, newPath));
 	}
 
 	/**
-	 * With path.
+	 * Создаёт новый идентификатор с тем же пространством имён, применяя функцию к пути.
 	 *
-	 * @param pathFunction path function
-	 *
-	 * @return Identifier — результат операции
+	 * @param pathFunction функция преобразования пути
+	 * @return новый идентификатор
 	 */
 	public Identifier withPath(UnaryOperator<String> pathFunction) {
-		return this.withPath(pathFunction.apply(this.path));
+		return withPath(pathFunction.apply(path));
 	}
 
-	/**
-	 * With prefixed path.
-	 *
-	 * @param prefix prefix
-	 *
-	 * @return Identifier — результат операции
-	 */
+	/** @return новый идентификатор с добавленным префиксом к пути */
 	public Identifier withPrefixedPath(String prefix) {
-		return this.withPath(prefix + this.path);
+		return withPath(prefix + path);
 	}
 
-	/**
-	 * With suffixed path.
-	 *
-	 * @param suffix suffix
-	 *
-	 * @return Identifier — результат операции
-	 */
+	/** @return новый идентификатор с добавленным суффиксом к пути */
 	public Identifier withSuffixedPath(String suffix) {
-		return this.withPath(this.path + suffix);
+		return withPath(path + suffix);
 	}
 
 	@Override
 	public String toString() {
-		return this.namespace + ":" + this.path;
+		return namespace + ":" + path;
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
+	public boolean equals(Object other) {
+		if (this == other) {
 			return true;
 		}
-		else {
-			return !(o instanceof Identifier identifier) ? false : this.namespace.equals(identifier.namespace)
-			                                                       && this.path.equals(identifier.path);
-		}
+
+		return other instanceof Identifier identifier
+			&& namespace.equals(identifier.namespace)
+			&& path.equals(identifier.path);
 	}
 
 	@Override
 	public int hashCode() {
-		return 31 * this.namespace.hashCode() + this.path.hashCode();
+		return 31 * namespace.hashCode() + path.hashCode();
 	}
 
-	/**
-	 * Compare to.
-	 *
-	 * @param identifier identifier
-	 *
-	 * @return int — результат операции
-	 */
-	public int compareTo(Identifier identifier) {
-		int i = this.path.compareTo(identifier.path);
-		if (i == 0) {
-			i = this.namespace.compareTo(identifier.namespace);
-		}
-
-		return i;
+	@Override
+	public int compareTo(Identifier other) {
+		int pathComparison = path.compareTo(other.path);
+		return pathComparison != 0 ? pathComparison : namespace.compareTo(other.namespace);
 	}
 
-	/**
-	 * To underscore separated string.
-	 *
-	 * @return String — результат операции
-	 */
+	/** @return строка вида {@code namespace_path} (все {@code /} и {@code :} заменены на {@code _}) */
 	public String toUnderscoreSeparatedString() {
-		return this.toString().replace('/', '_').replace(':', '_');
+		return toString().replace('/', '_').replace(':', '_');
 	}
 
-	/**
-	 * To translation key.
-	 *
-	 * @return String — результат операции
-	 */
+	/** @return ключ локализации вида {@code namespace.path} */
 	public String toTranslationKey() {
-		return this.namespace + "." + this.path;
+		return namespace + "." + path;
 	}
 
 	/**
-	 * To short translation key.
-	 *
-	 * @return String — результат операции
+	 * @return сокращённый ключ локализации: только {@code path} для {@value #DEFAULT_NAMESPACE},
+	 *         иначе полный {@code namespace.path}
 	 */
 	public String toShortTranslationKey() {
-		return this.namespace.equals("minecraft") ? this.path : this.toTranslationKey();
+		return namespace.equals(DEFAULT_NAMESPACE) ? path : toTranslationKey();
 	}
 
 	/**
-	 * To short string.
-	 *
-	 * @return String — результат операции
+	 * @return сокращённая строка: только {@code path} для {@value #DEFAULT_NAMESPACE},
+	 *         иначе полный {@code namespace:path}
 	 */
 	public String toShortString() {
-		return this.namespace.equals("minecraft") ? this.path : this.toString();
+		return namespace.equals(DEFAULT_NAMESPACE) ? path : toString();
 	}
 
-	/**
-	 * To translation key.
-	 *
-	 * @param prefix prefix
-	 *
-	 * @return String — результат операции
-	 */
+	/** @return ключ локализации с префиксом вида {@code prefix.namespace.path} */
 	public String toTranslationKey(String prefix) {
-		return prefix + "." + this.toTranslationKey();
+		return prefix + "." + toTranslationKey();
 	}
 
-	/**
-	 * To translation key.
-	 *
-	 * @param prefix prefix
-	 * @param suffix suffix
-	 *
-	 * @return String — результат операции
-	 */
+	/** @return ключ локализации с префиксом и суффиксом вида {@code prefix.namespace.path.suffix} */
 	public String toTranslationKey(String prefix, String suffix) {
-		return prefix + "." + this.toTranslationKey() + "." + suffix;
+		return prefix + "." + toTranslationKey() + "." + suffix;
 	}
 
 	private static String readString(StringReader reader) {
-		int i = reader.getCursor();
+		int start = reader.getCursor();
 
 		while (reader.canRead() && isCharValid(reader.peek())) {
 			reader.skip();
 		}
 
-		return reader.getString().substring(i, reader.getCursor());
+		return reader.getString().substring(start, reader.getCursor());
 	}
 
 	/**
-	 * From command input.
+	 * Читает идентификатор из командного ввода.
 	 *
-	 * @param reader reader
-	 *
-	 * @return Identifier — результат операции
+	 * @param reader читатель командной строки
+	 * @return прочитанный идентификатор
+	 * @throws CommandSyntaxException если идентификатор невалиден
 	 */
 	public static Identifier fromCommandInput(StringReader reader) throws CommandSyntaxException {
-		int i = reader.getCursor();
-		String string = readString(reader);
+		int cursor = reader.getCursor();
+		String raw = readString(reader);
 
 		try {
-			return of(string);
-		}
-		catch (InvalidIdentifierException var4) {
-			reader.setCursor(i);
+			return of(raw);
+		} catch (InvalidIdentifierException exception) {
+			reader.setCursor(cursor);
 			throw COMMAND_EXCEPTION.createWithContext(reader);
 		}
 	}
 
 	/**
-	 * From command input non empty.
+	 * Читает непустой идентификатор из командного ввода.
 	 *
-	 * @param reader reader
-	 *
-	 * @return Identifier — результат операции
+	 * @param reader читатель командной строки
+	 * @return прочитанный идентификатор
+	 * @throws CommandSyntaxException если идентификатор пустой или невалиден
 	 */
 	public static Identifier fromCommandInputNonEmpty(StringReader reader) throws CommandSyntaxException {
-		int i = reader.getCursor();
-		String string = readString(reader);
-		if (string.isEmpty()) {
+		int cursor = reader.getCursor();
+		String raw = readString(reader);
+
+		if (raw.isEmpty()) {
 			throw COMMAND_EXCEPTION.createWithContext(reader);
 		}
-		else {
-			try {
-				return of(string);
-			}
-			catch (InvalidIdentifierException var4) {
-				reader.setCursor(i);
-				throw COMMAND_EXCEPTION.createWithContext(reader);
-			}
+
+		try {
+			return of(raw);
+		} catch (InvalidIdentifierException exception) {
+			reader.setCursor(cursor);
+			throw COMMAND_EXCEPTION.createWithContext(reader);
 		}
 	}
 
-	public static boolean isCharValid(char c) {
-		return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c == '_' || c == ':' || c == '/' || c == '.' || c == '-';
+	public static boolean isCharValid(char character) {
+		return character >= '0' && character <= '9'
+			|| character >= 'a' && character <= 'z'
+			|| character == '_'
+			|| character == ':'
+			|| character == '/'
+			|| character == '.'
+			|| character == '-';
 	}
 
 	public static boolean isPathValid(String path) {
@@ -401,34 +362,37 @@ public final class Identifier implements Comparable<Identifier> {
 	private static String validateNamespace(String namespace, String path) {
 		if (!isNamespaceValid(namespace)) {
 			throw new InvalidIdentifierException(
-					"Non [a-z0-9_.-] character in namespace of location: " + namespace + ":" + path);
+				"Non [a-z0-9_.-] character in namespace of location: " + namespace + ":" + path
+			);
 		}
-		else {
-			return namespace;
-		}
+
+		return namespace;
 	}
 
 	public static boolean isPathCharacterValid(char character) {
 		return character == '_'
-				|| character == '-'
-				|| character >= 'a' && character <= 'z'
-				|| character >= '0' && character <= '9'
-				|| character == '/'
-				|| character == '.';
+			|| character == '-'
+			|| character >= 'a' && character <= 'z'
+			|| character >= '0' && character <= '9'
+			|| character == '/'
+			|| character == '.';
 	}
 
 	private static boolean isNamespaceCharacterValid(char character) {
-		return character == '_' || character == '-' || character >= 'a' && character <= 'z'
-				|| character >= '0' && character <= '9' || character == '.';
+		return character == '_'
+			|| character == '-'
+			|| character >= 'a' && character <= 'z'
+			|| character >= '0' && character <= '9'
+			|| character == '.';
 	}
 
 	private static String validatePath(String namespace, String path) {
 		if (!isPathValid(path)) {
 			throw new InvalidIdentifierException(
-					"Non [a-z0-9/._-] character in path of location: " + namespace + ":" + path);
+				"Non [a-z0-9/._-] character in path of location: " + namespace + ":" + path
+			);
 		}
-		else {
-			return path;
-		}
+
+		return path;
 	}
 }

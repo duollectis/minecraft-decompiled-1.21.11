@@ -6,9 +6,12 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code FillLayerFeature}.
+ * Заполняет горизонтальный слой 16×16 блоков заданным состоянием блока
+ * на фиксированной высоте относительно нижней границы мира.
  */
 public class FillLayerFeature extends Feature<FillLayerFeatureConfig> {
+
+	private static final int CHUNK_SIZE = 16;
 
 	public FillLayerFeature(Codec<FillLayerFeatureConfig> codec) {
 		super(codec);
@@ -16,19 +19,20 @@ public class FillLayerFeature extends Feature<FillLayerFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<FillLayerFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		FillLayerFeatureConfig fillLayerFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos.Mutable mutable = new BlockPos.Mutable();
+		BlockPos origin = context.getOrigin();
+		FillLayerFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos.Mutable pos = new BlockPos.Mutable();
+		int targetY = world.getBottomY() + config.height;
 
-		for (int i = 0; i < 16; i++) {
-			for (int j = 0; j < 16; j++) {
-				int k = blockPos.getX() + i;
-				int l = blockPos.getZ() + j;
-				int m = structureWorldAccess.getBottomY() + fillLayerFeatureConfig.height;
-				mutable.set(k, m, l);
-				if (structureWorldAccess.getBlockState(mutable).isAir()) {
-					structureWorldAccess.setBlockState(mutable, fillLayerFeatureConfig.state, 2);
+		for (int dx = 0; dx < CHUNK_SIZE; dx++) {
+			for (int dz = 0; dz < CHUNK_SIZE; dz++) {
+				int x = origin.getX() + dx;
+				int z = origin.getZ() + dz;
+				pos.set(x, targetY, z);
+
+				if (world.getBlockState(pos).isAir()) {
+					world.setBlockState(pos, config.state, 2);
 				}
 			}
 		}

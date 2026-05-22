@@ -3,7 +3,7 @@ package net.minecraft.world.entity;
 import java.util.UUID;
 
 /**
- * {@code UniquelyIdentifiable}.
+ * Контракт для объектов, имеющих уникальный идентификатор UUID и поддерживающих удаление.
  */
 public interface UniquelyIdentifiable {
 

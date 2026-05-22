@@ -15,14 +15,22 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
 /**
- * {@code BuriedTreasureGenerator}.
+ * Генератор структуры «Зарытое сокровище».
+ * <p>
+ * Размещает один сундук с лутом под поверхностью океанского дна или пляжа.
+ * Алгоритм ищет подходящую твёрдую породу (песчаник, камень, андезит и т.д.)
+ * и вставляет сундук, заполняя соседние воздушные/жидкостные блоки для корректного
+ * погружения структуры в ландшафт.
  */
 public class BuriedTreasureGenerator {
 
 	/**
-	 * {@code Piece}.
+	 * Единственный фрагмент структуры зарытого сокровища — сундук с лутом.
 	 */
 	public static class Piece extends StructurePiece {
+
+		/** Флаг обновления блока с уведомлением клиента и соседей. */
+		private static final int BLOCK_UPDATE_FLAGS = 3;
 
 		public Piece(BlockPos pos) {
 			super(StructurePieceType.BURIED_TREASURE, 0, new BlockBox(pos));
@@ -46,45 +54,40 @@ public class BuriedTreasureGenerator {
 				ChunkPos chunkPos,
 				BlockPos pivot
 		) {
-			int
-					i =
-					world.getTopY(
-							Heightmap.Type.OCEAN_FLOOR_WG,
-							this.boundingBox.getMinX(),
-							this.boundingBox.getMinZ()
-					);
-			BlockPos.Mutable mutable = new BlockPos.Mutable(this.boundingBox.getMinX(), i, this.boundingBox.getMinZ());
+			int topY = world.getTopY(
+					Heightmap.Type.OCEAN_FLOOR_WG,
+					boundingBox.getMinX(),
+					boundingBox.getMinZ()
+			);
+			BlockPos.Mutable mutable = new BlockPos.Mutable(boundingBox.getMinX(), topY, boundingBox.getMinZ());
 
 			while (mutable.getY() > world.getBottomY()) {
-				BlockState blockState = world.getBlockState(mutable);
-				BlockState blockState2 = world.getBlockState(mutable.down());
-				if (blockState2 == Blocks.SANDSTONE.getDefaultState()
-						|| blockState2 == Blocks.STONE.getDefaultState()
-						|| blockState2 == Blocks.ANDESITE.getDefaultState()
-						|| blockState2 == Blocks.GRANITE.getDefaultState()
-						|| blockState2 == Blocks.DIORITE.getDefaultState()) {
-					BlockState
-							blockState3 =
-							!blockState.isAir() && !this.isLiquid(blockState) ? blockState
-							                                                  : Blocks.SAND.getDefaultState();
+				BlockState currentState = world.getBlockState(mutable);
+				BlockState belowState = world.getBlockState(mutable.down());
+
+				if (isSuitableBase(belowState)) {
+					BlockState fillState = currentState.isAir() || isLiquid(currentState)
+							? Blocks.SAND.getDefaultState()
+							: currentState;
 
 					for (Direction direction : Direction.values()) {
-						BlockPos blockPos = mutable.offset(direction);
-						BlockState blockState4 = world.getBlockState(blockPos);
-						if (blockState4.isAir() || this.isLiquid(blockState4)) {
-							BlockPos blockPos2 = blockPos.down();
-							BlockState blockState5 = world.getBlockState(blockPos2);
-							if ((blockState5.isAir() || this.isLiquid(blockState5)) && direction != Direction.UP) {
-								world.setBlockState(blockPos, blockState2, 3);
-							}
-							else {
-								world.setBlockState(blockPos, blockState3, 3);
+						BlockPos neighborPos = mutable.offset(direction);
+						BlockState neighborState = world.getBlockState(neighborPos);
+
+						if (neighborState.isAir() || isLiquid(neighborState)) {
+							BlockState belowNeighbor = world.getBlockState(neighborPos.down());
+							boolean neighborHasNoGround = belowNeighbor.isAir() || isLiquid(belowNeighbor);
+
+							if (neighborHasNoGround && direction != Direction.UP) {
+								world.setBlockState(neighborPos, currentState, BLOCK_UPDATE_FLAGS);
+							} else {
+								world.setBlockState(neighborPos, fillState, BLOCK_UPDATE_FLAGS);
 							}
 						}
 					}
 
-					this.boundingBox = new BlockBox(mutable);
-					this.addChest(world, chunkBox, random, mutable, LootTables.BURIED_TREASURE_CHEST, null);
+					boundingBox = new BlockBox(mutable);
+					addChest(world, chunkBox, random, mutable, LootTables.BURIED_TREASURE_CHEST, null);
 					return;
 				}
 
@@ -92,7 +95,15 @@ public class BuriedTreasureGenerator {
 			}
 		}
 
-		private boolean isLiquid(BlockState state) {
+		private static boolean isSuitableBase(BlockState state) {
+			return state == Blocks.SANDSTONE.getDefaultState()
+					|| state == Blocks.STONE.getDefaultState()
+					|| state == Blocks.ANDESITE.getDefaultState()
+					|| state == Blocks.GRANITE.getDefaultState()
+					|| state == Blocks.DIORITE.getDefaultState();
+		}
+
+		private static boolean isLiquid(BlockState state) {
 			return state == Blocks.WATER.getDefaultState() || state == Blocks.LAVA.getDefaultState();
 		}
 	}

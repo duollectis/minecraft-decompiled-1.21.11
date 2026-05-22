@@ -17,7 +17,10 @@ import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LootableContainerBlockEntity}.
+ * Расширение {@link LockableContainerBlockEntity} с поддержкой лут-таблиц.
+ * <p>
+ * Лут генерируется лениво при первом обращении к инвентарю. Спектаторы не могут
+ * открыть контейнер с нераскрытой лут-таблицей, чтобы не раскрывать содержимое.
  */
 public abstract class LootableContainerBlockEntity extends LockableContainerBlockEntity implements LootableInventory {
 
@@ -34,7 +37,7 @@ public abstract class LootableContainerBlockEntity extends LockableContainerBloc
 
 	@Override
 	public @Nullable RegistryKey<LootTable> getLootTable() {
-		return this.lootTable;
+		return lootTable;
 	}
 
 	@Override
@@ -44,7 +47,7 @@ public abstract class LootableContainerBlockEntity extends LockableContainerBloc
 
 	@Override
 	public long getLootTableSeed() {
-		return this.lootTableSeed;
+		return lootTableSeed;
 	}
 
 	@Override
@@ -54,68 +57,69 @@ public abstract class LootableContainerBlockEntity extends LockableContainerBloc
 
 	@Override
 	public boolean isEmpty() {
-		this.generateLoot(null);
+		generateLoot(null);
 		return super.isEmpty();
 	}
 
 	@Override
 	public ItemStack getStack(int slot) {
-		this.generateLoot(null);
+		generateLoot(null);
 		return super.getStack(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		this.generateLoot(null);
+		generateLoot(null);
 		return super.removeStack(slot, amount);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		this.generateLoot(null);
+		generateLoot(null);
 		return super.removeStack(slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		this.generateLoot(null);
+		generateLoot(null);
 		super.setStack(slot, stack);
 	}
 
 	@Override
 	public boolean checkUnlocked(PlayerEntity player) {
-		return super.checkUnlocked(player) && (this.lootTable == null || !player.isSpectator());
+		return super.checkUnlocked(player) && (lootTable == null || !player.isSpectator());
 	}
 
 	@Override
-	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		if (this.checkUnlocked(playerEntity)) {
-			this.generateLoot(playerInventory.player);
-			return this.createScreenHandler(i, playerInventory);
+	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (checkUnlocked(player)) {
+			generateLoot(playerInventory.player);
+			return createScreenHandler(syncId, playerInventory);
 		}
-		else {
-			LockableContainerBlockEntity.handleLocked(this.getPos().toCenterPos(), playerEntity, this.getDisplayName());
-			return null;
-		}
+
+		LockableContainerBlockEntity.handleLocked(getPos().toCenterPos(), player, getDisplayName());
+		return null;
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		ContainerLootComponent containerLootComponent = components.get(DataComponentTypes.CONTAINER_LOOT);
-		if (containerLootComponent != null) {
-			this.lootTable = containerLootComponent.lootTable();
-			this.lootTableSeed = containerLootComponent.seed();
+		ContainerLootComponent lootComponent = components.get(DataComponentTypes.CONTAINER_LOOT);
+
+		if (lootComponent != null) {
+			lootTable = lootComponent.lootTable();
+			lootTableSeed = lootComponent.seed();
 		}
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		if (this.lootTable != null) {
+
+		if (lootTable != null) {
 			builder.add(
 					DataComponentTypes.CONTAINER_LOOT,
-					new ContainerLootComponent(this.lootTable, this.lootTableSeed)
+					new ContainerLootComponent(lootTable, lootTableSeed)
 			);
 		}
 	}

@@ -9,7 +9,10 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code MinecartController}.
+ * Абстрактный контроллер движения вагонетки.
+ * Инкапсулирует всю физику рельсового движения, позволяя переключаться между
+ * классической ({@link DefaultMinecartController}) и экспериментальной
+ * ({@link ExperimentalMinecartController}) реализациями через флаг {@code minecart_improvements}.
  */
 public abstract class MinecartController {
 
@@ -23,112 +26,115 @@ public abstract class MinecartController {
 		return null;
 	}
 
-	public void setLerpTargetVelocity(Vec3d vec3d) {
-		this.setVelocity(vec3d);
+	public void setLerpTargetVelocity(Vec3d velocity) {
+		setVelocity(velocity);
 	}
 
-	/**
-	 * Tick.
-	 */
+	/** Выполняет один тик физики вагонетки. */
 	public abstract void tick();
 
 	public World getWorld() {
-		return this.minecart.getEntityWorld();
+		return minecart.getEntityWorld();
 	}
 
 	/**
-	 * Перемещает on rail.
+	 * Выполняет движение вагонетки по рельсу за один тик.
 	 *
-	 * @param world world
+	 * @param world серверный мир для доступа к блокам и правилам
 	 */
 	public abstract void moveOnRail(ServerWorld world);
 
 	/**
-	 * Перемещает along track.
+	 * Перемещает вагонетку вдоль рельса на заданное расстояние.
 	 *
-	 * @param blockPos block pos
-	 * @param railShape rail shape
-	 * @param remainingMovement remaining movement
-	 *
-	 * @return double — результат операции
+	 * @param blockPos позиция блока рельса
+	 * @param railShape форма рельса
+	 * @param remainingMovement оставшееся расстояние для перемещения
+	 * @return остаток расстояния после перемещения
 	 */
 	public abstract double moveAlongTrack(BlockPos blockPos, RailShape railShape, double remainingMovement);
 
 	/**
-	 * Обрабатывает collision.
+	 * Обрабатывает столкновения вагонетки с другими сущностями.
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если столкновение было обработано и требуется коррекция позиции
 	 */
 	public abstract boolean handleCollision();
 
 	public Vec3d getVelocity() {
-		return this.minecart.getVelocity();
+		return minecart.getVelocity();
 	}
 
 	public void setVelocity(Vec3d velocity) {
-		this.minecart.setVelocity(velocity);
+		minecart.setVelocity(velocity);
 	}
 
 	public void setVelocity(double x, double y, double z) {
-		this.minecart.setVelocity(x, y, z);
+		minecart.setVelocity(x, y, z);
 	}
 
 	public Vec3d getPos() {
-		return this.minecart.getEntityPos();
+		return minecart.getEntityPos();
 	}
 
 	public double getX() {
-		return this.minecart.getX();
+		return minecart.getX();
 	}
 
 	public double getY() {
-		return this.minecart.getY();
+		return minecart.getY();
 	}
 
 	public double getZ() {
-		return this.minecart.getZ();
+		return minecart.getZ();
 	}
 
 	public void setPos(Vec3d pos) {
-		this.minecart.setPosition(pos);
+		minecart.setPosition(pos);
 	}
 
 	public void setPos(double x, double y, double z) {
-		this.minecart.setPosition(x, y, z);
+		minecart.setPosition(x, y, z);
 	}
 
 	public float getPitch() {
-		return this.minecart.getPitch();
+		return minecart.getPitch();
 	}
 
 	public void setPitch(float pitch) {
-		this.minecart.setPitch(pitch);
+		minecart.setPitch(pitch);
 	}
 
 	public float getYaw() {
-		return this.minecart.getYaw();
+		return minecart.getYaw();
 	}
 
 	public void setYaw(float yaw) {
-		this.minecart.setYaw(yaw);
+		minecart.setYaw(yaw);
 	}
 
 	public Direction getHorizontalFacing() {
-		return this.minecart.getHorizontalFacing();
+		return minecart.getHorizontalFacing();
 	}
 
 	/**
-	 * Limit speed.
-	 *
-	 * @param velocity velocity
-	 *
-	 * @return Vec3d — результат операции
+	 * Ограничивает скорость вагонетки до допустимого максимума.
+	 * По умолчанию не изменяет скорость; переопределяется в конкретных контроллерах.
 	 */
 	public Vec3d limitSpeed(Vec3d velocity) {
 		return velocity;
 	}
 
+	/**
+	 * Возвращает максимальную скорость вагонетки в блоках/тик.
+	 *
+	 * @param world серверный мир (может влиять на скорость через правила игры)
+	 */
 	public abstract double getMaxSpeed(ServerWorld world);
 
+	/**
+	 * Возвращает коэффициент сохранения скорости за тик (0.0–1.0).
+	 * Значение меньше 1.0 означает постепенное замедление.
+	 */
 	public abstract double getSpeedRetention();
 }

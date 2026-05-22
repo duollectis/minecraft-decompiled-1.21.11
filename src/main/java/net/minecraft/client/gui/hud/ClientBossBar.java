@@ -9,46 +9,51 @@ import net.minecraft.util.math.MathHelper;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientBossBar}.
+ * Клиентская реализация полоски здоровья босса с плавной анимацией изменения здоровья.
  */
+@Environment(EnvType.CLIENT)
 public class ClientBossBar extends BossBar {
 
 	private static final long HEALTH_CHANGE_ANIMATION_MS = 100L;
+
 	protected float healthLatest;
 	protected long timeHealthSet;
 
 	public ClientBossBar(
-			UUID uuid,
-			Text name,
-			float percent,
-			BossBar.Color color,
-			BossBar.Style style,
-			boolean darkenSky,
-			boolean dragonMusic,
-			boolean thickenFog
+		UUID uuid,
+		Text name,
+		float percent,
+		BossBar.Color color,
+		BossBar.Style style,
+		boolean darkenSky,
+		boolean dragonMusic,
+		boolean thickenFog
 	) {
 		super(uuid, name, color, style);
-		this.healthLatest = percent;
+		healthLatest = percent;
 		this.percent = percent;
-		this.timeHealthSet = Util.getMeasuringTimeMs();
-		this.setDarkenSky(darkenSky);
-		this.setDragonMusic(dragonMusic);
-		this.setThickenFog(thickenFog);
+		timeHealthSet = Util.getMeasuringTimeMs();
+		setDarkenSky(darkenSky);
+		setDragonMusic(dragonMusic);
+		setThickenFog(thickenFog);
 	}
 
 	@Override
 	public void setPercent(float percent) {
-		this.percent = this.getPercent();
-		this.healthLatest = percent;
-		this.timeHealthSet = Util.getMeasuringTimeMs();
+		this.percent = getPercent();
+		healthLatest = percent;
+		timeHealthSet = Util.getMeasuringTimeMs();
 	}
 
+	/**
+	 * Возвращает интерполированное значение здоровья для плавной анимации.
+	 * Анимация длится {@value HEALTH_CHANGE_ANIMATION_MS} мс после изменения значения.
+	 */
 	@Override
 	public float getPercent() {
-		long l = Util.getMeasuringTimeMs() - this.timeHealthSet;
-		float f = MathHelper.clamp((float) l / 100.0F, 0.0F, 1.0F);
-		return MathHelper.lerp(f, this.percent, this.healthLatest);
+		long elapsed = Util.getMeasuringTimeMs() - timeHealthSet;
+		float progress = MathHelper.clamp((float) elapsed / HEALTH_CHANGE_ANIMATION_MS, 0.0F, 1.0F);
+		return MathHelper.lerp(progress, this.percent, healthLatest);
 	}
 }

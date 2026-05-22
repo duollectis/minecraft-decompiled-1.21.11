@@ -14,7 +14,8 @@ import net.minecraft.world.gen.chunk.AquiferSampler;
 import java.util.function.Function;
 
 /**
- * {@code CaveCarver}.
+ * Карвер пещер. Генерирует систему туннелей и сферических полостей
+ * путём рекурсивного ветвления и случайного блуждания.
  */
 public class CaveCarver extends Carver<CaveCarverConfig> {
 
@@ -22,90 +23,63 @@ public class CaveCarver extends Carver<CaveCarverConfig> {
 		super(codec);
 	}
 
-	/**
-	 * Определяет, следует ли carve.
-	 *
-	 * @param caveCarverConfig cave carver config
-	 * @param random random
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean shouldCarve(CaveCarverConfig caveCarverConfig, Random random) {
-		return random.nextFloat() <= caveCarverConfig.probability;
+	@Override
+	public boolean shouldCarve(CaveCarverConfig config, Random random) {
+		return random.nextFloat() <= config.probability;
 	}
 
+	@Override
 	public boolean carve(
-			CarverContext carverContext,
-			CaveCarverConfig caveCarverConfig,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> function,
-			Random random,
-			AquiferSampler aquiferSampler,
-			ChunkPos chunkPos,
-			CarvingMask carvingMask
+		CarverContext context,
+		CaveCarverConfig config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		Random random,
+		AquiferSampler aquiferSampler,
+		ChunkPos chunkPos,
+		CarvingMask mask
 	) {
-		int i = ChunkSectionPos.getBlockCoord(this.getBranchFactor() * 2 - 1);
-		int j = random.nextInt(random.nextInt(random.nextInt(this.getMaxCaveCount()) + 1) + 1);
+		int maxBranchRange = ChunkSectionPos.getBlockCoord(getBranchFactor() * 2 - 1);
+		int caveCount = random.nextInt(random.nextInt(random.nextInt(getMaxCaveCount()) + 1) + 1);
 
-		for (int k = 0; k < j; k++) {
-			double d = chunkPos.getOffsetX(random.nextInt(16));
-			double e = caveCarverConfig.y.get(random, carverContext);
-			double f = chunkPos.getOffsetZ(random.nextInt(16));
-			double g = caveCarverConfig.horizontalRadiusMultiplier.get(random);
-			double h = caveCarverConfig.verticalRadiusMultiplier.get(random);
-			double l = caveCarverConfig.floorLevel.get(random);
-			Carver.SkipPredicate
-					skipPredicate =
-					(contextx, scaledRelativeX, scaledRelativeY, scaledRelativeZ, y) -> isPositionExcluded(
-							scaledRelativeX, scaledRelativeY, scaledRelativeZ, l
-					);
-			int m = 1;
+		for (int caveIndex = 0; caveIndex < caveCount; caveIndex++) {
+			double originX = chunkPos.getOffsetX(random.nextInt(16));
+			double originY = config.y.get(random, context);
+			double originZ = chunkPos.getOffsetZ(random.nextInt(16));
+			double hRadiusMultiplier = config.horizontalRadiusMultiplier.get(random);
+			double vRadiusMultiplier = config.verticalRadiusMultiplier.get(random);
+			double floorLevel = config.floorLevel.get(random);
+
+			Carver.SkipPredicate skipPredicate = (ctx, relX, relY, relZ, y) ->
+				isPositionExcluded(relX, relY, relZ, floorLevel);
+
+			int tunnelCount = 1;
+
 			if (random.nextInt(4) == 0) {
-				double n = caveCarverConfig.yScale.get(random);
-				float o = 1.0F + random.nextFloat() * 6.0F;
-				this.carveCave(
-						carverContext,
-						caveCarverConfig,
-						chunk,
-						function,
-						aquiferSampler,
-						d,
-						e,
-						f,
-						o,
-						n,
-						carvingMask,
-						skipPredicate
+				double yScale = config.yScale.get(random);
+				float sphereRadius = 1.0F + random.nextFloat() * 6.0F;
+				carveCave(
+					context, config, chunk, posToBiome, aquiferSampler,
+					originX, originY, originZ, sphereRadius, yScale, mask, skipPredicate
 				);
-				m += random.nextInt(4);
+				tunnelCount += random.nextInt(4);
 			}
 
-			for (int p = 0; p < m; p++) {
-				float q = random.nextFloat() * (float) (Math.PI * 2);
-				float o = (random.nextFloat() - 0.5F) / 4.0F;
-				float r = this.getTunnelSystemWidth(random);
-				int s = i - random.nextInt(i / 4);
-				int t = 0;
-				this.carveTunnels(
-						carverContext,
-						caveCarverConfig,
-						chunk,
-						function,
-						random.nextLong(),
-						aquiferSampler,
-						d,
-						e,
-						f,
-						g,
-						h,
-						r,
-						q,
-						o,
-						0,
-						s,
-						this.getTunnelSystemHeightWidthRatio(),
-						carvingMask,
-						skipPredicate
+			for (int tunnelIndex = 0; tunnelIndex < tunnelCount; tunnelIndex++) {
+				float yaw = random.nextFloat() * (float) (Math.PI * 2);
+				float pitch = (random.nextFloat() - 0.5F) / 4.0F;
+				float width = getTunnelSystemWidth(random);
+				int branchCount = maxBranchRange - random.nextInt(maxBranchRange / 4);
+
+				carveTunnels(
+					context, config, chunk, posToBiome,
+					random.nextLong(), aquiferSampler,
+					originX, originY, originZ,
+					hRadiusMultiplier, vRadiusMultiplier,
+					width, yaw, pitch,
+					0, branchCount,
+					getTunnelSystemHeightWidthRatio(),
+					mask, skipPredicate
 				);
 			}
 		}
@@ -118,12 +92,13 @@ public class CaveCarver extends Carver<CaveCarverConfig> {
 	}
 
 	protected float getTunnelSystemWidth(Random random) {
-		float f = random.nextFloat() * 2.0F + random.nextFloat();
+		float width = random.nextFloat() * 2.0F + random.nextFloat();
+
 		if (random.nextInt(10) == 0) {
-			f *= random.nextFloat() * random.nextFloat() * 3.0F + 1.0F;
+			width *= random.nextFloat() * random.nextFloat() * 3.0F + 1.0F;
 		}
 
-		return f;
+		return width;
 	}
 
 	protected double getTunnelSystemHeightWidthRatio() {
@@ -131,144 +106,122 @@ public class CaveCarver extends Carver<CaveCarverConfig> {
 	}
 
 	protected void carveCave(
-			CarverContext context,
-			CaveCarverConfig config,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			AquiferSampler aquiferSampler,
-			double d,
-			double e,
-			double f,
-			float g,
-			double h,
-			CarvingMask mask,
-			Carver.SkipPredicate skipPredicate
+		CarverContext context,
+		CaveCarverConfig config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		AquiferSampler aquiferSampler,
+		double x,
+		double y,
+		double z,
+		float radius,
+		double yScale,
+		CarvingMask mask,
+		Carver.SkipPredicate skipPredicate
 	) {
-		double i = 1.5 + MathHelper.sin((float) (Math.PI / 2)) * g;
-		double j = i * h;
-		this.carveRegion(context, config, chunk, posToBiome, aquiferSampler, d + 1.0, e, f, i, j, mask, skipPredicate);
+		double hRadius = 1.5 + MathHelper.sin((float) (Math.PI / 2)) * radius;
+		double vRadius = hRadius * yScale;
+		carveRegion(
+			context, config, chunk, posToBiome, aquiferSampler,
+			x + 1.0, y, z, hRadius, vRadius, mask, skipPredicate
+		);
 	}
 
+	/**
+	 * Рекурсивно вырезает систему туннелей, случайно блуждая в пространстве.
+	 * При достижении точки ветвления создаёт два дочерних туннеля под углом ±90°.
+	 */
 	protected void carveTunnels(
-			CarverContext context,
-			CaveCarverConfig config,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			long seed,
-			AquiferSampler aquiferSampler,
-			double x,
-			double y,
-			double z,
-			double horizontalScale,
-			double verticalScale,
-			float width,
-			float yaw,
-			float pitch,
-			int branchStartIndex,
-			int branchCount,
-			double yawPitchRatio,
-			CarvingMask mask,
-			Carver.SkipPredicate skipPredicate
+		CarverContext context,
+		CaveCarverConfig config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		long seed,
+		AquiferSampler aquiferSampler,
+		double x,
+		double y,
+		double z,
+		double horizontalScale,
+		double verticalScale,
+		float width,
+		float yaw,
+		float pitch,
+		int branchStartIndex,
+		int branchCount,
+		double yawPitchRatio,
+		CarvingMask mask,
+		Carver.SkipPredicate skipPredicate
 	) {
 		Random random = Random.create(seed);
-		int i = random.nextInt(branchCount / 2) + branchCount / 4;
-		boolean bl = random.nextInt(6) == 0;
-		float f = 0.0F;
-		float g = 0.0F;
+		int branchPoint = random.nextInt(branchCount / 2) + branchCount / 4;
+		boolean steepPitch = random.nextInt(6) == 0;
+		float pitchDelta = 0.0F;
+		float yawDelta = 0.0F;
 
-		for (int j = branchStartIndex; j < branchCount; j++) {
-			double d = 1.5 + MathHelper.sin((float) Math.PI * j / branchCount) * width;
-			double e = d * yawPitchRatio;
-			float h = MathHelper.cos(pitch);
-			x += MathHelper.cos(yaw) * h;
+		for (int step = branchStartIndex; step < branchCount; step++) {
+			double hRadius = 1.5 + MathHelper.sin((float) Math.PI * step / branchCount) * width;
+			double vRadius = hRadius * yawPitchRatio;
+			float cosPitch = MathHelper.cos(pitch);
+
+			x += MathHelper.cos(yaw) * cosPitch;
 			y += MathHelper.sin(pitch);
-			z += MathHelper.sin(yaw) * h;
-			pitch *= bl ? 0.92F : 0.7F;
-			pitch += g * 0.1F;
-			yaw += f * 0.1F;
-			g *= 0.9F;
-			f *= 0.75F;
-			g += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 2.0F;
-			f += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 4.0F;
-			if (j == i && width > 1.0F) {
-				this.carveTunnels(
-						context,
-						config,
-						chunk,
-						posToBiome,
-						random.nextLong(),
-						aquiferSampler,
-						x,
-						y,
-						z,
-						horizontalScale,
-						verticalScale,
-						random.nextFloat() * 0.5F + 0.5F,
-						yaw - (float) (Math.PI / 2),
-						pitch / 3.0F,
-						j,
-						branchCount,
-						1.0,
-						mask,
-						skipPredicate
+			z += MathHelper.sin(yaw) * cosPitch;
+
+			pitch *= steepPitch ? 0.92F : 0.7F;
+			pitch += pitchDelta * 0.1F;
+			yaw += yawDelta * 0.1F;
+			pitchDelta *= 0.9F;
+			yawDelta *= 0.75F;
+			pitchDelta += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 2.0F;
+			yawDelta += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 4.0F;
+
+			if (step == branchPoint && width > 1.0F) {
+				carveTunnels(
+					context, config, chunk, posToBiome, random.nextLong(), aquiferSampler,
+					x, y, z, horizontalScale, verticalScale,
+					random.nextFloat() * 0.5F + 0.5F,
+					yaw - (float) (Math.PI / 2), pitch / 3.0F,
+					step, branchCount, 1.0, mask, skipPredicate
 				);
-				this.carveTunnels(
-						context,
-						config,
-						chunk,
-						posToBiome,
-						random.nextLong(),
-						aquiferSampler,
-						x,
-						y,
-						z,
-						horizontalScale,
-						verticalScale,
-						random.nextFloat() * 0.5F + 0.5F,
-						yaw + (float) (Math.PI / 2),
-						pitch / 3.0F,
-						j,
-						branchCount,
-						1.0,
-						mask,
-						skipPredicate
+				carveTunnels(
+					context, config, chunk, posToBiome, random.nextLong(), aquiferSampler,
+					x, y, z, horizontalScale, verticalScale,
+					random.nextFloat() * 0.5F + 0.5F,
+					yaw + (float) (Math.PI / 2), pitch / 3.0F,
+					step, branchCount, 1.0, mask, skipPredicate
 				);
 				return;
 			}
 
-			if (random.nextInt(4) != 0) {
-				if (!canCarveBranch(chunk.getPos(), x, z, j, branchCount, width)) {
-					return;
-				}
-
-				this.carveRegion(
-						context,
-						config,
-						chunk,
-						posToBiome,
-						aquiferSampler,
-						x,
-						y,
-						z,
-						d * horizontalScale,
-						e * verticalScale,
-						mask,
-						skipPredicate
-				);
+			if (random.nextInt(4) == 0) {
+				continue;
 			}
+
+			if (!canCarveBranch(chunk.getPos(), x, z, step, branchCount, width)) {
+				return;
+			}
+
+			carveRegion(
+				context, config, chunk, posToBiome, aquiferSampler,
+				x, y, z,
+				hRadius * horizontalScale, vRadius * verticalScale,
+				mask, skipPredicate
+			);
 		}
 	}
 
 	private static boolean isPositionExcluded(
-			double scaledRelativeX,
-			double scaledRelativeY,
-			double scaledRelativeZ,
-			double floorY
+		double scaledRelativeX,
+		double scaledRelativeY,
+		double scaledRelativeZ,
+		double floorY
 	) {
-		return scaledRelativeY <= floorY
-		       ? true
-		       :
-		       scaledRelativeX * scaledRelativeX + scaledRelativeY * scaledRelativeY + scaledRelativeZ * scaledRelativeZ
-		       >= 1.0;
+		if (scaledRelativeY <= floorY) {
+			return true;
+		}
+
+		return scaledRelativeX * scaledRelativeX
+			+ scaledRelativeY * scaledRelativeY
+			+ scaledRelativeZ * scaledRelativeZ >= 1.0;
 	}
 }

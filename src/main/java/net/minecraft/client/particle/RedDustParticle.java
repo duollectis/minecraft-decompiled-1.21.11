@@ -7,11 +7,16 @@ import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.util.math.random.Random;
 import org.joml.Vector3f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RedDustParticle}.
+ * Частица пыли редстоуна с настраиваемым цветом. Цвет берётся из параметров
+ * эффекта {@link DustParticleEffect} и случайно затемняется на 40–100%,
+ * создавая естественную вариацию оттенков.
  */
+@Environment(EnvType.CLIENT)
 public class RedDustParticle extends AbstractDustParticle<DustParticleEffect> {
+
+	private static final float COLOR_MIN_FACTOR = 0.6F;
+	private static final float COLOR_VARIANCE = 0.4F;
 
 	protected RedDustParticle(
 			ClientWorld world,
@@ -25,17 +30,14 @@ public class RedDustParticle extends AbstractDustParticle<DustParticleEffect> {
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, parameters, spriteProvider);
-		float f = this.random.nextFloat() * 0.4F + 0.6F;
-		Vector3f vector3f = parameters.getColor();
-		this.red = this.darken(vector3f.x(), f);
-		this.green = this.darken(vector3f.y(), f);
-		this.blue = this.darken(vector3f.z(), f);
+		float colorFactor = this.random.nextFloat() * COLOR_VARIANCE + COLOR_MIN_FACTOR;
+		Vector3f color = parameters.getColor();
+		this.red = this.darken(color.x(), colorFactor);
+		this.green = this.darken(color.y(), colorFactor);
+		this.blue = this.darken(color.z(), colorFactor);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<DustParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -44,18 +46,19 @@ public class RedDustParticle extends AbstractDustParticle<DustParticleEffect> {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				DustParticleEffect dustParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				DustParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new RedDustParticle(clientWorld, d, e, f, g, h, i, dustParticleEffect, this.spriteProvider);
+			return new RedDustParticle(world, x, y, z, velocityX, velocityY, velocityZ, effect, this.spriteProvider);
 		}
 	}
 }

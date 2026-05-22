@@ -37,7 +37,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code CrafterBlock}.
+ * Блок-крафтер: автоматически выполняет крафт при получении сигнала редстоуна.
+ * Результат крафта выбрасывается в направлении грани {@code ORIENTATION} или
+ * передаётся в соседний инвентарь. Поддерживает компаратор для отображения заполненности.
  */
 public class CrafterBlock extends BlockWithEntity {
 
@@ -49,10 +51,12 @@ public class CrafterBlock extends BlockWithEntity {
 	private static final int TRIGGER_DELAY = 4;
 	private static final RecipeCache RECIPE_CACHE = new RecipeCache(10);
 	private static final int PLAYER_SEARCH_RADIUS = 17;
+	/** Смещение точки выброса предмета от центра блока в направлении выхода. */
+	private static final double EJECT_OFFSET = 0.7;
 
 	public CrafterBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(ORIENTATION, Orientation.NORTH_UP)
 				.with(TRIGGERED, false)
@@ -84,23 +88,23 @@ public class CrafterBlock extends BlockWithEntity {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		boolean bl = world.isReceivingRedstonePower(pos);
-		boolean bl2 = state.get(TRIGGERED);
+		boolean powered = world.isReceivingRedstonePower(pos);
+		boolean wasTriggered = state.get(TRIGGERED);
 		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (bl && !bl2) {
-			world.scheduleBlockTick(pos, this, 4);
-			world.setBlockState(pos, state.with(TRIGGERED, true), 2);
-			this.setTriggered(blockEntity, true);
-		}
-		else if (!bl && bl2) {
-			world.setBlockState(pos, state.with(TRIGGERED, false).with(CRAFTING, false), 2);
-			this.setTriggered(blockEntity, false);
+
+		if (powered && !wasTriggered) {
+			world.scheduleBlockTick(pos, this, TRIGGER_DELAY);
+			world.setBlockState(pos, state.with(TRIGGERED, true), Block.NOTIFY_LISTENERS);
+			setTriggered(blockEntity, true);
+		} else if (!powered && wasTriggered) {
+			world.setBlockState(pos, state.with(TRIGGERED, false).with(CRAFTING, false), Block.NOTIFY_LISTENERS);
+			setTriggered(blockEntity, false);
 		}
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		this.craft(state, world, pos);
+		craft(state, world, pos);
 	}
 
 	@Override
@@ -128,16 +132,17 @@ public class CrafterBlock extends BlockWithEntity {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		Direction direction = ctx.getPlayerLookDirection().getOpposite();
+		Direction facing = ctx.getPlayerLookDirection().getOpposite();
 
-		Direction direction2 = switch (direction) {
+		Direction secondary = switch (facing) {
 			case DOWN -> ctx.getHorizontalPlayerFacing().getOpposite();
 			case UP -> ctx.getHorizontalPlayerFacing();
 			case NORTH, SOUTH, WEST, EAST -> Direction.UP;
 		};
-		return this.getDefaultState()
-		           .with(ORIENTATION, Orientation.byDirections(direction, direction2))
-		           .with(TRIGGERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
+
+		return getDefaultState()
+				.with(ORIENTATION, Orientation.byDirections(facing, secondary))
+				.with(TRIGGERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
 	}
 
 	@Override
@@ -149,7 +154,7 @@ public class CrafterBlock extends BlockWithEntity {
 			ItemStack itemStack
 	) {
 		if (state.get(TRIGGERED)) {
-			world.scheduleBlockTick(pos, this, 4);
+			world.scheduleBlockTick(pos, this, TRIGGER_DELAY);
 		}
 	}
 
@@ -168,46 +173,49 @@ public class CrafterBlock extends BlockWithEntity {
 	}
 
 	/**
-	 * Craft.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
+	 * Выполняет крафт: ищет подходящий рецепт, создаёт результат и передаёт/выбрасывает
+	 * его и остатки рецепта. При отсутствии рецепта или пустом результате воспроизводит
+	 * звук неудачи (syncWorldEvent 1050).
 	 */
 	protected void craft(BlockState state, ServerWorld world, BlockPos pos) {
-		if (world.getBlockEntity(pos) instanceof CrafterBlockEntity crafterBlockEntity) {
-			CraftingRecipeInput var11 = crafterBlockEntity.createRecipeInput();
-			Optional<RecipeEntry<CraftingRecipe>> optional = getCraftingRecipe(world, var11);
-			if (optional.isEmpty()) {
-				world.syncWorldEvent(1050, pos, 0);
-			}
-			else {
-				RecipeEntry<CraftingRecipe> recipeEntry = optional.get();
-				ItemStack itemStack = recipeEntry.value().craft(var11, world.getRegistryManager());
-				if (itemStack.isEmpty()) {
-					world.syncWorldEvent(1050, pos, 0);
-				}
-				else {
-					crafterBlockEntity.setCraftingTicksRemaining(6);
-					world.setBlockState(pos, state.with(CRAFTING, true), 2);
-					itemStack.onCraftByCrafter(world);
-					this.transferOrSpawnStack(world, pos, crafterBlockEntity, itemStack, state, recipeEntry);
+		if (!(world.getBlockEntity(pos) instanceof CrafterBlockEntity crafter)) {
+			return;
+		}
 
-					for (ItemStack itemStack2 : recipeEntry.value().getRecipeRemainders(var11)) {
-						if (!itemStack2.isEmpty()) {
-							this.transferOrSpawnStack(world, pos, crafterBlockEntity, itemStack2, state, recipeEntry);
-						}
-					}
+		CraftingRecipeInput recipeInput = crafter.createRecipeInput();
+		Optional<RecipeEntry<CraftingRecipe>> recipeOptional = getCraftingRecipe(world, recipeInput);
 
-					crafterBlockEntity.getHeldStacks().forEach(stack -> {
-						if (!stack.isEmpty()) {
-							stack.decrement(1);
-						}
-					});
-					crafterBlockEntity.markDirty();
-				}
+		if (recipeOptional.isEmpty()) {
+			world.syncWorldEvent(1050, pos, 0);
+			return;
+		}
+
+		RecipeEntry<CraftingRecipe> recipeEntry = recipeOptional.get();
+		ItemStack result = recipeEntry.value().craft(recipeInput, world.getRegistryManager());
+
+		if (result.isEmpty()) {
+			world.syncWorldEvent(1050, pos, 0);
+			return;
+		}
+
+		crafter.setCraftingTicksRemaining(CRAFTING_TICKS);
+		world.setBlockState(pos, state.with(CRAFTING, true), Block.NOTIFY_LISTENERS);
+		result.onCraftByCrafter(world);
+		transferOrSpawnStack(world, pos, crafter, result, state, recipeEntry);
+
+		for (ItemStack remainder : recipeEntry.value().getRecipeRemainders(recipeInput)) {
+			if (!remainder.isEmpty()) {
+				transferOrSpawnStack(world, pos, crafter, remainder, state, recipeEntry);
 			}
 		}
+
+		crafter.getHeldStacks().forEach(stack -> {
+			if (!stack.isEmpty()) {
+				stack.decrement(1);
+			}
+		});
+
+		crafter.markDirty();
 	}
 
 	public static Optional<RecipeEntry<CraftingRecipe>> getCraftingRecipe(
@@ -225,48 +233,46 @@ public class CrafterBlock extends BlockWithEntity {
 			BlockState state,
 			RecipeEntry<?> recipe
 	) {
-		Direction direction = state.get(ORIENTATION).getFacing();
-		Inventory inventory = HopperBlockEntity.getInventoryAt(world, pos.offset(direction));
-		ItemStack itemStack = stack.copy();
-		if (inventory != null && (inventory instanceof CrafterBlockEntity || stack.getCount() > inventory.getMaxCount(
-				stack)
-		)) {
-			while (!itemStack.isEmpty()) {
-				ItemStack itemStack2 = itemStack.copyWithCount(1);
-				ItemStack
-						itemStack3 =
-						HopperBlockEntity.transfer(blockEntity, inventory, itemStack2, direction.getOpposite());
-				if (!itemStack3.isEmpty()) {
+		Direction facing = state.get(ORIENTATION).getFacing();
+		Inventory inventory = HopperBlockEntity.getInventoryAt(world, pos.offset(facing));
+		ItemStack remaining = stack.copy();
+
+		if (inventory != null && (inventory instanceof CrafterBlockEntity || stack.getCount() > inventory.getMaxCount(stack))) {
+			// Передаём по одному предмету, чтобы обойти ограничение стека у соседнего крафтера
+			while (!remaining.isEmpty()) {
+				ItemStack single = remaining.copyWithCount(1);
+				ItemStack rejected = HopperBlockEntity.transfer(blockEntity, inventory, single, facing.getOpposite());
+				if (!rejected.isEmpty()) {
 					break;
 				}
 
-				itemStack.decrement(1);
+				remaining.decrement(1);
 			}
-		}
-		else if (inventory != null) {
-			while (!itemStack.isEmpty()) {
-				int i = itemStack.getCount();
-				itemStack = HopperBlockEntity.transfer(blockEntity, inventory, itemStack, direction.getOpposite());
-				if (i == itemStack.getCount()) {
+		} else if (inventory != null) {
+			while (!remaining.isEmpty()) {
+				int prevCount = remaining.getCount();
+				remaining = HopperBlockEntity.transfer(blockEntity, inventory, remaining, facing.getOpposite());
+				if (prevCount == remaining.getCount()) {
 					break;
 				}
 			}
 		}
 
-		if (!itemStack.isEmpty()) {
-			Vec3d vec3d = Vec3d.ofCenter(pos);
-			Vec3d vec3d2 = vec3d.offset(direction, 0.7);
-			ItemDispenserBehavior.spawnItem(world, itemStack, 6, direction, vec3d2);
+		if (!remaining.isEmpty()) {
+			Vec3d center = Vec3d.ofCenter(pos);
+			Vec3d ejectPoint = center.offset(facing, EJECT_OFFSET);
+			ItemDispenserBehavior.spawnItem(world, remaining, CRAFTING_TICKS, facing, ejectPoint);
 
-			for (ServerPlayerEntity serverPlayerEntity : world.getNonSpectatingEntities(
+			double searchDiameter = PLAYER_SEARCH_RADIUS * 2.0;
+			for (ServerPlayerEntity player : world.getNonSpectatingEntities(
 					ServerPlayerEntity.class,
-					Box.of(vec3d, 17.0, 17.0, 17.0)
+					Box.of(center, searchDiameter, searchDiameter, searchDiameter)
 			)) {
-				Criteria.CRAFTER_RECIPE_CRAFTED.trigger(serverPlayerEntity, recipe.id(), blockEntity.getHeldStacks());
+				Criteria.CRAFTER_RECIPE_CRAFTED.trigger(player, recipe.id(), blockEntity.getHeldStacks());
 			}
 
 			world.syncWorldEvent(1049, pos, 0);
-			world.syncWorldEvent(2010, pos, direction.getIndex());
+			world.syncWorldEvent(2010, pos, facing.getIndex());
 		}
 	}
 

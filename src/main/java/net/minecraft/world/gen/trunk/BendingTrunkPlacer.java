@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code BendingTrunkPlacer}.
+ * Алгоритм размещения изогнутого ствола дерева.
+ * Строит ствол, который на определённой высоте начинает отклоняться в случайном горизонтальном
+ * направлении, а затем продолжает расти горизонтально на заданную длину изгиба.
  */
 public class BendingTrunkPlacer extends TrunkPlacer {
 
@@ -66,40 +68,39 @@ public class BendingTrunkPlacer extends TrunkPlacer {
 			BlockPos startPos,
 			TreeFeatureConfig config
 	) {
-		Direction direction = Direction.Type.HORIZONTAL.random(random);
-		int i = height - 1;
+		Direction bendDirection = Direction.Type.HORIZONTAL.random(random);
+		int trunkTop = height - 1;
 		BlockPos.Mutable mutable = startPos.mutableCopy();
-		BlockPos blockPos = mutable.down();
-		setToDirt(world, replacer, random, blockPos, config);
-		List<FoliagePlacer.TreeNode> list = Lists.newArrayList();
+		setToDirt(world, replacer, random, mutable.down(), config);
+		List<FoliagePlacer.TreeNode> nodes = Lists.newArrayList();
 
-		for (int j = 0; j <= i; j++) {
-			if (j + 1 >= i + random.nextInt(2)) {
-				mutable.move(direction);
+		for (int y = 0; y <= trunkTop; y++) {
+			if (y + 1 >= trunkTop + random.nextInt(2)) {
+				mutable.move(bendDirection);
 			}
 
 			if (TreeFeature.canReplace(world, mutable)) {
-				this.getAndSetState(world, replacer, random, mutable, config);
+				getAndSetState(world, replacer, random, mutable, config);
 			}
 
-			if (j >= this.minHeightForLeaves) {
-				list.add(new FoliagePlacer.TreeNode(mutable.toImmutable(), 0, false));
+			if (y >= minHeightForLeaves) {
+				nodes.add(new FoliagePlacer.TreeNode(mutable.toImmutable(), 0, false));
 			}
 
 			mutable.move(Direction.UP);
 		}
 
-		int j = this.bendLength.get(random);
+		int bendLen = bendLength.get(random);
 
-		for (int k = 0; k <= j; k++) {
+		for (int step = 0; step <= bendLen; step++) {
 			if (TreeFeature.canReplace(world, mutable)) {
-				this.getAndSetState(world, replacer, random, mutable, config);
+				getAndSetState(world, replacer, random, mutable, config);
 			}
 
-			list.add(new FoliagePlacer.TreeNode(mutable.toImmutable(), 0, false));
-			mutable.move(direction);
+			nodes.add(new FoliagePlacer.TreeNode(mutable.toImmutable(), 0, false));
+			mutable.move(bendDirection);
 		}
 
-		return list;
+		return nodes;
 	}
 }

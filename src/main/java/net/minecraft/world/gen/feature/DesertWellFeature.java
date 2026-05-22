@@ -15,9 +15,7 @@ import net.minecraft.world.gen.feature.util.FeatureContext;
 
 import java.util.List;
 
-/**
- * {@code DesertWellFeature}.
- */
+/** Генерирует пустынный колодец из песчаника с водой внутри и подозрительным песком на дне. */
 public class DesertWellFeature extends Feature<DefaultFeatureConfig> {
 
 	private static final BlockStatePredicate CAN_GENERATE = BlockStatePredicate.forBlock(Blocks.SAND);
@@ -32,90 +30,79 @@ public class DesertWellFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		blockPos = blockPos.up();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos pos = context.getOrigin().up();
 
-		while (structureWorldAccess.isAir(blockPos) && blockPos.getY() > structureWorldAccess.getBottomY() + 2) {
-			blockPos = blockPos.down();
+		while (world.isAir(pos) && pos.getY() > world.getBottomY() + 2) {
+			pos = pos.down();
 		}
 
-		if (!CAN_GENERATE.test(structureWorldAccess.getBlockState(blockPos))) {
+		if (!CAN_GENERATE.test(world.getBlockState(pos))) {
 			return false;
 		}
-		else {
-			for (int i = -2; i <= 2; i++) {
-				for (int j = -2; j <= 2; j++) {
-					if (structureWorldAccess.isAir(blockPos.add(i, -1, j)) && structureWorldAccess.isAir(blockPos.add(
-							i,
-							-2,
-							j
-					))) {
-						return false;
-					}
+
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				if (world.isAir(pos.add(dx, -1, dz)) && world.isAir(pos.add(dx, -2, dz))) {
+					return false;
 				}
 			}
-
-			for (int i = -2; i <= 0; i++) {
-				for (int jx = -2; jx <= 2; jx++) {
-					for (int k = -2; k <= 2; k++) {
-						structureWorldAccess.setBlockState(blockPos.add(jx, i, k), this.wall, 2);
-					}
-				}
-			}
-
-			structureWorldAccess.setBlockState(blockPos, this.fluidInside, 2);
-
-			for (Direction direction : Direction.Type.HORIZONTAL) {
-				structureWorldAccess.setBlockState(blockPos.offset(direction), this.fluidInside, 2);
-			}
-
-			BlockPos blockPos2 = blockPos.down();
-			structureWorldAccess.setBlockState(blockPos2, this.sand, 2);
-
-			for (Direction direction2 : Direction.Type.HORIZONTAL) {
-				structureWorldAccess.setBlockState(blockPos2.offset(direction2), this.sand, 2);
-			}
-
-			for (int jx = -2; jx <= 2; jx++) {
-				for (int k = -2; k <= 2; k++) {
-					if (jx == -2 || jx == 2 || k == -2 || k == 2) {
-						structureWorldAccess.setBlockState(blockPos.add(jx, 1, k), this.wall, 2);
-					}
-				}
-			}
-
-			structureWorldAccess.setBlockState(blockPos.add(2, 1, 0), this.slab, 2);
-			structureWorldAccess.setBlockState(blockPos.add(-2, 1, 0), this.slab, 2);
-			structureWorldAccess.setBlockState(blockPos.add(0, 1, 2), this.slab, 2);
-			structureWorldAccess.setBlockState(blockPos.add(0, 1, -2), this.slab, 2);
-
-			for (int jx = -1; jx <= 1; jx++) {
-				for (int kx = -1; kx <= 1; kx++) {
-					if (jx == 0 && kx == 0) {
-						structureWorldAccess.setBlockState(blockPos.add(jx, 4, kx), this.wall, 2);
-					}
-					else {
-						structureWorldAccess.setBlockState(blockPos.add(jx, 4, kx), this.slab, 2);
-					}
-				}
-			}
-
-			for (int jx = 1; jx <= 3; jx++) {
-				structureWorldAccess.setBlockState(blockPos.add(-1, jx, -1), this.wall, 2);
-				structureWorldAccess.setBlockState(blockPos.add(-1, jx, 1), this.wall, 2);
-				structureWorldAccess.setBlockState(blockPos.add(1, jx, -1), this.wall, 2);
-				structureWorldAccess.setBlockState(blockPos.add(1, jx, 1), this.wall, 2);
-			}
-
-			List<BlockPos>
-					list =
-					List.of(blockPos, blockPos.east(), blockPos.south(), blockPos.west(), blockPos.north());
-			Random random = context.getRandom();
-			generateSuspiciousSand(structureWorldAccess, Util.getRandom(list, random).down(1));
-			generateSuspiciousSand(structureWorldAccess, Util.getRandom(list, random).down(2));
-			return true;
 		}
+
+		for (int dy = -2; dy <= 0; dy++) {
+			for (int dx = -2; dx <= 2; dx++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					world.setBlockState(pos.add(dx, dy, dz), wall, 2);
+				}
+			}
+		}
+
+		world.setBlockState(pos, fluidInside, 2);
+
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			world.setBlockState(pos.offset(direction), fluidInside, 2);
+		}
+
+		BlockPos bottom = pos.down();
+		world.setBlockState(bottom, sand, 2);
+
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			world.setBlockState(bottom.offset(direction), sand, 2);
+		}
+
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				if (dx == -2 || dx == 2 || dz == -2 || dz == 2) {
+					world.setBlockState(pos.add(dx, 1, dz), wall, 2);
+				}
+			}
+		}
+
+		world.setBlockState(pos.add(2, 1, 0), slab, 2);
+		world.setBlockState(pos.add(-2, 1, 0), slab, 2);
+		world.setBlockState(pos.add(0, 1, 2), slab, 2);
+		world.setBlockState(pos.add(0, 1, -2), slab, 2);
+
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				BlockState roofBlock = (dx == 0 && dz == 0) ? wall : slab;
+				world.setBlockState(pos.add(dx, 4, dz), roofBlock, 2);
+			}
+		}
+
+		for (int dy = 1; dy <= 3; dy++) {
+			world.setBlockState(pos.add(-1, dy, -1), wall, 2);
+			world.setBlockState(pos.add(-1, dy, 1), wall, 2);
+			world.setBlockState(pos.add(1, dy, -1), wall, 2);
+			world.setBlockState(pos.add(1, dy, 1), wall, 2);
+		}
+
+		List<BlockPos> sandCandidates = List.of(pos, pos.east(), pos.south(), pos.west(), pos.north());
+		Random random = context.getRandom();
+		generateSuspiciousSand(world, Util.getRandom(sandCandidates, random).down(1));
+		generateSuspiciousSand(world, Util.getRandom(sandCandidates, random).down(2));
+
+		return true;
 	}
 
 	private static void generateSuspiciousSand(StructureWorldAccess world, BlockPos pos) {

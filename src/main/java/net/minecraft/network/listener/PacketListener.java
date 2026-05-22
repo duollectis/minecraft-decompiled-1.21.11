@@ -11,7 +11,9 @@ import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
 
 /**
- * Интерфейс packet listener.
+ * Базовый контракт для всех слушателей сетевых пакетов.
+ * Определяет сторону соединения ({@link NetworkSide}), фазу протокола ({@link NetworkPhase}),
+ * обработку ошибок и заполнение отчётов о сбоях.
  */
 public interface PacketListener {
 
@@ -32,14 +34,14 @@ public interface PacketListener {
 	boolean isConnectionOpen();
 
 	default boolean accepts(Packet<?> packet) {
-		return this.isConnectionOpen();
+		return isConnectionOpen();
 	}
 
 	default void fillCrashReport(CrashReport report) {
-		CrashReportSection crashReportSection = report.addElement("Connection");
-		crashReportSection.add("Protocol", () -> this.getPhase().getId());
-		crashReportSection.add("Flow", () -> this.getSide().toString());
-		this.addCustomCrashReportInfo(report, crashReportSection);
+		CrashReportSection section = report.addElement("Connection");
+		section.add("Protocol", () -> getPhase().getId());
+		section.add("Flow", () -> getSide().toString());
+		addCustomCrashReportInfo(report, section);
 	}
 
 	default void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {

@@ -42,7 +42,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * {@code BeaconBlockEntity}.
+ * Блок-сущность маяка. Управляет логикой луча, уровнями пирамиды и применением
+ * эффектов статуса к игрокам в радиусе действия.
  */
 public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, Nameable, BeamEmitter {
 
@@ -76,9 +77,9 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 		@Override
 		public int get(int index) {
 			return switch (index) {
-				case 0 -> BeaconBlockEntity.this.level;
-				case 1 -> BeaconScreenHandler.getRawIdForStatusEffect(BeaconBlockEntity.this.primary);
-				case 2 -> BeaconScreenHandler.getRawIdForStatusEffect(BeaconBlockEntity.this.secondary);
+				case LEVEL_PROPERTY_INDEX -> level;
+				case PRIMARY_PROPERTY_INDEX -> BeaconScreenHandler.getRawIdForStatusEffect(primary);
+				case SECONDARY_PROPERTY_INDEX -> BeaconScreenHandler.getRawIdForStatusEffect(secondary);
 				default -> 0;
 			};
 		}
@@ -86,30 +87,24 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 		@Override
 		public void set(int index, int value) {
 			switch (index) {
-				case 0:
-					BeaconBlockEntity.this.level = value;
+				case LEVEL_PROPERTY_INDEX:
+					level = value;
 					break;
-				case 1:
-					if (!BeaconBlockEntity.this.world.isClient() && !BeaconBlockEntity.this.beamSegments.isEmpty()) {
-						BeaconBlockEntity.playSound(
-								BeaconBlockEntity.this.world,
-								BeaconBlockEntity.this.pos,
-								SoundEvents.BLOCK_BEACON_POWER_SELECT
-						);
+				case PRIMARY_PROPERTY_INDEX:
+					if (!world.isClient() && !beamSegments.isEmpty()) {
+						BeaconBlockEntity.playSound(world, pos, SoundEvents.BLOCK_BEACON_POWER_SELECT);
 					}
 
-					BeaconBlockEntity.this.primary =
-							BeaconBlockEntity.getEffectOrNull(BeaconScreenHandler.getStatusEffectForRawId(value));
+					primary = BeaconBlockEntity.getEffectOrNull(BeaconScreenHandler.getStatusEffectForRawId(value));
 					break;
-				case 2:
-					BeaconBlockEntity.this.secondary =
-							BeaconBlockEntity.getEffectOrNull(BeaconScreenHandler.getStatusEffectForRawId(value));
+				case SECONDARY_PROPERTY_INDEX:
+					secondary = BeaconBlockEntity.getEffectOrNull(BeaconScreenHandler.getStatusEffectForRawId(value));
 			}
 		}
 
 		@Override
 		public int size() {
-			return 3;
+			return PROPERTY_COUNT;
 		}
 	};
 
@@ -122,69 +117,64 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 	}
 
 	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
+	 * Тикает маяк: обновляет луч блок за блоком (до {@code MAX_BEAM_BLOCKS_PER_TICK} за тик),
+	 * каждые 80 тиков пересчитывает уровень пирамиды и применяет эффекты к игрокам.
 	 */
 	public static void tick(World world, BlockPos pos, BlockState state, BeaconBlockEntity blockEntity) {
-		int i = pos.getX();
-		int j = pos.getY();
-		int k = pos.getZ();
-		BlockPos blockPos;
-		if (blockEntity.minY < j) {
-			blockPos = pos;
+		int beaconX = pos.getX();
+		int beaconY = pos.getY();
+		int beaconZ = pos.getZ();
+
+		BlockPos scanPos;
+		if (blockEntity.minY < beaconY) {
+			scanPos = pos;
 			blockEntity.pendingBeamSegments = Lists.newArrayList();
 			blockEntity.minY = pos.getY() - 1;
-		}
-		else {
-			blockPos = new BlockPos(i, blockEntity.minY + 1, k);
+		} else {
+			scanPos = new BlockPos(beaconX, blockEntity.minY + 1, beaconZ);
 		}
 
-		BeamEmitter.BeamSegment
-				beamSegment =
-				blockEntity.pendingBeamSegments.isEmpty() ? null
-				                                  : blockEntity.pendingBeamSegments.get(blockEntity.pendingBeamSegments.size() - 1);
-		int l = world.getTopY(Heightmap.Type.WORLD_SURFACE, i, k);
+		BeamEmitter.BeamSegment beamSegment = blockEntity.pendingBeamSegments.isEmpty()
+				? null
+				: blockEntity.pendingBeamSegments.get(blockEntity.pendingBeamSegments.size() - 1);
+		int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, beaconX, beaconZ);
 
-		for (int m = 0; m < 10 && blockPos.getY() <= l; m++) {
-			BlockState blockState = world.getBlockState(blockPos);
+		for (int step = 0; step < MAX_BEAM_BLOCKS_PER_TICK && scanPos.getY() <= surfaceY; step++) {
+			BlockState blockState = world.getBlockState(scanPos);
+
 			if (blockState.getBlock() instanceof Stainable stainable) {
-				int n = stainable.getColor().getEntityColor();
+				int blockColor = stainable.getColor().getEntityColor();
+
 				if (blockEntity.pendingBeamSegments.size() <= 1) {
-					beamSegment = new BeamEmitter.BeamSegment(n);
+					beamSegment = new BeamEmitter.BeamSegment(blockColor);
 					blockEntity.pendingBeamSegments.add(beamSegment);
-				}
-				else if (beamSegment != null) {
-					if (n == beamSegment.getColor()) {
+				} else if (beamSegment != null) {
+					if (blockColor == beamSegment.getColor()) {
 						beamSegment.increaseHeight();
-					}
-					else {
-						beamSegment = new BeamEmitter.BeamSegment(ColorHelper.average(beamSegment.getColor(), n));
+					} else {
+						beamSegment = new BeamEmitter.BeamSegment(ColorHelper.average(beamSegment.getColor(), blockColor));
 						blockEntity.pendingBeamSegments.add(beamSegment);
 					}
 				}
-			}
-			else {
+			} else {
 				if (beamSegment == null || blockState.getOpacity() >= 15 && !blockState.isOf(Blocks.BEDROCK)) {
 					blockEntity.pendingBeamSegments.clear();
-					blockEntity.minY = l;
+					blockEntity.minY = surfaceY;
 					break;
 				}
 
 				beamSegment.increaseHeight();
 			}
 
-			blockPos = blockPos.up();
+			scanPos = scanPos.up();
 			blockEntity.minY++;
 		}
 
-		int m = blockEntity.level;
+		int prevLevel = blockEntity.level;
+
 		if (world.getTime() % 80L == 0L) {
 			if (!blockEntity.beamSegments.isEmpty()) {
-				blockEntity.level = updateLevel(world, i, j, k);
+				blockEntity.level = updateLevel(world, beaconX, beaconY, beaconZ);
 			}
 
 			if (blockEntity.level > 0 && !blockEntity.beamSegments.isEmpty()) {
@@ -193,22 +183,24 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 			}
 		}
 
-		if (blockEntity.minY >= l) {
+		if (blockEntity.minY >= surfaceY) {
 			blockEntity.minY = world.getBottomY() - 1;
-			boolean bl = m > 0;
+			boolean wasActive = prevLevel > 0;
 			blockEntity.beamSegments = blockEntity.pendingBeamSegments;
+
 			if (!world.isClient()) {
-				boolean bl2 = blockEntity.level > 0;
-				if (!bl && bl2) {
+				boolean isActive = blockEntity.level > 0;
+
+				if (isActive && !wasActive) {
 					playSound(world, pos, SoundEvents.BLOCK_BEACON_ACTIVATE);
 
-					for (ServerPlayerEntity serverPlayerEntity : world.getNonSpectatingEntities(
-							ServerPlayerEntity.class, new Box(i, j, k, i, j - 4, k).expand(10.0, 5.0, 10.0)
+					for (ServerPlayerEntity player : world.getNonSpectatingEntities(
+							ServerPlayerEntity.class,
+							new Box(beaconX, beaconY, beaconZ, beaconX, beaconY - 4, beaconZ).expand(10.0, 5.0, 10.0)
 					)) {
-						Criteria.CONSTRUCT_BEACON.trigger(serverPlayerEntity, blockEntity.level);
+						Criteria.CONSTRUCT_BEACON.trigger(player, blockEntity.level);
 					}
-				}
-				else if (bl && !bl2) {
+				} else if (wasActive && !isActive) {
 					playSound(world, pos, SoundEvents.BLOCK_BEACON_DEACTIVATE);
 				}
 			}
@@ -216,31 +208,31 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 	}
 
 	private static int updateLevel(World world, int x, int y, int z) {
-		int i = 0;
+		int level = 0;
 
-		for (int j = 1; j <= 4; i = j++) {
-			int k = y - j;
-			if (k < world.getBottomY()) {
+		for (int tier = 1; tier <= MAX_LEVEL; level = tier++) {
+			int layerY = y - tier;
+			if (layerY < world.getBottomY()) {
 				break;
 			}
 
-			boolean bl = true;
+			boolean layerComplete = true;
 
-			for (int l = x - j; l <= x + j && bl; l++) {
-				for (int m = z - j; m <= z + j; m++) {
-					if (!world.getBlockState(new BlockPos(l, k, m)).isIn(BlockTags.BEACON_BASE_BLOCKS)) {
-						bl = false;
+			for (int lx = x - tier; lx <= x + tier && layerComplete; lx++) {
+				for (int lz = z - tier; lz <= z + tier; lz++) {
+					if (!world.getBlockState(new BlockPos(lx, layerY, lz)).isIn(BlockTags.BEACON_BASE_BLOCKS)) {
+						layerComplete = false;
 						break;
 					}
 				}
 			}
 
-			if (!bl) {
+			if (!layerComplete) {
 				break;
 			}
 		}
 
-		return i;
+		return level;
 	}
 
 	@Override
@@ -256,57 +248,44 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 			@Nullable RegistryEntry<StatusEffect> primaryEffect,
 			@Nullable RegistryEntry<StatusEffect> secondaryEffect
 	) {
-		if (!world.isClient() && primaryEffect != null) {
-			double d = beaconLevel * 10 + 10;
-			int i = 0;
-			if (beaconLevel >= 4 && Objects.equals(primaryEffect, secondaryEffect)) {
-				i = 1;
-			}
+		if (world.isClient() || primaryEffect == null) {
+			return;
+		}
 
-			int j = (9 + beaconLevel * 2) * 20;
-			Box box = new Box(pos).expand(d).stretch(0.0, world.getHeight(), 0.0);
-			List<PlayerEntity> list = world.getNonSpectatingEntities(PlayerEntity.class, box);
+		double effectRange = beaconLevel * MAX_BEAM_BLOCKS_PER_TICK + MAX_BEAM_BLOCKS_PER_TICK;
+		int amplifier = beaconLevel >= 4 && Objects.equals(primaryEffect, secondaryEffect) ? 1 : 0;
+		int duration = (9 + beaconLevel * 2) * 20;
+		Box box = new Box(pos).expand(effectRange).stretch(0.0, world.getHeight(), 0.0);
+		List<PlayerEntity> players = world.getNonSpectatingEntities(PlayerEntity.class, box);
 
-			for (PlayerEntity playerEntity : list) {
-				playerEntity.addStatusEffect(new StatusEffectInstance(primaryEffect, j, i, true, true));
-			}
+		for (PlayerEntity player : players) {
+			player.addStatusEffect(new StatusEffectInstance(primaryEffect, duration, amplifier, true, true));
+		}
 
-			if (beaconLevel >= 4 && !Objects.equals(primaryEffect, secondaryEffect) && secondaryEffect != null) {
-				for (PlayerEntity playerEntity : list) {
-					playerEntity.addStatusEffect(new StatusEffectInstance(secondaryEffect, j, 0, true, true));
-				}
+		if (beaconLevel >= 4 && !Objects.equals(primaryEffect, secondaryEffect) && secondaryEffect != null) {
+			for (PlayerEntity player : players) {
+				player.addStatusEffect(new StatusEffectInstance(secondaryEffect, duration, 0, true, true));
 			}
 		}
 	}
 
-	/**
-	 * Play sound.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param sound sound
-	 */
 	public static void playSound(World world, BlockPos pos, SoundEvent sound) {
 		world.playSound(null, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
 	}
 
 	@Override
 	public List<BeamEmitter.BeamSegment> getBeamSegments() {
-		return (List<BeamEmitter.BeamSegment>) (this.level == 0 ? ImmutableList.of() : this.beamSegments);
+		return level == 0 ? ImmutableList.of() : beamSegments;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	private static void writeStatusEffect(WriteView view, String key, @Nullable RegistryEntry<StatusEffect> effect) {
@@ -325,20 +304,20 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.primary = readStatusEffect(view, "primary_effect");
-		this.secondary = readStatusEffect(view, "secondary_effect");
-		this.customName = tryParseCustomName(view, "CustomName");
-		this.lock = ContainerLock.read(view);
+		primary = readStatusEffect(view, PRIMARY_EFFECT_NBT_KEY);
+		secondary = readStatusEffect(view, SECONDARY_EFFECT_NBT_KEY);
+		customName = tryParseCustomName(view, "CustomName");
+		lock = ContainerLock.read(view);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		writeStatusEffect(view, "primary_effect", this.primary);
-		writeStatusEffect(view, "secondary_effect", this.secondary);
-		view.putInt("Levels", this.level);
-		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
-		this.lock.write(view);
+		writeStatusEffect(view, PRIMARY_EFFECT_NBT_KEY, primary);
+		writeStatusEffect(view, SECONDARY_EFFECT_NBT_KEY, secondary);
+		view.putInt("Levels", level);
+		view.putNullable("CustomName", TextCodecs.CODEC, customName);
+		lock.write(view);
 	}
 
 	public void setCustomName(@Nullable Text customName) {
@@ -347,48 +326,47 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 
 	@Override
 	public @Nullable Text getCustomName() {
-		return this.customName;
+		return customName;
 	}
 
 	@Override
-	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		if (this.lock.checkUnlocked(playerEntity)) {
+	public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		if (lock.checkUnlocked(player)) {
 			return new BeaconScreenHandler(
-					i,
+					syncId,
 					playerInventory,
-					this.propertyDelegate,
-					ScreenHandlerContext.create(this.world, this.getPos())
+					propertyDelegate,
+					ScreenHandlerContext.create(world, getPos())
 			);
 		}
-		else {
-			LockableContainerBlockEntity.handleLocked(this.getPos().toCenterPos(), playerEntity, this.getDisplayName());
-			return null;
-		}
+
+		LockableContainerBlockEntity.handleLocked(getPos().toCenterPos(), player, getDisplayName());
+		return null;
 	}
 
 	@Override
 	public Text getDisplayName() {
-		return this.getName();
+		return getName();
 	}
 
 	@Override
 	public Text getName() {
-		return this.customName != null ? this.customName : CONTAINER_NAME_TEXT;
+		return customName != null ? customName : CONTAINER_NAME_TEXT;
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
-		this.lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
+		customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
-		if (!this.lock.equals(ContainerLock.EMPTY)) {
-			builder.add(DataComponentTypes.LOCK, this.lock);
+		builder.add(DataComponentTypes.CUSTOM_NAME, customName);
+		if (!lock.equals(ContainerLock.EMPTY)) {
+			builder.add(DataComponentTypes.LOCK, lock);
 		}
 	}
 
@@ -401,6 +379,6 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 	@Override
 	public void setWorld(World world) {
 		super.setWorld(world);
-		this.minY = world.getBottomY() - 1;
+		minY = world.getBottomY() - 1;
 	}
 }

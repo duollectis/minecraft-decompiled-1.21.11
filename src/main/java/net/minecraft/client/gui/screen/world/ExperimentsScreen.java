@@ -20,16 +20,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ExperimentsScreen}.
+ * Экран управления экспериментальными функциями (feature flags) при создании или редактировании мира.
+ * Отображает список доступных экспериментов с возможностью их включения/отключения.
  */
+@Environment(EnvType.CLIENT)
 public class ExperimentsScreen extends Screen {
 
 	private static final Text TITLE = Text.translatable("selectWorld.experiments");
 	private static final Text INFO_TEXT = Text.translatable("selectWorld.experiments.info").formatted(Formatting.RED);
 	private static final int EXPERIMENTS_LIST_WIDTH = 310;
 	private static final int EXPERIMENTS_LIST_HEIGHT = 130;
+	private static final int OPTION_GRID_WIDTH = 299;
+	private static final int TOOLTIP_BOX_PADDING = 2;
+	private static final int ROW_SPACING = 4;
+
 	private final ThreePartsLayoutWidget experimentToggleList = new ThreePartsLayoutWidget(this);
 	private final Screen parent;
 	private final ResourcePackManager resourcePackManager;
@@ -47,11 +52,11 @@ public class ExperimentsScreen extends Screen {
 		this.resourcePackManager = resourcePackManager;
 		this.applier = applier;
 
-		for (ResourcePackProfile resourcePackProfile : resourcePackManager.getProfiles()) {
-			if (resourcePackProfile.getSource() == ResourcePackSource.FEATURE) {
-				this.experiments.put(
-						resourcePackProfile,
-						resourcePackManager.getEnabledProfiles().contains(resourcePackProfile)
+		for (ResourcePackProfile profile : resourcePackManager.getProfiles()) {
+			if (profile.getSource() == ResourcePackSource.FEATURE) {
+				experiments.put(
+						profile,
+						resourcePackManager.getEnabledProfiles().contains(profile)
 				);
 			}
 		}
@@ -59,57 +64,58 @@ public class ExperimentsScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.experimentToggleList.addHeader(TITLE, this.textRenderer);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.experimentToggleList.addBody(DirectionalLayoutWidget.vertical());
-		directionalLayoutWidget.add(
-				new MultilineTextWidget(INFO_TEXT, this.textRenderer).setMaxWidth(310),
+		experimentToggleList.addHeader(TITLE, textRenderer);
+
+		DirectionalLayoutWidget body = experimentToggleList.addBody(DirectionalLayoutWidget.vertical());
+		body.add(
+				new MultilineTextWidget(INFO_TEXT, textRenderer).setMaxWidth(EXPERIMENTS_LIST_WIDTH),
 				positioner -> positioner.marginBottom(15)
 		);
-		WorldScreenOptionGrid.Builder
-				builder =
-				WorldScreenOptionGrid.builder(299).withTooltipBox(2, true).setRowSpacing(4);
-		this.experiments
-				.forEach(
-						(pack, enabled) -> builder
-								.add(
-										getDataPackName(pack),
-										() -> this.experiments.getBoolean(pack),
-										enabledx -> this.experiments.put(pack, enabledx)
-								)
-								.tooltip(pack.getDescription())
-				);
-		LayoutWidget layoutWidget = builder.build().getLayout();
-		this.experimentsList = new ScrollableLayoutWidget(this.client, layoutWidget, 130);
-		this.experimentsList.setWidth(310);
-		directionalLayoutWidget.add(this.experimentsList);
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				this.experimentToggleList.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget2.add(ButtonWidget.builder(ScreenTexts.DONE, button -> this.applyAndClose()).build());
-		directionalLayoutWidget2.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.close()).build());
-		this.experimentToggleList.forEachChild(widget -> {
-			ClickableWidget var10000 = this.addDrawableChild(widget);
-		});
-		this.refreshWidgetPositions();
+
+		WorldScreenOptionGrid.Builder builder = WorldScreenOptionGrid
+				.builder(OPTION_GRID_WIDTH)
+				.withTooltipBox(TOOLTIP_BOX_PADDING, true)
+				.setRowSpacing(ROW_SPACING);
+
+		experiments.forEach(
+				(pack, enabled) -> builder
+						.add(
+								getDataPackName(pack),
+								() -> experiments.getBoolean(pack),
+								newEnabled -> experiments.put(pack, newEnabled)
+						)
+						.tooltip(pack.getDescription())
+		);
+
+		LayoutWidget optionLayout = builder.build().getLayout();
+		experimentsList = new ScrollableLayoutWidget(client, optionLayout, EXPERIMENTS_LIST_HEIGHT);
+		experimentsList.setWidth(EXPERIMENTS_LIST_WIDTH);
+		body.add(experimentsList);
+
+		DirectionalLayoutWidget footer = experimentToggleList.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		footer.add(ButtonWidget.builder(ScreenTexts.DONE, button -> applyAndClose()).build());
+		footer.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> close()).build());
+
+		experimentToggleList.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	private static Text getDataPackName(ResourcePackProfile packProfile) {
-		String string = "dataPack." + packProfile.getId() + ".name";
-		return (Text) (I18n.hasTranslation(string) ? Text.translatable(string) : packProfile.getDisplayName());
+		String translationKey = "dataPack." + packProfile.getId() + ".name";
+		return I18n.hasTranslation(translationKey)
+				? Text.translatable(translationKey)
+				: packProfile.getDisplayName();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.experimentsList.setHeight(130);
-		this.experimentToggleList.refreshPositions();
-		int
-				i =
-				this.height - this.experimentToggleList.getFooterHeight() - this.experimentsList
-						.getNavigationFocus()
-						.getBottom();
-		this.experimentsList.setHeight(this.experimentsList.getHeight() + i);
+		experimentsList.setHeight(EXPERIMENTS_LIST_HEIGHT);
+		experimentToggleList.refreshPositions();
+
+		int extraHeight = height
+				- experimentToggleList.getFooterHeight()
+				- experimentsList.getNavigationFocus().getBottom();
+		experimentsList.setHeight(experimentsList.getHeight() + extraHeight);
 	}
 
 	@Override
@@ -119,20 +125,22 @@ public class ExperimentsScreen extends Screen {
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	private void applyAndClose() {
-		List<ResourcePackProfile> list = new ArrayList<>(this.resourcePackManager.getEnabledProfiles());
-		List<ResourcePackProfile> list2 = new ArrayList<>();
-		this.experiments.forEach((pack, enabled) -> {
-			list.remove(pack);
+		List<ResourcePackProfile> enabledProfiles = new ArrayList<>(resourcePackManager.getEnabledProfiles());
+		List<ResourcePackProfile> toEnable = new ArrayList<>();
+
+		experiments.forEach((pack, enabled) -> {
+			enabledProfiles.remove(pack);
 			if (enabled) {
-				list2.add(pack);
+				toEnable.add(pack);
 			}
 		});
-		list.addAll(Lists.reverse(list2));
-		this.resourcePackManager.setEnabledProfiles(list.stream().map(ResourcePackProfile::getId).toList());
-		this.applier.accept(this.resourcePackManager);
+
+		enabledProfiles.addAll(Lists.reverse(toEnable));
+		resourcePackManager.setEnabledProfiles(enabledProfiles.stream().map(ResourcePackProfile::getId).toList());
+		applier.accept(resourcePackManager);
 	}
 }

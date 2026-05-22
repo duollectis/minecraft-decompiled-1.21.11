@@ -11,7 +11,8 @@ import net.minecraft.world.World;
 import java.util.OptionalInt;
 
 /**
- * {@code ProjectileItem}.
+ * Интерфейс для предметов, которые можно бросить или выстрелить из диспенсера.
+ * Определяет фабрику снаряда, настройки диспенсера и инициализацию скорости.
  */
 public interface ProjectileItem {
 
@@ -32,17 +33,18 @@ public interface ProjectileItem {
 		entity.setVelocity(x, y, z, power, uncertainty);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code PositionFunction}.
+	 * Функция, вычисляющая позицию спавна снаряда при выстреле из диспенсера.
 	 */
+	@FunctionalInterface
 	public interface PositionFunction {
 
 		Position getDispensePosition(BlockPointer pointer, Direction facing);
 	}
 
 	/**
-	 * {@code Settings}.
+	 * Настройки поведения снаряда при выстреле из диспенсера:
+	 * позиция спавна, разброс, мощность и опциональный ID события.
 	 */
 	public record Settings(
 			ProjectileItem.PositionFunction positionFunction,
@@ -57,9 +59,6 @@ public interface ProjectileItem {
 			return new ProjectileItem.Settings.Builder();
 		}
 
-		/**
-		 * {@code Builder}.
-		 */
 		public static class Builder {
 
 			private ProjectileItem.PositionFunction

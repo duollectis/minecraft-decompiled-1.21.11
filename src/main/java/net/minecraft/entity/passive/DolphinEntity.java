@@ -47,7 +47,8 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
- * {@code DolphinEntity}.
+ * Дельфин — нейтральный водный моб, дающий игрокам эффект скорости
+ * при плавании рядом. Ведёт к ближайшему затонувшему кораблю или руинам.
  */
 public class DolphinEntity extends WaterAnimalEntity {
 
@@ -103,7 +104,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 
 	@Override
 	public float getScaleFactor() {
-		return this.isBaby() ? 0.65F : 1.0F;
+		return this.isBaby() ? BABY_SCALE_FACTOR : 1.0F;
 	}
 
 	@Override
@@ -130,7 +131,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
 		builder.add(HAS_FISH, false);
-		builder.add(MOISTNESS, 2400);
+		builder.add(MOISTNESS, MAX_MOISTNESS);
 	}
 
 	@Override
@@ -144,7 +145,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
 		this.setHasFish(view.getBoolean("GotFish", false));
-		this.setMoistness(view.getInt("Moistness", 2400));
+		this.setMoistness(view.getInt("Moistness", MAX_MOISTNESS));
 	}
 
 	@Override
@@ -188,7 +189,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 
 	@Override
 	public int getMaxAir() {
-		return 4800;
+		return MAX_AIR;
 	}
 
 	@Override
@@ -238,7 +239,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 		}
 		else {
 			if (this.isTouchingWaterOrRain()) {
-				this.setMoistness(2400);
+				this.setMoistness(MAX_MOISTNESS);
 			}
 			else {
 				this.setMoistness(this.getMoistness() - 1);
@@ -373,7 +374,7 @@ public class DolphinEntity extends WaterAnimalEntity {
 
 	protected boolean isNearTarget() {
 		BlockPos blockPos = this.getNavigation().getTargetPos();
-		return blockPos != null ? blockPos.isWithinDistance(this.getEntityPos(), 12.0) : false;
+		return blockPos != null && blockPos.isWithinDistance(this.getEntityPos(), 12.0);
 	}
 
 	@Override
@@ -392,8 +393,8 @@ public class DolphinEntity extends WaterAnimalEntity {
 	}
 
 	/**
-	 * {@code LeadToNearbyTreasureGoal}.
-	 */
+ * Задача дельфина: плыть к игроку и давать ему ускорение.
+ */
 	static class LeadToNearbyTreasureGoal extends Goal {
 
 		private final DolphinEntity dolphin;
@@ -417,13 +418,12 @@ public class DolphinEntity extends WaterAnimalEntity {
 		@Override
 		public boolean shouldContinue() {
 			BlockPos blockPos = this.dolphin.treasurePos;
-			return blockPos == null
-			       ? false
-			       : !BlockPos
-			          .ofFloored(blockPos.getX(), this.dolphin.getY(), blockPos.getZ())
-			          .isWithinDistance(this.dolphin.getEntityPos(), 4.0)
-			         && !this.noPathToStructure
-			         && this.dolphin.getAir() >= 100;
+			return blockPos != null
+					&& !BlockPos
+					.ofFloored(blockPos.getX(), this.dolphin.getY(), blockPos.getZ())
+					.isWithinDistance(this.dolphin.getEntityPos(), 4.0)
+					&& !this.noPathToStructure
+					&& this.dolphin.getAir() >= 100;
 		}
 
 		@Override
@@ -500,8 +500,8 @@ public class DolphinEntity extends WaterAnimalEntity {
 	}
 
 	/**
-	 * {@code PlayWithItemsGoal}.
-	 */
+ * Задача дельфина: искать ближайшую структуру под водой.
+ */
 	class PlayWithItemsGoal extends Goal {
 
 		private int nextPlayingTime;
@@ -602,8 +602,8 @@ public class DolphinEntity extends WaterAnimalEntity {
 	}
 
 	/**
-	 * {@code SwimWithPlayerGoal}.
-	 */
+ * Задача дельфина: играть с предметами на поверхности воды.
+ */
 	static class SwimWithPlayerGoal extends Goal {
 
 		private final DolphinEntity dolphin;
@@ -620,8 +620,9 @@ public class DolphinEntity extends WaterAnimalEntity {
 		public boolean canStart() {
 			this.closestPlayer =
 					getServerWorld(this.dolphin).getClosestPlayer(DolphinEntity.CLOSE_PLAYER_PREDICATE, this.dolphin);
-			return this.closestPlayer == null ? false : this.closestPlayer.isSwimming()
-			                                            && this.dolphin.getTarget() != this.closestPlayer;
+			return this.closestPlayer != null
+					&& this.closestPlayer.isSwimming()
+					&& this.dolphin.getTarget() != this.closestPlayer;
 		}
 
 		@Override

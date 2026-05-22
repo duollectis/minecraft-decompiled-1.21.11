@@ -8,17 +8,18 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 
 /**
- * {@code SculkChargeParticleEffect}.
+ * Эффект частицы заряда скалка.
+ * Поле {@code roll} задаёт угол поворота текстуры частицы в радианах.
  */
 public record SculkChargeParticleEffect(float roll) implements ParticleEffect {
 
 	public static final MapCodec<SculkChargeParticleEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
-					.group(Codec.FLOAT.fieldOf("roll").forGetter(particleEffect -> particleEffect.roll))
+					.group(Codec.FLOAT.fieldOf("roll").forGetter(SculkChargeParticleEffect::roll))
 					.apply(instance, SculkChargeParticleEffect::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, SculkChargeParticleEffect> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.FLOAT, effect -> effect.roll, SculkChargeParticleEffect::new
+			PacketCodecs.FLOAT, SculkChargeParticleEffect::roll, SculkChargeParticleEffect::new
 	);
 
 	@Override

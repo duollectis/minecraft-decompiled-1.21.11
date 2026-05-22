@@ -20,13 +20,13 @@ public class OverlayTexture implements AutoCloseable {
 	public static final int DEFAULT_UV = packUv(0, 10);
 	private final NativeImageBackedTexture
 			texture =
-			new NativeImageBackedTexture("Entity Color Overlay", 16, 16, false);
+			new NativeImageBackedTexture("Entity Color Overlay", TEXTURE_SIZE, TEXTURE_SIZE, false);
 
 	public OverlayTexture() {
 		NativeImage nativeImage = this.texture.getImage();
 
-		for (int i = 0; i < 16; i++) {
-			for (int j = 0; j < 16; j++) {
+		for (int i = 0; i < TEXTURE_SIZE; i++) {
+			for (int j = 0; j < TEXTURE_SIZE; j++) {
 				if (i < 8) {
 					nativeImage.setColorArgb(j, i, -1291911168);
 				}
@@ -50,7 +50,7 @@ public class OverlayTexture implements AutoCloseable {
 	}
 
 	public static int getV(boolean hurt) {
-		return hurt ? 3 : 10;
+		return hurt ? 3 : DEFAULT_V;
 	}
 
 	/**
@@ -62,7 +62,7 @@ public class OverlayTexture implements AutoCloseable {
 	 * @return int — результат операции
 	 */
 	public static int packUv(int u, int v) {
-		return u | v << 16;
+		return u | v << TEXTURE_SIZE;
 	}
 
 	public static int getUv(float whiteOverlayProgress, boolean hurt) {

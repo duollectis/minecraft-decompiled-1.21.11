@@ -15,31 +15,36 @@ import net.minecraft.util.math.MathHelper;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractFurnaceScreen}.
+ * Базовый экран для всех печей (обычная, доменная, коптильня).
+ * Отрисовывает прогресс горения топлива и прогресс плавки/готовки.
  */
+@Environment(EnvType.CLIENT)
 public abstract class AbstractFurnaceScreen<T extends AbstractFurnaceScreenHandler> extends RecipeBookScreen<T> {
+
+	private static final int LIT_PROGRESS_FULL = 14;
+	private static final int COOK_PROGRESS_FULL = 24;
+	private static final int COOK_PROGRESS_HEIGHT = 16;
 
 	private final Identifier background;
 	private final Identifier litProgressTexture;
 	private final Identifier burnProgressTexture;
 
 	public AbstractFurnaceScreen(
-			T handler,
-			PlayerInventory playerInventory,
-			Text title,
-			Text toggleCraftableButtonText,
-			Identifier background,
-			Identifier litProgressTexture,
-			Identifier burnProgressTexture,
-			List<RecipeBookWidget.Tab> recipeBookTabs
+		T handler,
+		PlayerInventory playerInventory,
+		Text title,
+		Text toggleCraftableButtonText,
+		Identifier background,
+		Identifier litProgressTexture,
+		Identifier burnProgressTexture,
+		List<RecipeBookWidget.Tab> recipeBookTabs
 	) {
 		super(
-				handler,
-				new FurnaceRecipeBookWidget(handler, toggleCraftableButtonText, recipeBookTabs),
-				playerInventory,
-				title
+			handler,
+			new FurnaceRecipeBookWidget(handler, toggleCraftableButtonText, recipeBookTabs),
+			playerInventory,
+			title
 		);
 		this.background = background;
 		this.litProgressTexture = litProgressTexture;
@@ -49,60 +54,57 @@ public abstract class AbstractFurnaceScreen<T extends AbstractFurnaceScreenHandl
 	@Override
 	public void init() {
 		super.init();
-		this.titleX = (this.backgroundWidth - this.textRenderer.getWidth(this.title)) / 2;
+		titleX = (backgroundWidth - textRenderer.getWidth(title)) / 2;
 	}
 
 	@Override
 	protected ScreenPos getRecipeBookButtonPos() {
-		return new ScreenPos(this.x + 20, this.height / 2 - 49);
+		return new ScreenPos(x + 20, height / 2 - 49);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = this.x;
-		int j = this.y;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.background,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			background,
+			x,
+			y,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
-		if (this.handler.isBurning()) {
-			int k = 14;
-			int l = MathHelper.ceil(this.handler.getFuelProgress() * 13.0F) + 1;
+
+		if (handler.isBurning()) {
+			int litProgress = MathHelper.ceil(handler.getFuelProgress() * 13.0F) + 1;
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					this.litProgressTexture,
-					14,
-					14,
-					0,
-					14 - l,
-					i + 56,
-					j + 36 + 14 - l,
-					14,
-					l
+				RenderPipelines.GUI_TEXTURED,
+				litProgressTexture,
+				LIT_PROGRESS_FULL,
+				LIT_PROGRESS_FULL,
+				0,
+				LIT_PROGRESS_FULL - litProgress,
+				x + 56,
+				y + 36 + LIT_PROGRESS_FULL - litProgress,
+				LIT_PROGRESS_FULL,
+				litProgress
 			);
 		}
 
-		int k = 24;
-		int l = MathHelper.ceil(this.handler.getCookProgress() * 24.0F);
+		int cookProgress = MathHelper.ceil(handler.getCookProgress() * COOK_PROGRESS_FULL);
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.burnProgressTexture,
-				24,
-				16,
-				0,
-				0,
-				i + 79,
-				j + 34,
-				l,
-				16
+			RenderPipelines.GUI_TEXTURED,
+			burnProgressTexture,
+			COOK_PROGRESS_FULL,
+			COOK_PROGRESS_HEIGHT,
+			0,
+			0,
+			x + 79,
+			y + 34,
+			cookProgress,
+			COOK_PROGRESS_HEIGHT
 		);
 	}
 }

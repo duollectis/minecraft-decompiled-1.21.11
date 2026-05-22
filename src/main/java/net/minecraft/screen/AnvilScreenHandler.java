@@ -61,9 +61,9 @@ public class AnvilScreenHandler extends ForgingScreenHandler {
 	private static ForgingSlotsManager getForgingSlotsManager() {
 		return ForgingSlotsManager
 				.builder()
-				.input(0, 27, 47, stack -> true)
-				.input(1, 76, 47, stack -> true)
-				.output(2, 134, 47)
+				.input(0, INPUT_1_X, SLOT_Y, stack -> true)
+				.input(1, INPUT_2_X, SLOT_Y, stack -> true)
+				.output(2, OUTPUT_X, SLOT_Y)
 				.build();
 	}
 
@@ -323,7 +323,7 @@ public class AnvilScreenHandler extends ForgingScreenHandler {
 
 	private static @Nullable String sanitize(String name) {
 		String string = StringHelper.stripInvalidChars(name);
-		return string.length() <= 50 ? string : null;
+		return string.length() <= MAX_NAME_LENGTH ? string : null;
 	}
 
 	public int getLevelCost() {

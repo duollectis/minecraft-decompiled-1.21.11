@@ -20,7 +20,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code DeadCoralWallFanBlock}.
+ * Мёртвый коралловый веер на стене — крепится к горизонтальной поверхности,
+ * не требует воды для существования.
  */
 public class DeadCoralWallFanBlock extends DeadCoralFanBlock {
 
@@ -37,7 +38,7 @@ public class DeadCoralWallFanBlock extends DeadCoralFanBlock {
 
 	public DeadCoralWallFanBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(WATERLOGGED, true));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH).with(WATERLOGGED, true));
 	}
 
 	@Override
@@ -81,25 +82,28 @@ public class DeadCoralWallFanBlock extends DeadCoralFanBlock {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		Direction direction = state.get(FACING);
-		BlockPos blockPos = pos.offset(direction.getOpposite());
-		BlockState blockState = world.getBlockState(blockPos);
-		return blockState.isSideSolidFullSquare(world, blockPos, direction);
+		Direction facing = state.get(FACING);
+		BlockPos supportPos = pos.offset(facing.getOpposite());
+		BlockState support = world.getBlockState(supportPos);
+
+		return support.isSideSolidFullSquare(world, supportPos, facing);
 	}
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = super.getPlacementState(ctx);
-		WorldView worldView = ctx.getWorld();
-		BlockPos blockPos = ctx.getBlockPos();
-		Direction[] directions = ctx.getPlacementDirections();
+		BlockState candidate = super.getPlacementState(ctx);
+		WorldView world = ctx.getWorld();
+		BlockPos pos = ctx.getBlockPos();
 
-		for (Direction direction : directions) {
-			if (direction.getAxis().isHorizontal()) {
-				blockState = blockState.with(FACING, direction.getOpposite());
-				if (blockState.canPlaceAt(worldView, blockPos)) {
-					return blockState;
-				}
+		for (Direction direction : ctx.getPlacementDirections()) {
+			if (direction.getAxis().isHorizontal() == false) {
+				continue;
+			}
+
+			candidate = candidate.with(FACING, direction.getOpposite());
+
+			if (candidate.canPlaceAt(world, pos)) {
+				return candidate;
 			}
 		}
 

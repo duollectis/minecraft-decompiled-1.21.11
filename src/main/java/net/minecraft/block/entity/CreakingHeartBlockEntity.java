@@ -41,26 +41,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code CreakingHeartBlockEntity}.
+ * Блок-сущность сердца скрипуна. Управляет жизненным циклом скрипуна-марионетки:
+ * спавном, отслеживанием, уничтожением и генерацией частиц смолы при получении урона.
  */
 public class CreakingHeartBlockEntity extends BlockEntity {
 
-	private static final int SPAWN_RANGE_PRIVATE = 32;
 	public static final int SPAWN_RANGE = 32;
 	private static final int DESPAWN_RANGE = 34;
 	private static final int TRAIL_PARTICLE_RANGE = 16;
-	private static final int UPDATE_INTERVAL_BASE = 8;
-	private static final int UPDATE_INTERVAL_RANDOM = 5;
 	private static final int UPDATE_INTERVAL_MIN = 20;
-	private static final int TRAIL_PARTICLE_INTERVAL = 5;
-	private static final int TRAIL_PARTICLES_DURATION = 100;
 	private static final int TRAIL_SOUND_INTERVAL = 10;
-	private static final int COMPARATOR_UPDATE_INTERVAL = 10;
+	private static final int TRAIL_PARTICLES_DURATION = 100;
 	private static final int TRAIL_PARTICLES_FAST_THRESHOLD = 50;
-	private static final int TRAIL_PARTICLE_FAST_COUNT = 2;
 	private static final int TRAIL_PARTICLE_SLOW_COUNT = 64;
 	private static final int PLAYER_DETECTION_RANGE = 30;
 	private static final Optional<CreakingEntity> DEFAULT_CREAKING_PUPPET = Optional.empty();
+
 	private @Nullable Either<CreakingEntity, UUID> creakingPuppet;
 	private long ticks;
 	private int creakingUpdateTimer;
@@ -72,109 +68,115 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		super(BlockEntityType.CREAKING_HEART, pos, state);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, CreakingHeartBlockEntity blockEntity) {
 		blockEntity.ticks++;
-		if (world instanceof ServerWorld serverWorld) {
-			int i = blockEntity.calcComparatorOutput();
-			if (blockEntity.comparatorOutput != i) {
-				blockEntity.comparatorOutput = i;
-				world.updateComparators(pos, Blocks.CREAKING_HEART);
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		int newComparatorOutput = blockEntity.calcComparatorOutput();
+		if (blockEntity.comparatorOutput != newComparatorOutput) {
+			blockEntity.comparatorOutput = newComparatorOutput;
+			world.updateComparators(pos, Blocks.CREAKING_HEART);
+		}
+
+		if (blockEntity.trailParticlesSpawnTimer > 0) {
+			if (blockEntity.trailParticlesSpawnTimer > TRAIL_PARTICLES_FAST_THRESHOLD) {
+				blockEntity.spawnTrailParticles(serverWorld, 1, true);
+				blockEntity.spawnTrailParticles(serverWorld, 1, false);
 			}
 
-			if (blockEntity.trailParticlesSpawnTimer > 0) {
-				if (blockEntity.trailParticlesSpawnTimer > 50) {
-					blockEntity.spawnTrailParticles(serverWorld, 1, true);
-					blockEntity.spawnTrailParticles(serverWorld, 1, false);
-				}
+			if (blockEntity.trailParticlesSpawnTimer % TRAIL_SOUND_INTERVAL == 0
+					&& blockEntity.lastCreakingPuppetPos != null
+			) {
+				blockEntity.getCreakingPuppet()
+						.ifPresent(creaking -> blockEntity.lastCreakingPuppetPos = creaking.getBoundingBox().getCenter());
 
-				if (blockEntity.trailParticlesSpawnTimer % 10 == 0 && blockEntity.lastCreakingPuppetPos != null) {
-					blockEntity
-							.getCreakingPuppet()
-							.ifPresent(creaking ->
-									blockEntity.lastCreakingPuppetPos =
-											creaking.getBoundingBox().getCenter());
-					Vec3d vec3d = Vec3d.ofCenter(pos);
-					float f = 0.2F + 0.8F * (100 - blockEntity.trailParticlesSpawnTimer) / 100.0F;
-					Vec3d
-							vec3d2 =
-							vec3d
-									.subtract(blockEntity.lastCreakingPuppetPos)
-									.multiply(f)
-									.add(blockEntity.lastCreakingPuppetPos);
-					BlockPos blockPos = BlockPos.ofFloored(vec3d2);
-					float g = blockEntity.trailParticlesSpawnTimer / 2.0F / 100.0F + 0.5F;
-					serverWorld.playSound(
-							null,
-							blockPos,
-							SoundEvents.BLOCK_CREAKING_HEART_HURT,
-							SoundCategory.BLOCKS,
-							g,
-							1.0F
-					);
-				}
+				Vec3d heartCenter = Vec3d.ofCenter(pos);
+				float progress = 0.2F + 0.8F * (TRAIL_PARTICLES_DURATION - blockEntity.trailParticlesSpawnTimer)
+						/ (float) TRAIL_PARTICLES_DURATION;
+				Vec3d soundPos = heartCenter
+						.subtract(blockEntity.lastCreakingPuppetPos)
+						.multiply(progress)
+						.add(blockEntity.lastCreakingPuppetPos);
+				float volume = blockEntity.trailParticlesSpawnTimer / 2.0F / TRAIL_PARTICLES_DURATION + 0.5F;
 
-				blockEntity.trailParticlesSpawnTimer--;
+				serverWorld.playSound(
+						null,
+						BlockPos.ofFloored(soundPos),
+						SoundEvents.BLOCK_CREAKING_HEART_HURT,
+						SoundCategory.BLOCKS,
+						volume,
+						1.0F
+				);
 			}
 
-			if (blockEntity.creakingUpdateTimer-- < 0) {
-				blockEntity.creakingUpdateTimer =
-						blockEntity.world == null ? 20 : blockEntity.world.random.nextInt(5) + 20;
-				BlockState blockState = getBlockState(world, state, pos, blockEntity);
-				if (blockState != state) {
-					world.setBlockState(pos, blockState, 3);
-					if (blockState.get(CreakingHeartBlock.ACTIVE) == CreakingHeartState.UPROOTED) {
-						return;
-					}
-				}
+			blockEntity.trailParticlesSpawnTimer--;
+		}
 
-				if (blockEntity.creakingPuppet == null) {
-					if (blockState.get(CreakingHeartBlock.ACTIVE) == CreakingHeartState.AWAKE) {
-						if (serverWorld.shouldSpawnMonsters()) {
-							PlayerEntity
-									playerEntity =
-									world.getClosestPlayer(pos.getX(), pos.getY(), pos.getZ(), 32.0, false);
-							if (playerEntity != null) {
-								CreakingEntity creakingEntity = spawnCreakingPuppet(serverWorld, blockEntity);
-								if (creakingEntity != null) {
-									blockEntity.setCreakingPuppet(creakingEntity);
-									creakingEntity.playSound(SoundEvents.ENTITY_CREAKING_SPAWN);
-									world.playSound(
-											null,
-											blockEntity.getPos(),
-											SoundEvents.BLOCK_CREAKING_HEART_SPAWN,
-											SoundCategory.BLOCKS,
-											1.0F,
-											1.0F
-									);
-								}
-							}
-						}
-					}
+		if (blockEntity.creakingUpdateTimer-- < 0) {
+			blockEntity.creakingUpdateTimer = blockEntity.world == null
+					? UPDATE_INTERVAL_MIN
+					: blockEntity.world.random.nextInt(5) + UPDATE_INTERVAL_MIN;
+
+			BlockState newState = getBlockState(world, state, pos, blockEntity);
+			if (newState != state) {
+				world.setBlockState(pos, newState, 3);
+				if (newState.get(CreakingHeartBlock.ACTIVE) == CreakingHeartState.UPROOTED) {
+					return;
 				}
-				else {
-					Optional<CreakingEntity> optional = blockEntity.getCreakingPuppet();
-					if (optional.isPresent()) {
-						CreakingEntity creakingEntity = optional.get();
-						if (!world
-								.getEnvironmentAttributes()
-								.getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
-								&& !creakingEntity.isPersistent()
-								|| blockEntity.getDistanceToPuppet() > 34.0
-								|| creakingEntity.isStuckWithPlayer()) {
-							blockEntity.killPuppet(null);
-						}
-					}
-				}
+			}
+
+			if (blockEntity.creakingPuppet == null) {
+				trySpawnPuppet(serverWorld, world, pos, newState, blockEntity);
+			} else {
+				tryDespawnPuppet(world, pos, blockEntity);
 			}
 		}
+	}
+
+	private static void trySpawnPuppet(
+			ServerWorld serverWorld,
+			World world,
+			BlockPos pos,
+			BlockState state,
+			CreakingHeartBlockEntity blockEntity
+	) {
+		if (state.get(CreakingHeartBlock.ACTIVE) != CreakingHeartState.AWAKE) {
+			return;
+		}
+
+		if (!serverWorld.shouldSpawnMonsters()) {
+			return;
+		}
+
+		PlayerEntity nearestPlayer = world.getClosestPlayer(pos.getX(), pos.getY(), pos.getZ(), SPAWN_RANGE, false);
+		if (nearestPlayer == null) {
+			return;
+		}
+
+		CreakingEntity spawned = spawnCreakingPuppet(serverWorld, blockEntity);
+		if (spawned == null) {
+			return;
+		}
+
+		blockEntity.setCreakingPuppet(spawned);
+		spawned.playSound(SoundEvents.ENTITY_CREAKING_SPAWN);
+		world.playSound(null, blockEntity.getPos(), SoundEvents.BLOCK_CREAKING_HEART_SPAWN, SoundCategory.BLOCKS, 1.0F, 1.0F);
+	}
+
+	private static void tryDespawnPuppet(World world, BlockPos pos, CreakingHeartBlockEntity blockEntity) {
+		blockEntity.getCreakingPuppet().ifPresent(creaking -> {
+			boolean shouldDespawn = (!world.getEnvironmentAttributes()
+					.getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
+					&& !creaking.isPersistent())
+					|| blockEntity.getDistanceToPuppet() > DESPAWN_RANGE
+					|| creaking.isStuckWithPlayer();
+
+			if (shouldDespawn) {
+				blockEntity.killPuppet(null);
+			}
+		});
 	}
 
 	private static BlockState getBlockState(
@@ -186,73 +188,67 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		if (!CreakingHeartBlock.shouldBeEnabled(state, world, pos) && creakingHeart.creakingPuppet == null) {
 			return state.with(CreakingHeartBlock.ACTIVE, CreakingHeartState.UPROOTED);
 		}
-		else {
-			CreakingHeartState
-					creakingHeartState =
-					world
-							.getEnvironmentAttributes()
-							.getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
-					? CreakingHeartState.AWAKE
-					: CreakingHeartState.DORMANT;
-			return state.with(CreakingHeartBlock.ACTIVE, creakingHeartState);
-		}
+
+		CreakingHeartState newState = world
+				.getEnvironmentAttributes()
+				.getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
+				? CreakingHeartState.AWAKE
+				: CreakingHeartState.DORMANT;
+
+		return state.with(CreakingHeartBlock.ACTIVE, newState);
 	}
 
 	private double getDistanceToPuppet() {
-		return this
-				.getCreakingPuppet()
-				.map(creaking -> Math.sqrt(creaking.squaredDistanceTo(Vec3d.ofBottomCenter(this.getPos()))))
+		return getCreakingPuppet()
+				.map(creaking -> Math.sqrt(creaking.squaredDistanceTo(Vec3d.ofBottomCenter(getPos()))))
 				.orElse(0.0);
 	}
 
 	private void clearCreakingPuppet() {
-		this.creakingPuppet = null;
-		this.markDirty();
+		creakingPuppet = null;
+		markDirty();
 	}
 
 	public void setCreakingPuppet(CreakingEntity creakingPuppet) {
 		this.creakingPuppet = Either.left(creakingPuppet);
-		this.markDirty();
+		markDirty();
 	}
 
 	public void setCreakingPuppetFromUuid(UUID creakingPuppetUuid) {
-		this.creakingPuppet = Either.right(creakingPuppetUuid);
-		this.ticks = 0L;
-		this.markDirty();
+		creakingPuppet = Either.right(creakingPuppetUuid);
+		ticks = 0L;
+		markDirty();
 	}
 
 	private Optional<CreakingEntity> getCreakingPuppet() {
-		if (this.creakingPuppet == null) {
+		if (creakingPuppet == null) {
 			return DEFAULT_CREAKING_PUPPET;
 		}
-		else {
-			if (this.creakingPuppet.left().isPresent()) {
-				CreakingEntity creakingEntity = (CreakingEntity) this.creakingPuppet.left().get();
-				if (!creakingEntity.isRemoved()) {
-					return Optional.of(creakingEntity);
-				}
 
-				this.setCreakingPuppetFromUuid(creakingEntity.getUuid());
+		if (creakingPuppet.left().isPresent()) {
+			CreakingEntity creaking = (CreakingEntity) creakingPuppet.left().get();
+			if (!creaking.isRemoved()) {
+				return Optional.of(creaking);
 			}
 
-			if (this.world instanceof ServerWorld serverWorld && this.creakingPuppet.right().isPresent()) {
-				UUID uUID = (UUID) this.creakingPuppet.right().get();
-				if (serverWorld.getEntity(uUID) instanceof CreakingEntity creakingEntity2) {
-					this.setCreakingPuppet(creakingEntity2);
-					return Optional.of(creakingEntity2);
-				}
-				else {
-					if (this.ticks >= 30L) {
-						this.clearCreakingPuppet();
-					}
-
-					return DEFAULT_CREAKING_PUPPET;
-				}
-			}
-			else {
-				return DEFAULT_CREAKING_PUPPET;
-			}
+			setCreakingPuppetFromUuid(creaking.getUuid());
 		}
+
+		if (world instanceof ServerWorld serverWorld && creakingPuppet.right().isPresent()) {
+			UUID uuid = (UUID) creakingPuppet.right().get();
+			if (serverWorld.getEntity(uuid) instanceof CreakingEntity resolved) {
+				setCreakingPuppet(resolved);
+				return Optional.of(resolved);
+			}
+
+			if (ticks >= PLAYER_DETECTION_RANGE) {
+				clearCreakingPuppet();
+			}
+
+			return DEFAULT_CREAKING_PUPPET;
+		}
+
+		return DEFAULT_CREAKING_PUPPET;
 	}
 
 	private static @Nullable CreakingEntity spawnCreakingPuppet(
@@ -260,153 +256,142 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 			CreakingHeartBlockEntity blockEntity
 	) {
 		BlockPos blockPos = blockEntity.getPos();
-		Optional<CreakingEntity> optional = LargeEntitySpawnHelper.trySpawnAt(
+		Optional<CreakingEntity> spawnResult = LargeEntitySpawnHelper.trySpawnAt(
 				EntityType.CREAKING,
 				SpawnReason.SPAWNER,
 				world,
 				blockPos,
 				5,
-				16,
+				TRAIL_PARTICLE_RANGE,
 				8,
 				LargeEntitySpawnHelper.Requirements.CREAKING,
 				true
 		);
-		if (optional.isEmpty()) {
+
+		if (spawnResult.isEmpty()) {
 			return null;
 		}
-		else {
-			CreakingEntity creakingEntity = optional.get();
-			world.emitGameEvent(creakingEntity, GameEvent.ENTITY_PLACE, creakingEntity.getEntityPos());
-			world.sendEntityStatus(creakingEntity, (byte) 60);
-			creakingEntity.initHomePos(blockPos);
-			return creakingEntity;
-		}
+
+		CreakingEntity creaking = spawnResult.get();
+		world.emitGameEvent(creaking, GameEvent.ENTITY_PLACE, creaking.getEntityPos());
+		world.sendEntityStatus(creaking, (byte) Entity.MAX_RIDING_COOLDOWN);
+		creaking.initHomePos(blockPos);
+		return creaking;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	/**
-	 * Обрабатывает событие puppet damage.
+	 * Вызывается при получении урона скрипуном-марионеткой. Запускает анимацию частиц смолы
+	 * и генерирует сгустки смолы на ближайших бледных дубовых брёвнах.
 	 */
 	public void onPuppetDamage() {
-		if (this.getCreakingPuppet().orElse(null) instanceof CreakingEntity creakingEntity) {
-			if (this.world instanceof ServerWorld serverWorld) {
-				if (this.trailParticlesSpawnTimer <= 0) {
-					this.spawnTrailParticles(serverWorld, 20, false);
-					if (this.getCachedState().get(CreakingHeartBlock.ACTIVE) == CreakingHeartState.AWAKE) {
-						int i = this.world.getRandom().nextBetween(2, 3);
+		if (getCreakingPuppet().orElse(null) instanceof CreakingEntity creaking
+				&& world instanceof ServerWorld serverWorld
+				&& trailParticlesSpawnTimer <= 0
+		) {
+			spawnTrailParticles(serverWorld, UPDATE_INTERVAL_MIN, false);
 
-						for (int j = 0; j < i; j++) {
-							this.findResinGenerationPos(serverWorld).ifPresent(pos -> {
-								this.world.playSound(
-										null,
-										pos,
-										SoundEvents.BLOCK_RESIN_PLACE,
-										SoundCategory.BLOCKS,
-										1.0F,
-										1.0F
-								);
-								this.world.emitGameEvent(
-										GameEvent.BLOCK_PLACE,
-										pos,
-										GameEvent.Emitter.of(this.getCachedState())
-								);
-							});
-						}
-					}
+			if (getCachedState().get(CreakingHeartBlock.ACTIVE) == CreakingHeartState.AWAKE) {
+				int resinCount = world.getRandom().nextBetween(2, 3);
 
-					this.trailParticlesSpawnTimer = 100;
-					this.lastCreakingPuppetPos = creakingEntity.getBoundingBox().getCenter();
+				for (int i = 0; i < resinCount; i++) {
+					findResinGenerationPos(serverWorld).ifPresent(resinPos -> {
+						world.playSound(null, resinPos, SoundEvents.BLOCK_RESIN_PLACE, SoundCategory.BLOCKS, 1.0F, 1.0F);
+						world.emitGameEvent(GameEvent.BLOCK_PLACE, resinPos, GameEvent.Emitter.of(getCachedState()));
+					});
 				}
 			}
+
+			trailParticlesSpawnTimer = TRAIL_PARTICLES_DURATION;
+			lastCreakingPuppetPos = creaking.getBoundingBox().getCenter();
 		}
 	}
 
+	/**
+	 * Ищет позицию для генерации сгустка смолы рядом с сердцем скрипуна.
+	 * Рекурсивно обходит бледные дубовые брёвна и пытается разместить смолу на свободной грани.
+	 */
 	private Optional<BlockPos> findResinGenerationPos(ServerWorld world) {
-		Mutable<BlockPos> mutable = new MutableObject(null);
+		Mutable<BlockPos> result = new MutableObject<>(null);
+
 		BlockPos.iterateRecursively(
-				this.pos, 2, 64, (pos, consumer) -> {
+				pos, 2, TRAIL_PARTICLE_SLOW_COUNT,
+				(currentPos, consumer) -> {
 					for (Direction direction : Util.copyShuffled(Direction.values(), world.random)) {
-						BlockPos blockPos = pos.offset(direction);
-						if (world.getBlockState(blockPos).isIn(BlockTags.PALE_OAK_LOGS)) {
-							consumer.accept(blockPos);
+						BlockPos neighbor = currentPos.offset(direction);
+						if (world.getBlockState(neighbor).isIn(BlockTags.PALE_OAK_LOGS)) {
+							consumer.accept(neighbor);
 						}
 					}
-				}, pos -> {
-					if (!world.getBlockState(pos).isIn(BlockTags.PALE_OAK_LOGS)) {
+				},
+				(currentPos) -> {
+					if (!world.getBlockState(currentPos).isIn(BlockTags.PALE_OAK_LOGS)) {
 						return BlockPos.IterationState.ACCEPT;
 					}
-					else {
-						for (Direction direction : Util.copyShuffled(Direction.values(), world.random)) {
-							BlockPos blockPos = pos.offset(direction);
-							BlockState blockState = world.getBlockState(blockPos);
-							Direction direction2 = direction.getOpposite();
-							if (blockState.isAir()) {
-								blockState = Blocks.RESIN_CLUMP.getDefaultState();
-							}
-							else if (blockState.isOf(Blocks.WATER) && blockState.getFluidState().isStill()) {
-								blockState =
-										Blocks.RESIN_CLUMP.getDefaultState().with(MultifaceBlock.WATERLOGGED, true);
-							}
 
-							if (blockState.isOf(Blocks.RESIN_CLUMP) && !MultifaceBlock.hasDirection(
-									blockState,
-									direction2
-							)) {
-								world.setBlockState(
-										blockPos,
-										blockState.with(MultifaceBlock.getProperty(direction2), true),
-										3
-								);
-								mutable.setValue(blockPos);
-								return BlockPos.IterationState.STOP;
-							}
+					for (Direction direction : Util.copyShuffled(Direction.values(), world.random)) {
+						BlockPos neighbor = currentPos.offset(direction);
+						BlockState neighborState = world.getBlockState(neighbor);
+						Direction opposite = direction.getOpposite();
+
+						if (neighborState.isAir()) {
+							neighborState = Blocks.RESIN_CLUMP.getDefaultState();
+						} else if (neighborState.isOf(Blocks.WATER) && neighborState.getFluidState().isStill()) {
+							neighborState = Blocks.RESIN_CLUMP.getDefaultState().with(MultifaceBlock.WATERLOGGED, true);
 						}
 
-						return BlockPos.IterationState.ACCEPT;
+						if (neighborState.isOf(Blocks.RESIN_CLUMP)
+								&& !MultifaceBlock.hasDirection(neighborState, opposite)
+						) {
+							world.setBlockState(neighbor, neighborState.with(MultifaceBlock.getProperty(opposite), true), 3);
+							result.setValue(neighbor);
+							return BlockPos.IterationState.STOP;
+						}
 					}
+
+					return BlockPos.IterationState.ACCEPT;
 				}
 		);
-		return Optional.ofNullable((BlockPos) mutable.get());
+
+		return Optional.ofNullable(result.get());
 	}
 
 	private void spawnTrailParticles(ServerWorld world, int count, boolean towardsPuppet) {
-		if (this.getCreakingPuppet().orElse(null) instanceof CreakingEntity creakingEntity) {
-			int i = towardsPuppet ? 16545810 : 6250335;
-			Random random = world.random;
+		if (getCreakingPuppet().orElse(null) == null) {
+			return;
+		}
 
-			for (double d = 0.0; d < count; d++) {
-				Box box = creakingEntity.getBoundingBox();
-				Vec3d vec3d = box.getMinPos()
-				                 .add(
-						                 random.nextDouble() * box.getLengthX(),
-						                 random.nextDouble() * box.getLengthY(),
-						                 random.nextDouble() * box.getLengthZ()
-				                 );
-				Vec3d
-						vec3d2 =
-						Vec3d.of(this.getPos()).add(random.nextDouble(), random.nextDouble(), random.nextDouble());
-				if (towardsPuppet) {
-					Vec3d vec3d3 = vec3d;
-					vec3d = vec3d2;
-					vec3d2 = vec3d3;
-				}
+		CreakingEntity creaking = (CreakingEntity) getCreakingPuppet().orElse(null);
+		if (creaking == null) {
+			return;
+		}
 
-				TrailParticleEffect trailParticleEffect = new TrailParticleEffect(vec3d2, i, random.nextInt(40) + 10);
-				world.spawnParticles(trailParticleEffect, true, true, vec3d.x, vec3d.y, vec3d.z, 1, 0.0, 0.0, 0.0, 0.0);
-			}
+		int color = towardsPuppet ? 16545810 : 6250335;
+		Random random = world.random;
+
+		for (int particleIndex = 0; particleIndex < count; particleIndex++) {
+			Box box = creaking.getBoundingBox();
+			Vec3d puppetPos = box.getMinPos().add(
+					random.nextDouble() * box.getLengthX(),
+					random.nextDouble() * box.getLengthY(),
+					random.nextDouble() * box.getLengthZ()
+			);
+			Vec3d heartPos = Vec3d.of(getPos()).add(random.nextDouble(), random.nextDouble(), random.nextDouble());
+
+			Vec3d from = towardsPuppet ? heartPos : puppetPos;
+			Vec3d to = towardsPuppet ? puppetPos : heartPos;
+
+			TrailParticleEffect effect = new TrailParticleEffect(to, color, random.nextInt(40) + 10);
+			world.spawnParticles(effect, true, true, from.x, from.y, from.z, 1, 0.0, 0.0, 0.0, 0.0);
 		}
 	}
 
@@ -415,63 +400,63 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		this.killPuppet(null);
 	}
 
-	/**
-	 * Уничтожает puppet.
-	 *
-	 * @param damageSource damage source
-	 */
 	public void killPuppet(@Nullable DamageSource damageSource) {
-		if (this.getCreakingPuppet().orElse(null) instanceof CreakingEntity creakingEntity) {
-			if (damageSource == null) {
-				creakingEntity.finishCrumbling();
-			}
-			else {
-				creakingEntity.killFromHeart(damageSource);
-				creakingEntity.setCrumbling();
-				creakingEntity.setHealth(0.0F);
-			}
-
-			this.clearCreakingPuppet();
+		if (getCreakingPuppet().orElse(null) == null) {
+			return;
 		}
+
+		CreakingEntity creaking = (CreakingEntity) getCreakingPuppet().orElse(null);
+		if (creaking == null) {
+			return;
+		}
+
+		if (damageSource == null) {
+			creaking.finishCrumbling();
+		} else {
+			creaking.killFromHeart(damageSource);
+			creaking.setCrumbling();
+			creaking.setHealth(0.0F);
+		}
+
+		clearCreakingPuppet();
 	}
 
 	public boolean isPuppet(CreakingEntity creaking) {
-		return this.getCreakingPuppet().map(puppet -> puppet == creaking).orElse(false);
+		return getCreakingPuppet().map(puppet -> puppet == creaking).orElse(false);
 	}
 
 	public int getComparatorOutput() {
-		return this.comparatorOutput;
+		return comparatorOutput;
 	}
 
 	/**
-	 * Calc comparator output.
-	 *
-	 * @return int — результат операции
+	 * Вычисляет выходной сигнал компаратора на основе расстояния до скрипуна-марионетки.
+	 * Чем ближе скрипун к сердцу, тем сильнее сигнал (максимум 15).
 	 */
 	public int calcComparatorOutput() {
-		if (this.creakingPuppet != null && !this.getCreakingPuppet().isEmpty()) {
-			double d = this.getDistanceToPuppet();
-			double e = Math.clamp(d, 0.0, 32.0) / 32.0;
-			return 15 - (int) Math.floor(e * 15.0);
-		}
-		else {
+		if (creakingPuppet == null || getCreakingPuppet().isEmpty()) {
 			return 0;
 		}
+
+		double distance = getDistanceToPuppet();
+		double normalizedDist = Math.clamp(distance, 0.0, 32.0) / 32.0;
+		return 15 - (int) Math.floor(normalizedDist * 15.0);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		view
-				.<UUID>read("creaking", Uuids.INT_STREAM_CODEC)
+		view.<UUID>read("creaking", Uuids.INT_STREAM_CODEC)
 				.ifPresentOrElse(this::setCreakingPuppetFromUuid, this::clearCreakingPuppet);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (this.creakingPuppet != null) {
-			view.put("creaking", Uuids.INT_STREAM_CODEC, (UUID) this.creakingPuppet.map(Entity::getUuid, uuid -> uuid));
+		if (creakingPuppet == null) {
+			return;
 		}
+
+		view.put("creaking", Uuids.INT_STREAM_CODEC, (UUID) creakingPuppet.map(Entity::getUuid, uuid -> uuid));
 	}
 }

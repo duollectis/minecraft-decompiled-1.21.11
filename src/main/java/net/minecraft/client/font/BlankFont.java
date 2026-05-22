@@ -6,10 +6,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlankFont}.
+ * Шрифт-заглушка, который для любого кодового символа возвращает
+ * «отсутствующий» глиф. Используется как резервный провайдер
+ * в {@link FontManager} для шрифта {@code minecraft:missing}.
  */
+@Environment(EnvType.CLIENT)
 public class BlankFont implements Font {
 
 	private static final Glyph MISSING = new Glyph() {

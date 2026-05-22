@@ -6,7 +6,7 @@ import net.minecraft.util.Util;
 import java.util.List;
 
 /**
- * {@code Vec2f}.
+ * Иммутабельный двумерный вектор с компонентами типа {@code float}.
  */
 public class Vec2f {
 
@@ -19,13 +19,14 @@ public class Vec2f {
 	public static final Vec2f MAX_SOUTH_EAST = new Vec2f(Float.MAX_VALUE, Float.MAX_VALUE);
 	public static final Vec2f MIN_SOUTH_EAST = new Vec2f(Float.MIN_VALUE, Float.MIN_VALUE);
 	public static final Codec<Vec2f> CODEC = Codec.FLOAT
-			.listOf()
-			.comapFlatMap(
-					rawList -> Util
-							.decodeFixedLengthList(rawList, 2)
-							.map(list -> new Vec2f((Float) list.get(0), (Float) list.get(1))),
-					vec -> List.of(vec.x, vec.y)
-			);
+		.listOf()
+		.comapFlatMap(
+			rawList -> Util
+				.decodeFixedLengthList(rawList, 2)
+				.map(list -> new Vec2f((Float) list.get(0), (Float) list.get(1))),
+			vec -> List.of(vec.x, vec.y)
+		);
+
 	public final float x;
 	public final float y;
 
@@ -34,108 +35,46 @@ public class Vec2f {
 		this.y = y;
 	}
 
-	/**
-	 * Multiply.
-	 *
-	 * @param value value
-	 *
-	 * @return Vec2f — результат операции
-	 */
 	public Vec2f multiply(float value) {
-		return new Vec2f(this.x * value, this.y * value);
+		return new Vec2f(x * value, y * value);
 	}
 
-	/**
-	 * Dot.
-	 *
-	 * @param vec vec
-	 *
-	 * @return float — результат операции
-	 */
 	public float dot(Vec2f vec) {
-		return this.x * vec.x + this.y * vec.y;
+		return x * vec.x + y * vec.y;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vec2f — результат операции
-	 */
 	public Vec2f add(Vec2f vec) {
-		return new Vec2f(this.x + vec.x, this.y + vec.y);
+		return new Vec2f(x + vec.x, y + vec.y);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param value value
-	 *
-	 * @return Vec2f — результат операции
-	 */
 	public Vec2f add(float value) {
-		return new Vec2f(this.x + value, this.y + value);
+		return new Vec2f(x + value, y + value);
 	}
 
-	/**
-	 * Equals.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean equals(Vec2f other) {
-		return this.x == other.x && this.y == other.y;
+		return x == other.x && y == other.y;
 	}
 
-	/**
-	 * Normalize.
-	 *
-	 * @return Vec2f — результат операции
-	 */
 	public Vec2f normalize() {
-		float f = MathHelper.sqrt(this.x * this.x + this.y * this.y);
-		return f < 1.0E-4F ? ZERO : new Vec2f(this.x / f, this.y / f);
+		float len = MathHelper.sqrt(x * x + y * y);
+		return len < 1.0E-4F ? ZERO : new Vec2f(x / len, y / len);
 	}
 
-	/**
-	 * Length.
-	 *
-	 * @return float — результат операции
-	 */
 	public float length() {
-		return MathHelper.sqrt(this.x * this.x + this.y * this.y);
+		return MathHelper.sqrt(x * x + y * y);
 	}
 
-	/**
-	 * Length squared.
-	 *
-	 * @return float — результат операции
-	 */
 	public float lengthSquared() {
-		return this.x * this.x + this.y * this.y;
+		return x * x + y * y;
 	}
 
-	/**
-	 * Distance squared.
-	 *
-	 * @param vec vec
-	 *
-	 * @return float — результат операции
-	 */
 	public float distanceSquared(Vec2f vec) {
-		float f = vec.x - this.x;
-		float g = vec.y - this.y;
-		return f * f + g * g;
+		float dx = vec.x - x;
+		float dy = vec.y - y;
+		return dx * dx + dy * dy;
 	}
 
-	/**
-	 * Negate.
-	 *
-	 * @return Vec2f — результат операции
-	 */
 	public Vec2f negate() {
-		return new Vec2f(-this.x, -this.y);
+		return new Vec2f(-x, -y);
 	}
 }

@@ -9,7 +9,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsAddTextBackgroundFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsAddTextBackgroundFix extends DataFix {
 
@@ -18,9 +18,9 @@ public class OptionsAddTextBackgroundFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsAddTextBackgroundFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(), optionsDynamic -> (Dynamic) DataFixUtils.orElse(
 								optionsDynamic.get("chatOpacity").asString().map(string -> {

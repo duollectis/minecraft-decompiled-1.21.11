@@ -4,7 +4,8 @@ import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
 /**
- * {@code HeightContext}.
+ * Контекст высот для генерации мира.
+ * Вычисляет пересечение допустимых высот мира и генератора чанков.
  */
 public class HeightContext {
 
@@ -12,15 +13,15 @@ public class HeightContext {
 	private final int height;
 
 	public HeightContext(ChunkGenerator generator, HeightLimitView world) {
-		this.minY = Math.max(world.getBottomY(), generator.getMinimumY());
-		this.height = Math.min(world.getHeight(), generator.getWorldHeight());
+		minY = Math.max(world.getBottomY(), generator.getMinimumY());
+		height = Math.min(world.getHeight(), generator.getWorldHeight());
 	}
 
 	public int getMinY() {
-		return this.minY;
+		return minY;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 }

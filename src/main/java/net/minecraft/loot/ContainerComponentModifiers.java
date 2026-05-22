@@ -15,125 +15,102 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ContainerComponentModifiers}.
+ * Реестр стандартных модификаторов компонентов-контейнеров предметов.
+ *
+ * <p>Содержит реализации {@link ContainerComponentModifier} для трёх типов контейнеров:
+ * обычного инвентаря ({@link #CONTAINER}), связки ({@link #BUNDLE_CONTENTS})
+ * и заряженных снарядов ({@link #CHARGED_PROJECTILES}).</p>
  */
 public interface ContainerComponentModifiers {
 
-	ContainerComponentModifier<ContainerComponent> CONTAINER = new ContainerComponentModifier<ContainerComponent>() {
+	ContainerComponentModifier<ContainerComponent> CONTAINER = new ContainerComponentModifier<>() {
 		@Override
 		public ComponentType<ContainerComponent> getComponentType() {
 			return DataComponentTypes.CONTAINER;
 		}
 
-		/**
-		 * Stream.
-		 *
-		 * @param containerComponent container component
-		 *
-		 * @return Stream — результат операции
-		 */
-		public Stream<ItemStack> stream(ContainerComponent containerComponent) {
-			return containerComponent.stream();
-		}
-
+		@Override
 		public ContainerComponent getDefault() {
 			return ContainerComponent.DEFAULT;
 		}
 
-		/**
-		 * Apply.
-		 *
-		 * @param containerComponent container component
-		 * @param stream stream
-		 *
-		 * @return ContainerComponent — результат операции
-		 */
-		public ContainerComponent apply(ContainerComponent containerComponent, Stream<ItemStack> stream) {
-			return ContainerComponent.fromStacks(stream.toList());
+		@Override
+		public Stream<ItemStack> stream(ContainerComponent component) {
+			return component.stream();
+		}
+
+		@Override
+		public ContainerComponent apply(ContainerComponent component, Stream<ItemStack> contents) {
+			return ContainerComponent.fromStacks(contents.toList());
 		}
 	};
 
-	ContainerComponentModifier<BundleContentsComponent>
-			BUNDLE_CONTENTS =
-			new ContainerComponentModifier<BundleContentsComponent>() {
-				@Override
-				public ComponentType<BundleContentsComponent> getComponentType() {
-					return DataComponentTypes.BUNDLE_CONTENTS;
-				}
+	ContainerComponentModifier<BundleContentsComponent> BUNDLE_CONTENTS = new ContainerComponentModifier<>() {
+		@Override
+		public ComponentType<BundleContentsComponent> getComponentType() {
+			return DataComponentTypes.BUNDLE_CONTENTS;
+		}
 
-				public BundleContentsComponent getDefault() {
-					return BundleContentsComponent.DEFAULT;
-				}
+		@Override
+		public BundleContentsComponent getDefault() {
+			return BundleContentsComponent.DEFAULT;
+		}
 
-				/**
-				 * Stream.
-				 *
-				 * @param bundleContentsComponent bundle contents component
-				 *
-				 * @return Stream — результат операции
-				 */
-				public Stream<ItemStack> stream(BundleContentsComponent bundleContentsComponent) {
-					return bundleContentsComponent.stream();
-				}
+		@Override
+		public Stream<ItemStack> stream(BundleContentsComponent component) {
+			return component.stream();
+		}
 
-				public BundleContentsComponent apply(
-						BundleContentsComponent bundleContentsComponent,
-						Stream<ItemStack> stream
-				) {
-					BundleContentsComponent.Builder
-							builder =
-							new BundleContentsComponent.Builder(bundleContentsComponent).clear();
-					stream.forEach(builder::add);
-					return builder.build();
-				}
-			};
+		@Override
+		public BundleContentsComponent apply(BundleContentsComponent component, Stream<ItemStack> contents) {
+			BundleContentsComponent.Builder builder = new BundleContentsComponent.Builder(component).clear();
+			contents.forEach(builder::add);
+			return builder.build();
+		}
+	};
 
-	ContainerComponentModifier<ChargedProjectilesComponent>
-			CHARGED_PROJECTILES =
-			new ContainerComponentModifier<ChargedProjectilesComponent>() {
-				@Override
-				public ComponentType<ChargedProjectilesComponent> getComponentType() {
-					return DataComponentTypes.CHARGED_PROJECTILES;
-				}
+	ContainerComponentModifier<ChargedProjectilesComponent> CHARGED_PROJECTILES = new ContainerComponentModifier<>() {
+		@Override
+		public ComponentType<ChargedProjectilesComponent> getComponentType() {
+			return DataComponentTypes.CHARGED_PROJECTILES;
+		}
 
-				public ChargedProjectilesComponent getDefault() {
-					return ChargedProjectilesComponent.DEFAULT;
-				}
+		@Override
+		public ChargedProjectilesComponent getDefault() {
+			return ChargedProjectilesComponent.DEFAULT;
+		}
 
-				/**
-				 * Stream.
-				 *
-				 * @param chargedProjectilesComponent charged projectiles component
-				 *
-				 * @return Stream — результат операции
-				 */
-				public Stream<ItemStack> stream(ChargedProjectilesComponent chargedProjectilesComponent) {
-					return chargedProjectilesComponent.getProjectiles().stream();
-				}
+		@Override
+		public Stream<ItemStack> stream(ChargedProjectilesComponent component) {
+			return component.getProjectiles().stream();
+		}
 
-				public ChargedProjectilesComponent apply(
-						ChargedProjectilesComponent chargedProjectilesComponent,
-						Stream<ItemStack> stream
-				) {
-					return ChargedProjectilesComponent.of(stream.toList());
-				}
-			};
+		@Override
+		public ChargedProjectilesComponent apply(ChargedProjectilesComponent component, Stream<ItemStack> contents) {
+			return ChargedProjectilesComponent.of(contents.toList());
+		}
+	};
 
-	Map<ComponentType<?>, ContainerComponentModifier<?>>
-			TYPE_TO_MODIFIER =
-			Stream.of(CONTAINER, BUNDLE_CONTENTS, CHARGED_PROJECTILES)
-			      .collect(
-					      Collectors.toMap(
-							      ContainerComponentModifier::getComponentType,
-							      containerComponentModifier -> (ContainerComponentModifier<?>) containerComponentModifier
-					      )
-			      );
+	Map<ComponentType<?>, ContainerComponentModifier<?>> TYPE_TO_MODIFIER = Stream
+		.of(CONTAINER, BUNDLE_CONTENTS, CHARGED_PROJECTILES)
+		.collect(
+			Collectors.toMap(
+				ContainerComponentModifier::getComponentType,
+				modifier -> (ContainerComponentModifier<?>) modifier
+			)
+		);
 
+	/**
+	 * Кодек для сериализации модификатора по типу компонента из реестра.
+	 * Возвращает ошибку, если тип компонента не имеет зарегистрированного модификатора.
+	 */
 	Codec<ContainerComponentModifier<?>> MODIFIER_CODEC = Registries.DATA_COMPONENT_TYPE.getCodec().comapFlatMap(
-			componentType -> {
-				ContainerComponentModifier<?> containerComponentModifier = TYPE_TO_MODIFIER.get(componentType);
-				return containerComponentModifier != null ? DataResult.success(containerComponentModifier)
-				                                          : DataResult.error(() -> "No items in component");
-			}, ContainerComponentModifier::getComponentType
+		componentType -> {
+			ContainerComponentModifier<?> modifier = TYPE_TO_MODIFIER.get(componentType);
+			return modifier != null
+				? DataResult.success(modifier)
+				: DataResult.error(() -> "No items in component");
+		},
+		ContainerComponentModifier::getComponentType
 	);
 }

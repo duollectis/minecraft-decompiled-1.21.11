@@ -30,7 +30,9 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code ShelfBlockEntity}.
+ * Блок-сущность полки (Shelf). Хранит до {@link #SLOT_COUNT} предметов,
+ * отображаемых на поверхности блока. Поддерживает выравнивание предметов
+ * по нижнему краю полки через флаг {@code align_items_to_bottom}.
  */
 public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, ListInventory {
 
@@ -47,43 +49,40 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.heldStacks.clear();
-		Inventories.readData(view, this.heldStacks);
-		this.alignItemsToBottom = view.getBoolean("align_items_to_bottom", false);
+		heldStacks.clear();
+		Inventories.readData(view, heldStacks);
+		alignItemsToBottom = view.getBoolean(ALIGN_ITEMS_TO_BOTTOM_KEY, false);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		Inventories.writeData(view, this.heldStacks, true);
-		view.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
+		Inventories.writeData(view, heldStacks, true);
+		view.putBoolean(ALIGN_ITEMS_TO_BOTTOM_KEY, alignItemsToBottom);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
+	/**
+	 * Формирует NBT-данные для первоначальной синхронизации с клиентом при загрузке чанка.
+	 * Включает только содержимое инвентаря и флаг выравнивания — без полного состояния сущности.
+	 */
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		NbtCompound var4;
-		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(getReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-			Inventories.writeData(nbtWriteView, this.heldStacks, true);
-			nbtWriteView.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
-			var4 = nbtWriteView.getNbt();
+			Inventories.writeData(nbtWriteView, heldStacks, true);
+			nbtWriteView.putBoolean(ALIGN_ITEMS_TO_BOTTOM_KEY, alignItemsToBottom);
+			return nbtWriteView.getNbt();
 		}
-
-		return var4;
 	}
 
 	@Override
 	public DefaultedList<ItemStack> getHeldStacks() {
-		return this.heldStacks;
+		return heldStacks;
 	}
 
 	@Override
@@ -91,51 +90,46 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 		return Inventory.canPlayerUse(this, player);
 	}
 
-	/**
-	 * Swap stack no mark dirty.
-	 *
-	 * @param slot slot
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack swapStackNoMarkDirty(int slot, ItemStack stack) {
-		ItemStack itemStack = this.removeStack(slot);
-		this.setStackNoMarkDirty(slot, stack);
-		return itemStack;
+		ItemStack removed = removeStack(slot);
+		setStackNoMarkDirty(slot, stack);
+		return removed;
 	}
 
 	/**
-	 * Mark dirty.
+	 * Помечает сущность как изменённую и генерирует игровое событие, если оно задано.
+	 * Также уведомляет соседние блоки об изменении состояния.
 	 *
-	 * @param gameEvent game event
+	 * @param gameEvent игровое событие для генерации, или {@code null} если событие не нужно
 	 */
 	public void markDirty(RegistryEntry.@Nullable Reference<GameEvent> gameEvent) {
 		super.markDirty();
-		if (this.world != null) {
-			if (gameEvent != null) {
-				this.world.emitGameEvent(gameEvent, this.pos, GameEvent.Emitter.of(this.getCachedState()));
-			}
-
-			this.getWorld().updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), 3);
+		if (world == null) {
+			return;
 		}
+
+		if (gameEvent != null) {
+			world.emitGameEvent(gameEvent, pos, GameEvent.Emitter.of(getCachedState()));
+		}
+
+		getWorld().updateListeners(getPos(), getCachedState(), getCachedState(), 3);
 	}
 
 	@Override
 	public void markDirty() {
-		this.markDirty(GameEvent.BLOCK_ACTIVATE);
+		markDirty(GameEvent.BLOCK_ACTIVATE);
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.heldStacks);
+		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(heldStacks);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.heldStacks));
+		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(heldStacks));
 	}
 
 	@Override
@@ -145,25 +139,20 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 
 	@Override
 	public World getEntityWorld() {
-		return this.world;
+		return world;
 	}
 
 	@Override
 	public Vec3d getEntityPos() {
-		return this.getPos().toCenterPos();
+		return getPos().toCenterPos();
 	}
 
 	@Override
 	public float getBodyYaw() {
-		return this.getCachedState().get(ShelfBlock.FACING).getOpposite().getPositiveHorizontalDegrees();
+		return getCachedState().get(ShelfBlock.FACING).getOpposite().getPositiveHorizontalDegrees();
 	}
 
-	/**
-	 * Определяет, следует ли align items to bottom.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldAlignItemsToBottom() {
-		return this.alignItemsToBottom;
+		return alignItemsToBottom;
 	}
 }

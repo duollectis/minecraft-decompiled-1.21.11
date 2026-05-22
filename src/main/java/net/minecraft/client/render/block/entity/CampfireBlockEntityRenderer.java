@@ -97,7 +97,7 @@ public class CampfireBlockEntityRenderer implements BlockEntityRenderer<Campfire
 				matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f));
 				matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
 				matrixStack.translate(-0.3125F, -0.3125F, 0.0F);
-				matrixStack.scale(0.375F, 0.375F, 0.375F);
+				matrixStack.scale(SCALE, SCALE, SCALE);
 				itemRenderState.render(
 						matrixStack,
 						orderedRenderCommandQueue,

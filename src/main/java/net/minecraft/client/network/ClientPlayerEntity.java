@@ -87,7 +87,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 	public final ClientPlayNetworkHandler networkHandler;
 	private final StatHandler statHandler;
 	private final ClientRecipeBook recipeBook;
-	private final Cooldown itemDropCooldown = new Cooldown(20, 1280);
+	private final Cooldown itemDropCooldown = new Cooldown(POSITION_PACKET_INTERVAL, 1280);
 	private final List<ClientPlayerTickable> tickables = Lists.newArrayList();
 
 	private PermissionPredicate permissions = PermissionPredicate.NONE;
@@ -405,7 +405,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 		}
 		else {
 			lastDamageTaken = delta;
-			timeUntilRegen = 20;
+			timeUntilRegen = POSITION_PACKET_INTERVAL;
 			setHealth(health);
 			maxHurtTime = 10;
 			hurtTime = maxHurtTime;
@@ -970,7 +970,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 		}
 
 		if (noClip == false) {
-			double halfWidth = getWidth() * 0.35;
+			double halfWidth = getWidth() * SOFT_COLLISION_PUSH_DISTANCE;
 			pushOutOfBlocks(getX() - halfWidth, getZ() + halfWidth);
 			pushOutOfBlocks(getX() - halfWidth, getZ() - halfWidth);
 			pushOutOfBlocks(getX() + halfWidth, getZ() - halfWidth);
@@ -1137,7 +1137,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 	@Override
 	protected void updatePostDeath() {
 		deathTime++;
-		if (deathTime == 20) {
+		if (deathTime == POSITION_PACKET_INTERVAL) {
 			remove(Entity.RemovalReason.KILLED);
 		}
 	}
@@ -1216,7 +1216,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 		float deltaX = (float) (getX() - prevX);
 		float deltaZ = (float) (getZ() - prevZ);
 		autoJump(deltaX, deltaZ);
-		addDistanceMoved(MathHelper.hypot(deltaX, deltaZ) * 0.6F);
+		addDistanceMoved(MathHelper.hypot(deltaX, deltaZ) * SNEAKING_SPEED_FACTOR);
 	}
 
 	/**
@@ -1432,7 +1432,7 @@ public class ClientPlayerEntity extends AbstractClientPlayerEntity {
 				                   0.0F,
 				                   1.0F
 		                   );
-		return rampFactor * 0.6F + fullFactor * 0.4F;
+		return rampFactor * SNEAKING_SPEED_FACTOR + fullFactor * 0.4F;
 	}
 
 	/**

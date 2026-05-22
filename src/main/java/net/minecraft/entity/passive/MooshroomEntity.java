@@ -47,15 +47,23 @@ import java.util.UUID;
 import java.util.function.IntFunction;
 
 /**
- * {@code MooshroomEntity}.
+ * Гриб-корова — особый вариант коровы, растущий на мицелии.
+ * Поддерживает стрижку (превращается в обычную корову), доение (грибной суп или подозрительное рагу),
+ * а также мутацию при ударе молнией (красная ↔ коричневая).
  */
 public class MooshroomEntity extends AbstractCowEntity implements Shearable {
 
-	private static final TrackedData<Integer>
-			VARIANT =
-			DataTracker.registerData(MooshroomEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final TrackedData<Integer> VARIANT = DataTracker.registerData(
+		MooshroomEntity.class,
+		TrackedDataHandlerRegistry.INTEGER
+	);
+
+	/** Вероятность мутации цвета детёныша: 1 из 1024 при одинаковых родителях. */
 	private static final int MUTATION_CHANCE = 1024;
 	private static final String STEW_EFFECTS_NBT_KEY = "stew_effects";
+	private static final int SMOKE_PARTICLE_COUNT = 2;
+	private static final int EFFECT_PARTICLE_COUNT = 4;
+
 	private @Nullable SuspiciousStewEffectsComponent stewEffects;
 	private @Nullable UUID lightningId;
 
@@ -69,290 +77,272 @@ public class MooshroomEntity extends AbstractCowEntity implements Shearable {
 	}
 
 	public static boolean canSpawn(
-			EntityType<MooshroomEntity> type,
-			WorldAccess world,
-			SpawnReason spawnReason,
-			BlockPos pos,
-			Random random
+		EntityType<MooshroomEntity> type,
+		WorldAccess world,
+		SpawnReason spawnReason,
+		BlockPos pos,
+		Random random
 	) {
 		return world.getBlockState(pos.down()).isIn(BlockTags.MOOSHROOMS_SPAWNABLE_ON)
-				&& isLightLevelValidForNaturalSpawn(world, pos);
+			&& isLightLevelValidForNaturalSpawn(world, pos);
 	}
 
+	/**
+	 * При ударе молнией меняет вариант (красная ↔ коричневая).
+	 * Один и тот же удар молнии обрабатывается только один раз (защита от дублирования).
+	 */
 	@Override
 	public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
-		UUID uUID = lightning.getUuid();
-		if (!uUID.equals(this.lightningId)) {
-			this.setVariant(this.getVariant() == MooshroomEntity.Variant.RED ? MooshroomEntity.Variant.BROWN
-			                                                                 : MooshroomEntity.Variant.RED);
-			this.lightningId = uUID;
-			this.playSound(SoundEvents.ENTITY_MOOSHROOM_CONVERT, 2.0F, 1.0F);
+		UUID lightningUuid = lightning.getUuid();
+		if (lightningUuid.equals(lightningId)) {
+			return;
 		}
+
+		setVariant(getVariant() == Variant.RED ? Variant.BROWN : Variant.RED);
+		lightningId = lightningUuid;
+		playSound(SoundEvents.ENTITY_MOOSHROOM_CONVERT, 2.0F, 1.0F);
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, MooshroomEntity.Variant.DEFAULT.index);
+		builder.add(VARIANT, Variant.DEFAULT.index);
 	}
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isOf(Items.BOWL) && !this.isBaby()) {
-			boolean bl = false;
-			ItemStack itemStack2;
-			if (this.stewEffects != null) {
-				bl = true;
-				itemStack2 = new ItemStack(Items.SUSPICIOUS_STEW);
-				itemStack2.set(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, this.stewEffects);
-				this.stewEffects = null;
-			}
-			else {
-				itemStack2 = new ItemStack(Items.MUSHROOM_STEW);
-			}
+		ItemStack heldStack = player.getStackInHand(hand);
 
-			ItemStack itemStack3 = ItemUsage.exchangeStack(itemStack, player, itemStack2, false);
-			player.setStackInHand(hand, itemStack3);
-			SoundEvent soundEvent;
-			if (bl) {
-				soundEvent = SoundEvents.ENTITY_MOOSHROOM_SUSPICIOUS_MILK;
-			}
-			else {
-				soundEvent = SoundEvents.ENTITY_MOOSHROOM_MILK;
-			}
-
-			this.playSound(soundEvent, 1.0F, 1.0F);
-			return ActionResult.SUCCESS;
+		if (heldStack.isOf(Items.BOWL) && !isBaby()) {
+			return handleBowlInteraction(player, hand, heldStack);
 		}
-		else if (itemStack.isOf(Items.SHEARS) && this.isShearable()) {
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-				this.sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
-				this.emitGameEvent(GameEvent.SHEAR, player);
-				itemStack.damage(1, player, hand.getEquipmentSlot());
+
+		if (heldStack.isOf(Items.SHEARS) && isShearable()) {
+			if (getEntityWorld() instanceof ServerWorld serverWorld) {
+				sheared(serverWorld, SoundCategory.PLAYERS, heldStack);
+				emitGameEvent(GameEvent.SHEAR, player);
+				heldStack.damage(1, player, hand.getEquipmentSlot());
 			}
 
 			return ActionResult.SUCCESS;
 		}
-		else if (this.getVariant() == MooshroomEntity.Variant.BROWN) {
-			Optional<SuspiciousStewEffectsComponent> optional = this.getStewEffectFrom(itemStack);
-			if (optional.isEmpty()) {
-				return super.interactMob(player, hand);
-			}
-			else {
-				if (this.stewEffects != null) {
-					for (int i = 0; i < 2; i++) {
-						this.getEntityWorld()
-						    .addParticleClient(
-								    ParticleTypes.SMOKE,
-								    this.getX() + this.random.nextDouble() / 2.0,
-								    this.getBodyY(0.5),
-								    this.getZ() + this.random.nextDouble() / 2.0,
-								    0.0,
-								    this.random.nextDouble() / 5.0,
-								    0.0
-						    );
-					}
-				}
-				else {
-					itemStack.decrementUnlessCreative(1, player);
-					EffectParticleEffect effectParticleEffect = EffectParticleEffect.of(ParticleTypes.EFFECT, -1, 1.0F);
 
-					for (int j = 0; j < 4; j++) {
-						this.getEntityWorld()
-						    .addParticleClient(
-								    effectParticleEffect,
-								    this.getX() + this.random.nextDouble() / 2.0,
-								    this.getBodyY(0.5),
-								    this.getZ() + this.random.nextDouble() / 2.0,
-								    0.0,
-								    this.random.nextDouble() / 5.0,
-								    0.0
-						    );
-					}
-
-					this.stewEffects = optional.get();
-					this.playSound(SoundEvents.ENTITY_MOOSHROOM_EAT, 2.0F, 1.0F);
-				}
-
-				return ActionResult.SUCCESS;
-			}
+		if (getVariant() == Variant.BROWN) {
+			return handleFlowerInteraction(player, hand, heldStack);
 		}
-		else {
+
+		return super.interactMob(player, hand);
+	}
+
+	private ActionResult handleBowlInteraction(PlayerEntity player, Hand hand, ItemStack bowl) {
+		boolean hasSuspiciousEffects = stewEffects != null;
+		ItemStack stewStack;
+		if (hasSuspiciousEffects) {
+			stewStack = new ItemStack(Items.SUSPICIOUS_STEW);
+			stewStack.set(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, stewEffects);
+			stewEffects = null;
+		} else {
+			stewStack = new ItemStack(Items.MUSHROOM_STEW);
+		}
+
+		player.setStackInHand(hand, ItemUsage.exchangeStack(bowl, player, stewStack, false));
+		SoundEvent milkSound = hasSuspiciousEffects
+			? SoundEvents.ENTITY_MOOSHROOM_SUSPICIOUS_MILK
+			: SoundEvents.ENTITY_MOOSHROOM_MILK;
+		playSound(milkSound, 1.0F, 1.0F);
+		return ActionResult.SUCCESS;
+	}
+
+	private ActionResult handleFlowerInteraction(PlayerEntity player, Hand hand, ItemStack flower) {
+		Optional<SuspiciousStewEffectsComponent> effects = getStewEffectFrom(flower);
+		if (effects.isEmpty()) {
 			return super.interactMob(player, hand);
 		}
+
+		if (stewEffects != null) {
+			for (int count = 0; count < SMOKE_PARTICLE_COUNT; count++) {
+				getEntityWorld().addParticleClient(
+					ParticleTypes.SMOKE,
+					getX() + random.nextDouble() / 2.0,
+					getBodyY(0.5),
+					getZ() + random.nextDouble() / 2.0,
+					0.0,
+					random.nextDouble() / 5.0,
+					0.0
+				);
+			}
+		} else {
+			flower.decrementUnlessCreative(1, player);
+			EffectParticleEffect effectParticle = EffectParticleEffect.of(ParticleTypes.EFFECT, -1, 1.0F);
+			for (int count = 0; count < EFFECT_PARTICLE_COUNT; count++) {
+				getEntityWorld().addParticleClient(
+					effectParticle,
+					getX() + random.nextDouble() / 2.0,
+					getBodyY(0.5),
+					getZ() + random.nextDouble() / 2.0,
+					0.0,
+					random.nextDouble() / 5.0,
+					0.0
+				);
+			}
+
+			stewEffects = effects.get();
+			playSound(SoundEvents.ENTITY_MOOSHROOM_EAT, 2.0F, 1.0F);
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	public void sheared(ServerWorld world, SoundCategory shearedSoundCategory, ItemStack shears) {
 		world.playSoundFromEntity(null, this, SoundEvents.ENTITY_MOOSHROOM_SHEAR, shearedSoundCategory, 1.0F, 1.0F);
-		this.convertTo(
-				EntityType.COW, EntityConversionContext.create(this, false, false), cow -> {
-					world.spawnParticles(
-							ParticleTypes.EXPLOSION,
-							this.getX(),
-							this.getBodyY(0.5),
-							this.getZ(),
-							1,
-							0.0,
-							0.0,
-							0.0,
-							0.0
-					);
-					this.forEachShearedItem(
-							world, LootTables.MOOSHROOM_SHEARING, shears, (worldx, stack) -> {
-								for (int i = 0; i < stack.getCount(); i++) {
-									worldx.spawnEntity(new ItemEntity(
-											this.getEntityWorld(),
-											this.getX(),
-											this.getBodyY(1.0),
-											this.getZ(),
-											stack.copyWithCount(1)
-									));
-								}
-							}
-					);
+		convertTo(EntityType.COW, EntityConversionContext.create(this, false, false), cow -> {
+			world.spawnParticles(
+				ParticleTypes.EXPLOSION,
+				getX(),
+				getBodyY(0.5),
+				getZ(),
+				1,
+				0.0,
+				0.0,
+				0.0,
+				0.0
+			);
+			forEachShearedItem(world, LootTables.MOOSHROOM_SHEARING, shears, (dropWorld, stack) -> {
+				for (int count = 0; count < stack.getCount(); count++) {
+					dropWorld.spawnEntity(new ItemEntity(
+						getEntityWorld(),
+						getX(),
+						getBodyY(1.0),
+						getZ(),
+						stack.copyWithCount(1)
+					));
 				}
-		);
+			});
+		});
 	}
 
 	@Override
 	public boolean isShearable() {
-		return this.isAlive() && !this.isBaby();
+		return isAlive() && !isBaby();
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("Type", MooshroomEntity.Variant.CODEC, this.getVariant());
-		view.putNullable("stew_effects", SuspiciousStewEffectsComponent.CODEC, this.stewEffects);
+		view.put("Type", Variant.CODEC, getVariant());
+		view.putNullable(STEW_EFFECTS_NBT_KEY, SuspiciousStewEffectsComponent.CODEC, stewEffects);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setVariant(view
-				.<MooshroomEntity.Variant>read("Type", MooshroomEntity.Variant.CODEC)
-				.orElse(MooshroomEntity.Variant.DEFAULT));
-		this.stewEffects =
-				view
-						.<SuspiciousStewEffectsComponent>read("stew_effects", SuspiciousStewEffectsComponent.CODEC)
-						.orElse(null);
+		setVariant(view.<Variant>read("Type", Variant.CODEC).orElse(Variant.DEFAULT));
+		stewEffects = view.<SuspiciousStewEffectsComponent>read(STEW_EFFECTS_NBT_KEY, SuspiciousStewEffectsComponent.CODEC)
+			.orElse(null);
 	}
 
 	private Optional<SuspiciousStewEffectsComponent> getStewEffectFrom(ItemStack flower) {
-		SuspiciousStewIngredient suspiciousStewIngredient = SuspiciousStewIngredient.of(flower.getItem());
-		return suspiciousStewIngredient != null ? Optional.of(suspiciousStewIngredient.getStewEffects())
-		                                        : Optional.empty();
+		SuspiciousStewIngredient ingredient = SuspiciousStewIngredient.of(flower.getItem());
+		return ingredient == null ? Optional.empty() : Optional.of(ingredient.getStewEffects());
 	}
 
-	private void setVariant(MooshroomEntity.Variant variant) {
-		this.dataTracker.set(VARIANT, variant.index);
+	private void setVariant(Variant variant) {
+		dataTracker.set(VARIANT, variant.index);
 	}
 
-	public MooshroomEntity.Variant getVariant() {
-		return MooshroomEntity.Variant.fromIndex(this.dataTracker.get(VARIANT));
+	public Variant getVariant() {
+		return Variant.fromIndex(dataTracker.get(VARIANT));
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.MOOSHROOM_VARIANT ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getVariant()
-		) : super.get(type);
+		return type == DataComponentTypes.MOOSHROOM_VARIANT
+			? castComponentValue((ComponentType<T>) type, getVariant())
+			: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.MOOSHROOM_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.MOOSHROOM_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.MOOSHROOM_VARIANT) {
-			this.setVariant(castComponentValue(DataComponentTypes.MOOSHROOM_VARIANT, value));
+			setVariant(castComponentValue(DataComponentTypes.MOOSHROOM_VARIANT, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
 	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable MooshroomEntity — результат операции
+	 * Создаёт детёныша при размножении. С вероятностью 1/1024 при одинаковых родителях
+	 * происходит мутация цвета.
 	 */
+	@Override
 	public @Nullable MooshroomEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-		MooshroomEntity mooshroomEntity = EntityType.MOOSHROOM.create(serverWorld, SpawnReason.BREEDING);
-		if (mooshroomEntity != null) {
-			mooshroomEntity.setVariant(this.chooseBabyVariant((MooshroomEntity) passiveEntity));
+		MooshroomEntity baby = EntityType.MOOSHROOM.create(serverWorld, SpawnReason.BREEDING);
+		if (baby != null) {
+			baby.setVariant(chooseBabyVariant((MooshroomEntity) passiveEntity));
 		}
 
-		return mooshroomEntity;
+		return baby;
 	}
 
-	private MooshroomEntity.Variant chooseBabyVariant(MooshroomEntity mooshroom) {
-		MooshroomEntity.Variant variant = this.getVariant();
-		MooshroomEntity.Variant variant2 = mooshroom.getVariant();
-		MooshroomEntity.Variant variant3;
-		if (variant == variant2 && this.random.nextInt(1024) == 0) {
-			variant3 =
-					variant == MooshroomEntity.Variant.BROWN ? MooshroomEntity.Variant.RED
-					                                         : MooshroomEntity.Variant.BROWN;
-		}
-		else {
-			variant3 = this.random.nextBoolean() ? variant : variant2;
+	private Variant chooseBabyVariant(MooshroomEntity otherParent) {
+		Variant myVariant = getVariant();
+		Variant otherVariant = otherParent.getVariant();
+		if (myVariant == otherVariant && random.nextInt(MUTATION_CHANCE) == 0) {
+			return myVariant == Variant.BROWN ? Variant.RED : Variant.BROWN;
 		}
 
-		return variant3;
+		return random.nextBoolean() ? myVariant : otherVariant;
 	}
 
-	/**
-	 * {@code Variant}.
-	 */
-	public static enum Variant implements StringIdentifiable {
+	/** Вариант гриб-коровы: красная (обычная) или коричневая (редкая). */
+	public enum Variant implements StringIdentifiable {
 		RED("red", 0, Blocks.RED_MUSHROOM.getDefaultState()),
 		BROWN("brown", 1, Blocks.BROWN_MUSHROOM.getDefaultState());
 
-		public static final MooshroomEntity.Variant DEFAULT = RED;
-		public static final Codec<MooshroomEntity.Variant>
-				CODEC =
-				StringIdentifiable.createCodec(MooshroomEntity.Variant::values);
-		private static final IntFunction<MooshroomEntity.Variant> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
-				MooshroomEntity.Variant::getIndex, values(), ValueLists.OutOfBoundsHandling.CLAMP
+		public static final Variant DEFAULT = RED;
+		public static final Codec<Variant> CODEC = StringIdentifiable.createCodec(Variant::values);
+		private static final IntFunction<Variant> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
+			Variant::getIndex,
+			values(),
+			ValueLists.OutOfBoundsHandling.CLAMP
 		);
-		public static final PacketCodec<ByteBuf, MooshroomEntity.Variant>
-				PACKET_CODEC =
-				PacketCodecs.indexed(INDEX_MAPPER, MooshroomEntity.Variant::getIndex);
+		public static final PacketCodec<ByteBuf, Variant> PACKET_CODEC = PacketCodecs.indexed(
+			INDEX_MAPPER,
+			Variant::getIndex
+		);
+
 		private final String name;
 		final int index;
 		private final BlockState mushroom;
 
-		private Variant(final String name, final int index, final BlockState mushroom) {
+		Variant(String name, int index, BlockState mushroom) {
 			this.name = name;
 			this.index = index;
 			this.mushroom = mushroom;
 		}
 
 		public BlockState getMushroomState() {
-			return this.mushroom;
+			return mushroom;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
 		private int getIndex() {
-			return this.index;
+			return index;
 		}
 
-		static MooshroomEntity.Variant fromIndex(int index) {
+		static Variant fromIndex(int index) {
 			return INDEX_MAPPER.apply(index);
 		}
 	}

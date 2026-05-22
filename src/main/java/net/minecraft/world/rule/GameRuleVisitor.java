@@ -1,7 +1,8 @@
 package net.minecraft.world.rule;
 
 /**
- * {@code GameRuleVisitor}.
+ * Посетитель правил игры — позволяет обходить все зарегистрированные правила
+ * с типизированной обработкой булевых и целочисленных значений.
  */
 public interface GameRuleVisitor {
 

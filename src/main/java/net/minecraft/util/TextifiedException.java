@@ -3,7 +3,9 @@ package net.minecraft.util;
 import net.minecraft.text.Text;
 
 /**
- * {@code TextifiedException}.
+ * Исключение, несущее форматированное сообщение об ошибке в виде {@link Text}.
+ * Используется там, где сообщение об ошибке должно быть отображено игроку
+ * с поддержкой локализации и форматирования.
  */
 public class TextifiedException extends Exception {
 
@@ -20,6 +22,6 @@ public class TextifiedException extends Exception {
 	}
 
 	public Text getMessageText() {
-		return this.messageText;
+		return messageText;
 	}
 }

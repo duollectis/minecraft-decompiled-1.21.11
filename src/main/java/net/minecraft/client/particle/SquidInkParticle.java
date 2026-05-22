@@ -8,11 +8,21 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SquidInkParticle}.
+ * Частица чернил кальмара: анимированная сфера, которая постепенно исчезает
+ * во второй половине жизни и падает вниз при нахождении в воздухе.
+ * Не взаимодействует с блоками (коллизии отключены).
+ *
+ * <p>Фабрика {@link Factory} создаёт чёрные чернила обычного кальмара,
+ * {@link GlowSquidInkFactory} — светящиеся сине-зелёные чернила светящегося кальмара.
  */
+@Environment(EnvType.CLIENT)
 public class SquidInkParticle extends AnimatedParticle {
+
+	private static final float VELOCITY_MULTIPLIER = 0.92F;
+	private static final float INITIAL_SCALE = 0.5F;
+	private static final float LIFETIME_SCALE = 12.0F;
+	private static final double AIR_GRAVITY = 0.0074;
 
 	SquidInkParticle(
 			ClientWorld world,
@@ -26,15 +36,15 @@ public class SquidInkParticle extends AnimatedParticle {
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, spriteProvider, 0.0F);
-		this.velocityMultiplier = 0.92F;
-		this.scale = 0.5F;
+		this.velocityMultiplier = VELOCITY_MULTIPLIER;
+		this.scale = INITIAL_SCALE;
 		this.setAlpha(1.0F);
 		this.setColor(
 				ColorHelper.getRedFloat(color),
 				ColorHelper.getGreenFloat(color),
 				ColorHelper.getBlueFloat(color)
 		);
-		this.maxAge = (int) (this.scale * 12.0F / (this.random.nextFloat() * 0.8F + 0.2F));
+		this.maxAge = (int) (this.scale * LIFETIME_SCALE / (this.random.nextFloat() * 0.8F + 0.2F));
 		this.updateSprite(spriteProvider);
 		this.collidesWithWorld = false;
 		this.velocityX = velocityX;
@@ -45,23 +55,27 @@ public class SquidInkParticle extends AnimatedParticle {
 	@Override
 	public void tick() {
 		super.tick();
-		if (!this.dead) {
-			this.updateSprite(this.spriteProvider);
-			if (this.age > this.maxAge / 2) {
-				this.setAlpha(1.0F - ((float) this.age - this.maxAge / 2) / this.maxAge);
-			}
 
-			if (this.world.getBlockState(BlockPos.ofFloored(this.x, this.y, this.z)).isAir()) {
-				this.velocityY -= 0.0074F;
-			}
+		if (this.dead) {
+			return;
+		}
+
+		this.updateSprite(this.spriteProvider);
+
+		if (this.age > this.maxAge / 2) {
+			this.setAlpha(1.0F - ((float) this.age - this.maxAge / 2.0F) / this.maxAge);
+		}
+
+		if (this.world.getBlockState(BlockPos.ofFloored(this.x, this.y, this.z)).isAir()) {
+			this.velocityY -= AIR_GRAVITY;
 		}
 	}
 
+	/** Фабрика для чёрных чернил обычного кальмара. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
+
+		private static final int BLACK_COLOR = -16777216; // 0xFF000000
 
 		private final SpriteProvider spriteProvider;
 
@@ -69,26 +83,30 @@ public class SquidInkParticle extends AnimatedParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new SquidInkParticle(clientWorld, d, e, f, g, h, i, -16777216, this.spriteProvider);
+			return new SquidInkParticle(world, x, y, z, velocityX, velocityY, velocityZ, BLACK_COLOR, this.spriteProvider);
 		}
 	}
 
+	/** Фабрика для светящихся сине-зелёных чернил светящегося кальмара. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code GlowSquidInkFactory}.
-	 */
 	public static class GlowSquidInkFactory implements ParticleFactory<SimpleParticleType> {
+
+		private static final float GLOW_ALPHA = 1.0F;
+		private static final float GLOW_RED = 0.2F;
+		private static final float GLOW_GREEN = 0.8F;
+		private static final float GLOW_BLUE = 0.6F;
 
 		private final SpriteProvider spriteProvider;
 
@@ -96,26 +114,21 @@ public class SquidInkParticle extends AnimatedParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
 			return new SquidInkParticle(
-					clientWorld,
-					d,
-					e,
-					f,
-					g,
-					h,
-					i,
-					ColorHelper.fromFloats(1.0F, 0.2F, 0.8F, 0.6F),
+					world, x, y, z, velocityX, velocityY, velocityZ,
+					ColorHelper.fromFloats(GLOW_ALPHA, GLOW_RED, GLOW_GREEN, GLOW_BLUE),
 					this.spriteProvider
 			);
 		}

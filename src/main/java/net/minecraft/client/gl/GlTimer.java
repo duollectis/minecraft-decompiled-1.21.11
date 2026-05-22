@@ -9,127 +9,123 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.OptionalLong;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlTimer}.
+ * GPU-таймер для измерения времени выполнения команд на видеокарте.
+ * Использует паттерн Singleton через {@link InstanceHolder}.
+ * Профилирование начинается через {@link #beginProfile()} и завершается через {@link #endProfile()}.
  */
+@Environment(EnvType.CLIENT)
 public class GlTimer {
 
 	private @Nullable CommandEncoder encoder;
 	private @Nullable GpuQuery query;
 
 	public static GlTimer getInstance() {
-		return GlTimer.InstanceHolder.INSTANCE;
+		return InstanceHolder.INSTANCE;
 	}
 
 	public boolean isRunning() {
-		return this.query != null;
+		return query != null;
+	}
+
+	public void beginProfile() {
+		RenderSystem.assertOnRenderThread();
+
+		if (query != null) {
+			throw new IllegalStateException("Current profile not ended");
+		}
+
+		encoder = RenderSystem.getDevice().createCommandEncoder();
+		query = encoder.timerQueryBegin();
 	}
 
 	/**
-	 * Begin profile.
+	 * Завершает текущий профиль и возвращает объект запроса для получения результата.
+	 * Вызов до {@link #beginProfile()} приводит к {@link IllegalStateException}.
 	 */
-	public void beginProfile() {
+	public Query endProfile() {
 		RenderSystem.assertOnRenderThread();
-		if (this.query != null) {
-			throw new IllegalStateException("Current profile not ended");
-		}
-		else {
-			this.encoder = RenderSystem.getDevice().createCommandEncoder();
-			this.query = this.encoder.timerQueryBegin();
-		}
-	}
 
-	public GlTimer.Query endProfile() {
-		RenderSystem.assertOnRenderThread();
-		if (this.query != null && this.encoder != null) {
-			this.encoder.timerQueryEnd(this.query);
-			GlTimer.Query query = new GlTimer.Query(this.query);
-			this.query = null;
-			this.encoder = null;
-			return query;
-		}
-		else {
+		if (query == null || encoder == null) {
 			throw new IllegalStateException("endProfile called before beginProfile");
 		}
+
+		encoder.timerQueryEnd(query);
+		Query result = new Query(query);
+		query = null;
+		encoder = null;
+
+		return result;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code InstanceHolder}.
-	 */
 	static class InstanceHolder {
 
-		static final GlTimer INSTANCE = create();
+		static final GlTimer INSTANCE = new GlTimer();
 
 		private InstanceHolder() {
 		}
-
-		private static GlTimer create() {
-			return new GlTimer();
-		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Query}.
+	 * Результат GPU-запроса таймера. Хранит состояние: не готов (0), закрыт (-1) или
+	 * содержит реальное значение в наносекундах.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Query {
 
 		private static final long MISSING = 0L;
 		private static final long CLOSED = -1L;
+
 		private final GpuQuery query;
-		private long result = 0L;
+		private long result = MISSING;
 
 		Query(GpuQuery query) {
 			this.query = query;
 		}
 
-		/**
-		 * Close.
-		 */
 		public void close() {
 			RenderSystem.assertOnRenderThread();
-			if (this.result == 0L) {
-				this.result = -1L;
-				this.query.close();
+
+			if (result != MISSING) {
+				return;
 			}
+
+			result = CLOSED;
+			query.close();
 		}
 
 		public boolean isResultAvailable() {
 			RenderSystem.assertOnRenderThread();
-			if (this.result != 0L) {
+
+			if (result != MISSING) {
 				return true;
 			}
-			else {
-				OptionalLong optionalLong = this.query.getValue();
-				if (optionalLong.isPresent()) {
-					this.result = optionalLong.getAsLong();
-					this.query.close();
-					return true;
-				}
-				else {
-					return false;
-				}
+
+			OptionalLong queryValue = query.getValue();
+
+			if (queryValue.isPresent()) {
+				result = queryValue.getAsLong();
+				query.close();
+				return true;
 			}
+
+			return false;
 		}
 
-		/**
-		 * Query result.
-		 *
-		 * @return long — результат операции
-		 */
 		public long queryResult() {
 			RenderSystem.assertOnRenderThread();
-			if (this.result == 0L) {
-				OptionalLong optionalLong = this.query.getValue();
-				if (optionalLong.isPresent()) {
-					this.result = optionalLong.getAsLong();
-					this.query.close();
+
+			if (result == MISSING) {
+				OptionalLong queryValue = query.getValue();
+
+				if (queryValue.isPresent()) {
+					result = queryValue.getAsLong();
+					query.close();
 				}
 			}
 
-			return this.result;
+			return result;
 		}
 	}
 }

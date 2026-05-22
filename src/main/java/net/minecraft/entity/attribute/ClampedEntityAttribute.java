@@ -3,38 +3,42 @@ package net.minecraft.entity.attribute;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code ClampedEntityAttribute}.
+ * Атрибут сущности с жёстко заданным допустимым диапазоном значений [{@code minValue}, {@code maxValue}].
+ * Значение {@code NaN} трактуется как минимально допустимое.
  */
 public class ClampedEntityAttribute extends EntityAttribute {
 
 	private final double minValue;
 	private final double maxValue;
 
-	public ClampedEntityAttribute(String translationKey, double fallback, double min, double max) {
+	public ClampedEntityAttribute(String translationKey, double fallback, double minValue, double maxValue) {
 		super(translationKey, fallback);
-		this.minValue = min;
-		this.maxValue = max;
-		if (min > max) {
+		if (minValue > maxValue) {
 			throw new IllegalArgumentException("Minimum value cannot be bigger than maximum value!");
 		}
-		else if (fallback < min) {
+
+		if (fallback < minValue) {
 			throw new IllegalArgumentException("Default value cannot be lower than minimum value!");
 		}
-		else if (fallback > max) {
+
+		if (fallback > maxValue) {
 			throw new IllegalArgumentException("Default value cannot be bigger than maximum value!");
 		}
+
+		this.minValue = minValue;
+		this.maxValue = maxValue;
 	}
 
 	public double getMinValue() {
-		return this.minValue;
+		return minValue;
 	}
 
 	public double getMaxValue() {
-		return this.maxValue;
+		return maxValue;
 	}
 
 	@Override
 	public double clamp(double value) {
-		return Double.isNaN(value) ? this.minValue : MathHelper.clamp(value, this.minValue, this.maxValue);
+		return Double.isNaN(value) ? minValue : MathHelper.clamp(value, minValue, maxValue);
 	}
 }

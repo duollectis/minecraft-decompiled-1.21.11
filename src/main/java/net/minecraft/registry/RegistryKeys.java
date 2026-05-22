@@ -131,124 +131,77 @@ import net.minecraft.world.rule.GameRule;
 import java.util.function.Consumer;
 
 /**
- * {@code RegistryKeys}.
+ * Константы ключей всех реестров Minecraft.
+ *
+ * <p>Каждая константа — это {@link RegistryKey} для соответствующего реестра.
+ * Используются при регистрации элементов, поиске реестров и построении тегов.</p>
  */
 public class RegistryKeys {
 
 	public static final Identifier ROOT = Identifier.ofVanilla("root");
+
+	// ---- Базовые игровые реестры ----
 	public static final RegistryKey<Registry<Activity>> ACTIVITY = of("activity");
 	public static final RegistryKey<Registry<EntityAttribute>> ATTRIBUTE = of("attribute");
-	public static final RegistryKey<Registry<MapCodec<? extends BiomeSource>>>
-			BIOME_SOURCE =
-			of("worldgen/biome_source");
+	public static final RegistryKey<Registry<MapCodec<? extends BiomeSource>>> BIOME_SOURCE = of("worldgen/biome_source");
 	public static final RegistryKey<Registry<BlockEntityType<?>>> BLOCK_ENTITY_TYPE = of("block_entity_type");
 	public static final RegistryKey<Registry<BlockPredicateType<?>>> BLOCK_PREDICATE_TYPE = of("block_predicate_type");
-	public static final RegistryKey<Registry<BlockStateProviderType<?>>>
-			BLOCK_STATE_PROVIDER_TYPE =
-			of("worldgen/block_state_provider_type");
+	public static final RegistryKey<Registry<BlockStateProviderType<?>>> BLOCK_STATE_PROVIDER_TYPE = of("worldgen/block_state_provider_type");
 	public static final RegistryKey<Registry<MapCodec<? extends Block>>> BLOCK_TYPE = of("block_type");
 	public static final RegistryKey<Registry<Block>> BLOCK = of("block");
 	public static final RegistryKey<Registry<Carver<?>>> CARVER = of("worldgen/carver");
-	public static final RegistryKey<Registry<MapCodec<? extends ChunkGenerator>>>
-			CHUNK_GENERATOR =
-			of("worldgen/chunk_generator");
+	public static final RegistryKey<Registry<MapCodec<? extends ChunkGenerator>>> CHUNK_GENERATOR = of("worldgen/chunk_generator");
 	public static final RegistryKey<Registry<ChunkStatus>> CHUNK_STATUS = of("chunk_status");
-	public static final RegistryKey<Registry<ArgumentSerializer<?, ?>>>
-			COMMAND_ARGUMENT_TYPE =
-			of("command_argument_type");
+	public static final RegistryKey<Registry<ArgumentSerializer<?, ?>>> COMMAND_ARGUMENT_TYPE = of("command_argument_type");
 	public static final RegistryKey<Registry<ConsumeEffect.Type<?>>> CONSUME_EFFECT_TYPE = of("consume_effect_type");
 	public static final RegistryKey<Registry<ItemGroup>> ITEM_GROUP = of("creative_mode_tab");
 	public static final RegistryKey<Registry<Identifier>> CUSTOM_STAT = of("custom_stat");
-	public static final RegistryKey<Registry<ComponentPredicate.Type<?>>>
-			DATA_COMPONENT_PREDICATE_TYPE =
-			of("data_component_predicate_type");
+	public static final RegistryKey<Registry<ComponentPredicate.Type<?>>> DATA_COMPONENT_PREDICATE_TYPE = of("data_component_predicate_type");
 	public static final RegistryKey<Registry<ComponentType<?>>> DATA_COMPONENT_TYPE = of("data_component_type");
 	public static final RegistryKey<Registry<GameRule<?>>> GAME_RULE = of("game_rule");
 	public static final RegistryKey<Registry<DebugSubscriptionType<?>>> DEBUG_SUBSCRIPTION = of("debug_subscription");
 	public static final RegistryKey<Registry<DecoratedPotPattern>> DECORATED_POT_PATTERN = of("decorated_pot_pattern");
-	public static final RegistryKey<Registry<MapCodec<? extends DensityFunction>>>
-			DENSITY_FUNCTION_TYPE =
-			of("worldgen/density_function_type");
+	public static final RegistryKey<Registry<MapCodec<? extends DensityFunction>>> DENSITY_FUNCTION_TYPE = of("worldgen/density_function_type");
 	public static final RegistryKey<Registry<MapCodec<? extends DialogBody>>> DIALOG_BODY_TYPE = of("dialog_body_type");
 	public static final RegistryKey<Registry<MapCodec<? extends Dialog>>> DIALOG_TYPE = of("dialog_type");
-	public static final RegistryKey<Registry<ComponentType<?>>>
-			ENCHANTMENT_EFFECT_COMPONENT_TYPE =
-			of("enchantment_effect_component_type");
-	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentEntityEffect>>>
-			ENCHANTMENT_ENTITY_EFFECT_TYPE =
-			of("enchantment_entity_effect_type");
-	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentLevelBasedValue>>>
-			ENCHANTMENT_LEVEL_BASED_VALUE_TYPE =
-			of(
-					"enchantment_level_based_value_type"
-			);
-	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentLocationBasedEffect>>>
-			ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE =
-			of(
-					"enchantment_location_based_effect_type"
-			);
-	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentProvider>>>
-			ENCHANTMENT_PROVIDER_TYPE =
-			of("enchantment_provider_type");
-	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentValueEffect>>>
-			ENCHANTMENT_VALUE_EFFECT_TYPE =
-			of("enchantment_value_effect_type");
-	public static final RegistryKey<Registry<MapCodec<? extends EntitySubPredicate>>>
-			ENTITY_SUB_PREDICATE_TYPE =
-			of("entity_sub_predicate_type");
+	public static final RegistryKey<Registry<ComponentType<?>>> ENCHANTMENT_EFFECT_COMPONENT_TYPE = of("enchantment_effect_component_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentEntityEffect>>> ENCHANTMENT_ENTITY_EFFECT_TYPE = of("enchantment_entity_effect_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentLevelBasedValue>>> ENCHANTMENT_LEVEL_BASED_VALUE_TYPE = of("enchantment_level_based_value_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentLocationBasedEffect>>> ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE = of("enchantment_location_based_effect_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentProvider>>> ENCHANTMENT_PROVIDER_TYPE = of("enchantment_provider_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EnchantmentValueEffect>>> ENCHANTMENT_VALUE_EFFECT_TYPE = of("enchantment_value_effect_type");
+	public static final RegistryKey<Registry<MapCodec<? extends EntitySubPredicate>>> ENTITY_SUB_PREDICATE_TYPE = of("entity_sub_predicate_type");
 	public static final RegistryKey<Registry<EntityType<?>>> ENTITY_TYPE = of("entity_type");
-	public static final RegistryKey<Registry<EnvironmentAttribute<?>>>
-			ENVIRONMENT_ATTRIBUTE =
-			of("environment_attribute");
+	public static final RegistryKey<Registry<EnvironmentAttribute<?>>> ENVIRONMENT_ATTRIBUTE = of("environment_attribute");
 	public static final RegistryKey<Registry<EnvironmentAttributeType<?>>> ATTRIBUTE_TYPE = of("attribute_type");
 	public static final RegistryKey<Registry<FeatureSizeType<?>>> FEATURE_SIZE_TYPE = of("worldgen/feature_size_type");
 	public static final RegistryKey<Registry<Feature<?>>> FEATURE = of("worldgen/feature");
 	public static final RegistryKey<Registry<FloatProviderType<?>>> FLOAT_PROVIDER_TYPE = of("float_provider_type");
 	public static final RegistryKey<Registry<Fluid>> FLUID = of("fluid");
-	public static final RegistryKey<Registry<FoliagePlacerType<?>>>
-			FOLIAGE_PLACER_TYPE =
-			of("worldgen/foliage_placer_type");
+	public static final RegistryKey<Registry<FoliagePlacerType<?>>> FOLIAGE_PLACER_TYPE = of("worldgen/foliage_placer_type");
 	public static final RegistryKey<Registry<GameEvent>> GAME_EVENT = of("game_event");
 	public static final RegistryKey<Registry<HeightProviderType<?>>> HEIGHT_PROVIDER_TYPE = of("height_provider_type");
-	public static final RegistryKey<Registry<MapCodec<? extends InputControl>>>
-			INPUT_CONTROL_TYPE =
-			of("input_control_type");
+	public static final RegistryKey<Registry<MapCodec<? extends InputControl>>> INPUT_CONTROL_TYPE = of("input_control_type");
 	public static final RegistryKey<Registry<IntProviderType<?>>> INT_PROVIDER_TYPE = of("int_provider_type");
 	public static final RegistryKey<Registry<Item>> ITEM = of("item");
 	public static final RegistryKey<Registry<MapCodec<? extends SlotSource>>> SLOT_SOURCE_TYPE = of("slot_source_type");
 	public static final RegistryKey<Registry<LootConditionType>> LOOT_CONDITION_TYPE = of("loot_condition_type");
 	public static final RegistryKey<Registry<LootFunctionType<?>>> LOOT_FUNCTION_TYPE = of("loot_function_type");
-	public static final RegistryKey<Registry<LootNbtProviderType>>
-			LOOT_NBT_PROVIDER_TYPE =
-			of("loot_nbt_provider_type");
-	public static final RegistryKey<Registry<LootNumberProviderType>>
-			LOOT_NUMBER_PROVIDER_TYPE =
-			of("loot_number_provider_type");
+	public static final RegistryKey<Registry<LootNbtProviderType>> LOOT_NBT_PROVIDER_TYPE = of("loot_nbt_provider_type");
+	public static final RegistryKey<Registry<LootNumberProviderType>> LOOT_NUMBER_PROVIDER_TYPE = of("loot_number_provider_type");
 	public static final RegistryKey<Registry<LootPoolEntryType>> LOOT_POOL_ENTRY_TYPE = of("loot_pool_entry_type");
-	public static final RegistryKey<Registry<LootScoreProviderType>>
-			LOOT_SCORE_PROVIDER_TYPE =
-			of("loot_score_provider_type");
+	public static final RegistryKey<Registry<LootScoreProviderType>> LOOT_SCORE_PROVIDER_TYPE = of("loot_score_provider_type");
 	public static final RegistryKey<Registry<MapDecorationType>> MAP_DECORATION_TYPE = of("map_decoration_type");
-	public static final RegistryKey<Registry<MapCodec<? extends MaterialRules.MaterialCondition>>>
-			MATERIAL_CONDITION =
-			of("worldgen/material_condition");
-	public static final RegistryKey<Registry<MapCodec<? extends MaterialRules.MaterialRule>>>
-			MATERIAL_RULE =
-			of("worldgen/material_rule");
+	public static final RegistryKey<Registry<MapCodec<? extends MaterialRules.MaterialCondition>>> MATERIAL_CONDITION = of("worldgen/material_condition");
+	public static final RegistryKey<Registry<MapCodec<? extends MaterialRules.MaterialRule>>> MATERIAL_RULE = of("worldgen/material_rule");
 	public static final RegistryKey<Registry<MemoryModuleType<?>>> MEMORY_MODULE_TYPE = of("memory_module_type");
 	public static final RegistryKey<Registry<ScreenHandlerType<?>>> SCREEN_HANDLER = of("menu");
 	public static final RegistryKey<Registry<StatusEffect>> STATUS_EFFECT = of("mob_effect");
 	public static final RegistryKey<Registry<NumberFormatType<?>>> NUMBER_FORMAT_TYPE = of("number_format_type");
 	public static final RegistryKey<Registry<ParticleType<?>>> PARTICLE_TYPE = of("particle_type");
-	public static final RegistryKey<Registry<PlacementModifierType<?>>>
-			PLACEMENT_MODIFIER_TYPE =
-			of("worldgen/placement_modifier_type");
-	public static final RegistryKey<Registry<PointOfInterestType>>
-			POINT_OF_INTEREST_TYPE =
-			of("point_of_interest_type");
-	public static final RegistryKey<Registry<MapCodec<? extends StructurePoolAliasBinding>>>
-			POOL_ALIAS_BINDING =
-			of("worldgen/pool_alias_binding");
+	public static final RegistryKey<Registry<PlacementModifierType<?>>> PLACEMENT_MODIFIER_TYPE = of("worldgen/placement_modifier_type");
+	public static final RegistryKey<Registry<PointOfInterestType>> POINT_OF_INTEREST_TYPE = of("point_of_interest_type");
+	public static final RegistryKey<Registry<MapCodec<? extends StructurePoolAliasBinding>>> POOL_ALIAS_BINDING = of("worldgen/pool_alias_binding");
 	public static final RegistryKey<Registry<PositionSourceType<?>>> POSITION_SOURCE_TYPE = of("position_source_type");
 	public static final RegistryKey<Registry<PosRuleTestType<?>>> POS_RULE_TEST = of("pos_rule_test");
 	public static final RegistryKey<Registry<Potion>> POTION = of("potion");
@@ -257,69 +210,41 @@ public class RegistryKeys {
 	public static final RegistryKey<Registry<RecipeSerializer<?>>> RECIPE_SERIALIZER = of("recipe_serializer");
 	public static final RegistryKey<Registry<RecipeType<?>>> RECIPE_TYPE = of("recipe_type");
 	public static final RegistryKey<Registry<RootPlacerType<?>>> ROOT_PLACER_TYPE = of("worldgen/root_placer_type");
-	public static final RegistryKey<Registry<RuleBlockEntityModifierType<?>>>
-			RULE_BLOCK_ENTITY_MODIFIER =
-			of("rule_block_entity_modifier");
+	public static final RegistryKey<Registry<RuleBlockEntityModifierType<?>>> RULE_BLOCK_ENTITY_MODIFIER = of("rule_block_entity_modifier");
 	public static final RegistryKey<Registry<RuleTestType<?>>> RULE_TEST = of("rule_test");
 	public static final RegistryKey<Registry<SensorType<?>>> SENSOR_TYPE = of("sensor_type");
 	public static final RegistryKey<Registry<SlotDisplay.Serializer<?>>> SLOT_DISPLAY = of("slot_display");
 	public static final RegistryKey<Registry<SoundEvent>> SOUND_EVENT = of("sound_event");
-	public static final RegistryKey<Registry<MapCodec<? extends SpawnCondition>>>
-			SPAWN_CONDITION_TYPE =
-			of("spawn_condition_type");
+	public static final RegistryKey<Registry<MapCodec<? extends SpawnCondition>>> SPAWN_CONDITION_TYPE = of("spawn_condition_type");
 	public static final RegistryKey<Registry<StatType<?>>> STAT_TYPE = of("stat_type");
 	public static final RegistryKey<Registry<StructurePieceType>> STRUCTURE_PIECE = of("worldgen/structure_piece");
-	public static final RegistryKey<Registry<StructurePlacementType<?>>>
-			STRUCTURE_PLACEMENT =
-			of("worldgen/structure_placement");
-	public static final RegistryKey<Registry<StructurePoolElementType<?>>>
-			STRUCTURE_POOL_ELEMENT =
-			of("worldgen/structure_pool_element");
-	public static final RegistryKey<Registry<StructureProcessorType<?>>>
-			STRUCTURE_PROCESSOR =
-			of("worldgen/structure_processor");
+	public static final RegistryKey<Registry<StructurePlacementType<?>>> STRUCTURE_PLACEMENT = of("worldgen/structure_placement");
+	public static final RegistryKey<Registry<StructurePoolElementType<?>>> STRUCTURE_POOL_ELEMENT = of("worldgen/structure_pool_element");
+	public static final RegistryKey<Registry<StructureProcessorType<?>>> STRUCTURE_PROCESSOR = of("worldgen/structure_processor");
 	public static final RegistryKey<Registry<StructureType<?>>> STRUCTURE_TYPE = of("worldgen/structure_type");
-	public static final RegistryKey<Registry<MapCodec<? extends DialogAction>>>
-			DIALOG_ACTION_TYPE =
-			of("dialog_action_type");
-	public static final RegistryKey<Registry<MapCodec<? extends TestEnvironmentDefinition>>>
-			TEST_ENVIRONMENT_DEFINITION_TYPE =
-			of(
-					"test_environment_definition_type"
-			);
+	public static final RegistryKey<Registry<MapCodec<? extends DialogAction>>> DIALOG_ACTION_TYPE = of("dialog_action_type");
+	public static final RegistryKey<Registry<MapCodec<? extends TestEnvironmentDefinition>>> TEST_ENVIRONMENT_DEFINITION_TYPE = of("test_environment_definition_type");
 	public static final RegistryKey<Registry<Consumer<TestContext>>> TEST_FUNCTION = of("test_function");
-	public static final RegistryKey<Registry<MapCodec<? extends TestInstance>>>
-			TEST_INSTANCE_TYPE =
-			of("test_instance_type");
+	public static final RegistryKey<Registry<MapCodec<? extends TestInstance>>> TEST_INSTANCE_TYPE = of("test_instance_type");
 	public static final RegistryKey<Registry<ChunkTicketType>> TICKET_TYPE = of("ticket_type");
-	public static final RegistryKey<Registry<TreeDecoratorType<?>>>
-			TREE_DECORATOR_TYPE =
-			of("worldgen/tree_decorator_type");
+	public static final RegistryKey<Registry<TreeDecoratorType<?>>> TREE_DECORATOR_TYPE = of("worldgen/tree_decorator_type");
 	public static final RegistryKey<Registry<TrunkPlacerType<?>>> TRUNK_PLACER_TYPE = of("worldgen/trunk_placer_type");
 	public static final RegistryKey<Registry<VillagerProfession>> VILLAGER_PROFESSION = of("villager_profession");
 	public static final RegistryKey<Registry<VillagerType>> VILLAGER_TYPE = of("villager_type");
-	public static final RegistryKey<Registry<IncomingRpcMethod<?, ?>>>
-			INCOMING_RPC_METHODS =
-			of("incoming_rpc_methods");
-	public static final RegistryKey<Registry<OutgoingRpcMethod<?, ?>>>
-			OUTGOING_RPC_METHODS =
-			of("outgoing_rpc_methods");
+	public static final RegistryKey<Registry<IncomingRpcMethod<?, ?>>> INCOMING_RPC_METHODS = of("incoming_rpc_methods");
+	public static final RegistryKey<Registry<OutgoingRpcMethod<?, ?>>> OUTGOING_RPC_METHODS = of("outgoing_rpc_methods");
 	public static final RegistryKey<Registry<MapCodec<? extends Permission>>> PERMISSION_TYPE = of("permission_type");
-	public static final RegistryKey<Registry<MapCodec<? extends PermissionCheck>>>
-			PERMISSION_CHECK_TYPE =
-			of("permission_check_type");
+	public static final RegistryKey<Registry<MapCodec<? extends PermissionCheck>>> PERMISSION_CHECK_TYPE = of("permission_check_type");
+
+	// ---- Динамические реестры (загружаются из датапаков) ----
 	public static final RegistryKey<Registry<BannerPattern>> BANNER_PATTERN = of("banner_pattern");
 	public static final RegistryKey<Registry<Biome>> BIOME = of("worldgen/biome");
 	public static final RegistryKey<Registry<CatVariant>> CAT_VARIANT = of("cat_variant");
 	public static final RegistryKey<Registry<MessageType>> MESSAGE_TYPE = of("chat_type");
 	public static final RegistryKey<Registry<ChickenVariant>> CHICKEN_VARIANT = of("chicken_variant");
-	public static final RegistryKey<Registry<ZombieNautilusVariant>>
-			ZOMBIE_NAUTILUS_VARIANT =
-			of("zombie_nautilus_variant");
+	public static final RegistryKey<Registry<ZombieNautilusVariant>> ZOMBIE_NAUTILUS_VARIANT = of("zombie_nautilus_variant");
 	public static final RegistryKey<Registry<ConfiguredCarver<?>>> CONFIGURED_CARVER = of("worldgen/configured_carver");
-	public static final RegistryKey<Registry<ConfiguredFeature<?, ?>>>
-			CONFIGURED_FEATURE =
-			of("worldgen/configured_feature");
+	public static final RegistryKey<Registry<ConfiguredFeature<?, ?>>> CONFIGURED_FEATURE = of("worldgen/configured_feature");
 	public static final RegistryKey<Registry<CowVariant>> COW_VARIANT = of("cow_variant");
 	public static final RegistryKey<Registry<DamageType>> DAMAGE_TYPE = of("damage_type");
 	public static final RegistryKey<Registry<DensityFunction>> DENSITY_FUNCTION = of("worldgen/density_function");
@@ -327,23 +252,13 @@ public class RegistryKeys {
 	public static final RegistryKey<Registry<DimensionType>> DIMENSION_TYPE = of("dimension_type");
 	public static final RegistryKey<Registry<EnchantmentProvider>> ENCHANTMENT_PROVIDER = of("enchantment_provider");
 	public static final RegistryKey<Registry<Enchantment>> ENCHANTMENT = of("enchantment");
-	public static final RegistryKey<Registry<FlatLevelGeneratorPreset>>
-			FLAT_LEVEL_GENERATOR_PRESET =
-			of("worldgen/flat_level_generator_preset");
+	public static final RegistryKey<Registry<FlatLevelGeneratorPreset>> FLAT_LEVEL_GENERATOR_PRESET = of("worldgen/flat_level_generator_preset");
 	public static final RegistryKey<Registry<FrogVariant>> FROG_VARIANT = of("frog_variant");
 	public static final RegistryKey<Registry<Instrument>> INSTRUMENT = of("instrument");
 	public static final RegistryKey<Registry<JukeboxSong>> JUKEBOX_SONG = of("jukebox_song");
-	public static final RegistryKey<Registry<MultiNoiseBiomeSourceParameterList>>
-			MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST =
-			of(
-					"worldgen/multi_noise_biome_source_parameter_list"
-			);
-	public static final RegistryKey<Registry<ChunkGeneratorSettings>>
-			CHUNK_GENERATOR_SETTINGS =
-			of("worldgen/noise_settings");
-	public static final RegistryKey<Registry<DoublePerlinNoiseSampler.NoiseParameters>>
-			NOISE_PARAMETERS =
-			of("worldgen/noise");
+	public static final RegistryKey<Registry<MultiNoiseBiomeSourceParameterList>> MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST = of("worldgen/multi_noise_biome_source_parameter_list");
+	public static final RegistryKey<Registry<ChunkGeneratorSettings>> CHUNK_GENERATOR_SETTINGS = of("worldgen/noise_settings");
+	public static final RegistryKey<Registry<DoublePerlinNoiseSampler.NoiseParameters>> NOISE_PARAMETERS = of("worldgen/noise");
 	public static final RegistryKey<Registry<PaintingVariant>> PAINTING_VARIANT = of("painting_variant");
 	public static final RegistryKey<Registry<PigVariant>> PIG_VARIANT = of("pig_variant");
 	public static final RegistryKey<Registry<PlacedFeature>> PLACED_FEATURE = of("worldgen/placed_feature");
@@ -363,30 +278,18 @@ public class RegistryKeys {
 	public static final RegistryKey<Registry<WorldPreset>> WORLD_PRESET = of("worldgen/world_preset");
 	public static final RegistryKey<Registry<World>> WORLD = of("dimension");
 	public static final RegistryKey<Registry<DimensionOptions>> DIMENSION = of("dimension");
+
+	// ---- Файловые реестры (не синхронизируются, хранятся только на сервере) ----
 	public static final RegistryKey<Registry<LootTable>> LOOT_TABLE = of("loot_table");
 	public static final RegistryKey<Registry<LootFunction>> ITEM_MODIFIER = of("item_modifier");
 	public static final RegistryKey<Registry<LootCondition>> PREDICATE = of("predicate");
 	public static final RegistryKey<Registry<Advancement>> ADVANCEMENT = of("advancement");
 	public static final RegistryKey<Registry<Recipe<?>>> RECIPE = of("recipe");
 
-	/**
-	 * To world key.
-	 *
-	 * @param key key
-	 *
-	 * @return RegistryKey — результат операции
-	 */
 	public static RegistryKey<World> toWorldKey(RegistryKey<DimensionOptions> key) {
 		return RegistryKey.of(WORLD, key.getValue());
 	}
 
-	/**
-	 * To dimension key.
-	 *
-	 * @param key key
-	 *
-	 * @return RegistryKey — результат операции
-	 */
 	public static RegistryKey<DimensionOptions> toDimensionKey(RegistryKey<World> key) {
 		return RegistryKey.of(DIMENSION, key.getValue());
 	}

@@ -8,68 +8,62 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScreenNarrator}.
+ * Накапливает нарративные сообщения от элементов экрана и формирует итоговую строку
+ * для синтезатора речи. Сообщения сортируются по {@link NarrationPart} и глубине вложенности.
  */
+@Environment(EnvType.CLIENT)
 public class ScreenNarrator {
 
 	int currentMessageIndex;
 	final Map<ScreenNarrator.PartIndex, ScreenNarrator.Message> narrations = Maps.newTreeMap(
-			Comparator
-					.<ScreenNarrator.PartIndex, NarrationPart>comparing(partIndex -> partIndex.part)
-					.thenComparing(partIndex -> partIndex.depth)
+		Comparator
+			.<ScreenNarrator.PartIndex, NarrationPart>comparing(partIndex -> partIndex.part)
+			.thenComparing(partIndex -> partIndex.depth)
 	);
 
-	/**
-	 * Строит narrations.
-	 *
-	 * @param builderConsumer builder consumer
-	 */
 	public void buildNarrations(Consumer<NarrationMessageBuilder> builderConsumer) {
-		this.currentMessageIndex++;
+		currentMessageIndex++;
 		builderConsumer.accept(new ScreenNarrator.MessageBuilder(0));
 	}
 
 	/**
-	 * Строит narrator text.
+	 * Собирает все актуальные нарративные сообщения в одну строку, разделяя их точкой с пробелом.
+	 * Если {@code includeUnchanged} равен {@code false}, пропускает уже озвученные сообщения.
 	 *
-	 * @param includeUnchanged include unchanged
-	 *
-	 * @return String — результат операции
+	 * @param includeUnchanged включать ли уже использованные сообщения
+	 * @return итоговая строка для синтезатора речи
 	 */
 	public String buildNarratorText(boolean includeUnchanged) {
-		final StringBuilder stringBuilder = new StringBuilder();
-		Consumer<String> consumer = new Consumer<String>() {
+		StringBuilder builder = new StringBuilder();
+		Consumer<String> consumer = new Consumer<>() {
 			private boolean first = true;
 
-			/**
-			 * Accept.
-			 *
-			 * @param string string
-			 */
 			public void accept(String string) {
-				if (!this.first) {
-					stringBuilder.append(". ");
+				if (first) {
+					first = false;
+				} else {
+					builder.append(". ");
 				}
 
-				this.first = false;
-				stringBuilder.append(string);
+				builder.append(string);
 			}
 		};
-		this.narrations.forEach((partIndex, message) -> {
-			if (message.index == this.currentMessageIndex && (includeUnchanged || !message.used)) {
+
+		narrations.forEach((partIndex, message) -> {
+			if (message.index == currentMessageIndex && (includeUnchanged || !message.used)) {
 				message.narration.forEachSentence(consumer);
 				message.used = true;
 			}
 		});
-		return stringBuilder.toString();
+
+		return builder.toString();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Message}.
+	 * {@code Message} — хранит нарратив и его состояние (использован/не использован).
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Message {
 
 		Narration<?> narration = Narration.EMPTY;
@@ -77,12 +71,13 @@ public class ScreenNarrator {
 		boolean used;
 
 		public ScreenNarrator.Message setNarration(int index, Narration<?> narration) {
-			if (!this.narration.equals(narration)) {
+			if (narration.equals(this.narration)) {
+				if (this.index + 1 != index) {
+					used = false;
+				}
+			} else {
 				this.narration = narration;
-				this.used = false;
-			}
-			else if (this.index + 1 != index) {
-				this.used = false;
+				used = false;
 			}
 
 			this.index = index;
@@ -90,10 +85,10 @@ public class ScreenNarrator {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MessageBuilder}.
+	 * {@code MessageBuilder} — реализация {@link NarrationMessageBuilder} с поддержкой глубины вложенности.
 	 */
+	@Environment(EnvType.CLIENT)
 	class MessageBuilder implements NarrationMessageBuilder {
 
 		private final int depth;
@@ -104,24 +99,24 @@ public class ScreenNarrator {
 
 		@Override
 		public void put(NarrationPart part, Narration<?> narration) {
-			ScreenNarrator.this.narrations
-					.computeIfAbsent(
-							new ScreenNarrator.PartIndex(part, this.depth),
-							partIndex -> new ScreenNarrator.Message()
-					)
-					.setNarration(ScreenNarrator.this.currentMessageIndex, narration);
+			narrations
+				.computeIfAbsent(
+					new ScreenNarrator.PartIndex(part, depth),
+					partIndex -> new ScreenNarrator.Message()
+				)
+				.setNarration(currentMessageIndex, narration);
 		}
 
 		@Override
 		public NarrationMessageBuilder nextMessage() {
-			return ScreenNarrator.this.new MessageBuilder(this.depth + 1);
+			return ScreenNarrator.this.new MessageBuilder(depth + 1);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code PartIndex}.
+	 * {@code PartIndex} — составной ключ для сортировки нарративов по типу и глубине.
 	 */
+	@Environment(EnvType.CLIENT)
 	record PartIndex(NarrationPart part, int depth) {
 	}
 }

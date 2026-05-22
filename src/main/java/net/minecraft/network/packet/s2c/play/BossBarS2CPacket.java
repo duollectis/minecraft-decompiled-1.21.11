@@ -14,7 +14,9 @@ import net.minecraft.text.TextCodecs;
 import java.util.UUID;
 
 /**
- * Класс boss bar s2 c packet.
+ * Пакет сервер→клиент для управления полосой здоровья босса (boss bar).
+ * Использует паттерн Command: каждое действие (ADD, REMOVE, UPDATE_*) инкапсулировано
+ * в отдельный объект {@link Action}, который сериализуется/десериализуется через {@link Type}.
  */
 public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 
@@ -53,57 +55,22 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		this.action = type.parser.decode(buf);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param bar bar
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket add(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.AddAction(bar));
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param uuid uuid
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket remove(UUID uuid) {
 		return new BossBarS2CPacket(uuid, REMOVE_ACTION);
 	}
 
-	/**
-	 * Обновляет progress.
-	 *
-	 * @param bar bar
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket updateProgress(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.UpdateProgressAction(bar.getPercent()));
 	}
 
-	/**
-	 * Обновляет name.
-	 *
-	 * @param bar bar
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket updateName(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.UpdateNameAction(bar.getName()));
 	}
 
-	/**
-	 * Обновляет style.
-	 *
-	 * @param bar bar
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket updateStyle(BossBar bar) {
 		return new BossBarS2CPacket(
 				bar.getUuid(),
@@ -111,13 +78,6 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		);
 	}
 
-	/**
-	 * Обновляет properties.
-	 *
-	 * @param bar bar
-	 *
-	 * @return BossBarS2CPacket — результат операции
-	 */
 	public static BossBarS2CPacket updateProperties(BossBar bar) {
 		return new BossBarS2CPacket(
 				bar.getUuid(),
@@ -136,20 +96,21 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 	}
 
 	static int maskProperties(boolean darkenSky, boolean dragonMusic, boolean thickenFog) {
-		int i = 0;
+		int mask = 0;
+
 		if (darkenSky) {
-			i |= 1;
+			mask |= DARKEN_SKY_MASK;
 		}
 
 		if (dragonMusic) {
-			i |= 2;
+			mask |= DRAGON_MUSIC_MASK;
 		}
 
 		if (thickenFog) {
-			i |= 4;
+			mask |= THICKEN_FOG_MASK;
 		}
 
-		return i;
+		return mask;
 	}
 
 	@Override
@@ -157,20 +118,10 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.BOSS_EVENT;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param clientPlayPacketListener client play packet listener
-	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBossBar(this);
 	}
 
-	/**
-	 * Accept.
-	 *
-	 * @param consumer consumer
-	 */
 	public void accept(BossBarS2CPacket.Consumer consumer) {
 		this.action.accept(this.uuid, consumer);
 	}
@@ -209,10 +160,10 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 			this.percent = buf.readFloat();
 			this.color = buf.readEnumConstant(BossBar.Color.class);
 			this.style = buf.readEnumConstant(BossBar.Style.class);
-			int i = buf.readUnsignedByte();
-			this.darkenSky = (i & 1) > 0;
-			this.dragonMusic = (i & 2) > 0;
-			this.thickenFog = (i & 4) > 0;
+			int flags = buf.readUnsignedByte();
+			this.darkenSky = (flags & DARKEN_SKY_MASK) > 0;
+			this.dragonMusic = (flags & DRAGON_MUSIC_MASK) > 0;
+			this.thickenFog = (flags & THICKEN_FOG_MASK) > 0;
 		}
 
 		@Override
@@ -244,9 +195,6 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 	}
 
-	/**
-	 * Интерфейс consumer.
-	 */
 	public interface Consumer {
 
 		default void add(
@@ -277,7 +225,7 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 	}
 
-	static enum Type {
+	enum Type {
 		ADD(BossBarS2CPacket.AddAction::new),
 		REMOVE(buf -> BossBarS2CPacket.REMOVE_ACTION),
 		UPDATE_PROGRESS(BossBarS2CPacket.UpdateProgressAction::new),
@@ -349,10 +297,10 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 
 		private UpdatePropertiesAction(RegistryByteBuf buf) {
-			int i = buf.readUnsignedByte();
-			this.darkenSky = (i & 1) > 0;
-			this.dragonMusic = (i & 2) > 0;
-			this.thickenFog = (i & 4) > 0;
+			int flags = buf.readUnsignedByte();
+			this.darkenSky = (flags & DARKEN_SKY_MASK) > 0;
+			this.dragonMusic = (flags & DRAGON_MUSIC_MASK) > 0;
+			this.thickenFog = (flags & THICKEN_FOG_MASK) > 0;
 		}
 
 		@Override

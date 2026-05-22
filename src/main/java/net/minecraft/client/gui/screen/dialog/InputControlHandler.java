@@ -7,21 +7,21 @@ import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.dialog.action.DialogAction;
 import net.minecraft.dialog.input.InputControl;
 
+/**
+ * Обработчик элемента управления диалоговой формы.
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
-/**
- * {@code InputControlHandler}.
- */
 public interface InputControlHandler<T extends InputControl> {
 
 	void addControl(T inputControl, Screen screen, InputControlHandler.Output output);
 
+	/**
+	 * Коллбэк для передачи созданного виджета и геттера значения наружу.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Output}.
-	 */
-	public interface Output {
+	interface Output {
 
 		void accept(Widget widget, DialogAction.ValueGetter valueGetter);
 	}

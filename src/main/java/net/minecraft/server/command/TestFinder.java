@@ -13,7 +13,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
- * {@code TestFinder}.
+ * Команда {@code /test}: запуск игровых тестов (только dev-режим).
  */
 public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 
@@ -51,9 +51,6 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 		return this.instanceFinder.findTests();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final UnaryOperator<Supplier<Stream<RegistryEntry.Reference<TestInstance>>>> testInstanceFinderMapper;

@@ -14,7 +14,9 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.Function;
 
 /**
- * {@code ChunkLevelTagRenameFix}.
+ * Мигрирует формат чанка: удаляет обёртку {@code Level}, переименовывает поля
+ * ({@code TileEntities} → {@code block_entities}, {@code Sections} → {@code sections} и т.д.)
+ * и поднимает данные уровня на верхний уровень NBT-структуры чанка.
  */
 public class ChunkLevelTagRenameFix extends DataFix {
 
@@ -23,32 +25,34 @@ public class ChunkLevelTagRenameFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("Level");
-		OpticFinder<?> opticFinder2 = opticFinder.type().findField("Structures");
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type3 = type2.findFieldType("structures");
-		return this.fixTypeEverywhereTyped(
-				"Chunk Renames; purge Level-tag", type, type2, chunkTyped -> {
-					Typed<?> typed = chunkTyped.getTyped(opticFinder);
-					Typed<?> typed2 = labelWithChunk(typed);
-					typed2 =
-							typed2.set(
-									DSL.remainderFinder(),
-									mergeChunkData(chunkTyped, (Dynamic) typed.get(DSL.remainderFinder()))
-							);
-					typed2 = rename(typed2, "TileEntities", "block_entities");
-					typed2 = rename(typed2, "TileTicks", "block_ticks");
-					typed2 = rename(typed2, "Entities", "entities");
-					typed2 = rename(typed2, "Sections", "sections");
-					typed2 =
-							typed2.updateTyped(
-									opticFinder2,
-									type3,
-									structuresTyped -> rename(structuresTyped, "Starts", "starts")
-							);
-					typed2 = rename(typed2, "Structures", "structures");
-					return typed2.update(DSL.remainderFinder(), dynamic -> dynamic.remove("Level"));
+		Type<?> inputChunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> levelFinder = inputChunkType.findField("Level");
+		OpticFinder<?> structuresFinder = levelFinder.type().findField("Structures");
+		Type<?> outputChunkType = getOutputSchema().getType(TypeReferences.CHUNK);
+		Type<?> outputStructuresType = outputChunkType.findFieldType("structures");
+
+		return fixTypeEverywhereTyped(
+				"Chunk Renames; purge Level-tag",
+				inputChunkType,
+				outputChunkType,
+				chunkTyped -> {
+					Typed<?> levelTyped = chunkTyped.getTyped(levelFinder);
+					Typed<?> result = labelWithChunk(levelTyped);
+					result = result.set(
+							DSL.remainderFinder(),
+							mergeChunkData(chunkTyped, (Dynamic) levelTyped.get(DSL.remainderFinder()))
+					);
+					result = rename(result, "TileEntities", "block_entities");
+					result = rename(result, "TileTicks", "block_ticks");
+					result = rename(result, "Entities", "entities");
+					result = rename(result, "Sections", "sections");
+					result = result.updateTyped(
+							structuresFinder,
+							outputStructuresType,
+							structuresTyped -> rename(structuresTyped, "Starts", "starts")
+					);
+					result = rename(result, "Structures", "structures");
+					return result.update(DSL.remainderFinder(), dynamic -> dynamic.remove("Level"));
 				}
 		);
 	}
@@ -60,28 +64,32 @@ public class ChunkLevelTagRenameFix extends DataFix {
 		);
 	}
 
-	private static <A> Typed<?> rename(Typed<?> typed, String oldKey, String newKey, Type<A> type) {
-		Type<Either<A, Unit>> type2 = DSL.optional(DSL.field(oldKey, type));
-		Type<Either<A, Unit>> type3 = DSL.optional(DSL.field(newKey, type));
-		return typed.update(type2.finder(), type3, Function.identity());
+	private static <A> Typed<?> rename(Typed<?> typed, String oldKey, String newKey, Type<A> fieldType) {
+		Type<Either<A, Unit>> oldFieldType = DSL.optional(DSL.field(oldKey, fieldType));
+		Type<Either<A, Unit>> newFieldType = DSL.optional(DSL.field(newKey, fieldType));
+		return typed.update(oldFieldType.finder(), newFieldType, Function.identity());
 	}
 
-	private static <A> Typed<Pair<String, A>> labelWithChunk(Typed<A> outputTyped) {
-		return new Typed(
-				DSL.named("chunk", outputTyped.getType()),
-				outputTyped.getOps(),
-				Pair.of("chunk", outputTyped.getValue())
+	@SuppressWarnings("unchecked")
+	private static <A> Typed<Pair<String, A>> labelWithChunk(Typed<A> levelTyped) {
+		return new Typed<>(
+				DSL.named("chunk", levelTyped.getType()),
+				levelTyped.getOps(),
+				Pair.of("chunk", levelTyped.getValue())
 		);
 	}
 
-	private static <T> Dynamic<T> mergeChunkData(Typed<?> chunkTyped, Dynamic<T> chunkDynamic) {
-		DynamicOps<T> dynamicOps = chunkDynamic.getOps();
-		Dynamic<T> dynamic = ((Dynamic) chunkTyped.get(DSL.remainderFinder())).convert(dynamicOps);
-		DataResult<T>
-				dataResult =
-				dynamicOps
-						.getMap(chunkDynamic.getValue())
-						.flatMap(mapLike -> dynamicOps.mergeToMap(dynamic.getValue(), mapLike));
-		return dataResult.result().map(object -> new Dynamic(dynamicOps, object)).orElse(chunkDynamic);
+	/**
+	 * Объединяет данные из корня чанка (xPos, zPos и т.д.) с данными тега Level,
+	 * чтобы после удаления обёртки Level все поля оказались на верхнем уровне.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T> Dynamic<T> mergeChunkData(Typed<?> chunkTyped, Dynamic<T> levelDynamic) {
+		DynamicOps<T> ops = levelDynamic.getOps();
+		Dynamic<T> chunkRemainder = ((Dynamic<T>) chunkTyped.get(DSL.remainderFinder())).convert(ops);
+		DataResult<T> merged = ops
+				.getMap(levelDynamic.getValue())
+				.flatMap(mapLike -> ops.mergeToMap(chunkRemainder.getValue(), mapLike));
+		return merged.result().map(value -> new Dynamic<>(ops, value)).orElse(levelDynamic);
 	}
 }

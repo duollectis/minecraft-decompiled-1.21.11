@@ -14,7 +14,7 @@ import net.minecraft.util.ModelAndTexture;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code ZombieNautilusVariants}.
+ * Реестр вариантов зомби-наутилуса.
  */
 public class ZombieNautilusVariants {
 
@@ -26,11 +26,6 @@ public class ZombieNautilusVariants {
 		return RegistryKey.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, id);
 	}
 
-	/**
-	 * Bootstrap.
-	 *
-	 * @param registry registry
-	 */
 	public static void bootstrap(Registerable<ZombieNautilusVariant> registry) {
 		register(
 				registry,

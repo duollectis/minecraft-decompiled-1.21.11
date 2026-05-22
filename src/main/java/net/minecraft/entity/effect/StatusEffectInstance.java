@@ -24,28 +24,40 @@ import org.slf4j.Logger;
 import java.util.Optional;
 
 /**
- * {@code StatusEffectInstance}.
+ * Экземпляр статусного эффекта, применённого к сущности.
+ *
+ * <p>Хранит тип эффекта, оставшуюся длительность, уровень усиления и флаги отображения.
+ * Поддерживает стек скрытых эффектов ({@code hiddenEffect}): когда активный эффект заканчивается,
+ * автоматически восстанавливается предыдущий с меньшим уровнем усиления.</p>
  */
 public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final int INFINITE = -1;
 	public static final int MIN_AMPLIFIER = 0;
 	public static final int MAX_AMPLIFIER = 255;
+
+	/**
+	 * Порог длительности, ниже которого эффект считается «коротким» при сортировке.
+	 * Используется в {@link #compareTo} для выбора стратегии сравнения.
+	 */
+	private static final int SHORT_DURATION_THRESHOLD = 32147;
+
 	public static final Codec<StatusEffectInstance> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    StatusEffect.ENTRY_CODEC.fieldOf("id").forGetter(StatusEffectInstance::getEffectType),
-					                    StatusEffectInstance.Parameters.CODEC.forGetter(StatusEffectInstance::asParameters)
-			                    )
-			                    .apply(instance, StatusEffectInstance::new)
+					StatusEffect.ENTRY_CODEC.fieldOf("id").forGetter(StatusEffectInstance::getEffectType),
+					Parameters.CODEC.forGetter(StatusEffectInstance::asParameters)
+			).apply(instance, StatusEffectInstance::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, StatusEffectInstance> PACKET_CODEC = PacketCodec.tuple(
 			StatusEffect.ENTRY_PACKET_CODEC,
 			StatusEffectInstance::getEffectType,
-			StatusEffectInstance.Parameters.PACKET_CODEC,
+			Parameters.PACKET_CODEC,
 			StatusEffectInstance::asParameters,
 			StatusEffectInstance::new
 	);
+
 	private final RegistryEntry<StatusEffect> type;
 	private int duration;
 	private int amplifier;
@@ -53,7 +65,7 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 	private boolean showParticles;
 	private boolean showIcon;
 	private @Nullable StatusEffectInstance hiddenEffect;
-	private final StatusEffectInstance.Fading fading = new StatusEffectInstance.Fading();
+	private final Fading fading = new Fading();
 
 	public StatusEffectInstance(RegistryEntry<StatusEffect> effect) {
 		this(effect, 0, 0);
@@ -97,21 +109,22 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 			boolean showIcon,
 			@Nullable StatusEffectInstance hiddenEffect
 	) {
-		this.type = effect;
+		type = effect;
 		this.duration = duration;
-		this.amplifier = MathHelper.clamp(amplifier, 0, 255);
+		this.amplifier = MathHelper.clamp(amplifier, 0, MAX_AMPLIFIER);
 		this.ambient = ambient;
 		this.showParticles = showParticles;
 		this.showIcon = showIcon;
 		this.hiddenEffect = hiddenEffect;
 	}
 
+	/** Конструктор копирования: копирует все поля из переданного экземпляра. */
 	public StatusEffectInstance(StatusEffectInstance instance) {
-		this.type = instance.type;
-		this.copyFrom(instance);
+		type = instance.type;
+		copyFrom(instance);
 	}
 
-	private StatusEffectInstance(RegistryEntry<StatusEffect> effect, StatusEffectInstance.Parameters parameters) {
+	private StatusEffectInstance(RegistryEntry<StatusEffect> effect, Parameters parameters) {
 		this(
 				effect,
 				parameters.duration(),
@@ -119,297 +132,269 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 				parameters.ambient(),
 				parameters.showParticles(),
 				parameters.showIcon(),
-				parameters.hiddenEffect().map(parametersx -> new StatusEffectInstance(effect, parametersx)).orElse(null)
+				parameters.hiddenEffect()
+						.map(nested -> new StatusEffectInstance(effect, nested))
+						.orElse(null)
 		);
 	}
 
-	private StatusEffectInstance.Parameters asParameters() {
-		return new StatusEffectInstance.Parameters(
-				this.getAmplifier(),
-				this.getDuration(),
-				this.isAmbient(),
-				this.shouldShowParticles(),
-				this.shouldShowIcon(),
-				Optional.ofNullable(this.hiddenEffect).map(StatusEffectInstance::asParameters)
+	private Parameters asParameters() {
+		return new Parameters(
+				getAmplifier(),
+				getDuration(),
+				isAmbient(),
+				shouldShowParticles(),
+				shouldShowIcon(),
+				Optional.ofNullable(hiddenEffect).map(StatusEffectInstance::asParameters)
 		);
 	}
 
 	public float getFadeFactor(LivingEntity entity, float tickProgress) {
-		return this.fading.calculate(entity, tickProgress);
+		return fading.calculate(entity, tickProgress);
 	}
 
-	/**
-	 * Создаёт particle.
-	 *
-	 * @return ParticleEffect — результат операции
-	 */
 	public ParticleEffect createParticle() {
-		return this.type.value().createParticle(this);
+		return type.value().createParticle(this);
 	}
 
 	void copyFrom(StatusEffectInstance that) {
-		this.duration = that.duration;
-		this.amplifier = that.amplifier;
-		this.ambient = that.ambient;
-		this.showParticles = that.showParticles;
-		this.showIcon = that.showIcon;
+		duration = that.duration;
+		amplifier = that.amplifier;
+		ambient = that.ambient;
+		showParticles = that.showParticles;
+		showIcon = that.showIcon;
 	}
 
 	/**
-	 * Upgrade.
+	 * Пытается обновить текущий экземпляр данными из нового эффекта того же типа.
 	 *
-	 * @param that that
+	 * <p>Логика приоритетов:
+	 * <ul>
+	 *   <li>Если новый эффект сильнее — он становится активным, старый уходит в стек скрытых.</li>
+	 *   <li>Если новый эффект того же уровня, но длиннее — обновляется длительность.</li>
+	 *   <li>Если новый эффект слабее, но длиннее — он добавляется в стек скрытых.</li>
+	 * </ul>
+	 * </p>
 	 *
-	 * @return boolean — результат операции
+	 * @param that новый эффект для слияния
+	 * @return {@code true}, если хотя бы одно поле было изменено
 	 */
 	public boolean upgrade(StatusEffectInstance that) {
-		if (!this.type.equals(that.type)) {
+		if (type.equals(that.type) == false) {
 			LOGGER.warn("This method should only be called for matching effects!");
 		}
 
-		boolean bl = false;
-		if (that.amplifier > this.amplifier) {
+		boolean upgraded = false;
+
+		if (that.amplifier > amplifier) {
 			if (that.lastsShorterThan(this)) {
-				StatusEffectInstance statusEffectInstance = this.hiddenEffect;
-				this.hiddenEffect = new StatusEffectInstance(this);
-				this.hiddenEffect.hiddenEffect = statusEffectInstance;
+				StatusEffectInstance previous = hiddenEffect;
+				hiddenEffect = new StatusEffectInstance(this);
+				hiddenEffect.hiddenEffect = previous;
 			}
 
-			this.amplifier = that.amplifier;
-			this.duration = that.duration;
-			bl = true;
-		}
-		else if (this.lastsShorterThan(that)) {
-			if (that.amplifier == this.amplifier) {
-				this.duration = that.duration;
-				bl = true;
-			}
-			else if (this.hiddenEffect == null) {
-				this.hiddenEffect = new StatusEffectInstance(that);
-			}
-			else {
-				this.hiddenEffect.upgrade(that);
+			amplifier = that.amplifier;
+			duration = that.duration;
+			upgraded = true;
+		} else if (lastsShorterThan(that)) {
+			if (that.amplifier == amplifier) {
+				duration = that.duration;
+				upgraded = true;
+			} else if (hiddenEffect == null) {
+				hiddenEffect = new StatusEffectInstance(that);
+			} else {
+				hiddenEffect.upgrade(that);
 			}
 		}
 
-		if (!that.ambient && this.ambient || bl) {
-			this.ambient = that.ambient;
-			bl = true;
+		if (that.ambient == false && ambient || upgraded) {
+			ambient = that.ambient;
+			upgraded = true;
 		}
 
-		if (that.showParticles != this.showParticles) {
-			this.showParticles = that.showParticles;
-			bl = true;
+		if (that.showParticles != showParticles) {
+			showParticles = that.showParticles;
+			upgraded = true;
 		}
 
-		if (that.showIcon != this.showIcon) {
-			this.showIcon = that.showIcon;
-			bl = true;
+		if (that.showIcon != showIcon) {
+			showIcon = that.showIcon;
+			upgraded = true;
 		}
 
-		return bl;
+		return upgraded;
 	}
 
+	/**
+	 * Проверяет, заканчивается ли этот эффект раньше переданного.
+	 * Бесконечный эффект никогда не считается «более коротким».
+	 */
 	private boolean lastsShorterThan(StatusEffectInstance effect) {
-		return !this.isInfinite() && (this.duration < effect.duration || effect.isInfinite());
+		return !isInfinite() && (duration < effect.duration || effect.isInfinite());
 	}
 
 	public boolean isInfinite() {
-		return this.duration == -1;
+		return duration == INFINITE;
 	}
 
-	public boolean isDurationBelow(int duration) {
-		return !this.isInfinite() && this.duration <= duration;
+	public boolean isDurationBelow(int threshold) {
+		return !isInfinite() && duration <= threshold;
 	}
 
 	/**
-	 * With scaled duration.
+	 * Создаёт копию этого экземпляра с длительностью, умноженной на {@code durationMultiplier}.
+	 * Результирующая длительность не может быть меньше 1 тика.
 	 *
-	 * @param durationMultiplier duration multiplier
-	 *
-	 * @return StatusEffectInstance — результат операции
+	 * @param durationMultiplier множитель длительности
+	 * @return новый экземпляр с масштабированной длительностью
 	 */
 	public StatusEffectInstance withScaledDuration(float durationMultiplier) {
-		StatusEffectInstance statusEffectInstance = new StatusEffectInstance(this);
-		statusEffectInstance.duration =
-				statusEffectInstance.mapDuration(duration -> Math.max(
-						MathHelper.floor(duration * durationMultiplier),
-						1
-				));
-		return statusEffectInstance;
+		StatusEffectInstance scaled = new StatusEffectInstance(this);
+		scaled.duration = scaled.mapDuration(
+				d -> Math.max(MathHelper.floor(d * durationMultiplier), 1)
+		);
+		return scaled;
 	}
 
 	/**
-	 * Map duration.
+	 * Применяет функцию-маппер к длительности, если эффект не бесконечный и не нулевой.
 	 *
-	 * @param mapper mapper
-	 *
-	 * @return int — результат операции
+	 * @param mapper функция преобразования длительности
+	 * @return преобразованная длительность, либо исходная если эффект бесконечный/нулевой
 	 */
 	public int mapDuration(Int2IntFunction mapper) {
-		return !this.isInfinite() && this.duration != 0 ? mapper.applyAsInt(this.duration) : this.duration;
+		return !isInfinite() && duration != 0 ? mapper.applyAsInt(duration) : duration;
 	}
 
 	public RegistryEntry<StatusEffect> getEffectType() {
-		return this.type;
+		return type;
 	}
 
 	public int getDuration() {
-		return this.duration;
+		return duration;
 	}
 
 	public int getAmplifier() {
-		return this.amplifier;
+		return amplifier;
 	}
 
 	public boolean isAmbient() {
-		return this.ambient;
+		return ambient;
 	}
 
-	/**
-	 * Определяет, следует ли show particles.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowParticles() {
-		return this.showParticles;
+		return showParticles;
 	}
 
-	/**
-	 * Определяет, следует ли show icon.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowIcon() {
-		return this.showIcon;
+		return showIcon;
 	}
 
 	/**
-	 * Update.
+	 * Выполняет серверный тик эффекта: применяет логику и уменьшает длительность.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param hiddenEffectCallback hidden effect callback
-	 *
-	 * @return boolean — результат операции
+	 * @param world                серверный мир
+	 * @param entity               сущность-носитель
+	 * @param hiddenEffectCallback вызывается, когда активный эффект истёк и восстановлен скрытый
+	 * @return {@code true}, если эффект ещё активен после тика
 	 */
 	public boolean update(ServerWorld world, LivingEntity entity, Runnable hiddenEffectCallback) {
-		if (!this.isActive()) {
+		if (!isActive()) {
 			return false;
 		}
-		else {
-			int i = this.isInfinite() ? entity.age : this.duration;
-			if (this.type.value().canApplyUpdateEffect(i, this.amplifier) && !this.type
-					.value()
-					.applyUpdateEffect(world, entity, this.amplifier)) {
-				return false;
-			}
-			else {
-				this.updateDuration();
-				if (this.tickHiddenEffect()) {
-					hiddenEffectCallback.run();
-				}
 
-				return this.isActive();
-			}
+		int ticksForCheck = isInfinite() ? entity.age : duration;
+
+		if (type.value().canApplyUpdateEffect(ticksForCheck, amplifier)
+				&& !type.value().applyUpdateEffect(world, entity, amplifier)) {
+			return false;
 		}
+
+		updateDuration();
+
+		if (tickHiddenEffect()) {
+			hiddenEffectCallback.run();
+		}
+
+		return isActive();
 	}
 
 	/**
-	 * Выполняет тик обновления для client.
+	 * Выполняет клиентский тик: обновляет длительность и состояние затухания для анимации.
 	 */
 	public void tickClient() {
-		if (this.isActive()) {
-			this.updateDuration();
-			this.tickHiddenEffect();
+		if (isActive()) {
+			updateDuration();
+			tickHiddenEffect();
 		}
 
-		this.fading.update(this);
+		fading.update(this);
 	}
 
 	private boolean isActive() {
-		return this.isInfinite() || this.duration > 0;
+		return isInfinite() || duration > 0;
 	}
 
 	private void updateDuration() {
-		if (this.hiddenEffect != null) {
-			this.hiddenEffect.updateDuration();
+		if (hiddenEffect != null) {
+			hiddenEffect.updateDuration();
 		}
 
-		this.duration = this.mapDuration(duration -> duration - 1);
+		duration = mapDuration(d -> d - 1);
 	}
 
+	/**
+	 * Если активный эффект истёк (duration == 0) и есть скрытый — восстанавливает его.
+	 *
+	 * @return {@code true}, если произошло восстановление скрытого эффекта
+	 */
 	private boolean tickHiddenEffect() {
-		if (this.duration == 0 && this.hiddenEffect != null) {
-			this.copyFrom(this.hiddenEffect);
-			this.hiddenEffect = this.hiddenEffect.hiddenEffect;
+		if (duration == 0 && hiddenEffect != null) {
+			copyFrom(hiddenEffect);
+			hiddenEffect = hiddenEffect.hiddenEffect;
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
-	/**
-	 * Обрабатывает событие applied.
-	 *
-	 * @param entity entity
-	 */
 	public void onApplied(LivingEntity entity) {
-		this.type.value().onApplied(entity, this.amplifier);
+		type.value().onApplied(entity, amplifier);
 	}
 
-	/**
-	 * Обрабатывает событие entity removal.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param reason reason
-	 */
 	public void onEntityRemoval(ServerWorld world, LivingEntity entity, Entity.RemovalReason reason) {
-		this.type.value().onEntityRemoval(world, entity, this.amplifier, reason);
+		type.value().onEntityRemoval(world, entity, amplifier, reason);
 	}
 
-	/**
-	 * Обрабатывает событие entity damage.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param source source
-	 * @param amount amount
-	 */
 	public void onEntityDamage(ServerWorld world, LivingEntity entity, DamageSource source, float amount) {
-		this.type.value().onEntityDamage(world, entity, this.amplifier, source, amount);
+		type.value().onEntityDamage(world, entity, amplifier, source, amount);
 	}
 
 	public String getTranslationKey() {
-		return this.type.value().getTranslationKey();
+		return type.value().getTranslationKey();
 	}
 
 	@Override
 	public String toString() {
-		String string;
-		if (this.amplifier > 0) {
-			string =
-					this.getTranslationKey() + " x " + (this.amplifier + 1) + ", Duration: " + this.getDurationString();
-		}
-		else {
-			string = this.getTranslationKey() + ", Duration: " + this.getDurationString();
+		String base = amplifier > 0
+				? getTranslationKey() + " x " + (amplifier + 1) + ", Duration: " + getDurationString()
+				: getTranslationKey() + ", Duration: " + getDurationString();
+
+		String result = base;
+
+		if (!showParticles) {
+			result = result + ", Particles: false";
 		}
 
-		if (!this.showParticles) {
-			string = string + ", Particles: false";
+		if (!showIcon) {
+			result = result + ", Show Icon: false";
 		}
 
-		if (!this.showIcon) {
-			string = string + ", Show Icon: false";
-		}
-
-		return string;
+		return result;
 	}
 
 	private String getDurationString() {
-		return this.isInfinite() ? "infinite" : Integer.toString(this.duration);
+		return isInfinite() ? "infinite" : Integer.toString(duration);
 	}
 
 	@Override
@@ -417,96 +402,82 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return !(o instanceof StatusEffectInstance statusEffectInstance)
-			       ? false
-			       : this.duration == statusEffectInstance.duration
-			         && this.amplifier == statusEffectInstance.amplifier
-			         && this.ambient == statusEffectInstance.ambient
-			         && this.showParticles == statusEffectInstance.showParticles
-			         && this.showIcon == statusEffectInstance.showIcon
-			         && this.type.equals(statusEffectInstance.type);
+
+		if (!(o instanceof StatusEffectInstance other)) {
+			return false;
 		}
+
+		return duration == other.duration
+				&& amplifier == other.amplifier
+				&& ambient == other.ambient
+				&& showParticles == other.showParticles
+				&& showIcon == other.showIcon
+				&& type.equals(other.type);
 	}
 
 	@Override
 	public int hashCode() {
-		int i = this.type.hashCode();
-		i = 31 * i + this.duration;
-		i = 31 * i + this.amplifier;
-		i = 31 * i + (this.ambient ? 1 : 0);
-		i = 31 * i + (this.showParticles ? 1 : 0);
-		return 31 * i + (this.showIcon ? 1 : 0);
+		int hash = type.hashCode();
+		hash = 31 * hash + duration;
+		hash = 31 * hash + amplifier;
+		hash = 31 * hash + (ambient ? 1 : 0);
+		hash = 31 * hash + (showParticles ? 1 : 0);
+		return 31 * hash + (showIcon ? 1 : 0);
 	}
 
 	/**
-	 * Compare to.
+	 * Сравнивает два экземпляра для сортировки в HUD.
 	 *
-	 * @param statusEffectInstance status effect instance
-	 *
-	 * @return int — результат операции
+	 * <p>Если хотя бы один из эффектов «короткий» (длительность ≤ {@value #SHORT_DURATION_THRESHOLD})
+	 * или оба не ambient — сортировка идёт по приоритету отображения (ambient последними,
+	 * бесконечные последними, затем по длительности и цвету).
+	 * Иначе (оба ambient и оба длинные) — сортировка только по ambient-флагу и цвету.</p>
 	 */
-	public int compareTo(StatusEffectInstance statusEffectInstance) {
-		int i = 32147;
-		return (this.getDuration() <= 32147 || statusEffectInstance.getDuration() <= 32147) && (!this.isAmbient()
-				|| !statusEffectInstance.isAmbient()
-		)
-		       ? ComparisonChain.start()
-		                        .compareFalseFirst(this.isAmbient(), statusEffectInstance.isAmbient())
-		                        .compareFalseFirst(this.isInfinite(), statusEffectInstance.isInfinite())
-		                        .compare(this.getDuration(), statusEffectInstance.getDuration())
-		                        .compare(
-				                        this.getEffectType().value().getColor(),
-				                        statusEffectInstance.getEffectType().value().getColor()
-		                        )
-		                        .result()
-		       : ComparisonChain.start()
-		                        .compare(this.isAmbient(), statusEffectInstance.isAmbient())
-		                        .compare(
-				                        this.getEffectType().value().getColor(),
-				                        statusEffectInstance.getEffectType().value().getColor()
-		                        )
-		                        .result();
+	@Override
+	public int compareTo(StatusEffectInstance other) {
+		boolean eitherShort = getDuration() <= SHORT_DURATION_THRESHOLD
+				|| other.getDuration() <= SHORT_DURATION_THRESHOLD;
+		boolean bothAmbient = isAmbient() && other.isAmbient();
+
+		if (eitherShort || !bothAmbient) {
+			return ComparisonChain.start()
+					.compareFalseFirst(isAmbient(), other.isAmbient())
+					.compareFalseFirst(isInfinite(), other.isInfinite())
+					.compare(getDuration(), other.getDuration())
+					.compare(getEffectType().value().getColor(), other.getEffectType().value().getColor())
+					.result();
+		}
+
+		return ComparisonChain.start()
+				.compare(isAmbient(), other.isAmbient())
+				.compare(getEffectType().value().getColor(), other.getEffectType().value().getColor())
+				.result();
 	}
 
-	/**
-	 * Play apply sound.
-	 *
-	 * @param entity entity
-	 */
 	public void playApplySound(LivingEntity entity) {
-		this.type.value().playApplySound(entity, this.amplifier);
+		type.value().playApplySound(entity, amplifier);
 	}
 
-	/**
-	 * Equals.
-	 *
-	 * @param effect effect
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean equals(RegistryEntry<StatusEffect> effect) {
-		return this.type.equals(effect);
+		return type.equals(effect);
 	}
 
-	/**
-	 * Создаёт копию fading from.
-	 *
-	 * @param effect effect
-	 */
 	public void copyFadingFrom(StatusEffectInstance effect) {
-		this.fading.copyFrom(effect.fading);
+		fading.copyFrom(effect.fading);
 	}
 
-	/**
-	 * Skip fading.
-	 */
 	public void skipFading() {
-		this.fading.skipFading(this);
+		fading.skipFading(this);
 	}
 
+	// -------------------------------------------------------------------------
+	// Вложенные классы
+	// -------------------------------------------------------------------------
+
 	/**
-	 * {@code Fading}.
+	 * Управляет плавным появлением и исчезновением эффекта (fade in/out).
+	 *
+	 * <p>Хранит текущий и предыдущий коэффициент затухания для интерполяции между тиками.</p>
 	 */
 	static class Fading {
 
@@ -514,44 +485,40 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		private float lastFactor;
 
 		/**
-		 * Skip fading.
-		 *
-		 * @param effect effect
+		 * Мгновенно устанавливает коэффициент затухания без анимации.
+		 * Используется при первом применении эффекта.
 		 */
 		public void skipFading(StatusEffectInstance effect) {
-			this.factor = shouldFadeIn(effect) ? 1.0F : 0.0F;
-			this.lastFactor = this.factor;
+			factor = shouldFadeIn(effect) ? 1.0F : 0.0F;
+			lastFactor = factor;
+		}
+
+		public void copyFrom(Fading other) {
+			factor = other.factor;
+			lastFactor = other.lastFactor;
 		}
 
 		/**
-		 * Создаёт копию from.
-		 *
-		 * @param fading fading
-		 */
-		public void copyFrom(StatusEffectInstance.Fading fading) {
-			this.factor = fading.factor;
-			this.lastFactor = fading.lastFactor;
-		}
-
-		/**
-		 * Update.
-		 *
-		 * @param effect effect
+		 * Обновляет коэффициент затухания на один тик.
+		 * Скорость изменения ограничена {@code 1 / fadeInTicks} или {@code 1 / fadeOutTicks}.
 		 */
 		public void update(StatusEffectInstance effect) {
-			this.lastFactor = this.factor;
-			boolean bl = shouldFadeIn(effect);
-			float f = bl ? 1.0F : 0.0F;
-			if (this.factor != f) {
-				StatusEffect statusEffect = effect.getEffectType().value();
-				int i = bl ? statusEffect.getFadeInTicks() : statusEffect.getFadeOutTicks();
-				if (i == 0) {
-					this.factor = f;
-				}
-				else {
-					float g = 1.0F / i;
-					this.factor = this.factor + MathHelper.clamp(f - this.factor, -g, g);
-				}
+			lastFactor = factor;
+			boolean fadingIn = shouldFadeIn(effect);
+			float target = fadingIn ? 1.0F : 0.0F;
+
+			if (factor == target) {
+				return;
+			}
+
+			StatusEffect statusEffect = effect.getEffectType().value();
+			int fadeTicks = fadingIn ? statusEffect.getFadeInTicks() : statusEffect.getFadeOutTicks();
+
+			if (fadeTicks == 0) {
+				factor = target;
+			} else {
+				float step = 1.0F / fadeTicks;
+				factor = factor + MathHelper.clamp(target - factor, -step, step);
 			}
 		}
 
@@ -560,24 +527,24 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		}
 
 		/**
-		 * Calculate.
+		 * Вычисляет интерполированный коэффициент затухания для рендера.
 		 *
-		 * @param entity entity
-		 * @param tickProgress tick progress
-		 *
-		 * @return float — результат операции
+		 * @param entity       сущность-носитель (если удалена — используется последнее значение)
+		 * @param tickProgress прогресс между тиками (0.0–1.0) для плавной анимации
+		 * @return интерполированный коэффициент [0.0, 1.0]
 		 */
 		public float calculate(LivingEntity entity, float tickProgress) {
 			if (entity.isRemoved()) {
-				this.lastFactor = this.factor;
+				lastFactor = factor;
 			}
 
-			return MathHelper.lerp(tickProgress, this.lastFactor, this.factor);
+			return MathHelper.lerp(tickProgress, lastFactor, factor);
 		}
 	}
 
 	/**
-	 * {@code Parameters}.
+	 * Сериализуемые параметры экземпляра эффекта (без типа).
+	 * Используется в кодеках для разделения типа и параметров.
 	 */
 	record Parameters(
 			int amplifier,
@@ -585,62 +552,65 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 			boolean ambient,
 			boolean showParticles,
 			boolean showIcon,
-			Optional<StatusEffectInstance.Parameters> hiddenEffect
+			Optional<Parameters> hiddenEffect
 	) {
 
-		public static final MapCodec<StatusEffectInstance.Parameters> CODEC = MapCodec.recursive(
+		public static final MapCodec<Parameters> CODEC = MapCodec.recursive(
 				"MobEffectInstance.Details",
 				codec -> RecordCodecBuilder.mapCodec(
 						instance -> instance.group(
-								                    Codecs.UNSIGNED_BYTE
-										                    .optionalFieldOf("amplifier", 0)
-										                    .forGetter(StatusEffectInstance.Parameters::amplifier),
-								                    Codec.INT
-										                    .optionalFieldOf("duration", 0)
-										                    .forGetter(StatusEffectInstance.Parameters::duration),
-								                    Codec.BOOL
-										                    .optionalFieldOf("ambient", false)
-										                    .forGetter(StatusEffectInstance.Parameters::ambient),
-								                    Codec.BOOL
-										                    .optionalFieldOf("show_particles", true)
-										                    .forGetter(StatusEffectInstance.Parameters::showParticles),
-								                    Codec.BOOL
-										                    .optionalFieldOf("show_icon")
-										                    .forGetter(parameters -> Optional.of(parameters.showIcon())),
-								                    codec
-										                    .optionalFieldOf("hidden_effect")
-										                    .forGetter(StatusEffectInstance.Parameters::hiddenEffect)
-						                    )
-						                    .apply(instance, StatusEffectInstance.Parameters::create)
+								Codecs.UNSIGNED_BYTE
+										.optionalFieldOf("amplifier", 0)
+										.forGetter(Parameters::amplifier),
+								Codec.INT
+										.optionalFieldOf("duration", 0)
+										.forGetter(Parameters::duration),
+								Codec.BOOL
+										.optionalFieldOf("ambient", false)
+										.forGetter(Parameters::ambient),
+								Codec.BOOL
+										.optionalFieldOf("show_particles", true)
+										.forGetter(Parameters::showParticles),
+								Codec.BOOL
+										.optionalFieldOf("show_icon")
+										.forGetter(parameters -> Optional.of(parameters.showIcon())),
+								codec
+										.optionalFieldOf("hidden_effect")
+										.forGetter(Parameters::hiddenEffect)
+						).apply(instance, Parameters::create)
 				)
 		);
-		public static final PacketCodec<ByteBuf, StatusEffectInstance.Parameters> PACKET_CODEC = PacketCodec.recursive(
+		public static final PacketCodec<ByteBuf, Parameters> PACKET_CODEC = PacketCodec.recursive(
 				packetCodec -> PacketCodec.tuple(
 						PacketCodecs.VAR_INT,
-						StatusEffectInstance.Parameters::amplifier,
+						Parameters::amplifier,
 						PacketCodecs.VAR_INT,
-						StatusEffectInstance.Parameters::duration,
+						Parameters::duration,
 						PacketCodecs.BOOLEAN,
-						StatusEffectInstance.Parameters::ambient,
+						Parameters::ambient,
 						PacketCodecs.BOOLEAN,
-						StatusEffectInstance.Parameters::showParticles,
+						Parameters::showParticles,
 						PacketCodecs.BOOLEAN,
-						StatusEffectInstance.Parameters::showIcon,
+						Parameters::showIcon,
 						packetCodec.collect(PacketCodecs::optional),
-						StatusEffectInstance.Parameters::hiddenEffect,
-						StatusEffectInstance.Parameters::new
+						Parameters::hiddenEffect,
+						Parameters::new
 				)
 		);
 
-		private static StatusEffectInstance.Parameters create(
+		/**
+		 * Фабричный метод для десериализации: если {@code showIcon} отсутствует в данных,
+		 * значение берётся из {@code showParticles} (обратная совместимость).
+		 */
+		private static Parameters create(
 				int amplifier,
 				int duration,
 				boolean ambient,
 				boolean showParticles,
 				Optional<Boolean> showIcon,
-				Optional<StatusEffectInstance.Parameters> hiddenEffect
+				Optional<Parameters> hiddenEffect
 		) {
-			return new StatusEffectInstance.Parameters(
+			return new Parameters(
 					amplifier,
 					duration,
 					ambient,

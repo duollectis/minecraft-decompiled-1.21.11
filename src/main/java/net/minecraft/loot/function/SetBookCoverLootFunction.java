@@ -15,56 +15,59 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SetBookCoverLootFunction}.
+ * Функция лута, устанавливающая обложку написанной книги:
+ * заголовок, автора и поколение. Поля опциональны — если не указаны,
+ * сохраняются текущие значения компонента.
  */
 public class SetBookCoverLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetBookCoverLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									RawFilteredPair
-											.createCodec(Codec.string(0, 32))
-											.optionalFieldOf("title")
-											.forGetter(function -> function.title),
-									Codec.STRING.optionalFieldOf("author").forGetter(function -> function.author),
-									Codecs
-											.rangedInt(0, 3)
-											.optionalFieldOf("generation")
-											.forGetter(function -> function.generation)
-							)
-					)
-					.apply(instance, SetBookCoverLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					RawFilteredPair
+						.createCodec(Codec.string(0, 32))
+						.optionalFieldOf("title")
+						.forGetter(function -> function.title),
+					Codec.STRING.optionalFieldOf("author").forGetter(function -> function.author),
+					Codecs
+						.rangedInt(0, 3)
+						.optionalFieldOf("generation")
+						.forGetter(function -> function.generation)
+				)
+			)
+			.apply(instance, SetBookCoverLootFunction::new)
 	);
-	private final Optional<String> author;
+
 	private final Optional<RawFilteredPair<String>> title;
+	private final Optional<String> author;
 	private final Optional<Integer> generation;
 
 	public SetBookCoverLootFunction(
-			List<LootCondition> conditions,
-			Optional<RawFilteredPair<String>> title,
-			Optional<String> author,
-			Optional<Integer> generation
+		List<LootCondition> conditions,
+		Optional<RawFilteredPair<String>> title,
+		Optional<String> author,
+		Optional<Integer> generation
 	) {
 		super(conditions);
-		this.author = author;
 		this.title = title;
+		this.author = author;
 		this.generation = generation;
 	}
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		stack.apply(DataComponentTypes.WRITTEN_BOOK_CONTENT, WrittenBookContentComponent.DEFAULT, this::apply);
+		stack.apply(DataComponentTypes.WRITTEN_BOOK_CONTENT, WrittenBookContentComponent.DEFAULT, this::applyToBook);
 		return stack;
 	}
 
-	private WrittenBookContentComponent apply(WrittenBookContentComponent current) {
+	private WrittenBookContentComponent applyToBook(WrittenBookContentComponent current) {
 		return new WrittenBookContentComponent(
-				this.title.orElseGet(current::title),
-				this.author.orElseGet(current::author),
-				this.generation.orElseGet(current::generation),
-				current.pages(),
-				current.resolved()
+			title.orElseGet(current::title),
+			author.orElseGet(current::author),
+			generation.orElseGet(current::generation),
+			current.pages(),
+			current.resolved()
 		);
 	}
 

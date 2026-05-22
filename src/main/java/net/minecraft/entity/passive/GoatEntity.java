@@ -44,7 +44,8 @@ import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code GoatEntity}.
+ * Коза — горное животное, способное прыгать высоко и бодать мобов.
+ * Кричащие козы атакуют чаще. Роняет козий рог при ударе о твёрдый блок.
  */
 public class GoatEntity extends AnimalEntity {
 
@@ -151,7 +152,7 @@ public class GoatEntity extends AnimalEntity {
 
 	@Override
 	protected int computeFallDamage(double fallDistance, float damagePerDistance) {
-		return super.computeFallDamage(fallDistance, damagePerDistance) - 10;
+		return super.computeFallDamage(fallDistance, damagePerDistance) - FALL_DAMAGE_SUBTRACTOR;
 	}
 
 	@Override
@@ -196,7 +197,7 @@ public class GoatEntity extends AnimalEntity {
 			boolean
 					bl =
 					passiveEntity2 instanceof GoatEntity goatEntity2 && goatEntity2.isScreaming()
-							|| serverWorld.getRandom().nextDouble() < 0.02;
+							|| serverWorld.getRandom().nextDouble() < SCREAMING_CHANCE;
 			goatEntity.setScreaming(bl);
 		}
 
@@ -279,7 +280,7 @@ public class GoatEntity extends AnimalEntity {
 	) {
 		Random random = world.getRandom();
 		GoatBrain.resetLongJumpCooldown(this, random);
-		this.setScreaming(random.nextDouble() < 0.02);
+		this.setScreaming(random.nextDouble() < SCREAMING_CHANCE);
 		this.onGrowUp();
 		if (!this.isBaby() && random.nextFloat() < HORN_LOSS_CHANCE) {
 			TrackedData<Boolean> trackedData = random.nextBoolean() ? LEFT_HORN : RIGHT_HORN;

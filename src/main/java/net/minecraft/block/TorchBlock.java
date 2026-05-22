@@ -11,7 +11,9 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code TorchBlock}.
+ * Блок факела, размещаемый на полу. Испускает частицы дыма и огня
+ * в случайные моменты времени. Тип частицы задаётся через {@code particle}
+ * и кодируется в {@link #CODEC} для поддержки кастомных факелов.
  */
 public class TorchBlock extends AbstractTorchBlock {
 

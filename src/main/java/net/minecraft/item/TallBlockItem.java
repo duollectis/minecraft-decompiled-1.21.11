@@ -7,7 +7,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code TallBlockItem}.
+ * Предмет для двухблочных структур (например, двойные цветы, двери).
+ * <p>При размещении дополнительно устанавливает верхнюю половину блока,
+ * заменяя воду воздухом если верхняя позиция находится в воде.</p>
  */
 public class TallBlockItem extends BlockItem {
 
@@ -18,9 +20,11 @@ public class TallBlockItem extends BlockItem {
 	@Override
 	protected boolean place(ItemPlacementContext context, BlockState state) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos().up();
-		BlockState blockState = world.isWater(blockPos) ? Blocks.WATER.getDefaultState() : Blocks.AIR.getDefaultState();
-		world.setBlockState(blockPos, blockState, 27);
+		BlockPos upperPos = context.getBlockPos().up();
+		BlockState upperState = world.isWater(upperPos)
+		                        ? Blocks.WATER.getDefaultState()
+		                        : Blocks.AIR.getDefaultState();
+		world.setBlockState(upperPos, upperState, 27);
 		return super.place(context, state);
 	}
 }

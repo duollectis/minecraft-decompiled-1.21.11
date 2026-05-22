@@ -25,152 +25,159 @@ import net.minecraft.util.math.random.Random;
 import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code InGameOverlayRenderer}.
+ * Рендерит оверлеи от первого лица: стена, вода, огонь, а также анимацию подобранного предмета.
  */
+@Environment(EnvType.CLIENT)
 public class InGameOverlayRenderer {
 
 	private static final Identifier UNDERWATER_TEXTURE = Identifier.ofVanilla("textures/misc/underwater.png");
+	private static final float WALL_OVERLAY_ALPHA = 0.1F;
+	private static final float UNDERWATER_ALPHA = 0.1F;
+	private static final float UNDERWATER_TILE_SIZE = 4.0F;
+	private static final float OVERLAY_Z = -0.5F;
+	private static final float FIRE_OPACITY = 0.9F;
+	private static final float FIRE_SIDE_OFFSET = 0.24F;
+	private static final float FIRE_TILT_DEGREES = 10.0F;
+	private static final float FIRE_Y_OFFSET = -0.3F;
+	private static final int CORNER_SAMPLES = 8;
+	private static final float ITEM_SCALE = 0.8F;
+	private static final float ITEM_Z_NEAR = -10.0F;
+	private static final float ITEM_Z_FAR = 9.0F;
+	private static final float ITEM_OFFSET_FACTOR = 0.3F;
+	private static final int FULL_BRIGHT = 15728880;
+
+	public static final int FLOATING_ITEM_DISPLAY_TICKS = 40;
+
 	private final MinecraftClient client;
 	private final SpriteHolder spriteHolder;
 	private final VertexConsumerProvider vertexConsumers;
-	public static final int FLOATING_ITEM_DISPLAY_TICKS = 40;
 	private @Nullable ItemStack floatingItem;
 	private int floatingItemTimer;
 	private float floatingItemOffsetX;
 	private float floatingItemOffsetY;
 
 	public InGameOverlayRenderer(
-			MinecraftClient client,
-			SpriteHolder spriteHolder,
-			VertexConsumerProvider vertexConsumers
+		MinecraftClient client,
+		SpriteHolder spriteHolder,
+		VertexConsumerProvider vertexConsumers
 	) {
 		this.client = client;
 		this.spriteHolder = spriteHolder;
 		this.vertexConsumers = vertexConsumers;
 	}
 
-	/**
-	 * Выполняет тик обновления для floating item timer.
-	 */
 	public void tickFloatingItemTimer() {
-		if (this.floatingItemTimer > 0) {
-			this.floatingItemTimer--;
-			if (this.floatingItemTimer == 0) {
-				this.floatingItem = null;
-			}
+		if (floatingItemTimer <= 0) {
+			return;
+		}
+
+		floatingItemTimer--;
+
+		if (floatingItemTimer == 0) {
+			floatingItem = null;
 		}
 	}
 
-	/**
-	 * Отрисовывает overlays.
-	 *
-	 * @param sleeping sleeping
-	 * @param tickProgress tick progress
-	 * @param queue queue
-	 */
 	public void renderOverlays(boolean sleeping, float tickProgress, OrderedRenderCommandQueue queue) {
-		MatrixStack matrixStack = new MatrixStack();
-		PlayerEntity playerEntity = this.client.player;
-		if (this.client.options.getPerspective().isFirstPerson() && !sleeping) {
-			if (!playerEntity.noClip) {
-				BlockState blockState = getInWallBlockState(playerEntity);
-				if (blockState != null) {
+		MatrixStack matrices = new MatrixStack();
+		PlayerEntity player = client.player;
+
+		if (client.options.getPerspective().isFirstPerson() && !sleeping) {
+			if (!player.noClip) {
+				BlockState wallBlock = getInWallBlockState(player);
+
+				if (wallBlock != null) {
 					renderInWallOverlay(
-							this.client
-									.getBlockRenderManager()
-									.getModels()
-									.getModelParticleSprite(blockState), matrixStack, this.vertexConsumers
+						client.getBlockRenderManager().getModels().getModelParticleSprite(wallBlock),
+						matrices,
+						vertexConsumers
 					);
 				}
 			}
 
-			if (!this.client.player.isSpectator()) {
-				if (this.client.player.isSubmergedIn(FluidTags.WATER)) {
-					renderUnderwaterOverlay(this.client, matrixStack, this.vertexConsumers);
+			if (!client.player.isSpectator()) {
+				if (client.player.isSubmergedIn(FluidTags.WATER)) {
+					renderUnderwaterOverlay(client, matrices, vertexConsumers);
 				}
 
-				if (this.client.player.isOnFire()) {
-					Sprite sprite = this.spriteHolder.getSprite(ModelBaker.FIRE_1);
-					renderFireOverlay(matrixStack, this.vertexConsumers, sprite);
+				if (client.player.isOnFire()) {
+					renderFireOverlay(matrices, vertexConsumers, spriteHolder.getSprite(ModelBaker.FIRE_1));
 				}
 			}
 		}
 
-		if (!this.client.options.hudHidden) {
-			this.renderFloatingItem(matrixStack, tickProgress, queue);
+		if (!client.options.hudHidden) {
+			renderFloatingItem(matrices, tickProgress, queue);
 		}
 	}
 
 	private void renderFloatingItem(MatrixStack matrices, float tickProgress, OrderedRenderCommandQueue queue) {
-		if (this.floatingItem != null && this.floatingItemTimer > 0) {
-			int i = 40 - this.floatingItemTimer;
-			float f = (i + tickProgress) / 40.0F;
-			float g = f * f;
-			float h = f * g;
-			float j = 10.25F * h * g - 24.95F * g * g + 25.5F * h - 13.8F * g + 4.0F * f;
-			float k = j * (float) Math.PI;
-			float
-					l =
-					(float) this.client.getWindow().getFramebufferWidth() / this.client
-							.getWindow()
-							.getFramebufferHeight();
-			float m = this.floatingItemOffsetX * 0.3F * l;
-			float n = this.floatingItemOffsetY * 0.3F;
-			matrices.push();
-			matrices.translate(
-					m * MathHelper.abs(MathHelper.sin(k * 2.0F)),
-					n * MathHelper.abs(MathHelper.sin(k * 2.0F)),
-					-10.0F + 9.0F * MathHelper.sin(k)
-			);
-			float o = 0.8F;
-			matrices.scale(0.8F, 0.8F, 0.8F);
-			matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(900.0F * MathHelper.abs(MathHelper.sin(k))));
-			matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(6.0F * MathHelper.cos(f * 8.0F)));
-			matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(6.0F * MathHelper.cos(f * 8.0F)));
-			this.client.gameRenderer.getDiffuseLighting().setShaderLights(DiffuseLighting.Type.ITEMS_3D);
-			ItemRenderState itemRenderState = new ItemRenderState();
-			this.client
-					.getItemModelManager()
-					.clearAndUpdate(
-							itemRenderState,
-							this.floatingItem,
-							ItemDisplayContext.FIXED,
-							this.client.world,
-							null,
-							0
-					);
-			itemRenderState.render(matrices, queue, 15728880, OverlayTexture.DEFAULT_UV, 0);
-			matrices.pop();
+		if (floatingItem == null || floatingItemTimer <= 0) {
+			return;
 		}
+
+		int elapsed = FLOATING_ITEM_DISPLAY_TICKS - floatingItemTimer;
+		float progress = (elapsed + tickProgress) / FLOATING_ITEM_DISPLAY_TICKS;
+		float progressSq = progress * progress;
+		float progressCb = progress * progressSq;
+		// Кривая Безье для плавного выброса предмета на экран
+		float swing = 10.25F * progressCb * progressSq - 24.95F * progressSq * progressSq + 25.5F * progressCb - 13.8F * progressSq + 4.0F * progress;
+		float angle = swing * (float) Math.PI;
+		float aspectRatio = (float) client.getWindow().getFramebufferWidth() / client.getWindow().getFramebufferHeight();
+		float offsetX = floatingItemOffsetX * ITEM_OFFSET_FACTOR * aspectRatio;
+		float offsetY = floatingItemOffsetY * ITEM_OFFSET_FACTOR;
+
+		matrices.push();
+		matrices.translate(
+			offsetX * MathHelper.abs(MathHelper.sin(angle * 2.0F)),
+			offsetY * MathHelper.abs(MathHelper.sin(angle * 2.0F)),
+			ITEM_Z_NEAR + ITEM_Z_FAR * MathHelper.sin(angle)
+		);
+		matrices.scale(ITEM_SCALE, ITEM_SCALE, ITEM_SCALE);
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(900.0F * MathHelper.abs(MathHelper.sin(angle))));
+		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(6.0F * MathHelper.cos(progress * 8.0F)));
+		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(6.0F * MathHelper.cos(progress * 8.0F)));
+
+		client.gameRenderer.getDiffuseLighting().setShaderLights(DiffuseLighting.Type.ITEMS_3D);
+
+		ItemRenderState itemRenderState = new ItemRenderState();
+		client.getItemModelManager().clearAndUpdate(
+			itemRenderState,
+			floatingItem,
+			ItemDisplayContext.FIXED,
+			client.world,
+			null,
+			0
+		);
+		itemRenderState.render(matrices, queue, FULL_BRIGHT, OverlayTexture.DEFAULT_UV, 0);
+		matrices.pop();
 	}
 
-	/**
-	 * Очищает floating item.
-	 */
 	public void clearFloatingItem() {
-		this.floatingItem = null;
+		floatingItem = null;
 	}
 
 	public void setFloatingItem(ItemStack stack, Random random) {
-		this.floatingItem = stack;
-		this.floatingItemTimer = 40;
-		this.floatingItemOffsetX = random.nextFloat() * 2.0F - 1.0F;
-		this.floatingItemOffsetY = random.nextFloat() * 2.0F - 1.0F;
+		floatingItem = stack;
+		floatingItemTimer = FLOATING_ITEM_DISPLAY_TICKS;
+		floatingItemOffsetX = random.nextFloat() * 2.0F - 1.0F;
+		floatingItemOffsetY = random.nextFloat() * 2.0F - 1.0F;
 	}
 
 	private static @Nullable BlockState getInWallBlockState(PlayerEntity player) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = 0; i < 8; i++) {
-			double d = player.getX() + ((i >> 0) % 2 - 0.5F) * player.getWidth() * 0.8F;
-			double e = player.getEyeY() + ((i >> 1) % 2 - 0.5F) * 0.1F * player.getScale();
-			double f = player.getZ() + ((i >> 2) % 2 - 0.5F) * player.getWidth() * 0.8F;
-			mutable.set(d, e, f);
+		for (int corner = 0; corner < CORNER_SAMPLES; corner++) {
+			double x = player.getX() + ((corner >> 0) % 2 - 0.5F) * player.getWidth() * 0.8F;
+			double y = player.getEyeY() + ((corner >> 1) % 2 - 0.5F) * 0.1F * player.getScale();
+			double z = player.getZ() + ((corner >> 2) % 2 - 0.5F) * player.getWidth() * 0.8F;
+			mutable.set(x, y, z);
 			BlockState blockState = player.getEntityWorld().getBlockState(mutable);
+
 			if (blockState.getRenderType() != BlockRenderType.INVISIBLE
-					&& blockState.shouldBlockVision(player.getEntityWorld(), mutable)) {
+				&& blockState.shouldBlockVision(player.getEntityWorld(), mutable)
+			) {
 				return blockState;
 			}
 		}
@@ -179,80 +186,60 @@ public class InGameOverlayRenderer {
 	}
 
 	private static void renderInWallOverlay(
-			Sprite sprite,
-			MatrixStack matrices,
-			VertexConsumerProvider vertexConsumers
+		Sprite sprite,
+		MatrixStack matrices,
+		VertexConsumerProvider vertexConsumers
 	) {
-		float f = 0.1F;
-		int i = ColorHelper.fromFloats(1.0F, 0.1F, 0.1F, 0.1F);
-		float g = -1.0F;
-		float h = 1.0F;
-		float j = -1.0F;
-		float k = 1.0F;
-		float l = -0.5F;
-		float m = sprite.getMinU();
-		float n = sprite.getMaxU();
-		float o = sprite.getMinV();
-		float p = sprite.getMaxV();
-		Matrix4f matrix4f = matrices.peek().getPositionMatrix();
-		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.blockScreenEffect(sprite.getAtlasId()));
-		vertexConsumer.vertex(matrix4f, -1.0F, -1.0F, -0.5F).texture(n, p).color(i);
-		vertexConsumer.vertex(matrix4f, 1.0F, -1.0F, -0.5F).texture(m, p).color(i);
-		vertexConsumer.vertex(matrix4f, 1.0F, 1.0F, -0.5F).texture(m, o).color(i);
-		vertexConsumer.vertex(matrix4f, -1.0F, 1.0F, -0.5F).texture(n, o).color(i);
+		int color = ColorHelper.fromFloats(1.0F, WALL_OVERLAY_ALPHA, WALL_OVERLAY_ALPHA, WALL_OVERLAY_ALPHA);
+		float minU = sprite.getMinU();
+		float maxU = sprite.getMaxU();
+		float minV = sprite.getMinV();
+		float maxV = sprite.getMaxV();
+		Matrix4f posMatrix = matrices.peek().getPositionMatrix();
+		VertexConsumer consumer = vertexConsumers.getBuffer(RenderLayers.blockScreenEffect(sprite.getAtlasId()));
+		consumer.vertex(posMatrix, -1.0F, -1.0F, OVERLAY_Z).texture(maxU, maxV).color(color);
+		consumer.vertex(posMatrix, 1.0F, -1.0F, OVERLAY_Z).texture(minU, maxV).color(color);
+		consumer.vertex(posMatrix, 1.0F, 1.0F, OVERLAY_Z).texture(minU, minV).color(color);
+		consumer.vertex(posMatrix, -1.0F, 1.0F, OVERLAY_Z).texture(maxU, minV).color(color);
 	}
 
 	private static void renderUnderwaterOverlay(
-			MinecraftClient client,
-			MatrixStack matrices,
-			VertexConsumerProvider vertexConsumers
+		MinecraftClient client,
+		MatrixStack matrices,
+		VertexConsumerProvider vertexConsumers
 	) {
-		BlockPos blockPos = BlockPos.ofFloored(client.player.getX(), client.player.getEyeY(), client.player.getZ());
-		float
-				f =
-				LightmapTextureManager.getBrightness(
-						client.player.getEntityWorld().getDimension(),
-						client.player.getEntityWorld().getLightLevel(blockPos)
-				);
-		int i = ColorHelper.fromFloats(0.1F, f, f, f);
-		float g = 4.0F;
-		float h = -1.0F;
-		float j = 1.0F;
-		float k = -1.0F;
-		float l = 1.0F;
-		float m = -0.5F;
-		float n = -client.player.getYaw() / 64.0F;
-		float o = client.player.getPitch() / 64.0F;
-		Matrix4f matrix4f = matrices.peek().getPositionMatrix();
-		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.blockScreenEffect(UNDERWATER_TEXTURE));
-		vertexConsumer.vertex(matrix4f, -1.0F, -1.0F, -0.5F).texture(4.0F + n, 4.0F + o).color(i);
-		vertexConsumer.vertex(matrix4f, 1.0F, -1.0F, -0.5F).texture(0.0F + n, 4.0F + o).color(i);
-		vertexConsumer.vertex(matrix4f, 1.0F, 1.0F, -0.5F).texture(0.0F + n, 0.0F + o).color(i);
-		vertexConsumer.vertex(matrix4f, -1.0F, 1.0F, -0.5F).texture(4.0F + n, 0.0F + o).color(i);
+		BlockPos eyePos = BlockPos.ofFloored(client.player.getX(), client.player.getEyeY(), client.player.getZ());
+		float brightness = LightmapTextureManager.getBrightness(
+			client.player.getEntityWorld().getDimension(),
+			client.player.getEntityWorld().getLightLevel(eyePos)
+		);
+		int color = ColorHelper.fromFloats(UNDERWATER_ALPHA, brightness, brightness, brightness);
+		float yawOffset = -client.player.getYaw() / 64.0F;
+		float pitchOffset = client.player.getPitch() / 64.0F;
+		Matrix4f posMatrix = matrices.peek().getPositionMatrix();
+		VertexConsumer consumer = vertexConsumers.getBuffer(RenderLayers.blockScreenEffect(UNDERWATER_TEXTURE));
+		consumer.vertex(posMatrix, -1.0F, -1.0F, OVERLAY_Z).texture(UNDERWATER_TILE_SIZE + yawOffset, UNDERWATER_TILE_SIZE + pitchOffset).color(color);
+		consumer.vertex(posMatrix, 1.0F, -1.0F, OVERLAY_Z).texture(0.0F + yawOffset, UNDERWATER_TILE_SIZE + pitchOffset).color(color);
+		consumer.vertex(posMatrix, 1.0F, 1.0F, OVERLAY_Z).texture(0.0F + yawOffset, 0.0F + pitchOffset).color(color);
+		consumer.vertex(posMatrix, -1.0F, 1.0F, OVERLAY_Z).texture(UNDERWATER_TILE_SIZE + yawOffset, 0.0F + pitchOffset).color(color);
 	}
 
 	private static void renderFireOverlay(MatrixStack matrices, VertexConsumerProvider vertexConsumers, Sprite sprite) {
-		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.fireScreenEffect(sprite.getAtlasId()));
-		float f = sprite.getMinU();
-		float g = sprite.getMaxU();
-		float h = sprite.getMinV();
-		float i = sprite.getMaxV();
-		float j = 1.0F;
+		VertexConsumer consumer = vertexConsumers.getBuffer(RenderLayers.fireScreenEffect(sprite.getAtlasId()));
+		float minU = sprite.getMinU();
+		float maxU = sprite.getMaxU();
+		float minV = sprite.getMinV();
+		float maxV = sprite.getMaxV();
 
-		for (int k = 0; k < 2; k++) {
+		for (int side = 0; side < 2; side++) {
 			matrices.push();
-			float l = -0.5F;
-			float m = 0.5F;
-			float n = -0.5F;
-			float o = 0.5F;
-			float p = -0.5F;
-			matrices.translate(-(k * 2 - 1) * 0.24F, -0.3F, 0.0F);
-			matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((k * 2 - 1) * 10.0F));
-			Matrix4f matrix4f = matrices.peek().getPositionMatrix();
-			vertexConsumer.vertex(matrix4f, -0.5F, -0.5F, -0.5F).texture(g, i).color(1.0F, 1.0F, 1.0F, 0.9F);
-			vertexConsumer.vertex(matrix4f, 0.5F, -0.5F, -0.5F).texture(f, i).color(1.0F, 1.0F, 1.0F, 0.9F);
-			vertexConsumer.vertex(matrix4f, 0.5F, 0.5F, -0.5F).texture(f, h).color(1.0F, 1.0F, 1.0F, 0.9F);
-			vertexConsumer.vertex(matrix4f, -0.5F, 0.5F, -0.5F).texture(g, h).color(1.0F, 1.0F, 1.0F, 0.9F);
+			matrices.translate(-(side * 2 - 1) * FIRE_SIDE_OFFSET, FIRE_Y_OFFSET, 0.0F);
+			matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((side * 2 - 1) * FIRE_TILT_DEGREES));
+			Matrix4f posMatrix = matrices.peek().getPositionMatrix();
+			consumer.vertex(posMatrix, -0.5F, -0.5F, OVERLAY_Z).texture(maxU, maxV).color(1.0F, 1.0F, 1.0F, FIRE_OPACITY);
+			consumer.vertex(posMatrix, 0.5F, -0.5F, OVERLAY_Z).texture(minU, maxV).color(1.0F, 1.0F, 1.0F, FIRE_OPACITY);
+			consumer.vertex(posMatrix, 0.5F, 0.5F, OVERLAY_Z).texture(minU, minV).color(1.0F, 1.0F, 1.0F, FIRE_OPACITY);
+			consumer.vertex(posMatrix, -0.5F, 0.5F, OVERLAY_Z).texture(maxU, minV).color(1.0F, 1.0F, 1.0F, FIRE_OPACITY);
 			matrices.pop();
 		}
 	}

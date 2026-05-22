@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code WolfSoundVariants}.
+ * Реестр звуковых вариантов волка.
  */
 public class WolfSoundVariants {
 
@@ -62,9 +62,9 @@ public class WolfSoundVariants {
 	}
 
 	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+ * Данные звукового варианта волка для сериализации.
+ */
+	public enum Type {
 		CLASSIC("classic", ""),
 		PUGLIN("puglin", "_puglin"),
 		SAD("sad", "_sad"),
@@ -76,17 +76,17 @@ public class WolfSoundVariants {
 		private final String id;
 		private final String suffix;
 
-		private Type(final String id, final String suffix) {
+		Type(String id, String suffix) {
 			this.id = id;
 			this.suffix = suffix;
 		}
 
 		public String getId() {
-			return this.id;
+			return id;
 		}
 
 		public String getSoundEventSuffix() {
-			return this.suffix;
+			return suffix;
 		}
 	}
 }

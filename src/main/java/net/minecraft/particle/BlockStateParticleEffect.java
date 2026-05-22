@@ -11,15 +11,21 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.Registries;
 
 /**
- * {@code BlockStateParticleEffect}.
+ * Эффект частицы, привязанный к конкретному состоянию блока.
+ * Поддерживает альтернативную десериализацию: можно указать просто блок — тогда берётся его дефолтное состояние.
  */
 public class BlockStateParticleEffect implements ParticleEffect, FabricBlockStateParticleEffect {
 
-	private static final Codec<BlockState>
-			BLOCK_STATE_CODEC =
+	private static final Codec<BlockState> BLOCK_STATE_CODEC =
 			Codec.withAlternative(BlockState.CODEC, Registries.BLOCK.getCodec(), Block::getDefaultState);
+
 	private final ParticleType<BlockStateParticleEffect> type;
 	private final BlockState blockState;
+
+	public BlockStateParticleEffect(ParticleType<BlockStateParticleEffect> type, BlockState blockState) {
+		this.type = type;
+		this.blockState = blockState;
+	}
 
 	public static MapCodec<BlockStateParticleEffect> createCodec(ParticleType<BlockStateParticleEffect> type) {
 		return BLOCK_STATE_CODEC
@@ -27,23 +33,20 @@ public class BlockStateParticleEffect implements ParticleEffect, FabricBlockStat
 				.fieldOf("block_state");
 	}
 
-	public static PacketCodec<? super RegistryByteBuf, BlockStateParticleEffect> createPacketCodec(ParticleType<BlockStateParticleEffect> type) {
+	public static PacketCodec<? super RegistryByteBuf, BlockStateParticleEffect> createPacketCodec(
+			ParticleType<BlockStateParticleEffect> type
+	) {
 		return PacketCodecs
 				.entryOf(Block.STATE_IDS)
 				.xmap(state -> new BlockStateParticleEffect(type, state), effect -> effect.blockState);
 	}
 
-	public BlockStateParticleEffect(ParticleType<BlockStateParticleEffect> type, BlockState blockState) {
-		this.type = type;
-		this.blockState = blockState;
-	}
-
 	@Override
 	public ParticleType<BlockStateParticleEffect> getType() {
-		return this.type;
+		return type;
 	}
 
 	public BlockState getBlockState() {
-		return this.blockState;
+		return blockState;
 	}
 }

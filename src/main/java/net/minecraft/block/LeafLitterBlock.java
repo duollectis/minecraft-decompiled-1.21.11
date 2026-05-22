@@ -16,7 +16,9 @@ import net.minecraft.world.WorldView;
 import java.util.function.Function;
 
 /**
- * {@code LeafLitterBlock}.
+ * Блок опавших листьев — декоративное растение с поддержкой сегментации (1–4 листа в одном блоке).
+ * Ориентируется горизонтально через {@link #HORIZONTAL_FACING} и реализует интерфейс {@link Segmented}
+ * для постепенного заполнения блока при повторном размещении.
  */
 public class LeafLitterBlock extends PlantBlock implements Segmented {
 
@@ -26,15 +28,15 @@ public class LeafLitterBlock extends PlantBlock implements Segmented {
 
 	public LeafLitterBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
-				.with(HORIZONTAL_FACING, Direction.NORTH)
-				.with(this.getAmountProperty(), 1));
-		this.shapeFunction = this.createShapeFunction();
+		setDefaultState(stateManager
+			.getDefaultState()
+			.with(HORIZONTAL_FACING, Direction.NORTH)
+			.with(getAmountProperty(), 1));
+		shapeFunction = createShapeFunction();
 	}
 
 	private Function<BlockState, VoxelShape> createShapeFunction() {
-		return this.createShapeFunction(this.createShapeFunction(HORIZONTAL_FACING, this.getAmountProperty()));
+		return createShapeFunction(createShapeFunction(HORIZONTAL_FACING, getAmountProperty()));
 	}
 
 	@Override

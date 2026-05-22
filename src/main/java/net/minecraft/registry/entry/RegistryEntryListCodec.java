@@ -17,7 +17,17 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code RegistryEntryListCodec}.
+ * Кодек для {@link RegistryEntryList}, поддерживающий как теги (по ключу {@code #namespace:id}),
+ * так и явные списки записей реестра.
+ * <p>
+ * При наличии {@link RegistryOps} в контексте:
+ * <ul>
+ *   <li>Декодирует строку вида {@code "#namespace:id"} как {@link RegistryEntryList.Named}</li>
+ *   <li>Декодирует массив как {@link RegistryEntryList.Direct}</li>
+ * </ul>
+ * Без контекста реестра — декодирует только прямые списки {@link RegistryEntry.Direct}.
+ *
+ * @param <E> тип элементов реестра
  */
 public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 
@@ -30,9 +40,9 @@ public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 			Codec<RegistryEntry<E>> entryCodec,
 			boolean alwaysSerializeAsList
 	) {
-		Codec<List<RegistryEntry<E>>>
-				codec =
-				entryCodec.listOf().validate(Codecs.createEqualTypeChecker(RegistryEntry::getType));
+		Codec<List<RegistryEntry<E>>> codec = entryCodec
+				.listOf()
+				.validate(Codecs.createEqualTypeChecker(RegistryEntry::getType));
 		return alwaysSerializeAsList ? codec : Codecs.listOrSingle(entryCodec, codec);
 	}
 
@@ -55,66 +65,49 @@ public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 		this.entryListStorageCodec = Codec.either(TagKey.codec(registry), this.directEntryListCodec);
 	}
 
-	/**
-	 * Decode.
-	 *
-	 * @param ops ops
-	 * @param input input
-	 *
-	 * @return DataResult, T>> — результат операции
-	 */
+	@Override
 	public <T> DataResult<Pair<RegistryEntryList<E>, T>> decode(DynamicOps<T> ops, T input) {
 		if (ops instanceof RegistryOps<T> registryOps) {
-			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registry);
+			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(registry);
 			if (optional.isPresent()) {
 				RegistryEntryLookup<E> registryEntryLookup = optional.get();
-				return this.entryListStorageCodec
+				return entryListStorageCodec
 						.decode(ops, input)
-						.flatMap(
-								pair -> {
-									DataResult<RegistryEntryList<E>>
-											dataResult =
-											(DataResult<RegistryEntryList<E>>) ((Either<?, List<RegistryEntry<E>>>) pair.getFirst())
-													.map(
-															tag -> get(registryEntryLookup, (TagKey<E>) tag),
-															entries -> DataResult.success(RegistryEntryList.of(entries))
-													);
-									return dataResult.map(entries -> Pair.of(entries, pair.getSecond()));
-								}
-						);
+						.flatMap(pair -> {
+							DataResult<RegistryEntryList<E>> dataResult =
+									(DataResult<RegistryEntryList<E>>) ((Either<?, List<RegistryEntry<E>>>) pair.getFirst())
+											.map(
+													tag -> get(registryEntryLookup, (TagKey<E>) tag),
+													entries -> DataResult.success(RegistryEntryList.of(entries))
+											);
+							return dataResult.map(entries -> Pair.of(entries, pair.getSecond()));
+						});
 			}
 		}
 
-		return this.decodeDirect(ops, input);
+		return decodeDirect(ops, input);
 	}
 
 	private static <E> DataResult<RegistryEntryList<E>> get(RegistryEntryLookup<E> registry, TagKey<E> tag) {
 		return registry.getOptional(tag)
-		               .<DataResult<RegistryEntryList<E>>>map(DataResult::success)
-		               .orElseGet(() -> DataResult.error(() -> "Missing tag: '" + tag.id() + "' in '" + tag
-				               .registryRef()
-				               .getValue() + "'"));
+				.<DataResult<RegistryEntryList<E>>>map(DataResult::success)
+				.orElseGet(() -> DataResult.error(
+						() -> "Missing tag: '" + tag.id() + "' in '" + tag.registryRef().getValue() + "'"
+				));
 	}
 
-	/**
-	 * Encode.
-	 *
-	 * @param registryEntryList registry entry list
-	 * @param dynamicOps dynamic ops
-	 * @param object object
-	 *
-	 * @return DataResult — результат операции
-	 */
+	@Override
 	public <T> DataResult<T> encode(RegistryEntryList<E> registryEntryList, DynamicOps<T> dynamicOps, T object) {
 		if (dynamicOps instanceof RegistryOps<T> registryOps) {
-			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registry);
+			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(registry);
 			if (optional.isPresent()) {
 				if (!registryEntryList.ownerEquals(optional.get())) {
-					return DataResult.error(() -> "HolderSet " + registryEntryList
-							+ " is not valid in current registry set");
+					return DataResult.error(
+							() -> "HolderSet " + registryEntryList + " is not valid in current registry set"
+					);
 				}
 
-				return this.entryListStorageCodec.encode(
+				return entryListStorageCodec.encode(
 						registryEntryList.getStorage().mapRight(List::copyOf),
 						dynamicOps,
 						object
@@ -122,26 +115,26 @@ public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 			}
 		}
 
-		return this.encodeDirect(registryEntryList, dynamicOps, object);
+		return encodeDirect(registryEntryList, dynamicOps, object);
 	}
 
 	private <T> DataResult<Pair<RegistryEntryList<E>, T>> decodeDirect(DynamicOps<T> ops, T input) {
-		return this.entryCodec.listOf().decode(ops, input).flatMap(pair -> {
-			List<RegistryEntry.Direct<E>> list = new ArrayList<>();
+		return entryCodec.listOf().decode(ops, input).flatMap(pair -> {
+			List<RegistryEntry.Direct<E>> directEntries = new ArrayList<>();
 
 			for (RegistryEntry<E> registryEntry : (List<RegistryEntry<E>>) (List<?>) pair.getFirst()) {
 				if (!(registryEntry instanceof RegistryEntry.Direct<E> direct)) {
 					return DataResult.error(() -> "Can't decode element " + registryEntry + " without registry");
 				}
 
-				list.add(direct);
+				directEntries.add(direct);
 			}
 
-			return DataResult.success(new Pair(RegistryEntryList.of(list), pair.getSecond()));
+			return DataResult.success(new Pair<>(RegistryEntryList.of(directEntries), pair.getSecond()));
 		});
 	}
 
 	private <T> DataResult<T> encodeDirect(RegistryEntryList<E> entryList, DynamicOps<T> ops, T prefix) {
-		return this.directEntryListCodec.encode(entryList.stream().toList(), ops, prefix);
+		return directEntryListCodec.encode(entryList.stream().toList(), ops, prefix);
 	}
 }

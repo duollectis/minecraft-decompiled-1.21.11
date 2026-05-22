@@ -17,7 +17,7 @@ import net.minecraft.util.AssetInfo;
 import java.util.List;
 
 /**
- * {@code WolfVariant}.
+ * Вариант волка: определяет текстуру и биом спавна.
  */
 public record WolfVariant(WolfVariant.WolfAssetInfo assetInfo, SpawnConditionSelectors spawnConditions)
 		implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
@@ -51,8 +51,8 @@ public record WolfVariant(WolfVariant.WolfAssetInfo assetInfo, SpawnConditionSel
 	}
 
 	/**
-	 * {@code WolfAssetInfo}.
-	 */
+ * Данные варианта волка для сериализации.
+ */
 	public record WolfAssetInfo(
 			AssetInfo.TextureAssetInfo wild,
 			AssetInfo.TextureAssetInfo tame,

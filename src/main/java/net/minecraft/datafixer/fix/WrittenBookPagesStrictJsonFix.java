@@ -9,7 +9,7 @@ import com.mojang.datafixers.util.Pair;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code WrittenBookPagesStrictJsonFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WrittenBookPagesStrictJsonFix extends ItemNbtFix {
 
@@ -22,8 +22,8 @@ public class WrittenBookPagesStrictJsonFix extends ItemNbtFix {
 	protected Typed<?> fix(Typed<?> typed) {
 		Type<Pair<String, String>>
 				type =
-				(Type<Pair<String, String>>) this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+				(Type<Pair<String, String>>) getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<?> opticFinder = type2.findField("tag");
 		OpticFinder<?> opticFinder2 = opticFinder.type().findField("pages");
 		OpticFinder<Pair<String, String>> opticFinder3 = DSL.typeFinder(type);

@@ -9,7 +9,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code SpruceFoliagePlacer}.
+ * Размещает листву ели: радиус нарастает снизу вверх слоями,
+ * создавая характерную пирамидальную форму ёлки.
  */
 public class SpruceFoliagePlacer extends FoliagePlacer {
 
@@ -45,20 +46,20 @@ public class SpruceFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		BlockPos blockPos = treeNode.getCenter();
-		int i = random.nextInt(2);
-		int j = 1;
-		int k = 0;
+		BlockPos center = treeNode.getCenter();
+		int currentRadius = random.nextInt(2);
+		int maxRadius = 1;
+		int minRadius = 0;
 
-		for (int l = offset; l >= -foliageHeight; l--) {
-			this.generateSquare(world, placer, random, config, blockPos, i, l, treeNode.isGiantTrunk());
-			if (i >= j) {
-				i = k;
-				k = 1;
-				j = Math.min(j + 1, radius + treeNode.getFoliageRadius());
-			}
-			else {
-				i++;
+		for (int dy = offset; dy >= -foliageHeight; dy--) {
+			generateSquare(world, placer, random, config, center, currentRadius, dy, treeNode.isGiantTrunk());
+
+			if (currentRadius >= maxRadius) {
+				currentRadius = minRadius;
+				minRadius = 1;
+				maxRadius = Math.min(maxRadius + 1, radius + treeNode.getFoliageRadius());
+			} else {
+				currentRadius++;
 			}
 		}
 	}

@@ -8,34 +8,36 @@ import net.minecraft.util.crash.CrashReport;
 import java.io.File;
 import java.time.Duration;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientWatchdog}.
+ * Сторожевой поток клиента: если завершение игры зависает дольше {@link #SHUTDOWN_TIMEOUT},
+ * принудительно сохраняет crash-репорт и завершает процесс.
  */
+@Environment(EnvType.CLIENT)
 public class ClientWatchdog {
 
-	private static final Duration TIMEOUT = Duration.ofSeconds(15L);
+	private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(15L);
 
 	/**
-	 * Shutdown client.
+	 * Запускает фоновый поток-сторож, который ждёт {@link #SHUTDOWN_TIMEOUT} и,
+	 * если завершение не произошло, сохраняет crash-репорт с дампом стека главного потока.
 	 *
-	 * @param runDir run dir
-	 * @param threadId thread id
+	 * @param runDir   рабочая директория игры для сохранения crash-репорта
+	 * @param threadId идентификатор главного потока для дампа стека
 	 */
 	public static void shutdownClient(File runDir, long threadId) {
-		Thread thread = new Thread(() -> {
+		Thread watchdog = new Thread(() -> {
 			try {
-				Thread.sleep(TIMEOUT);
-			}
-			catch (InterruptedException var4) {
+				Thread.sleep(SHUTDOWN_TIMEOUT);
+			} catch (InterruptedException ignored) {
 				return;
 			}
 
 			CrashReport crashReport = DedicatedServerWatchdog.createCrashReport("Client shutdown", threadId);
 			MinecraftClient.saveCrashReport(runDir, crashReport);
 		});
-		thread.setDaemon(true);
-		thread.setName("Client shutdown watchdog");
-		thread.start();
+
+		watchdog.setDaemon(true);
+		watchdog.setName("Client shutdown watchdog");
+		watchdog.start();
 	}
 }

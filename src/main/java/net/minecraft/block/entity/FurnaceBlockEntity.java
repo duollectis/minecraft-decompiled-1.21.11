@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code FurnaceBlockEntity}.
+ * Блок-сущность обычной печи. Использует рецепты типа {@link RecipeType#SMELTING}.
  */
 public class FurnaceBlockEntity extends AbstractFurnaceBlockEntity {
 
@@ -26,6 +26,6 @@ public class FurnaceBlockEntity extends AbstractFurnaceBlockEntity {
 
 	@Override
 	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-		return new FurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+		return new FurnaceScreenHandler(syncId, playerInventory, this, propertyDelegate);
 	}
 }

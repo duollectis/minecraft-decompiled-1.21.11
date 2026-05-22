@@ -15,7 +15,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code CaveVinesHeadBlock}.
+ * Блок головы пещерной лозы. Растёт вниз с 11% шансом появления ягод при каждом
+ * шаге роста. Поддерживает удобрение бонемукой для немедленного появления ягод.
  */
 public class CaveVinesHeadBlock extends AbstractPlantStemBlock implements CaveVines {
 
@@ -29,7 +30,7 @@ public class CaveVinesHeadBlock extends AbstractPlantStemBlock implements CaveVi
 
 	public CaveVinesHeadBlock(AbstractBlock.Settings settings) {
 		super(settings, Direction.DOWN, SHAPE, false, 0.1);
-		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0).with(BERRIES, false));
+		setDefaultState(stateManager.getDefaultState().with(AGE, 0).with(BERRIES, false));
 	}
 
 	@Override
@@ -54,7 +55,7 @@ public class CaveVinesHeadBlock extends AbstractPlantStemBlock implements CaveVi
 
 	@Override
 	protected BlockState age(BlockState state, Random random) {
-		return super.age(state, random).with(BERRIES, random.nextFloat() < 0.11F);
+		return super.age(state, random).with(BERRIES, random.nextFloat() < GROW_CHANCE);
 	}
 
 	@Override

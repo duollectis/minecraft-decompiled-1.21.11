@@ -5,18 +5,27 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code HungerStatusEffect}.
+ * Эффект голода (Hunger).
+ *
+ * <p>Каждый тик добавляет усталость игроку, ускоряя расход шкалы голода.
+ * На не-игроков эффект не действует.</p>
  */
 class HungerStatusEffect extends StatusEffect {
 
-	protected HungerStatusEffect(StatusEffectCategory statusEffectCategory, int i) {
-		super(statusEffectCategory, i);
+	/** Базовое значение усталости за тик на уровне I. */
+	private static final float BASE_EXHAUSTION_PER_TICK = 0.005F;
+
+	protected HungerStatusEffect(StatusEffectCategory category, int color) {
+		super(category, color);
 	}
 
+	/**
+	 * Добавляет усталость игроку. Формула: {@code 0.005 * (amplifier + 1)} за тик.
+	 */
 	@Override
 	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
-		if (entity instanceof PlayerEntity playerEntity) {
-			playerEntity.addExhaustion(0.005F * (amplifier + 1));
+		if (entity instanceof PlayerEntity player) {
+			player.addExhaustion(BASE_EXHAUSTION_PER_TICK * (amplifier + 1));
 		}
 
 		return true;

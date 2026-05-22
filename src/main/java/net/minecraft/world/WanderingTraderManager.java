@@ -22,17 +22,27 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code WanderingTraderManager}.
+ * Управляет логикой появления странствующего торговца в мире.
+ *
+ * <p>Торговец появляется с нарастающей вероятностью: каждые {@link #DEFAULT_SPAWN_DELAY} тиков
+ * шанс спавна увеличивается на {@link #MIN_SPAWN_CHANCE}% (от 25% до 75%). После успешного
+ * спавна шанс сбрасывается обратно до минимума. Таймер тикает каждые {@link #SPAWN_TIMER_INTERVAL}
+ * тиков, уменьшая задержку до следующей попытки.</p>
  */
 public class WanderingTraderManager implements SpecialSpawner {
 
-	private static final int DEFAULT_SPAWN_TIMER = 1200;
+	private static final int SPAWN_TIMER_INTERVAL = 1200;
 	public static final int DEFAULT_SPAWN_DELAY = 24000;
 	private static final int MIN_SPAWN_CHANCE = 25;
 	private static final int MAX_SPAWN_CHANCE = 75;
-	private static final int DEFAULT_SPAWN_CHANCE = 25;
-	private static final int SPAWN_DELAY_MIN = 10;
-	private static final int SPAWN_DELAY_MAX = 10;
+	private static final int SPAWN_SEARCH_RADIUS = 48;
+	private static final int LLAMA_SPAWN_RADIUS = 4;
+	private static final int LLAMA_COUNT = 2;
+	private static final int MAX_SPAWN_ATTEMPTS = 10;
+	private static final int SPAWN_RANDOM_SKIP_CHANCE = 10;
+	private static final int DESPAWN_DELAY_TICKS = 48000;
+	private static final int WANDER_TARGET_RANGE = 16;
+
 	private final Random random = Random.create();
 	private final ServerWorldProperties properties;
 	private int spawnTimer;
@@ -41,116 +51,129 @@ public class WanderingTraderManager implements SpecialSpawner {
 
 	public WanderingTraderManager(ServerWorldProperties properties) {
 		this.properties = properties;
-		this.spawnTimer = 1200;
-		this.spawnDelay = properties.getWanderingTraderSpawnDelay();
-		this.spawnChance = properties.getWanderingTraderSpawnChance();
-		if (this.spawnDelay == 0 && this.spawnChance == 0) {
-			this.spawnDelay = 24000;
-			properties.setWanderingTraderSpawnDelay(this.spawnDelay);
-			this.spawnChance = 25;
-			properties.setWanderingTraderSpawnChance(this.spawnChance);
+		spawnTimer = SPAWN_TIMER_INTERVAL;
+		spawnDelay = properties.getWanderingTraderSpawnDelay();
+		spawnChance = properties.getWanderingTraderSpawnChance();
+
+		if (spawnDelay == 0 && spawnChance == 0) {
+			spawnDelay = DEFAULT_SPAWN_DELAY;
+			properties.setWanderingTraderSpawnDelay(spawnDelay);
+			spawnChance = MIN_SPAWN_CHANCE;
+			properties.setWanderingTraderSpawnChance(spawnChance);
 		}
 	}
 
 	@Override
 	public void spawn(ServerWorld world, boolean spawnMonsters) {
-		if (world.getGameRules().getValue(GameRules.SPAWN_WANDERING_TRADERS)) {
-			if (--this.spawnTimer <= 0) {
-				this.spawnTimer = 1200;
-				this.spawnDelay -= 1200;
-				this.properties.setWanderingTraderSpawnDelay(this.spawnDelay);
-				if (this.spawnDelay <= 0) {
-					this.spawnDelay = 24000;
-					int i = this.spawnChance;
-					this.spawnChance = MathHelper.clamp(this.spawnChance + 25, 25, 75);
-					this.properties.setWanderingTraderSpawnChance(this.spawnChance);
-					if (this.random.nextInt(100) <= i) {
-						if (this.trySpawn(world)) {
-							this.spawnChance = 25;
-						}
-					}
-				}
-			}
+		if (!world.getGameRules().getValue(GameRules.SPAWN_WANDERING_TRADERS)) {
+			return;
+		}
+
+		if (--spawnTimer > 0) {
+			return;
+		}
+
+		spawnTimer = SPAWN_TIMER_INTERVAL;
+		spawnDelay -= SPAWN_TIMER_INTERVAL;
+		properties.setWanderingTraderSpawnDelay(spawnDelay);
+
+		if (spawnDelay > 0) {
+			return;
+		}
+
+		spawnDelay = DEFAULT_SPAWN_DELAY;
+		int currentChance = spawnChance;
+		spawnChance = MathHelper.clamp(spawnChance + MIN_SPAWN_CHANCE, MIN_SPAWN_CHANCE, MAX_SPAWN_CHANCE);
+		properties.setWanderingTraderSpawnChance(spawnChance);
+
+		if (random.nextInt(100) > currentChance) {
+			return;
+		}
+
+		if (trySpawn(world)) {
+			spawnChance = MIN_SPAWN_CHANCE;
 		}
 	}
 
 	private boolean trySpawn(ServerWorld world) {
-		PlayerEntity playerEntity = world.getRandomAlivePlayer();
-		if (playerEntity == null) {
+		PlayerEntity player = world.getRandomAlivePlayer();
+		if (player == null) {
 			return true;
 		}
-		else if (this.random.nextInt(10) != 0) {
+
+		if (random.nextInt(SPAWN_RANDOM_SKIP_CHANCE) != 0) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = playerEntity.getBlockPos();
-			int i = 48;
-			PointOfInterestStorage pointOfInterestStorage = world.getPointOfInterestStorage();
-			Optional<BlockPos> optional = pointOfInterestStorage.getPosition(
-					poiType -> poiType.matchesKey(PointOfInterestTypes.MEETING),
-					pos -> true,
-					blockPos,
-					48,
-					PointOfInterestStorage.OccupationStatus.ANY
-			);
-			BlockPos blockPos2 = optional.orElse(blockPos);
-			BlockPos blockPos3 = this.getNearbySpawnPos(world, blockPos2, 48);
-			if (blockPos3 != null && this.doesNotSuffocateAt(world, blockPos3)) {
-				if (world.getBiome(blockPos3).isIn(BiomeTags.WITHOUT_WANDERING_TRADER_SPAWNS)) {
-					return false;
-				}
 
-				WanderingTraderEntity
-						wanderingTraderEntity =
-						EntityType.WANDERING_TRADER.spawn(world, blockPos3, SpawnReason.EVENT);
-				if (wanderingTraderEntity != null) {
-					for (int j = 0; j < 2; j++) {
-						this.spawnLlama(world, wanderingTraderEntity, 4);
-					}
+		BlockPos playerPos = player.getBlockPos();
+		BlockPos meetingPos = world.getPointOfInterestStorage()
+				.getPosition(
+						poiType -> poiType.matchesKey(PointOfInterestTypes.MEETING),
+						pos -> true,
+						playerPos,
+						SPAWN_SEARCH_RADIUS,
+						PointOfInterestStorage.OccupationStatus.ANY
+				)
+				.orElse(playerPos);
 
-					this.properties.setWanderingTraderId(wanderingTraderEntity.getUuid());
-					wanderingTraderEntity.setDespawnDelay(48000);
-					wanderingTraderEntity.setWanderTarget(blockPos2);
-					wanderingTraderEntity.setPositionTarget(blockPos2, 16);
-					return true;
-				}
-			}
-
+		BlockPos spawnPos = getNearbySpawnPos(world, meetingPos, SPAWN_SEARCH_RADIUS);
+		if (spawnPos == null || !doesNotSuffocateAt(world, spawnPos)) {
 			return false;
 		}
+
+		if (world.getBiome(spawnPos).isIn(BiomeTags.WITHOUT_WANDERING_TRADER_SPAWNS)) {
+			return false;
+		}
+
+		WanderingTraderEntity trader = EntityType.WANDERING_TRADER.spawn(world, spawnPos, SpawnReason.EVENT);
+		if (trader == null) {
+			return false;
+		}
+
+		for (int index = 0; index < LLAMA_COUNT; index++) {
+			spawnLlama(world, trader, LLAMA_SPAWN_RADIUS);
+		}
+
+		properties.setWanderingTraderId(trader.getUuid());
+		trader.setDespawnDelay(DESPAWN_DELAY_TICKS);
+		trader.setWanderTarget(meetingPos);
+		trader.setPositionTarget(meetingPos, WANDER_TARGET_RANGE);
+
+		return true;
 	}
 
 	private void spawnLlama(ServerWorld world, WanderingTraderEntity wanderingTrader, int range) {
-		BlockPos blockPos = this.getNearbySpawnPos(world, wanderingTrader.getBlockPos(), range);
-		if (blockPos != null) {
-			TraderLlamaEntity traderLlamaEntity = EntityType.TRADER_LLAMA.spawn(world, blockPos, SpawnReason.EVENT);
-			if (traderLlamaEntity != null) {
-				traderLlamaEntity.attachLeash(wanderingTrader, true);
-			}
+		BlockPos llamaPos = getNearbySpawnPos(world, wanderingTrader.getBlockPos(), range);
+		if (llamaPos == null) {
+			return;
+		}
+
+		TraderLlamaEntity llama = EntityType.TRADER_LLAMA.spawn(world, llamaPos, SpawnReason.EVENT);
+		if (llama != null) {
+			llama.attachLeash(wanderingTrader, true);
 		}
 	}
 
-	private @Nullable BlockPos getNearbySpawnPos(WorldView world, BlockPos pos, int range) {
-		BlockPos blockPos = null;
+	private @Nullable BlockPos getNearbySpawnPos(WorldView world, BlockPos center, int range) {
 		SpawnLocation spawnLocation = SpawnRestriction.getLocation(EntityType.WANDERING_TRADER);
 
-		for (int i = 0; i < 10; i++) {
-			int j = pos.getX() + this.random.nextInt(range * 2) - range;
-			int k = pos.getZ() + this.random.nextInt(range * 2) - range;
-			int l = world.getTopY(Heightmap.Type.WORLD_SURFACE, j, k);
-			BlockPos blockPos2 = new BlockPos(j, l, k);
-			if (spawnLocation.isSpawnPositionOk(world, blockPos2, EntityType.WANDERING_TRADER)) {
-				blockPos = blockPos2;
-				break;
+		for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+			int x = center.getX() + random.nextInt(range * 2) - range;
+			int z = center.getZ() + random.nextInt(range * 2) - range;
+			int y = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+			BlockPos candidate = new BlockPos(x, y, z);
+
+			if (spawnLocation.isSpawnPositionOk(world, candidate, EntityType.WANDERING_TRADER)) {
+				return candidate;
 			}
 		}
 
-		return blockPos;
+		return null;
 	}
 
 	private boolean doesNotSuffocateAt(BlockView world, BlockPos pos) {
-		for (BlockPos blockPos : BlockPos.iterate(pos, pos.add(1, 2, 1))) {
-			if (!world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()) {
+		for (BlockPos checkPos : BlockPos.iterate(pos, pos.add(1, 2, 1))) {
+			if (!world.getBlockState(checkPos).getCollisionShape(world, checkPos).isEmpty()) {
 				return false;
 			}
 		}

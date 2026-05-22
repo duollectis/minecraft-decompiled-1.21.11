@@ -19,48 +19,46 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@code FixUtil}.
+ * Утилитарный класс с вспомогательными методами для DataFixer-фиксов.
+ * Содержит инструменты для работы с BlockPos, BlockState, типами и цветами.
  */
 public class FixUtil {
 
+	/**
+	 * Конвертирует устаревший формат BlockPos (отдельные поля X/Y/Z) в массив int[3].
+	 * Если хотя бы одно из полей отсутствует — возвращает исходный Dynamic без изменений.
+	 */
 	public static Dynamic<?> fixBlockPos(Dynamic<?> dynamic) {
-		Optional<Number> optional = dynamic.get("X").asNumber().result();
-		Optional<Number> optional2 = dynamic.get("Y").asNumber().result();
-		Optional<Number> optional3 = dynamic.get("Z").asNumber().result();
-		return !optional.isEmpty() && !optional2.isEmpty() && !optional3.isEmpty()
-		       ? createBlockPos(
-				dynamic,
-				optional.get().intValue(),
-				optional2.get().intValue(),
-				optional3.get().intValue()
-		)
-		       : dynamic;
+		Optional<Number> x = dynamic.get("X").asNumber().result();
+		Optional<Number> y = dynamic.get("Y").asNumber().result();
+		Optional<Number> z = dynamic.get("Z").asNumber().result();
+
+		return x.isPresent() && y.isPresent() && z.isPresent()
+			? createBlockPos(dynamic, x.get().intValue(), y.get().intValue(), z.get().intValue())
+			: dynamic;
 	}
 
+	/**
+	 * Объединяет три отдельных поля координат в одно поле BlockPos (массив int[3]),
+	 * удаляя исходные поля xKey, yKey, zKey.
+	 */
 	public static Dynamic<?> consolidateBlockPos(
-			Dynamic<?> dynamic,
-			String xKey,
-			String yKey,
-			String zKey,
-			String newPosKey
+		Dynamic<?> dynamic,
+		String xKey,
+		String yKey,
+		String zKey,
+		String newPosKey
 	) {
-		Optional<Number> optional = dynamic.get(xKey).asNumber().result();
-		Optional<Number> optional2 = dynamic.get(yKey).asNumber().result();
-		Optional<Number> optional3 = dynamic.get(zKey).asNumber().result();
-		return !optional.isEmpty() && !optional2.isEmpty() && !optional3.isEmpty()
-		       ? dynamic.remove(xKey)
-		                .remove(yKey)
-		                .remove(zKey)
-		                .set(
-				                newPosKey,
-				                createBlockPos(
-						                dynamic,
-						                optional.get().intValue(),
-						                optional2.get().intValue(),
-						                optional3.get().intValue()
-				                )
-		                )
-		       : dynamic;
+		Optional<Number> x = dynamic.get(xKey).asNumber().result();
+		Optional<Number> y = dynamic.get(yKey).asNumber().result();
+		Optional<Number> z = dynamic.get(zKey).asNumber().result();
+
+		return x.isPresent() && y.isPresent() && z.isPresent()
+			? dynamic.remove(xKey)
+				.remove(yKey)
+				.remove(zKey)
+				.set(newPosKey, createBlockPos(dynamic, x.get().intValue(), y.get().intValue(), z.get().intValue()))
+			: dynamic;
 	}
 
 	public static Dynamic<?> createBlockPos(Dynamic<?> dynamic, int x, int y, int z) {
@@ -69,7 +67,7 @@ public class FixUtil {
 
 	@SuppressWarnings("unchecked")
 	public static <T, R> Typed<R> withType(Type<R> type, Typed<T> typed) {
-		return new Typed<R>(type, (DynamicOps<Object>) typed.getOps(), (R) typed.getValue());
+		return new Typed<>(type, (DynamicOps<Object>) typed.getOps(), (R) typed.getValue());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -77,55 +75,68 @@ public class FixUtil {
 		return new Typed<>(type, (DynamicOps<Object>) ops, (T) value);
 	}
 
+	/**
+	 * Создаёт новый тип, заменяя вхождения oldType на newType во всём дереве типов.
+	 * Используется при изменении схемы данных без реального преобразования значений.
+	 */
 	public static Type<?> withTypeChanged(Type<?> type, Type<?> oldType, Type<?> newType) {
 		return type.all(typeChangingRule(oldType, newType), true, false).view().newType();
 	}
 
 	private static <A, B> TypeRewriteRule typeChangingRule(Type<A> oldType, Type<B> newType) {
 		RewriteResult<A, B> rewriteResult = RewriteResult.create(
-				View.create(
-						"Patcher", oldType, newType, ops -> object -> {
-							throw new UnsupportedOperationException();
-						}
-				), new BitSet()
+			View.create(
+				"Patcher", oldType, newType, ops -> object -> {
+					throw new UnsupportedOperationException();
+				}
+			),
+			new BitSet()
 		);
+
 		return TypeRewriteRule.everywhere(
-				TypeRewriteRule.ifSame(oldType, rewriteResult),
-				PointFreeRule.nop(),
-				true,
-				true
+			TypeRewriteRule.ifSame(oldType, rewriteResult),
+			PointFreeRule.nop(),
+			true,
+			true
 		);
 	}
 
+	/**
+	 * Компонует несколько функций преобразования Typed в одну, применяя их последовательно.
+	 */
 	@SafeVarargs
 	public static <T> Function<Typed<?>, Typed<?>> compose(Function<Typed<?>, Typed<?>>... fixes) {
 		return typed -> {
-			for (Function<Typed<?>, Typed<?>> function : fixes) {
-				typed = function.apply(typed);
+			for (Function<Typed<?>, Typed<?>> fix : fixes) {
+				typed = fix.apply(typed);
 			}
 
 			return typed;
 		};
 	}
 
+	/**
+	 * Создаёт Dynamic, представляющий BlockState с заданным идентификатором и свойствами.
+	 */
 	public static Dynamic<?> createBlockState(String id, Map<String, String> properties) {
-		Dynamic<NbtElement> dynamic = new Dynamic(NbtOps.INSTANCE, new NbtCompound());
-		Dynamic<NbtElement> dynamic2 = dynamic.set("Name", dynamic.createString(id));
+		Dynamic<NbtElement> dynamic = new Dynamic<>(NbtOps.INSTANCE, new NbtCompound());
+		Dynamic<NbtElement> result = dynamic.set("Name", dynamic.createString(id));
+
 		if (!properties.isEmpty()) {
-			dynamic2 = dynamic2.set(
-					"Properties",
-					dynamic.createMap(
-							properties.entrySet()
-							          .stream()
-							          .collect(Collectors.toMap(
-									          entry -> dynamic.createString(entry.getKey()),
-									          entry -> dynamic.createString(entry.getValue())
-							          ))
-					)
+			result = result.set(
+				"Properties",
+				dynamic.createMap(
+					properties.entrySet()
+						.stream()
+						.collect(Collectors.toMap(
+							entry -> dynamic.createString(entry.getKey()),
+							entry -> dynamic.createString(entry.getValue())
+						))
+				)
 			);
 		}
 
-		return dynamic2;
+		return result;
 	}
 
 	public static Dynamic<?> createBlockState(String id) {
@@ -134,14 +145,14 @@ public class FixUtil {
 
 	public static Dynamic<?> apply(Dynamic<?> dynamic, String fieldName, UnaryOperator<String> applier) {
 		return dynamic.update(
-				fieldName,
-				value -> (Dynamic) DataFixUtils.orElse(
-						value
-								.asString()
-								.map(applier)
-								.map(dynamic::createString)
-								.result(), value
-				)
+			fieldName,
+			value -> (Dynamic<?>) DataFixUtils.orElse(
+				value.asString()
+					.map(applier)
+					.map(dynamic::createString)
+					.result(),
+				value
+			)
 		);
 	}
 

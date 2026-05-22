@@ -7,7 +7,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code ItemFrameItem}.
+ * Предмет «рамка для предметов». Размещает сущность рамки на стене.
+ * Запрещает размещение за пределами высотных ограничений мира.
  */
 public class ItemFrameItem extends DecorationItem {
 

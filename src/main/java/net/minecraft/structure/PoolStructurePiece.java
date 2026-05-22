@@ -18,11 +18,14 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.structure.JigsawStructure;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code PoolStructurePiece}.
+ * Структурный фрагмент, порождённый jigsaw-генератором на основе {@link StructurePoolElement}.
+ * Хранит элемент пула, позицию, поворот, список стыков {@link JigsawJunction}
+ * и настройки жидкостей, необходимые для корректного размещения и расчёта плотности шума.
  */
 public class PoolStructurePiece extends StructurePiece {
 
@@ -35,13 +38,13 @@ public class PoolStructurePiece extends StructurePiece {
 	private final StructureLiquidSettings liquidSettings;
 
 	public PoolStructurePiece(
-			StructureTemplateManager structureTemplateManager,
-			StructurePoolElement poolElement,
-			BlockPos pos,
-			int groundLevelDelta,
-			BlockRotation rotation,
-			BlockBox boundingBox,
-			StructureLiquidSettings liquidSettings
+		StructureTemplateManager structureTemplateManager,
+		StructurePoolElement poolElement,
+		BlockPos pos,
+		int groundLevelDelta,
+		BlockRotation rotation,
+		BlockBox boundingBox,
+		StructureLiquidSettings liquidSettings
 	) {
 		super(StructurePieceType.JIGSAW, 0, boundingBox);
 		this.structureTemplateManager = structureTemplateManager;
@@ -54,125 +57,129 @@ public class PoolStructurePiece extends StructurePiece {
 
 	public PoolStructurePiece(StructureContext context, NbtCompound nbt) {
 		super(StructurePieceType.JIGSAW, nbt);
-		this.structureTemplateManager = context.structureTemplateManager();
-		this.pos = new BlockPos(nbt.getInt("PosX", 0), nbt.getInt("PosY", 0), nbt.getInt("PosZ", 0));
-		this.groundLevelDelta = nbt.getInt("ground_level_delta", 0);
+		structureTemplateManager = context.structureTemplateManager();
+		pos = new BlockPos(nbt.getInt("PosX", 0), nbt.getInt("PosY", 0), nbt.getInt("PosZ", 0));
+		groundLevelDelta = nbt.getInt("ground_level_delta", 0);
+
 		DynamicOps<NbtElement> dynamicOps = context.registryManager().getOps(NbtOps.INSTANCE);
-		this.poolElement = nbt.<StructurePoolElement>get("pool_element", StructurePoolElement.CODEC, dynamicOps)
-		                      .orElseThrow(() -> new IllegalStateException("Invalid pool element found"));
-		this.rotation = nbt.<BlockRotation>get("rotation", BlockRotation.ENUM_NAME_CODEC).orElseThrow();
-		this.boundingBox = this.poolElement.getBoundingBox(this.structureTemplateManager, this.pos, this.rotation);
-		NbtList nbtList = nbt.getListOrEmpty("junctions");
-		this.junctions.clear();
-		nbtList.forEach(junctionTag -> this.junctions.add(JigsawJunction.deserialize(new Dynamic(
-				dynamicOps,
-				junctionTag
-		))));
-		this.liquidSettings =
-				nbt
-						.<StructureLiquidSettings>get("liquid_settings", StructureLiquidSettings.codec)
-						.orElse(JigsawStructure.DEFAULT_LIQUID_SETTINGS);
+		poolElement = nbt.<StructurePoolElement>get("pool_element", StructurePoolElement.CODEC, dynamicOps)
+			.orElseThrow(() -> new IllegalStateException("Invalid pool element found"));
+		rotation = nbt.<BlockRotation>get("rotation", BlockRotation.ENUM_NAME_CODEC).orElseThrow();
+		boundingBox = poolElement.getBoundingBox(structureTemplateManager, pos, rotation);
+
+		NbtList junctionList = nbt.getListOrEmpty("junctions");
+		junctions.clear();
+		junctionList.forEach(tag -> junctions.add(JigsawJunction.deserialize(new Dynamic<>(dynamicOps, tag))));
+
+		liquidSettings = nbt.<StructureLiquidSettings>get("liquid_settings", StructureLiquidSettings.codec)
+			.orElse(JigsawStructure.DEFAULT_LIQUID_SETTINGS);
 	}
 
 	@Override
 	protected void writeNbt(StructureContext context, NbtCompound nbt) {
-		nbt.putInt("PosX", this.pos.getX());
-		nbt.putInt("PosY", this.pos.getY());
-		nbt.putInt("PosZ", this.pos.getZ());
-		nbt.putInt("ground_level_delta", this.groundLevelDelta);
-		DynamicOps<NbtElement> dynamicOps = context.registryManager().getOps(NbtOps.INSTANCE);
-		nbt.put("pool_element", StructurePoolElement.CODEC, dynamicOps, this.poolElement);
-		nbt.put("rotation", BlockRotation.ENUM_NAME_CODEC, this.rotation);
-		NbtList nbtList = new NbtList();
+		nbt.putInt("PosX", pos.getX());
+		nbt.putInt("PosY", pos.getY());
+		nbt.putInt("PosZ", pos.getZ());
+		nbt.putInt("ground_level_delta", groundLevelDelta);
 
-		for (JigsawJunction jigsawJunction : this.junctions) {
-			nbtList.add((NbtElement) jigsawJunction.serialize(dynamicOps).getValue());
+		DynamicOps<NbtElement> dynamicOps = context.registryManager().getOps(NbtOps.INSTANCE);
+		nbt.put("pool_element", StructurePoolElement.CODEC, dynamicOps, poolElement);
+		nbt.put("rotation", BlockRotation.ENUM_NAME_CODEC, rotation);
+
+		NbtList junctionList = new NbtList();
+		for (JigsawJunction junction : junctions) {
+			junctionList.add((NbtElement) junction.serialize(dynamicOps).getValue());
 		}
 
-		nbt.put("junctions", nbtList);
-		if (this.liquidSettings != JigsawStructure.DEFAULT_LIQUID_SETTINGS) {
-			nbt.put("liquid_settings", StructureLiquidSettings.codec, dynamicOps, this.liquidSettings);
+		nbt.put("junctions", junctionList);
+
+		if (liquidSettings != JigsawStructure.DEFAULT_LIQUID_SETTINGS) {
+			nbt.put("liquid_settings", StructureLiquidSettings.codec, dynamicOps, liquidSettings);
 		}
 	}
 
 	@Override
 	public void generate(
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			Random random,
-			BlockBox chunkBox,
-			ChunkPos chunkPos,
-			BlockPos pivot
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		Random random,
+		BlockBox chunkBox,
+		ChunkPos chunkPos,
+		BlockPos pivot
 	) {
-		this.generate(world, structureAccessor, chunkGenerator, random, chunkBox, pivot, false);
+		generate(world, structureAccessor, chunkGenerator, random, chunkBox, pivot, false);
 	}
 
+	/**
+	 * Размещает элемент пула в мире с возможностью сохранения jigsaw-блоков.
+	 *
+	 * @param keepJigsaws если {@code true}, jigsaw-блоки не заменяются финальными состояниями
+	 */
 	public void generate(
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			Random random,
-			BlockBox boundingBox,
-			BlockPos pivot,
-			boolean keepJigsaws
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		Random random,
+		BlockBox boundingBox,
+		BlockPos pivot,
+		boolean keepJigsaws
 	) {
-		this.poolElement
-				.generate(
-						this.structureTemplateManager,
-						world,
-						structureAccessor,
-						chunkGenerator,
-						this.pos,
-						pivot,
-						this.rotation,
-						boundingBox,
-						random,
-						this.liquidSettings,
-						keepJigsaws
-				);
+		poolElement.generate(
+			structureTemplateManager,
+			world,
+			structureAccessor,
+			chunkGenerator,
+			pos,
+			pivot,
+			rotation,
+			boundingBox,
+			random,
+			liquidSettings,
+			keepJigsaws
+		);
 	}
 
 	@Override
 	public void translate(int x, int y, int z) {
 		super.translate(x, y, z);
-		this.pos = this.pos.add(x, y, z);
+		pos = pos.add(x, y, z);
 	}
 
 	@Override
 	public BlockRotation getRotation() {
-		return this.rotation;
+		return rotation;
 	}
 
 	@Override
 	public String toString() {
 		return String.format(
-				Locale.ROOT,
-				"<%s | %s | %s | %s>",
-				this.getClass().getSimpleName(),
-				this.pos,
-				this.rotation,
-				this.poolElement
+			Locale.ROOT,
+			"<%s | %s | %s | %s>",
+			getClass().getSimpleName(),
+			pos,
+			rotation,
+			poolElement
 		);
 	}
 
 	public StructurePoolElement getPoolElement() {
-		return this.poolElement;
+		return poolElement;
 	}
 
 	public BlockPos getPos() {
-		return this.pos;
+		return pos;
 	}
 
 	public int getGroundLevelDelta() {
-		return this.groundLevelDelta;
+		return groundLevelDelta;
 	}
 
 	public void addJunction(JigsawJunction junction) {
-		this.junctions.add(junction);
+		junctions.add(junction);
 	}
 
 	public List<JigsawJunction> getJunctions() {
-		return this.junctions;
+		return Collections.unmodifiableList(junctions);
 	}
 }

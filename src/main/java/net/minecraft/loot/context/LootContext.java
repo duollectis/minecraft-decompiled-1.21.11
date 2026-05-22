@@ -21,9 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/**
- * {@code LootContext}.
- */
+/** Контекст выполнения таблицы лута, содержащий параметры мира, случайность и реестр. */
 public class LootContext {
 
 	private final LootWorldContext worldContext;
@@ -38,72 +36,47 @@ public class LootContext {
 	}
 
 	public boolean hasParameter(ContextParameter<?> parameter) {
-		return this.worldContext.getParameters().contains(parameter);
+		return worldContext.getParameters().contains(parameter);
 	}
 
 	public <T> T getOrThrow(ContextParameter<T> parameter) {
-		return this.worldContext.getParameters().getOrThrow(parameter);
+		return worldContext.getParameters().getOrThrow(parameter);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param parameter parameter
-	 *
-	 * @return @Nullable T — 
-	 */
 	public <T> @Nullable T get(ContextParameter<T> parameter) {
-		return this.worldContext.getParameters().getNullable(parameter);
+		return worldContext.getParameters().getNullable(parameter);
 	}
 
-	/**
-	 * Drop.
-	 *
-	 * @param id id
-	 * @param lootConsumer loot consumer
-	 */
 	public void drop(Identifier id, Consumer<ItemStack> lootConsumer) {
-		this.worldContext.addDynamicDrops(id, lootConsumer);
+		worldContext.addDynamicDrops(id, lootConsumer);
 	}
 
 	public boolean isActive(LootContext.Entry<?> entry) {
-		return this.activeEntries.contains(entry);
+		return activeEntries.contains(entry);
 	}
 
-	/**
-	 * Mark active.
-	 *
-	 * @param entry entry
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean markActive(LootContext.Entry<?> entry) {
-		return this.activeEntries.add(entry);
+		return activeEntries.add(entry);
 	}
 
-	/**
-	 * Mark inactive.
-	 *
-	 * @param entry entry
-	 */
 	public void markInactive(LootContext.Entry<?> entry) {
-		this.activeEntries.remove(entry);
+		activeEntries.remove(entry);
 	}
 
 	public RegistryEntryLookup.RegistryLookup getLookup() {
-		return this.lookup;
+		return lookup;
 	}
 
 	public Random getRandom() {
-		return this.random;
+		return random;
 	}
 
 	public float getLuck() {
-		return this.worldContext.getLuck();
+		return worldContext.getLuck();
 	}
 
 	public ServerWorld getWorld() {
-		return this.worldContext.getWorld();
+		return worldContext.getWorld();
 	}
 
 	public static LootContext.Entry<LootTable> table(LootTable table) {
@@ -118,34 +91,30 @@ public class LootContext {
 		return new LootContext.Entry<>(LootDataType.ITEM_MODIFIERS, itemModifier);
 	}
 
-	/**
-	 * {@code BlockEntityReference}.
-	 */
-	public static enum BlockEntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<BlockEntity> {
+	/** Ссылка на блок-сущность в контексте лута. */
+	public enum BlockEntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<BlockEntity> {
 		BLOCK_ENTITY("block_entity", LootContextParameters.BLOCK_ENTITY);
 
 		private final String id;
 		private final ContextParameter<? extends BlockEntity> parameter;
 
-		private BlockEntityReference(final String id, final ContextParameter<? extends BlockEntity> parameter) {
+		BlockEntityReference(String id, ContextParameter<? extends BlockEntity> parameter) {
 			this.id = id;
 			this.parameter = parameter;
 		}
 
 		@Override
 		public ContextParameter<? extends BlockEntity> contextParam() {
-			return this.parameter;
+			return parameter;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель контекста лута с поддержкой задания зерна случайности. */
 	public static class Builder {
 
 		private final LootWorldContext worldContext;
@@ -169,37 +138,29 @@ public class LootContext {
 		}
 
 		public ServerWorld getWorld() {
-			return this.worldContext.getWorld();
+			return worldContext.getWorld();
 		}
 
 		/**
-		 * Build.
-		 *
-		 * @param randomId random id
-		 *
-		 * @return LootContext — результат операции
+		 * Собирает {@link LootContext}, выбирая источник случайности по приоритету:
+		 * явно заданный → по идентификатору последовательности → мировой RNG.
 		 */
 		public LootContext build(Optional<Identifier> randomId) {
-			ServerWorld serverWorld = this.getWorld();
-			MinecraftServer minecraftServer = serverWorld.getServer();
-			Random
-					random =
-					Optional
-							.ofNullable(this.random)
-							.or(() -> randomId.map(serverWorld::getOrCreateRandom))
-							.orElseGet(serverWorld::getRandom);
+			ServerWorld world = getWorld();
+			MinecraftServer server = world.getServer();
+			Random resolvedRandom = Optional.ofNullable(random)
+				.or(() -> randomId.map(world::getOrCreateRandom))
+				.orElseGet(world::getRandom);
 			return new LootContext(
-					this.worldContext,
-					random,
-					minecraftServer.getReloadableRegistries().createRegistryLookup()
+				worldContext,
+				resolvedRandom,
+				server.getReloadableRegistries().createRegistryLookup()
 			);
 		}
 	}
 
-	/**
-	 * {@code EntityReference}.
-	 */
-	public static enum EntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<Entity> {
+	/** Ссылка на сущность в контексте лута (атакующий, цель, игрок и т.д.). */
+	public enum EntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<Entity> {
 		THIS("this", LootContextParameters.THIS_ENTITY),
 		ATTACKER("attacker", LootContextParameters.ATTACKING_ENTITY),
 		DIRECT_ATTACKER("direct_attacker", LootContextParameters.DIRECT_ATTACKING_ENTITY),
@@ -207,66 +168,62 @@ public class LootContext {
 		TARGET_ENTITY("target_entity", LootContextParameters.TARGET_ENTITY),
 		INTERACTING_ENTITY("interacting_entity", LootContextParameters.INTERACTING_ENTITY);
 
-		public static final StringIdentifiable.EnumCodec<LootContext.EntityReference>
-				CODEC =
-				StringIdentifiable.createCodec(LootContext.EntityReference::values);
+		public static final StringIdentifiable.EnumCodec<LootContext.EntityReference> CODEC =
+			StringIdentifiable.createCodec(LootContext.EntityReference::values);
+
 		private final String type;
 		private final ContextParameter<? extends Entity> parameter;
 
-		private EntityReference(final String type, final ContextParameter<? extends Entity> parameter) {
+		EntityReference(String type, ContextParameter<? extends Entity> parameter) {
 			this.type = type;
 			this.parameter = parameter;
 		}
 
 		@Override
 		public ContextParameter<? extends Entity> contextParam() {
-			return this.parameter;
+			return parameter;
 		}
 
 		public static LootContext.EntityReference fromString(String type) {
-			LootContext.EntityReference entityReference = CODEC.byId(type);
-			if (entityReference != null) {
-				return entityReference;
-			}
-			else {
+			LootContext.EntityReference reference = CODEC.byId(type);
+
+			if (reference == null) {
 				throw new IllegalArgumentException("Invalid entity target " + type);
 			}
+
+			return reference;
 		}
 
 		@Override
 		public String asString() {
-			return this.type;
+			return type;
 		}
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
+	/** Запись активного элемента лута для защиты от рекурсии. */
 	public record Entry<T>(LootDataType<T> type, T value) {
 	}
 
-	/**
-	 * {@code ItemStackReference}.
-	 */
-	public static enum ItemStackReference implements StringIdentifiable, LootEntityValueSource.ContextBased<ItemStack> {
+	/** Ссылка на стек предмета (инструмент) в контексте лута. */
+	public enum ItemStackReference implements StringIdentifiable, LootEntityValueSource.ContextBased<ItemStack> {
 		TOOL("tool", LootContextParameters.TOOL);
 
 		private final String id;
 		private final ContextParameter<? extends ItemStack> parameter;
 
-		private ItemStackReference(final String id, final ContextParameter<? extends ItemStack> parameter) {
+		ItemStackReference(String id, ContextParameter<? extends ItemStack> parameter) {
 			this.id = id;
 			this.parameter = parameter;
 		}
 
 		@Override
 		public ContextParameter<? extends ItemStack> contextParam() {
-			return this.parameter;
+			return parameter;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 }

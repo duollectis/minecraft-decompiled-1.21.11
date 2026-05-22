@@ -8,7 +8,7 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
 /**
- * {@code WolfHealthFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WolfHealthFix extends ChoiceFix {
 

@@ -3,7 +3,7 @@ package net.minecraft.network.listener;
 import net.minecraft.network.packet.c2s.common.CookieResponseC2SPacket;
 
 /**
- * Интерфейс server cookie response packet listener.
+ * Слушатель серверных пакетов ответа клиента на запрос cookie.
  */
 public interface ServerCookieResponsePacketListener extends ServerCrashSafePacketListener {
 

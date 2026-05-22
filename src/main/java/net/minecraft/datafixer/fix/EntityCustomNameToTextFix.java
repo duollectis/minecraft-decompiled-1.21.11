@@ -13,7 +13,8 @@ import net.minecraft.util.Util;
 import java.util.Optional;
 
 /**
- * {@code EntityCustomNameToTextFix}.
+ * Конвертирует строковое поле {@code CustomName} сущности в компонент текста.
+ * Для командного вагончика имя остаётся строкой, для остальных — оборачивается в JSON-компонент.
  */
 public class EntityCustomNameToTextFix extends DataFix {
 
@@ -23,44 +24,45 @@ public class EntityCustomNameToTextFix extends DataFix {
 
 	@SuppressWarnings("unchecked")
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.ENTITY);
-		OpticFinder<String> opticFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
-		OpticFinder<String> opticFinder2 = (OpticFinder<String>) type.findField("CustomName");
-		Type<?> type3 = type2.findFieldType("CustomName");
-		return this.fixTypeEverywhereTyped(
+		Type<?> inputEntityType = getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> outputEntityType = getOutputSchema().getType(TypeReferences.ENTITY);
+		OpticFinder<String> idFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
+		OpticFinder<String> customNameFinder = (OpticFinder<String>) inputEntityType.findField("CustomName");
+		Type<?> outputCustomNameType = outputEntityType.findFieldType("CustomName");
+
+		return fixTypeEverywhereTyped(
 				"EntityCustomNameToComponentFix",
-				type,
-				type2,
-				typed -> updateCustomName(typed, type2, opticFinder, opticFinder2, type3)
+				inputEntityType,
+				outputEntityType,
+				typed -> updateCustomName(typed, outputEntityType, idFinder, customNameFinder, outputCustomNameType)
 		);
 	}
 
 	private static <T> Typed<?> updateCustomName(
 			Typed<?> typed,
-			Type<?> type,
-			OpticFinder<String> opticFinder,
-			OpticFinder<String> opticFinder2,
-			Type<T> type2
+			Type<?> outputType,
+			OpticFinder<String> idFinder,
+			OpticFinder<String> customNameFinder,
+			Type<T> outputCustomNameType
 	) {
-		Optional<String> optional = typed.getOptional(opticFinder2);
-		if (optional.isEmpty()) {
-			return FixUtil.withType(type, (Typed<T>) typed);
+		Optional<String> customName = typed.getOptional(customNameFinder);
+
+		if (customName.isEmpty()) {
+			return FixUtil.withType(outputType, (Typed<T>) typed);
 		}
-		else if (optional.get().isEmpty()) {
-			return Util.apply(typed, type, dynamicx -> dynamicx.remove("CustomName"));
+
+		if (customName.get().isEmpty()) {
+			return Util.apply(typed, outputType, dynamic -> dynamic.remove("CustomName"));
 		}
-		else {
-			String string = typed.getOptional(opticFinder).orElse("");
-			Dynamic<?> dynamic = createNameDynamic(typed.getOps(), optional.get(), string);
-			return typed.set(opticFinder2, Util.readTyped(type2, dynamic));
-		}
+
+		String entityId = typed.getOptional(idFinder).orElse("");
+		Dynamic<?> nameDynamic = createNameDynamic(typed.getOps(), customName.get(), entityId);
+		return typed.set(customNameFinder, Util.readTyped(outputCustomNameType, nameDynamic));
 	}
 
-	private static <T> Dynamic<T> createNameDynamic(DynamicOps<T> dynamicOps, String string, String string2) {
-		return "minecraft:commandblock_minecart".equals(string2) ? new Dynamic(
-				dynamicOps,
-				dynamicOps.createString(string)
-		) : TextFixes.text(dynamicOps, string);
+	private static <T> Dynamic<T> createNameDynamic(DynamicOps<T> ops, String name, String entityId) {
+		return "minecraft:commandblock_minecart".equals(entityId)
+				? new Dynamic(ops, ops.createString(name))
+				: TextFixes.text(ops, name);
 	}
 }

@@ -14,15 +14,21 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code IronGolemLookGoal}.
+ * Цель железного голема: раз в некоторое время смотрит на ближайшего жителя
+ * и при завершении дарит ему мак, если тот принимает подарки от голема.
  */
 public class IronGolemLookGoal extends Goal {
 
-	private static final TargetPredicate
-			CLOSE_VILLAGER_PREDICATE =
-			TargetPredicate.createNonAttackable().setBaseMaxDistance(6.0);
+	private static final TargetPredicate CLOSE_VILLAGER_PREDICATE =
+		TargetPredicate.createNonAttackable().setBaseMaxDistance(6.0);
 	private static final Item GIFT = Items.POPPY;
+	private static final int LOOK_CHANCE = 8000;
+	private static final float LOOK_ANGLE = 30.0F;
+	private static final double GIFT_RANGE_XZ = 6.0;
+	private static final double GIFT_RANGE_Y = 2.0;
+
 	public static final int MAX_LOOK_COOLDOWN = 400;
+
 	private final IronGolemEntity golem;
 	private @Nullable LivingEntity recipient;
 	private int lookCountdown;
@@ -34,63 +40,65 @@ public class IronGolemLookGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (!this.golem.getEntityWorld().isDay()) {
+		if (!golem.getEntityWorld().isDay()) {
 			return false;
 		}
-		else if (this.golem.getRandom().nextInt(8000) != 0) {
+
+		if (golem.getRandom().nextInt(LOOK_CHANCE) != 0) {
 			return false;
 		}
-		else {
-			this.recipient = getServerWorld(this.golem)
-					.getClosestEntity(
-							EntityTypeTags.CANDIDATE_FOR_IRON_GOLEM_GIFT,
-							CLOSE_VILLAGER_PREDICATE,
-							this.golem,
-							this.golem.getX(),
-							this.golem.getY(),
-							this.golem.getZ(),
-							this.getRange()
-					);
-			return this.recipient != null;
-		}
+
+		recipient = getServerWorld(golem).getClosestEntity(
+			EntityTypeTags.CANDIDATE_FOR_IRON_GOLEM_GIFT,
+			CLOSE_VILLAGER_PREDICATE,
+			golem,
+			golem.getX(),
+			golem.getY(),
+			golem.getZ(),
+			getRange()
+		);
+
+		return recipient != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.lookCountdown > 0;
+		return lookCountdown > 0;
 	}
 
 	@Override
 	public void start() {
-		this.lookCountdown = this.getTickCount(400);
-		this.golem.setLookingAtVillager(true);
+		lookCountdown = getTickCount(MAX_LOOK_COOLDOWN);
+		golem.setLookingAtVillager(true);
 	}
 
 	@Override
 	public void stop() {
-		this.golem.setLookingAtVillager(false);
-		if (this.lookCountdown == 0
-				&& this.recipient instanceof MobEntity mobEntity
-				&& mobEntity.getType().isIn(EntityTypeTags.ACCEPTS_IRON_GOLEM_GIFT)
-				&& mobEntity.getEquippedStack(CopperGolemEntity.POPPY_SLOT).isEmpty()
-				&& this.getRange().intersects(mobEntity.getBoundingBox())) {
+		golem.setLookingAtVillager(false);
+
+		if (lookCountdown == 0
+			&& recipient instanceof MobEntity mobEntity
+			&& mobEntity.getType().isIn(EntityTypeTags.ACCEPTS_IRON_GOLEM_GIFT)
+			&& mobEntity.getEquippedStack(CopperGolemEntity.POPPY_SLOT).isEmpty()
+			&& getRange().intersects(mobEntity.getBoundingBox())
+		) {
 			mobEntity.equipStack(CopperGolemEntity.POPPY_SLOT, GIFT.getDefaultStack());
 			mobEntity.setDropGuaranteed(CopperGolemEntity.POPPY_SLOT);
 		}
 
-		this.recipient = null;
+		recipient = null;
 	}
 
 	@Override
 	public void tick() {
-		if (this.recipient != null) {
-			this.golem.getLookControl().lookAt(this.recipient, 30.0F, 30.0F);
+		if (recipient != null) {
+			golem.getLookControl().lookAt(recipient, LOOK_ANGLE, LOOK_ANGLE);
 		}
 
-		this.lookCountdown--;
+		lookCountdown--;
 	}
 
 	private Box getRange() {
-		return this.golem.getBoundingBox().expand(6.0, 2.0, 6.0);
+		return golem.getBoundingBox().expand(GIFT_RANGE_XZ, GIFT_RANGE_Y, GIFT_RANGE_XZ);
 	}
 }

@@ -6,10 +6,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleModelSupplier}.
+ * Простейший поставщик модели, генерирующий JSON только с полем {@code parent}.
+ * Используется для моделей-делегатов, которые полностью наследуют родительскую модель.
  */
+@Environment(EnvType.CLIENT)
 public class SimpleModelSupplier implements ModelSupplier {
 
 	private final Identifier parent;
@@ -18,14 +19,10 @@ public class SimpleModelSupplier implements ModelSupplier {
 		this.parent = parent;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @return JsonElement — 
-	 */
+	@Override
 	public JsonElement get() {
 		JsonObject jsonObject = new JsonObject();
-		jsonObject.addProperty("parent", this.parent.toString());
+		jsonObject.addProperty("parent", parent.toString());
 		return jsonObject;
 	}
 }

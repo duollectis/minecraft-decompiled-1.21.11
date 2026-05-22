@@ -19,13 +19,14 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code FishingRodHookedCriterion}.
+ * Критерий: игрок использовал удочку и что-то поймал.
+ * Проверяет удочку, зацепленную сущность и пойманные предметы.
  */
 public class FishingRodHookedCriterion extends AbstractCriterion<FishingRodHookedCriterion.Conditions> {
 
 	@Override
-	public Codec<FishingRodHookedCriterion.Conditions> getConditionsCodec() {
-		return FishingRodHookedCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(
@@ -34,15 +35,12 @@ public class FishingRodHookedCriterion extends AbstractCriterion<FishingRodHooke
 			FishingBobberEntity bobber,
 			Collection<ItemStack> fishingLoots
 	) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(
-				player, (Entity) (bobber.getHookedEntity() != null ? bobber.getHookedEntity() : bobber)
-		);
-		this.trigger(player, conditions -> conditions.matches(rod, lootContext, fishingLoots));
+		Entity hookedTarget = bobber.getHookedEntity() != null ? bobber.getHookedEntity() : bobber;
+		LootContext hookedContext = EntityPredicate.createAdvancementEntityLootContext(player, hookedTarget);
+
+		trigger(player, conditions -> conditions.matches(rod, hookedContext, fishingLoots));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> rod,
@@ -50,71 +48,78 @@ public class FishingRodHookedCriterion extends AbstractCriterion<FishingRodHooke
 			Optional<ItemPredicate> item
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<FishingRodHookedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(FishingRodHookedCriterion.Conditions::player),
-						                    ItemPredicate.CODEC.optionalFieldOf("rod").forGetter(FishingRodHookedCriterion.Conditions::rod),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("entity")
-								                    .forGetter(FishingRodHookedCriterion.Conditions::entity),
-						                    ItemPredicate.CODEC
-								                    .optionalFieldOf("item")
-								                    .forGetter(FishingRodHookedCriterion.Conditions::item)
-				                    )
-				                    .apply(instance, FishingRodHookedCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("rod")
+								.forGetter(Conditions::rod),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("entity")
+								.forGetter(Conditions::entity),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<FishingRodHookedCriterion.Conditions> create(
-				Optional<ItemPredicate> rod, Optional<EntityPredicate> hookedEntity, Optional<ItemPredicate> caughtItem
+		public static AdvancementCriterion<Conditions> create(
+				Optional<ItemPredicate> rod,
+				Optional<EntityPredicate> hookedEntity,
+				Optional<ItemPredicate> caughtItem
 		) {
-			return Criteria.FISHING_ROD_HOOKED
-					.create(
-							new FishingRodHookedCriterion.Conditions(
-									Optional.empty(),
-									rod,
-									EntityPredicate.contextPredicateFromEntityPredicate(hookedEntity),
-									caughtItem
-							)
-					);
+			return Criteria.FISHING_ROD_HOOKED.create(new Conditions(
+					Optional.empty(),
+					rod,
+					EntityPredicate.contextPredicateFromEntityPredicate(hookedEntity),
+					caughtItem
+			));
 		}
 
+		/**
+		 * Проверяет соответствие удочки, зацепленной сущности и пойманных предметов.
+		 * Для предиката предмета проверяется как сущность-предмет в крюке, так и список улова.
+		 */
 		public boolean matches(ItemStack rodStack, LootContext hookedEntity, Collection<ItemStack> fishingLoots) {
-			if (this.rod.isPresent() && !this.rod.get().test(rodStack)) {
+			if (rod.isPresent() && !rod.get().test(rodStack)) {
 				return false;
 			}
-			else if (this.entity.isPresent() && !this.entity.get().test(hookedEntity)) {
-				return false;
-			}
-			else {
-				if (this.item.isPresent()) {
-					boolean bl = false;
-					Entity entity = hookedEntity.get(LootContextParameters.THIS_ENTITY);
-					if (entity instanceof ItemEntity itemEntity && this.item.get().test(itemEntity.getStack())) {
-						bl = true;
-					}
 
-					for (ItemStack itemStack : fishingLoots) {
-						if (this.item.get().test(itemStack)) {
-							bl = true;
+			if (entity.isPresent() && !entity.get().test(hookedEntity)) {
+				return false;
+			}
+
+			if (item.isPresent()) {
+				boolean itemFound = false;
+				Entity hookedRaw = hookedEntity.get(LootContextParameters.THIS_ENTITY);
+
+				if (hookedRaw instanceof ItemEntity itemEntity && item.get().test(itemEntity.getStack())) {
+					itemFound = true;
+				}
+
+				if (!itemFound) {
+					for (ItemStack lootStack : fishingLoots) {
+						if (item.get().test(lootStack)) {
+							itemFound = true;
 							break;
 						}
 					}
-
-					if (!bl) {
-						return false;
-					}
 				}
 
-				return true;
+				if (!itemFound) {
+					return false;
+				}
 			}
+
+			return true;
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.entity, "entity");
+			validator.validateEntityPredicate(entity, "entity");
 		}
 	}
 }

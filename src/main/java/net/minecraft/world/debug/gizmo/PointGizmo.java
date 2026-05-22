@@ -4,12 +4,12 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code PointGizmo}.
+ * Отладочный примитив — точка в мировом пространстве.
  */
 public record PointGizmo(Vec3d pos, int color, float size) implements Gizmo {
 
 	@Override
 	public void draw(GizmoDrawer consumer, float opacity) {
-		consumer.addPoint(this.pos, ColorHelper.scaleAlpha(this.color, opacity), this.size);
+		consumer.addPoint(pos, ColorHelper.scaleAlpha(color, opacity), size);
 	}
 }

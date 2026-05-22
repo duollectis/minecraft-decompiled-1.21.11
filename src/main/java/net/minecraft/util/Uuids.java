@@ -20,141 +20,142 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code Uuids}.
+ * Утилиты для сериализации и десериализации {@link UUID} в различных форматах:
+ * int-массив, строка, байтовый массив, пакетный кодек.
  */
 public final class Uuids {
 
+	/** Размер UUID в байтах (128 бит = 16 байт). */
+	public static final int BYTE_ARRAY_SIZE = 16;
+	/** Количество int-элементов для представления UUID (128 бит / 32 бит = 4). */
+	private static final int INT_ARRAY_SIZE = 4;
+	private static final int INT_MASK = 0xFFFFFFFF;
+	private static final String OFFLINE_PLAYER_UUID_PREFIX = "OfflinePlayer:";
+
+	/** Кодек UUID через поток из 4 int-значений (формат NBT). */
 	public static final Codec<UUID> INT_STREAM_CODEC = Codec.INT_STREAM
 			.comapFlatMap(
-					uuidStream -> Util.decodeFixedLengthArray(uuidStream, 4).map(Uuids::toUuid),
+					stream -> Util.decodeFixedLengthArray(stream.asLongStream(), INT_ARRAY_SIZE).map(longs -> Uuids.toUuid(java.util.Arrays.stream(longs).mapToInt(l -> (int) l).toArray())),
 					uuid -> Arrays.stream(toIntArray(uuid))
 			);
-	public static final Codec<Set<UUID>>
-			SET_CODEC =
+
+	public static final Codec<Set<UUID>> SET_CODEC =
 			Codec.list(INT_STREAM_CODEC).xmap(Sets::newHashSet, Lists::newArrayList);
-	public static final Codec<Set<UUID>>
-			LINKED_SET_CODEC =
+
+	public static final Codec<Set<UUID>> LINKED_SET_CODEC =
 			Codec.list(INT_STREAM_CODEC).xmap(Sets::newLinkedHashSet, Lists::newArrayList);
+
+	/** Кодек UUID через строку в стандартном формате с дефисами. */
 	public static final Codec<UUID> STRING_CODEC = Codec.STRING.comapFlatMap(
 			string -> {
 				try {
 					return DataResult.success(UUID.fromString(string), Lifecycle.stable());
 				}
-				catch (IllegalArgumentException var2) {
-					return DataResult.error(() -> "Invalid UUID " + string + ": " + var2.getMessage());
+				catch (IllegalArgumentException exception) {
+					return DataResult.error(() -> "Invalid UUID " + string + ": " + exception.getMessage());
 				}
-			}, UUID::toString
+			},
+			UUID::toString
 	);
+
+	/** Кодек UUID: принимает строку без дефисов или int-массив; сериализует без дефисов. */
 	public static final Codec<UUID> CODEC = Codec.withAlternative(
 			Codec.STRING.comapFlatMap(
 					string -> {
 						try {
 							return DataResult.success(UndashedUuid.fromStringLenient(string), Lifecycle.stable());
 						}
-						catch (IllegalArgumentException var2) {
-							return DataResult.error(() -> "Invalid UUID " + string + ": " + var2.getMessage());
+						catch (IllegalArgumentException exception) {
+							return DataResult.error(() -> "Invalid UUID " + string + ": " + exception.getMessage());
 						}
-					}, UndashedUuid::toString
-			), INT_STREAM_CODEC
+					},
+					UndashedUuid::toString
+			),
+			INT_STREAM_CODEC
 	);
+
+	/** Строгий кодек: предпочитает int-массив, допускает строку как запасной вариант. */
 	public static final Codec<UUID> STRICT_CODEC = Codec.withAlternative(INT_STREAM_CODEC, STRING_CODEC);
-	public static final PacketCodec<ByteBuf, UUID> PACKET_CODEC = new PacketCodec<ByteBuf, UUID>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return UUID — результат операции
-		 */
+
+	public static final PacketCodec<ByteBuf, UUID> PACKET_CODEC = new PacketCodec<>() {
+		@Override
 		public UUID decode(ByteBuf byteBuf) {
 			return PacketByteBuf.readUuid(byteBuf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param uUID u u i d
-		 */
-		public void encode(ByteBuf byteBuf, UUID uUID) {
-			PacketByteBuf.writeUuid(byteBuf, uUID);
+		@Override
+		public void encode(ByteBuf byteBuf, UUID uuid) {
+			PacketByteBuf.writeUuid(byteBuf, uuid);
 		}
 	};
-	public static final int BYTE_ARRAY_SIZE = 16;
-	private static final String OFFLINE_PLAYER_UUID_PREFIX = "OfflinePlayer:";
 
 	private Uuids() {
 	}
 
 	/**
-	 * To uuid.
+	 * Конвертирует массив из 4 int-значений в {@link UUID}.
 	 *
-	 * @param array array
-	 *
-	 * @return UUID — результат операции
+	 * @param array массив из 4 элементов: [mostHigh, mostLow, leastHigh, leastLow]
+	 * @return UUID
 	 */
 	public static UUID toUuid(int[] array) {
-		return new UUID((long) array[0] << 32 | array[1] & 4294967295L, (long) array[2] << 32 | array[3] & 4294967295L);
+		long most = (long) array[0] << 32 | array[1] & (long) INT_MASK;
+		long least = (long) array[2] << 32 | array[3] & (long) INT_MASK;
+		return new UUID(most, least);
 	}
 
 	/**
-	 * To int array.
+	 * Конвертирует {@link UUID} в массив из 4 int-значений.
 	 *
-	 * @param uuid uuid
-	 *
-	 * @return int[] — результат операции
+	 * @param uuid UUID для конвертации
+	 * @return массив из 4 элементов
 	 */
 	public static int[] toIntArray(UUID uuid) {
-		long l = uuid.getMostSignificantBits();
-		long m = uuid.getLeastSignificantBits();
-		return toIntArray(l, m);
-	}
-
-	private static int[] toIntArray(long uuidMost, long uuidLeast) {
-		return new int[]{(int) (uuidMost >> 32), (int) uuidMost, (int) (uuidLeast >> 32), (int) uuidLeast};
+		long most = uuid.getMostSignificantBits();
+		long least = uuid.getLeastSignificantBits();
+		return new int[]{(int) (most >> 32), (int) most, (int) (least >> 32), (int) least};
 	}
 
 	/**
-	 * To byte array.
+	 * Конвертирует {@link UUID} в байтовый массив длиной {@value #BYTE_ARRAY_SIZE} в порядке big-endian.
 	 *
-	 * @param uuid uuid
-	 *
-	 * @return byte[] — результат операции
+	 * @param uuid UUID для конвертации
+	 * @return байтовый массив
 	 */
 	public static byte[] toByteArray(UUID uuid) {
-		byte[] bs = new byte[16];
+		byte[] bytes = new byte[BYTE_ARRAY_SIZE];
 		ByteBuffer
-				.wrap(bs)
+				.wrap(bytes)
 				.order(ByteOrder.BIG_ENDIAN)
 				.putLong(uuid.getMostSignificantBits())
 				.putLong(uuid.getLeastSignificantBits());
-		return bs;
+		return bytes;
 	}
 
 	/**
-	 * To uuid.
+	 * Читает UUID из {@link Dynamic} в формате int-массива длиной 4.
 	 *
-	 * @param dynamic dynamic
-	 *
-	 * @return UUID — результат операции
+	 * @param dynamic динамическое значение
+	 * @return UUID
+	 * @throws IllegalArgumentException если массив имеет неверную длину
 	 */
 	public static UUID toUuid(Dynamic<?> dynamic) {
-		int[] is = dynamic.asIntStream().toArray();
-		if (is.length != 4) {
+		int[] array = dynamic.asIntStream().toArray();
+
+		if (array.length != INT_ARRAY_SIZE) {
 			throw new IllegalArgumentException(
-					"Could not read UUID. Expected int-array of length 4, got " + is.length + ".");
+					"Could not read UUID. Expected int-array of length 4, got " + array.length + "."
+			);
 		}
-		else {
-			return toUuid(is);
-		}
+
+		return toUuid(array);
 	}
 
 	public static UUID getOfflinePlayerUuid(String nickname) {
-		return UUID.nameUUIDFromBytes(("OfflinePlayer:" + nickname).getBytes(StandardCharsets.UTF_8));
+		return UUID.nameUUIDFromBytes((OFFLINE_PLAYER_UUID_PREFIX + nickname).getBytes(StandardCharsets.UTF_8));
 	}
 
 	public static GameProfile getOfflinePlayerProfile(String nickname) {
-		UUID uUID = getOfflinePlayerUuid(nickname);
-		return new GameProfile(uUID, nickname);
+		return new GameProfile(getOfflinePlayerUuid(nickname), nickname);
 	}
 }

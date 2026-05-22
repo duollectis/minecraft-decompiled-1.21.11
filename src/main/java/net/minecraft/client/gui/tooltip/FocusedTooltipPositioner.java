@@ -6,11 +6,21 @@ import net.minecraft.client.gui.ScreenRect;
 import org.joml.Vector2i;
 import org.joml.Vector2ic;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FocusedTooltipPositioner}.
+ * Позиционер тултипа для элемента, получившего фокус клавиатурной навигации.
+ * Размещает тултип под фокусированным виджетом с небольшим отступом,
+ * а при нехватке места снизу — над ним. Горизонтально выравнивается
+ * по левому краю виджета, не выходя за правый край экрана.
  */
+@Environment(EnvType.CLIENT)
 public class FocusedTooltipPositioner implements TooltipPositioner {
+
+	/** Отступ тултипа от границ фокусированного виджета. */
+	private static final int MARGIN = 3;
+	/** Минимальный отступ от правого края экрана. */
+	private static final int EDGE_PADDING = 4;
+	/** Дополнительный пиксель смещения для визуального разделения. */
+	private static final int EXTRA_PIXEL = 1;
 
 	private final ScreenRect focus;
 
@@ -20,17 +30,18 @@ public class FocusedTooltipPositioner implements TooltipPositioner {
 
 	@Override
 	public Vector2ic getPosition(int screenWidth, int screenHeight, int x, int y, int width, int height) {
-		Vector2i vector2i = new Vector2i();
-		vector2i.x = this.focus.getLeft() + 3;
-		vector2i.y = this.focus.getBottom() + 3 + 1;
-		if (vector2i.y + height + 3 > screenHeight) {
-			vector2i.y = this.focus.getTop() - height - 3 - 1;
+		Vector2i pos = new Vector2i();
+		pos.x = focus.getLeft() + MARGIN;
+		pos.y = focus.getBottom() + MARGIN + EXTRA_PIXEL;
+
+		if (pos.y + height + MARGIN > screenHeight) {
+			pos.y = focus.getTop() - height - MARGIN - EXTRA_PIXEL;
 		}
 
-		if (vector2i.x + width > screenWidth) {
-			vector2i.x = Math.max(this.focus.getRight() - width - 3, 4);
+		if (pos.x + width > screenWidth) {
+			pos.x = Math.max(focus.getRight() - width - MARGIN, EDGE_PADDING);
 		}
 
-		return vector2i;
+		return pos;
 	}
 }

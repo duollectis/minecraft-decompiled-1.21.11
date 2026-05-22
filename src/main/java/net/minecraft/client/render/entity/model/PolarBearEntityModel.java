@@ -16,7 +16,7 @@ public class PolarBearEntityModel extends QuadrupedEntityModel<PolarBearEntityRe
 	private static final float SNOUT_Y_OFFSET = 2.25F;
 	private static final ModelTransformer
 			BABY_TRANSFORMER =
-			new BabyModelTransformer(true, 16.0F, 4.0F, 2.25F, 2.0F, 24.0F, Set.of("head"));
+			new BabyModelTransformer(true, 16.0F, 4.0F, SNOUT_Y_OFFSET, 2.0F, 24.0F, Set.of("head"));
 
 	public PolarBearEntityModel(ModelPart modelPart) {
 		super(modelPart);

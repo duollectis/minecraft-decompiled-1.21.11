@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@code PlayerEquipmentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PlayerEquipmentFix extends DataFix {
 
@@ -24,9 +24,9 @@ public class PlayerEquipmentFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getTypeRaw(TypeReferences.PLAYER);
-		Type<?> type2 = this.getOutputSchema().getTypeRaw(TypeReferences.PLAYER);
-		return this.writeFixAndRead(
+		Type<?> type = getInputSchema().getTypeRaw(TypeReferences.PLAYER);
+		Type<?> type2 = getOutputSchema().getTypeRaw(TypeReferences.PLAYER);
+		return writeFixAndRead(
 				"Player Equipment Fix", type, type2, playerDynamic -> {
 					Map<Dynamic<?>, Dynamic<?>> map = new HashMap<>();
 					playerDynamic = playerDynamic.update(

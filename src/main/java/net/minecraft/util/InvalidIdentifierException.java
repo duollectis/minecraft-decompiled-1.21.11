@@ -3,7 +3,8 @@ package net.minecraft.util;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 /**
- * {@code InvalidIdentifierException}.
+ * Исключение, выбрасываемое при попытке создать {@link Identifier} с недопустимыми символами
+ * в пространстве имён или пути.
  */
 public class InvalidIdentifierException extends RuntimeException {
 
@@ -11,7 +12,7 @@ public class InvalidIdentifierException extends RuntimeException {
 		super(StringEscapeUtils.escapeJava(message));
 	}
 
-	public InvalidIdentifierException(String message, Throwable throwable) {
-		super(StringEscapeUtils.escapeJava(message), throwable);
+	public InvalidIdentifierException(String message, Throwable cause) {
+		super(StringEscapeUtils.escapeJava(message), cause);
 	}
 }

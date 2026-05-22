@@ -1,7 +1,8 @@
 package net.minecraft.entity.player;
 
 /**
- * {@code HungerConstants}.
+ * Константы системы голода и насыщения игрока.
+ * Все значения соответствуют ванильной механике Minecraft.
  */
 public class HungerConstants {
 
@@ -32,12 +33,12 @@ public class HungerConstants {
 	public static final float ATTACK_EXHAUSTION_BONUS = 0.01F;
 
 	/**
-	 * Вычисляет saturation.
+	 * Вычисляет уровень насыщения по питательности и модификатору насыщения.
+	 * Формула: {@code nutrition * saturationModifier * 2}.
 	 *
-	 * @param nutrition nutrition
-	 * @param saturationModifier saturation modifier
-	 *
-	 * @return float — результат операции
+	 * @param nutrition          питательность еды
+	 * @param saturationModifier модификатор насыщения (0.0–1.0 и выше)
+	 * @return итоговый уровень насыщения
 	 */
 	public static float calculateSaturation(int nutrition, float saturationModifier) {
 		return nutrition * saturationModifier * 2.0F;

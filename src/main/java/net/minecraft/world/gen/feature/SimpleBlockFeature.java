@@ -9,7 +9,8 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code SimpleBlockFeature}.
+ * Размещает одиночный блок из {@link SimpleBlockFeatureConfig#toPlace()} в точке генерации.
+ * Поддерживает двухблочные растения ({@link TallPlantBlock}) и бледный мох ({@link PaleMossCarpetBlock}).
  */
 public class SimpleBlockFeature extends Feature<SimpleBlockFeatureConfig> {
 
@@ -19,37 +20,31 @@ public class SimpleBlockFeature extends Feature<SimpleBlockFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<SimpleBlockFeatureConfig> context) {
-		SimpleBlockFeatureConfig simpleBlockFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		BlockState blockState = simpleBlockFeatureConfig.toPlace().get(context.getRandom(), blockPos);
-		if (blockState.canPlaceAt(structureWorldAccess, blockPos)) {
-			if (blockState.getBlock() instanceof TallPlantBlock) {
-				if (!structureWorldAccess.isAir(blockPos.up())) {
-					return false;
-				}
+		SimpleBlockFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos pos = context.getOrigin();
+		BlockState state = config.toPlace().get(context.getRandom(), pos);
 
-				TallPlantBlock.placeAt(structureWorldAccess, blockState, blockPos, 2);
-			}
-			else if (blockState.getBlock() instanceof PaleMossCarpetBlock) {
-				PaleMossCarpetBlock.placeAt(structureWorldAccess, blockPos, structureWorldAccess.getRandom(), 2);
-			}
-			else {
-				structureWorldAccess.setBlockState(blockPos, blockState, 2);
-			}
-
-			if (simpleBlockFeatureConfig.scheduleTick()) {
-				structureWorldAccess.scheduleBlockTick(
-						blockPos,
-						structureWorldAccess.getBlockState(blockPos).getBlock(),
-						1
-				);
-			}
-
-			return true;
-		}
-		else {
+		if (!state.canPlaceAt(world, pos)) {
 			return false;
 		}
+
+		if (state.getBlock() instanceof TallPlantBlock) {
+			if (!world.isAir(pos.up())) {
+				return false;
+			}
+
+			TallPlantBlock.placeAt(world, state, pos, 2);
+		} else if (state.getBlock() instanceof PaleMossCarpetBlock) {
+			PaleMossCarpetBlock.placeAt(world, pos, world.getRandom(), 2);
+		} else {
+			world.setBlockState(pos, state, 2);
+		}
+
+		if (config.scheduleTick()) {
+			world.scheduleBlockTick(pos, world.getBlockState(pos).getBlock(), 1);
+		}
+
+		return true;
 	}
 }

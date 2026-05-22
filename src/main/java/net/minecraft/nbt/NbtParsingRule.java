@@ -8,32 +8,32 @@ import net.minecraft.util.packrat.ParsingState;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NbtParsingRule}.
+ * Правило парсинга, оборачивающее {@link StringNbtReader} в интерфейс {@link ParsingRule}.
+ * <p>
+ * Используется в системе packrat-парсинга для встраивания NBT-литералов
+ * в более широкий контекст разбора команд или конфигурационных файлов.
+ * При ошибке парсинга добавляет исключение в список ошибок состояния и возвращает {@code null}.
+ *
+ * @param <T> целевой тип данных, определяемый переданным {@link DynamicOps}
  */
 public class NbtParsingRule<T> implements ParsingRule<StringReader, Dynamic<?>> {
 
 	private final StringNbtReader<T> nbtReader;
 
 	public NbtParsingRule(DynamicOps<T> ops) {
-		this.nbtReader = StringNbtReader.fromOps(ops);
+		nbtReader = StringNbtReader.fromOps(ops);
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return @Nullable Dynamic — результат операции
-	 */
+	@Override
 	public @Nullable Dynamic<T> parse(ParsingState<StringReader> parsingState) {
 		parsingState.getReader().skipWhitespace();
-		int i = parsingState.getCursor();
+		int cursorBeforeParse = parsingState.getCursor();
 
 		try {
-			return new Dynamic(this.nbtReader.getOps(), this.nbtReader.readAsArgument(parsingState.getReader()));
+			return new Dynamic(nbtReader.getOps(), nbtReader.readAsArgument(parsingState.getReader()));
 		}
-		catch (Exception var4) {
-			parsingState.getErrors().add(i, var4);
+		catch (Exception exception) {
+			parsingState.getErrors().add(cursorBeforeParse, exception);
 			return null;
 		}
 	}

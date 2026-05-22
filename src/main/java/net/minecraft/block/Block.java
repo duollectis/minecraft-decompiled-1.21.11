@@ -67,7 +67,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@code Block}.
+ * Базовый класс для всех блоков в игре. Управляет состояниями блока ({@link BlockState}),
+ * дропом предметов, взаимодействием с сущностями и рендером граней.
+ *
+ * <p>Каждый блок регистрируется в {@link net.minecraft.registry.Registries#BLOCK} и может
+ * иметь набор {@link net.minecraft.state.property.Property}, определяющих его состояния.
+ * Флаги обновления (NOTIFY_*, FORCE_STATE и т.д.) управляют поведением при смене состояния.</p>
  */
 public class Block extends AbstractBlock implements ItemConvertible, FabricBlock {
 
@@ -117,19 +122,15 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	private static final ThreadLocal<Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>>
 			FACE_CULL_MAP =
 			ThreadLocal.withInitial(() -> {
-				Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>
-						object2ByteLinkedOpenHashMap =
-						new Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>(256, 0.25F) {
-							/**
-							 * Rehash.
-							 *
-							 * @param newN new n
-							 */
+				// Переопределяем rehash чтобы запретить авторасширение кэша — размер фиксирован
+				Object2ByteLinkedOpenHashMap<Block.VoxelShapePair> map =
+						new Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>(FACE_CULL_MAP_SIZE, 0.25F) {
+							@Override
 							protected void rehash(int newN) {
 							}
 						};
-				object2ByteLinkedOpenHashMap.defaultReturnValue((byte) 127);
-				return object2ByteLinkedOpenHashMap;
+				map.defaultReturnValue((byte) 127);
+				return map;
 			});
 
 	@Override
@@ -141,10 +142,9 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		if (state == null) {
 			return 0;
 		}
-		else {
-			int i = STATE_IDS.getRawId(state);
-			return i == -1 ? 0 : i;
-		}
+
+		int rawId = STATE_IDS.getRawId(state);
+		return rawId == -1 ? 0 : rawId;
 	}
 
 	public static BlockState getStateFromRawId(int stateId) {
@@ -156,39 +156,39 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return item instanceof BlockItem ? ((BlockItem) item).getBlock() : Blocks.AIR;
 	}
 
+	/**
+	 * Перемещает сущности вверх перед сменой блока, если новый блок занимает больше пространства.
+	 * Используется при установке блоков, чтобы не допустить застревания сущностей внутри.
+	 */
 	public static BlockState pushEntitiesUpBeforeBlockChange(
 			BlockState from,
 			BlockState to,
 			WorldAccess world,
 			BlockPos pos
 	) {
-		VoxelShape
-				voxelShape =
-				VoxelShapes
-						.combine(
-								from.getCollisionShape(world, pos),
-								to.getCollisionShape(world, pos),
-								BooleanBiFunction.ONLY_SECOND
-						)
-						.offset(pos);
-		if (voxelShape.isEmpty()) {
-			return to;
-		}
-		else {
-			for (Entity entity : world.getOtherEntities(null, voxelShape.getBoundingBox())) {
-				double
-						d =
-						VoxelShapes.calculateMaxOffset(
-								Direction.Axis.Y,
-								entity.getBoundingBox().offset(0.0, 1.0, 0.0),
-								List.of(voxelShape),
-								-1.0
-						);
-				entity.requestTeleportOffset(0.0, 1.0 + d, 0.0);
-			}
+		VoxelShape newCollision = VoxelShapes
+				.combine(
+						from.getCollisionShape(world, pos),
+						to.getCollisionShape(world, pos),
+						BooleanBiFunction.ONLY_SECOND
+				)
+				.offset(pos);
 
+		if (newCollision.isEmpty()) {
 			return to;
 		}
+
+		for (Entity entity : world.getOtherEntities(null, newCollision.getBoundingBox())) {
+			double pushOffset = VoxelShapes.calculateMaxOffset(
+					Direction.Axis.Y,
+					entity.getBoundingBox().offset(0.0, 1.0, 0.0),
+					List.of(newCollision),
+					-1.0
+			);
+			entity.requestTeleportOffset(0.0, 1.0 + pushOffset, 0.0);
+		}
+
+		return to;
 	}
 
 	public static VoxelShape createCuboidShape(
@@ -349,7 +349,7 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 			BlockPos pos,
 			@Block.SetBlockStateFlag int flags
 	) {
-		replace(state, newState, world, pos, flags, 512);
+		replace(state, newState, world, pos, flags, SKIP_BLOCK_ADDED_CALLBACK);
 	}
 
 	public static void replace(
@@ -363,11 +363,11 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		if (newState != state) {
 			if (newState.isAir()) {
 				if (!world.isClient()) {
-					world.breakBlock(pos, (flags & 32) == 0, null, maxUpdateDepth);
+					world.breakBlock(pos, (flags & SKIP_DROPS) == 0, null, maxUpdateDepth);
 				}
 			}
 			else {
-				world.setBlockState(pos, newState, flags & -33, maxUpdateDepth);
+				world.setBlockState(pos, newState, flags & ~SKIP_DROPS, maxUpdateDepth);
 			}
 		}
 	}
@@ -433,13 +433,12 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
 		LootWorldContext lootWorldContext = contextFactory.apply(new LootWorldContext.Builder(world));
 		List<ItemStack> list = lootTable2.generateLoot(lootWorldContext);
-		if (!list.isEmpty()) {
-			list.forEach(stack -> lootConsumer.accept(world, stack));
-			return true;
-		}
-		else {
+		if (list.isEmpty()) {
 			return false;
 		}
+
+		list.forEach(stack -> lootConsumer.accept(world, stack));
+		return true;
 	}
 
 	/**
@@ -451,40 +450,47 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 *
 	 * @return boolean — результат операции
 	 */
+	/**
+	 * Определяет, нужно ли рендерить грань блока со стороны {@code side}.
+	 * Использует LRU-кэш пар форм для ускорения повторных проверок.
+	 */
 	public static boolean shouldDrawSide(BlockState state, BlockState otherState, Direction side) {
-		VoxelShape voxelShape = otherState.getCullingFace(side.getOpposite());
-		if (voxelShape == VoxelShapes.fullCube()) {
+		VoxelShape neighborCullFace = otherState.getCullingFace(side.getOpposite());
+
+		if (neighborCullFace == VoxelShapes.fullCube()) {
 			return false;
 		}
-		else if (state.isSideInvisible(otherState, side)) {
+
+		if (state.isSideInvisible(otherState, side)) {
 			return false;
 		}
-		else if (voxelShape == VoxelShapes.empty()) {
+
+		if (neighborCullFace == VoxelShapes.empty()) {
 			return true;
 		}
-		else {
-			VoxelShape voxelShape2 = state.getCullingFace(side);
-			if (voxelShape2 == VoxelShapes.empty()) {
-				return true;
-			}
-			else {
-				Block.VoxelShapePair voxelShapePair = new Block.VoxelShapePair(voxelShape2, voxelShape);
-				Object2ByteLinkedOpenHashMap<Block.VoxelShapePair> object2ByteLinkedOpenHashMap = FACE_CULL_MAP.get();
-				byte b = object2ByteLinkedOpenHashMap.getAndMoveToFirst(voxelShapePair);
-				if (b != 127) {
-					return b != 0;
-				}
-				else {
-					boolean bl = VoxelShapes.matchesAnywhere(voxelShape2, voxelShape, BooleanBiFunction.ONLY_FIRST);
-					if (object2ByteLinkedOpenHashMap.size() == 256) {
-						object2ByteLinkedOpenHashMap.removeLastByte();
-					}
 
-					object2ByteLinkedOpenHashMap.putAndMoveToFirst(voxelShapePair, (byte) (bl ? 1 : 0));
-					return bl;
-				}
-			}
+		VoxelShape ownCullFace = state.getCullingFace(side);
+
+		if (ownCullFace == VoxelShapes.empty()) {
+			return true;
 		}
+
+		Block.VoxelShapePair shapePair = new Block.VoxelShapePair(ownCullFace, neighborCullFace);
+		Object2ByteLinkedOpenHashMap<Block.VoxelShapePair> cullCache = FACE_CULL_MAP.get();
+		byte cachedResult = cullCache.getAndMoveToFirst(shapePair);
+
+		if (cachedResult != 127) {
+			return cachedResult != 0;
+		}
+
+		boolean shouldDraw = VoxelShapes.matchesAnywhere(ownCullFace, neighborCullFace, BooleanBiFunction.ONLY_FIRST);
+
+		if (cullCache.size() == FACE_CULL_MAP_SIZE) {
+			cullCache.removeLastByte();
+		}
+
+		cullCache.putAndMoveToFirst(shapePair, (byte) (shouldDraw ? 1 : 0));
+		return shouldDraw;
 	}
 
 	public static boolean hasTopRim(BlockView world, BlockPos pos) {
@@ -502,9 +508,12 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 */
 	public static boolean sideCoversSmallSquare(WorldView world, BlockPos pos, Direction side) {
 		BlockState blockState = world.getBlockState(pos);
-		return side == Direction.DOWN && blockState.isIn(BlockTags.UNSTABLE_BOTTOM_CENTER)
-		       ? false
-		       : blockState.isSideSolid(world, pos, side, SideShapeType.CENTER);
+
+		if (side == Direction.DOWN && blockState.isIn(BlockTags.UNSTABLE_BOTTOM_CENTER)) {
+			return false;
+		}
+
+		return blockState.isSideSolid(world, pos, side, SideShapeType.CENTER);
 	}
 
 	public static boolean isFaceFullSquare(VoxelShape shape, Direction side) {
@@ -513,7 +522,7 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	}
 
 	public static boolean isShapeFullCube(VoxelShape shape) {
-		return (Boolean) FULL_CUBE_SHAPE_CACHE.getUnchecked(shape);
+		return FULL_CUBE_SHAPE_CACHE.getUnchecked(shape);
 	}
 
 	/**
@@ -574,9 +583,9 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 * @param pos pos
 	 */
 	public static void dropStacks(BlockState state, World world, BlockPos pos) {
-		if (world instanceof ServerWorld) {
-			getDroppedStacks(state, (ServerWorld) world, pos, null).forEach(stack -> dropStack(world, pos, stack));
-			state.onStacksDropped((ServerWorld) world, pos, ItemStack.EMPTY, true);
+		if (world instanceof ServerWorld serverWorld) {
+			getDroppedStacks(state, serverWorld, pos, null).forEach(stack -> dropStack(world, pos, stack));
+			state.onStacksDropped(serverWorld, pos, ItemStack.EMPTY, true);
 		}
 	}
 
@@ -586,14 +595,10 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 			BlockPos pos,
 			@Nullable BlockEntity blockEntity
 	) {
-		if (world instanceof ServerWorld) {
-			getDroppedStacks(
-					state,
-					(ServerWorld) world,
-					pos,
-					blockEntity
-			).forEach(stack -> dropStack((ServerWorld) world, pos, stack));
-			state.onStacksDropped((ServerWorld) world, pos, ItemStack.EMPTY, true);
+		if (world instanceof ServerWorld serverWorld) {
+			getDroppedStacks(state, serverWorld, pos, blockEntity)
+					.forEach(stack -> dropStack(serverWorld, pos, stack));
+			state.onStacksDropped(serverWorld, pos, ItemStack.EMPTY, true);
 		}
 	}
 
@@ -605,13 +610,10 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 			@Nullable Entity entity,
 			ItemStack tool
 	) {
-		if (world instanceof ServerWorld) {
-			getDroppedStacks(state, (ServerWorld) world, pos, blockEntity, entity, tool).forEach(stack -> dropStack(
-					world,
-					pos,
-					stack
-			));
-			state.onStacksDropped((ServerWorld) world, pos, tool, true);
+		if (world instanceof ServerWorld serverWorld) {
+			getDroppedStacks(state, serverWorld, pos, blockEntity, entity, tool)
+					.forEach(stack -> dropStack(world, pos, stack));
+			state.onStacksDropped(serverWorld, pos, tool, true);
 		}
 	}
 
@@ -623,11 +625,11 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 * @param stack stack
 	 */
 	public static void dropStack(World world, BlockPos pos, ItemStack stack) {
-		double d = EntityType.ITEM.getHeight() / 2.0;
-		double e = pos.getX() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25);
-		double f = pos.getY() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25) - d;
-		double g = pos.getZ() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25);
-		dropStack(world, () -> new ItemEntity(world, e, f, g, stack), stack);
+		double halfHeight = EntityType.ITEM.getHeight() / 2.0;
+		double spawnX = pos.getX() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25);
+		double spawnY = pos.getY() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25) - halfHeight;
+		double spawnZ = pos.getZ() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25);
+		dropStack(world, () -> new ItemEntity(world, spawnX, spawnY, spawnZ, stack), stack);
 	}
 
 	/**
@@ -639,18 +641,24 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 * @param stack stack
 	 */
 	public static void dropStack(World world, BlockPos pos, Direction direction, ItemStack stack) {
-		int i = direction.getOffsetX();
-		int j = direction.getOffsetY();
-		int k = direction.getOffsetZ();
-		double d = EntityType.ITEM.getWidth() / 2.0;
-		double e = EntityType.ITEM.getHeight() / 2.0;
-		double f = pos.getX() + 0.5 + (i == 0 ? MathHelper.nextDouble(world.random, -0.25, 0.25) : i * (0.5 + d));
-		double g = pos.getY() + 0.5 + (j == 0 ? MathHelper.nextDouble(world.random, -0.25, 0.25) : j * (0.5 + e)) - e;
-		double h = pos.getZ() + 0.5 + (k == 0 ? MathHelper.nextDouble(world.random, -0.25, 0.25) : k * (0.5 + d));
-		double l = i == 0 ? MathHelper.nextDouble(world.random, -0.1, 0.1) : i * 0.1;
-		double m = j == 0 ? MathHelper.nextDouble(world.random, 0.0, 0.1) : j * 0.1 + 0.1;
-		double n = k == 0 ? MathHelper.nextDouble(world.random, -0.1, 0.1) : k * 0.1;
-		dropStack(world, () -> new ItemEntity(world, f, g, h, stack, l, m, n), stack);
+		int offsetX = direction.getOffsetX();
+		int offsetY = direction.getOffsetY();
+		int offsetZ = direction.getOffsetZ();
+		double halfWidth = EntityType.ITEM.getWidth() / 2.0;
+		double halfHeight = EntityType.ITEM.getHeight() / 2.0;
+		double spawnX = pos.getX() + 0.5 + (offsetX == 0
+				? MathHelper.nextDouble(world.random, -0.25, 0.25)
+				: offsetX * (0.5 + halfWidth));
+		double spawnY = pos.getY() + 0.5 + (offsetY == 0
+				? MathHelper.nextDouble(world.random, -0.25, 0.25)
+				: offsetY * (0.5 + halfHeight)) - halfHeight;
+		double spawnZ = pos.getZ() + 0.5 + (offsetZ == 0
+				? MathHelper.nextDouble(world.random, -0.25, 0.25)
+				: offsetZ * (0.5 + halfWidth));
+		double velocityX = offsetX == 0 ? MathHelper.nextDouble(world.random, -0.1, 0.1) : offsetX * 0.1;
+		double velocityY = offsetY == 0 ? MathHelper.nextDouble(world.random, 0.0, 0.1) : offsetY * 0.1 + 0.1;
+		double velocityZ = offsetZ == 0 ? MathHelper.nextDouble(world.random, -0.1, 0.1) : offsetZ * 0.1;
+		dropStack(world, () -> new ItemEntity(world, spawnX, spawnY, spawnZ, stack, velocityX, velocityY, velocityZ), stack);
 	}
 
 	private static void dropStack(World world, Supplier<ItemEntity> itemEntitySupplier, ItemStack stack) {
@@ -957,12 +965,17 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	 * @param experience experience
 	 */
 	protected void dropExperienceWhenMined(ServerWorld world, BlockPos pos, ItemStack tool, IntProvider experience) {
-		int i = EnchantmentHelper.getBlockExperience(world, tool, experience.get(world.getRandom()));
-		if (i > 0) {
-			this.dropExperience(world, pos, i);
+		int amount = EnchantmentHelper.getBlockExperience(world, tool, experience.get(world.getRandom()));
+
+		if (amount > 0) {
+			dropExperience(world, pos, amount);
 		}
 	}
 
+	/**
+	 * Маркерная аннотация для параметров и полей, принимающих битовые флаги смены состояния блока
+	 * (комбинации констант {@code NOTIFY_*}, {@code FORCE_STATE}, {@code SKIP_DROPS} и т.д.).
+	 */
 	@Retention(RetentionPolicy.CLASS)
 	@Target(
 			{
@@ -973,26 +986,23 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 					ElementType.TYPE_USE
 			}
 	)
-	/**
-	 * {@code SetBlockStateFlag}.
-	 */
 	public @interface SetBlockStateFlag {
 	}
 
 	/**
-	 * {@code VoxelShapePair}.
+	 * Пара форм для кэша отсечения граней. Сравнение по идентичности объектов (==),
+	 * так как VoxelShape — синглтоны, и equals по значению здесь избыточен.
 	 */
 	record VoxelShapePair(VoxelShape first, VoxelShape second) {
 
 		@Override
 		public boolean equals(Object o) {
-			return o instanceof Block.VoxelShapePair voxelShapePair && this.first == voxelShapePair.first
-					&& this.second == voxelShapePair.second;
+			return o instanceof Block.VoxelShapePair other && first == other.first && second == other.second;
 		}
 
 		@Override
 		public int hashCode() {
-			return System.identityHashCode(this.first) * 31 + System.identityHashCode(this.second);
+			return System.identityHashCode(first) * 31 + System.identityHashCode(second);
 		}
 	}
 }

@@ -35,7 +35,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		lootTableBiConsumer.accept(
 				LootTables.ABANDONED_MINESHAFT_CHEST,
 				LootTable.builder()
@@ -48,7 +48,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .weight(10)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry.builder(Items.IRON_PICKAXE).weight(5))
 						                 .with(EmptyEntry.builder().weight(5))
 				         )
@@ -451,7 +451,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .weight(10)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 				         )
 				         .pool(
 						         LootPool.builder()
@@ -712,7 +712,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .apply(EnchantWithLevelsLootFunction.builder(
-										                 this.registries,
+										                 registries,
 										                 ConstantLootNumberProvider.create(30.0F)
 								                 )))
 				         )
@@ -758,13 +758,13 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .weight(5)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry.builder(Items.LEATHER_CHESTPLATE))
 						                 .with(ItemEntry.builder(Items.GOLDEN_HELMET))
 						                 .with(ItemEntry
 								                 .builder(Items.FISHING_ROD)
 								                 .weight(5)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(
 								                 ItemEntry.builder(Items.MAP)
 								                          .weight(10)
@@ -843,7 +843,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.FISHING_ROD)
 								                 .weight(5)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(
 								                 ItemEntry.builder(Items.MAP)
 								                          .weight(5)
@@ -1772,39 +1772,39 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_SWORD)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_AXE)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_HOE)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_SHOVEL)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_PICKAXE)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_BOOTS)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_CHESTPLATE)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_HELMET)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry
 								                 .builder(Items.GOLDEN_LEGGINGS)
 								                 .weight(15)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(
 								                 ItemEntry.builder(Items.GLISTERING_MELON_SLICE)
 								                          .weight(5)
@@ -2264,7 +2264,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 										                          0.4F,
 										                          0.9F
 								                          )))
-								                          .apply(EnchantRandomlyLootFunction.builder(this.registries))
+								                          .apply(EnchantRandomlyLootFunction.builder(registries))
 								                          .weight(1)
 						                 )
 						                 .with(
@@ -2351,7 +2351,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 										                          0.4F,
 										                          0.9F
 								                          )))
-								                          .apply(EnchantRandomlyLootFunction.builder(this.registries))
+								                          .apply(EnchantRandomlyLootFunction.builder(registries))
 								                          .weight(1)
 						                 )
 						                 .with(ItemEntry
@@ -2451,7 +2451,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.BOW)
 								                          .weight(3)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(5.0F, 15.0F)
 								                          ))
 						                 )
@@ -2459,7 +2459,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.CROSSBOW)
 								                          .weight(2)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(5.0F, 20.0F)
 								                          ))
 						                 )
@@ -2467,7 +2467,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.IRON_AXE)
 								                          .weight(2)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 10.0F)
 								                          ))
 						                 )
@@ -2475,7 +2475,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.IRON_CHESTPLATE)
 								                          .weight(2)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 10.0F)
 								                          ))
 						                 )
@@ -2523,7 +2523,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.DIAMOND_CHESTPLATE)
 								                          .weight(1)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(5.0F, 15.0F)
 								                          ))
 						                 )
@@ -2531,7 +2531,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.DIAMOND_AXE)
 								                          .weight(1)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(5.0F, 15.0F)
 								                          ))
 						                 )
@@ -2661,7 +2661,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.CROSSBOW)
 								                          .weight(4)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(5.0F, 20.0F)
 								                          ))
 						                 )
@@ -2670,7 +2670,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.DIAMOND_AXE)
 								                          .weight(3)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(10.0F, 20.0F)
 								                          ))
 						                 )
@@ -2678,7 +2678,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                 ItemEntry.builder(Items.DIAMOND_CHESTPLATE)
 								                          .weight(3)
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(10.0F, 20.0F)
 								                          ))
 						                 )
@@ -2811,7 +2811,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 	}
 
 	public void acceptTrialSpawnerTables(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		lootTableBiConsumer.accept(
 				LootTables.TRIAL_CHAMBER_KEY_SPAWNER,
 				LootTable
@@ -3134,19 +3134,19 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.LEATHER_HELMET)
 						                        .weight(3)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry
 						                        .builder(Items.LEATHER_CHESTPLATE)
 						                        .weight(3)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry
 						                        .builder(Items.LEATHER_LEGGINGS)
 						                        .weight(3)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry
 						                        .builder(Items.LEATHER_BOOTS)
 						                        .weight(3)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 		                )
 		                .pool(
 				                LootPool.builder()
@@ -3286,7 +3286,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.15F,
 								                                 0.8F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_PICKAXE)
@@ -3297,7 +3297,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                                 )))
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Items.NETHERITE_SCRAP)
@@ -3346,7 +3346,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.GOLDEN_AXE)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Blocks.CRYING_OBSIDIAN)
@@ -3460,7 +3460,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.1F,
 								                                 0.5F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Items.SPECTRAL_ARROW)
@@ -3504,31 +3504,31 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.GOLDEN_CHESTPLATE)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.GOLDEN_HELMET)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.GOLDEN_LEGGINGS)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.GOLDEN_BOOTS)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.GOLDEN_AXE)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 		                )
 		                .pool(
@@ -3628,7 +3628,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_SWORD)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3636,7 +3636,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_SPEAR)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3644,7 +3644,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_BOOTS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3652,7 +3652,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_CHESTPLATE)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3660,7 +3660,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_LEGGINGS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3668,7 +3668,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_HELMET)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3676,7 +3676,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_PICKAXE)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3684,7 +3684,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_SHOVEL)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3692,7 +3692,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_SWORD)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3700,7 +3700,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_BOOTS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3708,7 +3708,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_CHESTPLATE)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3716,7 +3716,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_LEGGINGS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3724,7 +3724,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_HELMET)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3732,7 +3732,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_PICKAXE)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3740,7 +3740,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_SHOVEL)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -3842,7 +3842,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_SPEAR)
@@ -3851,7 +3851,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_CHESTPLATE)
@@ -3860,7 +3860,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_HELMET)
@@ -3869,7 +3869,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_LEGGINGS)
@@ -3878,7 +3878,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.DIAMOND_BOOTS)
@@ -3887,7 +3887,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.8F,
 								                                 1.0F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry.builder(Items.DIAMOND_SWORD).weight(6))
 				                        .with(ItemEntry.builder(Items.DIAMOND_SPEAR).weight(6))
@@ -3979,7 +3979,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 	}
 
 	public LootTable.Builder createBastionOtherChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(
 				                LootPool.builder()
@@ -3989,7 +3989,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                                 .weight(6)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Items.DIAMOND_SHOVEL)
@@ -4003,7 +4003,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 0.1F,
 								                                 0.9F
 						                                 )))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Items.ANCIENT_DEBRIS)
@@ -4062,7 +4062,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                                 )))
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Blocks.IRON_BLOCK)
@@ -4080,7 +4080,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.GOLDEN_AXE)
 						                                 .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 								                                 1.0F)))
-						                                 .apply(EnchantRandomlyLootFunction.builder(this.registries))
+						                                 .apply(EnchantRandomlyLootFunction.builder(registries))
 				                        )
 				                        .with(ItemEntry
 						                        .builder(Blocks.GOLD_BLOCK)
@@ -4229,7 +4229,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(10)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 		                )
 		                .pool(
 				                LootPool.builder()
@@ -4365,7 +4365,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.BOOK)
 						                                 .weight(10)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 ConstantLootNumberProvider.create(30.0F)
 						                                 ))
 				                        )
@@ -4445,7 +4445,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .apply(EnchantWithLevelsLootFunction.builder(
-								                        this.registries,
+								                        registries,
 								                        ConstantLootNumberProvider.create(30.0F)
 						                        )))
 		                )
@@ -4458,7 +4458,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 	}
 
 	public LootTable.Builder createAncientCityChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(
 				                LootPool.builder()
@@ -4496,7 +4496,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 								                                 1.0F
 						                                 )))
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(30.0F, 50.0F)
 						                                 ))
 				                        )
@@ -4523,7 +4523,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.DIAMOND_LEGGINGS)
 						                                 .weight(2)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(30.0F, 50.0F)
 						                                 ))
 				                        )
@@ -4578,7 +4578,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 						                        ItemEntry.builder(Items.IRON_LEGGINGS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -4608,7 +4608,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(5)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(5)
@@ -4715,7 +4715,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .apply(EnchantWithLevelsLootFunction.builder(
-								                        this.registries,
+								                        registries,
 								                        ConstantLootNumberProvider.create(30.0F)
 						                        )))
 		                )
@@ -4900,7 +4900,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(1)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 		                )
 		                .pool(
 				                LootPool.builder()
@@ -4989,7 +4989,7 @@ public record VanillaChestLootTableGenerator(RegistryWrapper.WrapperLookup regis
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(20)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry.builder(Items.GOLDEN_APPLE).weight(20))
 				                        .with(ItemEntry.builder(Items.ENCHANTED_GOLDEN_APPLE).weight(2))
 				                        .with(EmptyEntry.builder().weight(15))

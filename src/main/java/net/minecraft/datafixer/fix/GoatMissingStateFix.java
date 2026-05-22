@@ -6,7 +6,9 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code GoatMissingStateFix}.
+ * Добавляет отсутствующие поля {@code HasLeftHorn} и {@code HasRightHorn}
+ * козлу, устанавливая оба в {@code true} по умолчанию.
+ * Поля могли отсутствовать в мирах, созданных до их введения.
  */
 public class GoatMissingStateFix extends ChoiceFix {
 
@@ -17,10 +19,10 @@ public class GoatMissingStateFix extends ChoiceFix {
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
 		return inputTyped.update(
-				DSL.remainderFinder(),
-				goatDynamic -> goatDynamic
-						.set("HasLeftHorn", goatDynamic.createBoolean(true))
-						.set("HasRightHorn", goatDynamic.createBoolean(true))
+			DSL.remainderFinder(),
+			goat -> goat
+				.set("HasLeftHorn", goat.createBoolean(true))
+				.set("HasRightHorn", goat.createBoolean(true))
 		);
 	}
 }

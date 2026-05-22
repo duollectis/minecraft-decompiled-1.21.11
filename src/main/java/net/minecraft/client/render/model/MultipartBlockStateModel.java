@@ -1,7 +1,6 @@
 package net.minecraft.client.render.model;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.fabricmc.api.EnvType;
@@ -17,10 +16,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultipartBlockStateModel}.
+ * Модель состояния блока, составленная из нескольких частей (multipart).
+ * Каждая часть имеет условие {@link Selector#condition()} — предикат над {@link BlockState}.
+ * При рендеринге добавляются только те части, чьё условие выполняется для текущего состояния.
  */
+@Environment(EnvType.CLIENT)
 public class MultipartBlockStateModel implements BlockStateModel {
 
 	private final MultipartBlockStateModel.MultipartBakedModel bakedModels;
@@ -34,149 +35,132 @@ public class MultipartBlockStateModel implements BlockStateModel {
 
 	@Override
 	public Sprite particleSprite() {
-		return this.bakedModels.particleSprite;
+		return bakedModels.particleSprite;
 	}
 
 	@Override
 	public void addParts(Random random, List<BlockModelPart> parts) {
-		if (this.models == null) {
-			this.models = this.bakedModels.build(this.state);
+		if (models == null) {
+			models = bakedModels.build(state);
 		}
 
-		long l = random.nextLong();
+		long seed = random.nextLong();
 
-		for (BlockStateModel blockStateModel : this.models) {
-			random.setSeed(l);
-			blockStateModel.addParts(random, parts);
+		for (BlockStateModel model : models) {
+			random.setSeed(seed);
+			model.addParts(random, parts);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MultipartBakedModel}.
+	 * Запечённая мультипарт-модель: хранит список селекторов и кэш результатов
+	 * фильтрации по {@link BitSet} активных условий для каждого состояния блока.
 	 */
+	@Environment(EnvType.CLIENT)
 	static final class MultipartBakedModel {
 
 		private final List<MultipartBlockStateModel.Selector<BlockStateModel>> selectors;
 		final Sprite particleSprite;
-		private final Map<BitSet, List<BlockStateModel>> map = new ConcurrentHashMap<>();
+		private final Map<BitSet, List<BlockStateModel>> cache = new ConcurrentHashMap<>();
 
 		private static BlockStateModel getFirst(List<MultipartBlockStateModel.Selector<BlockStateModel>> selectors) {
 			if (selectors.isEmpty()) {
 				throw new IllegalArgumentException("Model must have at least one selector");
 			}
-			else {
-				return selectors.getFirst().model();
-			}
+
+			return selectors.getFirst().model();
 		}
 
 		public MultipartBakedModel(List<MultipartBlockStateModel.Selector<BlockStateModel>> selectors) {
 			this.selectors = selectors;
-			BlockStateModel blockStateModel = getFirst(selectors);
-			this.particleSprite = blockStateModel.particleSprite();
+			particleSprite = getFirst(selectors).particleSprite();
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param state state
-		 *
-		 * @return List — результат операции
-		 */
 		public List<BlockStateModel> build(BlockState state) {
-			BitSet bitSet = new BitSet();
+			BitSet activeBits = new BitSet();
 
-			for (int i = 0; i < this.selectors.size(); i++) {
-				if (this.selectors.get(i).condition.test(state)) {
-					bitSet.set(i);
+			for (int i = 0; i < selectors.size(); i++) {
+				if (selectors.get(i).condition().test(state)) {
+					activeBits.set(i);
 				}
 			}
 
-			return this.map.computeIfAbsent(
-					bitSet, bitSetx -> {
-						Builder<BlockStateModel> builder = ImmutableList.builder();
+			return cache.computeIfAbsent(activeBits, bits -> {
+				ImmutableList.Builder<BlockStateModel> builder = ImmutableList.builder();
 
-						for (int ix = 0; ix < this.selectors.size(); ix++) {
-							if (bitSetx.get(ix)) {
-								builder.add(this.selectors.get(ix).model);
-							}
-						}
-
-						return builder.build();
+				for (int i = 0; i < selectors.size(); i++) {
+					if (bits.get(i)) {
+						builder.add(selectors.get(i).model());
 					}
-			);
+				}
+
+				return builder.build();
+			});
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MultipartUnbaked}.
+	 * Незапечённая мультипарт-модель: запекает каждый селектор через {@link Baker}
+	 * и кэширует результат через {@link Baker.ResolvableCacheKey}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class MultipartUnbaked implements BlockStateModel.UnbakedGrouped {
 
 		final List<MultipartBlockStateModel.Selector<BlockStateModel.Unbaked>> selectors;
-		private final Baker.ResolvableCacheKey<MultipartBlockStateModel.MultipartBakedModel>
-				bakerCache =
-				new Baker.ResolvableCacheKey<MultipartBlockStateModel.MultipartBakedModel>(
 
-				) {
-					public MultipartBlockStateModel.MultipartBakedModel compute(Baker baker) {
-						Builder<MultipartBlockStateModel.Selector<BlockStateModel>>
-								builder =
-								ImmutableList.builderWithExpectedSize(MultipartUnbaked.this.selectors.size());
-
-						for (MultipartBlockStateModel.Selector<BlockStateModel.Unbaked> selector : MultipartUnbaked.this.selectors) {
-							builder.add(selector.build(selector.model.bake(baker)));
-						}
-
-						return new MultipartBlockStateModel.MultipartBakedModel(builder.build());
-					}
-				};
+		private final Baker.ResolvableCacheKey<MultipartBlockStateModel.MultipartBakedModel> bakerCache;
 
 		public MultipartUnbaked(List<MultipartBlockStateModel.Selector<BlockStateModel.Unbaked>> selectors) {
 			this.selectors = selectors;
+			this.bakerCache = baker -> {
+				ImmutableList.Builder<MultipartBlockStateModel.Selector<BlockStateModel>> builder =
+						ImmutableList.builderWithExpectedSize(selectors.size());
+
+				for (MultipartBlockStateModel.Selector<BlockStateModel.Unbaked> selector : selectors) {
+					builder.add(selector.build(selector.model().bake(baker)));
+				}
+
+				return new MultipartBlockStateModel.MultipartBakedModel(builder.build());
+			};
 		}
 
 		@Override
 		public Object getEqualityGroup(BlockState state) {
-			IntList intList = new IntArrayList();
+			IntList activeIndices = new IntArrayList();
 
-			for (int i = 0; i < this.selectors.size(); i++) {
-				if (this.selectors.get(i).condition.test(state)) {
-					intList.add(i);
+			for (int i = 0; i < selectors.size(); i++) {
+				if (selectors.get(i).condition().test(state)) {
+					activeIndices.add(i);
 				}
 			}
 
 			@Environment(EnvType.CLIENT)
-			/**
-			 * {@code EqualityGroup}.
-			 */
 			record EqualityGroup(MultipartBlockStateModel.MultipartUnbaked model, IntList selectors) {
 			}
 
-			return new EqualityGroup(this, intList);
+			return new EqualityGroup(this, activeIndices);
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.selectors.forEach(selector -> selector.model.resolve(resolver));
+			selectors.forEach(selector -> selector.model().resolve(resolver));
 		}
 
 		@Override
 		public BlockStateModel bake(BlockState state, Baker baker) {
-			MultipartBlockStateModel.MultipartBakedModel multipartBakedModel = baker.compute(this.bakerCache);
-			return new MultipartBlockStateModel(multipartBakedModel, state);
+			return new MultipartBlockStateModel(baker.compute(bakerCache), state);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Selector}.
+	 * Пара условие + модель для мультипарт-блока.
+	 * Метод {@link #build(Object)} создаёт новый селектор с тем же условием, но другой моделью.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Selector<T>(Predicate<BlockState> condition, T model) {
 
-		public <S> MultipartBlockStateModel.Selector<S> build(S object) {
-			return new MultipartBlockStateModel.Selector<>(this.condition, object);
+		public <S> MultipartBlockStateModel.Selector<S> build(S newModel) {
+			return new MultipartBlockStateModel.Selector<>(condition, newModel);
 		}
 	}
 }

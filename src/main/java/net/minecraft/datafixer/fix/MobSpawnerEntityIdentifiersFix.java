@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code MobSpawnerEntityIdentifiersFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class MobSpawnerEntityIdentifiersFix extends DataFix {
 
@@ -80,10 +80,10 @@ public class MobSpawnerEntityIdentifiersFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getOutputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
+		return fixTypeEverywhereTyped(
 				"MobSpawnerEntityIdentifiersFix",
-				this.getInputSchema().getType(TypeReferences.UNTAGGED_SPAWNER),
+				getInputSchema().getType(TypeReferences.UNTAGGED_SPAWNER),
 				type,
 				untaggedSpawnerTyped -> {
 					Dynamic<?> dynamic = (Dynamic<?>) untaggedSpawnerTyped.get(DSL.remainderFinder());

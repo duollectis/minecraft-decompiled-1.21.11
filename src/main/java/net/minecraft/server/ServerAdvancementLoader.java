@@ -1,7 +1,6 @@
 package net.minecraft.server;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
 import com.mojang.logging.LogUtils;
 import net.minecraft.advancement.*;
 import net.minecraft.registry.RegistryKeys;
@@ -18,11 +17,14 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * {@code ServerAdvancementLoader}.
+ * Загрузчик достижений из датапаков.
+ * После загрузки строит дерево {@link AdvancementManager} и расставляет позиции
+ * корневых достижений через {@link AdvancementPositioner}.
  */
 public class ServerAdvancementLoader extends JsonDataLoader<Advancement> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private Map<Identifier, AdvancementEntry> advancements = Map.of();
 	private AdvancementManager manager = new AdvancementManager();
 	private final RegistryWrapper.WrapperLookup registries;
@@ -32,56 +34,46 @@ public class ServerAdvancementLoader extends JsonDataLoader<Advancement> {
 		this.registries = registries;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param map map
-	 * @param resourceManager resource manager
-	 * @param profiler profiler
-	 */
+	@Override
 	protected void apply(Map<Identifier, Advancement> map, ResourceManager resourceManager, Profiler profiler) {
-		Builder<Identifier, AdvancementEntry> builder = ImmutableMap.builder();
+		ImmutableMap.Builder<Identifier, AdvancementEntry> builder = ImmutableMap.builder();
 		map.forEach((id, advancement) -> {
-			this.validate(id, advancement);
+			validate(id, advancement);
 			builder.put(id, new AdvancementEntry(id, advancement));
 		});
-		this.advancements = builder.buildOrThrow();
-		AdvancementManager advancementManager = new AdvancementManager();
-		advancementManager.addAll(this.advancements.values());
 
-		for (PlacedAdvancement placedAdvancement : advancementManager.getRoots()) {
-			if (placedAdvancement.getAdvancementEntry().value().display().isPresent()) {
-				AdvancementPositioner.arrangeForTree(placedAdvancement);
+		advancements = builder.buildOrThrow();
+
+		AdvancementManager advancementManager = new AdvancementManager();
+		advancementManager.addAll(advancements.values());
+
+		for (PlacedAdvancement root : advancementManager.getRoots()) {
+			if (root.getAdvancementEntry().value().display().isPresent()) {
+				AdvancementPositioner.arrangeForTree(root);
 			}
 		}
 
-		this.manager = advancementManager;
+		manager = advancementManager;
 	}
 
 	private void validate(Identifier id, Advancement advancement) {
-		ErrorReporter.Impl impl = new ErrorReporter.Impl();
-		advancement.validate(impl, this.registries);
-		if (!impl.isEmpty()) {
-			LOGGER.warn("Found validation problems in advancement {}: \n{}", id, impl.getErrorsAsString());
+		ErrorReporter.Impl reporter = new ErrorReporter.Impl();
+		advancement.validate(reporter, registries);
+
+		if (!reporter.isEmpty()) {
+			LOGGER.warn("Found validation problems in advancement {}: \n{}", id, reporter.getErrorsAsString());
 		}
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return @Nullable AdvancementEntry — 
-	 */
 	public @Nullable AdvancementEntry get(Identifier id) {
-		return this.advancements.get(id);
+		return advancements.get(id);
 	}
 
 	public AdvancementManager getManager() {
-		return this.manager;
+		return manager;
 	}
 
 	public Collection<AdvancementEntry> getAdvancements() {
-		return this.advancements.values();
+		return advancements.values();
 	}
 }

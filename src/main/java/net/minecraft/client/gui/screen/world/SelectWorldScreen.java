@@ -23,10 +23,11 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SelectWorldScreen}.
+ * Экран выбора мира для одиночной игры.
+ * Отображает список сохранённых миров с поиском и кнопками управления.
  */
+@Environment(EnvType.CLIENT)
 public class SelectWorldScreen extends Screen {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -49,62 +50,57 @@ public class SelectWorldScreen extends Screen {
 
 	@Override
 	protected void init() {
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addHeader(DirectionalLayoutWidget.vertical().spacing(4));
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		directionalLayoutWidget.add(new TextWidget(this.title, this.textRenderer));
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(4));
+		DirectionalLayoutWidget headerLayout = layout.addHeader(DirectionalLayoutWidget.vertical().spacing(4));
+		headerLayout.getMainPositioner().alignHorizontalCenter();
+		headerLayout.add(new TextWidget(title, textRenderer));
+		DirectionalLayoutWidget searchRow = headerLayout.add(DirectionalLayoutWidget.horizontal().spacing(4));
+
 		if (SharedConstants.WORLD_RECREATE) {
-			directionalLayoutWidget2.add(this.createDebugRecreateButton());
+			searchRow.add(createDebugRecreateButton());
 		}
 
-		this.searchBox = directionalLayoutWidget2.add(
+		searchBox = searchRow.add(
 				new TextFieldWidget(
-						this.textRenderer,
-						this.width / 2 - 100,
+						textRenderer,
+						width / 2 - 100,
 						22,
 						200,
 						20,
-						this.searchBox,
+						searchBox,
 						Text.translatable("selectWorld.search")
 				)
 		);
-		this.searchBox.setChangedListener(search -> {
-			if (this.levelList != null) {
-				this.levelList.setSearch(search);
+		searchBox.setChangedListener(search -> {
+			if (levelList != null) {
+				levelList.setSearch(search);
 			}
 		});
-		this.searchBox.setPlaceholder(Text
+		searchBox.setPlaceholder(Text
 				.translatable("gui.selectWorld.search")
 				.setStyle(TextFieldWidget.SEARCH_STYLE));
-		Consumer<WorldListWidget.WorldEntry> consumer = WorldListWidget.WorldEntry::play;
-		this.levelList = this.layout
-				.addBody(
-						new WorldListWidget.Builder(this.client, this)
-								.width(this.width)
-								.height(this.layout.getContentHeight())
-								.search(this.searchBox.getText())
-								.predecessor(this.levelList)
-								.selectionCallback(this::worldSelected)
-								.confirmationCallback(consumer)
-								.toWidget()
-				);
-		this.addButtons(consumer, this.levelList);
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
-		this.worldSelected(null);
+
+		Consumer<WorldListWidget.WorldEntry> playAction = WorldListWidget.WorldEntry::play;
+		levelList = layout.addBody(
+				new WorldListWidget.Builder(client, this)
+						.width(width)
+						.height(layout.getContentHeight())
+						.search(searchBox.getText())
+						.predecessor(levelList)
+						.selectionCallback(this::worldSelected)
+						.confirmationCallback(playAction)
+						.toWidget()
+		);
+		addButtons(playAction, levelList);
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
+		worldSelected(null);
 	}
 
 	private void addButtons(Consumer<WorldListWidget.WorldEntry> playAction, WorldListWidget levelList) {
-		GridWidget gridWidget = this.layout.addFooter(new GridWidget().setColumnSpacing(8).setRowSpacing(4));
+		GridWidget gridWidget = layout.addFooter(new GridWidget().setColumnSpacing(8).setRowSpacing(4));
 		gridWidget.getMainPositioner().alignHorizontalCenter();
 		GridWidget.Adder adder = gridWidget.createAdder(4);
-		this.selectButton = adder.add(
+		selectButton = adder.add(
 				ButtonWidget
 						.builder(
 								LevelSummary.SELECT_WORLD_TEXT,
@@ -116,11 +112,11 @@ public class SelectWorldScreen extends Screen {
 				ButtonWidget
 						.builder(
 								Text.translatable("selectWorld.create"),
-								button -> CreateWorldScreen.show(this.client, levelList::refresh)
+								button -> CreateWorldScreen.show(client, levelList::refresh)
 						)
 						.build(), 2
 		);
-		this.editButton = adder.add(
+		editButton = adder.add(
 				ButtonWidget
 						.builder(
 								Text.translatable("selectWorld.edit"),
@@ -129,130 +125,121 @@ public class SelectWorldScreen extends Screen {
 						.width(71)
 						.build()
 		);
-		this.deleteButton = adder.add(
+		deleteButton = adder.add(
 				ButtonWidget.builder(
-						            Text.translatable("selectWorld.delete"),
-						            button -> levelList
-								            .getSelectedAsOptional()
-								            .ifPresent(WorldListWidget.WorldEntry::deleteIfConfirmed)
-				            )
-				            .width(71)
-				            .build()
+						Text.translatable("selectWorld.delete"),
+						button -> levelList
+								.getSelectedAsOptional()
+								.ifPresent(WorldListWidget.WorldEntry::deleteIfConfirmed)
+				)
+				.width(71)
+				.build()
 		);
-		this.recreateButton = adder.add(
+		recreateButton = adder.add(
 				ButtonWidget.builder(
-						            Text.translatable("selectWorld.recreate"),
-						            button -> levelList.getSelectedAsOptional().ifPresent(WorldListWidget.WorldEntry::recreate)
-				            )
-				            .width(71)
-				            .build()
+						Text.translatable("selectWorld.recreate"),
+						button -> levelList.getSelectedAsOptional().ifPresent(WorldListWidget.WorldEntry::recreate)
+				)
+				.width(71)
+				.build()
 		);
 		adder.add(ButtonWidget
-				.builder(ScreenTexts.BACK, button -> this.client.setScreen(this.parent))
+				.builder(ScreenTexts.BACK, button -> client.setScreen(parent))
 				.width(71)
 				.build());
 	}
 
 	private ButtonWidget createDebugRecreateButton() {
 		return ButtonWidget.builder(
-				                   Text.literal("DEBUG recreate"),
-				                   button -> {
-					                   try {
-						                   String string = "DEBUG world";
-						                   if (this.levelList != null && !this.levelList.children().isEmpty()) {
-							                   WorldListWidget.Entry entry = this.levelList.children().getFirst();
-							                   if (entry instanceof WorldListWidget.WorldEntry worldEntry && worldEntry
-									                   .getLevelDisplayName()
-									                   .equals("DEBUG world")) {
-								                   worldEntry.delete();
-							                   }
-						                   }
+				Text.literal("DEBUG recreate"),
+				button -> {
+					try {
+						if (levelList != null && !levelList.children().isEmpty()) {
+							WorldListWidget.Entry entry = levelList.children().getFirst();
+							if (entry instanceof WorldListWidget.WorldEntry worldEntry
+									&& worldEntry.getLevelDisplayName().equals("DEBUG world")) {
+								worldEntry.delete();
+							}
+						}
 
-						                   LevelInfo levelInfo = new LevelInfo(
-								                   "DEBUG world",
-								                   GameMode.SPECTATOR,
-								                   false,
-								                   Difficulty.NORMAL,
-								                   true,
-								                   new GameRules(DataConfiguration.SAFE_MODE.enabledFeatures()),
-								                   DataConfiguration.SAFE_MODE
-						                   );
-						                   String
-								                   string2 =
-								                   PathUtil.getNextUniqueName(
-										                   this.client.getLevelStorage().getSavesDirectory(),
-										                   "DEBUG world",
-										                   ""
-								                   );
-						                   this.client
-								                   .createIntegratedServerLoader()
-								                   .createAndStart(
-										                   string2,
-										                   levelInfo,
-										                   DEBUG_GENERATOR_OPTIONS,
-										                   WorldPresets::createDemoOptions,
-										                   this
-								                   );
-					                   }
-					                   catch (IOException var5) {
-						                   LOGGER.error("Failed to recreate the debug world", var5);
-					                   }
-				                   }
-		                   )
-		                   .width(72)
-		                   .build();
+						LevelInfo levelInfo = new LevelInfo(
+								"DEBUG world",
+								GameMode.SPECTATOR,
+								false,
+								Difficulty.NORMAL,
+								true,
+								new GameRules(DataConfiguration.SAFE_MODE.enabledFeatures()),
+								DataConfiguration.SAFE_MODE
+						);
+						String dirName = PathUtil.getNextUniqueName(
+								client.getLevelStorage().getSavesDirectory(),
+								"DEBUG world",
+								""
+						);
+						client.createIntegratedServerLoader()
+								.createAndStart(
+										dirName,
+										levelInfo,
+										DEBUG_GENERATOR_OPTIONS,
+										WorldPresets::createDemoOptions,
+										this
+								);
+					}
+					catch (IOException exception) {
+						LOGGER.error("Failed to recreate the debug world", exception);
+					}
+				}
+		)
+		.width(72)
+		.build();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		if (this.levelList != null) {
-			this.levelList.position(this.width, this.layout);
+		if (levelList != null) {
+			levelList.position(width, layout);
 		}
 
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		if (this.searchBox != null) {
-			this.setInitialFocus(this.searchBox);
+		if (searchBox != null) {
+			setInitialFocus(searchBox);
 		}
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
-	/**
-	 * World selected.
-	 *
-	 * @param levelSummary level summary
-	 */
 	public void worldSelected(@Nullable LevelSummary levelSummary) {
-		if (this.selectButton != null && this.editButton != null && this.recreateButton != null
-				&& this.deleteButton != null) {
-			if (levelSummary == null) {
-				this.selectButton.setMessage(LevelSummary.SELECT_WORLD_TEXT);
-				this.selectButton.active = false;
-				this.editButton.active = false;
-				this.recreateButton.active = false;
-				this.deleteButton.active = false;
-			}
-			else {
-				this.selectButton.setMessage(levelSummary.getSelectWorldText());
-				this.selectButton.active = levelSummary.isSelectable();
-				this.editButton.active = levelSummary.isEditable();
-				this.recreateButton.active = levelSummary.isRecreatable();
-				this.deleteButton.active = levelSummary.isDeletable();
-			}
+		if (selectButton == null || editButton == null || recreateButton == null || deleteButton == null) {
+			return;
+		}
+
+		if (levelSummary == null) {
+			selectButton.setMessage(LevelSummary.SELECT_WORLD_TEXT);
+			selectButton.active = false;
+			editButton.active = false;
+			recreateButton.active = false;
+			deleteButton.active = false;
+		}
+		else {
+			selectButton.setMessage(levelSummary.getSelectWorldText());
+			selectButton.active = levelSummary.isSelectable();
+			editButton.active = levelSummary.isEditable();
+			recreateButton.active = levelSummary.isRecreatable();
+			deleteButton.active = levelSummary.isDeletable();
 		}
 	}
 
 	@Override
 	public void removed() {
-		if (this.levelList != null) {
-			this.levelList.children().forEach(WorldListWidget.Entry::close);
+		if (levelList != null) {
+			levelList.children().forEach(WorldListWidget.Entry::close);
 		}
 	}
 }

@@ -16,7 +16,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code ChainRestrictedNeighborUpdater}.
+ * Реализация {@link NeighborUpdater} с ограничением глубины цепочки обновлений.
+ * Предотвращает бесконечную рекурсию при обновлении соседних блоков, ограничивая
+ * максимальную глубину цепочки параметром {@code maxChainDepth}. При превышении
+ * лимита выводит ошибку и пропускает дальнейшие обновления.
  */
 public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 
@@ -149,9 +152,6 @@ public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 		}
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	interface Entry {
 
 		boolean update(World world);
@@ -159,9 +159,6 @@ public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 		void runCallback(Consumer<BlockPos> callback);
 	}
 
-	/**
-	 * {@code SimpleEntry}.
-	 */
 	record SimpleEntry(
 			BlockPos pos,
 			Block sourceBlock,
@@ -181,9 +178,6 @@ public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 		}
 	}
 
-	/**
-	 * {@code SixWayEntry}.
-	 */
 	static final class SixWayEntry implements ChainRestrictedNeighborUpdater.Entry {
 
 		private final BlockPos pos;
@@ -246,9 +240,6 @@ public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 		}
 	}
 
-	/**
-	 * {@code StateReplacementEntry}.
-	 */
 	record StateReplacementEntry(
 			Direction direction,
 			BlockState neighborState,
@@ -278,9 +269,6 @@ public class ChainRestrictedNeighborUpdater implements NeighborUpdater {
 		}
 	}
 
-	/**
-	 * {@code StatefulEntry}.
-	 */
 	record StatefulEntry(
 			BlockState state,
 			BlockPos pos,

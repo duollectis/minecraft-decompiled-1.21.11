@@ -13,90 +13,80 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
 /**
- * {@code FireworkStarFadeRecipe}.
+ * Рецепт добавления эффекта угасания к звезде фейерверка.
+ * <p>
+ * Принимает ровно одну звезду фейерверка и один или несколько красителей.
+ * Цвета угасания добавляются к существующему компоненту взрыва через
+ * {@link FireworkExplosionComponent#withFadeColors}.
  */
 public class FireworkStarFadeRecipe extends SpecialCraftingRecipe {
 
 	private static final Ingredient INPUT_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-	public FireworkStarFadeRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public FireworkStarFadeRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (itemStack.getItem() instanceof DyeItem) {
-						bl = true;
-					}
-					else {
-						if (!INPUT_STAR.test(itemStack)) {
-							return false;
-						}
+		boolean hasStar = false;
+		boolean hasDye = false;
 
-						if (bl2) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						bl2 = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl2 && bl;
+			if (stack.getItem() instanceof DyeItem) {
+				hasDye = true;
+			} else {
+				if (!INPUT_STAR.test(stack)) {
+					return false;
+				}
+
+				if (hasStar) {
+					return false;
+				}
+
+				hasStar = true;
+			}
 		}
+
+		return hasStar && hasDye;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		IntList intList = new IntArrayList();
-		ItemStack itemStack = null;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		IntList fadeColors = new IntArrayList();
+		ItemStack starCopy = null;
 
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(i);
-			if (itemStack2.getItem() instanceof DyeItem dyeItem) {
-				intList.add(dyeItem.getColor().getFireworkColor());
-			}
-			else if (INPUT_STAR.test(itemStack2)) {
-				itemStack = itemStack2.copyWithCount(1);
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.getItem() instanceof DyeItem dyeItem) {
+				fadeColors.add(dyeItem.getColor().getFireworkColor());
+			} else if (INPUT_STAR.test(stack)) {
+				starCopy = stack.copyWithCount(1);
 			}
 		}
 
-		if (itemStack != null && !intList.isEmpty()) {
-			itemStack.apply(
-					DataComponentTypes.FIREWORK_EXPLOSION,
-					FireworkExplosionComponent.DEFAULT,
-					intList,
-					FireworkExplosionComponent::withFadeColors
-			);
-			return itemStack;
-		}
-		else {
+		if (starCopy == null || fadeColors.isEmpty()) {
 			return ItemStack.EMPTY;
 		}
+
+		starCopy.apply(
+			DataComponentTypes.FIREWORK_EXPLOSION,
+			FireworkExplosionComponent.DEFAULT,
+			fadeColors,
+			FireworkExplosionComponent::withFadeColors
+		);
+		return starCopy;
 	}
 
 	@Override

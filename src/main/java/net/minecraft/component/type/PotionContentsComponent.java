@@ -38,8 +38,9 @@ import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 /**
- * {@code PotionContentsComponent}.
- */
+	 * Компонент содержимого зелья. Хранит базовое зелье, кастомный цвет, дополнительные эффекты
+	 * и кастомное имя. Управляет смешиванием цветов и применением эффектов.
+	 */
 public record PotionContentsComponent(
 		Optional<RegistryEntry<Potion>> potion,
 		Optional<Integer> customColor,
@@ -51,18 +52,19 @@ public record PotionContentsComponent(
 			DEFAULT =
 			new PotionContentsComponent(Optional.empty(), Optional.empty(), List.of(), Optional.empty());
 	private static final Text NONE_TEXT = Text.translatable("effect.none").formatted(Formatting.GRAY);
-	public static final int EFFECTLESS_COLOR = -13083194;
+	/** Серо-синий цвет зелья без эффектов (ARGB #FF385DC6). */
+	public static final int EFFECTLESS_COLOR = (int) 0xFF385DC6L;
 	private static final Codec<PotionContentsComponent> BASE_CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Potion.CODEC.optionalFieldOf("potion").forGetter(PotionContentsComponent::potion),
-					                    Codec.INT.optionalFieldOf("custom_color").forGetter(PotionContentsComponent::customColor),
-					                    StatusEffectInstance.CODEC
-							                    .listOf()
-							                    .optionalFieldOf("custom_effects", List.of())
-							                    .forGetter(PotionContentsComponent::customEffects),
-					                    Codec.STRING.optionalFieldOf("custom_name").forGetter(PotionContentsComponent::customName)
-			                    )
-			                    .apply(instance, PotionContentsComponent::new)
+										Potion.CODEC.optionalFieldOf("potion").forGetter(PotionContentsComponent::potion),
+										Codec.INT.optionalFieldOf("custom_color").forGetter(PotionContentsComponent::customColor),
+										StatusEffectInstance.CODEC
+												.listOf()
+												.optionalFieldOf("custom_effects", List.of())
+												.forGetter(PotionContentsComponent::customEffects),
+										Codec.STRING.optionalFieldOf("custom_name").forGetter(PotionContentsComponent::customName)
+								)
+								.apply(instance, PotionContentsComponent::new)
 	);
 	public static final Codec<PotionContentsComponent>
 			CODEC =
@@ -84,270 +86,235 @@ public record PotionContentsComponent(
 	}
 
 	/**
-	 * Создаёт stack.
-	 *
-	 * @param item item
-	 * @param potion potion
-	 *
-	 * @return ItemStack — результат операции
-	 */
+		 * Создаёт стек предмета с установленным компонентом зелья.
+		 *
+		 * @param item   тип предмета (например, зелье, стрела)
+		 * @param potion запись реестра зелья
+		 * @return новый {@link ItemStack} с компонентом {@code POTION_CONTENTS}
+		 */
 	public static ItemStack createStack(Item item, RegistryEntry<Potion> potion) {
-		ItemStack itemStack = new ItemStack(item);
-		itemStack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(potion));
-		return itemStack;
+		ItemStack stack = new ItemStack(item);
+		stack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(potion));
+		return stack;
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param potion potion
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(RegistryEntry<Potion> potion) {
-		return this.potion.isPresent() && this.potion.get().matches(potion) && this.customEffects.isEmpty();
+	public boolean matches(RegistryEntry<Potion> potionEntry) {
+		return potion.isPresent() && potion.get().matches(potionEntry) && customEffects.isEmpty();
 	}
 
 	public Iterable<StatusEffectInstance> getEffects() {
-		if (this.potion.isEmpty()) {
-			return this.customEffects;
+		if (potion.isEmpty()) {
+			return customEffects;
 		}
-		else {
-			return (Iterable<StatusEffectInstance>) (this.customEffects.isEmpty()
-			                                         ? this.potion.get().value().getEffects()
-			                                         : Iterables.concat(
-					                                         this.potion.get().value().getEffects(),
-					                                         this.customEffects
-			                                         )
-			);
-		}
+
+		return customEffects.isEmpty()
+				? potion.get().value().getEffects()
+				: Iterables.concat(potion.get().value().getEffects(), customEffects);
 	}
 
-	/**
-	 * For each effect.
-	 *
-	 * @param effectConsumer effect consumer
-	 * @param durationMultiplier duration multiplier
-	 */
 	public void forEachEffect(Consumer<StatusEffectInstance> effectConsumer, float durationMultiplier) {
-		if (this.potion.isPresent()) {
-			for (StatusEffectInstance statusEffectInstance : this.potion.get().value().getEffects()) {
-				effectConsumer.accept(statusEffectInstance.withScaledDuration(durationMultiplier));
+		if (potion.isPresent()) {
+			for (StatusEffectInstance effect : potion.get().value().getEffects()) {
+				effectConsumer.accept(effect.withScaledDuration(durationMultiplier));
 			}
 		}
 
-		for (StatusEffectInstance statusEffectInstance : this.customEffects) {
-			effectConsumer.accept(statusEffectInstance.withScaledDuration(durationMultiplier));
+		for (StatusEffectInstance effect : customEffects) {
+			effectConsumer.accept(effect.withScaledDuration(durationMultiplier));
 		}
 	}
 
-	/**
-	 * With.
-	 *
-	 * @param potion potion
-	 *
-	 * @return PotionContentsComponent — результат операции
-	 */
-	public PotionContentsComponent with(RegistryEntry<Potion> potion) {
-		return new PotionContentsComponent(Optional.of(potion), this.customColor, this.customEffects, this.customName);
+	public PotionContentsComponent with(RegistryEntry<Potion> newPotion) {
+		return new PotionContentsComponent(Optional.of(newPotion), customColor, customEffects, customName);
 	}
 
-	/**
-	 * With.
-	 *
-	 * @param customEffect custom effect
-	 *
-	 * @return PotionContentsComponent — результат операции
-	 */
 	public PotionContentsComponent with(StatusEffectInstance customEffect) {
 		return new PotionContentsComponent(
-				this.potion,
-				this.customColor,
-				Util.withAppended(this.customEffects, customEffect),
-				this.customName
+				potion,
+				customColor,
+				Util.withAppended(customEffects, customEffect),
+				customName
 		);
 	}
 
 	public int getColor() {
-		return this.getColor(-13083194);
+		return getColor(EFFECTLESS_COLOR);
 	}
 
 	public int getColor(int defaultColor) {
-		return this.customColor.isPresent() ? this.customColor.get()
-		                                    : mixColors(this.getEffects()).orElse(defaultColor);
+		return customColor.isPresent()
+				? customColor.get()
+				: mixColors(getEffects()).orElse(defaultColor);
 	}
 
 	public Text getName(String prefix) {
-		String
-				string =
-				this.customName
-						.or(() -> this.potion.map(potionEntry -> potionEntry.value().getBaseName()))
-						.orElse("empty");
-		return Text.translatable(prefix + string);
+		String name = customName
+				.or(() -> potion.map(entry -> entry.value().getBaseName()))
+				.orElse("empty");
+		return Text.translatable(prefix + name);
 	}
 
 	/**
-	 * Mix colors.
-	 *
-	 * @param effects effects
-	 *
-	 * @return OptionalInt — результат операции
-	 */
+		 * Смешивает цвета всех видимых эффектов с учётом их усилителей (amplifier + 1 как вес).
+		 * Возвращает пустой OptionalInt если ни один эффект не показывает частицы.
+		 *
+		 * @param effects итерируемый набор эффектов
+		 * @return смешанный ARGB-цвет или пустой OptionalInt
+		 */
 	public static OptionalInt mixColors(Iterable<StatusEffectInstance> effects) {
-		int i = 0;
-		int j = 0;
-		int k = 0;
-		int l = 0;
+		int totalRed = 0;
+		int totalGreen = 0;
+		int totalBlue = 0;
+		int totalWeight = 0;
 
-		for (StatusEffectInstance statusEffectInstance : effects) {
-			if (statusEffectInstance.shouldShowParticles()) {
-				int m = statusEffectInstance.getEffectType().value().getColor();
-				int n = statusEffectInstance.getAmplifier() + 1;
-				i += n * ColorHelper.getRed(m);
-				j += n * ColorHelper.getGreen(m);
-				k += n * ColorHelper.getBlue(m);
-				l += n;
+		for (StatusEffectInstance effect : effects) {
+			if (!effect.shouldShowParticles()) {
+				continue;
 			}
+
+			int color = effect.getEffectType().value().getColor();
+			int weight = effect.getAmplifier() + 1;
+			totalRed += weight * ColorHelper.getRed(color);
+			totalGreen += weight * ColorHelper.getGreen(color);
+			totalBlue += weight * ColorHelper.getBlue(color);
+			totalWeight += weight;
 		}
 
-		return l == 0 ? OptionalInt.empty() : OptionalInt.of(ColorHelper.getArgb(i / l, j / l, k / l));
+		if (totalWeight == 0) {
+			return OptionalInt.empty();
+		}
+
+		return OptionalInt.of(ColorHelper.getArgb(
+				totalRed / totalWeight,
+				totalGreen / totalWeight,
+				totalBlue / totalWeight
+		));
 	}
 
 	public boolean hasEffects() {
-		return !this.customEffects.isEmpty() ? true : this.potion.isPresent() && !this.potion
-		                                                                          .get()
-		                                                                          .value()
-		                                                                          .getEffects()
-		                                                                          .isEmpty();
+		return !customEffects.isEmpty()
+				|| (potion.isPresent() && !potion.get().value().getEffects().isEmpty());
 	}
 
-	/**
-	 * Custom effects.
-	 *
-	 * @return List — результат операции
-	 */
 	public List<StatusEffectInstance> customEffects() {
-		return Lists.transform(this.customEffects, StatusEffectInstance::new);
+		return Lists.transform(customEffects, StatusEffectInstance::new);
 	}
 
 	/**
-	 * Apply.
-	 *
-	 * @param user user
-	 * @param durationMultiplier duration multiplier
-	 */
+		 * Применяет все эффекты зелья к сущности с учётом множителя длительности.
+		 * Мгновенные эффекты применяются через {@code applyInstantEffect}, остальные — через {@code addStatusEffect}.
+		 *
+		 * @param user               сущность-получатель
+		 * @param durationMultiplier множитель длительности эффектов
+		 */
 	public void apply(LivingEntity user, float durationMultiplier) {
-		if (user.getEntityWorld() instanceof ServerWorld serverWorld) {
-			PlayerEntity playerEntity2 = user instanceof PlayerEntity playerEntity ? playerEntity : null;
-			this.forEachEffect(
-					effect -> {
-						if (effect.getEffectType().value().isInstant()) {
-							effect
-									.getEffectType()
-									.value()
-									.applyInstantEffect(
-											serverWorld,
-											playerEntity2,
-											playerEntity2,
-											user,
-											effect.getAmplifier(),
-											1.0
-									);
-						}
-						else {
-							user.addStatusEffect(effect);
-						}
-					}, durationMultiplier
-			);
+		if (!(user.getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		PlayerEntity player = user instanceof PlayerEntity playerEntity ? playerEntity : null;
+		forEachEffect(
+				effect -> {
+					if (effect.getEffectType().value().isInstant()) {
+						effect.getEffectType().value().applyInstantEffect(
+								serverWorld, player, player, user, effect.getAmplifier(), 1.0
+						);
+					}
+					else {
+						user.addStatusEffect(effect);
+					}
+				},
+				durationMultiplier
+		);
 	}
 
+	/**
+		 * Строит тултип для набора эффектов зелья, включая атрибутные модификаторы.
+		 * Эффекты с длительностью выше 20 тиков отображаются с временем действия.
+		 *
+		 * @param effects            набор эффектов для отображения
+		 * @param textConsumer       получатель строк тултипа
+		 * @param durationMultiplier множитель длительности для отображения
+		 * @param tickRate           частота тиков сервера
+		 */
 	public static void buildTooltip(
 			Iterable<StatusEffectInstance> effects,
 			Consumer<Text> textConsumer,
 			float durationMultiplier,
 			float tickRate
 	) {
-		List<Pair<RegistryEntry<EntityAttribute>, EntityAttributeModifier>> list = Lists.newArrayList();
-		boolean bl = true;
+		List<Pair<RegistryEntry<EntityAttribute>, EntityAttributeModifier>> attributeModifiers = Lists.newArrayList();
+		boolean hasNoEffects = true;
 
-		for (StatusEffectInstance statusEffectInstance : effects) {
-			bl = false;
-			RegistryEntry<StatusEffect> registryEntry = statusEffectInstance.getEffectType();
-			int i = statusEffectInstance.getAmplifier();
-			registryEntry
-					.value()
-					.forEachAttributeModifier(i, (attribute, modifier) -> list.add(new Pair(attribute, modifier)));
-			MutableText mutableText = getEffectText(registryEntry, i);
-			if (!statusEffectInstance.isDurationBelow(20)) {
-				mutableText = Text.translatable(
+		for (StatusEffectInstance effectInstance : effects) {
+			hasNoEffects = false;
+			RegistryEntry<StatusEffect> effectType = effectInstance.getEffectType();
+			int amplifier = effectInstance.getAmplifier();
+			effectType.value().forEachAttributeModifier(
+					amplifier, (attribute, modifier) -> attributeModifiers.add(new Pair<>(attribute, modifier))
+			);
+
+			MutableText effectText = getEffectText(effectType, amplifier);
+			if (!effectInstance.isDurationBelow(20)) {
+				effectText = Text.translatable(
 						"potion.withDuration",
-						mutableText,
-						StatusEffectUtil.getDurationText(statusEffectInstance, durationMultiplier, tickRate)
+						effectText,
+						StatusEffectUtil.getDurationText(effectInstance, durationMultiplier, tickRate)
 				);
 			}
 
-			textConsumer.accept(mutableText.formatted(registryEntry.value().getCategory().getFormatting()));
+			textConsumer.accept(effectText.formatted(effectType.value().getCategory().getFormatting()));
 		}
 
-		if (bl) {
+		if (hasNoEffects) {
 			textConsumer.accept(NONE_TEXT);
 		}
 
-		if (!list.isEmpty()) {
-			textConsumer.accept(ScreenTexts.EMPTY);
-			textConsumer.accept(Text.translatable("potion.whenDrank").formatted(Formatting.DARK_PURPLE));
+		if (attributeModifiers.isEmpty()) {
+			return;
+		}
 
-			for (Pair<RegistryEntry<EntityAttribute>, EntityAttributeModifier> pair : list) {
-				EntityAttributeModifier entityAttributeModifier = (EntityAttributeModifier) pair.getSecond();
-				double d = entityAttributeModifier.value();
-				double e;
-				if (entityAttributeModifier.operation() != EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-						&& entityAttributeModifier.operation()
-						!= EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
-					e = entityAttributeModifier.value();
-				}
-				else {
-					e = entityAttributeModifier.value() * 100.0;
-				}
+		textConsumer.accept(ScreenTexts.EMPTY);
+		textConsumer.accept(Text.translatable("potion.whenDrank").formatted(Formatting.DARK_PURPLE));
 
-				if (d > 0.0) {
-					textConsumer.accept(
-							Text.translatable(
-									    "attribute.modifier.plus." + entityAttributeModifier.operation().getId(),
-									    AttributeModifiersComponent.DECIMAL_FORMAT.format(e),
-									    Text.translatable(((EntityAttribute) ((RegistryEntry) pair.getFirst()).value()).getTranslationKey())
-							    )
-							    .formatted(Formatting.BLUE)
-					);
-				}
-				else if (d < 0.0) {
-					e *= -1.0;
-					textConsumer.accept(
-							Text.translatable(
-									    "attribute.modifier.take." + entityAttributeModifier.operation().getId(),
-									    AttributeModifiersComponent.DECIMAL_FORMAT.format(e),
-									    Text.translatable(((EntityAttribute) ((RegistryEntry) pair.getFirst()).value()).getTranslationKey())
-							    )
-							    .formatted(Formatting.RED)
-					);
-				}
+		for (Pair<RegistryEntry<EntityAttribute>, EntityAttributeModifier> pair : attributeModifiers) {
+			EntityAttributeModifier modifier = pair.getSecond();
+			double rawValue = modifier.value();
+			boolean isMultiplier = modifier.operation() == EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
+					|| modifier.operation() == EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+			double displayValue = isMultiplier ? rawValue * 100.0 : rawValue;
+
+			if (rawValue > 0.0) {
+				textConsumer.accept(
+						Text.translatable(
+								"attribute.modifier.plus." + modifier.operation().getId(),
+								AttributeModifiersComponent.DECIMAL_FORMAT.format(displayValue),
+								Text.translatable(pair.getFirst().value().getTranslationKey())
+						).formatted(Formatting.BLUE)
+				);
+			}
+			else if (rawValue < 0.0) {
+				textConsumer.accept(
+						Text.translatable(
+								"attribute.modifier.take." + modifier.operation().getId(),
+								AttributeModifiersComponent.DECIMAL_FORMAT.format(-displayValue),
+								Text.translatable(pair.getFirst().value().getTranslationKey())
+						).formatted(Formatting.RED)
+				);
 			}
 		}
 	}
 
 	public static MutableText getEffectText(RegistryEntry<StatusEffect> effect, int amplifier) {
-		MutableText mutableText = Text.translatable(effect.value().getTranslationKey());
-		return amplifier > 0 ? Text.translatable(
-				"potion.withAmplifier",
-				mutableText,
-				Text.translatable("potion.potency." + amplifier)
-		) : mutableText;
+		MutableText name = Text.translatable(effect.value().getTranslationKey());
+		return amplifier > 0
+				? Text.translatable("potion.withAmplifier", name, Text.translatable("potion.potency." + amplifier))
+				: name;
 	}
 
 	@Override
 	public void onConsume(World world, LivingEntity user, ItemStack stack, ConsumableComponent consumable) {
-		this.apply(user, stack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F));
+		apply(user, stack.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F));
 	}
 
 	@Override
@@ -358,7 +325,7 @@ public record PotionContentsComponent(
 			ComponentsAccess components
 	) {
 		buildTooltip(
-				this.getEffects(),
+				getEffects(),
 				textConsumer,
 				components.getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F),
 				context.getUpdateTickRate()

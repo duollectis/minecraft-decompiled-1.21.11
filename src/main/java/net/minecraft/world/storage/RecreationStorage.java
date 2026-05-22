@@ -13,7 +13,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code RecreationStorage}.
+ * Хранилище для пересоздания (recreation) чанков: читает из исходного хранилища,
+ * а записывает в отдельный выходной воркер. После закрытия удаляет выходную директорию.
+ *
+ * <p>Используется при обновлении мира — старые данные читаются, обновляются DataFixer'ом
+ * и записываются в новое место, после чего временная директория очищается.
  */
 public class RecreationStorage extends VersionedChunkStorage {
 
@@ -21,32 +25,36 @@ public class RecreationStorage extends VersionedChunkStorage {
 	private final Path outputDirectory;
 
 	public RecreationStorage(
-			StorageKey storageKey,
-			Path directory,
-			StorageKey outputStorageKey,
-			Path outputDirectory,
-			DataFixer dataFixer,
-			boolean dsync,
-			DataFixTypes dataFixTypes,
-			Supplier<ChunkUpdater> updaterFactory
+		StorageKey storageKey,
+		Path directory,
+		StorageKey outputStorageKey,
+		Path outputDirectory,
+		DataFixer dataFixer,
+		boolean dsync,
+		DataFixTypes dataFixTypes,
+		Supplier<ChunkUpdater> updaterFactory
 	) {
 		super(storageKey, directory, dataFixer, dsync, dataFixTypes, updaterFactory);
 		this.outputDirectory = outputDirectory;
 		this.recreationWorker = new StorageIoWorker(outputStorageKey, outputDirectory, dsync);
 	}
 
+	/**
+	 * Перенаправляет запись в выходной воркер вместо исходного хранилища.
+	 */
 	@Override
 	public CompletableFuture<Void> set(ChunkPos chunkPos, Supplier<NbtCompound> chunkTagFactory) {
-		this.markChunkDone(chunkPos);
-		return this.recreationWorker.setResult(chunkPos, chunkTagFactory);
+		markChunkDone(chunkPos);
+		return recreationWorker.setResult(chunkPos, chunkTagFactory);
 	}
 
 	@Override
 	public void close() throws IOException {
 		super.close();
-		this.recreationWorker.close();
-		if (this.outputDirectory.toFile().exists()) {
-			FileUtils.deleteDirectory(this.outputDirectory.toFile());
+		recreationWorker.close();
+
+		if (outputDirectory.toFile().exists()) {
+			FileUtils.deleteDirectory(outputDirectory.toFile());
 		}
 	}
 }

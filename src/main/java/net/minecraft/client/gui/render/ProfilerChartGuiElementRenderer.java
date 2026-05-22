@@ -12,11 +12,22 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.profiler.ProfilerTiming;
 import org.joml.Matrix4f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ProfilerChartGuiElementRenderer}.
+ * Рендерер круговой диаграммы профайлера в GUI.
+ * Строит диаграмму из треугольных секторов (fan) и боковых граней (quads),
+ * создавая эффект объёмного «пирога». Боковые грани рисуются только для
+ * секторов, чья средняя Y-координата неотрицательна (видимая сторона).
  */
+@Environment(EnvType.CLIENT)
 public class ProfilerChartGuiElementRenderer extends SpecialGuiElementRenderer<ProfilerChartGuiElementRenderState> {
+
+	private static final float CHART_Y_OFFSET = -5.0F;
+	private static final float CHART_RADIUS = 105.0F;
+	private static final float CHART_DEPTH = 10.0F;
+	private static final float CHART_Y_SCALE = 0.5F;
+	private static final double FULL_CIRCLE_RADIANS = Math.PI * 2;
+	private static final double PERCENT_TO_RADIANS = FULL_CIRCLE_RADIANS / 100.0;
+	private static final int SECTOR_SUBDIVISIONS_BASE = 1;
 
 	public ProfilerChartGuiElementRenderer(VertexConsumerProvider.Immediate immediate) {
 		super(immediate);
@@ -27,59 +38,79 @@ public class ProfilerChartGuiElementRenderer extends SpecialGuiElementRenderer<P
 		return ProfilerChartGuiElementRenderState.class;
 	}
 
-	protected void render(
-			ProfilerChartGuiElementRenderState profilerChartGuiElementRenderState,
-			MatrixStack matrixStack
-	) {
-		double d = 0.0;
-		matrixStack.translate(0.0F, -5.0F, 0.0F);
-		Matrix4f matrix4f = matrixStack.peek().getPositionMatrix();
+	/**
+	 * Отрисовывает круговую диаграмму профайлера.
+	 * Каждый сектор разбивается на {@code subdivisions} подсегментов для плавности дуги.
+	 * Боковые грани (имитация толщины диска) рисуются только для видимых сегментов
+	 * (средняя Y-координата ≥ 0), чтобы избежать артефактов на задней стороне.
+	 */
+	@Override
+	protected void render(ProfilerChartGuiElementRenderState state, MatrixStack matrices) {
+		double angleOffset = 0.0;
+		matrices.translate(0.0F, CHART_Y_OFFSET, 0.0F);
+		Matrix4f positionMatrix = matrices.peek().getPositionMatrix();
 
-		for (ProfilerTiming profilerTiming : profilerChartGuiElementRenderState.chartData()) {
-			int i = MathHelper.floor(profilerTiming.parentSectionUsagePercentage / 4.0) + 1;
-			VertexConsumer vertexConsumer = this.vertexConsumers.getBuffer(RenderLayers.debugTriangleFan());
-			int j = ColorHelper.fullAlpha(profilerTiming.getColor());
-			int k = ColorHelper.mix(j, -8355712);
-			vertexConsumer.vertex(matrix4f, 0.0F, 0.0F, 0.0F).color(j);
+		for (ProfilerTiming timing : state.chartData()) {
+			int subdivisions = MathHelper.floor(timing.parentSectionUsagePercentage / 4.0) + SECTOR_SUBDIVISIONS_BASE;
+			int color = ColorHelper.fullAlpha(timing.getColor());
+			int sideColor = ColorHelper.mix(color, -8355712);
 
-			for (int l = i; l >= 0; l--) {
-				float
-						f =
-						(float) ((d + profilerTiming.parentSectionUsagePercentage * l / i) * (float) (Math.PI * 2)
-								/ 100.0
-						);
-				float g = MathHelper.sin(f) * 105.0F;
-				float h = MathHelper.cos(f) * 105.0F * 0.5F;
-				vertexConsumer.vertex(matrix4f, g, h, 0.0F).color(j);
-			}
+			renderSectorFan(positionMatrix, timing, subdivisions, color, angleOffset);
+			renderSectorSides(positionMatrix, timing, subdivisions, sideColor, angleOffset);
 
-			vertexConsumer = this.vertexConsumers.getBuffer(RenderLayers.debugQuads());
-
-			for (int l = i; l > 0; l--) {
-				float
-						f =
-						(float) ((d + profilerTiming.parentSectionUsagePercentage * l / i) * (float) (Math.PI * 2)
-								/ 100.0
-						);
-				float g = MathHelper.sin(f) * 105.0F;
-				float h = MathHelper.cos(f) * 105.0F * 0.5F;
-				float
-						m =
-						(float) ((d + profilerTiming.parentSectionUsagePercentage * (l - 1) / i) * (float) (Math.PI * 2)
-								/ 100.0
-						);
-				float n = MathHelper.sin(m) * 105.0F;
-				float o = MathHelper.cos(m) * 105.0F * 0.5F;
-				if (!((h + o) / 2.0F < 0.0F)) {
-					vertexConsumer.vertex(matrix4f, g, h, 0.0F).color(k);
-					vertexConsumer.vertex(matrix4f, g, h + 10.0F, 0.0F).color(k);
-					vertexConsumer.vertex(matrix4f, n, o + 10.0F, 0.0F).color(k);
-					vertexConsumer.vertex(matrix4f, n, o, 0.0F).color(k);
-				}
-			}
-
-			d += profilerTiming.parentSectionUsagePercentage;
+			angleOffset += timing.parentSectionUsagePercentage;
 		}
+	}
+
+	private void renderSectorFan(
+			Matrix4f matrix,
+			ProfilerTiming timing,
+			int subdivisions,
+			int color,
+			double angleOffset
+	) {
+		VertexConsumer fan = vertexConsumers.getBuffer(RenderLayers.debugTriangleFan());
+		fan.vertex(matrix, 0.0F, 0.0F, 0.0F).color(color);
+
+		for (int step = subdivisions; step >= 0; step--) {
+			float angle = sectorAngle(angleOffset, timing.parentSectionUsagePercentage, step, subdivisions);
+			fan.vertex(matrix, MathHelper.sin(angle) * CHART_RADIUS, MathHelper.cos(angle) * CHART_RADIUS * CHART_Y_SCALE, 0.0F)
+					.color(color);
+		}
+	}
+
+	private void renderSectorSides(
+			Matrix4f matrix,
+			ProfilerTiming timing,
+			int subdivisions,
+			int sideColor,
+			double angleOffset
+	) {
+		VertexConsumer quads = vertexConsumers.getBuffer(RenderLayers.debugQuads());
+
+		for (int step = subdivisions; step > 0; step--) {
+			float angleA = sectorAngle(angleOffset, timing.parentSectionUsagePercentage, step, subdivisions);
+			float angleB = sectorAngle(angleOffset, timing.parentSectionUsagePercentage, step - 1, subdivisions);
+
+			float xA = MathHelper.sin(angleA) * CHART_RADIUS;
+			float yA = MathHelper.cos(angleA) * CHART_RADIUS * CHART_Y_SCALE;
+			float xB = MathHelper.sin(angleB) * CHART_RADIUS;
+			float yB = MathHelper.cos(angleB) * CHART_RADIUS * CHART_Y_SCALE;
+
+			// Рисуем только видимую (переднюю) сторону диска
+			if ((yA + yB) / 2.0F < 0.0F) {
+				continue;
+			}
+
+			quads.vertex(matrix, xA, yA, 0.0F).color(sideColor);
+			quads.vertex(matrix, xA, yA + CHART_DEPTH, 0.0F).color(sideColor);
+			quads.vertex(matrix, xB, yB + CHART_DEPTH, 0.0F).color(sideColor);
+			quads.vertex(matrix, xB, yB, 0.0F).color(sideColor);
+		}
+	}
+
+	private static float sectorAngle(double offset, double percentage, int step, int subdivisions) {
+		return (float) ((offset + percentage * step / subdivisions) * PERCENT_TO_RADIANS);
 	}
 
 	@Override

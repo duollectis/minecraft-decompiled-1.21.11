@@ -11,7 +11,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code MultifaceGrower}.
+ * Логика роста многогранных блоков (например, светящегося лишайника).
+ * Определяет три стратегии роста: на той же позиции, в той же плоскости и
+ * с «оборачиванием» вокруг угла блока-опоры.
  */
 public class MultifaceGrower {
 
@@ -30,16 +32,6 @@ public class MultifaceGrower {
 		this.growChecker = growChecker;
 	}
 
-	/**
-	 * Проверяет возможность grow.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param direction direction
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canGrow(BlockState state, BlockView world, BlockPos pos, Direction direction) {
 		return Direction
 				.stream()
@@ -58,16 +50,6 @@ public class MultifaceGrower {
 		                .orElse(Optional.empty());
 	}
 
-	/**
-	 * Grow.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param markForPostProcessing mark for post processing
-	 *
-	 * @return long — результат операции
-	 */
 	public long grow(BlockState state, WorldAccess world, BlockPos pos, boolean markForPostProcessing) {
 		return Direction.stream()
 		                .filter(direction -> this.growChecker.canGrow(state, direction))
@@ -157,9 +139,6 @@ public class MultifaceGrower {
 		                                                                             : Optional.empty();
 	}
 
-	/**
-	 * {@code GrowChecker}.
-	 */
 	public interface GrowChecker {
 
 		@Nullable BlockState getStateWithDirection(
@@ -207,25 +186,19 @@ public class MultifaceGrower {
 		}
 	}
 
-	/**
-	 * {@code GrowPos}.
-	 */
 	public record GrowPos(BlockPos pos, Direction face) {
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code GrowPosPredicate}.
+	 * Предикат, определяющий допустимость позиции для роста многогранного блока.
 	 */
+	@FunctionalInterface
 	public interface GrowPosPredicate {
 
 		boolean test(BlockView world, BlockPos pos, MultifaceGrower.GrowPos growPos);
 	}
 
-	/**
-	 * {@code GrowType}.
-	 */
-	public static enum GrowType {
+	enum GrowType {
 		SAME_POSITION {
 			@Override
 			public MultifaceGrower.GrowPos getGrowPos(BlockPos pos, Direction newDirection, Direction oldDirection) {
@@ -255,9 +228,6 @@ public class MultifaceGrower {
 		);
 	}
 
-	/**
-	 * {@code LichenGrowChecker}.
-	 */
 	public static class LichenGrowChecker implements MultifaceGrower.GrowChecker {
 
 		protected MultifaceBlock lichen;

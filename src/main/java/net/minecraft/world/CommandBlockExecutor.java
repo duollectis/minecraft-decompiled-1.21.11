@@ -22,13 +22,16 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * {@code CommandBlockExecutor}.
+ * Базовый исполнитель команд командного блока.
+ * Хранит команду, счётчик успехов, последний вывод и управляет
+ * логикой выполнения команды на сервере.
  */
 public abstract class CommandBlockExecutor {
 
 	private static final Text DEFAULT_NAME = Text.literal("@");
-	private static final int DEFAULT_LAST_EXECUTION = -1;
-	private long lastExecution = -1L;
+	private static final long NO_LAST_EXECUTION = -1L;
+
+	private long lastExecution = NO_LAST_EXECUTION;
 	private boolean updateLastExecution = true;
 	private int successCount;
 	private boolean trackOutput = true;
@@ -37,7 +40,7 @@ public abstract class CommandBlockExecutor {
 	private @Nullable Text customName;
 
 	public int getSuccessCount() {
-		return this.successCount;
+		return successCount;
 	}
 
 	public void setSuccessCount(int successCount) {
@@ -45,143 +48,110 @@ public abstract class CommandBlockExecutor {
 	}
 
 	public Text getLastOutput() {
-		return this.lastOutput == null ? ScreenTexts.EMPTY : this.lastOutput;
+		return lastOutput == null ? ScreenTexts.EMPTY : lastOutput;
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param view view
-	 */
 	public void writeData(WriteView view) {
-		view.putString("Command", this.command);
-		view.putInt("SuccessCount", this.successCount);
-		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
-		view.putBoolean("TrackOutput", this.trackOutput);
-		if (this.trackOutput) {
-			view.putNullable("LastOutput", TextCodecs.CODEC, this.lastOutput);
+		view.putString("Command", command);
+		view.putInt("SuccessCount", successCount);
+		view.putNullable("CustomName", TextCodecs.CODEC, customName);
+		view.putBoolean("TrackOutput", trackOutput);
+
+		if (trackOutput) {
+			view.putNullable("LastOutput", TextCodecs.CODEC, lastOutput);
 		}
 
-		view.putBoolean("UpdateLastExecution", this.updateLastExecution);
-		if (this.updateLastExecution && this.lastExecution != -1L) {
-			view.putLong("LastExecution", this.lastExecution);
+		view.putBoolean("UpdateLastExecution", updateLastExecution);
+
+		if (updateLastExecution && lastExecution != NO_LAST_EXECUTION) {
+			view.putLong("LastExecution", lastExecution);
 		}
 	}
 
-	/**
-	 * Читает data.
-	 *
-	 * @param view view
-	 */
 	public void readData(ReadView view) {
-		this.command = view.getString("Command", "");
-		this.successCount = view.getInt("SuccessCount", 0);
-		this.setCustomName(BlockEntity.tryParseCustomName(view, "CustomName"));
-		this.trackOutput = view.getBoolean("TrackOutput", true);
-		if (this.trackOutput) {
-			this.lastOutput = BlockEntity.tryParseCustomName(view, "LastOutput");
-		}
-		else {
-			this.lastOutput = null;
-		}
-
-		this.updateLastExecution = view.getBoolean("UpdateLastExecution", true);
-		if (this.updateLastExecution) {
-			this.lastExecution = view.getLong("LastExecution", -1L);
-		}
-		else {
-			this.lastExecution = -1L;
-		}
+		command = view.getString("Command", "");
+		successCount = view.getInt("SuccessCount", 0);
+		setCustomName(BlockEntity.tryParseCustomName(view, "CustomName"));
+		trackOutput = view.getBoolean("TrackOutput", true);
+		lastOutput = trackOutput ? BlockEntity.tryParseCustomName(view, "LastOutput") : null;
+		updateLastExecution = view.getBoolean("UpdateLastExecution", true);
+		lastExecution = updateLastExecution ? view.getLong("LastExecution", NO_LAST_EXECUTION) : NO_LAST_EXECUTION;
 	}
 
 	public void setCommand(String command) {
 		this.command = command;
-		this.successCount = 0;
+		successCount = 0;
 	}
 
 	public String getCommand() {
-		return this.command;
+		return command;
 	}
 
 	/**
-	 * Execute.
+	 * Выполняет команду в заданном мире.
+	 * Пропускает выполнение, если команда уже была выполнена в этом тике.
+	 * Пасхалка: команда "Searge" всегда возвращает успех с особым выводом.
 	 *
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
+	 * @param world серверный мир для выполнения команды
+	 * @return {@code true} если команда была выполнена (или пасхалка сработала)
 	 */
 	public boolean execute(ServerWorld world) {
-		if (world.getTime() == this.lastExecution) {
+		if (world.getTime() == lastExecution) {
 			return false;
 		}
-		else if ("Searge".equalsIgnoreCase(this.command)) {
-			this.lastOutput = Text.literal("#itzlipofutzli");
-			this.successCount = 1;
+
+		if ("Searge".equalsIgnoreCase(command)) {
+			lastOutput = Text.literal("#itzlipofutzli");
+			successCount = 1;
 			return true;
 		}
-		else {
-			this.successCount = 0;
-			if (world.areCommandBlocksEnabled() && !StringHelper.isEmpty(this.command)) {
-				try {
-					this.lastOutput = null;
 
-					try (CommandBlockExecutor.CommandBlockOutput commandBlockOutput = this.createOutput(world)) {
-						CommandOutput
-								commandOutput =
-								Objects.requireNonNullElse(commandBlockOutput, CommandOutput.DUMMY);
-						ServerCommandSource
-								serverCommandSource =
-								this
-										.getSource(world, commandOutput)
-										.withReturnValueConsumer((successful, returnValue) -> {
-											if (successful) {
-												this.successCount++;
-											}
-										});
-						world.getServer().getCommandManager().parseAndExecute(serverCommandSource, this.command);
-					}
+		successCount = 0;
+
+		if (world.areCommandBlocksEnabled() && !StringHelper.isEmpty(command)) {
+			try {
+				lastOutput = null;
+
+				try (CommandBlockOutput output = createOutput(world)) {
+					CommandOutput commandOutput = Objects.requireNonNullElse(output, CommandOutput.DUMMY);
+					ServerCommandSource source = getSource(world, commandOutput)
+						.withReturnValueConsumer((successful, returnValue) -> {
+							if (successful) {
+								successCount++;
+							}
+						});
+					world.getServer().getCommandManager().parseAndExecute(source, command);
 				}
-				catch (Throwable var7) {
-					CrashReport crashReport = CrashReport.create(var7, "Executing command block");
-					CrashReportSection crashReportSection = crashReport.addElement("Command to be executed");
-					crashReportSection.add("Command", this::getCommand);
-					crashReportSection.add("Name", () -> this.getName().getString());
-					throw new CrashException(crashReport);
-				}
+			} catch (Throwable throwable) {
+				CrashReport crashReport = CrashReport.create(throwable, "Executing command block");
+				CrashReportSection section = crashReport.addElement("Command to be executed");
+				section.add("Command", this::getCommand);
+				section.add("Name", () -> getName().getString());
+				throw new CrashException(crashReport);
 			}
-
-			if (this.updateLastExecution) {
-				this.lastExecution = world.getTime();
-			}
-			else {
-				this.lastExecution = -1L;
-			}
-
-			return true;
 		}
+
+		lastExecution = updateLastExecution ? world.getTime() : NO_LAST_EXECUTION;
+
+		return true;
 	}
 
-	private CommandBlockExecutor.@Nullable CommandBlockOutput createOutput(ServerWorld serverWorld) {
-		return this.trackOutput ? new CommandBlockExecutor.CommandBlockOutput(serverWorld) : null;
+	private @Nullable CommandBlockOutput createOutput(ServerWorld serverWorld) {
+		return trackOutput ? new CommandBlockOutput(serverWorld) : null;
 	}
 
 	public Text getName() {
-		return this.customName != null ? this.customName : DEFAULT_NAME;
+		return customName != null ? customName : DEFAULT_NAME;
 	}
 
 	public @Nullable Text getCustomName() {
-		return this.customName;
+		return customName;
 	}
 
 	public void setCustomName(@Nullable Text customName) {
 		this.customName = customName;
 	}
 
-	/**
-	 * Mark dirty.
-	 *
-	 * @param world world
-	 */
 	public abstract void markDirty(ServerWorld world);
 
 	public void setLastOutput(@Nullable Text lastOutput) {
@@ -193,7 +163,7 @@ public abstract class CommandBlockExecutor {
 	}
 
 	public boolean isTrackingOutput() {
-		return this.trackOutput;
+		return trackOutput;
 	}
 
 	public abstract ServerCommandSource getSource(ServerWorld world, CommandOutput output);
@@ -201,45 +171,49 @@ public abstract class CommandBlockExecutor {
 	public abstract boolean isEditable();
 
 	/**
-	 * {@code CommandBlockOutput}.
+	 * Внутренний получатель вывода команды, записывающий результат в поле {@code lastOutput}
+	 * с временной меткой и уведомляющий мир об изменении.
 	 */
 	protected class CommandBlockOutput implements CommandOutput, AutoCloseable {
 
-		private final ServerWorld world;
 		private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
+
+		private final ServerWorld world;
 		private boolean closed;
 
-		protected CommandBlockOutput(final ServerWorld world) {
+		protected CommandBlockOutput(ServerWorld world) {
 			this.world = world;
 		}
 
 		@Override
 		public boolean shouldReceiveFeedback() {
-			return !this.closed && this.world.getGameRules().getValue(GameRules.SEND_COMMAND_FEEDBACK);
+			return !closed && world.getGameRules().getValue(GameRules.SEND_COMMAND_FEEDBACK);
 		}
 
 		@Override
 		public boolean shouldTrackOutput() {
-			return !this.closed;
+			return !closed;
 		}
 
 		@Override
 		public boolean shouldBroadcastConsoleToOps() {
-			return !this.closed && this.world.getGameRules().getValue(GameRules.COMMAND_BLOCK_OUTPUT);
+			return !closed && world.getGameRules().getValue(GameRules.COMMAND_BLOCK_OUTPUT);
 		}
 
 		@Override
 		public void sendMessage(Text message) {
-			if (!this.closed) {
-				CommandBlockExecutor.this.lastOutput =
-						Text.literal("[" + TIME_FORMATTER.format(ZonedDateTime.now()) + "] ").append(message);
-				CommandBlockExecutor.this.markDirty(this.world);
+			if (closed) {
+				return;
 			}
+
+			CommandBlockExecutor.this.lastOutput =
+				Text.literal("[" + TIME_FORMATTER.format(ZonedDateTime.now()) + "] ").append(message);
+			CommandBlockExecutor.this.markDirty(world);
 		}
 
 		@Override
-		public void close() throws Exception {
-			this.closed = true;
+		public void close() {
+			closed = true;
 		}
 	}
 }

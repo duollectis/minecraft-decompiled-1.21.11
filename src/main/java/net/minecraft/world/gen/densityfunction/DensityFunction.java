@@ -10,14 +10,16 @@ import net.minecraft.world.gen.chunk.Blender;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DensityFunction}.
+ * Базовый интерфейс функции плотности — строительный блок системы генерации рельефа.
+ * Функции плотности вычисляют скалярное значение в каждой точке пространства (blockX, blockY, blockZ),
+ * которое затем используется для определения наличия твёрдого блока или воздуха.
+ * Функции могут быть скомпонованы, кэшированы и интерполированы через {@link DensityFunctionTypes}.
  */
 public interface DensityFunction {
 
 	Codec<DensityFunction> CODEC = DensityFunctionTypes.CODEC;
 
-	Codec<RegistryEntry<DensityFunction>>
-			REGISTRY_ENTRY_CODEC =
+	Codec<RegistryEntry<DensityFunction>> REGISTRY_ENTRY_CODEC =
 			RegistryElementCodec.of(RegistryKeys.DENSITY_FUNCTION, CODEC);
 
 	Codec<DensityFunction> FUNCTION_CODEC = REGISTRY_ENTRY_CODEC.xmap(
@@ -73,9 +75,7 @@ public interface DensityFunction {
 		return DensityFunctionTypes.unary(this, DensityFunctionTypes.UnaryOperation.Type.SQUEEZE);
 	}
 
-	/**
-	 * {@code Base}.
-	 */
+	/** Базовая реализация {@link DensityFunction} с дефолтными методами {@code fill} и {@code apply}. */
 	public interface Base extends DensityFunction {
 
 		@Override
@@ -89,9 +89,7 @@ public interface DensityFunction {
 		}
 	}
 
-	/**
-	 * {@code DensityFunctionVisitor}.
-	 */
+	/** Посетитель (Visitor) для обхода и трансформации дерева функций плотности. */
 	public interface DensityFunctionVisitor {
 
 		DensityFunction apply(DensityFunction densityFunction);
@@ -101,9 +99,7 @@ public interface DensityFunction {
 		}
 	}
 
-	/**
-	 * {@code EachApplier}.
-	 */
+	/** Применяет функцию плотности к каждой позиции в массиве, используется при заполнении чанка. */
 	public interface EachApplier {
 
 		DensityFunction.NoisePos at(int index);
@@ -111,9 +107,7 @@ public interface DensityFunction {
 		void fill(double[] densities, DensityFunction densityFunction);
 	}
 
-	/**
-	 * {@code Noise}.
-	 */
+	/** Обёртка над {@link DoublePerlinNoiseSampler}, хранящая ссылку на параметры шума из реестра. */
 	public record Noise(
 			RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseData,
 			@Nullable DoublePerlinNoiseSampler noise
@@ -131,27 +125,16 @@ public interface DensityFunction {
 			this(noiseData, null);
 		}
 
-		/**
-		 * Sample.
-		 *
-		 * @param x x
-		 * @param y y
-		 * @param z z
-		 *
-		 * @return double — результат операции
-		 */
 		public double sample(double x, double y, double z) {
-			return this.noise == null ? 0.0 : this.noise.sample(x, y, z);
+			return noise == null ? 0.0 : noise.sample(x, y, z);
 		}
 
 		public double getMaxValue() {
-			return this.noise == null ? 2.0 : this.noise.getMaxValue();
+			return noise == null ? 2.0 : noise.getMaxValue();
 		}
 	}
 
-	/**
-	 * {@code NoisePos}.
-	 */
+	/** Позиция в пространстве блоков, передаваемая в функцию плотности при сэмплировании. */
 	public interface NoisePos {
 
 		int blockX();
@@ -165,9 +148,7 @@ public interface DensityFunction {
 		}
 	}
 
-	/**
-	 * {@code UnblendedNoisePos}.
-	 */
+	/** Простая реализация {@link NoisePos} без блендинга — используется вне контекста генерации чанка. */
 	public record UnblendedNoisePos(int blockX, int blockY, int blockZ) implements DensityFunction.NoisePos {
 	}
 }

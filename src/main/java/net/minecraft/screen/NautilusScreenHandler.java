@@ -8,13 +8,15 @@ import net.minecraft.screen.slot.ArmorSlot;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code NautilusScreenHandler}.
+ * Обработчик экрана наутилуса.
+ * <p>
+ * Добавляет слоты седла и брони наутилуса, а также инвентарь игрока.
+ * Инвентарь самого наутилуса не добавляется (передаётся пустой инвентарь).
  */
 public class NautilusScreenHandler extends MountScreenHandler {
 
 	private static final Identifier EMPTY_SADDLE_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/saddle");
-	private static final Identifier
-			EMPTY_NAUTILUS_ARMOR_SLOT_TEXTURE =
+	private static final Identifier EMPTY_NAUTILUS_ARMOR_SLOT_TEXTURE =
 			Identifier.ofVanilla("container/slot/nautilus_armor_inventory");
 
 	public NautilusScreenHandler(
@@ -25,16 +27,18 @@ public class NautilusScreenHandler extends MountScreenHandler {
 			int slotColumnCount
 	) {
 		super(syncId, playerInventory, inventory, nautilus);
-		Inventory inventory2 = nautilus.createEquipmentInventory(EquipmentSlot.SADDLE);
-		this.addSlot(new ArmorSlot(inventory2, nautilus, EquipmentSlot.SADDLE, 0, 8, 18, EMPTY_SADDLE_SLOT_TEXTURE) {
+
+		Inventory saddleInventory = nautilus.createEquipmentInventory(EquipmentSlot.SADDLE);
+		addSlot(new ArmorSlot(saddleInventory, nautilus, EquipmentSlot.SADDLE, 0, 8, 18, EMPTY_SADDLE_SLOT_TEXTURE) {
 			@Override
 			public boolean isEnabled() {
 				return nautilus.canUseSlot(EquipmentSlot.SADDLE);
 			}
 		});
-		Inventory inventory3 = nautilus.createEquipmentInventory(EquipmentSlot.BODY);
-		this.addSlot(new ArmorSlot(
-				inventory3,
+
+		Inventory bodyInventory = nautilus.createEquipmentInventory(EquipmentSlot.BODY);
+		addSlot(new ArmorSlot(
+				bodyInventory,
 				nautilus,
 				EquipmentSlot.BODY,
 				0,
@@ -47,11 +51,12 @@ public class NautilusScreenHandler extends MountScreenHandler {
 				return nautilus.canUseSlot(EquipmentSlot.BODY);
 			}
 		});
-		this.addPlayerSlots(playerInventory, 8, 84);
+
+		addPlayerSlots(playerInventory, 8, 84);
 	}
 
 	@Override
 	protected boolean areInventoriesDifferent(Inventory inventory) {
-		return ((AbstractNautilusEntity) this.mount).areInventoriesDifferent(inventory);
+		return ((AbstractNautilusEntity) mount).areInventoriesDifferent(inventory);
 	}
 }

@@ -1,7 +1,8 @@
 package net.minecraft.recipe.book;
 
 /**
- * {@code RecipeBookCategory}.
+ * Категория книги рецептов, регистрируемая в реестре {@code RECIPE_BOOK_CATEGORY}.
+ * Все стандартные категории объявлены в {@link RecipeBookCategories}.
  */
 public class RecipeBookCategory implements RecipeBookGroup {
 }

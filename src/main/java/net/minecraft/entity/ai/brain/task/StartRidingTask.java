@@ -7,19 +7,13 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.WalkTarget;
 
 /**
- * {@code StartRidingTask}.
+ * Фабричный класс задачи мозга, начинающей верховую езду на целевом транспорте.
+ * Если транспорт в радиусе 1 блока — садится на него; иначе — идёт к нему.
  */
 public class StartRidingTask {
 
 	private static final int COMPLETION_RANGE = 1;
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -32,23 +26,21 @@ public class StartRidingTask {
 							                  if (entity.hasVehicle()) {
 								                  return false;
 							                  }
-							                  else {
-								                  Entity entity2 = context.getValue(rideTarget);
-								                  if (entity2.isInRange(entity, 1.0)) {
-									                  entity.startRiding(entity2);
-								                  }
-								                  else {
-									                  lookTarget.remember(new EntityLookTarget(entity2, true));
-									                  walkTarget.remember(new WalkTarget(
-											                  new EntityLookTarget(
-													                  entity2,
-													                  false
-											                  ), speed, 1
-									                  ));
-								                  }
 
-								                  return true;
+							                  Entity rideVehicle = context.getValue(rideTarget);
+
+							                  if (rideVehicle.isInRange(entity, 1.0)) {
+								                  entity.startRiding(rideVehicle);
+							                  } else {
+								                  lookTarget.remember(new EntityLookTarget(rideVehicle, true));
+								                  walkTarget.remember(new WalkTarget(
+										                  new EntityLookTarget(rideVehicle, false),
+										                  speed,
+										                  COMPLETION_RANGE
+								                  ));
 							                  }
+
+							                  return true;
 						                  }
 				                  )
 		);

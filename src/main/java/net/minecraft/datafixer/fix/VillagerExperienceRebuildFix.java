@@ -11,7 +11,7 @@ import net.minecraft.util.math.MathHelper;
 import java.util.Optional;
 
 /**
- * {@code VillagerExperienceRebuildFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerExperienceRebuildFix extends DataFix {
 
@@ -27,16 +27,16 @@ public class VillagerExperienceRebuildFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:villager");
+		Type<?> type = getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:villager");
 		OpticFinder<?> opticFinder = DSL.namedChoice("minecraft:villager", type);
 		OpticFinder<?> opticFinder2 = type.findField("Offers");
 		Type<?> type2 = opticFinder2.type();
 		OpticFinder<?> opticFinder3 = type2.findField("Recipes");
 		ListType<?> listType = (ListType<?>) opticFinder3.type();
 		OpticFinder<?> opticFinder4 = listType.getElement().finder();
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Villager level and xp rebuild",
-				this.getInputSchema().getType(TypeReferences.ENTITY),
+				getInputSchema().getType(TypeReferences.ENTITY),
 				entityTyped -> entityTyped.updateTyped(
 						opticFinder,
 						type,

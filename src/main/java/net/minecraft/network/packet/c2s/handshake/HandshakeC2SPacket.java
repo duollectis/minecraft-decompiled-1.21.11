@@ -31,7 +31,7 @@ public record HandshakeC2SPacket(
 	}
 
 	private HandshakeC2SPacket(PacketByteBuf buf) {
-		this(buf.readVarInt(), buf.readString(255), buf.readUnsignedShort(), ConnectionIntent.byId(buf.readVarInt()));
+		this(buf.readVarInt(), buf.readString(MAX_ADDRESS_LENGTH), buf.readUnsignedShort(), ConnectionIntent.byId(buf.readVarInt()));
 	}
 
 	private void write(PacketByteBuf buf) {

@@ -7,23 +7,15 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import java.util.stream.Stream;
 
 /**
- * {@code AbstractConditionalPlacementModifier}.
+ * Базовый класс условного модификатора размещения — либо пропускает позицию,
+ * либо отфильтровывает её в зависимости от результата {@link #shouldPlace}.
  */
 public abstract class AbstractConditionalPlacementModifier extends PlacementModifier {
 
 	@Override
 	public final Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		return this.shouldPlace(context, random, pos) ? Stream.of(pos) : Stream.of();
+		return shouldPlace(context, random, pos) ? Stream.of(pos) : Stream.of();
 	}
 
-	/**
-	 * Определяет, следует ли place.
-	 *
-	 * @param context context
-	 * @param random random
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected abstract boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos);
 }

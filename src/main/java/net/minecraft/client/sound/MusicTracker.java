@@ -25,7 +25,7 @@ public class MusicTracker {
 	private @Nullable SoundInstance current;
 	private MusicTracker.MusicFrequency musicFrequency;
 	private float volume = 1.0F;
-	private int timeUntilNextSong = 100;
+	private int timeUntilNextSong = DEFAULT_TIME_UNTIL_NEXT_SONG;
 	private boolean shownToast = false;
 
 	public MusicTracker(MinecraftClient client) {
@@ -47,7 +47,7 @@ public class MusicTracker {
 
 		MusicSound musicSound = this.client.getMusicInstance();
 		if (musicSound == null) {
-			this.timeUntilNextSong = Math.max(this.timeUntilNextSong, 100);
+			this.timeUntilNextSong = Math.max(this.timeUntilNextSong, DEFAULT_TIME_UNTIL_NEXT_SONG);
 		}
 		else {
 			if (this.current != null) {
@@ -132,7 +132,7 @@ public class MusicTracker {
 			this.client.getToastManager().onMusicTrackStop();
 		}
 
-		this.timeUntilNextSong += 100;
+		this.timeUntilNextSong += DEFAULT_TIME_UNTIL_NEXT_SONG;
 	}
 
 	private boolean canFadeTowardsVolume(float volume) {
@@ -215,7 +215,7 @@ public class MusicTracker {
 				return this.delayBetweenTracks;
 			}
 			else if (this == CONSTANT) {
-				return 100;
+				return DEFAULT_TIME_UNTIL_NEXT_SONG;
 			}
 			else {
 				int i = Math.min(music.minDelay(), this.delayBetweenTracks);

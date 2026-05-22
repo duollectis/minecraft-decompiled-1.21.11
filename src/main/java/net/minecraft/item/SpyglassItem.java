@@ -10,7 +10,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
 /**
- * {@code SpyglassItem}.
+ * Подзорная труба — при удержании сужает поле зрения игрока до {@link #FOV_MULTIPLIER}.
+ * Максимальное время использования — {@link #MAX_USE_TIME} тиков (60 секунд).
  */
 public class SpyglassItem extends Item {
 
@@ -23,7 +24,7 @@ public class SpyglassItem extends Item {
 
 	@Override
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		return 1200;
+		return MAX_USE_TIME;
 	}
 
 	@Override
@@ -40,13 +41,13 @@ public class SpyglassItem extends Item {
 
 	@Override
 	public ItemStack finishUsing(ItemStack stack, World world, LivingEntity user) {
-		this.playStopUsingSound(user);
+		playStopUsingSound(user);
 		return stack;
 	}
 
 	@Override
 	public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
-		this.playStopUsingSound(user);
+		playStopUsingSound(user);
 		return true;
 	}
 

@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * {@code SendCodeOfConductTask}.
+ * Класс Send Code Of Conduct Task.
  */
 public class SendCodeOfConductTask implements ServerPlayerConfigurationTask {
 

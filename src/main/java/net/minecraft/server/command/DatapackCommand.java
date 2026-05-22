@@ -46,7 +46,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code DatapackCommand}.
+ * Команда {@code /datapack}: управление загруженными пакетами данных.
  */
 public class DatapackCommand {
 
@@ -514,9 +514,6 @@ public class DatapackCommand {
 		}
 	}
 
-	/**
-	 * {@code PackAdder}.
-	 */
 	interface PackAdder {
 
 		void apply(List<ResourcePackProfile> profiles, ResourcePackProfile profile) throws CommandSyntaxException;

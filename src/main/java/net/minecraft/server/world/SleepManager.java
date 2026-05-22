@@ -7,7 +7,7 @@ import net.minecraft.util.math.MathHelper;
 import java.util.List;
 
 /**
- * {@code SleepManager}.
+ * Класс Sleep Manager.
  */
 public class SleepManager {
 

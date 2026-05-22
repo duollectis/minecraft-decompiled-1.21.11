@@ -7,7 +7,8 @@ import net.minecraft.util.math.Box;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityLike}.
+ * Базовый контракт для объектов, которые могут быть размещены в мире и отслеживаться
+ * системой управления сущностями. Расширяет {@link UniquelyIdentifiable}.
  */
 public interface EntityLike extends UniquelyIdentifiable {
 

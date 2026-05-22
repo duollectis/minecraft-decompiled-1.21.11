@@ -20,172 +20,175 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * {@code StructureWeightSampler}.
+ * Сэмплер весов структур для адаптации рельефа под размещённые постройки.
+ * Вычисляет плотностную поправку («бороду») вокруг кусков структур и джигсо-соединений,
+ * чтобы ландшафт плавно переходил в основание структуры.
  */
 public class StructureWeightSampler implements DensityFunctionTypes.Beardifying {
 
 	public static final int INDEX_OFFSET = 12;
 	private static final int EDGE_LENGTH = 24;
+	private static final double MAGNITUDE_WEIGHT_MAX_DIST = 6.0;
+	private static final double JUNCTION_WEIGHT_FACTOR = 0.4;
+	private static final double PIECE_WEIGHT_FACTOR = 0.8;
+
+	/** Предвычисленная таблица весов структуры размером 24×24×24. */
 	private static final float[] STRUCTURE_WEIGHT_TABLE = Util.make(
-			new float[13824], array -> {
-				for (int i = 0; i < 24; i++) {
-					for (int j = 0; j < 24; j++) {
-						for (int k = 0; k < 24; k++) {
-							array[i * 24 * 24 + j * 24 + k] = (float) calculateStructureWeight(j - 12, k - 12, i - 12);
-						}
+		new float[EDGE_LENGTH * EDGE_LENGTH * EDGE_LENGTH],
+		array -> {
+			for (int x = 0; x < EDGE_LENGTH; x++) {
+				for (int y = 0; y < EDGE_LENGTH; y++) {
+					for (int z = 0; z < EDGE_LENGTH; z++) {
+						array[x * EDGE_LENGTH * EDGE_LENGTH + y * EDGE_LENGTH + z] =
+							(float) calculateStructureWeight(y - INDEX_OFFSET, z - INDEX_OFFSET, x - INDEX_OFFSET);
 					}
 				}
 			}
+		}
 	);
+
 	public static final StructureWeightSampler EMPTY = new StructureWeightSampler(List.of(), List.of(), null);
-	private final List<StructureWeightSampler.Piece> pieces;
+
+	private final List<Piece> pieces;
 	private final List<JigsawJunction> junctions;
 	private final @Nullable BlockBox boundingBox;
 
+	/**
+	 * Создаёт сэмплер весов для всех структур в чанке, требующих адаптации рельефа.
+	 * Собирает куски структур и джигсо-соединения, попадающие в расширенный диапазон чанка.
+	 */
 	public static StructureWeightSampler createStructureWeightSampler(
-			StructureAccessor structureAccessor,
-			ChunkPos chunkPos
+		StructureAccessor structureAccessor,
+		ChunkPos chunkPos
 	) {
-		List<StructureStart> list = structureAccessor.getStructureStarts(
-				chunkPos, structure -> structure.getTerrainAdaptation() != StructureTerrainAdaptation.NONE
+		List<StructureStart> starts = structureAccessor.getStructureStarts(
+			chunkPos,
+			structure -> structure.getTerrainAdaptation() != StructureTerrainAdaptation.NONE
 		);
-		if (list.isEmpty()) {
+
+		if (starts.isEmpty()) {
 			return EMPTY;
 		}
-		else {
-			int i = chunkPos.getStartX();
-			int j = chunkPos.getStartZ();
-			List<StructureWeightSampler.Piece> list2 = new ArrayList<>();
-			List<JigsawJunction> list3 = new ArrayList<>();
-			BlockBox blockBox = null;
 
-			for (StructureStart structureStart : list) {
-				StructureTerrainAdaptation
-						structureTerrainAdaptation =
-						structureStart.getStructure().getTerrainAdaptation();
+		int chunkStartX = chunkPos.getStartX();
+		int chunkStartZ = chunkPos.getStartZ();
+		List<Piece> pieces = new ArrayList<>();
+		List<JigsawJunction> junctions = new ArrayList<>();
+		BlockBox combinedBox = null;
 
-				for (StructurePiece structurePiece : structureStart.getChildren()) {
-					if (structurePiece.intersectsChunk(chunkPos, 12)) {
-						if (structurePiece instanceof PoolStructurePiece poolStructurePiece) {
-							StructurePool.Projection projection = poolStructurePiece.getPoolElement().getProjection();
-							if (projection == StructurePool.Projection.RIGID) {
-								list2.add(
-										new StructureWeightSampler.Piece(
-												poolStructurePiece.getBoundingBox(),
-												structureTerrainAdaptation,
-												poolStructurePiece.getGroundLevelDelta()
-										)
-								);
-								blockBox = expandOrCreate(blockBox, structurePiece.getBoundingBox());
-							}
+		for (StructureStart start : starts) {
+			StructureTerrainAdaptation adaptation = start.getStructure().getTerrainAdaptation();
 
-							for (JigsawJunction jigsawJunction : poolStructurePiece.getJunctions()) {
-								int k = jigsawJunction.getSourceX();
-								int l = jigsawJunction.getSourceZ();
-								if (k > i - 12 && l > j - 12 && k < i + 15 + 12 && l < j + 15 + 12) {
-									list3.add(jigsawJunction);
-									BlockBox
-											blockBox2 =
-											new BlockBox(new BlockPos(k, jigsawJunction.getSourceGroundY(), l));
-									blockBox = expandOrCreate(blockBox, blockBox2);
-								}
-							}
-						}
-						else {
-							list2.add(new StructureWeightSampler.Piece(
-									structurePiece.getBoundingBox(),
-									structureTerrainAdaptation,
-									0
-							));
-							blockBox = expandOrCreate(blockBox, structurePiece.getBoundingBox());
+			for (StructurePiece piece : start.getChildren()) {
+				if (!piece.intersectsChunk(chunkPos, INDEX_OFFSET)) {
+					continue;
+				}
+
+				if (piece instanceof PoolStructurePiece poolPiece) {
+					StructurePool.Projection projection = poolPiece.getPoolElement().getProjection();
+
+					if (projection == StructurePool.Projection.RIGID) {
+						pieces.add(new Piece(poolPiece.getBoundingBox(), adaptation, poolPiece.getGroundLevelDelta()));
+						combinedBox = expandOrCreate(combinedBox, piece.getBoundingBox());
+					}
+
+					for (JigsawJunction junction : poolPiece.getJunctions()) {
+						int sourceX = junction.getSourceX();
+						int sourceZ = junction.getSourceZ();
+						boolean inRangeX = sourceX > chunkStartX - INDEX_OFFSET
+							&& sourceX < chunkStartX + 15 + INDEX_OFFSET;
+						boolean inRangeZ = sourceZ > chunkStartZ - INDEX_OFFSET
+							&& sourceZ < chunkStartZ + 15 + INDEX_OFFSET;
+
+						if (inRangeX && inRangeZ) {
+							junctions.add(junction);
+							BlockBox junctionBox = new BlockBox(
+								new BlockPos(sourceX, junction.getSourceGroundY(), sourceZ)
+							);
+							combinedBox = expandOrCreate(combinedBox, junctionBox);
 						}
 					}
+				} else {
+					pieces.add(new Piece(piece.getBoundingBox(), adaptation, 0));
+					combinedBox = expandOrCreate(combinedBox, piece.getBoundingBox());
 				}
 			}
-
-			if (blockBox == null) {
-				return EMPTY;
-			}
-			else {
-				BlockBox blockBox3 = blockBox.expand(24);
-				return new StructureWeightSampler(List.copyOf(list2), List.copyOf(list3), blockBox3);
-			}
 		}
+
+		if (combinedBox == null) {
+			return EMPTY;
+		}
+
+		return new StructureWeightSampler(List.copyOf(pieces), List.copyOf(junctions), combinedBox.expand(EDGE_LENGTH));
 	}
 
-	private static BlockBox expandOrCreate(@Nullable BlockBox blockBox, BlockBox blockBox2) {
-		return blockBox == null ? blockBox2 : BlockBox.createEncompassing(blockBox, blockBox2);
+	private static BlockBox expandOrCreate(@Nullable BlockBox existing, BlockBox addition) {
+		return existing == null ? addition : BlockBox.createEncompassing(existing, addition);
 	}
 
 	@VisibleForTesting
-	public StructureWeightSampler(
-			List<StructureWeightSampler.Piece> list,
-			List<JigsawJunction> list2,
-			@Nullable BlockBox blockBox
-	) {
-		this.pieces = list;
-		this.junctions = list2;
-		this.boundingBox = blockBox;
+	public StructureWeightSampler(List<Piece> pieces, List<JigsawJunction> junctions, @Nullable BlockBox boundingBox) {
+		this.pieces = pieces;
+		this.junctions = junctions;
+		this.boundingBox = boundingBox;
 	}
 
 	@Override
 	public void fill(double[] densities, DensityFunction.EachApplier applier) {
-		if (this.boundingBox == null) {
+		if (boundingBox == null) {
 			Arrays.fill(densities, 0.0);
-		}
-		else {
+		} else {
 			DensityFunctionTypes.Beardifying.super.fill(densities, applier);
 		}
 	}
 
 	@Override
 	public double sample(DensityFunction.NoisePos pos) {
-		if (this.boundingBox == null) {
+		if (boundingBox == null) {
 			return 0.0;
 		}
-		else {
-			int i = pos.blockX();
-			int j = pos.blockY();
-			int k = pos.blockZ();
-			if (!this.boundingBox.contains(i, j, k)) {
-				return 0.0;
-			}
-			else {
-				double d = 0.0;
 
-				for (StructureWeightSampler.Piece piece : this.pieces) {
-					BlockBox blockBox = piece.box();
-					int l = piece.groundLevelDelta();
-					int m = Math.max(0, Math.max(blockBox.getMinX() - i, i - blockBox.getMaxX()));
-					int n = Math.max(0, Math.max(blockBox.getMinZ() - k, k - blockBox.getMaxZ()));
-					int o = blockBox.getMinY() + l;
-					int p = j - o;
+		int blockX = pos.blockX();
+		int blockY = pos.blockY();
+		int blockZ = pos.blockZ();
 
-					int q = switch (piece.terrainAdjustment()) {
-						case NONE -> 0;
-						case BURY, BEARD_THIN -> p;
-						case BEARD_BOX -> Math.max(0, Math.max(o - j, j - blockBox.getMaxY()));
-						case ENCAPSULATE -> Math.max(0, Math.max(blockBox.getMinY() - j, j - blockBox.getMaxY()));
-					};
-
-					d += switch (piece.terrainAdjustment()) {
-						case NONE -> 0.0;
-						case BURY -> getMagnitudeWeight(m, q / 2.0, n);
-						case BEARD_THIN, BEARD_BOX -> getStructureWeight(m, q, n, p) * 0.8;
-						case ENCAPSULATE -> getMagnitudeWeight(m / 2.0, q / 2.0, n / 2.0) * 0.8;
-					};
-				}
-
-				for (JigsawJunction jigsawJunction : this.junctions) {
-					int r = i - jigsawJunction.getSourceX();
-					int l = j - jigsawJunction.getSourceGroundY();
-					int m = k - jigsawJunction.getSourceZ();
-					d += getStructureWeight(r, l, m, l) * 0.4;
-				}
-
-				return d;
-			}
+		if (!boundingBox.contains(blockX, blockY, blockZ)) {
+			return 0.0;
 		}
+
+		double density = 0.0;
+
+		for (Piece piece : pieces) {
+			BlockBox box = piece.box();
+			int groundLevelDelta = piece.groundLevelDelta();
+			int distX = Math.max(0, Math.max(box.getMinX() - blockX, blockX - box.getMaxX()));
+			int distZ = Math.max(0, Math.max(box.getMinZ() - blockZ, blockZ - box.getMaxZ()));
+			int groundY = box.getMinY() + groundLevelDelta;
+			int relY = blockY - groundY;
+
+			int verticalDist = switch (piece.terrainAdjustment()) {
+				case NONE -> 0;
+				case BURY, BEARD_THIN -> relY;
+				case BEARD_BOX -> Math.max(0, Math.max(groundY - blockY, blockY - box.getMaxY()));
+				case ENCAPSULATE -> Math.max(0, Math.max(box.getMinY() - blockY, blockY - box.getMaxY()));
+			};
+
+			density += switch (piece.terrainAdjustment()) {
+				case NONE -> 0.0;
+				case BURY -> getMagnitudeWeight(distX, verticalDist / 2.0, distZ);
+				case BEARD_THIN, BEARD_BOX -> getStructureWeight(distX, verticalDist, distZ, relY) * PIECE_WEIGHT_FACTOR;
+				case ENCAPSULATE -> getMagnitudeWeight(distX / 2.0, verticalDist / 2.0, distZ / 2.0) * PIECE_WEIGHT_FACTOR;
+			};
+		}
+
+		for (JigsawJunction junction : junctions) {
+			int relX = blockX - junction.getSourceX();
+			int relY = blockY - junction.getSourceGroundY();
+			int relZ = blockZ - junction.getSourceZ();
+			density += getStructureWeight(relX, relY, relZ, relY) * JUNCTION_WEIGHT_FACTOR;
+		}
+
+		return density;
 	}
 
 	@Override
@@ -199,27 +202,31 @@ public class StructureWeightSampler implements DensityFunctionTypes.Beardifying 
 	}
 
 	private static double getMagnitudeWeight(double x, double y, double z) {
-		double d = MathHelper.magnitude(x, y, z);
-		return MathHelper.clampedMap(d, 0.0, 6.0, 1.0, 0.0);
+		double magnitude = MathHelper.magnitude(x, y, z);
+		return MathHelper.clampedMap(magnitude, 0.0, MAGNITUDE_WEIGHT_MAX_DIST, 1.0, 0.0);
 	}
 
-	private static double getStructureWeight(int x, int y, int z, int yy) {
-		int i = x + 12;
-		int j = y + 12;
-		int k = z + 12;
-		if (indexInBounds(i) && indexInBounds(j) && indexInBounds(k)) {
-			double d = yy + 0.5;
-			double e = MathHelper.squaredMagnitude(x, d, z);
-			double f = -d * MathHelper.fastInverseSqrt(e / 2.0) / 2.0;
-			return f * STRUCTURE_WEIGHT_TABLE[k * 24 * 24 + i * 24 + j];
-		}
-		else {
+	/**
+	 * Вычисляет вес структуры по таблице с учётом направленного затухания по оси Y.
+	 * Использует предвычисленную таблицу {@link #STRUCTURE_WEIGHT_TABLE} для производительности.
+	 */
+	private static double getStructureWeight(int x, int y, int z, int rawY) {
+		int tableX = x + INDEX_OFFSET;
+		int tableY = y + INDEX_OFFSET;
+		int tableZ = z + INDEX_OFFSET;
+
+		if (!indexInBounds(tableX) || !indexInBounds(tableY) || !indexInBounds(tableZ)) {
 			return 0.0;
 		}
+
+		double centeredY = rawY + 0.5;
+		double squaredMag = MathHelper.squaredMagnitude(x, centeredY, z);
+		double directionalFactor = -centeredY * MathHelper.fastInverseSqrt(squaredMag / 2.0) / 2.0;
+		return directionalFactor * STRUCTURE_WEIGHT_TABLE[tableZ * EDGE_LENGTH * EDGE_LENGTH + tableX * EDGE_LENGTH + tableY];
 	}
 
-	private static boolean indexInBounds(int i) {
-		return i >= 0 && i < 24;
+	private static boolean indexInBounds(int index) {
+		return index >= 0 && index < EDGE_LENGTH;
 	}
 
 	private static double calculateStructureWeight(int x, int y, int z) {
@@ -227,14 +234,14 @@ public class StructureWeightSampler implements DensityFunctionTypes.Beardifying 
 	}
 
 	private static double structureWeight(int x, double y, int z) {
-		double d = MathHelper.squaredMagnitude(x, y, z);
-		return Math.pow(Math.E, -d / 16.0);
+		double squaredMag = MathHelper.squaredMagnitude(x, y, z);
+		return Math.pow(Math.E, -squaredMag / 16.0);
 	}
 
-	@VisibleForTesting
 	/**
-	 * {@code Piece}.
+	 * Кусок структуры с информацией об адаптации рельефа.
 	 */
+	@VisibleForTesting
 	public record Piece(BlockBox box, StructureTerrainAdaptation terrainAdjustment, int groundLevelDelta) {
 	}
 }

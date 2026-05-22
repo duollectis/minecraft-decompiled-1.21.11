@@ -10,7 +10,8 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code MapDecorationType}.
+ * Тип декорации карты, описывающий визуальный ассет, цвет на карте и поведение
+ * маркера (отображение в рамке, учёт в счётчике, принадлежность к картам-исследованиям).
  */
 public record MapDecorationType(
 		Identifier assetId,

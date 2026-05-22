@@ -15,29 +15,36 @@ import java.io.IOException;
 import java.io.Reader;
 
 /**
- * {@code LogReader}.
+ * Последовательный читатель лог-файла, десериализующий записи через {@link Codec}.
+ * Каждый вызов {@link #read()} возвращает следующую запись или {@code null} при достижении конца.
  */
 public interface LogReader<T> extends Closeable {
 
+	/**
+	 * Создаёт читатель, парсящий JSON-строки из переданного {@link Reader}
+	 * и декодирующий их через указанный кодек.
+	 *
+	 * @param codec  кодек для десериализации записей
+	 * @param reader источник данных
+	 * @return читатель лог-записей
+	 */
 	static <T> LogReader<T> create(Codec<T> codec, Reader reader) {
-		final JsonReader jsonReader = new JsonReader(reader);
+		JsonReader jsonReader = new JsonReader(reader);
 		jsonReader.setStrictness(Strictness.LENIENT);
-		return new LogReader<T>() {
+
+		return new LogReader<>() {
 			@Override
 			public @Nullable T read() throws IOException {
 				try {
 					if (!jsonReader.hasNext()) {
 						return null;
 					}
-					else {
-						JsonElement jsonElement = JsonParser.parseReader(jsonReader);
-						return (T) codec.parse(JsonOps.INSTANCE, jsonElement).getOrThrow(IOException::new);
-					}
-				}
-				catch (JsonParseException var2) {
-					throw new IOException(var2);
-				}
-				catch (EOFException var3) {
+
+					JsonElement element = JsonParser.parseReader(jsonReader);
+					return codec.parse(JsonOps.INSTANCE, element).getOrThrow(IOException::new);
+				} catch (JsonParseException e) {
+					throw new IOException(e);
+				} catch (EOFException e) {
 					return null;
 				}
 			}

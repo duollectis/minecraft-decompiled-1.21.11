@@ -14,7 +14,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code ScoreboardObjective}.
+ * Цель скорборда — именованный счётчик с критерием обновления и настройками отображения.
+ * <p>
+ * Каждая цель привязана к {@link Scoreboard} и уведомляет его об изменениях
+ * через {@link Scoreboard#updateExistingObjective(ScoreboardObjective)}.
  */
 public class ScoreboardObjective {
 
@@ -40,88 +43,97 @@ public class ScoreboardObjective {
 		this.name = name;
 		this.criterion = criterion;
 		this.displayName = displayName;
-		this.bracketedDisplayName = this.generateBracketedDisplayName();
+		this.bracketedDisplayName = generateBracketedDisplayName();
 		this.renderType = renderType;
 		this.displayAutoUpdate = displayAutoUpdate;
 		this.numberFormat = numberFormat;
 	}
 
-	public ScoreboardObjective.Packed pack() {
-		return new ScoreboardObjective.Packed(
-				this.name,
-				this.criterion,
-				this.displayName,
-				this.renderType,
-				this.displayAutoUpdate,
-				Optional.ofNullable(this.numberFormat)
+	public Packed pack() {
+		return new Packed(
+				name,
+				criterion,
+				displayName,
+				renderType,
+				displayAutoUpdate,
+				Optional.ofNullable(numberFormat)
 		);
 	}
 
 	public Scoreboard getScoreboard() {
-		return this.scoreboard;
+		return scoreboard;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public ScoreboardCriterion getCriterion() {
-		return this.criterion;
+		return criterion;
 	}
 
 	public Text getDisplayName() {
-		return this.displayName;
+		return displayName;
 	}
 
 	public boolean shouldDisplayAutoUpdate() {
-		return this.displayAutoUpdate;
+		return displayAutoUpdate;
 	}
 
 	public @Nullable NumberFormat getNumberFormat() {
-		return this.numberFormat;
+		return numberFormat;
 	}
 
-	public NumberFormat getNumberFormatOr(NumberFormat format) {
-		return Objects.requireNonNullElse(this.numberFormat, format);
+	public NumberFormat getNumberFormatOr(NumberFormat fallback) {
+		return Objects.requireNonNullElse(numberFormat, fallback);
 	}
 
+	/**
+	 * Генерирует отображаемое имя в квадратных скобках с hover-подсказкой,
+	 * показывающей внутреннее имя цели.
+	 */
 	private Text generateBracketedDisplayName() {
-		return Texts.bracketed(this.displayName
-				.copy()
-				.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(this.name)))));
+		return Texts.bracketed(
+				displayName.copy()
+						.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(name))))
+		);
 	}
 
+	/**
+	 * Возвращает отображаемое имя в квадратных скобках с hover-подсказкой.
+	 * Используется в командах и интерфейсе для идентификации цели.
+	 */
 	public Text toHoverableText() {
-		return this.bracketedDisplayName;
+		return bracketedDisplayName;
 	}
 
-	public void setDisplayName(Text name) {
-		this.displayName = name;
-		this.bracketedDisplayName = this.generateBracketedDisplayName();
-		this.scoreboard.updateExistingObjective(this);
+	public void setDisplayName(Text displayName) {
+		this.displayName = displayName;
+		this.bracketedDisplayName = generateBracketedDisplayName();
+		scoreboard.updateExistingObjective(this);
 	}
 
 	public ScoreboardCriterion.RenderType getRenderType() {
-		return this.renderType;
+		return renderType;
 	}
 
 	public void setRenderType(ScoreboardCriterion.RenderType renderType) {
 		this.renderType = renderType;
-		this.scoreboard.updateExistingObjective(this);
+		scoreboard.updateExistingObjective(this);
 	}
 
 	public void setDisplayAutoUpdate(boolean displayAutoUpdate) {
 		this.displayAutoUpdate = displayAutoUpdate;
-		this.scoreboard.updateExistingObjective(this);
+		scoreboard.updateExistingObjective(this);
 	}
 
 	public void setNumberFormat(@Nullable NumberFormat numberFormat) {
 		this.numberFormat = numberFormat;
-		this.scoreboard.updateExistingObjective(this);
+		scoreboard.updateExistingObjective(this);
 	}
 
 	/**
-	 * {@code Packed}.
+	 * Упакованное представление цели для сериализации в NBT/JSON и сетевой передачи.
 	 */
 	public record Packed(
 			String name,
@@ -132,24 +144,23 @@ public class ScoreboardObjective {
 			Optional<NumberFormat> numberFormat
 	) {
 
-		public static final Codec<ScoreboardObjective.Packed> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Packed> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.STRING.fieldOf("Name").forGetter(ScoreboardObjective.Packed::name),
-						                    ScoreboardCriterion.CODEC
-								                    .optionalFieldOf("CriteriaName", ScoreboardCriterion.DUMMY)
-								                    .forGetter(ScoreboardObjective.Packed::criteria),
-						                    TextCodecs.CODEC.fieldOf("DisplayName").forGetter(ScoreboardObjective.Packed::displayName),
-						                    ScoreboardCriterion.RenderType.CODEC
-								                    .optionalFieldOf("RenderType", ScoreboardCriterion.RenderType.INTEGER)
-								                    .forGetter(ScoreboardObjective.Packed::renderType),
-						                    Codec.BOOL
-								                    .optionalFieldOf("display_auto_update", false)
-								                    .forGetter(ScoreboardObjective.Packed::displayAutoUpdate),
-						                    NumberFormatTypes.CODEC
-								                    .optionalFieldOf("format")
-								                    .forGetter(ScoreboardObjective.Packed::numberFormat)
-				                    )
-				                    .apply(instance, ScoreboardObjective.Packed::new)
+						Codec.STRING.fieldOf("Name").forGetter(Packed::name),
+						ScoreboardCriterion.CODEC
+								.optionalFieldOf("CriteriaName", ScoreboardCriterion.DUMMY)
+								.forGetter(Packed::criteria),
+						TextCodecs.CODEC.fieldOf("DisplayName").forGetter(Packed::displayName),
+						ScoreboardCriterion.RenderType.CODEC
+								.optionalFieldOf("RenderType", ScoreboardCriterion.RenderType.INTEGER)
+								.forGetter(Packed::renderType),
+						Codec.BOOL
+								.optionalFieldOf("display_auto_update", false)
+								.forGetter(Packed::displayAutoUpdate),
+						NumberFormatTypes.CODEC
+								.optionalFieldOf("format")
+								.forGetter(Packed::numberFormat)
+				).apply(instance, Packed::new)
 		);
 	}
 }

@@ -17,15 +17,20 @@ import org.slf4j.Logger;
 
 import java.util.concurrent.TimeUnit;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientChunkLoadProgress}.
+ * Клиентская реализация {@link ChunkLoadProgress}, управляющая конечным автоматом загрузки мира.
+ *
+ * <p>Жизненный цикл состояний: {@link Start} → {@link LoadChunks} → {@link Wait}.
+ * Переход из {@code Start} в {@code LoadChunks} происходит при получении пакета
+ * {@code INITIAL_CHUNKS_COMING} от сервера. Если пакет не пришёл за 30 секунд —
+ * срабатывает таймаут и автомат принудительно переходит в {@code Wait}.
  */
+@Environment(EnvType.CLIENT)
 public class ClientChunkLoadProgress implements ChunkLoadProgress {
 
 	static final Logger LOGGER = LogUtils.getLogger();
 
-	private static final long THIRTY_SECONDS = TimeUnit.SECONDS.toMillis(30L);
+	private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30L);
 	public static final long WAIT_UNTIL_READY_MILLIS = 500L;
 
 	private final DeltaChunkLoadProgress delegate = new DeltaChunkLoadProgress(true);
@@ -43,56 +48,68 @@ public class ClientChunkLoadProgress implements ChunkLoadProgress {
 	}
 
 	public void setChunkLoadMap(ChunkLoadMap map) {
-		this.chunkLoadMap = map;
+		chunkLoadMap = map;
 	}
 
 	/**
-	 * Запускает world loading.
+	 * Инициализирует загрузку мира, переводя автомат в начальное состояние {@link Start}.
+	 * Устанавливает таймаут ожидания пакета {@code INITIAL_CHUNKS_COMING}.
 	 *
-	 * @param player player
-	 * @param world world
-	 * @param renderer renderer
+	 * @param player   игрок, для которого загружается мир
+	 * @param world    загружаемый клиентский мир
+	 * @param renderer рендерер мира
 	 */
 	public void startWorldLoading(ClientPlayerEntity player, ClientWorld world, WorldRenderer renderer) {
 		LOGGER.debug("[ChunkLoadProgress] startWorldLoading — переход в состояние Start");
-		this.state =
-				new ClientChunkLoadProgress.Start(player, world, renderer, Util.getMeasuringTimeMs() + THIRTY_SECONDS);
+		state = new ClientChunkLoadProgress.Start(
+				player,
+				world,
+				renderer,
+				Util.getMeasuringTimeMs() + TIMEOUT_MILLIS
+		);
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние автомата за один тик.
+	 * Если автомат завис в {@link Start} дольше {@link #TIMEOUT_MILLIS} мс,
+	 * принудительно переходит в {@link Wait}.
 	 */
 	public void tick() {
-		if (this.state == null) {
+		if (state == null) {
 			return;
 		}
 
-		ClientChunkLoadProgress.State nextState = this.state.next();
+		ClientChunkLoadProgress.State nextState = state.next();
 
-		if (nextState != this.state) {
+		if (nextState != state) {
 			LOGGER.debug(
 					"[ChunkLoadProgress] tick() — смена состояния: {} -> {}",
-					this.state.getClass().getSimpleName(),
+					state.getClass().getSimpleName(),
 					nextState.getClass().getSimpleName()
 			);
 		}
 
-		this.state = nextState;
+		state = nextState;
 
-		// Таймаут-фолбэк: если сервер так и не прислал INITIAL_CHUNKS_COMING и мы застряли в Start
-		if (this.state instanceof ClientChunkLoadProgress.Start startState
+		// Таймаут-фолбэк: сервер не прислал INITIAL_CHUNKS_COMING вовремя
+		if (state instanceof ClientChunkLoadProgress.Start startState
 				&& Util.getMeasuringTimeMs() > startState.timeoutAfter()
 		) {
 			LOGGER.warn(
-					"[ChunkLoadProgress] Таймаут ожидания INITIAL_CHUNKS_COMING ({}мс). Принудительный переход в LoadChunks -> Wait.",
-					THIRTY_SECONDS
+					"[ChunkLoadProgress] Таймаут ожидания INITIAL_CHUNKS_COMING ({}мс). Принудительный переход в Wait.",
+					TIMEOUT_MILLIS
 			);
-			this.state = new ClientChunkLoadProgress.Wait(Util.getMeasuringTimeMs() + this.extraWaitMillis);
+			state = new ClientChunkLoadProgress.Wait(Util.getMeasuringTimeMs() + extraWaitMillis);
 		}
+
 	}
 
+	/**
+	 * Возвращает {@code true}, если загрузка завершена и можно показывать мир.
+	 * Условие: автомат находится в состоянии {@link Wait} и время ожидания истекло.
+	 */
 	public boolean isDone() {
-		if (this.state instanceof ClientChunkLoadProgress.Wait waitState) {
+		if (state instanceof ClientChunkLoadProgress.Wait waitState) {
 			boolean ready = Util.getMeasuringTimeMs() >= waitState.readyAt();
 
 			if (ready) {
@@ -106,107 +123,74 @@ public class ClientChunkLoadProgress implements ChunkLoadProgress {
 	}
 
 	/**
-	 * Инициализирует ial chunks coming.
+	 * Вызывается при получении пакета {@code INITIAL_CHUNKS_COMING} от сервера.
+	 * Переводит автомат из {@link Start} в {@link LoadChunks}.
 	 */
 	public void initialChunksComing() {
-		if (this.state == null) {
+		if (state == null) {
 			return;
 		}
 
-		ClientChunkLoadProgress.State nextState = this.state.initialChunksComing();
+		ClientChunkLoadProgress.State nextState = state.initialChunksComing();
 
-		if (nextState != this.state) {
+		if (nextState != state) {
 			LOGGER.debug(
 					"[ChunkLoadProgress] initialChunksComing() — смена состояния: {} -> {}",
-					this.state.getClass().getSimpleName(),
+					state.getClass().getSimpleName(),
 					nextState.getClass().getSimpleName()
 			);
 		}
 
-		this.state = nextState;
+		state = nextState;
 	}
 
 	@Override
 	public void init(ChunkLoadProgress.Stage stage, int chunks) {
-		this.delegate.init(stage, chunks);
+		delegate.init(stage, chunks);
 		this.stage = stage;
 		LOGGER.debug("[ChunkLoadProgress] init() — стадия: {}, чанков: {}", stage, chunks);
 	}
 
 	@Override
 	public void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks) {
-		this.delegate.progress(stage, fullChunks, totalChunks);
+		delegate.progress(stage, fullChunks, totalChunks);
 	}
 
 	@Override
 	public void finish(ChunkLoadProgress.Stage stage) {
-		this.delegate.finish(stage);
+		delegate.finish(stage);
 		LOGGER.debug("[ChunkLoadProgress] finish() — стадия: {}", stage);
 	}
 
 	@Override
 	public void initSpawnPos(RegistryKey<World> worldKey, ChunkPos spawnChunk) {
-		if (this.chunkLoadMap != null) {
-			this.chunkLoadMap.initSpawnPos(worldKey, spawnChunk);
+		if (chunkLoadMap != null) {
+			chunkLoadMap.initSpawnPos(worldKey, spawnChunk);
 		}
+
 	}
 
 	public @Nullable ChunkLoadMap getChunkLoadMap() {
-		return this.chunkLoadMap;
+		return chunkLoadMap;
 	}
 
 	public float getLoadProgress() {
-		return this.delegate.getLoadProgress();
+		return delegate.getLoadProgress();
 	}
 
 	public boolean hasProgress() {
-		return this.stage != null;
+		return stage != null;
 	}
 
-	@Environment(EnvType.CLIENT)
+	// -------------------------------------------------------------------------
+	// Состояния конечного автомата
+	// -------------------------------------------------------------------------
+
 	/**
-	 * {@code LoadChunks}.
+	 * Интерфейс состояния конечного автомата загрузки чанков.
+	 * Допустимые реализации: {@link Start}, {@link LoadChunks}, {@link Wait}.
 	 */
-	record LoadChunks(
-			ClientPlayerEntity player,
-			ClientWorld world,
-			WorldRenderer worldRenderer,
-			long timeoutAfter
-	) implements ClientChunkLoadProgress.State {
-
-		@Override
-		public ClientChunkLoadProgress.State next() {
-			// Переходим в Wait только после истечения таймаута или немедленно если timeoutAfter уже прошёл
-			return new ClientChunkLoadProgress.Wait(Util.getMeasuringTimeMs());
-		}
-	}
-
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Start}.
-	 */
-	record Start(
-			ClientPlayerEntity player,
-			ClientWorld world,
-			WorldRenderer worldRenderer,
-			long timeoutAfter
-	) implements ClientChunkLoadProgress.State {
-
-		@Override
-		public ClientChunkLoadProgress.State initialChunksComing() {
-			return new ClientChunkLoadProgress.LoadChunks(
-					this.player,
-					this.world,
-					this.worldRenderer,
-					this.timeoutAfter
-			);
-		}
-	}
-
-	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code State}.
-	 */
 	sealed interface State permits ClientChunkLoadProgress.Start, ClientChunkLoadProgress.LoadChunks, ClientChunkLoadProgress.Wait {
 
 		default ClientChunkLoadProgress.State next() {
@@ -216,12 +200,56 @@ public class ClientChunkLoadProgress implements ChunkLoadProgress {
 		default ClientChunkLoadProgress.State initialChunksComing() {
 			return this;
 		}
+
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Wait}.
+	 * Начальное состояние: ожидание пакета {@code INITIAL_CHUNKS_COMING} от сервера.
+	 * При получении пакета переходит в {@link LoadChunks}.
+	 *
+	 * @param timeoutAfter абсолютная метка времени (мс), после которой срабатывает таймаут
 	 */
+	@Environment(EnvType.CLIENT)
+	record Start(
+			ClientPlayerEntity player,
+			ClientWorld world,
+			WorldRenderer worldRenderer,
+			long timeoutAfter
+	) implements ClientChunkLoadProgress.State {
+
+		@Override
+		public ClientChunkLoadProgress.State initialChunksComing() {
+			return new ClientChunkLoadProgress.LoadChunks(player, world, worldRenderer, timeoutAfter);
+		}
+
+	}
+
+	/**
+	 * Состояние активной загрузки чанков.
+	 * При следующем тике немедленно переходит в {@link Wait}.
+	 */
+	@Environment(EnvType.CLIENT)
+	record LoadChunks(
+			ClientPlayerEntity player,
+			ClientWorld world,
+			WorldRenderer worldRenderer,
+			long timeoutAfter
+	) implements ClientChunkLoadProgress.State {
+
+		@Override
+		public ClientChunkLoadProgress.State next() {
+			return new ClientChunkLoadProgress.Wait(Util.getMeasuringTimeMs());
+		}
+
+	}
+
+	/**
+	 * Финальное состояние ожидания перед показом мира.
+	 *
+	 * @param readyAt абсолютная метка времени (мс), после которой {@link #isDone()} вернёт {@code true}
+	 */
+	@Environment(EnvType.CLIENT)
 	record Wait(long readyAt) implements ClientChunkLoadProgress.State {
 	}
+
 }

@@ -12,40 +12,21 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code IconWidget}.
+ * Абстрактный виджет иконки — не интерактивный, не участвует в навигации и не воспроизводит звук.
+ * Конкретные реализации {@link Simple} и {@link Texture} отличаются способом отрисовки текстуры.
  */
+@Environment(EnvType.CLIENT)
 public abstract class IconWidget extends ClickableWidget {
 
 	IconWidget(int x, int y, int width, int height) {
 		super(x, y, width, height, ScreenTexts.EMPTY);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param width width
-	 * @param height height
-	 * @param texture texture
-	 * @param textureWidth texture width
-	 * @param textureHeight texture height
-	 *
-	 * @return IconWidget — результат операции
-	 */
 	public static IconWidget create(int width, int height, Identifier texture, int textureWidth, int textureHeight) {
 		return new IconWidget.Texture(0, 0, width, height, texture, textureWidth, textureHeight);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param width width
-	 * @param height height
-	 * @param texture texture
-	 *
-	 * @return IconWidget — результат операции
-	 */
 	public static IconWidget create(int width, int height, Identifier texture) {
 		return new IconWidget.Simple(0, 0, width, height, texture);
 	}
@@ -71,9 +52,6 @@ public abstract class IconWidget extends ClickableWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Simple}.
-	 */
 	static class Simple extends IconWidget {
 
 		private Identifier texture;
@@ -87,11 +65,11 @@ public abstract class IconWidget extends ClickableWidget {
 		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 			context.drawGuiTexture(
 					RenderPipelines.GUI_TEXTURED,
-					this.texture,
-					this.getX(),
-					this.getY(),
-					this.getWidth(),
-					this.getHeight()
+					texture,
+					getX(),
+					getY(),
+					getWidth(),
+					getHeight()
 			);
 		}
 
@@ -102,9 +80,6 @@ public abstract class IconWidget extends ClickableWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Texture}.
-	 */
 	static class Texture extends IconWidget {
 
 		private Identifier texture;
@@ -122,15 +97,15 @@ public abstract class IconWidget extends ClickableWidget {
 		protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 			context.drawTexture(
 					RenderPipelines.GUI_TEXTURED,
-					this.texture,
-					this.getX(),
-					this.getY(),
+					texture,
+					getX(),
+					getY(),
 					0.0F,
 					0.0F,
-					this.getWidth(),
-					this.getHeight(),
-					this.textureWidth,
-					this.textureHeight
+					getWidth(),
+					getHeight(),
+					textureWidth,
+					textureHeight
 			);
 		}
 

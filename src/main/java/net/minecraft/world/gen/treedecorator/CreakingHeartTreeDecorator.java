@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CreakingHeartTreeDecorator}.
+ * Декоратор дерева, размещающий блок Creaking Heart внутри ствола бледного дуба.
+ * Ищет бревно, со всех шести сторон окружённое другими брёвнами, и с заданной вероятностью
+ * заменяет его на активное сердце крикуна.
  */
 public class CreakingHeartTreeDecorator extends TreeDecorator {
 
@@ -40,12 +42,17 @@ public class CreakingHeartTreeDecorator extends TreeDecorator {
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
-		List<BlockPos> list = generator.getLogPositions();
-		if (!list.isEmpty()) {
-			if (!(random.nextFloat() >= this.probability)) {
-				List<BlockPos> list2 = new ArrayList<>(list);
-				Util.shuffle(list2, random);
-				Optional<BlockPos> optional = list2.stream().filter(pos -> {
+		List<BlockPos> logPositions = generator.getLogPositions();
+
+		if (logPositions.isEmpty() || random.nextFloat() >= probability) {
+			return;
+		}
+
+		List<BlockPos> shuffledLogs = new ArrayList<>(logPositions);
+		Util.shuffle(shuffledLogs, random);
+
+		Optional<BlockPos> heartPos = shuffledLogs.stream()
+				.filter(pos -> {
 					for (Direction direction : Direction.values()) {
 						if (!generator.matches(pos.offset(direction), state -> state.isIn(BlockTags.LOGS))) {
 							return false;
@@ -53,17 +60,15 @@ public class CreakingHeartTreeDecorator extends TreeDecorator {
 					}
 
 					return true;
-				}).findFirst();
-				if (!optional.isEmpty()) {
-					generator.replace(
-							optional.get(),
-							Blocks.CREAKING_HEART
-									.getDefaultState()
-									.with(CreakingHeartBlock.ACTIVE, CreakingHeartState.DORMANT)
-									.with(CreakingHeartBlock.NATURAL, true)
-					);
-				}
-			}
-		}
+				})
+				.findFirst();
+
+		heartPos.ifPresent(pos -> generator.replace(
+				pos,
+				Blocks.CREAKING_HEART
+						.getDefaultState()
+						.with(CreakingHeartBlock.ACTIVE, CreakingHeartState.DORMANT)
+						.with(CreakingHeartBlock.NATURAL, true)
+		));
 	}
 }

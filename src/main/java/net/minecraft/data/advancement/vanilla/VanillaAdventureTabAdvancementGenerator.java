@@ -478,11 +478,11 @@ public class VanillaAdventureTabAdvancementGenerator implements AdvancementTabGe
 				                   )
 		                   )
 		                   .build(exporter, "adventure/arbalistic");
-		RegistryWrapper.Impl<BannerPattern> impl = registries.getOrThrow(RegistryKeys.BANNER_PATTERN);
+		RegistryWrapper.Impl<BannerPattern> bannerPatternLookup = registries.getOrThrow(RegistryKeys.BANNER_PATTERN);
 		AdvancementEntry advancementEntry8 = Advancement.Builder.create()
 		                                                        .parent(advancementEntry)
 		                                                        .display(
-				                                                        Raid.createOminousBanner(impl),
+				                                                        Raid.createOminousBanner(bannerPatternLookup),
 				                                                        Text.translatable(
 						                                                        "advancements.adventure.voluntary_exile.title"),
 				                                                        Text.translatable(
@@ -504,7 +504,7 @@ public class VanillaAdventureTabAdvancementGenerator implements AdvancementTabGe
 						                                                                               .equipment(
 								                                                                               EntityEquipmentPredicate.ominousBannerOnHead(
 										                                                                               registryWrapper2,
-										                                                                               impl
+										                                                                               bannerPatternLookup
 								                                                                               ))
 				                                                        )
 		                                                        )
@@ -512,7 +512,7 @@ public class VanillaAdventureTabAdvancementGenerator implements AdvancementTabGe
 		Advancement.Builder.create()
 		                   .parent(advancementEntry8)
 		                   .display(
-				                   Raid.createOminousBanner(impl),
+				                   Raid.createOminousBanner(bannerPatternLookup),
 				                   Text.translatable("advancements.adventure.hero_of_the_village.title"),
 				                   Text.translatable("advancements.adventure.hero_of_the_village.description"),
 				                   null,
@@ -1400,9 +1400,9 @@ public class VanillaAdventureTabAdvancementGenerator implements AdvancementTabGe
 		VanillaRecipeGenerator.streamSmithingTemplates()
 		                      .filter(template -> set.contains(template.template()))
 		                      .forEach(
-				                      templatex -> builder.criterion(
-						                      "armor_trimmed_" + templatex.recipeId().getValue(),
-						                      RecipeCraftedCriterion.Conditions.create(templatex.recipeId())
+				                      smithingTemplate -> builder.criterion(
+						                      "armor_trimmed_" + smithingTemplate.recipeId().getValue(),
+						                      RecipeCraftedCriterion.Conditions.create(smithingTemplate.recipeId())
 				                      )
 		                      );
 		return builder;
@@ -1528,54 +1528,54 @@ public class VanillaAdventureTabAdvancementGenerator implements AdvancementTabGe
 			List<EntityType<?>> mobTypes,
 			RegistryWrapper<EntityType<?>> entityTypeRegistry
 	) {
-		List<String> list = new ArrayList<>();
-		Set<? extends EntityType<?>> set = Set.copyOf(mobTypes);
-		Set<SpawnGroup> set2 = set.stream().map(EntityType::getSpawnGroup).collect(Collectors.toSet());
-		Set<SpawnGroup> set3 = Sets.symmetricDifference(EXCEPTIONS.keySet(), set2);
-		if (!set3.isEmpty()) {
-			list.add(
+		List<String> validationErrors = new ArrayList<>();
+		Set<? extends EntityType<?>> mobTypeSet = Set.copyOf(mobTypes);
+		Set<SpawnGroup> spawnGroupsInList = mobTypeSet.stream().map(EntityType::getSpawnGroup).collect(Collectors.toSet());
+		Set<SpawnGroup> missingExceptionGroups = Sets.symmetricDifference(EXCEPTIONS.keySet(), spawnGroupsInList);
+		if (!missingExceptionGroups.isEmpty()) {
+			validationErrors.add(
 					"Found EntityType with MobCategory only in either expected exceptions or kill_all_mobs advancement: "
-							+ set3.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
+							+ missingExceptionGroups.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
 			);
 		}
 
 		Set<EntityType<?>>
-				set4 =
+				unexpectedExceptionGroups =
 				Sets.intersection(
 						EXCEPTIONS.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()),
-						set
+						mobTypeSet
 				);
-		if (!set4.isEmpty()) {
-			list.add(
+		if (!unexpectedExceptionGroups.isEmpty()) {
+			validationErrors.add(
 					"Found EntityType in both expected exceptions and kill_all_mobs advancement: "
-							+ set4.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
+							+ unexpectedExceptionGroups.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
 			);
 		}
 
 		Map<SpawnGroup, Set<EntityType<?>>> map = entityTypeRegistry.streamEntries()
 		                                                            .map(RegistryEntry.Reference::value)
-		                                                            .filter(Predicate.not(set::contains))
+		                                                            .filter(Predicate.not(mobTypeSet::contains))
 		                                                            .collect(Collectors.groupingBy(
 				                                                            EntityType::getSpawnGroup,
 				                                                            Collectors.toSet()
 		                                                            ));
 		EXCEPTIONS.forEach(
 				(group, types) -> {
-					Set<EntityType<?>> setx = Sets.difference(map.getOrDefault(group, Set.of()), types);
-					if (!setx.isEmpty()) {
-						list.add(
+					Set<EntityType<?>> uncoveredTypes = Sets.difference(map.getOrDefault(group, Set.of()), types);
+					if (!uncoveredTypes.isEmpty()) {
+						validationErrors.add(
 								String.format(
 										Locale.ROOT,
 										"Found (new?) EntityType with MobCategory %s which are in neither expected exceptions nor kill_all_mobs advancement: %s",
 										group,
-										setx.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
+										uncoveredTypes.stream().map(Object::toString).sorted().collect(Collectors.joining(", "))
 								)
 						);
 					}
 				}
 		);
-		if (!list.isEmpty()) {
-			list.forEach(LOGGER::error);
+		if (validationErrors.isEmpty() == false) {
+			validationErrors.forEach(LOGGER::error);
 			throw new IllegalStateException("Found inconsistencies with kill_all_mobs advancement");
 		}
 		else {

@@ -27,10 +27,11 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookEditScreen}.
+ * Экран редактирования книги. Позволяет писать текст постранично,
+ * перелистывать страницы и переходить к экрану подписи книги.
  */
+@Environment(EnvType.CLIENT)
 public class BookEditScreen extends Screen {
 
 	public static final int MAX_TEXT_WIDTH = 114;
@@ -46,8 +47,17 @@ public class BookEditScreen extends Screen {
 	private static final int NEXT_PAGE_BUTTON_X_OFFSET = 116;
 	private static final int PAGE_INDICATOR_Y_OFFSET = 16;
 	private static final int PAGE_INDICATOR_X_OFFSET = 148;
+	private static final int MAX_PAGES = 100;
+	private static final int EDIT_BOX_WIDTH = 122;
+	private static final int EDIT_BOX_HEIGHT = 134;
+	private static final int EDIT_BOX_Y = 28;
+	private static final int EDIT_BOX_MAX_LENGTH = 1024;
+	private static final int TEXT_COLOR_BLACK = -16777216;
+	private static final int KEY_PAGE_UP = 266;
+	private static final int KEY_PAGE_DOWN = 267;
 	private static final Text TITLE_TEXT = Text.translatable("book.edit.title");
 	private static final Text SIGN_BUTTON_TEXT = Text.translatable("book.signButton");
+
 	private final PlayerEntity player;
 	private final ItemStack stack;
 	private final BookSigningScreen signingScreen;
@@ -60,74 +70,83 @@ public class BookEditScreen extends Screen {
 	private EditBoxWidget editBox;
 
 	public BookEditScreen(
-			PlayerEntity player,
-			ItemStack stack,
-			Hand hand,
-			WritableBookContentComponent writableBookContent
+		PlayerEntity player,
+		ItemStack stack,
+		Hand hand,
+		WritableBookContentComponent writableBookContent
 	) {
 		super(TITLE_TEXT);
 		this.player = player;
 		this.stack = stack;
 		this.hand = hand;
-		writableBookContent.stream(MinecraftClient.getInstance().shouldFilterText()).forEach(this.pages::add);
-		if (this.pages.isEmpty()) {
-			this.pages.add("");
+		writableBookContent.stream(MinecraftClient.getInstance().shouldFilterText()).forEach(pages::add);
+
+		if (pages.isEmpty()) {
+			pages.add("");
 		}
 
-		this.signingScreen = new BookSigningScreen(this, player, hand, this.pages);
+		signingScreen = new BookSigningScreen(this, player, hand, pages);
 	}
 
 	private int countPages() {
-		return this.pages.size();
+		return pages.size();
 	}
 
 	@Override
 	protected void init() {
-		int i = this.getBookX();
-		int j = this.getBookY();
-		int k = 8;
-		this.editBox = EditBoxWidget.builder()
-		                            .hasOverlay(false)
-		                            .textColor(-16777216)
-		                            .cursorColor(-16777216)
-		                            .hasBackground(false)
-		                            .textShadow(false)
-		                            .x((this.width - 114) / 2 - 8)
-		                            .y(28)
-		                            .build(this.textRenderer, 122, 134, ScreenTexts.EMPTY);
-		this.editBox.setMaxLength(1024);
-		this.editBox.setMaxLines(126 / 9);
-		this.editBox.setChangeListener(page -> this.pages.set(this.currentPage, page));
-		this.addDrawableChild(this.editBox);
-		this.updatePage();
-		this.pageIndicatorText = this.getPageIndicatorText();
-		this.previousPageButton =
-				this.addDrawableChild(new PageTurnWidget(
-						i + 43,
-						j + 157,
-						false,
-						button -> this.openPreviousPage(),
-						true
-				));
-		this.nextPageButton =
-				this.addDrawableChild(new PageTurnWidget(i + 116, j + 157, true, button -> this.openNextPage(), true));
-		this.addDrawableChild(
-				ButtonWidget.builder(SIGN_BUTTON_TEXT, button -> this.client.setScreen(this.signingScreen))
-				            .position(this.width / 2 - 98 - 2, this.getButtonsY())
-				            .width(98)
-				            .build()
+		int bookX = getBookX();
+		int bookY = getBookY();
+
+		editBox = EditBoxWidget.builder()
+			.hasOverlay(false)
+			.textColor(TEXT_COLOR_BLACK)
+			.cursorColor(TEXT_COLOR_BLACK)
+			.hasBackground(false)
+			.textShadow(false)
+			.x((width - MAX_TEXT_WIDTH) / 2 - EDIT_BOX_MARGIN * 2)
+			.y(EDIT_BOX_Y)
+			.build(textRenderer, EDIT_BOX_WIDTH, EDIT_BOX_HEIGHT, ScreenTexts.EMPTY);
+		editBox.setMaxLength(EDIT_BOX_MAX_LENGTH);
+		editBox.setMaxLines(MAX_TEXT_HEIGHT / 9);
+		editBox.setChangeListener(page -> pages.set(currentPage, page));
+		addDrawableChild(editBox);
+		updatePage();
+		pageIndicatorText = getPageIndicatorText();
+
+		previousPageButton = addDrawableChild(new PageTurnWidget(
+			bookX + PREV_PAGE_BUTTON_X_OFFSET,
+			bookY + PAGE_TURN_BUTTON_Y_OFFSET,
+			false,
+			button -> openPreviousPage(),
+			true
+		));
+		nextPageButton = addDrawableChild(new PageTurnWidget(
+			bookX + NEXT_PAGE_BUTTON_X_OFFSET,
+			bookY + PAGE_TURN_BUTTON_Y_OFFSET,
+			true,
+			button -> openNextPage(),
+			true
+		));
+		addDrawableChild(
+			ButtonWidget.builder(SIGN_BUTTON_TEXT, button -> client.setScreen(signingScreen))
+				.position(width / 2 - BUTTON_WIDTH - 2, getButtonsY())
+				.width(BUTTON_WIDTH)
+				.build()
 		);
-		this.addDrawableChild(ButtonWidget.builder(
-				ScreenTexts.DONE, button -> {
-					this.client.setScreen(null);
-					this.finalizeBook();
-				}
-		).position(this.width / 2 + 2, this.getButtonsY()).width(98).build());
-		this.updatePreviousPageButtonVisibility();
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.DONE, button -> {
+				client.setScreen(null);
+				finalizeBook();
+			})
+				.position(width / 2 + 2, getButtonsY())
+				.width(BUTTON_WIDTH)
+				.build()
+		);
+		updatePreviousPageButtonVisibility();
 	}
 
 	private int getBookX() {
-		return (this.width - 192) / 2;
+		return (width - WIDTH) / 2;
 	}
 
 	private int getBookY() {
@@ -135,84 +154,83 @@ public class BookEditScreen extends Screen {
 	}
 
 	private int getButtonsY() {
-		return this.getBookY() + 192 + 2;
+		return getBookY() + WIDTH + 2;
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.editBox);
+		setInitialFocus(editBox);
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(super.getNarratedTitle(), this.getPageIndicatorText());
+		return ScreenTexts.joinSentences(super.getNarratedTitle(), getPageIndicatorText());
 	}
 
 	private Text getPageIndicatorText() {
-		return Text
-				.translatable("book.pageIndicator", this.currentPage + 1, this.countPages())
-				.withColor(-16777216)
-				.withoutShadow();
+		return Text.translatable("book.pageIndicator", currentPage + 1, countPages())
+			.withColor(TEXT_COLOR_BLACK)
+			.withoutShadow();
 	}
 
 	private void openPreviousPage() {
-		if (this.currentPage > 0) {
-			this.currentPage--;
-			this.updatePage();
+		if (currentPage > 0) {
+			currentPage--;
+			updatePage();
 		}
 
-		this.updatePreviousPageButtonVisibility();
+		updatePreviousPageButtonVisibility();
 	}
 
 	private void openNextPage() {
-		if (this.currentPage < this.countPages() - 1) {
-			this.currentPage++;
-		}
-		else {
-			this.appendNewPage();
-			if (this.currentPage < this.countPages() - 1) {
-				this.currentPage++;
+		if (currentPage < countPages() - 1) {
+			currentPage++;
+		} else {
+			appendNewPage();
+
+			if (currentPage < countPages() - 1) {
+				currentPage++;
 			}
 		}
 
-		this.updatePage();
-		this.updatePreviousPageButtonVisibility();
+		updatePage();
+		updatePreviousPageButtonVisibility();
 	}
 
 	private void updatePage() {
-		this.editBox.setText(this.pages.get(this.currentPage), true);
-		this.pageIndicatorText = this.getPageIndicatorText();
+		editBox.setText(pages.get(currentPage), true);
+		pageIndicatorText = getPageIndicatorText();
 	}
 
 	private void updatePreviousPageButtonVisibility() {
-		this.previousPageButton.visible = this.currentPage > 0;
+		previousPageButton.visible = currentPage > 0;
 	}
 
 	private void removeEmptyPages() {
-		ListIterator<String> listIterator = this.pages.listIterator(this.pages.size());
+		ListIterator<String> iterator = pages.listIterator(pages.size());
 
-		while (listIterator.hasPrevious() && listIterator.previous().isEmpty()) {
-			listIterator.remove();
+		while (iterator.hasPrevious() && iterator.previous().isEmpty()) {
+			iterator.remove();
 		}
 	}
 
 	private void finalizeBook() {
-		this.removeEmptyPages();
-		this.writeNbtData();
-		int i = this.hand == Hand.MAIN_HAND ? this.player.getInventory().getSelectedSlot() : 40;
-		this.client.getNetworkHandler().sendPacket(new BookUpdateC2SPacket(i, this.pages, Optional.empty()));
+		removeEmptyPages();
+		writeNbtData();
+		int slot = hand == Hand.MAIN_HAND ? player.getInventory().getSelectedSlot() : 40;
+		client.getNetworkHandler().sendPacket(new BookUpdateC2SPacket(slot, pages, Optional.empty()));
 	}
 
 	private void writeNbtData() {
-		this.stack.set(
-				DataComponentTypes.WRITABLE_BOOK_CONTENT,
-				new WritableBookContentComponent(this.pages.stream().map(RawFilteredPair::of).toList())
+		stack.set(
+			DataComponentTypes.WRITABLE_BOOK_CONTENT,
+			new WritableBookContentComponent(pages.stream().map(RawFilteredPair::of).toList())
 		);
 	}
 
 	private void appendNewPage() {
-		if (this.countPages() < 100) {
-			this.pages.add("");
+		if (countPages() < MAX_PAGES) {
+			pages.add("");
 		}
 	}
 
@@ -224,43 +242,46 @@ public class BookEditScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		switch (input.key()) {
-			case 266:
-				this.previousPageButton.onPress(input);
+			case KEY_PAGE_UP -> {
+				previousPageButton.onPress(input);
 				return true;
-			case 267:
-				this.nextPageButton.onPress(input);
+			}
+			case KEY_PAGE_DOWN -> {
+				nextPageButton.onPress(input);
 				return true;
-			default:
+			}
+			default -> {
 				return super.keyPressed(input);
+			}
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.renderPageContent(context.getTextConsumer());
+		renderPageContent(context.getTextConsumer());
 	}
 
 	private void renderPageContent(DrawnTextConsumer drawnTextConsumer) {
-		int i = this.getBookX();
-		int j = this.getBookY();
-		drawnTextConsumer.text(Alignment.RIGHT, i + 148, j + 16, this.pageIndicatorText);
+		int bookX = getBookX();
+		int bookY = getBookY();
+		drawnTextConsumer.text(Alignment.RIGHT, bookX + PAGE_INDICATOR_X_OFFSET, bookY + PAGE_INDICATOR_Y_OFFSET, pageIndicatorText);
 	}
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.renderBackground(context, mouseX, mouseY, deltaTicks);
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				BookScreen.BOOK_TEXTURE,
-				this.getBookX(),
-				this.getBookY(),
-				0.0F,
-				0.0F,
-				192,
-				192,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			BookScreen.BOOK_TEXTURE,
+			getBookX(),
+			getBookY(),
+			0.0F,
+			0.0F,
+			WIDTH,
+			WIDTH,
+			TEXTURE_WIDTH,
+			TEXTURE_WIDTH
 		);
 	}
 }

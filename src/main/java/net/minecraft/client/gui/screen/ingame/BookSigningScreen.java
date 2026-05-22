@@ -19,16 +19,31 @@ import net.minecraft.util.StringHelper;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookSigningScreen}.
+ * Экран подписи книги. Позволяет ввести название книги перед её финализацией.
  */
+@Environment(EnvType.CLIENT)
 public class BookSigningScreen extends Screen {
 
 	private static final Text EDIT_TITLE_TEXT = Text.translatable("book.editTitle");
 	private static final Text FINALIZE_WARNING_TEXT = Text.translatable("book.finalizeWarning");
 	private static final Text TITLE_TEXT = Text.translatable("book.sign.title");
 	private static final Text TITLE_BOX_TEXT = Text.translatable("book.sign.titlebox");
+	private static final int BOOK_WIDTH = 192;
+	private static final int BOOK_Y = 2;
+	private static final int TITLE_FIELD_WIDTH = 114;
+	private static final int TITLE_FIELD_Y = 50;
+	private static final int TITLE_FIELD_MAX_LENGTH = 15;
+	private static final int BUTTON_Y = 196;
+	private static final int BUTTON_WIDTH = 98;
+	private static final int BUTTON_HEIGHT = 20;
+	private static final int EDIT_TITLE_Y = 34;
+	private static final int BYLINE_Y = 60;
+	private static final int WARNING_Y = 82;
+	private static final int TEXT_COLOR_BLACK = -16777216;
+	private static final int TEXTURE_SIZE = 256;
+	private static final int OFFHAND_SLOT = 40;
+
 	private final BookEditScreen editScreen;
 	private final PlayerEntity player;
 	private final List<String> pages;
@@ -43,57 +58,57 @@ public class BookSigningScreen extends Screen {
 		this.player = player;
 		this.hand = hand;
 		this.pages = pages;
-		this.bylineText = Text.translatable("book.byAuthor", player.getName()).formatted(Formatting.DARK_GRAY);
+		bylineText = Text.translatable("book.byAuthor", player.getName()).formatted(Formatting.DARK_GRAY);
 	}
 
 	@Override
 	protected void init() {
-		ButtonWidget buttonWidget = ButtonWidget.builder(
-				Text.translatable("book.finalizeButton"), button -> {
-					this.onFinalize();
-					this.client.setScreen(null);
-				}
-		).dimensions(this.width / 2 - 100, 196, 98, 20).build();
-		buttonWidget.active = false;
-		this.bookTitleTextField =
-				this.addDrawableChild(new TextFieldWidget(
-						this.client.textRenderer,
-						(this.width - 114) / 2 - 3,
-						50,
-						114,
-						20,
-						TITLE_BOX_TEXT
-				));
-		this.bookTitleTextField.setMaxLength(15);
-		this.bookTitleTextField.setDrawsBackground(false);
-		this.bookTitleTextField.setCentered(true);
-		this.bookTitleTextField.setEditableColor(-16777216);
-		this.bookTitleTextField.setTextShadow(false);
-		this.bookTitleTextField.setChangedListener(bookTitle -> buttonWidget.active = !StringHelper.isBlank(bookTitle));
-		this.bookTitleTextField.setText(this.bookTitle);
-		this.addDrawableChild(buttonWidget);
-		this.addDrawableChild(ButtonWidget.builder(
-				ScreenTexts.CANCEL, button -> {
-					this.bookTitle = this.bookTitleTextField.getText();
-					this.client.setScreen(this.editScreen);
-				}
-		).dimensions(this.width / 2 + 2, 196, 98, 20).build());
+		ButtonWidget finalizeButton = ButtonWidget.builder(
+			Text.translatable("book.finalizeButton"),
+			button -> {
+				onFinalize();
+				client.setScreen(null);
+			}
+		).dimensions(width / 2 - 100, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build();
+		finalizeButton.active = false;
+
+		bookTitleTextField = addDrawableChild(new TextFieldWidget(
+			client.textRenderer,
+			(width - TITLE_FIELD_WIDTH) / 2 - 3,
+			TITLE_FIELD_Y,
+			TITLE_FIELD_WIDTH,
+			BUTTON_HEIGHT,
+			TITLE_BOX_TEXT
+		));
+		bookTitleTextField.setMaxLength(TITLE_FIELD_MAX_LENGTH);
+		bookTitleTextField.setDrawsBackground(false);
+		bookTitleTextField.setCentered(true);
+		bookTitleTextField.setEditableColor(TEXT_COLOR_BLACK);
+		bookTitleTextField.setTextShadow(false);
+		bookTitleTextField.setChangedListener(title -> finalizeButton.active = !StringHelper.isBlank(title));
+		bookTitleTextField.setText(bookTitle);
+
+		addDrawableChild(finalizeButton);
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.CANCEL, button -> {
+				bookTitle = bookTitleTextField.getText();
+				client.setScreen(editScreen);
+			}).dimensions(width / 2 + 2, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build()
+		);
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.bookTitleTextField);
+		setInitialFocus(bookTitleTextField);
 	}
 
 	private void onFinalize() {
-		int i = this.hand == Hand.MAIN_HAND ? this.player.getInventory().getSelectedSlot() : 40;
-		this.client
-				.getNetworkHandler()
-				.sendPacket(new BookUpdateC2SPacket(
-						i,
-						this.pages,
-						Optional.of(this.bookTitleTextField.getText().trim())
-				));
+		int slot = hand == Hand.MAIN_HAND ? player.getInventory().getSelectedSlot() : OFFHAND_SLOT;
+		client.getNetworkHandler().sendPacket(new BookUpdateC2SPacket(
+			slot,
+			pages,
+			Optional.of(bookTitleTextField.getText().trim())
+		));
 	}
 
 	@Override
@@ -103,42 +118,40 @@ public class BookSigningScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.bookTitleTextField.isFocused() && !this.bookTitleTextField.getText().isEmpty() && input.isEnter()) {
-			this.onFinalize();
-			this.client.setScreen(null);
+		if (bookTitleTextField.isFocused() && !bookTitleTextField.getText().isEmpty() && input.isEnter()) {
+			onFinalize();
+			client.setScreen(null);
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		int i = (this.width - 192) / 2;
-		int j = 2;
-		int k = this.textRenderer.getWidth(EDIT_TITLE_TEXT);
-		context.drawText(this.textRenderer, EDIT_TITLE_TEXT, i + 36 + (114 - k) / 2, 34, -16777216, false);
-		int l = this.textRenderer.getWidth(this.bylineText);
-		context.drawText(this.textRenderer, this.bylineText, i + 36 + (114 - l) / 2, 60, -16777216, false);
-		context.drawWrappedText(this.textRenderer, FINALIZE_WARNING_TEXT, i + 36, 82, 114, -16777216, false);
+		int bookX = (width - BOOK_WIDTH) / 2;
+		int titleWidth = textRenderer.getWidth(EDIT_TITLE_TEXT);
+		context.drawText(textRenderer, EDIT_TITLE_TEXT, bookX + 36 + (TITLE_FIELD_WIDTH - titleWidth) / 2, EDIT_TITLE_Y, TEXT_COLOR_BLACK, false);
+		int bylineWidth = textRenderer.getWidth(bylineText);
+		context.drawText(textRenderer, bylineText, bookX + 36 + (TITLE_FIELD_WIDTH - bylineWidth) / 2, BYLINE_Y, TEXT_COLOR_BLACK, false);
+		context.drawWrappedText(textRenderer, FINALIZE_WARNING_TEXT, bookX + 36, WARNING_Y, TITLE_FIELD_WIDTH, TEXT_COLOR_BLACK, false);
 	}
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.renderBackground(context, mouseX, mouseY, deltaTicks);
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				BookScreen.BOOK_TEXTURE,
-				(this.width - 192) / 2,
-				2,
-				0.0F,
-				0.0F,
-				192,
-				192,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			BookScreen.BOOK_TEXTURE,
+			(width - BOOK_WIDTH) / 2,
+			BOOK_Y,
+			0.0F,
+			0.0F,
+			BOOK_WIDTH,
+			BOOK_WIDTH,
+			TEXTURE_SIZE,
+			TEXTURE_SIZE
 		);
 	}
 }

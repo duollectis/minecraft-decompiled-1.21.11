@@ -21,7 +21,9 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code CropBlock}.
+ * Базовый блок сельскохозяйственной культуры. Растёт случайными тиками при достаточном
+ * освещении (≥9) и влажности почвы. Скорость роста зависит от количества влажных
+ * грядок вокруг и наличия соседних культур того же вида.
  */
 public class CropBlock extends PlantBlock implements Fertilizable {
 
@@ -39,12 +41,12 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 
 	public CropBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(this.getAgeProperty(), 0));
+		setDefaultState(stateManager.getDefaultState().with(getAgeProperty(), 0));
 	}
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return SHAPES_BY_AGE[this.getAge(state)];
+		return SHAPES_BY_AGE[getAge(state)];
 	}
 
 	@Override
@@ -61,107 +63,105 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 	}
 
 	public int getAge(BlockState state) {
-		return state.get(this.getAgeProperty());
+		return state.get(getAgeProperty());
 	}
 
-	/**
-	 * With age.
-	 *
-	 * @param age age
-	 *
-	 * @return BlockState — результат операции
-	 */
 	public BlockState withAge(int age) {
-		return this.getDefaultState().with(this.getAgeProperty(), age);
+		return getDefaultState().with(getAgeProperty(), age);
 	}
 
 	public final boolean isMature(BlockState state) {
-		return this.getAge(state) >= this.getMaxAge();
+		return getAge(state) >= getMaxAge();
 	}
 
 	@Override
 	protected boolean hasRandomTicks(BlockState state) {
-		return !this.isMature(state);
+		return isMature(state) == false;
 	}
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (world.getBaseLightLevel(pos, 0) >= 9) {
-			int i = this.getAge(state);
-			if (i < this.getMaxAge()) {
-				float f = getAvailableMoisture(this, world, pos);
-				if (random.nextInt((int) (25.0F / f) + 1) == 0) {
-					world.setBlockState(pos, this.withAge(i + 1), 2);
-				}
-			}
+		if (world.getBaseLightLevel(pos, 0) < 9) {
+			return;
+		}
+
+		int age = getAge(state);
+
+		if (age >= getMaxAge()) {
+			return;
+		}
+
+		float moisture = getAvailableMoisture(this, world, pos);
+
+		if (random.nextInt((int) (25.0F / moisture) + 1) == 0) {
+			world.setBlockState(pos, withAge(age + 1), Block.NOTIFY_LISTENERS);
 		}
 	}
 
-	/**
-	 * Применяет growth.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	public void applyGrowth(World world, BlockPos pos, BlockState state) {
-		int i = Math.min(this.getMaxAge(), this.getAge(state) + this.getGrowthAmount(world));
-		world.setBlockState(pos, this.withAge(i), 2);
+		int newAge = Math.min(getMaxAge(), getAge(state) + getGrowthAmount(world));
+
+		world.setBlockState(pos, withAge(newAge), Block.NOTIFY_LISTENERS);
 	}
 
 	protected int getGrowthAmount(World world) {
 		return MathHelper.nextInt(world.random, 2, 5);
 	}
 
+	/**
+	 * Вычисляет коэффициент влажности для блока культуры. Учитывает влажность грядок
+	 * в радиусе 1 блока и штрафует за соседние культуры того же вида (конкуренция за ресурсы).
+	 */
 	protected static float getAvailableMoisture(Block block, BlockView world, BlockPos pos) {
-		float f = 1.0F;
-		BlockPos blockPos = pos.down();
+		float moisture = 1.0F;
+		BlockPos below = pos.down();
 
-		for (int i = -1; i <= 1; i++) {
-			for (int j = -1; j <= 1; j++) {
-				float g = 0.0F;
-				BlockState blockState = world.getBlockState(blockPos.add(i, 0, j));
-				if (blockState.isOf(Blocks.FARMLAND)) {
-					g = 1.0F;
-					if (blockState.get(FarmlandBlock.MOISTURE) > 0) {
-						g = 3.0F;
-					}
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				float bonus = 0.0F;
+				BlockState ground = world.getBlockState(below.add(dx, 0, dz));
+
+				if (ground.isOf(Blocks.FARMLAND)) {
+					bonus = ground.get(FarmlandBlock.MOISTURE) > 0 ? 3.0F : 1.0F;
 				}
 
-				if (i != 0 || j != 0) {
-					g /= 4.0F;
+				if (dx != 0 || dz != 0) {
+					bonus /= 4.0F;
 				}
 
-				f += g;
+				moisture += bonus;
 			}
 		}
 
-		BlockPos blockPos2 = pos.north();
-		BlockPos blockPos3 = pos.south();
-		BlockPos blockPos4 = pos.west();
-		BlockPos blockPos5 = pos.east();
-		boolean bl = world.getBlockState(blockPos4).isOf(block) || world.getBlockState(blockPos5).isOf(block);
-		boolean bl2 = world.getBlockState(blockPos2).isOf(block) || world.getBlockState(blockPos3).isOf(block);
-		if (bl && bl2) {
-			f /= 2.0F;
-		}
-		else {
-			boolean bl3 = world.getBlockState(blockPos4.north()).isOf(block)
-					|| world.getBlockState(blockPos5.north()).isOf(block)
-					|| world.getBlockState(blockPos5.south()).isOf(block)
-					|| world.getBlockState(blockPos4.south()).isOf(block);
-			if (bl3) {
-				f /= 2.0F;
-			}
+		BlockPos north = pos.north();
+		BlockPos south = pos.south();
+		BlockPos west = pos.west();
+		BlockPos east = pos.east();
+		boolean hasEastWest = world.getBlockState(west).isOf(block) || world.getBlockState(east).isOf(block);
+		boolean hasNorthSouth = world.getBlockState(north).isOf(block) || world.getBlockState(south).isOf(block);
+
+		if (hasEastWest && hasNorthSouth) {
+			moisture /= 2.0F;
+			return moisture;
 		}
 
-		return f;
+		boolean hasDiagonal = world.getBlockState(west.north()).isOf(block)
+			|| world.getBlockState(east.north()).isOf(block)
+			|| world.getBlockState(east.south()).isOf(block)
+			|| world.getBlockState(west.south()).isOf(block);
+
+		if (hasDiagonal) {
+			moisture /= 2.0F;
+		}
+
+		return moisture;
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
 		return hasEnoughLightAt(world, pos) && super.canPlaceAt(state, world, pos);
 	}
+
 
 	protected static boolean hasEnoughLightAt(WorldView world, BlockPos pos) {
 		return world.getBaseLightLevel(pos, 0) >= 8;
@@ -174,15 +174,15 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 			BlockPos pos,
 			Entity entity,
 			EntityCollisionHandler handler,
-			boolean bl
+			boolean firstCollision
 	) {
-		if (world instanceof ServerWorld serverWorld && entity instanceof RavagerEntity && serverWorld
-				.getGameRules()
-				.getValue(GameRules.DO_MOB_GRIEFING)) {
+		if (world instanceof ServerWorld serverWorld
+				&& entity instanceof RavagerEntity
+				&& serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
 			serverWorld.breakBlock(pos, true, entity);
 		}
 
-		super.onEntityCollision(state, world, pos, entity, handler, bl);
+		super.onEntityCollision(state, world, pos, entity, handler, firstCollision);
 	}
 
 	protected ItemConvertible getSeedsItem() {
@@ -191,12 +191,12 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-		return new ItemStack(this.getSeedsItem());
+		return new ItemStack(getSeedsItem());
 	}
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		return !this.isMature(state);
+		return isMature(state) == false;
 	}
 
 	@Override
@@ -206,7 +206,7 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		this.applyGrowth(world, pos, state);
+		applyGrowth(world, pos, state);
 	}
 
 	@Override

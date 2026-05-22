@@ -5,7 +5,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NumeralParsingRule}.
+ * Базовый класс для правил разбора числовых литералов.
+ * Считывает последовательность допустимых символов и запрещает
+ * начало или конец токена символом подчёркивания (разделитель разрядов).
  */
 public abstract class NumeralParsingRule implements ParsingRule<StringReader, String> {
 
@@ -20,45 +22,34 @@ public abstract class NumeralParsingRule implements ParsingRule<StringReader, St
 		this.unexpectedUnderscoreException = unexpectedUnderscoreException;
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return @Nullable String — результат операции
-	 */
-	public @Nullable String parse(ParsingState<StringReader> parsingState) {
-		StringReader stringReader = parsingState.getReader();
-		stringReader.skipWhitespace();
-		String string = stringReader.getString();
-		int i = stringReader.getCursor();
-		int j = i;
+	@Override
+	public @Nullable String parse(ParsingState<StringReader> state) {
+		StringReader reader = state.getReader();
+		reader.skipWhitespace();
 
-		while (j < string.length() && this.accepts(string.charAt(j))) {
-			j++;
+		String input = reader.getString();
+		int start = reader.getCursor();
+		int end = start;
+
+		while (end < input.length() && accepts(input.charAt(end))) {
+			end++;
 		}
 
-		int k = j - i;
-		if (k == 0) {
-			parsingState.getErrors().add(parsingState.getCursor(), this.invalidCharException);
+		int length = end - start;
+
+		if (length == 0) {
+			state.getErrors().add(state.getCursor(), invalidCharException);
 			return null;
 		}
-		else if (string.charAt(i) != '_' && string.charAt(j - 1) != '_') {
-			stringReader.setCursor(j);
-			return string.substring(i, j);
-		}
-		else {
-			parsingState.getErrors().add(parsingState.getCursor(), this.unexpectedUnderscoreException);
+
+		if (input.charAt(start) == '_' || input.charAt(end - 1) == '_') {
+			state.getErrors().add(state.getCursor(), unexpectedUnderscoreException);
 			return null;
 		}
+
+		reader.setCursor(end);
+		return input.substring(start, end);
 	}
 
-	/**
-	 * Accepts.
-	 *
-	 * @param c c
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected abstract boolean accepts(char c);
 }

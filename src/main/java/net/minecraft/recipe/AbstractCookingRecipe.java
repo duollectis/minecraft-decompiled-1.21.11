@@ -16,7 +16,10 @@ import net.minecraft.recipe.display.SlotDisplay;
 import java.util.List;
 
 /**
- * {@code AbstractCookingRecipe}.
+ * Базовый класс для всех рецептов приготовления (плавка, обжиг, копчение, костёр).
+ * <p>
+ * Хранит общие параметры: ингредиент, результат, опыт и время приготовления.
+ * Конкретные подклассы определяют тип блока-плавильщика через {@link #getCookerItem()}.
  */
 public abstract class AbstractCookingRecipe extends SingleStackRecipe {
 
@@ -25,12 +28,12 @@ public abstract class AbstractCookingRecipe extends SingleStackRecipe {
 	private final int cookingTime;
 
 	public AbstractCookingRecipe(
-			String group,
-			CookingRecipeCategory category,
-			Ingredient ingredient,
-			ItemStack result,
-			float experience,
-			int cookingTime
+		String group,
+		CookingRecipeCategory category,
+		Ingredient ingredient,
+		ItemStack result,
+		float experience,
+		int cookingTime
 	) {
 		super(group, ingredient, result);
 		this.category = category;
@@ -45,15 +48,15 @@ public abstract class AbstractCookingRecipe extends SingleStackRecipe {
 	public abstract RecipeType<? extends AbstractCookingRecipe> getType();
 
 	public float getExperience() {
-		return this.experience;
+		return experience;
 	}
 
 	public int getCookingTime() {
-		return this.cookingTime;
+		return cookingTime;
 	}
 
 	public CookingRecipeCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
 	protected abstract Item getCookerItem();
@@ -61,35 +64,42 @@ public abstract class AbstractCookingRecipe extends SingleStackRecipe {
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new FurnaceRecipeDisplay(
-						this.ingredient().toDisplay(),
-						SlotDisplay.AnyFuelSlotDisplay.INSTANCE,
-						new SlotDisplay.StackSlotDisplay(this.result()),
-						new SlotDisplay.ItemSlotDisplay(this.getCookerItem()),
-						this.cookingTime,
-						this.experience
-				)
+			new FurnaceRecipeDisplay(
+				ingredient().toDisplay(),
+				SlotDisplay.AnyFuelSlotDisplay.INSTANCE,
+				new SlotDisplay.StackSlotDisplay(result()),
+				new SlotDisplay.ItemSlotDisplay(getCookerItem()),
+				cookingTime,
+				experience
+			)
 		);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code RecipeFactory}.
+	 * Фабричный интерфейс для создания конкретных подтипов рецептов приготовления.
+	 * Используется сериализатором для инстанцирования рецепта из данных.
+	 *
+	 * @param <T> конкретный подтип {@link AbstractCookingRecipe}
 	 */
+	@FunctionalInterface
 	public interface RecipeFactory<T extends AbstractCookingRecipe> {
 
 		T create(
-				String group,
-				CookingRecipeCategory category,
-				Ingredient ingredient,
-				ItemStack result,
-				float experience,
-				int cookingTime
+			String group,
+			CookingRecipeCategory category,
+			Ingredient ingredient,
+			ItemStack result,
+			float experience,
+			int cookingTime
 		);
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Универсальный сериализатор для всех рецептов приготовления.
+	 * Принимает фабрику и время приготовления по умолчанию, которое используется
+	 * если поле {@code cookingtime} отсутствует в JSON.
+	 *
+	 * @param <T> конкретный подтип {@link AbstractCookingRecipe}
 	 */
 	public static class Serializer<T extends AbstractCookingRecipe> implements RecipeSerializer<T> {
 
@@ -98,50 +108,40 @@ public abstract class AbstractCookingRecipe extends SingleStackRecipe {
 
 		public Serializer(AbstractCookingRecipe.RecipeFactory<T> factory, int defaultCookingTime) {
 			this.codec = RecordCodecBuilder.mapCodec(
-					instance -> instance.group(
-							                    Codec.STRING.optionalFieldOf("group", "").forGetter(SingleStackRecipe::getGroup),
-							                    CookingRecipeCategory.CODEC
-									                    .fieldOf("category")
-									                    .orElse(CookingRecipeCategory.MISC)
-									                    .forGetter(AbstractCookingRecipe::getCategory),
-							                    Ingredient.CODEC.fieldOf("ingredient").forGetter(SingleStackRecipe::ingredient),
-							                    ItemStack.VALIDATED_UNCOUNTED_CODEC.fieldOf("result").forGetter(SingleStackRecipe::result),
-							                    Codec.FLOAT
-									                    .fieldOf("experience")
-									                    .orElse(0.0F)
-									                    .forGetter(AbstractCookingRecipe::getExperience),
-							                    Codec.INT
-									                    .fieldOf("cookingtime")
-									                    .orElse(defaultCookingTime)
-									                    .forGetter(AbstractCookingRecipe::getCookingTime)
-					                    )
-					                    .apply(instance, factory::create)
+				instance -> instance.group(
+					Codec.STRING.optionalFieldOf("group", "").forGetter(SingleStackRecipe::getGroup),
+					CookingRecipeCategory.CODEC
+						.fieldOf("category")
+						.orElse(CookingRecipeCategory.MISC)
+						.forGetter(AbstractCookingRecipe::getCategory),
+					Ingredient.CODEC.fieldOf("ingredient").forGetter(SingleStackRecipe::ingredient),
+					ItemStack.VALIDATED_UNCOUNTED_CODEC.fieldOf("result").forGetter(SingleStackRecipe::result),
+					Codec.FLOAT.fieldOf("experience").orElse(0.0F).forGetter(AbstractCookingRecipe::getExperience),
+					Codec.INT
+						.fieldOf("cookingtime")
+						.orElse(defaultCookingTime)
+						.forGetter(AbstractCookingRecipe::getCookingTime)
+				).apply(instance, factory::create)
 			);
 			this.packetCodec = PacketCodec.tuple(
-					PacketCodecs.STRING,
-					SingleStackRecipe::getGroup,
-					CookingRecipeCategory.PACKET_CODEC,
-					AbstractCookingRecipe::getCategory,
-					Ingredient.PACKET_CODEC,
-					SingleStackRecipe::ingredient,
-					ItemStack.PACKET_CODEC,
-					SingleStackRecipe::result,
-					PacketCodecs.FLOAT,
-					AbstractCookingRecipe::getExperience,
-					PacketCodecs.INTEGER,
-					AbstractCookingRecipe::getCookingTime,
-					factory::create
+				PacketCodecs.STRING, SingleStackRecipe::getGroup,
+				CookingRecipeCategory.PACKET_CODEC, AbstractCookingRecipe::getCategory,
+				Ingredient.PACKET_CODEC, SingleStackRecipe::ingredient,
+				ItemStack.PACKET_CODEC, SingleStackRecipe::result,
+				PacketCodecs.FLOAT, AbstractCookingRecipe::getExperience,
+				PacketCodecs.INTEGER, AbstractCookingRecipe::getCookingTime,
+				factory::create
 			);
 		}
 
 		@Override
 		public MapCodec<T> codec() {
-			return this.codec;
+			return codec;
 		}
 
 		@Override
 		public PacketCodec<RegistryByteBuf, T> packetCodec() {
-			return this.packetCodec;
+			return packetCodec;
 		}
 	}
 }

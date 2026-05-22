@@ -1,7 +1,6 @@
 package net.minecraft.datafixer.fix;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.DataFix;
 import com.mojang.datafixers.TypeRewriteRule;
@@ -14,9 +13,10 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.HashMap;
 
 /**
- * {@code PointOfInterestReorganizationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PointOfInterestReorganizationFix extends DataFix {
 
@@ -26,11 +26,11 @@ public class PointOfInterestReorganizationFix extends DataFix {
 
 	protected TypeRewriteRule makeRule() {
 		Type<Pair<String, Dynamic<?>>> type = DSL.named(TypeReferences.POI_CHUNK.typeName(), DSL.remainderType());
-		if (!Objects.equals(type, this.getInputSchema().getType(TypeReferences.POI_CHUNK))) {
+		if (!Objects.equals(type, getInputSchema().getType(TypeReferences.POI_CHUNK))) {
 			throw new IllegalStateException("Poi type is not what was expected.");
 		}
 		else {
-			return this.fixTypeEverywhere(
+			return fixTypeEverywhere(
 					"POI reorganization",
 					type,
 					dynamicOps -> pair -> pair.mapSecond(PointOfInterestReorganizationFix::reorganize)
@@ -39,7 +39,7 @@ public class PointOfInterestReorganizationFix extends DataFix {
 	}
 
 	private static <T> Dynamic<T> reorganize(Dynamic<T> dynamic) {
-		Map<Dynamic<T>, Dynamic<T>> map = Maps.newHashMap();
+		Map<Dynamic<T>, Dynamic<T>> map = new HashMap<>();
 
 		for (int i = 0; i < 16; i++) {
 			String string = String.valueOf(i);

@@ -8,12 +8,13 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 
-/**
- * {@code AbstractBannerBlock}.
- */
 public abstract class AbstractBannerBlock extends BlockWithEntity {
 
 	private final DyeColor color;
+
+	public DyeColor getColor() {
+		return color;
+	}
 
 	protected AbstractBannerBlock(DyeColor color, AbstractBlock.Settings settings) {
 		super(settings);
@@ -30,17 +31,18 @@ public abstract class AbstractBannerBlock extends BlockWithEntity {
 
 	@Override
 	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-		return new BannerBlockEntity(pos, state, this.color);
+		return new BannerBlockEntity(pos, state, color);
 	}
 
+	/**
+	 * Возвращает предмет для режима выбора блока (средняя кнопка мыши),
+	 * сохраняя паттерны баннера из {@link BannerBlockEntity} в NBT стека.
+	 * Без делегирования к сущности блока паттерны были бы утеряны.
+	 */
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-		return world.getBlockEntity(pos) instanceof BannerBlockEntity bannerBlockEntity
-		       ? bannerBlockEntity.getPickStack()
-		       : super.getPickStack(world, pos, state, includeData);
-	}
-
-	public DyeColor getColor() {
-		return this.color;
+		return world.getBlockEntity(pos) instanceof BannerBlockEntity bannerEntity
+			? bannerEntity.getPickStack()
+			: super.getPickStack(world, pos, state, includeData);
 	}
 }

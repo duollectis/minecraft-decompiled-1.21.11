@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Класс packet bundler.
+ * Netty-обработчик входящего трафика: собирает отдельные пакеты в {@link net.minecraft.network.packet.BundlePacket}
+ * между двумя пакетами-сплиттерами.
  */
 public class PacketBundler extends MessageToMessageDecoder<Packet<?>> {
 
@@ -20,27 +21,27 @@ public class PacketBundler extends MessageToMessageDecoder<Packet<?>> {
 		this.handler = handler;
 	}
 
-	protected void decode(ChannelHandlerContext channelHandlerContext, Packet<?> packet, List<Object> list)
-	throws Exception {
-		if (this.currentBundler != null) {
+	@Override
+	protected void decode(ChannelHandlerContext context, Packet<?> packet, List<Object> out) throws Exception {
+		if (currentBundler != null) {
 			ensureNotTransitioning(packet);
-			Packet<?> packet2 = this.currentBundler.add(packet);
-			if (packet2 != null) {
-				this.currentBundler = null;
-				list.add(packet2);
+			Packet<?> bundled = currentBundler.add(packet);
+			if (bundled != null) {
+				currentBundler = null;
+				out.add(bundled);
 			}
+
+			return;
 		}
-		else {
-			PacketBundleHandler.Bundler bundler = this.handler.createBundler(packet);
-			if (bundler != null) {
-				ensureNotTransitioning(packet);
-				this.currentBundler = bundler;
-			}
-			else {
-				list.add(packet);
-				if (packet.transitionsNetworkState()) {
-					channelHandlerContext.pipeline().remove(channelHandlerContext.name());
-				}
+
+		PacketBundleHandler.Bundler bundler = handler.createBundler(packet);
+		if (bundler != null) {
+			ensureNotTransitioning(packet);
+			currentBundler = bundler;
+		} else {
+			out.add(packet);
+			if (packet.transitionsNetworkState()) {
+				context.pipeline().remove(context.name());
 			}
 		}
 	}

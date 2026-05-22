@@ -22,33 +22,30 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * {@code EnchantWithLevelsLootFunction}.
- */
+/** Функция лута, зачаровывающая предмет на заданном уровне опыта. */
 public class EnchantWithLevelsLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<EnchantWithLevelsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									LootNumberProviderTypes.CODEC
-											.fieldOf("levels")
-											.forGetter(function -> function.levels),
-									RegistryCodecs
-											.entryList(RegistryKeys.ENCHANTMENT)
-											.optionalFieldOf("options")
-											.forGetter(function -> function.options)
-							)
-					)
-					.apply(instance, EnchantWithLevelsLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				LootNumberProviderTypes.CODEC
+					.fieldOf("levels")
+					.forGetter(function -> function.levels),
+				RegistryCodecs
+					.entryList(RegistryKeys.ENCHANTMENT)
+					.optionalFieldOf("options")
+					.forGetter(function -> function.options)
+			))
+			.apply(instance, EnchantWithLevelsLootFunction::new)
 	);
+
 	private final LootNumberProvider levels;
 	private final Optional<RegistryEntryList<Enchantment>> options;
 
 	EnchantWithLevelsLootFunction(
-			List<LootCondition> conditions,
-			LootNumberProvider levels,
-			Optional<RegistryEntryList<Enchantment>> options
+		List<LootCondition> conditions,
+		LootNumberProvider levels,
+		Optional<RegistryEntryList<Enchantment>> options
 	) {
 		super(conditions);
 		this.levels = levels;
@@ -62,34 +59,23 @@ public class EnchantWithLevelsLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.levels.getAllowedParameters();
+		return levels.getAllowedParameters();
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		Random random = context.getRandom();
-		DynamicRegistryManager dynamicRegistryManager = context.getWorld().getRegistryManager();
-		return EnchantmentHelper.enchant(
-				random,
-				stack,
-				this.levels.nextInt(context),
-				dynamicRegistryManager,
-				this.options
-		);
+		DynamicRegistryManager registryManager = context.getWorld().getRegistryManager();
+		return EnchantmentHelper.enchant(random, stack, levels.nextInt(context), registryManager, options);
 	}
 
-	public static EnchantWithLevelsLootFunction.Builder builder(
-			RegistryWrapper.WrapperLookup registries,
-			LootNumberProvider levels
-	) {
-		return new EnchantWithLevelsLootFunction.Builder(levels)
-				.options(registries.getOrThrow(RegistryKeys.ENCHANTMENT).getOrThrow(EnchantmentTags.ON_RANDOM_LOOT));
+	public static Builder builder(RegistryWrapper.WrapperLookup registries, LootNumberProvider levels) {
+		return new Builder(levels)
+			.options(registries.getOrThrow(RegistryKeys.ENCHANTMENT).getOrThrow(EnchantmentTags.ON_RANDOM_LOOT));
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<EnchantWithLevelsLootFunction.Builder> {
+	/** Строитель функции зачарования по уровням. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private final LootNumberProvider levels;
 		private Optional<RegistryEntryList<Enchantment>> options = Optional.empty();
@@ -98,18 +84,19 @@ public class EnchantWithLevelsLootFunction extends ConditionalLootFunction {
 			this.levels = levels;
 		}
 
-		protected EnchantWithLevelsLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
-		public EnchantWithLevelsLootFunction.Builder options(RegistryEntryList<Enchantment> options) {
+		public Builder options(RegistryEntryList<Enchantment> options) {
 			this.options = Optional.of(options);
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new EnchantWithLevelsLootFunction(this.getConditions(), this.levels, this.options);
+			return new EnchantWithLevelsLootFunction(getConditions(), levels, options);
 		}
 	}
 }

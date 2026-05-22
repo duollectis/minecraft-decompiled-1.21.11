@@ -12,100 +12,93 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code Tick}.
+ * Сериализуемый тик с относительной задержкой.
+ * Хранится в NBT чанка и восстанавливается при загрузке.
+ *
+ * @param <T>      тип объекта (блок, жидкость и т.д.)
+ * @param type     объект, которому нужно выполнить тик
+ * @param pos      позиция блока
+ * @param delay    задержка в тиках относительно момента сохранения
+ * @param priority приоритет выполнения
  */
 public record Tick<T>(T type, BlockPos pos, int delay, TickPriority priority) {
 
-	public static final Strategy<Tick<?>> HASH_STRATEGY = new Strategy<Tick<?>>() {
-		/**
-		 * Проверяет наличие h code.
-		 *
-		 * @param tick tick
-		 *
-		 * @return int — {@code true} если условие выполнено
-		 */
+	/**
+	 * Стратегия хэширования по паре (тип, позиция) для {@code ObjectOpenCustomHashSet}.
+	 * Позволяет проверять наличие тика без учёта задержки и приоритета.
+	 */
+	public static final Strategy<Tick<?>> HASH_STRATEGY = new Strategy<>() {
+		@Override
 		public int hashCode(Tick<?> tick) {
 			return 31 * tick.pos().hashCode() + tick.type().hashCode();
 		}
 
-		/**
-		 * Equals.
-		 *
-		 * @param tick tick
-		 * @param tick2 tick2
-		 *
-		 * @return boolean — результат операции
-		 */
-		public boolean equals(@Nullable Tick<?> tick, @Nullable Tick<?> tick2) {
-			if (tick == tick2) {
+		@Override
+		public boolean equals(@Nullable Tick<?> a, @Nullable Tick<?> b) {
+			if (a == b) {
 				return true;
 			}
-			else {
-				return tick != null && tick2 != null ? tick.type() == tick2.type() && tick.pos().equals(tick2.pos())
-				                                     : false;
-			}
+
+			return a != null && b != null
+				? a.type() == b.type() && a.pos().equals(b.pos())
+				: false;
 		}
 	};
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт codec для сериализации тиков в NBT.
+	 * Позиция кодируется как три отдельных поля x/y/z для совместимости с форматом Minecraft.
 	 *
-	 * @param typeCodec type codec
-	 *
-	 * @return Codec> — результат операции
+	 * @param typeCodec codec для типа объекта
 	 */
 	public static <T> Codec<Tick<T>> createCodec(Codec<T> typeCodec) {
-		MapCodec<BlockPos> mapCodec = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Codec.INT.fieldOf("x").forGetter(Vec3i::getX),
-						                    Codec.INT.fieldOf("y").forGetter(Vec3i::getY),
-						                    Codec.INT.fieldOf("z").forGetter(Vec3i::getZ)
-				                    )
-				                    .apply(instance, BlockPos::new)
+		MapCodec<BlockPos> posCodec = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+				Codec.INT.fieldOf("x").forGetter(Vec3i::getX),
+				Codec.INT.fieldOf("y").forGetter(Vec3i::getY),
+				Codec.INT.fieldOf("z").forGetter(Vec3i::getZ)
+			).apply(instance, BlockPos::new)
 		);
+
 		return RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    typeCodec.fieldOf("i").forGetter(Tick::type),
-						                    mapCodec.forGetter(Tick::pos),
-						                    Codec.INT.fieldOf("t").forGetter(Tick::delay),
-						                    TickPriority.CODEC.fieldOf("p").forGetter(Tick::priority)
-				                    )
-				                    .apply(instance, Tick::new)
+			instance -> instance.group(
+				typeCodec.fieldOf("i").forGetter(Tick::type),
+				posCodec.forGetter(Tick::pos),
+				Codec.INT.fieldOf("t").forGetter(Tick::delay),
+				TickPriority.CODEC.fieldOf("p").forGetter(Tick::priority)
+			).apply(instance, Tick::new)
 		);
 	}
 
 	/**
-	 * Filter.
+	 * Фильтрует список тиков, оставляя только те, что принадлежат заданному чанку.
 	 *
-	 * @param ticks ticks
-	 * @param chunkPos chunk pos
-	 *
-	 * @return List> — результат операции
+	 * @param ticks    исходный список тиков
+	 * @param chunkPos позиция чанка
 	 */
 	public static <T> List<Tick<T>> filter(List<Tick<T>> ticks, ChunkPos chunkPos) {
-		long l = chunkPos.toLong();
-		return ticks.stream().filter(tick -> ChunkPos.toLong(tick.pos()) == l).toList();
+		long chunkKey = chunkPos.toLong();
+		return ticks.stream()
+			.filter(tick -> ChunkPos.toLong(tick.pos()) == chunkKey)
+			.toList();
 	}
 
 	/**
-	 * Создаёт ordered tick.
+	 * Конвертирует в {@link OrderedTick} с абсолютным временем срабатывания.
 	 *
-	 * @param time time
-	 * @param subTickOrder sub tick order
-	 *
-	 * @return OrderedTick — результат операции
+	 * @param currentTime  текущее игровое время в тиках
+	 * @param subTickOrder порядковый номер для детерминированной сортировки
 	 */
-	public OrderedTick<T> createOrderedTick(long time, long subTickOrder) {
-		return new OrderedTick<>(this.type, this.pos, time + this.delay, this.priority, subTickOrder);
+	public OrderedTick<T> createOrderedTick(long currentTime, long subTickOrder) {
+		return new OrderedTick<>(type, pos, currentTime + delay, priority, subTickOrder);
 	}
 
 	/**
-	 * Create.
+	 * Создаёт «ключевой» тик с нулевой задержкой и нормальным приоритетом.
+	 * Используется исключительно для поиска в хэш-наборе по паре (тип, позиция).
 	 *
-	 * @param type type
-	 * @param pos pos
-	 *
-	 * @return Tick — результат операции
+	 * @param type тип объекта
+	 * @param pos  позиция блока
 	 */
 	public static <T> Tick<T> create(T type, BlockPos pos) {
 		return new Tick<>(type, pos, 0, TickPriority.NORMAL);

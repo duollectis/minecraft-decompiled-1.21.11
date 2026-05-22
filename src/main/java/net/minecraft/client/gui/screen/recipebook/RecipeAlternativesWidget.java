@@ -25,10 +25,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RecipeAlternativesWidget}.
+ * Всплывающий виджет альтернативных рецептов, отображаемый при правом клике
+ * на кнопку результата с несколькими вариантами крафта.
  */
+@Environment(EnvType.CLIENT)
 public class RecipeAlternativesWidget implements Drawable, Element {
 
 	private static final Identifier OVERLAY_RECIPE_TEXTURE = Identifier.ofVanilla("recipe_book/overlay_recipe");
@@ -36,6 +37,10 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 	private static final int ROW_PADDING = 5;
 	private static final float SCALE = 0.375F;
 	public static final int BUTTON_WIDTH = 25;
+	private static final int MAX_COLUMNS_SMALL = 4;
+	private static final int MAX_COLUMNS_LARGE = 5;
+	private static final int SMALL_GRID_THRESHOLD = 16;
+
 	private final List<RecipeAlternativesWidget.AlternativeButtonWidget> alternativeButtons = Lists.newArrayList();
 	private boolean visible;
 	private int buttonX;
@@ -50,6 +55,10 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 		this.furnace = furnace;
 	}
 
+	/**
+	 * Показывает альтернативные рецепты для указанной коллекции результатов.
+	 * Автоматически корректирует позицию виджета, чтобы он не выходил за границы экрана.
+	 */
 	public void showAlternativesForResult(
 			RecipeResultCollection resultCollection,
 			ContextParameterMap context,
@@ -61,75 +70,70 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 			float delta
 	) {
 		this.resultCollection = resultCollection;
-		List<RecipeDisplayEntry> list = resultCollection.filter(RecipeResultCollection.RecipeFilterMode.CRAFTABLE);
-		List<RecipeDisplayEntry> list2 = filteringCraftable
-		                                 ? Collections.emptyList()
-		                                 : resultCollection.filter(RecipeResultCollection.RecipeFilterMode.NOT_CRAFTABLE);
-		int i = list.size();
-		int j = i + list2.size();
-		int k = j <= 16 ? 4 : 5;
-		int l = (int) Math.ceil((float) j / k);
+
+		List<RecipeDisplayEntry> craftable = resultCollection.filter(RecipeResultCollection.RecipeFilterMode.CRAFTABLE);
+		List<RecipeDisplayEntry> uncraftable = filteringCraftable
+				? Collections.emptyList()
+				: resultCollection.filter(RecipeResultCollection.RecipeFilterMode.NOT_CRAFTABLE);
+
+		int craftableCount = craftable.size();
+		int totalCount = craftableCount + uncraftable.size();
+		int columnCount = totalCount <= SMALL_GRID_THRESHOLD ? MAX_COLUMNS_SMALL : MAX_COLUMNS_LARGE;
+		int rowCount = (int) Math.ceil((float) totalCount / columnCount);
+
 		this.buttonX = buttonX;
 		this.buttonY = buttonY;
-		float f = this.buttonX + Math.min(j, k) * 25;
-		float g = areaCenterX + 50;
-		if (f > g) {
-			this.buttonX = (int) (this.buttonX - delta * (int) ((f - g) / delta));
+
+		float rightEdge = this.buttonX + Math.min(totalCount, columnCount) * BUTTON_WIDTH;
+		float rightBound = areaCenterX + 50;
+
+		if (rightEdge > rightBound) {
+			this.buttonX = (int) (this.buttonX - delta * (int) ((rightEdge - rightBound) / delta));
 		}
 
-		float h = this.buttonY + l * 25;
-		float m = areaCenterY + 50;
-		if (h > m) {
-			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((h - m) / delta));
+		float bottomEdge = this.buttonY + rowCount * BUTTON_WIDTH;
+		float bottomBound = areaCenterY + 50;
+
+		if (bottomEdge > bottomBound) {
+			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((bottomEdge - bottomBound) / delta));
 		}
 
-		float n = this.buttonY;
-		float o = areaCenterY - 100;
-		if (n < o) {
-			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((n - o) / delta));
+		float topEdge = this.buttonY;
+		float topBound = areaCenterY - 100;
+
+		if (topEdge < topBound) {
+			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((topEdge - topBound) / delta));
 		}
 
-		this.visible = true;
-		this.alternativeButtons.clear();
+		visible = true;
+		alternativeButtons.clear();
 
-		for (int p = 0; p < j; p++) {
-			boolean bl = p < i;
-			RecipeDisplayEntry recipeDisplayEntry = bl ? list.get(p) : list2.get(p - i);
-			int q = this.buttonX + 4 + 25 * (p % k);
-			int r = this.buttonY + 5 + 25 * (p / k);
-			if (this.furnace) {
-				this.alternativeButtons
-						.add(new RecipeAlternativesWidget.FurnaceAlternativeButtonWidget(
-								q,
-								r,
-								recipeDisplayEntry.id(),
-								recipeDisplayEntry.display(),
-								context,
-								bl
-						));
-			}
-			else {
-				this.alternativeButtons
-						.add(new RecipeAlternativesWidget.CraftingAlternativeButtonWidget(
-								q,
-								r,
-								recipeDisplayEntry.id(),
-								recipeDisplayEntry.display(),
-								context,
-								bl
-						));
+		for (int index = 0; index < totalCount; index++) {
+			boolean isCraftable = index < craftableCount;
+			RecipeDisplayEntry entry = isCraftable ? craftable.get(index) : uncraftable.get(index - craftableCount);
+			int entryX = this.buttonX + PADDING + BUTTON_WIDTH * (index % columnCount);
+			int entryY = this.buttonY + ROW_PADDING + BUTTON_WIDTH * (index / columnCount);
+
+			if (furnace) {
+				alternativeButtons.add(new RecipeAlternativesWidget.FurnaceAlternativeButtonWidget(
+						entryX, entryY, entry.id(), entry.display(), context, isCraftable
+				));
+			} else {
+				alternativeButtons.add(new RecipeAlternativesWidget.CraftingAlternativeButtonWidget(
+						entryX, entryY, entry.id(), entry.display(), context, isCraftable
+				));
 			}
 		}
 
-		this.lastClickedRecipe = null;
+		lastClickedRecipe = null;
 	}
 
 	public RecipeResultCollection getResults() {
-		return this.resultCollection;
+		return resultCollection;
 	}
 
 	public @Nullable NetworkRecipeId getLastClickedRecipe() {
-		return this.lastClickedRecipe;
+		return lastClickedRecipe;
 	}
 
 	@Override
@@ -137,16 +141,15 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 		if (click.button() != 0) {
 			return false;
 		}
-		else {
-			for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
-				if (alternativeButtonWidget.mouseClicked(click, doubled)) {
-					this.lastClickedRecipe = alternativeButtonWidget.recipeId;
-					return true;
-				}
-			}
 
-			return false;
+		for (RecipeAlternativesWidget.AlternativeButtonWidget button : alternativeButtons) {
+			if (button.mouseClicked(click, doubled)) {
+				lastClickedRecipe = button.recipeId;
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	@Override
@@ -156,23 +159,25 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (this.visible) {
-			int i = this.alternativeButtons.size() <= 16 ? 4 : 5;
-			int j = Math.min(this.alternativeButtons.size(), i);
-			int k = MathHelper.ceil((float) this.alternativeButtons.size() / i);
-			int l = 4;
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					OVERLAY_RECIPE_TEXTURE,
-					this.buttonX,
-					this.buttonY,
-					j * 25 + 8,
-					k * 25 + 8
-			);
+		if (!visible) {
+			return;
+		}
 
-			for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
-				alternativeButtonWidget.render(context, mouseX, mouseY, deltaTicks);
-			}
+		int columnCount = alternativeButtons.size() <= SMALL_GRID_THRESHOLD ? MAX_COLUMNS_SMALL : MAX_COLUMNS_LARGE;
+		int visibleColumns = Math.min(alternativeButtons.size(), columnCount);
+		int rowCount = MathHelper.ceil((float) alternativeButtons.size() / columnCount);
+
+		context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				OVERLAY_RECIPE_TEXTURE,
+				buttonX,
+				buttonY,
+				visibleColumns * BUTTON_WIDTH + 8,
+				rowCount * BUTTON_WIDTH + 8
+		);
+
+		for (RecipeAlternativesWidget.AlternativeButtonWidget button : alternativeButtons) {
+			button.render(context, mouseX, mouseY, deltaTicks);
 		}
 	}
 
@@ -181,7 +186,7 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 	}
 
 	public boolean isVisible() {
-		return this.visible;
+		return visible;
 	}
 
 	@Override
@@ -194,9 +199,6 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code AlternativeButtonWidget}.
-	 */
 	abstract class AlternativeButtonWidget extends ClickableWidget {
 
 		final NetworkRecipeId recipeId;
@@ -228,26 +230,27 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 
 		@Override
 		public void appendClickableNarrations(NarrationMessageBuilder builder) {
-			this.appendDefaultNarrations(builder);
+			appendDefaultNarrations(builder);
 		}
 
 		@Override
 		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 			context.drawGuiTexture(
 					RenderPipelines.GUI_TEXTURED,
-					this.getOverlayTexture(this.craftable),
-					this.getX(),
-					this.getY(),
-					this.width,
-					this.height
+					getOverlayTexture(craftable),
+					getX(),
+					getY(),
+					width,
+					height
 			);
-			float f = this.getX() + 2;
-			float g = this.getY() + 2;
 
-			for (RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot inputSlot : this.inputSlots) {
+			float originX = getX() + 2;
+			float originY = getY() + 2;
+
+			for (RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot inputSlot : inputSlots) {
 				context.getMatrices().pushMatrix();
-				context.getMatrices().translate(f + inputSlot.y, g + inputSlot.x);
-				context.getMatrices().scale(0.375F, 0.375F);
+				context.getMatrices().translate(originX + inputSlot.y, originY + inputSlot.x);
+				context.getMatrices().scale(SCALE, SCALE);
 				context.getMatrices().translate(-8.0F, -8.0F);
 				context.drawItem(
 						inputSlot.get(RecipeAlternativesWidget.this.currentIndexProvider.currentIndex()),
@@ -259,53 +262,35 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code InputSlot}.
-		 */
 		protected record InputSlot(int y, int x, List<ItemStack> stacks) {
 
 			public InputSlot(int y, int x, List<ItemStack> stacks) {
 				if (stacks.isEmpty()) {
 					throw new IllegalArgumentException("Ingredient list must be non-empty");
 				}
-				else {
-					this.y = y;
-					this.x = x;
-					this.stacks = stacks;
-				}
+
+				this.y = y;
+				this.x = x;
+				this.stacks = stacks;
 			}
 
-			/**
-			 * Get.
-			 *
-			 * @param index index
-			 *
-			 * @return ItemStack — 
-			 */
 			public ItemStack get(int index) {
-				return this.stacks.get(index % this.stacks.size());
+				return stacks.get(index % stacks.size());
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CraftingAlternativeButtonWidget}.
-	 */
 	class CraftingAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
 
-		private static final Identifier CRAFTING_OVERLAY = Identifier.ofVanilla("recipe_book/crafting_overlay");
-		private static final Identifier
-				CRAFTING_OVERLAY_HIGHLIGHTED =
+		private static final Identifier CRAFTING_OVERLAY =
+				Identifier.ofVanilla("recipe_book/crafting_overlay");
+		private static final Identifier CRAFTING_OVERLAY_HIGHLIGHTED =
 				Identifier.ofVanilla("recipe_book/crafting_overlay_highlighted");
-		private static final Identifier
-				CRAFTING_OVERLAY_DISABLED =
+		private static final Identifier CRAFTING_OVERLAY_DISABLED =
 				Identifier.ofVanilla("recipe_book/crafting_overlay_disabled");
-		private static final Identifier
-				CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED =
+		private static final Identifier CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED =
 				Identifier.ofVanilla("recipe_book/crafting_overlay_disabled_highlighted");
-		private static final int ICON_PADDING = 3;
-		private static final int TEXT_PADDING = 3;
 
 		public CraftingAlternativeButtonWidget(
 				final int x,
@@ -322,68 +307,59 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 				RecipeDisplay display,
 				ContextParameterMap context
 		) {
-			List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> list = new ArrayList<>();
+			List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> slots = new ArrayList<>();
+
 			switch (display) {
-				case ShapedCraftingRecipeDisplay shapedCraftingRecipeDisplay:
+				case ShapedCraftingRecipeDisplay shaped:
 					RecipeGridAligner.alignRecipeToGrid(
 							3,
 							3,
-							shapedCraftingRecipeDisplay.width(),
-							shapedCraftingRecipeDisplay.height(),
-							shapedCraftingRecipeDisplay.ingredients(),
-							(slot, index, x, y) -> {
-								List<ItemStack> list2x = slot.getStacks(context);
-								if (!list2x.isEmpty()) {
-									list.add(slot(x, y, list2x));
+							shaped.width(),
+							shaped.height(),
+							shaped.ingredients(),
+							(slotDisplay, index, x, y) -> {
+								List<ItemStack> stacks = slotDisplay.getStacks(context);
+								if (!stacks.isEmpty()) {
+									slots.add(slot(x, y, stacks));
 								}
 							}
 					);
 					break;
-				case ShapelessCraftingRecipeDisplay shapelessCraftingRecipeDisplay:
-					label19:
-					{
-						List<SlotDisplay> list2 = shapelessCraftingRecipeDisplay.ingredients();
-
-						for (int i = 0; i < list2.size(); i++) {
-							List<ItemStack> list3 = list2.get(i).getStacks(context);
-							if (!list3.isEmpty()) {
-								list.add(slot(i % 3, i / 3, list3));
-							}
+				case ShapelessCraftingRecipeDisplay shapeless:
+					List<SlotDisplay> ingredients = shapeless.ingredients();
+					for (int index = 0; index < ingredients.size(); index++) {
+						List<ItemStack> stacks = ingredients.get(index).getStacks(context);
+						if (!stacks.isEmpty()) {
+							slots.add(slot(index % 3, index / 3, stacks));
 						}
-						break label19;
 					}
+					break;
 				default:
 			}
 
-			return list;
+			return slots;
 		}
 
 		@Override
 		protected Identifier getOverlayTexture(boolean enabled) {
 			if (enabled) {
-				return this.isSelected() ? CRAFTING_OVERLAY_HIGHLIGHTED : CRAFTING_OVERLAY;
+				return isSelected() ? CRAFTING_OVERLAY_HIGHLIGHTED : CRAFTING_OVERLAY;
 			}
-			else {
-				return this.isSelected() ? CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED : CRAFTING_OVERLAY_DISABLED;
-			}
+
+			return isSelected() ? CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED : CRAFTING_OVERLAY_DISABLED;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FurnaceAlternativeButtonWidget}.
-	 */
 	class FurnaceAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
 
-		private static final Identifier FURNACE_OVERLAY = Identifier.ofVanilla("recipe_book/furnace_overlay");
-		private static final Identifier
-				FURNACE_OVERLAY_HIGHLIGHTED =
+		private static final Identifier FURNACE_OVERLAY =
+				Identifier.ofVanilla("recipe_book/furnace_overlay");
+		private static final Identifier FURNACE_OVERLAY_HIGHLIGHTED =
 				Identifier.ofVanilla("recipe_book/furnace_overlay_highlighted");
-		private static final Identifier
-				FURNACE_OVERLAY_DISABLED =
+		private static final Identifier FURNACE_OVERLAY_DISABLED =
 				Identifier.ofVanilla("recipe_book/furnace_overlay_disabled");
-		private static final Identifier
-				FURNACE_OVERLAY_DISABLED_HIGHLIGHTED =
+		private static final Identifier FURNACE_OVERLAY_DISABLED_HIGHLIGHTED =
 				Identifier.ofVanilla("recipe_book/furnace_overlay_disabled_highlighted");
 
 		public FurnaceAlternativeButtonWidget(
@@ -401,10 +377,10 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 				RecipeDisplay display,
 				ContextParameterMap context
 		) {
-			if (display instanceof FurnaceRecipeDisplay furnaceRecipeDisplay) {
-				List<ItemStack> list = furnaceRecipeDisplay.ingredient().getStacks(context);
-				if (!list.isEmpty()) {
-					return List.of(slot(1, 1, list));
+			if (display instanceof FurnaceRecipeDisplay furnaceDisplay) {
+				List<ItemStack> stacks = furnaceDisplay.ingredient().getStacks(context);
+				if (!stacks.isEmpty()) {
+					return List.of(slot(1, 1, stacks));
 				}
 			}
 
@@ -414,11 +390,10 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 		@Override
 		protected Identifier getOverlayTexture(boolean enabled) {
 			if (enabled) {
-				return this.isSelected() ? FURNACE_OVERLAY_HIGHLIGHTED : FURNACE_OVERLAY;
+				return isSelected() ? FURNACE_OVERLAY_HIGHLIGHTED : FURNACE_OVERLAY;
 			}
-			else {
-				return this.isSelected() ? FURNACE_OVERLAY_DISABLED_HIGHLIGHTED : FURNACE_OVERLAY_DISABLED;
-			}
+
+			return isSelected() ? FURNACE_OVERLAY_DISABLED_HIGHLIGHTED : FURNACE_OVERLAY_DISABLED;
 		}
 	}
 }

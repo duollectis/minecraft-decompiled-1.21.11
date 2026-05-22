@@ -16,44 +16,65 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code FireChargeItem}.
+ * Предмет «Огненный заряд». Поджигает костры, свечи и блоки огня.
+ * При выстреле из диспенсера запускает снаряд {@link SmallFireballEntity}.
  */
 public class FireChargeItem extends Item implements ProjectileItem {
+
+	/**
+	 * Разброс направления снаряда при создании через диспенсер.
+	 * Значение соответствует стандартному разбросу огненного шара.
+	 */
+	private static final double FIREBALL_SPREAD = 0.11485000000000001;
+
+	/** Неопределённость траектории при выстреле из диспенсера. */
+	private static final float DISPENSER_UNCERTAINTY = 6.6666665F;
+
+	/** ID события диспенсера для звука выстрела огненным зарядом. */
+	private static final int DISPENSE_EVENT_ID = 1018;
 
 	public FireChargeItem(Item.Settings settings) {
 		super(settings);
 	}
 
+	/**
+	 * Поджигает блок при использовании. Если блок — костёр или свеча, включает его.
+	 * Иначе пытается разместить огонь на соседнем блоке.
+	 */
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
-		boolean bl = false;
-		if (!CampfireBlock.canBeLit(blockState) && !CandleBlock.canBeLit(blockState) && !CandleCakeBlock.canBeLit(
-				blockState)) {
-			blockPos = blockPos.offset(context.getSide());
-			if (AbstractFireBlock.canPlaceAt(world, blockPos, context.getHorizontalPlayerFacing())) {
-				this.playUseSound(world, blockPos);
-				world.setBlockState(blockPos, AbstractFireBlock.getState(world, blockPos));
-				world.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_PLACE, blockPos);
-				bl = true;
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
+		boolean didIgnite;
+
+		if (CampfireBlock.canBeLit(blockState)
+				|| CandleBlock.canBeLit(blockState)
+				|| CandleCakeBlock.canBeLit(blockState)
+		) {
+			playUseSound(world, pos);
+			world.setBlockState(pos, blockState.with(Properties.LIT, true));
+			world.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_CHANGE, pos);
+			didIgnite = true;
+		} else {
+			BlockPos firePos = pos.offset(context.getSide());
+
+			if (AbstractFireBlock.canPlaceAt(world, firePos, context.getHorizontalPlayerFacing())) {
+				playUseSound(world, firePos);
+				world.setBlockState(firePos, AbstractFireBlock.getState(world, firePos));
+				world.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_PLACE, firePos);
+				didIgnite = true;
+			} else {
+				didIgnite = false;
 			}
 		}
-		else {
-			this.playUseSound(world, blockPos);
-			world.setBlockState(blockPos, blockState.with(Properties.LIT, true));
-			world.emitGameEvent(context.getPlayer(), GameEvent.BLOCK_CHANGE, blockPos);
-			bl = true;
-		}
 
-		if (bl) {
+		if (didIgnite) {
 			context.getStack().decrement(1);
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return ActionResult.FAIL;
-		}
+
+		return ActionResult.FAIL;
 	}
 
 	private void playUseSound(World world, BlockPos pos) {
@@ -71,39 +92,26 @@ public class FireChargeItem extends Item implements ProjectileItem {
 	@Override
 	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
 		Random random = world.getRandom();
-		double d = random.nextTriangular((double) direction.getOffsetX(), 0.11485000000000001);
-		double e = random.nextTriangular((double) direction.getOffsetY(), 0.11485000000000001);
-		double f = random.nextTriangular((double) direction.getOffsetZ(), 0.11485000000000001);
-		Vec3d vec3d = new Vec3d(d, e, f);
-		SmallFireballEntity
-				smallFireballEntity =
-				new SmallFireballEntity(world, pos.getX(), pos.getY(), pos.getZ(), vec3d.normalize());
-		smallFireballEntity.setItem(stack);
-		return smallFireballEntity;
+		double velX = random.nextTriangular(direction.getOffsetX(), FIREBALL_SPREAD);
+		double velY = random.nextTriangular(direction.getOffsetY(), FIREBALL_SPREAD);
+		double velZ = random.nextTriangular(direction.getOffsetZ(), FIREBALL_SPREAD);
+		Vec3d velocity = new Vec3d(velX, velY, velZ);
+		SmallFireballEntity fireball = new SmallFireballEntity(world, pos.getX(), pos.getY(), pos.getZ(), velocity.normalize());
+		fireball.setItem(stack);
+		return fireball;
 	}
 
 	@Override
-	public void initializeProjectile(
-			ProjectileEntity entity,
-			double x,
-			double y,
-			double z,
-			float power,
-			float uncertainty
-	) {
+	public void initializeProjectile(ProjectileEntity entity, double x, double y, double z, float power, float uncertainty) {
 	}
 
 	@Override
 	public ProjectileItem.Settings getProjectileSettings() {
 		return ProjectileItem.Settings.builder()
-		                              .positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(
-				                              pointer,
-				                              1.0,
-				                              Vec3d.ZERO
-		                              ))
-		                              .uncertainty(6.6666665F)
-		                              .power(1.0F)
-		                              .overrideDispenseEvent(1018)
-		                              .build();
+				.positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(pointer, 1.0, Vec3d.ZERO))
+				.uncertainty(DISPENSER_UNCERTAINTY)
+				.power(1.0F)
+				.overrideDispenseEvent(DISPENSE_EVENT_ID)
+				.build();
 	}
 }

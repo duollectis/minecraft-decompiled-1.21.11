@@ -13,10 +13,16 @@ import org.joml.Matrix3x2fc;
 import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphGuiElementRenderState}.
+ * Состояние отдельного глифа или прямоугольника текста в GUI.
+ * Хранит уже подготовленный {@link TextDrawable} и матрицу трансформации.
+ * Пайплайн и текстура берутся непосредственно из {@code renderable},
+ * что позволяет корректно обрабатывать разные шрифты и эффекты (тень, outline).
+ *
+ * <p>Метод {@link #bounds()} всегда возвращает {@code null}, так как глифы
+ * не участвуют в системе слоёв GUI — их порядок определяется порядком текстовых элементов.
  */
+@Environment(EnvType.CLIENT)
 public record GlyphGuiElementRenderState(
 		Matrix3x2fc pose,
 		TextDrawable renderable,
@@ -25,18 +31,18 @@ public record GlyphGuiElementRenderState(
 
 	@Override
 	public void setupVertices(VertexConsumer vertices) {
-		this.renderable.render(new Matrix4f().mul(this.pose), vertices, 15728880, true);
+		renderable.render(new Matrix4f().mul(pose), vertices, 15728880, true);
 	}
 
 	@Override
 	public RenderPipeline pipeline() {
-		return this.renderable.getPipeline();
+		return renderable.getPipeline();
 	}
 
 	@Override
 	public TextureSetup textureSetup() {
 		return TextureSetup.withLightmap(
-				this.renderable.textureView(),
+				renderable.textureView(),
 				RenderSystem.getSamplerCache().get(FilterMode.NEAREST)
 		);
 	}

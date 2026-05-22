@@ -29,15 +29,22 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FileUpload}.
+ * Загружает файл мира на сервер Realms через HTTP multipart-запрос.
+ * Поддерживает автоматические повторные попытки при получении заголовка {@code Retry-After}.
+ * Реализует {@link AutoCloseable} для корректного закрытия {@link HttpClient}.
  */
+@Environment(EnvType.CLIENT)
 public class FileUpload implements AutoCloseable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int MAX_ATTEMPTS = 5;
-	private static final String UPLOAD_ENDPOINT = "/upload";
+	private static final long CONNECT_TIMEOUT_SECONDS = 15L;
+	private static final long REQUEST_TIMEOUT_MINUTES = 10L;
+	private static final int HTTP_UNAUTHORIZED = 401;
+	private static final String UPLOAD_PATH = "/upload/";
+	private static final String CONTENT_TYPE_OCTET_STREAM = "application/octet-stream";
+
 	private final File file;
 	private final long worldId;
 	private final int slotId;
@@ -68,71 +75,69 @@ public class FileUpload implements AutoCloseable {
 		this.clientVersion = clientVersion;
 		this.worldVersion = worldVersion;
 		this.uploadStatus = uploadStatus;
-		this.httpClient =
-				HttpClient
-						.newBuilder()
-						.executor(Util.getDownloadWorkerExecutor())
-						.connectTimeout(Duration.ofSeconds(15L))
-						.build();
+		this.httpClient = HttpClient
+				.newBuilder()
+				.executor(Util.getDownloadWorkerExecutor())
+				.connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
+				.build();
 	}
 
 	@Override
 	public void close() {
-		this.httpClient.close();
+		httpClient.close();
 	}
 
 	/**
-	 * Upload.
+	 * Запускает асинхронную загрузку файла на сервер Realms.
+	 * Перед отправкой устанавливает общий размер файла в {@link UploadProgress}.
 	 *
-	 * @return CompletableFuture — результат операции
+	 * @return будущий результат загрузки с HTTP-кодом и возможным сообщением об ошибке
 	 */
 	public CompletableFuture<UploadResult> upload() {
-		long l = this.file.length();
-		this.uploadStatus.setTotalBytes(l);
-		return this.requestUpload(0, l);
+		long fileSize = file.length();
+		uploadStatus.setTotalBytes(fileSize);
+		return requestUpload(0, fileSize);
 	}
 
 	private CompletableFuture<UploadResult> requestUpload(int currentAttempt, long size) {
 		BodyPublisher bodyPublisher = getPublisher(
 				() -> {
 					try {
-						return new FileUpload.ProgressInputStream(new FileInputStream(this.file), this.uploadStatus);
-					}
-					catch (IOException var2) {
-						LOGGER.warn("Failed to open file {}", this.file, var2);
+						return new FileUpload.ProgressInputStream(new FileInputStream(file), uploadStatus);
+					} catch (IOException ex) {
+						LOGGER.warn("Failed to open file {}", file, ex);
 						return null;
 					}
-				}, size
+				},
+				size
 		);
-		HttpRequest
-				httpRequest =
-				HttpRequest
-						.newBuilder(this.uploadInfo
-								.uploadEndpoint()
-								.resolve("/upload/" + this.worldId + "/" + this.slotId))
-						.timeout(Duration.ofMinutes(10L))
-						.setHeader("Cookie", this.getCookie())
-						.setHeader("Content-Type", "application/octet-stream")
-						.POST(bodyPublisher)
-						.build();
-		return this.httpClient
-				.sendAsync(httpRequest, BodyHandlers.ofString(StandardCharsets.UTF_8))
+
+		HttpRequest request = HttpRequest
+				.newBuilder(uploadInfo.uploadEndpoint().resolve(UPLOAD_PATH + worldId + "/" + slotId))
+				.timeout(Duration.ofMinutes(REQUEST_TIMEOUT_MINUTES))
+				.setHeader("Cookie", getCookie())
+				.setHeader("Content-Type", CONTENT_TYPE_OCTET_STREAM)
+				.POST(bodyPublisher)
+				.build();
+
+		return httpClient
+				.sendAsync(request, BodyHandlers.ofString(StandardCharsets.UTF_8))
 				.thenCompose(response -> {
-					long m = this.getRetryDelaySeconds((HttpResponse<?>) response);
-					if (this.shouldRetry(m, currentAttempt)) {
-						this.uploadStatus.clear();
+					long retryDelay = getRetryDelaySeconds(response);
+
+					if (shouldRetry(retryDelay, currentAttempt)) {
+						uploadStatus.clear();
 
 						try {
-							Thread.sleep(Duration.ofSeconds(m));
-						}
-						catch (InterruptedException var8) {
+							Thread.sleep(Duration.ofSeconds(retryDelay));
+						} catch (InterruptedException ignored) {
+							Thread.currentThread().interrupt();
 						}
 
-						return this.requestUpload(currentAttempt + 1, size);
+						return requestUpload(currentAttempt + 1, size);
 					}
-					else {
-						return CompletableFuture.completedFuture(this.handleResponse((HttpResponse<String>) response));
-					}
+
+					return CompletableFuture.completedFuture(handleResponse((HttpResponse<String>) response));
 				});
 	}
 
@@ -141,53 +146,50 @@ public class FileUpload implements AutoCloseable {
 	}
 
 	private String getCookie() {
-		return "sid="
-				+ this.sessionId
-				+ ";token="
-				+ this.uploadInfo.token()
-				+ ";user="
-				+ this.username
-				+ ";version="
-				+ this.clientVersion
-				+ ";worldVersion="
-				+ this.worldVersion;
+		return "sid=" + sessionId
+				+ ";token=" + uploadInfo.token()
+				+ ";user=" + username
+				+ ";version=" + clientVersion
+				+ ";worldVersion=" + worldVersion;
 	}
 
 	private UploadResult handleResponse(HttpResponse<String> response) {
-		int i = response.statusCode();
-		if (i == 401) {
+		int statusCode = response.statusCode();
+
+		if (statusCode == HTTP_UNAUTHORIZED) {
 			LOGGER.debug("Realms server returned 401: {}", response.headers().firstValue("WWW-Authenticate"));
 		}
 
-		String string = null;
-		String string2 = response.body();
-		if (string2 != null && !string2.isBlank()) {
+		String errorMessage = null;
+		String body = response.body();
+
+		if (body != null && !body.isBlank()) {
 			try {
-				JsonElement jsonElement = LenientJsonParser.parse(string2).getAsJsonObject().get("errorMsg");
-				if (jsonElement != null) {
-					string = jsonElement.getAsString();
+				JsonElement errorMsg = LenientJsonParser.parse(body).getAsJsonObject().get("errorMsg");
+				if (errorMsg != null) {
+					errorMessage = errorMsg.getAsString();
 				}
-			}
-			catch (Exception var6) {
-				LOGGER.warn("Failed to parse response {}", string2, var6);
+			} catch (Exception ex) {
+				LOGGER.warn("Failed to parse response {}", body, ex);
 			}
 		}
 
-		return new UploadResult(i, string);
+		return new UploadResult(statusCode, errorMessage);
 	}
 
 	private boolean shouldRetry(long retryDelaySeconds, int currentAttempt) {
-		return retryDelaySeconds > 0L && currentAttempt + 1 < 5;
+		return retryDelaySeconds > 0L && currentAttempt + 1 < MAX_ATTEMPTS;
 	}
 
 	private long getRetryDelaySeconds(HttpResponse<?> response) {
 		return response.headers().firstValueAsLong("Retry-After").orElse(0L);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ProgressInputStream}.
+	 * Обёртка над {@link CountingInputStream}, уведомляющая {@link UploadProgress}
+	 * о количестве переданных байт после каждого чтения.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class ProgressInputStream extends CountingInputStream {
 
 		private final UploadProgress progress;
@@ -197,14 +199,10 @@ public class FileUpload implements AutoCloseable {
 			this.progress = progress;
 		}
 
-		/**
-		 * After read.
-		 *
-		 * @param n n
-		 */
-		protected void afterRead(int n) throws IOException {
-			super.afterRead(n);
-			this.progress.addBytesWritten(this.getByteCount());
+		@Override
+		protected void afterRead(int bytesRead) throws IOException {
+			super.afterRead(bytesRead);
+			progress.addBytesWritten(getByteCount());
 		}
 	}
 }

@@ -17,140 +17,148 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AnvilScreen}.
+ * Экран наковальни. Позволяет переименовывать предметы и объединять их для ремонта/зачарования.
+ * Отображает стоимость операции в уровнях опыта.
  */
+@Environment(EnvType.CLIENT)
 public class AnvilScreen extends ForgingScreen<AnvilScreenHandler> {
 
 	private static final Identifier TEXT_FIELD_TEXTURE = Identifier.ofVanilla("container/anvil/text_field");
-	private static final Identifier
-			TEXT_FIELD_DISABLED_TEXTURE =
-			Identifier.ofVanilla("container/anvil/text_field_disabled");
+	private static final Identifier TEXT_FIELD_DISABLED_TEXTURE = Identifier.ofVanilla("container/anvil/text_field_disabled");
 	private static final Identifier ERROR_TEXTURE = Identifier.ofVanilla("container/anvil/error");
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/anvil.png");
 	private static final Text TOO_EXPENSIVE_TEXT = Text.translatable("container.repair.expensive");
+	private static final int COLOR_NORMAL = -8323296;
+	private static final int COLOR_TOO_EXPENSIVE = -40864;
+	private static final int MAX_LEVEL_COST_CREATIVE = 40;
+	private static final int COST_LABEL_Y = 69;
+	private static final int COST_BACKGROUND_Y1 = 67;
+	private static final int COST_BACKGROUND_Y2 = 79;
+
 	private TextFieldWidget nameField;
 	private final PlayerEntity player;
 
 	public AnvilScreen(AnvilScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title, TEXTURE);
-		this.player = inventory.player;
-		this.titleX = 60;
+		player = inventory.player;
+		titleX = 60;
 	}
 
 	@Override
 	protected void setup() {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
-		this.nameField =
-				new TextFieldWidget(this.textRenderer, i + 62, j + 24, 103, 12, Text.translatable("container.repair"));
-		this.nameField.setFocusUnlocked(false);
-		this.nameField.setEditableColor(-1);
-		this.nameField.setUneditableColor(-1);
-		this.nameField.setInvertSelectionBackground(false);
-		this.nameField.setDrawsBackground(false);
-		this.nameField.setMaxLength(50);
-		this.nameField.setChangedListener(this::onRenamed);
-		this.nameField.setText("");
-		this.addDrawableChild(this.nameField);
-		this.nameField.setEditable(this.handler.getSlot(0).hasStack());
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
+		nameField = new TextFieldWidget(textRenderer, bgX + 62, bgY + 24, 103, 12, Text.translatable("container.repair"));
+		nameField.setFocusUnlocked(false);
+		nameField.setEditableColor(-1);
+		nameField.setUneditableColor(-1);
+		nameField.setInvertSelectionBackground(false);
+		nameField.setDrawsBackground(false);
+		nameField.setMaxLength(AnvilScreenHandler.MAX_NAME_LENGTH);
+		nameField.setChangedListener(this::onRenamed);
+		nameField.setText("");
+		addDrawableChild(nameField);
+		nameField.setEditable(handler.getSlot(0).hasStack());
 	}
 
 	@Override
 	protected void handledScreenTick() {
 		super.handledScreenTick();
-		this.client.player.experienceBarDisplayStartTime = this.client.player.age;
+		client.player.experienceBarDisplayStartTime = client.player.age;
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.nameField);
+		setInitialFocus(nameField);
 	}
 
 	@Override
 	public void resize(int width, int height) {
-		String string = this.nameField.getText();
-		this.init(width, height);
-		this.nameField.setText(string);
+		String currentText = nameField.getText();
+		init(width, height);
+		nameField.setText(currentText);
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.isEscape()) {
-			this.client.player.closeHandledScreen();
+			client.player.closeHandledScreen();
 			return true;
 		}
-		else {
-			return !this.nameField.keyPressed(input) && !this.nameField.isActive() ? super.keyPressed(input) : true;
-		}
+
+		return nameField.keyPressed(input) || nameField.isActive()
+			? true
+			: super.keyPressed(input);
 	}
 
 	private void onRenamed(String name) {
-		Slot slot = this.handler.getSlot(0);
-		if (slot.hasStack()) {
-			String string = name;
-			if (!slot.getStack().contains(DataComponentTypes.CUSTOM_NAME) && name.equals(slot
-					.getStack()
-					.getName()
-					.getString())) {
-				string = "";
-			}
+		Slot inputSlot = handler.getSlot(0);
+		if (!inputSlot.hasStack()) {
+			return;
+		}
 
-			if (this.handler.setNewItemName(string)) {
-				this.client.player.networkHandler.sendPacket(new RenameItemC2SPacket(string));
-			}
+		String nameToSend = name;
+		if (!inputSlot.getStack().contains(DataComponentTypes.CUSTOM_NAME)
+			&& name.equals(inputSlot.getStack().getName().getString())
+		) {
+			nameToSend = "";
+		}
+
+		if (handler.setNewItemName(nameToSend)) {
+			client.player.networkHandler.sendPacket(new RenameItemC2SPacket(nameToSend));
 		}
 	}
 
 	@Override
 	protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
 		super.drawForeground(context, mouseX, mouseY);
-		int i = this.handler.getLevelCost();
-		if (i > 0) {
-			int j = -8323296;
-			Text text;
-			if (i >= 40 && !this.client.player.isInCreativeMode()) {
-				text = TOO_EXPENSIVE_TEXT;
-				j = -40864;
-			}
-			else if (!this.handler.getSlot(2).hasStack()) {
-				text = null;
-			}
-			else {
-				text = Text.translatable("container.repair.cost", i);
-				if (!this.handler.getSlot(2).canTakeItems(this.player)) {
-					j = -40864;
-				}
-			}
+		int levelCost = handler.getLevelCost();
+		if (levelCost <= 0) {
+			return;
+		}
 
-			if (text != null) {
-				int k = this.backgroundWidth - 8 - this.textRenderer.getWidth(text) - 2;
-				int l = 69;
-				context.fill(k - 2, 67, this.backgroundWidth - 8, 79, 1325400064);
-				context.drawTextWithShadow(this.textRenderer, text, k, 69, j);
+		int textColor = COLOR_NORMAL;
+		Text costText;
+		if (levelCost >= MAX_LEVEL_COST_CREATIVE && !client.player.isInCreativeMode()) {
+			costText = TOO_EXPENSIVE_TEXT;
+			textColor = COLOR_TOO_EXPENSIVE;
+		} else if (!handler.getSlot(2).hasStack()) {
+			costText = null;
+		} else {
+			costText = Text.translatable("container.repair.cost", levelCost);
+			if (!handler.getSlot(2).canTakeItems(player)) {
+				textColor = COLOR_TOO_EXPENSIVE;
 			}
 		}
+
+		if (costText == null) {
+			return;
+		}
+
+		int labelX = backgroundWidth - 8 - textRenderer.getWidth(costText) - 2;
+		context.fill(labelX - 2, COST_BACKGROUND_Y1, backgroundWidth - 8, COST_BACKGROUND_Y2, 1325400064);
+		context.drawTextWithShadow(textRenderer, costText, labelX, COST_LABEL_Y, textColor);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
 		super.drawBackground(context, deltaTicks, mouseX, mouseY);
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.handler.getSlot(0).hasStack() ? TEXT_FIELD_TEXTURE : TEXT_FIELD_DISABLED_TEXTURE,
-				this.x + 59,
-				this.y + 20,
-				110,
-				16
+			RenderPipelines.GUI_TEXTURED,
+			handler.getSlot(0).hasStack() ? TEXT_FIELD_TEXTURE : TEXT_FIELD_DISABLED_TEXTURE,
+			x + 59,
+			y + 20,
+			110,
+			16
 		);
 	}
 
 	@Override
 	protected void drawInvalidRecipeArrow(DrawContext context, int x, int y) {
-		if ((this.handler.getSlot(0).hasStack() || this.handler.getSlot(1).hasStack()) && !this.handler
-				.getSlot(this.handler.getResultSlotIndex())
-				.hasStack()) {
+		if ((handler.getSlot(0).hasStack() || handler.getSlot(1).hasStack())
+			&& !handler.getSlot(handler.getResultSlotIndex()).hasStack()
+		) {
 			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, ERROR_TEXTURE, x + 99, y + 45, 28, 21);
 		}
 	}
@@ -158,9 +166,9 @@ public class AnvilScreen extends ForgingScreen<AnvilScreenHandler> {
 	@Override
 	public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
 		if (slotId == 0) {
-			this.nameField.setText(stack.isEmpty() ? "" : stack.getName().getString());
-			this.nameField.setEditable(!stack.isEmpty());
-			this.setFocused(this.nameField);
+			nameField.setText(stack.isEmpty() ? "" : stack.getName().getString());
+			nameField.setEditable(!stack.isEmpty());
+			setFocused(nameField);
 		}
 	}
 }

@@ -22,11 +22,13 @@ import net.minecraft.world.tick.TickPriority;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractRedstoneGateBlock}.
+ * Базовый класс для редстоун-вентилей (повторитель, компаратор).
+ * Управляет логикой питания, задержкой переключения и обновлением соседей.
  */
 public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 
 	public static final BooleanProperty POWERED = Properties.POWERED;
+
 	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 2.0);
 
 	protected AbstractRedstoneGateBlock(AbstractBlock.Settings settings) {
@@ -43,18 +45,13 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		return this.canPlaceAbove(world, blockPos, world.getBlockState(blockPos));
+		BlockPos below = pos.down();
+		return canPlaceAbove(world, below, world.getBlockState(below));
 	}
 
 	/**
-	 * Проверяет возможность place above.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, можно ли разместить вентиль над данным блоком.
+	 * По умолчанию требует жёсткой твёрдой поверхности сверху.
 	 */
 	protected boolean canPlaceAbove(WorldView world, BlockPos pos, BlockState state) {
 		return state.isSideSolid(world, pos, Direction.UP, SideShapeType.RIGID);
@@ -62,17 +59,20 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (!this.isLocked(world, pos, state)) {
-			boolean bl = state.get(POWERED);
-			boolean bl2 = this.hasPower(world, pos, state);
-			if (bl && !bl2) {
-				world.setBlockState(pos, state.with(POWERED, false), 2);
-			}
-			else if (!bl) {
-				world.setBlockState(pos, state.with(POWERED, true), 2);
-				if (!bl2) {
-					world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), TickPriority.VERY_HIGH);
-				}
+		if (isLocked(world, pos, state)) {
+			return;
+		}
+
+		boolean powered = state.get(POWERED);
+		boolean hasPower = hasPower(world, pos, state);
+
+		if (powered && !hasPower) {
+			world.setBlockState(pos, state.with(POWERED, false), 2);
+		} else if (!powered) {
+			world.setBlockState(pos, state.with(POWERED, true), 2);
+
+			if (!hasPower) {
+				world.scheduleBlockTick(pos, this, getUpdateDelayInternal(state), TickPriority.VERY_HIGH);
 			}
 		}
 	}
@@ -87,57 +87,60 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 		if (!state.get(POWERED)) {
 			return 0;
 		}
-		else {
-			return state.get(FACING) == direction ? this.getOutputLevel(world, pos, state) : 0;
-		}
+
+		return state.get(FACING) == direction ? getOutputLevel(world, pos, state) : 0;
 	}
 
 	@Override
 	protected void neighborUpdate(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Block sourceBlock,
-			@Nullable WireOrientation wireOrientation,
-			boolean notify
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Block sourceBlock,
+		@Nullable WireOrientation wireOrientation,
+		boolean notify
 	) {
 		if (state.canPlaceAt(world, pos)) {
-			this.updatePowered(world, pos, state);
+			updatePowered(world, pos, state);
+			return;
 		}
-		else {
-			BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
-			dropStacks(state, world, pos, blockEntity);
-			world.removeBlock(pos, false);
 
-			for (Direction direction : Direction.values()) {
-				world.updateNeighbors(pos.offset(direction), this);
-			}
+		BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
+		dropStacks(state, world, pos, blockEntity);
+		world.removeBlock(pos, false);
+
+		for (Direction direction : Direction.values()) {
+			world.updateNeighbors(pos.offset(direction), this);
 		}
 	}
 
 	/**
-	 * Обновляет powered.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
+	 * Планирует тик переключения состояния вентиля при изменении входного сигнала.
+	 * Приоритет тика зависит от того, является ли цель «несогласованной» (misaligned).
 	 */
 	protected void updatePowered(World world, BlockPos pos, BlockState state) {
-		if (!this.isLocked(world, pos, state)) {
-			boolean bl = state.get(POWERED);
-			boolean bl2 = this.hasPower(world, pos, state);
-			if (bl != bl2 && !world.getBlockTickScheduler().isTicking(pos, this)) {
-				TickPriority tickPriority = TickPriority.HIGH;
-				if (this.isTargetNotAligned(world, pos, state)) {
-					tickPriority = TickPriority.EXTREMELY_HIGH;
-				}
-				else if (bl) {
-					tickPriority = TickPriority.VERY_HIGH;
-				}
-
-				world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), tickPriority);
-			}
+		if (isLocked(world, pos, state)) {
+			return;
 		}
+
+		boolean powered = state.get(POWERED);
+		boolean hasPower = hasPower(world, pos, state);
+
+		if (powered == hasPower || world.getBlockTickScheduler().isTicking(pos, this)) {
+			return;
+		}
+
+		TickPriority priority;
+
+		if (isTargetNotAligned(world, pos, state)) {
+			priority = TickPriority.EXTREMELY_HIGH;
+		} else if (powered) {
+			priority = TickPriority.VERY_HIGH;
+		} else {
+			priority = TickPriority.HIGH;
+		}
+
+		world.scheduleBlockTick(pos, this, getUpdateDelayInternal(state), priority);
 	}
 
 	public boolean isLocked(WorldView world, BlockPos pos, BlockState state) {
@@ -145,30 +148,35 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 	}
 
 	protected boolean hasPower(World world, BlockPos pos, BlockState state) {
-		return this.getPower(world, pos, state) > 0;
+		return getPower(world, pos, state) > 0;
 	}
 
+	/**
+	 * Возвращает уровень входного сигнала с учётом редстоун-провода.
+	 * Если мощность уже максимальная (15), пропускает проверку провода.
+	 */
 	protected int getPower(World world, BlockPos pos, BlockState state) {
-		Direction direction = state.get(FACING);
-		BlockPos blockPos = pos.offset(direction);
-		int i = world.getEmittedRedstonePower(blockPos, direction);
-		if (i >= 15) {
-			return i;
+		Direction facing = state.get(FACING);
+		BlockPos frontPos = pos.offset(facing);
+		int power = world.getEmittedRedstonePower(frontPos, facing);
+
+		if (power >= 15) {
+			return power;
 		}
-		else {
-			BlockState blockState = world.getBlockState(blockPos);
-			return Math.max(i, blockState.isOf(Blocks.REDSTONE_WIRE) ? blockState.get(RedstoneWireBlock.POWER) : 0);
-		}
+
+		BlockState frontState = world.getBlockState(frontPos);
+		return Math.max(power, frontState.isOf(Blocks.REDSTONE_WIRE) ? frontState.get(RedstoneWireBlock.POWER) : 0);
 	}
 
 	protected int getMaxInputLevelSides(RedstoneView world, BlockPos pos, BlockState state) {
-		Direction direction = state.get(FACING);
-		Direction direction2 = direction.rotateYClockwise();
-		Direction direction3 = direction.rotateYCounterclockwise();
-		boolean bl = this.getSideInputFromGatesOnly();
+		Direction facing = state.get(FACING);
+		Direction right = facing.rotateYClockwise();
+		Direction left = facing.rotateYCounterclockwise();
+		boolean gatesOnly = getSideInputFromGatesOnly();
+
 		return Math.max(
-				world.getEmittedRedstonePower(pos.offset(direction2), direction2, bl),
-				world.getEmittedRedstonePower(pos.offset(direction3), direction3, bl)
+			world.getEmittedRedstonePower(pos.offset(right), right, gatesOnly),
+			world.getEmittedRedstonePower(pos.offset(left), left, gatesOnly)
 		);
 	}
 
@@ -179,49 +187,41 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+		return getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
 	}
 
 	@Override
 	public void onPlaced(
-			World world,
-			BlockPos pos,
-			BlockState state,
-			@Nullable LivingEntity placer,
-			ItemStack itemStack
+		World world,
+		BlockPos pos,
+		BlockState state,
+		@Nullable LivingEntity placer,
+		ItemStack itemStack
 	) {
-		if (this.hasPower(world, pos, state)) {
+		if (hasPower(world, pos, state)) {
 			world.scheduleBlockTick(pos, this, 1);
 		}
 	}
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		this.updateTarget(world, pos, state);
+		updateTarget(world, pos, state);
 	}
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
 		if (!moved) {
-			this.updateTarget(world, pos, state);
+			updateTarget(world, pos, state);
 		}
 	}
 
-	/**
-	 * Обновляет target.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	protected void updateTarget(World world, BlockPos pos, BlockState state) {
-		Direction direction = state.get(FACING);
-		BlockPos blockPos = pos.offset(direction.getOpposite());
-		WireOrientation
-				wireOrientation =
-				OrientationHelper.getEmissionOrientation(world, direction.getOpposite(), Direction.UP);
-		world.updateNeighbor(blockPos, this, wireOrientation);
-		world.updateNeighborsExcept(blockPos, this, direction, wireOrientation);
+		Direction facing = state.get(FACING);
+		BlockPos targetPos = pos.offset(facing.getOpposite());
+		WireOrientation orientation = OrientationHelper.getEmissionOrientation(world, facing.getOpposite(), Direction.UP);
+
+		world.updateNeighbor(targetPos, this, orientation);
+		world.updateNeighborsExcept(targetPos, this, facing, orientation);
 	}
 
 	protected boolean getSideInputFromGatesOnly() {
@@ -237,9 +237,9 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 	}
 
 	public boolean isTargetNotAligned(BlockView world, BlockPos pos, BlockState state) {
-		Direction direction = state.get(FACING).getOpposite();
-		BlockState blockState = world.getBlockState(pos.offset(direction));
-		return isRedstoneGate(blockState) && blockState.get(FACING) != direction;
+		Direction opposite = state.get(FACING).getOpposite();
+		BlockState targetState = world.getBlockState(pos.offset(opposite));
+		return isRedstoneGate(targetState) && targetState.get(FACING) != opposite;
 	}
 
 	protected abstract int getUpdateDelayInternal(BlockState state);

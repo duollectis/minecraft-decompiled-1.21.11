@@ -13,10 +13,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ColumnsDialogScreen}.
+ * Базовый экран диалога с кнопками, расположенными в несколько колонок.
  */
+@Environment(EnvType.CLIENT)
 public abstract class ColumnsDialogScreen<T extends ColumnsDialog> extends DialogScreen<T> {
 
 	public static final int COLUMN_SPACING = 5;

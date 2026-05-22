@@ -19,192 +19,141 @@ import org.slf4j.Logger;
 import java.util.UUID;
 
 /**
- * {@code TrackedWaypoint}.
+ * Клиентское представление вейпоинта, полученного от сервера.
+ * <p>
+ * Существует в трёх режимах: позиционный ({@link Positional}), чанковый ({@link ChunkBased})
+ * и азимутальный ({@link Azimuth}). Режим определяется при создании и закодирован в {@link Type}.
+ * Пустой вейпоинт ({@link Empty}) используется как заглушка при прекращении отслеживания.
  */
 public abstract class TrackedWaypoint implements Waypoint {
 
 	static final Logger LOGGER = LogUtils.getLogger();
-	public static final PacketCodec<ByteBuf, TrackedWaypoint>
-			PACKET_CODEC =
-			PacketCodec.of(TrackedWaypoint::writeBuf, TrackedWaypoint::fromBuf);
+
+	public static final PacketCodec<ByteBuf, TrackedWaypoint> PACKET_CODEC =
+		PacketCodec.of(TrackedWaypoint::writeBuf, TrackedWaypoint::fromBuf);
+
 	protected final Either<UUID, String> source;
 	private final Waypoint.Config config;
-	private final TrackedWaypoint.Type type;
+	private final Type type;
 
-	TrackedWaypoint(Either<UUID, String> source, Waypoint.Config config, TrackedWaypoint.Type type) {
+	TrackedWaypoint(Either<UUID, String> source, Waypoint.Config config, Type type) {
 		this.source = source;
 		this.config = config;
 		this.type = type;
 	}
 
 	public Either<UUID, String> getSource() {
-		return this.source;
+		return source;
 	}
 
-	/**
-	 * Обрабатывает update.
-	 *
-	 * @param waypoint waypoint
-	 */
 	public abstract void handleUpdate(TrackedWaypoint waypoint);
 
-	/**
-	 * Записывает buf.
-	 *
-	 * @param buf buf
-	 */
 	public void writeBuf(ByteBuf buf) {
-		PacketByteBuf packetByteBuf = new PacketByteBuf(buf);
-		packetByteBuf.writeEither(this.source, Uuids.PACKET_CODEC, PacketByteBuf::writeString);
-		Waypoint.Config.PACKET_CODEC.encode(packetByteBuf, this.config);
-		packetByteBuf.writeEnumConstant(this.type);
-		this.writeAdditionalDataToBuf(buf);
+		PacketByteBuf packetBuf = new PacketByteBuf(buf);
+		packetBuf.writeEither(source, Uuids.PACKET_CODEC, PacketByteBuf::writeString);
+		Waypoint.Config.PACKET_CODEC.encode(packetBuf, config);
+		packetBuf.writeEnumConstant(type);
+		writeAdditionalDataToBuf(buf);
 	}
 
-	/**
-	 * Записывает additional data to buf.
-	 *
-	 * @param buf buf
-	 */
 	public abstract void writeAdditionalDataToBuf(ByteBuf buf);
 
 	private static TrackedWaypoint fromBuf(ByteBuf buf) {
-		PacketByteBuf packetByteBuf = new PacketByteBuf(buf);
-		Either<UUID, String> either = packetByteBuf.readEither(Uuids.PACKET_CODEC, PacketByteBuf::readString);
-		Waypoint.Config config = Waypoint.Config.PACKET_CODEC.decode(packetByteBuf);
-		TrackedWaypoint.Type type = packetByteBuf.readEnumConstant(TrackedWaypoint.Type.class);
-		return (TrackedWaypoint) type.factory.apply(either, config, packetByteBuf);
+		PacketByteBuf packetBuf = new PacketByteBuf(buf);
+		Either<UUID, String> source = packetBuf.readEither(Uuids.PACKET_CODEC, PacketByteBuf::readString);
+		Waypoint.Config config = Waypoint.Config.PACKET_CODEC.decode(packetBuf);
+		Type type = packetBuf.readEnumConstant(Type.class);
+		return type.factory.apply(source, config, packetBuf);
 	}
 
-	/**
-	 * Of pos.
-	 *
-	 * @param source source
-	 * @param config config
-	 * @param pos pos
-	 *
-	 * @return TrackedWaypoint — результат операции
-	 */
 	public static TrackedWaypoint ofPos(UUID source, Waypoint.Config config, Vec3i pos) {
-		return new TrackedWaypoint.Positional(source, config, pos);
+		return new Positional(source, config, pos);
 	}
 
-	/**
-	 * Of chunk.
-	 *
-	 * @param source source
-	 * @param config config
-	 * @param chunkPos chunk pos
-	 *
-	 * @return TrackedWaypoint — результат операции
-	 */
 	public static TrackedWaypoint ofChunk(UUID source, Waypoint.Config config, ChunkPos chunkPos) {
-		return new TrackedWaypoint.ChunkBased(source, config, chunkPos);
+		return new ChunkBased(source, config, chunkPos);
 	}
 
-	/**
-	 * Of azimuth.
-	 *
-	 * @param source source
-	 * @param config config
-	 * @param azimuth azimuth
-	 *
-	 * @return TrackedWaypoint — результат операции
-	 */
 	public static TrackedWaypoint ofAzimuth(UUID source, Waypoint.Config config, float azimuth) {
-		return new TrackedWaypoint.Azimuth(source, config, azimuth);
+		return new Azimuth(source, config, azimuth);
 	}
 
-	/**
-	 * Empty.
-	 *
-	 * @param uuid uuid
-	 *
-	 * @return TrackedWaypoint — результат операции
-	 */
 	public static TrackedWaypoint empty(UUID uuid) {
-		return new TrackedWaypoint.Empty(uuid);
+		return new Empty(uuid);
 	}
 
+	/**
+	 * Вычисляет относительный угол рыскания (yaw) от камеры до вейпоинта.
+	 * Используется для отрисовки индикатора направления на HUD.
+	 */
 	public abstract double getRelativeYaw(
-			World world,
-			TrackedWaypoint.YawProvider yawProvider,
-			EntityTickProgress tickProgress
-	);
-
-	public abstract TrackedWaypoint.Pitch getPitch(
-			World world,
-			TrackedWaypoint.PitchProvider cameraProvider,
-			EntityTickProgress tickProgress
+		World world,
+		YawProvider yawProvider,
+		EntityTickProgress tickProgress
 	);
 
 	/**
-	 * Squared distance to.
-	 *
-	 * @param receiver receiver
-	 *
-	 * @return double — результат операции
+	 * Определяет вертикальный угол наклона (pitch) к вейпоинту относительно камеры.
+	 * Используется для отображения стрелки вверх/вниз, когда вейпоинт вне экрана.
 	 */
+	public abstract Pitch getPitch(
+		World world,
+		PitchProvider cameraProvider,
+		EntityTickProgress tickProgress
+	);
+
 	public abstract double squaredDistanceTo(Entity receiver);
 
 	public Waypoint.Config getConfig() {
-		return this.config;
+		return config;
 	}
 
-	/**
-	 * {@code Azimuth}.
-	 */
+	// -------------------------------------------------------------------------
+	// Реализации
+	// -------------------------------------------------------------------------
+
 	static class Azimuth extends TrackedWaypoint {
 
 		private float azimuth;
 
 		public Azimuth(UUID source, Waypoint.Config config, float azimuth) {
-			super(Either.left(source), config, TrackedWaypoint.Type.AZIMUTH);
+			super(Either.left(source), config, Type.AZIMUTH);
 			this.azimuth = azimuth;
 		}
 
 		public Azimuth(Either<UUID, String> source, Waypoint.Config config, PacketByteBuf buf) {
-			super(source, config, TrackedWaypoint.Type.AZIMUTH);
-			this.azimuth = buf.readFloat();
+			super(source, config, Type.AZIMUTH);
+			azimuth = buf.readFloat();
 		}
 
 		@Override
 		public void handleUpdate(TrackedWaypoint waypoint) {
-			if (waypoint instanceof TrackedWaypoint.Azimuth azimuth) {
-				this.azimuth = azimuth.azimuth;
-			}
-			else {
-				TrackedWaypoint.LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
+			if (waypoint instanceof Azimuth other) {
+				azimuth = other.azimuth;
+			} else {
+				LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
 			}
 		}
 
 		@Override
 		public void writeAdditionalDataToBuf(ByteBuf buf) {
-			buf.writeFloat(this.azimuth);
+			buf.writeFloat(azimuth);
 		}
 
 		@Override
-		public double getRelativeYaw(
-				World world,
-				TrackedWaypoint.YawProvider yawProvider,
-				EntityTickProgress tickProgress
-		) {
-			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), this.azimuth * (180.0F / (float) Math.PI));
+		public double getRelativeYaw(World world, YawProvider yawProvider, EntityTickProgress tickProgress) {
+			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), azimuth * (180.0F / (float) Math.PI));
 		}
 
 		@Override
-		public TrackedWaypoint.Pitch getPitch(
-				World world,
-				TrackedWaypoint.PitchProvider cameraProvider,
-				EntityTickProgress tickProgress
-		) {
-			double d = cameraProvider.getPitch();
-			if (d < -1.0) {
-				return TrackedWaypoint.Pitch.DOWN;
+		public Pitch getPitch(World world, PitchProvider cameraProvider, EntityTickProgress tickProgress) {
+			double pitch = cameraProvider.getPitch();
+
+			if (pitch < -1.0) {
+				return Pitch.DOWN;
 			}
-			else {
-				return d > 1.0 ? TrackedWaypoint.Pitch.UP : TrackedWaypoint.Pitch.NONE;
-			}
+
+			return pitch > 1.0 ? Pitch.UP : Pitch.NONE;
 		}
 
 		@Override
@@ -213,87 +162,72 @@ public abstract class TrackedWaypoint implements Waypoint {
 		}
 	}
 
-	/**
-	 * {@code ChunkBased}.
-	 */
 	static class ChunkBased extends TrackedWaypoint {
 
 		private ChunkPos chunkPos;
 
 		public ChunkBased(UUID source, Waypoint.Config config, ChunkPos chunkPos) {
-			super(Either.left(source), config, TrackedWaypoint.Type.CHUNK);
+			super(Either.left(source), config, Type.CHUNK);
 			this.chunkPos = chunkPos;
 		}
 
 		public ChunkBased(Either<UUID, String> source, Waypoint.Config config, PacketByteBuf buf) {
-			super(source, config, TrackedWaypoint.Type.CHUNK);
-			this.chunkPos = new ChunkPos(buf.readVarInt(), buf.readVarInt());
+			super(source, config, Type.CHUNK);
+			chunkPos = new ChunkPos(buf.readVarInt(), buf.readVarInt());
 		}
 
 		@Override
 		public void handleUpdate(TrackedWaypoint waypoint) {
-			if (waypoint instanceof TrackedWaypoint.ChunkBased chunkBased) {
-				this.chunkPos = chunkBased.chunkPos;
-			}
-			else {
-				TrackedWaypoint.LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
+			if (waypoint instanceof ChunkBased other) {
+				chunkPos = other.chunkPos;
+			} else {
+				LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
 			}
 		}
 
 		@Override
 		public void writeAdditionalDataToBuf(ByteBuf buf) {
-			VarInts.write(buf, this.chunkPos.x);
-			VarInts.write(buf, this.chunkPos.z);
+			VarInts.write(buf, chunkPos.x);
+			VarInts.write(buf, chunkPos.z);
 		}
 
 		private Vec3d getChunkCenterPos(double y) {
-			return Vec3d.ofCenter(this.chunkPos.getCenterAtY((int) y));
+			return Vec3d.ofCenter(chunkPos.getCenterAtY((int) y));
 		}
 
 		@Override
-		public double getRelativeYaw(
-				World world,
-				TrackedWaypoint.YawProvider yawProvider,
-				EntityTickProgress tickProgress
-		) {
-			Vec3d vec3d = yawProvider.getCameraPos();
-			Vec3d vec3d2 = vec3d.subtract(this.getChunkCenterPos(vec3d.getY())).rotateYClockwise();
-			float f = (float) MathHelper.atan2(vec3d2.getZ(), vec3d2.getX()) * (180.0F / (float) Math.PI);
-			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), f);
+		public double getRelativeYaw(World world, YawProvider yawProvider, EntityTickProgress tickProgress) {
+			Vec3d cameraPos = yawProvider.getCameraPos();
+			Vec3d direction = cameraPos.subtract(getChunkCenterPos(cameraPos.getY())).rotateYClockwise();
+			float angle = (float) MathHelper.atan2(direction.getZ(), direction.getX()) * (180.0F / (float) Math.PI);
+			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), angle);
 		}
 
 		@Override
-		public TrackedWaypoint.Pitch getPitch(
-				World world,
-				TrackedWaypoint.PitchProvider cameraProvider,
-				EntityTickProgress tickProgress
-		) {
-			double d = cameraProvider.getPitch();
-			if (d < -1.0) {
-				return TrackedWaypoint.Pitch.DOWN;
+		public Pitch getPitch(World world, PitchProvider cameraProvider, EntityTickProgress tickProgress) {
+			double pitch = cameraProvider.getPitch();
+
+			if (pitch < -1.0) {
+				return Pitch.DOWN;
 			}
-			else {
-				return d > 1.0 ? TrackedWaypoint.Pitch.UP : TrackedWaypoint.Pitch.NONE;
-			}
+
+			return pitch > 1.0 ? Pitch.UP : Pitch.NONE;
 		}
 
 		@Override
 		public double squaredDistanceTo(Entity receiver) {
-			return receiver.squaredDistanceTo(Vec3d.ofCenter(this.chunkPos.getCenterAtY(receiver.getBlockY())));
+			return receiver.squaredDistanceTo(Vec3d.ofCenter(chunkPos.getCenterAtY(receiver.getBlockY())));
 		}
 	}
 
-	/**
-	 * {@code Empty}.
-	 */
 	static class Empty extends TrackedWaypoint {
 
 		private Empty(Either<UUID, String> source, Waypoint.Config config, PacketByteBuf buf) {
-			super(source, config, TrackedWaypoint.Type.EMPTY);
+			super(source, config, Type.EMPTY);
 		}
 
 		Empty(UUID source) {
-			super(Either.left(source), Waypoint.Config.DEFAULT, TrackedWaypoint.Type.EMPTY);
+			super(Either.left(source), Waypoint.Config.DEFAULT, Type.EMPTY);
 		}
 
 		@Override
@@ -305,21 +239,13 @@ public abstract class TrackedWaypoint implements Waypoint {
 		}
 
 		@Override
-		public double getRelativeYaw(
-				World world,
-				TrackedWaypoint.YawProvider yawProvider,
-				EntityTickProgress tickProgress
-		) {
+		public double getRelativeYaw(World world, YawProvider yawProvider, EntityTickProgress tickProgress) {
 			return Double.NaN;
 		}
 
 		@Override
-		public TrackedWaypoint.Pitch getPitch(
-				World world,
-				TrackedWaypoint.PitchProvider cameraProvider,
-				EntityTickProgress tickProgress
-		) {
-			return TrackedWaypoint.Pitch.NONE;
+		public Pitch getPitch(World world, PitchProvider cameraProvider, EntityTickProgress tickProgress) {
+			return Pitch.NONE;
 		}
 
 		@Override
@@ -328,18 +254,110 @@ public abstract class TrackedWaypoint implements Waypoint {
 		}
 	}
 
-	/**
-	 * {@code Pitch}.
-	 */
-	public static enum Pitch {
-		NONE,
-		UP,
-		DOWN;
+	static class Positional extends TrackedWaypoint {
+
+		private Vec3i pos;
+
+		public Positional(UUID uuid, Waypoint.Config config, Vec3i pos) {
+			super(Either.left(uuid), config, Type.VEC3I);
+			this.pos = pos;
+		}
+
+		public Positional(Either<UUID, String> source, Waypoint.Config config, PacketByteBuf buf) {
+			super(source, config, Type.VEC3I);
+			pos = new Vec3i(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+		}
+
+		@Override
+		public void handleUpdate(TrackedWaypoint waypoint) {
+			if (waypoint instanceof Positional other) {
+				pos = other.pos;
+			} else {
+				LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
+			}
+		}
+
+		@Override
+		public void writeAdditionalDataToBuf(ByteBuf buf) {
+			VarInts.write(buf, pos.getX());
+			VarInts.write(buf, pos.getY());
+			VarInts.write(buf, pos.getZ());
+		}
+
+		/**
+		 * Возвращает позицию источника для вычисления направления.
+		 * <p>
+		 * Если источник — сущность и она находится в пределах 3 блоков от сохранённой позиции,
+		 * используется интерполированная позиция камеры сущности. Иначе — центр блока позиции.
+		 */
+		private Vec3d getSourcePos(World world, EntityTickProgress tickProgress) {
+			return source
+				.left()
+				.map(world::getEntity)
+				.map(entity -> entity.getBlockPos().getManhattanDistance(pos) > 3
+					? null
+					: entity.getCameraPosVec(tickProgress.getTickProgress(entity))
+				)
+				.orElseGet(() -> Vec3d.ofCenter(pos));
+		}
+
+		@Override
+		public double getRelativeYaw(World world, YawProvider yawProvider, EntityTickProgress tickProgress) {
+			Vec3d direction = yawProvider.getCameraPos()
+				.subtract(getSourcePos(world, tickProgress))
+				.rotateYClockwise();
+			float angle = (float) MathHelper.atan2(direction.getZ(), direction.getX()) * (180.0F / (float) Math.PI);
+			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), angle);
+		}
+
+		/**
+		 * Определяет вертикальный наклон с учётом того, находится ли вейпоинт
+		 * за камерой (z > 1.0 в пространстве проекции — инвертируем Y).
+		 */
+		@Override
+		public Pitch getPitch(World world, PitchProvider cameraProvider, EntityTickProgress tickProgress) {
+			Vec3d projected = cameraProvider.project(getSourcePos(world, tickProgress));
+			boolean isBehind = projected.z > 1.0;
+			double effectiveY = isBehind ? -projected.y : projected.y;
+
+			if (effectiveY < -1.0) {
+				return Pitch.DOWN;
+			}
+
+			if (effectiveY > 1.0) {
+				return Pitch.UP;
+			}
+
+			if (isBehind) {
+				if (projected.y > 0.0) {
+					return Pitch.UP;
+				}
+
+				if (projected.y < 0.0) {
+					return Pitch.DOWN;
+				}
+			}
+
+			return Pitch.NONE;
+		}
+
+		@Override
+		public double squaredDistanceTo(Entity receiver) {
+			return receiver.squaredDistanceTo(Vec3d.ofCenter(pos));
+		}
 	}
 
-	/**
-	 * {@code PitchProvider}.
-	 */
+	// -------------------------------------------------------------------------
+	// Вложенные типы
+	// -------------------------------------------------------------------------
+
+	/** Вертикальный угол наклона вейпоинта относительно камеры. */
+	public enum Pitch {
+		NONE,
+		UP,
+		DOWN
+	}
+
 	public interface PitchProvider {
 
 		Vec3d project(Vec3d sourcePos);
@@ -347,119 +365,20 @@ public abstract class TrackedWaypoint implements Waypoint {
 		double getPitch();
 	}
 
-	/**
-	 * {@code Positional}.
-	 */
-	static class Positional extends TrackedWaypoint {
-
-		private Vec3i pos;
-
-		public Positional(UUID uuid, Waypoint.Config config, Vec3i pos) {
-			super(Either.left(uuid), config, TrackedWaypoint.Type.VEC3I);
-			this.pos = pos;
-		}
-
-		public Positional(Either<UUID, String> source, Waypoint.Config config, PacketByteBuf buf) {
-			super(source, config, TrackedWaypoint.Type.VEC3I);
-			this.pos = new Vec3i(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
-		}
-
-		@Override
-		public void handleUpdate(TrackedWaypoint waypoint) {
-			if (waypoint instanceof TrackedWaypoint.Positional positional) {
-				this.pos = positional.pos;
-			}
-			else {
-				TrackedWaypoint.LOGGER.warn("Unsupported Waypoint update operation: {}", waypoint.getClass());
-			}
-		}
-
-		@Override
-		public void writeAdditionalDataToBuf(ByteBuf buf) {
-			VarInts.write(buf, this.pos.getX());
-			VarInts.write(buf, this.pos.getY());
-			VarInts.write(buf, this.pos.getZ());
-		}
-
-		private Vec3d getSourcePos(World world, EntityTickProgress tickProgress) {
-			return this.source
-					.left()
-					.map(world::getEntity)
-					.map(entity -> entity.getBlockPos().getManhattanDistance(this.pos) > 3 ? null
-					                                                                       : entity.getCameraPosVec(
-							                                                                       tickProgress.getTickProgress(
-									                                                                       entity)))
-					.orElseGet(() -> Vec3d.ofCenter(this.pos));
-		}
-
-		@Override
-		public double getRelativeYaw(
-				World world,
-				TrackedWaypoint.YawProvider yawProvider,
-				EntityTickProgress tickProgress
-		) {
-			Vec3d
-					vec3d =
-					yawProvider.getCameraPos().subtract(this.getSourcePos(world, tickProgress)).rotateYClockwise();
-			float f = (float) MathHelper.atan2(vec3d.getZ(), vec3d.getX()) * (180.0F / (float) Math.PI);
-			return MathHelper.subtractAngles(yawProvider.getCameraYaw(), f);
-		}
-
-		@Override
-		public TrackedWaypoint.Pitch getPitch(
-				World world,
-				TrackedWaypoint.PitchProvider cameraProvider,
-				EntityTickProgress tickProgress
-		) {
-			Vec3d vec3d = cameraProvider.project(this.getSourcePos(world, tickProgress));
-			boolean bl = vec3d.z > 1.0;
-			double d = bl ? -vec3d.y : vec3d.y;
-			if (d < -1.0) {
-				return TrackedWaypoint.Pitch.DOWN;
-			}
-			else if (d > 1.0) {
-				return TrackedWaypoint.Pitch.UP;
-			}
-			else {
-				if (bl) {
-					if (vec3d.y > 0.0) {
-						return TrackedWaypoint.Pitch.UP;
-					}
-
-					if (vec3d.y < 0.0) {
-						return TrackedWaypoint.Pitch.DOWN;
-					}
-				}
-
-				return TrackedWaypoint.Pitch.NONE;
-			}
-		}
-
-		@Override
-		public double squaredDistanceTo(Entity receiver) {
-			return receiver.squaredDistanceTo(Vec3d.ofCenter(this.pos));
-		}
-	}
-
-	/**
-	 * {@code Type}.
-	 */
-	static enum Type {
-		EMPTY(TrackedWaypoint.Empty::new),
-		VEC3I(TrackedWaypoint.Positional::new),
-		CHUNK(TrackedWaypoint.ChunkBased::new),
-		AZIMUTH(TrackedWaypoint.Azimuth::new);
+	/** Тип вейпоинта, определяющий способ десериализации из пакета. */
+	enum Type {
+		EMPTY(Empty::new),
+		VEC3I(Positional::new),
+		CHUNK(ChunkBased::new),
+		AZIMUTH(Azimuth::new);
 
 		final TriFunction<Either<UUID, String>, Waypoint.Config, PacketByteBuf, TrackedWaypoint> factory;
 
-		private Type(final TriFunction<Either<UUID, String>, Waypoint.Config, PacketByteBuf, TrackedWaypoint> factory) {
+		Type(TriFunction<Either<UUID, String>, Waypoint.Config, PacketByteBuf, TrackedWaypoint> factory) {
 			this.factory = factory;
 		}
 	}
 
-	/**
-	 * {@code YawProvider}.
-	 */
 	public interface YawProvider {
 
 		float getCameraYaw();

@@ -1,7 +1,8 @@
 package net.minecraft.item.tooltip;
 
 /**
- * {@code TooltipType}.
+ * Тип подсказки предмета, определяющий режим отображения тултипа:
+ * базовый, расширенный (с техническими данными) или творческий.
  */
 public interface TooltipType {
 
@@ -14,7 +15,7 @@ public interface TooltipType {
 	boolean isCreative();
 
 	/**
-	 * {@code Default}.
+	 * Стандартная реализация типа тултипа с флагами расширенного и творческого режимов.
 	 */
 	public record Default(boolean advanced, boolean creative) implements TooltipType {
 

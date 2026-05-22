@@ -11,7 +11,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.stream.Collectors;
 
 /**
- * {@code OptionsKeyTranslationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsKeyTranslationFix extends DataFix {
 
@@ -20,9 +20,9 @@ public class OptionsKeyTranslationFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsKeyTranslationFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(),
 						optionsDynamic -> optionsDynamic

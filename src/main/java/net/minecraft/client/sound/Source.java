@@ -13,144 +13,146 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Source}.
+ * Обёртка над OpenAL-источником звука. Управляет буферами, потоковым воспроизведением
+ * и параметрами источника (позиция, громкость, высота, затухание).
+ * Потокобезопасность обеспечивается через {@link AtomicBoolean} для флага воспроизведения.
  */
+@Environment(EnvType.CLIENT)
 public class Source {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private static final int BUFFER_COUNT = 4;
 	public static final int STREAM_BUFFER_COUNT = 1;
+
+	// Размер буфера по умолчанию для потокового воспроизведения (в байтах)
+	private static final int DEFAULT_BUFFER_SIZE = 16384;
+
 	private final int pointer;
 	private final AtomicBoolean playing = new AtomicBoolean(true);
-	private int bufferSize = 16384;
+	private int bufferSize = DEFAULT_BUFFER_SIZE;
 	private @Nullable AudioStream stream;
 
 	static @Nullable Source create() {
-		int[] is = new int[1];
-		AL10.alGenSources(is);
-		return AlUtil.checkErrors("Allocate new source") ? null : new Source(is[0]);
+		int[] ids = new int[1];
+		AL10.alGenSources(ids);
+		return AlUtil.checkErrors("Allocate new source") ? null : new Source(ids[0]);
 	}
 
 	private Source(int pointer) {
 		this.pointer = pointer;
 	}
 
-	/**
-	 * Close.
-	 */
 	public void close() {
-		if (this.playing.compareAndSet(true, false)) {
-			AL10.alSourceStop(this.pointer);
-			AlUtil.checkErrors("Stop");
-			if (this.stream != null) {
-				try {
-					this.stream.close();
-				}
-				catch (IOException var2) {
-					LOGGER.error("Failed to close audio stream", var2);
-				}
+		if (playing.compareAndSet(true, false) == false) {
+			return;
+		}
 
-				this.removeProcessedBuffers();
-				this.stream = null;
+		AL10.alSourceStop(pointer);
+		AlUtil.checkErrors("Stop");
+
+		if (stream != null) {
+			try {
+				stream.close();
+			} catch (IOException ex) {
+				LOGGER.error("Failed to close audio stream", ex);
 			}
 
-			AL10.alDeleteSources(new int[]{this.pointer});
-			AlUtil.checkErrors("Cleanup");
+			removeProcessedBuffers();
+			stream = null;
 		}
+
+		AL10.alDeleteSources(new int[]{pointer});
+		AlUtil.checkErrors("Cleanup");
 	}
 
-	/**
-	 * Play.
-	 */
 	public void play() {
-		AL10.alSourcePlay(this.pointer);
+		AL10.alSourcePlay(pointer);
 	}
 
 	private int getSourceState() {
-		return !this.playing.get() ? 4116 : AL10.alGetSourcei(this.pointer, 4112);
+		return playing.get() == false
+			? AL10.AL_STOPPED
+			: AL10.alGetSourcei(pointer, AL10.AL_SOURCE_STATE);
 	}
 
-	/**
-	 * Pause.
-	 */
 	public void pause() {
-		if (this.getSourceState() == 4114) {
-			AL10.alSourcePause(this.pointer);
+		if (getSourceState() == AL10.AL_PLAYING) {
+			AL10.alSourcePause(pointer);
 		}
 	}
 
-	/**
-	 * Resume.
-	 */
 	public void resume() {
-		if (this.getSourceState() == 4115) {
-			AL10.alSourcePlay(this.pointer);
+		if (getSourceState() == AL10.AL_PAUSED) {
+			AL10.alSourcePlay(pointer);
 		}
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		if (this.playing.get()) {
-			AL10.alSourceStop(this.pointer);
+		if (playing.get()) {
+			AL10.alSourceStop(pointer);
 			AlUtil.checkErrors("Stop");
 		}
 	}
 
 	public boolean isPlaying() {
-		return this.getSourceState() == 4114;
+		return getSourceState() == AL10.AL_PLAYING;
 	}
 
 	public boolean isStopped() {
-		return this.getSourceState() == 4116;
+		return getSourceState() == AL10.AL_STOPPED;
 	}
 
 	public void setPosition(Vec3d pos) {
-		AL10.alSourcefv(this.pointer, 4100, new float[]{(float) pos.x, (float) pos.y, (float) pos.z});
+		AL10.alSourcefv(pointer, AL10.AL_POSITION, new float[]{(float) pos.x, (float) pos.y, (float) pos.z});
 	}
 
 	public void setPitch(float pitch) {
-		AL10.alSourcef(this.pointer, 4099, pitch);
+		AL10.alSourcef(pointer, AL10.AL_PITCH, pitch);
 	}
 
 	public void setLooping(boolean looping) {
-		AL10.alSourcei(this.pointer, 4103, looping ? 1 : 0);
+		AL10.alSourcei(pointer, AL10.AL_LOOPING, looping ? 1 : 0);
 	}
 
 	public void setVolume(float volume) {
-		AL10.alSourcef(this.pointer, 4106, volume);
+		AL10.alSourcef(pointer, AL10.AL_GAIN, volume);
 	}
 
 	/**
-	 * Отключает attenuation.
+	 * Отключает затухание звука по расстоянию, устанавливая модель {@code AL_NONE}.
 	 */
 	public void disableAttenuation() {
-		AL10.alSourcei(this.pointer, 53248, 0);
+		AL10.alSourcei(pointer, AL10.AL_DISTANCE_MODEL, AL10.AL_NONE);
 	}
 
+	/**
+	 * Настраивает линейное затухание звука по расстоянию.
+	 * Использует модель {@code AL_LINEAR_DISTANCE} с заданным максимальным расстоянием.
+	 *
+	 * @param attenuation максимальное расстояние затухания
+	 */
 	public void setAttenuation(float attenuation) {
-		AL10.alSourcei(this.pointer, 53248, 53251);
-		AL10.alSourcef(this.pointer, 4131, attenuation);
-		AL10.alSourcef(this.pointer, 4129, 1.0F);
-		AL10.alSourcef(this.pointer, 4128, 0.0F);
+		AL10.alSourcei(pointer, 0xD000, 0xD003);
+		AL10.alSourcef(pointer, AL10.AL_MAX_DISTANCE, attenuation);
+		AL10.alSourcef(pointer, AL10.AL_REFERENCE_DISTANCE, 1.0F);
+		AL10.alSourcef(pointer, AL10.AL_ROLLOFF_FACTOR, 0.0F);
 	}
 
 	public void setRelative(boolean relative) {
-		AL10.alSourcei(this.pointer, 514, relative ? 1 : 0);
+		AL10.alSourcei(pointer, AL10.AL_SOURCE_RELATIVE, relative ? 1 : 0);
 	}
 
 	public void setBuffer(StaticSound sound) {
-		sound.getStreamBufferPointer().ifPresent(pointer -> AL10.alSourcei(this.pointer, 4105, pointer));
+		sound.getStreamBufferPointer().ifPresent(bufPtr -> AL10.alSourcei(pointer, AL10.AL_BUFFER, bufPtr));
 	}
 
 	public void setStream(AudioStream stream) {
 		this.stream = stream;
-		AudioFormat audioFormat = stream.getFormat();
-		this.bufferSize = getBufferSize(audioFormat, 1);
-		this.read(4);
+		AudioFormat format = stream.getFormat();
+		bufferSize = getBufferSize(format, 1);
+		read(BUFFER_COUNT);
 	}
 
 	private static int getBufferSize(AudioFormat format, int time) {
@@ -158,43 +160,41 @@ public class Source {
 	}
 
 	private void read(int count) {
-		if (this.stream != null) {
-			try {
-				for (int i = 0; i < count; i++) {
-					ByteBuffer byteBuffer = this.stream.read(this.bufferSize);
-					if (byteBuffer != null) {
-						new StaticSound(byteBuffer, this.stream.getFormat())
-								.takeStreamBufferPointer()
-								.ifPresent(pointer -> AL10.alSourceQueueBuffers(this.pointer, new int[]{pointer}));
-					}
+		if (stream == null) {
+			return;
+		}
+
+		try {
+			for (int i = 0; i < count; i++) {
+				ByteBuffer data = stream.read(bufferSize);
+				if (data != null) {
+					new StaticSound(data, stream.getFormat())
+						.takeStreamBufferPointer()
+						.ifPresent(bufPtr -> AL10.alSourceQueueBuffers(pointer, new int[]{bufPtr}));
 				}
 			}
-			catch (IOException var4) {
-				LOGGER.error("Failed to read from audio stream", var4);
-			}
+		} catch (IOException ex) {
+			LOGGER.error("Failed to read from audio stream", ex);
 		}
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.stream != null) {
-			int i = this.removeProcessedBuffers();
-			this.read(i);
+		if (stream != null) {
+			int processed = removeProcessedBuffers();
+			read(processed);
 		}
 	}
 
 	private int removeProcessedBuffers() {
-		int i = AL10.alGetSourcei(this.pointer, 4118);
-		if (i > 0) {
-			int[] is = new int[i];
-			AL10.alSourceUnqueueBuffers(this.pointer, is);
+		int count = AL10.alGetSourcei(pointer, AL10.AL_BUFFERS_PROCESSED);
+		if (count > 0) {
+			int[] buffers = new int[count];
+			AL10.alSourceUnqueueBuffers(pointer, buffers);
 			AlUtil.checkErrors("Unqueue buffers");
-			AL10.alDeleteBuffers(is);
+			AL10.alDeleteBuffers(buffers);
 			AlUtil.checkErrors("Remove processed buffers");
 		}
 
-		return i;
+		return count;
 	}
 }

@@ -14,7 +14,8 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
 /**
- * {@code SkeletonEntity}.
+ * Скелет — дальнобойный моб, стреляющий стрелами.
+ * При длительном нахождении в порошковом снегу конвертируется в бродягу (Stray).
  */
 public class SkeletonEntity extends AbstractSkeletonEntity {
 
@@ -38,38 +39,38 @@ public class SkeletonEntity extends AbstractSkeletonEntity {
 	}
 
 	public boolean isConverting() {
-		return this.getDataTracker().get(CONVERTING);
+		return getDataTracker().get(CONVERTING);
 	}
 
 	public void setConverting(boolean converting) {
-		this.dataTracker.set(CONVERTING, converting);
+		dataTracker.set(CONVERTING, converting);
 	}
 
 	@Override
 	public boolean isShaking() {
-		return this.isConverting();
+		return isConverting();
 	}
 
 	@Override
 	public void tick() {
-		if (!this.getEntityWorld().isClient() && this.isAlive() && !this.isAiDisabled()) {
-			if (this.inPowderSnow) {
-				if (this.isConverting()) {
-					this.conversionTime--;
-					if (this.conversionTime < 0) {
-						this.convertToStray();
+		if (!getEntityWorld().isClient() && isAlive() && !isAiDisabled()) {
+			if (inPowderSnow) {
+				if (isConverting()) {
+					conversionTime--;
+
+					if (conversionTime < 0) {
+						convertToStray();
+					}
+				} else {
+					inPowderSnowTime++;
+
+					if (inPowderSnowTime >= 140) {
+						setConversionTime(TOTAL_CONVERSION_TIME);
 					}
 				}
-				else {
-					this.inPowderSnowTime++;
-					if (this.inPowderSnowTime >= 140) {
-						this.setConversionTime(300);
-					}
-				}
-			}
-			else {
-				this.inPowderSnowTime = -1;
-				this.setConverting(false);
+			} else {
+				inPowderSnowTime = -1;
+				setConverting(false);
 			}
 		}
 
@@ -79,37 +80,36 @@ public class SkeletonEntity extends AbstractSkeletonEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("StrayConversionTime", this.isConverting() ? this.conversionTime : -1);
+		view.putInt("StrayConversionTime", isConverting() ? conversionTime : DEFAULT_STRAY_CONVERSION_TIME);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		int i = view.getInt("StrayConversionTime", -1);
-		if (i != -1) {
-			this.setConversionTime(i);
-		}
-		else {
-			this.setConverting(false);
+		int savedTime = view.getInt("StrayConversionTime", DEFAULT_STRAY_CONVERSION_TIME);
+
+		if (savedTime != DEFAULT_STRAY_CONVERSION_TIME) {
+			setConversionTime(savedTime);
+		} else {
+			setConverting(false);
 		}
 	}
 
 	@VisibleForTesting
 	public void setConversionTime(int time) {
-		this.conversionTime = time;
-		this.setConverting(true);
+		conversionTime = time;
+		setConverting(true);
 	}
 
-	/**
-	 * Конвертирует to stray.
-	 */
 	protected void convertToStray() {
-		this.convertTo(
-				EntityType.STRAY, EntityConversionContext.create(this, true, true), stray -> {
-					if (!this.isSilent()) {
-						this.getEntityWorld().syncWorldEvent(null, 1048, this.getBlockPos(), 0);
-					}
+		convertTo(
+			EntityType.STRAY,
+			EntityConversionContext.create(this, true, true),
+			stray -> {
+				if (!isSilent()) {
+					getEntityWorld().syncWorldEvent(null, 1048, getBlockPos(), 0);
 				}
+			}
 		);
 	}
 

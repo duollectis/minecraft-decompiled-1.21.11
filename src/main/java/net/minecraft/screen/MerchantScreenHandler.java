@@ -12,7 +12,11 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.village.*;
 
 /**
- * {@code MerchantScreenHandler}.
+ * Обработчик экрана торговца (жителя/странствующего торговца).
+ * <p>
+ * Управляет двумя входными слотами и слотом результата сделки.
+ * Поддерживает автозаполнение входных слотов при переключении между сделками
+ * и воспроизведение звука согласия торговца при быстром перемещении результата.
  */
 public class MerchantScreenHandler extends ScreenHandler {
 
@@ -27,6 +31,7 @@ public class MerchantScreenHandler extends ScreenHandler {
 	private static final int INPUT_2_X = 162;
 	private static final int OUTPUT_X = 220;
 	private static final int SLOT_Y = 37;
+
 	private final Merchant merchant;
 	private final MerchantInventory merchantInventory;
 	private int levelProgress;
@@ -40,11 +45,11 @@ public class MerchantScreenHandler extends ScreenHandler {
 	public MerchantScreenHandler(int syncId, PlayerInventory playerInventory, Merchant merchant) {
 		super(ScreenHandlerType.MERCHANT, syncId);
 		this.merchant = merchant;
-		this.merchantInventory = new MerchantInventory(merchant);
-		this.addSlot(new Slot(this.merchantInventory, 0, 136, 37));
-		this.addSlot(new Slot(this.merchantInventory, 1, 162, 37));
-		this.addSlot(new TradeOutputSlot(playerInventory.player, merchant, this.merchantInventory, 2, 220, 37));
-		this.addPlayerSlots(playerInventory, 108, 84);
+		merchantInventory = new MerchantInventory(merchant);
+		addSlot(new Slot(merchantInventory, INPUT_1_ID, INPUT_1_X, SLOT_Y));
+		addSlot(new Slot(merchantInventory, INPUT_2_ID, INPUT_2_X, SLOT_Y));
+		addSlot(new TradeOutputSlot(playerInventory.player, merchant, merchantInventory, OUTPUT_ID, OUTPUT_X, SLOT_Y));
+		addPlayerSlots(playerInventory, 108, 84);
 	}
 
 	public void setLeveled(boolean leveled) {
@@ -53,33 +58,33 @@ public class MerchantScreenHandler extends ScreenHandler {
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
-		this.merchantInventory.updateOffers();
+		merchantInventory.updateOffers();
 		super.onContentChanged(inventory);
 	}
 
 	public void setRecipeIndex(int index) {
-		this.merchantInventory.setOfferIndex(index);
+		merchantInventory.setOfferIndex(index);
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.merchant.canInteract(player);
+		return merchant.canInteract(player);
 	}
 
 	public int getExperience() {
-		return this.merchant.getExperience();
+		return merchant.getExperience();
 	}
 
 	public int getMerchantRewardedExperience() {
-		return this.merchantInventory.getMerchantRewardedExperience();
+		return merchantInventory.getMerchantRewardedExperience();
 	}
 
 	public void setExperienceFromServer(int experience) {
-		this.merchant.setExperienceFromServer(experience);
+		merchant.setExperienceFromServer(experience);
 	}
 
 	public int getLevelProgress() {
-		return this.levelProgress;
+		return levelProgress;
 	}
 
 	public void setLevelProgress(int levelProgress) {
@@ -90,13 +95,8 @@ public class MerchantScreenHandler extends ScreenHandler {
 		this.canRefreshTrades = canRefreshTrades;
 	}
 
-	/**
-	 * Проверяет возможность refresh trades.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canRefreshTrades() {
-		return this.canRefreshTrades;
+		return canRefreshTrades;
 	}
 
 	@Override
@@ -106,152 +106,177 @@ public class MerchantScreenHandler extends ScreenHandler {
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot == 2) {
-				if (!this.insertItem(itemStack2, 3, 39, true)) {
-					return ItemStack.EMPTY;
-				}
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-				this.playYesSound();
-			}
-			else if (slot != 0 && slot != 1) {
-				if (slot >= 3 && slot < 30) {
-					if (!this.insertItem(itemStack2, 30, 39, false)) {
-						return ItemStack.EMPTY;
-					}
-				}
-				else if (slot >= 30 && slot < 39 && !this.insertItem(itemStack2, 3, 30, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 3, 39, false)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
-
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
+
+		if (slot == OUTPUT_ID) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(slotStack, original);
+			playYesSound();
+		}
+		else if (slot == INPUT_1_ID || slot == INPUT_2_ID) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (slot >= INVENTORY_START && slot < INVENTORY_END) {
+			if (!insertItem(slotStack, HOTBAR_START, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (slot >= HOTBAR_START && slot < HOTBAR_END) {
+			if (!insertItem(slotStack, INVENTORY_START, INVENTORY_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+		else {
+			sourceSlot.markDirty();
+		}
+
+		if (slotStack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, slotStack);
+
+		return original;
 	}
 
 	private void playYesSound() {
-		if (!this.merchant.isClient()) {
-			Entity entity = (Entity) this.merchant;
-			entity.getEntityWorld()
-			      .playSoundClient(
-					      entity.getX(),
-					      entity.getY(),
-					      entity.getZ(),
-					      this.merchant.getYesSound(),
-					      SoundCategory.NEUTRAL,
-					      1.0F,
-					      1.0F,
-					      false
-			      );
+		if (merchant.isClient()) {
+			return;
 		}
+
+		Entity entity = (Entity) merchant;
+		entity.getEntityWorld().playSoundClient(
+				entity.getX(),
+				entity.getY(),
+				entity.getZ(),
+				merchant.getYesSound(),
+				SoundCategory.NEUTRAL,
+				1.0F,
+				1.0F,
+				false
+		);
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.merchant.setCustomer(null);
-		if (!this.merchant.isClient()) {
-			if (!player.isAlive()
-					|| player instanceof ServerPlayerEntity && ((ServerPlayerEntity) player).isDisconnected()) {
-				ItemStack itemStack = this.merchantInventory.removeStack(0);
-				if (!itemStack.isEmpty()) {
-					player.dropItem(itemStack, false);
-				}
+		merchant.setCustomer(null);
 
-				itemStack = this.merchantInventory.removeStack(1);
-				if (!itemStack.isEmpty()) {
-					player.dropItem(itemStack, false);
-				}
+		if (merchant.isClient()) {
+			return;
+		}
+
+		boolean playerDead = !player.isAlive()
+				|| player instanceof ServerPlayerEntity serverPlayer && serverPlayer.isDisconnected();
+
+		if (playerDead) {
+			ItemStack firstInput = merchantInventory.removeStack(INPUT_1_ID);
+
+			if (!firstInput.isEmpty()) {
+				player.dropItem(firstInput, false);
 			}
-			else if (player instanceof ServerPlayerEntity) {
-				player.getInventory().offerOrDrop(this.merchantInventory.removeStack(0));
-				player.getInventory().offerOrDrop(this.merchantInventory.removeStack(1));
+
+			ItemStack secondInput = merchantInventory.removeStack(INPUT_2_ID);
+
+			if (!secondInput.isEmpty()) {
+				player.dropItem(secondInput, false);
 			}
+		}
+		else if (player instanceof ServerPlayerEntity) {
+			player.getInventory().offerOrDrop(merchantInventory.removeStack(INPUT_1_ID));
+			player.getInventory().offerOrDrop(merchantInventory.removeStack(INPUT_2_ID));
 		}
 	}
 
 	/**
-	 * Switch to.
+	 * Переключается на указанную сделку, возвращая текущие ингредиенты в инвентарь
+	 * и автозаполняя входные слоты ингредиентами новой сделки из инвентаря игрока.
 	 *
-	 * @param recipeIndex recipe index
+	 * @param recipeIndex индекс сделки в списке предложений торговца
 	 */
 	public void switchTo(int recipeIndex) {
-		if (recipeIndex >= 0 && this.getRecipes().size() > recipeIndex) {
-			ItemStack itemStack = this.merchantInventory.getStack(0);
-			if (!itemStack.isEmpty()) {
-				if (!this.insertItem(itemStack, 3, 39, true)) {
-					return;
-				}
+		if (recipeIndex < 0 || getRecipes().size() <= recipeIndex) {
+			return;
+		}
 
-				this.merchantInventory.setStack(0, itemStack);
+		ItemStack firstInput = merchantInventory.getStack(INPUT_1_ID);
+
+		if (!firstInput.isEmpty()) {
+			if (!insertItem(firstInput, INVENTORY_START, HOTBAR_END, true)) {
+				return;
 			}
 
-			ItemStack itemStack2 = this.merchantInventory.getStack(1);
-			if (!itemStack2.isEmpty()) {
-				if (!this.insertItem(itemStack2, 3, 39, true)) {
-					return;
-				}
+			merchantInventory.setStack(INPUT_1_ID, firstInput);
+		}
 
-				this.merchantInventory.setStack(1, itemStack2);
+		ItemStack secondInput = merchantInventory.getStack(INPUT_2_ID);
+
+		if (!secondInput.isEmpty()) {
+			if (!insertItem(secondInput, INVENTORY_START, HOTBAR_END, true)) {
+				return;
 			}
 
-			if (this.merchantInventory.getStack(0).isEmpty() && this.merchantInventory.getStack(1).isEmpty()) {
-				TradeOffer tradeOffer = this.getRecipes().get(recipeIndex);
-				this.autofill(0, tradeOffer.getFirstBuyItem());
-				tradeOffer.getSecondBuyItem().ifPresent(item -> this.autofill(1, item));
-			}
+			merchantInventory.setStack(INPUT_2_ID, secondInput);
+		}
+
+		if (merchantInventory.getStack(INPUT_1_ID).isEmpty() && merchantInventory.getStack(INPUT_2_ID).isEmpty()) {
+			TradeOffer tradeOffer = getRecipes().get(recipeIndex);
+			autofill(INPUT_1_ID, tradeOffer.getFirstBuyItem());
+			tradeOffer.getSecondBuyItem().ifPresent(item -> autofill(INPUT_2_ID, item));
 		}
 	}
 
-	private void autofill(int slot, TradedItem stack) {
-		for (int i = 3; i < 39; i++) {
-			ItemStack itemStack = this.slots.get(i).getStack();
-			if (!itemStack.isEmpty() && stack.matches(itemStack)) {
-				ItemStack itemStack2 = this.merchantInventory.getStack(slot);
-				if (itemStack2.isEmpty() || ItemStack.areItemsAndComponentsEqual(itemStack, itemStack2)) {
-					int j = itemStack.getMaxCount();
-					int k = Math.min(j - itemStack2.getCount(), itemStack.getCount());
-					ItemStack itemStack3 = itemStack.copyWithCount(itemStack2.getCount() + k);
-					itemStack.decrement(k);
-					this.merchantInventory.setStack(slot, itemStack3);
-					if (itemStack3.getCount() >= j) {
-						break;
-					}
-				}
+	private void autofill(int slot, TradedItem tradedItem) {
+		for (int playerSlot = INVENTORY_START; playerSlot < HOTBAR_END; playerSlot++) {
+			ItemStack playerStack = slots.get(playerSlot).getStack();
+
+			if (playerStack.isEmpty() || !tradedItem.matches(playerStack)) {
+				continue;
+			}
+
+			ItemStack currentInput = merchantInventory.getStack(slot);
+
+			if (!currentInput.isEmpty() && !ItemStack.areItemsAndComponentsEqual(playerStack, currentInput)) {
+				continue;
+			}
+
+			int maxCount = playerStack.getMaxCount();
+			int transferAmount = Math.min(maxCount - currentInput.getCount(), playerStack.getCount());
+			ItemStack merged = playerStack.copyWithCount(currentInput.getCount() + transferAmount);
+			playerStack.decrement(transferAmount);
+			merchantInventory.setStack(slot, merged);
+
+			if (merged.getCount() >= maxCount) {
+				break;
 			}
 		}
 	}
 
 	public void setOffers(TradeOfferList offers) {
-		this.merchant.setOffersFromServer(offers);
+		merchant.setOffersFromServer(offers);
 	}
 
 	public TradeOfferList getRecipes() {
-		return this.merchant.getOffers();
+		return merchant.getOffers();
 	}
 
 	public boolean isLeveled() {
-		return this.leveled;
+		return leveled;
 	}
 }

@@ -9,7 +9,11 @@ import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.client.render.item.ItemRenderState;
 import net.minecraft.client.render.item.model.special.SpecialModelRenderer;
 import net.minecraft.client.render.item.model.special.SpecialModelTypes;
-import net.minecraft.client.render.model.*;
+import net.minecraft.client.render.model.BakedSimpleModel;
+import net.minecraft.client.render.model.Baker;
+import net.minecraft.client.render.model.ModelSettings;
+import net.minecraft.client.render.model.ModelTextures;
+import net.minecraft.client.render.model.ResolvableModel;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
@@ -22,10 +26,15 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpecialItemModel}.
+ * Модель предмета, делегирующая рендер специализированному {@link SpecialModelRenderer}.
+ * Используется для предметов с нетривиальной геометрией (щиты, головы, сундуки и т.д.),
+ * которые не могут быть представлены стандартной блочной моделью.
+ * Вершины модели кэшируются лениво через {@link Suppliers#memoize} для оптимизации.
+ *
+ * @param <T> тип данных, извлекаемых из стека предмета для рендера
  */
+@Environment(EnvType.CLIENT)
 public class SpecialItemModel<T> implements ItemModel {
 
 	private final SpecialModelRenderer<T> specialModelType;
@@ -36,9 +45,9 @@ public class SpecialItemModel<T> implements ItemModel {
 		this.specialModelType = specialModelType;
 		this.settings = settings;
 		this.verticesSupplier = Suppliers.memoize(() -> {
-			Set<Vector3fc> set = new HashSet<>();
-			specialModelType.collectVertices(set::add);
-			return set.toArray(new Vector3fc[0]);
+			Set<Vector3fc> vertices = new HashSet<>();
+			specialModelType.collectVertices(vertices::add);
+			return vertices.toArray(new Vector3fc[0]);
 		});
 	}
 
@@ -53,60 +62,64 @@ public class SpecialItemModel<T> implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		ItemRenderState.LayerRenderState layerRenderState = state.newLayer();
+
+		ItemRenderState.LayerRenderState layer = state.newLayer();
+
 		if (stack.hasGlint()) {
 			ItemRenderState.Glint glint = ItemRenderState.Glint.STANDARD;
-			layerRenderState.setGlint(glint);
+			layer.setGlint(glint);
 			state.markAnimated();
 			state.addModelKey(glint);
 		}
 
-		T object = this.specialModelType.getData(stack);
-		layerRenderState.setVertices(this.verticesSupplier);
-		layerRenderState.setSpecialModel(this.specialModelType, object);
-		if (object != null) {
-			state.addModelKey(object);
+		T data = specialModelType.getData(stack);
+		layer.setVertices(verticesSupplier);
+		layer.setSpecialModel(specialModelType, data);
+
+		if (data != null) {
+			state.addModelKey(data);
 		}
 
-		this.settings.addSettings(layerRenderState, displayContext);
+		settings.addSettings(layer, displayContext);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма специальной модели предмета.
+	 * Содержит идентификатор базовой блочной модели (для настроек трансформаций)
+	 * и несериализованный специализированный рендерер.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(Identifier base, SpecialModelRenderer.Unbaked specialModel) implements ItemModel.Unbaked {
 
 		public static final MapCodec<SpecialItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("base").forGetter(SpecialItemModel.Unbaked::base),
-						                    SpecialModelTypes.CODEC.fieldOf("model").forGetter(SpecialItemModel.Unbaked::specialModel)
-				                    )
-				                    .apply(instance, SpecialItemModel.Unbaked::new)
+						Identifier.CODEC.fieldOf("base").forGetter(SpecialItemModel.Unbaked::base),
+						SpecialModelTypes.CODEC.fieldOf("model").forGetter(SpecialItemModel.Unbaked::specialModel)
+				).apply(instance, SpecialItemModel.Unbaked::new)
 		);
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			resolver.markDependency(this.base);
+			resolver.markDependency(base);
 		}
 
 		@Override
 		public ItemModel bake(ItemModel.BakeContext context) {
-			SpecialModelRenderer<?> specialModelRenderer = this.specialModel.bake(context);
-			if (specialModelRenderer == null) {
+			SpecialModelRenderer<?> renderer = specialModel.bake(context);
+
+			if (renderer == null) {
 				return context.missingItemModel();
 			}
-			else {
-				ModelSettings modelSettings = this.getSettings(context);
-				return new SpecialItemModel<>(specialModelRenderer, modelSettings);
-			}
+
+			ModelSettings modelSettings = resolveSettings(context);
+			return new SpecialItemModel<>(renderer, modelSettings);
 		}
 
-		private ModelSettings getSettings(ItemModel.BakeContext context) {
+		private ModelSettings resolveSettings(ItemModel.BakeContext context) {
 			Baker baker = context.blockModelBaker();
-			BakedSimpleModel bakedSimpleModel = baker.getModel(this.base);
-			ModelTextures modelTextures = bakedSimpleModel.getTextures();
-			return ModelSettings.resolveSettings(baker, bakedSimpleModel, modelTextures);
+			BakedSimpleModel bakedModel = baker.getModel(base);
+			ModelTextures textures = bakedModel.getTextures();
+			return ModelSettings.resolveSettings(baker, bakedModel, textures);
 		}
 
 		@Override

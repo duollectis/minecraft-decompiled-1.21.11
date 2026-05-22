@@ -6,10 +6,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.StringIdentifiable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FontType}.
+ * Перечисление всех поддерживаемых типов шрифтов. Каждый тип связан
+ * со своим {@link MapCodec} для десериализации конфигурации из {@code fonts.json}.
  */
+@Environment(EnvType.CLIENT)
 public enum FontType implements StringIdentifiable {
 	BITMAP("bitmap", BitmapFont.Loader.CODEC),
 	TTF("ttf", TrueTypeFontLoader.CODEC),
@@ -21,17 +22,17 @@ public enum FontType implements StringIdentifiable {
 	private final String id;
 	private final MapCodec<? extends FontLoader> loaderCodec;
 
-	private FontType(final String id, final MapCodec<? extends FontLoader> loaderCodec) {
+	FontType(final String id, final MapCodec<? extends FontLoader> loaderCodec) {
 		this.id = id;
 		this.loaderCodec = loaderCodec;
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 
 	public MapCodec<? extends FontLoader> getLoaderCodec() {
-		return this.loaderCodec;
+		return loaderCodec;
 	}
 }

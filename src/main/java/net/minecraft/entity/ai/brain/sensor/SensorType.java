@@ -12,7 +12,11 @@ import net.minecraft.util.Identifier;
 import java.util.function.Supplier;
 
 /**
- * {@code SensorType}.
+ * Реестр всех типов сенсоров мозга сущностей.
+ * Каждый тип хранит фабрику для создания экземпляра соответствующего {@link Sensor}
+ * и регистрируется в {@code Registries.SENSOR_TYPE}.
+ *
+ * @param <U> конкретный тип сенсора
  */
 public class SensorType<U extends Sensor<?>> {
 
@@ -93,13 +97,8 @@ public class SensorType<U extends Sensor<?>> {
 		this.factory = factory;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @return U — результат операции
-	 */
 	public U create() {
-		return this.factory.get();
+		return factory.get();
 	}
 
 	private static <U extends Sensor<?>> SensorType<U> register(String id, Supplier<U> factory) {

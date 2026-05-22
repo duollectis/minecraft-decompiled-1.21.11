@@ -10,9 +10,11 @@ import net.minecraft.predicate.component.ComponentSubPredicate;
 import java.util.Optional;
 
 /**
- * {@code FireworkExplosionPredicate}.
+ * Предикат для проверки компонента взрыва фейерверка.
  */
-public record FireworkExplosionPredicate(FireworkExplosionPredicate.Predicate predicate) implements ComponentSubPredicate<FireworkExplosionComponent> {
+public record FireworkExplosionPredicate(
+		FireworkExplosionPredicate.Predicate predicate
+) implements ComponentSubPredicate<FireworkExplosionComponent> {
 
 	public static final Codec<FireworkExplosionPredicate> CODEC = FireworkExplosionPredicate.Predicate.CODEC
 			.xmap(FireworkExplosionPredicate::new, FireworkExplosionPredicate::predicate);
@@ -22,42 +24,44 @@ public record FireworkExplosionPredicate(FireworkExplosionPredicate.Predicate pr
 		return DataComponentTypes.FIREWORK_EXPLOSION;
 	}
 
-	public boolean test(FireworkExplosionComponent fireworkExplosionComponent) {
-		return this.predicate.test(fireworkExplosionComponent);
+	public boolean test(FireworkExplosionComponent component) {
+		return predicate.test(component);
 	}
 
 	/**
-	 * {@code Predicate}.
+	 * Внутренний предикат с параметрами взрыва: форма, мерцание, след.
 	 */
 	public record Predicate(
 			Optional<FireworkExplosionComponent.Type> shape,
 			Optional<Boolean> twinkle,
 			Optional<Boolean> trail
-	)
-			implements java.util.function.Predicate<FireworkExplosionComponent> {
+	) implements java.util.function.Predicate<FireworkExplosionComponent> {
 
 		public static final Codec<FireworkExplosionPredicate.Predicate> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    FireworkExplosionComponent.Type.CODEC
-								                    .optionalFieldOf("shape")
-								                    .forGetter(FireworkExplosionPredicate.Predicate::shape),
-						                    Codec.BOOL
-								                    .optionalFieldOf("has_twinkle")
-								                    .forGetter(FireworkExplosionPredicate.Predicate::twinkle),
-						                    Codec.BOOL.optionalFieldOf("has_trail").forGetter(FireworkExplosionPredicate.Predicate::trail)
-				                    )
-				                    .apply(instance, FireworkExplosionPredicate.Predicate::new)
+						FireworkExplosionComponent.Type.CODEC
+								.optionalFieldOf("shape")
+								.forGetter(FireworkExplosionPredicate.Predicate::shape),
+						Codec.BOOL
+								.optionalFieldOf("has_twinkle")
+								.forGetter(FireworkExplosionPredicate.Predicate::twinkle),
+						Codec.BOOL
+								.optionalFieldOf("has_trail")
+								.forGetter(FireworkExplosionPredicate.Predicate::trail)
+				)
+				.apply(instance, FireworkExplosionPredicate.Predicate::new)
 		);
 
-		public boolean test(FireworkExplosionComponent fireworkExplosionComponent) {
-			if (this.shape.isPresent() && this.shape.get() != fireworkExplosionComponent.shape()) {
+		public boolean test(FireworkExplosionComponent component) {
+			if (shape.isPresent() && shape.get() != component.shape()) {
 				return false;
 			}
-			else {
-				return this.twinkle.isPresent() && this.twinkle.get() != fireworkExplosionComponent.hasTwinkle()
-				       ? false
-				       : !this.trail.isPresent() || this.trail.get() == fireworkExplosionComponent.hasTrail();
+
+			if (twinkle.isPresent() && twinkle.get() != component.hasTwinkle()) {
+				return false;
 			}
+
+			return trail.isEmpty() || trail.get() == component.hasTrail();
 		}
 	}
 }

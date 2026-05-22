@@ -6,7 +6,7 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code DeadCoralFanBlock}.
+ * Мёртвый коралловый веер — плоский декоративный блок, не требующий воды.
  */
 public class DeadCoralFanBlock extends AbstractCoralBlock {
 

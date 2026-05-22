@@ -3,7 +3,8 @@ package net.minecraft.world.tick;
 import com.mojang.serialization.Codec;
 
 /**
- * {@code TickPriority}.
+ * Приоритет выполнения тика. Чем меньше числовой индекс, тем выше приоритет.
+ * При одинаковом времени срабатывания тики с более высоким приоритетом выполняются первыми.
  */
 public enum TickPriority {
 	EXTREMELY_HIGH(-3),
@@ -15,23 +16,23 @@ public enum TickPriority {
 	EXTREMELY_LOW(3);
 
 	public static final Codec<TickPriority> CODEC = Codec.INT.xmap(TickPriority::byIndex, TickPriority::getIndex);
+
 	private final int index;
 
-	private TickPriority(final int index) {
+	TickPriority(int index) {
 		this.index = index;
 	}
 
 	/**
-	 * By index.
+	 * Возвращает приоритет по числовому индексу.
+	 * Если индекс выходит за допустимые границы, возвращается ближайший крайний приоритет.
 	 *
-	 * @param index index
-	 *
-	 * @return TickPriority — результат операции
+	 * @param index числовой индекс приоритета
 	 */
 	public static TickPriority byIndex(int index) {
-		for (TickPriority tickPriority : values()) {
-			if (tickPriority.index == index) {
-				return tickPriority;
+		for (TickPriority priority : values()) {
+			if (priority.index == index) {
+				return priority;
 			}
 		}
 
@@ -39,6 +40,6 @@ public enum TickPriority {
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 }

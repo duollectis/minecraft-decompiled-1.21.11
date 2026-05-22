@@ -17,7 +17,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.stream.Stream;
 
 /**
- * {@code BlockNbtDataSource}.
+ * Источник NBT-данных, читающий данные из блочной сущности по заданным координатам.
+ *
+ * <p>Позиция парсится из строки при создании объекта. Если строка невалидна,
+ * поле {@code pos} будет {@code null} и {@link #get} вернёт пустой поток.
+ * Сравнение экземпляров выполняется только по строке {@code rawPos},
+ * так как {@code pos} является производным полем.</p>
  */
 public record BlockNbtDataSource(String rawPos, @Nullable PosArgument pos) implements NbtDataSource {
 
@@ -27,33 +32,37 @@ public record BlockNbtDataSource(String rawPos, @Nullable PosArgument pos) imple
 					.apply(instance, BlockNbtDataSource::new)
 	);
 
-	public BlockNbtDataSource(String rawPath) {
-		this(rawPath, parsePos(rawPath));
+	public BlockNbtDataSource(String rawPos) {
+		this(rawPos, parsePos(rawPos));
 	}
 
-	private static @Nullable PosArgument parsePos(String string) {
+	private static @Nullable PosArgument parsePos(String rawPos) {
 		try {
-			return BlockPosArgumentType.blockPos().parse(new StringReader(string));
+			return BlockPosArgumentType.blockPos().parse(new StringReader(rawPos));
 		}
-		catch (CommandSyntaxException var2) {
+		catch (CommandSyntaxException e) {
 			return null;
 		}
 	}
 
 	@Override
 	public Stream<NbtCompound> get(ServerCommandSource source) {
-		if (this.pos != null) {
-			ServerWorld serverWorld = source.getWorld();
-			BlockPos blockPos = this.pos.toAbsoluteBlockPos(source);
-			if (serverWorld.isPosLoaded(blockPos)) {
-				BlockEntity blockEntity = serverWorld.getBlockEntity(blockPos);
-				if (blockEntity != null) {
-					return Stream.of(blockEntity.createNbtWithIdentifyingData(source.getRegistryManager()));
-				}
-			}
+		if (pos == null) {
+			return Stream.empty();
 		}
 
-		return Stream.empty();
+		ServerWorld world = source.getWorld();
+		BlockPos blockPos = pos.toAbsoluteBlockPos(source);
+
+		if (!world.isPosLoaded(blockPos)) {
+			return Stream.empty();
+		}
+
+		BlockEntity blockEntity = world.getBlockEntity(blockPos);
+
+		return blockEntity != null
+				? Stream.of(blockEntity.createNbtWithIdentifyingData(source.getRegistryManager()))
+				: Stream.empty();
 	}
 
 	@Override
@@ -63,17 +72,20 @@ public record BlockNbtDataSource(String rawPos, @Nullable PosArgument pos) imple
 
 	@Override
 	public String toString() {
-		return "block=" + this.rawPos;
+		return "block=" + rawPos;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof BlockNbtDataSource blockNbtDataSource && this.rawPos.equals(
-				blockNbtDataSource.rawPos);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof BlockNbtDataSource other && rawPos.equals(other.rawPos);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.rawPos.hashCode();
+		return rawPos.hashCode();
 	}
 }

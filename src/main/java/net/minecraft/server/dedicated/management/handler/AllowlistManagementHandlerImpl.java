@@ -9,7 +9,7 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import java.util.Collection;
 
 /**
- * {@code AllowlistManagementHandlerImpl}.
+ * Класс Allowlist Management Handler Impl.
  */
 public class AllowlistManagementHandlerImpl implements AllowlistManagementHandler {
 

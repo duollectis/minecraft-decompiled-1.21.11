@@ -3,7 +3,10 @@ package net.minecraft.screen;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code ScreenHandlerListener}.
+ * Слушатель изменений состояния {@link ScreenHandler}.
+ * <p>
+ * Реализуется на клиентской стороне для обновления визуального состояния экрана
+ * при получении пакетов синхронизации от сервера.
  */
 public interface ScreenHandlerListener {
 

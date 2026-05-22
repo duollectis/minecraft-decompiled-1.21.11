@@ -6,7 +6,8 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code ChunkDataAccess}.
+ * Контракт асинхронного доступа к данным чанка для конкретного типа объектов {@code T}.
+ * Реализуется, например, {@link EntityChunkDataAccess} для сущностей.
  */
 public interface ChunkDataAccess<T> extends AutoCloseable {
 

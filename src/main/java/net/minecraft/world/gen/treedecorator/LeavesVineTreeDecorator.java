@@ -8,7 +8,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code LeavesVineTreeDecorator}.
+ * Декоратор дерева, размещающий лозу (vine) на листьях дерева.
+ * Для каждого листового блока с заданной вероятностью проверяются четыре горизонтальных
+ * направления, и если соседний блок является воздухом, там размещается свисающая лоза.
  */
 public class LeavesVineTreeDecorator extends TreeDecorator {
 
@@ -32,44 +34,37 @@ public class LeavesVineTreeDecorator extends TreeDecorator {
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
+
 		generator.getLeavesPositions().forEach(pos -> {
-			if (random.nextFloat() < this.probability) {
-				BlockPos blockPos = pos.west();
-				if (generator.isAir(blockPos)) {
-					placeVines(blockPos, VineBlock.EAST, generator);
-				}
+			BlockPos west = pos.west();
+			if (random.nextFloat() < probability && generator.isAir(west)) {
+				placeVines(west, VineBlock.EAST, generator);
 			}
 
-			if (random.nextFloat() < this.probability) {
-				BlockPos blockPos = pos.east();
-				if (generator.isAir(blockPos)) {
-					placeVines(blockPos, VineBlock.WEST, generator);
-				}
+			BlockPos east = pos.east();
+			if (random.nextFloat() < probability && generator.isAir(east)) {
+				placeVines(east, VineBlock.WEST, generator);
 			}
 
-			if (random.nextFloat() < this.probability) {
-				BlockPos blockPos = pos.north();
-				if (generator.isAir(blockPos)) {
-					placeVines(blockPos, VineBlock.SOUTH, generator);
-				}
+			BlockPos north = pos.north();
+			if (random.nextFloat() < probability && generator.isAir(north)) {
+				placeVines(north, VineBlock.SOUTH, generator);
 			}
 
-			if (random.nextFloat() < this.probability) {
-				BlockPos blockPos = pos.south();
-				if (generator.isAir(blockPos)) {
-					placeVines(blockPos, VineBlock.NORTH, generator);
-				}
+			BlockPos south = pos.south();
+			if (random.nextFloat() < probability && generator.isAir(south)) {
+				placeVines(south, VineBlock.NORTH, generator);
 			}
 		});
 	}
 
 	private static void placeVines(BlockPos pos, BooleanProperty faceProperty, TreeDecorator.Generator generator) {
 		generator.replaceWithVine(pos, faceProperty);
-		int i = 4;
+		int remaining = 4;
 
-		for (BlockPos var4 = pos.down(); generator.isAir(var4) && i > 0; i--) {
-			generator.replaceWithVine(var4, faceProperty);
-			var4 = var4.down();
+		for (BlockPos current = pos.down(); generator.isAir(current) && remaining > 0; remaining--) {
+			generator.replaceWithVine(current, faceProperty);
+			current = current.down();
 		}
 	}
 }

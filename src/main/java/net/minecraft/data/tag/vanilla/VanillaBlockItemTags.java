@@ -47,7 +47,7 @@ public abstract class VanillaBlockItemTags {
 				Blocks.SPORE_BLOSSOM,
 				Blocks.CACTUS_FLOWER
 		};
-		this.builder(BlockTags.WOOL, ItemTags.WOOL)
+		builder(BlockTags.WOOL, ItemTags.WOOL)
 		    .add(
 				    Blocks.WHITE_WOOL,
 				    Blocks.ORANGE_WOOL,
@@ -66,7 +66,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.RED_WOOL,
 				    Blocks.BLACK_WOOL
 		    );
-		this.builder(BlockTags.PLANKS, ItemTags.PLANKS)
+		builder(BlockTags.PLANKS, ItemTags.PLANKS)
 		    .add(
 				    Blocks.OAK_PLANKS,
 				    Blocks.SPRUCE_PLANKS,
@@ -81,14 +81,14 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_PLANKS,
 				    Blocks.CHERRY_PLANKS
 		    );
-		this.builder(BlockTags.STONE_BRICKS, ItemTags.STONE_BRICKS)
+		builder(BlockTags.STONE_BRICKS, ItemTags.STONE_BRICKS)
 		    .add(
 				    Blocks.STONE_BRICKS,
 				    Blocks.MOSSY_STONE_BRICKS,
 				    Blocks.CRACKED_STONE_BRICKS,
 				    Blocks.CHISELED_STONE_BRICKS
 		    );
-		this.builder(BlockTags.WOODEN_BUTTONS, ItemTags.WOODEN_BUTTONS)
+		builder(BlockTags.WOODEN_BUTTONS, ItemTags.WOODEN_BUTTONS)
 		    .add(
 				    Blocks.OAK_BUTTON,
 				    Blocks.SPRUCE_BUTTON,
@@ -110,7 +110,7 @@ public abstract class VanillaBlockItemTags {
 				.builder(BlockTags.BUTTONS, ItemTags.BUTTONS)
 				.addTag(BlockTags.WOODEN_BUTTONS)
 				.addTag(BlockTags.STONE_BUTTONS);
-		this.builder(BlockTags.WOOL_CARPETS, ItemTags.WOOL_CARPETS)
+		builder(BlockTags.WOOL_CARPETS, ItemTags.WOOL_CARPETS)
 		    .add(
 				    Blocks.WHITE_CARPET,
 				    Blocks.ORANGE_CARPET,
@@ -129,7 +129,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.RED_CARPET,
 				    Blocks.BLACK_CARPET
 		    );
-		this.builder(BlockTags.WOODEN_DOORS, ItemTags.WOODEN_DOORS)
+		builder(BlockTags.WOODEN_DOORS, ItemTags.WOODEN_DOORS)
 		    .add(
 				    Blocks.OAK_DOOR,
 				    Blocks.SPRUCE_DOOR,
@@ -144,7 +144,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_DOOR,
 				    Blocks.CHERRY_DOOR
 		    );
-		this.builder(BlockTags.WOODEN_STAIRS, ItemTags.WOODEN_STAIRS)
+		builder(BlockTags.WOODEN_STAIRS, ItemTags.WOODEN_STAIRS)
 		    .add(
 				    Blocks.OAK_STAIRS,
 				    Blocks.SPRUCE_STAIRS,
@@ -159,7 +159,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_STAIRS,
 				    Blocks.CHERRY_STAIRS
 		    );
-		this.builder(BlockTags.WOODEN_SLABS, ItemTags.WOODEN_SLABS)
+		builder(BlockTags.WOODEN_SLABS, ItemTags.WOODEN_SLABS)
 		    .add(
 				    Blocks.OAK_SLAB,
 				    Blocks.SPRUCE_SLAB,
@@ -174,7 +174,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_SLAB,
 				    Blocks.CHERRY_SLAB
 		    );
-		this.builder(BlockTags.WOODEN_FENCES, ItemTags.WOODEN_FENCES)
+		builder(BlockTags.WOODEN_FENCES, ItemTags.WOODEN_FENCES)
 		    .add(
 				    Blocks.OAK_FENCE,
 				    Blocks.ACACIA_FENCE,
@@ -189,7 +189,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_FENCE,
 				    Blocks.CHERRY_FENCE
 		    );
-		this.builder(BlockTags.FENCE_GATES, ItemTags.FENCE_GATES)
+		builder(BlockTags.FENCE_GATES, ItemTags.FENCE_GATES)
 		    .add(
 				    Blocks.ACACIA_FENCE_GATE,
 				    Blocks.BIRCH_FENCE_GATE,
@@ -204,7 +204,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_FENCE_GATE,
 				    Blocks.CHERRY_FENCE_GATE
 		    );
-		this.builder(BlockTags.WOODEN_PRESSURE_PLATES, ItemTags.WOODEN_PRESSURE_PLATES)
+		builder(BlockTags.WOODEN_PRESSURE_PLATES, ItemTags.WOODEN_PRESSURE_PLATES)
 		    .add(
 				    Blocks.OAK_PRESSURE_PLATE,
 				    Blocks.SPRUCE_PRESSURE_PLATE,
@@ -219,7 +219,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_PRESSURE_PLATE,
 				    Blocks.CHERRY_PRESSURE_PLATE
 		    );
-		this.builder(BlockTags.DOORS, ItemTags.DOORS)
+		builder(BlockTags.DOORS, ItemTags.DOORS)
 		    .addTag(BlockTags.WOODEN_DOORS)
 		    .add(
 				    Blocks.COPPER_DOOR,
@@ -232,7 +232,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.WAXED_OXIDIZED_COPPER_DOOR,
 				    Blocks.IRON_DOOR
 		    );
-		this.builder(BlockTags.SAPLINGS, ItemTags.SAPLINGS)
+		builder(BlockTags.SAPLINGS, ItemTags.SAPLINGS)
 		    .add(
 				    Blocks.OAK_SAPLING,
 				    Blocks.SPRUCE_SAPLING,
@@ -252,14 +252,14 @@ public abstract class VanillaBlockItemTags {
 		this
 				.builder(BlockTags.OAK_LOGS, ItemTags.OAK_LOGS)
 				.add(Blocks.OAK_LOG, Blocks.OAK_WOOD, Blocks.STRIPPED_OAK_LOG, Blocks.STRIPPED_OAK_WOOD);
-		this.builder(BlockTags.DARK_OAK_LOGS, ItemTags.DARK_OAK_LOGS)
+		builder(BlockTags.DARK_OAK_LOGS, ItemTags.DARK_OAK_LOGS)
 		    .add(
 				    Blocks.DARK_OAK_LOG,
 				    Blocks.DARK_OAK_WOOD,
 				    Blocks.STRIPPED_DARK_OAK_LOG,
 				    Blocks.STRIPPED_DARK_OAK_WOOD
 		    );
-		this.builder(BlockTags.PALE_OAK_LOGS, ItemTags.PALE_OAK_LOGS)
+		builder(BlockTags.PALE_OAK_LOGS, ItemTags.PALE_OAK_LOGS)
 		    .add(
 				    Blocks.PALE_OAK_LOG,
 				    Blocks.PALE_OAK_WOOD,
@@ -269,34 +269,34 @@ public abstract class VanillaBlockItemTags {
 		this
 				.builder(BlockTags.BIRCH_LOGS, ItemTags.BIRCH_LOGS)
 				.add(Blocks.BIRCH_LOG, Blocks.BIRCH_WOOD, Blocks.STRIPPED_BIRCH_LOG, Blocks.STRIPPED_BIRCH_WOOD);
-		this.builder(BlockTags.ACACIA_LOGS, ItemTags.ACACIA_LOGS)
+		builder(BlockTags.ACACIA_LOGS, ItemTags.ACACIA_LOGS)
 		    .add(Blocks.ACACIA_LOG, Blocks.ACACIA_WOOD, Blocks.STRIPPED_ACACIA_LOG, Blocks.STRIPPED_ACACIA_WOOD);
-		this.builder(BlockTags.SPRUCE_LOGS, ItemTags.SPRUCE_LOGS)
+		builder(BlockTags.SPRUCE_LOGS, ItemTags.SPRUCE_LOGS)
 		    .add(Blocks.SPRUCE_LOG, Blocks.SPRUCE_WOOD, Blocks.STRIPPED_SPRUCE_LOG, Blocks.STRIPPED_SPRUCE_WOOD);
-		this.builder(BlockTags.MANGROVE_LOGS, ItemTags.MANGROVE_LOGS)
+		builder(BlockTags.MANGROVE_LOGS, ItemTags.MANGROVE_LOGS)
 		    .add(
 				    Blocks.MANGROVE_LOG,
 				    Blocks.MANGROVE_WOOD,
 				    Blocks.STRIPPED_MANGROVE_LOG,
 				    Blocks.STRIPPED_MANGROVE_WOOD
 		    );
-		this.builder(BlockTags.JUNGLE_LOGS, ItemTags.JUNGLE_LOGS)
+		builder(BlockTags.JUNGLE_LOGS, ItemTags.JUNGLE_LOGS)
 		    .add(Blocks.JUNGLE_LOG, Blocks.JUNGLE_WOOD, Blocks.STRIPPED_JUNGLE_LOG, Blocks.STRIPPED_JUNGLE_WOOD);
-		this.builder(BlockTags.CHERRY_LOGS, ItemTags.CHERRY_LOGS)
+		builder(BlockTags.CHERRY_LOGS, ItemTags.CHERRY_LOGS)
 		    .add(Blocks.CHERRY_LOG, Blocks.CHERRY_WOOD, Blocks.STRIPPED_CHERRY_LOG, Blocks.STRIPPED_CHERRY_WOOD);
-		this.builder(BlockTags.CRIMSON_STEMS, ItemTags.CRIMSON_STEMS)
+		builder(BlockTags.CRIMSON_STEMS, ItemTags.CRIMSON_STEMS)
 		    .add(
 				    Blocks.CRIMSON_STEM,
 				    Blocks.STRIPPED_CRIMSON_STEM,
 				    Blocks.CRIMSON_HYPHAE,
 				    Blocks.STRIPPED_CRIMSON_HYPHAE
 		    );
-		this.builder(BlockTags.WARPED_STEMS, ItemTags.WARPED_STEMS)
+		builder(BlockTags.WARPED_STEMS, ItemTags.WARPED_STEMS)
 		    .add(Blocks.WARPED_STEM, Blocks.STRIPPED_WARPED_STEM, Blocks.WARPED_HYPHAE, Blocks.STRIPPED_WARPED_HYPHAE);
 		this
 				.builder(BlockTags.WART_BLOCKS, ItemTags.WART_BLOCKS)
 				.add(Blocks.NETHER_WART_BLOCK, Blocks.WARPED_WART_BLOCK);
-		this.builder(BlockTags.LOGS_THAT_BURN, ItemTags.LOGS_THAT_BURN)
+		builder(BlockTags.LOGS_THAT_BURN, ItemTags.LOGS_THAT_BURN)
 		    .addTag(BlockTags.DARK_OAK_LOGS)
 		    .addTag(BlockTags.PALE_OAK_LOGS)
 		    .addTag(BlockTags.OAK_LOGS)
@@ -311,9 +311,9 @@ public abstract class VanillaBlockItemTags {
 				.addTag(BlockTags.LOGS_THAT_BURN)
 				.addTag(BlockTags.CRIMSON_STEMS)
 				.addTag(BlockTags.WARPED_STEMS);
-		this.builder(BlockTags.SAND, ItemTags.SAND).add(Blocks.SAND, Blocks.RED_SAND, Blocks.SUSPICIOUS_SAND);
-		this.builder(BlockTags.SMELTS_TO_GLASS, ItemTags.SMELTS_TO_GLASS).add(Blocks.SAND, Blocks.RED_SAND);
-		this.builder(BlockTags.SLABS, ItemTags.SLABS)
+		builder(BlockTags.SAND, ItemTags.SAND).add(Blocks.SAND, Blocks.RED_SAND, Blocks.SUSPICIOUS_SAND);
+		builder(BlockTags.SMELTS_TO_GLASS, ItemTags.SMELTS_TO_GLASS).add(Blocks.SAND, Blocks.RED_SAND);
+		builder(BlockTags.SLABS, ItemTags.SLABS)
 		    .addTag(BlockTags.WOODEN_SLABS)
 		    .add(Blocks.BAMBOO_MOSAIC_SLAB)
 		    .add(
@@ -367,7 +367,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.TUFF_BRICK_SLAB,
 				    Blocks.RESIN_BRICK_SLAB
 		    );
-		this.builder(BlockTags.WALLS, ItemTags.WALLS)
+		builder(BlockTags.WALLS, ItemTags.WALLS)
 		    .add(
 				    Blocks.COBBLESTONE_WALL,
 				    Blocks.MOSSY_COBBLESTONE_WALL,
@@ -396,7 +396,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.TUFF_BRICK_WALL,
 				    Blocks.RESIN_BRICK_WALL
 		    );
-		this.builder(BlockTags.STAIRS, ItemTags.STAIRS)
+		builder(BlockTags.STAIRS, ItemTags.STAIRS)
 		    .addTag(BlockTags.WOODEN_STAIRS)
 		    .add(Blocks.BAMBOO_MOSAIC_STAIRS)
 		    .add(
@@ -446,11 +446,11 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.TUFF_BRICK_STAIRS,
 				    Blocks.RESIN_BRICK_STAIRS
 		    );
-		this.builder(BlockTags.ANVIL, ItemTags.ANVIL).add(Blocks.ANVIL, Blocks.CHIPPED_ANVIL, Blocks.DAMAGED_ANVIL);
+		builder(BlockTags.ANVIL, ItemTags.ANVIL).add(Blocks.ANVIL, Blocks.CHIPPED_ANVIL, Blocks.DAMAGED_ANVIL);
 		this
 				.builder(BlockTags.RAILS, ItemTags.RAILS)
 				.add(Blocks.RAIL, Blocks.POWERED_RAIL, Blocks.DETECTOR_RAIL, Blocks.ACTIVATOR_RAIL);
-		this.builder(BlockTags.LEAVES, ItemTags.LEAVES)
+		builder(BlockTags.LEAVES, ItemTags.LEAVES)
 		    .add(
 				    Blocks.JUNGLE_LEAVES,
 				    Blocks.OAK_LEAVES,
@@ -464,7 +464,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.MANGROVE_LEAVES,
 				    Blocks.CHERRY_LEAVES
 		    );
-		this.builder(BlockTags.WOODEN_TRAPDOORS, ItemTags.WOODEN_TRAPDOORS)
+		builder(BlockTags.WOODEN_TRAPDOORS, ItemTags.WOODEN_TRAPDOORS)
 		    .add(
 				    Blocks.ACACIA_TRAPDOOR,
 				    Blocks.BIRCH_TRAPDOOR,
@@ -479,7 +479,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_TRAPDOOR,
 				    Blocks.CHERRY_TRAPDOOR
 		    );
-		this.builder(BlockTags.TRAPDOORS, ItemTags.TRAPDOORS)
+		builder(BlockTags.TRAPDOORS, ItemTags.TRAPDOORS)
 		    .addTag(BlockTags.WOODEN_TRAPDOORS)
 		    .add(
 				    Blocks.IRON_TRAPDOOR,
@@ -492,9 +492,9 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.WAXED_WEATHERED_COPPER_TRAPDOOR,
 				    Blocks.WAXED_OXIDIZED_COPPER_TRAPDOOR
 		    );
-		this.builder(BlockTags.SMALL_FLOWERS, ItemTags.SMALL_FLOWERS).add(blocks).add(Blocks.CLOSED_EYEBLOSSOM);
-		this.builder(BlockTags.FLOWERS, ItemTags.FLOWERS).addTag(BlockTags.SMALL_FLOWERS).add(blocks2);
-		this.builder(BlockTags.BEDS, ItemTags.BEDS)
+		builder(BlockTags.SMALL_FLOWERS, ItemTags.SMALL_FLOWERS).add(blocks).add(Blocks.CLOSED_EYEBLOSSOM);
+		builder(BlockTags.FLOWERS, ItemTags.FLOWERS).addTag(BlockTags.SMALL_FLOWERS).add(blocks2);
+		builder(BlockTags.BEDS, ItemTags.BEDS)
 		    .add(
 				    Blocks.RED_BED,
 				    Blocks.BLACK_BED,
@@ -513,11 +513,11 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.WHITE_BED,
 				    Blocks.YELLOW_BED
 		    );
-		this.builder(BlockTags.FENCES, ItemTags.FENCES).addTag(BlockTags.WOODEN_FENCES).add(Blocks.NETHER_BRICK_FENCE);
+		builder(BlockTags.FENCES, ItemTags.FENCES).addTag(BlockTags.WOODEN_FENCES).add(Blocks.NETHER_BRICK_FENCE);
 		this
 				.builder(BlockTags.SOUL_FIRE_BASE_BLOCKS, ItemTags.SOUL_FIRE_BASE_BLOCKS)
 				.add(Blocks.SOUL_SAND, Blocks.SOUL_SOIL);
-		this.builder(BlockTags.CANDLES, ItemTags.CANDLES)
+		builder(BlockTags.CANDLES, ItemTags.CANDLES)
 		    .add(
 				    Blocks.CANDLE,
 				    Blocks.WHITE_CANDLE,
@@ -544,20 +544,20 @@ public abstract class VanillaBlockItemTags {
 		this
 				.builder(BlockTags.GOLD_ORES, ItemTags.GOLD_ORES)
 				.add(Blocks.GOLD_ORE, Blocks.NETHER_GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE);
-		this.builder(BlockTags.IRON_ORES, ItemTags.IRON_ORES).add(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE);
+		builder(BlockTags.IRON_ORES, ItemTags.IRON_ORES).add(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE);
 		this
 				.builder(BlockTags.DIAMOND_ORES, ItemTags.DIAMOND_ORES)
 				.add(Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE);
 		this
 				.builder(BlockTags.REDSTONE_ORES, ItemTags.REDSTONE_ORES)
 				.add(Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE);
-		this.builder(BlockTags.LAPIS_ORES, ItemTags.LAPIS_ORES).add(Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE);
-		this.builder(BlockTags.COAL_ORES, ItemTags.COAL_ORES).add(Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE);
+		builder(BlockTags.LAPIS_ORES, ItemTags.LAPIS_ORES).add(Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE);
+		builder(BlockTags.COAL_ORES, ItemTags.COAL_ORES).add(Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE);
 		this
 				.builder(BlockTags.EMERALD_ORES, ItemTags.EMERALD_ORES)
 				.add(Blocks.EMERALD_ORE, Blocks.DEEPSLATE_EMERALD_ORE);
-		this.builder(BlockTags.COPPER_ORES, ItemTags.COPPER_ORES).add(Blocks.COPPER_ORE, Blocks.DEEPSLATE_COPPER_ORE);
-		this.builder(BlockTags.DIRT, ItemTags.DIRT)
+		builder(BlockTags.COPPER_ORES, ItemTags.COPPER_ORES).add(Blocks.COPPER_ORE, Blocks.DEEPSLATE_COPPER_ORE);
+		builder(BlockTags.DIRT, ItemTags.DIRT)
 		    .add(
 				    Blocks.DIRT,
 				    Blocks.GRASS_BLOCK,
@@ -570,7 +570,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.MUD,
 				    Blocks.MUDDY_MANGROVE_ROOTS
 		    );
-		this.builder(BlockTags.TERRACOTTA, ItemTags.TERRACOTTA)
+		builder(BlockTags.TERRACOTTA, ItemTags.TERRACOTTA)
 		    .add(
 				    Blocks.TERRACOTTA,
 				    Blocks.WHITE_TERRACOTTA,
@@ -590,11 +590,11 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.RED_TERRACOTTA,
 				    Blocks.BLACK_TERRACOTTA
 		    );
-		this.builder(BlockTags.COMPLETES_FIND_TREE_TUTORIAL, ItemTags.COMPLETES_FIND_TREE_TUTORIAL)
+		builder(BlockTags.COMPLETES_FIND_TREE_TUTORIAL, ItemTags.COMPLETES_FIND_TREE_TUTORIAL)
 		    .addTag(BlockTags.LOGS)
 		    .addTag(BlockTags.LEAVES)
 		    .addTag(BlockTags.WART_BLOCKS);
-		this.builder(BlockTags.SHULKER_BOXES, ItemTags.SHULKER_BOXES)
+		builder(BlockTags.SHULKER_BOXES, ItemTags.SHULKER_BOXES)
 		    .add(
 				    Blocks.SHULKER_BOX,
 				    Blocks.BLACK_SHULKER_BOX,
@@ -614,7 +614,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.WHITE_SHULKER_BOX,
 				    Blocks.YELLOW_SHULKER_BOX
 		    );
-		this.builder(BlockTags.COPPER_CHESTS, ItemTags.COPPER_CHESTS)
+		builder(BlockTags.COPPER_CHESTS, ItemTags.COPPER_CHESTS)
 		    .add(Blocks.COPPER_CHEST)
 		    .add(Blocks.EXPOSED_COPPER_CHEST)
 		    .add(Blocks.WEATHERED_COPPER_CHEST)
@@ -623,7 +623,7 @@ public abstract class VanillaBlockItemTags {
 		    .add(Blocks.WAXED_EXPOSED_COPPER_CHEST)
 		    .add(Blocks.WAXED_WEATHERED_COPPER_CHEST)
 		    .add(Blocks.WAXED_OXIDIZED_COPPER_CHEST);
-		this.builder(BlockTags.LIGHTNING_RODS, ItemTags.LIGHTNING_RODS)
+		builder(BlockTags.LIGHTNING_RODS, ItemTags.LIGHTNING_RODS)
 		    .add(Blocks.LIGHTNING_ROD)
 		    .add(Blocks.EXPOSED_LIGHTNING_ROD)
 		    .add(Blocks.WEATHERED_LIGHTNING_ROD)
@@ -632,7 +632,7 @@ public abstract class VanillaBlockItemTags {
 		    .add(Blocks.WAXED_EXPOSED_LIGHTNING_ROD)
 		    .add(Blocks.WAXED_WEATHERED_LIGHTNING_ROD)
 		    .add(Blocks.WAXED_OXIDIZED_LIGHTNING_ROD);
-		this.builder(BlockTags.COPPER_GOLEM_STATUES, ItemTags.COPPER_GOLEM_STATUES)
+		builder(BlockTags.COPPER_GOLEM_STATUES, ItemTags.COPPER_GOLEM_STATUES)
 		    .add(Blocks.COPPER_GOLEM_STATUE)
 		    .add(Blocks.EXPOSED_COPPER_GOLEM_STATUE)
 		    .add(Blocks.WEATHERED_COPPER_GOLEM_STATUE)
@@ -641,7 +641,7 @@ public abstract class VanillaBlockItemTags {
 		    .add(Blocks.WAXED_EXPOSED_COPPER_GOLEM_STATUE)
 		    .add(Blocks.WAXED_WEATHERED_COPPER_GOLEM_STATUE)
 		    .add(Blocks.WAXED_OXIDIZED_COPPER_GOLEM_STATUE);
-		this.builder(BlockTags.COPPER, ItemTags.COPPER)
+		builder(BlockTags.COPPER, ItemTags.COPPER)
 		    .add(Blocks.COPPER_BLOCK)
 		    .add(Blocks.EXPOSED_COPPER)
 		    .add(Blocks.WEATHERED_COPPER)
@@ -650,8 +650,8 @@ public abstract class VanillaBlockItemTags {
 		    .add(Blocks.WAXED_EXPOSED_COPPER)
 		    .add(Blocks.WAXED_WEATHERED_COPPER)
 		    .add(Blocks.WAXED_OXIDIZED_COPPER);
-		this.builder(BlockTags.CHAINS, ItemTags.CHAINS).add(Blocks.IRON_CHAIN).add(Blocks.COPPER_CHAINS.getAll());
-		this.builder(BlockTags.WOODEN_SHELVES, ItemTags.WOODEN_SHELVES)
+		builder(BlockTags.CHAINS, ItemTags.CHAINS).add(Blocks.IRON_CHAIN).add(Blocks.COPPER_CHAINS.getAll());
+		builder(BlockTags.WOODEN_SHELVES, ItemTags.WOODEN_SHELVES)
 		    .add(
 				    Blocks.ACACIA_SHELF,
 				    Blocks.BAMBOO_SHELF,
@@ -670,8 +670,8 @@ public abstract class VanillaBlockItemTags {
 				.builder(BlockTags.LANTERNS, ItemTags.LANTERNS)
 				.add(Blocks.LANTERN, Blocks.SOUL_LANTERN)
 				.add(Blocks.COPPER_LANTERNS.getAll());
-		this.builder(BlockTags.BARS, ItemTags.BARS).add(Blocks.IRON_BARS).add(Blocks.COPPER_BARS.getAll());
-		this.builder(BlockTags.STANDING_SIGNS, ItemTags.SIGNS)
+		builder(BlockTags.BARS, ItemTags.BARS).add(Blocks.IRON_BARS).add(Blocks.COPPER_BARS.getAll());
+		builder(BlockTags.STANDING_SIGNS, ItemTags.SIGNS)
 		    .add(
 				    Blocks.OAK_SIGN,
 				    Blocks.SPRUCE_SIGN,
@@ -686,7 +686,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.BAMBOO_SIGN,
 				    Blocks.CHERRY_SIGN
 		    );
-		this.builder(BlockTags.CEILING_HANGING_SIGNS, ItemTags.HANGING_SIGNS)
+		builder(BlockTags.CEILING_HANGING_SIGNS, ItemTags.HANGING_SIGNS)
 		    .add(
 				    Blocks.OAK_HANGING_SIGN,
 				    Blocks.SPRUCE_HANGING_SIGN,
@@ -701,7 +701,7 @@ public abstract class VanillaBlockItemTags {
 				    Blocks.MANGROVE_HANGING_SIGN,
 				    Blocks.BAMBOO_HANGING_SIGN
 		    );
-		this.builder(BlockTags.BEE_ATTRACTIVE, ItemTags.BEE_FOOD).add(blocks).add(blocks2);
+		builder(BlockTags.BEE_ATTRACTIVE, ItemTags.BEE_FOOD).add(blocks).add(blocks2);
 	}
 
 	protected abstract ProvidedTagBuilder<Block, Block> builder(TagKey<Block> blockTag, TagKey<Item> itemTag);

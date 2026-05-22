@@ -97,8 +97,8 @@ public class UploadCompressor {
 	}
 
 	private void validateSize(long size) {
-		if (size > 5368709120L) {
-			throw new TooBigRealmsUploadException(5368709120L);
+		if (size > MAX_SIZE) {
+			throw new TooBigRealmsUploadException(MAX_SIZE);
 		}
 	}
 }

@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * {@code RenameEnchantmentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameEnchantmentFix extends DataFix {
 
@@ -28,9 +28,9 @@ public class RenameEnchantmentFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<?> opticFinder = type.findField("tag");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
 				type,
 				itemStackTyped -> itemStackTyped.updateTyped(

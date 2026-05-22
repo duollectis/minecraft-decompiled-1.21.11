@@ -14,8 +14,9 @@ import java.util.function.IntFunction;
 import java.util.function.Predicate;
 
 /**
- * {@code AttributeModifierSlot}.
- */
+	 * Слот экипировки для применения модификаторов атрибутов. Каждое значение описывает
+	 * один или несколько слотов {@link EquipmentSlot}, к которым применяется модификатор.
+	 */
 public enum AttributeModifierSlot implements StringIdentifiable, Iterable<EquipmentSlot> {
 	ANY(0, "any", slot -> true),
 	MAINHAND(1, "mainhand", EquipmentSlot.MAINHAND),
@@ -55,12 +56,12 @@ public enum AttributeModifierSlot implements StringIdentifiable, Iterable<Equipm
 	}
 
 	/**
-	 * For equipment slot.
-	 *
-	 * @param slot slot
-	 *
-	 * @return AttributeModifierSlot — результат операции
-	 */
+		 * Возвращает точный {@code AttributeModifierSlot}, соответствующий конкретному слоту экипировки.
+		 * В отличие от {@link #ANY} или {@link #HAND}, возвращает строго однослотовое значение.
+		 *
+		 * @param slot конкретный слот экипировки
+		 * @return соответствующий {@code AttributeModifierSlot}
+		 */
 	public static AttributeModifierSlot forEquipmentSlot(EquipmentSlot slot) {
 		return switch (slot) {
 			case MAINHAND -> MAINHAND;
@@ -80,12 +81,11 @@ public enum AttributeModifierSlot implements StringIdentifiable, Iterable<Equipm
 	}
 
 	/**
-	 * Matches.
-	 *
-	 * @param slot slot
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, входит ли переданный слот в область применения данного {@code AttributeModifierSlot}.
+		 *
+		 * @param slot слот для проверки
+		 * @return {@code true} если модификатор применяется к этому слоту
+		 */
 	public boolean matches(EquipmentSlot slot) {
 		return this.slotPredicate.test(slot);
 	}

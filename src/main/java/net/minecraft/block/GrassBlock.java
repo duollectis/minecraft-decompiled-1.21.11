@@ -17,7 +17,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code GrassBlock}.
+ * Блок травы. При использовании костяной муки случайным образом размещает траву и цветы
+ * в радиусе 128 итераций вокруг блока, имитируя органический рост растительности.
  */
 public class GrassBlock extends SpreadableBlock implements Fertilizable {
 
@@ -44,63 +45,65 @@ public class GrassBlock extends SpreadableBlock implements Fertilizable {
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		BlockPos blockPos = pos.up();
-		BlockState blockState = Blocks.SHORT_GRASS.getDefaultState();
-		Optional<RegistryEntry.Reference<PlacedFeature>> optional = world.getRegistryManager()
-		                                                                 .getOrThrow(RegistryKeys.PLACED_FEATURE)
-		                                                                 .getOptional(VegetationPlacedFeatures.GRASS_BONEMEAL);
+		BlockPos above = pos.up();
+		BlockState shortGrass = Blocks.SHORT_GRASS.getDefaultState();
+		Optional<RegistryEntry.Reference<PlacedFeature>> grassFeature = world.getRegistryManager()
+				.getOrThrow(RegistryKeys.PLACED_FEATURE)
+				.getOptional(VegetationPlacedFeatures.GRASS_BONEMEAL);
 
-		label51:
-		for (int i = 0; i < 128; i++) {
-			BlockPos blockPos2 = blockPos;
+		for (int attempt = 0; attempt < 128; attempt++) {
+			BlockPos candidate = above;
+			boolean blocked = false;
 
-			for (int j = 0; j < i / 16; j++) {
-				blockPos2 =
-						blockPos2.add(
-								random.nextInt(3) - 1,
-								(random.nextInt(3) - 1) * random.nextInt(3) / 2,
-								random.nextInt(3) - 1
-						);
-				if (!world.getBlockState(blockPos2.down()).isOf(this) || world
-						.getBlockState(blockPos2)
-						.isFullCube(world, blockPos2)) {
-					continue label51;
+			for (int step = 0; step < attempt / 16; step++) {
+				candidate = candidate.add(
+						random.nextInt(3) - 1,
+						(random.nextInt(3) - 1) * random.nextInt(3) / 2,
+						random.nextInt(3) - 1
+				);
+				if (world.getBlockState(candidate.down()).isOf(this) == false
+						|| world.getBlockState(candidate).isFullCube(world, candidate)) {
+					blocked = true;
+					break;
 				}
 			}
 
-			BlockState blockState2 = world.getBlockState(blockPos2);
-			if (blockState2.isOf(blockState.getBlock()) && random.nextInt(10) == 0) {
-				Fertilizable fertilizable = (Fertilizable) blockState.getBlock();
-				if (fertilizable.isFertilizable(world, blockPos2, blockState2)) {
-					fertilizable.grow(world, random, blockPos2, blockState2);
+			if (blocked) {
+				continue;
+			}
+
+			BlockState candidateState = world.getBlockState(candidate);
+			if (candidateState.isOf(shortGrass.getBlock()) && random.nextInt(10) == 0) {
+				Fertilizable fertilizable = (Fertilizable) shortGrass.getBlock();
+				if (fertilizable.isFertilizable(world, candidate, candidateState)) {
+					fertilizable.grow(world, random, candidate, candidateState);
 				}
 			}
 
-			if (blockState2.isAir()) {
-				RegistryEntry<PlacedFeature> registryEntry;
-				if (random.nextInt(8) == 0) {
-					List<ConfiguredFeature<?, ?>>
-							list =
-							world.getBiome(blockPos2).value().getGenerationSettings().getFlowerFeatures();
-					if (list.isEmpty()) {
-						continue;
-					}
+			if (candidateState.isAir() == false) {
+				continue;
+			}
 
-					int k = random.nextInt(list.size());
-					registryEntry = ((RandomPatchFeatureConfig) list.get(k).config()).feature();
-				}
-				else {
-					if (!optional.isPresent()) {
-						continue;
-					}
-
-					registryEntry = optional.get();
-				}
-
-				registryEntry
+			RegistryEntry<PlacedFeature> featureToPlace;
+			if (random.nextInt(8) == 0) {
+				List<ConfiguredFeature<?, ?>> flowers = world.getBiome(candidate)
 						.value()
-						.generateUnregistered(world, world.getChunkManager().getChunkGenerator(), random, blockPos2);
+						.getGenerationSettings()
+						.getFlowerFeatures();
+				if (flowers.isEmpty()) {
+					continue;
+				}
+
+				featureToPlace = ((RandomPatchFeatureConfig) flowers.get(random.nextInt(flowers.size())).config()).feature();
+			} else {
+				if (grassFeature.isEmpty()) {
+					continue;
+				}
+
+				featureToPlace = grassFeature.get();
 			}
+
+			featureToPlace.value().generateUnregistered(world, world.getChunkManager().getChunkGenerator(), random, candidate);
 		}
 	}
 

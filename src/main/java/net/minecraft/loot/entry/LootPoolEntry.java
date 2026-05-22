@@ -14,9 +14,7 @@ import net.minecraft.util.Util;
 import java.util.List;
 import java.util.function.Predicate;
 
-/**
- * {@code LootPoolEntry}.
- */
+/** Базовый класс для всех записей пула лута с поддержкой условий и комбинирования. */
 public abstract class LootPoolEntry implements EntryCombiner {
 
 	protected final List<LootCondition> conditions;
@@ -27,75 +25,45 @@ public abstract class LootPoolEntry implements EntryCombiner {
 		this.conditionPredicate = Util.allOf(conditions);
 	}
 
-	/**
-	 * Добавляет conditions field.
-	 *
-	 * @param instance instance
-	 *
-	 * @return P1, List> — результат операции
-	 */
 	protected static <T extends LootPoolEntry> P1<Mu<T>, List<LootCondition>> addConditionsField(Instance<T> instance) {
 		return instance.group(LootCondition.CODEC
-				.listOf()
-				.optionalFieldOf("conditions", List.of())
-				.forGetter(entry -> entry.conditions));
+			.listOf()
+			.optionalFieldOf("conditions", List.of())
+			.forGetter(entry -> entry.conditions));
 	}
 
-	/**
-	 * Validate.
-	 *
-	 * @param reporter reporter
-	 */
 	public void validate(LootTableReporter reporter) {
-		for (int i = 0; i < this.conditions.size(); i++) {
-			this.conditions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", i)));
+		for (int index = 0; index < conditions.size(); index++) {
+			conditions.get(index).validate(
+				reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", index))
+			);
 		}
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param context context
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected final boolean test(LootContext context) {
-		return this.conditionPredicate.test(context);
+		return conditionPredicate.test(context);
 	}
 
 	public abstract LootPoolEntryType getType();
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Базовый строитель записи пула лута с поддержкой условий и комбинирования. */
 	public abstract static class Builder<T extends LootPoolEntry.Builder<T>> implements LootConditionConsumingBuilder<T> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootCondition>
-				conditions =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<LootCondition> conditions = ImmutableList.builder();
 
 		protected abstract T getThisBuilder();
 
-		/**
-		 * Conditionally.
-		 *
-		 * @param builder builder
-		 *
-		 * @return T — результат операции
-		 */
 		public T conditionally(LootCondition.Builder builder) {
-			this.conditions.add(builder.build());
-			return this.getThisBuilder();
+			conditions.add(builder.build());
+			return getThisBuilder();
 		}
 
 		public final T getThisConditionConsumingBuilder() {
-			return this.getThisBuilder();
+			return getThisBuilder();
 		}
 
 		protected List<LootCondition> getConditions() {
-			return this.conditions.build();
+			return conditions.build();
 		}
 
 		public AlternativeEntry.Builder alternatively(LootPoolEntry.Builder<?> builder) {
@@ -110,11 +78,6 @@ public abstract class LootPoolEntry implements EntryCombiner {
 			return new SequenceEntry.Builder(this, entry);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return LootPoolEntry — результат операции
-		 */
 		public abstract LootPoolEntry build();
 	}
 }

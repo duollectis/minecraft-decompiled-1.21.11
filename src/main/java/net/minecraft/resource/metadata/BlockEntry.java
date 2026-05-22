@@ -10,17 +10,21 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
- * {@code BlockEntry}.
+ * Запись фильтра ресурсов, блокирующая идентификаторы по регулярным выражениям
+ * для пространства имён и/или пути.
+ *
+ * <p>Оба поля опциональны: отсутствующее поле означает «совпадает с любым значением».
+ * Итоговый предикат {@link #getIdentifierPredicate()} проверяет оба компонента одновременно.</p>
  */
 public class BlockEntry {
 
 	public static final Codec<BlockEntry> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.REGULAR_EXPRESSION.optionalFieldOf("namespace").forGetter(entry -> entry.namespace),
-					                    Codecs.REGULAR_EXPRESSION.optionalFieldOf("path").forGetter(entry -> entry.path)
-			                    )
-			                    .apply(instance, BlockEntry::new)
+					Codecs.REGULAR_EXPRESSION.optionalFieldOf("namespace").forGetter(entry -> entry.namespace),
+					Codecs.REGULAR_EXPRESSION.optionalFieldOf("path").forGetter(entry -> entry.path)
+			).apply(instance, BlockEntry::new)
 	);
+
 	private final Optional<Pattern> namespace;
 	private final Predicate<String> namespacePredicate;
 	private final Optional<Pattern> path;
@@ -29,22 +33,21 @@ public class BlockEntry {
 
 	private BlockEntry(Optional<Pattern> namespace, Optional<Pattern> path) {
 		this.namespace = namespace;
-		this.namespacePredicate = namespace.map(Pattern::asPredicate).orElse(namespace_ -> true);
+		this.namespacePredicate = namespace.map(Pattern::asPredicate).orElse(ns -> true);
 		this.path = path;
-		this.pathPredicate = path.map(Pattern::asPredicate).orElse(path_ -> true);
-		this.identifierPredicate =
-				id -> this.namespacePredicate.test(id.getNamespace()) && this.pathPredicate.test(id.getPath());
+		this.pathPredicate = path.map(Pattern::asPredicate).orElse(p -> true);
+		this.identifierPredicate = id -> namespacePredicate.test(id.getNamespace()) && pathPredicate.test(id.getPath());
 	}
 
 	public Predicate<String> getNamespacePredicate() {
-		return this.namespacePredicate;
+		return namespacePredicate;
 	}
 
 	public Predicate<String> getPathPredicate() {
-		return this.pathPredicate;
+		return pathPredicate;
 	}
 
 	public Predicate<Identifier> getIdentifierPredicate() {
-		return this.identifierPredicate;
+		return identifierPredicate;
 	}
 }

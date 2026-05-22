@@ -15,7 +15,9 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 
 /**
- * {@code DropperBlock}.
+ * Блок дроппера. В отличие от диспенсера, всегда использует стандартное поведение
+ * выброса предмета, но при наличии инвентаря по направлению — перекладывает предмет
+ * в него через механику хоппера.
  */
 public class DropperBlock extends DispenserBlock {
 
@@ -44,45 +46,44 @@ public class DropperBlock extends DispenserBlock {
 
 	@Override
 	protected void dispense(ServerWorld world, BlockState state, BlockPos pos) {
-		DispenserBlockEntity dispenserBlockEntity = world.getBlockEntity(pos, BlockEntityType.DROPPER).orElse(null);
-		if (dispenserBlockEntity == null) {
-			LOGGER.warn("Ignoring dispensing attempt for Dropper without matching block entity at {}", pos);
-		}
-		else {
-			BlockPointer blockPointer = new BlockPointer(world, pos, state, dispenserBlockEntity);
-			int i = dispenserBlockEntity.chooseNonEmptySlot(world.random);
-			if (i < 0) {
-				world.syncWorldEvent(1001, pos, 0);
-			}
-			else {
-				ItemStack itemStack = dispenserBlockEntity.getStack(i);
-				if (!itemStack.isEmpty()) {
-					Direction direction = world.getBlockState(pos).get(FACING);
-					Inventory inventory = HopperBlockEntity.getInventoryAt(world, pos.offset(direction));
-					ItemStack itemStack2;
-					if (inventory == null) {
-						itemStack2 = BEHAVIOR.dispense(blockPointer, itemStack);
-					}
-					else {
-						itemStack2 =
-								HopperBlockEntity.transfer(
-										dispenserBlockEntity,
-										inventory,
-										itemStack.copyWithCount(1),
-										direction.getOpposite()
-								);
-						if (itemStack2.isEmpty()) {
-							itemStack2 = itemStack.copy();
-							itemStack2.decrement(1);
-						}
-						else {
-							itemStack2 = itemStack.copy();
-						}
-					}
+		DispenserBlockEntity dropper = world.getBlockEntity(pos, BlockEntityType.DROPPER).orElse(null);
 
-					dispenserBlockEntity.setStack(i, itemStack2);
-				}
+		if (dropper == null) {
+			LOGGER.warn("Ignoring dispensing attempt for Dropper without matching block entity at {}", pos);
+			return;
+		}
+
+		BlockPointer pointer = new BlockPointer(world, pos, state, dropper);
+		int slot = dropper.chooseNonEmptySlot(world.random);
+
+		if (slot < 0) {
+			world.syncWorldEvent(1001, pos, 0);
+			return;
+		}
+
+		ItemStack stack = dropper.getStack(slot);
+
+		if (stack.isEmpty()) {
+			return;
+		}
+
+		Direction facing = world.getBlockState(pos).get(FACING);
+		Inventory targetInventory = HopperBlockEntity.getInventoryAt(world, pos.offset(facing));
+		ItemStack result;
+
+		if (targetInventory == null) {
+			result = BEHAVIOR.dispense(pointer, stack);
+		} else {
+			result = HopperBlockEntity.transfer(dropper, targetInventory, stack.copyWithCount(1), facing.getOpposite());
+
+			if (result.isEmpty()) {
+				result = stack.copy();
+				result.decrement(1);
+			} else {
+				result = stack.copy();
 			}
 		}
+
+		dropper.setStack(slot, result);
 	}
 }

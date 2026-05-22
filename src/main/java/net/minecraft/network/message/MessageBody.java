@@ -15,9 +15,12 @@ import java.time.Instant;
 import java.util.Optional;
 
 /**
- * Запись message body.
+ * Тело подписанного чат-сообщения: текст, временная метка, соль и список последних просмотренных.
+ * Все поля включаются в криптографическую подпись для защиты от подмены.
  */
 public record MessageBody(String content, Instant timestamp, long salt, LastSeenMessageList lastSeenMessages) {
+
+	private static final int MAX_CONTENT_LENGTH = 256;
 
 	public static final MapCodec<MessageBody> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
@@ -31,72 +34,58 @@ public record MessageBody(String content, Instant timestamp, long salt, LastSeen
 			                    .apply(instance, MessageBody::new)
 	);
 
-	/**
-	 * Of unsigned.
-	 *
-	 * @param content content
-	 *
-	 * @return MessageBody — результат операции
-	 */
 	public static MessageBody ofUnsigned(String content) {
 		return new MessageBody(content, Instant.now(), 0L, LastSeenMessageList.EMPTY);
 	}
 
 	/**
-	 * Update.
+	 * Добавляет все поля тела сообщения в обновляемый объект подписи.
+	 * Порядок: соль → временная метка → длина контента → контент → последние просмотренные.
 	 *
-	 * @param updater updater
+	 * @param updater объект для накопления данных подписи
+	 * @throws SignatureException при ошибке криптографической операции
 	 */
 	public void update(SignatureUpdatable.SignatureUpdater updater) throws SignatureException {
-		updater.update(Longs.toByteArray(this.salt));
-		updater.update(Longs.toByteArray(this.timestamp.getEpochSecond()));
-		byte[] bs = this.content.getBytes(StandardCharsets.UTF_8);
-		updater.update(Ints.toByteArray(bs.length));
-		updater.update(bs);
-		this.lastSeenMessages.updateSignatures(updater);
+		updater.update(Longs.toByteArray(salt));
+		updater.update(Longs.toByteArray(timestamp.getEpochSecond()));
+		byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+		updater.update(Ints.toByteArray(contentBytes.length));
+		updater.update(contentBytes);
+		lastSeenMessages.updateSignatures(updater);
 	}
 
 	public MessageBody.Serialized toSerialized(MessageSignatureStorage storage) {
-		return new MessageBody.Serialized(this.content, this.timestamp, this.salt, this.lastSeenMessages.pack(storage));
+		return new MessageBody.Serialized(content, timestamp, salt, lastSeenMessages.pack(storage));
 	}
 
 	/**
-	 * Запись serialized.
+	 * Сериализованное тело сообщения для передачи по сети.
+	 * Список последних просмотренных хранится в компактном индексированном виде.
 	 */
 	public record Serialized(String content, Instant timestamp, long salt, LastSeenMessageList.Indexed lastSeen) {
 
 		public Serialized(PacketByteBuf buf) {
-			this(buf.readString(256), buf.readInstant(), buf.readLong(), new LastSeenMessageList.Indexed(buf));
+			this(buf.readString(MAX_CONTENT_LENGTH), buf.readInstant(), buf.readLong(), new LastSeenMessageList.Indexed(buf));
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
-			buf.writeString(this.content, 256);
-			buf.writeInstant(this.timestamp);
-			buf.writeLong(this.salt);
-			this.lastSeen.write(buf);
+			buf.writeString(content, MAX_CONTENT_LENGTH);
+			buf.writeInstant(timestamp);
+			buf.writeLong(salt);
+			lastSeen.write(buf);
 		}
 
 		/**
-		 * To body.
+		 * Разворачивает сериализованное тело в полный {@link MessageBody}, восстанавливая
+		 * подписи из хранилища.
 		 *
-		 * @param storage storage
-		 *
-		 * @return Optional — результат операции
+		 * @param storage хранилище известных подписей
+		 * @return полное тело сообщения, или {@link Optional#empty()} если подписи не найдены
 		 */
 		public Optional<MessageBody> toBody(MessageSignatureStorage storage) {
-			return this.lastSeen
+			return lastSeen
 					.unpack(storage)
-					.map(lastSeenMessages -> new MessageBody(
-							this.content,
-							this.timestamp,
-							this.salt,
-							lastSeenMessages
-					));
+					.map(lastSeenMessages -> new MessageBody(content, timestamp, salt, lastSeenMessages));
 		}
 	}
 }

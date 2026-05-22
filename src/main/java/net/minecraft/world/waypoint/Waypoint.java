@@ -19,55 +19,71 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.Optional;
 
 /**
- * {@code Waypoint}.
+ * Базовый интерфейс для всех вейпоинтов — маркеров позиции, отображаемых игрокам.
+ * <p>
+ * Вейпоинт может быть привязан к позиции, чанку или азимуту.
+ * Конфигурация визуального представления хранится в {@link Config}.
  */
 public interface Waypoint {
 
+	/** Дальность отслеживания игрока по умолчанию (в блоках). */
 	int DEFAULT_PLAYER_RANGE = 60000000;
 
+	/**
+	 * Модификатор атрибута, полностью отключающий передачу вейпоинта другим игрокам.
+	 * Применяется через {@link #disableTracking(Item.Settings)}.
+	 */
 	EntityAttributeModifier DISABLE_TRACKING = new EntityAttributeModifier(
-			Identifier.ofVanilla("waypoint_transmit_range_hide"),
-			-1.0,
-			EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+		Identifier.ofVanilla("waypoint_transmit_range_hide"),
+		-1.0,
+		EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
 	);
 
+	/**
+	 * Добавляет к настройкам предмета модификатор, скрывающий вейпоинт владельца.
+	 * Используется для предметов, надеваемых на голову (например, тыква).
+	 */
 	static Item.Settings disableTracking(Item.Settings settings) {
 		return settings.component(
-				DataComponentTypes.ATTRIBUTE_MODIFIERS,
-				AttributeModifiersComponent.builder()
-				                           .add(
-						                           EntityAttributes.WAYPOINT_TRANSMIT_RANGE,
-						                           DISABLE_TRACKING,
-						                           AttributeModifierSlot.HEAD,
-						                           AttributeModifiersComponent.Display.getHidden()
-				                           )
-				                           .build()
+			DataComponentTypes.ATTRIBUTE_MODIFIERS,
+			AttributeModifiersComponent.builder()
+				.add(
+					EntityAttributes.WAYPOINT_TRANSMIT_RANGE,
+					DISABLE_TRACKING,
+					AttributeModifierSlot.HEAD,
+					AttributeModifiersComponent.Display.getHidden()
+				)
+				.build()
 		);
 	}
 
 	/**
-	 * {@code Config}.
+	 * Изменяемая конфигурация визуального представления вейпоинта.
+	 * <p>
+	 * Содержит стиль отображения и опциональный цвет. Может быть сериализована
+	 * как через {@link Codec} (NBT/JSON), так и через {@link PacketCodec} (сеть).
 	 */
-	public static class Config {
+	class Config {
 
-		public static final Codec<Waypoint.Config> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    RegistryKey
-								                    .createCodec(WaypointStyles.REGISTRY)
-								                    .fieldOf("style")
-								                    .forGetter(config -> config.style),
-						                    Codecs.RGB.optionalFieldOf("color").forGetter(config -> config.color)
-				                    )
-				                    .apply(instance, Waypoint.Config::new)
+		public static final Codec<Config> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+				RegistryKey.createCodec(WaypointStyles.REGISTRY)
+					.fieldOf("style")
+					.forGetter(config -> config.style),
+				Codecs.RGB.optionalFieldOf("color").forGetter(config -> config.color)
+			).apply(instance, Config::new)
 		);
-		public static final PacketCodec<ByteBuf, Waypoint.Config> PACKET_CODEC = PacketCodec.tuple(
-				RegistryKey.createPacketCodec(WaypointStyles.REGISTRY),
-				config -> config.style,
-				PacketCodecs.optional(PacketCodecs.RGB),
-				config -> config.color,
-				Waypoint.Config::new
+
+		public static final PacketCodec<ByteBuf, Config> PACKET_CODEC = PacketCodec.tuple(
+			RegistryKey.createPacketCodec(WaypointStyles.REGISTRY),
+			config -> config.style,
+			PacketCodecs.optional(PacketCodecs.RGB),
+			config -> config.color,
+			Config::new
 		);
-		public static final Waypoint.Config DEFAULT = new Waypoint.Config();
+
+		public static final Config DEFAULT = new Config();
+
 		public RegistryKey<WaypointStyle> style = WaypointStyles.DEFAULT;
 		public Optional<Integer> color = Optional.empty();
 
@@ -80,31 +96,36 @@ public interface Waypoint {
 		}
 
 		public boolean hasCustomStyle() {
-			return this.style != WaypointStyles.DEFAULT || this.color.isPresent();
-		}
-
-		public Waypoint.Config withTeamColorOf(LivingEntity entity) {
-			RegistryKey<WaypointStyle> registryKey = this.getStyle();
-			Optional<Integer> optional = this.color
-					.or(() -> Optional
-							.ofNullable(entity.getScoreboardTeam())
-							.map(team -> team.getColor().getColorValue())
-							.map(color -> color == 0 ? -13619152 : color));
-			return registryKey == this.style && optional.isEmpty() ? this : new Waypoint.Config(registryKey, optional);
+			return style != WaypointStyles.DEFAULT || color.isPresent();
 		}
 
 		/**
-		 * Создаёт копию from.
-		 *
-		 * @param config config
+		 * Возвращает новый {@link Config} с цветом команды сущности, если цвет ещё не задан явно.
+		 * <p>
+		 * Если у команды нет цвета (значение {@code 0} — белый), подставляется
+		 * нейтральный серый {@code -13619152}, чтобы избежать слияния с фоном.
 		 */
-		public void copyFrom(Waypoint.Config config) {
-			this.color = config.color;
-			this.style = config.style;
+		public Config withTeamColorOf(LivingEntity entity) {
+			RegistryKey<WaypointStyle> resolvedStyle = style;
+			Optional<Integer> resolvedColor = color
+				.or(() -> Optional
+					.ofNullable(entity.getScoreboardTeam())
+					.map(team -> team.getColor().getColorValue())
+					.map(teamColor -> teamColor == 0 ? -13619152 : teamColor)
+				);
+
+			return resolvedStyle == style && resolvedColor.isEmpty()
+				? this
+				: new Config(resolvedStyle, resolvedColor);
+		}
+
+		public void copyFrom(Config other) {
+			color = other.color;
+			style = other.style;
 		}
 
 		private RegistryKey<WaypointStyle> getStyle() {
-			return this.style != WaypointStyles.DEFAULT ? this.style : WaypointStyles.DEFAULT;
+			return style;
 		}
 	}
 }

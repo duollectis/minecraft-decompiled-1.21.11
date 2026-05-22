@@ -13,37 +13,33 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * {@code FluidPredicate}.
+ * Предикат для проверки жидкости в позиции мира.
+ * Проверяет тип жидкости и её состояние (свойства).
  */
 public record FluidPredicate(Optional<RegistryEntryList<Fluid>> fluids, Optional<StatePredicate> state) {
 
 	public static final Codec<FluidPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.FLUID)
-							                    .optionalFieldOf("fluids")
-							                    .forGetter(FluidPredicate::fluids),
-					                    StatePredicate.CODEC.optionalFieldOf("state").forGetter(FluidPredicate::state)
-			                    )
-			                    .apply(instance, FluidPredicate::new)
+					RegistryCodecs.entryList(RegistryKeys.FLUID).optionalFieldOf("fluids").forGetter(FluidPredicate::fluids),
+					StatePredicate.CODEC.optionalFieldOf("state").forGetter(FluidPredicate::state)
+			)
+			.apply(instance, FluidPredicate::new)
 	);
 
 	public boolean test(ServerWorld world, BlockPos pos) {
 		if (!world.isPosLoaded(pos)) {
 			return false;
 		}
-		else {
-			FluidState fluidState = world.getFluidState(pos);
-			return this.fluids.isPresent() && !fluidState.isIn(this.fluids.get()) ? false : !this.state.isPresent()
-			                                                                                || this.state
-			                                                                                   .get()
-			                                                                                   .test(fluidState);
+
+		FluidState fluidState = world.getFluidState(pos);
+
+		if (fluids.isPresent() && !fluidState.isIn(fluids.get())) {
+			return false;
 		}
+
+		return state.isEmpty() || state.get().test(fluidState);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private Optional<RegistryEntryList<Fluid>> tag = Optional.empty();
@@ -72,7 +68,7 @@ public record FluidPredicate(Optional<RegistryEntryList<Fluid>> fluids, Optional
 		}
 
 		public FluidPredicate build() {
-			return new FluidPredicate(this.tag, this.state);
+			return new FluidPredicate(tag, state);
 		}
 	}
 }

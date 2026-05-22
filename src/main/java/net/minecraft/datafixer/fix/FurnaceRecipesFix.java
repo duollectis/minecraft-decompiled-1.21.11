@@ -1,7 +1,11 @@
 package net.minecraft.datafixer.fix;
 
 import com.google.common.collect.Lists;
-import com.mojang.datafixers.*;
+import com.mojang.datafixers.DSL;
+import com.mojang.datafixers.DataFix;
+import com.mojang.datafixers.OpticFinder;
+import com.mojang.datafixers.TypeRewriteRule;
+import com.mojang.datafixers.Typed;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.Type;
 import com.mojang.datafixers.util.Either;
@@ -14,98 +18,99 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code FurnaceRecipesFix}.
+ * Мигрирует данные рецептов в печах, доменных печах и коптильнях:
+ * заменяет пронумерованные поля {@code RecipeLocation0..N} и {@code RecipeAmount0..N}
+ * на единый список {@code RecipesUsed} с парами (рецепт, количество).
  */
 public class FurnaceRecipesFix extends DataFix {
 
-	public FurnaceRecipesFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public FurnaceRecipesFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		return this.updateBlockEntities(this.getOutputSchema().getTypeRaw(TypeReferences.RECIPE));
+		return updateBlockEntities(getOutputSchema().getTypeRaw(TypeReferences.RECIPE));
 	}
 
 	private <R> TypeRewriteRule updateBlockEntities(Type<R> recipeType) {
-		Type<Pair<Either<Pair<List<Pair<R, Integer>>, Dynamic<?>>, Unit>, Dynamic<?>>> type = DSL.and(
-				DSL.optional(DSL.field(
-						"RecipesUsed",
-						DSL.and(DSL.compoundList(recipeType, DSL.intType()), DSL.remainderType())
-				)), DSL.remainderType()
+		Type<Pair<Either<Pair<List<Pair<R, Integer>>, Dynamic<?>>, Unit>, Dynamic<?>>> recipesUsedType = DSL.and(
+			DSL.optional(DSL.field(
+				"RecipesUsed",
+				DSL.and(DSL.compoundList(recipeType, DSL.intType()), DSL.remainderType())
+			)),
+			DSL.remainderType()
 		);
-		OpticFinder<?>
-				opticFinder =
-				DSL.namedChoice(
-						"minecraft:furnace",
-						this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:furnace")
-				);
-		OpticFinder<?> opticFinder2 = DSL.namedChoice(
-				"minecraft:blast_furnace",
-				this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:blast_furnace")
+
+		OpticFinder<?> furnaceFinder = DSL.namedChoice(
+			"minecraft:furnace",
+			getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:furnace")
 		);
-		OpticFinder<?>
-				opticFinder3 =
-				DSL.namedChoice(
-						"minecraft:smoker",
-						this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:smoker")
-				);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:furnace");
-		Type<?> type3 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:blast_furnace");
-		Type<?> type4 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:smoker");
-		Type<?> type5 = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type6 = this.getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		return this.fixTypeEverywhereTyped(
-				"FurnaceRecipesFix",
-				type5,
-				type6,
-				blockEntityTyped -> blockEntityTyped
-						.updateTyped(
-								opticFinder,
-								type2,
-								furnaceTyped -> this.updateBlockEntityData(recipeType, type, furnaceTyped)
-						)
-						.updateTyped(
-								opticFinder2,
-								type3,
-								blastFurnaceTyped -> this.updateBlockEntityData(recipeType, type, blastFurnaceTyped)
-						)
-						.updateTyped(
-								opticFinder3,
-								type4,
-								smokerTyped -> this.updateBlockEntityData(recipeType, type, smokerTyped)
-						)
+		OpticFinder<?> blastFurnaceFinder = DSL.namedChoice(
+			"minecraft:blast_furnace",
+			getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:blast_furnace")
+		);
+		OpticFinder<?> smokerFinder = DSL.namedChoice(
+			"minecraft:smoker",
+			getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:smoker")
+		);
+
+		Type<?> outputFurnaceType = getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:furnace");
+		Type<?> outputBlastFurnaceType = getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:blast_furnace");
+		Type<?> outputSmokerType = getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:smoker");
+
+		Type<?> inputBlockEntityType = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> outputBlockEntityType = getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
+
+		return fixTypeEverywhereTyped(
+			"FurnaceRecipesFix",
+			inputBlockEntityType,
+			outputBlockEntityType,
+			blockEntity -> blockEntity
+				.updateTyped(furnaceFinder, outputFurnaceType, furnace ->
+					updateBlockEntityData(recipeType, recipesUsedType, furnace)
+				)
+				.updateTyped(blastFurnaceFinder, outputBlastFurnaceType, blastFurnace ->
+					updateBlockEntityData(recipeType, recipesUsedType, blastFurnace)
+				)
+				.updateTyped(smokerFinder, outputSmokerType, smoker ->
+					updateBlockEntityData(recipeType, recipesUsedType, smoker)
+				)
 		);
 	}
 
 	private <R> Typed<?> updateBlockEntityData(
-			Type<R> recipeType,
-			Type<Pair<Either<Pair<List<Pair<R, Integer>>, Dynamic<?>>, Unit>, Dynamic<?>>> recipesUsedType,
-			Typed<?> smelterTyped
+		Type<R> recipeType,
+		Type<Pair<Either<Pair<List<Pair<R, Integer>>, Dynamic<?>>, Unit>, Dynamic<?>>> recipesUsedType,
+		Typed<?> smelter
 	) {
-		Dynamic<?> dynamic = (Dynamic<?>) smelterTyped.getOrCreate(DSL.remainderFinder());
-		int i = dynamic.get("RecipesUsedSize").asInt(0);
-		dynamic = dynamic.remove("RecipesUsedSize");
-		List<Pair<R, Integer>> list = Lists.newArrayList();
+		Dynamic<?> data = (Dynamic<?>) smelter.getOrCreate(DSL.remainderFinder());
+		int recipeCount = data.get("RecipesUsedSize").asInt(0);
+		data = data.remove("RecipesUsedSize");
 
-		for (int j = 0; j < i; j++) {
-			String string = "RecipeLocation" + j;
-			String string2 = "RecipeAmount" + j;
-			Optional<? extends Dynamic<?>> optional = dynamic.get(string).result();
-			int k = dynamic.get(string2).asInt(0);
-			if (k > 0) {
-				optional.ifPresent(dynamicx -> {
-					Optional<? extends Pair<R, ? extends Dynamic<?>>> optionalx = recipeType.read(dynamicx).result();
-					optionalx.ifPresent(pair -> list.add(Pair.of(pair.getFirst(), k)));
+		List<Pair<R, Integer>> recipes = Lists.newArrayList();
+
+		for (int index = 0; index < recipeCount; index++) {
+			String locationKey = "RecipeLocation" + index;
+			String amountKey = "RecipeAmount" + index;
+
+			Optional<? extends Dynamic<?>> locationDynamic = data.get(locationKey).result();
+			int amount = data.get(amountKey).asInt(0);
+
+			if (amount > 0) {
+				locationDynamic.ifPresent(location -> {
+					Optional<? extends Pair<R, ? extends Dynamic<?>>> parsed = recipeType.read(location).result();
+					parsed.ifPresent(pair -> recipes.add(Pair.of(pair.getFirst(), amount)));
 				});
 			}
 
-			dynamic = dynamic.remove(string).remove(string2);
+			data = data.remove(locationKey).remove(amountKey);
 		}
 
-		return smelterTyped.set(
-				DSL.remainderFinder(),
-				recipesUsedType,
-				Pair.of(Either.left(Pair.of(list, dynamic.emptyMap())), dynamic)
+		return smelter.set(
+			DSL.remainderFinder(),
+			recipesUsedType,
+			Pair.of(Either.left(Pair.of(recipes, data.emptyMap())), data)
 		);
 	}
 }

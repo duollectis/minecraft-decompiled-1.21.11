@@ -11,9 +11,20 @@ import net.minecraft.item.Items;
 import java.util.EnumSet;
 
 /**
- * {@code BowAttackGoal}.
+ * Цель атаки луком: управляет стрейфом, прицеливанием и выстрелом.
+ * Моб стрейфится влево/вправо и назад/вперёд в зависимости от дистанции до цели.
  */
 public class BowAttackGoal<T extends HostileEntity & RangedAttackMob> extends Goal {
+
+	private static final int STRAFE_RESET_TICKS = 20;
+	private static final int MIN_SEEING_TICKS_TO_STOP = 20;
+	private static final int MAX_UNSEEN_TICKS = -60;
+	private static final int MIN_DRAW_TICKS = 20;
+	private static final float STRAFE_CHANGE_CHANCE = 0.3F;
+	private static final float FAR_RANGE_FACTOR = 0.75F;
+	private static final float CLOSE_RANGE_FACTOR = 0.25F;
+	private static final float STRAFE_SPEED = 0.5F;
+	private static final float LOOK_ANGLE = 30.0F;
 
 	private final T actor;
 	private final double speed;
@@ -30,7 +41,7 @@ public class BowAttackGoal<T extends HostileEntity & RangedAttackMob> extends Go
 		this.speed = speed;
 		this.attackInterval = attackInterval;
 		this.squaredRange = range * range;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 	}
 
 	public void setAttackInterval(int attackInterval) {
@@ -39,31 +50,31 @@ public class BowAttackGoal<T extends HostileEntity & RangedAttackMob> extends Go
 
 	@Override
 	public boolean canStart() {
-		return this.actor.getTarget() == null ? false : this.isHoldingBow();
+		return actor.getTarget() != null && isHoldingBow();
 	}
 
 	protected boolean isHoldingBow() {
-		return this.actor.isHolding(Items.BOW);
+		return actor.isHolding(Items.BOW);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return (this.canStart() || !this.actor.getNavigation().isIdle()) && this.isHoldingBow();
+		return (canStart() || !actor.getNavigation().isIdle()) && isHoldingBow();
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.actor.setAttacking(true);
+		actor.setAttacking(true);
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.actor.setAttacking(false);
-		this.targetSeeingTicker = 0;
-		this.cooldown = -1;
-		this.actor.clearActiveItem();
+		actor.setAttacking(false);
+		targetSeeingTicker = 0;
+		cooldown = -1;
+		actor.clearActiveItem();
 	}
 
 	@Override
@@ -73,78 +84,77 @@ public class BowAttackGoal<T extends HostileEntity & RangedAttackMob> extends Go
 
 	@Override
 	public void tick() {
-		LivingEntity livingEntity = this.actor.getTarget();
-		if (livingEntity != null) {
-			double d = this.actor.squaredDistanceTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
-			boolean bl = this.actor.getVisibilityCache().canSee(livingEntity);
-			boolean bl2 = this.targetSeeingTicker > 0;
-			if (bl != bl2) {
-				this.targetSeeingTicker = 0;
+		LivingEntity target = actor.getTarget();
+		if (target == null) {
+			return;
+		}
+
+		double distSq = actor.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		boolean canSee = actor.getVisibilityCache().canSee(target);
+		boolean wasSeeingTarget = targetSeeingTicker > 0;
+		if (canSee != wasSeeingTarget) {
+			targetSeeingTicker = 0;
+		}
+
+		targetSeeingTicker = canSee ? targetSeeingTicker + 1 : targetSeeingTicker - 1;
+
+		if (distSq <= squaredRange && targetSeeingTicker >= MIN_SEEING_TICKS_TO_STOP) {
+			actor.getNavigation().stop();
+			combatTicks++;
+		}
+		else {
+			actor.getNavigation().startMovingTo(target, speed);
+			combatTicks = -1;
+		}
+
+		if (combatTicks >= STRAFE_RESET_TICKS) {
+			if (actor.getRandom().nextFloat() < STRAFE_CHANGE_CHANCE) {
+				movingToLeft = !movingToLeft;
 			}
 
-			if (bl) {
-				this.targetSeeingTicker++;
-			}
-			else {
-				this.targetSeeingTicker--;
+			if (actor.getRandom().nextFloat() < STRAFE_CHANGE_CHANCE) {
+				backward = !backward;
 			}
 
-			if (!(d > this.squaredRange) && this.targetSeeingTicker >= 20) {
-				this.actor.getNavigation().stop();
-				this.combatTicks++;
+			combatTicks = 0;
+		}
+
+		if (combatTicks > -1) {
+			if (distSq > squaredRange * FAR_RANGE_FACTOR) {
+				backward = false;
 			}
-			else {
-				this.actor.getNavigation().startMovingTo(livingEntity, this.speed);
-				this.combatTicks = -1;
+			else if (distSq < squaredRange * CLOSE_RANGE_FACTOR) {
+				backward = true;
 			}
 
-			if (this.combatTicks >= 20) {
-				if (this.actor.getRandom().nextFloat() < 0.3) {
-					this.movingToLeft = !this.movingToLeft;
+			float forwardStrafe = backward ? -STRAFE_SPEED : STRAFE_SPEED;
+			float sideStrafe = movingToLeft ? STRAFE_SPEED : -STRAFE_SPEED;
+			actor.getMoveControl().strafeTo(forwardStrafe, sideStrafe);
+			if (actor.getControllingVehicle() instanceof MobEntity vehicle) {
+				vehicle.lookAtEntity(target, LOOK_ANGLE, LOOK_ANGLE);
+			}
+
+			actor.lookAtEntity(target, LOOK_ANGLE, LOOK_ANGLE);
+		}
+		else {
+			actor.getLookControl().lookAt(target, LOOK_ANGLE, LOOK_ANGLE);
+		}
+
+		if (actor.isUsingItem()) {
+			if (!canSee && targetSeeingTicker < MAX_UNSEEN_TICKS) {
+				actor.clearActiveItem();
+			}
+			else if (canSee) {
+				int drawTicks = actor.getItemUseTime();
+				if (drawTicks >= MIN_DRAW_TICKS) {
+					actor.clearActiveItem();
+					actor.shootAt(target, BowItem.getPullProgress(drawTicks));
+					cooldown = attackInterval;
 				}
-
-				if (this.actor.getRandom().nextFloat() < 0.3) {
-					this.backward = !this.backward;
-				}
-
-				this.combatTicks = 0;
 			}
-
-			if (this.combatTicks > -1) {
-				if (d > this.squaredRange * 0.75F) {
-					this.backward = false;
-				}
-				else if (d < this.squaredRange * 0.25F) {
-					this.backward = true;
-				}
-
-				this.actor.getMoveControl().strafeTo(this.backward ? -0.5F : 0.5F, this.movingToLeft ? 0.5F : -0.5F);
-				if (this.actor.getControllingVehicle() instanceof MobEntity mobEntity) {
-					mobEntity.lookAtEntity(livingEntity, 30.0F, 30.0F);
-				}
-
-				this.actor.lookAtEntity(livingEntity, 30.0F, 30.0F);
-			}
-			else {
-				this.actor.getLookControl().lookAt(livingEntity, 30.0F, 30.0F);
-			}
-
-			if (this.actor.isUsingItem()) {
-				if (!bl && this.targetSeeingTicker < -60) {
-					this.actor.clearActiveItem();
-				}
-				else if (bl) {
-					int i = this.actor.getItemUseTime();
-					if (i >= 20) {
-						this.actor.clearActiveItem();
-						this.actor.shootAt(livingEntity, BowItem.getPullProgress(i));
-						this.cooldown = this.attackInterval;
-					}
-				}
-			}
-			else if (--this.cooldown <= 0 && this.targetSeeingTicker >= -60) {
-				this.actor.setCurrentHand(ProjectileUtil.getHandPossiblyHolding(this.actor, Items.BOW));
-			}
+		}
+		else if (--cooldown <= 0 && targetSeeingTicker >= MAX_UNSEEN_TICKS) {
+			actor.setCurrentHand(ProjectileUtil.getHandPossiblyHolding(actor, Items.BOW));
 		}
 	}
 }

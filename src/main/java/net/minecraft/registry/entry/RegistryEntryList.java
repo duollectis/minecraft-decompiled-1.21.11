@@ -12,7 +12,13 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code RegistryEntryList}.
+ * Коллекция записей реестра. Существует в двух формах:
+ * <ul>
+ *   <li>{@link Direct} — явный список конкретных записей</li>
+ *   <li>{@link Named} — именованный тег, разрешаемый в список при загрузке данных</li>
+ * </ul>
+ *
+ * @param <T> тип хранимых значений
  */
 public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 
@@ -34,6 +40,10 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 
 	Optional<TagKey<T>> getTagKey();
 
+	/**
+	 * Создаёт {@link Named} список, который нельзя разыменовать во время конструирования.
+	 * Используется только в тестах для создания заглушек тегов.
+	 */
 	@Deprecated
 	@VisibleForTesting
 	static <T> RegistryEntryList.Named<T> of(RegistryEntryOwner<T> owner, TagKey<T> tagKey) {
@@ -41,7 +51,7 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 			@Override
 			protected List<RegistryEntry<T>> getEntries() {
 				throw new UnsupportedOperationException(
-						"Tag " + this.getTag() + " can't be dereferenced during construction");
+						"Tag " + getTag() + " can't be dereferenced during construction");
 			}
 		};
 	}
@@ -69,11 +79,14 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 	}
 
 	/**
-	 * {@code Direct}.
+	 * Явный список записей реестра без привязки к тегу.
+	 * Всегда считается привязанным ({@link #isBound()} возвращает {@code true}).
+	 *
+	 * @param <T> тип хранимых значений
 	 */
-	public static final class Direct<T> extends RegistryEntryList.ListBacked<T> {
+	final class Direct<T> extends RegistryEntryList.ListBacked<T> {
 
-		static final RegistryEntryList.Direct<?> EMPTY = new RegistryEntryList.Direct(List.of());
+		static final RegistryEntryList.Direct<?> EMPTY = new RegistryEntryList.Direct<>(List.of());
 		private final List<RegistryEntry<T>> entries;
 		private @Nullable Set<RegistryEntry<T>> entrySet;
 
@@ -83,7 +96,7 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 
 		@Override
 		protected List<RegistryEntry<T>> getEntries() {
-			return this.entries;
+			return entries;
 		}
 
 		@Override
@@ -93,7 +106,7 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 
 		@Override
 		public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
-			return Either.right(this.entries);
+			return Either.right(entries);
 		}
 
 		@Override
@@ -103,65 +116,69 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 
 		@Override
 		public boolean contains(RegistryEntry<T> entry) {
-			if (this.entrySet == null) {
-				this.entrySet = Set.copyOf(this.entries);
+			if (entrySet == null) {
+				entrySet = Set.copyOf(entries);
 			}
 
-			return this.entrySet.contains(entry);
+			return entrySet.contains(entry);
 		}
 
 		@Override
 		public String toString() {
-			return "DirectSet[" + this.entries + "]";
+			return "DirectSet[" + entries + "]";
 		}
 
 		@Override
 		public boolean equals(Object o) {
-			return this == o ? true
-			                 : o instanceof RegistryEntryList.Direct<?> direct && this.entries.equals(direct.entries);
+			return this == o
+					? true
+					: o instanceof RegistryEntryList.Direct<?> direct && entries.equals(direct.entries);
 		}
 
 		@Override
 		public int hashCode() {
-			return this.entries.hashCode();
+			return entries.hashCode();
 		}
 	}
 
 	/**
-	 * {@code ListBacked}.
+	 * Базовый класс для реализаций, хранящих записи в виде {@link List}.
+	 * Делегирует все операции итерации и доступа к {@link #getEntries()}.
+	 *
+	 * @param <T> тип хранимых значений
 	 */
-	public abstract static class ListBacked<T> implements RegistryEntryList<T> {
+	abstract class ListBacked<T> implements RegistryEntryList<T> {
 
 		protected abstract List<RegistryEntry<T>> getEntries();
 
 		@Override
 		public int size() {
-			return this.getEntries().size();
+			return getEntries().size();
 		}
 
 		@Override
 		public Spliterator<RegistryEntry<T>> spliterator() {
-			return this.getEntries().spliterator();
+			return getEntries().spliterator();
 		}
 
 		@Override
 		public Iterator<RegistryEntry<T>> iterator() {
-			return this.getEntries().iterator();
+			return getEntries().iterator();
 		}
 
 		@Override
 		public Stream<RegistryEntry<T>> stream() {
-			return this.getEntries().stream();
+			return getEntries().stream();
 		}
 
 		@Override
 		public Optional<RegistryEntry<T>> getRandom(Random random) {
-			return Util.getRandomOrEmpty(this.getEntries(), random);
+			return Util.getRandomOrEmpty(getEntries(), random);
 		}
 
 		@Override
 		public RegistryEntry<T> get(int index) {
-			return this.getEntries().get(index);
+			return getEntries().get(index);
 		}
 
 		@Override
@@ -171,9 +188,13 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 	}
 
 	/**
-	 * {@code Named}.
+	 * Именованный список записей реестра, привязанный к тегу.
+	 * Список записей устанавливается при загрузке тегов через {@link #setEntries}.
+	 * До установки список считается непривязанным ({@link #isBound()} возвращает {@code false}).
+	 *
+	 * @param <T> тип хранимых значений
 	 */
-	public static class Named<T> extends RegistryEntryList.ListBacked<T> {
+	class Named<T> extends RegistryEntryList.ListBacked<T> {
 
 		private final RegistryEntryOwner<T> owner;
 		private final TagKey<T> tag;
@@ -189,43 +210,42 @@ public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
 		}
 
 		public TagKey<T> getTag() {
-			return this.tag;
+			return tag;
 		}
 
 		@Override
 		protected List<RegistryEntry<T>> getEntries() {
-			if (this.entries == null) {
+			if (entries == null) {
 				throw new IllegalStateException(
-						"Trying to access unbound tag '" + this.tag + "' from registry " + this.owner);
+						"Trying to access unbound tag '" + tag + "' from registry " + owner);
 			}
-			else {
-				return this.entries;
-			}
+
+			return entries;
 		}
 
 		@Override
 		public boolean isBound() {
-			return this.entries != null;
+			return entries != null;
 		}
 
 		@Override
 		public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
-			return Either.left(this.tag);
+			return Either.left(tag);
 		}
 
 		@Override
 		public Optional<TagKey<T>> getTagKey() {
-			return Optional.of(this.tag);
+			return Optional.of(tag);
 		}
 
 		@Override
 		public boolean contains(RegistryEntry<T> entry) {
-			return entry.isIn(this.tag);
+			return entry.isIn(tag);
 		}
 
 		@Override
 		public String toString() {
-			return "NamedSet(" + this.tag + ")[" + this.entries + "]";
+			return "NamedSet(" + tag + ")[" + entries + "]";
 		}
 
 		@Override

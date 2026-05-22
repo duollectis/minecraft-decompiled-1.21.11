@@ -14,60 +14,64 @@ import net.minecraft.world.World;
 import java.util.Map;
 
 /**
- * {@code MapExtendingRecipe}.
+ * Рецепт расширения масштаба заполненной карты.
+ * <p>
+ * Паттерн 3×3: восемь листов бумаги вокруг заполненной карты.
+ * Карта должна иметь масштаб менее 4 и не содержать маркеров исследования.
+ * Результат помечается компонентом {@link MapPostProcessingComponent#SCALE}
+ * для последующей обработки при следующем тике.
  */
 public class MapExtendingRecipe extends ShapedRecipe {
 
 	public MapExtendingRecipe(CraftingRecipeCategory category) {
 		super(
-				"",
-				category,
-				RawShapedRecipe.create(
-						Map.of(
-								'#',
-								Ingredient.ofItem(Items.PAPER),
-								'x',
-								Ingredient.ofItem(Items.FILLED_MAP)
-						), "###", "#x#", "###"
+			"",
+			category,
+			RawShapedRecipe.create(
+				Map.of(
+					'#', Ingredient.ofItem(Items.PAPER),
+					'x', Ingredient.ofItem(Items.FILLED_MAP)
 				),
-				new ItemStack(Items.MAP)
+				"###", "#x#", "###"
+			),
+			new ItemStack(Items.MAP)
 		);
 	}
 
 	@Override
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (!super.matches(craftingRecipeInput, world)) {
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (!super.matches(input, world)) {
 			return false;
 		}
-		else {
-			ItemStack itemStack = findFilledMap(craftingRecipeInput);
-			if (itemStack.isEmpty()) {
-				return false;
-			}
-			else {
-				MapState mapState = FilledMapItem.getMapState(itemStack, world);
-				if (mapState == null) {
-					return false;
-				}
-				else {
-					return mapState.hasExplorationMapDecoration() ? false : mapState.scale < 4;
-				}
-			}
+
+		ItemStack filledMap = findFilledMap(input);
+
+		if (filledMap.isEmpty()) {
+			return false;
 		}
+
+		MapState mapState = FilledMapItem.getMapState(filledMap, world);
+
+		if (mapState == null) {
+			return false;
+		}
+
+		return !mapState.hasExplorationMapDecoration() && mapState.scale < 4;
 	}
 
 	@Override
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		ItemStack itemStack = findFilledMap(craftingRecipeInput).copyWithCount(1);
-		itemStack.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.SCALE);
-		return itemStack;
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		ItemStack result = findFilledMap(input).copyWithCount(1);
+		result.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.SCALE);
+		return result;
 	}
 
 	private static ItemStack findFilledMap(CraftingRecipeInput input) {
-		for (int i = 0; i < input.size(); i++) {
-			ItemStack itemStack = input.getStackInSlot(i);
-			if (itemStack.contains(DataComponentTypes.MAP_ID)) {
-				return itemStack;
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.contains(DataComponentTypes.MAP_ID)) {
+				return stack;
 			}
 		}
 

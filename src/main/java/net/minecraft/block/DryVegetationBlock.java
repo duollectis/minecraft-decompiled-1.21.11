@@ -10,7 +10,8 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /**
- * {@code DryVegetationBlock}.
+ * Блок сухой растительности (мёртвый куст и аналоги).
+ * Размещается только на блоках из тега {@code DRY_VEGETATION_MAY_PLACE_ON}.
  */
 public class DryVegetationBlock extends PlantBlock {
 

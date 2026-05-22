@@ -6,7 +6,10 @@ import net.minecraft.util.collection.IndexedIterable;
 import java.util.function.Predicate;
 
 /**
- * {@code IdListPalette}.
+ * Глобальная палитра — делегирует все операции глобальному реестру идентификаторов.
+ * Используется для секций с большим числом уникальных значений (≥9 бит),
+ * когда локальная палитра нецелесообразна. Всегда возвращает {@code true} из
+ * {@link #hasAny}, так как реестр содержит все возможные значения.
  */
 public class IdListPalette<T> implements Palette<T> {
 
@@ -18,8 +21,8 @@ public class IdListPalette<T> implements Palette<T> {
 
 	@Override
 	public int index(T object, PaletteResizeListener<T> listener) {
-		int i = this.idList.getRawId(object);
-		return i == -1 ? 0 : i;
+		int id = idList.getRawId(object);
+		return id == -1 ? 0 : id;
 	}
 
 	@Override
@@ -29,13 +32,12 @@ public class IdListPalette<T> implements Palette<T> {
 
 	@Override
 	public T get(int id) {
-		T object = this.idList.get(id);
+		T object = idList.get(id);
 		if (object == null) {
 			throw new EntryMissingException(id);
 		}
-		else {
-			return object;
-		}
+
+		return object;
 	}
 
 	@Override
@@ -53,7 +55,7 @@ public class IdListPalette<T> implements Palette<T> {
 
 	@Override
 	public int getSize() {
-		return this.idList.size();
+		return idList.size();
 	}
 
 	@Override

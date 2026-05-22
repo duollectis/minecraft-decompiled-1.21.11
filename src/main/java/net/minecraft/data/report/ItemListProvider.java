@@ -15,7 +15,9 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code ItemListProvider}.
+ * Генерирует JSON-отчёт со списком всех зарегистрированных предметов и их компонентами.
+ * Для каждого предмета сериализует {@link ComponentMap} через {@link ComponentMap#CODEC}
+ * и записывает результат в {@code reports/items.json}.
  */
 public class ItemListProvider implements DataProvider {
 
@@ -29,33 +31,26 @@ public class ItemListProvider implements DataProvider {
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("items.json");
-		return this.registriesFuture
-				.thenCompose(
-						registries -> {
-							JsonObject jsonObject = new JsonObject();
-							RegistryOps<JsonElement> registryOps = registries.getOps(JsonOps.INSTANCE);
-							registries.getOrThrow(RegistryKeys.ITEM)
-							          .streamEntries()
-							          .forEach(
-									          entry -> {
-										          JsonObject jsonObject2 = new JsonObject();
-										          jsonObject2.add(
-												          "components",
-												          (JsonElement) ComponentMap.CODEC
-														          .encodeStart(
-																          registryOps,
-																          entry.value().getComponents()
-														          )
-														          .getOrThrow(components -> new IllegalStateException(
-																          "Failed to encode components: " + components))
-										          );
-										          jsonObject.add(entry.getIdAsString(), jsonObject2);
-									          }
-							          );
-							return DataProvider.writeToPath(writer, jsonObject, path);
-						}
-				);
+		Path path = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("items.json");
+
+		return registriesFuture.thenCompose(registries -> {
+			JsonObject root = new JsonObject();
+			RegistryOps<JsonElement> registryOps = registries.getOps(JsonOps.INSTANCE);
+
+			registries.getOrThrow(RegistryKeys.ITEM)
+				.streamEntries()
+				.forEach(entry -> {
+					JsonElement components = ComponentMap.CODEC
+						.encodeStart(registryOps, entry.value().getComponents())
+						.getOrThrow(error -> new IllegalStateException("Failed to encode components: " + error));
+
+					JsonObject itemJson = new JsonObject();
+					itemJson.add("components", components);
+					root.add(entry.getIdAsString(), itemJson);
+				});
+
+			return DataProvider.writeToPath(writer, root, path);
+		});
 	}
 
 	@Override

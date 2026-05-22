@@ -3,7 +3,8 @@ package net.minecraft.network.listener;
 import net.minecraft.network.NetworkSide;
 
 /**
- * Интерфейс server packet listener.
+ * Базовый интерфейс для всех серверных слушателей пакетов.
+ * Фиксирует сторону соединения как {@link NetworkSide#SERVERBOUND}.
  */
 public interface ServerPacketListener extends PacketListener {
 

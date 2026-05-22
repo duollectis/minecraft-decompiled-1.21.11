@@ -18,164 +18,198 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code ItemPredicateParsing}.
+ * Фабрика Packrat-парсера для предикатов предметов.
+ *
+ * <p>Грамматика поддерживает:
+ * <ul>
+ *   <li>Конкретный предмет: {@code minecraft:stone}</li>
+ *   <li>Тег предметов: {@code #minecraft:logs}</li>
+ *   <li>Любой предмет: {@code *}</li>
+ *   <li>Проверку компонента: {@code [custom_name="foo"]}</li>
+ *   <li>Отрицание: {@code !minecraft:stone}</li>
+ *   <li>Дизъюнкцию: {@code minecraft:stone|minecraft:dirt}</li>
+ * </ul>
  */
 public class ItemPredicateParsing {
 
+	/**
+	 * Создаёт {@link PackratParser} для разбора списка предикатов предметов.
+	 * Каждый предикат может быть условием на тип, тег, компонент или их комбинацией.
+	 *
+	 * @param callbacks реализация, преобразующая разобранные идентификаторы в объекты предикатов
+	 * @param <T>       тип результирующего предиката
+	 * @param <C>       тип проверки компонента
+	 * @param <P>       тип проверки суб-предиката
+	 * @return готовый парсер, принимающий {@link StringReader}
+	 */
 	public static <T, C, P> PackratParser<List<T>> createParser(ItemPredicateParsing.Callbacks<T, C, P> callbacks) {
-		Symbol<List<T>> symbol = Symbol.of("top");
-		Symbol<Optional<T>> symbol2 = Symbol.of("type");
-		Symbol<Unit> symbol3 = Symbol.of("any_type");
-		Symbol<T> symbol4 = Symbol.of("element_type");
-		Symbol<T> symbol5 = Symbol.of("tag_type");
-		Symbol<List<T>> symbol6 = Symbol.of("conditions");
-		Symbol<List<T>> symbol7 = Symbol.of("alternatives");
-		Symbol<T> symbol8 = Symbol.of("term");
-		Symbol<T> symbol9 = Symbol.of("negation");
-		Symbol<T> symbol10 = Symbol.of("test");
-		Symbol<C> symbol11 = Symbol.of("component_type");
-		Symbol<P> symbol12 = Symbol.of("predicate_type");
-		Symbol<Identifier> symbol13 = Symbol.of("id");
-		Symbol<Dynamic<?>> symbol14 = Symbol.of("tag");
-		ParsingRules<StringReader> parsingRules = new ParsingRules<>();
-		ParsingRuleEntry<StringReader, Identifier>
-				parsingRuleEntry =
-				parsingRules.set(symbol13, AnyIdParsingRule.INSTANCE);
-		ParsingRuleEntry<StringReader, List<T>> parsingRuleEntry2 = parsingRules.set(
-				symbol,
+		Symbol<List<T>> top = Symbol.of("top");
+		Symbol<Optional<T>> type = Symbol.of("type");
+		Symbol<Unit> anyType = Symbol.of("any_type");
+		Symbol<T> elementType = Symbol.of("element_type");
+		Symbol<T> tagType = Symbol.of("tag_type");
+		Symbol<List<T>> conditions = Symbol.of("conditions");
+		Symbol<List<T>> alternatives = Symbol.of("alternatives");
+		Symbol<T> term = Symbol.of("term");
+		Symbol<T> negation = Symbol.of("negation");
+		Symbol<T> test = Symbol.of("test");
+		Symbol<C> componentType = Symbol.of("component_type");
+		Symbol<P> predicateType = Symbol.of("predicate_type");
+		Symbol<Identifier> id = Symbol.of("id");
+		Symbol<Dynamic<?>> tag = Symbol.of("tag");
+
+		ParsingRules<StringReader> rules = new ParsingRules<>();
+		ParsingRuleEntry<StringReader, Identifier> idRule = rules.set(id, AnyIdParsingRule.INSTANCE);
+
+		ParsingRuleEntry<StringReader, List<T>> topRule = rules.set(
+				top,
 				Term.anyOf(
 						Term.sequence(
-								parsingRules.term(symbol2),
+								rules.term(type),
 								Literals.character('['),
 								Term.cutting(),
-								Term.optional(parsingRules.term(symbol6)),
+								Term.optional(rules.term(conditions)),
 								Literals.character(']')
 						),
-						parsingRules.term(symbol2)
+						rules.term(type)
 				),
 				results -> {
 					Builder<T> builder = ImmutableList.builder();
-					results.getOrThrow(symbol2).ifPresent(builder::add);
-					List<T> list = results.get(symbol6);
-					if (list != null) {
-						builder.addAll(list);
+					results.getOrThrow(type).ifPresent(builder::add);
+					List<T> conditionList = results.get(conditions);
+
+					if (conditionList != null) {
+						builder.addAll(conditionList);
 					}
 
 					return builder.build();
 				}
 		);
-		parsingRules.set(
-				symbol2,
+
+		rules.set(
+				type,
 				Term.anyOf(
-						parsingRules.term(symbol4),
-						Term.sequence(Literals.character('#'), Term.cutting(), parsingRules.term(symbol5)),
-						parsingRules.term(symbol3)
+						rules.term(elementType),
+						Term.sequence(Literals.character('#'), Term.cutting(), rules.term(tagType)),
+						rules.term(anyType)
 				),
-				results -> Optional.ofNullable(results.getAny(symbol4, symbol5))
+				results -> Optional.ofNullable(results.getAny(elementType, tagType))
 		);
-		parsingRules.set(symbol3, Literals.character('*'), results -> Unit.INSTANCE);
-		parsingRules.set(symbol4, new ItemPredicateParsing.ItemParsingRule<>(parsingRuleEntry, callbacks));
-		parsingRules.set(symbol5, new ItemPredicateParsing.TagParsingRule<>(parsingRuleEntry, callbacks));
-		parsingRules.set(
-				symbol6,
+
+		rules.set(anyType, Literals.character('*'), results -> Unit.INSTANCE);
+		rules.set(elementType, new ItemPredicateParsing.ItemParsingRule<>(idRule, callbacks));
+		rules.set(tagType, new ItemPredicateParsing.TagParsingRule<>(idRule, callbacks));
+
+		rules.set(
+				conditions,
 				Term.sequence(
-						parsingRules.term(symbol7),
-						Term.optional(Term.sequence(Literals.character(','), parsingRules.term(symbol6)))
+						rules.term(alternatives),
+						Term.optional(Term.sequence(Literals.character(','), rules.term(conditions)))
 				),
 				results -> {
-					T object = callbacks.anyOf(results.getOrThrow(symbol7));
+					T head = callbacks.anyOf(results.getOrThrow(alternatives));
 					return Optional
-							.ofNullable(results.get(symbol6))
-							.map(predicates -> Util.withPrepended(object, (List<T>) predicates))
-							.orElse(List.of(object));
+							.ofNullable(results.get(conditions))
+							.map(tail -> Util.withPrepended(head, (List<T>) tail))
+							.orElse(List.of(head));
 				}
 		);
-		parsingRules.set(
-				symbol7,
+
+		rules.set(
+				alternatives,
 				Term.sequence(
-						parsingRules.term(symbol8),
-						Term.optional(Term.sequence(Literals.character('|'), parsingRules.term(symbol7)))
+						rules.term(term),
+						Term.optional(Term.sequence(Literals.character('|'), rules.term(alternatives)))
 				),
 				results -> {
-					T object = results.getOrThrow(symbol8);
+					T head = results.getOrThrow(term);
 					return Optional
-							.ofNullable(results.get(symbol7))
-							.map(predicates -> Util.withPrepended(object, (List<T>) predicates))
-							.orElse(List.of(object));
+							.ofNullable(results.get(alternatives))
+							.map(tail -> Util.withPrepended(head, (List<T>) tail))
+							.orElse(List.of(head));
 				}
 		);
-		parsingRules.set(
-				symbol8,
+
+		rules.set(
+				term,
 				Term.anyOf(
-						parsingRules.term(symbol10),
-						Term.sequence(Literals.character('!'), parsingRules.term(symbol9))
+						rules.term(test),
+						Term.sequence(Literals.character('!'), rules.term(negation))
 				),
-				results -> results.getAnyOrThrow(symbol10, symbol9)
+				results -> results.getAnyOrThrow(test, negation)
 		);
-		parsingRules.set(
-				symbol9,
-				parsingRules.term(symbol10),
-				results -> callbacks.negate(results.getOrThrow(symbol10))
+
+		rules.set(
+				negation,
+				rules.term(test),
+				results -> callbacks.negate(results.getOrThrow(test))
 		);
-		parsingRules.set(
-				symbol10,
+
+		rules.set(
+				test,
 				Term.anyOf(
 						Term.sequence(
-								parsingRules.term(symbol11),
+								rules.term(componentType),
 								Literals.character('='),
 								Term.cutting(),
-								parsingRules.term(symbol14)
+								rules.term(tag)
 						),
 						Term.sequence(
-								parsingRules.term(symbol12),
+								rules.term(predicateType),
 								Literals.character('~'),
 								Term.cutting(),
-								parsingRules.term(symbol14)
+								rules.term(tag)
 						),
-						parsingRules.term(symbol11)
+						rules.term(componentType)
 				),
 				(ParsingRule.RuleAction<StringReader, T>) state -> {
 					ParseResults parseResults = state.getResults();
-					P object = parseResults.get(symbol12);
+					P predCheck = parseResults.get(predicateType);
 
 					try {
-						if (object != null) {
-							Dynamic<?> dynamic = parseResults.getOrThrow(symbol14);
+						if (predCheck != null) {
+							Dynamic<?> dynamic = parseResults.getOrThrow(tag);
 							return callbacks.subPredicatePredicate(
 									(ImmutableStringReader) state.getReader(),
-									object,
+									predCheck,
 									dynamic
 							);
 						}
-						else {
-							C object2 = parseResults.getOrThrow(symbol11);
-							Dynamic<?> dynamic2 = parseResults.get(symbol14);
-							return dynamic2 != null
-							       ? callbacks.componentMatchPredicate(
-									(ImmutableStringReader) state.getReader(),
-									object2,
-									dynamic2
-							)
-							       : callbacks.componentPresencePredicate(
-									       (ImmutableStringReader) state.getReader(),
-									       object2
-							       );
-						}
+
+						C compCheck = parseResults.getOrThrow(componentType);
+						Dynamic<?> compDynamic = parseResults.get(tag);
+
+						return compDynamic != null
+								? callbacks.componentMatchPredicate(
+										(ImmutableStringReader) state.getReader(),
+										compCheck,
+										compDynamic
+								)
+								: callbacks.componentPresencePredicate(
+										(ImmutableStringReader) state.getReader(),
+										compCheck
+								);
 					}
-					catch (CommandSyntaxException var9x) {
-						state.getErrors().add(state.getCursor(), var9x);
+					catch (CommandSyntaxException ex) {
+						state.getErrors().add(state.getCursor(), ex);
 						return null;
 					}
 				}
 		);
-		parsingRules.set(symbol11, new ItemPredicateParsing.ComponentParsingRule<>(parsingRuleEntry, callbacks));
-		parsingRules.set(symbol12, new ItemPredicateParsing.SubPredicateParsingRule<>(parsingRuleEntry, callbacks));
-		parsingRules.set(symbol14, new NbtParsingRule(NbtOps.INSTANCE));
-		return new PackratParser<>(parsingRules, parsingRuleEntry2);
+
+		rules.set(componentType, new ItemPredicateParsing.ComponentParsingRule<>(idRule, callbacks));
+		rules.set(predicateType, new ItemPredicateParsing.SubPredicateParsingRule<>(idRule, callbacks));
+		rules.set(tag, new NbtParsingRule(NbtOps.INSTANCE));
+
+		return new PackratParser<>(rules, topRule);
 	}
 
 	/**
-	 * {@code Callbacks}.
+	 * Набор колбэков для преобразования разобранных идентификаторов в объекты предикатов.
+	 *
+	 * @param <T> тип результирующего предиката
+	 * @param <C> тип проверки компонента
+	 * @param <P> тип проверки суб-предиката
 	 */
 	public interface Callbacks<T, C, P> {
 
@@ -206,97 +240,95 @@ public class ItemPredicateParsing {
 		T negate(T predicate);
 
 		T anyOf(List<T> predicates);
+
 	}
 
-	/**
-	 * {@code ComponentParsingRule}.
-	 */
-	static class ComponentParsingRule<T, C, P> extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, C> {
+	static class ComponentParsingRule<T, C, P>
+			extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, C> {
 
 		ComponentParsingRule(
-				ParsingRuleEntry<StringReader, Identifier> idParsingRule,
+				ParsingRuleEntry<StringReader, Identifier> idRule,
 				ItemPredicateParsing.Callbacks<T, C, P> callbacks
 		) {
-			super(idParsingRule, callbacks);
+			super(idRule, callbacks);
 		}
 
 		@Override
 		protected C parse(ImmutableStringReader reader, Identifier id) throws Exception {
-			return this.callbacks.componentCheck(reader, id);
+			return callbacks.componentCheck(reader, id);
 		}
 
 		@Override
 		public Stream<Identifier> possibleIds() {
-			return this.callbacks.streamComponentIds();
+			return callbacks.streamComponentIds();
 		}
+
 	}
 
-	/**
-	 * {@code ItemParsingRule}.
-	 */
-	static class ItemParsingRule<T, C, P> extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, T> {
+	static class ItemParsingRule<T, C, P>
+			extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, T> {
 
 		ItemParsingRule(
-				ParsingRuleEntry<StringReader, Identifier> idParsingRule,
+				ParsingRuleEntry<StringReader, Identifier> idRule,
 				ItemPredicateParsing.Callbacks<T, C, P> callbacks
 		) {
-			super(idParsingRule, callbacks);
+			super(idRule, callbacks);
 		}
 
 		@Override
 		protected T parse(ImmutableStringReader reader, Identifier id) throws Exception {
-			return this.callbacks.itemMatchPredicate(reader, id);
+			return callbacks.itemMatchPredicate(reader, id);
 		}
 
 		@Override
 		public Stream<Identifier> possibleIds() {
-			return this.callbacks.streamItemIds();
+			return callbacks.streamItemIds();
 		}
+
 	}
 
-	/**
-	 * {@code SubPredicateParsingRule}.
-	 */
-	static class SubPredicateParsingRule<T, C, P> extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, P> {
+	static class SubPredicateParsingRule<T, C, P>
+			extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, P> {
 
 		SubPredicateParsingRule(
-				ParsingRuleEntry<StringReader, Identifier> idParsingRule,
+				ParsingRuleEntry<StringReader, Identifier> idRule,
 				ItemPredicateParsing.Callbacks<T, C, P> callbacks
 		) {
-			super(idParsingRule, callbacks);
+			super(idRule, callbacks);
 		}
 
 		@Override
 		protected P parse(ImmutableStringReader reader, Identifier id) throws Exception {
-			return this.callbacks.subPredicateCheck(reader, id);
+			return callbacks.subPredicateCheck(reader, id);
 		}
 
 		@Override
 		public Stream<Identifier> possibleIds() {
-			return this.callbacks.streamSubPredicateIds();
+			return callbacks.streamSubPredicateIds();
 		}
+
 	}
 
-	/**
-	 * {@code TagParsingRule}.
-	 */
-	static class TagParsingRule<T, C, P> extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, T> {
+	static class TagParsingRule<T, C, P>
+			extends IdentifiableParsingRule<ItemPredicateParsing.Callbacks<T, C, P>, T> {
 
 		TagParsingRule(
-				ParsingRuleEntry<StringReader, Identifier> idParsingRule,
+				ParsingRuleEntry<StringReader, Identifier> idRule,
 				ItemPredicateParsing.Callbacks<T, C, P> callbacks
 		) {
-			super(idParsingRule, callbacks);
+			super(idRule, callbacks);
 		}
 
 		@Override
 		protected T parse(ImmutableStringReader reader, Identifier id) throws Exception {
-			return this.callbacks.tagMatchPredicate(reader, id);
+			return callbacks.tagMatchPredicate(reader, id);
 		}
 
 		@Override
 		public Stream<Identifier> possibleIds() {
-			return this.callbacks.streamTags();
+			return callbacks.streamTags();
 		}
+
 	}
+
 }

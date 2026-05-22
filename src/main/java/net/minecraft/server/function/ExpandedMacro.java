@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code ExpandedMacro}.
+ * Раскрытая (уже подставленная) версия макро-функции: содержит финальный список команд
+ * и реализует одновременно {@link CommandFunction} и {@link Procedure}.
  */
 public record ExpandedMacro<T>(
 		Identifier id,

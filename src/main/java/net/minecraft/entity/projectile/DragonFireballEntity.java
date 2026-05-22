@@ -17,11 +17,21 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code DragonFireballEntity}.
+ * Огненный шар дракона Края, создающий облако дыхания дракона при столкновении.
+ * <p>
+ * При попадании в блок или сущность (кроме владельца) спавнит {@link AreaEffectCloudEntity}
+ * с эффектом мгновенного урона. Облако позиционируется у ближайшей живой сущности
+ * в радиусе {@value #DAMAGE_RANGE} блоков для максимального охвата.
  */
 public class DragonFireballEntity extends ExplosiveProjectileEntity {
 
 	public static final float DAMAGE_RANGE = 4.0F;
+	private static final double DAMAGE_RANGE_SQUARED = 16.0;
+	private static final float CLOUD_RADIUS = 3.0F;
+	private static final float CLOUD_RADIUS_ON_USE = -0.5F;
+	private static final float CLOUD_POTION_DURATION_SCALE = 0.25F;
+	private static final int INSTANT_DAMAGE_AMPLIFIER = 1;
+	private static final int CLOUD_WAIT_TIME = 0;
 
 	public DragonFireballEntity(EntityType<? extends DragonFireballEntity> entityType, World world) {
 		super(entityType, world);
@@ -34,50 +44,49 @@ public class DragonFireballEntity extends ExplosiveProjectileEntity {
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (hitResult.getType() != HitResult.Type.ENTITY || !this.isOwner(((EntityHitResult) hitResult).getEntity())) {
-			if (!this.getEntityWorld().isClient()) {
-				List<LivingEntity>
-						list =
-						this
-								.getEntityWorld()
-								.getNonSpectatingEntities(
-										LivingEntity.class,
-										this.getBoundingBox().expand(4.0, 2.0, 4.0)
-								);
-				AreaEffectCloudEntity
-						areaEffectCloudEntity =
-						new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
-				Entity entity = this.getOwner();
-				if (entity instanceof LivingEntity) {
-					areaEffectCloudEntity.setOwner((LivingEntity) entity);
-				}
+		if (hitResult.getType() == HitResult.Type.ENTITY
+			&& isOwner(((EntityHitResult) hitResult).getEntity())
+		) {
+			return;
+		}
 
-				areaEffectCloudEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
-				areaEffectCloudEntity.setRadius(3.0F);
-				areaEffectCloudEntity.setDuration(600);
-				areaEffectCloudEntity.setRadiusGrowth(
-						(7.0F - areaEffectCloudEntity.getRadius()) / areaEffectCloudEntity.getDuration());
-				areaEffectCloudEntity.setPotionDurationScale(0.25F);
-				areaEffectCloudEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE, 1, 1));
-				if (!list.isEmpty()) {
-					for (LivingEntity livingEntity : list) {
-						double d = this.squaredDistanceTo(livingEntity);
-						if (d < 16.0) {
-							areaEffectCloudEntity.setPosition(
-									livingEntity.getX(),
-									livingEntity.getY(),
-									livingEntity.getZ()
-							);
-							break;
-						}
-					}
-				}
+		if (getEntityWorld().isClient()) {
+			return;
+		}
 
-				this.getEntityWorld().syncWorldEvent(2006, this.getBlockPos(), this.isSilent() ? -1 : 1);
-				this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
-				this.discard();
+		List<LivingEntity> nearbyEntities = getEntityWorld().getNonSpectatingEntities(
+			LivingEntity.class,
+			getBoundingBox().expand(DAMAGE_RANGE, 2.0, DAMAGE_RANGE)
+		);
+		AreaEffectCloudEntity cloud = new AreaEffectCloudEntity(
+			getEntityWorld(),
+			getX(),
+			getY(),
+			getZ()
+		);
+		Entity ownerEntity = getOwner();
+		if (ownerEntity instanceof LivingEntity livingOwner) {
+			cloud.setOwner(livingOwner);
+		}
+
+		cloud.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
+		cloud.setRadius(CLOUD_RADIUS);
+		cloud.setDuration(AreaEffectCloudEntity.DEFAULT_LINGERING_DURATION);
+		cloud.setRadiusGrowth((7.0F - cloud.getRadius()) / cloud.getDuration());
+		cloud.setPotionDurationScale(CLOUD_POTION_DURATION_SCALE);
+		cloud.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE, 1, INSTANT_DAMAGE_AMPLIFIER));
+
+		// Позиционируем облако у ближайшей сущности для максимального урона
+		for (LivingEntity nearby : nearbyEntities) {
+			if (squaredDistanceTo(nearby) < DAMAGE_RANGE_SQUARED) {
+				cloud.setPosition(nearby.getX(), nearby.getY(), nearby.getZ());
+				break;
 			}
 		}
+
+		getEntityWorld().syncWorldEvent(2006, getBlockPos(), isSilent() ? -1 : 1);
+		getEntityWorld().spawnEntity(cloud);
+		discard();
 	}
 
 	@Override

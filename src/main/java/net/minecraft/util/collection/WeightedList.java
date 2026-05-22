@@ -15,81 +15,62 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code WeightedList}.
+ * Список с весами и поддержкой перемешивания по алгоритму взвешенного случайного порядка.
+ * При вызове {@link #shuffle()} каждому элементу присваивается случайный порядковый номер,
+ * пропорциональный его весу, после чего список сортируется по этому номеру.
+ *
+ * @param <U> тип элементов
  */
 public class WeightedList<U> implements Iterable<U> {
 
-	protected final List<WeightedList.Entry<U>> entries;
+	protected final List<Entry<U>> entries;
 	private final Random random = Random.create();
 
 	public WeightedList() {
-		this.entries = Lists.newArrayList();
+		entries = Lists.newArrayList();
 	}
 
-	private WeightedList(List<WeightedList.Entry<U>> list) {
-		this.entries = Lists.newArrayList(list);
+	private WeightedList(List<Entry<U>> list) {
+		entries = Lists.newArrayList(list);
 	}
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param codec codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <U> Codec<WeightedList<U>> createCodec(Codec<U> codec) {
-		return WeightedList.Entry
-				.createCodec(codec)
-				.listOf()
-				.xmap(WeightedList::new, weightedList -> weightedList.entries);
+		return Entry.createCodec(codec)
+			.listOf()
+			.xmap(WeightedList::new, list -> list.entries);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param data data
-	 * @param weight weight
-	 *
-	 * @return WeightedList — результат операции
-	 */
 	public WeightedList<U> add(U data, int weight) {
-		this.entries.add(new WeightedList.Entry<>(data, weight));
+		entries.add(new Entry<>(data, weight));
 		return this;
 	}
 
 	/**
-	 * Shuffle.
+	 * Перемешивает список с учётом весов элементов.
+	 * Элементы с большим весом с большей вероятностью окажутся в начале.
 	 *
-	 * @return WeightedList — результат операции
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public WeightedList<U> shuffle() {
-		this.entries.forEach(entry -> entry.setShuffledOrder(this.random.nextFloat()));
-		this.entries.sort(Comparator.comparingDouble(WeightedList.Entry::getShuffledOrder));
+		entries.forEach(entry -> entry.setShuffledOrder(random.nextFloat()));
+		entries.sort(Comparator.comparingDouble(Entry::getShuffledOrder));
 		return this;
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<U> stream() {
-		return this.entries.stream().map(WeightedList.Entry::getElement);
+		return entries.stream().map(Entry::getElement);
 	}
 
 	@Override
 	public Iterator<U> iterator() {
-		return Iterators.transform(this.entries.iterator(), WeightedList.Entry::getElement);
+		return Iterators.transform(entries.iterator(), Entry::getElement);
 	}
 
 	@Override
 	public String toString() {
-		return "ShufflingList[" + this.entries + "]";
+		return "ShufflingList[" + entries + "]";
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	public static class Entry<T> {
 
 		final T data;
@@ -102,50 +83,44 @@ public class WeightedList<U> implements Iterable<U> {
 		}
 
 		private double getShuffledOrder() {
-			return this.shuffledOrder;
+			return shuffledOrder;
 		}
 
-		void setShuffledOrder(float random) {
-			this.shuffledOrder = -Math.pow(random, 1.0F / this.weight);
+		void setShuffledOrder(float randomValue) {
+			shuffledOrder = -Math.pow(randomValue, 1.0F / weight);
 		}
 
 		public T getElement() {
-			return this.data;
+			return data;
 		}
 
 		public int getWeight() {
-			return this.weight;
+			return weight;
 		}
 
 		@Override
 		public String toString() {
-			return this.weight + ":" + this.data;
+			return weight + ":" + data;
 		}
 
-		public static <E> Codec<WeightedList.Entry<E>> createCodec(Codec<E> codec) {
-			return new Codec<WeightedList.Entry<E>>() {
-				public <T> DataResult<Pair<WeightedList.Entry<E>, T>> decode(DynamicOps<T> ops, T data) {
-					Dynamic<T> dynamic = new Dynamic(ops, data);
+		public static <E> Codec<Entry<E>> createCodec(Codec<E> codec) {
+			return new Codec<>() {
+
+				@Override
+				public <T> DataResult<Pair<Entry<E>, T>> decode(DynamicOps<T> ops, T input) {
+					Dynamic<T> dynamic = new Dynamic<>(ops, input);
 					return dynamic.get("data")
-					              .flatMap(codec::parse)
-					              .map(datax -> new WeightedList.Entry<>(datax, dynamic.get("weight").asInt(1)))
-					              .map(entry -> Pair.of(entry, ops.empty()));
+						.flatMap(codec::parse)
+						.map(parsed -> new Entry<>(parsed, dynamic.get("weight").asInt(1)))
+						.map(entry -> Pair.of(entry, ops.empty()));
 				}
 
-				/**
-				 * Encode.
-				 *
-				 * @param entry entry
-				 * @param dynamicOps dynamic ops
-				 * @param object object
-				 *
-				 * @return DataResult — результат операции
-				 */
-				public <T> DataResult<T> encode(WeightedList.Entry<E> entry, DynamicOps<T> dynamicOps, T object) {
+				@Override
+				public <T> DataResult<T> encode(Entry<E> entry, DynamicOps<T> dynamicOps, T prefix) {
 					return dynamicOps.mapBuilder()
-					                 .add("weight", dynamicOps.createInt(entry.weight))
-					                 .add("data", codec.encodeStart(dynamicOps, entry.data))
-					                 .build(object);
+						.add("weight", dynamicOps.createInt(entry.weight))
+						.add("data", codec.encodeStart(dynamicOps, entry.data))
+						.build(prefix);
 				}
 			};
 		}

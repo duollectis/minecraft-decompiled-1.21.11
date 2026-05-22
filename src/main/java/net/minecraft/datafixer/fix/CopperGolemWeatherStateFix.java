@@ -7,7 +7,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code CopperGolemWeatherStateFix}.
+ * Конвертирует числовое поле {@code weather_state} медного голема в строковый идентификатор
+ * стадии окисления: 0 → {@code unaffected}, 1 → {@code exposed}, 2 → {@code weathered}, 3 → {@code oxidized}.
  */
 public class CopperGolemWeatherStateFix extends ChoiceFix {
 
@@ -23,12 +24,12 @@ public class CopperGolemWeatherStateFix extends ChoiceFix {
 		);
 	}
 
-	private static Dynamic<?> fixWeatherState(Dynamic<?> weatherStateDynamic) {
-		return switch (weatherStateDynamic.asInt(0)) {
-			case 1 -> weatherStateDynamic.createString("exposed");
-			case 2 -> weatherStateDynamic.createString("weathered");
-			case 3 -> weatherStateDynamic.createString("oxidized");
-			default -> weatherStateDynamic.createString("unaffected");
+	private static Dynamic<?> fixWeatherState(Dynamic<?> weatherState) {
+		return switch (weatherState.asInt(0)) {
+			case 1 -> weatherState.createString("exposed");
+			case 2 -> weatherState.createString("weathered");
+			case 3 -> weatherState.createString("oxidized");
+			default -> weatherState.createString("unaffected");
 		};
 	}
 }

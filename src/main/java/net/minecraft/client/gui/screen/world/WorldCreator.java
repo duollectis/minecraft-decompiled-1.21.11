@@ -28,10 +28,12 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WorldCreator}.
+ * Хранит и управляет всеми параметрами создания нового мира:
+ * режим игры, сложность, сид, тип генератора, правила игры и т.д.
+ * Уведомляет подписчиков об изменениях через список listeners.
  */
+@Environment(EnvType.CLIENT)
 public class WorldCreator {
 
 	private static final Text NEW_WORLD_NAME = Text.translatable("selectWorld.newWorld");
@@ -79,31 +81,23 @@ public class WorldCreator {
 		        .ifPresent(config -> this.applyModifier(LevelScreenProvider.createModifier(config)));
 	}
 
-	/**
-	 * Добавляет listener.
-	 *
-	 * @param listener listener
-	 */
 	public void addListener(Consumer<WorldCreator> listener) {
-		this.listeners.add(listener);
+		listeners.add(listener);
 	}
 
-	/**
-	 * Update.
-	 */
 	public void update() {
-		boolean bl = this.isBonusChestEnabled();
-		if (bl != this.generatorOptionsHolder.generatorOptions().hasBonusChest()) {
-			this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withBonusChest(bl));
+		boolean bonusChest = isBonusChestEnabled();
+		if (bonusChest != generatorOptionsHolder.generatorOptions().hasBonusChest()) {
+			generatorOptionsHolder = generatorOptionsHolder.apply(options -> options.withBonusChest(bonusChest));
 		}
 
-		boolean bl2 = this.shouldGenerateStructures();
-		if (bl2 != this.generatorOptionsHolder.generatorOptions().shouldGenerateStructures()) {
-			this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withStructures(bl2));
+		boolean generateStructures = shouldGenerateStructures();
+		if (generateStructures != generatorOptionsHolder.generatorOptions().shouldGenerateStructures()) {
+			generatorOptionsHolder = generatorOptionsHolder.apply(options -> options.withStructures(generateStructures));
 		}
 
-		for (Consumer<WorldCreator> consumer : this.listeners) {
-			consumer.accept(this);
+		for (Consumer<WorldCreator> listener : listeners) {
+			listener.accept(this);
 		}
 	}
 
@@ -169,20 +163,19 @@ public class WorldCreator {
 	}
 
 	/**
-	 * Are cheats enabled.
-	 *
-	 * @return boolean — результат операции
+	 * Определяет, включены ли читы с учётом режима игры.
+	 * В debug-мире читы всегда включены, в hardcore — всегда выключены.
 	 */
 	public boolean areCheatsEnabled() {
-		if (this.isDebug()) {
+		if (isDebug()) {
 			return true;
 		}
-		else if (this.isHardcore()) {
+
+		if (isHardcore()) {
 			return false;
 		}
-		else {
-			return this.cheatsEnabled == null ? this.getGameMode() == WorldCreator.Mode.CREATIVE : this.cheatsEnabled;
-		}
+
+		return cheatsEnabled == null ? getGameMode() == WorldCreator.Mode.CREATIVE : cheatsEnabled;
 	}
 
 	public void setSeed(String seed) {
@@ -201,13 +194,8 @@ public class WorldCreator {
 		this.update();
 	}
 
-	/**
-	 * Определяет, следует ли generate structures.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldGenerateStructures() {
-		return this.isDebug() ? false : this.generateStructures;
+		return isDebug() ? false : generateStructures;
 	}
 
 	public void setBonusChestEnabled(boolean bonusChestEnabled) {
@@ -216,7 +204,7 @@ public class WorldCreator {
 	}
 
 	public boolean isBonusChestEnabled() {
-		return !this.isDebug() && !this.isHardcore() ? this.bonusChestEnabled : false;
+		return !isDebug() && !isHardcore() ? bonusChestEnabled : false;
 	}
 
 	public void setGeneratorOptionsHolder(GeneratorOptionsHolder generatorOptionsHolder) {
@@ -229,22 +217,14 @@ public class WorldCreator {
 		return this.generatorOptionsHolder;
 	}
 
-	/**
-	 * Применяет modifier.
-	 *
-	 * @param modifier modifier
-	 */
 	public void applyModifier(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
-		this.generatorOptionsHolder = this.generatorOptionsHolder.apply(modifier);
-		this.update();
+		generatorOptionsHolder = generatorOptionsHolder.apply(modifier);
+		update();
 	}
 
 	/**
-	 * Обновляет data configuration.
-	 *
-	 * @param dataConfiguration data configuration
-	 *
-	 * @return boolean — результат операции
+	 * Обновляет конфигурацию датапаков без перезагрузки генератора мира,
+	 * если набор включённых паков и фич не изменился.
 	 */
 	protected boolean updateDataConfiguration(DataConfiguration dataConfiguration) {
 		DataConfiguration dataConfiguration2 = this.generatorOptionsHolder.dataConfiguration();
@@ -272,9 +252,9 @@ public class WorldCreator {
 
 	public void setWorldType(WorldCreator.WorldType worldType) {
 		this.worldType = worldType;
-		RegistryEntry<WorldPreset> registryEntry = worldType.preset();
-		if (registryEntry != null) {
-			this.applyModifier((registryManager, registryHolder) -> registryEntry
+		RegistryEntry<WorldPreset> preset = worldType.preset();
+		if (preset != null) {
+			applyModifier((registryManager, registryHolder) -> preset
 					.value()
 					.createDimensionsRegistryHolder());
 		}
@@ -285,9 +265,10 @@ public class WorldCreator {
 	}
 
 	public @Nullable LevelScreenProvider getLevelScreenProvider() {
-		RegistryEntry<WorldPreset> registryEntry = this.getWorldType().preset();
-		return registryEntry != null ? LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey())
-		                             : null;
+		RegistryEntry<WorldPreset> preset = getWorldType().preset();
+		return preset != null
+				? LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(preset.getKey())
+				: null;
 	}
 
 	public List<WorldCreator.WorldType> getNormalWorldTypes() {
@@ -299,32 +280,31 @@ public class WorldCreator {
 	}
 
 	private void updateWorldTypeLists() {
-		Registry<WorldPreset>
-				registry =
-				this.getGeneratorOptionsHolder().getCombinedRegistryManager().getOrThrow(RegistryKeys.WORLD_PRESET);
-		this.normalWorldTypes.clear();
-		this.normalWorldTypes
-				.addAll(getWorldPresetList(registry, WorldPresetTags.NORMAL).orElseGet(() -> registry
-						.streamEntries()
-						.map(WorldCreator.WorldType::new)
-						.toList()));
-		this.extendedWorldTypes.clear();
-		this.extendedWorldTypes.addAll(getWorldPresetList(
-				registry,
-				WorldPresetTags.EXTENDED
-		).orElse(this.normalWorldTypes));
-		RegistryEntry<WorldPreset> registryEntry = this.worldType.preset();
-		if (registryEntry != null) {
-			WorldCreator.WorldType worldType = getWorldPreset(this.getGeneratorOptionsHolder(), registryEntry.getKey())
-					.map(WorldCreator.WorldType::new)
-					.orElse(this.normalWorldTypes.getFirst());
-			boolean bl = LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey()) != null;
-			if (bl) {
-				this.worldType = worldType;
-			}
-			else {
-				this.setWorldType(worldType);
-			}
+		Registry<WorldPreset> registry =
+				getGeneratorOptionsHolder().getCombinedRegistryManager().getOrThrow(RegistryKeys.WORLD_PRESET);
+		normalWorldTypes.clear();
+		normalWorldTypes.addAll(getWorldPresetList(registry, WorldPresetTags.NORMAL).orElseGet(() -> registry
+				.streamEntries()
+				.map(WorldCreator.WorldType::new)
+				.toList()));
+		extendedWorldTypes.clear();
+		extendedWorldTypes.addAll(getWorldPresetList(registry, WorldPresetTags.EXTENDED).orElse(normalWorldTypes));
+
+		RegistryEntry<WorldPreset> currentPreset = worldType.preset();
+		if (currentPreset == null) {
+			return;
+		}
+
+		WorldCreator.WorldType resolvedType = getWorldPreset(getGeneratorOptionsHolder(), currentPreset.getKey())
+				.map(WorldCreator.WorldType::new)
+				.orElse(normalWorldTypes.getFirst());
+		boolean hasCustomScreen = LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(currentPreset.getKey()) != null;
+
+		if (hasCustomScreen) {
+			worldType = resolvedType;
+		}
+		else {
+			setWorldType(resolvedType);
 		}
 	}
 
@@ -359,10 +339,7 @@ public class WorldCreator {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Mode}.
-	 */
-	public static enum Mode {
+	public enum Mode {
 		SURVIVAL("survival", GameMode.SURVIVAL),
 		HARDCORE("hardcore", GameMode.SURVIVAL),
 		CREATIVE("creative", GameMode.CREATIVE),
@@ -384,9 +361,6 @@ public class WorldCreator {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WorldType}.
-	 */
 	public record WorldType(@Nullable RegistryEntry<WorldPreset> preset) {
 
 		private static final Text CUSTOM_GENERATOR_TEXT = Text.translatable("generator.custom");

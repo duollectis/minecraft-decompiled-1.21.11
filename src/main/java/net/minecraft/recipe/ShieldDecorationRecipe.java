@@ -11,100 +11,91 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
 /**
- * {@code ShieldDecorationRecipe}.
+ * Рецепт нанесения узора баннера на щит.
+ * <p>
+ * Принимает ровно два предмета: один баннер и один чистый щит
+ * (без компонента {@code BANNER_PATTERNS}). Узор и цвет баннера
+ * переносятся на щит через компоненты {@code BANNER_PATTERNS} и {@code BASE_COLOR}.
  */
 public class ShieldDecorationRecipe extends SpecialCraftingRecipe {
 
-	public ShieldDecorationRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public ShieldDecorationRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() != 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() != 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (itemStack.getItem() instanceof BannerItem) {
-						if (bl2) {
-							return false;
-						}
+		boolean hasBanner = false;
+		boolean hasCleanShield = false;
 
-						bl2 = true;
-					}
-					else {
-						if (!itemStack.isOf(Items.SHIELD)) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						if (bl) {
-							return false;
-						}
-
-						BannerPatternsComponent
-								bannerPatternsComponent =
-								itemStack.getOrDefault(
-										DataComponentTypes.BANNER_PATTERNS,
-										BannerPatternsComponent.DEFAULT
-								);
-						if (!bannerPatternsComponent.layers().isEmpty()) {
-							return false;
-						}
-
-						bl = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl && bl2;
+			if (stack.getItem() instanceof BannerItem) {
+				if (hasBanner) {
+					return false;
+				}
+
+				hasBanner = true;
+			} else {
+				if (!stack.isOf(Items.SHIELD)) {
+					return false;
+				}
+
+				if (hasCleanShield) {
+					return false;
+				}
+
+				BannerPatternsComponent existingPatterns = stack.getOrDefault(
+					DataComponentTypes.BANNER_PATTERNS,
+					BannerPatternsComponent.DEFAULT
+				);
+
+				if (!existingPatterns.layers().isEmpty()) {
+					return false;
+				}
+
+				hasCleanShield = true;
+			}
 		}
+
+		return hasCleanShield && hasBanner;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		ItemStack itemStack2 = ItemStack.EMPTY;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		ItemStack banner = ItemStack.EMPTY;
+		ItemStack shield = ItemStack.EMPTY;
 
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack3 = craftingRecipeInput.getStackInSlot(i);
-			if (!itemStack3.isEmpty()) {
-				if (itemStack3.getItem() instanceof BannerItem) {
-					itemStack = itemStack3;
-				}
-				else if (itemStack3.isOf(Items.SHIELD)) {
-					itemStack2 = itemStack3.copy();
-				}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			if (stack.getItem() instanceof BannerItem) {
+				banner = stack;
+			} else if (stack.isOf(Items.SHIELD)) {
+				shield = stack.copy();
 			}
 		}
 
-		if (itemStack2.isEmpty()) {
-			return itemStack2;
+		if (shield.isEmpty()) {
+			return ItemStack.EMPTY;
 		}
-		else {
-			itemStack2.set(DataComponentTypes.BANNER_PATTERNS, itemStack.get(DataComponentTypes.BANNER_PATTERNS));
-			itemStack2.set(DataComponentTypes.BASE_COLOR, ((BannerItem) itemStack.getItem()).getColor());
-			return itemStack2;
-		}
+
+		shield.set(DataComponentTypes.BANNER_PATTERNS, banner.get(DataComponentTypes.BANNER_PATTERNS));
+		shield.set(DataComponentTypes.BASE_COLOR, ((BannerItem) banner.getItem()).getColor());
+		return shield;
 	}
 
 	@Override

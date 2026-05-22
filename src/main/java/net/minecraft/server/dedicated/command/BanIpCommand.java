@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code BanIpCommand}.
+ * Команда {@code /ban-ip}: блокировка IP-адреса (только dedicated).
  */
 public class BanIpCommand {
 

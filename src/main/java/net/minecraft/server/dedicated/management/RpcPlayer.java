@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code RpcPlayer}.
+ * Класс Rpc Player.
  */
 public record RpcPlayer(Optional<UUID> id, Optional<String> name) {
 

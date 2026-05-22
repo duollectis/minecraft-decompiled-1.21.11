@@ -6,7 +6,8 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PassthroughRuleBlockEntityModifier}.
+ * Реализация {@link RuleBlockEntityModifier}, не изменяющая NBT блок-сущности.
+ * Возвращает входной NBT без каких-либо модификаций (сквозной проход).
  */
 public class PassthroughRuleBlockEntityModifier implements RuleBlockEntityModifier {
 

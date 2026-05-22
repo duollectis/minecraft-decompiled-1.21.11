@@ -28,21 +28,27 @@ import java.util.Optional;
 import java.util.function.*;
 import java.util.stream.IntStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleOption}.
+ * Типизированная настройка игры с поддержкой сериализации, валидации и создания виджета.
+ * <p>
+ * Каждая настройка имеет текущее значение, дефолтное значение, {@link Callbacks} для
+ * создания виджета и валидации, а также {@link TooltipFactory} для подсказок.
+ * Изменение значения через {@link #setValue} автоматически вызывает {@code changeCallback}
+ * и валидирует новое значение через {@link Callbacks#validate}.
+ *
+ * @param <T> тип значения настройки
  */
+@Environment(EnvType.CLIENT)
 public final class SimpleOption<T> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final SimpleOption.PotentialValuesBasedCallbacks<Boolean>
-			BOOLEAN =
-			new SimpleOption.PotentialValuesBasedCallbacks<>(
-					ImmutableList.of(Boolean.TRUE, Boolean.FALSE), Codec.BOOL
-			);
-	public static final SimpleOption.ValueTextGetter<Boolean>
-			BOOLEAN_TEXT_GETTER =
+
+	public static final SimpleOption.PotentialValuesBasedCallbacks<Boolean> BOOLEAN =
+			new SimpleOption.PotentialValuesBasedCallbacks<>(ImmutableList.of(Boolean.TRUE, Boolean.FALSE), Codec.BOOL);
+
+	public static final SimpleOption.ValueTextGetter<Boolean> BOOLEAN_TEXT_GETTER =
 			(optionText, value) -> value ? ScreenTexts.ON : ScreenTexts.OFF;
+
 	private final SimpleOption.TooltipFactory<T> tooltipFactory;
 	final Function<T, Text> textGetter;
 	private final SimpleOption.Callbacks<T> callbacks;
@@ -52,27 +58,10 @@ public final class SimpleOption<T> {
 	final Text text;
 	private T value;
 
-	/**
-	 * Of boolean.
-	 *
-	 * @param key key
-	 * @param defaultValue default value
-	 * @param changeCallback change callback
-	 *
-	 * @return SimpleOption — результат операции
-	 */
 	public static SimpleOption<Boolean> ofBoolean(String key, boolean defaultValue, Consumer<Boolean> changeCallback) {
 		return ofBoolean(key, emptyTooltip(), defaultValue, changeCallback);
 	}
 
-	/**
-	 * Of boolean.
-	 *
-	 * @param key key
-	 * @param defaultValue default value
-	 *
-	 * @return SimpleOption — результат операции
-	 */
 	public static SimpleOption<Boolean> ofBoolean(String key, boolean defaultValue) {
 		return ofBoolean(key, emptyTooltip(), defaultValue, value -> {});
 	}
@@ -124,14 +113,14 @@ public final class SimpleOption<T> {
 			T defaultValue,
 			Consumer<T> changeCallback
 	) {
-		this.text = Text.translatable(key);
+		text = Text.translatable(key);
 		this.tooltipFactory = tooltipFactory;
-		this.textGetter = value -> valueTextGetter.toString(this.text, value);
+		textGetter = val -> valueTextGetter.toString(text, val);
 		this.callbacks = callbacks;
 		this.codec = codec;
 		this.defaultValue = defaultValue;
 		this.changeCallback = changeCallback;
-		this.value = this.defaultValue;
+		value = this.defaultValue;
 	}
 
 	public static <T> SimpleOption.TooltipFactory<T> emptyTooltip() {
@@ -142,83 +131,63 @@ public final class SimpleOption<T> {
 		return value -> Tooltip.of(text);
 	}
 
-	/**
-	 * Создаёт widget.
-	 *
-	 * @param options options
-	 *
-	 * @return ClickableWidget — результат операции
-	 */
 	public ClickableWidget createWidget(GameOptions options) {
-		return this.createWidget(options, 0, 0, 150);
+		return createWidget(options, 0, 0, 150);
 	}
 
-	/**
-	 * Создаёт widget.
-	 *
-	 * @param options options
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 *
-	 * @return ClickableWidget — результат операции
-	 */
 	public ClickableWidget createWidget(GameOptions options, int x, int y, int width) {
-		return this.createWidget(options, x, y, width, value -> {});
+		return createWidget(options, x, y, width, val -> {});
 	}
 
-	/**
-	 * Создаёт widget.
-	 *
-	 * @param options options
-	 * @param x x
-	 * @param y y
-	 * @param width width
-	 * @param changeCallback change callback
-	 *
-	 * @return ClickableWidget — результат операции
-	 */
 	public ClickableWidget createWidget(GameOptions options, int x, int y, int width, Consumer<T> changeCallback) {
-		return this.callbacks.getWidgetCreator(this.tooltipFactory, options, x, y, width, changeCallback).apply(this);
+		return callbacks.getWidgetCreator(tooltipFactory, options, x, y, width, changeCallback).apply(this);
 	}
 
 	public T getValue() {
-		return this.value;
+		return value;
 	}
 
 	public Codec<T> getCodec() {
-		return this.codec;
+		return codec;
 	}
 
 	@Override
 	public String toString() {
-		return this.text.getString();
+		return text.getString();
 	}
 
-	public void setValue(T value) {
-		T object = this.callbacks.validate(value).orElseGet(() -> {
-			LOGGER.error("Illegal option value {} for {}", value, this.text.getString());
-			return this.defaultValue;
+	/**
+	 * Устанавливает новое значение настройки с валидацией через {@link Callbacks#validate}.
+	 * Если значение невалидно — используется {@link #defaultValue} с логированием ошибки.
+	 * Если клиент запущен — вызывает {@code changeCallback} только при реальном изменении значения.
+	 */
+	public void setValue(T newValue) {
+		T validated = callbacks.validate(newValue).orElseGet(() -> {
+			LOGGER.error("Illegal option value {} for {}", newValue, text.getString());
+			return defaultValue;
 		});
+
 		if (!MinecraftClient.getInstance().isRunning()) {
-			this.value = object;
+			value = validated;
+			return;
 		}
-		else {
-			if (!Objects.equals(this.value, object)) {
-				this.value = object;
-				this.changeCallback.accept(this.value);
-			}
+
+		if (!Objects.equals(value, validated)) {
+			value = validated;
+			changeCallback.accept(value);
 		}
 	}
 
 	public SimpleOption.Callbacks<T> getCallbacks() {
-		return this.callbacks;
+		return callbacks;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code AlternateValuesSupportingCyclingCallbacks}.
+	 * Реализация {@link CyclingCallbacks} с поддержкой альтернативного набора значений,
+	 * активируемого по условию {@code altCondition}. Используется, например, для
+	 * переключения между наборами опций в зависимости от состояния игры.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record AlternateValuesSupportingCyclingCallbacks<T>(
 			List<T> values,
 			List<T> altValues,
@@ -229,20 +198,21 @@ public final class SimpleOption<T> {
 
 		@Override
 		public CyclingButtonWidget.Values<T> getValues() {
-			return CyclingButtonWidget.Values.of(this.altCondition, this.values, this.altValues);
+			return CyclingButtonWidget.Values.of(altCondition, values, altValues);
 		}
 
 		@Override
 		public Optional<T> validate(T value) {
-			return (this.altCondition.getAsBoolean() ? this.altValues : this.values).contains(value)
-			       ? Optional.of(value) : Optional.empty();
+			return (altCondition.getAsBoolean() ? altValues : values).contains(value)
+					? Optional.of(value)
+					: Optional.empty();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Callbacks}.
+	 * Базовый контракт для всех типов настроек: создание виджета, валидация значения и кодек.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface Callbacks<T> {
 
 		Function<SimpleOption<T>, ClickableWidget> getWidgetCreator(
@@ -259,10 +229,11 @@ public final class SimpleOption<T> {
 		Codec<T> codec();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CategoricalSliderCallbacks}.
+	 * Реализация {@link SliderCallbacks} для категориальных значений, отображаемых
+	 * на слайдере. Позиция слайдера линейно отображается на индекс в списке {@code values}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record CategoricalSliderCallbacks<T>(
 			List<T> values,
 			Codec<T> codec
@@ -270,55 +241,46 @@ public final class SimpleOption<T> {
 
 		@Override
 		public double toSliderProgress(T value) {
-			if (value == this.values.getFirst()) {
+			if (value == values.getFirst()) {
 				return 0.0;
 			}
-			else {
-				return value == this.values.getLast() ? 1.0 : MathHelper.map(
-						(double) this.values.indexOf(value),
-						0.0,
-						(double) (this.values.size() - 1),
-						0.0,
-						1.0
-				);
-			}
+
+			return value == values.getLast()
+					? 1.0
+					: MathHelper.map((double) values.indexOf(value), 0.0, (double) (values.size() - 1), 0.0, 1.0);
 		}
 
 		@Override
 		public Optional<T> getNext(T value) {
-			int i = this.values.indexOf(value);
-			int j = MathHelper.clamp(i + 1, 0, this.values.size() - 1);
-			return Optional.of(this.values.get(j));
+			int index = values.indexOf(value);
+			return Optional.of(values.get(MathHelper.clamp(index + 1, 0, values.size() - 1)));
 		}
 
 		@Override
 		public Optional<T> getPrevious(T value) {
-			int i = this.values.indexOf(value);
-			int j = MathHelper.clamp(i - 1, 0, this.values.size() - 1);
-			return Optional.of(this.values.get(j));
+			int index = values.indexOf(value);
+			return Optional.of(values.get(MathHelper.clamp(index - 1, 0, values.size() - 1)));
 		}
 
 		@Override
 		public T toValue(double sliderProgress) {
-			if (sliderProgress >= 1.0) {
-				sliderProgress = 0.99999F;
-			}
-
-			int i = MathHelper.floor(MathHelper.map(sliderProgress, 0.0, 1.0, 0.0, (double) this.values.size()));
-			return this.values.get(MathHelper.clamp(i, 0, this.values.size() - 1));
+			double clamped = sliderProgress >= 1.0 ? 0.99999F : sliderProgress;
+			int index = MathHelper.floor(MathHelper.map(clamped, 0.0, 1.0, 0.0, (double) values.size()));
+			return values.get(MathHelper.clamp(index, 0, values.size() - 1));
 		}
 
 		@Override
 		public Optional<T> validate(T value) {
-			int i = this.values.indexOf(value);
-			return i > -1 ? Optional.of(value) : Optional.empty();
+			int index = values.indexOf(value);
+			return index > -1 ? Optional.of(value) : Optional.empty();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CyclingCallbacks}.
+	 * Реализация {@link Callbacks} для настроек с циклическим переключением значений.
+	 * Создаёт {@link CyclingButtonWidget} с поддержкой тултипов и кастомного {@link ValueSetter}.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface CyclingCallbacks<T> extends SimpleOption.Callbacks<T> {
 
 		CyclingButtonWidget.Values<T> getValues();
@@ -337,65 +299,45 @@ public final class SimpleOption<T> {
 				Consumer<T> changeCallback
 		) {
 			return option -> CyclingButtonWidget.<T>builder(option.textGetter, option::getValue)
-			                                    .values(this.getValues())
-			                                    .tooltip(tooltipFactory)
-			                                    .build(
-					                                    x, y, width, 20, option.text, (button, value) -> {
-						                                    this.valueSetter().set(option, value);
-						                                    gameOptions.write();
-						                                    changeCallback.accept(value);
-					                                    }
-			                                    );
+					.values(getValues())
+					.tooltip(tooltipFactory)
+					.build(
+							x, y, width, 20, option.text, (button, value) -> {
+								valueSetter().set(option, value);
+								gameOptions.write();
+								changeCallback.accept(value);
+							}
+					);
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code ValueSetter}.
-		 */
-		public interface ValueSetter<T> {
+		interface ValueSetter<T> {
 
 			void set(SimpleOption<T> option, T value);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DoubleSliderCallbacks}.
+	 * Слайдер для значений типа {@code Double} в диапазоне [0.0, 1.0].
+	 * Поддерживает модификацию через {@link #withModifier} для маппинга на произвольный тип.
 	 */
-	public static enum DoubleSliderCallbacks implements SimpleOption.SliderCallbacks<Double> {
+	@Environment(EnvType.CLIENT)
+	public enum DoubleSliderCallbacks implements SimpleOption.SliderCallbacks<Double> {
 		INSTANCE;
 
-		/**
-		 * Validate.
-		 *
-		 * @param double_ double_
-		 *
-		 * @return Optional — результат операции
-		 */
-		public Optional<Double> validate(Double double_) {
-			return double_ >= 0.0 && double_ <= 1.0 ? Optional.of(double_) : Optional.empty();
+		@Override
+		public Optional<Double> validate(Double value) {
+			return value >= 0.0 && value <= 1.0 ? Optional.of(value) : Optional.empty();
 		}
 
-		/**
-		 * To slider progress.
-		 *
-		 * @param double_ double_
-		 *
-		 * @return double — результат операции
-		 */
-		public double toSliderProgress(Double double_) {
-			return double_;
+		@Override
+		public double toSliderProgress(Double value) {
+			return value;
 		}
 
-		/**
-		 * To value.
-		 *
-		 * @param d d
-		 *
-		 * @return Double — результат операции
-		 */
-		public Double toValue(double d) {
-			return d;
+		@Override
+		public Double toValue(double sliderProgress) {
+			return sliderProgress;
 		}
 
 		public <R> SimpleOption.SliderCallbacks<R> withModifier(
@@ -435,10 +377,11 @@ public final class SimpleOption<T> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code IntSliderCallbacks}.
+	 * Базовый интерфейс для целочисленных слайдеров с диапазоном [{@link #minInclusive}, {@link #maxInclusive}].
+	 * Предоставляет дефолтные реализации конвертации между значением и позицией слайдера.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface IntSliderCallbacks extends SimpleOption.SliderCallbacks<Integer> {
 
 		int minInclusive();
@@ -454,40 +397,24 @@ public final class SimpleOption<T> {
 		}
 
 		default double toSliderProgress(Integer integer) {
-			if (integer == this.minInclusive()) {
+			if (integer == minInclusive()) {
 				return 0.0;
 			}
-			else {
-				return integer == this.maxInclusive()
-				       ? 1.0
-				       : MathHelper.map(
-						       integer.intValue() + 0.5,
-						       (double) this.minInclusive(),
-						       this.maxInclusive() + 1.0,
-						       0.0,
-						       1.0
-				       );
-			}
+
+			return integer == maxInclusive()
+					? 1.0
+					: MathHelper.map(integer.intValue() + 0.5, (double) minInclusive(), maxInclusive() + 1.0, 0.0, 1.0);
 		}
 
-		default Integer toValue(double d) {
-			if (d >= 1.0) {
-				d = 0.99999F;
-			}
-
-			return MathHelper.floor(MathHelper.map(
-					d,
-					0.0,
-					1.0,
-					(double) this.minInclusive(),
-					this.maxInclusive() + 1.0
-			));
+		default Integer toValue(double sliderProgress) {
+			double clamped = sliderProgress >= 1.0 ? 0.99999F : sliderProgress;
+			return MathHelper.floor(MathHelper.map(clamped, 0.0, 1.0, (double) minInclusive(), maxInclusive() + 1.0));
 		}
 
 		default <R> SimpleOption.SliderCallbacks<R> withModifier(
 				IntFunction<? extends R> sliderProgressValueToValue,
 				ToIntFunction<? super R> valueToSliderProgressValue,
-				boolean bl
+				boolean supportsCycling
 		) {
 			return new SimpleOption.SliderCallbacks<R>() {
 				@Override
@@ -504,28 +431,26 @@ public final class SimpleOption<T> {
 
 				@Override
 				public Optional<R> getNext(R value) {
-					if (!bl) {
+					if (!supportsCycling) {
 						return Optional.empty();
 					}
-					else {
-						int i = valueToSliderProgressValue.applyAsInt(value);
-						return (Optional<R>) Optional.of(sliderProgressValueToValue.apply(IntSliderCallbacks.this
-								.validate(i + 1)
-								.orElse(i)));
-					}
+
+					int intValue = valueToSliderProgressValue.applyAsInt(value);
+					return (Optional<R>) Optional.of(
+							sliderProgressValueToValue.apply(IntSliderCallbacks.this.validate(intValue + 1).orElse(intValue))
+					);
 				}
 
 				@Override
 				public Optional<R> getPrevious(R value) {
-					if (!bl) {
+					if (!supportsCycling) {
 						return Optional.empty();
 					}
-					else {
-						int i = valueToSliderProgressValue.applyAsInt(value);
-						return (Optional<R>) Optional.of(sliderProgressValueToValue.apply(IntSliderCallbacks.this
-								.validate(i - 1)
-								.orElse(i)));
-					}
+
+					int intValue = valueToSliderProgressValue.applyAsInt(value);
+					return (Optional<R>) Optional.of(
+							sliderProgressValueToValue.apply(IntSliderCallbacks.this.validate(intValue - 1).orElse(intValue))
+					);
 				}
 
 				@Override
@@ -543,66 +468,59 @@ public final class SimpleOption<T> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LazyCyclingCallbacks}.
+	 * Реализация {@link CyclingCallbacks} с ленивой загрузкой списка значений.
+	 * Используется для настроек, чей список значений зависит от состояния игры
+	 * (например, список аудиоустройств).
 	 */
+	@Environment(EnvType.CLIENT)
 	public record LazyCyclingCallbacks<T>(
 			Supplier<List<T>> values,
 			Function<T, Optional<T>> validateValue,
 			Codec<T> codec
-	)
-			implements SimpleOption.CyclingCallbacks<T> {
+	) implements SimpleOption.CyclingCallbacks<T> {
 
 		@Override
 		public Optional<T> validate(T value) {
-			return this.validateValue.apply(value);
+			return validateValue.apply(value);
 		}
 
 		@Override
 		public CyclingButtonWidget.Values<T> getValues() {
-			return CyclingButtonWidget.Values.of(this.values.get());
+			return CyclingButtonWidget.Values.of(values.get());
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MaxSuppliableIntCallbacks}.
+	 * Реализация {@link IntSliderCallbacks} с динамическим максимумом через {@code maxSupplier}.
+	 * Также реализует {@link TypeChangeableCallbacks} для переключения между слайдером и кнопкой.
+	 * Используется для настроек типа «дальность прорисовки», где максимум зависит от RAM.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record MaxSuppliableIntCallbacks(int minInclusive, IntSupplier maxSupplier, int encodableMaxInclusive)
-			implements SimpleOption.IntSliderCallbacks,
-			SimpleOption.TypeChangeableCallbacks<Integer> {
+			implements SimpleOption.IntSliderCallbacks, SimpleOption.TypeChangeableCallbacks<Integer> {
 
-		/**
-		 * Validate.
-		 *
-		 * @param integer integer
-		 *
-		 * @return Optional — результат операции
-		 */
+		@Override
 		public Optional<Integer> validate(Integer integer) {
-			return Optional.of(MathHelper.clamp(integer, this.minInclusive(), this.maxInclusive()));
+			return Optional.of(MathHelper.clamp(integer, minInclusive(), maxInclusive()));
 		}
 
 		@Override
 		public int maxInclusive() {
-			return this.maxSupplier.getAsInt();
+			return maxSupplier.getAsInt();
 		}
 
 		@Override
 		public Codec<Integer> codec() {
-			return Codec.INT
-					.validate(
-							value -> {
-								int i = this.encodableMaxInclusive + 1;
-								return value.compareTo(this.minInclusive) >= 0 && value.compareTo(i) <= 0
-								       ? DataResult.success(value)
-								       : DataResult.error(
-										       () -> "Value " + value + " outside of range [" + this.minInclusive + ":"
-										             + i + "]", value
-								       );
-							}
-					);
+			return Codec.INT.validate(value -> {
+				int upperBound = encodableMaxInclusive + 1;
+				return value.compareTo(minInclusive) >= 0 && value.compareTo(upperBound) <= 0
+						? DataResult.success(value)
+						: DataResult.error(
+								() -> "Value " + value + " outside of range [" + minInclusive + ":" + upperBound + "]",
+								value
+						);
+			});
 		}
 
 		@Override
@@ -612,18 +530,21 @@ public final class SimpleOption<T> {
 
 		@Override
 		public CyclingButtonWidget.Values<Integer> getValues() {
-			return CyclingButtonWidget.Values.of(IntStream
-					.range(this.minInclusive, this.maxInclusive() + 1)
-					.boxed()
-					.toList());
+			return CyclingButtonWidget.Values.of(
+					IntStream.range(minInclusive, maxInclusive() + 1).boxed().toList()
+			);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code OptionSliderWidgetImpl}.
+	 * Виджет слайдера для настройки типа {@link SimpleOption}.
+	 * Поддерживает отложенное применение значения (через {@code timeToApply}) для
+	 * настроек, где немедленное применение дорого (например, перестройка чанков).
 	 */
+	@Environment(EnvType.CLIENT)
 	public static final class OptionSliderWidgetImpl<N> extends OptionSliderWidget implements Updatable {
+
+		private static final long APPLY_DELAY_MS = 600L;
 
 		private final SimpleOption<N> option;
 		private final SimpleOption.SliderCallbacks<N> callbacks;
@@ -650,105 +571,111 @@ public final class SimpleOption<T> {
 			this.tooltipFactory = tooltipFactory;
 			this.changeCallback = changeCallback;
 			this.shouldApplyImmediately = shouldApplyImmediately;
-			this.updateMessage();
+			updateMessage();
 		}
 
 		@Override
 		protected void updateMessage() {
-			this.setMessage(this.option.textGetter.apply(this.callbacks.toValue(this.value)));
-			this.setTooltip(this.tooltipFactory.apply(this.callbacks.toValue(this.value)));
+			setMessage(option.textGetter.apply(callbacks.toValue(value)));
+			setTooltip(tooltipFactory.apply(callbacks.toValue(value)));
 		}
 
 		@Override
 		protected void applyValue() {
-			if (this.shouldApplyImmediately) {
-				this.applyPendingValue();
+			if (shouldApplyImmediately) {
+				applyPendingValue();
 			}
 			else {
-				this.timeToApply = Util.getMeasuringTimeMs() + 600L;
+				timeToApply = Util.getMeasuringTimeMs() + APPLY_DELAY_MS;
 			}
 		}
 
-		/**
-		 * Применяет pending value.
-		 */
 		public void applyPendingValue() {
-			N object = this.callbacks.toValue(this.value);
-			if (!Objects.equals(object, this.option.getValue())) {
-				this.option.setValue(object);
-				this.changeCallback.accept(this.option.getValue());
+			N newValue = callbacks.toValue(value);
+
+			if (!Objects.equals(newValue, option.getValue())) {
+				option.setValue(newValue);
+				changeCallback.accept(option.getValue());
 			}
 		}
 
 		@Override
 		public void update() {
-			if (this.value != this.callbacks.toSliderProgress(this.option.getValue())) {
-				this.value = this.callbacks.toSliderProgress(this.option.getValue());
-				this.timeToApply = null;
-				this.updateMessage();
+			if (value == callbacks.toSliderProgress(option.getValue())) {
+				return;
 			}
+
+			value = callbacks.toSliderProgress(option.getValue());
+			timeToApply = null;
+			updateMessage();
 		}
 
 		@Override
 		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 			super.renderWidget(context, mouseX, mouseY, deltaTicks);
-			if (this.timeToApply != null && Util.getMeasuringTimeMs() >= this.timeToApply) {
-				this.timeToApply = null;
-				this.applyPendingValue();
-				this.update();
+
+			if (timeToApply != null && Util.getMeasuringTimeMs() >= timeToApply) {
+				timeToApply = null;
+				applyPendingValue();
+				update();
 			}
 		}
 
 		@Override
 		public void onRelease(Click click) {
 			super.onRelease(click);
-			if (this.shouldApplyImmediately) {
-				this.update();
+
+			if (shouldApplyImmediately) {
+				update();
 			}
 		}
 
 		@Override
 		public boolean keyPressed(KeyInput input) {
 			if (input.isEnterOrSpace()) {
-				this.sliderFocused = !this.sliderFocused;
+				sliderFocused = !sliderFocused;
 				return true;
 			}
-			else {
-				if (this.sliderFocused) {
-					boolean bl = input.isLeft();
-					boolean bl2 = input.isRight();
-					if (bl) {
-						Optional<N> optional = this.callbacks.getPrevious(this.callbacks.toValue(this.value));
-						if (optional.isPresent()) {
-							this.setValue(this.callbacks.toSliderProgress(optional.get()));
-							return true;
-						}
-					}
 
-					if (bl2) {
-						Optional<N> optional = this.callbacks.getNext(this.callbacks.toValue(this.value));
-						if (optional.isPresent()) {
-							this.setValue(this.callbacks.toSliderProgress(optional.get()));
-							return true;
-						}
-					}
-
-					if (bl || bl2) {
-						float f = bl ? -1.0F : 1.0F;
-						this.setValue(this.value + f / (this.width - 8));
-						return true;
-					}
-				}
-
+			if (!sliderFocused) {
 				return false;
 			}
+
+			boolean movingLeft = input.isLeft();
+			boolean movingRight = input.isRight();
+
+			if (movingLeft) {
+				Optional<N> previous = callbacks.getPrevious(callbacks.toValue(value));
+
+				if (previous.isPresent()) {
+					setValue(callbacks.toSliderProgress(previous.get()));
+					return true;
+				}
+			}
+
+			if (movingRight) {
+				Optional<N> next = callbacks.getNext(callbacks.toValue(value));
+
+				if (next.isPresent()) {
+					setValue(callbacks.toSliderProgress(next.get()));
+					return true;
+				}
+			}
+
+			if (movingLeft || movingRight) {
+				float direction = movingLeft ? -1.0F : 1.0F;
+				setValue(value + direction / (width - 8));
+				return true;
+			}
+
+			return false;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code PotentialValuesBasedCallbacks}.
+	 * Реализация {@link CyclingCallbacks} на основе фиксированного списка допустимых значений.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record PotentialValuesBasedCallbacks<T>(
 			List<T> values,
 			Codec<T> codec
@@ -756,19 +683,20 @@ public final class SimpleOption<T> {
 
 		@Override
 		public Optional<T> validate(T value) {
-			return this.values.contains(value) ? Optional.of(value) : Optional.empty();
+			return values.contains(value) ? Optional.of(value) : Optional.empty();
 		}
 
 		@Override
 		public CyclingButtonWidget.Values<T> getValues() {
-			return CyclingButtonWidget.Values.of(this.values);
+			return CyclingButtonWidget.Values.of(values);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SliderCallbacks}.
+	 * Базовый интерфейс для настроек, отображаемых слайдером.
+	 * Определяет конвертацию между значением типа {@code T} и позицией слайдера [0.0, 1.0].
 	 */
+	@Environment(EnvType.CLIENT)
 	interface SliderCallbacks<T> extends SimpleOption.Callbacks<T> {
 
 		double toSliderProgress(T value);
@@ -806,25 +734,23 @@ public final class SimpleOption<T> {
 					this,
 					tooltipFactory,
 					changeCallback,
-					this.applyValueImmediately()
+					applyValueImmediately()
 			);
 		}
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TooltipFactory}.
-	 */
 	public interface TooltipFactory<T> {
 
 		@Nullable Tooltip apply(T value);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TypeChangeableCallbacks}.
+	 * Интерфейс для настроек, которые могут отображаться как слайдером, так и кнопкой.
+	 * Выбор типа виджета определяется методом {@link #isCycling()}.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface TypeChangeableCallbacks<T> extends SimpleOption.CyclingCallbacks<T>, SimpleOption.SliderCallbacks<T> {
 
 		boolean isCycling();
@@ -838,30 +764,16 @@ public final class SimpleOption<T> {
 				int width,
 				Consumer<T> changeCallback
 		) {
-			return this.isCycling()
-			       ? SimpleOption.CyclingCallbacks.super.getWidgetCreator(
-					tooltipFactory,
-					gameOptions,
-					x,
-					y,
-					width,
-					changeCallback
-			)
-			       : SimpleOption.SliderCallbacks.super.getWidgetCreator(
-					       tooltipFactory,
-					       gameOptions,
-					       x,
-					       y,
-					       width,
-					       changeCallback
-			       );
+			return isCycling()
+					? SimpleOption.CyclingCallbacks.super.getWidgetCreator(tooltipFactory, gameOptions, x, y, width, changeCallback)
+					: SimpleOption.SliderCallbacks.super.getWidgetCreator(tooltipFactory, gameOptions, x, y, width, changeCallback);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ValidatingIntSliderCallbacks}.
+	 * Реализация {@link IntSliderCallbacks} с жёстко заданным диапазоном [{@code minInclusive}, {@code maxInclusive}].
 	 */
+	@Environment(EnvType.CLIENT)
 	public record ValidatingIntSliderCallbacks(
 			int minInclusive,
 			int maxInclusive,
@@ -872,28 +784,20 @@ public final class SimpleOption<T> {
 			this(minInclusive, maxInclusive, true);
 		}
 
-		/**
-		 * Validate.
-		 *
-		 * @param integer integer
-		 *
-		 * @return Optional — результат операции
-		 */
+		@Override
 		public Optional<Integer> validate(Integer integer) {
-			return integer.compareTo(this.minInclusive()) >= 0 && integer.compareTo(this.maxInclusive()) <= 0
-			       ? Optional.of(integer) : Optional.empty();
+			return integer.compareTo(minInclusive()) >= 0 && integer.compareTo(maxInclusive()) <= 0
+					? Optional.of(integer)
+					: Optional.empty();
 		}
 
 		@Override
 		public Codec<Integer> codec() {
-			return Codec.intRange(this.minInclusive, this.maxInclusive + 1);
+			return Codec.intRange(minInclusive, maxInclusive + 1);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ValueTextGetter}.
-	 */
 	public interface ValueTextGetter<T> {
 
 		Text toString(Text optionText, T value);

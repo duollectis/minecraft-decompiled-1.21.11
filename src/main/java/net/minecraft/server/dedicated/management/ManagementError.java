@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ManagementError}.
+ * Класс Management Error.
  */
 public enum ManagementError {
 	PARSE_ERROR(-32700, "Parse error"),

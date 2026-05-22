@@ -9,10 +9,10 @@ import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemStackWidget}.
+ * Виджет для отображения предмета из {@link ItemStack} с опциональным оверлеем и тултипом.
  */
+@Environment(EnvType.CLIENT)
 public class ItemStackWidget extends ClickableWidget {
 
 	private final MinecraftClient client;
@@ -44,39 +44,33 @@ public class ItemStackWidget extends ClickableWidget {
 
 	@Override
 	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		context.drawItem(this.stack, this.getX() + this.xOffset, this.getY() + this.yOffset, 0);
-		if (this.drawOverlay) {
+		context.drawItem(stack, getX() + xOffset, getY() + yOffset, 0);
+
+		if (drawOverlay) {
 			context.drawStackOverlay(
-					this.client.textRenderer,
-					this.stack,
-					this.getX() + this.xOffset,
-					this.getY() + this.yOffset,
+					client.textRenderer,
+					stack,
+					getX() + xOffset,
+					getY() + yOffset,
 					null
 			);
 		}
 
-		if (this.isFocused()) {
-			context.drawStrokedRectangle(this.getX(), this.getY(), this.getWidth(), this.getHeight(), -1);
+		if (isFocused()) {
+			context.drawStrokedRectangle(getX(), getY(), getWidth(), getHeight(), -1);
 		}
 
-		if (this.hasTooltip && this.isSelected()) {
-			this.renderTooltip(context, mouseX, mouseY);
+		if (hasTooltip && isSelected()) {
+			renderTooltip(context, mouseX, mouseY);
 		}
 	}
 
-	/**
-	 * Отрисовывает tooltip.
-	 *
-	 * @param context context
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 */
 	protected void renderTooltip(DrawContext context, int mouseX, int mouseY) {
-		context.drawItemTooltip(this.client.textRenderer, this.stack, mouseX, mouseY);
+		context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
 	}
 
 	@Override
 	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, Text.translatable("narration.item", this.stack.getName()));
+		builder.put(NarrationPart.TITLE, Text.translatable("narration.item", stack.getName()));
 	}
 }

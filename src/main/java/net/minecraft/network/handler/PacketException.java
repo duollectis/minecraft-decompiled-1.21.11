@@ -1,7 +1,8 @@
 package net.minecraft.network.handler;
 
 /**
- * Интерфейс packet exception.
+ * Маркерный интерфейс для всех исключений, связанных с обработкой пакетов.
+ * Позволяет единообразно перехватывать ошибки кодирования и декодирования.
  */
 public interface PacketException {
 }

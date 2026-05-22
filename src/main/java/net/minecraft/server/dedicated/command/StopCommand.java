@@ -7,7 +7,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 /**
- * {@code StopCommand}.
+ * Команда {@code /stop}: корректная остановка сервера (только dedicated).
  */
 public class StopCommand {
 

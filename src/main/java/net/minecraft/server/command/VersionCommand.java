@@ -10,7 +10,7 @@ import net.minecraft.text.Text;
 import java.util.function.Consumer;
 
 /**
- * {@code VersionCommand}.
+ * Команда {@code /version}: вывод версии сервера.
  */
 public class VersionCommand {
 

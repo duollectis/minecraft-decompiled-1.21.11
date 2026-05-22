@@ -13,7 +13,11 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.world.World;
 
 /**
- * {@code CraftingResultSlot}.
+ * Выходной слот стола крафта.
+ * <p>
+ * При взятии результата: уменьшает ингредиенты в сетке крафта, возвращает
+ * остатки рецепта (например, вёдра), начисляет статистику крафта и разблокирует
+ * рецепт в книге рецептов игрока.
  */
 public class CraftingResultSlot extends Slot {
 
@@ -41,8 +45,8 @@ public class CraftingResultSlot extends Slot {
 
 	@Override
 	public ItemStack takeStack(int amount) {
-		if (this.hasStack()) {
-			this.amount = this.amount + Math.min(amount, this.getStack().getCount());
+		if (hasStack()) {
+			this.amount += Math.min(amount, getStack().getCount());
 		}
 
 		return super.takeStack(amount);
@@ -51,7 +55,7 @@ public class CraftingResultSlot extends Slot {
 	@Override
 	protected void onCrafted(ItemStack stack, int amount) {
 		this.amount += amount;
-		this.onCrafted(stack);
+		onCrafted(stack);
 	}
 
 	@Override
@@ -61,66 +65,53 @@ public class CraftingResultSlot extends Slot {
 
 	@Override
 	protected void onCrafted(ItemStack stack) {
-		if (this.amount > 0) {
-			stack.onCraftByPlayer(this.player, this.amount);
+		if (amount > 0) {
+			stack.onCraftByPlayer(player, amount);
 		}
 
-		if (this.inventory instanceof RecipeUnlocker recipeUnlocker) {
-			recipeUnlocker.unlockLastRecipe(this.player, this.input.getHeldStacks());
+		if (inventory instanceof RecipeUnlocker recipeUnlocker) {
+			recipeUnlocker.unlockLastRecipe(player, input.getHeldStacks());
 		}
 
-		this.amount = 0;
+		amount = 0;
 	}
 
-	private static DefaultedList<ItemStack> copyInput(CraftingRecipeInput input) {
-		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
-
-		for (int i = 0; i < defaultedList.size(); i++) {
-			defaultedList.set(i, input.getStackInSlot(i));
-		}
-
-		return defaultedList;
-	}
-
-	private DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input, World world) {
-		return world instanceof ServerWorld serverWorld
-		       ? serverWorld.getRecipeManager()
-		                    .getFirstMatch(RecipeType.CRAFTING, input, serverWorld)
-		                    .map(recipe -> recipe.value().getRecipeRemainders(input))
-		                    .orElseGet(() -> copyInput(input))
-		       : CraftingRecipe.collectRecipeRemainders(input);
-	}
-
+	/**
+	 * При взятии результата уменьшает ингредиенты в сетке и раскладывает
+	 * остатки рецепта обратно в слоты или в инвентарь игрока.
+	 */
 	@Override
 	public void onTakeItem(PlayerEntity player, ItemStack stack) {
-		this.onCrafted(stack);
-		CraftingRecipeInput.Positioned positioned = this.input.createPositionedRecipeInput();
-		CraftingRecipeInput craftingRecipeInput = positioned.input();
-		int i = positioned.left();
-		int j = positioned.top();
-		DefaultedList<ItemStack> defaultedList = this.getRecipeRemainders(craftingRecipeInput, player.getEntityWorld());
+		onCrafted(stack);
 
-		for (int k = 0; k < craftingRecipeInput.getHeight(); k++) {
-			for (int l = 0; l < craftingRecipeInput.getWidth(); l++) {
-				int m = l + i + (k + j) * this.input.getWidth();
-				ItemStack itemStack = this.input.getStack(m);
-				ItemStack itemStack2 = defaultedList.get(l + k * craftingRecipeInput.getWidth());
-				if (!itemStack.isEmpty()) {
-					this.input.removeStack(m, 1);
-					itemStack = this.input.getStack(m);
+		CraftingRecipeInput.Positioned positioned = input.createPositionedRecipeInput();
+		CraftingRecipeInput recipeInput = positioned.input();
+		int offsetLeft = positioned.left();
+		int offsetTop = positioned.top();
+		DefaultedList<ItemStack> remainders = getRecipeRemainders(recipeInput, player.getEntityWorld());
+
+		for (int row = 0; row < recipeInput.getHeight(); row++) {
+			for (int col = 0; col < recipeInput.getWidth(); col++) {
+				int slotIndex = col + offsetLeft + (row + offsetTop) * input.getWidth();
+				ItemStack slotStack = input.getStack(slotIndex);
+				ItemStack remainder = remainders.get(col + row * recipeInput.getWidth());
+
+				if (!slotStack.isEmpty()) {
+					input.removeStack(slotIndex, 1);
+					slotStack = input.getStack(slotIndex);
 				}
 
-				if (!itemStack2.isEmpty()) {
-					if (itemStack.isEmpty()) {
-						this.input.setStack(m, itemStack2);
-					}
-					else if (ItemStack.areItemsAndComponentsEqual(itemStack, itemStack2)) {
-						itemStack2.increment(itemStack.getCount());
-						this.input.setStack(m, itemStack2);
-					}
-					else if (!this.player.getInventory().insertStack(itemStack2)) {
-						this.player.dropItem(itemStack2, false);
-					}
+				if (remainder.isEmpty()) {
+					continue;
+				}
+
+				if (slotStack.isEmpty()) {
+					input.setStack(slotIndex, remainder);
+				} else if (ItemStack.areItemsAndComponentsEqual(slotStack, remainder)) {
+					remainder.increment(slotStack.getCount());
+					input.setStack(slotIndex, remainder);
+				} else if (!player.getInventory().insertStack(remainder)) {
+					player.dropItem(remainder, false);
 				}
 			}
 		}
@@ -129,5 +120,24 @@ public class CraftingResultSlot extends Slot {
 	@Override
 	public boolean disablesDynamicDisplay() {
 		return true;
+	}
+
+	private static DefaultedList<ItemStack> copyInput(CraftingRecipeInput recipeInput) {
+		DefaultedList<ItemStack> copy = DefaultedList.ofSize(recipeInput.size(), ItemStack.EMPTY);
+
+		for (int index = 0; index < copy.size(); index++) {
+			copy.set(index, recipeInput.getStackInSlot(index));
+		}
+
+		return copy;
+	}
+
+	private DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput recipeInput, World world) {
+		return world instanceof ServerWorld serverWorld
+				? serverWorld.getRecipeManager()
+						.getFirstMatch(RecipeType.CRAFTING, recipeInput, serverWorld)
+						.map(recipe -> recipe.value().getRecipeRemainders(recipeInput))
+						.orElseGet(() -> copyInput(recipeInput))
+				: CraftingRecipe.collectRecipeRemainders(recipeInput);
 	}
 }

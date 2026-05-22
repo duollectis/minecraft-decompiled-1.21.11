@@ -1,7 +1,7 @@
 package net.minecraft.util.math;
 
 /**
- * {@code Position}.
+ * Интерфейс трёхмерной позиции в вещественных координатах.
  */
 public interface Position {
 

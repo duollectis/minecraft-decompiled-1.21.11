@@ -11,85 +11,96 @@ import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TakeoffPhase}.
+ * Фаза взлёта. Дракон поднимается от портала и переходит в {@link HoldingPatternPhase}
+ * как только удаляется от портала на достаточное расстояние.
  */
 public class TakeoffPhase extends AbstractPhase {
+
+	private static final double TAKEOFF_DISTANCE = 10.0;
+	private static final double APPROACH_RADIUS = 40.0;
+	private static final double APPROACH_HEIGHT = 105.0;
+	private static final int OUTER_RING_SIZE = 12;
+	private static final int INNER_RING_MASK = 7;
+	private static final float PATH_Y_RANDOM_RANGE = 20.0F;
 
 	private boolean shouldFindNewPath;
 	private @Nullable Path path;
 	private @Nullable Vec3d pathTarget;
 
-	public TakeoffPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public TakeoffPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		if (!this.shouldFindNewPath && this.path != null) {
-			BlockPos
-					blockPos =
-					world.getTopPosition(
-							Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
-					);
-			if (!blockPos.isWithinDistance(this.dragon.getEntityPos(), 10.0)) {
-				this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
-			}
+		if (shouldFindNewPath || path == null) {
+			shouldFindNewPath = false;
+			updatePath();
+			return;
 		}
-		else {
-			this.shouldFindNewPath = false;
-			this.updatePath();
+
+		BlockPos portalTop = world.getTopPosition(
+				Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+				EndPortalFeature.offsetOrigin(dragon.getFightOrigin())
+		);
+
+		if (!portalTop.isWithinDistance(dragon.getEntityPos(), TAKEOFF_DISTANCE)) {
+			dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
 		}
 	}
 
 	@Override
 	public void beginPhase() {
-		this.shouldFindNewPath = true;
-		this.path = null;
-		this.pathTarget = null;
+		shouldFindNewPath = true;
+		path = null;
+		pathTarget = null;
 	}
 
 	private void updatePath() {
-		int i = this.dragon.getNearestPathNodeIndex();
-		Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F);
-		int j = this.dragon.getNearestPathNodeIndex(-vec3d.x * 40.0, 105.0, -vec3d.z * 40.0);
-		if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() > 0) {
-			j %= 12;
-			if (j < 0) {
-				j += 12;
+		int nearestNode = dragon.getNearestPathNodeIndex();
+		Vec3d lookDir = dragon.getRotationVectorFromPhase(1.0F);
+		int targetNode = dragon.getNearestPathNodeIndex(-lookDir.x * APPROACH_RADIUS, APPROACH_HEIGHT, -lookDir.z * APPROACH_RADIUS);
+
+		if (dragon.getFight() != null && dragon.getFight().getAliveEndCrystals() > 0) {
+			targetNode %= OUTER_RING_SIZE;
+			if (targetNode < 0) {
+				targetNode += OUTER_RING_SIZE;
 			}
-		}
-		else {
-			j -= 12;
-			j &= 7;
-			j += 12;
+		} else {
+			targetNode -= OUTER_RING_SIZE;
+			targetNode &= INNER_RING_MASK;
+			targetNode += OUTER_RING_SIZE;
 		}
 
-		this.path = this.dragon.findPath(i, j, null);
-		this.followPath();
+		path = dragon.findPath(nearestNode, targetNode, null);
+		followPath();
 	}
 
 	private void followPath() {
-		if (this.path != null) {
-			this.path.next();
-			if (!this.path.isFinished()) {
-				Vec3i vec3i = this.path.getCurrentNodePos();
-				this.path.next();
-
-				double d;
-				do {
-					d = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
-				}
-				while (d < vec3i.getY());
-
-				this.pathTarget = new Vec3d(vec3i.getX(), d, vec3i.getZ());
-			}
+		if (path == null) {
+			return;
 		}
+
+		path.next();
+
+		if (path.isFinished()) {
+			return;
+		}
+
+		Vec3i nodePos = path.getCurrentNodePos();
+		path.next();
+
+		double targetY;
+		do {
+			targetY = nodePos.getY() + dragon.getRandom().nextFloat() * PATH_Y_RANDOM_RANGE;
+		} while (targetY < nodePos.getY());
+
+		pathTarget = new Vec3d(nodePos.getX(), targetY, nodePos.getZ());
 	}
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.pathTarget;
+		return pathTarget;
 	}
 
 	@Override

@@ -8,7 +8,8 @@ import net.minecraft.world.gen.HeightContext;
 import net.minecraft.world.gen.YOffset;
 
 /**
- * {@code HeightProvider}.
+ * Базовый класс провайдеров высоты для генерации мира.
+ * Определяет стратегию выбора Y-координаты в заданном контексте высот.
  */
 public abstract class HeightProvider {
 
@@ -22,14 +23,6 @@ public abstract class HeightProvider {
 			            ? Either.left(((ConstantHeightProvider) provider).getOffset()) : Either.right(provider)
 	);
 
-	/**
-	 * Get.
-	 *
-	 * @param random random
-	 * @param context context
-	 *
-	 * @return int — 
-	 */
 	public abstract int get(Random random, HeightContext context);
 
 	public abstract HeightProviderType<?> getType();

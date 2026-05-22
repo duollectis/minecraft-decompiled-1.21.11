@@ -6,7 +6,11 @@ import net.minecraft.resource.ResourceType;
 import java.util.Date;
 
 /**
- * {@code GameVersion}.
+ * Описывает версию игры Minecraft.
+ * <p>
+ * Содержит идентификатор, имя, версию данных мира, версию протокола,
+ * версии пакетов ресурсов и данных, время сборки и признак стабильности.
+ * Стандартная реализация — {@link Impl}.
  */
 public interface GameVersion {
 
@@ -18,6 +22,12 @@ public interface GameVersion {
 
 	int protocolVersion();
 
+	/**
+	 * Возвращает версию пакета для указанного типа ресурсов.
+	 *
+	 * @param type тип ресурсов (клиентские ресурсы или серверные данные)
+	 * @return версия пакета для данного типа
+	 */
 	PackVersion packVersion(ResourceType type);
 
 	Date buildTime();
@@ -25,24 +35,24 @@ public interface GameVersion {
 	boolean stable();
 
 	/**
-	 * {@code Impl}.
+	 * Стандартная иммутабельная реализация {@link GameVersion} на основе Java Record.
 	 */
-	public record Impl(
-			String id,
-			String name,
-			SaveVersion dataVersion,
-			int protocolVersion,
-			PackVersion resourcePackVersion,
-			PackVersion datapackVersion,
-			Date buildTime,
-			boolean stable
+	record Impl(
+		String id,
+		String name,
+		SaveVersion dataVersion,
+		int protocolVersion,
+		PackVersion resourcePackVersion,
+		PackVersion datapackVersion,
+		Date buildTime,
+		boolean stable
 	) implements GameVersion {
 
 		@Override
 		public PackVersion packVersion(ResourceType type) {
 			return switch (type) {
-				case CLIENT_RESOURCES -> this.resourcePackVersion;
-				case SERVER_DATA -> this.datapackVersion;
+				case CLIENT_RESOURCES -> resourcePackVersion;
+				case SERVER_DATA -> datapackVersion;
 			};
 		}
 	}

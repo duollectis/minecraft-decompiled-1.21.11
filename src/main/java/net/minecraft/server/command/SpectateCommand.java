@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpectateCommand}.
+ * Команда {@code /spectate}: переключение в режим наблюдателя за сущностью.
  */
 public class SpectateCommand {
 

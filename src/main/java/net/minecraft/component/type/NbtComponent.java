@@ -13,8 +13,9 @@ import net.minecraft.network.codec.PacketCodecs;
 import java.util.function.Consumer;
 
 /**
- * {@code NbtComponent}.
- */
+	 * Компонент произвольных NBT-данных предмета. Используется для хранения
+	 * кастомных данных, не покрытых стандартными компонентами (например, данные модов).
+	 */
 public final class NbtComponent {
 
 	public static final NbtComponent DEFAULT = new NbtComponent(new NbtCompound());
@@ -33,84 +34,77 @@ public final class NbtComponent {
 	}
 
 	/**
-	 * Of.
-	 *
-	 * @param nbt nbt
-	 *
-	 * @return NbtComponent — результат операции
-	 */
+		 * Создаёт компонент с защитной копией переданного NBT-тега.
+		 *
+		 * @param nbt исходный NBT-тег (будет скопирован)
+		 * @return новый {@code NbtComponent}
+		 */
 	public static NbtComponent of(NbtCompound nbt) {
 		return new NbtComponent(nbt.copy());
 	}
 
 	/**
-	 * Matches.
-	 *
-	 * @param nbt nbt
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, содержит ли компонент все ключи и значения из переданного NBT-тега
+		 * (частичное совпадение — дополнительные ключи в компоненте допустимы).
+		 *
+		 * @param nbt NBT-тег для сравнения
+		 * @return {@code true} если все поля {@code nbt} присутствуют в компоненте
+		 */
 	public boolean matches(NbtCompound nbt) {
 		return NbtHelper.matches(nbt, this.nbt, true);
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param type type
-	 * @param stack stack
-	 * @param nbtSetter nbt setter
-	 */
+		 * Изменяет NBT-компонент стека через функцию-мутатор. Если после изменения
+		 * NBT оказывается пустым — компонент удаляется из стека.
+		 *
+		 * @param type      тип компонента
+		 * @param stack     целевой стек предмета
+		 * @param nbtSetter функция, изменяющая NBT-тег
+		 */
 	public static void set(ComponentType<NbtComponent> type, ItemStack stack, Consumer<NbtCompound> nbtSetter) {
-		NbtComponent nbtComponent = stack.getOrDefault(type, DEFAULT).apply(nbtSetter);
-		if (nbtComponent.nbt.isEmpty()) {
+		NbtComponent updated = stack.getOrDefault(type, DEFAULT).apply(nbtSetter);
+
+		if (updated.nbt.isEmpty()) {
 			stack.remove(type);
-		}
-		else {
-			stack.set(type, nbtComponent);
+		} else {
+			stack.set(type, updated);
 		}
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param type type
-	 * @param stack stack
-	 * @param nbt nbt
-	 */
+		 * Устанавливает NBT-компонент стека напрямую. Если NBT пустой — компонент удаляется.
+		 *
+		 * @param type  тип компонента
+		 * @param stack целевой стек предмета
+		 * @param nbt   новый NBT-тег
+		 */
 	public static void set(ComponentType<NbtComponent> type, ItemStack stack, NbtCompound nbt) {
-		if (!nbt.isEmpty()) {
+		if (nbt.isEmpty()) {
+			stack.remove(type);
+		} else {
 			stack.set(type, of(nbt));
 		}
-		else {
-			stack.remove(type);
-		}
 	}
 
 	/**
-	 * Apply.
-	 *
-	 * @param nbtConsumer nbt consumer
-	 *
-	 * @return NbtComponent — результат операции
-	 */
+		 * Возвращает новый компонент с изменённым NBT-тегом через функцию-мутатор.
+		 *
+		 * @param nbtConsumer функция, изменяющая копию внутреннего NBT-тега
+		 * @return новый {@code NbtComponent} с изменёнными данными
+		 */
 	public NbtComponent apply(Consumer<NbtCompound> nbtConsumer) {
-		NbtCompound nbtCompound = this.nbt.copy();
-		nbtConsumer.accept(nbtCompound);
-		return new NbtComponent(nbtCompound);
+		NbtCompound copy = nbt.copy();
+		nbtConsumer.accept(copy);
+		return new NbtComponent(copy);
 	}
 
 	public boolean isEmpty() {
-		return this.nbt.isEmpty();
+		return nbt.isEmpty();
 	}
 
-	/**
-	 * Создаёт копию nbt.
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public NbtCompound copyNbt() {
-		return this.nbt.copy();
+		return nbt.copy();
 	}
 
 	@Override
@@ -118,18 +112,17 @@ public final class NbtComponent {
 		if (o == this) {
 			return true;
 		}
-		else {
-			return o instanceof NbtComponent nbtComponent ? this.nbt.equals(nbtComponent.nbt) : false;
-		}
+
+		return o instanceof NbtComponent other && nbt.equals(other.nbt);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.nbt.hashCode();
+		return nbt.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.nbt.toString();
+		return nbt.toString();
 	}
 }

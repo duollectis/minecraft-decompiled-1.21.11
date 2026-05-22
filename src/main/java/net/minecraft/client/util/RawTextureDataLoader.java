@@ -9,30 +9,30 @@ import net.minecraft.util.Identifier;
 import java.io.IOException;
 import java.io.InputStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RawTextureDataLoader}.
+ * Устаревший загрузчик пиксельных данных текстур в виде массива ARGB-значений.
+ *
+ * @deprecated используйте {@link net.minecraft.client.texture.NativeImage} напрямую
  */
+@Environment(EnvType.CLIENT)
 public class RawTextureDataLoader {
 
-	@Deprecated
 	/**
-	 * Загружает raw texture data.
+	 * Загружает пиксельные данные текстуры как массив ARGB-значений.
 	 *
-	 * @param resourceManager resource manager
-	 * @param id id
-	 *
-	 * @return int[] — результат операции
+	 * @param resourceManager менеджер ресурсов для открытия файла
+	 * @param id              идентификатор текстуры
+	 * @return массив ARGB-пикселей
+	 * @throws IOException если ресурс не найден или не может быть прочитан
+	 * @deprecated используйте {@link NativeImage} напрямую
 	 */
+	@Deprecated
 	public static int[] loadRawTextureData(ResourceManager resourceManager, Identifier id) throws IOException {
-		int[] var4;
 		try (
-				InputStream inputStream = resourceManager.open(id);
-				NativeImage nativeImage = NativeImage.read(inputStream);
+			InputStream inputStream = resourceManager.open(id);
+			NativeImage nativeImage = NativeImage.read(inputStream)
 		) {
-			var4 = nativeImage.makePixelArray();
+			return nativeImage.makePixelArray();
 		}
-
-		return var4;
 	}
 }

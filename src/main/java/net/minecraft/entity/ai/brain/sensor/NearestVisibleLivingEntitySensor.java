@@ -10,37 +10,29 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code NearestVisibleLivingEntitySensor}.
+ * Абстрактный сенсор поиска ближайшей видимой живой сущности по заданному критерию.
+ * Подклассы реализуют {@link #matches} для фильтрации целей и {@link #getOutputMemoryModule}
+ * для указания модуля памяти, в который записывается результат.
  */
 public abstract class NearestVisibleLivingEntitySensor extends Sensor<LivingEntity> {
 
-	/**
-	 * Matches.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param target target
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected abstract boolean matches(ServerWorld world, LivingEntity entity, LivingEntity target);
 
 	protected abstract MemoryModuleType<LivingEntity> getOutputMemoryModule();
 
 	@Override
 	public Set<MemoryModuleType<?>> getOutputMemoryModules() {
-		return ImmutableSet.of(this.getOutputMemoryModule());
+		return ImmutableSet.of(getOutputMemoryModule());
 	}
 
 	@Override
 	protected void sense(ServerWorld world, LivingEntity entity) {
-		entity.getBrain().remember(this.getOutputMemoryModule(), this.getNearestVisibleLivingEntity(world, entity));
+		entity.getBrain().remember(getOutputMemoryModule(), getNearestVisibleLivingEntity(world, entity));
 	}
 
 	private Optional<LivingEntity> getNearestVisibleLivingEntity(ServerWorld world, LivingEntity entity) {
-		return this
-				.getVisibleLivingEntities(entity)
-				.flatMap(entities -> entities.findFirst(target -> this.matches(world, entity, target)));
+		return getVisibleLivingEntities(entity)
+				.flatMap(cache -> cache.findFirst(target -> matches(world, entity, target)));
 	}
 
 	protected Optional<LivingTargetCache> getVisibleLivingEntities(LivingEntity entity) {

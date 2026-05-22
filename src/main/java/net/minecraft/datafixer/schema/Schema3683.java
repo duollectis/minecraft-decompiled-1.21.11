@@ -9,21 +9,26 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3683}.
+ * Схема версии 3683 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Обновляет тип данных сущности TNT ({@code minecraft:tnt}): теперь она хранит
+ * поле {@code block_state} для поддержки кастомных состояний блока взрывчатки,
+ * что позволяет DataFixer корректно мигрировать данные при обновлении.
  */
 public class Schema3683 extends IdentifierNormalizingSchema {
 
-	public Schema3683(int i, Schema schema) {
-		super(i, schema);
+	public Schema3683(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
 		schema.register(
-				map,
-				"minecraft:tnt",
-				() -> DSL.optionalFields("block_state", TypeReferences.BLOCK_STATE.in(schema))
+			entityTypes,
+			"minecraft:tnt",
+			() -> DSL.optionalFields("block_state", TypeReferences.BLOCK_STATE.in(schema))
 		);
-		return map;
+		return entityTypes;
 	}
 }

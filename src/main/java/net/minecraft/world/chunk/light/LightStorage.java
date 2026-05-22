@@ -12,7 +12,12 @@ import net.minecraft.world.chunk.ChunkToNibbleArrayMap;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LightStorage}.
+ * Абстрактное хранилище данных освещения для всех секций мира.
+ * Управляет двумя копиями данных: кешированной (для быстрого чтения в основном потоке)
+ * и некешированной (для потокобезопасного чтения из других потоков).
+ * Поддерживает очередь ожидающих обновлений и уведомление чанков об изменениях.
+ *
+ * @param <M> тип карты nibble-массивов
  */
 public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 
@@ -34,258 +39,224 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 	protected LightStorage(LightType lightType, ChunkProvider chunkProvider, M lightData) {
 		this.lightType = lightType;
 		this.chunkProvider = chunkProvider;
-		this.storage = lightData;
-		this.uncachedStorage = lightData.copy();
-		this.uncachedStorage.disableCache();
-		this.sectionPropagations.defaultReturnValue((byte) 0);
+		storage = lightData;
+		uncachedStorage = lightData.copy();
+		uncachedStorage.disableCache();
+		sectionPropagations.defaultReturnValue((byte) 0);
 	}
 
 	protected boolean hasSection(long sectionPos) {
-		return this.getLightSection(sectionPos, true) != null;
+		return getLightSection(sectionPos, true) != null;
 	}
 
 	protected @Nullable ChunkNibbleArray getLightSection(long sectionPos, boolean cached) {
-		return this.getLightSection(cached ? this.storage : this.uncachedStorage, sectionPos);
+		return getLightSection(cached ? storage : uncachedStorage, sectionPos);
 	}
 
-	protected @Nullable ChunkNibbleArray getLightSection(M storage, long sectionPos) {
-		return storage.get(sectionPos);
+	protected @Nullable ChunkNibbleArray getLightSection(M storageMap, long sectionPos) {
+		return storageMap.get(sectionPos);
 	}
 
 	protected @Nullable ChunkNibbleArray getOrCreateLightSection(long sectionPos) {
-		ChunkNibbleArray chunkNibbleArray = this.storage.get(sectionPos);
-		if (chunkNibbleArray == null) {
+		ChunkNibbleArray section = storage.get(sectionPos);
+
+		if (section == null) {
 			return null;
 		}
-		else {
-			if (this.dirtySections.add(sectionPos)) {
-				chunkNibbleArray = chunkNibbleArray.copy();
-				this.storage.put(sectionPos, chunkNibbleArray);
-				this.storage.clearCache();
-			}
 
-			return chunkNibbleArray;
+		if (dirtySections.add(sectionPos)) {
+			section = section.copy();
+			storage.put(sectionPos, section);
+			storage.clearCache();
 		}
+
+		return section;
 	}
 
 	public @Nullable ChunkNibbleArray getLightSection(long sectionPos) {
-		ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.queuedSections.get(sectionPos);
-		return chunkNibbleArray != null ? chunkNibbleArray : this.getLightSection(sectionPos, false);
+		ChunkNibbleArray queued = (ChunkNibbleArray) queuedSections.get(sectionPos);
+
+		return queued != null ? queued : getLightSection(sectionPos, false);
 	}
 
 	protected abstract int getLight(long blockPos);
 
-	/**
-	 * Get.
-	 *
-	 * @param blockPos block pos
-	 *
-	 * @return int — 
-	 */
 	protected int get(long blockPos) {
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		ChunkNibbleArray chunkNibbleArray = this.getLightSection(l, true);
-		return chunkNibbleArray.get(
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+		ChunkNibbleArray section = getLightSection(sectionPos, true);
+
+		return section.get(
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos))
 		);
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param blockPos block pos
-	 * @param value value
-	 */
 	protected void set(long blockPos, int value) {
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		ChunkNibbleArray chunkNibbleArray;
-		if (this.dirtySections.add(l)) {
-			chunkNibbleArray = this.storage.replaceWithCopy(l);
-		}
-		else {
-			chunkNibbleArray = this.getLightSection(l, true);
-		}
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+		ChunkNibbleArray section = dirtySections.add(sectionPos)
+				? storage.replaceWithCopy(sectionPos)
+				: getLightSection(sectionPos, true);
 
-		chunkNibbleArray.set(
+		section.set(
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
 				ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos)),
 				value
 		);
-		ChunkSectionPos.forEachChunkSectionAround(blockPos, this.notifySections::add);
+		ChunkSectionPos.forEachChunkSectionAround(blockPos, notifySections::add);
 	}
 
 	/**
-	 * Добавляет notify sections.
-	 *
-	 * @param id id
+	 * Добавляет все 26 соседних секций вокруг заданной в набор секций для уведомления.
+	 * Используется при изменении состояния секции, чтобы соседи пересчитали свет.
 	 */
 	protected void addNotifySections(long id) {
-		int i = ChunkSectionPos.unpackX(id);
-		int j = ChunkSectionPos.unpackY(id);
-		int k = ChunkSectionPos.unpackZ(id);
+		int sectionX = ChunkSectionPos.unpackX(id);
+		int sectionY = ChunkSectionPos.unpackY(id);
+		int sectionZ = ChunkSectionPos.unpackZ(id);
 
-		for (int l = -1; l <= 1; l++) {
-			for (int m = -1; m <= 1; m++) {
-				for (int n = -1; n <= 1; n++) {
-					this.notifySections.add(ChunkSectionPos.asLong(i + m, j + n, k + l));
+		for (int dz = -1; dz <= 1; dz++) {
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dy = -1; dy <= 1; dy++) {
+					notifySections.add(ChunkSectionPos.asLong(sectionX + dx, sectionY + dy, sectionZ + dz));
 				}
 			}
 		}
 	}
 
-	/**
-	 * Создаёт section.
-	 *
-	 * @param sectionPos section pos
-	 *
-	 * @return ChunkNibbleArray — результат операции
-	 */
 	protected ChunkNibbleArray createSection(long sectionPos) {
-		ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.queuedSections.get(sectionPos);
-		return chunkNibbleArray != null ? chunkNibbleArray : new ChunkNibbleArray();
+		ChunkNibbleArray queued = (ChunkNibbleArray) queuedSections.get(sectionPos);
+
+		return queued != null ? queued : new ChunkNibbleArray();
 	}
 
 	protected boolean hasLightUpdates() {
-		return this.hasLightUpdates;
+		return hasLightUpdates;
 	}
 
 	/**
-	 * Обновляет light.
-	 *
-	 * @param lightProvider light provider
+	 * Применяет все ожидающие изменения секций: удаляет выгруженные секции,
+	 * загружает новые данные из очереди и обновляет некешированную копию хранилища.
 	 */
 	protected void updateLight(ChunkLightProvider<M, ?> lightProvider) {
-		if (this.hasLightUpdates) {
-			this.hasLightUpdates = false;
-			LongIterator objectIterator = this.sectionsToRemove.iterator();
-
-			while (objectIterator.hasNext()) {
-				long l = (Long) objectIterator.next();
-				ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.queuedSections.remove(l);
-				ChunkNibbleArray chunkNibbleArray2 = this.storage.removeChunk(l);
-				if (this.columnsToRetain.contains(ChunkSectionPos.withZeroY(l))) {
-					if (chunkNibbleArray != null) {
-						this.queuedSections.put(l, chunkNibbleArray);
-					}
-					else if (chunkNibbleArray2 != null) {
-						this.queuedSections.put(l, chunkNibbleArray2);
-					}
-				}
-			}
-
-			this.storage.clearCache();
-			objectIterator = this.sectionsToRemove.iterator();
-
-			while (objectIterator.hasNext()) {
-				long l = (Long) objectIterator.next();
-				this.onUnloadSection(l);
-				this.dirtySections.add(l);
-			}
-
-			this.sectionsToRemove.clear();
-			ObjectIterator<Entry<ChunkNibbleArray>> objectIteratorx = Long2ObjectMaps.fastIterator(this.queuedSections);
-
-			while (objectIteratorx.hasNext()) {
-				Entry<ChunkNibbleArray> entry = (Entry<ChunkNibbleArray>) objectIteratorx.next();
-				long m = entry.getLongKey();
-				if (this.hasSection(m)) {
-					ChunkNibbleArray chunkNibbleArray2 = (ChunkNibbleArray) entry.getValue();
-					if (this.storage.get(m) != chunkNibbleArray2) {
-						this.storage.put(m, chunkNibbleArray2);
-						this.dirtySections.add(m);
-					}
-
-					objectIteratorx.remove();
-				}
-			}
-
-			this.storage.clearCache();
+		if (!hasLightUpdates) {
+			return;
 		}
+
+		hasLightUpdates = false;
+
+		for (LongIterator it = sectionsToRemove.iterator(); it.hasNext(); ) {
+			long sectionPos = it.nextLong();
+			ChunkNibbleArray queued = (ChunkNibbleArray) queuedSections.remove(sectionPos);
+			ChunkNibbleArray removed = storage.removeChunk(sectionPos);
+
+			if (columnsToRetain.contains(ChunkSectionPos.withZeroY(sectionPos))) {
+				if (queued != null) {
+					queuedSections.put(sectionPos, queued);
+				} else if (removed != null) {
+					queuedSections.put(sectionPos, removed);
+				}
+			}
+		}
+
+		storage.clearCache();
+
+		for (LongIterator it = sectionsToRemove.iterator(); it.hasNext(); ) {
+			long sectionPos = it.nextLong();
+			onUnloadSection(sectionPos);
+			dirtySections.add(sectionPos);
+		}
+
+		sectionsToRemove.clear();
+
+		ObjectIterator<Entry<ChunkNibbleArray>> queuedIterator = Long2ObjectMaps.fastIterator(queuedSections);
+
+		while (queuedIterator.hasNext()) {
+			Entry<ChunkNibbleArray> entry = queuedIterator.next();
+			long sectionPos = entry.getLongKey();
+
+			if (hasSection(sectionPos)) {
+				ChunkNibbleArray newSection = entry.getValue();
+
+				if (storage.get(sectionPos) != newSection) {
+					storage.put(sectionPos, newSection);
+					dirtySections.add(sectionPos);
+				}
+
+				queuedIterator.remove();
+			}
+		}
+
+		storage.clearCache();
 	}
 
-	/**
-	 * Обрабатывает событие load section.
-	 *
-	 * @param sectionPos section pos
-	 */
 	protected void onLoadSection(long sectionPos) {
 	}
 
-	/**
-	 * Обрабатывает событие unload section.
-	 *
-	 * @param sectionPos section pos
-	 */
 	protected void onUnloadSection(long sectionPos) {
 	}
 
 	protected void setColumnEnabled(long columnPos, boolean enabled) {
 		if (enabled) {
-			this.enabledColumns.add(columnPos);
-		}
-		else {
-			this.enabledColumns.remove(columnPos);
+			enabledColumns.add(columnPos);
+		} else {
+			enabledColumns.remove(columnPos);
 		}
 	}
 
 	protected boolean isSectionInEnabledColumn(long sectionPos) {
-		long l = ChunkSectionPos.withZeroY(sectionPos);
-		return this.enabledColumns.contains(l);
+		return enabledColumns.contains(ChunkSectionPos.withZeroY(sectionPos));
 	}
 
 	protected boolean isColumnEnabled(long columnPos) {
-		return this.enabledColumns.contains(columnPos);
+		return enabledColumns.contains(columnPos);
 	}
 
 	public void setRetainColumn(long sectionPos, boolean retain) {
 		if (retain) {
-			this.columnsToRetain.add(sectionPos);
-		}
-		else {
-			this.columnsToRetain.remove(sectionPos);
+			columnsToRetain.add(sectionPos);
+		} else {
+			columnsToRetain.remove(sectionPos);
 		}
 	}
 
-	/**
-	 * Enqueue section data.
-	 *
-	 * @param sectionPos section pos
-	 * @param array array
-	 */
 	protected void enqueueSectionData(long sectionPos, @Nullable ChunkNibbleArray array) {
 		if (array != null) {
-			this.queuedSections.put(sectionPos, array);
-			this.hasLightUpdates = true;
-		}
-		else {
-			this.queuedSections.remove(sectionPos);
+			queuedSections.put(sectionPos, array);
+			hasLightUpdates = true;
+		} else {
+			queuedSections.remove(sectionPos);
 		}
 	}
 
 	protected void setSectionStatus(long sectionPos, boolean notReady) {
-		byte b = this.sectionPropagations.get(sectionPos);
-		byte c = LightStorage.PropagationFlags.setReady(b, !notReady);
-		if (b != c) {
-			this.setSectionPropagation(sectionPos, c);
-			int i = notReady ? -1 : 1;
+		byte current = sectionPropagations.get(sectionPos);
+		byte updated = LightStorage.PropagationFlags.setReady(current, !notReady);
 
-			for (int j = -1; j <= 1; j++) {
-				for (int k = -1; k <= 1; k++) {
-					for (int l = -1; l <= 1; l++) {
-						if (j != 0 || k != 0 || l != 0) {
-							long m = ChunkSectionPos.offset(sectionPos, j, k, l);
-							byte d = this.sectionPropagations.get(m);
-							this.setSectionPropagation(m,
-									LightStorage.PropagationFlags.withNeighborCount(
-											d,
-											LightStorage.PropagationFlags.getNeighborCount(d) + i
-									)
-							);
-						}
+		if (current == updated) {
+			return;
+		}
+
+		setSectionPropagation(sectionPos, updated);
+		int neighborDelta = notReady ? -1 : 1;
+
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					if (dx == 0 && dy == 0 && dz == 0) {
+						continue;
 					}
+
+					long neighborPos = ChunkSectionPos.offset(sectionPos, dx, dy, dz);
+					byte neighborFlags = sectionPropagations.get(neighborPos);
+					setSectionPropagation(
+							neighborPos,
+							LightStorage.PropagationFlags.withNeighborCount(
+									neighborFlags,
+									LightStorage.PropagationFlags.getNeighborCount(neighborFlags) + neighborDelta
+							)
+					);
 				}
 			}
 		}
@@ -293,123 +264,118 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 
 	protected void setSectionPropagation(long sectionPos, byte flags) {
 		if (flags != 0) {
-			if (this.sectionPropagations.put(sectionPos, flags) == 0) {
-				this.queueForUpdate(sectionPos);
+			if (sectionPropagations.put(sectionPos, flags) == 0) {
+				queueForUpdate(sectionPos);
 			}
-		}
-		else if (this.sectionPropagations.remove(sectionPos) != 0) {
-			this.queueForRemoval(sectionPos);
+		} else if (sectionPropagations.remove(sectionPos) != 0) {
+			queueForRemoval(sectionPos);
 		}
 	}
 
 	private void queueForUpdate(long sectionPos) {
-		if (!this.sectionsToRemove.remove(sectionPos)) {
-			this.storage.put(sectionPos, this.createSection(sectionPos));
-			this.dirtySections.add(sectionPos);
-			this.onLoadSection(sectionPos);
-			this.addNotifySections(sectionPos);
-			this.hasLightUpdates = true;
+		if (!sectionsToRemove.remove(sectionPos)) {
+			storage.put(sectionPos, createSection(sectionPos));
+			dirtySections.add(sectionPos);
+			onLoadSection(sectionPos);
+			addNotifySections(sectionPos);
+			hasLightUpdates = true;
 		}
 	}
 
 	private void queueForRemoval(long sectionPos) {
-		this.sectionsToRemove.add(sectionPos);
-		this.hasLightUpdates = true;
+		sectionsToRemove.add(sectionPos);
+		hasLightUpdates = true;
 	}
 
 	/**
-	 * Уведомляет changes.
+	 * Публикует изменённые секции в некешированное хранилище и уведомляет чанки об обновлении света.
+	 * Вызывается после завершения всех обновлений освещения в текущем тике.
 	 */
 	protected void notifyChanges() {
-		if (!this.dirtySections.isEmpty()) {
-			M chunkToNibbleArrayMap = this.storage.copy();
-			chunkToNibbleArrayMap.disableCache();
-			this.uncachedStorage = chunkToNibbleArrayMap;
-			this.dirtySections.clear();
+		if (!dirtySections.isEmpty()) {
+			M snapshot = storage.copy();
+			snapshot.disableCache();
+			uncachedStorage = snapshot;
+			dirtySections.clear();
 		}
 
-		if (!this.notifySections.isEmpty()) {
-			LongIterator longIterator = this.notifySections.iterator();
+		if (!notifySections.isEmpty()) {
+			LongIterator it = notifySections.iterator();
 
-			while (longIterator.hasNext()) {
-				long l = longIterator.nextLong();
-				this.chunkProvider.onLightUpdate(this.lightType, ChunkSectionPos.from(l));
+			while (it.hasNext()) {
+				chunkProvider.onLightUpdate(lightType, ChunkSectionPos.from(it.nextLong()));
 			}
 
-			this.notifySections.clear();
+			notifySections.clear();
 		}
 	}
 
 	public LightStorage.Status getStatus(long sectionPos) {
-		return LightStorage.PropagationFlags.getStatus(this.sectionPropagations.get(sectionPos));
+		return LightStorage.PropagationFlags.getStatus(sectionPropagations.get(sectionPos));
 	}
 
 	/**
-	 * {@code PropagationFlags}.
+	 * Битовые флаги состояния секции для системы распространения света.
+	 * Биты 0–4: количество готовых соседей (0–26).
+	 * Бит 5: флаг готовности самой секции.
 	 */
 	protected static class PropagationFlags {
 
 		public static final byte EMPTY_LIGHT = 0;
-		private static final int MIN_NEIGHBOR_COUNT = 0;
 		private static final int MAX_NEIGHBOR_COUNT = 26;
 		private static final byte PENDING_FLAG = 32;
 		private static final byte NEIGHBOR_COUNT_MASK = 31;
 
 		public static byte setReady(byte packed, boolean ready) {
-			return (byte) (ready ? packed | 32 : packed & -33);
+			return (byte) (ready ? packed | PENDING_FLAG : packed & -33);
 		}
 
 		/**
-		 * With neighbor count.
-		 *
-		 * @param packed packed
-		 * @param neighborCount neighbor count
-		 *
-		 * @return byte — результат операции
+		 * Упаковывает количество готовых соседей в байт флагов.
+		 * Количество соседей должно быть в диапазоне [0; 26].
 		 */
 		public static byte withNeighborCount(byte packed, int neighborCount) {
-			if (neighborCount >= 0 && neighborCount <= 26) {
-				return (byte) (packed & -32 | neighborCount & 31);
-			}
-			else {
+			if (neighborCount < 0 || neighborCount > MAX_NEIGHBOR_COUNT) {
 				throw new IllegalArgumentException("Neighbor count was not within range [0; 26]");
 			}
+
+			return (byte) (packed & -PENDING_FLAG | neighborCount & NEIGHBOR_COUNT_MASK);
 		}
 
 		public static boolean isReady(byte packed) {
-			return (packed & 32) != 0;
+			return (packed & PENDING_FLAG) != 0;
 		}
 
 		public static int getNeighborCount(byte packed) {
-			return packed & 31;
+			return packed & NEIGHBOR_COUNT_MASK;
 		}
 
 		public static LightStorage.Status getStatus(byte packed) {
 			if (packed == 0) {
 				return LightStorage.Status.EMPTY;
 			}
-			else {
-				return isReady(packed) ? LightStorage.Status.LIGHT_AND_DATA : LightStorage.Status.LIGHT_ONLY;
-			}
+
+			return isReady(packed) ? LightStorage.Status.LIGHT_AND_DATA : LightStorage.Status.LIGHT_ONLY;
 		}
 	}
 
 	/**
-	 * {@code Status}.
+	 * Статус секции в системе освещения.
+	 * Определяет, доступны ли данные освещения для данной секции.
 	 */
-	public static enum Status {
+	public enum Status {
 		EMPTY("2"),
 		LIGHT_ONLY("1"),
 		LIGHT_AND_DATA("0");
 
 		private final String sigil;
 
-		private Status(final String sigil) {
+		Status(final String sigil) {
 			this.sigil = sigil;
 		}
 
 		public String getSigil() {
-			return this.sigil;
+			return sigil;
 		}
 	}
 }

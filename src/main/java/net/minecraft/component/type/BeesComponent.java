@@ -16,8 +16,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code BeesComponent}.
- */
+	 * Компонент пчёл улья. Хранит список пчёл, находящихся внутри блока улья,
+	 * и отображает их количество в тултипе.
+	 */
 public record BeesComponent(List<BeehiveBlockEntity.BeeData> bees) implements TooltipAppender {
 
 	public static final Codec<BeesComponent>
@@ -28,6 +29,7 @@ public record BeesComponent(List<BeehiveBlockEntity.BeeData> bees) implements To
 			BeehiveBlockEntity.BeeData.PACKET_CODEC
 					.collect(PacketCodecs.toList())
 					.xmap(BeesComponent::new, BeesComponent::bees);
+	public static final int MAX_BEES = 3;
 	public static final BeesComponent DEFAULT = new BeesComponent(List.of());
 
 	@Override
@@ -38,7 +40,7 @@ public record BeesComponent(List<BeehiveBlockEntity.BeeData> bees) implements To
 			ComponentsAccess components
 	) {
 		textConsumer.accept(Text
-				.translatable("container.beehive.bees", this.bees.size(), 3)
+				.translatable("container.beehive.bees", bees.size(), MAX_BEES)
 				.formatted(Formatting.GRAY));
 	}
 }

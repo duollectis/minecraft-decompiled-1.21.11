@@ -22,28 +22,31 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code EndCrystalEntity}.
+ * Кристалл Края — декоративная сущность, поддерживающая здоровье дракона.
+ * При уничтожении создаёт взрыв и уведомляет {@link EnderDragonFight}.
+ * Иммунен к урону от самого дракона.
  */
 public class EndCrystalEntity extends Entity {
 
 	private static final TrackedData<Optional<BlockPos>> BEAM_TARGET = DataTracker.registerData(
 			EndCrystalEntity.class, TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS
 	);
-	private static final TrackedData<Boolean>
-			SHOW_BOTTOM =
+	private static final TrackedData<Boolean> SHOW_BOTTOM =
 			DataTracker.registerData(EndCrystalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final boolean DEFAULT_SHOW_BOTTOM = true;
+
+	private static final float EXPLOSION_RADIUS = 6.0F;
+
 	public int endCrystalAge;
 
 	public EndCrystalEntity(EntityType<? extends EndCrystalEntity> entityType, World world) {
 		super(entityType, world);
-		this.intersectionChecked = true;
-		this.endCrystalAge = this.random.nextInt(100000);
+		intersectionChecked = true;
+		endCrystalAge = random.nextInt(100000);
 	}
 
 	public EndCrystalEntity(World world, double x, double y, double z) {
 		this(EntityType.END_CRYSTAL, world);
-		this.setPosition(x, y, z);
+		setPosition(x, y, z);
 	}
 
 	@Override
@@ -59,32 +62,29 @@ public class EndCrystalEntity extends Entity {
 
 	@Override
 	public void tick() {
-		this.endCrystalAge++;
-		this.tickBlockCollision();
-		this.tickPortalTeleportation();
-		if (this.getEntityWorld() instanceof ServerWorld) {
-			BlockPos blockPos = this.getBlockPos();
-			if (((ServerWorld) this.getEntityWorld()).getEnderDragonFight() != null && this
-					.getEntityWorld()
-					.getBlockState(blockPos)
-					.isAir()) {
-				this
-						.getEntityWorld()
-						.setBlockState(blockPos, AbstractFireBlock.getState(this.getEntityWorld(), blockPos));
+		endCrystalAge++;
+		tickBlockCollision();
+		tickPortalTeleportation();
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			BlockPos blockPos = getBlockPos();
+			if (serverWorld.getEnderDragonFight() != null
+					&& getEntityWorld().getBlockState(blockPos).isAir()
+			) {
+				getEntityWorld().setBlockState(blockPos, AbstractFireBlock.getState(getEntityWorld(), blockPos));
 			}
 		}
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.putNullable("beam_target", BlockPos.CODEC, this.getBeamTarget());
-		view.putBoolean("ShowBottom", this.shouldShowBottom());
+		view.putNullable("beam_target", BlockPos.CODEC, getBeamTarget());
+		view.putBoolean("ShowBottom", shouldShowBottom());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		this.setBeamTarget(view.<BlockPos>read("beam_target", BlockPos.CODEC).orElse(null));
-		this.setShowBottom(view.getBoolean("ShowBottom", true));
+		setBeamTarget(view.<BlockPos>read("beam_target", BlockPos.CODEC).orElse(null));
+		setShowBottom(view.getBoolean("ShowBottom", true));
 	}
 
 	@Override
@@ -94,82 +94,80 @@ public class EndCrystalEntity extends Entity {
 
 	@Override
 	public final boolean clientDamage(DamageSource source) {
-		return this.isAlwaysInvulnerableTo(source) ? false : !(source.getAttacker() instanceof EnderDragonEntity);
+		return isAlwaysInvulnerableTo(source)
+				? false
+				: !(source.getAttacker() instanceof EnderDragonEntity);
 	}
 
+	/**
+	 * При уничтожении (не взрывом) создаёт взрыв с радиусом {@value #EXPLOSION_RADIUS} блоков
+	 * и уведомляет активный бой с драконом о потере кристалла.
+	 */
 	@Override
 	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isAlwaysInvulnerableTo(source)) {
+		if (isAlwaysInvulnerableTo(source)) {
 			return false;
 		}
-		else if (source.getAttacker() instanceof EnderDragonEntity) {
-			return false;
-		}
-		else {
-			if (!this.isRemoved()) {
-				this.remove(Entity.RemovalReason.KILLED);
-				if (!source.isIn(DamageTypeTags.IS_EXPLOSION)) {
-					DamageSource
-							damageSource =
-							source.getAttacker() != null ? this.getDamageSources().explosion(this, source.getAttacker())
-							                             : null;
-					world.createExplosion(
-							this,
-							damageSource,
-							null,
-							this.getX(),
-							this.getY(),
-							this.getZ(),
-							6.0F,
-							false,
-							World.ExplosionSourceType.BLOCK
-					);
-				}
 
-				this.crystalDestroyed(world, source);
+		if (source.getAttacker() instanceof EnderDragonEntity) {
+			return false;
+		}
+
+		if (!isRemoved()) {
+			remove(Entity.RemovalReason.KILLED);
+			if (!source.isIn(DamageTypeTags.IS_EXPLOSION)) {
+				DamageSource explosionSource = source.getAttacker() != null
+						? getDamageSources().explosion(this, source.getAttacker())
+						: null;
+				world.createExplosion(
+						this,
+						explosionSource,
+						null,
+						getX(), getY(), getZ(),
+						EXPLOSION_RADIUS,
+						false,
+						World.ExplosionSourceType.BLOCK
+				);
 			}
 
-			return true;
+			crystalDestroyed(world, source);
 		}
+
+		return true;
 	}
 
 	@Override
 	public void kill(ServerWorld world) {
-		this.crystalDestroyed(world, this.getDamageSources().generic());
+		crystalDestroyed(world, getDamageSources().generic());
 		super.kill(world);
 	}
 
 	private void crystalDestroyed(ServerWorld world, DamageSource source) {
-		EnderDragonFight enderDragonFight = world.getEnderDragonFight();
-		if (enderDragonFight != null) {
-			enderDragonFight.crystalDestroyed(this, source);
+		EnderDragonFight fight = world.getEnderDragonFight();
+		if (fight != null) {
+			fight.crystalDestroyed(this, source);
 		}
 	}
 
 	public void setBeamTarget(@Nullable BlockPos beamTarget) {
-		this.getDataTracker().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
+		getDataTracker().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
 	}
 
 	public @Nullable BlockPos getBeamTarget() {
-		return this.getDataTracker().get(BEAM_TARGET).orElse(null);
+		return getDataTracker().get(BEAM_TARGET).orElse(null);
 	}
 
 	public void setShowBottom(boolean showBottom) {
-		this.getDataTracker().set(SHOW_BOTTOM, showBottom);
+		getDataTracker().set(SHOW_BOTTOM, showBottom);
 	}
 
-	/**
-	 * Определяет, следует ли show bottom.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowBottom() {
-		return this.getDataTracker().get(SHOW_BOTTOM);
+		return getDataTracker().get(SHOW_BOTTOM);
 	}
 
 	@Override
 	public boolean shouldRender(double distance) {
-		return super.shouldRender(distance) || this.getBeamTarget() != null;
+		return super.shouldRender(distance) || getBeamTarget() != null;
 	}
 
 	@Override

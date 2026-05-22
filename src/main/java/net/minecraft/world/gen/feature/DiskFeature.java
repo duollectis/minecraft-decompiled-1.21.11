@@ -7,9 +7,7 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code DiskFeature}.
- */
+/** Генерирует горизонтальный диск из блоков заданного типа вокруг точки происхождения. */
 public class DiskFeature extends Feature<DiskFeatureConfig> {
 
 	public DiskFeature(Codec<DiskFeatureConfig> codec) {
@@ -18,26 +16,27 @@ public class DiskFeature extends Feature<DiskFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DiskFeatureConfig> context) {
-		DiskFeatureConfig diskFeatureConfig = context.getConfig();
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		DiskFeatureConfig config = context.getConfig();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		boolean bl = false;
-		int i = blockPos.getY();
-		int j = i + diskFeatureConfig.halfHeight();
-		int k = i - diskFeatureConfig.halfHeight() - 1;
-		int l = diskFeatureConfig.radius().get(random);
+		boolean placed = false;
+		int centerY = origin.getY();
+		int topY = centerY + config.halfHeight();
+		int bottomY = centerY - config.halfHeight() - 1;
+		int radius = config.radius().get(random);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-l, 0, -l), blockPos.add(l, 0, l))) {
-			int m = blockPos2.getX() - blockPos.getX();
-			int n = blockPos2.getZ() - blockPos.getZ();
-			if (m * m + n * n <= l * l) {
-				bl |= this.placeBlock(diskFeatureConfig, structureWorldAccess, random, j, k, mutable.set(blockPos2));
+		for (BlockPos pos : BlockPos.iterate(origin.add(-radius, 0, -radius), origin.add(radius, 0, radius))) {
+			int dx = pos.getX() - origin.getX();
+			int dz = pos.getZ() - origin.getZ();
+
+			if (dx * dx + dz * dz <= radius * radius) {
+				placed |= placeBlock(config, world, random, topY, bottomY, mutable.set(pos));
 			}
 		}
 
-		return bl;
+		return placed;
 	}
 
 	protected boolean placeBlock(
@@ -48,26 +47,28 @@ public class DiskFeature extends Feature<DiskFeatureConfig> {
 			int bottomY,
 			BlockPos.Mutable pos
 	) {
-		boolean bl = false;
-		boolean bl2 = false;
+		boolean placed = false;
+		boolean wasPlacedPreviously = false;
 
-		for (int i = topY; i > bottomY; i--) {
-			pos.setY(i);
-			if (config.target().test(world, pos)) {
-				BlockState blockState = config.stateProvider().getBlockState(world, random, pos);
-				world.setBlockState(pos, blockState, 2);
-				if (!bl2) {
-					this.markBlocksAboveForPostProcessing(world, pos);
-				}
+		for (int y = topY; y > bottomY; y--) {
+			pos.setY(y);
 
-				bl = true;
-				bl2 = true;
+			if (!config.target().test(world, pos)) {
+				wasPlacedPreviously = false;
+				continue;
 			}
-			else {
-				bl2 = false;
+
+			BlockState state = config.stateProvider().getBlockState(world, random, pos);
+			world.setBlockState(pos, state, 2);
+
+			if (!wasPlacedPreviously) {
+				markBlocksAboveForPostProcessing(world, pos);
 			}
+
+			placed = true;
+			wasPlacedPreviously = true;
 		}
 
-		return bl;
+		return placed;
 	}
 }

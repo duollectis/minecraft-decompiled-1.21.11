@@ -11,81 +11,81 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code BedRule}.
+ * Правило поведения кровати в измерении: определяет, можно ли спать,
+ * устанавливать точку возрождения, взрывается ли кровать и какое сообщение
+ * показывается при невозможности использования.
  */
 public record BedRule(
-		BedRule.Condition canSleep,
-		BedRule.Condition canSetSpawn,
-		boolean explodes,
-		Optional<Text> errorMessage
+	Condition canSleep,
+	Condition canSetSpawn,
+	boolean explodes,
+	Optional<Text> errorMessage
 ) {
 
+	/** Правило Верхнего мира: сон ночью, спавн всегда, без взрыва. */
 	public static final BedRule OVERWORLD = new BedRule(
-			BedRule.Condition.WHEN_DARK,
-			BedRule.Condition.ALWAYS,
-			false,
-			Optional.of(Text.translatable("block.minecraft.bed.no_sleep"))
+		Condition.WHEN_DARK,
+		Condition.ALWAYS,
+		false,
+		Optional.of(Text.translatable("block.minecraft.bed.no_sleep"))
 	);
-	public static final BedRule
-			OTHER_DIMENSION =
-			new BedRule(BedRule.Condition.NEVER, BedRule.Condition.NEVER, true, Optional.empty());
+
+	/** Правило других измерений: сон и спавн запрещены, кровать взрывается. */
+	public static final BedRule OTHER_DIMENSION = new BedRule(
+		Condition.NEVER,
+		Condition.NEVER,
+		true,
+		Optional.empty()
+	);
+
 	public static final Codec<BedRule> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    BedRule.Condition.CODEC.fieldOf("can_sleep").forGetter(BedRule::canSleep),
-					                    BedRule.Condition.CODEC.fieldOf("can_set_spawn").forGetter(BedRule::canSetSpawn),
-					                    Codec.BOOL.optionalFieldOf("explodes", false).forGetter(BedRule::explodes),
-					                    TextCodecs.CODEC.optionalFieldOf("error_message").forGetter(BedRule::errorMessage)
-			                    )
-			                    .apply(instance, BedRule::new)
+		instance -> instance.group(
+			Condition.CODEC.fieldOf("can_sleep").forGetter(BedRule::canSleep),
+			Condition.CODEC.fieldOf("can_set_spawn").forGetter(BedRule::canSetSpawn),
+			Codec.BOOL.optionalFieldOf("explodes", false).forGetter(BedRule::explodes),
+			TextCodecs.CODEC.optionalFieldOf("error_message").forGetter(BedRule::errorMessage)
+		).apply(instance, BedRule::new)
 	);
 
-	/**
-	 * Проверяет возможность sleep.
-	 *
-	 * @param world world
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** Проверяет, можно ли спать в кровати в данном мире. */
 	public boolean canSleep(World world) {
-		return this.canSleep.test(world);
+		return canSleep.test(world);
 	}
 
-	/**
-	 * Проверяет возможность set spawn.
-	 *
-	 * @param world world
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** Проверяет, можно ли установить точку возрождения в данном мире. */
 	public boolean canSetSpawn(World world) {
-		return this.canSetSpawn.test(world);
-	}
-
-	public PlayerEntity.SleepFailureReason getFailureReason() {
-		return new PlayerEntity.SleepFailureReason(this.errorMessage.orElse(null));
+		return canSetSpawn.test(world);
 	}
 
 	/**
-	 * {@code Condition}.
+	 * Возвращает причину неудачи при попытке сна.
+	 * Если сообщение об ошибке отсутствует — причина без текста.
 	 */
-	public static enum Condition implements StringIdentifiable {
+	public PlayerEntity.SleepFailureReason getFailureReason() {
+		return new PlayerEntity.SleepFailureReason(errorMessage.orElse(null));
+	}
+
+	/**
+	 * Условие применимости правила кровати в зависимости от состояния мира.
+	 */
+	public enum Condition implements StringIdentifiable {
 		ALWAYS("always"),
 		WHEN_DARK("when_dark"),
 		NEVER("never");
 
-		public static final Codec<BedRule.Condition> CODEC = StringIdentifiable.createCodec(BedRule.Condition::values);
+		public static final Codec<Condition> CODEC = StringIdentifiable.createCodec(Condition::values);
+
 		private final String name;
 
-		private Condition(final String name) {
+		Condition(String name) {
 			this.name = name;
 		}
 
 		/**
-		 * Test.
+		 * Проверяет выполнение условия для данного мира.
 		 *
-		 * @param world world
-		 *
-		 * @return boolean — результат операции
+		 * @param world мир, в котором проверяется условие
+		 * @return {@code true} если условие выполнено
 		 */
 		public boolean test(World world) {
 			return switch (this) {
@@ -97,7 +97,7 @@ public record BedRule(
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

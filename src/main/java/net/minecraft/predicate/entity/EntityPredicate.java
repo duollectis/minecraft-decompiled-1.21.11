@@ -29,7 +29,9 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityPredicate}.
+ * Составной предикат сущности. Объединяет проверки типа, расстояния, движения,
+ * позиции, эффектов, NBT, флагов, снаряжения, специфики типа, транспорта,
+ * пассажиров, цели, команды, слотов и компонентов.
  */
 public record EntityPredicate(
 		Optional<EntityTypePredicate> type,
@@ -54,34 +56,32 @@ public record EntityPredicate(
 			"EntityPredicate",
 			entityPredicateCodec -> RecordCodecBuilder.create(
 					instance -> instance.group(
-							                    EntityTypePredicate.CODEC.optionalFieldOf("type").forGetter(EntityPredicate::type),
-							                    DistancePredicate.CODEC.optionalFieldOf("distance").forGetter(EntityPredicate::distance),
-							                    MovementPredicate.CODEC.optionalFieldOf("movement").forGetter(EntityPredicate::movement),
-							                    EntityPredicate.PositionalPredicates.CODEC.forGetter(EntityPredicate::location),
-							                    EntityEffectPredicate.CODEC.optionalFieldOf("effects").forGetter(EntityPredicate::effects),
-							                    NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(EntityPredicate::nbt),
-							                    EntityFlagsPredicate.CODEC.optionalFieldOf("flags").forGetter(EntityPredicate::flags),
-							                    EntityEquipmentPredicate.CODEC
-									                    .optionalFieldOf("equipment")
-									                    .forGetter(EntityPredicate::equipment),
-							                    EntitySubPredicate.CODEC
-									                    .optionalFieldOf("type_specific")
-									                    .forGetter(EntityPredicate::typeSpecific),
-							                    Codecs.POSITIVE_INT
-									                    .optionalFieldOf("periodic_tick")
-									                    .forGetter(EntityPredicate::periodicTick),
-							                    entityPredicateCodec.optionalFieldOf("vehicle").forGetter(EntityPredicate::vehicle),
-							                    entityPredicateCodec.optionalFieldOf("passenger").forGetter(EntityPredicate::passenger),
-							                    entityPredicateCodec
-									                    .optionalFieldOf("targeted_entity")
-									                    .forGetter(EntityPredicate::targetedEntity),
-							                    Codec.STRING.optionalFieldOf("team").forGetter(EntityPredicate::team),
-							                    SlotsPredicate.CODEC.optionalFieldOf("slots").forGetter(EntityPredicate::slots),
-							                    ComponentsPredicate.CODEC.forGetter(EntityPredicate::components)
-					                    )
-					                    .apply(instance, EntityPredicate::new)
+							EntityTypePredicate.CODEC.optionalFieldOf("type").forGetter(EntityPredicate::type),
+							DistancePredicate.CODEC.optionalFieldOf("distance").forGetter(EntityPredicate::distance),
+							MovementPredicate.CODEC.optionalFieldOf("movement").forGetter(EntityPredicate::movement),
+							EntityPredicate.PositionalPredicates.CODEC.forGetter(EntityPredicate::location),
+							EntityEffectPredicate.CODEC.optionalFieldOf("effects").forGetter(EntityPredicate::effects),
+							NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(EntityPredicate::nbt),
+							EntityFlagsPredicate.CODEC.optionalFieldOf("flags").forGetter(EntityPredicate::flags),
+							EntityEquipmentPredicate.CODEC
+									.optionalFieldOf("equipment")
+									.forGetter(EntityPredicate::equipment),
+							EntitySubPredicate.CODEC
+									.optionalFieldOf("type_specific")
+									.forGetter(EntityPredicate::typeSpecific),
+							Codecs.POSITIVE_INT.optionalFieldOf("periodic_tick").forGetter(EntityPredicate::periodicTick),
+							entityPredicateCodec.optionalFieldOf("vehicle").forGetter(EntityPredicate::vehicle),
+							entityPredicateCodec.optionalFieldOf("passenger").forGetter(EntityPredicate::passenger),
+							entityPredicateCodec
+									.optionalFieldOf("targeted_entity")
+									.forGetter(EntityPredicate::targetedEntity),
+							Codec.STRING.optionalFieldOf("team").forGetter(EntityPredicate::team),
+							SlotsPredicate.CODEC.optionalFieldOf("slots").forGetter(EntityPredicate::slots),
+							ComponentsPredicate.CODEC.forGetter(EntityPredicate::components)
+					).apply(instance, EntityPredicate::new)
 			)
 	);
+
 	public static final Codec<LootContextPredicate> LOOT_CONTEXT_PREDICATE_CODEC = Codec.withAlternative(
 			LootContextPredicate.CODEC, CODEC, EntityPredicate::asLootContextPredicate
 	);
@@ -90,123 +90,138 @@ public record EntityPredicate(
 		return asLootContextPredicate(builder.build());
 	}
 
-	public static Optional<LootContextPredicate> contextPredicateFromEntityPredicate(Optional<EntityPredicate> entityPredicate) {
+	public static Optional<LootContextPredicate> contextPredicateFromEntityPredicate(
+			Optional<EntityPredicate> entityPredicate
+	) {
 		return entityPredicate.map(EntityPredicate::asLootContextPredicate);
 	}
 
-	public static List<LootContextPredicate> contextPredicateFromEntityPredicates(EntityPredicate.Builder... builders) {
+	public static List<LootContextPredicate> contextPredicateFromEntityPredicates(
+			EntityPredicate.Builder... builders
+	) {
 		return Stream.of(builders).map(EntityPredicate::contextPredicateFromEntityPredicate).toList();
 	}
 
 	public static LootContextPredicate asLootContextPredicate(EntityPredicate predicate) {
-		LootCondition
-				lootCondition =
+		LootCondition lootCondition =
 				EntityPropertiesLootCondition.builder(LootContext.EntityReference.THIS, predicate).build();
 		return new LootContextPredicate(List.of(lootCondition));
 	}
 
 	public boolean test(ServerPlayerEntity player, @Nullable Entity entity) {
-		return this.test(player.getEntityWorld(), player.getEntityPos(), entity);
+		return test(player.getEntityWorld(), player.getEntityPos(), entity);
 	}
 
+	/**
+	 * Проверяет сущность в контексте мира и позиции наблюдателя.
+	 * Все условия проверяются последовательно с ранним возвратом.
+	 */
 	public boolean test(ServerWorld world, @Nullable Vec3d pos, @Nullable Entity entity) {
 		if (entity == null) {
 			return false;
 		}
-		else if (this.type.isPresent() && !this.type.get().matches(entity.getType())) {
+
+		if (type.isPresent() && !type.get().matches(entity.getType())) {
 			return false;
 		}
-		else {
-			if (pos == null) {
-				if (this.distance.isPresent()) {
-					return false;
-				}
-			}
-			else if (this.distance.isPresent() && !this.distance
-					.get()
-					.test(pos.x, pos.y, pos.z, entity.getX(), entity.getY(), entity.getZ())) {
+
+		if (pos == null) {
+			if (distance.isPresent()) {
 				return false;
 			}
+		} else if (distance.isPresent()
+				&& !distance.get().test(pos.x, pos.y, pos.z, entity.getX(), entity.getY(), entity.getZ())
+		) {
+			return false;
+		}
 
-			if (this.movement.isPresent()) {
-				Vec3d vec3d = entity.getMovement();
-				Vec3d vec3d2 = vec3d.multiply(20.0);
-				if (!this.movement.get().test(vec3d2.x, vec3d2.y, vec3d2.z, entity.fallDistance)) {
-					return false;
-				}
-			}
+		if (movement.isPresent()) {
+			Vec3d velocity = entity.getMovement().multiply(20.0);
 
-			if (this.location.located.isPresent() && !this.location.located
-					.get()
-					.test(world, entity.getX(), entity.getY(), entity.getZ())) {
+			if (!movement.get().test(velocity.x, velocity.y, velocity.z, entity.fallDistance)) {
 				return false;
-			}
-			else {
-				if (this.location.steppingOn.isPresent()) {
-					Vec3d vec3d = Vec3d.ofCenter(entity.getSteppingPos());
-					if (!entity.isOnGround() || !this.location.steppingOn
-							.get()
-							.test(world, vec3d.getX(), vec3d.getY(), vec3d.getZ())) {
-						return false;
-					}
-				}
-
-				if (this.location.affectsMovement.isPresent()) {
-					Vec3d vec3d = Vec3d.ofCenter(entity.getVelocityAffectingPos());
-					if (!this.location.affectsMovement.get().test(world, vec3d.getX(), vec3d.getY(), vec3d.getZ())) {
-						return false;
-					}
-				}
-
-				if (this.effects.isPresent() && !this.effects.get().test(entity)) {
-					return false;
-				}
-				else if (this.flags.isPresent() && !this.flags.get().test(entity)) {
-					return false;
-				}
-				else if (this.equipment.isPresent() && !this.equipment.get().test(entity)) {
-					return false;
-				}
-				else if (this.typeSpecific.isPresent() && !this.typeSpecific.get().test(entity, world, pos)) {
-					return false;
-				}
-				else if (this.vehicle.isPresent() && !this.vehicle.get().test(world, pos, entity.getVehicle())) {
-					return false;
-				}
-				else if (this.passenger.isPresent() && entity
-						.getPassengerList()
-						.stream()
-						.noneMatch(entityx -> this.passenger.get().test(world, pos, entityx))) {
-					return false;
-				}
-				else if (this.targetedEntity.isPresent()
-						&& !this.targetedEntity
-						.get()
-						.test(world, pos, entity instanceof MobEntity ? ((MobEntity) entity).getTarget() : null)) {
-					return false;
-				}
-				else if (this.periodicTick.isPresent() && entity.age % this.periodicTick.get() != 0) {
-					return false;
-				}
-				else {
-					if (this.team.isPresent()) {
-						AbstractTeam abstractTeam = entity.getScoreboardTeam();
-						if (abstractTeam == null || !this.team.get().equals(abstractTeam.getName())) {
-							return false;
-						}
-					}
-
-					if (this.slots.isPresent() && !this.slots.get().matches(entity)) {
-						return false;
-					}
-					else {
-						return !this.components.test((ComponentsAccess) entity) ? false : this.nbt.isEmpty() || this.nbt
-						                                                                                        .get()
-						                                                                                        .test(entity);
-					}
-				}
 			}
 		}
+
+		if (location.located.isPresent()
+				&& !location.located.get().test(world, entity.getX(), entity.getY(), entity.getZ())
+		) {
+			return false;
+		}
+
+		if (location.steppingOn.isPresent()) {
+			Vec3d steppingPos = Vec3d.ofCenter(entity.getSteppingPos());
+
+			if (!entity.isOnGround()
+					|| !location.steppingOn.get().test(world, steppingPos.getX(), steppingPos.getY(), steppingPos.getZ())
+			) {
+				return false;
+			}
+		}
+
+		if (location.affectsMovement.isPresent()) {
+			Vec3d movementPos = Vec3d.ofCenter(entity.getVelocityAffectingPos());
+
+			if (!location.affectsMovement.get().test(world, movementPos.getX(), movementPos.getY(), movementPos.getZ())) {
+				return false;
+			}
+		}
+
+		if (effects.isPresent() && !effects.get().test(entity)) {
+			return false;
+		}
+
+		if (flags.isPresent() && !flags.get().test(entity)) {
+			return false;
+		}
+
+		if (equipment.isPresent() && !equipment.get().test(entity)) {
+			return false;
+		}
+
+		if (typeSpecific.isPresent() && !typeSpecific.get().test(entity, world, pos)) {
+			return false;
+		}
+
+		if (vehicle.isPresent() && !vehicle.get().test(world, pos, entity.getVehicle())) {
+			return false;
+		}
+
+		if (passenger.isPresent()
+				&& entity.getPassengerList().stream().noneMatch(p -> passenger.get().test(world, pos, p))
+		) {
+			return false;
+		}
+
+		if (targetedEntity.isPresent()) {
+			Entity target = entity instanceof MobEntity mob ? mob.getTarget() : null;
+
+			if (!targetedEntity.get().test(world, pos, target)) {
+				return false;
+			}
+		}
+
+		if (periodicTick.isPresent() && entity.age % periodicTick.get() != 0) {
+			return false;
+		}
+
+		if (team.isPresent()) {
+			AbstractTeam entityTeam = entity.getScoreboardTeam();
+
+			if (entityTeam == null || !team.get().equals(entityTeam.getName())) {
+				return false;
+			}
+		}
+
+		if (slots.isPresent() && !slots.get().matches(entity)) {
+			return false;
+		}
+
+		if (!components.test((ComponentsAccess) entity)) {
+			return false;
+		}
+
+		return nbt.isEmpty() || nbt.get().test(entity);
 	}
 
 	public static LootContext createAdvancementEntityLootContext(ServerPlayerEntity player, Entity target) {
@@ -218,7 +233,7 @@ public record EntityPredicate(
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link EntityPredicate} с фильтрами по типу, местоположению, флагам и снаряжению сущности.
 	 */
 	public static class Builder {
 
@@ -254,7 +269,7 @@ public record EntityPredicate(
 				RegistryEntryLookup<EntityType<?>> entityTypeRegistry,
 				TagKey<EntityType<?>> tag
 		) {
-			this.type = Optional.of(EntityTypePredicate.create(entityTypeRegistry, tag));
+			type = Optional.of(EntityTypePredicate.create(entityTypeRegistry, tag));
 			return this;
 		}
 
@@ -355,28 +370,29 @@ public record EntityPredicate(
 
 		public EntityPredicate build() {
 			return new EntityPredicate(
-					this.type,
-					this.distance,
-					this.movement,
-					new EntityPredicate.PositionalPredicates(this.location, this.steppingOn, this.movementAffectedBy),
-					this.effects,
-					this.nbt,
-					this.flags,
-					this.equipment,
-					this.typeSpecific,
-					this.periodicTick,
-					this.vehicle,
-					this.passenger,
-					this.targetedEntity,
-					this.team,
-					this.slots,
-					this.components
+					type,
+					distance,
+					movement,
+					new EntityPredicate.PositionalPredicates(location, steppingOn, movementAffectedBy),
+					effects,
+					nbt,
+					flags,
+					equipment,
+					typeSpecific,
+					periodicTick,
+					vehicle,
+					passenger,
+					targetedEntity,
+					team,
+					slots,
+					components
 			);
 		}
 	}
 
 	/**
-	 * {@code PositionalPredicates}.
+	 * Группа позиционных предикатов: текущая позиция, позиция под ногами и позиция,
+	 * влияющая на движение (например, блок под ногами).
 	 */
 	public record PositionalPredicates(
 			Optional<LocationPredicate> located,
@@ -386,17 +402,16 @@ public record EntityPredicate(
 
 		public static final MapCodec<EntityPredicate.PositionalPredicates> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    LocationPredicate.CODEC
-								                    .optionalFieldOf("location")
-								                    .forGetter(EntityPredicate.PositionalPredicates::located),
-						                    LocationPredicate.CODEC
-								                    .optionalFieldOf("stepping_on")
-								                    .forGetter(EntityPredicate.PositionalPredicates::steppingOn),
-						                    LocationPredicate.CODEC
-								                    .optionalFieldOf("movement_affected_by")
-								                    .forGetter(EntityPredicate.PositionalPredicates::affectsMovement)
-				                    )
-				                    .apply(instance, EntityPredicate.PositionalPredicates::new)
+						LocationPredicate.CODEC
+								.optionalFieldOf("location")
+								.forGetter(EntityPredicate.PositionalPredicates::located),
+						LocationPredicate.CODEC
+								.optionalFieldOf("stepping_on")
+								.forGetter(EntityPredicate.PositionalPredicates::steppingOn),
+						LocationPredicate.CODEC
+								.optionalFieldOf("movement_affected_by")
+								.forGetter(EntityPredicate.PositionalPredicates::affectsMovement)
+				).apply(instance, EntityPredicate.PositionalPredicates::new)
 		);
 	}
 }

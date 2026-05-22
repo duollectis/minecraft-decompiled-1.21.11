@@ -3,7 +3,7 @@ package net.minecraft.datafixer.mapping;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * {@code LegacyBiomeMapping}.
+ * Содержит маппинги для преобразования данных.
  */
 public final class LegacyBiomeMapping {
 

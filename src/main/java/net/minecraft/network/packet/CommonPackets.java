@@ -8,7 +8,8 @@ import net.minecraft.network.packet.s2c.common.*;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс common packets.
+ * Реестр типов пакетов, общих для фаз {@code CONFIGURATION} и {@code PLAY}:
+ * keep-alive, custom payload, ресурс-паки, куки, серверные ссылки и диалоги.
  */
 public class CommonPackets {
 

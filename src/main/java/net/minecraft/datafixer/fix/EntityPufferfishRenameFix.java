@@ -7,19 +7,17 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * {@code EntityPufferfishRenameFix}.
+ * Переименовывает сущность {@code minecraft:puffer_fish} в {@code minecraft:pufferfish}
+ * и спавн-яйцо {@code minecraft:puffer_fish_spawn_egg} в {@code minecraft:pufferfish_spawn_egg}.
  */
 public class EntityPufferfishRenameFix extends EntityRenameFix {
 
-	public static final Map<String, String> RENAMED_FISH = ImmutableMap.<String, String>builder()
-	                                                                   .put(
-			                                                                   "minecraft:puffer_fish_spawn_egg",
-			                                                                   "minecraft:pufferfish_spawn_egg"
-	                                                                   )
-	                                                                   .build();
+	public static final Map<String, String> RENAMED_FISH = ImmutableMap.of(
+			"minecraft:puffer_fish_spawn_egg", "minecraft:pufferfish_spawn_egg"
+	);
 
-	public EntityPufferfishRenameFix(Schema schema, boolean bl) {
-		super("EntityPufferfishRenameFix", schema, bl);
+	public EntityPufferfishRenameFix(Schema outputSchema, boolean changesType) {
+		super("EntityPufferfishRenameFix", outputSchema, changesType);
 	}
 
 	@Override

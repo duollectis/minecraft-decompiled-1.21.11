@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code ItemInstanceMapIdFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemInstanceMapIdFix extends DataFix {
 
@@ -21,12 +21,12 @@ public class ItemInstanceMapIdFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		OpticFinder<?> opticFinder2 = type.findField("tag");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemInstanceMapIdFix", type, itemStack -> {
 					Optional<Pair<String, String>> optional = itemStack.getOptional(opticFinder);
 					if (optional.isPresent() && Objects.equals(optional.get().getSecond(), "minecraft:filled_map")) {

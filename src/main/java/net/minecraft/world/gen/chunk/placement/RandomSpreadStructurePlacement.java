@@ -12,51 +12,46 @@ import net.minecraft.util.math.random.ChunkRandom;
 import java.util.Optional;
 
 /**
- * {@code RandomSpreadStructurePlacement}.
+ * Размещение структур с равномерным случайным распределением по регионам.
+ * Мир делится на квадратные регионы размером {@code spacing × spacing} чанков;
+ * в каждом регионе структура размещается в случайной позиции со смещением
+ * не менее {@code separation} чанков от края региона.
  */
 public class RandomSpreadStructurePlacement extends StructurePlacement {
 
-	public static final MapCodec<RandomSpreadStructurePlacement>
-			CODEC =
+	public static final MapCodec<RandomSpreadStructurePlacement> CODEC =
 			RecordCodecBuilder.<RandomSpreadStructurePlacement>mapCodec(
-					                  instance -> buildCodec(instance)
-							                  .and(
-									                  instance.group(
-											                  Codec
-													                  .intRange(0, 4096)
-													                  .fieldOf("spacing")
-													                  .forGetter(RandomSpreadStructurePlacement::getSpacing),
-											                  Codec
-													                  .intRange(0, 4096)
-													                  .fieldOf("separation")
-													                  .forGetter(RandomSpreadStructurePlacement::getSeparation),
-											                  SpreadType.CODEC
-													                  .optionalFieldOf("spread_type", SpreadType.LINEAR)
-													                  .forGetter(RandomSpreadStructurePlacement::getSpreadType)
-									                  )
-							                  )
-							                  .apply(instance, RandomSpreadStructurePlacement::new)
-			                  )
-			                  .validate(
-					                  (RandomSpreadStructurePlacement structurePlacement) -> RandomSpreadStructurePlacement.validate(
-							                  structurePlacement)
-			                  );
+					instance -> buildCodec(instance)
+							.and(instance.group(
+									Codec.intRange(0, 4096)
+									     .fieldOf("spacing")
+									     .forGetter(RandomSpreadStructurePlacement::getSpacing),
+									Codec.intRange(0, 4096)
+									     .fieldOf("separation")
+									     .forGetter(RandomSpreadStructurePlacement::getSeparation),
+									SpreadType.CODEC
+											.optionalFieldOf("spread_type", SpreadType.LINEAR)
+											.forGetter(RandomSpreadStructurePlacement::getSpreadType)
+							))
+							.apply(instance, RandomSpreadStructurePlacement::new)
+			).validate(RandomSpreadStructurePlacement::validate);
+
 	private final int spacing;
 	private final int separation;
 	private final SpreadType spreadType;
 
-	private static DataResult<RandomSpreadStructurePlacement> validate(RandomSpreadStructurePlacement structurePlacement) {
-		return structurePlacement.spacing <= structurePlacement.separation
-		       ? DataResult.error(() -> "Spacing has to be larger than separation")
-		       : DataResult.success(structurePlacement);
+	private static DataResult<RandomSpreadStructurePlacement> validate(RandomSpreadStructurePlacement placement) {
+		return placement.spacing <= placement.separation
+				? DataResult.error(() -> "Spacing has to be larger than separation")
+				: DataResult.success(placement);
 	}
 
 	public RandomSpreadStructurePlacement(
 			Vec3i locateOffset,
-			StructurePlacement.FrequencyReductionMethod frequencyReductionMethod,
+			FrequencyReductionMethod frequencyReductionMethod,
 			float frequency,
 			int salt,
-			Optional<StructurePlacement.ExclusionZone> exclusionZone,
+			Optional<ExclusionZone> exclusionZone,
 			int spacing,
 			int separation,
 			SpreadType spreadType
@@ -70,7 +65,7 @@ public class RandomSpreadStructurePlacement extends StructurePlacement {
 	public RandomSpreadStructurePlacement(int spacing, int separation, SpreadType spreadType, int salt) {
 		this(
 				Vec3i.ZERO,
-				StructurePlacement.FrequencyReductionMethod.DEFAULT,
+				FrequencyReductionMethod.DEFAULT,
 				1.0F,
 				salt,
 				Optional.empty(),
@@ -81,32 +76,37 @@ public class RandomSpreadStructurePlacement extends StructurePlacement {
 	}
 
 	public int getSpacing() {
-		return this.spacing;
+		return spacing;
 	}
 
 	public int getSeparation() {
-		return this.separation;
+		return separation;
 	}
 
 	public SpreadType getSpreadType() {
-		return this.spreadType;
+		return spreadType;
 	}
 
+	/**
+	 * Вычисляет стартовый чанк структуры для региона, содержащего чанк {@code (chunkX, chunkZ)}.
+	 * Регион определяется делением координат на {@code spacing}; внутри региона
+	 * позиция смещается случайно в диапазоне {@code [0, spacing - separation)}.
+	 */
 	public ChunkPos getStartChunk(long seed, int chunkX, int chunkZ) {
-		int i = Math.floorDiv(chunkX, this.spacing);
-		int j = Math.floorDiv(chunkZ, this.spacing);
-		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(0L));
-		chunkRandom.setRegionSeed(seed, i, j, this.getSalt());
-		int k = this.spacing - this.separation;
-		int l = this.spreadType.get(chunkRandom, k);
-		int m = this.spreadType.get(chunkRandom, k);
-		return new ChunkPos(i * this.spacing + l, j * this.spacing + m);
+		int regionX = Math.floorDiv(chunkX, spacing);
+		int regionZ = Math.floorDiv(chunkZ, spacing);
+		ChunkRandom random = new ChunkRandom(new CheckedRandom(0L));
+		random.setRegionSeed(seed, regionX, regionZ, getSalt());
+		int spread = spacing - separation;
+		int offsetX = spreadType.get(random, spread);
+		int offsetZ = spreadType.get(random, spread);
+		return new ChunkPos(regionX * spacing + offsetX, regionZ * spacing + offsetZ);
 	}
 
 	@Override
 	protected boolean isStartChunk(StructurePlacementCalculator calculator, int chunkX, int chunkZ) {
-		ChunkPos chunkPos = this.getStartChunk(calculator.getStructureSeed(), chunkX, chunkZ);
-		return chunkPos.x == chunkX && chunkPos.z == chunkZ;
+		ChunkPos startChunk = getStartChunk(calculator.getStructureSeed(), chunkX, chunkZ);
+		return startChunk.x == chunkX && startChunk.z == chunkZ;
 	}
 
 	@Override

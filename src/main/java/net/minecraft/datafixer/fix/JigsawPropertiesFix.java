@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code JigsawPropertiesFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class JigsawPropertiesFix extends ChoiceFix {
 

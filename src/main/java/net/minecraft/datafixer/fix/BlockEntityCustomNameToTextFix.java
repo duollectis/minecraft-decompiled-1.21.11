@@ -16,7 +16,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code BlockEntityCustomNameToTextFix}.
+ * Конвертирует поле {@code CustomName} блок-сущностей из простой строки
+ * в JSON-компонент текста. Обрабатывает только именуемые блок-сущности
+ * (сундуки, печи, маяки и т.д.).
  */
 public class BlockEntityCustomNameToTextFix extends DataFix {
 
@@ -39,30 +41,36 @@ public class BlockEntityCustomNameToTextFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		OpticFinder<String> opticFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type3 = FixUtil.withTypeChanged(type, type, type2);
-		return this.fixTypeEverywhereTyped(
+		OpticFinder<String> idFinder = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
+		Type<?> inputType = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> outputType = getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> transitionalType = FixUtil.withTypeChanged(inputType, inputType, outputType);
+
+		return fixTypeEverywhereTyped(
 				"BlockEntityCustomNameToComponentFix",
-				type,
-				type2,
+				inputType,
+				outputType,
 				typed -> {
-					Optional<String> optional = typed.getOptional(opticFinder);
-					return optional.isPresent() && !NAMEABLE_BLOCK_ENTITY_IDS.contains(optional.get())
-					       ? FixUtil.withType(type2, typed)
+					Optional<String> entityId = typed.getOptional(idFinder);
+					return entityId.isPresent() && !NAMEABLE_BLOCK_ENTITY_IDS.contains(entityId.get())
+					       ? FixUtil.withType(outputType, typed)
 					       : Util.apply(
-							       FixUtil.withType(type3, typed),
-							       type2,
+							       FixUtil.withType(transitionalType, typed),
+							       outputType,
 							       BlockEntityCustomNameToTextFix::fixCustomName
 					       );
 				}
 		);
 	}
 
+	/**
+	 * Конвертирует поле {@code CustomName} из простой строки в компонент текста (JSON-формат).
+	 * Если поле пустое — удаляет его.
+	 */
 	public static <T> Dynamic<T> fixCustomName(Dynamic<T> dynamic) {
-		String string = dynamic.get("CustomName").asString("");
-		return string.isEmpty() ? dynamic.remove("CustomName")
-		                        : dynamic.set("CustomName", TextFixes.text(dynamic.getOps(), string));
+		String customName = dynamic.get("CustomName").asString("");
+		return customName.isEmpty()
+		       ? dynamic.remove("CustomName")
+		       : dynamic.set("CustomName", TextFixes.text(dynamic.getOps(), customName));
 	}
 }

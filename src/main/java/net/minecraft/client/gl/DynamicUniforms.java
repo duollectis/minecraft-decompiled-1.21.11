@@ -9,128 +9,103 @@ import org.joml.*;
 
 import java.nio.ByteBuffer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DynamicUniforms}.
+ * Хранилище динамических UBO-данных для двух типов блоков:
+ * трансформаций объектов ({@link TransformsValue}) и данных чанк-секций ({@link ChunkSectionsValue}).
+ * Управляет двумя независимыми {@link DynamicUniformStorage} с начальной ёмкостью 2.
  */
+@Environment(EnvType.CLIENT)
 public class DynamicUniforms implements AutoCloseable {
 
-	public static final int
-			TRANSFORMS_SIZE =
-			new Std140SizeCalculator().putMat4f().putVec4().putVec3().putMat4f().get();
-	public static final int
-			CHUNK_SECTIONS_SIZE =
-			new Std140SizeCalculator().putMat4f().putFloat().putIVec2().putIVec3().get();
-	private static final int DEFAULT_CAPACITY = 2;
-	private final DynamicUniformStorage<DynamicUniforms.TransformsValue>
-			transformsStorage =
-			new DynamicUniformStorage<>(
-					"Dynamic Transforms UBO", TRANSFORMS_SIZE, 2
-			);
-	private final DynamicUniformStorage<DynamicUniforms.ChunkSectionsValue>
-			chunkSectionsStorage =
-			new DynamicUniformStorage<>(
-					"Chunk Sections UBO", CHUNK_SECTIONS_SIZE, 2
-			);
+	public static final int TRANSFORMS_SIZE =
+		new Std140SizeCalculator().putMat4f().putVec4().putVec3().putMat4f().get();
+	public static final int CHUNK_SECTIONS_SIZE =
+		new Std140SizeCalculator().putMat4f().putFloat().putIVec2().putIVec3().get();
 
-	/**
-	 * Clear.
-	 */
+	private static final int DEFAULT_CAPACITY = 2;
+
+	private final DynamicUniformStorage<TransformsValue> transformsStorage =
+		new DynamicUniformStorage<>("Dynamic Transforms UBO", TRANSFORMS_SIZE, DEFAULT_CAPACITY);
+	private final DynamicUniformStorage<ChunkSectionsValue> chunkSectionsStorage =
+		new DynamicUniformStorage<>("Chunk Sections UBO", CHUNK_SECTIONS_SIZE, DEFAULT_CAPACITY);
+
 	public void clear() {
-		this.transformsStorage.clear();
-		this.chunkSectionsStorage.clear();
+		transformsStorage.clear();
+		chunkSectionsStorage.clear();
 	}
 
 	@Override
 	public void close() {
-		this.transformsStorage.close();
-		this.chunkSectionsStorage.close();
+		transformsStorage.close();
+		chunkSectionsStorage.close();
 	}
 
 	public GpuBufferSlice write(
-			Matrix4fc modelView,
-			Vector4fc colorModulator,
-			Vector3fc modelOffset,
-			Matrix4fc textureMatrix
+		Matrix4fc modelView,
+		Vector4fc colorModulator,
+		Vector3fc modelOffset,
+		Matrix4fc textureMatrix
 	) {
-		return this.transformsStorage
-				.write(
-						new DynamicUniforms.TransformsValue(
-								new Matrix4f(modelView),
-								new Vector4f(colorModulator),
-								new Vector3f(modelOffset),
-								new Matrix4f(textureMatrix)
-						)
-				);
+		return transformsStorage.write(
+			new TransformsValue(
+				new Matrix4f(modelView),
+				new Vector4f(colorModulator),
+				new Vector3f(modelOffset),
+				new Matrix4f(textureMatrix)
+			)
+		);
+	}
+
+	public GpuBufferSlice[] writeTransforms(TransformsValue... values) {
+		return transformsStorage.writeAll(values);
+	}
+
+	public GpuBufferSlice[] writeChunkSections(ChunkSectionsValue... values) {
+		return chunkSectionsStorage.writeAll(values);
 	}
 
 	/**
-	 * Записывает transforms.
-	 *
-	 * @param values values
-	 *
-	 * @return GpuBufferSlice[] — результат операции
+	 * Данные UBO для одной чанк-секции: матрица вида, видимость, размеры атласа и координаты.
 	 */
-	public GpuBufferSlice[] writeTransforms(DynamicUniforms.TransformsValue... values) {
-		return this.transformsStorage.writeAll(values);
-	}
-
-	/**
-	 * Записывает chunk sections.
-	 *
-	 * @param values values
-	 *
-	 * @return GpuBufferSlice[] — результат операции
-	 */
-	public GpuBufferSlice[] writeChunkSections(DynamicUniforms.ChunkSectionsValue... values) {
-		return this.chunkSectionsStorage.writeAll(values);
-	}
-
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ChunkSectionsValue}.
-	 */
 	public record ChunkSectionsValue(
-			Matrix4fc modelView,
-			int x,
-			int y,
-			int z,
-			float visibility,
-			int textureAtlasWidth,
-			int textureAtlasHeight
-	)
-			implements DynamicUniformStorage.Uploadable {
+		Matrix4fc modelView,
+		int x,
+		int y,
+		int z,
+		float visibility,
+		int textureAtlasWidth,
+		int textureAtlasHeight
+	) implements DynamicUniformStorage.Uploadable {
 
 		@Override
 		public void write(ByteBuffer buffer) {
 			Std140Builder.intoBuffer(buffer)
-			             .putMat4f(this.modelView)
-			             .putFloat(this.visibility)
-			             .putIVec2(this.textureAtlasWidth, this.textureAtlasHeight)
-			             .putIVec3(this.x, this.y, this.z);
+				.putMat4f(modelView)
+				.putFloat(visibility)
+				.putIVec2(textureAtlasWidth, textureAtlasHeight)
+				.putIVec3(x, y, z);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TransformsValue}.
+	 * Данные UBO для трансформаций объекта: матрица вида, модулятор цвета, смещение и матрица текстуры.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record TransformsValue(
-			Matrix4fc modelView,
-			Vector4fc colorModulator,
-			Vector3fc modelOffset,
-			Matrix4fc textureMatrix
-	)
-			implements DynamicUniformStorage.Uploadable {
+		Matrix4fc modelView,
+		Vector4fc colorModulator,
+		Vector3fc modelOffset,
+		Matrix4fc textureMatrix
+	) implements DynamicUniformStorage.Uploadable {
 
 		@Override
 		public void write(ByteBuffer buffer) {
-			Std140Builder
-					.intoBuffer(buffer)
-					.putMat4f(this.modelView)
-					.putVec4(this.colorModulator)
-					.putVec3(this.modelOffset)
-					.putMat4f(this.textureMatrix);
+			Std140Builder.intoBuffer(buffer)
+				.putMat4f(modelView)
+				.putVec4(colorModulator)
+				.putVec3(modelOffset)
+				.putMat4f(textureMatrix);
 		}
 	}
 }

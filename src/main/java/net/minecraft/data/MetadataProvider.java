@@ -17,7 +17,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code MetadataProvider}.
+ * Провайдер данных для генерации файла {@code pack.mcmeta}.
+ * Позволяет добавлять произвольные секции метаданных через {@link #add}.
  */
 public class MetadataProvider implements DataProvider {
 
@@ -28,24 +29,23 @@ public class MetadataProvider implements DataProvider {
 		this.output = output;
 	}
 
-	public <T> MetadataProvider add(ResourceMetadataSerializer<T> serializer, T metadata) {
-		this.metadata
-				.put(
-						serializer.name(),
-						() -> ((JsonElement) serializer
-								.codec()
-								.encodeStart(JsonOps.INSTANCE, metadata)
-								.getOrThrow(IllegalArgumentException::new)
-						).getAsJsonObject()
-				);
+	public <T> MetadataProvider add(ResourceMetadataSerializer<T> serializer, T value) {
+		metadata.put(
+				serializer.name(),
+				() -> serializer
+						.codec()
+						.encodeStart(JsonOps.INSTANCE, value)
+						.getOrThrow(IllegalArgumentException::new)
+						.getAsJsonObject()
+		);
 		return this;
 	}
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
 		JsonObject jsonObject = new JsonObject();
-		this.metadata.forEach((key, jsonSupplier) -> jsonObject.add(key, jsonSupplier.get()));
-		return DataProvider.writeToPath(writer, jsonObject, this.output.getPath().resolve("pack.mcmeta"));
+		metadata.forEach((key, jsonSupplier) -> jsonObject.add(key, jsonSupplier.get()));
+		return DataProvider.writeToPath(writer, jsonObject, output.getPath().resolve("pack.mcmeta"));
 	}
 
 	@Override
@@ -54,14 +54,13 @@ public class MetadataProvider implements DataProvider {
 	}
 
 	public static MetadataProvider create(DataOutput output, Text description) {
-		return new MetadataProvider(output)
-				.add(
-						PackResourceMetadata.SERVER_DATA_SERIALIZER,
-						new PackResourceMetadata(
-								description,
-								MinecraftVersion.DEVELOPMENT.packVersion(ResourceType.SERVER_DATA).majorRange()
-						)
-				);
+		return new MetadataProvider(output).add(
+				PackResourceMetadata.SERVER_DATA_SERIALIZER,
+				new PackResourceMetadata(
+						description,
+						MinecraftVersion.DEVELOPMENT.packVersion(ResourceType.SERVER_DATA).majorRange()
+				)
+		);
 	}
 
 	public static MetadataProvider create(DataOutput output, Text description, FeatureSet requiredFeatures) {

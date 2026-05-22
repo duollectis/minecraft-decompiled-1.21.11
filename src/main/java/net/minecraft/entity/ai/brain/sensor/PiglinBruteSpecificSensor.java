@@ -2,7 +2,6 @@ package net.minecraft.entity.ai.brain.sensor;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.brain.LivingTargetCache;
@@ -13,12 +12,15 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.WitherSkeletonEntity;
 import net.minecraft.server.world.ServerWorld;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code PiglinBruteSpecificSensor}.
+ * Сенсор специфической логики пиглин-брута.
+ * Ищет ближайшего видимого врага (иссушитель или скелет-иссушитель) и
+ * собирает список всех взрослых пиглинов поблизости.
  */
 public class PiglinBruteSpecificSensor extends Sensor<LivingEntity> {
 
@@ -34,24 +36,23 @@ public class PiglinBruteSpecificSensor extends Sensor<LivingEntity> {
 	@Override
 	protected void sense(ServerWorld world, LivingEntity entity) {
 		Brain<?> brain = entity.getBrain();
-		List<AbstractPiglinEntity> list = Lists.newArrayList();
-		LivingTargetCache
-				livingTargetCache =
-				brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS).orElse(LivingTargetCache.empty());
-		Optional<MobEntity> optional = livingTargetCache.findFirst(
-				                                                visibleEntity -> visibleEntity instanceof WitherSkeletonEntity || visibleEntity instanceof WitherEntity
-		                                                )
-		                                                .map(MobEntity.class::cast);
+		LivingTargetCache visibleMobs = brain
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
+				.orElse(LivingTargetCache.empty());
 
-		for (LivingEntity livingEntity : brain
-				.getOptionalRegisteredMemory(MemoryModuleType.MOBS)
-				.orElse(ImmutableList.of())) {
-			if (livingEntity instanceof AbstractPiglinEntity && ((AbstractPiglinEntity) livingEntity).isAdult()) {
-				list.add((AbstractPiglinEntity) livingEntity);
+		Optional<MobEntity> nearestNemesis = visibleMobs
+				.findFirst(mob -> mob instanceof WitherSkeletonEntity || mob instanceof WitherEntity)
+				.map(MobEntity.class::cast);
+
+		List<AbstractPiglinEntity> nearbyPiglins = new ArrayList<>();
+
+		for (LivingEntity mob : brain.getOptionalRegisteredMemory(MemoryModuleType.MOBS).orElse(ImmutableList.of())) {
+			if (mob instanceof AbstractPiglinEntity piglin && piglin.isAdult()) {
+				nearbyPiglins.add(piglin);
 			}
 		}
 
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_NEMESIS, optional);
-		brain.remember(MemoryModuleType.NEARBY_ADULT_PIGLINS, list);
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_NEMESIS, nearestNemesis);
+		brain.remember(MemoryModuleType.NEARBY_ADULT_PIGLINS, nearbyPiglins);
 	}
 }

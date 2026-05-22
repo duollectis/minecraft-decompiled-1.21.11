@@ -13,16 +13,20 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * {@code ItemGroup}.
+ * Группа предметов в меню творческого режима.
+ * <p>Каждая группа имеет иконку, отображаемое имя, тип и набор предметов.
+ * Создаётся через {@link Builder}.</p>
  */
 public class ItemGroup {
 
 	static final Identifier ITEMS = getTabTextureId("items");
+
 	private final Text displayName;
 	Identifier texture = ITEMS;
 	boolean scrollbar = true;
 	boolean renderName = true;
 	boolean special = false;
+
 	private final ItemGroup.Row row;
 	private final int column;
 	private final ItemGroup.Type type;
@@ -57,103 +61,93 @@ public class ItemGroup {
 	}
 
 	public Text getDisplayName() {
-		return this.displayName;
+		return displayName;
 	}
 
 	public ItemStack getIcon() {
-		if (this.icon == null) {
-			this.icon = this.iconSupplier.get();
+		if (icon == null) {
+			icon = iconSupplier.get();
 		}
 
-		return this.icon;
+		return icon;
 	}
 
 	public Identifier getTexture() {
-		return this.texture;
+		return texture;
 	}
 
-	/**
-	 * Определяет, следует ли render name.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldRenderName() {
-		return this.renderName;
+		return renderName;
 	}
 
 	public boolean hasScrollbar() {
-		return this.scrollbar;
+		return scrollbar;
 	}
 
 	public int getColumn() {
-		return this.column;
+		return column;
 	}
 
 	public ItemGroup.Row getRow() {
-		return this.row;
+		return row;
 	}
 
 	public boolean hasStacks() {
-		return !this.displayStacks.isEmpty();
+		return !displayStacks.isEmpty();
 	}
 
 	/**
-	 * Определяет, следует ли display.
+	 * Определяет, должна ли группа отображаться в меню творческого режима.
+	 * <p>Группы типа {@link Type#CATEGORY} отображаются только если содержат предметы.</p>
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если группу следует показать
 	 */
 	public boolean shouldDisplay() {
-		return this.type != ItemGroup.Type.CATEGORY || this.hasStacks();
+		return type != ItemGroup.Type.CATEGORY || hasStacks();
 	}
 
 	public boolean isSpecial() {
-		return this.special;
+		return special;
 	}
 
 	public ItemGroup.Type getType() {
-		return this.type;
+		return type;
 	}
 
 	/**
-	 * Обновляет entries.
+	 * Обновляет список отображаемых предметов группы с учётом активных фич и прав игрока.
 	 *
-	 * @param displayContext display context
+	 * @param displayContext контекст отображения с активными фичами и реестрами
 	 */
 	public void updateEntries(ItemGroup.DisplayContext displayContext) {
-		ItemGroup.EntriesImpl entriesImpl = new ItemGroup.EntriesImpl(this, displayContext.enabledFeatures);
-		RegistryKey<ItemGroup> registryKey = Registries.ITEM_GROUP
+		ItemGroup.EntriesImpl entries = new ItemGroup.EntriesImpl(this, displayContext.enabledFeatures());
+		Registries.ITEM_GROUP
 				.getKey(this)
 				.orElseThrow(() -> new IllegalStateException("Unregistered creative tab: " + this));
-		this.entryCollector.accept(displayContext, entriesImpl);
-		this.displayStacks = entriesImpl.parentTabStacks;
-		this.searchTabStacks = entriesImpl.searchTabStacks;
+		entryCollector.accept(displayContext, entries);
+		displayStacks = entries.parentTabStacks;
+		searchTabStacks = entries.searchTabStacks;
 	}
 
 	public Collection<ItemStack> getDisplayStacks() {
-		return this.displayStacks;
+		return displayStacks;
 	}
 
 	public Collection<ItemStack> getSearchTabStacks() {
-		return this.searchTabStacks;
+		return searchTabStacks;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(ItemStack stack) {
-		return this.searchTabStacks.contains(stack);
+		return searchTabStacks.contains(stack);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Билдер для создания групп предметов творческого режима.
 	 */
 	public static class Builder {
 
 		private static final ItemGroup.EntryCollector EMPTY_ENTRIES = (displayContext, entries) -> {};
+
 		private final ItemGroup.Row row;
 		private final int column;
 		private Text displayName = Text.empty();
@@ -186,17 +180,17 @@ public class ItemGroup {
 		}
 
 		public ItemGroup.Builder special() {
-			this.special = true;
+			special = true;
 			return this;
 		}
 
 		public ItemGroup.Builder noRenderedName() {
-			this.renderName = false;
+			renderName = false;
 			return this;
 		}
 
 		public ItemGroup.Builder noScrollbar() {
-			this.scrollbar = false;
+			scrollbar = false;
 			return this;
 		}
 
@@ -211,37 +205,30 @@ public class ItemGroup {
 		}
 
 		/**
-		 * Build.
+		 * Создаёт группу предметов с заданными параметрами.
+		 * <p>Специальные группы ({@link Type#HOTBAR}, {@link Type#INVENTORY}) не могут
+		 * иметь собственных предметов.</p>
 		 *
-		 * @return ItemGroup — результат операции
+		 * @return новая группа предметов
+		 * @throws IllegalStateException если специальная группа имеет коллектор предметов
 		 */
 		public ItemGroup build() {
-			if ((this.type == ItemGroup.Type.HOTBAR || this.type == ItemGroup.Type.INVENTORY)
-					&& this.entryCollector != EMPTY_ENTRIES) {
+			if ((type == ItemGroup.Type.HOTBAR || type == ItemGroup.Type.INVENTORY)
+					&& entryCollector != EMPTY_ENTRIES) {
 				throw new IllegalStateException("Special tabs can't have display items");
 			}
-			else {
-				ItemGroup
-						itemGroup =
-						new ItemGroup(
-								this.row,
-								this.column,
-								this.type,
-								this.displayName,
-								this.iconSupplier,
-								this.entryCollector
-						);
-				itemGroup.special = this.special;
-				itemGroup.renderName = this.renderName;
-				itemGroup.scrollbar = this.scrollbar;
-				itemGroup.texture = this.texture;
-				return itemGroup;
-			}
+
+			ItemGroup group = new ItemGroup(row, column, type, displayName, iconSupplier, entryCollector);
+			group.special = special;
+			group.renderName = renderName;
+			group.scrollbar = scrollbar;
+			group.texture = texture;
+			return group;
 		}
 	}
 
 	/**
-	 * {@code DisplayContext}.
+	 * Контекст отображения группы предметов: активные фичи, права и реестры.
 	 */
 	public record DisplayContext(
 			FeatureSet enabledFeatures,
@@ -254,46 +241,45 @@ public class ItemGroup {
 				boolean hasPermissions,
 				RegistryWrapper.WrapperLookup registries
 		) {
-			return !this.enabledFeatures.equals(enabledFeatures) || this.hasPermissions != hasPermissions
+			return !this.enabledFeatures.equals(enabledFeatures)
+					|| this.hasPermissions != hasPermissions
 					|| this.lookup != registries;
 		}
 	}
 
 	/**
-	 * {@code Entries}.
+	 * Интерфейс для добавления предметов в группу творческого режима.
 	 */
 	public interface Entries {
 
 		void add(ItemStack stack, ItemGroup.StackVisibility visibility);
 
 		default void add(ItemStack stack) {
-			this.add(stack, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+			add(stack, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
 		}
 
 		default void add(ItemConvertible item, ItemGroup.StackVisibility visibility) {
-			this.add(new ItemStack(item), visibility);
+			add(new ItemStack(item), visibility);
 		}
 
 		default void add(ItemConvertible item) {
-			this.add(new ItemStack(item), ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+			add(new ItemStack(item), ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
 		}
 
 		default void addAll(Collection<ItemStack> stacks, ItemGroup.StackVisibility visibility) {
-			stacks.forEach(stack -> this.add(stack, visibility));
+			stacks.forEach(stack -> add(stack, visibility));
 		}
 
 		default void addAll(Collection<ItemStack> stacks) {
-			this.addAll(stacks, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+			addAll(stacks, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
 		}
 	}
 
-	/**
-	 * {@code EntriesImpl}.
-	 */
 	static class EntriesImpl implements ItemGroup.Entries {
 
 		public final Collection<ItemStack> parentTabStacks = ItemStackSet.create();
 		public final Set<ItemStack> searchTabStacks = ItemStackSet.create();
+
 		private final ItemGroup group;
 		private final FeatureSet enabledFeatures;
 
@@ -307,70 +293,54 @@ public class ItemGroup {
 			if (stack.getCount() != 1) {
 				throw new IllegalArgumentException("Stack size must be exactly 1");
 			}
-			else {
-				boolean
-						bl =
-						this.parentTabStacks.contains(stack) && visibility != ItemGroup.StackVisibility.SEARCH_TAB_ONLY;
-				if (bl) {
-					throw new IllegalStateException(
-							"Accidentally adding the same item stack twice "
-									+ stack.toHoverableText().getString()
-									+ " to a Creative Mode Tab: "
-									+ this.group.getDisplayName().getString()
-					);
+
+			boolean isDuplicate = parentTabStacks.contains(stack)
+					&& visibility != ItemGroup.StackVisibility.SEARCH_TAB_ONLY;
+			if (isDuplicate) {
+				throw new IllegalStateException(
+						"Accidentally adding the same item stack twice "
+								+ stack.toHoverableText().getString()
+								+ " to a Creative Mode Tab: "
+								+ group.getDisplayName().getString()
+				);
+			}
+
+			if (!stack.getItem().isEnabled(enabledFeatures)) {
+				return;
+			}
+
+			switch (visibility) {
+				case PARENT_AND_SEARCH_TABS -> {
+					parentTabStacks.add(stack);
+					searchTabStacks.add(stack);
 				}
-				else {
-					if (stack.getItem().isEnabled(this.enabledFeatures)) {
-						switch (visibility) {
-							case PARENT_AND_SEARCH_TABS:
-								this.parentTabStacks.add(stack);
-								this.searchTabStacks.add(stack);
-								break;
-							case PARENT_TAB_ONLY:
-								this.parentTabStacks.add(stack);
-								break;
-							case SEARCH_TAB_ONLY:
-								this.searchTabStacks.add(stack);
-						}
-					}
-				}
+				case PARENT_TAB_ONLY -> parentTabStacks.add(stack);
+				case SEARCH_TAB_ONLY -> searchTabStacks.add(stack);
 			}
 		}
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code EntryCollector}.
-	 */
 	public interface EntryCollector {
 
 		void accept(ItemGroup.DisplayContext displayContext, ItemGroup.Entries entries);
 	}
 
-	/**
-	 * {@code Row}.
-	 */
-	public static enum Row {
+	public enum Row {
 		TOP,
-		BOTTOM;
+		BOTTOM
 	}
 
-	/**
-	 * {@code StackVisibility}.
-	 */
-	public static enum StackVisibility {
+	public enum StackVisibility {
 		PARENT_AND_SEARCH_TABS,
 		PARENT_TAB_ONLY,
-		SEARCH_TAB_ONLY;
+		SEARCH_TAB_ONLY
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		CATEGORY,
 		INVENTORY,
 		HOTBAR,
-		SEARCH;
+		SEARCH
 	}
 }

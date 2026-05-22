@@ -5,9 +5,7 @@ import net.minecraft.util.context.ContextParameter;
 
 import java.util.Set;
 
-/**
- * {@code LootContextAware}.
- */
+/** Интерфейс для объектов, осведомлённых о контексте лута и поддерживающих валидацию. */
 public interface LootContextAware {
 
 	default Set<ContextParameter<?>> getAllowedParameters() {

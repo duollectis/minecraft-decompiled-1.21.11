@@ -7,68 +7,100 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code StringVisitable}.
+ * Интерфейс для объектов, содержимое которых можно обойти как последовательность строк.
+ * Поддерживает два режима обхода: без стиля ({@link Visitor}) и со стилем ({@link StyledVisitor}).
+ * Обход прерывается досрочно, если посетитель возвращает непустой {@link Optional}.
  */
 public interface StringVisitable {
 
+	/** Сигнальное значение для досрочного прекращения обхода. */
 	Optional<Unit> TERMINATE_VISIT = Optional.of(Unit.INSTANCE);
 
+	/** Пустой посетитель, не содержащий никакого текста. */
 	StringVisitable EMPTY = new StringVisitable() {
 		@Override
-		public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+		public <T> Optional<T> visit(Visitor<T> visitor) {
 			return Optional.empty();
 		}
 
 		@Override
-		public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
+		public <T> Optional<T> visit(StyledVisitor<T> styledVisitor, Style style) {
 			return Optional.empty();
 		}
 	};
 
-	<T> Optional<T> visit(StringVisitable.Visitor<T> visitor);
+	/**
+	 * Обходит строковое содержимое без учёта стиля.
+	 *
+	 * @param visitor посетитель, получающий строковые фрагменты
+	 * @return непустой {@link Optional}, если обход был прерван посетителем
+	 */
+	<T> Optional<T> visit(Visitor<T> visitor);
 
-	<T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style);
+	/**
+	 * Обходит строковое содержимое с учётом стиля.
+	 *
+	 * @param styledVisitor посетитель, получающий стиль и строковые фрагменты
+	 * @param style         базовый стиль для обхода
+	 * @return непустой {@link Optional}, если обход был прерван посетителем
+	 */
+	<T> Optional<T> visit(StyledVisitor<T> styledVisitor, Style style);
 
+	/**
+	 * Создаёт {@link StringVisitable} из простой строки без стиля.
+	 */
 	static StringVisitable plain(String string) {
 		return new StringVisitable() {
 			@Override
-			public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+			public <T> Optional<T> visit(Visitor<T> visitor) {
 				return visitor.accept(string);
 			}
 
 			@Override
-			public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
+			public <T> Optional<T> visit(StyledVisitor<T> styledVisitor, Style style) {
 				return styledVisitor.accept(style, string);
 			}
 		};
 	}
 
+	/**
+	 * Создаёт {@link StringVisitable} из строки с заданным стилем.
+	 * При обходе со стилем переданный {@code style} объединяется с внешним через {@link Style#withParent}.
+	 */
 	static StringVisitable styled(String string, Style style) {
 		return new StringVisitable() {
 			@Override
-			public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+			public <T> Optional<T> visit(Visitor<T> visitor) {
 				return visitor.accept(string);
 			}
 
 			@Override
-			public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style outerStyle) {
+			public <T> Optional<T> visit(StyledVisitor<T> styledVisitor, Style outerStyle) {
 				return styledVisitor.accept(style.withParent(outerStyle), string);
 			}
 		};
 	}
 
+	/**
+	 * Конкатенирует несколько {@link StringVisitable} в один последовательный обход.
+	 */
 	static StringVisitable concat(StringVisitable... visitables) {
 		return concat(ImmutableList.copyOf(visitables));
 	}
 
+	/**
+	 * Конкатенирует список {@link StringVisitable} в один последовательный обход.
+	 * Обход прекращается, как только один из элементов вернёт непустой результат.
+	 */
 	static StringVisitable concat(List<? extends StringVisitable> visitables) {
 		return new StringVisitable() {
 			@Override
-			public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-				for (StringVisitable stringVisitable : visitables) {
-					Optional<T> optional = stringVisitable.visit(visitor);
-					if (optional.isPresent()) {
-						return optional;
+			public <T> Optional<T> visit(Visitor<T> visitor) {
+				for (StringVisitable visitable : visitables) {
+					Optional<T> result = visitable.visit(visitor);
+
+					if (result.isPresent()) {
+						return result;
 					}
 				}
 
@@ -76,11 +108,12 @@ public interface StringVisitable {
 			}
 
 			@Override
-			public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
-				for (StringVisitable stringVisitable : visitables) {
-					Optional<T> optional = stringVisitable.visit(styledVisitor, style);
-					if (optional.isPresent()) {
-						return optional;
+			public <T> Optional<T> visit(StyledVisitor<T> styledVisitor, Style style) {
+				for (StringVisitable visitable : visitables) {
+					Optional<T> result = visitable.visit(styledVisitor, style);
+
+					if (result.isPresent()) {
+						return result;
 					}
 				}
 
@@ -90,26 +123,28 @@ public interface StringVisitable {
 	}
 
 	default String getString() {
-		StringBuilder stringBuilder = new StringBuilder();
-		this.visit(string -> {
-			stringBuilder.append(string);
+		StringBuilder builder = new StringBuilder();
+
+		visit(string -> {
+			builder.append(string);
 			return Optional.empty();
 		});
-		return stringBuilder.toString();
+
+		return builder.toString();
 	}
 
 	/**
-	 * {@code StyledVisitor}.
+	 * Посетитель, получающий строковые фрагменты с учётом стиля.
 	 */
-	public interface StyledVisitor<T> {
+	interface StyledVisitor<T> {
 
 		Optional<T> accept(Style style, String asString);
 	}
 
 	/**
-	 * {@code Visitor}.
+	 * Посетитель, получающий строковые фрагменты без учёта стиля.
 	 */
-	public interface Visitor<T> {
+	interface Visitor<T> {
 
 		Optional<T> accept(String asString);
 	}

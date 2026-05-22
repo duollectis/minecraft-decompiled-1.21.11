@@ -9,104 +9,79 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code RecipeFinder}.
+ * Фасад над {@link RecipeMatcher} для работы с предметами инвентаря.
+ * Накапливает доступные предметы и проверяет возможность крафта рецептов.
  */
 public class RecipeFinder {
 
 	private final RecipeMatcher<RegistryEntry<Item>> recipeMatcher = new RecipeMatcher<>();
 
-	/**
-	 * Добавляет input if usable.
-	 *
-	 * @param item item
-	 */
 	public void addInputIfUsable(ItemStack item) {
 		if (PlayerInventory.usableWhenFillingSlot(item)) {
-			this.addInput(item);
+			addInput(item);
 		}
 	}
 
-	/**
-	 * Добавляет input.
-	 *
-	 * @param item item
-	 */
 	public void addInput(ItemStack item) {
-		this.addInput(item, item.getMaxCount());
+		addInput(item, item.getMaxCount());
 	}
 
-	/**
-	 * Добавляет input.
-	 *
-	 * @param item item
-	 * @param maxCount max count
-	 */
 	public void addInput(ItemStack item, int maxCount) {
-		if (!item.isEmpty()) {
-			int i = Math.min(maxCount, item.getCount());
-			this.recipeMatcher.add(item.getRegistryEntry(), i);
+		if (item.isEmpty()) {
+			return;
 		}
+
+		int count = Math.min(maxCount, item.getCount());
+		recipeMatcher.add(item.getRegistryEntry(), count);
 	}
 
 	public boolean isCraftable(
-			Recipe<?> recipe,
-			RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
+		Recipe<?> recipe,
+		RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
 	) {
-		return this.isCraftable(recipe, 1, itemCallback);
+		return isCraftable(recipe, 1, itemCallback);
 	}
 
 	public boolean isCraftable(
-			Recipe<?> recipe,
-			int quantity,
-			RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
+		Recipe<?> recipe,
+		int quantity,
+		RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
 	) {
-		IngredientPlacement ingredientPlacement = recipe.getIngredientPlacement();
-		return ingredientPlacement.hasNoPlacement() ? false : this.isCraftable(
-				ingredientPlacement.getIngredients(),
-				quantity,
-				itemCallback
-		);
+		IngredientPlacement placement = recipe.getIngredientPlacement();
+
+		return placement.hasNoPlacement()
+			? false
+			: isCraftable(placement.getIngredients(), quantity, itemCallback);
 	}
 
 	public boolean isCraftable(
-			List<? extends RecipeMatcher.RawIngredient<RegistryEntry<Item>>> rawIngredients,
-			RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
+		List<? extends RecipeMatcher.RawIngredient<RegistryEntry<Item>>> rawIngredients,
+		RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
 	) {
-		return this.isCraftable(rawIngredients, 1, itemCallback);
+		return isCraftable(rawIngredients, 1, itemCallback);
 	}
 
 	private boolean isCraftable(
-			List<? extends RecipeMatcher.RawIngredient<RegistryEntry<Item>>> rawIngredients,
-			int quantity,
-			RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
+		List<? extends RecipeMatcher.RawIngredient<RegistryEntry<Item>>> rawIngredients,
+		int quantity,
+		RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
 	) {
-		return this.recipeMatcher.match(rawIngredients, quantity, itemCallback);
+		return recipeMatcher.match(rawIngredients, quantity, itemCallback);
 	}
 
-	/**
-	 * Count crafts.
-	 *
-	 * @param recipe recipe
-	 * @param itemCallback item callback
-	 *
-	 * @return int — результат операции
-	 */
 	public int countCrafts(Recipe<?> recipe, RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback) {
-		return this.countCrafts(recipe, Integer.MAX_VALUE, itemCallback);
+		return countCrafts(recipe, Integer.MAX_VALUE, itemCallback);
 	}
 
 	public int countCrafts(
-			Recipe<?> recipe,
-			int max,
-			RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
+		Recipe<?> recipe,
+		int max,
+		RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback
 	) {
-		return this.recipeMatcher.countCrafts(recipe.getIngredientPlacement().getIngredients(), max, itemCallback);
+		return recipeMatcher.countCrafts(recipe.getIngredientPlacement().getIngredients(), max, itemCallback);
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.recipeMatcher.clear();
+		recipeMatcher.clear();
 	}
 }

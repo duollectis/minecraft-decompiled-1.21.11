@@ -19,57 +19,57 @@ import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 
 /**
- * {@code NbtCompound}.
+ * NBT-тег, хранящий именованный набор дочерних тегов ({@code TAG_Compound}).
+ * <p>
+ * Является основным контейнером данных в формате NBT — аналог JSON-объекта.
+ * Поддерживает типизированный доступ к полям через методы {@code get*(key)} и {@code put*(key, value)},
+ * а также кодирование/декодирование через {@link Codec} и {@link MapCodec}.
  */
 public final class NbtCompound implements NbtElement {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
+	/** Размер строки ключа в байтах: 28 байт заголовка + 2 байта на символ. */
+	private static final int KEY_HEADER_BYTES = 28;
+	private static final int BYTES_PER_KEY_CHAR = 2;
+	/** Накладные расходы на хранение одной записи в HashMap. */
+	private static final int ENTRY_OVERHEAD_BYTES = 36;
+	private static final int SIZE = 48;
+
 	public static final Codec<NbtCompound> CODEC = Codec.PASSTHROUGH
 			.comapFlatMap(
 					dynamic -> {
-						NbtElement nbtElement = (NbtElement) dynamic.convert(NbtOps.INSTANCE).getValue();
-						return nbtElement instanceof NbtCompound nbtCompound
-						       ? DataResult.success(
-								nbtCompound == dynamic.getValue() ? nbtCompound.copy() : nbtCompound)
-						       : DataResult.error(() -> "Not a compound tag: " + nbtElement);
+						NbtElement element = (NbtElement) dynamic.convert(NbtOps.INSTANCE).getValue();
+						return element instanceof NbtCompound compound
+							? DataResult.success(compound == dynamic.getValue() ? compound.copy() : compound)
+							: DataResult.error(() -> "Not a compound tag: " + element);
 					},
 					nbt -> new Dynamic(NbtOps.INSTANCE, nbt.copy())
 			);
-	private static final int SIZE = 48;
-	private static final int MAX_DEPTH = 32;
-	public static final NbtType<NbtCompound> TYPE = new NbtType.OfVariableSize<NbtCompound>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtCompound — результат операции
-		 */
-		public NbtCompound read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			nbtSizeTracker.pushStack();
 
-			NbtCompound var3;
+	public static final NbtType<NbtCompound> TYPE = new NbtType.OfVariableSize<NbtCompound>() {
+		@Override
+		public NbtCompound read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			tracker.pushStack();
+
 			try {
-				var3 = readCompound(dataInput, nbtSizeTracker);
+				return readCompound(input, tracker);
 			}
 			finally {
-				nbtSizeTracker.popStack();
+				tracker.popStack();
 			}
-
-			return var3;
 		}
 
 		private static NbtCompound readCompound(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(48L);
+			tracker.add(SIZE);
 			Map<String, NbtElement> map = Maps.newHashMap();
 
-			byte b;
-			while ((b = input.readByte()) != 0) {
-				String string = readString(input, tracker);
-				NbtElement nbtElement = NbtCompound.read(NbtTypes.byId(b), string, input, tracker);
-				if (map.put(string, nbtElement) == null) {
-					tracker.add(36L);
+			byte typeId;
+			while ((typeId = input.readByte()) != END_TYPE) {
+				String key = readString(input, tracker);
+				NbtElement element = NbtCompound.read(NbtTypes.byId(typeId), key, input, tracker);
+				if (map.put(key, element) == null) {
+					tracker.add(ENTRY_OVERHEAD_BYTES);
 				}
 			}
 
@@ -81,62 +81,93 @@ public final class NbtCompound implements NbtElement {
 		throws IOException {
 			tracker.pushStack();
 
-			NbtScanner.Result var4;
 			try {
-				var4 = scanCompound(input, visitor, tracker);
+				return scanCompound(input, visitor, tracker);
 			}
 			finally {
 				tracker.popStack();
 			}
-
-			return var4;
 		}
 
-		private static NbtScanner.Result scanCompound(DataInput input, NbtScanner visitor, NbtSizeTracker tracker)
-		throws IOException {
-			tracker.add(48L);
+		/**
+		 * Сканирует компаунд без полной десериализации.
+		 * Использует метки {@link NbtScanner.NestedResult} для управления обходом полей:
+		 * BREAK прерывает обход и пропускает оставшиеся поля, SKIP пропускает текущее поле.
+		 */
+		private static NbtScanner.Result scanCompound(
+			DataInput input,
+			NbtScanner visitor,
+			NbtSizeTracker tracker
+		) throws IOException {
+			tracker.add(SIZE);
 
-			byte b;
-			label35:
-			while ((b = input.readByte()) != 0) {
-				NbtType<?> nbtType = NbtTypes.byId(b);
+			byte typeId;
+			boolean broken = false;
+
+			while ((typeId = input.readByte()) != END_TYPE) {
+				NbtType<?> nbtType = NbtTypes.byId(typeId);
+
 				switch (visitor.visitSubNbtType(nbtType)) {
 					case HALT:
 						return NbtScanner.Result.HALT;
 					case BREAK:
 						NbtString.skip(input);
 						nbtType.skip(input, tracker);
-						break label35;
+						broken = true;
+						break;
 					case SKIP:
 						NbtString.skip(input);
 						nbtType.skip(input, tracker);
+						continue;
+					default:
+						break;
+				}
+
+				if (broken) {
+					break;
+				}
+
+				String key = readString(input, tracker);
+
+				switch (visitor.startSubNbt(nbtType, key)) {
+					case HALT:
+						return NbtScanner.Result.HALT;
+					case BREAK:
+						nbtType.skip(input, tracker);
+						broken = true;
+						break;
+					case SKIP:
+						nbtType.skip(input, tracker);
+						continue;
+					default:
+						break;
+				}
+
+				if (broken) {
+					break;
+				}
+
+				tracker.add(ENTRY_OVERHEAD_BYTES);
+
+				switch (nbtType.doAccept(input, visitor, tracker)) {
+					case HALT:
+						return NbtScanner.Result.HALT;
+					case BREAK:
+						broken = true;
 						break;
 					default:
-						String string = readString(input, tracker);
-						switch (visitor.startSubNbt(nbtType, string)) {
-							case HALT:
-								return NbtScanner.Result.HALT;
-							case BREAK:
-								nbtType.skip(input, tracker);
-								break label35;
-							case SKIP:
-								nbtType.skip(input, tracker);
-								break;
-							default:
-								tracker.add(36L);
-								switch (nbtType.doAccept(input, visitor, tracker)) {
-									case HALT:
-										return NbtScanner.Result.HALT;
-									case BREAK:
-								}
-						}
+						break;
+				}
+
+				if (broken) {
+					break;
 				}
 			}
 
-			if (b != 0) {
-				while ((b = input.readByte()) != 0) {
+			if (broken) {
+				while ((typeId = input.readByte()) != END_TYPE) {
 					NbtString.skip(input);
-					NbtTypes.byId(b).skip(input, tracker);
+					NbtTypes.byId(typeId).skip(input, tracker);
 				}
 			}
 
@@ -144,21 +175,21 @@ public final class NbtCompound implements NbtElement {
 		}
 
 		private static String readString(DataInput input, NbtSizeTracker tracker) throws IOException {
-			String string = input.readUTF();
-			tracker.add(28L);
-			tracker.add(2L, string.length());
-			return string;
+			String key = input.readUTF();
+			tracker.add(KEY_HEADER_BYTES);
+			tracker.add(BYTES_PER_KEY_CHAR, key.length());
+			return key;
 		}
 
 		@Override
 		public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
 			tracker.pushStack();
 
-			byte b;
 			try {
-				while ((b = input.readByte()) != 0) {
+				byte typeId;
+				while ((typeId = input.readByte()) != END_TYPE) {
 					NbtString.skip(input);
-					NbtTypes.byId(b).skip(input, tracker);
+					NbtTypes.byId(typeId).skip(input, tracker);
 				}
 			}
 			finally {
@@ -176,6 +207,7 @@ public final class NbtCompound implements NbtElement {
 			return "TAG_Compound";
 		}
 	};
+
 	private final Map<String, NbtElement> entries;
 
 	NbtCompound(Map<String, NbtElement> entries) {
@@ -188,61 +220,45 @@ public final class NbtCompound implements NbtElement {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		for (String string : this.entries.keySet()) {
-			NbtElement nbtElement = this.entries.get(string);
-			write(string, nbtElement, output);
+		for (Entry<String, NbtElement> entry : entries.entrySet()) {
+			write(entry.getKey(), entry.getValue(), output);
 		}
 
-		output.writeByte(0);
+		output.writeByte(END_TYPE);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		int i = 48;
+		int total = SIZE;
 
-		for (Entry<String, NbtElement> entry : this.entries.entrySet()) {
-			i += 28 + 2 * entry.getKey().length();
-			i += 36;
-			i += entry.getValue().getSizeInBytes();
+		for (Entry<String, NbtElement> entry : entries.entrySet()) {
+			total += KEY_HEADER_BYTES + BYTES_PER_KEY_CHAR * entry.getKey().length();
+			total += ENTRY_OVERHEAD_BYTES;
+			total += entry.getValue().getSizeInBytes();
 		}
 
-		return i;
+		return total;
 	}
 
 	public Set<String> getKeys() {
-		return this.entries.keySet();
+		return entries.keySet();
 	}
 
-	/**
-	 * Entry set.
-	 *
-	 * @return Set> — результат операции
-	 */
 	public Set<Entry<String, NbtElement>> entrySet() {
-		return this.entries.entrySet();
+		return entries.entrySet();
 	}
 
-	/**
-	 * Values.
-	 *
-	 * @return Collection — результат операции
-	 */
 	public Collection<NbtElement> values() {
-		return this.entries.values();
+		return entries.values();
 	}
 
-	/**
-	 * For each.
-	 *
-	 * @param entryConsumer entry consumer
-	 */
 	public void forEach(BiConsumer<String, NbtElement> entryConsumer) {
-		this.entries.forEach(entryConsumer);
+		entries.forEach(entryConsumer);
 	}
 
 	@Override
 	public byte getType() {
-		return 10;
+		return COMPOUND_TYPE;
 	}
 
 	@Override
@@ -251,298 +267,197 @@ public final class NbtCompound implements NbtElement {
 	}
 
 	public int getSize() {
-		return this.entries.size();
+		return entries.size();
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param key key
-	 * @param element element
-	 *
-	 * @return @Nullable NbtElement — результат операции
-	 */
 	public @Nullable NbtElement put(String key, NbtElement element) {
-		return this.entries.put(key, element);
+		return entries.put(key, element);
 	}
 
-	/**
-	 * Put byte.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putByte(String key, byte value) {
-		this.entries.put(key, NbtByte.of(value));
+		entries.put(key, NbtByte.of(value));
 	}
 
-	/**
-	 * Put short.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putShort(String key, short value) {
-		this.entries.put(key, NbtShort.of(value));
+		entries.put(key, NbtShort.of(value));
 	}
 
-	/**
-	 * Put int.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putInt(String key, int value) {
-		this.entries.put(key, NbtInt.of(value));
+		entries.put(key, NbtInt.of(value));
 	}
 
-	/**
-	 * Put long.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putLong(String key, long value) {
-		this.entries.put(key, NbtLong.of(value));
+		entries.put(key, NbtLong.of(value));
 	}
 
-	/**
-	 * Put float.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putFloat(String key, float value) {
-		this.entries.put(key, NbtFloat.of(value));
+		entries.put(key, NbtFloat.of(value));
 	}
 
-	/**
-	 * Put double.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putDouble(String key, double value) {
-		this.entries.put(key, NbtDouble.of(value));
+		entries.put(key, NbtDouble.of(value));
 	}
 
-	/**
-	 * Put string.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putString(String key, String value) {
-		this.entries.put(key, NbtString.of(value));
+		entries.put(key, NbtString.of(value));
 	}
 
-	/**
-	 * Put byte array.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putByteArray(String key, byte[] value) {
-		this.entries.put(key, new NbtByteArray(value));
+		entries.put(key, new NbtByteArray(value));
 	}
 
-	/**
-	 * Put int array.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putIntArray(String key, int[] value) {
-		this.entries.put(key, new NbtIntArray(value));
+		entries.put(key, new NbtIntArray(value));
 	}
 
-	/**
-	 * Put long array.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putLongArray(String key, long[] value) {
-		this.entries.put(key, new NbtLongArray(value));
+		entries.put(key, new NbtLongArray(value));
 	}
 
-	/**
-	 * Put boolean.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void putBoolean(String key, boolean value) {
-		this.entries.put(key, NbtByte.of(value));
+		entries.put(key, NbtByte.of(value));
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param key key
-	 *
-	 * @return @Nullable NbtElement — 
-	 */
 	public @Nullable NbtElement get(String key) {
-		return this.entries.get(key);
+		return entries.get(key);
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(String key) {
-		return this.entries.containsKey(key);
+		return entries.containsKey(key);
 	}
 
 	private Optional<NbtElement> getOptional(String key) {
-		return Optional.ofNullable(this.entries.get(key));
+		return Optional.ofNullable(entries.get(key));
 	}
 
 	public Optional<Byte> getByte(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asByte);
+		return getOptional(key).flatMap(NbtElement::asByte);
 	}
 
 	public byte getByte(String key, byte fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.byteValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.byteValue() : fallback;
 	}
 
 	public Optional<Short> getShort(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asShort);
+		return getOptional(key).flatMap(NbtElement::asShort);
 	}
 
 	public short getShort(String key, short fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.shortValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.shortValue() : fallback;
 	}
 
 	public Optional<Integer> getInt(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asInt);
+		return getOptional(key).flatMap(NbtElement::asInt);
 	}
 
 	public int getInt(String key, int fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.intValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.intValue() : fallback;
 	}
 
 	public Optional<Long> getLong(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asLong);
+		return getOptional(key).flatMap(NbtElement::asLong);
 	}
 
 	public long getLong(String key, long fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.longValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.longValue() : fallback;
 	}
 
 	public Optional<Float> getFloat(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asFloat);
+		return getOptional(key).flatMap(NbtElement::asFloat);
 	}
 
 	public float getFloat(String key, float fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.floatValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.floatValue() : fallback;
 	}
 
 	public Optional<Double> getDouble(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asDouble);
+		return getOptional(key).flatMap(NbtElement::asDouble);
 	}
 
 	public double getDouble(String key, double fallback) {
-		return this.entries.get(key) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.doubleValue()
-		                                                                            : fallback;
+		return entries.get(key) instanceof AbstractNbtNumber number ? number.doubleValue() : fallback;
 	}
 
 	public Optional<String> getString(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asString);
+		return getOptional(key).flatMap(NbtElement::asString);
 	}
 
 	public String getString(String key, String fallback) {
-		return this.entries.get(key) instanceof NbtString(String var8) ? var8 : fallback;
+		return entries.get(key) instanceof NbtString(String str) ? str : fallback;
 	}
 
 	public Optional<byte[]> getByteArray(String key) {
-		return this.entries.get(key) instanceof NbtByteArray nbtByteArray ? Optional.of(nbtByteArray.getByteArray())
-		                                                                  : Optional.empty();
+		return entries.get(key) instanceof NbtByteArray array
+			? Optional.of(array.getByteArray())
+			: Optional.empty();
 	}
 
 	public Optional<int[]> getIntArray(String key) {
-		return this.entries.get(key) instanceof NbtIntArray nbtIntArray ? Optional.of(nbtIntArray.getIntArray())
-		                                                                : Optional.empty();
+		return entries.get(key) instanceof NbtIntArray array
+			? Optional.of(array.getIntArray())
+			: Optional.empty();
 	}
 
 	public Optional<long[]> getLongArray(String key) {
-		return this.entries.get(key) instanceof NbtLongArray nbtLongArray ? Optional.of(nbtLongArray.getLongArray())
-		                                                                  : Optional.empty();
+		return entries.get(key) instanceof NbtLongArray array
+			? Optional.of(array.getLongArray())
+			: Optional.empty();
 	}
 
 	public Optional<NbtCompound> getCompound(String key) {
-		return this.entries.get(key) instanceof NbtCompound nbtCompound ? Optional.of(nbtCompound) : Optional.empty();
+		return entries.get(key) instanceof NbtCompound compound
+			? Optional.of(compound)
+			: Optional.empty();
 	}
 
 	public NbtCompound getCompoundOrEmpty(String key) {
-		return this.getCompound(key).orElseGet(NbtCompound::new);
+		return getCompound(key).orElseGet(NbtCompound::new);
 	}
 
 	public Optional<NbtList> getList(String key) {
-		return this.entries.get(key) instanceof NbtList nbtList ? Optional.of(nbtList) : Optional.empty();
+		return entries.get(key) instanceof NbtList list ? Optional.of(list) : Optional.empty();
 	}
 
 	public NbtList getListOrEmpty(String key) {
-		return this.getList(key).orElseGet(NbtList::new);
+		return getList(key).orElseGet(NbtList::new);
 	}
 
 	public Optional<Boolean> getBoolean(String key) {
-		return this.getOptional(key).flatMap(NbtElement::asBoolean);
+		return getOptional(key).flatMap(NbtElement::asBoolean);
 	}
 
 	public boolean getBoolean(String key, boolean fallback) {
-		return this.getByte(key, (byte) (fallback ? 1 : 0)) != 0;
+		return getByte(key, NbtByte.of(fallback).value()) != 0;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param key key
-	 *
-	 * @return @Nullable NbtElement — результат операции
-	 */
 	public @Nullable NbtElement remove(String key) {
-		return this.entries.remove(key);
+		return entries.remove(key);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitCompound(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitCompound(this);
+		return writer.getString();
 	}
 
 	public boolean isEmpty() {
-		return this.entries.isEmpty();
+		return entries.isEmpty();
 	}
 
-	/**
-	 * Shallow copy.
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	protected NbtCompound shallowCopy() {
-		return new NbtCompound(new HashMap<>(this.entries));
+		return new NbtCompound(new HashMap<>(entries));
 	}
 
 	/**
-	 * Copy.
+	 * Создаёт глубокую копию компаунда, рекурсивно копируя все дочерние элементы.
 	 *
-	 * @return NbtCompound — результат операции
+	 * @return новый {@link NbtCompound} с независимыми копиями всех полей
 	 */
 	public NbtCompound copy() {
-		HashMap<String, NbtElement> hashMap = new HashMap<>();
-		this.entries.forEach((key, value) -> hashMap.put(key, value.copy()));
-		return new NbtCompound(hashMap);
+		HashMap<String, NbtElement> copy = new HashMap<>();
+		entries.forEach((key, value) -> copy.put(key, value.copy()));
+		return new NbtCompound(copy);
 	}
 
 	@Override
@@ -551,52 +466,61 @@ public final class NbtCompound implements NbtElement {
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof NbtCompound && Objects.equals(this.entries, ((NbtCompound) o).entries);
+	public boolean equals(Object other) {
+		return this == other
+			? true
+			: other instanceof NbtCompound compound && Objects.equals(entries, compound.entries);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.entries.hashCode();
+		return entries.hashCode();
 	}
 
 	private static void write(String key, NbtElement element, DataOutput output) throws IOException {
 		output.writeByte(element.getType());
-		if (element.getType() != 0) {
+		if (element.getType() != END_TYPE) {
 			output.writeUTF(key);
 			element.write(output);
 		}
 	}
 
+	/**
+	 * Читает дочерний элемент из потока, оборачивая {@link IOException} в {@link NbtCrashException}
+	 * с подробным отчётом о сбое для диагностики повреждённых данных.
+	 */
 	static NbtElement read(NbtType<?> reader, String key, DataInput input, NbtSizeTracker tracker) {
 		try {
 			return reader.read(input, tracker);
 		}
-		catch (IOException var7) {
-			CrashReport crashReport = CrashReport.create(var7, "Loading NBT data");
-			CrashReportSection crashReportSection = crashReport.addElement("NBT Tag");
-			crashReportSection.add("Tag name", key);
-			crashReportSection.add("Tag type", reader.getCrashReportName());
+		catch (IOException exception) {
+			CrashReport crashReport = CrashReport.create(exception, "Loading NBT data");
+			CrashReportSection section = crashReport.addElement("NBT Tag");
+			section.add("Tag name", key);
+			section.add("Tag type", reader.getCrashReportName());
 			throw new NbtCrashException(crashReport);
 		}
 	}
 
 	/**
-	 * Создаёт копию from.
+	 * Рекурсивно копирует поля из {@code source} в этот компаунд.
+	 * Если оба компаунда содержат одноимённый вложенный {@link NbtCompound},
+	 * выполняется рекурсивное слияние вместо замены.
 	 *
-	 * @param source source
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param source источник данных для копирования
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public NbtCompound copyFrom(NbtCompound source) {
-		for (String string : source.entries.keySet()) {
-			NbtElement nbtElement = source.entries.get(string);
-			if (nbtElement instanceof NbtCompound nbtCompound
-					&& this.entries.get(string) instanceof NbtCompound nbtCompound2) {
-				nbtCompound2.copyFrom(nbtCompound);
+		for (Entry<String, NbtElement> entry : source.entries.entrySet()) {
+			String key = entry.getKey();
+			NbtElement sourceElement = entry.getValue();
+
+			if (sourceElement instanceof NbtCompound sourceCompound
+					&& entries.get(key) instanceof NbtCompound existingCompound) {
+				existingCompound.copyFrom(sourceCompound);
 			}
 			else {
-				this.put(string, nbtElement.copy());
+				put(key, sourceElement.copy());
 			}
 		}
 
@@ -610,35 +534,39 @@ public final class NbtCompound implements NbtElement {
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		for (Entry<String, NbtElement> entry : this.entries.entrySet()) {
-			NbtElement nbtElement = entry.getValue();
-			NbtType<?> nbtType = nbtElement.getNbtType();
-			NbtScanner.NestedResult nestedResult = visitor.visitSubNbtType(nbtType);
-			switch (nestedResult) {
+		for (Entry<String, NbtElement> entry : entries.entrySet()) {
+			NbtElement element = entry.getValue();
+			NbtType<?> nbtType = element.getNbtType();
+
+			switch (visitor.visitSubNbtType(nbtType)) {
 				case HALT:
 					return NbtScanner.Result.HALT;
 				case BREAK:
 					return visitor.endNested();
 				case SKIP:
-					break;
+					continue;
 				default:
-					nestedResult = visitor.startSubNbt(nbtType, entry.getKey());
-					switch (nestedResult) {
-						case HALT:
-							return NbtScanner.Result.HALT;
-						case BREAK:
-							return visitor.endNested();
-						case SKIP:
-							break;
-						default:
-							NbtScanner.Result result = nbtElement.doAccept(visitor);
-							switch (result) {
-								case HALT:
-									return NbtScanner.Result.HALT;
-								case BREAK:
-									return visitor.endNested();
-							}
-					}
+					break;
+			}
+
+			switch (visitor.startSubNbt(nbtType, entry.getKey())) {
+				case HALT:
+					return NbtScanner.Result.HALT;
+				case BREAK:
+					return visitor.endNested();
+				case SKIP:
+					continue;
+				default:
+					break;
+			}
+
+			switch (element.doAccept(visitor)) {
+				case HALT:
+					return NbtScanner.Result.HALT;
+				case BREAK:
+					return visitor.endNested();
+				default:
+					break;
 			}
 		}
 
@@ -646,139 +574,133 @@ public final class NbtCompound implements NbtElement {
 	}
 
 	/**
-	 * Put.
+	 * Кодирует значение через {@link Codec} и сохраняет результат по ключу.
 	 *
-	 * @param key key
-	 * @param codec codec
-	 * @param value value
-	 *
-	 * @return void — результат операции
+	 * @param key   ключ записи
+	 * @param codec кодек для сериализации
+	 * @param value значение для сохранения
 	 */
 	public <T> void put(String key, Codec<T> codec, T value) {
-		this.put(key, codec, NbtOps.INSTANCE, value);
+		put(key, codec, NbtOps.INSTANCE, value);
 	}
 
 	/**
-	 * Put nullable.
+	 * Кодирует значение через {@link Codec} и сохраняет результат по ключу,
+	 * используя указанный {@link DynamicOps}.
 	 *
-	 * @param key key
-	 * @param codec codec
-	 * @param value value
+	 * @param key   ключ записи
+	 * @param codec кодек для сериализации
+	 * @param ops   операции динамической сериализации
+	 * @param value значение для сохранения
+	 */
+	public <T> void put(String key, Codec<T> codec, DynamicOps<NbtElement> ops, T value) {
+		put(key, (NbtElement) codec.encodeStart(ops, value).getOrThrow());
+	}
+
+	/**
+	 * Кодирует значение через {@link Codec} и сохраняет результат по ключу,
+	 * если значение не {@code null}.
 	 *
-	 * @return void — результат операции
+	 * @param key   ключ записи
+	 * @param codec кодек для сериализации
+	 * @param value значение для сохранения, или {@code null} для пропуска
 	 */
 	public <T> void putNullable(String key, Codec<T> codec, @Nullable T value) {
 		if (value != null) {
-			this.put(key, codec, value);
+			put(key, codec, value);
 		}
 	}
 
 	/**
-	 * Put.
+	 * Кодирует значение через {@link Codec} и сохраняет результат по ключу,
+	 * если значение не {@code null}, используя указанный {@link DynamicOps}.
 	 *
-	 * @param key key
-	 * @param codec codec
-	 * @param ops ops
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
-	public <T> void put(String key, Codec<T> codec, DynamicOps<NbtElement> ops, T value) {
-		this.put(key, (NbtElement) codec.encodeStart(ops, value).getOrThrow());
-	}
-
-	/**
-	 * Put nullable.
-	 *
-	 * @param key key
-	 * @param codec codec
-	 * @param ops ops
-	 * @param value value
-	 *
-	 * @return void — результат операции
+	 * @param key   ключ записи
+	 * @param codec кодек для сериализации
+	 * @param ops   операции динамической сериализации
+	 * @param value значение для сохранения, или {@code null} для пропуска
 	 */
 	public <T> void putNullable(String key, Codec<T> codec, DynamicOps<NbtElement> ops, @Nullable T value) {
 		if (value != null) {
-			this.put(key, codec, ops, value);
+			put(key, codec, ops, value);
 		}
 	}
 
 	/**
-	 * Создаёт копию from codec.
+	 * Кодирует объект через {@link MapCodec} и сливает результат в этот компаунд.
 	 *
-	 * @param codec codec
-	 * @param value value
-	 *
-	 * @return void — результат операции
+	 * @param codec кодек для сериализации
+	 * @param value объект для кодирования
 	 */
 	public <T> void copyFromCodec(MapCodec<T> codec, T value) {
-		this.copyFromCodec(codec, NbtOps.INSTANCE, value);
+		copyFromCodec(codec, NbtOps.INSTANCE, value);
 	}
 
 	/**
-	 * Создаёт копию from codec.
+	 * Кодирует объект через {@link MapCodec} и сливает результат в этот компаунд,
+	 * используя указанный {@link DynamicOps}.
 	 *
-	 * @param codec codec
-	 * @param ops ops
-	 * @param value value
-	 *
-	 * @return void — результат операции
+	 * @param codec кодек для сериализации
+	 * @param ops   операции динамической сериализации
+	 * @param value объект для кодирования
 	 */
 	public <T> void copyFromCodec(MapCodec<T> codec, DynamicOps<NbtElement> ops, T value) {
-		this.copyFrom((NbtCompound) codec.encoder().encodeStart(ops, value).getOrThrow());
+		copyFrom((NbtCompound) codec.encoder().encodeStart(ops, value).getOrThrow());
 	}
 
 	/**
-	 * Get.
+	 * Читает и декодирует значение по ключу через {@link Codec}.
+	 * При ошибке декодирования логирует её и возвращает {@link Optional#empty()}.
 	 *
-	 * @param key key
-	 * @param codec codec
-	 *
-	 * @return Optional — 
+	 * @param key   ключ записи
+	 * @param codec кодек для десериализации
+	 * @return декодированное значение или {@link Optional#empty()} при отсутствии/ошибке
 	 */
 	public <T> Optional<T> get(String key, Codec<T> codec) {
-		return this.get(key, codec, NbtOps.INSTANCE);
+		return get(key, codec, NbtOps.INSTANCE);
 	}
 
 	/**
-	 * Get.
+	 * Читает и декодирует значение по ключу через {@link Codec},
+	 * используя указанный {@link DynamicOps}.
+	 * При ошибке декодирования логирует её и возвращает {@link Optional#empty()}.
 	 *
-	 * @param key key
-	 * @param codec codec
-	 * @param ops ops
-	 *
-	 * @return Optional — 
+	 * @param key   ключ записи
+	 * @param codec кодек для десериализации
+	 * @param ops   операции динамической сериализации
+	 * @return декодированное значение или {@link Optional#empty()} при отсутствии/ошибке
 	 */
 	public <T> Optional<T> get(String key, Codec<T> codec, DynamicOps<NbtElement> ops) {
-		NbtElement nbtElement = this.get(key);
-		return nbtElement == null
-		       ? Optional.empty()
-		       : codec
-		         .parse(ops, nbtElement)
-		         .resultOrPartial(error -> LOGGER.error(
-				         "Failed to read field ({}={}): {}",
-				         new Object[]{key, nbtElement, error}
-		         ));
+		NbtElement element = get(key);
+		return element == null
+			? Optional.empty()
+			: codec
+				.parse(ops, element)
+				.resultOrPartial(error -> LOGGER.error(
+					"Failed to read field ({}={}): {}",
+					new Object[]{key, element, error}
+				));
 	}
 
 	/**
-	 * Decode.
+	 * Декодирует весь компаунд через {@link MapCodec}.
+	 * При ошибке декодирования логирует её и возвращает {@link Optional#empty()}.
 	 *
-	 * @param codec codec
-	 *
-	 * @return Optional — результат операции
+	 * @param codec кодек для десериализации
+	 * @return декодированное значение или {@link Optional#empty()} при ошибке
 	 */
 	public <T> Optional<T> decode(MapCodec<T> codec) {
-		return this.decode(codec, NbtOps.INSTANCE);
+		return decode(codec, NbtOps.INSTANCE);
 	}
 
 	/**
-	 * Decode.
+	 * Декодирует весь компаунд через {@link MapCodec},
+	 * используя указанный {@link DynamicOps}.
+	 * При ошибке декодирования логирует её и возвращает {@link Optional#empty()}.
 	 *
-	 * @param codec codec
-	 * @param ops ops
-	 *
-	 * @return Optional — результат операции
+	 * @param codec кодек для десериализации
+	 * @param ops   операции динамической сериализации
+	 * @return декодированное значение или {@link Optional#empty()} при ошибке
 	 */
 	public <T> Optional<T> decode(MapCodec<T> codec, DynamicOps<NbtElement> ops) {
 		return codec

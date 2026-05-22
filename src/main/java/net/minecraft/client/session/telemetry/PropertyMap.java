@@ -11,10 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PropertyMap}.
+ * Типобезопасное хранилище свойств телеметрии, отображающее
+ * {@link TelemetryEventProperty} на соответствующие значения.
+ * Используется для сборки данных перед отправкой события телеметрии.
  */
+@Environment(EnvType.CLIENT)
 public class PropertyMap {
 
 	final Map<TelemetryEventProperty<?>, Object> backingMap;
@@ -28,145 +30,113 @@ public class PropertyMap {
 	}
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт {@link MapCodec} для сериализации/десериализации {@link PropertyMap}
+	 * по заданному списку свойств. Только свойства из этого списка участвуют
+	 * в кодировании и декодировании.
 	 *
-	 * @param properties properties
-	 *
-	 * @return MapCodec — результат операции
+	 * @param properties список свойств, включаемых в codec
+	 * @return {@link MapCodec} для {@link PropertyMap}
 	 */
 	public static MapCodec<PropertyMap> createCodec(List<TelemetryEventProperty<?>> properties) {
 		return new MapCodec<PropertyMap>() {
 			public <T> RecordBuilder<T> encode(
-					PropertyMap propertyMap,
-					DynamicOps<T> dynamicOps,
-					RecordBuilder<T> recordBuilder
+				PropertyMap propertyMap,
+				DynamicOps<T> dynamicOps,
+				RecordBuilder<T> recordBuilder
 			) {
-				RecordBuilder<T> recordBuilder2 = recordBuilder;
-
-				for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
-					recordBuilder2 = this.encode(propertyMap, recordBuilder2, telemetryEventProperty);
+				for (TelemetryEventProperty<?> property : properties) {
+					recordBuilder = encode(propertyMap, recordBuilder, property);
 				}
 
-				return recordBuilder2;
+				return recordBuilder;
 			}
 
 			private <T, V> RecordBuilder<T> encode(
-					PropertyMap map,
-					RecordBuilder<T> builder,
-					TelemetryEventProperty<V> property
+				PropertyMap map,
+				RecordBuilder<T> builder,
+				TelemetryEventProperty<V> property
 			) {
-				V object = map.get(property);
-				return object != null ? builder.add(property.id(), object, property.codec()) : builder;
+				V value = map.get(property);
+				return value != null ? builder.add(property.id(), value, property.codec()) : builder;
 			}
 
-			/**
-			 * Decode.
-			 *
-			 * @param ops ops
-			 * @param map map
-			 *
-			 * @return DataResult — результат операции
-			 */
 			public <T> DataResult<PropertyMap> decode(DynamicOps<T> ops, MapLike<T> map) {
-				DataResult<PropertyMap.Builder> dataResult = DataResult.success(new PropertyMap.Builder());
+				DataResult<PropertyMap.Builder> result = DataResult.success(new PropertyMap.Builder());
 
-				for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
-					dataResult = this.decode(dataResult, ops, map, telemetryEventProperty);
+				for (TelemetryEventProperty<?> property : properties) {
+					result = decode(result, ops, map, property);
 				}
 
-				return dataResult.map(PropertyMap.Builder::build);
+				return result.map(PropertyMap.Builder::build);
 			}
 
 			private <T, V> DataResult<PropertyMap.Builder> decode(
-					DataResult<PropertyMap.Builder> result,
-					DynamicOps<T> ops,
-					MapLike<T> map,
-					TelemetryEventProperty<V> property
+				DataResult<PropertyMap.Builder> result,
+				DynamicOps<T> ops,
+				MapLike<T> map,
+				TelemetryEventProperty<V> property
 			) {
-				T object = (T) map.get(property.id());
-				if (object != null) {
-					DataResult<V> dataResult = property.codec().parse(ops, object);
-					return result.apply2stable((mapBuilder, value) -> mapBuilder.put(property, (V) value), dataResult);
-				}
-				else {
+				T raw = (T) map.get(property.id());
+				if (raw == null) {
 					return result;
 				}
+
+				DataResult<V> parsed = property.codec().parse(ops, raw);
+				return result.apply2stable((mapBuilder, value) -> mapBuilder.put(property, (V) value), parsed);
 			}
 
-			/**
-			 * Keys.
-			 *
-			 * @param ops ops
-			 *
-			 * @return Stream — результат операции
-			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return properties.stream().map(TelemetryEventProperty::id).map(ops::createString);
 			}
 		};
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param property property
-	 *
-	 * @return @Nullable T — 
-	 */
 	public <T> @Nullable T get(TelemetryEventProperty<T> property) {
-		return (T) this.backingMap.get(property);
+		return (T) backingMap.get(property);
 	}
 
 	@Override
 	public String toString() {
-		return this.backingMap.toString();
+		return backingMap.toString();
 	}
 
-	/**
-	 * Key set.
-	 *
-	 * @return Set> — результат операции
-	 */
 	public Set<TelemetryEventProperty<?>> keySet() {
-		return this.backingMap.keySet();
+		return backingMap.keySet();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошаговой сборки {@link PropertyMap}.
+	 * Не является потокобезопасным — предназначен для использования
+	 * в одном потоке перед финальным вызовом {@link #build()}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
-		private final Map<TelemetryEventProperty<?>, Object> backingMap = new Reference2ObjectOpenHashMap();
+		private final Map<TelemetryEventProperty<?>, Object> backingMap = new Reference2ObjectOpenHashMap<>();
 
 		Builder() {
 		}
 
 		public <T> PropertyMap.Builder put(TelemetryEventProperty<T> property, T value) {
-			this.backingMap.put(property, value);
+			backingMap.put(property, value);
 			return this;
 		}
 
 		public <T> PropertyMap.Builder putIfNonNull(TelemetryEventProperty<T> property, @Nullable T value) {
 			if (value != null) {
-				this.backingMap.put(property, value);
+				backingMap.put(property, value);
 			}
 
 			return this;
 		}
 
 		public PropertyMap.Builder putAll(PropertyMap map) {
-			this.backingMap.putAll(map.backingMap);
+			backingMap.putAll(map.backingMap);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return PropertyMap — результат операции
-		 */
 		public PropertyMap build() {
-			return new PropertyMap(this.backingMap);
+			return new PropertyMap(backingMap);
 		}
 	}
 }

@@ -15,10 +15,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogListDialogScreen}.
+ * Экран диалога со списком дочерних диалогов, отображаемых в виде кнопок-колонок.
  */
+@Environment(EnvType.CLIENT)
 public class DialogListDialogScreen extends ColumnsDialogScreen<DialogListDialog> {
 
 	public DialogListDialogScreen(@Nullable Screen parent, DialogListDialog dialog, DialogNetworkAccess networkAccess) {

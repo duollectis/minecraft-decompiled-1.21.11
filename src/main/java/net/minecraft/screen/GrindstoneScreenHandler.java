@@ -22,7 +22,11 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code GrindstoneScreenHandler}.
+ * Обработчик экрана точильного камня.
+ * <p>
+ * Принимает до двух предметов в слоты ввода, объединяет их прочность
+ * и снимает незлобные зачарования, возвращая опыт пропорционально
+ * суммарной стоимости снятых чар.
  */
 public class GrindstoneScreenHandler extends ScreenHandler {
 
@@ -34,6 +38,8 @@ public class GrindstoneScreenHandler extends ScreenHandler {
 	private static final int INVENTORY_END = 30;
 	private static final int HOTBAR_START = 30;
 	private static final int HOTBAR_END = 39;
+	private static final int REPAIR_BONUS_PERCENT = 5;
+
 	private final Inventory result = new CraftingResultInventory();
 	final Inventory input = new SimpleInventory(2) {
 		@Override
@@ -51,19 +57,19 @@ public class GrindstoneScreenHandler extends ScreenHandler {
 	public GrindstoneScreenHandler(int syncId, PlayerInventory playerInventory, ScreenHandlerContext context) {
 		super(ScreenHandlerType.GRINDSTONE, syncId);
 		this.context = context;
-		this.addSlot(new Slot(this.input, 0, 49, 19) {
+		addSlot(new Slot(input, INPUT_1_ID, 49, 19) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return stack.isDamageable() || EnchantmentHelper.hasEnchantments(stack);
 			}
 		});
-		this.addSlot(new Slot(this.input, 1, 49, 40) {
+		addSlot(new Slot(input, INPUT_2_ID, 49, 40) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return stack.isDamageable() || EnchantmentHelper.hasEnchantments(stack);
 			}
 		});
-		this.addSlot(new Slot(this.result, 2, 129, 34) {
+		addSlot(new Slot(result, OUTPUT_ID, 129, 34) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return false;
@@ -72,202 +78,217 @@ public class GrindstoneScreenHandler extends ScreenHandler {
 			@Override
 			public void onTakeItem(PlayerEntity player, ItemStack stack) {
 				context.run((world, pos) -> {
-					if (world instanceof ServerWorld) {
-						ExperienceOrbEntity.spawn((ServerWorld) world, Vec3d.ofCenter(pos), this.getExperience(world));
+					if (world instanceof ServerWorld serverWorld) {
+						ExperienceOrbEntity.spawn(serverWorld, Vec3d.ofCenter(pos), calculateExperience(world));
 					}
 
 					world.syncWorldEvent(1042, pos, 0);
 				});
-				GrindstoneScreenHandler.this.input.setStack(0, ItemStack.EMPTY);
-				GrindstoneScreenHandler.this.input.setStack(1, ItemStack.EMPTY);
+				GrindstoneScreenHandler.this.input.setStack(INPUT_1_ID, ItemStack.EMPTY);
+				GrindstoneScreenHandler.this.input.setStack(INPUT_2_ID, ItemStack.EMPTY);
 			}
 
-			private int getExperience(World world) {
-				int i = 0;
-				i += this.getExperience(GrindstoneScreenHandler.this.input.getStack(0));
-				i += this.getExperience(GrindstoneScreenHandler.this.input.getStack(1));
-				if (i > 0) {
-					int j = (int) Math.ceil(i / 2.0);
-					return j + world.random.nextInt(j);
-				}
-				else {
+			private int calculateExperience(World world) {
+				int total = getEnchantmentExperience(GrindstoneScreenHandler.this.input.getStack(INPUT_1_ID));
+				total += getEnchantmentExperience(GrindstoneScreenHandler.this.input.getStack(INPUT_2_ID));
+
+				if (total <= 0) {
 					return 0;
 				}
+
+				int half = (int) Math.ceil(total / 2.0);
+				return half + world.random.nextInt(half);
 			}
 
-			private int getExperience(ItemStack stack) {
-				int i = 0;
-				ItemEnchantmentsComponent itemEnchantmentsComponent = EnchantmentHelper.getEnchantments(stack);
+			private int getEnchantmentExperience(ItemStack stack) {
+				int experience = 0;
+				ItemEnchantmentsComponent enchantments = EnchantmentHelper.getEnchantments(stack);
 
-				for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
-					RegistryEntry<Enchantment> registryEntry = (RegistryEntry<Enchantment>) entry.getKey();
-					int j = entry.getIntValue();
-					if (!registryEntry.isIn(EnchantmentTags.CURSE)) {
-						i += registryEntry.value().getMinPower(j);
+				for (Entry<RegistryEntry<Enchantment>> entry : enchantments.getEnchantmentEntries()) {
+					RegistryEntry<Enchantment> enchantment = (RegistryEntry<Enchantment>) entry.getKey();
+
+					if (!enchantment.isIn(EnchantmentTags.CURSE)) {
+						experience += enchantment.value().getMinPower(entry.getIntValue());
 					}
 				}
 
-				return i;
+				return experience;
 			}
 		});
-		this.addPlayerSlots(playerInventory, 8, 84);
+		addPlayerSlots(playerInventory, 8, 84);
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
 		super.onContentChanged(inventory);
-		if (inventory == this.input) {
-			this.updateResult();
+
+		if (inventory == input) {
+			updateResult();
 		}
 	}
 
 	private void updateResult() {
-		this.result.setStack(0, this.getOutputStack(this.input.getStack(0), this.input.getStack(1)));
-		this.sendContentUpdates();
+		result.setStack(0, getOutputStack(input.getStack(INPUT_1_ID), input.getStack(INPUT_2_ID)));
+		sendContentUpdates();
 	}
 
+	/**
+	 * Вычисляет результирующий стек для двух входных предметов.
+	 * <p>
+	 * Если оба слота пусты — возвращает пустой стек.
+	 * Если заполнен только один — снимает зачарования (grind).
+	 * Если оба заполнены — объединяет прочность и зачарования.
+	 */
 	private ItemStack getOutputStack(ItemStack firstInput, ItemStack secondInput) {
-		boolean bl = !firstInput.isEmpty() || !secondInput.isEmpty();
-		if (!bl) {
+		boolean anyPresent = !firstInput.isEmpty() || !secondInput.isEmpty();
+
+		if (!anyPresent) {
 			return ItemStack.EMPTY;
 		}
-		else if (firstInput.getCount() <= 1 && secondInput.getCount() <= 1) {
-			boolean bl2 = !firstInput.isEmpty() && !secondInput.isEmpty();
-			if (!bl2) {
-				ItemStack itemStack = !firstInput.isEmpty() ? firstInput : secondInput;
-				return !EnchantmentHelper.hasEnchantments(itemStack) ? ItemStack.EMPTY : this.grind(itemStack.copy());
-			}
-			else {
-				return this.combineItems(firstInput, secondInput);
-			}
-		}
-		else {
+
+		if (firstInput.getCount() > 1 || secondInput.getCount() > 1) {
 			return ItemStack.EMPTY;
 		}
+
+		boolean bothPresent = !firstInput.isEmpty() && !secondInput.isEmpty();
+
+		if (bothPresent) {
+			return combineItems(firstInput, secondInput);
+		}
+
+		ItemStack single = !firstInput.isEmpty() ? firstInput : secondInput;
+		return EnchantmentHelper.hasEnchantments(single) ? grind(single.copy()) : ItemStack.EMPTY;
 	}
 
 	private ItemStack combineItems(ItemStack firstInput, ItemStack secondInput) {
 		if (!firstInput.isOf(secondInput.getItem())) {
 			return ItemStack.EMPTY;
 		}
-		else {
-			int i = Math.max(firstInput.getMaxDamage(), secondInput.getMaxDamage());
-			int j = firstInput.getMaxDamage() - firstInput.getDamage();
-			int k = secondInput.getMaxDamage() - secondInput.getDamage();
-			int l = j + k + i * 5 / 100;
-			int m = 1;
-			if (!firstInput.isDamageable()) {
-				if (firstInput.getMaxCount() < 2 || !ItemStack.areEqual(firstInput, secondInput)) {
-					return ItemStack.EMPTY;
-				}
 
-				m = 2;
+		int maxDamage = Math.max(firstInput.getMaxDamage(), secondInput.getMaxDamage());
+		int firstDurability = firstInput.getMaxDamage() - firstInput.getDamage();
+		int secondDurability = secondInput.getMaxDamage() - secondInput.getDamage();
+		int combinedDurability = firstDurability + secondDurability + maxDamage * REPAIR_BONUS_PERCENT / 100;
+		int resultCount = 1;
+
+		if (!firstInput.isDamageable()) {
+			if (firstInput.getMaxCount() < 2 || !ItemStack.areEqual(firstInput, secondInput)) {
+				return ItemStack.EMPTY;
 			}
 
-			ItemStack itemStack = firstInput.copyWithCount(m);
-			if (itemStack.isDamageable()) {
-				itemStack.set(DataComponentTypes.MAX_DAMAGE, i);
-				itemStack.setDamage(Math.max(i - l, 0));
-			}
-
-			this.transferEnchantments(itemStack, secondInput);
-			return this.grind(itemStack);
+			resultCount = 2;
 		}
+
+		ItemStack resultStack = firstInput.copyWithCount(resultCount);
+
+		if (resultStack.isDamageable()) {
+			resultStack.set(DataComponentTypes.MAX_DAMAGE, maxDamage);
+			resultStack.setDamage(Math.max(maxDamage - combinedDurability, 0));
+		}
+
+		transferEnchantments(resultStack, secondInput);
+		return grind(resultStack);
 	}
 
 	private void transferEnchantments(ItemStack target, ItemStack source) {
-		EnchantmentHelper.apply(
-				target, components -> {
-					ItemEnchantmentsComponent itemEnchantmentsComponent = EnchantmentHelper.getEnchantments(source);
+		EnchantmentHelper.apply(target, components -> {
+			ItemEnchantmentsComponent sourceEnchantments = EnchantmentHelper.getEnchantments(source);
 
-					for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
-						RegistryEntry<Enchantment> registryEntry = (RegistryEntry<Enchantment>) entry.getKey();
-						if (!registryEntry.isIn(EnchantmentTags.CURSE) || components.getLevel(registryEntry) == 0) {
-							components.add(registryEntry, entry.getIntValue());
-						}
-					}
+			for (Entry<RegistryEntry<Enchantment>> entry : sourceEnchantments.getEnchantmentEntries()) {
+				RegistryEntry<Enchantment> enchantment = (RegistryEntry<Enchantment>) entry.getKey();
+
+				if (!enchantment.isIn(EnchantmentTags.CURSE) || components.getLevel(enchantment) == 0) {
+					components.add(enchantment, entry.getIntValue());
 				}
-		);
+			}
+		});
 	}
 
 	private ItemStack grind(ItemStack item) {
-		ItemEnchantmentsComponent itemEnchantmentsComponent = EnchantmentHelper.apply(
-				item, components -> components.remove(enchantment -> !enchantment.isIn(EnchantmentTags.CURSE))
+		ItemEnchantmentsComponent remaining = EnchantmentHelper.apply(
+				item,
+				components -> components.remove(enchantment -> !enchantment.isIn(EnchantmentTags.CURSE))
 		);
-		if (item.isOf(Items.ENCHANTED_BOOK) && itemEnchantmentsComponent.isEmpty()) {
+
+		if (item.isOf(Items.ENCHANTED_BOOK) && remaining.isEmpty()) {
 			item = item.withItem(Items.BOOK);
 		}
 
-		int i = 0;
+		int repairCost = 0;
 
-		for (int j = 0; j < itemEnchantmentsComponent.getSize(); j++) {
-			i = AnvilScreenHandler.getNextCost(i);
+		for (int enchantIndex = 0; enchantIndex < remaining.getSize(); enchantIndex++) {
+			repairCost = AnvilScreenHandler.getNextCost(repairCost);
 		}
 
-		item.set(DataComponentTypes.REPAIR_COST, i);
+		item.set(DataComponentTypes.REPAIR_COST, repairCost);
 		return item;
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.context.run((world, pos) -> this.dropInventory(player, this.input));
+		context.run((world, pos) -> dropInventory(player, input));
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return canUse(this.context, player, Blocks.GRINDSTONE);
+		return canUse(context, player, Blocks.GRINDSTONE);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			ItemStack itemStack3 = this.input.getStack(0);
-			ItemStack itemStack4 = this.input.getStack(1);
-			if (slot == 2) {
-				if (!this.insertItem(itemStack2, 3, 39, true)) {
-					return ItemStack.EMPTY;
-				}
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-			}
-			else if (slot != 0 && slot != 1) {
-				if (!itemStack3.isEmpty() && !itemStack4.isEmpty()) {
-					if (slot >= 3 && slot < 30) {
-						if (!this.insertItem(itemStack2, 30, 39, false)) {
-							return ItemStack.EMPTY;
-						}
-					}
-					else if (slot >= 30 && slot < 39 && !this.insertItem(itemStack2, 3, 30, false)) {
-						return ItemStack.EMPTY;
-					}
-				}
-				else if (!this.insertItem(itemStack2, 0, 2, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 3, 39, false)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
-
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
+		ItemStack firstInput = input.getStack(INPUT_1_ID);
+		ItemStack secondInput = input.getStack(INPUT_2_ID);
+
+		if (slot == OUTPUT_ID) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(slotStack, original);
+		}
+		else if (slot == INPUT_1_ID || slot == INPUT_2_ID) {
+			if (!insertItem(slotStack, INVENTORY_START, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (!firstInput.isEmpty() && !secondInput.isEmpty()) {
+			if (slot >= INVENTORY_START && slot < INVENTORY_END) {
+				if (!insertItem(slotStack, HOTBAR_START, HOTBAR_END, false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (slot >= HOTBAR_START && slot < HOTBAR_END) {
+				if (!insertItem(slotStack, INVENTORY_START, INVENTORY_END, false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+		}
+		else if (!insertItem(slotStack, INPUT_1_ID, OUTPUT_ID, false)) {
+			return ItemStack.EMPTY;
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+		else {
+			sourceSlot.markDirty();
+		}
+
+		if (slotStack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, slotStack);
+
+		return original;
 	}
 }

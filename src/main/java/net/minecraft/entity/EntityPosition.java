@@ -11,100 +11,95 @@ import net.minecraft.world.TeleportTarget;
 import java.util.Set;
 
 /**
- * {@code EntityPosition}.
+ * Снимок позиции, скорости и поворота сущности.
+ * Используется для сетевой синхронизации и телепортации.
+ * Флаги {@link PositionFlag} определяют, какие компоненты являются относительными
+ * (прибавляются к текущим значениям), а какие — абсолютными.
  */
 public record EntityPosition(Vec3d position, Vec3d deltaMovement, float yaw, float pitch) {
 
 	public static final PacketCodec<PacketByteBuf, EntityPosition> PACKET_CODEC = PacketCodec.tuple(
-			Vec3d.PACKET_CODEC,
-			EntityPosition::position,
-			Vec3d.PACKET_CODEC,
-			EntityPosition::deltaMovement,
-			PacketCodecs.FLOAT,
-			EntityPosition::yaw,
-			PacketCodecs.FLOAT,
-			EntityPosition::pitch,
-			EntityPosition::new
+		Vec3d.PACKET_CODEC,
+		EntityPosition::position,
+		Vec3d.PACKET_CODEC,
+		EntityPosition::deltaMovement,
+		PacketCodecs.FLOAT,
+		EntityPosition::yaw,
+		PacketCodecs.FLOAT,
+		EntityPosition::pitch,
+		EntityPosition::new
 	);
 
 	/**
-	 * From entity.
+	 * Создаёт снимок позиции из сущности.
+	 * Если сущность интерполируется на клиенте, берёт интерполированные значения
+	 * для плавного отображения.
 	 *
-	 * @param entity entity
-	 *
-	 * @return EntityPosition — результат операции
+	 * @param entity сущность-источник
+	 * @return снимок текущей позиции
 	 */
 	public static EntityPosition fromEntity(Entity entity) {
 		return entity.isInterpolating()
-		       ? new EntityPosition(
+			? new EntityPosition(
 				entity.getInterpolator().getLerpedPos(),
 				entity.getMovement(),
 				entity.getInterpolator().getLerpedYaw(),
 				entity.getInterpolator().getLerpedPitch()
-		)
-		       : new EntityPosition(entity.getEntityPos(), entity.getMovement(), entity.getYaw(), entity.getPitch());
+			)
+			: new EntityPosition(entity.getEntityPos(), entity.getMovement(), entity.getYaw(), entity.getPitch());
 	}
 
-	/**
-	 * With rotation.
-	 *
-	 * @param yaw yaw
-	 * @param pitch pitch
-	 *
-	 * @return EntityPosition — результат операции
-	 */
 	public EntityPosition withRotation(float yaw, float pitch) {
-		return new EntityPosition(this.position(), this.deltaMovement(), yaw, pitch);
+		return new EntityPosition(position(), deltaMovement(), yaw, pitch);
 	}
 
-	/**
-	 * From teleport target.
-	 *
-	 * @param teleportTarget teleport target
-	 *
-	 * @return EntityPosition — результат операции
-	 */
 	public static EntityPosition fromTeleportTarget(TeleportTarget teleportTarget) {
 		return new EntityPosition(
-				teleportTarget.position(),
-				teleportTarget.velocity(),
-				teleportTarget.yaw(),
-				teleportTarget.pitch()
+			teleportTarget.position(),
+			teleportTarget.velocity(),
+			teleportTarget.yaw(),
+			teleportTarget.pitch()
 		);
 	}
 
 	/**
-	 * Apply.
+	 * Применяет новую позицию к текущей с учётом флагов относительности.
+	 * Флаги {@link PositionFlag#X}, {@link PositionFlag#Y}, {@link PositionFlag#Z} делают
+	 * соответствующие координаты относительными. {@link PositionFlag#ROTATE_DELTA} вращает
+	 * вектор скорости вместе с изменением угла поворота.
 	 *
-	 * @param currentPos current pos
-	 * @param newPos new pos
-	 * @param flags flags
-	 *
-	 * @return EntityPosition — результат операции
+	 * @param currentPos текущая позиция сущности
+	 * @param newPos     новая позиция из пакета
+	 * @param flags      набор флагов относительности
+	 * @return итоговая позиция после применения флагов
 	 */
 	public static EntityPosition apply(EntityPosition currentPos, EntityPosition newPos, Set<PositionFlag> flags) {
-		double d = flags.contains(PositionFlag.X) ? currentPos.position.x : 0.0;
-		double e = flags.contains(PositionFlag.Y) ? currentPos.position.y : 0.0;
-		double f = flags.contains(PositionFlag.Z) ? currentPos.position.z : 0.0;
-		float g = flags.contains(PositionFlag.Y_ROT) ? currentPos.yaw : 0.0F;
-		float h = flags.contains(PositionFlag.X_ROT) ? currentPos.pitch : 0.0F;
-		Vec3d vec3d = new Vec3d(d + newPos.position.x, e + newPos.position.y, f + newPos.position.z);
-		float i = g + newPos.yaw;
-		float j = MathHelper.clamp(h + newPos.pitch, -90.0F, 90.0F);
-		Vec3d vec3d2 = currentPos.deltaMovement;
+		double baseX = flags.contains(PositionFlag.X) ? currentPos.position.x : 0.0;
+		double baseY = flags.contains(PositionFlag.Y) ? currentPos.position.y : 0.0;
+		double baseZ = flags.contains(PositionFlag.Z) ? currentPos.position.z : 0.0;
+		float baseYaw = flags.contains(PositionFlag.Y_ROT) ? currentPos.yaw : 0.0F;
+		float basePitch = flags.contains(PositionFlag.X_ROT) ? currentPos.pitch : 0.0F;
+
+		Vec3d resultPos = new Vec3d(baseX + newPos.position.x, baseY + newPos.position.y, baseZ + newPos.position.z);
+		float resultYaw = baseYaw + newPos.yaw;
+		float resultPitch = MathHelper.clamp(basePitch + newPos.pitch, -90.0F, 90.0F);
+
+		Vec3d velocity = currentPos.deltaMovement;
 		if (flags.contains(PositionFlag.ROTATE_DELTA)) {
-			float k = currentPos.yaw - i;
-			float l = currentPos.pitch - j;
-			vec3d2 = vec3d2.rotateX((float) Math.toRadians(l));
-			vec3d2 = vec3d2.rotateY((float) Math.toRadians(k));
+			float yawDelta = currentPos.yaw - resultYaw;
+			float pitchDelta = currentPos.pitch - resultPitch;
+			velocity = velocity
+				.rotateX((float) Math.toRadians(pitchDelta))
+				.rotateY((float) Math.toRadians(yawDelta));
 		}
 
-		Vec3d vec3d3 = new Vec3d(
-				resolve(vec3d2.x, newPos.deltaMovement.x, flags, PositionFlag.DELTA_X),
-				resolve(vec3d2.y, newPos.deltaMovement.y, flags, PositionFlag.DELTA_Y),
-				resolve(vec3d2.z, newPos.deltaMovement.z, flags, PositionFlag.DELTA_Z)
+		Vec3d resultVelocity = new Vec3d(
+			resolve(velocity.x, newPos.deltaMovement.x, flags, PositionFlag.DELTA_X),
+			resolve(velocity.y, newPos.deltaMovement.y, flags, PositionFlag.DELTA_Y),
+			resolve(velocity.z, newPos.deltaMovement.z, flags, PositionFlag.DELTA_Z)
 		);
-		return new EntityPosition(vec3d, vec3d3, i, j);
+
+		return new EntityPosition(resultPos, resultVelocity, resultYaw, resultPitch);
 	}
 
 	private static double resolve(double delta, double value, Set<PositionFlag> flags, PositionFlag deltaFlag) {

@@ -70,11 +70,11 @@ public class ShapedRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 	}
 
 	public ShapedRecipeJsonBuilder input(Character c, TagKey<Item> tag) {
-		return this.input(c, Ingredient.ofTag(this.registryLookup.getOrThrow(tag)));
+		return input(c, Ingredient.ofTag(this.registryLookup.getOrThrow(tag)));
 	}
 
 	public ShapedRecipeJsonBuilder input(Character c, ItemConvertible item) {
-		return this.input(c, Ingredient.ofItem(item));
+		return input(c, Ingredient.ofItem(item));
 	}
 
 	public ShapedRecipeJsonBuilder input(Character c, Ingredient ingredient) {
@@ -122,7 +122,7 @@ public class ShapedRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 
 	@Override
 	public void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey) {
-		RawShapedRecipe rawShapedRecipe = this.validate(recipeKey);
+		RawShapedRecipe rawShapedRecipe = validate(recipeKey);
 		Advancement.Builder builder = exporter.getAdvancementBuilder()
 		                                      .criterion("has_the_recipe", RecipeUnlockedCriterion.create(recipeKey))
 		                                      .rewards(AdvancementRewards.Builder.recipe(recipeKey))
@@ -138,7 +138,7 @@ public class ShapedRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 		exporter.accept(
 				recipeKey,
 				shapedRecipe,
-				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.getName() + "/"))
+				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.name().toLowerCase(java.util.Locale.ROOT) + "/"))
 		);
 	}
 

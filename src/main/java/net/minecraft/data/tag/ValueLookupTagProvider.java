@@ -39,7 +39,7 @@ public abstract class ValueLookupTagProvider<T> extends TagProvider<T> {
 	}
 
 	protected ProvidedTagBuilder<T, T> builder(TagKey<T> tag) {
-		TagBuilder tagBuilder = this.getTagBuilder(tag);
+		TagBuilder tagBuilder = getTagBuilder(tag);
 		return ProvidedTagBuilder.<T>of(tagBuilder).mapped(this.valueToKey);
 	}
 }

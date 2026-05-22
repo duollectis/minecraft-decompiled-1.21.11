@@ -11,10 +11,16 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TooltipState}.
+ * Состояние тултипа виджета: управляет задержкой отображения и выбором позиционера.
+ * Тултип показывается только после истечения {@link #delay} с момента,
+ * когда виджет стал hovered или focused. При смене состояния таймер сбрасывается.
+ *
+ * <p>Позиционер выбирается автоматически:
+ * {@link FocusedTooltipPositioner} — при клавиатурном фокусе без наведения мыши,
+ * {@link WidgetTooltipPositioner} — во всех остальных случаях.</p>
  */
+@Environment(EnvType.CLIENT)
 public class TooltipState {
 
 	private @Nullable Tooltip tooltip;
@@ -31,60 +37,62 @@ public class TooltipState {
 	}
 
 	public @Nullable Tooltip getTooltip() {
-		return this.tooltip;
+		return tooltip;
 	}
 
+	/**
+	 * Отрисовывает тултип, если виджет hovered или focused (клавиатура),
+	 * и прошла задержка {@link #delay} с момента активации.
+	 *
+	 * @param hovered        {@code true} — курсор мыши над виджетом
+	 * @param focused        {@code true} — виджет имеет фокус
+	 * @param navigationFocus прямоугольник виджета для позиционирования тултипа
+	 */
 	public void render(
-			DrawContext context,
-			int mouseX,
-			int mouseY,
-			boolean hovered,
-			boolean focused,
-			ScreenRect navigationFocus
+		DrawContext context,
+		int mouseX,
+		int mouseY,
+		boolean hovered,
+		boolean focused,
+		ScreenRect navigationFocus
 	) {
-		if (this.tooltip == null) {
-			this.lastShouldRender = false;
+		if (tooltip == null) {
+			lastShouldRender = false;
+			return;
 		}
-		else {
-			MinecraftClient minecraftClient = MinecraftClient.getInstance();
-			boolean bl = hovered || focused && minecraftClient.getNavigationType().isKeyboard();
-			if (bl != this.lastShouldRender) {
-				if (bl) {
-					this.renderCheckTime = Util.getMeasuringTimeMs();
-				}
 
-				this.lastShouldRender = bl;
+		MinecraftClient client = MinecraftClient.getInstance();
+		boolean shouldRender = hovered || (focused && client.getNavigationType().isKeyboard());
+
+		if (shouldRender != lastShouldRender) {
+			if (shouldRender) {
+				renderCheckTime = Util.getMeasuringTimeMs();
 			}
 
-			if (bl && Util.getMeasuringTimeMs() - this.renderCheckTime > this.delay.toMillis()) {
-				context.drawTooltip(
-						minecraftClient.textRenderer,
-						this.tooltip.getLines(minecraftClient),
-						this.createPositioner(navigationFocus, hovered, focused),
-						mouseX,
-						mouseY,
-						focused
-				);
-			}
+			lastShouldRender = shouldRender;
+		}
+
+		if (shouldRender && Util.getMeasuringTimeMs() - renderCheckTime > delay.toMillis()) {
+			context.drawTooltip(
+				client.textRenderer,
+				tooltip.getLines(client),
+				createPositioner(navigationFocus, hovered, focused),
+				mouseX,
+				mouseY,
+				focused
+			);
+		}
+	}
+
+	public void appendNarrations(NarrationMessageBuilder builder) {
+		if (tooltip != null) {
+			tooltip.appendNarrations(builder);
 		}
 	}
 
 	private TooltipPositioner createPositioner(ScreenRect focus, boolean hovered, boolean focused) {
-		return (TooltipPositioner) (
-				!hovered && focused && MinecraftClient.getInstance().getNavigationType().isKeyboard()
-				? new FocusedTooltipPositioner(focus)
-				: new WidgetTooltipPositioner(focus)
-		);
-	}
-
-	/**
-	 * Append narrations.
-	 *
-	 * @param builder builder
-	 */
-	public void appendNarrations(NarrationMessageBuilder builder) {
-		if (this.tooltip != null) {
-			this.tooltip.appendNarrations(builder);
-		}
+		return !hovered && focused && MinecraftClient.getInstance().getNavigationType().isKeyboard()
+			? new FocusedTooltipPositioner(focus)
+			: new WidgetTooltipPositioner(focus);
 	}
 }

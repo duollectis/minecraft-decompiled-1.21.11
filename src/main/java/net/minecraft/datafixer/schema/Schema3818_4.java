@@ -9,29 +9,35 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3818_4}.
+ * Схема версии 3818 подверсии 4 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Обновляет тип данных {@code PARTICLE} для поддержки новой системы компонентов:
+ * частицы теперь могут содержать вложенный стек предмета ({@code item})
+ * и состояние блока ({@code block_state}), что необходимо для корректной
+ * миграции данных частиц при обновлении мира.
  */
 public class Schema3818_4 extends IdentifierNormalizingSchema {
 
-	public Schema3818_4(int i, Schema schema) {
-		super(i, schema);
+	public Schema3818_4(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public void registerTypes(
-			Schema schema,
-			Map<String, Supplier<TypeTemplate>> map,
-			Map<String, Supplier<TypeTemplate>> map2
+		Schema schema,
+		Map<String, Supplier<TypeTemplate>> entityTypes,
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes
 	) {
-		super.registerTypes(schema, map, map2);
+		super.registerTypes(schema, entityTypes, blockEntityTypes);
 		schema.registerType(
-				true,
-				TypeReferences.PARTICLE,
-				() -> DSL.optionalFields(
-						"item",
-						TypeReferences.ITEM_STACK.in(schema),
-						"block_state",
-						TypeReferences.BLOCK_STATE.in(schema)
-				)
+			true,
+			TypeReferences.PARTICLE,
+			() -> DSL.optionalFields(
+				"item",
+				TypeReferences.ITEM_STACK.in(schema),
+				"block_state",
+				TypeReferences.BLOCK_STATE.in(schema)
+			)
 		);
 	}
 }

@@ -34,7 +34,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RegistryKeyArgumentType}.
+ * Тип аргумента команды Brigadier, который парсит идентификатор и возвращает {@link RegistryKey}
+ * без проверки существования записи в реестре.
+ * <p>
+ * Используется там, где нужен только ключ (например, для рецептов и достижений),
+ * а не сама запись реестра. Для получения конкретной записи используйте
+ * {@link RegistryEntryReferenceArgumentType}.
+ *
+ * @param <T> тип объекта, на который ссылается ключ реестра
  */
 public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> {
 
@@ -64,6 +71,17 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 		return new RegistryKeyArgumentType<>(registryRef);
 	}
 
+	/**
+	 * Извлекает ключ реестра из контекста команды и проверяет, что он принадлежит нужному реестру.
+	 *
+	 * @param context          контекст выполнения команды
+	 * @param name             имя аргумента в команде
+	 * @param registryRef      ключ ожидаемого реестра
+	 * @param invalidException исключение, выбрасываемое при несоответствии типа
+	 * @param <T>              тип объекта реестра
+	 * @return типизированный ключ реестра
+	 * @throws CommandSyntaxException если ключ принадлежит другому реестру
+	 */
 	public static <T> RegistryKey<T> getKey(
 			CommandContext<ServerCommandSource> context,
 			String name,
@@ -72,6 +90,7 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 	) throws CommandSyntaxException {
 		RegistryKey<?> registryKey = (RegistryKey<?>) context.getArgument(name, RegistryKey.class);
 		Optional<RegistryKey<T>> optional = registryKey.tryCast(registryRef);
+
 		return optional.orElseThrow(() -> invalidException.create(registryKey.getValue()));
 	}
 
@@ -79,7 +98,7 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 			CommandContext<ServerCommandSource> context,
 			RegistryKey<? extends Registry<T>> registryRef
 	) {
-		return ((ServerCommandSource) context.getSource()).getServer().getRegistryManager().getOrThrow(registryRef);
+		return context.getSource().getServer().getRegistryManager().getOrThrow(registryRef);
 	}
 
 	private static <T> RegistryEntry.Reference<T> getRegistryEntry(
@@ -128,21 +147,19 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 
 	public static AdvancementEntry getAdvancementEntry(CommandContext<ServerCommandSource> context, String name)
 	throws CommandSyntaxException {
-		RegistryKey<Advancement>
-				registryKey =
-				getKey(context, name, RegistryKeys.ADVANCEMENT, ADVANCEMENT_NOT_FOUND_EXCEPTION);
-		AdvancementEntry
-				advancementEntry =
-				((ServerCommandSource) context.getSource())
-						.getServer()
-						.getAdvancementLoader()
-						.get(registryKey.getValue());
+		RegistryKey<Advancement> registryKey = getKey(
+				context, name, RegistryKeys.ADVANCEMENT, ADVANCEMENT_NOT_FOUND_EXCEPTION
+		);
+		AdvancementEntry advancementEntry = context.getSource()
+				.getServer()
+				.getAdvancementLoader()
+				.get(registryKey.getValue());
+
 		if (advancementEntry == null) {
 			throw ADVANCEMENT_NOT_FOUND_EXCEPTION.create(registryKey.getValue());
 		}
-		else {
-			return advancementEntry;
-		}
+
+		return advancementEntry;
 	}
 
 	public RegistryKey<T> parse(StringReader stringReader) throws CommandSyntaxException {
@@ -164,7 +181,8 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
+	 * Передаёт только ключ реестра — клиент использует его для автодополнения.
 	 */
 	public static class Serializer<T> implements ArgumentSerializer<RegistryKeyArgumentType<T>, RegistryKeyArgumentType.Serializer<T>.Properties> {
 
@@ -188,7 +206,7 @@ public class RegistryKeyArgumentType<T> implements ArgumentType<RegistryKey<T>> 
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит ключ реестра для восстановления типа аргумента.
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistryKeyArgumentType<T>> {
 

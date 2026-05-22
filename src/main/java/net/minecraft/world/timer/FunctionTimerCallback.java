@@ -9,32 +9,27 @@ import net.minecraft.server.function.CommandFunctionManager;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code FunctionTimerCallback}.
+ * Callback таймера, выполняющий одну функцию по имени при срабатывании.
+ * Используется командой {@code /schedule} с именем функции.
+ * Если функция не найдена — вызов молча игнорируется.
  */
 public record FunctionTimerCallback(Identifier name) implements TimerCallback<MinecraftServer> {
 
 	public static final MapCodec<FunctionTimerCallback> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTimerCallback::name))
-					.apply(instance, FunctionTimerCallback::new)
+		instance -> instance
+			.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTimerCallback::name))
+			.apply(instance, FunctionTimerCallback::new)
 	);
 
-	/**
-	 * Call.
-	 *
-	 * @param minecraftServer minecraft server
-	 * @param timer timer
-	 * @param l l
-	 */
-	public void call(MinecraftServer minecraftServer, Timer<MinecraftServer> timer, long l) {
-		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
-		commandFunctionManager.getFunction(this.name)
-		                      .ifPresent(
-				                      function -> commandFunctionManager.execute(
-						                      (CommandFunction<ServerCommandSource>) function,
-						                      commandFunctionManager.getScheduledCommandSource()
-				                      )
-		                      );
+	@Override
+	public void call(MinecraftServer server, Timer<MinecraftServer> timer, long time) {
+		CommandFunctionManager manager = server.getCommandFunctionManager();
+		manager.getFunction(name).ifPresent(
+			function -> manager.execute(
+				(CommandFunction<ServerCommandSource>) function,
+				manager.getScheduledCommandSource()
+			)
+		);
 	}
 
 	@Override

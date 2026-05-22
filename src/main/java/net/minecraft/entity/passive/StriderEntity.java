@@ -42,7 +42,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code StriderEntity}.
+ * Страйдер — пассивный моб Нижнего мира, способный ходить по лаве.
+ * Может быть оседлан игроком с грибом на палке. При контакте с водой
+ * или дождём дрожит и замедляется.
  */
 public class StriderEntity extends AnimalEntity implements ItemSteerable {
 
@@ -250,7 +252,7 @@ public class StriderEntity extends AnimalEntity implements ItemSteerable {
 	@Override
 	protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
 		return (float) (
-				this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) * (this.isCold() ? 0.35F : 0.55F)
+				this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) * (this.isCold() ? COLD_SADDLED_SPEED : DEFAULT_SADDLED_SPEED)
 						* this.saddledComponent.getMovementSpeedMultiplier()
 		);
 	}
@@ -496,8 +498,8 @@ public class StriderEntity extends AnimalEntity implements ItemSteerable {
 	}
 
 	/**
-	 * {@code GoBackToLavaGoal}.
-	 */
+ * Управление движением страйдера по лаве.
+ */
 	static class GoBackToLavaGoal extends MoveToTargetPosGoal {
 
 		private final StriderEntity strider;
@@ -536,8 +538,8 @@ public class StriderEntity extends AnimalEntity implements ItemSteerable {
 	}
 
 	/**
-	 * {@code Navigation}.
-	 */
+ * Задача страйдера: следовать за приманкой (гриб на палке).
+ */
 	static class Navigation extends MobNavigation {
 
 		Navigation(StriderEntity entity, World world) {

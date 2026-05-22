@@ -18,7 +18,10 @@ import net.minecraft.world.biome.BiomeKeys;
 import java.util.Map;
 
 /**
- * {@code VillagerType}.
+ * Тип жителя деревни, определяющий его внешний вид в зависимости от биома.
+ * <p>
+ * Каждый биом отображается на конкретный тип через {@link #BIOME_TO_TYPE}.
+ * Если биом не найден в карте, используется тип {@link #PLAINS} по умолчанию.
  */
 public final class VillagerType {
 
@@ -29,10 +32,11 @@ public final class VillagerType {
 	public static final RegistryKey<VillagerType> SNOW = of("snow");
 	public static final RegistryKey<VillagerType> SWAMP = of("swamp");
 	public static final RegistryKey<VillagerType> TAIGA = of("taiga");
+
 	public static final Codec<RegistryEntry<VillagerType>> CODEC = RegistryFixedCodec.of(RegistryKeys.VILLAGER_TYPE);
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<VillagerType>>
-			PACKET_CODEC =
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<VillagerType>> PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.VILLAGER_TYPE);
+
 	public static final Map<RegistryKey<Biome>, RegistryKey<VillagerType>> BIOME_TO_TYPE = Util.make(
 			Maps.newHashMap(), map -> {
 				map.put(BiomeKeys.BADLANDS, DESERT);
@@ -85,6 +89,12 @@ public final class VillagerType {
 		return create(registry, TAIGA);
 	}
 
+	/**
+	 * Определяет тип жителя по биому. Если биом не имеет специального типа — возвращает {@link #PLAINS}.
+	 *
+	 * @param biomeEntry запись реестра биома
+	 * @return ключ типа жителя для данного биома
+	 */
 	public static RegistryKey<VillagerType> forBiome(RegistryEntry<Biome> biomeEntry) {
 		return biomeEntry.getKey().map(BIOME_TO_TYPE::get).orElse(PLAINS);
 	}

@@ -21,7 +21,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code StonecutterScreenHandler}.
+ * Обработчик экрана камнерезного станка.
+ *
+ * <p>Управляет одним входным слотом и одним выходным. Список доступных
+ * рецептов фильтруется по предмету во входном слоте через
+ * {@link CuttingRecipeDisplay.Grouping}. Выбранный рецепт синхронизируется
+ * через {@link Property} {@code selectedRecipe}.</p>
  */
 public class StonecutterScreenHandler extends ScreenHandler {
 
@@ -31,6 +36,14 @@ public class StonecutterScreenHandler extends ScreenHandler {
 	private static final int INVENTORY_END = 29;
 	private static final int OUTPUT_START = 29;
 	private static final int OUTPUT_END = 38;
+	private static final int INPUT_SLOT_X = 20;
+	private static final int INPUT_SLOT_Y = 33;
+	private static final int OUTPUT_SLOT_X = 143;
+	private static final int OUTPUT_SLOT_Y = 33;
+	private static final int PLAYER_SLOTS_X = 8;
+	private static final int PLAYER_SLOTS_Y = 84;
+	private static final int NO_RECIPE_SELECTED = -1;
+
 	private final ScreenHandlerContext context;
 	final Property selectedRecipe = Property.create();
 	private final World world;
@@ -40,6 +53,7 @@ public class StonecutterScreenHandler extends ScreenHandler {
 	final Slot inputSlot;
 	final Slot outputSlot;
 	Runnable contentsChangedListener = () -> {};
+
 	public final Inventory input = new SimpleInventory(1) {
 		@Override
 		public void markDirty() {
@@ -48,6 +62,7 @@ public class StonecutterScreenHandler extends ScreenHandler {
 			StonecutterScreenHandler.this.contentsChangedListener.run();
 		}
 	};
+
 	final CraftingResultInventory output = new CraftingResultInventory();
 
 	public StonecutterScreenHandler(int syncId, PlayerInventory playerInventory) {
@@ -57,9 +72,9 @@ public class StonecutterScreenHandler extends ScreenHandler {
 	public StonecutterScreenHandler(int syncId, PlayerInventory playerInventory, ScreenHandlerContext context) {
 		super(ScreenHandlerType.STONECUTTER, syncId);
 		this.context = context;
-		this.world = playerInventory.player.getEntityWorld();
-		this.inputSlot = this.addSlot(new Slot(this.input, 0, 20, 33));
-		this.outputSlot = this.addSlot(new Slot(this.output, 1, 143, 33) {
+		world = playerInventory.player.getEntityWorld();
+		inputSlot = addSlot(new Slot(input, INPUT_ID, INPUT_SLOT_X, INPUT_SLOT_Y));
+		outputSlot = addSlot(new Slot(output, OUTPUT_ID, OUTPUT_SLOT_X, OUTPUT_SLOT_Y) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return false;
@@ -68,26 +83,30 @@ public class StonecutterScreenHandler extends ScreenHandler {
 			@Override
 			public void onTakeItem(PlayerEntity player, ItemStack stack) {
 				stack.onCraftByPlayer(player, stack.getCount());
-				StonecutterScreenHandler.this.output.unlockLastRecipe(player, this.getInputStacks());
-				ItemStack itemStack = StonecutterScreenHandler.this.inputSlot.takeStack(1);
-				if (!itemStack.isEmpty()) {
+				StonecutterScreenHandler.this.output.unlockLastRecipe(player, getInputStacks());
+
+				ItemStack consumed = StonecutterScreenHandler.this.inputSlot.takeStack(1);
+
+				if (consumed.isEmpty() == false) {
 					StonecutterScreenHandler.this.populateResult(StonecutterScreenHandler.this.selectedRecipe.get());
 				}
 
 				context.run((world, pos) -> {
-					long l = world.getTime();
-					if (StonecutterScreenHandler.this.lastTakeTime != l) {
+					long currentTime = world.getTime();
+
+					if (StonecutterScreenHandler.this.lastTakeTime != currentTime) {
 						world.playSound(
-								null,
-								pos,
-								SoundEvents.UI_STONECUTTER_TAKE_RESULT,
-								SoundCategory.BLOCKS,
-								1.0F,
-								1.0F
+							null,
+							pos,
+							SoundEvents.UI_STONECUTTER_TAKE_RESULT,
+							SoundCategory.BLOCKS,
+							1.0F,
+							1.0F
 						);
-						StonecutterScreenHandler.this.lastTakeTime = l;
+						StonecutterScreenHandler.this.lastTakeTime = currentTime;
 					}
 				});
+
 				super.onTakeItem(player, stack);
 			}
 
@@ -95,102 +114,90 @@ public class StonecutterScreenHandler extends ScreenHandler {
 				return List.of(StonecutterScreenHandler.this.inputSlot.getStack());
 			}
 		});
-		this.addPlayerSlots(playerInventory, 8, 84);
-		this.addProperty(this.selectedRecipe);
+
+		addPlayerSlots(playerInventory, PLAYER_SLOTS_X, PLAYER_SLOTS_Y);
+		addProperty(selectedRecipe);
 	}
 
 	public int getSelectedRecipe() {
-		return this.selectedRecipe.get();
+		return selectedRecipe.get();
 	}
 
 	public CuttingRecipeDisplay.Grouping<StonecuttingRecipe> getAvailableRecipes() {
-		return this.availableRecipes;
+		return availableRecipes;
 	}
 
 	public int getAvailableRecipeCount() {
-		return this.availableRecipes.size();
+		return availableRecipes.size();
 	}
 
-	/**
-	 * Проверяет возможность craft.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canCraft() {
-		return this.inputSlot.hasStack() && !this.availableRecipes.isEmpty();
+		return inputSlot.hasStack() && availableRecipes.isEmpty() == false;
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return canUse(this.context, player, Blocks.STONECUTTER);
+		return canUse(context, player, Blocks.STONECUTTER);
 	}
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
-		if (this.selectedRecipe.get() == id) {
+		if (selectedRecipe.get() == id) {
 			return false;
 		}
-		else {
-			if (this.isInBounds(id)) {
-				this.selectedRecipe.set(id);
-				this.populateResult(id);
-			}
 
-			return true;
+		if (isInBounds(id)) {
+			selectedRecipe.set(id);
+			populateResult(id);
 		}
-	}
 
-	private boolean isInBounds(int id) {
-		return id >= 0 && id < this.availableRecipes.size();
+		return true;
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
-		ItemStack itemStack = this.inputSlot.getStack();
-		if (!itemStack.isOf(this.inputStack.getItem())) {
-			this.inputStack = itemStack.copy();
-			this.updateInput(itemStack);
+		ItemStack currentInput = inputSlot.getStack();
+
+		if (currentInput.isOf(inputStack.getItem())) {
+			return;
 		}
+
+		inputStack = currentInput.copy();
+		updateInput(currentInput);
 	}
 
-	private void updateInput(ItemStack stack) {
-		this.selectedRecipe.set(-1);
-		this.outputSlot.setStackNoCallbacks(ItemStack.EMPTY);
-		if (!stack.isEmpty()) {
-			this.availableRecipes = this.world.getRecipeManager().getStonecutterRecipes().filter(stack);
-		}
-		else {
-			this.availableRecipes = CuttingRecipeDisplay.Grouping.empty();
-		}
-	}
-
+	/**
+	 * Обновляет список доступных рецептов при смене входного предмета.
+	 *
+	 * <p>Сбрасывает выбранный рецепт и очищает выходной слот без
+	 * уведомления слушателей (через {@code setStackNoCallbacks}).</p>
+	 */
 	void populateResult(int selectedId) {
 		Optional<RecipeEntry<StonecuttingRecipe>> optional;
-		if (!this.availableRecipes.isEmpty() && this.isInBounds(selectedId)) {
-			CuttingRecipeDisplay.GroupEntry<StonecuttingRecipe>
-					groupEntry =
-					this.availableRecipes.entries().get(selectedId);
+
+		if (availableRecipes.isEmpty() == false && isInBounds(selectedId)) {
+			CuttingRecipeDisplay.GroupEntry<StonecuttingRecipe> groupEntry =
+				availableRecipes.entries().get(selectedId);
 			optional = groupEntry.recipe().recipe();
-		}
-		else {
+		} else {
 			optional = Optional.empty();
 		}
 
 		optional.ifPresentOrElse(
-				recipe -> {
-					this.output.setLastRecipe((RecipeEntry<?>) recipe);
-					this.outputSlot.setStackNoCallbacks(recipe
-							.value()
-							.craft(
-									new SingleStackRecipeInput(this.input.getStack(0)),
-									this.world.getRegistryManager()
-							));
-				}, () -> {
-					this.outputSlot.setStackNoCallbacks(ItemStack.EMPTY);
-					this.output.setLastRecipe(null);
-				}
+			recipe -> {
+				output.setLastRecipe((RecipeEntry<?>) recipe);
+				outputSlot.setStackNoCallbacks(recipe.value().craft(
+					new SingleStackRecipeInput(input.getStack(INPUT_ID)),
+					world.getRegistryManager()
+				));
+			},
+			() -> {
+				outputSlot.setStackNoCallbacks(ItemStack.EMPTY);
+				output.setLastRecipe(null);
+			}
 		);
-		this.sendContentUpdates();
+
+		sendContentUpdates();
 	}
 
 	@Override
@@ -204,68 +211,93 @@ public class StonecutterScreenHandler extends ScreenHandler {
 
 	@Override
 	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-		return slot.inventory != this.output && super.canInsertIntoSlot(stack, slot);
+		return slot.inventory != output && super.canInsertIntoSlot(stack, slot);
 	}
 
+	/**
+	 * Быстрое перемещение предмета (Shift+Click) с учётом зон инвентаря.
+	 *
+	 * <p>Результат (слот 1) перемещается в инвентарь игрока с вызовом
+	 * {@code onCraftByPlayer}. Предметы, подходящие для рецептов, уходят
+	 * во входной слот (0). Остальные предметы перемещаются между
+	 * инвентарём и хотбаром.</p>
+	 */
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			Item item = itemStack2.getItem();
-			itemStack = itemStack2.copy();
-			if (slot == 1) {
-				item.onCraftByPlayer(itemStack2, player);
-				if (!this.insertItem(itemStack2, 2, 38, true)) {
-					return ItemStack.EMPTY;
-				}
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-			}
-			else if (slot == 0) {
-				if (!this.insertItem(itemStack2, 2, 38, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (this.world.getRecipeManager().getStonecutterRecipes().contains(itemStack2)) {
-				if (!this.insertItem(itemStack2, 0, 1, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= 2 && slot < 29) {
-				if (!this.insertItem(itemStack2, 29, 38, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= 29 && slot < 38 && !this.insertItem(itemStack2, 2, 29, false)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-
-			slot2.markDirty();
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
-			if (slot == 1) {
-				player.dropItem(itemStack2, false);
-			}
-
-			this.sendContentUpdates();
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		Item item = slotStack.getItem();
+		ItemStack original = slotStack.copy();
+
+		if (slot == OUTPUT_ID) {
+			item.onCraftByPlayer(slotStack, player);
+
+			if (!insertItem(slotStack, INVENTORY_START, OUTPUT_END, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(slotStack, original);
+		} else if (slot == INPUT_ID) {
+			if (!insertItem(slotStack, INVENTORY_START, OUTPUT_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (world.getRecipeManager().getStonecutterRecipes().contains(slotStack)) {
+			if (!insertItem(slotStack, INPUT_ID, INPUT_ID + 1, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= INVENTORY_START && slot < INVENTORY_END) {
+			if (!insertItem(slotStack, OUTPUT_START, OUTPUT_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= OUTPUT_START && slot < OUTPUT_END) {
+			if (!insertItem(slotStack, INVENTORY_START, INVENTORY_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+
+		sourceSlot.markDirty();
+
+		if (slotStack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, slotStack);
+
+		if (slot == OUTPUT_ID) {
+			player.dropItem(slotStack, false);
+		}
+
+		sendContentUpdates();
+
+		return original;
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.output.removeStack(1);
-		this.context.run((world, pos) -> this.dropInventory(player, this.input));
+		output.removeStack(OUTPUT_ID);
+		context.run((world, pos) -> dropInventory(player, input));
+	}
+
+	private void updateInput(ItemStack stack) {
+		selectedRecipe.set(NO_RECIPE_SELECTED);
+		outputSlot.setStackNoCallbacks(ItemStack.EMPTY);
+
+		availableRecipes = stack.isEmpty()
+			? CuttingRecipeDisplay.Grouping.empty()
+			: world.getRecipeManager().getStonecutterRecipes().filter(stack);
+	}
+
+	private boolean isInBounds(int id) {
+		return id >= 0 && id < availableRecipes.size();
 	}
 }

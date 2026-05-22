@@ -29,18 +29,37 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code FillCommand}.
+ * Реализация команды {@code /fill} — заполнение прямоугольной области блоками.
+ * <p>
+ * Поддерживает режимы: {@code replace}, {@code outline}, {@code hollow}, {@code destroy}, {@code strict}.
+ * Ограничение на максимальный объём задаётся правилом игры {@code maxCommandChainLength}.
  */
 public class FillCommand {
+
+	/**
+	 * Флаг обновления блока без уведомления соседей (стандартный режим).
+	 * Значение 2 соответствует {@code Block.NOTIFY_LISTENERS}.
+	 */
+	private static final int FLAG_NOTIFY = 2;
+
+	/**
+	 * Дополнительные флаги для строгого режима: подавление обновлений соседей и рендера.
+	 * Значение 816 = NOTIFY_LISTENERS | SKIP_DROPS | FORCE_STATE | SKIP_LIGHTING_UPDATES.
+	 */
+	private static final int FLAG_STRICT_EXTRA = 816;
+
+	/**
+	 * Флаг для обычного режима: обновление соседей без лишних уведомлений.
+	 * Значение 256 = SKIP_DROPS.
+	 */
+	private static final int FLAG_NORMAL_EXTRA = 256;
 
 	private static final Dynamic2CommandExceptionType TOO_BIG_EXCEPTION = new Dynamic2CommandExceptionType(
 			(maxCount, count) -> Text.stringifiedTranslatable("commands.fill.toobig", maxCount, count)
 	);
-	static final BlockStateArgument
-			AIR_BLOCK_ARGUMENT =
+	static final BlockStateArgument AIR_BLOCK_ARGUMENT =
 			new BlockStateArgument(Blocks.AIR.getDefaultState(), Collections.emptySet(), null);
-	private static final SimpleCommandExceptionType
-			FAILED_EXCEPTION =
+	private static final SimpleCommandExceptionType FAILED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.fill.failed"));
 
 	public static void register(
@@ -249,6 +268,20 @@ public class FillCommand {
 		                      );
 	}
 
+	/**
+	 * Выполняет заполнение области блоками с учётом режима и фильтра.
+	 * <p>
+	 * После заполнения вызывает {@code onStateReplacedWithCommands} для каждого
+	 * изменённого блока (кроме строгого режима, где обновления соседей подавлены).
+	 *
+	 * @param source  источник команды (игрок или командный блок)
+	 * @param range   ограничивающий прямоугольник области заполнения
+	 * @param block   целевое состояние блока
+	 * @param mode    режим заполнения (replace, outline, hollow, destroy)
+	 * @param filter  опциональный предикат фильтрации позиций
+	 * @param strict  если {@code true}, подавляет обновления соседей и рендера
+	 * @return количество изменённых блоков
+	 */
 	private static int execute(
 			ServerCommandSource source,
 			BlockBox range,
@@ -257,143 +290,150 @@ public class FillCommand {
 			@Nullable Predicate<CachedBlockPosition> filter,
 			boolean strict
 	) throws CommandSyntaxException {
-		int i = range.getBlockCountX() * range.getBlockCountY() * range.getBlockCountZ();
-		int j = source.getWorld().getGameRules().getValue(GameRules.MAX_BLOCK_MODIFICATIONS);
-		if (i > j) {
-			throw TOO_BIG_EXCEPTION.create(j, i);
+		int volume = range.getBlockCountX() * range.getBlockCountY() * range.getBlockCountZ();
+		int maxModifications = source.getWorld().getGameRules().getValue(GameRules.MAX_BLOCK_MODIFICATIONS);
+
+		if (volume > maxModifications) {
+			throw TOO_BIG_EXCEPTION.create(maxModifications, volume);
 		}
-		else {
-			/**
-			 * {@code Replaced}.
-			 */
-			record Replaced(BlockPos pos, BlockState oldState) {
-			}
 
-			List<Replaced> list = Lists.newArrayList();
-			ServerWorld serverWorld = source.getWorld();
-			if (serverWorld.isDebugWorld()) {
-				throw FAILED_EXCEPTION.create();
-			}
-			else {
-				int k = 0;
+		record Replaced(BlockPos pos, BlockState oldState) {}
 
-				for (BlockPos blockPos : BlockPos.iterate(
-						range.getMinX(),
-						range.getMinY(),
-						range.getMinZ(),
-						range.getMaxX(),
-						range.getMaxY(),
-						range.getMaxZ()
-				)) {
-					if (filter == null || filter.test(new CachedBlockPosition(serverWorld, blockPos, true))) {
-						BlockState blockState = serverWorld.getBlockState(blockPos);
-						boolean bl = false;
-						if (mode.postProcessor.affect(serverWorld, blockPos)) {
-							bl = true;
-						}
+		List<Replaced> replaced = Lists.newArrayList();
+		ServerWorld world = source.getWorld();
 
-						BlockStateArgument blockStateArgument = mode.filter.filter(range, blockPos, block, serverWorld);
-						if (blockStateArgument == null) {
-							if (bl) {
-								k++;
-							}
-						}
-						else if (!blockStateArgument.setBlockState(serverWorld, blockPos, 2 | (strict ? 816 : 256))) {
-							if (bl) {
-								k++;
-							}
-						}
-						else {
-							if (!strict) {
-								list.add(new Replaced(blockPos.toImmutable(), blockState));
-							}
-
-							k++;
-						}
-					}
-				}
-
-				for (Replaced replaced : list) {
-					serverWorld.onStateReplacedWithCommands(replaced.pos, replaced.oldState);
-				}
-
-				if (k == 0) {
-					throw FAILED_EXCEPTION.create();
-				}
-				else {
-					int l = k;
-					source.sendFeedback(() -> Text.translatable("commands.fill.success", l), true);
-					return k;
-				}
-			}
+		if (world.isDebugWorld()) {
+			throw FAILED_EXCEPTION.create();
 		}
+
+		int changedCount = 0;
+
+		for (BlockPos pos : BlockPos.iterate(
+				range.getMinX(),
+				range.getMinY(),
+				range.getMinZ(),
+				range.getMaxX(),
+				range.getMaxY(),
+				range.getMaxZ()
+		)) {
+			if (filter != null && !filter.test(new CachedBlockPosition(world, pos, true))) {
+				continue;
+			}
+
+			BlockState oldState = world.getBlockState(pos);
+			boolean postProcessed = mode.postProcessor.affect(world, pos);
+			BlockStateArgument filtered = mode.filter.filter(range, pos, block, world);
+
+			if (filtered == null) {
+				if (postProcessed) {
+					changedCount++;
+				}
+
+				continue;
+			}
+
+			int flags = FLAG_NOTIFY | (strict ? FLAG_STRICT_EXTRA : FLAG_NORMAL_EXTRA);
+
+			if (!filtered.setBlockState(world, pos, flags)) {
+				if (postProcessed) {
+					changedCount++;
+				}
+
+				continue;
+			}
+
+			if (!strict) {
+				replaced.add(new Replaced(pos.toImmutable(), oldState));
+			}
+
+			changedCount++;
+		}
+
+		for (Replaced entry : replaced) {
+			world.onStateReplacedWithCommands(entry.pos(), entry.oldState());
+		}
+
+		if (changedCount == 0) {
+			throw FAILED_EXCEPTION.create();
+		}
+
+		int finalCount = changedCount;
+		source.sendFeedback(() -> Text.translatable("commands.fill.success", finalCount), true);
+		return changedCount;
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Filter}.
+	 * Фильтр блоков при заполнении — определяет, какой блок будет установлен в позицию.
+	 * Возвращает {@code null}, если блок в данной позиции не должен быть изменён.
 	 */
+	@FunctionalInterface
 	public interface Filter {
 
-		FillCommand.Filter IDENTITY = (box, pos, block, world) -> block;
+		Filter IDENTITY = (box, pos, block, world) -> block;
 
 		@Nullable BlockStateArgument filter(BlockBox box, BlockPos pos, BlockStateArgument block, ServerWorld world);
 	}
 
 	/**
-	 * {@code Mode}.
+	 * Режим заполнения области командой {@code /fill}.
+	 * Определяет, какие позиции затрагиваются и как обрабатываются блоки.
 	 */
-	static enum Mode {
-		REPLACE(FillCommand.PostProcessor.EMPTY, FillCommand.Filter.IDENTITY),
+	enum Mode {
+		/** Заменяет все блоки в области. */
+		REPLACE(PostProcessor.EMPTY, Filter.IDENTITY),
+
+		/** Заменяет только блоки на границе области. */
 		OUTLINE(
-				FillCommand.PostProcessor.EMPTY,
+				PostProcessor.EMPTY,
 				(range, pos, block, world) -> pos.getX() != range.getMinX()
-						                              && pos.getX() != range.getMaxX()
-						                              && pos.getY() != range.getMinY()
-						                              && pos.getY() != range.getMaxY()
-						                              && pos.getZ() != range.getMinZ()
-						                              && pos.getZ() != range.getMaxZ()
-				                              ? null
-				                              : block
+						&& pos.getX() != range.getMaxX()
+						&& pos.getY() != range.getMinY()
+						&& pos.getY() != range.getMaxY()
+						&& pos.getZ() != range.getMinZ()
+						&& pos.getZ() != range.getMaxZ()
+						? null
+						: block
 		),
+
+		/** Заменяет блоки на границе, внутренность заполняет воздухом. */
 		HOLLOW(
-				FillCommand.PostProcessor.EMPTY,
+				PostProcessor.EMPTY,
 				(range, pos, block, world) -> pos.getX() != range.getMinX()
-						                              && pos.getX() != range.getMaxX()
-						                              && pos.getY() != range.getMinY()
-						                              && pos.getY() != range.getMaxY()
-						                              && pos.getZ() != range.getMinZ()
-						                              && pos.getZ() != range.getMaxZ()
-				                              ? FillCommand.AIR_BLOCK_ARGUMENT
-				                              : block
+						&& pos.getX() != range.getMaxX()
+						&& pos.getY() != range.getMinY()
+						&& pos.getY() != range.getMaxY()
+						&& pos.getZ() != range.getMinZ()
+						&& pos.getZ() != range.getMaxZ()
+						? AIR_BLOCK_ARGUMENT
+						: block
 		),
-		DESTROY((world, pos) -> world.breakBlock(pos, true), FillCommand.Filter.IDENTITY);
 
-		public final FillCommand.Filter filter;
-		public final FillCommand.PostProcessor postProcessor;
+		/** Разрушает блоки с дропом предметов. */
+		DESTROY((world, pos) -> world.breakBlock(pos, true), Filter.IDENTITY);
 
-		private Mode(final FillCommand.PostProcessor postProcessor, final FillCommand.Filter filter) {
+		public final Filter filter;
+		public final PostProcessor postProcessor;
+
+		Mode(PostProcessor postProcessor, Filter filter) {
 			this.postProcessor = postProcessor;
 			this.filter = filter;
 		}
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code OptionalArgumentResolver}.
-	 */
 	interface OptionalArgumentResolver<T, R> {
 
 		@Nullable R apply(T object) throws CommandSyntaxException;
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code PostProcessor}.
+	 * Пост-процессор, вызываемый перед установкой блока.
+	 * Используется, например, для разрушения блока с дропом в режиме {@code destroy}.
 	 */
+	@FunctionalInterface
 	public interface PostProcessor {
 
-		FillCommand.PostProcessor EMPTY = (world, pos) -> false;
+		PostProcessor EMPTY = (world, pos) -> false;
 
 		boolean affect(ServerWorld world, BlockPos pos);
 	}

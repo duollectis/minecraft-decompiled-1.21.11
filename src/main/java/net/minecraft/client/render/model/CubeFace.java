@@ -10,10 +10,11 @@ import org.joml.Vector3fc;
 import java.util.EnumMap;
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CubeFace}.
+ * Грань куба блочной модели: описывает четыре угла грани через {@link Corner},
+ * каждый из которых задаётся тремя {@link AxisBound} — по одному на каждую ось.
  */
+@Environment(EnvType.CLIENT)
 public enum CubeFace {
 	DOWN(
 			new CubeFace.Corner(CubeFace.AxisBound.MIN_X, CubeFace.AxisBound.MIN_Y, CubeFace.AxisBound.MAX_Z),
@@ -53,57 +54,56 @@ public enum CubeFace {
 	);
 
 	private static final Map<Direction, CubeFace> DIRECTION_LOOKUP = Util.make(
-			new EnumMap<>(Direction.class), enumMap -> {
-				enumMap.put(Direction.DOWN, DOWN);
-				enumMap.put(Direction.UP, UP);
-				enumMap.put(Direction.NORTH, NORTH);
-				enumMap.put(Direction.SOUTH, SOUTH);
-				enumMap.put(Direction.WEST, WEST);
-				enumMap.put(Direction.EAST, EAST);
+			new EnumMap<>(Direction.class), map -> {
+				map.put(Direction.DOWN, DOWN);
+				map.put(Direction.UP, UP);
+				map.put(Direction.NORTH, NORTH);
+				map.put(Direction.SOUTH, SOUTH);
+				map.put(Direction.WEST, WEST);
+				map.put(Direction.EAST, EAST);
 			}
 	);
+
 	private final CubeFace.Corner[] corners;
+
+	CubeFace(CubeFace.Corner... corners) {
+		this.corners = corners;
+	}
 
 	public static CubeFace getFace(Direction direction) {
 		return DIRECTION_LOOKUP.get(direction);
 	}
 
-	private CubeFace(final CubeFace.Corner... corners) {
-		this.corners = corners;
-	}
-
 	public CubeFace.Corner getCorner(int corner) {
-		return this.corners[corner];
+		return corners[corner];
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Corner}.
+	 * Угол грани куба: задаётся тремя {@link AxisBound} — по одному на каждую ось.
+	 * Метод {@link #resolve} вычисляет реальную позицию угла из AABB блока.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Corner(CubeFace.AxisBound xSide, CubeFace.AxisBound ySide, CubeFace.AxisBound zSide) {
 
 		/**
-		 * Resolve.
-		 *
-		 * @param vector3fc vector3fc
-		 * @param vector3fc2 vector3fc2
-		 *
-		 * @return Vector3f — результат операции
+		 * Вычисляет позицию угла, выбирая min или max координату по каждой оси
+		 * из переданного AABB (min = {@code from}, max = {@code to}).
 		 */
-		public Vector3f resolve(Vector3fc vector3fc, Vector3fc vector3fc2) {
+		public Vector3f resolve(Vector3fc from, Vector3fc to) {
 			return new Vector3f(
-					this.xSide.select(vector3fc, vector3fc2),
-					this.ySide.select(vector3fc, vector3fc2),
-					this.zSide.select(vector3fc, vector3fc2)
+					xSide.select(from, to),
+					ySide.select(from, to),
+					zSide.select(from, to)
 			);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code AxisBound}.
+	 * Граница оси куба: определяет, берётся ли минимальная или максимальная
+	 * координата по данной оси при вычислении позиции угла.
 	 */
-	public static enum AxisBound {
+	@Environment(EnvType.CLIENT)
+	public enum AxisBound {
 		MIN_X,
 		MIN_Y,
 		MIN_Z,
@@ -111,45 +111,25 @@ public enum CubeFace {
 		MAX_Y,
 		MAX_Z;
 
-		/**
-		 * Select.
-		 *
-		 * @param vector3fc vector3fc
-		 * @param vector3fc2 vector3fc2
-		 *
-		 * @return float — результат операции
-		 */
-		public float select(Vector3fc vector3fc, Vector3fc vector3fc2) {
+		public float select(Vector3fc from, Vector3fc to) {
 			return switch (this) {
-				case MIN_X -> vector3fc.x();
-				case MIN_Y -> vector3fc.y();
-				case MIN_Z -> vector3fc.z();
-				case MAX_X -> vector3fc2.x();
-				case MAX_Y -> vector3fc2.y();
-				case MAX_Z -> vector3fc2.z();
+				case MIN_X -> from.x();
+				case MIN_Y -> from.y();
+				case MIN_Z -> from.z();
+				case MAX_X -> to.x();
+				case MAX_Y -> to.y();
+				case MAX_Z -> to.z();
 			};
 		}
 
-		/**
-		 * Select float.
-		 *
-		 * @param f f
-		 * @param g g
-		 * @param h h
-		 * @param i i
-		 * @param j j
-		 * @param k k
-		 *
-		 * @return float — результат операции
-		 */
-		public float selectFloat(float f, float g, float h, float i, float j, float k) {
+		public float selectFloat(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
 			return switch (this) {
-				case MIN_X -> f;
-				case MIN_Y -> g;
-				case MIN_Z -> h;
-				case MAX_X -> i;
-				case MAX_Y -> j;
-				case MAX_Z -> k;
+				case MIN_X -> minX;
+				case MIN_Y -> minY;
+				case MIN_Z -> minZ;
+				case MAX_X -> maxX;
+				case MAX_Y -> maxY;
+				case MAX_Z -> maxZ;
 			};
 		}
 	}

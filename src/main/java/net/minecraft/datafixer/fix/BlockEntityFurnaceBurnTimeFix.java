@@ -7,7 +7,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BlockEntityFurnaceBurnTimeFix}.
+ * DataFixer для миграции полей блок-сущности печи из устаревших PascalCase-имён
+ * в современные snake_case-имена, введённые в одном из обновлений формата данных.
  */
 public class BlockEntityFurnaceBurnTimeFix extends ChoiceFix {
 
@@ -21,6 +22,10 @@ public class BlockEntityFurnaceBurnTimeFix extends ChoiceFix {
 		);
 	}
 
+	/**
+	 * Переименовывает устаревшие поля печи в новые snake_case-имена.
+	 * Также копирует {@code lit_time_remaining} в {@code lit_total_time}, если оно присутствует.
+	 */
 	public Dynamic<?> fix(Dynamic<?> dynamic) {
 		dynamic = dynamic.renameField("CookTime", "cooking_time_spent");
 		dynamic = dynamic.renameField("CookTimeTotal", "cooking_total_time");

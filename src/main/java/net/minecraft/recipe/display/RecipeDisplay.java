@@ -10,33 +10,30 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
 /**
- * {@code RecipeDisplay}.
+ * Интерфейс отображения рецепта на клиенте. Описывает, что показывать
+ * в слотах результата и станка. Все реализации регистрируются в реестре
+ * {@code RECIPE_DISPLAY} и сериализуются через {@link Serializer}.
  */
 public interface RecipeDisplay {
 
-	Codec<RecipeDisplay>
-			CODEC =
-			Registries.RECIPE_DISPLAY.getCodec().dispatch(RecipeDisplay::serializer, RecipeDisplay.Serializer::codec);
+	Codec<RecipeDisplay> CODEC = Registries.RECIPE_DISPLAY
+			.getCodec()
+			.dispatch(RecipeDisplay::serializer, Serializer::codec);
 
-	PacketCodec<RegistryByteBuf, RecipeDisplay> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.RECIPE_DISPLAY)
-	                                                                       .dispatch(
-			                                                                       RecipeDisplay::serializer,
-			                                                                       RecipeDisplay.Serializer::streamCodec
-	                                                                       );
+	PacketCodec<RegistryByteBuf, RecipeDisplay> PACKET_CODEC = PacketCodecs
+			.registryValue(RegistryKeys.RECIPE_DISPLAY)
+			.dispatch(RecipeDisplay::serializer, Serializer::streamCodec);
 
 	SlotDisplay result();
 
 	SlotDisplay craftingStation();
 
-	RecipeDisplay.Serializer<? extends RecipeDisplay> serializer();
+	Serializer<? extends RecipeDisplay> serializer();
 
 	default boolean isEnabled(FeatureSet features) {
-		return this.result().isEnabled(features) && this.craftingStation().isEnabled(features);
+		return result().isEnabled(features) && craftingStation().isEnabled(features);
 	}
 
-	/**
-	 * {@code Serializer}.
-	 */
-	public record Serializer<T extends RecipeDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
+	record Serializer<T extends RecipeDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
 	}
 }

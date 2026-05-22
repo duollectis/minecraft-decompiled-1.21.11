@@ -66,7 +66,7 @@ public interface RealmsError {
 
 		@Override
 		public int getErrorCode() {
-			return 401;
+			return ERROR_CODE;
 		}
 
 		@Override

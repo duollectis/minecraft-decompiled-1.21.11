@@ -24,7 +24,7 @@ public class VanillaPointOfInterestTypeTagProvider extends SimpleTagProvider<Poi
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(PointOfInterestTypeTags.ACQUIRABLE_JOB_SITE)
+		builder(PointOfInterestTypeTags.ACQUIRABLE_JOB_SITE)
 		    .add(
 				    PointOfInterestTypes.ARMORER,
 				    PointOfInterestTypes.BUTCHER,
@@ -40,9 +40,9 @@ public class VanillaPointOfInterestTypeTagProvider extends SimpleTagProvider<Poi
 				    PointOfInterestTypes.TOOLSMITH,
 				    PointOfInterestTypes.WEAPONSMITH
 		    );
-		this.builder(PointOfInterestTypeTags.VILLAGE)
+		builder(PointOfInterestTypeTags.VILLAGE)
 		    .addTag(PointOfInterestTypeTags.ACQUIRABLE_JOB_SITE)
 		    .add(PointOfInterestTypes.HOME, PointOfInterestTypes.MEETING);
-		this.builder(PointOfInterestTypeTags.BEE_HOME).add(PointOfInterestTypes.BEEHIVE, PointOfInterestTypes.BEE_NEST);
+		builder(PointOfInterestTypeTags.BEE_HOME).add(PointOfInterestTypes.BEEHIVE, PointOfInterestTypes.BEE_NEST);
 	}
 }

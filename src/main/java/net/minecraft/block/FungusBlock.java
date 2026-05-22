@@ -73,7 +73,7 @@ public class FungusBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-		return random.nextFloat() < 0.4;
+		return random.nextFloat() < GROW_CHANCE;
 	}
 
 	@Override

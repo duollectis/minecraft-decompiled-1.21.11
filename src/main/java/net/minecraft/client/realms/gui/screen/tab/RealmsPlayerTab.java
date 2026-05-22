@@ -125,7 +125,7 @@ public class RealmsPlayerTab extends GridScreenTab implements RealmsUpdatableTab
 		}
 
 		int calculateHeight(int i) {
-			return i + this.textWidget.getMArgin() * 2;
+			return i + this.textWidget.getMargin() * 2;
 		}
 
 		@Override
@@ -148,7 +148,7 @@ public class RealmsPlayerTab extends GridScreenTab implements RealmsUpdatableTab
 		private static final int HEADER_HEIGHT = 36;
 
 		public InvitedObjectSelectionList(final int width, final int height) {
-			super(MinecraftClient.getInstance(), width, height, RealmsPlayerTab.this.screen.getHeaderHeight(), 36);
+			super(MinecraftClient.getInstance(), width, height, RealmsPlayerTab.this.screen.getHeaderHeight(), HEADER_HEIGHT);
 		}
 
 		void refreshEntries(RealmsServer serverData) {
@@ -350,12 +350,12 @@ public class RealmsPlayerTab extends GridScreenTab implements RealmsUpdatableTab
 			}
 
 			int j = this.getContentMiddleY() - 16;
-			RealmsUtil.drawPlayerHead(context, this.getContentX(), j, 32, this.playerInfo.uuid);
+			RealmsUtil.drawPlayerHead(context, this.getContentX(), j, ICON_WIDTH, this.playerInfo.uuid);
 			int k = this.getContentMiddleY() - 9 / 2;
 			context.drawTextWithShadow(
 					RealmsPlayerTab.this.textRenderer,
 					this.playerInfo.name,
-					this.getContentX() + 8 + 32,
+					this.getContentX() + 8 + ICON_WIDTH,
 					k,
 					i
 			);

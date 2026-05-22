@@ -21,32 +21,33 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TrueTypeFontLoader}.
+ * Загрузчик TrueType-шрифта через FreeType.
+ * Читает TTF-файл из ресурсов, инициализирует {@link FT_Face} и создаёт {@link TrueTypeFont}.
+ * При ошибке освобождает нативную память и FreeType-объекты во избежание утечек.
  */
+@Environment(EnvType.CLIENT)
 public record TrueTypeFontLoader(
-		Identifier location,
-		float size,
-		float oversample,
-		TrueTypeFontLoader.Shift shift,
-		String skip
+	Identifier location,
+	float size,
+	float oversample,
+	TrueTypeFontLoader.Shift shift,
+	String skip
 ) implements FontLoader {
 
-	private static final Codec<String>
-			SKIP_CODEC =
-			Codec.withAlternative(Codec.STRING, Codec.STRING.listOf(), chars -> String.join("", chars));
+	private static final Codec<String> SKIP_CODEC =
+		Codec.withAlternative(Codec.STRING, Codec.STRING.listOf(), chars -> String.join("", chars));
+
 	public static final MapCodec<TrueTypeFontLoader> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Identifier.CODEC.fieldOf("file").forGetter(TrueTypeFontLoader::location),
-					                    Codec.FLOAT.optionalFieldOf("size", 11.0F).forGetter(TrueTypeFontLoader::size),
-					                    Codec.FLOAT.optionalFieldOf("oversample", 1.0F).forGetter(TrueTypeFontLoader::oversample),
-					                    TrueTypeFontLoader.Shift.CODEC
-							                    .optionalFieldOf("shift", TrueTypeFontLoader.Shift.NONE)
-							                    .forGetter(TrueTypeFontLoader::shift),
-					                    SKIP_CODEC.optionalFieldOf("skip", "").forGetter(TrueTypeFontLoader::skip)
-			                    )
-			                    .apply(instance, TrueTypeFontLoader::new)
+		instance -> instance.group(
+			Identifier.CODEC.fieldOf("file").forGetter(TrueTypeFontLoader::location),
+			Codec.FLOAT.optionalFieldOf("size", 11.0F).forGetter(TrueTypeFontLoader::size),
+			Codec.FLOAT.optionalFieldOf("oversample", 1.0F).forGetter(TrueTypeFontLoader::oversample),
+			TrueTypeFontLoader.Shift.CODEC
+				.optionalFieldOf("shift", TrueTypeFontLoader.Shift.NONE)
+				.forGetter(TrueTypeFontLoader::shift),
+			SKIP_CODEC.optionalFieldOf("skip", "").forGetter(TrueTypeFontLoader::skip)
+		).apply(instance, TrueTypeFontLoader::new)
 	);
 
 	@Override
@@ -60,103 +61,77 @@ public record TrueTypeFontLoader(
 	}
 
 	private Font load(ResourceManager resourceManager) throws IOException {
-		FT_Face fT_Face = null;
-		ByteBuffer byteBuffer = null;
+		FT_Face ftFace = null;
+		ByteBuffer fontBuffer = null;
 
 		try {
-			TrueTypeFont var20;
-			try (InputStream inputStream = resourceManager.open(this.location.withPrefixedPath("font/"))) {
-				byteBuffer = TextureUtil.readResource(inputStream);
-				synchronized (FreeTypeUtil.LOCK) {
-					MemoryStack memoryStack = MemoryStack.stackPush();
-
-					try {
-						PointerBuffer pointerBuffer = memoryStack.mallocPointer(1);
-						FreeTypeUtil.checkFatalError(
-								FreeType.FT_New_Memory_Face(
-										FreeTypeUtil.initialize(),
-										byteBuffer,
-										0L,
-										pointerBuffer
-								), "Initializing font face"
-						);
-						fT_Face = FT_Face.create(pointerBuffer.get());
-					}
-					catch (Throwable var14) {
-						if (memoryStack != null) {
-							try {
-								memoryStack.close();
-							}
-							catch (Throwable var12) {
-								var14.addSuppressed(var12);
-							}
-						}
-
-						throw var14;
-					}
-
-					if (memoryStack != null) {
-						memoryStack.close();
-					}
-
-					String string = FreeType.FT_Get_Font_Format(fT_Face);
-					if (!"TrueType".equals(string)) {
-						throw new IOException("Font is not in TTF format, was " + string);
-					}
-
-					FreeTypeUtil.checkFatalError(
-							FreeType.FT_Select_Charmap(fT_Face, FreeType.FT_ENCODING_UNICODE),
-							"Find unicode charmap"
-					);
-					var20 =
-							new TrueTypeFont(
-									byteBuffer,
-									fT_Face,
-									this.size,
-									this.oversample,
-									this.shift.x,
-									this.shift.y,
-									this.skip
-							);
-				}
+			try (InputStream inputStream = resourceManager.open(location.withPrefixedPath("font/"))) {
+				fontBuffer = TextureUtil.readResource(inputStream);
 			}
 
-			return var20;
-		}
-		catch (Exception var17) {
 			synchronized (FreeTypeUtil.LOCK) {
-				if (fT_Face != null) {
-					FreeType.FT_Done_Face(fT_Face);
+				try (MemoryStack stack = MemoryStack.stackPush()) {
+					PointerBuffer facePointer = stack.mallocPointer(1);
+					FreeTypeUtil.checkFatalError(
+						FreeType.FT_New_Memory_Face(
+							FreeTypeUtil.initialize(),
+							fontBuffer,
+							0L,
+							facePointer
+						),
+						"Initializing font face"
+					);
+					ftFace = FT_Face.create(facePointer.get());
+				}
+
+				String format = FreeType.FT_Get_Font_Format(ftFace);
+				if (!"TrueType".equals(format)) {
+					throw new IOException("Font is not in TTF format, was " + format);
+				}
+
+				FreeTypeUtil.checkFatalError(
+					FreeType.FT_Select_Charmap(ftFace, FreeType.FT_ENCODING_UNICODE),
+					"Find unicode charmap"
+				);
+
+				return new TrueTypeFont(
+					fontBuffer,
+					ftFace,
+					size,
+					oversample,
+					shift.x,
+					shift.y,
+					skip
+				);
+			}
+		} catch (Exception exception) {
+			synchronized (FreeTypeUtil.LOCK) {
+				if (ftFace != null) {
+					FreeType.FT_Done_Face(ftFace);
 				}
 			}
 
-			MemoryUtil.memFree(byteBuffer);
-			throw var17;
+			MemoryUtil.memFree(fontBuffer);
+			throw exception;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Shift}.
+	 * Смещение глифов шрифта по осям X и Y в пикселях.
+	 * Диапазон значений ограничен [-512; 512] для предотвращения некорректного рендеринга.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Shift(float x, float y) {
 
 		public static final TrueTypeFontLoader.Shift NONE = new TrueTypeFontLoader.Shift(0.0F, 0.0F);
+
 		public static final Codec<TrueTypeFontLoader.Shift> CODEC = Codec.floatRange(-512.0F, 512.0F)
-		                                                                 .listOf()
-		                                                                 .comapFlatMap(
-				                                                                 floatList -> Util
-						                                                                 .decodeFixedLengthList(
-								                                                                 floatList,
-								                                                                 2
-						                                                                 )
-						                                                                 .map(floatListx -> new TrueTypeFontLoader.Shift(
-								                                                                 (Float) floatListx.get(
-										                                                                 0),
-								                                                                 (Float) floatListx.get(
-										                                                                 1)
-						                                                                 )),
-				                                                                 shift -> List.of(shift.x, shift.y)
-		                                                                 );
+			.listOf()
+			.comapFlatMap(
+				floatList -> Util
+					.decodeFixedLengthList(floatList, 2)
+					.map(list -> new TrueTypeFontLoader.Shift(list.get(0), list.get(1))),
+				shiftVal -> List.of(shiftVal.x, shiftVal.y)
+			);
 	}
 }

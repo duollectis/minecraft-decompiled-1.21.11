@@ -9,80 +9,95 @@ import java.nio.ByteOrder;
 import java.util.HexFormat;
 
 /**
- * {@code PngMetadata}.
+ * Метаданные PNG-изображения, извлекаемые из заголовка файла без полной декодировки.
+ * Читает только сигнатуру PNG и чанк IHDR для получения размеров изображения.
  */
 public record PngMetadata(int width, int height) {
 
 	private static final HexFormat HEX_FORMAT = HexFormat.of().withUpperCase().withPrefix("0x");
+
+	/** Магическая сигнатура PNG-файла (первые 8 байт). */
 	private static final long PNG_SIGNATURE = -8552249625308161526L;
+
+	/** Тип чанка IHDR в виде 4-байтового целого числа (ASCII "IHDR"). */
 	private static final int IHDR_CHUNK_TYPE = 1229472850;
+
+	/** Фиксированная длина данных чанка IHDR в байтах. */
 	private static final int IHDR_CHUNK_LENGTH = 13;
 
+	/** Минимальный размер буфера для валидации заголовка PNG (сигнатура + длина + тип чанка). */
+	private static final int MIN_HEADER_SIZE = 16;
+
 	/**
-	 * From stream.
+	 * Читает метаданные PNG из потока, проверяя сигнатуру и структуру чанка IHDR.
 	 *
-	 * @param stream stream
-	 *
-	 * @return PngMetadata — результат операции
+	 * @param stream входной поток PNG-данных
+	 * @return метаданные с шириной и высотой изображения
+	 * @throws IOException если сигнатура или структура чанка некорректны
 	 */
 	public static PngMetadata fromStream(InputStream stream) throws IOException {
 		DataInputStream dataInputStream = new DataInputStream(stream);
-		long l = dataInputStream.readLong();
-		if (l != -8552249625308161526L) {
-			throw new IOException("Bad PNG Signature: " + HEX_FORMAT.toHexDigits(l));
+
+		long signature = dataInputStream.readLong();
+		if (signature != PNG_SIGNATURE) {
+			throw new IOException("Bad PNG Signature: " + HEX_FORMAT.toHexDigits(signature));
 		}
-		else {
-			int i = dataInputStream.readInt();
-			if (i != 13) {
-				throw new IOException("Bad length for IHDR chunk: " + i);
-			}
-			else {
-				int j = dataInputStream.readInt();
-				if (j != 1229472850) {
-					throw new IOException("Bad type for IHDR chunk: " + HEX_FORMAT.toHexDigits(j));
-				}
-				else {
-					int k = dataInputStream.readInt();
-					int m = dataInputStream.readInt();
-					return new PngMetadata(k, m);
-				}
-			}
+
+		int chunkLength = dataInputStream.readInt();
+		if (chunkLength != IHDR_CHUNK_LENGTH) {
+			throw new IOException("Bad length for IHDR chunk: " + chunkLength);
 		}
+
+		int chunkType = dataInputStream.readInt();
+		if (chunkType != IHDR_CHUNK_TYPE) {
+			throw new IOException("Bad type for IHDR chunk: " + HEX_FORMAT.toHexDigits(chunkType));
+		}
+
+		int width = dataInputStream.readInt();
+		int height = dataInputStream.readInt();
+		return new PngMetadata(width, height);
 	}
 
 	/**
-	 * From bytes.
+	 * Читает метаданные PNG из массива байт.
 	 *
-	 * @param bytes bytes
-	 *
-	 * @return PngMetadata — результат операции
+	 * @param bytes байты PNG-файла
+	 * @return метаданные с шириной и высотой изображения
+	 * @throws IOException если данные не являются корректным PNG
 	 */
 	public static PngMetadata fromBytes(byte[] bytes) throws IOException {
 		return fromStream(new ByteArrayInputStream(bytes));
 	}
 
 	/**
-	 * Validate.
+	 * Проверяет корректность заголовка PNG в буфере без извлечения метаданных.
+	 * Восстанавливает исходный порядок байт буфера после проверки.
 	 *
-	 * @param buf buf
+	 * @param buf буфер с PNG-данными
+	 * @throws IOException если заголовок отсутствует или некорректен
 	 */
 	public static void validate(ByteBuffer buf) throws IOException {
-		ByteOrder byteOrder = buf.order();
+		ByteOrder originalOrder = buf.order();
 		buf.order(ByteOrder.BIG_ENDIAN);
-		if (buf.limit() < 16) {
-			throw new IOException("PNG header missing");
-		}
-		else if (buf.getLong(0) != -8552249625308161526L) {
-			throw new IOException("Bad PNG Signature");
-		}
-		else if (buf.getInt(8) != 13) {
-			throw new IOException("Bad length for IHDR chunk!");
-		}
-		else if (buf.getInt(12) != 1229472850) {
-			throw new IOException("Bad type for IHDR chunk!");
-		}
-		else {
-			buf.order(byteOrder);
+
+		try {
+			if (buf.limit() < MIN_HEADER_SIZE) {
+				throw new IOException("PNG header missing");
+			}
+
+			if (buf.getLong(0) != PNG_SIGNATURE) {
+				throw new IOException("Bad PNG Signature");
+			}
+
+			if (buf.getInt(8) != IHDR_CHUNK_LENGTH) {
+				throw new IOException("Bad length for IHDR chunk!");
+			}
+
+			if (buf.getInt(12) != IHDR_CHUNK_TYPE) {
+				throw new IOException("Bad type for IHDR chunk!");
+			}
+		} finally {
+			buf.order(originalOrder);
 		}
 	}
 }

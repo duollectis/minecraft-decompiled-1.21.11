@@ -8,40 +8,42 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code CollectionCountsPredicate}.
+ * Предикат, проверяющий количество элементов коллекции, удовлетворяющих
+ * каждому из заданных предикатов-записей {@link Entry}.
+ * Оптимизирован через три реализации: пустую, одиночную и множественную.
  */
 public interface CollectionCountsPredicate<T, P extends Predicate<T>> extends Predicate<Iterable<T>> {
 
 	List<CollectionCountsPredicate.Entry<T, P>> getEntries();
 
 	static <T, P extends Predicate<T>> Codec<CollectionCountsPredicate<T, P>> createCodec(Codec<P> predicateCodec) {
-		return CollectionCountsPredicate.Entry.createCodec(predicateCodec)
-		                                      .listOf()
-		                                      .xmap(
-				                                      CollectionCountsPredicate::create,
-				                                      CollectionCountsPredicate::getEntries
-		                                      );
+		return CollectionCountsPredicate.Entry
+				.createCodec(predicateCodec)
+				.listOf()
+				.xmap(CollectionCountsPredicate::create, CollectionCountsPredicate::getEntries);
 	}
 
 	@SafeVarargs
-	static <T, P extends Predicate<T>> CollectionCountsPredicate<T, P> create(CollectionCountsPredicate.Entry<T, P>... entries) {
+	static <T, P extends Predicate<T>> CollectionCountsPredicate<T, P> create(
+			CollectionCountsPredicate.Entry<T, P>... entries
+	) {
 		return create(List.of(entries));
 	}
 
-	static <T, P extends Predicate<T>> CollectionCountsPredicate<T, P> create(List<CollectionCountsPredicate.Entry<T, P>> entries) {
-		return (CollectionCountsPredicate<T, P>) (switch (entries.size()) {
-			case 0 -> new CollectionCountsPredicate.Empty();
-			case 1 -> new CollectionCountsPredicate.Single(entries.getFirst());
-			default -> new CollectionCountsPredicate.Multiple(entries);
-		}
-		);
+	@SuppressWarnings("unchecked")
+	static <T, P extends Predicate<T>> CollectionCountsPredicate<T, P> create(
+			List<CollectionCountsPredicate.Entry<T, P>> entries
+	) {
+		return (CollectionCountsPredicate<T, P>) switch (entries.size()) {
+			case 0 -> new CollectionCountsPredicate.Empty<>();
+			case 1 -> new CollectionCountsPredicate.Single<>(entries.getFirst());
+			default -> new CollectionCountsPredicate.Multiple<>(entries);
+		};
 	}
 
-	/**
-	 * {@code Empty}.
-	 */
-	public static class Empty<T, P extends Predicate<T>> implements CollectionCountsPredicate<T, P> {
+	class Empty<T, P extends Predicate<T>> implements CollectionCountsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
 			return true;
 		}
@@ -53,42 +55,42 @@ public interface CollectionCountsPredicate<T, P extends Predicate<T>> extends Pr
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Пара «предикат + допустимый диапазон количества совпадений».
+	 * Метод {@link #test(Iterable)} подсчитывает совпадения и проверяет диапазон.
 	 */
-	public record Entry<T, P extends Predicate<T>>(P test, NumberRange.IntRange count) {
+	record Entry<T, P extends Predicate<T>>(P test, NumberRange.IntRange count) {
 
-		public static <T, P extends Predicate<T>> Codec<CollectionCountsPredicate.Entry<T, P>> createCodec(Codec<P> predicateCodec) {
+		public static <T, P extends Predicate<T>> Codec<CollectionCountsPredicate.Entry<T, P>> createCodec(
+				Codec<P> predicateCodec
+		) {
 			return RecordCodecBuilder.create(
 					instance -> instance.group(
-							                    predicateCodec.fieldOf("test").forGetter(CollectionCountsPredicate.Entry::test),
-							                    NumberRange.IntRange.CODEC
-									                    .fieldOf("count")
-									                    .forGetter(CollectionCountsPredicate.Entry::count)
-					                    )
-					                    .apply(instance, CollectionCountsPredicate.Entry::new)
+							predicateCodec.fieldOf("test").forGetter(CollectionCountsPredicate.Entry::test),
+							NumberRange.IntRange.CODEC.fieldOf("count").forGetter(CollectionCountsPredicate.Entry::count)
+					).apply(instance, CollectionCountsPredicate.Entry::new)
 			);
 		}
 
 		public boolean test(Iterable<T> collection) {
-			int i = 0;
+			int matchCount = 0;
 
-			for (T object : collection) {
-				if (this.test.test(object)) {
-					i++;
+			for (T element : collection) {
+				if (test.test(element)) {
+					matchCount++;
 				}
 			}
 
-			return this.count.test(i);
+			return count.test(matchCount);
 		}
 	}
 
-	/**
-	 * {@code Multiple}.
-	 */
-	public record Multiple<T, P extends Predicate<T>>(List<CollectionCountsPredicate.Entry<T, P>> entries) implements CollectionCountsPredicate<T, P> {
+	record Multiple<T, P extends Predicate<T>>(
+			List<CollectionCountsPredicate.Entry<T, P>> entries
+	) implements CollectionCountsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
-			for (CollectionCountsPredicate.Entry<T, P> entry : this.entries) {
+			for (CollectionCountsPredicate.Entry<T, P> entry : entries) {
 				if (!entry.test(iterable)) {
 					return false;
 				}
@@ -99,22 +101,22 @@ public interface CollectionCountsPredicate<T, P extends Predicate<T>> extends Pr
 
 		@Override
 		public List<CollectionCountsPredicate.Entry<T, P>> getEntries() {
-			return this.entries;
+			return entries;
 		}
 	}
 
-	/**
-	 * {@code Single}.
-	 */
-	public record Single<T, P extends Predicate<T>>(CollectionCountsPredicate.Entry<T, P> entry) implements CollectionCountsPredicate<T, P> {
+	record Single<T, P extends Predicate<T>>(
+			CollectionCountsPredicate.Entry<T, P> entry
+	) implements CollectionCountsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
-			return this.entry.test(iterable);
+			return entry.test(iterable);
 		}
 
 		@Override
 		public List<CollectionCountsPredicate.Entry<T, P>> getEntries() {
-			return List.of(this.entry);
+			return List.of(entry);
 		}
 	}
 }

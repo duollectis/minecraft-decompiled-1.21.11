@@ -10,119 +10,104 @@ import net.fabricmc.api.Environment;
 
 import java.util.OptionalDouble;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SamplerCache}.
+ * Кэш всех возможных комбинаций параметров сэмплера.
+ * Индекс вычисляется через {@link #toIndex} как битовая маска из ordinal-значений перечислений.
+ * Размер массива — 32 (2 AddressMode × 2 AddressMode × 2 FilterMode × 2 FilterMode × 2 LOD = 32).
  */
+@Environment(EnvType.CLIENT)
 public class SamplerCache {
 
 	private final GpuSampler[] samplers = new GpuSampler[32];
 
 	/**
-	 * Init.
+	 * Инициализирует все 32 комбинации сэмплеров.
+	 * Требует ровно 2 значения в {@link AddressMode} и {@link FilterMode}.
 	 */
 	public void init() {
+		if (AddressMode.values().length != 2 || FilterMode.values().length != 2) {
+			throw new IllegalStateException(
+				"AddressMode and FilterMode enum sizes must be 2 - if you expanded them, please update SamplerCache"
+			);
+		}
+
 		GpuDevice gpuDevice = RenderSystem.getDevice();
-		if (AddressMode.values().length == 2 && FilterMode.values().length == 2) {
-			for (AddressMode addressMode : AddressMode.values()) {
-				for (AddressMode addressMode2 : AddressMode.values()) {
-					for (FilterMode filterMode : FilterMode.values()) {
-						for (FilterMode filterMode2 : FilterMode.values()) {
-							for (boolean bl : new boolean[]{true, false}) {
-								this.samplers[toIndex(addressMode, addressMode2, filterMode, filterMode2, bl)] =
-										gpuDevice.createSampler(
-												addressMode,
-												addressMode2,
-												filterMode,
-												filterMode2,
-												1,
-												bl ? OptionalDouble.empty() : OptionalDouble.of(0.0)
-										);
-							}
+
+		for (AddressMode addressModeU : AddressMode.values()) {
+			for (AddressMode addressModeV : AddressMode.values()) {
+				for (FilterMode minFilter : FilterMode.values()) {
+					for (FilterMode magFilter : FilterMode.values()) {
+						for (boolean defaultLod : new boolean[]{true, false}) {
+							samplers[toIndex(addressModeU, addressModeV, minFilter, magFilter, defaultLod)] =
+								gpuDevice.createSampler(
+									addressModeU,
+									addressModeV,
+									minFilter,
+									magFilter,
+									1,
+									defaultLod ? OptionalDouble.empty() : OptionalDouble.of(0.0)
+								);
 						}
 					}
 				}
 			}
 		}
-		else {
-			throw new IllegalStateException(
-					"AddressMode and FilterMode enum sizes must be 2 - if you expanded them, please update SamplerCache");
-		}
 	}
 
 	public GpuSampler get(
-			AddressMode addressModeU,
-			AddressMode addressModeV,
-			FilterMode minFilterMode,
-			FilterMode magFilterMode,
-			boolean defaultLineOfDetail
+		AddressMode addressModeU,
+		AddressMode addressModeV,
+		FilterMode minFilterMode,
+		FilterMode magFilterMode,
+		boolean defaultLineOfDetail
 	) {
-		return this.samplers[toIndex(addressModeU, addressModeV, minFilterMode, magFilterMode, defaultLineOfDetail)];
+		return samplers[toIndex(addressModeU, addressModeV, minFilterMode, magFilterMode, defaultLineOfDetail)];
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param filterMode filter mode
-	 *
-	 * @return GpuSampler — 
-	 */
 	public GpuSampler get(FilterMode filterMode) {
-		return this.get(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, filterMode, filterMode, false);
+		return get(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, filterMode, filterMode, false);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param filterMode filter mode
-	 * @param defaultLineOfDetail default line of detail
-	 *
-	 * @return GpuSampler — 
-	 */
 	public GpuSampler get(FilterMode filterMode, boolean defaultLineOfDetail) {
-		return this.get(
-				AddressMode.CLAMP_TO_EDGE,
-				AddressMode.CLAMP_TO_EDGE,
-				filterMode,
-				filterMode,
-				defaultLineOfDetail
-		);
+		return get(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, filterMode, filterMode, defaultLineOfDetail);
 	}
 
 	public GpuSampler getRepeated(FilterMode filterMode) {
-		return this.get(AddressMode.REPEAT, AddressMode.REPEAT, filterMode, filterMode, false);
+		return get(AddressMode.REPEAT, AddressMode.REPEAT, filterMode, filterMode, false);
 	}
 
 	public GpuSampler getRepeated(FilterMode filterMode, boolean defaultLineOfDetail) {
-		return this.get(AddressMode.REPEAT, AddressMode.REPEAT, filterMode, filterMode, defaultLineOfDetail);
+		return get(AddressMode.REPEAT, AddressMode.REPEAT, filterMode, filterMode, defaultLineOfDetail);
+	}
+
+	public void close() {
+		for (GpuSampler sampler : samplers) {
+			sampler.close();
+		}
 	}
 
 	/**
-	 * Close.
+	 * Вычисляет индекс в массиве сэмплеров через битовую упаковку ordinal-значений.
+	 * Бит 0 — addressModeU, бит 1 — addressModeV, бит 2 — minFilter, бит 3 — magFilter, бит 4 — defaultLod.
 	 */
-	public void close() {
-		for (GpuSampler gpuSampler : this.samplers) {
-			gpuSampler.close();
-		}
-	}
-
 	@VisibleForTesting
 	static int toIndex(
-			AddressMode addressModeU,
-			AddressMode addressModeV,
-			FilterMode minFilterMode,
-			FilterMode magFilterMode,
-			boolean bl
+		AddressMode addressModeU,
+		AddressMode addressModeV,
+		FilterMode minFilterMode,
+		FilterMode magFilterMode,
+		boolean defaultLineOfDetail
 	) {
-		int i = 0;
-		i |= addressModeU.ordinal() & 1;
-		i |= (addressModeV.ordinal() & 1) << 1;
-		i |= (minFilterMode.ordinal() & 1) << 2;
-		i |= (magFilterMode.ordinal() & 1) << 3;
-		if (bl) {
-			i |= 16;
+		int index = 0;
+		index |= addressModeU.ordinal() & 1;
+		index |= (addressModeV.ordinal() & 1) << 1;
+		index |= (minFilterMode.ordinal() & 1) << 2;
+		index |= (magFilterMode.ordinal() & 1) << 3;
+
+		if (defaultLineOfDetail) {
+			index |= 16;
 		}
 
-		return i;
+		return index;
 	}
 }

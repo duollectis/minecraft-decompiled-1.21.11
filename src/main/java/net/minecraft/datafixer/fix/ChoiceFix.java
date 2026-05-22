@@ -5,7 +5,9 @@ import com.mojang.datafixers.DSL.TypeReference;
 import com.mojang.datafixers.schemas.Schema;
 
 /**
- * {@code ChoiceFix}.
+ * Абстрактный базовый класс для фиксов, применяемых к конкретному именованному варианту
+ * (choice) внутри типа данных (сущность, блок-сущность и т.д.).
+ * Подклассы реализуют {@link #transform(Typed)} для преобразования данных конкретного варианта.
  */
 public abstract class ChoiceFix extends DataFix {
 
@@ -21,18 +23,17 @@ public abstract class ChoiceFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		OpticFinder<?>
-				opticFinder =
-				DSL.namedChoice(this.choiceName, this.getInputSchema().getChoiceType(this.type, this.choiceName));
-		return this.fixTypeEverywhereTyped(
-				this.name,
-				this.getInputSchema().getType(this.type),
-				this.getOutputSchema().getType(this.type),
-				typed -> typed.updateTyped(
-						opticFinder,
-						this.getOutputSchema().getChoiceType(this.type, this.choiceName),
-						this::transform
-				)
+		OpticFinder<?> opticFinder = DSL.namedChoice(choiceName, getInputSchema().getChoiceType(type, choiceName));
+
+		return fixTypeEverywhereTyped(
+			name,
+			getInputSchema().getType(type),
+			getOutputSchema().getType(type),
+			typed -> typed.updateTyped(
+				opticFinder,
+				getOutputSchema().getChoiceType(type, choiceName),
+				this::transform
+			)
 		);
 	}
 

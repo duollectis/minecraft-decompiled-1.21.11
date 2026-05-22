@@ -7,7 +7,8 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code CactusFlowerBlock}.
+ * Цветок кактуса — декоративное растение, которое вырастает на вершине кактуса
+ * при достижении им определённого возраста. Может размещаться также на грядке и твёрдых поверхностях.
  */
 public class CactusFlowerBlock extends PlantBlock {
 
@@ -30,12 +31,9 @@ public class CactusFlowerBlock extends PlantBlock {
 
 	@Override
 	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos);
-		return blockState.isOf(Blocks.CACTUS) || blockState.isOf(Blocks.FARMLAND) || blockState.isSideSolid(
-				world,
-				pos,
-				Direction.UP,
-				SideShapeType.CENTER
-		);
+		BlockState below = world.getBlockState(pos);
+		return below.isOf(Blocks.CACTUS)
+			|| below.isOf(Blocks.FARMLAND)
+			|| below.isSideSolid(world, pos, Direction.UP, SideShapeType.CENTER);
 	}
 }

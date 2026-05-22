@@ -46,10 +46,12 @@ import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BakedModelManager}.
+ * Центральный менеджер запечённых моделей блоков и предметов.
+ * Управляет полным циклом перезагрузки: загрузка JSON-моделей → разрешение зависимостей →
+ * запекание геометрии → загрузка атласов → применение результата.
  */
+@Environment(EnvType.CLIENT)
 public class BakedModelManager implements ResourceReloader, FabricBakedModelManager {
 
 	public static final Identifier BLOCK_OR_ITEM_ATLAS_ID = Identifier.ofVanilla("block_or_item");
@@ -192,6 +194,10 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 		                        .thenAcceptAsync(this::upload, executor2);
 	}
 
+	/**
+	 * Асинхронно загружает все JSON-модели из ресурсов и десериализует их.
+	 * Ошибки загрузки отдельных моделей логируются, но не прерывают процесс.
+	 */
 	private static CompletableFuture<Map<Identifier, UnbakedModel>> reloadModels(
 			ResourceManager resourceManager,
 			Executor executor
@@ -201,32 +207,32 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 				.thenCompose(
 						models -> {
 							List<CompletableFuture<Pair<Identifier, JsonUnbakedModel>>>
-									list =
+									futures =
 									new ArrayList<>(models.size());
 
 							for (Entry<Identifier, Resource> entry : models.entrySet()) {
-								list.add(CompletableFuture.supplyAsync(
+								futures.add(CompletableFuture.supplyAsync(
 										() -> {
-											Identifier identifier = MODELS_FINDER.toResourceId(entry.getKey());
+											Identifier modelId = MODELS_FINDER.toResourceId(entry.getKey());
 
 											try {
-												Pair var3;
+												Pair<Identifier, JsonUnbakedModel> result;
 												try (Reader reader = entry.getValue().getReader()) {
-													var3 = Pair.of(identifier, JsonUnbakedModel.deserialize(reader));
+													result = Pair.of(modelId, JsonUnbakedModel.deserialize(reader));
 												}
 
-												return var3;
+												return result;
 											}
-											catch (Exception var7) {
-												LOGGER.error("Failed to load model {}", entry.getKey(), var7);
+											catch (Exception exception) {
+												LOGGER.error("Failed to load model {}", entry.getKey(), exception);
 												return null;
 											}
 										}, executor
 								));
 							}
 
-							return Util.combineSafe(list)
-							           .thenApply(modelsx -> modelsx
+							return Util.combineSafe(futures)
+							           .thenApply(loaded -> loaded
 									           .stream()
 									           .filter(Objects::nonNull)
 									           .collect(Collectors.toUnmodifiableMap(Pair::getFirst, Pair::getSecond)));
@@ -234,12 +240,15 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 				);
 	}
 
+	/**
+	 * Собирает граф зависимостей моделей и возвращает только те, на которые есть ссылки.
+	 * Добавляет специальную модель {@code builtin/generated} для предметов.
+	 */
 	private static BakedModelManager.Models collect(
 			Map<Identifier, UnbakedModel> modelMap,
 			BlockStatesLoader.LoadedModels stateDefinition,
 			ItemAssetsLoader.Result result
 	) {
-		BakedModelManager.Models var5;
 		try (ScopedProfiler scopedProfiler = Profilers.get().scoped("dependencies")) {
 			ReferencedModelsCollector
 					referencedModelsCollector =
@@ -247,99 +256,99 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 			referencedModelsCollector.addSpecialModel(GeneratedItemModel.GENERATED, new GeneratedItemModel());
 			stateDefinition.models().values().forEach(referencedModelsCollector::resolve);
 			result.contents().values().forEach(asset -> referencedModelsCollector.resolve(asset.model()));
-			var5 =
-					new BakedModelManager.Models(
-							referencedModelsCollector.getMissingModel(),
-							referencedModelsCollector.collectModels()
-					);
+			return new BakedModelManager.Models(
+					referencedModelsCollector.getMissingModel(),
+					referencedModelsCollector.collectModels()
+			);
 		}
-
-		return var5;
 	}
 
+	/**
+	 * Запекает все модели асинхронно, собирая ошибки отсутствующих текстур в отдельные мультимапы.
+	 * После запекания логирует все пропущенные текстуры и строит итоговую карту состояний блоков.
+	 */
 	private static CompletableFuture<BakedModelManager.BakingResult> bake(
-			SpriteLoader.StitchResult stitchResult,
-			SpriteLoader.StitchResult stitchResult2,
+			SpriteLoader.StitchResult blockStitchResult,
+			SpriteLoader.StitchResult itemStitchResult,
 			ModelBaker modelBaker,
-			Object2IntMap<BlockState> object2IntMap,
+			Object2IntMap<BlockState> modelGroups,
 			LoadedEntityModels loadedEntityModels,
 			LoadedBlockEntityModels loadedBlockEntityModels,
 			Executor executor
 	) {
-		final Multimap<String, SpriteIdentifier> multimap = Multimaps.synchronizedMultimap(HashMultimap.create());
-		final Multimap<String, String> multimap2 = Multimaps.synchronizedMultimap(HashMultimap.create());
+		final Multimap<String, SpriteIdentifier> missingSprites = Multimaps.synchronizedMultimap(HashMultimap.create());
+		final Multimap<String, String> missingRefs = Multimaps.synchronizedMultimap(HashMultimap.create());
 		return modelBaker.bake(
 				                 new ErrorCollectingSpriteGetter() {
-					                 private final Sprite missingSprite = stitchResult.missing();
-					                 private final Sprite missingItemSprite = stitchResult2.missing();
+					                 private final Sprite missingSprite = blockStitchResult.missing();
+					                 private final Sprite missingItemSprite = itemStitchResult.missing();
 
 					                 @Override
 					                 public Sprite get(SpriteIdentifier id, SimpleModel model) {
-						                 Identifier identifier = id.getAtlasId();
-						                 boolean bl = identifier.equals(BakedModelManager.BLOCK_OR_ITEM_ATLAS_ID);
-						                 boolean bl2 = identifier.equals(SpriteAtlasTexture.ITEMS_ATLAS_TEXTURE);
-						                 boolean bl3 = identifier.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
-						                 if (bl || bl2) {
-							                 Sprite sprite = stitchResult2.getSprite(id.getTextureId());
+						                 Identifier atlasId = id.getAtlasId();
+						                 boolean isBlockOrItem = atlasId.equals(BakedModelManager.BLOCK_OR_ITEM_ATLAS_ID);
+						                 boolean isItemAtlas = atlasId.equals(SpriteAtlasTexture.ITEMS_ATLAS_TEXTURE);
+						                 boolean isBlockAtlas = atlasId.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+
+						                 if (isBlockOrItem || isItemAtlas) {
+							                 Sprite sprite = itemStitchResult.getSprite(id.getTextureId());
 							                 if (sprite != null) {
 								                 return sprite;
 							                 }
 						                 }
 
-						                 if (bl || bl3) {
-							                 Sprite sprite = stitchResult.getSprite(id.getTextureId());
+						                 if (isBlockOrItem || isBlockAtlas) {
+							                 Sprite sprite = blockStitchResult.getSprite(id.getTextureId());
 							                 if (sprite != null) {
 								                 return sprite;
 							                 }
 						                 }
 
-						                 multimap.put(model.name(), id);
-						                 return bl2 ? this.missingItemSprite : this.missingSprite;
+						                 missingSprites.put(model.name(), id);
+						                 return isItemAtlas ? this.missingItemSprite : this.missingSprite;
 					                 }
 
 					                 @Override
 					                 public Sprite getMissing(String name, SimpleModel model) {
-						                 multimap2.put(model.name(), name);
+						                 missingRefs.put(model.name(), name);
 						                 return this.missingSprite;
 					                 }
 				                 }, executor
 		                 )
 		                 .thenApply(
 				                 bakedModels -> {
-					                 multimap.asMap()
-					                         .forEach(
-							                         (modelName, sprites) -> LOGGER.warn(
-									                         "Missing textures in model {}:\n{}",
-									                         modelName,
-									                         sprites.stream()
-									                                .sorted(SpriteIdentifier.COMPARATOR)
-									                                .map(spriteId -> "    " + spriteId.getAtlasId()
-											                                + ":" + spriteId.getTextureId())
-									                                .collect(Collectors.joining("\n"))
-							                         )
-					                         );
-					                 multimap2.asMap()
-					                          .forEach(
-							                          (modelName, textureIds) -> LOGGER.warn(
-									                          "Missing texture references in model {}:\n{}",
-									                          modelName,
-									                          textureIds
-											                          .stream()
-											                          .sorted()
-											                          .map(string -> "    " + string)
-											                          .collect(Collectors.joining("\n"))
-							                          )
-					                          );
-					                 Map<BlockState, BlockStateModel>
-							                 map =
-							                 toStateMap(
-									                 bakedModels.blockStateModels(),
-									                 bakedModels.missingModels().block()
-							                 );
+					                 missingSprites.asMap()
+					                              .forEach(
+							                              (modelName, sprites) -> LOGGER.warn(
+									                              "Missing textures in model {}:\n{}",
+									                              modelName,
+									                              sprites.stream()
+									                                     .sorted(SpriteIdentifier.COMPARATOR)
+									                                     .map(spriteId -> "    " + spriteId.getAtlasId()
+											                                     + ":" + spriteId.getTextureId())
+									                                     .collect(Collectors.joining("\n"))
+							                              )
+					                              );
+					                 missingRefs.asMap()
+					                            .forEach(
+							                            (modelName, textureIds) -> LOGGER.warn(
+									                            "Missing texture references in model {}:\n{}",
+									                            modelName,
+									                            textureIds
+											                            .stream()
+											                            .sorted()
+											                            .map(ref -> "    " + ref)
+											                            .collect(Collectors.joining("\n"))
+							                            )
+					                            );
+					                 Map<BlockState, BlockStateModel> stateMap = toStateMap(
+							                 bakedModels.blockStateModels(),
+							                 bakedModels.missingModels().block()
+					                 );
 					                 return new BakedModelManager.BakingResult(
 							                 bakedModels,
-							                 object2IntMap,
-							                 map,
+							                 modelGroups,
+							                 stateMap,
 							                 loadedEntityModels,
 							                 loadedBlockEntityModels
 					                 );
@@ -347,13 +356,16 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 		                 );
 	}
 
+	/**
+	 * Строит карту {@code BlockState → BlockStateModel} для всех зарегистрированных блоков.
+	 * Состояния без модели получают модель-заглушку и логируют предупреждение.
+	 */
 	private static Map<BlockState, BlockStateModel> toStateMap(
 			Map<BlockState, BlockStateModel> blockStateModels,
 			BlockStateModel missingModel
 	) {
-		Object var8;
 		try (ScopedProfiler scopedProfiler = Profilers.get().scoped("block state dispatch")) {
-			Map<BlockState, BlockStateModel> map = new IdentityHashMap<>(blockStateModels);
+			Map<BlockState, BlockStateModel> result = new IdentityHashMap<>(blockStateModels);
 
 			for (Block block : Registries.BLOCK) {
 				block.getStateManager().getStates().forEach(state -> {
@@ -363,57 +375,49 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 				});
 			}
 
-			var8 = map;
+			return result;
 		}
-
-		return (Map<BlockState, BlockStateModel>) var8;
 	}
 
 	private static Object2IntMap<BlockState> group(BlockColors colors, BlockStatesLoader.LoadedModels definition) {
-		Object2IntMap var3;
 		try (ScopedProfiler scopedProfiler = Profilers.get().scoped("block groups")) {
-			var3 = ModelGrouper.group(colors, definition);
+			return ModelGrouper.group(colors, definition);
 		}
-
-		return var3;
 	}
 
 	private void upload(BakedModelManager.BakingResult bakingResult) {
 		ModelBaker.BakedModels bakedModels = bakingResult.bakedModels;
-		this.bakedItemModels = bakedModels.itemStackModels();
-		this.itemProperties = bakedModels.itemProperties();
-		this.modelGroups = bakingResult.modelGroups;
-		this.missingModels = bakedModels.missingModels();
-		this.blockModelCache.setModels(bakingResult.modelCache);
-		this.blockEntityModels = bakingResult.specialBlockModelRenderer;
-		this.entityModels = bakingResult.entityModelSet;
+		bakedItemModels = bakedModels.itemStackModels();
+		itemProperties = bakedModels.itemProperties();
+		modelGroups = bakingResult.modelGroups;
+		missingModels = bakedModels.missingModels();
+		blockModelCache.setModels(bakingResult.modelCache);
+		blockEntityModels = bakingResult.specialBlockModelRenderer;
+		entityModels = bakingResult.entityModelSet;
 	}
 
 	/**
-	 * Определяет, следует ли rerender.
+	 * Определяет, нужно ли перерисовывать чанк при смене состояния блока.
+	 * Блоки в одной группе модели не требуют перерисовки, если не изменилось состояние жидкости.
 	 *
-	 * @param from from
-	 * @param to to
-	 *
-	 * @return boolean — результат операции
+	 * @param from исходное состояние блока
+	 * @param to новое состояние блока
+	 * @return {@code true}, если чанк нужно перерисовать
 	 */
 	public boolean shouldRerender(BlockState from, BlockState to) {
 		if (from == to) {
 			return false;
 		}
-		else {
-			int i = this.modelGroups.getInt(from);
-			if (i != -1) {
-				int j = this.modelGroups.getInt(to);
-				if (i == j) {
-					FluidState fluidState = from.getFluidState();
-					FluidState fluidState2 = to.getFluidState();
-					return fluidState != fluidState2;
-				}
-			}
 
-			return true;
+		int fromGroup = modelGroups.getInt(from);
+		if (fromGroup != ModelGrouper.NO_GROUP) {
+			int toGroup = modelGroups.getInt(to);
+			if (fromGroup == toGroup) {
+				return from.getFluidState() != to.getFluidState();
+			}
 		}
+
+		return true;
 	}
 
 	public LoadedBlockEntityModels getBlockEntityModelsSupplier() {
@@ -424,10 +428,10 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 		return () -> this.entityModels;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakingResult}.
+	 * Промежуточный результат запекания: содержит все запечённые модели, группы и загруженные рендереры.
 	 */
+	@Environment(EnvType.CLIENT)
 	record BakingResult(
 			ModelBaker.BakedModels bakedModels,
 			Object2IntMap<BlockState> modelGroups,
@@ -437,10 +441,10 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 	) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Models}.
+	 * Результат сбора зависимостей: модель-заглушка и карта всех используемых моделей.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Models(BakedSimpleModel missing, Map<Identifier, BakedSimpleModel> models) {
 	}
 }

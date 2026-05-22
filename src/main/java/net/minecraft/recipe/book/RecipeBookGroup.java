@@ -1,7 +1,8 @@
 package net.minecraft.recipe.book;
 
 /**
- * {@code RecipeBookGroup}.
+ * Маркерный интерфейс для группировки категорий книги рецептов.
+ * Реализуется {@link RecipeBookCategory}.
  */
 public interface RecipeBookGroup {
 }

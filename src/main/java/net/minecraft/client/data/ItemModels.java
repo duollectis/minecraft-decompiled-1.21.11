@@ -27,10 +27,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemModels}.
+ * Фабричные методы для создания незапечённых моделей предметов ({@link ItemModel.Unbaked}).
+ * Предоставляет удобный API для построения базовых, составных, условных, диапазонных
+ * и выборочных моделей без необходимости напрямую работать с конкретными реализациями.
  */
+@Environment(EnvType.CLIENT)
 public class ItemModels {
 
 	public static ItemModel.Unbaked basic(Identifier model) {

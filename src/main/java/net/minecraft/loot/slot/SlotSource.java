@@ -5,7 +5,8 @@ import net.minecraft.loot.context.LootContext;
 import net.minecraft.loot.context.LootContextAware;
 
 /**
- * {@code SlotSource}.
+ * Источник слотов инвентаря для системы лута.
+ * Предоставляет ленивый поток копий предметов ({@link ItemStream}) в заданном контексте лута.
  */
 public interface SlotSource extends LootContextAware {
 

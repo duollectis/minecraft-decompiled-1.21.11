@@ -96,9 +96,9 @@ public class AtmosphericFogModifier extends FogModifier {
 				camera.getEnvironmentAttributeInterpolator().get(EnvironmentAttributes.FOG_START_DISTANCE_VISUAL, g);
 		data.environmentalEnd =
 				camera.getEnvironmentAttributeInterpolator().get(EnvironmentAttributes.FOG_END_DISTANCE_VISUAL, g);
-		data.environmentalStart = data.environmentalStart + -160.0F * this.fogMultiplier;
+		data.environmentalStart = data.environmentalStart + FOG_START_OFFSET * this.fogMultiplier;
 		float h = Math.min(96.0F, data.environmentalEnd);
-		data.environmentalEnd = Math.max(h, data.environmentalEnd + -256.0F * this.fogMultiplier);
+		data.environmentalEnd = Math.max(h, data.environmentalEnd + FOG_END_OFFSET * this.fogMultiplier);
 		data.skyEnd =
 				Math.min(
 						f,

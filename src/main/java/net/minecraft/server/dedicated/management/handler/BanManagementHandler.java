@@ -8,7 +8,7 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import java.util.Collection;
 
 /**
- * {@code BanManagementHandler}.
+ * Класс Ban Management Handler.
  */
 public interface BanManagementHandler {
 

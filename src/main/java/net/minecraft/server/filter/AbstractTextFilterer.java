@@ -32,9 +32,17 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code AbstractTextFilterer}.
+ * Базовый класс для фильтрации текстовых сообщений через внешний HTTP-сервис.
+ * Управляет пулом потоков, HTTP-соединениями и логикой кодирования/декодирования
+ * запросов к API фильтрации чата.
  */
 public abstract class AbstractTextFilterer implements AutoCloseable {
+
+	private static final int READ_TIMEOUT_MS = 2000;
+	private static final int CONNECT_TIMEOUT_MS = 15000;
+	private static final int HTTP_NO_CONTENT = 204;
+	private static final int HTTP_SUCCESS_MIN = 200;
+	private static final int HTTP_SUCCESS_MAX = 300;
 
 	protected static final Logger LOGGER = LogUtils.getLogger();
 	private static final AtomicInteger WORKER_ID = new AtomicInteger(1);
@@ -43,18 +51,12 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		thread.setName("Chat-Filter-Worker-" + WORKER_ID.getAndIncrement());
 		return thread;
 	};
+
 	private final URL url;
 	private final AbstractTextFilterer.MessageEncoder messageEncoder;
 	final AbstractTextFilterer.HashIgnorer hashIgnorer;
 	final ExecutorService threadPool;
 
-	/**
-	 * New thread pool.
-	 *
-	 * @param threadCount thread count
-	 *
-	 * @return ExecutorService — результат операции
-	 */
 	protected static ExecutorService newThreadPool(int threadCount) {
 		return Executors.newFixedThreadPool(threadCount, THREAD_FACTORY);
 	}
@@ -82,27 +84,24 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 	}
 
 	/**
-	 * Создаёт text filter.
-	 *
-	 * @param properties properties
-	 *
-	 * @return @Nullable AbstractTextFilterer — результат операции
+	 * Создаёт экземпляр фильтра текста на основе конфигурации сервера.
+	 * Версия 0 использует Basic-аутентификацию, версия 1 — OAuth2 через MSAL.
 	 */
 	public static @Nullable AbstractTextFilterer createTextFilter(ServerPropertiesHandler properties) {
-		String string = properties.textFilteringConfig;
-		if (StringHelper.isBlank(string)) {
+		String config = properties.textFilteringConfig;
+
+		if (StringHelper.isBlank(config)) {
 			return null;
 		}
-		else {
-			return switch (properties.textFilteringVersion) {
-				case 0 -> V0TextFilterer.load(string);
-				case 1 -> V1TextFilterer.load(string);
-				default -> {
-					LOGGER.warn("Could not create text filter - unsupported text filtering version used");
-					yield null;
-				}
-			};
-		}
+
+		return switch (properties.textFilteringVersion) {
+			case 0 -> V0TextFilterer.load(config);
+			case 1 -> V1TextFilterer.load(config);
+			default -> {
+				LOGGER.warn("Could not create text filter - unsupported text filtering version used");
+				yield null;
+			}
+		};
 	}
 
 	protected CompletableFuture<FilteredMessage> filter(
@@ -111,19 +110,24 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 			AbstractTextFilterer.HashIgnorer hashIgnorer,
 			Executor executor
 	) {
-		return raw.isEmpty() ? CompletableFuture.completedFuture(FilteredMessage.EMPTY) : CompletableFuture.supplyAsync(
+		if (raw.isEmpty()) {
+			return CompletableFuture.completedFuture(FilteredMessage.EMPTY);
+		}
+
+		return CompletableFuture.supplyAsync(
 				() -> {
-					JsonObject jsonObject = this.messageEncoder.encode(profile, raw);
+					JsonObject payload = messageEncoder.encode(profile, raw);
 
 					try {
-						JsonObject jsonObject2 = this.request(jsonObject, this.url);
-						return this.filter(raw, hashIgnorer, jsonObject2);
+						JsonObject response = request(payload, url);
+						return filter(raw, hashIgnorer, response);
 					}
-					catch (Exception var6) {
-						LOGGER.warn("Failed to validate message '{}'", raw, var6);
+					catch (Exception exception) {
+						LOGGER.warn("Failed to validate message '{}'", raw, exception);
 						return FilteredMessage.censored(raw);
 					}
-				}, executor
+				},
+				executor
 		);
 	}
 
@@ -141,164 +145,104 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		if (redactedTextIndex.isEmpty()) {
 			return FilterMask.PASS_THROUGH;
 		}
-		else if (hashIgnorer.shouldIgnore(raw, redactedTextIndex.size())) {
+
+		if (hashIgnorer.shouldIgnore(raw, redactedTextIndex.size())) {
 			return FilterMask.FULLY_FILTERED;
 		}
-		else {
-			FilterMask filterMask = new FilterMask(raw.length());
 
-			for (int i = 0; i < redactedTextIndex.size(); i++) {
-				filterMask.markFiltered(redactedTextIndex.get(i).getAsInt());
-			}
+		FilterMask filterMask = new FilterMask(raw.length());
 
-			return filterMask;
+		for (int i = 0; i < redactedTextIndex.size(); i++) {
+			filterMask.markFiltered(redactedTextIndex.get(i).getAsInt());
 		}
+
+		return filterMask;
 	}
 
 	@Override
 	public void close() {
-		this.threadPool.shutdownNow();
+		threadPool.shutdownNow();
 	}
 
-	/**
-	 * Discard rest of input.
-	 *
-	 * @param stream stream
-	 */
 	protected void discardRestOfInput(InputStream stream) throws IOException {
-		byte[] bs = new byte[1024];
+		byte[] buffer = new byte[1024];
 
-		while (stream.read(bs) != -1) {
+		while (stream.read(buffer) != -1) {
 		}
 	}
 
-	private JsonObject request(JsonObject request, URL url) throws IOException {
-		HttpURLConnection httpURLConnection = this.openConnection(request, url);
+	private JsonObject request(JsonObject requestBody, URL endpoint) throws IOException {
+		HttpURLConnection connection = openConnection(requestBody, endpoint);
 
-		JsonObject var5;
-		try (InputStream inputStream = httpURLConnection.getInputStream()) {
-			if (httpURLConnection.getResponseCode() == 204) {
+		try (InputStream inputStream = connection.getInputStream()) {
+			if (connection.getResponseCode() == HTTP_NO_CONTENT) {
 				return new JsonObject();
 			}
 
 			try {
-				var5 =
-						LenientJsonParser
-								.parse(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
-								.getAsJsonObject();
+				return LenientJsonParser
+						.parse(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+						.getAsJsonObject();
 			}
 			finally {
-				this.discardRestOfInput(inputStream);
+				discardRestOfInput(inputStream);
 			}
-		}
-
-		return var5;
-	}
-
-	/**
-	 * Открывает connection.
-	 *
-	 * @param request request
-	 * @param url url
-	 *
-	 * @return HttpURLConnection — результат операции
-	 */
-	protected HttpURLConnection openConnection(JsonObject request, URL url) throws IOException {
-		HttpURLConnection httpURLConnection = this.openConnection(url);
-		this.addAuthentication(httpURLConnection);
-		OutputStreamWriter
-				outputStreamWriter =
-				new OutputStreamWriter(httpURLConnection.getOutputStream(), StandardCharsets.UTF_8);
-
-		try {
-			JsonWriter jsonWriter = new JsonWriter(outputStreamWriter);
-
-			try {
-				Streams.write(request, jsonWriter);
-			}
-			catch (Throwable var10) {
-				try {
-					jsonWriter.close();
-				}
-				catch (Throwable var9) {
-					var10.addSuppressed(var9);
-				}
-
-				throw var10;
-			}
-
-			jsonWriter.close();
-		}
-		catch (Throwable var11) {
-			try {
-				outputStreamWriter.close();
-			}
-			catch (Throwable var8) {
-				var11.addSuppressed(var8);
-			}
-
-			throw var11;
-		}
-
-		outputStreamWriter.close();
-		int i = httpURLConnection.getResponseCode();
-		if (i >= 200 && i < 300) {
-			return httpURLConnection;
-		}
-		else {
-			throw new AbstractTextFilterer.FailedHttpRequestException(i + " " + httpURLConnection.getResponseMessage());
 		}
 	}
 
 	/**
-	 * Добавляет authentication.
-	 *
-	 * @param connection connection
+	 * Открывает HTTP-соединение, записывает JSON-тело запроса и проверяет код ответа.
+	 * Бросает {@link FailedHttpRequestException}, если сервер вернул код вне диапазона 2xx.
 	 */
+	protected HttpURLConnection openConnection(JsonObject requestBody, URL endpoint) throws IOException {
+		HttpURLConnection connection = openConnection(endpoint);
+		addAuthentication(connection);
+
+		try (
+				OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream(), StandardCharsets.UTF_8);
+				JsonWriter jsonWriter = new JsonWriter(writer)
+		) {
+			Streams.write(requestBody, jsonWriter);
+		}
+
+		int responseCode = connection.getResponseCode();
+
+		if (responseCode >= HTTP_SUCCESS_MIN && responseCode < HTTP_SUCCESS_MAX) {
+			return connection;
+		}
+
+		throw new AbstractTextFilterer.FailedHttpRequestException(
+				responseCode + " " + connection.getResponseMessage()
+		);
+	}
+
 	protected abstract void addAuthentication(HttpURLConnection connection);
 
 	protected int getReadTimeout() {
-		return 2000;
+		return READ_TIMEOUT_MS;
 	}
 
-	/**
-	 * Открывает connection.
-	 *
-	 * @param url url
-	 *
-	 * @return HttpURLConnection — результат операции
-	 */
-	protected HttpURLConnection openConnection(URL url) throws IOException {
-		HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
-		httpURLConnection.setConnectTimeout(15000);
-		httpURLConnection.setReadTimeout(this.getReadTimeout());
-		httpURLConnection.setUseCaches(false);
-		httpURLConnection.setDoOutput(true);
-		httpURLConnection.setDoInput(true);
-		httpURLConnection.setRequestMethod("POST");
-		httpURLConnection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-		httpURLConnection.setRequestProperty("Accept", "application/json");
-		httpURLConnection.setRequestProperty(
+	protected HttpURLConnection openConnection(URL endpoint) throws IOException {
+		HttpURLConnection connection = (HttpURLConnection) endpoint.openConnection();
+		connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+		connection.setReadTimeout(getReadTimeout());
+		connection.setUseCaches(false);
+		connection.setDoOutput(true);
+		connection.setDoInput(true);
+		connection.setRequestMethod("POST");
+		connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+		connection.setRequestProperty("Accept", "application/json");
+		connection.setRequestProperty(
 				"User-Agent",
 				"Minecraft server" + SharedConstants.getGameVersion().name()
 		);
-		return httpURLConnection;
+		return connection;
 	}
 
-	/**
-	 * Создаёт filterer.
-	 *
-	 * @param profile profile
-	 *
-	 * @return TextStream — результат операции
-	 */
 	public TextStream createFilterer(GameProfile profile) {
 		return new AbstractTextFilterer.StreamImpl(profile);
 	}
 
-	/**
-	 * {@code FailedHttpRequestException}.
-	 */
 	protected static class FailedHttpRequestException extends RuntimeException {
 
 		protected FailedHttpRequestException(String message) {
@@ -306,10 +250,11 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code HashIgnorer}.
+	 * Стратегия игнорирования хэш-меток при фильтрации.
+	 * Позволяет настраивать порог количества хэшей, при котором сообщение считается полностью отфильтрованным.
 	 */
+	@FunctionalInterface
 	public interface HashIgnorer {
 
 		AbstractTextFilterer.HashIgnorer NEVER_IGNORE = (hashes, hashesSize) -> false;
@@ -331,17 +276,18 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		boolean shouldIgnore(String hashes, int hashesSize);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code MessageEncoder}.
+	 * Кодирует профиль игрока и текст сообщения в JSON-тело запроса к API фильтрации.
 	 */
+	@FunctionalInterface
 	protected interface MessageEncoder {
 
 		JsonObject encode(GameProfile gameProfile, String message);
 	}
 
 	/**
-	 * {@code StreamImpl}.
+	 * Реализация {@link TextStream} для конкретного игрока, направляющая запросы
+	 * через последовательный исполнитель для сохранения порядка сообщений.
 	 */
 	protected class StreamImpl implements TextStream {
 
@@ -350,23 +296,25 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 
 		protected StreamImpl(final GameProfile gameProfile) {
 			this.gameProfile = gameProfile;
-			SimpleConsecutiveExecutor simpleConsecutiveExecutor = new SimpleConsecutiveExecutor(
+			SimpleConsecutiveExecutor consecutiveExecutor = new SimpleConsecutiveExecutor(
 					AbstractTextFilterer.this.threadPool, "chat stream for " + gameProfile.name()
 			);
-			this.executor = simpleConsecutiveExecutor::send;
+			this.executor = consecutiveExecutor::send;
 		}
 
 		@Override
 		public CompletableFuture<List<FilteredMessage>> filterTexts(List<String> texts) {
-			List<CompletableFuture<FilteredMessage>> list = texts.stream()
-			                                                     .map(text -> AbstractTextFilterer.this.filter(
-					                                                     this.gameProfile,
-					                                                     text,
-					                                                     AbstractTextFilterer.this.hashIgnorer,
-					                                                     this.executor
-			                                                     ))
-			                                                     .collect(ImmutableList.toImmutableList());
-			return Util.combine(list).exceptionally(throwable -> ImmutableList.of());
+			List<CompletableFuture<FilteredMessage>> futures = texts
+					.stream()
+					.map(text -> AbstractTextFilterer.this.filter(
+							this.gameProfile,
+							text,
+							AbstractTextFilterer.this.hashIgnorer,
+							this.executor
+					))
+					.collect(ImmutableList.toImmutableList());
+
+			return Util.combine(futures).exceptionally(throwable -> ImmutableList.of());
 		}
 
 		@Override

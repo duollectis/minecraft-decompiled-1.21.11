@@ -27,21 +27,18 @@ import net.minecraft.world.chunk.ChunkLoadMap;
 import net.minecraft.world.chunk.ChunkStatus;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LevelLoadingScreen}.
+ * Экран загрузки уровня, отображающий прогресс загрузки чанков в виде цветной карты.
+ * Поддерживает три режима фона: портал в Нижний мир, портал в Край и стандартная панорама.
  */
+@Environment(EnvType.CLIENT)
 public class LevelLoadingScreen extends Screen {
 
 	private static final Text DOWNLOADING_TERRAIN_TEXT = Text.translatable("multiplayer.downloadingTerrain");
 	private static final Text READY_TO_PLAY_MESSAGE = Text.translatable("narrator.ready_to_play");
 	private static final long NARRATION_DELAY = 2000L;
 	private static final int PROGRESS_BAR_WIDTH = 200;
-	private ClientChunkLoadProgress chunkLoadProgress;
-	private float loadProgress;
-	private long lastNarrationTime = -1L;
-	private LevelLoadingScreen.WorldEntryReason reason;
-	private @Nullable Sprite netherPortalSprite;
+	private static final float PROGRESS_SMOOTHING = 0.2F;
 	private static final Object2IntMap<ChunkStatus> STATUS_TO_COLOR = Util.make(
 			new Object2IntOpenHashMap(), map -> {
 				map.defaultReturnValue(0);
@@ -60,18 +57,18 @@ public class LevelLoadingScreen extends Screen {
 			}
 	);
 
+	private ClientChunkLoadProgress chunkLoadProgress;
+	private float loadProgress;
+	private long lastNarrationTime = -1L;
+	private LevelLoadingScreen.WorldEntryReason reason;
+	private @Nullable Sprite netherPortalSprite;
+
 	public LevelLoadingScreen(ClientChunkLoadProgress progressProvider, LevelLoadingScreen.WorldEntryReason reason) {
 		super(NarratorManager.EMPTY);
 		this.chunkLoadProgress = progressProvider;
 		this.reason = reason;
 	}
 
-	/**
-	 * Init.
-	 *
-	 * @param chunkLoadProgress chunk load progress
-	 * @param reason reason
-	 */
 	public void init(ClientChunkLoadProgress chunkLoadProgress, LevelLoadingScreen.WorldEntryReason reason) {
 		this.chunkLoadProgress = chunkLoadProgress;
 		this.reason = reason;
@@ -89,12 +86,12 @@ public class LevelLoadingScreen extends Screen {
 
 	@Override
 	protected void addElementNarrations(NarrationMessageBuilder builder) {
-		if (this.chunkLoadProgress.hasProgress()) {
+		if (chunkLoadProgress.hasProgress()) {
 			builder.put(
 					NarrationPart.TITLE,
 					Text.translatable(
 							"loading.progress",
-							MathHelper.floor(this.chunkLoadProgress.getLoadProgress() * 100.0F)
+							MathHelper.floor(chunkLoadProgress.getLoadProgress() * 100.0F)
 					)
 			);
 		}
@@ -103,42 +100,48 @@ public class LevelLoadingScreen extends Screen {
 	@Override
 	public void tick() {
 		super.tick();
-		this.loadProgress = this.loadProgress + (this.chunkLoadProgress.getLoadProgress() - this.loadProgress) * 0.2F;
+		loadProgress = loadProgress + (chunkLoadProgress.getLoadProgress() - loadProgress) * PROGRESS_SMOOTHING;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		long l = Util.getMeasuringTimeMs();
-		if (l - this.lastNarrationTime > 2000L) {
-			this.lastNarrationTime = l;
-			this.narrateScreenIfNarrationEnabled(true);
+
+		long currentTime = Util.getMeasuringTimeMs();
+		if (currentTime - lastNarrationTime > NARRATION_DELAY) {
+			lastNarrationTime = currentTime;
+			narrateScreenIfNarrationEnabled(true);
 		}
 
-		int i = this.width / 2;
-		int j = this.height / 2;
-		ChunkLoadMap chunkLoadMap = this.chunkLoadProgress.getChunkLoadMap();
-		int m;
+		int centerX = width / 2;
+		int centerY = height / 2;
+		ChunkLoadMap chunkLoadMap = chunkLoadProgress.getChunkLoadMap();
+		int textY;
+
 		if (chunkLoadMap != null) {
-			int k = 2;
-			drawChunkMap(context, i, j, 2, 0, chunkLoadMap);
-			m = j - chunkLoadMap.getRadius() * 2 - 9 * 3;
+			drawChunkMap(context, centerX, centerY, 2, 0, chunkLoadMap);
+			textY = centerY - chunkLoadMap.getRadius() * 2 - 9 * 3;
 		}
 		else {
-			m = j - 50;
+			textY = centerY - 50;
 		}
 
-		context.drawCenteredTextWithShadow(this.textRenderer, DOWNLOADING_TERRAIN_TEXT, i, m, -1);
-		if (this.chunkLoadProgress.hasProgress()) {
-			this.drawLoadingBar(context, i - 100, m + 9 + 3, 200, 2, this.loadProgress);
+		context.drawCenteredTextWithShadow(textRenderer, DOWNLOADING_TERRAIN_TEXT, centerX, textY, -1);
+
+		if (chunkLoadProgress.hasProgress()) {
+			drawLoadingBar(context, centerX - 100, textY + 9 + 3, PROGRESS_BAR_WIDTH, 2, loadProgress);
 		}
 	}
 
-	private void drawLoadingBar(DrawContext context, int x1, int y1, int width, int height, float delta) {
-		context.fill(x1, y1, x1 + width, y1 + height, -16777216);
-		context.fill(x1, y1, x1 + Math.round(delta * width), y1 + height, -16711936);
+	private void drawLoadingBar(DrawContext context, int x1, int y1, int barWidth, int barHeight, float progress) {
+		context.fill(x1, y1, x1 + barWidth, y1 + barHeight, -16777216);
+		context.fill(x1, y1, x1 + Math.round(progress * barWidth), y1 + barHeight, -16711936);
 	}
 
+	/**
+	 * Отрисовывает карту загрузки чанков в виде цветной сетки.
+	 * Каждый чанк окрашивается в цвет, соответствующий его статусу генерации.
+	 */
 	public static void drawChunkMap(
 			DrawContext context,
 			int centerX,
@@ -147,27 +150,28 @@ public class LevelLoadingScreen extends Screen {
 			int chunkGap,
 			ChunkLoadMap map
 	) {
-		int i = chunkLength + chunkGap;
-		int j = map.getRadius() * 2 + 1;
-		int k = j * i - chunkGap;
-		int l = centerX - k / 2;
-		int m = centerY - k / 2;
+		int step = chunkLength + chunkGap;
+		int diameter = map.getRadius() * 2 + 1;
+		int gridSize = diameter * step - chunkGap;
+		int originX = centerX - gridSize / 2;
+		int originY = centerY - gridSize / 2;
+
 		if (MinecraftClient.getInstance().debugHudEntryList.isEntryVisible(DebugHudEntries.VISUALIZE_CHUNKS_ON_SERVER)) {
-			int n = i / 2 + 1;
-			context.fill(centerX - n, centerY - n, centerX + n, centerY + n, -65536);
+			int crossSize = step / 2 + 1;
+			context.fill(centerX - crossSize, centerY - crossSize, centerX + crossSize, centerY + crossSize, -65536);
 		}
 
-		for (int n = 0; n < j; n++) {
-			for (int o = 0; o < j; o++) {
-				ChunkStatus chunkStatus = map.getStatus(n, o);
-				int p = l + n * i;
-				int q = m + o * i;
+		for (int col = 0; col < diameter; col++) {
+			for (int row = 0; row < diameter; row++) {
+				ChunkStatus status = map.getStatus(col, row);
+				int chunkX = originX + col * step;
+				int chunkY = originY + row * step;
 				context.fill(
-						p,
-						q,
-						p + chunkLength,
-						q + chunkLength,
-						ColorHelper.fullAlpha(STATUS_TO_COLOR.getInt(chunkStatus))
+						chunkX,
+						chunkY,
+						chunkX + chunkLength,
+						chunkY + chunkLength,
+						ColorHelper.fullAlpha(STATUS_TO_COLOR.getInt(status))
 				);
 			}
 		}
@@ -175,57 +179,51 @@ public class LevelLoadingScreen extends Screen {
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		switch (this.reason) {
-			case NETHER_PORTAL:
-				context.drawSpriteStretched(
-						RenderPipelines.GUI_OPAQUE_TEX_BG,
-						this.getNetherPortalSprite(),
-						0,
-						0,
-						context.getScaledWindowWidth(),
-						context.getScaledWindowHeight()
-				);
-				break;
-			case END_PORTAL:
+		switch (reason) {
+			case NETHER_PORTAL -> context.drawSpriteStretched(
+					RenderPipelines.GUI_OPAQUE_TEX_BG,
+					getNetherPortalSprite(),
+					0,
+					0,
+					context.getScaledWindowWidth(),
+					context.getScaledWindowHeight()
+			);
+			case END_PORTAL -> {
 				TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
-				AbstractTexture
-						abstractTexture =
-						textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.SKY_TEXTURE);
-				AbstractTexture
-						abstractTexture2 =
-						textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.PORTAL_TEXTURE);
+				AbstractTexture skyTexture = textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.SKY_TEXTURE);
+				AbstractTexture portalTexture = textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.PORTAL_TEXTURE);
 				TextureSetup textureSetup = TextureSetup.of(
-						abstractTexture.getGlTextureView(),
-						abstractTexture.getSampler(),
-						abstractTexture2.getGlTextureView(),
-						abstractTexture2.getSampler()
+						skyTexture.getGlTextureView(),
+						skyTexture.getSampler(),
+						portalTexture.getGlTextureView(),
+						portalTexture.getSampler()
 				);
-				context.fill(RenderPipelines.END_PORTAL, textureSetup, 0, 0, this.width, this.height);
-				break;
-			case OTHER:
-				this.renderPanoramaBackground(context, deltaTicks);
-				this.applyBlur(context);
-				this.renderDarkening(context);
+				context.fill(RenderPipelines.END_PORTAL, textureSetup, 0, 0, width, height);
+			}
+			case OTHER -> {
+				renderPanoramaBackground(context, deltaTicks);
+				applyBlur(context);
+				renderDarkening(context);
+			}
 		}
 	}
 
 	private Sprite getNetherPortalSprite() {
-		if (this.netherPortalSprite != null) {
-			return this.netherPortalSprite;
+		if (netherPortalSprite != null) {
+			return netherPortalSprite;
 		}
-		else {
-			this.netherPortalSprite =
-					this.client
-							.getBlockRenderManager()
-							.getModels()
-							.getModelParticleSprite(Blocks.NETHER_PORTAL.getDefaultState());
-			return this.netherPortalSprite;
-		}
+
+		netherPortalSprite = client
+				.getBlockRenderManager()
+				.getModels()
+				.getModelParticleSprite(Blocks.NETHER_PORTAL.getDefaultState());
+
+		return netherPortalSprite;
 	}
 
 	@Override
 	public void close() {
-		this.client.getNarratorManager().narrateSystemImmediately(READY_TO_PLAY_MESSAGE);
+		client.getNarratorManager().narrateSystemImmediately(READY_TO_PLAY_MESSAGE);
 		super.close();
 	}
 
@@ -234,13 +232,13 @@ public class LevelLoadingScreen extends Screen {
 		return false;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code WorldEntryReason}.
+	 * Причина входа в мир, определяющая тип фонового экрана загрузки.
 	 */
-	public static enum WorldEntryReason {
+	@Environment(EnvType.CLIENT)
+	public enum WorldEntryReason {
 		NETHER_PORTAL,
 		END_PORTAL,
-		OTHER;
+		OTHER
 	}
 }

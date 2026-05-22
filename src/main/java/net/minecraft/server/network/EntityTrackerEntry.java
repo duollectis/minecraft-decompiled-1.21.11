@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code EntityTrackerEntry}.
+ * Класс Entity Tracker Entry.
  */
 public class EntityTrackerEntry {
 
@@ -78,9 +78,6 @@ public class EntityTrackerEntry {
 		this.changedEntries = entity.getDataTracker().getChangedEntries();
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		this.entity.beforePacketsSent();
 		List<Entity> list = this.entity.getPassengerList();
@@ -143,7 +140,7 @@ public class EntityTrackerEntry {
 				Vec3d vec3d = this.entity.getSyncedPos();
 				boolean bl2 = this.trackedPos.subtract(vec3d).lengthSquared() >= 7.6293945E-6F;
 				Packet<ClientPlayPacketListener> packet2 = null;
-				boolean bl3 = bl2 || this.trackingTick % 60 == 0;
+				boolean bl3 = bl2 || this.trackingTick % FORCED_TELEPORT_INTERVAL == 0;
 				boolean bl4 = false;
 				boolean bl5 = false;
 				long l = this.trackedPos.getDeltaX(vec3d);
@@ -152,7 +149,7 @@ public class EntityTrackerEntry {
 				boolean bl6 = l < -32768L || l > 32767L || m < -32768L || m > 32767L || n < -32768L || n > 32767L;
 				if (this.entity.shouldAlwaysSyncAbsolute()
 						|| bl6
-						|| this.updatesWithoutVehicle > 400
+						|| this.updatesWithoutVehicle > VEHICLE_UPDATES_BEFORE_TELEPORT
 						|| this.hadVehicle
 						|| this.lastOnGround != this.entity.isOnGround()) {
 					this.lastOnGround = this.entity.isOnGround();
@@ -270,7 +267,7 @@ public class EntityTrackerEntry {
 			double d = vec3d.squaredDistanceTo(this.velocity);
 			Vec3d vec3d2 = this.entity.getSyncedPos();
 			boolean bl = this.trackedPos.subtract(vec3d2).lengthSquared() >= 7.6293945E-6F;
-			boolean bl2 = bl || this.trackingTick % 60 == 0;
+			boolean bl2 = bl || this.trackingTick % FORCED_TELEPORT_INTERVAL == 0;
 			if (bl2 || changedAngles || d > 1.0E-7) {
 				this.packetSender
 						.sendToListeners(
@@ -430,9 +427,6 @@ public class EntityTrackerEntry {
 		}
 	}
 
-	/**
-	 * {@code TrackerPacketSender}.
-	 */
 	public interface TrackerPacketSender {
 
 		void sendToListeners(Packet<? super ClientPlayPacketListener> packet);

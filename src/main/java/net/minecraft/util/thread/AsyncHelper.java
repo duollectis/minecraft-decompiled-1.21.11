@@ -12,111 +12,118 @@ import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
 /**
- * {@code AsyncHelper}.
+ * Утилитарный класс для параллельного преобразования значений карты с помощью {@link CompletableFuture}.
+ * Автоматически выбирает стратегию батчинга: одиночные задачи на каждый элемент ({@link Single})
+ * или сгруппированные пакеты ({@link Batch}), исходя из размера входных данных и {@code batchSize}.
  */
 public class AsyncHelper {
 
 	private static final int MAX_TASKS = 16;
 
+	/**
+	 * Асинхронно применяет {@code function} к каждой паре ключ-значение карты {@code futures},
+	 * разбивая работу на пакеты размером не более {@code batchSize} элементов.
+	 * Элементы, для которых функция вернула {@code null}, исключаются из результата.
+	 */
 	public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(
-			Map<K, U> futures,
-			BiFunction<K, U, @Nullable V> function,
-			int batchSize,
-			Executor executor
+		Map<K, U> futures,
+		BiFunction<K, U, @Nullable V> function,
+		int batchSize,
+		Executor executor
 	) {
-		int i = futures.size();
-		if (i == 0) {
+		int size = futures.size();
+
+		if (size == 0) {
 			return CompletableFuture.completedFuture(Map.of());
 		}
-		else if (i == 1) {
-			Entry<K, U> entry = futures.entrySet().iterator().next();
-			K object = entry.getKey();
-			U object2 = entry.getValue();
-			return CompletableFuture.supplyAsync(
-					() -> {
-						V object3 = function.apply(object, object2);
-						return object3 != null ? Map.of(object, object3) : Map.of();
-					}, executor
-			);
-		}
-		else {
-			AsyncHelper.Batcher<K, U, V> batcher = (AsyncHelper.Batcher<K, U, V>) (i <= batchSize
-			                                                                       ? new AsyncHelper.Single<>(
-					function,
-					i
-			)
-			                                                                       : new AsyncHelper.Batch<>(
-					                                                                       function,
-					                                                                       i,
-					                                                                       batchSize
-			                                                                       )
-			);
-			return batcher.mapAsync(futures, executor);
-		}
-	}
 
-	public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(
-			Map<K, U> futures,
-			BiFunction<K, U, @Nullable V> function,
-			Executor executor
-	) {
-		int i = Util.getAvailableBackgroundThreads() * 16;
-		return mapValues(futures, function, i, executor);
+		if (size == 1) {
+			Entry<K, U> entry = futures.entrySet().iterator().next();
+			K key = entry.getKey();
+			U value = entry.getValue();
+
+			return CompletableFuture.supplyAsync(
+				() -> {
+					V result = function.apply(key, value);
+					return result != null ? Map.of(key, result) : Map.of();
+				},
+				executor
+			);
+		}
+
+		Batcher<K, U, V> batcher = size <= batchSize
+			? new Single<>(function, size)
+			: new Batch<>(function, size, batchSize);
+
+		return batcher.mapAsync(futures, executor);
 	}
 
 	/**
-	 * {@code Batch}.
+	 * Перегрузка с автоматическим вычислением {@code batchSize} на основе числа доступных потоков.
 	 */
-	static class Batch<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
+	public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(
+		Map<K, U> futures,
+		BiFunction<K, U, @Nullable V> function,
+		Executor executor
+	) {
+		int batchSize = Util.getAvailableBackgroundThreads() * MAX_TASKS;
+		return mapValues(futures, function, batchSize, executor);
+	}
+
+	/**
+	 * Стратегия батчинга: несколько элементов в одной задаче.
+	 * Используется, когда размер входных данных превышает {@code batchSize}.
+	 */
+	static class Batch<K, U, V> extends Batcher<K, U, V> {
 
 		private final Map<K, V> entries;
 		private final int size;
 		private final int start;
 
-		Batch(BiFunction<K, U, V> biFunction, int i, int j) {
-			super(biFunction, i, j);
-			this.entries = new HashMap<>(i);
-			this.size = MathHelper.ceilDiv(i, j);
-			int k = this.size * j;
-			int l = k - i;
-			this.start = j - l;
+		Batch(BiFunction<K, U, V> biFunction, int totalSize, int batchSize) {
+			super(biFunction, totalSize, batchSize);
+			entries = new HashMap<>(totalSize);
+			size = MathHelper.ceilDiv(totalSize, batchSize);
+			int paddedTotal = size * batchSize;
+			int padding = paddedTotal - totalSize;
+			start = batchSize - padding;
 
-			assert this.start > 0 && this.start <= j;
+			assert start > 0 && start <= batchSize;
 		}
 
 		@Override
 		protected CompletableFuture<?> newBatch(
-				AsyncHelper.Future<K, U, V> futures,
-				int size,
-				int maxCount,
-				Executor executor
+			Future<K, U, V> futures,
+			int from,
+			int to,
+			Executor executor
 		) {
-			int i = maxCount - size;
+			int batchLen = to - from;
 
-			assert i == this.size || i == this.size - 1;
+			assert batchLen == size || batchLen == size - 1;
 
-			return CompletableFuture.runAsync(newTask(this.entries, size, maxCount, futures), executor);
+			return CompletableFuture.runAsync(newTask(entries, from, to, futures), executor);
 		}
 
 		@Override
 		protected int getLastIndex(int batch) {
-			return batch < this.start ? this.size : this.size - 1;
+			return batch < start ? size : size - 1;
 		}
 
 		private static <K, U, V> Runnable newTask(
-				Map<K, V> futures,
-				int size,
-				int maxCount,
-				AsyncHelper.Future<K, U, V> entry
+			Map<K, V> results,
+			int from,
+			int to,
+			Future<K, U, V> entry
 		) {
 			return () -> {
-				for (int k = size; k < maxCount; k++) {
-					entry.apply(k);
+				for (int i = from; i < to; i++) {
+					entry.apply(i);
 				}
 
-				synchronized (futures) {
-					for (int l = size; l < maxCount; l++) {
-						entry.copy(l, futures);
+				synchronized (results) {
+					for (int i = from; i < to; i++) {
+						entry.copy(i, results);
 					}
 				}
 			};
@@ -124,16 +131,16 @@ public class AsyncHelper {
 
 		@Override
 		protected CompletableFuture<Map<K, V>> addLastTask(
-				CompletableFuture<?> future,
-				AsyncHelper.Future<K, U, V> entry
+			CompletableFuture<?> future,
+			Future<K, U, V> entry
 		) {
-			Map<K, V> map = this.entries;
-			return future.thenApply(obj -> map);
+			return future.thenApply(obj -> entries);
 		}
 	}
 
 	/**
-	 * {@code Batcher}.
+	 * Базовый класс стратегии батчинга. Управляет разбивкой входной карты на задачи
+	 * и сборкой результатов через {@link CompletableFuture#allOf}.
 	 */
 	abstract static class Batcher<K, U, V> {
 
@@ -141,60 +148,56 @@ public class AsyncHelper {
 		private int index;
 		private final CompletableFuture<?>[] futures;
 		private int batch;
-		private final AsyncHelper.Future<K, U, V> entry;
+		private final Future<K, U, V> entry;
 
 		Batcher(BiFunction<K, U, V> function, int size, int startAt) {
-			this.entry = new AsyncHelper.Future<>(function, size);
-			this.futures = new CompletableFuture[startAt];
+			entry = new Future<>(function, size);
+			futures = new CompletableFuture[startAt];
 		}
 
 		private int nextSize() {
-			return this.index - this.lastBatch;
+			return index - lastBatch;
 		}
 
 		/**
-		 * Map async.
-		 *
-		 * @param future future
-		 * @param executor executor
-		 *
-		 * @return CompletableFuture> — результат операции
+		 * Асинхронно обрабатывает все записи карты, разбивая их на пакеты,
+		 * и возвращает {@link CompletableFuture} с итоговой картой результатов.
 		 */
-		public CompletableFuture<Map<K, V>> mapAsync(Map<K, U> future, Executor executor) {
-			future.forEach((key, value) -> {
-				this.entry.put(this.index++, (K) key, (U) value);
-				if (this.nextSize() == this.getLastIndex(this.batch)) {
-					this.futures[this.batch++] = this.newBatch(this.entry, this.lastBatch, this.index, executor);
-					this.lastBatch = this.index;
+		public CompletableFuture<Map<K, V>> mapAsync(Map<K, U> map, Executor executor) {
+			map.forEach((key, value) -> {
+				entry.put(index++, (K) key, (U) value);
+
+				if (nextSize() == getLastIndex(batch)) {
+					futures[batch++] = newBatch(entry, lastBatch, index, executor);
+					lastBatch = index;
 				}
 			});
 
-			assert this.index == this.entry.keySize();
+			assert index == entry.keySize();
+			assert lastBatch == index;
+			assert batch == futures.length;
 
-			assert this.lastBatch == this.index;
-
-			assert this.batch == this.futures.length;
-
-			return this.addLastTask(CompletableFuture.allOf(this.futures), this.entry);
+			return addLastTask(CompletableFuture.allOf(futures), entry);
 		}
 
 		protected abstract int getLastIndex(int batch);
 
 		protected abstract CompletableFuture<?> newBatch(
-				AsyncHelper.Future<K, U, V> futures,
-				int size,
-				int maxCount,
-				Executor executor
+			Future<K, U, V> futures,
+			int from,
+			int to,
+			Executor executor
 		);
 
 		protected abstract CompletableFuture<Map<K, V>> addLastTask(
-				CompletableFuture<?> future,
-				AsyncHelper.Future<K, U, V> entry
+			CompletableFuture<?> future,
+			Future<K, U, V> entry
 		);
 	}
 
 	/**
-	 * {@code Future}.
+	 * Контейнер для хранения ключей, входных значений и вычисленных результатов
+	 * в виде параллельных массивов. Используется внутри {@link Batcher}.
 	 */
 	record Future<K, U, V>(BiFunction<K, U, V> operation, @Nullable Object[] keys, @Nullable Object[] values) {
 
@@ -202,67 +205,47 @@ public class AsyncHelper {
 			this(function, new Object[size], new Object[size]);
 		}
 
-		/**
-		 * Put.
-		 *
-		 * @param index index
-		 * @param key key
-		 * @param value value
-		 */
 		public void put(int index, K key, U value) {
-			this.keys[index] = key;
-			this.values[index] = value;
+			keys[index] = key;
+			values[index] = value;
 		}
 
 		private @Nullable K getKey(int index) {
-			return (K) this.keys[index];
+			return (K) keys[index];
 		}
 
 		private @Nullable V getValue(int index) {
-			return (V) this.values[index];
+			return (V) values[index];
 		}
 
 		private @Nullable U getUValue(int index) {
-			return (U) this.values[index];
+			return (U) values[index];
 		}
 
-		/**
-		 * Apply.
-		 *
-		 * @param index index
-		 */
 		public void apply(int index) {
-			this.values[index] = this.operation.apply(this.getKey(index), this.getUValue(index));
+			values[index] = operation.apply(getKey(index), getUValue(index));
 		}
 
-		/**
-		 * Copy.
-		 *
-		 * @param index index
-		 * @param futures futures
-		 */
-		public void copy(int index, Map<K, V> futures) {
-			V object = this.getValue(index);
-			if (object != null) {
-				K object2 = this.getKey(index);
-				futures.put(object2, object);
+		public void copy(int index, Map<K, V> results) {
+			V value = getValue(index);
+
+			if (value == null) {
+				return;
 			}
+
+			results.put(getKey(index), value);
 		}
 
-		/**
-		 * Key size.
-		 *
-		 * @return int — результат операции
-		 */
 		public int keySize() {
-			return this.keys.length;
+			return keys.length;
 		}
 	}
 
 	/**
-	 * {@code Single}.
+	 * Стратегия батчинга: одна задача на каждый элемент.
+	 * Используется, когда размер входных данных не превышает {@code batchSize}.
 	 */
-	static class Single<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
+	static class Single<K, U, V> extends Batcher<K, U, V> {
 
 		Single(BiFunction<K, U, V> function, int size) {
 			super(function, size, size);
@@ -275,20 +258,20 @@ public class AsyncHelper {
 
 		@Override
 		protected CompletableFuture<?> newBatch(
-				AsyncHelper.Future<K, U, V> futures,
-				int size,
-				int maxCount,
-				Executor executor
+			Future<K, U, V> futures,
+			int from,
+			int to,
+			Executor executor
 		) {
-			assert size + 1 == maxCount;
+			assert from + 1 == to;
 
-			return CompletableFuture.runAsync(() -> futures.apply(size), executor);
+			return CompletableFuture.runAsync(() -> futures.apply(from), executor);
 		}
 
 		@Override
 		protected CompletableFuture<Map<K, V>> addLastTask(
-				CompletableFuture<?> future,
-				AsyncHelper.Future<K, U, V> entry
+			CompletableFuture<?> future,
+			Future<K, U, V> entry
 		) {
 			return future.thenApply(obj -> {
 				Map<K, V> map = new HashMap<>(entry.keySize());

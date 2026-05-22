@@ -7,13 +7,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code PlacedAdvancement}.
+ * Узел дерева достижений, хранящий ссылку на родителя и дочерние узлы.
+ * Используется {@link AdvancementManager} для построения иерархии достижений.
  */
 public class PlacedAdvancement {
 
 	private final AdvancementEntry advancementEntry;
 	private final @Nullable PlacedAdvancement parent;
-	private final Set<PlacedAdvancement> children = new ReferenceOpenHashSet();
+	private final Set<PlacedAdvancement> children = new ReferenceOpenHashSet<>();
 
 	@VisibleForTesting
 	public PlacedAdvancement(AdvancementEntry advancementEntry, @Nullable PlacedAdvancement parent) {
@@ -22,56 +23,65 @@ public class PlacedAdvancement {
 	}
 
 	public Advancement getAdvancement() {
-		return this.advancementEntry.value();
+		return advancementEntry.value();
 	}
 
 	public AdvancementEntry getAdvancementEntry() {
-		return this.advancementEntry;
+		return advancementEntry;
 	}
 
 	public @Nullable PlacedAdvancement getParent() {
-		return this.parent;
+		return parent;
 	}
 
 	public PlacedAdvancement getRoot() {
 		return findRoot(this);
 	}
 
+	/**
+	 * Поднимается по цепочке родителей до корневого узла дерева достижений.
+	 *
+	 * @param advancement начальный узел для поиска
+	 * @return корневой узел дерева
+	 */
 	public static PlacedAdvancement findRoot(PlacedAdvancement advancement) {
-		PlacedAdvancement placedAdvancement = advancement;
+		PlacedAdvancement current = advancement;
 
 		while (true) {
-			PlacedAdvancement placedAdvancement2 = placedAdvancement.getParent();
-			if (placedAdvancement2 == null) {
-				return placedAdvancement;
+			PlacedAdvancement parentNode = current.getParent();
+			if (parentNode == null) {
+				return current;
 			}
 
-			placedAdvancement = placedAdvancement2;
+			current = parentNode;
 		}
 	}
 
 	public Iterable<PlacedAdvancement> getChildren() {
-		return this.children;
+		return children;
 	}
 
 	@VisibleForTesting
 	public void addChild(PlacedAdvancement advancement) {
-		this.children.add(advancement);
+		children.add(advancement);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof PlacedAdvancement placedAdvancement && this.advancementEntry.equals(
-				placedAdvancement.advancementEntry);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof PlacedAdvancement other && advancementEntry.equals(other.advancementEntry);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.advancementEntry.hashCode();
+		return advancementEntry.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.advancementEntry.id().toString();
+		return advancementEntry.id().toString();
 	}
 }

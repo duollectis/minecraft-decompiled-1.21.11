@@ -6,10 +6,24 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NoPenaltySolidTargeting}.
+ * Утилита поиска позиции над твёрдой поверхностью без штрафов пути.
+ * В отличие от {@link NoPenaltyTargeting}, не проверяет валидность навигации,
+ * но поднимает позицию над твёрдыми блоками.
  */
 public class NoPenaltySolidTargeting {
 
+	/**
+	 * Ищет позицию над твёрдой поверхностью в заданном направлении без штрафов пути.
+	 *
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус поиска
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param startHeight начальное смещение по Y
+	 * @param directionX X-компонента вектора направления
+	 * @param directionZ Z-компонента вектора направления
+	 * @param rangeAngle угол разброса в радианах
+	 * @return лучшая найденная позиция или {@code null}
+	 */
 	public static @Nullable Vec3d find(
 			PathAwareEntity entity,
 			int horizontalRange,
@@ -19,7 +33,8 @@ public class NoPenaltySolidTargeting {
 			double directionZ,
 			double rangeAngle
 	) {
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+
 		return FuzzyPositions.guessBestPathTarget(
 				entity,
 				() -> tryMake(
@@ -30,11 +45,15 @@ public class NoPenaltySolidTargeting {
 						directionX,
 						directionZ,
 						rangeAngle,
-						bl
+						posTargetInRange
 				)
 		);
 	}
 
+	/**
+	 * Генерирует одного кандидата позиции над твёрдой поверхностью.
+	 * Возвращает {@code null}, если позиция невалидна по высоте, вне зоны цели или имеет штраф пути.
+	 */
 	public static @Nullable BlockPos tryMake(
 			PathAwareEntity entity,
 			int horizontalRange,
@@ -45,36 +64,34 @@ public class NoPenaltySolidTargeting {
 			double rangeAngle,
 			boolean posTargetInRange
 	) {
-		BlockPos
-				blockPos =
-				FuzzyPositions.localFuzz(
-						entity.getRandom(),
-						0.0,
-						horizontalRange,
-						verticalRange,
-						startHeight,
-						directionX,
-						directionZ,
-						rangeAngle
-				);
-		if (blockPos == null) {
+		BlockPos fuzzPos = FuzzyPositions.localFuzz(
+				entity.getRandom(),
+				0.0,
+				horizontalRange,
+				verticalRange,
+				startHeight,
+				directionX,
+				directionZ,
+				rangeAngle
+		);
+
+		if (fuzzPos == null) {
 			return null;
 		}
-		else {
-			BlockPos blockPos2 = FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), blockPos);
-			if (!NavigationConditions.isHeightInvalid(blockPos2, entity)
-					&& !NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, blockPos2)) {
-				blockPos2 =
-						FuzzyPositions.upWhile(
-								blockPos2,
-								entity.getEntityWorld().getTopYInclusive(),
-								pos -> NavigationConditions.isSolidAt(entity, pos)
-						);
-				return NavigationConditions.hasPathfindingPenalty(entity, blockPos2) ? null : blockPos2;
-			}
-			else {
-				return null;
-			}
+
+		BlockPos targetPos = FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), fuzzPos);
+
+		if (NavigationConditions.isHeightInvalid(targetPos, entity)
+				|| NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, targetPos)) {
+			return null;
 		}
+
+		BlockPos elevated = FuzzyPositions.upWhile(
+				targetPos,
+				entity.getEntityWorld().getTopYInclusive(),
+				pos -> NavigationConditions.isSolidAt(entity, pos)
+		);
+
+		return NavigationConditions.hasPathfindingPenalty(entity, elevated) ? null : elevated;
 	}
 }

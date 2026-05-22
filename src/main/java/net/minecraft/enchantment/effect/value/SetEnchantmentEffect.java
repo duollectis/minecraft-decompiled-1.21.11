@@ -7,23 +7,25 @@ import net.minecraft.enchantment.effect.EnchantmentValueEffect;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code SetEnchantmentEffect}.
+ * Эффект зачарования, полностью заменяющий входное значение на величину,
+ * зависящую от уровня зачарования (входное значение игнорируется).
  */
 public record SetEnchantmentEffect(EnchantmentLevelBasedValue value) implements EnchantmentValueEffect {
 
 	public static final MapCodec<SetEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(EnchantmentLevelBasedValue.CODEC.fieldOf("value").forGetter(SetEnchantmentEffect::value))
-					.apply(instance, SetEnchantmentEffect::new)
+		instance -> instance
+			.group(EnchantmentLevelBasedValue.CODEC.fieldOf("value").forGetter(SetEnchantmentEffect::value))
+			.apply(instance, SetEnchantmentEffect::new)
 	);
 
 	@Override
 	public float apply(int level, Random random, float inputValue) {
-		return this.value.getValue(level);
+		return value.getValue(level);
 	}
 
 	@Override
 	public MapCodec<SetEnchantmentEffect> getCodec() {
 		return CODEC;
 	}
+
 }

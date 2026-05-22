@@ -3,7 +3,8 @@ package net.minecraft.util;
 import net.minecraft.text.Text;
 
 /**
- * {@code ProgressListener}.
+ * Слушатель прогресса длительных операций (загрузка мира, перезагрузка ресурсов и т.д.).
+ * Используется для обновления экрана загрузки на клиенте.
  */
 public interface ProgressListener {
 

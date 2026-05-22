@@ -11,37 +11,46 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code RawFilteredPair}.
+ * Пара значений: исходное (raw) и опционально отфильтрованное (filtered).
+ *
+ * <p>Используется для передачи сообщений через систему фильтрации чата.
+ * Если фильтрация не применялась или сообщение прошло без изменений,
+ * {@code filtered} будет {@link Optional#empty()}.
+ * Метод {@link #get(boolean)} позволяет выбрать нужный вариант в зависимости
+ * от того, включена ли фильтрация для данного получателя.</p>
+ *
+ * @param <T> тип хранимых значений
  */
 public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт DFU codec для {@link RawFilteredPair}, поддерживающий два формата:
+	 * полный (с полями {@code raw} и {@code filtered}) и сокращённый (только значение).
 	 *
-	 * @param baseCodec base codec
-	 *
-	 * @return Codec> — результат операции
+	 * @param baseCodec codec для типа {@code T}
+	 * @return codec для {@code RawFilteredPair<T>}
 	 */
 	public static <T> Codec<RawFilteredPair<T>> createCodec(Codec<T> baseCodec) {
-		Codec<RawFilteredPair<T>> codec = RecordCodecBuilder.create(
+		Codec<RawFilteredPair<T>> fullCodec = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    baseCodec.fieldOf("raw").forGetter(RawFilteredPair::raw),
-						                    baseCodec.optionalFieldOf("filtered").forGetter(RawFilteredPair::filtered)
-				                    )
-				                    .apply(instance, RawFilteredPair::new)
+						baseCodec.fieldOf("raw").forGetter(RawFilteredPair::raw),
+						baseCodec.optionalFieldOf("filtered").forGetter(RawFilteredPair::filtered)
+				)
+				.apply(instance, RawFilteredPair::new)
 		);
-		Codec<RawFilteredPair<T>> codec2 = baseCodec.xmap(RawFilteredPair::of, RawFilteredPair::raw);
-		return Codec.withAlternative(codec, codec2);
+		Codec<RawFilteredPair<T>> shortCodec = baseCodec.xmap(RawFilteredPair::of, RawFilteredPair::raw);
+		return Codec.withAlternative(fullCodec, shortCodec);
 	}
 
 	/**
-	 * Создаёт packet codec.
+	 * Создаёт packet codec для {@link RawFilteredPair}, передающий оба поля по сети.
 	 *
-	 * @param basePacketCodec base packet codec
-	 *
-	 * @return PacketCodec> — результат операции
+	 * @param basePacketCodec packet codec для типа {@code T}
+	 * @return packet codec для {@code RawFilteredPair<T>}
 	 */
-	public static <B extends ByteBuf, T> PacketCodec<B, RawFilteredPair<T>> createPacketCodec(PacketCodec<B, T> basePacketCodec) {
+	public static <B extends ByteBuf, T> PacketCodec<B, RawFilteredPair<T>> createPacketCodec(
+			PacketCodec<B, T> basePacketCodec
+	) {
 		return PacketCodec.tuple(
 				basePacketCodec,
 				RawFilteredPair::raw,
@@ -52,22 +61,21 @@ public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 	}
 
 	/**
-	 * Of.
+	 * Создаёт пару без отфильтрованного варианта (фильтрация не применялась).
 	 *
-	 * @param raw raw
-	 *
-	 * @return RawFilteredPair — результат операции
+	 * @param raw исходное значение
+	 * @return пара с пустым {@code filtered}
 	 */
 	public static <T> RawFilteredPair<T> of(T raw) {
 		return new RawFilteredPair<>(raw, Optional.empty());
 	}
 
 	/**
-	 * Of.
+	 * Создаёт пару из {@link FilteredMessage}: raw берётся напрямую,
+	 * filtered заполняется только если сообщение было изменено фильтром.
 	 *
-	 * @param message message
-	 *
-	 * @return RawFilteredPair — результат операции
+	 * @param message отфильтрованное сообщение от системы чата
+	 * @return пара строк raw/filtered
 	 */
 	public static RawFilteredPair<String> of(FilteredMessage message) {
 		return new RawFilteredPair<>(
@@ -77,46 +85,51 @@ public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 	}
 
 	/**
-	 * Get.
+	 * Возвращает нужный вариант значения в зависимости от флага фильтрации.
 	 *
-	 * @param shouldFilter should filter
-	 *
-	 * @return T — 
+	 * @param shouldFilter {@code true} — вернуть отфильтрованный вариант (или raw если filtered пуст),
+	 *                     {@code false} — всегда вернуть raw
+	 * @return выбранное значение
 	 */
 	public T get(boolean shouldFilter) {
-		return shouldFilter ? this.filtered.orElse(this.raw) : this.raw;
+		return shouldFilter ? filtered.orElse(raw) : raw;
 	}
 
 	/**
-	 * Map.
+	 * Применяет маппер к обоим значениям пары, создавая новую пару с преобразованным типом.
 	 *
-	 * @param mapper mapper
-	 *
-	 * @return RawFilteredPair — результат операции
+	 * @param mapper функция преобразования {@code T -> U}
+	 * @return новая пара типа {@code RawFilteredPair<U>}
 	 */
 	public <U> RawFilteredPair<U> map(Function<T, U> mapper) {
-		return new RawFilteredPair<>(mapper.apply(this.raw), this.filtered.map(mapper));
+		return new RawFilteredPair<>(mapper.apply(raw), filtered.map(mapper));
 	}
 
 	/**
-	 * Resolve.
+	 * Применяет резолвер к обоим значениям пары, возвращая пустой Optional если хотя бы одно не разрешилось.
 	 *
-	 * @param resolver resolver
+	 * <p>Если raw не разрешился — возвращает {@link Optional#empty()}.
+	 * Если filtered присутствует, но не разрешился — также возвращает {@link Optional#empty()}.
+	 * Это гарантирует, что результирующая пара всегда семантически согласована.</p>
 	 *
-	 * @return Optional> — результат операции
+	 * @param resolver функция {@code T -> Optional<U>}, возвращающая пустой Optional при неудаче
+	 * @return {@code Optional<RawFilteredPair<U>>} — пустой если разрешение не удалось
 	 */
 	public <U> Optional<RawFilteredPair<U>> resolve(Function<T, Optional<U>> resolver) {
-		Optional<U> optional = resolver.apply(this.raw);
-		if (optional.isEmpty()) {
+		Optional<U> resolvedRaw = resolver.apply(raw);
+
+		if (resolvedRaw.isEmpty()) {
 			return Optional.empty();
 		}
-		else if (this.filtered.isPresent()) {
-			Optional<U> optional2 = resolver.apply(this.filtered.get());
-			return optional2.isEmpty() ? Optional.empty()
-			                           : Optional.of(new RawFilteredPair<>(optional.get(), optional2));
+
+		if (filtered.isPresent()) {
+			Optional<U> resolvedFiltered = resolver.apply(filtered.get());
+
+			return resolvedFiltered.isEmpty()
+					? Optional.empty()
+					: Optional.of(new RawFilteredPair<>(resolvedRaw.get(), resolvedFiltered));
 		}
-		else {
-			return Optional.of(new RawFilteredPair<>(optional.get(), Optional.empty()));
-		}
+
+		return Optional.of(new RawFilteredPair<>(resolvedRaw.get(), Optional.empty()));
 	}
 }

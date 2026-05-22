@@ -10,7 +10,9 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code ItemStream}.
+ * Ленивый поток копий предметов из слотов инвентаря.
+ * Операции {@link #filter}, {@link #map} и {@link #limit} создают новые обёртки
+ * без немедленного вычисления — вычисление происходит только при вызове {@link #itemCopies()}.
  */
 public interface ItemStream {
 
@@ -56,45 +58,48 @@ public interface ItemStream {
 	}
 
 	/**
-	 * {@code Filter}.
+	 * Обёртка, фильтрующая предметы из дочернего потока по предикату.
+	 * Несколько последовательных фильтров объединяются в один через {@link Predicate#and}.
 	 */
-	public record Filter(ItemStream slots, Predicate<ItemStack> filter) implements ItemStream {
+	record Filter(ItemStream slots, Predicate<ItemStack> filter) implements ItemStream {
 
 		@Override
 		public Stream<ItemStack> itemCopies() {
-			return this.slots.itemCopies().filter(this.filter);
+			return slots.itemCopies().filter(filter);
 		}
 
 		@Override
 		public ItemStream filter(Predicate<ItemStack> predicate) {
-			return new ItemStream.Filter(this.slots, this.filter.and(predicate));
+			return new ItemStream.Filter(slots, filter.and(predicate));
 		}
 	}
 
 	/**
-	 * {@code Limit}.
+	 * Обёртка, ограничивающая количество предметов из дочернего потока.
+	 * Повторный вызов {@link #limit} берёт минимум из двух ограничений.
 	 */
-	public record Limit(ItemStream slots, int limit) implements ItemStream {
+	record Limit(ItemStream slots, int limit) implements ItemStream {
 
 		@Override
 		public Stream<ItemStack> itemCopies() {
-			return this.slots.itemCopies().limit(this.limit);
+			return slots.itemCopies().limit(limit);
 		}
 
 		@Override
 		public ItemStream limit(int count) {
-			return new ItemStream.Limit(this.slots, Math.min(this.limit, count));
+			return new ItemStream.Limit(slots, Math.min(limit, count));
 		}
 	}
 
 	/**
-	 * {@code Map}.
+	 * Обёртка, применяющая функцию-маппер к каждому предмету дочернего потока
+	 * и объединяющая результирующие потоки через {@code flatMap}.
 	 */
-	public record Map(ItemStream slots, Function<ItemStack, ? extends ItemStream> mapper) implements ItemStream {
+	record Map(ItemStream slots, Function<ItemStack, ? extends ItemStream> mapper) implements ItemStream {
 
 		@Override
 		public Stream<ItemStack> itemCopies() {
-			return this.slots.itemCopies().map(this.mapper).flatMap(ItemStream::itemCopies);
+			return slots.itemCopies().map(mapper).flatMap(ItemStream::itemCopies);
 		}
 	}
 }

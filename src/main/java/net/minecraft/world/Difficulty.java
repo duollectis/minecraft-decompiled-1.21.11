@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code Difficulty}.
+ * Уровень сложности игры.
+ * Влияет на поведение мобов, урон, голод и другие игровые механики.
  */
 public enum Difficulty implements StringIdentifiable {
 	PEACEFUL(0, "peaceful"),
@@ -19,62 +20,47 @@ public enum Difficulty implements StringIdentifiable {
 	NORMAL(2, "normal"),
 	HARD(3, "hard");
 
-	public static final StringIdentifiable.EnumCodec<Difficulty>
-			CODEC =
-			StringIdentifiable.createCodec(Difficulty::values);
-	private static final IntFunction<Difficulty>
-			BY_ID =
-			ValueLists.createIndexToValueFunction(Difficulty::getId, values(), ValueLists.OutOfBoundsHandling.WRAP);
+	public static final StringIdentifiable.EnumCodec<Difficulty> CODEC = StringIdentifiable.createCodec(Difficulty::values);
+	private static final IntFunction<Difficulty> BY_ID = ValueLists.createIndexToValueFunction(
+		Difficulty::getId, values(), ValueLists.OutOfBoundsHandling.WRAP
+	);
 	public static final PacketCodec<ByteBuf, Difficulty> PACKET_CODEC = PacketCodecs.indexed(BY_ID, Difficulty::getId);
+
 	private final int id;
 	private final String name;
 
-	private Difficulty(final int id, final String name) {
+	Difficulty(final int id, final String name) {
 		this.id = id;
 		this.name = name;
 	}
 
 	public int getId() {
-		return this.id;
-	}
-
-	public Text getTranslatableName() {
-		return Text.translatable("options.difficulty." + this.name);
-	}
-
-	public Text getInfo() {
-		return Text.translatable("options.difficulty." + this.name + ".info");
-	}
-
-	@Deprecated
-	/**
-	 * By id.
-	 *
-	 * @param id id
-	 *
-	 * @return Difficulty — результат операции
-	 */
-	public static Difficulty byId(int id) {
-		return BY_ID.apply(id);
-	}
-
-	/**
-	 * By name.
-	 *
-	 * @param name name
-	 *
-	 * @return @Nullable Difficulty — результат операции
-	 */
-	public static @Nullable Difficulty byName(String name) {
-		return CODEC.byId(name);
+		return id;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
+	}
+
+	public Text getTranslatableName() {
+		return Text.translatable("options.difficulty." + name);
+	}
+
+	public Text getInfo() {
+		return Text.translatable("options.difficulty." + name + ".info");
+	}
+
+	@Deprecated
+	public static Difficulty byId(int id) {
+		return BY_ID.apply(id);
+	}
+
+	public static @Nullable Difficulty byName(String name) {
+		return CODEC.byId(name);
 	}
 }

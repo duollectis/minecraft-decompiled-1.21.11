@@ -24,13 +24,17 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractRailBlock}.
+ * Базовый класс для всех типов рельсов.
+ * Управляет формой рельса, логикой поворотов, водозаполнением
+ * и обновлением соседних рельсов при изменении редстоун-сигнала.
  */
 public abstract class AbstractRailBlock extends Block implements Waterloggable {
 
 	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+
 	private static final VoxelShape STRAIGHT_SHAPE = Block.createColumnShape(16.0, 0.0, 2.0);
 	private static final VoxelShape ASCENDING_SHAPE = Block.createColumnShape(16.0, 0.0, 8.0);
+
 	private final boolean forbidCurves;
 
 	public static boolean isRail(World world, BlockPos pos) {
@@ -50,12 +54,12 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 	protected abstract MapCodec<? extends AbstractRailBlock> getCodec();
 
 	public boolean cannotMakeCurves() {
-		return this.forbidCurves;
+		return forbidCurves;
 	}
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return state.get(this.getShapeProperty()).isAscending() ? ASCENDING_SHAPE : STRAIGHT_SHAPE;
+		return state.get(getShapeProperty()).isAscending() ? ASCENDING_SHAPE : STRAIGHT_SHAPE;
 	}
 
 	@Override
@@ -66,23 +70,18 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
 		if (!oldState.isOf(state.getBlock())) {
-			this.updateCurves(state, world, pos, notify);
+			updateCurves(state, world, pos, notify);
 		}
 	}
 
 	/**
-	 * Обновляет curves.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param notify notify
-	 *
-	 * @return BlockState — результат операции
+	 * Обновляет форму рельса с учётом соседних рельсов и редстоун-сигнала.
+	 * Для рельсов без поворотов дополнительно уведомляет соседей.
 	 */
 	protected BlockState updateCurves(BlockState state, World world, BlockPos pos, boolean notify) {
-		state = this.updateBlockState(world, pos, state, true);
-		if (this.forbidCurves) {
+		state = updateBlockState(world, pos, state, true);
+
+		if (forbidCurves) {
 			world.updateNeighbor(state, pos, this, null, notify);
 		}
 
@@ -91,22 +90,24 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 
 	@Override
 	protected void neighborUpdate(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Block sourceBlock,
-			@Nullable WireOrientation wireOrientation,
-			boolean notify
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Block sourceBlock,
+		@Nullable WireOrientation wireOrientation,
+		boolean notify
 	) {
-		if (!world.isClient() && world.getBlockState(pos).isOf(this)) {
-			RailShape railShape = state.get(this.getShapeProperty());
-			if (shouldDropRail(pos, world, railShape)) {
-				dropStacks(state, world, pos);
-				world.removeBlock(pos, notify);
-			}
-			else {
-				this.updateBlockState(state, world, pos, sourceBlock);
-			}
+		if (world.isClient() || !world.getBlockState(pos).isOf(this)) {
+			return;
+		}
+
+		RailShape railShape = state.get(getShapeProperty());
+
+		if (shouldDropRail(pos, world, railShape)) {
+			dropStacks(state, world, pos);
+			world.removeBlock(pos, notify);
+		} else {
+			updateBlockState(state, world, pos, sourceBlock);
 		}
 	}
 
@@ -114,255 +115,163 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 		if (!hasTopRim(world, pos.down())) {
 			return true;
 		}
-		else {
-			switch (shape) {
-				case ASCENDING_EAST:
-					return !hasTopRim(world, pos.east());
-				case ASCENDING_WEST:
-					return !hasTopRim(world, pos.west());
-				case ASCENDING_NORTH:
-					return !hasTopRim(world, pos.north());
-				case ASCENDING_SOUTH:
-					return !hasTopRim(world, pos.south());
-				default:
-					return false;
-			}
-		}
+
+		return switch (shape) {
+			case ASCENDING_EAST -> !hasTopRim(world, pos.east());
+			case ASCENDING_WEST -> !hasTopRim(world, pos.west());
+			case ASCENDING_NORTH -> !hasTopRim(world, pos.north());
+			case ASCENDING_SOUTH -> !hasTopRim(world, pos.south());
+			default -> false;
+		};
 	}
 
-	/**
-	 * Обновляет block state.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param neighbor neighbor
-	 */
 	protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
 	}
 
 	/**
-	 * Обновляет block state.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param forceUpdate force update
-	 *
-	 * @return BlockState — результат операции
+	 * Пересчитывает форму рельса на основе соседних рельсов и редстоун-сигнала.
+	 * Выполняется только на сервере.
 	 */
 	protected BlockState updateBlockState(World world, BlockPos pos, BlockState state, boolean forceUpdate) {
 		if (world.isClient()) {
 			return state;
 		}
-		else {
-			RailShape railShape = state.get(this.getShapeProperty());
-			return new RailPlacementHelper(world, pos, state)
-					.updateBlockState(world.isReceivingRedstonePower(pos), forceUpdate, railShape)
-					.getBlockState();
-		}
+
+		RailShape railShape = state.get(getShapeProperty());
+		return new RailPlacementHelper(world, pos, state)
+			.updateBlockState(world.isReceivingRedstonePower(pos), forceUpdate, railShape)
+			.getBlockState();
 	}
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		if (!moved) {
-			if (state.get(this.getShapeProperty()).isAscending()) {
-				world.updateNeighbors(pos.up(), this);
-			}
+		if (moved) {
+			return;
+		}
 
-			if (this.forbidCurves) {
-				world.updateNeighbors(pos, this);
-				world.updateNeighbors(pos.down(), this);
-			}
+		if (state.get(getShapeProperty()).isAscending()) {
+			world.updateNeighbors(pos.up(), this);
+		}
+
+		if (forbidCurves) {
+			world.updateNeighbors(pos, this);
+			world.updateNeighbors(pos.down(), this);
 		}
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		boolean bl = fluidState.getFluid() == Fluids.WATER;
-		BlockState blockState = super.getDefaultState();
-		Direction direction = ctx.getHorizontalPlayerFacing();
-		boolean bl2 = direction == Direction.EAST || direction == Direction.WEST;
-		return blockState
-				.with(this.getShapeProperty(), bl2 ? RailShape.EAST_WEST : RailShape.NORTH_SOUTH)
-				.with(WATERLOGGED, bl);
+		boolean waterlogged = fluidState.getFluid() == Fluids.WATER;
+		Direction facing = ctx.getHorizontalPlayerFacing();
+		boolean isEastWest = facing == Direction.EAST || facing == Direction.WEST;
+
+		return super.getDefaultState()
+			.with(getShapeProperty(), isEastWest ? RailShape.EAST_WEST : RailShape.NORTH_SOUTH)
+			.with(WATERLOGGED, waterlogged);
 	}
 
 	public abstract Property<RailShape> getShapeProperty();
 
 	/**
-	 * Rotate shape.
-	 *
-	 * @param shape shape
-	 * @param rotation rotation
-	 *
-	 * @return RailShape — результат операции
+	 * Поворачивает форму рельса на заданный угол.
+	 * Используется при вращении структур через команды или структурные блоки.
 	 */
 	protected RailShape rotateShape(RailShape shape, BlockRotation rotation) {
 		return switch (rotation) {
-			case CLOCKWISE_180 -> {
-				switch (shape) {
-					case ASCENDING_EAST:
-						yield RailShape.ASCENDING_WEST;
-					case ASCENDING_WEST:
-						yield RailShape.ASCENDING_EAST;
-					case ASCENDING_NORTH:
-						yield RailShape.ASCENDING_SOUTH;
-					case ASCENDING_SOUTH:
-						yield RailShape.ASCENDING_NORTH;
-					case NORTH_SOUTH:
-						yield RailShape.NORTH_SOUTH;
-					case EAST_WEST:
-						yield RailShape.EAST_WEST;
-					case SOUTH_EAST:
-						yield RailShape.NORTH_WEST;
-					case SOUTH_WEST:
-						yield RailShape.NORTH_EAST;
-					case NORTH_WEST:
-						yield RailShape.SOUTH_EAST;
-					case NORTH_EAST:
-						yield RailShape.SOUTH_WEST;
-					default:
-						throw new MatchException(null, null);
-				}
-			}
-			case COUNTERCLOCKWISE_90 -> {
-				switch (shape) {
-					case ASCENDING_EAST:
-						yield RailShape.ASCENDING_NORTH;
-					case ASCENDING_WEST:
-						yield RailShape.ASCENDING_SOUTH;
-					case ASCENDING_NORTH:
-						yield RailShape.ASCENDING_WEST;
-					case ASCENDING_SOUTH:
-						yield RailShape.ASCENDING_EAST;
-					case NORTH_SOUTH:
-						yield RailShape.EAST_WEST;
-					case EAST_WEST:
-						yield RailShape.NORTH_SOUTH;
-					case SOUTH_EAST:
-						yield RailShape.NORTH_EAST;
-					case SOUTH_WEST:
-						yield RailShape.SOUTH_EAST;
-					case NORTH_WEST:
-						yield RailShape.SOUTH_WEST;
-					case NORTH_EAST:
-						yield RailShape.NORTH_WEST;
-					default:
-						throw new MatchException(null, null);
-				}
-			}
-			case CLOCKWISE_90 -> {
-				switch (shape) {
-					case ASCENDING_EAST:
-						yield RailShape.ASCENDING_SOUTH;
-					case ASCENDING_WEST:
-						yield RailShape.ASCENDING_NORTH;
-					case ASCENDING_NORTH:
-						yield RailShape.ASCENDING_EAST;
-					case ASCENDING_SOUTH:
-						yield RailShape.ASCENDING_WEST;
-					case NORTH_SOUTH:
-						yield RailShape.EAST_WEST;
-					case EAST_WEST:
-						yield RailShape.NORTH_SOUTH;
-					case SOUTH_EAST:
-						yield RailShape.SOUTH_WEST;
-					case SOUTH_WEST:
-						yield RailShape.NORTH_WEST;
-					case NORTH_WEST:
-						yield RailShape.NORTH_EAST;
-					case NORTH_EAST:
-						yield RailShape.SOUTH_EAST;
-					default:
-						throw new MatchException(null, null);
-				}
-			}
+			case CLOCKWISE_180 -> switch (shape) {
+				case ASCENDING_EAST -> RailShape.ASCENDING_WEST;
+				case ASCENDING_WEST -> RailShape.ASCENDING_EAST;
+				case ASCENDING_NORTH -> RailShape.ASCENDING_SOUTH;
+				case ASCENDING_SOUTH -> RailShape.ASCENDING_NORTH;
+				case SOUTH_EAST -> RailShape.NORTH_WEST;
+				case SOUTH_WEST -> RailShape.NORTH_EAST;
+				case NORTH_WEST -> RailShape.SOUTH_EAST;
+				case NORTH_EAST -> RailShape.SOUTH_WEST;
+				default -> shape;
+			};
+			case COUNTERCLOCKWISE_90 -> switch (shape) {
+				case ASCENDING_EAST -> RailShape.ASCENDING_NORTH;
+				case ASCENDING_WEST -> RailShape.ASCENDING_SOUTH;
+				case ASCENDING_NORTH -> RailShape.ASCENDING_WEST;
+				case ASCENDING_SOUTH -> RailShape.ASCENDING_EAST;
+				case NORTH_SOUTH -> RailShape.EAST_WEST;
+				case EAST_WEST -> RailShape.NORTH_SOUTH;
+				case SOUTH_EAST -> RailShape.NORTH_EAST;
+				case SOUTH_WEST -> RailShape.SOUTH_EAST;
+				case NORTH_WEST -> RailShape.SOUTH_WEST;
+				case NORTH_EAST -> RailShape.NORTH_WEST;
+				default -> shape;
+			};
+			case CLOCKWISE_90 -> switch (shape) {
+				case ASCENDING_EAST -> RailShape.ASCENDING_SOUTH;
+				case ASCENDING_WEST -> RailShape.ASCENDING_NORTH;
+				case ASCENDING_NORTH -> RailShape.ASCENDING_EAST;
+				case ASCENDING_SOUTH -> RailShape.ASCENDING_WEST;
+				case NORTH_SOUTH -> RailShape.EAST_WEST;
+				case EAST_WEST -> RailShape.NORTH_SOUTH;
+				case SOUTH_EAST -> RailShape.SOUTH_WEST;
+				case SOUTH_WEST -> RailShape.NORTH_WEST;
+				case NORTH_WEST -> RailShape.NORTH_EAST;
+				case NORTH_EAST -> RailShape.SOUTH_EAST;
+				default -> shape;
+			};
 			default -> shape;
 		};
 	}
 
 	/**
-	 * Mirror shape.
-	 *
-	 * @param shape shape
-	 * @param mirror mirror
-	 *
-	 * @return RailShape — результат операции
+	 * Отражает форму рельса по заданной оси.
+	 * Используется при зеркальном отображении структур.
 	 */
 	protected RailShape mirrorShape(RailShape shape, BlockMirror mirror) {
 		return switch (mirror) {
-			case LEFT_RIGHT -> {
-				switch (shape) {
-					case ASCENDING_NORTH:
-						yield RailShape.ASCENDING_SOUTH;
-					case ASCENDING_SOUTH:
-						yield RailShape.ASCENDING_NORTH;
-					case NORTH_SOUTH:
-					case EAST_WEST:
-					default:
-						yield shape;
-					case SOUTH_EAST:
-						yield RailShape.NORTH_EAST;
-					case SOUTH_WEST:
-						yield RailShape.NORTH_WEST;
-					case NORTH_WEST:
-						yield RailShape.SOUTH_WEST;
-					case NORTH_EAST:
-						yield RailShape.SOUTH_EAST;
-				}
-			}
-			case FRONT_BACK -> {
-				switch (shape) {
-					case ASCENDING_EAST:
-						yield RailShape.ASCENDING_WEST;
-					case ASCENDING_WEST:
-						yield RailShape.ASCENDING_EAST;
-					case ASCENDING_NORTH:
-					case ASCENDING_SOUTH:
-					case NORTH_SOUTH:
-					case EAST_WEST:
-					default:
-						yield shape;
-					case SOUTH_EAST:
-						yield RailShape.SOUTH_WEST;
-					case SOUTH_WEST:
-						yield RailShape.SOUTH_EAST;
-					case NORTH_WEST:
-						yield RailShape.NORTH_EAST;
-					case NORTH_EAST:
-						yield RailShape.NORTH_WEST;
-				}
-			}
+			case LEFT_RIGHT -> switch (shape) {
+				case ASCENDING_NORTH -> RailShape.ASCENDING_SOUTH;
+				case ASCENDING_SOUTH -> RailShape.ASCENDING_NORTH;
+				case SOUTH_EAST -> RailShape.NORTH_EAST;
+				case SOUTH_WEST -> RailShape.NORTH_WEST;
+				case NORTH_WEST -> RailShape.SOUTH_WEST;
+				case NORTH_EAST -> RailShape.SOUTH_EAST;
+				default -> shape;
+			};
+			case FRONT_BACK -> switch (shape) {
+				case ASCENDING_EAST -> RailShape.ASCENDING_WEST;
+				case ASCENDING_WEST -> RailShape.ASCENDING_EAST;
+				case SOUTH_EAST -> RailShape.SOUTH_WEST;
+				case SOUTH_WEST -> RailShape.SOUTH_EAST;
+				case NORTH_WEST -> RailShape.NORTH_EAST;
+				case NORTH_EAST -> RailShape.NORTH_WEST;
+				default -> shape;
+			};
 			default -> shape;
 		};
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		if (state.get(WATERLOGGED)) {
 			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
 
 		return super.getStateForNeighborUpdate(
-				state,
-				world,
-				tickView,
-				pos,
-				direction,
-				neighborPos,
-				neighborState,
-				random
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
 		);
 	}
 

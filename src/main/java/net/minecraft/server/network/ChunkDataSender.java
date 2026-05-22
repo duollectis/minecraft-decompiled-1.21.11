@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code ChunkDataSender}.
+ * Класс Chunk Data Sender.
  */
 public class ChunkDataSender {
 
@@ -142,12 +142,12 @@ public class ChunkDataSender {
 	public void onAcknowledgeChunks(float desiredBatchSize) {
 		this.unacknowledgedBatches--;
 		this.desiredBatchSize =
-				Double.isNaN(desiredBatchSize) ? 0.01F : MathHelper.clamp(desiredBatchSize, 0.01F, 64.0F);
+				Double.isNaN(desiredBatchSize) ? MIN_BATCH_SIZE : MathHelper.clamp(desiredBatchSize, MIN_BATCH_SIZE, MAX_BATCH_SIZE);
 		if (this.unacknowledgedBatches == 0) {
 			this.pending = 1.0F;
 		}
 
-		this.maxUnacknowledgedBatches = 10;
+		this.maxUnacknowledgedBatches = MAX_UNACKNOWLEDGED_BATCHES;
 	}
 
 	public boolean isInNextBatch(long chunkPos) {

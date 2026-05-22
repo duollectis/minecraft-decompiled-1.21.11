@@ -1,7 +1,10 @@
 package net.minecraft.world.tick;
 
 /**
- * {@code BasicTickScheduler}.
+ * Базовый планировщик тиков, поддерживающий постановку задач в очередь и проверку их наличия.
+ * Является минимальным контрактом для всех планировщиков тиков в игре.
+ *
+ * @param <T> тип объекта, для которого планируются тики (блок, жидкость и т.д.)
  */
 public interface BasicTickScheduler<T> extends TickScheduler<T> {
 }

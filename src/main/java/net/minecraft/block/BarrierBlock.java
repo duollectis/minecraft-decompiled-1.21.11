@@ -21,7 +21,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BarrierBlock}.
+ * Невидимый барьер — непроходимый блок без визуального представления.
+ * Виден только в режиме Creative (иконка в руке). Поддерживает заполнение
+ * водой, но только игроками в Creative-режиме.
  */
 public class BarrierBlock extends Block implements Waterloggable {
 
@@ -35,7 +37,7 @@ public class BarrierBlock extends Block implements Waterloggable {
 
 	public BarrierBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.getDefaultState().with(WATERLOGGED, false));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -55,28 +57,28 @@ public class BarrierBlock extends Block implements Waterloggable {
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		if (state.get(WATERLOGGED)) {
 			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
 
 		return super.getStateForNeighborUpdate(
-				state,
-				world,
-				tickView,
-				pos,
-				direction,
-				neighborPos,
-				neighborState,
-				random
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
 		);
 	}
 
@@ -87,9 +89,8 @@ public class BarrierBlock extends Block implements Waterloggable {
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this
-				.getDefaultState()
-				.with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
+		return getDefaultState()
+			.with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
 	}
 
 	@Override
@@ -100,20 +101,20 @@ public class BarrierBlock extends Block implements Waterloggable {
 	@Override
 	public ItemStack tryDrainFluid(@Nullable LivingEntity drainer, WorldAccess world, BlockPos pos, BlockState state) {
 		return drainer instanceof PlayerEntity playerEntity && playerEntity.isCreative()
-		       ? Waterloggable.super.tryDrainFluid(drainer, world, pos, state)
-		       : ItemStack.EMPTY;
+			? Waterloggable.super.tryDrainFluid(drainer, world, pos, state)
+			: ItemStack.EMPTY;
 	}
 
 	@Override
 	public boolean canFillWithFluid(
-			@Nullable LivingEntity filler,
-			BlockView world,
-			BlockPos pos,
-			BlockState state,
-			Fluid fluid
+		@Nullable LivingEntity filler,
+		BlockView world,
+		BlockPos pos,
+		BlockState state,
+		Fluid fluid
 	) {
 		return filler instanceof PlayerEntity playerEntity && playerEntity.isCreative()
-		       ? Waterloggable.super.canFillWithFluid(filler, world, pos, state, fluid)
-		       : false;
+			? Waterloggable.super.canFillWithFluid(filler, world, pos, state, fluid)
+			: false;
 	}
 }

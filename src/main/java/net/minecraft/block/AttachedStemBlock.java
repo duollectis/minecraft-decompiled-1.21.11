@@ -25,22 +25,26 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code AttachedStemBlock}.
+ * Стебель тыквы/арбуза, уже прикреплённый к выросшему плоду.
+ * <p>
+ * Хранит направление {@link #FACING} к соседнему блоку плода. Если плод
+ * исчезает, стебель автоматически возвращается в состояние {@link StemBlock}
+ * с максимальным возрастом (7), готовым к повторному плодоношению.
  */
 public class AttachedStemBlock extends PlantBlock {
 
 	public static final MapCodec<AttachedStemBlock> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("fruit").forGetter(block -> block.gourdBlock),
-					                    RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("stem").forGetter(block -> block.stemBlock),
-					                    RegistryKey.createCodec(RegistryKeys.ITEM).fieldOf("seed").forGetter(block -> block.pickBlockItem),
-					                    createSettingsCodec()
-			                    )
-			                    .apply(instance, AttachedStemBlock::new)
+		instance -> instance.group(
+			RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("fruit").forGetter(block -> block.gourdBlock),
+			RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("stem").forGetter(block -> block.stemBlock),
+			RegistryKey.createCodec(RegistryKeys.ITEM).fieldOf("seed").forGetter(block -> block.pickBlockItem),
+			createSettingsCodec()
+		)
+		.apply(instance, AttachedStemBlock::new)
 	);
 	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
 	private static final Map<Direction, VoxelShape> SHAPES_BY_DIRECTION = VoxelShapes.createHorizontalFacingShapeMap(
-			Block.createCuboidZShape(4.0, 0.0, 10.0, 0.0, 10.0)
+		Block.createCuboidZShape(4.0, 0.0, 10.0, 0.0, 10.0)
 	);
 	private final RegistryKey<Block> gourdBlock;
 	private final RegistryKey<Block> stemBlock;
@@ -52,13 +56,13 @@ public class AttachedStemBlock extends PlantBlock {
 	}
 
 	public AttachedStemBlock(
-			RegistryKey<Block> stemBlock,
-			RegistryKey<Block> gourdBlock,
-			RegistryKey<Item> pickBlockItem,
-			AbstractBlock.Settings settings
+		RegistryKey<Block> stemBlock,
+		RegistryKey<Block> gourdBlock,
+		RegistryKey<Item> pickBlockItem,
+		AbstractBlock.Settings settings
 	) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH));
 		this.stemBlock = stemBlock;
 		this.gourdBlock = gourdBlock;
 		this.pickBlockItem = pickBlockItem;
@@ -69,27 +73,24 @@ public class AttachedStemBlock extends PlantBlock {
 		return SHAPES_BY_DIRECTION.get(state.get(FACING));
 	}
 
+	/**
+	 * При исчезновении плода в направлении {@link #FACING} возвращает стебель
+	 * в незакреплённое состояние {@link StemBlock} с возрастом 7 (максимум),
+	 * чтобы он мог немедленно снова попытаться вырастить плод.
+	 */
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		if (!neighborState.matchesKey(this.gourdBlock) && direction == state.get(FACING)) {
-			Optional<Block>
-					optional =
-					world.getRegistryManager().getOrThrow(RegistryKeys.BLOCK).getOptionalValue(this.stemBlock);
-			if (optional.isPresent()) {
-				return optional.get().getDefaultState().withIfExists(StemBlock.AGE, 7);
-			}
-		}
-
-		return super.getStateForNeighborUpdate(
+		if (neighborState.matchesKey(gourdBlock) || direction != state.get(FACING)) {
+			return super.getStateForNeighborUpdate(
 				state,
 				world,
 				tickView,
@@ -98,7 +99,25 @@ public class AttachedStemBlock extends PlantBlock {
 				neighborPos,
 				neighborState,
 				random
-		);
+			);
+		}
+
+		Optional<Block> stemBlockOpt = world.getRegistryManager()
+			.getOrThrow(RegistryKeys.BLOCK)
+			.getOptionalValue(stemBlock);
+
+		return stemBlockOpt
+			.map(block -> block.getDefaultState().withIfExists(StemBlock.AGE, 7))
+			.orElseGet(() -> super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			));
 	}
 
 	@Override
@@ -109,12 +128,12 @@ public class AttachedStemBlock extends PlantBlock {
 	@Override
 	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
 		return new ItemStack(
-				(ItemConvertible) DataFixUtils.orElse(
-						world
-								.getRegistryManager()
-								.getOrThrow(RegistryKeys.ITEM)
-								.getOptionalValue(this.pickBlockItem), this
-				)
+			(ItemConvertible) DataFixUtils.orElse(
+				world.getRegistryManager()
+					.getOrThrow(RegistryKeys.ITEM)
+					.getOptionalValue(pickBlockItem),
+				this
+			)
 		);
 	}
 

@@ -3,7 +3,8 @@ package net.minecraft.world.level.storage;
 import net.minecraft.text.Text;
 
 /**
- * {@code LevelStorageException}.
+ * Исключение, выбрасываемое при ошибках доступа к директории сохранений.
+ * Хранит локализованный текст ошибки для отображения в интерфейсе.
  */
 public class LevelStorageException extends RuntimeException {
 
@@ -15,6 +16,6 @@ public class LevelStorageException extends RuntimeException {
 	}
 
 	public Text getMessageText() {
-		return this.messageText;
+		return messageText;
 	}
 }

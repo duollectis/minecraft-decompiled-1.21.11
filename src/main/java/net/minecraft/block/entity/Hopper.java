@@ -5,7 +5,8 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.util.math.Box;
 
 /**
- * {@code Hopper}.
+ * Контракт воронки: определяет область захвата предметов сверху и координаты центра воронки.
+ * Реализуется блок-сущностью воронки и минекартом-воронкой.
  */
 public interface Hopper extends Inventory {
 

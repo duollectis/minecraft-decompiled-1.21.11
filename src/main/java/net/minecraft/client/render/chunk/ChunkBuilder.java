@@ -36,10 +36,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChunkBuilder}.
+ * Управляет асинхронной компиляцией и загрузкой секций чанков на GPU.
+ * Поддерживает очередь задач перестройки ({@link BuiltChunk.RebuildTask}) и сортировки
+ * прозрачных вершин ({@link BuiltChunk.SortTask}), выполняемых в пуле потоков.
+ * Загрузка скомпилированных буферов на GPU происходит в главном потоке через {@link #upload()}.
  */
+@Environment(EnvType.CLIENT)
 public class ChunkBuilder {
 
 	private final ChunkRenderTaskScheduler scheduler = new ChunkRenderTaskScheduler();
@@ -122,64 +125,52 @@ public class ChunkBuilder {
 	}
 
 	/**
-	 * Upload.
+	 * Выполняет все накопленные задачи загрузки буферов на GPU и освобождает устаревшие данные рендеринга.
+	 * Должен вызываться строго в главном потоке рендеринга.
 	 */
 	public void upload() {
-		Runnable runnable;
-		while ((runnable = this.uploadQueue.poll()) != null) {
-			runnable.run();
+		Runnable task;
+		while ((task = uploadQueue.poll()) != null) {
+			task.run();
 		}
 
-		AbstractChunkRenderData abstractChunkRenderData;
-		while ((abstractChunkRenderData = this.renderQueue.poll()) != null) {
-			abstractChunkRenderData.close();
+		AbstractChunkRenderData staleData;
+		while ((staleData = renderQueue.poll()) != null) {
+			staleData.close();
 		}
 	}
 
-	/**
-	 * Rebuild.
-	 *
-	 * @param chunk chunk
-	 * @param builder builder
-	 */
 	public void rebuild(ChunkBuilder.BuiltChunk chunk, ChunkRendererRegionBuilder builder) {
 		chunk.rebuild(builder);
 	}
 
-	/**
-	 * Send.
-	 *
-	 * @param task task
-	 */
 	public void send(ChunkBuilder.BuiltChunk.Task task) {
-		if (!this.stopped) {
-			this.consecutiveExecutor.send(() -> {
-				if (!this.stopped) {
-					this.scheduler.enqueue(task);
-					this.scheduleRunTasks();
-				}
-			});
+		if (stopped) {
+			return;
 		}
+
+		consecutiveExecutor.send(() -> {
+			if (stopped) {
+				return;
+			}
+
+			scheduler.enqueue(task);
+			scheduleRunTasks();
+		});
 	}
 
-	/**
-	 * Проверяет возможность cel all tasks.
-	 */
 	public void cancelAllTasks() {
-		this.scheduler.cancelAll();
+		scheduler.cancelAll();
 	}
 
 	public boolean isEmpty() {
-		return this.scheduler.size() == 0 && this.uploadQueue.isEmpty();
+		return scheduler.size() == 0 && uploadQueue.isEmpty();
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.stopped = true;
-		this.cancelAllTasks();
-		this.upload();
+		stopped = true;
+		cancelAllTasks();
+		upload();
 	}
 
 	@Debug
@@ -208,10 +199,12 @@ public class ChunkBuilder {
 		return this.buffersPool.getAvailableBuilderCount();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BuiltChunk}.
+	 * Представляет одну скомпилированную секцию чанка (16×16×16 блоков).
+	 * Хранит текущие данные рендеринга, управляет задачами перестройки и сортировки,
+	 * а также отслеживает прогресс плавного появления секции (fade-in) после загрузки на GPU.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class BuiltChunk {
 
 		public static final int CHUNK_SIZE = 16;
@@ -235,16 +228,16 @@ public class ChunkBuilder {
 			this.setSectionPos(sectionPos);
 		}
 
-		public float getFadeInProgress(long l) {
-			if (this.uploadStartTimeMs == 0L) {
+		public float getFadeInProgress(long currentTimeMs) {
+			if (uploadStartTimeMs == 0L) {
 				return 0.0F;
 			}
 
-			long m = l - this.uploadStartTimeMs;
+			long elapsed = currentTimeMs - uploadStartTimeMs;
 
-			return this.fadeInDurationMs == 0L || m >= this.fadeInDurationMs
+			return fadeInDurationMs == 0L || elapsed >= fadeInDurationMs
 			       ? 1.0F
-			       : (float) m / (float) this.fadeInDurationMs;
+			       : (float) elapsed / (float) fadeInDurationMs;
 		}
 
 		public void setFadeInDuration(long l) {
@@ -274,9 +267,11 @@ public class ChunkBuilder {
 		}
 
 		/**
-		 * Определяет, следует ли build.
+		 * Проверяет, загружены ли все 8 соседних чанков (включая диагональные) и включено ли освещение.
+		 * Секция не должна компилироваться, пока хотя бы один сосед ещё не готов — иначе
+		 * на границах чанков появятся артефакты освещения.
 		 *
-		 * @return boolean — результат операции
+		 * @return {@code true}, если все соседние чанки загружены и освещение активно
 		 */
 		public boolean shouldBuild() {
 			return this.isChunkNonEmpty(ChunkSectionPos.offset(this.sectionPos, Direction.WEST))
@@ -339,28 +334,25 @@ public class ChunkBuilder {
 		}
 
 		public void setSectionPos(long sectionPos) {
-			this.clear();
+			clear();
 			this.sectionPos = sectionPos;
-			int i = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackX(sectionPos));
-			int j = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(sectionPos));
-			int k = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackZ(sectionPos));
-			this.origin.set(i, j, k);
-			this.boundingBox = new Box(i, j, k, i + 16, j + 16, k + 16);
+			int blockX = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackX(sectionPos));
+			int blockY = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(sectionPos));
+			int blockZ = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackZ(sectionPos));
+			origin.set(blockX, blockY, blockZ);
+			boundingBox = new Box(blockX, blockY, blockZ, blockX + CHUNK_SIZE, blockY + CHUNK_SIZE, blockZ + CHUNK_SIZE);
 		}
 
 		public AbstractChunkRenderData getCurrentRenderData() {
 			return this.currentRenderData.get();
 		}
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			this.cancel();
-			this.currentRenderData.getAndSet(ChunkRenderData.HIDDEN).close();
-			this.needsRebuild = true;
-			this.uploadStartTimeMs = 0L;
-			this.fullyUploaded = false;
+			cancel();
+			currentRenderData.getAndSet(ChunkRenderData.HIDDEN).close();
+			needsRebuild = true;
+			uploadStartTimeMs = 0L;
+			fullyUploaded = false;
 		}
 
 		public BlockPos getOrigin() {
@@ -371,52 +363,29 @@ public class ChunkBuilder {
 			return this.sectionPos;
 		}
 
-		/**
-		 * Schedule rebuild.
-		 *
-		 * @param important important
-		 */
 		public void scheduleRebuild(boolean important) {
-			boolean bl = this.needsRebuild;
-			this.needsRebuild = true;
-			this.needsImportantRebuild = important | (bl && this.needsImportantRebuild);
+			boolean wasScheduled = needsRebuild;
+			needsRebuild = true;
+			needsImportantRebuild = important | (wasScheduled && needsImportantRebuild);
 		}
 
-		/**
-		 * Проверяет возможность cel rebuild.
-		 */
 		public void cancelRebuild() {
-			this.needsRebuild = false;
-			this.needsImportantRebuild = false;
+			needsRebuild = false;
+			needsImportantRebuild = false;
 		}
 
-		/**
-		 * Needs rebuild.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean needsRebuild() {
-			return this.needsRebuild;
+			return needsRebuild;
 		}
 
-		/**
-		 * Needs important rebuild.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean needsImportantRebuild() {
-			return this.needsRebuild && this.needsImportantRebuild;
+			return needsRebuild && needsImportantRebuild;
 		}
 
 		public long getOffsetSectionPos(Direction direction) {
 			return ChunkSectionPos.offset(this.sectionPos, direction);
 		}
 
-		/**
-		 * Schedule sort.
-		 *
-		 * @param builder builder
-		 */
 		public void scheduleSort(ChunkBuilder builder) {
 			if (this.getCurrentRenderData() instanceof ChunkRenderData chunkRenderData) {
 				this.sortTask = new ChunkBuilder.BuiltChunk.SortTask(chunkRenderData);
@@ -432,18 +401,15 @@ public class ChunkBuilder {
 			return this.sortTask != null && !this.sortTask.finished.get();
 		}
 
-		/**
-		 * Проверяет возможность cel.
-		 */
 		protected void cancel() {
-			if (this.rebuildTask != null) {
-				this.rebuildTask.cancel();
-				this.rebuildTask = null;
+			if (rebuildTask != null) {
+				rebuildTask.cancel();
+				rebuildTask = null;
 			}
 
-			if (this.sortTask != null) {
-				this.sortTask.cancel();
-				this.sortTask = null;
+			if (sortTask != null) {
+				sortTask.cancel();
+				sortTask = null;
 			}
 		}
 
@@ -455,23 +421,13 @@ public class ChunkBuilder {
 			return this.rebuildTask;
 		}
 
-		/**
-		 * Schedule rebuild.
-		 *
-		 * @param builder builder
-		 */
 		public void scheduleRebuild(ChunkRendererRegionBuilder builder) {
-			ChunkBuilder.BuiltChunk.Task task = this.createRebuildTask(builder);
+			ChunkBuilder.BuiltChunk.Task task = createRebuildTask(builder);
 			ChunkBuilder.this.send(task);
 		}
 
-		/**
-		 * Rebuild.
-		 *
-		 * @param builder builder
-		 */
 		public void rebuild(ChunkRendererRegionBuilder builder) {
-			ChunkBuilder.BuiltChunk.Task task = this.createRebuildTask(builder);
+			ChunkBuilder.BuiltChunk.Task task = createRebuildTask(builder);
 			task.run(ChunkBuilder.this.buffers);
 		}
 
@@ -490,10 +446,8 @@ public class ChunkBuilder {
 			);
 		}
 
+		/** Задача полной перестройки геометрии секции чанка в фоновом потоке. */
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code RebuildTask}.
-		 */
 		class RebuildTask extends ChunkBuilder.BuiltChunk.Task {
 
 			protected final ChunkRendererRegion region;
@@ -576,10 +530,8 @@ public class ChunkBuilder {
 			}
 		}
 
+		/** Задача пересортировки прозрачных вершин секции без полной перестройки геометрии. */
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code SortTask}.
-		 */
 		class SortTask extends ChunkBuilder.BuiltChunk.Task {
 
 			private final ChunkRenderData renderData;
@@ -660,10 +612,8 @@ public class ChunkBuilder {
 			}
 		}
 
+		/** Базовый класс задачи рендеринга секции, выполняемой в фоновом потоке. */
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code Task}.
-		 */
 		public abstract class Task {
 
 			protected final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -676,15 +626,12 @@ public class ChunkBuilder {
 
 			public abstract CompletableFuture<ChunkBuilder.Result> run(BlockBufferAllocatorStorage buffers);
 
-			/**
-			 * Проверяет возможность cel.
-			 */
 			public abstract void cancel();
 
 			protected abstract String getName();
 
 			public boolean isPrioritized() {
-				return this.prioritized;
+				return prioritized;
 			}
 
 			public BlockPos getOrigin() {
@@ -693,11 +640,9 @@ public class ChunkBuilder {
 		}
 	}
 
+	/** Результат выполнения задачи рендеринга секции. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Result}.
-	 */
-	static enum Result {
+	enum Result {
 		SUCCESSFUL,
 		CANCELLED;
 	}

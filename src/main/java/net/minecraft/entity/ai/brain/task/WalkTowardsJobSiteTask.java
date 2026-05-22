@@ -13,86 +13,63 @@ import net.minecraft.world.poi.PointOfInterestStorage;
 import java.util.Optional;
 
 /**
- * {@code WalkTowardsJobSiteTask}.
+ * Задача мозга жителя, идущего к потенциальному рабочему месту.
+ * По завершении освобождает тикет POI и сбрасывает память о потенциальном рабочем месте.
  */
 public class WalkTowardsJobSiteTask extends MultiTickTask<VillagerEntity> {
 
 	private static final int RUN_TIME = 1200;
-	final float speed;
+	private final float speed;
 
 	public WalkTowardsJobSiteTask(float speed) {
-		super(ImmutableMap.of(MemoryModuleType.POTENTIAL_JOB_SITE, MemoryModuleState.VALUE_PRESENT), 1200);
+		super(ImmutableMap.of(MemoryModuleType.POTENTIAL_JOB_SITE, MemoryModuleState.VALUE_PRESENT), RUN_TIME);
 		this.speed = speed;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		return villagerEntity.getBrain()
-		                     .getFirstPossibleNonCoreActivity()
-		                     .map(activity -> activity == Activity.IDLE || activity == Activity.WORK
-				                     || activity == Activity.PLAY)
-		                     .orElse(true);
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		return entity.getBrain()
+		             .getFirstPossibleNonCoreActivity()
+		             .map(activity -> activity == Activity.IDLE || activity == Activity.WORK || activity == Activity.PLAY)
+		             .orElse(true);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return villagerEntity.getBrain().hasMemoryModule(MemoryModuleType.POTENTIAL_JOB_SITE);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.POTENTIAL_JOB_SITE);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
 		TargetUtil.walkTowards(
-				villagerEntity,
-				villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE).get().pos(),
-				this.speed,
+				entity,
+				entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE).get().pos(),
+				speed,
 				1
 		);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		Optional<GlobalPos>
-				optional =
-				villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE);
-		optional.ifPresent(pos -> {
-			BlockPos blockPos = pos.pos();
-			ServerWorld serverWorld2 = serverWorld.getServer().getWorld(pos.dimension());
-			if (serverWorld2 != null) {
-				PointOfInterestStorage pointOfInterestStorage = serverWorld2.getPointOfInterestStorage();
-				if (pointOfInterestStorage.test(blockPos, poiType -> true)) {
-					pointOfInterestStorage.releaseTicket(blockPos);
-				}
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		Optional<GlobalPos> jobSiteOpt = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE);
 
-				serverWorld.getSubscriptionTracker().onPoiUpdated(blockPos);
+		jobSiteOpt.ifPresent(pos -> {
+			BlockPos jobSitePos = pos.pos();
+			ServerWorld jobSiteWorld = world.getServer().getWorld(pos.dimension());
+
+			if (jobSiteWorld == null) {
+				return;
 			}
+
+			PointOfInterestStorage poiStorage = jobSiteWorld.getPointOfInterestStorage();
+
+			if (poiStorage.test(jobSitePos, poiType -> true)) {
+				poiStorage.releaseTicket(jobSitePos);
+			}
+
+			world.getSubscriptionTracker().onPoiUpdated(jobSitePos);
 		});
-		villagerEntity.getBrain().forget(MemoryModuleType.POTENTIAL_JOB_SITE);
+
+		entity.getBrain().forget(MemoryModuleType.POTENTIAL_JOB_SITE);
 	}
 }

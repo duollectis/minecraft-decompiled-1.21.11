@@ -5,7 +5,10 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DefaultedRegistry}.
+ * Расширение {@link Registry}, гарантирующее ненулевые возвращаемые значения
+ * за счёт использования элемента по умолчанию при отсутствии запрошенного ключа.
+ *
+ * @param <T> тип элементов реестра
  */
 public interface DefaultedRegistry<T> extends Registry<T> {
 

@@ -15,17 +15,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code TakeJobSiteTask}.
+ * Фабричный класс задачи мозга жителя, захватывающей потенциальное рабочее место.
+ * Если другой житель уже претендует на это место — уступает ему и направляет его туда.
  */
 public class TakeJobSiteTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<VillagerEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -41,66 +35,44 @@ public class TakeJobSiteTask {
 							                  if (entity.isBaby()) {
 								                  return false;
 							                  }
-							                  else if (!entity
-									                  .getVillagerData()
-									                  .profession()
-									                  .matchesKey(VillagerProfession.NONE)) {
+
+							                  if (!entity.getVillagerData().profession().matchesKey(VillagerProfession.NONE)) {
 								                  return false;
 							                  }
-							                  else {
-								                  BlockPos
-										                  blockPos =
-										                  context.<GlobalPos>getValue(potentialJobSite).pos();
-								                  Optional<RegistryEntry<PointOfInterestType>>
-										                  optional =
-										                  world.getPointOfInterestStorage().getType(blockPos);
-								                  if (optional.isEmpty()) {
-									                  return true;
-								                  }
-								                  else {
-									                  context.<List<LivingEntity>>getValue(mobs)
-									                         .stream()
-									                         .filter(mob -> mob instanceof VillagerEntity
-											                         && mob != entity)
-									                         .map(villager -> (VillagerEntity) villager)
-									                         .filter(LivingEntity::isAlive)
-									                         .filter(villager -> canUseJobSite(
-											                         optional.get(),
-											                         villager,
-											                         blockPos
-									                         ))
-									                         .findFirst()
-									                         .ifPresent(villager -> {
-										                         walkTarget.forget();
-										                         lookTarget.forget();
-										                         potentialJobSite.forget();
-										                         if (villager
-												                         .getBrain()
-												                         .getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE)
-												                         .isEmpty()) {
-											                         TargetUtil.walkTowards(
-													                         villager,
-													                         blockPos,
-													                         speed,
-													                         1
-											                         );
-											                         villager
-													                         .getBrain()
-													                         .remember(
-															                         MemoryModuleType.POTENTIAL_JOB_SITE,
-															                         GlobalPos.create(
-																	                         world.getRegistryKey(),
-																	                         blockPos
-															                         )
-													                         );
-											                         world
-													                         .getSubscriptionTracker()
-													                         .onPoiUpdated(blockPos);
-										                         }
-									                         });
-									                  return true;
-								                  }
+
+							                  BlockPos jobSitePos = context.<GlobalPos>getValue(potentialJobSite).pos();
+							                  Optional<RegistryEntry<PointOfInterestType>> poiTypeOpt =
+									                  world.getPointOfInterestStorage().getType(jobSitePos);
+
+							                  if (poiTypeOpt.isEmpty()) {
+								                  return true;
 							                  }
+
+							                  context.<List<LivingEntity>>getValue(mobs)
+							                         .stream()
+							                         .filter(mob -> mob instanceof VillagerEntity && mob != entity)
+							                         .map(villager -> (VillagerEntity) villager)
+							                         .filter(LivingEntity::isAlive)
+							                         .filter(villager -> canUseJobSite(poiTypeOpt.get(), villager, jobSitePos))
+							                         .findFirst()
+							                         .ifPresent(villager -> {
+								                         walkTarget.forget();
+								                         lookTarget.forget();
+								                         potentialJobSite.forget();
+
+								                         if (villager.getBrain()
+								                                     .getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE)
+								                                     .isEmpty()) {
+									                         TargetUtil.walkTowards(villager, jobSitePos, speed, 1);
+									                         villager.getBrain().remember(
+											                         MemoryModuleType.POTENTIAL_JOB_SITE,
+											                         GlobalPos.create(world.getRegistryKey(), jobSitePos)
+									                         );
+									                         world.getSubscriptionTracker().onPoiUpdated(jobSitePos);
+								                         }
+							                         });
+
+							                  return true;
 						                  }
 				                  )
 		);
@@ -111,21 +83,24 @@ public class TakeJobSiteTask {
 			VillagerEntity villager,
 			BlockPos pos
 	) {
-		boolean bl = villager.getBrain().getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE).isPresent();
-		if (bl) {
+		boolean hasPotentialSite = villager.getBrain()
+		                                   .getOptionalRegisteredMemory(MemoryModuleType.POTENTIAL_JOB_SITE)
+		                                   .isPresent();
+
+		if (hasPotentialSite) {
 			return false;
 		}
-		else {
-			Optional<GlobalPos> optional = villager.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
-			RegistryEntry<VillagerProfession> registryEntry = villager.getVillagerData().profession();
-			if (registryEntry.value().heldWorkstation().test(poiType)) {
-				return optional.isEmpty() ? canReachJobSite(villager, pos, poiType.value())
-				                          : optional.get().pos().equals(pos);
-			}
-			else {
-				return false;
-			}
+
+		Optional<GlobalPos> currentJobSite = villager.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
+		RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
+
+		if (!profession.value().heldWorkstation().test(poiType)) {
+			return false;
 		}
+
+		return currentJobSite.isEmpty()
+				? canReachJobSite(villager, pos, poiType.value())
+				: currentJobSite.get().pos().equals(pos);
 	}
 
 	private static boolean canReachJobSite(PathAwareEntity entity, BlockPos pos, PointOfInterestType poiType) {

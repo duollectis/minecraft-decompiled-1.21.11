@@ -5,136 +5,112 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.realms.exception.RealmsHttpException;
 import org.jspecify.annotations.Nullable;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Request}.
+ * Базовый HTTP-запрос к серверу Realms через {@link HttpURLConnection}.
+ * Реализует паттерн «Fluent Builder»: подклассы {@link Get}, {@link Post}, {@link Put}, {@link Delete}
+ * настраивают соединение в {@link #doConnect()}, а общая логика чтения ответа — в {@link #text()}.
+ *
+ * @param <T> конкретный тип запроса для цепочки вызовов
  */
+@Environment(EnvType.CLIENT)
 public abstract class Request<T extends Request<T>> {
 
+	private static final int READ_TIMEOUT_MS = 60000;
+	private static final int CONNECT_TIMEOUT_MS = 5000;
+	private static final int DEFAULT_RETRY_AFTER_SECONDS = 5;
+	private static final int DRAIN_BUFFER_SIZE = 1024;
+	private static final int HTTP_ERROR_THRESHOLD = 400;
+	private static final String HEADER_COOKIE = "Cookie";
+	private static final String HEADER_IS_PRERELEASE = "Is-Prerelease";
+	private static final String HEADER_RETRY_AFTER = "Retry-After";
+
 	protected HttpURLConnection connection;
-	private boolean connected;
 	protected String url;
-	private static final int READ_TIMEOUT = 60000;
-	private static final int CONNECT_TIMEOUT = 5000;
-	private static final String IS_PRERELEASE_HEADER = "Is-Prerelease";
-	private static final String COOKIE_HEADER = "Cookie";
+	private boolean connected;
 
 	public Request(String url, int connectTimeout, int readTimeout) {
 		try {
 			this.url = url;
 			Proxy proxy = RealmsClientConfig.getProxy();
-			if (proxy != null) {
-				this.connection = (HttpURLConnection) new URL(url).openConnection(proxy);
-			}
-			else {
-				this.connection = (HttpURLConnection) new URL(url).openConnection();
-			}
-
+			this.connection = proxy != null
+					? (HttpURLConnection) new URL(url).openConnection(proxy)
+					: (HttpURLConnection) new URL(url).openConnection();
 			this.connection.setConnectTimeout(connectTimeout);
 			this.connection.setReadTimeout(readTimeout);
-		}
-		catch (MalformedURLException var5) {
-			throw new RealmsHttpException(var5.getMessage(), var5);
-		}
-		catch (IOException var6) {
-			throw new RealmsHttpException(var6.getMessage(), var6);
+		} catch (MalformedURLException ex) {
+			throw new RealmsHttpException(ex.getMessage(), ex);
+		} catch (IOException ex) {
+			throw new RealmsHttpException(ex.getMessage(), ex);
 		}
 	}
 
-	/**
-	 * Cookie.
-	 *
-	 * @param key key
-	 * @param value value
-	 */
 	public void cookie(String key, String value) {
-		cookie(this.connection, key, value);
+		cookie(connection, key, value);
 	}
 
-	/**
-	 * Cookie.
-	 *
-	 * @param connection connection
-	 * @param key key
-	 * @param value value
-	 */
 	public static void cookie(HttpURLConnection connection, String key, String value) {
-		String string = connection.getRequestProperty("Cookie");
-		if (string == null) {
-			connection.setRequestProperty("Cookie", key + "=" + value);
-		}
-		else {
-			connection.setRequestProperty("Cookie", string + ";" + key + "=" + value);
-		}
+		String existing = connection.getRequestProperty(HEADER_COOKIE);
+		connection.setRequestProperty(
+				HEADER_COOKIE,
+				existing == null ? key + "=" + value : existing + ";" + key + "=" + value
+		);
 	}
 
-	/**
-	 * Prerelease.
-	 *
-	 * @param prerelease prerelease
-	 */
 	public void prerelease(boolean prerelease) {
-		this.connection.addRequestProperty("Is-Prerelease", String.valueOf(prerelease));
+		connection.addRequestProperty(HEADER_IS_PRERELEASE, String.valueOf(prerelease));
 	}
 
 	public int getRetryAfterHeader() {
-		return getRetryAfterHeader(this.connection);
+		return getRetryAfterHeader(connection);
 	}
 
 	public static int getRetryAfterHeader(HttpURLConnection connection) {
-		String string = connection.getHeaderField("Retry-After");
+		String value = connection.getHeaderField(HEADER_RETRY_AFTER);
 
 		try {
-			return Integer.valueOf(string);
-		}
-		catch (Exception var3) {
-			return 5;
+			return Integer.parseInt(value);
+		} catch (Exception ignored) {
+			return DEFAULT_RETRY_AFTER_SECONDS;
 		}
 	}
 
-	/**
-	 * Response code.
-	 *
-	 * @return int — результат операции
-	 */
 	public int responseCode() {
 		try {
 			this.connect();
-			return this.connection.getResponseCode();
-		}
-		catch (Exception var2) {
-			throw new RealmsHttpException(var2.getMessage(), var2);
+			return connection.getResponseCode();
+		} catch (Exception ex) {
+			throw new RealmsHttpException(ex.getMessage(), ex);
 		}
 	}
 
 	/**
-	 * Text.
+	 * Выполняет запрос и возвращает тело ответа как строку.
+	 * При HTTP-статусе ≥ 400 читает поток ошибок вместо основного потока.
 	 *
-	 * @return String — результат операции
+	 * @return тело ответа
+	 * @throws RealmsHttpException при ошибке ввода-вывода
 	 */
 	public String text() {
 		try {
 			this.connect();
-			String string;
-			if (this.responseCode() >= 400) {
-				string = this.read(this.connection.getErrorStream());
-			}
-			else {
-				string = this.read(this.connection.getInputStream());
-			}
-
-			this.dispose();
-			return string;
-		}
-		catch (IOException var2) {
-			throw new RealmsHttpException(var2.getMessage(), var2);
+			String body = responseCode() >= HTTP_ERROR_THRESHOLD
+					? read(connection.getErrorStream())
+					: read(connection.getInputStream());
+			dispose();
+			return body;
+		} catch (IOException ex) {
+			throw new RealmsHttpException(ex.getMessage(), ex);
 		}
 	}
 
@@ -144,224 +120,142 @@ public abstract class Request<T extends Request<T>> {
 		}
 
 		try (InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-			StringBuilder stringBuilder = new StringBuilder();
+			StringBuilder builder = new StringBuilder();
 
 			for (int ch = reader.read(); ch != -1; ch = reader.read()) {
-				stringBuilder.append((char) ch);
+				builder.append((char) ch);
 			}
 
-			return stringBuilder.toString();
+			return builder.toString();
 		}
 	}
 
+	// Дренирует и закрывает соединение для корректного возврата в пул keep-alive
 	private void dispose() {
-		byte[] bs = new byte[1024];
+		byte[] drainBuffer = new byte[DRAIN_BUFFER_SIZE];
 
 		try {
-			InputStream inputStream = this.connection.getInputStream();
+			InputStream inputStream = connection.getInputStream();
 
-			while (inputStream.read(bs) > 0) {
+			while (inputStream.read(drainBuffer) > 0) {
 			}
 
 			inputStream.close();
 			return;
-		}
-		catch (Exception var9) {
+		} catch (Exception ignored) {
 			try {
-				InputStream inputStream2 = this.connection.getErrorStream();
-				if (inputStream2 != null) {
-					while (inputStream2.read(bs) > 0) {
+				InputStream errorStream = connection.getErrorStream();
+
+				if (errorStream != null) {
+					while (errorStream.read(drainBuffer) > 0) {
 					}
 
-					inputStream2.close();
-					return;
+					errorStream.close();
 				}
+			} catch (IOException ignored2) {
+				// соединение уже закрыто
 			}
-			catch (IOException var8) {
-				return;
-			}
-		}
-		finally {
-			if (this.connection != null) {
-				this.connection.disconnect();
+		} finally {
+			if (connection != null) {
+				connection.disconnect();
 			}
 		}
 	}
 
-	/**
-	 * Connect.
-	 *
-	 * @return T — результат операции
-	 */
 	protected T connect() {
-		if (this.connected) {
+		if (connected) {
 			return (T) this;
 		}
-		else {
-			T request = this.doConnect();
-			this.connected = true;
-			return request;
-		}
+
+		T request = doConnect();
+		connected = true;
+		return request;
 	}
 
-	/**
-	 * Do connect.
-	 *
-	 * @return T — результат операции
-	 */
 	protected abstract T doConnect();
 
-	/**
-	 * Get.
-	 *
-	 * @param url url
-	 *
-	 * @return Request — 
-	 */
 	public static Request<?> get(String url) {
-		return new Request.Get(url, 5000, 60000);
+		return new Get(url, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param url url
-	 * @param connectTimeoutMillis connect timeout millis
-	 * @param readTimeoutMillis read timeout millis
-	 *
-	 * @return Request — 
-	 */
 	public static Request<?> get(String url, int connectTimeoutMillis, int readTimeoutMillis) {
-		return new Request.Get(url, connectTimeoutMillis, readTimeoutMillis);
+		return new Get(url, connectTimeoutMillis, readTimeoutMillis);
 	}
 
-	/**
-	 * Post.
-	 *
-	 * @param uri uri
-	 * @param content content
-	 *
-	 * @return Request — результат операции
-	 */
 	public static Request<?> post(String uri, String content) {
-		return new Request.Post(uri, content, 5000, 60000);
+		return new Post(uri, content, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
 	}
 
-	/**
-	 * Post.
-	 *
-	 * @param uri uri
-	 * @param content content
-	 * @param connectTimeoutMillis connect timeout millis
-	 * @param readTimeoutMillis read timeout millis
-	 *
-	 * @return Request — результат операции
-	 */
 	public static Request<?> post(String uri, String content, int connectTimeoutMillis, int readTimeoutMillis) {
-		return new Request.Post(uri, content, connectTimeoutMillis, readTimeoutMillis);
+		return new Post(uri, content, connectTimeoutMillis, readTimeoutMillis);
 	}
 
-	/**
-	 * Delete.
-	 *
-	 * @param url url
-	 *
-	 * @return Request — результат операции
-	 */
 	public static Request<?> delete(String url) {
-		return new Request.Delete(url, 5000, 60000);
+		return new Delete(url, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param url url
-	 * @param content content
-	 *
-	 * @return Request — результат операции
-	 */
 	public static Request<?> put(String url, String content) {
-		return new Request.Put(url, content, 5000, 60000);
+		return new Put(url, content, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param url url
-	 * @param content content
-	 * @param connectTimeoutMillis connect timeout millis
-	 * @param readTimeoutMillis read timeout millis
-	 *
-	 * @return Request — результат операции
-	 */
 	public static Request<?> put(String url, String content, int connectTimeoutMillis, int readTimeoutMillis) {
-		return new Request.Put(url, content, connectTimeoutMillis, readTimeoutMillis);
+		return new Put(url, content, connectTimeoutMillis, readTimeoutMillis);
 	}
 
 	public String getHeader(String header) {
-		return getHeader(this.connection, header);
+		return getHeader(connection, header);
 	}
 
 	public static String getHeader(HttpURLConnection connection, String header) {
 		try {
 			return connection.getHeaderField(header);
-		}
-		catch (Exception var3) {
+		} catch (Exception ignored) {
 			return "";
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Delete}.
-	 */
 	public static class Delete extends Request<Request.Delete> {
 
-		public Delete(String string, int i, int j) {
-			super(string, i, j);
+		public Delete(String url, int connectTimeout, int readTimeout) {
+			super(url, connectTimeout, readTimeout);
 		}
 
+		@Override
 		public Request.Delete doConnect() {
 			try {
-				this.connection.setDoOutput(true);
-				this.connection.setRequestMethod("DELETE");
-				this.connection.connect();
+				connection.setDoOutput(true);
+				connection.setRequestMethod("DELETE");
+				connection.connect();
 				return this;
-			}
-			catch (Exception var2) {
-				throw new RealmsHttpException(var2.getMessage(), var2);
+			} catch (Exception ex) {
+				throw new RealmsHttpException(ex.getMessage(), ex);
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Get}.
-	 */
 	public static class Get extends Request<Request.Get> {
 
-		public Get(String string, int i, int j) {
-			super(string, i, j);
+		public Get(String url, int connectTimeout, int readTimeout) {
+			super(url, connectTimeout, readTimeout);
 		}
 
+		@Override
 		public Request.Get doConnect() {
 			try {
-				this.connection.setDoInput(true);
-				this.connection.setDoOutput(true);
-				this.connection.setUseCaches(false);
-				this.connection.setRequestMethod("GET");
+				connection.setDoInput(true);
+				connection.setDoOutput(true);
+				connection.setUseCaches(false);
+				connection.setRequestMethod("GET");
 				return this;
-			}
-			catch (Exception var2) {
-				throw new RealmsHttpException(var2.getMessage(), var2);
+			} catch (Exception ex) {
+				throw new RealmsHttpException(ex.getMessage(), ex);
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Post}.
-	 */
 	public static class Post extends Request<Request.Post> {
 
 		private final String content;
@@ -371,65 +265,64 @@ public abstract class Request<T extends Request<T>> {
 			this.content = content;
 		}
 
+		@Override
 		public Request.Post doConnect() {
 			try {
-				if (this.content != null) {
-					this.connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+				if (content != null) {
+					connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 				}
 
-				this.connection.setDoInput(true);
-				this.connection.setDoOutput(true);
-				this.connection.setUseCaches(false);
-				this.connection.setRequestMethod("POST");
-				OutputStream outputStream = this.connection.getOutputStream();
-	
+				connection.setDoInput(true);
+				connection.setDoOutput(true);
+				connection.setUseCaches(false);
+				connection.setRequestMethod("POST");
+
+				OutputStream outputStream = connection.getOutputStream();
+
 				try (OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)) {
-					writer.write(this.content);
+					writer.write(content);
 				}
-	
+
 				outputStream.flush();
 				return this;
-				}
-				catch (Exception var3) {
-					throw new RealmsHttpException(var3.getMessage(), var3);
-				}
+			} catch (Exception ex) {
+				throw new RealmsHttpException(ex.getMessage(), ex);
 			}
 		}
-	
-		@Environment(EnvType.CLIENT)
-		/**
-			* {@code Put}.
-			*/
-		public static class Put extends Request<Request.Put> {
-	
-			private final String content;
-	
-			public Put(String uri, String content, int connectTimeout, int readTimeout) {
-				super(uri, connectTimeout, readTimeout);
-				this.content = content;
-			}
-	
-			public Request.Put doConnect() {
-				try {
-					if (this.content != null) {
-						this.connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-					}
-	
-					this.connection.setDoOutput(true);
-					this.connection.setDoInput(true);
-					this.connection.setRequestMethod("PUT");
-					OutputStream outputStream = this.connection.getOutputStream();
-	
-					try (OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)) {
-						writer.write(this.content);
-					}
-	
-					outputStream.flush();
-					return this;
+	}
+
+	@Environment(EnvType.CLIENT)
+	public static class Put extends Request<Request.Put> {
+
+		private final String content;
+
+		public Put(String uri, String content, int connectTimeout, int readTimeout) {
+			super(uri, connectTimeout, readTimeout);
+			this.content = content;
+		}
+
+		@Override
+		public Request.Put doConnect() {
+			try {
+				if (content != null) {
+					connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 				}
-				catch (Exception var3) {
-					throw new RealmsHttpException(var3.getMessage(), var3);
+
+				connection.setDoOutput(true);
+				connection.setDoInput(true);
+				connection.setRequestMethod("PUT");
+
+				OutputStream outputStream = connection.getOutputStream();
+
+				try (OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8)) {
+					writer.write(content);
 				}
+
+				outputStream.flush();
+				return this;
+			} catch (Exception ex) {
+				throw new RealmsHttpException(ex.getMessage(), ex);
 			}
 		}
+	}
 }

@@ -25,7 +25,7 @@ import net.minecraft.village.raid.RaidManager;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code RaidCommand}.
+ * Команда {@code /raid}: управление рейдами (только dev-режим).
  */
 public class RaidCommand {
 

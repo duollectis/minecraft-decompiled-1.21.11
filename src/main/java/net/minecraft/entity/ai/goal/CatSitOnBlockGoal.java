@@ -12,7 +12,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code CatSitOnBlockGoal}.
+ * Цель, заставляющая кошку искать и садиться на привлекательные блоки:
+ * сундуки, горящие печи и кровати. Наследует логику навигации к целевой позиции
+ * от {@link MoveToTargetPosGoal}.
  */
 public class CatSitOnBlockGoal extends MoveToTargetPosGoal {
 
@@ -25,25 +27,25 @@ public class CatSitOnBlockGoal extends MoveToTargetPosGoal {
 
 	@Override
 	public boolean canStart() {
-		return this.cat.isTamed() && !this.cat.isSitting() && super.canStart();
+		return cat.isTamed() && !cat.isSitting() && super.canStart();
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.cat.setInSittingPose(false);
+		cat.setInSittingPose(false);
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.cat.setInSittingPose(false);
+		cat.setInSittingPose(false);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		this.cat.setInSittingPose(this.hasReached());
+		cat.setInSittingPose(hasReached());
 	}
 
 	@Override
@@ -51,19 +53,17 @@ public class CatSitOnBlockGoal extends MoveToTargetPosGoal {
 		if (!world.isAir(pos.up())) {
 			return false;
 		}
-		else {
-			BlockState blockState = world.getBlockState(pos);
-			if (blockState.isOf(Blocks.CHEST)) {
-				return ChestBlockEntity.getPlayersLookingInChestCount(world, pos) < 1;
-			}
-			else {
-				return blockState.isOf(Blocks.FURNACE) && blockState.get(FurnaceBlock.LIT)
-				       ? true
-				       : blockState.isIn(
-						       BlockTags.BEDS,
-						       state -> state.getOrEmpty(BedBlock.PART).map(part -> part != BedPart.HEAD).orElse(true)
-				       );
-			}
+
+		BlockState blockState = world.getBlockState(pos);
+
+		if (blockState.isOf(Blocks.CHEST)) {
+			return ChestBlockEntity.getPlayersLookingInChestCount(world, pos) < 1;
 		}
+
+		return (blockState.isOf(Blocks.FURNACE) && blockState.get(FurnaceBlock.LIT))
+			|| blockState.isIn(
+				BlockTags.BEDS,
+				state -> state.getOrEmpty(BedBlock.PART).map(part -> part != BedPart.HEAD).orElse(true)
+			);
 	}
 }

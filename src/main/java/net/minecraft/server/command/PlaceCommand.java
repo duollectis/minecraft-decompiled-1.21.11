@@ -38,7 +38,7 @@ import net.minecraft.world.gen.structure.Structure;
 import java.util.Optional;
 
 /**
- * {@code PlaceCommand}.
+ * Команда {@code /place}: размещение структур и элементов.
  */
 public class PlaceCommand {
 

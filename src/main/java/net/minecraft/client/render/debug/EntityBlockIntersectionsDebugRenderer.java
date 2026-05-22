@@ -29,7 +29,7 @@ public class EntityBlockIntersectionsDebugRenderer implements DebugRenderer.Rend
 				DebugSubscriptionTypes.ENTITY_BLOCK_INTERSECTIONS,
 				(blockPos, entityBlockIntersectionType) -> GizmoDrawing.box(
 						blockPos,
-						0.02F,
+						EXPANSION,
 						DrawStyle.filled(entityBlockIntersectionType.getColor())
 				)
 		);

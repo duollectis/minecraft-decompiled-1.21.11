@@ -11,7 +11,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import java.util.Optional;
 
 /**
- * {@code GoAroundTask}.
+ * Фабричный класс задачи мозга, заставляющей сущность случайно бродить вокруг точки интереса.
+ * Обновляет цель блуждания каждые {@code UPDATE_INTERVAL} тиков.
  */
 public class GoAroundTask {
 
@@ -24,38 +25,34 @@ public class GoAroundTask {
 			float walkSpeed,
 			int maxDistance
 	) {
-		MutableLong mutableLong = new MutableLong(0L);
+		MutableLong nextUpdateTime = new MutableLong(0L);
+
 		return TaskTriggerer.task(
-				context -> context
-						.group(
-								context.queryMemoryOptional(MemoryModuleType.WALK_TARGET),
-								context.queryMemoryValue(posModule)
-						)
-						.apply(
-								context, (walkTarget, pos) -> (world, entity, time) -> {
-									GlobalPos globalPos = context.getValue(pos);
-									if (world.getRegistryKey() != globalPos.dimension() || !globalPos
-											.pos()
-											.isWithinDistance(entity.getEntityPos(), maxDistance)) {
-										return false;
-									}
-									else if (time <= mutableLong.longValue()) {
-										return true;
-									}
-									else {
-										Optional<Vec3d>
-												optional =
-												Optional.ofNullable(FuzzyTargeting.find(entity, 8, 6));
-										walkTarget.remember(optional.map(targetPos -> new WalkTarget(
-												targetPos,
-												walkSpeed,
-												1
-										)));
-										mutableLong.setValue(time + 180L);
-										return true;
-									}
-								}
-						)
+				context -> context.group(
+						context.queryMemoryOptional(MemoryModuleType.WALK_TARGET),
+						context.queryMemoryValue(posModule)
+				).apply(
+						context,
+						(walkTarget, pos) -> (world, entity, time) -> {
+							GlobalPos globalPos = context.getValue(pos);
+
+							if (world.getRegistryKey() != globalPos.dimension()
+									|| !globalPos.pos().isWithinDistance(entity.getEntityPos(), maxDistance)) {
+								return false;
+							}
+
+							if (time <= nextUpdateTime.longValue()) {
+								return true;
+							}
+
+							Optional<Vec3d> wanderPos = Optional.ofNullable(
+									FuzzyTargeting.find(entity, HORIZONTAL_RANGE, VERTICAL_RANGE)
+							);
+							walkTarget.remember(wanderPos.map(p -> new WalkTarget(p, walkSpeed, 1)));
+							nextUpdateTime.setValue(time + UPDATE_INTERVAL);
+							return true;
+						}
+				)
 		);
 	}
 }

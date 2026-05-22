@@ -10,7 +10,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code DamagePredicate}.
+ * Предикат для проверки события урона: нанесённое и полученное количество,
+ * источник урона, тип и факт блокирования.
  */
 public record DamagePredicate(
 		NumberRange.DoubleRange dealt,
@@ -22,43 +23,39 @@ public record DamagePredicate(
 
 	public static final Codec<DamagePredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("dealt", NumberRange.DoubleRange.ANY)
-							                    .forGetter(DamagePredicate::dealt),
-					                    NumberRange.DoubleRange.CODEC
-							                    .optionalFieldOf("taken", NumberRange.DoubleRange.ANY)
-							                    .forGetter(DamagePredicate::taken),
-					                    EntityPredicate.CODEC.optionalFieldOf("source_entity").forGetter(DamagePredicate::sourceEntity),
-					                    Codec.BOOL.optionalFieldOf("blocked").forGetter(DamagePredicate::blocked),
-					                    DamageSourcePredicate.CODEC.optionalFieldOf("type").forGetter(DamagePredicate::type)
-			                    )
-			                    .apply(instance, DamagePredicate::new)
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("dealt", NumberRange.DoubleRange.ANY)
+							.forGetter(DamagePredicate::dealt),
+					NumberRange.DoubleRange.CODEC
+							.optionalFieldOf("taken", NumberRange.DoubleRange.ANY)
+							.forGetter(DamagePredicate::taken),
+					EntityPredicate.CODEC.optionalFieldOf("source_entity").forGetter(DamagePredicate::sourceEntity),
+					Codec.BOOL.optionalFieldOf("blocked").forGetter(DamagePredicate::blocked),
+					DamageSourcePredicate.CODEC.optionalFieldOf("type").forGetter(DamagePredicate::type)
+			)
+			.apply(instance, DamagePredicate::new)
 	);
 
 	public boolean test(ServerPlayerEntity player, DamageSource source, float dealt, float taken, boolean blocked) {
 		if (!this.dealt.test(dealt)) {
 			return false;
 		}
-		else if (!this.taken.test(taken)) {
+
+		if (!this.taken.test(taken)) {
 			return false;
 		}
-		else if (this.sourceEntity.isPresent() && !this.sourceEntity.get().test(player, source.getAttacker())) {
+
+		if (sourceEntity.isPresent() && !sourceEntity.get().test(player, source.getAttacker())) {
 			return false;
 		}
-		else {
-			return this.blocked.isPresent() && this.blocked.get() != blocked ? false
-			                                                                 : !this.type.isPresent() || this.type
-			                                                                                             .get()
-			                                                                                             .test(
-					                                                                                             player,
-					                                                                                             source
-			                                                                                             );
+
+		if (this.blocked.isPresent() && this.blocked.get() != blocked) {
+			return false;
 		}
+
+		return type.isEmpty() || type.get().test(player, source);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private NumberRange.DoubleRange dealt = NumberRange.DoubleRange.ANY;
@@ -102,7 +99,7 @@ public record DamagePredicate(
 		}
 
 		public DamagePredicate build() {
-			return new DamagePredicate(this.dealt, this.taken, this.sourceEntity, this.blocked, this.type);
+			return new DamagePredicate(dealt, taken, sourceEntity, blocked, type);
 		}
 	}
 }

@@ -60,7 +60,8 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 
 /**
- * {@code AxolotlEntity}.
+ * Аксолотль — земноводное существо, атакующее водных мобов.
+ * При получении урона притворяется мёртвым. Имеет 5 цветовых вариантов.
  */
 public class AxolotlEntity extends AnimalEntity implements Bucketable {
 
@@ -115,10 +116,10 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	private static final int HYDRATION_BY_POTION = 1800;
 	private static final int MAX_REGENERATION_BUFF_DURATION = 2400;
 	private static final boolean DEFAULT_FROM_BUCKET = false;
-	public final InterpolatedFlipFlop playingDeadFf = new InterpolatedFlipFlop(10, EasingType.IN_OUT_SINE);
-	public final InterpolatedFlipFlop inWaterFf = new InterpolatedFlipFlop(10, EasingType.IN_OUT_SINE);
-	public final InterpolatedFlipFlop onGroundFf = new InterpolatedFlipFlop(10, EasingType.IN_OUT_SINE);
-	public final InterpolatedFlipFlop isMovingFf = new InterpolatedFlipFlop(10, EasingType.IN_OUT_SINE);
+	public final InterpolatedFlipFlop playingDeadFf = new InterpolatedFlipFlop(ANIMATION_INTERPOLATION_TICKS, EasingType.IN_OUT_SINE);
+	public final InterpolatedFlipFlop inWaterFf = new InterpolatedFlipFlop(ANIMATION_INTERPOLATION_TICKS, EasingType.IN_OUT_SINE);
+	public final InterpolatedFlipFlop onGroundFf = new InterpolatedFlipFlop(ANIMATION_INTERPOLATION_TICKS, EasingType.IN_OUT_SINE);
+	public final InterpolatedFlipFlop isMovingFf = new InterpolatedFlipFlop(ANIMATION_INTERPOLATION_TICKS, EasingType.IN_OUT_SINE);
 	private static final int BUFF_DURATION = 100;
 
 	public AxolotlEntity(EntityType<? extends AxolotlEntity> entityType, World world) {
@@ -259,13 +260,13 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	 * Hydrate from potion.
 	 */
 	public void hydrateFromPotion() {
-		int i = this.getAir() + 1800;
+		int i = this.getAir() + HYDRATION_BY_POTION;
 		this.setAir(Math.min(i, this.getMaxAir()));
 	}
 
 	@Override
 	public int getMaxAir() {
-		return 6000;
+		return MAX_AIR;
 	}
 
 	public AxolotlEntity.Variant getVariant() {
@@ -302,7 +303,7 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	private static boolean shouldBabyBeDifferent(Random random) {
-		return random.nextInt(1200) == 0;
+		return random.nextInt(BLUE_BABY_CHANCE) == 0;
 	}
 
 	@Override
@@ -405,7 +406,7 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 				&& this.isTouchingWater()
 				&& (source.getAttacker() != null || source.getSource() != null)
 				&& !this.isPlayingDead()) {
-			this.brain.remember(MemoryModuleType.PLAY_DEAD_TICKS, 200);
+			this.brain.remember(MemoryModuleType.PLAY_DEAD_TICKS, PLAY_DEAD_TICKS);
 		}
 
 		return super.damage(world, source, amount);
@@ -485,7 +486,7 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 					PlayerEntity playerEntity = (PlayerEntity) entity;
 					List<PlayerEntity>
 							list =
-							world.getNonSpectatingEntities(PlayerEntity.class, axolotl.getBoundingBox().expand(20.0));
+							world.getNonSpectatingEntities(PlayerEntity.class, axolotl.getBoundingBox().expand(BUFF_RANGE));
 					if (list.contains(playerEntity)) {
 						axolotl.buffPlayer(playerEntity);
 					}
@@ -500,11 +501,11 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	 * @param player player
 	 */
 	public void buffPlayer(PlayerEntity player) {
-		StatusEffectInstance statusEffectInstance = player.getStatusEffect(StatusEffects.REGENERATION);
-		if (statusEffectInstance == null || statusEffectInstance.isDurationBelow(2399)) {
-			int i = statusEffectInstance != null ? statusEffectInstance.getDuration() : 0;
-			int j = Math.min(2400, 100 + i);
-			player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, j, 0), this);
+		StatusEffectInstance regenEffect = player.getStatusEffect(StatusEffects.REGENERATION);
+		if (regenEffect == null || regenEffect.isDurationBelow(2399)) {
+			int existingDuration = regenEffect != null ? regenEffect.getDuration() : 0;
+			int newDuration = Math.min(MAX_REGENERATION_BUFF_DURATION, BUFF_DURATION + existingDuration);
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, newDuration, 0), this);
 		}
 
 		player.removeStatusEffect(StatusEffects.MINING_FATIGUE);
@@ -593,8 +594,8 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	/**
-	 * {@code AxolotlData}.
-	 */
+ * Задача аксолотля: притворяться мёртвым при получении урона.
+ */
 	public static class AxolotlData extends PassiveEntity.PassiveData {
 
 		public final AxolotlEntity.Variant[] variants;
@@ -610,8 +611,8 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	/**
-	 * {@code AxolotlLookControl}.
-	 */
+ * Задача аксолотля: атаковать водных мобов.
+ */
 	class AxolotlLookControl extends YawAdjustingLookControl {
 
 		public AxolotlLookControl(final AxolotlEntity axolotl, final int yawAdjustThreshold) {
@@ -627,14 +628,14 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	/**
-	 * {@code AxolotlMoveControl}.
-	 */
+ * Задача аксолотля: плыть к поверхности воды.
+ */
 	static class AxolotlMoveControl extends AquaticMoveControl {
 
 		private final AxolotlEntity axolotl;
 
 		public AxolotlMoveControl(AxolotlEntity axolotl) {
-			super(axolotl, 85, 10, 0.1F, 0.5F, false);
+			super(axolotl, 85, ANIMATION_INTERPOLATION_TICKS, 0.1F, 0.5F, false);
 			this.axolotl = axolotl;
 		}
 
@@ -647,8 +648,8 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	/**
-	 * {@code State}.
-	 */
+ * Задача аксолотля: выходить на сушу.
+ */
 	public static enum State {
 		PLAYING_DEAD,
 		IN_WATER,
@@ -657,8 +658,8 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 	}
 
 	/**
-	 * {@code Variant}.
-	 */
+ * Данные аксолотля для сериализации.
+ */
 	public static enum Variant implements StringIdentifiable {
 		LUCY(0, "lucy", true),
 		WILD(1, "wild", true),

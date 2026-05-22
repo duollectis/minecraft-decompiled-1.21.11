@@ -15,7 +15,8 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code MangroveRootsBlock}.
+ * Блок корней мангрового дерева — полупрозрачный столб с поддержкой водозаполнения.
+ * Скрывает боковые грани при соединении с соседними корнями по вертикальной оси.
  */
 public class MangroveRootsBlock extends Block implements Waterloggable {
 
@@ -29,7 +30,7 @@ public class MangroveRootsBlock extends Block implements Waterloggable {
 
 	public MangroveRootsBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
+		setDefaultState(stateManager.getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -40,8 +41,8 @@ public class MangroveRootsBlock extends Block implements Waterloggable {
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		boolean bl = fluidState.getFluid() == Fluids.WATER;
-		return super.getPlacementState(ctx).with(WATERLOGGED, bl);
+		boolean waterlogged = fluidState.getFluid() == Fluids.WATER;
+		return super.getPlacementState(ctx).with(WATERLOGGED, waterlogged);
 	}
 
 	@Override

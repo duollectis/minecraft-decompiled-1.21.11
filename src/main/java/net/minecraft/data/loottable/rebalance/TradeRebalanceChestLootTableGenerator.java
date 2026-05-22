@@ -28,7 +28,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		lootTableBiConsumer.accept(
 				LootTables.ABANDONED_MINESHAFT_CHEST,
 				LootTable.builder()
@@ -41,7 +41,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .weight(10)
-								                 .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+								                 .apply(EnchantRandomlyLootFunction.builder(registries)))
 						                 .with(ItemEntry.builder(Items.IRON_PICKAXE).weight(5))
 						                 .with(EmptyEntry.builder().weight(5))
 				         )
@@ -185,7 +185,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 	}
 
 	public LootTable.Builder createPillagerOutpostChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(LootPool
 				                .builder()
@@ -261,7 +261,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(1)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 		                )
 		                .pool(
 				                LootPool.builder()
@@ -295,7 +295,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 	}
 
 	public LootTable.Builder createDesertPyramidChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(
 				                LootPool.builder()
@@ -357,7 +357,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(10)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry.builder(Items.GOLDEN_APPLE).weight(20))
 				                        .with(ItemEntry.builder(Items.ENCHANTED_GOLDEN_APPLE).weight(2))
 				                        .with(EmptyEntry.builder().weight(15))
@@ -420,7 +420,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 	}
 
 	public LootTable.Builder createAncientCityChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(
 				                LootPool.builder()
@@ -458,7 +458,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 								                                 1.0F
 						                                 )))
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(30.0F, 50.0F)
 						                                 ))
 				                        )
@@ -483,7 +483,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 						                        ItemEntry.builder(Items.DIAMOND_LEGGINGS)
 						                                 .weight(2)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(30.0F, 50.0F)
 						                                 ))
 				                        )
@@ -538,7 +538,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 						                        ItemEntry.builder(Items.IRON_LEGGINGS)
 						                                 .weight(3)
 						                                 .apply(EnchantWithLevelsLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(20.0F, 39.0F)
 						                                 ))
 				                        )
@@ -568,7 +568,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(5)
-						                        .apply(EnchantRandomlyLootFunction.builder(this.registries)))
+						                        .apply(EnchantRandomlyLootFunction.builder(registries)))
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .weight(5)
@@ -613,7 +613,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 	}
 
 	public LootTable.Builder createJungleTempleChestTableBuilder() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return LootTable.builder()
 		                .pool(
 				                LootPool.builder()
@@ -675,7 +675,7 @@ public record TradeRebalanceChestLootTableGenerator(RegistryWrapper.WrapperLooku
 				                        .with(ItemEntry
 						                        .builder(Items.BOOK)
 						                        .apply(EnchantWithLevelsLootFunction.builder(
-								                        this.registries,
+								                        registries,
 								                        ConstantLootNumberProvider.create(30.0F)
 						                        )))
 		                )

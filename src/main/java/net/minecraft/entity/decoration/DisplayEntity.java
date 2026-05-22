@@ -44,57 +44,48 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 
 /**
- * {@code DisplayEntity}.
+ * Базовый класс для display-сущностей (блок, предмет, текст).
+ * Управляет интерполяцией трансформаций, billboard-режимом, яркостью и видимостью через DataTracker.
+ * Не получает урона, игнорирует поршни и ловушки.
  */
 public abstract class DisplayEntity extends Entity {
 
 	static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final int NO_GLOW_COLOR_OVERRIDE = -1;
-	private static final TrackedData<Integer>
-			START_INTERPOLATION =
+
+	private static final TrackedData<Integer> START_INTERPOLATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Integer>
-			INTERPOLATION_DURATION =
+	private static final TrackedData<Integer> INTERPOLATION_DURATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Integer>
-			TELEPORT_DURATION =
+	private static final TrackedData<Integer> TELEPORT_DURATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Vector3fc>
-			TRANSLATION =
+	private static final TrackedData<Vector3fc> TRANSLATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.VECTOR_3F);
-	private static final TrackedData<Vector3fc>
-			SCALE =
+	private static final TrackedData<Vector3fc> SCALE =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.VECTOR_3F);
-	private static final TrackedData<Quaternionfc>
-			LEFT_ROTATION =
+	private static final TrackedData<Quaternionfc> LEFT_ROTATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.QUATERNION_F);
-	private static final TrackedData<Quaternionfc>
-			RIGHT_ROTATION =
+	private static final TrackedData<Quaternionfc> RIGHT_ROTATION =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.QUATERNION_F);
-	private static final TrackedData<Byte>
-			BILLBOARD =
+	private static final TrackedData<Byte> BILLBOARD =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.BYTE);
-	private static final TrackedData<Integer>
-			BRIGHTNESS =
+	private static final TrackedData<Integer> BRIGHTNESS =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final TrackedData<Float>
-			VIEW_RANGE =
+	private static final TrackedData<Float> VIEW_RANGE =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.FLOAT);
-	private static final TrackedData<Float>
-			SHADOW_RADIUS =
+	private static final TrackedData<Float> SHADOW_RADIUS =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.FLOAT);
-	private static final TrackedData<Float>
-			SHADOW_STRENGTH =
+	private static final TrackedData<Float> SHADOW_STRENGTH =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.FLOAT);
-	private static final TrackedData<Float>
-			WIDTH =
+	private static final TrackedData<Float> WIDTH =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.FLOAT);
-	private static final TrackedData<Float>
-			HEIGHT =
+	private static final TrackedData<Float> HEIGHT =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.FLOAT);
-	private static final TrackedData<Integer>
-			GLOW_COLOR_OVERRIDE =
+	private static final TrackedData<Integer> GLOW_COLOR_OVERRIDE =
 			DataTracker.registerData(DisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
+	/** Набор ID трекеров, изменение которых требует обновления рендер-состояния. */
 	private static final IntSet RENDERING_DATA_IDS = IntSet.of(
 			new int[]{
 					TRANSLATION.id(),
@@ -107,6 +98,7 @@ public abstract class DisplayEntity extends Entity {
 					SHADOW_STRENGTH.id()
 			}
 	);
+
 	private static final int DEFAULT_INTERPOLATION_DURATION = 0;
 	private static final int DEFAULT_START_INTERPOLATION = 0;
 	private static final int DEFAULT_TELEPORT_DURATION = 0;
@@ -116,6 +108,10 @@ public abstract class DisplayEntity extends Entity {
 	private static final float DEFAULT_DISPLAY_WIDTH = 0.0F;
 	private static final float DEFAULT_DISPLAY_HEIGHT = 0.0F;
 	private static final int DEFAULT_BRIGHTNESS = -1;
+
+	/** Максимально допустимая длительность телепортации (в тиках). */
+	private static final int MAX_TELEPORT_DURATION = 59;
+
 	public static final String TELEPORT_DURATION_KEY = "teleport_duration";
 	public static final String INTERPOLATION_DURATION_KEY = "interpolation_duration";
 	public static final String START_INTERPOLATION_KEY = "start_interpolation";
@@ -128,7 +124,8 @@ public abstract class DisplayEntity extends Entity {
 	public static final String WIDTH_NBT_KEY = "width";
 	public static final String HEIGHT_NBT_KEY = "height";
 	public static final String GLOW_COLOR_OVERRIDE_NBT_KEY = "glow_color_override";
-	private long interpolationStart = -2147483648L;
+
+	private long interpolationStart = Long.MIN_VALUE;
 	private int interpolationDuration;
 	private float lerpProgress;
 	private Box visibilityBoundingBox;
@@ -136,36 +133,36 @@ public abstract class DisplayEntity extends Entity {
 	protected boolean renderingDataSet;
 	private boolean startInterpolationSet;
 	private boolean interpolationDurationSet;
-	private DisplayEntity.@Nullable RenderState renderProperties;
+	private @Nullable RenderState renderProperties;
 	private final PositionInterpolator interpolator = new PositionInterpolator(this, 0);
 
 	public DisplayEntity(EntityType<?> entityType, World world) {
 		super(entityType, world);
-		this.noClip = true;
-		this.visibilityBoundingBox = this.getBoundingBox();
+		noClip = true;
+		visibilityBoundingBox = getBoundingBox();
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		super.onTrackedDataSet(data);
 		if (HEIGHT.equals(data) || WIDTH.equals(data)) {
-			this.updateVisibilityBoundingBox();
+			updateVisibilityBoundingBox();
 		}
 
 		if (START_INTERPOLATION.equals(data)) {
-			this.startInterpolationSet = true;
+			startInterpolationSet = true;
 		}
 
 		if (TELEPORT_DURATION.equals(data)) {
-			this.interpolator.setLerpDuration(this.getTeleportDuration());
+			interpolator.setLerpDuration(getTeleportDuration());
 		}
 
 		if (INTERPOLATION_DURATION.equals(data)) {
-			this.interpolationDurationSet = true;
+			interpolationDurationSet = true;
 		}
 
 		if (RENDERING_DATA_IDS.contains(data.id())) {
-			this.renderingDataSet = true;
+			renderingDataSet = true;
 		}
 	}
 
@@ -175,135 +172,134 @@ public abstract class DisplayEntity extends Entity {
 	}
 
 	private static AffineTransformation getTransformation(DataTracker dataTracker) {
-		Vector3fc vector3fc = dataTracker.get(TRANSLATION);
-		Quaternionfc quaternionfc = dataTracker.get(LEFT_ROTATION);
-		Vector3fc vector3fc2 = dataTracker.get(SCALE);
-		Quaternionfc quaternionfc2 = dataTracker.get(RIGHT_ROTATION);
-		return new AffineTransformation(vector3fc, quaternionfc, vector3fc2, quaternionfc2);
+		Vector3fc translation = dataTracker.get(TRANSLATION);
+		Quaternionfc leftRotation = dataTracker.get(LEFT_ROTATION);
+		Vector3fc scale = dataTracker.get(SCALE);
+		Quaternionfc rightRotation = dataTracker.get(RIGHT_ROTATION);
+		return new AffineTransformation(translation, leftRotation, scale, rightRotation);
 	}
 
+	/**
+	 * На клиенте обрабатывает интерполяцию трансформаций и позиции.
+	 * Обновляет рендер-состояние при изменении данных трекера.
+	 */
 	@Override
 	public void tick() {
-		Entity entity = this.getVehicle();
-		if (entity != null && entity.isRemoved()) {
-			this.stopRiding();
+		Entity vehicle = getVehicle();
+		if (vehicle != null && vehicle.isRemoved()) {
+			stopRiding();
 		}
 
-		if (this.getEntityWorld().isClient()) {
-			if (this.startInterpolationSet) {
-				this.startInterpolationSet = false;
-				int i = this.getStartInterpolation();
-				this.interpolationStart = this.age + i;
+		if (getEntityWorld().isClient()) {
+			if (startInterpolationSet) {
+				startInterpolationSet = false;
+				interpolationStart = age + getStartInterpolation();
 			}
 
-			if (this.interpolationDurationSet) {
-				this.interpolationDurationSet = false;
-				this.interpolationDuration = this.getInterpolationDuration();
+			if (interpolationDurationSet) {
+				interpolationDurationSet = false;
+				interpolationDuration = getInterpolationDuration();
 			}
 
-			if (this.renderingDataSet) {
-				this.renderingDataSet = false;
-				boolean bl = this.interpolationDuration != 0;
-				if (bl && this.renderProperties != null) {
-					this.renderProperties = this.getLerpedRenderState(this.renderProperties, this.lerpProgress);
-				}
-				else {
-					this.renderProperties = this.copyRenderState();
+			if (renderingDataSet) {
+				renderingDataSet = false;
+				boolean shouldLerp = interpolationDuration != 0;
+				if (shouldLerp && renderProperties != null) {
+					renderProperties = getLerpedRenderState(renderProperties, lerpProgress);
+				} else {
+					renderProperties = copyRenderState();
 				}
 
-				this.refreshData(bl, this.lerpProgress);
+				refreshData(shouldLerp, lerpProgress);
 			}
 
-			this.interpolator.tick();
+			interpolator.tick();
 		}
 	}
 
 	@Override
 	public PositionInterpolator getInterpolator() {
-		return this.interpolator;
+		return interpolator;
 	}
 
 	/**
-	 * Refresh data.
+	 * Обновляет специфичные для подкласса данные рендеринга.
+	 * Вызывается при изменении трекеров рендеринга на клиенте.
 	 *
-	 * @param shouldLerp should lerp
-	 * @param lerpProgress lerp progress
+	 * @param shouldLerp    нужна ли интерполяция от предыдущего состояния
+	 * @param lerpProgress  текущий прогресс интерполяции [0, 1]
 	 */
 	protected abstract void refreshData(boolean shouldLerp, float lerpProgress);
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
-		builder.add(TELEPORT_DURATION, 0);
-		builder.add(START_INTERPOLATION, 0);
-		builder.add(INTERPOLATION_DURATION, 0);
+		builder.add(TELEPORT_DURATION, DEFAULT_TELEPORT_DURATION);
+		builder.add(START_INTERPOLATION, DEFAULT_START_INTERPOLATION);
+		builder.add(INTERPOLATION_DURATION, DEFAULT_INTERPOLATION_DURATION);
 		builder.add(TRANSLATION, new Vector3f());
 		builder.add(SCALE, new Vector3f(1.0F, 1.0F, 1.0F));
 		builder.add(RIGHT_ROTATION, new Quaternionf());
 		builder.add(LEFT_ROTATION, new Quaternionf());
-		builder.add(BILLBOARD, DisplayEntity.BillboardMode.FIXED.getIndex());
-		builder.add(BRIGHTNESS, -1);
-		builder.add(VIEW_RANGE, 1.0F);
-		builder.add(SHADOW_RADIUS, 0.0F);
-		builder.add(SHADOW_STRENGTH, 1.0F);
-		builder.add(WIDTH, 0.0F);
-		builder.add(HEIGHT, 0.0F);
-		builder.add(GLOW_COLOR_OVERRIDE, -1);
+		builder.add(BILLBOARD, BillboardMode.FIXED.getIndex());
+		builder.add(BRIGHTNESS, DEFAULT_BRIGHTNESS);
+		builder.add(VIEW_RANGE, DEFAULT_VIEW_RANGE);
+		builder.add(SHADOW_RADIUS, DEFAULT_SHADOW_RADIUS);
+		builder.add(SHADOW_STRENGTH, DEFAULT_SHADOW_STRENGTH);
+		builder.add(WIDTH, DEFAULT_DISPLAY_WIDTH);
+		builder.add(HEIGHT, DEFAULT_DISPLAY_HEIGHT);
+		builder.add(GLOW_COLOR_OVERRIDE, NO_GLOW_COLOR_OVERRIDE);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		this.setTransformation(view
-				.<AffineTransformation>read("transformation", AffineTransformation.ANY_CODEC)
+		setTransformation(view.<AffineTransformation>read("transformation", AffineTransformation.ANY_CODEC)
 				.orElse(AffineTransformation.identity()));
-		this.setInterpolationDuration(view.getInt("interpolation_duration", 0));
-		this.setStartInterpolation(view.getInt("start_interpolation", 0));
-		int i = view.getInt("teleport_duration", 0);
-		this.setTeleportDuration(MathHelper.clamp(i, 0, 59));
-		this.setBillboardMode(view
-				.<DisplayEntity.BillboardMode>read("billboard", DisplayEntity.BillboardMode.CODEC)
-				.orElse(DisplayEntity.BillboardMode.FIXED));
-		this.setViewRange(view.getFloat("view_range", 1.0F));
-		this.setShadowRadius(view.getFloat("shadow_radius", 0.0F));
-		this.setShadowStrength(view.getFloat("shadow_strength", 1.0F));
-		this.setDisplayWidth(view.getFloat("width", 0.0F));
-		this.setDisplayHeight(view.getFloat("height", 0.0F));
-		this.setGlowColorOverride(view.getInt("glow_color_override", -1));
-		this.setBrightness(view.<Brightness>read("brightness", Brightness.CODEC).orElse(null));
+		setInterpolationDuration(view.getInt("interpolation_duration", DEFAULT_INTERPOLATION_DURATION));
+		setStartInterpolation(view.getInt("start_interpolation", DEFAULT_START_INTERPOLATION));
+		setTeleportDuration(MathHelper.clamp(
+				view.getInt("teleport_duration", DEFAULT_TELEPORT_DURATION),
+				0,
+				MAX_TELEPORT_DURATION
+		));
+		setBillboardMode(view.<BillboardMode>read("billboard", BillboardMode.CODEC)
+				.orElse(BillboardMode.FIXED));
+		setViewRange(view.getFloat("view_range", DEFAULT_VIEW_RANGE));
+		setShadowRadius(view.getFloat("shadow_radius", DEFAULT_SHADOW_RADIUS));
+		setShadowStrength(view.getFloat("shadow_strength", DEFAULT_SHADOW_STRENGTH));
+		setDisplayWidth(view.getFloat("width", DEFAULT_DISPLAY_WIDTH));
+		setDisplayHeight(view.getFloat("height", DEFAULT_DISPLAY_HEIGHT));
+		setGlowColorOverride(view.getInt("glow_color_override", NO_GLOW_COLOR_OVERRIDE));
+		setBrightness(view.<Brightness>read("brightness", Brightness.CODEC).orElse(null));
 	}
 
 	public final void setTransformation(AffineTransformation transformation) {
-		this.dataTracker.set(TRANSLATION, transformation.getTranslation());
-		this.dataTracker.set(LEFT_ROTATION, transformation.getLeftRotation());
-		this.dataTracker.set(SCALE, transformation.getScale());
-		this.dataTracker.set(RIGHT_ROTATION, transformation.getRightRotation());
+		dataTracker.set(TRANSLATION, transformation.getTranslation());
+		dataTracker.set(LEFT_ROTATION, transformation.getLeftRotation());
+		dataTracker.set(SCALE, transformation.getScale());
+		dataTracker.set(RIGHT_ROTATION, transformation.getRightRotation());
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.put("transformation", AffineTransformation.ANY_CODEC, getTransformation(this.dataTracker));
-		view.put("billboard", DisplayEntity.BillboardMode.CODEC, this.getBillboardMode());
-		view.putInt("interpolation_duration", this.getInterpolationDuration());
-		view.putInt("teleport_duration", this.getTeleportDuration());
-		view.putFloat("view_range", this.getViewRange());
-		view.putFloat("shadow_radius", this.getShadowRadius());
-		view.putFloat("shadow_strength", this.getShadowStrength());
-		view.putFloat("width", this.getDisplayWidth());
-		view.putFloat("height", this.getDisplayHeight());
-		view.putInt("glow_color_override", this.getGlowColorOverride());
-		view.putNullable("brightness", Brightness.CODEC, this.getBrightnessUnpacked());
+		view.put("transformation", AffineTransformation.ANY_CODEC, getTransformation(dataTracker));
+		view.put("billboard", BillboardMode.CODEC, getBillboardMode());
+		view.putInt("interpolation_duration", getInterpolationDuration());
+		view.putInt("teleport_duration", getTeleportDuration());
+		view.putFloat("view_range", getViewRange());
+		view.putFloat("shadow_radius", getShadowRadius());
+		view.putFloat("shadow_strength", getShadowStrength());
+		view.putFloat("width", getDisplayWidth());
+		view.putFloat("height", getDisplayHeight());
+		view.putInt("glow_color_override", getGlowColorOverride());
+		view.putNullable("brightness", Brightness.CODEC, getBrightnessUnpacked());
 	}
 
 	public Box getVisibilityBoundingBox() {
-		return this.visibilityBoundingBox;
+		return visibilityBoundingBox;
 	}
 
-	/**
-	 * Определяет, следует ли render.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldRender() {
-		return !this.tooSmallToRender;
+		return !tooSmallToRender;
 	}
 
 	@Override
@@ -316,180 +312,184 @@ public abstract class DisplayEntity extends Entity {
 		return true;
 	}
 
-	public DisplayEntity.@Nullable RenderState getRenderState() {
-		return this.renderProperties;
+	public @Nullable RenderState getRenderState() {
+		return renderProperties;
 	}
 
 	public final void setInterpolationDuration(int interpolationDuration) {
-		this.dataTracker.set(INTERPOLATION_DURATION, interpolationDuration);
+		dataTracker.set(INTERPOLATION_DURATION, interpolationDuration);
 	}
 
 	public final int getInterpolationDuration() {
-		return this.dataTracker.get(INTERPOLATION_DURATION);
+		return dataTracker.get(INTERPOLATION_DURATION);
 	}
 
 	public final void setStartInterpolation(int startInterpolation) {
-		this.dataTracker.set(START_INTERPOLATION, startInterpolation, true);
+		dataTracker.set(START_INTERPOLATION, startInterpolation, true);
 	}
 
 	public final int getStartInterpolation() {
-		return this.dataTracker.get(START_INTERPOLATION);
+		return dataTracker.get(START_INTERPOLATION);
 	}
 
 	public final void setTeleportDuration(int teleportDuration) {
-		this.dataTracker.set(TELEPORT_DURATION, teleportDuration);
+		dataTracker.set(TELEPORT_DURATION, teleportDuration);
 	}
 
 	public final int getTeleportDuration() {
-		return this.dataTracker.get(TELEPORT_DURATION);
+		return dataTracker.get(TELEPORT_DURATION);
 	}
 
-	public final void setBillboardMode(DisplayEntity.BillboardMode billboardMode) {
-		this.dataTracker.set(BILLBOARD, billboardMode.getIndex());
+	public final void setBillboardMode(BillboardMode billboardMode) {
+		dataTracker.set(BILLBOARD, billboardMode.getIndex());
 	}
 
-	public final DisplayEntity.BillboardMode getBillboardMode() {
-		return DisplayEntity.BillboardMode.FROM_INDEX.apply(this.dataTracker.get(BILLBOARD));
+	public final BillboardMode getBillboardMode() {
+		return BillboardMode.FROM_INDEX.apply(dataTracker.get(BILLBOARD));
 	}
 
 	public final void setBrightness(@Nullable Brightness brightness) {
-		this.dataTracker.set(BRIGHTNESS, brightness != null ? brightness.pack() : -1);
+		dataTracker.set(BRIGHTNESS, brightness != null ? brightness.pack() : DEFAULT_BRIGHTNESS);
 	}
 
 	public final @Nullable Brightness getBrightnessUnpacked() {
-		int i = this.dataTracker.get(BRIGHTNESS);
-		return i != -1 ? Brightness.unpack(i) : null;
+		int packed = dataTracker.get(BRIGHTNESS);
+		return packed != DEFAULT_BRIGHTNESS ? Brightness.unpack(packed) : null;
 	}
 
 	public final int getBrightness() {
-		return this.dataTracker.get(BRIGHTNESS);
+		return dataTracker.get(BRIGHTNESS);
 	}
 
 	public final void setViewRange(float viewRange) {
-		this.dataTracker.set(VIEW_RANGE, viewRange);
+		dataTracker.set(VIEW_RANGE, viewRange);
 	}
 
 	public final float getViewRange() {
-		return this.dataTracker.get(VIEW_RANGE);
+		return dataTracker.get(VIEW_RANGE);
 	}
 
 	public final void setShadowRadius(float shadowRadius) {
-		this.dataTracker.set(SHADOW_RADIUS, shadowRadius);
+		dataTracker.set(SHADOW_RADIUS, shadowRadius);
 	}
 
 	public final float getShadowRadius() {
-		return this.dataTracker.get(SHADOW_RADIUS);
+		return dataTracker.get(SHADOW_RADIUS);
 	}
 
 	public final void setShadowStrength(float shadowStrength) {
-		this.dataTracker.set(SHADOW_STRENGTH, shadowStrength);
+		dataTracker.set(SHADOW_STRENGTH, shadowStrength);
 	}
 
 	public final float getShadowStrength() {
-		return this.dataTracker.get(SHADOW_STRENGTH);
+		return dataTracker.get(SHADOW_STRENGTH);
 	}
 
 	public final void setDisplayWidth(float width) {
-		this.dataTracker.set(WIDTH, width);
+		dataTracker.set(WIDTH, width);
 	}
 
 	public final float getDisplayWidth() {
-		return this.dataTracker.get(WIDTH);
+		return dataTracker.get(WIDTH);
 	}
 
 	public final void setDisplayHeight(float height) {
-		this.dataTracker.set(HEIGHT, height);
-	}
-
-	public final int getGlowColorOverride() {
-		return this.dataTracker.get(GLOW_COLOR_OVERRIDE);
-	}
-
-	public final void setGlowColorOverride(int glowColorOverride) {
-		this.dataTracker.set(GLOW_COLOR_OVERRIDE, glowColorOverride);
-	}
-
-	public float getLerpProgress(float tickProgress) {
-		int i = this.interpolationDuration;
-		if (i <= 0) {
-			return 1.0F;
-		}
-		else {
-			float f = (float) (this.age - this.interpolationStart);
-			float g = f + tickProgress;
-			float h = MathHelper.clamp(MathHelper.getLerpProgress(g, 0.0F, (float) i), 0.0F, 1.0F);
-			this.lerpProgress = h;
-			return h;
-		}
+		dataTracker.set(HEIGHT, height);
 	}
 
 	public final float getDisplayHeight() {
-		return this.dataTracker.get(HEIGHT);
+		return dataTracker.get(HEIGHT);
+	}
+
+	public final int getGlowColorOverride() {
+		return dataTracker.get(GLOW_COLOR_OVERRIDE);
+	}
+
+	public final void setGlowColorOverride(int glowColorOverride) {
+		dataTracker.set(GLOW_COLOR_OVERRIDE, glowColorOverride);
+	}
+
+	/**
+	 * Вычисляет прогресс интерполяции трансформации на основе текущего тика и tickProgress.
+	 * Сохраняет результат в {@code lerpProgress} для последующего использования.
+	 */
+	public float getLerpProgress(float tickProgress) {
+		if (interpolationDuration <= 0) {
+			return 1.0F;
+		}
+
+		float elapsed = (float) (age - interpolationStart);
+		float progress = MathHelper.clamp(
+				MathHelper.getLerpProgress(elapsed + tickProgress, 0.0F, (float) interpolationDuration),
+				0.0F,
+				1.0F
+		);
+		lerpProgress = progress;
+		return progress;
 	}
 
 	@Override
 	public void setPosition(double x, double y, double z) {
 		super.setPosition(x, y, z);
-		this.updateVisibilityBoundingBox();
+		updateVisibilityBoundingBox();
 	}
 
 	private void updateVisibilityBoundingBox() {
-		float f = this.getDisplayWidth();
-		float g = this.getDisplayHeight();
-		this.tooSmallToRender = f == 0.0F || g == 0.0F;
-		float h = f / 2.0F;
-		double d = this.getX();
-		double e = this.getY();
-		double i = this.getZ();
-		this.visibilityBoundingBox = new Box(d - h, e, i - h, d + h, e + g, i + h);
+		float width = getDisplayWidth();
+		float height = getDisplayHeight();
+		tooSmallToRender = width == 0.0F || height == 0.0F;
+		float halfWidth = width / 2.0F;
+		double x = getX();
+		double y = getY();
+		double z = getZ();
+		visibilityBoundingBox = new Box(x - halfWidth, y, z - halfWidth, x + halfWidth, y + height, z + halfWidth);
 	}
 
 	@Override
 	public boolean shouldRender(double distance) {
-		return distance < MathHelper.square(this.getViewRange() * 64.0 * getRenderDistanceMultiplier());
+		return distance < MathHelper.square(getViewRange() * 64.0 * getRenderDistanceMultiplier());
 	}
 
 	@Override
 	public int getTeamColorValue() {
-		int i = this.getGlowColorOverride();
-		return i != -1 ? i : super.getTeamColorValue();
+		int glowColor = getGlowColorOverride();
+		return glowColor != NO_GLOW_COLOR_OVERRIDE ? glowColor : super.getTeamColorValue();
 	}
 
-	private DisplayEntity.RenderState copyRenderState() {
-		return new DisplayEntity.RenderState(
-				DisplayEntity.AbstractInterpolator.constant(getTransformation(this.dataTracker)),
-				this.getBillboardMode(),
-				this.getBrightness(),
-				DisplayEntity.FloatLerper.constant(this.getShadowRadius()),
-				DisplayEntity.FloatLerper.constant(this.getShadowStrength()),
-				this.getGlowColorOverride()
+	private RenderState copyRenderState() {
+		return new RenderState(
+				AbstractInterpolator.constant(getTransformation(dataTracker)),
+				getBillboardMode(),
+				getBrightness(),
+				FloatLerper.constant(getShadowRadius()),
+				FloatLerper.constant(getShadowStrength()),
+				getGlowColorOverride()
 		);
 	}
 
-	private DisplayEntity.RenderState getLerpedRenderState(DisplayEntity.RenderState state, float lerpProgress) {
-		AffineTransformation affineTransformation = state.transformation.interpolate(lerpProgress);
-		float f = state.shadowRadius.lerp(lerpProgress);
-		float g = state.shadowStrength.lerp(lerpProgress);
-		return new DisplayEntity.RenderState(
-				new DisplayEntity.AffineTransformationInterpolator(
-						affineTransformation,
-						getTransformation(this.dataTracker)
-				),
-				this.getBillboardMode(),
-				this.getBrightness(),
-				new DisplayEntity.FloatLerperImpl(f, this.getShadowRadius()),
-				new DisplayEntity.FloatLerperImpl(g, this.getShadowStrength()),
-				this.getGlowColorOverride()
+	private RenderState getLerpedRenderState(RenderState state, float progress) {
+		AffineTransformation prevTransform = state.transformation.interpolate(progress);
+		float prevShadowRadius = state.shadowRadius.lerp(progress);
+		float prevShadowStrength = state.shadowStrength.lerp(progress);
+		return new RenderState(
+				new AffineTransformationInterpolator(prevTransform, getTransformation(dataTracker)),
+				getBillboardMode(),
+				getBrightness(),
+				new FloatLerperImpl(prevShadowRadius, getShadowRadius()),
+				new FloatLerperImpl(prevShadowStrength, getShadowStrength()),
+				getGlowColorOverride()
 		);
 	}
 
-	@FunctionalInterface
+	// ─── Вложенные типы ───────────────────────────────────────────────────────
+
 	/**
-	 * {@code AbstractInterpolator}.
+	 * Интерполятор произвольного значения по прогрессу [0, 1].
 	 */
+	@FunctionalInterface
 	public interface AbstractInterpolator<T> {
 
-		static <T> DisplayEntity.AbstractInterpolator<T> constant(T value) {
+		static <T> AbstractInterpolator<T> constant(T value) {
 			return delta -> value;
 		}
 
@@ -497,77 +497,71 @@ public abstract class DisplayEntity extends Entity {
 	}
 
 	/**
-	 * {@code AffineTransformationInterpolator}.
+	 * Интерполятор аффинных трансформаций между двумя состояниями.
 	 */
 	record AffineTransformationInterpolator(AffineTransformation previous, AffineTransformation current)
-			implements DisplayEntity.AbstractInterpolator<AffineTransformation> {
+			implements AbstractInterpolator<AffineTransformation> {
 
-		/**
-		 * Interpolate.
-		 *
-		 * @param f f
-		 *
-		 * @return AffineTransformation — результат операции
-		 */
-		public AffineTransformation interpolate(float f) {
-			return f >= 1.0 ? this.current : this.previous.interpolate(this.current, f);
+		@Override
+		public AffineTransformation interpolate(float delta) {
+			return delta >= 1.0 ? current : previous.interpolate(current, delta);
 		}
 	}
 
 	/**
-	 * {@code ArgbLerper}.
+	 * Интерполятор ARGB-цвета через {@link ColorHelper#lerp}.
 	 */
-	record ArgbLerper(int previous, int current) implements DisplayEntity.IntLerper {
+	record ArgbLerper(int previous, int current) implements IntLerper {
 
 		@Override
 		public int lerp(float delta) {
-			return ColorHelper.lerp(delta, this.previous, this.current);
+			return ColorHelper.lerp(delta, previous, current);
 		}
 	}
 
 	/**
-	 * {@code BillboardMode}.
+	 * Режим billboard-ориентации display-сущности относительно камеры.
 	 */
-	public static enum BillboardMode implements StringIdentifiable {
+	public enum BillboardMode implements StringIdentifiable {
 		FIXED((byte) 0, "fixed"),
 		VERTICAL((byte) 1, "vertical"),
 		HORIZONTAL((byte) 2, "horizontal"),
 		CENTER((byte) 3, "center");
 
-		public static final Codec<DisplayEntity.BillboardMode>
-				CODEC =
-				StringIdentifiable.createCodec(DisplayEntity.BillboardMode::values);
-		public static final IntFunction<DisplayEntity.BillboardMode> FROM_INDEX = ValueLists.createIndexToValueFunction(
-				DisplayEntity.BillboardMode::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
+		public static final Codec<BillboardMode> CODEC =
+				StringIdentifiable.createCodec(BillboardMode::values);
+		public static final IntFunction<BillboardMode> FROM_INDEX = ValueLists.createIndexToValueFunction(
+				BillboardMode::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
 		);
+
 		private final byte index;
 		private final String name;
 
-		private BillboardMode(final byte index, final String name) {
+		BillboardMode(final byte index, final String name) {
 			this.name = name;
 			this.index = index;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
 		byte getIndex() {
-			return this.index;
+			return index;
 		}
 	}
 
 	/**
-	 * {@code BlockDisplayEntity}.
+	 * Display-сущность для отображения блока.
 	 */
 	public static class BlockDisplayEntity extends DisplayEntity {
 
 		public static final String BLOCK_STATE_NBT_KEY = "block_state";
 		private static final TrackedData<BlockState> BLOCK_STATE = DataTracker.registerData(
-				DisplayEntity.BlockDisplayEntity.class, TrackedDataHandlerRegistry.BLOCK_STATE
+				BlockDisplayEntity.class, TrackedDataHandlerRegistry.BLOCK_STATE
 		);
-		private DisplayEntity.BlockDisplayEntity.@Nullable Data data;
+		private BlockDisplayEntity.@Nullable Data data;
 
 		public BlockDisplayEntity(EntityType<?> entityType, World world) {
 			super(entityType, world);
@@ -583,55 +577,52 @@ public abstract class DisplayEntity extends Entity {
 		public void onTrackedDataSet(TrackedData<?> data) {
 			super.onTrackedDataSet(data);
 			if (data.equals(BLOCK_STATE)) {
-				this.renderingDataSet = true;
+				renderingDataSet = true;
 			}
 		}
 
 		public final BlockState getBlockState() {
-			return this.dataTracker.get(BLOCK_STATE);
+			return dataTracker.get(BLOCK_STATE);
 		}
 
 		public final void setBlockState(BlockState state) {
-			this.dataTracker.set(BLOCK_STATE, state);
+			dataTracker.set(BLOCK_STATE, state);
 		}
 
 		@Override
 		protected void readCustomData(ReadView view) {
 			super.readCustomData(view);
-			this.setBlockState(view
-					.<BlockState>read("block_state", BlockState.CODEC)
+			setBlockState(view.<BlockState>read("block_state", BlockState.CODEC)
 					.orElse(Blocks.AIR.getDefaultState()));
 		}
 
 		@Override
 		protected void writeCustomData(WriteView view) {
 			super.writeCustomData(view);
-			view.put("block_state", BlockState.CODEC, this.getBlockState());
+			view.put("block_state", BlockState.CODEC, getBlockState());
 		}
 
-		public DisplayEntity.BlockDisplayEntity.@Nullable Data getData() {
-			return this.data;
+		public BlockDisplayEntity.@Nullable Data getData() {
+			return data;
 		}
 
 		@Override
 		protected void refreshData(boolean shouldLerp, float lerpProgress) {
-			this.data = new DisplayEntity.BlockDisplayEntity.Data(this.getBlockState());
+			data = new BlockDisplayEntity.Data(getBlockState());
 		}
 
-		/**
-		 * {@code Data}.
-		 */
+		/** Снимок данных блока для рендеринга. */
 		public record Data(BlockState blockState) {
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code FloatLerper}.
+	 * Интерполятор float-значения по прогрессу [0, 1].
 	 */
+	@FunctionalInterface
 	public interface FloatLerper {
 
-		static DisplayEntity.FloatLerper constant(float value) {
+		static FloatLerper constant(float value) {
 			return delta -> value;
 		}
 
@@ -639,23 +630,23 @@ public abstract class DisplayEntity extends Entity {
 	}
 
 	/**
-	 * {@code FloatLerperImpl}.
+	 * Линейный интерполятор float между двумя значениями.
 	 */
-	record FloatLerperImpl(float previous, float current) implements DisplayEntity.FloatLerper {
+	record FloatLerperImpl(float previous, float current) implements FloatLerper {
 
 		@Override
 		public float lerp(float delta) {
-			return MathHelper.lerp(delta, this.previous, this.current);
+			return MathHelper.lerp(delta, previous, current);
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code IntLerper}.
+	 * Интерполятор int-значения по прогрессу [0, 1].
 	 */
+	@FunctionalInterface
 	public interface IntLerper {
 
-		static DisplayEntity.IntLerper constant(int value) {
+		static IntLerper constant(int value) {
 			return delta -> value;
 		}
 
@@ -663,31 +654,30 @@ public abstract class DisplayEntity extends Entity {
 	}
 
 	/**
-	 * {@code IntLerperImpl}.
+	 * Линейный интерполятор int между двумя значениями.
 	 */
-	record IntLerperImpl(int previous, int current) implements DisplayEntity.IntLerper {
+	record IntLerperImpl(int previous, int current) implements IntLerper {
 
 		@Override
 		public int lerp(float delta) {
-			return MathHelper.lerp(delta, this.previous, this.current);
+			return MathHelper.lerp(delta, previous, current);
 		}
 	}
 
 	/**
-	 * {@code ItemDisplayEntity}.
+	 * Display-сущность для отображения предмета.
 	 */
 	public static class ItemDisplayEntity extends DisplayEntity {
 
 		private static final String ITEM_NBT_KEY = "item";
 		private static final String ITEM_DISPLAY_NBT_KEY = "item_display";
-		private static final TrackedData<ItemStack>
-				ITEM =
-				DataTracker.registerData(DisplayEntity.ItemDisplayEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
-		private static final TrackedData<Byte>
-				ITEM_DISPLAY =
-				DataTracker.registerData(DisplayEntity.ItemDisplayEntity.class, TrackedDataHandlerRegistry.BYTE);
+		private static final TrackedData<ItemStack> ITEM =
+				DataTracker.registerData(ItemDisplayEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
+		private static final TrackedData<Byte> ITEM_DISPLAY =
+				DataTracker.registerData(ItemDisplayEntity.class, TrackedDataHandlerRegistry.BYTE);
+
 		private final StackReference stackReference = StackReference.of(this::getItemStack, this::setItemStack);
-		private DisplayEntity.ItemDisplayEntity.@Nullable Data data;
+		private ItemDisplayEntity.@Nullable Data data;
 
 		public ItemDisplayEntity(EntityType<?> entityType, World world) {
 			super(entityType, world);
@@ -704,84 +694,82 @@ public abstract class DisplayEntity extends Entity {
 		public void onTrackedDataSet(TrackedData<?> data) {
 			super.onTrackedDataSet(data);
 			if (ITEM.equals(data) || ITEM_DISPLAY.equals(data)) {
-				this.renderingDataSet = true;
+				renderingDataSet = true;
 			}
 		}
 
 		public final ItemStack getItemStack() {
-			return this.dataTracker.get(ITEM);
+			return dataTracker.get(ITEM);
 		}
 
 		public final void setItemStack(ItemStack stack) {
-			this.dataTracker.set(ITEM, stack);
+			dataTracker.set(ITEM, stack);
 		}
 
 		public final void setItemDisplayContext(ItemDisplayContext context) {
-			this.dataTracker.set(ITEM_DISPLAY, context.getIndex());
+			dataTracker.set(ITEM_DISPLAY, context.getIndex());
 		}
 
 		public final ItemDisplayContext getItemDisplayContext() {
-			return ItemDisplayContext.FROM_INDEX.apply(this.dataTracker.get(ITEM_DISPLAY));
+			return ItemDisplayContext.FROM_INDEX.apply(dataTracker.get(ITEM_DISPLAY));
 		}
 
 		@Override
 		protected void readCustomData(ReadView view) {
 			super.readCustomData(view);
-			this.setItemStack(view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
-			this.setItemDisplayContext(view
-					.<ItemDisplayContext>read("item_display", ItemDisplayContext.CODEC)
+			setItemStack(view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
+			setItemDisplayContext(view.<ItemDisplayContext>read("item_display", ItemDisplayContext.CODEC)
 					.orElse(ItemDisplayContext.NONE));
 		}
 
 		@Override
 		protected void writeCustomData(WriteView view) {
 			super.writeCustomData(view);
-			ItemStack itemStack = this.getItemStack();
+			ItemStack itemStack = getItemStack();
 			if (!itemStack.isEmpty()) {
 				view.put("item", ItemStack.CODEC, itemStack);
 			}
 
-			view.put("item_display", ItemDisplayContext.CODEC, this.getItemDisplayContext());
+			view.put("item_display", ItemDisplayContext.CODEC, getItemDisplayContext());
 		}
 
 		@Override
 		public @Nullable StackReference getStackReference(int slot) {
-			return slot == 0 ? this.stackReference : null;
+			return slot == 0 ? stackReference : null;
 		}
 
-		public DisplayEntity.ItemDisplayEntity.@Nullable Data getData() {
-			return this.data;
+		public ItemDisplayEntity.@Nullable Data getData() {
+			return data;
 		}
 
 		@Override
 		protected void refreshData(boolean shouldLerp, float lerpProgress) {
-			ItemStack itemStack = this.getItemStack();
+			ItemStack itemStack = getItemStack();
 			itemStack.setHolder(this);
-			this.data = new DisplayEntity.ItemDisplayEntity.Data(itemStack, this.getItemDisplayContext());
+			data = new ItemDisplayEntity.Data(itemStack, getItemDisplayContext());
 		}
 
-		/**
-		 * {@code Data}.
-		 */
+		/** Снимок данных предмета для рендеринга. */
 		public record Data(ItemStack itemStack, ItemDisplayContext itemTransform) {
 		}
 	}
 
 	/**
-	 * {@code RenderState}.
+	 * Снимок рендер-состояния display-сущности для интерполяции на клиенте.
 	 */
 	public record RenderState(
-			DisplayEntity.AbstractInterpolator<AffineTransformation> transformation,
-			DisplayEntity.BillboardMode billboardConstraints,
+			AbstractInterpolator<AffineTransformation> transformation,
+			BillboardMode billboardConstraints,
 			int brightnessOverride,
-			DisplayEntity.FloatLerper shadowRadius,
-			DisplayEntity.FloatLerper shadowStrength,
+			FloatLerper shadowRadius,
+			FloatLerper shadowStrength,
 			int glowColorOverride
 	) {
 	}
 
 	/**
-	 * {@code TextDisplayEntity}.
+	 * Display-сущность для отображения текста с поддержкой переноса строк,
+	 * прозрачности, фона и выравнивания.
 	 */
 	public static class TextDisplayEntity extends DisplayEntity {
 
@@ -793,37 +781,35 @@ public abstract class DisplayEntity extends Entity {
 		private static final String SEE_THROUGH_NBT_KEY = "see_through";
 		private static final String DEFAULT_BACKGROUND_NBT_KEY = "default_background";
 		private static final String ALIGNMENT_NBT_KEY = "alignment";
+
 		public static final byte SHADOW_FLAG = 1;
 		public static final byte SEE_THROUGH_FLAG = 2;
 		public static final byte DEFAULT_BACKGROUND_FLAG = 4;
 		public static final byte LEFT_ALIGNMENT_FLAG = 8;
 		public static final byte RIGHT_ALIGNMENT_FLAG = 16;
+
 		private static final byte INITIAL_TEXT_OPACITY = -1;
 		public static final int INITIAL_BACKGROUND = 1073741824;
 		private static final int DEFAULT_LINE_WIDTH = 200;
-		private static final TrackedData<Text>
-				TEXT =
-				DataTracker.registerData(
-						DisplayEntity.TextDisplayEntity.class,
-						TrackedDataHandlerRegistry.TEXT_COMPONENT
-				);
-		private static final TrackedData<Integer>
-				LINE_WIDTH =
-				DataTracker.registerData(DisplayEntity.TextDisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-		private static final TrackedData<Integer>
-				BACKGROUND =
-				DataTracker.registerData(DisplayEntity.TextDisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
-		private static final TrackedData<Byte>
-				TEXT_OPACITY =
-				DataTracker.registerData(DisplayEntity.TextDisplayEntity.class, TrackedDataHandlerRegistry.BYTE);
+
+		private static final TrackedData<Text> TEXT = DataTracker.registerData(
+				TextDisplayEntity.class, TrackedDataHandlerRegistry.TEXT_COMPONENT
+		);
+		private static final TrackedData<Integer> LINE_WIDTH =
+				DataTracker.registerData(TextDisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
+		private static final TrackedData<Integer> BACKGROUND =
+				DataTracker.registerData(TextDisplayEntity.class, TrackedDataHandlerRegistry.INTEGER);
+		private static final TrackedData<Byte> TEXT_OPACITY =
+				DataTracker.registerData(TextDisplayEntity.class, TrackedDataHandlerRegistry.BYTE);
 		private static final TrackedData<Byte> TEXT_DISPLAY_FLAGS = DataTracker.registerData(
-				DisplayEntity.TextDisplayEntity.class, TrackedDataHandlerRegistry.BYTE
+				TextDisplayEntity.class, TrackedDataHandlerRegistry.BYTE
 		);
 		private static final IntSet TEXT_RENDERING_DATA_IDS = IntSet.of(
 				new int[]{TEXT.id(), LINE_WIDTH.id(), BACKGROUND.id(), TEXT_OPACITY.id(), TEXT_DISPLAY_FLAGS.id()}
 		);
-		private DisplayEntity.TextDisplayEntity.@Nullable TextLines textLines;
-		private DisplayEntity.TextDisplayEntity.@Nullable Data data;
+
+		private @Nullable TextLines textLines;
+		private @Nullable Data data;
 
 		public TextDisplayEntity(EntityType<?> entityType, World world) {
 			super(entityType, world);
@@ -833,9 +819,9 @@ public abstract class DisplayEntity extends Entity {
 		protected void initDataTracker(DataTracker.Builder builder) {
 			super.initDataTracker(builder);
 			builder.add(TEXT, Text.empty());
-			builder.add(LINE_WIDTH, 200);
-			builder.add(BACKGROUND, 1073741824);
-			builder.add(TEXT_OPACITY, (byte) -1);
+			builder.add(LINE_WIDTH, DEFAULT_LINE_WIDTH);
+			builder.add(BACKGROUND, INITIAL_BACKGROUND);
+			builder.add(TEXT_OPACITY, INITIAL_TEXT_OPACITY);
 			builder.add(TEXT_DISPLAY_FLAGS, (byte) 0);
 		}
 
@@ -843,48 +829,48 @@ public abstract class DisplayEntity extends Entity {
 		public void onTrackedDataSet(TrackedData<?> data) {
 			super.onTrackedDataSet(data);
 			if (TEXT_RENDERING_DATA_IDS.contains(data.id())) {
-				this.renderingDataSet = true;
+				renderingDataSet = true;
 			}
 		}
 
 		public final Text getText() {
-			return this.dataTracker.get(TEXT);
+			return dataTracker.get(TEXT);
 		}
 
 		public final void setText(Text text) {
-			this.dataTracker.set(TEXT, text);
+			dataTracker.set(TEXT, text);
 		}
 
 		public final int getLineWidth() {
-			return this.dataTracker.get(LINE_WIDTH);
+			return dataTracker.get(LINE_WIDTH);
 		}
 
 		public final void setLineWidth(int lineWidth) {
-			this.dataTracker.set(LINE_WIDTH, lineWidth);
+			dataTracker.set(LINE_WIDTH, lineWidth);
 		}
 
 		public final byte getTextOpacity() {
-			return this.dataTracker.get(TEXT_OPACITY);
+			return dataTracker.get(TEXT_OPACITY);
 		}
 
 		public final void setTextOpacity(byte textOpacity) {
-			this.dataTracker.set(TEXT_OPACITY, textOpacity);
+			dataTracker.set(TEXT_OPACITY, textOpacity);
 		}
 
 		public final int getBackground() {
-			return this.dataTracker.get(BACKGROUND);
+			return dataTracker.get(BACKGROUND);
 		}
 
 		public final void setBackground(int background) {
-			this.dataTracker.set(BACKGROUND, background);
+			dataTracker.set(BACKGROUND, background);
 		}
 
 		public final byte getDisplayFlags() {
-			return this.dataTracker.get(TEXT_DISPLAY_FLAGS);
+			return dataTracker.get(TEXT_DISPLAY_FLAGS);
 		}
 
 		public final void setDisplayFlags(byte flags) {
-			this.dataTracker.set(TEXT_DISPLAY_FLAGS, flags);
+			dataTracker.set(TEXT_DISPLAY_FLAGS, flags);
 		}
 
 		private static byte readFlag(byte flags, ReadView view, String nbtKey, byte flag) {
@@ -894,42 +880,34 @@ public abstract class DisplayEntity extends Entity {
 		@Override
 		protected void readCustomData(ReadView view) {
 			super.readCustomData(view);
-			this.setLineWidth(view.getInt("line_width", 200));
-			this.setTextOpacity(view.getByte("text_opacity", (byte) -1));
-			this.setBackground(view.getInt("background", 1073741824));
-			byte b = readFlag((byte) 0, view, "shadow", (byte) 1);
-			b = readFlag(b, view, "see_through", (byte) 2);
-			b = readFlag(b, view, "default_background", (byte) 4);
-			Optional<DisplayEntity.TextDisplayEntity.TextAlignment>
-					optional =
-					view.read("alignment", DisplayEntity.TextDisplayEntity.TextAlignment.CODEC);
-			if (optional.isPresent()) {
-				b = switch ((DisplayEntity.TextDisplayEntity.TextAlignment) optional.get()) {
-					case CENTER -> b;
-					case LEFT -> (byte) (b | 8);
-					case RIGHT -> (byte) (b | 16);
+			setLineWidth(view.getInt("line_width", DEFAULT_LINE_WIDTH));
+			setTextOpacity(view.getByte("text_opacity", INITIAL_TEXT_OPACITY));
+			setBackground(view.getInt("background", INITIAL_BACKGROUND));
+			byte flags = readFlag((byte) 0, view, "shadow", SHADOW_FLAG);
+			flags = readFlag(flags, view, "see_through", SEE_THROUGH_FLAG);
+			flags = readFlag(flags, view, "default_background", DEFAULT_BACKGROUND_FLAG);
+			Optional<TextAlignment> alignment = view.read("alignment", TextAlignment.CODEC);
+			if (alignment.isPresent()) {
+				flags = switch (alignment.get()) {
+					case CENTER -> flags;
+					case LEFT -> (byte) (flags | LEFT_ALIGNMENT_FLAG);
+					case RIGHT -> (byte) (flags | RIGHT_ALIGNMENT_FLAG);
 				};
 			}
 
-			this.setDisplayFlags(b);
-			Optional<Text> optional2 = view.read("text", TextCodecs.CODEC);
-			if (optional2.isPresent()) {
+			setDisplayFlags(flags);
+			Optional<Text> rawText = view.read("text", TextCodecs.CODEC);
+			if (rawText.isPresent()) {
 				try {
-					if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-						ServerCommandSource
-								serverCommandSource =
-								this
-										.getCommandSource(serverWorld)
-										.withPermissions(LeveledPermissionPredicate.GAMEMASTERS);
-						Text text = Texts.parse(serverCommandSource, optional2.get(), this, 0);
-						this.setText(text);
+					if (getEntityWorld() instanceof ServerWorld serverWorld) {
+						ServerCommandSource source = getCommandSource(serverWorld)
+								.withPermissions(LeveledPermissionPredicate.GAMEMASTERS);
+						setText(Texts.parse(source, rawText.get(), this, 0));
+					} else {
+						setText(Text.empty());
 					}
-					else {
-						this.setText(Text.empty());
-					}
-				}
-				catch (Exception var8) {
-					DisplayEntity.LOGGER.warn("Failed to parse display entity text {}", optional2, var8);
+				} catch (Exception exception) {
+					LOGGER.warn("Failed to parse display entity text {}", rawText, exception);
 				}
 			}
 		}
@@ -941,137 +919,121 @@ public abstract class DisplayEntity extends Entity {
 		@Override
 		protected void writeCustomData(WriteView view) {
 			super.writeCustomData(view);
-			view.put("text", TextCodecs.CODEC, this.getText());
-			view.putInt("line_width", this.getLineWidth());
-			view.putInt("background", this.getBackground());
-			view.putByte("text_opacity", this.getTextOpacity());
-			byte b = this.getDisplayFlags();
-			writeFlag(b, view, "shadow", (byte) 1);
-			writeFlag(b, view, "see_through", (byte) 2);
-			writeFlag(b, view, "default_background", (byte) 4);
-			view.put("alignment", DisplayEntity.TextDisplayEntity.TextAlignment.CODEC, getAlignment(b));
+			view.put("text", TextCodecs.CODEC, getText());
+			view.putInt("line_width", getLineWidth());
+			view.putInt("background", getBackground());
+			view.putByte("text_opacity", getTextOpacity());
+			byte flags = getDisplayFlags();
+			writeFlag(flags, view, "shadow", SHADOW_FLAG);
+			writeFlag(flags, view, "see_through", SEE_THROUGH_FLAG);
+			writeFlag(flags, view, "default_background", DEFAULT_BACKGROUND_FLAG);
+			view.put("alignment", TextAlignment.CODEC, getAlignment(flags));
 		}
 
 		@Override
 		protected void refreshData(boolean shouldLerp, float lerpProgress) {
-			if (shouldLerp && this.data != null) {
-				this.data = this.getLerpedRenderState(this.data, lerpProgress);
-			}
-			else {
-				this.data = this.copyData();
+			if (shouldLerp && data != null) {
+				data = getLerpedRenderState(data, lerpProgress);
+			} else {
+				data = copyData();
 			}
 
-			this.textLines = null;
+			textLines = null;
 		}
 
-		public DisplayEntity.TextDisplayEntity.@Nullable Data getData() {
-			return this.data;
+		public @Nullable Data getData() {
+			return data;
 		}
 
-		private DisplayEntity.TextDisplayEntity.Data copyData() {
-			return new DisplayEntity.TextDisplayEntity.Data(
-					this.getText(),
-					this.getLineWidth(),
-					DisplayEntity.IntLerper.constant(this.getTextOpacity()),
-					DisplayEntity.IntLerper.constant(this.getBackground()),
-					this.getDisplayFlags()
+		private Data copyData() {
+			return new Data(
+					getText(),
+					getLineWidth(),
+					IntLerper.constant(getTextOpacity()),
+					IntLerper.constant(getBackground()),
+					getDisplayFlags()
 			);
 		}
 
-		private DisplayEntity.TextDisplayEntity.Data getLerpedRenderState(
-				DisplayEntity.TextDisplayEntity.Data data,
-				float lerpProgress
-		) {
-			int i = data.backgroundColor.lerp(lerpProgress);
-			int j = data.textOpacity.lerp(lerpProgress);
-			return new DisplayEntity.TextDisplayEntity.Data(
-					this.getText(),
-					this.getLineWidth(),
-					new DisplayEntity.IntLerperImpl(j, this.getTextOpacity()),
-					new DisplayEntity.ArgbLerper(i, this.getBackground()),
-					this.getDisplayFlags()
+		private Data getLerpedRenderState(Data prevData, float progress) {
+			int prevBackground = prevData.backgroundColor.lerp(progress);
+			int prevOpacity = prevData.textOpacity.lerp(progress);
+			return new Data(
+					getText(),
+					getLineWidth(),
+					new IntLerperImpl(prevOpacity, getTextOpacity()),
+					new ArgbLerper(prevBackground, getBackground()),
+					getDisplayFlags()
 			);
-		}
-
-		public DisplayEntity.TextDisplayEntity.TextLines splitLines(DisplayEntity.TextDisplayEntity.LineSplitter splitter) {
-			if (this.textLines == null) {
-				if (this.data != null) {
-					this.textLines = splitter.split(this.data.text(), this.data.lineWidth());
-				}
-				else {
-					this.textLines = new DisplayEntity.TextDisplayEntity.TextLines(List.of(), 0);
-				}
-			}
-
-			return this.textLines;
-		}
-
-		public static DisplayEntity.TextDisplayEntity.TextAlignment getAlignment(byte flags) {
-			if ((flags & 8) != 0) {
-				return DisplayEntity.TextDisplayEntity.TextAlignment.LEFT;
-			}
-			else {
-				return (flags & 16) != 0 ? DisplayEntity.TextDisplayEntity.TextAlignment.RIGHT
-				                         : DisplayEntity.TextDisplayEntity.TextAlignment.CENTER;
-			}
 		}
 
 		/**
-		 * {@code Data}.
+		 * Разбивает текст на строки с кешированием результата.
+		 * Кеш сбрасывается при каждом обновлении данных рендеринга.
 		 */
+		public TextLines splitLines(LineSplitter splitter) {
+			if (textLines == null) {
+				textLines = data != null
+						? splitter.split(data.text(), data.lineWidth())
+						: new TextLines(List.of(), 0);
+			}
+
+			return textLines;
+		}
+
+		/** Определяет выравнивание текста по битовым флагам. */
+		public static TextAlignment getAlignment(byte flags) {
+			if ((flags & LEFT_ALIGNMENT_FLAG) != 0) {
+				return TextAlignment.LEFT;
+			}
+
+			return (flags & RIGHT_ALIGNMENT_FLAG) != 0 ? TextAlignment.RIGHT : TextAlignment.CENTER;
+		}
+
+		/** Снимок данных текста для рендеринга с интерполируемыми цветами. */
 		public record Data(
 				Text text,
 				int lineWidth,
-				DisplayEntity.IntLerper textOpacity,
-				DisplayEntity.IntLerper backgroundColor,
+				IntLerper textOpacity,
+				IntLerper backgroundColor,
 				byte flags
 		) {
 		}
 
+		/** Функция разбивки текста на строки заданной ширины. */
 		@FunctionalInterface
-		/**
-		 * {@code LineSplitter}.
-		 */
 		public interface LineSplitter {
 
-			DisplayEntity.TextDisplayEntity.TextLines split(Text text, int lineWidth);
+			TextLines split(Text text, int lineWidth);
 		}
 
-		/**
-		 * {@code TextAlignment}.
-		 */
-		public static enum TextAlignment implements StringIdentifiable {
+		/** Выравнивание текста в display-сущности. */
+		public enum TextAlignment implements StringIdentifiable {
 			CENTER("center"),
 			LEFT("left"),
 			RIGHT("right");
 
-			public static final Codec<DisplayEntity.TextDisplayEntity.TextAlignment>
-					CODEC =
-					StringIdentifiable.createCodec(
-							DisplayEntity.TextDisplayEntity.TextAlignment::values
-					);
+			public static final Codec<TextAlignment> CODEC =
+					StringIdentifiable.createCodec(TextAlignment::values);
+
 			private final String name;
 
-			private TextAlignment(final String name) {
+			TextAlignment(final String name) {
 				this.name = name;
 			}
 
 			@Override
 			public String asString() {
-				return this.name;
+				return name;
 			}
 		}
 
-		/**
-		 * {@code TextLine}.
-		 */
+		/** Одна строка текста с её шириной в пикселях. */
 		public record TextLine(OrderedText contents, int width) {
 		}
 
-		/**
-		 * {@code TextLines}.
-		 */
-		public record TextLines(List<DisplayEntity.TextDisplayEntity.TextLine> lines, int width) {
+		/** Результат разбивки текста: список строк и общая ширина. */
+		public record TextLines(List<TextLine> lines, int width) {
 		}
 	}
 }

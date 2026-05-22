@@ -8,13 +8,23 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NoteParticle}.
+ * Частица музыкальной ноты, появляющаяся над нотным блоком. Цвет определяется
+ * через HSB-подобное кодирование: параметр {@code pitch} (0.0–1.0) задаёт
+ * оттенок через синусоидальные компоненты RGB. Частица плавно появляется
+ * в течение 6 тиков жизни.
  */
+@Environment(EnvType.CLIENT)
 public class NoteParticle extends BillboardParticle {
 
-	NoteParticle(ClientWorld world, double x, double y, double z, double velocityX, Sprite sprite) {
+	private static final float COLOR_AMPLITUDE = 0.65F;
+	private static final float COLOR_OFFSET = 0.35F;
+	private static final float GREEN_PHASE_SHIFT = 0.33333334F;
+	private static final float BLUE_PHASE_SHIFT = 0.6666667F;
+	private static final float SCALE_MULTIPLIER = 1.5F;
+	private static final int LIFETIME = 6;
+
+	NoteParticle(ClientWorld world, double x, double y, double z, double pitch, Sprite sprite) {
 		super(world, x, y, z, 0.0, 0.0, 0.0, sprite);
 		this.velocityMultiplier = 0.66F;
 		this.ascending = true;
@@ -22,19 +32,11 @@ public class NoteParticle extends BillboardParticle {
 		this.velocityY *= 0.01F;
 		this.velocityZ *= 0.01F;
 		this.velocityY += 0.2;
-		this.red = Math.max(0.0F, MathHelper.sin(((float) velocityX + 0.0F) * (float) (Math.PI * 2)) * 0.65F + 0.35F);
-		this.green =
-				Math.max(
-						0.0F,
-						MathHelper.sin(((float) velocityX + 0.33333334F) * (float) (Math.PI * 2)) * 0.65F + 0.35F
-				);
-		this.blue =
-				Math.max(
-						0.0F,
-						MathHelper.sin(((float) velocityX + 0.6666667F) * (float) (Math.PI * 2)) * 0.65F + 0.35F
-				);
-		this.scale *= 1.5F;
-		this.maxAge = 6;
+		this.red = Math.max(0.0F, MathHelper.sin(((float) pitch) * (float) (Math.PI * 2)) * COLOR_AMPLITUDE + COLOR_OFFSET);
+		this.green = Math.max(0.0F, MathHelper.sin(((float) pitch + GREEN_PHASE_SHIFT) * (float) (Math.PI * 2)) * COLOR_AMPLITUDE + COLOR_OFFSET);
+		this.blue = Math.max(0.0F, MathHelper.sin(((float) pitch + BLUE_PHASE_SHIFT) * (float) (Math.PI * 2)) * COLOR_AMPLITUDE + COLOR_OFFSET);
+		this.scale *= SCALE_MULTIPLIER;
+		this.maxAge = LIFETIME;
 	}
 
 	@Override
@@ -48,9 +50,6 @@ public class NoteParticle extends BillboardParticle {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -59,18 +58,19 @@ public class NoteParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double pitch,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new NoteParticle(clientWorld, d, e, f, g, this.spriteProvider.getSprite(random));
+			return new NoteParticle(world, x, y, z, pitch, this.spriteProvider.getSprite(random));
 		}
 	}
 }

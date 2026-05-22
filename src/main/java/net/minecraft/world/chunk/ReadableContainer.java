@@ -11,7 +11,8 @@ import java.util.function.Predicate;
 import java.util.stream.LongStream;
 
 /**
- * {@code ReadableContainer}.
+ * Интерфейс доступа к палитризованному контейнеру данных секции чанка.
+ * Предоставляет операции чтения, сериализации и копирования.
  */
 public interface ReadableContainer<T> {
 
@@ -36,23 +37,22 @@ public interface ReadableContainer<T> {
 
 	ReadableContainer.Serialized<T> serialize(PaletteProvider<T> provider);
 
-	/**
-	 * {@code Reader}.
-	 */
-	public interface Reader<T, C extends ReadableContainer<T>> {
+	/** Читает контейнер из сериализованного представления. */
+	interface Reader<T, C extends ReadableContainer<T>> {
 
 		DataResult<C> read(PaletteProvider<T> provider, ReadableContainer.Serialized<T> serialized);
 	}
 
 	/**
-	 * {@code Serialized}.
+	 * Сериализованное представление контейнера: список значений палитры,
+	 * опциональный поток данных хранилища и число бит на элемент.
 	 */
-	public record Serialized<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
+	record Serialized<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
 
 		public static final int MISSING_BITS_PER_ENTRY = -1;
 
 		public Serialized(List<T> paletteEntries, Optional<LongStream> storage) {
-			this(paletteEntries, storage, -1);
+			this(paletteEntries, storage, MISSING_BITS_PER_ENTRY);
 		}
 	}
 }

@@ -28,7 +28,8 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code DetectorRailBlock}.
+ * Рельс-детектор — выдаёт сигнал редстоуна при проезде вагонетки.
+ * Мощность компаратора зависит от содержимого вагонетки с сундуком или командного блока.
  */
 public class DetectorRailBlock extends AbstractRailBlock {
 
@@ -44,11 +45,12 @@ public class DetectorRailBlock extends AbstractRailBlock {
 
 	public DetectorRailBlock(AbstractBlock.Settings settings) {
 		super(true, settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
+		setDefaultState(
+			stateManager.getDefaultState()
 				.with(POWERED, false)
 				.with(SHAPE, RailShape.NORTH_SOUTH)
-				.with(WATERLOGGED, false));
+				.with(WATERLOGGED, false)
+		);
 	}
 
 	@Override
@@ -63,19 +65,19 @@ public class DetectorRailBlock extends AbstractRailBlock {
 			BlockPos pos,
 			Entity entity,
 			EntityCollisionHandler handler,
-			boolean bl
+			boolean firstCollision
 	) {
-		if (!world.isClient()) {
-			if (!state.get(POWERED)) {
-				this.updatePoweredStatus(world, pos, state);
-			}
+		if (world.isClient() || state.get(POWERED)) {
+			return;
 		}
+
+		updatePoweredStatus(world, pos, state);
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 		if (state.get(POWERED)) {
-			this.updatePoweredStatus(world, pos, state);
+			updatePoweredStatus(world, pos, state);
 		}
 	}
 
@@ -86,72 +88,63 @@ public class DetectorRailBlock extends AbstractRailBlock {
 
 	@Override
 	protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-		if (!state.get(POWERED)) {
+		if (state.get(POWERED) == false) {
 			return 0;
 		}
-		else {
-			return direction == Direction.UP ? 15 : 0;
-		}
+
+		return direction == Direction.UP ? 15 : 0;
 	}
 
 	private void updatePoweredStatus(World world, BlockPos pos, BlockState state) {
-		if (this.canPlaceAt(state, world, pos)) {
-			boolean bl = state.get(POWERED);
-			boolean bl2 = false;
-			List<AbstractMinecartEntity> list = this.getCarts(world, pos, AbstractMinecartEntity.class, entity -> true);
-			if (!list.isEmpty()) {
-				bl2 = true;
-			}
-
-			if (bl2 && !bl) {
-				BlockState blockState = state.with(POWERED, true);
-				world.setBlockState(pos, blockState, 3);
-				this.updateNearbyRails(world, pos, blockState, true);
-				world.updateNeighbors(pos, this);
-				world.updateNeighbors(pos.down(), this);
-				world.scheduleBlockRerenderIfNeeded(pos, state, blockState);
-			}
-
-			if (!bl2 && bl) {
-				BlockState blockState = state.with(POWERED, false);
-				world.setBlockState(pos, blockState, 3);
-				this.updateNearbyRails(world, pos, blockState, false);
-				world.updateNeighbors(pos, this);
-				world.updateNeighbors(pos.down(), this);
-				world.scheduleBlockRerenderIfNeeded(pos, state, blockState);
-			}
-
-			if (bl2) {
-				world.scheduleBlockTick(pos, this, 20);
-			}
-
-			world.updateComparators(pos, this);
+		if (canPlaceAt(state, world, pos) == false) {
+			return;
 		}
+
+		boolean wasPowered = state.get(POWERED);
+		boolean hasCart = getCarts(world, pos, AbstractMinecartEntity.class, entity -> true).isEmpty() == false;
+
+		if (hasCart && wasPowered == false) {
+			BlockState powered = state.with(POWERED, true);
+			world.setBlockState(pos, powered, Block.NOTIFY_ALL);
+			updateNearbyRails(world, pos, powered, true);
+			world.updateNeighbors(pos, this);
+			world.updateNeighbors(pos.down(), this);
+			world.scheduleBlockRerenderIfNeeded(pos, state, powered);
+		}
+
+		if (hasCart == false && wasPowered) {
+			BlockState unpowered = state.with(POWERED, false);
+			world.setBlockState(pos, unpowered, Block.NOTIFY_ALL);
+			updateNearbyRails(world, pos, unpowered, false);
+			world.updateNeighbors(pos, this);
+			world.updateNeighbors(pos.down(), this);
+			world.scheduleBlockRerenderIfNeeded(pos, state, unpowered);
+		}
+
+		if (hasCart) {
+			world.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
+		}
+
+		world.updateComparators(pos, this);
 	}
 
-	/**
-	 * Обновляет nearby rails.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param unpowering unpowering
-	 */
 	protected void updateNearbyRails(World world, BlockPos pos, BlockState state, boolean unpowering) {
-		RailPlacementHelper railPlacementHelper = new RailPlacementHelper(world, pos, state);
+		RailPlacementHelper helper = new RailPlacementHelper(world, pos, state);
 
-		for (BlockPos blockPos : railPlacementHelper.getNeighbors()) {
-			BlockState blockState = world.getBlockState(blockPos);
-			world.updateNeighbor(blockState, blockPos, blockState.getBlock(), null, false);
+		for (BlockPos neighborPos : helper.getNeighbors()) {
+			BlockState neighborState = world.getBlockState(neighborPos);
+			world.updateNeighbor(neighborState, neighborPos, neighborState.getBlock(), null, false);
 		}
 	}
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		if (!oldState.isOf(state.getBlock())) {
-			BlockState blockState = this.updateCurves(state, world, pos, notify);
-			this.updatePoweredStatus(world, pos, blockState);
+		if (oldState.isOf(state.getBlock())) {
+			return;
 		}
+
+		BlockState updated = updateCurves(state, world, pos, notify);
+		updatePoweredStatus(world, pos, updated);
 	}
 
 	@Override
@@ -166,20 +159,20 @@ public class DetectorRailBlock extends AbstractRailBlock {
 
 	@Override
 	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-		if (state.get(POWERED)) {
-			List<CommandBlockMinecartEntity>
-					list =
-					this.getCarts(world, pos, CommandBlockMinecartEntity.class, cart -> true);
-			if (!list.isEmpty()) {
-				return list.get(0).getCommandExecutor().getSuccessCount();
-			}
+		if (state.get(POWERED) == false) {
+			return 0;
+		}
 
-			List<AbstractMinecartEntity>
-					list2 =
-					this.getCarts(world, pos, AbstractMinecartEntity.class, EntityPredicates.VALID_INVENTORIES);
-			if (!list2.isEmpty()) {
-				return ScreenHandler.calculateComparatorOutput((Inventory) list2.get(0));
-			}
+		List<CommandBlockMinecartEntity> commandCarts = getCarts(world, pos, CommandBlockMinecartEntity.class, cart -> true);
+
+		if (commandCarts.isEmpty() == false) {
+			return commandCarts.get(0).getCommandExecutor().getSuccessCount();
+		}
+
+		List<AbstractMinecartEntity> inventoryCarts = getCarts(world, pos, AbstractMinecartEntity.class, EntityPredicates.VALID_INVENTORIES);
+
+		if (inventoryCarts.isEmpty() == false) {
+			return ScreenHandler.calculateComparatorOutput((Inventory) inventoryCarts.get(0));
 		}
 
 		return 0;
@@ -191,33 +184,30 @@ public class DetectorRailBlock extends AbstractRailBlock {
 			Class<T> entityClass,
 			Predicate<Entity> entityPredicate
 	) {
-		return world.getEntitiesByClass(entityClass, this.getCartDetectionBox(pos), entityPredicate);
+		return world.getEntitiesByClass(entityClass, getCartDetectionBox(pos), entityPredicate);
 	}
 
 	private Box getCartDetectionBox(BlockPos pos) {
-		double d = 0.2;
+		double inset = 0.2;
+
 		return new Box(
-				pos.getX() + 0.2,
-				pos.getY(),
-				pos.getZ() + 0.2,
-				pos.getX() + 1 - 0.2,
-				pos.getY() + 1 - 0.2,
-				pos.getZ() + 1 - 0.2
+			pos.getX() + inset,
+			pos.getY(),
+			pos.getZ() + inset,
+			pos.getX() + 1 - inset,
+			pos.getY() + 1 - inset,
+			pos.getZ() + 1 - inset
 		);
 	}
 
 	@Override
 	protected BlockState rotate(BlockState state, BlockRotation rotation) {
-		RailShape railShape = state.get(SHAPE);
-		RailShape railShape2 = this.rotateShape(railShape, rotation);
-		return state.with(SHAPE, railShape2);
+		return state.with(SHAPE, rotateShape(state.get(SHAPE), rotation));
 	}
 
 	@Override
 	protected BlockState mirror(BlockState state, BlockMirror mirror) {
-		RailShape railShape = state.get(SHAPE);
-		RailShape railShape2 = this.mirrorShape(railShape, mirror);
-		return state.with(SHAPE, railShape2);
+		return state.with(SHAPE, mirrorShape(state.get(SHAPE), mirror));
 	}
 
 	@Override

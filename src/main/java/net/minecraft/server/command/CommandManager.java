@@ -62,13 +62,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code CommandManager}.
+ * Центральный менеджер команд сервера: регистрирует все команды Brigadier,
+ * управляет выполнением команд и отправкой дерева команд игрокам.
  */
 public class CommandManager {
 
 	public static final String PREFIX = "/";
-	private static final ThreadLocal<@Nullable CommandExecutionContext<ServerCommandSource>>
-			CURRENT_CONTEXT =
+
+	private static final ThreadLocal<@Nullable CommandExecutionContext<ServerCommandSource>> CURRENT_CONTEXT =
 			new ThreadLocal<>();
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final PermissionCheck ALWAYS_PASS_CHECK = PermissionCheck.AlwaysPass.INSTANCE;
@@ -76,8 +77,7 @@ public class CommandManager {
 	public static final PermissionCheck GAMEMASTERS_CHECK = new PermissionCheck.Require(DefaultPermissions.GAMEMASTERS);
 	public static final PermissionCheck ADMINS_CHECK = new PermissionCheck.Require(DefaultPermissions.ADMINS);
 	public static final PermissionCheck OWNERS_CHECK = new PermissionCheck.Require(DefaultPermissions.OWNERS);
-	private static final CommandTreeS2CPacket.CommandNodeInspector<ServerCommandSource>
-			INSPECTOR =
+	private static final CommandTreeS2CPacket.CommandNodeInspector<ServerCommandSource> INSPECTOR =
 			new CommandTreeS2CPacket.CommandNodeInspector<ServerCommandSource>() {
 				private final ServerCommandSource source = CommandManager.createSource(PermissionPredicate.NONE);
 
@@ -98,7 +98,8 @@ public class CommandManager {
 					return !predicate.test(this.source);
 				}
 			};
-	private final CommandDispatcher<ServerCommandSource> dispatcher = new CommandDispatcher();
+
+	private final CommandDispatcher<ServerCommandSource> dispatcher = new CommandDispatcher<>();
 
 	public CommandManager(
 			CommandManager.RegistrationEnvironment environment,
@@ -217,93 +218,66 @@ public class CommandManager {
 		this.dispatcher.setConsumer(AbstractServerCommandSource.asResultConsumer());
 	}
 
-	/**
-	 * With command source.
-	 *
-	 * @param parseResults parse results
-	 * @param sourceMapper source mapper
-	 *
-	 * @return ParseResults — результат операции
-	 */
 	public static <S> ParseResults<S> withCommandSource(ParseResults<S> parseResults, UnaryOperator<S> sourceMapper) {
-		CommandContextBuilder<S> commandContextBuilder = parseResults.getContext();
-		CommandContextBuilder<S>
-				commandContextBuilder2 =
-				commandContextBuilder.withSource(sourceMapper.apply((S) commandContextBuilder.getSource()));
-		return new ParseResults(commandContextBuilder2, parseResults.getReader(), parseResults.getExceptions());
+		CommandContextBuilder<S> context = parseResults.getContext();
+		CommandContextBuilder<S> mappedContext = context.withSource(sourceMapper.apply((S) context.getSource()));
+		return new ParseResults(mappedContext, parseResults.getReader(), parseResults.getExceptions());
 	}
 
-	/**
-	 * Разбирает and execute.
-	 *
-	 * @param source source
-	 * @param command command
-	 */
 	public void parseAndExecute(ServerCommandSource source, String command) {
 		command = stripLeadingSlash(command);
-		this.execute(this.dispatcher.parse(command, source), command);
+		execute(dispatcher.parse(command, source), command);
 	}
 
-	/**
-	 * Strip leading slash.
-	 *
-	 * @param command command
-	 *
-	 * @return String — результат операции
-	 */
 	public static String stripLeadingSlash(String command) {
 		return command.startsWith("/") ? command.substring(1) : command;
 	}
 
-	/**
-	 * Execute.
-	 *
-	 * @param parseResults parse results
-	 * @param command command
-	 */
 	public void execute(ParseResults<ServerCommandSource> parseResults, String command) {
-		ServerCommandSource serverCommandSource = (ServerCommandSource) parseResults.getContext().getSource();
+		ServerCommandSource source = (ServerCommandSource) parseResults.getContext().getSource();
 		Profilers.get().push(() -> "/" + command);
-		ContextChain<ServerCommandSource> contextChain = checkCommand(parseResults, command, serverCommandSource);
+		ContextChain<ServerCommandSource> contextChain = checkCommand(parseResults, command, source);
 
 		try {
 			if (contextChain != null) {
 				callWithContext(
-						serverCommandSource,
+						source,
 						context -> CommandExecutionContext.enqueueCommand(
 								context,
 								command,
 								contextChain,
-								serverCommandSource,
+								source,
 								ReturnValueConsumer.EMPTY
 						)
 				);
 			}
 		}
-		catch (Exception var12) {
-			MutableText
-					mutableText =
-					Text.literal(var12.getMessage() == null ? var12.getClass().getName() : var12.getMessage());
-			if (LOGGER.isDebugEnabled()) {
-				LOGGER.error("Command exception: /{}", command, var12);
-				StackTraceElement[] stackTraceElements = var12.getStackTrace();
+		catch (Exception exception) {
+			MutableText errorText = Text.literal(
+					exception.getMessage() == null ? exception.getClass().getName() : exception.getMessage()
+			);
 
-				for (int i = 0; i < Math.min(stackTraceElements.length, 3); i++) {
-					mutableText.append("\n\n")
-					           .append(stackTraceElements[i].getMethodName())
-					           .append("\n ")
-					           .append(stackTraceElements[i].getFileName())
-					           .append(":")
-					           .append(String.valueOf(stackTraceElements[i].getLineNumber()));
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.error("Command exception: /{}", command, exception);
+				StackTraceElement[] stackTrace = exception.getStackTrace();
+
+				for (int stackTraceIndex = 0; stackTraceIndex < Math.min(stackTrace.length, 3); stackTraceIndex++) {
+					errorText.append("\n\n")
+					         .append(stackTrace[stackTraceIndex].getMethodName())
+					         .append("\n ")
+					         .append(stackTrace[stackTraceIndex].getFileName())
+					         .append(":")
+					         .append(String.valueOf(stackTrace[stackTraceIndex].getLineNumber()));
 				}
 			}
 
-			serverCommandSource.sendError(Text
+			source.sendError(Text
 					.translatable("command.failed")
-					.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(mutableText))));
+					.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(errorText))));
+
 			if (SharedConstants.VERBOSE_COMMAND_ERRORS || SharedConstants.isDevelopment) {
-				serverCommandSource.sendError(Text.literal(Util.getInnermostMessage(var12)));
-				LOGGER.error("'/{}' threw an exception", command, var12);
+				source.sendError(Text.literal(Util.getInnermostMessage(exception)));
+				LOGGER.error("'/{}' threw an exception", command, exception);
 			}
 		}
 		finally {
@@ -321,77 +295,82 @@ public class CommandManager {
 					                                                       .dispatcherUnknownCommand()
 					                                                       .createWithContext(parseResults.getReader()));
 		}
-		catch (CommandSyntaxException var7) {
-			source.sendError(Texts.toText(var7.getRawMessage()));
-			if (var7.getInput() != null && var7.getCursor() >= 0) {
-				int i = Math.min(var7.getInput().length(), var7.getCursor());
-				MutableText mutableText = Text.empty()
-				                              .formatted(Formatting.GRAY)
-				                              .styled(style -> style.withClickEvent(new ClickEvent.SuggestCommand(
-						                              "/" + command)));
-				if (i > 10) {
-					mutableText.append(ScreenTexts.ELLIPSIS);
-				}
+		catch (CommandSyntaxException exception) {
+			source.sendError(Texts.toText(exception.getRawMessage()));
 
-				mutableText.append(var7.getInput().substring(Math.max(0, i - 10), i));
-				if (i < var7.getInput().length()) {
-					Text
-							text =
-							Text.literal(var7.getInput().substring(i)).formatted(Formatting.RED, Formatting.UNDERLINE);
-					mutableText.append(text);
-				}
-
-				mutableText.append(Text
-						.translatable("command.context.here")
-						.formatted(Formatting.RED, Formatting.ITALIC));
-				source.sendError(mutableText);
+			if (exception.getInput() == null || exception.getCursor() < 0) {
+				return null;
 			}
+
+			int cursorPos = Math.min(exception.getInput().length(), exception.getCursor());
+			MutableText errorContext = Text.empty()
+			                              .formatted(Formatting.GRAY)
+			                              .styled(style -> style.withClickEvent(
+					                              new ClickEvent.SuggestCommand("/" + command)
+			                              ));
+
+			if (cursorPos > 10) {
+				errorContext.append(ScreenTexts.ELLIPSIS);
+			}
+
+			errorContext.append(exception.getInput().substring(Math.max(0, cursorPos - 10), cursorPos));
+
+			if (cursorPos < exception.getInput().length()) {
+				errorContext.append(
+						Text.literal(exception.getInput().substring(cursorPos))
+						    .formatted(Formatting.RED, Formatting.UNDERLINE)
+				);
+			}
+
+			errorContext.append(
+					Text.translatable("command.context.here").formatted(Formatting.RED, Formatting.ITALIC)
+			);
+			source.sendError(errorContext);
 
 			return null;
 		}
 	}
 
+	/**
+	 * Выполняет {@code callback} в контексте выполнения команды.
+	 * Если контекст уже существует (вложенный вызов), переиспользует его;
+	 * иначе создаёт новый с лимитами из правил игры и запускает очередь.
+	 */
 	public static void callWithContext(
 			ServerCommandSource commandSource,
 			Consumer<CommandExecutionContext<ServerCommandSource>> callback
 	) {
-		CommandExecutionContext<ServerCommandSource> commandExecutionContext = CURRENT_CONTEXT.get();
-		boolean bl = commandExecutionContext == null;
-		if (bl) {
-			GameRules gameRules = commandSource.getWorld().getGameRules();
-			int i = Math.max(1, gameRules.getValue(GameRules.MAX_COMMAND_SEQUENCE_LENGTH));
-			int j = gameRules.getValue(GameRules.MAX_COMMAND_FORKS);
+		CommandExecutionContext<ServerCommandSource> existingContext = CURRENT_CONTEXT.get();
 
-			try (CommandExecutionContext<ServerCommandSource> commandExecutionContext2 = new CommandExecutionContext<>(
-					i,
-					j,
-					Profilers.get()
-			)
-			) {
-				CURRENT_CONTEXT.set(commandExecutionContext2);
-				callback.accept(commandExecutionContext2);
-				commandExecutionContext2.run();
-			}
-			finally {
-				CURRENT_CONTEXT.set(null);
-			}
+		if (existingContext != null) {
+			callback.accept(existingContext);
+			return;
 		}
-		else {
-			callback.accept(commandExecutionContext);
+
+		GameRules gameRules = commandSource.getWorld().getGameRules();
+		int maxSequenceLength = Math.max(1, gameRules.getValue(GameRules.MAX_COMMAND_SEQUENCE_LENGTH));
+		int maxForks = gameRules.getValue(GameRules.MAX_COMMAND_FORKS);
+
+		try (CommandExecutionContext<ServerCommandSource> context = new CommandExecutionContext<>(
+				maxSequenceLength,
+				maxForks,
+				Profilers.get()
+		)) {
+			CURRENT_CONTEXT.set(context);
+			callback.accept(context);
+			context.run();
+		}
+		finally {
+			CURRENT_CONTEXT.set(null);
 		}
 	}
 
-	/**
-	 * Отправляет command tree.
-	 *
-	 * @param player player
-	 */
 	public void sendCommandTree(ServerPlayerEntity player) {
-		Map<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>> map = new HashMap<>();
-		RootCommandNode<ServerCommandSource> rootCommandNode = new RootCommandNode();
-		map.put(this.dispatcher.getRoot(), rootCommandNode);
-		deepCopyNodes(this.dispatcher.getRoot(), rootCommandNode, player.getCommandSource(), map);
-		player.networkHandler.sendPacket(new CommandTreeS2CPacket(rootCommandNode, INSPECTOR));
+		Map<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>> nodeMap = new HashMap<>();
+		RootCommandNode<ServerCommandSource> filteredRoot = new RootCommandNode<>();
+		nodeMap.put(dispatcher.getRoot(), filteredRoot);
+		deepCopyNodes(dispatcher.getRoot(), filteredRoot, player.getCommandSource(), nodeMap);
+		player.networkHandler.sendPacket(new CommandTreeS2CPacket(filteredRoot, INSPECTOR));
 	}
 
 	private static <S> void deepCopyNodes(
@@ -403,39 +382,26 @@ public class CommandManager {
 		for (CommandNode<S> commandNode : root.getChildren()) {
 			if (commandNode.canUse(source)) {
 				ArgumentBuilder<S, ?> argumentBuilder = commandNode.createBuilder();
+
 				if (argumentBuilder.getRedirect() != null) {
 					argumentBuilder.redirect(nodes.get(argumentBuilder.getRedirect()));
 				}
 
-				CommandNode<S> commandNode2 = argumentBuilder.build();
-				nodes.put(commandNode, commandNode2);
-				newRoot.addChild(commandNode2);
+				CommandNode<S> copiedNode = argumentBuilder.build();
+				nodes.put(commandNode, copiedNode);
+				newRoot.addChild(copiedNode);
+
 				if (!commandNode.getChildren().isEmpty()) {
-					deepCopyNodes(commandNode, commandNode2, source, nodes);
+					deepCopyNodes(commandNode, copiedNode, source, nodes);
 				}
 			}
 		}
 	}
 
-	/**
-	 * Literal.
-	 *
-	 * @param literal literal
-	 *
-	 * @return LiteralArgumentBuilder — результат операции
-	 */
 	public static LiteralArgumentBuilder<ServerCommandSource> literal(String literal) {
 		return LiteralArgumentBuilder.literal(literal);
 	}
 
-	/**
-	 * Argument.
-	 *
-	 * @param name name
-	 * @param type type
-	 *
-	 * @return RequiredArgumentBuilder — результат операции
-	 */
 	public static <T> RequiredArgumentBuilder<ServerCommandSource, T> argument(String name, ArgumentType<T> type) {
 		return RequiredArgumentBuilder.argument(name, type);
 	}
@@ -446,27 +412,20 @@ public class CommandManager {
 				parser.parse(new StringReader(string));
 				return true;
 			}
-			catch (CommandSyntaxException var3) {
+			catch (CommandSyntaxException ignored) {
 				return false;
 			}
 		};
 	}
 
 	public CommandDispatcher<ServerCommandSource> getDispatcher() {
-		return this.dispatcher;
+		return dispatcher;
 	}
 
-	/**
-	 * Throw exception.
-	 *
-	 * @param parse parse
-	 *
-	 * @return void — результат операции
-	 */
 	public static <S> void throwException(ParseResults<S> parse) throws CommandSyntaxException {
-		CommandSyntaxException commandSyntaxException = getException(parse);
-		if (commandSyntaxException != null) {
-			throw commandSyntaxException;
+		CommandSyntaxException exception = getException(parse);
+		if (exception != null) {
+			throw exception;
 		}
 	}
 
@@ -474,27 +433,20 @@ public class CommandManager {
 		if (!parse.getReader().canRead()) {
 			return null;
 		}
-		else if (parse.getExceptions().size() == 1) {
+
+		if (parse.getExceptions().size() == 1) {
 			return (CommandSyntaxException) parse.getExceptions().values().iterator().next();
 		}
-		else {
-			return parse.getContext().getRange().isEmpty()
-			       ? CommandSyntaxException.BUILT_IN_EXCEPTIONS
-			         .dispatcherUnknownCommand()
-			         .createWithContext(parse.getReader())
-			       : CommandSyntaxException.BUILT_IN_EXCEPTIONS
-			         .dispatcherUnknownArgument()
-			         .createWithContext(parse.getReader());
-		}
+
+		return parse.getContext().getRange().isEmpty()
+				? CommandSyntaxException.BUILT_IN_EXCEPTIONS
+				  .dispatcherUnknownCommand()
+				  .createWithContext(parse.getReader())
+				: CommandSyntaxException.BUILT_IN_EXCEPTIONS
+				  .dispatcherUnknownArgument()
+				  .createWithContext(parse.getReader());
 	}
 
-	/**
-	 * Создаёт registry access.
-	 *
-	 * @param registries registries
-	 *
-	 * @return CommandRegistryAccess — результат операции
-	 */
 	public static CommandRegistryAccess createRegistryAccess(RegistryWrapper.WrapperLookup registries) {
 		return new CommandRegistryAccess() {
 			@Override
@@ -535,52 +487,44 @@ public class CommandManager {
 	}
 
 	/**
-	 * Проверяет missing.
+	 * Проверяет, что все используемые типы аргументов зарегистрированы в {@link ArgumentTypes}.
+	 * Также логирует неоднозначности в дереве команд. Вызывается при старте сервера.
 	 */
 	public static void checkMissing() {
-		CommandRegistryAccess commandRegistryAccess = createRegistryAccess(BuiltinRegistries.createWrapperLookup());
-		CommandDispatcher<ServerCommandSource>
-				commandDispatcher =
-				new CommandManager(CommandManager.RegistrationEnvironment.ALL, commandRegistryAccess)
-						.getDispatcher();
-		RootCommandNode<ServerCommandSource> rootCommandNode = commandDispatcher.getRoot();
+		CommandRegistryAccess registryAccess = createRegistryAccess(BuiltinRegistries.createWrapperLookup());
+		CommandDispatcher<ServerCommandSource> commandDispatcher = new CommandManager(
+				CommandManager.RegistrationEnvironment.ALL,
+				registryAccess
+		).getDispatcher();
+		RootCommandNode<ServerCommandSource> root = commandDispatcher.getRoot();
+
 		commandDispatcher.findAmbiguities(
 				(parent, child, sibling, inputs) -> LOGGER.warn(
 						"Ambiguity between arguments {} and {} with inputs: {}",
 						new Object[]{commandDispatcher.getPath(child), commandDispatcher.getPath(sibling), inputs}
 				)
 		);
-		Set<ArgumentType<?>> set = ArgumentHelper.collectUsedArgumentTypes(rootCommandNode);
-		Set<ArgumentType<?>>
-				set2 =
-				set.stream().filter(type -> !ArgumentTypes.has(type.getClass())).collect(Collectors.toSet());
-		if (!set2.isEmpty()) {
-			LOGGER.warn(
-					"Missing type registration for following arguments:\n {}",
-					set2.stream().map(type -> "\t" + type).collect(Collectors.joining(",\n"))
-			);
-			throw new IllegalStateException("Unregistered argument types");
+
+		Set<ArgumentType<?>> usedTypes = ArgumentHelper.collectUsedArgumentTypes(root);
+		Set<ArgumentType<?>> unregisteredTypes = usedTypes.stream()
+				.filter(type -> !ArgumentTypes.has(type.getClass()))
+				.collect(Collectors.toSet());
+
+		if (unregisteredTypes.isEmpty()) {
+			return;
 		}
+
+		LOGGER.warn(
+				"Missing type registration for following arguments:\n {}",
+				unregisteredTypes.stream().map(type -> "\t" + type).collect(Collectors.joining(",\n"))
+		);
+		throw new IllegalStateException("Unregistered argument types");
 	}
 
-	/**
-	 * Require permission level.
-	 *
-	 * @param check check
-	 *
-	 * @return PermissionSourcePredicate — результат операции
-	 */
 	public static <T extends PermissionSource> PermissionSourcePredicate<T> requirePermissionLevel(PermissionCheck check) {
 		return new PermissionSourcePredicate<>(check);
 	}
 
-	/**
-	 * Создаёт source.
-	 *
-	 * @param permissions permissions
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public static ServerCommandSource createSource(PermissionPredicate permissions) {
 		return new ServerCommandSource(
 				CommandOutput.DUMMY,
@@ -595,19 +539,16 @@ public class CommandManager {
 		);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code CommandParser}.
+	 * Функциональный интерфейс для валидации строки команды через Brigadier-парсер.
 	 */
+	@FunctionalInterface
 	public interface CommandParser {
 
 		void parse(StringReader reader) throws CommandSyntaxException;
 	}
 
-	/**
-	 * {@code RegistrationEnvironment}.
-	 */
-	public static enum RegistrationEnvironment {
+	public enum RegistrationEnvironment {
 		ALL(true, true),
 		DEDICATED(false, true),
 		INTEGRATED(true, false);
@@ -615,7 +556,7 @@ public class CommandManager {
 		public final boolean integrated;
 		public final boolean dedicated;
 
-		private RegistrationEnvironment(final boolean integrated, final boolean dedicated) {
+		RegistrationEnvironment(boolean integrated, boolean dedicated) {
 			this.integrated = integrated;
 			this.dedicated = dedicated;
 		}

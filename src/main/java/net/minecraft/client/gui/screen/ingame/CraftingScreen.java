@@ -11,13 +11,16 @@ import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CraftingScreen}.
+ * Экран верстака. Отображает сетку крафта 3×3 с книгой рецептов.
  */
+@Environment(EnvType.CLIENT)
 public class CraftingScreen extends RecipeBookScreen<CraftingScreenHandler> {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/crafting_table.png");
+	private static final int TITLE_X = 29;
+	private static final int RECIPE_BOOK_BUTTON_X_OFFSET = 5;
+	private static final int RECIPE_BOOK_BUTTON_Y_OFFSET = 49;
 
 	public CraftingScreen(CraftingScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, new CraftingRecipeBookWidget(handler), inventory, title);
@@ -26,29 +29,28 @@ public class CraftingScreen extends RecipeBookScreen<CraftingScreenHandler> {
 	@Override
 	protected void init() {
 		super.init();
-		this.titleX = 29;
+		titleX = TITLE_X;
 	}
 
 	@Override
 	protected ScreenPos getRecipeBookButtonPos() {
-		return new ScreenPos(this.x + 5, this.height / 2 - 49);
+		return new ScreenPos(x + RECIPE_BOOK_BUTTON_X_OFFSET, height / 2 - RECIPE_BOOK_BUTTON_Y_OFFSET);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = this.x;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			x,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
 	}
 }

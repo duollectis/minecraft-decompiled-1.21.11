@@ -17,7 +17,7 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HangingRootsBlock}.
+ * Блок свисающих корней. Крепится к твёрдой поверхности снизу; поддерживает заполнение водой.
  */
 public class HangingRootsBlock extends Block implements Waterloggable {
 
@@ -32,7 +32,7 @@ public class HangingRootsBlock extends Block implements Waterloggable {
 
 	public HangingRootsBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
+		setDefaultState(stateManager.getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -47,21 +47,19 @@ public class HangingRootsBlock extends Block implements Waterloggable {
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = super.getPlacementState(ctx);
-		if (blockState != null) {
-			FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-			return blockState.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
-		}
-		else {
+		BlockState base = super.getPlacementState(ctx);
+		if (base == null) {
 			return null;
 		}
+
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		return base.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.up();
-		BlockState blockState = world.getBlockState(blockPos);
-		return blockState.isSideSolidFullSquare(world, blockPos, Direction.DOWN);
+		BlockPos above = pos.up();
+		return world.getBlockState(above).isSideSolidFullSquare(world, above, Direction.DOWN);
 	}
 
 	@Override
@@ -80,24 +78,23 @@ public class HangingRootsBlock extends Block implements Waterloggable {
 			BlockState neighborState,
 			Random random
 	) {
-		if (direction == Direction.UP && !this.canPlaceAt(state, world, pos)) {
+		if (direction == Direction.UP && canPlaceAt(state, world, pos) == false) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			if (state.get(WATERLOGGED)) {
-				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-			}
 
-			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
-			);
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
+
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
 	}
 }

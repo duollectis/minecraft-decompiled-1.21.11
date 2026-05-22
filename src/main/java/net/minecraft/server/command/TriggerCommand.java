@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code TriggerCommand}.
+ * Команда {@code /trigger}: изменение триггерных целей таблицы результатов игроком.
  */
 public class TriggerCommand {
 

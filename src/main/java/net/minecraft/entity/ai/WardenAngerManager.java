@@ -20,12 +20,19 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code WardenAngerManager}.
+ * Менеджер гнева Вардена: отслеживает уровни злости к каждому подозреваемому,
+ * уменьшает их со временем и определяет главного подозреваемого.
+ * Поддерживает сериализацию через UUID для существ, покинувших измерение или чанк.
  */
 public class WardenAngerManager {
 
@@ -33,242 +40,224 @@ public class WardenAngerManager {
 	protected static final int UPDATE_TIMER_MAX = 2;
 	@VisibleForTesting
 	protected static final int MAX_ANGER = 150;
+
 	private static final int ANGER_DECREASE_PER_TICK = 1;
-	private int updateTimer = MathHelper.nextBetween(Random.create(), 0, 2);
-	int primeAnger;
 	private static final Codec<Pair<UUID, Integer>> SUSPECT_CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Uuids.INT_STREAM_CODEC.fieldOf("uuid").forGetter(Pair::getFirst),
-					                    Codecs.NON_NEGATIVE_INT.fieldOf("anger").forGetter(Pair::getSecond)
-			                    )
-			                    .apply(instance, Pair::of)
+					Uuids.INT_STREAM_CODEC.fieldOf("uuid").forGetter(Pair::getFirst),
+					Codecs.NON_NEGATIVE_INT.fieldOf("anger").forGetter(Pair::getSecond)
+			).apply(instance, Pair::of)
 	);
+
 	private final Predicate<Entity> suspectPredicate;
 	@VisibleForTesting
 	protected final ArrayList<Entity> suspects;
-	private final WardenAngerManager.SuspectComparator suspectComparator;
+	private final SuspectComparator suspectComparator;
 	@VisibleForTesting
 	protected final Object2IntMap<Entity> suspectsToAngerLevel;
 	@VisibleForTesting
 	protected final Object2IntMap<UUID> suspectUuidsToAngerLevel;
 
+	private int updateTimer = MathHelper.nextBetween(Random.create(), 0, UPDATE_TIMER_MAX);
+	int primeAnger;
+
 	/**
-	 * Создаёт codec.
+	 * Создаёт кодек для сериализации менеджера гнева.
+	 * Список подозреваемых хранится как пары (UUID, уровень злости).
 	 *
-	 * @param suspectPredicate suspect predicate
-	 *
-	 * @return Codec — результат операции
+	 * @param suspectPredicate предикат допустимости подозреваемого (например, живой игрок)
 	 */
 	public static Codec<WardenAngerManager> createCodec(Predicate<Entity> suspectPredicate) {
 		return RecordCodecBuilder.create(
 				instance -> instance
-						.group(SUSPECT_CODEC
-								.listOf()
-								.fieldOf("suspects")
-								.orElse(Collections.emptyList())
-								.forGetter(WardenAngerManager::getSuspects))
+						.group(
+								SUSPECT_CODEC.listOf()
+										.fieldOf("suspects")
+										.orElse(Collections.emptyList())
+										.forGetter(WardenAngerManager::getSuspects)
+						)
 						.apply(
 								instance,
-								suspectUuidsToAngerLevel -> new WardenAngerManager(
-										suspectPredicate,
-										suspectUuidsToAngerLevel
-								)
+								suspectUuidsToAngerLevel -> new WardenAngerManager(suspectPredicate, suspectUuidsToAngerLevel)
 						)
 		);
 	}
 
 	public WardenAngerManager(Predicate<Entity> suspectPredicate, List<Pair<UUID, Integer>> suspectUuidsToAngerLevel) {
 		this.suspectPredicate = suspectPredicate;
-		this.suspects = new ArrayList<>();
-		this.suspectComparator = new WardenAngerManager.SuspectComparator(this);
-		this.suspectsToAngerLevel = new Object2IntOpenHashMap();
-		this.suspectUuidsToAngerLevel = new Object2IntOpenHashMap(suspectUuidsToAngerLevel.size());
-		suspectUuidsToAngerLevel.forEach(suspect -> this.suspectUuidsToAngerLevel.put(
-				(UUID) suspect.getFirst(),
-				(Integer) suspect.getSecond()
-		));
+		suspects = new ArrayList<>();
+		suspectComparator = new SuspectComparator(this);
+		suspectsToAngerLevel = new Object2IntOpenHashMap<>();
+		this.suspectUuidsToAngerLevel = new Object2IntOpenHashMap<>(suspectUuidsToAngerLevel.size());
+		suspectUuidsToAngerLevel.forEach(suspect -> this.suspectUuidsToAngerLevel.put(suspect.getFirst(), suspect.getSecond()));
 	}
 
 	private List<Pair<UUID, Integer>> getSuspects() {
 		return Streams.concat(
-				              this.suspects
-						              .stream()
-						              .map(suspect -> Pair.of(suspect.getUuid(), this.suspectsToAngerLevel.getInt(suspect))),
-				              this.suspectUuidsToAngerLevel
-						              .object2IntEntrySet()
-						              .stream()
-						              .map(suspect -> Pair.of((UUID) suspect.getKey(), suspect.getIntValue()))
-		              )
-		              .collect(Collectors.toList());
+				suspects.stream()
+						.map(suspect -> Pair.of(suspect.getUuid(), suspectsToAngerLevel.getInt(suspect))),
+				suspectUuidsToAngerLevel.object2IntEntrySet()
+						.stream()
+						.map(suspect -> Pair.of(suspect.getKey(), suspect.getIntValue()))
+		).collect(Collectors.toList());
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние гнева за один тик: уменьшает злость ко всем подозреваемым,
+	 * удаляет тех, чья злость упала до нуля, и переносит злость к UUID для ушедших существ.
 	 *
-	 * @param world world
-	 * @param suspectPredicate suspect predicate
+	 * @param world мир для поиска существ по UUID
+	 * @param suspectPredicate предикат допустимости подозреваемого
 	 */
 	public void tick(ServerWorld world, Predicate<Entity> suspectPredicate) {
-		this.updateTimer--;
-		if (this.updateTimer <= 0) {
-			this.updateSuspectsMap(world);
-			this.updateTimer = 2;
+		updateTimer--;
+
+		if (updateTimer <= 0) {
+			updateSuspectsMap(world);
+			updateTimer = UPDATE_TIMER_MAX;
 		}
 
-		ObjectIterator<Entry<UUID>> objectIterator = this.suspectUuidsToAngerLevel.object2IntEntrySet().iterator();
+		ObjectIterator<Entry<UUID>> uuidIterator = suspectUuidsToAngerLevel.object2IntEntrySet().iterator();
 
-		while (objectIterator.hasNext()) {
-			Entry<UUID> entry = (Entry<UUID>) objectIterator.next();
-			int i = entry.getIntValue();
-			if (i <= 1) {
-				objectIterator.remove();
-			}
-			else {
-				entry.setValue(i - 1);
+		while (uuidIterator.hasNext()) {
+			Entry<UUID> entry = uuidIterator.next();
+			int anger = entry.getIntValue();
+
+			if (anger <= ANGER_DECREASE_PER_TICK) {
+				uuidIterator.remove();
+			} else {
+				entry.setValue(anger - ANGER_DECREASE_PER_TICK);
 			}
 		}
 
-		ObjectIterator<Entry<Entity>> objectIterator2 = this.suspectsToAngerLevel.object2IntEntrySet().iterator();
+		ObjectIterator<Entry<Entity>> entityIterator = suspectsToAngerLevel.object2IntEntrySet().iterator();
 
-		while (objectIterator2.hasNext()) {
-			Entry<Entity> entry2 = (Entry<Entity>) objectIterator2.next();
-			int j = entry2.getIntValue();
-			Entity entity = (Entity) entry2.getKey();
+		while (entityIterator.hasNext()) {
+			Entry<Entity> entry = entityIterator.next();
+			int anger = entry.getIntValue();
+			Entity entity = entry.getKey();
 			Entity.RemovalReason removalReason = entity.getRemovalReason();
-			if (j > 1 && suspectPredicate.test(entity) && removalReason == null) {
-				entry2.setValue(j - 1);
-			}
-			else {
-				this.suspects.remove(entity);
-				objectIterator2.remove();
-				if (j > 1 && removalReason != null) {
+
+			if (anger > ANGER_DECREASE_PER_TICK && suspectPredicate.test(entity) && removalReason == null) {
+				entry.setValue(anger - ANGER_DECREASE_PER_TICK);
+			} else {
+				suspects.remove(entity);
+				entityIterator.remove();
+
+				if (anger > ANGER_DECREASE_PER_TICK && removalReason != null) {
 					switch (removalReason) {
-						case CHANGED_DIMENSION:
-						case UNLOADED_TO_CHUNK:
-						case UNLOADED_WITH_PLAYER:
-							this.suspectUuidsToAngerLevel.put(entity.getUuid(), j - 1);
+						case CHANGED_DIMENSION, UNLOADED_TO_CHUNK, UNLOADED_WITH_PLAYER ->
+								suspectUuidsToAngerLevel.put(entity.getUuid(), anger - ANGER_DECREASE_PER_TICK);
 					}
 				}
 			}
 		}
 
-		this.updatePrimeAnger();
+		updatePrimeAnger();
 	}
 
 	private void updatePrimeAnger() {
-		this.primeAnger = 0;
-		this.suspects.sort(this.suspectComparator);
-		if (this.suspects.size() == 1) {
-			this.primeAnger = this.suspectsToAngerLevel.getInt(this.suspects.get(0));
+		primeAnger = 0;
+		suspects.sort(suspectComparator);
+
+		if (suspects.size() == 1) {
+			primeAnger = suspectsToAngerLevel.getInt(suspects.get(0));
 		}
 	}
 
 	private void updateSuspectsMap(ServerWorld world) {
-		ObjectIterator<Entry<UUID>> objectIterator = this.suspectUuidsToAngerLevel.object2IntEntrySet().iterator();
+		ObjectIterator<Entry<UUID>> iterator = suspectUuidsToAngerLevel.object2IntEntrySet().iterator();
 
-		while (objectIterator.hasNext()) {
-			Entry<UUID> entry = (Entry<UUID>) objectIterator.next();
-			int i = entry.getIntValue();
-			Entity entity = world.getEntity((UUID) entry.getKey());
+		while (iterator.hasNext()) {
+			Entry<UUID> entry = iterator.next();
+			Entity entity = world.getEntity(entry.getKey());
+
 			if (entity != null) {
-				this.suspectsToAngerLevel.put(entity, i);
-				this.suspects.add(entity);
-				objectIterator.remove();
+				suspectsToAngerLevel.put(entity, entry.getIntValue());
+				suspects.add(entity);
+				iterator.remove();
 			}
 		}
 	}
 
 	/**
-	 * Increase anger at.
+	 * Увеличивает уровень злости к существу на {@code amount}, не превышая {@link #MAX_ANGER}.
+	 * Если существо ранее отслеживалось только по UUID — переносит накопленную злость.
 	 *
-	 * @param entity entity
-	 * @param amount amount
-	 *
-	 * @return int — результат операции
+	 * @param entity подозреваемое существо
+	 * @param amount количество добавляемой злости
+	 * @return итоговый уровень злости к существу
 	 */
 	public int increaseAngerAt(Entity entity, int amount) {
-		boolean bl = !this.suspectsToAngerLevel.containsKey(entity);
-		int
-				i =
-				this.suspectsToAngerLevel.computeInt(
-						entity,
-						(suspect, anger) -> Math.min(150, (anger == null ? 0 : anger) + amount)
-				);
-		if (bl) {
-			int j = this.suspectUuidsToAngerLevel.removeInt(entity.getUuid());
-			i += j;
-			this.suspectsToAngerLevel.put(entity, i);
-			this.suspects.add(entity);
+		boolean isNew = !suspectsToAngerLevel.containsKey(entity);
+		int anger = suspectsToAngerLevel.computeInt(
+				entity,
+				(suspect, current) -> Math.min(MAX_ANGER, (current == null ? 0 : current) + amount)
+		);
+
+		if (isNew) {
+			int uuidAnger = suspectUuidsToAngerLevel.removeInt(entity.getUuid());
+			anger += uuidAnger;
+			suspectsToAngerLevel.put(entity, anger);
+			suspects.add(entity);
 		}
 
-		this.updatePrimeAnger();
-		return i;
+		updatePrimeAnger();
+		return anger;
 	}
 
-	/**
-	 * Удаляет suspect.
-	 *
-	 * @param entity entity
-	 */
 	public void removeSuspect(Entity entity) {
-		this.suspectsToAngerLevel.removeInt(entity);
-		this.suspects.remove(entity);
-		this.updatePrimeAnger();
+		suspectsToAngerLevel.removeInt(entity);
+		suspects.remove(entity);
+		updatePrimeAnger();
 	}
 
 	private @Nullable Entity getPrimeSuspectInternal() {
-		return this.suspects.stream().filter(this.suspectPredicate).findFirst().orElse(null);
+		return suspects.stream().filter(suspectPredicate).findFirst().orElse(null);
 	}
 
 	public int getAngerFor(@Nullable Entity entity) {
-		return entity == null ? this.primeAnger : this.suspectsToAngerLevel.getInt(entity);
+		return entity == null ? primeAnger : suspectsToAngerLevel.getInt(entity);
 	}
 
 	public Optional<LivingEntity> getPrimeSuspect() {
-		return Optional
-				.ofNullable(this.getPrimeSuspectInternal())
+		return Optional.ofNullable(getPrimeSuspectInternal())
 				.filter(suspect -> suspect instanceof LivingEntity)
 				.map(suspect -> (LivingEntity) suspect);
 	}
 
-	@VisibleForTesting
 	/**
-	 * {@code SuspectComparator}.
+	 * Компаратор подозреваемых: сначала злые, затем игроки, затем по убыванию злости.
+	 * Побочный эффект: обновляет {@code primeAnger} при каждом сравнении.
 	 */
+	@VisibleForTesting
 	protected record SuspectComparator(WardenAngerManager angerManagement) implements Comparator<Entity> {
 
-		/**
-		 * Compare.
-		 *
-		 * @param entity entity
-		 * @param entity2 entity2
-		 *
-		 * @return int — результат операции
-		 */
-		public int compare(Entity entity, Entity entity2) {
-			if (entity.equals(entity2)) {
+		@Override
+		public int compare(Entity entity, Entity other) {
+			if (entity.equals(other)) {
 				return 0;
 			}
-			else {
-				int i = this.angerManagement.suspectsToAngerLevel.getOrDefault(entity, 0);
-				int j = this.angerManagement.suspectsToAngerLevel.getOrDefault(entity2, 0);
-				this.angerManagement.primeAnger = Math.max(this.angerManagement.primeAnger, Math.max(i, j));
-				boolean bl = Angriness.getForAnger(i).isAngry();
-				boolean bl2 = Angriness.getForAnger(j).isAngry();
-				if (bl != bl2) {
-					return bl ? -1 : 1;
-				}
-				else {
-					boolean bl3 = entity instanceof PlayerEntity;
-					boolean bl4 = entity2 instanceof PlayerEntity;
-					if (bl3 != bl4) {
-						return bl3 ? -1 : 1;
-					}
-					else {
-						return Integer.compare(j, i);
-					}
-				}
+
+			int angerA = angerManagement.suspectsToAngerLevel.getOrDefault(entity, 0);
+			int angerB = angerManagement.suspectsToAngerLevel.getOrDefault(other, 0);
+			angerManagement.primeAnger = Math.max(angerManagement.primeAnger, Math.max(angerA, angerB));
+
+			boolean isAngryA = Angriness.getForAnger(angerA).isAngry();
+			boolean isAngryB = Angriness.getForAnger(angerB).isAngry();
+
+			if (isAngryA != isAngryB) {
+				return isAngryA ? -1 : 1;
 			}
+
+			boolean isPlayerA = entity instanceof PlayerEntity;
+			boolean isPlayerB = other instanceof PlayerEntity;
+
+			if (isPlayerA != isPlayerB) {
+				return isPlayerA ? -1 : 1;
+			}
+
+			return Integer.compare(angerB, angerA);
 		}
 	}
 }

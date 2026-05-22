@@ -14,7 +14,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CaveSpiderEntity}.
+ * Пещерный паук — ядовитый вариант обычного паука.
  */
 public class CaveSpiderEntity extends SpiderEntity {
 
@@ -26,31 +26,33 @@ public class CaveSpiderEntity extends SpiderEntity {
 		return SpiderEntity.createSpiderAttributes().add(EntityAttributes.MAX_HEALTH, 12.0);
 	}
 
+	private static final int POISON_DURATION_NORMAL = 7;
+	private static final int POISON_DURATION_HARD = 15;
+	private static final int POISON_AMPLIFIER = 0;
+	private static final int TICKS_PER_SECOND = 20;
+
 	@Override
 	public boolean tryAttack(ServerWorld world, Entity target) {
-		if (super.tryAttack(world, target)) {
-			if (target instanceof LivingEntity) {
-				int i = 0;
-				if (this.getEntityWorld().getDifficulty() == Difficulty.NORMAL) {
-					i = 7;
-				}
-				else if (this.getEntityWorld().getDifficulty() == Difficulty.HARD) {
-					i = 15;
-				}
-
-				if (i > 0) {
-					((LivingEntity) target).addStatusEffect(
-							new StatusEffectInstance(StatusEffects.POISON, i * 20, 0),
-							this
-					);
-				}
-			}
-
-			return true;
-		}
-		else {
+		if (!super.tryAttack(world, target)) {
 			return false;
 		}
+
+		if (target instanceof LivingEntity livingTarget) {
+			int poisonDuration = switch (getEntityWorld().getDifficulty()) {
+				case NORMAL -> POISON_DURATION_NORMAL;
+				case HARD -> POISON_DURATION_HARD;
+				default -> 0;
+			};
+
+			if (poisonDuration > 0) {
+				livingTarget.addStatusEffect(
+						new StatusEffectInstance(StatusEffects.POISON, poisonDuration * TICKS_PER_SECOND, POISON_AMPLIFIER),
+						this
+				);
+			}
+		}
+
+		return true;
 	}
 
 	@Override
@@ -65,7 +67,8 @@ public class CaveSpiderEntity extends SpiderEntity {
 
 	@Override
 	public Vec3d getVehicleAttachmentPos(Entity vehicle) {
-		return vehicle.getWidth() <= this.getWidth() ? new Vec3d(0.0, 0.21875 * this.getScale(), 0.0)
-		                                             : super.getVehicleAttachmentPos(vehicle);
+		return vehicle.getWidth() <= getWidth()
+				? new Vec3d(0.0, 0.21875 * getScale(), 0.0)
+				: super.getVehicleAttachmentPos(vehicle);
 	}
 }

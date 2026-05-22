@@ -61,7 +61,7 @@ public class HoglinEntityModel extends EntityModel<HoglinEntityRenderState> {
 		ModelPartData modelPartData3 = modelPartData.addChild(
 				"head",
 				ModelPartBuilder.create().uv(61, 1).cuboid(-7.0F, -3.0F, -19.0F, 14.0F, 6.0F, 19.0F),
-				ModelTransform.of(0.0F, 2.0F, -12.0F, 0.87266463F, 0.0F, 0.0F)
+				ModelTransform.of(0.0F, 2.0F, -12.0F, HEAD_PITCH_START, 0.0F, 0.0F)
 		);
 		modelPartData3.addChild(
 				"right_ear",
@@ -135,7 +135,7 @@ public class HoglinEntityModel extends EntityModel<HoglinEntityRenderState> {
 		this.leftEar.roll = (float) (Math.PI * 2.0 / 9.0) + f * MathHelper.sin(g);
 		this.head.yaw = hoglinEntityRenderState.relativeHeadYaw * (float) (Math.PI / 180.0);
 		float h = 1.0F - MathHelper.abs(10 - 2 * hoglinEntityRenderState.movementCooldownTicks) / 10.0F;
-		this.head.pitch = MathHelper.lerp(h, 0.87266463F, (float) (-Math.PI / 9));
+		this.head.pitch = MathHelper.lerp(h, HEAD_PITCH_START, (float) (-Math.PI / 9));
 		if (hoglinEntityRenderState.baby) {
 			this.head.originY += h * 2.5F;
 		}

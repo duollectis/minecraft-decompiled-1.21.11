@@ -12,10 +12,11 @@ import net.minecraft.screen.ScreenHandlerListener;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ForgingScreen}.
+ * Базовый экран для всех столов ковки (наковальня, точильный камень, кузнечный стол).
+ * Регистрируется как {@link ScreenHandlerListener} для отслеживания изменений слотов.
  */
+@Environment(EnvType.CLIENT)
 public abstract class ForgingScreen<T extends ForgingScreenHandler> extends HandledScreen<T> implements ScreenHandlerListener {
 
 	private final Identifier texture;
@@ -25,55 +26,45 @@ public abstract class ForgingScreen<T extends ForgingScreenHandler> extends Hand
 		this.texture = texture;
 	}
 
-	/**
-	 * Устанавливает up.
-	 */
 	protected void setup() {
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.setup();
-		this.handler.addListener(this);
+		setup();
+		handler.addListener(this);
 	}
 
 	@Override
 	public void removed() {
 		super.removed();
-		this.handler.removeListener(this);
+		handler.removeListener(this);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.texture,
-				this.x,
-				this.y,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			texture,
+			x,
+			y,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
-		this.drawInvalidRecipeArrow(context, this.x, this.y);
+		drawInvalidRecipeArrow(context, x, y);
 	}
 
-	/**
-	 * Draw invalid recipe arrow.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
 	protected abstract void drawInvalidRecipeArrow(DrawContext context, int x, int y);
 
 	@Override

@@ -1,10 +1,14 @@
 package net.minecraft.entity.ai.brain;
 
 /**
- * {@code MemoryModuleState}.
+ * Описывает требуемое состояние модуля памяти при проверке условий активности.
+ * Используется в {@link Brain#setTaskList} для задания предусловий активации активности.
  */
 public enum MemoryModuleState {
+	/** Память зарегистрирована (значение может присутствовать или отсутствовать). */
+	REGISTERED,
+	/** Память зарегистрирована и содержит значение. */
 	VALUE_PRESENT,
-	VALUE_ABSENT,
-	REGISTERED;
+	/** Память зарегистрирована, но значение отсутствует. */
+	VALUE_ABSENT
 }

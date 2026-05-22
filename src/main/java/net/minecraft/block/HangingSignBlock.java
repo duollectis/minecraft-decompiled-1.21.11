@@ -37,7 +37,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code HangingSignBlock}.
+ * Блок подвесной таблички. Крепится к потолку; поддерживает вращение по 16 направлениям
+ * и режим ATTACHED (прикреплён к другой табличке или стене).
  */
 public class HangingSignBlock extends AbstractSignBlock {
 
@@ -69,7 +70,7 @@ public class HangingSignBlock extends AbstractSignBlock {
 
 	public HangingSignBlock(WoodType woodType, AbstractBlock.Settings settings) {
 		super(woodType, settings.sounds(woodType.hangingSignSoundType()));
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(ROTATION, 0)
 				.with(ATTACHED, false)
@@ -86,11 +87,11 @@ public class HangingSignBlock extends AbstractSignBlock {
 			Hand hand,
 			BlockHitResult hit
 	) {
-		return (ActionResult) (world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
-				                       && this.shouldTryAttaching(player, hit, signBlockEntity, stack)
-		                       ? ActionResult.PASS
-		                       : super.onUseWithItem(stack, state, world, pos, player, hand, hit)
-		);
+		if (world.getBlockEntity(pos) instanceof SignBlockEntity sign && shouldTryAttaching(player, hit, sign, stack)) {
+			return ActionResult.PASS;
+		}
+
+		return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
 	}
 
 	private boolean shouldTryAttaching(
@@ -99,7 +100,7 @@ public class HangingSignBlock extends AbstractSignBlock {
 			SignBlockEntity sign,
 			ItemStack stack
 	) {
-		return !sign.canRunCommandClickEvent(sign.isPlayerFacingFront(player), player)
+		return sign.canRunCommandClickEvent(sign.isPlayerFacingFront(player), player) == false
 				&& stack.getItem() instanceof HangingSignItem
 				&& hitResult.getSide().equals(Direction.DOWN);
 	}
@@ -113,37 +114,33 @@ public class HangingSignBlock extends AbstractSignBlock {
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		World world = ctx.getWorld();
 		FluidState fluidState = world.getFluidState(ctx.getBlockPos());
-		BlockPos blockPos = ctx.getBlockPos().up();
-		BlockState blockState = world.getBlockState(blockPos);
-		boolean bl = blockState.isIn(BlockTags.ALL_HANGING_SIGNS);
-		Direction direction = Direction.fromHorizontalDegrees(ctx.getPlayerYaw());
-		boolean
-				bl2 =
-				!Block.isFaceFullSquare(blockState.getCollisionShape(world, blockPos), Direction.DOWN)
-						|| ctx.shouldCancelInteraction();
-		if (bl && !ctx.shouldCancelInteraction()) {
-			if (blockState.contains(WallHangingSignBlock.FACING)) {
-				Direction direction2 = blockState.get(WallHangingSignBlock.FACING);
-				if (direction2.getAxis().test(direction)) {
-					bl2 = false;
+		BlockPos above = ctx.getBlockPos().up();
+		BlockState aboveState = world.getBlockState(above);
+		boolean isHangingSign = aboveState.isIn(BlockTags.ALL_HANGING_SIGNS);
+		Direction facing = Direction.fromHorizontalDegrees(ctx.getPlayerYaw());
+		boolean attached = Block.isFaceFullSquare(aboveState.getCollisionShape(world, above), Direction.DOWN) == false
+				|| ctx.shouldCancelInteraction();
+
+		if (isHangingSign && ctx.shouldCancelInteraction() == false) {
+			if (aboveState.contains(WallHangingSignBlock.FACING)) {
+				Direction wallFacing = aboveState.get(WallHangingSignBlock.FACING);
+				if (wallFacing.getAxis().test(facing)) {
+					attached = false;
 				}
-			}
-			else if (blockState.contains(ROTATION)) {
-				Optional<Direction> optional = RotationPropertyHelper.toDirection(blockState.get(ROTATION));
-				if (optional.isPresent() && optional.get().getAxis().test(direction)) {
-					bl2 = false;
+			} else if (aboveState.contains(ROTATION)) {
+				Optional<Direction> rotDir = RotationPropertyHelper.toDirection(aboveState.get(ROTATION));
+				if (rotDir.isPresent() && rotDir.get().getAxis().test(facing)) {
+					attached = false;
 				}
 			}
 		}
 
-		int
-				i =
-				!bl2 ? RotationPropertyHelper.fromDirection(direction.getOpposite())
-				     : RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F);
-		return this
-				.getDefaultState()
-				.with(ATTACHED, bl2)
-				.with(ROTATION, i)
+		int rotation = attached
+				? RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F)
+				: RotationPropertyHelper.fromDirection(facing.getOpposite());
+		return getDefaultState()
+				.with(ATTACHED, attached)
+				.with(ROTATION, rotation)
 				.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
 	}
 
@@ -154,7 +151,7 @@ public class HangingSignBlock extends AbstractSignBlock {
 
 	@Override
 	protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
-		return this.getOutlineShape(state, world, pos, ShapeContext.absent());
+		return getOutlineShape(state, world, pos, ShapeContext.absent());
 	}
 
 	@Override
@@ -168,18 +165,20 @@ public class HangingSignBlock extends AbstractSignBlock {
 			BlockState neighborState,
 			Random random
 	) {
-		return direction == Direction.UP && !this.canPlaceAt(state, world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+		if (direction == Direction.UP && canPlaceAt(state, world, pos) == false) {
+			return Blocks.AIR.getDefaultState();
+		}
+
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
 	}
 
 	@Override

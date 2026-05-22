@@ -7,7 +7,8 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code StringArgumentSerializer}.
+ * Сериализатор аргумента {@link StringArgumentType} для передачи по сети и записи в JSON.
+ * Передаёт режим разбора строки: одно слово, фраза в кавычках или жадная фраза до конца строки.
  */
 public class StringArgumentSerializer implements ArgumentSerializer<StringArgumentType, StringArgumentSerializer.Properties> {
 
@@ -36,7 +37,7 @@ public class StringArgumentSerializer implements ArgumentSerializer<StringArgume
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит режим разбора строки ({@link StringType}).
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<StringArgumentType> {
 

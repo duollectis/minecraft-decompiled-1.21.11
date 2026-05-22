@@ -151,7 +151,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 					&& projectile.canModifyAt(serverWorld, blockPos)
 					&& projectile.canBreakBlocks(serverWorld)
 					&& projectile instanceof TridentEntity
-					&& projectile.getVelocity().length() > 0.6) {
+					&& projectile.getVelocity().length() > MIN_PROJECTILE_SPEED) {
 				world.breakBlock(blockPos, true);
 			}
 		}
@@ -160,7 +160,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	@Override
 	public void onLandedUpon(World world, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
 		if (state.get(VERTICAL_DIRECTION) == Direction.UP && state.get(THICKNESS) == Thickness.TIP) {
-			entity.handleFallDamage(fallDistance + 2.5, 2.0F, world.getDamageSources().stalagmite());
+			entity.handleFallDamage(fallDistance + STALAGMITE_FALL_DAMAGE_BONUS, 2.0F, world.getDamageSources().stalagmite());
 		}
 		else {
 			super.onLandedUpon(world, state, pos, entity, fallDistance);
@@ -171,9 +171,9 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
 		if (canDrip(state)) {
 			float f = random.nextFloat();
-			if (!(f > 0.12F)) {
+			if (!(f > MAX_DRIP_FLUID_LEVEL)) {
 				getFluid(world, pos, state)
-						.filter(fluid -> f < 0.02F || isFluidLiquid(fluid.fluid))
+						.filter(fluid -> f < MIN_DRIP_FLUID_LEVEL || isFluidLiquid(fluid.fluid))
 						.ifPresent(fluid -> createParticle(world, pos, state, fluid.fluid, fluid.pos));
 			}
 		}
@@ -192,7 +192,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 		dripTick(state, world, pos, random.nextFloat());
-		if (random.nextFloat() < 0.011377778F && isHeldByPointedDripstone(state, world, pos)) {
+		if (random.nextFloat() < STALACTITE_GROW_CHANCE && isHeldByPointedDripstone(state, world, pos)) {
 			tryGrow(state, world, pos, random);
 		}
 	}
@@ -207,25 +207,25 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	 * @param dripChance drip chance
 	 */
 	public static void dripTick(BlockState state, ServerWorld world, BlockPos pos, float dripChance) {
-		if (!(dripChance > 0.17578125F) || !(dripChance > 0.05859375F)) {
+		if (!(dripChance > WATER_DRIP_CHANCE) || !(dripChance > LAVA_DRIP_CHANCE)) {
 			if (isHeldByPointedDripstone(state, world, pos)) {
 				Optional<PointedDripstoneBlock.DrippingFluid> optional = getFluid(world, pos, state);
 				if (!optional.isEmpty()) {
 					Fluid fluid = optional.get().fluid;
 					float f;
 					if (fluid == Fluids.WATER) {
-						f = 0.17578125F;
+						f = WATER_DRIP_CHANCE;
 					}
 					else {
 						if (fluid != Fluids.LAVA) {
 							return;
 						}
 
-						f = 0.05859375F;
+						f = LAVA_DRIP_CHANCE;
 					}
 
 					if (!(dripChance >= f)) {
-						BlockPos blockPos = getTipPos(state, world, pos, 11, false);
+						BlockPos blockPos = getTipPos(state, world, pos, TIP_SEARCH_RANGE, false);
 						if (blockPos != null) {
 							if (optional.get().sourceState.isOf(Blocks.MUD) && fluid == Fluids.WATER) {
 								BlockState blockState = Blocks.CLAY.getDefaultState();
@@ -327,7 +327,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 			if (isTip(blockState, true)) {
 				int i = Math.max(1 + pos.getY() - mutable.getY(), 6);
 				float f = 1.0F * i;
-				fallingBlockEntity.setHurtEntities(f, 40);
+				fallingBlockEntity.setHurtEntities(f, FALLING_STALACTITE_MAX_DAMAGE);
 				break;
 			}
 
@@ -367,7 +367,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	private static void tryGrowStalagmite(ServerWorld world, BlockPos pos) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < STALACTITE_FLOOR_SEARCH_RANGE; i++) {
 			mutable.move(Direction.DOWN);
 			BlockState blockState = world.getBlockState(mutable);
 			if (!blockState.getFluidState().isEmpty()) {
@@ -597,7 +597,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 		Predicate<BlockState> predicate = state -> state.getBlock() instanceof AbstractCauldronBlock
 				&& ((AbstractCauldronBlock) state.getBlock()).canBeFilledByDripstone(fluid);
 		BiPredicate<BlockPos, BlockState> biPredicate = (posx, state) -> canDripThrough(world, posx, state);
-		return searchInDirection(world, pos, Direction.DOWN.getDirection(), biPredicate, predicate, 11).orElse(null);
+		return searchInDirection(world, pos, Direction.DOWN.getDirection(), biPredicate, predicate, TIP_SEARCH_RANGE).orElse(null);
 	}
 
 	public static @Nullable BlockPos getDripPos(World world, BlockPos pos) {
@@ -608,7 +608,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 				Direction.UP.getDirection(),
 				biPredicate,
 				PointedDripstoneBlock::canDrip,
-				11
+				TIP_SEARCH_RANGE
 		).orElse(null);
 	}
 
@@ -620,7 +620,7 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	}
 
 	private static Optional<PointedDripstoneBlock.DrippingFluid> getFluid(World world, BlockPos pos, BlockState state) {
-		return !isPointingDown(state) ? Optional.empty() : getSupportingPos(world, pos, state, 11).map(posx -> {
+		return !isPointingDown(state) ? Optional.empty() : getSupportingPos(world, pos, state, SUPPORT_SEARCH_RANGE).map(posx -> {
 			BlockPos blockPos = posx.up();
 			BlockState blockState = world.getBlockState(blockPos);
 			Fluid fluid;

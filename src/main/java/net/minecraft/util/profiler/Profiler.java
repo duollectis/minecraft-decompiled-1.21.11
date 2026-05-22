@@ -3,7 +3,8 @@ package net.minecraft.util.profiler;
 import java.util.function.Supplier;
 
 /**
- * {@code Profiler}.
+ * Основной интерфейс профайлера, отслеживающего иерархические секции выполнения
+ * по принципу стека push/pop. Поддерживает интеграцию с Tracy через зоны и маркеры.
  */
 public interface Profiler {
 
@@ -33,42 +34,46 @@ public interface Profiler {
 	}
 
 	default ScopedProfiler scoped(String name) {
-		this.push(name);
+		push(name);
 		return new ScopedProfiler(this);
 	}
 
 	default ScopedProfiler scoped(Supplier<String> nameSupplier) {
-		this.push(nameSupplier);
+		push(nameSupplier);
 		return new ScopedProfiler(this);
 	}
 
 	void markSampleType(SampleType type);
 
 	default void visit(String marker) {
-		this.visit(marker, 1);
+		visit(marker, 1);
 	}
 
 	void visit(String marker, int num);
 
 	default void visit(Supplier<String> markerGetter) {
-		this.visit(markerGetter, 1);
+		visit(markerGetter, 1);
 	}
 
 	void visit(Supplier<String> markerGetter, int num);
 
+	/**
+	 * Объединяет два профайлера в один: вызовы делегируются обоим.
+	 * Если один из них — {@link DummyProfiler}, возвращается другой без обёртки.
+	 */
 	static Profiler union(Profiler first, Profiler second) {
 		if (first == DummyProfiler.INSTANCE) {
 			return second;
 		}
-		else {
-			return (Profiler) (second == DummyProfiler.INSTANCE ? first : new Profiler.UnionProfiler(first, second));
-		}
+
+		return second == DummyProfiler.INSTANCE ? first : new Profiler.UnionProfiler(first, second);
 	}
 
 	/**
-	 * {@code UnionProfiler}.
+	 * Составной профайлер, транслирующий все вызовы двум вложенным профайлерам одновременно.
+	 * Используется для параллельного профилирования (например, системный + Tracy).
 	 */
-	public static class UnionProfiler implements Profiler {
+	class UnionProfiler implements Profiler {
 
 		private final Profiler first;
 		private final Profiler second;
@@ -80,80 +85,80 @@ public interface Profiler {
 
 		@Override
 		public void startTick() {
-			this.first.startTick();
-			this.second.startTick();
+			first.startTick();
+			second.startTick();
 		}
 
 		@Override
 		public void endTick() {
-			this.first.endTick();
-			this.second.endTick();
+			first.endTick();
+			second.endTick();
 		}
 
 		@Override
 		public void push(String location) {
-			this.first.push(location);
-			this.second.push(location);
+			first.push(location);
+			second.push(location);
 		}
 
 		@Override
 		public void push(Supplier<String> locationGetter) {
-			this.first.push(locationGetter);
-			this.second.push(locationGetter);
+			first.push(locationGetter);
+			second.push(locationGetter);
 		}
 
 		@Override
 		public void markSampleType(SampleType type) {
-			this.first.markSampleType(type);
-			this.second.markSampleType(type);
+			first.markSampleType(type);
+			second.markSampleType(type);
 		}
 
 		@Override
 		public void pop() {
-			this.first.pop();
-			this.second.pop();
+			first.pop();
+			second.pop();
 		}
 
 		@Override
 		public void swap(String location) {
-			this.first.swap(location);
-			this.second.swap(location);
+			first.swap(location);
+			second.swap(location);
 		}
 
 		@Override
 		public void swap(Supplier<String> locationGetter) {
-			this.first.swap(locationGetter);
-			this.second.swap(locationGetter);
+			first.swap(locationGetter);
+			second.swap(locationGetter);
 		}
 
 		@Override
 		public void visit(String marker, int num) {
-			this.first.visit(marker, num);
-			this.second.visit(marker, num);
+			first.visit(marker, num);
+			second.visit(marker, num);
 		}
 
 		@Override
 		public void visit(Supplier<String> markerGetter, int num) {
-			this.first.visit(markerGetter, num);
-			this.second.visit(markerGetter, num);
+			first.visit(markerGetter, num);
+			second.visit(markerGetter, num);
 		}
 
 		@Override
 		public void addZoneText(String label) {
-			this.first.addZoneText(label);
-			this.second.addZoneText(label);
+			first.addZoneText(label);
+			second.addZoneText(label);
 		}
 
 		@Override
 		public void addZoneValue(long value) {
-			this.first.addZoneValue(value);
-			this.second.addZoneValue(value);
+			first.addZoneValue(value);
+			second.addZoneValue(value);
 		}
 
 		@Override
 		public void setZoneColor(int color) {
-			this.first.setZoneColor(color);
-			this.second.setZoneColor(color);
+			first.setZoneColor(color);
+			second.setZoneColor(color);
 		}
 	}
 }

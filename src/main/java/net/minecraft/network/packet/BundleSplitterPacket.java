@@ -3,7 +3,9 @@ package net.minecraft.network.packet;
 import net.minecraft.network.listener.PacketListener;
 
 /**
- * Класс bundle splitter packet.
+ * Маркерный пакет-разделитель пачки (bundle delimiter).
+ * Конвейер перехватывает его до вызова {@link #apply}, поэтому
+ * прямой вызов {@code apply} всегда бросает {@link AssertionError}.
  */
 public abstract class BundleSplitterPacket<T extends PacketListener> implements Packet<T> {
 

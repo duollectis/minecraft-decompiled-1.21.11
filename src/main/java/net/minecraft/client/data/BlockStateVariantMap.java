@@ -16,43 +16,53 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockStateVariantMap}.
+ * Абстрактная карта вариантов состояний блока, связывающая комбинации значений свойств
+ * с вариантами модели ({@link WeightedVariant}) или операторами трансформации
+ * ({@link ModelVariantOperator}).
+ * <p>
+ * Используется при генерации blockstate JSON: каждая комбинация свойств должна
+ * иметь ровно один зарегистрированный вариант — иначе валидация выбросит исключение.
+ *
+ * @param <V> тип значения варианта (WeightedVariant или ModelVariantOperator)
  */
+@Environment(EnvType.CLIENT)
 public abstract class BlockStateVariantMap<V> {
 
 	private final Map<PropertiesMap, V> variants = new HashMap<>();
 
 	/**
-	 * Register.
+	 * Регистрирует вариант для заданной комбинации свойств.
 	 *
-	 * @param properties properties
-	 * @param variant variant
+	 * @param properties комбинация значений свойств блока
+	 * @param variant    значение варианта модели
+	 * @throws IllegalStateException если для данной комбинации уже зарегистрирован вариант
 	 */
 	protected void register(PropertiesMap properties, V variant) {
-		V object = this.variants.put(properties, variant);
-		if (object != null) {
+		V existing = variants.put(properties, variant);
+
+		if (existing != null) {
 			throw new IllegalStateException("Value " + properties + " is already defined");
 		}
 	}
 
 	Map<PropertiesMap, V> getVariants() {
-		this.validate();
-		return Map.copyOf(this.variants);
+		validate();
+		return Map.copyOf(variants);
 	}
 
 	private void validate() {
-		List<Property<?>> list = this.getProperties();
+		List<Property<?>> properties = getProperties();
 		Stream<PropertiesMap> stream = Stream.of(PropertiesMap.EMPTY);
 
-		for (Property<?> property : list) {
+		for (Property<?> property : properties) {
 			stream = stream.flatMap(propertiesMap -> property.stream().map(propertiesMap::withValue));
 		}
 
-		List<PropertiesMap> list2 = stream.filter(propertiesMap -> !this.variants.containsKey(propertiesMap)).toList();
-		if (!list2.isEmpty()) {
-			throw new IllegalStateException("Missing definition for properties: " + list2);
+		List<PropertiesMap> missing = stream.filter(propertiesMap -> !variants.containsKey(propertiesMap)).toList();
+
+		if (!missing.isEmpty()) {
+			throw new IllegalStateException("Missing definition for properties: " + missing);
 		}
 	}
 
@@ -124,10 +134,14 @@ public abstract class BlockStateVariantMap<V> {
 		return new BlockStateVariantMap.QuintupleProperty<>(property1, property2, property3, property4, property5);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DoubleProperty}.
+	 * Карта вариантов для двух свойств блока.
+	 *
+	 * @param <V>  тип варианта
+	 * @param <T1> тип первого свойства
+	 * @param <T2> тип второго свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class DoubleProperty<V, T1 extends Comparable<T1>, T2 extends Comparable<T2>> extends BlockStateVariantMap<V> {
 
 		private final Property<T1> first;
@@ -177,10 +191,16 @@ public abstract class BlockStateVariantMap<V> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code QuadrupleProperty}.
+	 * Карта вариантов для четырёх свойств блока.
+	 *
+	 * @param <V>  тип варианта
+	 * @param <T1> тип первого свойства
+	 * @param <T2> тип второго свойства
+	 * @param <T3> тип третьего свойства
+	 * @param <T4> тип четвёртого свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class QuadrupleProperty<V, T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>, T4 extends Comparable<T4>>
 			extends BlockStateVariantMap<V> {
 
@@ -254,10 +274,17 @@ public abstract class BlockStateVariantMap<V> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code QuintupleProperty}.
+	 * Карта вариантов для пяти свойств блока.
+	 *
+	 * @param <V>  тип варианта
+	 * @param <T1> тип первого свойства
+	 * @param <T2> тип второго свойства
+	 * @param <T3> тип третьего свойства
+	 * @param <T4> тип четвёртого свойства
+	 * @param <T5> тип пятого свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class QuintupleProperty<V, T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>, T4 extends Comparable<T4>, T5 extends Comparable<T5>>
 			extends BlockStateVariantMap<V> {
 
@@ -346,10 +373,13 @@ public abstract class BlockStateVariantMap<V> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SingleProperty}.
+	 * Карта вариантов для одного свойства блока.
+	 *
+	 * @param <V>  тип варианта
+	 * @param <T1> тип свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class SingleProperty<V, T1 extends Comparable<T1>> extends BlockStateVariantMap<V> {
 
 		private final Property<T1> property;
@@ -382,10 +412,15 @@ public abstract class BlockStateVariantMap<V> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TripleProperty}.
+	 * Карта вариантов для трёх свойств блока.
+	 *
+	 * @param <V>  тип варианта
+	 * @param <T1> тип первого свойства
+	 * @param <T2> тип второго свойства
+	 * @param <T3> тип третьего свойства
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class TripleProperty<V, T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>> extends BlockStateVariantMap<V> {
 
 		private final Property<T1> first;

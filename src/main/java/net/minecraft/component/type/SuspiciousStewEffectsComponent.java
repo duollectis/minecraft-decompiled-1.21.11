@@ -23,8 +23,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code SuspiciousStewEffectsComponent}.
- */
+	 * Компонент эффектов подозрительного рагу. Хранит список эффектов статуса,
+	 * применяемых к игроку при употреблении блюда.
+	 */
 public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent.StewEffect> effects) implements Consumable, TooltipAppender {
 
 	public static final SuspiciousStewEffectsComponent DEFAULT = new SuspiciousStewEffectsComponent(List.of());
@@ -39,19 +40,18 @@ public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent
 					.xmap(SuspiciousStewEffectsComponent::new, SuspiciousStewEffectsComponent::effects);
 
 	/**
-	 * With.
-	 *
-	 * @param stewEffect stew effect
-	 *
-	 * @return SuspiciousStewEffectsComponent — результат операции
-	 */
+		 * Возвращает новый компонент с добавленным эффектом в конец списка.
+		 *
+		 * @param stewEffect добавляемый эффект рагу
+		 * @return новый {@code SuspiciousStewEffectsComponent} с расширенным списком
+		 */
 	public SuspiciousStewEffectsComponent with(SuspiciousStewEffectsComponent.StewEffect stewEffect) {
-		return new SuspiciousStewEffectsComponent(Util.withAppended(this.effects, stewEffect));
+		return new SuspiciousStewEffectsComponent(Util.withAppended(effects, stewEffect));
 	}
 
 	@Override
 	public void onConsume(World world, LivingEntity user, ItemStack stack, ConsumableComponent consumable) {
-		for (SuspiciousStewEffectsComponent.StewEffect stewEffect : this.effects) {
+		for (StewEffect stewEffect : effects) {
 			user.addStatusEffect(stewEffect.createStatusEffectInstance());
 		}
 	}
@@ -63,32 +63,34 @@ public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		if (type.isCreative()) {
-			List<StatusEffectInstance> list = new ArrayList<>();
-
-			for (SuspiciousStewEffectsComponent.StewEffect stewEffect : this.effects) {
-				list.add(stewEffect.createStatusEffectInstance());
-			}
-
-			PotionContentsComponent.buildTooltip(list, textConsumer, 1.0F, context.getUpdateTickRate());
+		if (!type.isCreative()) {
+			return;
 		}
+
+		List<StatusEffectInstance> instances = new ArrayList<>();
+
+		for (StewEffect stewEffect : effects) {
+			instances.add(stewEffect.createStatusEffectInstance());
+		}
+
+		PotionContentsComponent.buildTooltip(instances, textConsumer, 1.0F, context.getUpdateTickRate());
 	}
 
 	/**
-	 * {@code StewEffect}.
-	 */
+		 * Отдельный эффект рагу: тип эффекта статуса и его длительность в тиках.
+		 */
 	public record StewEffect(RegistryEntry<StatusEffect> effect, int duration) {
 
 		public static final Codec<SuspiciousStewEffectsComponent.StewEffect> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    StatusEffect.ENTRY_CODEC
-								                    .fieldOf("id")
-								                    .forGetter(SuspiciousStewEffectsComponent.StewEffect::effect),
-						                    Codec.INT
-								                    .lenientOptionalFieldOf("duration", 160)
-								                    .forGetter(SuspiciousStewEffectsComponent.StewEffect::duration)
-				                    )
-				                    .apply(instance, SuspiciousStewEffectsComponent.StewEffect::new)
+											StatusEffect.ENTRY_CODEC
+													.fieldOf("id")
+													.forGetter(SuspiciousStewEffectsComponent.StewEffect::effect),
+											Codec.INT
+													.lenientOptionalFieldOf("duration", DEFAULT_DURATION)
+													.forGetter(SuspiciousStewEffectsComponent.StewEffect::duration)
+									)
+									.apply(instance, SuspiciousStewEffectsComponent.StewEffect::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, SuspiciousStewEffectsComponent.StewEffect>
 				PACKET_CODEC =
@@ -100,13 +102,8 @@ public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent
 						SuspiciousStewEffectsComponent.StewEffect::new
 				);
 
-		/**
-		 * Создаёт status effect instance.
-		 *
-		 * @return StatusEffectInstance — результат операции
-		 */
 		public StatusEffectInstance createStatusEffectInstance() {
-			return new StatusEffectInstance(this.effect, this.duration);
+			return new StatusEffectInstance(effect, duration);
 		}
 	}
 }

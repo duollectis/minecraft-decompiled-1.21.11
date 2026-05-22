@@ -4,12 +4,15 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code ShulkerBoxSlot}.
+ * Слот инвентаря ящика шалкера.
+ * <p>
+ * Запрещает вставку предметов, которые не могут быть вложены в контейнер
+ * (например, других ящиков шалкера), предотвращая рекурсивное вложение.
  */
 public class ShulkerBoxSlot extends Slot {
 
-	public ShulkerBoxSlot(Inventory inventory, int i, int j, int k) {
-		super(inventory, i, j, k);
+	public ShulkerBoxSlot(Inventory inventory, int index, int x, int y) {
+		super(inventory, index, x, y);
 	}
 
 	@Override

@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code BanCommand}.
+ * Команда {@code /ban}: блокировка игрока по имени (только dedicated).
  */
 public class BanCommand {
 

@@ -10,10 +10,12 @@ import net.minecraft.client.render.item.model.ItemModelTypes;
 import net.minecraft.registry.ContextSwapper;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemAsset}.
+ * Описание клиентского ассета предмета: модель, свойства анимации и опциональный
+ * {@link ContextSwapper} для подмены реестровых контекстов при рендере.
+ * Загружается из JSON-файлов в директории {@code items/} ресурс-пака.
  */
+@Environment(EnvType.CLIENT)
 public record ItemAsset(
 		ItemModel.Unbaked model,
 		ItemAsset.Properties properties,
@@ -33,37 +35,29 @@ public record ItemAsset(
 		this(model, properties, null);
 	}
 
-	/**
-	 * With context swapper.
-	 *
-	 * @param contextSwapper context swapper
-	 *
-	 * @return ItemAsset — результат операции
-	 */
+	/** Возвращает копию ассета с привязанным {@link ContextSwapper} для реестровых подстановок. */
 	public ItemAsset withContextSwapper(ContextSwapper contextSwapper) {
-		return new ItemAsset(this.model, this.properties, contextSwapper);
+		return new ItemAsset(model, properties, contextSwapper);
 	}
 
+	/** Свойства анимации предмета при смене в руке и отображении в GUI. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Properties}.
-	 */
 	public record Properties(boolean handAnimationOnSwap, boolean oversizedInGui, float swapAnimationScale) {
 
 		public static final ItemAsset.Properties DEFAULT = new ItemAsset.Properties(true, false, 1.0F);
 		public static final MapCodec<ItemAsset.Properties> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codec.BOOL
-								                    .optionalFieldOf("hand_animation_on_swap", true)
-								                    .forGetter(ItemAsset.Properties::handAnimationOnSwap),
-						                    Codec.BOOL
-								                    .optionalFieldOf("oversized_in_gui", false)
-								                    .forGetter(ItemAsset.Properties::oversizedInGui),
-						                    Codec.FLOAT
-								                    .optionalFieldOf("swap_animation_scale", 1.0F)
-								                    .forGetter(ItemAsset.Properties::swapAnimationScale)
-				                    )
-				                    .apply(instance, ItemAsset.Properties::new)
+								Codec.BOOL
+										.optionalFieldOf("hand_animation_on_swap", true)
+										.forGetter(ItemAsset.Properties::handAnimationOnSwap),
+								Codec.BOOL
+										.optionalFieldOf("oversized_in_gui", false)
+										.forGetter(ItemAsset.Properties::oversizedInGui),
+								Codec.FLOAT
+										.optionalFieldOf("swap_animation_scale", 1.0F)
+										.forGetter(ItemAsset.Properties::swapAnimationScale)
+						)
+						.apply(instance, ItemAsset.Properties::new)
 		);
 	}
 }

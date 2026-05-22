@@ -6,7 +6,8 @@ import net.minecraft.network.packet.c2s.config.ReadyC2SPacket;
 import net.minecraft.network.packet.c2s.config.SelectKnownPacksC2SPacket;
 
 /**
- * Интерфейс server configuration packet listener.
+ * Слушатель серверных пакетов фазы {@link net.minecraft.network.NetworkPhase#CONFIGURATION}.
+ * Обрабатывает готовность клиента, выбор известных паков и принятие кодекса поведения.
  */
 public interface ServerConfigurationPacketListener extends ServerCommonPacketListener {
 

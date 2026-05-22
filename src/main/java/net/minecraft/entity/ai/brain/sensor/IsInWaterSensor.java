@@ -9,7 +9,8 @@ import net.minecraft.util.Unit;
 import java.util.Set;
 
 /**
- * {@code IsInWaterSensor}.
+ * Сенсор, определяющий, находится ли сущность в воде.
+ * Записывает или удаляет память {@code IS_IN_WATER} в зависимости от состояния сущности.
  */
 public class IsInWaterSensor extends Sensor<LivingEntity> {
 
@@ -22,8 +23,7 @@ public class IsInWaterSensor extends Sensor<LivingEntity> {
 	protected void sense(ServerWorld world, LivingEntity entity) {
 		if (entity.isTouchingWater()) {
 			entity.getBrain().remember(MemoryModuleType.IS_IN_WATER, Unit.INSTANCE);
-		}
-		else {
+		} else {
 			entity.getBrain().forget(MemoryModuleType.IS_IN_WATER);
 		}
 	}

@@ -13,7 +13,8 @@ import net.minecraft.util.ModelAndTexture;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code ChickenVariants}.
+ * Реестр климатических вариантов курицы.
+ * Умеренный вариант — запасной (fallback), тёплый и холодный — биомно-зависимые.
  */
 public class ChickenVariants {
 
@@ -22,14 +23,10 @@ public class ChickenVariants {
 	public static final RegistryKey<ChickenVariant> COLD = of(AnimalTemperature.COLD);
 	public static final RegistryKey<ChickenVariant> DEFAULT = TEMPERATE;
 
-	private static RegistryKey<ChickenVariant> of(Identifier id) {
-		return RegistryKey.of(RegistryKeys.CHICKEN_VARIANT, id);
-	}
-
 	/**
-	 * Bootstrap.
+	 * Регистрирует все три климатических варианта курицы в реестре.
 	 *
-	 * @param registry registry
+	 * @param registry реестр вариантов курицы
 	 */
 	public static void bootstrap(Registerable<ChickenVariant> registry) {
 		register(
@@ -56,13 +53,13 @@ public class ChickenVariants {
 			String textureName,
 			TagKey<Biome> biomes
 	) {
-		RegistryEntryList<Biome> registryEntryList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
+		RegistryEntryList<Biome> biomeList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
 		register(
 				registry,
 				key,
 				model,
 				textureName,
-				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(registryEntryList), 1)
+				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(biomeList), 1)
 		);
 	}
 
@@ -73,7 +70,11 @@ public class ChickenVariants {
 			String textureName,
 			SpawnConditionSelectors spawnConditions
 	) {
-		Identifier identifier = Identifier.ofVanilla("entity/chicken/" + textureName);
-		registry.register(key, new ChickenVariant(new ModelAndTexture<>(model, identifier), spawnConditions));
+		Identifier texture = Identifier.ofVanilla("entity/chicken/" + textureName);
+		registry.register(key, new ChickenVariant(new ModelAndTexture<>(model, texture), spawnConditions));
+	}
+
+	private static RegistryKey<ChickenVariant> of(Identifier id) {
+		return RegistryKey.of(RegistryKeys.CHICKEN_VARIANT, id);
 	}
 }

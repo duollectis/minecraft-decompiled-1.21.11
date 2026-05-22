@@ -5,7 +5,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code DialogTags}.
+ * Статические ключи тегов диалогов Minecraft.
+ * Теги определяют, в каких контекстах отображаются диалоги (экран паузы, быстрые действия и т.д.).
  */
 public class DialogTags {
 

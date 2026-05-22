@@ -5,7 +5,7 @@ import com.mojang.serialization.Dynamic;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TridentAnimationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TridentAnimationFix extends ComponentFix {
 

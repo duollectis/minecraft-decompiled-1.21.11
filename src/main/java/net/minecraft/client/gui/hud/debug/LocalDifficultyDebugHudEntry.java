@@ -13,39 +13,49 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LocalDifficultyDebugHudEntry}.
+ * Запись отладочного HUD: локальная сложность в текущем чанке.
  */
+@Environment(EnvType.CLIENT)
 public class LocalDifficultyDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		Entity entity = minecraftClient.getCameraEntity();
-		if (entity != null && chunk != null && world instanceof ServerWorld serverWorld) {
-			BlockPos blockPos = entity.getBlockPos();
-			if (serverWorld.isInHeightLimit(blockPos.getY())) {
-				float f = serverWorld.getMoonSize(blockPos);
-				long l = chunk.getInhabitedTime();
-				LocalDifficulty
-						localDifficulty =
-						new LocalDifficulty(serverWorld.getDifficulty(), serverWorld.getTimeOfDay(), l, f);
-				lines.addLine(
-						String.format(
-								Locale.ROOT,
-								"Local Difficulty: %.2f // %.2f (Day %d)",
-								localDifficulty.getLocalDifficulty(),
-								localDifficulty.getClampedLocalDifficulty(),
-								serverWorld.getDay()
-						)
-				);
-			}
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
+
+		if (cameraEntity == null || chunk == null || !(world instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		BlockPos blockPos = cameraEntity.getBlockPos();
+
+		if (!serverWorld.isInHeightLimit(blockPos.getY())) {
+			return;
+		}
+
+		float moonSize = serverWorld.getMoonSize(blockPos);
+		long inhabitedTime = chunk.getInhabitedTime();
+		LocalDifficulty localDifficulty = new LocalDifficulty(
+			serverWorld.getDifficulty(),
+			serverWorld.getTimeOfDay(),
+			inhabitedTime,
+			moonSize
+		);
+
+		lines.addLine(
+			String.format(
+				Locale.ROOT,
+				"Local Difficulty: %.2f // %.2f (Day %d)",
+				localDifficulty.getLocalDifficulty(),
+				localDifficulty.getClampedLocalDifficulty(),
+				serverWorld.getDay()
+			)
+		);
 	}
 }

@@ -8,17 +8,15 @@ import net.minecraft.loot.context.LootContext;
 
 import java.util.List;
 
-/**
- * {@code DiscardLootFunction}.
- */
+/** Функция лута, безусловно уничтожающая предмет (возвращает пустой стак). */
 public class DiscardLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<DiscardLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance).apply(instance, DiscardLootFunction::new)
+		instance -> addConditionsField(instance).apply(instance, DiscardLootFunction::new)
 	);
 
-	protected DiscardLootFunction(List<LootCondition> list) {
-		super(list);
+	protected DiscardLootFunction(List<LootCondition> conditions) {
+		super(conditions);
 	}
 
 	@Override

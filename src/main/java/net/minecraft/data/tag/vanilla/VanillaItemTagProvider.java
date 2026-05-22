@@ -38,7 +38,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 			}
 		}
 		).configure();
-		this.builder(ItemTags.BANNERS)
+		builder(ItemTags.BANNERS)
 		    .add(
 				    Items.WHITE_BANNER,
 				    Items.ORANGE_BANNER,
@@ -57,7 +57,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.RED_BANNER,
 				    Items.BLACK_BANNER
 		    );
-		this.builder(ItemTags.BOATS)
+		builder(ItemTags.BOATS)
 		    .add(
 				    Items.OAK_BOAT,
 				    Items.SPRUCE_BOAT,
@@ -71,7 +71,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.CHERRY_BOAT
 		    )
 		    .addTag(ItemTags.CHEST_BOATS);
-		this.builder(ItemTags.BUNDLES)
+		builder(ItemTags.BUNDLES)
 		    .add(
 				    Items.BUNDLE,
 				    Items.BLACK_BUNDLE,
@@ -91,7 +91,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.YELLOW_BUNDLE,
 				    Items.WHITE_BUNDLE
 		    );
-		this.builder(ItemTags.CHEST_BOATS)
+		builder(ItemTags.CHEST_BOATS)
 		    .add(
 				    Items.OAK_CHEST_BOAT,
 				    Items.SPRUCE_CHEST_BOAT,
@@ -104,7 +104,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.BAMBOO_CHEST_RAFT,
 				    Items.CHERRY_CHEST_BOAT
 		    );
-		this.builder(ItemTags.EGGS).add(Items.EGG, Items.BLUE_EGG, Items.BROWN_EGG);
+		builder(ItemTags.EGGS).add(Items.EGG, Items.BLUE_EGG, Items.BROWN_EGG);
 		this
 				.builder(ItemTags.FISHES)
 				.add(
@@ -115,7 +115,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 						Items.PUFFERFISH,
 						Items.TROPICAL_FISH
 				);
-		this.builder(ItemTags.CREEPER_DROP_MUSIC_DISCS)
+		builder(ItemTags.CREEPER_DROP_MUSIC_DISCS)
 		    .add(
 				    Items.MUSIC_DISC_13,
 				    Items.MUSIC_DISC_CAT,
@@ -130,14 +130,14 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.MUSIC_DISC_11,
 				    Items.MUSIC_DISC_WAIT
 		    );
-		this.builder(ItemTags.COALS).add(Items.COAL, Items.CHARCOAL);
-		this.builder(ItemTags.ARROWS).add(Items.ARROW, Items.TIPPED_ARROW, Items.SPECTRAL_ARROW);
-		this.builder(ItemTags.LECTERN_BOOKS).add(Items.WRITTEN_BOOK, Items.WRITABLE_BOOK);
+		builder(ItemTags.COALS).add(Items.COAL, Items.CHARCOAL);
+		builder(ItemTags.ARROWS).add(Items.ARROW, Items.TIPPED_ARROW, Items.SPECTRAL_ARROW);
+		builder(ItemTags.LECTERN_BOOKS).add(Items.WRITTEN_BOOK, Items.WRITABLE_BOOK);
 		this
 				.builder(ItemTags.BEACON_PAYMENT_ITEMS)
 				.add(Items.NETHERITE_INGOT, Items.EMERALD, Items.DIAMOND, Items.GOLD_INGOT, Items.IRON_INGOT);
-		this.builder(ItemTags.PIGLIN_REPELLENTS).add(Items.SOUL_TORCH).add(Items.SOUL_LANTERN).add(Items.SOUL_CAMPFIRE);
-		this.builder(ItemTags.PIGLIN_LOVED)
+		builder(ItemTags.PIGLIN_REPELLENTS).add(Items.SOUL_TORCH).add(Items.SOUL_LANTERN).add(Items.SOUL_CAMPFIRE);
+		builder(ItemTags.PIGLIN_LOVED)
 		    .addTag(ItemTags.GOLD_ORES)
 		    .add(
 				    Items.GOLD_BLOCK,
@@ -165,15 +165,15 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.RAW_GOLD,
 				    Items.RAW_GOLD_BLOCK
 		    );
-		this.builder(ItemTags.IGNORED_BY_PIGLIN_BABIES).add(Items.LEATHER);
-		this.builder(ItemTags.PIGLIN_FOOD).add(Items.PORKCHOP, Items.COOKED_PORKCHOP);
+		builder(ItemTags.IGNORED_BY_PIGLIN_BABIES).add(Items.LEATHER);
+		builder(ItemTags.PIGLIN_FOOD).add(Items.PORKCHOP, Items.COOKED_PORKCHOP);
 		this
 				.builder(ItemTags.PIGLIN_SAFE_ARMOR)
 				.add(Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS);
-		this.builder(ItemTags.FOX_FOOD).add(Items.SWEET_BERRIES, Items.GLOW_BERRIES);
-		this.builder(ItemTags.DUPLICATES_ALLAYS).add(Items.AMETHYST_SHARD);
-		this.builder(ItemTags.BREWING_FUEL).add(Items.BLAZE_POWDER);
-		this.builder(ItemTags.NON_FLAMMABLE_WOOD)
+		builder(ItemTags.FOX_FOOD).add(Items.SWEET_BERRIES, Items.GLOW_BERRIES);
+		builder(ItemTags.DUPLICATES_ALLAYS).add(Items.AMETHYST_SHARD);
+		builder(ItemTags.BREWING_FUEL).add(Items.BLAZE_POWDER);
+		builder(ItemTags.NON_FLAMMABLE_WOOD)
 		    .add(
 				    Items.WARPED_STEM,
 				    Items.STRIPPED_WARPED_STEM,
@@ -208,26 +208,26 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.WARPED_SHELF,
 				    Items.CRIMSON_SHELF
 		    );
-		this.builder(ItemTags.WOODEN_TOOL_MATERIALS).addTag(ItemTags.PLANKS);
-		this.builder(ItemTags.STONE_TOOL_MATERIALS).add(Items.COBBLESTONE, Items.BLACKSTONE, Items.COBBLED_DEEPSLATE);
-		this.builder(ItemTags.COPPER_TOOL_MATERIALS).add(Items.COPPER_INGOT);
-		this.builder(ItemTags.IRON_TOOL_MATERIALS).add(Items.IRON_INGOT);
-		this.builder(ItemTags.GOLD_TOOL_MATERIALS).add(Items.GOLD_INGOT);
-		this.builder(ItemTags.DIAMOND_TOOL_MATERIALS).add(Items.DIAMOND);
-		this.builder(ItemTags.NETHERITE_TOOL_MATERIALS).add(Items.NETHERITE_INGOT);
-		this.builder(ItemTags.REPAIRS_LEATHER_ARMOR).add(Items.LEATHER);
-		this.builder(ItemTags.REPAIRS_COPPER_ARMOR).add(Items.COPPER_INGOT);
-		this.builder(ItemTags.REPAIRS_CHAIN_ARMOR).add(Items.IRON_INGOT);
-		this.builder(ItemTags.REPAIRS_IRON_ARMOR).add(Items.IRON_INGOT);
-		this.builder(ItemTags.REPAIRS_GOLD_ARMOR).add(Items.GOLD_INGOT);
-		this.builder(ItemTags.REPAIRS_DIAMOND_ARMOR).add(Items.DIAMOND);
-		this.builder(ItemTags.REPAIRS_NETHERITE_ARMOR).add(Items.NETHERITE_INGOT);
-		this.builder(ItemTags.REPAIRS_TURTLE_HELMET).add(Items.TURTLE_SCUTE);
-		this.builder(ItemTags.REPAIRS_WOLF_ARMOR).add(Items.ARMADILLO_SCUTE);
+		builder(ItemTags.WOODEN_TOOL_MATERIALS).addTag(ItemTags.PLANKS);
+		builder(ItemTags.STONE_TOOL_MATERIALS).add(Items.COBBLESTONE, Items.BLACKSTONE, Items.COBBLED_DEEPSLATE);
+		builder(ItemTags.COPPER_TOOL_MATERIALS).add(Items.COPPER_INGOT);
+		builder(ItemTags.IRON_TOOL_MATERIALS).add(Items.IRON_INGOT);
+		builder(ItemTags.GOLD_TOOL_MATERIALS).add(Items.GOLD_INGOT);
+		builder(ItemTags.DIAMOND_TOOL_MATERIALS).add(Items.DIAMOND);
+		builder(ItemTags.NETHERITE_TOOL_MATERIALS).add(Items.NETHERITE_INGOT);
+		builder(ItemTags.REPAIRS_LEATHER_ARMOR).add(Items.LEATHER);
+		builder(ItemTags.REPAIRS_COPPER_ARMOR).add(Items.COPPER_INGOT);
+		builder(ItemTags.REPAIRS_CHAIN_ARMOR).add(Items.IRON_INGOT);
+		builder(ItemTags.REPAIRS_IRON_ARMOR).add(Items.IRON_INGOT);
+		builder(ItemTags.REPAIRS_GOLD_ARMOR).add(Items.GOLD_INGOT);
+		builder(ItemTags.REPAIRS_DIAMOND_ARMOR).add(Items.DIAMOND);
+		builder(ItemTags.REPAIRS_NETHERITE_ARMOR).add(Items.NETHERITE_INGOT);
+		builder(ItemTags.REPAIRS_TURTLE_HELMET).add(Items.TURTLE_SCUTE);
+		builder(ItemTags.REPAIRS_WOLF_ARMOR).add(Items.ARMADILLO_SCUTE);
 		this
 				.builder(ItemTags.STONE_CRAFTING_MATERIALS)
 				.add(Items.COBBLESTONE, Items.BLACKSTONE, Items.COBBLED_DEEPSLATE);
-		this.builder(ItemTags.FREEZE_IMMUNE_WEARABLES)
+		builder(ItemTags.FREEZE_IMMUNE_WEARABLES)
 		    .add(
 				    Items.LEATHER_BOOTS,
 				    Items.LEATHER_LEGGINGS,
@@ -235,8 +235,8 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.LEATHER_HELMET,
 				    Items.LEATHER_HORSE_ARMOR
 		    );
-		this.builder(ItemTags.AXOLOTL_FOOD).add(Items.TROPICAL_FISH_BUCKET);
-		this.builder(ItemTags.CLUSTER_MAX_HARVESTABLES)
+		builder(ItemTags.AXOLOTL_FOOD).add(Items.TROPICAL_FISH_BUCKET);
+		builder(ItemTags.CLUSTER_MAX_HARVESTABLES)
 		    .add(
 				    Items.DIAMOND_PICKAXE,
 				    Items.GOLDEN_PICKAXE,
@@ -246,9 +246,9 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.WOODEN_PICKAXE,
 				    Items.COPPER_PICKAXE
 		    );
-		this.builder(ItemTags.COMPASSES).add(Items.COMPASS).add(Items.RECOVERY_COMPASS);
-		this.builder(ItemTags.CREEPER_IGNITERS).add(Items.FLINT_AND_STEEL).add(Items.FIRE_CHARGE);
-		this.builder(ItemTags.SWORDS)
+		builder(ItemTags.COMPASSES).add(Items.COMPASS).add(Items.RECOVERY_COMPASS);
+		builder(ItemTags.CREEPER_IGNITERS).add(Items.FLINT_AND_STEEL).add(Items.FIRE_CHARGE);
+		builder(ItemTags.SWORDS)
 		    .add(Items.DIAMOND_SWORD)
 		    .add(Items.STONE_SWORD)
 		    .add(Items.GOLDEN_SWORD)
@@ -256,7 +256,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.WOODEN_SWORD)
 		    .add(Items.IRON_SWORD)
 		    .add(Items.COPPER_SWORD);
-		this.builder(ItemTags.AXES)
+		builder(ItemTags.AXES)
 		    .add(Items.DIAMOND_AXE)
 		    .add(Items.STONE_AXE)
 		    .add(Items.GOLDEN_AXE)
@@ -264,7 +264,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.WOODEN_AXE)
 		    .add(Items.IRON_AXE)
 		    .add(Items.COPPER_AXE);
-		this.builder(ItemTags.PICKAXES)
+		builder(ItemTags.PICKAXES)
 		    .add(Items.DIAMOND_PICKAXE)
 		    .add(Items.STONE_PICKAXE)
 		    .add(Items.GOLDEN_PICKAXE)
@@ -272,7 +272,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.WOODEN_PICKAXE)
 		    .add(Items.IRON_PICKAXE)
 		    .add(Items.COPPER_PICKAXE);
-		this.builder(ItemTags.SHOVELS)
+		builder(ItemTags.SHOVELS)
 		    .add(Items.DIAMOND_SHOVEL)
 		    .add(Items.STONE_SHOVEL)
 		    .add(Items.GOLDEN_SHOVEL)
@@ -280,7 +280,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.WOODEN_SHOVEL)
 		    .add(Items.IRON_SHOVEL)
 		    .add(Items.COPPER_SHOVEL);
-		this.builder(ItemTags.HOES)
+		builder(ItemTags.HOES)
 		    .add(Items.DIAMOND_HOE)
 		    .add(Items.STONE_HOE)
 		    .add(Items.GOLDEN_HOE)
@@ -288,7 +288,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.WOODEN_HOE)
 		    .add(Items.IRON_HOE)
 		    .add(Items.COPPER_HOE);
-		this.builder(ItemTags.SPEARS)
+		builder(ItemTags.SPEARS)
 		    .add(
 				    Items.DIAMOND_SPEAR,
 				    Items.STONE_SPEAR,
@@ -298,7 +298,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.IRON_SPEAR,
 				    Items.COPPER_SPEAR
 		    );
-		this.builder(ItemTags.BREAKS_DECORATED_POTS)
+		builder(ItemTags.BREAKS_DECORATED_POTS)
 		    .addTag(ItemTags.SWORDS)
 		    .addTag(ItemTags.AXES)
 		    .addTag(ItemTags.PICKAXES)
@@ -306,12 +306,12 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .addTag(ItemTags.HOES)
 		    .add(Items.TRIDENT)
 		    .add(Items.MACE);
-		this.builder(ItemTags.SKELETON_PREFERRED_WEAPONS).add(Items.BOW);
-		this.builder(ItemTags.DROWNED_PREFERRED_WEAPONS).add(Items.TRIDENT);
-		this.builder(ItemTags.PIGLIN_PREFERRED_WEAPONS).add(Items.CROSSBOW, Items.GOLDEN_SPEAR);
-		this.builder(ItemTags.PILLAGER_PREFERRED_WEAPONS).add(Items.CROSSBOW);
-		this.builder(ItemTags.WITHER_SKELETON_DISLIKED_WEAPONS).add(Items.BOW).add(Items.CROSSBOW);
-		this.builder(ItemTags.DECORATED_POT_SHERDS)
+		builder(ItemTags.SKELETON_PREFERRED_WEAPONS).add(Items.BOW);
+		builder(ItemTags.DROWNED_PREFERRED_WEAPONS).add(Items.TRIDENT);
+		builder(ItemTags.PIGLIN_PREFERRED_WEAPONS).add(Items.CROSSBOW, Items.GOLDEN_SPEAR);
+		builder(ItemTags.PILLAGER_PREFERRED_WEAPONS).add(Items.CROSSBOW);
+		builder(ItemTags.WITHER_SKELETON_DISLIKED_WEAPONS).add(Items.BOW).add(Items.CROSSBOW);
+		builder(ItemTags.DECORATED_POT_SHERDS)
 		    .add(
 				    Items.ANGLER_POTTERY_SHERD,
 				    Items.ARCHER_POTTERY_SHERD,
@@ -337,8 +337,8 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.GUSTER_POTTERY_SHERD,
 				    Items.SCRAPE_POTTERY_SHERD
 		    );
-		this.builder(ItemTags.DECORATED_POT_INGREDIENTS).add(Items.BRICK).addTag(ItemTags.DECORATED_POT_SHERDS);
-		this.builder(ItemTags.FOOT_ARMOR)
+		builder(ItemTags.DECORATED_POT_INGREDIENTS).add(Items.BRICK).addTag(ItemTags.DECORATED_POT_SHERDS);
+		builder(ItemTags.FOOT_ARMOR)
 		    .add(
 				    Items.LEATHER_BOOTS,
 				    Items.COPPER_BOOTS,
@@ -348,7 +348,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.DIAMOND_BOOTS,
 				    Items.NETHERITE_BOOTS
 		    );
-		this.builder(ItemTags.LEG_ARMOR)
+		builder(ItemTags.LEG_ARMOR)
 		    .add(
 				    Items.LEATHER_LEGGINGS,
 				    Items.COPPER_LEGGINGS,
@@ -358,7 +358,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.DIAMOND_LEGGINGS,
 				    Items.NETHERITE_LEGGINGS
 		    );
-		this.builder(ItemTags.CHEST_ARMOR)
+		builder(ItemTags.CHEST_ARMOR)
 		    .add(
 				    Items.LEATHER_CHESTPLATE,
 				    Items.COPPER_CHESTPLATE,
@@ -368,7 +368,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.DIAMOND_CHESTPLATE,
 				    Items.NETHERITE_CHESTPLATE
 		    );
-		this.builder(ItemTags.HEAD_ARMOR)
+		builder(ItemTags.HEAD_ARMOR)
 		    .add(
 				    Items.LEATHER_HELMET,
 				    Items.COPPER_HELMET,
@@ -379,7 +379,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.NETHERITE_HELMET,
 				    Items.TURTLE_HELMET
 		    );
-		this.builder(ItemTags.SKULLS)
+		builder(ItemTags.SKULLS)
 		    .add(
 				    Items.PLAYER_HEAD,
 				    Items.CREEPER_HEAD,
@@ -395,7 +395,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				.addTag(ItemTags.LEG_ARMOR)
 				.addTag(ItemTags.CHEST_ARMOR)
 				.addTag(ItemTags.HEAD_ARMOR);
-		this.builder(ItemTags.TRIM_MATERIALS)
+		builder(ItemTags.TRIM_MATERIALS)
 		    .add(
 				    registries.getOrThrow(RegistryKeys.ITEM)
 				              .streamEntries()
@@ -409,7 +409,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		this
 				.builder(ItemTags.BOOKSHELF_BOOKS)
 				.add(Items.BOOK, Items.WRITTEN_BOOK, Items.ENCHANTED_BOOK, Items.WRITABLE_BOOK, Items.KNOWLEDGE_BOOK);
-		this.builder(ItemTags.NOTEBLOCK_TOP_INSTRUMENTS)
+		builder(ItemTags.NOTEBLOCK_TOP_INSTRUMENTS)
 		    .add(
 				    Items.ZOMBIE_HEAD,
 				    Items.SKELETON_SKULL,
@@ -419,8 +419,8 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.PIGLIN_HEAD,
 				    Items.PLAYER_HEAD
 		    );
-		this.builder(ItemTags.SNIFFER_FOOD).add(Items.TORCHFLOWER_SEEDS);
-		this.builder(ItemTags.VILLAGER_PLANTABLE_SEEDS)
+		builder(ItemTags.SNIFFER_FOOD).add(Items.TORCHFLOWER_SEEDS);
+		builder(ItemTags.VILLAGER_PLANTABLE_SEEDS)
 		    .add(
 				    Items.WHEAT_SEEDS,
 				    Items.POTATO,
@@ -433,23 +433,23 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				.builder(ItemTags.VILLAGER_PICKS_UP)
 				.addTag(ItemTags.VILLAGER_PLANTABLE_SEEDS)
 				.add(Items.BREAD, Items.WHEAT, Items.BEETROOT);
-		this.builder(ItemTags.BOOK_CLONING_TARGET).add(Items.WRITABLE_BOOK);
-		this.builder(ItemTags.FOOT_ARMOR_ENCHANTABLE).addTag(ItemTags.FOOT_ARMOR);
-		this.builder(ItemTags.LEG_ARMOR_ENCHANTABLE).addTag(ItemTags.LEG_ARMOR);
-		this.builder(ItemTags.CHEST_ARMOR_ENCHANTABLE).addTag(ItemTags.CHEST_ARMOR);
-		this.builder(ItemTags.HEAD_ARMOR_ENCHANTABLE).addTag(ItemTags.HEAD_ARMOR);
-		this.builder(ItemTags.ARMOR_ENCHANTABLE)
+		builder(ItemTags.BOOK_CLONING_TARGET).add(Items.WRITABLE_BOOK);
+		builder(ItemTags.FOOT_ARMOR_ENCHANTABLE).addTag(ItemTags.FOOT_ARMOR);
+		builder(ItemTags.LEG_ARMOR_ENCHANTABLE).addTag(ItemTags.LEG_ARMOR);
+		builder(ItemTags.CHEST_ARMOR_ENCHANTABLE).addTag(ItemTags.CHEST_ARMOR);
+		builder(ItemTags.HEAD_ARMOR_ENCHANTABLE).addTag(ItemTags.HEAD_ARMOR);
+		builder(ItemTags.ARMOR_ENCHANTABLE)
 		    .addTag(ItemTags.FOOT_ARMOR_ENCHANTABLE)
 		    .addTag(ItemTags.LEG_ARMOR_ENCHANTABLE)
 		    .addTag(ItemTags.CHEST_ARMOR_ENCHANTABLE)
 		    .addTag(ItemTags.HEAD_ARMOR_ENCHANTABLE);
-		this.builder(ItemTags.SWEEPING_ENCHANTABLE).addTag(ItemTags.SWORDS);
-		this.builder(ItemTags.MELEE_WEAPON_ENCHANTABLE).addTag(ItemTags.SWORDS).addTag(ItemTags.SPEARS);
-		this.builder(ItemTags.FIRE_ASPECT_ENCHANTABLE).addTag(ItemTags.MELEE_WEAPON_ENCHANTABLE).add(Items.MACE);
-		this.builder(ItemTags.SHARP_WEAPON_ENCHANTABLE).addTag(ItemTags.MELEE_WEAPON_ENCHANTABLE).addTag(ItemTags.AXES);
-		this.builder(ItemTags.WEAPON_ENCHANTABLE).addTag(ItemTags.SHARP_WEAPON_ENCHANTABLE).add(Items.MACE);
-		this.builder(ItemTags.MACE_ENCHANTABLE).add(Items.MACE);
-		this.builder(ItemTags.MINING_ENCHANTABLE)
+		builder(ItemTags.SWEEPING_ENCHANTABLE).addTag(ItemTags.SWORDS);
+		builder(ItemTags.MELEE_WEAPON_ENCHANTABLE).addTag(ItemTags.SWORDS).addTag(ItemTags.SPEARS);
+		builder(ItemTags.FIRE_ASPECT_ENCHANTABLE).addTag(ItemTags.MELEE_WEAPON_ENCHANTABLE).add(Items.MACE);
+		builder(ItemTags.SHARP_WEAPON_ENCHANTABLE).addTag(ItemTags.MELEE_WEAPON_ENCHANTABLE).addTag(ItemTags.AXES);
+		builder(ItemTags.WEAPON_ENCHANTABLE).addTag(ItemTags.SHARP_WEAPON_ENCHANTABLE).add(Items.MACE);
+		builder(ItemTags.MACE_ENCHANTABLE).add(Items.MACE);
+		builder(ItemTags.MINING_ENCHANTABLE)
 		    .addTag(ItemTags.AXES)
 		    .addTag(ItemTags.PICKAXES)
 		    .addTag(ItemTags.SHOVELS)
@@ -461,10 +461,10 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				.addTag(ItemTags.PICKAXES)
 				.addTag(ItemTags.SHOVELS)
 				.addTag(ItemTags.HOES);
-		this.builder(ItemTags.FISHING_ENCHANTABLE).add(Items.FISHING_ROD);
-		this.builder(ItemTags.TRIDENT_ENCHANTABLE).add(Items.TRIDENT);
-		this.builder(ItemTags.LUNGE_ENCHANTABLE).addTag(ItemTags.SPEARS);
-		this.builder(ItemTags.DURABILITY_ENCHANTABLE)
+		builder(ItemTags.FISHING_ENCHANTABLE).add(Items.FISHING_ROD);
+		builder(ItemTags.TRIDENT_ENCHANTABLE).add(Items.TRIDENT);
+		builder(ItemTags.LUNGE_ENCHANTABLE).addTag(ItemTags.SPEARS);
+		builder(ItemTags.DURABILITY_ENCHANTABLE)
 		    .addTag(ItemTags.FOOT_ARMOR)
 		    .addTag(ItemTags.LEG_ARMOR)
 		    .addTag(ItemTags.CHEST_ARMOR)
@@ -486,8 +486,8 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.CARROT_ON_A_STICK, Items.WARPED_FUNGUS_ON_A_STICK)
 		    .add(Items.MACE)
 		    .addTag(ItemTags.SPEARS);
-		this.builder(ItemTags.BOW_ENCHANTABLE).add(Items.BOW);
-		this.builder(ItemTags.EQUIPPABLE_ENCHANTABLE)
+		builder(ItemTags.BOW_ENCHANTABLE).add(Items.BOW);
+		builder(ItemTags.EQUIPPABLE_ENCHANTABLE)
 		    .addTag(ItemTags.FOOT_ARMOR)
 		    .addTag(ItemTags.LEG_ARMOR)
 		    .addTag(ItemTags.CHEST_ARMOR)
@@ -495,14 +495,14 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 		    .add(Items.ELYTRA)
 		    .addTag(ItemTags.SKULLS)
 		    .add(Items.CARVED_PUMPKIN);
-		this.builder(ItemTags.CROSSBOW_ENCHANTABLE).add(Items.CROSSBOW);
+		builder(ItemTags.CROSSBOW_ENCHANTABLE).add(Items.CROSSBOW);
 		this
 				.builder(ItemTags.VANISHING_ENCHANTABLE)
 				.addTag(ItemTags.DURABILITY_ENCHANTABLE)
 				.add(Items.COMPASS)
 				.add(Items.CARVED_PUMPKIN)
 				.addTag(ItemTags.SKULLS);
-		this.builder(ItemTags.DYEABLE)
+		builder(ItemTags.DYEABLE)
 		    .add(
 				    Items.LEATHER_HELMET,
 				    Items.LEATHER_CHESTPLATE,
@@ -511,8 +511,8 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.LEATHER_HORSE_ARMOR,
 				    Items.WOLF_ARMOR
 		    );
-		this.builder(ItemTags.FURNACE_MINECART_FUEL).add(Items.COAL, Items.CHARCOAL);
-		this.builder(ItemTags.MEAT)
+		builder(ItemTags.FURNACE_MINECART_FUEL).add(Items.COAL, Items.CHARCOAL);
+		builder(ItemTags.MEAT)
 		    .add(
 				    Items.BEEF,
 				    Items.CHICKEN,
@@ -526,7 +526,7 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.RABBIT,
 				    Items.ROTTEN_FLESH
 		    );
-		this.builder(ItemTags.WOLF_FOOD)
+		builder(ItemTags.WOLF_FOOD)
 		    .addTag(ItemTags.MEAT)
 		    .add(
 				    Items.COD,
@@ -537,9 +537,9 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.PUFFERFISH,
 				    Items.RABBIT_STEW
 		    );
-		this.builder(ItemTags.OCELOT_FOOD).add(Items.COD, Items.SALMON);
-		this.builder(ItemTags.CAT_FOOD).add(Items.COD, Items.SALMON);
-		this.builder(ItemTags.HORSE_FOOD)
+		builder(ItemTags.OCELOT_FOOD).add(Items.COD, Items.SALMON);
+		builder(ItemTags.CAT_FOOD).add(Items.COD, Items.SALMON);
+		builder(ItemTags.HORSE_FOOD)
 		    .add(
 				    Items.WHEAT,
 				    Items.SUGAR,
@@ -550,11 +550,11 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.GOLDEN_APPLE,
 				    Items.ENCHANTED_GOLDEN_APPLE
 		    );
-		this.builder(ItemTags.ZOMBIE_HORSE_FOOD).add(Items.RED_MUSHROOM);
+		builder(ItemTags.ZOMBIE_HORSE_FOOD).add(Items.RED_MUSHROOM);
 		this
 				.builder(ItemTags.HORSE_TEMPT_ITEMS)
 				.add(Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE);
-		this.builder(ItemTags.HARNESSES)
+		builder(ItemTags.HARNESSES)
 		    .add(
 				    Items.WHITE_HARNESS,
 				    Items.ORANGE_HARNESS,
@@ -573,12 +573,12 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.RED_HARNESS,
 				    Items.BLACK_HARNESS
 		    );
-		this.builder(ItemTags.HAPPY_GHAST_FOOD).add(Items.SNOWBALL);
-		this.builder(ItemTags.HAPPY_GHAST_TEMPT_ITEMS).addTag(ItemTags.HAPPY_GHAST_FOOD).addTag(ItemTags.HARNESSES);
-		this.builder(ItemTags.CAMEL_FOOD).add(Items.CACTUS);
-		this.builder(ItemTags.CAMEL_HUSK_FOOD).add(Items.RABBIT_FOOT);
-		this.builder(ItemTags.ARMADILLO_FOOD).add(Items.SPIDER_EYE);
-		this.builder(ItemTags.CHICKEN_FOOD)
+		builder(ItemTags.HAPPY_GHAST_FOOD).add(Items.SNOWBALL);
+		builder(ItemTags.HAPPY_GHAST_TEMPT_ITEMS).addTag(ItemTags.HAPPY_GHAST_FOOD).addTag(ItemTags.HARNESSES);
+		builder(ItemTags.CAMEL_FOOD).add(Items.CACTUS);
+		builder(ItemTags.CAMEL_HUSK_FOOD).add(Items.RABBIT_FOOT);
+		builder(ItemTags.ARMADILLO_FOOD).add(Items.SPIDER_EYE);
+		builder(ItemTags.CHICKEN_FOOD)
 		    .add(
 				    Items.WHEAT_SEEDS,
 				    Items.MELON_SEEDS,
@@ -587,23 +587,23 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.TORCHFLOWER_SEEDS,
 				    Items.PITCHER_POD
 		    );
-		this.builder(ItemTags.FROG_FOOD).add(Items.SLIME_BALL);
-		this.builder(ItemTags.HOGLIN_FOOD).add(Items.CRIMSON_FUNGUS);
-		this.builder(ItemTags.LLAMA_FOOD).add(Items.WHEAT, Items.HAY_BLOCK);
-		this.builder(ItemTags.LLAMA_TEMPT_ITEMS).add(Items.HAY_BLOCK);
-		this.builder(ItemTags.NAUTILUS_TAMING_ITEMS).add(Items.PUFFERFISH_BUCKET, Items.PUFFERFISH);
+		builder(ItemTags.FROG_FOOD).add(Items.SLIME_BALL);
+		builder(ItemTags.HOGLIN_FOOD).add(Items.CRIMSON_FUNGUS);
+		builder(ItemTags.LLAMA_FOOD).add(Items.WHEAT, Items.HAY_BLOCK);
+		builder(ItemTags.LLAMA_TEMPT_ITEMS).add(Items.HAY_BLOCK);
+		builder(ItemTags.NAUTILUS_TAMING_ITEMS).add(Items.PUFFERFISH_BUCKET, Items.PUFFERFISH);
 		this
 				.builder(ItemTags.NAUTILUS_BUCKET_FOOD)
 				.add(Items.PUFFERFISH_BUCKET, Items.COD_BUCKET, Items.SALMON_BUCKET, Items.TROPICAL_FISH_BUCKET);
-		this.builder(ItemTags.NAUTILUS_FOOD).addTag(ItemTags.FISHES).addTag(ItemTags.NAUTILUS_BUCKET_FOOD);
-		this.builder(ItemTags.PANDA_FOOD).add(Items.BAMBOO);
-		this.builder(ItemTags.PANDA_EATS_FROM_GROUND).addTag(ItemTags.PANDA_FOOD).add(Items.CAKE);
-		this.builder(ItemTags.PIG_FOOD).add(Items.CARROT, Items.POTATO, Items.BEETROOT);
-		this.builder(ItemTags.RABBIT_FOOD).add(Items.CARROT, Items.GOLDEN_CARROT, Items.DANDELION);
-		this.builder(ItemTags.STRIDER_FOOD).add(Items.WARPED_FUNGUS);
-		this.builder(ItemTags.STRIDER_TEMPT_ITEMS).addTag(ItemTags.STRIDER_FOOD).add(Items.WARPED_FUNGUS_ON_A_STICK);
-		this.builder(ItemTags.TURTLE_FOOD).add(Items.SEAGRASS);
-		this.builder(ItemTags.PARROT_FOOD)
+		builder(ItemTags.NAUTILUS_FOOD).addTag(ItemTags.FISHES).addTag(ItemTags.NAUTILUS_BUCKET_FOOD);
+		builder(ItemTags.PANDA_FOOD).add(Items.BAMBOO);
+		builder(ItemTags.PANDA_EATS_FROM_GROUND).addTag(ItemTags.PANDA_FOOD).add(Items.CAKE);
+		builder(ItemTags.PIG_FOOD).add(Items.CARROT, Items.POTATO, Items.BEETROOT);
+		builder(ItemTags.RABBIT_FOOD).add(Items.CARROT, Items.GOLDEN_CARROT, Items.DANDELION);
+		builder(ItemTags.STRIDER_FOOD).add(Items.WARPED_FUNGUS);
+		builder(ItemTags.STRIDER_TEMPT_ITEMS).addTag(ItemTags.STRIDER_FOOD).add(Items.WARPED_FUNGUS_ON_A_STICK);
+		builder(ItemTags.TURTLE_FOOD).add(Items.SEAGRASS);
+		builder(ItemTags.PARROT_FOOD)
 		    .add(
 				    Items.WHEAT_SEEDS,
 				    Items.MELON_SEEDS,
@@ -612,13 +612,13 @@ public class VanillaItemTagProvider extends ValueLookupTagProvider<Item> {
 				    Items.TORCHFLOWER_SEEDS,
 				    Items.PITCHER_POD
 		    );
-		this.builder(ItemTags.PARROT_POISONOUS_FOOD).add(Items.COOKIE);
-		this.builder(ItemTags.COW_FOOD).add(Items.WHEAT);
-		this.builder(ItemTags.SHEEP_FOOD).add(Items.WHEAT);
-		this.builder(ItemTags.GOAT_FOOD).add(Items.WHEAT);
-		this.builder(ItemTags.MAP_INVISIBILITY_EQUIPMENT).add(Items.CARVED_PUMPKIN);
-		this.builder(ItemTags.GAZE_DISGUISE_EQUIPMENT).add(Items.CARVED_PUMPKIN);
-		this.builder(ItemTags.SHEARABLE_FROM_COPPER_GOLEM).add(Items.POPPY);
+		builder(ItemTags.PARROT_POISONOUS_FOOD).add(Items.COOKIE);
+		builder(ItemTags.COW_FOOD).add(Items.WHEAT);
+		builder(ItemTags.SHEEP_FOOD).add(Items.WHEAT);
+		builder(ItemTags.GOAT_FOOD).add(Items.WHEAT);
+		builder(ItemTags.MAP_INVISIBILITY_EQUIPMENT).add(Items.CARVED_PUMPKIN);
+		builder(ItemTags.GAZE_DISGUISE_EQUIPMENT).add(Items.CARVED_PUMPKIN);
+		builder(ItemTags.SHEARABLE_FROM_COPPER_GOLEM).add(Items.POPPY);
 	}
 
 	/**

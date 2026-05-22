@@ -14,7 +14,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code Variants}.
+ * Утилитарный класс для работы с вариантами сущностей (например, цвет кошки, тип волка).
+ * Обеспечивает чтение/запись варианта в NBT и выбор варианта при спауне через {@link VariantSelectorProvider}.
  */
 public class Variants {
 
@@ -35,14 +36,6 @@ public class Variants {
 		return registries.getOrThrow(registryRef).getDefaultEntry().orElseThrow();
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param view view
-	 * @param variantEntry variant entry
-	 *
-	 * @return void — результат операции
-	 */
 	public static <T> void writeData(WriteView view, RegistryEntry<T> variantEntry) {
 		variantEntry.getKey().ifPresent(key -> view.put("variant", Identifier.CODEC, key.getValue()));
 	}
@@ -57,13 +50,15 @@ public class Variants {
 				.flatMap(view.getRegistries()::getOptionalEntry);
 	}
 
+	/**
+	 * Выбирает случайный вариант из реестра для заданного контекста спауна.
+	 * Использует приоритеты и условия из {@link VariantSelectorProvider#getSelectors()}.
+	 */
 	public static <T extends VariantSelectorProvider<SpawnContext, ?>> Optional<RegistryEntry.Reference<T>> select(
 			SpawnContext context, RegistryKey<Registry<T>> registryRef
 	) {
-		ServerWorldAccess serverWorldAccess = context.world();
-		Stream<RegistryEntry.Reference<T>>
-				stream =
-				serverWorldAccess.getRegistryManager().getOrThrow(registryRef).streamEntries();
-		return VariantSelectorProvider.select(stream, RegistryEntry::value, serverWorldAccess.getRandom(), context);
+		ServerWorldAccess world = context.world();
+		Stream<RegistryEntry.Reference<T>> entries = world.getRegistryManager().getOrThrow(registryRef).streamEntries();
+		return VariantSelectorProvider.select(entries, RegistryEntry::value, world.getRandom(), context);
 	}
 }

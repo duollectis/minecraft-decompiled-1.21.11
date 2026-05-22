@@ -3,7 +3,7 @@ package net.minecraft.server.rcon;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@code BufferHelper}.
+ * Вспомогательный класс для работы с байтовыми буферами протокола RCON.
  */
 public class BufferHelper {
 

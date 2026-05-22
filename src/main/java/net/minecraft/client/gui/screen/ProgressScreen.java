@@ -8,10 +8,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ProgressListener;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ProgressScreen}.
+ * Экран отображения прогресса длительных операций (загрузка мира, сохранение и т.д.).
+ * Реализует {@link ProgressListener} для получения обновлений от фоновых задач.
  */
+@Environment(EnvType.CLIENT)
 public class ProgressScreen extends Screen implements ProgressListener {
 
 	private @Nullable Text title;
@@ -37,53 +38,55 @@ public class ProgressScreen extends Screen implements ProgressListener {
 
 	@Override
 	public void setTitle(Text title) {
-		this.setTitleAndTask(title);
+		setTitleAndTask(title);
 	}
 
 	@Override
 	public void setTitleAndTask(Text title) {
 		this.title = title;
-		this.setTask(Text.translatable("menu.working"));
+		setTask(Text.translatable("menu.working"));
 	}
 
 	@Override
 	public void setTask(Text task) {
 		this.task = task;
-		this.progressStagePercentage(0);
+		progressStagePercentage(0);
 	}
 
 	@Override
 	public void progressStagePercentage(int percentage) {
-		this.progress = percentage;
+		progress = percentage;
 	}
 
 	@Override
 	public void setDone() {
-		this.done = true;
+		done = true;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (this.done) {
-			if (this.closeAfterFinished) {
-				this.client.setScreen(null);
-			}
-		}
-		else {
-			super.render(context, mouseX, mouseY, deltaTicks);
-			if (this.title != null) {
-				context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 70, -1);
+		if (done) {
+			if (closeAfterFinished) {
+				client.setScreen(null);
 			}
 
-			if (this.task != null && this.progress != 0) {
-				context.drawCenteredTextWithShadow(
-						this.textRenderer,
-						Text.empty().append(this.task).append(" " + this.progress + "%"),
-						this.width / 2,
-						90,
-						-1
-				);
-			}
+			return;
+		}
+
+		super.render(context, mouseX, mouseY, deltaTicks);
+
+		if (title != null) {
+			context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 70, -1);
+		}
+
+		if (task != null && progress != 0) {
+			context.drawCenteredTextWithShadow(
+				textRenderer,
+				Text.empty().append(task).append(" " + progress + "%"),
+				width / 2,
+				90,
+				-1
+			);
 		}
 	}
 }

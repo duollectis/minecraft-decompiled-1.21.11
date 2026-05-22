@@ -16,38 +16,38 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code BlockStatePropertyLootCondition}.
+ * Условие, проверяющее тип блока и его состояние в позиции лута.
+ *
+ * <p>Требует параметр {@link LootContextParameters#BLOCK_STATE}.
+ * Опциональный предикат {@code properties} позволяет дополнительно фильтровать
+ * по конкретным значениям свойств блока.</p>
  */
 public record BlockStatePropertyLootCondition(
-		RegistryEntry<Block> block,
-		Optional<StatePredicate> properties
+	RegistryEntry<Block> block,
+	Optional<StatePredicate> properties
 ) implements LootCondition {
 
 	@SuppressWarnings("unchecked")
-	public static final MapCodec<BlockStatePropertyLootCondition>
-			CODEC =
-			(MapCodec<BlockStatePropertyLootCondition>) RecordCodecBuilder.<BlockStatePropertyLootCondition>mapCodec(
-					                                                              instance -> instance.group(
-							                                                                                  Registries.BLOCK
-									                                                                                  .getEntryCodec()
-									                                                                                  .fieldOf("block")
-									                                                                                  .forGetter(BlockStatePropertyLootCondition::block),
-							                                                                                  StatePredicate.CODEC
-									                                                                                  .optionalFieldOf("properties")
-									                                                                                  .forGetter(BlockStatePropertyLootCondition::properties)
-					                                                                                  )
-					                                                                                  .apply(instance, BlockStatePropertyLootCondition::new)
-			                                                              )
-			                                                              .validate(condition -> BlockStatePropertyLootCondition.validateHasProperties(
-					                                                              (BlockStatePropertyLootCondition) condition));
+	public static final MapCodec<BlockStatePropertyLootCondition> CODEC =
+		(MapCodec<BlockStatePropertyLootCondition>) RecordCodecBuilder.<BlockStatePropertyLootCondition>mapCodec(
+			instance -> instance.group(
+				Registries.BLOCK.getEntryCodec().fieldOf("block").forGetter(BlockStatePropertyLootCondition::block),
+				StatePredicate.CODEC.optionalFieldOf("properties").forGetter(BlockStatePropertyLootCondition::properties)
+			)
+			.apply(instance, BlockStatePropertyLootCondition::new)
+		)
+		.validate(condition -> validateHasProperties((BlockStatePropertyLootCondition) condition));
 
 	@SuppressWarnings("unchecked")
-	private static DataResult<BlockStatePropertyLootCondition> validateHasProperties(BlockStatePropertyLootCondition condition) {
+	private static DataResult<BlockStatePropertyLootCondition> validateHasProperties(
+		BlockStatePropertyLootCondition condition
+	) {
 		return condition.properties()
-		                .flatMap(predicate -> predicate.findMissing(condition.block().value().getStateManager()))
-		                .map(property -> DataResult.<BlockStatePropertyLootCondition>error(() -> "Block "
-				                + condition.block() + " has no property" + property))
-		                .orElse(DataResult.success(condition));
+			.flatMap(predicate -> predicate.findMissing(condition.block().value().getStateManager()))
+			.map(property -> DataResult.<BlockStatePropertyLootCondition>error(
+				() -> "Block " + condition.block() + " has no property" + property
+			))
+			.orElse(DataResult.success(condition));
 	}
 
 	@Override
@@ -60,28 +60,17 @@ public record BlockStatePropertyLootCondition(
 		return Set.of(LootContextParameters.BLOCK_STATE);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
 		BlockState blockState = lootContext.get(LootContextParameters.BLOCK_STATE);
-		return blockState != null && blockState.isOf(this.block) && (this.properties.isEmpty() || this.properties
-				.get()
-				.test(blockState)
-		);
+		return blockState != null
+			&& blockState.isOf(block)
+			&& (properties.isEmpty() || properties.get().test(blockState));
 	}
 
 	public static BlockStatePropertyLootCondition.Builder builder(Block block) {
 		return new BlockStatePropertyLootCondition.Builder(block);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder implements LootCondition.Builder {
 
 		private final RegistryEntry<Block> block;
@@ -92,13 +81,13 @@ public record BlockStatePropertyLootCondition(
 		}
 
 		public BlockStatePropertyLootCondition.Builder properties(StatePredicate.Builder builder) {
-			this.propertyValues = builder.build();
+			propertyValues = builder.build();
 			return this;
 		}
 
 		@Override
 		public LootCondition build() {
-			return new BlockStatePropertyLootCondition(this.block, this.propertyValues);
+			return new BlockStatePropertyLootCondition(block, propertyValues);
 		}
 	}
 }

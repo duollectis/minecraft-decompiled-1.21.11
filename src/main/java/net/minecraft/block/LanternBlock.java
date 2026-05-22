@@ -19,7 +19,10 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LanternBlock}.
+ * Блок фонаря — подвесного или напольного источника света.
+ * Поддерживает два режима размещения через свойство {@link #HANGING}:
+ * подвешенный к потолку (снизу блока) и стоящий на полу (сверху блока).
+ * Реализует {@link Waterloggable} для размещения под водой.
  */
 public class LanternBlock extends Block implements Waterloggable {
 
@@ -38,7 +41,7 @@ public class LanternBlock extends Block implements Waterloggable {
 
 	public LanternBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(HANGING, false).with(WATERLOGGED, false));
+		setDefaultState(stateManager.getDefaultState().with(HANGING, false).with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -47,9 +50,10 @@ public class LanternBlock extends Block implements Waterloggable {
 
 		for (Direction direction : ctx.getPlacementDirections()) {
 			if (direction.getAxis() == Direction.Axis.Y) {
-				BlockState blockState = this.getDefaultState().with(HANGING, direction == Direction.UP);
-				if (blockState.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
-					return blockState.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
+				BlockState candidate = getDefaultState().with(HANGING, direction == Direction.UP);
+
+				if (candidate.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
+					return candidate.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
 				}
 			}
 		}
@@ -74,11 +78,11 @@ public class LanternBlock extends Block implements Waterloggable {
 	}
 
 	/**
-	 * Attached direction.
+	 * Возвращает направление, к которому прикреплён фонарь.
+	 * Подвешенный фонарь крепится снизу (к блоку сверху), стоячий — сверху (к блоку снизу).
 	 *
-	 * @param state state
-	 *
-	 * @return Direction — результат операции
+	 * @param state текущее состояние блока
+	 * @return направление опорного блока
 	 */
 	protected static Direction attachedDirection(BlockState state) {
 		return state.get(HANGING) ? Direction.DOWN : Direction.UP;
@@ -99,18 +103,18 @@ public class LanternBlock extends Block implements Waterloggable {
 			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
 
-		return attachedDirection(state).getOpposite() == direction && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+		return attachedDirection(state).getOpposite() == direction && state.canPlaceAt(world, pos) == false
+			? Blocks.AIR.getDefaultState()
+			: super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			);
 	}
 
 	@Override

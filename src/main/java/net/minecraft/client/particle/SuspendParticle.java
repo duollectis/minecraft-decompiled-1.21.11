@@ -7,27 +7,31 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SuspendParticle}.
+ * Взвешенная частица: медленно дрейфует в пространстве без гравитации,
+ * не взаимодействует с блоками. Используется для различных атмосферных
+ * эффектов: дельфины, счастливые жители, мицелий, треск яйца.
  */
+@Environment(EnvType.CLIENT)
 public class SuspendParticle extends BillboardParticle {
 
+	private static final float VELOCITY_DAMPING = 0.99F;
+
 	SuspendParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
 			Sprite sprite
 	) {
-		super(clientWorld, d, e, f, g, h, i, sprite);
-		float j = this.random.nextFloat() * 0.1F + 0.2F;
-		this.red = j;
-		this.green = j;
-		this.blue = j;
+		super(world, x, y, z, velocityX, velocityY, velocityZ, sprite);
+		float grayShade = this.random.nextFloat() * 0.1F + 0.2F;
+		this.red = grayShade;
+		this.green = grayShade;
+		this.blue = grayShade;
 		this.setBoundingBoxSpacing(0.02F, 0.02F);
 		this.scale = this.scale * (this.random.nextFloat() * 0.6F + 0.5F);
 		this.velocityX *= 0.02F;
@@ -52,22 +56,25 @@ public class SuspendParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
+
 		if (this.maxAge-- <= 0) {
 			this.markDead();
+			return;
 		}
-		else {
-			this.move(this.velocityX, this.velocityY, this.velocityZ);
-			this.velocityX *= 0.99;
-			this.velocityY *= 0.99;
-			this.velocityZ *= 0.99;
-		}
+
+		this.move(this.velocityX, this.velocityY, this.velocityZ);
+		this.velocityX *= VELOCITY_DAMPING;
+		this.velocityY *= VELOCITY_DAMPING;
+		this.velocityZ *= VELOCITY_DAMPING;
 	}
 
+	/** Фабрика для частиц дельфина: синеватые, полупрозрачные, короткоживущие. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code DolphinFactory}.
-	 */
 	public static class DolphinFactory implements ParticleFactory<SimpleParticleType> {
+
+		private static final float DOLPHIN_RED = 0.3F;
+		private static final float DOLPHIN_GREEN = 0.5F;
+		private static final float DOLPHIN_BLUE = 1.0F;
 
 		private final SpriteProvider spriteProvider;
 
@@ -75,31 +82,28 @@ public class SuspendParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SuspendParticle
-					suspendParticle =
-					new SuspendParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			suspendParticle.setColor(0.3F, 0.5F, 1.0F);
-			suspendParticle.setAlpha(1.0F - random.nextFloat() * 0.7F);
-			suspendParticle.setMaxAge(suspendParticle.getMaxAge() / 2);
-			return suspendParticle;
+			SuspendParticle particle = new SuspendParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
+			particle.setColor(DOLPHIN_RED, DOLPHIN_GREEN, DOLPHIN_BLUE);
+			particle.setAlpha(1.0F - random.nextFloat() * 0.7F);
+			particle.setMaxAge(particle.getMaxAge() / 2);
+			return particle;
 		}
 	}
 
+	/** Фабрика для частиц треска яйца: белые. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code EggCrackFactory}.
-	 */
 	public static class EggCrackFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -108,30 +112,30 @@ public class SuspendParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SuspendParticle
-					suspendParticle =
-					new SuspendParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			suspendParticle.setColor(1.0F, 1.0F, 1.0F);
-			return suspendParticle;
+			SuspendParticle particle = new SuspendParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
+			particle.setColor(1.0F, 1.0F, 1.0F);
+			return particle;
 		}
 	}
 
+	/** Стандартная фабрика: белые частицы с коротким временем жизни 3–7 тиков. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
+
+		private static final int MIN_LIFETIME = 3;
+		private static final int LIFETIME_VARIANCE = 5;
 
 		private final SpriteProvider spriteProvider;
 
@@ -139,30 +143,27 @@ public class SuspendParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SuspendParticle
-					suspendParticle =
-					new SuspendParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			suspendParticle.setColor(1.0F, 1.0F, 1.0F);
-			suspendParticle.setMaxAge(3 + clientWorld.getRandom().nextInt(5));
-			return suspendParticle;
+			SuspendParticle particle = new SuspendParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
+			particle.setColor(1.0F, 1.0F, 1.0F);
+			particle.setMaxAge(MIN_LIFETIME + world.getRandom().nextInt(LIFETIME_VARIANCE));
+			return particle;
 		}
 	}
 
+	/** Фабрика для частиц счастливого жителя: белые. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code HappyVillagerFactory}.
-	 */
 	public static class HappyVillagerFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -171,29 +172,26 @@ public class SuspendParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SuspendParticle
-					suspendParticle =
-					new SuspendParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			suspendParticle.setColor(1.0F, 1.0F, 1.0F);
-			return suspendParticle;
+			SuspendParticle particle = new SuspendParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
+			particle.setColor(1.0F, 1.0F, 1.0F);
+			return particle;
 		}
 	}
 
+	/** Фабрика для частиц мицелия: серые, без изменения цвета. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code MyceliumFactory}.
-	 */
 	public static class MyceliumFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -202,18 +200,19 @@ public class SuspendParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new SuspendParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new SuspendParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
 		}
 	}
 }

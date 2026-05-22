@@ -13,64 +13,86 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ScaffoldingItem}.
+ * Предмет «Строительные леса». Переопределяет логику размещения: при клике на
+ * уже существующий блок лесов ищет первую свободную позицию вдоль направления
+ * размещения (до 7 блоков). Ограничивает строительство выше максимальной высоты мира.
  */
 public class ScaffoldingItem extends BlockItem {
+
+	private static final int MAX_SCAFFOLD_SEARCH = 7;
+	private static final int MAX_SCAFFOLD_DISTANCE = 7;
 
 	public ScaffoldingItem(Block block, Item.Settings settings) {
 		super(block, settings);
 	}
 
+	/**
+	 * Вычисляет контекст размещения лесов. Если целевой блок — не леса, проверяет
+	 * допустимую дистанцию от опоры. Если целевой блок — леса, ищет первую свободную
+	 * позицию вдоль направления (горизонтально или вверх).
+	 */
 	@Override
 	public @Nullable ItemPlacementContext getPlacementContext(ItemPlacementContext context) {
-		BlockPos blockPos = context.getBlockPos();
+		BlockPos pos = context.getBlockPos();
 		World world = context.getWorld();
-		BlockState blockState = world.getBlockState(blockPos);
-		Block block = this.getBlock();
-		if (!blockState.isOf(block)) {
-			return ScaffoldingBlock.calculateDistance(world, blockPos) == 7 ? null : context;
+		BlockState blockState = world.getBlockState(pos);
+		Block scaffoldBlock = getBlock();
+
+		if (!blockState.isOf(scaffoldBlock)) {
+			return ScaffoldingBlock.calculateDistance(world, pos) == MAX_SCAFFOLD_DISTANCE ? null : context;
 		}
-		else {
-			Direction direction;
-			if (context.shouldCancelInteraction()) {
-				direction = context.hitsInsideBlock() ? context.getSide().getOpposite() : context.getSide();
-			}
-			else {
-				direction = context.getSide() == Direction.UP ? context.getHorizontalPlayerFacing() : Direction.UP;
-			}
 
-			int i = 0;
-			BlockPos.Mutable mutable = blockPos.mutableCopy().move(direction);
+		Direction direction = resolveExtendDirection(context);
+		int horizontalCount = 0;
+		BlockPos.Mutable mutable = pos.mutableCopy().move(direction);
 
-			while (i < 7) {
-				if (!world.isClient() && !world.isInBuildLimit(mutable)) {
-					PlayerEntity playerEntity = context.getPlayer();
-					int j = world.getTopYInclusive();
-					if (playerEntity instanceof ServerPlayerEntity && mutable.getY() > j) {
-						((ServerPlayerEntity) playerEntity).sendMessageToClient(
-								Text
-										.translatable("build.tooHigh", j)
-										.formatted(Formatting.RED), true
-						);
-					}
-					break;
-				}
-
-				blockState = world.getBlockState(mutable);
-				if (!blockState.isOf(this.getBlock())) {
-					if (blockState.canReplace(context)) {
-						return ItemPlacementContext.offset(context, mutable, direction);
-					}
-					break;
-				}
-
-				mutable.move(direction);
-				if (direction.getAxis().isHorizontal()) {
-					i++;
-				}
+		while (horizontalCount < MAX_SCAFFOLD_SEARCH) {
+			if (!world.isClient() && !world.isInBuildLimit(mutable)) {
+				notifyBuildLimitIfNeeded(context, world);
+				break;
 			}
 
-			return null;
+			BlockState stateAt = world.getBlockState(mutable);
+
+			if (!stateAt.isOf(scaffoldBlock)) {
+				if (stateAt.canReplace(context)) {
+					return ItemPlacementContext.offset(context, mutable, direction);
+				}
+
+				break;
+			}
+
+			mutable.move(direction);
+
+			if (direction.getAxis().isHorizontal()) {
+				horizontalCount++;
+			}
+		}
+
+		return null;
+	}
+
+	private Direction resolveExtendDirection(ItemPlacementContext context) {
+		if (context.shouldCancelInteraction()) {
+			return context.hitsInsideBlock()
+				? context.getSide().getOpposite()
+				: context.getSide();
+		}
+
+		return context.getSide() == Direction.UP
+			? context.getHorizontalPlayerFacing()
+			: Direction.UP;
+	}
+
+	private void notifyBuildLimitIfNeeded(ItemPlacementContext context, World world) {
+		PlayerEntity player = context.getPlayer();
+		int topY = world.getTopYInclusive();
+
+		if (player instanceof ServerPlayerEntity serverPlayer) {
+			serverPlayer.sendMessageToClient(
+				Text.translatable("build.tooHigh", topY).formatted(Formatting.RED),
+				true
+			);
 		}
 	}
 

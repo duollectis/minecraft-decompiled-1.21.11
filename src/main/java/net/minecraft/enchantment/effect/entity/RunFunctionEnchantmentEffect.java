@@ -19,11 +19,14 @@ import org.slf4j.Logger;
 import java.util.Optional;
 
 /**
- * {@code RunFunctionEnchantmentEffect}.
+ * Эффект зачарования, выполняющий серверную функцию (data pack function) в контексте сущности.
+ * Функция запускается с правами уровня GAMEMASTERS, в тихом режиме, с позицией и ротацией сущности.
+ * Если функция не найдена — логируется ошибка.
  */
 public record RunFunctionEnchantmentEffect(Identifier function) implements EnchantmentEntityEffect {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<RunFunctionEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
 					.group(Identifier.CODEC.fieldOf("function").forGetter(RunFunctionEnchantmentEffect::function))
@@ -32,22 +35,24 @@ public record RunFunctionEnchantmentEffect(Identifier function) implements Encha
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		MinecraftServer minecraftServer = world.getServer();
-		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
-		Optional<CommandFunction<ServerCommandSource>> optional = commandFunctionManager.getFunction(this.function);
-		if (optional.isPresent()) {
-			ServerCommandSource serverCommandSource = minecraftServer.getCommandSource()
-			                                                         .withPermissions(LeveledPermissionPredicate.GAMEMASTERS)
-			                                                         .withSilent()
-			                                                         .withEntity(user)
-			                                                         .withWorld(world)
-			                                                         .withPosition(pos)
-			                                                         .withRotation(user.getRotationClient());
-			commandFunctionManager.execute(optional.get(), serverCommandSource);
+		MinecraftServer server = world.getServer();
+		CommandFunctionManager functionManager = server.getCommandFunctionManager();
+		Optional<CommandFunction<ServerCommandSource>> foundFunction = functionManager.getFunction(function);
+
+		if (foundFunction.isEmpty()) {
+			LOGGER.error("Enchantment run_function effect failed for non-existent function {}", function);
+			return;
 		}
-		else {
-			LOGGER.error("Enchantment run_function effect failed for non-existent function {}", this.function);
-		}
+
+		ServerCommandSource commandSource = server.getCommandSource()
+				.withPermissions(LeveledPermissionPredicate.GAMEMASTERS)
+				.withSilent()
+				.withEntity(user)
+				.withWorld(world)
+				.withPosition(pos)
+				.withRotation(user.getRotationClient());
+
+		functionManager.execute(foundFunction.get(), commandSource);
 	}
 
 	@Override

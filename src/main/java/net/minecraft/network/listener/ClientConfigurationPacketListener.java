@@ -4,7 +4,9 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.config.*;
 
 /**
- * Интерфейс client configuration packet listener.
+ * Слушатель клиентских пакетов фазы {@link net.minecraft.network.NetworkPhase#CONFIGURATION}.
+ * Обрабатывает пакеты настройки: кодекс поведения, готовность, динамические реестры,
+ * фичи, известные паки и сброс чата.
  */
 public interface ClientConfigurationPacketListener extends ClientCommonPacketListener {
 

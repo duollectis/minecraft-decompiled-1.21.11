@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code LootCommand}.
+ * Команда {@code /loot}: генерация и распределение лута из таблиц добычи.
  */
 public class LootCommand {
 
@@ -803,18 +803,12 @@ public class LootCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code FeedbackMessage}.
-	 */
 	interface FeedbackMessage {
 
 		void accept(List<ItemStack> items) throws CommandSyntaxException;
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code SourceConstructor}.
-	 */
 	interface SourceConstructor {
 
 		ArgumentBuilder<ServerCommandSource, ?> construct(
@@ -824,9 +818,6 @@ public class LootCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Target}.
-	 */
 	interface Target {
 
 		int accept(

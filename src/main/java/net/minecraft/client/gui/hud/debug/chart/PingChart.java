@@ -8,21 +8,26 @@ import net.minecraft.util.profiler.log.MultiValueDebugSampleLog;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PingChart}.
+ * График пинга (задержки сети). Максимальная шкала — {@value #MAX_PING_MS} мс.
  */
+@Environment(EnvType.CLIENT)
 public class PingChart extends DebugChart {
 
 	private static final int MAX_PING_MS = 500;
+	private static final int GOOD_PING_MS = 250;
 
-	public PingChart(TextRenderer textRenderer, MultiValueDebugSampleLog multiValueDebugSampleLog) {
-		super(textRenderer, multiValueDebugSampleLog);
+	private static final int COLOR_GOOD = -16711936;
+	private static final int COLOR_MEDIUM = -256;
+	private static final int COLOR_BAD = -65536;
+
+	public PingChart(TextRenderer textRenderer, MultiValueDebugSampleLog log) {
+		super(textRenderer, log);
 	}
 
 	@Override
 	protected void renderThresholds(DrawContext context, int x, int width, int height) {
-		this.drawBorderedText(context, "500 ms", x + 1, height - 60 + 1);
+		drawBorderedText(context, "500 ms", x + 1, height - CHART_HEIGHT + 1);
 	}
 
 	@Override
@@ -32,11 +37,11 @@ public class PingChart extends DebugChart {
 
 	@Override
 	protected int getHeight(double value) {
-		return (int) Math.round(value * 60.0 / 500.0);
+		return (int) Math.round(value * CHART_HEIGHT / MAX_PING_MS);
 	}
 
 	@Override
 	protected int getColor(long value) {
-		return this.getColor(value, 0.0, -16711936, 250.0, -256, 500.0, -65536);
+		return getColor(value, 0.0, COLOR_GOOD, GOOD_PING_MS, COLOR_MEDIUM, MAX_PING_MS, COLOR_BAD);
 	}
 }

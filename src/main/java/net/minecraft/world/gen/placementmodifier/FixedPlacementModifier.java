@@ -11,27 +11,21 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code FixedPlacementModifier}.
+ * Модификатор размещения с фиксированным набором позиций — возвращает только те
+ * из них, которые принадлежат тому же чанку, что и входная позиция.
  */
 public class FixedPlacementModifier extends PlacementModifier {
 
 	public static final MapCodec<FixedPlacementModifier> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(BlockPos.CODEC
-							.listOf()
-							.fieldOf("positions")
-							.forGetter(placementModifier -> placementModifier.positions))
-					.apply(instance, FixedPlacementModifier::new)
+		instance -> instance
+			.group(BlockPos.CODEC
+				.listOf()
+				.fieldOf("positions")
+				.forGetter(modifier -> modifier.positions))
+			.apply(instance, FixedPlacementModifier::new)
 	);
 	private final List<BlockPos> positions;
 
-	/**
-	 * Of.
-	 *
-	 * @param positions positions
-	 *
-	 * @return FixedPlacementModifier — результат операции
-	 */
 	public static FixedPlacementModifier of(BlockPos... positions) {
 		return new FixedPlacementModifier(List.of(positions));
 	}
@@ -42,18 +36,20 @@ public class FixedPlacementModifier extends PlacementModifier {
 
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		int i = ChunkSectionPos.getSectionCoord(pos.getX());
-		int j = ChunkSectionPos.getSectionCoord(pos.getZ());
-		boolean bl = false;
+		int chunkX = ChunkSectionPos.getSectionCoord(pos.getX());
+		int chunkZ = ChunkSectionPos.getSectionCoord(pos.getZ());
+		boolean hasMatch = false;
 
-		for (BlockPos blockPos : this.positions) {
-			if (chunkSectionMatchesPos(i, j, blockPos)) {
-				bl = true;
+		for (BlockPos candidate : positions) {
+			if (chunkSectionMatchesPos(chunkX, chunkZ, candidate)) {
+				hasMatch = true;
 				break;
 			}
 		}
 
-		return !bl ? Stream.empty() : this.positions.stream().filter(posx -> chunkSectionMatchesPos(i, j, posx));
+		return hasMatch
+			? positions.stream().filter(candidate -> chunkSectionMatchesPos(chunkX, chunkZ, candidate))
+			: Stream.empty();
 	}
 
 	private static boolean chunkSectionMatchesPos(int chunkSectionX, int chunkSectionZ, BlockPos pos) {

@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code PlayerListManagementHandlerImpl}.
+ * Класс Player List Management Handler Impl.
  */
 public class PlayerListManagementHandlerImpl implements PlayerListManagementHandler {
 

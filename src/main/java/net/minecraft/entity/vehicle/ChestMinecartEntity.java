@@ -21,9 +21,13 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code ChestMinecartEntity}.
+ * Вагонетка с сундуком. Вмещает 27 предметов (3×9 слотов).
+ * При открытии уведомляет мозг пиглина об взаимодействии с охраняемым блоком.
  */
 public class ChestMinecartEntity extends StorageMinecartEntity {
+
+	private static final int INVENTORY_SIZE = 27;
+	private static final int DEFAULT_BLOCK_OFFSET = 8;
 
 	public ChestMinecartEntity(EntityType<? extends ChestMinecartEntity> entityType, World world) {
 		super(entityType, world);
@@ -41,7 +45,7 @@ public class ChestMinecartEntity extends StorageMinecartEntity {
 
 	@Override
 	public int size() {
-		return 27;
+		return INVENTORY_SIZE;
 	}
 
 	@Override
@@ -51,7 +55,7 @@ public class ChestMinecartEntity extends StorageMinecartEntity {
 
 	@Override
 	public int getDefaultBlockOffset() {
-		return 8;
+		return DEFAULT_BLOCK_OFFSET;
 	}
 
 	@Override
@@ -61,23 +65,22 @@ public class ChestMinecartEntity extends StorageMinecartEntity {
 
 	@Override
 	public void onClose(ContainerUser user) {
-		this
-				.getEntityWorld()
-				.emitGameEvent(
-						GameEvent.CONTAINER_CLOSE,
-						this.getEntityPos(),
-						GameEvent.Emitter.of(user.asLivingEntity())
-				);
+		getEntityWorld().emitGameEvent(
+				GameEvent.CONTAINER_CLOSE,
+				getEntityPos(),
+				GameEvent.Emitter.of(user.asLivingEntity())
+		);
 	}
 
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		ActionResult actionResult = this.open(player);
-		if (actionResult.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+		ActionResult result = open(player);
+
+		if (result.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
+			emitGameEvent(GameEvent.CONTAINER_OPEN, player);
 			PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
 		}
 
-		return actionResult;
+		return result;
 	}
 }

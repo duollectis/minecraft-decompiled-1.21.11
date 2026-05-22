@@ -5,15 +5,15 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleFramebuffer}.
+ * Простой фреймбуфер фиксированного размера с опциональным буфером глубины.
  */
+@Environment(EnvType.CLIENT)
 public class SimpleFramebuffer extends Framebuffer {
 
 	public SimpleFramebuffer(@Nullable String name, int width, int height, boolean useDepthAttachment) {
 		super(name, useDepthAttachment);
 		RenderSystem.assertOnRenderThread();
-		this.resize(width, height);
+		resize(width, height);
 	}
 }

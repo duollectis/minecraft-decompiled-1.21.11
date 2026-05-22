@@ -9,10 +9,12 @@ import net.minecraft.client.texture.TextureSetup;
 import org.joml.Matrix3x2fc;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ColoredQuadGuiElementRenderState}.
+ * Состояние закрашенного прямоугольника в GUI с вертикальным градиентом.
+ * Верхние вершины используют {@code col1}, нижние — {@code col2}.
+ * Если оба цвета одинаковы, прямоугольник заливается сплошным цветом.
  */
+@Environment(EnvType.CLIENT)
 public record ColoredQuadGuiElementRenderState(
 		RenderPipeline pipeline,
 		TextureSetup textureSetup,
@@ -56,10 +58,10 @@ public record ColoredQuadGuiElementRenderState(
 
 	@Override
 	public void setupVertices(VertexConsumer vertices) {
-		vertices.vertex(this.pose(), this.x0(), this.y0()).color(this.col1());
-		vertices.vertex(this.pose(), this.x0(), this.y1()).color(this.col2());
-		vertices.vertex(this.pose(), this.x1(), this.y1()).color(this.col2());
-		vertices.vertex(this.pose(), this.x1(), this.y0()).color(this.col1());
+		vertices.vertex(pose(), x0(), y0()).color(col1());
+		vertices.vertex(pose(), x0(), y1()).color(col2());
+		vertices.vertex(pose(), x1(), y1()).color(col2());
+		vertices.vertex(pose(), x1(), y0()).color(col1());
 	}
 
 	private static @Nullable ScreenRect createBounds(
@@ -70,7 +72,7 @@ public record ColoredQuadGuiElementRenderState(
 			Matrix3x2fc pose,
 			@Nullable ScreenRect scissorArea
 	) {
-		ScreenRect screenRect = new ScreenRect(x0, y0, x1 - x0, y1 - y0).transformEachVertex(pose);
-		return scissorArea != null ? scissorArea.intersection(screenRect) : screenRect;
+		ScreenRect rect = new ScreenRect(x0, y0, x1 - x0, y1 - y0).transformEachVertex(pose);
+		return scissorArea != null ? scissorArea.intersection(rect) : rect;
 	}
 }

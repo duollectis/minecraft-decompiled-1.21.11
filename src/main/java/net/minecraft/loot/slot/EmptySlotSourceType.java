@@ -4,7 +4,8 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.loot.context.LootContext;
 
 /**
- * {@code EmptySlotSourceType}.
+ * Источник слотов, всегда возвращающий пустой поток предметов.
+ * Используется как заглушка или нейтральный элемент в группах источников.
  */
 public record EmptySlotSourceType() implements SlotSource {
 

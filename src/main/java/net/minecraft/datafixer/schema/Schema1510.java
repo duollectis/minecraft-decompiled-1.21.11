@@ -7,12 +7,15 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1510}.
+ * Схема версии 1510: массовое переименование сущностей для соответствия
+ * финальным именам 1.13 — вагонетка с командным блоком, кристалл Края,
+ * снежный голем, призыватель, клыки призывателя, иллюзионист, разбойник,
+ * железный голем, опыт, бутылка опыта, глаз Края, фейерверк.
  */
 public class Schema1510 extends IdentifierNormalizingSchema {
 
-	public Schema1510(int i, Schema schema) {
-		super(i, schema);
+	public Schema1510(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

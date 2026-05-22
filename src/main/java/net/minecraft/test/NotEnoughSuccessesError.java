@@ -1,7 +1,8 @@
 package net.minecraft.test;
 
 /**
- * {@code NotEnoughSuccessesError}.
+ * Ошибка, возникающая когда флакующий тест не набрал достаточного количества
+ * успешных прогонов за отведённое число попыток.
  */
 class NotEnoughSuccessesError extends Throwable {
 

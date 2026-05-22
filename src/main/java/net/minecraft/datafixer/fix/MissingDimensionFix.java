@@ -15,7 +15,7 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.List;
 
 /**
- * {@code MissingDimensionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class MissingDimensionFix extends DataFix {
 
@@ -42,7 +42,7 @@ public class MissingDimensionFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Schema schema = this.getInputSchema();
+		Schema schema = getInputSchema();
 		Type<?> type = DSL.taggedChoiceType(
 				"type",
 				DSL.string(),
@@ -94,7 +94,7 @@ public class MissingDimensionFix extends DataFix {
 		}
 		else {
 			OpticFinder<? extends List<? extends Pair<String, ?>>> opticFinder = compoundListType.finder();
-			return this.fixTypeEverywhereTyped(
+			return fixTypeEverywhereTyped(
 					"MissingDimensionFix",
 					type3,
 					worldGenSettingsTyped -> worldGenSettingsTyped.updateTyped(

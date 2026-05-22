@@ -5,22 +5,23 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NarrationMessageBuilder}.
+ * Интерфейс построителя нарративных сообщений для экрана.
+ * Позволяет добавлять части нарратива по типу {@link NarrationPart} и создавать вложенные сообщения.
  */
+@Environment(EnvType.CLIENT)
 public interface NarrationMessageBuilder {
 
 	default void put(NarrationPart part, Text text) {
-		this.put(part, Narration.string(text.getString()));
+		put(part, Narration.string(text.getString()));
 	}
 
 	default void put(NarrationPart part, String string) {
-		this.put(part, Narration.string(string));
+		put(part, Narration.string(string));
 	}
 
 	default void put(NarrationPart part, Text... texts) {
-		this.put(part, Narration.texts(ImmutableList.copyOf(texts)));
+		put(part, Narration.texts(ImmutableList.copyOf(texts)));
 	}
 
 	void put(NarrationPart part, Narration<?> narration);

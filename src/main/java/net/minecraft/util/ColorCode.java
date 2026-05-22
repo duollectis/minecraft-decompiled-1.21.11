@@ -6,7 +6,10 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.HexFormat;
 
 /**
- * {@code ColorCode}.
+ * Цветовой код в формате RGBA, упакованный в 32-битное целое число.
+ * Используется для передачи цветов через кодеки и сетевые пакеты.
+ *
+ * @param rgba цвет в формате RGBA (8 бит на канал)
  */
 public record ColorCode(int rgba) {
 
@@ -14,6 +17,6 @@ public record ColorCode(int rgba) {
 
 	@Override
 	public String toString() {
-		return HexFormat.of().toHexDigits(this.rgba, 8);
+		return HexFormat.of().toHexDigits(rgba, 8);
 	}
 }

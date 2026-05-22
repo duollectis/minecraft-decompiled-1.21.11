@@ -23,11 +23,13 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * {@code DecorationItem}.
+ * Предмет декорации: картина, рамка для предметов или светящаяся рамка.
+ * При использовании на блоке размещает соответствующую сущность-декорацию.
  */
 public class DecorationItem extends Item {
 
 	private static final Text RANDOM_TEXT = Text.translatable("painting.random").formatted(Formatting.GRAY);
+
 	private final EntityType<? extends AbstractDecorationEntity> entityType;
 
 	public DecorationItem(EntityType<? extends AbstractDecorationEntity> type, Item.Settings settings) {
@@ -38,91 +40,80 @@ public class DecorationItem extends Item {
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		BlockPos blockPos = context.getBlockPos();
-		Direction direction = context.getSide();
-		BlockPos blockPos2 = blockPos.offset(direction);
-		PlayerEntity playerEntity = context.getPlayer();
-		ItemStack itemStack = context.getStack();
-		if (playerEntity != null && !this.canPlaceOn(playerEntity, direction, itemStack, blockPos2)) {
+		Direction side = context.getSide();
+		BlockPos targetPos = blockPos.offset(side);
+		PlayerEntity player = context.getPlayer();
+		ItemStack stack = context.getStack();
+
+		if (player != null && !canPlaceOn(player, side, stack, targetPos)) {
 			return ActionResult.FAIL;
 		}
-		else {
-			World world = context.getWorld();
-			AbstractDecorationEntity abstractDecorationEntity;
-			if (this.entityType == EntityType.PAINTING) {
-				Optional<PaintingEntity> optional = PaintingEntity.placePainting(world, blockPos2, direction);
-				if (optional.isEmpty()) {
-					return ActionResult.CONSUME;
-				}
 
-				abstractDecorationEntity = optional.get();
-			}
-			else if (this.entityType == EntityType.ITEM_FRAME) {
-				abstractDecorationEntity = new ItemFrameEntity(world, blockPos2, direction);
-			}
-			else {
-				if (this.entityType != EntityType.GLOW_ITEM_FRAME) {
-					return ActionResult.SUCCESS;
-				}
+		World world = context.getWorld();
+		AbstractDecorationEntity decoration;
 
-				abstractDecorationEntity = new GlowItemFrameEntity(world, blockPos2, direction);
-			}
+		if (entityType == EntityType.PAINTING) {
+			Optional<PaintingEntity> painting = PaintingEntity.placePainting(world, targetPos, side);
 
-			EntityType
-					.<AbstractDecorationEntity>copier(world, itemStack, playerEntity)
-					.accept(abstractDecorationEntity);
-			if (abstractDecorationEntity.canStayAttached()) {
-				if (!world.isClient()) {
-					abstractDecorationEntity.onPlace();
-					world.emitGameEvent(playerEntity, GameEvent.ENTITY_PLACE, abstractDecorationEntity.getEntityPos());
-					world.spawnEntity(abstractDecorationEntity);
-				}
-
-				itemStack.decrement(1);
-				return ActionResult.SUCCESS;
-			}
-			else {
+			if (painting.isEmpty()) {
 				return ActionResult.CONSUME;
 			}
+
+			decoration = painting.get();
+		} else if (entityType == EntityType.ITEM_FRAME) {
+			decoration = new ItemFrameEntity(world, targetPos, side);
+		} else if (entityType == EntityType.GLOW_ITEM_FRAME) {
+			decoration = new GlowItemFrameEntity(world, targetPos, side);
+		} else {
+			return ActionResult.SUCCESS;
 		}
+
+		EntityType.<AbstractDecorationEntity>copier(world, stack, player).accept(decoration);
+
+		if (!decoration.canStayAttached()) {
+			return ActionResult.CONSUME;
+		}
+
+		if (!world.isClient()) {
+			decoration.onPlace();
+			world.emitGameEvent(player, GameEvent.ENTITY_PLACE, decoration.getEntityPos());
+			world.spawnEntity(decoration);
+		}
+
+		stack.decrement(1);
+		return ActionResult.SUCCESS;
 	}
 
-	/**
-	 * Проверяет возможность place on.
-	 *
-	 * @param player player
-	 * @param side side
-	 * @param stack stack
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canPlaceOn(PlayerEntity player, Direction side, ItemStack stack, BlockPos pos) {
 		return !side.getAxis().isVertical() && player.canPlaceOn(pos, side, stack);
 	}
 
 	@Override
 	public void appendTooltip(
-			ItemStack stack,
-			Item.TooltipContext context,
-			TooltipDisplayComponent displayComponent,
-			Consumer<Text> textConsumer,
-			TooltipType type
+		ItemStack stack,
+		Item.TooltipContext context,
+		TooltipDisplayComponent displayComponent,
+		Consumer<Text> textConsumer,
+		TooltipType type
 	) {
-		if (this.entityType == EntityType.PAINTING
-				&& displayComponent.shouldDisplay(DataComponentTypes.PAINTING_VARIANT)) {
-			RegistryEntry<PaintingVariant> registryEntry = stack.get(DataComponentTypes.PAINTING_VARIANT);
-			if (registryEntry != null) {
-				registryEntry.value().title().ifPresent(textConsumer);
-				registryEntry.value().author().ifPresent(textConsumer);
-				textConsumer.accept(Text.translatable(
-						"painting.dimensions",
-						registryEntry.value().width(),
-						registryEntry.value().height()
-				));
-			}
-			else if (type.isCreative()) {
-				textConsumer.accept(RANDOM_TEXT);
-			}
+		if (entityType != EntityType.PAINTING
+			|| !displayComponent.shouldDisplay(DataComponentTypes.PAINTING_VARIANT)
+		) {
+			return;
+		}
+
+		RegistryEntry<PaintingVariant> variant = stack.get(DataComponentTypes.PAINTING_VARIANT);
+
+		if (variant != null) {
+			variant.value().title().ifPresent(textConsumer);
+			variant.value().author().ifPresent(textConsumer);
+			textConsumer.accept(Text.translatable(
+				"painting.dimensions",
+				variant.value().width(),
+				variant.value().height()
+			));
+		} else if (type.isCreative()) {
+			textConsumer.accept(RANDOM_TEXT);
 		}
 	}
 }

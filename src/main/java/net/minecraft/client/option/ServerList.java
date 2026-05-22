@@ -19,17 +19,23 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ServerList}.
+ * Управляет списком серверов мультиплеера, хранящимся в файле {@code servers.dat}.
+ * <p>
+ * Поддерживает два списка: видимые серверы ({@link #servers}) и скрытые ({@link #hiddenServers}).
+ * Скрытые серверы используются для кэширования недавно посещённых серверов без отображения
+ * в основном списке. Количество скрытых записей ограничено {@link #MAX_HIDDEN_ENTRIES}.
+ * <p>
+ * Операции записи на диск выполняются асинхронно через {@link #IO_EXECUTOR}.
  */
+@Environment(EnvType.CLIENT)
 public class ServerList {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final SimpleConsecutiveExecutor
-			IO_EXECUTOR =
+	private static final SimpleConsecutiveExecutor IO_EXECUTOR =
 			new SimpleConsecutiveExecutor(Util.getMainWorkerExecutor(), "server-list-io");
 	private static final int MAX_HIDDEN_ENTRIES = 16;
+
 	private final MinecraftClient client;
 	private final List<ServerInfo> servers = Lists.newArrayList();
 	private final List<ServerInfo> hiddenServers = Lists.newArrayList();
@@ -39,93 +45,85 @@ public class ServerList {
 	}
 
 	/**
-	 * Загружает file.
+	 * Загружает список серверов из файла {@code servers.dat} в директории игры.
+	 * Разделяет записи на видимые и скрытые по флагу {@code "hidden"} в NBT.
 	 */
 	public void loadFile() {
 		try {
-			this.servers.clear();
-			this.hiddenServers.clear();
-			NbtCompound nbtCompound = NbtIo.read(this.client.runDirectory.toPath().resolve("servers.dat"));
-			if (nbtCompound == null) {
+			servers.clear();
+			hiddenServers.clear();
+			NbtCompound root = NbtIo.read(client.runDirectory.toPath().resolve("servers.dat"));
+
+			if (root == null) {
 				return;
 			}
 
-			nbtCompound.getListOrEmpty("servers").streamCompounds().forEach(nbt -> {
+			root.getListOrEmpty("servers").streamCompounds().forEach(nbt -> {
 				ServerInfo serverInfo = ServerInfo.fromNbt(nbt);
+
 				if (nbt.getBoolean("hidden", false)) {
-					this.hiddenServers.add(serverInfo);
+					hiddenServers.add(serverInfo);
 				}
 				else {
-					this.servers.add(serverInfo);
+					servers.add(serverInfo);
 				}
 			});
 		}
-		catch (Exception var2) {
-			LOGGER.error("Couldn't load server list", var2);
+		catch (Exception exception) {
+			LOGGER.error("Couldn't load server list", exception);
 		}
 	}
 
 	/**
-	 * Сохраняет file.
+	 * Сохраняет список серверов в файл {@code servers.dat} атомарно через временный файл.
+	 * Использует {@link Util#backupAndReplace} для безопасной замены файла.
 	 */
 	public void saveFile() {
 		try {
 			NbtList nbtList = new NbtList();
 
-			for (ServerInfo serverInfo : this.servers) {
-				NbtCompound nbtCompound = serverInfo.toNbt();
-				nbtCompound.putBoolean("hidden", false);
-				nbtList.add(nbtCompound);
+			for (ServerInfo serverInfo : servers) {
+				NbtCompound nbt = serverInfo.toNbt();
+				nbt.putBoolean("hidden", false);
+				nbtList.add(nbt);
 			}
 
-			for (ServerInfo serverInfo : this.hiddenServers) {
-				NbtCompound nbtCompound = serverInfo.toNbt();
-				nbtCompound.putBoolean("hidden", true);
-				nbtList.add(nbtCompound);
+			for (ServerInfo serverInfo : hiddenServers) {
+				NbtCompound nbt = serverInfo.toNbt();
+				nbt.putBoolean("hidden", true);
+				nbtList.add(nbt);
 			}
 
-			NbtCompound nbtCompound2 = new NbtCompound();
-			nbtCompound2.put("servers", nbtList);
-			Path path = this.client.runDirectory.toPath();
-			Path path2 = Files.createTempFile(path, "servers", ".dat");
-			NbtIo.write(nbtCompound2, path2);
-			Path path3 = path.resolve("servers.dat_old");
-			Path path4 = path.resolve("servers.dat");
-			Util.backupAndReplace(path4, path2, path3);
+			NbtCompound root = new NbtCompound();
+			root.put("servers", nbtList);
+
+			Path runDir = client.runDirectory.toPath();
+			Path tempFile = Files.createTempFile(runDir, "servers", ".dat");
+			NbtIo.write(root, tempFile);
+
+			Path backupFile = runDir.resolve("servers.dat_old");
+			Path targetFile = runDir.resolve("servers.dat");
+			Util.backupAndReplace(targetFile, tempFile, backupFile);
 		}
-		catch (Exception var7) {
-			LOGGER.error("Couldn't save server list", var7);
+		catch (Exception exception) {
+			LOGGER.error("Couldn't save server list", exception);
 		}
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param index index
-	 *
-	 * @return ServerInfo — 
-	 */
 	public ServerInfo get(int index) {
-		return this.servers.get(index);
+		return servers.get(index);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param address address
-	 *
-	 * @return @Nullable ServerInfo — 
-	 */
 	public @Nullable ServerInfo get(String address) {
-		for (ServerInfo serverInfo : this.servers) {
+		for (ServerInfo serverInfo : servers) {
 			if (serverInfo.address.equals(address)) {
 				return serverInfo;
 			}
 		}
 
-		for (ServerInfo serverInfox : this.hiddenServers) {
-			if (serverInfox.address.equals(address)) {
-				return serverInfox;
+		for (ServerInfo serverInfo : hiddenServers) {
+			if (serverInfo.address.equals(address)) {
+				return serverInfo;
 			}
 		}
 
@@ -133,18 +131,18 @@ public class ServerList {
 	}
 
 	/**
-	 * Try unhide.
+	 * Перемещает сервер из скрытого списка в видимый по адресу.
 	 *
-	 * @param address address
-	 *
-	 * @return @Nullable ServerInfo — результат операции
+	 * @param address адрес сервера для разскрытия
+	 * @return перемещённый {@link ServerInfo} или {@code null}, если сервер не найден в скрытых
 	 */
 	public @Nullable ServerInfo tryUnhide(String address) {
-		for (int i = 0; i < this.hiddenServers.size(); i++) {
-			ServerInfo serverInfo = this.hiddenServers.get(i);
+		for (int index = 0; index < hiddenServers.size(); index++) {
+			ServerInfo serverInfo = hiddenServers.get(index);
+
 			if (serverInfo.address.equals(address)) {
-				this.hiddenServers.remove(i);
-				this.servers.add(serverInfo);
+				hiddenServers.remove(index);
+				servers.add(serverInfo);
 				return serverInfo;
 			}
 		}
@@ -152,73 +150,50 @@ public class ServerList {
 		return null;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param serverInfo server info
-	 */
 	public void remove(ServerInfo serverInfo) {
-		if (!this.servers.remove(serverInfo)) {
-			this.hiddenServers.remove(serverInfo);
+		if (!servers.remove(serverInfo)) {
+			hiddenServers.remove(serverInfo);
 		}
 	}
 
 	/**
-	 * Add.
-	 *
-	 * @param serverInfo server info
-	 * @param hidden hidden
+	 * Добавляет сервер в список. Скрытые серверы добавляются в начало списка скрытых
+	 * и автоматически вытесняют старые записи при превышении {@link #MAX_HIDDEN_ENTRIES}.
 	 */
 	public void add(ServerInfo serverInfo, boolean hidden) {
 		if (hidden) {
-			this.hiddenServers.add(0, serverInfo);
+			hiddenServers.add(0, serverInfo);
 
-			while (this.hiddenServers.size() > 16) {
-				this.hiddenServers.remove(this.hiddenServers.size() - 1);
+			while (hiddenServers.size() > MAX_HIDDEN_ENTRIES) {
+				hiddenServers.remove(hiddenServers.size() - 1);
 			}
 		}
 		else {
-			this.servers.add(serverInfo);
+			servers.add(serverInfo);
 		}
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.servers.size();
+		return servers.size();
 	}
 
-	/**
-	 * Swap entries.
-	 *
-	 * @param index1 index1
-	 * @param index2 index2
-	 */
 	public void swapEntries(int index1, int index2) {
-		ServerInfo serverInfo = this.get(index1);
-		this.servers.set(index1, this.get(index2));
-		this.servers.set(index2, serverInfo);
-		this.saveFile();
+		ServerInfo temp = get(index1);
+		servers.set(index1, get(index2));
+		servers.set(index2, temp);
+		saveFile();
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param index index
-	 * @param serverInfo server info
-	 */
 	public void set(int index, ServerInfo serverInfo) {
-		this.servers.set(index, serverInfo);
+		servers.set(index, serverInfo);
 	}
 
 	private static boolean replace(ServerInfo serverInfo, List<ServerInfo> serverInfos) {
-		for (int i = 0; i < serverInfos.size(); i++) {
-			ServerInfo serverInfo2 = serverInfos.get(i);
-			if (Objects.equals(serverInfo2.name, serverInfo.name) && serverInfo2.address.equals(serverInfo.address)) {
-				serverInfos.set(i, serverInfo);
+		for (int index = 0; index < serverInfos.size(); index++) {
+			ServerInfo existing = serverInfos.get(index);
+
+			if (Objects.equals(existing.name, serverInfo.name) && existing.address.equals(serverInfo.address)) {
+				serverInfos.set(index, serverInfo);
 				return true;
 			}
 		}
@@ -227,14 +202,14 @@ public class ServerList {
 	}
 
 	/**
-	 * Обновляет server list entry.
-	 *
-	 * @param serverInfo server info
+	 * Асинхронно обновляет запись сервера в файле {@code servers.dat}.
+	 * Ищет совпадение по имени и адресу в обоих списках (видимом и скрытом).
 	 */
 	public static void updateServerListEntry(ServerInfo serverInfo) {
 		IO_EXECUTOR.send(() -> {
 			ServerList serverList = new ServerList(MinecraftClient.getInstance());
 			serverList.loadFile();
+
 			if (!replace(serverInfo, serverList.servers)) {
 				replace(serverInfo, serverList.hiddenServers);
 			}

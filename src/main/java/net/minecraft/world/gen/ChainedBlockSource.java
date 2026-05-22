@@ -6,16 +6,19 @@ import net.minecraft.world.gen.densityfunction.DensityFunction;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChainedBlockSource}.
+ * Цепочка сэмплеров состояний блоков, опрашиваемых последовательно.
+ * Возвращает первый ненулевой результат из цепочки, либо {@code null} если ни один не сработал.
  */
-public record ChainedBlockSource(ChunkNoiseSampler.BlockStateSampler[] samplers) implements ChunkNoiseSampler.BlockStateSampler {
+public record ChainedBlockSource(ChunkNoiseSampler.BlockStateSampler[] samplers)
+		implements ChunkNoiseSampler.BlockStateSampler {
 
 	@Override
 	public @Nullable BlockState sample(DensityFunction.NoisePos pos) {
-		for (ChunkNoiseSampler.BlockStateSampler blockStateSampler : this.samplers) {
-			BlockState blockState = blockStateSampler.sample(pos);
-			if (blockState != null) {
-				return blockState;
+		for (ChunkNoiseSampler.BlockStateSampler sampler : samplers) {
+			BlockState state = sampler.sample(pos);
+
+			if (state != null) {
+				return state;
 			}
 		}
 

@@ -1,7 +1,7 @@
 package net.minecraft.server.world;
 
 /**
- * {@code ChunkLevelType}.
+ * Класс Chunk Level Type.
  */
 public enum ChunkLevelType {
 	INACCESSIBLE,

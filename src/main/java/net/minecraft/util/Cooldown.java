@@ -1,7 +1,11 @@
 package net.minecraft.util;
 
 /**
- * {@code Cooldown}.
+ * Счётчик перезарядки с настраиваемым шагом и порогом.
+ * <p>
+ * Каждый тик значение уменьшается на 1. При вызове {@link #increment()}
+ * значение увеличивается на заданный шаг. Действие доступно, пока
+ * текущее значение не достигло порога.
  */
 public class Cooldown {
 
@@ -14,28 +18,20 @@ public class Cooldown {
 		this.threshold = threshold;
 	}
 
-	/**
-	 * Increment.
-	 */
+	/** Увеличивает счётчик перезарядки на заданный шаг. */
 	public void increment() {
-		this.current = this.current + this.increment;
+		current += increment;
 	}
 
-	/**
-	 * Tick.
-	 */
+	/** Уменьшает счётчик перезарядки на 1 за тик, не опускаясь ниже нуля. */
 	public void tick() {
-		if (this.current > 0) {
-			this.current--;
+		if (current > 0) {
+			current--;
 		}
 	}
 
-	/**
-	 * Проверяет возможность use.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** @return {@code true} если действие доступно (счётчик не достиг порога) */
 	public boolean canUse() {
-		return this.current < this.threshold;
+		return current < threshold;
 	}
 }

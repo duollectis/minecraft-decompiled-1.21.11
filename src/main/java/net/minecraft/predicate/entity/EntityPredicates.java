@@ -10,83 +10,92 @@ import net.minecraft.scoreboard.AbstractTeam;
 import java.util.function.Predicate;
 
 /**
- * {@code EntityPredicates}.
+ * Набор стандартных предикатов для фильтрации сущностей.
+ * Используется в поиске сущностей, коллизиях и прочих системах.
  */
 public final class EntityPredicates {
 
 	public static final Predicate<Entity> VALID_ENTITY = Entity::isAlive;
-	public static final Predicate<Entity>
-			VALID_LIVING_ENTITY =
+
+	public static final Predicate<Entity> VALID_LIVING_ENTITY =
 			entity -> entity.isAlive() && entity instanceof LivingEntity;
-	public static final Predicate<Entity>
-			NOT_MOUNTED =
+
+	public static final Predicate<Entity> NOT_MOUNTED =
 			entity -> entity.isAlive() && !entity.hasPassengers() && !entity.hasVehicle();
-	public static final Predicate<Entity> VALID_INVENTORIES = entity -> entity instanceof Inventory && entity.isAlive();
-	public static final Predicate<Entity> EXCEPT_CREATIVE_OR_SPECTATOR = entity -> !(
-			entity instanceof PlayerEntity playerEntity && (entity.isSpectator() || playerEntity.isCreative())
-	);
+
+	public static final Predicate<Entity> VALID_INVENTORIES =
+			entity -> entity instanceof Inventory && entity.isAlive();
+
+	public static final Predicate<Entity> EXCEPT_CREATIVE_OR_SPECTATOR =
+			entity -> !(entity instanceof PlayerEntity playerEntity
+					&& (entity.isSpectator() || playerEntity.isCreative()));
+
 	public static final Predicate<Entity> EXCEPT_SPECTATOR = entity -> !entity.isSpectator();
+
 	public static final Predicate<Entity> CAN_COLLIDE = EXCEPT_SPECTATOR.and(entity -> entity.isCollidable(null));
+
 	public static final Predicate<Entity> CAN_HIT = EXCEPT_SPECTATOR.and(Entity::canHit);
 
 	private EntityPredicates() {
 	}
 
 	public static Predicate<Entity> maxDistance(double x, double y, double z, double max) {
-		double d = max * max;
-		return entity -> entity.squaredDistanceTo(x, y, z) <= d;
+		double maxSquared = max * max;
+		return entity -> entity.squaredDistanceTo(x, y, z) <= maxSquared;
 	}
 
-	public static Predicate<Entity> canBePushedBy(Entity entity) {
-		AbstractTeam abstractTeam = entity.getScoreboardTeam();
-		AbstractTeam.CollisionRule
-				collisionRule =
-				abstractTeam == null ? AbstractTeam.CollisionRule.ALWAYS : abstractTeam.getCollisionRule();
-		return (Predicate<Entity>) (collisionRule == AbstractTeam.CollisionRule.NEVER
-		                            ? Predicates.alwaysFalse()
-		                            : EXCEPT_SPECTATOR.and(
-				                            entityxx -> {
-					                            if (!entityxx.isPushable()) {
-						                            return false;
-					                            }
-					                            else if (!entity.getEntityWorld().isClient()
-					                                     || entityxx instanceof PlayerEntity playerEntity
-					                                        && playerEntity.isMainPlayer()) {
-						                            AbstractTeam abstractTeam2 = entityxx.getScoreboardTeam();
-						                            AbstractTeam.CollisionRule
-						                            collisionRule2 =
-						                            abstractTeam2 == null ? AbstractTeam.CollisionRule.ALWAYS
-						                                                  : abstractTeam2.getCollisionRule();
-						                            if (collisionRule2 == AbstractTeam.CollisionRule.NEVER) {
-							                            return false;
-						                            }
-						                            else {
-							                            boolean
-							                            bl =
-							                            abstractTeam != null && abstractTeam.isEqual(abstractTeam2);
-							                            return
-							                            (collisionRule == AbstractTeam.CollisionRule.PUSH_OWN_TEAM
-									                            || collisionRule2
-									                            == AbstractTeam.CollisionRule.PUSH_OWN_TEAM
-							                            ) && bl
-							                            ? false
-							                            : collisionRule != AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS
-							                              && collisionRule2
-							                                 != AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS || bl;
-						                            }
-					                            }
-					                            else {
-						                            return false;
-					                            }
-				                            }
-		                            )
-		);
+	/**
+	 * Создаёт предикат, проверяющий, может ли данная сущность быть вытолкнута указанной.
+	 * Учитывает правила коллизий команд обеих сущностей.
+	 */
+	public static Predicate<Entity> canBePushedBy(Entity pusher) {
+		AbstractTeam pusherTeam = pusher.getScoreboardTeam();
+		AbstractTeam.CollisionRule pusherRule =
+				pusherTeam == null ? AbstractTeam.CollisionRule.ALWAYS : pusherTeam.getCollisionRule();
+
+		if (pusherRule == AbstractTeam.CollisionRule.NEVER) {
+			return Predicates.alwaysFalse();
+		}
+
+		return EXCEPT_SPECTATOR.and(candidate -> {
+			if (!candidate.isPushable()) {
+				return false;
+			}
+
+			if (pusher.getEntityWorld().isClient()
+					&& !(candidate instanceof PlayerEntity playerEntity && playerEntity.isMainPlayer())
+			) {
+				return false;
+			}
+
+			AbstractTeam candidateTeam = candidate.getScoreboardTeam();
+			AbstractTeam.CollisionRule candidateRule =
+					candidateTeam == null ? AbstractTeam.CollisionRule.ALWAYS : candidateTeam.getCollisionRule();
+
+			if (candidateRule == AbstractTeam.CollisionRule.NEVER) {
+				return false;
+			}
+
+			boolean sameTeam = pusherTeam != null && pusherTeam.isEqual(candidateTeam);
+
+			if ((pusherRule == AbstractTeam.CollisionRule.PUSH_OWN_TEAM
+					|| candidateRule == AbstractTeam.CollisionRule.PUSH_OWN_TEAM)
+					&& sameTeam
+			) {
+				return false;
+			}
+
+			return pusherRule != AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS
+					&& candidateRule != AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS
+					|| sameTeam;
+		});
 	}
 
 	public static Predicate<Entity> rides(Entity entity) {
 		return testedEntity -> {
 			while (testedEntity.hasVehicle()) {
 				testedEntity = testedEntity.getVehicle();
+
 				if (testedEntity == entity) {
 					return false;
 				}

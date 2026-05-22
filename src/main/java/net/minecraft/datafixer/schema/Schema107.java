@@ -7,7 +7,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema107}.
+ * Схема версии 107: удаляет устаревший тип сущности {@code "Minecart"},
+ * заменённый специализированными подтипами вагонеток в предыдущих версиях.
  */
 public class Schema107 extends Schema {
 

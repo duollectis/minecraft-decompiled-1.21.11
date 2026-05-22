@@ -14,7 +14,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
- * {@code PointOfInterestFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public abstract class PointOfInterestFix extends DataFix {
 
@@ -27,11 +27,11 @@ public abstract class PointOfInterestFix extends DataFix {
 
 	protected TypeRewriteRule makeRule() {
 		Type<Pair<String, Dynamic<?>>> type = DSL.named(TypeReferences.POI_CHUNK.typeName(), DSL.remainderType());
-		if (!Objects.equals(type, this.getInputSchema().getType(TypeReferences.POI_CHUNK))) {
+		if (!Objects.equals(type, getInputSchema().getType(TypeReferences.POI_CHUNK))) {
 			throw new IllegalStateException("Poi type is not what was expected.");
 		}
 		else {
-			return this.fixTypeEverywhere(this.name, type, ops -> pair -> pair.mapSecond(this::fixSections));
+			return fixTypeEverywhere(this.name, type, ops -> pair -> pair.mapSecond(this::fixSections));
 		}
 	}
 

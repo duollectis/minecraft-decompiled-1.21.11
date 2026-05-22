@@ -10,17 +10,18 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code RaiderPredicate}.
+ * Предикат для проверки состояния рейдера: участвует ли в рейде и является ли капитаном.
  */
 public record RaiderPredicate(boolean hasRaid, boolean isCaptain) implements EntitySubPredicate {
 
 	public static final MapCodec<RaiderPredicate> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Codec.BOOL.optionalFieldOf("has_raid", false).forGetter(RaiderPredicate::hasRaid),
-					                    Codec.BOOL.optionalFieldOf("is_captain", false).forGetter(RaiderPredicate::isCaptain)
-			                    )
-			                    .apply(instance, RaiderPredicate::new)
+					Codec.BOOL.optionalFieldOf("has_raid", false).forGetter(RaiderPredicate::hasRaid),
+					Codec.BOOL.optionalFieldOf("is_captain", false).forGetter(RaiderPredicate::isCaptain)
+			)
+			.apply(instance, RaiderPredicate::new)
 	);
+
 	public static final RaiderPredicate CAPTAIN_WITHOUT_RAID = new RaiderPredicate(false, true);
 
 	@Override
@@ -30,7 +31,10 @@ public record RaiderPredicate(boolean hasRaid, boolean isCaptain) implements Ent
 
 	@Override
 	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-		return !(entity instanceof RaiderEntity raiderEntity) ? false : raiderEntity.hasRaid() == this.hasRaid
-		                                                                && raiderEntity.isCaptain() == this.isCaptain;
+		if (!(entity instanceof RaiderEntity raider)) {
+			return false;
+		}
+
+		return raider.hasRaid() == hasRaid && raider.isCaptain() == isCaptain;
 	}
 }

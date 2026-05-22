@@ -7,26 +7,24 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ReloadScheduler}.
+ * Планировщик перезагрузки ресурсов при смене набора активных серверных паков.
+ * Реализация должна запустить перезагрузку и уведомить {@link ReloadContext}
+ * об успехе или неудаче через {@link ReloadContext#onSuccess()} / {@link ReloadContext#onFailure}.
  */
+@Environment(EnvType.CLIENT)
 public interface ReloadScheduler {
 
 	void scheduleReload(ReloadScheduler.ReloadContext context);
 
+	/** Информация об одном серверном паке, участвующем в перезагрузке. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code PackInfo}.
-	 */
-	public record PackInfo(UUID id, Path path) {
+	record PackInfo(UUID id, Path path) {
 	}
 
+	/** Контекст перезагрузки: предоставляет список паков и колбэки результата. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ReloadContext}.
-	 */
-	public interface ReloadContext {
+	interface ReloadContext {
 
 		void onSuccess();
 

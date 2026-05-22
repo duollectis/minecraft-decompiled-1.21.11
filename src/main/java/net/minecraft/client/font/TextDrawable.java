@@ -8,10 +8,10 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix4f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextDrawable}.
+ * Отрисовываемый элемент текста. Содержит геометрию глифа и ссылку на текстуру/пайплайн рендеринга.
  */
+@Environment(EnvType.CLIENT)
 public interface TextDrawable {
 
 	void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth);
@@ -30,30 +30,31 @@ public interface TextDrawable {
 
 	float getEffectiveMaxY();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DrawnGlyphRect}.
+	 * Запечённый прямоугольник глифа, реализующий одновременно {@link GlyphRect} и {@link TextDrawable}.
+	 * Делегирует координаты прямоугольника к эффективным границам глифа.
 	 */
-	public interface DrawnGlyphRect extends GlyphRect, TextDrawable {
+	@Environment(EnvType.CLIENT)
+	interface DrawnGlyphRect extends GlyphRect, TextDrawable {
 
 		@Override
 		default float getLeft() {
-			return this.getEffectiveMinX();
+			return getEffectiveMinX();
 		}
 
 		@Override
 		default float getTop() {
-			return this.getEffectiveMinY();
+			return getEffectiveMinY();
 		}
 
 		@Override
 		default float getRight() {
-			return this.getEffectiveMaxX();
+			return getEffectiveMaxX();
 		}
 
 		@Override
 		default float getBottom() {
-			return this.getEffectiveMaxY();
+			return getEffectiveMaxY();
 		}
 	}
 }

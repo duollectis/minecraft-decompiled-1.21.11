@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code ManagementHandlerDispatcher}.
+ * Класс Management Handler Dispatcher.
  */
 public class ManagementHandlerDispatcher {
 

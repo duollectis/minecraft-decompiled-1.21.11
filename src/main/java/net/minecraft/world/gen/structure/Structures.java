@@ -27,24 +27,20 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code Structures}.
+ * Регистрирует все встроенные структуры мира в реестр через метод {@link #bootstrap}.
  */
 public class Structures {
 
 	/**
-	 * Bootstrap.
-	 *
-	 * @param structureRegisterable structure registerable
+	 * Регистрирует все встроенные структуры мира: деревни, крепости, порталы, монументы и т.д.
 	 */
 	public static void bootstrap(Registerable<Structure> structureRegisterable) {
-		RegistryEntryLookup<Biome> registryEntryLookup = structureRegisterable.getRegistryLookup(RegistryKeys.BIOME);
-		RegistryEntryLookup<StructurePool>
-				registryEntryLookup2 =
-				structureRegisterable.getRegistryLookup(RegistryKeys.TEMPLATE_POOL);
+		RegistryEntryLookup<Biome> biomeLookup = structureRegisterable.getRegistryLookup(RegistryKeys.BIOME);
+		RegistryEntryLookup<StructurePool> templatePoolLookup = structureRegisterable.getRegistryLookup(RegistryKeys.TEMPLATE_POOL);
 		structureRegisterable.register(
 				StructureKeys.PILLAGER_OUTPOST,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.PILLAGER_OUTPOST_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.PILLAGER_OUTPOST_HAS_STRUCTURE))
 								.spawnOverrides(
 										Map.of(
 												SpawnGroup.MONSTER,
@@ -56,7 +52,7 @@ public class Structures {
 								)
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(PillagerOutpostGenerator.STRUCTURE_POOLS),
+						templatePoolLookup.getOrThrow(PillagerOutpostGenerator.STRUCTURE_POOLS),
 						7,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -66,7 +62,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.MINESHAFT,
 				new MineshaftStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.MINESHAFT_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.MINESHAFT_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_STRUCTURES)
 								.build(),
 						MineshaftStructure.Type.NORMAL
@@ -75,7 +71,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.MINESHAFT_MESA,
 				new MineshaftStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.MINESHAFT_MESA_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.MINESHAFT_MESA_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_STRUCTURES)
 								.build(),
 						MineshaftStructure.Type.MESA
@@ -83,38 +79,38 @@ public class Structures {
 		);
 		structureRegisterable.register(
 				StructureKeys.MANSION,
-				new WoodlandMansionStructure(new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.WOODLAND_MANSION_HAS_STRUCTURE)))
+				new WoodlandMansionStructure(new Structure.Config(biomeLookup.getOrThrow(BiomeTags.WOODLAND_MANSION_HAS_STRUCTURE)))
 		);
 		structureRegisterable.register(
 				StructureKeys.JUNGLE_PYRAMID,
-				new JungleTempleStructure(new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.JUNGLE_TEMPLE_HAS_STRUCTURE)))
+				new JungleTempleStructure(new Structure.Config(biomeLookup.getOrThrow(BiomeTags.JUNGLE_TEMPLE_HAS_STRUCTURE)))
 		);
 		structureRegisterable.register(
 				StructureKeys.DESERT_PYRAMID,
-				new DesertPyramidStructure(new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.DESERT_PYRAMID_HAS_STRUCTURE)))
+				new DesertPyramidStructure(new Structure.Config(biomeLookup.getOrThrow(BiomeTags.DESERT_PYRAMID_HAS_STRUCTURE)))
 		);
 		structureRegisterable.register(
 				StructureKeys.IGLOO,
-				new IglooStructure(new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.IGLOO_HAS_STRUCTURE)))
+				new IglooStructure(new Structure.Config(biomeLookup.getOrThrow(BiomeTags.IGLOO_HAS_STRUCTURE)))
 		);
 		structureRegisterable.register(
 				StructureKeys.SHIPWRECK,
 				new ShipwreckStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.SHIPWRECK_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.SHIPWRECK_HAS_STRUCTURE)),
 						false
 				)
 		);
 		structureRegisterable.register(
 				StructureKeys.SHIPWRECK_BEACHED,
 				new ShipwreckStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.SHIPWRECK_BEACHED_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.SHIPWRECK_BEACHED_HAS_STRUCTURE)),
 						true
 				)
 		);
 		structureRegisterable.register(
 				StructureKeys.SWAMP_HUT,
 				new SwampHutStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.SWAMP_HUT_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.SWAMP_HUT_HAS_STRUCTURE))
 								.spawnOverrides(
 										Map.of(
 												SpawnGroup.MONSTER,
@@ -135,7 +131,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.STRONGHOLD,
 				new StrongholdStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.STRONGHOLD_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.STRONGHOLD_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BURY)
 								.build()
 				)
@@ -143,7 +139,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.MONUMENT,
 				new OceanMonumentStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.OCEAN_MONUMENT_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.OCEAN_MONUMENT_HAS_STRUCTURE))
 								.spawnOverrides(
 										Map.of(
 												SpawnGroup.MONSTER,
@@ -169,7 +165,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.OCEAN_RUIN_COLD,
 				new OceanRuinStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.OCEAN_RUIN_COLD_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.OCEAN_RUIN_COLD_HAS_STRUCTURE)),
 						OceanRuinStructure.BiomeTemperature.COLD,
 						0.3F,
 						0.9F
@@ -178,7 +174,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.OCEAN_RUIN_WARM,
 				new OceanRuinStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.OCEAN_RUIN_WARM_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.OCEAN_RUIN_WARM_HAS_STRUCTURE)),
 						OceanRuinStructure.BiomeTemperature.WARM,
 						0.3F,
 						0.9F
@@ -187,7 +183,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.FORTRESS,
 				new NetherFortressStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.NETHER_FORTRESS_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.NETHER_FORTRESS_HAS_STRUCTURE))
 								.spawnOverrides(Map.of(
 										SpawnGroup.MONSTER,
 										new StructureSpawns(
@@ -202,7 +198,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.NETHER_FOSSIL,
 				new NetherFossilStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.NETHER_FOSSIL_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.NETHER_FOSSIL_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_DECORATION)
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
@@ -211,12 +207,12 @@ public class Structures {
 		);
 		structureRegisterable.register(
 				StructureKeys.END_CITY,
-				new EndCityStructure(new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.END_CITY_HAS_STRUCTURE)))
+				new EndCityStructure(new Structure.Config(biomeLookup.getOrThrow(BiomeTags.END_CITY_HAS_STRUCTURE)))
 		);
 		structureRegisterable.register(
 				StructureKeys.BURIED_TREASURE,
 				new BuriedTreasureStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.BURIED_TREASURE_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.BURIED_TREASURE_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_STRUCTURES)
 								.build()
 				)
@@ -224,8 +220,8 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.BASTION_REMNANT,
 				new JigsawStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.BASTION_REMNANT_HAS_STRUCTURE)),
-						registryEntryLookup2.getOrThrow(BastionRemnantGenerator.STRUCTURE_POOLS),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.BASTION_REMNANT_HAS_STRUCTURE)),
+						templatePoolLookup.getOrThrow(BastionRemnantGenerator.STRUCTURE_POOLS),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(33)),
 						false
@@ -234,10 +230,10 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.VILLAGE_PLAINS,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.VILLAGE_PLAINS_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.VILLAGE_PLAINS_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(PlainsVillageData.TOWN_CENTERS_KEY),
+						templatePoolLookup.getOrThrow(PlainsVillageData.TOWN_CENTERS_KEY),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -247,10 +243,10 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.VILLAGE_DESERT,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.VILLAGE_DESERT_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.VILLAGE_DESERT_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(DesertVillageData.TOWN_CENTERS_KEY),
+						templatePoolLookup.getOrThrow(DesertVillageData.TOWN_CENTERS_KEY),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -260,10 +256,10 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.VILLAGE_SAVANNA,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.VILLAGE_SAVANNA_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.VILLAGE_SAVANNA_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(SavannaVillageData.TOWN_CENTERS_KEY),
+						templatePoolLookup.getOrThrow(SavannaVillageData.TOWN_CENTERS_KEY),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -273,10 +269,10 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.VILLAGE_SNOWY,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.VILLAGE_SNOWY_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.VILLAGE_SNOWY_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(SnowyVillageData.TOWN_CENTERS_KEY),
+						templatePoolLookup.getOrThrow(SnowyVillageData.TOWN_CENTERS_KEY),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -286,10 +282,10 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.VILLAGE_TAIGA,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.VILLAGE_TAIGA_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.VILLAGE_TAIGA_HAS_STRUCTURE))
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_THIN)
 								.build(),
-						registryEntryLookup2.getOrThrow(TaigaVillageData.TOWN_CENTERS_KEY),
+						templatePoolLookup.getOrThrow(TaigaVillageData.TOWN_CENTERS_KEY),
 						6,
 						ConstantHeightProvider.create(YOffset.fixed(0)),
 						true,
@@ -299,7 +295,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_STANDARD_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_STANDARD_HAS_STRUCTURE)),
 						List.of(
 								new RuinedPortalStructure.Setup(
 										RuinedPortalStructurePiece.VerticalPlacement.UNDERGROUND,
@@ -327,7 +323,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_DESERT,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_DESERT_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_DESERT_HAS_STRUCTURE)),
 						new RuinedPortalStructure.Setup(
 								RuinedPortalStructurePiece.VerticalPlacement.PARTLY_BURIED,
 								0.0F,
@@ -343,7 +339,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_JUNGLE,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_JUNGLE_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_JUNGLE_HAS_STRUCTURE)),
 						new RuinedPortalStructure.Setup(
 								RuinedPortalStructurePiece.VerticalPlacement.ON_LAND_SURFACE,
 								0.5F,
@@ -359,7 +355,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_SWAMP,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_SWAMP_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_SWAMP_HAS_STRUCTURE)),
 						new RuinedPortalStructure.Setup(
 								RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR,
 								0.0F,
@@ -375,7 +371,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_MOUNTAIN,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_MOUNTAIN_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_MOUNTAIN_HAS_STRUCTURE)),
 						List.of(
 								new RuinedPortalStructure.Setup(
 										RuinedPortalStructurePiece.VerticalPlacement.IN_MOUNTAIN,
@@ -403,7 +399,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_OCEAN,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_OCEAN_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_OCEAN_HAS_STRUCTURE)),
 						new RuinedPortalStructure.Setup(
 								RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR,
 								0.0F,
@@ -419,7 +415,7 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.RUINED_PORTAL_NETHER,
 				new RuinedPortalStructure(
-						new Structure.Config(registryEntryLookup.getOrThrow(BiomeTags.RUINED_PORTAL_NETHER_HAS_STRUCTURE)),
+						new Structure.Config(biomeLookup.getOrThrow(BiomeTags.RUINED_PORTAL_NETHER_HAS_STRUCTURE)),
 						new RuinedPortalStructure.Setup(
 								RuinedPortalStructurePiece.VerticalPlacement.IN_NETHER,
 								0.5F,
@@ -435,12 +431,12 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.ANCIENT_CITY,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.ANCIENT_CITY_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.ANCIENT_CITY_HAS_STRUCTURE))
 								.spawnOverrides(
 										Arrays.stream(SpawnGroup.values())
 										      .collect(
 												      Collectors.toMap(
-														      spawnGroup -> (SpawnGroup) spawnGroup,
+														      spawnGroup -> spawnGroup,
 														      spawnGroup -> new StructureSpawns(
 																      StructureSpawns.BoundingBox.STRUCTURE,
 																      Pool.empty()
@@ -451,7 +447,7 @@ public class Structures {
 								.step(GenerationStep.Feature.UNDERGROUND_DECORATION)
 								.terrainAdaptation(StructureTerrainAdaptation.BEARD_BOX)
 								.build(),
-						registryEntryLookup2.getOrThrow(AncientCityGenerator.CITY_CENTER),
+						templatePoolLookup.getOrThrow(AncientCityGenerator.CITY_CENTER),
 						Optional.of(Identifier.ofVanilla("city_anchor")),
 						7,
 						ConstantHeightProvider.create(YOffset.fixed(-27)),
@@ -466,11 +462,11 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.TRAIL_RUINS,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.TRAIL_RUINS_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.TRAIL_RUINS_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_STRUCTURES)
 								.terrainAdaptation(StructureTerrainAdaptation.BURY)
 								.build(),
-						registryEntryLookup2.getOrThrow(TrailRuinsGenerator.TOWER),
+						templatePoolLookup.getOrThrow(TrailRuinsGenerator.TOWER),
 						7,
 						ConstantHeightProvider.create(YOffset.fixed(-15)),
 						false,
@@ -480,14 +476,14 @@ public class Structures {
 		structureRegisterable.register(
 				StructureKeys.TRIAL_CHAMBERS,
 				new JigsawStructure(
-						new Structure.Config.Builder(registryEntryLookup.getOrThrow(BiomeTags.TRIAL_CHAMBERS_HAS_STRUCTURE))
+						new Structure.Config.Builder(biomeLookup.getOrThrow(BiomeTags.TRIAL_CHAMBERS_HAS_STRUCTURE))
 								.step(GenerationStep.Feature.UNDERGROUND_STRUCTURES)
 								.terrainAdaptation(StructureTerrainAdaptation.ENCAPSULATE)
 								.spawnOverrides(
 										Arrays.stream(SpawnGroup.values())
 										      .collect(
 												      Collectors.toMap(
-														      spawnGroup -> (SpawnGroup) spawnGroup,
+														      spawnGroup -> spawnGroup,
 														      spawnGroup -> new StructureSpawns(
 																      StructureSpawns.BoundingBox.PIECE,
 																      Pool.empty()
@@ -496,7 +492,7 @@ public class Structures {
 										      )
 								)
 								.build(),
-						registryEntryLookup2.getOrThrow(TrialChamberData.CHAMBER_END_POOL_KEY),
+						templatePoolLookup.getOrThrow(TrialChamberData.CHAMBER_END_POOL_KEY),
 						Optional.empty(),
 						20,
 						UniformHeightProvider.create(YOffset.fixed(-40), YOffset.fixed(-20)),

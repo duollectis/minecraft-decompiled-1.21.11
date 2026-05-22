@@ -49,7 +49,9 @@ import java.util.*;
 import java.util.Map.Entry;
 
 /**
- * {@code SerializedChunk}.
+ * Промежуточное представление чанка в сериализованном виде.
+ * Используется как мост между NBT-данными на диске и объектами {@link Chunk} в памяти.
+ * Содержит все данные чанка: секции блоков, биомы, освещение, структуры, тики и т.д.
  */
 public record SerializedChunk(
 		PalettesFactory containerFactory,
@@ -91,486 +93,485 @@ public record SerializedChunk(
 	public static final String SKY_LIGHT_KEY = "SkyLight";
 
 	/**
-	 * From nbt.
+	 * Десериализует чанк из NBT-данных, прочитанных с диска.
+	 * Восстанавливает все секции блоков, биомы, освещение, структуры и тики.
+	 * При ошибках парсинга палитр логирует их и продолжает загрузку (recoverable errors).
 	 *
-	 * @param world world
-	 * @param palettesFactory palettes factory
-	 * @param nbt nbt
-	 *
-	 * @return SerializedChunk — результат операции
+	 * @param world           вертикальные границы мира для валидации координат секций
+	 * @param palettesFactory фабрика кодеков для десериализации блоков и биомов
+	 * @param nbt             корневой NBT-тег чанка
+	 * @return десериализованный чанк, или {@code null} если отсутствует поле Status
 	 */
 	public static SerializedChunk fromNbt(HeightLimitView world, PalettesFactory palettesFactory, NbtCompound nbt) {
 		if (nbt.getString("Status").isEmpty()) {
 			return null;
 		}
-		else {
-			ChunkPos chunkPos = new ChunkPos(nbt.getInt("xPos", 0), nbt.getInt("zPos", 0));
-			long l = nbt.getLong("LastUpdate", 0L);
-			long m = nbt.getLong("InhabitedTime", 0L);
-			ChunkStatus chunkStatus = nbt.<ChunkStatus>get("Status", ChunkStatus.CODEC).orElse(ChunkStatus.EMPTY);
-			UpgradeData
-					upgradeData =
-					nbt
-							.getCompound("UpgradeData")
-							.map(upgradeDatax -> new UpgradeData(upgradeDatax, world))
-							.orElse(UpgradeData.NO_UPGRADE_DATA);
-			boolean bl = nbt.getBoolean("isLightOn", false);
-			BlendingData.Serialized
-					serialized =
-					nbt.<BlendingData.Serialized>get("blending_data", BlendingData.Serialized.CODEC).orElse(null);
-			BelowZeroRetrogen
-					belowZeroRetrogen =
-					nbt.<BelowZeroRetrogen>get("below_zero_retrogen", BelowZeroRetrogen.CODEC).orElse(null);
-			long[] ls = nbt.getLongArray("carving_mask").orElse(null);
-			Map<Heightmap.Type, long[]> map = new EnumMap<>(Heightmap.Type.class);
-			nbt.getCompound("Heightmaps").ifPresent(heightmaps -> {
-				for (Heightmap.Type type : chunkStatus.getHeightmapTypes()) {
-					heightmaps.getLongArray(type.getId()).ifPresent(heightmapType -> map.put(type, heightmapType));
-				}
-			});
-			List<Tick<Block>>
-					list =
-					Tick.filter(
-							nbt.<List<Tick<Block>>>get("block_ticks", BLOCK_TICKS_CODEC).orElse(List.of()),
-							chunkPos
-					);
-			List<Tick<Fluid>>
-					list2 =
-					Tick.filter(
-							nbt.<List<Tick<Fluid>>>get("fluid_ticks", FLUID_TICKS_CODEC).orElse(List.of()),
-							chunkPos
-					);
-			Chunk.TickSchedulers tickSchedulers = new Chunk.TickSchedulers(list, list2);
-			NbtList nbtList = nbt.getListOrEmpty("PostProcessing");
-			ShortList[] shortLists = new ShortList[nbtList.size()];
 
-			for (int i = 0; i < nbtList.size(); i++) {
-				NbtList nbtList2 = nbtList.getList(i).orElse(null);
-				if (nbtList2 != null && !nbtList2.isEmpty()) {
-					ShortList shortList = new ShortArrayList(nbtList2.size());
+		ChunkPos chunkPos = new ChunkPos(nbt.getInt("xPos", 0), nbt.getInt("zPos", 0));
+		long lastUpdate = nbt.getLong("LastUpdate", 0L);
+		long inhabitedTime = nbt.getLong("InhabitedTime", 0L);
+		ChunkStatus chunkStatus = nbt.<ChunkStatus>get("Status", ChunkStatus.CODEC).orElse(ChunkStatus.EMPTY);
+		UpgradeData upgradeData = nbt
+				.getCompound("UpgradeData")
+				.map(upgradeDataNbt -> new UpgradeData(upgradeDataNbt, world))
+				.orElse(UpgradeData.NO_UPGRADE_DATA);
+		boolean isLightCorrect = nbt.getBoolean("isLightOn", false);
+		BlendingData.Serialized blendingData = nbt
+				.<BlendingData.Serialized>get("blending_data", BlendingData.Serialized.CODEC)
+				.orElse(null);
+		BelowZeroRetrogen belowZeroRetrogen = nbt
+				.<BelowZeroRetrogen>get("below_zero_retrogen", BelowZeroRetrogen.CODEC)
+				.orElse(null);
+		long[] carvingMaskData = nbt.getLongArray("carving_mask").orElse(null);
+		Map<Heightmap.Type, long[]> heightmaps = new EnumMap<>(Heightmap.Type.class);
 
-					for (int j = 0; j < nbtList2.size(); j++) {
-						shortList.add(nbtList2.getShort(j, (short) 0));
-					}
+		nbt.getCompound("Heightmaps").ifPresent(heightmapsNbt -> {
+			for (Heightmap.Type type : chunkStatus.getHeightmapTypes()) {
+				heightmapsNbt.getLongArray(type.getId()).ifPresent(data -> heightmaps.put(type, data));
+			}
+		});
 
-					shortLists[i] = shortList;
-				}
+		List<Tick<Block>> blockTicks = Tick.filter(
+				nbt.<List<Tick<Block>>>get("block_ticks", BLOCK_TICKS_CODEC).orElse(List.of()),
+				chunkPos
+		);
+		List<Tick<Fluid>> fluidTicks = Tick.filter(
+				nbt.<List<Tick<Fluid>>>get("fluid_ticks", FLUID_TICKS_CODEC).orElse(List.of()),
+				chunkPos
+		);
+		Chunk.TickSchedulers tickSchedulers = new Chunk.TickSchedulers(blockTicks, fluidTicks);
+		NbtList postProcessingList = nbt.getListOrEmpty("PostProcessing");
+		ShortList[] postProcessingSections = new ShortList[postProcessingList.size()];
+
+		for (int sectionIndex = 0; sectionIndex < postProcessingList.size(); sectionIndex++) {
+			NbtList sectionShorts = postProcessingList.getList(sectionIndex).orElse(null);
+			if (sectionShorts == null || sectionShorts.isEmpty()) {
+				continue;
 			}
 
-			List<NbtCompound> list3 = nbt.getList("entities").stream().flatMap(NbtList::streamCompounds).toList();
-			List<NbtCompound> list4 = nbt.getList("block_entities").stream().flatMap(NbtList::streamCompounds).toList();
-			NbtCompound nbtCompound = nbt.getCompoundOrEmpty("structures");
-			NbtList nbtList3 = nbt.getListOrEmpty("sections");
-			List<SerializedChunk.SectionData> list5 = new ArrayList<>(nbtList3.size());
-			Codec<ReadableContainer<RegistryEntry<Biome>>> codec = palettesFactory.biomeContainerCodec();
-			Codec<PalettedContainer<BlockState>> codec2 = palettesFactory.blockStatesContainerCodec();
+			ShortList shortList = new ShortArrayList(sectionShorts.size());
 
-			for (int k = 0; k < nbtList3.size(); k++) {
-				Optional<NbtCompound> optional = nbtList3.getCompound(k);
-				if (!optional.isEmpty()) {
-					NbtCompound nbtCompound2 = optional.get();
-					int n = nbtCompound2.getByte("Y", (byte) 0);
-					ChunkSection chunkSection;
-					if (n >= world.getBottomSectionCoord() && n <= world.getTopSectionCoord()) {
-						PalettedContainer<BlockState> palettedContainer = nbtCompound2.getCompound("block_states")
-						                                                              .map(
-								                                                              blockStates -> (PalettedContainer<BlockState>) codec2
-										                                                              .parse(
-												                                                              NbtOps.INSTANCE,
-												                                                              blockStates
-										                                                              )
-										                                                              .promotePartial(
-												                                                              error -> logRecoverableError(
-														                                                              chunkPos,
-														                                                              n,
-														                                                              error
-												                                                              ))
-										                                                              .getOrThrow(
-												                                                              SerializedChunk.ChunkLoadingException::new)
-						                                                              )
-						                                                              .orElseGet(palettesFactory::getBlockStateContainer);
-						ReadableContainer<RegistryEntry<Biome>> readableContainer = nbtCompound2.getCompound("biomes")
-						                                                                        .map(
-								                                                                        biomes -> (ReadableContainer<RegistryEntry<Biome>>) codec
-										                                                                        .parse(
-												                                                                        NbtOps.INSTANCE,
-												                                                                        biomes
-										                                                                        )
-										                                                                        .promotePartial(
-												                                                                        error -> logRecoverableError(
-														                                                                        chunkPos,
-														                                                                        n,
-														                                                                        error
-												                                                                        ))
-										                                                                        .getOrThrow(
-												                                                                        SerializedChunk.ChunkLoadingException::new)
-						                                                                        )
-						                                                                        .orElseGet(
-								                                                                        palettesFactory::getBiomeContainer);
-						chunkSection = new ChunkSection(palettedContainer, readableContainer);
-					}
-					else {
-						chunkSection = null;
-					}
-
-					ChunkNibbleArray
-							chunkNibbleArray =
-							nbtCompound2.getByteArray("BlockLight").map(ChunkNibbleArray::new).orElse(null);
-					ChunkNibbleArray
-							chunkNibbleArray2 =
-							nbtCompound2.getByteArray("SkyLight").map(ChunkNibbleArray::new).orElse(null);
-					list5.add(new SerializedChunk.SectionData(n, chunkSection, chunkNibbleArray, chunkNibbleArray2));
-				}
+			for (int entryIndex = 0; entryIndex < sectionShorts.size(); entryIndex++) {
+				shortList.add(sectionShorts.getShort(entryIndex, (short) 0));
 			}
 
-			return new SerializedChunk(
-					palettesFactory,
-					chunkPos,
-					world.getBottomSectionCoord(),
-					l,
-					m,
-					chunkStatus,
-					serialized,
-					belowZeroRetrogen,
-					upgradeData,
-					ls,
-					map,
-					tickSchedulers,
-					shortLists,
-					bl,
-					list5,
-					list3,
-					list4,
-					nbtCompound
-			);
+			postProcessingSections[sectionIndex] = shortList;
 		}
+
+		List<NbtCompound> entities = nbt.getList("entities").stream().flatMap(NbtList::streamCompounds).toList();
+		List<NbtCompound> blockEntities = nbt.getList("block_entities").stream().flatMap(NbtList::streamCompounds).toList();
+		NbtCompound structureData = nbt.getCompoundOrEmpty("structures");
+		NbtList sectionsNbt = nbt.getListOrEmpty("sections");
+		List<SerializedChunk.SectionData> sections = new ArrayList<>(sectionsNbt.size());
+		Codec<ReadableContainer<RegistryEntry<Biome>>> biomeCodec = palettesFactory.biomeContainerCodec();
+		Codec<PalettedContainer<BlockState>> blockStatesCodec = palettesFactory.blockStatesContainerCodec();
+
+		for (int sectionIndex = 0; sectionIndex < sectionsNbt.size(); sectionIndex++) {
+			Optional<NbtCompound> optionalSection = sectionsNbt.getCompound(sectionIndex);
+			if (optionalSection.isEmpty()) {
+				continue;
+			}
+
+			NbtCompound sectionNbt = optionalSection.get();
+			int sectionY = sectionNbt.getByte("Y", (byte) 0);
+			ChunkSection chunkSection;
+
+			if (sectionY >= world.getBottomSectionCoord() && sectionY <= world.getTopSectionCoord()) {
+				PalettedContainer<BlockState> blockStates = sectionNbt
+						.getCompound("block_states")
+						.map(blockStatesNbt -> (PalettedContainer<BlockState>) blockStatesCodec
+								.parse(NbtOps.INSTANCE, blockStatesNbt)
+								.promotePartial(error -> logRecoverableError(chunkPos, sectionY, error))
+								.getOrThrow(SerializedChunk.ChunkLoadingException::new)
+						)
+						.orElseGet(palettesFactory::getBlockStateContainer);
+
+				ReadableContainer<RegistryEntry<Biome>> biomes = sectionNbt
+						.getCompound("biomes")
+						.map(biomesNbt -> (ReadableContainer<RegistryEntry<Biome>>) biomeCodec
+								.parse(NbtOps.INSTANCE, biomesNbt)
+								.promotePartial(error -> logRecoverableError(chunkPos, sectionY, error))
+								.getOrThrow(SerializedChunk.ChunkLoadingException::new)
+						)
+						.orElseGet(palettesFactory::getBiomeContainer);
+
+				chunkSection = new ChunkSection(blockStates, biomes);
+			} else {
+				chunkSection = null;
+			}
+
+			ChunkNibbleArray blockLight = sectionNbt.getByteArray("BlockLight").map(ChunkNibbleArray::new).orElse(null);
+			ChunkNibbleArray skyLight = sectionNbt.getByteArray("SkyLight").map(ChunkNibbleArray::new).orElse(null);
+			sections.add(new SerializedChunk.SectionData(sectionY, chunkSection, blockLight, skyLight));
+		}
+
+		return new SerializedChunk(
+				palettesFactory,
+				chunkPos,
+				world.getBottomSectionCoord(),
+				lastUpdate,
+				inhabitedTime,
+				chunkStatus,
+				blendingData,
+				belowZeroRetrogen,
+				upgradeData,
+				carvingMaskData,
+				heightmaps,
+				tickSchedulers,
+				postProcessingSections,
+				isLightCorrect,
+				sections,
+				entities,
+				blockEntities,
+				structureData
+		);
 	}
 
+	/**
+	 * Конвертирует сериализованный чанк в объект {@link ProtoChunk} или {@link WrapperProtoChunk}.
+	 * Восстанавливает секции, освещение, карты высот, структуры и данные пост-обработки.
+	 * Если чанк имеет тип {@link ChunkType#LEVELCHUNK}, возвращает {@link WrapperProtoChunk}.
+	 *
+	 * @param world       серверный мир, в который загружается чанк
+	 * @param poiStorage  хранилище точек интереса для инициализации POI по палитре блоков
+	 * @param key         ключ хранилища для логирования при смещении чанка
+	 * @param expectedPos ожидаемая позиция чанка (может не совпадать с сохранённой)
+	 * @return готовый {@link ProtoChunk} или {@link WrapperProtoChunk}
+	 */
 	public ProtoChunk convert(
 			ServerWorld world,
 			PointOfInterestStorage poiStorage,
 			StorageKey key,
 			ChunkPos expectedPos
 	) {
-		if (!Objects.equals(expectedPos, this.chunkPos)) {
+		if (!Objects.equals(expectedPos, chunkPos)) {
 			LOGGER.error(
 					"Chunk file at {} is in the wrong location; relocating. (Expected {}, got {})",
-					new Object[]{expectedPos, expectedPos, this.chunkPos}
+					new Object[]{expectedPos, expectedPos, chunkPos}
 			);
-			world.getServer().onChunkMisplacement(this.chunkPos, expectedPos, key);
+			world.getServer().onChunkMisplacement(chunkPos, expectedPos, key);
 		}
 
-		int i = world.countVerticalSections();
-		ChunkSection[] chunkSections = new ChunkSection[i];
-		boolean bl = world.getDimension().hasSkyLight();
-		ChunkManager chunkManager = world.getChunkManager();
-		LightingProvider lightingProvider = chunkManager.getLightingProvider();
+		int sectionCount = world.countVerticalSections();
+		ChunkSection[] chunkSections = new ChunkSection[sectionCount];
+		boolean hasSkyLight = world.getDimension().hasSkyLight();
+		LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
 		PalettesFactory palettesFactory = world.getPalettesFactory();
-		boolean bl2 = false;
+		boolean lightRetainSet = false;
 
-		for (SerializedChunk.SectionData sectionData : this.sectionData) {
-			ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(expectedPos, sectionData.y);
-			if (sectionData.chunkSection != null) {
-				chunkSections[world.sectionCoordToIndex(sectionData.y)] = sectionData.chunkSection;
-				poiStorage.initForPalette(chunkSectionPos, sectionData.chunkSection);
+		for (SerializedChunk.SectionData section : sectionData) {
+			ChunkSectionPos sectionPos = ChunkSectionPos.from(expectedPos, section.y);
+
+			if (section.chunkSection != null) {
+				chunkSections[world.sectionCoordToIndex(section.y)] = section.chunkSection;
+				poiStorage.initForPalette(sectionPos, section.chunkSection);
 			}
 
-			boolean bl3 = sectionData.blockLight != null;
-			boolean bl4 = bl && sectionData.skyLight != null;
-			if (bl3 || bl4) {
-				if (!bl2) {
+			boolean hasBlockLight = section.blockLight != null;
+			boolean hasSectionSkyLight = hasSkyLight && section.skyLight != null;
+
+			if (hasBlockLight || hasSectionSkyLight) {
+				if (!lightRetainSet) {
 					lightingProvider.setRetainData(expectedPos, true);
-					bl2 = true;
+					lightRetainSet = true;
 				}
 
-				if (bl3) {
-					lightingProvider.enqueueSectionData(LightType.BLOCK, chunkSectionPos, sectionData.blockLight);
+				if (hasBlockLight) {
+					lightingProvider.enqueueSectionData(LightType.BLOCK, sectionPos, section.blockLight);
 				}
 
-				if (bl4) {
-					lightingProvider.enqueueSectionData(LightType.SKY, chunkSectionPos, sectionData.skyLight);
+				if (hasSectionSkyLight) {
+					lightingProvider.enqueueSectionData(LightType.SKY, sectionPos, section.skyLight);
 				}
 			}
 		}
 
-		ChunkType chunkType = this.chunkStatus.getChunkType();
+		ChunkType chunkType = chunkStatus.getChunkType();
 		Chunk chunk;
+
 		if (chunkType == ChunkType.LEVELCHUNK) {
-			ChunkTickScheduler<Block> chunkTickScheduler = new ChunkTickScheduler<>(this.packedTicks.blocks());
-			ChunkTickScheduler<Fluid> chunkTickScheduler2 = new ChunkTickScheduler<>(this.packedTicks.fluids());
+			ChunkTickScheduler<Block> blockTickScheduler = new ChunkTickScheduler<>(packedTicks.blocks());
+			ChunkTickScheduler<Fluid> fluidTickScheduler = new ChunkTickScheduler<>(packedTicks.fluids());
 			chunk = new WorldChunk(
 					world.toServerWorld(),
 					expectedPos,
-					this.upgradeData,
-					chunkTickScheduler,
-					chunkTickScheduler2,
-					this.inhabitedTime,
+					upgradeData,
+					blockTickScheduler,
+					fluidTickScheduler,
+					inhabitedTime,
 					chunkSections,
-					getEntityLoadingCallback(world, this.entities, this.blockEntities),
-					BlendingData.fromSerialized(this.blendingData)
+					getEntityLoadingCallback(world, entities, blockEntities),
+					BlendingData.fromSerialized(blendingData)
 			);
-		}
-		else {
-			SimpleTickScheduler<Block> simpleTickScheduler = SimpleTickScheduler.tick(this.packedTicks.blocks());
-			SimpleTickScheduler<Fluid> simpleTickScheduler2 = SimpleTickScheduler.tick(this.packedTicks.fluids());
+		} else {
+			SimpleTickScheduler<Block> blockTickScheduler = SimpleTickScheduler.tick(packedTicks.blocks());
+			SimpleTickScheduler<Fluid> fluidTickScheduler = SimpleTickScheduler.tick(packedTicks.fluids());
 			ProtoChunk protoChunk = new ProtoChunk(
 					expectedPos,
-					this.upgradeData,
+					upgradeData,
 					chunkSections,
-					simpleTickScheduler,
-					simpleTickScheduler2,
+					blockTickScheduler,
+					fluidTickScheduler,
 					world,
 					palettesFactory,
-					BlendingData.fromSerialized(this.blendingData)
+					BlendingData.fromSerialized(blendingData)
 			);
 			chunk = protoChunk;
-			protoChunk.setInhabitedTime(this.inhabitedTime);
-			if (this.belowZeroRetrogen != null) {
-				protoChunk.setBelowZeroRetrogen(this.belowZeroRetrogen);
+			protoChunk.setInhabitedTime(inhabitedTime);
+
+			if (belowZeroRetrogen != null) {
+				protoChunk.setBelowZeroRetrogen(belowZeroRetrogen);
 			}
 
-			protoChunk.setStatus(this.chunkStatus);
-			if (this.chunkStatus.isAtLeast(ChunkStatus.INITIALIZE_LIGHT)) {
+			protoChunk.setStatus(chunkStatus);
+
+			if (chunkStatus.isAtLeast(ChunkStatus.INITIALIZE_LIGHT)) {
 				protoChunk.setLightingProvider(lightingProvider);
 			}
 		}
 
-		chunk.setLightOn(this.lightCorrect);
-		EnumSet<Heightmap.Type> enumSet = EnumSet.noneOf(Heightmap.Type.class);
+		chunk.setLightOn(lightCorrect);
+		EnumSet<Heightmap.Type> missingHeightmaps = EnumSet.noneOf(Heightmap.Type.class);
 
 		for (Heightmap.Type type : chunk.getStatus().getHeightmapTypes()) {
-			long[] ls = this.heightmaps.get(type);
-			if (ls != null) {
-				chunk.setHeightmap(type, ls);
-			}
-			else {
-				enumSet.add(type);
+			long[] heightmapData = heightmaps.get(type);
+
+			if (heightmapData != null) {
+				chunk.setHeightmap(type, heightmapData);
+			} else {
+				missingHeightmaps.add(type);
 			}
 		}
 
-		Heightmap.populateHeightmaps(chunk, enumSet);
+		Heightmap.populateHeightmaps(chunk, missingHeightmaps);
 		chunk.setStructureStarts(readStructureStarts(
 				StructureContext.from(world),
-				this.structureData,
+				structureData,
 				world.getSeed()
 		));
 		chunk.setStructureReferences(readStructureReferences(
 				world.getRegistryManager(),
 				expectedPos,
-				this.structureData
+				structureData
 		));
 
-		for (int j = 0; j < this.postProcessingSections.length; j++) {
-			ShortList shortList = this.postProcessingSections[j];
+		for (int sectionIndex = 0; sectionIndex < postProcessingSections.length; sectionIndex++) {
+			ShortList shortList = postProcessingSections[sectionIndex];
+
 			if (shortList != null) {
-				chunk.markBlocksForPostProcessing(shortList, j);
+				chunk.markBlocksForPostProcessing(shortList, sectionIndex);
 			}
 		}
 
 		if (chunkType == ChunkType.LEVELCHUNK) {
 			return new WrapperProtoChunk((WorldChunk) chunk, false);
 		}
-		else {
-			ProtoChunk protoChunk2 = (ProtoChunk) chunk;
 
-			for (NbtCompound nbtCompound : this.entities) {
-				protoChunk2.addEntity(nbtCompound);
-			}
+		ProtoChunk protoChunk = (ProtoChunk) chunk;
 
-			for (NbtCompound nbtCompound : this.blockEntities) {
-				protoChunk2.addPendingBlockEntityNbt(nbtCompound);
-			}
-
-			if (this.carvingMask != null) {
-				protoChunk2.setCarvingMask(new CarvingMask(this.carvingMask, chunk.getBottomY()));
-			}
-
-			return protoChunk2;
+		for (NbtCompound entityNbt : entities) {
+			protoChunk.addEntity(entityNbt);
 		}
+
+		for (NbtCompound blockEntityNbt : blockEntities) {
+			protoChunk.addPendingBlockEntityNbt(blockEntityNbt);
+		}
+
+		if (carvingMask != null) {
+			protoChunk.setCarvingMask(new CarvingMask(carvingMask, chunk.getBottomY()));
+		}
+
+		return protoChunk;
 	}
 
-	private static void logRecoverableError(ChunkPos chunkPos, int y, String message) {
+	private static void logRecoverableError(ChunkPos chunkPos, int sectionY, String message) {
 		LOGGER.error(
 				"Recoverable errors when loading section [{}, {}, {}]: {}",
-				new Object[]{chunkPos.x, y, chunkPos.z, message}
+				new Object[]{chunkPos.x, sectionY, chunkPos.z, message}
 		);
 	}
 
 	/**
-	 * From chunk.
+	 * Сериализует живой чанк в промежуточное представление для последующей записи на диск.
+	 * Собирает данные всех секций, освещения, структур, тиков и карт высот.
 	 *
-	 * @param world world
-	 * @param chunk chunk
-	 *
-	 * @return SerializedChunk — результат операции
+	 * @param world серверный мир, из которого берётся провайдер освещения и время
+	 * @param chunk чанк для сериализации; должен быть сериализуемым
+	 * @return сериализованное представление чанка
+	 * @throws IllegalArgumentException если чанк не поддерживает сериализацию
 	 */
 	public static SerializedChunk fromChunk(ServerWorld world, Chunk chunk) {
 		if (!chunk.isSerializable()) {
 			throw new IllegalArgumentException("Chunk can't be serialized: " + chunk);
 		}
-		else {
-			ChunkPos chunkPos = chunk.getPos();
-			List<SerializedChunk.SectionData> list = new ArrayList<>();
-			ChunkSection[] chunkSections = chunk.getSectionArray();
-			LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
 
-			for (int i = lightingProvider.getBottomY(); i < lightingProvider.getTopY(); i++) {
-				int j = chunk.sectionCoordToIndex(i);
-				boolean bl = j >= 0 && j < chunkSections.length;
-				ChunkNibbleArray
-						chunkNibbleArray =
-						lightingProvider.get(LightType.BLOCK).getLightSection(ChunkSectionPos.from(chunkPos, i));
-				ChunkNibbleArray
-						chunkNibbleArray2 =
-						lightingProvider.get(LightType.SKY).getLightSection(ChunkSectionPos.from(chunkPos, i));
-				ChunkNibbleArray
-						chunkNibbleArray3 =
-						chunkNibbleArray != null && !chunkNibbleArray.isUninitialized() ? chunkNibbleArray.copy()
-						                                                                : null;
-				ChunkNibbleArray
-						chunkNibbleArray4 =
-						chunkNibbleArray2 != null && !chunkNibbleArray2.isUninitialized() ? chunkNibbleArray2.copy()
-						                                                                  : null;
-				if (bl || chunkNibbleArray3 != null || chunkNibbleArray4 != null) {
-					ChunkSection chunkSection = bl ? chunkSections[j].copy() : null;
-					list.add(new SerializedChunk.SectionData(i, chunkSection, chunkNibbleArray3, chunkNibbleArray4));
-				}
+		ChunkPos chunkPos = chunk.getPos();
+		List<SerializedChunk.SectionData> sections = new ArrayList<>();
+		ChunkSection[] chunkSections = chunk.getSectionArray();
+		LightingProvider lightingProvider = world.getChunkManager().getLightingProvider();
+
+		for (int sectionY = lightingProvider.getBottomY(); sectionY < lightingProvider.getTopY(); sectionY++) {
+			int sectionIndex = chunk.sectionCoordToIndex(sectionY);
+			boolean isValidSection = sectionIndex >= 0 && sectionIndex < chunkSections.length;
+			ChunkNibbleArray rawBlockLight = lightingProvider
+					.get(LightType.BLOCK)
+					.getLightSection(ChunkSectionPos.from(chunkPos, sectionY));
+			ChunkNibbleArray rawSkyLight = lightingProvider
+					.get(LightType.SKY)
+					.getLightSection(ChunkSectionPos.from(chunkPos, sectionY));
+			ChunkNibbleArray blockLight = rawBlockLight != null && !rawBlockLight.isUninitialized()
+					? rawBlockLight.copy()
+					: null;
+			ChunkNibbleArray skyLight = rawSkyLight != null && !rawSkyLight.isUninitialized()
+					? rawSkyLight.copy()
+					: null;
+
+			if (isValidSection || blockLight != null || skyLight != null) {
+				ChunkSection sectionCopy = isValidSection ? chunkSections[sectionIndex].copy() : null;
+				sections.add(new SerializedChunk.SectionData(sectionY, sectionCopy, blockLight, skyLight));
 			}
-
-			List<NbtCompound> list2 = new ArrayList<>(chunk.getBlockEntityPositions().size());
-
-			for (BlockPos blockPos : chunk.getBlockEntityPositions()) {
-				NbtCompound nbtCompound = chunk.getPackedBlockEntityNbt(blockPos, world.getRegistryManager());
-				if (nbtCompound != null) {
-					list2.add(nbtCompound);
-				}
-			}
-
-			List<NbtCompound> list3 = new ArrayList<>();
-			long[] ls = null;
-			if (chunk.getStatus().getChunkType() == ChunkType.PROTOCHUNK) {
-				ProtoChunk protoChunk = (ProtoChunk) chunk;
-				list3.addAll(protoChunk.getEntities());
-				CarvingMask carvingMask = protoChunk.getCarvingMask();
-				if (carvingMask != null) {
-					ls = carvingMask.getMask();
-				}
-			}
-
-			Map<Heightmap.Type, long[]> map = new EnumMap<>(Heightmap.Type.class);
-
-			for (Entry<Heightmap.Type, Heightmap> entry : chunk.getHeightmaps()) {
-				if (chunk.getStatus().getHeightmapTypes().contains(entry.getKey())) {
-					long[] ms = entry.getValue().asLongArray();
-					map.put(entry.getKey(), (long[]) ms.clone());
-				}
-			}
-
-			Chunk.TickSchedulers tickSchedulers = chunk.getTickSchedulers(world.getTime());
-			ShortList[] shortLists = Arrays.stream(chunk.getPostProcessingLists())
-			                               .map(postProcessings -> postProcessings != null && !postProcessings.isEmpty()
-			                                                       ? new ShortArrayList(postProcessings) : null)
-			                               .toArray(ShortList[]::new);
-			NbtCompound
-					nbtCompound2 =
-					writeStructures(
-							StructureContext.from(world),
-							chunkPos,
-							chunk.getStructureStarts(),
-							chunk.getStructureReferences()
-					);
-			return new SerializedChunk(
-					world.getPalettesFactory(),
-					chunkPos,
-					chunk.getBottomSectionCoord(),
-					world.getTime(),
-					chunk.getInhabitedTime(),
-					chunk.getStatus(),
-					Nullables.map(chunk.getBlendingData(), BlendingData::toSerialized),
-					chunk.getBelowZeroRetrogen(),
-					chunk.getUpgradeData().copy(),
-					ls,
-					map,
-					tickSchedulers,
-					shortLists,
-					chunk.isLightOn(),
-					list,
-					list3,
-					list2,
-					nbtCompound2
-			);
 		}
+
+		List<NbtCompound> blockEntities = new ArrayList<>(chunk.getBlockEntityPositions().size());
+
+		for (BlockPos blockPos : chunk.getBlockEntityPositions()) {
+			NbtCompound blockEntityNbt = chunk.getPackedBlockEntityNbt(blockPos, world.getRegistryManager());
+
+			if (blockEntityNbt != null) {
+				blockEntities.add(blockEntityNbt);
+			}
+		}
+
+		List<NbtCompound> entities = new ArrayList<>();
+		long[] carvingMaskData = null;
+
+		if (chunk.getStatus().getChunkType() == ChunkType.PROTOCHUNK) {
+			ProtoChunk protoChunk = (ProtoChunk) chunk;
+			entities.addAll(protoChunk.getEntities());
+			CarvingMask carvingMask = protoChunk.getCarvingMask();
+
+			if (carvingMask != null) {
+				carvingMaskData = carvingMask.getMask();
+			}
+		}
+
+		Map<Heightmap.Type, long[]> heightmaps = new EnumMap<>(Heightmap.Type.class);
+
+		for (Entry<Heightmap.Type, Heightmap> entry : chunk.getHeightmaps()) {
+			if (chunk.getStatus().getHeightmapTypes().contains(entry.getKey())) {
+				heightmaps.put(entry.getKey(), (long[]) entry.getValue().asLongArray().clone());
+			}
+		}
+
+		Chunk.TickSchedulers tickSchedulers = chunk.getTickSchedulers(world.getTime());
+		ShortList[] postProcessingSections = Arrays.stream(chunk.getPostProcessingLists())
+				.map(list -> list != null && !list.isEmpty() ? new ShortArrayList(list) : null)
+				.toArray(ShortList[]::new);
+		NbtCompound structureData = writeStructures(
+				StructureContext.from(world),
+				chunkPos,
+				chunk.getStructureStarts(),
+				chunk.getStructureReferences()
+		);
+
+		return new SerializedChunk(
+				world.getPalettesFactory(),
+				chunkPos,
+				chunk.getBottomSectionCoord(),
+				world.getTime(),
+				chunk.getInhabitedTime(),
+				chunk.getStatus(),
+				Nullables.map(chunk.getBlendingData(), BlendingData::toSerialized),
+				chunk.getBelowZeroRetrogen(),
+				chunk.getUpgradeData().copy(),
+				carvingMaskData,
+				heightmaps,
+				tickSchedulers,
+				postProcessingSections,
+				chunk.isLightOn(),
+				sections,
+				entities,
+				blockEntities,
+				structureData
+		);
 	}
 
 	/**
-	 * Serialize.
+	 * Сериализует промежуточное представление в NBT-тег для записи на диск.
+	 * Записывает все секции, освещение, структуры, тики, карты высот и метаданные.
 	 *
-	 * @return NbtCompound — результат операции
+	 * @return корневой NBT-тег чанка с актуальной версией данных
 	 */
 	public NbtCompound serialize() {
-		NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
-		nbtCompound.putInt("xPos", this.chunkPos.x);
-		nbtCompound.putInt("yPos", this.minSectionY);
-		nbtCompound.putInt("zPos", this.chunkPos.z);
-		nbtCompound.putLong("LastUpdate", this.lastUpdateTime);
-		nbtCompound.putLong("InhabitedTime", this.inhabitedTime);
-		nbtCompound.putString("Status", Registries.CHUNK_STATUS.getId(this.chunkStatus).toString());
-		nbtCompound.putNullable("blending_data", BlendingData.Serialized.CODEC, this.blendingData);
-		nbtCompound.putNullable("below_zero_retrogen", BelowZeroRetrogen.CODEC, this.belowZeroRetrogen);
-		if (!this.upgradeData.isDone()) {
-			nbtCompound.put("UpgradeData", this.upgradeData.toNbt());
+		NbtCompound root = NbtHelper.putDataVersion(new NbtCompound());
+		root.putInt("xPos", chunkPos.x);
+		root.putInt("yPos", minSectionY);
+		root.putInt("zPos", chunkPos.z);
+		root.putLong("LastUpdate", lastUpdateTime);
+		root.putLong("InhabitedTime", inhabitedTime);
+		root.putString("Status", Registries.CHUNK_STATUS.getId(chunkStatus).toString());
+		root.putNullable("blending_data", BlendingData.Serialized.CODEC, blendingData);
+		root.putNullable("below_zero_retrogen", BelowZeroRetrogen.CODEC, belowZeroRetrogen);
+
+		if (!upgradeData.isDone()) {
+			root.put("UpgradeData", upgradeData.toNbt());
 		}
 
-		NbtList nbtList = new NbtList();
-		Codec<PalettedContainer<BlockState>> codec = this.containerFactory.blockStatesContainerCodec();
-		Codec<ReadableContainer<RegistryEntry<Biome>>> codec2 = this.containerFactory.biomeContainerCodec();
+		NbtList sectionsNbt = new NbtList();
+		Codec<PalettedContainer<BlockState>> blockStatesCodec = containerFactory.blockStatesContainerCodec();
+		Codec<ReadableContainer<RegistryEntry<Biome>>> biomeCodec = containerFactory.biomeContainerCodec();
 
-		for (SerializedChunk.SectionData sectionData : this.sectionData) {
-			NbtCompound nbtCompound2 = new NbtCompound();
-			ChunkSection chunkSection = sectionData.chunkSection;
+		for (SerializedChunk.SectionData section : sectionData) {
+			NbtCompound sectionNbt = new NbtCompound();
+			ChunkSection chunkSection = section.chunkSection;
+
 			if (chunkSection != null) {
-				nbtCompound2.put("block_states", codec, chunkSection.getBlockStateContainer());
-				nbtCompound2.put("biomes", codec2, chunkSection.getBiomeContainer());
+				sectionNbt.put("block_states", blockStatesCodec, chunkSection.getBlockStateContainer());
+				sectionNbt.put("biomes", biomeCodec, chunkSection.getBiomeContainer());
 			}
 
-			if (sectionData.blockLight != null) {
-				nbtCompound2.putByteArray("BlockLight", sectionData.blockLight.asByteArray());
+			if (section.blockLight != null) {
+				sectionNbt.putByteArray("BlockLight", section.blockLight.asByteArray());
 			}
 
-			if (sectionData.skyLight != null) {
-				nbtCompound2.putByteArray("SkyLight", sectionData.skyLight.asByteArray());
+			if (section.skyLight != null) {
+				sectionNbt.putByteArray("SkyLight", section.skyLight.asByteArray());
 			}
 
-			if (!nbtCompound2.isEmpty()) {
-				nbtCompound2.putByte("Y", (byte) sectionData.y);
-				nbtList.add(nbtCompound2);
-			}
-		}
-
-		nbtCompound.put("sections", nbtList);
-		if (this.lightCorrect) {
-			nbtCompound.putBoolean("isLightOn", true);
-		}
-
-		NbtList nbtList2 = new NbtList();
-		nbtList2.addAll(this.blockEntities);
-		nbtCompound.put("block_entities", nbtList2);
-		if (this.chunkStatus.getChunkType() == ChunkType.PROTOCHUNK) {
-			NbtList nbtList3 = new NbtList();
-			nbtList3.addAll(this.entities);
-			nbtCompound.put("entities", nbtList3);
-			if (this.carvingMask != null) {
-				nbtCompound.putLongArray("carving_mask", this.carvingMask);
+			if (!sectionNbt.isEmpty()) {
+				sectionNbt.putByte("Y", (byte) section.y);
+				sectionsNbt.add(sectionNbt);
 			}
 		}
 
-		serializeTicks(nbtCompound, this.packedTicks);
-		nbtCompound.put("PostProcessing", toNbt(this.postProcessingSections));
-		NbtCompound nbtCompound3 = new NbtCompound();
-		this.heightmaps.forEach((type, values) -> nbtCompound3.put(type.getId(), new NbtLongArray(values)));
-		nbtCompound.put("Heightmaps", nbtCompound3);
-		nbtCompound.put("structures", this.structureData);
-		return nbtCompound;
+		root.put("sections", sectionsNbt);
+
+		if (lightCorrect) {
+			root.putBoolean("isLightOn", true);
+		}
+
+		NbtList blockEntitiesNbt = new NbtList();
+		blockEntitiesNbt.addAll(blockEntities);
+		root.put("block_entities", blockEntitiesNbt);
+
+		if (chunkStatus.getChunkType() == ChunkType.PROTOCHUNK) {
+			NbtList entitiesNbt = new NbtList();
+			entitiesNbt.addAll(entities);
+			root.put("entities", entitiesNbt);
+
+			if (carvingMask != null) {
+				root.putLongArray("carving_mask", carvingMask);
+			}
+		}
+
+		serializeTicks(root, packedTicks);
+		root.put("PostProcessing", toNbt(postProcessingSections));
+		NbtCompound heightmapsNbt = new NbtCompound();
+		heightmaps.forEach((type, values) -> heightmapsNbt.put(type.getId(), new NbtLongArray(values)));
+		root.put("Heightmaps", heightmapsNbt);
+		root.put("structures", structureData);
+
+		return root;
 	}
 
 	private static void serializeTicks(NbtCompound nbt, Chunk.TickSchedulers schedulers) {
@@ -579,8 +580,9 @@ public record SerializedChunk(
 	}
 
 	public static ChunkStatus getChunkStatus(@Nullable NbtCompound nbt) {
-		return nbt != null ? nbt.<ChunkStatus>get("Status", ChunkStatus.CODEC).orElse(ChunkStatus.EMPTY)
-		                   : ChunkStatus.EMPTY;
+		return nbt != null
+				? nbt.<ChunkStatus>get("Status", ChunkStatus.CODEC).orElse(ChunkStatus.EMPTY)
+				: ChunkStatus.EMPTY;
 	}
 
 	private static WorldChunk.@Nullable EntityLoader getEntityLoadingCallback(
@@ -588,38 +590,38 @@ public record SerializedChunk(
 			List<NbtCompound> entities,
 			List<NbtCompound> blockEntities
 	) {
-		return entities.isEmpty() && blockEntities.isEmpty() ? null : chunk -> {
+		if (entities.isEmpty() && blockEntities.isEmpty()) {
+			return null;
+		}
+
+		return chunk -> {
 			if (!entities.isEmpty()) {
 				try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
 						chunk.getErrorReporterContext(),
 						LOGGER
-				)
-				) {
+				)) {
 					world.loadEntities(EntityType.streamFromData(
-							NbtReadView.createList(
-									logging,
-									world.getRegistryManager(),
-									entities
-							), world, SpawnReason.LOAD
+							NbtReadView.createList(logging, world.getRegistryManager(), entities),
+							world,
+							SpawnReason.LOAD
 					));
 				}
 			}
 
-			for (NbtCompound nbtCompound : blockEntities) {
-				boolean bl = nbtCompound.getBoolean("keepPacked", false);
-				if (bl) {
-					chunk.addPendingBlockEntityNbt(nbtCompound);
-				}
-				else {
-					BlockPos blockPos = BlockEntity.posFromNbt(chunk.getPos(), nbtCompound);
-					BlockEntity
-					blockEntity =
-							BlockEntity.createFromNbt(
-									blockPos,
-									chunk.getBlockState(blockPos),
-									nbtCompound,
-									world.getRegistryManager()
-							);
+			for (NbtCompound blockEntityNbt : blockEntities) {
+				boolean keepPacked = blockEntityNbt.getBoolean("keepPacked", false);
+
+				if (keepPacked) {
+					chunk.addPendingBlockEntityNbt(blockEntityNbt);
+				} else {
+					BlockPos blockPos = BlockEntity.posFromNbt(chunk.getPos(), blockEntityNbt);
+					BlockEntity blockEntity = BlockEntity.createFromNbt(
+							blockPos,
+							chunk.getBlockState(blockPos),
+							blockEntityNbt,
+							world.getRegistryManager()
+					);
+
 					if (blockEntity != null) {
 						chunk.setBlockEntity(blockEntity);
 					}
@@ -634,27 +636,28 @@ public record SerializedChunk(
 			Map<Structure, StructureStart> starts,
 			Map<Structure, LongSet> references
 	) {
-		NbtCompound nbtCompound = new NbtCompound();
-		NbtCompound nbtCompound2 = new NbtCompound();
+		NbtCompound root = new NbtCompound();
+		NbtCompound startsNbt = new NbtCompound();
 		Registry<Structure> registry = context.registryManager().getOrThrow(RegistryKeys.STRUCTURE);
 
 		for (Entry<Structure, StructureStart> entry : starts.entrySet()) {
-			Identifier identifier = registry.getId(entry.getKey());
-			nbtCompound2.put(identifier.toString(), entry.getValue().toNbt(context, pos));
+			Identifier id = registry.getId(entry.getKey());
+			startsNbt.put(id.toString(), entry.getValue().toNbt(context, pos));
 		}
 
-		nbtCompound.put("starts", nbtCompound2);
-		NbtCompound nbtCompound3 = new NbtCompound();
+		root.put("starts", startsNbt);
+		NbtCompound referencesNbt = new NbtCompound();
 
-		for (Entry<Structure, LongSet> entry2 : references.entrySet()) {
-			if (!entry2.getValue().isEmpty()) {
-				Identifier identifier2 = registry.getId(entry2.getKey());
-				nbtCompound3.putLongArray(identifier2.toString(), entry2.getValue().toLongArray());
+		for (Entry<Structure, LongSet> entry : references.entrySet()) {
+			if (!entry.getValue().isEmpty()) {
+				Identifier id = registry.getId(entry.getKey());
+				referencesNbt.putLongArray(id.toString(), entry.getValue().toLongArray());
 			}
 		}
 
-		nbtCompound.put("References", nbtCompound3);
-		return nbtCompound;
+		root.put("References", referencesNbt);
+
+		return root;
 	}
 
 	private static Map<Structure, StructureStart> readStructureStarts(
@@ -662,27 +665,31 @@ public record SerializedChunk(
 			NbtCompound nbt,
 			long worldSeed
 	) {
-		Map<Structure, StructureStart> map = Maps.newHashMap();
+		Map<Structure, StructureStart> result = Maps.newHashMap();
 		Registry<Structure> registry = context.registryManager().getOrThrow(RegistryKeys.STRUCTURE);
-		NbtCompound nbtCompound = nbt.getCompoundOrEmpty("starts");
+		NbtCompound startsNbt = nbt.getCompoundOrEmpty("starts");
 
-		for (String string : nbtCompound.getKeys()) {
-			Identifier identifier = Identifier.tryParse(string);
+		for (String key : startsNbt.getKeys()) {
+			Identifier identifier = Identifier.tryParse(key);
 			Structure structure = registry.get(identifier);
+
 			if (structure == null) {
 				LOGGER.error("Unknown structure start: {}", identifier);
+				continue;
 			}
-			else {
-				StructureStart
-						structureStart =
-						StructureStart.fromNbt(context, nbtCompound.getCompoundOrEmpty(string), worldSeed);
-				if (structureStart != null) {
-					map.put(structure, structureStart);
-				}
+
+			StructureStart structureStart = StructureStart.fromNbt(
+					context,
+					startsNbt.getCompoundOrEmpty(key),
+					worldSeed
+			);
+
+			if (structureStart != null) {
+				result.put(structure, structureStart);
 			}
 		}
 
-		return map;
+		return result;
 	}
 
 	private static Map<Structure, LongSet> readStructureReferences(
@@ -690,58 +697,70 @@ public record SerializedChunk(
 			ChunkPos pos,
 			NbtCompound nbt
 	) {
-		Map<Structure, LongSet> map = Maps.newHashMap();
+		Map<Structure, LongSet> result = Maps.newHashMap();
 		Registry<Structure> registry = registryManager.getOrThrow(RegistryKeys.STRUCTURE);
-		NbtCompound nbtCompound = nbt.getCompoundOrEmpty("References");
-		nbtCompound.forEach((id, chunkPos) -> {
+		NbtCompound referencesNbt = nbt.getCompoundOrEmpty("References");
+
+		referencesNbt.forEach((id, value) -> {
 			Identifier identifier = Identifier.tryParse(id);
 			Structure structure = registry.get(identifier);
+
 			if (structure == null) {
 				LOGGER.warn("Found reference to unknown structure '{}' in chunk {}, discarding", identifier, pos);
+				return;
 			}
-			else {
-				Optional<long[]> optional = chunkPos.asLongArray();
-				if (!optional.isEmpty()) {
-					map.put(
-							structure, new LongOpenHashSet(Arrays.stream(optional.get()).filter(packedPos -> {
-								ChunkPos chunkPos2x = new ChunkPos(packedPos);
-								if (chunkPos2x.getChebyshevDistance(pos) > 8) {
-									LOGGER.warn(
-											"Found invalid structure reference [ {} @ {} ] for chunk {}.",
-											new Object[]{identifier, chunkPos2x, pos}
-									);
-									return false;
-								}
-								else {
-									return true;
-								}
-							}).toArray())
-					);
-				}
+
+			Optional<long[]> packedPositions = value.asLongArray();
+
+			if (packedPositions.isEmpty()) {
+				return;
 			}
+
+			result.put(
+					structure,
+					new LongOpenHashSet(
+							Arrays.stream(packedPositions.get())
+									.filter(packedPos -> {
+										ChunkPos refPos = new ChunkPos(packedPos);
+
+										if (refPos.getChebyshevDistance(pos) > 8) {
+											LOGGER.warn(
+													"Found invalid structure reference [ {} @ {} ] for chunk {}.",
+													new Object[]{identifier, refPos, pos}
+											);
+											return false;
+										}
+
+										return true;
+									})
+									.toArray()
+					)
+			);
 		});
-		return map;
+
+		return result;
 	}
 
 	private static NbtList toNbt(@Nullable ShortList[] lists) {
-		NbtList nbtList = new NbtList();
+		NbtList result = new NbtList();
 
 		for (ShortList shortList : lists) {
-			NbtList nbtList2 = new NbtList();
+			NbtList sectionNbt = new NbtList();
+
 			if (shortList != null) {
 				for (int i = 0; i < shortList.size(); i++) {
-					nbtList2.add(NbtShort.of(shortList.getShort(i)));
+					sectionNbt.add(NbtShort.of(shortList.getShort(i)));
 				}
 			}
 
-			nbtList.add(nbtList2);
+			result.add(sectionNbt);
 		}
 
-		return nbtList;
+		return result;
 	}
 
 	/**
-	 * {@code ChunkLoadingException}.
+	 * Исключение, выбрасываемое при критической ошибке загрузки чанка из NBT.
 	 */
 	public static class ChunkLoadingException extends NbtException {
 
@@ -751,7 +770,8 @@ public record SerializedChunk(
 	}
 
 	/**
-	 * {@code SectionData}.
+	 * Данные одной вертикальной секции чанка (16×16×16 блоков).
+	 * Содержит секцию блоков и данные освещения для записи/чтения с диска.
 	 */
 	public record SectionData(
 			int y,

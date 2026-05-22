@@ -13,11 +13,13 @@ import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
 /**
- * {@code ThrowablePotionItem}.
+ * Базовый класс для бросаемых зелий. Реализует логику броска через
+ * {@link ProjectileEntity#spawnWithVelocity} с углом -20° и мощностью {@link #POWER}.
+ * Подклассы обязаны реализовать фабричные методы {@link #createEntity}.
  */
 public abstract class ThrowablePotionItem extends PotionItem implements ProjectileItem {
 
-	public static float POWER = 0.5F;
+	public static final float POWER = 0.5F;
 
 	public ThrowablePotionItem(Item.Settings settings) {
 		super(settings);
@@ -25,48 +27,48 @@ public abstract class ThrowablePotionItem extends PotionItem implements Projecti
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		if (world instanceof ServerWorld serverWorld) {
-			ProjectileEntity.spawnWithVelocity(this::createEntity, serverWorld, itemStack, user, -20.0F, POWER, 1.0F);
+			ProjectileEntity.spawnWithVelocity(this::createEntity, serverWorld, stack, user, -20.0F, POWER, 1.0F);
 		}
 
 		user.incrementStat(Stats.USED.getOrCreateStat(this));
-		itemStack.decrementUnlessCreative(1, user);
+		stack.decrementUnlessCreative(1, user);
+
 		return ActionResult.SUCCESS;
 	}
 
 	/**
-	 * Создаёт entity.
+	 * Создаёт сущность зелья для броска игроком или существом.
 	 *
-	 * @param world world
-	 * @param user user
-	 * @param stack stack
-	 *
-	 * @return PotionEntity — результат операции
+	 * @param world серверный мир
+	 * @param user бросающее существо
+	 * @param stack стек зелья
+	 * @return созданная сущность зелья
 	 */
 	protected abstract PotionEntity createEntity(ServerWorld world, LivingEntity user, ItemStack stack);
 
 	/**
-	 * Создаёт entity.
+	 * Создаёт сущность зелья для выстрела из диспенсера.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param stack stack
-	 *
-	 * @return PotionEntity — результат операции
+	 * @param world мир
+	 * @param pos позиция спавна
+	 * @param stack стек зелья
+	 * @return созданная сущность зелья
 	 */
 	protected abstract PotionEntity createEntity(World world, Position pos, ItemStack stack);
 
 	@Override
 	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-		return this.createEntity(world, pos, stack);
+		return createEntity(world, pos, stack);
 	}
 
 	@Override
 	public ProjectileItem.Settings getProjectileSettings() {
 		return ProjectileItem.Settings.builder()
-		                              .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
-		                              .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
-		                              .build();
+			.uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
+			.power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
+			.build();
 	}
 }

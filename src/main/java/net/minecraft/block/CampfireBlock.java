@@ -53,17 +53,18 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CampfireBlock}.
+ * Блок костра. Поддерживает приготовление пищи, сигнальный дым (при размещении на сене),
+ * заливание водой и поджигание горящими снарядами.
  */
 public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 
 	public static final MapCodec<CampfireBlock> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Codec.BOOL.fieldOf("spawn_particles").forGetter(block -> block.emitsParticles),
-					                    Codec.intRange(0, 1000).fieldOf("fire_damage").forGetter(block -> block.fireDamage),
-					                    createSettingsCodec()
-			                    )
-			                    .apply(instance, CampfireBlock::new)
+					Codec.BOOL.fieldOf("spawn_particles").forGetter(block -> block.emitsParticles),
+					Codec.intRange(0, 1000).fieldOf("fire_damage").forGetter(block -> block.fireDamage),
+					createSettingsCodec()
+			)
+			.apply(instance, CampfireBlock::new)
 	);
 	public static final BooleanProperty LIT = Properties.LIT;
 	public static final BooleanProperty SIGNAL_FIRE = Properties.SIGNAL_FIRE;
@@ -84,8 +85,7 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 		super(settings);
 		this.emitsParticles = emitsParticles;
 		this.fireDamage = fireDamage;
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
+		setDefaultState(stateManager.getDefaultState()
 				.with(LIT, true)
 				.with(SIGNAL_FIRE, false)
 				.with(WATERLOGGED, false)
@@ -128,25 +128,25 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 			BlockPos pos,
 			Entity entity,
 			EntityCollisionHandler handler,
-			boolean bl
+			boolean firstCollision
 	) {
 		if (state.get(LIT) && entity instanceof LivingEntity) {
-			entity.serverDamage(world.getDamageSources().campfire(), this.fireDamage);
+			entity.serverDamage(world.getDamageSources().campfire(), fireDamage);
 		}
 
-		super.onEntityCollision(state, world, pos, entity, handler, bl);
+		super.onEntityCollision(state, world, pos, entity, handler, firstCollision);
 	}
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		WorldAccess worldAccess = ctx.getWorld();
-		BlockPos blockPos = ctx.getBlockPos();
-		boolean bl = worldAccess.getFluidState(blockPos).getFluid() == Fluids.WATER;
-		return this.getDefaultState()
-		           .with(WATERLOGGED, bl)
-		           .with(SIGNAL_FIRE, this.isSignalFireBaseBlock(worldAccess.getBlockState(blockPos.down())))
-		           .with(LIT, !bl)
-		           .with(FACING, ctx.getHorizontalPlayerFacing());
+		WorldAccess world = ctx.getWorld();
+		BlockPos pos = ctx.getBlockPos();
+		boolean isWaterlogged = world.getFluidState(pos).getFluid() == Fluids.WATER;
+		return getDefaultState()
+				.with(WATERLOGGED, isWaterlogged)
+				.with(SIGNAL_FIRE, isSignalFireBaseBlock(world.getBlockState(pos.down())))
+				.with(LIT, !isWaterlogged)
+				.with(FACING, ctx.getHorizontalPlayerFacing());
 	}
 
 	@Override
@@ -189,47 +189,45 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (state.get(LIT)) {
-			if (random.nextInt(10) == 0) {
-				world.playSoundClient(
+		if (state.get(LIT) == false) {
+			return;
+		}
+
+		if (random.nextInt(10) == 0) {
+			world.playSoundClient(
+					pos.getX() + 0.5,
+					pos.getY() + 0.5,
+					pos.getZ() + 0.5,
+					SoundEvents.BLOCK_CAMPFIRE_CRACKLE,
+					SoundCategory.BLOCKS,
+					0.5F + random.nextFloat(),
+					random.nextFloat() * 0.7F + 0.6F,
+					false
+			);
+		}
+
+		if (emitsParticles && random.nextInt(5) == 0) {
+			int lavaParticleCount = random.nextInt(1) + 1;
+			for (int particle = 0; particle < lavaParticleCount; particle++) {
+				world.addParticleClient(
+						ParticleTypes.LAVA,
 						pos.getX() + 0.5,
 						pos.getY() + 0.5,
 						pos.getZ() + 0.5,
-						SoundEvents.BLOCK_CAMPFIRE_CRACKLE,
-						SoundCategory.BLOCKS,
-						0.5F + random.nextFloat(),
-						random.nextFloat() * 0.7F + 0.6F,
-						false
+						random.nextFloat() / 2.0F,
+						5.0E-5,
+						random.nextFloat() / 2.0F
 				);
-			}
-
-			if (this.emitsParticles && random.nextInt(5) == 0) {
-				for (int i = 0; i < random.nextInt(1) + 1; i++) {
-					world.addParticleClient(
-							ParticleTypes.LAVA,
-							pos.getX() + 0.5,
-							pos.getY() + 0.5,
-							pos.getZ() + 0.5,
-							random.nextFloat() / 2.0F,
-							5.0E-5,
-							random.nextFloat() / 2.0F
-					);
-				}
 			}
 		}
 	}
 
 	/**
-	 * Extinguish.
-	 *
-	 * @param entity entity
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
+	 * Гасит костёр: на клиенте спавнит 20 частиц дыма, на сервере — испускает игровое событие.
 	 */
 	public static void extinguish(@Nullable Entity entity, WorldAccess world, BlockPos pos, BlockState state) {
 		if (world.isClient()) {
-			for (int i = 0; i < 20; i++) {
+			for (int smoke = 0; smoke < 20; smoke++) {
 				spawnSmokeParticle((World) world, pos, state.get(SIGNAL_FIRE), true);
 			}
 		}
@@ -239,59 +237,45 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 
 	@Override
 	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-		if (!state.get(Properties.WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
-			boolean bl = state.get(LIT);
-			if (bl) {
-				if (!world.isClient()) {
-					world.playSound(
-							null,
-							pos,
-							SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE,
-							SoundCategory.BLOCKS,
-							1.0F,
-							1.0F
-					);
-				}
-
-				extinguish(null, world, pos, state);
-			}
-
-			world.setBlockState(pos, state.with(WATERLOGGED, true).with(LIT, false), 3);
-			world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
-			return true;
-		}
-		else {
+		if (state.get(Properties.WATERLOGGED) || fluidState.getFluid() != Fluids.WATER) {
 			return false;
 		}
+
+		if (state.get(LIT)) {
+			if (world.isClient() == false) {
+				world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			}
+
+			extinguish(null, world, pos, state);
+		}
+
+		world.setBlockState(pos, state.with(WATERLOGGED, true).with(LIT, false), 3);
+		world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
+		return true;
 	}
 
 	@Override
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-		BlockPos blockPos = hit.getBlockPos();
+		BlockPos hitPos = hit.getBlockPos();
 		if (world instanceof ServerWorld serverWorld
 				&& projectile.isOnFire()
-				&& projectile.canModifyAt(serverWorld, blockPos)
-				&& !state.get(LIT)
-				&& !state.get(WATERLOGGED)) {
-			world.setBlockState(blockPos, state.with(Properties.LIT, true), 11);
+				&& projectile.canModifyAt(serverWorld, hitPos)
+				&& state.get(LIT) == false
+				&& state.get(WATERLOGGED) == false
+		) {
+			world.setBlockState(hitPos, state.with(Properties.LIT, true), 11);
 		}
 	}
 
 	/**
-	 * Создаёт (спавнит) smoke particle.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param isSignal is signal
-	 * @param lotsOfSmoke lots of smoke
+	 * Спавнит частицы дыма над костром. При {@code lotsOfSmoke = true} добавляет дополнительную
+	 * частицу обычного дыма — используется при тушении.
 	 */
 	public static void spawnSmokeParticle(World world, BlockPos pos, boolean isSignal, boolean lotsOfSmoke) {
 		Random random = world.getRandom();
-		SimpleParticleType
-				simpleParticleType =
-				isSignal ? ParticleTypes.CAMPFIRE_SIGNAL_SMOKE : ParticleTypes.CAMPFIRE_COSY_SMOKE;
+		SimpleParticleType smokeType = isSignal ? ParticleTypes.CAMPFIRE_SIGNAL_SMOKE : ParticleTypes.CAMPFIRE_COSY_SMOKE;
 		world.addImportantParticleClient(
-				simpleParticleType,
+				smokeType,
 				true,
 				pos.getX() + 0.5 + random.nextDouble() / 3.0 * (random.nextBoolean() ? 1 : -1),
 				pos.getY() + random.nextDouble() + random.nextDouble(),
@@ -300,6 +284,7 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 				0.07,
 				0.0
 		);
+
 		if (lotsOfSmoke) {
 			world.addParticleClient(
 					ParticleTypes.SMOKE,
@@ -313,24 +298,27 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Проверяет, есть ли горящий костёр в пределах {@link #MAX_CAMPFIRE_SEARCH_DEPTH} блоков ниже.
+	 * Учитывает блоки с коллизией, совпадающей с формой дымохода {@link #SMOKEY_SHAPE}.
+	 */
 	public static boolean isLitCampfireInRange(World world, BlockPos pos) {
-		for (int i = 1; i <= 5; i++) {
-			BlockPos blockPos = pos.down(i);
-			BlockState blockState = world.getBlockState(blockPos);
-			if (isLitCampfire(blockState)) {
+		for (int depth = 1; depth <= MAX_CAMPFIRE_SEARCH_DEPTH; depth++) {
+			BlockPos checkPos = pos.down(depth);
+			BlockState checkState = world.getBlockState(checkPos);
+
+			if (isLitCampfire(checkState)) {
 				return true;
 			}
 
-			boolean
-					bl =
-					VoxelShapes.matchesAnywhere(
-							SMOKEY_SHAPE,
-							blockState.getCollisionShape(world, pos, ShapeContext.absent()),
-							BooleanBiFunction.AND
-					);
-			if (bl) {
-				BlockState blockState2 = world.getBlockState(blockPos.down());
-				return isLitCampfire(blockState2);
+			boolean blockedByShape = VoxelShapes.matchesAnywhere(
+					SMOKEY_SHAPE,
+					checkState.getCollisionShape(world, pos, ShapeContext.absent()),
+					BooleanBiFunction.AND
+			);
+
+			if (blockedByShape) {
+				return isLitCampfire(world.getBlockState(checkPos.down()));
 			}
 		}
 
@@ -374,31 +362,27 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 	) {
 		if (world instanceof ServerWorld serverWorld) {
 			if (state.get(LIT)) {
-				ServerRecipeManager.MatchGetter<SingleStackRecipeInput, CampfireCookingRecipe>
-						matchGetter =
-						ServerRecipeManager.createCachedMatchGetter(
-								RecipeType.CAMPFIRE_COOKING
-						);
+				ServerRecipeManager.MatchGetter<SingleStackRecipeInput, CampfireCookingRecipe> matchGetter =
+						ServerRecipeManager.createCachedMatchGetter(RecipeType.CAMPFIRE_COOKING);
 				return validateTicker(
 						type,
 						BlockEntityType.CAMPFIRE,
-						(worldx, pos, statex, blockEntity) -> CampfireBlockEntity.litServerTick(
+						(tickWorld, pos, tickState, blockEntity) -> CampfireBlockEntity.litServerTick(
 								serverWorld,
 								pos,
-								statex,
+								tickState,
 								blockEntity,
 								matchGetter
 						)
 				);
 			}
-			else {
-				return validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::unlitServerTick);
-			}
+
+			return validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::unlitServerTick);
 		}
-		else {
-			return state.get(LIT) ? validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::clientTick)
-			                      : null;
-		}
+
+		return state.get(LIT)
+				? validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::clientTick)
+				: null;
 	}
 
 	@Override
@@ -407,14 +391,12 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 	}
 
 	/**
-	 * Проверяет возможность be lit.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Возвращает {@code true}, если костёр можно поджечь: он принадлежит тегу {@code CAMPFIRES},
+	 * содержит свойства {@code WATERLOGGED} и {@code LIT}, и при этом не залит водой и не горит.
 	 */
 	public static boolean canBeLit(BlockState state) {
-		return state.isIn(BlockTags.CAMPFIRES, statex -> statex.contains(WATERLOGGED) && statex.contains(LIT))
-				&& !state.get(WATERLOGGED) && !state.get(LIT);
+		return state.isIn(BlockTags.CAMPFIRES, s -> s.contains(WATERLOGGED) && s.contains(LIT))
+				&& state.get(WATERLOGGED) == false
+				&& state.get(LIT) == false;
 	}
 }

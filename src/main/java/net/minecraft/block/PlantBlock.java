@@ -11,7 +11,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code PlantBlock}.
+ * Базовый класс для всех растений. Удаляется при обновлении соседей, если
+ * не может стоять на текущем блоке снизу. Прозрачен для жидкостей.
  */
 public abstract class PlantBlock extends Block {
 

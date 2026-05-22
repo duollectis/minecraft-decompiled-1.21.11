@@ -17,43 +17,45 @@ import net.minecraft.scoreboard.Scoreboard;
 import java.util.Set;
 
 /**
- * {@code EntityConversionType}.
+ * Стратегия конверсии сущности: определяет, как именно старая сущность
+ * заменяется новой — полная замена с переносом состояния ({@link #SINGLE})
+ * или разделение при смерти без переноса позиции ({@link #SPLIT_ON_DEATH}).
  */
 public enum EntityConversionType {
 	SINGLE(true) {
 		@Override
 		public void setUpNewEntity(MobEntity oldEntity, MobEntity newEntity, EntityConversionContext context) {
-			Entity entity = oldEntity.getFirstPassenger();
+			Entity firstPassenger = oldEntity.getFirstPassenger();
 			newEntity.copyPositionAndRotation(oldEntity);
 			newEntity.setVelocity(oldEntity.getVelocity());
-			if (entity != null) {
-				entity.stopRiding();
-				entity.ridingCooldown = 0;
 
-				for (Entity entity2 : newEntity.getPassengerList()) {
-					entity2.stopRiding();
-					entity2.remove(Entity.RemovalReason.DISCARDED);
+			if (firstPassenger != null) {
+				firstPassenger.stopRiding();
+				firstPassenger.ridingCooldown = 0;
+
+				for (Entity passenger : newEntity.getPassengerList()) {
+					passenger.stopRiding();
+					passenger.remove(Entity.RemovalReason.DISCARDED);
 				}
 
-				entity.startRiding(newEntity);
+				firstPassenger.startRiding(newEntity);
 			}
 
-			Entity entity3 = oldEntity.getVehicle();
-			if (entity3 != null) {
+			Entity vehicle = oldEntity.getVehicle();
+			if (vehicle != null) {
 				oldEntity.stopRiding();
-				newEntity.startRiding(entity3, false, false);
+				newEntity.startRiding(vehicle, false, false);
 			}
 
 			if (context.keepEquipment()) {
-				for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
-					ItemStack itemStack = oldEntity.getEquippedStack(equipmentSlot);
-					if (!itemStack.isEmpty()) {
-						newEntity.equipStack(equipmentSlot, itemStack.copyAndEmpty());
-						newEntity.setEquipmentDropChance(
-								equipmentSlot,
-								oldEntity.getEquipmentDropChances().get(equipmentSlot)
-						);
+				for (EquipmentSlot slot : EquipmentSlot.VALUES) {
+					ItemStack stack = oldEntity.getEquippedStack(slot);
+					if (stack.isEmpty()) {
+						continue;
 					}
+
+					newEntity.equipStack(slot, stack.copyAndEmpty());
+					newEntity.setEquipmentDropChance(slot, oldEntity.getEquipmentDropChances().get(slot));
 				}
 			}
 
@@ -64,73 +66,83 @@ public enum EntityConversionType {
 			newEntity.bodyYaw = oldEntity.bodyYaw;
 			newEntity.setOnGround(oldEntity.isOnGround());
 			oldEntity.getSleepingPosition().ifPresent(newEntity::setSleepingPosition);
-			Entity entity2 = oldEntity.getLeashHolder();
-			if (entity2 != null) {
-				newEntity.attachLeash(entity2, true);
+
+			Entity leashHolder = oldEntity.getLeashHolder();
+			if (leashHolder != null) {
+				newEntity.attachLeash(leashHolder, true);
 			}
 
-			this.copyData(oldEntity, newEntity, context);
+			copyData(oldEntity, newEntity, context);
 		}
 	},
 	SPLIT_ON_DEATH(false) {
 		@Override
 		public void setUpNewEntity(MobEntity oldEntity, MobEntity newEntity, EntityConversionContext context) {
-			Entity entity = oldEntity.getFirstPassenger();
-			if (entity != null) {
-				entity.stopRiding();
+			Entity firstPassenger = oldEntity.getFirstPassenger();
+			if (firstPassenger != null) {
+				firstPassenger.stopRiding();
 			}
 
-			Entity entity2 = oldEntity.getLeashHolder();
-			if (entity2 != null) {
+			Entity leashHolder = oldEntity.getLeashHolder();
+			if (leashHolder != null) {
 				oldEntity.detachLeash();
 			}
 
-			this.copyData(oldEntity, newEntity, context);
+			copyData(oldEntity, newEntity, context);
 		}
 	};
 
-	private static final Set<ComponentType<?>>
-			CUSTOM_COMPONENTS =
-			Set.of(DataComponentTypes.CUSTOM_NAME, DataComponentTypes.CUSTOM_DATA);
+	private static final Set<ComponentType<?>> CUSTOM_COMPONENTS = Set.of(
+		DataComponentTypes.CUSTOM_NAME,
+		DataComponentTypes.CUSTOM_DATA
+	);
+
 	private final boolean discardOldEntity;
 
-	EntityConversionType(final boolean discardOldEntity) {
+	EntityConversionType(boolean discardOldEntity) {
 		this.discardOldEntity = discardOldEntity;
 	}
 
-	/**
-	 * Определяет, следует ли discard old entity.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldDiscardOldEntity() {
-		return this.discardOldEntity;
+		return discardOldEntity;
 	}
 
 	public abstract void setUpNewEntity(MobEntity oldEntity, MobEntity newEntity, EntityConversionContext context);
 
+	/**
+	 * Копирует общие данные (эффекты, возраст, мозг, флаги, команду скорборда)
+	 * из старой сущности в новую. Вызывается обоими вариантами конверсии.
+	 *
+	 * @param oldEntity исходная сущность
+	 * @param newEntity целевая сущность
+	 * @param context контекст конверсии с параметрами переноса
+	 */
 	void copyData(MobEntity oldEntity, MobEntity newEntity, EntityConversionContext context) {
 		newEntity.setAbsorptionAmount(oldEntity.getAbsorptionAmount());
 
-		for (StatusEffectInstance statusEffectInstance : oldEntity.getStatusEffects()) {
-			newEntity.addStatusEffect(new StatusEffectInstance(statusEffectInstance));
+		for (StatusEffectInstance effect : oldEntity.getStatusEffects()) {
+			newEntity.addStatusEffect(new StatusEffectInstance(effect));
 		}
 
 		if (oldEntity.isBaby()) {
 			newEntity.setBaby(true);
 		}
 
-		if (oldEntity instanceof PassiveEntity passiveEntity && newEntity instanceof PassiveEntity passiveEntity2) {
-			passiveEntity2.setBreedingAge(passiveEntity.getBreedingAge());
-			passiveEntity2.forcedAge = passiveEntity.forcedAge;
-			passiveEntity2.happyTicksRemaining = passiveEntity.happyTicksRemaining;
+		if (oldEntity instanceof PassiveEntity oldPassive && newEntity instanceof PassiveEntity newPassive) {
+			newPassive.setBreedingAge(oldPassive.getBreedingAge());
+			newPassive.forcedAge = oldPassive.forcedAge;
+			newPassive.happyTicksRemaining = oldPassive.happyTicksRemaining;
 		}
 
-		Brain<?> brain = oldEntity.getBrain();
-		Brain<?> brain2 = newEntity.getBrain();
-		if (brain.isMemoryInState(MemoryModuleType.ANGRY_AT, MemoryModuleState.REGISTERED) && brain.hasMemoryModule(
-				MemoryModuleType.ANGRY_AT)) {
-			brain2.remember(MemoryModuleType.ANGRY_AT, brain.getOptionalRegisteredMemory(MemoryModuleType.ANGRY_AT));
+		Brain<?> oldBrain = oldEntity.getBrain();
+		Brain<?> newBrain = newEntity.getBrain();
+		if (oldBrain.isMemoryInState(MemoryModuleType.ANGRY_AT, MemoryModuleState.REGISTERED)
+			&& oldBrain.hasMemoryModule(MemoryModuleType.ANGRY_AT)
+		) {
+			newBrain.remember(
+				MemoryModuleType.ANGRY_AT,
+				oldBrain.getOptionalRegisteredMemory(MemoryModuleType.ANGRY_AT)
+			);
 		}
 
 		if (context.preserveCanPickUpLoot()) {
@@ -158,21 +170,24 @@ public enum EntityConversionType {
 		if (context.team() != null) {
 			Scoreboard scoreboard = newEntity.getEntityWorld().getScoreboard();
 			scoreboard.addScoreHolderToTeam(newEntity.getUuidAsString(), context.team());
+
 			if (oldEntity.getScoreboardTeam() != null && oldEntity.getScoreboardTeam() == context.team()) {
 				scoreboard.removeScoreHolderFromTeam(oldEntity.getUuidAsString(), oldEntity.getScoreboardTeam());
 			}
 		}
 
-		if (oldEntity instanceof ZombieEntity zombieEntity && zombieEntity.canBreakDoors()
-				&& newEntity instanceof ZombieEntity zombieEntity2) {
-			zombieEntity2.setCanBreakDoors(true);
+		if (oldEntity instanceof ZombieEntity oldZombie
+			&& oldZombie.canBreakDoors()
+			&& newEntity instanceof ZombieEntity newZombie
+		) {
+			newZombie.setCanBreakDoors(true);
 		}
 	}
 
 	private static <T> void copyComponent(MobEntity oldEntity, MobEntity newEntity, ComponentType<T> type) {
-		T object = oldEntity.get(type);
-		if (object != null) {
-			newEntity.setComponent(type, object);
+		T value = oldEntity.get(type);
+		if (value != null) {
+			newEntity.setComponent(type, value);
 		}
 	}
 }

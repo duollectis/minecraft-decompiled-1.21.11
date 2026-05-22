@@ -11,7 +11,7 @@ import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
- * {@code ThrottledChunkTaskScheduler}.
+ * Класс Throttled Chunk Task Scheduler.
  */
 public class ThrottledChunkTaskScheduler extends ChunkTaskScheduler {
 

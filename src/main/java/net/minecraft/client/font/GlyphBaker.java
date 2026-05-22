@@ -9,10 +9,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphBaker}.
+ * Управляет набором атласов текстур для одного шрифта. При нехватке места
+ * в существующих атласах автоматически создаёт новый и регистрирует его в {@link TextureManager}.
  */
+@Environment(EnvType.CLIENT)
 public class GlyphBaker implements AutoCloseable {
 
 	private final TextureManager textureManager;
@@ -24,52 +25,49 @@ public class GlyphBaker implements AutoCloseable {
 		this.fontId = fontId;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		int i = this.glyphAtlases.size();
-		this.glyphAtlases.clear();
+		int atlasCount = glyphAtlases.size();
+		glyphAtlases.clear();
 
-		for (int j = 0; j < i; j++) {
-			this.textureManager.destroyTexture(this.getAtlasId(j));
+		for (int index = 0; index < atlasCount; index++) {
+			textureManager.destroyTexture(getAtlasId(index));
 		}
 	}
 
 	@Override
 	public void close() {
-		this.clear();
+		clear();
 	}
 
 	/**
-	 * Bake.
+	 * Запекает глиф в первый подходящий атлас. Если ни один атлас не принял глиф,
+	 * создаёт новый атлас нужного цветового формата и повторяет попытку.
 	 *
-	 * @param metrics metrics
-	 * @param glyph glyph
-	 *
-	 * @return @Nullable BakedGlyphImpl — результат операции
+	 * @param metrics метрики глифа
+	 * @param glyph загружаемый глиф с пиксельными данными
+	 * @return запечённый глиф, или {@code null} если глиф не поместился даже в новый атлас
 	 */
 	public @Nullable BakedGlyphImpl bake(GlyphMetrics metrics, UploadableGlyph glyph) {
-		for (GlyphAtlasTexture glyphAtlasTexture : this.glyphAtlases) {
-			BakedGlyphImpl bakedGlyphImpl = glyphAtlasTexture.bake(metrics, glyph);
-			if (bakedGlyphImpl != null) {
-				return bakedGlyphImpl;
+		for (GlyphAtlasTexture atlas : glyphAtlases) {
+			BakedGlyphImpl baked = atlas.bake(metrics, glyph);
+			if (baked != null) {
+				return baked;
 			}
 		}
 
-		int i = this.glyphAtlases.size();
-		Identifier identifier = this.getAtlasId(i);
-		boolean bl = glyph.hasColor();
-		TextRenderLayerSet
-				textRenderLayerSet =
-				bl ? TextRenderLayerSet.of(identifier) : TextRenderLayerSet.ofIntensity(identifier);
-		GlyphAtlasTexture glyphAtlasTexture2 = new GlyphAtlasTexture(identifier::toString, textRenderLayerSet, bl);
-		this.glyphAtlases.add(glyphAtlasTexture2);
-		this.textureManager.registerTexture(identifier, glyphAtlasTexture2);
-		return glyphAtlasTexture2.bake(metrics, glyph);
+		int newIndex = glyphAtlases.size();
+		Identifier atlasId = getAtlasId(newIndex);
+		boolean colored = glyph.hasColor();
+		TextRenderLayerSet layers = colored
+				? TextRenderLayerSet.of(atlasId)
+				: TextRenderLayerSet.ofIntensity(atlasId);
+		GlyphAtlasTexture newAtlas = new GlyphAtlasTexture(atlasId::toString, layers, colored);
+		glyphAtlases.add(newAtlas);
+		textureManager.registerTexture(atlasId, newAtlas);
+		return newAtlas.bake(metrics, glyph);
 	}
 
 	private Identifier getAtlasId(int atlasIndex) {
-		return this.fontId.withSuffixedPath("/" + atlasIndex);
+		return fontId.withSuffixedPath("/" + atlasIndex);
 	}
 }

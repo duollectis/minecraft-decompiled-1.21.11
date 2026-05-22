@@ -11,16 +11,15 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.List;
 import java.util.Set;
 
-/**
- * {@code LimitCountLootFunction}.
- */
+/** Функция лута, ограничивающая количество предметов в стаке заданным диапазоном. */
 public class LimitCountLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<LimitCountLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(BoundedIntUnaryOperator.CODEC.fieldOf("limit").forGetter(function -> function.limit))
-					.apply(instance, LimitCountLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(BoundedIntUnaryOperator.CODEC.fieldOf("limit").forGetter(function -> function.limit))
+			.apply(instance, LimitCountLootFunction::new)
 	);
+
 	private final BoundedIntUnaryOperator limit;
 
 	private LimitCountLootFunction(List<LootCondition> conditions, BoundedIntUnaryOperator limit) {
@@ -35,13 +34,13 @@ public class LimitCountLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.limit.getRequiredParameters();
+		return limit.getRequiredParameters();
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		int i = this.limit.apply(context, stack.getCount());
-		stack.setCount(i);
+		int newCount = limit.apply(context, stack.getCount());
+		stack.setCount(newCount);
 		return stack;
 	}
 

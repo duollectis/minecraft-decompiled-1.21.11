@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4302}.
+ * Схема DataFixer версии 4302, добавляющая блок-сущности для тестовых блоков:
+ * {@code minecraft:test_block} (простой) и {@code minecraft:test_instance_block}
+ * с полями {@code data.error_message} и {@code errors[].text} типа {@code TEXT_COMPONENT}.
  */
 public class Schema4302 extends IdentifierNormalizingSchema {
 
-	public Schema4302(int i, Schema schema) {
-		super(i, schema);
+	public Schema4302(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

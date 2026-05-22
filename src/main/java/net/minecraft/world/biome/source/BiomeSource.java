@@ -27,185 +27,197 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code BiomeSource}.
+ * Абстрактный источник биомов, определяющий, какой биом находится в заданных координатах.
+ * Кэширует множество всех биомов через {@link Suppliers#memoize}.
  */
 public abstract class BiomeSource implements BiomeSupplier {
 
-	public static final Codec<BiomeSource>
-			CODEC =
-			Registries.BIOME_SOURCE.getCodec().dispatchStable(BiomeSource::getCodec, Function.identity());
-	private final Supplier<Set<RegistryEntry<Biome>>>
-			biomes =
-			Suppliers.memoize(() -> this.biomeStream().distinct().collect(ImmutableSet.toImmutableSet()));
+	public static final Codec<BiomeSource> CODEC =
+		Registries.BIOME_SOURCE.getCodec().dispatchStable(BiomeSource::getCodec, Function.identity());
+
+	private final Supplier<Set<RegistryEntry<Biome>>> biomes =
+		Suppliers.memoize(() -> biomeStream().distinct().collect(ImmutableSet.toImmutableSet()));
 
 	protected BiomeSource() {
 	}
 
 	protected abstract MapCodec<? extends BiomeSource> getCodec();
 
-	/**
-	 * Biome stream.
-	 *
-	 * @return Stream> — результат операции
-	 */
 	protected abstract Stream<RegistryEntry<Biome>> biomeStream();
 
 	public Set<RegistryEntry<Biome>> getBiomes() {
-		return this.biomes.get();
+		return biomes.get();
 	}
 
+	/**
+	 * Возвращает множество уникальных биомов в кубической области вокруг заданной точки.
+	 * Область задаётся в блочных координатах, но сэмплирование происходит в биомных.
+	 */
 	public Set<RegistryEntry<Biome>> getBiomesInArea(
-			int x,
-			int y,
-			int z,
-			int radius,
-			MultiNoiseUtil.MultiNoiseSampler sampler
+		int x,
+		int y,
+		int z,
+		int radius,
+		MultiNoiseUtil.MultiNoiseSampler sampler
 	) {
-		int i = BiomeCoords.fromBlock(x - radius);
-		int j = BiomeCoords.fromBlock(y - radius);
-		int k = BiomeCoords.fromBlock(z - radius);
-		int l = BiomeCoords.fromBlock(x + radius);
-		int m = BiomeCoords.fromBlock(y + radius);
-		int n = BiomeCoords.fromBlock(z + radius);
-		int o = l - i + 1;
-		int p = m - j + 1;
-		int q = n - k + 1;
-		Set<RegistryEntry<Biome>> set = Sets.newHashSet();
+		int minBiomeX = BiomeCoords.fromBlock(x - radius);
+		int minBiomeY = BiomeCoords.fromBlock(y - radius);
+		int minBiomeZ = BiomeCoords.fromBlock(z - radius);
+		int maxBiomeX = BiomeCoords.fromBlock(x + radius);
+		int maxBiomeY = BiomeCoords.fromBlock(y + radius);
+		int maxBiomeZ = BiomeCoords.fromBlock(z + radius);
+		int rangeX = maxBiomeX - minBiomeX + 1;
+		int rangeY = maxBiomeY - minBiomeY + 1;
+		int rangeZ = maxBiomeZ - minBiomeZ + 1;
+		Set<RegistryEntry<Biome>> result = Sets.newHashSet();
 
-		for (int r = 0; r < q; r++) {
-			for (int s = 0; s < o; s++) {
-				for (int t = 0; t < p; t++) {
-					int u = i + s;
-					int v = j + t;
-					int w = k + r;
-					set.add(this.getBiome(u, v, w, sampler));
+		for (int dz = 0; dz < rangeZ; dz++) {
+			for (int dx = 0; dx < rangeX; dx++) {
+				for (int dy = 0; dy < rangeY; dy++) {
+					result.add(getBiome(minBiomeX + dx, minBiomeY + dy, minBiomeZ + dz, sampler));
 				}
 			}
 		}
 
-		return set;
+		return result;
 	}
 
 	public @Nullable Pair<BlockPos, RegistryEntry<Biome>> locateBiome(
-			int x,
-			int y,
-			int z,
-			int radius,
-			Predicate<RegistryEntry<Biome>> predicate,
-			Random random,
-			MultiNoiseUtil.MultiNoiseSampler noiseSampler
+		int x,
+		int y,
+		int z,
+		int radius,
+		Predicate<RegistryEntry<Biome>> predicate,
+		Random random,
+		MultiNoiseUtil.MultiNoiseSampler noiseSampler
 	) {
-		return this.locateBiome(x, y, z, radius, 1, predicate, random, false, noiseSampler);
+		return locateBiome(x, y, z, radius, 1, predicate, random, false, noiseSampler);
 	}
 
+	/**
+	 * Ищет ближайшую позицию с биомом, удовлетворяющим предикату, в вертикальном диапазоне мира.
+	 * Перебирает позиции по спирали с заданным горизонтальным шагом и всеми допустимыми Y-уровнями.
+	 */
 	public @Nullable Pair<BlockPos, RegistryEntry<Biome>> locateBiome(
-			BlockPos origin,
-			int radius,
-			int horizontalBlockCheckInterval,
-			int verticalBlockCheckInterval,
-			Predicate<RegistryEntry<Biome>> predicate,
-			MultiNoiseUtil.MultiNoiseSampler noiseSampler,
-			WorldView world
+		BlockPos origin,
+		int radius,
+		int horizontalBlockCheckInterval,
+		int verticalBlockCheckInterval,
+		Predicate<RegistryEntry<Biome>> predicate,
+		MultiNoiseUtil.MultiNoiseSampler noiseSampler,
+		WorldView world
 	) {
-		Set<RegistryEntry<Biome>>
-				set =
-				this.getBiomes().stream().filter(predicate).collect(Collectors.toUnmodifiableSet());
-		if (set.isEmpty()) {
+		Set<RegistryEntry<Biome>> matchingBiomes =
+			getBiomes().stream().filter(predicate).collect(Collectors.toUnmodifiableSet());
+
+		if (matchingBiomes.isEmpty()) {
 			return null;
 		}
-		else {
-			int i = Math.floorDiv(radius, horizontalBlockCheckInterval);
-			int[]
-					is =
-					MathHelper
-							.stream(
-									origin.getY(),
-									world.getBottomY() + 1,
-									world.getTopYInclusive() + 1,
-									verticalBlockCheckInterval
-							)
-							.toArray();
 
-			for (BlockPos.Mutable mutable : BlockPos.iterateInSquare(
-					BlockPos.ORIGIN,
-					i,
-					Direction.EAST,
-					Direction.SOUTH
-			)) {
-				int j = origin.getX() + mutable.getX() * horizontalBlockCheckInterval;
-				int k = origin.getZ() + mutable.getZ() * horizontalBlockCheckInterval;
-				int l = BiomeCoords.fromBlock(j);
-				int m = BiomeCoords.fromBlock(k);
+		int spiralRadius = Math.floorDiv(radius, horizontalBlockCheckInterval);
+		int[] yLevels = MathHelper
+			.stream(
+				origin.getY(),
+				world.getBottomY() + 1,
+				world.getTopYInclusive() + 1,
+				verticalBlockCheckInterval
+			)
+			.toArray();
 
-				for (int n : is) {
-					int o = BiomeCoords.fromBlock(n);
-					RegistryEntry<Biome> registryEntry = this.getBiome(l, o, m, noiseSampler);
-					if (set.contains(registryEntry)) {
-						return Pair.of(new BlockPos(j, n, k), registryEntry);
-					}
+		for (BlockPos.Mutable mutable : BlockPos.iterateInSquare(
+			BlockPos.ORIGIN,
+			spiralRadius,
+			Direction.EAST,
+			Direction.SOUTH
+		)) {
+			int blockX = origin.getX() + mutable.getX() * horizontalBlockCheckInterval;
+			int blockZ = origin.getZ() + mutable.getZ() * horizontalBlockCheckInterval;
+			int biomeX = BiomeCoords.fromBlock(blockX);
+			int biomeZ = BiomeCoords.fromBlock(blockZ);
+
+			for (int yLevel : yLevels) {
+				int biomeY = BiomeCoords.fromBlock(yLevel);
+				RegistryEntry<Biome> biome = getBiome(biomeX, biomeY, biomeZ, noiseSampler);
+
+				if (matchingBiomes.contains(biome)) {
+					return Pair.of(new BlockPos(blockX, yLevel, blockZ), biome);
 				}
 			}
-
-			return null;
 		}
+
+		return null;
 	}
 
+	/**
+	 * Ищет биом по спирали с опциональным режимом «первое совпадение» ({@code returnFirst=true})
+	 * или случайного выбора среди всех найденных ({@code returnFirst=false}).
+	 */
 	public @Nullable Pair<BlockPos, RegistryEntry<Biome>> locateBiome(
-			int x,
-			int y,
-			int z,
-			int radius,
-			int blockCheckInterval,
-			Predicate<RegistryEntry<Biome>> predicate,
-			Random random,
-			boolean bl,
-			MultiNoiseUtil.MultiNoiseSampler noiseSampler
+		int x,
+		int y,
+		int z,
+		int radius,
+		int blockCheckInterval,
+		Predicate<RegistryEntry<Biome>> predicate,
+		Random random,
+		boolean returnFirst,
+		MultiNoiseUtil.MultiNoiseSampler noiseSampler
 	) {
-		int i = BiomeCoords.fromBlock(x);
-		int j = BiomeCoords.fromBlock(z);
-		int k = BiomeCoords.fromBlock(radius);
-		int l = BiomeCoords.fromBlock(y);
-		Pair<BlockPos, RegistryEntry<Biome>> pair = null;
-		int m = 0;
-		int n = bl ? 0 : k;
-		int o = n;
+		int biomeX = BiomeCoords.fromBlock(x);
+		int biomeZ = BiomeCoords.fromBlock(z);
+		int biomeRadius = BiomeCoords.fromBlock(radius);
+		int biomeY = BiomeCoords.fromBlock(y);
+		Pair<BlockPos, RegistryEntry<Biome>> bestResult = null;
+		int foundCount = 0;
+		int startRing = returnFirst ? 0 : biomeRadius;
+		int currentRing = startRing;
 
-		while (o <= k) {
-			for (int p = !SharedConstants.ONLY_GENERATE_HALF_THE_WORLD && !SharedConstants.DEBUG_BIOME_SOURCE ? -o : 0;
-			     p <= o;
-			     p += blockCheckInterval) {
-				boolean bl2 = Math.abs(p) == o;
+		while (currentRing <= biomeRadius) {
+			for (int dz = !SharedConstants.ONLY_GENERATE_HALF_THE_WORLD && !SharedConstants.DEBUG_BIOME_SOURCE
+				? -currentRing
+				: 0;
+			     dz <= currentRing;
+			     dz += blockCheckInterval
+			) {
+				boolean onZEdge = Math.abs(dz) == currentRing;
 
-				for (int q = -o; q <= o; q += blockCheckInterval) {
-					if (bl) {
-						boolean bl3 = Math.abs(q) == o;
-						if (!bl3 && !bl2) {
+				for (int dx = -currentRing; dx <= currentRing; dx += blockCheckInterval) {
+					if (returnFirst) {
+						boolean onXEdge = Math.abs(dx) == currentRing;
+
+						if (!onXEdge && !onZEdge) {
 							continue;
 						}
 					}
 
-					int r = i + q;
-					int s = j + p;
-					RegistryEntry<Biome> registryEntry = this.getBiome(r, l, s, noiseSampler);
-					if (predicate.test(registryEntry)) {
-						if (pair == null || random.nextInt(m + 1) == 0) {
-							BlockPos blockPos = new BlockPos(BiomeCoords.toBlock(r), y, BiomeCoords.toBlock(s));
-							if (bl) {
-								return Pair.of(blockPos, registryEntry);
+					int sampleX = biomeX + dx;
+					int sampleZ = biomeZ + dz;
+					RegistryEntry<Biome> biome = getBiome(sampleX, biomeY, sampleZ, noiseSampler);
+
+					if (predicate.test(biome)) {
+						if (bestResult == null || random.nextInt(foundCount + 1) == 0) {
+							BlockPos blockPos = new BlockPos(
+								BiomeCoords.toBlock(sampleX),
+								y,
+								BiomeCoords.toBlock(sampleZ)
+							);
+
+							if (returnFirst) {
+								return Pair.of(blockPos, biome);
 							}
 
-							pair = Pair.of(blockPos, registryEntry);
+							bestResult = Pair.of(blockPos, biome);
 						}
 
-						m++;
+						foundCount++;
 					}
 				}
 			}
 
-			o += blockCheckInterval;
+			currentRing += blockCheckInterval;
 		}
 
-		return pair;
+		return bestResult;
 	}
 
 	@Override

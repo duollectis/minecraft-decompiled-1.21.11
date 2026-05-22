@@ -9,7 +9,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 
 /**
- * {@code MobNavigation}.
+ * Навигация наземного существа: поддерживает ходьбу, плавание и обход препятствий.
+ * Дополнительно умеет избегать солнечного света и перенацеливаться на твёрдые блоки.
  */
 public class MobNavigation extends EntityNavigation {
 
@@ -22,55 +23,61 @@ public class MobNavigation extends EntityNavigation {
 
 	@Override
 	protected PathNodeNavigator createPathNodeNavigator(int range) {
-		this.nodeMaker = new LandPathNodeMaker();
-		return new PathNodeNavigator(this.nodeMaker, range);
+		nodeMaker = new LandPathNodeMaker();
+		return new PathNodeNavigator(nodeMaker, range);
 	}
 
 	@Override
 	protected boolean isAtValidPosition() {
-		return this.entity.isOnGround() || this.entity.isInFluid() || this.entity.hasVehicle();
+		return entity.isOnGround() || entity.isInFluid() || entity.hasVehicle();
 	}
 
 	@Override
 	protected Vec3d getPos() {
-		return new Vec3d(this.entity.getX(), this.getPathfindingY(), this.entity.getZ());
+		return new Vec3d(entity.getX(), getPathfindingY(), entity.getZ());
 	}
 
+	/**
+	 * Перед поиском пути перенацеливает позицию на ближайший твёрдый блок,
+	 * чтобы существо не пыталось идти в воздух или сквозь землю.
+	 */
 	@Override
 	public Path findPathTo(BlockPos target, int distance) {
-		WorldChunk worldChunk = this.world
-				.getChunkManager()
-				.getWorldChunk(
-						ChunkSectionPos.getSectionCoord(target.getX()),
-						ChunkSectionPos.getSectionCoord(target.getZ())
-				);
-		if (worldChunk == null) {
+		WorldChunk chunk = world.getChunkManager().getWorldChunk(
+				ChunkSectionPos.getSectionCoord(target.getX()),
+				ChunkSectionPos.getSectionCoord(target.getZ())
+		);
+
+		if (chunk == null) {
 			return null;
 		}
-		else {
-			if (!this.skipRetarget) {
-				target = this.retargetToSolidBlock(worldChunk, target, distance);
-			}
 
-			return super.findPathTo(target, distance);
+		if (!skipRetarget) {
+			target = retargetToSolidBlock(chunk, target, distance);
 		}
+
+		return super.findPathTo(target, distance);
 	}
 
+	/**
+	 * Корректирует целевую позицию: если она в воздухе — опускается до твёрдого блока,
+	 * если внутри твёрдого — поднимается до первого свободного.
+	 */
 	final BlockPos retargetToSolidBlock(WorldChunk chunk, BlockPos pos, int distance) {
 		if (chunk.getBlockState(pos).isAir()) {
 			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.DOWN);
 
-			while (mutable.getY() >= this.world.getBottomY() && chunk.getBlockState(mutable).isAir()) {
+			while (mutable.getY() >= world.getBottomY() && chunk.getBlockState(mutable).isAir()) {
 				mutable.move(Direction.DOWN);
 			}
 
-			if (mutable.getY() >= this.world.getBottomY()) {
+			if (mutable.getY() >= world.getBottomY()) {
 				return mutable.up();
 			}
 
 			mutable.setY(pos.getY() + 1);
 
-			while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isAir()) {
+			while (mutable.getY() <= world.getTopYInclusive() && chunk.getBlockState(mutable).isAir()) {
 				mutable.move(Direction.UP);
 			}
 
@@ -80,62 +87,65 @@ public class MobNavigation extends EntityNavigation {
 		if (!chunk.getBlockState(pos).isSolid()) {
 			return pos;
 		}
-		else {
-			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isSolid()) {
-				mutable.move(Direction.UP);
-			}
+		BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			return mutable.toImmutable();
+		while (mutable.getY() <= world.getTopYInclusive() && chunk.getBlockState(mutable).isSolid()) {
+			mutable.move(Direction.UP);
 		}
+
+		return mutable.toImmutable();
 	}
 
 	@Override
 	public Path findPathTo(Entity entity, int distance) {
-		return this.findPathTo(entity.getBlockPos(), distance);
+		return findPathTo(entity.getBlockPos(), distance);
 	}
 
+	/**
+	 * Возвращает Y-координату для поиска пути: при плавании поднимается до поверхности воды.
+	 */
 	private int getPathfindingY() {
-		if (this.entity.isTouchingWater() && this.canSwim()) {
-			int i = this.entity.getBlockY();
-			BlockState
-					blockState =
-					this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), i, this.entity.getZ()));
-			int j = 0;
+		if (!entity.isTouchingWater() || !canSwim()) {
+			return MathHelper.floor(entity.getY() + 0.5);
+		}
 
-			while (blockState.isOf(Blocks.WATER)) {
-				blockState = this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), ++i, this.entity.getZ()));
-				if (++j > 16) {
-					return this.entity.getBlockY();
-				}
+		int waterY = entity.getBlockY();
+		BlockState blockState = world.getBlockState(BlockPos.ofFloored(entity.getX(), waterY, entity.getZ()));
+		int depth = 0;
+
+		while (blockState.isOf(Blocks.WATER)) {
+			blockState = world.getBlockState(BlockPos.ofFloored(entity.getX(), ++waterY, entity.getZ()));
+
+			if (++depth > 16) {
+				return entity.getBlockY();
 			}
+		}
 
-			return i;
-		}
-		else {
-			return MathHelper.floor(this.entity.getY() + 0.5);
-		}
+		return waterY;
 	}
 
+	/**
+	 * Дополнительно обрезает путь при первом узле под открытым небом, если включено избегание солнца.
+	 */
 	@Override
 	protected void adjustPath() {
 		super.adjustPath();
-		if (this.avoidSunlight) {
-			if (this.world.isSkyVisible(BlockPos.ofFloored(
-					this.entity.getX(),
-					this.entity.getY() + 0.5,
-					this.entity.getZ()
-			))) {
-				return;
-			}
 
-			for (int i = 0; i < this.currentPath.getLength(); i++) {
-				PathNode pathNode = this.currentPath.getNode(i);
-				if (this.world.isSkyVisible(new BlockPos(pathNode.x, pathNode.y, pathNode.z))) {
-					this.currentPath.setLength(i);
-					return;
-				}
+		if (!avoidSunlight) {
+			return;
+		}
+
+		if (world.isSkyVisible(BlockPos.ofFloored(entity.getX(), entity.getY() + 0.5, entity.getZ()))) {
+			return;
+		}
+
+		for (int i = 0; i < currentPath.getLength(); i++) {
+			PathNode node = currentPath.getNode(i);
+
+			if (world.isSkyVisible(new BlockPos(node.x, node.y, node.z))) {
+				currentPath.setLength(i);
+				return;
 			}
 		}
 	}
@@ -145,20 +155,10 @@ public class MobNavigation extends EntityNavigation {
 		return true;
 	}
 
-	/**
-	 * Проверяет возможность walk on path.
-	 *
-	 * @param pathType path type
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canWalkOnPath(PathNodeType pathType) {
-		if (pathType == PathNodeType.WATER) {
-			return false;
-		}
-		else {
-			return pathType == PathNodeType.LAVA ? false : pathType != PathNodeType.OPEN;
-		}
+		return pathType != PathNodeType.WATER
+				&& pathType != PathNodeType.LAVA
+				&& pathType != PathNodeType.OPEN;
 	}
 
 	public void setAvoidSunlight(boolean avoidSunlight) {
@@ -166,7 +166,7 @@ public class MobNavigation extends EntityNavigation {
 	}
 
 	public void setCanWalkOverFences(boolean canWalkOverFences) {
-		this.nodeMaker.setCanWalkOverFences(canWalkOverFences);
+		nodeMaker.setCanWalkOverFences(canWalkOverFences);
 	}
 
 	public void setSkipRetarget(boolean skipRetarget) {

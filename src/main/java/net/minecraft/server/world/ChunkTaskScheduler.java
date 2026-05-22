@@ -16,7 +16,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 /**
- * {@code ChunkTaskScheduler}.
+ * Класс Chunk Task Scheduler.
  */
 public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, AutoCloseable {
 

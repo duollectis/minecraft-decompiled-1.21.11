@@ -3,7 +3,7 @@ package net.minecraft.test;
 import net.minecraft.text.Text;
 
 /**
- * {@code TickLimitExceededException}.
+ * Исключение, выбрасываемое когда тест превысил максимально допустимое количество тиков.
  */
 public class TickLimitExceededException extends TestException {
 
@@ -16,6 +16,6 @@ public class TickLimitExceededException extends TestException {
 
 	@Override
 	public Text getText() {
-		return this.message;
+		return message;
 	}
 }

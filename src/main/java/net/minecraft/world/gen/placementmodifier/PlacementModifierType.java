@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code PlacementModifierType}.
+ * Реестр типов модификаторов размещения — связывает строковый идентификатор
+ * с {@link com.mojang.serialization.MapCodec} конкретного модификатора.
  */
 public interface PlacementModifierType<P extends PlacementModifier> {
 

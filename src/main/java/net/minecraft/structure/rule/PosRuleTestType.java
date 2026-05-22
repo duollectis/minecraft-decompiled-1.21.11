@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code PosRuleTestType}.
+ * Реестр типов {@link PosRuleTest}. Каждый тип связывает строковый идентификатор
+ * с кодеком для сериализации конкретной реализации позиционного теста.
  */
 public interface PosRuleTestType<P extends PosRuleTest> {
 
@@ -13,9 +14,10 @@ public interface PosRuleTestType<P extends PosRuleTest> {
 
 	PosRuleTestType<LinearPosRuleTest> LINEAR_POS = register("linear_pos", LinearPosRuleTest.CODEC);
 
-	PosRuleTestType<AxisAlignedLinearPosRuleTest>
-			AXIS_ALIGNED_LINEAR_POS =
-			register("axis_aligned_linear_pos", AxisAlignedLinearPosRuleTest.CODEC);
+	PosRuleTestType<AxisAlignedLinearPosRuleTest> AXIS_ALIGNED_LINEAR_POS = register(
+		"axis_aligned_linear_pos",
+		AxisAlignedLinearPosRuleTest.CODEC
+	);
 
 	MapCodec<P> codec();
 

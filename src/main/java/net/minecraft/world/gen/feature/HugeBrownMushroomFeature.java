@@ -8,9 +8,13 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.WorldAccess;
 
 /**
- * {@code HugeBrownMushroomFeature}.
+ * Генерирует огромный коричневый гриб с плоской широкой шляпкой.
+ * Шляпка формируется как квадратный диск с закруглёнными углами,
+ * где боковые грани блоков шляпки ориентированы наружу.
  */
 public class HugeBrownMushroomFeature extends HugeMushroomFeature {
+
+	private static final int CAP_MIN_Y = 3;
 
 	public HugeBrownMushroomFeature(Codec<HugeMushroomFeatureConfig> codec) {
 		super(codec);
@@ -18,48 +22,56 @@ public class HugeBrownMushroomFeature extends HugeMushroomFeature {
 
 	@Override
 	protected void generateCap(
-			WorldAccess world,
-			Random random,
-			BlockPos start,
-			int y,
-			BlockPos.Mutable mutable,
-			HugeMushroomFeatureConfig config
+		WorldAccess world,
+		Random random,
+		BlockPos start,
+		int y,
+		BlockPos.Mutable mutable,
+		HugeMushroomFeatureConfig config
 	) {
-		int i = config.foliageRadius;
+		int radius = config.foliageRadius;
 
-		for (int j = -i; j <= i; j++) {
-			for (int k = -i; k <= i; k++) {
-				boolean bl = j == -i;
-				boolean bl2 = j == i;
-				boolean bl3 = k == -i;
-				boolean bl4 = k == i;
-				boolean bl5 = bl || bl2;
-				boolean bl6 = bl3 || bl4;
-				if (!bl5 || !bl6) {
-					mutable.set(start, j, y, k);
-					boolean bl7 = bl || bl6 && j == 1 - i;
-					boolean bl8 = bl2 || bl6 && j == i - 1;
-					boolean bl9 = bl3 || bl5 && k == 1 - i;
-					boolean bl10 = bl4 || bl5 && k == i - 1;
-					BlockState blockState = config.capProvider.get(random, start);
-					if (blockState.contains(MushroomBlock.WEST)
-							&& blockState.contains(MushroomBlock.EAST)
-							&& blockState.contains(MushroomBlock.NORTH)
-							&& blockState.contains(MushroomBlock.SOUTH)) {
-						blockState = blockState.with(MushroomBlock.WEST, bl7)
-						                       .with(MushroomBlock.EAST, bl8)
-						                       .with(MushroomBlock.NORTH, bl9)
-						                       .with(MushroomBlock.SOUTH, bl10);
-					}
+		for (int dx = -radius; dx <= radius; dx++) {
+			for (int dz = -radius; dz <= radius; dz++) {
+				boolean onWestEdge = dx == -radius;
+				boolean onEastEdge = dx == radius;
+				boolean onNorthEdge = dz == -radius;
+				boolean onSouthEdge = dz == radius;
+				boolean onXEdge = onWestEdge || onEastEdge;
+				boolean onZEdge = onNorthEdge || onSouthEdge;
 
-					this.generateStem(world, mutable, blockState);
+				if (onXEdge && onZEdge) {
+					continue;
 				}
+
+				mutable.set(start, dx, y, dz);
+
+				boolean facingWest = onWestEdge || (onZEdge && dx == 1 - radius);
+				boolean facingEast = onEastEdge || (onZEdge && dx == radius - 1);
+				boolean facingNorth = onNorthEdge || (onXEdge && dz == 1 - radius);
+				boolean facingSouth = onSouthEdge || (onXEdge && dz == radius - 1);
+
+				BlockState capState = config.capProvider.get(random, start);
+
+				if (capState.contains(MushroomBlock.WEST)
+					&& capState.contains(MushroomBlock.EAST)
+					&& capState.contains(MushroomBlock.NORTH)
+					&& capState.contains(MushroomBlock.SOUTH)
+				) {
+					capState = capState
+						.with(MushroomBlock.WEST, facingWest)
+						.with(MushroomBlock.EAST, facingEast)
+						.with(MushroomBlock.NORTH, facingNorth)
+						.with(MushroomBlock.SOUTH, facingSouth);
+				}
+
+				generateStem(world, mutable, capState);
 			}
 		}
 	}
 
 	@Override
 	protected int getCapSize(int i, int j, int capSize, int y) {
-		return y <= 3 ? 0 : capSize;
+		return y <= CAP_MIN_Y ? 0 : capSize;
 	}
 }

@@ -19,7 +19,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SkullBlockEntity}.
+ * Блок-сущность черепа/головы. Отслеживает состояние питания от редстоуна
+ * для анимации вращения черепа крипера, хранит профиль владельца (для голов игроков),
+ * звук нотного блока и кастомное имя.
  */
 public class SkullBlockEntity extends BlockEntity {
 
@@ -39,84 +41,71 @@ public class SkullBlockEntity extends BlockEntity {
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.putNullable("profile", ProfileComponent.CODEC, this.owner);
-		view.putNullable("note_block_sound", Identifier.CODEC, this.noteBlockSound);
-		view.putNullable("custom_name", TextCodecs.CODEC, this.customName);
+		view.putNullable(PROFILE_NBT_KEY, ProfileComponent.CODEC, owner);
+		view.putNullable(NOTE_BLOCK_SOUND_NBT_KEY, Identifier.CODEC, noteBlockSound);
+		view.putNullable(CUSTOM_NAME_NBT_KEY, TextCodecs.CODEC, customName);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.owner = view.<ProfileComponent>read("profile", ProfileComponent.CODEC).orElse(null);
-		this.noteBlockSound = view.<Identifier>read("note_block_sound", Identifier.CODEC).orElse(null);
-		this.customName = tryParseCustomName(view, "custom_name");
+		owner = view.<ProfileComponent>read(PROFILE_NBT_KEY, ProfileComponent.CODEC).orElse(null);
+		noteBlockSound = view.<Identifier>read(NOTE_BLOCK_SOUND_NBT_KEY, Identifier.CODEC).orElse(null);
+		customName = tryParseCustomName(view, CUSTOM_NAME_NBT_KEY);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SkullBlockEntity blockEntity) {
 		if (state.contains(SkullBlock.POWERED) && state.get(SkullBlock.POWERED)) {
 			blockEntity.powered = true;
 			blockEntity.poweredTicks++;
-		}
-		else {
+		} else {
 			blockEntity.powered = false;
 		}
 	}
 
 	public float getPoweredTicks(float tickProgress) {
-		return this.powered ? this.poweredTicks + tickProgress : this.poweredTicks;
+		return powered ? poweredTicks + tickProgress : poweredTicks;
 	}
 
 	public @Nullable ProfileComponent getOwner() {
-		return this.owner;
+		return owner;
 	}
 
 	public @Nullable Identifier getNoteBlockSound() {
-		return this.noteBlockSound;
+		return noteBlockSound;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.owner = components.get(DataComponentTypes.PROFILE);
-		this.noteBlockSound = components.get(DataComponentTypes.NOTE_BLOCK_SOUND);
-		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		owner = components.get(DataComponentTypes.PROFILE);
+		noteBlockSound = components.get(DataComponentTypes.NOTE_BLOCK_SOUND);
+		customName = components.get(DataComponentTypes.CUSTOM_NAME);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.PROFILE, this.owner);
-		builder.add(DataComponentTypes.NOTE_BLOCK_SOUND, this.noteBlockSound);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
+		builder.add(DataComponentTypes.PROFILE, owner);
+		builder.add(DataComponentTypes.NOTE_BLOCK_SOUND, noteBlockSound);
+		builder.add(DataComponentTypes.CUSTOM_NAME, customName);
 	}
 
 	@Override
 	public void removeFromCopiedStackData(WriteView view) {
 		super.removeFromCopiedStackData(view);
-		view.remove("profile");
-		view.remove("note_block_sound");
-		view.remove("custom_name");
+		view.remove(PROFILE_NBT_KEY);
+		view.remove(NOTE_BLOCK_SOUND_NBT_KEY);
+		view.remove(CUSTOM_NAME_NBT_KEY);
 	}
 }

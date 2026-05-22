@@ -12,17 +12,21 @@ import net.minecraft.world.gen.feature.Feature;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ProtectedBlocksStructureProcessor}.
+ * Процессор структур, защищающий блоки из заданного тега от замены.
+ * Если блок в мире на позиции шаблона входит в тег {@code protectedBlocksTag},
+ * блок шаблона не размещается (возвращается {@code null}).
+ * Используется для предотвращения перезаписи важных блоков (например, {@code features_cannot_replace}).
  */
 public class ProtectedBlocksStructureProcessor extends StructureProcessor {
 
-	public final TagKey<Block> protectedBlocksTag;
 	public static final MapCodec<ProtectedBlocksStructureProcessor> CODEC = TagKey.codec(RegistryKeys.BLOCK)
-	                                                                              .xmap(
-			                                                                              ProtectedBlocksStructureProcessor::new,
-			                                                                              processor -> processor.protectedBlocksTag
-	                                                                              )
-	                                                                              .fieldOf("value");
+		.xmap(
+			ProtectedBlocksStructureProcessor::new,
+			processor -> processor.protectedBlocksTag
+		)
+		.fieldOf("value");
+
+	public final TagKey<Block> protectedBlocksTag;
 
 	public ProtectedBlocksStructureProcessor(TagKey<Block> protectedBlocksTag) {
 		this.protectedBlocksTag = protectedBlocksTag;
@@ -30,15 +34,16 @@ public class ProtectedBlocksStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
-		return Feature.notInBlockTagPredicate(this.protectedBlocksTag).test(world.getBlockState(currentBlockInfo.pos()))
-		       ? currentBlockInfo : null;
+		return Feature.notInBlockTagPredicate(protectedBlocksTag).test(world.getBlockState(currentBlockInfo.pos()))
+			? currentBlockInfo
+			: null;
 	}
 
 	@Override

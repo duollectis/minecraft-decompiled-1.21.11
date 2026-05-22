@@ -6,7 +6,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.world.World;
 
 /**
- * {@code SignChangingItem}.
+ * Интерфейс для предметов, способных изменять текст на вывеске.
+ * Реализуется предметами красителей, чернил и светящихся чернил.
  */
 public interface SignChangingItem {
 

@@ -8,10 +8,12 @@ import net.minecraft.particle.DustColorTransitionParticleEffect;
 import net.minecraft.util.math.random.Random;
 import org.joml.Vector3f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DustColorTransitionParticle}.
+ * Частица пыли с плавным переходом цвета — анимированная пылинка,
+ * интерполирующая RGB-цвет от начального к конечному за время своей жизни.
+ * Используется для эффектов заряженных блоков (Sculk Catalyst и др.).
  */
+@Environment(EnvType.CLIENT)
 public class DustColorTransitionParticle extends AbstractDustParticle<DustColorTransitionParticleEffect> {
 
 	private final Vector3f startColor;
@@ -29,25 +31,25 @@ public class DustColorTransitionParticle extends AbstractDustParticle<DustColorT
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, parameters, spriteProvider);
-		float f = this.random.nextFloat() * 0.4F + 0.6F;
-		this.startColor = this.darken(parameters.getFromColor(), f);
-		this.endColor = this.darken(parameters.getToColor(), f);
+		float darkenFactor = this.random.nextFloat() * 0.4F + 0.6F;
+		this.startColor = darken(parameters.getFromColor(), darkenFactor);
+		this.endColor = darken(parameters.getToColor(), darkenFactor);
 	}
 
 	private Vector3f darken(Vector3f color, float multiplier) {
 		return new Vector3f(
-				this.darken(color.x(), multiplier),
-				this.darken(color.y(), multiplier),
-				this.darken(color.z(), multiplier)
+				darken(color.x(), multiplier),
+				darken(color.y(), multiplier),
+				darken(color.z(), multiplier)
 		);
 	}
 
 	private void updateColor(float tickProgress) {
-		float f = (this.age + tickProgress) / (this.maxAge + 1.0F);
-		Vector3f vector3f = new Vector3f(this.startColor).lerp(this.endColor, f);
-		this.red = vector3f.x();
-		this.green = vector3f.y();
-		this.blue = vector3f.z();
+		float lifeRatio = (this.age + tickProgress) / (this.maxAge + 1.0F);
+		Vector3f interpolated = new Vector3f(this.startColor).lerp(this.endColor, lifeRatio);
+		this.red = interpolated.x();
+		this.green = interpolated.y();
+		this.blue = interpolated.z();
 	}
 
 	@Override
@@ -56,10 +58,10 @@ public class DustColorTransitionParticle extends AbstractDustParticle<DustColorT
 		super.render(submittable, camera, tickProgress);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц пыли с переходом цвета.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<DustColorTransitionParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -68,28 +70,19 @@ public class DustColorTransitionParticle extends AbstractDustParticle<DustColorT
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				DustColorTransitionParticleEffect dustColorTransitionParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				DustColorTransitionParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new DustColorTransitionParticle(
-					clientWorld,
-					d,
-					e,
-					f,
-					g,
-					h,
-					i,
-					dustColorTransitionParticleEffect,
-					this.spriteProvider
-			);
+			return new DustColorTransitionParticle(world, x, y, z, velocityX, velocityY, velocityZ, effect, this.spriteProvider);
 		}
 	}
 }

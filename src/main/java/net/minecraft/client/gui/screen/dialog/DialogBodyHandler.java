@@ -5,10 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.dialog.body.DialogBody;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogBodyHandler}.
+ * Обработчик тела диалога, создающий виджет для конкретного типа {@link DialogBody}.
  */
+@Environment(EnvType.CLIENT)
 public interface DialogBodyHandler<T extends DialogBody> {
 
 	Widget createWidget(DialogScreen<?> dialogScreen, T body);

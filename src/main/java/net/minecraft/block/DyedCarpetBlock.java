@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.DyeColor;
 
 /**
- * {@code DyedCarpetBlock}.
+ * Ковёр с цветом краски. Хранит {@link DyeColor} для идентификации цвета блока.
  */
 public class DyedCarpetBlock extends CarpetBlock {
 
@@ -30,6 +30,6 @@ public class DyedCarpetBlock extends CarpetBlock {
 	}
 
 	public DyeColor getDyeColor() {
-		return this.dyeColor;
+		return dyeColor;
 	}
 }

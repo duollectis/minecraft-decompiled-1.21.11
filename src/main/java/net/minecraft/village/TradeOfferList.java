@@ -13,7 +13,10 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code TradeOfferList}.
+ * Список торговых предложений жителя или торговца.
+ * <p>
+ * Расширяет {@link ArrayList} для удобной сериализации через кодеки.
+ * Предоставляет метод поиска подходящего предложения по входным предметам.
  */
 public class TradeOfferList extends ArrayList<TradeOffer> {
 
@@ -22,6 +25,7 @@ public class TradeOfferList extends ArrayList<TradeOffer> {
 			.optionalFieldOf("Recipes", List.of())
 			.xmap(TradeOfferList::new, Function.identity())
 			.codec();
+
 	public static final PacketCodec<RegistryByteBuf, TradeOfferList> PACKET_CODEC = TradeOffer.PACKET_CODEC
 			.collect(PacketCodecs.toCollection(TradeOfferList::new));
 
@@ -36,30 +40,42 @@ public class TradeOfferList extends ArrayList<TradeOffer> {
 		super(tradeOffers);
 	}
 
+	/**
+	 * Ищет первое подходящее предложение для заданных входных предметов.
+	 * <p>
+	 * Если {@code index} валиден (больше 0 и в пределах списка), сначала проверяет
+	 * предложение по этому индексу — это оптимизация для повторного использования
+	 * последнего выбранного предложения. Иначе перебирает весь список.
+	 *
+	 * @param firstBuyItem  первый покупаемый предмет
+	 * @param secondBuyItem второй покупаемый предмет
+	 * @param index         предпочтительный индекс предложения
+	 * @return подходящее предложение или {@code null}, если ничего не найдено
+	 */
 	public @Nullable TradeOffer getValidOffer(ItemStack firstBuyItem, ItemStack secondBuyItem, int index) {
-		if (index > 0 && index < this.size()) {
-			TradeOffer tradeOffer = this.get(index);
-			return tradeOffer.matchesBuyItems(firstBuyItem, secondBuyItem) ? tradeOffer : null;
+		if (index > 0 && index < size()) {
+			TradeOffer offer = get(index);
+			return offer.matchesBuyItems(firstBuyItem, secondBuyItem) ? offer : null;
 		}
-		else {
-			for (int i = 0; i < this.size(); i++) {
-				TradeOffer tradeOffer2 = this.get(i);
-				if (tradeOffer2.matchesBuyItems(firstBuyItem, secondBuyItem)) {
-					return tradeOffer2;
-				}
-			}
 
-			return null;
+		for (int i = 0; i < size(); i++) {
+			TradeOffer offer = get(i);
+
+			if (offer.matchesBuyItems(firstBuyItem, secondBuyItem)) {
+				return offer;
+			}
 		}
+
+		return null;
 	}
 
 	public TradeOfferList copy() {
-		TradeOfferList tradeOfferList = new TradeOfferList(this.size());
+		TradeOfferList copy = new TradeOfferList(size());
 
-		for (TradeOffer tradeOffer : this) {
-			tradeOfferList.add(tradeOffer.copy());
+		for (TradeOffer offer : this) {
+			copy.add(offer.copy());
 		}
 
-		return tradeOfferList;
+		return copy;
 	}
 }

@@ -6,23 +6,30 @@ import net.minecraft.component.type.MapIdComponent;
 import net.minecraft.datafixer.DataFixTypes;
 
 /**
- * {@code IdCountsState}.
+ * Персистентное состояние, хранящее счётчики идентификаторов для карт.
+ * Обеспечивает уникальность ID карт в пределах мира.
  */
 public class IdCountsState extends PersistentState {
 
 	private static final int UNSET_ID = -1;
+
 	public static final Codec<IdCountsState> CODEC = RecordCodecBuilder.create(
-			instance -> instance
-					.group(Codec.INT.optionalFieldOf("map", -1).forGetter(state -> state.map))
-					.apply(instance, IdCountsState::new)
+		instance -> instance
+			.group(Codec.INT.optionalFieldOf("map", UNSET_ID).forGetter(state -> state.map))
+			.apply(instance, IdCountsState::new)
 	);
+
 	public static final PersistentStateType<IdCountsState> STATE_TYPE = new PersistentStateType<>(
-			"idcounts", IdCountsState::new, CODEC, DataFixTypes.SAVED_DATA_MAP_INDEX
+		"idcounts",
+		IdCountsState::new,
+		CODEC,
+		DataFixTypes.SAVED_DATA_MAP_INDEX
 	);
+
 	private int map;
 
 	public IdCountsState() {
-		this(-1);
+		this(UNSET_ID);
 	}
 
 	public IdCountsState(int map) {
@@ -30,13 +37,13 @@ public class IdCountsState extends PersistentState {
 	}
 
 	/**
-	 * Создаёт next map id.
+	 * Создаёт следующий уникальный идентификатор карты и помечает состояние изменённым.
 	 *
-	 * @return MapIdComponent — результат операции
+	 * @return новый компонент идентификатора карты
 	 */
 	public MapIdComponent createNextMapId() {
-		MapIdComponent mapIdComponent = new MapIdComponent(++this.map);
-		this.markDirty();
-		return mapIdComponent;
+		MapIdComponent id = new MapIdComponent(++map);
+		markDirty();
+		return id;
 	}
 }

@@ -29,13 +29,19 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * {@code LightningEntity}.
+ * Сущность удара молнии. Существует несколько тиков, поджигает блоки вокруг,
+ * наносит урон существам в радиусе {@code STRIKE_RADIUS}, очищает окисление меди
+ * в радиусе {@code EFFECT_RADIUS}. Может быть «косметической» (без эффектов на сервере).
  */
 public class LightningEntity extends Entity {
 
 	private static final int INITIAL_AMBIENT_TICK = 2;
 	private static final double STRIKE_RADIUS = 3.0;
 	private static final double EFFECT_RADIUS = 15.0;
+	private static final double EFFECT_BOX_HEIGHT_EXTRA = 6.0;
+	private static final float THUNDER_VOLUME = 10000.0F;
+	private static final float IMPACT_VOLUME = 2.0F;
+	private static final float CRITERIA_TRIGGER_RADIUS = 256.0F;
 	private int ambientTick;
 	public long seed;
 	private int remainingActions;
@@ -46,7 +52,7 @@ public class LightningEntity extends Entity {
 
 	public LightningEntity(EntityType<? extends LightningEntity> entityType, World world) {
 		super(entityType, world);
-		this.ambientTick = 2;
+		this.ambientTick = INITIAL_AMBIENT_TICK;
 		this.seed = this.random.nextLong();
 		this.remainingActions = this.random.nextInt(3) + 1;
 	}
@@ -79,30 +85,24 @@ public class LightningEntity extends Entity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.ambientTick == 2) {
+		if (this.ambientTick == INITIAL_AMBIENT_TICK) {
 			if (this.getEntityWorld().isClient()) {
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER,
-						    SoundCategory.WEATHER,
-						    10000.0F,
-						    0.8F + this.random.nextFloat() * 0.2F,
-						    false
-				    );
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_LIGHTNING_BOLT_IMPACT,
-						    SoundCategory.WEATHER,
-						    2.0F,
-						    0.5F + this.random.nextFloat() * 0.2F,
-						    false
-				    );
+				this.getEntityWorld().playSoundClient(
+					this.getX(), this.getY(), this.getZ(),
+					SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER,
+					SoundCategory.WEATHER,
+					THUNDER_VOLUME,
+					0.8F + this.random.nextFloat() * 0.2F,
+					false
+				);
+				this.getEntityWorld().playSoundClient(
+					this.getX(), this.getY(), this.getZ(),
+					SoundEvents.ENTITY_LIGHTNING_BOLT_IMPACT,
+					SoundCategory.WEATHER,
+					IMPACT_VOLUME,
+					0.5F + this.random.nextFloat() * 0.2F,
+					false
+				);
 			}
 			else {
 				Difficulty difficulty = this.getEntityWorld().getDifficulty();
@@ -119,25 +119,24 @@ public class LightningEntity extends Entity {
 		this.ambientTick--;
 		if (this.ambientTick < 0) {
 			if (this.remainingActions == 0) {
-				if (this.getEntityWorld() instanceof ServerWorld) {
-					List<Entity> list = this.getEntityWorld()
-					                        .getOtherEntities(
-							                        this,
-							                        new Box(
-									                        this.getX() - 15.0,
-									                        this.getY() - 15.0,
-									                        this.getZ() - 15.0,
-									                        this.getX() + 15.0,
-									                        this.getY() + 6.0 + 15.0,
-									                        this.getZ() + 15.0
-							                        ),
-							                        entityx -> entityx.isAlive() && !this.struckEntities.contains(
-									                        entityx)
-					                        );
+				if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+					List<Entity> nearbyEntities = this.getEntityWorld().getOtherEntities(
+						this,
+						new Box(
+							this.getX() - EFFECT_RADIUS,
+							this.getY() - EFFECT_RADIUS,
+							this.getZ() - EFFECT_RADIUS,
+							this.getX() + EFFECT_RADIUS,
+							this.getY() + EFFECT_BOX_HEIGHT_EXTRA + EFFECT_RADIUS,
+							this.getZ() + EFFECT_RADIUS
+						),
+						entity -> entity.isAlive() && !this.struckEntities.contains(entity)
+					);
 
-					for (ServerPlayerEntity serverPlayerEntity : ((ServerWorld) this.getEntityWorld())
-							.getPlayers(serverPlayerEntityx -> serverPlayerEntityx.distanceTo(this) < 256.0F)) {
-						Criteria.LIGHTNING_STRIKE.trigger(serverPlayerEntity, this, list);
+					for (ServerPlayerEntity nearbyPlayer : serverWorld.getPlayers(
+						player -> player.distanceTo(this) < CRITERIA_TRIGGER_RADIUS
+					)) {
+						Criteria.LIGHTNING_STRIKE.trigger(nearbyPlayer, this, nearbyEntities);
 					}
 				}
 
@@ -152,32 +151,33 @@ public class LightningEntity extends Entity {
 		}
 
 		if (this.ambientTick >= 0) {
-			if (!(this.getEntityWorld() instanceof ServerWorld)) {
-				this.getEntityWorld().setLightningTicksLeft(2);
+			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+				if (!this.cosmetic) {
+					List<Entity> struckNow = this.getEntityWorld().getOtherEntities(
+						this,
+						new Box(
+							this.getX() - STRIKE_RADIUS,
+							this.getY() - STRIKE_RADIUS,
+							this.getZ() - STRIKE_RADIUS,
+							this.getX() + STRIKE_RADIUS,
+							this.getY() + EFFECT_BOX_HEIGHT_EXTRA + STRIKE_RADIUS,
+							this.getZ() + STRIKE_RADIUS
+						),
+						Entity::isAlive
+					);
+
+					for (Entity entity : struckNow) {
+						entity.onStruckByLightning(serverWorld, this);
+					}
+
+					this.struckEntities.addAll(struckNow);
+					if (this.channeler != null) {
+						Criteria.CHANNELED_LIGHTNING.trigger(this.channeler, struckNow);
+					}
+				}
 			}
-			else if (!this.cosmetic) {
-				List<Entity> list = this.getEntityWorld()
-				                        .getOtherEntities(
-						                        this,
-						                        new Box(
-								                        this.getX() - 3.0,
-								                        this.getY() - 3.0,
-								                        this.getZ() - 3.0,
-								                        this.getX() + 3.0,
-								                        this.getY() + 6.0 + 3.0,
-								                        this.getZ() + 3.0
-						                        ),
-						                        Entity::isAlive
-				                        );
-
-				for (Entity entity : list) {
-					entity.onStruckByLightning((ServerWorld) this.getEntityWorld(), this);
-				}
-
-				this.struckEntities.addAll(list);
-				if (this.channeler != null) {
-					Criteria.CHANNELED_LIGHTNING.trigger(this.channeler, list);
-				}
+			else {
+				this.getEntityWorld().setLightningTicksLeft(2);
 			}
 		}
 	}
@@ -188,62 +188,66 @@ public class LightningEntity extends Entity {
 	}
 
 	private void spawnFire(int spreadAttempts) {
-		if (!this.cosmetic && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			BlockPos var7 = this.getBlockPos();
-			if (serverWorld.canFireSpread(var7)) {
-				BlockState blockState = AbstractFireBlock.getState(serverWorld, var7);
-				if (serverWorld.getBlockState(var7).isAir() && blockState.canPlaceAt(serverWorld, var7)) {
-					serverWorld.setBlockState(var7, blockState);
-					this.blocksSetOnFire++;
-				}
+		if (this.cosmetic || !(this.getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
 
-				for (int i = 0; i < spreadAttempts; i++) {
-					BlockPos
-							blockPos2 =
-							var7.add(
-									this.random.nextInt(3) - 1,
-									this.random.nextInt(3) - 1,
-									this.random.nextInt(3) - 1
-							);
-					blockState = AbstractFireBlock.getState(serverWorld, blockPos2);
-					if (serverWorld.getBlockState(blockPos2).isAir() && blockState.canPlaceAt(serverWorld, blockPos2)) {
-						serverWorld.setBlockState(blockPos2, blockState);
-						this.blocksSetOnFire++;
-					}
-				}
+		BlockPos strikePos = this.getBlockPos();
+		if (!serverWorld.canFireSpread(strikePos)) {
+			return;
+		}
+
+		BlockState fireState = AbstractFireBlock.getState(serverWorld, strikePos);
+		if (serverWorld.getBlockState(strikePos).isAir() && fireState.canPlaceAt(serverWorld, strikePos)) {
+			serverWorld.setBlockState(strikePos, fireState);
+			this.blocksSetOnFire++;
+		}
+
+		for (int attempt = 0; attempt < spreadAttempts; attempt++) {
+			BlockPos spreadPos = strikePos.add(
+					this.random.nextInt(3) - 1,
+					this.random.nextInt(3) - 1,
+					this.random.nextInt(3) - 1
+			);
+			BlockState spreadFireState = AbstractFireBlock.getState(serverWorld, spreadPos);
+			if (serverWorld.getBlockState(spreadPos).isAir() && spreadFireState.canPlaceAt(serverWorld, spreadPos)) {
+				serverWorld.setBlockState(spreadPos, spreadFireState);
+				this.blocksSetOnFire++;
 			}
 		}
 	}
 
 	private static void cleanOxidation(World world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
-		boolean bl = HoneycombItem.WAXED_TO_UNWAXED_BLOCKS.get().get(blockState.getBlock()) != null;
-		boolean bl2 = blockState.getBlock() instanceof Oxidizable;
-		if (bl2 || bl) {
-			if (bl2) {
-				world.setBlockState(pos, Oxidizable.getUnaffectedOxidationState(world.getBlockState(pos)));
-			}
+		boolean isWaxed = HoneycombItem.WAXED_TO_UNWAXED_BLOCKS.get().get(blockState.getBlock()) != null;
+		boolean isOxidizable = blockState.getBlock() instanceof Oxidizable;
+		if (!isOxidizable && !isWaxed) {
+			return;
+		}
 
-			BlockPos.Mutable mutable = pos.mutableCopy();
-			int i = world.random.nextInt(3) + 3;
+		if (isOxidizable) {
+			world.setBlockState(pos, Oxidizable.getUnaffectedOxidationState(world.getBlockState(pos)));
+		}
 
-			for (int j = 0; j < i; j++) {
-				int k = world.random.nextInt(8) + 1;
-				cleanOxidationAround(world, pos, mutable, k);
-			}
+		BlockPos.Mutable mutable = pos.mutableCopy();
+		int spreadCount = world.random.nextInt(3) + 3;
+
+		for (int spread = 0; spread < spreadCount; spread++) {
+			int chainLength = world.random.nextInt(8) + 1;
+			cleanOxidationAround(world, pos, mutable, chainLength);
 		}
 	}
 
 	private static void cleanOxidationAround(World world, BlockPos pos, BlockPos.Mutable mutablePos, int count) {
 		mutablePos.set(pos);
 
-		for (int i = 0; i < count; i++) {
-			Optional<BlockPos> optional = cleanOxidationAround(world, mutablePos);
-			if (optional.isEmpty()) {
+		for (int step = 0; step < count; step++) {
+			Optional<BlockPos> next = cleanOxidationAround(world, mutablePos);
+			if (next.isEmpty()) {
 				break;
 			}
 
-			mutablePos.set(optional.get());
+			mutablePos.set(next.get());
 		}
 	}
 
@@ -264,8 +268,8 @@ public class LightningEntity extends Entity {
 
 	@Override
 	public boolean shouldRender(double distance) {
-		double d = 64.0 * getRenderDistanceMultiplier();
-		return distance < d * d;
+		double renderDistance = 64.0 * getRenderDistanceMultiplier();
+		return distance < renderDistance * renderDistance;
 	}
 
 	@Override

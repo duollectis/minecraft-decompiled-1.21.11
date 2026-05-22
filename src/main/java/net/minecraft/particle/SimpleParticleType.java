@@ -5,7 +5,8 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code SimpleParticleType}.
+ * Простой тип частицы без дополнительных параметров.
+ * Одновременно является и типом, и эффектом — сам себя описывает.
  */
 public class SimpleParticleType extends ParticleType<SimpleParticleType> implements ParticleEffect {
 
@@ -22,11 +23,11 @@ public class SimpleParticleType extends ParticleType<SimpleParticleType> impleme
 
 	@Override
 	public MapCodec<SimpleParticleType> getCodec() {
-		return this.codec;
+		return codec;
 	}
 
 	@Override
 	public PacketCodec<RegistryByteBuf, SimpleParticleType> getPacketCodec() {
-		return this.packetCodec;
+		return packetCodec;
 	}
 }

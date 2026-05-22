@@ -24,7 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code NetherFortressGenerator}.
+ * Генератор крепости Нижнего мира. Строит процедурную структуру из мостов
+ * и коридоров, соединённых по правилам цепочки. Содержит комнаты с блейзами,
+ * иссушителями скелетов и другими мобами Нижнего мира.
  */
 public class NetherFortressGenerator {
 
@@ -32,7 +34,7 @@ public class NetherFortressGenerator {
 	private static final int MAX_CORRIDOR_CHAIN_LENGTH = 10;
 	public static final int MAX_PIECE_DISTANCE = 64;
 	static final NetherFortressGenerator.PieceData[] ALL_BRIDGE_PIECES = new NetherFortressGenerator.PieceData[]{
-			new NetherFortressGenerator.PieceData(NetherFortressGenerator.Bridge.class, 30, 0, true),
+			new NetherFortressGenerator.PieceData(NetherFortressGenerator.Bridge.class, MAX_BRIDGE_CHAIN_LENGTH, 0, true),
 			new NetherFortressGenerator.PieceData(NetherFortressGenerator.BridgeCrossing.class, 10, 4),
 			new NetherFortressGenerator.PieceData(NetherFortressGenerator.BridgeSmallCrossing.class, 10, 4),
 			new NetherFortressGenerator.PieceData(NetherFortressGenerator.BridgeStairs.class, 10, 3),
@@ -104,9 +106,6 @@ public class NetherFortressGenerator {
 		return piece;
 	}
 
-	/**
-	 * {@code Bridge}.
-	 */
 	public static class Bridge extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -130,7 +129,7 @@ public class NetherFortressGenerator {
 		public static NetherFortressGenerator.@Nullable Bridge create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -3, 0, 5, 10, 19, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -3, 0, 5, 10, SIZE_Z, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.Bridge(chainLength, random, blockBox, orientation)
 			       : null;
@@ -216,7 +215,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					0,
 					2,
-					13,
+					SIZE_X,
 					4,
 					2,
 					18,
@@ -268,18 +267,15 @@ public class NetherFortressGenerator {
 			BlockState blockState3 = blockState.with(FenceBlock.WEST, true);
 			this.fillWithOutline(world, chunkBox, 0, 1, 1, 0, 4, 1, blockState2, blockState2, false);
 			this.fillWithOutline(world, chunkBox, 0, 3, 4, 0, 4, 4, blockState2, blockState2, false);
-			this.fillWithOutline(world, chunkBox, 0, 3, 14, 0, 4, 14, blockState2, blockState2, false);
+			this.fillWithOutline(world, chunkBox, 0, 3, SIZE_Y, 0, 4, 14, blockState2, blockState2, false);
 			this.fillWithOutline(world, chunkBox, 0, 1, 17, 0, 4, 17, blockState2, blockState2, false);
 			this.fillWithOutline(world, chunkBox, 4, 1, 1, 4, 4, 1, blockState3, blockState3, false);
 			this.fillWithOutline(world, chunkBox, 4, 3, 4, 4, 4, 4, blockState3, blockState3, false);
-			this.fillWithOutline(world, chunkBox, 4, 3, 14, 4, 4, 14, blockState3, blockState3, false);
+			this.fillWithOutline(world, chunkBox, 4, 3, SIZE_Y, 4, 4, 14, blockState3, blockState3, false);
 			this.fillWithOutline(world, chunkBox, 4, 1, 17, 4, 4, 17, blockState3, blockState3, false);
 		}
 	}
 
-	/**
-	 * {@code BridgeCrossing}.
-	 */
 	public static class BridgeCrossing extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 19;
@@ -295,7 +291,7 @@ public class NetherFortressGenerator {
 			super(
 					StructurePieceType.NETHER_FORTRESS_BRIDGE_CROSSING,
 					0,
-					StructurePiece.createBox(x, 64, z, orientation, 19, 10, 19)
+					StructurePiece.createBox(x, MAX_PIECE_DISTANCE, z, orientation, SIZE_Z, 10, 19)
 			);
 			this.setOrientation(orientation);
 		}
@@ -318,7 +314,7 @@ public class NetherFortressGenerator {
 		public static NetherFortressGenerator.@Nullable BridgeCrossing create(
 				StructurePiecesHolder holder, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -8, -3, 0, 19, 10, 19, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -8, -3, 0, SIZE_Z, 10, 19, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.BridgeCrossing(chainLength, blockBox, orientation)
 			       : null;
@@ -340,7 +336,7 @@ public class NetherFortressGenerator {
 					7,
 					3,
 					0,
-					11,
+					SIZE_Y,
 					4,
 					18,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -355,7 +351,7 @@ public class NetherFortressGenerator {
 					7,
 					18,
 					4,
-					11,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -404,7 +400,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					7,
 					5,
-					11,
+					SIZE_Y,
 					7,
 					5,
 					18,
@@ -415,10 +411,10 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					11,
+					SIZE_Y,
 					5,
 					0,
-					11,
+					SIZE_Y,
 					5,
 					7,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -428,38 +424,12 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					11,
+					SIZE_Y,
 					5,
-					11,
-					11,
+					SIZE_Y,
+					SIZE_Y,
 					5,
 					18,
-					Blocks.NETHER_BRICKS.getDefaultState(),
-					Blocks.NETHER_BRICKS.getDefaultState(),
-					false
-			);
-			this.fillWithOutline(
-					world,
-					chunkBox,
-					0,
-					5,
-					7,
-					7,
-					5,
-					7,
-					Blocks.NETHER_BRICKS.getDefaultState(),
-					Blocks.NETHER_BRICKS.getDefaultState(),
-					false
-			);
-			this.fillWithOutline(
-					world,
-					chunkBox,
-					11,
-					5,
-					7,
-					18,
-					5,
-					7,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -469,10 +439,10 @@ public class NetherFortressGenerator {
 					chunkBox,
 					0,
 					5,
-					11,
+					7,
 					7,
 					5,
-					11,
+					7,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -480,12 +450,38 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					11,
+					SIZE_Y,
 					5,
-					11,
+					7,
 					18,
 					5,
-					11,
+					7,
+					Blocks.NETHER_BRICKS.getDefaultState(),
+					Blocks.NETHER_BRICKS.getDefaultState(),
+					false
+			);
+			this.fillWithOutline(
+					world,
+					chunkBox,
+					0,
+					5,
+					SIZE_Y,
+					7,
+					5,
+					SIZE_Y,
+					Blocks.NETHER_BRICKS.getDefaultState(),
+					Blocks.NETHER_BRICKS.getDefaultState(),
+					false
+			);
+			this.fillWithOutline(
+					world,
+					chunkBox,
+					SIZE_Y,
+					5,
+					SIZE_Y,
+					18,
+					5,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -496,7 +492,7 @@ public class NetherFortressGenerator {
 					7,
 					2,
 					0,
-					11,
+					SIZE_Y,
 					2,
 					5,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -508,8 +504,8 @@ public class NetherFortressGenerator {
 					chunkBox,
 					7,
 					2,
-					13,
-					11,
+					SIZE_X,
+					SIZE_Y,
 					2,
 					18,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -522,7 +518,7 @@ public class NetherFortressGenerator {
 					7,
 					0,
 					0,
-					11,
+					SIZE_Y,
 					1,
 					3,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -535,7 +531,7 @@ public class NetherFortressGenerator {
 					7,
 					0,
 					15,
-					11,
+					SIZE_Y,
 					1,
 					18,
 					Blocks.NETHER_BRICKS.getDefaultState(),
@@ -543,7 +539,7 @@ public class NetherFortressGenerator {
 					false
 			);
 
-			for (int i = 7; i <= 11; i++) {
+			for (int i = 7; i <= SIZE_Y; i++) {
 				for (int j = 0; j <= 2; j++) {
 					this.fillDownwards(world, Blocks.NETHER_BRICKS.getDefaultState(), i, -1, j, chunkBox);
 					this.fillDownwards(world, Blocks.NETHER_BRICKS.getDefaultState(), i, -1, 18 - j, chunkBox);
@@ -558,7 +554,7 @@ public class NetherFortressGenerator {
 					7,
 					5,
 					2,
-					11,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -566,12 +562,12 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					13,
+					SIZE_X,
 					2,
 					7,
 					18,
 					2,
-					11,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -584,7 +580,7 @@ public class NetherFortressGenerator {
 					7,
 					3,
 					1,
-					11,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
@@ -597,14 +593,14 @@ public class NetherFortressGenerator {
 					7,
 					18,
 					1,
-					11,
+					SIZE_Y,
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					Blocks.NETHER_BRICKS.getDefaultState(),
 					false
 			);
 
 			for (int i = 0; i <= 2; i++) {
-				for (int j = 7; j <= 11; j++) {
+				for (int j = 7; j <= SIZE_Y; j++) {
 					this.fillDownwards(world, Blocks.NETHER_BRICKS.getDefaultState(), i, -1, j, chunkBox);
 					this.fillDownwards(world, Blocks.NETHER_BRICKS.getDefaultState(), 18 - i, -1, j, chunkBox);
 				}
@@ -612,9 +608,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code BridgeEnd}.
-	 */
 	public static class BridgeEnd extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -746,9 +739,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code BridgePlatform}.
-	 */
 	public static class BridgePlatform extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 7;
@@ -1072,9 +1062,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code BridgeSmallCrossing}.
-	 */
 	public static class BridgeSmallCrossing extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 7;
@@ -1320,9 +1307,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code BridgeStairs}.
-	 */
 	public static class BridgeStairs extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 7;
@@ -1346,7 +1330,7 @@ public class NetherFortressGenerator {
 		public static NetherFortressGenerator.@Nullable BridgeStairs create(
 				StructurePiecesHolder holder, int x, int y, int z, int chainlength, Direction orientation
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -2, 0, 0, 7, 11, 7, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -2, 0, 0, 7, SIZE_Y, 7, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.BridgeStairs(chainlength, blockBox, orientation)
 			       : null;
@@ -1567,9 +1551,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorBalcony}.
-	 */
 	public static class CorridorBalcony extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 9;
@@ -1819,9 +1800,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorCrossing}.
-	 */
 	public static class CorridorCrossing extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -1963,9 +1941,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorExit}.
-	 */
 	public static class CorridorExit extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 13;
@@ -1989,7 +1964,7 @@ public class NetherFortressGenerator {
 		public static NetherFortressGenerator.@Nullable CorridorExit create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -5, -3, 0, 13, 14, 13, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -5, -3, 0, SIZE_X, SIZE_Y, 13, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.CorridorExit(chainLength, random, blockBox, orientation)
 			       : null;
@@ -2025,7 +2000,7 @@ public class NetherFortressGenerator {
 					5,
 					0,
 					12,
-					13,
+					SIZE_X,
 					12,
 					Blocks.AIR.getDefaultState(),
 					Blocks.AIR.getDefaultState(),
@@ -2047,7 +2022,7 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					11,
+					SIZE_Y,
 					5,
 					0,
 					12,
@@ -2062,7 +2037,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					2,
 					5,
-					11,
+					SIZE_Y,
 					4,
 					12,
 					12,
@@ -2075,7 +2050,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					8,
 					5,
-					11,
+					SIZE_Y,
 					10,
 					12,
 					12,
@@ -2088,7 +2063,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					5,
 					9,
-					11,
+					SIZE_Y,
 					7,
 					12,
 					12,
@@ -2139,7 +2114,7 @@ public class NetherFortressGenerator {
 					world,
 					chunkBox,
 					2,
-					11,
+					SIZE_Y,
 					2,
 					10,
 					12,
@@ -2171,20 +2146,20 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.NORTH, true)
 							.with(FenceBlock.SOUTH, true);
 
-			for (int i = 1; i <= 11; i += 2) {
-				this.fillWithOutline(world, chunkBox, i, 10, 0, i, 11, 0, blockState, blockState, false);
-				this.fillWithOutline(world, chunkBox, i, 10, 12, i, 11, 12, blockState, blockState, false);
-				this.fillWithOutline(world, chunkBox, 0, 10, i, 0, 11, i, blockState2, blockState2, false);
-				this.fillWithOutline(world, chunkBox, 12, 10, i, 12, 11, i, blockState2, blockState2, false);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, 13, 0, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, 13, 12, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 0, 13, i, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 12, 13, i, chunkBox);
-				if (i != 11) {
-					this.addBlock(world, blockState, i + 1, 13, 0, chunkBox);
-					this.addBlock(world, blockState, i + 1, 13, 12, chunkBox);
-					this.addBlock(world, blockState2, 0, 13, i + 1, chunkBox);
-					this.addBlock(world, blockState2, 12, 13, i + 1, chunkBox);
+			for (int i = 1; i <= SIZE_Y; i += 2) {
+				this.fillWithOutline(world, chunkBox, i, 10, 0, i, SIZE_Y, 0, blockState, blockState, false);
+				this.fillWithOutline(world, chunkBox, i, 10, 12, i, SIZE_Y, 12, blockState, blockState, false);
+				this.fillWithOutline(world, chunkBox, 0, 10, i, 0, SIZE_Y, i, blockState2, blockState2, false);
+				this.fillWithOutline(world, chunkBox, 12, 10, i, 12, SIZE_Y, i, blockState2, blockState2, false);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, SIZE_X, 0, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, SIZE_X, 12, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 0, SIZE_X, i, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 12, SIZE_X, i, chunkBox);
+				if (i != SIZE_Y) {
+					this.addBlock(world, blockState, i + 1, SIZE_X, 0, chunkBox);
+					this.addBlock(world, blockState, i + 1, SIZE_X, 12, chunkBox);
+					this.addBlock(world, blockState2, 0, SIZE_X, i + 1, chunkBox);
+					this.addBlock(world, blockState2, 12, SIZE_X, i + 1, chunkBox);
 				}
 			}
 
@@ -2195,7 +2170,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.NORTH, true)
 							.with(FenceBlock.EAST, true),
 					0,
-					13,
+					SIZE_X,
 					0,
 					chunkBox
 			);
@@ -2206,7 +2181,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.SOUTH, true)
 							.with(FenceBlock.EAST, true),
 					0,
-					13,
+					SIZE_X,
 					12,
 					chunkBox
 			);
@@ -2217,7 +2192,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.SOUTH, true)
 							.with(FenceBlock.WEST, true),
 					12,
-					13,
+					SIZE_X,
 					12,
 					chunkBox
 			);
@@ -2228,7 +2203,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.NORTH, true)
 							.with(FenceBlock.WEST, true),
 					12,
-					13,
+					SIZE_X,
 					0,
 					chunkBox
 			);
@@ -2250,10 +2225,10 @@ public class NetherFortressGenerator {
 				this.fillWithOutline(
 						world,
 						chunkBox,
-						11,
+						SIZE_Y,
 						7,
 						ix,
-						11,
+						SIZE_Y,
 						8,
 						ix,
 						blockState2.with(FenceBlock.EAST, true),
@@ -2390,9 +2365,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorLeftTurn}.
-	 */
 	public static class CorridorLeftTurn extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -2546,9 +2518,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorNetherWartsRoom}.
-	 */
 	public static class CorridorNetherWartsRoom extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 13;
@@ -2567,13 +2536,13 @@ public class NetherFortressGenerator {
 		@Override
 		public void fillOpenings(StructurePiece start, StructurePiecesHolder holder, Random random) {
 			this.fillForwardOpening((NetherFortressGenerator.Start) start, holder, random, 5, 3, true);
-			this.fillForwardOpening((NetherFortressGenerator.Start) start, holder, random, 5, 11, true);
+			this.fillForwardOpening((NetherFortressGenerator.Start) start, holder, random, 5, SIZE_Y, true);
 		}
 
 		public static NetherFortressGenerator.@Nullable CorridorNetherWartsRoom create(
 				StructurePiecesHolder holder, int x, int y, int z, Direction orientation, int chainlength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -5, -3, 0, 13, 14, 13, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -5, -3, 0, SIZE_X, SIZE_Y, 13, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.CorridorNetherWartsRoom(chainlength, blockBox, orientation)
 			       : null;
@@ -2609,7 +2578,7 @@ public class NetherFortressGenerator {
 					5,
 					0,
 					12,
-					13,
+					SIZE_X,
 					12,
 					Blocks.AIR.getDefaultState(),
 					Blocks.AIR.getDefaultState(),
@@ -2631,7 +2600,7 @@ public class NetherFortressGenerator {
 			this.fillWithOutline(
 					world,
 					chunkBox,
-					11,
+					SIZE_Y,
 					5,
 					0,
 					12,
@@ -2646,7 +2615,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					2,
 					5,
-					11,
+					SIZE_Y,
 					4,
 					12,
 					12,
@@ -2659,7 +2628,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					8,
 					5,
-					11,
+					SIZE_Y,
 					10,
 					12,
 					12,
@@ -2672,7 +2641,7 @@ public class NetherFortressGenerator {
 					chunkBox,
 					5,
 					9,
-					11,
+					SIZE_Y,
 					7,
 					12,
 					12,
@@ -2723,7 +2692,7 @@ public class NetherFortressGenerator {
 					world,
 					chunkBox,
 					2,
-					11,
+					SIZE_Y,
 					2,
 					10,
 					12,
@@ -2744,20 +2713,20 @@ public class NetherFortressGenerator {
 			BlockState blockState3 = blockState2.with(FenceBlock.WEST, true);
 			BlockState blockState4 = blockState2.with(FenceBlock.EAST, true);
 
-			for (int i = 1; i <= 11; i += 2) {
-				this.fillWithOutline(world, chunkBox, i, 10, 0, i, 11, 0, blockState, blockState, false);
-				this.fillWithOutline(world, chunkBox, i, 10, 12, i, 11, 12, blockState, blockState, false);
-				this.fillWithOutline(world, chunkBox, 0, 10, i, 0, 11, i, blockState2, blockState2, false);
-				this.fillWithOutline(world, chunkBox, 12, 10, i, 12, 11, i, blockState2, blockState2, false);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, 13, 0, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, 13, 12, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 0, 13, i, chunkBox);
-				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 12, 13, i, chunkBox);
-				if (i != 11) {
-					this.addBlock(world, blockState, i + 1, 13, 0, chunkBox);
-					this.addBlock(world, blockState, i + 1, 13, 12, chunkBox);
-					this.addBlock(world, blockState2, 0, 13, i + 1, chunkBox);
-					this.addBlock(world, blockState2, 12, 13, i + 1, chunkBox);
+			for (int i = 1; i <= SIZE_Y; i += 2) {
+				this.fillWithOutline(world, chunkBox, i, 10, 0, i, SIZE_Y, 0, blockState, blockState, false);
+				this.fillWithOutline(world, chunkBox, i, 10, 12, i, SIZE_Y, 12, blockState, blockState, false);
+				this.fillWithOutline(world, chunkBox, 0, 10, i, 0, SIZE_Y, i, blockState2, blockState2, false);
+				this.fillWithOutline(world, chunkBox, 12, 10, i, 12, SIZE_Y, i, blockState2, blockState2, false);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, SIZE_X, 0, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), i, SIZE_X, 12, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 0, SIZE_X, i, chunkBox);
+				this.addBlock(world, Blocks.NETHER_BRICKS.getDefaultState(), 12, SIZE_X, i, chunkBox);
+				if (i != SIZE_Y) {
+					this.addBlock(world, blockState, i + 1, SIZE_X, 0, chunkBox);
+					this.addBlock(world, blockState, i + 1, SIZE_X, 12, chunkBox);
+					this.addBlock(world, blockState2, 0, SIZE_X, i + 1, chunkBox);
+					this.addBlock(world, blockState2, 12, SIZE_X, i + 1, chunkBox);
 				}
 			}
 
@@ -2768,7 +2737,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.NORTH, true)
 							.with(FenceBlock.EAST, true),
 					0,
-					13,
+					SIZE_X,
 					0,
 					chunkBox
 			);
@@ -2779,7 +2748,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.SOUTH, true)
 							.with(FenceBlock.EAST, true),
 					0,
-					13,
+					SIZE_X,
 					12,
 					chunkBox
 			);
@@ -2790,7 +2759,7 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.SOUTH, true)
 							.with(FenceBlock.WEST, true),
 					12,
-					13,
+					SIZE_X,
 					12,
 					chunkBox
 			);
@@ -2801,14 +2770,14 @@ public class NetherFortressGenerator {
 							.with(FenceBlock.NORTH, true)
 							.with(FenceBlock.WEST, true),
 					12,
-					13,
+					SIZE_X,
 					0,
 					chunkBox
 			);
 
 			for (int ix = 3; ix <= 9; ix += 2) {
 				this.fillWithOutline(world, chunkBox, 1, 7, ix, 1, 8, ix, blockState3, blockState3, false);
-				this.fillWithOutline(world, chunkBox, 11, 7, ix, 11, 8, ix, blockState4, blockState4, false);
+				this.fillWithOutline(world, chunkBox, SIZE_Y, 7, ix, SIZE_Y, 8, ix, blockState4, blockState4, false);
 			}
 
 			BlockState
@@ -2871,7 +2840,7 @@ public class NetherFortressGenerator {
 			}
 
 			for (int j = 5; j <= 7; j++) {
-				this.addBlock(world, blockState5, j, 12, 11, chunkBox);
+				this.addBlock(world, blockState5, j, 12, SIZE_Y, chunkBox);
 			}
 
 			this.fillWithOutline(world, chunkBox, 5, 6, 7, 5, 7, 7, blockState4, blockState4, false);
@@ -2880,10 +2849,10 @@ public class NetherFortressGenerator {
 					world,
 					chunkBox,
 					5,
-					13,
+					SIZE_X,
 					12,
 					7,
-					13,
+					SIZE_X,
 					12,
 					Blocks.AIR.getDefaultState(),
 					Blocks.AIR.getDefaultState(),
@@ -3124,9 +3093,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorRightTurn}.
-	 */
 	public static class CorridorRightTurn extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -3280,9 +3246,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code CorridorStairs}.
-	 */
 	public static class CorridorStairs extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -3306,7 +3269,7 @@ public class NetherFortressGenerator {
 		public static NetherFortressGenerator.@Nullable CorridorStairs create(
 				StructurePiecesHolder holder, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, 14, 10, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, SIZE_Y, 10, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new NetherFortressGenerator.CorridorStairs(chainLength, blockBox, orientation)
 			       : null;
@@ -3419,9 +3382,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code Piece}.
-	 */
 	abstract static class Piece extends StructurePiece {
 
 		protected Piece(StructurePieceType structurePieceType, int i, BlockBox blockBox) {
@@ -3463,7 +3423,7 @@ public class NetherFortressGenerator {
 				int chainLength
 		) {
 			int i = this.checkRemainingPieces(possiblePieces);
-			boolean bl = i > 0 && chainLength <= 30;
+			boolean bl = i > 0 && chainLength <= MAX_BRIDGE_CHAIN_LENGTH;
 			int j = 0;
 
 			while (j < 5 && bl) {
@@ -3739,9 +3699,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code PieceData}.
-	 */
 	static class PieceData {
 
 		public final Class<? extends NetherFortressGenerator.Piece> pieceType;
@@ -3775,9 +3732,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code SmallCorridor}.
-	 */
 	public static class SmallCorridor extends NetherFortressGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -3901,9 +3855,6 @@ public class NetherFortressGenerator {
 		}
 	}
 
-	/**
-	 * {@code Start}.
-	 */
 	public static class Start extends NetherFortressGenerator.BridgeCrossing {
 
 		NetherFortressGenerator.@Nullable PieceData lastPiece;

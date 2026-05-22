@@ -12,26 +12,27 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * {@code ComponentsPredicate}.
+ * Составной предикат компонентов предмета: проверяет точное совпадение набора компонентов
+ * через {@link ComponentMapPredicate} и дополнительные частичные предикаты через {@link ComponentPredicate}.
  */
 public record ComponentsPredicate(
 		ComponentMapPredicate exact,
 		Map<ComponentPredicate.Type<?>, ComponentPredicate> partial
-)
-		implements Predicate<ComponentsAccess> {
+) implements Predicate<ComponentsAccess> {
 
 	public static final ComponentsPredicate EMPTY = new ComponentsPredicate(ComponentMapPredicate.EMPTY, Map.of());
+
 	public static final MapCodec<ComponentsPredicate> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    ComponentMapPredicate.CODEC
-							                    .optionalFieldOf("components", ComponentMapPredicate.EMPTY)
-							                    .forGetter(ComponentsPredicate::exact),
-					                    ComponentPredicate.PREDICATES_MAP_CODEC
-							                    .optionalFieldOf("predicates", Map.of())
-							                    .forGetter(ComponentsPredicate::partial)
-			                    )
-			                    .apply(instance, ComponentsPredicate::new)
+					ComponentMapPredicate.CODEC
+							.optionalFieldOf("components", ComponentMapPredicate.EMPTY)
+							.forGetter(ComponentsPredicate::exact),
+					ComponentPredicate.PREDICATES_MAP_CODEC
+							.optionalFieldOf("predicates", Map.of())
+							.forGetter(ComponentsPredicate::partial)
+			).apply(instance, ComponentsPredicate::new)
 	);
+
 	public static final PacketCodec<RegistryByteBuf, ComponentsPredicate> PACKET_CODEC = PacketCodec.tuple(
 			ComponentMapPredicate.PACKET_CODEC,
 			ComponentsPredicate::exact,
@@ -40,33 +41,32 @@ public record ComponentsPredicate(
 			ComponentsPredicate::new
 	);
 
+	@Override
 	public boolean test(ComponentsAccess componentsAccess) {
-		if (!this.exact.test(componentsAccess)) {
+		if (!exact.test(componentsAccess)) {
 			return false;
 		}
-		else {
-			for (ComponentPredicate componentPredicate : this.partial.values()) {
-				if (!componentPredicate.test(componentsAccess)) {
-					return false;
-				}
-			}
 
-			return true;
+		for (ComponentPredicate predicate : partial.values()) {
+			if (!predicate.test(componentsAccess)) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	public boolean isEmpty() {
-		return this.exact.isEmpty() && this.partial.isEmpty();
+		return exact.isEmpty() && partial.isEmpty();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link ComponentsPredicate} из точных и частичных проверок компонентов.
 	 */
 	public static class Builder {
 
 		private ComponentMapPredicate exact = ComponentMapPredicate.EMPTY;
-		private final com.google.common.collect.ImmutableMap.Builder<ComponentPredicate.Type<?>, ComponentPredicate>
-				partial =
+		private final ImmutableMap.Builder<ComponentPredicate.Type<?>, ComponentPredicate> partial =
 				ImmutableMap.builder();
 
 		private Builder() {
@@ -76,9 +76,9 @@ public record ComponentsPredicate(
 			return new ComponentsPredicate.Builder();
 		}
 
-		public <T extends ComponentType<?>> ComponentsPredicate.Builder has(ComponentType<?> type) {
+		public ComponentsPredicate.Builder has(ComponentType<?> type) {
 			ComponentPredicate.OfExistence ofExistence = ComponentPredicate.OfExistence.toPredicateType(type);
-			this.partial.put(ofExistence, ofExistence.getPredicate());
+			partial.put(ofExistence, ofExistence.getPredicate());
 			return this;
 		}
 
@@ -86,17 +86,17 @@ public record ComponentsPredicate(
 				ComponentPredicate.Type<T> type,
 				T predicate
 		) {
-			this.partial.put(type, predicate);
+			partial.put(type, predicate);
 			return this;
 		}
 
-		public ComponentsPredicate.Builder exact(ComponentMapPredicate exact) {
-			this.exact = exact;
+		public ComponentsPredicate.Builder exact(ComponentMapPredicate exactPredicate) {
+			exact = exactPredicate;
 			return this;
 		}
 
 		public ComponentsPredicate build() {
-			return new ComponentsPredicate(this.exact, this.partial.buildOrThrow());
+			return new ComponentsPredicate(exact, partial.buildOrThrow());
 		}
 	}
 }

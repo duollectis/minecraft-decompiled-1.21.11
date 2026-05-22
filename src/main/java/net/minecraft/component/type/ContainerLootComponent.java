@@ -13,17 +13,18 @@ import net.minecraft.text.Text;
 import java.util.function.Consumer;
 
 /**
- * {@code ContainerLootComponent}.
- */
+	 * Компонент лут-таблицы контейнера. Хранит ключ таблицы добычи и сид генерации,
+	 * которые используются при первом открытии контейнера для заполнения его содержимым.
+	 */
 public record ContainerLootComponent(RegistryKey<LootTable> lootTable, long seed) implements TooltipAppender {
 
 	private static final Text UNKNOWN_LOOT_TABLE_TOOLTIP_TEXT = Text.translatable("item.container.loot_table.unknown");
 	public static final Codec<ContainerLootComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(ContainerLootComponent::lootTable),
-					                    Codec.LONG.optionalFieldOf("seed", 0L).forGetter(ContainerLootComponent::seed)
-			                    )
-			                    .apply(instance, ContainerLootComponent::new)
+										LootTable.TABLE_KEY.fieldOf("loot_table").forGetter(ContainerLootComponent::lootTable),
+										Codec.LONG.optionalFieldOf("seed", 0L).forGetter(ContainerLootComponent::seed)
+								)
+								.apply(instance, ContainerLootComponent::new)
 	);
 
 	@Override

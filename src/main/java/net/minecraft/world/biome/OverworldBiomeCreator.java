@@ -17,7 +17,12 @@ import net.minecraft.world.gen.carver.ConfiguredCarvers;
 import net.minecraft.world.gen.feature.*;
 
 /**
- * {@code OverworldBiomeCreator}.
+ * Фабрика биомов Верхнего мира.
+ * <p>
+ * Каждый статический метод {@code create*} собирает конкретный биом:
+ * настройки спавна, генерации и визуальные эффекты (цвета воды, тумана, листвы).
+ * Метод {@link #getSkyColor(float)} вычисляет цвет неба через HSV-интерполяцию
+ * в зависимости от температуры биома.
  */
 public class OverworldBiomeCreator {
 
@@ -25,10 +30,59 @@ public class OverworldBiomeCreator {
 	private static final int DEFAULT_DRY_FOLIAGE_COLOR = 8082228;
 	public static final int SWAMP_SKELETON_WEIGHT = 70;
 
+	private static final int COLD_WATER_COLOR = 4020182;
+	private static final int FROZEN_WATER_COLOR = 3750089;
+	private static final int LUKEWARM_OCEAN_WATER_COLOR = 4566514;
+	private static final int LUKEWARM_OCEAN_WATER_FOG_COLOR = -16509389;
+	private static final int WARM_OCEAN_WATER_COLOR = 4445678;
+	private static final int WARM_OCEAN_WATER_FOG_COLOR = -16507085;
+
+	private static final int BADLANDS_FOLIAGE_COLOR = 10387789;
+	private static final int BADLANDS_GRASS_COLOR = 9470285;
+
+	private static final int DARK_FOREST_SKY_COLOR = -4605511;
+	private static final int DARK_FOREST_FOG_COLOR = -8292496;
+	private static final int DARK_FOREST_WATER_FOG_COLOR = -11179648;
+
+	private static final int SWAMP_WATER_COLOR = 6388580;
+	private static final int SWAMP_FOLIAGE_COLOR = 6975545;
+	private static final int SWAMP_WATER_FOG_COLOR = -14474473;
+
+	private static final int MANGROVE_FOG_COLOR = -4138753;
+	private static final int MANGROVE_WATER_COLOR = 3832426;
+	private static final int MANGROVE_FOLIAGE_COLOR = 9285927;
+	private static final int MANGROVE_WATER_FOG_COLOR = -11699616;
+
+	private static final int CHERRY_GROVE_WATER_COLOR = 6141935;
+	private static final int CHERRY_GROVE_GRASS_COLOR = 11983713;
+	private static final int CHERRY_GROVE_WATER_FOG_COLOR = -10635281;
+
+	private static final int MEADOW_WATER_COLOR = 937679;
+
+	private static final int PALE_GARDEN_WATER_COLOR = 7768221;
+	private static final int PALE_GARDEN_GRASS_COLOR = 7832178;
+	private static final int PALE_GARDEN_FOLIAGE_COLOR = 8883574;
+	private static final int PALE_GARDEN_DRY_FOLIAGE_COLOR = 10528412;
+
+	private static final float SKY_HUE_BASE = 0.62222224F;
+	private static final float SKY_HUE_DELTA = 0.05F;
+	private static final float SKY_SATURATION_BASE = 0.5F;
+	private static final float SKY_SATURATION_DELTA = 0.1F;
+
+	/**
+	 * Вычисляет цвет неба биома через HSV-интерполяцию по температуре.
+	 * Чем теплее биом, тем более оранжевый оттенок неба; чем холоднее — тем синее.
+	 *
+	 * @param temperature температура биома (обычно от -2.0 до 2.0)
+	 * @return ARGB-цвет неба с полной альфой
+	 */
 	public static int getSkyColor(float temperature) {
-		float f = temperature / 3.0F;
-		f = MathHelper.clamp(f, -1.0F, 1.0F);
-		return ColorHelper.fullAlpha(MathHelper.hsvToRgb(0.62222224F - f * 0.05F, 0.5F + f * 0.1F, 1.0F));
+		float normalizedTemp = MathHelper.clamp(temperature / 3.0F, -1.0F, 1.0F);
+		return ColorHelper.fullAlpha(MathHelper.hsvToRgb(
+				SKY_HUE_BASE - normalizedTemp * SKY_HUE_DELTA,
+				SKY_SATURATION_BASE + normalizedTemp * SKY_SATURATION_DELTA,
+				1.0F
+		));
 	}
 
 	public static Biome.Builder biome(float temperature, float downfall) {
@@ -37,7 +91,7 @@ public class OverworldBiomeCreator {
 				.temperature(temperature)
 				.downfall(downfall)
 				.setEnvironmentAttribute(EnvironmentAttributes.SKY_COLOR_VISUAL, getSkyColor(temperature))
-				.effects(new BiomeEffects.Builder().waterColor(4159204).build());
+				.effects(new BiomeEffects.Builder().waterColor(DEFAULT_WATER_COLOR).build());
 	}
 
 	/**
@@ -422,7 +476,7 @@ public class OverworldBiomeCreator {
 				)
 				.setEnvironmentAttribute(EnvironmentAttributes.SNOW_GOLEM_MELTS_GAMEPLAY, true)
 				.effects(new BiomeEffects.Builder()
-						.waterColor(4159204)
+						.waterColor(DEFAULT_WATER_COLOR)
 						.foliageColor(10387789)
 						.grassColor(9470285)
 						.build())
@@ -693,7 +747,7 @@ public class OverworldBiomeCreator {
 			DefaultBiomeFeatures.addSweetBerryBushes(lookupBackedBuilder);
 		}
 
-		int i = snowy ? 4020182 : 4159204;
+		int i = snowy ? 4020182 : DEFAULT_WATER_COLOR;
 		return biome(snowy ? -0.5F : 0.25F, snowy ? 0.4F : 0.8F)
 				.effects(new BiomeEffects.Builder().waterColor(i).build())
 				.spawnSettings(builder.build())
@@ -794,8 +848,8 @@ public class OverworldBiomeCreator {
 						  .dryFoliageColor(10528412)
 						  .build()
 						: new BiomeEffects.Builder()
-						  .waterColor(4159204)
-						  .dryFoliageColor(8082228)
+						  .waterColor(DEFAULT_WATER_COLOR)
+						  .dryFoliageColor(DEFAULT_DRY_FOLIAGE_COLOR)
 						  .grassColorModifier(BiomeEffects.GrassColorModifier.DARK_FOREST)
 						  .build()
 				)
@@ -810,7 +864,7 @@ public class OverworldBiomeCreator {
 	) {
 		SpawnSettings.Builder builder = new SpawnSettings.Builder();
 		DefaultBiomeFeatures.addFarmAnimals(builder);
-		DefaultBiomeFeatures.addSwampMobs(builder, 70);
+		DefaultBiomeFeatures.addSwampMobs(builder, SWAMP_SKELETON_WEIGHT);
 		GenerationSettings.LookupBackedBuilder
 				lookupBackedBuilder =
 				new GenerationSettings.LookupBackedBuilder(featureLookup, carverLookup);
@@ -838,7 +892,7 @@ public class OverworldBiomeCreator {
 						new BiomeEffects.Builder()
 								.waterColor(6388580)
 								.foliageColor(6975545)
-								.dryFoliageColor(8082228)
+								.dryFoliageColor(DEFAULT_DRY_FOLIAGE_COLOR)
 								.grassColorModifier(BiomeEffects.GrassColorModifier.SWAMP)
 								.build()
 				)
@@ -852,7 +906,7 @@ public class OverworldBiomeCreator {
 			RegistryEntryLookup<ConfiguredCarver<?>> carverLookup
 	) {
 		SpawnSettings.Builder builder = new SpawnSettings.Builder();
-		DefaultBiomeFeatures.addSwampMobs(builder, 70);
+		DefaultBiomeFeatures.addSwampMobs(builder, SWAMP_SKELETON_WEIGHT);
 		builder.spawn(SpawnGroup.WATER_AMBIENT, 25, new SpawnSettings.SpawnEntry(EntityType.TROPICAL_FISH, 8, 8));
 		GenerationSettings.LookupBackedBuilder
 				lookupBackedBuilder =
@@ -880,7 +934,7 @@ public class OverworldBiomeCreator {
 						new BiomeEffects.Builder()
 								.waterColor(3832426)
 								.foliageColor(9285927)
-								.dryFoliageColor(8082228)
+								.dryFoliageColor(DEFAULT_DRY_FOLIAGE_COLOR)
 								.grassColorModifier(BiomeEffects.GrassColorModifier.SWAMP)
 								.build()
 				)
@@ -920,7 +974,7 @@ public class OverworldBiomeCreator {
 						EnvironmentAttributes.BACKGROUND_MUSIC_AUDIO,
 						BackgroundMusic.DEFAULT.withUnderwater(MusicType.UNDERWATER)
 				)
-				.effects(new BiomeEffects.Builder().waterColor(frozen ? 3750089 : 4159204).build())
+				.effects(new BiomeEffects.Builder().waterColor(frozen ? 3750089 : DEFAULT_WATER_COLOR).build())
 				.spawnSettings(builder.build())
 				.generationSettings(lookupBackedBuilder.build())
 				.build();
@@ -960,7 +1014,7 @@ public class OverworldBiomeCreator {
 			f = 0.8F;
 		}
 
-		int i = snowy ? 4020182 : 4159204;
+		int i = snowy ? 4020182 : DEFAULT_WATER_COLOR;
 		return biome(f, bl ? 0.4F : 0.3F)
 				.effects(new BiomeEffects.Builder().waterColor(i).build())
 				.spawnSettings(builder.build())
@@ -1018,16 +1072,17 @@ public class OverworldBiomeCreator {
 		DefaultBiomeFeatures.addEmeraldOre(lookupBackedBuilder);
 		DefaultBiomeFeatures.addInfestedStone(lookupBackedBuilder);
 		if (cherryGrove) {
-			BiomeEffects.Builder
-					builder2 =
-					new BiomeEffects.Builder().waterColor(6141935).grassColor(11983713).foliageColor(11983713);
+			BiomeEffects.Builder cherryEffects = new BiomeEffects.Builder()
+					.waterColor(CHERRY_GROVE_WATER_COLOR)
+					.grassColor(CHERRY_GROVE_GRASS_COLOR)
+					.foliageColor(CHERRY_GROVE_GRASS_COLOR);
 			return biome(0.5F, 0.8F)
-					.setEnvironmentAttribute(EnvironmentAttributes.WATER_FOG_COLOR_VISUAL, -10635281)
+					.setEnvironmentAttribute(EnvironmentAttributes.WATER_FOG_COLOR_VISUAL, CHERRY_GROVE_WATER_FOG_COLOR)
 					.setEnvironmentAttribute(
 							EnvironmentAttributes.BACKGROUND_MUSIC_AUDIO,
 							new BackgroundMusic(SoundEvents.MUSIC_OVERWORLD_CHERRY_GROVE)
 					)
-					.effects(builder2.build())
+					.effects(cherryEffects.build())
 					.spawnSettings(builder.build())
 					.generationSettings(lookupBackedBuilder.build())
 					.build();
@@ -1038,7 +1093,7 @@ public class OverworldBiomeCreator {
 							EnvironmentAttributes.BACKGROUND_MUSIC_AUDIO,
 							new BackgroundMusic(SoundEvents.MUSIC_OVERWORLD_MEADOW)
 					)
-					.effects(new BiomeEffects.Builder().waterColor(937679).build())
+					.effects(new BiomeEffects.Builder().waterColor(MEADOW_WATER_COLOR).build())
 					.spawnSettings(builder.build())
 					.generationSettings(lookupBackedBuilder.build())
 					.build();
@@ -1046,12 +1101,12 @@ public class OverworldBiomeCreator {
 	}
 
 	private static Biome.Builder createPeaksBiomeBuilder(
-			RegistryEntryLookup<PlacedFeature> registryEntryLookup,
-			RegistryEntryLookup<ConfiguredCarver<?>> registryEntryLookup2
+			RegistryEntryLookup<PlacedFeature> featureLookup,
+			RegistryEntryLookup<ConfiguredCarver<?>> carverLookup
 	) {
 		GenerationSettings.LookupBackedBuilder
 				lookupBackedBuilder =
-				new GenerationSettings.LookupBackedBuilder(registryEntryLookup, registryEntryLookup2);
+				new GenerationSettings.LookupBackedBuilder(featureLookup, carverLookup);
 		SpawnSettings.Builder builder = new SpawnSettings.Builder();
 		builder.spawn(SpawnGroup.CREATURE, 5, new SpawnSettings.SpawnEntry(EntityType.GOAT, 1, 3));
 		DefaultBiomeFeatures.addCaveAndMonsters(builder);

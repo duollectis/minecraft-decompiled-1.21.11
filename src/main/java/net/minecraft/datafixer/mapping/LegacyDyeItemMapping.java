@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 
 /**
- * {@code LegacyDyeItemMapping}.
+ * Содержит маппинги для преобразования данных.
  */
 public class LegacyDyeItemMapping {
 

@@ -11,7 +11,8 @@ import net.minecraft.world.WorldView;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code GlowLichenBlock}.
+ * Блок светящегося лишайника. Растёт по поверхностям блоков во всех шести направлениях
+ * через {@link MultifaceGrower}; при использовании костяной муки расширяется на соседние грани.
  */
 public class GlowLichenBlock extends MultifaceGrowthBlock implements Fertilizable {
 
@@ -35,7 +36,7 @@ public class GlowLichenBlock extends MultifaceGrowthBlock implements Fertilizabl
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
 		return Direction
 				.stream()
-				.anyMatch(direction -> this.grower.canGrow(state, world, pos, direction.getOpposite()));
+				.anyMatch(direction -> grower.canGrow(state, world, pos, direction.getOpposite()));
 	}
 
 	@Override
@@ -45,7 +46,7 @@ public class GlowLichenBlock extends MultifaceGrowthBlock implements Fertilizabl
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		this.grower.grow(state, world, pos, random);
+		grower.grow(state, world, pos, random);
 	}
 
 	@Override
@@ -55,6 +56,6 @@ public class GlowLichenBlock extends MultifaceGrowthBlock implements Fertilizabl
 
 	@Override
 	public MultifaceGrower getGrower() {
-		return this.grower;
+		return grower;
 	}
 }

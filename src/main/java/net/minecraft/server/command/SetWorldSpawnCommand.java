@@ -14,7 +14,7 @@ import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.WorldProperties;
 
 /**
- * {@code SetWorldSpawnCommand}.
+ * Команда {@code /setworldspawn}: установка точки возрождения мира.
  */
 public class SetWorldSpawnCommand {
 

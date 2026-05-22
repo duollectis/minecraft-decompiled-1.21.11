@@ -14,16 +14,52 @@ import net.minecraft.world.WorldAccess;
 import java.util.function.Supplier;
 
 /**
- * {@code ParticleUtil}.
+ * Утилитарный класс для спавна частиц в мире.
+ * Предоставляет вспомогательные методы для размещения частиц вокруг блоков,
+ * по направлениям граней и с заданными скоростями.
  */
 public class ParticleUtil {
 
+	/** Половина размера блока — используется как базовый горизонтальный отступ. */
+	private static final double HALF_BLOCK = 0.5;
+
+	/** Стандартное отклонение Гаусса для скорости частиц при атаке. */
+	private static final float SMASH_VELOCITY_SPREAD = 0.2F;
+
+	/** Стандартное отклонение Гаусса для скорости частиц кольца при атаке. */
+	private static final float SMASH_RING_VELOCITY_SPREAD = 0.05F;
+
+	/** Радиус кольца частиц при атаке молотом. */
+	private static final double SMASH_RING_RADIUS = 3.5;
+
+	/** Вертикальный сдвиг центра спавна частиц при атаке молотом. */
+	private static final double SMASH_CENTER_Y_OFFSET = 0.5;
+
+	/**
+	 * Спавнит частицы на всех шести гранях блока.
+	 *
+	 * @param world     мир
+	 * @param pos       позиция блока
+	 * @param effect    тип частицы
+	 * @param count     провайдер количества частиц на грань
+	 */
 	public static void spawnParticle(World world, BlockPos pos, ParticleEffect effect, IntProvider count) {
 		for (Direction direction : Direction.values()) {
 			spawnParticles(world, pos, effect, count, direction, () -> getRandomVelocity(world.random), 0.55);
 		}
 	}
 
+	/**
+	 * Спавнит заданное количество частиц на указанной грани блока.
+	 *
+	 * @param world            мир
+	 * @param pos              позиция блока
+	 * @param effect           тип частицы
+	 * @param count            провайдер количества
+	 * @param direction        грань блока
+	 * @param velocity         поставщик вектора скорости
+	 * @param offsetMultiplier множитель смещения от центра блока
+	 */
 	public static void spawnParticles(
 			World world,
 			BlockPos pos,
@@ -33,9 +69,9 @@ public class ParticleUtil {
 			Supplier<Vec3d> velocity,
 			double offsetMultiplier
 	) {
-		int i = count.get(world.random);
+		int particleCount = count.get(world.random);
 
-		for (int j = 0; j < i; j++) {
+		for (int index = 0; index < particleCount; index++) {
 			spawnParticle(world, pos, direction, effect, velocity.get(), offsetMultiplier);
 		}
 	}
@@ -48,6 +84,16 @@ public class ParticleUtil {
 		);
 	}
 
+	/**
+	 * Спавнит частицы вдоль заданной оси с разбросом по двум другим осям.
+	 *
+	 * @param axis     ось, вдоль которой распределяются частицы
+	 * @param world    мир
+	 * @param pos      позиция блока
+	 * @param variance разброс по перпендикулярным осям
+	 * @param effect   тип частицы
+	 * @param range    диапазон количества частиц
+	 */
 	public static void spawnParticle(
 			Direction.Axis axis,
 			World world,
@@ -56,23 +102,33 @@ public class ParticleUtil {
 			ParticleEffect effect,
 			UniformIntProvider range
 	) {
-		Vec3d vec3d = Vec3d.ofCenter(pos);
-		boolean bl = axis == Direction.Axis.X;
-		boolean bl2 = axis == Direction.Axis.Y;
-		boolean bl3 = axis == Direction.Axis.Z;
-		int i = range.get(world.random);
+		Vec3d center = Vec3d.ofCenter(pos);
+		boolean isX = axis == Direction.Axis.X;
+		boolean isY = axis == Direction.Axis.Y;
+		boolean isZ = axis == Direction.Axis.Z;
+		int particleCount = range.get(world.random);
 
-		for (int j = 0; j < i; j++) {
-			double d = vec3d.x + MathHelper.nextDouble(world.random, -1.0, 1.0) * (bl ? 0.5 : variance);
-			double e = vec3d.y + MathHelper.nextDouble(world.random, -1.0, 1.0) * (bl2 ? 0.5 : variance);
-			double f = vec3d.z + MathHelper.nextDouble(world.random, -1.0, 1.0) * (bl3 ? 0.5 : variance);
-			double g = bl ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
-			double h = bl2 ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
-			double k = bl3 ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
-			world.addParticleClient(effect, d, e, f, g, h, k);
+		for (int index = 0; index < particleCount; index++) {
+			double spawnX = center.x + MathHelper.nextDouble(world.random, -1.0, 1.0) * (isX ? HALF_BLOCK : variance);
+			double spawnY = center.y + MathHelper.nextDouble(world.random, -1.0, 1.0) * (isY ? HALF_BLOCK : variance);
+			double spawnZ = center.z + MathHelper.nextDouble(world.random, -1.0, 1.0) * (isZ ? HALF_BLOCK : variance);
+			double velX = isX ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
+			double velY = isY ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
+			double velZ = isZ ? MathHelper.nextDouble(world.random, -1.0, 1.0) : 0.0;
+			world.addParticleClient(effect, spawnX, spawnY, spawnZ, velX, velY, velZ);
 		}
 	}
 
+	/**
+	 * Спавнит одну частицу на грани блока со смещением от центра.
+	 *
+	 * @param world            мир
+	 * @param pos              позиция блока
+	 * @param direction        грань блока
+	 * @param effect           тип частицы
+	 * @param velocity         вектор скорости
+	 * @param offsetMultiplier множитель смещения вдоль нормали грани
+	 */
 	public static void spawnParticle(
 			World world,
 			BlockPos pos,
@@ -81,33 +137,67 @@ public class ParticleUtil {
 			Vec3d velocity,
 			double offsetMultiplier
 	) {
-		Vec3d vec3d = Vec3d.ofCenter(pos);
-		int i = direction.getOffsetX();
-		int j = direction.getOffsetY();
-		int k = direction.getOffsetZ();
-		double d = vec3d.x + (i == 0 ? MathHelper.nextDouble(world.random, -0.5, 0.5) : i * offsetMultiplier);
-		double e = vec3d.y + (j == 0 ? MathHelper.nextDouble(world.random, -0.5, 0.5) : j * offsetMultiplier);
-		double f = vec3d.z + (k == 0 ? MathHelper.nextDouble(world.random, -0.5, 0.5) : k * offsetMultiplier);
-		double g = i == 0 ? velocity.getX() : 0.0;
-		double h = j == 0 ? velocity.getY() : 0.0;
-		double l = k == 0 ? velocity.getZ() : 0.0;
-		world.addParticleClient(effect, d, e, f, g, h, l);
+		Vec3d center = Vec3d.ofCenter(pos);
+		int offsetX = direction.getOffsetX();
+		int offsetY = direction.getOffsetY();
+		int offsetZ = direction.getOffsetZ();
+		double spawnX = center.x + (offsetX == 0
+				? MathHelper.nextDouble(world.random, -0.5, 0.5)
+				: offsetX * offsetMultiplier);
+		double spawnY = center.y + (offsetY == 0
+				? MathHelper.nextDouble(world.random, -0.5, 0.5)
+				: offsetY * offsetMultiplier);
+		double spawnZ = center.z + (offsetZ == 0
+				? MathHelper.nextDouble(world.random, -0.5, 0.5)
+				: offsetZ * offsetMultiplier);
+		double velX = offsetX == 0 ? velocity.getX() : 0.0;
+		double velY = offsetY == 0 ? velocity.getY() : 0.0;
+		double velZ = offsetZ == 0 ? velocity.getZ() : 0.0;
+		world.addParticleClient(effect, spawnX, spawnY, spawnZ, velX, velY, velZ);
 	}
 
+	/**
+	 * Спавнит одну частицу над блоком со случайным горизонтальным смещением.
+	 *
+	 * @param world   мир
+	 * @param pos     позиция блока
+	 * @param random  генератор случайных чисел
+	 * @param effect  тип частицы
+	 */
 	public static void spawnParticle(World world, BlockPos pos, Random random, ParticleEffect effect) {
-		double d = pos.getX() + random.nextDouble();
-		double e = pos.getY() - 0.05;
-		double f = pos.getZ() + random.nextDouble();
-		world.addParticleClient(effect, d, e, f, 0.0, 0.0, 0.0);
+		double spawnX = pos.getX() + random.nextDouble();
+		double spawnY = pos.getY() - 0.05;
+		double spawnZ = pos.getZ() + random.nextDouble();
+		world.addParticleClient(effect, spawnX, spawnY, spawnZ, 0.0, 0.0, 0.0);
 	}
 
+	/**
+	 * Спавнит частицы вокруг блока, используя форму его коллизии для определения высоты.
+	 *
+	 * @param world  мир
+	 * @param pos    позиция блока
+	 * @param count  количество частиц
+	 * @param effect тип частицы
+	 */
 	public static void spawnParticlesAround(WorldAccess world, BlockPos pos, int count, ParticleEffect effect) {
-		double d = 0.5;
 		BlockState blockState = world.getBlockState(pos);
-		double e = blockState.isAir() ? 1.0 : blockState.getOutlineShape(world, pos).getMax(Direction.Axis.Y);
-		spawnParticlesAround(world, pos, count, 0.5, e, true, effect);
+		double topY = blockState.isAir()
+				? 1.0
+				: blockState.getOutlineShape(world, pos).getMax(Direction.Axis.Y);
+		spawnParticlesAround(world, pos, count, HALF_BLOCK, topY, true, effect);
 	}
 
+	/**
+	 * Спавнит частицы вокруг блока с заданными параметрами разброса.
+	 *
+	 * @param world            мир
+	 * @param pos              позиция блока
+	 * @param count            количество частиц
+	 * @param horizontalOffset горизонтальный радиус разброса
+	 * @param verticalOffset   вертикальный диапазон спавна
+	 * @param force            если {@code true} — спавнить даже над воздухом
+	 * @param effect           тип частицы
+	 */
 	public static void spawnParticlesAround(
 			WorldAccess world,
 			BlockPos pos,
@@ -119,44 +209,54 @@ public class ParticleUtil {
 	) {
 		Random random = world.getRandom();
 
-		for (int i = 0; i < count; i++) {
-			double d = random.nextGaussian() * 0.02;
-			double e = random.nextGaussian() * 0.02;
-			double f = random.nextGaussian() * 0.02;
-			double g = 0.5 - horizontalOffset;
-			double h = pos.getX() + g + random.nextDouble() * horizontalOffset * 2.0;
-			double j = pos.getY() + random.nextDouble() * verticalOffset;
-			double k = pos.getZ() + g + random.nextDouble() * horizontalOffset * 2.0;
-			if (force || !world.getBlockState(BlockPos.ofFloored(h, j, k).down()).isAir()) {
-				world.addParticleClient(effect, h, j, k, d, e, f);
+		for (int index = 0; index < count; index++) {
+			double velX = random.nextGaussian() * 0.02;
+			double velY = random.nextGaussian() * 0.02;
+			double velZ = random.nextGaussian() * 0.02;
+			double edgeOffset = HALF_BLOCK - horizontalOffset;
+			double spawnX = pos.getX() + edgeOffset + random.nextDouble() * horizontalOffset * 2.0;
+			double spawnY = pos.getY() + random.nextDouble() * verticalOffset;
+			double spawnZ = pos.getZ() + edgeOffset + random.nextDouble() * horizontalOffset * 2.0;
+
+			if (force || !world.getBlockState(BlockPos.ofFloored(spawnX, spawnY, spawnZ).down()).isAir()) {
+				world.addParticleClient(effect, spawnX, spawnY, spawnZ, velX, velY, velZ);
 			}
 		}
 	}
 
+	/**
+	 * Спавнит частицы разрушения блока при атаке молотом (smash attack).
+	 * Создаёт два слоя: центральное облако и кольцо по периметру.
+	 *
+	 * @param world  мир
+	 * @param pos    позиция удара
+	 * @param count  общее количество частиц
+	 */
 	public static void spawnSmashAttackParticles(WorldAccess world, BlockPos pos, int count) {
-		Vec3d vec3d = pos.toCenterPos().add(0.0, 0.5, 0.0);
-		BlockStateParticleEffect
-				blockStateParticleEffect =
+		Vec3d center = pos.toCenterPos().add(0.0, SMASH_CENTER_Y_OFFSET, 0.0);
+		BlockStateParticleEffect dustPillar =
 				new BlockStateParticleEffect(ParticleTypes.DUST_PILLAR, world.getBlockState(pos));
 
-		for (int i = 0; i < count / 3.0F; i++) {
-			double d = vec3d.x + world.getRandom().nextGaussian() / 2.0;
-			double e = vec3d.y;
-			double f = vec3d.z + world.getRandom().nextGaussian() / 2.0;
-			double g = world.getRandom().nextGaussian() * 0.2F;
-			double h = world.getRandom().nextGaussian() * 0.2F;
-			double j = world.getRandom().nextGaussian() * 0.2F;
-			world.addParticleClient(blockStateParticleEffect, d, e, f, g, h, j);
+		int centerCount = (int) (count / 3.0F);
+
+		for (int index = 0; index < centerCount; index++) {
+			double spawnX = center.x + world.getRandom().nextGaussian() / 2.0;
+			double spawnZ = center.z + world.getRandom().nextGaussian() / 2.0;
+			double velX = world.getRandom().nextGaussian() * SMASH_VELOCITY_SPREAD;
+			double velY = world.getRandom().nextGaussian() * SMASH_VELOCITY_SPREAD;
+			double velZ = world.getRandom().nextGaussian() * SMASH_VELOCITY_SPREAD;
+			world.addParticleClient(dustPillar, spawnX, center.y, spawnZ, velX, velY, velZ);
 		}
 
-		for (int i = 0; i < count / 1.5F; i++) {
-			double d = vec3d.x + 3.5 * Math.cos(i) + world.getRandom().nextGaussian() / 2.0;
-			double e = vec3d.y;
-			double f = vec3d.z + 3.5 * Math.sin(i) + world.getRandom().nextGaussian() / 2.0;
-			double g = world.getRandom().nextGaussian() * 0.05F;
-			double h = world.getRandom().nextGaussian() * 0.05F;
-			double j = world.getRandom().nextGaussian() * 0.05F;
-			world.addParticleClient(blockStateParticleEffect, d, e, f, g, h, j);
+		int ringCount = (int) (count / 1.5F);
+
+		for (int index = 0; index < ringCount; index++) {
+			double spawnX = center.x + SMASH_RING_RADIUS * Math.cos(index) + world.getRandom().nextGaussian() / 2.0;
+			double spawnZ = center.z + SMASH_RING_RADIUS * Math.sin(index) + world.getRandom().nextGaussian() / 2.0;
+			double velX = world.getRandom().nextGaussian() * SMASH_RING_VELOCITY_SPREAD;
+			double velY = world.getRandom().nextGaussian() * SMASH_RING_VELOCITY_SPREAD;
+			double velZ = world.getRandom().nextGaussian() * SMASH_RING_VELOCITY_SPREAD;
+			world.addParticleClient(dustPillar, spawnX, center.y, spawnZ, velX, velY, velZ);
 		}
 	}
 }

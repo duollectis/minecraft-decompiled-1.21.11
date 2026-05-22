@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * {@code WaypointCommand}.
+ * Команда {@code /waypoint}: управление путевыми точками.
  */
 public class WaypointCommand {
 

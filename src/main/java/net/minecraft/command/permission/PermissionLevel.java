@@ -30,7 +30,7 @@ public enum PermissionLevel implements StringIdentifiable {
 	}
 
 	public boolean isAtLeast(PermissionLevel other) {
-		return this.level >= other.level;
+		return level >= other.level;
 	}
 
 	public static PermissionLevel fromLevel(int level) {
@@ -38,11 +38,11 @@ public enum PermissionLevel implements StringIdentifiable {
 	}
 
 	public int getLevel() {
-		return this.level;
+		return level;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

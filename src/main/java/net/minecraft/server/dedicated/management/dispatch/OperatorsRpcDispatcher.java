@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code OperatorsRpcDispatcher}.
+ * Класс Operators Rpc Dispatcher.
  */
 public class OperatorsRpcDispatcher {
 
@@ -168,9 +168,6 @@ public class OperatorsRpcDispatcher {
 		return get(dispatcher);
 	}
 
-	/**
-	 * {@code ConfigEntry}.
-	 */
 	record ConfigEntry(
 			PlayerConfigEntry user,
 			Optional<PermissionLevel> permissionLevel,
@@ -178,9 +175,6 @@ public class OperatorsRpcDispatcher {
 	) {
 	}
 
-	/**
-	 * {@code RpcEntry}.
-	 */
 	public record RpcEntry(
 			RpcPlayer player,
 			Optional<PermissionLevel> permissionLevel,

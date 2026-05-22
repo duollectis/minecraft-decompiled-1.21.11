@@ -14,29 +14,25 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code FallAfterExplosionCriterion}.
+ * Критерий: игрок упал после взрыва.
+ * Проверяет начальную позицию, дистанцию падения и источник взрыва.
  */
 public class FallAfterExplosionCriterion extends AbstractCriterion<FallAfterExplosionCriterion.Conditions> {
 
 	@Override
-	public Codec<FallAfterExplosionCriterion.Conditions> getConditionsCodec() {
-		return FallAfterExplosionCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Vec3d startPosition, @Nullable Entity cause) {
-		Vec3d vec3d = player.getEntityPos();
-		LootContext
-				lootContext =
-				cause != null ? EntityPredicate.createAdvancementEntityLootContext(player, cause) : null;
-		this.trigger(
-				player,
-				conditions -> conditions.matches(player.getEntityWorld(), startPosition, vec3d, lootContext)
-		);
+		Vec3d endPos = player.getEntityPos();
+		LootContext causeContext = cause == null
+				? null
+				: EntityPredicate.createAdvancementEntityLootContext(player, cause);
+
+		trigger(player, conditions -> conditions.matches(player.getEntityWorld(), startPosition, endPos, causeContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LocationPredicate> startPosition,
@@ -44,66 +40,54 @@ public class FallAfterExplosionCriterion extends AbstractCriterion<FallAfterExpl
 			Optional<LootContextPredicate> cause
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<FallAfterExplosionCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(FallAfterExplosionCriterion.Conditions::player),
-						                    LocationPredicate.CODEC
-								                    .optionalFieldOf("start_position")
-								                    .forGetter(FallAfterExplosionCriterion.Conditions::startPosition),
-						                    DistancePredicate.CODEC
-								                    .optionalFieldOf("distance")
-								                    .forGetter(FallAfterExplosionCriterion.Conditions::distance),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("cause")
-								                    .forGetter(FallAfterExplosionCriterion.Conditions::cause)
-				                    )
-				                    .apply(instance, FallAfterExplosionCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						LocationPredicate.CODEC
+								.optionalFieldOf("start_position")
+								.forGetter(Conditions::startPosition),
+						DistancePredicate.CODEC
+								.optionalFieldOf("distance")
+								.forGetter(Conditions::distance),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("cause")
+								.forGetter(Conditions::cause)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<FallAfterExplosionCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				DistancePredicate distance,
 				EntityPredicate.Builder cause
 		) {
-			return Criteria.FALL_AFTER_EXPLOSION
-					.create(
-							new FallAfterExplosionCriterion.Conditions(
-									Optional.empty(),
-									Optional.empty(),
-									Optional.of(distance),
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(cause))
-							)
-					);
+			return Criteria.FALL_AFTER_EXPLOSION.create(new Conditions(
+					Optional.empty(),
+					Optional.empty(),
+					Optional.of(distance),
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(cause))
+			));
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.cause(), "cause");
+			validator.validateEntityPredicate(cause(), "cause");
 		}
 
-		public boolean matches(ServerWorld world, Vec3d startPosition, Vec3d endPosition, @Nullable LootContext cause) {
-			if (this.startPosition.isPresent() && !this.startPosition
-					.get()
-					.test(world, startPosition.x, startPosition.y, startPosition.z)) {
+		public boolean matches(ServerWorld world, Vec3d startPos, Vec3d endPos, @Nullable LootContext causeContext) {
+			if (startPosition.isPresent() && !startPosition.get().test(world, startPos.x, startPos.y, startPos.z)) {
 				return false;
 			}
-			else {
-				return this.distance.isPresent()
-						       && !this.distance
-						.get()
-						.test(
-								startPosition.x,
-								startPosition.y,
-								startPosition.z,
-								endPosition.x,
-								endPosition.y,
-								endPosition.z
-						)
-				       ? false
-				       : !this.cause.isPresent() || cause != null && this.cause.get().test(cause);
+
+			if (distance.isPresent() && !distance.get().test(
+					startPos.x, startPos.y, startPos.z,
+					endPos.x, endPos.y, endPos.z
+			)) {
+				return false;
 			}
+
+			return cause.isEmpty() || (causeContext != null && cause.get().test(causeContext));
 		}
 	}
 }

@@ -12,105 +12,132 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * {@code ItemCooldownManager}.
+ * Управляет кулдаунами предметов игрока, сгруппированными по идентификатору группы.
+ * Кулдаун задаётся в тиках и отслеживается относительно внутреннего счётчика тиков.
  */
 public class ItemCooldownManager {
 
-	private final Map<Identifier, ItemCooldownManager.Entry> entries = Maps.newHashMap();
+	private final Map<Identifier, Entry> entries = Maps.newHashMap();
 	private int tick;
 
+	/**
+	 * Проверяет, находится ли предмет в состоянии кулдауна.
+	 *
+	 * @param stack предмет для проверки
+	 * @return {@code true}, если кулдаун ещё не истёк
+	 */
 	public boolean isCoolingDown(ItemStack stack) {
-		return this.getCooldownProgress(stack, 0.0F) > 0.0F;
-	}
-
-	public float getCooldownProgress(ItemStack stack, float tickProgress) {
-		Identifier identifier = this.getGroup(stack);
-		ItemCooldownManager.Entry entry = this.entries.get(identifier);
-		if (entry != null) {
-			float f = entry.endTick - entry.startTick;
-			float g = entry.endTick - (this.tick + tickProgress);
-			return MathHelper.clamp(g / f, 0.0F, 1.0F);
-		}
-		else {
-			return 0.0F;
-		}
+		return getCooldownProgress(stack, 0.0F) > 0.0F;
 	}
 
 	/**
-	 * Update.
+	 * Возвращает прогресс кулдауна от 0.0 (кулдаун истёк) до 1.0 (только что установлен).
+	 *
+	 * @param stack        предмет
+	 * @param tickProgress интерполяционный прогресс текущего тика (0.0–1.0)
+	 * @return прогресс кулдауна в диапазоне [0.0, 1.0]
+	 */
+	public float getCooldownProgress(ItemStack stack, float tickProgress) {
+		Identifier groupId = getGroup(stack);
+		Entry entry = entries.get(groupId);
+
+		if (entry == null) {
+			return 0.0F;
+		}
+
+		float totalDuration = entry.endTick - entry.startTick;
+		float remaining = entry.endTick - (tick + tickProgress);
+		return MathHelper.clamp(remaining / totalDuration, 0.0F, 1.0F);
+	}
+
+	/**
+	 * Продвигает внутренний счётчик тиков и удаляет истёкшие кулдауны.
 	 */
 	public void update() {
-		this.tick++;
-		if (!this.entries.isEmpty()) {
-			Iterator<Map.Entry<Identifier, ItemCooldownManager.Entry>> iterator = this.entries.entrySet().iterator();
+		tick++;
 
-			while (iterator.hasNext()) {
-				Map.Entry<Identifier, ItemCooldownManager.Entry> entry = iterator.next();
-				if (entry.getValue().endTick <= this.tick) {
-					iterator.remove();
-					this.onCooldownUpdate(entry.getKey());
-				}
+		if (entries.isEmpty()) {
+			return;
+		}
+
+		Iterator<Map.Entry<Identifier, Entry>> iterator = entries.entrySet().iterator();
+
+		while (iterator.hasNext()) {
+			Map.Entry<Identifier, Entry> entry = iterator.next();
+
+			if (entry.getValue().endTick <= tick) {
+				iterator.remove();
+				onCooldownUpdate(entry.getKey());
 			}
 		}
 	}
 
+	/**
+	 * Определяет группу кулдауна для предмета.
+	 * Если у предмета есть компонент {@link UseCooldownComponent} с явной группой — используется она,
+	 * иначе группой является идентификатор самого предмета.
+	 *
+	 * @param stack предмет
+	 * @return идентификатор группы кулдауна
+	 */
 	public Identifier getGroup(ItemStack stack) {
-		UseCooldownComponent useCooldownComponent = stack.get(DataComponentTypes.USE_COOLDOWN);
-		Identifier identifier = Registries.ITEM.getId(stack.getItem());
-		return useCooldownComponent == null ? identifier : useCooldownComponent.cooldownGroup().orElse(identifier);
+		UseCooldownComponent cooldownComponent = stack.get(DataComponentTypes.USE_COOLDOWN);
+		Identifier itemId = Registries.ITEM.getId(stack.getItem());
+		return cooldownComponent == null
+			? itemId
+			: cooldownComponent.cooldownGroup().orElse(itemId);
 	}
 
 	/**
-	 * Set.
+	 * Устанавливает кулдаун для группы предмета.
 	 *
-	 * @param stack stack
-	 * @param duration duration
+	 * @param stack    предмет
+	 * @param duration длительность кулдауна в тиках
 	 */
 	public void set(ItemStack stack, int duration) {
-		this.set(this.getGroup(stack), duration);
+		set(getGroup(stack), duration);
 	}
 
 	/**
-	 * Set.
+	 * Устанавливает кулдаун для конкретной группы.
 	 *
-	 * @param groupId group id
-	 * @param duration duration
+	 * @param groupId  идентификатор группы
+	 * @param duration длительность кулдауна в тиках
 	 */
 	public void set(Identifier groupId, int duration) {
-		this.entries.put(groupId, new ItemCooldownManager.Entry(this.tick, this.tick + duration));
-		this.onCooldownUpdate(groupId, duration);
+		entries.put(groupId, new Entry(tick, tick + duration));
+		onCooldownUpdate(groupId, duration);
 	}
 
 	/**
-	 * Remove.
+	 * Принудительно снимает кулдаун с группы.
 	 *
-	 * @param groupId group id
+	 * @param groupId идентификатор группы
 	 */
 	public void remove(Identifier groupId) {
-		this.entries.remove(groupId);
-		this.onCooldownUpdate(groupId);
+		entries.remove(groupId);
+		onCooldownUpdate(groupId);
 	}
 
 	/**
-	 * Обрабатывает событие cooldown update.
+	 * Вызывается при установке нового кулдауна. Переопределяется в подклассах
+	 * для отправки пакетов клиенту.
 	 *
-	 * @param groupId group id
-	 * @param duration duration
+	 * @param groupId  идентификатор группы
+	 * @param duration длительность кулдауна в тиках
 	 */
 	protected void onCooldownUpdate(Identifier groupId, int duration) {
 	}
 
 	/**
-	 * Обрабатывает событие cooldown update.
+	 * Вызывается при истечении или снятии кулдауна. Переопределяется в подклассах
+	 * для отправки пакетов клиенту.
 	 *
-	 * @param groupId group id
+	 * @param groupId идентификатор группы
 	 */
 	protected void onCooldownUpdate(Identifier groupId) {
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	record Entry(int startTick, int endTick) {
 	}
 }

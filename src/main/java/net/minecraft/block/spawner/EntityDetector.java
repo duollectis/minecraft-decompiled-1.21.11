@@ -22,7 +22,9 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * {@code EntityDetector}.
+ * Функциональный интерфейс для обнаружения сущностей вокруг спаунера испытаний.
+ * Предоставляет готовые реализации для выживающих игроков, не-наблюдателей и овец.
+ * Параметр {@code spawner} включает проверку прямой видимости (line-of-sight).
  */
 public interface EntityDetector {
 
@@ -87,7 +89,8 @@ public interface EntityDetector {
 	}
 
 	/**
-	 * {@code Selector}.
+	 * Абстракция над источником сущностей: позволяет подменять реальный мир
+	 * тестовыми заглушками при юнит-тестировании спаунера испытаний.
 	 */
 	public interface Selector {
 

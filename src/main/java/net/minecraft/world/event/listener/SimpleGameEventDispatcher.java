@@ -20,7 +20,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code SimpleGameEventDispatcher}.
+ * Стандартная реализация {@link GameEventDispatcher} для секции чанка.
+ * <p>
+ * Поддерживает безопасное добавление и удаление слушателей во время итерации:
+ * изменения буферизуются в {@code toAdd} / {@code toRemove} и применяются
+ * после завершения текущего цикла рассылки.
  */
 public class SimpleGameEventDispatcher implements GameEventDispatcher {
 
@@ -30,12 +34,12 @@ public class SimpleGameEventDispatcher implements GameEventDispatcher {
 	private boolean dispatching;
 	private final ServerWorld world;
 	private final int ySectionCoord;
-	private final SimpleGameEventDispatcher.DisposalCallback disposalCallback;
+	private final DisposalCallback disposalCallback;
 
 	public SimpleGameEventDispatcher(
-			ServerWorld world,
-			int ySectionCoord,
-			SimpleGameEventDispatcher.DisposalCallback disposalCallback
+		ServerWorld world,
+		int ySectionCoord,
+		DisposalCallback disposalCallback
 	) {
 		this.world = world;
 		this.ySectionCoord = ySectionCoord;
@@ -44,122 +48,135 @@ public class SimpleGameEventDispatcher implements GameEventDispatcher {
 
 	@Override
 	public boolean isEmpty() {
-		return this.listeners.isEmpty();
+		return listeners.isEmpty();
 	}
 
 	@Override
 	public void addListener(GameEventListener listener) {
-		if (this.dispatching) {
-			this.toAdd.add(listener);
-		}
-		else {
-			this.listeners.add(listener);
+		if (dispatching) {
+			toAdd.add(listener);
+		} else {
+			listeners.add(listener);
 		}
 
-		sendDebugData(this.world, listener);
-	}
-
-	private static void sendDebugData(ServerWorld world, GameEventListener listener) {
-		if (world.getSubscriptionTracker().isSubscribed(DebugSubscriptionTypes.GAME_EVENT_LISTENERS)) {
-			GameEventListenerDebugData gameEventListenerDebugData = new GameEventListenerDebugData(listener.getRange());
-			PositionSource positionSource = listener.getPositionSource();
-			if (positionSource instanceof BlockPositionSource blockPositionSource) {
-				world.getSubscriptionTracker()
-				     .sendBlockDebugData(
-						     blockPositionSource.pos(),
-						     DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
-						     gameEventListenerDebugData
-				     );
-			}
-			else if (positionSource instanceof EntityPositionSource entityPositionSource) {
-				Entity entity = world.getEntity(entityPositionSource.getUuid());
-				if (entity != null) {
-					world
-							.getSubscriptionTracker()
-							.sendEntityDebugData(
-									entity,
-									DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
-									gameEventListenerDebugData
-							);
-				}
-			}
-		}
+		sendDebugData(world, listener);
 	}
 
 	@Override
 	public void removeListener(GameEventListener listener) {
-		if (this.dispatching) {
-			this.toRemove.add(listener);
-		}
-		else {
-			this.listeners.remove(listener);
+		if (dispatching) {
+			toRemove.add(listener);
+		} else {
+			listeners.remove(listener);
 		}
 
-		if (this.listeners.isEmpty()) {
-			this.disposalCallback.apply(this.ySectionCoord);
+		if (listeners.isEmpty()) {
+			disposalCallback.apply(ySectionCoord);
 		}
 	}
 
+	/**
+	 * Рассылает событие всем слушателям секции, находящимся в радиусе действия.
+	 * Во время итерации изменения списка буферизуются и применяются после её завершения.
+	 *
+	 * @return {@code true}, если хотя бы один слушатель получил событие
+	 */
 	@Override
 	public boolean dispatch(
-			RegistryEntry<GameEvent> event,
-			Vec3d pos,
-			GameEvent.Emitter emitter,
-			GameEventDispatcher.DispatchCallback callback
+		RegistryEntry<GameEvent> event,
+		Vec3d pos,
+		GameEvent.Emitter emitter,
+		GameEventDispatcher.DispatchCallback callback
 	) {
-		this.dispatching = true;
-		boolean bl = false;
+		dispatching = true;
+		boolean anyDispatched = false;
 
 		try {
-			Iterator<GameEventListener> iterator = this.listeners.iterator();
+			Iterator<GameEventListener> iterator = listeners.iterator();
 
 			while (iterator.hasNext()) {
-				GameEventListener gameEventListener = iterator.next();
-				if (this.toRemove.remove(gameEventListener)) {
+				GameEventListener listener = iterator.next();
+
+				if (toRemove.remove(listener)) {
 					iterator.remove();
+					continue;
 				}
-				else {
-					Optional<Vec3d> optional = dispatchTo(this.world, pos, gameEventListener);
-					if (optional.isPresent()) {
-						callback.visit(gameEventListener, optional.get());
-						bl = true;
-					}
+
+				Optional<Vec3d> listenerPos = dispatchTo(world, pos, listener);
+				if (listenerPos.isPresent()) {
+					callback.visit(listener, listenerPos.get());
+					anyDispatched = true;
 				}
 			}
-		}
-		finally {
-			this.dispatching = false;
-		}
-
-		if (!this.toAdd.isEmpty()) {
-			this.listeners.addAll(this.toAdd);
-			this.toAdd.clear();
+		} finally {
+			dispatching = false;
 		}
 
-		if (!this.toRemove.isEmpty()) {
-			this.listeners.removeAll(this.toRemove);
-			this.toRemove.clear();
+		if (!toAdd.isEmpty()) {
+			listeners.addAll(toAdd);
+			toAdd.clear();
 		}
 
-		return bl;
+		if (!toRemove.isEmpty()) {
+			listeners.removeAll(toRemove);
+			toRemove.clear();
+		}
+
+		return anyDispatched;
 	}
 
-	private static Optional<Vec3d> dispatchTo(ServerWorld world, Vec3d listenerPos, GameEventListener listener) {
-		Optional<Vec3d> optional = listener.getPositionSource().getPos(world);
-		if (optional.isEmpty()) {
+	/**
+	 * Проверяет, находится ли слушатель в радиусе действия события.
+	 *
+	 * @param emitterPos позиция источника события
+	 * @param listener   проверяемый слушатель
+	 * @return позиция слушателя, если он в радиусе; иначе {@link Optional#empty()}
+	 */
+	private static Optional<Vec3d> dispatchTo(ServerWorld world, Vec3d emitterPos, GameEventListener listener) {
+		Optional<Vec3d> listenerPosOptional = listener.getPositionSource().getPos(world);
+		if (listenerPosOptional.isEmpty()) {
 			return Optional.empty();
 		}
-		else {
-			double d = BlockPos.ofFloored(optional.get()).getSquaredDistance(BlockPos.ofFloored(listenerPos));
-			int i = listener.getRange() * listener.getRange();
-			return d > i ? Optional.empty() : optional;
+
+		Vec3d listenerPos = listenerPosOptional.get();
+		double squaredDistance = BlockPos.ofFloored(listenerPos).getSquaredDistance(BlockPos.ofFloored(emitterPos));
+		int squaredRange = listener.getRange() * listener.getRange();
+		return squaredDistance > squaredRange ? Optional.empty() : listenerPosOptional;
+	}
+
+	private static void sendDebugData(ServerWorld world, GameEventListener listener) {
+		if (!world.getSubscriptionTracker().isSubscribed(DebugSubscriptionTypes.GAME_EVENT_LISTENERS)) {
+			return;
+		}
+
+		GameEventListenerDebugData debugData = new GameEventListenerDebugData(listener.getRange());
+		PositionSource positionSource = listener.getPositionSource();
+
+		if (positionSource instanceof BlockPositionSource blockPositionSource) {
+			world.getSubscriptionTracker()
+				.sendBlockDebugData(
+					blockPositionSource.pos(),
+					DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
+					debugData
+				);
+		} else if (positionSource instanceof EntityPositionSource entityPositionSource) {
+			Entity entity = world.getEntity(entityPositionSource.getUuid());
+			if (entity != null) {
+				world.getSubscriptionTracker()
+					.sendEntityDebugData(
+						entity,
+						DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
+						debugData
+					);
+			}
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code DisposalCallback}.
+	 * Колбэк, вызываемый при опустошении списка слушателей секции.
+	 * Позволяет чанку освободить диспетчер для данной Y-секции.
 	 */
+	@FunctionalInterface
 	public interface DisposalCallback {
 
 		void apply(int ySectionCoord);

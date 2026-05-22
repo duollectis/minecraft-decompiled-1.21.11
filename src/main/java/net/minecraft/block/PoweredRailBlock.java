@@ -13,7 +13,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code PoweredRailBlock}.
+ * Рельс-ускоритель (золотой рельс) с поддержкой питания от редстоуна.
+ * При получении сигнала ускоряет вагонетки; без сигнала — тормозит.
+ * Питание распространяется по цепочке до 8 соседних рельсов того же типа.
  */
 public class PoweredRailBlock extends AbstractRailBlock {
 
@@ -28,140 +30,139 @@ public class PoweredRailBlock extends AbstractRailBlock {
 
 	public PoweredRailBlock(AbstractBlock.Settings settings) {
 		super(true, settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(SHAPE, RailShape.NORTH_SOUTH)
 				.with(POWERED, false)
 				.with(WATERLOGGED, false));
 	}
 
-	protected boolean isPoweredByOtherRails(World world, BlockPos pos, BlockState state, boolean bl, int distance) {
+	/**
+	 * Рекурсивно проверяет, получает ли рельс питание от соседних рельсов того же типа.
+	 * Обходит цепочку в направлении {@code forward} на глубину до 8 блоков.
+	 */
+	protected boolean isPoweredByOtherRails(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			boolean forward,
+			int distance
+	) {
 		if (distance >= 8) {
 			return false;
 		}
-		else {
-			int i = pos.getX();
-			int j = pos.getY();
-			int k = pos.getZ();
-			boolean bl2 = true;
-			RailShape railShape = state.get(SHAPE);
-			switch (railShape) {
-				case NORTH_SOUTH:
-					if (bl) {
-						k++;
-					}
-					else {
-						k--;
-					}
-					break;
-				case EAST_WEST:
-					if (bl) {
-						i--;
-					}
-					else {
-						i++;
-					}
-					break;
-				case ASCENDING_EAST:
-					if (bl) {
-						i--;
-					}
-					else {
-						i++;
-						j++;
-						bl2 = false;
-					}
 
-					railShape = RailShape.EAST_WEST;
-					break;
-				case ASCENDING_WEST:
-					if (bl) {
-						i--;
-						j++;
-						bl2 = false;
-					}
-					else {
-						i++;
-					}
+		int x = pos.getX();
+		int y = pos.getY();
+		int z = pos.getZ();
+		boolean canCheckBelow = true;
+		RailShape railShape = state.get(SHAPE);
 
-					railShape = RailShape.EAST_WEST;
-					break;
-				case ASCENDING_NORTH:
-					if (bl) {
-						k++;
-					}
-					else {
-						k--;
-						j++;
-						bl2 = false;
-					}
-
-					railShape = RailShape.NORTH_SOUTH;
-					break;
-				case ASCENDING_SOUTH:
-					if (bl) {
-						k++;
-						j++;
-						bl2 = false;
-					}
-					else {
-						k--;
-					}
-
-					railShape = RailShape.NORTH_SOUTH;
-			}
-
-			return this.isPoweredByOtherRails(world, new BlockPos(i, j, k), bl, distance, railShape)
-			       ? true
-			       : bl2 && this.isPoweredByOtherRails(world, new BlockPos(i, j - 1, k), bl, distance, railShape);
+		switch (railShape) {
+			case NORTH_SOUTH:
+				z += forward ? 1 : -1;
+				break;
+			case EAST_WEST:
+				x += forward ? -1 : 1;
+				break;
+			case ASCENDING_EAST:
+				if (forward) {
+					x--;
+				} else {
+					x++;
+					y++;
+					canCheckBelow = false;
+				}
+				railShape = RailShape.EAST_WEST;
+				break;
+			case ASCENDING_WEST:
+				if (forward) {
+					x--;
+					y++;
+					canCheckBelow = false;
+				} else {
+					x++;
+				}
+				railShape = RailShape.EAST_WEST;
+				break;
+			case ASCENDING_NORTH:
+				if (forward) {
+					z++;
+				} else {
+					z--;
+					y++;
+					canCheckBelow = false;
+				}
+				railShape = RailShape.NORTH_SOUTH;
+				break;
+			case ASCENDING_SOUTH:
+				if (forward) {
+					z++;
+					y++;
+					canCheckBelow = false;
+				} else {
+					z--;
+				}
+				railShape = RailShape.NORTH_SOUTH;
+				break;
+			default:
+				break;
 		}
+
+		return isPoweredByOtherRails(world, new BlockPos(x, y, z), forward, distance, railShape)
+				|| canCheckBelow && isPoweredByOtherRails(world, new BlockPos(x, y - 1, z), forward, distance, railShape);
 	}
 
-	protected boolean isPoweredByOtherRails(World world, BlockPos pos, boolean bl, int distance, RailShape shape) {
-		BlockState blockState = world.getBlockState(pos);
-		if (!blockState.isOf(this)) {
+	/**
+	 * Проверяет, является ли рельс в позиции {@code pos} питающим звеном цепочки.
+	 * Возвращает {@code false}, если форма рельса перпендикулярна направлению цепочки.
+	 */
+	protected boolean isPoweredByOtherRails(
+			World world,
+			BlockPos pos,
+			boolean forward,
+			int distance,
+			RailShape shape
+	) {
+		BlockState neighborState = world.getBlockState(pos);
+		if (neighborState.isOf(this) == false) {
 			return false;
 		}
-		else {
-			RailShape railShape = blockState.get(SHAPE);
-			if (shape != RailShape.EAST_WEST
-					|| railShape != RailShape.NORTH_SOUTH && railShape != RailShape.ASCENDING_NORTH
-					&& railShape != RailShape.ASCENDING_SOUTH) {
-				if (shape != RailShape.NORTH_SOUTH
-						|| railShape != RailShape.EAST_WEST && railShape != RailShape.ASCENDING_EAST
-						&& railShape != RailShape.ASCENDING_WEST) {
-					if (!blockState.get(POWERED)) {
-						return false;
-					}
-					else {
-						return world.isReceivingRedstonePower(pos) ? true : this.isPoweredByOtherRails(
-								world,
-								pos,
-								blockState,
-								bl,
-								distance + 1
-						);
-					}
-				}
-				else {
-					return false;
-				}
-			}
-			else {
-				return false;
-			}
+
+		RailShape neighborShape = neighborState.get(SHAPE);
+		if (shape == RailShape.EAST_WEST
+				&& (neighborShape == RailShape.NORTH_SOUTH
+				|| neighborShape == RailShape.ASCENDING_NORTH
+				|| neighborShape == RailShape.ASCENDING_SOUTH)) {
+			return false;
 		}
+
+		if (shape == RailShape.NORTH_SOUTH
+				&& (neighborShape == RailShape.EAST_WEST
+				|| neighborShape == RailShape.ASCENDING_EAST
+				|| neighborShape == RailShape.ASCENDING_WEST)) {
+			return false;
+		}
+
+		if (neighborState.get(POWERED) == false) {
+			return false;
+		}
+
+		return world.isReceivingRedstonePower(pos)
+				|| isPoweredByOtherRails(world, pos, neighborState, forward, distance + 1);
 	}
 
 	@Override
 	protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
-		boolean bl = state.get(POWERED);
-		boolean bl2 = world.isReceivingRedstonePower(pos)
-				|| this.isPoweredByOtherRails(world, pos, state, true, 0)
-				|| this.isPoweredByOtherRails(world, pos, state, false, 0);
-		if (bl2 != bl) {
-			world.setBlockState(pos, state.with(POWERED, bl2), 3);
+		boolean wasPowered = state.get(POWERED);
+		boolean nowPowered = world.isReceivingRedstonePower(pos)
+				|| isPoweredByOtherRails(world, pos, state, true, 0)
+				|| isPoweredByOtherRails(world, pos, state, false, 0);
+
+		if (nowPowered != wasPowered) {
+			world.setBlockState(pos, state.with(POWERED, nowPowered), 3);
 			world.updateNeighbors(pos.down(), this);
+
 			if (state.get(SHAPE).isAscending()) {
 				world.updateNeighbors(pos.up(), this);
 			}
@@ -175,16 +176,12 @@ public class PoweredRailBlock extends AbstractRailBlock {
 
 	@Override
 	protected BlockState rotate(BlockState state, BlockRotation rotation) {
-		RailShape railShape = state.get(SHAPE);
-		RailShape railShape2 = this.rotateShape(railShape, rotation);
-		return state.with(SHAPE, railShape2);
+		return state.with(SHAPE, rotateShape(state.get(SHAPE), rotation));
 	}
 
 	@Override
 	protected BlockState mirror(BlockState state, BlockMirror mirror) {
-		RailShape railShape = state.get(SHAPE);
-		RailShape railShape2 = this.mirrorShape(railShape, mirror);
-		return state.with(SHAPE, railShape2);
+		return state.with(SHAPE, mirrorShape(state.get(SHAPE), mirror));
 	}
 
 	@Override

@@ -41,7 +41,7 @@ public class EntityEquipmentUpdateS2CPacket implements Packet<ClientPlayPacketLi
 			ItemStack itemStack = ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
 			this.equipmentList.add(Pair.of(equipmentSlot, itemStack));
 		}
-		while ((i & -128) != 0);
+		while ((i & MORE_ENTRIES_FLAG) != 0);
 	}
 
 	private void write(RegistryByteBuf buf) {
@@ -53,7 +53,7 @@ public class EntityEquipmentUpdateS2CPacket implements Packet<ClientPlayPacketLi
 			EquipmentSlot equipmentSlot = (EquipmentSlot) pair.getFirst();
 			boolean bl = j != i - 1;
 			int k = equipmentSlot.ordinal();
-			buf.writeByte(bl ? k | -128 : k);
+			buf.writeByte(bl ? k | MORE_ENTRIES_FLAG : k);
 			ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, (ItemStack) pair.getSecond());
 		}
 	}

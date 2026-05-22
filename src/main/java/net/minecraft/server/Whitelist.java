@@ -7,7 +7,8 @@ import java.io.File;
 import java.util.Objects;
 
 /**
- * {@code Whitelist}.
+ * Белый список сервера: только игроки из этого списка могут подключиться,
+ * если белый список включён. Уведомляет {@link ManagementListener} об изменениях.
  */
 public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntry> {
 
@@ -21,51 +22,35 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 	}
 
 	public boolean isAllowed(PlayerConfigEntry playerConfigEntry) {
-		return this.contains(playerConfigEntry);
+		return contains(playerConfigEntry);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param whitelistEntry whitelist entry
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean add(WhitelistEntry whitelistEntry) {
-		if (super.add(whitelistEntry)) {
-			if (whitelistEntry.getKey() != null) {
-				this.managementListener.onAllowlistAdded(whitelistEntry.getKey());
-			}
-
-			return true;
-		}
-		else {
+		if (!super.add(whitelistEntry)) {
 			return false;
 		}
+
+		if (whitelistEntry.getKey() != null) {
+			managementListener.onAllowlistAdded(whitelistEntry.getKey());
+		}
+
+		return true;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean remove(PlayerConfigEntry playerConfigEntry) {
-		if (super.remove(playerConfigEntry)) {
-			this.managementListener.onAllowlistRemoved(playerConfigEntry);
-			return true;
-		}
-		else {
+		if (!super.remove(playerConfigEntry)) {
 			return false;
 		}
+
+		managementListener.onAllowlistRemoved(playerConfigEntry);
+		return true;
 	}
 
 	@Override
 	public void clear() {
-		for (WhitelistEntry whitelistEntry : this.values()) {
-			if (whitelistEntry.getKey() != null) {
-				this.managementListener.onAllowlistRemoved(whitelistEntry.getKey());
+		for (WhitelistEntry entry : values()) {
+			if (entry.getKey() != null) {
+				managementListener.onAllowlistRemoved(entry.getKey());
 			}
 		}
 
@@ -74,8 +59,7 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 
 	@Override
 	public String[] getNames() {
-		return this
-				.values()
+		return values()
 				.stream()
 				.map(ServerConfigEntry::getKey)
 				.filter(Objects::nonNull)
@@ -83,13 +67,7 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 				.toArray(String[]::new);
 	}
 
-	/**
-	 * To string.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return String — результат операции
-	 */
+	@Override
 	protected String toString(PlayerConfigEntry playerConfigEntry) {
 		return playerConfigEntry.id().toString();
 	}

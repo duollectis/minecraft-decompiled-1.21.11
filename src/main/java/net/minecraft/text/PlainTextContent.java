@@ -7,16 +7,25 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Optional;
 
 /**
- * {@code PlainTextContent}.
+ * Содержимое текстового компонента, представляющее простую строку без форматирования.
+ *
+ * <p>Является базовым типом содержимого для большинства текстовых компонентов.
+ * Константа {@link #EMPTY} используется как синглтон для пустого текста,
+ * а {@link Literal} — для непустых строк.</p>
  */
 public interface PlainTextContent extends TextContent {
 
+	/**
+	 * Codec для сериализации/десериализации через поле {@code "text"}.
+	 * Делегирует в {@link #of} для автоматического выбора между {@link #EMPTY} и {@link Literal}.
+	 */
 	MapCodec<PlainTextContent> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
 					.group(Codec.STRING.fieldOf("text").forGetter(PlainTextContent::string))
 					.apply(instance, PlainTextContent::of)
 	);
 
+	/** Синглтон пустого текстового содержимого. */
 	PlainTextContent EMPTY = new PlainTextContent() {
 		@Override
 		public String toString() {
@@ -29,10 +38,18 @@ public interface PlainTextContent extends TextContent {
 		}
 	};
 
+	/**
+	 * Создаёт {@link PlainTextContent} для заданной строки.
+	 * Возвращает {@link #EMPTY} для пустой строки, иначе — новый {@link Literal}.
+	 *
+	 * @param string исходная строка
+	 * @return соответствующая реализация {@link PlainTextContent}
+	 */
 	static PlainTextContent of(String string) {
-		return (PlainTextContent) (string.isEmpty() ? EMPTY : new PlainTextContent.Literal(string));
+		return string.isEmpty() ? EMPTY : new PlainTextContent.Literal(string);
 	}
 
+	/** @return строковое содержимое этого компонента */
 	String string();
 
 	@Override
@@ -41,23 +58,23 @@ public interface PlainTextContent extends TextContent {
 	}
 
 	/**
-	 * {@code Literal}.
+	 * Неизменяемый текстовый компонент с конкретным строковым значением.
 	 */
-	public record Literal(String string) implements PlainTextContent {
+	record Literal(String string) implements PlainTextContent {
 
 		@Override
 		public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-			return visitor.accept(this.string);
+			return visitor.accept(string);
 		}
 
 		@Override
 		public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-			return visitor.accept(style, this.string);
+			return visitor.accept(style, string);
 		}
 
 		@Override
 		public String toString() {
-			return "literal{" + this.string + "}";
+			return "literal{" + string + "}";
 		}
 	}
 }

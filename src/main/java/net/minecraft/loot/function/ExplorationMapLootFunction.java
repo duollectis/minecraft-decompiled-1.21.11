@@ -25,9 +25,7 @@ import net.minecraft.world.gen.structure.Structure;
 import java.util.List;
 import java.util.Set;
 
-/**
- * {@code ExplorationMapLootFunction}.
- */
+/** Функция лута, превращающая карту в карту исследователя, указывающую на ближайшую структуру. */
 public class ExplorationMapLootFunction extends ConditionalLootFunction {
 
 	public static final TagKey<Structure> DEFAULT_DESTINATION = StructureTags.ON_TREASURE_MAPS;
@@ -35,28 +33,28 @@ public class ExplorationMapLootFunction extends ConditionalLootFunction {
 	public static final byte DEFAULT_ZOOM = 2;
 	public static final int DEFAULT_SEARCH_RADIUS = 50;
 	public static final boolean DEFAULT_SKIP_EXISTING_CHUNKS = true;
+
 	public static final MapCodec<ExplorationMapLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									TagKey
-											.unprefixedCodec(RegistryKeys.STRUCTURE)
-											.optionalFieldOf("destination", DEFAULT_DESTINATION)
-											.forGetter(function -> function.destination),
-									MapDecorationType.CODEC
-											.optionalFieldOf("decoration", DEFAULT_DECORATION)
-											.forGetter(function -> function.decoration),
-									Codec.BYTE.optionalFieldOf("zoom", (byte) 2).forGetter(function -> function.zoom),
-									Codec.INT
-											.optionalFieldOf("search_radius", 50)
-											.forGetter(function -> function.searchRadius),
-									Codec.BOOL
-											.optionalFieldOf("skip_existing_chunks", true)
-											.forGetter(function -> function.skipExistingChunks)
-							)
-					)
-					.apply(instance, ExplorationMapLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				TagKey
+					.unprefixedCodec(RegistryKeys.STRUCTURE)
+					.optionalFieldOf("destination", DEFAULT_DESTINATION)
+					.forGetter(function -> function.destination),
+				MapDecorationType.CODEC
+					.optionalFieldOf("decoration", DEFAULT_DECORATION)
+					.forGetter(function -> function.decoration),
+				Codec.BYTE.optionalFieldOf("zoom", DEFAULT_ZOOM).forGetter(function -> function.zoom),
+				Codec.INT
+					.optionalFieldOf("search_radius", DEFAULT_SEARCH_RADIUS)
+					.forGetter(function -> function.searchRadius),
+				Codec.BOOL
+					.optionalFieldOf("skip_existing_chunks", DEFAULT_SKIP_EXISTING_CHUNKS)
+					.forGetter(function -> function.skipExistingChunks)
+			))
+			.apply(instance, ExplorationMapLootFunction::new)
 	);
+
 	private final TagKey<Structure> destination;
 	private final RegistryEntry<MapDecorationType> decoration;
 	private final byte zoom;
@@ -64,12 +62,12 @@ public class ExplorationMapLootFunction extends ConditionalLootFunction {
 	private final boolean skipExistingChunks;
 
 	ExplorationMapLootFunction(
-			List<LootCondition> conditions,
-			TagKey<Structure> destination,
-			RegistryEntry<MapDecorationType> decoration,
-			byte zoom,
-			int searchRadius,
-			boolean skipExistingChunks
+		List<LootCondition> conditions,
+		TagKey<Structure> destination,
+		RegistryEntry<MapDecorationType> decoration,
+		byte zoom,
+		int searchRadius,
+		boolean skipExistingChunks
 	) {
 		super(conditions);
 		this.destination = destination;
@@ -89,84 +87,80 @@ public class ExplorationMapLootFunction extends ConditionalLootFunction {
 		return Set.of(LootContextParameters.ORIGIN);
 	}
 
+	/**
+	 * Ищет ближайшую структуру из тега {@code destination} и создаёт карту исследователя.
+	 * Если предмет не является картой или координаты происхождения отсутствуют — возвращает оригинал.
+	 */
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		if (!stack.isOf(Items.MAP)) {
 			return stack;
 		}
-		else {
-			Vec3d vec3d = context.get(LootContextParameters.ORIGIN);
-			if (vec3d != null) {
-				ServerWorld serverWorld = context.getWorld();
-				BlockPos
-						blockPos =
-						serverWorld.locateStructure(
-								this.destination,
-								BlockPos.ofFloored(vec3d),
-								this.searchRadius,
-								this.skipExistingChunks
-						);
-				if (blockPos != null) {
-					ItemStack
-							itemStack =
-							FilledMapItem.createMap(
-									serverWorld,
-									blockPos.getX(),
-									blockPos.getZ(),
-									this.zoom,
-									true,
-									true
-							);
-					FilledMapItem.fillExplorationMap(serverWorld, itemStack);
-					MapState.addDecorationsNbt(itemStack, blockPos, "+", this.decoration);
-					return itemStack;
-				}
-			}
 
+		Vec3d origin = context.get(LootContextParameters.ORIGIN);
+
+		if (origin == null) {
 			return stack;
 		}
+
+		ServerWorld world = context.getWorld();
+		BlockPos structurePos = world.locateStructure(
+			destination,
+			BlockPos.ofFloored(origin),
+			searchRadius,
+			skipExistingChunks
+		);
+
+		if (structurePos == null) {
+			return stack;
+		}
+
+		ItemStack mapStack = FilledMapItem.createMap(world, structurePos.getX(), structurePos.getZ(), zoom, true, true);
+		FilledMapItem.fillExplorationMap(world, mapStack);
+		MapState.addDecorationsNbt(mapStack, structurePos, "+", decoration);
+
+		return mapStack;
 	}
 
-	public static ExplorationMapLootFunction.Builder builder() {
-		return new ExplorationMapLootFunction.Builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<ExplorationMapLootFunction.Builder> {
+	/** Строитель функции карты исследователя. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
-		private TagKey<Structure> destination = ExplorationMapLootFunction.DEFAULT_DESTINATION;
-		private RegistryEntry<MapDecorationType> decoration = ExplorationMapLootFunction.DEFAULT_DECORATION;
-		private byte zoom = 2;
-		private int searchRadius = 50;
-		private boolean skipExistingChunks = true;
+		private TagKey<Structure> destination = DEFAULT_DESTINATION;
+		private RegistryEntry<MapDecorationType> decoration = DEFAULT_DECORATION;
+		private byte zoom = DEFAULT_ZOOM;
+		private int searchRadius = DEFAULT_SEARCH_RADIUS;
+		private boolean skipExistingChunks = DEFAULT_SKIP_EXISTING_CHUNKS;
 
-		protected ExplorationMapLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
-		public ExplorationMapLootFunction.Builder withDestination(TagKey<Structure> destination) {
+		public Builder withDestination(TagKey<Structure> destination) {
 			this.destination = destination;
 			return this;
 		}
 
-		public ExplorationMapLootFunction.Builder withDecoration(RegistryEntry<MapDecorationType> decoration) {
+		public Builder withDecoration(RegistryEntry<MapDecorationType> decoration) {
 			this.decoration = decoration;
 			return this;
 		}
 
-		public ExplorationMapLootFunction.Builder withZoom(byte zoom) {
+		public Builder withZoom(byte zoom) {
 			this.zoom = zoom;
 			return this;
 		}
 
-		public ExplorationMapLootFunction.Builder searchRadius(int searchRadius) {
+		public Builder searchRadius(int searchRadius) {
 			this.searchRadius = searchRadius;
 			return this;
 		}
 
-		public ExplorationMapLootFunction.Builder withSkipExistingChunks(boolean skipExistingChunks) {
+		public Builder withSkipExistingChunks(boolean skipExistingChunks) {
 			this.skipExistingChunks = skipExistingChunks;
 			return this;
 		}
@@ -174,12 +168,12 @@ public class ExplorationMapLootFunction extends ConditionalLootFunction {
 		@Override
 		public LootFunction build() {
 			return new ExplorationMapLootFunction(
-					this.getConditions(),
-					this.destination,
-					this.decoration,
-					this.zoom,
-					this.searchRadius,
-					this.skipExistingChunks
+				getConditions(),
+				destination,
+				decoration,
+				zoom,
+				searchRadius,
+				skipExistingChunks
 			);
 		}
 	}

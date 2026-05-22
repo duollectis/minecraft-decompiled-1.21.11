@@ -14,7 +14,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code SoulSandBlock}.
+ * Блок душевого песка — замедляет движение существ и создаёт пузырьковый столб
+ * в воде над собой, выталкивая игроков и предметы вверх.
  */
 public class SoulSandBlock extends Block {
 
@@ -68,7 +69,7 @@ public class SoulSandBlock extends Block {
 			Random random
 	) {
 		if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
-			tickView.scheduleBlockTick(pos, this, 20);
+			tickView.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 		}
 
 		return super.getStateForNeighborUpdate(
@@ -85,7 +86,7 @@ public class SoulSandBlock extends Block {
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		world.scheduleBlockTick(pos, this, 20);
+		world.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 	}
 
 	@Override

@@ -11,59 +11,66 @@ import org.jspecify.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlGpuBuffer}.
+ * Реализация {@link GpuBuffer} для OpenGL.
+ * Отслеживает выделение памяти через Tracy и поддерживает опциональный backing-буфер
+ * для реализаций без поддержки ARB_buffer_storage.
  */
+@Environment(EnvType.CLIENT)
 public class GlGpuBuffer extends GpuBuffer {
 
 	protected static final MemoryPool POOL = TracyClient.createMemoryPool("GPU Buffers");
+
 	protected boolean closed;
 	protected final @Nullable Supplier<String> debugLabelSupplier;
-	private final BufferManager bufferManager;
 	protected final int id;
 	protected @Nullable ByteBuffer backingBuffer;
 
+	private final BufferManager bufferManager;
+
 	protected GlGpuBuffer(
-			@Nullable Supplier<String> debugLabelSupplier,
-			BufferManager bufferManager,
-			@GpuBuffer.Usage int usage,
-			long size,
-			int id,
-			@Nullable ByteBuffer backingBuffer
+		@Nullable Supplier<String> debugLabelSupplier,
+		BufferManager bufferManager,
+		@GpuBuffer.Usage int usage,
+		long size,
+		int id,
+		@Nullable ByteBuffer backingBuffer
 	) {
 		super(usage, size);
 		this.debugLabelSupplier = debugLabelSupplier;
 		this.bufferManager = bufferManager;
 		this.id = id;
 		this.backingBuffer = backingBuffer;
-		int i = (int) Math.min(size, 2147483647L);
-		POOL.malloc(id, i);
+		POOL.malloc(id, (int) Math.min(size, Integer.MAX_VALUE));
 	}
 
 	@Override
 	public boolean isClosed() {
-		return this.closed;
+		return closed;
 	}
 
 	@Override
 	public void close() {
-		if (!this.closed) {
-			this.closed = true;
-			if (this.backingBuffer != null) {
-				this.bufferManager.unmapBuffer(this.id, this.usage());
-				this.backingBuffer = null;
-			}
-
-			GlStateManager._glDeleteBuffers(this.id);
-			POOL.free(this.id);
+		if (closed) {
+			return;
 		}
+
+		closed = true;
+
+		if (backingBuffer != null) {
+			bufferManager.unmapBuffer(id, usage());
+			backingBuffer = null;
+		}
+
+		GlStateManager._glDeleteBuffers(id);
+		POOL.free(id);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Mapped}.
+	 * Представление замапленного диапазона GPU-буфера.
+	 * Гарантирует однократное закрытие через флаг {@code closed}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Mapped implements GpuBuffer.MappedView {
 
 		private final Runnable closer;
@@ -79,15 +86,17 @@ public class GlGpuBuffer extends GpuBuffer {
 
 		@Override
 		public ByteBuffer data() {
-			return this.data;
+			return data;
 		}
 
 		@Override
 		public void close() {
-			if (!this.closed) {
-				this.closed = true;
-				this.closer.run();
+			if (closed) {
+				return;
 			}
+
+			closed = true;
+			closer.run();
 		}
 	}
 }

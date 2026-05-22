@@ -6,43 +6,37 @@ import com.mojang.serialization.DataResult;
 import net.minecraft.registry.Registries;
 
 /**
- * {@code FloatProvider}.
+ * Абстрактный провайдер float-значений с поддержкой сериализации.
+ * Может быть константой или случайным распределением (равномерным, нормальным, трапециевидным).
  */
 public abstract class FloatProvider implements FloatSupplier {
 
 	private static final Codec<Either<Float, FloatProvider>> FLOAT_CODEC = Codec.either(
-			Codec.FLOAT,
-			Registries.FLOAT_PROVIDER_TYPE.getCodec().dispatch(FloatProvider::getType, FloatProviderType::codec)
-	);
-	public static final Codec<FloatProvider> VALUE_CODEC = FLOAT_CODEC.xmap(
-			either -> (FloatProvider) either.map(ConstantFloatProvider::create, provider -> provider),
-			provider -> provider.getType() == FloatProviderType.CONSTANT
-			            ? Either.left(((ConstantFloatProvider) provider).getValue()) : Either.right(provider)
+		Codec.FLOAT,
+		Registries.FLOAT_PROVIDER_TYPE.getCodec().dispatch(FloatProvider::getType, FloatProviderType::codec)
 	);
 
-	/**
-	 * Создаёт validated codec.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return Codec — результат операции
-	 */
+	public static final Codec<FloatProvider> VALUE_CODEC = FLOAT_CODEC.xmap(
+		either -> (FloatProvider) either.map(ConstantFloatProvider::create, provider -> provider),
+		provider -> provider.getType() == FloatProviderType.CONSTANT
+			? Either.left(((ConstantFloatProvider) provider).getValue())
+			: Either.right(provider)
+	);
+
 	public static Codec<FloatProvider> createValidatedCodec(float min, float max) {
-		return VALUE_CODEC.validate(
-				provider -> {
-					if (provider.getMin() < min) {
-						return DataResult.error(() -> "Value provider too low: " + min + " [" + provider.getMin() + "-"
-								+ provider.getMax() + "]");
-					}
-					else {
-						return provider.getMax() > max
-						       ? DataResult.error(() -> "Value provider too high: " + max + " [" + provider.getMin()
-						                                + "-" + provider.getMax() + "]")
-						       : DataResult.success(provider);
-					}
-				}
-		);
+		return VALUE_CODEC.validate(provider -> {
+			if (provider.getMin() < min) {
+				return DataResult.error(
+					() -> "Value provider too low: " + min + " [" + provider.getMin() + "-" + provider.getMax() + "]"
+				);
+			}
+
+			return provider.getMax() > max
+				? DataResult.error(
+					() -> "Value provider too high: " + max + " [" + provider.getMin() + "-" + provider.getMax() + "]"
+				)
+				: DataResult.success(provider);
+		});
 	}
 
 	public abstract float getMin();

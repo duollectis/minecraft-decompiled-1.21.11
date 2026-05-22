@@ -8,9 +8,12 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code GolemEntity}.
+ * Базовый класс для всех големов (железный, снежный, медный).
+ * Големы не издают звуков по умолчанию и не деспавнятся от расстояния.
  */
 public abstract class GolemEntity extends PathAwareEntity {
+
+	private static final int AMBIENT_SOUND_DELAY = 120;
 
 	protected GolemEntity(EntityType<? extends GolemEntity> entityType, World world) {
 		super(entityType, world);
@@ -33,7 +36,7 @@ public abstract class GolemEntity extends PathAwareEntity {
 
 	@Override
 	public int getMinAmbientSoundDelay() {
-		return 120;
+		return AMBIENT_SOUND_DELAY;
 	}
 
 	@Override

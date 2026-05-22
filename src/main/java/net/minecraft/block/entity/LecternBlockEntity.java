@@ -26,7 +26,8 @@ import net.minecraft.util.math.*;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LecternBlockEntity}.
+ * Блок-сущность кафедры. Хранит книгу, управляет текущей страницей и предоставляет
+ * инвентарь для взаимодействия с воронками. Выбрасывает книгу при разрушении блока.
  */
 public class LecternBlockEntity extends BlockEntity implements Clearable, NamedScreenHandlerFactory {
 
@@ -52,30 +53,28 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, NamedS
 
 		@Override
 		public ItemStack removeStack(int slot, int amount) {
-			if (slot == 0) {
-				ItemStack itemStack = LecternBlockEntity.this.book.split(amount);
-				if (LecternBlockEntity.this.book.isEmpty()) {
-					LecternBlockEntity.this.onBookRemoved();
-				}
-
-				return itemStack;
-			}
-			else {
+			if (slot != BOOK_SLOT_INDEX) {
 				return ItemStack.EMPTY;
 			}
+
+			ItemStack split = LecternBlockEntity.this.book.split(amount);
+			if (LecternBlockEntity.this.book.isEmpty()) {
+				LecternBlockEntity.this.onBookRemoved();
+			}
+
+			return split;
 		}
 
 		@Override
 		public ItemStack removeStack(int slot) {
-			if (slot == 0) {
-				ItemStack itemStack = LecternBlockEntity.this.book;
-				LecternBlockEntity.this.book = ItemStack.EMPTY;
-				LecternBlockEntity.this.onBookRemoved();
-				return itemStack;
-			}
-			else {
+			if (slot != BOOK_SLOT_INDEX) {
 				return ItemStack.EMPTY;
 			}
+
+			ItemStack removed = LecternBlockEntity.this.book;
+			LecternBlockEntity.this.book = ItemStack.EMPTY;
+			LecternBlockEntity.this.onBookRemoved();
+			return removed;
 		}
 
 		@Override
@@ -133,78 +132,75 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, NamedS
 	}
 
 	public ItemStack getBook() {
-		return this.book;
+		return book;
 	}
 
 	public boolean hasBook() {
-		return this.book.contains(DataComponentTypes.WRITABLE_BOOK_CONTENT)
-				|| this.book.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+		return book.contains(DataComponentTypes.WRITABLE_BOOK_CONTENT)
+				|| book.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT);
 	}
 
 	public void setBook(ItemStack book) {
-		this.setBook(book, null);
+		setBook(book, null);
 	}
 
 	void onBookRemoved() {
-		this.currentPage = 0;
-		this.pageCount = 0;
-		LecternBlock.setHasBook(null, this.getWorld(), this.getPos(), this.getCachedState(), false);
+		currentPage = 0;
+		pageCount = 0;
+		LecternBlock.setHasBook(null, getWorld(), getPos(), getCachedState(), false);
 	}
 
 	public void setBook(ItemStack book, @Nullable PlayerEntity player) {
-		this.book = this.resolveBook(book, player);
-		this.currentPage = 0;
-		this.pageCount = getPageCount(this.book);
-		this.markDirty();
+		this.book = resolveBook(book, player);
+		currentPage = 0;
+		pageCount = getPageCount(this.book);
+		markDirty();
 	}
 
-	void setCurrentPage(int currentPage) {
-		int i = MathHelper.clamp(currentPage, 0, this.pageCount - 1);
-		if (i != this.currentPage) {
-			this.currentPage = i;
-			this.markDirty();
-			LecternBlock.setPowered(this.getWorld(), this.getPos(), this.getCachedState());
+	void setCurrentPage(int page) {
+		int clamped = MathHelper.clamp(page, 0, pageCount - 1);
+		if (clamped == currentPage) {
+			return;
 		}
+
+		currentPage = clamped;
+		markDirty();
+		LecternBlock.setPowered(getWorld(), getPos(), getCachedState());
 	}
 
 	public int getCurrentPage() {
-		return this.currentPage;
+		return currentPage;
 	}
 
+	/**
+	 * Вычисляет выходной сигнал компаратора на основе текущей страницы.
+	 * Формула: floor(прогресс * 14) + 1 если есть книга, иначе 0.
+	 */
 	public int getComparatorOutput() {
-		float f = this.pageCount > 1 ? this.getCurrentPage() / (this.pageCount - 1.0F) : 1.0F;
-		return MathHelper.floor(f * 14.0F) + (this.hasBook() ? 1 : 0);
+		float progress = pageCount > 1 ? getCurrentPage() / (pageCount - 1.0F) : 1.0F;
+		return MathHelper.floor(progress * 14.0F) + (hasBook() ? 1 : 0);
 	}
 
 	private ItemStack resolveBook(ItemStack book, @Nullable PlayerEntity player) {
-		if (this.world instanceof ServerWorld serverWorld) {
-			WrittenBookContentComponent.resolveInStack(book, this.getCommandSource(player, serverWorld), player);
+		if (world instanceof ServerWorld serverWorld) {
+			WrittenBookContentComponent.resolveInStack(book, getCommandSource(player, serverWorld), player);
 		}
 
 		return book;
 	}
 
 	private ServerCommandSource getCommandSource(@Nullable PlayerEntity player, ServerWorld world) {
-		String string;
-		Text text;
-		if (player == null) {
-			string = "Lectern";
-			text = Text.literal("Lectern");
-		}
-		else {
-			string = player.getStringifiedName();
-			text = player.getDisplayName();
-		}
+		String name = player == null ? "Lectern" : player.getStringifiedName();
+		Text displayName = player == null ? Text.literal("Lectern") : player.getDisplayName();
 
-		Vec3d vec3d = Vec3d.ofCenter(this.pos);
 		return new ServerCommandSource(
 				CommandOutput.DUMMY,
-				vec3d,
+				Vec3d.ofCenter(pos),
 				Vec2f.ZERO,
 				world,
 				LeveledPermissionPredicate.GAMEMASTERS,
-				string,
-				text,
+				name,
+				displayName,
 				world.getServer(),
 				player
 		);
@@ -213,47 +209,50 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, NamedS
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.book =
-				view
-						.<ItemStack>read("Book", ItemStack.CODEC)
-						.map(itemStack -> this.resolveBook(itemStack, null))
-						.orElse(ItemStack.EMPTY);
-		this.pageCount = getPageCount(this.book);
-		this.currentPage = MathHelper.clamp(view.getInt("Page", 0), 0, this.pageCount - 1);
+		book = view.<ItemStack>read("Book", ItemStack.CODEC)
+				.map(itemStack -> resolveBook(itemStack, null))
+				.orElse(ItemStack.EMPTY);
+		pageCount = getPageCount(book);
+		currentPage = MathHelper.clamp(view.getInt("Page", 0), 0, pageCount - 1);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.getBook().isEmpty()) {
-			view.put("Book", ItemStack.CODEC, this.getBook());
-			view.putInt("Page", this.currentPage);
+		if (!getBook().isEmpty()) {
+			view.put("Book", ItemStack.CODEC, getBook());
+			view.putInt("Page", currentPage);
 		}
 	}
 
 	@Override
 	public void clear() {
-		this.setBook(ItemStack.EMPTY);
+		setBook(ItemStack.EMPTY);
 	}
 
 	@Override
 	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
-		if (oldState.get(LecternBlock.HAS_BOOK) && this.world != null) {
-			Direction direction = oldState.get(LecternBlock.FACING);
-			ItemStack itemStack = this.getBook().copy();
-			float f = 0.25F * direction.getOffsetX();
-			float g = 0.25F * direction.getOffsetZ();
-			ItemEntity
-					itemEntity =
-					new ItemEntity(this.world, pos.getX() + 0.5 + f, pos.getY() + 1, pos.getZ() + 0.5 + g, itemStack);
-			itemEntity.setToDefaultPickupDelay();
-			this.world.spawnEntity(itemEntity);
+		if (!oldState.get(LecternBlock.HAS_BOOK) || world == null) {
+			return;
 		}
+
+		Direction facing = oldState.get(LecternBlock.FACING);
+		float offsetX = 0.25F * facing.getOffsetX();
+		float offsetZ = 0.25F * facing.getOffsetZ();
+		ItemEntity itemEntity = new ItemEntity(
+				world,
+				pos.getX() + 0.5 + offsetX,
+				pos.getY() + 1,
+				pos.getZ() + 0.5 + offsetZ,
+				getBook().copy()
+		);
+		itemEntity.setToDefaultPickupDelay();
+		world.spawnEntity(itemEntity);
 	}
 
 	@Override
-	public ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		return new LecternScreenHandler(i, this.inventory, this.propertyDelegate);
+	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity playerEntity) {
+		return new LecternScreenHandler(syncId, inventory, propertyDelegate);
 	}
 
 	@Override
@@ -262,15 +261,12 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, NamedS
 	}
 
 	private static int getPageCount(ItemStack stack) {
-		WrittenBookContentComponent writtenBookContentComponent = stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
-		if (writtenBookContentComponent != null) {
-			return writtenBookContentComponent.pages().size();
+		WrittenBookContentComponent writtenBook = stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+		if (writtenBook != null) {
+			return writtenBook.pages().size();
 		}
-		else {
-			WritableBookContentComponent
-					writableBookContentComponent =
-					stack.get(DataComponentTypes.WRITABLE_BOOK_CONTENT);
-			return writableBookContentComponent != null ? writableBookContentComponent.pages().size() : 0;
-		}
+
+		WritableBookContentComponent writableBook = stack.get(DataComponentTypes.WRITABLE_BOOK_CONTENT);
+		return writableBook != null ? writableBook.pages().size() : 0;
 	}
 }

@@ -9,23 +9,23 @@ import net.minecraft.network.codec.PacketCodec;
 import java.util.Map.Entry;
 
 /**
- * {@code Component}.
- */
+	 * Пара «тип компонента → значение», представляющая один компонент данных предмета.
+	 * Используется при сериализации и передаче компонентов по сети.
+	 *
+	 * @param <T> тип значения компонента
+	 */
 public record Component<T>(ComponentType<T> type, T value) {
 
-	public static final PacketCodec<RegistryByteBuf, Component<?>>
-			PACKET_CODEC =
-			new PacketCodec<RegistryByteBuf, Component<?>>() {
-				/**
-				 * Decode.
-				 *
-				 * @param registryByteBuf registry byte buf
-				 *
-				 * @return Component — результат операции
-				 */
-				public Component<?> decode(RegistryByteBuf registryByteBuf) {
-					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
-					return readWildcard(registryByteBuf, componentType);
+	/**
+		 * Сетевой кодек для передачи компонента произвольного типа.
+		 * Использует wildcard-вспомогательные методы для обхода ограничений generics.
+		 */
+	public static final PacketCodec<RegistryByteBuf, Component<?>> PACKET_CODEC =
+			new PacketCodec<>() {
+				@Override
+				public Component<?> decode(RegistryByteBuf buf) {
+					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(buf);
+					return readWildcard(buf, componentType);
 				}
 
 				@SuppressWarnings("unchecked")
@@ -37,14 +37,9 @@ public record Component<T>(ComponentType<T> type, T value) {
 					return new Component<>(type, type.getPacketCodec().decode(buf));
 				}
 
-				/**
-				 * Encode.
-				 *
-				 * @param registryByteBuf registry byte buf
-				 * @param component component
-				 */
-				public void encode(RegistryByteBuf registryByteBuf, Component<?> component) {
-					writeWildcard(registryByteBuf, component);
+				@Override
+				public void encode(RegistryByteBuf buf, Component<?> component) {
+					writeWildcard(buf, component);
 				}
 
 				@SuppressWarnings("unchecked")
@@ -62,42 +57,30 @@ public record Component<T>(ComponentType<T> type, T value) {
 		return of(entry.getKey(), entry.getValue());
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return Component — результат операции
-	 */
+	@SuppressWarnings("unchecked")
 	public static <T> Component<T> of(ComponentType<T> type, Object value) {
 		return new Component<>(type, (T) value);
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param components components
-	 */
 	public void apply(MergedComponentMap components) {
-		components.set(this.type, this.value);
+		components.set(type, value);
 	}
 
 	/**
-	 * Encode.
-	 *
-	 * @param ops ops
-	 *
-	 * @return DataResult — результат операции
-	 */
+		 * Кодирует значение компонента в формат {@code D} с помощью кодека типа.
+		 *
+		 * @param ops операции над целевым форматом
+		 * @return результат кодирования, или ошибка если компонент транзитный
+		 */
 	public <D> DataResult<D> encode(DynamicOps<D> ops) {
-		Codec<T> codec = this.type.getCodec();
-		return codec == null ? DataResult.error(() -> "Component of type " + this.type + " is not encodable")
-		                     : codec.encodeStart(ops, this.value);
+		Codec<T> codec = type.getCodec();
+		return codec == null
+				? DataResult.error(() -> "Component of type " + type + " is not encodable")
+				: codec.encodeStart(ops, value);
 	}
 
 	@Override
 	public String toString() {
-		return this.type + "=>" + this.value;
+		return type + "=>" + value;
 	}
 }

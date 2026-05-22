@@ -9,10 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AnimationDefinition}.
+ * Декларативное описание анимации: длительность, режим зацикливания
+ * и набор трансформаций по именам костей.
+ * <p>
+ * Создаётся через {@link Builder} и затем привязывается к конкретному
+ * дереву {@link ModelPart} вызовом {@link #createAnimation(ModelPart)},
+ * который разрешает имена костей в реальные ссылки на части модели.
  */
+@Environment(EnvType.CLIENT)
 public record AnimationDefinition(
 		float lengthInSeconds,
 		boolean looping,
@@ -20,20 +25,19 @@ public record AnimationDefinition(
 ) {
 
 	/**
-	 * Создаёт animation.
+	 * Создаёт исполняемую {@link Animation}, привязывая кости по имени
+	 * к частям переданного дерева модели.
 	 *
-	 * @param root root
-	 *
-	 * @return Animation — результат операции
+	 * @param root корневая часть модели, содержащая все именованные кости
+	 * @return готовая к воспроизведению анимация
+	 * @throws IllegalArgumentException если кость из определения не найдена в модели
 	 */
 	public Animation createAnimation(ModelPart root) {
 		return Animation.of(root, this);
 	}
 
+	/** Строитель для пошагового конструирования {@link AnimationDefinition}. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final float lengthInSeconds;
@@ -49,22 +53,17 @@ public record AnimationDefinition(
 		}
 
 		public AnimationDefinition.Builder looping() {
-			this.looping = true;
+			looping = true;
 			return this;
 		}
 
 		public AnimationDefinition.Builder addBoneAnimation(String name, Transformation transformation) {
-			this.transformations.computeIfAbsent(name, namex -> new ArrayList<>()).add(transformation);
+			transformations.computeIfAbsent(name, key -> new ArrayList<>()).add(transformation);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return AnimationDefinition — результат операции
-		 */
 		public AnimationDefinition build() {
-			return new AnimationDefinition(this.lengthInSeconds, this.looping, this.transformations);
+			return new AnimationDefinition(lengthInSeconds, looping, transformations);
 		}
 	}
 }

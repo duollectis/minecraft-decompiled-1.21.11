@@ -10,7 +10,10 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * {@code StackReference}.
+ * Изменяемая ссылка на стак предмета в произвольном хранилище.
+ * Абстрагирует источник стака (инвентарь, экипировка, список) за единым API
+ * чтения и записи, что позволяет командам и лут-механике работать
+ * с любым контейнером без привязки к конкретной реализации.
  */
 public interface StackReference {
 
@@ -18,6 +21,13 @@ public interface StackReference {
 
 	boolean set(ItemStack stack);
 
+	/**
+	 * Создаёт ссылку на основе произвольных геттера и сеттера.
+	 *
+	 * @param getter поставщик текущего стака
+	 * @param setter потребитель нового стака
+	 * @return ссылка, всегда возвращающая {@code true} при {@link #set}
+	 */
 	static StackReference of(Supplier<ItemStack> getter, Consumer<ItemStack> setter) {
 		return new StackReference() {
 			@Override
@@ -33,6 +43,14 @@ public interface StackReference {
 		};
 	}
 
+	/**
+	 * Создаёт ссылку на слот экипировки существа с фильтрацией допустимых стаков.
+	 *
+	 * @param entity существо-владелец экипировки
+	 * @param slot   слот экипировки
+	 * @param filter предикат, разрешающий или запрещающий установку конкретного стака
+	 * @return ссылка, возвращающая {@code false} при {@link #set}, если фильтр не пройден
+	 */
 	static StackReference of(LivingEntity entity, EquipmentSlot slot, Predicate<ItemStack> filter) {
 		return new StackReference() {
 			@Override
@@ -45,10 +63,9 @@ public interface StackReference {
 				if (!filter.test(stack)) {
 					return false;
 				}
-				else {
-					entity.equipStack(slot, stack);
-					return true;
-				}
+
+				entity.equipStack(slot, stack);
+				return true;
 			}
 		};
 	}
@@ -57,6 +74,13 @@ public interface StackReference {
 		return of(entity, slot, stack -> true);
 	}
 
+	/**
+	 * Создаёт ссылку на элемент списка стаков по индексу.
+	 *
+	 * @param stacks список стаков
+	 * @param index  индекс целевого элемента
+	 * @return ссылка, всегда возвращающая {@code true} при {@link #set}
+	 */
 	static StackReference of(List<ItemStack> stacks, int index) {
 		return new StackReference() {
 			@Override

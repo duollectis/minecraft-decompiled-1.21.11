@@ -13,26 +13,38 @@ import net.minecraft.world.gen.YOffset;
 import net.minecraft.world.gen.heightprovider.HeightProvider;
 
 /**
- * {@code CarverConfig}.
+ * Базовая конфигурация карвера, расширяющая {@link ProbabilityConfig}.
+ * Содержит общие параметры: диапазон высот, масштаб по Y, уровень лавы,
+ * отладочную конфигурацию и список заменяемых блоков.
  */
 public class CarverConfig extends ProbabilityConfig {
 
 	public static final MapCodec<CarverConfig> CONFIG_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.floatRange(0.0F, 1.0F).fieldOf("probability").forGetter(config -> config.probability),
-					                    HeightProvider.CODEC.fieldOf("y").forGetter(config -> config.y),
-					                    FloatProvider.VALUE_CODEC.fieldOf("yScale").forGetter(config -> config.yScale),
-					                    YOffset.OFFSET_CODEC.fieldOf("lava_level").forGetter(config -> config.lavaLevel),
-					                    CarverDebugConfig.CODEC
-							                    .optionalFieldOf("debug_settings", CarverDebugConfig.DEFAULT)
-							                    .forGetter(config -> config.debugConfig),
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.BLOCK)
-							                    .fieldOf("replaceable")
-							                    .forGetter(config -> config.replaceable)
-			                    )
-			                    .apply(instance, CarverConfig::new)
+		instance -> instance
+			.group(
+				Codec.floatRange(0.0F, 1.0F)
+					.fieldOf("probability")
+					.forGetter(config -> config.probability),
+				HeightProvider.CODEC
+					.fieldOf("y")
+					.forGetter(config -> config.y),
+				FloatProvider.VALUE_CODEC
+					.fieldOf("yScale")
+					.forGetter(config -> config.yScale),
+				YOffset.OFFSET_CODEC
+					.fieldOf("lava_level")
+					.forGetter(config -> config.lavaLevel),
+				CarverDebugConfig.CODEC
+					.optionalFieldOf("debug_settings", CarverDebugConfig.DEFAULT)
+					.forGetter(config -> config.debugConfig),
+				RegistryCodecs
+					.entryList(RegistryKeys.BLOCK)
+					.fieldOf("replaceable")
+					.forGetter(config -> config.replaceable)
+			)
+			.apply(instance, CarverConfig::new)
 	);
+
 	public final HeightProvider y;
 	public final FloatProvider yScale;
 	public final YOffset lavaLevel;
@@ -40,12 +52,12 @@ public class CarverConfig extends ProbabilityConfig {
 	public final RegistryEntryList<Block> replaceable;
 
 	public CarverConfig(
-			float probability,
-			HeightProvider y,
-			FloatProvider yScale,
-			YOffset lavaLevel,
-			CarverDebugConfig debugConfig,
-			RegistryEntryList<Block> replaceable
+		float probability,
+		HeightProvider y,
+		FloatProvider yScale,
+		YOffset lavaLevel,
+		CarverDebugConfig debugConfig,
+		RegistryEntryList<Block> replaceable
 	) {
 		super(probability);
 		this.y = y;

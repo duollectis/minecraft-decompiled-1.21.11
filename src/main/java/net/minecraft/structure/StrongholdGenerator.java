@@ -23,7 +23,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code StrongholdGenerator}.
+ * Генератор крепости (Stronghold). Строит процедурную структуру из комнат,
+ * коридоров, лестниц и библиотек по правилам цепочки. Содержит комнату
+ * с порталом в Энд и сундуки с лутом.
  */
 public class StrongholdGenerator {
 
@@ -209,7 +211,7 @@ public class StrongholdGenerator {
 			Direction orientation,
 			int chainLength
 	) {
-		if (chainLength > 50) {
+		if (chainLength > MAX_PIECE_COUNT) {
 			return null;
 		}
 		else if (Math.abs(x - start.getBoundingBox().getMinX()) <= 112
@@ -227,9 +229,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code ChestCorridor}.
-	 */
 	public static class ChestCorridor extends StrongholdGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -322,9 +321,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Corridor}.
-	 */
 	public static class Corridor extends StrongholdGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -416,9 +412,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code FiveWayCrossing}.
-	 */
 	public static class FiveWayCrossing extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 10;
@@ -487,7 +480,7 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable FiveWayCrossing create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -3, 0, 10, 9, 11, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -3, 0, 10, 9, SIZE_Z, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.FiveWayCrossing(chainLength, random, blockBox, orientation)
 			       : null;
@@ -714,9 +707,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code LeftTurn}.
-	 */
 	public static class LeftTurn extends StrongholdGenerator.Turn {
 
 		public LeftTurn(int chainLength, Random random, BlockBox boundingBox, Direction orientation) {
@@ -783,9 +773,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Library}.
-	 */
 	public static class Library extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 14;
@@ -815,9 +802,9 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable Library create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, 14, 11, 15, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, SIZE_X, SIZE_Y, SIZE_Z, orientation);
 			if (!isInBounds(blockBox) || holder.getIntersecting(blockBox) != null) {
-				blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, 14, 6, 15, orientation);
+				blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, SIZE_X, 6, SIZE_Z, orientation);
 				if (!isInBounds(blockBox) || holder.getIntersecting(blockBox) != null) {
 					return null;
 				}
@@ -849,7 +836,7 @@ public class StrongholdGenerator {
 					0,
 					13,
 					i - 1,
-					14,
+					SIZE_X,
 					true,
 					random,
 					StrongholdGenerator.STONE_BRICK_RANDOMIZER
@@ -863,7 +850,7 @@ public class StrongholdGenerator {
 					2,
 					1,
 					1,
-					11,
+					SIZE_Y,
 					4,
 					13,
 					Blocks.COBWEB.getDefaultState(),
@@ -913,7 +900,7 @@ public class StrongholdGenerator {
 					this.addBlock(
 							world,
 							Blocks.WALL_TORCH.getDefaultState().with(WallTorchBlock.FACING, Direction.WEST),
-							11,
+							SIZE_Y,
 							3,
 							l,
 							chunkBox
@@ -1100,8 +1087,8 @@ public class StrongholdGenerator {
 						Blocks.OAK_PLANKS.getDefaultState(),
 						false
 				);
-				this.addBlock(world, Blocks.OAK_PLANKS.getDefaultState(), 9, 5, 11, chunkBox);
-				this.addBlock(world, Blocks.OAK_PLANKS.getDefaultState(), 8, 5, 11, chunkBox);
+				this.addBlock(world, Blocks.OAK_PLANKS.getDefaultState(), 9, 5, SIZE_Y, chunkBox);
+				this.addBlock(world, Blocks.OAK_PLANKS.getDefaultState(), 8, 5, SIZE_Y, chunkBox);
 				this.addBlock(world, Blocks.OAK_PLANKS.getDefaultState(), 9, 5, 10, chunkBox);
 				BlockState
 						blockState =
@@ -1109,7 +1096,7 @@ public class StrongholdGenerator {
 				BlockState
 						blockState2 =
 						Blocks.OAK_FENCE.getDefaultState().with(FenceBlock.NORTH, true).with(FenceBlock.SOUTH, true);
-				this.fillWithOutline(world, chunkBox, 3, 6, 3, 3, 6, 11, blockState2, blockState2, false);
+				this.fillWithOutline(world, chunkBox, 3, 6, 3, 3, 6, SIZE_Y, blockState2, blockState2, false);
 				this.fillWithOutline(world, chunkBox, 10, 6, 3, 10, 6, 9, blockState2, blockState2, false);
 				this.fillWithOutline(world, chunkBox, 4, 6, 2, 9, 6, 2, blockState, blockState, false);
 				this.fillWithOutline(world, chunkBox, 4, 6, 12, 7, 6, 12, blockState, blockState, false);
@@ -1156,7 +1143,7 @@ public class StrongholdGenerator {
 										.with(FenceBlock.EAST, true),
 								8 + m,
 								6,
-								11 - m,
+								SIZE_Y - m,
 								chunkBox
 						);
 					}
@@ -1204,9 +1191,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Piece}.
-	 */
 	abstract static class Piece extends StructurePiece {
 
 		protected StrongholdGenerator.Piece.EntranceType entryDoor = StrongholdGenerator.Piece.EntranceType.OPENING;
@@ -1558,9 +1542,6 @@ public class StrongholdGenerator {
 			return boundingBox.getMinY() > 10;
 		}
 
-		/**
-		 * {@code EntranceType}.
-		 */
 		protected static enum EntranceType {
 			OPENING,
 			WOOD_DOOR,
@@ -1574,9 +1555,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code PieceData}.
-	 */
 	static class PieceData {
 
 		public final Class<? extends StrongholdGenerator.Piece> pieceType;
@@ -1599,9 +1577,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code PortalRoom}.
-	 */
 	public static class PortalRoom extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 11;
@@ -1640,7 +1615,7 @@ public class StrongholdGenerator {
 				Direction orientation,
 				int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, 11, 8, 16, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, SIZE_X, 8, SIZE_Z, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.PortalRoom(chainLength, blockBox, orientation)
 			       : null;
@@ -1664,7 +1639,7 @@ public class StrongholdGenerator {
 					0,
 					10,
 					7,
-					15,
+					SIZE_Z,
 					false,
 					random,
 					StrongholdGenerator.STONE_BRICK_RANDOMIZER
@@ -1679,7 +1654,7 @@ public class StrongholdGenerator {
 					1,
 					1,
 					6,
-					14,
+					SIZE_X,
 					false,
 					random,
 					StrongholdGenerator.STONE_BRICK_RANDOMIZER
@@ -1692,7 +1667,7 @@ public class StrongholdGenerator {
 					1,
 					9,
 					6,
-					14,
+					SIZE_X,
 					false,
 					random,
 					StrongholdGenerator.STONE_BRICK_RANDOMIZER
@@ -1715,10 +1690,10 @@ public class StrongholdGenerator {
 					chunkBox,
 					2,
 					6,
-					14,
+					SIZE_X,
 					8,
 					6,
-					14,
+					SIZE_X,
 					false,
 					random,
 					StrongholdGenerator.STONE_BRICK_RANDOMIZER
@@ -1796,7 +1771,7 @@ public class StrongholdGenerator {
 					9,
 					6,
 					1,
-					11,
+					SIZE_Z,
 					Blocks.LAVA.getDefaultState(),
 					Blocks.LAVA.getDefaultState(),
 					false
@@ -1808,13 +1783,13 @@ public class StrongholdGenerator {
 					blockState2 =
 					Blocks.IRON_BARS.getDefaultState().with(PaneBlock.WEST, true).with(PaneBlock.EAST, true);
 
-			for (int j = 3; j < 14; j += 2) {
+			for (int j = 3; j < SIZE_X; j += 2) {
 				this.fillWithOutline(world, chunkBox, 0, 3, j, 0, 4, j, blockState, blockState, false);
 				this.fillWithOutline(world, chunkBox, 10, 3, j, 10, 4, j, blockState, blockState, false);
 			}
 
 			for (int j = 2; j < 9; j += 2) {
-				this.fillWithOutline(world, chunkBox, j, 3, 15, j, 4, 15, blockState2, blockState2, false);
+				this.fillWithOutline(world, chunkBox, j, 3, SIZE_Z, j, 4, SIZE_Z, blockState2, blockState2, false);
 			}
 
 			BlockState
@@ -1894,10 +1869,10 @@ public class StrongholdGenerator {
 			this.addBlock(world, blockState5.with(EndPortalFrameBlock.EYE, bls[5]), 6, 3, 12, chunkBox);
 			this.addBlock(world, blockState6.with(EndPortalFrameBlock.EYE, bls[6]), 3, 3, 9, chunkBox);
 			this.addBlock(world, blockState6.with(EndPortalFrameBlock.EYE, bls[7]), 3, 3, 10, chunkBox);
-			this.addBlock(world, blockState6.with(EndPortalFrameBlock.EYE, bls[8]), 3, 3, 11, chunkBox);
+			this.addBlock(world, blockState6.with(EndPortalFrameBlock.EYE, bls[8]), 3, 3, SIZE_Z, chunkBox);
 			this.addBlock(world, blockState7.with(EndPortalFrameBlock.EYE, bls[9]), 7, 3, 9, chunkBox);
 			this.addBlock(world, blockState7.with(EndPortalFrameBlock.EYE, bls[10]), 7, 3, 10, chunkBox);
-			this.addBlock(world, blockState7.with(EndPortalFrameBlock.EYE, bls[11]), 7, 3, 11, chunkBox);
+			this.addBlock(world, blockState7.with(EndPortalFrameBlock.EYE, bls[SIZE_X]), 7, 3, 11, chunkBox);
 			if (bl) {
 				BlockState blockState8 = Blocks.END_PORTAL.getDefaultState();
 				this.addBlock(world, blockState8, 4, 3, 9, chunkBox);
@@ -1906,9 +1881,9 @@ public class StrongholdGenerator {
 				this.addBlock(world, blockState8, 4, 3, 10, chunkBox);
 				this.addBlock(world, blockState8, 5, 3, 10, chunkBox);
 				this.addBlock(world, blockState8, 6, 3, 10, chunkBox);
-				this.addBlock(world, blockState8, 4, 3, 11, chunkBox);
-				this.addBlock(world, blockState8, 5, 3, 11, chunkBox);
-				this.addBlock(world, blockState8, 6, 3, 11, chunkBox);
+				this.addBlock(world, blockState8, 4, 3, SIZE_Z, chunkBox);
+				this.addBlock(world, blockState8, 5, 3, SIZE_Z, chunkBox);
+				this.addBlock(world, blockState8, 6, 3, SIZE_Z, chunkBox);
 			}
 
 			if (!this.spawnerPlaced) {
@@ -1924,9 +1899,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code PrisonHall}.
-	 */
 	public static class PrisonHall extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 9;
@@ -1951,7 +1923,7 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable PrisonHall create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -1, 0, 9, 5, 11, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -1, 0, 9, 5, SIZE_Z, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.PrisonHall(chainLength, random, blockBox, orientation)
 			       : null;
@@ -2120,9 +2092,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code RightTurn}.
-	 */
 	public static class RightTurn extends StrongholdGenerator.Turn {
 
 		public RightTurn(int chainLength, Random random, BlockBox boundingBox, Direction orientation) {
@@ -2189,9 +2158,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code SmallCorridor}.
-	 */
 	public static class SmallCorridor extends StrongholdGenerator.Piece {
 
 		private final int length;
@@ -2277,9 +2243,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code SpiralStaircase}.
-	 */
 	public static class SpiralStaircase extends StrongholdGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -2294,7 +2257,7 @@ public class StrongholdGenerator {
 				int z,
 				Direction orientation
 		) {
-			super(structurePieceType, chainLength, createBox(x, 64, z, orientation, 5, 11, 5));
+			super(structurePieceType, chainLength, createBox(x, MAX_HEIGHT, z, orientation, 5, SIZE_Y, 5));
 			this.isStructureStart = true;
 			this.setOrientation(orientation);
 			this.entryDoor = StrongholdGenerator.Piece.EntranceType.OPENING;
@@ -2334,7 +2297,7 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable SpiralStaircase create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, 11, 5, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, SIZE_Y, 5, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.SpiralStaircase(chainLength, random, blockBox, orientation)
 			       : null;
@@ -2385,9 +2348,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code SquareRoom}.
-	 */
 	public static class SquareRoom extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 11;
@@ -2423,7 +2383,7 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable SquareRoom create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, 11, 7, 11, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -4, -1, 0, SIZE_Z, 7, 11, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.SquareRoom(chainLength, random, blockBox, orientation)
 			       : null;
@@ -2566,9 +2526,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Stairs}.
-	 */
 	public static class Stairs extends StrongholdGenerator.Piece {
 
 		private static final int SIZE_X = 5;
@@ -2593,7 +2550,7 @@ public class StrongholdGenerator {
 		public static StrongholdGenerator.@Nullable Stairs create(
 				StructurePiecesHolder holder, Random random, int x, int y, int z, Direction orientation, int chainLength
 		) {
-			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, 11, 8, orientation);
+			BlockBox blockBox = BlockBox.rotated(x, y, z, -1, -7, 0, 5, SIZE_Y, 8, orientation);
 			return isInBounds(blockBox) && holder.getIntersecting(blockBox) == null
 			       ? new StrongholdGenerator.Stairs(chainLength, random, blockBox, orientation)
 			       : null;
@@ -2641,9 +2598,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Start}.
-	 */
 	public static class Start extends StrongholdGenerator.SpiralStaircase {
 
 		public StrongholdGenerator.@Nullable PieceData lastPiece;
@@ -2664,9 +2618,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code StoneBrickRandomizer}.
-	 */
 	static class StoneBrickRandomizer extends StructurePiece.BlockRandomizer {
 
 		@Override
@@ -2692,9 +2643,6 @@ public class StrongholdGenerator {
 		}
 	}
 
-	/**
-	 * {@code Turn}.
-	 */
 	public abstract static class Turn extends StrongholdGenerator.Piece {
 
 		protected static final int SIZE_X = 5;

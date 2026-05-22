@@ -8,7 +8,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code VillagerGossipFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerGossipFix extends ChoiceFix {
 

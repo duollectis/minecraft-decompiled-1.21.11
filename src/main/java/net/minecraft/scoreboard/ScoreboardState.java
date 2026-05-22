@@ -10,39 +10,50 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code ScoreboardState}.
+ * Персистентное состояние скорборда, сохраняемое на диск через систему {@link PersistentState}.
+ * <p>
+ * Хранит упакованный снимок всего скорборда: цели, очки, слоты отображения и команды.
+ * Изменения применяются через {@link #set(Packed)}, который помечает состояние грязным
+ * только при реальном изменении данных.
  */
 public class ScoreboardState extends PersistentState {
 
 	public static final PersistentStateType<ScoreboardState> TYPE = new PersistentStateType<>(
 			"scoreboard",
 			ScoreboardState::new,
-			ScoreboardState.Packed.CODEC.xmap(ScoreboardState::new, ScoreboardState::getPackedState),
+			Packed.CODEC.xmap(ScoreboardState::new, ScoreboardState::getPackedState),
 			DataFixTypes.SAVED_DATA_SCOREBOARD
 	);
-	private ScoreboardState.Packed packedState;
+
+	private Packed packedState;
 
 	private ScoreboardState() {
-		this(ScoreboardState.Packed.EMPTY);
+		this(Packed.EMPTY);
 	}
 
-	public ScoreboardState(ScoreboardState.Packed packedState) {
+	public ScoreboardState(Packed packedState) {
 		this.packedState = packedState;
 	}
 
-	public ScoreboardState.Packed getPackedState() {
-		return this.packedState;
-	}
-
-	public void set(ScoreboardState.Packed packed) {
-		if (!packed.equals(this.packedState)) {
-			this.packedState = packed;
-			this.markDirty();
-		}
+	public Packed getPackedState() {
+		return packedState;
 	}
 
 	/**
-	 * {@code Packed}.
+	 * Обновляет упакованное состояние и помечает его грязным только при реальном изменении.
+	 * Предотвращает лишние записи на диск при отсутствии изменений.
+	 */
+	public void set(Packed packed) {
+		if (packed.equals(packedState)) {
+			return;
+		}
+
+		packedState = packed;
+		markDirty();
+	}
+
+	/**
+	 * Упакованный снимок всего скорборда для сериализации в NBT.
 	 */
 	public record Packed(
 			List<ScoreboardObjective.Packed> objectives,
@@ -51,28 +62,26 @@ public class ScoreboardState extends PersistentState {
 			List<Team.Packed> teams
 	) {
 
-		public static final ScoreboardState.Packed
-				EMPTY =
-				new ScoreboardState.Packed(List.of(), List.of(), Map.of(), List.of());
-		public static final Codec<ScoreboardState.Packed> CODEC = RecordCodecBuilder.create(
+		public static final Packed EMPTY = new Packed(List.of(), List.of(), Map.of(), List.of());
+
+		public static final Codec<Packed> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    ScoreboardObjective.Packed.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("Objectives", List.of())
-								                    .forGetter(ScoreboardState.Packed::objectives),
-						                    Scoreboard.PackedEntry.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("PlayerScores", List.of())
-								                    .forGetter(ScoreboardState.Packed::scores),
-						                    Codec.unboundedMap(ScoreboardDisplaySlot.CODEC, Codec.STRING)
-						                         .optionalFieldOf("DisplaySlots", Map.of())
-						                         .forGetter(ScoreboardState.Packed::displaySlots),
-						                    Team.Packed.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("Teams", List.of())
-								                    .forGetter(ScoreboardState.Packed::teams)
-				                    )
-				                    .apply(instance, ScoreboardState.Packed::new)
+						ScoreboardObjective.Packed.CODEC
+								.listOf()
+								.optionalFieldOf("Objectives", List.of())
+								.forGetter(Packed::objectives),
+						Scoreboard.PackedEntry.CODEC
+								.listOf()
+								.optionalFieldOf("PlayerScores", List.of())
+								.forGetter(Packed::scores),
+						Codec.unboundedMap(ScoreboardDisplaySlot.CODEC, Codec.STRING)
+								.optionalFieldOf("DisplaySlots", Map.of())
+								.forGetter(Packed::displaySlots),
+						Team.Packed.CODEC
+								.listOf()
+								.optionalFieldOf("Teams", List.of())
+								.forGetter(Packed::teams)
+				).apply(instance, Packed::new)
 		);
 	}
 }

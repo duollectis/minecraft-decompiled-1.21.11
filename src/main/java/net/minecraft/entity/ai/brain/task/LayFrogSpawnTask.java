@@ -12,17 +12,11 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code LayFrogSpawnTask}.
+ * Фабричный класс задачи мозга беременной лягушки, откладывающей икру рядом с водой.
+ * Ищет горизонтально смежный водный блок с открытым верхом и размещает икру над ним.
  */
 public class LayFrogSpawnTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param frogSpawn frog spawn
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(Block frogSpawn) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -33,45 +27,45 @@ public class LayFrogSpawnTask {
 				                  .apply(
 						                  context,
 						                  (attackTarget, walkTarget, isPregnant) -> (world, entity, time) -> {
-							                  if (!entity.isTouchingWater() && entity.isOnGround()) {
-								                  BlockPos blockPos = entity.getBlockPos().down();
-
-								                  for (Direction direction : Direction.Type.HORIZONTAL) {
-									                  BlockPos blockPos2 = blockPos.offset(direction);
-									                  if (world
-											                  .getBlockState(blockPos2)
-											                  .getCollisionShape(world, blockPos2)
-											                  .getFace(Direction.UP)
-											                  .isEmpty()
-											                  && world.getFluidState(blockPos2).isOf(Fluids.WATER)) {
-										                  BlockPos blockPos3 = blockPos2.up();
-										                  if (world.getBlockState(blockPos3).isAir()) {
-											                  BlockState blockState = frogSpawn.getDefaultState();
-											                  world.setBlockState(blockPos3, blockState, 3);
-											                  world.emitGameEvent(
-													                  GameEvent.BLOCK_PLACE,
-													                  blockPos3,
-													                  GameEvent.Emitter.of(entity, blockState)
-											                  );
-											                  world.playSoundFromEntity(
-													                  null,
-													                  entity,
-													                  SoundEvents.ENTITY_FROG_LAY_SPAWN,
-													                  SoundCategory.BLOCKS,
-													                  1.0F,
-													                  1.0F
-											                  );
-											                  isPregnant.forget();
-											                  return true;
-										                  }
-									                  }
-								                  }
-
-								                  return true;
-							                  }
-							                  else {
+							                  if (entity.isTouchingWater() || !entity.isOnGround()) {
 								                  return false;
 							                  }
+
+							                  BlockPos belowPos = entity.getBlockPos().down();
+
+							                  for (Direction direction : Direction.Type.HORIZONTAL) {
+								                  BlockPos adjacentPos = belowPos.offset(direction);
+								                  boolean hasOpenTop = world.getBlockState(adjacentPos)
+								                                            .getCollisionShape(world, adjacentPos)
+								                                            .getFace(Direction.UP)
+								                                            .isEmpty();
+
+								                  if (hasOpenTop && world.getFluidState(adjacentPos).isOf(Fluids.WATER)) {
+									                  BlockPos spawnPos = adjacentPos.up();
+
+									                  if (world.getBlockState(spawnPos).isAir()) {
+										                  BlockState spawnState = frogSpawn.getDefaultState();
+										                  world.setBlockState(spawnPos, spawnState, 3);
+										                  world.emitGameEvent(
+												                  GameEvent.BLOCK_PLACE,
+												                  spawnPos,
+												                  GameEvent.Emitter.of(entity, spawnState)
+										                  );
+										                  world.playSoundFromEntity(
+												                  null,
+												                  entity,
+												                  SoundEvents.ENTITY_FROG_LAY_SPAWN,
+												                  SoundCategory.BLOCKS,
+												                  1.0F,
+												                  1.0F
+										                  );
+										                  isPregnant.forget();
+										                  return true;
+									                  }
+								                  }
+							                  }
+
+							                  return true;
 						                  }
 				                  )
 		);

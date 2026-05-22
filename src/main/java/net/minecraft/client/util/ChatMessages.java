@@ -14,37 +14,55 @@ import net.minecraft.util.Language;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatMessages}.
+ * Утилитарный класс для разбивки сообщений чата на строки с учётом ширины экрана.
+ * Поддерживает визуальный отступ для строк-продолжений переноса.
  */
+@Environment(EnvType.CLIENT)
 public class ChatMessages {
 
 	private static final OrderedText SPACES = OrderedText.styled(32, Style.EMPTY);
 
 	private static String getRenderedChatMessage(String message) {
-		return MinecraftClient.getInstance().options.getChatColors().getValue() ? message : Formatting.strip(message);
+		return MinecraftClient.getInstance().options.getChatColors().getValue()
+			? message
+			: Formatting.strip(message);
 	}
 
+	/**
+	 * Разбивает сообщение чата на строки с учётом ширины и настроек цвета.
+	 * Строки, являющиеся продолжением переноса, предваряются пробелом для визуального отступа.
+	 *
+	 * @param message      исходное сообщение
+	 * @param width        максимальная ширина строки в пикселях
+	 * @param textRenderer рендерер текста для измерения ширины
+	 * @return список строк {@link OrderedText} для отображения
+	 */
 	public static List<OrderedText> breakRenderedChatMessageLines(
-			StringVisitable message,
-			int width,
-			TextRenderer textRenderer
+		StringVisitable message,
+		int width,
+		TextRenderer textRenderer
 	) {
 		TextCollector textCollector = new TextCollector();
 		message.visit(
-				(style, messagex) -> {
-					textCollector.add(StringVisitable.styled(getRenderedChatMessage(messagex), style));
-					return Optional.empty();
-				}, Style.EMPTY
+			(style, text) -> {
+				textCollector.add(StringVisitable.styled(getRenderedChatMessage(text), style));
+				return Optional.empty();
+			},
+			Style.EMPTY
 		);
-		List<OrderedText> list = Lists.newArrayList();
+
+		List<OrderedText> lines = Lists.newArrayList();
 		textRenderer.getTextHandler().wrapLines(
-				textCollector.getCombined(), width, Style.EMPTY, (text, lastLineWrapped) -> {
-					OrderedText orderedText = Language.getInstance().reorder(text);
-					list.add(lastLineWrapped ? OrderedText.concat(SPACES, orderedText) : orderedText);
-				}
+			textCollector.getCombined(),
+			width,
+			Style.EMPTY,
+			(text, lastLineWrapped) -> {
+				OrderedText orderedText = Language.getInstance().reorder(text);
+				lines.add(lastLineWrapped ? OrderedText.concat(SPACES, orderedText) : orderedText);
+			}
 		);
-		return (List<OrderedText>) (list.isEmpty() ? Lists.newArrayList(new OrderedText[]{OrderedText.EMPTY}) : list);
+
+		return lines.isEmpty() ? Lists.newArrayList(OrderedText.EMPTY) : lines;
 	}
 }

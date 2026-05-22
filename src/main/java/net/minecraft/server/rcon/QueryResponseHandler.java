@@ -16,7 +16,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * {@code QueryResponseHandler}.
+ * Обработчик ответов на запросы протокола Query (UDP-статус сервера).
  */
 public class QueryResponseHandler extends RconBase {
 
@@ -140,7 +140,7 @@ public class QueryResponseHandler extends RconBase {
 
 	private byte[] createRulesReply(DatagramPacket packet) throws IOException {
 		long l = Util.getMeasuringTimeMs();
-		if (l < this.lastResponseTime + 5000L) {
+		if (l < this.lastResponseTime + SESSION_TIMEOUT_MS) {
 			byte[] bs = this.data.bytes();
 			byte[] cs = this.getMessageBytes(packet.getSocketAddress());
 			bs[1] = cs[0];
@@ -216,7 +216,7 @@ public class QueryResponseHandler extends RconBase {
 	private void cleanUp() {
 		if (this.running) {
 			long l = Util.getMeasuringTimeMs();
-			if (l >= this.lastQueryTime + 30000L) {
+			if (l >= this.lastQueryTime + CLEAN_UP_THRESHOLD) {
 				this.lastQueryTime = l;
 				this.queries.values().removeIf(query -> query.startedBefore(l));
 			}
@@ -287,9 +287,6 @@ public class QueryResponseHandler extends RconBase {
 		}
 	}
 
-	/**
-	 * {@code Query}.
-	 */
 	static class Query {
 
 		private final long startTime = new Date().getTime();

@@ -14,9 +14,13 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PowderSnowBucketItem}.
+ * Ведро с порошковым снегом. Размещает блок порошкового снега
+ * только в воздухе и в пределах высотных ограничений мира.
  */
 public class PowderSnowBucketItem extends BlockItem implements FluidModificationItem {
+
+	/** Флаги обновления блока при установке порошкового снега. */
+	private static final int BLOCK_PLACE_FLAGS = 3;
 
 	private final SoundEvent placeSound;
 
@@ -27,41 +31,41 @@ public class PowderSnowBucketItem extends BlockItem implements FluidModification
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
-		ActionResult actionResult = super.useOnBlock(context);
-		PlayerEntity playerEntity = context.getPlayer();
-		if (actionResult.isAccepted() && playerEntity != null) {
-			playerEntity.setStackInHand(
-					context.getHand(),
-					BucketItem.getEmptiedStack(context.getStack(), playerEntity)
+		ActionResult result = super.useOnBlock(context);
+		PlayerEntity player = context.getPlayer();
+
+		if (result.isAccepted() && player != null) {
+			player.setStackInHand(
+				context.getHand(),
+				BucketItem.getEmptiedStack(context.getStack(), player)
 			);
 		}
 
-		return actionResult;
+		return result;
 	}
 
 	@Override
 	protected SoundEvent getPlaceSound(BlockState state) {
-		return this.placeSound;
+		return placeSound;
 	}
 
 	@Override
 	public boolean placeFluid(
-			@Nullable LivingEntity user,
-			World world,
-			BlockPos pos,
-			@Nullable BlockHitResult hitResult
+		@Nullable LivingEntity user,
+		World world,
+		BlockPos pos,
+		@Nullable BlockHitResult hitResult
 	) {
-		if (world.isInBuildLimit(pos) && world.isAir(pos)) {
-			if (!world.isClient()) {
-				world.setBlockState(pos, this.getBlock().getDefaultState(), 3);
-			}
-
-			world.emitGameEvent(user, GameEvent.FLUID_PLACE, pos);
-			world.playSound(user, pos, this.placeSound, SoundCategory.BLOCKS, 1.0F, 1.0F);
-			return true;
-		}
-		else {
+		if (!world.isInBuildLimit(pos) || !world.isAir(pos)) {
 			return false;
 		}
+
+		if (!world.isClient()) {
+			world.setBlockState(pos, getBlock().getDefaultState(), BLOCK_PLACE_FLAGS);
+		}
+
+		world.emitGameEvent(user, GameEvent.FLUID_PLACE, pos);
+		world.playSound(user, pos, placeSound, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		return true;
 	}
 }

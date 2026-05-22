@@ -18,11 +18,19 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code SleepTask}.
+ * Задача мозга, укладывающая существо спать в кровати по адресу памяти {@code HOME}.
+ * Перед сном закрывает двери через {@link OpenDoorsTask}; не запускается в течение {@code WAKE_COOLDOWN} тиков после пробуждения.
  */
 public class SleepTask extends MultiTickTask<LivingEntity> {
 
 	public static final int RUN_TIME = 100;
+
+	private static final long WAKE_COOLDOWN = 100L;
+	private static final long WAKE_DELAY = 40L;
+	private static final double BED_PROXIMITY = 2.0;
+	private static final double SLEEP_PROXIMITY = 1.14;
+	private static final double SLEEP_HEIGHT_OFFSET = 0.4;
+
 	private long startTime;
 
 	public SleepTask() {
@@ -39,60 +47,62 @@ public class SleepTask extends MultiTickTask<LivingEntity> {
 		if (entity.hasVehicle()) {
 			return false;
 		}
-		else {
-			Brain<?> brain = entity.getBrain();
-			GlobalPos globalPos = brain.getOptionalRegisteredMemory(MemoryModuleType.HOME).get();
-			if (world.getRegistryKey() != globalPos.dimension()) {
+
+		Brain<?> brain = entity.getBrain();
+		GlobalPos home = brain.getOptionalRegisteredMemory(MemoryModuleType.HOME).get();
+
+		if (world.getRegistryKey() != home.dimension()) {
+			return false;
+		}
+
+		Optional<Long> lastWoken = brain.getOptionalRegisteredMemory(MemoryModuleType.LAST_WOKEN);
+
+		if (lastWoken.isPresent()) {
+			long ticksSinceWoken = world.getTime() - lastWoken.get();
+
+			if (ticksSinceWoken > 0L && ticksSinceWoken < WAKE_COOLDOWN) {
 				return false;
 			}
-			else {
-				Optional<Long> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.LAST_WOKEN);
-				if (optional.isPresent()) {
-					long l = world.getTime() - optional.get();
-					if (l > 0L && l < 100L) {
-						return false;
-					}
-				}
-
-				BlockState blockState = world.getBlockState(globalPos.pos());
-				return globalPos.pos().isWithinDistance(entity.getEntityPos(), 2.0) && blockState.isIn(BlockTags.BEDS)
-						&& !blockState.get(BedBlock.OCCUPIED);
-			}
 		}
+
+		BlockState bedState = world.getBlockState(home.pos());
+		return home.pos().isWithinDistance(entity.getEntityPos(), BED_PROXIMITY)
+				&& bedState.isIn(BlockTags.BEDS)
+				&& !bedState.get(BedBlock.OCCUPIED);
 	}
 
 	@Override
 	protected boolean shouldKeepRunning(ServerWorld world, LivingEntity entity, long time) {
-		Optional<GlobalPos> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
-		if (optional.isEmpty()) {
+		Optional<GlobalPos> home = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
+
+		if (home.isEmpty()) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = optional.get().pos();
-			return entity.getBrain().hasActivity(Activity.REST) && entity.getY() > blockPos.getY() + 0.4
-					&& blockPos.isWithinDistance(entity.getEntityPos(), 1.14);
-		}
+
+		BlockPos bedPos = home.get().pos();
+		return entity.getBrain().hasActivity(Activity.REST)
+				&& entity.getY() > bedPos.getY() + SLEEP_HEIGHT_OFFSET
+				&& bedPos.isWithinDistance(entity.getEntityPos(), SLEEP_PROXIMITY);
 	}
 
 	@Override
 	protected void run(ServerWorld world, LivingEntity entity, long time) {
-		if (time > this.startTime) {
-			Brain<?> brain = entity.getBrain();
-			if (brain.hasMemoryModule(MemoryModuleType.DOORS_TO_CLOSE)) {
-				Set<GlobalPos> set = brain.getOptionalRegisteredMemory(MemoryModuleType.DOORS_TO_CLOSE).get();
-				Optional<List<LivingEntity>> optional;
-				if (brain.hasMemoryModule(MemoryModuleType.MOBS)) {
-					optional = brain.getOptionalRegisteredMemory(MemoryModuleType.MOBS);
-				}
-				else {
-					optional = Optional.empty();
-				}
-
-				OpenDoorsTask.pathToDoor(world, entity, null, null, set, optional);
-			}
-
-			entity.sleep(entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME).get().pos());
+		if (time <= startTime) {
+			return;
 		}
+
+		Brain<?> brain = entity.getBrain();
+
+		if (brain.hasMemoryModule(MemoryModuleType.DOORS_TO_CLOSE)) {
+			Set<GlobalPos> doorsToClose = brain.getOptionalRegisteredMemory(MemoryModuleType.DOORS_TO_CLOSE).get();
+			Optional<List<LivingEntity>> mobs = brain.hasMemoryModule(MemoryModuleType.MOBS)
+					? brain.getOptionalRegisteredMemory(MemoryModuleType.MOBS)
+					: Optional.empty();
+
+			OpenDoorsTask.pathToDoor(world, entity, null, null, doorsToClose, mobs);
+		}
+
+		entity.sleep(brain.getOptionalRegisteredMemory(MemoryModuleType.HOME).get().pos());
 	}
 
 	@Override
@@ -104,7 +114,7 @@ public class SleepTask extends MultiTickTask<LivingEntity> {
 	protected void finishRunning(ServerWorld world, LivingEntity entity, long time) {
 		if (entity.isSleeping()) {
 			entity.wakeUp();
-			this.startTime = time + 40L;
+			startTime = time + WAKE_DELAY;
 		}
 	}
 }

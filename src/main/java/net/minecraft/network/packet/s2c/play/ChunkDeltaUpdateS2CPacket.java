@@ -57,7 +57,7 @@ public class ChunkDeltaUpdateS2CPacket implements Packet<ClientPlayPacketListene
 		for (int j = 0; j < i; j++) {
 			long l = buf.readVarLong();
 			this.positions[j] = (short) (l & 4095L);
-			this.blockStates[j] = Block.STATE_IDS.get((int) (l >>> 12));
+			this.blockStates[j] = Block.STATE_IDS.get((int) (l >>> SECTION_COORD_BITS));
 		}
 	}
 
@@ -66,7 +66,7 @@ public class ChunkDeltaUpdateS2CPacket implements Packet<ClientPlayPacketListene
 		buf.writeVarInt(this.positions.length);
 
 		for (int i = 0; i < this.positions.length; i++) {
-			buf.writeVarLong((long) Block.getRawIdFromState(this.blockStates[i]) << 12 | this.positions[i]);
+			buf.writeVarLong((long) Block.getRawIdFromState(this.blockStates[i]) << SECTION_COORD_BITS | this.positions[i]);
 		}
 	}
 

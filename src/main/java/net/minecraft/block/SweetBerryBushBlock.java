@@ -99,7 +99,7 @@ public class SweetBerryBushBlock extends PlantBlock implements Fertilizable {
 				if (vec3d.horizontalLengthSquared() > 0.0) {
 					double d = Math.abs(vec3d.getX());
 					double e = Math.abs(vec3d.getZ());
-					if (d >= 0.003F || e >= 0.003F) {
+					if (d >= MIN_MOVEMENT_FOR_DAMAGE || e >= MIN_MOVEMENT_FOR_DAMAGE) {
 						entity.damage(serverWorld, world.getDamageSources().sweetBerryBush(), 1.0F);
 					}
 				}

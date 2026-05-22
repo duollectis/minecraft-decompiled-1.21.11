@@ -8,29 +8,26 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code UniformIntProvider}.
+ * Поставщик целых чисел с равномерным распределением в диапазоне {@code [min, max]}.
+ * Каждое значение в диапазоне имеет одинаковую вероятность выпасть.
  */
 public class UniformIntProvider extends IntProvider {
 
-	public static final MapCodec<UniformIntProvider> CODEC = RecordCodecBuilder.<UniformIntProvider>mapCodec(
-			                                                                           instance -> instance.group(
-					                                                                                               Codec.INT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
-					                                                                                               Codec.INT.fieldOf("max_inclusive").forGetter(provider -> provider.max)
-			                                                                                               )
-			                                                                                               .apply(instance, UniformIntProvider::new)
-	                                                                           )
-	                                                                           .validate(
-			                                                                           (UniformIntProvider provider) ->
-					                                                                           provider.max
-							                                                                           < provider.min
-					                                                                           ? DataResult.error(() ->
-					                                                                                              "Max must be at least min, min_inclusive: "
-					                                                                                              + provider.min
-					                                                                                              + ", max_inclusive: "
-					                                                                                              + provider.max)
-					                                                                           : DataResult.success(
-							                                                                           provider)
-	                                                                           );
+	public static final MapCodec<UniformIntProvider> CODEC = RecordCodecBuilder
+		.<UniformIntProvider>mapCodec(
+			instance -> instance.group(
+				Codec.INT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
+				Codec.INT.fieldOf("max_inclusive").forGetter(provider -> provider.max)
+			).apply(instance, UniformIntProvider::new)
+		)
+		.validate(
+			provider -> provider.max < provider.min
+				? DataResult.error(
+					() -> "Max must be at least min, min_inclusive: " + provider.min + ", max_inclusive: " + provider.max
+				)
+				: DataResult.success(provider)
+		);
+
 	private final int min;
 	private final int max;
 
@@ -39,31 +36,23 @@ public class UniformIntProvider extends IntProvider {
 		this.max = max;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return UniformIntProvider — результат операции
-	 */
 	public static UniformIntProvider create(int min, int max) {
 		return new UniformIntProvider(min, max);
 	}
 
 	@Override
 	public int get(Random random) {
-		return MathHelper.nextBetween(random, this.min, this.max);
+		return MathHelper.nextBetween(random, min, max);
 	}
 
 	@Override
 	public int getMin() {
-		return this.min;
+		return min;
 	}
 
 	@Override
 	public int getMax() {
-		return this.max;
+		return max;
 	}
 
 	@Override
@@ -73,6 +62,6 @@ public class UniformIntProvider extends IntProvider {
 
 	@Override
 	public String toString() {
-		return "[" + this.min + "-" + this.max + "]";
+		return "[" + min + "-" + max + "]";
 	}
 }

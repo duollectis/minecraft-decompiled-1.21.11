@@ -1,7 +1,6 @@
 package net.minecraft.world;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.predicate.entity.EntityPredicates;
@@ -17,7 +16,8 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * {@code EntityView}.
+ * Представление мира для запросов к сущностям.
+ * Предоставляет методы поиска сущностей по типу, классу, расстоянию и UUID.
  */
 public interface EntityView {
 
@@ -26,118 +26,128 @@ public interface EntityView {
 	<T extends Entity> List<T> getEntitiesByType(TypeFilter<Entity, T> filter, Box box, Predicate<? super T> predicate);
 
 	default <T extends Entity> List<T> getEntitiesByClass(
-			Class<T> entityClass,
-			Box box,
-			Predicate<? super T> predicate
+		Class<T> entityClass,
+		Box box,
+		Predicate<? super T> predicate
 	) {
-		return this.getEntitiesByType(TypeFilter.instanceOf(entityClass), box, predicate);
+		return getEntitiesByType(TypeFilter.instanceOf(entityClass), box, predicate);
 	}
 
 	List<? extends PlayerEntity> getPlayers();
 
 	default List<Entity> getOtherEntities(@Nullable Entity except, Box box) {
-		return this.getOtherEntities(except, box, EntityPredicates.EXCEPT_SPECTATOR);
+		return getOtherEntities(except, box, EntityPredicates.EXCEPT_SPECTATOR);
 	}
 
 	default boolean doesNotIntersectEntities(@Nullable Entity except, VoxelShape shape) {
 		if (shape.isEmpty()) {
 			return true;
 		}
-		else {
-			for (Entity entity : this.getOtherEntities(except, shape.getBoundingBox())) {
-				if (!entity.isRemoved()
-						&& entity.intersectionChecked
-						&& (except == null || !entity.isConnectedThroughVehicle(except))
-						&& VoxelShapes.matchesAnywhere(
-						shape,
-						VoxelShapes.cuboid(entity.getBoundingBox()),
-						BooleanBiFunction.AND
-				)) {
-					return false;
-				}
-			}
 
-			return true;
+		for (Entity entity : getOtherEntities(except, shape.getBoundingBox())) {
+			if (!entity.isRemoved()
+				&& entity.intersectionChecked
+				&& (except == null || !entity.isConnectedThroughVehicle(except))
+				&& VoxelShapes.matchesAnywhere(shape, VoxelShapes.cuboid(entity.getBoundingBox()), BooleanBiFunction.AND)
+			) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	default <T extends Entity> List<T> getNonSpectatingEntities(Class<T> entityClass, Box box) {
-		return this.getEntitiesByClass(entityClass, box, EntityPredicates.EXCEPT_SPECTATOR);
+		return getEntitiesByClass(entityClass, box, EntityPredicates.EXCEPT_SPECTATOR);
 	}
 
 	default List<VoxelShape> getEntityCollisions(@Nullable Entity entity, Box box) {
 		if (box.getAverageSideLength() < 1.0E-7) {
 			return List.of();
 		}
-		else {
-			Predicate<Entity>
-					predicate =
-					entity == null ? EntityPredicates.CAN_COLLIDE
-					               : EntityPredicates.EXCEPT_SPECTATOR.and(entity::collidesWith);
-			List<Entity> list = this.getOtherEntities(entity, box.expand(1.0E-7), predicate);
-			if (list.isEmpty()) {
-				return List.of();
-			}
-			else {
-				Builder<VoxelShape> builder = ImmutableList.builderWithExpectedSize(list.size());
 
-				for (Entity entity2 : list) {
-					builder.add(VoxelShapes.cuboid(entity2.getBoundingBox()));
-				}
+		Predicate<Entity> predicate = entity == null
+			? EntityPredicates.CAN_COLLIDE
+			: EntityPredicates.EXCEPT_SPECTATOR.and(entity::collidesWith);
 
-				return builder.build();
-			}
+		List<Entity> candidates = getOtherEntities(entity, box.expand(1.0E-7), predicate);
+
+		if (candidates.isEmpty()) {
+			return List.of();
 		}
+
+		ImmutableList.Builder<VoxelShape> builder = ImmutableList.builderWithExpectedSize(candidates.size());
+
+		for (Entity candidate : candidates) {
+			builder.add(VoxelShapes.cuboid(candidate.getBoundingBox()));
+		}
+
+		return builder.build();
 	}
 
+	/**
+	 * Находит ближайшего игрока в заданном радиусе, удовлетворяющего предикату.
+	 *
+	 * @param x             координата X центра поиска
+	 * @param y             координата Y центра поиска
+	 * @param z             координата Z центра поиска
+	 * @param maxDistance   максимальное расстояние (отрицательное — без ограничения)
+	 * @param targetPredicate дополнительный фильтр игроков, или {@code null}
+	 * @return ближайший подходящий игрок, или {@code null}
+	 */
 	default @Nullable PlayerEntity getClosestPlayer(
-			double x,
-			double y,
-			double z,
-			double maxDistance,
-			@Nullable Predicate<Entity> targetPredicate
+		double x,
+		double y,
+		double z,
+		double maxDistance,
+		@Nullable Predicate<Entity> targetPredicate
 	) {
-		double d = -1.0;
-		PlayerEntity playerEntity = null;
+		double closestDistSq = -1.0;
+		PlayerEntity closest = null;
 
-		for (PlayerEntity playerEntity2 : this.getPlayers()) {
-			if (targetPredicate == null || targetPredicate.test(playerEntity2)) {
-				double e = playerEntity2.squaredDistanceTo(x, y, z);
-				if ((maxDistance < 0.0 || e < maxDistance * maxDistance) && (d == -1.0 || e < d)) {
-					d = e;
-					playerEntity = playerEntity2;
-				}
+		for (PlayerEntity player : getPlayers()) {
+			if (targetPredicate != null && !targetPredicate.test(player)) {
+				continue;
+			}
+
+			double distSq = player.squaredDistanceTo(x, y, z);
+
+			if ((maxDistance < 0.0 || distSq < maxDistance * maxDistance) && (closestDistSq == -1.0 || distSq < closestDistSq)) {
+				closestDistSq = distSq;
+				closest = player;
 			}
 		}
 
-		return playerEntity;
+		return closest;
 	}
 
 	default @Nullable PlayerEntity getClosestPlayer(Entity entity, double maxDistance) {
-		return this.getClosestPlayer(entity.getX(), entity.getY(), entity.getZ(), maxDistance, false);
+		return getClosestPlayer(entity.getX(), entity.getY(), entity.getZ(), maxDistance, false);
 	}
 
 	default @Nullable PlayerEntity getClosestPlayer(
-			double x,
-			double y,
-			double z,
-			double maxDistance,
-			boolean ignoreCreative
+		double x,
+		double y,
+		double z,
+		double maxDistance,
+		boolean ignoreCreative
 	) {
-		Predicate<Entity>
-				predicate =
-				ignoreCreative ? EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR : EntityPredicates.EXCEPT_SPECTATOR;
-		return this.getClosestPlayer(x, y, z, maxDistance, predicate);
+		Predicate<Entity> predicate = ignoreCreative
+			? EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR
+			: EntityPredicates.EXCEPT_SPECTATOR;
+		return getClosestPlayer(x, y, z, maxDistance, predicate);
 	}
 
 	default boolean isPlayerInRange(double x, double y, double z, double range) {
-		for (PlayerEntity playerEntity : this.getPlayers()) {
-			if (EntityPredicates.EXCEPT_SPECTATOR.test(playerEntity) && EntityPredicates.VALID_LIVING_ENTITY.test(
-					playerEntity)) {
-				double d = playerEntity.squaredDistanceTo(x, y, z);
-				if (range < 0.0 || d < range * range) {
-					return true;
-				}
+		for (PlayerEntity player : getPlayers()) {
+			if (!EntityPredicates.EXCEPT_SPECTATOR.test(player) || !EntityPredicates.VALID_LIVING_ENTITY.test(player)) {
+				continue;
+			}
+
+			double distSq = player.squaredDistanceTo(x, y, z);
+
+			if (range < 0.0 || distSq < range * range) {
+				return true;
 			}
 		}
 
@@ -145,10 +155,13 @@ public interface EntityView {
 	}
 
 	default @Nullable PlayerEntity getPlayerByUuid(UUID uuid) {
-		for (int i = 0; i < this.getPlayers().size(); i++) {
-			PlayerEntity playerEntity = this.getPlayers().get(i);
-			if (uuid.equals(playerEntity.getUuid())) {
-				return playerEntity;
+		List<? extends PlayerEntity> players = getPlayers();
+
+		for (int i = 0; i < players.size(); i++) {
+			PlayerEntity player = players.get(i);
+
+			if (uuid.equals(player.getUuid())) {
+				return player;
 			}
 		}
 

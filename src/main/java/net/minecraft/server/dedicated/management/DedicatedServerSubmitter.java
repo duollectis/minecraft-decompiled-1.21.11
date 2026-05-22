@@ -6,7 +6,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code DedicatedServerSubmitter}.
+ * Класс Dedicated Server Submitter.
  */
 public class DedicatedServerSubmitter implements Submitter {
 

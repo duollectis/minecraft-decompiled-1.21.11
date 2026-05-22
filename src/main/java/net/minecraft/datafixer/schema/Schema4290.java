@@ -9,12 +9,15 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4290}.
+ * Схема DataFixer версии 4290, обновляющая структуру типа {@code TEXT_COMPONENT}:
+ * добавляет поддержку поля {@code hoverEvent} с тегированным выбором по действию
+ * (show_text, show_item, show_entity) и вложенными ссылками на компоненты текста,
+ * стеки предметов и имена сущностей.
  */
 public class Schema4290 extends IdentifierNormalizingSchema {
 
-	public Schema4290(int i, Schema schema) {
-		super(i, schema);
+	public Schema4290(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(

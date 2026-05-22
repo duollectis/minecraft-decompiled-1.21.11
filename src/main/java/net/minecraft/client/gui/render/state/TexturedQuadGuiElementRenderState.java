@@ -9,10 +9,13 @@ import net.minecraft.client.texture.TextureSetup;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TexturedQuadGuiElementRenderState}.
+ * Состояние текстурированного прямоугольника в GUI.
+ * Хранит UV-координаты для маппинга текстуры на квад и единый цвет-модулятор.
+ * Используется как для обычных спрайтов, так и для отображения off-screen текстур
+ * специальных элементов (PIP-рендер).
  */
+@Environment(EnvType.CLIENT)
 public record TexturedQuadGuiElementRenderState(
 		RenderPipeline pipeline,
 		TextureSetup textureSetup,
@@ -65,10 +68,10 @@ public record TexturedQuadGuiElementRenderState(
 
 	@Override
 	public void setupVertices(VertexConsumer vertices) {
-		vertices.vertex(this.pose(), this.x1(), this.y1()).texture(this.u1(), this.v1()).color(this.color());
-		vertices.vertex(this.pose(), this.x1(), this.y2()).texture(this.u1(), this.v2()).color(this.color());
-		vertices.vertex(this.pose(), this.x2(), this.y2()).texture(this.u2(), this.v2()).color(this.color());
-		vertices.vertex(this.pose(), this.x2(), this.y1()).texture(this.u2(), this.v1()).color(this.color());
+		vertices.vertex(pose(), x1(), y1()).texture(u1(), v1()).color(color());
+		vertices.vertex(pose(), x1(), y2()).texture(u1(), v2()).color(color());
+		vertices.vertex(pose(), x2(), y2()).texture(u2(), v2()).color(color());
+		vertices.vertex(pose(), x2(), y1()).texture(u2(), v1()).color(color());
 	}
 
 	private static @Nullable ScreenRect createBounds(
@@ -79,7 +82,7 @@ public record TexturedQuadGuiElementRenderState(
 			Matrix3x2f pose,
 			@Nullable ScreenRect scissorArea
 	) {
-		ScreenRect screenRect = new ScreenRect(x1, y1, x2 - x1, y2 - y1).transformEachVertex(pose);
-		return scissorArea != null ? scissorArea.intersection(screenRect) : screenRect;
+		ScreenRect rect = new ScreenRect(x1, y1, x2 - x1, y2 - y1).transformEachVertex(pose);
+		return scissorArea != null ? scissorArea.intersection(rect) : rect;
 	}
 }

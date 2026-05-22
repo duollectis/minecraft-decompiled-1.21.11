@@ -4,7 +4,7 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.world.World;
 
 /**
- * {@code AmbientEntity}.
+ * Базовый класс для фоновых мобов (летучие мыши). Не атакует игроков.
  */
 public abstract class AmbientEntity extends MobEntity {
 

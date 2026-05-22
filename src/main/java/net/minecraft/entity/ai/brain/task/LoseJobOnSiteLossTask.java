@@ -6,35 +6,26 @@ import net.minecraft.village.VillagerData;
 import net.minecraft.village.VillagerProfession;
 
 /**
- * {@code LoseJobOnSiteLossTask}.
+ * Фабричный класс задачи мозга, сбрасывающей профессию жителя при потере рабочего места.
+ * Сбрасывает только если у жителя нет опыта и уровень профессии равен 1.
  */
 public class LoseJobOnSiteLossTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<VillagerEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.JOB_SITE)).apply(
 						context, jobSite -> (world, entity, time) -> {
-							VillagerData villagerData = entity.getVillagerData();
-							boolean
-									bl =
-									!villagerData.profession().matchesKey(VillagerProfession.NONE) && !villagerData
-											.profession()
-											.matchesKey(VillagerProfession.NITWIT);
-							if (bl && entity.getExperience() == 0 && villagerData.level() <= 1) {
-								entity.setVillagerData(entity
-										.getVillagerData()
-										.withProfession(world.getRegistryManager(), VillagerProfession.NONE));
-								entity.reinitializeBrain(world);
-								return true;
-							}
-							else {
+							VillagerData data = entity.getVillagerData();
+							boolean hasRealJob = !data.profession().matchesKey(VillagerProfession.NONE)
+									&& !data.profession().matchesKey(VillagerProfession.NITWIT);
+
+							if (!hasRealJob || entity.getExperience() != 0 || data.level() > 1) {
 								return false;
 							}
+
+							entity.setVillagerData(entity.getVillagerData().withProfession(world.getRegistryManager(), VillagerProfession.NONE));
+							entity.reinitializeBrain(world);
+							return true;
 						}
 				)
 		);

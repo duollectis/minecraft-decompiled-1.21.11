@@ -14,10 +14,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsSlot}.
+ * DTO слота мира на сервере Realms.
+ * Каждый сервер имеет до 3 слотов; слот содержит настройки мира и список параметров.
+ * Поле {@code options} сериализуется через вложенный JSON-объект посредством {@link OptionsTypeAdapter}.
  */
+@Environment(EnvType.CLIENT)
 public final class RealmsSlot implements RealmsSerializable {
 
 	@SerializedName("slotId")
@@ -34,13 +36,6 @@ public final class RealmsSlot implements RealmsSerializable {
 		this.settings = settings;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param slotId slot id
-	 *
-	 * @return RealmsSlot — результат операции
-	 */
 	public static RealmsSlot create(int slotId) {
 		return new RealmsSlot(
 				slotId,
@@ -49,48 +44,33 @@ public final class RealmsSlot implements RealmsSerializable {
 		);
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return RealmsSlot — результат операции
-	 */
 	public RealmsSlot copy() {
-		return new RealmsSlot(this.slotId, this.options.copy(), new ArrayList<>(this.settings));
+		return new RealmsSlot(slotId, options.copy(), new ArrayList<>(settings));
 	}
 
 	public boolean isHardcore() {
-		return RealmsSettingDto.isHardcore(this.settings);
+		return RealmsSettingDto.isHardcore(settings);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code OptionsTypeAdapter}.
+	 * Адаптер для сериализации {@link RealmsWorldOptions} как вложенной JSON-строки.
+	 * Realms API передаёт options как экранированный JSON внутри JSON.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class OptionsTypeAdapter extends TypeAdapter<RealmsWorldOptions> {
 
 		private OptionsTypeAdapter() {
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param jsonWriter json writer
-		 * @param realmsWorldOptions realms world options
-		 */
-		public void write(JsonWriter jsonWriter, RealmsWorldOptions realmsWorldOptions) throws IOException {
-			jsonWriter.jsonValue(new CheckedGson().toJson(realmsWorldOptions));
+		@Override
+		public void write(JsonWriter writer, RealmsWorldOptions options) throws IOException {
+			writer.jsonValue(new CheckedGson().toJson(options));
 		}
 
-		/**
-		 * Read.
-		 *
-		 * @param jsonReader json reader
-		 *
-		 * @return RealmsWorldOptions — результат операции
-		 */
-		public RealmsWorldOptions read(JsonReader jsonReader) throws IOException {
-			String string = jsonReader.nextString();
-			return RealmsWorldOptions.fromJson(new CheckedGson(), string);
+		@Override
+		public RealmsWorldOptions read(JsonReader reader) throws IOException {
+			String json = reader.nextString();
+			return RealmsWorldOptions.fromJson(new CheckedGson(), json);
 		}
 	}
 }

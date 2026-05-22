@@ -12,16 +12,19 @@ import net.minecraft.predicate.component.ComponentSubPredicate;
 import java.util.Optional;
 
 /**
- * {@code ContainerPredicate}.
+ * Предикат для проверки содержимого контейнера (например, шалкерового ящика в предмете).
  */
-public record ContainerPredicate(Optional<CollectionPredicate<ItemStack, ItemPredicate>> items) implements ComponentSubPredicate<ContainerComponent> {
+public record ContainerPredicate(
+		Optional<CollectionPredicate<ItemStack, ItemPredicate>> items
+) implements ComponentSubPredicate<ContainerComponent> {
 
 	public static final Codec<ContainerPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance
-					.group(CollectionPredicate
-							.createCodec(ItemPredicate.CODEC)
-							.optionalFieldOf("items")
-							.forGetter(ContainerPredicate::items))
+					.group(
+							CollectionPredicate.createCodec(ItemPredicate.CODEC)
+									.optionalFieldOf("items")
+									.forGetter(ContainerPredicate::items)
+					)
 					.apply(instance, ContainerPredicate::new)
 	);
 
@@ -30,7 +33,7 @@ public record ContainerPredicate(Optional<CollectionPredicate<ItemStack, ItemPre
 		return DataComponentTypes.CONTAINER;
 	}
 
-	public boolean test(ContainerComponent containerComponent) {
-		return !this.items.isPresent() || this.items.get().test(containerComponent.iterateNonEmpty());
+	public boolean test(ContainerComponent component) {
+		return items.isEmpty() || items.get().test(component.iterateNonEmpty());
 	}
 }

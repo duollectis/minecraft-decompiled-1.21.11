@@ -7,7 +7,8 @@ import net.minecraft.text.Text;
 import java.util.function.Consumer;
 
 /**
- * {@code TooltipAppender}.
+ * Компонент данных предмета, способный добавлять строки в тултип.
+ * Реализуется компонентами, которые хотят отображать свои данные в подсказке предмета.
  */
 public interface TooltipAppender {
 

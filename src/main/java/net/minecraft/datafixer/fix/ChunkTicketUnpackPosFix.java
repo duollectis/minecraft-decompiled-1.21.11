@@ -9,34 +9,36 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.stream.IntStream;
 
 /**
- * {@code ChunkTicketUnpackPosFix}.
+ * Распаковывает позицию чанка из упакованного {@code long} (x в младших 32 битах, z в старших)
+ * в массив из двух {@code int} для каждого тикета в сохранённых данных.
  */
 public class ChunkTicketUnpackPosFix extends DataFix {
 
-	private static final long COORD_BITS = 32L;
-	private static final long COORD_MASK = 4294967295L;
+	private static final long COORD_MASK = 0xFFFFFFFFL;
+	private static final int COORD_SHIFT = 32;
 
 	public ChunkTicketUnpackPosFix(Schema outputSchema) {
 		super(outputSchema, false);
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ChunkTicketUnpackPosFix",
-				this.getInputSchema().getType(TypeReferences.TICKETS_SAVED_DATA),
+				getInputSchema().getType(TypeReferences.TICKETS_SAVED_DATA),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> dynamic.update(
 								"data",
-								dataDynamic -> dataDynamic.update(
+								data -> data.update(
 										"tickets",
-										ticketsDynamic -> ticketsDynamic.createList(
-												ticketsDynamic.asStream().map(ticketDynamic -> ticketDynamic.update(
-														"chunk_pos", chunkPosDynamic -> {
-															long l = chunkPosDynamic.asLong(0L);
-															int i = (int) (l & 4294967295L);
-															int j = (int) (l >>> 32 & 4294967295L);
-															return chunkPosDynamic.createIntList(IntStream.of(i, j));
+										tickets -> tickets.createList(
+												tickets.asStream().map(ticket -> ticket.update(
+														"chunk_pos",
+														packedPos -> {
+															long packed = packedPos.asLong(0L);
+															int chunkX = (int) (packed & COORD_MASK);
+															int chunkZ = (int) (packed >>> COORD_SHIFT & COORD_MASK);
+															return packedPos.createIntList(IntStream.of(chunkX, chunkZ));
 														}
 												))
 										)

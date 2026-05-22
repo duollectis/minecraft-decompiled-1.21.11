@@ -107,21 +107,21 @@ public class RealmsSelectWorldTemplateScreen extends RealmsScreen {
 		this.trailerButton =
 				directionalLayoutWidget2.add(ButtonWidget
 						.builder(TRAILER_TEXT, button -> this.onTrailer())
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build());
 		this.selectButton =
 				directionalLayoutWidget2.add(ButtonWidget
 						.builder(SELECT_TEXT, button -> this.selectTemplate())
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build());
 		directionalLayoutWidget2.add(ButtonWidget
 				.builder(ScreenTexts.CANCEL, button -> this.close())
-				.width(100)
+				.width(BUTTON_WIDTH)
 				.build());
 		this.publisherButton =
 				directionalLayoutWidget2.add(ButtonWidget
 						.builder(PUBLISHER_TEXT, button -> this.onPublish())
-						.width(100)
+						.width(BUTTON_WIDTH)
 						.build());
 		this.updateButtonStates();
 		this.layout.forEachChild(child -> {

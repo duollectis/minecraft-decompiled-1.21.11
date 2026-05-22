@@ -23,11 +23,19 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.stream.IntStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractSignEditScreen}.
+ * Базовый экран редактирования таблички. Управляет вводом текста по строкам,
+ * отображением курсора/выделения и отправкой пакета обновления на сервер.
  */
+@Environment(EnvType.CLIENT)
 public abstract class AbstractSignEditScreen extends Screen {
+
+	private static final int SIGN_LINES = 4;
+	private static final int DONE_BUTTON_Y_OFFSET = 144;
+	private static final int DONE_BUTTON_WIDTH = 200;
+	private static final int DONE_BUTTON_HEIGHT = 20;
+	private static final int TITLE_Y = 40;
+	private static final int CURSOR_BLINK_PERIOD = 6;
 
 	protected final SignBlockEntity blockEntity;
 	private SignText text;
@@ -47,95 +55,95 @@ public abstract class AbstractSignEditScreen extends Screen {
 		this.blockEntity = blockEntity;
 		this.text = blockEntity.getText(front);
 		this.front = front;
-		this.signType = AbstractSignBlock.getWoodType(blockEntity.getCachedState().getBlock());
-		this.messages =
-				IntStream
-						.range(0, 4)
-						.mapToObj(line -> this.text.getMessage(line, filtered))
-						.map(Text::getString)
-						.toArray(String[]::new);
+		signType = AbstractSignBlock.getWoodType(blockEntity.getCachedState().getBlock());
+		messages = IntStream.range(0, SIGN_LINES)
+			.mapToObj(line -> this.text.getMessage(line, filtered))
+			.map(Text::getString)
+			.toArray(String[]::new);
 	}
 
 	@Override
 	protected void init() {
-		this.addDrawableChild(
-				ButtonWidget
-						.builder(ScreenTexts.DONE, button -> this.finishEditing())
-						.dimensions(this.width / 2 - 100, this.height / 4 + 144, 200, 20)
-						.build()
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.DONE, button -> finishEditing())
+				.dimensions(width / 2 - 100, height / 4 + DONE_BUTTON_Y_OFFSET, DONE_BUTTON_WIDTH, DONE_BUTTON_HEIGHT)
+				.build()
 		);
-		this.selectionManager = new SelectionManager(
-				() -> this.messages[this.currentRow],
-				this::setCurrentRowMessage,
-				SelectionManager.makeClipboardGetter(this.client),
-				SelectionManager.makeClipboardSetter(this.client),
-				textLine -> this.client.textRenderer.getWidth(textLine) <= this.blockEntity.getMaxTextWidth()
+		selectionManager = new SelectionManager(
+			() -> messages[currentRow],
+			this::setCurrentRowMessage,
+			SelectionManager.makeClipboardGetter(client),
+			SelectionManager.makeClipboardSetter(client),
+			textLine -> client.textRenderer.getWidth(textLine) <= blockEntity.getMaxTextWidth()
 		);
 	}
 
 	@Override
 	public void tick() {
-		this.ticksSinceOpened++;
-		if (!this.canEdit()) {
-			this.finishEditing();
+		ticksSinceOpened++;
+
+		if (!canEdit()) {
+			finishEditing();
 		}
 	}
 
 	private boolean canEdit() {
-		return this.client.player != null && !this.blockEntity.isRemoved() && !this.blockEntity.isPlayerTooFarToEdit(
-				this.client.player.getUuid());
+		return client.player != null
+			&& !blockEntity.isRemoved()
+			&& !blockEntity.isPlayerTooFarToEdit(client.player.getUuid());
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.isUp()) {
-			this.currentRow = this.currentRow - 1 & 3;
-			this.selectionManager.putCursorAtEnd();
+			currentRow = currentRow - 1 & 3;
+			selectionManager.putCursorAtEnd();
 			return true;
 		}
-		else if (input.isDown() || input.isEnter()) {
-			this.currentRow = this.currentRow + 1 & 3;
-			this.selectionManager.putCursorAtEnd();
+
+		if (input.isDown() || input.isEnter()) {
+			currentRow = currentRow + 1 & 3;
+			selectionManager.putCursorAtEnd();
 			return true;
 		}
-		else {
-			return this.selectionManager.handleSpecialKey(input) ? true : super.keyPressed(input);
-		}
+
+		return selectionManager.handleSpecialKey(input) ? true : super.keyPressed(input);
 	}
 
 	@Override
 	public boolean charTyped(CharInput input) {
-		this.selectionManager.insert(input);
+		selectionManager.insert(input);
 		return true;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 40, -1);
-		this.renderSign(context);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
+		renderSign(context);
 	}
 
 	@Override
 	public void close() {
-		this.finishEditing();
+		finishEditing();
 	}
 
 	@Override
 	public void removed() {
-		ClientPlayNetworkHandler clientPlayNetworkHandler = this.client.getNetworkHandler();
-		if (clientPlayNetworkHandler != null) {
-			clientPlayNetworkHandler.sendPacket(
-					new UpdateSignC2SPacket(
-							this.blockEntity.getPos(),
-							this.front,
-							this.messages[0],
-							this.messages[1],
-							this.messages[2],
-							this.messages[3]
-					)
-			);
+		ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
+
+		if (networkHandler == null) {
+			return;
 		}
+
+		networkHandler.sendPacket(new UpdateSignC2SPacket(
+			blockEntity.getPos(),
+			front,
+			messages[0],
+			messages[1],
+			messages[2],
+			messages[3]
+		));
 	}
 
 	@Override
@@ -148,11 +156,6 @@ public abstract class AbstractSignEditScreen extends Screen {
 		return true;
 	}
 
-	/**
-	 * Отрисовывает sign background.
-	 *
-	 * @param context context
-	 */
 	protected abstract void renderSignBackground(DrawContext context);
 
 	protected abstract Vector3f getTextScale();
@@ -161,75 +164,86 @@ public abstract class AbstractSignEditScreen extends Screen {
 
 	private void renderSign(DrawContext context) {
 		context.getMatrices().pushMatrix();
-		context.getMatrices().translate(this.width / 2.0F, this.getYOffset());
+		context.getMatrices().translate(width / 2.0F, getYOffset());
 		context.getMatrices().pushMatrix();
-		this.renderSignBackground(context);
+		renderSignBackground(context);
 		context.getMatrices().popMatrix();
-		this.renderSignText(context);
+		renderSignText(context);
 		context.getMatrices().popMatrix();
 	}
 
 	private void renderSignText(DrawContext context) {
-		Vector3f vector3f = this.getTextScale();
-		context.getMatrices().scale(vector3f.x(), vector3f.y());
-		int
-				i =
-				this.text.isGlowing() ? this.text.getColor().getSignColor()
-				                      : AbstractSignBlockEntityRenderer.getTextColor(this.text);
-		boolean bl = this.ticksSinceOpened / 6 % 2 == 0;
-		int j = this.selectionManager.getSelectionStart();
-		int k = this.selectionManager.getSelectionEnd();
-		int l = 4 * this.blockEntity.getTextLineHeight() / 2;
-		int m = this.currentRow * this.blockEntity.getTextLineHeight() - l;
+		Vector3f scale = getTextScale();
+		context.getMatrices().scale(scale.x(), scale.y());
 
-		for (int n = 0; n < this.messages.length; n++) {
-			String string = this.messages[n];
-			if (string != null) {
-				if (this.textRenderer.isRightToLeft()) {
-					string = this.textRenderer.mirror(string);
-				}
+		int textColor = text.isGlowing()
+			? text.getColor().getSignColor()
+			: AbstractSignBlockEntityRenderer.getTextColor(text);
 
-				int o = -this.textRenderer.getWidth(string) / 2;
-				context.drawText(this.textRenderer, string, o, n * this.blockEntity.getTextLineHeight() - l, i, false);
-				if (n == this.currentRow && j >= 0 && bl) {
-					int p = this.textRenderer.getWidth(string.substring(0, Math.max(Math.min(j, string.length()), 0)));
-					int q = p - this.textRenderer.getWidth(string) / 2;
-					if (j >= string.length()) {
-						context.drawText(this.textRenderer, "_", q, m, i, false);
-					}
+		boolean cursorVisible = ticksSinceOpened / CURSOR_BLINK_PERIOD % 2 == 0;
+		int selectionStart = selectionManager.getSelectionStart();
+		int selectionEnd = selectionManager.getSelectionEnd();
+		int halfLinesHeight = SIGN_LINES * blockEntity.getTextLineHeight() / 2;
+		int currentRowY = currentRow * blockEntity.getTextLineHeight() - halfLinesHeight;
+
+		for (int lineIndex = 0; lineIndex < messages.length; lineIndex++) {
+			String line = messages[lineIndex];
+
+			if (line == null) {
+				continue;
+			}
+
+			if (textRenderer.isRightToLeft()) {
+				line = textRenderer.mirror(line);
+			}
+
+			int lineX = -textRenderer.getWidth(line) / 2;
+			int lineY = lineIndex * blockEntity.getTextLineHeight() - halfLinesHeight;
+			context.drawText(textRenderer, line, lineX, lineY, textColor, false);
+
+			if (lineIndex == currentRow && selectionStart >= 0 && cursorVisible) {
+				int cursorOffset = textRenderer.getWidth(line.substring(0, Math.max(Math.min(selectionStart, line.length()), 0)));
+				int cursorX = cursorOffset - textRenderer.getWidth(line) / 2;
+
+				if (selectionStart >= line.length()) {
+					context.drawText(textRenderer, "_", cursorX, currentRowY, textColor, false);
 				}
 			}
 		}
 
-		for (int nx = 0; nx < this.messages.length; nx++) {
-			String string = this.messages[nx];
-			if (string != null && nx == this.currentRow && j >= 0) {
-				int o = this.textRenderer.getWidth(string.substring(0, Math.max(Math.min(j, string.length()), 0)));
-				int p = o - this.textRenderer.getWidth(string) / 2;
-				if (bl && j < string.length()) {
-					context.fill(p, m - 1, p + 1, m + this.blockEntity.getTextLineHeight(), ColorHelper.fullAlpha(i));
-				}
+		for (int lineIndex = 0; lineIndex < messages.length; lineIndex++) {
+			String line = messages[lineIndex];
 
-				if (k != j) {
-					int q = Math.min(j, k);
-					int r = Math.max(j, k);
-					int s = this.textRenderer.getWidth(string.substring(0, q)) - this.textRenderer.getWidth(string) / 2;
-					int t = this.textRenderer.getWidth(string.substring(0, r)) - this.textRenderer.getWidth(string) / 2;
-					int u = Math.min(s, t);
-					int v = Math.max(s, t);
-					context.drawSelection(u, m, v, m + this.blockEntity.getTextLineHeight(), true);
-				}
+			if (line == null || lineIndex != currentRow || selectionStart < 0) {
+				continue;
+			}
+
+			int cursorOffset = textRenderer.getWidth(line.substring(0, Math.max(Math.min(selectionStart, line.length()), 0)));
+			int cursorX = cursorOffset - textRenderer.getWidth(line) / 2;
+
+			if (cursorVisible && selectionStart < line.length()) {
+				context.fill(cursorX, currentRowY - 1, cursorX + 1, currentRowY + blockEntity.getTextLineHeight(), ColorHelper.fullAlpha(textColor));
+			}
+
+			if (selectionEnd != selectionStart) {
+				int selStart = Math.min(selectionStart, selectionEnd);
+				int selEnd = Math.max(selectionStart, selectionEnd);
+				int selStartX = textRenderer.getWidth(line.substring(0, selStart)) - textRenderer.getWidth(line) / 2;
+				int selEndX = textRenderer.getWidth(line.substring(0, selEnd)) - textRenderer.getWidth(line) / 2;
+				int selLeft = Math.min(selStartX, selEndX);
+				int selRight = Math.max(selStartX, selEndX);
+				context.drawSelection(selLeft, currentRowY, selRight, currentRowY + blockEntity.getTextLineHeight(), true);
 			}
 		}
 	}
 
 	private void setCurrentRowMessage(String message) {
-		this.messages[this.currentRow] = message;
-		this.text = this.text.withMessage(this.currentRow, Text.literal(message));
-		this.blockEntity.setText(this.text, this.front);
+		messages[currentRow] = message;
+		text = text.withMessage(currentRow, Text.literal(message));
+		blockEntity.setText(text, front);
 	}
 
 	private void finishEditing() {
-		this.client.setScreen(null);
+		client.setScreen(null);
 	}
 }

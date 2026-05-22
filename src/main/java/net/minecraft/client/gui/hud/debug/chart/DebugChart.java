@@ -8,14 +8,22 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.profiler.log.MultiValueDebugSampleLog;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DebugChart}.
+ * Базовый класс для отладочных графиков. Отрисовывает столбчатую диаграмму
+ * с рамкой, подписями min/avg/max и опциональными пороговыми линиями.
  */
+@Environment(EnvType.CLIENT)
 public abstract class DebugChart {
 
 	protected static final int CHART_HEIGHT = 60;
 	protected static final int CHART_SCALE = 1;
+
+	/** Цвет фона графика (полупрозрачный тёмный). */
+	private static final int BACKGROUND_COLOR = -1873784752;
+
+	/** Цвет текста подписей (светло-жёлтый). */
+	private static final int LABEL_COLOR = -2039584;
+
 	protected final TextRenderer textRenderer;
 	protected final MultiValueDebugSampleLog log;
 
@@ -25,160 +33,103 @@ public abstract class DebugChart {
 	}
 
 	public int getWidth(int centerX) {
-		return Math.min(this.log.getDimension() + 2, centerX);
+		return Math.min(log.getDimension() + 2, centerX);
 	}
 
 	public int getHeight() {
-		return 60 + 9;
+		return CHART_HEIGHT + 9;
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param width width
-	 */
 	public void render(DrawContext context, int x, int width) {
-		int i = context.getScaledWindowHeight();
-		context.fill(x, i - 60, x + width, i, -1873784752);
-		long l = 0L;
-		long m = 2147483647L;
-		long n = -2147483648L;
-		int j = Math.max(0, this.log.getDimension() - (width - 2));
-		int k = this.log.getLength() - j;
+		int screenHeight = context.getScaledWindowHeight();
 
-		for (int o = 0; o < k; o++) {
-			int p = x + o + 1;
-			int q = j + o;
-			long r = this.get(q);
-			m = Math.min(m, r);
-			n = Math.max(n, r);
-			l += r;
-			this.drawBar(context, i, p, q);
+		context.fill(x, screenHeight - CHART_HEIGHT, x + width, screenHeight, BACKGROUND_COLOR);
+
+		long sum = 0L;
+		long minValue = Long.MAX_VALUE;
+		long maxValue = Long.MIN_VALUE;
+		int startOffset = Math.max(0, log.getDimension() - (width - 2));
+		int sampleCount = log.getLength() - startOffset;
+
+		for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
+			int barX = x + sampleIndex + 1;
+			int logIndex = startOffset + sampleIndex;
+			long value = get(logIndex);
+
+			minValue = Math.min(minValue, value);
+			maxValue = Math.max(maxValue, value);
+			sum += value;
+			drawBar(context, screenHeight, barX, logIndex);
 		}
 
-		context.drawHorizontalLine(x, x + width - 1, i - 60, -1);
-		context.drawHorizontalLine(x, x + width - 1, i - 1, -1);
-		context.drawVerticalLine(x, i - 60, i, -1);
-		context.drawVerticalLine(x + width - 1, i - 60, i, -1);
-		if (k > 0) {
-			String string = this.format(m) + " min";
-			String string2 = this.format((double) l / k) + " avg";
-			String string3 = this.format(n) + " max";
-			context.drawTextWithShadow(this.textRenderer, string, x + 2, i - 60 - 9, -2039584);
-			context.drawCenteredTextWithShadow(this.textRenderer, string2, x + width / 2, i - 60 - 9, -2039584);
-			context.drawTextWithShadow(
-					this.textRenderer,
-					string3,
-					x + width - this.textRenderer.getWidth(string3) - 2,
-					i - 60 - 9,
-					-2039584
-			);
+		context.drawHorizontalLine(x, x + width - 1, screenHeight - CHART_HEIGHT, -1);
+		context.drawHorizontalLine(x, x + width - 1, screenHeight - 1, -1);
+		context.drawVerticalLine(x, screenHeight - CHART_HEIGHT, screenHeight, -1);
+		context.drawVerticalLine(x + width - 1, screenHeight - CHART_HEIGHT, screenHeight, -1);
+
+		if (sampleCount > 0) {
+			String minLabel = format(minValue) + " min";
+			String avgLabel = format((double) sum / sampleCount) + " avg";
+			String maxLabel = format(maxValue) + " max";
+			int labelY = screenHeight - CHART_HEIGHT - 9;
+
+			context.drawTextWithShadow(textRenderer, minLabel, x + 2, labelY, LABEL_COLOR);
+			context.drawCenteredTextWithShadow(textRenderer, avgLabel, x + width / 2, labelY, LABEL_COLOR);
+			context.drawTextWithShadow(textRenderer, maxLabel, x + width - textRenderer.getWidth(maxLabel) - 2, labelY, LABEL_COLOR);
 		}
 
-		this.renderThresholds(context, x, width, i);
+		renderThresholds(context, x, width, screenHeight);
 	}
 
-	/**
-	 * Draw bar.
-	 *
-	 * @param context context
-	 * @param y y
-	 * @param x x
-	 * @param index index
-	 */
 	protected void drawBar(DrawContext context, int y, int x, int index) {
-		this.drawTotalBar(context, y, x, index);
-		this.drawOverlayBar(context, y, x, index);
+		drawTotalBar(context, y, x, index);
+		drawOverlayBar(context, y, x, index);
 	}
 
-	/**
-	 * Draw total bar.
-	 *
-	 * @param context context
-	 * @param y y
-	 * @param x x
-	 * @param index index
-	 */
 	protected void drawTotalBar(DrawContext context, int y, int x, int index) {
-		long l = this.log.get(index);
-		int i = this.getHeight(l);
-		int j = this.getColor(l);
-		context.fill(x, y - i, x + 1, y, j);
+		long value = log.get(index);
+		int barHeight = getHeight(value);
+		int color = getColor(value);
+		context.fill(x, y - barHeight, x + 1, y, color);
 	}
 
-	/**
-	 * Draw overlay bar.
-	 *
-	 * @param context context
-	 * @param y y
-	 * @param x x
-	 * @param index index
-	 */
 	protected void drawOverlayBar(DrawContext context, int y, int x, int index) {
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param index index
-	 *
-	 * @return long — 
-	 */
 	protected long get(int index) {
-		return this.log.get(index);
+		return log.get(index);
 	}
 
-	/**
-	 * Отрисовывает thresholds.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param width width
-	 * @param height height
-	 */
 	protected void renderThresholds(DrawContext context, int x, int width, int height) {
 	}
 
-	/**
-	 * Draw bordered text.
-	 *
-	 * @param context context
-	 * @param string string
-	 * @param x x
-	 * @param y y
-	 */
-	protected void drawBorderedText(DrawContext context, String string, int x, int y) {
-		context.fill(x, y, x + this.textRenderer.getWidth(string) + 1, y + 9, -1873784752);
-		context.drawText(this.textRenderer, string, x + 1, y + 1, -2039584, false);
+	protected void drawBorderedText(DrawContext context, String text, int x, int y) {
+		context.fill(x, y, x + textRenderer.getWidth(text) + 1, y + 9, BACKGROUND_COLOR);
+		context.drawText(textRenderer, text, x + 1, y + 1, LABEL_COLOR, false);
 	}
 
-	/**
-	 * Format.
-	 *
-	 * @param value value
-	 *
-	 * @return String — результат операции
-	 */
 	protected abstract String format(double value);
 
 	protected abstract int getHeight(double value);
 
 	protected abstract int getColor(long value);
 
+	/**
+	 * Интерполирует цвет между тремя опорными точками (min → median → max).
+	 * Используется подклассами для цветовой индикации нагрузки.
+	 */
 	protected int getColor(
-			double value,
-			double min,
-			int minColor,
-			double median,
-			int medianColor,
-			double max,
-			int maxColor
+		double value,
+		double min,
+		int minColor,
+		double median,
+		int medianColor,
+		double max,
+		int maxColor
 	) {
 		value = MathHelper.clamp(value, min, max);
 		return value < median
-		       ? ColorHelper.lerp((float) ((value - min) / (median - min)), minColor, medianColor)
-		       : ColorHelper.lerp((float) ((value - median) / (max - median)), medianColor, maxColor);
+			? ColorHelper.lerp((float) ((value - min) / (median - min)), minColor, medianColor)
+			: ColorHelper.lerp((float) ((value - median) / (max - median)), medianColor, maxColor);
 	}
 }

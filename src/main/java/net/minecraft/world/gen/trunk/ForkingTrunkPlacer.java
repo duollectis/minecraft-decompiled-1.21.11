@@ -16,7 +16,9 @@ import java.util.OptionalInt;
 import java.util.function.BiConsumer;
 
 /**
- * {@code ForkingTrunkPlacer}.
+ * Алгоритм размещения раздвоенного ствола дерева (акация).
+ * Строит основной ствол, который смещается в случайном направлении, а затем
+ * генерирует вторую ветвь в другом случайном направлении, начинающуюся ниже вершины.
  */
 public class ForkingTrunkPlacer extends TrunkPlacer {
 
@@ -24,8 +26,8 @@ public class ForkingTrunkPlacer extends TrunkPlacer {
 			instance -> fillTrunkPlacerFields(instance).apply(instance, ForkingTrunkPlacer::new)
 	);
 
-	public ForkingTrunkPlacer(int i, int j, int k) {
-		super(i, j, k);
+	public ForkingTrunkPlacer(int baseHeight, int firstRandomHeight, int secondRandomHeight) {
+		super(baseHeight, firstRandomHeight, secondRandomHeight);
 	}
 
 	@Override
@@ -43,58 +45,61 @@ public class ForkingTrunkPlacer extends TrunkPlacer {
 			TreeFeatureConfig config
 	) {
 		setToDirt(world, replacer, random, startPos.down(), config);
-		List<FoliagePlacer.TreeNode> list = Lists.newArrayList();
-		Direction direction = Direction.Type.HORIZONTAL.random(random);
-		int i = height - random.nextInt(4) - 1;
-		int j = 3 - random.nextInt(3);
+		List<FoliagePlacer.TreeNode> nodes = Lists.newArrayList();
+		Direction mainDir = Direction.Type.HORIZONTAL.random(random);
+		int leanStartY = height - random.nextInt(4) - 1;
+		int leanSteps = 3 - random.nextInt(3);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		int k = startPos.getX();
-		int l = startPos.getZ();
-		OptionalInt optionalInt = OptionalInt.empty();
+		int currentX = startPos.getX();
+		int currentZ = startPos.getZ();
+		OptionalInt topY = OptionalInt.empty();
 
-		for (int m = 0; m < height; m++) {
-			int n = startPos.getY() + m;
-			if (m >= i && j > 0) {
-				k += direction.getOffsetX();
-				l += direction.getOffsetZ();
-				j--;
+		for (int y = 0; y < height; y++) {
+			int worldY = startPos.getY() + y;
+
+			if (y >= leanStartY && leanSteps > 0) {
+				currentX += mainDir.getOffsetX();
+				currentZ += mainDir.getOffsetZ();
+				leanSteps--;
 			}
 
-			if (this.getAndSetState(world, replacer, random, mutable.set(k, n, l), config)) {
-				optionalInt = OptionalInt.of(n + 1);
+			if (getAndSetState(world, replacer, random, mutable.set(currentX, worldY, currentZ), config)) {
+				topY = OptionalInt.of(worldY + 1);
 			}
 		}
 
-		if (optionalInt.isPresent()) {
-			list.add(new FoliagePlacer.TreeNode(new BlockPos(k, optionalInt.getAsInt(), l), 1, false));
+		if (topY.isPresent()) {
+			nodes.add(new FoliagePlacer.TreeNode(new BlockPos(currentX, topY.getAsInt(), currentZ), 1, false));
 		}
 
-		k = startPos.getX();
-		l = startPos.getZ();
-		Direction direction2 = Direction.Type.HORIZONTAL.random(random);
-		if (direction2 != direction) {
-			int nx = i - random.nextInt(2) - 1;
-			int o = 1 + random.nextInt(3);
-			optionalInt = OptionalInt.empty();
+		currentX = startPos.getX();
+		currentZ = startPos.getZ();
+		Direction forkDir = Direction.Type.HORIZONTAL.random(random);
 
-			for (int p = nx; p < height && o > 0; o--) {
-				if (p >= 1) {
-					int q = startPos.getY() + p;
-					k += direction2.getOffsetX();
-					l += direction2.getOffsetZ();
-					if (this.getAndSetState(world, replacer, random, mutable.set(k, q, l), config)) {
-						optionalInt = OptionalInt.of(q + 1);
+		if (forkDir != mainDir) {
+			int forkStartY = leanStartY - random.nextInt(2) - 1;
+			int forkLen = 1 + random.nextInt(3);
+			topY = OptionalInt.empty();
+
+			for (int y = forkStartY; y < height && forkLen > 0; forkLen--) {
+				if (y >= 1) {
+					int worldY = startPos.getY() + y;
+					currentX += forkDir.getOffsetX();
+					currentZ += forkDir.getOffsetZ();
+
+					if (getAndSetState(world, replacer, random, mutable.set(currentX, worldY, currentZ), config)) {
+						topY = OptionalInt.of(worldY + 1);
 					}
 				}
 
-				p++;
+				y++;
 			}
 
-			if (optionalInt.isPresent()) {
-				list.add(new FoliagePlacer.TreeNode(new BlockPos(k, optionalInt.getAsInt(), l), 0, false));
+			if (topY.isPresent()) {
+				nodes.add(new FoliagePlacer.TreeNode(new BlockPos(currentX, topY.getAsInt(), currentZ), 0, false));
 			}
 		}
 
-		return list;
+		return nodes;
 	}
 }

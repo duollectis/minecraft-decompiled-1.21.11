@@ -29,19 +29,16 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
-/**
- * {@code EndSpikeFeature}.
- */
+/** Генерирует 10 обсидиановых шипов Края с кристаллами Края на вершинах; кэширует позиции шипов по сиду мира. */
 public class EndSpikeFeature extends Feature<EndSpikeFeatureConfig> {
 
 	public static final int COUNT = 10;
 	private static final int DISTANCE_FROM_ORIGIN = 42;
+	private static final int CACHE_EXPIRE_MINUTES = 5;
+	private static final int SPIKE_AIR_CLEAR_ABOVE_Y = 65;
 	private static final LoadingCache<Long, List<EndSpikeFeature.Spike>> CACHE = CacheBuilder.newBuilder()
-	                                                                                         .expireAfterWrite(
-			                                                                                         5L,
-			                                                                                         TimeUnit.MINUTES
-	                                                                                         )
-	                                                                                         .build(new EndSpikeFeature.SpikeCache());
+			.expireAfterWrite(CACHE_EXPIRE_MINUTES, TimeUnit.MINUTES)
+			.build(new EndSpikeFeature.SpikeCache());
 
 	public EndSpikeFeature(Codec<EndSpikeFeatureConfig> codec) {
 		super(codec);
@@ -49,24 +46,25 @@ public class EndSpikeFeature extends Feature<EndSpikeFeatureConfig> {
 
 	public static List<EndSpikeFeature.Spike> getSpikes(StructureWorldAccess world) {
 		Random random = Random.create(world.getSeed());
-		long l = random.nextLong() & 65535L;
-		return (List<EndSpikeFeature.Spike>) CACHE.getUnchecked(l);
+		long cacheKey = random.nextLong() & 65535L;
+		return CACHE.getUnchecked(cacheKey);
 	}
 
 	@Override
 	public boolean generate(FeatureContext<EndSpikeFeatureConfig> context) {
-		EndSpikeFeatureConfig endSpikeFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		EndSpikeFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		BlockPos blockPos = context.getOrigin();
-		List<EndSpikeFeature.Spike> list = endSpikeFeatureConfig.getSpikes();
-		if (list.isEmpty()) {
-			list = getSpikes(structureWorldAccess);
+		BlockPos origin = context.getOrigin();
+		List<EndSpikeFeature.Spike> spikes = config.getSpikes();
+
+		if (spikes.isEmpty()) {
+			spikes = getSpikes(world);
 		}
 
-		for (EndSpikeFeature.Spike spike : list) {
-			if (spike.isInChunk(blockPos)) {
-				this.generateSpike(structureWorldAccess, random, endSpikeFeatureConfig, spike);
+		for (EndSpikeFeature.Spike spike : spikes) {
+			if (spike.isInChunk(origin)) {
+				generateSpike(world, random, config, spike);
 			}
 		}
 
@@ -79,74 +77,78 @@ public class EndSpikeFeature extends Feature<EndSpikeFeatureConfig> {
 			EndSpikeFeatureConfig config,
 			EndSpikeFeature.Spike spike
 	) {
-		int i = spike.getRadius();
+		int radius = spike.getRadius();
 
-		for (BlockPos blockPos : BlockPos.iterate(
-				new BlockPos(spike.getCenterX() - i, world.getBottomY(), spike.getCenterZ() - i),
-				new BlockPos(spike.getCenterX() + i, spike.getHeight() + 10, spike.getCenterZ() + i)
+		for (BlockPos pos : BlockPos.iterate(
+				new BlockPos(spike.getCenterX() - radius, world.getBottomY(), spike.getCenterZ() - radius),
+				new BlockPos(spike.getCenterX() + radius, spike.getHeight() + COUNT, spike.getCenterZ() + radius)
 		)) {
-			if (blockPos.getSquaredDistance(spike.getCenterX(), blockPos.getY(), spike.getCenterZ()) <= i * i + 1
-					&& blockPos.getY() < spike.getHeight()) {
-				this.setBlockState(world, blockPos, Blocks.OBSIDIAN.getDefaultState());
-			}
-			else if (blockPos.getY() > 65) {
-				this.setBlockState(world, blockPos, Blocks.AIR.getDefaultState());
+			if (pos.getSquaredDistance(spike.getCenterX(), pos.getY(), spike.getCenterZ()) <= radius * radius + 1
+					&& pos.getY() < spike.getHeight()) {
+				setBlockState(world, pos, Blocks.OBSIDIAN.getDefaultState());
+			} else if (pos.getY() > SPIKE_AIR_CLEAR_ABOVE_Y) {
+				setBlockState(world, pos, Blocks.AIR.getDefaultState());
 			}
 		}
 
 		if (spike.isGuarded()) {
-			int j = -2;
-			int k = 2;
-			int l = 3;
 			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			for (int m = -2; m <= 2; m++) {
-				for (int n = -2; n <= 2; n++) {
-					for (int o = 0; o <= 3; o++) {
-						boolean bl = MathHelper.abs(m) == 2;
-						boolean bl2 = MathHelper.abs(n) == 2;
-						boolean bl3 = o == 3;
-						if (bl || bl2 || bl3) {
-							boolean bl4 = m == -2 || m == 2 || bl3;
-							boolean bl5 = n == -2 || n == 2 || bl3;
-							BlockState blockState = Blocks.IRON_BARS
-									.getDefaultState()
-									.with(PaneBlock.NORTH, bl4 && n != -2)
-									.with(PaneBlock.SOUTH, bl4 && n != 2)
-									.with(PaneBlock.WEST, bl5 && m != -2)
-									.with(PaneBlock.EAST, bl5 && m != 2);
-							this.setBlockState(
-									world,
-									mutable.set(spike.getCenterX() + m, spike.getHeight() + o, spike.getCenterZ() + n),
-									blockState
-							);
+			for (int dx = -2; dx <= 2; dx++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					for (int dy = 0; dy <= 3; dy++) {
+						boolean onXEdge = MathHelper.abs(dx) == 2;
+						boolean onZEdge = MathHelper.abs(dz) == 2;
+						boolean onTop = dy == 3;
+
+						if (!onXEdge && !onZEdge && !onTop) {
+							continue;
 						}
+
+						boolean connectNorth = (dx == -2 || dx == 2 || onTop) && dz != -2;
+						boolean connectSouth = (dx == -2 || dx == 2 || onTop) && dz != 2;
+						boolean connectWest = (dz == -2 || dz == 2 || onTop) && dx != -2;
+						boolean connectEast = (dz == -2 || dz == 2 || onTop) && dx != 2;
+
+						BlockState bars = Blocks.IRON_BARS.getDefaultState()
+								.with(PaneBlock.NORTH, connectNorth)
+								.with(PaneBlock.SOUTH, connectSouth)
+								.with(PaneBlock.WEST, connectWest)
+								.with(PaneBlock.EAST, connectEast);
+
+						setBlockState(
+								world,
+								mutable.set(spike.getCenterX() + dx, spike.getHeight() + dy, spike.getCenterZ() + dz),
+								bars
+						);
 					}
 				}
 			}
 		}
 
-		EndCrystalEntity endCrystalEntity = EntityType.END_CRYSTAL.create(world.toServerWorld(), SpawnReason.STRUCTURE);
-		if (endCrystalEntity != null) {
-			endCrystalEntity.setBeamTarget(config.getPos());
-			endCrystalEntity.setInvulnerable(config.isCrystalInvulnerable());
-			endCrystalEntity.refreshPositionAndAngles(
-					spike.getCenterX() + 0.5,
-					spike.getHeight() + 1,
-					spike.getCenterZ() + 0.5,
-					random.nextFloat() * 360.0F,
-					0.0F
-			);
-			world.spawnEntity(endCrystalEntity);
-			BlockPos blockPosx = endCrystalEntity.getBlockPos();
-			this.setBlockState(world, blockPosx.down(), Blocks.BEDROCK.getDefaultState());
-			this.setBlockState(world, blockPosx, FireBlock.getState(world, blockPosx));
+		EndCrystalEntity crystal = EntityType.END_CRYSTAL.create(world.toServerWorld(), SpawnReason.STRUCTURE);
+
+		if (crystal == null) {
+			return;
 		}
+
+		crystal.setBeamTarget(config.getPos());
+		crystal.setInvulnerable(config.isCrystalInvulnerable());
+		crystal.refreshPositionAndAngles(
+				spike.getCenterX() + 0.5,
+				spike.getHeight() + 1,
+				spike.getCenterZ() + 0.5,
+				random.nextFloat() * 360.0F,
+				0.0F
+		);
+		world.spawnEntity(crystal);
+
+		BlockPos crystalPos = crystal.getBlockPos();
+		setBlockState(world, crystalPos.down(), Blocks.BEDROCK.getDefaultState());
+		setBlockState(world, crystalPos, FireBlock.getState(world, crystalPos));
 	}
 
-	/**
-	 * {@code Spike}.
-	 */
+	/** Описывает один обсидиановый шип: позицию центра, радиус, высоту и наличие железной клетки. */
 	public static class Spike {
 
 		public static final Codec<EndSpikeFeature.Spike> CODEC = RecordCodecBuilder.create(
@@ -212,26 +214,26 @@ public class EndSpikeFeature extends Feature<EndSpikeFeatureConfig> {
 		}
 	}
 
-	/**
-	 * {@code SpikeCache}.
-	 */
+	/** Загрузчик кэша: вычисляет позиции 10 шипов по кругу радиуса 42 блока вокруг центра Края. */
 	static class SpikeCache extends CacheLoader<Long, List<EndSpikeFeature.Spike>> {
 
-		public List<EndSpikeFeature.Spike> load(Long long_) {
-			IntArrayList intArrayList = Util.shuffle(IntStream.range(0, 10), Random.create(long_));
-			List<EndSpikeFeature.Spike> list = Lists.newArrayList();
+		@Override
+		public List<EndSpikeFeature.Spike> load(Long seed) {
+			IntArrayList shuffled = Util.shuffle(IntStream.range(0, COUNT), Random.create(seed));
+			List<EndSpikeFeature.Spike> spikes = Lists.newArrayList();
 
-			for (int i = 0; i < 10; i++) {
-				int j = MathHelper.floor(42.0 * Math.cos(2.0 * (-Math.PI + (Math.PI / 10) * i)));
-				int k = MathHelper.floor(42.0 * Math.sin(2.0 * (-Math.PI + (Math.PI / 10) * i)));
-				int l = intArrayList.get(i);
-				int m = 2 + l / 3;
-				int n = 76 + l * 3;
-				boolean bl = l == 1 || l == 2;
-				list.add(new EndSpikeFeature.Spike(j, k, m, n, bl));
+			for (int idx = 0; idx < COUNT; idx++) {
+				double angle = 2.0 * (-Math.PI + (Math.PI / COUNT) * idx);
+				int centerX = MathHelper.floor(DISTANCE_FROM_ORIGIN * Math.cos(angle));
+				int centerZ = MathHelper.floor(DISTANCE_FROM_ORIGIN * Math.sin(angle));
+				int shuffleVal = shuffled.get(idx);
+				int radius = 2 + shuffleVal / 3;
+				int height = 76 + shuffleVal * 3;
+				boolean guarded = shuffleVal == 1 || shuffleVal == 2;
+				spikes.add(new EndSpikeFeature.Spike(centerX, centerZ, radius, height, guarded));
 			}
 
-			return list;
+			return spikes;
 		}
 	}
 }

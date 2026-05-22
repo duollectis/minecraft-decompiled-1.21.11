@@ -10,52 +10,37 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code GoIndoorsTask}.
+ * Фабричный класс задачи мозга, направляющей сущность под укрытие при открытом небе.
+ * Ищет ближайший блок без прямой видимости неба в радиусе 1 блока.
  */
 public class GoIndoorsTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PathAwareEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET))
-				                  .apply(
-						                  context,
-						                  walkTarget -> (world, entity, time) -> {
-							                  if (world.isSkyVisible(entity.getBlockPos())) {
-								                  return false;
-							                  }
-							                  else {
-								                  BlockPos blockPos = entity.getBlockPos();
-								                  List<BlockPos>
-										                  list =
-										                  BlockPos
-												                  .stream(
-														                  blockPos.add(-1, -1, -1),
-														                  blockPos.add(1, 1, 1)
-												                  )
-												                  .map(BlockPos::toImmutable)
-												                  .collect(Util.toArrayList());
-								                  Collections.shuffle(list);
-								                  list.stream()
-								                      .filter(pos -> !world.isSkyVisible(pos))
-								                      .filter(pos -> world.isTopSolid(pos, entity))
-								                      .filter(pos -> world.isSpaceEmpty(entity))
-								                      .findFirst()
-								                      .ifPresent(pos -> walkTarget.remember(new WalkTarget(
-										                      pos,
-										                      speed,
-										                      0
-								                      )));
-								                  return true;
-							                  }
-						                  }
-				                  )
+						.apply(
+								context,
+								walkTarget -> (world, entity, time) -> {
+									if (world.isSkyVisible(entity.getBlockPos())) {
+										return false;
+									}
+
+									BlockPos pos = entity.getBlockPos();
+									List<BlockPos> nearby = BlockPos.stream(pos.add(-1, -1, -1), pos.add(1, 1, 1))
+											.map(BlockPos::toImmutable)
+											.collect(Util.toArrayList());
+									Collections.shuffle(nearby);
+
+									nearby.stream()
+											.filter(p -> !world.isSkyVisible(p))
+											.filter(p -> world.isTopSolid(p, entity))
+											.filter(p -> world.isSpaceEmpty(entity))
+											.findFirst()
+											.ifPresent(p -> walkTarget.remember(new WalkTarget(p, speed, 0)));
+
+									return true;
+								}
+						)
 		);
 	}
 }

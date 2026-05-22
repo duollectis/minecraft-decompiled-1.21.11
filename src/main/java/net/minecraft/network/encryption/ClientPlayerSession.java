@@ -5,34 +5,27 @@ import net.minecraft.network.message.MessageChain;
 import java.util.UUID;
 
 /**
- * Запись client player session.
+ * Сессия игрока на стороне клиента: содержит уникальный идентификатор сессии
+ * и пару ключей для подписи сообщений чата.
  */
 public record ClientPlayerSession(UUID sessionId, PlayerKeyPair keyPair) {
 
-	/**
-	 * Create.
-	 *
-	 * @param keyPair key pair
-	 *
-	 * @return ClientPlayerSession — результат операции
-	 */
 	public static ClientPlayerSession create(PlayerKeyPair keyPair) {
 		return new ClientPlayerSession(UUID.randomUUID(), keyPair);
 	}
 
+	/**
+	 * Создаёт {@link MessageChain.Packer} для подписи исходящих сообщений чата
+	 * от имени указанного отправителя.
+	 */
 	public MessageChain.Packer createPacker(UUID sender) {
-		return new MessageChain(sender, this.sessionId).getPacker(Signer.create(
-				this.keyPair.privateKey(),
+		return new MessageChain(sender, sessionId).getPacker(Signer.create(
+				keyPair.privateKey(),
 				"SHA256withRSA"
 		));
 	}
 
-	/**
-	 * To public session.
-	 *
-	 * @return PublicPlayerSession — результат операции
-	 */
 	public PublicPlayerSession toPublicSession() {
-		return new PublicPlayerSession(this.sessionId, this.keyPair.publicKey());
+		return new PublicPlayerSession(sessionId, keyPair.publicKey());
 	}
 }

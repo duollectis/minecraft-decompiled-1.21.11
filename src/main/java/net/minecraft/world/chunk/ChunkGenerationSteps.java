@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code ChunkGenerationSteps}.
+ * Иммутабельный список шагов генерации чанка, индексированный по {@link ChunkStatus}.
+ * Содержит два предопределённых пайплайна: {@link #GENERATION} для новых чанков
+ * и {@link #LOADING} для загрузки существующих с диска.
  */
 public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 
@@ -22,21 +24,25 @@ public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 			)
 			.then(
 					ChunkStatus.BIOMES,
-					builder -> builder.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8).task(ChunkGenerating::populateBiomes)
+					builder -> builder
+							.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
+							.task(ChunkGenerating::populateBiomes)
 			)
 			.then(
 					ChunkStatus.NOISE,
-					builder -> builder.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
-					                  .dependsOn(ChunkStatus.BIOMES, 1)
-					                  .blockStateWriteRadius(0)
-					                  .task(ChunkGenerating::populateNoise)
+					builder -> builder
+							.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
+							.dependsOn(ChunkStatus.BIOMES, 1)
+							.blockStateWriteRadius(0)
+							.task(ChunkGenerating::populateNoise)
 			)
 			.then(
 					ChunkStatus.SURFACE,
-					builder -> builder.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
-					                  .dependsOn(ChunkStatus.BIOMES, 1)
-					                  .blockStateWriteRadius(0)
-					                  .task(ChunkGenerating::buildSurface)
+					builder -> builder
+							.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
+							.dependsOn(ChunkStatus.BIOMES, 1)
+							.blockStateWriteRadius(0)
+							.task(ChunkGenerating::buildSurface)
 			)
 			.then(
 					ChunkStatus.CARVERS,
@@ -47,22 +53,28 @@ public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 			)
 			.then(
 					ChunkStatus.FEATURES,
-					builder -> builder.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
-					                  .dependsOn(ChunkStatus.CARVERS, 1)
-					                  .blockStateWriteRadius(1)
-					                  .task(ChunkGenerating::generateFeatures)
+					builder -> builder
+							.dependsOn(ChunkStatus.STRUCTURE_STARTS, 8)
+							.dependsOn(ChunkStatus.CARVERS, 1)
+							.blockStateWriteRadius(1)
+							.task(ChunkGenerating::generateFeatures)
 			)
 			.then(ChunkStatus.INITIALIZE_LIGHT, builder -> builder.task(ChunkGenerating::initializeLight))
 			.then(
 					ChunkStatus.LIGHT,
-					builder -> builder.dependsOn(ChunkStatus.INITIALIZE_LIGHT, 1).task(ChunkGenerating::light)
+					builder -> builder
+							.dependsOn(ChunkStatus.INITIALIZE_LIGHT, 1)
+							.task(ChunkGenerating::light)
 			)
 			.then(
 					ChunkStatus.SPAWN,
-					builder -> builder.dependsOn(ChunkStatus.BIOMES, 1).task(ChunkGenerating::generateEntities)
+					builder -> builder
+							.dependsOn(ChunkStatus.BIOMES, 1)
+							.task(ChunkGenerating::generateEntities)
 			)
 			.then(ChunkStatus.FULL, builder -> builder.task(ChunkGenerating::convertToFullChunk))
 			.build();
+
 	public static final ChunkGenerationSteps LOADING = new ChunkGenerationSteps.Builder()
 			.then(ChunkStatus.EMPTY, builder -> builder)
 			.then(ChunkStatus.STRUCTURE_STARTS, builder -> builder.task(ChunkGenerating::loadStructures))
@@ -75,52 +87,35 @@ public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 			.then(ChunkStatus.INITIALIZE_LIGHT, builder -> builder.task(ChunkGenerating::initializeLight))
 			.then(
 					ChunkStatus.LIGHT,
-					builder -> builder.dependsOn(ChunkStatus.INITIALIZE_LIGHT, 1).task(ChunkGenerating::light)
+					builder -> builder
+							.dependsOn(ChunkStatus.INITIALIZE_LIGHT, 1)
+							.task(ChunkGenerating::light)
 			)
 			.then(ChunkStatus.SPAWN, builder -> builder)
 			.then(ChunkStatus.FULL, builder -> builder.task(ChunkGenerating::convertToFullChunk))
 			.build();
 
-	/**
-	 * Get.
-	 *
-	 * @param status status
-	 *
-	 * @return ChunkGenerationStep — 
-	 */
 	public ChunkGenerationStep get(ChunkStatus status) {
-		return (ChunkGenerationStep) this.steps.get(status.getIndex());
+		return steps.get(status.getIndex());
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final List<ChunkGenerationStep> steps = new ArrayList<>();
 
-		/**
-		 * Build.
-		 *
-		 * @return ChunkGenerationSteps — результат операции
-		 */
 		public ChunkGenerationSteps build() {
-			return new ChunkGenerationSteps(ImmutableList.copyOf(this.steps));
+			return new ChunkGenerationSteps(ImmutableList.copyOf(steps));
 		}
 
 		public ChunkGenerationSteps.Builder then(
 				ChunkStatus status,
 				UnaryOperator<ChunkGenerationStep.Builder> stepFactory
 		) {
-			ChunkGenerationStep.Builder builder;
-			if (this.steps.isEmpty()) {
-				builder = new ChunkGenerationStep.Builder(status);
-			}
-			else {
-				builder = new ChunkGenerationStep.Builder(status, this.steps.getLast());
-			}
+			ChunkGenerationStep.Builder builder = steps.isEmpty()
+					? new ChunkGenerationStep.Builder(status)
+					: new ChunkGenerationStep.Builder(status, steps.getLast());
 
-			this.steps.add(stepFactory.apply(builder).build());
+			steps.add(stepFactory.apply(builder).build());
 			return this;
 		}
 	}

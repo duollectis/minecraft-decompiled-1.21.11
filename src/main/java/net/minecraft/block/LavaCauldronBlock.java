@@ -13,15 +13,19 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /**
- * {@code LavaCauldronBlock}.
+ * Котёл с лавой — всегда полный, поджигает сущности при контакте и снимает заморозку.
+ * Выдаёт сигнал компаратора уровня 3 (максимальный для котла).
  */
 public class LavaCauldronBlock extends AbstractCauldronBlock {
 
 	public static final MapCodec<LavaCauldronBlock> CODEC = createCodec(LavaCauldronBlock::new);
+	private static final double FLUID_HEIGHT = 0.9375;
+	private static final int COMPARATOR_OUTPUT = 3;
 	private static final VoxelShape LAVA_SHAPE = Block.createColumnShape(12.0, 4.0, 15.0);
-	private static final VoxelShape
-			INSIDE_COLLISION_SHAPE =
-			VoxelShapes.union(AbstractCauldronBlock.OUTLINE_SHAPE, LAVA_SHAPE);
+	private static final VoxelShape INSIDE_COLLISION_SHAPE = VoxelShapes.union(
+		AbstractCauldronBlock.OUTLINE_SHAPE,
+		LAVA_SHAPE
+	);
 
 	@Override
 	public MapCodec<LavaCauldronBlock> getCodec() {
@@ -34,7 +38,7 @@ public class LavaCauldronBlock extends AbstractCauldronBlock {
 
 	@Override
 	protected double getFluidHeight(BlockState state) {
-		return 0.9375;
+		return FLUID_HEIGHT;
 	}
 
 	@Override
@@ -63,6 +67,6 @@ public class LavaCauldronBlock extends AbstractCauldronBlock {
 
 	@Override
 	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-		return 3;
+		return COMPARATOR_OUTPUT;
 	}
 }

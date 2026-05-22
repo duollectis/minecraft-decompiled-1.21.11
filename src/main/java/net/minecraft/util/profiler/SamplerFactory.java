@@ -8,44 +8,36 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * {@code SamplerFactory}.
+ * Фабрика сэмплеров на основе целей профилирования из {@link ReadableProfiler#getSampleTargets()}.
+ * Отслеживает уже созданные сэмплеры, чтобы не дублировать их при повторных вызовах.
  */
 public class SamplerFactory {
 
-	private final Set<String> sampledFullPaths = new ObjectOpenHashSet();
+	private final Set<String> sampledFullPaths = new ObjectOpenHashSet<>();
 
 	/**
-	 * Создаёт samplers.
-	 *
-	 * @param profilerSupplier profiler supplier
-	 *
-	 * @return Set — результат операции
+	 * Создаёт новые сэмплеры для путей, которые ещё не были зарегистрированы.
+	 * Каждый сэмплер измеряет максимальное время секции в миллисекундах.
 	 */
 	public Set<Sampler> createSamplers(Supplier<ReadableProfiler> profilerSupplier) {
-		Set<Sampler> set = profilerSupplier.get()
-		                                   .getSampleTargets()
-		                                   .stream()
-		                                   .filter(target -> !this.sampledFullPaths.contains(target.getLeft()))
-		                                   .map(target -> createSampler(
-				                                   profilerSupplier,
-				                                   (String) target.getLeft(),
-				                                   (SampleType) target.getRight()
-		                                   ))
-		                                   .collect(Collectors.toSet());
+		Set<Sampler> newSamplers = profilerSupplier.get()
+			.getSampleTargets()
+			.stream()
+			.filter(target -> !sampledFullPaths.contains(target.getLeft()))
+			.map(target -> createSampler(profilerSupplier, target.getLeft(), target.getRight()))
+			.collect(Collectors.toSet());
 
-		for (Sampler sampler : set) {
-			this.sampledFullPaths.add(sampler.getName());
+		for (Sampler sampler : newSamplers) {
+			sampledFullPaths.add(sampler.getName());
 		}
 
-		return set;
+		return newSamplers;
 	}
 
 	private static Sampler createSampler(Supplier<ReadableProfiler> profilerSupplier, String id, SampleType type) {
-		return Sampler.create(
-				id, type, () -> {
-					ProfilerSystem.LocatedInfo locatedInfo = profilerSupplier.get().getInfo(id);
-					return locatedInfo == null ? 0.0 : (double) locatedInfo.getMaxTime() / TimeHelper.MILLI_IN_NANOS;
-				}
-		);
+		return Sampler.create(id, type, () -> {
+			ProfilerSystem.LocatedInfo info = profilerSupplier.get().getInfo(id);
+			return info == null ? 0.0 : (double) info.getMaxTime() / TimeHelper.MILLI_IN_NANOS;
+		});
 	}
 }

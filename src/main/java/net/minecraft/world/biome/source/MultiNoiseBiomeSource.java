@@ -19,64 +19,55 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code MultiNoiseBiomeSource}.
+ * Источник биомов на основе многомерного шума (температура, влажность, континентальность,
+ * эрозия, глубина, странность). Поддерживает два режима: кастомный (прямой список записей)
+ * и пресетный (ссылка на {@link MultiNoiseBiomeSourceParameterList} из реестра).
  */
 public class MultiNoiseBiomeSource extends BiomeSource {
 
 	private static final MapCodec<RegistryEntry<Biome>> BIOME_CODEC = Biome.REGISTRY_CODEC.fieldOf("biome");
-	public static final MapCodec<MultiNoiseUtil.Entries<RegistryEntry<Biome>>>
-			CUSTOM_CODEC =
-			MultiNoiseUtil.Entries.createCodec(BIOME_CODEC).fieldOf("biomes");
-	private static final MapCodec<RegistryEntry<MultiNoiseBiomeSourceParameterList>>
-			PRESET_CODEC =
-			MultiNoiseBiomeSourceParameterList.REGISTRY_CODEC
-					.fieldOf("preset")
-					.withLifecycle(Lifecycle.stable());
-	public static final MapCodec<MultiNoiseBiomeSource> CODEC = Codec.mapEither(CUSTOM_CODEC, PRESET_CODEC)
-	                                                                 .xmap(
-			                                                                 MultiNoiseBiomeSource::new,
-			                                                                 source -> source.biomeEntries
-	                                                                 );
-	private final Either<MultiNoiseUtil.Entries<RegistryEntry<Biome>>, RegistryEntry<MultiNoiseBiomeSourceParameterList>>
-			biomeEntries;
 
-	private MultiNoiseBiomeSource(Either<MultiNoiseUtil.Entries<RegistryEntry<Biome>>, RegistryEntry<MultiNoiseBiomeSourceParameterList>> biomeEntries) {
+	public static final MapCodec<MultiNoiseUtil.Entries<RegistryEntry<Biome>>> CUSTOM_CODEC =
+		MultiNoiseUtil.Entries.createCodec(BIOME_CODEC).fieldOf("biomes");
+
+	private static final MapCodec<RegistryEntry<MultiNoiseBiomeSourceParameterList>> PRESET_CODEC =
+		MultiNoiseBiomeSourceParameterList.REGISTRY_CODEC
+			.fieldOf("preset")
+			.withLifecycle(Lifecycle.stable());
+
+	public static final MapCodec<MultiNoiseBiomeSource> CODEC = Codec.mapEither(CUSTOM_CODEC, PRESET_CODEC)
+		.xmap(
+			MultiNoiseBiomeSource::new,
+			source -> source.biomeEntries
+		);
+
+	private final Either<MultiNoiseUtil.Entries<RegistryEntry<Biome>>, RegistryEntry<MultiNoiseBiomeSourceParameterList>>
+		biomeEntries;
+
+	private MultiNoiseBiomeSource(
+		Either<MultiNoiseUtil.Entries<RegistryEntry<Biome>>, RegistryEntry<MultiNoiseBiomeSourceParameterList>> biomeEntries
+	) {
 		this.biomeEntries = biomeEntries;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param biomeEntries biome entries
-	 *
-	 * @return MultiNoiseBiomeSource — результат операции
-	 */
 	public static MultiNoiseBiomeSource create(MultiNoiseUtil.Entries<RegistryEntry<Biome>> biomeEntries) {
 		return new MultiNoiseBiomeSource(Either.left(biomeEntries));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param biomeEntries biome entries
-	 *
-	 * @return MultiNoiseBiomeSource — результат операции
-	 */
-	public static MultiNoiseBiomeSource create(RegistryEntry<MultiNoiseBiomeSourceParameterList> biomeEntries) {
-		return new MultiNoiseBiomeSource(Either.right(biomeEntries));
+	public static MultiNoiseBiomeSource create(RegistryEntry<MultiNoiseBiomeSourceParameterList> parameterList) {
+		return new MultiNoiseBiomeSource(Either.right(parameterList));
 	}
 
 	private MultiNoiseUtil.Entries<RegistryEntry<Biome>> getBiomeEntries() {
-		return (MultiNoiseUtil.Entries<RegistryEntry<Biome>>) this.biomeEntries
-				.map(
-						entries -> entries,
-						parameterListEntry -> ((MultiNoiseBiomeSourceParameterList) parameterListEntry.value()).getEntries()
-				);
+		return biomeEntries.map(
+			entries -> entries,
+			parameterListEntry -> parameterListEntry.value().getEntries()
+		);
 	}
 
 	@Override
 	protected Stream<RegistryEntry<Biome>> biomeStream() {
-		return this.getBiomeEntries().getEntries().stream().map(Pair::getSecond);
+		return getBiomeEntries().getEntries().stream().map(Pair::getSecond);
 	}
 
 	@Override
@@ -85,51 +76,48 @@ public class MultiNoiseBiomeSource extends BiomeSource {
 	}
 
 	/**
-	 * Matches instance.
-	 *
-	 * @param parameterList parameter list
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, соответствует ли этот источник биомов заданному пресету из реестра.
+	 * Используется для определения типа генерации мира в UI и командах.
 	 */
 	public boolean matchesInstance(RegistryKey<MultiNoiseBiomeSourceParameterList> parameterList) {
-		Optional<RegistryEntry<MultiNoiseBiomeSourceParameterList>> optional = this.biomeEntries.right();
-		return optional.isPresent() && optional.get().matchesKey(parameterList);
+		Optional<RegistryEntry<MultiNoiseBiomeSourceParameterList>> preset = biomeEntries.right();
+		return preset.isPresent() && preset.get().matchesKey(parameterList);
 	}
 
 	@Override
 	public RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise) {
-		return this.getBiomeAtPoint(noise.sample(x, y, z));
+		return getBiomeAtPoint(noise.sample(x, y, z));
 	}
 
 	@Debug
 	public RegistryEntry<Biome> getBiomeAtPoint(MultiNoiseUtil.NoiseValuePoint point) {
-		return this.getBiomeEntries().get(point);
+		return getBiomeEntries().get(point);
 	}
 
 	@Override
 	public void addDebugInfo(List<String> info, BlockPos pos, MultiNoiseUtil.MultiNoiseSampler noiseSampler) {
-		int i = BiomeCoords.fromBlock(pos.getX());
-		int j = BiomeCoords.fromBlock(pos.getY());
-		int k = BiomeCoords.fromBlock(pos.getZ());
-		MultiNoiseUtil.NoiseValuePoint noiseValuePoint = noiseSampler.sample(i, j, k);
-		float f = MultiNoiseUtil.toFloat(noiseValuePoint.continentalnessNoise());
-		float g = MultiNoiseUtil.toFloat(noiseValuePoint.erosionNoise());
-		float h = MultiNoiseUtil.toFloat(noiseValuePoint.temperatureNoise());
-		float l = MultiNoiseUtil.toFloat(noiseValuePoint.humidityNoise());
-		float m = MultiNoiseUtil.toFloat(noiseValuePoint.weirdnessNoise());
-		double d = DensityFunctions.getPeaksValleysNoise(m);
-		VanillaBiomeParameters vanillaBiomeParameters = new VanillaBiomeParameters();
+		int biomeX = BiomeCoords.fromBlock(pos.getX());
+		int biomeY = BiomeCoords.fromBlock(pos.getY());
+		int biomeZ = BiomeCoords.fromBlock(pos.getZ());
+		MultiNoiseUtil.NoiseValuePoint noisePoint = noiseSampler.sample(biomeX, biomeY, biomeZ);
+		float continentalness = MultiNoiseUtil.toFloat(noisePoint.continentalnessNoise());
+		float erosion = MultiNoiseUtil.toFloat(noisePoint.erosionNoise());
+		float temperature = MultiNoiseUtil.toFloat(noisePoint.temperatureNoise());
+		float humidity = MultiNoiseUtil.toFloat(noisePoint.humidityNoise());
+		float weirdness = MultiNoiseUtil.toFloat(noisePoint.weirdnessNoise());
+		double peaksValleys = DensityFunctions.getPeaksValleysNoise(weirdness);
+		VanillaBiomeParameters biomeParams = new VanillaBiomeParameters();
 		info.add(
-				"Biome builder PV: "
-						+ VanillaBiomeParameters.getPeaksValleysDescription(d)
-						+ " C: "
-						+ vanillaBiomeParameters.getContinentalnessDescription(f)
-						+ " E: "
-						+ vanillaBiomeParameters.getErosionDescription(g)
-						+ " T: "
-						+ vanillaBiomeParameters.getTemperatureDescription(h)
-						+ " H: "
-						+ vanillaBiomeParameters.getHumidityDescription(l)
+			"Biome builder PV: "
+				+ VanillaBiomeParameters.getPeaksValleysDescription(peaksValleys)
+				+ " C: "
+				+ biomeParams.getContinentalnessDescription(continentalness)
+				+ " E: "
+				+ biomeParams.getErosionDescription(erosion)
+				+ " T: "
+				+ biomeParams.getTemperatureDescription(temperature)
+				+ " H: "
+				+ biomeParams.getHumidityDescription(humidity)
 		);
 	}
 }

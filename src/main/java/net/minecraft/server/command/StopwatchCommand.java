@@ -16,7 +16,7 @@ import net.minecraft.world.timer.stopwatch.Stopwatch;
 import net.minecraft.world.timer.stopwatch.StopwatchPersistentState;
 
 /**
- * {@code StopwatchCommand}.
+ * Команда {@code /stopwatch}: управление секундомером для измерения времени.
  */
 public class StopwatchCommand {
 

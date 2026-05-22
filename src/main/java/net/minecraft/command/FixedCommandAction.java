@@ -7,7 +7,8 @@ import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.function.Tracer;
 
 /**
- * {@code FixedCommandAction}.
+ * Действие команды с фиксированным контекстом выполнения.
+ * Выполняет конкретный узел дерева команд brigadier для заданного источника.
  */
 public class FixedCommandAction<T extends AbstractServerCommandSource<T>> implements SourcedCommandAction<T> {
 
@@ -21,37 +22,25 @@ public class FixedCommandAction<T extends AbstractServerCommandSource<T>> implem
 		this.context = context;
 	}
 
-	public void execute(
-			T abstractServerCommandSource,
-			CommandExecutionContext<T> commandExecutionContext,
-			Frame frame
-	) {
-		commandExecutionContext.getProfiler().push(() -> "execute " + this.command);
+	public void execute(T source, CommandExecutionContext<T> executionContext, Frame frame) {
+		executionContext.getProfiler().push(() -> "execute " + command);
 
 		try {
-			commandExecutionContext.decrementCommandQuota();
-			int
-					i =
-					ContextChain.runExecutable(
-							this.context,
-							abstractServerCommandSource,
-							AbstractServerCommandSource.asResultConsumer(),
-							this.flags.isSilent()
-					);
-			Tracer tracer = commandExecutionContext.getTracer();
-			if (tracer != null) {
-				tracer.traceCommandEnd(frame.depth(), this.command, i);
-			}
-		}
-		catch (CommandSyntaxException var9) {
-			abstractServerCommandSource.handleException(
-					var9,
-					this.flags.isSilent(),
-					commandExecutionContext.getTracer()
+			executionContext.decrementCommandQuota();
+			int returnValue = ContextChain.runExecutable(
+					context,
+					source,
+					AbstractServerCommandSource.asResultConsumer(),
+					flags.isSilent()
 			);
-		}
-		finally {
-			commandExecutionContext.getProfiler().pop();
+			Tracer tracer = executionContext.getTracer();
+			if (tracer != null) {
+				tracer.traceCommandEnd(frame.depth(), command, returnValue);
+			}
+		} catch (CommandSyntaxException exception) {
+			source.handleException(exception, flags.isSilent(), executionContext.getTracer());
+		} finally {
+			executionContext.getProfiler().pop();
 		}
 	}
 }

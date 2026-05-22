@@ -7,14 +7,22 @@ import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 
 /**
- * {@code ChunkNibbleArray}.
+ * Компактный массив 4-битных значений освещения для одной секции чанка (16×16×16 блоков).
+ * Хранит 4096 значений в 2048 байтах: два значения упакованы в один байт (нибблы).
+ * Поддерживает ленивую инициализацию: массив байт создаётся только при первой записи.
  */
 public class ChunkNibbleArray {
 
 	public static final int COPY_TIMES = 16;
 	public static final int COPY_BLOCK_SIZE = 128;
 	public static final int BYTES_LENGTH = 2048;
+
 	private static final int NIBBLE_BITS = 4;
+	private static final int NIBBLE_MASK = 15;
+	private static final int TOTAL_ENTRIES = 4096;
+	private static final int BOTTOM_LAYER_ENTRIES = 256;
+	private static final int ROW_SIZE = 16;
+
 	protected byte @Nullable [] bytes;
 	private int defaultValue;
 
@@ -29,163 +37,128 @@ public class ChunkNibbleArray {
 	public ChunkNibbleArray(byte[] bytes) {
 		this.bytes = bytes;
 		this.defaultValue = 0;
-		if (bytes.length != 2048) {
-			throw (IllegalArgumentException) Util.getFatalOrPause(new IllegalArgumentException(
-					"DataLayer should be 2048 bytes not: " + bytes.length));
+		if (bytes.length != BYTES_LENGTH) {
+			throw (IllegalArgumentException) Util.getFatalOrPause(
+					new IllegalArgumentException("DataLayer should be 2048 bytes not: " + bytes.length));
 		}
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return int — 
-	 */
 	public int get(int x, int y, int z) {
-		return this.get(getIndex(x, y, z));
+		return get(getIndex(x, y, z));
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param value value
-	 */
 	public void set(int x, int y, int z, int value) {
-		this.set(getIndex(x, y, z), value);
+		set(getIndex(x, y, z), value);
 	}
 
 	private static int getIndex(int x, int y, int z) {
-		return y << 8 | z << 4 | x;
+		return y << 8 | z << NIBBLE_BITS | x;
 	}
 
 	private int get(int index) {
-		if (this.bytes == null) {
-			return this.defaultValue;
+		if (bytes == null) {
+			return defaultValue;
 		}
-		else {
-			int i = getArrayIndex(index);
-			int j = occupiesSmallerBits(index);
-			return this.bytes[i] >> 4 * j & 15;
-		}
+
+		int arrayIndex = getArrayIndex(index);
+		int nibbleShift = occupiesSmallerBits(index);
+		return bytes[arrayIndex] >> NIBBLE_BITS * nibbleShift & NIBBLE_MASK;
 	}
 
 	private void set(int index, int value) {
-		byte[] bs = this.asByteArray();
-		int i = getArrayIndex(index);
-		int j = occupiesSmallerBits(index);
-		int k = ~(15 << 4 * j);
-		int l = (value & 15) << 4 * j;
-		bs[i] = (byte) (bs[i] & k | l);
+		byte[] data = asByteArray();
+		int arrayIndex = getArrayIndex(index);
+		int nibbleShift = occupiesSmallerBits(index);
+		int clearMask = ~(NIBBLE_MASK << NIBBLE_BITS * nibbleShift);
+		int setBits = (value & NIBBLE_MASK) << NIBBLE_BITS * nibbleShift;
+		data[arrayIndex] = (byte) (data[arrayIndex] & clearMask | setBits);
 	}
 
-	private static int occupiesSmallerBits(int i) {
-		return i & 1;
+	private static int occupiesSmallerBits(int index) {
+		return index & 1;
 	}
 
-	private static int getArrayIndex(int i) {
-		return i >> 1;
+	private static int getArrayIndex(int index) {
+		return index >> 1;
 	}
 
-	/**
-	 * Clear.
-	 *
-	 * @param defaultValue default value
-	 */
 	public void clear(int defaultValue) {
 		this.defaultValue = defaultValue;
-		this.bytes = null;
+		bytes = null;
 	}
 
 	private static byte pack(int value) {
-		byte b = (byte) value;
+		byte packed = (byte) value;
 
-		for (int i = 4; i < 8; i += 4) {
-			b = (byte) (b | value << i);
+		for (int shift = NIBBLE_BITS; shift < 8; shift += NIBBLE_BITS) {
+			packed = (byte) (packed | value << shift);
 		}
 
-		return b;
+		return packed;
 	}
 
-	/**
-	 * As byte array.
-	 *
-	 * @return byte[] — результат операции
-	 */
 	public byte[] asByteArray() {
-		if (this.bytes == null) {
-			this.bytes = new byte[2048];
-			if (this.defaultValue != 0) {
-				Arrays.fill(this.bytes, pack(this.defaultValue));
+		if (bytes == null) {
+			bytes = new byte[BYTES_LENGTH];
+			if (defaultValue != 0) {
+				Arrays.fill(bytes, pack(defaultValue));
 			}
 		}
 
-		return this.bytes;
+		return bytes;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return ChunkNibbleArray — результат операции
-	 */
 	public ChunkNibbleArray copy() {
-		return this.bytes == null ? new ChunkNibbleArray(this.defaultValue)
-		                          : new ChunkNibbleArray((byte[]) this.bytes.clone());
+		return bytes == null
+				? new ChunkNibbleArray(defaultValue)
+				: new ChunkNibbleArray(bytes.clone());
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
 
-		for (int i = 0; i < 4096; i++) {
-			stringBuilder.append(Integer.toHexString(this.get(i)));
+		for (int i = 0; i < TOTAL_ENTRIES; i++) {
+			builder.append(Integer.toHexString(get(i)));
 			if ((i & 15) == 15) {
-				stringBuilder.append("\n");
+				builder.append("\n");
 			}
 
 			if ((i & 0xFF) == 255) {
-				stringBuilder.append("\n");
+				builder.append("\n");
 			}
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 
-	@Debug
 	/**
-	 * Bottom to string.
-	 *
-	 * @param unused unused
-	 *
-	 * @return String — результат операции
+	 * Возвращает строковое представление нижнего слоя (Y=0) секции.
+	 * Используется исключительно в отладочных целях.
 	 */
+	@Debug
 	public String bottomToString(int unused) {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
 
-		for (int i = 0; i < 256; i++) {
-			stringBuilder.append(Integer.toHexString(this.get(i)));
+		for (int i = 0; i < BOTTOM_LAYER_ENTRIES; i++) {
+			builder.append(Integer.toHexString(get(i)));
 			if ((i & 15) == 15) {
-				stringBuilder.append("\n");
+				builder.append("\n");
 			}
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 
 	public boolean isArrayUninitialized() {
-		return this.bytes == null;
+		return bytes == null;
 	}
 
 	public boolean isUninitialized(int expectedDefaultValue) {
-		return this.bytes == null && this.defaultValue == expectedDefaultValue;
+		return bytes == null && defaultValue == expectedDefaultValue;
 	}
 
 	public boolean isUninitialized() {
-		return this.bytes == null && this.defaultValue == 0;
+		return bytes == null && defaultValue == 0;
 	}
 }

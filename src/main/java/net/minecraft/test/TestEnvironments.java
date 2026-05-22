@@ -8,19 +8,20 @@ import net.minecraft.util.Identifier;
 import java.util.List;
 
 /**
- * {@code TestEnvironments}.
+ * Реестр встроенных окружений для тестов.
+ * {@link #DEFAULT} — пустое окружение без каких-либо изменений мира.
  */
 public interface TestEnvironments {
 
 	String DEFAULT_ID = "default";
 
-	RegistryKey<TestEnvironmentDefinition> DEFAULT = of("default");
-
-	private static RegistryKey<TestEnvironmentDefinition> of(String id) {
-		return RegistryKey.of(RegistryKeys.TEST_ENVIRONMENT, Identifier.ofVanilla(id));
-	}
+	RegistryKey<TestEnvironmentDefinition> DEFAULT = of(DEFAULT_ID);
 
 	static void bootstrap(Registerable<TestEnvironmentDefinition> registry) {
 		registry.register(DEFAULT, new TestEnvironmentDefinition.AllOf(List.of()));
+	}
+
+	private static RegistryKey<TestEnvironmentDefinition> of(String id) {
+		return RegistryKey.of(RegistryKeys.TEST_ENVIRONMENT, Identifier.ofVanilla(id));
 	}
 }

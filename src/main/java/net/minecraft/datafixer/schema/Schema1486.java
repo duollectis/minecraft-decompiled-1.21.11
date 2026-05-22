@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1486}.
+ * Схема версии 1486: переименовывает сущности {@code minecraft:cod_mob} → {@code minecraft:cod}
+ * и {@code minecraft:salmon_mob} → {@code minecraft:salmon} для соответствия финальным именам.
  */
 public class Schema1486 extends IdentifierNormalizingSchema {
 
-	public Schema1486(int i, Schema schema) {
-		super(i, schema);
+	public Schema1486(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

@@ -14,17 +14,17 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.function.Supplier;
 
 /**
- * {@code ThrownPotionSplitFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ThrownPotionSplitFix extends EntityTransformFix {
 
 	private final Supplier<ThrownPotionSplitFix.PotionItemFinder> potionItemFinderSupplier = Suppliers.memoize(
 			() -> {
-				Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:potion");
+				Type<?> type = getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:potion");
 				Type<?> type2 = FixUtil.withTypeChanged(
 						type,
-						this.getInputSchema().getType(TypeReferences.ENTITY),
-						this.getOutputSchema().getType(TypeReferences.ENTITY)
+						getInputSchema().getType(TypeReferences.ENTITY),
+						getOutputSchema().getType(TypeReferences.ENTITY)
 				);
 				OpticFinder<?> opticFinder = type2.findField("Item");
 				OpticFinder<Pair<String, String>> opticFinder2 = DSL.fieldFinder(
@@ -53,8 +53,8 @@ public class ThrownPotionSplitFix extends EntityTransformFix {
 	}
 
 	/**
-	 * {@code PotionItemFinder}.
-	 */
+ * Класс PotionItemFinder.
+ */
 	record PotionItemFinder(OpticFinder<?> itemFinder, OpticFinder<Pair<String, String>> itemIdFinder) {
 
 		public String getItemId(Typed<?> typed) {

@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code AllayBrain}.
+ * Мозг аллая: регистрирует сенсоры и задачи поведения.
  */
 public class AllayBrain {
 
@@ -57,7 +57,7 @@ public class AllayBrain {
 				0,
 				ImmutableList.<Task<? super AllayEntity>>of(
 						new StayAboveWaterTask(0.8F),
-						new FleeTask(2.5F),
+						new FleeTask(FLEE_SPEED),
 						new UpdateLookControlTask(45, 90),
 						new MoveToTargetTask(),
 						new TickCooldownTask(MemoryModuleType.LIKED_NOTEBLOCK_COOLDOWN_TICKS),
@@ -70,13 +70,13 @@ public class AllayBrain {
 		brain.setTaskList(
 				Activity.IDLE,
 				ImmutableList.of(
-						Pair.of(0, WalkTowardsNearestVisibleWantedItemTask.create(allay -> true, 1.75F, true, 32)),
+						Pair.of(0, WalkTowardsNearestVisibleWantedItemTask.create(allay -> true, WALK_TO_ITEM_SPEED, true, WALK_TO_ITEM_RADIUS)),
 						Pair.of(
 								1,
 								new GiveInventoryToLookTargetTask(
 										allay -> AllayBrain.getLookTarget((AllayEntity) allay),
-										2.25F,
-										20
+										FLY_SPEED,
+										GIVE_INVENTORY_RUN_TIME
 								)
 						),
 						Pair.of(
@@ -85,18 +85,18 @@ public class AllayBrain {
 										allay -> AllayBrain.getLookTarget((AllayEntity) allay),
 										AllayBrain::hasNearestVisibleWantedItem,
 										4,
-										16,
-										2.25F
+										MAX_WAIT_TICKS,
+										FLY_SPEED
 								)
 						),
-						Pair.of(3, LookAtMobWithIntervalTask.follow(6.0F, UniformIntProvider.create(30, 60))),
+						Pair.of(3, LookAtMobWithIntervalTask.follow(6.0F, UniformIntProvider.create(ITEM_PICKUP_COOLDOWN_TICKS, LIKED_NOTEBLOCK_COOLDOWN_TICKS))),
 						Pair.of(
 								4,
 								new RandomTask<AllayEntity>(
 										ImmutableList.of(
 												Pair.of(StrollTask.createSolidTargeting(1.0F), 2),
 												Pair.of(GoToLookTargetTask.create(1.0F, 3), 2),
-												Pair.of(new WaitTask(30, 60), 1)
+												Pair.of(new WaitTask(ITEM_PICKUP_COOLDOWN_TICKS, LIKED_NOTEBLOCK_COOLDOWN_TICKS), 1)
 										)
 								)
 						)
@@ -126,10 +126,10 @@ public class AllayBrain {
 		Optional<GlobalPos> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.LIKED_NOTEBLOCK);
 		if (optional.isEmpty()) {
 			brain.remember(MemoryModuleType.LIKED_NOTEBLOCK, globalPos);
-			brain.remember(MemoryModuleType.LIKED_NOTEBLOCK_COOLDOWN_TICKS, 600);
+			brain.remember(MemoryModuleType.LIKED_NOTEBLOCK_COOLDOWN_TICKS, LIKED_NOTEBLOCK_COOLDOWN_TICKS_EXPIRY);
 		}
 		else if (optional.get().equals(globalPos)) {
-			brain.remember(MemoryModuleType.LIKED_NOTEBLOCK_COOLDOWN_TICKS, 600);
+			brain.remember(MemoryModuleType.LIKED_NOTEBLOCK_COOLDOWN_TICKS, LIKED_NOTEBLOCK_COOLDOWN_TICKS_EXPIRY);
 		}
 	}
 

@@ -16,7 +16,9 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code BlockNameFix}.
+ * Абстрактный фикс для переименования блоков. Применяет {@link #rename(String)} к трём
+ * типам данных: {@code BLOCK_NAME}, {@code BLOCK_STATE} и {@code FLAT_BLOCK_STATE}.
+ * Используй {@link #create(Schema, String, Function)} для создания анонимных экземпляров.
  */
 public abstract class BlockNameFix extends DataFix {
 
@@ -28,71 +30,80 @@ public abstract class BlockNameFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_NAME);
-		Type<Pair<String, String>>
-				type2 =
+		Type<?> inputType = getInputSchema().getType(TypeReferences.BLOCK_NAME);
+		Type<Pair<String, String>> namedType =
 				DSL.named(TypeReferences.BLOCK_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-		if (!Objects.equals(type, type2)) {
+
+		if (!Objects.equals(inputType, namedType)) {
 			throw new IllegalStateException("block type is not what was expected.");
 		}
-		else {
-			TypeRewriteRule
-					typeRewriteRule =
-					this.fixTypeEverywhere(
-							this.name + " for block",
-							type2,
-							dynamicOps -> pair -> pair.mapSecond(this::rename)
-					);
-			TypeRewriteRule typeRewriteRule2 = this.fixTypeEverywhereTyped(
-					this.name + " for block_state",
-					this.getInputSchema().getType(TypeReferences.BLOCK_STATE),
-					typed -> typed.update(DSL.remainderFinder(), this::fixBlockState)
-			);
-			TypeRewriteRule typeRewriteRule3 = this.fixTypeEverywhereTyped(
-					this.name + " for flat_block_state",
-					this.getInputSchema().getType(TypeReferences.FLAT_BLOCK_STATE),
-					typed -> typed.update(
-							DSL.remainderFinder(),
-							dynamic -> (Dynamic) DataFixUtils.orElse(
-									dynamic
-											.asString()
-											.result()
-											.map(this::fixFlatBlockState)
-											.map(dynamic::createString), dynamic
-							)
-					)
-			);
-			return TypeRewriteRule.seq(typeRewriteRule, new TypeRewriteRule[]{typeRewriteRule2, typeRewriteRule3});
-		}
+
+		TypeRewriteRule blockNameRule = fixTypeEverywhere(
+				name + " for block",
+				namedType,
+				dynamicOps -> pair -> pair.mapSecond(this::rename)
+		);
+		TypeRewriteRule blockStateRule = fixTypeEverywhereTyped(
+				name + " for block_state",
+				getInputSchema().getType(TypeReferences.BLOCK_STATE),
+				typed -> typed.update(DSL.remainderFinder(), this::fixBlockState)
+		);
+		TypeRewriteRule flatBlockStateRule = fixTypeEverywhereTyped(
+				name + " for flat_block_state",
+				getInputSchema().getType(TypeReferences.FLAT_BLOCK_STATE),
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						dynamic -> (Dynamic) DataFixUtils.orElse(
+								dynamic
+										.asString()
+										.result()
+										.map(this::fixFlatBlockState)
+										.map(dynamic::createString),
+								dynamic
+						)
+				)
+		);
+
+		return TypeRewriteRule.seq(blockNameRule, new TypeRewriteRule[]{blockStateRule, flatBlockStateRule});
 	}
 
 	private Dynamic<?> fixBlockState(Dynamic<?> blockStateDynamic) {
-		Optional<String> optional = blockStateDynamic.get("Name").asString().result();
-		return optional.isPresent() ? blockStateDynamic.set(
-				"Name",
-				blockStateDynamic.createString(this.rename(optional.get()))
-		) : blockStateDynamic;
+		Optional<String> blockName = blockStateDynamic.get("Name").asString().result();
+		return blockName.isPresent()
+		       ? blockStateDynamic.set("Name", blockStateDynamic.createString(rename(blockName.get())))
+		       : blockStateDynamic;
 	}
 
+	/**
+	 * Извлекает имя блока из строки flat block state (до символов {@code [} или {@code {}),
+	 * применяет переименование и возвращает строку с восстановленным суффиксом.
+	 */
 	private String fixFlatBlockState(String flatBlockState) {
-		int i = flatBlockState.indexOf(91);
-		int j = flatBlockState.indexOf(123);
-		int k = flatBlockState.length();
-		if (i > 0) {
-			k = i;
+		int bracketPos = flatBlockState.indexOf('[');
+		int bracePos = flatBlockState.indexOf('{');
+		int nameEnd = flatBlockState.length();
+
+		if (bracketPos > 0) {
+			nameEnd = bracketPos;
 		}
 
-		if (j > 0) {
-			k = Math.min(k, j);
+		if (bracePos > 0) {
+			nameEnd = Math.min(nameEnd, bracePos);
 		}
 
-		String string = flatBlockState.substring(0, k);
-		String string2 = this.rename(string);
-		return string2 + flatBlockState.substring(k);
+		String blockName = flatBlockState.substring(0, nameEnd);
+		return rename(blockName) + flatBlockState.substring(nameEnd);
 	}
 
 	protected abstract String rename(String oldName);
 
+	/**
+	 * Фабричный метод для создания экземпляра {@code BlockNameFix} с заданной функцией переименования.
+	 *
+	 * @param outputSchema целевая схема
+	 * @param name         название фикса для логирования
+	 * @param rename       функция переименования блока
+	 */
 	public static DataFix create(Schema outputSchema, String name, Function<String, String> rename) {
 		return new BlockNameFix(outputSchema, name) {
 			@Override

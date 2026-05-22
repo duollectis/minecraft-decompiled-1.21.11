@@ -18,14 +18,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RenderPassImpl}.
+ * Реализация {@link RenderPass} поверх {@link GlCommandEncoder}.
+ * Хранит текущее состояние прохода: пайплайн, буферы, uniform-значения и scissor-регион.
  */
+@Environment(EnvType.CLIENT)
 public class RenderPassImpl implements RenderPass {
 
 	protected static final int INITIAL_PASS_INDEX = 1;
 	public static final boolean IS_DEVELOPMENT = SharedConstants.isDevelopment;
+
 	private final GlCommandEncoder resourceManager;
 	private final boolean hasDepth;
 	private boolean closed;
@@ -45,175 +47,167 @@ public class RenderPassImpl implements RenderPass {
 	}
 
 	public boolean hasDepth() {
-		return this.hasDepth;
+		return hasDepth;
 	}
 
 	@Override
 	public void pushDebugGroup(Supplier<String> supplier) {
-		if (this.closed) {
+		if (closed) {
 			throw new IllegalStateException("Can't use a closed render pass");
 		}
-		else {
-			this.debugGroupPushCount++;
-			this.resourceManager.getBackend().getDebugLabelManager().pushDebugGroup(supplier);
-		}
+
+		debugGroupPushCount++;
+		resourceManager.getBackend().getDebugLabelManager().pushDebugGroup(supplier);
 	}
 
 	@Override
 	public void popDebugGroup() {
-		if (this.closed) {
+		if (closed) {
 			throw new IllegalStateException("Can't use a closed render pass");
 		}
-		else if (this.debugGroupPushCount == 0) {
+
+		if (debugGroupPushCount == 0) {
 			throw new IllegalStateException("Can't pop more debug groups than was pushed!");
 		}
-		else {
-			this.debugGroupPushCount--;
-			this.resourceManager.getBackend().getDebugLabelManager().popDebugGroup();
-		}
+
+		debugGroupPushCount--;
+		resourceManager.getBackend().getDebugLabelManager().popDebugGroup();
 	}
 
 	@Override
 	public void setPipeline(RenderPipeline renderPipeline) {
-		if (this.pipeline == null || this.pipeline.info() != renderPipeline) {
-			this.setSimpleUniforms.addAll(this.simpleUniforms.keySet());
-			this.setSimpleUniforms.addAll(this.samplerUniforms.keySet());
+		if (pipeline == null || pipeline.info() != renderPipeline) {
+			setSimpleUniforms.addAll(simpleUniforms.keySet());
+			setSimpleUniforms.addAll(samplerUniforms.keySet());
 		}
 
-		this.pipeline = this.resourceManager.getBackend().compilePipelineCached(renderPipeline);
+		pipeline = resourceManager.getBackend().compilePipelineCached(renderPipeline);
 	}
 
 	@Override
-	public void bindTexture(String string, @Nullable GpuTextureView gpuTextureView, @Nullable GpuSampler gpuSampler) {
-		if (gpuSampler == null) {
-			this.samplerUniforms.remove(string);
-		}
-		else {
-			this.samplerUniforms.put(
-					string,
-					new RenderPassImpl.SamplerUniform((GlTextureView) gpuTextureView, (GlSampler) gpuSampler)
-			);
+	public void bindTexture(String name, @Nullable GpuTextureView textureView, @Nullable GpuSampler sampler) {
+		if (sampler == null) {
+			samplerUniforms.remove(name);
+		} else {
+			samplerUniforms.put(name, new RenderPassImpl.SamplerUniform((GlTextureView) textureView, (GlSampler) sampler));
 		}
 
-		this.setSimpleUniforms.add(string);
+		setSimpleUniforms.add(name);
 	}
 
 	@Override
-	public void setUniform(String string, GpuBuffer gpuBuffer) {
-		this.simpleUniforms.put(string, gpuBuffer.slice());
-		this.setSimpleUniforms.add(string);
+	public void setUniform(String name, GpuBuffer buffer) {
+		simpleUniforms.put(name, buffer.slice());
+		setSimpleUniforms.add(name);
 	}
 
 	@Override
-	public void setUniform(String string, GpuBufferSlice gpuBufferSlice) {
-		int i = this.resourceManager.getBackend().getUniformOffsetAlignment();
-		if (gpuBufferSlice.offset() % i > 0L) {
-			throw new IllegalArgumentException("Uniform buffer offset must be aligned to " + i);
+	public void setUniform(String name, GpuBufferSlice bufferSlice) {
+		int alignment = resourceManager.getBackend().getUniformOffsetAlignment();
+
+		if (bufferSlice.offset() % alignment > 0L) {
+			throw new IllegalArgumentException("Uniform buffer offset must be aligned to " + alignment);
 		}
-		else {
-			this.simpleUniforms.put(string, gpuBufferSlice);
-			this.setSimpleUniforms.add(string);
-		}
+
+		simpleUniforms.put(name, bufferSlice);
+		setSimpleUniforms.add(name);
 	}
 
 	@Override
-	public void enableScissor(int i, int j, int k, int l) {
-		this.scissorState.enable(i, j, k, l);
+	public void enableScissor(int x, int y, int width, int height) {
+		scissorState.enable(x, y, width, height);
 	}
 
 	@Override
 	public void disableScissor() {
-		this.scissorState.disable();
+		scissorState.disable();
 	}
 
 	public boolean isScissorEnabled() {
-		return this.scissorState.isEnabled();
+		return scissorState.isEnabled();
 	}
 
 	public int getScissorX() {
-		return this.scissorState.getX();
+		return scissorState.getX();
 	}
 
 	public int getScissorY() {
-		return this.scissorState.getY();
+		return scissorState.getY();
 	}
 
 	public int getScissorWidth() {
-		return this.scissorState.getWidth();
+		return scissorState.getWidth();
 	}
 
 	public int getScissorHeight() {
-		return this.scissorState.getHeight();
+		return scissorState.getHeight();
 	}
 
 	@Override
-	public void setVertexBuffer(int i, GpuBuffer gpuBuffer) {
-		if (i >= 0 && i < 1) {
-			this.vertexBuffers[i] = gpuBuffer;
+	public void setVertexBuffer(int slot, GpuBuffer buffer) {
+		if (slot < 0 || slot >= vertexBuffers.length) {
+			throw new IllegalArgumentException("Vertex buffer slot is out of range: " + slot);
 		}
-		else {
-			throw new IllegalArgumentException("Vertex buffer slot is out of range: " + i);
-		}
+
+		vertexBuffers[slot] = buffer;
 	}
 
 	@Override
-	public void setIndexBuffer(@Nullable GpuBuffer gpuBuffer, VertexFormat.IndexType indexType) {
-		this.indexBuffer = gpuBuffer;
-		this.indexType = indexType;
+	public void setIndexBuffer(@Nullable GpuBuffer buffer, VertexFormat.IndexType type) {
+		indexBuffer = buffer;
+		indexType = type;
 	}
 
 	@Override
-	public void drawIndexed(int i, int j, int k, int l) {
-		if (this.closed) {
+	public void drawIndexed(int firstIndex, int baseVertex, int indexCount, int instanceCount) {
+		if (closed) {
 			throw new IllegalStateException("Can't use a closed render pass");
 		}
-		else {
-			this.resourceManager.drawBoundObjectWithRenderPass(this, i, j, k, this.indexType, l);
-		}
+
+		resourceManager.drawBoundObjectWithRenderPass(this, firstIndex, baseVertex, indexCount, indexType, instanceCount);
 	}
 
 	@Override
 	public <T> void drawMultipleIndexed(
-			Collection<RenderPass.RenderObject<T>> collection,
-			@Nullable GpuBuffer gpuBuffer,
-			VertexFormat.@Nullable IndexType indexType,
-			Collection<String> collection2,
-			T object
+		Collection<RenderPass.RenderObject<T>> objects,
+		@Nullable GpuBuffer indexBuffer,
+		VertexFormat.@Nullable IndexType indexType,
+		Collection<String> validationSkippedUniforms,
+		T object
 	) {
-		if (this.closed) {
+		if (closed) {
 			throw new IllegalStateException("Can't use a closed render pass");
 		}
-		else {
-			this.resourceManager.drawObjectsWithRenderPass(this, collection, gpuBuffer, indexType, collection2, object);
-		}
+
+		resourceManager.drawObjectsWithRenderPass(
+			this, objects, indexBuffer, indexType, validationSkippedUniforms, object
+		);
 	}
 
 	@Override
-	public void draw(int i, int j) {
-		if (this.closed) {
+	public void draw(int firstVertex, int vertexCount) {
+		if (closed) {
 			throw new IllegalStateException("Can't use a closed render pass");
 		}
-		else {
-			this.resourceManager.drawBoundObjectWithRenderPass(this, i, 0, j, null, 1);
-		}
+
+		resourceManager.drawBoundObjectWithRenderPass(this, firstVertex, 0, vertexCount, null, 1);
 	}
 
 	@Override
 	public void close() {
-		if (!this.closed) {
-			if (this.debugGroupPushCount > 0) {
-				throw new IllegalStateException("Render pass had debug groups left open!");
-			}
-
-			this.closed = true;
-			this.resourceManager.closePass();
+		if (closed) {
+			return;
 		}
+
+		if (debugGroupPushCount > 0) {
+			throw new IllegalStateException("Render pass had debug groups left open!");
+		}
+
+		closed = true;
+		resourceManager.closePass();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SamplerUniform}.
-	 */
 	protected record SamplerUniform(GlTextureView view, GlSampler sampler) {
 	}
 }

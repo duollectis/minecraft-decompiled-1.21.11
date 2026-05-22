@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code CollectionContainsPredicate}.
+ * Предикат, проверяющий, что коллекция содержит элементы, удовлетворяющие
+ * каждому из заданных предикатов (семантика «все предикаты должны найти совпадение»).
+ * Оптимизирован через три реализации: пустую, одиночную и множественную.
  */
 public interface CollectionContainsPredicate<T, P extends Predicate<T>> extends Predicate<Iterable<T>> {
 
@@ -24,20 +26,18 @@ public interface CollectionContainsPredicate<T, P extends Predicate<T>> extends 
 		return create(List.of(predicates));
 	}
 
+	@SuppressWarnings("unchecked")
 	static <T, P extends Predicate<T>> CollectionContainsPredicate<T, P> create(List<P> predicates) {
-		return (CollectionContainsPredicate<T, P>) (switch (predicates.size()) {
-			case 0 -> new CollectionContainsPredicate.Empty();
-			case 1 -> new CollectionContainsPredicate.Single(predicates.getFirst());
-			default -> new CollectionContainsPredicate.Multiple(predicates);
-		}
-		);
+		return (CollectionContainsPredicate<T, P>) switch (predicates.size()) {
+			case 0 -> new CollectionContainsPredicate.Empty<>();
+			case 1 -> new CollectionContainsPredicate.Single<>(predicates.getFirst());
+			default -> new CollectionContainsPredicate.Multiple<>(predicates);
+		};
 	}
 
-	/**
-	 * {@code Empty}.
-	 */
-	public static class Empty<T, P extends Predicate<T>> implements CollectionContainsPredicate<T, P> {
+	class Empty<T, P extends Predicate<T>> implements CollectionContainsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
 			return true;
 		}
@@ -49,16 +49,20 @@ public interface CollectionContainsPredicate<T, P extends Predicate<T>> extends 
 	}
 
 	/**
-	 * {@code Multiple}.
+	 * Проверяет, что для каждого предиката из списка найдётся хотя бы один
+	 * подходящий элемент. Использует изменяемую копию списка предикатов
+	 * и удаляет уже «закрытые» предикаты по мере обхода коллекции.
 	 */
-	public record Multiple<T, P extends Predicate<T>>(List<P> tests) implements CollectionContainsPredicate<T, P> {
+	record Multiple<T, P extends Predicate<T>>(List<P> tests) implements CollectionContainsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
-			List<Predicate<T>> list = new ArrayList<>(this.tests);
+			List<Predicate<T>> remaining = new ArrayList<>(tests);
 
-			for (T object : iterable) {
-				list.removeIf(predicate -> predicate.test(object));
-				if (list.isEmpty()) {
+			for (T element : iterable) {
+				remaining.removeIf(predicate -> predicate.test(element));
+
+				if (remaining.isEmpty()) {
 					return true;
 				}
 			}
@@ -68,18 +72,16 @@ public interface CollectionContainsPredicate<T, P extends Predicate<T>> extends 
 
 		@Override
 		public List<P> getPredicates() {
-			return this.tests;
+			return tests;
 		}
 	}
 
-	/**
-	 * {@code Single}.
-	 */
-	public record Single<T, P extends Predicate<T>>(P test) implements CollectionContainsPredicate<T, P> {
+	record Single<T, P extends Predicate<T>>(P test) implements CollectionContainsPredicate<T, P> {
 
+		@Override
 		public boolean test(Iterable<T> iterable) {
-			for (T object : iterable) {
-				if (this.test.test(object)) {
+			for (T element : iterable) {
+				if (test.test(element)) {
 					return true;
 				}
 			}
@@ -89,7 +91,7 @@ public interface CollectionContainsPredicate<T, P extends Predicate<T>> extends 
 
 		@Override
 		public List<P> getPredicates() {
-			return List.of(this.test);
+			return List.of(test);
 		}
 	}
 }

@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CreakingBrain}.
+ * Мозг (Brain) для моба Крикун. Управляет поведением и памятью.
  */
 public class CreakingBrain {
 
@@ -46,18 +46,10 @@ public class CreakingBrain {
 		brain.setTaskList(
 				Activity.CORE, 0, ImmutableList.of(
 						new StayAboveWaterTask<CreakingEntity>(0.8F) {
-							/**
-							 * Определяет, следует ли run.
-							 *
-							 * @param serverWorld server world
-							 * @param creakingEntity creaking entity
-							 *
-							 * @return boolean — результат операции
-							 */
 							protected boolean shouldRun(ServerWorld serverWorld, CreakingEntity creakingEntity) {
 								return creakingEntity.isUnrooted() && super.shouldRun(
 										serverWorld,
-										(MobEntity) creakingEntity
+										creakingEntity
 								);
 							}
 						}, new UpdateLookControlTask(45, 90), new MoveToTargetTask()
@@ -114,14 +106,6 @@ public class CreakingBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param creaking creaking
-	 * @param brain brain
-	 *
-	 * @return Brain — результат операции
-	 */
 	public static Brain<CreakingEntity> create(CreakingEntity creaking, Brain<CreakingEntity> brain) {
 		addCoreTasks(brain);
 		addIdleTasks(brain);
@@ -132,17 +116,11 @@ public class CreakingBrain {
 		return brain;
 	}
 
-	/**
-	 * Обновляет activities.
-	 *
-	 * @param creaking creaking
-	 */
 	public static void updateActivities(CreakingEntity creaking) {
-		if (!creaking.isUnrooted()) {
-			creaking.getBrain().resetPossibleActivities();
-		}
-		else {
+		if (creaking.isUnrooted()) {
 			creaking.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
+		} else {
+			creaking.getBrain().resetPossibleActivities();
 		}
 	}
 }

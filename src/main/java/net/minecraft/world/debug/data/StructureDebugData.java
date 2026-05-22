@@ -8,29 +8,29 @@ import net.minecraft.util.math.BlockBox;
 import java.util.List;
 
 /**
- * {@code StructureDebugData}.
+ * Отладочные данные структуры: общий ограничивающий прямоугольник и список составных частей.
  */
 public record StructureDebugData(BlockBox boundingBox, List<StructureDebugData.Piece> pieces) {
 
 	public static final PacketCodec<ByteBuf, StructureDebugData> PACKET_CODEC = PacketCodec.tuple(
 			BlockBox.PACKET_CODEC,
 			StructureDebugData::boundingBox,
-			StructureDebugData.Piece.PACKET_CODEC.collect(PacketCodecs.toList()),
+			Piece.PACKET_CODEC.collect(PacketCodecs.toList()),
 			StructureDebugData::pieces,
 			StructureDebugData::new
 	);
 
 	/**
-	 * {@code Piece}.
+	 * Одна часть структуры: её ограничивающий прямоугольник и признак стартовой части.
 	 */
 	public record Piece(BlockBox boundingBox, boolean isStart) {
 
-		public static final PacketCodec<ByteBuf, StructureDebugData.Piece> PACKET_CODEC = PacketCodec.tuple(
+		public static final PacketCodec<ByteBuf, Piece> PACKET_CODEC = PacketCodec.tuple(
 				BlockBox.PACKET_CODEC,
-				StructureDebugData.Piece::boundingBox,
+				Piece::boundingBox,
 				PacketCodecs.BOOLEAN,
-				StructureDebugData.Piece::isStart,
-				StructureDebugData.Piece::new
+				Piece::isStart,
+				Piece::new
 		);
 	}
 }

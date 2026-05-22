@@ -9,7 +9,8 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code AreaEffectCloudPotionFix}.
+ * Мигрирует данные зелья облака эффекта из разрозненных полей ({@code Color}, {@code effects}, {@code Potion})
+ * в единый объект {@code potion_contents}.
  */
 public class AreaEffectCloudPotionFix extends ChoiceFix {
 
@@ -22,29 +23,31 @@ public class AreaEffectCloudPotionFix extends ChoiceFix {
 		return inputTyped.update(DSL.remainderFinder(), this::update);
 	}
 
-	private <T> Dynamic<T> update(Dynamic<T> areaEffectCloudDynamic) {
-		Optional<Dynamic<T>> optional = areaEffectCloudDynamic.get("Color").result();
-		Optional<Dynamic<T>> optional2 = areaEffectCloudDynamic.get("effects").result();
-		Optional<Dynamic<T>> optional3 = areaEffectCloudDynamic.get("Potion").result();
-		areaEffectCloudDynamic = areaEffectCloudDynamic.remove("Color").remove("effects").remove("Potion");
-		if (optional.isEmpty() && optional2.isEmpty() && optional3.isEmpty()) {
-			return areaEffectCloudDynamic;
+	private <T> Dynamic<T> update(Dynamic<T> cloud) {
+		Optional<Dynamic<T>> color = cloud.get("Color").result();
+		Optional<Dynamic<T>> effects = cloud.get("effects").result();
+		Optional<Dynamic<T>> potion = cloud.get("Potion").result();
+
+		cloud = cloud.remove("Color").remove("effects").remove("Potion");
+
+		if (color.isEmpty() && effects.isEmpty() && potion.isEmpty()) {
+			return cloud;
 		}
-		else {
-			Dynamic<T> dynamic = areaEffectCloudDynamic.emptyMap();
-			if (optional.isPresent()) {
-				dynamic = dynamic.set("custom_color", optional.get());
-			}
 
-			if (optional2.isPresent()) {
-				dynamic = dynamic.set("custom_effects", optional2.get());
-			}
+		Dynamic<T> potionContents = cloud.emptyMap();
 
-			if (optional3.isPresent()) {
-				dynamic = dynamic.set("potion", optional3.get());
-			}
-
-			return areaEffectCloudDynamic.set("potion_contents", dynamic);
+		if (color.isPresent()) {
+			potionContents = potionContents.set("custom_color", color.get());
 		}
+
+		if (effects.isPresent()) {
+			potionContents = potionContents.set("custom_effects", effects.get());
+		}
+
+		if (potion.isPresent()) {
+			potionContents = potionContents.set("potion", potion.get());
+		}
+
+		return cloud.set("potion_contents", potionContents);
 	}
 }

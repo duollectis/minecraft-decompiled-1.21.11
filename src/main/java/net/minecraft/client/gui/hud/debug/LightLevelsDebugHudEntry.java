@@ -15,48 +15,51 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LightLevelsDebugHudEntry}.
+ * Запись отладочного HUD: уровни освещения (небо + блоки) в позиции камеры.
+ * При включённых серверных значениях показывает также серверные данные.
  */
+@Environment(EnvType.CLIENT)
 public class LightLevelsDebugHudEntry implements DebugHudEntry {
 
 	public static final Identifier SECTION_ID = Identifier.ofVanilla("light");
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		Entity entity = minecraftClient.getCameraEntity();
-		if (entity != null && minecraftClient.world != null) {
-			BlockPos blockPos = entity.getBlockPos();
-			int i = minecraftClient.world.getChunkManager().getLightingProvider().getLight(blockPos, 0);
-			int j = minecraftClient.world.getLightLevel(LightType.SKY, blockPos);
-			int k = minecraftClient.world.getLightLevel(LightType.BLOCK, blockPos);
-			String string = "Client Light: " + i + " (" + j + " sky, " + k + " block)";
-			if (SharedConstants.SHOW_SERVER_DEBUG_VALUES) {
-				String string2;
-				if (chunk != null) {
-					LightingProvider lightingProvider = chunk.getWorld().getLightingProvider();
-					string2 = "Server Light: ("
-							+ lightingProvider.get(LightType.SKY).getLightLevel(blockPos)
-							+ " sky, "
-							+ lightingProvider.get(LightType.BLOCK).getLightLevel(blockPos)
-							+ " block)";
-				}
-				else {
-					string2 = "Server Light: (?? sky, ?? block)";
-				}
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
 
-				lines.addLinesToSection(SECTION_ID, List.of(string, string2));
+		if (cameraEntity == null || client.world == null) {
+			return;
+		}
+
+		BlockPos blockPos = cameraEntity.getBlockPos();
+		int combinedLight = client.world.getChunkManager().getLightingProvider().getLight(blockPos, 0);
+		int skyLight = client.world.getLightLevel(LightType.SKY, blockPos);
+		int blockLight = client.world.getLightLevel(LightType.BLOCK, blockPos);
+		String clientLightLine = "Client Light: " + combinedLight + " (" + skyLight + " sky, " + blockLight + " block)";
+
+		if (SharedConstants.SHOW_SERVER_DEBUG_VALUES) {
+			String serverLightLine;
+			if (chunk != null) {
+				LightingProvider lightingProvider = chunk.getWorld().getLightingProvider();
+				serverLightLine = "Server Light: ("
+					+ lightingProvider.get(LightType.SKY).getLightLevel(blockPos)
+					+ " sky, "
+					+ lightingProvider.get(LightType.BLOCK).getLightLevel(blockPos)
+					+ " block)";
+			} else {
+				serverLightLine = "Server Light: (?? sky, ?? block)";
 			}
-			else {
-				lines.addLineToSection(SECTION_ID, string);
-			}
+
+			lines.addLinesToSection(SECTION_ID, List.of(clientLightLine, serverLightLine));
+		} else {
+			lines.addLineToSection(SECTION_ID, clientLightLine);
 		}
 	}
 }

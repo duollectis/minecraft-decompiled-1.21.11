@@ -3,33 +3,26 @@ package net.minecraft.network.encryption;
 import java.security.SecureRandom;
 
 /**
- * Запись bearer token.
+ * Неизменяемый токен-носитель (Bearer Token) для аутентификации.
+ * Токен представляет собой строку из 40 случайных буквенно-цифровых символов.
  */
 public record BearerToken(String secretKey) {
 
 	private static final String ALLOWED_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	private static final int TOKEN_LENGTH = 40;
 
 	public static boolean isValid(String token) {
-		return token.isEmpty() ? false : token.matches("^[a-zA-Z0-9]{40}$");
+		return !token.isEmpty() && token.matches("^[a-zA-Z0-9]{40}$");
 	}
 
-	/**
-	 * Generate.
-	 *
-	 * @return String — результат операции
-	 */
 	public static String generate() {
-		SecureRandom secureRandom = new SecureRandom();
-		StringBuilder stringBuilder = new StringBuilder(40);
+		SecureRandom random = new SecureRandom();
+		StringBuilder builder = new StringBuilder(TOKEN_LENGTH);
 
-		for (int i = 0; i < 40; i++) {
-			stringBuilder.append(
-					"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-							.charAt(secureRandom.nextInt(
-									"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".length()))
-			);
+		for (int index = 0; index < TOKEN_LENGTH; index++) {
+			builder.append(ALLOWED_CHARS.charAt(random.nextInt(ALLOWED_CHARS.length())));
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 }

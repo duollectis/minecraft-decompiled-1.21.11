@@ -3,7 +3,9 @@ package net.minecraft.util.packrat;
 import com.mojang.brigadier.StringReader;
 
 /**
- * {@code ReaderBackedParsingState}.
+ * Конкретная реализация {@link ParsingStateImpl} для разбора строк через {@link StringReader}.
+ * Делегирует управление курсором напрямую ридеру, синхронизируя позицию парсера
+ * с позицией в строке ввода.
  */
 public class ReaderBackedParsingState extends ParsingStateImpl<StringReader> {
 
@@ -14,17 +16,18 @@ public class ReaderBackedParsingState extends ParsingStateImpl<StringReader> {
 		this.reader = reader;
 	}
 
+	@Override
 	public StringReader getReader() {
-		return this.reader;
+		return reader;
 	}
 
 	@Override
 	public int getCursor() {
-		return this.reader.getCursor();
+		return reader.getCursor();
 	}
 
 	@Override
 	public void setCursor(int cursor) {
-		this.reader.setCursor(cursor);
+		reader.setCursor(cursor);
 	}
 }

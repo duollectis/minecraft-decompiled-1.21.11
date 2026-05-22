@@ -19,7 +19,10 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /**
- * {@code HoneyBlock}.
+ * Блок мёда, замедляющий скольжение сущностей по боковым граням.
+ * <p>При скольжении по стенке блока вертикальная скорость сущности ограничивается
+ * константой {@code MAX_SLIDE_VELOCITY}. Эффект применяется только к живым существам,
+ * вагонеткам, лодкам и блокам ТНТ.</p>
  */
 public class HoneyBlock extends TranslucentBlock {
 
@@ -84,11 +87,11 @@ public class HoneyBlock extends TranslucentBlock {
 	}
 
 	private static double getOldVelocityY(double d) {
-		return d / 0.98F + 0.08;
+		return d / 0.98F + GRAVITY_CONSTANT;
 	}
 
 	private static double getNewVelocityY(double d) {
-		return (d - 0.08) * 0.98F;
+		return (d - GRAVITY_CONSTANT) * 0.98F;
 	}
 
 	private boolean isSliding(BlockPos pos, Entity entity) {
@@ -98,7 +101,7 @@ public class HoneyBlock extends TranslucentBlock {
 		else if (entity.getY() > pos.getY() + 0.9375 - 1.0E-7) {
 			return false;
 		}
-		else if (getOldVelocityY(entity.getVelocity().y) >= -0.08) {
+		else if (getOldVelocityY(entity.getVelocity().y) >= -GRAVITY_CONSTANT) {
 			return false;
 		}
 		else {
@@ -110,19 +113,19 @@ public class HoneyBlock extends TranslucentBlock {
 	}
 
 	private void triggerAdvancement(Entity entity, BlockPos pos) {
-		if (entity instanceof ServerPlayerEntity && entity.getEntityWorld().getTime() % 20L == 0L) {
+		if (entity instanceof ServerPlayerEntity && entity.getEntityWorld().getTime() % TICKS_PER_SECOND == 0L) {
 			Criteria.SLIDE_DOWN_BLOCK.trigger((ServerPlayerEntity) entity, entity.getEntityWorld().getBlockState(pos));
 		}
 	}
 
 	private void updateSlidingVelocity(Entity entity) {
 		Vec3d vec3d = entity.getVelocity();
-		if (getOldVelocityY(entity.getVelocity().y) < -0.13) {
-			double d = -0.05 / getOldVelocityY(entity.getVelocity().y);
-			entity.setVelocity(new Vec3d(vec3d.x * d, getNewVelocityY(-0.05), vec3d.z * d));
+		if (getOldVelocityY(entity.getVelocity().y) < -MAX_SLIDE_VELOCITY) {
+			double d = -SLIDE_VELOCITY_CLAMP / getOldVelocityY(entity.getVelocity().y);
+			entity.setVelocity(new Vec3d(vec3d.x * d, getNewVelocityY(-SLIDE_VELOCITY_CLAMP), vec3d.z * d));
 		}
 		else {
-			entity.setVelocity(new Vec3d(vec3d.x, getNewVelocityY(-0.05), vec3d.z));
+			entity.setVelocity(new Vec3d(vec3d.x, getNewVelocityY(-SLIDE_VELOCITY_CLAMP), vec3d.z));
 		}
 
 		entity.onLanding();
@@ -140,20 +143,10 @@ public class HoneyBlock extends TranslucentBlock {
 		}
 	}
 
-	/**
-	 * Добавляет regular particles.
-	 *
-	 * @param entity entity
-	 */
 	public static void addRegularParticles(Entity entity) {
 		addParticles(entity, 5);
 	}
 
-	/**
-	 * Добавляет rich particles.
-	 *
-	 * @param entity entity
-	 */
 	public static void addRichParticles(Entity entity) {
 		addParticles(entity, 10);
 	}

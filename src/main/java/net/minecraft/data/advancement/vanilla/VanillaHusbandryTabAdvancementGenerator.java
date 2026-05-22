@@ -140,12 +140,12 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 	@Override
 	public void accept(RegistryWrapper.WrapperLookup registries, Consumer<AdvancementEntry> exporter) {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
-		RegistryEntryLookup<Item> registryEntryLookup2 = registries.getOrThrow(RegistryKeys.ITEM);
+		RegistryEntryLookup<Item> itemLookup = registries.getOrThrow(RegistryKeys.ITEM);
 		RegistryEntryLookup<Block> registryEntryLookup3 = registries.getOrThrow(RegistryKeys.BLOCK);
 		RegistryWrapper<FrogVariant> registryWrapper = registries.getOrThrow(RegistryKeys.FROG_VARIANT);
 		RegistryWrapper<CatVariant> registryWrapper2 = registries.getOrThrow(RegistryKeys.CAT_VARIANT);
 		RegistryWrapper<WolfVariant> registryWrapper3 = registries.getOrThrow(RegistryKeys.WOLF_VARIANT);
-		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> enchantmentLookup = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		AdvancementEntry advancementEntry = Advancement.Builder.create()
 		                                                       .display(
 				                                                       Blocks.HAY_BLOCK,
@@ -243,7 +243,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 				BREEDABLE_ANIMALS.stream(),
 				EGG_LAYING_ANIMALS.stream()
 		);
-		requireFoodItemsEaten(Advancement.Builder.create(), registryEntryLookup2)
+		requireFoodItemsEaten(Advancement.Builder.create(), itemLookup)
 				.parent(advancementEntry2)
 				.display(
 						Items.APPLE,
@@ -291,7 +291,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 				                                                        TameAnimalCriterion.Conditions.any()
 		                                                        )
 		                                                        .build(exporter, "husbandry/tame_an_animal");
-		AdvancementEntry advancementEntry5 = requireListedFishCaught(Advancement.Builder.create(), registryEntryLookup2)
+		AdvancementEntry advancementEntry5 = requireListedFishCaught(Advancement.Builder.create(), itemLookup)
 				.parent(advancementEntry)
 				.criteriaMerger(AdvancementRequirements.CriterionMerger.OR)
 				.display(
@@ -307,7 +307,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 				.build(exporter, "husbandry/fishy_business");
 		AdvancementEntry
 				advancementEntry6 =
-				requireListedFishBucketsFilled(Advancement.Builder.create(), registryEntryLookup2)
+				requireListedFishBucketsFilled(Advancement.Builder.create(), itemLookup)
 						.parent(advancementEntry5)
 						.criteriaMerger(AdvancementRequirements.CriterionMerger.OR)
 						.display(
@@ -332,7 +332,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 						                                                        ItemPredicate.Builder
 								                                                        .create()
 								                                                        .items(
-										                                                        registryEntryLookup2,
+										                                                        itemLookup,
 										                                                        Items.AXOLOTL_BUCKET
 								                                                        ))
 		                                                        )
@@ -413,7 +413,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 						                                                        ItemPredicate.Builder
 								                                                        .create()
 								                                                        .items(
-										                                                        registryEntryLookup2,
+										                                                        itemLookup,
 										                                                        Items.GLASS_BOTTLE
 								                                                        )
 				                                                        )
@@ -460,7 +460,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 						                                                        ItemPredicate.Builder
 								                                                        .create()
 								                                                        .items(
-										                                                        registryEntryLookup2,
+										                                                        itemLookup,
 										                                                        Items.HONEYCOMB
 								                                                        )
 				                                                        )
@@ -490,7 +490,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 												                                            .get()
 												                                            .keySet()
 								                                            )),
-						                   ItemPredicate.Builder.create().items(registryEntryLookup2, AXE_ITEMS)
+						                   ItemPredicate.Builder.create().items(itemLookup, AXE_ITEMS)
 				                   )
 		                   )
 		                   .build(exporter, "husbandry/wax_off");
@@ -504,7 +504,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 						                                                         ItemPredicate.Builder
 								                                                         .create()
 								                                                         .items(
-										                                                         registryEntryLookup2,
+										                                                         itemLookup,
 										                                                         Items.TADPOLE_BUCKET
 								                                                         ))
 		                                                         )
@@ -525,7 +525,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 				advancementEntry11 =
 				requireAllFrogsOnLeads(
 						registryEntryLookup,
-						registryEntryLookup2,
+						itemLookup,
 						registryWrapper,
 						Advancement.Builder.create()
 				)
@@ -575,7 +575,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 										                                                                   ComponentPredicateTypes.ENCHANTMENTS,
 										                                                                   EnchantmentsPredicate.enchantments(
 												                                                                   List.of(new EnchantmentPredicate(
-														                                                                   impl.getOrThrow(
+														                                                                   enchantmentLookup.getOrThrow(
 																                                                                   Enchantments.SILK_TOUCH),
 														                                                                   NumberRange.IntRange.atLeast(
 																                                                                   1)
@@ -653,7 +653,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 										                   .tag(registryEntryLookup3, BlockTags.ALL_SIGNS)),
 						                   ItemPredicate.Builder
 								                   .create()
-								                   .items(registryEntryLookup2, Items.GLOW_INK_SAC)
+								                   .items(itemLookup, Items.GLOW_INK_SAC)
 				                   )
 		                   )
 		                   .build(exporter, "husbandry/make_a_sign_glow");
@@ -710,7 +710,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 								                   .block(BlockPredicate.Builder
 										                   .create()
 										                   .blocks(registryEntryLookup3, Blocks.NOTE_BLOCK)),
-						                   ItemPredicate.Builder.create().items(registryEntryLookup2, Items.CAKE)
+						                   ItemPredicate.Builder.create().items(itemLookup, Items.CAKE)
 				                   )
 		                   )
 		                   .build(exporter, "husbandry/allay_deliver_cake_to_note_block");
@@ -754,7 +754,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 						                                                         ItemPredicate.Builder
 								                                                         .create()
 								                                                         .tag(
-										                                                         registryEntryLookup2,
+										                                                         itemLookup,
 										                                                         ItemTags.SNIFFER_FOOD
 								                                                         ),
 						                                                         Optional.of(
@@ -807,7 +807,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 		                   .criterion(
 				                   "remove_wolf_armor",
 				                   PlayerInteractedWithEntityCriterion.Conditions.createPlayerShearedEquipment(
-						                   ItemPredicate.Builder.create().items(registryEntryLookup2, Items.WOLF_ARMOR),
+						                   ItemPredicate.Builder.create().items(itemLookup, Items.WOLF_ARMOR),
 						                   Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(
 								                   EntityPredicate.Builder
 										                   .create()
@@ -832,7 +832,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 				                   PlayerInteractedWithEntityCriterion.Conditions.create(
 						                   ItemPredicate.Builder
 								                   .create()
-								                   .items(registryEntryLookup2, Items.ARMADILLO_SCUTE),
+								                   .items(itemLookup, Items.ARMADILLO_SCUTE),
 						                   Optional.of(
 								                   EntityPredicate.contextPredicateFromEntityPredicate(
 										                   EntityPredicate.Builder.create()
@@ -847,7 +847,7 @@ public class VanillaHusbandryTabAdvancementGenerator implements AdvancementTabGe
 																                                          ItemPredicate.Builder
 																		                                          .create()
 																		                                          .items(
-																				                                          registryEntryLookup2,
+																				                                          itemLookup,
 																				                                          Items.WOLF_ARMOR
 																		                                          )
 																		                                          .components(

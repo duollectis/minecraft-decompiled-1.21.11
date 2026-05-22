@@ -58,7 +58,7 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 	}
 
 	protected int getBlockLight(T entity, BlockPos pos) {
-		return entity.isOnFire() ? 15 : entity.getEntityWorld().getLightLevel(LightType.BLOCK, pos);
+		return entity.isOnFire() ? World.MAX_LIGHT_LEVEL : entity.getEntityWorld().getLightLevel(LightType.BLOCK, pos);
 	}
 
 	/**
@@ -351,7 +351,7 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 	private void updateShadow(S renderState, MinecraftClient client, World world) {
 		renderState.shadowPieces.clear();
 		if (client.options.getEntityShadows().getValue() && !renderState.invisible) {
-			float f = Math.min(this.getShadowRadius(renderState), 32.0F);
+			float f = Math.min(this.getShadowRadius(renderState), SHADOW_DISTANCE_MAX);
 			renderState.shadowRadius = f;
 			if (f > 0.0F) {
 				double d = renderState.squaredDistanceToCamera;

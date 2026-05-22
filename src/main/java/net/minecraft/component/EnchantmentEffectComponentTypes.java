@@ -14,8 +14,10 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code EnchantmentEffectComponentTypes}.
- */
+	 * Реестр типов компонентов эффектов зачарований.
+	 * Каждая константа описывает один аспект поведения зачарования (урон, нокбэк, эффекты и т.д.)
+	 * и регистрируется в {@link net.minecraft.registry.Registries#ENCHANTMENT_EFFECT_COMPONENT_TYPE}.
+	 */
 public interface EnchantmentEffectComponentTypes {
 
 	Codec<ComponentType<?>>

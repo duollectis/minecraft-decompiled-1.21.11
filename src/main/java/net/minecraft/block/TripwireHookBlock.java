@@ -148,9 +148,9 @@ public class TripwireHookBlock extends Block {
 			boolean bl5 = !bl;
 			boolean bl6 = false;
 			int j = 0;
-			BlockState[] blockStates = new BlockState[42];
+			BlockState[] blockStates = new BlockState[MAX_WIRE_LENGTH];
 
-			for (int k = 1; k < 42; k++) {
+			for (int k = 1; k < MAX_WIRE_LENGTH; k++) {
 				BlockPos blockPos = pos.offset(direction, k);
 				BlockState blockState2 = world.getBlockState(blockPos);
 				if (blockState2.isOf(Blocks.TRIPWIRE_HOOK)) {
@@ -174,7 +174,7 @@ public class TripwireHookBlock extends Block {
 					bl6 |= bl7 && bl8;
 					blockStates[k] = blockState2;
 					if (k == i) {
-						world.scheduleBlockTick(pos, block, 10);
+						world.scheduleBlockTick(pos, block, SCHEDULED_TICK_DELAY);
 						bl5 &= bl7;
 					}
 				}

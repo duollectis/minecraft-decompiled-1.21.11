@@ -24,7 +24,8 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ConduitBlock}.
+ * Блок кондуита — подводное устройство, дающее эффект «Силы кондуита» игрокам в воде.
+ * По умолчанию размещается в воде (WATERLOGGED = true).
  */
 public class ConduitBlock extends BlockWithEntity implements Waterloggable {
 
@@ -39,7 +40,7 @@ public class ConduitBlock extends BlockWithEntity implements Waterloggable {
 
 	public ConduitBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, true));
+		setDefaultState(stateManager.getDefaultState().with(WATERLOGGED, true));
 	}
 
 	@Override

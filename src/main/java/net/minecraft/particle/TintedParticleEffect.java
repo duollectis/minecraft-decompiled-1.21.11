@@ -8,9 +8,13 @@ import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.ColorHelper;
 
 /**
- * {@code TintedParticleEffect}.
+ * Эффект частицы с произвольным ARGB-цветом.
+ * Используется для частиц с прозрачностью, например вспышки или листьев.
  */
 public class TintedParticleEffect implements ParticleEffect {
+
+	/** Нормализующий делитель для перевода байтового канала цвета [0..255] в float [0..1]. */
+	private static final float COLOR_CHANNEL_MAX = 255.0F;
 
 	private final ParticleType<TintedParticleEffect> type;
 	private final int color;
@@ -21,10 +25,12 @@ public class TintedParticleEffect implements ParticleEffect {
 				.fieldOf("color");
 	}
 
-	public static PacketCodec<? super ByteBuf, TintedParticleEffect> createPacketCodec(ParticleType<TintedParticleEffect> type) {
+	public static PacketCodec<? super ByteBuf, TintedParticleEffect> createPacketCodec(
+			ParticleType<TintedParticleEffect> type
+	) {
 		return PacketCodecs.INTEGER.xmap(
 				color -> new TintedParticleEffect(type, color),
-				particleEffect -> particleEffect.color
+				effect -> effect.color
 		);
 	}
 
@@ -35,23 +41,23 @@ public class TintedParticleEffect implements ParticleEffect {
 
 	@Override
 	public ParticleType<TintedParticleEffect> getType() {
-		return this.type;
+		return type;
 	}
 
 	public float getRed() {
-		return ColorHelper.getRed(this.color) / 255.0F;
+		return ColorHelper.getRed(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getGreen() {
-		return ColorHelper.getGreen(this.color) / 255.0F;
+		return ColorHelper.getGreen(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getBlue() {
-		return ColorHelper.getBlue(this.color) / 255.0F;
+		return ColorHelper.getBlue(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getAlpha() {
-		return ColorHelper.getAlpha(this.color) / 255.0F;
+		return ColorHelper.getAlpha(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public static TintedParticleEffect create(ParticleType<TintedParticleEffect> type, int color) {

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * {@code LevelPrioritizedQueue}.
+ * Класс Level Prioritized Queue.
  */
 public class LevelPrioritizedQueue {
 
@@ -115,9 +115,6 @@ public class LevelPrioritizedQueue {
 		return this.name + " " + this.topPriority + "...";
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	public record Entry(long chunkPos, List<Runnable> tasks) {
 	}
 }

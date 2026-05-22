@@ -9,7 +9,8 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code SandBlock}.
+ * Блок песка. Расширяет {@code ColoredFallingBlock} и дополнительно воспроизводит
+ * звуки пустынного окружения при случайном тике отображения.
  */
 public class SandBlock extends ColoredFallingBlock {
 

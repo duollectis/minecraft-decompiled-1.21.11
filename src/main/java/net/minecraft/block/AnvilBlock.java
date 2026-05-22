@@ -29,23 +29,26 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code AnvilBlock}.
+ * Блок наковальни — падающий блок, открывающий экран ремонта.
+ * При падении наносит урон сущностям и может сломаться (переходит в следующую стадию износа).
  */
 public class AnvilBlock extends FallingBlock {
 
 	public static final MapCodec<AnvilBlock> CODEC = createCodec(AnvilBlock::new);
 	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+
 	private static final Map<Direction.Axis, VoxelShape> SHAPES_BY_AXIS = VoxelShapes.createHorizontalAxisShapeMap(
-			VoxelShapes.union(
-					Block.createColumnShape(12.0, 0.0, 4.0),
-					Block.createColumnShape(8.0, 10.0, 4.0, 5.0),
-					Block.createColumnShape(4.0, 8.0, 5.0, 10.0),
-					Block.createColumnShape(10.0, 16.0, 10.0, 16.0)
-			)
+		VoxelShapes.union(
+			Block.createColumnShape(12.0, 0.0, 4.0),
+			Block.createColumnShape(8.0, 10.0, 4.0, 5.0),
+			Block.createColumnShape(4.0, 8.0, 5.0, 10.0),
+			Block.createColumnShape(10.0, 16.0, 10.0, 16.0)
+		)
 	);
+
 	private static final Text TITLE = Text.translatable("container.repair");
-	private static final float FALLING_BLOCK_ENTITY_DAMAGE_MULTIPLIER = 2.0F;
-	private static final int FALLING_BLOCK_ENTITY_MAX_DAMAGE = 40;
+	private static final float FALLING_DAMAGE_MULTIPLIER = 2.0F;
+	private static final int FALLING_MAX_DAMAGE = 40;
 
 	@Override
 	public MapCodec<AnvilBlock> getCodec() {
@@ -54,12 +57,12 @@ public class AnvilBlock extends FallingBlock {
 
 	public AnvilBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH));
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().rotateYClockwise());
+		return getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().rotateYClockwise());
 	}
 
 	@Override
@@ -74,16 +77,17 @@ public class AnvilBlock extends FallingBlock {
 
 	@Override
 	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
-			BlockState state,
-			World world,
-			BlockPos pos
+		BlockState state,
+		World world,
+		BlockPos pos
 	) {
 		return new SimpleNamedScreenHandlerFactory(
-				(syncId, inventory, player) -> new AnvilScreenHandler(
-						syncId,
-						inventory,
-						ScreenHandlerContext.create(world, pos)
-				), TITLE
+			(syncId, inventory, player) -> new AnvilScreenHandler(
+				syncId,
+				inventory,
+				ScreenHandlerContext.create(world, pos)
+			),
+			TITLE
 		);
 	}
 
@@ -94,16 +98,16 @@ public class AnvilBlock extends FallingBlock {
 
 	@Override
 	protected void configureFallingBlockEntity(FallingBlockEntity entity) {
-		entity.setHurtEntities(2.0F, 40);
+		entity.setHurtEntities(FALLING_DAMAGE_MULTIPLIER, FALLING_MAX_DAMAGE);
 	}
 
 	@Override
 	public void onLanding(
-			World world,
-			BlockPos pos,
-			BlockState fallingBlockState,
-			BlockState currentStateInPos,
-			FallingBlockEntity fallingBlockEntity
+		World world,
+		BlockPos pos,
+		BlockState fallingBlockState,
+		BlockState currentStateInPos,
+		FallingBlockEntity fallingBlockEntity
 	) {
 		if (!fallingBlockEntity.isSilent()) {
 			world.syncWorldEvent(1031, pos, 0);
@@ -122,15 +126,18 @@ public class AnvilBlock extends FallingBlock {
 		return attacker.getDamageSources().fallingAnvil(attacker);
 	}
 
+	/**
+	 * Возвращает следующее состояние износа наковальни при падении:
+	 * обычная → щербатая → повреждённая → null (разрушается).
+	 */
 	public static @Nullable BlockState getLandingState(BlockState fallingState) {
 		if (fallingState.isOf(Blocks.ANVIL)) {
 			return Blocks.CHIPPED_ANVIL.getDefaultState().with(FACING, fallingState.get(FACING));
 		}
-		else {
-			return fallingState.isOf(Blocks.CHIPPED_ANVIL) ? Blocks.DAMAGED_ANVIL
-			                                                 .getDefaultState()
-			                                                 .with(FACING, fallingState.get(FACING)) : null;
-		}
+
+		return fallingState.isOf(Blocks.CHIPPED_ANVIL)
+			? Blocks.DAMAGED_ANVIL.getDefaultState().with(FACING, fallingState.get(FACING))
+			: null;
 	}
 
 	@Override

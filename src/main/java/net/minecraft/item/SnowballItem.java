@@ -14,11 +14,12 @@ import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
 /**
- * {@code SnowballItem}.
+ * Предмет «Снежок» — бросаемый снаряд, наносящий небольшой урон и отбрасывающий мобов.
+ * Реализует {@link ProjectileItem} для поддержки выстрела из диспенсера.
  */
 public class SnowballItem extends Item implements ProjectileItem {
 
-	public static float POWER = 1.5F;
+	public static final float POWER = 1.5F;
 
 	public SnowballItem(Item.Settings settings) {
 		super(settings);
@@ -26,23 +27,26 @@ public class SnowballItem extends Item implements ProjectileItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		world.playSound(
-				null,
-				user.getX(),
-				user.getY(),
-				user.getZ(),
-				SoundEvents.ENTITY_SNOWBALL_THROW,
-				SoundCategory.NEUTRAL,
-				0.5F,
-				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+			null,
+			user.getX(),
+			user.getY(),
+			user.getZ(),
+			SoundEvents.ENTITY_SNOWBALL_THROW,
+			SoundCategory.NEUTRAL,
+			0.5F,
+			0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
 		);
+
 		if (world instanceof ServerWorld serverWorld) {
-			ProjectileEntity.spawnWithVelocity(SnowballEntity::new, serverWorld, itemStack, user, 0.0F, POWER, 1.0F);
+			ProjectileEntity.spawnWithVelocity(SnowballEntity::new, serverWorld, stack, user, 0.0F, POWER, 1.0F);
 		}
 
 		user.incrementStat(Stats.USED.getOrCreateStat(this));
-		itemStack.decrementUnlessCreative(1, user);
+		stack.decrementUnlessCreative(1, user);
+
 		return ActionResult.SUCCESS;
 	}
 

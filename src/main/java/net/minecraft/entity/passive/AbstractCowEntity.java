@@ -21,13 +21,15 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code AbstractCowEntity}.
+ * Базовый класс для всех коров (обычная корова, мушрум).
+ * Содержит общую логику: цели ИИ, звуки, доение ведром.
  */
 public abstract class AbstractCowEntity extends AnimalEntity {
 
-	private static final EntityDimensions
-			BABY_BASE_DIMENSIONS =
-			EntityType.COW.getDimensions().scaled(0.5F).withEyeHeight(0.665F);
+	private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.COW
+			.getDimensions()
+			.scaled(0.5F)
+			.withEyeHeight(0.665F);
 
 	public AbstractCowEntity(EntityType<? extends AbstractCowEntity> entityType, World world) {
 		super(entityType, world);
@@ -35,14 +37,14 @@ public abstract class AbstractCowEntity extends AnimalEntity {
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
-		this.goalSelector.add(2, new AnimalMateGoal(this, 1.0));
-		this.goalSelector.add(3, new TemptGoal(this, 1.25, stack -> stack.isIn(ItemTags.COW_FOOD), false));
-		this.goalSelector.add(4, new FollowParentGoal(this, 1.25));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-		this.goalSelector.add(7, new LookAroundGoal(this));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
+		goalSelector.add(2, new AnimalMateGoal(this, 1.0));
+		goalSelector.add(3, new TemptGoal(this, 1.25, stack -> stack.isIn(ItemTags.COW_FOOD), false));
+		goalSelector.add(4, new FollowParentGoal(this, 1.25));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		goalSelector.add(7, new LookAroundGoal(this));
 	}
 
 	@Override
@@ -51,8 +53,7 @@ public abstract class AbstractCowEntity extends AnimalEntity {
 	}
 
 	public static DefaultAttributeContainer.Builder createCowAttributes() {
-		return AnimalEntity
-				.createAnimalAttributes()
+		return AnimalEntity.createAnimalAttributes()
 				.add(EntityAttributes.MAX_HEALTH, 10.0)
 				.add(EntityAttributes.MOVEMENT_SPEED, 0.2F);
 	}
@@ -74,7 +75,7 @@ public abstract class AbstractCowEntity extends AnimalEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_COW_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_COW_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
@@ -84,20 +85,19 @@ public abstract class AbstractCowEntity extends AnimalEntity {
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isOf(Items.BUCKET) && !this.isBaby()) {
+		ItemStack held = player.getStackInHand(hand);
+		if (held.isOf(Items.BUCKET) && !isBaby()) {
 			player.playSound(SoundEvents.ENTITY_COW_MILK, 1.0F, 1.0F);
-			ItemStack itemStack2 = ItemUsage.exchangeStack(itemStack, player, Items.MILK_BUCKET.getDefaultStack());
-			player.setStackInHand(hand, itemStack2);
+			ItemStack milkBucket = ItemUsage.exchangeStack(held, player, Items.MILK_BUCKET.getDefaultStack());
+			player.setStackInHand(hand, milkBucket);
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 }

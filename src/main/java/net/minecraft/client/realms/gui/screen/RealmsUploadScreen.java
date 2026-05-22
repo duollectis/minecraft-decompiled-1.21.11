@@ -199,10 +199,10 @@ public class RealmsUploadScreen extends RealmsScreen implements UploadProgressTr
 	private void drawProgressBar(DrawContext context) {
 		double d = this.uploadProgress.getFractionBytesWritten();
 		this.progress = String.format(Locale.ROOT, "%.1f", d * 100.0);
-		int i = (this.width - 200) / 2;
+		int i = (this.width - PROGRESS_BAR_WIDTH) / 2;
 		int j = i + (int) Math.round(200.0 * d);
 		context.fill(i - 1, 79, j + 1, 96, -1);
-		context.fill(i, 80, j, 95, -8355712);
+		context.fill(i, PROGRESS_BAR_TOP, j, PROGRESS_BAR_BOTTOM, -8355712);
 		context.drawCenteredTextWithShadow(
 				this.textRenderer,
 				Text.translatable("mco.upload.percent", this.progress),

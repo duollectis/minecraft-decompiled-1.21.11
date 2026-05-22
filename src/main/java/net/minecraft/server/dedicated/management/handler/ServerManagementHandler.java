@@ -7,7 +7,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code ServerManagementHandler}.
+ * Класс Server Management Handler.
  */
 public interface ServerManagementHandler {
 

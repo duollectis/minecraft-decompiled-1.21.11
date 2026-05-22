@@ -76,7 +76,7 @@ public class BlockStateArgument implements Predicate<CachedBlockPosition> {
 	}
 
 	public boolean setBlockState(ServerWorld world, BlockPos pos, @Block.SetBlockStateFlag int flags) {
-		BlockState blockState = (flags & 16) != 0 ? this.state : Block.postProcessState(this.state, world, pos);
+		BlockState blockState = (flags & Block.FORCE_STATE) != 0 ? this.state : Block.postProcessState(this.state, world, pos);
 		if (blockState.isAir()) {
 			blockState = this.state;
 		}

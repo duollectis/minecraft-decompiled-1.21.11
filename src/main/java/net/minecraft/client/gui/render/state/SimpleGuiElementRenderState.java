@@ -8,12 +8,17 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.texture.TextureSetup;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleGuiElementRenderState}.
+ * Интерфейс состояния простого GUI-элемента, отрисовываемого напрямую через вершинный буфер.
+ * Определяет контракт для элементов, которые самостоятельно записывают свои вершины
+ * и несут информацию о пайплайне, текстуре и области отсечения.
  */
+@Environment(EnvType.CLIENT)
 public interface SimpleGuiElementRenderState extends GuiElementRenderState {
 
+	/**
+	 * Записывает вершины элемента в переданный {@link VertexConsumer}.
+	 */
 	void setupVertices(VertexConsumer vertices);
 
 	RenderPipeline pipeline();

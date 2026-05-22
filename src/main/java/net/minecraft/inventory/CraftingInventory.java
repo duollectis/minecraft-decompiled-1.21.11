@@ -9,7 +9,10 @@ import net.minecraft.util.collection.DefaultedList;
 import java.util.List;
 
 /**
- * {@code CraftingInventory}.
+ * Инвентарь сетки крафта, привязанный к {@link ScreenHandler}.
+ * Любое изменение содержимого немедленно уведомляет обработчик экрана
+ * через {@link ScreenHandler#onContentChanged(Inventory)}, что инициирует
+ * пересчёт доступных рецептов.
  */
 public class CraftingInventory implements RecipeInputInventory {
 
@@ -31,13 +34,13 @@ public class CraftingInventory implements RecipeInputInventory {
 
 	@Override
 	public int size() {
-		return this.stacks.size();
+		return stacks.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		for (ItemStack itemStack : this.stacks) {
-			if (!itemStack.isEmpty()) {
+		for (ItemStack stack : stacks) {
+			if (!stack.isEmpty()) {
 				return false;
 			}
 		}
@@ -47,28 +50,29 @@ public class CraftingInventory implements RecipeInputInventory {
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return slot >= this.size() ? ItemStack.EMPTY : this.stacks.get(slot);
+		return slot >= size() ? ItemStack.EMPTY : stacks.get(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		return Inventories.removeStack(this.stacks, slot);
+		return Inventories.removeStack(stacks, slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		ItemStack itemStack = Inventories.splitStack(this.stacks, slot, amount);
-		if (!itemStack.isEmpty()) {
-			this.handler.onContentChanged(this);
+		ItemStack removed = Inventories.splitStack(stacks, slot, amount);
+
+		if (!removed.isEmpty()) {
+			handler.onContentChanged(this);
 		}
 
-		return itemStack;
+		return removed;
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		this.stacks.set(slot, stack);
-		this.handler.onContentChanged(this);
+		stacks.set(slot, stack);
+		handler.onContentChanged(this);
 	}
 
 	@Override
@@ -82,28 +86,28 @@ public class CraftingInventory implements RecipeInputInventory {
 
 	@Override
 	public void clear() {
-		this.stacks.clear();
+		stacks.clear();
 	}
 
 	@Override
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	@Override
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	@Override
 	public List<ItemStack> getHeldStacks() {
-		return List.copyOf(this.stacks);
+		return List.copyOf(stacks);
 	}
 
 	@Override
 	public void provideRecipeInputs(RecipeFinder finder) {
-		for (ItemStack itemStack : this.stacks) {
-			finder.addInputIfUsable(itemStack);
+		for (ItemStack stack : stacks) {
+			finder.addInputIfUsable(stack);
 		}
 	}
 }

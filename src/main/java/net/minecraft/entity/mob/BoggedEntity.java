@@ -29,15 +29,17 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BoggedEntity}.
+ * Болотный скелет — вариант скелета, стреляющий отравленными стрелами.
  */
 public class BoggedEntity extends AbstractSkeletonEntity implements Shearable {
 
+	private static final int POISON_ARROW_DURATION = 100;
+	private static final int HARD_ATTACK_INTERVAL = 50;
+	private static final int REGULAR_ATTACK_INTERVAL = 70;
+	private static final String SHEARED_KEY = "sheared";
 	private static final TrackedData<Boolean>
 			SHEARED =
 			DataTracker.registerData(BoggedEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final String SHEARED_KEY = "sheared";
-	private static final boolean DEFAULT_SHEARED = false;
 
 	public static DefaultAttributeContainer.Builder createBoggedAttributes() {
 		return AbstractSkeletonEntity.createAbstractSkeletonAttributes().add(EntityAttributes.MAX_HEALTH, 16.0);
@@ -56,38 +58,37 @@ public class BoggedEntity extends AbstractSkeletonEntity implements Shearable {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("sheared", this.isSheared());
+		view.putBoolean(SHEARED_KEY, isSheared());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setSheared(view.getBoolean("sheared", false));
+		setSheared(view.getBoolean(SHEARED_KEY, false));
 	}
 
 	public boolean isSheared() {
-		return this.dataTracker.get(SHEARED);
+		return dataTracker.get(SHEARED);
 	}
 
 	public void setSheared(boolean sheared) {
-		this.dataTracker.set(SHEARED, sheared);
+		dataTracker.set(SHEARED, sheared);
 	}
 
 	@Override
 	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
 		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isOf(Items.SHEARS) && this.isShearable()) {
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-				this.sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
-				this.emitGameEvent(GameEvent.SHEAR, player);
-				itemStack.damage(1, player, hand.getEquipmentSlot());
-			}
-
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (!itemStack.isOf(Items.SHEARS) || !isShearable()) {
 			return super.interactMob(player, hand);
 		}
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
+			emitGameEvent(GameEvent.SHEAR, player);
+			itemStack.damage(1, player, hand.getEquipmentSlot());
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -116,44 +117,42 @@ public class BoggedEntity extends AbstractSkeletonEntity implements Shearable {
 			float damageModifier,
 			@Nullable ItemStack shotFrom
 	) {
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				super.createArrowProjectile(arrow, damageModifier, shotFrom);
-		if (persistentProjectileEntity instanceof ArrowEntity arrowEntity) {
-			arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.POISON, 100));
+		PersistentProjectileEntity arrow2 = super.createArrowProjectile(arrow, damageModifier, shotFrom);
+		if (arrow2 instanceof ArrowEntity arrowEntity) {
+			arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.POISON, POISON_ARROW_DURATION));
 		}
 
-		return persistentProjectileEntity;
+		return arrow2;
 	}
 
 	@Override
 	protected int getHardAttackInterval() {
-		return 50;
+		return HARD_ATTACK_INTERVAL;
 	}
 
 	@Override
 	protected int getRegularAttackInterval() {
-		return 70;
+		return REGULAR_ATTACK_INTERVAL;
 	}
 
 	@Override
 	public void sheared(ServerWorld world, SoundCategory shearedSoundCategory, ItemStack shears) {
 		world.playSoundFromEntity(null, this, SoundEvents.ENTITY_BOGGED_SHEAR, shearedSoundCategory, 1.0F, 1.0F);
-		this.dropShearedItems(world, shears);
-		this.setSheared(true);
+		dropShearedItems(world, shears);
+		setSheared(true);
 	}
 
 	private void dropShearedItems(ServerWorld world, ItemStack shears) {
-		this.forEachShearedItem(
+		forEachShearedItem(
 				world,
 				LootTables.BOGGED_SHEARING,
 				shears,
-				(worldx, stack) -> this.dropStack(worldx, stack, this.getHeight())
+				(serverWorld, stack) -> dropStack(serverWorld, stack, getHeight())
 		);
 	}
 
 	@Override
 	public boolean isShearable() {
-		return !this.isSheared() && this.isAlive();
+		return !isSheared() && isAlive();
 	}
 }

@@ -21,7 +21,9 @@ import net.minecraft.util.math.random.Random;
 import java.util.Optional;
 
 /**
- * {@code ApplyMobEffectEnchantmentEffect}.
+ * Эффект зачарования, накладывающий случайный статус-эффект из заданного списка.
+ * Длительность и усилитель выбираются случайно в диапазоне [{@code min}, {@code max}] для уровня зачарования.
+ * Длительность конвертируется из секунд в тики (умножение на 20).
  */
 public record ApplyMobEffectEnchantmentEffect(
 		RegistryEntryList<StatusEffect> toApply,
@@ -33,52 +35,47 @@ public record ApplyMobEffectEnchantmentEffect(
 
 	public static final MapCodec<ApplyMobEffectEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.STATUS_EFFECT)
-							                    .fieldOf("to_apply")
-							                    .forGetter(ApplyMobEffectEnchantmentEffect::toApply),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("min_duration")
-							                    .forGetter(ApplyMobEffectEnchantmentEffect::minDuration),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("max_duration")
-							                    .forGetter(ApplyMobEffectEnchantmentEffect::maxDuration),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("min_amplifier")
-							                    .forGetter(ApplyMobEffectEnchantmentEffect::minAmplifier),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("max_amplifier")
-							                    .forGetter(ApplyMobEffectEnchantmentEffect::maxAmplifier)
-			                    )
-			                    .apply(instance, ApplyMobEffectEnchantmentEffect::new)
+					RegistryCodecs
+							.entryList(RegistryKeys.STATUS_EFFECT)
+							.fieldOf("to_apply")
+							.forGetter(ApplyMobEffectEnchantmentEffect::toApply),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("min_duration")
+							.forGetter(ApplyMobEffectEnchantmentEffect::minDuration),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("max_duration")
+							.forGetter(ApplyMobEffectEnchantmentEffect::maxDuration),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("min_amplifier")
+							.forGetter(ApplyMobEffectEnchantmentEffect::minAmplifier),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("max_amplifier")
+							.forGetter(ApplyMobEffectEnchantmentEffect::maxAmplifier)
+			).apply(instance, ApplyMobEffectEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		if (user instanceof LivingEntity livingEntity) {
-			Random random = livingEntity.getRandom();
-			Optional<RegistryEntry<StatusEffect>> optional = this.toApply.getRandom(random);
-			if (optional.isPresent()) {
-				int
-						i =
-						Math.round(MathHelper.nextBetween(
-								random,
-								this.minDuration.getValue(level),
-								this.maxDuration.getValue(level)
-						) * 20.0F);
-				int
-						j =
-						Math.max(
-								0,
-								Math.round(MathHelper.nextBetween(
-										random,
-										this.minAmplifier.getValue(level),
-										this.maxAmplifier.getValue(level)
-								))
-						);
-				livingEntity.addStatusEffect(new StatusEffectInstance(optional.get(), i, j));
-			}
+		if (!(user instanceof LivingEntity livingEntity)) {
+			return;
 		}
+
+		Random random = livingEntity.getRandom();
+		Optional<RegistryEntry<StatusEffect>> chosenEffect = toApply.getRandom(random);
+
+		if (chosenEffect.isEmpty()) {
+			return;
+		}
+
+		int durationTicks = Math.round(
+				MathHelper.nextBetween(random, minDuration.getValue(level), maxDuration.getValue(level)) * 20.0F
+		);
+		int amplifier = Math.max(
+				0,
+				Math.round(MathHelper.nextBetween(random, minAmplifier.getValue(level), maxAmplifier.getValue(level)))
+		);
+
+		livingEntity.addStatusEffect(new StatusEffectInstance(chosenEffect.get(), durationTicks, amplifier));
 	}
 
 	@Override

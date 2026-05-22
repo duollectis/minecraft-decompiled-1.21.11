@@ -8,29 +8,26 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code UniformFloatProvider}.
+ * Провайдер, генерирующий значения по равномерному распределению в диапазоне [min, max).
  */
 public class UniformFloatProvider extends FloatProvider {
 
-	public static final MapCodec<UniformFloatProvider> CODEC = RecordCodecBuilder.<UniformFloatProvider>mapCodec(
-			                                                                             instance -> instance.group(
-					                                                                                                 Codec.FLOAT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
-					                                                                                                 Codec.FLOAT.fieldOf("max_exclusive").forGetter(provider -> provider.max)
-			                                                                                                 )
-			                                                                                                 .apply(instance, UniformFloatProvider::new)
-	                                                                             )
-	                                                                             .validate(
-			                                                                             (UniformFloatProvider provider) ->
-					                                                                             provider.max
-							                                                                             <= provider.min
-					                                                                             ? DataResult.error(() ->
-					                                                                                                "Max must be larger than min, min_inclusive: "
-					                                                                                                + provider.min
-					                                                                                                + ", max_exclusive: "
-					                                                                                                + provider.max)
-					                                                                             : DataResult.success(
-							                                                                             provider)
-	                                                                             );
+	public static final MapCodec<UniformFloatProvider> CODEC = RecordCodecBuilder
+		.<UniformFloatProvider>mapCodec(
+			instance -> instance.group(
+				Codec.FLOAT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
+				Codec.FLOAT.fieldOf("max_exclusive").forGetter(provider -> provider.max)
+			).apply(instance, UniformFloatProvider::new)
+		)
+		.validate(
+			provider -> provider.max <= provider.min
+				? DataResult.error(
+					() -> "Max must be larger than min, min_inclusive: " + provider.min
+						+ ", max_exclusive: " + provider.max
+				)
+				: DataResult.success(provider)
+		);
+
 	private final float min;
 	private final float max;
 
@@ -39,36 +36,27 @@ public class UniformFloatProvider extends FloatProvider {
 		this.max = max;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return UniformFloatProvider — результат операции
-	 */
 	public static UniformFloatProvider create(float min, float max) {
 		if (max <= min) {
 			throw new IllegalArgumentException("Max must exceed min");
 		}
-		else {
-			return new UniformFloatProvider(min, max);
-		}
+
+		return new UniformFloatProvider(min, max);
 	}
 
 	@Override
 	public float get(Random random) {
-		return MathHelper.nextBetween(random, this.min, this.max);
+		return MathHelper.nextBetween(random, min, max);
 	}
 
 	@Override
 	public float getMin() {
-		return this.min;
+		return min;
 	}
 
 	@Override
 	public float getMax() {
-		return this.max;
+		return max;
 	}
 
 	@Override
@@ -78,6 +66,6 @@ public class UniformFloatProvider extends FloatProvider {
 
 	@Override
 	public String toString() {
-		return "[" + this.min + "-" + this.max + "]";
+		return "[" + min + "-" + max + "]";
 	}
 }

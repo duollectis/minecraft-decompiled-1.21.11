@@ -2,9 +2,7 @@ package net.minecraft.entity.ai.goal;
 
 import java.util.EnumSet;
 
-/**
- * {@code DiveJumpingGoal}.
- */
+/** Базовая цель прыжка с нырком: захватывает управление движением и прыжком. */
 public abstract class DiveJumpingGoal extends Goal {
 
 	public DiveJumpingGoal() {

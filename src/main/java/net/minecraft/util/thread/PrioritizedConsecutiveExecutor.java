@@ -5,7 +5,8 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
- * {@code PrioritizedConsecutiveExecutor}.
+ * Реализация {@link ConsecutiveExecutor} с приоритетной очередью задач.
+ * Задачи с меньшим числовым значением приоритета выполняются раньше.
  */
 public class PrioritizedConsecutiveExecutor extends ConsecutiveExecutor<TaskQueue.PrioritizedTask> {
 
@@ -19,16 +20,12 @@ public class PrioritizedConsecutiveExecutor extends ConsecutiveExecutor<TaskQueu
 	}
 
 	/**
-	 * Execute async.
-	 *
-	 * @param priority priority
-	 * @param future future
-	 *
-	 * @return CompletableFuture — результат операции
+	 * Ставит в очередь задачу с заданным приоритетом, которая заполняет переданный {@link CompletableFuture}.
+	 * Позволяет вызывающему коду ожидать завершения задачи асинхронно.
 	 */
 	public <Source> CompletableFuture<Source> executeAsync(int priority, Consumer<CompletableFuture<Source>> future) {
 		CompletableFuture<Source> completableFuture = new CompletableFuture<>();
-		this.send(new TaskQueue.PrioritizedTask(priority, () -> future.accept(completableFuture)));
+		send(new TaskQueue.PrioritizedTask(priority, () -> future.accept(completableFuture)));
 		return completableFuture;
 	}
 }

@@ -6,11 +6,20 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SculkChargeParticleEffect;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SculkChargeParticle}.
+ * Частица заряда скалка: анимированная полупрозрачная частица с полной
+ * яркостью, которая вращается в соответствии с параметром {@code roll}
+ * из эффекта. Используется для визуализации распространения заряда скалка
+ * по поверхностям.
  */
+@Environment(EnvType.CLIENT)
 public class SculkChargeParticle extends BillboardParticle {
+
+	private static final float VELOCITY_MULTIPLIER = 0.96F;
+	private static final float INITIAL_SCALE = 1.5F;
+	private static final int FULL_BRIGHTNESS = 240;
+	private static final int MIN_LIFETIME = 8;
+	private static final int LIFETIME_VARIANCE = 12;
 
 	private final SpriteProvider spriteProvider;
 
@@ -25,16 +34,16 @@ public class SculkChargeParticle extends BillboardParticle {
 			SpriteProvider spriteProvider
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getFirst());
-		this.velocityMultiplier = 0.96F;
+		this.velocityMultiplier = VELOCITY_MULTIPLIER;
 		this.spriteProvider = spriteProvider;
-		this.scale(1.5F);
+		this.scale(INITIAL_SCALE);
 		this.collidesWithWorld = false;
 		this.updateSprite(spriteProvider);
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -48,32 +57,32 @@ public class SculkChargeParticle extends BillboardParticle {
 		this.updateSprite(this.spriteProvider);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц заряда скалка. Устанавливает угол вращения
+	 * из параметра {@code roll} эффекта и случайное время жизни 8–19 тиков.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Factory(SpriteProvider spriteProvider) implements ParticleFactory<SculkChargeParticleEffect> {
 
+		@Override
 		public Particle createParticle(
-				SculkChargeParticleEffect sculkChargeParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SculkChargeParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SculkChargeParticle
-					sculkChargeParticle =
-					new SculkChargeParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-			sculkChargeParticle.setAlpha(1.0F);
-			sculkChargeParticle.setVelocity(g, h, i);
-			sculkChargeParticle.lastZRotation = sculkChargeParticleEffect.roll();
-			sculkChargeParticle.zRotation = sculkChargeParticleEffect.roll();
-			sculkChargeParticle.setMaxAge(random.nextInt(12) + 8);
-			return sculkChargeParticle;
+			SculkChargeParticle particle = new SculkChargeParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
+			particle.setAlpha(1.0F);
+			particle.setVelocity(velocityX, velocityY, velocityZ);
+			particle.lastZRotation = effect.roll();
+			particle.zRotation = effect.roll();
+			particle.setMaxAge(random.nextInt(LIFETIME_VARIANCE) + MIN_LIFETIME);
+			return particle;
 		}
 	}
 }

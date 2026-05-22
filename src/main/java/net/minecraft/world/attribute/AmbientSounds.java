@@ -12,27 +12,28 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code AmbientSounds}.
+ * Описывает набор фоновых звуков окружения биома: зацикленный звук,
+ * звук настроения (mood) и список дополнительных звуков (additions).
  */
 public record AmbientSounds(
-		Optional<RegistryEntry<SoundEvent>> loop,
-		Optional<BiomeMoodSound> mood,
-		List<BiomeAdditionsSound> additions
+	Optional<RegistryEntry<SoundEvent>> loop,
+	Optional<BiomeMoodSound> mood,
+	List<BiomeAdditionsSound> additions
 ) {
 
+	/** Пустой набор звуков — тишина. */
 	public static final AmbientSounds DEFAULT = new AmbientSounds(Optional.empty(), Optional.empty(), List.of());
-	public static final AmbientSounds
-			CAVE =
-			new AmbientSounds(Optional.empty(), Optional.of(BiomeMoodSound.CAVE), List.of());
+
+	/** Стандартный набор звуков пещеры с mood-звуком {@link BiomeMoodSound#CAVE}. */
+	public static final AmbientSounds CAVE = new AmbientSounds(Optional.empty(), Optional.of(BiomeMoodSound.CAVE), List.of());
+
 	public static final Codec<AmbientSounds> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("loop").forGetter(AmbientSounds::loop),
-					                    BiomeMoodSound.CODEC.optionalFieldOf("mood").forGetter(AmbientSounds::mood),
-					                    Codecs
-							                    .listOrSingle(BiomeAdditionsSound.CODEC)
-							                    .optionalFieldOf("additions", List.of())
-							                    .forGetter(AmbientSounds::additions)
-			                    )
-			                    .apply(instance, AmbientSounds::new)
+		instance -> instance.group(
+			SoundEvent.ENTRY_CODEC.optionalFieldOf("loop").forGetter(AmbientSounds::loop),
+			BiomeMoodSound.CODEC.optionalFieldOf("mood").forGetter(AmbientSounds::mood),
+			Codecs.listOrSingle(BiomeAdditionsSound.CODEC)
+				.optionalFieldOf("additions", List.of())
+				.forGetter(AmbientSounds::additions)
+		).apply(instance, AmbientSounds::new)
 	);
 }

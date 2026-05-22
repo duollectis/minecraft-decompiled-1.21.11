@@ -1,7 +1,8 @@
 package net.minecraft.test;
 
 /**
- * {@code TestListener}.
+ * Слушатель событий жизненного цикла отдельного теста.
+ * Используется для отслеживания старта, прохождения, провала и повтора теста.
  */
 public interface TestListener {
 

@@ -21,7 +21,7 @@ public abstract class ParticleRenderer<P extends Particle> {
 
 	private static final int QUEUE_SIZE = 16384;
 	protected final ParticleManager particleManager;
-	protected final Queue<P> particles = EvictingQueue.create(16384);
+	protected final Queue<P> particles = EvictingQueue.create(QUEUE_SIZE);
 
 	public ParticleRenderer(ParticleManager particleManager) {
 		this.particleManager = particleManager;

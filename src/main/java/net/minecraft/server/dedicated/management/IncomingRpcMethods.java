@@ -6,7 +6,7 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 
 /**
- * {@code IncomingRpcMethods}.
+ * Класс Incoming Rpc Methods.
  */
 public class IncomingRpcMethods {
 

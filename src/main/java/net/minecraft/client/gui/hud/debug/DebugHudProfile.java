@@ -23,14 +23,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DebugHudProfile}.
+ * Профиль видимости записей отладочного HUD. Хранит состояние в JSON-файле
+ * и поддерживает как предустановленные профили, так и пользовательские настройки.
  */
+@Environment(EnvType.CLIENT)
 public class DebugHudProfile {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int PROFILE_COLOR = 4649;
+
 	private Map<Identifier, DebugHudEntryVisibility> visibilityMap;
 	private final List<Identifier> visibleEntries = new ArrayList<>();
 	private boolean f3Enabled = false;
@@ -41,218 +43,195 @@ public class DebugHudProfile {
 
 	public DebugHudProfile(File file) {
 		this.file = new File(file, "debug-profile.json");
-		this.codec =
-				DataFixTypes.DEBUG_PROFILE.createDataFixingCodec(
-						DebugHudProfile.Serialization.CODEC,
-						MinecraftClient.getInstance().getDataFixer(),
-						4649
-				);
-		this.readProfileFile();
+		codec = DataFixTypes.DEBUG_PROFILE.createDataFixingCodec(
+			DebugHudProfile.Serialization.CODEC,
+			MinecraftClient.getInstance().getDataFixer(),
+			PROFILE_COLOR
+		);
+		readProfileFile();
 	}
 
 	/**
-	 * Читает profile file.
+	 * Читает профиль из файла. При отсутствии файла или ошибке парсинга
+	 * сбрасывает к профилю по умолчанию и сохраняет его.
 	 */
 	public void readProfileFile() {
 		try {
-			if (!this.file.isFile()) {
-				this.setToDefault();
-				this.updateVisibleEntries();
+			if (!file.isFile()) {
+				setToDefault();
+				updateVisibleEntries();
 				return;
 			}
 
-			Dynamic<JsonElement>
-					dynamic =
-					new Dynamic(
-							JsonOps.INSTANCE,
-							StrictJsonParser.parse(FileUtils.readFileToString(this.file, StandardCharsets.UTF_8))
-					);
-			DebugHudProfile.Serialization serialization = (DebugHudProfile.Serialization) this.codec
-					.parse(dynamic)
-					.getOrThrow(error -> new IOException("Could not parse debug profile JSON: " + error));
+			Dynamic<JsonElement> dynamic = new Dynamic<>(
+				JsonOps.INSTANCE,
+				StrictJsonParser.parse(FileUtils.readFileToString(file, StandardCharsets.UTF_8))
+			);
+			DebugHudProfile.Serialization serialization = (DebugHudProfile.Serialization) codec
+				.parse(dynamic)
+				.getOrThrow(error -> new IOException("Could not parse debug profile JSON: " + error));
+
 			if (serialization.profile().isPresent()) {
-				this.setProfileType(serialization.profile().get());
+				setProfileType(serialization.profile().get());
+			} else {
+				visibilityMap = new HashMap<>();
+				serialization.custom().ifPresent(visibilityMap::putAll);
+				type = null;
 			}
-			else {
-				this.visibilityMap = new HashMap<>();
-				if (serialization.custom().isPresent()) {
-					this.visibilityMap.putAll(serialization.custom().get());
-				}
-
-				this.type = null;
-			}
-		}
-		catch (JsonSyntaxException | IOException var3) {
-			LOGGER.error("Couldn't read debug profile file {}, resetting to default", this.file, var3);
-			this.setToDefault();
-			this.saveProfileFile();
+		} catch (JsonSyntaxException | IOException error) {
+			LOGGER.error("Couldn't read debug profile file {}, resetting to default", file, error);
+			setToDefault();
+			saveProfileFile();
 		}
 
-		this.updateVisibleEntries();
+		updateVisibleEntries();
 	}
 
-	public void setProfileType(DebugProfileType type) {
-		this.type = type;
-		Map<Identifier, DebugHudEntryVisibility> map = DebugHudEntries.PROFILES.get(type);
-		this.visibilityMap = new HashMap<>(map);
-		this.updateVisibleEntries();
+	public void setProfileType(DebugProfileType profileType) {
+		type = profileType;
+		visibilityMap = new HashMap<>(DebugHudEntries.PROFILES.get(profileType));
+		updateVisibleEntries();
 	}
 
 	private void setToDefault() {
-		this.type = DebugProfileType.DEFAULT;
-		this.visibilityMap = new HashMap<>(DebugHudEntries.PROFILES.get(DebugProfileType.DEFAULT));
+		type = DebugProfileType.DEFAULT;
+		visibilityMap = new HashMap<>(DebugHudEntries.PROFILES.get(DebugProfileType.DEFAULT));
 	}
 
 	public DebugHudEntryVisibility getVisibility(Identifier entryId) {
-		DebugHudEntryVisibility debugHudEntryVisibility = this.visibilityMap.get(entryId);
-		return debugHudEntryVisibility == null ? DebugHudEntryVisibility.NEVER : debugHudEntryVisibility;
+		DebugHudEntryVisibility visibility = visibilityMap.get(entryId);
+		return visibility == null ? DebugHudEntryVisibility.NEVER : visibility;
 	}
 
 	public boolean isEntryVisible(Identifier entryId) {
-		return this.visibleEntries.contains(entryId);
+		return visibleEntries.contains(entryId);
 	}
 
 	public void setEntryVisibility(Identifier entryId, DebugHudEntryVisibility visibility) {
-		this.type = null;
-		this.visibilityMap.put(entryId, visibility);
-		this.updateVisibleEntries();
-		this.saveProfileFile();
+		type = null;
+		visibilityMap.put(entryId, visibility);
+		updateVisibleEntries();
+		saveProfileFile();
 	}
 
 	/**
-	 * Toggle visibility.
+	 * Переключает видимость записи по циклу: ALWAYS_ON → NEVER → IN_OVERLAY/ALWAYS_ON.
+	 * Поведение зависит от того, открыт ли F3-оверлей.
 	 *
-	 * @param entryId entry id
-	 *
-	 * @return boolean — результат операции
+	 * @return {@code true}, если запись стала видимой
 	 */
 	public boolean toggleVisibility(Identifier entryId) {
-		switch ((DebugHudEntryVisibility) this.visibilityMap.get(entryId)) {
+		switch ((DebugHudEntryVisibility) visibilityMap.get(entryId)) {
 			case ALWAYS_ON:
-				this.setEntryVisibility(entryId, DebugHudEntryVisibility.NEVER);
+				setEntryVisibility(entryId, DebugHudEntryVisibility.NEVER);
 				return false;
 			case IN_OVERLAY:
-				if (this.f3Enabled) {
-					this.setEntryVisibility(entryId, DebugHudEntryVisibility.NEVER);
+				if (f3Enabled) {
+					setEntryVisibility(entryId, DebugHudEntryVisibility.NEVER);
 					return false;
 				}
 
-				this.setEntryVisibility(entryId, DebugHudEntryVisibility.ALWAYS_ON);
+				setEntryVisibility(entryId, DebugHudEntryVisibility.ALWAYS_ON);
 				return true;
 			case NEVER:
-				if (this.f3Enabled) {
-					this.setEntryVisibility(entryId, DebugHudEntryVisibility.IN_OVERLAY);
-				}
-				else {
-					this.setEntryVisibility(entryId, DebugHudEntryVisibility.ALWAYS_ON);
-				}
-
+				setEntryVisibility(entryId, f3Enabled ? DebugHudEntryVisibility.IN_OVERLAY : DebugHudEntryVisibility.ALWAYS_ON);
 				return true;
 			case null:
 			default:
-				this.setEntryVisibility(entryId, DebugHudEntryVisibility.ALWAYS_ON);
+				setEntryVisibility(entryId, DebugHudEntryVisibility.ALWAYS_ON);
 				return true;
 		}
 	}
 
 	public Collection<Identifier> getVisibleEntries() {
-		return this.visibleEntries;
+		return visibleEntries;
 	}
 
-	/**
-	 * Toggle f3 enabled.
-	 */
 	public void toggleF3Enabled() {
-		this.setF3Enabled(!this.f3Enabled);
+		setF3Enabled(!f3Enabled);
 	}
 
-	public void setF3Enabled(boolean f3Enabled) {
-		if (this.f3Enabled != f3Enabled) {
-			this.f3Enabled = f3Enabled;
-			this.updateVisibleEntries();
+	public void setF3Enabled(boolean enabled) {
+		if (f3Enabled == enabled) {
+			return;
 		}
+
+		f3Enabled = enabled;
+		updateVisibleEntries();
 	}
 
 	public boolean isF3Enabled() {
-		return this.f3Enabled;
+		return f3Enabled;
 	}
 
 	/**
-	 * Обновляет visible entries.
+	 * Пересчитывает список видимых записей на основе текущей карты видимости
+	 * и состояния F3-оверлея. Вызывается при любом изменении профиля.
 	 */
 	public void updateVisibleEntries() {
-		this.visibleEntries.clear();
-		boolean bl = MinecraftClient.getInstance().hasReducedDebugInfo();
+		visibleEntries.clear();
+		boolean reducedDebugInfo = MinecraftClient.getInstance().hasReducedDebugInfo();
 
-		for (Entry<Identifier, DebugHudEntryVisibility> entry : this.visibilityMap.entrySet()) {
-			if (entry.getValue() == DebugHudEntryVisibility.ALWAYS_ON
-					|| this.f3Enabled && entry.getValue() == DebugHudEntryVisibility.IN_OVERLAY) {
-				DebugHudEntry debugHudEntry = DebugHudEntries.get(entry.getKey());
-				if (debugHudEntry != null && debugHudEntry.canShow(bl)) {
-					this.visibleEntries.add(entry.getKey());
+		for (Entry<Identifier, DebugHudEntryVisibility> entry : visibilityMap.entrySet()) {
+			boolean alwaysOn = entry.getValue() == DebugHudEntryVisibility.ALWAYS_ON;
+			boolean inOverlayAndOpen = f3Enabled && entry.getValue() == DebugHudEntryVisibility.IN_OVERLAY;
+
+			if (alwaysOn || inOverlayAndOpen) {
+				DebugHudEntry debugEntry = DebugHudEntries.get(entry.getKey());
+				if (debugEntry != null && debugEntry.canShow(reducedDebugInfo)) {
+					visibleEntries.add(entry.getKey());
 				}
 			}
 		}
 
-		this.visibleEntries.sort(Identifier::compareTo);
-		this.version++;
+		visibleEntries.sort(Identifier::compareTo);
+		version++;
 	}
 
 	public long getVersion() {
-		return this.version;
+		return version;
 	}
 
-	/**
-	 * Profile type matches.
-	 *
-	 * @param type type
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean profileTypeMatches(DebugProfileType type) {
-		return this.type == type;
+	public boolean profileTypeMatches(DebugProfileType profileType) {
+		return type == profileType;
 	}
 
-	/**
-	 * Сохраняет profile file.
-	 */
+	/** Сохраняет текущий профиль в JSON-файл. */
 	public void saveProfileFile() {
 		DebugHudProfile.Serialization serialization = new DebugHudProfile.Serialization(
-				Optional.ofNullable(this.type), this.type == null ? Optional.of(this.visibilityMap) : Optional.empty()
+			Optional.ofNullable(type),
+			type == null ? Optional.of(visibilityMap) : Optional.empty()
 		);
 
 		try {
 			FileUtils.writeStringToFile(
-					this.file,
-					((JsonElement) this.codec.encodeStart(JsonOps.INSTANCE, serialization).getOrThrow()).toString(),
-					StandardCharsets.UTF_8
+				file,
+				((JsonElement) codec.encodeStart(JsonOps.INSTANCE, serialization).getOrThrow()).toString(),
+				StandardCharsets.UTF_8
 			);
-		}
-		catch (IOException var3) {
-			LOGGER.error("Failed to save debug profile file {}", this.file, var3);
+		} catch (IOException error) {
+			LOGGER.error("Failed to save debug profile file {}", file, error);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Serialization}.
+	 * Сериализуемое представление профиля: либо ссылка на предустановленный тип,
+	 * либо пользовательская карта видимости.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Serialization(
-			Optional<DebugProfileType> profile,
-			Optional<Map<Identifier, DebugHudEntryVisibility>> custom
+		Optional<DebugProfileType> profile,
+		Optional<Map<Identifier, DebugHudEntryVisibility>> custom
 	) {
 
-		private static final Codec<Map<Identifier, DebugHudEntryVisibility>> VISIBILITY_MAP_CODEC = Codec.unboundedMap(
-				Identifier.CODEC, DebugHudEntryVisibility.CODEC
-		);
+		private static final Codec<Map<Identifier, DebugHudEntryVisibility>> VISIBILITY_MAP_CODEC =
+			Codec.unboundedMap(Identifier.CODEC, DebugHudEntryVisibility.CODEC);
+
 		public static final Codec<DebugHudProfile.Serialization> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    DebugProfileType.CODEC
-								                    .optionalFieldOf("profile")
-								                    .forGetter(DebugHudProfile.Serialization::profile),
-						                    VISIBILITY_MAP_CODEC.optionalFieldOf("custom").forGetter(DebugHudProfile.Serialization::custom)
-				                    )
-				                    .apply(instance, DebugHudProfile.Serialization::new)
+			instance -> instance.group(
+				DebugProfileType.CODEC.optionalFieldOf("profile").forGetter(DebugHudProfile.Serialization::profile),
+				VISIBILITY_MAP_CODEC.optionalFieldOf("custom").forGetter(DebugHudProfile.Serialization::custom)
+			).apply(instance, DebugHudProfile.Serialization::new)
 		);
 	}
 }

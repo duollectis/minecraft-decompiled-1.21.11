@@ -5,7 +5,8 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code EquipmentType}.
+ * Тип снаряжения, определяющий слот экипировки и базовый множитель прочности
+ * для расчёта максимального урона конкретного предмета брони.
  */
 public enum EquipmentType implements StringIdentifiable {
 	HELMET(EquipmentSlot.HEAD, 11, "helmet"),

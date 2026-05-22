@@ -15,7 +15,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code CaveVinesBodyBlock}.
+ * Блок тела пещерной лозы. Не растёт сам по себе — рост обеспечивает
+ * {@link CaveVinesHeadBlock}. Может содержать светящиеся ягоды ({@link CaveVines#BERRIES}).
  */
 public class CaveVinesBodyBlock extends AbstractPlantBlock implements CaveVines {
 
@@ -28,7 +29,7 @@ public class CaveVinesBodyBlock extends AbstractPlantBlock implements CaveVines 
 
 	public CaveVinesBodyBlock(AbstractBlock.Settings settings) {
 		super(settings, Direction.DOWN, SHAPE, false);
-		this.setDefaultState(this.stateManager.getDefaultState().with(BERRIES, false));
+		setDefaultState(stateManager.getDefaultState().with(BERRIES, false));
 	}
 
 	@Override

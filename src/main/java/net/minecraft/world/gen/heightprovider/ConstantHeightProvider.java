@@ -6,7 +6,7 @@ import net.minecraft.world.gen.HeightContext;
 import net.minecraft.world.gen.YOffset;
 
 /**
- * {@code ConstantHeightProvider}.
+ * Провайдер высоты с фиксированным значением — всегда возвращает одну и ту же Y-координату.
  */
 public class ConstantHeightProvider extends HeightProvider {
 
@@ -16,13 +16,6 @@ public class ConstantHeightProvider extends HeightProvider {
 			.xmap(ConstantHeightProvider::new, ConstantHeightProvider::getOffset);
 	private final YOffset offset;
 
-	/**
-	 * Create.
-	 *
-	 * @param offset offset
-	 *
-	 * @return ConstantHeightProvider — результат операции
-	 */
 	public static ConstantHeightProvider create(YOffset offset) {
 		return new ConstantHeightProvider(offset);
 	}
@@ -32,12 +25,12 @@ public class ConstantHeightProvider extends HeightProvider {
 	}
 
 	public YOffset getOffset() {
-		return this.offset;
+		return offset;
 	}
 
 	@Override
 	public int get(Random random, HeightContext context) {
-		return this.offset.getY(context);
+		return offset.getY(context);
 	}
 
 	@Override
@@ -47,6 +40,6 @@ public class ConstantHeightProvider extends HeightProvider {
 
 	@Override
 	public String toString() {
-		return this.offset.toString();
+		return offset.toString();
 	}
 }

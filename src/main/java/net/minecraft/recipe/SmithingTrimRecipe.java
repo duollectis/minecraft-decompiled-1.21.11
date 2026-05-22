@@ -24,7 +24,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code SmithingTrimRecipe}.
+ * Рецепт нанесения отделки (trim) на броню через кузнечный стол.
+ * Требует шаблон отделки, базовую броню и материал-добавку.
+ * Если броня уже имеет идентичную отделку — результат пустой (защита от дублирования).
  */
 public class SmithingTrimRecipe implements SmithingRecipe {
 
@@ -35,10 +37,10 @@ public class SmithingTrimRecipe implements SmithingRecipe {
 	private @Nullable IngredientPlacement ingredientPlacement;
 
 	public SmithingTrimRecipe(
-			Ingredient template,
-			Ingredient base,
-			Ingredient addition,
-			RegistryEntry<ArmorTrimPattern> pattern
+		Ingredient template,
+		Ingredient base,
+		Ingredient addition,
+		RegistryEntry<ArmorTrimPattern> pattern
 	) {
 		this.template = template;
 		this.base = base;
@@ -46,55 +48,54 @@ public class SmithingTrimRecipe implements SmithingRecipe {
 		this.pattern = pattern;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param smithingRecipeInput smithing recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(SmithingRecipeInput smithingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		return craft(wrapperLookup, smithingRecipeInput.base(), smithingRecipeInput.addition(), this.pattern);
+	@Override
+	public ItemStack craft(SmithingRecipeInput input, RegistryWrapper.WrapperLookup wrapperLookup) {
+		return craft(wrapperLookup, input.base(), input.addition(), pattern);
 	}
 
+	/**
+	 * Применяет отделку к броне: определяет материал по добавке, создаёт {@link ArmorTrim}
+	 * и устанавливает его на копию базового предмета. Возвращает пустой стек,
+	 * если материал не найден или отделка уже идентична существующей.
+	 */
 	public static ItemStack craft(
-			RegistryWrapper.WrapperLookup registries,
-			ItemStack base,
-			ItemStack addition,
-			RegistryEntry<ArmorTrimPattern> pattern
+		RegistryWrapper.WrapperLookup registries,
+		ItemStack base,
+		ItemStack addition,
+		RegistryEntry<ArmorTrimPattern> pattern
 	) {
-		Optional<RegistryEntry<ArmorTrimMaterial>> optional = ArmorTrimMaterials.get(registries, addition);
-		if (optional.isPresent()) {
-			ArmorTrim armorTrim = base.get(DataComponentTypes.TRIM);
-			ArmorTrim armorTrim2 = new ArmorTrim(optional.get(), pattern);
-			if (Objects.equals(armorTrim, armorTrim2)) {
-				return ItemStack.EMPTY;
-			}
-			else {
-				ItemStack itemStack = base.copyWithCount(1);
-				itemStack.set(DataComponentTypes.TRIM, armorTrim2);
-				return itemStack;
-			}
-		}
-		else {
+		Optional<RegistryEntry<ArmorTrimMaterial>> material = ArmorTrimMaterials.get(registries, addition);
+
+		if (material.isEmpty()) {
 			return ItemStack.EMPTY;
 		}
+
+		ArmorTrim existingTrim = base.get(DataComponentTypes.TRIM);
+		ArmorTrim newTrim = new ArmorTrim(material.get(), pattern);
+
+		if (Objects.equals(existingTrim, newTrim)) {
+			return ItemStack.EMPTY;
+		}
+
+		ItemStack result = base.copyWithCount(1);
+		result.set(DataComponentTypes.TRIM, newTrim);
+
+		return result;
 	}
 
 	@Override
 	public Optional<Ingredient> template() {
-		return Optional.of(this.template);
+		return Optional.of(template);
 	}
 
 	@Override
 	public Ingredient base() {
-		return this.base;
+		return base;
 	}
 
 	@Override
 	public Optional<Ingredient> addition() {
-		return Optional.of(this.addition);
+		return Optional.of(addition);
 	}
 
 	@Override
@@ -104,54 +105,51 @@ public class SmithingTrimRecipe implements SmithingRecipe {
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement =
-					IngredientPlacement.forShapeless(List.of(this.template, this.base, this.addition));
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forShapeless(List.of(template, base, addition));
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
 	}
 
 	@Override
 	public List<RecipeDisplay> getDisplays() {
-		SlotDisplay slotDisplay = this.base.toDisplay();
-		SlotDisplay slotDisplay2 = this.addition.toDisplay();
-		SlotDisplay slotDisplay3 = this.template.toDisplay();
+		SlotDisplay baseDisplay = base.toDisplay();
+		SlotDisplay additionDisplay = addition.toDisplay();
+		SlotDisplay templateDisplay = template.toDisplay();
+
 		return List.of(
-				new SmithingRecipeDisplay(
-						slotDisplay3,
-						slotDisplay,
-						slotDisplay2,
-						new SlotDisplay.SmithingTrimSlotDisplay(slotDisplay, slotDisplay2, this.pattern),
-						new SlotDisplay.ItemSlotDisplay(Items.SMITHING_TABLE)
-				)
+			new SmithingRecipeDisplay(
+				templateDisplay,
+				baseDisplay,
+				additionDisplay,
+				new SlotDisplay.SmithingTrimSlotDisplay(baseDisplay, additionDisplay, pattern),
+				new SlotDisplay.ItemSlotDisplay(Items.SMITHING_TABLE)
+			)
 		);
 	}
 
-	/**
-	 * {@code Serializer}.
-	 */
 	public static class Serializer implements RecipeSerializer<SmithingTrimRecipe> {
 
 		private static final MapCodec<SmithingTrimRecipe> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Ingredient.CODEC.fieldOf("template").forGetter(recipe -> recipe.template),
-						                    Ingredient.CODEC.fieldOf("base").forGetter(recipe -> recipe.base),
-						                    Ingredient.CODEC.fieldOf("addition").forGetter(recipe -> recipe.addition),
-						                    ArmorTrimPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(recipe -> recipe.pattern)
-				                    )
-				                    .apply(instance, SmithingTrimRecipe::new)
+			instance -> instance.group(
+				Ingredient.CODEC.fieldOf("template").forGetter(recipe -> recipe.template),
+				Ingredient.CODEC.fieldOf("base").forGetter(recipe -> recipe.base),
+				Ingredient.CODEC.fieldOf("addition").forGetter(recipe -> recipe.addition),
+				ArmorTrimPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(recipe -> recipe.pattern)
+			).apply(instance, SmithingTrimRecipe::new)
 		);
+
 		public static final PacketCodec<RegistryByteBuf, SmithingTrimRecipe> PACKET_CODEC = PacketCodec.tuple(
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.template,
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.base,
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.addition,
-				ArmorTrimPattern.ENTRY_PACKET_CODEC,
-				recipe -> recipe.pattern,
-				SmithingTrimRecipe::new
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.template,
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.base,
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.addition,
+			ArmorTrimPattern.ENTRY_PACKET_CODEC,
+			recipe -> recipe.pattern,
+			SmithingTrimRecipe::new
 		);
 
 		@Override

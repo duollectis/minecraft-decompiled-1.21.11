@@ -16,11 +16,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code LockHelper}.
+ * Вспомогательный класс для обнаружения одновременного доступа к ресурсу из нескольких потоков.
+ * При попытке захвата уже занятого ресурса блокирует вызывающий поток и бросает {@link CrashException}
+ * с дампами стеков обоих потоков для диагностики.
  */
 public class LockHelper {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final String name;
 	private final Semaphore semaphore = new Semaphore(1);
 	private final Lock lock = new ReentrantLock();
@@ -32,81 +35,83 @@ public class LockHelper {
 	}
 
 	/**
-	 * Lock.
+	 * Захватывает ресурс. Если ресурс уже занят другим потоком, регистрирует текущий поток
+	 * как ожидающего, освобождает внутренний замок и блокируется на семафоре до момента
+	 * разблокировки — после чего бросает {@link CrashException} с диагностикой.
 	 */
 	public void lock() {
-		boolean bl = false;
+		boolean waiting = false;
 
 		try {
-			this.lock.lock();
-			if (!this.semaphore.tryAcquire()) {
-				this.thread = Thread.currentThread();
-				bl = true;
-				this.lock.unlock();
+			lock.lock();
+
+			if (!semaphore.tryAcquire()) {
+				thread = Thread.currentThread();
+				waiting = true;
+				lock.unlock();
 
 				try {
-					this.semaphore.acquire();
+					semaphore.acquire();
 				}
-				catch (InterruptedException var6) {
+				catch (InterruptedException interrupted) {
 					Thread.currentThread().interrupt();
 				}
 
-				throw this.crashException;
+				throw crashException;
 			}
 		}
 		finally {
-			if (!bl) {
-				this.lock.unlock();
+			if (!waiting) {
+				lock.unlock();
 			}
 		}
 	}
 
 	/**
-	 * Unlock.
+	 * Освобождает ресурс. Если есть ожидающий поток, формирует {@link CrashException}
+	 * с дампами стеков, сохраняет его для ожидающего и бросает его же в текущем потоке.
 	 */
 	public void unlock() {
 		try {
-			this.lock.lock();
-			Thread thread = this.thread;
-			if (thread != null) {
-				CrashException crashException = crash(this.name, thread);
-				this.crashException = crashException;
-				this.semaphore.release();
-				throw crashException;
+			lock.lock();
+			Thread waitingThread = thread;
+
+			if (waitingThread != null) {
+				CrashException exception = crash(name, waitingThread);
+				crashException = exception;
+				semaphore.release();
+				throw exception;
 			}
 
-			this.semaphore.release();
+			semaphore.release();
 		}
 		finally {
-			this.lock.unlock();
+			lock.unlock();
 		}
 	}
 
 	/**
-	 * Crash.
-	 *
-	 * @param message message
-	 * @param thread thread
-	 *
-	 * @return CrashException — результат операции
+	 * Формирует {@link CrashException} с дампами стеков текущего и указанного потоков,
+	 * сигнализируя о конкурентном доступе к ресурсу {@code message}.
 	 */
 	public static CrashException crash(String message, @Nullable Thread thread) {
-		String string = Stream.of(Thread.currentThread(), thread)
-		                      .filter(Objects::nonNull)
-		                      .map(LockHelper::formatStackTraceForThread)
-		                      .collect(Collectors.joining("\n"));
-		String string2 = "Accessing " + message + " from multiple threads";
-		CrashReport crashReport = new CrashReport(string2, new IllegalStateException(string2));
-		CrashReportSection crashReportSection = crashReport.addElement("Thread dumps");
-		crashReportSection.add("Thread dumps", string);
-		LOGGER.error("Thread dumps: \n{}", string);
+		String stackTraces = Stream.of(Thread.currentThread(), thread)
+			.filter(Objects::nonNull)
+			.map(LockHelper::formatStackTraceForThread)
+			.collect(Collectors.joining("\n"));
+
+		String description = "Accessing " + message + " from multiple threads";
+		CrashReport crashReport = new CrashReport(description, new IllegalStateException(description));
+		CrashReportSection section = crashReport.addElement("Thread dumps");
+		section.add("Thread dumps", stackTraces);
+		LOGGER.error("Thread dumps: \n{}", stackTraces);
 		return new CrashException(crashReport);
 	}
 
 	private static String formatStackTraceForThread(Thread thread) {
 		return thread.getName() + ": \n\tat " + Arrays
-				.stream(thread.getStackTrace())
-				.map(Object::toString)
-				.collect(Collectors.joining("\n\tat "));
+			.stream(thread.getStackTrace())
+			.map(Object::toString)
+			.collect(Collectors.joining("\n\tat "));
 	}
 }

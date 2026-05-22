@@ -9,7 +9,8 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import net.minecraft.world.gen.feature.PlacedFeature;
 
 /**
- * {@code BiomePlacementModifier}.
+ * Модификатор размещения, фильтрующий позиции по биому — пропускает только те,
+ * для которых текущий биом разрешает данную {@link PlacedFeature}.
  */
 public class BiomePlacementModifier extends AbstractConditionalPlacementModifier {
 
@@ -19,11 +20,6 @@ public class BiomePlacementModifier extends AbstractConditionalPlacementModifier
 	private BiomePlacementModifier() {
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @return BiomePlacementModifier — результат операции
-	 */
 	public static BiomePlacementModifier of() {
 		return INSTANCE;
 	}
@@ -31,10 +27,11 @@ public class BiomePlacementModifier extends AbstractConditionalPlacementModifier
 	@Override
 	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
 		PlacedFeature placedFeature = context.getPlacedFeature()
-		                                     .orElseThrow(() -> new IllegalStateException(
-				                                     "Tried to biome check an unregistered feature, or a feature that should not restrict the biome"));
-		RegistryEntry<Biome> registryEntry = context.getWorld().getBiome(pos);
-		return context.getChunkGenerator().getGenerationSettings(registryEntry).isFeatureAllowed(placedFeature);
+			.orElseThrow(() -> new IllegalStateException(
+				"Tried to biome check an unregistered feature, or a feature that should not restrict the biome"
+			));
+		RegistryEntry<Biome> biome = context.getWorld().getBiome(pos);
+		return context.getChunkGenerator().getGenerationSettings(biome).isFeatureAllowed(placedFeature);
 	}
 
 	@Override

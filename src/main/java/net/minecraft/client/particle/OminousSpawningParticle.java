@@ -9,11 +9,21 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OminousSpawningParticle}.
+ * Частица зловещего спавна: движется от стартовой точки к центру по убывающей
+ * траектории, плавно меняя цвет от {@code fromColor} к {@code toColor}.
+ * Используется для визуального эффекта появления мобов из Ominous Trial Spawner.
+ * Не взаимодействует с миром (коллизии отключены), имеет полную яркость.
  */
+@Environment(EnvType.CLIENT)
 public class OminousSpawningParticle extends BillboardParticle {
+
+	private static final float SCALE_BASE = 0.1F;
+	private static final float SCALE_VARIANCE = 0.5F;
+	private static final float SCALE_MIN = 0.2F;
+	private static final int MIN_LIFETIME = 25;
+	private static final int LIFETIME_VARIANCE = 5;
+	private static final int FULL_BRIGHTNESS = 240;
 
 	private final double startX;
 	private final double startY;
@@ -46,9 +56,9 @@ public class OminousSpawningParticle extends BillboardParticle {
 		this.x = this.lastX;
 		this.y = this.lastY;
 		this.z = this.lastZ;
-		this.scale = 0.1F * (this.random.nextFloat() * 0.5F + 0.2F);
+		this.scale = SCALE_BASE * (this.random.nextFloat() * SCALE_VARIANCE + SCALE_MIN);
 		this.collidesWithWorld = false;
-		this.maxAge = (int) (this.random.nextFloat() * 5.0F) + 25;
+		this.maxAge = (int) (this.random.nextFloat() * LIFETIME_VARIANCE) + MIN_LIFETIME;
 		this.fromColor = fromColor;
 		this.toColor = toColor;
 	}
@@ -60,11 +70,12 @@ public class OminousSpawningParticle extends BillboardParticle {
 
 	@Override
 	public void move(double dx, double dy, double dz) {
+		// Частица движется по заданной траектории, игнорируя физику мира
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -72,30 +83,39 @@ public class OminousSpawningParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
+
 		if (this.age++ >= this.maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			float f = (float) this.age / this.maxAge;
-			float g = 1.0F - f;
-			this.x = this.startX + this.velocityX * g;
-			this.y = this.startY + this.velocityY * g;
-			this.z = this.startZ + this.velocityZ * g;
-			int i = ColorHelper.lerp(f, this.fromColor, this.toColor);
-			this.setColor(
-					ColorHelper.getRed(i) / 255.0F,
-					ColorHelper.getGreen(i) / 255.0F,
-					ColorHelper.getBlue(i) / 255.0F
-			);
-			this.setAlpha(ColorHelper.getAlpha(i) / 255.0F);
-		}
+
+		float lifeProgress = (float) this.age / this.maxAge;
+		float remaining = 1.0F - lifeProgress;
+		this.x = this.startX + this.velocityX * remaining;
+		this.y = this.startY + this.velocityY * remaining;
+		this.z = this.startZ + this.velocityZ * remaining;
+
+		int blendedColor = ColorHelper.lerp(lifeProgress, this.fromColor, this.toColor);
+		this.setColor(
+				ColorHelper.getRed(blendedColor) / 255.0F,
+				ColorHelper.getGreen(blendedColor) / 255.0F,
+				ColorHelper.getBlue(blendedColor) / 255.0F
+		);
+		this.setAlpha(ColorHelper.getAlpha(blendedColor) / 255.0F);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц зловещего спавна. Цвет интерполируется от
+	 * тёмно-фиолетового {@code 0xFF3C3C3E} до белого {@code 0xFFFFFFFF},
+	 * масштаб случайно выбирается в диапазоне 3.0–5.0.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
+
+		private static final int FROM_COLOR = -12210434; // 0xFF3C3C3E — тёмно-фиолетовый
+		private static final int TO_COLOR = -1;          // 0xFFFFFFFF — белый
+		private static final float MIN_SCALE = 3.0F;
+		private static final float MAX_SCALE = 5.0F;
 
 		private final SpriteProvider spriteProvider;
 
@@ -103,22 +123,24 @@ public class OminousSpawningParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			OminousSpawningParticle ominousSpawningParticle = new OminousSpawningParticle(
-					clientWorld, d, e, f, g, h, i, -12210434, -1, this.spriteProvider.getSprite(random)
+			OminousSpawningParticle particle = new OminousSpawningParticle(
+					world, x, y, z, velocityX, velocityY, velocityZ,
+					FROM_COLOR, TO_COLOR, this.spriteProvider.getSprite(random)
 			);
-			ominousSpawningParticle.scale(MathHelper.nextBetween(clientWorld.getRandom(), 3.0F, 5.0F));
-			return ominousSpawningParticle;
+			particle.scale(MathHelper.nextBetween(world.getRandom(), MIN_SCALE, MAX_SCALE));
+			return particle;
 		}
 	}
 }

@@ -10,7 +10,8 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code UseAction}.
+ * Анимация использования предмета игроком.
+ * Флаг {@code noOffset} отключает смещение руки при использовании (применяется для еды и копья).
  */
 public enum UseAction implements StringIdentifiable {
 	NONE(0, "none"),
@@ -26,9 +27,8 @@ public enum UseAction implements StringIdentifiable {
 	BUNDLE(10, "bundle"),
 	SPEAR(11, "spear", true);
 
-	private static final IntFunction<UseAction>
-			BY_ID =
-			ValueLists.createIndexToValueFunction(UseAction::getId, values(), ValueLists.OutOfBoundsHandling.ZERO);
+	private static final IntFunction<UseAction> BY_ID =
+		ValueLists.createIndexToValueFunction(UseAction::getId, values(), ValueLists.OutOfBoundsHandling.ZERO);
 	public static final Codec<UseAction> CODEC = StringIdentifiable.createCodec(UseAction::values);
 	public static final PacketCodec<ByteBuf, UseAction> PACKET_CODEC = PacketCodecs.indexed(BY_ID, UseAction::getId);
 	private final int id;

@@ -8,7 +8,7 @@ import net.minecraft.util.Util;
 import java.util.Optional;
 
 /**
- * {@code OminousBannerItemRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OminousBannerItemRenameFix extends ItemNbtFix {
 

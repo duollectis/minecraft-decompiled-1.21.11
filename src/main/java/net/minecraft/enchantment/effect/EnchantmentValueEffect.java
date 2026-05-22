@@ -10,22 +10,28 @@ import net.minecraft.util.math.random.Random;
 import java.util.function.Function;
 
 /**
- * {@code EnchantmentValueEffect}.
+ * Эффект зачарования, модифицирующий числовое значение (урон, опыт, количество снарядов и т.д.).
+ * Применяется через цепочку вызовов {@link #apply} с накоплением результата.
  */
 public interface EnchantmentValueEffect {
 
-	Codec<EnchantmentValueEffect>
-			CODEC =
-			Registries.ENCHANTMENT_VALUE_EFFECT_TYPE
-					.getCodec()
-					.dispatch(EnchantmentValueEffect::getCodec, Function.identity());
+	Codec<EnchantmentValueEffect> CODEC = Registries.ENCHANTMENT_VALUE_EFFECT_TYPE
+			.getCodec()
+			.dispatch(EnchantmentValueEffect::getCodec, Function.identity());
 
-	static MapCodec<? extends EnchantmentValueEffect> registerAndGetDefault(Registry<MapCodec<? extends EnchantmentValueEffect>> registry) {
+	/**
+	 * Регистрирует все реализации эффектов в реестре и возвращает реализацию по умолчанию.
+	 * Вызывается при инициализации реестра {@code ENCHANTMENT_VALUE_EFFECT_TYPE}.
+	 */
+	static MapCodec<? extends EnchantmentValueEffect> registerAndGetDefault(
+			Registry<MapCodec<? extends EnchantmentValueEffect>> registry
+	) {
 		Registry.register(registry, "add", AddEnchantmentEffect.CODEC);
 		Registry.register(registry, "all_of", AllOfEnchantmentEffects.ValueEffects.CODEC);
 		Registry.register(registry, "multiply", MultiplyEnchantmentEffect.CODEC);
 		Registry.register(registry, "remove_binomial", RemoveBinomialEnchantmentEffect.CODEC);
 		Registry.register(registry, "exponential", ExponentialEnchantmentEffect.CODEC);
+
 		return Registry.register(registry, "set", SetEnchantmentEffect.CODEC);
 	}
 

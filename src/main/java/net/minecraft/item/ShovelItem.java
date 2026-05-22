@@ -18,19 +18,23 @@ import net.minecraft.world.event.GameEvent;
 import java.util.Map;
 
 /**
- * {@code ShovelItem}.
+ * Предмет «Лопата». Позволяет превращать блоки земли в тропинку, а также
+ * тушить костры. Таблица преобразований задана в {@link #PATH_STATES}.
  */
 public class ShovelItem extends Item {
 
+	private static final int PATH_UPDATE_FLAGS = 11;
+	private static final int CAMPFIRE_EXTINGUISH_EVENT = 1009;
+
 	protected static final Map<Block, BlockState> PATH_STATES = Maps.newHashMap(
-			new Builder()
-					.put(Blocks.GRASS_BLOCK, Blocks.DIRT_PATH.getDefaultState())
-					.put(Blocks.DIRT, Blocks.DIRT_PATH.getDefaultState())
-					.put(Blocks.PODZOL, Blocks.DIRT_PATH.getDefaultState())
-					.put(Blocks.COARSE_DIRT, Blocks.DIRT_PATH.getDefaultState())
-					.put(Blocks.MYCELIUM, Blocks.DIRT_PATH.getDefaultState())
-					.put(Blocks.ROOTED_DIRT, Blocks.DIRT_PATH.getDefaultState())
-					.build()
+		new Builder<Block, BlockState>()
+			.put(Blocks.GRASS_BLOCK, Blocks.DIRT_PATH.getDefaultState())
+			.put(Blocks.DIRT, Blocks.DIRT_PATH.getDefaultState())
+			.put(Blocks.PODZOL, Blocks.DIRT_PATH.getDefaultState())
+			.put(Blocks.COARSE_DIRT, Blocks.DIRT_PATH.getDefaultState())
+			.put(Blocks.MYCELIUM, Blocks.DIRT_PATH.getDefaultState())
+			.put(Blocks.ROOTED_DIRT, Blocks.DIRT_PATH.getDefaultState())
+			.build()
 	);
 
 	public ShovelItem(ToolMaterial material, float attackDamage, float attackSpeed, Item.Settings settings) {
@@ -40,53 +44,49 @@ public class ShovelItem extends Item {
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
+
 		if (context.getSide() == Direction.DOWN) {
 			return ActionResult.PASS;
 		}
-		else {
-			PlayerEntity playerEntity = context.getPlayer();
-			BlockState blockState2 = PATH_STATES.get(blockState.getBlock());
-			BlockState blockState3 = null;
-			if (blockState2 != null && world.getBlockState(blockPos.up()).isAir()) {
-				world.playSound(
-						playerEntity,
-						blockPos,
-						SoundEvents.ITEM_SHOVEL_FLATTEN,
-						SoundCategory.BLOCKS,
-						1.0F,
-						1.0F
-				);
-				blockState3 = blockState2;
-			}
-			else if (blockState.getBlock() instanceof CampfireBlock && blockState.get(CampfireBlock.LIT)) {
-				if (!world.isClient()) {
-					world.syncWorldEvent(null, 1009, blockPos, 0);
-				}
 
-				CampfireBlock.extinguish(context.getPlayer(), world, blockPos, blockState);
-				blockState3 = blockState.with(CampfireBlock.LIT, false);
-			}
+		PlayerEntity player = context.getPlayer();
+		BlockState resultState = resolveResultState(world, pos, blockState, player);
 
-			if (blockState3 != null) {
-				if (!world.isClient()) {
-					world.setBlockState(blockPos, blockState3, 11);
-					world.emitGameEvent(
-							GameEvent.BLOCK_CHANGE,
-							blockPos,
-							GameEvent.Emitter.of(playerEntity, blockState3)
-					);
-					if (playerEntity != null) {
-						context.getStack().damage(1, playerEntity, context.getHand().getEquipmentSlot());
-					}
-				}
+		if (resultState == null) {
+			return ActionResult.PASS;
+		}
 
-				return ActionResult.SUCCESS;
-			}
-			else {
-				return ActionResult.PASS;
+		if (!world.isClient()) {
+			world.setBlockState(pos, resultState, PATH_UPDATE_FLAGS);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, resultState));
+
+			if (player != null) {
+				context.getStack().damage(1, player, context.getHand().getEquipmentSlot());
 			}
 		}
+
+		return ActionResult.SUCCESS;
+	}
+
+	private BlockState resolveResultState(World world, BlockPos pos, BlockState blockState, PlayerEntity player) {
+		BlockState pathState = PATH_STATES.get(blockState.getBlock());
+
+		if (pathState != null && world.getBlockState(pos.up()).isAir()) {
+			world.playSound(player, pos, SoundEvents.ITEM_SHOVEL_FLATTEN, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			return pathState;
+		}
+
+		if (blockState.getBlock() instanceof CampfireBlock && blockState.get(CampfireBlock.LIT)) {
+			if (!world.isClient()) {
+				world.syncWorldEvent(null, CAMPFIRE_EXTINGUISH_EVENT, pos, 0);
+			}
+
+			CampfireBlock.extinguish(player, world, pos, blockState);
+			return blockState.with(CampfireBlock.LIT, false);
+		}
+
+		return null;
 	}
 }

@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code BreezeEntity}.
+ * Бриз — моб, атакующий порывами ветра и активирующий механизмы.
  */
 public class BreezeEntity extends HostileEntity {
 
@@ -76,9 +76,9 @@ public class BreezeEntity extends HostileEntity {
 
 	public BreezeEntity(EntityType<? extends HostileEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.DANGER_TRAPDOOR, -1.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, -1.0F);
-		this.experiencePoints = 10;
+		setPathfindingPenalty(PathNodeType.DANGER_TRAPDOOR, -1.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, -1.0F);
+		experiencePoints = WHIRL_SOUND_TICKS;
 	}
 
 	@Override
@@ -98,18 +98,13 @@ public class BreezeEntity extends HostileEntity {
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
-		if (this.getEntityWorld().isClient() && POSE.equals(data)) {
-			this.stopAnimations();
-			EntityPose entityPose = this.getPose();
-			switch (entityPose) {
-				case SHOOTING:
-					this.shootingAnimationState.startIfNotRunning(this.age);
-					break;
-				case INHALING:
-					this.inhalingAnimationState.startIfNotRunning(this.age);
-					break;
-				case SLIDING:
-					this.slidingAnimationState.startIfNotRunning(this.age);
+		if (getEntityWorld().isClient() && POSE.equals(data)) {
+			stopAnimations();
+			switch (getPose()) {
+				case SHOOTING -> shootingAnimationState.startIfNotRunning(age);
+				case INHALING -> inhalingAnimationState.startIfNotRunning(age);
+				case SLIDING -> slidingAnimationState.startIfNotRunning(age);
+				default -> {}
 			}
 		}
 
@@ -117,139 +112,122 @@ public class BreezeEntity extends HostileEntity {
 	}
 
 	private void stopAnimations() {
-		this.shootingAnimationState.stop();
-		this.idleAnimationState.stop();
-		this.inhalingAnimationState.stop();
-		this.longJumpingAnimationState.stop();
+		shootingAnimationState.stop();
+		idleAnimationState.stop();
+		inhalingAnimationState.stop();
+		longJumpingAnimationState.stop();
 	}
 
 	@Override
 	public void tick() {
-		EntityPose entityPose = this.getPose();
-		switch (entityPose) {
-			case SHOOTING:
-			case INHALING:
-			case STANDING:
-				this.resetLongJumpingParticleAddCount().addBlockParticles(1 + this.getRandom().nextInt(1));
-				break;
-			case SLIDING:
-				this.addBlockParticles(20);
-				break;
-			case LONG_JUMPING:
-				this.longJumpingAnimationState.startIfNotRunning(this.age);
-				this.addLongJumpingParticles();
+		EntityPose pose = getPose();
+		switch (pose) {
+			case SHOOTING, INHALING, STANDING ->
+					resetLongJumpingParticleAddCount().addBlockParticles(1 + getRandom().nextInt(1));
+			case SLIDING -> addBlockParticles(ANIMATION_TICKS);
+			case LONG_JUMPING -> {
+				longJumpingAnimationState.startIfNotRunning(age);
+				addLongJumpingParticles();
+			}
+			default -> {}
 		}
 
-		this.idleAnimationState.startIfNotRunning(this.age);
-		if (entityPose != EntityPose.SLIDING && this.slidingAnimationState.isRunning()) {
-			this.slidingBackAnimationState.start(this.age);
-			this.slidingAnimationState.stop();
+		idleAnimationState.startIfNotRunning(age);
+		if (pose != EntityPose.SLIDING && slidingAnimationState.isRunning()) {
+			slidingBackAnimationState.start(age);
+			slidingAnimationState.stop();
 		}
 
-		this.ticksUntilWhirlSound =
-				this.ticksUntilWhirlSound == 0 ? this.random.nextBetween(1, 80) : this.ticksUntilWhirlSound - 1;
-		if (this.ticksUntilWhirlSound == 0) {
-			this.playWhirlSound();
+		ticksUntilWhirlSound = ticksUntilWhirlSound == 0
+				? random.nextBetween(MIN_WHIRL_SOUND_INTERVAL, MAX_WHIRL_SOUND_INTERVAL)
+				: ticksUntilWhirlSound - 1;
+		if (ticksUntilWhirlSound == 0) {
+			playWhirlSound();
 		}
 
 		super.tick();
 	}
 
-	/**
-	 * Сбрасывает long jumping particle add count.
-	 *
-	 * @return BreezeEntity — результат операции
-	 */
 	public BreezeEntity resetLongJumpingParticleAddCount() {
-		this.longJumpingParticleAddCount = 0;
+		longJumpingParticleAddCount = 0;
 		return this;
 	}
 
-	/**
-	 * Добавляет long jumping particles.
-	 */
 	public void addLongJumpingParticles() {
-		if (++this.longJumpingParticleAddCount <= 5) {
-			BlockState
-					blockState =
-					!this.getBlockStateAtPos().isAir() ? this.getBlockStateAtPos() : this.getSteppingBlockState();
-			Vec3d vec3d = this.getVelocity();
-			Vec3d vec3d2 = this.getEntityPos().add(vec3d).add(0.0, 0.1F, 0.0);
+		if (++longJumpingParticleAddCount > MAX_JUMP_PARTICLE_COUNT) {
+			return;
+		}
 
-			for (int i = 0; i < 3; i++) {
-				this
-						.getEntityWorld()
-						.addParticleClient(
-								new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
-								vec3d2.x,
-								vec3d2.y,
-								vec3d2.z,
-								0.0,
-								0.0,
-								0.0
-						);
-			}
+		BlockState blockState = !getBlockStateAtPos().isAir()
+				? getBlockStateAtPos()
+				: getSteppingBlockState();
+		Vec3d velocity = getVelocity();
+		Vec3d spawnPos = getEntityPos().add(velocity).add(0.0, 0.1F, 0.0);
+
+		for (int particleIndex = 0; particleIndex < JUMP_PARTICLE_COUNT; particleIndex++) {
+			getEntityWorld()
+					.addParticleClient(
+							new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
+							spawnPos.x,
+							spawnPos.y,
+							spawnPos.z,
+							0.0,
+							0.0,
+							0.0
+					);
 		}
 	}
 
-	/**
-	 * Добавляет block particles.
-	 *
-	 * @param count count
-	 */
 	public void addBlockParticles(int count) {
-		if (!this.hasVehicle()) {
-			Vec3d vec3d = this.getBoundingBox().getCenter();
-			Vec3d vec3d2 = new Vec3d(vec3d.x, this.getEntityPos().y, vec3d.z);
-			BlockState
-					blockState =
-					!this.getBlockStateAtPos().isAir() ? this.getBlockStateAtPos() : this.getSteppingBlockState();
-			if (blockState.getRenderType() != BlockRenderType.INVISIBLE) {
-				for (int i = 0; i < count; i++) {
-					this.getEntityWorld()
-					    .addParticleClient(
-							    new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
-							    vec3d2.x,
-							    vec3d2.y,
-							    vec3d2.z,
-							    0.0,
-							    0.0,
-							    0.0
-					    );
-				}
-			}
+		if (hasVehicle()) {
+			return;
+		}
+
+		Vec3d center = getBoundingBox().getCenter();
+		Vec3d spawnPos = new Vec3d(center.x, getEntityPos().y, center.z);
+		BlockState blockState = !getBlockStateAtPos().isAir()
+				? getBlockStateAtPos()
+				: getSteppingBlockState();
+		if (blockState.getRenderType() == BlockRenderType.INVISIBLE) {
+			return;
+		}
+
+		for (int particleIndex = 0; particleIndex < count; particleIndex++) {
+			getEntityWorld()
+					.addParticleClient(
+							new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
+							spawnPos.x,
+							spawnPos.y,
+							spawnPos.z,
+							0.0,
+							0.0,
+							0.0
+					);
 		}
 	}
 
 	@Override
 	public void playAmbientSound() {
-		if (this.getTarget() == null || !this.isOnGround()) {
-			this
-					.getEntityWorld()
-					.playSoundFromEntityClient(this, this.getAmbientSound(), this.getSoundCategory(), 1.0F, 1.0F);
+		if (getTarget() == null || !isOnGround()) {
+			getEntityWorld()
+					.playSoundFromEntityClient(this, getAmbientSound(), getSoundCategory(), 1.0F, 1.0F);
 		}
 	}
 
-	/**
-	 * Play whirl sound.
-	 */
 	public void playWhirlSound() {
-		float f = 0.7F + 0.4F * this.random.nextFloat();
-		float g = 0.8F + 0.2F * this.random.nextFloat();
-		this
-				.getEntityWorld()
-				.playSoundFromEntityClient(this, SoundEvents.ENTITY_BREEZE_WHIRL, this.getSoundCategory(), g, f);
+		float pitch = 0.7F + 0.4F * random.nextFloat();
+		float volume = 0.8F + 0.2F * random.nextFloat();
+		getEntityWorld()
+				.playSoundFromEntityClient(this, SoundEvents.ENTITY_BREEZE_WHIRL, getSoundCategory(), volume, pitch);
 	}
 
 	@Override
 	public ProjectileDeflection getProjectileDeflection(ProjectileEntity projectile) {
-		if (projectile.getType() != EntityType.BREEZE_WIND_CHARGE && projectile.getType() != EntityType.WIND_CHARGE) {
-			return this.getType().isIn(EntityTypeTags.DEFLECTS_PROJECTILES) ? PROJECTILE_DEFLECTOR
-			                                                                : ProjectileDeflection.NONE;
-		}
-		else {
+		if (projectile.getType() == EntityType.BREEZE_WIND_CHARGE || projectile.getType() == EntityType.WIND_CHARGE) {
 			return ProjectileDeflection.NONE;
 		}
+
+		return getType().isIn(EntityTypeTags.DEFLECTS_PROJECTILES) ? PROJECTILE_DEFLECTOR : ProjectileDeflection.NONE;
 	}
 
 	@Override
@@ -273,23 +251,23 @@ public class BreezeEntity extends HostileEntity {
 	}
 
 	public Optional<LivingEntity> getHurtBy() {
-		return this.getBrain()
-		           .getOptionalRegisteredMemory(MemoryModuleType.HURT_BY)
-		           .map(DamageSource::getAttacker)
-		           .filter(attacker -> attacker instanceof LivingEntity)
-		           .map(livingAttacker -> (LivingEntity) livingAttacker);
+		return getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.HURT_BY)
+				.map(DamageSource::getAttacker)
+				.filter(attacker -> attacker instanceof LivingEntity)
+				.map(livingAttacker -> (LivingEntity) livingAttacker);
 	}
 
 	public boolean isWithinShortRange(Vec3d pos) {
-		Vec3d vec3d = this.getBlockPos().toCenterPos();
-		return pos.isWithinRangeOf(vec3d, 4.0, 10.0);
+		Vec3d blockCenter = getBlockPos().toCenterPos();
+		return pos.isWithinRangeOf(blockCenter, 4.0, 10.0);
 	}
 
 	@Override
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("breezeBrain");
-		this.getBrain().tick(world, this);
+		getBrain().tick(world, this);
 		profiler.swap("breezeActivityUpdate");
 		BreezeBrain.updateActivities(this);
 		profiler.pop();
@@ -312,7 +290,7 @@ public class BreezeEntity extends HostileEntity {
 	}
 
 	public double getChargeY() {
-		return this.getY() + this.getHeight() / 2.0F + 0.3F;
+		return getY() + getHeight() / 2.0F + 0.3F;
 	}
 
 	@Override
@@ -322,13 +300,13 @@ public class BreezeEntity extends HostileEntity {
 
 	@Override
 	public double getSwimHeight() {
-		return this.getStandingEyeHeight();
+		return getStandingEyeHeight();
 	}
 
 	@Override
 	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
 		if (fallDistance > 3.0) {
-			this.playSound(SoundEvents.ENTITY_BREEZE_LAND, 1.0F, 1.0F);
+			playSound(SoundEvents.ENTITY_BREEZE_LAND, 1.0F, 1.0F);
 		}
 
 		return super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
@@ -341,7 +319,7 @@ public class BreezeEntity extends HostileEntity {
 
 	@Override
 	public @Nullable LivingEntity getTarget() {
-		return this.getTargetInBrain();
+		return getTargetInBrain();
 	}
 
 	@Override
@@ -350,8 +328,8 @@ public class BreezeEntity extends HostileEntity {
 		tracker.track(
 				DebugSubscriptionTypes.BREEZES,
 				() -> new BreezeDebugData(
-						this.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).map(Entity::getId),
-						this.getBrain().getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
+						getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).map(Entity::getId),
+						getBrain().getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
 				)
 		);
 	}

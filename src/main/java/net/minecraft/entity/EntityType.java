@@ -59,7 +59,9 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityType}.
+ * Тип сущности — центральный реестровый объект, описывающий все характеристики сущности:
+ * размеры, группу спауна, дальность трекинга, фабрику создания и т.д.
+ * Все конкретные типы объявлены как {@code public static final} константы в этом классе.
  */
 public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilter<Entity, T> {
 
@@ -77,7 +79,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> ACACIA_CHEST_BOAT = register(
 			"acacia_chest_boat",
@@ -85,7 +87,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<AllayEntity> ALLAY = register(
 			"allay",
@@ -102,7 +104,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .makeFireImmune()
 			                  .dimensions(6.0F, 0.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(Integer.MAX_VALUE)
 	);
 	public static final EntityType<ArmadilloEntity> ARMADILLO = register(
@@ -111,7 +113,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(ArmadilloEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.7F, 0.65F)
 					.eyeHeight(0.26F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ArmorStandEntity> ARMOR_STAND = register(
 			"armor_stand",
@@ -119,7 +121,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.<ArmorStandEntity>create(ArmorStandEntity::new, SpawnGroup.MISC)
 					.dimensions(0.5F, 1.975F)
 					.eyeHeight(1.7775F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ArrowEntity> ARROW = register(
 			"arrow",
@@ -136,7 +138,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(AxolotlEntity::new, SpawnGroup.AXOLOTLS)
 					.dimensions(0.75F, 0.42F)
 					.eyeHeight(0.2751F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestRaftEntity> BAMBOO_CHEST_RAFT = register(
 			"bamboo_chest_raft",
@@ -144,7 +146,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<RaftEntity> BAMBOO_RAFT = register(
 			"bamboo_raft",
@@ -152,7 +154,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<BatEntity> BAT = register(
 			"bat",
@@ -176,7 +178,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> BIRCH_CHEST_BOAT = register(
 			"birch_chest_boat",
@@ -184,7 +186,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<BlazeEntity> BLAZE = register(
 			"blaze",
@@ -200,7 +202,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.create(DisplayEntity.BlockDisplayEntity::new, SpawnGroup.MISC)
 			                  .dropsNothing()
 			                  .dimensions(0.0F, 0.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(1)
 	);
 	public static final EntityType<BoggedEntity> BOGGED = register(
@@ -218,7 +220,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(BreezeEntity::new, SpawnGroup.MONSTER)
 					.dimensions(0.6F, 1.77F)
 					.eyeHeight(1.3452F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 					.notAllowedInPeaceful()
 	);
 	public static final EntityType<BreezeWindChargeEntity> BREEZE_WIND_CHARGE = register(
@@ -228,7 +230,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.3125F, 0.3125F)
 			                  .eyeHeight(0.0F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CamelEntity> CAMEL = register(
 			"camel",
@@ -236,7 +238,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(CamelEntity::new, SpawnGroup.CREATURE)
 					.dimensions(1.7F, 2.375F)
 					.eyeHeight(2.275F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CamelHuskEntity> CAMEL_HUSK = register(
 			"camel_husk",
@@ -244,7 +246,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(CamelHuskEntity::new, SpawnGroup.MONSTER)
 					.dimensions(1.7F, 2.375F)
 					.eyeHeight(2.275F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CatEntity> CAT = register(
 			"cat",
@@ -270,7 +272,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> CHERRY_CHEST_BOAT = register(
 			"cherry_chest_boat",
@@ -278,7 +280,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestMinecartEntity> CHEST_MINECART = register(
 			"chest_minecart",
@@ -294,7 +296,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.4F, 0.7F)
 			                  .eyeHeight(0.644F)
 			                  .passengerAttachments(new Vec3d(0.0, 0.7, -0.1))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CodEntity> COD = register(
 			"cod",
@@ -310,7 +312,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(CopperGolemEntity::new, SpawnGroup.MISC)
 					.dimensions(0.49F, 0.98F)
 					.eyeHeight(0.8125F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CommandBlockMinecartEntity> COMMAND_BLOCK_MINECART = register(
 			"command_block_minecart",
@@ -327,7 +329,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.dimensions(0.9F, 1.4F)
 					.eyeHeight(1.3F)
 					.passengerAttachments(1.36875F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<CreakingEntity> CREAKING = register(
 			"creaking",
@@ -352,7 +354,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> DARK_OAK_CHEST_BOAT = register(
 			"dark_oak_chest_boat",
@@ -360,7 +362,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<DolphinEntity> DOLPHIN = register(
 			"dolphin",
@@ -375,7 +377,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(HORSE_WIDTH, 1.5F)
 			                  .eyeHeight(1.425F)
 			                  .passengerAttachments(1.1125F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<DragonFireballEntity> DRAGON_FIREBALL = register(
 			"dragon_fireball",
@@ -383,7 +385,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.0F, 1.0F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<DrownedEntity> DROWNED = register(
 			"drowned",
@@ -401,7 +403,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ElderGuardianEntity> ELDER_GUARDIAN = register(
 			"elder_guardian",
@@ -409,7 +411,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(1.9975F, 1.9975F)
 			                  .eyeHeight(0.99875F)
 			                  .passengerAttachments(2.350625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<EndermanEntity> ENDERMAN = register(
@@ -436,7 +438,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .makeFireImmune()
 			                  .dimensions(16.0F, 8.0F)
 			                  .passengerAttachments(3.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<EnderPearlEntity> ENDER_PEARL = register(
 			"ender_pearl",
@@ -444,7 +446,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<EndCrystalEntity> END_CRYSTAL = register(
 			"end_crystal",
@@ -478,7 +480,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ExperienceOrbEntity> EXPERIENCE_ORB = register(
 			"experience_orb",
@@ -501,7 +503,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.<FallingBlockEntity>create(FallingBlockEntity::new, SpawnGroup.MISC)
 			                  .dropsNothing()
 			                  .dimensions(0.98F, 0.98F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(20)
 	);
 	public static final EntityType<FireballEntity> FIREBALL = register(
@@ -510,7 +512,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.0F, 1.0F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<FireworkRocketEntity> FIREWORK_ROCKET = register(
 			"firework_rocket",
@@ -518,7 +520,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<FoxEntity> FOX = register(
 			"fox",
@@ -534,7 +536,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.create(FrogEntity::new, SpawnGroup.CREATURE)
 			                  .dimensions(0.5F, 0.5F)
 			                  .passengerAttachments(new Vec3d(0.0, 0.375, -0.25))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<FurnaceMinecartEntity> FURNACE_MINECART = register(
 			"furnace_minecart",
@@ -552,7 +554,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .eyeHeight(2.6F)
 			                  .passengerAttachments(4.0625F)
 			                  .vehicleAttachment(0.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<HappyGhastEntity> HAPPY_GHAST = register(
@@ -567,7 +569,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					                  new Vec3d(1.7, 4.0, 0.0)
 			                  )
 			                  .vehicleAttachment(0.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<GiantEntity> GIANT = register(
 			"giant",
@@ -575,7 +577,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(3.6F, 12.0F)
 			                  .eyeHeight(10.44F)
 			                  .vehicleAttachment(-3.75F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<GlowItemFrameEntity> GLOW_ITEM_FRAME = register(
@@ -584,7 +586,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.5F, 0.5F)
 			                  .eyeHeight(0.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(Integer.MAX_VALUE)
 	);
 	public static final EntityType<GlowSquidEntity> GLOW_SQUID = register(
@@ -593,7 +595,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(GlowSquidEntity::new, SpawnGroup.UNDERGROUND_WATER_CREATURE)
 					.dimensions(0.8F, 0.8F)
 					.eyeHeight(0.4F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<GoatEntity> GOAT = register(
 			"goat",
@@ -601,7 +603,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(GoatEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.9F, 1.3F)
 					.passengerAttachments(1.1125F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<GuardianEntity> GUARDIAN = register(
 			"guardian",
@@ -634,7 +636,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(HORSE_WIDTH, 1.6F)
 			                  .eyeHeight(1.52F)
 			                  .passengerAttachments(1.44375F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<HuskEntity> HUSK = register(
 			"husk",
@@ -661,11 +663,11 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(InteractionEntity::new, SpawnGroup.MISC)
 					.dropsNothing()
 					.dimensions(0.0F, 0.0F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<IronGolemEntity> IRON_GOLEM = register(
 			"iron_golem",
-			EntityType.Builder.create(IronGolemEntity::new, SpawnGroup.MISC).dimensions(1.4F, 2.7F).maxTrackingRange(10)
+			EntityType.Builder.create(IronGolemEntity::new, SpawnGroup.MISC).dimensions(1.4F, 2.7F).maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ItemEntity> ITEM = register(
 			"item",
@@ -681,7 +683,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.create(DisplayEntity.ItemDisplayEntity::new, SpawnGroup.MISC)
 			                  .dropsNothing()
 			                  .dimensions(0.0F, 0.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(1)
 	);
 	public static final EntityType<ItemFrameEntity> ITEM_FRAME = register(
@@ -690,7 +692,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.5F, 0.5F)
 			                  .eyeHeight(0.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(Integer.MAX_VALUE)
 	);
 	public static final EntityType<BoatEntity> JUNGLE_BOAT = register(
@@ -699,7 +701,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> JUNGLE_CHEST_BOAT = register(
 			"jungle_chest_boat",
@@ -707,7 +709,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<LeashKnotEntity> LEASH_KNOT = register(
 			"leash_knot",
@@ -716,7 +718,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .disableSaving()
 			                  .dimensions(0.375F, 0.5F)
 			                  .eyeHeight(0.0625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(Integer.MAX_VALUE)
 	);
 	public static final EntityType<LightningEntity> LIGHTNING_BOLT = register(
@@ -734,7 +736,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.9F, 1.87F)
 			                  .eyeHeight(1.7765F)
 			                  .passengerAttachments(new Vec3d(0.0, 1.37, -0.3))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<LlamaSpitEntity> LLAMA_SPIT = register(
 			"llama_spit",
@@ -742,7 +744,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<MagmaCubeEntity> MAGMA_CUBE = register(
 			"magma_cube",
@@ -760,7 +762,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> MANGROVE_CHEST_BOAT = register(
 			"mangrove_chest_boat",
@@ -768,7 +770,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<MannequinEntity> MANNEQUIN = register(
 			"mannequin",
@@ -802,7 +804,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.9F, 1.4F)
 			                  .eyeHeight(1.3F)
 			                  .passengerAttachments(1.36875F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<MuleEntity> MULE = register(
 			"mule",
@@ -818,7 +820,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.875F, 0.95F)
 			                  .passengerAttachments(1.1375F)
 			                  .eyeHeight(0.2751F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<BoatEntity> OAK_BOAT = register(
 			"oak_boat",
@@ -826,7 +828,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> OAK_CHEST_BOAT = register(
 			"oak_chest_boat",
@@ -834,7 +836,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<OcelotEntity> OCELOT = register(
 			"ocelot",
@@ -842,7 +844,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(OcelotEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.6F, 0.7F)
 					.passengerAttachments(0.6375F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<OminousItemSpawnerEntity> OMINOUS_ITEM_SPAWNER = register(
 			"ominous_item_spawner",
@@ -857,7 +859,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.<PaintingEntity>create(PaintingEntity::new, SpawnGroup.MISC)
 			                  .dropsNothing()
 			                  .dimensions(0.5F, 0.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(Integer.MAX_VALUE)
 	);
 	public static final EntityType<BoatEntity> PALE_OAK_BOAT = register(
@@ -866,7 +868,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> PALE_OAK_CHEST_BOAT = register(
 			"pale_oak_chest_boat",
@@ -874,14 +876,14 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<PandaEntity> PANDA = register(
 			"panda",
 			EntityType.Builder
 					.create(PandaEntity::new, SpawnGroup.CREATURE)
 					.dimensions(1.3F, 1.25F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ParchedEntity> PARCHED = register(
 			"parched",
@@ -916,7 +918,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(PigEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.9F, 0.9F)
 					.passengerAttachments(0.86875F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<PiglinEntity> PIGLIN = register(
 			"piglin",
@@ -953,7 +955,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(PolarBearEntity::new, SpawnGroup.CREATURE)
 					.allowSpawningInside(Blocks.POWDER_SNOW)
 					.dimensions(1.4F, 1.4F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SplashPotionEntity> SPLASH_POTION = register(
 			"splash_potion",
@@ -961,7 +963,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<LingeringPotionEntity> LINGERING_POTION = register(
 			"lingering_potion",
@@ -969,7 +971,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<PufferfishEntity> PUFFERFISH = register(
 			"pufferfish",
@@ -988,7 +990,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.create(RavagerEntity::new, SpawnGroup.MONSTER)
 			                  .dimensions(1.95F, 2.2F)
 			                  .passengerAttachments(new Vec3d(0.0, 2.2625, -0.0625))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<SalmonEntity> SALMON = register(
@@ -1005,7 +1007,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.9F, 1.3F)
 			                  .eyeHeight(1.235F)
 			                  .passengerAttachments(1.2375F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ShulkerEntity> SHULKER = register(
 			"shulker",
@@ -1014,7 +1016,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .spawnableFarFromPlayer()
 			                  .dimensions(1.0F, 1.0F)
 			                  .eyeHeight(0.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ShulkerBulletEntity> SHULKER_BULLET = register(
 			"shulker_bullet",
@@ -1048,7 +1050,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(HORSE_WIDTH, 1.6F)
 			                  .eyeHeight(1.52F)
 			                  .passengerAttachments(1.31875F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SlimeEntity> SLIME = register(
 			"slime",
@@ -1056,7 +1058,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.52F, 0.52F)
 			                  .eyeHeight(0.325F)
 			                  .spawnBoxScale(4.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<SmallFireballEntity> SMALL_FIREBALL = register(
@@ -1065,7 +1067,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.3125F, 0.3125F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SnifferEntity> SNIFFER = register(
 			"sniffer",
@@ -1074,7 +1076,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .eyeHeight(1.05F)
 			                  .passengerAttachments(2.09375F)
 			                  .nameTagAttachment(2.05F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SnowballEntity> SNOWBALL = register(
 			"snowball",
@@ -1082,7 +1084,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.25F, 0.25F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SnowGolemEntity> SNOW_GOLEM = register(
 			"snow_golem",
@@ -1124,7 +1126,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ChestBoatEntity> SPRUCE_CHEST_BOAT = register(
 			"spruce_chest_boat",
@@ -1132,7 +1134,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(1.375F, 0.5625F)
 			                  .eyeHeight(0.5625F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<SquidEntity> SQUID = register(
 			"squid",
@@ -1158,7 +1160,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(StriderEntity::new, SpawnGroup.CREATURE)
 					.makeFireImmune()
 					.dimensions(0.9F, 1.7F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<TadpoleEntity> TADPOLE = register(
 			"tadpole",
@@ -1166,14 +1168,14 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(TadpoleEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.4F, 0.3F)
 					.eyeHeight(0.19500001F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<DisplayEntity.TextDisplayEntity> TEXT_DISPLAY = register(
 			"text_display",
 			EntityType.Builder.create(DisplayEntity.TextDisplayEntity::new, SpawnGroup.MISC)
 			                  .dropsNothing()
 			                  .dimensions(0.0F, 0.0F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .trackingTickInterval(1)
 	);
 	public static final EntityType<TntEntity> TNT = register(
@@ -1183,8 +1185,8 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .makeFireImmune()
 			                  .dimensions(0.98F, 0.98F)
 			                  .eyeHeight(0.15F)
-			                  .maxTrackingRange(10)
-			                  .trackingTickInterval(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<TntMinecartEntity> TNT_MINECART = register(
 			"tnt_minecart",
@@ -1200,7 +1202,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.9F, 1.87F)
 			                  .eyeHeight(1.7765F)
 			                  .passengerAttachments(new Vec3d(0.0, 1.37, -0.3))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<TridentEntity> TRIDENT = register(
 			"trident",
@@ -1224,7 +1226,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			EntityType.Builder.create(TurtleEntity::new, SpawnGroup.CREATURE)
 			                  .dimensions(1.2F, 0.4F)
 			                  .passengerAttachments(new Vec3d(0.0, 0.55625, -0.25))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<VexEntity> VEX = register(
 			"vex",
@@ -1243,7 +1245,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.<VillagerEntity>create(VillagerEntity::new, SpawnGroup.MISC)
 					.dimensions(0.6F, 1.95F)
 					.eyeHeight(1.62F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<VindicatorEntity> VINDICATOR = register(
 			"vindicator",
@@ -1260,7 +1262,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 					.create(WanderingTraderEntity::new, SpawnGroup.CREATURE)
 					.dimensions(0.6F, 1.95F)
 					.eyeHeight(1.62F)
-					.maxTrackingRange(10)
+					.maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<WardenEntity> WARDEN = register(
 			"warden",
@@ -1279,7 +1281,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.3125F, 0.3125F)
 			                  .eyeHeight(0.0F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<WitchEntity> WITCH = register(
 			"witch",
@@ -1296,7 +1298,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .makeFireImmune()
 			                  .allowSpawningInside(Blocks.WITHER_ROSE)
 			                  .dimensions(0.9F, 3.5F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 			                  .notAllowedInPeaceful()
 	);
 	public static final EntityType<WitherSkeletonEntity> WITHER_SKELETON = register(
@@ -1316,7 +1318,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dropsNothing()
 			                  .dimensions(0.3125F, 0.3125F)
 			                  .maxTrackingRange(4)
-			                  .trackingTickInterval(10)
+			                  .trackingTickInterval(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<WolfEntity> WOLF = register(
 			"wolf",
@@ -1324,7 +1326,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.6F, 0.85F)
 			                  .eyeHeight(0.68F)
 			                  .passengerAttachments(new Vec3d(0.0, 0.81875, -0.0625))
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ZoglinEntity> ZOGLIN = register(
 			"zoglin",
@@ -1351,7 +1353,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(HORSE_WIDTH, 1.6F)
 			                  .eyeHeight(1.52F)
 			                  .passengerAttachments(1.31875F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ZombieNautilusEntity> ZOMBIE_NAUTILUS = register(
 			"zombie_nautilus",
@@ -1359,7 +1361,7 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			                  .dimensions(0.875F, 0.95F)
 			                  .passengerAttachments(1.1375F)
 			                  .eyeHeight(0.2751F)
-			                  .maxTrackingRange(10)
+			                  .maxTrackingRange(DEFAULT_TRACKING_RANGE)
 	);
 	public static final EntityType<ZombieVillagerEntity> ZOMBIE_VILLAGER = register(
 			"zombie_villager",
@@ -1442,33 +1444,26 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return Registries.ENTITY_TYPE.getId(type);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return Optional> — 
-	 */
 	public static Optional<EntityType<?>> get(String id) {
 		return Registries.ENTITY_TYPE.getOptionalValue(Identifier.tryParse(id));
 	}
 
 	public EntityType(
-			EntityType.EntityFactory<T> factory,
-			SpawnGroup spawnGroup,
-			boolean saveable,
-			boolean summonable,
-			boolean fireImmune,
-			boolean spawnableFarFromPlayer,
-			ImmutableSet<Block> canSpawnInside,
-			EntityDimensions dimensions,
-			float spawnBoxScale,
-			int maxTrackDistance,
-			int trackTickInterval,
-			String translationKey,
-			Optional<RegistryKey<LootTable>> lootTable,
-			FeatureSet requiredFeatures,
-			boolean allowedInPeaceful
+		EntityFactory<T> factory,
+		SpawnGroup spawnGroup,
+		boolean saveable,
+		boolean summonable,
+		boolean fireImmune,
+		boolean spawnableFarFromPlayer,
+		ImmutableSet<Block> canSpawnInside,
+		EntityDimensions dimensions,
+		float spawnBoxScale,
+		int maxTrackDistance,
+		int trackTickInterval,
+		String translationKey,
+		Optional<RegistryKey<LootTable>> lootTable,
+		FeatureSet requiredFeatures,
+		boolean allowedInPeaceful
 	) {
 		this.factory = factory;
 		this.spawnGroup = spawnGroup;
@@ -1487,35 +1482,26 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		this.allowedInPeaceful = allowedInPeaceful;
 	}
 
+	/**
+	 * Спаунит сущность из предмета (например, яйца призыва), применяя данные из NBT стека.
+	 * Если стек не null, копирует компоненты и NBT-данные на созданную сущность.
+	 *
+	 * @param alignPosition выровнять позицию по центру блока
+	 * @param invertY       инвертировать смещение по Y (для спауна снизу вверх)
+	 */
 	public @Nullable T spawnFromItemStack(
-			ServerWorld world,
-			@Nullable ItemStack stack,
-			@Nullable LivingEntity spawner,
-			BlockPos pos,
-			SpawnReason spawnReason,
-			boolean alignPosition,
-			boolean invertY
+		ServerWorld world,
+		@Nullable ItemStack stack,
+		@Nullable LivingEntity spawner,
+		BlockPos pos,
+		SpawnReason spawnReason,
+		boolean alignPosition,
+		boolean invertY
 	) {
-		Consumer<T> consumer;
-		if (stack != null) {
-			consumer = copier(world, stack, spawner);
-		}
-		else {
-			consumer = entity -> {};
-		}
-
-		return this.spawn(world, consumer, pos, spawnReason, alignPosition, invertY);
+		Consumer<T> consumer = stack != null ? copier(world, stack, spawner) : entity -> {};
+		return spawn(world, consumer, pos, spawnReason, alignPosition, invertY);
 	}
 
-	/**
-	 * Copier.
-	 *
-	 * @param world world
-	 * @param stack stack
-	 * @param spawner spawner
-	 *
-	 * @return Consumer — результат операции
-	 */
 	public static <T extends Entity> Consumer<T> copier(World world, ItemStack stack, @Nullable LivingEntity spawner) {
 		return copier(entity -> {}, world, stack, spawner);
 	}
@@ -1529,14 +1515,6 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return nbtCopier(componentsCopier(chained, stack), world, stack, spawner);
 	}
 
-	/**
-	 * Components copier.
-	 *
-	 * @param chained chained
-	 * @param stack stack
-	 *
-	 * @return Consumer — результат операции
-	 */
 	public static <T extends Entity> Consumer<T> componentsCopier(Consumer<T> chained, ItemStack stack) {
 		return chained.andThen(entity -> entity.copyComponentsFrom(stack));
 	}
@@ -1556,17 +1534,8 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		)) : chained;
 	}
 
-	/**
-	 * Spawn.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param reason reason
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public @Nullable T spawn(ServerWorld world, BlockPos pos, SpawnReason reason) {
-		return this.spawn(world, null, pos, reason, false, false);
+		return spawn(world, null, pos, reason, false, false);
 	}
 
 	public @Nullable T spawn(
@@ -1577,9 +1546,11 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			boolean alignPosition,
 			boolean invertY
 	) {
-		T entity = this.create(world, afterConsumer, pos, reason, alignPosition, invertY);
+		T entity = create(world, afterConsumer, pos, reason, alignPosition, invertY);
+
 		if (entity != null) {
 			world.spawnEntityAndPassengers(entity);
+
 			if (entity instanceof MobEntity mobEntity) {
 				mobEntity.playAmbientSound();
 			}
@@ -1589,75 +1560,84 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 	}
 
 	public @Nullable T create(
-			ServerWorld world,
-			@Nullable Consumer<T> afterConsumer,
-			BlockPos pos,
-			SpawnReason reason,
-			boolean alignPosition,
-			boolean invertY
+		ServerWorld world,
+		@Nullable Consumer<T> afterConsumer,
+		BlockPos pos,
+		SpawnReason reason,
+		boolean alignPosition,
+		boolean invertY
 	) {
-		T entity = this.create(world, reason);
+		T entity = create(world, reason);
 		if (entity == null) {
 			return null;
 		}
-		else {
-			double d;
-			if (alignPosition) {
-				entity.setPosition(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
-				d = getOriginY(world, pos, invertY, entity.getBoundingBox());
-			}
-			else {
-				d = 0.0;
-			}
 
-			entity.refreshPositionAndAngles(
-					pos.getX() + 0.5,
-					pos.getY() + d,
-					pos.getZ() + 0.5,
-					MathHelper.wrapDegrees(world.random.nextFloat() * 360.0F),
-					0.0F
-			);
-			if (entity instanceof MobEntity mobEntity) {
-				mobEntity.headYaw = mobEntity.getYaw();
-				mobEntity.bodyYaw = mobEntity.getYaw();
-				mobEntity.initialize(world, world.getLocalDifficulty(mobEntity.getBlockPos()), reason, null);
-			}
-
-			if (afterConsumer != null) {
-				afterConsumer.accept(entity);
-			}
-
-			return entity;
+		double originYOffset = 0.0;
+		if (alignPosition) {
+			entity.setPosition(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
+			originYOffset = getOriginY(world, pos, invertY, entity.getBoundingBox());
 		}
+
+		entity.refreshPositionAndAngles(
+			pos.getX() + 0.5,
+			pos.getY() + originYOffset,
+			pos.getZ() + 0.5,
+			MathHelper.wrapDegrees(world.random.nextFloat() * 360.0F),
+			0.0F
+		);
+
+		if (entity instanceof MobEntity mobEntity) {
+			mobEntity.headYaw = mobEntity.getYaw();
+			mobEntity.bodyYaw = mobEntity.getYaw();
+			mobEntity.initialize(world, world.getLocalDifficulty(mobEntity.getBlockPos()), reason, null);
+		}
+
+		if (afterConsumer != null) {
+			afterConsumer.accept(entity);
+		}
+
+		return entity;
 	}
 
+	/**
+	 * Вычисляет смещение по Y для корректного размещения сущности на поверхности блока.
+	 * При {@code invertY=true} ищет поверхность снизу (для подвешенных сущностей).
+	 */
 	protected static double getOriginY(WorldView world, BlockPos pos, boolean invertY, Box boundingBox) {
 		Box box = new Box(pos);
 		if (invertY) {
 			box = box.stretch(0.0, -1.0, 0.0);
 		}
 
-		Iterable<VoxelShape> iterable = world.getCollisions(null, box);
-		return 1.0 + VoxelShapes.calculateMaxOffset(Direction.Axis.Y, boundingBox, iterable, invertY ? -2.0 : -1.0);
+		Iterable<VoxelShape> collisions = world.getCollisions(null, box);
+		return 1.0 + VoxelShapes.calculateMaxOffset(Direction.Axis.Y, boundingBox, collisions, invertY ? -2.0 : -1.0);
 	}
 
+	/**
+	 * Применяет NBT-данные из компонента предмета к сущности с проверкой безопасности.
+	 * На сервере запрещает применение данных для типов, способных выполнять команды,
+	 * если спаунер не является оператором — защита от эксплойтов через яйца призыва.
+	 */
 	public static void loadFromEntityNbt(
-			World world,
-			@Nullable LivingEntity spawner,
-			@Nullable Entity entity,
-			TypedEntityData<EntityType<?>> data
+		World world,
+		@Nullable LivingEntity spawner,
+		@Nullable Entity entity,
+		TypedEntityData<EntityType<?>> data
 	) {
-		MinecraftServer minecraftServer = world.getServer();
-		if (minecraftServer != null && entity != null) {
-			if (entity.getType() == data.getType()) {
-				if (world.isClient()
-						|| !entity.getType().canPotentiallyExecuteCommands()
-						|| spawner instanceof PlayerEntity playerEntity && minecraftServer
-						.getPlayerManager()
-						.isOperator(playerEntity.getPlayerConfigEntry())) {
-					data.applyToEntity(entity);
-				}
-			}
+		MinecraftServer server = world.getServer();
+		if (server == null || entity == null) {
+			return;
+		}
+
+		if (entity.getType() != data.getType()) {
+			return;
+		}
+
+		boolean isClientOrSafe = world.isClient()
+			|| !entity.getType().canPotentiallyExecuteCommands()
+			|| (spawner instanceof PlayerEntity player && server.getPlayerManager().isOperator(player.getPlayerConfigEntry()));
+		if (isClientOrSafe) {
+			data.applyToEntity(entity);
 		}
 	}
 
@@ -1686,11 +1666,11 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 	}
 
 	public Text getName() {
-		if (this.name == null) {
-			this.name = Text.translatable(this.getTranslationKey());
+		if (name == null) {
+			name = Text.translatable(getTranslationKey());
 		}
 
-		return this.name;
+		return name;
 	}
 
 	@Override
@@ -1699,8 +1679,9 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 	}
 
 	public String getUntranslatedName() {
-		int i = this.getTranslationKey().lastIndexOf(46);
-		return i == -1 ? this.getTranslationKey() : this.getTranslationKey().substring(i + 1);
+		String key = getTranslationKey();
+		int dotIndex = key.lastIndexOf('.');
+		return dotIndex == -1 ? key : key.substring(dotIndex + 1);
 	}
 
 	public Optional<RegistryKey<LootTable>> getLootTableKey() {
@@ -1720,16 +1701,8 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return this.requiredFeatures;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param world world
-	 * @param reason reason
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public @Nullable T create(World world, SpawnReason reason) {
-		return !this.isEnabled(world.getEnabledFeatures()) ? null : this.factory.create(this, world);
+		return isEnabled(world.getEnabledFeatures()) ? factory.create(this, world) : null;
 	}
 
 	public static Optional<Entity> getEntityFromData(ReadView view, World world, SpawnReason reason) {
@@ -1746,133 +1719,120 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			World world,
 			SpawnReason spawnReason
 	) {
-		Optional<Entity> optional = Optional.ofNullable(type.create(world, spawnReason));
-		optional.ifPresent(entity -> entity.readData(readView));
-		return optional;
+		Optional<Entity> entity = Optional.ofNullable(type.create(world, spawnReason));
+		entity.ifPresent(e -> e.readData(readView));
+		return entity;
 	}
 
 	public Box getSpawnBox(double x, double y, double z) {
-		float f = this.spawnBoxScale * this.getWidth() / 2.0F;
-		float g = this.spawnBoxScale * this.getHeight();
-		return new Box(x - f, y, z - f, x + f, y + g, z + f);
+		float halfWidth = spawnBoxScale * getWidth() / 2.0F;
+		float scaledHeight = spawnBoxScale * getHeight();
+		return new Box(
+			x - halfWidth, y, z - halfWidth,
+			x + halfWidth, y + scaledHeight, z + halfWidth
+		);
 	}
 
+	/**
+	 * Проверяет, является ли блок недопустимым для спауна этой сущности.
+	 * Учитывает список разрешённых блоков ({@code canSpawnInside}), иммунитет к огню
+	 * и хардкодированный список опасных блоков (кактус, порошковый снег и т.д.).
+	 */
 	public boolean isInvalidSpawn(BlockState state) {
-		if (this.canSpawnInside.contains(state.getBlock())) {
+		if (canSpawnInside.contains(state.getBlock())) {
 			return false;
 		}
-		else {
-			return !this.fireImmune && PathNodeMaker.isFireDamaging(state)
-			       ? true
-			       : state.isOf(Blocks.WITHER_ROSE) || state.isOf(Blocks.SWEET_BERRY_BUSH) || state.isOf(Blocks.CACTUS)
-			         || state.isOf(Blocks.POWDER_SNOW);
+
+		if (!fireImmune && PathNodeMaker.isFireDamaging(state)) {
+			return true;
 		}
+
+		return state.isOf(Blocks.WITHER_ROSE)
+			|| state.isOf(Blocks.SWEET_BERRY_BUSH)
+			|| state.isOf(Blocks.CACTUS)
+			|| state.isOf(Blocks.POWDER_SNOW);
 	}
 
 	public EntityDimensions getDimensions() {
 		return this.dimensions;
 	}
 
-	/**
-	 * From data.
-	 *
-	 * @param view view
-	 *
-	 * @return Optional> — результат операции
-	 */
 	public static Optional<EntityType<?>> fromData(ReadView view) {
 		return view.read("id", CODEC);
 	}
 
 	public static @Nullable Entity loadEntityWithPassengers(
-			NbtCompound nbt,
-			World world,
-			SpawnReason reason,
-			LoadedEntityProcessor processor
+		NbtCompound nbt,
+		World world,
+		SpawnReason reason,
+		LoadedEntityProcessor processor
 	) {
-		Entity var5;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
-			var5 =
-					loadEntityWithPassengers(
-							NbtReadView.create(logging, world.getRegistryManager(), nbt),
-							world,
-							reason,
-							processor
-					);
+			return loadEntityWithPassengers(
+				NbtReadView.create(logging, world.getRegistryManager(), nbt),
+				world,
+				reason,
+				processor
+			);
 		}
-
-		return var5;
 	}
 
 	public static @Nullable Entity loadEntityWithPassengers(
-			EntityType<?> type, NbtCompound data, World world, SpawnReason reason, LoadedEntityProcessor processor
+		EntityType<?> type, NbtCompound data, World world, SpawnReason reason, LoadedEntityProcessor processor
 	) {
-		Entity var6;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
-			var6 =
-					loadEntityWithPassengers(
-							type,
-							NbtReadView.create(logging, world.getRegistryManager(), data),
-							world,
-							reason,
-							processor
-					);
+			return loadEntityWithPassengers(
+				type,
+				NbtReadView.create(logging, world.getRegistryManager(), data),
+				world,
+				reason,
+				processor
+			);
 		}
-
-		return var6;
 	}
 
 	public static @Nullable Entity loadEntityWithPassengers(
-			ReadView view,
-			World world,
-			SpawnReason reason,
-			LoadedEntityProcessor processor
+		ReadView view,
+		World world,
+		SpawnReason reason,
+		LoadedEntityProcessor processor
 	) {
 		return loadEntityFromData(view, world, reason)
-				.map(processor::process)
-				.map(entity -> loadEntityPassengers(entity, view, world, reason, processor))
-				.orElse(null);
+			.map(processor::process)
+			.map(entity -> loadEntityPassengers(entity, view, world, reason, processor))
+			.orElse(null);
 	}
 
 	public static @Nullable Entity loadEntityWithPassengers(
-			EntityType<?> type,
-			ReadView view,
-			World world,
-			SpawnReason reason,
-			LoadedEntityProcessor processor
+		EntityType<?> type,
+		ReadView view,
+		World world,
+		SpawnReason reason,
+		LoadedEntityProcessor processor
 	) {
 		return loadEntityFromData(type, view, world, reason)
-				.map(processor::process)
-				.map(entity -> loadEntityPassengers(entity, view, world, reason, processor))
-				.orElse(null);
+			.map(processor::process)
+			.map(entity -> loadEntityPassengers(entity, view, world, reason, processor))
+			.orElse(null);
 	}
 
 	private static Entity loadEntityPassengers(
-			Entity entity,
-			ReadView view,
-			World world,
-			SpawnReason reason,
-			LoadedEntityProcessor processor
+		Entity entity,
+		ReadView view,
+		World world,
+		SpawnReason reason,
+		LoadedEntityProcessor processor
 	) {
-		for (ReadView readView : view.getListReadView("Passengers")) {
-			Entity entity2 = loadEntityWithPassengers(readView, world, reason, processor);
-			if (entity2 != null) {
-				entity2.startRiding(entity, true, false);
+		for (ReadView passengerView : view.getListReadView("Passengers")) {
+			Entity passenger = loadEntityWithPassengers(passengerView, world, reason, processor);
+			if (passenger != null) {
+				passenger.startRiding(entity, true, false);
 			}
 		}
 
 		return entity;
 	}
 
-	/**
-	 * Stream from data.
-	 *
-	 * @param view view
-	 * @param world world
-	 * @param reason reason
-	 *
-	 * @return Stream — результат операции
-	 */
 	public static Stream<Entity> streamFromData(ReadView.ListReadView view, World world, SpawnReason reason) {
 		return view.stream().mapMulti((viewx, callback) -> loadEntityWithPassengers(
 				viewx, world, reason, entity -> {
@@ -1886,23 +1846,23 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		try {
 			return getEntityFromData(view, world, reason);
 		}
-		catch (RuntimeException var4) {
-			LOGGER.warn("Exception loading entity: ", var4);
+		catch (RuntimeException exception) {
+			LOGGER.warn("Exception loading entity: ", exception);
 			return Optional.empty();
 		}
 	}
 
 	private static Optional<Entity> loadEntityFromData(
-			EntityType<?> type,
-			ReadView view,
-			World world,
-			SpawnReason reason
+		EntityType<?> type,
+		ReadView view,
+		World world,
+		SpawnReason reason
 	) {
 		try {
 			return getEntityFromData(type, view, world, reason);
 		}
-		catch (RuntimeException var5) {
-			LOGGER.warn("Exception loading entity: ", var5);
+		catch (RuntimeException exception) {
+			LOGGER.warn("Exception loading entity: ", exception);
 			return Optional.empty();
 		}
 	}
@@ -1916,9 +1876,9 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 	}
 
 	/**
-	 * Always update velocity.
-	 *
-	 * @return boolean — результат операции
+	 * Определяет, нужно ли всегда отправлять пакет обновления скорости клиенту.
+	 * Для ряда специфических типов (игрок, рамки, кристаллы и т.д.) обновление
+	 * происходит только при изменении — они исключены из этого списка.
 	 */
 	public boolean alwaysUpdateVelocity() {
 		return this != PLAYER
@@ -1941,15 +1901,9 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return entityTypeEntryList.contains(this.registryEntry);
 	}
 
-	/**
-	 * Downcast.
-	 *
-	 * @param entity entity
-	 *
-	 * @return @Nullable T — результат операции
-	 */
+	@SuppressWarnings("unchecked")
 	public @Nullable T downcast(Entity entity) {
-		return (T) (entity.getType() == this ? entity : null);
+		return entity.getType() == this ? (T) entity : null;
 	}
 
 	@Override
@@ -1959,40 +1913,36 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 
 	@Deprecated
 	public RegistryEntry.Reference<EntityType<?>> getRegistryEntry() {
-		return this.registryEntry;
+		return registryEntry;
 	}
 
 	public boolean isAllowedInPeaceful() {
 		return this.allowedInPeaceful;
 	}
 
-	private static EntityType.EntityFactory<BoatEntity> getBoatFactory(Supplier<Item> itemSupplier) {
+	private static EntityFactory<BoatEntity> getBoatFactory(Supplier<Item> itemSupplier) {
 		return (type, world) -> new BoatEntity(type, world, itemSupplier);
 	}
 
-	private static EntityType.EntityFactory<ChestBoatEntity> getChestBoatFactory(Supplier<Item> itemSupplier) {
+	private static EntityFactory<ChestBoatEntity> getChestBoatFactory(Supplier<Item> itemSupplier) {
 		return (type, world) -> new ChestBoatEntity(type, world, itemSupplier);
 	}
 
-	private static EntityType.EntityFactory<RaftEntity> getRaftFactory(Supplier<Item> itemSupplier) {
+	private static EntityFactory<RaftEntity> getRaftFactory(Supplier<Item> itemSupplier) {
 		return (type, world) -> new RaftEntity(type, world, itemSupplier);
 	}
 
-	private static EntityType.EntityFactory<ChestRaftEntity> getChestRaftFactory(Supplier<Item> itemSupplier) {
+	private static EntityFactory<ChestRaftEntity> getChestRaftFactory(Supplier<Item> itemSupplier) {
 		return (type, world) -> new ChestRaftEntity(type, world, itemSupplier);
 	}
 
-	/**
-	 * Проверяет возможность potentially execute commands.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canPotentiallyExecuteCommands() {
 		return POTENTIALLY_EXECUTES_COMMANDS.contains(this);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для конфигурирования и создания экземпляра {@link EntityType}.
+	 * Используется при регистрации типов сущностей в статическом блоке инициализации.
 	 */
 	public static class Builder<T extends Entity> implements net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityType.Builder<T> {
 
@@ -2019,167 +1969,152 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 				registryKey -> Util.createTranslationKey("entity", registryKey.getValue());
 		private boolean allowedInPeaceful = true;
 
-		private Builder(EntityType.EntityFactory<T> factory, SpawnGroup spawnGroup) {
+		private Builder(EntityFactory<T> factory, SpawnGroup spawnGroup) {
 			this.factory = factory;
 			this.spawnGroup = spawnGroup;
-			this.spawnableFarFromPlayer = spawnGroup == SpawnGroup.CREATURE || spawnGroup == SpawnGroup.MISC;
+			spawnableFarFromPlayer = spawnGroup == SpawnGroup.CREATURE || spawnGroup == SpawnGroup.MISC;
 		}
 
-		public static <T extends Entity> EntityType.Builder<T> create(
-				EntityType.EntityFactory<T> factory,
-				SpawnGroup spawnGroup
-		) {
-			return new EntityType.Builder<>(factory, spawnGroup);
+		public static <T extends Entity> Builder<T> create(EntityFactory<T> factory, SpawnGroup spawnGroup) {
+			return new Builder<>(factory, spawnGroup);
 		}
 
-		public static <T extends Entity> EntityType.Builder<T> create(SpawnGroup spawnGroup) {
-			return new EntityType.Builder<>((type, world) -> null, spawnGroup);
+		public static <T extends Entity> Builder<T> create(SpawnGroup spawnGroup) {
+			return new Builder<>((type, world) -> null, spawnGroup);
 		}
 
-		public EntityType.Builder<T> dimensions(float width, float height) {
-			this.dimensions = EntityDimensions.changing(width, height);
+		public Builder<T> dimensions(float width, float height) {
+			dimensions = EntityDimensions.changing(width, height);
 			return this;
 		}
 
-		public EntityType.Builder<T> spawnBoxScale(float spawnBoxScale) {
+		public Builder<T> spawnBoxScale(float spawnBoxScale) {
 			this.spawnBoxScale = spawnBoxScale;
 			return this;
 		}
 
-		public EntityType.Builder<T> eyeHeight(float eyeHeight) {
-			this.dimensions = this.dimensions.withEyeHeight(eyeHeight);
+		public Builder<T> eyeHeight(float eyeHeight) {
+			dimensions = dimensions.withEyeHeight(eyeHeight);
 			return this;
 		}
 
-		public EntityType.Builder<T> passengerAttachments(float... offsetYs) {
-			for (float f : offsetYs) {
-				this.attachments = this.attachments.add(EntityAttachmentType.PASSENGER, 0.0F, f, 0.0F);
+		public Builder<T> passengerAttachments(float... offsetYs) {
+			for (float offsetY : offsetYs) {
+				attachments = attachments.add(EntityAttachmentType.PASSENGER, 0.0F, offsetY, 0.0F);
 			}
 
 			return this;
 		}
 
-		public EntityType.Builder<T> passengerAttachments(Vec3d... passengerAttachments) {
-			for (Vec3d vec3d : passengerAttachments) {
-				this.attachments = this.attachments.add(EntityAttachmentType.PASSENGER, vec3d);
+		public Builder<T> passengerAttachments(Vec3d... passengerAttachments) {
+			for (Vec3d attachment : passengerAttachments) {
+				attachments = attachments.add(EntityAttachmentType.PASSENGER, attachment);
 			}
 
 			return this;
 		}
 
-		public EntityType.Builder<T> vehicleAttachment(Vec3d vehicleAttachment) {
-			return this.attachment(EntityAttachmentType.VEHICLE, vehicleAttachment);
+		public Builder<T> vehicleAttachment(Vec3d vehicleAttachment) {
+			return attachment(EntityAttachmentType.VEHICLE, vehicleAttachment);
 		}
 
-		public EntityType.Builder<T> vehicleAttachment(float offsetY) {
-			return this.attachment(EntityAttachmentType.VEHICLE, 0.0F, -offsetY, 0.0F);
+		public Builder<T> vehicleAttachment(float offsetY) {
+			return attachment(EntityAttachmentType.VEHICLE, 0.0F, -offsetY, 0.0F);
 		}
 
-		public EntityType.Builder<T> nameTagAttachment(float offsetY) {
-			return this.attachment(EntityAttachmentType.NAME_TAG, 0.0F, offsetY, 0.0F);
+		public Builder<T> nameTagAttachment(float offsetY) {
+			return attachment(EntityAttachmentType.NAME_TAG, 0.0F, offsetY, 0.0F);
 		}
 
-		public EntityType.Builder<T> attachment(
-				EntityAttachmentType type,
-				float offsetX,
-				float offsetY,
-				float offsetZ
-		) {
-			this.attachments = this.attachments.add(type, offsetX, offsetY, offsetZ);
+		public Builder<T> attachment(EntityAttachmentType type, float offsetX, float offsetY, float offsetZ) {
+			attachments = attachments.add(type, offsetX, offsetY, offsetZ);
 			return this;
 		}
 
-		public EntityType.Builder<T> attachment(EntityAttachmentType type, Vec3d offset) {
-			this.attachments = this.attachments.add(type, offset);
+		public Builder<T> attachment(EntityAttachmentType type, Vec3d offset) {
+			attachments = attachments.add(type, offset);
 			return this;
 		}
 
-		public EntityType.Builder<T> disableSummon() {
-			this.summonable = false;
+		public Builder<T> disableSummon() {
+			summonable = false;
 			return this;
 		}
 
-		public EntityType.Builder<T> disableSaving() {
-			this.saveable = false;
+		public Builder<T> disableSaving() {
+			saveable = false;
 			return this;
 		}
 
-		public EntityType.Builder<T> makeFireImmune() {
-			this.fireImmune = true;
+		public Builder<T> makeFireImmune() {
+			fireImmune = true;
 			return this;
 		}
 
-		public EntityType.Builder<T> allowSpawningInside(Block... blocks) {
-			this.canSpawnInside = ImmutableSet.copyOf(blocks);
+		public Builder<T> allowSpawningInside(Block... blocks) {
+			canSpawnInside = ImmutableSet.copyOf(blocks);
 			return this;
 		}
 
-		public EntityType.Builder<T> spawnableFarFromPlayer() {
-			this.spawnableFarFromPlayer = true;
+		public Builder<T> spawnableFarFromPlayer() {
+			spawnableFarFromPlayer = true;
 			return this;
 		}
 
-		public EntityType.Builder<T> maxTrackingRange(int maxTrackingRange) {
+		public Builder<T> maxTrackingRange(int maxTrackingRange) {
 			this.maxTrackingRange = maxTrackingRange;
 			return this;
 		}
 
-		public EntityType.Builder<T> trackingTickInterval(int trackingTickInterval) {
+		public Builder<T> trackingTickInterval(int trackingTickInterval) {
 			this.trackingTickInterval = trackingTickInterval;
 			return this;
 		}
 
-		public EntityType.Builder<T> requires(FeatureFlag... features) {
-			this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(features);
+		public Builder<T> requires(FeatureFlag... features) {
+			requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(features);
 			return this;
 		}
 
-		public EntityType.Builder<T> dropsNothing() {
-			this.lootTable = RegistryKeyedValue.fixed(Optional.empty());
+		public Builder<T> dropsNothing() {
+			lootTable = RegistryKeyedValue.fixed(Optional.empty());
 			return this;
 		}
 
-		public EntityType.Builder<T> notAllowedInPeaceful() {
-			this.allowedInPeaceful = false;
+		public Builder<T> notAllowedInPeaceful() {
+			allowedInPeaceful = false;
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param registryKey registry key
-		 *
-		 * @return EntityType — результат операции
-		 */
 		public EntityType<T> build(RegistryKey<EntityType<?>> registryKey) {
-			if (this.saveable) {
+			if (saveable) {
 				Util.getChoiceType(TypeReferences.ENTITY_TREE, registryKey.getValue().toString());
 			}
 
 			return new EntityType<>(
-					this.factory,
-					this.spawnGroup,
-					this.saveable,
-					this.summonable,
-					this.fireImmune,
-					this.spawnableFarFromPlayer,
-					this.canSpawnInside,
-					this.dimensions.withAttachments(this.attachments),
-					this.spawnBoxScale,
-					this.maxTrackingRange,
-					this.trackingTickInterval,
-					this.translationKey.get(registryKey),
-					this.lootTable.get(registryKey),
-					this.requiredFeatures,
-					this.allowedInPeaceful
+				factory,
+				spawnGroup,
+				saveable,
+				summonable,
+				fireImmune,
+				spawnableFarFromPlayer,
+				canSpawnInside,
+				dimensions.withAttachments(attachments),
+				spawnBoxScale,
+				maxTrackingRange,
+				trackingTickInterval,
+				translationKey.get(registryKey),
+				lootTable.get(registryKey),
+				requiredFeatures,
+				allowedInPeaceful
 			);
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code EntityFactory}.
+	 * Фабрика для создания экземпляра сущности заданного типа.
 	 */
+	@FunctionalInterface
 	public interface EntityFactory<T extends Entity> {
 
 		@Nullable T create(EntityType<T> type, World world);

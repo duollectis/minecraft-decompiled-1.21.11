@@ -6,50 +6,49 @@ import net.minecraft.entity.raid.RaiderEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code RaidGoal}.
+ * Цель атаки рейдера: с задержкой {@link #MAX_COOLDOWN} тиков ищет ближайшую
+ * цель, если рейдер участвует в активном рейде.
  */
 public class RaidGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
 
 	private static final int MAX_COOLDOWN = 200;
+
 	private int cooldown = 0;
 
 	public RaidGoal(
-			RaiderEntity raider,
-			Class<T> targetEntityClass,
-			boolean checkVisibility,
-			TargetPredicate.@Nullable EntityPredicate targetPredicate
+		RaiderEntity raider,
+		Class<T> targetEntityClass,
+		boolean checkVisibility,
+		TargetPredicate.@Nullable EntityPredicate targetPredicate
 	) {
 		super(raider, targetEntityClass, 500, checkVisibility, false, targetPredicate);
 	}
 
 	public int getCooldown() {
-		return this.cooldown;
+		return cooldown;
 	}
 
-	/**
-	 * Decrease cooldown.
-	 */
 	public void decreaseCooldown() {
-		this.cooldown--;
+		cooldown--;
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.cooldown > 0 || !this.mob.getRandom().nextBoolean()) {
+		if (cooldown > 0 || !mob.getRandom().nextBoolean()) {
 			return false;
 		}
-		else if (!((RaiderEntity) this.mob).hasActiveRaid()) {
+
+		if (!((RaiderEntity) mob).hasActiveRaid()) {
 			return false;
 		}
-		else {
-			this.findClosestTarget();
-			return this.targetEntity != null;
-		}
+
+		findClosestTarget();
+		return targetEntity != null;
 	}
 
 	@Override
 	public void start() {
-		this.cooldown = toGoalTicks(200);
+		cooldown = toGoalTicks(MAX_COOLDOWN);
 		super.start();
 	}
 }

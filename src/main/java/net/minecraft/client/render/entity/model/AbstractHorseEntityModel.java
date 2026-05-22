@@ -190,7 +190,7 @@ public abstract class AbstractHorseEntityModel<T extends LivingHorseEntityRender
 						+ m * MathHelper.sin(livingHorseEntityRenderState.age) * 0.05F
 				);
 		this.head.pitch =
-				k * ((float) (Math.PI / 12) + g) + j * (2.1816616F
+				k * ((float) (Math.PI / 12) + g) + j * (EATING_GRASS_ANIMATION_HEAD_BASE_PITCH
 						+ MathHelper.sin(livingHorseEntityRenderState.age) * 0.05F
 				) + q;
 		this.head.yaw = k * f * (float) (Math.PI / 180.0) + (1.0F - Math.max(k, j)) * this.head.yaw;

@@ -12,22 +12,21 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * {@code NbtByteArray}.
+ * NBT-тег, хранящий массив байт ({@code TAG_Byte_Array}).
+ * <p>
+ * Реализует {@link AbstractNbtList}, что позволяет обращаться к элементам
+ * через индекс и использовать стандартные операции добавления/удаления.
+ * Каждый элемент при доступе через {@link #get(int)} оборачивается в {@link NbtByte}.
  */
 public final class NbtByteArray implements AbstractNbtList {
 
 	private static final int SIZE = 24;
+	private static final int BYTES_PER_ELEMENT = 1;
+
 	public static final NbtType<NbtByteArray> TYPE = new NbtType.OfVariableSize<NbtByteArray>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtByteArray — результат операции
-		 */
-		public NbtByteArray read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return new NbtByteArray(readByteArray(dataInput, nbtSizeTracker));
+		@Override
+		public NbtByteArray read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return new NbtByteArray(readByteArray(input, tracker));
 		}
 
 		@Override
@@ -37,17 +36,17 @@ public final class NbtByteArray implements AbstractNbtList {
 		}
 
 		private static byte[] readByteArray(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(24L);
-			int i = input.readInt();
-			tracker.add(1L, i);
-			byte[] bs = new byte[i];
-			input.readFully(bs);
-			return bs;
+			tracker.add(SIZE);
+			int length = input.readInt();
+			tracker.add(BYTES_PER_ELEMENT, length);
+			byte[] bytes = new byte[length];
+			input.readFully(bytes);
+			return bytes;
 		}
 
 		@Override
 		public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
-			input.skipBytes(input.readInt() * 1);
+			input.skipBytes(input.readInt() * BYTES_PER_ELEMENT);
 		}
 
 		@Override
@@ -60,6 +59,7 @@ public final class NbtByteArray implements AbstractNbtList {
 			return "TAG_Byte_Array";
 		}
 	};
+
 	private byte[] value;
 
 	public NbtByteArray(byte[] value) {
@@ -68,18 +68,18 @@ public final class NbtByteArray implements AbstractNbtList {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeInt(this.value.length);
-		output.write(this.value);
+		output.writeInt(value.length);
+		output.write(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 24 + 1 * this.value.length;
+		return SIZE + BYTES_PER_ELEMENT * value.length;
 	}
 
 	@Override
 	public byte getType() {
-		return 7;
+		return BYTE_ARRAY_TYPE;
 	}
 
 	@Override
@@ -89,26 +89,28 @@ public final class NbtByteArray implements AbstractNbtList {
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitByteArray(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitByteArray(this);
+		return writer.getString();
 	}
 
 	@Override
 	public NbtElement copy() {
-		byte[] bs = new byte[this.value.length];
-		System.arraycopy(this.value, 0, bs, 0, this.value.length);
-		return new NbtByteArray(bs);
+		byte[] copy = new byte[value.length];
+		System.arraycopy(value, 0, copy, 0, value.length);
+		return new NbtByteArray(copy);
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof NbtByteArray && Arrays.equals(this.value, ((NbtByteArray) o).value);
+	public boolean equals(Object other) {
+		return this == other
+			? true
+			: other instanceof NbtByteArray nbtByteArray && Arrays.equals(value, nbtByteArray.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.value);
+		return Arrays.hashCode(value);
 	}
 
 	@Override
@@ -117,72 +119,63 @@ public final class NbtByteArray implements AbstractNbtList {
 	}
 
 	public byte[] getByteArray() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int size() {
-		return this.value.length;
+		return value.length;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param i i
-	 *
-	 * @return NbtByte — 
-	 */
-	public NbtByte get(int i) {
-		return NbtByte.of(this.value[i]);
+	@Override
+	public NbtByte get(int index) {
+		return NbtByte.of(value[index]);
 	}
 
 	@Override
 	public boolean setElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value[index] = abstractNbtNumber.byteValue();
+		if (element instanceof AbstractNbtNumber number) {
+			value[index] = number.byteValue();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
 	public boolean addElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value = ArrayUtils.add(this.value, index, abstractNbtNumber.byteValue());
+		if (element instanceof AbstractNbtNumber number) {
+			value = ArrayUtils.add(value, index, number.byteValue());
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	/**
-	 * Remove.
+	 * Удаляет элемент по индексу и возвращает его как {@link NbtByte}.
 	 *
-	 * @param i i
-	 *
-	 * @return NbtByte — результат операции
+	 * @param index индекс удаляемого элемента
+	 * @return удалённый байт, обёрнутый в {@link NbtByte}
 	 */
-	public NbtByte remove(int i) {
-		byte b = this.value[i];
-		this.value = ArrayUtils.remove(this.value, i);
-		return NbtByte.of(b);
+	public NbtByte remove(int index) {
+		byte removed = value[index];
+		value = ArrayUtils.remove(value, index);
+		return NbtByte.of(removed);
 	}
 
 	@Override
 	public void clear() {
-		this.value = new byte[0];
+		value = new byte[0];
 	}
 
 	@Override
 	public Optional<byte[]> asByteArray() {
-		return Optional.of(this.value);
+		return Optional.of(value);
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitByteArray(this.value);
+		return visitor.visitByteArray(value);
 	}
 }

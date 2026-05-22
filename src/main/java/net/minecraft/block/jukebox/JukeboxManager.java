@@ -99,7 +99,7 @@ public class JukeboxManager {
 	}
 
 	private boolean hasSecondPassed() {
-		return this.ticksSinceSongStarted % 20L == 0L;
+		return this.ticksSinceSongStarted % TICKS_PER_SECOND == 0L;
 	}
 
 	private static void spawnNoteParticles(WorldAccess world, BlockPos pos) {

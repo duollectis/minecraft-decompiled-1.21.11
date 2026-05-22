@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@code JfrProfile}.
+ * Агрегированный профиль JFR-записи. Содержит статистику по всем категориям
+ * событий: генерация чанков и структур, сетевой трафик, файловый ввод-вывод,
+ * сборка мусора, загрузка CPU и FPS клиента.
  */
 public record JfrProfile(
 		Instant startTime,

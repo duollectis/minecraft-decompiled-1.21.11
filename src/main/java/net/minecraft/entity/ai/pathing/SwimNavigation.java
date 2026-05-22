@@ -7,7 +7,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code SwimNavigation}.
+ * Навигация водного существа: движется в жидкости, не корректирует Y-координату цели.
+ * Дельфины дополнительно могут выпрыгивать из воды.
  */
 public class SwimNavigation extends EntityNavigation {
 
@@ -19,20 +20,20 @@ public class SwimNavigation extends EntityNavigation {
 
 	@Override
 	protected PathNodeNavigator createPathNodeNavigator(int range) {
-		this.canJumpOutOfWater = this.entity.getType() == EntityType.DOLPHIN;
-		this.nodeMaker = new WaterPathNodeMaker(this.canJumpOutOfWater);
-		this.nodeMaker.setCanEnterOpenDoors(false);
-		return new PathNodeNavigator(this.nodeMaker, range);
+		canJumpOutOfWater = entity.getType() == EntityType.DOLPHIN;
+		nodeMaker = new WaterPathNodeMaker(canJumpOutOfWater);
+		nodeMaker.setCanEnterOpenDoors(false);
+		return new PathNodeNavigator(nodeMaker, range);
 	}
 
 	@Override
 	protected boolean isAtValidPosition() {
-		return this.canJumpOutOfWater || this.entity.isInFluid();
+		return canJumpOutOfWater || entity.isInFluid();
 	}
 
 	@Override
 	protected Vec3d getPos() {
-		return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
+		return new Vec3d(entity.getX(), entity.getBodyY(0.5), entity.getZ());
 	}
 
 	@Override
@@ -42,14 +43,15 @@ public class SwimNavigation extends EntityNavigation {
 
 	@Override
 	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
-		return doesNotCollide(this.entity, origin, target, false);
+		return doesNotCollide(entity, origin, target, false);
 	}
 
 	@Override
 	public boolean isValidPosition(BlockPos pos) {
-		return !this.world.getBlockState(pos).isOpaqueFullCube();
+		return !world.getBlockState(pos).isOpaqueFullCube();
 	}
 
+	/** Плавание не управляется флагом canSwim — существо всегда плавает. */
 	@Override
 	public void setCanSwim(boolean canSwim) {
 	}

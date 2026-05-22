@@ -6,7 +6,10 @@ import net.minecraft.dialog.DialogActionButtonData;
 import java.util.List;
 
 /**
- * {@code SimpleDialog}.
+ * Диалог с фиксированным набором кнопок действий.
+ *
+ * <p>Реализации этого интерфейса предоставляют конкретный список кнопок
+ * через {@link #getButtons()}, которые отображаются в нижней части диалога.</p>
  */
 public interface SimpleDialog extends Dialog {
 

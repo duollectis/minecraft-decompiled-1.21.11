@@ -28,8 +28,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code BlocksAttacksComponent}.
- */
+	 * Компонент блокировки атак (щит и аналоги). Определяет задержку активации, кулдаун при сбивании,
+	 * правила снижения урона, урон по предмету, а также звуки блокировки и сбивания.
+	 */
 public record BlocksAttacksComponent(
 		float blockDelaySeconds,
 		float disableCooldownScale,
@@ -40,39 +41,41 @@ public record BlocksAttacksComponent(
 		Optional<RegistryEntry<SoundEvent>> disableSound
 ) {
 
+	private static final float TICKS_PER_SECOND = 20.0F;
+
 	public static final Codec<BlocksAttacksComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.NON_NEGATIVE_FLOAT
-							                    .optionalFieldOf("block_delay_seconds", 0.0F)
-							                    .forGetter(BlocksAttacksComponent::blockDelaySeconds),
-					                    Codecs.NON_NEGATIVE_FLOAT
-							                    .optionalFieldOf("disable_cooldown_scale", 1.0F)
-							                    .forGetter(BlocksAttacksComponent::disableCooldownScale),
-					                    BlocksAttacksComponent.DamageReduction.CODEC
-							                    .listOf()
-							                    .optionalFieldOf(
-									                    "damage_reductions",
-									                    List.of(new BlocksAttacksComponent.DamageReduction(
-											                    90.0F,
-											                    Optional.empty(),
-											                    0.0F,
-											                    1.0F
-									                    ))
-							                    )
-							                    .forGetter(BlocksAttacksComponent::damageReductions),
-					                    BlocksAttacksComponent.ItemDamage.CODEC
-							                    .optionalFieldOf("item_damage", BlocksAttacksComponent.ItemDamage.DEFAULT)
-							                    .forGetter(BlocksAttacksComponent::itemDamage),
-					                    TagKey
-							                    .codec(RegistryKeys.DAMAGE_TYPE)
-							                    .optionalFieldOf("bypassed_by")
-							                    .forGetter(BlocksAttacksComponent::bypassedBy),
-					                    SoundEvent.ENTRY_CODEC.optionalFieldOf("block_sound").forGetter(BlocksAttacksComponent::blockSound),
-					                    SoundEvent.ENTRY_CODEC
-							                    .optionalFieldOf("disabled_sound")
-							                    .forGetter(BlocksAttacksComponent::disableSound)
-			                    )
-			                    .apply(instance, BlocksAttacksComponent::new)
+										Codecs.NON_NEGATIVE_FLOAT
+												.optionalFieldOf("block_delay_seconds", 0.0F)
+												.forGetter(BlocksAttacksComponent::blockDelaySeconds),
+										Codecs.NON_NEGATIVE_FLOAT
+												.optionalFieldOf("disable_cooldown_scale", 1.0F)
+												.forGetter(BlocksAttacksComponent::disableCooldownScale),
+										BlocksAttacksComponent.DamageReduction.CODEC
+												.listOf()
+												.optionalFieldOf(
+														"damage_reductions",
+														List.of(new BlocksAttacksComponent.DamageReduction(
+																90.0F,
+																Optional.empty(),
+																0.0F,
+																1.0F
+														))
+												)
+												.forGetter(BlocksAttacksComponent::damageReductions),
+										BlocksAttacksComponent.ItemDamage.CODEC
+												.optionalFieldOf("item_damage", BlocksAttacksComponent.ItemDamage.DEFAULT)
+												.forGetter(BlocksAttacksComponent::itemDamage),
+										TagKey
+												.codec(RegistryKeys.DAMAGE_TYPE)
+												.optionalFieldOf("bypassed_by")
+												.forGetter(BlocksAttacksComponent::bypassedBy),
+										SoundEvent.ENTRY_CODEC.optionalFieldOf("block_sound").forGetter(BlocksAttacksComponent::blockSound),
+										SoundEvent.ENTRY_CODEC
+												.optionalFieldOf("disabled_sound")
+												.forGetter(BlocksAttacksComponent::disableSound)
+								)
+								.apply(instance, BlocksAttacksComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, BlocksAttacksComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.FLOAT,
@@ -93,100 +96,110 @@ public record BlocksAttacksComponent(
 	);
 
 	/**
-	 * Play block sound.
-	 *
-	 * @param world world
-	 * @param from from
-	 */
+		 * Воспроизводит звук успешной блокировки атаки в позиции сущности.
+		 *
+		 * @param world мир, в котором воспроизводится звук
+		 * @param from  сущность, заблокировавшая атаку
+		 */
 	public void playBlockSound(ServerWorld world, LivingEntity from) {
-		this.blockSound
-				.ifPresent(
-						sound -> world.playSound(
-								null,
-								from.getX(),
-								from.getY(),
-								from.getZ(),
-								(RegistryEntry<SoundEvent>) sound,
-								from.getSoundCategory(),
-								1.0F,
-								0.8F + world.random.nextFloat() * 0.4F
-						)
-				);
+		blockSound.ifPresent(
+				sound -> world.playSound(
+						null,
+						from.getX(),
+						from.getY(),
+						from.getZ(),
+						sound,
+						from.getSoundCategory(),
+						1.0F,
+						0.8F + world.random.nextFloat() * 0.4F
+				)
+		);
 	}
 
+	/**
+		 * Применяет кулдаун щита после сбивания блокировки. Если кулдаун больше нуля —
+		 * устанавливает его игроку, сбрасывает активный предмет и воспроизводит звук сбивания.
+		 *
+		 * @param world           мир для воспроизведения звука
+		 * @param affectedEntity  сущность, у которой сбили блокировку
+		 * @param cooldownSeconds длительность кулдауна в секундах (масштабируется на {@code disableCooldownScale})
+		 * @param stack           стек предмета-щита для установки кулдауна
+		 */
 	public void applyShieldCooldown(
 			ServerWorld world,
 			LivingEntity affectedEntity,
 			float cooldownSeconds,
 			ItemStack stack
 	) {
-		int i = this.convertCooldownToTicks(cooldownSeconds);
-		if (i > 0) {
+		int cooldownTicks = convertCooldownToTicks(cooldownSeconds);
+		if (cooldownTicks > 0) {
 			if (affectedEntity instanceof PlayerEntity playerEntity) {
-				playerEntity.getItemCooldownManager().set(stack, i);
+				playerEntity.getItemCooldownManager().set(stack, cooldownTicks);
 			}
 
 			affectedEntity.clearActiveItem();
-			this.disableSound
-					.ifPresent(
-							sound -> world.playSound(
-									null,
-									affectedEntity.getX(),
-									affectedEntity.getY(),
-									affectedEntity.getZ(),
-									(RegistryEntry<SoundEvent>) sound,
-									affectedEntity.getSoundCategory(),
-									0.8F,
-									0.8F + world.random.nextFloat() * 0.4F
-							)
-					);
+			disableSound.ifPresent(
+					sound -> world.playSound(
+							null,
+							affectedEntity.getX(),
+							affectedEntity.getY(),
+							affectedEntity.getZ(),
+							sound,
+							affectedEntity.getSoundCategory(),
+							0.8F,
+							0.8F + world.random.nextFloat() * 0.4F
+					)
+			);
 		}
 	}
 
 	/**
-	 * Обрабатывает событие shield hit.
-	 *
-	 * @param world world
-	 * @param stack stack
-	 * @param entity entity
-	 * @param hand hand
-	 * @param itemDamage item damage
-	 */
-	public void onShieldHit(World world, ItemStack stack, LivingEntity entity, Hand hand, float itemDamage) {
-		if (entity instanceof PlayerEntity playerEntity) {
-			if (!world.isClient()) {
-				playerEntity.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-			}
+		 * Обрабатывает попадание по щиту: начисляет статистику использования и наносит
+		 * урон прочности предмета пропорционально заблокированному урону.
+		 *
+		 * @param world  мир (используется для проверки клиент/сервер)
+		 * @param stack  стек предмета-щита
+		 * @param entity сущность, держащая щит
+		 * @param hand   рука, в которой держится щит
+		 * @param damage заблокированный урон
+		 */
+	public void onShieldHit(World world, ItemStack stack, LivingEntity entity, Hand hand, float damage) {
+		if (!(entity instanceof PlayerEntity playerEntity)) {
+			return;
+		}
 
-			int i = this.itemDamage.calculate(itemDamage);
-			if (i > 0) {
-				stack.damage(i, entity, hand.getEquipmentSlot());
-			}
+		if (!world.isClient()) {
+			playerEntity.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+		}
+
+		int durabilityDamage = itemDamage.calculate(damage);
+		if (durabilityDamage > 0) {
+			stack.damage(durabilityDamage, entity, hand.getEquipmentSlot());
 		}
 	}
 
 	private int convertCooldownToTicks(float cooldownSeconds) {
-		float f = cooldownSeconds * this.disableCooldownScale;
-		return f > 0.0F ? Math.round(f * 20.0F) : 0;
+		float scaled = cooldownSeconds * disableCooldownScale;
+		return scaled > 0.0F ? Math.round(scaled * TICKS_PER_SECOND) : 0;
 	}
 
 	public int getBlockDelayTicks() {
-		return Math.round(this.blockDelaySeconds * 20.0F);
+		return Math.round(blockDelaySeconds * TICKS_PER_SECOND);
 	}
 
 	public float getDamageReductionAmount(DamageSource source, float damage, double angle) {
-		float f = 0.0F;
+		float total = 0.0F;
 
-		for (BlocksAttacksComponent.DamageReduction damageReduction : this.damageReductions) {
-			f += damageReduction.getReductionAmount(source, damage, angle);
+		for (DamageReduction reduction : damageReductions) {
+			total += reduction.getReductionAmount(source, damage, angle);
 		}
 
-		return MathHelper.clamp(f, 0.0F, damage);
+		return MathHelper.clamp(total, 0.0F, damage);
 	}
 
 	/**
-	 * {@code DamageReduction}.
-	 */
+		 * Правило снижения урона: угол блокировки, тип урона, базовое и пропорциональное снижение.
+		 */
 	public record DamageReduction(
 			float horizontalBlockingAngle,
 			Optional<RegistryEntryList<DamageType>> type,
@@ -196,17 +209,17 @@ public record BlocksAttacksComponent(
 
 		public static final Codec<BlocksAttacksComponent.DamageReduction> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codecs.POSITIVE_FLOAT
-								                    .optionalFieldOf("horizontal_blocking_angle", 90.0F)
-								                    .forGetter(BlocksAttacksComponent.DamageReduction::horizontalBlockingAngle),
-						                    RegistryCodecs
-								                    .entryList(RegistryKeys.DAMAGE_TYPE)
-								                    .optionalFieldOf("type")
-								                    .forGetter(BlocksAttacksComponent.DamageReduction::type),
-						                    Codec.FLOAT.fieldOf("base").forGetter(BlocksAttacksComponent.DamageReduction::base),
-						                    Codec.FLOAT.fieldOf("factor").forGetter(BlocksAttacksComponent.DamageReduction::factor)
-				                    )
-				                    .apply(instance, BlocksAttacksComponent.DamageReduction::new)
+											Codecs.POSITIVE_FLOAT
+													.optionalFieldOf("horizontal_blocking_angle", 90.0F)
+													.forGetter(BlocksAttacksComponent.DamageReduction::horizontalBlockingAngle),
+											RegistryCodecs
+													.entryList(RegistryKeys.DAMAGE_TYPE)
+													.optionalFieldOf("type")
+													.forGetter(BlocksAttacksComponent.DamageReduction::type),
+											Codec.FLOAT.fieldOf("base").forGetter(BlocksAttacksComponent.DamageReduction::base),
+											Codec.FLOAT.fieldOf("factor").forGetter(BlocksAttacksComponent.DamageReduction::factor)
+									)
+									.apply(instance, BlocksAttacksComponent.DamageReduction::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, BlocksAttacksComponent.DamageReduction>
 				PACKET_CODEC =
@@ -223,31 +236,33 @@ public record BlocksAttacksComponent(
 				);
 
 		public float getReductionAmount(DamageSource source, float damage, double angle) {
-			if (angle > (float) (Math.PI / 180.0) * this.horizontalBlockingAngle) {
+			if (angle > (float) (Math.PI / 180.0) * horizontalBlockingAngle) {
 				return 0.0F;
 			}
-			else {
-				return this.type.isPresent() && !this.type.get().contains(source.getTypeRegistryEntry())
-				       ? 0.0F
-				       : MathHelper.clamp(this.base + this.factor * damage, 0.0F, damage);
+
+			if (type.isPresent() && !type.get().contains(source.getTypeRegistryEntry())) {
+				return 0.0F;
 			}
+
+			return MathHelper.clamp(base + factor * damage, 0.0F, damage);
 		}
 	}
 
 	/**
-	 * {@code ItemDamage}.
-	 */
+		 * Параметры урона по прочности предмета-щита при блокировке.
+		 * Урон рассчитывается как {@code base + factor * damage}, если {@code damage >= threshold}.
+		 */
 	public record ItemDamage(float threshold, float base, float factor) {
 
 		public static final Codec<BlocksAttacksComponent.ItemDamage> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codecs.NON_NEGATIVE_FLOAT
-								                    .fieldOf("threshold")
-								                    .forGetter(BlocksAttacksComponent.ItemDamage::threshold),
-						                    Codec.FLOAT.fieldOf("base").forGetter(BlocksAttacksComponent.ItemDamage::base),
-						                    Codec.FLOAT.fieldOf("factor").forGetter(BlocksAttacksComponent.ItemDamage::factor)
-				                    )
-				                    .apply(instance, BlocksAttacksComponent.ItemDamage::new)
+											Codecs.NON_NEGATIVE_FLOAT
+													.fieldOf("threshold")
+													.forGetter(BlocksAttacksComponent.ItemDamage::threshold),
+											Codec.FLOAT.fieldOf("base").forGetter(BlocksAttacksComponent.ItemDamage::base),
+											Codec.FLOAT.fieldOf("factor").forGetter(BlocksAttacksComponent.ItemDamage::factor)
+									)
+									.apply(instance, BlocksAttacksComponent.ItemDamage::new)
 		);
 		public static final PacketCodec<ByteBuf, BlocksAttacksComponent.ItemDamage> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.FLOAT,
@@ -262,15 +277,8 @@ public record BlocksAttacksComponent(
 				DEFAULT =
 				new BlocksAttacksComponent.ItemDamage(1.0F, 0.0F, 1.0F);
 
-		/**
-		 * Calculate.
-		 *
-		 * @param itemDamage item damage
-		 *
-		 * @return int — результат операции
-		 */
-		public int calculate(float itemDamage) {
-			return itemDamage < this.threshold ? 0 : MathHelper.floor(this.base + this.factor * itemDamage);
+		public int calculate(float damage) {
+			return damage < threshold ? 0 : MathHelper.floor(base + factor * damage);
 		}
 	}
 }

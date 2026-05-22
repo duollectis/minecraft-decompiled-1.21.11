@@ -12,11 +12,16 @@ import java.util.Collection;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityTrackingSection}.
+ * Секция отслеживания сущностей, соответствующая одной чанк-секции (16×16×16 блоков).
+ * Хранит коллекцию сущностей и текущий статус отслеживания секции.
+ * Поддерживает пространственные запросы по AABB и типовую фильтрацию.
+ *
+ * @param <T> тип сущностей в секции
  */
 public class EntityTrackingSection<T extends EntityLike> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final TypeFilterableList<T> collection;
 	private EntityTrackingStatus status;
 
@@ -25,29 +30,25 @@ public class EntityTrackingSection<T extends EntityLike> {
 		this.collection = new TypeFilterableList<>(entityClass);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param entity entity
-	 */
 	public void add(T entity) {
-		this.collection.add(entity);
+		collection.add(entity);
+	}
+
+	public boolean remove(T entity) {
+		return collection.remove(entity);
 	}
 
 	/**
-	 * Remove.
+	 * Итерирует сущности, чьи bounding box пересекаются с указанным box.
+	 * Прерывает итерацию досрочно при получении {@code ABORT} от consumer.
 	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — результат операции
+	 * @param box      область поиска
+	 * @param consumer получатель найденных сущностей
+	 * @return {@code ABORT}, если итерация была прервана, иначе {@code CONTINUE}
 	 */
-	public boolean remove(T entity) {
-		return this.collection.remove(entity);
-	}
-
 	public LazyIterationConsumer.NextIteration forEach(Box box, LazyIterationConsumer<T> consumer) {
-		for (T entityLike : this.collection) {
-			if (entityLike.getBoundingBox().intersects(box) && consumer.accept(entityLike).shouldAbort()) {
+		for (T entity : collection) {
+			if (entity.getBoundingBox().intersects(box) && consumer.accept(entity).shouldAbort()) {
 				return LazyIterationConsumer.NextIteration.ABORT;
 			}
 		}
@@ -55,66 +56,63 @@ public class EntityTrackingSection<T extends EntityLike> {
 		return LazyIterationConsumer.NextIteration.CONTINUE;
 	}
 
+	/**
+	 * Итерирует сущности указанного типа, чьи bounding box пересекаются с box.
+	 * Использует {@link TypeFilterableList} для эффективной фильтрации по типу.
+	 *
+	 * @param type     фильтр типа
+	 * @param box      область поиска
+	 * @param consumer получатель найденных сущностей
+	 * @param <U>      целевой тип после фильтрации
+	 * @return {@code ABORT}, если итерация была прервана, иначе {@code CONTINUE}
+	 */
 	public <U extends T> LazyIterationConsumer.NextIteration forEach(
-			TypeFilter<T, U> type,
-			Box box,
-			LazyIterationConsumer<? super U> consumer
+		TypeFilter<T, U> type,
+		Box box,
+		LazyIterationConsumer<? super U> consumer
 	) {
-		Collection<? extends T> collection = this.collection.getAllOfType(type.getBaseClass());
-		if (collection.isEmpty()) {
+		Collection<? extends T> typed = collection.getAllOfType(type.getBaseClass());
+		if (typed.isEmpty()) {
 			return LazyIterationConsumer.NextIteration.CONTINUE;
 		}
-		else {
-			for (T entityLike : collection) {
-				U entityLike2 = (U) type.downcast(entityLike);
-				if (entityLike2 != null && entityLike.getBoundingBox().intersects(box) && consumer
-						.accept(entityLike2)
-						.shouldAbort()) {
-					return LazyIterationConsumer.NextIteration.ABORT;
-				}
-			}
 
-			return LazyIterationConsumer.NextIteration.CONTINUE;
+		for (T entity : typed) {
+			U cast = type.downcast(entity);
+			if (cast != null && entity.getBoundingBox().intersects(box) && consumer.accept(cast).shouldAbort()) {
+				return LazyIterationConsumer.NextIteration.ABORT;
+			}
 		}
+
+		return LazyIterationConsumer.NextIteration.CONTINUE;
 	}
 
 	public boolean isEmpty() {
-		return this.collection.isEmpty();
+		return collection.isEmpty();
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<T> stream() {
-		return this.collection.stream();
+		return collection.stream();
 	}
 
 	public EntityTrackingStatus getStatus() {
-		return this.status;
+		return status;
 	}
 
 	/**
-	 * Swap status.
+	 * Атомарно заменяет статус секции и возвращает предыдущий.
+	 * Используется при изменении состояния загрузки чанка.
 	 *
-	 * @param status status
-	 *
-	 * @return EntityTrackingStatus — результат операции
+	 * @param newStatus новый статус отслеживания
+	 * @return предыдущий статус отслеживания
 	 */
-	public EntityTrackingStatus swapStatus(EntityTrackingStatus status) {
-		EntityTrackingStatus entityTrackingStatus = this.status;
-		this.status = status;
-		return entityTrackingStatus;
+	public EntityTrackingStatus swapStatus(EntityTrackingStatus newStatus) {
+		EntityTrackingStatus previous = status;
+		status = newStatus;
+		return previous;
 	}
 
 	@Debug
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.collection.size();
+		return collection.size();
 	}
 }

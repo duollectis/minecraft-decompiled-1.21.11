@@ -7,18 +7,23 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema2509}.
+ * Схема версии 2509 (Minecraft 1.16 — Nether Update).
+ * <p>
+ * Выполняет переименование сущности: удаляет устаревший тип
+ * {@code minecraft:zombie_pigman} и регистрирует его преемника —
+ * зомбифицированного пиглина ({@code minecraft:zombified_piglin}).
  */
 public class Schema2509 extends IdentifierNormalizingSchema {
 
-	public Schema2509(int i, Schema schema) {
-		super(i, schema);
+	public Schema2509(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		map.remove("minecraft:zombie_pigman");
-		schema.registerSimple(map, "minecraft:zombified_piglin");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		entityTypes.remove("minecraft:zombie_pigman");
+		schema.registerSimple(entityTypes, "minecraft:zombified_piglin");
+		return entityTypes;
 	}
 }

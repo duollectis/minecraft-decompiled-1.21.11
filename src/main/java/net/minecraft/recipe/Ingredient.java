@@ -23,30 +23,33 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code Ingredient}.
+ * Описывает допустимые предметы для одного слота рецепта.
+ * Может быть задан через тег предметов или явным списком предметов.
+ * Пустой ингредиент (без предметов) недопустим — выбрасывает исключение при создании.
  */
 public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEntry<Item>>, Predicate<ItemStack>, FabricIngredient {
 
-	public static final PacketCodec<RegistryByteBuf, Ingredient>
-			PACKET_CODEC =
-			PacketCodecs.registryEntryList(RegistryKeys.ITEM)
-			            .xmap(Ingredient::new, ingredient -> ingredient.entries);
-	public static final PacketCodec<RegistryByteBuf, Optional<Ingredient>>
-			OPTIONAL_PACKET_CODEC =
-			PacketCodecs.registryEntryList(RegistryKeys.ITEM)
-			            .xmap(
-					            entries -> entries.size() == 0 ? Optional.empty()
-					                                           : Optional.of(new Ingredient((RegistryEntryList<Item>) entries)),
-					            optional -> optional
-							            .map(ingredient -> (RegistryEntryList<Item>) ingredient.entries)
-							            .orElse(RegistryEntryList.of())
-			            );
-	public static final Codec<RegistryEntryList<Item>>
-			ENTRIES_CODEC =
-			RegistryEntryListCodec.create(RegistryKeys.ITEM, Item.ENTRY_CODEC, false);
-	public static final Codec<Ingredient>
-			CODEC =
-			Codecs.nonEmptyEntryList(ENTRIES_CODEC).xmap(Ingredient::new, ingredient -> ingredient.entries);
+	public static final PacketCodec<RegistryByteBuf, Ingredient> PACKET_CODEC =
+		PacketCodecs.registryEntryList(RegistryKeys.ITEM)
+			.xmap(Ingredient::new, ingredient -> ingredient.entries);
+
+	public static final PacketCodec<RegistryByteBuf, Optional<Ingredient>> OPTIONAL_PACKET_CODEC =
+		PacketCodecs.registryEntryList(RegistryKeys.ITEM)
+			.xmap(
+				entries -> entries.size() == 0
+					? Optional.empty()
+					: Optional.of(new Ingredient((RegistryEntryList<Item>) entries)),
+				optional -> optional
+					.map(ingredient -> (RegistryEntryList<Item>) ingredient.entries)
+					.orElse(RegistryEntryList.of())
+			);
+
+	public static final Codec<RegistryEntryList<Item>> ENTRIES_CODEC =
+		RegistryEntryListCodec.create(RegistryKeys.ITEM, Item.ENTRY_CODEC, false);
+
+	public static final Codec<Ingredient> CODEC =
+		Codecs.nonEmptyEntryList(ENTRIES_CODEC).xmap(Ingredient::new, ingredient -> ingredient.entries);
+
 	private final RegistryEntryList<Item> entries;
 
 	private Ingredient(RegistryEntryList<Item> entries) {
@@ -54,142 +57,93 @@ public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEnt
 			if (list.isEmpty()) {
 				throw new UnsupportedOperationException("Ingredients can't be empty");
 			}
-			else if (list.contains(Items.AIR.getRegistryEntry())) {
+
+			if (list.contains(Items.AIR.getRegistryEntry())) {
 				throw new UnsupportedOperationException("Ingredient can't contain air");
 			}
 		});
+
 		this.entries = entries;
 	}
 
 	/**
-	 * Matches.
-	 *
-	 * @param ingredient ingredient
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет совпадение опционального ингредиента со стеком.
+	 * Если ингредиент отсутствует — считается совпадением только для пустого стека.
 	 */
 	public static boolean matches(Optional<Ingredient> ingredient, ItemStack stack) {
-		return ingredient.<Boolean>map(ingredient2 -> ingredient2.test(stack)).orElseGet(stack::isEmpty);
+		return ingredient.<Boolean>map(ing -> ing.test(stack)).orElseGet(stack::isEmpty);
 	}
 
 	@Deprecated
 	public Stream<RegistryEntry<Item>> getMatchingItems() {
-		return this.entries.stream();
+		return entries.stream();
 	}
 
 	public boolean isEmpty() {
-		return this.entries.size() == 0;
+		return entries.size() == 0;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param itemStack item stack
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(ItemStack itemStack) {
-		return itemStack.isIn(this.entries);
+	@Override
+	public boolean test(ItemStack stack) {
+		return stack.isIn(entries);
 	}
 
-	/**
-	 * Accepts item.
-	 *
-	 * @param registryEntry registry entry
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean acceptsItem(RegistryEntry<Item> registryEntry) {
-		return this.entries.contains(registryEntry);
+		return entries.contains(registryEntry);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return o instanceof Ingredient ingredient ? Objects.equals(this.entries, ingredient.entries) : false;
+		return o instanceof Ingredient other ? Objects.equals(entries, other.entries) : false;
 	}
 
-	/**
-	 * Of item.
-	 *
-	 * @param item item
-	 *
-	 * @return Ingredient — результат операции
-	 */
 	public static Ingredient ofItem(ItemConvertible item) {
 		return new Ingredient(RegistryEntryList.of(item.asItem().getRegistryEntry()));
 	}
 
-	/**
-	 * Of items.
-	 *
-	 * @param items items
-	 *
-	 * @return Ingredient — результат операции
-	 */
 	public static Ingredient ofItems(ItemConvertible... items) {
 		return ofItems(Arrays.stream(items));
 	}
 
-	/**
-	 * Of items.
-	 *
-	 * @param stacks stacks
-	 *
-	 * @return Ingredient — результат операции
-	 */
-	public static Ingredient ofItems(Stream<? extends ItemConvertible> stacks) {
-		return new Ingredient(RegistryEntryList.of(stacks.map(item -> item.asItem().getRegistryEntry()).toList()));
+	public static Ingredient ofItems(Stream<? extends ItemConvertible> items) {
+		return new Ingredient(RegistryEntryList.of(items.map(item -> item.asItem().getRegistryEntry()).toList()));
 	}
 
-	/**
-	 * Of tag.
-	 *
-	 * @param tag tag
-	 *
-	 * @return Ingredient — результат операции
-	 */
 	public static Ingredient ofTag(RegistryEntryList<Item> tag) {
 		return new Ingredient(tag);
 	}
 
 	/**
-	 * To display.
-	 *
-	 * @return SlotDisplay — результат операции
+	 * Создаёт {@link SlotDisplay} для отображения ингредиента в интерфейсе.
+	 * Тег отображается как {@link SlotDisplay.TagSlotDisplay}, список предметов —
+	 * как {@link SlotDisplay.CompositeSlotDisplay} с учётом остатков крафта.
 	 */
 	public SlotDisplay toDisplay() {
-		return (SlotDisplay) this.entries
-				.getStorage()
-				.map(
-						SlotDisplay.TagSlotDisplay::new,
-						items -> new SlotDisplay.CompositeSlotDisplay(items
-								.stream()
-								.map(Ingredient::createDisplayWithRemainder)
-								.toList())
-				);
+		return (SlotDisplay) entries
+			.getStorage()
+			.map(
+				SlotDisplay.TagSlotDisplay::new,
+				items -> new SlotDisplay.CompositeSlotDisplay(
+					items.stream()
+						.map(Ingredient::createDisplayWithRemainder)
+						.toList()
+				)
+			);
 	}
 
-	/**
-	 * To display.
-	 *
-	 * @param ingredient ingredient
-	 *
-	 * @return SlotDisplay — результат операции
-	 */
 	public static SlotDisplay toDisplay(Optional<Ingredient> ingredient) {
 		return ingredient.<SlotDisplay>map(Ingredient::toDisplay).orElse(SlotDisplay.EmptySlotDisplay.INSTANCE);
 	}
 
 	private static SlotDisplay createDisplayWithRemainder(RegistryEntry<Item> displayedItem) {
-		SlotDisplay slotDisplay = new SlotDisplay.ItemSlotDisplay(displayedItem);
-		ItemStack itemStack = displayedItem.value().getRecipeRemainder();
-		if (!itemStack.isEmpty()) {
-			SlotDisplay slotDisplay2 = new SlotDisplay.StackSlotDisplay(itemStack);
-			return new SlotDisplay.WithRemainderSlotDisplay(slotDisplay, slotDisplay2);
+		SlotDisplay itemDisplay = new SlotDisplay.ItemSlotDisplay(displayedItem);
+		ItemStack remainder = displayedItem.value().getRecipeRemainder();
+
+		if (remainder.isEmpty()) {
+			return itemDisplay;
 		}
-		else {
-			return slotDisplay;
-		}
+
+		return new SlotDisplay.WithRemainderSlotDisplay(itemDisplay, new SlotDisplay.StackSlotDisplay(remainder));
 	}
 }

@@ -12,17 +12,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code SlotsPredicate}.
+ * Предикат для проверки содержимого слотов инвентаря сущности.
+ * Для каждого диапазона слотов проверяет, что хотя бы один слот содержит подходящий предмет.
  */
 public record SlotsPredicate(Map<SlotRange, ItemPredicate> slots) {
 
-	public static final Codec<SlotsPredicate>
-			CODEC =
-			Codec.unboundedMap(SlotRanges.CODEC, ItemPredicate.CODEC).xmap(SlotsPredicate::new, SlotsPredicate::slots);
+	public static final Codec<SlotsPredicate> CODEC = Codec
+			.unboundedMap(SlotRanges.CODEC, ItemPredicate.CODEC)
+			.xmap(SlotsPredicate::new, SlotsPredicate::slots);
 
 	public boolean matches(StackReferenceGetter stackReferenceGetter) {
-		for (Entry<SlotRange, ItemPredicate> entry : this.slots.entrySet()) {
-			if (!matches(stackReferenceGetter, entry.getValue(), entry.getKey().getSlotIds())) {
+		for (Entry<SlotRange, ItemPredicate> entry : slots.entrySet()) {
+			if (!matchesAnySlot(stackReferenceGetter, entry.getValue(), entry.getKey().getSlotIds())) {
 				return false;
 			}
 		}
@@ -30,14 +31,15 @@ public record SlotsPredicate(Map<SlotRange, ItemPredicate> slots) {
 		return true;
 	}
 
-	private static boolean matches(
+	private static boolean matchesAnySlot(
 			StackReferenceGetter stackReferenceGetter,
 			ItemPredicate itemPredicate,
 			IntList slotIds
 	) {
-		for (int i = 0; i < slotIds.size(); i++) {
-			int j = slotIds.getInt(i);
-			StackReference stackReference = stackReferenceGetter.getStackReference(j);
+		for (int slotIndex = 0; slotIndex < slotIds.size(); slotIndex++) {
+			int slotId = slotIds.getInt(slotIndex);
+			StackReference stackReference = stackReferenceGetter.getStackReference(slotId);
+
 			if (stackReference != null && itemPredicate.test(stackReference.get())) {
 				return true;
 			}

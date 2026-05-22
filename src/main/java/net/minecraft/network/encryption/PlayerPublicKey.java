@@ -16,19 +16,22 @@ import java.util.Arrays;
 import java.util.UUID;
 
 /**
- * Запись player public key.
+ * Публичный ключ игрока с подписью от Mojang Services, используемый для верификации сообщений чата.
  */
 public record PlayerPublicKey(PlayerPublicKey.PublicKeyData data) {
 
 	public static final Text EXPIRED_PUBLIC_KEY_TEXT = Text.translatable("multiplayer.disconnect.expired_public_key");
-	private static final Text
-			INVALID_PUBLIC_KEY_SIGNATURE_TEXT =
+	private static final Text INVALID_PUBLIC_KEY_SIGNATURE_TEXT =
 			Text.translatable("multiplayer.disconnect.invalid_public_key_signature");
 	public static final Duration EXPIRATION_GRACE_PERIOD = Duration.ofHours(8L);
-	public static final Codec<PlayerPublicKey>
-			CODEC =
+	public static final Codec<PlayerPublicKey> CODEC =
 			PlayerPublicKey.PublicKeyData.CODEC.xmap(PlayerPublicKey::new, PlayerPublicKey::data);
 
+	/**
+	 * Верифицирует подпись публичного ключа через Mojang Services и возвращает {@link PlayerPublicKey}.
+	 *
+	 * @throws PublicKeyException если подпись недействительна
+	 */
 	public static PlayerPublicKey verifyAndDecode(
 			SignatureVerifier servicesSignatureVerifier,
 			UUID playerUuid,
@@ -37,83 +40,81 @@ public record PlayerPublicKey(PlayerPublicKey.PublicKeyData data) {
 		if (!publicKeyData.verifyKey(servicesSignatureVerifier, playerUuid)) {
 			throw new PlayerPublicKey.PublicKeyException(INVALID_PUBLIC_KEY_SIGNATURE_TEXT);
 		}
-		else {
-			return new PlayerPublicKey(publicKeyData);
-		}
+
+		return new PlayerPublicKey(publicKeyData);
 	}
 
-	/**
-	 * Создаёт signature instance.
-	 *
-	 * @return SignatureVerifier — результат операции
-	 */
 	public SignatureVerifier createSignatureInstance() {
-		return SignatureVerifier.create(this.data.key, "SHA256withRSA");
+		return SignatureVerifier.create(data.key, "SHA256withRSA");
 	}
 
 	/**
-	 * Запись public key data.
+	 * Данные публичного ключа: время истечения, сам ключ и подпись Mojang Services.
 	 */
 	public record PublicKeyData(Instant expiresAt, PublicKey key, byte[] keySignature) {
 
 		private static final int KEY_SIGNATURE_MAX_SIZE = 4096;
+		private static final int UUID_BYTES = 16;
+		private static final int EPOCH_MILLIS_BYTES = 8;
+		private static final int HEADER_SIZE = UUID_BYTES + EPOCH_MILLIS_BYTES;
+
 		public static final Codec<PlayerPublicKey.PublicKeyData> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codecs.INSTANT.fieldOf("expires_at").forGetter(PlayerPublicKey.PublicKeyData::expiresAt),
-						                    NetworkEncryptionUtils.RSA_PUBLIC_KEY_CODEC
-								                    .fieldOf("key")
-								                    .forGetter(PlayerPublicKey.PublicKeyData::key),
-						                    Codecs.BASE_64.fieldOf("signature_v2").forGetter(PlayerPublicKey.PublicKeyData::keySignature)
-				                    )
-				                    .apply(instance, PlayerPublicKey.PublicKeyData::new)
+						Codecs.INSTANT.fieldOf("expires_at").forGetter(PlayerPublicKey.PublicKeyData::expiresAt),
+						NetworkEncryptionUtils.RSA_PUBLIC_KEY_CODEC
+								.fieldOf("key")
+								.forGetter(PlayerPublicKey.PublicKeyData::key),
+						Codecs.BASE_64.fieldOf("signature_v2").forGetter(PlayerPublicKey.PublicKeyData::keySignature)
+				).apply(instance, PlayerPublicKey.PublicKeyData::new)
 		);
 
 		public PublicKeyData(PacketByteBuf buf) {
-			this(buf.readInstant(), buf.readPublicKey(), buf.readByteArray(4096));
+			this(buf.readInstant(), buf.readPublicKey(), buf.readByteArray(KEY_SIGNATURE_MAX_SIZE));
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
-			buf.writeInstant(this.expiresAt);
-			buf.writePublicKey(this.key);
-			buf.writeByteArray(this.keySignature);
+			buf.writeInstant(expiresAt);
+			buf.writePublicKey(key);
+			buf.writeByteArray(keySignature);
 		}
 
 		boolean verifyKey(SignatureVerifier servicesSignatureVerifier, UUID playerUuid) {
-			return servicesSignatureVerifier.validate(this.toSerializedString(playerUuid), this.keySignature);
+			return servicesSignatureVerifier.validate(toSerializedString(playerUuid), keySignature);
 		}
 
+		/**
+		 * Сериализует данные ключа в байтовый массив для верификации подписи:
+		 * UUID (16 байт) + expiresAt (8 байт) + encoded public key.
+		 */
 		private byte[] toSerializedString(UUID playerUuid) {
-			byte[] bs = this.key.getEncoded();
-			byte[] cs = new byte[24 + bs.length];
-			ByteBuffer byteBuffer = ByteBuffer.wrap(cs).order(ByteOrder.BIG_ENDIAN);
-			byteBuffer
+			byte[] encodedKey = key.getEncoded();
+			byte[] result = new byte[HEADER_SIZE + encodedKey.length];
+			ByteBuffer.wrap(result)
+					.order(ByteOrder.BIG_ENDIAN)
 					.putLong(playerUuid.getMostSignificantBits())
 					.putLong(playerUuid.getLeastSignificantBits())
-					.putLong(this.expiresAt.toEpochMilli())
-					.put(bs);
-			return cs;
+					.putLong(expiresAt.toEpochMilli())
+					.put(encodedKey);
+			return result;
 		}
 
 		public boolean isExpired() {
-			return this.expiresAt.isBefore(Instant.now());
+			return expiresAt.isBefore(Instant.now());
 		}
 
 		public boolean isExpired(Duration gracePeriod) {
-			return this.expiresAt.plus(gracePeriod).isBefore(Instant.now());
+			return expiresAt.plus(gracePeriod).isBefore(Instant.now());
 		}
 
 		@Override
-		public boolean equals(Object o) {
-			return !(o instanceof PlayerPublicKey.PublicKeyData publicKeyData)
-			       ? false
-			       : this.expiresAt.equals(publicKeyData.expiresAt)
-			         && this.key.equals(publicKeyData.key)
-			         && Arrays.equals(this.keySignature, publicKeyData.keySignature);
+		public boolean equals(Object other) {
+			if (!(other instanceof PlayerPublicKey.PublicKeyData publicKeyData)) {
+				return false;
+			}
+
+			return expiresAt.equals(publicKeyData.expiresAt)
+					&& key.equals(publicKeyData.key)
+					&& Arrays.equals(keySignature, publicKeyData.keySignature);
 		}
 	}
 

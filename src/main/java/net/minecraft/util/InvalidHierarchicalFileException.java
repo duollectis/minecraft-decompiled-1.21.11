@@ -9,71 +9,72 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@code InvalidHierarchicalFileException}.
+ * Исключение для ошибок в иерархических файлах конфигурации (например, JSON-файлах ресурс-паков).
+ * <p>
+ * Поддерживает накопление контекста через {@link #addInvalidKey(String)} и {@link #addInvalidFile(String)},
+ * что позволяет формировать читаемое сообщение об ошибке с полным путём к проблемному элементу.
  */
 public class InvalidHierarchicalFileException extends IOException {
 
-	private final List<InvalidHierarchicalFileException.File> invalidFiles = Lists.newArrayList();
-	private final String message;
+	private static final String FILE_NOT_FOUND_MESSAGE = "File not found";
+
+	private final List<File> invalidFiles = Lists.newArrayList();
+	private final String errorMessage;
 
 	public InvalidHierarchicalFileException(String message) {
-		this.invalidFiles.add(new InvalidHierarchicalFileException.File());
-		this.message = message;
+		invalidFiles.add(new File());
+		this.errorMessage = message;
 	}
 
 	public InvalidHierarchicalFileException(String message, Throwable cause) {
 		super(cause);
-		this.invalidFiles.add(new InvalidHierarchicalFileException.File());
-		this.message = message;
+		invalidFiles.add(new File());
+		this.errorMessage = message;
 	}
 
 	/**
-	 * Добавляет invalid key.
+	 * Добавляет ключ к пути текущего файла в цепочке контекста.
 	 *
-	 * @param key key
+	 * @param key ключ поля или элемента, в котором обнаружена ошибка
 	 */
 	public void addInvalidKey(String key) {
-		this.invalidFiles.get(0).addKey(key);
+		invalidFiles.get(0).addKey(key);
 	}
 
 	/**
-	 * Добавляет invalid file.
+	 * Добавляет имя файла в цепочку контекста и создаёт новый уровень для дальнейшего накопления.
 	 *
-	 * @param fileName file name
+	 * @param fileName имя файла, в котором обнаружена ошибка
 	 */
 	public void addInvalidFile(String fileName) {
-		this.invalidFiles.get(0).name = fileName;
-		this.invalidFiles.add(0, new InvalidHierarchicalFileException.File());
+		invalidFiles.get(0).name = fileName;
+		invalidFiles.add(0, new File());
 	}
 
 	@Override
 	public String getMessage() {
-		return "Invalid " + this.invalidFiles.get(this.invalidFiles.size() - 1) + ": " + this.message;
+		return "Invalid " + invalidFiles.get(invalidFiles.size() - 1) + ": " + errorMessage;
 	}
 
 	/**
-	 * Wrap.
+	 * Оборачивает произвольное исключение в {@link InvalidHierarchicalFileException}.
+	 * Если исключение уже является {@link InvalidHierarchicalFileException}, возвращает его без изменений.
+	 * {@link FileNotFoundException} преобразуется в сообщение "File not found".
 	 *
-	 * @param cause cause
-	 *
-	 * @return InvalidHierarchicalFileException — результат операции
+	 * @param cause исходное исключение
+	 * @return обёрнутое исключение
 	 */
 	public static InvalidHierarchicalFileException wrap(Exception cause) {
-		if (cause instanceof InvalidHierarchicalFileException) {
-			return (InvalidHierarchicalFileException) cause;
+		if (cause instanceof InvalidHierarchicalFileException hierarchical) {
+			return hierarchical;
 		}
-		else {
-			String string = cause.getMessage();
-			if (cause instanceof FileNotFoundException) {
-				string = "File not found";
-			}
 
-			return new InvalidHierarchicalFileException(string, cause);
-		}
+		String message = cause instanceof FileNotFoundException ? FILE_NOT_FOUND_MESSAGE : cause.getMessage();
+		return new InvalidHierarchicalFileException(message, cause);
 	}
 
 	/**
-	 * {@code File}.
+	 * Узел иерархии файла с именем и цепочкой ключей.
 	 */
 	public static class File {
 
@@ -84,30 +85,24 @@ public class InvalidHierarchicalFileException extends IOException {
 		}
 
 		void addKey(String key) {
-			this.keys.add(0, key);
+			keys.add(0, key);
 		}
 
 		public @Nullable String getName() {
-			return this.name;
+			return name;
 		}
 
-		/**
-		 * Join keys.
-		 *
-		 * @return String — результат операции
-		 */
+		/** @return цепочка ключей, разделённых {@code ->} */
 		public String joinKeys() {
-			return StringUtils.join(this.keys, "->");
+			return StringUtils.join(keys, "->");
 		}
 
 		@Override
 		public String toString() {
-			if (this.name != null) {
-				return this.keys.isEmpty() ? this.name : this.name + " " + this.joinKeys();
-			}
-			else {
-				return this.keys.isEmpty() ? "(Unknown file)" : "(Unknown file) " + this.joinKeys();
-			}
+			String keyPart = keys.isEmpty() ? "" : " " + joinKeys();
+			return name != null
+				? name + keyPart
+				: "(Unknown file)" + keyPart;
 		}
 	}
 }

@@ -9,10 +9,11 @@ import net.minecraft.client.realms.RealmsSerializable;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerInfo}.
+ * DTO информации об игроке, приглашённом на сервер Realms.
+ * Содержит имя, UUID и флаги статуса: оператор, принял приглашение, онлайн.
  */
+@Environment(EnvType.CLIENT)
 public class PlayerInfo extends ValueObject implements RealmsSerializable {
 
 	@SerializedName("name")
@@ -27,11 +28,11 @@ public class PlayerInfo extends ValueObject implements RealmsSerializable {
 	@SerializedName("online")
 	public final boolean online;
 
-	public PlayerInfo(String string, UUID uUID, boolean bl, boolean bl2, boolean bl3) {
-		this.name = string;
-		this.uuid = uUID;
-		this.operator = bl;
-		this.accepted = bl2;
-		this.online = bl3;
+	public PlayerInfo(String name, UUID uuid, boolean operator, boolean accepted, boolean online) {
+		this.name = name;
+		this.uuid = uuid;
+		this.operator = operator;
+		this.accepted = accepted;
+		this.online = online;
 	}
 }

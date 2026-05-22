@@ -12,7 +12,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 /**
- * {@code DemoServerPlayerInteractionManager}.
+ * Класс Demo Server Player Interaction Manager.
  */
 public class DemoServerPlayerInteractionManager extends ServerPlayerInteractionManager {
 
@@ -41,7 +41,7 @@ public class DemoServerPlayerInteractionManager extends ServerPlayerInteractionM
 			));
 		}
 
-		this.demoEnded = l > 120500L;
+		this.demoEnded = l > DEMO_TIME;
 		if (this.demoEnded) {
 			this.reminderTicks++;
 		}

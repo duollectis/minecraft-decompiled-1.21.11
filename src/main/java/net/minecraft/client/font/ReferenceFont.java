@@ -7,10 +7,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ReferenceFont}.
+ * Загрузчик шрифта-ссылки — делегирует рендеринг другому шрифту по идентификатору.
+ * Используется для переиспользования уже загруженных шрифтов без дублирования данных.
  */
+@Environment(EnvType.CLIENT)
 public record ReferenceFont(Identifier id) implements FontLoader {
 
 	public static final MapCodec<ReferenceFont> CODEC = RecordCodecBuilder.mapCodec(
@@ -26,6 +27,6 @@ public record ReferenceFont(Identifier id) implements FontLoader {
 
 	@Override
 	public Either<FontLoader.Loadable, FontLoader.Reference> build() {
-		return Either.right(new FontLoader.Reference(this.id));
+		return Either.right(new FontLoader.Reference(id));
 	}
 }

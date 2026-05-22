@@ -11,16 +11,19 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Toast}.
+ * Интерфейс всплывающего уведомления (toast) в правом верхнем углу экрана.
+ *
+ * <p>Каждый toast имеет тип ({@link #getType()}), используемый для дедупликации
+ * в {@link ToastManager}, и видимость ({@link Visibility}), управляющую анимацией
+ * появления/исчезновения.
  */
+@Environment(EnvType.CLIENT)
 public interface Toast {
 
 	Object TYPE = new Object();
 
 	int BASE_WIDTH = 160;
-
 	int BASE_HEIGHT = 32;
 
 	Toast.Visibility getVisibility();
@@ -38,49 +41,42 @@ public interface Toast {
 	}
 
 	default float getXPos(int scaledWindowWidth, float visibleWidthPortion) {
-		return scaledWindowWidth - this.getWidth() * visibleWidthPortion;
+		return scaledWindowWidth - getWidth() * visibleWidthPortion;
 	}
 
 	default float getYPos(int topIndex) {
-		return topIndex * this.getHeight();
+		return topIndex * getHeight();
 	}
 
 	default int getWidth() {
-		return 160;
+		return BASE_WIDTH;
 	}
 
 	default int getHeight() {
-		return 32;
+		return BASE_HEIGHT;
 	}
 
 	default int getRequiredSpaceCount() {
-		return MathHelper.ceilDiv(this.getHeight(), 32);
+		return MathHelper.ceilDiv(getHeight(), BASE_HEIGHT);
 	}
 
 	default void onFinishedRendering() {
 	}
 
+	/** Состояние видимости toast: появляется или исчезает. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Visibility}.
-	 */
-	public static enum Visibility {
+	enum Visibility {
 		SHOW(SoundEvents.UI_TOAST_IN),
 		HIDE(SoundEvents.UI_TOAST_OUT);
 
 		private final SoundEvent sound;
 
-		private Visibility(final SoundEvent sound) {
+		Visibility(final SoundEvent sound) {
 			this.sound = sound;
 		}
 
-		/**
-		 * Play sound.
-		 *
-		 * @param soundManager sound manager
-		 */
 		public void playSound(SoundManager soundManager) {
-			soundManager.play(PositionedSoundInstance.master(this.sound, 1.0F, 1.0F));
+			soundManager.play(PositionedSoundInstance.master(sound, 1.0F, 1.0F));
 		}
 	}
 }

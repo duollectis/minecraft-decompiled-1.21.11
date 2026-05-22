@@ -8,12 +8,10 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.storage.ChunkCompressionFormat;
 import net.minecraft.world.storage.StorageKey;
 
+/** JFR-событие записи чанка в файл региона: фиксирует ключ хранилища, позицию, формат сжатия и размер. */
 @Name("minecraft.ChunkRegionWrite")
 @Label("Region File Write")
 @DontObfuscate
-/**
- * {@code ChunkRegionWriteEvent}.
- */
 public class ChunkRegionWriteEvent extends ChunkRegionEvent {
 
 	public static final String EVENT_NAME = "minecraft.ChunkRegionWrite";

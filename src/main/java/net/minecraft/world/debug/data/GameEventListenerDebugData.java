@@ -5,11 +5,13 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 
 /**
- * {@code GameEventListenerDebugData}.
+ * Отладочные данные слушателя игровых событий: радиус прослушивания.
  */
 public record GameEventListenerDebugData(int listenerRadius) {
 
 	public static final PacketCodec<RegistryByteBuf, GameEventListenerDebugData> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.VAR_INT, GameEventListenerDebugData::listenerRadius, GameEventListenerDebugData::new
+			PacketCodecs.VAR_INT,
+			GameEventListenerDebugData::listenerRadius,
+			GameEventListenerDebugData::new
 	);
 }

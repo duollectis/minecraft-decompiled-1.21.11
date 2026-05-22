@@ -8,9 +8,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
-/**
- * {@code AmethystBlock}.
- */
+/** Блок аметиста — издаёт звон при попадании снаряда. */
 public class AmethystBlock extends Block {
 
 	public static final MapCodec<AmethystBlock> CODEC = createCodec(AmethystBlock::new);
@@ -26,16 +24,18 @@ public class AmethystBlock extends Block {
 
 	@Override
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-		if (!world.isClient()) {
-			BlockPos blockPos = hit.getBlockPos();
-			world.playSound(
-					null,
-					blockPos,
-					SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME,
-					SoundCategory.BLOCKS,
-					1.0F,
-					0.5F + world.random.nextFloat() * 1.2F
-			);
+		if (world.isClient()) {
+			return;
 		}
+
+		BlockPos blockPos = hit.getBlockPos();
+		world.playSound(
+			null,
+			blockPos,
+			SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME,
+			SoundCategory.BLOCKS,
+			1.0F,
+			0.5F + world.random.nextFloat() * 1.2F
+		);
 	}
 }

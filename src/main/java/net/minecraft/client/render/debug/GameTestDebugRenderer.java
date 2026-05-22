@@ -12,59 +12,53 @@ import net.minecraft.world.debug.gizmo.TextGizmo;
 
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameTestDebugRenderer}.
+ * Рендерит отладочные маркеры игровых тестов (Game Tests) в мировом пространстве.
+ * Каждый маркер отображается как небольшой закрашенный бокс с текстовой меткой
+ * и автоматически удаляется через {@code MARKER_LIFESPAN_MS} миллисекунд.
  */
+@Environment(EnvType.CLIENT)
 public class GameTestDebugRenderer {
 
 	private static final int MARKER_LIFESPAN_MS = 10000;
 	private static final float MARKER_BOX_SIZE = 0.02F;
+	// 0x5FFF0000 — полупрозрачный красный цвет маркера
+	private static final int MARKER_COLOR = 1610678016;
+	// Смещение текста по Y над центром блока
+	private static final double MARKER_TEXT_Y_OFFSET = 1.2;
+	private static final float MARKER_TEXT_SCALE = 0.16F;
+
 	private final Map<BlockPos, GameTestDebugRenderer.Marker> markers = Maps.newHashMap();
 
-	/**
-	 * Добавляет marker.
-	 *
-	 * @param absolutePos absolute pos
-	 * @param relativePos relative pos
-	 */
 	public void addMarker(BlockPos absolutePos, BlockPos relativePos) {
-		String string = relativePos.toShortString();
-		this.markers.put(
+		markers.put(
 				absolutePos,
-				new GameTestDebugRenderer.Marker(1610678016, string, Util.getMeasuringTimeMs() + 10000L)
+				new GameTestDebugRenderer.Marker(MARKER_COLOR, relativePos.toShortString(), Util.getMeasuringTimeMs() + MARKER_LIFESPAN_MS)
 		);
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.markers.clear();
+		markers.clear();
 	}
 
-	/**
-	 * Render.
-	 */
 	public void render() {
-		long l = Util.getMeasuringTimeMs();
-		this.markers.entrySet().removeIf(marker -> l > marker.getValue().removalTime);
-		this.markers.forEach((pos, marker) -> this.render(pos, marker));
+		long now = Util.getMeasuringTimeMs();
+		markers.entrySet().removeIf(entry -> now > entry.getValue().removalTime);
+		markers.forEach((pos, marker) -> render(pos, marker));
 	}
 
 	private void render(BlockPos blockPos, GameTestDebugRenderer.Marker marker) {
-		GizmoDrawing.box(blockPos, 0.02F, DrawStyle.filled(marker.color()));
+		GizmoDrawing.box(blockPos, MARKER_BOX_SIZE, DrawStyle.filled(marker.color()));
+
 		if (!marker.message.isEmpty()) {
 			GizmoDrawing
-					.text(marker.message, Vec3d.add(blockPos, 0.5, 1.2, 0.5), TextGizmo.Style.left().scaled(0.16F))
+					.text(marker.message, Vec3d.add(blockPos, 0.5, MARKER_TEXT_Y_OFFSET, 0.5), TextGizmo.Style.left().scaled(MARKER_TEXT_SCALE))
 					.ignoreOcclusion();
 		}
 	}
 
+	/** Данные одного отладочного маркера: цвет, сообщение и время автоудаления. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Marker}.
-	 */
 	record Marker(int color, String message, long removalTime) {
 	}
 }

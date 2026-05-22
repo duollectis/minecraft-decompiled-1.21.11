@@ -9,15 +9,11 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * {@code LookAtDisturbanceTask}.
+ * Фабричный класс задачи мозга, направляющей взгляд сущности на источник помехи или цель рёва.
+ * Приоритет: цель рёва ({@code ROAR_TARGET}) → место помехи ({@code DISTURBANCE_LOCATION}).
  */
 public class LookAtDisturbanceTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -29,18 +25,16 @@ public class LookAtDisturbanceTask {
 				                  .apply(
 						                  context,
 						                  (lookTarget, disturbanceLocation, roarTarget, attackTarget) -> (world, entity, time) -> {
-							                  Optional<BlockPos>
-									                  optional =
-									                  context.<LivingEntity>getOptionalValue(roarTarget)
-									                         .map(Entity::getBlockPos)
-									                         .or(() -> context.getOptionalValue(disturbanceLocation));
-							                  if (optional.isEmpty()) {
+							                  Optional<BlockPos> target = context.<LivingEntity>getOptionalValue(roarTarget)
+							                                                     .map(Entity::getBlockPos)
+							                                                     .or(() -> context.getOptionalValue(disturbanceLocation));
+
+							                  if (target.isEmpty()) {
 								                  return false;
 							                  }
-							                  else {
-								                  lookTarget.remember(new BlockPosLookTarget(optional.get()));
-								                  return true;
-							                  }
+
+							                  lookTarget.remember(new BlockPosLookTarget(target.get()));
+							                  return true;
 						                  }
 				                  )
 		);

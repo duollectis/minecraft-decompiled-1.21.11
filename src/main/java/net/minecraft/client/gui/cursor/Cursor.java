@@ -5,13 +5,14 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Cursor}.
+ * Обёртка над GLFW-курсором. Хранит нативный дескриптор и применяет курсор к окну.
  */
+@Environment(EnvType.CLIENT)
 public class Cursor {
 
 	public static final Cursor DEFAULT = new Cursor("default", 0L);
+
 	private final String name;
 	private final long handle;
 
@@ -20,31 +21,21 @@ public class Cursor {
 		this.handle = handle;
 	}
 
-	/**
-	 * Применяет to.
-	 *
-	 * @param window window
-	 */
 	public void applyTo(Window window) {
-		GLFW.glfwSetCursor(window.getHandle(), this.handle);
+		GLFW.glfwSetCursor(window.getHandle(), handle);
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * Создаёт standard.
-	 *
-	 * @param handle handle
-	 * @param name name
-	 * @param fallback fallback
-	 *
-	 * @return Cursor — результат операции
+	 * Создаёт курсор по стандартному GLFW-идентификатору.
+	 * Если GLFW не поддерживает данный тип курсора, возвращает {@code fallback}.
 	 */
-	public static Cursor createStandard(int handle, String name, Cursor fallback) {
-		long l = GLFW.glfwCreateStandardCursor(handle);
-		return l == 0L ? fallback : new Cursor(name, l);
+	public static Cursor createStandard(int glfwShape, String name, Cursor fallback) {
+		long nativeHandle = GLFW.glfwCreateStandardCursor(glfwShape);
+		return nativeHandle == 0L ? fallback : new Cursor(name, nativeHandle);
 	}
 }

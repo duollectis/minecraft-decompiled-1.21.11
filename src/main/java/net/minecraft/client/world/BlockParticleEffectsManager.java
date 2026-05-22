@@ -14,82 +14,84 @@ import net.minecraft.util.math.random.Random;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockParticleEffectsManager}.
+ * Менеджер частиц разрушения блоков.
+ *
+ * <p>Накапливает запросы на спавн частиц через {@link #scheduleBlockParticles},
+ * а в {@link #tick} случайно выбирает до {@link #MAX_PARTICLES} частиц
+ * пропорционально весу каждой записи и добавляет их в мир.
+ * При настройке частиц не {@code ALL} очередь просто очищается.
  */
+@Environment(EnvType.CLIENT)
 public class BlockParticleEffectsManager {
 
 	private static final int MAX_PARTICLES = 512;
-	private final List<BlockParticleEffectsManager.Entry> pool = new ArrayList<>();
+
+	private final List<Entry> pool = new ArrayList<>();
 
 	public void scheduleBlockParticles(
-			Vec3d center,
-			float radius,
-			int blockCount,
-			Pool<BlockParticleEffect> particles
+		Vec3d center,
+		float radius,
+		int blockCount,
+		Pool<BlockParticleEffect> particles
 	) {
 		if (!particles.isEmpty()) {
-			this.pool.add(new BlockParticleEffectsManager.Entry(center, radius, blockCount, particles));
+			pool.add(new Entry(center, radius, blockCount, particles));
 		}
+	}
+
+	public void tick(ClientWorld world) {
+		if (MinecraftClient.getInstance().options.getParticles().getValue() != ParticlesMode.ALL) {
+			pool.clear();
+			return;
+		}
+
+		int totalWeight = Weighting.getWeightSum(pool, Entry::blockCount);
+		int spawnCount = Math.min(totalWeight, MAX_PARTICLES);
+
+		for (int i = 0; i < spawnCount; i++) {
+			Weighting.getRandom(world.getRandom(), pool, totalWeight, Entry::blockCount)
+				.ifPresent(entry -> addEffect(world, entry));
+		}
+
+		pool.clear();
 	}
 
 	/**
-	 * Tick.
-	 *
-	 * @param world world
+	 * Спавнит одну частицу для записи {@code entry} в случайной точке сферы.
+	 * Частица не спавнится, если целевая позиция находится внутри непрозрачного блока.
 	 */
-	public void tick(ClientWorld world) {
-		if (MinecraftClient.getInstance().options.getParticles().getValue() != ParticlesMode.ALL) {
-			this.pool.clear();
-		}
-		else {
-			int i = Weighting.getWeightSum(this.pool, BlockParticleEffectsManager.Entry::blockCount);
-			int j = Math.min(i, 512);
-
-			for (int k = 0; k < j; k++) {
-				Weighting.getRandom(world.getRandom(), this.pool, i, BlockParticleEffectsManager.Entry::blockCount)
-				         .ifPresent(entry -> this.addEffect(world, entry));
-			}
-
-			this.pool.clear();
-		}
-	}
-
-	private void addEffect(ClientWorld world, BlockParticleEffectsManager.Entry entry) {
+	private void addEffect(ClientWorld world, Entry entry) {
 		Random random = world.getRandom();
-		Vec3d vec3d = entry.center();
-		Vec3d
-				vec3d2 =
-				new Vec3d(
-						random.nextFloat() * 2.0F - 1.0F,
-						random.nextFloat() * 2.0F - 1.0F,
-						random.nextFloat() * 2.0F - 1.0F
-				).normalize();
-		float f = (float) Math.cbrt(random.nextFloat()) * entry.radius();
-		Vec3d vec3d3 = vec3d2.multiply(f);
-		Vec3d vec3d4 = vec3d.add(vec3d3);
-		if (world.getBlockState(BlockPos.ofFloored(vec3d4)).isAir()) {
-			float g = 0.5F / (f / entry.radius() + 0.1F) * random.nextFloat() * random.nextFloat() + 0.3F;
-			BlockParticleEffect blockParticleEffect = entry.blockParticles.get(random);
-			Vec3d vec3d5 = vec3d.add(vec3d3.multiply(blockParticleEffect.scaling()));
-			Vec3d vec3d6 = vec3d2.multiply(g * blockParticleEffect.speed());
+		Vec3d center = entry.center();
+		Vec3d direction = new Vec3d(
+			random.nextFloat() * 2.0F - 1.0F,
+			random.nextFloat() * 2.0F - 1.0F,
+			random.nextFloat() * 2.0F - 1.0F
+		).normalize();
+		float distance = (float) Math.cbrt(random.nextFloat()) * entry.radius();
+		Vec3d offset = direction.multiply(distance);
+		Vec3d spawnPos = center.add(offset);
+
+		if (world.getBlockState(BlockPos.ofFloored(spawnPos)).isAir()) {
+			float speed = 0.5F / (distance / entry.radius() + 0.1F) * random.nextFloat() * random.nextFloat() + 0.3F;
+			BlockParticleEffect effect = entry.blockParticles.get(random);
+			Vec3d particlePos = center.add(offset.multiply(effect.scaling()));
+			Vec3d velocity = direction.multiply(speed * effect.speed());
+
 			world.addParticleClient(
-					blockParticleEffect.particle(),
-					vec3d5.getX(),
-					vec3d5.getY(),
-					vec3d5.getZ(),
-					vec3d6.getX(),
-					vec3d6.getY(),
-					vec3d6.getZ()
+				effect.particle(),
+				particlePos.getX(),
+				particlePos.getY(),
+				particlePos.getZ(),
+				velocity.getX(),
+				velocity.getY(),
+				velocity.getZ()
 			);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Entry}.
-	 */
 	record Entry(Vec3d center, float radius, int blockCount, Pool<BlockParticleEffect> blockParticles) {
 	}
 }

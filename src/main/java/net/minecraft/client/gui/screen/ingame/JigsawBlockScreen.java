@@ -20,10 +20,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code JigsawBlockScreen}.
+ * Экран редактирования блока пазла (Jigsaw). Позволяет настраивать пул структур,
+ * имена соединений, финальное состояние и параметры генерации.
  */
+@Environment(EnvType.CLIENT)
 public class JigsawBlockScreen extends Screen {
 
 	private static final Text JOINT_LABEL_TEXT = Text.translatable("jigsaw_block.joint_label");
@@ -35,6 +36,16 @@ public class JigsawBlockScreen extends Screen {
 	private static final Text PLACEMENT_PRIORITY_TOOLTIP = Text.translatable("jigsaw_block.placement_priority.tooltip");
 	private static final Text SELECTION_PRIORITY_TEXT = Text.translatable("jigsaw_block.selection_priority");
 	private static final Text SELECTION_PRIORITY_TOOLTIP = Text.translatable("jigsaw_block.selection_priority.tooltip");
+	private static final int FIELD_WIDTH = 300;
+	private static final int FIELD_HEIGHT = 20;
+	private static final int PRIORITY_FIELD_WIDTH = 98;
+	private static final int PRIORITY_FIELD_MAX_LENGTH = 3;
+	private static final int FIELD_MAX_LENGTH = 128;
+	private static final int FINAL_STATE_MAX_LENGTH = 256;
+	private static final int MAX_GENERATION_DEPTH = 20;
+	private static final int BUTTON_PRESS_PACKET_OFFSET = 100;
+	private static final int TEXT_COLOR_LABEL = -6250336;
+
 	private final JigsawBlockEntity jigsaw;
 	private TextFieldWidget nameField;
 	private TextFieldWidget targetField;
@@ -55,155 +66,156 @@ public class JigsawBlockScreen extends Screen {
 	}
 
 	private void onDone() {
-		this.updateServer();
-		this.client.setScreen(null);
+		updateServer();
+		client.setScreen(null);
 	}
 
 	private void onCancel() {
-		this.client.setScreen(null);
+		client.setScreen(null);
 	}
 
 	private void updateServer() {
-		this.client
-				.getNetworkHandler()
-				.sendPacket(
-						new UpdateJigsawC2SPacket(
-								this.jigsaw.getPos(),
-								Identifier.of(this.nameField.getText()),
-								Identifier.of(this.targetField.getText()),
-								Identifier.of(this.poolField.getText()),
-								this.finalStateField.getText(),
-								this.joint,
-								this.parseInt(this.selectionPriorityField.getText()),
-								this.parseInt(this.placementPriorityField.getText())
-						)
-				);
+		client.getNetworkHandler().sendPacket(new UpdateJigsawC2SPacket(
+			jigsaw.getPos(),
+			Identifier.of(nameField.getText()),
+			Identifier.of(targetField.getText()),
+			Identifier.of(poolField.getText()),
+			finalStateField.getText(),
+			joint,
+			parseInt(selectionPriorityField.getText()),
+			parseInt(placementPriorityField.getText())
+		));
 	}
 
 	private int parseInt(String value) {
 		try {
 			return Integer.parseInt(value);
-		}
-		catch (NumberFormatException var3) {
+		} catch (NumberFormatException e) {
 			return 0;
 		}
 	}
 
 	private void generate() {
-		this.client
-				.getNetworkHandler()
-				.sendPacket(new JigsawGeneratingC2SPacket(
-						this.jigsaw.getPos(),
-						this.generationDepth,
-						this.keepJigsaws
-				));
+		client.getNetworkHandler().sendPacket(new JigsawGeneratingC2SPacket(
+			jigsaw.getPos(),
+			generationDepth,
+			keepJigsaws
+		));
 	}
 
 	@Override
 	public void close() {
-		this.onCancel();
+		onCancel();
 	}
 
 	@Override
 	protected void init() {
-		this.poolField = new TextFieldWidget(this.textRenderer, this.width / 2 - 153, 20, 300, 20, POOL_TEXT);
-		this.poolField.setMaxLength(128);
-		this.poolField.setText(this.jigsaw.getPool().getValue().toString());
-		this.poolField.setChangedListener(pool -> this.updateDoneButtonState());
-		this.addSelectableChild(this.poolField);
-		this.nameField = new TextFieldWidget(this.textRenderer, this.width / 2 - 153, 55, 300, 20, NAME_TEXT);
-		this.nameField.setMaxLength(128);
-		this.nameField.setText(this.jigsaw.getName().toString());
-		this.nameField.setChangedListener(name -> this.updateDoneButtonState());
-		this.addSelectableChild(this.nameField);
-		this.targetField = new TextFieldWidget(this.textRenderer, this.width / 2 - 153, 90, 300, 20, TARGET_TEXT);
-		this.targetField.setMaxLength(128);
-		this.targetField.setText(this.jigsaw.getTarget().toString());
-		this.targetField.setChangedListener(target -> this.updateDoneButtonState());
-		this.addSelectableChild(this.targetField);
-		this.finalStateField =
-				new TextFieldWidget(this.textRenderer, this.width / 2 - 153, 125, 300, 20, FINAL_STATE_TEXT);
-		this.finalStateField.setMaxLength(256);
-		this.finalStateField.setText(this.jigsaw.getFinalState());
-		this.addSelectableChild(this.finalStateField);
-		this.selectionPriorityField =
-				new TextFieldWidget(this.textRenderer, this.width / 2 - 153, 160, 98, 20, SELECTION_PRIORITY_TEXT);
-		this.selectionPriorityField.setMaxLength(3);
-		this.selectionPriorityField.setText(Integer.toString(this.jigsaw.getSelectionPriority()));
-		this.selectionPriorityField.setTooltip(Tooltip.of(SELECTION_PRIORITY_TOOLTIP));
-		this.addSelectableChild(this.selectionPriorityField);
-		this.placementPriorityField =
-				new TextFieldWidget(this.textRenderer, this.width / 2 - 50, 160, 98, 20, PLACEMENT_PRIORITY_TEXT);
-		this.placementPriorityField.setMaxLength(3);
-		this.placementPriorityField.setText(Integer.toString(this.jigsaw.getPlacementPriority()));
-		this.placementPriorityField.setTooltip(Tooltip.of(PLACEMENT_PRIORITY_TOOLTIP));
-		this.addSelectableChild(this.placementPriorityField);
-		this.joint = this.jigsaw.getJoint();
-		this.jointRotationButton = this.addDrawableChild(
-				CyclingButtonWidget.builder(JigsawBlockEntity.Joint::asText, this.joint)
-				                   .values(JigsawBlockEntity.Joint.values())
-				                   .omitKeyText()
-				                   .build(
-						                   this.width / 2 + 54,
-						                   160,
-						                   100,
-						                   20,
-						                   JOINT_LABEL_TEXT,
-						                   (button, joint) -> this.joint = joint
-				                   )
+		int centerX = width / 2;
+
+		poolField = new TextFieldWidget(textRenderer, centerX - 153, 20, FIELD_WIDTH, FIELD_HEIGHT, POOL_TEXT);
+		poolField.setMaxLength(FIELD_MAX_LENGTH);
+		poolField.setText(jigsaw.getPool().getValue().toString());
+		poolField.setChangedListener(pool -> updateDoneButtonState());
+		addSelectableChild(poolField);
+
+		nameField = new TextFieldWidget(textRenderer, centerX - 153, 55, FIELD_WIDTH, FIELD_HEIGHT, NAME_TEXT);
+		nameField.setMaxLength(FIELD_MAX_LENGTH);
+		nameField.setText(jigsaw.getName().toString());
+		nameField.setChangedListener(name -> updateDoneButtonState());
+		addSelectableChild(nameField);
+
+		targetField = new TextFieldWidget(textRenderer, centerX - 153, 90, FIELD_WIDTH, FIELD_HEIGHT, TARGET_TEXT);
+		targetField.setMaxLength(FIELD_MAX_LENGTH);
+		targetField.setText(jigsaw.getTarget().toString());
+		targetField.setChangedListener(target -> updateDoneButtonState());
+		addSelectableChild(targetField);
+
+		finalStateField = new TextFieldWidget(textRenderer, centerX - 153, 125, FIELD_WIDTH, FIELD_HEIGHT, FINAL_STATE_TEXT);
+		finalStateField.setMaxLength(FINAL_STATE_MAX_LENGTH);
+		finalStateField.setText(jigsaw.getFinalState());
+		addSelectableChild(finalStateField);
+
+		selectionPriorityField = new TextFieldWidget(textRenderer, centerX - 153, 160, PRIORITY_FIELD_WIDTH, FIELD_HEIGHT, SELECTION_PRIORITY_TEXT);
+		selectionPriorityField.setMaxLength(PRIORITY_FIELD_MAX_LENGTH);
+		selectionPriorityField.setText(Integer.toString(jigsaw.getSelectionPriority()));
+		selectionPriorityField.setTooltip(Tooltip.of(SELECTION_PRIORITY_TOOLTIP));
+		addSelectableChild(selectionPriorityField);
+
+		placementPriorityField = new TextFieldWidget(textRenderer, centerX - 50, 160, PRIORITY_FIELD_WIDTH, FIELD_HEIGHT, PLACEMENT_PRIORITY_TEXT);
+		placementPriorityField.setMaxLength(PRIORITY_FIELD_MAX_LENGTH);
+		placementPriorityField.setText(Integer.toString(jigsaw.getPlacementPriority()));
+		placementPriorityField.setTooltip(Tooltip.of(PLACEMENT_PRIORITY_TOOLTIP));
+		addSelectableChild(placementPriorityField);
+
+		joint = jigsaw.getJoint();
+		jointRotationButton = addDrawableChild(
+			CyclingButtonWidget.builder(JigsawBlockEntity.Joint::asText, joint)
+				.values(JigsawBlockEntity.Joint.values())
+				.omitKeyText()
+				.build(
+					centerX + 54,
+					160,
+					100,
+					FIELD_HEIGHT,
+					JOINT_LABEL_TEXT,
+					(button, newJoint) -> joint = newJoint
+				)
 		);
-		boolean bl = JigsawBlock.getFacing(this.jigsaw.getCachedState()).getAxis().isVertical();
-		this.jointRotationButton.active = bl;
-		this.jointRotationButton.visible = bl;
-		this.addDrawableChild(new SliderWidget(this.width / 2 - 154, 185, 100, 20, ScreenTexts.EMPTY, 0.0) {
+
+		boolean isVertical = JigsawBlock.getFacing(jigsaw.getCachedState()).getAxis().isVertical();
+		jointRotationButton.active = isVertical;
+		jointRotationButton.visible = isVertical;
+
+		addDrawableChild(new SliderWidget(centerX - 154, 185, 100, FIELD_HEIGHT, ScreenTexts.EMPTY, 0.0) {
 			{
-				this.updateMessage();
+				updateMessage();
 			}
 
 			@Override
 			protected void updateMessage() {
-				this.setMessage(Text.translatable("jigsaw_block.levels", JigsawBlockScreen.this.generationDepth));
+				setMessage(Text.translatable("jigsaw_block.levels", JigsawBlockScreen.this.generationDepth));
 			}
 
 			@Override
 			protected void applyValue() {
-				JigsawBlockScreen.this.generationDepth =
-						MathHelper.floor(MathHelper.clampedLerp(this.value, 0.0, 20.0));
+				JigsawBlockScreen.this.generationDepth = MathHelper.floor(MathHelper.clampedLerp(value, 0.0, MAX_GENERATION_DEPTH));
 			}
 		});
-		this.addDrawableChild(
-				CyclingButtonWidget.onOffBuilder(this.keepJigsaws)
-				                   .build(
-						                   this.width / 2 - 50,
-						                   185,
-						                   100,
-						                   20,
-						                   Text.translatable("jigsaw_block.keep_jigsaws"),
-						                   (button, keepJigsaws) -> this.keepJigsaws = keepJigsaws
-				                   )
+
+		addDrawableChild(
+			CyclingButtonWidget.onOffBuilder(keepJigsaws)
+				.build(
+					centerX - 50,
+					185,
+					100,
+					FIELD_HEIGHT,
+					Text.translatable("jigsaw_block.keep_jigsaws"),
+					(button, keep) -> keepJigsaws = keep
+				)
 		);
-		this.generateButton = this.addDrawableChild(ButtonWidget.builder(
-				Text.translatable("jigsaw_block.generate"), button -> {
-					this.onDone();
-					this.generate();
-				}
-		).dimensions(this.width / 2 + 54, 185, 100, 20).build());
-		this.doneButton = this.addDrawableChild(
-				ButtonWidget
-						.builder(ScreenTexts.DONE, button -> this.onDone())
-						.dimensions(this.width / 2 - 4 - 150, 210, 150, 20)
-						.build()
+
+		generateButton = addDrawableChild(
+			ButtonWidget.builder(Text.translatable("jigsaw_block.generate"), button -> {
+				onDone();
+				generate();
+			}).dimensions(centerX + 54, 185, 100, FIELD_HEIGHT).build()
 		);
-		this.addDrawableChild(ButtonWidget
-				.builder(ScreenTexts.CANCEL, button -> this.onCancel())
-				.dimensions(this.width / 2 + 4, 210, 150, 20)
-				.build());
-		this.updateDoneButtonState();
+		doneButton = addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.DONE, button -> onDone())
+				.dimensions(centerX - 4 - 150, 210, 150, FIELD_HEIGHT)
+				.build()
+		);
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.CANCEL, button -> onCancel())
+				.dimensions(centerX + 4, 210, 150, FIELD_HEIGHT)
+				.build()
+		);
+		updateDoneButtonState();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.poolField);
+		setInitialFocus(poolField);
 	}
 
 	public static boolean isValidId(String id) {
@@ -211,12 +223,11 @@ public class JigsawBlockScreen extends Screen {
 	}
 
 	private void updateDoneButtonState() {
-		boolean
-				bl =
-				isValidId(this.nameField.getText()) && isValidId(this.targetField.getText())
-						&& isValidId(this.poolField.getText());
-		this.doneButton.active = bl;
-		this.generateButton.active = bl;
+		boolean allValid = isValidId(nameField.getText())
+			&& isValidId(targetField.getText())
+			&& isValidId(poolField.getText());
+		doneButton.active = allValid;
+		generateButton.active = allValid;
 	}
 
 	@Override
@@ -226,24 +237,26 @@ public class JigsawBlockScreen extends Screen {
 
 	@Override
 	public void resize(int width, int height) {
-		String string = this.nameField.getText();
-		String string2 = this.targetField.getText();
-		String string3 = this.poolField.getText();
-		String string4 = this.finalStateField.getText();
-		String string5 = this.selectionPriorityField.getText();
-		String string6 = this.placementPriorityField.getText();
-		int i = this.generationDepth;
-		JigsawBlockEntity.Joint joint = this.joint;
-		this.init(width, height);
-		this.nameField.setText(string);
-		this.targetField.setText(string2);
-		this.poolField.setText(string3);
-		this.finalStateField.setText(string4);
-		this.generationDepth = i;
-		this.joint = joint;
-		this.jointRotationButton.setValue(joint);
-		this.selectionPriorityField.setText(string5);
-		this.placementPriorityField.setText(string6);
+		String savedName = nameField.getText();
+		String savedTarget = targetField.getText();
+		String savedPool = poolField.getText();
+		String savedFinalState = finalStateField.getText();
+		String savedSelectionPriority = selectionPriorityField.getText();
+		String savedPlacementPriority = placementPriorityField.getText();
+		int savedDepth = generationDepth;
+		JigsawBlockEntity.Joint savedJoint = joint;
+
+		init(width, height);
+
+		nameField.setText(savedName);
+		targetField.setText(savedTarget);
+		poolField.setText(savedPool);
+		finalStateField.setText(savedFinalState);
+		generationDepth = savedDepth;
+		joint = savedJoint;
+		jointRotationButton.setValue(savedJoint);
+		selectionPriorityField.setText(savedSelectionPriority);
+		placementPriorityField.setText(savedPlacementPriority);
 	}
 
 	@Override
@@ -251,32 +264,35 @@ public class JigsawBlockScreen extends Screen {
 		if (super.keyPressed(input)) {
 			return true;
 		}
-		else if (this.doneButton.active && input.isEnter()) {
-			this.onDone();
+
+		if (doneButton.active && input.isEnter()) {
+			onDone();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, POOL_TEXT, this.width / 2 - 153, 10, -6250336);
-		this.poolField.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, NAME_TEXT, this.width / 2 - 153, 45, -6250336);
-		this.nameField.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, TARGET_TEXT, this.width / 2 - 153, 80, -6250336);
-		this.targetField.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, FINAL_STATE_TEXT, this.width / 2 - 153, 115, -6250336);
-		this.finalStateField.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, SELECTION_PRIORITY_TEXT, this.width / 2 - 153, 150, -6250336);
-		this.placementPriorityField.render(context, mouseX, mouseY, deltaTicks);
-		context.drawTextWithShadow(this.textRenderer, PLACEMENT_PRIORITY_TEXT, this.width / 2 - 50, 150, -6250336);
-		this.selectionPriorityField.render(context, mouseX, mouseY, deltaTicks);
-		if (JigsawBlock.getFacing(this.jigsaw.getCachedState()).getAxis().isVertical()) {
-			context.drawTextWithShadow(this.textRenderer, JOINT_LABEL_TEXT, this.width / 2 + 53, 150, -6250336);
+		int centerX = width / 2;
+
+		context.drawTextWithShadow(textRenderer, POOL_TEXT, centerX - 153, 10, TEXT_COLOR_LABEL);
+		poolField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTextWithShadow(textRenderer, NAME_TEXT, centerX - 153, 45, TEXT_COLOR_LABEL);
+		nameField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTextWithShadow(textRenderer, TARGET_TEXT, centerX - 153, 80, TEXT_COLOR_LABEL);
+		targetField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTextWithShadow(textRenderer, FINAL_STATE_TEXT, centerX - 153, 115, TEXT_COLOR_LABEL);
+		finalStateField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTextWithShadow(textRenderer, SELECTION_PRIORITY_TEXT, centerX - 153, 150, TEXT_COLOR_LABEL);
+		placementPriorityField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawTextWithShadow(textRenderer, PLACEMENT_PRIORITY_TEXT, centerX - 50, 150, TEXT_COLOR_LABEL);
+		selectionPriorityField.render(context, mouseX, mouseY, deltaTicks);
+
+		if (JigsawBlock.getFacing(jigsaw.getCachedState()).getAxis().isVertical()) {
+			context.drawTextWithShadow(textRenderer, JOINT_LABEL_TEXT, centerX + 53, 150, TEXT_COLOR_LABEL);
 		}
 	}
 }

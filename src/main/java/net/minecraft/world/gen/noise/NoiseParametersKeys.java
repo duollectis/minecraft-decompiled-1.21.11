@@ -9,7 +9,8 @@ import net.minecraft.util.math.noise.DoublePerlinNoiseSampler;
 import net.minecraft.util.math.random.RandomSplitter;
 
 /**
- * {@code NoiseParametersKeys}.
+ * Реестровые ключи для всех параметров шума Perlin, используемых при генерации мира:
+ * биомные параметры, пещеры, руды, поверхность и специфические биомы.
  */
 public class NoiseParametersKeys {
 

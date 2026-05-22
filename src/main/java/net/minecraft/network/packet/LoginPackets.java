@@ -11,7 +11,8 @@ import net.minecraft.network.packet.s2c.login.*;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс login packets.
+ * Реестр типов пакетов фазы {@code LOGIN}: приветствие, шифрование,
+ * сжатие, кастомные запросы, успешный вход и переход в конфигурацию.
  */
 public class LoginPackets {
 

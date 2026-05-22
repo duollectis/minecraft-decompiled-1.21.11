@@ -3,7 +3,7 @@ package net.minecraft.block;
 import net.minecraft.util.DyeColor;
 
 /**
- * {@code Stainable}.
+ * Маркерный интерфейс для блоков, которые имеют цвет краски ({@link net.minecraft.util.DyeColor}).
  */
 public interface Stainable {
 

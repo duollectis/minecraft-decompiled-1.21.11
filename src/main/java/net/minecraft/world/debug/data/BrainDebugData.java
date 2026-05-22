@@ -3,7 +3,13 @@ package net.minecraft.world.debug.data;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.InventoryOwner;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.ai.brain.*;
+import net.minecraft.entity.ai.brain.Activity;
+import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.BlockPosLookTarget;
+import net.minecraft.entity.ai.brain.EntityLookTarget;
+import net.minecraft.entity.ai.brain.Memory;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.ai.brain.task.Task;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.mob.WardenEntity;
@@ -19,12 +25,23 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code BrainDebugData}.
+ * Полный снимок состояния «мозга» живой сущности для отладочной визуализации на клиенте.
+ * <p>
+ * Содержит имя, профессию, здоровье, инвентарь, активные поведения, воспоминания,
+ * сплетни (для жителей), а также позиции точек интереса. Сериализуется вручную
+ * через {@link PacketByteBuf}, поскольку структура данных слишком сложна для
+ * автоматической кодогенерации через {@code PacketCodec.tuple}.
  */
 public record BrainDebugData(
 		String name,
@@ -43,8 +60,15 @@ public record BrainDebugData(
 		Set<BlockPos> potentialPois
 ) {
 
+	/** Максимальная длина строки одного воспоминания при передаче по сети. */
+	private static final int MEMORY_STRING_MAX_LENGTH = 255;
+
+	/** Значение angerLevel для сущностей, не поддерживающих систему гнева. */
+	private static final int ANGER_LEVEL_NONE = -1;
+
 	public static final PacketCodec<PacketByteBuf, BrainDebugData> PACKET_CODEC = PacketCodec.ofStatic(
-			(packetByteBuf, brainDebugData) -> brainDebugData.write(packetByteBuf), BrainDebugData::new
+			(buf, data) -> data.write(buf),
+			BrainDebugData::new
 	);
 
 	public BrainDebugData(PacketByteBuf buf) {
@@ -66,80 +90,89 @@ public record BrainDebugData(
 		);
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 */
 	public void write(PacketByteBuf buf) {
-		buf.writeString(this.name);
-		buf.writeString(this.profession);
-		buf.writeInt(this.xp);
-		buf.writeFloat(this.health);
-		buf.writeFloat(this.maxHealth);
-		buf.writeString(this.inventory);
-		buf.writeBoolean(this.wantsGolem);
-		buf.writeInt(this.angerLevel);
-		buf.writeCollection(this.activities, PacketByteBuf::writeString);
-		buf.writeCollection(this.behaviors, PacketByteBuf::writeString);
-		buf.writeCollection(this.memories, PacketByteBuf::writeString);
-		buf.writeCollection(this.gossips, PacketByteBuf::writeString);
-		buf.writeCollection(this.pois, BlockPos.PACKET_CODEC);
-		buf.writeCollection(this.potentialPois, BlockPos.PACKET_CODEC);
+		buf.writeString(name);
+		buf.writeString(profession);
+		buf.writeInt(xp);
+		buf.writeFloat(health);
+		buf.writeFloat(maxHealth);
+		buf.writeString(inventory);
+		buf.writeBoolean(wantsGolem);
+		buf.writeInt(angerLevel);
+		buf.writeCollection(activities, PacketByteBuf::writeString);
+		buf.writeCollection(behaviors, PacketByteBuf::writeString);
+		buf.writeCollection(memories, PacketByteBuf::writeString);
+		buf.writeCollection(gossips, PacketByteBuf::writeString);
+		buf.writeCollection(pois, BlockPos.PACKET_CODEC);
+		buf.writeCollection(potentialPois, BlockPos.PACKET_CODEC);
 	}
 
 	/**
-	 * From entity.
+	 * Создаёт снимок состояния мозга сущности в текущий момент времени.
+	 * <p>
+	 * Для жителей извлекаются профессия, опыт, желание призвать голема и сплетни.
+	 * Для Warden — уровень гнева. Для остальных сущностей эти поля принимают
+	 * нейтральные значения (пустая строка, 0, {@value #ANGER_LEVEL_NONE}).
 	 *
-	 * @param world world
-	 * @param entity entity
-	 *
-	 * @return BrainDebugData — результат операции
+	 * @param world  серверный мир, используется для разрешения UUID в сущности
+	 * @param entity живая сущность, чей мозг снимается
+	 * @return снимок состояния мозга
 	 */
 	public static BrainDebugData fromEntity(ServerWorld world, LivingEntity entity) {
-		String string = NameGenerator.name(entity);
-		String string2;
-		int i;
-		if (entity instanceof VillagerEntity villagerEntity) {
-			string2 = villagerEntity.getVillagerData().profession().getIdAsString();
-			i = villagerEntity.getExperience();
-		}
-		else {
-			string2 = "";
-			i = 0;
+		String entityName = NameGenerator.name(entity);
+
+		String profession = "";
+		int xp = 0;
+		if (entity instanceof VillagerEntity villager) {
+			profession = villager.getVillagerData().profession().getIdAsString();
+			xp = villager.getExperience();
 		}
 
-		float f = entity.getHealth();
-		float g = entity.getMaxHealth();
+		float health = entity.getHealth();
+		float maxHealth = entity.getMaxHealth();
 		Brain<?> brain = entity.getBrain();
-		long l = entity.getEntityWorld().getTime();
-		String string3;
+		long worldTime = entity.getEntityWorld().getTime();
+
+		String inventoryStr = "";
 		if (entity instanceof InventoryOwner inventoryOwner) {
 			Inventory inventory = inventoryOwner.getInventory();
-			string3 = inventory.isEmpty() ? "" : inventory.toString();
-		}
-		else {
-			string3 = "";
+			inventoryStr = inventory.isEmpty() ? "" : inventory.toString();
 		}
 
-		boolean bl = entity instanceof VillagerEntity villagerEntity2 && villagerEntity2.canSummonGolem(l);
-		int j = entity instanceof WardenEntity wardenEntity ? wardenEntity.getAnger() : -1;
-		List<String> list = brain.getPossibleActivities().stream().map(Activity::getId).toList();
-		List<String> list2 = brain.getRunningTasks().stream().map(Task::getName).toList();
-		List<String>
-				list3 =
-				streamMemories(world, entity, l).map(memory -> StringHelper.truncate(memory, 255, true)).toList();
-		Set<BlockPos>
-				set =
-				getMemorizedPositions(
-						brain,
-						MemoryModuleType.JOB_SITE,
-						MemoryModuleType.HOME,
-						MemoryModuleType.MEETING_POINT
-				);
-		Set<BlockPos> set2 = getMemorizedPositions(brain, MemoryModuleType.POTENTIAL_JOB_SITE);
-		List<String> list4 = entity instanceof VillagerEntity villagerEntity3 ? getGossips(villagerEntity3) : List.of();
-		return new BrainDebugData(string, string2, i, f, g, string3, bl, j, list, list2, list3, list4, set, set2);
+		boolean wantsGolem = entity instanceof VillagerEntity villager && villager.canSummonGolem(worldTime);
+		int angerLevel = entity instanceof WardenEntity warden ? warden.getAnger() : ANGER_LEVEL_NONE;
+
+		List<String> activities = brain.getPossibleActivities().stream().map(Activity::getId).toList();
+		List<String> behaviors = brain.getRunningTasks().stream().map(Task::getName).toList();
+		List<String> memories = streamMemories(world, entity, worldTime)
+				.map(memory -> StringHelper.truncate(memory, MEMORY_STRING_MAX_LENGTH, true))
+				.toList();
+
+		Set<BlockPos> pois = getMemorizedPositions(
+				brain,
+				MemoryModuleType.JOB_SITE,
+				MemoryModuleType.HOME,
+				MemoryModuleType.MEETING_POINT
+		);
+		Set<BlockPos> potentialPois = getMemorizedPositions(brain, MemoryModuleType.POTENTIAL_JOB_SITE);
+
+		List<String> gossips = entity instanceof VillagerEntity villager
+				? getGossips(villager)
+				: List.of();
+
+		return new BrainDebugData(
+				entityName, profession, xp, health, maxHealth,
+				inventoryStr, wantsGolem, angerLevel,
+				activities, behaviors, memories, gossips, pois, potentialPois
+		);
+	}
+
+	public boolean poiContains(BlockPos pos) {
+		return pois.contains(pos);
+	}
+
+	public boolean potentialPoiContains(BlockPos pos) {
+		return potentialPois.contains(pos);
 	}
 
 	@SafeVarargs
@@ -153,89 +186,70 @@ public record BrainDebugData(
 	}
 
 	private static List<String> getGossips(VillagerEntity villager) {
-		List<String> list = new ArrayList<>();
+		List<String> result = new ArrayList<>();
 		villager.getGossip().getEntityReputationAssociatedGossips().forEach((uuid, gossips) -> {
-			String string = NameGenerator.name(uuid);
-			gossips.forEach((type, gossip) -> list.add(string + ": " + type + ": " + gossip));
+			String name = NameGenerator.name(uuid);
+			gossips.forEach((type, value) -> result.add(name + ": " + type + ": " + value));
 		});
-		return list;
+		return result;
 	}
 
 	private static Stream<String> streamMemories(ServerWorld world, LivingEntity entity, long time) {
-		return entity.getBrain().getMemories().entrySet().stream().map(entry -> {
-			MemoryModuleType<?> memoryModuleType = entry.getKey();
-			Optional<? extends Memory<?>> optional = entry.getValue();
-			return collectMemoryString(world, time, memoryModuleType, optional);
-		}).sorted();
+		return entity.getBrain()
+		             .getMemories()
+		             .entrySet()
+		             .stream()
+		             .map(entry -> collectMemoryString(world, time, entry.getKey(), entry.getValue()))
+		             .sorted();
 	}
 
+	/**
+	 * Форматирует одно воспоминание в читаемую строку вида {@code "ключ: значение"}.
+	 * <p>
+	 * Для {@link MemoryModuleType#HEARD_BELL_TIME} вычисляется разница с текущим временем.
+	 * Для временных воспоминаний добавляется TTL. Отсутствующее воспоминание отображается как {@code "-"}.
+	 */
 	private static String collectMemoryString(
 			ServerWorld world,
 			long time,
 			MemoryModuleType<?> type,
 			Optional<? extends Memory<?>> memory
 	) {
-		String string;
+		String value;
 		if (memory.isPresent()) {
-			Memory<?> memory2 = (Memory<?>) memory.get();
-			Object object = memory2.getValue();
+			Memory<?> resolved = memory.get();
+			Object rawValue = resolved.getValue();
 			if (type == MemoryModuleType.HEARD_BELL_TIME) {
-				long l = time - (Long) object;
-				string = l + " ticks ago";
+				long ticksAgo = time - (Long) rawValue;
+				value = ticksAgo + " ticks ago";
+			} else if (resolved.isTimed()) {
+				value = toString(world, rawValue) + " (ttl: " + resolved.getExpiry() + ")";
+			} else {
+				value = toString(world, rawValue);
 			}
-			else if (memory2.isTimed()) {
-				string = toString(world, object) + " (ttl: " + memory2.getExpiry() + ")";
-			}
-			else {
-				string = toString(world, object);
-			}
-		}
-		else {
-			string = "-";
+		} else {
+			value = "-";
 		}
 
-		return Registries.MEMORY_MODULE_TYPE.getId(type).getPath() + ": " + string;
+		return Registries.MEMORY_MODULE_TYPE.getId(type).getPath() + ": " + value;
 	}
 
 	private static String toString(ServerWorld world, @Nullable Object value) {
 		return switch (value) {
 			case null -> "-";
-			case UUID uUID -> toString(world, world.getEntity(uUID));
+			case UUID uuid -> toString(world, world.getEntity(uuid));
 			case Entity entity -> NameGenerator.name(entity);
 			case WalkTarget walkTarget -> toString(world, walkTarget.getLookTarget());
 			case EntityLookTarget entityLookTarget -> toString(world, entityLookTarget.getEntity());
 			case GlobalPos globalPos -> toString(world, globalPos.pos());
 			case BlockPosLookTarget blockPosLookTarget -> toString(world, blockPosLookTarget.getBlockPos());
 			case DamageSource damageSource -> {
-				Entity entity2 = damageSource.getAttacker();
-				yield entity2 == null ? value.toString() : toString(world, entity2);
+				Entity attacker = damageSource.getAttacker();
+				yield attacker == null ? value.toString() : toString(world, attacker);
 			}
 			case Collection<?> collection ->
-					"[" + (String) collection.stream().map(v -> toString(world, v)).collect(Collectors.joining(", "))
-							+ "]";
+					"[" + collection.stream().map(v -> toString(world, v)).collect(Collectors.joining(", ")) + "]";
 			default -> value.toString();
 		};
-	}
-
-	/**
-	 * Poi contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean poiContains(BlockPos pos) {
-		return this.pois.contains(pos);
-	}
-
-	/**
-	 * Potential poi contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean potentialPoiContains(BlockPos pos) {
-		return this.potentialPois.contains(pos);
 	}
 }

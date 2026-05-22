@@ -26,76 +26,73 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code MannequinEntity}.
+ * Манекен — декоративная сущность, визуально повторяющая игрока.
+ * Поддерживает скин через {@link ProfileComponent}, позы, скрытие частей модели,
+ * режим неподвижности и отображение описания над головой.
  */
 public class MannequinEntity extends PlayerLikeEntity {
 
-	protected static final TrackedData<ProfileComponent>
-			PROFILE =
+	protected static final TrackedData<ProfileComponent> PROFILE =
 			DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.PROFILE);
-	private static final TrackedData<Boolean>
-			IMMOVABLE =
+	private static final TrackedData<Boolean> IMMOVABLE =
 			DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 	private static final TrackedData<Optional<Text>> DESCRIPTION = DataTracker.registerData(
 			MannequinEntity.class, TrackedDataHandlerRegistry.OPTIONAL_TEXT_COMPONENT
 	);
+
+	/** Битовая маска всех частей модели игрока (все флаги включены). */
 	private static final byte ALL_MODEL_PARTS = (byte) Arrays.stream(PlayerModelPart.values())
-	                                                         .mapToInt(PlayerModelPart::getBitFlag)
-	                                                         .reduce(0, (flagL, flagR) -> flagL | flagR);
-	private static final Set<EntityPose>
-			POSES =
-			Set.of(
-					EntityPose.STANDING,
-					EntityPose.CROUCHING,
-					EntityPose.SWIMMING,
-					EntityPose.GLIDING,
-					EntityPose.SLEEPING
-			);
+			.mapToInt(PlayerModelPart::getBitFlag)
+			.reduce(0, (flagL, flagR) -> flagL | flagR);
+
+	private static final Set<EntityPose> ALLOWED_POSES = Set.of(
+			EntityPose.STANDING,
+			EntityPose.CROUCHING,
+			EntityPose.SWIMMING,
+			EntityPose.GLIDING,
+			EntityPose.SLEEPING
+	);
+
+	/**
+	 * Кодек для поз манекена — принимает только позы из {@link #ALLOWED_POSES}.
+	 */
 	public static final Codec<EntityPose> POSE_CODEC = EntityPose.CODEC
-			.validate(pose -> POSES.contains(pose) ? DataResult.success(pose)
-			                                       : DataResult.error(() -> "Invalid pose: " + pose.asString()));
+			.validate(pose -> ALLOWED_POSES.contains(pose)
+					? DataResult.success(pose)
+					: DataResult.error(() -> "Invalid pose: " + pose.asString()));
+
+	/**
+	 * Кодек для скрытых частей модели: сериализует список скрытых частей,
+	 * десериализует в битовую маску (инвертированную относительно ALL_MODEL_PARTS).
+	 */
 	private static final Codec<Byte> MODEL_PARTS_CODEC = PlayerModelPart.CODEC
 			.listOf()
 			.xmap(
-					parts -> (byte) parts
-							.stream()
+					parts -> (byte) parts.stream()
 							.mapToInt(PlayerModelPart::getBitFlag)
 							.reduce(ALL_MODEL_PARTS, (flagL, flagR) -> flagL & ~flagR),
-					bitFlag -> Arrays
-							.stream(PlayerModelPart.values())
+					bitFlag -> Arrays.stream(PlayerModelPart.values())
 							.filter(part -> (bitFlag & part.getBitFlag()) == 0)
 							.toList()
 			);
+
 	public static final ProfileComponent DEFAULT_INFO = ProfileComponent.Static.EMPTY;
 	private static final Text DEFAULT_DESCRIPTION = Text.translatable("entity.minecraft.mannequin.label");
+
 	protected static EntityType.EntityFactory<MannequinEntity> factory = MannequinEntity::new;
-	private static final String PROFILE_KEY = "profile";
-	private static final String HIDDEN_LAYERS_KEY = "hidden_layers";
-	private static final String MAIN_HAND_KEY = "main_hand";
-	private static final String POSE_KEY = "pose";
-	private static final String IMMOVABLE_KEY = "immovable";
-	private static final String DESCRIPTION_KEY = "description";
-	private static final String HIDE_DESCRIPTION_KEY = "hide_description";
+
 	private Text description = DEFAULT_DESCRIPTION;
 	private boolean hideDescription = false;
 
 	public MannequinEntity(EntityType<MannequinEntity> entityType, World world) {
 		super(entityType, world);
-		this.dataTracker.set(PLAYER_MODE_CUSTOMIZATION_ID, ALL_MODEL_PARTS);
+		dataTracker.set(PLAYER_MODE_CUSTOMIZATION_ID, ALL_MODEL_PARTS);
 	}
 
 	protected MannequinEntity(World world) {
 		this(EntityType.MANNEQUIN, world);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param type type
-	 * @param world world
-	 *
-	 * @return @Nullable MannequinEntity — результат операции
-	 */
 	public static @Nullable MannequinEntity create(EntityType<MannequinEntity> type, World world) {
 		return factory.create(type, world);
 	}
@@ -109,64 +106,64 @@ public class MannequinEntity extends PlayerLikeEntity {
 	}
 
 	protected ProfileComponent getMannequinProfile() {
-		return this.dataTracker.get(PROFILE);
+		return dataTracker.get(PROFILE);
 	}
 
 	private void setMannequinProfile(ProfileComponent profile) {
-		this.dataTracker.set(PROFILE, profile);
+		dataTracker.set(PROFILE, profile);
 	}
 
 	private boolean isImmovable() {
-		return this.dataTracker.get(IMMOVABLE);
+		return dataTracker.get(IMMOVABLE);
 	}
 
 	private void setImmovable(boolean immovable) {
-		this.dataTracker.set(IMMOVABLE, immovable);
+		dataTracker.set(IMMOVABLE, immovable);
 	}
 
 	protected @Nullable Text getDescription() {
-		return this.dataTracker.get(DESCRIPTION).orElse(null);
+		return dataTracker.get(DESCRIPTION).orElse(null);
 	}
 
 	private void setDescription(Text description) {
 		this.description = description;
-		this.updateTrackedDescription();
+		updateTrackedDescription();
 	}
 
 	private void setHideDescription(boolean hideDescription) {
 		this.hideDescription = hideDescription;
-		this.updateTrackedDescription();
+		updateTrackedDescription();
 	}
 
+	/** Синхронизирует описание с DataTracker: скрывает или показывает в зависимости от флага. */
 	private void updateTrackedDescription() {
-		this.dataTracker.set(DESCRIPTION, this.hideDescription ? Optional.empty() : Optional.of(this.description));
+		dataTracker.set(DESCRIPTION, hideDescription ? Optional.empty() : Optional.of(description));
 	}
 
 	@Override
 	protected boolean isImmobile() {
-		return this.isImmovable() || super.isImmobile();
+		return isImmovable() || super.isImmobile();
 	}
 
 	@Override
 	public boolean canActVoluntarily() {
-		return !this.isImmovable() && super.canActVoluntarily();
+		return !isImmovable() && super.canActVoluntarily();
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("profile", ProfileComponent.CODEC, this.getMannequinProfile());
-		view.put("hidden_layers", MODEL_PARTS_CODEC, this.dataTracker.get(PLAYER_MODE_CUSTOMIZATION_ID));
-		view.put("main_hand", Arm.CODEC, this.getMainArm());
-		view.put("pose", POSE_CODEC, this.getPose());
-		view.putBoolean("immovable", this.isImmovable());
-		Text text = this.getDescription();
+		view.put("profile", ProfileComponent.CODEC, getMannequinProfile());
+		view.put("hidden_layers", MODEL_PARTS_CODEC, dataTracker.get(PLAYER_MODE_CUSTOMIZATION_ID));
+		view.put("main_hand", Arm.CODEC, getMainArm());
+		view.put("pose", POSE_CODEC, getPose());
+		view.putBoolean("immovable", isImmovable());
+		Text text = getDescription();
 		if (text != null) {
 			if (!text.equals(DEFAULT_DESCRIPTION)) {
 				view.put("description", TextCodecs.CODEC, text);
 			}
-		}
-		else {
+		} else {
 			view.putBoolean("hide_description", true);
 		}
 	}
@@ -175,39 +172,37 @@ public class MannequinEntity extends PlayerLikeEntity {
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
 		view.<ProfileComponent>read("profile", ProfileComponent.CODEC).ifPresent(this::setMannequinProfile);
-		this.dataTracker.set(
+		dataTracker.set(
 				PLAYER_MODE_CUSTOMIZATION_ID,
 				view.<Byte>read("hidden_layers", MODEL_PARTS_CODEC).orElse(ALL_MODEL_PARTS)
 		);
-		this.setMainArm(view.<Arm>read("main_hand", Arm.CODEC).orElse(MAIN_ARM));
-		this.setPose(view.<EntityPose>read("pose", POSE_CODEC).orElse(EntityPose.STANDING));
-		this.setImmovable(view.getBoolean("immovable", false));
-		this.setHideDescription(view.getBoolean("hide_description", false));
-		this.setDescription(view.<Text>read("description", TextCodecs.CODEC).orElse(DEFAULT_DESCRIPTION));
+		setMainArm(view.<Arm>read("main_hand", Arm.CODEC).orElse(MAIN_ARM));
+		setPose(view.<EntityPose>read("pose", POSE_CODEC).orElse(EntityPose.STANDING));
+		setImmovable(view.getBoolean("immovable", false));
+		setHideDescription(view.getBoolean("hide_description", false));
+		setDescription(view.<Text>read("description", TextCodecs.CODEC).orElse(DEFAULT_DESCRIPTION));
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.PROFILE ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getMannequinProfile()
-		) : super.get(type);
+		return type == DataComponentTypes.PROFILE
+				? castComponentValue((ComponentType<T>) type, getMannequinProfile())
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.PROFILE);
+		copyComponentFrom(from, DataComponentTypes.PROFILE);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.PROFILE) {
-			this.setMannequinProfile(castComponentValue(DataComponentTypes.PROFILE, value));
+			setMannequinProfile(castComponentValue(DataComponentTypes.PROFILE, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 }

@@ -8,16 +8,19 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 /**
- * {@code FixedNumberFormat}.
+ * Формат числового значения, который всегда возвращает фиксированный текст
+ * независимо от числового значения очка.
+ * Используется для замены числа произвольным текстом в интерфейсе скорборда.
  */
 public record FixedNumberFormat(Text text) implements NumberFormat {
 
-	public static final NumberFormatType<FixedNumberFormat> TYPE = new NumberFormatType<FixedNumberFormat>() {
-		private static final MapCodec<FixedNumberFormat>
-				CODEC =
+	public static final NumberFormatType<FixedNumberFormat> TYPE = new NumberFormatType<>() {
+		private static final MapCodec<FixedNumberFormat> CODEC =
 				TextCodecs.CODEC.fieldOf("value").xmap(FixedNumberFormat::new, FixedNumberFormat::text);
 		private static final PacketCodec<RegistryByteBuf, FixedNumberFormat> PACKET_CODEC = PacketCodec.tuple(
-				TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC, FixedNumberFormat::text, FixedNumberFormat::new
+				TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+				FixedNumberFormat::text,
+				FixedNumberFormat::new
 		);
 
 		@Override
@@ -33,7 +36,7 @@ public record FixedNumberFormat(Text text) implements NumberFormat {
 
 	@Override
 	public MutableText format(int number) {
-		return this.text.copy();
+		return text.copy();
 	}
 
 	@Override

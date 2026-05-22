@@ -5,7 +5,9 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code ParticleType}.
+ * Абстрактный тип частицы, определяющий кодеки для сериализации эффекта.
+ *
+ * @param <T> конкретный тип эффекта частицы
  */
 public abstract class ParticleType<T extends ParticleEffect> {
 
@@ -15,8 +17,11 @@ public abstract class ParticleType<T extends ParticleEffect> {
 		this.alwaysShow = alwaysShow;
 	}
 
+	/**
+	 * @return {@code true}, если частица должна отображаться вне зависимости от настроек графики
+	 */
 	public boolean shouldAlwaysSpawn() {
-		return this.alwaysShow;
+		return alwaysShow;
 	}
 
 	public abstract MapCodec<T> getCodec();

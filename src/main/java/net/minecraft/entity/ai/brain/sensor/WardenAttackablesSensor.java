@@ -15,7 +15,9 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code WardenAttackablesSensor}.
+ * Сенсор поиска ближайшей атакуемой цели для Хранителя.
+ * Приоритет отдаётся игрокам — если игрок не найден, выбирается любая другая цель,
+ * прошедшая проверку {@code isValidTarget}.
  */
 public class WardenAttackablesSensor extends NearestLivingEntitiesSensor<WardenEntity> {
 
@@ -27,32 +29,24 @@ public class WardenAttackablesSensor extends NearestLivingEntitiesSensor<WardenE
 		));
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 */
-	protected void sense(ServerWorld serverWorld, WardenEntity wardenEntity) {
-		super.sense(serverWorld, wardenEntity);
-		findNearestTarget(wardenEntity, entityx -> entityx.getType() == EntityType.PLAYER)
-				.or(() -> findNearestTarget(wardenEntity, entityx -> entityx.getType() != EntityType.PLAYER))
+	@Override
+	protected void sense(ServerWorld world, WardenEntity entity) {
+		super.sense(world, entity);
+		findNearestTarget(entity, target -> target.getType() == EntityType.PLAYER)
+				.or(() -> findNearestTarget(entity, target -> target.getType() != EntityType.PLAYER))
 				.ifPresentOrElse(
-						entityx -> wardenEntity.getBrain().remember(MemoryModuleType.NEAREST_ATTACKABLE, entityx),
-						() -> wardenEntity.getBrain().forget(MemoryModuleType.NEAREST_ATTACKABLE)
+						target -> entity.getBrain().remember(MemoryModuleType.NEAREST_ATTACKABLE, target),
+						() -> entity.getBrain().forget(MemoryModuleType.NEAREST_ATTACKABLE)
 				);
 	}
 
-	private static Optional<LivingEntity> findNearestTarget(
-			WardenEntity warden,
-			Predicate<LivingEntity> targetPredicate
-	) {
+	private static Optional<LivingEntity> findNearestTarget(WardenEntity warden, Predicate<LivingEntity> filter) {
 		return warden.getBrain()
-		             .getOptionalRegisteredMemory(MemoryModuleType.MOBS)
-		             .stream()
-		             .flatMap(Collection::stream)
-		             .filter(warden::isValidTarget)
-		             .filter(targetPredicate)
-		             .findFirst();
+				.getOptionalRegisteredMemory(MemoryModuleType.MOBS)
+				.stream()
+				.flatMap(Collection::stream)
+				.filter(warden::isValidTarget)
+				.filter(filter)
+				.findFirst();
 	}
 }

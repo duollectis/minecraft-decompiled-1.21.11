@@ -1,7 +1,9 @@
 package net.minecraft.world;
 
 /**
- * {@code WorldEvents}.
+ * Числовые идентификаторы игровых событий мира, передаваемых клиенту через пакет {@code WorldEventS2CPacket}.
+ * Каждая константа соответствует конкретному звуку или визуальному эффекту на стороне клиента.
+ * Диапазоны: 1000–1099 — звуки, 1500–1599 — частицы+звуки, 2000–2099 — частицы, 3000+ — сложные эффекты.
  */
 public class WorldEvents {
 
@@ -87,4 +89,6 @@ public class WorldEvents {
 	public static final int OMINOUS_TRIAL_SPAWNER_DETECTS_PLAYER = 3019;
 	public static final int TRIAL_SPAWNER_TURNS_OMINOUS = 3020;
 	public static final int OMINOUS_ITEM_SPAWNER_SPAWNS_ITEM = 3021;
+
+	private WorldEvents() {}
 }

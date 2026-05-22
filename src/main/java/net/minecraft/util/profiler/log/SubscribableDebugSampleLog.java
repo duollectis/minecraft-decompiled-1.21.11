@@ -4,7 +4,8 @@ import net.minecraft.network.packet.s2c.play.DebugSampleS2CPacket;
 import net.minecraft.server.debug.SubscriberTracker;
 
 /**
- * {@code SubscribableDebugSampleLog}.
+ * Реализация {@link ArrayDebugSampleLog}, отправляющая данные подписчикам через
+ * {@link SubscriberTracker} при каждом push, если есть активные подписчики.
  */
 public class SubscribableDebugSampleLog extends ArrayDebugSampleLog {
 
@@ -23,10 +24,10 @@ public class SubscribableDebugSampleLog extends ArrayDebugSampleLog {
 
 	@Override
 	protected void onPush() {
-		if (this.tracker.hasSubscriber(this.type.getSubscriptionType())) {
-			this.tracker.send(
-					this.type.getSubscriptionType(),
-					new DebugSampleS2CPacket((long[]) this.values.clone(), this.type)
+		if (tracker.hasSubscriber(type.getSubscriptionType())) {
+			tracker.send(
+				type.getSubscriptionType(),
+				new DebugSampleS2CPacket((long[]) values.clone(), type)
 			);
 		}
 	}

@@ -21,338 +21,225 @@ import net.minecraft.world.poi.PointOfInterest;
 import java.util.*;
 
 /**
- * {@code SubscriptionTracker}.
+ * Отслеживает отладочные подписки для конкретного {@link ServerWorld}.
+ * Управляет регистрацией чанков, блок-энтити и сущностей в системе отладочных подписок,
+ * а также рассылает обновления подписанным игрокам.
  */
 public class SubscriptionTracker {
 
 	private final ServerWorld world;
 	private final List<TrackedSubscription<?>> subscriptions = new ArrayList<>();
-	private final Map<DebugSubscriptionType<?>, TrackedSubscription.UpdateTrackedSubscription<?>>
-			subscriptionsByTypes =
-			new HashMap<>();
+	private final Map<DebugSubscriptionType<?>, TrackedSubscription.UpdateTrackedSubscription<?>> subscriptionsByTypes = new HashMap<>();
 	private final TrackedSubscription.TrackedPoi trackedPoi = new TrackedSubscription.TrackedPoi();
-	private final TrackedSubscription.TrackedVillageSections
-			trackedVillageSections =
-			new TrackedSubscription.TrackedVillageSections();
+	private final TrackedSubscription.TrackedVillageSections trackedVillageSections = new TrackedSubscription.TrackedVillageSections();
 	private boolean stopped = true;
 	private Set<DebugSubscriptionType<?>> subscribedTypes = Set.of();
 
 	public SubscriptionTracker(ServerWorld world) {
 		this.world = world;
 
-		for (DebugSubscriptionType<?> debugSubscriptionType : Registries.DEBUG_SUBSCRIPTION) {
-			if (debugSubscriptionType.getPacketCodec() != null) {
-				this.subscriptionsByTypes.put(
-						debugSubscriptionType,
-						new TrackedSubscription.UpdateTrackedSubscription<>(debugSubscriptionType)
+		for (DebugSubscriptionType<?> subscriptionType : Registries.DEBUG_SUBSCRIPTION) {
+			if (subscriptionType.getPacketCodec() != null) {
+				subscriptionsByTypes.put(
+						subscriptionType,
+						new TrackedSubscription.UpdateTrackedSubscription<>(subscriptionType)
 				);
 			}
 		}
 
-		this.subscriptions.addAll(this.subscriptionsByTypes.values());
-		this.subscriptions.add(this.trackedPoi);
-		this.subscriptions.add(this.trackedVillageSections);
+		subscriptions.addAll(subscriptionsByTypes.values());
+		subscriptions.add(trackedPoi);
+		subscriptions.add(trackedVillageSections);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param subscriberTracker subscriber tracker
-	 */
 	public void tick(SubscriberTracker subscriberTracker) {
-		this.subscribedTypes = subscriberTracker.getSubscribedTypes();
-		boolean bl = this.subscribedTypes.isEmpty();
-		if (this.stopped != bl) {
-			this.stopped = bl;
-			if (bl) {
-				for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
-					trackedSubscription.clear();
-				}
-			}
-			else {
-				this.startTracking();
+		subscribedTypes = subscriberTracker.getSubscribedTypes();
+		boolean nowEmpty = subscribedTypes.isEmpty();
+
+		if (stopped != nowEmpty) {
+			stopped = nowEmpty;
+			if (nowEmpty) {
+				subscriptions.forEach(TrackedSubscription::clear);
+			} else {
+				startTracking();
 			}
 		}
 
-		if (!this.stopped) {
-			for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
-				trackedSubscription.refreshTracking(this.world);
-			}
+		if (!stopped) {
+			subscriptions.forEach(sub -> sub.refreshTracking(world));
 		}
 	}
 
 	private void startTracking() {
-		ServerChunkLoadingManager serverChunkLoadingManager = this.world.getChunkManager().chunkLoadingManager;
-		serverChunkLoadingManager.forEachChunk(this::trackChunk);
+		ServerChunkLoadingManager chunkLoadingManager = world.getChunkManager().chunkLoadingManager;
+		chunkLoadingManager.forEachChunk(this::trackChunk);
 
-		for (Entity entity : this.world.iterateEntities()) {
-			if (serverChunkLoadingManager.hasTrackingPlayer(entity)) {
-				this.trackEntity(entity);
+		for (Entity entity : world.iterateEntities()) {
+			if (chunkLoadingManager.hasTrackingPlayer(entity)) {
+				trackEntity(entity);
 			}
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	<T> TrackedSubscription.UpdateTrackedSubscription<T> get(DebugSubscriptionType<T> type) {
-		return (TrackedSubscription.UpdateTrackedSubscription<T>) this.subscriptionsByTypes.get(type);
+		return (TrackedSubscription.UpdateTrackedSubscription<T>) subscriptionsByTypes.get(type);
 	}
 
-	/**
-	 * Track chunk.
-	 *
-	 * @param chunk chunk
-	 */
 	public void trackChunk(WorldChunk chunk) {
-		if (!this.stopped) {
-			chunk.registerTracking(
-					this.world, new DebugTrackable.Tracker() {
-						@Override
-						public <T> void track(
-								DebugSubscriptionType<T> type,
-								DebugTrackable.DebugDataSupplier<T> dataSupplier
-						) {
-							SubscriptionTracker.this.get(type).trackChunk(chunk.getPos(), dataSupplier);
-						}
-					}
-			);
-			chunk.getBlockEntities().values().forEach(this::trackBlockEntity);
+		if (stopped) {
+			return;
 		}
+
+		chunk.registerTracking(world, new DebugTrackable.Tracker() {
+			@Override
+			public <T> void track(DebugSubscriptionType<T> type, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+				SubscriptionTracker.this.get(type).trackChunk(chunk.getPos(), dataSupplier);
+			}
+		});
+		chunk.getBlockEntities().values().forEach(this::trackBlockEntity);
 	}
 
-	/**
-	 * Untrack chunk.
-	 *
-	 * @param chunkPos chunk pos
-	 */
 	public void untrackChunk(ChunkPos chunkPos) {
-		if (!this.stopped) {
-			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
-				updateTrackedSubscription.untrackChunk(chunkPos);
-			}
+		if (stopped) {
+			return;
+		}
+
+		for (TrackedSubscription.UpdateTrackedSubscription<?> subscription : subscriptionsByTypes.values()) {
+			subscription.untrackChunk(chunkPos);
 		}
 	}
 
-	/**
-	 * Track block entity.
-	 *
-	 * @param blockEntity block entity
-	 */
 	public void trackBlockEntity(BlockEntity blockEntity) {
-		if (!this.stopped) {
-			blockEntity.registerTracking(
-					this.world, new DebugTrackable.Tracker() {
-						@Override
-						public <T> void track(
-								DebugSubscriptionType<T> type,
-								DebugTrackable.DebugDataSupplier<T> dataSupplier
-						) {
-							SubscriptionTracker.this.get(type).trackBlockEntity(blockEntity.getPos(), dataSupplier);
-						}
-					}
-			);
+		if (stopped) {
+			return;
 		}
+
+		blockEntity.registerTracking(world, new DebugTrackable.Tracker() {
+			@Override
+			public <T> void track(DebugSubscriptionType<T> type, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+				SubscriptionTracker.this.get(type).trackBlockEntity(blockEntity.getPos(), dataSupplier);
+			}
+		});
 	}
 
-	/**
-	 * Untrack block entity.
-	 *
-	 * @param pos pos
-	 */
 	public void untrackBlockEntity(BlockPos pos) {
-		if (!this.stopped) {
-			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
-				updateTrackedSubscription.untrackBlockEntity(this.world, pos);
-			}
+		if (stopped) {
+			return;
+		}
+
+		for (TrackedSubscription.UpdateTrackedSubscription<?> subscription : subscriptionsByTypes.values()) {
+			subscription.untrackBlockEntity(world, pos);
 		}
 	}
 
-	/**
-	 * Track entity.
-	 *
-	 * @param entity entity
-	 */
 	public void trackEntity(Entity entity) {
-		if (!this.stopped) {
-			entity.registerTracking(
-					this.world, new DebugTrackable.Tracker() {
-						@Override
-						public <T> void track(
-								DebugSubscriptionType<T> type,
-								DebugTrackable.DebugDataSupplier<T> dataSupplier
-						) {
-							SubscriptionTracker.this.get(type).trackEntity(entity.getUuid(), dataSupplier);
-						}
-					}
-			);
+		if (stopped) {
+			return;
 		}
+
+		entity.registerTracking(world, new DebugTrackable.Tracker() {
+			@Override
+			public <T> void track(DebugSubscriptionType<T> type, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+				SubscriptionTracker.this.get(type).trackEntity(entity.getUuid(), dataSupplier);
+			}
+		});
 	}
 
-	/**
-	 * Untrack entity.
-	 *
-	 * @param entity entity
-	 */
 	public void untrackEntity(Entity entity) {
-		if (!this.stopped) {
-			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
-				updateTrackedSubscription.untrackEntity(entity);
-			}
+		if (stopped) {
+			return;
+		}
+
+		for (TrackedSubscription.UpdateTrackedSubscription<?> subscription : subscriptionsByTypes.values()) {
+			subscription.untrackEntity(entity);
 		}
 	}
 
-	/**
-	 * Отправляет initial if subscribed.
-	 *
-	 * @param player player
-	 * @param chunkPos chunk pos
-	 */
 	public void sendInitialIfSubscribed(ServerPlayerEntity player, ChunkPos chunkPos) {
-		if (!this.stopped) {
-			for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
-				trackedSubscription.sendInitialIfSubscribed(player, chunkPos);
-			}
+		if (stopped) {
+			return;
 		}
+
+		subscriptions.forEach(sub -> sub.sendInitialIfSubscribed(player, chunkPos));
 	}
 
-	/**
-	 * Отправляет initial if subscribed.
-	 *
-	 * @param player player
-	 * @param entity entity
-	 */
 	public void sendInitialIfSubscribed(ServerPlayerEntity player, Entity entity) {
-		if (!this.stopped) {
-			for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
-				trackedSubscription.sendInitialIfSubscribed(player, entity);
-			}
+		if (stopped) {
+			return;
 		}
+
+		subscriptions.forEach(sub -> sub.sendInitialIfSubscribed(player, entity));
 	}
 
-	/**
-	 * Обрабатывает событие poi added.
-	 *
-	 * @param poi poi
-	 */
 	public void onPoiAdded(PointOfInterest poi) {
-		if (!this.stopped) {
-			this.trackedPoi.onPoiAdded(this.world, poi);
-			this.trackedVillageSections.onPoiAdded(this.world, poi);
+		if (stopped) {
+			return;
 		}
+
+		trackedPoi.onPoiAdded(world, poi);
+		trackedVillageSections.onPoiAdded(world, poi);
 	}
 
-	/**
-	 * Обрабатывает событие poi updated.
-	 *
-	 * @param pos pos
-	 */
 	public void onPoiUpdated(BlockPos pos) {
-		if (!this.stopped) {
-			this.trackedPoi.onPoiUpdated(this.world, pos);
+		if (stopped) {
+			return;
 		}
+
+		trackedPoi.onPoiUpdated(world, pos);
 	}
 
-	/**
-	 * Обрабатывает событие poi removed.
-	 *
-	 * @param pos pos
-	 */
 	public void onPoiRemoved(BlockPos pos) {
-		if (!this.stopped) {
-			this.trackedPoi.onPoiRemoved(this.world, pos);
-			this.trackedVillageSections.onPoiRemoved(this.world, pos);
+		if (stopped) {
+			return;
 		}
+
+		trackedPoi.onPoiRemoved(world, pos);
+		trackedVillageSections.onPoiRemoved(world, pos);
 	}
 
 	public boolean isSubscribed(DebugSubscriptionType<?> type) {
-		return this.subscribedTypes.contains(type);
+		return subscribedTypes.contains(type);
 	}
 
-	/**
-	 * Отправляет block debug data.
-	 *
-	 * @param pos pos
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void sendBlockDebugData(BlockPos pos, DebugSubscriptionType<T> type, T value) {
-		if (this.isSubscribed(type)) {
-			this.sendToTrackingPlayers(
-					new ChunkPos(pos),
-					type,
-					new BlockValueDebugS2CPacket(pos, type.optionalValueFor(value))
-			);
+		if (!isSubscribed(type)) {
+			return;
 		}
+
+		sendToTrackingPlayers(new ChunkPos(pos), type, new BlockValueDebugS2CPacket(pos, type.optionalValueFor(value)));
 	}
 
-	/**
-	 * Удаляет block debug data.
-	 *
-	 * @param pos pos
-	 * @param type type
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void removeBlockDebugData(BlockPos pos, DebugSubscriptionType<T> type) {
-		if (this.isSubscribed(type)) {
-			this.sendToTrackingPlayers(
-					new ChunkPos(pos),
-					type,
-					new BlockValueDebugS2CPacket(pos, type.optionalValueFor())
-			);
+		if (!isSubscribed(type)) {
+			return;
 		}
+
+		sendToTrackingPlayers(new ChunkPos(pos), type, new BlockValueDebugS2CPacket(pos, type.optionalValueFor()));
 	}
 
-	/**
-	 * Отправляет entity debug data.
-	 *
-	 * @param entity entity
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void sendEntityDebugData(Entity entity, DebugSubscriptionType<T> type, T value) {
-		if (this.isSubscribed(type)) {
-			this.sendToTrackingPlayers(
-					entity,
-					type,
-					new EntityValueDebugS2CPacket(entity.getId(), type.optionalValueFor(value))
-			);
+		if (!isSubscribed(type)) {
+			return;
 		}
+
+		sendToTrackingPlayers(entity, type, new EntityValueDebugS2CPacket(entity.getId(), type.optionalValueFor(value)));
 	}
 
-	/**
-	 * Удаляет entity debug data.
-	 *
-	 * @param entity entity
-	 * @param type type
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void removeEntityDebugData(Entity entity, DebugSubscriptionType<T> type) {
-		if (this.isSubscribed(type)) {
-			this.sendToTrackingPlayers(
-					entity,
-					type,
-					new EntityValueDebugS2CPacket(entity.getId(), type.optionalValueFor())
-			);
+		if (!isSubscribed(type)) {
+			return;
 		}
+
+		sendToTrackingPlayers(entity, type, new EntityValueDebugS2CPacket(entity.getId(), type.optionalValueFor()));
 	}
 
-	/**
-	 * Отправляет event debug data.
-	 *
-	 * @param pos pos
-	 * @param type type
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void sendEventDebugData(BlockPos pos, DebugSubscriptionType<T> type, T value) {
-		if (this.isSubscribed(type)) {
-			this.sendToTrackingPlayers(new ChunkPos(pos), type, new EventDebugS2CPacket(type.valueFor(value)));
+		if (!isSubscribed(type)) {
+			return;
 		}
+
+		sendToTrackingPlayers(new ChunkPos(pos), type, new EventDebugS2CPacket(type.valueFor(value)));
 	}
 
 	private void sendToTrackingPlayers(
@@ -360,14 +247,9 @@ public class SubscriptionTracker {
 			DebugSubscriptionType<?> type,
 			Packet<? super ClientPlayPacketListener> packet
 	) {
-		ServerChunkLoadingManager serverChunkLoadingManager = this.world.getChunkManager().chunkLoadingManager;
-
-		for (ServerPlayerEntity serverPlayerEntity : serverChunkLoadingManager.getPlayersWatchingChunk(
-				chunkPos,
-				false
-		)) {
-			if (serverPlayerEntity.getSubscribedTypes().contains(type)) {
-				serverPlayerEntity.networkHandler.sendPacket(packet);
+		for (ServerPlayerEntity player : world.getChunkManager().chunkLoadingManager.getPlayersWatchingChunk(chunkPos, false)) {
+			if (player.getSubscribedTypes().contains(type)) {
+				player.networkHandler.sendPacket(packet);
 			}
 		}
 	}
@@ -377,8 +259,7 @@ public class SubscriptionTracker {
 			DebugSubscriptionType<?> type,
 			Packet<? super ClientPlayPacketListener> packet
 	) {
-		ServerChunkLoadingManager serverChunkLoadingManager = this.world.getChunkManager().chunkLoadingManager;
-		serverChunkLoadingManager.sendToOtherNearbyPlayersIf(
+		world.getChunkManager().chunkLoadingManager.sendToOtherNearbyPlayersIf(
 				entity,
 				packet,
 				player -> player.getSubscribedTypes().contains(type)

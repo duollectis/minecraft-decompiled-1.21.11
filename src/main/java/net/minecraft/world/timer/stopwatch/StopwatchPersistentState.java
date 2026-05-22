@@ -15,114 +15,107 @@ import java.util.TreeMap;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code StopwatchPersistentState}.
+ * Персистентное состояние, хранящее именованные секундомеры.
+ * При сохранении конвертирует секундомеры в накопленное время (мс),
+ * при загрузке — восстанавливает с текущим временем создания.
+ * Это обеспечивает корректный отсчёт времени между перезагрузками сервера.
  */
 public class StopwatchPersistentState extends PersistentState {
 
 	private static final Codec<StopwatchPersistentState> CODEC = Codec.unboundedMap(Identifier.CODEC, Codec.LONG)
-	                                                                  .fieldOf("stopwatches")
-	                                                                  .codec()
-	                                                                  .xmap(
-			                                                                  StopwatchPersistentState::fromElapsedTimes,
-			                                                                  StopwatchPersistentState::toElapsedTimes
-	                                                                  );
+		.fieldOf("stopwatches")
+		.codec()
+		.xmap(
+			StopwatchPersistentState::fromElapsedTimes,
+			StopwatchPersistentState::toElapsedTimes
+		);
+
 	public static final PersistentStateType<StopwatchPersistentState> STATE_TYPE = new PersistentStateType<>(
-			"stopwatches", StopwatchPersistentState::new, CODEC, DataFixTypes.SAVED_DATA_STOPWATCHES
+		"stopwatches",
+		StopwatchPersistentState::new,
+		CODEC,
+		DataFixTypes.SAVED_DATA_STOPWATCHES
 	);
-	private final Map<Identifier, Stopwatch> stopwatches = new Object2ObjectOpenHashMap();
+
+	private final Map<Identifier, Stopwatch> stopwatches = new Object2ObjectOpenHashMap<>();
 
 	private StopwatchPersistentState() {
 	}
 
-	private static StopwatchPersistentState fromElapsedTimes(Map<Identifier, Long> times) {
-		StopwatchPersistentState stopwatchPersistentState = new StopwatchPersistentState();
-		long l = getTimeMs();
-		times.forEach((id, time) -> stopwatchPersistentState.stopwatches.put(id, new Stopwatch(l, time)));
-		return stopwatchPersistentState;
+	private static StopwatchPersistentState fromElapsedTimes(Map<Identifier, Long> elapsedTimes) {
+		StopwatchPersistentState state = new StopwatchPersistentState();
+		long now = getTimeMs();
+		elapsedTimes.forEach((id, elapsed) -> state.stopwatches.put(id, new Stopwatch(now, elapsed)));
+		return state;
 	}
 
 	private Map<Identifier, Long> toElapsedTimes() {
-		long l = getTimeMs();
-		Map<Identifier, Long> map = new TreeMap<>();
-		this.stopwatches.forEach((id, stopwatch) -> map.put(id, stopwatch.getElapsedTimeMs(l)));
-		return map;
+		long now = getTimeMs();
+		Map<Identifier, Long> result = new TreeMap<>();
+		stopwatches.forEach((id, stopwatch) -> result.put(id, stopwatch.getElapsedTimeMs(now)));
+		return result;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param id id
-	 *
-	 * @return @Nullable Stopwatch — 
-	 */
+	/** @return секундомер по идентификатору, или {@code null} если не найден */
 	public @Nullable Stopwatch get(Identifier id) {
-		return this.stopwatches.get(id);
+		return stopwatches.get(id);
 	}
 
 	/**
-	 * Add.
+	 * Добавляет секундомер, если секундомер с таким идентификатором ещё не существует.
 	 *
-	 * @param id id
-	 * @param stopwatch stopwatch
-	 *
-	 * @return boolean — результат операции
+	 * @param id        идентификатор секундомера
+	 * @param stopwatch секундомер для добавления
+	 * @return {@code true}, если секундомер был добавлен
 	 */
 	public boolean add(Identifier id, Stopwatch stopwatch) {
-		if (this.stopwatches.putIfAbsent(id, stopwatch) == null) {
-			this.markDirty();
-			return true;
-		}
-		else {
+		if (stopwatches.putIfAbsent(id, stopwatch) != null) {
 			return false;
 		}
+
+		markDirty();
+		return true;
 	}
 
 	/**
-	 * Update.
+	 * Обновляет существующий секундомер через функцию преобразования.
 	 *
-	 * @param id id
-	 * @param f f
-	 *
-	 * @return boolean — результат операции
+	 * @param id        идентификатор секундомера
+	 * @param transform функция преобразования секундомера
+	 * @return {@code true}, если секундомер был найден и обновлён
 	 */
-	public boolean update(Identifier id, UnaryOperator<Stopwatch> f) {
-		if (this.stopwatches.computeIfPresent(id, (id_, stopwatch) -> f.apply(stopwatch)) != null) {
-			this.markDirty();
-			return true;
-		}
-		else {
+	public boolean update(Identifier id, UnaryOperator<Stopwatch> transform) {
+		if (stopwatches.computeIfPresent(id, (key, stopwatch) -> transform.apply(stopwatch)) == null) {
 			return false;
 		}
+
+		markDirty();
+		return true;
 	}
 
 	/**
-	 * Remove.
+	 * Удаляет секундомер по идентификатору.
 	 *
-	 * @param id id
-	 *
-	 * @return boolean — результат операции
+	 * @param id идентификатор секундомера
+	 * @return {@code true}, если секундомер был найден и удалён
 	 */
 	public boolean remove(Identifier id) {
-		boolean bl = this.stopwatches.remove(id) != null;
-		if (bl) {
-			this.markDirty();
+		if (stopwatches.remove(id) == null) {
+			return false;
 		}
 
-		return bl;
+		markDirty();
+		return true;
 	}
 
 	@Override
 	public boolean isDirty() {
-		return super.isDirty() || !this.stopwatches.isEmpty();
+		return super.isDirty() || !stopwatches.isEmpty();
 	}
 
-	/**
-	 * Keys.
-	 *
-	 * @return List — результат операции
-	 */
+	/** @return неизменяемый список всех идентификаторов секундомеров */
 	public List<Identifier> keys() {
-		return List.copyOf(this.stopwatches.keySet());
+		return List.copyOf(stopwatches.keySet());
 	}
 
 	public static long getTimeMs() {

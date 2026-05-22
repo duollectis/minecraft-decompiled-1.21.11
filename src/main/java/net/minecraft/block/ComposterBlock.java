@@ -38,7 +38,10 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ComposterBlock}.
+ * Блок компостера — принимает органические предметы и постепенно заполняется (уровни 0–7).
+ * При достижении уровня 7 через 20 тиков переходит на уровень 8 (готов к сбору).
+ * На уровне 8 при взаимодействии выбрасывает костную муку и сбрасывается до 0.
+ * Поддерживает автоматизацию через хоппер (SidedInventory).
  */
 public class ComposterBlock extends Block implements InventoryProvider {
 
@@ -46,21 +49,23 @@ public class ComposterBlock extends Block implements InventoryProvider {
 	public static final int NUM_LEVELS = 8;
 	public static final int MIN_LEVEL = 0;
 	public static final int MAX_LEVEL = 7;
+	public static final int FULL_LEVEL = 8;
+	public static final int READY_TICK_DELAY = 20;
 	public static final IntProperty LEVEL = Properties.LEVEL_8;
 	public static final Object2FloatMap<ItemConvertible> ITEM_TO_LEVEL_INCREASE_CHANCE = new Object2FloatOpenHashMap();
 	private static final int INNER_DIAMETER = 12;
 	private static final VoxelShape[] COLLISION_SHAPES_BY_LEVEL = Util.make(
 			() -> {
-				VoxelShape[] voxelShapes = Block.createShapeArray(
-						8,
+				VoxelShape[] shapes = Block.createShapeArray(
+						NUM_LEVELS,
 						level -> VoxelShapes.combineAndSimplify(
 								VoxelShapes.fullCube(),
-								Block.createColumnShape(12.0, Math.clamp((long) (1 + level * 2), 2, 16), 16.0),
+								Block.createColumnShape(INNER_DIAMETER, Math.clamp((long) (1 + level * 2), 2, 16), 16.0),
 								BooleanBiFunction.ONLY_FIRST
 						)
 				);
-				voxelShapes[8] = voxelShapes[7];
-				return voxelShapes;
+				shapes[FULL_LEVEL] = shapes[MAX_LEVEL];
+				return shapes;
 			}
 	);
 
@@ -70,130 +75,131 @@ public class ComposterBlock extends Block implements InventoryProvider {
 	}
 
 	/**
-	 * Регистрирует default compostable items.
+	 * Регистрирует все стандартные компостируемые предметы с их шансами повышения уровня.
+	 * Вызывается один раз при инициализации игры.
 	 */
 	public static void registerDefaultCompostableItems() {
 		ITEM_TO_LEVEL_INCREASE_CHANCE.defaultReturnValue(-1.0F);
-		float f = 0.3F;
-		float g = 0.5F;
-		float h = 0.65F;
-		float i = 0.85F;
-		float j = 1.0F;
-		registerCompostableItem(0.3F, Items.JUNGLE_LEAVES);
-		registerCompostableItem(0.3F, Items.OAK_LEAVES);
-		registerCompostableItem(0.3F, Items.SPRUCE_LEAVES);
-		registerCompostableItem(0.3F, Items.DARK_OAK_LEAVES);
-		registerCompostableItem(0.3F, Items.PALE_OAK_LEAVES);
-		registerCompostableItem(0.3F, Items.ACACIA_LEAVES);
-		registerCompostableItem(0.3F, Items.CHERRY_LEAVES);
-		registerCompostableItem(0.3F, Items.BIRCH_LEAVES);
-		registerCompostableItem(0.3F, Items.AZALEA_LEAVES);
-		registerCompostableItem(0.3F, Items.MANGROVE_LEAVES);
-		registerCompostableItem(0.3F, Items.OAK_SAPLING);
-		registerCompostableItem(0.3F, Items.SPRUCE_SAPLING);
-		registerCompostableItem(0.3F, Items.BIRCH_SAPLING);
-		registerCompostableItem(0.3F, Items.JUNGLE_SAPLING);
-		registerCompostableItem(0.3F, Items.ACACIA_SAPLING);
-		registerCompostableItem(0.3F, Items.CHERRY_SAPLING);
-		registerCompostableItem(0.3F, Items.DARK_OAK_SAPLING);
-		registerCompostableItem(0.3F, Items.PALE_OAK_SAPLING);
-		registerCompostableItem(0.3F, Items.MANGROVE_PROPAGULE);
-		registerCompostableItem(0.3F, Items.BEETROOT_SEEDS);
-		registerCompostableItem(0.3F, Items.DRIED_KELP);
-		registerCompostableItem(0.3F, Items.SHORT_GRASS);
-		registerCompostableItem(0.3F, Items.KELP);
-		registerCompostableItem(0.3F, Items.MELON_SEEDS);
-		registerCompostableItem(0.3F, Items.PUMPKIN_SEEDS);
-		registerCompostableItem(0.3F, Items.SEAGRASS);
-		registerCompostableItem(0.3F, Items.SWEET_BERRIES);
-		registerCompostableItem(0.3F, Items.GLOW_BERRIES);
-		registerCompostableItem(0.3F, Items.WHEAT_SEEDS);
-		registerCompostableItem(0.3F, Items.MOSS_CARPET);
-		registerCompostableItem(0.3F, Items.PALE_MOSS_CARPET);
-		registerCompostableItem(0.3F, Items.PALE_HANGING_MOSS);
-		registerCompostableItem(0.3F, Items.PINK_PETALS);
-		registerCompostableItem(0.3F, Items.WILDFLOWERS);
-		registerCompostableItem(0.3F, Items.LEAF_LITTER);
-		registerCompostableItem(0.3F, Items.SMALL_DRIPLEAF);
-		registerCompostableItem(0.3F, Items.HANGING_ROOTS);
-		registerCompostableItem(0.3F, Items.MANGROVE_ROOTS);
-		registerCompostableItem(0.3F, Items.TORCHFLOWER_SEEDS);
-		registerCompostableItem(0.3F, Items.PITCHER_POD);
-		registerCompostableItem(0.3F, Items.FIREFLY_BUSH);
-		registerCompostableItem(0.3F, Items.BUSH);
-		registerCompostableItem(0.3F, Items.CACTUS_FLOWER);
-		registerCompostableItem(0.3F, Items.SHORT_DRY_GRASS);
-		registerCompostableItem(0.3F, Items.TALL_DRY_GRASS);
-		registerCompostableItem(0.5F, Items.DRIED_KELP_BLOCK);
-		registerCompostableItem(0.5F, Items.TALL_GRASS);
-		registerCompostableItem(0.5F, Items.FLOWERING_AZALEA_LEAVES);
-		registerCompostableItem(0.5F, Items.CACTUS);
-		registerCompostableItem(0.5F, Items.SUGAR_CANE);
-		registerCompostableItem(0.5F, Items.VINE);
-		registerCompostableItem(0.5F, Items.NETHER_SPROUTS);
-		registerCompostableItem(0.5F, Items.WEEPING_VINES);
-		registerCompostableItem(0.5F, Items.TWISTING_VINES);
-		registerCompostableItem(0.5F, Items.MELON_SLICE);
-		registerCompostableItem(0.5F, Items.GLOW_LICHEN);
-		registerCompostableItem(0.65F, Items.SEA_PICKLE);
-		registerCompostableItem(0.65F, Items.LILY_PAD);
-		registerCompostableItem(0.65F, Items.PUMPKIN);
-		registerCompostableItem(0.65F, Items.CARVED_PUMPKIN);
-		registerCompostableItem(0.65F, Items.MELON);
-		registerCompostableItem(0.65F, Items.APPLE);
-		registerCompostableItem(0.65F, Items.BEETROOT);
-		registerCompostableItem(0.65F, Items.CARROT);
-		registerCompostableItem(0.65F, Items.COCOA_BEANS);
-		registerCompostableItem(0.65F, Items.POTATO);
-		registerCompostableItem(0.65F, Items.WHEAT);
-		registerCompostableItem(0.65F, Items.BROWN_MUSHROOM);
-		registerCompostableItem(0.65F, Items.RED_MUSHROOM);
-		registerCompostableItem(0.65F, Items.MUSHROOM_STEM);
-		registerCompostableItem(0.65F, Items.CRIMSON_FUNGUS);
-		registerCompostableItem(0.65F, Items.WARPED_FUNGUS);
-		registerCompostableItem(0.65F, Items.NETHER_WART);
-		registerCompostableItem(0.65F, Items.CRIMSON_ROOTS);
-		registerCompostableItem(0.65F, Items.WARPED_ROOTS);
-		registerCompostableItem(0.65F, Items.SHROOMLIGHT);
-		registerCompostableItem(0.65F, Items.DANDELION);
-		registerCompostableItem(0.65F, Items.POPPY);
-		registerCompostableItem(0.65F, Items.BLUE_ORCHID);
-		registerCompostableItem(0.65F, Items.ALLIUM);
-		registerCompostableItem(0.65F, Items.AZURE_BLUET);
-		registerCompostableItem(0.65F, Items.RED_TULIP);
-		registerCompostableItem(0.65F, Items.ORANGE_TULIP);
-		registerCompostableItem(0.65F, Items.WHITE_TULIP);
-		registerCompostableItem(0.65F, Items.PINK_TULIP);
-		registerCompostableItem(0.65F, Items.OXEYE_DAISY);
-		registerCompostableItem(0.65F, Items.CORNFLOWER);
-		registerCompostableItem(0.65F, Items.LILY_OF_THE_VALLEY);
-		registerCompostableItem(0.65F, Items.WITHER_ROSE);
-		registerCompostableItem(0.65F, Items.OPEN_EYEBLOSSOM);
-		registerCompostableItem(0.65F, Items.CLOSED_EYEBLOSSOM);
-		registerCompostableItem(0.65F, Items.FERN);
-		registerCompostableItem(0.65F, Items.SUNFLOWER);
-		registerCompostableItem(0.65F, Items.LILAC);
-		registerCompostableItem(0.65F, Items.ROSE_BUSH);
-		registerCompostableItem(0.65F, Items.PEONY);
-		registerCompostableItem(0.65F, Items.LARGE_FERN);
-		registerCompostableItem(0.65F, Items.SPORE_BLOSSOM);
-		registerCompostableItem(0.65F, Items.AZALEA);
-		registerCompostableItem(0.65F, Items.MOSS_BLOCK);
-		registerCompostableItem(0.65F, Items.PALE_MOSS_BLOCK);
-		registerCompostableItem(0.65F, Items.BIG_DRIPLEAF);
-		registerCompostableItem(0.85F, Items.HAY_BLOCK);
-		registerCompostableItem(0.85F, Items.BROWN_MUSHROOM_BLOCK);
-		registerCompostableItem(0.85F, Items.RED_MUSHROOM_BLOCK);
-		registerCompostableItem(0.85F, Items.NETHER_WART_BLOCK);
-		registerCompostableItem(0.85F, Items.WARPED_WART_BLOCK);
-		registerCompostableItem(0.85F, Items.FLOWERING_AZALEA);
-		registerCompostableItem(0.85F, Items.BREAD);
-		registerCompostableItem(0.85F, Items.BAKED_POTATO);
-		registerCompostableItem(0.85F, Items.COOKIE);
-		registerCompostableItem(0.85F, Items.TORCHFLOWER);
-		registerCompostableItem(0.85F, Items.PITCHER_PLANT);
-		registerCompostableItem(1.0F, Items.CAKE);
-		registerCompostableItem(1.0F, Items.PUMPKIN_PIE);
+		float low = 0.3F;
+		float medium = 0.5F;
+		float high = 0.65F;
+		float veryHigh = 0.85F;
+		float guaranteed = 1.0F;
+		registerCompostableItem(low, Items.JUNGLE_LEAVES);
+		registerCompostableItem(low, Items.OAK_LEAVES);
+		registerCompostableItem(low, Items.SPRUCE_LEAVES);
+		registerCompostableItem(low, Items.DARK_OAK_LEAVES);
+		registerCompostableItem(low, Items.PALE_OAK_LEAVES);
+		registerCompostableItem(low, Items.ACACIA_LEAVES);
+		registerCompostableItem(low, Items.CHERRY_LEAVES);
+		registerCompostableItem(low, Items.BIRCH_LEAVES);
+		registerCompostableItem(low, Items.AZALEA_LEAVES);
+		registerCompostableItem(low, Items.MANGROVE_LEAVES);
+		registerCompostableItem(low, Items.OAK_SAPLING);
+		registerCompostableItem(low, Items.SPRUCE_SAPLING);
+		registerCompostableItem(low, Items.BIRCH_SAPLING);
+		registerCompostableItem(low, Items.JUNGLE_SAPLING);
+		registerCompostableItem(low, Items.ACACIA_SAPLING);
+		registerCompostableItem(low, Items.CHERRY_SAPLING);
+		registerCompostableItem(low, Items.DARK_OAK_SAPLING);
+		registerCompostableItem(low, Items.PALE_OAK_SAPLING);
+		registerCompostableItem(low, Items.MANGROVE_PROPAGULE);
+		registerCompostableItem(low, Items.BEETROOT_SEEDS);
+		registerCompostableItem(low, Items.DRIED_KELP);
+		registerCompostableItem(low, Items.SHORT_GRASS);
+		registerCompostableItem(low, Items.KELP);
+		registerCompostableItem(low, Items.MELON_SEEDS);
+		registerCompostableItem(low, Items.PUMPKIN_SEEDS);
+		registerCompostableItem(low, Items.SEAGRASS);
+		registerCompostableItem(low, Items.SWEET_BERRIES);
+		registerCompostableItem(low, Items.GLOW_BERRIES);
+		registerCompostableItem(low, Items.WHEAT_SEEDS);
+		registerCompostableItem(low, Items.MOSS_CARPET);
+		registerCompostableItem(low, Items.PALE_MOSS_CARPET);
+		registerCompostableItem(low, Items.PALE_HANGING_MOSS);
+		registerCompostableItem(low, Items.PINK_PETALS);
+		registerCompostableItem(low, Items.WILDFLOWERS);
+		registerCompostableItem(low, Items.LEAF_LITTER);
+		registerCompostableItem(low, Items.SMALL_DRIPLEAF);
+		registerCompostableItem(low, Items.HANGING_ROOTS);
+		registerCompostableItem(low, Items.MANGROVE_ROOTS);
+		registerCompostableItem(low, Items.TORCHFLOWER_SEEDS);
+		registerCompostableItem(low, Items.PITCHER_POD);
+		registerCompostableItem(low, Items.FIREFLY_BUSH);
+		registerCompostableItem(low, Items.BUSH);
+		registerCompostableItem(low, Items.CACTUS_FLOWER);
+		registerCompostableItem(low, Items.SHORT_DRY_GRASS);
+		registerCompostableItem(low, Items.TALL_DRY_GRASS);
+		registerCompostableItem(medium, Items.DRIED_KELP_BLOCK);
+		registerCompostableItem(medium, Items.TALL_GRASS);
+		registerCompostableItem(medium, Items.FLOWERING_AZALEA_LEAVES);
+		registerCompostableItem(medium, Items.CACTUS);
+		registerCompostableItem(medium, Items.SUGAR_CANE);
+		registerCompostableItem(medium, Items.VINE);
+		registerCompostableItem(medium, Items.NETHER_SPROUTS);
+		registerCompostableItem(medium, Items.WEEPING_VINES);
+		registerCompostableItem(medium, Items.TWISTING_VINES);
+		registerCompostableItem(medium, Items.MELON_SLICE);
+		registerCompostableItem(medium, Items.GLOW_LICHEN);
+		registerCompostableItem(high, Items.SEA_PICKLE);
+		registerCompostableItem(high, Items.LILY_PAD);
+		registerCompostableItem(high, Items.PUMPKIN);
+		registerCompostableItem(high, Items.CARVED_PUMPKIN);
+		registerCompostableItem(high, Items.MELON);
+		registerCompostableItem(high, Items.APPLE);
+		registerCompostableItem(high, Items.BEETROOT);
+		registerCompostableItem(high, Items.CARROT);
+		registerCompostableItem(high, Items.COCOA_BEANS);
+		registerCompostableItem(high, Items.POTATO);
+		registerCompostableItem(high, Items.WHEAT);
+		registerCompostableItem(high, Items.BROWN_MUSHROOM);
+		registerCompostableItem(high, Items.RED_MUSHROOM);
+		registerCompostableItem(high, Items.MUSHROOM_STEM);
+		registerCompostableItem(high, Items.CRIMSON_FUNGUS);
+		registerCompostableItem(high, Items.WARPED_FUNGUS);
+		registerCompostableItem(high, Items.NETHER_WART);
+		registerCompostableItem(high, Items.CRIMSON_ROOTS);
+		registerCompostableItem(high, Items.WARPED_ROOTS);
+		registerCompostableItem(high, Items.SHROOMLIGHT);
+		registerCompostableItem(high, Items.DANDELION);
+		registerCompostableItem(high, Items.POPPY);
+		registerCompostableItem(high, Items.BLUE_ORCHID);
+		registerCompostableItem(high, Items.ALLIUM);
+		registerCompostableItem(high, Items.AZURE_BLUET);
+		registerCompostableItem(high, Items.RED_TULIP);
+		registerCompostableItem(high, Items.ORANGE_TULIP);
+		registerCompostableItem(high, Items.WHITE_TULIP);
+		registerCompostableItem(high, Items.PINK_TULIP);
+		registerCompostableItem(high, Items.OXEYE_DAISY);
+		registerCompostableItem(high, Items.CORNFLOWER);
+		registerCompostableItem(high, Items.LILY_OF_THE_VALLEY);
+		registerCompostableItem(high, Items.WITHER_ROSE);
+		registerCompostableItem(high, Items.OPEN_EYEBLOSSOM);
+		registerCompostableItem(high, Items.CLOSED_EYEBLOSSOM);
+		registerCompostableItem(high, Items.FERN);
+		registerCompostableItem(high, Items.SUNFLOWER);
+		registerCompostableItem(high, Items.LILAC);
+		registerCompostableItem(high, Items.ROSE_BUSH);
+		registerCompostableItem(high, Items.PEONY);
+		registerCompostableItem(high, Items.LARGE_FERN);
+		registerCompostableItem(high, Items.SPORE_BLOSSOM);
+		registerCompostableItem(high, Items.AZALEA);
+		registerCompostableItem(high, Items.MOSS_BLOCK);
+		registerCompostableItem(high, Items.PALE_MOSS_BLOCK);
+		registerCompostableItem(high, Items.BIG_DRIPLEAF);
+		registerCompostableItem(veryHigh, Items.HAY_BLOCK);
+		registerCompostableItem(veryHigh, Items.BROWN_MUSHROOM_BLOCK);
+		registerCompostableItem(veryHigh, Items.RED_MUSHROOM_BLOCK);
+		registerCompostableItem(veryHigh, Items.NETHER_WART_BLOCK);
+		registerCompostableItem(veryHigh, Items.WARPED_WART_BLOCK);
+		registerCompostableItem(veryHigh, Items.FLOWERING_AZALEA);
+		registerCompostableItem(veryHigh, Items.BREAD);
+		registerCompostableItem(veryHigh, Items.BAKED_POTATO);
+		registerCompostableItem(veryHigh, Items.COOKIE);
+		registerCompostableItem(veryHigh, Items.TORCHFLOWER);
+		registerCompostableItem(veryHigh, Items.PITCHER_PLANT);
+		registerCompostableItem(guaranteed, Items.CAKE);
+		registerCompostableItem(guaranteed, Items.PUMPKIN_PIE);
 	}
 
 	private static void registerCompostableItem(float levelIncreaseChance, ItemConvertible item) {
@@ -202,15 +208,15 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 	public ComposterBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL, 0));
+		setDefaultState(stateManager.getDefaultState().with(LEVEL, 0));
 	}
 
 	/**
-	 * Play effects.
+	 * Воспроизводит звук и частицы компостирования на клиенте.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param fill fill
+	 * @param world мир
+	 * @param pos   позиция компостера
+	 * @param fill  {@code true} — успешное добавление (звук заполнения), {@code false} — обычный звук
 	 */
 	public static void playEffects(World world, BlockPos pos, boolean fill) {
 		BlockState blockState = world.getBlockState(pos);
@@ -222,24 +228,23 @@ public class ComposterBlock extends Block implements InventoryProvider {
 				1.0F,
 				false
 		);
-		double d = blockState.getOutlineShape(world, pos).getEndingCoord(Direction.Axis.Y, 0.5, 0.5) + 0.03125;
-		double e = 2.0;
-		double f = 0.1875;
-		double g = 0.625;
+		double topY = blockState.getOutlineShape(world, pos).getEndingCoord(Direction.Axis.Y, 0.5, 0.5) + 0.03125;
+		double innerMin = 0.1875;
+		double innerSize = 0.625;
 		Random random = world.getRandom();
 
-		for (int i = 0; i < 10; i++) {
-			double h = random.nextGaussian() * 0.02;
-			double j = random.nextGaussian() * 0.02;
-			double k = random.nextGaussian() * 0.02;
+		for (int particle = 0; particle < 10; particle++) {
+			double velX = random.nextGaussian() * 0.02;
+			double velY = random.nextGaussian() * 0.02;
+			double velZ = random.nextGaussian() * 0.02;
 			world.addParticleClient(
 					ParticleTypes.COMPOSTER,
-					pos.getX() + 0.1875 + 0.625 * random.nextFloat(),
-					pos.getY() + d + random.nextFloat() * (1.0 - d),
-					pos.getZ() + 0.1875 + 0.625 * random.nextFloat(),
-					h,
-					j,
-					k
+					pos.getX() + innerMin + innerSize * random.nextFloat(),
+					pos.getY() + topY + random.nextFloat() * (1.0 - topY),
+					pos.getZ() + innerMin + innerSize * random.nextFloat(),
+					velX,
+					velY,
+					velZ
 			);
 		}
 	}
@@ -261,8 +266,8 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		if (state.get(LEVEL) == 7) {
-			world.scheduleBlockTick(pos, state.getBlock(), 20);
+		if (state.get(LEVEL) == MAX_LEVEL) {
+			world.scheduleBlockTick(pos, state.getBlock(), READY_TICK_DELAY);
 		}
 	}
 
@@ -276,87 +281,92 @@ public class ComposterBlock extends Block implements InventoryProvider {
 			Hand hand,
 			BlockHitResult hit
 	) {
-		int i = state.get(LEVEL);
-		if (i < 8 && ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem())) {
-			if (i < 7 && !world.isClient()) {
-				BlockState blockState = addToComposter(player, state, world, pos, stack);
-				world.syncWorldEvent(1500, pos, state != blockState ? 1 : 0);
-				player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-				stack.decrementUnlessCreative(1, player);
-			}
+		int level = state.get(LEVEL);
 
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (level >= FULL_LEVEL || !ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem())) {
 			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
 		}
+
+		if (level < MAX_LEVEL && !world.isClient()) {
+			BlockState newState = addToComposter(player, state, world, pos, stack);
+			world.syncWorldEvent(1500, pos, state != newState ? 1 : 0);
+			player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+			stack.decrementUnlessCreative(1, player);
+		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		int i = state.get(LEVEL);
-		if (i == 8) {
-			emptyFullComposter(player, state, world, pos);
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (state.get(LEVEL) != FULL_LEVEL) {
 			return ActionResult.PASS;
 		}
+
+		emptyFullComposter(player, state, world, pos);
+
+		return ActionResult.SUCCESS;
 	}
 
 	/**
-	 * Compost.
+	 * Добавляет предмет в компостер через хоппер или автоматизацию.
+	 * Уменьшает стак на 1 при успешном добавлении.
 	 *
-	 * @param user user
-	 * @param state state
-	 * @param world world
-	 * @param stack stack
-	 * @param pos pos
-	 *
-	 * @return BlockState — результат операции
+	 * @param user  сущность, инициировавшая компостирование (может быть null)
+	 * @param state текущее состояние компостера
+	 * @param world серверный мир
+	 * @param stack стак предмета для компостирования
+	 * @param pos   позиция компостера
+	 * @return новое состояние блока (или то же, если уровень не изменился)
 	 */
 	public static BlockState compost(Entity user, BlockState state, ServerWorld world, ItemStack stack, BlockPos pos) {
-		int i = state.get(LEVEL);
-		if (i < 7 && ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem())) {
-			BlockState blockState = addToComposter(user, state, world, pos, stack);
-			stack.decrement(1);
-			return blockState;
-		}
-		else {
+		int level = state.get(LEVEL);
+
+		if (level >= MAX_LEVEL || !ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem())) {
 			return state;
 		}
+
+		BlockState newState = addToComposter(user, state, world, pos, stack);
+		stack.decrement(1);
+
+		return newState;
 	}
 
 	/**
-	 * Empty full composter.
+	 * Опустошает заполненный компостер (уровень 8): выбрасывает костную муку и сбрасывает уровень до 0.
 	 *
-	 * @param user user
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return BlockState — результат операции
+	 * @param user  сущность, взаимодействующая с компостером
+	 * @param state текущее состояние блока
+	 * @param world мир
+	 * @param pos   позиция компостера
+	 * @return новое состояние блока с уровнем 0
 	 */
 	public static BlockState emptyFullComposter(Entity user, BlockState state, World world, BlockPos pos) {
 		if (!world.isClient()) {
-			Vec3d vec3d = Vec3d.add(pos, 0.5, 1.01, 0.5).addHorizontalRandom(world.random, 0.7F);
-			ItemEntity
-					itemEntity =
-					new ItemEntity(world, vec3d.getX(), vec3d.getY(), vec3d.getZ(), new ItemStack(Items.BONE_MEAL));
-			itemEntity.setToDefaultPickupDelay();
-			world.spawnEntity(itemEntity);
+			Vec3d spawnPos = Vec3d.add(pos, 0.5, 1.01, 0.5).addHorizontalRandom(world.random, 0.7F);
+			ItemEntity boneMeal = new ItemEntity(
+					world,
+					spawnPos.getX(),
+					spawnPos.getY(),
+					spawnPos.getZ(),
+					new ItemStack(Items.BONE_MEAL)
+			);
+			boneMeal.setToDefaultPickupDelay();
+			world.spawnEntity(boneMeal);
 		}
 
-		BlockState blockState = emptyComposter(user, state, world, pos);
+		BlockState emptied = emptyComposter(user, state, world, pos);
 		world.playSound(null, pos, SoundEvents.BLOCK_COMPOSTER_EMPTY, SoundCategory.BLOCKS, 1.0F, 1.0F);
-		return blockState;
+
+		return emptied;
 	}
 
 	static BlockState emptyComposter(@Nullable Entity user, BlockState state, WorldAccess world, BlockPos pos) {
-		BlockState blockState = state.with(LEVEL, 0);
-		world.setBlockState(pos, blockState, 3);
-		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, blockState));
-		return blockState;
+		BlockState emptied = state.with(LEVEL, MIN_LEVEL);
+		world.setBlockState(pos, emptied, Block.NOTIFY_ALL);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, emptied));
+
+		return emptied;
 	}
 
 	static BlockState addToComposter(
@@ -366,28 +376,29 @@ public class ComposterBlock extends Block implements InventoryProvider {
 			BlockPos pos,
 			ItemStack stack
 	) {
-		int i = state.get(LEVEL);
-		float f = ITEM_TO_LEVEL_INCREASE_CHANCE.getFloat(stack.getItem());
-		if ((i != 0 || !(f > 0.0F)) && !(world.getRandom().nextDouble() < f)) {
+		int level = state.get(LEVEL);
+		float chance = ITEM_TO_LEVEL_INCREASE_CHANCE.getFloat(stack.getItem());
+
+		if ((level != MIN_LEVEL || !(chance > 0.0F)) && !(world.getRandom().nextDouble() < chance)) {
 			return state;
 		}
-		else {
-			int j = i + 1;
-			BlockState blockState = state.with(LEVEL, j);
-			world.setBlockState(pos, blockState, 3);
-			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, blockState));
-			if (j == 7) {
-				world.scheduleBlockTick(pos, state.getBlock(), 20);
-			}
 
-			return blockState;
+		int newLevel = level + 1;
+		BlockState newState = state.with(LEVEL, newLevel);
+		world.setBlockState(pos, newState, Block.NOTIFY_ALL);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, newState));
+
+		if (newLevel == MAX_LEVEL) {
+			world.scheduleBlockTick(pos, state.getBlock(), READY_TICK_DELAY);
 		}
+
+		return newState;
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (state.get(LEVEL) == 7) {
-			world.setBlockState(pos, state.cycle(LEVEL), 3);
+		if (state.get(LEVEL) == MAX_LEVEL) {
+			world.setBlockState(pos, state.cycle(LEVEL), Block.NOTIFY_ALL);
 			world.playSound(null, pos, SoundEvents.BLOCK_COMPOSTER_READY, SoundCategory.BLOCKS, 1.0F, 1.0F);
 		}
 	}
@@ -414,20 +425,18 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 	@Override
 	public SidedInventory getInventory(BlockState state, WorldAccess world, BlockPos pos) {
-		int i = state.get(LEVEL);
-		if (i == 8) {
-			return new ComposterBlock.FullComposterInventory(state, world, pos, new ItemStack(Items.BONE_MEAL));
+		int level = state.get(LEVEL);
+
+		if (level == FULL_LEVEL) {
+			return new FullComposterInventory(state, world, pos, new ItemStack(Items.BONE_MEAL));
 		}
-		else {
-			return (SidedInventory) (i < 7 ? new ComposterBlock.ComposterInventory(state, world, pos)
-			                               : new ComposterBlock.DummyInventory()
-			);
-		}
+
+		return level < MAX_LEVEL
+				? new ComposterInventory(state, world, pos)
+				: new DummyInventory();
 	}
 
-	/**
-	 * {@code ComposterInventory}.
-	 */
+	/** Инвентарь компостера, принимающий органические предметы сверху через хоппер. */
 	static class ComposterInventory extends SimpleInventory implements SidedInventory {
 
 		private final BlockState state;
@@ -454,7 +463,7 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 		@Override
 		public boolean canInsert(int slot, ItemStack stack, @Nullable Direction dir) {
-			return !this.dirty && dir == Direction.UP
+			return !dirty && dir == Direction.UP
 					&& ComposterBlock.ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem());
 		}
 
@@ -465,21 +474,20 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 		@Override
 		public void markDirty() {
-			ItemStack itemStack = this.getStack(0);
-			if (!itemStack.isEmpty()) {
-				this.dirty = true;
-				BlockState
-						blockState =
-						ComposterBlock.addToComposter(null, this.state, this.world, this.pos, itemStack);
-				this.world.syncWorldEvent(1500, this.pos, blockState != this.state ? 1 : 0);
-				this.removeStack(0);
+			ItemStack inserted = getStack(0);
+
+			if (inserted.isEmpty()) {
+				return;
 			}
+
+			dirty = true;
+			BlockState newState = ComposterBlock.addToComposter(null, state, world, pos, inserted);
+			world.syncWorldEvent(1500, pos, newState != state ? 1 : 0);
+			removeStack(0);
 		}
 	}
 
-	/**
-	 * {@code DummyInventory}.
-	 */
+	/** Заглушка-инвентарь для компостера на уровне 7 (ожидает готовности). */
 	static class DummyInventory extends SimpleInventory implements SidedInventory {
 
 		public DummyInventory() {
@@ -502,9 +510,7 @@ public class ComposterBlock extends Block implements InventoryProvider {
 		}
 	}
 
-	/**
-	 * {@code FullComposterInventory}.
-	 */
+	/** Инвентарь готового компостера (уровень 8), выдающий костную муку снизу через хоппер. */
 	static class FullComposterInventory extends SimpleInventory implements SidedInventory {
 
 		private final BlockState state;
@@ -536,13 +542,13 @@ public class ComposterBlock extends Block implements InventoryProvider {
 
 		@Override
 		public boolean canExtract(int slot, ItemStack stack, Direction dir) {
-			return !this.dirty && dir == Direction.DOWN && stack.isOf(Items.BONE_MEAL);
+			return !dirty && dir == Direction.DOWN && stack.isOf(Items.BONE_MEAL);
 		}
 
 		@Override
 		public void markDirty() {
-			ComposterBlock.emptyComposter(null, this.state, this.world, this.pos);
-			this.dirty = true;
+			ComposterBlock.emptyComposter(null, state, world, pos);
+			dirty = true;
 		}
 	}
 }

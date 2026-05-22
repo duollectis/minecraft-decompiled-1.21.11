@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code ScheduleCommand}.
+ * Команда {@code /schedule}: планирование выполнения функций через заданное время.
  */
 public class ScheduleCommand {
 

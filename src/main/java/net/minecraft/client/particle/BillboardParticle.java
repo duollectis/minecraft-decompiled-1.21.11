@@ -14,10 +14,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BillboardParticle}.
+ * Базовый класс для всех частиц, отображаемых как плоский квадрат (billboard),
+ * всегда повёрнутый лицом к камере. Хранит цвет, прозрачность, масштаб и спрайт.
+ * Конкретные подклассы определяют тип рендера через {@link #getRenderType()}.
  */
+@Environment(EnvType.CLIENT)
 public abstract class BillboardParticle extends Particle {
 
 	protected float scale;
@@ -55,20 +57,18 @@ public abstract class BillboardParticle extends Particle {
 	}
 
 	/**
-	 * Render.
-	 *
-	 * @param submittable submittable
-	 * @param camera camera
-	 * @param tickProgress tick progress
+	 * Рендерит частицу в мировых координатах относительно камеры.
+	 * Применяет вращение ротатора и дополнительный Z-поворот (если задан).
 	 */
 	public void render(BillboardParticleSubmittable submittable, Camera camera, float tickProgress) {
 		Quaternionf quaternionf = new Quaternionf();
-		this.getRotator().setRotation(quaternionf, camera, tickProgress);
+		getRotator().setRotation(quaternionf, camera, tickProgress);
+
 		if (this.zRotation != 0.0F) {
 			quaternionf.rotateZ(MathHelper.lerp(tickProgress, this.lastZRotation, this.zRotation));
 		}
 
-		this.render(submittable, camera, quaternionf, tickProgress);
+		render(submittable, camera, quaternionf, tickProgress);
 	}
 
 	protected void render(
@@ -77,11 +77,11 @@ public abstract class BillboardParticle extends Particle {
 			Quaternionf rotation,
 			float tickProgress
 	) {
-		Vec3d vec3d = camera.getCameraPos();
-		float f = (float) (MathHelper.lerp((double) tickProgress, this.lastX, this.x) - vec3d.getX());
-		float g = (float) (MathHelper.lerp((double) tickProgress, this.lastY, this.y) - vec3d.getY());
-		float h = (float) (MathHelper.lerp((double) tickProgress, this.lastZ, this.z) - vec3d.getZ());
-		this.renderVertex(submittable, rotation, f, g, h, tickProgress);
+		Vec3d cameraPos = camera.getCameraPos();
+		float x = (float) (MathHelper.lerp((double) tickProgress, this.lastX, this.x) - cameraPos.getX());
+		float y = (float) (MathHelper.lerp((double) tickProgress, this.lastY, this.y) - cameraPos.getY());
+		float z = (float) (MathHelper.lerp((double) tickProgress, this.lastZ, this.z) - cameraPos.getZ());
+		renderVertex(submittable, rotation, x, y, z, tickProgress);
 	}
 
 	protected void renderVertex(
@@ -93,7 +93,7 @@ public abstract class BillboardParticle extends Particle {
 			float tickProgress
 	) {
 		submittable.render(
-				this.getRenderType(),
+				getRenderType(),
 				x,
 				y,
 				z,
@@ -101,18 +101,18 @@ public abstract class BillboardParticle extends Particle {
 				rotation.y,
 				rotation.z,
 				rotation.w,
-				this.getSize(tickProgress),
-				this.getMinU(),
-				this.getMaxU(),
-				this.getMinV(),
-				this.getMaxV(),
+				getSize(tickProgress),
+				getMinU(),
+				getMaxU(),
+				getMinV(),
+				getMaxV(),
 				ColorHelper.fromFloats(this.alpha, this.red, this.green, this.blue),
-				this.getBrightness(tickProgress)
+				getBrightness(tickProgress)
 		);
 	}
 
 	public float getSize(float tickProgress) {
-		return this.scale;
+		return scale;
 	}
 
 	@Override
@@ -127,14 +127,15 @@ public abstract class BillboardParticle extends Particle {
 	}
 
 	/**
-	 * Обновляет sprite.
-	 *
-	 * @param spriteProvider sprite provider
+	 * Обновляет текущий спрайт анимированной частицы по прогрессу жизни.
+	 * Вызывается каждый тик для частиц с анимированным спрайтом.
 	 */
 	public void updateSprite(SpriteProvider spriteProvider) {
-		if (!this.dead) {
-			this.setSprite(spriteProvider.getSprite(this.age, this.maxAge));
+		if (this.dead) {
+			return;
 		}
+
+		setSprite(spriteProvider.getSprite(this.age, this.maxAge));
 	}
 
 	protected void setSprite(Sprite sprite) {
@@ -142,19 +143,19 @@ public abstract class BillboardParticle extends Particle {
 	}
 
 	protected float getMinU() {
-		return this.sprite.getMinU();
+		return sprite.getMinU();
 	}
 
 	protected float getMaxU() {
-		return this.sprite.getMaxU();
+		return sprite.getMaxU();
 	}
 
 	protected float getMinV() {
-		return this.sprite.getMinV();
+		return sprite.getMinV();
 	}
 
 	protected float getMaxV() {
-		return this.sprite.getMaxV();
+		return sprite.getMaxV();
 	}
 
 	protected abstract BillboardParticle.RenderType getRenderType();
@@ -171,7 +172,7 @@ public abstract class BillboardParticle extends Particle {
 
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName()
+		return getClass().getSimpleName()
 				+ ", Pos ("
 				+ this.x
 				+ ","
@@ -190,10 +191,11 @@ public abstract class BillboardParticle extends Particle {
 				+ this.age;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code RenderType}.
+	 * Описывает тип рендера billboard-частицы: атлас текстур, пайплайн и флаг прозрачности.
+	 * Предопределённые константы покрывают все стандартные комбинации атласов и режимов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record RenderType(boolean translucent, Identifier textureAtlasLocation, RenderPipeline pipeline) {
 
 		public static final BillboardParticle.RenderType BLOCK_ATLAS_TRANSLUCENT = new BillboardParticle.RenderType(
@@ -210,22 +212,22 @@ public abstract class BillboardParticle extends Particle {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Rotator}.
+	 * Стратегия вращения billboard-квада относительно камеры.
+	 * {@link #ALL_AXIS} — полный поворот по всем осям (стандартный billboard).
+	 * {@link #Y_AND_W_ONLY} — поворот только по Y и W (цилиндрический billboard).
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Rotator {
 
 		BillboardParticle.Rotator ALL_AXIS = (quaternion, camera, tickProgress) -> quaternion.set(camera.getRotation());
 
-		BillboardParticle.Rotator
-				Y_AND_W_ONLY =
-				(quaternion, camera, tickProgress) -> quaternion.set(
-						0.0F,
-						camera.getRotation().y,
-						0.0F,
-						camera.getRotation().w
-				);
+		BillboardParticle.Rotator Y_AND_W_ONLY = (quaternion, camera, tickProgress) -> quaternion.set(
+				0.0F,
+				camera.getRotation().y,
+				0.0F,
+				camera.getRotation().w
+		);
 
 		void setRotation(Quaternionf quaternion, Camera camera, float tickProgress);
 	}

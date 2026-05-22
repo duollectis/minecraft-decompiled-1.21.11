@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code AlternativeEntry}.
+ * Запись пула лута, перебирающая дочерние записи и возвращающая первую успешную.
+ * Аналог логического OR: выполняется первая запись, условие которой истинно.
  */
 public class AlternativeEntry extends CombinedEntry {
 
@@ -23,8 +24,8 @@ public class AlternativeEntry extends CombinedEntry {
 		}
 	};
 
-	AlternativeEntry(List<LootPoolEntry> list, List<LootCondition> list2) {
-		super(list, list2);
+	AlternativeEntry(List<LootPoolEntry> children, List<LootCondition> conditions) {
+		super(children, conditions);
 	}
 
 	@Override
@@ -38,9 +39,9 @@ public class AlternativeEntry extends CombinedEntry {
 			case 0 -> ALWAYS_FALSE;
 			case 1 -> (EntryCombiner) terms.get(0);
 			case 2 -> terms.get(0).or(terms.get(1));
-			default -> (context, lootChoiceExpander) -> {
-				for (EntryCombiner entryCombiner : terms) {
-					if (entryCombiner.expand(context, lootChoiceExpander)) {
+			default -> (context, choiceConsumer) -> {
+				for (EntryCombiner combiner : terms) {
+					if (combiner.expand(context, choiceConsumer)) {
 						return true;
 					}
 				}
@@ -54,8 +55,8 @@ public class AlternativeEntry extends CombinedEntry {
 	public void validate(LootTableReporter reporter) {
 		super.validate(reporter);
 
-		for (int i = 0; i < this.children.size() - 1; i++) {
-			if (this.children.get(i).conditions.isEmpty()) {
+		for (int index = 0; index < children.size() - 1; index++) {
+			if (children.get(index).conditions.isEmpty()) {
 				reporter.report(UNREACHABLE_ENTRY_ERROR);
 			}
 		}
@@ -66,21 +67,19 @@ public class AlternativeEntry extends CombinedEntry {
 	}
 
 	public static <E> AlternativeEntry.Builder builder(
-			Collection<E> children,
-			Function<E, LootPoolEntry.Builder<?>> toBuilderFunction
+		Collection<E> children,
+		Function<E, LootPoolEntry.Builder<?>> toBuilderFunction
 	) {
 		return new AlternativeEntry.Builder(children
-				.stream()
-				.map(toBuilderFunction::apply)
-				.toArray(LootPoolEntry.Builder[]::new));
+			.stream()
+			.map(toBuilderFunction::apply)
+			.toArray(LootPoolEntry.Builder[]::new));
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель альтернативной записи пула лута. */
 	public static class Builder extends LootPoolEntry.Builder<AlternativeEntry.Builder> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> children = ImmutableList.builder();
+		private final ImmutableList.Builder<LootPoolEntry> children = ImmutableList.builder();
 
 		public Builder(LootPoolEntry.Builder<?>... children) {
 			for (LootPoolEntry.Builder<?> builder : children) {
@@ -88,19 +87,20 @@ public class AlternativeEntry extends CombinedEntry {
 			}
 		}
 
+		@Override
 		protected AlternativeEntry.Builder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public AlternativeEntry.Builder alternatively(LootPoolEntry.Builder<?> builder) {
-			this.children.add(builder.build());
+			children.add(builder.build());
 			return this;
 		}
 
 		@Override
 		public LootPoolEntry build() {
-			return new AlternativeEntry(this.children.build(), this.getConditions());
+			return new AlternativeEntry(children.build(), getConditions());
 		}
 	}
 }

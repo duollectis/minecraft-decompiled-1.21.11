@@ -6,7 +6,8 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code StonecutterRecipeDisplay}.
+ * Отображение рецепта камнерезного станка для клиентского интерфейса книги рецептов.
+ * Содержит слоты входного материала, результата и самого станка.
  */
 public record StonecutterRecipeDisplay(
 		SlotDisplay input,
@@ -16,12 +17,12 @@ public record StonecutterRecipeDisplay(
 
 	public static final MapCodec<StonecutterRecipeDisplay> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    SlotDisplay.CODEC.fieldOf("input").forGetter(StonecutterRecipeDisplay::input),
-					                    SlotDisplay.CODEC.fieldOf("result").forGetter(StonecutterRecipeDisplay::result),
-					                    SlotDisplay.CODEC.fieldOf("crafting_station").forGetter(StonecutterRecipeDisplay::craftingStation)
-			                    )
-			                    .apply(instance, StonecutterRecipeDisplay::new)
+					SlotDisplay.CODEC.fieldOf("input").forGetter(StonecutterRecipeDisplay::input),
+					SlotDisplay.CODEC.fieldOf("result").forGetter(StonecutterRecipeDisplay::result),
+					SlotDisplay.CODEC.fieldOf("crafting_station").forGetter(StonecutterRecipeDisplay::craftingStation)
+			).apply(instance, StonecutterRecipeDisplay::new)
 	);
+
 	public static final PacketCodec<RegistryByteBuf, StonecutterRecipeDisplay> PACKET_CODEC = PacketCodec.tuple(
 			SlotDisplay.PACKET_CODEC,
 			StonecutterRecipeDisplay::input,
@@ -31,8 +32,8 @@ public record StonecutterRecipeDisplay(
 			StonecutterRecipeDisplay::craftingStation,
 			StonecutterRecipeDisplay::new
 	);
-	public static final RecipeDisplay.Serializer<StonecutterRecipeDisplay>
-			SERIALIZER =
+
+	public static final RecipeDisplay.Serializer<StonecutterRecipeDisplay> SERIALIZER =
 			new RecipeDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
 	@Override

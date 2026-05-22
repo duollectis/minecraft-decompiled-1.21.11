@@ -30,11 +30,15 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@code ServerNetworkIo}.
+ * Управляет сетевым вводом-выводом сервера: привязывает TCP-порты, принимает входящие соединения
+ * и тикает все активные {@link ClientConnection} на каждом игровом тике.
+ * Поддерживает как удалённые (TCP/Epoll), так и локальные (in-process) соединения для интегрированного сервера.
  */
 public class ServerNetworkIo {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int READ_TIMEOUT_SECONDS = 30;
+
 	final MinecraftServer server;
 	public volatile boolean active;
 	private final List<ChannelFuture> channels = Collections.synchronizedList(Lists.newArrayList());
@@ -46,233 +50,200 @@ public class ServerNetworkIo {
 	}
 
 	/**
-	 * Bind.
+	 * Привязывает сервер к указанному адресу и порту через TCP (или Epoll на Linux).
+	 * Настраивает полный pipeline: таймаут, legacy-запросы, кодеки и rate-limiting.
 	 *
-	 * @param address address
-	 * @param port port
+	 * @param address адрес для привязки, {@code null} означает все интерфейсы
+	 * @param port    порт для прослушивания
+	 * @throws IOException если привязка не удалась
 	 */
 	public void bind(@Nullable InetAddress address, int port) throws IOException {
-		synchronized (this.channels) {
-			NetworkingBackend networkingBackend = NetworkingBackend.remote(this.server.isUsingNativeTransport());
-			this.channels
-					.add(
-							((ServerBootstrap) ((ServerBootstrap) new ServerBootstrap().channel(networkingBackend.getServerChannelClass()))
-									.childHandler(new ChannelInitializer<Channel>() {
-										/**
-										 * Инициализирует channel.
-										 *
-										 * @param channel channel
-										 */
-										protected void initChannel(Channel channel) {
-											try {
-												channel.config().setOption(ChannelOption.TCP_NODELAY, true);
-											}
-											catch (ChannelException var5) {
-											}
+		synchronized (channels) {
+			NetworkingBackend backend = NetworkingBackend.remote(server.isUsingNativeTransport());
 
-											ChannelPipeline
-													channelPipeline =
-													channel.pipeline().addLast("timeout", new ReadTimeoutHandler(30));
-											if (ServerNetworkIo.this.server.acceptsStatusQuery()) {
-												channelPipeline.addLast(
-														"legacy_query",
-														new LegacyQueryHandler(ServerNetworkIo.this.getServer())
-												);
-											}
+			channels.add(
+				new ServerBootstrap()
+					.channel(backend.getServerChannelClass())
+					.childHandler(new ChannelInitializer<Channel>() {
+						protected void initChannel(Channel channel) {
+							try {
+								channel.config().setOption(ChannelOption.TCP_NODELAY, true);
+							} catch (ChannelException ignored) {
+							}
 
-											ClientConnection.addHandlers(
-													channelPipeline,
-													NetworkSide.SERVERBOUND,
-													false,
-													null
-											);
-											int i = ServerNetworkIo.this.server.getRateLimit();
-											ClientConnection clientConnection = (ClientConnection) (i > 0
-											                                                        ? new RateLimitedConnection(
-													i)
-											                                                        : new ClientConnection(
-													                                                        NetworkSide.SERVERBOUND)
-											);
-											ServerNetworkIo.this.connections.add(clientConnection);
-											clientConnection.addFlowControlHandler(channelPipeline);
-											clientConnection.setInitialPacketListener(new ServerHandshakeNetworkHandler(
-													ServerNetworkIo.this.server,
-													clientConnection
-											));
-										}
-									})
-									.group(networkingBackend.getEventLoopGroup())
-									.localAddress(address, port)
-							)
-									.bind()
-									.syncUninterruptibly()
-					);
+							ChannelPipeline pipeline = channel.pipeline()
+									.addLast("timeout", new ReadTimeoutHandler(READ_TIMEOUT_SECONDS));
+
+							if (ServerNetworkIo.this.server.acceptsStatusQuery()) {
+								pipeline.addLast("legacy_query", new LegacyQueryHandler(ServerNetworkIo.this.getServer()));
+							}
+
+							ClientConnection.addHandlers(pipeline, NetworkSide.SERVERBOUND, false, null);
+
+							int rateLimit = ServerNetworkIo.this.server.getRateLimit();
+							ClientConnection connection = rateLimit > 0
+									? new RateLimitedConnection(rateLimit)
+									: new ClientConnection(NetworkSide.SERVERBOUND);
+
+							ServerNetworkIo.this.connections.add(connection);
+							connection.addFlowControlHandler(pipeline);
+							connection.setInitialPacketListener(new ServerHandshakeNetworkHandler(
+									ServerNetworkIo.this.server,
+									connection
+							));
+						}
+					})
+					.group(backend.getEventLoopGroup())
+					.localAddress(address, port)
+					.bind()
+					.syncUninterruptibly()
+			);
 		}
 	}
 
 	/**
-	 * Bind local.
+	 * Привязывает локальный (in-process) канал для интегрированного сервера.
+	 * При наличии искусственной задержки ({@link SharedConstants#FAKE_LATENCY_MS}) добавляет
+	 * {@link DelayingChannelInboundHandler} в pipeline.
 	 *
-	 * @return SocketAddress — результат операции
+	 * @return адрес привязанного локального канала
 	 */
 	public SocketAddress bindLocal() {
-		ChannelFuture channelFuture;
-		synchronized (this.channels) {
-			channelFuture =
-					((ServerBootstrap) ((ServerBootstrap) new ServerBootstrap().channel(NetworkingBackend
-							.local()
-							.getServerChannelClass())
-					)
-							.childHandler(
-									new ChannelInitializer<Channel>() {
-										/**
-										 * Инициализирует channel.
-										 *
-										 * @param channel channel
-										 */
-										protected void initChannel(Channel channel) {
-											ClientConnection
-													clientConnection =
-													new ClientConnection(NetworkSide.SERVERBOUND);
-											clientConnection.setInitialPacketListener(new LocalServerHandshakeNetworkHandler(
-													ServerNetworkIo.this.server,
-													clientConnection
-											));
-											ServerNetworkIo.this.connections.add(clientConnection);
-											ChannelPipeline channelPipeline = channel.pipeline();
-											ClientConnection.addLocalValidator(
-													channelPipeline,
-													NetworkSide.SERVERBOUND
-											);
-											if (SharedConstants.FAKE_LATENCY_MS > 0) {
-												channelPipeline.addLast(
-														"latency",
-														new ServerNetworkIo.DelayingChannelInboundHandler(
-																SharedConstants.FAKE_LATENCY_MS,
-																SharedConstants.FAKE_JITTER_MS
-														)
-												);
-											}
+		ChannelFuture future;
 
-											clientConnection.addFlowControlHandler(channelPipeline);
-										}
-									}
-							)
-							.group(NetworkingBackend.local().getEventLoopGroup())
-							.localAddress(LocalAddress.ANY)
-					)
-							.bind()
-							.syncUninterruptibly();
-			this.channels.add(channelFuture);
+		synchronized (channels) {
+			NetworkingBackend localBackend = NetworkingBackend.local();
+
+			future = new ServerBootstrap()
+					.channel(localBackend.getServerChannelClass())
+					.childHandler(new ChannelInitializer<Channel>() {
+						protected void initChannel(Channel channel) {
+							ClientConnection connection = new ClientConnection(NetworkSide.SERVERBOUND);
+							connection.setInitialPacketListener(new LocalServerHandshakeNetworkHandler(
+									ServerNetworkIo.this.server,
+									connection
+							));
+							ServerNetworkIo.this.connections.add(connection);
+
+							ChannelPipeline pipeline = channel.pipeline();
+							ClientConnection.addLocalValidator(pipeline, NetworkSide.SERVERBOUND);
+
+							if (SharedConstants.FAKE_LATENCY_MS > 0) {
+								pipeline.addLast("latency", new ServerNetworkIo.DelayingChannelInboundHandler(
+										SharedConstants.FAKE_LATENCY_MS,
+										SharedConstants.FAKE_JITTER_MS
+								));
+							}
+
+							connection.addFlowControlHandler(pipeline);
+						}
+					})
+					.group(localBackend.getEventLoopGroup())
+					.localAddress(LocalAddress.ANY)
+					.bind()
+					.syncUninterruptibly();
+
+			channels.add(future);
 		}
 
-		return channelFuture.channel().localAddress();
+		return future.channel().localAddress();
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.active = false;
+		active = false;
 
-		for (ChannelFuture channelFuture : this.channels) {
+		for (ChannelFuture channelFuture : channels) {
 			try {
 				channelFuture.channel().close().sync();
-			}
-			catch (InterruptedException var4) {
+			} catch (InterruptedException exception) {
 				LOGGER.error("Interrupted whilst closing channel");
 			}
 		}
 	}
 
 	/**
-	 * Tick.
+	 * Обходит все активные соединения: тикает открытые и обрабатывает отключения закрытых.
+	 * При критической ошибке в локальном соединении бросает {@link CrashException}.
 	 */
 	public void tick() {
-		synchronized (this.connections) {
-			Iterator<ClientConnection> iterator = this.connections.iterator();
+		synchronized (connections) {
+			Iterator<ClientConnection> iterator = connections.iterator();
 
 			while (iterator.hasNext()) {
-				ClientConnection clientConnection = iterator.next();
-				if (!clientConnection.isChannelAbsent()) {
-					if (clientConnection.isOpen()) {
-						try {
-							clientConnection.tick();
-						}
-						catch (Exception var7) {
-							if (clientConnection.isLocal()) {
-								throw new CrashException(CrashReport.create(var7, "Ticking memory connection"));
-							}
+				ClientConnection connection = iterator.next();
+				if (connection.isChannelAbsent()) {
+					continue;
+				}
 
-							LOGGER.warn(
-									"Failed to handle packet for {}",
-									clientConnection.getAddressAsString(this.server.shouldLogIps()),
-									var7
-							);
-							Text text = Text.literal("Internal server error");
-							clientConnection.send(
-									new DisconnectS2CPacket(text),
-									PacketCallbacks.always(() -> clientConnection.disconnect(text))
-							);
-							clientConnection.tryDisableAutoRead();
+				if (connection.isOpen()) {
+					try {
+						connection.tick();
+					} catch (Exception exception) {
+						if (connection.isLocal()) {
+							throw new CrashException(CrashReport.create(exception, "Ticking memory connection"));
 						}
+
+						LOGGER.warn(
+								"Failed to handle packet for {}",
+								connection.getAddressAsString(server.shouldLogIps()),
+								exception
+						);
+						Text errorMessage = Text.literal("Internal server error");
+						connection.send(
+								new DisconnectS2CPacket(errorMessage),
+								PacketCallbacks.always(() -> connection.disconnect(errorMessage))
+						);
+						connection.tryDisableAutoRead();
 					}
-					else {
-						iterator.remove();
-						clientConnection.handleDisconnection();
-					}
+				} else {
+					iterator.remove();
+					connection.handleDisconnection();
 				}
 			}
 		}
 	}
 
 	public MinecraftServer getServer() {
-		return this.server;
+		return server;
 	}
 
 	public List<ClientConnection> getConnections() {
-		return this.connections;
+		return connections;
 	}
 
 	/**
-	 * {@code DelayingChannelInboundHandler}.
+	 * Обработчик Netty-канала, искусственно задерживающий входящие пакеты на заданное время.
+	 * Используется исключительно в режиме разработки для симуляции сетевой задержки
+	 * (управляется через {@link SharedConstants#FAKE_LATENCY_MS}).
 	 */
 	static class DelayingChannelInboundHandler extends ChannelInboundHandlerAdapter {
 
 		private static final Timer TIMER = new HashedWheelTimer();
+
 		private final int baseDelay;
 		private final int extraDelay;
-		private final List<ServerNetworkIo.DelayingChannelInboundHandler.Packet> packets = Lists.newArrayList();
+		private final List<DelayingChannelInboundHandler.Packet> packets = Lists.newArrayList();
 
 		public DelayingChannelInboundHandler(int baseDelay, int extraDelay) {
 			this.baseDelay = baseDelay;
 			this.extraDelay = extraDelay;
 		}
 
-		/**
-		 * Channel read.
-		 *
-		 * @param ctx ctx
-		 * @param msg msg
-		 */
-		public void channelRead(ChannelHandlerContext ctx, Object msg) {
-			this.delay(ctx, msg);
+		public void channelRead(ChannelHandlerContext context, Object message) {
+			delay(context, message);
 		}
 
-		private void delay(ChannelHandlerContext ctx, Object msg) {
-			int i = this.baseDelay + (int) (Math.random() * this.extraDelay);
-			this.packets.add(new ServerNetworkIo.DelayingChannelInboundHandler.Packet(ctx, msg));
-			TIMER.newTimeout(this::forward, i, TimeUnit.MILLISECONDS);
+		private void delay(ChannelHandlerContext context, Object message) {
+			int delayMs = baseDelay + (int) (Math.random() * extraDelay);
+			packets.add(new Packet(context, message));
+			TIMER.newTimeout(this::forward, delayMs, TimeUnit.MILLISECONDS);
 		}
 
 		private void forward(Timeout timeout) {
-			ServerNetworkIo.DelayingChannelInboundHandler.Packet packet = this.packets.remove(0);
+			Packet packet = packets.remove(0);
 			packet.context.fireChannelRead(packet.message);
 		}
 
-		/**
-		 * {@code Packet}.
-		 */
 		static class Packet {
 
 			public final ChannelHandlerContext context;

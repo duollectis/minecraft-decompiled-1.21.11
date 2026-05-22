@@ -14,61 +14,70 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * {@code AbstractUuidFix}.
+ * Базовый класс для фиксов, мигрирующих UUID из различных устаревших форматов
+ * (строка, составной тег M/L, пара Most/Least) в новый формат int[4].
  */
 public abstract class AbstractUuidFix extends DataFix {
 
-	protected TypeReference typeReference;
+	protected final TypeReference typeReference;
 
 	public AbstractUuidFix(Schema outputSchema, TypeReference typeReference) {
 		super(outputSchema, false);
 		this.typeReference = typeReference;
 	}
 
+	/**
+	 * Применяет функцию {@code updater} к remainder-данным конкретного именованного варианта типа.
+	 *
+	 * @param typed   входной типизированный объект
+	 * @param name    имя варианта (например, {@code "minecraft:conduit"})
+	 * @param updater функция преобразования Dynamic
+	 */
 	protected Typed<?> updateTyped(Typed<?> typed, String name, Function<Dynamic<?>, Dynamic<?>> updater) {
-		Type<?> type = this.getInputSchema().getChoiceType(this.typeReference, name);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(this.typeReference, name);
+		Type<?> inputType = getInputSchema().getChoiceType(typeReference, name);
+		Type<?> outputType = getOutputSchema().getChoiceType(typeReference, name);
+
 		return typed.updateTyped(
-				DSL.namedChoice(name, type),
-				type2,
-				typedx -> typedx.update(DSL.remainderFinder(), updater)
+			DSL.namedChoice(name, inputType),
+			outputType,
+			inner -> inner.update(DSL.remainderFinder(), updater)
 		);
 	}
 
 	protected static Optional<Dynamic<?>> updateStringUuid(Dynamic<?> dynamic, String oldKey, String newKey) {
-		return createArrayFromStringUuid(dynamic, oldKey).map(dynamic2 -> dynamic.remove(oldKey).set(newKey, dynamic2));
+		return createArrayFromStringUuid(dynamic, oldKey)
+			.map(array -> dynamic.remove(oldKey).set(newKey, array));
 	}
 
 	protected static Optional<Dynamic<?>> updateCompoundUuid(Dynamic<?> dynamic, String oldKey, String newKey) {
-		return dynamic
-				.get(oldKey)
-				.result()
-				.flatMap(AbstractUuidFix::createArrayFromCompoundUuid)
-				.map(dynamic2 -> dynamic.remove(oldKey).set(newKey, dynamic2));
+		return dynamic.get(oldKey)
+			.result()
+			.flatMap(AbstractUuidFix::createArrayFromCompoundUuid)
+			.map(array -> dynamic.remove(oldKey).set(newKey, array));
 	}
 
 	protected static Optional<Dynamic<?>> updateRegularMostLeast(Dynamic<?> dynamic, String oldKey, String newKey) {
-		String string = oldKey + "Most";
-		String string2 = oldKey + "Least";
-		return createArrayFromMostLeastTags(dynamic, string, string2).map(dynamic2 -> dynamic
-				.remove(string)
-				.remove(string2)
-				.set(newKey, dynamic2));
+		String mostKey = oldKey + "Most";
+		String leastKey = oldKey + "Least";
+
+		return createArrayFromMostLeastTags(dynamic, mostKey, leastKey)
+			.map(array -> dynamic.remove(mostKey).remove(leastKey).set(newKey, array));
 	}
 
 	protected static Optional<Dynamic<?>> createArrayFromStringUuid(Dynamic<?> dynamic, String key) {
-		return dynamic.get(key).result().flatMap(dynamic2 -> {
-			String string = dynamic2.asString(null);
-			if (string != null) {
-				try {
-					UUID uUID = UUID.fromString(string);
-					return createArray(dynamic, uUID.getMostSignificantBits(), uUID.getLeastSignificantBits());
-				}
-				catch (IllegalArgumentException var4) {
-				}
+		return dynamic.get(key).result().flatMap(value -> {
+			String uuidString = value.asString(null);
+
+			if (uuidString == null) {
+				return Optional.empty();
 			}
 
-			return Optional.empty();
+			try {
+				UUID uuid = UUID.fromString(uuidString);
+				return createArray(dynamic, uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+			} catch (IllegalArgumentException ignored) {
+				return Optional.empty();
+			}
 		});
 	}
 
@@ -77,21 +86,27 @@ public abstract class AbstractUuidFix extends DataFix {
 	}
 
 	protected static Optional<Dynamic<?>> createArrayFromMostLeastTags(
-			Dynamic<?> dynamic,
-			String mostBitsKey,
-			String leastBitsKey
+		Dynamic<?> dynamic,
+		String mostBitsKey,
+		String leastBitsKey
 	) {
-		long l = dynamic.get(mostBitsKey).asLong(0L);
-		long m = dynamic.get(leastBitsKey).asLong(0L);
-		return l != 0L && m != 0L ? createArray(dynamic, l, m) : Optional.empty();
+		long mostBits = dynamic.get(mostBitsKey).asLong(0L);
+		long leastBits = dynamic.get(leastBitsKey).asLong(0L);
+
+		return mostBits != 0L && leastBits != 0L
+			? createArray(dynamic, mostBits, leastBits)
+			: Optional.empty();
 	}
 
+	/**
+	 * Упаковывает 128-битный UUID в массив из 4 int-значений (big-endian).
+	 */
 	protected static Optional<Dynamic<?>> createArray(Dynamic<?> dynamic, long mostBits, long leastBits) {
 		return Optional.of(dynamic.createIntList(Arrays.stream(new int[]{
-				(int) (mostBits >> 32),
-				(int) mostBits,
-				(int) (leastBits >> 32),
-				(int) leastBits
+			(int) (mostBits >> 32),
+			(int) mostBits,
+			(int) (leastBits >> 32),
+			(int) leastBits
 		})));
 	}
 }

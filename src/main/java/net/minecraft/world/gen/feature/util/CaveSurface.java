@@ -10,7 +10,10 @@ import java.util.OptionalInt;
 import java.util.function.Predicate;
 
 /**
- * {@code CaveSurface}.
+ * Описание поверхности пещеры: пол, потолок или их комбинация.
+ * Предоставляет фабричные методы для создания ограниченных ({@link Bounded}),
+ * полуограниченных ({@link Half}) и пустых ({@link Empty}) вариантов.
+ * Используется при генерации пещерных фич для определения допустимых позиций.
  */
 public abstract class CaveSurface {
 
@@ -22,67 +25,26 @@ public abstract class CaveSurface {
 		return new CaveSurface.Bounded(floor, ceiling);
 	}
 
-	/**
-	 * Создаёт half with ceiling.
-	 *
-	 * @param ceiling ceiling
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public static CaveSurface createHalfWithCeiling(int ceiling) {
 		return new CaveSurface.Half(ceiling, false);
 	}
 
-	/**
-	 * Создаёт half with ceiling expanded.
-	 *
-	 * @param i i
-	 *
-	 * @return CaveSurface — результат операции
-	 */
-	public static CaveSurface createHalfWithCeilingExpanded(int i) {
-		return new CaveSurface.Half(i + 1, false);
+	public static CaveSurface createHalfWithCeilingExpanded(int ceiling) {
+		return new CaveSurface.Half(ceiling + 1, false);
 	}
 
-	/**
-	 * Создаёт half with floor.
-	 *
-	 * @param floor floor
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public static CaveSurface createHalfWithFloor(int floor) {
 		return new CaveSurface.Half(floor, true);
 	}
 
-	/**
-	 * Создаёт half with floor expanded.
-	 *
-	 * @param i i
-	 *
-	 * @return CaveSurface — результат операции
-	 */
-	public static CaveSurface createHalfWithFloorExpanded(int i) {
-		return new CaveSurface.Half(i - 1, true);
+	public static CaveSurface createHalfWithFloorExpanded(int floor) {
+		return new CaveSurface.Half(floor - 1, true);
 	}
 
-	/**
-	 * Создаёт empty.
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public static CaveSurface createEmpty() {
 		return CaveSurface.Empty.INSTANCE;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param ceilingHeight ceiling height
-	 * @param floorHeight floor height
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public static CaveSurface create(OptionalInt ceilingHeight, OptionalInt floorHeight) {
 		if (ceilingHeight.isPresent() && floorHeight.isPresent()) {
 			return createBounded(ceilingHeight.getAsInt(), floorHeight.getAsInt());
@@ -101,24 +63,10 @@ public abstract class CaveSurface {
 
 	public abstract OptionalInt getOptionalHeight();
 
-	/**
-	 * With floor.
-	 *
-	 * @param floor floor
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public CaveSurface withFloor(OptionalInt floor) {
 		return create(floor, this.getCeilingHeight());
 	}
 
-	/**
-	 * With ceiling.
-	 *
-	 * @param ceiling ceiling
-	 *
-	 * @return CaveSurface — результат операции
-	 */
 	public CaveSurface withCeiling(OptionalInt ceiling) {
 		return create(this.getFloorHeight(), ceiling);
 	}
@@ -162,9 +110,7 @@ public abstract class CaveSurface {
 		return world.testBlockState(mutablePos, canReplace) ? OptionalInt.of(mutablePos.getY()) : OptionalInt.empty();
 	}
 
-	/**
-	 * {@code Bounded}.
-	 */
+	/** Полностью ограниченная поверхность пещеры с известными координатами пола и потолка. */
 	public static final class Bounded extends CaveSurface {
 
 		private final int floor;
@@ -211,9 +157,7 @@ public abstract class CaveSurface {
 		}
 	}
 
-	/**
-	 * {@code Empty}.
-	 */
+	/** Пустая поверхность пещеры: ни пол, ни потолок не были найдены при сканировании. */
 	public static final class Empty extends CaveSurface {
 
 		static final CaveSurface.Empty INSTANCE = new CaveSurface.Empty();
@@ -242,9 +186,7 @@ public abstract class CaveSurface {
 		}
 	}
 
-	/**
-	 * {@code Half}.
-	 */
+	/** Полуограниченная поверхность пещеры: известен только пол или только потолок. */
 	public static final class Half extends CaveSurface {
 
 		private final int height;

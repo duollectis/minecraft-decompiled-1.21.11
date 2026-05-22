@@ -27,7 +27,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 /**
- * {@code RegistryPredicateArgumentType}.
+ * Тип аргумента команды Brigadier, который принимает либо прямой идентификатор записи реестра,
+ * либо тег (с префиксом {@code #}).
+ * <p>
+ * Результатом парсинга является {@link RegistryPredicate} — предикат, который можно применить
+ * к {@link RegistryEntry} для проверки соответствия. Используется, например, в командах
+ * {@code /kill} и {@code /execute} для фильтрации по типу сущности или биому.
+ *
+ * @param <T> тип объекта реестра
  */
 public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPredicateArgumentType.RegistryPredicate<T>> {
 
@@ -62,22 +69,23 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 	public RegistryPredicateArgumentType.RegistryPredicate<T> parse(StringReader stringReader)
 	throws CommandSyntaxException {
 		if (stringReader.canRead() && stringReader.peek() == '#') {
-			int i = stringReader.getCursor();
+			int savedCursor = stringReader.getCursor();
 
 			try {
 				stringReader.skip();
-				Identifier identifier = Identifier.fromCommandInput(stringReader);
-				return new RegistryPredicateArgumentType.TagBased<>(TagKey.of(this.registryRef, identifier));
+				Identifier tagId = Identifier.fromCommandInput(stringReader);
+
+				return new RegistryPredicateArgumentType.TagBased<>(TagKey.of(this.registryRef, tagId));
 			}
-			catch (CommandSyntaxException var4) {
-				stringReader.setCursor(i);
-				throw var4;
+			catch (CommandSyntaxException exception) {
+				stringReader.setCursor(savedCursor);
+				throw exception;
 			}
 		}
-		else {
-			Identifier identifier2 = Identifier.fromCommandInput(stringReader);
-			return new RegistryPredicateArgumentType.RegistryKeyBased<>(RegistryKey.of(this.registryRef, identifier2));
-		}
+
+		Identifier entryId = Identifier.fromCommandInput(stringReader);
+
+		return new RegistryPredicateArgumentType.RegistryKeyBased<>(RegistryKey.of(this.registryRef, entryId));
 	}
 
 	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
@@ -89,7 +97,8 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 	}
 
 	/**
-	 * {@code RegistryKeyBased}.
+	 * Реализация предиката на основе прямого ключа реестра.
+	 * Проверяет, что запись реестра имеет именно этот ключ.
 	 */
 	record RegistryKeyBased<T>(RegistryKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
 
@@ -114,7 +123,8 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 	}
 
 	/**
-	 * {@code RegistryPredicate}.
+	 * Предикат для фильтрации записей реестра — может быть основан на прямом ключе или теге.
+	 * Реализуется через {@link RegistryKeyBased} и {@link TagBased}.
 	 */
 	public interface RegistryPredicate<T> extends Predicate<RegistryEntry<T>> {
 
@@ -126,7 +136,7 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
 	 */
 	public static class Serializer<T> implements ArgumentSerializer<RegistryPredicateArgumentType<T>, RegistryPredicateArgumentType.Serializer<T>.Properties> {
 
@@ -155,7 +165,7 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит ключ реестра для восстановления типа аргумента.
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistryPredicateArgumentType<T>> {
 
@@ -177,7 +187,8 @@ public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPr
 	}
 
 	/**
-	 * {@code TagBased}.
+	 * Реализация предиката на основе тега реестра.
+	 * Проверяет, что запись реестра входит в указанный тег.
 	 */
 	record TagBased<T>(TagKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
 

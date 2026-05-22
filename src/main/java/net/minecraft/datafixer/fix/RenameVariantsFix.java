@@ -10,7 +10,7 @@ import com.mojang.serialization.Dynamic;
 import java.util.Map;
 
 /**
- * {@code RenameVariantsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameVariantsFix extends ChoiceFix {
 

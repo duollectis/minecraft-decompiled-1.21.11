@@ -19,13 +19,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CommandFunctionManager}.
+ * Управляет загрузкой и выполнением mcfunction-функций на сервере.
+ * Обрабатывает теги {@code #minecraft:tick} (каждый тик) и {@code #minecraft:load} (при загрузке датапаков).
  */
 public class CommandFunctionManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Identifier TICK_TAG_ID = Identifier.ofVanilla("tick");
 	private static final Identifier LOAD_TAG_ID = Identifier.ofVanilla("load");
+
 	private final MinecraftServer server;
 	private List<CommandFunction<ServerCommandSource>> tickFunctions = ImmutableList.of();
 	private boolean justLoaded;
@@ -34,51 +36,43 @@ public class CommandFunctionManager {
 	public CommandFunctionManager(MinecraftServer server, FunctionLoader loader) {
 		this.server = server;
 		this.loader = loader;
-		this.load(loader);
+		load(loader);
 	}
 
 	public CommandDispatcher<ServerCommandSource> getDispatcher() {
-		return this.server.getCommandManager().getDispatcher();
+		return server.getCommandManager().getDispatcher();
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.server.getTickManager().shouldTick()) {
-			if (this.justLoaded) {
-				this.justLoaded = false;
-				Collection<CommandFunction<ServerCommandSource>> collection = this.loader.getTagOrEmpty(LOAD_TAG_ID);
-				this.executeAll(collection, LOAD_TAG_ID);
+		if (server.getTickManager().shouldTick()) {
+			if (justLoaded) {
+				justLoaded = false;
+				Collection<CommandFunction<ServerCommandSource>> loadFunctions = loader.getTagOrEmpty(LOAD_TAG_ID);
+				executeAll(loadFunctions, LOAD_TAG_ID);
 			}
 
-			this.executeAll(this.tickFunctions, TICK_TAG_ID);
+			executeAll(tickFunctions, TICK_TAG_ID);
 		}
 	}
 
 	private void executeAll(Collection<CommandFunction<ServerCommandSource>> functions, Identifier label) {
 		Profilers.get().push(label::toString);
 
-		for (CommandFunction<ServerCommandSource> commandFunction : functions) {
-			this.execute(commandFunction, this.getScheduledCommandSource());
+		for (CommandFunction<ServerCommandSource> function : functions) {
+			execute(function, getScheduledCommandSource());
 		}
 
 		Profilers.get().pop();
 	}
 
-	/**
-	 * Execute.
-	 *
-	 * @param function function
-	 * @param source source
-	 */
 	public void execute(CommandFunction<ServerCommandSource> function, ServerCommandSource source) {
 		Profiler profiler = Profilers.get();
 		profiler.push(() -> "function " + function.id());
 
 		try {
-			Procedure<ServerCommandSource> procedure = function.withMacroReplaced(null, this.getDispatcher());
-			CommandManager.callWithContext(source,
+			Procedure<ServerCommandSource> procedure = function.withMacroReplaced(null, getDispatcher());
+			CommandManager.callWithContext(
+					source,
 					context -> CommandExecutionContext.enqueueProcedureCall(
 							context,
 							procedure,
@@ -87,10 +81,11 @@ public class CommandFunctionManager {
 					)
 			);
 		}
-		catch (MacroException var9) {
+		catch (MacroException ignored) {
+			// Функция требует аргументы макроса, но вызвана без них — молча пропускаем
 		}
-		catch (Exception var10) {
-			LOGGER.warn("Failed to execute function {}", function.id(), var10);
+		catch (Exception exception) {
+			LOGGER.warn("Failed to execute function {}", function.id(), exception);
 		}
 		finally {
 			profiler.pop();
@@ -99,31 +94,31 @@ public class CommandFunctionManager {
 
 	public void setFunctions(FunctionLoader loader) {
 		this.loader = loader;
-		this.load(loader);
+		load(loader);
 	}
 
 	private void load(FunctionLoader loader) {
-		this.tickFunctions = List.copyOf(loader.getTagOrEmpty(TICK_TAG_ID));
-		this.justLoaded = true;
+		tickFunctions = List.copyOf(loader.getTagOrEmpty(TICK_TAG_ID));
+		justLoaded = true;
 	}
 
 	public ServerCommandSource getScheduledCommandSource() {
-		return this.server.getCommandSource().withPermissions(LeveledPermissionPredicate.GAMEMASTERS).withSilent();
+		return server.getCommandSource().withPermissions(LeveledPermissionPredicate.GAMEMASTERS).withSilent();
 	}
 
 	public Optional<CommandFunction<ServerCommandSource>> getFunction(Identifier id) {
-		return this.loader.get(id);
+		return loader.get(id);
 	}
 
 	public List<CommandFunction<ServerCommandSource>> getTag(Identifier id) {
-		return this.loader.getTagOrEmpty(id);
+		return loader.getTagOrEmpty(id);
 	}
 
 	public Iterable<Identifier> getAllFunctions() {
-		return this.loader.getFunctions().keySet();
+		return loader.getFunctions().keySet();
 	}
 
 	public Iterable<Identifier> getFunctionTags() {
-		return this.loader.getTags();
+		return loader.getTags();
 	}
 }

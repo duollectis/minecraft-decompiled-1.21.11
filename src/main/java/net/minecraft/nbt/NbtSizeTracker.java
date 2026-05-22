@@ -3,13 +3,20 @@ package net.minecraft.nbt;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
- * {@code NbtSizeTracker}.
+ * Отслеживает объём выделенной памяти и глубину вложенности при десериализации NBT.
+ * <p>
+ * Защищает от атак типа «бомба NBT»: злонамеренно сконструированных данных,
+ * которые при разборе потребляют чрезмерно много памяти или вызывают переполнение стека.
+ * При превышении лимитов бросает {@link NbtSizeValidationException}.
  */
 public class NbtSizeTracker {
 
+	/** Максимальный размер NBT-данных в сетевом пакете (2 МБ). */
 	public static final int PACKET_MAX_SIZE = 2097152;
+	/** Максимальный размер NBT-данных при чтении уровня (100 МБ). */
 	public static final int LEVEL_MAX_SIZE = 104857600;
 	private static final int DEFAULT_MAX_DEPTH = 512;
+
 	private final long maxBytes;
 	private long allocatedBytes;
 	private final int maxDepth;
@@ -21,105 +28,111 @@ public class NbtSizeTracker {
 	}
 
 	/**
-	 * Of.
+	 * Создаёт трекер с указанным лимитом байт и глубиной по умолчанию ({@value #DEFAULT_MAX_DEPTH}).
 	 *
-	 * @param maxBytes max bytes
-	 *
-	 * @return NbtSizeTracker — результат операции
+	 * @param maxBytes максимально допустимый объём данных в байтах
+	 * @return новый трекер
 	 */
 	public static NbtSizeTracker of(long maxBytes) {
-		return new NbtSizeTracker(maxBytes, 512);
+		return new NbtSizeTracker(maxBytes, DEFAULT_MAX_DEPTH);
 	}
 
 	/**
-	 * For packet.
+	 * Создаёт трекер для сетевых пакетов с лимитом {@value #PACKET_MAX_SIZE} байт.
 	 *
-	 * @return NbtSizeTracker — результат операции
+	 * @return новый трекер для пакетов
 	 */
 	public static NbtSizeTracker forPacket() {
-		return new NbtSizeTracker(2097152L, 512);
+		return new NbtSizeTracker(PACKET_MAX_SIZE, DEFAULT_MAX_DEPTH);
 	}
 
 	/**
-	 * For level.
+	 * Создаёт трекер для чтения данных уровня с лимитом {@value #LEVEL_MAX_SIZE} байт.
 	 *
-	 * @return NbtSizeTracker — результат операции
+	 * @return новый трекер для уровня
 	 */
 	public static NbtSizeTracker forLevel() {
-		return new NbtSizeTracker(104857600L, 512);
+		return new NbtSizeTracker(LEVEL_MAX_SIZE, DEFAULT_MAX_DEPTH);
 	}
 
 	/**
-	 * Of unlimited bytes.
+	 * Создаёт трекер без ограничений по размеру (используется для доверенных данных).
 	 *
-	 * @return NbtSizeTracker — результат операции
+	 * @return трекер с лимитом {@link Long#MAX_VALUE}
 	 */
 	public static NbtSizeTracker ofUnlimitedBytes() {
-		return new NbtSizeTracker(Long.MAX_VALUE, 512);
+		return new NbtSizeTracker(Long.MAX_VALUE, DEFAULT_MAX_DEPTH);
 	}
 
 	/**
-	 * Add.
+	 * Учитывает {@code multiplier * bytes} байт выделенной памяти.
+	 * Удобно для массивов: {@code add(4L, arrayLength)} вместо {@code add(4L * arrayLength)}.
 	 *
-	 * @param multiplier multiplier
-	 * @param bytes bytes
+	 * @param multiplier множитель (например, размер одного элемента)
+	 * @param bytes      количество элементов
 	 */
 	public void add(long multiplier, long bytes) {
-		this.add(multiplier * bytes);
+		add(multiplier * bytes);
 	}
 
 	/**
-	 * Add.
+	 * Учитывает {@code bytes} байт выделенной памяти.
+	 * Бросает исключение при отрицательном значении или превышении лимита.
 	 *
-	 * @param bytes bytes
+	 * @param bytes количество байт для учёта
+	 * @throws NbtSizeValidationException если суммарный объём превысит {@code maxBytes}
 	 */
 	public void add(long bytes) {
 		if (bytes < 0L) {
 			throw new IllegalArgumentException("Tried to account NBT tag with negative size: " + bytes);
 		}
-		else if (this.allocatedBytes + bytes > this.maxBytes) {
+
+		if (allocatedBytes + bytes > maxBytes) {
 			throw new NbtSizeValidationException(
-					"Tried to read NBT tag that was too big; tried to allocate: " + this.allocatedBytes + " + " + bytes
-							+ " bytes where max allowed: " + this.maxBytes
+				"Tried to read NBT tag that was too big; tried to allocate: "
+					+ allocatedBytes + " + " + bytes
+					+ " bytes where max allowed: " + maxBytes
 			);
 		}
-		else {
-			this.allocatedBytes += bytes;
-		}
+
+		allocatedBytes += bytes;
 	}
 
 	/**
-	 * Push stack.
+	 * Увеличивает счётчик глубины вложенности при входе в составной тег.
+	 *
+	 * @throws NbtSizeValidationException если глубина превысит {@code maxDepth}
 	 */
 	public void pushStack() {
-		if (this.depth >= this.maxDepth) {
+		if (depth >= maxDepth) {
 			throw new NbtSizeValidationException(
-					"Tried to read NBT tag with too high complexity, depth > " + this.maxDepth);
+				"Tried to read NBT tag with too high complexity, depth > " + maxDepth
+			);
 		}
-		else {
-			this.depth++;
-		}
+
+		depth++;
 	}
 
 	/**
-	 * Pop stack.
+	 * Уменьшает счётчик глубины вложенности при выходе из составного тега.
+	 *
+	 * @throws NbtSizeValidationException если попытка выйти ниже корневого уровня
 	 */
 	public void popStack() {
-		if (this.depth <= 0) {
+		if (depth <= 0) {
 			throw new NbtSizeValidationException("NBT-Accounter tried to pop stack-depth at top-level");
 		}
-		else {
-			this.depth--;
-		}
+
+		depth--;
 	}
 
 	@VisibleForTesting
 	public long getAllocatedBytes() {
-		return this.allocatedBytes;
+		return allocatedBytes;
 	}
 
 	@VisibleForTesting
 	public int getDepth() {
-		return this.depth;
+		return depth;
 	}
 }

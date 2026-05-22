@@ -9,25 +9,27 @@ import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code TrailParticleEffect}.
+ * Эффект частицы следа, движущейся к целевой точке.
+ * Используется для визуализации траектории снарядов и магических эффектов.
+ *
+ * @param target   целевая точка в мировых координатах
+ * @param color    цвет следа (упакованный RGB-int)
+ * @param duration длительность анимации в тиках
  */
 public record TrailParticleEffect(Vec3d target, int color, int duration) implements ParticleEffect {
 
 	public static final MapCodec<TrailParticleEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Vec3d.CODEC.fieldOf("target").forGetter(TrailParticleEffect::target),
-					                    Codecs.RGB.fieldOf("color").forGetter(TrailParticleEffect::color),
-					                    Codecs.POSITIVE_INT.fieldOf("duration").forGetter(TrailParticleEffect::duration)
-			                    )
-			                    .apply(instance, TrailParticleEffect::new)
+					Vec3d.CODEC.fieldOf("target").forGetter(TrailParticleEffect::target),
+					Codecs.RGB.fieldOf("color").forGetter(TrailParticleEffect::color),
+					Codecs.POSITIVE_INT.fieldOf("duration").forGetter(TrailParticleEffect::duration)
+			)
+			.apply(instance, TrailParticleEffect::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, TrailParticleEffect> PACKET_CODEC = PacketCodec.tuple(
-			Vec3d.PACKET_CODEC,
-			TrailParticleEffect::target,
-			PacketCodecs.INTEGER,
-			TrailParticleEffect::color,
-			PacketCodecs.VAR_INT,
-			TrailParticleEffect::duration,
+			Vec3d.PACKET_CODEC, TrailParticleEffect::target,
+			PacketCodecs.INTEGER, TrailParticleEffect::color,
+			PacketCodecs.VAR_INT, TrailParticleEffect::duration,
 			TrailParticleEffect::new
 	);
 

@@ -8,44 +8,30 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code ClampedNormalFloatProvider}.
+ * Провайдер, генерирующий значения по нормальному распределению с зажимом в диапазон [min, max].
  */
 public class ClampedNormalFloatProvider extends FloatProvider {
 
-	public static final MapCodec<ClampedNormalFloatProvider>
-			CODEC =
-			RecordCodecBuilder.<ClampedNormalFloatProvider>mapCodec(
-					                  instance -> instance.group(
-							                                      Codec.FLOAT.fieldOf("mean").forGetter(provider -> provider.mean),
-							                                      Codec.FLOAT.fieldOf("deviation").forGetter(provider -> provider.deviation),
-							                                      Codec.FLOAT.fieldOf("min").forGetter(provider -> provider.min),
-							                                      Codec.FLOAT.fieldOf("max").forGetter(provider -> provider.max)
-					                                      )
-					                                      .apply(instance, ClampedNormalFloatProvider::new)
-			                  )
-			                  .validate(
-					                  (ClampedNormalFloatProvider provider) -> provider.max < provider.min
-					                                                           ? DataResult.error(() ->
-					                                                                              "Max must be larger than min: ["
-					                                                                              + provider.min + ", "
-					                                                                              + provider.max + "]")
-					                                                           : DataResult.success(provider)
-			                  );
+	public static final MapCodec<ClampedNormalFloatProvider> CODEC = RecordCodecBuilder
+		.<ClampedNormalFloatProvider>mapCodec(
+			instance -> instance.group(
+				Codec.FLOAT.fieldOf("mean").forGetter(provider -> provider.mean),
+				Codec.FLOAT.fieldOf("deviation").forGetter(provider -> provider.deviation),
+				Codec.FLOAT.fieldOf("min").forGetter(provider -> provider.min),
+				Codec.FLOAT.fieldOf("max").forGetter(provider -> provider.max)
+			).apply(instance, ClampedNormalFloatProvider::new)
+		)
+		.validate(
+			provider -> provider.max < provider.min
+				? DataResult.error(() -> "Max must be larger than min: [" + provider.min + ", " + provider.max + "]")
+				: DataResult.success(provider)
+		);
+
 	private final float mean;
 	private final float deviation;
 	private final float min;
 	private final float max;
 
-	/**
-	 * Create.
-	 *
-	 * @param mean mean
-	 * @param deviation deviation
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return ClampedNormalFloatProvider — результат операции
-	 */
 	public static ClampedNormalFloatProvider create(float mean, float deviation, float min, float max) {
 		return new ClampedNormalFloatProvider(mean, deviation, min, max);
 	}
@@ -59,32 +45,21 @@ public class ClampedNormalFloatProvider extends FloatProvider {
 
 	@Override
 	public float get(Random random) {
-		return get(random, this.mean, this.deviation, this.min, this.max);
+		return get(random, mean, deviation, min, max);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param random random
-	 * @param mean mean
-	 * @param deviation deviation
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return float — 
-	 */
 	public static float get(Random random, float mean, float deviation, float min, float max) {
 		return MathHelper.clamp(MathHelper.nextGaussian(random, mean, deviation), min, max);
 	}
 
 	@Override
 	public float getMin() {
-		return this.min;
+		return min;
 	}
 
 	@Override
 	public float getMax() {
-		return this.max;
+		return max;
 	}
 
 	@Override
@@ -94,6 +69,6 @@ public class ClampedNormalFloatProvider extends FloatProvider {
 
 	@Override
 	public String toString() {
-		return "normal(" + this.mean + ", " + this.deviation + ") in [" + this.min + "-" + this.max + "]";
+		return "normal(" + mean + ", " + deviation + ") in [" + min + "-" + max + "]";
 	}
 }

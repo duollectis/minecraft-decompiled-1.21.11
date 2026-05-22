@@ -12,46 +12,39 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code BrewedPotionCriterion}.
+ * Критерий, срабатывающий при варке зелья игроком.
  */
 public class BrewedPotionCriterion extends AbstractCriterion<BrewedPotionCriterion.Conditions> {
 
 	@Override
 	public Codec<BrewedPotionCriterion.Conditions> getConditionsCodec() {
-		return BrewedPotionCriterion.Conditions.CODEC;
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, RegistryEntry<Potion> potion) {
-		this.trigger(player, conditions -> conditions.matches(potion));
+		trigger(player, conditions -> conditions.matches(potion));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<RegistryEntry<Potion>> potion
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<BrewedPotionCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(BrewedPotionCriterion.Conditions::player),
-						                    Potion.CODEC.optionalFieldOf("potion").forGetter(BrewedPotionCriterion.Conditions::potion)
-				                    )
-				                    .apply(instance, BrewedPotionCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						Potion.CODEC.optionalFieldOf("potion").forGetter(Conditions::potion)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<BrewedPotionCriterion.Conditions> any() {
-			return Criteria.BREWED_POTION.create(new BrewedPotionCriterion.Conditions(
-					Optional.empty(),
-					Optional.empty()
-			));
+		public static AdvancementCriterion<Conditions> any() {
+			return Criteria.BREWED_POTION.create(new Conditions(Optional.empty(), Optional.empty()));
 		}
 
 		public boolean matches(RegistryEntry<Potion> potion) {
-			return !this.potion.isPresent() || this.potion.get().equals(potion);
+			return this.potion.isEmpty() || this.potion.get().equals(potion);
 		}
 	}
 }

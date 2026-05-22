@@ -22,7 +22,9 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 
 /**
- * {@code MineshaftStructure}.
+ * Структура шахты. Тип шахты (обычная или мезовая) определяет используемые блоки дерева.
+ * Позиция по Y вычисляется динамически: для мезы — между уровнем моря и поверхностью,
+ * для обычной — смещается в допустимый диапазон подземелья.
  */
 public class MineshaftStructure extends Structure {
 
@@ -46,12 +48,12 @@ public class MineshaftStructure extends Structure {
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		context.random().nextDouble();
 		ChunkPos chunkPos = context.chunkPos();
-		BlockPos blockPos = new BlockPos(chunkPos.getCenterX(), 50, chunkPos.getStartZ());
-		StructurePiecesCollector structurePiecesCollector = new StructurePiecesCollector();
-		int i = this.addPieces(structurePiecesCollector, context);
+		BlockPos anchorPos = new BlockPos(chunkPos.getCenterX(), 50, chunkPos.getStartZ());
+		StructurePiecesCollector collector = new StructurePiecesCollector();
+		int verticalShift = addPieces(collector, context);
 		return Optional.of(new Structure.StructurePosition(
-				blockPos.add(0, i, 0),
-				Either.right(structurePiecesCollector)
+				anchorPos.add(0, verticalShift, 0),
+				Either.right(collector)
 		));
 	}
 
@@ -60,30 +62,28 @@ public class MineshaftStructure extends Structure {
 		ChunkRandom chunkRandom = context.random();
 		ChunkGenerator chunkGenerator = context.chunkGenerator();
 		MineshaftGenerator.MineshaftRoom mineshaftRoom = new MineshaftGenerator.MineshaftRoom(
-				0, chunkRandom, chunkPos.getOffsetX(2), chunkPos.getOffsetZ(2), this.type
+				0, chunkRandom, chunkPos.getOffsetX(2), chunkPos.getOffsetZ(2), type
 		);
 		collector.addPiece(mineshaftRoom);
 		mineshaftRoom.fillOpenings(mineshaftRoom, collector, chunkRandom);
-		int i = chunkGenerator.getSeaLevel();
-		if (this.type == MineshaftStructure.Type.MESA) {
-			BlockPos blockPos = collector.getBoundingBox().getCenter();
-			int
-					j =
-					chunkGenerator.getHeight(
-							blockPos.getX(),
-							blockPos.getZ(),
-							Heightmap.Type.WORLD_SURFACE_WG,
-							context.world(),
-							context.noiseConfig()
-					);
-			int k = j <= i ? i : MathHelper.nextBetween(chunkRandom, i, j);
-			int l = k - blockPos.getY();
-			collector.shift(l);
-			return l;
+		int seaLevel = chunkGenerator.getSeaLevel();
+
+		if (type == MineshaftStructure.Type.MESA) {
+			BlockPos center = collector.getBoundingBox().getCenter();
+			int surfaceY = chunkGenerator.getHeight(
+					center.getX(),
+					center.getZ(),
+					Heightmap.Type.WORLD_SURFACE_WG,
+					context.world(),
+					context.noiseConfig()
+			);
+			int targetY = surfaceY <= seaLevel ? seaLevel : MathHelper.nextBetween(chunkRandom, seaLevel, surfaceY);
+			int shift = targetY - center.getY();
+			collector.shift(shift);
+			return shift;
 		}
-		else {
-			return collector.shiftInto(i, chunkGenerator.getMinimumY(), chunkRandom, 10);
-		}
+
+		return collector.shiftInto(seaLevel, chunkGenerator.getMinimumY(), chunkRandom, 10);
 	}
 
 	@Override
@@ -91,16 +91,12 @@ public class MineshaftStructure extends Structure {
 		return StructureType.MINESHAFT;
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type implements StringIdentifiable {
+	/** Тип шахты, определяющий используемые блоки дерева. */
+	public enum Type implements StringIdentifiable {
 		NORMAL("normal", Blocks.OAK_LOG, Blocks.OAK_PLANKS, Blocks.OAK_FENCE),
 		MESA("mesa", Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_PLANKS, Blocks.DARK_OAK_FENCE);
 
-		public static final Codec<MineshaftStructure.Type>
-				CODEC =
-				StringIdentifiable.createCodec(MineshaftStructure.Type::values);
+		public static final Codec<MineshaftStructure.Type> CODEC = StringIdentifiable.createCodec(MineshaftStructure.Type::values);
 		private static final IntFunction<MineshaftStructure.Type> BY_ID = ValueLists.createIndexToValueFunction(
 				(MineshaftStructure.Type t) -> t.ordinal(), values(), ValueLists.OutOfBoundsHandling.ZERO
 		);
@@ -109,36 +105,36 @@ public class MineshaftStructure extends Structure {
 		private final BlockState planks;
 		private final BlockState fence;
 
-		private Type(final String name, final Block log, final Block planks, final Block fence) {
+		Type(String name, Block log, Block planks, Block fence) {
 			this.name = name;
 			this.log = log.getDefaultState();
 			this.planks = planks.getDefaultState();
 			this.fence = fence.getDefaultState();
 		}
 
-		public String getName() {
-			return this.name;
-		}
-
 		public static MineshaftStructure.Type byId(int id) {
 			return BY_ID.apply(id);
 		}
 
+		public String getName() {
+			return name;
+		}
+
 		public BlockState getLog() {
-			return this.log;
+			return log;
 		}
 
 		public BlockState getPlanks() {
-			return this.planks;
+			return planks;
 		}
 
 		public BlockState getFence() {
-			return this.fence;
+			return fence;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

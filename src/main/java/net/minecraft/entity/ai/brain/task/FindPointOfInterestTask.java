@@ -25,11 +25,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code FindPointOfInterestTask}.
+ * Фабричный класс задач мозга для поиска ближайшей точки интереса (POI).
+ * Использует экспоненциальную задержку повторных попыток через {@link RetryMarker}.
  */
 public class FindPointOfInterestTask {
 
 	public static final int POI_SORTING_RADIUS = 48;
+	private static final int POI_LIMIT = 5;
+	private static final int SEARCH_INTERVAL = 20;
 
 	public static Task<PathAwareEntity> create(
 			Predicate<RegistryEntry<PointOfInterestType>> poiPredicate,
@@ -50,6 +53,11 @@ public class FindPointOfInterestTask {
 		return create(poiPredicate, poiPosModule, poiPosModule, onlyRunIfChild, entityStatus, (world, pos) -> true);
 	}
 
+	/**
+	 * Создаёт задачу поиска ближайшей точки интереса (POI) с поддержкой повторных попыток.
+	 * Использует {@link RetryMarker} для экспоненциальной задержки между попытками достичь
+	 * недоступных позиций, чтобы не перегружать навигацию.
+	 */
 	public static Task<PathAwareEntity> create(
 			Predicate<RegistryEntry<PointOfInterestType>> poiPredicate,
 			MemoryModuleType<GlobalPos> poiPosModule,
@@ -58,116 +66,91 @@ public class FindPointOfInterestTask {
 			Optional<Byte> entityStatus,
 			BiPredicate<ServerWorld, BlockPos> worldPosBiPredicate
 	) {
-		int i = 5;
-		int j = 20;
-		MutableLong mutableLong = new MutableLong(0L);
-		Long2ObjectMap<FindPointOfInterestTask.RetryMarker> long2ObjectMap = new Long2ObjectOpenHashMap();
-		SingleTickTask<PathAwareEntity> singleTickTask = TaskTriggerer.task(
-				taskContext -> taskContext.group(taskContext.queryMemoryAbsent(potentialPoiPosModule))
-				                          .apply(
-						                          taskContext,
-						                          queryResult -> (world, entity, time) -> {
-							                          if (onlyRunIfChild && entity.isBaby()) {
-								                          return false;
-							                          }
-							                          else if (mutableLong.longValue() == 0L) {
-								                          mutableLong.setValue(
-										                          world.getTime() + world.random.nextInt(20));
-								                          return false;
-							                          }
-							                          else if (world.getTime() < mutableLong.longValue()) {
-								                          return false;
-							                          }
-							                          else {
-								                          mutableLong.setValue(
-										                          time + 20L + world.getRandom().nextInt(20));
-								                          PointOfInterestStorage
-										                          pointOfInterestStorage =
-										                          world.getPointOfInterestStorage();
-								                          long2ObjectMap
-										                          .long2ObjectEntrySet()
-										                          .removeIf(entry -> !((FindPointOfInterestTask.RetryMarker) entry.getValue()).isAttempting(
-												                          time));
-								                          Predicate<BlockPos> predicate2 = pos -> {
-									                          FindPointOfInterestTask.RetryMarker
-											                          retryMarker =
-											                          (FindPointOfInterestTask.RetryMarker) long2ObjectMap.get(
-													                          pos.asLong());
-									                          if (retryMarker == null) {
-										                          return true;
-									                          }
-									                          else if (!retryMarker.shouldRetry(time)) {
-										                          return false;
-									                          }
-									                          else {
-										                          retryMarker.setAttemptTime(time);
-										                          return true;
-									                          }
-								                          };
-								                          Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>>
-										                          set =
-										                          pointOfInterestStorage.getSortedTypesAndPositions(
-												                                                poiPredicate,
-												                                                predicate2,
-												                                                entity.getBlockPos(),
-												                                                48,
-												                                                PointOfInterestStorage.OccupationStatus.HAS_SPACE
-										                                                )
-										                                                .limit(5L)
-										                                                .filter(pairx -> worldPosBiPredicate.test(
-												                                                world,
-												                                                (BlockPos) pairx.getSecond()
-										                                                ))
-										                                                .collect(Collectors.toSet());
-								                          Path path = findPathToPoi(entity, set);
-								                          if (path != null && path.reachesTarget()) {
-									                          BlockPos blockPos = path.getTarget();
-									                          pointOfInterestStorage
-											                          .getType(blockPos)
-											                          .ifPresent(poiType -> {
-												                          pointOfInterestStorage.getPosition(
-														                          poiPredicate,
-														                          (registryEntry, blockPos2) -> blockPos2.equals(
-																                          blockPos),
-														                          blockPos,
-														                          1
-												                          );
-												                          queryResult.remember(GlobalPos.create(
-														                          world.getRegistryKey(),
-														                          blockPos
-												                          ));
-												                          entityStatus.ifPresent(status -> world.sendEntityStatus(
-														                          entity,
-														                          status
-												                          ));
-												                          long2ObjectMap.clear();
-												                          world
-														                          .getSubscriptionTracker()
-														                          .onPoiUpdated(blockPos);
-											                          });
-								                          }
-								                          else {
-									                          for (Pair<RegistryEntry<PointOfInterestType>, BlockPos> pair : set) {
-										                          long2ObjectMap.computeIfAbsent(
-												                          ((BlockPos) pair.getSecond()).asLong(),
-												                          m -> new FindPointOfInterestTask.RetryMarker(
-														                          world.random,
-														                          time
-												                          )
-										                          );
-									                          }
-								                          }
+		MutableLong nextSearchTime = new MutableLong(0L);
+		Long2ObjectMap<RetryMarker> retryMap = new Long2ObjectOpenHashMap();
 
-								                          return true;
-							                          }
-						                          }
-				                          )
+		SingleTickTask<PathAwareEntity> searchTask = TaskTriggerer.task(
+				taskContext -> taskContext.group(taskContext.queryMemoryAbsent(potentialPoiPosModule))
+						.apply(taskContext, queryResult -> (world, entity, time) -> {
+							if (onlyRunIfChild && entity.isBaby()) {
+								return false;
+							}
+
+							if (nextSearchTime.longValue() == 0L) {
+								nextSearchTime.setValue(world.getTime() + world.random.nextInt(SEARCH_INTERVAL));
+								return false;
+							}
+
+							if (world.getTime() < nextSearchTime.longValue()) {
+								return false;
+							}
+
+							nextSearchTime.setValue(time + SEARCH_INTERVAL + world.getRandom().nextInt(SEARCH_INTERVAL));
+
+							PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
+							retryMap.long2ObjectEntrySet().removeIf(entry -> !entry.getValue().isAttempting(time));
+
+							Predicate<BlockPos> retryFilter = pos -> {
+								RetryMarker marker = retryMap.get(pos.asLong());
+
+								if (marker == null) {
+									return true;
+								}
+
+								if (!marker.shouldRetry(time)) {
+									return false;
+								}
+
+								marker.setAttemptTime(time);
+								return true;
+							};
+
+							Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>> candidates = poiStorage
+									.getSortedTypesAndPositions(
+											poiPredicate,
+											retryFilter,
+											entity.getBlockPos(),
+											POI_SORTING_RADIUS,
+											PointOfInterestStorage.OccupationStatus.HAS_SPACE
+									)
+									.limit(POI_LIMIT)
+									.filter(pair -> worldPosBiPredicate.test(world, (BlockPos) pair.getSecond()))
+									.collect(Collectors.toSet());
+
+							Path path = findPathToPoi(entity, candidates);
+
+							if (path != null && path.reachesTarget()) {
+								BlockPos target = path.getTarget();
+								poiStorage.getType(target).ifPresent(poiType -> {
+									poiStorage.getPosition(
+											poiPredicate,
+											(entry, pos) -> pos.equals(target),
+											target,
+											1
+									);
+									queryResult.remember(GlobalPos.create(world.getRegistryKey(), target));
+									entityStatus.ifPresent(status -> world.sendEntityStatus(entity, status));
+									retryMap.clear();
+									world.getSubscriptionTracker().onPoiUpdated(target);
+								});
+							} else {
+								for (Pair<RegistryEntry<PointOfInterestType>, BlockPos> pair : candidates) {
+									retryMap.computeIfAbsent(
+											((BlockPos) pair.getSecond()).asLong(),
+											key -> new RetryMarker(world.random, time)
+									);
+								}
+							}
+
+							return true;
+						})
 		);
+
 		return potentialPoiPosModule == poiPosModule
-		       ? singleTickTask
-		       : TaskTriggerer.task(context -> context
-		                                       .group(context.queryMemoryAbsent(poiPosModule))
-		                                       .apply(context, poiPos -> singleTickTask));
+				? searchTask
+				: TaskTriggerer.task(context -> context
+						.group(context.queryMemoryAbsent(poiPosModule))
+						.apply(context, poiPos -> searchTask));
 	}
 
 	public static @Nullable Path findPathToPoi(
@@ -177,27 +160,26 @@ public class FindPointOfInterestTask {
 		if (pois.isEmpty()) {
 			return null;
 		}
-		else {
-			Set<BlockPos> set = new HashSet<>();
-			int i = 1;
 
-			for (Pair<RegistryEntry<PointOfInterestType>, BlockPos> pair : pois) {
-				i = Math.max(i, ((PointOfInterestType) ((RegistryEntry) pair.getFirst()).value()).searchDistance());
-				set.add((BlockPos) pair.getSecond());
-			}
+		Set<BlockPos> positions = new HashSet<>();
+		int searchDistance = 1;
 
-			return entity.getNavigation().findPathTo(set, i);
+		for (Pair<RegistryEntry<PointOfInterestType>, BlockPos> pair : pois) {
+			searchDistance = Math.max(
+					searchDistance,
+					((PointOfInterestType) ((RegistryEntry) pair.getFirst()).value()).searchDistance()
+			);
+			positions.add((BlockPos) pair.getSecond());
 		}
+
+		return entity.getNavigation().findPathTo(positions, searchDistance);
 	}
 
-	/**
-	 * {@code RetryMarker}.
-	 */
 	static class RetryMarker {
 
 		private static final int MIN_DELAY = 40;
-		private static final int MAX_EXTRA_DELAY = 80;
 		private static final int ATTEMPT_DURATION = 400;
+
 		private final Random random;
 		private long previousAttemptAt;
 		private long nextScheduledAttemptAt;
@@ -205,39 +187,32 @@ public class FindPointOfInterestTask {
 
 		RetryMarker(Random random, long time) {
 			this.random = random;
-			this.setAttemptTime(time);
+			setAttemptTime(time);
 		}
 
 		public void setAttemptTime(long time) {
-			this.previousAttemptAt = time;
-			int i = this.currentDelay + this.random.nextInt(40) + 40;
-			this.currentDelay = Math.min(i, 400);
-			this.nextScheduledAttemptAt = time + this.currentDelay;
+			previousAttemptAt = time;
+			int next = currentDelay + random.nextInt(MIN_DELAY) + MIN_DELAY;
+			currentDelay = Math.min(next, ATTEMPT_DURATION);
+			nextScheduledAttemptAt = time + currentDelay;
 		}
 
 		public boolean isAttempting(long time) {
-			return time - this.previousAttemptAt < 400L;
+			return time - previousAttemptAt < ATTEMPT_DURATION;
 		}
 
-		/**
-		 * Определяет, следует ли retry.
-		 *
-		 * @param time time
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean shouldRetry(long time) {
-			return time >= this.nextScheduledAttemptAt;
+			return time >= nextScheduledAttemptAt;
 		}
 
 		@Override
 		public String toString() {
-			return "RetryMarker{, previousAttemptAt="
-					+ this.previousAttemptAt
+			return "RetryMarker{previousAttemptAt="
+					+ previousAttemptAt
 					+ ", nextScheduledAttemptAt="
-					+ this.nextScheduledAttemptAt
+					+ nextScheduledAttemptAt
 					+ ", currentDelay="
-					+ this.currentDelay
+					+ currentDelay
 					+ "}";
 		}
 	}

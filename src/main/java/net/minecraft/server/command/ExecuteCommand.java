@@ -68,7 +68,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code ExecuteCommand}.
+ * Команда {@code /execute}: выполнение команд с изменённым контекстом (позиция, сущность, условия).
  */
 public class ExecuteCommand {
 
@@ -1635,8 +1635,8 @@ public class ExecuteCommand {
 				blockBox2.getMinZ() - blockBox.getMinZ()
 		);
 		int i = blockBox.getBlockCountX() * blockBox.getBlockCountY() * blockBox.getBlockCountZ();
-		if (i > 32768) {
-			throw BLOCKS_TOOBIG_EXCEPTION.create(32768, i);
+		if (i > MAX_BLOCKS) {
+			throw BLOCKS_TOOBIG_EXCEPTION.create(MAX_BLOCKS, i);
 		}
 		else {
 			int j = 0;
@@ -1894,26 +1894,17 @@ public class ExecuteCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Condition}.
-	 */
 	interface Condition {
 
 		boolean test(CommandContext<ServerCommandSource> context) throws CommandSyntaxException;
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ExistsCondition}.
-	 */
 	interface ExistsCondition {
 
 		int test(CommandContext<ServerCommandSource> context) throws CommandSyntaxException;
 	}
 
-	/**
-	 * {@code IfUnlessRedirector}.
-	 */
 	static class IfUnlessRedirector implements Forkable.RedirectModifier<ServerCommandSource> {
 
 		private final IntPredicate predicate;
@@ -1944,9 +1935,6 @@ public class ExecuteCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ScoreComparisonPredicate}.
-	 */
 	interface ScoreComparisonPredicate {
 
 		boolean test(int targetScore, int sourceScore);

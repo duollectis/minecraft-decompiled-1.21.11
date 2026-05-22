@@ -17,12 +17,19 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code BowItem}.
+ * Предмет лука. Заряжается при удержании кнопки использования,
+ * выпускает стрелу при отпускании. Скорость выстрела зависит от времени натяжения.
  */
 public class BowItem extends RangedWeaponItem {
 
 	public static final int TICKS_PER_SECOND = 20;
 	public static final int RANGE = 15;
+	/** Максимальное время использования — фактически бесконечное удержание. */
+	private static final int MAX_USE_TICKS = 72000;
+	private static final float MIN_PULL_PROGRESS = 0.1F;
+	private static final float MAX_PULL_PROGRESS = 1.0F;
+	private static final float FULL_PULL_SPEED_MULTIPLIER = 3.0F;
+	private static final float ARROW_DIVERGENCE = 1.0F;
 
 	public BowItem(Item.Settings settings) {
 		super(settings);
@@ -30,79 +37,82 @@ public class BowItem extends RangedWeaponItem {
 
 	@Override
 	public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
-		if (!(user instanceof PlayerEntity playerEntity)) {
+		if (!(user instanceof PlayerEntity player)) {
 			return false;
 		}
-		else {
-			ItemStack itemStack = playerEntity.getProjectileType(stack);
-			if (itemStack.isEmpty()) {
-				return false;
-			}
-			else {
-				int i = this.getMaxUseTime(stack, user) - remainingUseTicks;
-				float f = getPullProgress(i);
-				if (f < 0.1) {
-					return false;
-				}
-				else {
-					List<ItemStack> list = load(stack, itemStack, playerEntity);
-					if (world instanceof ServerWorld serverWorld && !list.isEmpty()) {
-						this.shootAll(
-								serverWorld,
-								playerEntity,
-								playerEntity.getActiveHand(),
-								stack,
-								list,
-								f * 3.0F,
-								1.0F,
-								f == 1.0F,
-								null
-						);
-					}
 
-					world.playSound(
-							null,
-							playerEntity.getX(),
-							playerEntity.getY(),
-							playerEntity.getZ(),
-							SoundEvents.ENTITY_ARROW_SHOOT,
-							SoundCategory.PLAYERS,
-							1.0F,
-							1.0F / (world.getRandom().nextFloat() * 0.4F + 1.2F) + f * 0.5F
-					);
-					playerEntity.incrementStat(Stats.USED.getOrCreateStat(this));
-					return true;
-				}
-			}
+		ItemStack projectileStack = player.getProjectileType(stack);
+
+		if (projectileStack.isEmpty()) {
+			return false;
 		}
+
+		int usedTicks = getMaxUseTime(stack, user) - remainingUseTicks;
+		float pullProgress = getPullProgress(usedTicks);
+
+		if (pullProgress < MIN_PULL_PROGRESS) {
+			return false;
+		}
+
+		List<ItemStack> loadedProjectiles = load(stack, projectileStack, player);
+
+		if (world instanceof ServerWorld serverWorld && !loadedProjectiles.isEmpty()) {
+			shootAll(
+				serverWorld,
+				player,
+				player.getActiveHand(),
+				stack,
+				loadedProjectiles,
+				pullProgress * FULL_PULL_SPEED_MULTIPLIER,
+				ARROW_DIVERGENCE,
+				pullProgress == MAX_PULL_PROGRESS,
+				null
+			);
+		}
+
+		world.playSound(
+			null,
+			player.getX(),
+			player.getY(),
+			player.getZ(),
+			SoundEvents.ENTITY_ARROW_SHOOT,
+			SoundCategory.PLAYERS,
+			1.0F,
+			1.0F / (world.getRandom().nextFloat() * 0.4F + 1.2F) + pullProgress * 0.5F
+		);
+		player.incrementStat(Stats.USED.getOrCreateStat(this));
+		return true;
 	}
 
 	@Override
 	protected void shoot(
-			LivingEntity shooter,
-			ProjectileEntity projectile,
-			int index,
-			float speed,
-			float divergence,
-			float yaw,
-			@Nullable LivingEntity target
+		LivingEntity shooter,
+		ProjectileEntity projectile,
+		int index,
+		float speed,
+		float divergence,
+		float yaw,
+		@Nullable LivingEntity target
 	) {
 		projectile.setVelocity(shooter, shooter.getPitch(), shooter.getYaw() + yaw, 0.0F, speed, divergence);
 	}
 
+	/**
+	 * Вычисляет прогресс натяжения лука от 0.0 до 1.0 на основе затраченных тиков.
+	 * Использует квадратичную кривую для плавного ускорения.
+	 *
+	 * @param useTicks количество тиков, прошедших с начала использования
+	 * @return прогресс натяжения в диапазоне [0.0, 1.0]
+	 */
 	public static float getPullProgress(int useTicks) {
-		float f = useTicks / 20.0F;
-		f = (f * f + f * 2.0F) / 3.0F;
-		if (f > 1.0F) {
-			f = 1.0F;
-		}
-
-		return f;
+		float progress = useTicks / (float) TICKS_PER_SECOND;
+		progress = (progress * progress + progress * 2.0F) / 3.0F;
+		return Math.min(progress, MAX_PULL_PROGRESS);
 	}
 
 	@Override
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		return 72000;
+		return MAX_USE_TICKS;
 	}
 
 	@Override
@@ -112,15 +122,15 @@ public class BowItem extends RangedWeaponItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		boolean bl = !user.getProjectileType(itemStack).isEmpty();
-		if (!user.isInCreativeMode() && !bl) {
+		ItemStack stack = user.getStackInHand(hand);
+		boolean hasProjectile = !user.getProjectileType(stack).isEmpty();
+
+		if (!user.isInCreativeMode() && !hasProjectile) {
 			return ActionResult.FAIL;
 		}
-		else {
-			user.setCurrentHand(hand);
-			return ActionResult.CONSUME;
-		}
+
+		user.setCurrentHand(hand);
+		return ActionResult.CONSUME;
 	}
 
 	@Override
@@ -130,6 +140,6 @@ public class BowItem extends RangedWeaponItem {
 
 	@Override
 	public int getRange() {
-		return 15;
+		return RANGE;
 	}
 }

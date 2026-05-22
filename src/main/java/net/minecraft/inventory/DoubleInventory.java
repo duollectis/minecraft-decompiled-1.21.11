@@ -5,7 +5,10 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code DoubleInventory}.
+ * Составной инвентарь, объединяющий два отдельных инвентаря в один логический.
+ * Слоты первого инвентаря занимают диапазон {@code [0, first.size())},
+ * слоты второго — {@code [first.size(), first.size() + second.size())}.
+ * Используется, например, для двойных сундуков.
  */
 public class DoubleInventory implements Inventory {
 
@@ -19,82 +22,86 @@ public class DoubleInventory implements Inventory {
 
 	@Override
 	public int size() {
-		return this.first.size() + this.second.size();
+		return first.size() + second.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.first.isEmpty() && this.second.isEmpty();
+		return first.isEmpty() && second.isEmpty();
 	}
 
 	public boolean isPart(Inventory inventory) {
-		return this.first == inventory || this.second == inventory;
+		return first == inventory || second == inventory;
 	}
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return slot >= this.first.size() ? this.second.getStack(slot - this.first.size()) : this.first.getStack(slot);
+		return slot >= first.size()
+			? second.getStack(slot - first.size())
+			: first.getStack(slot);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot, int amount) {
-		return slot >= this.first.size() ? this.second.removeStack(slot - this.first.size(), amount)
-		                                 : this.first.removeStack(slot, amount);
+		return slot >= first.size()
+			? second.removeStack(slot - first.size(), amount)
+			: first.removeStack(slot, amount);
 	}
 
 	@Override
 	public ItemStack removeStack(int slot) {
-		return slot >= this.first.size() ? this.second.removeStack(slot - this.first.size())
-		                                 : this.first.removeStack(slot);
+		return slot >= first.size()
+			? second.removeStack(slot - first.size())
+			: first.removeStack(slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		if (slot >= this.first.size()) {
-			this.second.setStack(slot - this.first.size(), stack);
-		}
-		else {
-			this.first.setStack(slot, stack);
+		if (slot >= first.size()) {
+			second.setStack(slot - first.size(), stack);
+		} else {
+			first.setStack(slot, stack);
 		}
 	}
 
 	@Override
 	public int getMaxCountPerStack() {
-		return this.first.getMaxCountPerStack();
+		return first.getMaxCountPerStack();
 	}
 
 	@Override
 	public void markDirty() {
-		this.first.markDirty();
-		this.second.markDirty();
+		first.markDirty();
+		second.markDirty();
 	}
 
 	@Override
 	public boolean canPlayerUse(PlayerEntity player) {
-		return this.first.canPlayerUse(player) && this.second.canPlayerUse(player);
+		return first.canPlayerUse(player) && second.canPlayerUse(player);
 	}
 
 	@Override
 	public void onOpen(ContainerUser user) {
-		this.first.onOpen(user);
-		this.second.onOpen(user);
+		first.onOpen(user);
+		second.onOpen(user);
 	}
 
 	@Override
 	public void onClose(ContainerUser user) {
-		this.first.onClose(user);
-		this.second.onClose(user);
+		first.onClose(user);
+		second.onClose(user);
 	}
 
 	@Override
 	public boolean isValid(int slot, ItemStack stack) {
-		return slot >= this.first.size() ? this.second.isValid(slot - this.first.size(), stack)
-		                                 : this.first.isValid(slot, stack);
+		return slot >= first.size()
+			? second.isValid(slot - first.size(), stack)
+			: first.isValid(slot, stack);
 	}
 
 	@Override
 	public void clear() {
-		this.first.clear();
-		this.second.clear();
+		first.clear();
+		second.clear();
 	}
 }

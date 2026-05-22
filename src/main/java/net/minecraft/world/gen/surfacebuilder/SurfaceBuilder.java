@@ -31,10 +31,13 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code SurfaceBuilder}.
+ * Строит поверхность чанка, применяя правила материалов {@link MaterialRules.MaterialRule}
+ * к каждому блоку. Отвечает за размещение почвы, камня, терракоты в бэдлендах,
+ * айсбергов в замёрзших океанах и других поверхностных особенностей.
  */
 public class SurfaceBuilder {
 
+	private static final int TERRACOTTA_BAND_COUNT = 192;
 	private static final BlockState WHITE_TERRACOTTA = Blocks.WHITE_TERRACOTTA.getDefaultState();
 	private static final BlockState ORANGE_TERRACOTTA = Blocks.ORANGE_TERRACOTTA.getDefaultState();
 	private static final BlockState TERRACOTTA = Blocks.TERRACOTTA.getDefaultState();
@@ -91,8 +94,8 @@ public class SurfaceBuilder {
 	) {
 		final BlockPos.Mutable mutable = new BlockPos.Mutable();
 		final ChunkPos chunkPos = chunk.getPos();
-		int i = chunkPos.getStartX();
-		int j = chunkPos.getStartZ();
+		int startX = chunkPos.getStartX();
+		int startZ = chunkPos.getStartZ();
 		BlockColumn blockColumn = new BlockColumn() {
 			@Override
 			public BlockState getState(int y) {
@@ -121,70 +124,76 @@ public class SurfaceBuilder {
 		MaterialRules.BlockStateRule blockStateRule = materialRule.apply(materialRuleContext);
 		BlockPos.Mutable mutable2 = new BlockPos.Mutable();
 
-		for (int k = 0; k < 16; k++) {
-			for (int l = 0; l < 16; l++) {
-				int m = i + k;
-				int n = j + l;
-				int o = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, k, l) + 1;
-				mutable.setX(m).setZ(n);
-				RegistryEntry<Biome> registryEntry = biomeAccess.getBiome(mutable2.set(m, useLegacyRandom ? 0 : o, n));
-				if (registryEntry.matchesKey(BiomeKeys.ERODED_BADLANDS)) {
-					this.placeBadlandsPillar(blockColumn, m, n, o, chunk);
+		for (int localX = 0; localX < 16; localX++) {
+			for (int localZ = 0; localZ < 16; localZ++) {
+				int worldX = startX + localX;
+				int worldZ = startZ + localZ;
+				int surfaceHeight = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ) + 1;
+				mutable.setX(worldX).setZ(worldZ);
+				RegistryEntry<Biome> biomeEntry = biomeAccess.getBiome(
+						mutable2.set(worldX, useLegacyRandom ? 0 : surfaceHeight, worldZ)
+				);
+
+				if (biomeEntry.matchesKey(BiomeKeys.ERODED_BADLANDS)) {
+					placeBadlandsPillar(blockColumn, worldX, worldZ, surfaceHeight, chunk);
 				}
 
-				int p = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, k, l) + 1;
-				materialRuleContext.initHorizontalContext(m, n);
-				int q = 0;
-				int r = Integer.MIN_VALUE;
-				int s = Integer.MAX_VALUE;
-				int t = chunk.getBottomY();
+				int topY = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE_WG, localX, localZ) + 1;
+				materialRuleContext.initHorizontalContext(worldX, worldZ);
+				int stoneDepthAbove = 0;
+				int fluidSurfaceY = Integer.MIN_VALUE;
+				int stoneFloorY = Integer.MAX_VALUE;
+				int bottomY = chunk.getBottomY();
 
-				for (int u = p; u >= t; u--) {
-					BlockState blockState = blockColumn.getState(u);
+				for (int y = topY; y >= bottomY; y--) {
+					BlockState blockState = blockColumn.getState(y);
+
 					if (blockState.isAir()) {
-						q = 0;
-						r = Integer.MIN_VALUE;
-					}
-					else if (!blockState.getFluidState().isEmpty()) {
-						if (r == Integer.MIN_VALUE) {
-							r = u + 1;
+						stoneDepthAbove = 0;
+						fluidSurfaceY = Integer.MIN_VALUE;
+					} else if (!blockState.getFluidState().isEmpty()) {
+						if (fluidSurfaceY == Integer.MIN_VALUE) {
+							fluidSurfaceY = y + 1;
 						}
-					}
-					else {
-						if (s >= u) {
-							s = DimensionType.MIN_HEIGHT_IN_BLOCKS;
+					} else {
+						if (stoneFloorY >= y) {
+							stoneFloorY = DimensionType.MIN_HEIGHT_IN_BLOCKS;
 
-							for (int v = u - 1; v >= t - 1; v--) {
-								BlockState blockState2 = blockColumn.getState(v);
-								if (!this.isDefaultBlock(blockState2)) {
-									s = v + 1;
+							for (int scanY = y - 1; scanY >= bottomY - 1; scanY--) {
+								BlockState scanState = blockColumn.getState(scanY);
+
+								if (!isDefaultBlock(scanState)) {
+									stoneFloorY = scanY + 1;
 									break;
 								}
 							}
 						}
 
-						q++;
-						int vx = u - s + 1;
-						materialRuleContext.initVerticalContext(q, vx, r, m, u, n);
-						if (blockState == this.defaultState) {
-							BlockState blockState2 = blockStateRule.tryApply(m, u, n);
-							if (blockState2 != null) {
-								blockColumn.setState(u, blockState2);
+						stoneDepthAbove++;
+						int depthFromFloor = y - stoneFloorY + 1;
+						materialRuleContext.initVerticalContext(stoneDepthAbove, depthFromFloor, fluidSurfaceY, worldX, y, worldZ);
+
+						if (blockState == defaultState) {
+							BlockState replacement = blockStateRule.tryApply(worldX, y, worldZ);
+
+							if (replacement != null) {
+								blockColumn.setState(y, replacement);
 							}
 						}
 					}
 				}
 
-				if (registryEntry.matchesKey(BiomeKeys.FROZEN_OCEAN)
-						|| registryEntry.matchesKey(BiomeKeys.DEEP_FROZEN_OCEAN)) {
-					this.placeIceberg(
+				if (biomeEntry.matchesKey(BiomeKeys.FROZEN_OCEAN)
+						|| biomeEntry.matchesKey(BiomeKeys.DEEP_FROZEN_OCEAN)
+				) {
+					placeIceberg(
 							materialRuleContext.estimateSurfaceHeight(),
-							registryEntry.value(),
+							biomeEntry.value(),
 							blockColumn,
 							mutable2,
-							m,
-							n,
-							o
+							worldX,
+							worldZ,
+							surfaceHeight
 					);
 				}
 			}
@@ -192,28 +201,16 @@ public class SurfaceBuilder {
 	}
 
 	/**
-	 * Sample run depth.
-	 *
-	 * @param blockX block x
-	 * @param blockZ block z
-	 *
-	 * @return int — результат операции
+	 * Вычисляет глубину поверхностного слоя (runDepth) для заданной горизонтальной позиции.
+	 * Значение определяет, насколько глубоко от поверхности применяются правила материалов.
 	 */
 	protected int sampleRunDepth(int blockX, int blockZ) {
-		double d = this.surfaceNoise.sample(blockX, 0.0, blockZ);
-		return (int) (d * 2.75 + 3.0 + this.randomDeriver.split(blockX, 0, blockZ).nextDouble() * 0.25);
+		double noiseValue = surfaceNoise.sample(blockX, 0.0, blockZ);
+		return (int) (noiseValue * 2.75 + 3.0 + randomDeriver.split(blockX, 0, blockZ).nextDouble() * 0.25);
 	}
 
-	/**
-	 * Sample secondary depth.
-	 *
-	 * @param blockX block x
-	 * @param blockZ block z
-	 *
-	 * @return double — результат операции
-	 */
 	protected double sampleSecondaryDepth(int blockX, int blockZ) {
-		return this.surfaceSecondaryNoise.sample(blockX, 0.0, blockZ);
+		return surfaceSecondaryNoise.sample(blockX, 0.0, blockZ);
 	}
 
 	private boolean isDefaultBlock(BlockState state) {
@@ -221,7 +218,7 @@ public class SurfaceBuilder {
 	}
 
 	public int getSeaLevel() {
-		return this.seaLevel;
+		return seaLevel;
 	}
 
 	@Deprecated
@@ -244,45 +241,47 @@ public class SurfaceBuilder {
 				context
 		);
 		MaterialRules.BlockStateRule blockStateRule = rule.apply(materialRuleContext);
-		int i = pos.getX();
-		int j = pos.getY();
-		int k = pos.getZ();
-		materialRuleContext.initHorizontalContext(i, k);
-		materialRuleContext.initVerticalContext(1, 1, hasFluid ? j + 1 : Integer.MIN_VALUE, i, j, k);
-		BlockState blockState = blockStateRule.tryApply(i, j, k);
+		int x = pos.getX();
+		int y = pos.getY();
+		int z = pos.getZ();
+		materialRuleContext.initHorizontalContext(x, z);
+		materialRuleContext.initVerticalContext(1, 1, hasFluid ? y + 1 : Integer.MIN_VALUE, x, y, z);
+		BlockState blockState = blockStateRule.tryApply(x, y, z);
 		return Optional.ofNullable(blockState);
 	}
 
 	private void placeBadlandsPillar(BlockColumn column, int x, int z, int surfaceY, HeightLimitView chunk) {
-		double d = 0.2;
-		double
-				e =
-				Math.min(
-						Math.abs(this.badlandsSurfaceNoise.sample(x, 0.0, z) * 8.25),
-						this.badlandsPillarNoise.sample(x * 0.2, 0.0, z * 0.2) * 15.0
-				);
-		if (!(e <= 0.0)) {
-			double f = 0.75;
-			double g = 1.5;
-			double h = Math.abs(this.badlandsPillarRoofNoise.sample(x * 0.75, 0.0, z * 0.75) * 1.5);
-			double i = 64.0 + Math.min(e * e * 2.5, Math.ceil(h * 50.0) + 24.0);
-			int j = MathHelper.floor(i);
-			if (surfaceY <= j) {
-				for (int k = j; k >= chunk.getBottomY(); k--) {
-					BlockState blockState = column.getState(k);
-					if (blockState.isOf(this.defaultState.getBlock())) {
-						break;
-					}
+		double pillarStrength = Math.min(
+				Math.abs(badlandsSurfaceNoise.sample(x, 0.0, z) * 8.25),
+				badlandsPillarNoise.sample(x * 0.2, 0.0, z * 0.2) * 15.0
+		);
 
-					if (blockState.isOf(Blocks.WATER)) {
-						return;
-					}
-				}
+		if (pillarStrength <= 0.0) {
+			return;
+		}
 
-				for (int k = j; k >= chunk.getBottomY() && column.getState(k).isAir(); k--) {
-					column.setState(k, this.defaultState);
-				}
+		double roofNoise = Math.abs(badlandsPillarRoofNoise.sample(x * 0.75, 0.0, z * 0.75) * 1.5);
+		double pillarTopY = 64.0 + Math.min(pillarStrength * pillarStrength * 2.5, Math.ceil(roofNoise * 50.0) + 24.0);
+		int pillarTopBlock = MathHelper.floor(pillarTopY);
+
+		if (surfaceY > pillarTopBlock) {
+			return;
+		}
+
+		for (int y = pillarTopBlock; y >= chunk.getBottomY(); y--) {
+			BlockState blockState = column.getState(y);
+
+			if (blockState.isOf(defaultState.getBlock())) {
+				break;
 			}
+
+			if (blockState.isOf(Blocks.WATER)) {
+				return;
+			}
+		}
+
+		for (int y = pillarTopBlock; y >= chunk.getBottomY() && column.getState(y).isAir(); y--) {
+			column.setState(y, defaultState);
 		}
 	}
 
@@ -295,107 +294,115 @@ public class SurfaceBuilder {
 			int z,
 			int surfaceY
 	) {
-		double d = 1.28;
-		double
-				e =
-				Math.min(
-						Math.abs(this.icebergSurfaceNoise.sample(x, 0.0, z) * 8.25),
-						this.icebergPillarNoise.sample(x * 1.28, 0.0, z * 1.28) * 15.0
-				);
-		if (!(e <= 1.8)) {
-			double f = 1.17;
-			double g = 1.5;
-			double h = Math.abs(this.icebergPillarRoofNoise.sample(x * 1.17, 0.0, z * 1.17) * 1.5);
-			double i = Math.min(e * e * 1.2, Math.ceil(h * 40.0) + 14.0);
-			if (biome.shouldGenerateLowerFrozenOceanSurface(mutablePos.set(x, this.seaLevel, z), this.seaLevel)) {
-				i -= 2.0;
-			}
+		double icebergStrength = Math.min(
+				Math.abs(icebergSurfaceNoise.sample(x, 0.0, z) * 8.25),
+				icebergPillarNoise.sample(x * 1.28, 0.0, z * 1.28) * 15.0
+		);
 
-			double j;
-			if (i > 2.0) {
-				j = this.seaLevel - i - 7.0;
-				i += this.seaLevel;
-			}
-			else {
-				i = 0.0;
-				j = 0.0;
-			}
+		if (icebergStrength <= 1.8) {
+			return;
+		}
 
-			double k = i;
-			Random random = this.randomDeriver.split(x, 0, z);
-			int l = 2 + random.nextInt(4);
-			int m = this.seaLevel + 18 + random.nextInt(10);
-			int n = 0;
+		double roofNoise = Math.abs(icebergPillarRoofNoise.sample(x * 1.17, 0.0, z * 1.17) * 1.5);
+		double icebergHeight = Math.min(icebergStrength * icebergStrength * 1.2, Math.ceil(roofNoise * 40.0) + 14.0);
 
-			for (int o = Math.max(surfaceY, (int) i + 1); o >= minY; o--) {
-				if (column.getState(o).isAir() && o < (int) k && random.nextDouble() > 0.01
-						|| column.getState(o).isOf(Blocks.WATER) && o > (int) j && o < this.seaLevel && j != 0.0
-						&& random.nextDouble() > 0.15) {
-					if (n <= l && o > m) {
-						column.setState(o, SNOW_BLOCK);
-						n++;
-					}
-					else {
-						column.setState(o, PACKED_ICE);
-					}
+		if (biome.shouldGenerateLowerFrozenOceanSurface(mutablePos.set(x, seaLevel, z), seaLevel)) {
+			icebergHeight -= 2.0;
+		}
+
+		double icebergTopY;
+		double icebergBottomY;
+
+		if (icebergHeight > 2.0) {
+			icebergBottomY = seaLevel - icebergHeight - 7.0;
+			icebergTopY = icebergHeight + seaLevel;
+		} else {
+			icebergTopY = 0.0;
+			icebergBottomY = 0.0;
+		}
+
+		Random random = randomDeriver.split(x, 0, z);
+		int snowCapThickness = 2 + random.nextInt(4);
+		int snowCapMinY = seaLevel + 18 + random.nextInt(10);
+		int snowLayers = 0;
+
+		for (int y = Math.max(surfaceY, (int) icebergTopY + 1); y >= minY; y--) {
+			boolean isAirInIceberg = column.getState(y).isAir()
+					&& y < (int) icebergTopY
+					&& random.nextDouble() > 0.01;
+			boolean isWaterInIceberg = column.getState(y).isOf(Blocks.WATER)
+					&& y > (int) icebergBottomY
+					&& y < seaLevel
+					&& icebergBottomY != 0.0
+					&& random.nextDouble() > 0.15;
+
+			if (isAirInIceberg || isWaterInIceberg) {
+				if (snowLayers <= snowCapThickness && y > snowCapMinY) {
+					column.setState(y, SNOW_BLOCK);
+					snowLayers++;
+				} else {
+					column.setState(y, PACKED_ICE);
 				}
 			}
 		}
 	}
 
 	private static BlockState[] createTerracottaBands(Random random) {
-		BlockState[] blockStates = new BlockState[192];
-		Arrays.fill(blockStates, TERRACOTTA);
+		BlockState[] bands = new BlockState[TERRACOTTA_BAND_COUNT];
+		Arrays.fill(bands, TERRACOTTA);
 
-		for (int i = 0; i < blockStates.length; i++) {
+		for (int i = 0; i < bands.length; i++) {
 			i += random.nextInt(5) + 1;
-			if (i < blockStates.length) {
-				blockStates[i] = ORANGE_TERRACOTTA;
+
+			if (i < bands.length) {
+				bands[i] = ORANGE_TERRACOTTA;
 			}
 		}
 
-		addTerracottaBands(random, blockStates, 1, YELLOW_TERRACOTTA);
-		addTerracottaBands(random, blockStates, 2, BROWN_TERRACOTTA);
-		addTerracottaBands(random, blockStates, 1, RED_TERRACOTTA);
-		int ix = random.nextBetween(9, 15);
-		int j = 0;
+		addTerracottaBands(random, bands, 1, YELLOW_TERRACOTTA);
+		addTerracottaBands(random, bands, 2, BROWN_TERRACOTTA);
+		addTerracottaBands(random, bands, 1, RED_TERRACOTTA);
 
-		for (int k = 0; j < ix && k < blockStates.length; k += random.nextInt(16) + 4) {
-			blockStates[k] = WHITE_TERRACOTTA;
+		int whiteCount = random.nextBetween(9, 15);
+		int placed = 0;
+
+		for (int k = 0; placed < whiteCount && k < bands.length; k += random.nextInt(16) + 4) {
+			bands[k] = WHITE_TERRACOTTA;
+
 			if (k - 1 > 0 && random.nextBoolean()) {
-				blockStates[k - 1] = LIGHT_GRAY_TERRACOTTA;
+				bands[k - 1] = LIGHT_GRAY_TERRACOTTA;
 			}
 
-			if (k + 1 < blockStates.length && random.nextBoolean()) {
-				blockStates[k + 1] = LIGHT_GRAY_TERRACOTTA;
+			if (k + 1 < bands.length && random.nextBoolean()) {
+				bands[k + 1] = LIGHT_GRAY_TERRACOTTA;
 			}
 
-			j++;
+			placed++;
 		}
 
-		return blockStates;
+		return bands;
 	}
 
 	private static void addTerracottaBands(
 			Random random,
-			BlockState[] terracottaBands,
+			BlockState[] bands,
 			int minBandSize,
 			BlockState state
 	) {
-		int i = random.nextBetween(6, 15);
+		int bandCount = random.nextBetween(6, 15);
 
-		for (int j = 0; j < i; j++) {
-			int k = minBandSize + random.nextInt(3);
-			int l = random.nextInt(terracottaBands.length);
+		for (int band = 0; band < bandCount; band++) {
+			int bandSize = minBandSize + random.nextInt(3);
+			int startIndex = random.nextInt(bands.length);
 
-			for (int m = 0; l + m < terracottaBands.length && m < k; m++) {
-				terracottaBands[l + m] = state;
+			for (int offset = 0; startIndex + offset < bands.length && offset < bandSize; offset++) {
+				bands[startIndex + offset] = state;
 			}
 		}
 	}
 
 	protected BlockState getTerracottaBlock(int x, int y, int z) {
-		int i = (int) Math.round(this.terracottaBandsOffsetNoise.sample(x, 0.0, z) * 4.0);
-		return this.terracottaBands[(y + i + this.terracottaBands.length) % this.terracottaBands.length];
+		int offset = (int) Math.round(terracottaBandsOffsetNoise.sample(x, 0.0, z) * 4.0);
+		return terracottaBands[(y + offset + terracottaBands.length) % terracottaBands.length];
 	}
 }

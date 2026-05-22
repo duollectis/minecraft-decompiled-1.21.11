@@ -27,13 +27,17 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code ChestBlockEntity}.
+ * Блок-сущность сундука. Управляет инвентарём, анимацией крышки и
+ * синхронизацией количества просматривающих игроков через {@link ViewerCountManager}.
  */
 public class ChestBlockEntity extends LootableContainerBlockEntity implements LidOpenable {
 
+	private static final int INVENTORY_SIZE = 27;
 	private static final int VIEWER_COUNT_UPDATE_EVENT_TYPE = 1;
 	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.chest");
-	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(INVENTORY_SIZE, ItemStack.EMPTY);
+	private final ChestLidAnimator lidAnimator = new ChestLidAnimator();
 	private final ViewerCountManager stateManager = new ViewerCountManager() {
 		@Override
 		protected void onContainerOpen(World world, BlockPos pos, BlockState state) {
@@ -62,17 +66,15 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 
 		@Override
 		public boolean isPlayerViewing(PlayerEntity player) {
-			if (!(player.currentScreenHandler instanceof GenericContainerScreenHandler)) {
-				return false;
+			if (player.currentScreenHandler instanceof GenericContainerScreenHandler handler) {
+				Inventory inv = handler.getInventory();
+				return inv == ChestBlockEntity.this
+						|| inv instanceof DoubleInventory doubleInv && doubleInv.isPart(ChestBlockEntity.this);
 			}
-			else {
-				Inventory inventory = ((GenericContainerScreenHandler) player.currentScreenHandler).getInventory();
-				return inventory == ChestBlockEntity.this || inventory instanceof DoubleInventory
-						&& ((DoubleInventory) inventory).isPart(ChestBlockEntity.this);
-			}
+
+			return false;
 		}
 	};
-	private final ChestLidAnimator lidAnimator = new ChestLidAnimator();
 
 	protected ChestBlockEntity(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
 		super(blockEntityType, blockPos, blockState);
@@ -84,7 +86,7 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 
 	@Override
 	public int size() {
-		return 27;
+		return INVENTORY_SIZE;
 	}
 
 	@Override
@@ -95,101 +97,99 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-		if (!this.readLootTable(view)) {
-			Inventories.readData(view, this.inventory);
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
+		if (!readLootTable(view)) {
+			Inventories.readData(view, inventory);
 		}
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.writeLootTable(view)) {
-			Inventories.writeData(view, this.inventory);
+		if (!writeLootTable(view)) {
+			Inventories.writeData(view, inventory);
 		}
 	}
 
-	/**
-	 * Client tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, ChestBlockEntity blockEntity) {
 		blockEntity.lidAnimator.step();
 	}
 
 	static void playSound(World world, BlockPos pos, BlockState state, SoundEvent soundEvent) {
 		ChestType chestType = state.get(ChestBlock.CHEST_TYPE);
-		if (chestType != ChestType.LEFT) {
-			double d = pos.getX() + 0.5;
-			double e = pos.getY() + 0.5;
-			double f = pos.getZ() + 0.5;
-			if (chestType == ChestType.RIGHT) {
-				Direction direction = ChestBlock.getFacing(state);
-				d += direction.getOffsetX() * 0.5;
-				f += direction.getOffsetZ() * 0.5;
-			}
-
-			world.playSound(
-					null,
-					d,
-					e,
-					f,
-					soundEvent,
-					SoundCategory.BLOCKS,
-					0.5F,
-					world.random.nextFloat() * 0.1F + 0.9F
-			);
+		if (chestType == ChestType.LEFT) {
+			return;
 		}
+
+		double centerX = pos.getX() + 0.5;
+		double centerY = pos.getY() + 0.5;
+		double centerZ = pos.getZ() + 0.5;
+
+		if (chestType == ChestType.RIGHT) {
+			Direction direction = ChestBlock.getFacing(state);
+			centerX += direction.getOffsetX() * 0.5;
+			centerZ += direction.getOffsetZ() * 0.5;
+		}
+
+		world.playSound(
+				null,
+				centerX,
+				centerY,
+				centerZ,
+				soundEvent,
+				SoundCategory.BLOCKS,
+				0.5F,
+				world.random.nextFloat() * 0.1F + 0.9F
+		);
 	}
 
 	@Override
 	public boolean onSyncedBlockEvent(int type, int data) {
-		if (type == 1) {
-			this.lidAnimator.setOpen(data > 0);
+		if (type == VIEWER_COUNT_UPDATE_EVENT_TYPE) {
+			lidAnimator.setOpen(data > 0);
 			return true;
 		}
-		else {
-			return super.onSyncedBlockEvent(type, data);
-		}
+
+		return super.onSyncedBlockEvent(type, data);
 	}
 
 	@Override
 	public void onOpen(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.openContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState(),
-					user.getContainerInteractionRange()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.openContainer(
+				user.asLivingEntity(),
+				getWorld(),
+				getPos(),
+				getCachedState(),
+				user.getContainerInteractionRange()
+		);
 	}
 
 	@Override
 	public void onClose(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.closeContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.closeContainer(
+				user.asLivingEntity(),
+				getWorld(),
+				getPos(),
+				getCachedState()
+		);
 	}
 
 	@Override
 	public List<ContainerUser> getViewingUsers() {
-		return this.stateManager.getViewingUsers(this.getWorld(), this.getPos());
+		return stateManager.getViewingUsers(getWorld(), getPos());
 	}
 
 	@Override
 	protected DefaultedList<ItemStack> getHeldStacks() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
@@ -199,31 +199,22 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 
 	@Override
 	public float getAnimationProgress(float tickProgress) {
-		return this.lidAnimator.getProgress(tickProgress);
+		return lidAnimator.getProgress(tickProgress);
 	}
 
 	public static int getPlayersLookingInChestCount(BlockView world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
-		if (blockState.hasBlockEntity()) {
-			BlockEntity blockEntity = world.getBlockEntity(pos);
-			if (blockEntity instanceof ChestBlockEntity) {
-				return ((ChestBlockEntity) blockEntity).stateManager.getViewerCount();
-			}
+		if (blockState.hasBlockEntity() && world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+			return chest.stateManager.getViewerCount();
 		}
 
 		return 0;
 	}
 
-	/**
-	 * Создаёт копию inventory.
-	 *
-	 * @param from from
-	 * @param to to
-	 */
 	public static void copyInventory(ChestBlockEntity from, ChestBlockEntity to) {
-		DefaultedList<ItemStack> defaultedList = from.getHeldStacks();
+		DefaultedList<ItemStack> fromStacks = from.getHeldStacks();
 		from.setHeldStacks(to.getHeldStacks());
-		to.setHeldStacks(defaultedList);
+		to.setHeldStacks(fromStacks);
 	}
 
 	@Override
@@ -231,12 +222,9 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 		return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
 	}
 
-	/**
-	 * Обрабатывает событие scheduled tick.
-	 */
 	public void onScheduledTick() {
-		if (!this.removed) {
-			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());
+		if (!removed) {
+			stateManager.updateViewerCount(getWorld(), getPos(), getCachedState());
 		}
 	}
 
@@ -247,7 +235,6 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 			int oldViewerCount,
 			int newViewerCount
 	) {
-		Block block = state.getBlock();
-		world.addSyncedBlockEvent(pos, block, 1, newViewerCount);
+		world.addSyncedBlockEvent(pos, state.getBlock(), VIEWER_COUNT_UPDATE_EVENT_TYPE, newViewerCount);
 	}
 }

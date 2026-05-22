@@ -3,10 +3,11 @@ package net.minecraft.util.math;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-@FunctionalInterface
 /**
- * {@code RotationAxis}.
+ * Функциональный интерфейс для создания кватерниона вращения вокруг заданной оси.
+ * Предоставляет готовые константы для всех шести направлений осей координат.
  */
+@FunctionalInterface
 public interface RotationAxis {
 
 	RotationAxis NEGATIVE_X = rad -> new Quaternionf().rotationX(-rad);
@@ -28,6 +29,6 @@ public interface RotationAxis {
 	Quaternionf rotation(float rad);
 
 	default Quaternionf rotationDegrees(float deg) {
-		return this.rotation(deg * (float) (Math.PI / 180.0));
+		return rotation(deg * (float) (Math.PI / 180.0));
 	}
 }

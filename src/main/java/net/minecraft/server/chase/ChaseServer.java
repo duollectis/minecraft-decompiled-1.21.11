@@ -22,11 +22,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 /**
- * {@code ChaseServer}.
+ * Сервер системы Chase — принимает подключения от {@link ChaseClient} и периодически
+ * транслирует им текущую позицию первого игрока на сервере. Используется для синхронизации
+ * позиции между несколькими серверами в режиме разработки.
  */
 public class ChaseServer {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int BACKLOG = 50;
+
 	private final String ip;
 	private final int port;
 	private final PlayerManager playerManager;
@@ -42,147 +46,125 @@ public class ChaseServer {
 		this.interval = interval;
 	}
 
-	/**
-	 * Start.
-	 */
 	public void start() throws IOException {
-		if (this.socket != null && !this.socket.isClosed()) {
+		if (socket != null && !socket.isClosed()) {
 			LOGGER.warn("Remote control server was asked to start, but it is already running. Will ignore.");
+			return;
 		}
-		else {
-			this.running = true;
-			this.socket = new ServerSocket(this.port, 50, InetAddress.getByName(this.ip));
-			Thread thread = new Thread(this::runAcceptor, "chase-server-acceptor");
-			thread.setDaemon(true);
-			thread.start();
-			Thread thread2 = new Thread(this::runSender, "chase-server-sender");
-			thread2.setDaemon(true);
-			thread2.start();
-		}
+
+		running = true;
+		socket = new ServerSocket(port, BACKLOG, InetAddress.getByName(ip));
+
+		Thread acceptor = new Thread(this::runAcceptor, "chase-server-acceptor");
+		acceptor.setDaemon(true);
+		acceptor.start();
+
+		Thread sender = new Thread(this::runSender, "chase-server-sender");
+		sender.setDaemon(true);
+		sender.start();
+	}
+
+	public void stop() {
+		running = false;
+		IOUtils.closeQuietly(socket);
+		socket = null;
 	}
 
 	private void runSender() {
-		ChaseServer.TeleportPos teleportPos = null;
+		TeleportPos lastPos = null;
 
-		while (this.running) {
-			if (!this.clientSockets.isEmpty()) {
-				ChaseServer.TeleportPos teleportPos2 = this.getTeleportPosition();
-				if (teleportPos2 != null && !teleportPos2.equals(teleportPos)) {
-					teleportPos = teleportPos2;
-					byte[] bs = teleportPos2.getTeleportCommand().getBytes(StandardCharsets.US_ASCII);
+		while (running) {
+			if (!clientSockets.isEmpty()) {
+				TeleportPos currentPos = getTeleportPosition();
+				if (currentPos != null && !currentPos.equals(lastPos)) {
+					lastPos = currentPos;
+					byte[] payload = currentPos.getTeleportCommand().getBytes(StandardCharsets.US_ASCII);
 
-					for (Socket socket : this.clientSockets) {
-						if (!socket.isClosed()) {
-							Util.getIoWorkerExecutor().execute(() -> {
-								try {
-									OutputStream outputStream = socket.getOutputStream();
-									outputStream.write(bs);
-									outputStream.flush();
-								}
-								catch (IOException var3x) {
-									LOGGER.info(
-											"Remote control client socket got an IO exception and will be closed",
-											var3x
-									);
-									IOUtils.closeQuietly(socket);
-								}
-							});
+					for (Socket clientSocket : clientSockets) {
+						if (clientSocket.isClosed()) {
+							continue;
 						}
+
+						Util.getIoWorkerExecutor().execute(() -> {
+							try {
+								OutputStream out = clientSocket.getOutputStream();
+								out.write(payload);
+								out.flush();
+							} catch (IOException exception) {
+								LOGGER.info("Remote control client socket got an IO exception and will be closed", exception);
+								IOUtils.closeQuietly(clientSocket);
+							}
+						});
 					}
 				}
 
-				List<Socket> list = this.clientSockets.stream().filter(Socket::isClosed).collect(Collectors.toList());
-				this.clientSockets.removeAll(list);
+				List<Socket> closed = clientSockets.stream().filter(Socket::isClosed).collect(Collectors.toList());
+				clientSockets.removeAll(closed);
 			}
 
-			if (this.running) {
+			if (running) {
 				try {
-					Thread.sleep(this.interval);
-				}
-				catch (InterruptedException var6) {
+					Thread.sleep(interval);
+				} catch (InterruptedException ignored) {
 				}
 			}
 		}
-	}
-
-	/**
-	 * Stop.
-	 */
-	public void stop() {
-		this.running = false;
-		IOUtils.closeQuietly(this.socket);
-		this.socket = null;
 	}
 
 	private void runAcceptor() {
 		try {
-			while (this.running) {
-				if (this.socket != null) {
-					LOGGER.info("Remote control server is listening for connections on port {}", this.port);
-					Socket socket = this.socket.accept();
-					LOGGER.info("Remote control server received client connection on port {}", socket.getPort());
-					this.clientSockets.add(socket);
+			while (running) {
+				if (socket == null) {
+					continue;
 				}
+
+				LOGGER.info("Remote control server is listening for connections on port {}", port);
+				Socket clientSocket = socket.accept();
+				LOGGER.info("Remote control server received client connection on port {}", clientSocket.getPort());
+				clientSockets.add(clientSocket);
 			}
-		}
-		catch (ClosedByInterruptException var6) {
-			if (this.running) {
+		} catch (ClosedByInterruptException exception) {
+			if (running) {
 				LOGGER.info("Remote control server closed by interrupt");
 			}
-		}
-		catch (IOException var7) {
-			if (this.running) {
-				LOGGER.error("Remote control server closed because of an IO exception", var7);
+		} catch (IOException exception) {
+			if (running) {
+				LOGGER.error("Remote control server closed because of an IO exception", exception);
 			}
-		}
-		finally {
-			IOUtils.closeQuietly(this.socket);
+		} finally {
+			IOUtils.closeQuietly(socket);
 		}
 
 		LOGGER.info("Remote control server is now stopped");
-		this.running = false;
+		running = false;
 	}
 
-	private ChaseServer.@Nullable TeleportPos getTeleportPosition() {
-		List<ServerPlayerEntity> list = this.playerManager.getPlayerList();
-		if (list.isEmpty()) {
+	@SuppressWarnings("unchecked")
+	private @Nullable TeleportPos getTeleportPosition() {
+		List<ServerPlayerEntity> players = playerManager.getPlayerList();
+		if (players.isEmpty()) {
 			return null;
 		}
-		else {
-			ServerPlayerEntity serverPlayerEntity = list.get(0);
-			String
-					string =
-					(String) ChaseCommand.DIMENSIONS
-							.inverse()
-							.get(serverPlayerEntity.getEntityWorld().getRegistryKey());
-			return string == null
-			       ? null
-			       : new ChaseServer.TeleportPos(
-					       string,
-					       serverPlayerEntity.getX(),
-					       serverPlayerEntity.getY(),
-					       serverPlayerEntity.getZ(),
-					       serverPlayerEntity.getYaw(),
-					       serverPlayerEntity.getPitch()
-			       );
-		}
+
+		ServerPlayerEntity player = players.get(0);
+		String dimensionName = (String) ChaseCommand.DIMENSIONS.inverse().get(player.getEntityWorld().getRegistryKey());
+		return dimensionName == null
+				? null
+				: new TeleportPos(dimensionName, player.getX(), player.getY(), player.getZ(), player.getYaw(), player.getPitch());
 	}
 
-	/**
-	 * {@code TeleportPos}.
-	 */
 	record TeleportPos(String dimensionName, double x, double y, double z, float yaw, float pitch) {
 
 		String getTeleportCommand() {
 			return String.format(
 					Locale.ROOT,
 					"t %s %.2f %.2f %.2f %.2f %.2f\n",
-					this.dimensionName,
-					this.x,
-					this.y,
-					this.z,
-					this.yaw,
-					this.pitch
+					dimensionName,
+					x,
+					y,
+					z,
+					yaw,
+					pitch
 			);
 		}
 	}

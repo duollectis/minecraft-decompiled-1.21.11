@@ -23,48 +23,69 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code TranslatableTextContent}.
+ * Содержимое переводимого текстового компонента.
+ * Хранит ключ перевода, опциональный fallback и массив аргументов.
+ * Переводы кешируются и инвалидируются при смене активного языка.
+ *
+ * <p>Поддерживает формат {@code %s} и позиционные аргументы {@code %N$s}.
+ * Двойной знак процента {@code %%} заменяется на литеральный {@code %}.
  */
 public class TranslatableTextContent implements TextContent {
 
 	public static final Object[] EMPTY_ARGUMENTS = new Object[0];
-	private static final Codec<Object>
-			OBJECT_ARGUMENT_CODEC =
-			Codecs.BASIC_OBJECT.validate(TranslatableTextContent::validate);
-	private static final Codec<Object> ARGUMENT_CODEC = Codec.either(OBJECT_ARGUMENT_CODEC, TextCodecs.CODEC)
-	                                                         .xmap(
-			                                                         either -> either.map(object -> object,
-					                                                         text -> Objects.requireNonNullElse(
-							                                                         text.getLiteralString(),
-							                                                         text
-					                                                         )
-			                                                         ),
-			                                                         argument -> argument instanceof Text text
-			                                                                     ? Either.right(text)
-			                                                                     : Either.left(argument)
-	                                                         );
-	public static final MapCodec<TranslatableTextContent> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.STRING.fieldOf("translate").forGetter(content -> content.key),
-					                    Codec.STRING
-							                    .lenientOptionalFieldOf("fallback")
-							                    .forGetter(content -> Optional.ofNullable(content.fallback)),
-					                    ARGUMENT_CODEC.listOf().optionalFieldOf("with").forGetter(content -> toOptionalList(content.args))
-			                    )
-			                    .apply(instance, TranslatableTextContent::of)
-	);
+
+	/** Паттерн для разбора аргументов формата: {@code %s}, {@code %1$s}, {@code %%}. */
+	private static final Pattern ARG_FORMAT = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
+
 	private static final StringVisitable LITERAL_PERCENT_SIGN = StringVisitable.plain("%");
 	private static final StringVisitable NULL_ARGUMENT = StringVisitable.plain("null");
+
+	private static final Codec<Object> OBJECT_ARGUMENT_CODEC =
+		Codec.withAlternative(
+			Codec.withAlternative(
+				Codec.withAlternative(
+					Codec.STRING.xmap(s -> (Object) s, Object::toString),
+					Codec.BOOL.xmap(b -> (Object) b, o -> (Boolean) o)
+				),
+				Codec.withAlternative(
+					Codec.INT.xmap(i -> (Object) i, o -> (Integer) o),
+					Codec.FLOAT.xmap(f -> (Object) f, o -> (Float) o)
+				)
+			),
+			Codec.DOUBLE.xmap(d -> (Object) d, o -> (Double) o)
+		).validate(TranslatableTextContent::validateArgument);
+
+	private static final Codec<Object> ARGUMENT_CODEC = Codec.either(OBJECT_ARGUMENT_CODEC, TextCodecs.CODEC)
+		.xmap(
+			either -> either.map(
+				object -> object,
+				text -> Objects.requireNonNullElse(text.getLiteralString(), text)
+			),
+			argument -> argument instanceof Text text
+				? Either.right(text)
+				: Either.left(argument)
+		);
+
+	public static final MapCodec<TranslatableTextContent> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> instance.group(
+			Codec.STRING.fieldOf("translate").forGetter(content -> content.key),
+			Codec.STRING.lenientOptionalFieldOf("fallback")
+				.forGetter(content -> Optional.ofNullable(content.fallback)),
+			ARGUMENT_CODEC.listOf().optionalFieldOf("with")
+				.forGetter(content -> toOptionalList(content.args))
+		).apply(instance, TranslatableTextContent::of)
+	);
+
 	private final String key;
 	private final @Nullable String fallback;
 	private final Object[] args;
 	private @Nullable Language languageCache;
 	private List<StringVisitable> translations = ImmutableList.of();
-	private static final Pattern ARG_FORMAT = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 
-	private static DataResult<Object> validate(@Nullable Object object) {
-		return !isPrimitive(object) ? DataResult.error(() -> "This value needs to be parsed as component")
-		                            : DataResult.success(object);
+	private static DataResult<Object> validateArgument(@Nullable Object object) {
+		return isPrimitive(object)
+			? DataResult.success(object)
+			: DataResult.error(() -> "This value needs to be parsed as component");
 	}
 
 	public static boolean isPrimitive(@Nullable Object argument) {
@@ -94,97 +115,124 @@ public class TranslatableTextContent implements TextContent {
 		return CODEC;
 	}
 
+	/**
+	 * Обновляет кеш переводов, если активный язык изменился.
+	 * Разбирает строку перевода на части (литералы и аргументы) через {@link #forEachPart}.
+	 */
 	private void updateTranslations() {
 		Language language = Language.getInstance();
-		if (language != this.languageCache) {
-			this.languageCache = language;
-			String string = this.fallback != null ? language.get(this.key, this.fallback) : language.get(this.key);
 
-			try {
-				Builder<StringVisitable> builder = ImmutableList.builder();
-				this.forEachPart(string, builder::add);
-				this.translations = builder.build();
-			}
-			catch (TranslationException var4) {
-				this.translations = ImmutableList.of(StringVisitable.plain(string));
-			}
+		if (language == languageCache) {
+			return;
+		}
+
+		languageCache = language;
+		String translation = fallback != null ? language.get(key, fallback) : language.get(key);
+
+		try {
+			Builder<StringVisitable> builder = ImmutableList.builder();
+			forEachPart(translation, builder::add);
+			translations = builder.build();
+		} catch (TranslationException e) {
+			translations = ImmutableList.of(StringVisitable.plain(translation));
 		}
 	}
 
+	/**
+	 * Разбирает строку перевода на части: литеральные фрагменты и аргументы-подстановки.
+	 * Поддерживает {@code %s} (последовательный аргумент), {@code %N$s} (позиционный) и {@code %%} (литеральный %).
+	 *
+	 * @param translation   строка перевода с форматными спецификаторами
+	 * @param partsConsumer получатель разобранных частей
+	 * @throws TranslationException если формат строки некорректен
+	 */
 	private void forEachPart(String translation, Consumer<StringVisitable> partsConsumer) {
 		Matcher matcher = ARG_FORMAT.matcher(translation);
 
 		try {
-			int i = 0;
-			int j = 0;
+			int sequentialArgIndex = 0;
+			int searchStart = 0;
 
-			while (matcher.find(j)) {
-				int k = matcher.start();
-				int l = matcher.end();
-				if (k > j) {
-					String string = translation.substring(j, k);
-					if (string.indexOf(37) != -1) {
+			while (matcher.find(searchStart)) {
+				int matchStart = matcher.start();
+				int matchEnd = matcher.end();
+
+				if (matchStart > searchStart) {
+					String literal = translation.substring(searchStart, matchStart);
+
+					if (literal.indexOf('%') != -1) {
 						throw new IllegalArgumentException();
 					}
 
-					partsConsumer.accept(StringVisitable.plain(string));
+					partsConsumer.accept(StringVisitable.plain(literal));
 				}
 
-				String string = matcher.group(2);
-				String string2 = translation.substring(k, l);
-				if ("%".equals(string) && "%%".equals(string2)) {
+				String formatType = matcher.group(2);
+				String fullMatch = translation.substring(matchStart, matchEnd);
+
+				if ("%".equals(formatType) && "%%".equals(fullMatch)) {
 					partsConsumer.accept(LITERAL_PERCENT_SIGN);
-				}
-				else {
-					if (!"s".equals(string)) {
-						throw new TranslationException(this, "Unsupported format: '" + string2 + "'");
+				} else {
+					if (!"s".equals(formatType)) {
+						throw new TranslationException(this, "Unsupported format: '" + fullMatch + "'");
 					}
 
-					String string3 = matcher.group(1);
-					int m = string3 != null ? Integer.parseInt(string3) - 1 : i++;
-					partsConsumer.accept(this.getArg(m));
+					String positionGroup = matcher.group(1);
+					int argIndex = positionGroup != null
+						? Integer.parseInt(positionGroup) - 1
+						: sequentialArgIndex++;
+
+					partsConsumer.accept(getArg(argIndex));
 				}
 
-				j = l;
+				searchStart = matchEnd;
 			}
 
-			if (j < translation.length()) {
-				String string4 = translation.substring(j);
-				if (string4.indexOf(37) != -1) {
+			if (searchStart < translation.length()) {
+				String tail = translation.substring(searchStart);
+
+				if (tail.indexOf('%') != -1) {
 					throw new IllegalArgumentException();
 				}
 
-				partsConsumer.accept(StringVisitable.plain(string4));
+				partsConsumer.accept(StringVisitable.plain(tail));
 			}
-		}
-		catch (IllegalArgumentException var12) {
-			throw new TranslationException(this, var12);
+		} catch (IllegalArgumentException e) {
+			throw new TranslationException(this, e);
 		}
 	}
 
+	/**
+	 * Возвращает аргумент по индексу как {@link StringVisitable}.
+	 * Если аргумент является {@link Text} — возвращает его напрямую.
+	 * {@code null}-аргументы заменяются на строку {@code "null"}.
+	 *
+	 * @param index индекс аргумента (0-based)
+	 * @throws TranslationException если индекс выходит за пределы массива аргументов
+	 */
 	public final StringVisitable getArg(int index) {
-		if (index >= 0 && index < this.args.length) {
-			Object object = this.args[index];
-			if (object instanceof Text text) {
-				return text;
-			}
-			else {
-				return object == null ? NULL_ARGUMENT : StringVisitable.plain(object.toString());
-			}
-		}
-		else {
+		if (index < 0 || index >= args.length) {
 			throw new TranslationException(this, index);
 		}
+
+		Object arg = args[index];
+
+		if (arg instanceof Text text) {
+			return text;
+		}
+
+		return arg == null ? NULL_ARGUMENT : StringVisitable.plain(arg.toString());
 	}
 
 	@Override
 	public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-		this.updateTranslations();
+		updateTranslations();
 
-		for (StringVisitable stringVisitable : this.translations) {
-			Optional<T> optional = stringVisitable.visit(visitor, style);
-			if (optional.isPresent()) {
-				return optional;
+		for (StringVisitable part : translations) {
+			Optional<T> result = part.visit(visitor, style);
+
+			if (result.isPresent()) {
+				return result;
 			}
 		}
 
@@ -193,12 +241,13 @@ public class TranslatableTextContent implements TextContent {
 
 	@Override
 	public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-		this.updateTranslations();
+		updateTranslations();
 
-		for (StringVisitable stringVisitable : this.translations) {
-			Optional<T> optional = stringVisitable.visit(visitor);
-			if (optional.isPresent()) {
-				return optional;
+		for (StringVisitable part : translations) {
+			Optional<T> result = part.visit(visitor);
+
+			if (result.isPresent()) {
+				return result;
 			}
 		}
 
@@ -208,58 +257,55 @@ public class TranslatableTextContent implements TextContent {
 	@Override
 	public MutableText parse(@Nullable ServerCommandSource source, @Nullable Entity sender, int depth)
 	throws CommandSyntaxException {
-		Object[] objects = new Object[this.args.length];
+		Object[] parsedArgs = new Object[args.length];
 
-		for (int i = 0; i < objects.length; i++) {
-			Object object = this.args[i];
-			if (object instanceof Text text) {
-				objects[i] = Texts.parse(source, text, sender, depth);
-			}
-			else {
-				objects[i] = object;
-			}
+		for (int index = 0; index < parsedArgs.length; index++) {
+			Object arg = args[index];
+			parsedArgs[index] = arg instanceof Text text ? Texts.parse(source, text, sender, depth) : arg;
 		}
 
-		return MutableText.of(new TranslatableTextContent(this.key, this.fallback, objects));
+		return MutableText.of(new TranslatableTextContent(key, fallback, parsedArgs));
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o
-		       ? true
-		       : o instanceof TranslatableTextContent translatableTextContent
-		         && Objects.equals(this.key, translatableTextContent.key)
-		         && Objects.equals(this.fallback, translatableTextContent.fallback)
-		         && Arrays.equals(this.args, translatableTextContent.args);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof TranslatableTextContent other
+			&& Objects.equals(key, other.key)
+			&& Objects.equals(fallback, other.fallback)
+			&& Arrays.equals(args, other.args);
 	}
 
 	@Override
 	public int hashCode() {
-		int i = Objects.hashCode(this.key);
-		i = 31 * i + Objects.hashCode(this.fallback);
-		return 31 * i + Arrays.hashCode(this.args);
+		int hash = Objects.hashCode(key);
+		hash = 31 * hash + Objects.hashCode(fallback);
+		return 31 * hash + Arrays.hashCode(args);
 	}
 
 	@Override
 	public String toString() {
 		return "translation{key='"
-				+ this.key
-				+ "'"
-				+ (this.fallback != null ? ", fallback='" + this.fallback + "'" : "")
-				+ ", args="
-				+ Arrays.toString(this.args)
-				+ "}";
+			+ key
+			+ "'"
+			+ (fallback != null ? ", fallback='" + fallback + "'" : "")
+			+ ", args="
+			+ Arrays.toString(args)
+			+ "}";
 	}
 
 	public String getKey() {
-		return this.key;
+		return key;
 	}
 
 	public @Nullable String getFallback() {
-		return this.fallback;
+		return fallback;
 	}
 
 	public Object[] getArgs() {
-		return this.args;
+		return args;
 	}
 }

@@ -58,7 +58,7 @@ public class ChunkData {
 	public ChunkData(RegistryByteBuf buf, int x, int z) {
 		this.heightmap = HEIGHTMAPS_PACKET_CODEC.decode(buf);
 		int i = buf.readVarInt();
-		if (i > 2097152) {
+		if (i > MAX_SECTIONS_DATA_SIZE) {
 			throw new RuntimeException("Chunk Packet trying to allocate too much memory on read.");
 		}
 		else {

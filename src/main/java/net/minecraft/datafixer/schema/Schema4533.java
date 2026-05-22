@@ -9,12 +9,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4533}.
+ * Схема DataFixer версии 4533, регистрирующая блок-сущность {@code minecraft:shelf}
+ * (полка) с инвентарём {@code Items}.
  */
 public class Schema4533 extends IdentifierNormalizingSchema {
 
-	public Schema4533(int i, Schema schema) {
-		super(i, schema);
+	public Schema4533(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {

@@ -17,23 +17,26 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SocialInteractionsPlayerListWidget}.
+ * Виджет списка игроков для экрана социальных взаимодействий.
+ * Поддерживает фильтрацию по поиску, сортировку и обновление онлайн/оффлайн статуса.
  */
+@Environment(EnvType.CLIENT)
 public class SocialInteractionsPlayerListWidget extends ElementListWidget<SocialInteractionsPlayerListEntry> {
+
+	private static final int UUID_VERSION_NPC = 2;
 
 	private final SocialInteractionsScreen parent;
 	private final List<SocialInteractionsPlayerListEntry> players = Lists.newArrayList();
 	private @Nullable String currentSearch;
 
 	public SocialInteractionsPlayerListWidget(
-			SocialInteractionsScreen parent,
-			MinecraftClient client,
-			int width,
-			int height,
-			int y,
-			int itemHeight
+		SocialInteractionsScreen parent,
+		MinecraftClient client,
+		int width,
+		int height,
+		int y,
+		int itemHeight
 	) {
 		super(client, width, height, y, itemHeight);
 		this.parent = parent;
@@ -49,156 +52,150 @@ public class SocialInteractionsPlayerListWidget extends ElementListWidget<Social
 
 	@Override
 	protected void enableScissor(DrawContext context) {
-		context.enableScissor(this.getX(), this.getY() + 4, this.getRight(), this.getBottom());
+		context.enableScissor(getX(), getY() + 4, getRight(), getBottom());
 	}
 
 	/**
-	 * Update.
-	 *
-	 * @param uuids uuids
-	 * @param scrollAmount scroll amount
-	 * @param includeOffline include offline
+	 * Обновляет список игроков по набору UUID. Опционально включает оффлайн-игроков
+	 * из истории чата и помечает тех, кто отправлял сообщения.
 	 */
 	public void update(Collection<UUID> uuids, double scrollAmount, boolean includeOffline) {
-		Map<UUID, SocialInteractionsPlayerListEntry> map = new HashMap<>();
-		this.setPlayers(uuids, map);
+		Map<UUID, SocialInteractionsPlayerListEntry> entriesByUuid = new HashMap<>();
+		setPlayers(uuids, entriesByUuid);
 		if (includeOffline) {
-			this.collectOfflinePlayers(map);
+			collectOfflinePlayers(entriesByUuid);
 		}
 
-		this.markOfflineMembers(map, includeOffline);
-		this.refresh(map.values(), scrollAmount);
+		markOfflineMembers(entriesByUuid, includeOffline);
+		refresh(entriesByUuid.values(), scrollAmount);
 	}
 
-	private void setPlayers(Collection<UUID> playerUuids, Map<UUID, SocialInteractionsPlayerListEntry> entriesByUuids) {
-		ClientPlayNetworkHandler clientPlayNetworkHandler = this.client.player.networkHandler;
-
-		for (UUID uUID : playerUuids) {
-			PlayerListEntry playerListEntry = clientPlayNetworkHandler.getPlayerListEntry(uUID);
-			if (playerListEntry != null) {
-				SocialInteractionsPlayerListEntry
-						socialInteractionsPlayerListEntry =
-						this.createListEntry(uUID, playerListEntry);
-				entriesByUuids.put(uUID, socialInteractionsPlayerListEntry);
+	private void setPlayers(Collection<UUID> playerUuids, Map<UUID, SocialInteractionsPlayerListEntry> entriesByUuid) {
+		ClientPlayNetworkHandler networkHandler = client.player.networkHandler;
+		for (UUID uuid : playerUuids) {
+			PlayerListEntry playerEntry = networkHandler.getPlayerListEntry(uuid);
+			if (playerEntry == null) {
+				continue;
 			}
+
+			entriesByUuid.put(uuid, createListEntry(uuid, playerEntry));
 		}
 	}
 
-	private void collectOfflinePlayers(Map<UUID, SocialInteractionsPlayerListEntry> entriesByUuids) {
-		Map<UUID, PlayerListEntry> map = this.client.player.networkHandler.getSeenPlayers();
-
-		for (Map.Entry<UUID, PlayerListEntry> entry : map.entrySet()) {
-			entriesByUuids.computeIfAbsent(
-					entry.getKey(), uuid -> {
-						SocialInteractionsPlayerListEntry
-								socialInteractionsPlayerListEntry =
-								this.createListEntry(uuid, entry.getValue());
-						socialInteractionsPlayerListEntry.setOffline(true);
-						return socialInteractionsPlayerListEntry;
-					}
+	private void collectOfflinePlayers(Map<UUID, SocialInteractionsPlayerListEntry> entriesByUuid) {
+		Map<UUID, PlayerListEntry> seenPlayers = client.player.networkHandler.getSeenPlayers();
+		for (Map.Entry<UUID, PlayerListEntry> entry : seenPlayers.entrySet()) {
+			entriesByUuid.computeIfAbsent(
+				entry.getKey(), uuid -> {
+					SocialInteractionsPlayerListEntry listEntry = createListEntry(uuid, entry.getValue());
+					listEntry.setOffline(true);
+					return listEntry;
+				}
 			);
 		}
 	}
 
-	private SocialInteractionsPlayerListEntry createListEntry(UUID uuid, PlayerListEntry playerListEntry) {
+	private SocialInteractionsPlayerListEntry createListEntry(UUID uuid, PlayerListEntry playerEntry) {
 		return new SocialInteractionsPlayerListEntry(
-				this.client,
-				this.parent,
-				uuid,
-				playerListEntry.getProfile().name(),
-				playerListEntry::getSkinTextures,
-				playerListEntry.hasPublicKey()
+			client,
+			parent,
+			uuid,
+			playerEntry.getProfile().name(),
+			playerEntry::getSkinTextures,
+			playerEntry.hasPublicKey()
 		);
 	}
 
 	private void markOfflineMembers(Map<UUID, SocialInteractionsPlayerListEntry> entries, boolean includeOffline) {
-		Map<UUID, GameProfile> map = collectReportableProfiles(this.client.getAbuseReportContext().getChatLog());
-		map.forEach(
-				(uuid, profile) -> {
-					SocialInteractionsPlayerListEntry socialInteractionsPlayerListEntry;
-					if (includeOffline) {
-						socialInteractionsPlayerListEntry = entries.computeIfAbsent(
-								uuid,
-								uuidx -> {
-									SocialInteractionsPlayerListEntry
-											socialInteractionsPlayerListEntryx =
-											new SocialInteractionsPlayerListEntry(
-													this.client,
-													this.parent,
-													profile.id(),
-													profile.name(),
-													this.client.getSkinProvider().supplySkinTextures(profile, true),
-													true
-											);
-									socialInteractionsPlayerListEntryx.setOffline(true);
-									return socialInteractionsPlayerListEntryx;
-								}
-						);
-					}
-					else {
-						socialInteractionsPlayerListEntry = entries.get(uuid);
-						if (socialInteractionsPlayerListEntry == null) {
-							return;
+		Map<UUID, GameProfile> reportableProfiles = collectReportableProfiles(client.getAbuseReportContext().getChatLog());
+		reportableProfiles.forEach(
+			(uuid, profile) -> {
+				SocialInteractionsPlayerListEntry entry;
+				if (includeOffline) {
+					entry = entries.computeIfAbsent(
+						uuid,
+						key -> {
+							SocialInteractionsPlayerListEntry newEntry = new SocialInteractionsPlayerListEntry(
+								client,
+								parent,
+								profile.id(),
+								profile.name(),
+								client.getSkinProvider().supplySkinTextures(profile, true),
+								true
+							);
+							newEntry.setOffline(true);
+							return newEntry;
 						}
-					}
-
-					socialInteractionsPlayerListEntry.setSentMessage(true);
+					);
 				}
+				else {
+					entry = entries.get(uuid);
+					if (entry == null) {
+						return;
+					}
+				}
+
+				entry.setSentMessage(true);
+			}
 		);
 	}
 
 	private static Map<UUID, GameProfile> collectReportableProfiles(ChatLog log) {
-		Map<UUID, GameProfile> map = new Object2ObjectLinkedOpenHashMap();
-
-		for (int i = log.getMaxIndex(); i >= log.getMinIndex(); i--) {
-			if (log.get(i) instanceof ReceivedMessage.ChatMessage chatMessage && chatMessage.message().hasSignature()) {
-				map.put(chatMessage.getSenderUuid(), chatMessage.profile());
+		Map<UUID, GameProfile> profiles = new Object2ObjectLinkedOpenHashMap<>();
+		for (int index = log.getMaxIndex(); index >= log.getMinIndex(); index--) {
+			if (log.get(index) instanceof ReceivedMessage.ChatMessage chatMessage && chatMessage.message().hasSignature()) {
+				profiles.put(chatMessage.getSenderUuid(), chatMessage.profile());
 			}
 		}
 
-		return map;
+		return profiles;
 	}
 
 	private void sortPlayers() {
-		this.players.sort(Comparator.<SocialInteractionsPlayerListEntry, Integer>comparing(player -> {
-			if (this.client.uuidEquals(player.getUuid())) {
-				return 0;
-			}
-			else if (this.client.getAbuseReportContext().draftPlayerUuidEquals(player.getUuid())) {
-				return 1;
-			}
-			else if (player.getUuid().version() == 2) {
-				return 4;
-			}
-			else {
-				return player.hasSentMessage() ? 2 : 3;
-			}
-		}).thenComparing(player -> {
-			if (!player.getName().isBlank()) {
-				int i = player.getName().codePointAt(0);
-				if (i == 95 || i >= 97 && i <= 122 || i >= 65 && i <= 90 || i >= 48 && i <= 57) {
+		players.sort(
+			Comparator.<SocialInteractionsPlayerListEntry, Integer>comparing(player -> {
+				if (client.uuidEquals(player.getUuid())) {
 					return 0;
 				}
-			}
+				else if (client.getAbuseReportContext().draftPlayerUuidEquals(player.getUuid())) {
+					return 1;
+				}
+				else if (player.getUuid().version() == UUID_VERSION_NPC) {
+					return 4;
+				}
 
-			return 1;
-		}).thenComparing(SocialInteractionsPlayerListEntry::getName, String::compareToIgnoreCase));
+				return player.hasSentMessage() ? 2 : 3;
+			}).thenComparing(player -> {
+				if (!player.getName().isBlank()) {
+					int codePoint = player.getName().codePointAt(0);
+					if (codePoint == '_' || codePoint >= 'a' && codePoint <= 'z'
+						|| codePoint >= 'A' && codePoint <= 'Z'
+						|| codePoint >= '0' && codePoint <= '9') {
+						return 0;
+					}
+				}
+
+				return 1;
+			}).thenComparing(SocialInteractionsPlayerListEntry::getName, String::compareToIgnoreCase)
+		);
 	}
 
-	private void refresh(Collection<SocialInteractionsPlayerListEntry> players, double scrollAmount) {
-		this.players.clear();
-		this.players.addAll(players);
-		this.sortPlayers();
-		this.filterPlayers();
-		this.replaceEntries(this.players);
-		this.setScrollY(scrollAmount);
+	private void refresh(Collection<SocialInteractionsPlayerListEntry> newPlayers, double scrollAmount) {
+		players.clear();
+		players.addAll(newPlayers);
+		sortPlayers();
+		filterPlayers();
+		replaceEntries(players);
+		setScrollY(scrollAmount);
 	}
 
 	private void filterPlayers() {
-		if (this.currentSearch != null) {
-			this.players.removeIf(player -> !player.getName().toLowerCase(Locale.ROOT).contains(this.currentSearch));
-			this.replaceEntries(this.players);
+		if (currentSearch == null) {
+			return;
 		}
+
+		players.removeIf(player -> !player.getName().toLowerCase(Locale.ROOT).contains(currentSearch));
+		replaceEntries(players);
 	}
 
 	public void setCurrentSearch(String currentSearch) {
@@ -206,55 +203,46 @@ public class SocialInteractionsPlayerListWidget extends ElementListWidget<Social
 	}
 
 	public boolean isEmpty() {
-		return this.players.isEmpty();
+		return players.isEmpty();
 	}
 
 	public void setPlayerOnline(PlayerListEntry player, SocialInteractionsScreen.Tab tab) {
-		UUID uUID = player.getProfile().id();
-
-		for (SocialInteractionsPlayerListEntry socialInteractionsPlayerListEntry : this.players) {
-			if (socialInteractionsPlayerListEntry.getUuid().equals(uUID)) {
-				socialInteractionsPlayerListEntry.setOffline(false);
+		UUID uuid = player.getProfile().id();
+		for (SocialInteractionsPlayerListEntry entry : players) {
+			if (entry.getUuid().equals(uuid)) {
+				entry.setOffline(false);
 				return;
 			}
 		}
 
-		if ((tab == SocialInteractionsScreen.Tab.ALL || this.client.getSocialInteractionsManager().isPlayerMuted(uUID))
-				&& (Strings.isNullOrEmpty(this.currentSearch) || player
-				.getProfile()
-				.name()
-				.toLowerCase(Locale.ROOT)
-				.contains(this.currentSearch)
-		)) {
-			boolean bl = player.hasPublicKey();
-			SocialInteractionsPlayerListEntry
-					socialInteractionsPlayerListEntryx =
-					new SocialInteractionsPlayerListEntry(
-							this.client,
-							this.parent,
-							player.getProfile().id(),
-							player.getProfile().name(),
-							player::getSkinTextures,
-							bl
-					);
-			this.addEntry(socialInteractionsPlayerListEntryx);
-			this.players.add(socialInteractionsPlayerListEntryx);
+		boolean isRelevantTab = tab == SocialInteractionsScreen.Tab.ALL
+			|| client.getSocialInteractionsManager().isPlayerMuted(uuid);
+		boolean matchesSearch = Strings.isNullOrEmpty(currentSearch)
+			|| player.getProfile().name().toLowerCase(Locale.ROOT).contains(currentSearch);
+		if (isRelevantTab && matchesSearch) {
+			SocialInteractionsPlayerListEntry newEntry = new SocialInteractionsPlayerListEntry(
+				client,
+				parent,
+				player.getProfile().id(),
+				player.getProfile().name(),
+				player::getSkinTextures,
+				player.hasPublicKey()
+			);
+			addEntry(newEntry);
+			players.add(newEntry);
 		}
 	}
 
 	public void setPlayerOffline(UUID uuid) {
-		for (SocialInteractionsPlayerListEntry socialInteractionsPlayerListEntry : this.players) {
-			if (socialInteractionsPlayerListEntry.getUuid().equals(uuid)) {
-				socialInteractionsPlayerListEntry.setOffline(true);
+		for (SocialInteractionsPlayerListEntry entry : players) {
+			if (entry.getUuid().equals(uuid)) {
+				entry.setOffline(true);
 				return;
 			}
 		}
 	}
 
-	/**
-	 * Обновляет has draft report.
-	 */
 	public void updateHasDraftReport() {
-		this.players.forEach(player -> player.updateHasDraftReport(this.client.getAbuseReportContext()));
+		players.forEach(player -> player.updateHasDraftReport(client.getAbuseReportContext()));
 	}
 }

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code ArmadilloBrain}.
+ * Мозг броненосца: регистрирует сенсоры и задачи поведения.
  */
 public class ArmadilloBrain {
 
@@ -141,14 +141,14 @@ public class ArmadilloBrain {
 										ImmutableList.of(
 												Pair.of(
 														new TemptTask(
-																armadillo -> 1.25F,
+																armadillo -> TEMPT_SPEED,
 																armadillo -> armadillo.isBaby() ? 1.0 : 2.0
 														), 1
 												),
 												Pair.of(
 														WalkTowardsEntityTask.createNearestVisibleAdult(
 																WALK_TOWARDS_CLOSEST_ADULT_RANGE,
-																1.25F
+																TEMPT_SPEED
 														), 1
 												)
 										)
@@ -191,8 +191,8 @@ public class ArmadilloBrain {
 	}
 
 	/**
-	 * {@code RollUpTask}.
-	 */
+ * Задача броненосца: сворачивается в шар при обнаружении угрозы.
+ */
 	public static class RollUpTask extends MultiTickTask<ArmadilloEntity> {
 
 		static final int RUN_TIME_IN_TICKS = 5 * TimeHelper.MINUTE_IN_SECONDS * 20;
@@ -227,7 +227,7 @@ public class ArmadilloBrain {
 			else {
 				ArmadilloEntity.State state = armadilloEntity.getState();
 				long m = armadilloEntity.getBrain().getMemoryExpiry(MemoryModuleType.DANGER_DETECTED_RECENTLY);
-				boolean bl = m > 75L;
+				boolean bl = m > MAX_PEEK_TICKS;
 				if (bl != this.considerPeeking) {
 					this.ticksUntilPeek = this.calculateTicksUntilPeek(armadilloEntity);
 				}
@@ -306,8 +306,8 @@ public class ArmadilloBrain {
 	}
 
 	/**
-	 * {@code UnrollAndFleeTask}.
-	 */
+ * Задача броненосца: разворачивается, когда угроза исчезла.
+ */
 	public static class UnrollAndFleeTask extends FleeTask<ArmadilloEntity> {
 
 		public UnrollAndFleeTask(float f) {

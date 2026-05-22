@@ -21,9 +21,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code BoatItem}.
+ * Предмет лодки. При использовании выполняет рейкаст по жидкостям и
+ * спавнит соответствующую сущность лодки в точке попадания.
  */
 public class BoatItem extends Item {
+
+	private static final double ENTITY_SEARCH_RANGE = 5.0;
 
 	private final EntityType<? extends AbstractBoatEntity> boatEntityType;
 
@@ -34,75 +37,77 @@ public class BoatItem extends Item {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
 		HitResult hitResult = raycast(world, user, RaycastContext.FluidHandling.ANY);
+
 		if (hitResult.getType() == HitResult.Type.MISS) {
 			return ActionResult.PASS;
 		}
-		else {
-			Vec3d vec3d = user.getRotationVec(1.0F);
-			double d = 5.0;
-			List<Entity>
-					list =
-					world.getOtherEntities(
-							user,
-							user.getBoundingBox().stretch(vec3d.multiply(5.0)).expand(1.0),
-							EntityPredicates.CAN_HIT
-					);
-			if (!list.isEmpty()) {
-				Vec3d vec3d2 = user.getEyePos();
 
-				for (Entity entity : list) {
-					Box box = entity.getBoundingBox().expand(entity.getTargetingMargin());
-					if (box.contains(vec3d2)) {
-						return ActionResult.PASS;
-					}
-				}
-			}
+		Vec3d lookVec = user.getRotationVec(1.0F);
+		List<Entity> nearbyEntities = world.getOtherEntities(
+			user,
+			user.getBoundingBox().stretch(lookVec.multiply(ENTITY_SEARCH_RANGE)).expand(1.0),
+			EntityPredicates.CAN_HIT
+		);
 
-			if (hitResult.getType() == HitResult.Type.BLOCK) {
-				AbstractBoatEntity abstractBoatEntity = this.createEntity(world, hitResult, itemStack, user);
-				if (abstractBoatEntity == null) {
-					return ActionResult.FAIL;
-				}
-				else {
-					abstractBoatEntity.setYaw(user.getYaw());
-					if (!world.isSpaceEmpty(abstractBoatEntity, abstractBoatEntity.getBoundingBox())) {
-						return ActionResult.FAIL;
-					}
-					else {
-						if (!world.isClient()) {
-							world.spawnEntity(abstractBoatEntity);
-							world.emitGameEvent(user, GameEvent.ENTITY_PLACE, hitResult.getPos());
-							itemStack.decrementUnlessCreative(1, user);
-						}
+		if (!nearbyEntities.isEmpty()) {
+			Vec3d eyePos = user.getEyePos();
 
-						user.incrementStat(Stats.USED.getOrCreateStat(this));
-						return ActionResult.SUCCESS;
-					}
+			for (Entity entity : nearbyEntities) {
+				Box box = entity.getBoundingBox().expand(entity.getTargetingMargin());
+
+				if (box.contains(eyePos)) {
+					return ActionResult.PASS;
 				}
-			}
-			else {
-				return ActionResult.PASS;
 			}
 		}
+
+		if (hitResult.getType() != HitResult.Type.BLOCK) {
+			return ActionResult.PASS;
+		}
+
+		AbstractBoatEntity boat = createEntity(world, hitResult, stack, user);
+
+		if (boat == null) {
+			return ActionResult.FAIL;
+		}
+
+		boat.setYaw(user.getYaw());
+
+		if (!world.isSpaceEmpty(boat, boat.getBoundingBox())) {
+			return ActionResult.FAIL;
+		}
+
+		if (!world.isClient()) {
+			world.spawnEntity(boat);
+			world.emitGameEvent(user, GameEvent.ENTITY_PLACE, hitResult.getPos());
+			stack.decrementUnlessCreative(1, user);
+		}
+
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		return ActionResult.SUCCESS;
 	}
 
 	private @Nullable AbstractBoatEntity createEntity(
-			World world,
-			HitResult hitResult,
-			ItemStack stack,
-			PlayerEntity player
+		World world,
+		HitResult hitResult,
+		ItemStack stack,
+		PlayerEntity player
 	) {
-		AbstractBoatEntity abstractBoatEntity = this.boatEntityType.create(world, SpawnReason.SPAWN_ITEM_USE);
-		if (abstractBoatEntity != null) {
-			Vec3d vec3d = hitResult.getPos();
-			abstractBoatEntity.initPosition(vec3d.x, vec3d.y, vec3d.z);
-			if (world instanceof ServerWorld serverWorld) {
-				EntityType.<AbstractBoatEntity>copier(serverWorld, stack, player).accept(abstractBoatEntity);
-			}
+		AbstractBoatEntity boat = boatEntityType.create(world, SpawnReason.SPAWN_ITEM_USE);
+
+		if (boat == null) {
+			return null;
 		}
 
-		return abstractBoatEntity;
+		Vec3d spawnPos = hitResult.getPos();
+		boat.initPosition(spawnPos.x, spawnPos.y, spawnPos.z);
+
+		if (world instanceof ServerWorld serverWorld) {
+			EntityType.<AbstractBoatEntity>copier(serverWorld, stack, player).accept(boat);
+		}
+
+		return boat;
 	}
 }

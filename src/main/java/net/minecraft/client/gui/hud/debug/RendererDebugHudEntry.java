@@ -6,10 +6,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RendererDebugHudEntry}.
+ * Запись отладочного HUD для визуальных отладочных режимов рендерера
+ * (хитбоксы, границы чанков, 3D-прицел и т.п.).
+ * Сама по себе не добавляет строк — управляет только видимостью.
  */
+@Environment(EnvType.CLIENT)
 public class RendererDebugHudEntry implements DebugHudEntry {
 
 	private final boolean ignoreReducedDebugInfo;
@@ -24,16 +26,16 @@ public class RendererDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
 	}
 
 	@Override
 	public boolean canShow(boolean reducedDebugInfo) {
-		return this.ignoreReducedDebugInfo || !reducedDebugInfo;
+		return ignoreReducedDebugInfo || !reducedDebugInfo;
 	}
 
 	@Override

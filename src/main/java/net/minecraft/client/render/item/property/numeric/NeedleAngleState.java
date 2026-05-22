@@ -8,10 +8,11 @@ import net.minecraft.util.HeldItemContext;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NeedleAngleState}.
+ * Базовый класс для числовых свойств, управляющих углом стрелки (компас, часы).
+ * Поддерживает два режима: плавное покачивание ({@code wobble=true}) и мгновенный переход.
  */
+@Environment(EnvType.CLIENT)
 public abstract class NeedleAngleState {
 
 	private final boolean wobble;
@@ -28,13 +29,12 @@ public abstract class NeedleAngleState {
 		if (pos == null) {
 			return 0.0F;
 		}
-		else {
-			if (world == null && pos.getEntityWorld() instanceof ClientWorld clientWorld) {
-				world = clientWorld;
-			}
 
-			return world == null ? 0.0F : this.getAngle(stack, world, seed, pos);
+		if (world == null && pos.getEntityWorld() instanceof ClientWorld clientWorld) {
+			world = clientWorld;
 		}
+
+		return world == null ? 0.0F : getAngle(stack, world, seed, pos);
 	}
 
 	protected abstract float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context);
@@ -95,10 +95,10 @@ public abstract class NeedleAngleState {
 		};
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Angler}.
+	 * Стратегия обновления угла стрелки. Реализации определяют плавность перехода.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Angler {
 
 		float getAngle();

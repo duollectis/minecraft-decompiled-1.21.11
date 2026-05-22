@@ -17,12 +17,17 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EyeOfEnderEntity}.
+ * Сущность «Глаза Края», выпущенного игроком. Летит к ближайшей крепости,
+ * ограничивая горизонтальное расстояние полёта до {@code MAX_HORIZONTAL_TRAVEL_DISTANCE} блоков.
+ * После 80 тиков либо выпадает предметом (с вероятностью 4/5), либо разрушается с эффектом.
  */
 public class EyeOfEnderEntity extends Entity implements FlyingItemEntity {
 
 	private static final float MIN_RENDER_DISTANCE_SQUARED = 12.25F;
 	private static final float MAX_HORIZONTAL_TRAVEL_DISTANCE = 12.0F;
+	private static final int LIFESPAN_TICKS = 80;
+	private static final int SHATTER_WORLD_EVENT = 2003;
+	private static final int BUBBLE_PARTICLE_COUNT = 4;
 	private static final TrackedData<ItemStack>
 			ITEM =
 			DataTracker.registerData(EyeOfEnderEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
@@ -40,148 +45,127 @@ public class EyeOfEnderEntity extends Entity implements FlyingItemEntity {
 	}
 
 	public void setItem(ItemStack stack) {
-		if (stack.isEmpty()) {
-			this.getDataTracker().set(ITEM, this.getItem());
-		}
-		else {
-			this.getDataTracker().set(ITEM, stack.copyWithCount(1));
-		}
+		getDataTracker().set(ITEM, stack.isEmpty() ? getItem() : stack.copyWithCount(1));
 	}
 
 	@Override
 	public ItemStack getStack() {
-		return this.getDataTracker().get(ITEM);
+		return getDataTracker().get(ITEM);
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
-		builder.add(ITEM, this.getItem());
+		builder.add(ITEM, getItem());
 	}
 
 	@Override
 	public boolean shouldRender(double distance) {
-		if (this.age < 2 && distance < 12.25) {
+		if (age < 2 && distance < MIN_RENDER_DISTANCE_SQUARED) {
 			return false;
 		}
-		else {
-			double d = this.getBoundingBox().getAverageSideLength() * 4.0;
-			if (Double.isNaN(d)) {
-				d = 4.0;
-			}
 
-			d *= 64.0;
-			return distance < d * d;
+		double renderRange = getBoundingBox().getAverageSideLength() * 4.0;
+		if (Double.isNaN(renderRange)) {
+			renderRange = 4.0;
 		}
+
+		renderRange *= 64.0;
+		return distance < renderRange * renderRange;
 	}
 
 	/**
-	 * Инициализирует target pos.
+	 * Задаёт целевую позицию полёта. Если цель дальше {@code MAX_HORIZONTAL_TRAVEL_DISTANCE},
+	 * обрезает вектор до этого расстояния, добавляя 8 блоков по Y для дугообразной траектории.
 	 *
-	 * @param pos pos
+	 * @param pos целевая позиция (обычно координаты крепости)
 	 */
 	public void initTargetPos(Vec3d pos) {
-		Vec3d vec3d = pos.subtract(this.getEntityPos());
-		double d = vec3d.horizontalLength();
-		if (d > 12.0) {
-			this.targetPos = this.getEntityPos().add(vec3d.x / d * 12.0, 8.0, vec3d.z / d * 12.0);
-		}
-		else {
-			this.targetPos = pos;
-		}
+		Vec3d direction = pos.subtract(getEntityPos());
+		double horizontalDist = direction.horizontalLength();
+		targetPos = horizontalDist > MAX_HORIZONTAL_TRAVEL_DISTANCE
+			? getEntityPos().add(direction.x * (MAX_HORIZONTAL_TRAVEL_DISTANCE / horizontalDist), 8.0, direction.z * (MAX_HORIZONTAL_TRAVEL_DISTANCE / horizontalDist))
+			: pos;
 
-		this.lifespan = 0;
-		this.dropsItem = this.random.nextInt(5) > 0;
+		lifespan = 0;
+		dropsItem = random.nextInt(5) > 0;
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		Vec3d vec3d = this.getEntityPos().add(this.getVelocity());
-		if (!this.getEntityWorld().isClient() && this.targetPos != null) {
-			this.setVelocity(updateVelocity(this.getVelocity(), vec3d, this.targetPos));
-		}
+		Vec3d nextPos = getEntityPos().add(getVelocity());
 
-		if (this.getEntityWorld().isClient()) {
-			Vec3d vec3d2 = vec3d.subtract(this.getVelocity().multiply(0.25));
-			this.addParticles(vec3d2, this.getVelocity());
+		if (getEntityWorld().isClient()) {
+			Vec3d trailPos = nextPos.subtract(getVelocity().multiply(0.25));
+			addParticles(trailPos, getVelocity());
 		}
+		else {
+			if (targetPos != null) {
+				setVelocity(updateVelocity(getVelocity(), nextPos, targetPos));
+			}
 
-		this.setPosition(vec3d);
-		if (!this.getEntityWorld().isClient()) {
-			this.lifespan++;
-			if (this.lifespan > 80 && !this.getEntityWorld().isClient()) {
-				this.playSound(SoundEvents.ENTITY_ENDER_EYE_DEATH, 1.0F, 1.0F);
-				this.discard();
-				if (this.dropsItem) {
-					this
-							.getEntityWorld()
-							.spawnEntity(new ItemEntity(
-									this.getEntityWorld(),
-									this.getX(),
-									this.getY(),
-									this.getZ(),
-									this.getStack()
-							));
+			lifespan++;
+			if (lifespan > LIFESPAN_TICKS) {
+				playSound(SoundEvents.ENTITY_ENDER_EYE_DEATH, 1.0F, 1.0F);
+				discard();
+				if (dropsItem) {
+					getEntityWorld().spawnEntity(
+						new ItemEntity(getEntityWorld(), getX(), getY(), getZ(), getStack())
+					);
 				}
 				else {
-					this.getEntityWorld().syncWorldEvent(2003, this.getBlockPos(), 0);
+					getEntityWorld().syncWorldEvent(SHATTER_WORLD_EVENT, getBlockPos(), 0);
 				}
 			}
 		}
+
+		setPosition(nextPos);
 	}
 
 	private void addParticles(Vec3d pos, Vec3d velocity) {
-		if (this.isTouchingWater()) {
-			for (int i = 0; i < 4; i++) {
-				this
-						.getEntityWorld()
-						.addParticleClient(
-								ParticleTypes.BUBBLE,
-								pos.x,
-								pos.y,
-								pos.z,
-								velocity.x,
-								velocity.y,
-								velocity.z
-						);
+		if (isTouchingWater()) {
+			for (int bubble = 0; bubble < BUBBLE_PARTICLE_COUNT; bubble++) {
+				getEntityWorld().addParticleClient(
+					ParticleTypes.BUBBLE, pos.x, pos.y, pos.z, velocity.x, velocity.y, velocity.z
+				);
 			}
 		}
 		else {
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.PORTAL,
-					    pos.x + this.random.nextDouble() * 0.6 - 0.3,
-					    pos.y - 0.5,
-					    pos.z + this.random.nextDouble() * 0.6 - 0.3,
-					    velocity.x,
-					    velocity.y,
-					    velocity.z
-			    );
+			getEntityWorld().addParticleClient(
+				ParticleTypes.PORTAL,
+				pos.x + random.nextDouble() * 0.6 - 0.3,
+				pos.y - 0.5,
+				pos.z + random.nextDouble() * 0.6 - 0.3,
+				velocity.x,
+				velocity.y,
+				velocity.z
+			);
 		}
 	}
 
 	private static Vec3d updateVelocity(Vec3d velocity, Vec3d currentPos, Vec3d targetPos) {
-		Vec3d vec3d = new Vec3d(targetPos.x - currentPos.x, 0.0, targetPos.z - currentPos.z);
-		double d = vec3d.length();
-		double e = MathHelper.lerp(0.0025, velocity.horizontalLength(), d);
-		double f = velocity.y;
-		if (d < 1.0) {
-			e *= 0.8;
-			f *= 0.8;
+		Vec3d horizontalDelta = new Vec3d(targetPos.x - currentPos.x, 0.0, targetPos.z - currentPos.z);
+		double horizontalDist = horizontalDelta.length();
+		double horizontalSpeed = MathHelper.lerp(0.0025, velocity.horizontalLength(), horizontalDist);
+		double verticalSpeed = velocity.y;
+		if (horizontalDist < 1.0) {
+			horizontalSpeed *= 0.8;
+			verticalSpeed *= 0.8;
 		}
 
-		double g = currentPos.y - velocity.y < targetPos.y ? 1.0 : -1.0;
-		return vec3d.multiply(e / d).add(0.0, f + (g - f) * 0.015, 0.0);
+		double verticalDirection = currentPos.y - velocity.y < targetPos.y ? 1.0 : -1.0;
+		return horizontalDelta.multiply(horizontalSpeed / horizontalDist)
+		                      .add(0.0, verticalSpeed + (verticalDirection - verticalSpeed) * 0.015, 0.0);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.put("Item", ItemStack.CODEC, this.getStack());
+		view.put("Item", ItemStack.CODEC, getStack());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		this.setItem(view.<ItemStack>read("Item", ItemStack.CODEC).orElse(this.getItem()));
+		setItem(view.<ItemStack>read("Item", ItemStack.CODEC).orElse(getItem()));
 	}
 
 	private ItemStack getItem() {

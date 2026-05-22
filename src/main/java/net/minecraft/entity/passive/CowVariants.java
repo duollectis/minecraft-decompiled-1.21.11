@@ -13,7 +13,8 @@ import net.minecraft.util.ModelAndTexture;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code CowVariants}.
+ * Реестр климатических вариантов коровы.
+ * Умеренный вариант — запасной (fallback), тёплый и холодный — биомно-зависимые.
  */
 public class CowVariants {
 
@@ -22,14 +23,10 @@ public class CowVariants {
 	public static final RegistryKey<CowVariant> COLD = of(AnimalTemperature.COLD);
 	public static final RegistryKey<CowVariant> DEFAULT = TEMPERATE;
 
-	private static RegistryKey<CowVariant> of(Identifier id) {
-		return RegistryKey.of(RegistryKeys.COW_VARIANT, id);
-	}
-
 	/**
-	 * Bootstrap.
+	 * Регистрирует все три климатических варианта коровы в реестре.
 	 *
-	 * @param registry registry
+	 * @param registry реестр вариантов коровы
 	 */
 	public static void bootstrap(Registerable<CowVariant> registry) {
 		register(
@@ -50,13 +47,13 @@ public class CowVariants {
 			String textureName,
 			TagKey<Biome> biomes
 	) {
-		RegistryEntryList<Biome> registryEntryList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
+		RegistryEntryList<Biome> biomeList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
 		register(
 				registry,
 				key,
 				model,
 				textureName,
-				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(registryEntryList), 1)
+				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(biomeList), 1)
 		);
 	}
 
@@ -67,7 +64,11 @@ public class CowVariants {
 			String textureName,
 			SpawnConditionSelectors spawnConditions
 	) {
-		Identifier identifier = Identifier.ofVanilla("entity/cow/" + textureName);
-		registry.register(key, new CowVariant(new ModelAndTexture<>(model, identifier), spawnConditions));
+		Identifier texture = Identifier.ofVanilla("entity/cow/" + textureName);
+		registry.register(key, new CowVariant(new ModelAndTexture<>(model, texture), spawnConditions));
+	}
+
+	private static RegistryKey<CowVariant> of(Identifier id) {
+		return RegistryKey.of(RegistryKeys.COW_VARIANT, id);
 	}
 }

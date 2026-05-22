@@ -10,10 +10,11 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WorldIcon}.
+ * Управляет текстурой иконки мира или сервера.
+ * Загружает изображение 64×64 в GPU-текстуру и освобождает её при закрытии.
  */
+@Environment(EnvType.CLIENT)
 public class WorldIcon implements AutoCloseable {
 
 	private static final Identifier UNKNOWN_SERVER_ID = Identifier.ofVanilla("textures/misc/unknown_server.png");
@@ -29,14 +30,6 @@ public class WorldIcon implements AutoCloseable {
 		this.id = id;
 	}
 
-	/**
-	 * For world.
-	 *
-	 * @param textureManager texture manager
-	 * @param worldName world name
-	 *
-	 * @return WorldIcon — результат операции
-	 */
 	public static WorldIcon forWorld(TextureManager textureManager, String worldName) {
 		return new WorldIcon(
 				textureManager,
@@ -47,14 +40,6 @@ public class WorldIcon implements AutoCloseable {
 		);
 	}
 
-	/**
-	 * For server.
-	 *
-	 * @param textureManager texture manager
-	 * @param serverAddress server address
-	 *
-	 * @return WorldIcon — результат операции
-	 */
 	public static WorldIcon forServer(TextureManager textureManager, String serverAddress) {
 		return new WorldIcon(
 				textureManager,
@@ -62,66 +47,57 @@ public class WorldIcon implements AutoCloseable {
 		);
 	}
 
-	/**
-	 * Load.
-	 *
-	 * @param image image
-	 */
 	public void load(NativeImage image) {
-		if (image.getWidth() == 64 && image.getHeight() == 64) {
-			try {
-				this.assertOpen();
-				if (this.texture == null) {
-					this.texture = new NativeImageBackedTexture(() -> "Favicon " + this.id, image);
-				}
-				else {
-					this.texture.setImage(image);
-					this.texture.upload();
-				}
-
-				this.textureManager.registerTexture(this.id, this.texture);
-			}
-			catch (Throwable var3) {
-				image.close();
-				this.destroy();
-				throw var3;
-			}
-		}
-		else {
+		if (image.getWidth() != ICON_WIDTH || image.getHeight() != ICON_HEIGHT) {
 			image.close();
 			throw new IllegalArgumentException(
 					"Icon must be 64x64, but was " + image.getWidth() + "x" + image.getHeight());
 		}
-	}
 
-	/**
-	 * Destroy.
-	 */
-	public void destroy() {
-		this.assertOpen();
-		if (this.texture != null) {
-			this.textureManager.destroyTexture(this.id);
-			this.texture.close();
-			this.texture = null;
+		try {
+			assertOpen();
+			if (texture == null) {
+				texture = new NativeImageBackedTexture(() -> "Favicon " + id, image);
+			} else {
+				texture.setImage(image);
+				texture.upload();
+			}
+
+			textureManager.registerTexture(id, texture);
+		} catch (Throwable error) {
+			image.close();
+			destroy();
+			throw error;
 		}
 	}
 
+	public void destroy() {
+		assertOpen();
+		if (texture == null) {
+			return;
+		}
+
+		textureManager.destroyTexture(id);
+		texture.close();
+		texture = null;
+	}
+
 	public Identifier getTextureId() {
-		return this.texture != null ? this.id : UNKNOWN_SERVER_ID;
+		return texture != null ? id : UNKNOWN_SERVER_ID;
 	}
 
 	@Override
 	public void close() {
-		this.destroy();
-		this.closed = true;
+		destroy();
+		closed = true;
 	}
 
 	public boolean isClosed() {
-		return this.closed;
+		return closed;
 	}
 
 	private void assertOpen() {
-		if (this.closed) {
+		if (closed) {
 			throw new IllegalStateException("Icon already closed");
 		}
 	}

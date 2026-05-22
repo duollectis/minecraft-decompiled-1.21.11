@@ -13,7 +13,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * {@code Parser}.
+ * Интерфейс парсера, преобразующего строку в типизированный результат.
+ * Поддерживает автодополнение и декодирование через {@link Codec}.
  */
 public interface Parser<T> {
 
@@ -22,10 +23,10 @@ public interface Parser<T> {
 	CompletableFuture<Suggestions> listSuggestions(SuggestionsBuilder builder);
 
 	default <S> Parser<S> map(Function<T, S> mapper) {
-		return new Parser<S>() {
+		return new Parser<>() {
 			@Override
 			public S parse(StringReader reader) throws CommandSyntaxException {
-				return mapper.apply((T) Parser.this.parse(reader));
+				return mapper.apply(Parser.this.parse(reader));
 			}
 
 			@Override
@@ -35,20 +36,20 @@ public interface Parser<T> {
 		};
 	}
 
-	default <T, O> Parser<T> withDecoding(
+	default <R, O> Parser<R> withDecoding(
 			DynamicOps<O> ops,
 			Parser<O> encodedParser,
-			Codec<T> codec,
+			Codec<R> codec,
 			DynamicCommandExceptionType invalidDataError
 	) {
-		return new Parser<T>() {
+		return new Parser<>() {
 			@Override
-			public T parse(StringReader reader) throws CommandSyntaxException {
-				int i = reader.getCursor();
-				O object = encodedParser.parse(reader);
-				DataResult<T> dataResult = codec.parse(ops, object);
-				return (T) dataResult.getOrThrow(error -> {
-					reader.setCursor(i);
+			public R parse(StringReader reader) throws CommandSyntaxException {
+				int cursor = reader.getCursor();
+				O encoded = encodedParser.parse(reader);
+				DataResult<R> dataResult = codec.parse(ops, encoded);
+				return dataResult.getOrThrow(error -> {
+					reader.setCursor(cursor);
 					return invalidDataError.createWithContext(reader, error);
 				});
 			}

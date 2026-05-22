@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code BanListCommand}.
+ * Команда {@code /banlist}: вывод списка заблокированных игроков и IP (только dedicated).
  */
 public class BanListCommand {
 

@@ -1,7 +1,8 @@
 package net.minecraft.entity.ai.pathing;
 
 /**
- * {@code PathNodeType}.
+ * Тип узла пути с базовым штрафом прохождения.
+ * Отрицательный штраф означает непроходимость блока.
  */
 public enum PathNodeType {
 	BLOCKED(-1.0F),
@@ -33,11 +34,11 @@ public enum PathNodeType {
 
 	private final float defaultPenalty;
 
-	private PathNodeType(final float defaultPenalty) {
+	PathNodeType(float defaultPenalty) {
 		this.defaultPenalty = defaultPenalty;
 	}
 
 	public float getDefaultPenalty() {
-		return this.defaultPenalty;
+		return defaultPenalty;
 	}
 }

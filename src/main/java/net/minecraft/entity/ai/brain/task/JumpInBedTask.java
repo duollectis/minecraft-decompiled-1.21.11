@@ -13,14 +13,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code JumpInBedTask}.
+ * Задача мозга детёныша моба, заставляющая его прыгать на ближайшей кровати.
+ * Прыгает случайное количество раз в диапазоне [{@code MIN_JUMPS}, {@code MIN_JUMPS + JUMP_COUNT_VARIANCE}).
  */
 public class JumpInBedTask extends MultiTickTask<MobEntity> {
 
 	private static final int MAX_TICKS_OUT_OF_BED = 100;
-	private static final int MIN_JUMP_TICKS = 3;
-	private static final int JUMP_TIME_VARIANCE = 6;
-	private static final int TICKS_TO_NEXT_JUMP = 5;
+	private static final int MIN_JUMPS = 3;
+	private static final int JUMP_COUNT_VARIANCE = 4;
+	private static final int TICKS_BETWEEN_JUMPS = 5;
+
 	private final float walkSpeed;
 	private @Nullable BlockPos bedPos;
 	private int ticksOutOfBedUntilStopped;
@@ -37,66 +39,39 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		this.walkSpeed = walkSpeed;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
-		return mobEntity.isBaby() && this.shouldStartJumping(serverWorld, mobEntity);
+	@Override
+	protected boolean shouldRun(ServerWorld world, MobEntity entity) {
+		return entity.isBaby() && shouldStartJumping(world, entity);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		super.run(serverWorld, mobEntity, l);
-		this.getNearestBed(mobEntity).ifPresent(pos -> {
-			this.bedPos = pos;
-			this.ticksOutOfBedUntilStopped = 100;
-			this.jumpsRemaining = 3 + serverWorld.random.nextInt(4);
-			this.ticksToNextJump = 0;
-			this.setWalkTarget(mobEntity, pos);
+	@Override
+	protected void run(ServerWorld world, MobEntity entity, long time) {
+		super.run(world, entity, time);
+		getNearestBed(entity).ifPresent(pos -> {
+			bedPos = pos;
+			ticksOutOfBedUntilStopped = MAX_TICKS_OUT_OF_BED;
+			jumpsRemaining = MIN_JUMPS + world.random.nextInt(JUMP_COUNT_VARIANCE);
+			ticksToNextJump = 0;
+			setWalkTarget(entity, pos);
 		});
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		super.finishRunning(serverWorld, mobEntity, l);
-		this.bedPos = null;
-		this.ticksOutOfBedUntilStopped = 0;
-		this.jumpsRemaining = 0;
-		this.ticksToNextJump = 0;
+	@Override
+	protected void finishRunning(ServerWorld world, MobEntity entity, long time) {
+		super.finishRunning(world, entity, time);
+		bedPos = null;
+		ticksOutOfBedUntilStopped = 0;
+		jumpsRemaining = 0;
+		ticksToNextJump = 0;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		return mobEntity.isBaby()
-				&& this.bedPos != null
-				&& this.isBedAt(serverWorld, this.bedPos)
-				&& !this.isBedGoneTooLong(serverWorld, mobEntity)
-				&& !this.isDoneJumping(serverWorld, mobEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, MobEntity entity, long time) {
+		return entity.isBaby()
+				&& bedPos != null
+				&& isBedAt(world, bedPos)
+				&& !isBedGoneTooLong(world, entity)
+				&& !isDoneJumping(world, entity);
 	}
 
 	@Override
@@ -104,45 +79,36 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		return false;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		if (!this.isAboveBed(serverWorld, mobEntity)) {
-			this.ticksOutOfBedUntilStopped--;
-		}
-		else if (this.ticksToNextJump > 0) {
-			this.ticksToNextJump--;
-		}
-		else {
-			if (this.isOnBed(serverWorld, mobEntity)) {
-				mobEntity.getJumpControl().setActive();
-				this.jumpsRemaining--;
-				this.ticksToNextJump = 5;
+	@Override
+	protected void keepRunning(ServerWorld world, MobEntity entity, long time) {
+		if (!isAboveBed(world, entity)) {
+			ticksOutOfBedUntilStopped--;
+		} else if (ticksToNextJump > 0) {
+			ticksToNextJump--;
+		} else {
+			if (isOnBed(world, entity)) {
+				entity.getJumpControl().setActive();
+				jumpsRemaining--;
+				ticksToNextJump = TICKS_BETWEEN_JUMPS;
 			}
 		}
 	}
 
 	private void setWalkTarget(MobEntity mob, BlockPos pos) {
-		mob.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, this.walkSpeed, 0));
+		mob.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(pos, walkSpeed, 0));
 	}
 
 	private boolean shouldStartJumping(ServerWorld world, MobEntity mob) {
-		return this.isAboveBed(world, mob) || this.getNearestBed(mob).isPresent();
+		return isAboveBed(world, mob) || getNearestBed(mob).isPresent();
 	}
 
 	private boolean isAboveBed(ServerWorld world, MobEntity mob) {
-		BlockPos blockPos = mob.getBlockPos();
-		BlockPos blockPos2 = blockPos.down();
-		return this.isBedAt(world, blockPos) || this.isBedAt(world, blockPos2);
+		BlockPos pos = mob.getBlockPos();
+		return isBedAt(world, pos) || isBedAt(world, pos.down());
 	}
 
 	private boolean isOnBed(ServerWorld world, MobEntity mob) {
-		return this.isBedAt(world, mob.getBlockPos());
+		return isBedAt(world, mob.getBlockPos());
 	}
 
 	private boolean isBedAt(ServerWorld world, BlockPos pos) {
@@ -154,10 +120,10 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 	}
 
 	private boolean isBedGoneTooLong(ServerWorld world, MobEntity mob) {
-		return !this.isAboveBed(world, mob) && this.ticksOutOfBedUntilStopped <= 0;
+		return !isAboveBed(world, mob) && ticksOutOfBedUntilStopped <= 0;
 	}
 
 	private boolean isDoneJumping(ServerWorld world, MobEntity mob) {
-		return this.isAboveBed(world, mob) && this.jumpsRemaining <= 0;
+		return isAboveBed(world, mob) && jumpsRemaining <= 0;
 	}
 }

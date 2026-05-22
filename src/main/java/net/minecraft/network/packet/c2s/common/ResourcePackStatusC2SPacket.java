@@ -10,7 +10,8 @@ import net.minecraft.network.packet.PacketType;
 import java.util.UUID;
 
 /**
- * Запись resource pack status c2 s packet.
+ * Пакет C→S, сообщающий серверу о статусе загрузки ресурс-пака.
+ * Перечисление {@link Status} описывает все возможные состояния: от принятия до ошибки загрузки.
  */
 public record ResourcePackStatusC2SPacket(
 		UUID id,
@@ -26,8 +27,8 @@ public record ResourcePackStatusC2SPacket(
 	}
 
 	private void write(PacketByteBuf buf) {
-		buf.writeUuid(this.id);
-		buf.writeEnumConstant(this.status);
+		buf.writeUuid(id);
+		buf.writeEnumConstant(status);
 	}
 
 	@Override
@@ -35,16 +36,12 @@ public record ResourcePackStatusC2SPacket(
 		return CommonPackets.RESOURCE_PACK;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onResourcePackStatus(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onResourcePackStatus(this);
 	}
 
-	public static enum Status {
+	public enum Status {
 		SUCCESSFULLY_LOADED,
 		DECLINED,
 		FAILED_DOWNLOAD,

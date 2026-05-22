@@ -4,29 +4,28 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 
 /**
- * {@code StructureBoxRendering}.
+ * Контракт для блок-сущностей, которые умеют отображать ограничивающий бокс структуры в режиме отладки.
+ * Реализуется {@link StructureBlockBlockEntity} и {@link TestInstanceBlockEntity}.
  */
 public interface StructureBoxRendering {
 
-	StructureBoxRendering.RenderMode getRenderMode();
+	RenderMode getRenderMode();
 
-	StructureBoxRendering.StructureBox getStructureBox();
+	StructureBox getStructureBox();
 
-	/**
-	 * {@code RenderMode}.
-	 */
-	public static enum RenderMode {
+	enum RenderMode {
 		NONE,
 		BOX,
 		BOX_AND_INVISIBLE_BLOCKS;
 	}
 
-	/**
-	 * {@code StructureBox}.
-	 */
-	public record StructureBox(BlockPos localPos, Vec3i size) {
+	record StructureBox(BlockPos localPos, Vec3i size) {
 
-		public static StructureBoxRendering.StructureBox create(
+		/**
+		 * Создаёт бокс по двум угловым точкам, автоматически нормализуя координаты
+		 * так, чтобы {@code localPos} всегда указывал на минимальный угол.
+		 */
+		public static StructureBox create(
 				int minX,
 				int minY,
 				int minZ,
@@ -34,12 +33,17 @@ public interface StructureBoxRendering {
 				int maxY,
 				int maxZ
 		) {
-			int i = Math.min(minX, maxX);
-			int j = Math.min(minY, maxY);
-			int k = Math.min(minZ, maxZ);
-			return new StructureBoxRendering.StructureBox(
-					new BlockPos(i, j, k),
-					new Vec3i(Math.max(minX, maxX) - i, Math.max(minY, maxY) - j, Math.max(minZ, maxZ) - k)
+			int normalizedMinX = Math.min(minX, maxX);
+			int normalizedMinY = Math.min(minY, maxY);
+			int normalizedMinZ = Math.min(minZ, maxZ);
+
+			return new StructureBox(
+					new BlockPos(normalizedMinX, normalizedMinY, normalizedMinZ),
+					new Vec3i(
+							Math.max(minX, maxX) - normalizedMinX,
+							Math.max(minY, maxY) - normalizedMinY,
+							Math.max(minZ, maxZ) - normalizedMinZ
+					)
 			);
 		}
 	}

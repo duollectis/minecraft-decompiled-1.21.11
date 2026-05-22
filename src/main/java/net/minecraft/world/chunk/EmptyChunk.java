@@ -15,7 +15,9 @@ import net.minecraft.world.biome.Biome;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EmptyChunk}.
+ * Заглушка-чанк, возвращающая пустые значения для всех запросов блоков и жидкостей.
+ * Используется в {@link ChunkCache} как замена отсутствующих чанков за пределами
+ * загруженной области.
  */
 public class EmptyChunk extends WorldChunk {
 
@@ -80,6 +82,6 @@ public class EmptyChunk extends WorldChunk {
 
 	@Override
 	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-		return this.biomeEntry;
+		return biomeEntry;
 	}
 }

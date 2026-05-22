@@ -15,7 +15,9 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * {@code NoiseBlockStateProvider}.
+ * Поставщик состояний блоков на основе шума Перлина.
+ * Значение шума в диапазоне [-1, 1] нормализуется в [0, 1) и используется
+ * для выбора блока из списка {@code states} по индексу.
  */
 public class NoiseBlockStateProvider extends AbstractNoiseBlockStateProvider {
 
@@ -28,10 +30,11 @@ public class NoiseBlockStateProvider extends AbstractNoiseBlockStateProvider {
 			Instance<P> instance
 	) {
 		return fillCodecFields(instance)
-				.and(Codecs
-						.nonEmptyList(BlockState.CODEC.listOf())
-						.fieldOf("states")
-						.forGetter(noiseBlockStateProvider -> noiseBlockStateProvider.states));
+				.and(
+						Codecs.nonEmptyList(BlockState.CODEC.listOf())
+								.fieldOf("states")
+								.forGetter(provider -> provider.states)
+				);
 	}
 
 	public NoiseBlockStateProvider(
@@ -51,16 +54,16 @@ public class NoiseBlockStateProvider extends AbstractNoiseBlockStateProvider {
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		return this.getStateFromList(this.states, pos, this.scale);
+		return getStateFromList(states, pos, scale);
 	}
 
 	protected BlockState getStateFromList(List<BlockState> states, BlockPos pos, double scale) {
-		double d = this.getNoiseValue(pos, scale);
-		return this.getStateAtValue(states, d);
+		double noiseValue = getNoiseValue(pos, scale);
+		return getStateAtValue(states, noiseValue);
 	}
 
 	protected BlockState getStateAtValue(List<BlockState> states, double value) {
-		double d = MathHelper.clamp((1.0 + value) / 2.0, 0.0, 0.9999);
-		return states.get((int) (d * states.size()));
+		double normalized = MathHelper.clamp((1.0 + value) / 2.0, 0.0, 0.9999);
+		return states.get((int) (normalized * states.size()));
 	}
 }

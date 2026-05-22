@@ -26,14 +26,27 @@ import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 
 /**
- * {@code WitherSkullEntity}.
+ * Череп иссушителя — снаряд, выпускаемый боссом Иссушителем.
+ * <p>
+ * Заряженный череп (синий) имеет повышенное сопротивление воздуха и может разрушать
+ * блоки с сопротивлением взрыву до 0.8. При попадании в живую сущность накладывает
+ * эффект иссушения на длительность, зависящую от сложности мира.
+ * Владелец-иссушитель восстанавливает здоровье при убийстве цели.
  */
 public class WitherSkullEntity extends ExplosiveProjectileEntity {
 
-	private static final TrackedData<Boolean>
-			CHARGED =
-			DataTracker.registerData(WitherSkullEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final boolean DEFAULT_DANGEROUS = false;
+	private static final float CHARGED_DRAG = 0.73F;
+	private static final float EXPLOSION_POWER = 1.0F;
+	private static final float OWNER_DAMAGE = 8.0F;
+	private static final float MAGIC_DAMAGE = 5.0F;
+	private static final float OWNER_HEAL_ON_KILL = 5.0F;
+	private static final float MAX_EXPLOSION_RESISTANCE = 0.8F;
+	private static final int WITHER_DURATION_NORMAL = 10;
+	private static final int WITHER_DURATION_HARD = 40;
+	private static final int WITHER_AMPLIFIER = 1;
+
+	private static final TrackedData<Boolean> CHARGED =
+		DataTracker.registerData(WitherSkullEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
 	public WitherSkullEntity(EntityType<? extends WitherSkullEntity> entityType, World world) {
 		super(entityType, world);
@@ -45,7 +58,7 @@ public class WitherSkullEntity extends ExplosiveProjectileEntity {
 
 	@Override
 	protected float getDrag() {
-		return this.isCharged() ? 0.73F : super.getDrag();
+		return isCharged() ? CHARGED_DRAG : super.getDrag();
 	}
 
 	@Override
@@ -53,55 +66,58 @@ public class WitherSkullEntity extends ExplosiveProjectileEntity {
 		return false;
 	}
 
+	/**
+	 * Заряженный череп снижает сопротивление взрыву блоков до {@value #MAX_EXPLOSION_RESISTANCE},
+	 * позволяя разрушать блоки, которые обычно выдерживают взрывы (например, обсидиан).
+	 */
 	@Override
 	public float getEffectiveExplosionResistance(
-			Explosion explosion,
-			BlockView world,
-			BlockPos pos,
-			BlockState blockState,
-			FluidState fluidState,
-			float max
+		Explosion explosion,
+		BlockView world,
+		BlockPos pos,
+		BlockState blockState,
+		FluidState fluidState,
+		float max
 	) {
-		return this.isCharged() && WitherEntity.canDestroy(blockState) ? Math.min(0.8F, max) : max;
+		return isCharged() && WitherEntity.canDestroy(blockState) ? Math.min(MAX_EXPLOSION_RESISTANCE, max) : max;
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Entity var8 = entityHitResult.getEntity();
-			boolean bl;
-			if (this.getOwner() instanceof LivingEntity livingEntity) {
-				DamageSource damageSource = this.getDamageSources().witherSkull(this, livingEntity);
-				bl = var8.damage(serverWorld, damageSource, 8.0F);
-				if (bl) {
-					if (var8.isAlive()) {
-						EnchantmentHelper.onTargetDamaged(serverWorld, var8, damageSource);
-					}
-					else {
-						livingEntity.heal(5.0F);
-					}
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		Entity target = entityHitResult.getEntity();
+		boolean damaged;
+
+		if (getOwner() instanceof LivingEntity livingOwner) {
+			DamageSource damageSource = getDamageSources().witherSkull(this, livingOwner);
+			damaged = target.damage(serverWorld, damageSource, OWNER_DAMAGE);
+			if (damaged) {
+				if (target.isAlive()) {
+					EnchantmentHelper.onTargetDamaged(serverWorld, target, damageSource);
+				} else {
+					livingOwner.heal(OWNER_HEAL_ON_KILL);
 				}
 			}
-			else {
-				bl = var8.damage(serverWorld, this.getDamageSources().magic(), 5.0F);
-			}
+		} else {
+			damaged = target.damage(serverWorld, getDamageSources().magic(), MAGIC_DAMAGE);
+		}
 
-			if (bl && var8 instanceof LivingEntity livingEntityx) {
-				int i = 0;
-				if (this.getEntityWorld().getDifficulty() == Difficulty.NORMAL) {
-					i = 10;
-				}
-				else if (this.getEntityWorld().getDifficulty() == Difficulty.HARD) {
-					i = 40;
-				}
+		if (damaged && target instanceof LivingEntity livingTarget) {
+			int witherDurationSeconds = switch (getEntityWorld().getDifficulty()) {
+				case NORMAL -> WITHER_DURATION_NORMAL;
+				case HARD -> WITHER_DURATION_HARD;
+				default -> 0;
+			};
 
-				if (i > 0) {
-					livingEntityx.addStatusEffect(
-							new StatusEffectInstance(StatusEffects.WITHER, 20 * i, 1),
-							this.getEffectCause()
-					);
-				}
+			if (witherDurationSeconds > 0) {
+				livingTarget.addStatusEffect(
+					new StatusEffectInstance(StatusEffects.WITHER, 20 * witherDurationSeconds, WITHER_AMPLIFIER),
+					getEffectCause()
+				);
 			}
 		}
 	}
@@ -109,19 +125,17 @@ public class WitherSkullEntity extends ExplosiveProjectileEntity {
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (!this.getEntityWorld().isClient()) {
-			this
-					.getEntityWorld()
-					.createExplosion(
-							this,
-							this.getX(),
-							this.getY(),
-							this.getZ(),
-							1.0F,
-							false,
-							World.ExplosionSourceType.MOB
-					);
-			this.discard();
+		if (!getEntityWorld().isClient()) {
+			getEntityWorld().createExplosion(
+				this,
+				getX(),
+				getY(),
+				getZ(),
+				EXPLOSION_POWER,
+				false,
+				World.ExplosionSourceType.MOB
+			);
+			discard();
 		}
 	}
 
@@ -131,11 +145,11 @@ public class WitherSkullEntity extends ExplosiveProjectileEntity {
 	}
 
 	public boolean isCharged() {
-		return this.dataTracker.get(CHARGED);
+		return dataTracker.get(CHARGED);
 	}
 
 	public void setCharged(boolean charged) {
-		this.dataTracker.set(CHARGED, charged);
+		dataTracker.set(CHARGED, charged);
 	}
 
 	@Override
@@ -146,12 +160,12 @@ public class WitherSkullEntity extends ExplosiveProjectileEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("dangerous", this.isCharged());
+		view.putBoolean("dangerous", isCharged());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setCharged(view.getBoolean("dangerous", false));
+		setCharged(view.getBoolean("dangerous", false));
 	}
 }

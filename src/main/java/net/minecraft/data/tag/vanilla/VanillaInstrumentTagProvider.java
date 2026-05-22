@@ -24,12 +24,12 @@ public class VanillaInstrumentTagProvider extends SimpleTagProvider<Instrument> 
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(InstrumentTags.REGULAR_GOAT_HORNS)
+		builder(InstrumentTags.REGULAR_GOAT_HORNS)
 		    .add(Instruments.PONDER_GOAT_HORN)
 		    .add(Instruments.SING_GOAT_HORN)
 		    .add(Instruments.SEEK_GOAT_HORN)
 		    .add(Instruments.FEEL_GOAT_HORN);
-		this.builder(InstrumentTags.SCREAMING_GOAT_HORNS)
+		builder(InstrumentTags.SCREAMING_GOAT_HORNS)
 		    .add(Instruments.ADMIRE_GOAT_HORN)
 		    .add(Instruments.CALL_GOAT_HORN)
 		    .add(Instruments.YEARN_GOAT_HORN)

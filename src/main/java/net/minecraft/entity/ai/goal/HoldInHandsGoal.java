@@ -10,7 +10,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code HoldInHandsGoal}.
+ * Цель, заставляющая моба взять предмет в руку и использовать его до завершения.
+ * По окончании предмет убирается, а при наличии звука — воспроизводится.
  */
 public class HoldInHandsGoal<T extends MobEntity> extends Goal {
 
@@ -28,25 +29,26 @@ public class HoldInHandsGoal<T extends MobEntity> extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.condition.test(this.actor);
+		return condition.test(actor);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.actor.isUsingItem();
+		return actor.isUsingItem();
 	}
 
 	@Override
 	public void start() {
-		this.actor.equipStack(EquipmentSlot.MAINHAND, this.item.copy());
-		this.actor.setCurrentHand(Hand.MAIN_HAND);
+		actor.equipStack(EquipmentSlot.MAINHAND, item.copy());
+		actor.setCurrentHand(Hand.MAIN_HAND);
 	}
 
 	@Override
 	public void stop() {
-		this.actor.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-		if (this.sound != null) {
-			this.actor.playSound(this.sound, 1.0F, this.actor.getRandom().nextFloat() * 0.2F + 0.9F);
+		actor.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+
+		if (sound != null) {
+			actor.playSound(sound, 1.0F, actor.getRandom().nextFloat() * 0.2F + 0.9F);
 		}
 	}
 }

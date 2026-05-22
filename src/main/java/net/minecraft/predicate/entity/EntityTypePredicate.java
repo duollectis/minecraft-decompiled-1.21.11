@@ -9,15 +9,14 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.registry.tag.TagKey;
 
 /**
- * {@code EntityTypePredicate}.
+ * Предикат типа сущности. Поддерживает проверку как по конкретному типу,
+ * так и по тегу типов сущностей.
  */
 public record EntityTypePredicate(RegistryEntryList<EntityType<?>> types) {
 
-	public static final Codec<EntityTypePredicate> CODEC = RegistryCodecs.entryList(RegistryKeys.ENTITY_TYPE)
-	                                                                     .xmap(
-			                                                                     EntityTypePredicate::new,
-			                                                                     EntityTypePredicate::types
-	                                                                     );
+	public static final Codec<EntityTypePredicate> CODEC = RegistryCodecs
+			.entryList(RegistryKeys.ENTITY_TYPE)
+			.xmap(EntityTypePredicate::new, EntityTypePredicate::types);
 
 	public static EntityTypePredicate create(
 			RegistryEntryLookup<EntityType<?>> entityTypeRegistry,
@@ -34,6 +33,6 @@ public record EntityTypePredicate(RegistryEntryList<EntityType<?>> types) {
 	}
 
 	public boolean matches(EntityType<?> type) {
-		return type.isIn(this.types);
+		return type.isIn(types);
 	}
 }

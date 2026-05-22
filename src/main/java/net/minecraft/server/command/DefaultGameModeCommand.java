@@ -8,7 +8,7 @@ import net.minecraft.text.Text;
 import net.minecraft.world.GameMode;
 
 /**
- * {@code DefaultGameModeCommand}.
+ * Команда {@code /defaultgamemode}: установка режима игры по умолчанию.
  */
 public class DefaultGameModeCommand {
 

@@ -48,7 +48,7 @@ public class ItemRenderer {
 				MatrixUtil.scale(entry.getPositionMatrix(), 0.5F);
 			}
 			else if (displayContext.isFirstPerson()) {
-				MatrixUtil.scale(entry.getPositionMatrix(), 0.75F);
+				MatrixUtil.scale(entry.getPositionMatrix(), ITEM_SCALE_THREE_QUARTER);
 			}
 
 			vertexConsumer = getSpecialItemGlintConsumer(vertexConsumers, layer, entry);
@@ -70,7 +70,7 @@ public class ItemRenderer {
 						consumers.getBuffer(
 								useTransparentGlint(layer) ? RenderLayers.glintTranslucent() : RenderLayers.glint()),
 						matrix,
-						0.0078125F
+						ITEM_PIXEL_SIZE
 				),
 				consumers.getBuffer(layer)
 		);

@@ -1,6 +1,5 @@
 package net.minecraft.datafixer.fix;
 
-import com.mojang.datafixers.DataFixUtils;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JavaOps;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -11,18 +10,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code BlockStateFlattening}.
+ * Утилитарный класс для конвертации старых числовых ID блоков (до 1.13)
+ * в новый формат именованных блок-стейтов (flattening).
+ * Содержит статические таблицы маппинга для 4096 состояний и 256 блоков.
  */
 public class BlockStateFlattening {
 
 	private static final @Nullable Dynamic<?>[] OLD_STATE_TO_DYNAMIC = new Dynamic[4096];
 	private static final @Nullable Dynamic<?>[] OLD_BLOCK_TO_DYNAMIC = new Dynamic[256];
-	private static final Object2IntMap<Dynamic<?>> OLD_STATE_TO_ID = (Object2IntMap<Dynamic<?>>) DataFixUtils.make(
-			new Object2IntOpenHashMap(), object2IntOpenHashMap -> object2IntOpenHashMap.defaultReturnValue(-1)
-	);
-	private static final Object2IntMap<String> OLD_BLOCK_TO_ID = (Object2IntMap<String>) DataFixUtils.make(
-			new Object2IntOpenHashMap(), object2IntOpenHashMap -> object2IntOpenHashMap.defaultReturnValue(-1)
-	);
+	private static final Object2IntMap<Dynamic<?>> OLD_STATE_TO_ID = buildStateToIdMap();
+	private static final Object2IntMap<String> OLD_BLOCK_TO_ID = buildBlockToIdMap();
 	static final String FILTER_ME = "%%FILTER_ME%%";
 	private static final String NAME_KEY = "Name";
 	private static final String PROPERTIES_KEY = "Properties";
@@ -31834,8 +31831,19 @@ public class BlockStateFlattening {
 		);
 	}
 
+	private static Object2IntMap<Dynamic<?>> buildStateToIdMap() {
+		Object2IntOpenHashMap<Dynamic<?>> map = new Object2IntOpenHashMap<>();
+		map.defaultReturnValue(-1);
+		return map;
+	}
+
+	private static Object2IntMap<String> buildBlockToIdMap() {
+		Object2IntOpenHashMap<String> map = new Object2IntOpenHashMap<>();
+		map.defaultReturnValue(-1);
+		return map;
+	}
+
 	static {
-		OLD_STATE_TO_ID.defaultReturnValue(-1);
 		putStatesFromBlocks0To15();
 		putStatesFromBlocks16To31();
 		putStatesFromBlocks32To47();

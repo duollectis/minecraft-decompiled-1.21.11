@@ -9,7 +9,8 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code RotatedInfestedBlock}.
+ * Заражённый блок с поддержкой вращения по оси (например, заражённый булыжник-столб).
+ * Ось размещения определяется стороной, с которой игрок устанавливает блок.
  */
 public class RotatedInfestedBlock extends InfestedBlock {
 
@@ -29,7 +30,7 @@ public class RotatedInfestedBlock extends InfestedBlock {
 
 	public RotatedInfestedBlock(Block block, AbstractBlock.Settings settings) {
 		super(block, settings);
-		this.setDefaultState(this.getDefaultState().with(PillarBlock.AXIS, Direction.Axis.Y));
+		setDefaultState(getDefaultState().with(PillarBlock.AXIS, Direction.Axis.Y));
 	}
 
 	@Override

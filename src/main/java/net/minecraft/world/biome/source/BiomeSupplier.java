@@ -5,8 +5,10 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 
 /**
- * {@code BiomeSupplier}.
+ * Функциональный интерфейс для получения биома по координатам шума.
+ * Реализуется {@link BiomeSource} и его подклассами.
  */
+@FunctionalInterface
 public interface BiomeSupplier {
 
 	RegistryEntry<Biome> getBiome(int x, int y, int z, MultiNoiseUtil.MultiNoiseSampler noise);

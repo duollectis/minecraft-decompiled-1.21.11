@@ -14,251 +14,143 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code BirdPathNodeMaker}.
+ * Построитель узлов пути для летающих существ.
+ * Поддерживает движение во всех 26 направлениях (включая диагонали по Y).
+ * Маленькие существа используют случайные позиции для выхода из застрявшего состояния.
  */
 public class BirdPathNodeMaker extends LandPathNodeMaker {
 
-	private final Long2ObjectMap<PathNodeType> pathNodes = new Long2ObjectOpenHashMap();
 	private static final float SMALL_ENTITY_SIZE_THRESHOLD = 1.0F;
 	private static final float ESCAPE_BOX_EXPANSION = 1.1F;
 	private static final int ESCAPE_RANDOM_POSITIONS_COUNT = 10;
 
+	private final Long2ObjectMap<PathNodeType> pathNodes = new Long2ObjectOpenHashMap<>();
+
 	@Override
 	public void init(ChunkCache cachedWorld, MobEntity entity) {
 		super.init(cachedWorld, entity);
-		this.pathNodes.clear();
+		pathNodes.clear();
 		entity.onStartPathfinding();
 	}
 
 	@Override
 	public void clear() {
-		this.entity.onFinishPathfinding();
-		this.pathNodes.clear();
+		entity.onFinishPathfinding();
+		pathNodes.clear();
 		super.clear();
 	}
 
 	@Override
 	public PathNode getStart() {
-		int i;
-		if (this.canSwim() && this.entity.isTouchingWater()) {
-			i = this.entity.getBlockY();
-			BlockPos.Mutable mutable = new BlockPos.Mutable(this.entity.getX(), (double) i, this.entity.getZ());
+		int startY;
 
-			for (BlockState blockState = this.context.getBlockState(mutable);
-			     blockState.isOf(Blocks.WATER);
-			     blockState = this.context.getBlockState(mutable)) {
-				mutable.set(this.entity.getX(), (double) (++i), this.entity.getZ());
+		if (canSwim() && entity.isTouchingWater()) {
+			startY = entity.getBlockY();
+			BlockPos.Mutable mutable = new BlockPos.Mutable(entity.getX(), (double) startY, entity.getZ());
+
+			for (BlockState blockState = context.getBlockState(mutable);
+				 blockState.isOf(Blocks.WATER);
+				 blockState = context.getBlockState(mutable)) {
+				mutable.set(entity.getX(), (double) (++startY), entity.getZ());
 			}
-		}
-		else {
-			i = MathHelper.floor(this.entity.getY() + 0.5);
+		} else {
+			startY = MathHelper.floor(entity.getY() + 0.5);
 		}
 
-		BlockPos blockPos = BlockPos.ofFloored(this.entity.getX(), i, this.entity.getZ());
-		if (!this.canPathThrough(blockPos)) {
-			for (BlockPos blockPos2 : this.getPotentialEscapePositions(this.entity)) {
-				if (this.canPathThrough(blockPos2)) {
-					return super.getStart(blockPos2);
+		BlockPos startPos = BlockPos.ofFloored(entity.getX(), startY, entity.getZ());
+
+		if (!canPathThrough(startPos)) {
+			for (BlockPos escapePos : getPotentialEscapePositions(entity)) {
+				if (canPathThrough(escapePos)) {
+					return super.getStart(escapePos);
 				}
 			}
 		}
 
-		return super.getStart(blockPos);
+		return super.getStart(startPos);
 	}
 
 	@Override
 	protected boolean canPathThrough(BlockPos pos) {
-		PathNodeType pathNodeType = this.getNodeType(pos.getX(), pos.getY(), pos.getZ());
-		return this.entity.getPathfindingPenalty(pathNodeType) >= 0.0F;
+		PathNodeType nodeType = getNodeType(pos.getX(), pos.getY(), pos.getZ());
+		return entity.getPathfindingPenalty(nodeType) >= 0.0F;
 	}
 
 	@Override
 	public TargetPathNode getNode(double x, double y, double z) {
-		return this.createNode(x, y, z);
+		return createNode(x, y, z);
 	}
 
+	/**
+	 * Генерирует преемников во всех 26 направлениях (6 осевых + 12 плоских диагоналей + 8 объёмных диагоналей).
+	 * Диагональные переходы разрешены только если оба промежуточных узла проходимы.
+	 */
 	@Override
 	public int getSuccessors(PathNode[] successors, PathNode node) {
-		int i = 0;
-		PathNode pathNode = this.getPassableNode(node.x, node.y, node.z + 1);
-		if (this.unvisited(pathNode)) {
-			successors[i++] = pathNode;
-		}
+		int count = 0;
 
-		PathNode pathNode2 = this.getPassableNode(node.x - 1, node.y, node.z);
-		if (this.unvisited(pathNode2)) {
-			successors[i++] = pathNode2;
-		}
+		// 6 осевых направлений
+		PathNode south = getPassableNode(node.x, node.y, node.z + 1);
+		PathNode west = getPassableNode(node.x - 1, node.y, node.z);
+		PathNode east = getPassableNode(node.x + 1, node.y, node.z);
+		PathNode north = getPassableNode(node.x, node.y, node.z - 1);
+		PathNode up = getPassableNode(node.x, node.y + 1, node.z);
+		PathNode down = getPassableNode(node.x, node.y - 1, node.z);
 
-		PathNode pathNode3 = this.getPassableNode(node.x + 1, node.y, node.z);
-		if (this.unvisited(pathNode3)) {
-			successors[i++] = pathNode3;
-		}
+		if (unvisited(south)) { successors[count++] = south; }
+		if (unvisited(west)) { successors[count++] = west; }
+		if (unvisited(east)) { successors[count++] = east; }
+		if (unvisited(north)) { successors[count++] = north; }
+		if (unvisited(up)) { successors[count++] = up; }
+		if (unvisited(down)) { successors[count++] = down; }
 
-		PathNode pathNode4 = this.getPassableNode(node.x, node.y, node.z - 1);
-		if (this.unvisited(pathNode4)) {
-			successors[i++] = pathNode4;
-		}
+		// 12 плоских и вертикальных диагоналей
+		PathNode upSouth = getPassableNode(node.x, node.y + 1, node.z + 1);
+		PathNode upWest = getPassableNode(node.x - 1, node.y + 1, node.z);
+		PathNode upEast = getPassableNode(node.x + 1, node.y + 1, node.z);
+		PathNode upNorth = getPassableNode(node.x, node.y + 1, node.z - 1);
+		PathNode downSouth = getPassableNode(node.x, node.y - 1, node.z + 1);
+		PathNode downWest = getPassableNode(node.x - 1, node.y - 1, node.z);
+		PathNode downEast = getPassableNode(node.x + 1, node.y - 1, node.z);
+		PathNode downNorth = getPassableNode(node.x, node.y - 1, node.z - 1);
+		PathNode eastNorth = getPassableNode(node.x + 1, node.y, node.z - 1);
+		PathNode eastSouth = getPassableNode(node.x + 1, node.y, node.z + 1);
+		PathNode westNorth = getPassableNode(node.x - 1, node.y, node.z - 1);
+		PathNode westSouth = getPassableNode(node.x - 1, node.y, node.z + 1);
 
-		PathNode pathNode5 = this.getPassableNode(node.x, node.y + 1, node.z);
-		if (this.unvisited(pathNode5)) {
-			successors[i++] = pathNode5;
-		}
+		if (unvisited(upSouth) && isPassable(south) && isPassable(up)) { successors[count++] = upSouth; }
+		if (unvisited(upWest) && isPassable(west) && isPassable(up)) { successors[count++] = upWest; }
+		if (unvisited(upEast) && isPassable(east) && isPassable(up)) { successors[count++] = upEast; }
+		if (unvisited(upNorth) && isPassable(north) && isPassable(up)) { successors[count++] = upNorth; }
+		if (unvisited(downSouth) && isPassable(south) && isPassable(down)) { successors[count++] = downSouth; }
+		if (unvisited(downWest) && isPassable(west) && isPassable(down)) { successors[count++] = downWest; }
+		if (unvisited(downEast) && isPassable(east) && isPassable(down)) { successors[count++] = downEast; }
+		if (unvisited(downNorth) && isPassable(north) && isPassable(down)) { successors[count++] = downNorth; }
+		if (unvisited(eastNorth) && isPassable(north) && isPassable(east)) { successors[count++] = eastNorth; }
+		if (unvisited(eastSouth) && isPassable(south) && isPassable(east)) { successors[count++] = eastSouth; }
+		if (unvisited(westNorth) && isPassable(north) && isPassable(west)) { successors[count++] = westNorth; }
+		if (unvisited(westSouth) && isPassable(south) && isPassable(west)) { successors[count++] = westSouth; }
 
-		PathNode pathNode6 = this.getPassableNode(node.x, node.y - 1, node.z);
-		if (this.unvisited(pathNode6)) {
-			successors[i++] = pathNode6;
-		}
+		// 8 объёмных диагоналей
+		PathNode upEastNorth = getPassableNode(node.x + 1, node.y + 1, node.z - 1);
+		PathNode upEastSouth = getPassableNode(node.x + 1, node.y + 1, node.z + 1);
+		PathNode upWestNorth = getPassableNode(node.x - 1, node.y + 1, node.z - 1);
+		PathNode upWestSouth = getPassableNode(node.x - 1, node.y + 1, node.z + 1);
+		PathNode downEastNorth = getPassableNode(node.x + 1, node.y - 1, node.z - 1);
+		PathNode downEastSouth = getPassableNode(node.x + 1, node.y - 1, node.z + 1);
+		PathNode downWestNorth = getPassableNode(node.x - 1, node.y - 1, node.z - 1);
+		PathNode downWestSouth = getPassableNode(node.x - 1, node.y - 1, node.z + 1);
 
-		PathNode pathNode7 = this.getPassableNode(node.x, node.y + 1, node.z + 1);
-		if (this.unvisited(pathNode7) && this.isPassable(pathNode) && this.isPassable(pathNode5)) {
-			successors[i++] = pathNode7;
-		}
+		if (unvisited(upEastNorth) && isPassable(eastNorth) && isPassable(north) && isPassable(east) && isPassable(up) && isPassable(upNorth) && isPassable(upEast)) { successors[count++] = upEastNorth; }
+		if (unvisited(upEastSouth) && isPassable(eastSouth) && isPassable(south) && isPassable(east) && isPassable(up) && isPassable(upSouth) && isPassable(upEast)) { successors[count++] = upEastSouth; }
+		if (unvisited(upWestNorth) && isPassable(westNorth) && isPassable(north) && isPassable(west) && isPassable(up) && isPassable(upNorth) && isPassable(upWest)) { successors[count++] = upWestNorth; }
+		if (unvisited(upWestSouth) && isPassable(westSouth) && isPassable(south) && isPassable(west) && isPassable(up) && isPassable(upSouth) && isPassable(upWest)) { successors[count++] = upWestSouth; }
+		if (unvisited(downEastNorth) && isPassable(eastNorth) && isPassable(north) && isPassable(east) && isPassable(down) && isPassable(downNorth) && isPassable(downEast)) { successors[count++] = downEastNorth; }
+		if (unvisited(downEastSouth) && isPassable(eastSouth) && isPassable(south) && isPassable(east) && isPassable(down) && isPassable(downSouth) && isPassable(downEast)) { successors[count++] = downEastSouth; }
+		if (unvisited(downWestNorth) && isPassable(westNorth) && isPassable(north) && isPassable(west) && isPassable(down) && isPassable(downNorth) && isPassable(downWest)) { successors[count++] = downWestNorth; }
+		if (unvisited(downWestSouth) && isPassable(westSouth) && isPassable(south) && isPassable(west) && isPassable(down) && isPassable(downSouth) && isPassable(downWest)) { successors[count++] = downWestSouth; }
 
-		PathNode pathNode8 = this.getPassableNode(node.x - 1, node.y + 1, node.z);
-		if (this.unvisited(pathNode8) && this.isPassable(pathNode2) && this.isPassable(pathNode5)) {
-			successors[i++] = pathNode8;
-		}
-
-		PathNode pathNode9 = this.getPassableNode(node.x + 1, node.y + 1, node.z);
-		if (this.unvisited(pathNode9) && this.isPassable(pathNode3) && this.isPassable(pathNode5)) {
-			successors[i++] = pathNode9;
-		}
-
-		PathNode pathNode10 = this.getPassableNode(node.x, node.y + 1, node.z - 1);
-		if (this.unvisited(pathNode10) && this.isPassable(pathNode4) && this.isPassable(pathNode5)) {
-			successors[i++] = pathNode10;
-		}
-
-		PathNode pathNode11 = this.getPassableNode(node.x, node.y - 1, node.z + 1);
-		if (this.unvisited(pathNode11) && this.isPassable(pathNode) && this.isPassable(pathNode6)) {
-			successors[i++] = pathNode11;
-		}
-
-		PathNode pathNode12 = this.getPassableNode(node.x - 1, node.y - 1, node.z);
-		if (this.unvisited(pathNode12) && this.isPassable(pathNode2) && this.isPassable(pathNode6)) {
-			successors[i++] = pathNode12;
-		}
-
-		PathNode pathNode13 = this.getPassableNode(node.x + 1, node.y - 1, node.z);
-		if (this.unvisited(pathNode13) && this.isPassable(pathNode3) && this.isPassable(pathNode6)) {
-			successors[i++] = pathNode13;
-		}
-
-		PathNode pathNode14 = this.getPassableNode(node.x, node.y - 1, node.z - 1);
-		if (this.unvisited(pathNode14) && this.isPassable(pathNode4) && this.isPassable(pathNode6)) {
-			successors[i++] = pathNode14;
-		}
-
-		PathNode pathNode15 = this.getPassableNode(node.x + 1, node.y, node.z - 1);
-		if (this.unvisited(pathNode15) && this.isPassable(pathNode4) && this.isPassable(pathNode3)) {
-			successors[i++] = pathNode15;
-		}
-
-		PathNode pathNode16 = this.getPassableNode(node.x + 1, node.y, node.z + 1);
-		if (this.unvisited(pathNode16) && this.isPassable(pathNode) && this.isPassable(pathNode3)) {
-			successors[i++] = pathNode16;
-		}
-
-		PathNode pathNode17 = this.getPassableNode(node.x - 1, node.y, node.z - 1);
-		if (this.unvisited(pathNode17) && this.isPassable(pathNode4) && this.isPassable(pathNode2)) {
-			successors[i++] = pathNode17;
-		}
-
-		PathNode pathNode18 = this.getPassableNode(node.x - 1, node.y, node.z + 1);
-		if (this.unvisited(pathNode18) && this.isPassable(pathNode) && this.isPassable(pathNode2)) {
-			successors[i++] = pathNode18;
-		}
-
-		PathNode pathNode19 = this.getPassableNode(node.x + 1, node.y + 1, node.z - 1);
-		if (this.unvisited(pathNode19)
-				&& this.isPassable(pathNode15)
-				&& this.isPassable(pathNode4)
-				&& this.isPassable(pathNode3)
-				&& this.isPassable(pathNode5)
-				&& this.isPassable(pathNode10)
-				&& this.isPassable(pathNode9)) {
-			successors[i++] = pathNode19;
-		}
-
-		PathNode pathNode20 = this.getPassableNode(node.x + 1, node.y + 1, node.z + 1);
-		if (this.unvisited(pathNode20)
-				&& this.isPassable(pathNode16)
-				&& this.isPassable(pathNode)
-				&& this.isPassable(pathNode3)
-				&& this.isPassable(pathNode5)
-				&& this.isPassable(pathNode7)
-				&& this.isPassable(pathNode9)) {
-			successors[i++] = pathNode20;
-		}
-
-		PathNode pathNode21 = this.getPassableNode(node.x - 1, node.y + 1, node.z - 1);
-		if (this.unvisited(pathNode21)
-				&& this.isPassable(pathNode17)
-				&& this.isPassable(pathNode4)
-				&& this.isPassable(pathNode2)
-				&& this.isPassable(pathNode5)
-				&& this.isPassable(pathNode10)
-				&& this.isPassable(pathNode8)) {
-			successors[i++] = pathNode21;
-		}
-
-		PathNode pathNode22 = this.getPassableNode(node.x - 1, node.y + 1, node.z + 1);
-		if (this.unvisited(pathNode22)
-				&& this.isPassable(pathNode18)
-				&& this.isPassable(pathNode)
-				&& this.isPassable(pathNode2)
-				&& this.isPassable(pathNode5)
-				&& this.isPassable(pathNode7)
-				&& this.isPassable(pathNode8)) {
-			successors[i++] = pathNode22;
-		}
-
-		PathNode pathNode23 = this.getPassableNode(node.x + 1, node.y - 1, node.z - 1);
-		if (this.unvisited(pathNode23)
-				&& this.isPassable(pathNode15)
-				&& this.isPassable(pathNode4)
-				&& this.isPassable(pathNode3)
-				&& this.isPassable(pathNode6)
-				&& this.isPassable(pathNode14)
-				&& this.isPassable(pathNode13)) {
-			successors[i++] = pathNode23;
-		}
-
-		PathNode pathNode24 = this.getPassableNode(node.x + 1, node.y - 1, node.z + 1);
-		if (this.unvisited(pathNode24)
-				&& this.isPassable(pathNode16)
-				&& this.isPassable(pathNode)
-				&& this.isPassable(pathNode3)
-				&& this.isPassable(pathNode6)
-				&& this.isPassable(pathNode11)
-				&& this.isPassable(pathNode13)) {
-			successors[i++] = pathNode24;
-		}
-
-		PathNode pathNode25 = this.getPassableNode(node.x - 1, node.y - 1, node.z - 1);
-		if (this.unvisited(pathNode25)
-				&& this.isPassable(pathNode17)
-				&& this.isPassable(pathNode4)
-				&& this.isPassable(pathNode2)
-				&& this.isPassable(pathNode6)
-				&& this.isPassable(pathNode14)
-				&& this.isPassable(pathNode12)) {
-			successors[i++] = pathNode25;
-		}
-
-		PathNode pathNode26 = this.getPassableNode(node.x - 1, node.y - 1, node.z + 1);
-		if (this.unvisited(pathNode26)
-				&& this.isPassable(pathNode18)
-				&& this.isPassable(pathNode)
-				&& this.isPassable(pathNode2)
-				&& this.isPassable(pathNode6)
-				&& this.isPassable(pathNode11)
-				&& this.isPassable(pathNode12)) {
-			successors[i++] = pathNode26;
-		}
-
-		return i;
+		return count;
 	}
 
 	private boolean isPassable(@Nullable PathNode node) {
@@ -270,69 +162,77 @@ public class BirdPathNodeMaker extends LandPathNodeMaker {
 	}
 
 	protected @Nullable PathNode getPassableNode(int x, int y, int z) {
-		PathNode pathNode = null;
-		PathNodeType pathNodeType = this.getNodeType(x, y, z);
-		float f = this.entity.getPathfindingPenalty(pathNodeType);
-		if (f >= 0.0F) {
-			pathNode = this.getNode(x, y, z);
-			pathNode.type = pathNodeType;
-			pathNode.penalty = Math.max(pathNode.penalty, f);
-			if (pathNodeType == PathNodeType.WALKABLE) {
-				pathNode.penalty++;
-			}
+		PathNodeType nodeType = getNodeType(x, y, z);
+		float penalty = entity.getPathfindingPenalty(nodeType);
+
+		if (penalty < 0.0F) {
+			return null;
 		}
 
-		return pathNode;
+		PathNode node = getNode(x, y, z);
+		node.type = nodeType;
+		node.penalty = Math.max(node.penalty, penalty);
+
+		if (nodeType == PathNodeType.WALKABLE) {
+			node.penalty++;
+		}
+
+		return node;
 	}
 
 	@Override
 	protected PathNodeType getNodeType(int x, int y, int z) {
-		return (PathNodeType) this.pathNodes.computeIfAbsent(
+		return pathNodes.computeIfAbsent(
 				BlockPos.asLong(x, y, z),
-				pos -> this.getNodeType(this.context, x, y, z, this.entity)
+				pos -> getNodeType(context, x, y, z, entity)
 		);
 	}
 
 	@Override
 	public PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z) {
-		PathNodeType pathNodeType = context.getNodeType(x, y, z);
-		if (pathNodeType == PathNodeType.OPEN && y >= context.getWorld().getBottomY() + 1) {
-			BlockPos blockPos = new BlockPos(x, y - 1, z);
-			PathNodeType pathNodeType2 = context.getNodeType(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-			if (pathNodeType2 == PathNodeType.DAMAGE_FIRE || pathNodeType2 == PathNodeType.LAVA) {
-				pathNodeType = PathNodeType.DAMAGE_FIRE;
-			}
-			else if (pathNodeType2 == PathNodeType.DAMAGE_OTHER) {
-				pathNodeType = PathNodeType.DAMAGE_OTHER;
-			}
-			else if (pathNodeType2 == PathNodeType.COCOA) {
-				pathNodeType = PathNodeType.COCOA;
-			}
-			else if (pathNodeType2 == PathNodeType.FENCE) {
-				if (!blockPos.equals(context.getEntityPos())) {
-					pathNodeType = PathNodeType.FENCE;
-				}
-			}
-			else {
-				pathNodeType =
-						pathNodeType2 != PathNodeType.WALKABLE && pathNodeType2 != PathNodeType.OPEN
-								&& pathNodeType2 != PathNodeType.WATER
-						? PathNodeType.WALKABLE
-						: PathNodeType.OPEN;
-			}
+		PathNodeType nodeType = context.getNodeType(x, y, z);
+
+		if (nodeType != PathNodeType.OPEN || y < context.getWorld().getBottomY() + 1) {
+			return nodeType;
 		}
 
-		if (pathNodeType == PathNodeType.WALKABLE || pathNodeType == PathNodeType.OPEN) {
-			pathNodeType = getNodeTypeFromNeighbors(context, x, y, z, pathNodeType);
+		BlockPos below = new BlockPos(x, y - 1, z);
+		PathNodeType belowType = context.getNodeType(below.getX(), below.getY(), below.getZ());
+
+		if (belowType == PathNodeType.DAMAGE_FIRE || belowType == PathNodeType.LAVA) {
+			nodeType = PathNodeType.DAMAGE_FIRE;
+		} else if (belowType == PathNodeType.DAMAGE_OTHER) {
+			nodeType = PathNodeType.DAMAGE_OTHER;
+		} else if (belowType == PathNodeType.COCOA) {
+			nodeType = PathNodeType.COCOA;
+		} else if (belowType == PathNodeType.FENCE) {
+			if (!below.equals(context.getEntityPos())) {
+				nodeType = PathNodeType.FENCE;
+			}
+		} else {
+			nodeType = belowType != PathNodeType.WALKABLE
+					&& belowType != PathNodeType.OPEN
+					&& belowType != PathNodeType.WATER
+					? PathNodeType.WALKABLE
+					: PathNodeType.OPEN;
 		}
 
-		return pathNodeType;
+		if (nodeType == PathNodeType.WALKABLE || nodeType == PathNodeType.OPEN) {
+			nodeType = getNodeTypeFromNeighbors(context, x, y, z, nodeType);
+		}
+
+		return nodeType;
 	}
 
+	/**
+	 * Для маленьких существ (меньше 1 блока) генерирует случайные позиции в расширенном AABB.
+	 * Для крупных — возвращает 4 угла ограничивающего прямоугольника.
+	 */
 	private Iterable<BlockPos> getPotentialEscapePositions(MobEntity entity) {
 		Box box = entity.getBoundingBox();
-		boolean bl = box.getAverageSideLength() < 1.0;
-		if (!bl) {
+		boolean isSmall = box.getAverageSideLength() < SMALL_ENTITY_SIZE_THRESHOLD;
+
+		if (!isSmall) {
 			return List.of(
 					BlockPos.ofFloored(box.minX, entity.getBlockY(), box.minZ),
 					BlockPos.ofFloored(box.minX, entity.getBlockY(), box.maxZ),
@@ -340,21 +240,21 @@ public class BirdPathNodeMaker extends LandPathNodeMaker {
 					BlockPos.ofFloored(box.maxX, entity.getBlockY(), box.maxZ)
 			);
 		}
-		else {
-			double d = Math.max(0.0, 1.1F - box.getLengthZ());
-			double e = Math.max(0.0, 1.1F - box.getLengthX());
-			double f = Math.max(0.0, 1.1F - box.getLengthY());
-			Box box2 = box.expand(e, f, d);
-			return BlockPos.iterateRandomly(
-					entity.getRandom(),
-					10,
-					MathHelper.floor(box2.minX),
-					MathHelper.floor(box2.minY),
-					MathHelper.floor(box2.minZ),
-					MathHelper.floor(box2.maxX),
-					MathHelper.floor(box2.maxY),
-					MathHelper.floor(box2.maxZ)
-			);
-		}
+
+		double expandZ = Math.max(0.0, ESCAPE_BOX_EXPANSION - box.getLengthZ());
+		double expandX = Math.max(0.0, ESCAPE_BOX_EXPANSION - box.getLengthX());
+		double expandY = Math.max(0.0, ESCAPE_BOX_EXPANSION - box.getLengthY());
+		Box expanded = box.expand(expandX, expandY, expandZ);
+
+		return BlockPos.iterateRandomly(
+				entity.getRandom(),
+				ESCAPE_RANDOM_POSITIONS_COUNT,
+				MathHelper.floor(expanded.minX),
+				MathHelper.floor(expanded.minY),
+				MathHelper.floor(expanded.minZ),
+				MathHelper.floor(expanded.maxX),
+				MathHelper.floor(expanded.maxY),
+				MathHelper.floor(expanded.maxZ)
+		);
 	}
 }

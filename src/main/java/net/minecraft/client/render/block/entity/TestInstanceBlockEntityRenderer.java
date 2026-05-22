@@ -114,7 +114,7 @@ public class TestInstanceBlockEntityRenderer implements BlockEntityRenderer<Test
 	private void renderError(TestInstanceBlockEntity.Error error) {
 		BlockPos blockPos = error.pos();
 		GizmoDrawing.box(
-				new Box(blockPos).expand(0.02F),
+				new Box(blockPos).expand(OUTLINE_OFFSET),
 				DrawStyle.filled(ColorHelper.fromFloats(0.375F, 1.0F, 0.0F, 0.0F))
 		);
 		String string = error.text().getString();

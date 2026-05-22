@@ -8,57 +8,56 @@ import org.slf4j.Logger;
 import java.util.Objects;
 
 /**
- * {@code PhaseManager}.
+ * Управляет жизненным циклом фаз дракона: хранит кэш созданных экземпляров,
+ * переключает текущую фазу с вызовом {@link Phase#endPhase()} и {@link Phase#beginPhase()}.
  */
 public class PhaseManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final EnderDragonEntity dragon;
 	private final @Nullable Phase[] phases = new Phase[PhaseType.count()];
 	private @Nullable Phase current;
 
 	public PhaseManager(EnderDragonEntity dragon) {
 		this.dragon = dragon;
-		this.setPhase(PhaseType.HOVER);
+		setPhase(PhaseType.HOVER);
 	}
 
 	public void setPhase(PhaseType<?> type) {
-		if (this.current == null || type != this.current.getType()) {
-			if (this.current != null) {
-				this.current.endPhase();
-			}
-
-			this.current = this.create((PhaseType<Phase>) type);
-			if (!this.dragon.getEntityWorld().isClient()) {
-				this.dragon.getDataTracker().set(EnderDragonEntity.PHASE_TYPE, type.getTypeId());
-			}
-
-			LOGGER.debug(
-					"Dragon is now in phase {} on the {}",
-					type,
-					this.dragon.getEntityWorld().isClient() ? "client" : "server"
-			);
-			this.current.beginPhase();
+		if (current != null && type == current.getType()) {
+			return;
 		}
+
+		if (current != null) {
+			current.endPhase();
+		}
+
+		current = create((PhaseType<Phase>) type);
+
+		if (!dragon.getEntityWorld().isClient()) {
+			dragon.getDataTracker().set(EnderDragonEntity.PHASE_TYPE, type.getTypeId());
+		}
+
+		LOGGER.debug(
+				"Dragon is now in phase {} on the {}",
+				type,
+				dragon.getEntityWorld().isClient() ? "client" : "server"
+		);
+		current.beginPhase();
 	}
 
 	public Phase getCurrent() {
-		return Objects.requireNonNull(this.current);
+		return Objects.requireNonNull(current);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param type type
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Phase> T create(PhaseType<T> type) {
-		int i = type.getTypeId();
-		Phase phase = this.phases[i];
+		int typeId = type.getTypeId();
+		Phase phase = phases[typeId];
+
 		if (phase == null) {
-			phase = type.create(this.dragon);
-			this.phases[i] = phase;
+			phase = type.create(dragon);
+			phases[typeId] = phase;
 		}
 
 		return (T) phase;

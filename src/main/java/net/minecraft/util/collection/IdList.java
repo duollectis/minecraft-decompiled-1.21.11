@@ -11,7 +11,11 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code IdList}.
+ * Список с двусторонним отображением объект ↔ числовой ID.
+ * Поддерживает явное задание ID через {@link #set(Object, int)}
+ * и автоматическое назначение через {@link #add(Object)}.
+ *
+ * @param <T> тип элементов
  */
 public class IdList<T> implements IndexedIterable<T> {
 
@@ -24,67 +28,57 @@ public class IdList<T> implements IndexedIterable<T> {
 	}
 
 	public IdList(int initialSize) {
-		this.list = Lists.newArrayListWithExpectedSize(initialSize);
-		this.idMap = new Reference2IntOpenHashMap(initialSize);
-		this.idMap.defaultReturnValue(-1);
+		list = Lists.newArrayListWithExpectedSize(initialSize);
+		idMap = new Reference2IntOpenHashMap<>(initialSize);
+		idMap.defaultReturnValue(ABSENT_RAW_ID);
 	}
 
 	/**
-	 * Set.
+	 * Регистрирует элемент с явно указанным ID.
+	 * Если список короче, чем {@code id}, он расширяется нулями.
 	 *
-	 * @param value value
-	 * @param id id
+	 * @param value элемент для регистрации
+	 * @param id    числовой идентификатор
 	 */
 	public void set(T value, int id) {
-		this.idMap.put(value, id);
+		idMap.put(value, id);
 
-		while (this.list.size() <= id) {
-			this.list.add(null);
+		while (list.size() <= id) {
+			list.add(null);
 		}
 
-		this.list.set(id, value);
-		if (this.nextId <= id) {
-			this.nextId = id + 1;
+		list.set(id, value);
+
+		if (nextId <= id) {
+			nextId = id + 1;
 		}
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param value value
-	 */
 	public void add(T value) {
-		this.set(value, this.nextId);
+		set(value, nextId);
 	}
 
 	@Override
 	public int getRawId(T value) {
-		return this.idMap.getInt(value);
+		return idMap.getInt(value);
 	}
 
 	@Override
 	public final @Nullable T get(int index) {
-		return index >= 0 && index < this.list.size() ? this.list.get(index) : null;
+		return index >= 0 && index < list.size() ? list.get(index) : null;
 	}
 
 	@Override
 	public Iterator<T> iterator() {
-		return Iterators.filter(this.list.iterator(), Objects::nonNull);
+		return Iterators.filter(list.iterator(), Objects::nonNull);
 	}
 
-	/**
-	 * Contains key.
-	 *
-	 * @param index index
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean containsKey(int index) {
-		return this.get(index) != null;
+		return get(index) != null;
 	}
 
 	@Override
 	public int size() {
-		return this.idMap.size();
+		return idMap.size();
 	}
 }

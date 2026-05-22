@@ -6,8 +6,9 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code UseRemainderComponent}.
- */
+	 * Компонент остатка после использования предмета. Определяет, во что превращается
+	 * предмет после полного использования (например, стеклянная бутылка после зелья).
+	 */
 public record UseRemainderComponent(ItemStack convertInto) {
 
 	public static final Codec<UseRemainderComponent>
@@ -17,6 +18,18 @@ public record UseRemainderComponent(ItemStack convertInto) {
 			ItemStack.PACKET_CODEC, UseRemainderComponent::convertInto, UseRemainderComponent::new
 	);
 
+	/**
+		 * Конвертирует стек предмета в остаток после использования.
+		 * В режиме творчества стек не изменяется. Если количество предметов не уменьшилось —
+		 * конвертация не нужна. Если стек опустел — возвращает копию остатка напрямую,
+		 * иначе передаёт остаток через {@code inserter} (например, в инвентарь).
+		 *
+		 * @param stack      текущий стек предмета после использования
+		 * @param oldCount   количество предметов до использования
+		 * @param inCreative {@code true} если пользователь в режиме творчества
+		 * @param inserter   функция для вставки остатка (например, в инвентарь игрока)
+		 * @return итоговый стек предмета
+		 */
 	public ItemStack convert(
 			ItemStack stack,
 			int oldCount,
@@ -26,19 +39,19 @@ public record UseRemainderComponent(ItemStack convertInto) {
 		if (inCreative) {
 			return stack;
 		}
-		else if (stack.getCount() >= oldCount) {
+
+		if (stack.getCount() >= oldCount) {
 			return stack;
 		}
-		else {
-			ItemStack itemStack = this.convertInto.copy();
-			if (stack.isEmpty()) {
-				return itemStack;
-			}
-			else {
-				inserter.apply(itemStack);
-				return stack;
-			}
+
+		ItemStack remainder = convertInto.copy();
+
+		if (stack.isEmpty()) {
+			return remainder;
 		}
+
+		inserter.apply(remainder);
+		return stack;
 	}
 
 	@Override
@@ -46,24 +59,24 @@ public record UseRemainderComponent(ItemStack convertInto) {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			UseRemainderComponent useRemainderComponent = (UseRemainderComponent) o;
-			return ItemStack.areEqual(this.convertInto, useRemainderComponent.convertInto);
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		UseRemainderComponent other = (UseRemainderComponent) o;
+		return ItemStack.areEqual(convertInto, other.convertInto);
 	}
 
 	@Override
 	public int hashCode() {
-		return ItemStack.hashCode(this.convertInto);
+		return ItemStack.hashCode(convertInto);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code StackInserter}.
-	 */
+		 * Функциональный интерфейс для вставки стека остатка в инвентарь или мир.
+		 */
+	@FunctionalInterface
 	public interface StackInserter {
 
 		void apply(ItemStack stack);

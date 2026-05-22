@@ -9,10 +9,12 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TexturedModel}.
+ * Пара «модель + карта текстур» для конкретного блока.
+ * Фабрики ({@link Factory}) создают экземпляры по блоку, применяя стандартные
+ * соглашения об именовании текстур (side, top, bottom и т.д.).
  */
+@Environment(EnvType.CLIENT)
 public class TexturedModel {
 
 	public static final TexturedModel.Factory CUBE_ALL = makeFactory(TextureMap::all, Models.CUBE_ALL);
@@ -141,11 +143,11 @@ public class TexturedModel {
 		return new TexturedModel(TextureMap.all(id), Models.CUBE_ALL);
 	}
 
+	/**
+	 * Фабрика текстурированных моделей: создаёт {@link TexturedModel} для заданного блока.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public interface Factory {
 
 		TexturedModel get(Block block);

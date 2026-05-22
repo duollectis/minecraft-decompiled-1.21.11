@@ -7,7 +7,10 @@ import net.minecraft.server.function.Tracer;
 import java.util.List;
 
 /**
- * {@code CommandFunctionAction}.
+ * Действие, выполняющее функцию (процедуру) команды — разворачивает её записи
+ * в очередь выполнения с новым дочерним фреймом.
+ *
+ * @param <T> тип источника команды
  */
 public class CommandFunctionAction<T extends AbstractServerCommandSource<T>> implements SourcedCommandAction<T> {
 
@@ -25,28 +28,24 @@ public class CommandFunctionAction<T extends AbstractServerCommandSource<T>> imp
 		this.propagateReturn = propagateReturn;
 	}
 
-	public void execute(
-			T abstractServerCommandSource,
-			CommandExecutionContext<T> commandExecutionContext,
-			Frame frame
-	) {
-		commandExecutionContext.decrementCommandQuota();
-		List<SourcedCommandAction<T>> list = this.function.entries();
-		Tracer tracer = commandExecutionContext.getTracer();
+	public void execute(T source, CommandExecutionContext<T> context, Frame frame) {
+		context.decrementCommandQuota();
+		List<SourcedCommandAction<T>> entries = function.entries();
+		Tracer tracer = context.getTracer();
 		if (tracer != null) {
-			tracer.traceFunctionCall(frame.depth(), this.function.id(), this.function.entries().size());
+			tracer.traceFunctionCall(frame.depth(), function.id(), entries.size());
 		}
 
-		int i = frame.depth() + 1;
-		Frame.Control
-				control =
-				this.propagateReturn ? frame.frameControl() : commandExecutionContext.getEscapeControl(i);
-		Frame frame2 = new Frame(i, this.returnValueConsumer, control);
+		int childDepth = frame.depth() + 1;
+		Frame.Control control = propagateReturn
+				? frame.frameControl()
+				: context.getEscapeControl(childDepth);
+		Frame childFrame = new Frame(childDepth, returnValueConsumer, control);
 		SteppedCommandAction.enqueueCommands(
-				commandExecutionContext,
-				frame2,
-				list,
-				(framex, action) -> new CommandQueueEntry<>(framex, action.bind(abstractServerCommandSource))
+				context,
+				childFrame,
+				entries,
+				(framex, action) -> new CommandQueueEntry<>(framex, action.bind(source))
 		);
 	}
 }

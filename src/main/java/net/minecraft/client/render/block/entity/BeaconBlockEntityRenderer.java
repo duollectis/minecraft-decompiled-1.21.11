@@ -75,7 +75,7 @@ public class BeaconBlockEntityRenderer<T extends BlockEntity & BeamEmitter> impl
 		float f = (float) cameraPos.subtract(state.pos.toCenterPos()).horizontalLength();
 		ClientPlayerEntity clientPlayerEntity = MinecraftClient.getInstance().player;
 		state.beamScale =
-				clientPlayerEntity != null && clientPlayerEntity.isUsingSpyglass() ? 1.0F : Math.max(1.0F, f / 96.0F);
+				clientPlayerEntity != null && clientPlayerEntity.isUsingSpyglass() ? 1.0F : Math.max(1.0F, f / BEAM_TEXTURE_SIZE);
 	}
 
 	public void render(
@@ -94,7 +94,7 @@ public class BeaconBlockEntityRenderer<T extends BlockEntity & BeamEmitter> impl
 					beaconBlockEntityRenderState.beamScale,
 					beaconBlockEntityRenderState.beamRotationDegrees,
 					i,
-					j == beaconBlockEntityRenderState.beamSegments.size() - 1 ? 2048 : beamSegment.height(),
+					j == beaconBlockEntityRenderState.beamSegments.size() - 1 ? MAX_BEAM_HEIGHT : beamSegment.height(),
 					beamSegment.color()
 			);
 			i += beamSegment.height();
@@ -119,8 +119,8 @@ public class BeaconBlockEntityRenderer<T extends BlockEntity & BeamEmitter> impl
 				minHeight,
 				maxHeight,
 				color,
-				0.2F * scale,
-				0.25F * scale
+				BEAM_INNER_RADIUS * scale,
+				BEAM_OUTER_RADIUS * scale
 		);
 	}
 

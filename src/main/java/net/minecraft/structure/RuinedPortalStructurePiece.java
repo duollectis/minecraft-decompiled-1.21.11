@@ -32,7 +32,9 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import java.util.List;
 
 /**
- * {@code RuinedPortalStructurePiece}.
+ * Кусок структуры разрушенного портала. Размещает NBT-шаблон портала
+ * с процессорами замены блоков, генерацией лавы, незеррака и лиан
+ * в зависимости от вертикального размещения (земля, воздух, Нижний мир и т.д.).
  */
 public class RuinedPortalStructurePiece extends SimpleStructurePiece {
 
@@ -256,7 +258,7 @@ public class RuinedPortalStructurePiece extends SimpleStructurePiece {
 		BlockPos blockPos = this.boundingBox.getCenter();
 		int i = blockPos.getX();
 		int j = blockPos.getZ();
-		float[] fs = new float[]{1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.9F, 0.9F, 0.8F, 0.7F, 0.6F, 0.4F, 0.2F};
+		float[] fs = new float[]{1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.9F, 0.9F, 0.8F, 0.7F, 0.6F, 0.4F, LAVA_MAGMA_CHANCE};
 		int k = fs.length;
 		int l = (this.boundingBox.getBlockCountX() + this.boundingBox.getBlockCountZ()) / 2;
 		int m = random.nextInt(Math.max(1, 8 - l / 2));
@@ -298,7 +300,7 @@ public class RuinedPortalStructurePiece extends SimpleStructurePiece {
 	}
 
 	private void placeNetherrackBottom(Random random, WorldAccess world, BlockPos pos) {
-		if (!this.properties.cold && random.nextFloat() < 0.07F) {
+		if (!this.properties.cold && random.nextFloat() < NETHERRACK_MAGMA_CHANCE) {
 			world.setBlockState(pos, Blocks.MAGMA_BLOCK.getDefaultState(), 3);
 		}
 		else {
@@ -336,9 +338,7 @@ public class RuinedPortalStructurePiece extends SimpleStructurePiece {
 		);
 	}
 
-	/**
-	 * {@code Properties}.
-	 */
+	/** Параметры генерации разрушенного портала: мшистость, лава, незеррак, воздушное размещение и т.д. */
 	public static class Properties {
 
 		public static final Codec<RuinedPortalStructurePiece.Properties> CODEC = RecordCodecBuilder.create(
@@ -381,9 +381,7 @@ public class RuinedPortalStructurePiece extends SimpleStructurePiece {
 		}
 	}
 
-	/**
-	 * {@code VerticalPlacement}.
-	 */
+	/** Тип вертикального размещения портала: на земле, в воздухе, в Нижнем мире, под водой и т.д. */
 	public static enum VerticalPlacement implements StringIdentifiable {
 		ON_LAND_SURFACE("on_land_surface"),
 		PARTLY_BURIED("partly_buried"),

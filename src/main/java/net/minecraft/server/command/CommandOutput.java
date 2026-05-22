@@ -3,7 +3,8 @@ package net.minecraft.server.command;
 import net.minecraft.text.Text;
 
 /**
- * {@code CommandOutput}.
+ * Получатель вывода команды: игрок, консоль или заглушка.
+ * Определяет, должен ли получатель видеть обратную связь, трекинг вывода и трансляцию операторам.
  */
 public interface CommandOutput {
 

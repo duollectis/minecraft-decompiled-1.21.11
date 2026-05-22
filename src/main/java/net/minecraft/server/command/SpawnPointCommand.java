@@ -17,7 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code SpawnPointCommand}.
+ * Команда {@code /spawnpoint}: установка личной точки возрождения игрока.
  */
 public class SpawnPointCommand {
 

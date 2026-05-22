@@ -4,7 +4,8 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.login.*;
 
 /**
- * Интерфейс client login packet listener.
+ * Слушатель клиентских пакетов фазы {@link net.minecraft.network.NetworkPhase#LOGIN}.
+ * Обрабатывает приветствие сервера, успешный вход, отключение, сжатие и запросы плагинов.
  */
 public interface ClientLoginPacketListener extends ClientCookieRequestPacketListener {
 

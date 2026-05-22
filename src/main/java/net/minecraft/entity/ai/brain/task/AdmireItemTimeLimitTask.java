@@ -6,55 +6,43 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import java.util.Optional;
 
 /**
- * {@code AdmireItemTimeLimitTask}.
+ * Фабричный класс задачи мозга, ограничивающей время попытки пиглина добраться до восхищающего предмета.
+ * По истечении {@code cooldown} тиков сбрасывает режим восхищения и блокирует ходьбу к предмету.
  */
 public class AdmireItemTimeLimitTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param cooldown cooldown
-	 * @param timeLimit time limit
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(int cooldown, int timeLimit) {
 		return TaskTriggerer.task(
 				context -> context.group(
-						                  context.queryMemoryValue(MemoryModuleType.ADMIRING_ITEM),
-						                  context.queryMemoryValue(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM),
-						                  context.queryMemoryOptional(MemoryModuleType.TIME_TRYING_TO_REACH_ADMIRE_ITEM),
-						                  context.queryMemoryOptional(MemoryModuleType.DISABLE_WALK_TO_ADMIRE_ITEM)
-				                  )
-				                  .apply(
-						                  context,
-						                  (admiringItem, nearestVisibleWantedItem, timeTryingToReachAdmireItem, disableWalkToAdmireItem) -> (world, entity, time) -> {
-							                  if (!entity.getOffHandStack().isEmpty()) {
-								                  return false;
-							                  }
-							                  else {
-								                  Optional<Integer>
-										                  optional =
-										                  context.getOptionalValue(timeTryingToReachAdmireItem);
-								                  if (optional.isEmpty()) {
-									                  timeTryingToReachAdmireItem.remember(0);
-								                  }
-								                  else {
-									                  int k = optional.get();
-									                  if (k > cooldown) {
-										                  admiringItem.forget();
-										                  timeTryingToReachAdmireItem.forget();
-										                  disableWalkToAdmireItem.remember(true, timeLimit);
-									                  }
-									                  else {
-										                  timeTryingToReachAdmireItem.remember(k + 1);
-									                  }
-								                  }
+						context.queryMemoryValue(MemoryModuleType.ADMIRING_ITEM),
+						context.queryMemoryValue(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM),
+						context.queryMemoryOptional(MemoryModuleType.TIME_TRYING_TO_REACH_ADMIRE_ITEM),
+						context.queryMemoryOptional(MemoryModuleType.DISABLE_WALK_TO_ADMIRE_ITEM)
+				).apply(
+						context,
+						(admiringItem, nearestVisibleWantedItem, timeTryingToReachAdmireItem, disableWalkToAdmireItem) -> (world, entity, time) -> {
+							if (!entity.getOffHandStack().isEmpty()) {
+								return false;
+							}
 
-								                  return true;
-							                  }
-						                  }
-				                  )
+							Optional<Integer> elapsed = context.getOptionalValue(timeTryingToReachAdmireItem);
+							if (elapsed.isEmpty()) {
+								timeTryingToReachAdmireItem.remember(0);
+								return true;
+							}
+
+							int ticks = elapsed.get();
+							if (ticks > cooldown) {
+								admiringItem.forget();
+								timeTryingToReachAdmireItem.forget();
+								disableWalkToAdmireItem.remember(true, timeLimit);
+							} else {
+								timeTryingToReachAdmireItem.remember(ticks + 1);
+							}
+
+							return true;
+						}
+				)
 		);
 	}
 }

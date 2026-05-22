@@ -30,10 +30,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BeaconScreen}.
+ * Экран управления маяком. Позволяет выбрать первичный и вторичный эффекты статуса
+ * в зависимости от уровня пирамиды маяка.
  */
+@Environment(EnvType.CLIENT)
 public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/beacon.png");
@@ -45,14 +46,19 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 	static final Identifier CANCEL_TEXTURE = Identifier.ofVanilla("container/beacon/cancel");
 	private static final Text PRIMARY_POWER_TEXT = Text.translatable("block.minecraft.beacon.primary");
 	private static final Text SECONDARY_POWER_TEXT = Text.translatable("block.minecraft.beacon.secondary");
+	private static final int BACKGROUND_WIDTH_BEACON = 230;
+	private static final int BACKGROUND_HEIGHT_BEACON = 219;
+	private static final int PRIMARY_LEVELS = 3;
+	private static final int SECONDARY_LEVEL = 3;
+
 	private final List<BeaconScreen.BeaconButtonWidget> buttons = Lists.newArrayList();
 	@Nullable RegistryEntry<StatusEffect> primaryEffect;
 	@Nullable RegistryEntry<StatusEffect> secondaryEffect;
 
 	public BeaconScreen(BeaconScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title);
-		this.backgroundWidth = 230;
-		this.backgroundHeight = 219;
+		backgroundWidth = BACKGROUND_WIDTH_BEACON;
+		backgroundHeight = BACKGROUND_HEIGHT_BEACON;
 		handler.addListener(new ScreenHandlerListener() {
 			@Override
 			public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
@@ -61,109 +67,118 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 			@Override
 			public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
 				BeaconScreenHandler beaconHandler = (BeaconScreenHandler) handler;
-				BeaconScreen.this.primaryEffect = beaconHandler.getPrimaryEffect();
-				BeaconScreen.this.secondaryEffect = beaconHandler.getSecondaryEffect();
+				primaryEffect = beaconHandler.getPrimaryEffect();
+				secondaryEffect = beaconHandler.getSecondaryEffect();
 			}
 		});
 	}
 
 	private <T extends ClickableWidget & BeaconScreen.BeaconButtonWidget> void addButton(T button) {
-		this.addDrawableChild(button);
-		this.buttons.add(button);
+		addDrawableChild(button);
+		buttons.add(button);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.buttons.clear();
+		buttons.clear();
 
-		for (int i = 0; i <= 2; i++) {
-			int j = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(i).size();
-			int k = j * 22 + (j - 1) * 2;
+		for (int level = 0; level <= PRIMARY_LEVELS - 1; level++) {
+			int effectCount = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(level).size();
+			int rowWidth = effectCount * 22 + (effectCount - 1) * 2;
 
-			for (int l = 0; l < j; l++) {
-				RegistryEntry<StatusEffect> registryEntry = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(i).get(l);
-				BeaconScreen.EffectButtonWidget effectButtonWidget = new BeaconScreen.EffectButtonWidget(
-						this.x + 76 + l * 24 - k / 2, this.y + 22 + i * 25, registryEntry, true, i
+			for (int effectIndex = 0; effectIndex < effectCount; effectIndex++) {
+				RegistryEntry<StatusEffect> effect = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(level).get(effectIndex);
+				BeaconScreen.EffectButtonWidget button = new BeaconScreen.EffectButtonWidget(
+					x + 76 + effectIndex * 24 - rowWidth / 2,
+					y + 22 + level * 25,
+					effect,
+					true,
+					level
 				);
-				effectButtonWidget.active = false;
-				this.addButton(effectButtonWidget);
+				button.active = false;
+				addButton(button);
 			}
 		}
 
-		int i = 3;
-		int j = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(3).size() + 1;
-		int k = j * 22 + (j - 1) * 2;
+		int secondaryEffectCount = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(SECONDARY_LEVEL).size() + 1;
+		int secondaryRowWidth = secondaryEffectCount * 22 + (secondaryEffectCount - 1) * 2;
 
-		for (int l = 0; l < j - 1; l++) {
-			RegistryEntry<StatusEffect> registryEntry = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(3).get(l);
-			BeaconScreen.EffectButtonWidget effectButtonWidget = new BeaconScreen.EffectButtonWidget(
-					this.x + 167 + l * 24 - k / 2, this.y + 47, registryEntry, false, 3
+		for (int effectIndex = 0; effectIndex < secondaryEffectCount - 1; effectIndex++) {
+			RegistryEntry<StatusEffect> effect = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(SECONDARY_LEVEL).get(effectIndex);
+			BeaconScreen.EffectButtonWidget button = new BeaconScreen.EffectButtonWidget(
+				x + 167 + effectIndex * 24 - secondaryRowWidth / 2,
+				y + 47,
+				effect,
+				false,
+				SECONDARY_LEVEL
 			);
-			effectButtonWidget.active = false;
-			this.addButton(effectButtonWidget);
+			button.active = false;
+			addButton(button);
 		}
 
-		RegistryEntry<StatusEffect> registryEntry2 = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(0).get(0);
-		BeaconScreen.EffectButtonWidget effectButtonWidget2 = new BeaconScreen.LevelTwoEffectButtonWidget(
-				this.x + 167 + (j - 1) * 24 - k / 2, this.y + 47, registryEntry2
+		RegistryEntry<StatusEffect> firstEffect = BeaconBlockEntity.EFFECTS_BY_LEVEL.get(0).get(0);
+		BeaconScreen.EffectButtonWidget levelTwoButton = new BeaconScreen.LevelTwoEffectButtonWidget(
+			x + 167 + (secondaryEffectCount - 1) * 24 - secondaryRowWidth / 2,
+			y + 47,
+			firstEffect
 		);
-		effectButtonWidget2.visible = false;
-		this.addButton(effectButtonWidget2);
-		this.addButton(new BeaconScreen.DoneButtonWidget(this.x + 164, this.y + 107));
-		this.addButton(new BeaconScreen.CancelButtonWidget(this.x + 190, this.y + 107));
+		levelTwoButton.visible = false;
+		addButton(levelTwoButton);
+		addButton(new BeaconScreen.DoneButtonWidget(x + 164, y + 107));
+		addButton(new BeaconScreen.CancelButtonWidget(x + 190, y + 107));
 	}
 
 	@Override
 	public void handledScreenTick() {
 		super.handledScreenTick();
-		this.tickButtons();
+		tickButtons();
 	}
 
 	void tickButtons() {
-		int i = this.handler.getProperties();
-		this.buttons.forEach(button -> button.tick(i));
+		int level = handler.getProperties();
+		buttons.forEach(button -> button.tick(level));
 	}
 
 	@Override
 	protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
-		context.drawCenteredTextWithShadow(this.textRenderer, PRIMARY_POWER_TEXT, 62, 10, -2039584);
-		context.drawCenteredTextWithShadow(this.textRenderer, SECONDARY_POWER_TEXT, 169, 10, -2039584);
+		context.drawCenteredTextWithShadow(textRenderer, PRIMARY_POWER_TEXT, 62, 10, -2039584);
+		context.drawCenteredTextWithShadow(textRenderer, SECONDARY_POWER_TEXT, 169, 10, -2039584);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
-		context.drawItem(new ItemStack(Items.NETHERITE_INGOT), i + 20, j + 109);
-		context.drawItem(new ItemStack(Items.EMERALD), i + 41, j + 109);
-		context.drawItem(new ItemStack(Items.DIAMOND), i + 41 + 22, j + 109);
-		context.drawItem(new ItemStack(Items.GOLD_INGOT), i + 42 + 44, j + 109);
-		context.drawItem(new ItemStack(Items.IRON_INGOT), i + 42 + 66, j + 109);
+		context.drawItem(new ItemStack(Items.NETHERITE_INGOT), bgX + 20, bgY + 109);
+		context.drawItem(new ItemStack(Items.EMERALD), bgX + 41, bgY + 109);
+		context.drawItem(new ItemStack(Items.DIAMOND), bgX + 41 + 22, bgY + 109);
+		context.drawItem(new ItemStack(Items.GOLD_INGOT), bgX + 42 + 44, bgY + 109);
+		context.drawItem(new ItemStack(Items.IRON_INGOT), bgX + 42 + 66, bgY + 109);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BaseButtonWidget}.
+	 * {@code BaseButtonWidget} — базовая кнопка маяка с поддержкой состояний disabled/selected/highlighted.
 	 */
+	@Environment(EnvType.CLIENT)
 	abstract static class BaseButtonWidget extends PressableWidget implements BeaconScreen.BeaconButtonWidget {
 
 		private boolean disabled;
@@ -178,40 +193,25 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 
 		@Override
 		public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			Identifier identifier;
-			if (!this.active) {
-				identifier = BeaconScreen.BUTTON_DISABLED_TEXTURE;
-			}
-			else if (this.disabled) {
-				identifier = BeaconScreen.BUTTON_SELECTED_TEXTURE;
-			}
-			else if (this.isSelected()) {
-				identifier = BeaconScreen.BUTTON_HIGHLIGHTED_TEXTURE;
-			}
-			else {
-				identifier = BeaconScreen.BUTTON_TEXTURE;
+			Identifier buttonTexture;
+			if (!active) {
+				buttonTexture = BeaconScreen.BUTTON_DISABLED_TEXTURE;
+			} else if (disabled) {
+				buttonTexture = BeaconScreen.BUTTON_SELECTED_TEXTURE;
+			} else if (isSelected()) {
+				buttonTexture = BeaconScreen.BUTTON_HIGHLIGHTED_TEXTURE;
+			} else {
+				buttonTexture = BeaconScreen.BUTTON_TEXTURE;
 			}
 
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					identifier,
-					this.getX(),
-					this.getY(),
-					this.width,
-					this.height
-			);
-			this.renderExtra(context);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, buttonTexture, getX(), getY(), width, height);
+			renderExtra(context);
 		}
 
-		/**
-		 * Отрисовывает extra.
-		 *
-		 * @param context context
-		 */
 		protected abstract void renderExtra(DrawContext context);
 
 		public boolean isDisabled() {
-			return this.disabled;
+			return disabled;
 		}
 
 		public void setDisabled(boolean disabled) {
@@ -220,23 +220,23 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 
 		@Override
 		public void appendClickableNarrations(NarrationMessageBuilder builder) {
-			this.appendDefaultNarrations(builder);
+			appendDefaultNarrations(builder);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BeaconButtonWidget}.
+	 * {@code BeaconButtonWidget} — маркерный интерфейс для кнопок маяка с поддержкой тика.
 	 */
+	@Environment(EnvType.CLIENT)
 	interface BeaconButtonWidget {
 
 		void tick(int level);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CancelButtonWidget}.
+	 * {@code CancelButtonWidget} — кнопка отмены, закрывает экран без сохранения.
 	 */
+	@Environment(EnvType.CLIENT)
 	class CancelButtonWidget extends BeaconScreen.IconButtonWidget {
 
 		public CancelButtonWidget(final int x, final int y) {
@@ -253,10 +253,10 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DoneButtonWidget}.
+	 * {@code DoneButtonWidget} — кнопка подтверждения, отправляет выбранные эффекты на сервер.
 	 */
+	@Environment(EnvType.CLIENT)
 	class DoneButtonWidget extends BeaconScreen.IconButtonWidget {
 
 		public DoneButtonWidget(final int x, final int y) {
@@ -266,24 +266,24 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 		@Override
 		public void onPress(AbstractInput input) {
 			BeaconScreen.this.client
-					.getNetworkHandler()
-					.sendPacket(new UpdateBeaconC2SPacket(
-							Optional.ofNullable(BeaconScreen.this.primaryEffect),
-							Optional.ofNullable(BeaconScreen.this.secondaryEffect)
-					));
+				.getNetworkHandler()
+				.sendPacket(new UpdateBeaconC2SPacket(
+					Optional.ofNullable(BeaconScreen.this.primaryEffect),
+					Optional.ofNullable(BeaconScreen.this.secondaryEffect)
+				));
 			BeaconScreen.this.client.player.closeHandledScreen();
 		}
 
 		@Override
 		public void tick(int level) {
-			this.active = BeaconScreen.this.handler.hasPayment() && BeaconScreen.this.primaryEffect != null;
+			active = BeaconScreen.this.handler.hasPayment() && BeaconScreen.this.primaryEffect != null;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code EffectButtonWidget}.
+	 * {@code EffectButtonWidget} — кнопка выбора эффекта статуса для маяка.
 	 */
+	@Environment(EnvType.CLIENT)
 	class EffectButtonWidget extends BeaconScreen.BaseButtonWidget {
 
 		private final boolean primary;
@@ -292,27 +292,22 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 		private Identifier sprite;
 
 		public EffectButtonWidget(
-				final int x,
-				final int y,
-				final RegistryEntry<StatusEffect> effect,
-				final boolean primary,
-				final int level
+			final int x,
+			final int y,
+			final RegistryEntry<StatusEffect> effect,
+			final boolean primary,
+			final int level
 		) {
 			super(x, y);
 			this.primary = primary;
 			this.level = level;
-			this.init(effect);
+			init(effect);
 		}
 
-		/**
-		 * Init.
-		 *
-		 * @param effect effect
-		 */
 		protected void init(RegistryEntry<StatusEffect> effect) {
 			this.effect = effect;
-			this.sprite = InGameHud.getEffectTexture(effect);
-			this.setTooltip(Tooltip.of(this.getEffectName(effect), null));
+			sprite = InGameHud.getEffectTexture(effect);
+			setTooltip(Tooltip.of(getEffectName(effect), null));
 		}
 
 		protected MutableText getEffectName(RegistryEntry<StatusEffect> effect) {
@@ -321,71 +316,65 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 
 		@Override
 		public void onPress(AbstractInput input) {
-			if (!this.isDisabled()) {
-				if (this.primary) {
-					BeaconScreen.this.primaryEffect = this.effect;
-				}
-				else {
-					BeaconScreen.this.secondaryEffect = this.effect;
-				}
-
-				BeaconScreen.this.tickButtons();
+			if (isDisabled()) {
+				return;
 			}
+
+			if (primary) {
+				BeaconScreen.this.primaryEffect = effect;
+			} else {
+				BeaconScreen.this.secondaryEffect = effect;
+			}
+
+			BeaconScreen.this.tickButtons();
 		}
 
 		@Override
 		protected void renderExtra(DrawContext context) {
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.sprite, this.getX() + 2, this.getY() + 2, 18, 18);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, sprite, getX() + 2, getY() + 2, 18, 18);
 		}
 
 		@Override
 		public void tick(int level) {
-			this.active = this.level < level;
-			this.setDisabled(this.effect.equals(
-					this.primary ? BeaconScreen.this.primaryEffect : BeaconScreen.this.secondaryEffect));
+			active = this.level < level;
+			setDisabled(effect.equals(primary ? BeaconScreen.this.primaryEffect : BeaconScreen.this.secondaryEffect));
 		}
 
 		@Override
 		protected MutableText getNarrationMessage() {
-			return this.getEffectName(this.effect);
+			return getEffectName(effect);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code IconButtonWidget}.
+	 * {@code IconButtonWidget} — кнопка маяка с иконкой-текстурой.
 	 */
+	@Environment(EnvType.CLIENT)
 	abstract static class IconButtonWidget extends BeaconScreen.BaseButtonWidget {
 
 		private final Identifier texture;
 
 		protected IconButtonWidget(int x, int y, Identifier identifier, Text message) {
 			super(x, y, message);
-			this.setTooltip(Tooltip.of(message));
-			this.texture = identifier;
+			setTooltip(Tooltip.of(message));
+			texture = identifier;
 		}
 
 		@Override
 		protected void renderExtra(DrawContext context) {
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					this.texture,
-					this.getX() + 2,
-					this.getY() + 2,
-					18,
-					18
-			);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, getX() + 2, getY() + 2, 18, 18);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LevelTwoEffectButtonWidget}.
+	 * {@code LevelTwoEffectButtonWidget} — кнопка усиленного (II уровня) вторичного эффекта маяка.
+	 * Отображается только если выбран первичный эффект.
 	 */
+	@Environment(EnvType.CLIENT)
 	class LevelTwoEffectButtonWidget extends BeaconScreen.EffectButtonWidget {
 
 		public LevelTwoEffectButtonWidget(final int x, final int y, final RegistryEntry<StatusEffect> effect) {
-			super(x, y, effect, false, 3);
+			super(x, y, effect, false, SECONDARY_LEVEL);
 		}
 
 		@Override
@@ -396,12 +385,11 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 		@Override
 		public void tick(int level) {
 			if (BeaconScreen.this.primaryEffect != null) {
-				this.visible = true;
-				this.init(BeaconScreen.this.primaryEffect);
+				visible = true;
+				init(BeaconScreen.this.primaryEffect);
 				super.tick(level);
-			}
-			else {
-				this.visible = false;
+			} else {
+				visible = false;
 			}
 		}
 	}

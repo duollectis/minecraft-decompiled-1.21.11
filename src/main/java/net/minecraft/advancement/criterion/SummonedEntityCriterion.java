@@ -13,59 +13,51 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code SummonedEntityCriterion}.
+ * Критерий выполняется, когда игрок призывает сущность (например, железного голема или снежного голема).
  */
 public class SummonedEntityCriterion extends AbstractCriterion<SummonedEntityCriterion.Conditions> {
 
 	@Override
-	public Codec<SummonedEntityCriterion.Conditions> getConditionsCodec() {
-		return SummonedEntityCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Entity entity) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
-		this.trigger(player, conditions -> conditions.matches(lootContext));
+		LootContext entityContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
+		trigger(player, conditions -> conditions.matches(entityContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> entity
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<SummonedEntityCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(SummonedEntityCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("entity")
-								                    .forGetter(SummonedEntityCriterion.Conditions::entity)
-				                    )
-				                    .apply(instance, SummonedEntityCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("entity")
+								.forGetter(Conditions::entity)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<SummonedEntityCriterion.Conditions> create(EntityPredicate.Builder summonedEntityPredicateBuilder) {
-			return Criteria.SUMMONED_ENTITY
-					.create(
-							new SummonedEntityCriterion.Conditions(
-									Optional.empty(),
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(
-											summonedEntityPredicateBuilder))
-							)
-					);
+		public static AdvancementCriterion<Conditions> create(EntityPredicate.Builder summonedEntityPredicateBuilder) {
+			return Criteria.SUMMONED_ENTITY.create(new Conditions(
+					Optional.empty(),
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(summonedEntityPredicateBuilder))
+			));
 		}
 
-		public boolean matches(LootContext entity) {
-			return this.entity.isEmpty() || this.entity.get().test(entity);
+		public boolean matches(LootContext entityContext) {
+			return entity.isEmpty() || entity.get().test(entityContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.entity, "entity");
+			validator.validateEntityPredicate(entity, "entity");
 		}
 	}
 }

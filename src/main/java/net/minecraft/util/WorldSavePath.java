@@ -1,7 +1,7 @@
 package net.minecraft.util;
 
 /**
- * {@code WorldSavePath}.
+ * Именованные пути к стандартным директориям и файлам внутри папки сохранения мира.
  */
 public class WorldSavePath {
 
@@ -17,6 +17,7 @@ public class WorldSavePath {
 	public static final WorldSavePath DATAPACKS = new WorldSavePath("datapacks");
 	public static final WorldSavePath RESOURCES_ZIP = new WorldSavePath("resources.zip");
 	public static final WorldSavePath ROOT = new WorldSavePath(".");
+
 	private final String relativePath;
 
 	private WorldSavePath(String relativePath) {
@@ -24,11 +25,11 @@ public class WorldSavePath {
 	}
 
 	public String getRelativePath() {
-		return this.relativePath;
+		return relativePath;
 	}
 
 	@Override
 	public String toString() {
-		return "/" + this.relativePath;
+		return "/" + relativePath;
 	}
 }

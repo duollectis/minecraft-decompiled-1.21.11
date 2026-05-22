@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 
 /**
- * {@code ChaseCommand}.
+ * Команда {@code /chase}: телепортация к позиции другого игрока (режим разработки).
  */
 public class ChaseCommand {
 
@@ -58,7 +58,7 @@ public class ChaseCommand {
 																		                                        context,
 																		                                        "host"
 																                                        ),
-																                                        10000
+																                                        DEFAULT_PORT
 														                                        )
 												                                        )
 										                                        )
@@ -90,7 +90,7 @@ public class ChaseCommand {
 										.executes(context -> startClient(
 												(ServerCommandSource) context.getSource(),
 												"localhost",
-												10000
+												DEFAULT_PORT
 										))
 						)
 				)
@@ -109,7 +109,7 @@ public class ChaseCommand {
 																		                                        context,
 																		                                        "bind_address"
 																                                        ),
-																                                        10000
+																                                        DEFAULT_PORT
 														                                        )
 												                                        )
 										                                        )
@@ -141,7 +141,7 @@ public class ChaseCommand {
 										.executes(context -> startServer(
 												(ServerCommandSource) context.getSource(),
 												"0.0.0.0",
-												10000
+												DEFAULT_PORT
 										))
 						)
 				)
@@ -186,7 +186,7 @@ public class ChaseCommand {
 			return 0;
 		}
 		else {
-			server = new ChaseServer(ip, port, source.getServer().getPlayerManager(), 100);
+			server = new ChaseServer(ip, port, source.getServer().getPlayerManager(), INTERVAL);
 
 			try {
 				server.start();

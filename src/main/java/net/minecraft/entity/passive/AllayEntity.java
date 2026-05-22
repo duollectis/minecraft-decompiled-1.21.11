@@ -61,7 +61,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 /**
- * {@code AllayEntity}.
+ * Аллай — летающее существо, подбирающее предметы и доставляющее их
+ * к нотному блоку или владельцу. Танцует под музыку.
  */
 public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibrations {
 
@@ -186,7 +187,11 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		return this.isLikedBy(source.getAttacker()) ? false : super.damage(world, source, amount);
+		if (this.isLikedBy(source.getAttacker())) {
+			return false;
+		}
+
+		return super.damage(world, source, amount);
 	}
 
 	@Override
@@ -282,7 +287,7 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 					this.spinningAnimationTicks--;
 				}
 
-				this.spinningAnimationTicks = MathHelper.clamp(this.spinningAnimationTicks, 0.0F, 15.0F);
+				this.spinningAnimationTicks = MathHelper.clamp(this.spinningAnimationTicks, 0.0F, SPIN_ANIMATION_TICKS);
 			}
 			else {
 				this.danceTicks = 0.0F;
@@ -472,12 +477,12 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 	}
 
 	public boolean isSpinning() {
-		float f = this.danceTicks % 55.0F;
-		return f < 15.0F;
+		float f = this.danceTicks % DANCE_CYCLE_TICKS;
+		return f < SPIN_ANIMATION_TICKS;
 	}
 
 	public float getSpinningAnimationTicks(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastSpinningAnimationTicks, this.spinningAnimationTicks) / 15.0F;
+		return MathHelper.lerp(tickProgress, this.lastSpinningAnimationTicks, this.spinningAnimationTicks) / SPIN_ANIMATION_TICKS;
 	}
 
 	@Override
@@ -551,7 +556,7 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 	}
 
 	private void startDuplicationCooldown() {
-		this.setDuplicationCooldown(6000L);
+		this.setDuplicationCooldown(DUPLICATION_COOLDOWN);
 	}
 
 	private boolean canDuplicate() {
@@ -607,8 +612,8 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 	}
 
 	/**
-	 * {@code JukeboxEventListener}.
-	 */
+ * Состояние аллая при доставке предмета.
+ */
 	class JukeboxEventListener implements GameEventListener {
 
 		private final PositionSource positionSource;
@@ -651,8 +656,8 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 	}
 
 	/**
-	 * {@code VibrationCallback}.
-	 */
+ * Данные аллая для сериализации.
+ */
 	class VibrationCallback implements Vibrations.Callback {
 
 		private static final int RANGE = 16;
@@ -662,7 +667,7 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 
 		@Override
 		public int getRange() {
-			return 16;
+			return RANGE;
 		}
 
 		@Override
@@ -689,7 +694,7 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 				}
 				else {
 					GlobalPos globalPos = optional.get();
-					return globalPos.isWithinRange(world.getRegistryKey(), AllayEntity.this.getBlockPos(), 1024)
+					return globalPos.isWithinRange(world.getRegistryKey(), AllayEntity.this.getBlockPos(), NOTE_BLOCK_RANGE)
 							&& globalPos.pos().equals(pos);
 				}
 			}

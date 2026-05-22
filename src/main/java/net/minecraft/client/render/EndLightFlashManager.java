@@ -40,8 +40,8 @@ public class EndLightFlashManager {
 		if (l != this.currentWindow) {
 			Random random = Random.create(l);
 			random.nextFloat();
-			this.startTime = MathHelper.nextBetween(random, 0, 200);
-			this.duration = MathHelper.nextBetween(random, 100, Math.min(380, 600 - this.startTime));
+			this.startTime = MathHelper.nextBetween(random, 0, MAX_START_TIME);
+			this.duration = MathHelper.nextBetween(random, MIN_DURATION, Math.min(FLASH_INTERVAL_TICKS, INTERVAL - this.startTime));
 			this.pitch = MathHelper.nextBetween(random, -60.0F, 10.0F);
 			this.yaw = MathHelper.nextBetween(random, -180.0F, 180.0F);
 			this.currentWindow = l;

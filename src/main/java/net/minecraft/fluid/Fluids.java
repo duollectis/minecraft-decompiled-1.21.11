@@ -1,11 +1,14 @@
 package net.minecraft.fluid;
 
-import com.google.common.collect.UnmodifiableIterator;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code Fluids}.
+ * Реестр всех стандартных жидкостей игры.
+ *
+ * <p>Статический инициализатор регистрирует все состояния жидкостей
+ * в глобальном списке {@link Fluid#STATE_IDS}, что позволяет сериализовать
+ * и десериализовать состояния по числовому ID.</p>
  */
 public class Fluids {
 
@@ -21,11 +24,8 @@ public class Fluids {
 
 	static {
 		for (Fluid fluid : Registries.FLUID) {
-			UnmodifiableIterator var2 = fluid.getStateManager().getStates().iterator();
-
-			while (var2.hasNext()) {
-				FluidState fluidState = (FluidState) var2.next();
-				Fluid.STATE_IDS.add(fluidState);
+			for (FluidState state : fluid.getStateManager().getStates()) {
+				Fluid.STATE_IDS.add(state);
 			}
 		}
 	}

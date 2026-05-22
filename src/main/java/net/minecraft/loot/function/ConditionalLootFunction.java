@@ -16,9 +16,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-/**
- * {@code ConditionalLootFunction}.
- */
+/** Базовый класс для функций лута с поддержкой условий применения. */
 public abstract class ConditionalLootFunction implements LootFunction {
 
 	protected final List<LootCondition> conditions;
@@ -32,43 +30,30 @@ public abstract class ConditionalLootFunction implements LootFunction {
 	@Override
 	public abstract LootFunctionType<? extends ConditionalLootFunction> getType();
 
-	protected static <T extends ConditionalLootFunction> P1<Mu<T>, List<LootCondition>> addConditionsField(Instance<T> instance) {
+	protected static <T extends ConditionalLootFunction> P1<Mu<T>, List<LootCondition>> addConditionsField(
+		Instance<T> instance
+	) {
 		return instance.group(LootCondition.CODEC
-				.listOf()
-				.optionalFieldOf("conditions", List.of())
-				.forGetter(function -> function.conditions));
+			.listOf()
+			.optionalFieldOf("conditions", List.of())
+			.forGetter(function -> function.conditions));
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param itemStack item stack
-	 * @param lootContext loot context
-	 *
-	 * @return ItemStack — результат операции
-	 */
+	@Override
 	public final ItemStack apply(ItemStack itemStack, LootContext lootContext) {
-		return this.predicate.test(lootContext) ? this.process(itemStack, lootContext) : itemStack;
+		return predicate.test(lootContext) ? process(itemStack, lootContext) : itemStack;
 	}
 
-	/**
-	 * Process.
-	 *
-	 * @param stack stack
-	 * @param context context
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	protected abstract ItemStack process(ItemStack stack, LootContext context);
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		LootFunction.super.validate(reporter);
 
-		for (int i = 0; i < this.conditions.size(); i++) {
-			this.conditions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", i)));
+		for (int index = 0; index < conditions.size(); index++) {
+			conditions.get(index).validate(
+				reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", index))
+			);
 		}
 	}
 
@@ -76,41 +61,28 @@ public abstract class ConditionalLootFunction implements LootFunction {
 		return new ConditionalLootFunction.Joiner(joiner);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public abstract static class Builder<T extends ConditionalLootFunction.Builder<T>> implements LootFunction.Builder, LootConditionConsumingBuilder<T> {
+	/** Базовый строитель условной функции лута. */
+	public abstract static class Builder<T extends ConditionalLootFunction.Builder<T>>
+		implements LootFunction.Builder, LootConditionConsumingBuilder<T> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootCondition>
-				conditionList =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<LootCondition> conditionList = ImmutableList.builder();
 
-		/**
-		 * Conditionally.
-		 *
-		 * @param builder builder
-		 *
-		 * @return T — результат операции
-		 */
 		public T conditionally(LootCondition.Builder builder) {
-			this.conditionList.add(builder.build());
-			return this.getThisBuilder();
+			conditionList.add(builder.build());
+			return getThisBuilder();
 		}
 
 		public final T getThisConditionConsumingBuilder() {
-			return this.getThisBuilder();
+			return getThisBuilder();
 		}
 
 		protected abstract T getThisBuilder();
 
 		protected List<LootCondition> getConditions() {
-			return this.conditionList.build();
+			return conditionList.build();
 		}
 	}
 
-	/**
-	 * {@code Joiner}.
-	 */
 	static final class Joiner extends ConditionalLootFunction.Builder<ConditionalLootFunction.Joiner> {
 
 		private final Function<List<LootCondition>, LootFunction> joiner;
@@ -119,13 +91,14 @@ public abstract class ConditionalLootFunction implements LootFunction {
 			this.joiner = joiner;
 		}
 
+		@Override
 		protected ConditionalLootFunction.Joiner getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return this.joiner.apply(this.getConditions());
+			return joiner.apply(getConditions());
 		}
 	}
 }

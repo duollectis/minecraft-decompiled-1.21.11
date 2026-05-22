@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * {@code VillagerTradeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerTradeFix extends DataFix {
 
@@ -20,7 +20,7 @@ public class VillagerTradeFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.VILLAGER_TRADE);
+		Type<?> type = getInputSchema().getType(TypeReferences.VILLAGER_TRADE);
 		OpticFinder<?> opticFinder = type.findField("buy");
 		OpticFinder<?> opticFinder2 = type.findField("buyB");
 		OpticFinder<?> opticFinder3 = type.findField("sell");
@@ -28,7 +28,7 @@ public class VillagerTradeFix extends DataFix {
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		Function<Typed<?>, Typed<?>> function = itemTyped -> this.fixPumpkinTrade(opticFinder4, itemTyped);
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Villager trade fix",
 				type,
 				villagerTradeTyped -> villagerTradeTyped

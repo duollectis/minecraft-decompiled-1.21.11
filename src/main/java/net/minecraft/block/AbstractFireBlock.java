@@ -21,15 +21,25 @@ import net.minecraft.world.dimension.NetherPortal;
 import java.util.Optional;
 
 /**
- * {@code AbstractFireBlock}.
+ * Базовый класс для всех типов огня (обычный огонь и огонь душ).
+ * Управляет логикой поджигания сущностей, спавна частиц дыма,
+ * активации нижеровских порталов и звуковыми эффектами.
  */
 public abstract class AbstractFireBlock extends Block {
 
 	private static final int SET_ON_FIRE_SECONDS = 8;
 	private static final int MIN_FIRE_TICK_INCREMENT = 1;
 	private static final int MAX_FIRE_TICK_INCREMENT = 3;
-	private final float damage;
+	/** Вероятность воспроизведения звука огня (1 из 24 тиков отображения). */
+	private static final int SOUND_PLAY_CHANCE = 24;
+	/** Количество частиц дыма для горящих боковых блоков. */
+	private static final int SIDE_SMOKE_PARTICLE_COUNT = 2;
+	/** Количество частиц дыма для горящего основания. */
+	private static final int BASE_SMOKE_PARTICLE_COUNT = 3;
+
 	protected static final VoxelShape BASE_SHAPE = Block.createColumnShape(16.0, 0.0, 1.0);
+
+	private final float damage;
 
 	public AbstractFireBlock(AbstractBlock.Settings settings, float damage) {
 		super(settings);
@@ -44,11 +54,16 @@ public abstract class AbstractFireBlock extends Block {
 		return getState(ctx.getWorld(), ctx.getBlockPos());
 	}
 
+	/**
+	 * Определяет тип огня для размещения в указанной позиции:
+	 * огонь душ — если под блоком находится основание для огня душ,
+	 * иначе — обычный огонь с учётом соседних горючих блоков.
+	 */
 	public static BlockState getState(BlockView world, BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		BlockState blockState = world.getBlockState(blockPos);
-		return SoulFireBlock.isSoulBase(blockState) ? Blocks.SOUL_FIRE.getDefaultState()
-		                                            : ((FireBlock) Blocks.FIRE).getStateForPosition(world, pos);
+		BlockState below = world.getBlockState(pos.down());
+		return SoulFireBlock.isSoulBase(below)
+			? Blocks.SOUL_FIRE.getDefaultState()
+			: ((FireBlock) Blocks.FIRE).getStateForPosition(world, pos);
 	}
 
 	@Override
@@ -58,74 +73,83 @@ public abstract class AbstractFireBlock extends Block {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (random.nextInt(24) == 0) {
+		if (random.nextInt(SOUND_PLAY_CHANCE) == 0) {
 			world.playSoundClient(
-					pos.getX() + 0.5,
-					pos.getY() + 0.5,
-					pos.getZ() + 0.5,
-					SoundEvents.BLOCK_FIRE_AMBIENT,
-					SoundCategory.BLOCKS,
-					1.0F + random.nextFloat(),
-					random.nextFloat() * 0.7F + 0.3F,
-					false
+				pos.getX() + 0.5,
+				pos.getY() + 0.5,
+				pos.getZ() + 0.5,
+				SoundEvents.BLOCK_FIRE_AMBIENT,
+				SoundCategory.BLOCKS,
+				1.0F + random.nextFloat(),
+				random.nextFloat() * 0.7F + 0.3F,
+				false
 			);
 		}
 
-		BlockPos blockPos = pos.down();
-		BlockState blockState = world.getBlockState(blockPos);
-		if (!this.isFlammable(blockState) && !blockState.isSideSolidFullSquare(world, blockPos, Direction.UP)) {
-			if (this.isFlammable(world.getBlockState(pos.west()))) {
-				for (int i = 0; i < 2; i++) {
-					double d = pos.getX() + random.nextDouble() * 0.1F;
-					double e = pos.getY() + random.nextDouble();
-					double f = pos.getZ() + random.nextDouble();
-					world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-				}
-			}
+		BlockPos belowPos = pos.down();
+		BlockState belowState = world.getBlockState(belowPos);
 
-			if (this.isFlammable(world.getBlockState(pos.east()))) {
-				for (int i = 0; i < 2; i++) {
-					double d = pos.getX() + 1 - random.nextDouble() * 0.1F;
-					double e = pos.getY() + random.nextDouble();
-					double f = pos.getZ() + random.nextDouble();
-					world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-				}
-			}
-
-			if (this.isFlammable(world.getBlockState(pos.north()))) {
-				for (int i = 0; i < 2; i++) {
-					double d = pos.getX() + random.nextDouble();
-					double e = pos.getY() + random.nextDouble();
-					double f = pos.getZ() + random.nextDouble() * 0.1F;
-					world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-				}
-			}
-
-			if (this.isFlammable(world.getBlockState(pos.south()))) {
-				for (int i = 0; i < 2; i++) {
-					double d = pos.getX() + random.nextDouble();
-					double e = pos.getY() + random.nextDouble();
-					double f = pos.getZ() + 1 - random.nextDouble() * 0.1F;
-					world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-				}
-			}
-
-			if (this.isFlammable(world.getBlockState(pos.up()))) {
-				for (int i = 0; i < 2; i++) {
-					double d = pos.getX() + random.nextDouble();
-					double e = pos.getY() + 1 - random.nextDouble() * 0.1F;
-					double f = pos.getZ() + random.nextDouble();
-					world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-				}
-			}
+		if (isFlammable(belowState) || belowState.isSideSolidFullSquare(world, belowPos, Direction.UP)) {
+			spawnBaseSmoke(world, pos, random);
+		} else {
+			spawnSideSmoke(world, pos, random);
 		}
-		else {
-			for (int i = 0; i < 3; i++) {
-				double d = pos.getX() + random.nextDouble();
-				double e = pos.getY() + random.nextDouble() * 0.5 + 0.5;
-				double f = pos.getZ() + random.nextDouble();
-				world.addParticleClient(ParticleTypes.LARGE_SMOKE, d, e, f, 0.0, 0.0, 0.0);
-			}
+	}
+
+	private void spawnBaseSmoke(World world, BlockPos pos, Random random) {
+		for (int i = 0; i < BASE_SMOKE_PARTICLE_COUNT; i++) {
+			double x = pos.getX() + random.nextDouble();
+			double y = pos.getY() + random.nextDouble() * 0.5 + 0.5;
+			double z = pos.getZ() + random.nextDouble();
+			world.addParticleClient(ParticleTypes.LARGE_SMOKE, x, y, z, 0.0, 0.0, 0.0);
+		}
+	}
+
+	private void spawnSideSmoke(World world, BlockPos pos, Random random) {
+		if (isFlammable(world.getBlockState(pos.west()))) {
+			spawnSideSmokeParticles(world, random,
+				pos.getX() + random.nextDouble() * 0.1F,
+				pos.getY() + random.nextDouble(),
+				pos.getZ() + random.nextDouble()
+			);
+		}
+
+		if (isFlammable(world.getBlockState(pos.east()))) {
+			spawnSideSmokeParticles(world, random,
+				pos.getX() + 1 - random.nextDouble() * 0.1F,
+				pos.getY() + random.nextDouble(),
+				pos.getZ() + random.nextDouble()
+			);
+		}
+
+		if (isFlammable(world.getBlockState(pos.north()))) {
+			spawnSideSmokeParticles(world, random,
+				pos.getX() + random.nextDouble(),
+				pos.getY() + random.nextDouble(),
+				pos.getZ() + random.nextDouble() * 0.1F
+			);
+		}
+
+		if (isFlammable(world.getBlockState(pos.south()))) {
+			spawnSideSmokeParticles(world, random,
+				pos.getX() + random.nextDouble(),
+				pos.getY() + random.nextDouble(),
+				pos.getZ() + 1 - random.nextDouble() * 0.1F
+			);
+		}
+
+		if (isFlammable(world.getBlockState(pos.up()))) {
+			spawnSideSmokeParticles(world, random,
+				pos.getX() + random.nextDouble(),
+				pos.getY() + 1 - random.nextDouble() * 0.1F,
+				pos.getZ() + random.nextDouble()
+			);
+		}
+	}
+
+	private static void spawnSideSmokeParticles(World world, Random random, double x, double y, double z) {
+		for (int i = 0; i < SIDE_SMOKE_PARTICLE_COUNT; i++) {
+			world.addParticleClient(ParticleTypes.LARGE_SMOKE, x, y, z, 0.0, 0.0, 0.0);
 		}
 	}
 
@@ -133,56 +157,63 @@ public abstract class AbstractFireBlock extends Block {
 
 	@Override
 	protected void onEntityCollision(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Entity entity,
-			EntityCollisionHandler handler,
-			boolean bl
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Entity entity,
+		EntityCollisionHandler handler,
+		boolean firstCollision
 	) {
 		handler.addEvent(CollisionEvent.CLEAR_FREEZE);
 		handler.addEvent(CollisionEvent.FIRE_IGNITE);
 		handler.addPostCallback(
-				CollisionEvent.FIRE_IGNITE,
-				entityx -> entityx.serverDamage(entityx.getEntityWorld().getDamageSources().inFire(), this.damage)
+			CollisionEvent.FIRE_IGNITE,
+			target -> target.serverDamage(target.getEntityWorld().getDamageSources().inFire(), damage)
 		);
 	}
 
 	/**
-	 * Ignite entity.
-	 *
-	 * @param entity entity
+	 * Постепенно поджигает сущность: увеличивает счётчик тиков огня
+	 * и устанавливает горение на {@value #SET_ON_FIRE_SECONDS} секунд при достижении порога.
+	 * Для серверных игроков добавляет случайный инкремент от {@value #MIN_FIRE_TICK_INCREMENT}
+	 * до {@value #MAX_FIRE_TICK_INCREMENT} тиков.
 	 */
 	public static void igniteEntity(Entity entity) {
-		if (!entity.isFireImmune()) {
-			if (entity.getFireTicks() < 0) {
-				entity.setFireTicks(entity.getFireTicks() + 1);
-			}
-			else if (entity instanceof ServerPlayerEntity) {
-				int i = entity.getEntityWorld().getRandom().nextBetweenExclusive(1, 3);
-				entity.setFireTicks(entity.getFireTicks() + i);
-			}
+		if (entity.isFireImmune()) {
+			return;
+		}
 
-			if (entity.getFireTicks() >= 0) {
-				entity.setOnFireFor(8.0F);
-			}
+		if (entity.getFireTicks() < 0) {
+			entity.setFireTicks(entity.getFireTicks() + 1);
+		} else if (entity instanceof ServerPlayerEntity) {
+			int increment = entity.getEntityWorld().getRandom().nextBetweenExclusive(
+				MIN_FIRE_TICK_INCREMENT,
+				MAX_FIRE_TICK_INCREMENT
+			);
+			entity.setFireTicks(entity.getFireTicks() + increment);
+		}
+
+		if (entity.getFireTicks() >= 0) {
+			entity.setOnFireFor(SET_ON_FIRE_SECONDS);
 		}
 	}
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		if (!oldState.isOf(state.getBlock())) {
-			if (isOverworldOrNether(world)) {
-				Optional<NetherPortal> optional = NetherPortal.getNewPortal(world, pos, Direction.Axis.X);
-				if (optional.isPresent()) {
-					optional.get().createPortal(world);
-					return;
-				}
-			}
+		if (oldState.isOf(state.getBlock())) {
+			return;
+		}
 
-			if (!state.canPlaceAt(world, pos)) {
-				world.removeBlock(pos, false);
+		if (isOverworldOrNether(world)) {
+			Optional<NetherPortal> portal = NetherPortal.getNewPortal(world, pos, Direction.Axis.X);
+			if (portal.isPresent()) {
+				portal.get().createPortal(world);
+				return;
 			}
+		}
+
+		if (!state.canPlaceAt(world, pos)) {
+			world.removeBlock(pos, false);
 		}
 	}
 
@@ -204,47 +235,45 @@ public abstract class AbstractFireBlock extends Block {
 	}
 
 	/**
-	 * Проверяет возможность place at.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param direction direction
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, можно ли разместить огонь в указанной позиции:
+	 * позиция должна быть воздухом, а огонь должен либо иметь опору,
+	 * либо активировать нижеровский портал.
 	 */
 	public static boolean canPlaceAt(World world, BlockPos pos, Direction direction) {
 		BlockState blockState = world.getBlockState(pos);
-		return !blockState.isAir() ? false : getState(world, pos).canPlaceAt(world, pos) || shouldLightPortalAt(
-				world,
-				pos,
-				direction
-		);
+		return blockState.isAir()
+			? getState(world, pos).canPlaceAt(world, pos) || shouldLightPortalAt(world, pos, direction)
+			: false;
 	}
 
+	/**
+	 * Проверяет, можно ли зажечь нижеровский портал в данной позиции.
+	 * Требует наличия хотя бы одного блока обсидиана среди соседей
+	 * и корректной ориентации рамки портала.
+	 */
 	private static boolean shouldLightPortalAt(World world, BlockPos pos, Direction direction) {
 		if (!isOverworldOrNether(world)) {
 			return false;
 		}
-		else {
-			BlockPos.Mutable mutable = pos.mutableCopy();
-			boolean bl = false;
 
-			for (Direction direction2 : Direction.values()) {
-				if (world.getBlockState(mutable.set(pos).move(direction2)).isOf(Blocks.OBSIDIAN)) {
-					bl = true;
-					break;
-				}
-			}
+		BlockPos.Mutable mutable = pos.mutableCopy();
+		boolean hasObsidian = false;
 
-			if (!bl) {
-				return false;
-			}
-			else {
-				Direction.Axis axis = direction.getAxis().isHorizontal()
-				                      ? direction.rotateYCounterclockwise().getAxis()
-				                      : Direction.Type.HORIZONTAL.randomAxis(world.random);
-				return NetherPortal.getNewPortal(world, pos, axis).isPresent();
+		for (Direction dir : Direction.values()) {
+			if (world.getBlockState(mutable.set(pos).move(dir)).isOf(Blocks.OBSIDIAN)) {
+				hasObsidian = true;
+				break;
 			}
 		}
+
+		if (!hasObsidian) {
+			return false;
+		}
+
+		Direction.Axis axis = direction.getAxis().isHorizontal()
+			? direction.rotateYCounterclockwise().getAxis()
+			: Direction.Type.HORIZONTAL.randomAxis(world.random);
+
+		return NetherPortal.getNewPortal(world, pos, axis).isPresent();
 	}
 }

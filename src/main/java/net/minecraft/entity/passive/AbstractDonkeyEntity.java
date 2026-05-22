@@ -24,34 +24,36 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractDonkeyEntity}.
+ * Базовый класс для осла и мула. Добавляет поддержку сундука:
+ * при наличии сундука инвентарь расширяется до 5 колонок (15 слотов).
+ * Сундук можно навесить в живую, взаимодействуя с предметом {@link Items#CHEST}.
  */
 public abstract class AbstractDonkeyEntity extends AbstractHorseEntity {
 
-	private static final TrackedData<Boolean>
-			CHEST =
-			DataTracker.registerData(AbstractDonkeyEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final boolean DEFAULT_HAS_CHEST = false;
+	private static final int CHEST_SLOT_ID = 499;
+	private static final int INVENTORY_COLUMNS_WITH_CHEST = 5;
+
+	private static final TrackedData<Boolean> CHEST = DataTracker.registerData(
+		AbstractDonkeyEntity.class,
+		TrackedDataHandlerRegistry.BOOLEAN
+	);
+
 	private final EntityDimensions babyBaseDimensions;
 
 	protected AbstractDonkeyEntity(EntityType<? extends AbstractDonkeyEntity> entityType, World world) {
 		super(entityType, world);
-		this.playExtraHorseSounds = false;
-		this.babyBaseDimensions = entityType.getDimensions()
-		                                    .withAttachments(EntityAttachments
-				                                    .builder()
-				                                    .add(
-						                                    EntityAttachmentType.PASSENGER,
-						                                    0.0F,
-						                                    entityType.getHeight() - 0.15625F,
-						                                    0.0F
-				                                    ))
-		                                    .scaled(0.5F);
+		playExtraHorseSounds = false;
+		babyBaseDimensions = entityType.getDimensions()
+			.withAttachments(
+				EntityAttachments.builder()
+					.add(EntityAttachmentType.PASSENGER, 0.0F, entityType.getHeight() - 0.15625F, 0.0F)
+			)
+			.scaled(0.5F);
 	}
 
 	@Override
 	protected void initAttributes(Random random) {
-		this.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(getChildHealthBonus(random::nextInt));
+		getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(getChildHealthBonus(random::nextInt));
 	}
 
 	@Override
@@ -62,44 +64,45 @@ public abstract class AbstractDonkeyEntity extends AbstractHorseEntity {
 
 	public static DefaultAttributeContainer.Builder createAbstractDonkeyAttributes() {
 		return createBaseHorseAttributes()
-				.add(EntityAttributes.MOVEMENT_SPEED, 0.175F)
-				.add(EntityAttributes.JUMP_STRENGTH, 0.5);
+			.add(EntityAttributes.MOVEMENT_SPEED, 0.175F)
+			.add(EntityAttributes.JUMP_STRENGTH, 0.5);
 	}
 
 	public boolean hasChest() {
-		return this.dataTracker.get(CHEST);
+		return dataTracker.get(CHEST);
 	}
 
 	public void setHasChest(boolean hasChest) {
-		this.dataTracker.set(CHEST, hasChest);
+		dataTracker.set(CHEST, hasChest);
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? this.babyBaseDimensions : super.getBaseDimensions(pose);
+		return isBaby() ? babyBaseDimensions : super.getBaseDimensions(pose);
 	}
 
 	@Override
 	protected void dropInventory(ServerWorld world) {
 		super.dropInventory(world);
-		if (this.hasChest()) {
-			this.dropItem(world, Blocks.CHEST);
-			this.setHasChest(false);
+		if (hasChest()) {
+			dropItem(world, Blocks.CHEST);
+			setHasChest(false);
 		}
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("ChestedHorse", this.hasChest());
-		if (this.hasChest()) {
-			WriteView.ListAppender<StackWithSlot> listAppender = view.getListAppender("Items", StackWithSlot.CODEC);
+		view.putBoolean("ChestedHorse", hasChest());
+		if (!hasChest()) {
+			return;
+		}
 
-			for (int i = 0; i < this.items.size(); i++) {
-				ItemStack itemStack = this.items.getStack(i);
-				if (!itemStack.isEmpty()) {
-					listAppender.add(new StackWithSlot(i, itemStack));
-				}
+		WriteView.ListAppender<StackWithSlot> listAppender = view.getListAppender("Items", StackWithSlot.CODEC);
+		for (int slot = 0; slot < items.size(); slot++) {
+			ItemStack stack = items.getStack(slot);
+			if (!stack.isEmpty()) {
+				listAppender.add(new StackWithSlot(slot, stack));
 			}
 		}
 	}
@@ -107,83 +110,92 @@ public abstract class AbstractDonkeyEntity extends AbstractHorseEntity {
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setHasChest(view.getBoolean("ChestedHorse", false));
-		this.onChestedStatusChanged();
-		if (this.hasChest()) {
-			for (StackWithSlot stackWithSlot : view.getTypedListView("Items", StackWithSlot.CODEC)) {
-				if (stackWithSlot.isValidSlot(this.items.size())) {
-					this.items.setStack(stackWithSlot.slot(), stackWithSlot.stack());
-				}
+		setHasChest(view.getBoolean("ChestedHorse", false));
+		onChestedStatusChanged();
+		if (!hasChest()) {
+			return;
+		}
+
+		for (StackWithSlot stackWithSlot : view.getTypedListView("Items", StackWithSlot.CODEC)) {
+			if (stackWithSlot.isValidSlot(items.size())) {
+				items.setStack(stackWithSlot.slot(), stackWithSlot.stack());
 			}
 		}
 	}
 
+	/**
+	 * Предоставляет виртуальный слот 499 для управления сундуком через интерфейс контейнера.
+	 * Установка пустого стека снимает сундук, установка {@link Items#CHEST} — навешивает.
+	 */
 	@Override
 	public @Nullable StackReference getStackReference(int slot) {
-		return slot == 499 ? new StackReference() {
+		if (slot != CHEST_SLOT_ID) {
+			return super.getStackReference(slot);
+		}
+
+		return new StackReference() {
 			@Override
 			public ItemStack get() {
-				return AbstractDonkeyEntity.this.hasChest() ? new ItemStack(Items.CHEST) : ItemStack.EMPTY;
+				return hasChest() ? new ItemStack(Items.CHEST) : ItemStack.EMPTY;
 			}
 
 			@Override
 			public boolean set(ItemStack stack) {
 				if (stack.isEmpty()) {
-					if (AbstractDonkeyEntity.this.hasChest()) {
-						AbstractDonkeyEntity.this.setHasChest(false);
-						AbstractDonkeyEntity.this.onChestedStatusChanged();
+					if (hasChest()) {
+						setHasChest(false);
+						onChestedStatusChanged();
 					}
 
 					return true;
 				}
-				else if (stack.isOf(Items.CHEST)) {
-					if (!AbstractDonkeyEntity.this.hasChest()) {
-						AbstractDonkeyEntity.this.setHasChest(true);
-						AbstractDonkeyEntity.this.onChestedStatusChanged();
+
+				if (stack.isOf(Items.CHEST)) {
+					if (!hasChest()) {
+						setHasChest(true);
+						onChestedStatusChanged();
 					}
 
 					return true;
 				}
-				else {
-					return false;
-				}
+
+				return false;
 			}
-		} : super.getStackReference(slot);
+		};
 	}
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		boolean bl = !this.isBaby() && this.isTame() && player.shouldCancelInteraction();
-		if (!this.hasPassengers() && !bl) {
-			ItemStack itemStack = player.getStackInHand(hand);
-			if (!itemStack.isEmpty()) {
-				if (this.isBreedingItem(itemStack)) {
-					return this.interactHorse(player, itemStack);
-				}
+		boolean wantsToOpenInventory = !isBaby() && isTame() && player.shouldCancelInteraction();
+		if (hasPassengers() || wantsToOpenInventory) {
+			return super.interactMob(player, hand);
+		}
 
-				if (!this.isTame()) {
-					this.playAngrySound();
-					return ActionResult.SUCCESS;
-				}
-
-				if (!this.hasChest() && itemStack.isOf(Items.CHEST)) {
-					this.addChest(player, itemStack);
-					return ActionResult.SUCCESS;
-				}
+		ItemStack stack = player.getStackInHand(hand);
+		if (!stack.isEmpty()) {
+			if (isBreedingItem(stack)) {
+				return interactHorse(player, stack);
 			}
 
-			return super.interactMob(player, hand);
+			if (!isTame()) {
+				playAngrySound();
+				return ActionResult.SUCCESS;
+			}
+
+			if (!hasChest() && stack.isOf(Items.CHEST)) {
+				addChest(player, stack);
+				return ActionResult.SUCCESS;
+			}
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
 	private void addChest(PlayerEntity player, ItemStack chest) {
-		this.setHasChest(true);
-		this.playAddChestSound();
+		setHasChest(true);
+		playAddChestSound();
 		chest.decrementUnlessCreative(1, player);
-		this.onChestedStatusChanged();
+		onChestedStatusChanged();
 	}
 
 	@Override
@@ -191,19 +203,16 @@ public abstract class AbstractDonkeyEntity extends AbstractHorseEntity {
 		return Leashable.createQuadLeashOffsets(this, 0.04, 0.41, 0.18, 0.73);
 	}
 
-	/**
-	 * Play add chest sound.
-	 */
 	protected void playAddChestSound() {
-		this.playSound(
-				SoundEvents.ENTITY_DONKEY_CHEST,
-				1.0F,
-				(this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F
+		playSound(
+			SoundEvents.ENTITY_DONKEY_CHEST,
+			1.0F,
+			(random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F
 		);
 	}
 
 	@Override
 	public int getInventoryColumns() {
-		return this.hasChest() ? 5 : 0;
+		return hasChest() ? INVENTORY_COLUMNS_WITH_CHEST : 0;
 	}
 }

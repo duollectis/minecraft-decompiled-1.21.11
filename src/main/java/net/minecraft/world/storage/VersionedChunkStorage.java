@@ -22,9 +22,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code VersionedChunkStorage}.
+ * Версионированное хранилище данных чанков с поддержкой DataFixer.
+ * Делегирует I/O в {@link StorageIoWorker} и применяет {@link ChunkUpdater}
+ * для миграции устаревших форматов данных при чтении.
  */
 public class VersionedChunkStorage implements AutoCloseable {
+
+	private static final String CONTEXT_KEY = "__context";
 
 	private final StorageIoWorker worker;
 	private final DataFixer dataFixer;
@@ -32,172 +36,123 @@ public class VersionedChunkStorage implements AutoCloseable {
 	private final Supplier<ChunkUpdater> updaterFactory;
 
 	public VersionedChunkStorage(
-			StorageKey storageKey,
-			Path directory,
-			DataFixer dataFixer,
-			boolean dsync,
-			DataFixTypes dataFixTypes
+		StorageKey storageKey,
+		Path directory,
+		DataFixer dataFixer,
+		boolean dsync,
+		DataFixTypes dataFixTypes
 	) {
 		this(storageKey, directory, dataFixer, dsync, dataFixTypes, ChunkUpdater.PASSTHROUGH_FACTORY);
 	}
 
 	public VersionedChunkStorage(
-			StorageKey storageKey,
-			Path directory,
-			DataFixer dataFixer,
-			boolean dsync,
-			DataFixTypes dataFixTypes,
-			Supplier<ChunkUpdater> updaterFactory
+		StorageKey storageKey,
+		Path directory,
+		DataFixer dataFixer,
+		boolean dsync,
+		DataFixTypes dataFixTypes,
+		Supplier<ChunkUpdater> updaterFactory
 	) {
 		this.dataFixer = dataFixer;
 		this.dataFixTypes = dataFixTypes;
 		this.worker = new StorageIoWorker(storageKey, directory, dsync);
+		// Мемоизируем фабрику: ChunkUpdater создаётся один раз и переиспользуется
 		this.updaterFactory = Suppliers.memoize(updaterFactory::get);
 	}
 
-	/**
-	 * Needs blending.
-	 *
-	 * @param chunkPos chunk pos
-	 * @param checkRadius check radius
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean needsBlending(ChunkPos chunkPos, int checkRadius) {
-		return this.worker.needsBlending(chunkPos, checkRadius);
+		return worker.needsBlending(chunkPos, checkRadius);
 	}
 
 	public CompletableFuture<Optional<NbtCompound>> getNbt(ChunkPos chunkPos) {
-		return this.worker.readChunkData(chunkPos);
+		return worker.readChunkData(chunkPos);
 	}
 
 	public CompletableFuture<Void> setNbt(ChunkPos chunkPos, NbtCompound chunkTag) {
-		return this.set(chunkPos, () -> chunkTag);
+		return set(chunkPos, () -> chunkTag);
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param chunkPos chunk pos
-	 * @param chunkTagFactory chunk tag factory
-	 *
-	 * @return CompletableFuture — результат операции
-	 */
 	public CompletableFuture<Void> set(ChunkPos chunkPos, Supplier<NbtCompound> chunkTagFactory) {
-		this.markChunkDone(chunkPos);
-		return this.worker.setResult(chunkPos, chunkTagFactory);
+		markChunkDone(chunkPos);
+		return worker.setResult(chunkPos, chunkTagFactory);
 	}
 
 	/**
-	 * Обновляет chunk nbt.
+	 * Применяет DataFixer к NBT чанка, обновляя его до текущей версии игры.
+	 * Если версия уже актуальна — возвращает исходный объект без изменений.
 	 *
-	 * @param chunkNbt chunk nbt
-	 * @param fallbackVersion fallback version
-	 * @param context context
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param chunkNbt NBT данные чанка
+	 * @param fallbackVersion версия для использования, если DataVersion отсутствует в NBT
+	 * @param context дополнительный контекст для DataFixer (временно записывается в NBT)
+	 * @return обновлённый NBT чанка
+	 * @throws CrashException если DataFixer выбросил исключение
 	 */
 	public NbtCompound updateChunkNbt(NbtCompound chunkNbt, int fallbackVersion, @Nullable NbtCompound context) {
-		int i = NbtHelper.getDataVersion(chunkNbt, fallbackVersion);
-		if (i == SharedConstants.getGameVersion().dataVersion().id()) {
+		int dataVersion = NbtHelper.getDataVersion(chunkNbt, fallbackVersion);
+
+		if (dataVersion == SharedConstants.getGameVersion().dataVersion().id()) {
 			return chunkNbt;
 		}
-		else {
-			try {
-				chunkNbt = this.updaterFactory.get().applyFix(chunkNbt);
-				saveContextToNbt(chunkNbt, context);
-				chunkNbt =
-						this.dataFixTypes.update(
-								this.dataFixer,
-								chunkNbt,
-								Math.max(this.updaterFactory.get().targetDataVersion(), i)
-						);
-				removeContext(chunkNbt);
-				NbtHelper.putDataVersion(chunkNbt);
-				return chunkNbt;
-			}
-			catch (Exception var8) {
-				CrashReport crashReport = CrashReport.create(var8, "Updated chunk");
-				CrashReportSection crashReportSection = crashReport.addElement("Updated chunk details");
-				crashReportSection.add("Data version", i);
-				throw new CrashException(crashReport);
-			}
+
+		try {
+			chunkNbt = updaterFactory.get().applyFix(chunkNbt);
+			saveContextToNbt(chunkNbt, context);
+			chunkNbt = dataFixTypes.update(
+				dataFixer,
+				chunkNbt,
+				Math.max(updaterFactory.get().targetDataVersion(), dataVersion)
+			);
+			removeContext(chunkNbt);
+			NbtHelper.putDataVersion(chunkNbt);
+			return chunkNbt;
+		}
+		catch (Exception exception) {
+			CrashReport crashReport = CrashReport.create(exception, "Updated chunk");
+			CrashReportSection section = crashReport.addElement("Updated chunk details");
+			section.add("Data version", dataVersion);
+			throw new CrashException(crashReport);
 		}
 	}
 
-	/**
-	 * Обновляет chunk nbt.
-	 *
-	 * @param chunkNbt chunk nbt
-	 * @param fallbackVersion fallback version
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public NbtCompound updateChunkNbt(NbtCompound chunkNbt, int fallbackVersion) {
-		return this.updateChunkNbt(chunkNbt, fallbackVersion, null);
+		return updateChunkNbt(chunkNbt, fallbackVersion, null);
 	}
 
-	/**
-	 * Обновляет chunk nbt.
-	 *
-	 * @param chunkNbt chunk nbt
-	 * @param fallbackVersion fallback version
-	 *
-	 * @return Dynamic — результат операции
-	 */
 	public Dynamic<NbtElement> updateChunkNbt(Dynamic<NbtElement> chunkNbt, int fallbackVersion) {
-		return new Dynamic(
-				chunkNbt.getOps(),
-				this.updateChunkNbt((NbtCompound) chunkNbt.getValue(), fallbackVersion, null)
+		return new Dynamic<>(
+			chunkNbt.getOps(),
+			updateChunkNbt((NbtCompound) chunkNbt.getValue(), fallbackVersion, null)
 		);
 	}
 
-	/**
-	 * Сохраняет context to nbt.
-	 *
-	 * @param nbt nbt
-	 * @param context context
-	 */
 	public static void saveContextToNbt(NbtCompound nbt, @Nullable NbtCompound context) {
 		if (context != null) {
-			nbt.put("__context", context);
+			nbt.put(CONTEXT_KEY, context);
 		}
 	}
 
 	private static void removeContext(NbtCompound nbt) {
-		nbt.remove("__context");
+		nbt.remove(CONTEXT_KEY);
 	}
 
-	/**
-	 * Mark chunk done.
-	 *
-	 * @param chunkPos chunk pos
-	 */
 	protected void markChunkDone(ChunkPos chunkPos) {
-		this.updaterFactory.get().markChunkDone(chunkPos);
+		updaterFactory.get().markChunkDone(chunkPos);
 	}
 
-	/**
-	 * Complete all.
-	 *
-	 * @param sync sync
-	 *
-	 * @return CompletableFuture — результат операции
-	 */
 	public CompletableFuture<Void> completeAll(boolean sync) {
-		return this.worker.completeAll(sync);
+		return worker.completeAll(sync);
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.worker.close();
+		worker.close();
 	}
 
 	public NbtScannable getWorker() {
-		return this.worker;
+		return worker;
 	}
 
 	public StorageKey getStorageKey() {
-		return this.worker.getStorageKey();
+		return worker.getStorageKey();
 	}
 }

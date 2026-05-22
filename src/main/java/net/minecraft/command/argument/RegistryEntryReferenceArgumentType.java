@@ -34,7 +34,14 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RegistryEntryReferenceArgumentType}.
+ * Тип аргумента команды Brigadier, который парсит идентификатор и разрешает его
+ * в конкретную запись реестра ({@link RegistryEntry.Reference}).
+ * <p>
+ * В отличие от {@link RegistryKeyArgumentType}, этот тип не только проверяет синтаксис
+ * идентификатора, но и гарантирует, что запись с таким ключом реально существует в реестре
+ * на момент парсинга команды.
+ *
+ * @param <T> тип объекта, хранящегося в реестре
  */
 public class RegistryEntryReferenceArgumentType<T> implements ArgumentType<RegistryEntry.Reference<T>> {
 
@@ -71,25 +78,37 @@ public class RegistryEntryReferenceArgumentType<T> implements ArgumentType<Regis
 		return new RegistryEntryReferenceArgumentType<>(registryAccess, registryRef);
 	}
 
+	/**
+	 * Извлекает аргумент из контекста команды и проверяет, что он принадлежит ожидаемому реестру.
+	 * Если запись принадлежит другому реестру — выбрасывает {@link CommandSyntaxException}
+	 * с подробным сообщением о несоответствии типов.
+	 *
+	 * @param context     контекст выполнения команды
+	 * @param name        имя аргумента в команде
+	 * @param registryRef ключ ожидаемого реестра
+	 * @param <T>         тип объекта реестра
+	 * @return ссылка на запись реестра нужного типа
+	 * @throws CommandSyntaxException если запись принадлежит другому реестру
+	 */
 	public static <T> RegistryEntry.Reference<T> getRegistryEntry(
 			CommandContext<ServerCommandSource> context,
 			String name,
 			RegistryKey<Registry<T>> registryRef
 	) throws CommandSyntaxException {
-		RegistryEntry.Reference<T>
-				reference =
-				(RegistryEntry.Reference<T>) context.getArgument(name, RegistryEntry.Reference.class);
+		RegistryEntry.Reference<T> reference = (RegistryEntry.Reference<T>) context.getArgument(
+				name, RegistryEntry.Reference.class
+		);
 		RegistryKey<?> registryKey = reference.registryKey();
+
 		if (registryKey.isOf(registryRef)) {
 			return reference;
 		}
-		else {
-			throw INVALID_TYPE_EXCEPTION.create(
-					registryKey.getValue(),
-					registryKey.getRegistry(),
-					registryRef.getValue()
-			);
-		}
+
+		throw INVALID_TYPE_EXCEPTION.create(
+				registryKey.getValue(),
+				registryKey.getRegistry(),
+				registryRef.getValue()
+		);
 	}
 
 	public static RegistryEntry.Reference<EntityAttribute> getEntityAttribute(
@@ -125,12 +144,12 @@ public class RegistryEntryReferenceArgumentType<T> implements ArgumentType<Regis
 			String name
 	) throws CommandSyntaxException {
 		RegistryEntry.Reference<EntityType<?>> reference = getRegistryEntry(context, name, RegistryKeys.ENTITY_TYPE);
-		if (!reference.value().isSummonable()) {
-			throw NOT_SUMMONABLE_EXCEPTION.create(reference.registryKey().getValue().toString());
-		}
-		else {
+
+		if (reference.value().isSummonable()) {
 			return reference;
 		}
+
+		throw NOT_SUMMONABLE_EXCEPTION.create(reference.registryKey().getValue().toString());
 	}
 
 	public static RegistryEntry.Reference<StatusEffect> getStatusEffect(
@@ -173,7 +192,8 @@ public class RegistryEntryReferenceArgumentType<T> implements ArgumentType<Regis
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
+	 * Передаёт только ключ реестра — клиент использует его для автодополнения.
 	 */
 	public static class Serializer<T>
 			implements ArgumentSerializer<RegistryEntryReferenceArgumentType<T>, RegistryEntryReferenceArgumentType.Serializer<T>.Properties> {
@@ -203,7 +223,7 @@ public class RegistryEntryReferenceArgumentType<T> implements ArgumentType<Regis
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит ключ реестра, необходимый для восстановления типа аргумента.
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistryEntryReferenceArgumentType<T>> {
 

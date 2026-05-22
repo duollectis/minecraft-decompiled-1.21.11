@@ -15,10 +15,14 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CompositeItemModel}.
+ * Составная модель предмета, объединяющая несколько дочерних {@link ItemModel} в один
+ * визуальный результат. Каждая дочерняя модель добавляет свои слои в {@link ItemRenderState}.
+ * <p>
+ * Используется для предметов с несколькими независимыми визуальными компонентами,
+ * например, предмет с основной геометрией и отдельным слоем блеска.
  */
+@Environment(EnvType.CLIENT)
 public class CompositeItemModel implements ItemModel {
 
 	private final List<ItemModel> models;
@@ -38,17 +42,15 @@ public class CompositeItemModel implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		state.addLayers(this.models.size());
+		state.addLayers(models.size());
 
-		for (ItemModel itemModel : this.models) {
-			itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+		for (ItemModel model : models) {
+			model.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
 		}
 	}
 
+	/** Незапечённый дескриптор составной модели: список дочерних незапечённых моделей. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Unbaked}.
-	 */
 	public record Unbaked(List<ItemModel.Unbaked> models) implements ItemModel.Unbaked {
 
 		public static final MapCodec<CompositeItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(

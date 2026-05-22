@@ -12,58 +12,46 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code EntityHurtPlayerCriterion}.
+ * Критерий: сущность нанесла урон игроку.
+ * Проверяет параметры полученного урона через {@link DamagePredicate}.
  */
 public class EntityHurtPlayerCriterion extends AbstractCriterion<EntityHurtPlayerCriterion.Conditions> {
 
 	@Override
-	public Codec<EntityHurtPlayerCriterion.Conditions> getConditionsCodec() {
-		return EntityHurtPlayerCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, DamageSource source, float dealt, float taken, boolean blocked) {
-		this.trigger(player, conditions -> conditions.matches(player, source, dealt, taken, blocked));
+		trigger(player, conditions -> conditions.matches(player, source, dealt, taken, blocked));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<DamagePredicate> damage
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<EntityHurtPlayerCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(EntityHurtPlayerCriterion.Conditions::player),
-						                    DamagePredicate.CODEC
-								                    .optionalFieldOf("damage")
-								                    .forGetter(EntityHurtPlayerCriterion.Conditions::damage)
-				                    )
-				                    .apply(instance, EntityHurtPlayerCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						DamagePredicate.CODEC
+								.optionalFieldOf("damage")
+								.forGetter(Conditions::damage)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<EntityHurtPlayerCriterion.Conditions> create() {
-			return Criteria.ENTITY_HURT_PLAYER.create(new EntityHurtPlayerCriterion.Conditions(
-					Optional.empty(),
-					Optional.empty()
-			));
+		public static AdvancementCriterion<Conditions> create() {
+			return Criteria.ENTITY_HURT_PLAYER.create(new Conditions(Optional.empty(), Optional.empty()));
 		}
 
-		public static AdvancementCriterion<EntityHurtPlayerCriterion.Conditions> create(DamagePredicate predicate) {
-			return Criteria.ENTITY_HURT_PLAYER.create(new EntityHurtPlayerCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(predicate)
-			));
+		public static AdvancementCriterion<Conditions> create(DamagePredicate predicate) {
+			return Criteria.ENTITY_HURT_PLAYER.create(new Conditions(Optional.empty(), Optional.of(predicate)));
 		}
 
-		public static AdvancementCriterion<EntityHurtPlayerCriterion.Conditions> create(DamagePredicate.Builder damageBuilder) {
-			return Criteria.ENTITY_HURT_PLAYER.create(new EntityHurtPlayerCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(damageBuilder.build())
-			));
+		public static AdvancementCriterion<Conditions> create(DamagePredicate.Builder damageBuilder) {
+			return Criteria.ENTITY_HURT_PLAYER.create(new Conditions(Optional.empty(), Optional.of(damageBuilder.build())));
 		}
 
 		public boolean matches(
@@ -73,7 +61,7 @@ public class EntityHurtPlayerCriterion extends AbstractCriterion<EntityHurtPlaye
 				float taken,
 				boolean blocked
 		) {
-			return !this.damage.isPresent() || this.damage.get().test(player, damageSource, dealt, taken, blocked);
+			return damage.isEmpty() || damage.get().test(player, damageSource, dealt, taken, blocked);
 		}
 	}
 }

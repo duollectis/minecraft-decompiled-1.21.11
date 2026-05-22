@@ -5,26 +5,30 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
 /**
- * {@code ChunkLoadProgress}.
+ * Слушатель прогресса загрузки чанков при старте сервера.
+ * Позволяет отслеживать инициализацию, прогресс и завершение каждого этапа загрузки.
  */
 public interface ChunkLoadProgress {
 
+	/**
+	 * Создаёт составной слушатель, делегирующий все вызовы двум переданным слушателям.
+	 */
 	static ChunkLoadProgress compose(ChunkLoadProgress first, ChunkLoadProgress second) {
 		return new ChunkLoadProgress() {
 			@Override
-			public void init(ChunkLoadProgress.Stage stage, int chunks) {
+			public void init(Stage stage, int chunks) {
 				first.init(stage, chunks);
 				second.init(stage, chunks);
 			}
 
 			@Override
-			public void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks) {
+			public void progress(Stage stage, int fullChunks, int totalChunks) {
 				first.progress(stage, fullChunks, totalChunks);
 				second.progress(stage, fullChunks, totalChunks);
 			}
 
 			@Override
-			public void finish(ChunkLoadProgress.Stage stage) {
+			public void finish(Stage stage) {
 				first.finish(stage);
 				second.finish(stage);
 			}
@@ -37,18 +41,15 @@ public interface ChunkLoadProgress {
 		};
 	}
 
-	void init(ChunkLoadProgress.Stage stage, int chunks);
+	void init(Stage stage, int chunks);
 
-	void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks);
+	void progress(Stage stage, int fullChunks, int totalChunks);
 
-	void finish(ChunkLoadProgress.Stage stage);
+	void finish(Stage stage);
 
 	void initSpawnPos(RegistryKey<World> worldKey, ChunkPos spawnChunk);
 
-	/**
-	 * {@code Stage}.
-	 */
-	public static enum Stage {
+	enum Stage {
 		START_SERVER,
 		PREPARE_GLOBAL_SPAWN,
 		LOAD_INITIAL_CHUNKS,

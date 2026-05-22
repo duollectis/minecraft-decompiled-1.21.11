@@ -4,10 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.enums.ChestType;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChestBlockEntityRenderState}.
+ * Состояние рендеринга сундука: хранит тип сундука (одиночный/двойной),
+ * прогресс анимации крышки, угол поворота и визуальный вариант текстуры.
  */
+@Environment(EnvType.CLIENT)
 public class ChestBlockEntityRenderState extends BlockEntityRenderState {
 
 	public ChestType chestType = ChestType.SINGLE;
@@ -15,11 +16,9 @@ public class ChestBlockEntityRenderState extends BlockEntityRenderState {
 	public float yaw;
 	public ChestBlockEntityRenderState.Variant variant = ChestBlockEntityRenderState.Variant.REGULAR;
 
+	/** Визуальный вариант сундука, определяющий набор текстур для рендеринга. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Variant}.
-	 */
-	public static enum Variant {
+	public enum Variant {
 		ENDER_CHEST,
 		CHRISTMAS,
 		TRAPPED,
@@ -27,6 +26,6 @@ public class ChestBlockEntityRenderState extends BlockEntityRenderState {
 		COPPER_EXPOSED,
 		COPPER_WEATHERED,
 		COPPER_OXIDIZED,
-		REGULAR;
+		REGULAR
 	}
 }

@@ -5,7 +5,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code EmptyProfileResult}.
+ * Пустая реализация {@link ProfileResult} — заглушка для случаев, когда профилирование
+ * не активно или было принудительно остановлено.
  */
 public class EmptyProfileResult implements ProfileResult {
 

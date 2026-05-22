@@ -8,7 +8,7 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Optional;
 
 /**
- * {@code RemoveEmptyItemInSuspiciousBlockFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RemoveEmptyItemInSuspiciousBlockFix extends ChoiceWriteReadFix {
 

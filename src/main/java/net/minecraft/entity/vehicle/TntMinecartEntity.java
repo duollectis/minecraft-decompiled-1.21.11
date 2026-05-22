@@ -27,21 +27,35 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TntMinecartEntity}.
+ * Вагонетка с ТНТ. Взрывается при столкновении с достаточной скоростью, падении с высоты,
+ * попадании горящего снаряда или при активации рельсом-активатором.
+ * Мощность взрыва масштабируется от скорости столкновения.
  */
 public class TntMinecartEntity extends AbstractMinecartEntity {
 
 	private static final byte PRIME_TNT_STATUS = 10;
-	private static final String EXPLOSION_POWER_NBT_KEY = "explosion_power";
-	private static final String EXPLOSION_SPEED_FACTOR_NBT_KEY = "explosion_speed_factor";
-	private static final String FUSE_NBT_KEY = "fuse";
+	private static final String NBT_EXPLOSION_POWER = "explosion_power";
+	private static final String NBT_EXPLOSION_SPEED_FACTOR = "explosion_speed_factor";
+	private static final String NBT_FUSE = "fuse";
+
 	private static final float DEFAULT_EXPLOSION_POWER = 4.0F;
 	private static final float DEFAULT_EXPLOSION_SPEED_FACTOR = 1.0F;
 	private static final int DEFAULT_FUSE_TICKS = -1;
+	private static final int FUSE_ON_PRIME = 80;
+	private static final int FUSE_RANDOM_RANGE = 20;
+	private static final double MIN_COLLISION_SPEED_SQ = 0.01F;
+	private static final double MIN_FALL_DISTANCE = 3.0;
+	private static final double FALL_POWER_DIVISOR = 10.0;
+	private static final double MAX_SPEED_CONTRIBUTION = 5.0;
+	private static final float MAX_EXPLOSION_POWER = 128.0F;
+	private static final float EXPLOSION_RANDOM_SCALE = 1.5F;
+	private static final float SOUND_VOLUME = 1.0F;
+	private static final float SOUND_PITCH = 1.0F;
+
 	private @Nullable DamageSource damageSource;
-	private int fuseTicks = -1;
-	private float explosionPower = 4.0F;
-	private float explosionSpeedFactor = 1.0F;
+	private int fuseTicks = DEFAULT_FUSE_TICKS;
+	private float explosionPower = DEFAULT_EXPLOSION_POWER;
+	private float explosionSpeedFactor = DEFAULT_EXPLOSION_SPEED_FACTOR;
 
 	public TntMinecartEntity(EntityType<? extends TntMinecartEntity> entityType, World world) {
 		super(entityType, world);
@@ -55,46 +69,53 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.fuseTicks > 0) {
-			this.fuseTicks--;
-			this
-					.getEntityWorld()
-					.addParticleClient(ParticleTypes.SMOKE, this.getX(), this.getY() + 0.5, this.getZ(), 0.0, 0.0, 0.0);
-		}
-		else if (this.fuseTicks == 0) {
-			this.explode(this.damageSource, this.getVelocity().horizontalLengthSquared());
+
+		if (fuseTicks > 0) {
+			fuseTicks--;
+			getEntityWorld().addParticleClient(
+					ParticleTypes.SMOKE,
+					getX(), getY() + 0.5, getZ(),
+					0.0, 0.0, 0.0
+			);
+		} else if (fuseTicks == 0) {
+			explode(damageSource, getVelocity().horizontalLengthSquared());
 		}
 
-		if (this.horizontalCollision) {
-			double d = this.getVelocity().horizontalLengthSquared();
-			if (d >= 0.01F) {
-				this.explode(this.damageSource, d);
+		if (horizontalCollision) {
+			double speedSq = getVelocity().horizontalLengthSquared();
+
+			if (speedSq >= MIN_COLLISION_SPEED_SQ) {
+				explode(damageSource, speedSq);
 			}
 		}
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (source.getSource() instanceof PersistentProjectileEntity persistentProjectileEntity
-				&& persistentProjectileEntity.isOnFire()) {
-			DamageSource damageSource = this.getDamageSources().explosion(this, source.getAttacker());
-			this.explode(damageSource, persistentProjectileEntity.getVelocity().lengthSquared());
+		if (source.getSource() instanceof PersistentProjectileEntity arrow && arrow.isOnFire()) {
+			DamageSource explosionSource = getDamageSources().explosion(this, source.getAttacker());
+			explode(explosionSource, arrow.getVelocity().lengthSquared());
 		}
 
 		return super.damage(world, source, amount);
 	}
 
+	/**
+	 * При уничтожении: если источник урона требует детонации или скорость достаточна —
+	 * поджигает фитиль; иначе дропает предмет.
+	 */
 	@Override
 	public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
-		double d = this.getVelocity().horizontalLengthSquared();
-		if (!shouldDetonate(damageSource) && !(d >= 0.01F)) {
-			this.killAndDropItem(world, this.asItem());
+		double speedSq = getVelocity().horizontalLengthSquared();
+
+		if (!shouldDetonate(damageSource) && speedSq < MIN_COLLISION_SPEED_SQ) {
+			killAndDropItem(world, asItem());
+			return;
 		}
-		else {
-			if (this.fuseTicks < 0) {
-				this.prime(damageSource);
-				this.fuseTicks = this.random.nextInt(20) + this.random.nextInt(20);
-			}
+
+		if (fuseTicks < 0) {
+			prime(damageSource);
+			fuseTicks = random.nextInt(FUSE_RANDOM_RANGE) + random.nextInt(FUSE_RANDOM_RANGE);
 		}
 	}
 
@@ -109,102 +130,105 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 	}
 
 	/**
-	 * Explode.
+	 * Создаёт взрыв с мощностью, масштабированной от скорости столкновения.
+	 * Взрыв не создаётся, если правило {@code tntExplodes} отключено.
 	 *
-	 * @param damageSource damage source
-	 * @param power power
+	 * @param damageSource источник урона для атрибуции взрыва
+	 * @param speedSquared квадрат горизонтальной скорости в момент взрыва
 	 */
-	protected void explode(@Nullable DamageSource damageSource, double power) {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			if (serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-				double d = Math.min(Math.sqrt(power), 5.0);
-				serverWorld.createExplosion(
-						this,
-						damageSource,
-						null,
-						this.getX(),
-						this.getY(),
-						this.getZ(),
-						(float) (this.explosionPower + this.explosionSpeedFactor * this.random.nextDouble() * 1.5 * d),
-						false,
-						World.ExplosionSourceType.TNT
-				);
-				this.discard();
-			}
-			else if (this.isPrimed()) {
-				this.discard();
-			}
+	protected void explode(@Nullable DamageSource damageSource, double speedSquared) {
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		if (!serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
+			if (isPrimed()) {
+				discard();
+			}
+
+			return;
+		}
+
+		double speedContribution = Math.min(Math.sqrt(speedSquared), MAX_SPEED_CONTRIBUTION);
+		float finalPower = (float) (explosionPower
+				+ explosionSpeedFactor * random.nextDouble() * EXPLOSION_RANDOM_SCALE * speedContribution);
+
+		serverWorld.createExplosion(
+				this, damageSource, null,
+				getX(), getY(), getZ(),
+				finalPower, false,
+				World.ExplosionSourceType.TNT
+		);
+		discard();
 	}
 
 	@Override
 	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
-		if (fallDistance >= 3.0) {
-			double d = fallDistance / 10.0;
-			this.explode(this.damageSource, d * d);
+		if (fallDistance >= MIN_FALL_DISTANCE) {
+			double power = fallDistance / FALL_POWER_DIVISOR;
+			explode(this.damageSource, power * power);
 		}
 
 		return super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
 	}
 
 	@Override
-	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-		if (bl && this.fuseTicks < 0) {
-			this.prime(null);
+	public void onActivatorRail(ServerWorld serverWorld, int x, int y, int z, boolean powered) {
+		if (powered && fuseTicks < 0) {
+			prime(null);
 		}
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 10) {
-			this.prime(null);
-		}
-		else {
+		if (status == PRIME_TNT_STATUS) {
+			prime(null);
+		} else {
 			super.handleStatus(status);
 		}
 	}
 
 	/**
-	 * Prime.
+	 * Поджигает фитиль вагонетки с ТНТ на {@code FUSE_ON_PRIME} тиков.
+	 * Не действует, если правило {@code tntExplodes} отключено.
 	 *
-	 * @param source source
+	 * @param source источник урона, инициировавший поджиг (может быть {@code null})
 	 */
 	public void prime(@Nullable DamageSource source) {
-		if (!(this.getEntityWorld() instanceof ServerWorld serverWorld && !serverWorld
-				.getGameRules()
-				.getValue(GameRules.TNT_EXPLODES)
-		)) {
-			this.fuseTicks = 80;
-			if (!this.getEntityWorld().isClient()) {
-				if (source != null && this.damageSource == null) {
-					this.damageSource = this.getDamageSources().explosion(this, source.getAttacker());
-				}
+		if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& !serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
+			return;
+		}
 
-				this.getEntityWorld().sendEntityStatus(this, (byte) 10);
-				if (!this.isSilent()) {
-					this
-							.getEntityWorld()
-							.playSound(
-									null,
-									this.getX(),
-									this.getY(),
-									this.getZ(),
-									SoundEvents.ENTITY_TNT_PRIMED,
-									SoundCategory.BLOCKS,
-									1.0F,
-									1.0F
-							);
-				}
-			}
+		fuseTicks = FUSE_ON_PRIME;
+
+		if (getEntityWorld().isClient()) {
+			return;
+		}
+
+		if (source != null && damageSource == null) {
+			damageSource = getDamageSources().explosion(this, source.getAttacker());
+		}
+
+		getEntityWorld().sendEntityStatus(this, PRIME_TNT_STATUS);
+
+		if (!isSilent()) {
+			getEntityWorld().playSound(
+					null,
+					getX(), getY(), getZ(),
+					SoundEvents.ENTITY_TNT_PRIMED,
+					SoundCategory.BLOCKS,
+					SOUND_VOLUME, SOUND_PITCH
+			);
 		}
 	}
 
 	public int getFuseTicks() {
-		return this.fuseTicks;
+		return fuseTicks;
 	}
 
 	public boolean isPrimed() {
-		return this.fuseTicks > -1;
+		return fuseTicks > DEFAULT_FUSE_TICKS;
 	}
 
 	@Override
@@ -216,11 +240,15 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 			FluidState fluidState,
 			float max
 	) {
-		return !this.isPrimed() || !blockState.isIn(BlockTags.RAILS) && !world
-				.getBlockState(pos.up())
-				.isIn(BlockTags.RAILS)
-		       ? super.getEffectiveExplosionResistance(explosion, world, pos, blockState, fluidState, max)
-		       : 0.0F;
+		if (!isPrimed()) {
+			return super.getEffectiveExplosionResistance(explosion, world, pos, blockState, fluidState, max);
+		}
+
+		boolean isRailOrAboveRail = blockState.isIn(BlockTags.RAILS)
+				|| world.getBlockState(pos.up()).isIn(BlockTags.RAILS);
+		return isRailOrAboveRail
+				? 0.0F
+				: super.getEffectiveExplosionResistance(explosion, world, pos, blockState, fluidState, max);
 	}
 
 	@Override
@@ -229,31 +257,36 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 			BlockView world,
 			BlockPos pos,
 			BlockState state,
-			float explosionPower
+			float power
 	) {
-		return !this.isPrimed() || !state.isIn(BlockTags.RAILS) && !world.getBlockState(pos.up()).isIn(BlockTags.RAILS)
-		       ? super.canExplosionDestroyBlock(explosion, world, pos, state, explosionPower)
-		       : false;
+		if (!isPrimed()) {
+			return super.canExplosionDestroyBlock(explosion, world, pos, state, power);
+		}
+
+		boolean isRailOrAboveRail = state.isIn(BlockTags.RAILS)
+				|| world.getBlockState(pos.up()).isIn(BlockTags.RAILS);
+		return !isRailOrAboveRail && super.canExplosionDestroyBlock(explosion, world, pos, state, power);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.fuseTicks = view.getInt("fuse", -1);
-		this.explosionPower = MathHelper.clamp(view.getFloat("explosion_power", 4.0F), 0.0F, 128.0F);
-		this.explosionSpeedFactor = MathHelper.clamp(view.getFloat("explosion_speed_factor", 1.0F), 0.0F, 128.0F);
+		fuseTicks = view.getInt(NBT_FUSE, DEFAULT_FUSE_TICKS);
+		explosionPower = MathHelper.clamp(view.getFloat(NBT_EXPLOSION_POWER, DEFAULT_EXPLOSION_POWER), 0.0F, MAX_EXPLOSION_POWER);
+		explosionSpeedFactor = MathHelper.clamp(view.getFloat(NBT_EXPLOSION_SPEED_FACTOR, DEFAULT_EXPLOSION_SPEED_FACTOR), 0.0F, MAX_EXPLOSION_POWER);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("fuse", this.fuseTicks);
-		if (this.explosionPower != 4.0F) {
-			view.putFloat("explosion_power", this.explosionPower);
+		view.putInt(NBT_FUSE, fuseTicks);
+
+		if (explosionPower != DEFAULT_EXPLOSION_POWER) {
+			view.putFloat(NBT_EXPLOSION_POWER, explosionPower);
 		}
 
-		if (this.explosionSpeedFactor != 1.0F) {
-			view.putFloat("explosion_speed_factor", this.explosionSpeedFactor);
+		if (explosionSpeedFactor != DEFAULT_EXPLOSION_SPEED_FACTOR) {
+			view.putFloat(NBT_EXPLOSION_SPEED_FACTOR, explosionSpeedFactor);
 		}
 	}
 
@@ -263,8 +296,8 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 	}
 
 	private static boolean shouldDetonate(DamageSource source) {
-		return source.getSource() instanceof ProjectileEntity projectileEntity
-		       ? projectileEntity.isOnFire()
-		       : source.isIn(DamageTypeTags.IS_FIRE) || source.isIn(DamageTypeTags.IS_EXPLOSION);
+		return source.getSource() instanceof ProjectileEntity projectile
+				? projectile.isOnFire()
+				: source.isIn(DamageTypeTags.IS_FIRE) || source.isIn(DamageTypeTags.IS_EXPLOSION);
 	}
 }

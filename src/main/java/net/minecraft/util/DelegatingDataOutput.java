@@ -6,7 +6,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code DelegatingDataOutput}.
+ * Делегирующая обёртка над {@link DataOutput}.
+ * Все вызовы методов перенаправляются к вложенному делегату.
+ * Предназначена для расширения через наследование с переопределением нужных методов.
  */
 public class DelegatingDataOutput implements DataOutput {
 
@@ -17,73 +19,73 @@ public class DelegatingDataOutput implements DataOutput {
 	}
 
 	@Override
-	public void write(int v) throws IOException {
-		this.delegate.write(v);
+	public void write(int value) throws IOException {
+		delegate.write(value);
 	}
 
 	@Override
-	public void write(byte[] b) throws IOException {
-		this.delegate.write(b);
+	public void write(byte[] bytes) throws IOException {
+		delegate.write(bytes);
 	}
 
 	@Override
-	public void write(byte[] bs, int off, int len) throws IOException {
-		this.delegate.write(bs, off, len);
+	public void write(byte[] bytes, int offset, int length) throws IOException {
+		delegate.write(bytes, offset, length);
 	}
 
 	@Override
-	public void writeBoolean(boolean v) throws IOException {
-		this.delegate.writeBoolean(v);
+	public void writeBoolean(boolean value) throws IOException {
+		delegate.writeBoolean(value);
 	}
 
 	@Override
-	public void writeByte(int v) throws IOException {
-		this.delegate.writeByte(v);
+	public void writeByte(int value) throws IOException {
+		delegate.writeByte(value);
 	}
 
 	@Override
-	public void writeShort(int v) throws IOException {
-		this.delegate.writeShort(v);
+	public void writeShort(int value) throws IOException {
+		delegate.writeShort(value);
 	}
 
 	@Override
-	public void writeChar(int v) throws IOException {
-		this.delegate.writeChar(v);
+	public void writeChar(int value) throws IOException {
+		delegate.writeChar(value);
 	}
 
 	@Override
-	public void writeInt(int v) throws IOException {
-		this.delegate.writeInt(v);
+	public void writeInt(int value) throws IOException {
+		delegate.writeInt(value);
 	}
 
 	@Override
-	public void writeLong(long v) throws IOException {
-		this.delegate.writeLong(v);
+	public void writeLong(long value) throws IOException {
+		delegate.writeLong(value);
 	}
 
 	@Override
-	public void writeFloat(float v) throws IOException {
-		this.delegate.writeFloat(v);
+	public void writeFloat(float value) throws IOException {
+		delegate.writeFloat(value);
 	}
 
 	@Override
-	public void writeDouble(double v) throws IOException {
-		this.delegate.writeDouble(v);
+	public void writeDouble(double value) throws IOException {
+		delegate.writeDouble(value);
 	}
 
 	@SuppressLinter(reason = "Delegation is not use")
 	@Override
-	public void writeBytes(String s) throws IOException {
-		this.delegate.writeBytes(s);
+	public void writeBytes(String string) throws IOException {
+		delegate.writeBytes(string);
 	}
 
 	@Override
-	public void writeChars(String s) throws IOException {
-		this.delegate.writeChars(s);
+	public void writeChars(String string) throws IOException {
+		delegate.writeChars(string);
 	}
 
 	@Override
-	public void writeUTF(String s) throws IOException {
-		this.delegate.writeUTF(s);
+	public void writeUTF(String string) throws IOException {
+		delegate.writeUTF(string);
 	}
 }

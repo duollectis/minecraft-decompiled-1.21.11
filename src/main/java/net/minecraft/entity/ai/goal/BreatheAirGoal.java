@@ -13,9 +13,12 @@ import net.minecraft.world.WorldView;
 import java.util.EnumSet;
 
 /**
- * {@code BreatheAirGoal}.
+ * Цель, заставляющая водного моба всплывать к поверхности для пополнения запаса воздуха.
+ * Активируется, когда уровень воздуха опускается ниже {@link #MIN_AIR_LEVEL}.
  */
 public class BreatheAirGoal extends Goal {
+
+	private static final int MIN_AIR_LEVEL = 140;
 
 	private final PathAwareEntity mob;
 
@@ -26,12 +29,12 @@ public class BreatheAirGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.mob.getAir() < 140;
+		return mob.getAir() < MIN_AIR_LEVEL;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.canStart();
+		return canStart();
 	}
 
 	@Override
@@ -41,44 +44,45 @@ public class BreatheAirGoal extends Goal {
 
 	@Override
 	public void start() {
-		this.moveToAir();
+		moveToAir();
 	}
 
 	private void moveToAir() {
-		Iterable<BlockPos> iterable = BlockPos.iterate(
-				MathHelper.floor(this.mob.getX() - 1.0),
-				this.mob.getBlockY(),
-				MathHelper.floor(this.mob.getZ() - 1.0),
-				MathHelper.floor(this.mob.getX() + 1.0),
-				MathHelper.floor(this.mob.getY() + 8.0),
-				MathHelper.floor(this.mob.getZ() + 1.0)
+		Iterable<BlockPos> searchArea = BlockPos.iterate(
+			MathHelper.floor(mob.getX() - 1.0),
+			mob.getBlockY(),
+			MathHelper.floor(mob.getZ() - 1.0),
+			MathHelper.floor(mob.getX() + 1.0),
+			MathHelper.floor(mob.getY() + 8.0),
+			MathHelper.floor(mob.getZ() + 1.0)
 		);
-		BlockPos blockPos = null;
 
-		for (BlockPos blockPos2 : iterable) {
-			if (this.isAirPos(this.mob.getEntityWorld(), blockPos2)) {
-				blockPos = blockPos2;
+		BlockPos airPos = null;
+
+		for (BlockPos candidate : searchArea) {
+			if (isAirPos(mob.getEntityWorld(), candidate)) {
+				airPos = candidate;
 				break;
 			}
 		}
 
-		if (blockPos == null) {
-			blockPos = BlockPos.ofFloored(this.mob.getX(), this.mob.getY() + 8.0, this.mob.getZ());
+		if (airPos == null) {
+			airPos = BlockPos.ofFloored(mob.getX(), mob.getY() + 8.0, mob.getZ());
 		}
 
-		this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY() + 1, blockPos.getZ(), 1.0);
+		mob.getNavigation().startMovingTo(airPos.getX(), airPos.getY() + 1, airPos.getZ(), 1.0);
 	}
 
 	@Override
 	public void tick() {
-		this.moveToAir();
-		this.mob.updateVelocity(0.02F, new Vec3d(this.mob.sidewaysSpeed, this.mob.upwardSpeed, this.mob.forwardSpeed));
-		this.mob.move(MovementType.SELF, this.mob.getVelocity());
+		moveToAir();
+		mob.updateVelocity(0.02F, new Vec3d(mob.sidewaysSpeed, mob.upwardSpeed, mob.forwardSpeed));
+		mob.move(MovementType.SELF, mob.getVelocity());
 	}
 
 	private boolean isAirPos(WorldView world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
 		return (world.getFluidState(pos).isEmpty() || blockState.isOf(Blocks.BUBBLE_COLUMN))
-				&& blockState.canPathfindThrough(NavigationType.LAND);
+			&& blockState.canPathfindThrough(NavigationType.LAND);
 	}
 }

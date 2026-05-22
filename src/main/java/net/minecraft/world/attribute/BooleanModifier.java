@@ -4,7 +4,8 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.math.Interpolator;
 
 /**
- * {@code BooleanModifier}.
+ * Модификатор булевых атрибутов окружения. Реализует стандартные логические
+ * операции над текущим значением атрибута и аргументом модификатора.
  */
 public enum BooleanModifier implements EnvironmentAttributeModifier<Boolean, Boolean> {
 	AND,
@@ -15,31 +16,31 @@ public enum BooleanModifier implements EnvironmentAttributeModifier<Boolean, Boo
 	XNOR;
 
 	/**
-	 * Apply.
+	 * Применяет логическую операцию к текущему значению и аргументу.
 	 *
-	 * @param boolean_ boolean_
-	 * @param boolean2 boolean2
-	 *
-	 * @return Boolean — результат операции
+	 * @param current текущее значение атрибута
+	 * @param argument аргумент модификатора
+	 * @return результат логической операции
 	 */
-	public Boolean apply(Boolean boolean_, Boolean boolean2) {
+	@Override
+	public Boolean apply(Boolean current, Boolean argument) {
 		return switch (this) {
-			case AND -> boolean2 && boolean_;
-			case NAND -> !boolean2 || !boolean_;
-			case OR -> boolean2 || boolean_;
-			case NOR -> !boolean2 && !boolean_;
-			case XOR -> boolean2 ^ boolean_;
-			case XNOR -> boolean2 == boolean_;
+			case AND -> argument && current;
+			case NAND -> !argument || !current;
+			case OR -> argument || current;
+			case NOR -> !argument && !current;
+			case XOR -> argument ^ current;
+			case XNOR -> argument == current;
 		};
 	}
 
 	@Override
-	public Codec<Boolean> argumentCodec(EnvironmentAttribute<Boolean> environmentAttribute) {
+	public Codec<Boolean> argumentCodec(EnvironmentAttribute<Boolean> attribute) {
 		return Codec.BOOL;
 	}
 
 	@Override
-	public Interpolator<Boolean> argumentKeyframeLerp(EnvironmentAttribute<Boolean> environmentAttribute) {
+	public Interpolator<Boolean> argumentKeyframeLerp(EnvironmentAttribute<Boolean> attribute) {
 		return Interpolator.first();
 	}
 }

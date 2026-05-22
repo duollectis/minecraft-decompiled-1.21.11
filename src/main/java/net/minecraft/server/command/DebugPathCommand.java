@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code DebugPathCommand}.
+ * Команда {@code /debugpath}: визуализация путей навигации сущностей.
  */
 public class DebugPathCommand {
 

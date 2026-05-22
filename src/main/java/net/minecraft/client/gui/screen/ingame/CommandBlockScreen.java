@@ -8,11 +8,18 @@ import net.minecraft.network.packet.c2s.play.UpdateCommandBlockC2SPacket;
 import net.minecraft.text.Text;
 import net.minecraft.world.CommandBlockExecutor;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CommandBlockScreen}.
+ * Экран редактирования командного блока. Добавляет кнопки выбора режима,
+ * условного выполнения и триггера по редстоуну.
  */
+@Environment(EnvType.CLIENT)
 public class CommandBlockScreen extends AbstractCommandBlockScreen {
+
+	private static final int TRACK_OUTPUT_BUTTON_HEIGHT = 135;
+	private static final int MODE_BUTTON_WIDTH = 100;
+	private static final int MODE_BUTTON_HEIGHT = 20;
+	private static final int MODE_BUTTON_Y = 165;
+	private static final int MODE_BUTTON_SPACING = 4;
 
 	private final CommandBlockBlockEntity blockEntity;
 	private CyclingButtonWidget<CommandBlockBlockEntity.Type> modeButton;
@@ -28,123 +35,120 @@ public class CommandBlockScreen extends AbstractCommandBlockScreen {
 
 	@Override
 	CommandBlockExecutor getCommandExecutor() {
-		return this.blockEntity.getCommandExecutor();
+		return blockEntity.getCommandExecutor();
 	}
 
 	@Override
 	int getTrackOutputButtonHeight() {
-		return 135;
+		return TRACK_OUTPUT_BUTTON_HEIGHT;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.setButtonsActive(false);
+		setButtonsActive(false);
 	}
 
 	@Override
 	protected void addAdditionalButtons() {
-		this.modeButton = this.addDrawableChild(
-				CyclingButtonWidget.<CommandBlockBlockEntity.Type>builder(
-						                   type -> {
-							                   return switch (type) {
-								                   case SEQUENCE -> Text.translatable("advMode.mode.sequence");
-								                   case AUTO -> Text.translatable("advMode.mode.auto");
-								                   case REDSTONE -> Text.translatable("advMode.mode.redstone");
-							                   };
-						                   }, this.mode
-				                   )
-				                   .values(CommandBlockBlockEntity.Type.values())
-				                   .omitKeyText()
-				                   .build(
-						                   this.width / 2 - 50 - 100 - 4,
-						                   165,
-						                   100,
-						                   20,
-						                   Text.translatable("advMode.mode"),
-						                   (button, mode) -> this.mode = mode
-				                   )
+		modeButton = addDrawableChild(
+			CyclingButtonWidget.<CommandBlockBlockEntity.Type>builder(
+				type -> switch (type) {
+					case SEQUENCE -> Text.translatable("advMode.mode.sequence");
+					case AUTO -> Text.translatable("advMode.mode.auto");
+					case REDSTONE -> Text.translatable("advMode.mode.redstone");
+				},
+				mode
+			)
+				.values(CommandBlockBlockEntity.Type.values())
+				.omitKeyText()
+				.build(
+					width / 2 - 50 - MODE_BUTTON_WIDTH - MODE_BUTTON_SPACING,
+					MODE_BUTTON_Y,
+					MODE_BUTTON_WIDTH,
+					MODE_BUTTON_HEIGHT,
+					Text.translatable("advMode.mode"),
+					(button, newMode) -> mode = newMode
+				)
 		);
-		this.conditionalModeButton = this.addDrawableChild(
-				CyclingButtonWidget
-						.onOffBuilder(
-								Text.translatable("advMode.mode.conditional"),
-								Text.translatable("advMode.mode.unconditional"),
-								this.conditional
-						)
-						.omitKeyText()
-						.build(
-								this.width / 2 - 50,
-								165,
-								100,
-								20,
-								Text.translatable("advMode.type"),
-								(button, conditional) -> this.conditional = conditional
-						)
+		conditionalModeButton = addDrawableChild(
+			CyclingButtonWidget.onOffBuilder(
+				Text.translatable("advMode.mode.conditional"),
+				Text.translatable("advMode.mode.unconditional"),
+				conditional
+			)
+				.omitKeyText()
+				.build(
+					width / 2 - 50,
+					MODE_BUTTON_Y,
+					MODE_BUTTON_WIDTH,
+					MODE_BUTTON_HEIGHT,
+					Text.translatable("advMode.type"),
+					(button, isConditional) -> conditional = isConditional
+				)
 		);
-		this.redstoneTriggerButton = this.addDrawableChild(
-				CyclingButtonWidget.onOffBuilder(
-						                   Text.translatable("advMode.mode.autoexec.bat"),
-						                   Text.translatable("advMode.mode.redstoneTriggered"),
-						                   this.autoActivate
-				                   )
-				                   .omitKeyText()
-				                   .build(
-						                   this.width / 2 + 50 + 4,
-						                   165,
-						                   100,
-						                   20,
-						                   Text.translatable("advMode.triggering"),
-						                   (button, autoActivate) -> this.autoActivate = autoActivate
-				                   )
+		redstoneTriggerButton = addDrawableChild(
+			CyclingButtonWidget.onOffBuilder(
+				Text.translatable("advMode.mode.autoexec.bat"),
+				Text.translatable("advMode.mode.redstoneTriggered"),
+				autoActivate
+			)
+				.omitKeyText()
+				.build(
+					width / 2 + 50 + MODE_BUTTON_SPACING,
+					MODE_BUTTON_Y,
+					MODE_BUTTON_WIDTH,
+					MODE_BUTTON_HEIGHT,
+					Text.translatable("advMode.triggering"),
+					(button, isAutoActivate) -> autoActivate = isAutoActivate
+				)
 		);
 	}
 
 	private void setButtonsActive(boolean active) {
-		this.doneButton.active = active;
-		this.toggleTrackingOutputButton.active = active;
-		this.modeButton.active = active;
-		this.conditionalModeButton.active = active;
-		this.redstoneTriggerButton.active = active;
+		doneButton.active = active;
+		toggleTrackingOutputButton.active = active;
+		modeButton.active = active;
+		conditionalModeButton.active = active;
+		redstoneTriggerButton.active = active;
 	}
 
 	/**
-	 * Обновляет command block.
+	 * Синхронизирует состояние блока с UI после получения данных от сервера.
+	 * Вызывается при открытии экрана или обновлении блока.
 	 */
 	public void updateCommandBlock() {
-		CommandBlockExecutor commandBlockExecutor = this.blockEntity.getCommandExecutor();
-		this.consoleCommandTextField.setText(commandBlockExecutor.getCommand());
-		boolean bl = commandBlockExecutor.isTrackingOutput();
-		this.mode = this.blockEntity.getCommandBlockType();
-		this.conditional = this.blockEntity.isConditionalCommandBlock();
-		this.autoActivate = this.blockEntity.isAuto();
-		this.toggleTrackingOutputButton.setValue(bl);
-		this.modeButton.setValue(this.mode);
-		this.conditionalModeButton.setValue(this.conditional);
-		this.redstoneTriggerButton.setValue(this.autoActivate);
-		this.setPreviousOutputText(bl);
-		this.setButtonsActive(true);
+		CommandBlockExecutor executor = blockEntity.getCommandExecutor();
+		boolean trackingOutput = executor.isTrackingOutput();
+
+		consoleCommandTextField.setText(executor.getCommand());
+		mode = blockEntity.getCommandBlockType();
+		conditional = blockEntity.isConditionalCommandBlock();
+		autoActivate = blockEntity.isAuto();
+
+		toggleTrackingOutputButton.setValue(trackingOutput);
+		modeButton.setValue(mode);
+		conditionalModeButton.setValue(conditional);
+		redstoneTriggerButton.setValue(autoActivate);
+		setPreviousOutputText(trackingOutput);
+		setButtonsActive(true);
 	}
 
 	@Override
 	public void resize(int width, int height) {
 		super.resize(width, height);
-		this.setButtonsActive(true);
+		setButtonsActive(true);
 	}
 
 	@Override
 	protected void syncSettingsToServer() {
-		this.client
-				.getNetworkHandler()
-				.sendPacket(
-						new UpdateCommandBlockC2SPacket(
-								this.blockEntity.getPos(),
-								this.consoleCommandTextField.getText(),
-								this.mode,
-								this.blockEntity.getCommandExecutor().isTrackingOutput(),
-								this.conditional,
-								this.autoActivate
-						)
-				);
+		client.getNetworkHandler().sendPacket(new UpdateCommandBlockC2SPacket(
+			blockEntity.getPos(),
+			consoleCommandTextField.getText(),
+			mode,
+			blockEntity.getCommandExecutor().isTrackingOutput(),
+			conditional,
+			autoActivate
+		));
 	}
 }

@@ -9,10 +9,11 @@ import net.minecraft.screen.GrindstoneScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GrindstoneScreen}.
+ * Экран точильного камня. Показывает иконку ошибки, если входные слоты заполнены,
+ * но результирующий слот пуст.
  */
+@Environment(EnvType.CLIENT)
 public class GrindstoneScreen extends HandledScreen<GrindstoneScreenHandler> {
 
 	private static final Identifier ERROR_TEXTURE = Identifier.ofVanilla("container/grindstone/error");
@@ -25,29 +26,28 @@ public class GrindstoneScreen extends HandledScreen<GrindstoneScreenHandler> {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		drawMouseoverTooltip(context, mouseX, mouseY);
 	}
 
 	@Override
 	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-		int i = (this.width - this.backgroundWidth) / 2;
-		int j = (this.height - this.backgroundHeight) / 2;
+		int bgX = (width - backgroundWidth) / 2;
+		int bgY = (height - backgroundHeight) / 2;
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TEXTURE,
-				i,
-				j,
-				0.0F,
-				0.0F,
-				this.backgroundWidth,
-				this.backgroundHeight,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			bgX,
+			bgY,
+			0.0F,
+			0.0F,
+			backgroundWidth,
+			backgroundHeight,
+			256,
+			256
 		);
-		if ((this.handler.getSlot(0).hasStack() || this.handler.getSlot(1).hasStack()) && !this.handler
-				.getSlot(2)
-				.hasStack()) {
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, ERROR_TEXTURE, i + 92, j + 31, 28, 21);
+
+		if ((handler.getSlot(0).hasStack() || handler.getSlot(1).hasStack()) && !handler.getSlot(2).hasStack()) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, ERROR_TEXTURE, bgX + 92, bgY + 31, 28, 21);
 		}
 	}
 }

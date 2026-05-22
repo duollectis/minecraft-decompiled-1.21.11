@@ -19,9 +19,18 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code LlamaSpitEntity}.
+ * Плевок ламы — слабый снаряд, наносящий 1 единицу урона.
+ * <p>
+ * Движется с постоянным замедлением {@link #DRAG} и гравитацией.
+ * Уничтожается при попадании в блок, воду или при нахождении внутри непрозрачного блока.
  */
 public class LlamaSpitEntity extends ProjectileEntity {
+
+	private static final float DRAG = 0.99F;
+	private static final float ENTITY_HIT_DAMAGE = 1.0F;
+	private static final int SPAWN_PARTICLE_COUNT = 7;
+	private static final double SPAWN_PARTICLE_VELOCITY_BASE = 0.4;
+	private static final double SPAWN_PARTICLE_VELOCITY_STEP = 0.1;
 
 	public LlamaSpitEntity(EntityType<? extends LlamaSpitEntity> entityType, World world) {
 		super(entityType, world);
@@ -29,8 +38,8 @@ public class LlamaSpitEntity extends ProjectileEntity {
 
 	public LlamaSpitEntity(World world, LlamaEntity owner) {
 		this(EntityType.LLAMA_SPIT, world);
-		this.setOwner(owner);
-		this.setPosition(
+		setOwner(owner);
+		setPosition(
 				owner.getX() - (owner.getWidth() + 1.0F) * 0.5 * MathHelper.sin(
 						owner.bodyYaw * (float) (Math.PI / 180.0)),
 				owner.getEyeY() - 0.1F,
@@ -47,51 +56,51 @@ public class LlamaSpitEntity extends ProjectileEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		Vec3d vec3d = this.getVelocity();
+		Vec3d velocity = getVelocity();
 		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
-		this.hitOrDeflect(hitResult);
-		double d = this.getX() + vec3d.x;
-		double e = this.getY() + vec3d.y;
-		double f = this.getZ() + vec3d.z;
-		this.updateRotation();
-		float g = 0.99F;
-		if (this
-				.getEntityWorld()
-				.getStatesInBox(this.getBoundingBox())
-				.noneMatch(AbstractBlock.AbstractBlockState::isAir)) {
-			this.discard();
+		hitOrDeflect(hitResult);
+
+		double nextX = getX() + velocity.x;
+		double nextY = getY() + velocity.y;
+		double nextZ = getZ() + velocity.z;
+
+		updateRotation();
+
+		boolean insideBlock = getEntityWorld()
+				.getStatesInBox(getBoundingBox())
+				.noneMatch(AbstractBlock.AbstractBlockState::isAir);
+
+		if (insideBlock || isTouchingWater()) {
+			discard();
+			return;
 		}
-		else if (this.isTouchingWater()) {
-			this.discard();
-		}
-		else {
-			this.setVelocity(vec3d.multiply(0.99F));
-			this.applyGravity();
-			this.setPosition(d, e, f);
-		}
+
+		setVelocity(velocity.multiply(DRAG));
+		applyGravity();
+		setPosition(nextX, nextY, nextZ);
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		if (this.getOwner() instanceof LivingEntity livingEntity) {
-			Entity entity = entityHitResult.getEntity();
-			DamageSource damageSource = this.getDamageSources().spit(this, livingEntity);
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld && entity.damage(
-					serverWorld,
-					damageSource,
-					1.0F
-			)) {
-				EnchantmentHelper.onTargetDamaged(serverWorld, entity, damageSource);
-			}
+		if (!(getOwner() instanceof LivingEntity livingOwner)) {
+			return;
+		}
+
+		Entity target = entityHitResult.getEntity();
+		DamageSource damageSource = getDamageSources().spit(this, livingOwner);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& target.damage(serverWorld, damageSource, ENTITY_HIT_DAMAGE)) {
+			EnchantmentHelper.onTargetDamaged(serverWorld, target, damageSource);
 		}
 	}
 
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		super.onBlockHit(blockHitResult);
-		if (!this.getEntityWorld().isClient()) {
-			this.discard();
+		if (!getEntityWorld().isClient()) {
+			discard();
 		}
 	}
 
@@ -102,23 +111,22 @@ public class LlamaSpitEntity extends ProjectileEntity {
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		Vec3d vec3d = packet.getVelocity();
+		Vec3d velocity = packet.getVelocity();
 
-		for (int i = 0; i < 7; i++) {
-			double d = 0.4 + 0.1 * i;
-			this
-					.getEntityWorld()
+		for (int index = 0; index < SPAWN_PARTICLE_COUNT; index++) {
+			double velocityScale = SPAWN_PARTICLE_VELOCITY_BASE + SPAWN_PARTICLE_VELOCITY_STEP * index;
+			getEntityWorld()
 					.addParticleClient(
 							ParticleTypes.SPIT,
-							this.getX(),
-							this.getY(),
-							this.getZ(),
-							vec3d.x * d,
-							vec3d.y,
-							vec3d.z * d
+							getX(),
+							getY(),
+							getZ(),
+							velocity.x * velocityScale,
+							velocity.y,
+							velocity.z * velocityScale
 					);
 		}
 
-		this.setVelocity(vec3d);
+		setVelocity(velocity);
 	}
 }

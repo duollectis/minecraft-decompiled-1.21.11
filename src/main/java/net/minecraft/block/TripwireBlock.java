@@ -216,7 +216,7 @@ public class TripwireBlock extends Block {
 		}
 
 		if (bl2) {
-			world.scheduleBlockTick(new BlockPos(pos), this, 10);
+			world.scheduleBlockTick(new BlockPos(pos), this, SCHEDULED_TICK_DELAY);
 		}
 	}
 

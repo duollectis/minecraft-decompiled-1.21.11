@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.world.Difficulty;
 
 /**
- * {@code DifficultyCommand}.
+ * Команда {@code /difficulty}: изменение сложности мира.
  */
 public class DifficultyCommand {
 

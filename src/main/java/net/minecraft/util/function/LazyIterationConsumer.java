@@ -2,33 +2,26 @@ package net.minecraft.util.function;
 
 import java.util.function.Consumer;
 
-@FunctionalInterface
 /**
- * {@code LazyIterationConsumer}.
+ * «Ленивый» потребитель для итерации: после каждого вызова {@link #accept} возвращает
+ * {@link NextIteration}, позволяя прервать обход коллекции досрочно без исключений.
  */
+@FunctionalInterface
 public interface LazyIterationConsumer<T> {
 
-	LazyIterationConsumer.NextIteration accept(T value);
+	NextIteration accept(T value);
 
 	static <T> LazyIterationConsumer<T> forConsumer(Consumer<T> consumer) {
 		return value -> {
 			consumer.accept(value);
-			return LazyIterationConsumer.NextIteration.CONTINUE;
+			return NextIteration.CONTINUE;
 		};
 	}
 
-	/**
-	 * {@code NextIteration}.
-	 */
-	public static enum NextIteration {
+	enum NextIteration {
 		CONTINUE,
 		ABORT;
 
-		/**
-		 * Определяет, следует ли abort.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean shouldAbort() {
 			return this == ABORT;
 		}

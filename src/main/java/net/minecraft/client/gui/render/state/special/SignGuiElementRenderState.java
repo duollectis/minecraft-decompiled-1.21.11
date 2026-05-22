@@ -7,10 +7,12 @@ import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.model.Model;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SignGuiElementRenderState}.
+ * Состояние модели таблички в GUI.
+ * Хранит модель таблички и тип древесины для получения корректной текстуры
+ * из спрайт-атласа блоков.
  */
+@Environment(EnvType.CLIENT)
 public record SignGuiElementRenderState(
 		Model.SinglePartModel signModel,
 		WoodType woodType,

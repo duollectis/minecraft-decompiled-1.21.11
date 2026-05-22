@@ -10,7 +10,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BlockWithEntity}.
+ * Базовый класс для блоков, имеющих {@link BlockEntity}. Делегирует синхронизированные
+ * события блок-сущности и предоставляет утилитарный метод {@link #validateTicker} для
+ * безопасного получения тикера нужного типа.
  */
 public abstract class BlockWithEntity extends Block implements BlockEntityProvider {
 
@@ -35,7 +37,7 @@ public abstract class BlockWithEntity extends Block implements BlockEntityProvid
 			BlockPos pos
 	) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
-		return blockEntity instanceof NamedScreenHandlerFactory ? (NamedScreenHandlerFactory) blockEntity : null;
+		return blockEntity instanceof NamedScreenHandlerFactory factory ? factory : null;
 	}
 
 	@SuppressWarnings("unchecked")

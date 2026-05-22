@@ -27,14 +27,17 @@ import java.util.OptionalInt;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code InputUtil}.
+ * Утилитарный класс для работы с вводом через GLFW.
+ * Содержит константы кодов клавиш/кнопок мыши, методы регистрации коллбэков
+ * и вложенные типы {@link Key} и {@link Type} для типобезопасной работы с вводом.
  */
+@Environment(EnvType.CLIENT)
 public class InputUtil {
 
 	private static final @Nullable MethodHandle GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE;
 	private static final int GLFW_RAW_MOUSE_MOTION;
+
 	public static final int GLFW_KEY_0 = 48;
 	public static final int GLFW_KEY_1 = 49;
 	public static final int GLFW_KEY_2 = 50;
@@ -108,13 +111,16 @@ public class InputUtil {
 	public static final int GLFW_KEY_KP_8 = 328;
 	public static final int GLFW_KEY_KP_9 = 329;
 	public static final int GLFW_KEY_KP_DECIMAL = 330;
+	public static final int GLFW_KEY_KP_DIVIDE = 331;
+	public static final int GLFW_KEY_KP_MULTIPLY = 332;
+	public static final int GLFW_KEY_KP_SUBTRACT = 333;
+	public static final int GLFW_KEY_KP_ADD = 334;
 	public static final int GLFW_KEY_KP_ENTER = 335;
 	public static final int GLFW_KEY_KP_EQUAL = 336;
 	public static final int GLFW_KEY_DOWN = 264;
 	public static final int GLFW_KEY_LEFT = 263;
 	public static final int GLFW_KEY_RIGHT = 262;
 	public static final int GLFW_KEY_UP = 265;
-	public static final int GLFW_KEY_KP_ADD = 334;
 	public static final int GLFW_KEY_APOSTROPHE = 39;
 	public static final int GLFW_KEY_BACKSLASH = 92;
 	public static final int GLFW_KEY_COMMA = 44;
@@ -122,7 +128,6 @@ public class InputUtil {
 	public static final int GLFW_KEY_GRAVE_ACCENT = 96;
 	public static final int GLFW_KEY_LEFT_BRACKET = 91;
 	public static final int GLFW_KEY_MINUS = 45;
-	public static final int GLFW_KEY_KP_MULTIPLY = 332;
 	public static final int GLFW_KEY_PERIOD = 46;
 	public static final int GLFW_KEY_RIGHT_BRACKET = 93;
 	public static final int GLFW_KEY_SEMICOLON = 59;
@@ -150,6 +155,9 @@ public class InputUtil {
 	public static final int GLFW_KEY_PAUSE = 284;
 	public static final int GLFW_KEY_SCROLL_LOCK = 281;
 	public static final int GLFW_KEY_PRINT_SCREEN = 283;
+	public static final int GLFW_KEY_MENU = 348;
+	public static final int GLFW_KEY_WORLD_1 = 161;
+	public static final int GLFW_KEY_WORLD_2 = 162;
 	public static final int GLFW_PRESS = 1;
 	public static final int GLFW_RELEASE = 0;
 	public static final int GLFW_REPEAT = 2;
@@ -170,53 +178,69 @@ public class InputUtil {
 	public static final int GLFW_CURSOR = 208897;
 	public static final int GLFW_CURSOR_DISABLED = 212995;
 	public static final int GLFW_CURSOR_NORMAL = 212993;
-	public static final InputUtil.Key UNKNOWN_KEY;
 
-	public static InputUtil.Key fromKeyCode(KeyInput key) {
-		return key.key() == -1 ? InputUtil.Type.SCANCODE.createFromCode(key.scancode())
-		                       : InputUtil.Type.KEYSYM.createFromCode(key.key());
+	public static final Key UNKNOWN_KEY;
+
+	/**
+	 * Преобразует {@link KeyInput} в {@link Key}, предпочитая scancode при отсутствии keysym.
+	 *
+	 * @param key входное событие клавиши
+	 * @return соответствующий {@link Key}
+	 */
+	public static Key fromKeyCode(KeyInput key) {
+		return key.key() == -1
+			? Type.SCANCODE.createFromCode(key.scancode())
+			: Type.KEYSYM.createFromCode(key.key());
 	}
 
-	public static InputUtil.Key fromTranslationKey(String translationKey) {
-		if (InputUtil.Key.KEYS.containsKey(translationKey)) {
-			return InputUtil.Key.KEYS.get(translationKey);
+	/**
+	 * Разбирает строку вида {@code "key.keyboard.a"} или {@code "key.mouse.left"} в {@link Key}.
+	 *
+	 * @param translationKey строковый ключ перевода
+	 * @return соответствующий {@link Key}
+	 * @throws IllegalArgumentException если ключ не распознан
+	 */
+	public static Key fromTranslationKey(String translationKey) {
+		if (Key.KEYS.containsKey(translationKey)) {
+			return Key.KEYS.get(translationKey);
 		}
-		else {
-			for (InputUtil.Type type : InputUtil.Type.values()) {
-				if (translationKey.startsWith(type.name)) {
-					String string = translationKey.substring(type.name.length() + 1);
-					int i = Integer.parseInt(string);
-					if (type == InputUtil.Type.MOUSE) {
-						i--;
-					}
 
-					return type.createFromCode(i);
-				}
+		for (Type type : Type.values()) {
+			if (!translationKey.startsWith(type.name)) {
+				continue;
 			}
 
-			throw new IllegalArgumentException("Unknown key name: " + translationKey);
+			String codeString = translationKey.substring(type.name.length() + 1);
+			int code = Integer.parseInt(codeString);
+			if (type == Type.MOUSE) {
+				code--;
+			}
+
+			return type.createFromCode(code);
 		}
+
+		throw new IllegalArgumentException("Unknown key name: " + translationKey);
 	}
 
 	public static boolean isKeyPressed(Window window, int code) {
-		return GLFW.glfwGetKey(window.getHandle(), code) == 1;
+		return GLFW.glfwGetKey(window.getHandle(), code) == GLFW_PRESS;
 	}
 
 	public static void setKeyboardCallbacks(
-			Window window,
-			GLFWKeyCallbackI keyCallback,
-			GLFWCharModsCallbackI charModsCallback
+		Window window,
+		GLFWKeyCallbackI keyCallback,
+		GLFWCharModsCallbackI charModsCallback
 	) {
 		GLFW.glfwSetKeyCallback(window.getHandle(), keyCallback);
 		GLFW.glfwSetCharModsCallback(window.getHandle(), charModsCallback);
 	}
 
 	public static void setMouseCallbacks(
-			Window window,
-			GLFWCursorPosCallbackI cursorPosCallback,
-			GLFWMouseButtonCallbackI mouseButtonCallback,
-			GLFWScrollCallbackI scrollCallback,
-			GLFWDropCallbackI dropCallback
+		Window window,
+		GLFWCursorPosCallbackI cursorPosCallback,
+		GLFWMouseButtonCallbackI mouseButtonCallback,
+		GLFWScrollCallbackI scrollCallback,
+		GLFWDropCallbackI dropCallback
 	) {
 		GLFW.glfwSetCursorPosCallback(window.getHandle(), cursorPosCallback);
 		GLFW.glfwSetMouseButtonCallback(window.getHandle(), mouseButtonCallback);
@@ -226,95 +250,97 @@ public class InputUtil {
 
 	public static void setCursorParameters(Window window, int inputModeValue, double x, double y) {
 		GLFW.glfwSetCursorPos(window.getHandle(), x, y);
-		GLFW.glfwSetInputMode(window.getHandle(), 208897, inputModeValue);
+		GLFW.glfwSetInputMode(window.getHandle(), GLFW_CURSOR, inputModeValue);
 	}
 
+	/**
+	 * Проверяет поддержку raw mouse motion через рефлексию — метод появился в GLFW 3.3,
+	 * поэтому используется MethodHandle для совместимости со старыми версиями.
+	 *
+	 * @return {@code true}, если raw mouse motion поддерживается
+	 */
 	public static boolean isRawMouseMotionSupported() {
 		try {
 			return GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE != null
-					&& (boolean) GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE.invokeExact();
-		}
-		catch (Throwable var1) {
-			throw new RuntimeException(var1);
+				&& (boolean) GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE.invokeExact();
+		} catch (Throwable throwable) {
+			throw new RuntimeException(throwable);
 		}
 	}
 
-	public static void setRawMouseMotionMode(Window window, boolean value) {
+	public static void setRawMouseMotionMode(Window window, boolean enabled) {
 		if (isRawMouseMotionSupported()) {
-			GLFW.glfwSetInputMode(window.getHandle(), GLFW_RAW_MOUSE_MOTION, value ? 1 : 0);
+			GLFW.glfwSetInputMode(window.getHandle(), GLFW_RAW_MOUSE_MOTION, enabled ? 1 : 0);
 		}
 	}
 
 	static {
 		Lookup lookup = MethodHandles.lookup();
-		MethodType methodType = MethodType.methodType(boolean.class);
-		MethodHandle methodHandle = null;
-		int i = 0;
+		MethodType booleanMethod = MethodType.methodType(boolean.class);
+		MethodHandle supportedHandle = null;
+		int rawMouseMotionConstant = 0;
 
 		try {
-			methodHandle = lookup.findStatic(GLFW.class, "glfwRawMouseMotionSupported", methodType);
-			MethodHandle methodHandle2 = lookup.findStaticGetter(GLFW.class, "GLFW_RAW_MOUSE_MOTION", int.class);
-			i = (int) methodHandle2.invokeExact();
-		}
-		catch (NoSuchFieldException | NoSuchMethodException var5) {
-		}
-		catch (Throwable var6) {
-			throw new RuntimeException(var6);
+			supportedHandle = lookup.findStatic(GLFW.class, "glfwRawMouseMotionSupported", booleanMethod);
+			MethodHandle rawMotionGetter = lookup.findStaticGetter(GLFW.class, "GLFW_RAW_MOUSE_MOTION", int.class);
+			rawMouseMotionConstant = (int) rawMotionGetter.invokeExact();
+		} catch (NoSuchFieldException | NoSuchMethodException ignored) {
+		} catch (Throwable throwable) {
+			throw new RuntimeException(throwable);
 		}
 
-		GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE = methodHandle;
-		GLFW_RAW_MOUSE_MOTION = i;
-		UNKNOWN_KEY = InputUtil.Type.KEYSYM.createFromCode(-1);
+		GLFW_RAW_MOUSE_MOTION_SUPPORTED_HANDLE = supportedHandle;
+		GLFW_RAW_MOUSE_MOTION = rawMouseMotionConstant;
+		UNKNOWN_KEY = Type.KEYSYM.createFromCode(-1);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Key}.
-	 */
 	public static final class Key {
 
+		static final Map<String, Key> KEYS = Maps.newHashMap();
+
 		private final String translationKey;
-		private final InputUtil.Type type;
+		private final Type type;
 		private final int code;
 		private final Supplier<Text> localizedText;
-		static final Map<String, InputUtil.Key> KEYS = Maps.newHashMap();
 
-		Key(String translationKey, InputUtil.Type type, int code) {
+		Key(String translationKey, Type type, int code) {
 			this.translationKey = translationKey;
 			this.type = type;
 			this.code = code;
-			this.localizedText = Suppliers.memoize(() -> type.textTranslator.apply(code, translationKey));
+			localizedText = Suppliers.memoize(() -> type.textTranslator.apply(code, translationKey));
 			KEYS.put(translationKey, this);
 		}
 
-		public InputUtil.Type getCategory() {
-			return this.type;
+		public Type getCategory() {
+			return type;
 		}
 
 		public int getCode() {
-			return this.code;
+			return code;
 		}
 
 		public String getTranslationKey() {
-			return this.translationKey;
+			return translationKey;
 		}
 
 		public Text getLocalizedText() {
-			return this.localizedText.get();
+			return localizedText.get();
 		}
 
 		/**
-		 * To int.
+		 * Возвращает цифровое значение клавиши, если это цифровая клавиша (0–9) или numpad (0–9).
 		 *
-		 * @return OptionalInt — результат операции
+		 * @return {@link OptionalInt} с цифрой или пустой, если клавиша не цифровая
 		 */
 		public OptionalInt toInt() {
-			if (this.code >= 48 && this.code <= 57) {
-				return OptionalInt.of(this.code - 48);
+			if (code >= GLFW_KEY_0 && code <= GLFW_KEY_9) {
+				return OptionalInt.of(code - GLFW_KEY_0);
 			}
-			else {
-				return this.code >= 320 && this.code <= 329 ? OptionalInt.of(this.code - 320) : OptionalInt.empty();
-			}
+
+			return code >= GLFW_KEY_KP_0 && code <= GLFW_KEY_KP_9
+				? OptionalInt.of(code - GLFW_KEY_KP_0)
+				: OptionalInt.empty();
 		}
 
 		@Override
@@ -322,100 +348,96 @@ public class InputUtil {
 			if (this == o) {
 				return true;
 			}
-			else if (o != null && this.getClass() == o.getClass()) {
-				InputUtil.Key key = (InputUtil.Key) o;
-				return this.code == key.code && this.type == key.type;
-			}
-			else {
+
+			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
+
+			Key key = (Key) o;
+			return code == key.code && type == key.type;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(this.type, this.code);
+			return Objects.hash(type, code);
 		}
 
 		@Override
 		public String toString() {
-			return this.translationKey;
+			return translationKey;
 		}
 	}
 
 	@Retention(RetentionPolicy.CLASS)
-	@Target(
-			{
-					ElementType.FIELD,
-					ElementType.PARAMETER,
-					ElementType.LOCAL_VARIABLE,
-					ElementType.METHOD,
-					ElementType.TYPE_USE
-			}
-	)
+	@Target({
+		ElementType.FIELD,
+		ElementType.PARAMETER,
+		ElementType.LOCAL_VARIABLE,
+		ElementType.METHOD,
+		ElementType.TYPE_USE
+	})
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Keycode}.
-	 */
 	public @interface Keycode {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		KEYSYM(
-				"key.keyboard", (keyCode, translationKey) -> {
-			if ("key.keyboard.unknown".equals(translationKey)) {
-				return Text.translatable(translationKey);
+			"key.keyboard",
+			(keyCode, translationKey) -> {
+				if ("key.keyboard.unknown".equals(translationKey)) {
+					return Text.translatable(translationKey);
+				}
+
+				String keyName = GLFW.glfwGetKeyName(keyCode, -1);
+				return keyName != null
+					? Text.literal(keyName.toUpperCase(Locale.ROOT))
+					: Text.translatable(translationKey);
 			}
-			else {
-				String string = GLFW.glfwGetKeyName(keyCode, -1);
-				return string != null ? Text.literal(string.toUpperCase(Locale.ROOT))
-				                      : Text.translatable(translationKey);
-			}
-		}
 		),
 		SCANCODE(
-				"scancode", (scanCode, translationKey) -> {
-			String string = GLFW.glfwGetKeyName(-1, scanCode);
-			return string != null ? Text.literal(string) : Text.translatable(translationKey);
-		}
+			"scancode",
+			(scanCode, translationKey) -> {
+				String keyName = GLFW.glfwGetKeyName(-1, scanCode);
+				return keyName != null ? Text.literal(keyName) : Text.translatable(translationKey);
+			}
 		),
 		MOUSE(
-				"key.mouse",
-				(buttonCode, translationKey) -> Language.getInstance().hasTranslation(translationKey)
-				                                ? Text.translatable(translationKey)
-				                                : Text.translatable("key.mouse", buttonCode + 1)
+			"key.mouse",
+			(buttonCode, translationKey) -> Language.getInstance().hasTranslation(translationKey)
+				? Text.translatable(translationKey)
+				: Text.translatable("key.mouse", buttonCode + 1)
 		);
 
 		private static final String UNKNOWN_TRANSLATION_KEY = "key.keyboard.unknown";
-		private final Int2ObjectMap<InputUtil.Key> map = new Int2ObjectOpenHashMap();
+
+		private final Int2ObjectMap<Key> map = new Int2ObjectOpenHashMap();
 		final String name;
 		final BiFunction<Integer, String, Text> textTranslator;
 
-		private static void mapKey(InputUtil.Type type, String translationKey, int keyCode) {
-			InputUtil.Key key = new InputUtil.Key(translationKey, type, keyCode);
-			type.map.put(keyCode, key);
-		}
-
-		private Type(final String name, final BiFunction<Integer, String, Text> textTranslator) {
+		Type(String name, BiFunction<Integer, String, Text> textTranslator) {
 			this.name = name;
 			this.textTranslator = textTranslator;
 		}
 
-		public InputUtil.Key createFromCode(int code) {
-			return (InputUtil.Key) this.map.computeIfAbsent(
-					code, codex -> {
-						int i = codex;
-						if (this == MOUSE) {
-							i = codex + 1;
-						}
+		/**
+		 * Возвращает или создаёт {@link Key} для заданного кода.
+		 * Для мыши код смещается на +1 в строковом представлении (GLFW нумерует с 0, UI — с 1).
+		 *
+		 * @param code числовой код клавиши/кнопки
+		 * @return соответствующий {@link Key}
+		 */
+		public Key createFromCode(int code) {
+			return (Key) map.computeIfAbsent(code, rawCode -> {
+				int displayCode = (this == MOUSE) ? rawCode + 1 : rawCode;
+				String keyTranslationKey = name + "." + displayCode;
+				return new Key(keyTranslationKey, this, rawCode);
+			});
+		}
 
-						String string = this.name + "." + i;
-						return new InputUtil.Key(string, this, codex);
-					}
-			);
+		private static void mapKey(Type type, String translationKey, int keyCode) {
+			Key key = new Key(translationKey, type, keyCode);
+			type.map.put(keyCode, key);
 		}
 
 		static {
@@ -428,126 +450,126 @@ public class InputUtil {
 			mapKey(MOUSE, "key.mouse.6", 5);
 			mapKey(MOUSE, "key.mouse.7", 6);
 			mapKey(MOUSE, "key.mouse.8", 7);
-			mapKey(KEYSYM, "key.keyboard.0", 48);
-			mapKey(KEYSYM, "key.keyboard.1", 49);
-			mapKey(KEYSYM, "key.keyboard.2", 50);
-			mapKey(KEYSYM, "key.keyboard.3", 51);
-			mapKey(KEYSYM, "key.keyboard.4", 52);
-			mapKey(KEYSYM, "key.keyboard.5", 53);
-			mapKey(KEYSYM, "key.keyboard.6", 54);
-			mapKey(KEYSYM, "key.keyboard.7", 55);
-			mapKey(KEYSYM, "key.keyboard.8", 56);
-			mapKey(KEYSYM, "key.keyboard.9", 57);
-			mapKey(KEYSYM, "key.keyboard.a", 65);
-			mapKey(KEYSYM, "key.keyboard.b", 66);
-			mapKey(KEYSYM, "key.keyboard.c", 67);
-			mapKey(KEYSYM, "key.keyboard.d", 68);
-			mapKey(KEYSYM, "key.keyboard.e", 69);
-			mapKey(KEYSYM, "key.keyboard.f", 70);
-			mapKey(KEYSYM, "key.keyboard.g", 71);
-			mapKey(KEYSYM, "key.keyboard.h", 72);
-			mapKey(KEYSYM, "key.keyboard.i", 73);
-			mapKey(KEYSYM, "key.keyboard.j", 74);
-			mapKey(KEYSYM, "key.keyboard.k", 75);
-			mapKey(KEYSYM, "key.keyboard.l", 76);
-			mapKey(KEYSYM, "key.keyboard.m", 77);
-			mapKey(KEYSYM, "key.keyboard.n", 78);
-			mapKey(KEYSYM, "key.keyboard.o", 79);
-			mapKey(KEYSYM, "key.keyboard.p", 80);
-			mapKey(KEYSYM, "key.keyboard.q", 81);
-			mapKey(KEYSYM, "key.keyboard.r", 82);
-			mapKey(KEYSYM, "key.keyboard.s", 83);
-			mapKey(KEYSYM, "key.keyboard.t", 84);
-			mapKey(KEYSYM, "key.keyboard.u", 85);
-			mapKey(KEYSYM, "key.keyboard.v", 86);
-			mapKey(KEYSYM, "key.keyboard.w", 87);
-			mapKey(KEYSYM, "key.keyboard.x", 88);
-			mapKey(KEYSYM, "key.keyboard.y", 89);
-			mapKey(KEYSYM, "key.keyboard.z", 90);
-			mapKey(KEYSYM, "key.keyboard.f1", 290);
-			mapKey(KEYSYM, "key.keyboard.f2", 291);
-			mapKey(KEYSYM, "key.keyboard.f3", 292);
-			mapKey(KEYSYM, "key.keyboard.f4", 293);
-			mapKey(KEYSYM, "key.keyboard.f5", 294);
-			mapKey(KEYSYM, "key.keyboard.f6", 295);
-			mapKey(KEYSYM, "key.keyboard.f7", 296);
-			mapKey(KEYSYM, "key.keyboard.f8", 297);
-			mapKey(KEYSYM, "key.keyboard.f9", 298);
-			mapKey(KEYSYM, "key.keyboard.f10", 299);
-			mapKey(KEYSYM, "key.keyboard.f11", 300);
-			mapKey(KEYSYM, "key.keyboard.f12", 301);
-			mapKey(KEYSYM, "key.keyboard.f13", 302);
-			mapKey(KEYSYM, "key.keyboard.f14", 303);
-			mapKey(KEYSYM, "key.keyboard.f15", 304);
-			mapKey(KEYSYM, "key.keyboard.f16", 305);
-			mapKey(KEYSYM, "key.keyboard.f17", 306);
-			mapKey(KEYSYM, "key.keyboard.f18", 307);
-			mapKey(KEYSYM, "key.keyboard.f19", 308);
-			mapKey(KEYSYM, "key.keyboard.f20", 309);
-			mapKey(KEYSYM, "key.keyboard.f21", 310);
-			mapKey(KEYSYM, "key.keyboard.f22", 311);
-			mapKey(KEYSYM, "key.keyboard.f23", 312);
-			mapKey(KEYSYM, "key.keyboard.f24", 313);
-			mapKey(KEYSYM, "key.keyboard.f25", 314);
-			mapKey(KEYSYM, "key.keyboard.num.lock", 282);
-			mapKey(KEYSYM, "key.keyboard.keypad.0", 320);
-			mapKey(KEYSYM, "key.keyboard.keypad.1", 321);
-			mapKey(KEYSYM, "key.keyboard.keypad.2", 322);
-			mapKey(KEYSYM, "key.keyboard.keypad.3", 323);
-			mapKey(KEYSYM, "key.keyboard.keypad.4", 324);
-			mapKey(KEYSYM, "key.keyboard.keypad.5", 325);
-			mapKey(KEYSYM, "key.keyboard.keypad.6", 326);
-			mapKey(KEYSYM, "key.keyboard.keypad.7", 327);
-			mapKey(KEYSYM, "key.keyboard.keypad.8", 328);
-			mapKey(KEYSYM, "key.keyboard.keypad.9", 329);
-			mapKey(KEYSYM, "key.keyboard.keypad.add", 334);
-			mapKey(KEYSYM, "key.keyboard.keypad.decimal", 330);
-			mapKey(KEYSYM, "key.keyboard.keypad.enter", 335);
-			mapKey(KEYSYM, "key.keyboard.keypad.equal", 336);
-			mapKey(KEYSYM, "key.keyboard.keypad.multiply", 332);
-			mapKey(KEYSYM, "key.keyboard.keypad.divide", 331);
-			mapKey(KEYSYM, "key.keyboard.keypad.subtract", 333);
-			mapKey(KEYSYM, "key.keyboard.down", 264);
-			mapKey(KEYSYM, "key.keyboard.left", 263);
-			mapKey(KEYSYM, "key.keyboard.right", 262);
-			mapKey(KEYSYM, "key.keyboard.up", 265);
-			mapKey(KEYSYM, "key.keyboard.apostrophe", 39);
-			mapKey(KEYSYM, "key.keyboard.backslash", 92);
-			mapKey(KEYSYM, "key.keyboard.comma", 44);
-			mapKey(KEYSYM, "key.keyboard.equal", 61);
-			mapKey(KEYSYM, "key.keyboard.grave.accent", 96);
-			mapKey(KEYSYM, "key.keyboard.left.bracket", 91);
-			mapKey(KEYSYM, "key.keyboard.minus", 45);
-			mapKey(KEYSYM, "key.keyboard.period", 46);
-			mapKey(KEYSYM, "key.keyboard.right.bracket", 93);
-			mapKey(KEYSYM, "key.keyboard.semicolon", 59);
-			mapKey(KEYSYM, "key.keyboard.slash", 47);
-			mapKey(KEYSYM, "key.keyboard.space", 32);
-			mapKey(KEYSYM, "key.keyboard.tab", 258);
-			mapKey(KEYSYM, "key.keyboard.left.alt", 342);
-			mapKey(KEYSYM, "key.keyboard.left.control", 341);
-			mapKey(KEYSYM, "key.keyboard.left.shift", 340);
-			mapKey(KEYSYM, "key.keyboard.left.win", 343);
-			mapKey(KEYSYM, "key.keyboard.right.alt", 346);
-			mapKey(KEYSYM, "key.keyboard.right.control", 345);
-			mapKey(KEYSYM, "key.keyboard.right.shift", 344);
-			mapKey(KEYSYM, "key.keyboard.right.win", 347);
-			mapKey(KEYSYM, "key.keyboard.enter", 257);
-			mapKey(KEYSYM, "key.keyboard.escape", 256);
-			mapKey(KEYSYM, "key.keyboard.backspace", 259);
-			mapKey(KEYSYM, "key.keyboard.delete", 261);
-			mapKey(KEYSYM, "key.keyboard.end", 269);
-			mapKey(KEYSYM, "key.keyboard.home", 268);
-			mapKey(KEYSYM, "key.keyboard.insert", 260);
-			mapKey(KEYSYM, "key.keyboard.page.down", 267);
-			mapKey(KEYSYM, "key.keyboard.page.up", 266);
-			mapKey(KEYSYM, "key.keyboard.caps.lock", 280);
-			mapKey(KEYSYM, "key.keyboard.pause", 284);
-			mapKey(KEYSYM, "key.keyboard.scroll.lock", 281);
-			mapKey(KEYSYM, "key.keyboard.menu", 348);
-			mapKey(KEYSYM, "key.keyboard.print.screen", 283);
-			mapKey(KEYSYM, "key.keyboard.world.1", 161);
-			mapKey(KEYSYM, "key.keyboard.world.2", 162);
+			mapKey(KEYSYM, "key.keyboard.0", GLFW_KEY_0);
+			mapKey(KEYSYM, "key.keyboard.1", GLFW_KEY_1);
+			mapKey(KEYSYM, "key.keyboard.2", GLFW_KEY_2);
+			mapKey(KEYSYM, "key.keyboard.3", GLFW_KEY_3);
+			mapKey(KEYSYM, "key.keyboard.4", GLFW_KEY_4);
+			mapKey(KEYSYM, "key.keyboard.5", GLFW_KEY_5);
+			mapKey(KEYSYM, "key.keyboard.6", GLFW_KEY_6);
+			mapKey(KEYSYM, "key.keyboard.7", GLFW_KEY_7);
+			mapKey(KEYSYM, "key.keyboard.8", GLFW_KEY_8);
+			mapKey(KEYSYM, "key.keyboard.9", GLFW_KEY_9);
+			mapKey(KEYSYM, "key.keyboard.a", GLFW_KEY_A);
+			mapKey(KEYSYM, "key.keyboard.b", GLFW_KEY_B);
+			mapKey(KEYSYM, "key.keyboard.c", GLFW_KEY_C);
+			mapKey(KEYSYM, "key.keyboard.d", GLFW_KEY_D);
+			mapKey(KEYSYM, "key.keyboard.e", GLFW_KEY_E);
+			mapKey(KEYSYM, "key.keyboard.f", GLFW_KEY_F);
+			mapKey(KEYSYM, "key.keyboard.g", GLFW_KEY_G);
+			mapKey(KEYSYM, "key.keyboard.h", GLFW_KEY_H);
+			mapKey(KEYSYM, "key.keyboard.i", GLFW_KEY_I);
+			mapKey(KEYSYM, "key.keyboard.j", GLFW_KEY_J);
+			mapKey(KEYSYM, "key.keyboard.k", GLFW_KEY_K);
+			mapKey(KEYSYM, "key.keyboard.l", GLFW_KEY_L);
+			mapKey(KEYSYM, "key.keyboard.m", GLFW_KEY_M);
+			mapKey(KEYSYM, "key.keyboard.n", GLFW_KEY_N);
+			mapKey(KEYSYM, "key.keyboard.o", GLFW_KEY_O);
+			mapKey(KEYSYM, "key.keyboard.p", GLFW_KEY_P);
+			mapKey(KEYSYM, "key.keyboard.q", GLFW_KEY_Q);
+			mapKey(KEYSYM, "key.keyboard.r", GLFW_KEY_R);
+			mapKey(KEYSYM, "key.keyboard.s", GLFW_KEY_S);
+			mapKey(KEYSYM, "key.keyboard.t", GLFW_KEY_T);
+			mapKey(KEYSYM, "key.keyboard.u", GLFW_KEY_U);
+			mapKey(KEYSYM, "key.keyboard.v", GLFW_KEY_V);
+			mapKey(KEYSYM, "key.keyboard.w", GLFW_KEY_W);
+			mapKey(KEYSYM, "key.keyboard.x", GLFW_KEY_X);
+			mapKey(KEYSYM, "key.keyboard.y", GLFW_KEY_Y);
+			mapKey(KEYSYM, "key.keyboard.z", GLFW_KEY_Z);
+			mapKey(KEYSYM, "key.keyboard.f1", GLFW_KEY_F1);
+			mapKey(KEYSYM, "key.keyboard.f2", GLFW_KEY_F2);
+			mapKey(KEYSYM, "key.keyboard.f3", GLFW_KEY_F3);
+			mapKey(KEYSYM, "key.keyboard.f4", GLFW_KEY_F4);
+			mapKey(KEYSYM, "key.keyboard.f5", GLFW_KEY_F5);
+			mapKey(KEYSYM, "key.keyboard.f6", GLFW_KEY_F6);
+			mapKey(KEYSYM, "key.keyboard.f7", GLFW_KEY_F7);
+			mapKey(KEYSYM, "key.keyboard.f8", GLFW_KEY_F8);
+			mapKey(KEYSYM, "key.keyboard.f9", GLFW_KEY_F9);
+			mapKey(KEYSYM, "key.keyboard.f10", GLFW_KEY_F10);
+			mapKey(KEYSYM, "key.keyboard.f11", GLFW_KEY_F11);
+			mapKey(KEYSYM, "key.keyboard.f12", GLFW_KEY_F12);
+			mapKey(KEYSYM, "key.keyboard.f13", GLFW_KEY_F13);
+			mapKey(KEYSYM, "key.keyboard.f14", GLFW_KEY_F14);
+			mapKey(KEYSYM, "key.keyboard.f15", GLFW_KEY_F15);
+			mapKey(KEYSYM, "key.keyboard.f16", GLFW_KEY_F16);
+			mapKey(KEYSYM, "key.keyboard.f17", GLFW_KEY_F17);
+			mapKey(KEYSYM, "key.keyboard.f18", GLFW_KEY_F18);
+			mapKey(KEYSYM, "key.keyboard.f19", GLFW_KEY_F19);
+			mapKey(KEYSYM, "key.keyboard.f20", GLFW_KEY_F20);
+			mapKey(KEYSYM, "key.keyboard.f21", GLFW_KEY_F21);
+			mapKey(KEYSYM, "key.keyboard.f22", GLFW_KEY_F22);
+			mapKey(KEYSYM, "key.keyboard.f23", GLFW_KEY_F23);
+			mapKey(KEYSYM, "key.keyboard.f24", GLFW_KEY_F24);
+			mapKey(KEYSYM, "key.keyboard.f25", GLFW_KEY_F25);
+			mapKey(KEYSYM, "key.keyboard.num.lock", GLFW_KEY_NUM_LOCK);
+			mapKey(KEYSYM, "key.keyboard.keypad.0", GLFW_KEY_KP_0);
+			mapKey(KEYSYM, "key.keyboard.keypad.1", GLFW_KEY_KP_1);
+			mapKey(KEYSYM, "key.keyboard.keypad.2", GLFW_KEY_KP_2);
+			mapKey(KEYSYM, "key.keyboard.keypad.3", GLFW_KEY_KP_3);
+			mapKey(KEYSYM, "key.keyboard.keypad.4", GLFW_KEY_KP_4);
+			mapKey(KEYSYM, "key.keyboard.keypad.5", GLFW_KEY_KP_5);
+			mapKey(KEYSYM, "key.keyboard.keypad.6", GLFW_KEY_KP_6);
+			mapKey(KEYSYM, "key.keyboard.keypad.7", GLFW_KEY_KP_7);
+			mapKey(KEYSYM, "key.keyboard.keypad.8", GLFW_KEY_KP_8);
+			mapKey(KEYSYM, "key.keyboard.keypad.9", GLFW_KEY_KP_9);
+			mapKey(KEYSYM, "key.keyboard.keypad.add", GLFW_KEY_KP_ADD);
+			mapKey(KEYSYM, "key.keyboard.keypad.decimal", GLFW_KEY_KP_DECIMAL);
+			mapKey(KEYSYM, "key.keyboard.keypad.enter", GLFW_KEY_KP_ENTER);
+			mapKey(KEYSYM, "key.keyboard.keypad.equal", GLFW_KEY_KP_EQUAL);
+			mapKey(KEYSYM, "key.keyboard.keypad.multiply", GLFW_KEY_KP_MULTIPLY);
+			mapKey(KEYSYM, "key.keyboard.keypad.divide", GLFW_KEY_KP_DIVIDE);
+			mapKey(KEYSYM, "key.keyboard.keypad.subtract", GLFW_KEY_KP_SUBTRACT);
+			mapKey(KEYSYM, "key.keyboard.down", GLFW_KEY_DOWN);
+			mapKey(KEYSYM, "key.keyboard.left", GLFW_KEY_LEFT);
+			mapKey(KEYSYM, "key.keyboard.right", GLFW_KEY_RIGHT);
+			mapKey(KEYSYM, "key.keyboard.up", GLFW_KEY_UP);
+			mapKey(KEYSYM, "key.keyboard.apostrophe", GLFW_KEY_APOSTROPHE);
+			mapKey(KEYSYM, "key.keyboard.backslash", GLFW_KEY_BACKSLASH);
+			mapKey(KEYSYM, "key.keyboard.comma", GLFW_KEY_COMMA);
+			mapKey(KEYSYM, "key.keyboard.equal", GLFW_KEY_EQUAL);
+			mapKey(KEYSYM, "key.keyboard.grave.accent", GLFW_KEY_GRAVE_ACCENT);
+			mapKey(KEYSYM, "key.keyboard.left.bracket", GLFW_KEY_LEFT_BRACKET);
+			mapKey(KEYSYM, "key.keyboard.minus", GLFW_KEY_MINUS);
+			mapKey(KEYSYM, "key.keyboard.period", GLFW_KEY_PERIOD);
+			mapKey(KEYSYM, "key.keyboard.right.bracket", GLFW_KEY_RIGHT_BRACKET);
+			mapKey(KEYSYM, "key.keyboard.semicolon", GLFW_KEY_SEMICOLON);
+			mapKey(KEYSYM, "key.keyboard.slash", GLFW_KEY_SLASH);
+			mapKey(KEYSYM, "key.keyboard.space", GLFW_KEY_SPACE);
+			mapKey(KEYSYM, "key.keyboard.tab", GLFW_KEY_TAB);
+			mapKey(KEYSYM, "key.keyboard.left.alt", GLFW_KEY_LEFT_ALT);
+			mapKey(KEYSYM, "key.keyboard.left.control", GLFW_KEY_LEFT_CONTROL);
+			mapKey(KEYSYM, "key.keyboard.left.shift", GLFW_KEY_LEFT_SHIFT);
+			mapKey(KEYSYM, "key.keyboard.left.win", GLFW_KEY_LEFT_SUPER);
+			mapKey(KEYSYM, "key.keyboard.right.alt", GLFW_KEY_RIGHT_ALT);
+			mapKey(KEYSYM, "key.keyboard.right.control", GLFW_KEY_RIGHT_CONTROL);
+			mapKey(KEYSYM, "key.keyboard.right.shift", GLFW_KEY_RIGHT_SHIFT);
+			mapKey(KEYSYM, "key.keyboard.right.win", GLFW_KEY_RIGHT_SUPER);
+			mapKey(KEYSYM, "key.keyboard.enter", GLFW_KEY_ENTER);
+			mapKey(KEYSYM, "key.keyboard.escape", GLFW_KEY_ESCAPE);
+			mapKey(KEYSYM, "key.keyboard.backspace", GLFW_KEY_BACKSPACE);
+			mapKey(KEYSYM, "key.keyboard.delete", GLFW_KEY_DELETE);
+			mapKey(KEYSYM, "key.keyboard.end", GLFW_KEY_END);
+			mapKey(KEYSYM, "key.keyboard.home", GLFW_KEY_HOME);
+			mapKey(KEYSYM, "key.keyboard.insert", GLFW_KEY_INSERT);
+			mapKey(KEYSYM, "key.keyboard.page.down", GLFW_KEY_PAGE_DOWN);
+			mapKey(KEYSYM, "key.keyboard.page.up", GLFW_KEY_PAGE_UP);
+			mapKey(KEYSYM, "key.keyboard.caps.lock", GLFW_KEY_CAPS_LOCK);
+			mapKey(KEYSYM, "key.keyboard.pause", GLFW_KEY_PAUSE);
+			mapKey(KEYSYM, "key.keyboard.scroll.lock", GLFW_KEY_SCROLL_LOCK);
+			mapKey(KEYSYM, "key.keyboard.menu", GLFW_KEY_MENU);
+			mapKey(KEYSYM, "key.keyboard.print.screen", GLFW_KEY_PRINT_SCREEN);
+			mapKey(KEYSYM, "key.keyboard.world.1", GLFW_KEY_WORLD_1);
+			mapKey(KEYSYM, "key.keyboard.world.2", GLFW_KEY_WORLD_2);
 		}
 	}
 }

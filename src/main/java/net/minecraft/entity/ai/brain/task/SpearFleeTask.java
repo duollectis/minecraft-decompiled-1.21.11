@@ -15,18 +15,20 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code SpearFleeTask}.
+ * Задача мозга, реализующая фазу отступления после броска копья.
+ * Ищет позицию для отхода от цели и движется к ней; по завершении сбрасывает состояние копья.
  */
 public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 
 	public static final int MIN_FLEE_DISTANCE = 9;
 	public static final int MAX_FLEE_DISTANCE = 11;
 	public static final int RUN_TIME = 100;
-	double speed;
+
+	private final double speed;
 
 	public SpearFleeTask(double speedFactor) {
-		super(Map.of(MemoryModuleType.SPEAR_STATUS, MemoryModuleState.VALUE_PRESENT), 100);
-		this.speed = speedFactor;
+		super(Map.of(MemoryModuleType.SPEAR_STATUS, MemoryModuleState.VALUE_PRESENT), RUN_TIME);
+		speed = speedFactor;
 	}
 
 	private @Nullable LivingEntity getAttackTarget(PathAwareEntity entity) {
@@ -34,137 +36,84 @@ public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	private boolean shouldAttack(PathAwareEntity entity) {
-		return this.getAttackTarget(entity) != null && entity
-				.getMainHandStack()
-				.contains(DataComponentTypes.KINETIC_WEAPON);
+		return getAttackTarget(entity) != null
+				&& entity.getMainHandStack().contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
-		if (this.shouldAttack(pathAwareEntity) && !pathAwareEntity.isUsingItem()) {
-			if (pathAwareEntity
-					.getBrain()
-					.getOptionalRegisteredMemory(MemoryModuleType.SPEAR_STATUS)
-					.orElse(SpearChargeTask.AdvanceState.APPROACH)
-					!= SpearChargeTask.AdvanceState.RETREAT) {
-				return false;
-			}
-			else {
-				LivingEntity livingEntity = this.getAttackTarget(pathAwareEntity);
-				double
-						d =
-						pathAwareEntity.squaredDistanceTo(
-								livingEntity.getX(),
-								livingEntity.getY(),
-								livingEntity.getZ()
-						);
-				int i = pathAwareEntity.hasVehicle() ? 2 : 0;
-				double e = Math.sqrt(d);
-				Vec3d
-						vec3d =
-						FuzzyTargeting.findFrom(
-								pathAwareEntity,
-								Math.max(0.0, 9 + i - e),
-								Math.max(1.0, 11 + i - e),
-								7,
-								livingEntity.getEntityPos()
-						);
-				if (vec3d == null) {
-					return false;
-				}
-				else {
-					pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_FLEEING_POSITION, vec3d);
-					return true;
-				}
-			}
-		}
-		else {
+	@Override
+	protected boolean shouldRun(ServerWorld world, PathAwareEntity entity) {
+		if (!shouldAttack(entity) || entity.isUsingItem()) {
 			return false;
 		}
+
+		boolean isRetreating = entity.getBrain()
+		                             .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_STATUS)
+		                             .orElse(SpearChargeTask.AdvanceState.APPROACH) == SpearChargeTask.AdvanceState.RETREAT;
+
+		if (!isRetreating) {
+			return false;
+		}
+
+		LivingEntity target = getAttackTarget(entity);
+		double distSq = entity.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		int vehicleBonus = entity.hasVehicle() ? 2 : 0;
+		double dist = Math.sqrt(distSq);
+
+		Vec3d fleePos = FuzzyTargeting.findFrom(
+				entity,
+				Math.max(0.0, MIN_FLEE_DISTANCE + vehicleBonus - dist),
+				Math.max(1.0, MAX_FLEE_DISTANCE + vehicleBonus - dist),
+				MAX_FLEE_DISTANCE,
+				target.getEntityPos()
+		);
+
+		if (fleePos == null) {
+			return false;
+		}
+
+		entity.getBrain().remember(MemoryModuleType.SPEAR_FLEEING_POSITION, fleePos);
+		return true;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.setAttacking(true);
-		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_FLEEING_TIME, 0);
-		super.run(serverWorld, pathAwareEntity, l);
+	@Override
+	protected void run(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.setAttacking(true);
+		entity.getBrain().remember(MemoryModuleType.SPEAR_FLEEING_TIME, 0);
+		super.run(world, entity, time);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return pathAwareEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_TIME).orElse(100)
-				< 100
-				&& pathAwareEntity
-				.getBrain()
-				.getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_POSITION)
-				.isPresent()
-				&& !pathAwareEntity.getNavigation().isIdle()
-				&& this.shouldAttack(pathAwareEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_TIME).orElse(RUN_TIME) < RUN_TIME
+				&& entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_POSITION).isPresent()
+				&& !entity.getNavigation().isIdle()
+				&& shouldAttack(entity);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		LivingEntity livingEntity = this.getAttackTarget(pathAwareEntity);
-		float
-				f =
-				pathAwareEntity.getRootVehicle() instanceof MobEntity mobEntity
-				? mobEntity.getRiderChargingSpeedMultiplier() : 1.0F;
-		pathAwareEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(livingEntity, true));
-		pathAwareEntity.getBrain()
-		               .remember(
-				               MemoryModuleType.SPEAR_FLEEING_TIME,
-				               pathAwareEntity
-						               .getBrain()
-						               .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_TIME)
-						               .orElse(0) + 1
-		               );
-		pathAwareEntity.getBrain()
-		               .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_POSITION)
-		               .ifPresent(pos -> pathAwareEntity
-				               .getNavigation()
-				               .startMovingTo(pos.x, pos.y, pos.z, f * this.speed));
+	@Override
+	protected void keepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		LivingEntity target = getAttackTarget(entity);
+		float speedMultiplier = entity.getRootVehicle() instanceof MobEntity mobEntity
+				? mobEntity.getRiderChargingSpeedMultiplier()
+				: 1.0F;
+
+		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(target, true));
+		entity.getBrain().remember(
+				MemoryModuleType.SPEAR_FLEEING_TIME,
+				entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_TIME).orElse(0) + 1
+		);
+		entity.getBrain()
+		      .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_POSITION)
+		      .ifPresent(pos -> entity.getNavigation().startMovingTo(pos.x, pos.y, pos.z, speedMultiplier * speed));
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.getNavigation().stop();
-		pathAwareEntity.setAttacking(false);
-		pathAwareEntity.clearActiveItem();
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_FLEEING_TIME);
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_FLEEING_POSITION);
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_STATUS);
+	@Override
+	protected void finishRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.getNavigation().stop();
+		entity.setAttacking(false);
+		entity.clearActiveItem();
+		entity.getBrain().forget(MemoryModuleType.SPEAR_FLEEING_TIME);
+		entity.getBrain().forget(MemoryModuleType.SPEAR_FLEEING_POSITION);
+		entity.getBrain().forget(MemoryModuleType.SPEAR_STATUS);
 	}
 }

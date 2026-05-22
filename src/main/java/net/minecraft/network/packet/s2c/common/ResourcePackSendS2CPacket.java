@@ -31,7 +31,7 @@ public record ResourcePackSendS2CPacket(
 			ResourcePackSendS2CPacket::id,
 			PacketCodecs.STRING,
 			ResourcePackSendS2CPacket::url,
-			PacketCodecs.string(40),
+			PacketCodecs.string(MAX_HASH_LENGTH),
 			ResourcePackSendS2CPacket::hash,
 			PacketCodecs.BOOLEAN,
 			ResourcePackSendS2CPacket::required,
@@ -41,7 +41,7 @@ public record ResourcePackSendS2CPacket(
 	);
 
 	public ResourcePackSendS2CPacket(UUID id, String url, String hash, boolean required, Optional<Text> prompt) {
-		if (hash.length() > 40) {
+		if (hash.length() > MAX_HASH_LENGTH) {
 			throw new IllegalArgumentException("Hash is too long (max 40, was " + hash.length() + ")");
 		}
 		else {

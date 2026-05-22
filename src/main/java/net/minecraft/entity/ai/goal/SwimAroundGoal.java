@@ -6,16 +6,20 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SwimAroundGoal}.
+ * Цель случайного плавания водного моба: использует {@link TargetUtil#find}
+ * для поиска случайной позиции в воде.
  */
 public class SwimAroundGoal extends WanderAroundGoal {
 
-	public SwimAroundGoal(PathAwareEntity pathAwareEntity, double d, int i) {
-		super(pathAwareEntity, d, i);
+	private static final int SWIM_HORIZONTAL_RANGE = 10;
+	private static final int SWIM_VERTICAL_RANGE = 7;
+
+	public SwimAroundGoal(PathAwareEntity mob, double speed, int chance) {
+		super(mob, speed, chance);
 	}
 
 	@Override
 	protected @Nullable Vec3d getWanderTarget() {
-		return TargetUtil.find(this.mob, 10, 7);
+		return TargetUtil.find(mob, SWIM_HORIZONTAL_RANGE, SWIM_VERTICAL_RANGE);
 	}
 }

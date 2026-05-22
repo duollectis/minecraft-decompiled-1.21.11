@@ -20,7 +20,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code ShapelessRecipe}.
+ * Рецепт крафта без фиксированного расположения ингредиентов (бесформенный крафт).
+ * <p>
+ * Проверка соответствия выполняется через {@link RecipeMatcher} — алгоритм
+ * двудольного паросочетания, который находит взаимно-однозначное соответствие
+ * между ингредиентами рецепта и предметами в сетке крафта.
  */
 public class ShapelessRecipe implements CraftingRecipe {
 
@@ -31,10 +35,10 @@ public class ShapelessRecipe implements CraftingRecipe {
 	private @Nullable IngredientPlacement ingredientPlacement;
 
 	public ShapelessRecipe(
-			String group,
-			CraftingRecipeCategory category,
-			ItemStack result,
-			List<Ingredient> ingredients
+		String group,
+		CraftingRecipeCategory category,
+		ItemStack result,
+		List<Ingredient> ingredients
 	) {
 		this.group = group;
 		this.category = category;
@@ -49,92 +53,74 @@ public class ShapelessRecipe implements CraftingRecipe {
 
 	@Override
 	public String getGroup() {
-		return this.group;
+		return group;
 	}
 
 	@Override
 	public CraftingRecipeCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement = IngredientPlacement.forShapeless(this.ingredients);
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forShapeless(ingredients);
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() != this.ingredients.size()) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() != ingredients.size()) {
 			return false;
 		}
-		else {
-			return craftingRecipeInput.size() == 1 && this.ingredients.size() == 1
-			       ? this.ingredients.getFirst().test(craftingRecipeInput.getStackInSlot(0))
-			       : craftingRecipeInput.getRecipeMatcher().isCraftable(this, null);
-		}
+
+		return input.size() == 1 && ingredients.size() == 1
+			? ingredients.getFirst().test(input.getStackInSlot(0))
+			: input.getRecipeMatcher().isCraftable(this, null);
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		return this.result.copy();
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		return result.copy();
 	}
 
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new ShapelessCraftingRecipeDisplay(
-						this.ingredients.stream().map(Ingredient::toDisplay).toList(),
-						new SlotDisplay.StackSlotDisplay(this.result),
-						new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
-				)
+			new ShapelessCraftingRecipeDisplay(
+				ingredients.stream().map(Ingredient::toDisplay).toList(),
+				new SlotDisplay.StackSlotDisplay(result),
+				new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
+			)
 		);
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор бесформенного рецепта крафта.
+	 * Ограничение {@code listOf(1, 9)} гарантирует от 1 до 9 ингредиентов
+	 * (максимум для сетки 3×3).
 	 */
 	public static class Serializer implements RecipeSerializer<ShapelessRecipe> {
 
 		private static final MapCodec<ShapelessRecipe> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
-						                    CraftingRecipeCategory.CODEC
-								                    .fieldOf("category")
-								                    .orElse(CraftingRecipeCategory.MISC)
-								                    .forGetter(recipe -> recipe.category),
-						                    ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
-						                    Ingredient.CODEC.listOf(1, 9).fieldOf("ingredients").forGetter(recipe -> recipe.ingredients)
-				                    )
-				                    .apply(instance, ShapelessRecipe::new)
+			instance -> instance.group(
+				Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
+				CraftingRecipeCategory.CODEC
+					.fieldOf("category")
+					.orElse(CraftingRecipeCategory.MISC)
+					.forGetter(recipe -> recipe.category),
+				ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
+				Ingredient.CODEC.listOf(1, 9).fieldOf("ingredients").forGetter(recipe -> recipe.ingredients)
+			).apply(instance, ShapelessRecipe::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, ShapelessRecipe> PACKET_CODEC = PacketCodec.tuple(
-				PacketCodecs.STRING,
-				recipe -> recipe.group,
-				CraftingRecipeCategory.PACKET_CODEC,
-				recipe -> recipe.category,
-				ItemStack.PACKET_CODEC,
-				recipe -> recipe.result,
-				Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()),
-				recipe -> recipe.ingredients,
-				ShapelessRecipe::new
+			PacketCodecs.STRING, recipe -> recipe.group,
+			CraftingRecipeCategory.PACKET_CODEC, recipe -> recipe.category,
+			ItemStack.PACKET_CODEC, recipe -> recipe.result,
+			Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()), recipe -> recipe.ingredients,
+			ShapelessRecipe::new
 		);
 
 		@Override

@@ -1,7 +1,9 @@
 package net.minecraft.resource.featuretoggle;
 
 /**
- * {@code FeatureFlag}.
+ * Флаг экспериментальной фичи.
+ * Принадлежит конкретной {@link FeatureUniverse} и идентифицируется битовой маской.
+ * Создаётся только через {@link FeatureManager.Builder}.
  */
 public class FeatureFlag {
 
@@ -10,6 +12,6 @@ public class FeatureFlag {
 
 	FeatureFlag(FeatureUniverse universe, int id) {
 		this.universe = universe;
-		this.mask = 1L << id;
+		mask = 1L << id;
 	}
 }

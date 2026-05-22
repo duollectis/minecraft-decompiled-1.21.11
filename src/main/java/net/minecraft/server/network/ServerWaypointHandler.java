@@ -12,7 +12,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 /**
- * {@code ServerWaypointHandler}.
+ * Класс Server Waypoint Handler.
  */
 public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 
@@ -131,9 +131,6 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		this.players.remove(player);
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
 		this.trackers.values().forEach(ServerWaypoint.WaypointTracker::untrack);
 		this.trackers.clear();

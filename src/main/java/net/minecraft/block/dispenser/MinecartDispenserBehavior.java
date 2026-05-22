@@ -16,9 +16,28 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code MinecartDispenserBehavior}.
+ * Поведение диспенсера для вагонеток: спавнит вагонетку на рельсах перед диспенсером.
+ * Если перед диспенсером нет рельсов — делегирует стандартному выбросу предмета.
  */
 public class MinecartDispenserBehavior extends ItemDispenserBehavior {
+
+	/** Горизонтальное смещение позиции спавна от центра диспенсера. */
+	private static final double SPAWN_HORIZONTAL_OFFSET = 1.125;
+
+	/** Смещение Y для вагонетки на восходящих рельсах. */
+	private static final double ASCENDING_RAIL_Y_OFFSET = 0.6;
+
+	/** Смещение Y для вагонетки на горизонтальных рельсах. */
+	private static final double FLAT_RAIL_Y_OFFSET = 0.1;
+
+	/** Смещение Y для вагонетки на восходящих рельсах снизу (блок воздуха над рельсами). */
+	private static final double ASCENDING_BELOW_Y_OFFSET = -0.4;
+
+	/** Смещение Y для вагонетки на горизонтальных рельсах снизу. */
+	private static final double FLAT_BELOW_Y_OFFSET = -0.9;
+
+	/** Код мирового события «диспенсер сработал» (звук). */
+	private static final int DISPENSE_SOUND_EVENT = 1000;
 
 	private final ItemDispenserBehavior fallbackBehavior = new ItemDispenserBehavior();
 	private final EntityType<? extends AbstractMinecartEntity> minecartEntityType;
@@ -31,58 +50,58 @@ public class MinecartDispenserBehavior extends ItemDispenserBehavior {
 	public ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
 		Direction direction = pointer.state().get(DispenserBlock.FACING);
 		ServerWorld serverWorld = pointer.world();
-		Vec3d vec3d = pointer.centerPos();
-		double d = vec3d.getX() + direction.getOffsetX() * 1.125;
-		double e = Math.floor(vec3d.getY()) + direction.getOffsetY();
-		double f = vec3d.getZ() + direction.getOffsetZ() * 1.125;
-		BlockPos blockPos = pointer.pos().offset(direction);
-		BlockState blockState = serverWorld.getBlockState(blockPos);
-		double g;
-		if (blockState.isIn(BlockTags.RAILS)) {
-			if (getRailShape(blockState).isAscending()) {
-				g = 0.6;
-			}
-			else {
-				g = 0.1;
-			}
-		}
-		else {
-			if (!blockState.isAir()) {
-				return this.fallbackBehavior.dispense(pointer, stack);
+		Vec3d center = pointer.centerPos();
+		double spawnX = center.getX() + direction.getOffsetX() * SPAWN_HORIZONTAL_OFFSET;
+		double spawnY = Math.floor(center.getY()) + direction.getOffsetY();
+		double spawnZ = center.getZ() + direction.getOffsetZ() * SPAWN_HORIZONTAL_OFFSET;
+		BlockPos targetPos = pointer.pos().offset(direction);
+		BlockState targetState = serverWorld.getBlockState(targetPos);
+
+		double yOffset;
+		if (targetState.isIn(BlockTags.RAILS)) {
+			yOffset = getRailShape(targetState).isAscending() ? ASCENDING_RAIL_Y_OFFSET : FLAT_RAIL_Y_OFFSET;
+		} else {
+			if (targetState.isAir() == false) {
+				return fallbackBehavior.dispense(pointer, stack);
 			}
 
-			BlockState blockState2 = serverWorld.getBlockState(blockPos.down());
-			if (!blockState2.isIn(BlockTags.RAILS)) {
-				return this.fallbackBehavior.dispense(pointer, stack);
+			BlockState belowState = serverWorld.getBlockState(targetPos.down());
+			if (belowState.isIn(BlockTags.RAILS) == false) {
+				return fallbackBehavior.dispense(pointer, stack);
 			}
 
-			if (direction != Direction.DOWN && getRailShape(blockState2).isAscending()) {
-				g = -0.4;
-			}
-			else {
-				g = -0.9;
-			}
+			yOffset = (direction != Direction.DOWN && getRailShape(belowState).isAscending())
+					? ASCENDING_BELOW_Y_OFFSET
+					: FLAT_BELOW_Y_OFFSET;
 		}
 
-		Vec3d vec3d2 = new Vec3d(d, e + g, f);
-		AbstractMinecartEntity abstractMinecartEntity = AbstractMinecartEntity.create(
-				serverWorld, vec3d2.x, vec3d2.y, vec3d2.z, this.minecartEntityType, SpawnReason.DISPENSER, stack, null
+		AbstractMinecartEntity minecart = AbstractMinecartEntity.create(
+				serverWorld,
+				spawnX,
+				spawnY + yOffset,
+				spawnZ,
+				minecartEntityType,
+				SpawnReason.DISPENSER,
+				stack,
+				null
 		);
-		if (abstractMinecartEntity != null) {
-			serverWorld.spawnEntity(abstractMinecartEntity);
-			stack.decrement(1);
+		if (minecart == null) {
+			return stack;
 		}
 
+		serverWorld.spawnEntity(minecart);
+		stack.decrement(1);
 		return stack;
 	}
 
 	private static RailShape getRailShape(BlockState state) {
-		return state.getBlock() instanceof AbstractRailBlock abstractRailBlock
-		       ? state.get(abstractRailBlock.getShapeProperty()) : RailShape.NORTH_SOUTH;
+		return state.getBlock() instanceof AbstractRailBlock railBlock
+				? state.get(railBlock.getShapeProperty())
+				: RailShape.NORTH_SOUTH;
 	}
 
 	@Override
 	protected void playSound(BlockPointer pointer) {
-		pointer.world().syncWorldEvent(1000, pointer.pos(), 0);
+		pointer.world().syncWorldEvent(DISPENSE_SOUND_EVENT, pointer.pos(), 0);
 	}
 }

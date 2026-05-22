@@ -12,49 +12,42 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Untracker}.
+ * Утилита для снятия отслеживания нативной памяти в debug-аллокаторе LWJGL.
+ * Используется при передаче владения памятью из LWJGL в сторонний код,
+ * чтобы избежать ложных предупреждений об утечках.
  */
+@Environment(EnvType.CLIENT)
 public class Untracker {
 
+	// Рефлексивный доступ к DebugAllocator.untrack — метод существует только в debug-сборках LWJGL
 	private static final @Nullable MethodHandle ALLOCATOR_UNTRACK = GLX.make(() -> {
 		try {
 			Lookup lookup = MethodHandles.lookup();
-			Class<?> class_ = Class.forName("org.lwjgl.system.MemoryManage$DebugAllocator");
-			Method method = class_.getDeclaredMethod("untrack", long.class);
-			method.setAccessible(true);
-			Field field = Class.forName("org.lwjgl.system.MemoryUtil$LazyInit").getDeclaredField("ALLOCATOR");
-			field.setAccessible(true);
-			Object object = field.get(null);
-			return class_.isInstance(object) ? lookup.unreflect(method) : null;
-		}
-		catch (NoSuchMethodException | NoSuchFieldException | IllegalAccessException | ClassNotFoundException var5) {
-			throw new RuntimeException(var5);
+			Class<?> debugAllocatorClass = Class.forName("org.lwjgl.system.MemoryManage$DebugAllocator");
+			Method untrackMethod = debugAllocatorClass.getDeclaredMethod("untrack", long.class);
+			untrackMethod.setAccessible(true);
+			Field allocatorField = Class.forName("org.lwjgl.system.MemoryUtil$LazyInit").getDeclaredField("ALLOCATOR");
+			allocatorField.setAccessible(true);
+			Object allocator = allocatorField.get(null);
+			return debugAllocatorClass.isInstance(allocator) ? lookup.unreflect(untrackMethod) : null;
+		} catch (NoSuchMethodException | NoSuchFieldException | IllegalAccessException | ClassNotFoundException exception) {
+			throw new RuntimeException(exception);
 		}
 	});
 
-	/**
-	 * Untrack.
-	 *
-	 * @param address address
-	 */
 	public static void untrack(long address) {
-		if (ALLOCATOR_UNTRACK != null) {
-			try {
-				ALLOCATOR_UNTRACK.invoke((long) address);
-			}
-			catch (Throwable var3) {
-				throw new RuntimeException(var3);
-			}
+		if (ALLOCATOR_UNTRACK == null) {
+			return;
+		}
+
+		try {
+			ALLOCATOR_UNTRACK.invoke(address);
+		} catch (Throwable throwable) {
+			throw new RuntimeException(throwable);
 		}
 	}
 
-	/**
-	 * Untrack.
-	 *
-	 * @param pointer pointer
-	 */
 	public static void untrack(Pointer pointer) {
 		untrack(pointer.address());
 	}

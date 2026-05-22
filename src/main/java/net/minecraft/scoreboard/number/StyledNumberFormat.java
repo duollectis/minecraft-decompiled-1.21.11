@@ -9,16 +9,19 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
- * {@code StyledNumberFormat}.
+ * Формат числового значения, который отображает число с заданным стилем текста.
+ * Предоставляет предустановленные экземпляры для наиболее распространённых случаев:
+ * {@link #EMPTY} (без стиля), {@link #RED} (красный), {@link #YELLOW} (жёлтый).
  */
 public record StyledNumberFormat(Style style) implements NumberFormat {
 
-	public static final NumberFormatType<StyledNumberFormat> TYPE = new NumberFormatType<StyledNumberFormat>() {
-		private static final MapCodec<StyledNumberFormat>
-				CODEC =
+	public static final NumberFormatType<StyledNumberFormat> TYPE = new NumberFormatType<>() {
+		private static final MapCodec<StyledNumberFormat> CODEC =
 				Style.Codecs.MAP_CODEC.xmap(StyledNumberFormat::new, StyledNumberFormat::style);
 		private static final PacketCodec<RegistryByteBuf, StyledNumberFormat> PACKET_CODEC = PacketCodec.tuple(
-				Style.Codecs.PACKET_CODEC, StyledNumberFormat::style, StyledNumberFormat::new
+				Style.Codecs.PACKET_CODEC,
+				StyledNumberFormat::style,
+				StyledNumberFormat::new
 		);
 
 		@Override
@@ -31,13 +34,14 @@ public record StyledNumberFormat(Style style) implements NumberFormat {
 			return PACKET_CODEC;
 		}
 	};
+
 	public static final StyledNumberFormat EMPTY = new StyledNumberFormat(Style.EMPTY);
 	public static final StyledNumberFormat RED = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.RED));
 	public static final StyledNumberFormat YELLOW = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.YELLOW));
 
 	@Override
 	public MutableText format(int number) {
-		return Text.literal(Integer.toString(number)).fillStyle(this.style);
+		return Text.literal(Integer.toString(number)).fillStyle(style);
 	}
 
 	@Override

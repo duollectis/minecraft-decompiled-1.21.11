@@ -6,7 +6,8 @@ import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code StayAboveWaterTask}.
+ * Задача мозга, заставляющая существо выпрыгивать из воды или лавы.
+ * С заданной вероятностью активирует прыжок каждый тик, пока существо находится под поверхностью жидкости.
  */
 public class StayAboveWaterTask<T extends MobEntity> extends MultiTickTask<T> {
 
@@ -22,41 +23,20 @@ public class StayAboveWaterTask<T extends MobEntity> extends MultiTickTask<T> {
 				|| entity.isInLava();
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
-		return isUnderwater(mobEntity);
+	@Override
+	protected boolean shouldRun(ServerWorld world, T entity) {
+		return isUnderwater(entity);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		return this.shouldRun(serverWorld, mobEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, T entity, long time) {
+		return shouldRun(world, entity);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		if (mobEntity.getRandom().nextFloat() < this.chance) {
-			mobEntity.getJumpControl().setActive();
+	@Override
+	protected void keepRunning(ServerWorld world, T entity, long time) {
+		if (entity.getRandom().nextFloat() < chance) {
+			entity.getJumpControl().setActive();
 		}
 	}
 }

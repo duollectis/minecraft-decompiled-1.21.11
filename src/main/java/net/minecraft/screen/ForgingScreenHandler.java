@@ -12,13 +12,16 @@ import net.minecraft.screen.slot.Slot;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ForgingScreenHandler}.
+ * Базовый обработчик экрана ковки (наковальня, кузнечный стол).
+ * <p>
+ * Управляет входными слотами и слотом результата, делегируя конкретную логику
+ * подклассам через {@link #updateResult()}, {@link #canTakeOutput} и {@link #onTakeOutput}.
  */
 public abstract class ForgingScreenHandler extends ScreenHandler {
 
+	private static final int PLAYER_INVENTORY_SIZE = 27;
 	private static final int HOTBAR_SIZE = 9;
-	private static final int INPUT_SLOT_COUNT = 3;
-	private static final int RESULT_SLOT_INDEX = 0;
+
 	protected final ScreenHandlerContext context;
 	protected final PlayerEntity player;
 	protected final Inventory input;
@@ -28,35 +31,15 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 			ForgingScreenHandler.this.onContentChanged(this);
 		}
 	};
+
 	private final int resultSlotIndex;
 
-	/**
-	 * Проверяет возможность take output.
-	 *
-	 * @param player player
-	 * @param present present
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canTakeOutput(PlayerEntity player, boolean present) {
 		return true;
 	}
 
-	/**
-	 * Обрабатывает событие take output.
-	 *
-	 * @param player player
-	 * @param stack stack
-	 */
 	protected abstract void onTakeOutput(PlayerEntity player, ItemStack stack);
 
-	/**
-	 * Проверяет возможность use.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected abstract boolean canUse(BlockState state);
 
 	public ForgingScreenHandler(
@@ -69,16 +52,16 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 		super(type, syncId);
 		this.context = context;
 		this.player = playerInventory.player;
-		this.input = this.createInputInventory(forgingSlotsManager.getInputSlotCount());
+		this.input = createInputInventory(forgingSlotsManager.getInputSlotCount());
 		this.resultSlotIndex = forgingSlotsManager.getResultSlotIndex();
-		this.addInputSlots(forgingSlotsManager);
-		this.addResultSlot(forgingSlotsManager);
-		this.addPlayerSlots(playerInventory, 8, 84);
+		addInputSlots(forgingSlotsManager);
+		addResultSlot(forgingSlotsManager);
+		addPlayerSlots(playerInventory, 8, 84);
 	}
 
 	private void addInputSlots(ForgingSlotsManager forgingSlotsManager) {
 		for (final ForgingSlotsManager.ForgingSlot forgingSlot : forgingSlotsManager.getInputSlots()) {
-			this.addSlot(new Slot(this.input, forgingSlot.slotId(), forgingSlot.x(), forgingSlot.y()) {
+			addSlot(new Slot(input, forgingSlot.slotId(), forgingSlot.x(), forgingSlot.y()) {
 				@Override
 				public boolean canInsert(ItemStack stack) {
 					return forgingSlot.mayPlace().test(stack);
@@ -88,34 +71,25 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 	}
 
 	private void addResultSlot(ForgingSlotsManager forgingSlotsManager) {
-		this.addSlot(
-				new Slot(
-						this.output,
-						forgingSlotsManager.getResultSlot().slotId(),
-						forgingSlotsManager.getResultSlot().x(),
-						forgingSlotsManager.getResultSlot().y()
-				) {
-					@Override
-					public boolean canInsert(ItemStack stack) {
-						return false;
-					}
+		ForgingSlotsManager.ForgingSlot resultSlot = forgingSlotsManager.getResultSlot();
+		addSlot(new Slot(output, resultSlot.slotId(), resultSlot.x(), resultSlot.y()) {
+			@Override
+			public boolean canInsert(ItemStack stack) {
+				return false;
+			}
 
-					@Override
-					public boolean canTakeItems(PlayerEntity playerEntity) {
-						return ForgingScreenHandler.this.canTakeOutput(playerEntity, this.hasStack());
-					}
+			@Override
+			public boolean canTakeItems(PlayerEntity playerEntity) {
+				return ForgingScreenHandler.this.canTakeOutput(playerEntity, hasStack());
+			}
 
-					@Override
-					public void onTakeItem(PlayerEntity player, ItemStack stack) {
-						ForgingScreenHandler.this.onTakeOutput(player, stack);
-					}
-				}
-		);
+			@Override
+			public void onTakeItem(PlayerEntity player, ItemStack stack) {
+				ForgingScreenHandler.this.onTakeOutput(player, stack);
+			}
+		});
 	}
 
-	/**
-	 * Обновляет result.
-	 */
 	public abstract void updateResult();
 
 	private SimpleInventory createInputInventory(int size) {
@@ -131,90 +105,79 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 	@Override
 	public void onContentChanged(Inventory inventory) {
 		super.onContentChanged(inventory);
-		if (inventory == this.input) {
-			this.updateResult();
+		if (inventory == input) {
+			updateResult();
 		}
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.context.run((world, pos) -> this.dropInventory(player, this.input));
+		context.run((world, pos) -> dropInventory(player, input));
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.context.get(
-				(world, pos) -> !this.canUse(world.getBlockState(pos)) ? false : player.canInteractWithBlockAt(
-						pos,
-						4.0
-				), true
+		return context.get(
+				(world, pos) -> canUse(world.getBlockState(pos))
+						&& player.canInteractWithBlockAt(pos, 4.0),
+				true
 		);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			int i = this.getPlayerInventoryStartIndex();
-			int j = this.getPlayerHotbarEndIndex();
-			if (slot == this.getResultSlotIndex()) {
-				if (!this.insertItem(itemStack2, i, j, true)) {
-					return ItemStack.EMPTY;
-				}
+		ItemStack original = ItemStack.EMPTY;
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-			}
-			else if (slot >= 0 && slot < this.getResultSlotIndex()) {
-				if (!this.insertItem(itemStack2, i, j, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (this.isValidIngredient(itemStack2) && slot >= this.getPlayerInventoryStartIndex()
-					&& slot < this.getPlayerHotbarEndIndex()) {
-				if (!this.insertItem(itemStack2, 0, this.getResultSlotIndex(), false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= this.getPlayerInventoryStartIndex() && slot < this.getPlayerInventoryEndIndex()) {
-				if (!this.insertItem(
-						itemStack2,
-						this.getPlayerHotbarStartIndex(),
-						this.getPlayerHotbarEndIndex(),
-						false
-				)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot >= this.getPlayerHotbarStartIndex()
-					&& slot < this.getPlayerHotbarEndIndex()
-					&& !this.insertItem(
-					itemStack2,
-					this.getPlayerInventoryStartIndex(),
-					this.getPlayerInventoryEndIndex(),
-					false
-			)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
-
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack stack = sourceSlot.getStack();
+		original = stack.copy();
+
+		int inventoryStart = getPlayerInventoryStartIndex();
+		int hotbarEnd = getPlayerHotbarEndIndex();
+
+		if (slot == getResultSlotIndex()) {
+			if (!insertItem(stack, inventoryStart, hotbarEnd, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(stack, original);
+		} else if (slot >= 0 && slot < getResultSlotIndex()) {
+			if (!insertItem(stack, inventoryStart, hotbarEnd, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (isValidIngredient(stack)
+				&& slot >= inventoryStart
+				&& slot < hotbarEnd) {
+			if (!insertItem(stack, 0, getResultSlotIndex(), false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= inventoryStart && slot < getPlayerInventoryEndIndex()) {
+			if (!insertItem(stack, getPlayerHotbarStartIndex(), hotbarEnd, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else if (slot >= getPlayerHotbarStartIndex()
+				&& slot < hotbarEnd
+				&& !insertItem(stack, inventoryStart, getPlayerInventoryEndIndex(), false)) {
+			return ItemStack.EMPTY;
+		}
+
+		if (stack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		} else {
+			sourceSlot.markDirty();
+		}
+
+		if (stack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, stack);
+		return original;
 	}
 
 	protected boolean isValidIngredient(ItemStack stack) {
@@ -222,22 +185,22 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 	}
 
 	public int getResultSlotIndex() {
-		return this.resultSlotIndex;
+		return resultSlotIndex;
 	}
 
 	private int getPlayerInventoryStartIndex() {
-		return this.getResultSlotIndex() + 1;
+		return getResultSlotIndex() + 1;
 	}
 
 	private int getPlayerInventoryEndIndex() {
-		return this.getPlayerInventoryStartIndex() + 27;
+		return getPlayerInventoryStartIndex() + PLAYER_INVENTORY_SIZE;
 	}
 
 	private int getPlayerHotbarStartIndex() {
-		return this.getPlayerInventoryEndIndex();
+		return getPlayerInventoryEndIndex();
 	}
 
 	private int getPlayerHotbarEndIndex() {
-		return this.getPlayerHotbarStartIndex() + 9;
+		return getPlayerHotbarStartIndex() + HOTBAR_SIZE;
 	}
 }

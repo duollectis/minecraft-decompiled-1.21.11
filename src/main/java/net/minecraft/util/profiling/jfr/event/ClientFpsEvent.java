@@ -3,15 +3,16 @@ package net.minecraft.util.profiling.jfr.event;
 import jdk.jfr.*;
 import net.minecraft.obfuscate.DontObfuscate;
 
+/**
+ * JFR-событие частоты кадров клиента. Записывается раз в секунду
+ * и содержит текущее значение FPS для профилирования производительности рендеринга.
+ */
 @Name("minecraft.ClientFps")
 @Label("Client fps")
 @Category({"Minecraft", "Ticking"})
 @StackTrace(false)
 @Period("1 s")
 @DontObfuscate
-/**
- * {@code ClientFpsEvent}.
- */
 public class ClientFpsEvent extends Event {
 
 	public static final String EVENT_NAME = "minecraft.ClientFps";
@@ -24,9 +25,6 @@ public class ClientFpsEvent extends Event {
 		this.fps = fps;
 	}
 
-	/**
-	 * {@code Names}.
-	 */
 	public static class Names {
 
 		public static final String FPS = "fps";

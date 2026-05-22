@@ -40,149 +40,88 @@ import java.util.*;
 import java.util.function.*;
 
 /**
- * Интерфейс packet codecs.
+ * Набор стандартных {@link PacketCodec}-констант и фабричных методов для примитивных типов,
+ * коллекций, NBT, реестровых значений и JSON.
+ *
+ * <p>Все константы являются полями интерфейса (неявно {@code public static final}).
+ * Фабричные методы ({@link #collection}, {@link #map}, {@link #optional}, {@link #indexed} и др.)
+ * позволяют строить составные кодеки без написания анонимных классов вручную.</p>
  */
 public interface PacketCodecs {
 
 	int MAX_COLLECTION_SIZE = 65536;
 
 	PacketCodec<ByteBuf, Boolean> BOOLEAN = new PacketCodec<ByteBuf, Boolean>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Boolean — результат операции
-		 */
-		public Boolean decode(ByteBuf byteBuf) {
-			return byteBuf.readBoolean();
+		@Override
+		public Boolean decode(ByteBuf buf) {
+			return buf.readBoolean();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param boolean_ boolean_
-		 */
-		public void encode(ByteBuf byteBuf, Boolean boolean_) {
-			byteBuf.writeBoolean(boolean_);
+		@Override
+		public void encode(ByteBuf buf, Boolean value) {
+			buf.writeBoolean(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Byte> BYTE = new PacketCodec<ByteBuf, Byte>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Byte — результат операции
-		 */
-		public Byte decode(ByteBuf byteBuf) {
-			return byteBuf.readByte();
+		@Override
+		public Byte decode(ByteBuf buf) {
+			return buf.readByte();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param byte_ byte_
-		 */
-		public void encode(ByteBuf byteBuf, Byte byte_) {
-			byteBuf.writeByte(byte_);
+		@Override
+		public void encode(ByteBuf buf, Byte value) {
+			buf.writeByte(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Float> DEGREES = BYTE.xmap(MathHelper::unpackDegrees, MathHelper::packDegrees);
 
 	PacketCodec<ByteBuf, Short> SHORT = new PacketCodec<ByteBuf, Short>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Short — результат операции
-		 */
-		public Short decode(ByteBuf byteBuf) {
-			return byteBuf.readShort();
+		@Override
+		public Short decode(ByteBuf buf) {
+			return buf.readShort();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param short_ short_
-		 */
-		public void encode(ByteBuf byteBuf, Short short_) {
-			byteBuf.writeShort(short_);
+		@Override
+		public void encode(ByteBuf buf, Short value) {
+			buf.writeShort(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Integer> UNSIGNED_SHORT = new PacketCodec<ByteBuf, Integer>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Integer — результат операции
-		 */
-		public Integer decode(ByteBuf byteBuf) {
-			return byteBuf.readUnsignedShort();
+		@Override
+		public Integer decode(ByteBuf buf) {
+			return buf.readUnsignedShort();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param integer integer
-		 */
-		public void encode(ByteBuf byteBuf, Integer integer) {
-			byteBuf.writeShort(integer);
+		@Override
+		public void encode(ByteBuf buf, Integer value) {
+			buf.writeShort(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Integer> INTEGER = new PacketCodec<ByteBuf, Integer>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Integer — результат операции
-		 */
-		public Integer decode(ByteBuf byteBuf) {
-			return byteBuf.readInt();
+		@Override
+		public Integer decode(ByteBuf buf) {
+			return buf.readInt();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param integer integer
-		 */
-		public void encode(ByteBuf byteBuf, Integer integer) {
-			byteBuf.writeInt(integer);
+		@Override
+		public void encode(ByteBuf buf, Integer value) {
+			buf.writeInt(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Integer> VAR_INT = new PacketCodec<ByteBuf, Integer>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Integer — результат операции
-		 */
-		public Integer decode(ByteBuf byteBuf) {
-			return VarInts.read(byteBuf);
+		@Override
+		public Integer decode(ByteBuf buf) {
+			return VarInts.read(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param integer integer
-		 */
-		public void encode(ByteBuf byteBuf, Integer integer) {
-			VarInts.write(byteBuf, integer);
+		@Override
+		public void encode(ByteBuf buf, Integer value) {
+			VarInts.write(buf, value);
 		}
 	};
 
@@ -192,144 +131,78 @@ public interface PacketCodecs {
 	);
 
 	PacketCodec<ByteBuf, Long> LONG = new PacketCodec<ByteBuf, Long>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Long — результат операции
-		 */
-		public Long decode(ByteBuf byteBuf) {
-			return byteBuf.readLong();
+		@Override
+		public Long decode(ByteBuf buf) {
+			return buf.readLong();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param long_ long_
-		 */
-		public void encode(ByteBuf byteBuf, Long long_) {
-			byteBuf.writeLong(long_);
+		@Override
+		public void encode(ByteBuf buf, Long value) {
+			buf.writeLong(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Long> VAR_LONG = new PacketCodec<ByteBuf, Long>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Long — результат операции
-		 */
-		public Long decode(ByteBuf byteBuf) {
-			return VarLongs.read(byteBuf);
+		@Override
+		public Long decode(ByteBuf buf) {
+			return VarLongs.read(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param long_ long_
-		 */
-		public void encode(ByteBuf byteBuf, Long long_) {
-			VarLongs.write(byteBuf, long_);
+		@Override
+		public void encode(ByteBuf buf, Long value) {
+			VarLongs.write(buf, value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Float> FLOAT = new PacketCodec<ByteBuf, Float>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Float — результат операции
-		 */
-		public Float decode(ByteBuf byteBuf) {
-			return byteBuf.readFloat();
+		@Override
+		public Float decode(ByteBuf buf) {
+			return buf.readFloat();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param float_ float_
-		 */
-		public void encode(ByteBuf byteBuf, Float float_) {
-			byteBuf.writeFloat(float_);
+		@Override
+		public void encode(ByteBuf buf, Float value) {
+			buf.writeFloat(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Double> DOUBLE = new PacketCodec<ByteBuf, Double>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Double — результат операции
-		 */
-		public Double decode(ByteBuf byteBuf) {
-			return byteBuf.readDouble();
+		@Override
+		public Double decode(ByteBuf buf) {
+			return buf.readDouble();
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param double_ double_
-		 */
-		public void encode(ByteBuf byteBuf, Double double_) {
-			byteBuf.writeDouble(double_);
+		@Override
+		public void encode(ByteBuf buf, Double value) {
+			buf.writeDouble(value);
 		}
 	};
 
 	PacketCodec<ByteBuf, byte[]> BYTE_ARRAY = new PacketCodec<ByteBuf, byte[]>() {
-		/**
-		 * Decode.
-		 *
-		 * @param buf buf
-		 *
-		 * @return byte[] — результат операции
-		 */
+		@Override
 		public byte[] decode(ByteBuf buf) {
 			return PacketByteBuf.readByteArray(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param buf buf
-		 * @param value value
-		 */
+		@Override
 		public void encode(ByteBuf buf, byte[] value) {
 			PacketByteBuf.writeByteArray(buf, value);
 		}
 	};
 
 	PacketCodec<ByteBuf, long[]> LONG_ARRAY = new PacketCodec<ByteBuf, long[]>() {
-		/**
-		 * Decode.
-		 *
-		 * @param buf buf
-		 *
-		 * @return long[] — результат операции
-		 */
+		@Override
 		public long[] decode(ByteBuf buf) {
 			return PacketByteBuf.readLongArray(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param buf buf
-		 * @param values values
-		 */
+		@Override
 		public void encode(ByteBuf buf, long[] values) {
 			PacketByteBuf.writeLongArray(buf, values);
 		}
 	};
 
-	PacketCodec<ByteBuf, String> STRING = string(32767);
+	PacketCodec<ByteBuf, String> STRING = string(PacketByteBuf.DEFAULT_MAX_STRING_LENGTH);
 
 	PacketCodec<ByteBuf, NbtElement> NBT_ELEMENT = nbt(NbtSizeTracker::forPacket);
 
@@ -340,136 +213,87 @@ public interface PacketCodecs {
 	PacketCodec<ByteBuf, NbtCompound> UNLIMITED_NBT_COMPOUND = nbtCompound(NbtSizeTracker::ofUnlimitedBytes);
 
 	PacketCodec<ByteBuf, Optional<NbtCompound>> OPTIONAL_NBT = new PacketCodec<ByteBuf, Optional<NbtCompound>>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Optional — результат операции
-		 */
-		public Optional<NbtCompound> decode(ByteBuf byteBuf) {
-			return Optional.ofNullable(PacketByteBuf.readNbt(byteBuf));
+		@Override
+		public Optional<NbtCompound> decode(ByteBuf buf) {
+			return Optional.ofNullable(PacketByteBuf.readNbt(buf));
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param optional optional
-		 */
-		public void encode(ByteBuf byteBuf, Optional<NbtCompound> optional) {
-			PacketByteBuf.writeNbt(byteBuf, optional.orElse(null));
+		@Override
+		public void encode(ByteBuf buf, Optional<NbtCompound> value) {
+			PacketByteBuf.writeNbt(buf, value.orElse(null));
 		}
 	};
 
 	PacketCodec<ByteBuf, Vector3fc> VECTOR_3F = new PacketCodec<ByteBuf, Vector3fc>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Vector3fc — результат операции
-		 */
-		public Vector3fc decode(ByteBuf byteBuf) {
-			return PacketByteBuf.readVector3f(byteBuf);
+		@Override
+		public Vector3fc decode(ByteBuf buf) {
+			return PacketByteBuf.readVector3f(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param vector3fc vector3fc
-		 */
-		public void encode(ByteBuf byteBuf, Vector3fc vector3fc) {
-			PacketByteBuf.writeVector3f(byteBuf, vector3fc);
+		@Override
+		public void encode(ByteBuf buf, Vector3fc value) {
+			PacketByteBuf.writeVector3f(buf, value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Quaternionfc> QUATERNION_F = new PacketCodec<ByteBuf, Quaternionfc>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Quaternionfc — результат операции
-		 */
-		public Quaternionfc decode(ByteBuf byteBuf) {
-			return PacketByteBuf.readQuaternionf(byteBuf);
+		@Override
+		public Quaternionfc decode(ByteBuf buf) {
+			return PacketByteBuf.readQuaternionf(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param quaternionfc quaternionfc
-		 */
-		public void encode(ByteBuf byteBuf, Quaternionfc quaternionfc) {
-			PacketByteBuf.writeQuaternionf(byteBuf, quaternionfc);
+		@Override
+		public void encode(ByteBuf buf, Quaternionfc value) {
+			PacketByteBuf.writeQuaternionf(buf, value);
 		}
 	};
 
 	PacketCodec<ByteBuf, Integer> SYNC_ID = new PacketCodec<ByteBuf, Integer>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Integer — результат операции
-		 */
-		public Integer decode(ByteBuf byteBuf) {
-			return PacketByteBuf.readSyncId(byteBuf);
+		@Override
+		public Integer decode(ByteBuf buf) {
+			return PacketByteBuf.readSyncId(buf);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param integer integer
-		 */
-		public void encode(ByteBuf byteBuf, Integer integer) {
-			PacketByteBuf.writeSyncId(byteBuf, integer);
+		@Override
+		public void encode(ByteBuf buf, Integer value) {
+			PacketByteBuf.writeSyncId(buf, value);
 		}
 	};
 
+	/** Максимальное количество свойств профиля игрока (ограничение Mojang Auth). */
 	PacketCodec<ByteBuf, PropertyMap> PROPERTY_MAP = new PacketCodec<ByteBuf, PropertyMap>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return PropertyMap — результат операции
-		 */
-		public PropertyMap decode(ByteBuf byteBuf) {
-			int i = PacketCodecs.readCollectionSize(byteBuf, 16);
+		private static final int MAX_PROPERTIES = 16;
+		private static final int MAX_NAME_LENGTH = 64;
+		private static final int MAX_VALUE_LENGTH = 32767;
+		private static final int MAX_SIGNATURE_LENGTH = 1024;
+
+		@Override
+		public PropertyMap decode(ByteBuf buf) {
+			int count = PacketCodecs.readCollectionSize(buf, MAX_PROPERTIES);
 			Builder<String, Property> builder = ImmutableMultimap.builder();
 
-			for (int j = 0; j < i; j++) {
-				String string = StringEncoding.decode(byteBuf, 64);
-				String string2 = StringEncoding.decode(byteBuf, 32767);
-				String string3 = PacketByteBuf.readNullable(byteBuf, bufx -> StringEncoding.decode(bufx, 1024));
-				Property property = new Property(string, string2, string3);
+			for (int index = 0; index < count; index++) {
+				String name = StringEncoding.decode(buf, MAX_NAME_LENGTH);
+				String value = StringEncoding.decode(buf, MAX_VALUE_LENGTH);
+				String signature = PacketByteBuf.readNullable(buf, b -> StringEncoding.decode(b, MAX_SIGNATURE_LENGTH));
+				Property property = new Property(name, value, signature);
 				builder.put(property.name(), property);
 			}
 
 			return new PropertyMap(builder.build());
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param propertyMap property map
-		 */
-		public void encode(ByteBuf byteBuf, PropertyMap propertyMap) {
-			PacketCodecs.writeCollectionSize(byteBuf, propertyMap.size(), 16);
+		@Override
+		public void encode(ByteBuf buf, PropertyMap propertyMap) {
+			PacketCodecs.writeCollectionSize(buf, propertyMap.size(), Uuids.BYTE_ARRAY_SIZE);
 
 			for (Property property : propertyMap.values()) {
-				StringEncoding.encode(byteBuf, property.name(), 64);
-				StringEncoding.encode(byteBuf, property.value(), 32767);
+				StringEncoding.encode(buf, property.name(), MAX_NAME_LENGTH);
+				StringEncoding.encode(buf, property.value(), MAX_VALUE_LENGTH);
 				PacketByteBuf.writeNullable(
-						byteBuf,
+						buf,
 						property.signature(),
-						(bufx, signature) -> StringEncoding.encode(bufx, signature, 1024)
+						(b, signature) -> StringEncoding.encode(b, signature, MAX_SIGNATURE_LENGTH)
 				);
 			}
 		}
@@ -488,143 +312,85 @@ public interface PacketCodecs {
 	);
 
 	PacketCodec<ByteBuf, Integer> RGB = new PacketCodec<ByteBuf, Integer>() {
-		/**
-		 * Decode.
-		 *
-		 * @param byteBuf byte buf
-		 *
-		 * @return Integer — результат операции
-		 */
-		public Integer decode(ByteBuf byteBuf) {
-			return ColorHelper.getArgb(byteBuf.readByte() & 0xFF, byteBuf.readByte() & 0xFF, byteBuf.readByte() & 0xFF);
+		@Override
+		public Integer decode(ByteBuf buf) {
+			return ColorHelper.getArgb(buf.readByte() & 0xFF, buf.readByte() & 0xFF, buf.readByte() & 0xFF);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param byteBuf byte buf
-		 * @param integer integer
-		 */
-		public void encode(ByteBuf byteBuf, Integer integer) {
-			byteBuf.writeByte(ColorHelper.getRed(integer));
-			byteBuf.writeByte(ColorHelper.getGreen(integer));
-			byteBuf.writeByte(ColorHelper.getBlue(integer));
+		@Override
+		public void encode(ByteBuf buf, Integer value) {
+			buf.writeByte(ColorHelper.getRed(value));
+			buf.writeByte(ColorHelper.getGreen(value));
+			buf.writeByte(ColorHelper.getBlue(value));
 		}
 	};
 
 	static PacketCodec<ByteBuf, byte[]> byteArray(int maxLength) {
 		return new PacketCodec<ByteBuf, byte[]>() {
-			/**
-			 * Decode.
-			 *
-			 * @param buf buf
-			 *
-			 * @return byte[] — результат операции
-			 */
+			@Override
 			public byte[] decode(ByteBuf buf) {
 				return PacketByteBuf.readByteArray(buf, maxLength);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param buf buf
-			 * @param value value
-			 */
+			@Override
 			public void encode(ByteBuf buf, byte[] value) {
 				if (value.length > maxLength) {
 					throw new EncoderException(
 							"ByteArray with size " + value.length + " is bigger than allowed " + maxLength);
 				}
-				else {
-					PacketByteBuf.writeByteArray(buf, value);
-				}
+
+				PacketByteBuf.writeByteArray(buf, value);
 			}
 		};
 	}
 
 	static PacketCodec<ByteBuf, String> string(int maxLength) {
 		return new PacketCodec<ByteBuf, String>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return String — результат операции
-			 */
-			public String decode(ByteBuf byteBuf) {
-				return StringEncoding.decode(byteBuf, maxLength);
+			@Override
+			public String decode(ByteBuf buf) {
+				return StringEncoding.decode(buf, maxLength);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param string string
-			 */
-			public void encode(ByteBuf byteBuf, String string) {
-				StringEncoding.encode(byteBuf, string, maxLength);
+			@Override
+			public void encode(ByteBuf buf, String value) {
+				StringEncoding.encode(buf, value, maxLength);
 			}
 		};
 	}
 
 	static PacketCodec<ByteBuf, Optional<NbtElement>> nbtElement(Supplier<NbtSizeTracker> sizeTrackerSupplier) {
 		return new PacketCodec<ByteBuf, Optional<NbtElement>>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return Optional — результат операции
-			 */
-			public Optional<NbtElement> decode(ByteBuf byteBuf) {
-				return Optional.ofNullable(PacketByteBuf.readNbt(byteBuf, sizeTrackerSupplier.get()));
+			@Override
+			public Optional<NbtElement> decode(ByteBuf buf) {
+				return Optional.ofNullable(PacketByteBuf.readNbt(buf, sizeTrackerSupplier.get()));
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param optional optional
-			 */
-			public void encode(ByteBuf byteBuf, Optional<NbtElement> optional) {
-				PacketByteBuf.writeNbt(byteBuf, optional.orElse(null));
+			@Override
+			public void encode(ByteBuf buf, Optional<NbtElement> value) {
+				PacketByteBuf.writeNbt(buf, value.orElse(null));
 			}
 		};
 	}
 
 	static PacketCodec<ByteBuf, NbtElement> nbt(Supplier<NbtSizeTracker> sizeTracker) {
 		return new PacketCodec<ByteBuf, NbtElement>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return NbtElement — результат операции
-			 */
-			public NbtElement decode(ByteBuf byteBuf) {
-				NbtElement nbtElement = PacketByteBuf.readNbt(byteBuf, sizeTracker.get());
-				if (nbtElement == null) {
+			@Override
+			public NbtElement decode(ByteBuf buf) {
+				NbtElement nbt = PacketByteBuf.readNbt(buf, sizeTracker.get());
+				if (nbt == null) {
 					throw new DecoderException("Expected non-null compound tag");
 				}
-				else {
-					return nbtElement;
-				}
+
+				return nbt;
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param nbtElement nbt element
-			 */
-			public void encode(ByteBuf byteBuf, NbtElement nbtElement) {
-				if (nbtElement == NbtEnd.INSTANCE) {
+			@Override
+			public void encode(ByteBuf buf, NbtElement nbt) {
+				if (nbt == NbtEnd.INSTANCE) {
 					throw new EncoderException("Expected non-null compound tag");
 				}
-				else {
-					PacketByteBuf.writeNbt(byteBuf, nbtElement);
-				}
+
+				PacketByteBuf.writeNbt(buf, nbt);
 			}
 		};
 	}
@@ -632,13 +398,13 @@ public interface PacketCodecs {
 	static PacketCodec<ByteBuf, NbtCompound> nbtCompound(Supplier<NbtSizeTracker> sizeTracker) {
 		return nbt(sizeTracker).xmap(
 				nbt -> {
-					if (nbt instanceof NbtCompound nbtCompound) {
-						return nbtCompound;
+					if (nbt instanceof NbtCompound compound) {
+						return compound;
 					}
-					else {
-						throw new DecoderException("Not a compound tag: " + nbt);
-					}
-				}, nbt -> (NbtElement) nbt
+
+					throw new DecoderException("Not a compound tag: " + nbt);
+				},
+				nbt -> (NbtElement) nbt
 		);
 	}
 
@@ -650,35 +416,26 @@ public interface PacketCodecs {
 		return codec(codec, NbtSizeTracker::forPacket);
 	}
 
+	/**
+	 * Создаёт {@link PacketCodec.ResultFunction}, которая оборачивает кодек NBT-элемента
+	 * в кодек произвольного типа {@code V} через {@link Codec} из DataFixerUpper.
+	 */
 	static <T, B extends ByteBuf, V> PacketCodec.ResultFunction<B, T, V> fromCodec(DynamicOps<T> ops, Codec<V> codec) {
-		return codecx -> new PacketCodec<B, V>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return V — результат операции
-			 */
-			public V decode(B byteBuf) {
-				T object = (T) codecx.decode(byteBuf);
+		return baseCodec -> new PacketCodec<B, V>() {
+			@Override
+			public V decode(B buf) {
+				T nbt = (T) baseCodec.decode(buf);
 				return (V) codec
-						.parse(ops, object)
-						.getOrThrow(error -> new DecoderException("Failed to decode: " + error + " " + object));
+						.parse(ops, nbt)
+						.getOrThrow(error -> new DecoderException("Failed to decode: " + error + " " + nbt));
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param object object
-			 */
-			public void encode(B byteBuf, V object) {
-				T
-						object2 =
-						(T) codec
-								.encodeStart(ops, object)
-								.getOrThrow(error -> new EncoderException("Failed to encode: " + error + " " + object));
-				codecx.encode(byteBuf, object2);
+			@Override
+			public void encode(B buf, V value) {
+				T nbt = (T) codec
+						.encodeStart(ops, value)
+						.getOrThrow(error -> new EncoderException("Failed to encode: " + error + " " + value));
+				baseCodec.encode(buf, nbt);
 			}
 		};
 	}
@@ -696,87 +453,62 @@ public interface PacketCodecs {
 	}
 
 	static <T> PacketCodec<RegistryByteBuf, T> registryCodec(Codec<T> codec, Supplier<NbtSizeTracker> sizeTracker) {
-		final PacketCodec<ByteBuf, NbtElement> packetCodec = nbt(sizeTracker);
+		final PacketCodec<ByteBuf, NbtElement> nbtCodec = nbt(sizeTracker);
 		return new PacketCodec<RegistryByteBuf, T>() {
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return T — результат операции
-			 */
-			public T decode(RegistryByteBuf registryByteBuf) {
-				NbtElement nbtElement = packetCodec.decode(registryByteBuf);
-				RegistryOps<NbtElement> registryOps = registryByteBuf.getRegistryManager().getOps(NbtOps.INSTANCE);
+			@Override
+			public T decode(RegistryByteBuf buf) {
+				NbtElement nbt = nbtCodec.decode(buf);
+				RegistryOps<NbtElement> ops = buf.getRegistryManager().getOps(NbtOps.INSTANCE);
 				return (T) codec
-						.parse(registryOps, nbtElement)
-						.getOrThrow(error -> new DecoderException("Failed to decode: " + error + " " + nbtElement));
+						.parse(ops, nbt)
+						.getOrThrow(error -> new DecoderException("Failed to decode: " + error + " " + nbt));
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param object object
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, T object) {
-				RegistryOps<NbtElement> registryOps = registryByteBuf.getRegistryManager().getOps(NbtOps.INSTANCE);
-				NbtElement nbtElement = (NbtElement) codec.encodeStart(registryOps, object)
-				                                          .getOrThrow(error -> new EncoderException(
-						                                          "Failed to encode: " + error + " " + object));
-				packetCodec.encode(registryByteBuf, nbtElement);
+			@Override
+			public void encode(RegistryByteBuf buf, T value) {
+				RegistryOps<NbtElement> ops = buf.getRegistryManager().getOps(NbtOps.INSTANCE);
+				NbtElement nbt = (NbtElement) codec
+						.encodeStart(ops, value)
+						.getOrThrow(error -> new EncoderException("Failed to encode: " + error + " " + value));
+				nbtCodec.encode(buf, nbt);
 			}
 		};
 	}
 
 	static <B extends ByteBuf, V> PacketCodec<B, Optional<V>> optional(PacketCodec<? super B, V> codec) {
 		return new PacketCodec<B, Optional<V>>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return Optional — результат операции
-			 */
-			public Optional<V> decode(B byteBuf) {
-				return byteBuf.readBoolean() ? Optional.of(codec.decode(byteBuf)) : Optional.empty();
+			@Override
+			public Optional<V> decode(B buf) {
+				return buf.readBoolean() ? Optional.of(codec.decode(buf)) : Optional.empty();
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param optional optional
-			 */
-			public void encode(B byteBuf, Optional<V> optional) {
-				if (optional.isPresent()) {
-					byteBuf.writeBoolean(true);
-					codec.encode(byteBuf, optional.get());
-				}
-				else {
-					byteBuf.writeBoolean(false);
+			@Override
+			public void encode(B buf, Optional<V> value) {
+				if (value.isPresent()) {
+					buf.writeBoolean(true);
+					codec.encode(buf, value.get());
+				} else {
+					buf.writeBoolean(false);
 				}
 			}
 		};
 	}
 
 	static int readCollectionSize(ByteBuf buf, int maxSize) {
-		int i = VarInts.read(buf);
-		if (i > maxSize) {
-			throw new DecoderException(i + " elements exceeded max size of: " + maxSize);
+		int size = VarInts.read(buf);
+		if (size > maxSize) {
+			throw new DecoderException(size + " elements exceeded max size of: " + maxSize);
 		}
-		else {
-			return i;
-		}
+
+		return size;
 	}
 
 	static void writeCollectionSize(ByteBuf buf, int size, int maxSize) {
 		if (size > maxSize) {
 			throw new EncoderException(size + " elements exceeded max size of: " + maxSize);
 		}
-		else {
-			VarInts.write(buf, size);
-		}
+
+		VarInts.write(buf, size);
 	}
 
 	static <B extends ByteBuf, V, C extends Collection<V>> PacketCodec<B, C> collection(
@@ -790,35 +522,24 @@ public interface PacketCodecs {
 			IntFunction<C> factory, PacketCodec<? super B, V> elementCodec, int maxSize
 	) {
 		return new PacketCodec<B, C>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return C — результат операции
-			 */
-			public C decode(B byteBuf) {
-				int i = PacketCodecs.readCollectionSize(byteBuf, maxSize);
-				C collection = factory.apply(Math.min(i, MAX_COLLECTION_SIZE));
+			@Override
+			public C decode(B buf) {
+				int size = PacketCodecs.readCollectionSize(buf, maxSize);
+				C collection = factory.apply(Math.min(size, MAX_COLLECTION_SIZE));
 
-				for (int j = 0; j < i; j++) {
-					collection.add(elementCodec.decode(byteBuf));
+				for (int index = 0; index < size; index++) {
+					collection.add(elementCodec.decode(buf));
 				}
 
 				return collection;
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param collection collection
-			 */
-			public void encode(B byteBuf, C collection) {
-				PacketCodecs.writeCollectionSize(byteBuf, collection.size(), maxSize);
+			@Override
+			public void encode(B buf, C collection) {
+				PacketCodecs.writeCollectionSize(buf, collection.size(), maxSize);
 
-				for (V object : collection) {
-					elementCodec.encode(byteBuf, object);
+				for (V element : collection) {
+					elementCodec.encode(buf, element);
 				}
 			}
 		};
@@ -849,38 +570,27 @@ public interface PacketCodecs {
 			int maxSize
 	) {
 		return new PacketCodec<B, M>() {
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param map map
-			 */
-			public void encode(B byteBuf, M map) {
-				PacketCodecs.writeCollectionSize(byteBuf, map.size(), maxSize);
-				map.forEach((object, object2) -> {
-					keyCodec.encode(byteBuf, (K) object);
-					valueCodec.encode(byteBuf, (V) object2);
-				});
-			}
+			@Override
+			public M decode(B buf) {
+				int size = PacketCodecs.readCollectionSize(buf, maxSize);
+				M map = (M) factory.apply(Math.min(size, MAX_COLLECTION_SIZE));
 
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return M — результат операции
-			 */
-			public M decode(B byteBuf) {
-				int i = PacketCodecs.readCollectionSize(byteBuf, maxSize);
-				M map = (M) factory.apply(Math.min(i, MAX_COLLECTION_SIZE));
-
-				for (int j = 0; j < i; j++) {
-					K object = keyCodec.decode(byteBuf);
-					V object2 = valueCodec.decode(byteBuf);
-					map.put(object, object2);
+				for (int index = 0; index < size; index++) {
+					K key = keyCodec.decode(buf);
+					V value = valueCodec.decode(buf);
+					map.put(key, value);
 				}
 
 				return map;
+			}
+
+			@Override
+			public void encode(B buf, M map) {
+				PacketCodecs.writeCollectionSize(buf, map.size(), maxSize);
+				map.forEach((key, value) -> {
+					keyCodec.encode(buf, (K) key);
+					valueCodec.encode(buf, (V) value);
+				});
 			}
 		};
 	}
@@ -890,120 +600,92 @@ public interface PacketCodecs {
 			PacketCodec<? super B, R> right
 	) {
 		return new PacketCodec<B, Either<L, R>>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return Either — результат операции
-			 */
-			public Either<L, R> decode(B byteBuf) {
-				return byteBuf.readBoolean() ? Either.left(left.decode(byteBuf)) : Either.right(right.decode(byteBuf));
+			@Override
+			public Either<L, R> decode(B buf) {
+				return buf.readBoolean()
+						? Either.left(left.decode(buf))
+						: Either.right(right.decode(buf));
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param either either
-			 */
-			public void encode(B byteBuf, Either<L, R> either) {
+			@Override
+			public void encode(B buf, Either<L, R> either) {
 				either.ifLeft(value -> {
-					byteBuf.writeBoolean(true);
-					left.encode(byteBuf, (L) value);
+					buf.writeBoolean(true);
+					left.encode(buf, (L) value);
 				}).ifRight(value -> {
-					byteBuf.writeBoolean(false);
-					right.encode(byteBuf, (R) value);
+					buf.writeBoolean(false);
+					right.encode(buf, (R) value);
 				});
 			}
 		};
 	}
 
+	/**
+	 * Создаёт {@link PacketCodec.ResultFunction}, которая оборачивает кодек в length-prefixed формат:
+	 * перед данными записывается VarInt с размером буфера, что позволяет читателю пропустить
+	 * неизвестные поля при несовпадении версий протокола.
+	 */
 	static <B extends ByteBuf, V> PacketCodec.ResultFunction<B, V, V> lengthPrepended(
 			int maxSize,
 			BiFunction<B, ByteBuf, B> bufWrapper
 	) {
 		return codec -> new PacketCodec<B, V>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return V — результат операции
-			 */
-			public V decode(B byteBuf) {
-				int i = VarInts.read(byteBuf);
-				if (i > maxSize) {
-					throw new DecoderException("Buffer size " + i + " is larger than allowed limit of " + maxSize);
+			@Override
+			public V decode(B buf) {
+				int length = VarInts.read(buf);
+				if (length > maxSize) {
+					throw new DecoderException("Buffer size " + length + " is larger than allowed limit of " + maxSize);
 				}
-				else {
-					int j = byteBuf.readerIndex();
-					B byteBuf2 = (B) ((ByteBuf) bufWrapper.apply(byteBuf, byteBuf.slice(j, i)));
-					byteBuf.readerIndex(j + i);
-					return (V) codec.decode(byteBuf2);
-				}
+
+				int startIndex = buf.readerIndex();
+				B sliced = (B) ((ByteBuf) bufWrapper.apply(buf, buf.slice(startIndex, length)));
+				buf.readerIndex(startIndex + length);
+				return (V) codec.decode(sliced);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param object object
-			 */
-			public void encode(B byteBuf, V object) {
-				B byteBuf2 = (B) ((ByteBuf) bufWrapper.apply(byteBuf, byteBuf.alloc().buffer()));
+			@Override
+			public void encode(B buf, V value) {
+				B temp = (B) ((ByteBuf) bufWrapper.apply(buf, buf.alloc().buffer()));
 
 				try {
-					codec.encode(byteBuf2, object);
-					int i = byteBuf2.readableBytes();
-					if (i > maxSize) {
-						throw new EncoderException("Buffer size " + i + " is  larger than allowed limit of " + maxSize);
+					codec.encode(temp, value);
+					int length = temp.readableBytes();
+					if (length > maxSize) {
+						throw new EncoderException("Buffer size " + length + " is  larger than allowed limit of " + maxSize);
 					}
 
-					VarInts.write(byteBuf, i);
-					byteBuf.writeBytes(byteBuf2);
-				}
-				finally {
-					byteBuf2.release();
+					VarInts.write(buf, length);
+					buf.writeBytes(temp);
+				} finally {
+					temp.release();
 				}
 			}
 		};
 	}
 
 	static <V> PacketCodec.ResultFunction<ByteBuf, V, V> lengthPrepended(int maxSize) {
-		return lengthPrepended(maxSize, (byteBuf, bufToWrap) -> bufToWrap);
+		return lengthPrepended(maxSize, (buf, bufToWrap) -> bufToWrap);
 	}
 
 	static <V> PacketCodec.ResultFunction<RegistryByteBuf, V, V> lengthPrependedRegistry(int maxSize) {
 		return lengthPrepended(
 				maxSize,
-				(registryByteBuf, byteBuf) -> new RegistryByteBuf(byteBuf, registryByteBuf.getRegistryManager())
+				(registryBuf, buf) -> new RegistryByteBuf(buf, registryBuf.getRegistryManager())
 		);
 	}
 
 	static <T> PacketCodec<ByteBuf, T> indexed(IntFunction<T> indexToValue, ToIntFunction<T> valueToIndex) {
 		return new PacketCodec<ByteBuf, T>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return T — результат операции
-			 */
-			public T decode(ByteBuf byteBuf) {
-				int i = VarInts.read(byteBuf);
-				return indexToValue.apply(i);
+			@Override
+			public T decode(ByteBuf buf) {
+				int index = VarInts.read(buf);
+				return indexToValue.apply(index);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param object object
-			 */
-			public void encode(ByteBuf byteBuf, T object) {
-				int i = valueToIndex.applyAsInt(object);
-				VarInts.write(byteBuf, i);
+			@Override
+			public void encode(ByteBuf buf, T value) {
+				int index = valueToIndex.applyAsInt(value);
+				VarInts.write(buf, index);
 			}
 		};
 	}
@@ -1016,31 +698,20 @@ public interface PacketCodecs {
 			RegistryKey<? extends Registry<T>> registry, Function<Registry<T>, IndexedIterable<R>> registryTransformer
 	) {
 		return new PacketCodec<RegistryByteBuf, R>() {
-			private IndexedIterable<R> getRegistryOrThrow(RegistryByteBuf buf) {
+			private IndexedIterable<R> getIndexedEntries(RegistryByteBuf buf) {
 				return registryTransformer.apply(buf.getRegistryManager().getOrThrow(registry));
 			}
 
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return R — результат операции
-			 */
-			public R decode(RegistryByteBuf registryByteBuf) {
-				int i = VarInts.read(registryByteBuf);
-				return (R) this.getRegistryOrThrow(registryByteBuf).getOrThrow(i);
+			@Override
+			public R decode(RegistryByteBuf buf) {
+				int index = VarInts.read(buf);
+				return (R) getIndexedEntries(buf).getOrThrow(index);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param object object
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, R object) {
-				int i = this.getRegistryOrThrow(registryByteBuf).getRawIdOrThrow(object);
-				VarInts.write(registryByteBuf, i);
+			@Override
+			public void encode(RegistryByteBuf buf, R value) {
+				int index = getIndexedEntries(buf).getRawIdOrThrow(value);
+				VarInts.write(buf, index);
 			}
 		};
 	}
@@ -1053,6 +724,11 @@ public interface PacketCodecs {
 		return registry(registry, Registry::getIndexedEntries);
 	}
 
+	/**
+	 * Создаёт кодек для {@link RegistryEntry}, поддерживающий как ссылочные записи (по индексу реестра),
+	 * так и прямые (inline) записи, закодированные через {@code directCodec}.
+	 * Маркер {@code 0} означает прямую запись; {@code index + 1} — ссылочную.
+	 */
 	static <T> PacketCodec<RegistryByteBuf, RegistryEntry<T>> registryEntry(
 			RegistryKey<? extends Registry<T>> registry, PacketCodec<? super RegistryByteBuf, T> directCodec
 	) {
@@ -1063,89 +739,69 @@ public interface PacketCodecs {
 				return buf.getRegistryManager().getOrThrow(registry).getIndexedEntries();
 			}
 
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return RegistryEntry — результат операции
-			 */
-			public RegistryEntry<T> decode(RegistryByteBuf registryByteBuf) {
-				int i = VarInts.read(registryByteBuf);
-				return i == DIRECT_ENTRY_MARKER ? RegistryEntry.of(directCodec.decode(registryByteBuf))
-				              : (RegistryEntry) this.getIndexedEntries(registryByteBuf).getOrThrow(i - 1);
+			@Override
+			public RegistryEntry<T> decode(RegistryByteBuf buf) {
+				int rawId = VarInts.read(buf);
+				return rawId == DIRECT_ENTRY_MARKER
+						? RegistryEntry.of(directCodec.decode(buf))
+						: (RegistryEntry<T>) getIndexedEntries(buf).getOrThrow(rawId - 1);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param registryEntry registry entry
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, RegistryEntry<T> registryEntry) {
-				switch (registryEntry.getType()) {
+			@Override
+			public void encode(RegistryByteBuf buf, RegistryEntry<T> entry) {
+				switch (entry.getType()) {
 					case REFERENCE:
-						int i = this.getIndexedEntries(registryByteBuf).getRawIdOrThrow(registryEntry);
-						VarInts.write(registryByteBuf, i + 1);
+						int rawId = getIndexedEntries(buf).getRawIdOrThrow(entry);
+						VarInts.write(buf, rawId + 1);
 						break;
 					case DIRECT:
-						VarInts.write(registryByteBuf, DIRECT_ENTRY_MARKER);
-						directCodec.encode(registryByteBuf, registryEntry.value());
+						VarInts.write(buf, DIRECT_ENTRY_MARKER);
+						directCodec.encode(buf, entry.value());
 				}
 			}
 		};
 	}
 
+	/**
+	 * Создаёт кодек для {@link RegistryEntryList}: поддерживает как тег (по идентификатору),
+	 * так и явный список записей. Маркер {@code -1} (encoded как {@code 0}) означает тег.
+	 */
 	static <T> PacketCodec<RegistryByteBuf, RegistryEntryList<T>> registryEntryList(RegistryKey<? extends Registry<T>> registryRef) {
 		return new PacketCodec<RegistryByteBuf, RegistryEntryList<T>>() {
 			private static final int TAG_ENTRY_MARKER = -1;
-			private final PacketCodec<RegistryByteBuf, RegistryEntry<T>>
-					entryCodec =
+			private final PacketCodec<RegistryByteBuf, RegistryEntry<T>> entryCodec =
 					PacketCodecs.registryEntry(registryRef);
 
-			/**
-			 * Decode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 *
-			 * @return RegistryEntryList — результат операции
-			 */
-			public RegistryEntryList<T> decode(RegistryByteBuf registryByteBuf) {
-				int i = VarInts.read(registryByteBuf) - 1;
-				if (i == TAG_ENTRY_MARKER) {
-					Registry<T> registry = registryByteBuf.getRegistryManager().getOrThrow(registryRef);
-					return registry
-							.getOptional(TagKey.of(registryRef, Identifier.PACKET_CODEC.decode(registryByteBuf)))
+			@Override
+			public RegistryEntryList<T> decode(RegistryByteBuf buf) {
+				int sizeOrTag = VarInts.read(buf) - 1;
+				if (sizeOrTag == TAG_ENTRY_MARKER) {
+					Registry<T> reg = buf.getRegistryManager().getOrThrow(registryRef);
+					return reg
+							.getOptional(TagKey.of(registryRef, Identifier.PACKET_CODEC.decode(buf)))
 							.orElseThrow();
 				}
-				else {
-					List<RegistryEntry<T>> list = new ArrayList<>(Math.min(i, MAX_COLLECTION_SIZE));
 
-					for (int j = 0; j < i; j++) {
-						list.add(this.entryCodec.decode(registryByteBuf));
-					}
+				List<RegistryEntry<T>> list = new ArrayList<>(Math.min(sizeOrTag, MAX_COLLECTION_SIZE));
 
-					return RegistryEntryList.of(list);
+				for (int index = 0; index < sizeOrTag; index++) {
+					list.add(entryCodec.decode(buf));
 				}
+
+				return RegistryEntryList.of(list);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param registryByteBuf registry byte buf
-			 * @param registryEntryList registry entry list
-			 */
-			public void encode(RegistryByteBuf registryByteBuf, RegistryEntryList<T> registryEntryList) {
-				Optional<TagKey<T>> optional = registryEntryList.getTagKey();
-				if (optional.isPresent()) {
-					VarInts.write(registryByteBuf, TAG_ENTRY_MARKER);
-					Identifier.PACKET_CODEC.encode(registryByteBuf, optional.get().id());
-				}
-				else {
-					VarInts.write(registryByteBuf, registryEntryList.size() + 1);
-
-					for (RegistryEntry<T> registryEntry : registryEntryList) {
-						this.entryCodec.encode(registryByteBuf, registryEntry);
+			@Override
+			public void encode(RegistryByteBuf buf, RegistryEntryList<T> entryList) {
+				Optional<TagKey<T>> tagKey = entryList.getTagKey();
+				if (tagKey.isPresent()) {
+					VarInts.write(buf, 0);
+					Identifier.PACKET_CODEC.encode(buf, tagKey.get().id());
+				} else {
+					VarInts.write(buf, entryList.size() + 1);
+	
+					for (RegistryEntry<T> entry : entryList) {
+						entryCodec.encode(buf, entry);
 					}
 				}
 			}
@@ -1156,33 +812,21 @@ public interface PacketCodecs {
 		return new PacketCodec<ByteBuf, JsonElement>() {
 			private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return JsonElement — результат операции
-			 */
-			public JsonElement decode(ByteBuf byteBuf) {
-				String string = StringEncoding.decode(byteBuf, maxLength);
+			@Override
+			public JsonElement decode(ByteBuf buf) {
+				String json = StringEncoding.decode(buf, maxLength);
 
 				try {
-					return LenientJsonParser.parse(string);
-				}
-				catch (JsonSyntaxException var4) {
-					throw new DecoderException("Failed to parse JSON", var4);
+					return LenientJsonParser.parse(json);
+				} catch (JsonSyntaxException e) {
+					throw new DecoderException("Failed to parse JSON", e);
 				}
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param jsonElement json element
-			 */
-			public void encode(ByteBuf byteBuf, JsonElement jsonElement) {
-				String string = GSON.toJson(jsonElement);
-				StringEncoding.encode(byteBuf, string, maxLength);
+			@Override
+			public void encode(ByteBuf buf, JsonElement value) {
+				String json = GSON.toJson(value);
+				StringEncoding.encode(buf, json, maxLength);
 			}
 		};
 	}

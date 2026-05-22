@@ -21,14 +21,15 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
- * {@code V1TextFilterer}.
+ * Реализация фильтра текста версии 1, использующая OAuth2-аутентификацию через Microsoft MSAL
+ * с сертификатом клиента (ConfidentialClientApplication).
  */
 public class V1TextFilterer extends AbstractTextFilterer {
 
 	private final ConfidentialClientApplication application;
 	private final ClientCredentialParameters credentialParameters;
 	private final Set<String> fullyFilteredEvents;
-	private final int readTimeout;
+	private final int readTimeoutMs;
 
 	private V1TextFilterer(
 			URL url,
@@ -38,140 +39,139 @@ public class V1TextFilterer extends AbstractTextFilterer {
 			ConfidentialClientApplication application,
 			ClientCredentialParameters credentialParameters,
 			Set<String> fullyFilteredEvents,
-			int readTimeout
+			int readTimeoutMs
 	) {
 		super(url, messageEncoder, hashIgnorer, threadPool);
 		this.application = application;
 		this.credentialParameters = credentialParameters;
 		this.fullyFilteredEvents = fullyFilteredEvents;
-		this.readTimeout = readTimeout;
+		this.readTimeoutMs = readTimeoutMs;
 	}
 
 	/**
-	 * Load.
-	 *
-	 * @param response response
-	 *
-	 * @return @Nullable AbstractTextFilterer — результат операции
+	 * Загружает и создаёт экземпляр фильтра из JSON-конфигурации.
+	 * Использует сертификат для OAuth2-аутентификации через Azure AD.
 	 */
-	public static @Nullable AbstractTextFilterer load(String response) {
-		JsonObject jsonObject = JsonHelper.deserialize(response);
-		URI uRI = URI.create(JsonHelper.getString(jsonObject, "apiServer"));
-		String string = JsonHelper.getString(jsonObject, "apiPath");
-		String string2 = JsonHelper.getString(jsonObject, "scope");
-		String string3 = JsonHelper.getString(jsonObject, "serverId", "");
-		String string4 = JsonHelper.getString(jsonObject, "applicationId");
-		String string5 = JsonHelper.getString(jsonObject, "tenantId");
-		String string6 = JsonHelper.getString(jsonObject, "roomId", "Java:Chat");
-		String string7 = JsonHelper.getString(jsonObject, "certificatePath");
-		String string8 = JsonHelper.getString(jsonObject, "certificatePassword", "");
-		int i = JsonHelper.getInt(jsonObject, "hashesToDrop", -1);
-		int j = JsonHelper.getInt(jsonObject, "maxConcurrentRequests", 7);
-		JsonArray jsonArray = JsonHelper.getArray(jsonObject, "fullyFilteredEvents");
-		Set<String> set = new HashSet<>();
-		jsonArray.forEach(json -> set.add(JsonHelper.asString(json, "filteredEvent")));
-		int k = JsonHelper.getInt(jsonObject, "connectionReadTimeoutMs", 2000);
+	public static @Nullable AbstractTextFilterer load(String config) {
+		JsonObject configJson = JsonHelper.deserialize(config);
+		URI serverUri = URI.create(JsonHelper.getString(configJson, "apiServer"));
+		String apiPath = JsonHelper.getString(configJson, "apiPath");
+		String scope = JsonHelper.getString(configJson, "scope");
+		String serverId = JsonHelper.getString(configJson, "serverId", "");
+		String applicationId = JsonHelper.getString(configJson, "applicationId");
+		String tenantId = JsonHelper.getString(configJson, "tenantId");
+		String roomId = JsonHelper.getString(configJson, "roomId", "Java:Chat");
+		String certificatePath = JsonHelper.getString(configJson, "certificatePath");
+		String certificatePassword = JsonHelper.getString(configJson, "certificatePassword", "");
+		int hashesToDrop = JsonHelper.getInt(configJson, "hashesToDrop", -1);
+		int maxConcurrentRequests = JsonHelper.getInt(configJson, "maxConcurrentRequests", 7);
+		JsonArray filteredEventsArray = JsonHelper.getArray(configJson, "fullyFilteredEvents");
+		Set<String> fullyFilteredEvents = new HashSet<>();
+		filteredEventsArray.forEach(json -> fullyFilteredEvents.add(JsonHelper.asString(json, "filteredEvent")));
+		int readTimeoutMs = JsonHelper.getInt(configJson, "connectionReadTimeoutMs", 2000);
 
-		URL uRL;
+		URL chatUrl;
 		try {
-			uRL = uRI.resolve(string).toURL();
+			chatUrl = serverUri.resolve(apiPath).toURL();
 		}
-		catch (MalformedURLException var26) {
-			throw new RuntimeException(var26);
+		catch (MalformedURLException exception) {
+			throw new RuntimeException(exception);
 		}
 
 		AbstractTextFilterer.MessageEncoder messageEncoder = (profile, message) -> {
-			JsonObject jsonObjectx = new JsonObject();
-			jsonObjectx.addProperty("userId", profile.id().toString());
-			jsonObjectx.addProperty("userDisplayName", profile.name());
-			jsonObjectx.addProperty("server", string3);
-			jsonObjectx.addProperty("room", string6);
-			jsonObjectx.addProperty("area", "JavaChatRealms");
-			jsonObjectx.addProperty("data", message);
-			jsonObjectx.addProperty("language", "*");
-			return jsonObjectx;
+			JsonObject body = new JsonObject();
+			body.addProperty("userId", profile.id().toString());
+			body.addProperty("userDisplayName", profile.name());
+			body.addProperty("server", serverId);
+			body.addProperty("room", roomId);
+			body.addProperty("area", "JavaChatRealms");
+			body.addProperty("data", message);
+			body.addProperty("language", "*");
+			return body;
 		};
-		AbstractTextFilterer.HashIgnorer hashIgnorer = AbstractTextFilterer.HashIgnorer.dropHashes(i);
-		ExecutorService executorService = newThreadPool(j);
 
-		IClientCertificate iClientCertificate;
-		try (InputStream inputStream = Files.newInputStream(Path.of(string7))) {
-			iClientCertificate = ClientCredentialFactory.createFromCertificate(inputStream, string8);
+		AbstractTextFilterer.HashIgnorer hashIgnorer = AbstractTextFilterer.HashIgnorer.dropHashes(hashesToDrop);
+		ExecutorService threadPool = newThreadPool(maxConcurrentRequests);
+
+		IClientCertificate certificate;
+		try (InputStream inputStream = Files.newInputStream(Path.of(certificatePath))) {
+			certificate = ClientCredentialFactory.createFromCertificate(inputStream, certificatePassword);
 		}
-		catch (Exception var28) {
+		catch (Exception exception) {
 			LOGGER.warn("Failed to open certificate file");
 			return null;
 		}
 
-		ConfidentialClientApplication confidentialClientApplication;
+		ConfidentialClientApplication clientApplication;
 		try {
-			confidentialClientApplication =
-					((Builder) ((Builder) ConfidentialClientApplication.builder(string4, iClientCertificate)
-					                                                   .sendX5c(true)
-					                                                   .executorService(executorService)
-					)
-							.authority(String.format(Locale.ROOT, "https://login.microsoftonline.com/%s/", string5))
-					)
-							.build();
+			String authorityUrl = String.format(Locale.ROOT, "https://login.microsoftonline.com/%s/", tenantId);
+			clientApplication = ConfidentialClientApplication
+					.builder(applicationId, certificate)
+					.sendX5c(true)
+					.executorService(threadPool)
+					.authority(authorityUrl)
+					.build();
 		}
-		catch (Exception var25) {
+		catch (Exception exception) {
 			LOGGER.warn("Failed to create confidential client application");
 			return null;
 		}
 
-		ClientCredentialParameters
-				clientCredentialParameters =
-				ClientCredentialParameters.builder(Set.of(string2)).build();
+		ClientCredentialParameters credentialParameters = ClientCredentialParameters
+				.builder(Set.of(scope))
+				.build();
+
 		return new V1TextFilterer(
-				uRL,
+				chatUrl,
 				messageEncoder,
 				hashIgnorer,
-				executorService,
-				confidentialClientApplication,
-				clientCredentialParameters,
-				set,
-				k
+				threadPool,
+				clientApplication,
+				credentialParameters,
+				fullyFilteredEvents,
+				readTimeoutMs
 		);
 	}
 
 	private IAuthenticationResult getAuthToken() {
-		return (IAuthenticationResult) this.application.acquireToken(this.credentialParameters).join();
+		return (IAuthenticationResult) application.acquireToken(credentialParameters).join();
 	}
 
 	@Override
 	protected void addAuthentication(HttpURLConnection connection) {
-		IAuthenticationResult iAuthenticationResult = this.getAuthToken();
-		connection.setRequestProperty("Authorization", "Bearer " + iAuthenticationResult.accessToken());
+		IAuthenticationResult authResult = getAuthToken();
+		connection.setRequestProperty("Authorization", "Bearer " + authResult.accessToken());
 	}
 
 	@Override
 	protected FilteredMessage filter(String raw, AbstractTextFilterer.HashIgnorer hashIgnorer, JsonObject response) {
-		JsonObject jsonObject = JsonHelper.getObject(response, "result", null);
-		if (jsonObject == null) {
+		JsonObject result = JsonHelper.getObject(response, "result", null);
+
+		if (result == null) {
 			return FilteredMessage.censored(raw);
 		}
-		else {
-			boolean bl = JsonHelper.getBoolean(jsonObject, "filtered", true);
-			if (!bl) {
-				return FilteredMessage.permitted(raw);
-			}
-			else {
-				for (JsonElement jsonElement : JsonHelper.getArray(jsonObject, "events", new JsonArray())) {
-					JsonObject jsonObject2 = jsonElement.getAsJsonObject();
-					String string = JsonHelper.getString(jsonObject2, "id", "");
-					if (this.fullyFilteredEvents.contains(string)) {
-						return FilteredMessage.censored(raw);
-					}
-				}
 
-				JsonArray jsonArray2 = JsonHelper.getArray(jsonObject, "redactedTextIndex", new JsonArray());
-				return new FilteredMessage(raw, this.createFilterMask(raw, jsonArray2, hashIgnorer));
+		boolean isFiltered = JsonHelper.getBoolean(result, "filtered", true);
+
+		if (!isFiltered) {
+			return FilteredMessage.permitted(raw);
+		}
+
+		for (JsonElement element : JsonHelper.getArray(result, "events", new JsonArray())) {
+			JsonObject event = element.getAsJsonObject();
+			String eventId = JsonHelper.getString(event, "id", "");
+
+			if (fullyFilteredEvents.contains(eventId)) {
+				return FilteredMessage.censored(raw);
 			}
 		}
+
+		JsonArray redactedIndex = JsonHelper.getArray(result, "redactedTextIndex", new JsonArray());
+		return new FilteredMessage(raw, createFilterMask(raw, redactedIndex, hashIgnorer));
 	}
 
 	@Override
 	protected int getReadTimeout() {
-		return this.readTimeout;
+		return readTimeoutMs;
 	}
 }

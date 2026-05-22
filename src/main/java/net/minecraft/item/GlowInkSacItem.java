@@ -7,7 +7,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 
 /**
- * {@code GlowInkSacItem}.
+ * Предмет «Мешочек со светящимися чернилами». Делает текст на табличках светящимся.
  */
 public class GlowInkSacItem extends Item implements SignChangingItem {
 
@@ -28,8 +28,7 @@ public class GlowInkSacItem extends Item implements SignChangingItem {
 			);
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 }

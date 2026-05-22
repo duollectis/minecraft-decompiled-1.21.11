@@ -8,7 +8,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code ZombieVillagerXpRebuildFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ZombieVillagerXpRebuildFix extends ChoiceFix {
 

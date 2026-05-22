@@ -56,11 +56,11 @@ public class FelineEntityModel<T extends FelineEntityRenderState> extends Entity
 				                .cuboid("nose", -1.5F, -0.001F, -4.0F, 3, 2, 2, dilation, 0, 24)
 				                .cuboid("ear1", -2.0F, -3.0F, 0.0F, 1, 1, 2, dilation, 0, 10)
 				                .cuboid("ear2", 1.0F, -3.0F, 0.0F, 1, 1, 2, dilation, 6, 10),
-				ModelTransform.origin(0.0F, 15.0F, -9.0F)
+				ModelTransform.origin(0.0F, 15.0F, SIT_BACK_LEG_Y)
 		);
 		modelPartData.addChild(
 				"body",
-				ModelPartBuilder.create().uv(20, 0).cuboid(-2.0F, 3.0F, -8.0F, 4.0F, 16.0F, 6.0F, dilation),
+				ModelPartBuilder.create().uv(20, 0).cuboid(-2.0F, 3.0F, -8.0F, 4.0F, BODY_SIZE_Y, 6.0F, dilation),
 				ModelTransform.of(0.0F, 12.0F, -10.0F, (float) (Math.PI / 2), 0.0F, 0.0F)
 		);
 		modelPartData.addChild(
@@ -76,13 +76,13 @@ public class FelineEntityModel<T extends FelineEntityRenderState> extends Entity
 		ModelPartBuilder
 				modelPartBuilder =
 				ModelPartBuilder.create().uv(8, 13).cuboid(-1.0F, 0.0F, 1.0F, 2.0F, 6.0F, 2.0F, dilation);
-		modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(1.1F, 18.0F, 5.0F));
-		modelPartData.addChild("right_hind_leg", modelPartBuilder, ModelTransform.origin(-1.1F, 18.0F, 5.0F));
+		modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(1.1F, HIND_LEG_PIVOT_Y, 5.0F));
+		modelPartData.addChild("right_hind_leg", modelPartBuilder, ModelTransform.origin(-1.1F, HIND_LEG_PIVOT_Y, 5.0F));
 		ModelPartBuilder
 				modelPartBuilder2 =
 				ModelPartBuilder.create().uv(40, 0).cuboid(-1.0F, 0.0F, 0.0F, 2.0F, 10.0F, 2.0F, dilation);
-		modelPartData.addChild("left_front_leg", modelPartBuilder2, ModelTransform.origin(1.2F, 14.1F, -5.0F));
-		modelPartData.addChild("right_front_leg", modelPartBuilder2, ModelTransform.origin(-1.2F, 14.1F, -5.0F));
+		modelPartData.addChild("left_front_leg", modelPartBuilder2, ModelTransform.origin(1.2F, FRONT_LEG_PIVOT_Y, FRONT_LEG_PIVOT_Z));
+		modelPartData.addChild("right_front_leg", modelPartBuilder2, ModelTransform.origin(-1.2F, FRONT_LEG_PIVOT_Y, FRONT_LEG_PIVOT_Z));
 		return modelData;
 	}
 

@@ -8,54 +8,41 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextRenderLayerSet}.
+ * Набор слоёв рендеринга текста: обычный, сквозной и с полигональным смещением.
+ * Используется для выбора нужного {@link RenderLayer} в зависимости от контекста отрисовки.
  */
+@Environment(EnvType.CLIENT)
 public record TextRenderLayerSet(
-		RenderLayer normal,
-		RenderLayer seeThrough,
-		RenderLayer polygonOffset,
-		RenderPipeline guiPipeline
+	RenderLayer normal,
+	RenderLayer seeThrough,
+	RenderLayer polygonOffset,
+	RenderPipeline guiPipeline
 ) {
 
-	/**
-	 * Of intensity.
-	 *
-	 * @param textureId texture id
-	 *
-	 * @return TextRenderLayerSet — результат операции
-	 */
 	public static TextRenderLayerSet ofIntensity(Identifier textureId) {
 		return new TextRenderLayerSet(
-				RenderLayers.textIntensity(textureId),
-				RenderLayers.textIntensitySeeThrough(textureId),
-				RenderLayers.textIntensityPolygonOffset(textureId),
-				RenderPipelines.GUI_TEXT_INTENSITY
+			RenderLayers.textIntensity(textureId),
+			RenderLayers.textIntensitySeeThrough(textureId),
+			RenderLayers.textIntensityPolygonOffset(textureId),
+			RenderPipelines.GUI_TEXT_INTENSITY
 		);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param textureId texture id
-	 *
-	 * @return TextRenderLayerSet — результат операции
-	 */
 	public static TextRenderLayerSet of(Identifier textureId) {
 		return new TextRenderLayerSet(
-				RenderLayers.text(textureId),
-				RenderLayers.textSeeThrough(textureId),
-				RenderLayers.textPolygonOffset(textureId),
-				RenderPipelines.GUI_TEXT
+			RenderLayers.text(textureId),
+			RenderLayers.textSeeThrough(textureId),
+			RenderLayers.textPolygonOffset(textureId),
+			RenderPipelines.GUI_TEXT
 		);
 	}
 
 	public RenderLayer getRenderLayer(TextRenderer.TextLayerType layerType) {
 		return switch (layerType) {
-			case NORMAL -> this.normal;
-			case SEE_THROUGH -> this.seeThrough;
-			case POLYGON_OFFSET -> this.polygonOffset;
+			case NORMAL -> normal;
+			case SEE_THROUGH -> seeThrough;
+			case POLYGON_OFFSET -> polygonOffset;
 		};
 	}
 }

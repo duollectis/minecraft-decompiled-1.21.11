@@ -7,56 +7,73 @@ import net.minecraft.util.math.random.Random;
 import java.util.Optional;
 
 /**
- * {@code Degradable}.
+ * Интерфейс деградации блока (например, окисление меди). Блок периодически проверяет
+ * соседей в радиусе {@link #DEGRADING_RANGE} и деградирует с вероятностью, зависящей
+ * от доли более окисленных соседей.
  */
 public interface Degradable<T extends Enum<T>> {
 
 	int DEGRADING_RANGE = 4;
+	float BASE_DEGRADATION_CHANCE = 0.05688889F;
 
 	Optional<BlockState> getDegradationResult(BlockState state);
 
 	float getDegradationChanceMultiplier();
 
+	T getDegradationLevel();
+
 	default void tickDegradation(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		float f = 0.05688889F;
-		if (random.nextFloat() < 0.05688889F) {
-			this.tryDegrade(state, world, pos, random).ifPresent(degraded -> world.setBlockState(pos, degraded));
+		if (random.nextFloat() < BASE_DEGRADATION_CHANCE) {
+			tryDegrade(state, world, pos, random).ifPresent(degraded -> world.setBlockState(pos, degraded));
 		}
 	}
 
-	T getDegradationLevel();
-
+	/**
+	 * Пытается деградировать блок на основе статистики соседей того же типа деградации.
+	 * Возвращает пустой Optional, если рядом есть менее окисленный сосед (блок не деградирует первым).
+	 */
 	default Optional<BlockState> tryDegrade(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		int i = this.getDegradationLevel().ordinal();
-		int j = 0;
-		int k = 0;
+		int currentLevel = getDegradationLevel().ordinal();
+		int moreOxidizedCount = 0;
+		int sameOxidizedCount = 0;
 
-		for (BlockPos blockPos : BlockPos.iterateOutwards(pos, 4, 4, 4)) {
-			int l = blockPos.getManhattanDistance(pos);
-			if (l > 4) {
+		for (BlockPos neighbor : BlockPos.iterateOutwards(pos, DEGRADING_RANGE, DEGRADING_RANGE, DEGRADING_RANGE)) {
+			if (neighbor.getManhattanDistance(pos) > DEGRADING_RANGE) {
 				break;
 			}
 
-			if (!blockPos.equals(pos) && world.getBlockState(blockPos).getBlock() instanceof Degradable<?> degradable) {
-				Enum<?> enum_ = degradable.getDegradationLevel();
-				if (this.getDegradationLevel().getClass() == enum_.getClass()) {
-					int m = enum_.ordinal();
-					if (m < i) {
-						return Optional.empty();
-					}
+			if (neighbor.equals(pos)) {
+				continue;
+			}
 
-					if (m > i) {
-						k++;
-					}
-					else {
-						j++;
-					}
-				}
+			Block neighborBlock = world.getBlockState(neighbor).getBlock();
+
+			if (!(neighborBlock instanceof Degradable<?>)) {
+				continue;
+			}
+
+			Enum<?> neighborLevel = ((Degradable<?>) neighborBlock).getDegradationLevel();
+
+			if (getDegradationLevel().getClass() != neighborLevel.getClass()) {
+				continue;
+			}
+
+			int neighborOrdinal = neighborLevel.ordinal();
+
+			if (neighborOrdinal < currentLevel) {
+				return Optional.empty();
+			}
+
+			if (neighborOrdinal > currentLevel) {
+				moreOxidizedCount++;
+			} else {
+				sameOxidizedCount++;
 			}
 		}
 
-		float f = (float) (k + 1) / (k + j + 1);
-		float g = f * f * this.getDegradationChanceMultiplier();
-		return random.nextFloat() < g ? this.getDegradationResult(state) : Optional.empty();
+		float ratio = (float) (moreOxidizedCount + 1) / (moreOxidizedCount + sameOxidizedCount + 1);
+		float chance = ratio * ratio * getDegradationChanceMultiplier();
+
+		return random.nextFloat() < chance ? getDegradationResult(state) : Optional.empty();
 	}
 }

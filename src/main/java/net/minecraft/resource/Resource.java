@@ -12,7 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * {@code Resource}.
+ * Представляет один ресурс из ресурс-пака: поток данных и опциональные метаданные.
+ * Метаданные загружаются лениво при первом обращении.
  */
 public class Resource {
 
@@ -22,47 +23,54 @@ public class Resource {
 	private @Nullable ResourceMetadata metadata;
 
 	public Resource(
-			ResourcePack pack,
-			InputSupplier<InputStream> inputSupplier,
-			InputSupplier<ResourceMetadata> metadataSupplier
+		ResourcePack pack,
+		InputSupplier<InputStream> inputSupplier,
+		InputSupplier<ResourceMetadata> metadataSupplier
 	) {
 		this.pack = pack;
 		this.inputSupplier = inputSupplier;
 		this.metadataSupplier = metadataSupplier;
 	}
 
+	/** Создаёт ресурс без метаданных. */
 	public Resource(ResourcePack pack, InputSupplier<InputStream> inputSupplier) {
 		this.pack = pack;
 		this.inputSupplier = inputSupplier;
-		this.metadataSupplier = ResourceMetadata.NONE_SUPPLIER;
-		this.metadata = ResourceMetadata.NONE;
+		metadataSupplier = ResourceMetadata.NONE_SUPPLIER;
+		metadata = ResourceMetadata.NONE;
 	}
 
 	public ResourcePack getPack() {
-		return this.pack;
+		return pack;
 	}
 
 	public String getPackId() {
-		return this.pack.getId();
+		return pack.getId();
 	}
 
 	public Optional<VersionedIdentifier> getKnownPackInfo() {
-		return this.pack.getKnownPackInfo();
+		return pack.getKnownPackInfo();
 	}
 
 	public InputStream getInputStream() throws IOException {
-		return this.inputSupplier.get();
+		return inputSupplier.get();
 	}
 
 	public BufferedReader getReader() throws IOException {
-		return new BufferedReader(new InputStreamReader(this.getInputStream(), StandardCharsets.UTF_8));
+		return new BufferedReader(new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
 	}
 
+	/**
+	 * Возвращает метаданные ресурса, загружая их при первом обращении.
+	 *
+	 * @return метаданные ресурса
+	 * @throws IOException при ошибке чтения метаданных
+	 */
 	public ResourceMetadata getMetadata() throws IOException {
-		if (this.metadata == null) {
-			this.metadata = this.metadataSupplier.get();
+		if (metadata == null) {
+			metadata = metadataSupplier.get();
 		}
 
-		return this.metadata;
+		return metadata;
 	}
 }

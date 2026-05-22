@@ -7,7 +7,10 @@ import net.minecraft.util.Util;
 import java.util.List;
 
 /**
- * {@code AllOfLootCondition}.
+ * Составное условие «И» — выполняется, если все дочерние условия истинны.
+ *
+ * <p>Поддерживает инлайн-сериализацию через {@link #INLINE_CODEC} (как список условий),
+ * что позволяет использовать его как альтернативный формат для {@link LootCondition#CODEC}.</p>
  */
 public class AllOfLootCondition extends AlternativeLootCondition {
 
@@ -18,13 +21,6 @@ public class AllOfLootCondition extends AlternativeLootCondition {
 		super(terms, Util.allOf(terms));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param terms terms
-	 *
-	 * @return AllOfLootCondition — результат операции
-	 */
 	public static AllOfLootCondition create(List<LootCondition> terms) {
 		return new AllOfLootCondition(List.copyOf(terms));
 	}
@@ -38,9 +34,6 @@ public class AllOfLootCondition extends AlternativeLootCondition {
 		return new AllOfLootCondition.Builder(terms);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends AlternativeLootCondition.Builder {
 
 		public Builder(LootCondition.Builder... builders) {
@@ -49,7 +42,7 @@ public class AllOfLootCondition extends AlternativeLootCondition {
 
 		@Override
 		public AllOfLootCondition.Builder and(LootCondition.Builder builder) {
-			this.add(builder);
+			add(builder);
 			return this;
 		}
 

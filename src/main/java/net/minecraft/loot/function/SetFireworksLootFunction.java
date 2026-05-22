@@ -15,33 +15,36 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SetFireworksLootFunction}.
+ * Функция лута, устанавливающая компонент фейерверка предмета:
+ * список взрывов и длительность полёта.
  */
 public class SetFireworksLootFunction extends ConditionalLootFunction {
 
-	public static final MapCodec<SetFireworksLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									ListOperation.Values
-											.createCodec(FireworkExplosionComponent.CODEC, 256)
-											.optionalFieldOf("explosions")
-											.forGetter(function -> function.explosions),
-									Codecs.UNSIGNED_BYTE
-											.optionalFieldOf("flight_duration")
-											.forGetter(function -> function.flightDuration)
-							)
-					)
-					.apply(instance, SetFireworksLootFunction::new)
-	);
 	public static final FireworksComponent DEFAULT_FIREWORKS = new FireworksComponent(0, List.of());
+
+	public static final MapCodec<SetFireworksLootFunction> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					ListOperation.Values
+						.createCodec(FireworkExplosionComponent.CODEC, 256)
+						.optionalFieldOf("explosions")
+						.forGetter(function -> function.explosions),
+					Codecs.UNSIGNED_BYTE
+						.optionalFieldOf("flight_duration")
+						.forGetter(function -> function.flightDuration)
+				)
+			)
+			.apply(instance, SetFireworksLootFunction::new)
+	);
+
 	private final Optional<ListOperation.Values<FireworkExplosionComponent>> explosions;
 	private final Optional<Integer> flightDuration;
 
 	protected SetFireworksLootFunction(
-			List<LootCondition> conditions,
-			Optional<ListOperation.Values<FireworkExplosionComponent>> explosions,
-			Optional<Integer> flightDuration
+		List<LootCondition> conditions,
+		Optional<ListOperation.Values<FireworkExplosionComponent>> explosions,
+		Optional<Integer> flightDuration
 	) {
 		super(conditions);
 		this.explosions = explosions;
@@ -50,16 +53,16 @@ public class SetFireworksLootFunction extends ConditionalLootFunction {
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		stack.apply(DataComponentTypes.FIREWORKS, DEFAULT_FIREWORKS, this::apply);
+		stack.apply(DataComponentTypes.FIREWORKS, DEFAULT_FIREWORKS, this::applyToFireworks);
 		return stack;
 	}
 
-	private FireworksComponent apply(FireworksComponent fireworksComponent) {
+	private FireworksComponent applyToFireworks(FireworksComponent current) {
 		return new FireworksComponent(
-				this.flightDuration.orElseGet(fireworksComponent::flightDuration),
-				this.explosions
-						.<List<FireworkExplosionComponent>>map(values -> values.apply(fireworksComponent.explosions()))
-						.orElse(fireworksComponent.explosions())
+			flightDuration.orElseGet(current::flightDuration),
+			explosions
+				.<List<FireworkExplosionComponent>>map(values -> values.apply(current.explosions()))
+				.orElse(current.explosions())
 		);
 	}
 

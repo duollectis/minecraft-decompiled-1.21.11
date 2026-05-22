@@ -9,20 +9,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1458}.
+ * Схема версии 1458: переопределяет тип {@code ENTITY} с поддержкой
+ * {@code CustomName} как текстового компонента, добавляет {@code CustomName}
+ * к ряду блок-сущностей (сундуки, печи, зелья и т.д.).
  */
 public class Schema1458 extends IdentifierNormalizingSchema {
 
-	public Schema1458(int i, Schema schema) {
-		super(i, schema);
+	public Schema1458(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(
 			Schema schema,
-			Map<String, Supplier<TypeTemplate>> map,
-			Map<String, Supplier<TypeTemplate>> map2
+			Map<String, Supplier<TypeTemplate>> entityTypes,
+			Map<String, Supplier<TypeTemplate>> blockEntityTypes
 	) {
-		super.registerTypes(schema, map, map2);
+		super.registerTypes(schema, entityTypes, blockEntityTypes);
 		schema.registerType(
 				true,
 				TypeReferences.ENTITY,
@@ -31,7 +33,7 @@ public class Schema1458 extends IdentifierNormalizingSchema {
 						DSL.optionalFields(
 								"CustomName",
 								TypeReferences.TEXT_COMPONENT.in(schema),
-								DSL.taggedChoiceLazy("id", getIdentifierType(), map)
+								DSL.taggedChoiceLazy("id", getIdentifierType(), entityTypes)
 						)
 				)
 		);

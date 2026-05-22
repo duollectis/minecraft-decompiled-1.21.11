@@ -6,7 +6,11 @@ import net.minecraft.network.listener.PacketListener;
 import java.util.function.Function;
 
 /**
- * Интерфейс network state factory.
+ * Фабрика {@link NetworkState} с фиксированным контекстом.
+ * Привязывает состояние протокола к конкретному реестру через {@link #bind}.
+ *
+ * @param <T> тип слушателя пакетов
+ * @param <B> тип буфера
  */
 public interface NetworkStateFactory<T extends PacketListener, B extends ByteBuf> extends NetworkState.Factory {
 

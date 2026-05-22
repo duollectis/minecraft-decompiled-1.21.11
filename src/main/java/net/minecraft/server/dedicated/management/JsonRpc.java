@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code JsonRpc}.
+ * Класс Json Rpc.
  */
 public class JsonRpc {
 
@@ -26,7 +26,7 @@ public class JsonRpc {
 	 */
 	public static JsonObject encodeResult(JsonElement id, JsonElement result) {
 		JsonObject jsonObject = new JsonObject();
-		jsonObject.addProperty("jsonrpc", "2.0");
+		jsonObject.addProperty("jsonrpc", JSON_RPC_VERSION);
 		jsonObject.add("id", id);
 		jsonObject.add("result", result);
 		return jsonObject;
@@ -43,7 +43,7 @@ public class JsonRpc {
 	 */
 	public static JsonObject encodeRequest(@Nullable Integer id, Identifier method, List<JsonElement> parameters) {
 		JsonObject jsonObject = new JsonObject();
-		jsonObject.addProperty("jsonrpc", "2.0");
+		jsonObject.addProperty("jsonrpc", JSON_RPC_VERSION);
 		if (id != null) {
 			jsonObject.addProperty("id", id);
 		}
@@ -74,7 +74,7 @@ public class JsonRpc {
 	 */
 	public static JsonObject encodeError(JsonElement id, String message, int code, @Nullable String data) {
 		JsonObject jsonObject = new JsonObject();
-		jsonObject.addProperty("jsonrpc", "2.0");
+		jsonObject.addProperty("jsonrpc", JSON_RPC_VERSION);
 		jsonObject.add("id", id);
 		JsonObject jsonObject2 = new JsonObject();
 		jsonObject2.addProperty("code", code);

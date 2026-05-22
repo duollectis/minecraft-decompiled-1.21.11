@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code VillagerCanPickUpLootFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerCanPickUpLootFix extends ChoiceFix {
 

@@ -10,7 +10,7 @@ import com.mojang.serialization.codecs.PrimitiveCodec;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code IdentifierNormalizingSchema}.
+ * Определяет схему данных для версии формата.
  */
 public class IdentifierNormalizingSchema extends Schema {
 

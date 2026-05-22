@@ -7,45 +7,35 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code ItemStackSet}.
+ * Фабрика для создания множеств стеков предметов с кастомной стратегией хэширования.
+ * <p>Два стека считаются равными, если у них одинаковый тип предмета и компоненты
+ * (количество не учитывается). Используется в {@link ItemGroup} для хранения
+ * отображаемых предметов без дублирования.</p>
  */
 public class ItemStackSet {
 
-	private static final Strategy<? super ItemStack> HASH_STRATEGY = new Strategy<ItemStack>() {
-		/**
-		 * Проверяет наличие h code.
-		 *
-		 * @param itemStack item stack
-		 *
-		 * @return int — {@code true} если условие выполнено
-		 */
-		public int hashCode(@Nullable ItemStack itemStack) {
-			return ItemStack.hashCode(itemStack);
+	private static final Strategy<? super ItemStack> HASH_STRATEGY = new Strategy<>() {
+		@Override
+		public int hashCode(@Nullable ItemStack stack) {
+			return ItemStack.hashCode(stack);
 		}
 
-		/**
-		 * Equals.
-		 *
-		 * @param itemStack item stack
-		 * @param itemStack2 item stack2
-		 *
-		 * @return boolean — результат операции
-		 */
-		public boolean equals(@Nullable ItemStack itemStack, @Nullable ItemStack itemStack2) {
-			return itemStack == itemStack2
-					|| itemStack != null
-					&& itemStack2 != null
-					&& itemStack.isEmpty() == itemStack2.isEmpty()
-					&& ItemStack.areItemsAndComponentsEqual(itemStack, itemStack2);
+		@Override
+		public boolean equals(@Nullable ItemStack left, @Nullable ItemStack right) {
+			return left == right
+					|| left != null
+					&& right != null
+					&& left.isEmpty() == right.isEmpty()
+					&& ItemStack.areItemsAndComponentsEqual(left, right);
 		}
 	};
 
 	/**
-	 * Create.
+	 * Создаёт новое пустое множество стеков предметов с хэшированием по типу и компонентам.
 	 *
-	 * @return Set — результат операции
+	 * @return новое пустое множество стеков
 	 */
 	public static Set<ItemStack> create() {
-		return new ObjectLinkedOpenCustomHashSet(HASH_STRATEGY);
+		return new ObjectLinkedOpenCustomHashSet<>(HASH_STRATEGY);
 	}
 }

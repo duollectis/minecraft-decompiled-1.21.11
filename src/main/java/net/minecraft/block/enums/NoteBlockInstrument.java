@@ -6,7 +6,11 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code NoteBlockInstrument}.
+ * Инструмент блока нот, определяющий звук при воспроизведении.
+ * Выбор инструмента зависит от блока под нотным блоком:
+ * большинство инструментов активируются конкретными блоками-основаниями,
+ * головы мобов дают имитацию звука соответствующего существа,
+ * а {@link #CUSTOM_HEAD} используется для пользовательских голов игроков.
  */
 public enum NoteBlockInstrument implements StringIdentifiable {
 	HARP("harp", SoundEvents.BLOCK_NOTE_BLOCK_HARP, NoteBlockInstrument.Type.BASE_BLOCK),
@@ -41,7 +45,7 @@ public enum NoteBlockInstrument implements StringIdentifiable {
 	private final RegistryEntry<SoundEvent> sound;
 	private final NoteBlockInstrument.Type type;
 
-	private NoteBlockInstrument(
+	NoteBlockInstrument(
 			final String name,
 			final RegistryEntry<SoundEvent> sound,
 			final NoteBlockInstrument.Type type
@@ -53,36 +57,39 @@ public enum NoteBlockInstrument implements StringIdentifiable {
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	public RegistryEntry<SoundEvent> getSound() {
-		return this.sound;
+		return sound;
 	}
 
 	/**
-	 * Проверяет возможность be pitched.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Возвращает {@code true}, если высота звука этого инструмента может быть изменена
+	 * нотным блоком. Только инструменты типа {@link Type#BASE_BLOCK} поддерживают питч —
+	 * инструменты на основе голов мобов воспроизводят фиксированный звук.
 	 */
 	public boolean canBePitched() {
-		return this.type == NoteBlockInstrument.Type.BASE_BLOCK;
+		return type == NoteBlockInstrument.Type.BASE_BLOCK;
 	}
 
 	public boolean hasCustomSound() {
-		return this.type == NoteBlockInstrument.Type.CUSTOM;
+		return type == NoteBlockInstrument.Type.CUSTOM;
 	}
 
 	public boolean isNotBaseBlock() {
-		return this.type != NoteBlockInstrument.Type.BASE_BLOCK;
+		return type != NoteBlockInstrument.Type.BASE_BLOCK;
 	}
 
 	/**
-	 * {@code Type}.
+	 * Категория источника звука инструмента нотного блока.
 	 */
-	static enum Type {
+	enum Type {
+		/** Инструмент активируется блоком-основанием под нотным блоком. */
 		BASE_BLOCK,
+		/** Инструмент активируется головой моба над нотным блоком. */
 		MOB_HEAD,
+		/** Пользовательский инструмент (голова игрока с кастомным скином). */
 		CUSTOM;
 	}
 }

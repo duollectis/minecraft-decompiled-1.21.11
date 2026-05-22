@@ -16,7 +16,9 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code JfrProfileRecorder}.
+ * Читает JFR-файл записи и агрегирует все события в объект {@link JfrProfile}.
+ * Поддерживает события генерации чанков и структур, сетевого трафика,
+ * файлового ввода-вывода, сборки мусора и загрузки CPU.
  */
 public class JfrProfileRecorder {
 
@@ -43,52 +45,37 @@ public class JfrProfileRecorder {
 		this.handleEvents(events);
 	}
 
-	/**
-	 * Читает profile.
-	 *
-	 * @param path path
-	 *
-	 * @return JfrProfile — результат операции
-	 */
 	public static JfrProfile readProfile(Path path) {
-		try {
-			JfrProfile var4;
-			try (final RecordingFile recordingFile = new RecordingFile(path)) {
-				Iterator<RecordedEvent> iterator = new Iterator<RecordedEvent>() {
-					@Override
-					public boolean hasNext() {
-						return recordingFile.hasMoreEvents();
+		try (RecordingFile recordingFile = new RecordingFile(path)) {
+			Iterator<RecordedEvent> iterator = new Iterator<>() {
+				@Override
+				public boolean hasNext() {
+					return recordingFile.hasMoreEvents();
+				}
+
+				@Override
+				public RecordedEvent next() {
+					if (!hasNext()) {
+						throw new NoSuchElementException();
 					}
 
-					/**
-					 * Next.
-					 *
-					 * @return RecordedEvent — результат операции
-					 */
-					public RecordedEvent next() {
-						if (!this.hasNext()) {
-							throw new NoSuchElementException();
-						}
-						else {
-							try {
-								return recordingFile.readEvent();
-							}
-							catch (IOException var2) {
-								throw new UncheckedIOException(var2);
-							}
-						}
+					try {
+						return recordingFile.readEvent();
 					}
-				};
-				Stream<RecordedEvent>
-						stream =
-						StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 1297), false);
-				var4 = new JfrProfileRecorder(stream).createProfile();
-			}
+					catch (IOException ioException) {
+						throw new UncheckedIOException(ioException);
+					}
+				}
+			};
 
-			return var4;
+			Stream<RecordedEvent> eventStream = StreamSupport.stream(
+					Spliterators.spliteratorUnknownSize(iterator, 1297),
+					false
+			);
+			return new JfrProfileRecorder(eventStream).createProfile();
 		}
-		catch (IOException var7) {
-			throw new UncheckedIOException(var7);
+		catch (IOException ioException) {
+			throw new UncheckedIOException(ioException);
 		}
 	}
 
@@ -125,8 +112,8 @@ public class JfrProfileRecorder {
 				this.startTime = event.getStartTime();
 			}
 
-			String var2 = event.getEventType().getName();
-			switch (var2) {
+			String eventName = event.getEventType().getName();
+			switch (eventName) {
 				case "minecraft.ChunkGeneration":
 					this.chunkGenerationSamples.add(ChunkGenerationSample.fromEvent(event));
 					break;
@@ -216,19 +203,11 @@ public class JfrProfileRecorder {
 		return new NetworkIoStatistics<>(duration, list);
 	}
 
-	/**
-	 * {@code Counter}.
-	 */
 	public static final class Counter {
 
 		private long totalCount;
 		private long totalBytes;
 
-		/**
-		 * Add.
-		 *
-		 * @param bytes bytes
-		 */
 		public void add(int bytes) {
 			this.totalBytes += bytes;
 			this.totalCount++;

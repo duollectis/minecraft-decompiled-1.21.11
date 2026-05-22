@@ -17,7 +17,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * {@code IpBansRpcDispatcher}.
+ * Класс Ip Bans Rpc Dispatcher.
  */
 public class IpBansRpcDispatcher {
 
@@ -131,9 +131,6 @@ public class IpBansRpcDispatcher {
 		return get(dispatcher);
 	}
 
-	/**
-	 * {@code IncomingRpcIpBanData}.
-	 */
 	public record IncomingRpcIpBanData(
 			Optional<RpcPlayer> player,
 			Optional<String> ipAddress,
@@ -185,9 +182,6 @@ public class IpBansRpcDispatcher {
 		}
 	}
 
-	/**
-	 * {@code IpBanData}.
-	 */
 	public record IpBanData(
 			String ipAddress,
 			Optional<String> reason,
@@ -228,9 +222,6 @@ public class IpBansRpcDispatcher {
 		}
 	}
 
-	/**
-	 * {@code IpBanInfo}.
-	 */
 	record IpBanInfo(String ipAddress, @Nullable String reason, String source, Optional<Instant> expires) {
 
 		static IpBansRpcDispatcher.IpBanInfo fromBannedIpEntry(BannedIpEntry bannedIpEntry) {

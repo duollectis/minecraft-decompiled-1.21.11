@@ -14,11 +14,14 @@ import net.minecraft.client.render.model.ModelBaker;
 import net.minecraft.client.texture.SpriteHolder;
 import net.minecraft.client.util.math.MatrixStack;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BannerResultGuiElementRenderer}.
+ * Рендерер результата крафта баннера в GUI.
+ * Отображает итоговый баннер с применёнными паттернами в интерфейсе ткацкого станка.
  */
+@Environment(EnvType.CLIENT)
 public class BannerResultGuiElementRenderer extends SpecialGuiElementRenderer<BannerResultGuiElementRenderState> {
+
+	private static final float BANNER_Y_OFFSET = 0.25F;
 
 	private final SpriteHolder sprite;
 
@@ -32,32 +35,34 @@ public class BannerResultGuiElementRenderer extends SpecialGuiElementRenderer<Ba
 		return BannerResultGuiElementRenderState.class;
 	}
 
-	protected void render(
-			BannerResultGuiElementRenderState bannerResultGuiElementRenderState,
-			MatrixStack matrixStack
-	) {
+	@Override
+	protected void render(BannerResultGuiElementRenderState state, MatrixStack matrices) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()
 				.setShaderLights(DiffuseLighting.Type.ITEMS_FLAT);
-		matrixStack.translate(0.0F, 0.25F, 0.0F);
+
+		matrices.translate(0.0F, BANNER_Y_OFFSET, 0.0F);
+
 		RenderDispatcher renderDispatcher = MinecraftClient.getInstance().gameRenderer.getEntityRenderDispatcher();
-		OrderedRenderCommandQueueImpl orderedRenderCommandQueueImpl = renderDispatcher.getQueue();
+		OrderedRenderCommandQueueImpl commandQueue = renderDispatcher.getQueue();
+
 		BannerBlockEntityRenderer.renderCanvas(
-				this.sprite,
-				matrixStack,
-				orderedRenderCommandQueueImpl,
+				sprite,
+				matrices,
+				commandQueue,
 				15728880,
 				OverlayTexture.DEFAULT_UV,
-				bannerResultGuiElementRenderState.flag(),
+				state.flag(),
 				0.0F,
 				ModelBaker.BANNER_BASE,
 				true,
-				bannerResultGuiElementRenderState.baseColor(),
-				bannerResultGuiElementRenderState.resultBannerPatterns(),
+				state.baseColor(),
+				state.resultBannerPatterns(),
 				false,
 				null,
 				0
 		);
+
 		renderDispatcher.render();
 	}
 

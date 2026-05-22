@@ -4,10 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextureKey}.
+ * Именованный ключ текстурного слота модели. Ключи образуют иерархию наследования:
+ * если текстура для конкретного ключа не задана, поиск продолжается по цепочке
+ * {@link #getParent()} вплоть до корневого ключа.
  */
+@Environment(EnvType.CLIENT)
 public final class TextureKey {
 
 	public static final TextureKey ALL = of("all");

@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * {@code IronGolemWanderAroundGoal}.
+ * Цель блуждания железного голема: с вероятностью 30% идёт в случайную точку,
+ * иначе — к жителю или к занятой точке интереса (POI) в деревне.
  */
 public class IronGolemWanderAroundGoal extends WanderAroundGoal {
 
@@ -24,92 +25,97 @@ public class IronGolemWanderAroundGoal extends WanderAroundGoal {
 	private static final int ENTITY_COLLISION_RANGE = 32;
 	private static final int HORIZONTAL_RANGE = 10;
 	private static final int VERTICAL_RANGE = 7;
+	private static final float RANDOM_WANDER_CHANCE = 0.3F;
+	private static final float VILLAGER_PRIORITY_THRESHOLD = 0.7F;
 
-	public IronGolemWanderAroundGoal(PathAwareEntity pathAwareEntity, double d) {
-		super(pathAwareEntity, d, 240, false);
+	public IronGolemWanderAroundGoal(PathAwareEntity mob, double speed) {
+		super(mob, speed, 240, false);
 	}
 
 	@Override
 	protected @Nullable Vec3d getWanderTarget() {
-		float f = this.mob.getEntityWorld().random.nextFloat();
-		if (this.mob.getEntityWorld().random.nextFloat() < 0.3F) {
-			return this.findRandomInRange();
+		if (mob.getEntityWorld().random.nextFloat() < RANDOM_WANDER_CHANCE) {
+			return findRandomInRange();
 		}
-		else {
-			Vec3d vec3d;
-			if (f < 0.7F) {
-				vec3d = this.findVillagerPos();
-				if (vec3d == null) {
-					vec3d = this.findRandomBlockPos();
-				}
-			}
-			else {
-				vec3d = this.findRandomBlockPos();
-				if (vec3d == null) {
-					vec3d = this.findVillagerPos();
-				}
-			}
 
-			return vec3d == null ? this.findRandomInRange() : vec3d;
+		float roll = mob.getEntityWorld().random.nextFloat();
+		Vec3d target;
+
+		if (roll < VILLAGER_PRIORITY_THRESHOLD) {
+			target = findVillagerPos();
+
+			if (target == null) {
+				target = findRandomBlockPos();
+			}
+		} else {
+			target = findRandomBlockPos();
+
+			if (target == null) {
+				target = findVillagerPos();
+			}
 		}
+
+		return target == null ? findRandomInRange() : target;
 	}
 
 	private @Nullable Vec3d findRandomInRange() {
-		return FuzzyTargeting.find(this.mob, 10, 7);
+		return FuzzyTargeting.find(mob, HORIZONTAL_RANGE, VERTICAL_RANGE);
 	}
 
 	private @Nullable Vec3d findVillagerPos() {
-		ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
-		List<VillagerEntity>
-				list =
-				serverWorld.getEntitiesByType(
-						EntityType.VILLAGER,
-						this.mob.getBoundingBox().expand(32.0),
-						this::canVillagerSummonGolem
-				);
-		if (list.isEmpty()) {
+		ServerWorld serverWorld = (ServerWorld) mob.getEntityWorld();
+		List<VillagerEntity> villagers = serverWorld.getEntitiesByType(
+			EntityType.VILLAGER,
+			mob.getBoundingBox().expand(ENTITY_COLLISION_RANGE),
+			this::canVillagerSummonGolem
+		);
+
+		if (villagers.isEmpty()) {
 			return null;
 		}
-		else {
-			VillagerEntity villagerEntity = list.get(this.mob.getEntityWorld().random.nextInt(list.size()));
-			Vec3d vec3d = villagerEntity.getEntityPos();
-			return FuzzyTargeting.findTo(this.mob, 10, 7, vec3d);
-		}
+
+		VillagerEntity villager = villagers.get(mob.getEntityWorld().random.nextInt(villagers.size()));
+		return FuzzyTargeting.findTo(mob, HORIZONTAL_RANGE, VERTICAL_RANGE, villager.getEntityPos());
 	}
 
 	private @Nullable Vec3d findRandomBlockPos() {
-		ChunkSectionPos chunkSectionPos = this.findRandomChunkPos();
-		if (chunkSectionPos == null) {
+		ChunkSectionPos chunkPos = findRandomChunkPos();
+
+		if (chunkPos == null) {
 			return null;
 		}
-		else {
-			BlockPos blockPos = this.findRandomPosInChunk(chunkSectionPos);
-			return blockPos == null ? null : FuzzyTargeting.findTo(this.mob, 10, 7, Vec3d.ofBottomCenter(blockPos));
-		}
+
+		BlockPos blockPos = findRandomPosInChunk(chunkPos);
+		return blockPos == null
+			? null
+			: FuzzyTargeting.findTo(mob, HORIZONTAL_RANGE, VERTICAL_RANGE, Vec3d.ofBottomCenter(blockPos));
 	}
 
 	private @Nullable ChunkSectionPos findRandomChunkPos() {
-		ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
-		List<ChunkSectionPos> list = ChunkSectionPos.stream(ChunkSectionPos.from(this.mob), 2)
-		                                            .filter(sectionPos ->
-				                                            serverWorld.getOccupiedPointOfInterestDistance(sectionPos)
-						                                            == 0)
-		                                            .collect(Collectors.toList());
-		return list.isEmpty() ? null : list.get(serverWorld.random.nextInt(list.size()));
+		ServerWorld serverWorld = (ServerWorld) mob.getEntityWorld();
+		List<ChunkSectionPos> candidates = ChunkSectionPos.stream(ChunkSectionPos.from(mob), CHUNK_RANGE)
+			.filter(pos -> serverWorld.getOccupiedPointOfInterestDistance(pos) == 0)
+			.collect(Collectors.toList());
+
+		return candidates.isEmpty() ? null : candidates.get(serverWorld.random.nextInt(candidates.size()));
 	}
 
 	private @Nullable BlockPos findRandomPosInChunk(ChunkSectionPos pos) {
-		ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
-		PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
-		List<BlockPos> list = pointOfInterestStorage.getInCircle(
-				                                            registryEntry -> true, pos.getCenterPos(), 8, PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
-		                                            )
-		                                            .map(PointOfInterest::getPos)
-		                                            .collect(Collectors.toList());
-		return list.isEmpty() ? null : list.get(serverWorld.random.nextInt(list.size()));
+		ServerWorld serverWorld = (ServerWorld) mob.getEntityWorld();
+		List<BlockPos> positions = serverWorld.getPointOfInterestStorage()
+			.getInCircle(
+				registryEntry -> true,
+				pos.getCenterPos(),
+				8,
+				PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
+			)
+			.map(PointOfInterest::getPos)
+			.collect(Collectors.toList());
+
+		return positions.isEmpty() ? null : positions.get(serverWorld.random.nextInt(positions.size()));
 	}
 
 	private boolean canVillagerSummonGolem(VillagerEntity villager) {
-		return villager.canSummonGolem(this.mob.getEntityWorld().getTime());
+		return villager.canSummonGolem(mob.getEntityWorld().getTime());
 	}
 }

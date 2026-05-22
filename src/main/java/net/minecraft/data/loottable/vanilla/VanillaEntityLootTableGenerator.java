@@ -42,15 +42,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 
 	@Override
 	public void generate() {
-		RegistryEntryLookup<EntityType<?>> registryEntryLookup = this.registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
-		RegistryEntryLookup<FrogVariant> registryEntryLookup2 = this.registries.getOrThrow(RegistryKeys.FROG_VARIANT);
-		this.register(EntityType.ALLAY, LootTable.builder());
-		this.register(EntityType.ARMADILLO, LootTable.builder());
-		this.register(EntityType.ARMOR_STAND, LootTable.builder());
-		this.register(EntityType.AXOLOTL, LootTable.builder());
-		this.register(EntityType.BAT, LootTable.builder());
-		this.register(EntityType.BEE, LootTable.builder());
-		this.register(
+		RegistryEntryLookup<EntityType<?>> registryEntryLookup = registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
+		RegistryEntryLookup<FrogVariant> frogVariantLookup = registries.getOrThrow(RegistryKeys.FROG_VARIANT);
+		register(EntityType.ALLAY, LootTable.builder());
+		register(EntityType.ARMADILLO, LootTable.builder());
+		register(EntityType.ARMOR_STAND, LootTable.builder());
+		register(EntityType.AXOLOTL, LootTable.builder());
+		register(EntityType.BAT, LootTable.builder());
+		register(EntityType.BEE, LootTable.builder());
+		register(
 				EntityType.BLAZE,
 				LootTable.builder()
 				         .pool(
@@ -63,14 +63,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.BOGGED,
 				LootTable.builder()
 				         .pool(
@@ -83,7 +83,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -98,7 +98,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -114,7 +114,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction
 										                          .builder(
-												                          this.registries,
+												                          registries,
 												                          UniformLootNumberProvider.create(0.0F, 1.0F)
 										                          )
 										                          .withLimit(1))
@@ -123,7 +123,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.CAT,
 				LootTable.builder()
 				         .pool(
@@ -137,8 +137,8 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ))))
 				         )
 		);
-		this.register(EntityType.CAMEL, LootTable.builder());
-		this.register(
+		register(EntityType.CAMEL, LootTable.builder());
+		register(
 				EntityType.CAMEL_HUSK,
 				LootTable.builder()
 				         .pool(
@@ -151,13 +151,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.CAVE_SPIDER,
 				LootTable.builder()
 				         .pool(
@@ -170,7 +170,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -185,14 +185,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.CHICKEN,
 				LootTable.builder()
 				         .pool(
@@ -205,7 +205,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -217,15 +217,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.CHICKEN)
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.COD,
 				LootTable.builder()
 				         .pool(
@@ -235,7 +235,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 .builder(Items.COD)
 								                 .apply(FurnaceSmeltLootFunction
 										                 .builder()
-										                 .conditionally(this.createSmeltLootCondition())))
+										                 .conditionally(createSmeltLootCondition())))
 				         )
 				         .pool(
 						         LootPool.builder()
@@ -244,7 +244,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(RandomChanceLootCondition.builder(0.05F))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.COPPER_GOLEM,
 				LootTable.builder()
 				         .pool(
@@ -257,13 +257,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.COW,
 				LootTable.builder()
 				         .pool(
@@ -276,7 +276,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -292,15 +292,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.CREEPER,
 				LootTable.builder()
 				         .pool(
@@ -313,7 +313,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -331,7 +331,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.DOLPHIN,
 				LootTable.builder()
 				         .pool(
@@ -344,16 +344,16 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.DONKEY,
 				LootTable.builder()
 				         .pool(
@@ -366,13 +366,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.DROWNED,
 				LootTable.builder()
 				         .pool(
@@ -385,7 +385,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -396,15 +396,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .with(ItemEntry.builder(Items.COPPER_INGOT))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.11F,
 								                 0.02F
 						                 ))
 				         )
 		);
-		this.register(EntityType.ELDER_GUARDIAN, this.createElderGuardianTableBuilder());
-		this.register(EntityType.ENDER_DRAGON, LootTable.builder());
-		this.register(
+		register(EntityType.ELDER_GUARDIAN, createElderGuardianTableBuilder());
+		register(EntityType.ENDER_DRAGON, LootTable.builder());
+		register(
 				EntityType.ENDERMAN,
 				LootTable.builder()
 				         .pool(
@@ -417,14 +417,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.ENDERMITE, LootTable.builder());
-		this.register(
+		register(EntityType.ENDERMITE, LootTable.builder());
+		register(
 				EntityType.EVOKER,
 				LootTable.builder()
 				         .pool(LootPool
@@ -441,14 +441,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.BREEZE,
 				LootTable.builder()
 				         .pool(
@@ -461,16 +461,16 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(1.0F, 2.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(EntityType.FOX, LootTable.builder());
-		this.register(EntityType.FROG, LootTable.builder());
-		this.register(
+		register(EntityType.FOX, LootTable.builder());
+		register(EntityType.FROG, LootTable.builder());
+		register(
 				EntityType.GHAST,
 				LootTable.builder()
 				         .pool(
@@ -483,7 +483,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -498,7 +498,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -524,9 +524,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(EntityType.HAPPY_GHAST, LootTable.builder());
-		this.register(EntityType.GIANT, LootTable.builder());
-		this.register(
+		register(EntityType.HAPPY_GHAST, LootTable.builder());
+		register(EntityType.GIANT, LootTable.builder());
+		register(
 				EntityType.GLOW_SQUID,
 				LootTable.builder()
 				         .pool(
@@ -539,14 +539,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.GOAT, LootTable.builder());
-		this.register(
+		register(EntityType.GOAT, LootTable.builder());
+		register(
 				EntityType.GUARDIAN,
 				LootTable.builder()
 				         .pool(
@@ -559,7 +559,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -571,18 +571,18 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.COD)
 								                          .weight(2)
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 						                 )
 						                 .with(
 								                 ItemEntry.builder(Items.PRISMARINE_CRYSTALS)
 								                          .weight(2)
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -595,17 +595,17 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 LootTableEntry.builder(LootTables.FISHING_FISH_GAMEPLAY)
 								                               .apply(FurnaceSmeltLootFunction
 										                               .builder()
-										                               .conditionally(this.createSmeltLootCondition()))
+										                               .conditionally(createSmeltLootCondition()))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.HORSE,
 				LootTable.builder()
 				         .pool(
@@ -618,13 +618,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.HUSK,
 				LootTable.builder()
 				         .pool(
@@ -637,7 +637,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -652,7 +652,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .conditionally(
@@ -680,16 +680,16 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 .builder(Items.POTATO)
 								                 .apply(FurnaceSmeltLootFunction
 										                 .builder()
-										                 .conditionally(this.createSmeltLootCondition())))
+										                 .conditionally(createSmeltLootCondition())))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.RAVAGER,
 				LootTable.builder()
 				         .pool(
@@ -701,8 +701,8 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                 1.0F))))
 				         )
 		);
-		this.register(EntityType.ILLUSIONER, LootTable.builder());
-		this.register(
+		register(EntityType.ILLUSIONER, LootTable.builder());
+		register(
 				EntityType.IRON_GOLEM,
 				LootTable.builder()
 				         .pool(
@@ -726,7 +726,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ))))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.LLAMA,
 				LootTable.builder()
 				         .pool(
@@ -739,13 +739,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.MAGMA_CUBE,
 				LootTable.builder()
 				         .pool(
@@ -758,7 +758,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .conditionally(this
@@ -778,9 +778,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.PEARLESCENT_FROGLIGHT)
 								                          .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 										                          1.0F)))
-								                          .conditionally(this.killedByFrog(
+								                          .conditionally(killedByFrog(
 										                          registryEntryLookup,
-										                          registryEntryLookup2,
+										                          frogVariantLookup,
 										                          FrogVariants.WARM
 								                          ))
 						                 )
@@ -788,9 +788,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.VERDANT_FROGLIGHT)
 								                          .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 										                          1.0F)))
-								                          .conditionally(this.killedByFrog(
+								                          .conditionally(killedByFrog(
 										                          registryEntryLookup,
-										                          registryEntryLookup2,
+										                          frogVariantLookup,
 										                          FrogVariants.COLD
 								                          ))
 						                 )
@@ -798,16 +798,16 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.OCHRE_FROGLIGHT)
 								                          .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 										                          1.0F)))
-								                          .conditionally(this.killedByFrog(
+								                          .conditionally(killedByFrog(
 										                          registryEntryLookup,
-										                          registryEntryLookup2,
+										                          frogVariantLookup,
 										                          FrogVariants.TEMPERATE
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.MANNEQUIN, LootTable.builder());
-		this.register(
+		register(EntityType.MANNEQUIN, LootTable.builder());
+		register(
 				EntityType.MULE,
 				LootTable.builder()
 				         .pool(
@@ -820,13 +820,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.MOOSHROOM,
 				LootTable.builder()
 				         .pool(
@@ -839,7 +839,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -855,15 +855,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.NAUTILUS,
 				LootTable.builder()
 				         .pool(
@@ -872,14 +872,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .with(ItemEntry.builder(Items.NAUTILUS_SHELL))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.05F,
 								                 0.01F
 						                 ))
 				         )
 		);
-		this.register(EntityType.OCELOT, LootTable.builder());
-		this.register(
+		register(EntityType.OCELOT, LootTable.builder());
+		register(
 				EntityType.PANDA,
 				LootTable.builder()
 				         .pool(
@@ -891,7 +891,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                 1.0F))))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PARROT,
 				LootTable.builder()
 				         .pool(
@@ -904,13 +904,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PHANTOM,
 				LootTable.builder()
 				         .pool(
@@ -923,14 +923,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PIG,
 				LootTable.builder()
 				         .pool(
@@ -944,15 +944,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PILLAGER,
 				LootTable.builder()
 				         .pool(
@@ -975,8 +975,8 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 )
 				         )
 		);
-		this.register(EntityType.PLAYER, LootTable.builder());
-		this.register(
+		register(EntityType.PLAYER, LootTable.builder());
+		register(
 				EntityType.POLAR_BEAR,
 				LootTable.builder()
 				         .pool(
@@ -986,14 +986,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.COD)
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .weight(3)
 								                          .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
 										                          0.0F,
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1001,19 +1001,19 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.SALMON)
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
 										                          0.0F,
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PUFFERFISH,
 				LootTable.builder()
 				         .pool(
@@ -1031,7 +1031,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(RandomChanceLootCondition.builder(0.05F))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.RABBIT,
 				LootTable.builder()
 				         .pool(
@@ -1044,7 +1044,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1058,9 +1058,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F)))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1071,13 +1071,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .with(ItemEntry.builder(Items.RABBIT_FOOT))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.1F,
 								                 0.03F
 						                 ))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SALMON,
 				LootTable.builder()
 				         .pool(
@@ -1087,7 +1087,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 .builder(Items.SALMON)
 								                 .apply(FurnaceSmeltLootFunction
 										                 .builder()
-										                 .conditionally(this.createSmeltLootCondition())))
+										                 .conditionally(createSmeltLootCondition())))
 				         )
 				         .pool(
 						         LootPool.builder()
@@ -1096,7 +1096,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(RandomChanceLootCondition.builder(0.05F))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SHEEP,
 				LootTable.builder()
 				         .pool(
@@ -1110,9 +1110,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1121,13 +1121,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 		);
 		LootTableData.WOOL_FROM_DYE_COLOR
 				.forEach(
-						(color, wool) -> this.register(
+						(color, wool) -> register(
 								EntityType.SHEEP,
 								LootTables.SHEEP_DROPS_FROM_DYE_COLOR.get(color),
 								LootTable.builder().pool(LootPool.builder().with(ItemEntry.builder(wool)))
 						)
 				);
-		this.register(
+		register(
 				EntityType.SHULKER,
 				LootTable.builder()
 				         .pool(
@@ -1135,14 +1135,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .rolls(ConstantLootNumberProvider.create(1.0F))
 						                 .with(ItemEntry.builder(Items.SHULKER_SHELL))
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.5F,
 								                 0.0625F
 						                 ))
 				         )
 		);
-		this.register(EntityType.SILVERFISH, LootTable.builder());
-		this.register(
+		register(EntityType.SILVERFISH, LootTable.builder());
+		register(
 				EntityType.SKELETON,
 				LootTable.builder()
 				         .pool(
@@ -1155,7 +1155,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1170,13 +1170,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SKELETON_HORSE,
 				LootTable.builder()
 				         .pool(
@@ -1189,13 +1189,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SLIME,
 				LootTable.builder()
 				         .pool(
@@ -1208,7 +1208,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .conditionally(this
@@ -1219,7 +1219,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ItemEntry.builder(Items.SLIME_BALL)
 								                          .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(
 										                          1.0F)))
-								                          .conditionally(this.killedByFrog(registryEntryLookup))
+								                          .conditionally(killedByFrog(registryEntryLookup))
 						                 )
 						                 .conditionally(
 								                 EntityPropertiesLootCondition.builder(
@@ -1232,8 +1232,8 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 )
 				         )
 		);
-		this.register(EntityType.SNIFFER, LootTable.builder());
-		this.register(
+		register(EntityType.SNIFFER, LootTable.builder());
+		register(
 				EntityType.SNOW_GOLEM,
 				LootTable.builder()
 				         .pool(
@@ -1247,7 +1247,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 ))))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SPIDER,
 				LootTable.builder()
 				         .pool(
@@ -1260,7 +1260,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1275,14 +1275,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.SQUID,
 				LootTable.builder()
 				         .pool(
@@ -1295,13 +1295,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.STRAY,
 				LootTable.builder()
 				         .pool(
@@ -1314,7 +1314,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1329,7 +1329,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1345,7 +1345,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction
 										                          .builder(
-												                          this.registries,
+												                          registries,
 												                          UniformLootNumberProvider.create(0.0F, 1.0F)
 										                          )
 										                          .withLimit(1))
@@ -1354,7 +1354,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.PARCHED,
 				LootTable.builder()
 				         .pool(
@@ -1367,7 +1367,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1382,7 +1382,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1398,7 +1398,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction
 										                          .builder(
-												                          this.registries,
+												                          registries,
 												                          UniformLootNumberProvider.create(0.0F, 1.0F)
 										                          )
 										                          .withLimit(1))
@@ -1407,7 +1407,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.STRIDER,
 				LootTable.builder()
 				         .pool(
@@ -1420,14 +1420,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          5.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.TADPOLE, LootTable.builder());
-		this.register(
+		register(EntityType.TADPOLE, LootTable.builder());
+		register(
 				EntityType.TRADER_LLAMA,
 				LootTable.builder()
 				         .pool(
@@ -1440,13 +1440,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.TROPICAL_FISH,
 				LootTable.builder()
 				         .pool(
@@ -1464,7 +1464,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .conditionally(RandomChanceLootCondition.builder(0.05F))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.TURTLE,
 				LootTable.builder()
 				         .pool(
@@ -1478,7 +1478,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1494,9 +1494,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 )
 				         )
 		);
-		this.register(EntityType.VEX, LootTable.builder());
-		this.register(EntityType.VILLAGER, LootTable.builder());
-		this.register(
+		register(EntityType.VEX, LootTable.builder());
+		register(EntityType.VILLAGER, LootTable.builder());
+		register(
 				EntityType.WARDEN,
 				LootTable
 						.builder()
@@ -1505,8 +1505,8 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								.rolls(ConstantLootNumberProvider.create(1.0F))
 								.with(ItemEntry.builder(Items.SCULK_CATALYST)))
 		);
-		this.register(EntityType.WANDERING_TRADER, LootTable.builder());
-		this.register(
+		register(EntityType.WANDERING_TRADER, LootTable.builder());
+		register(
 				EntityType.VINDICATOR,
 				LootTable.builder()
 				         .pool(
@@ -1519,14 +1519,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.WITCH,
 				LootTable.builder()
 				         .pool(
@@ -1539,7 +1539,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1550,7 +1550,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1561,7 +1561,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1572,7 +1572,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1583,7 +1583,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1595,7 +1595,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1610,14 +1610,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          8.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.WITHER, LootTable.builder());
-		this.register(
+		register(EntityType.WITHER, LootTable.builder());
+		register(
 				EntityType.WITHER_SKELETON,
 				LootTable.builder()
 				         .pool(
@@ -1630,7 +1630,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1645,7 +1645,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1656,14 +1656,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .with(ItemEntry.builder(Blocks.WITHER_SKELETON_SKULL))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
 				         )
 		);
-		this.register(EntityType.WOLF, LootTable.builder());
-		this.register(
+		register(EntityType.WOLF, LootTable.builder());
+		register(
 				EntityType.ZOGLIN,
 				LootTable.builder()
 				         .pool(
@@ -1676,14 +1676,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.CREAKING, LootTable.builder());
-		this.register(
+		register(EntityType.CREAKING, LootTable.builder());
+		register(
 				EntityType.ZOMBIE,
 				LootTable.builder()
 				         .pool(
@@ -1696,7 +1696,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1711,7 +1711,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 								                          .conditionally(
@@ -1739,10 +1739,10 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 .builder(Items.POTATO)
 								                 .apply(FurnaceSmeltLootFunction
 										                 .builder()
-										                 .conditionally(this.createSmeltLootCondition())))
+										                 .conditionally(createSmeltLootCondition())))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
@@ -1768,7 +1768,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.ZOMBIE_HORSE,
 				LootTable.builder()
 				         .pool(
@@ -1781,13 +1781,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(
+		register(
 				EntityType.ZOMBIE_NAUTILUS,
 				LootTable.builder()
 				         .pool(
@@ -1800,14 +1800,14 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          3.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 				         )
 		);
-		this.register(
+		register(
 				EntityType.ZOMBIFIED_PIGLIN,
 				LootTable.builder()
 				         .pool(
@@ -1820,7 +1820,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1835,7 +1835,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1846,13 +1846,13 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                 .with(ItemEntry.builder(Items.GOLD_INGOT))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
 				         )
 		);
-		this.register(
+		register(
 				EntityType.HOGLIN,
 				LootTable.builder()
 				         .pool(
@@ -1866,9 +1866,9 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                          )))
 								                          .apply(FurnaceSmeltLootFunction
 										                          .builder()
-										                          .conditionally(this.createSmeltLootCondition()))
+										                          .conditionally(createSmeltLootCondition()))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1883,15 +1883,15 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          1.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
 				         )
 		);
-		this.register(EntityType.PIGLIN, LootTable.builder());
-		this.register(EntityType.PIGLIN_BRUTE, LootTable.builder());
-		this.register(
+		register(EntityType.PIGLIN, LootTable.builder());
+		register(EntityType.PIGLIN_BRUTE, LootTable.builder());
+		register(
 				EntityType.ZOMBIE_VILLAGER,
 				LootTable.builder()
 				         .pool(
@@ -1904,7 +1904,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 										                          2.0F
 								                          )))
 								                          .apply(EnchantedCountIncreaseLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          UniformLootNumberProvider.create(0.0F, 1.0F)
 								                          ))
 						                 )
@@ -1918,10 +1918,10 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                 .builder(Items.POTATO)
 								                 .apply(FurnaceSmeltLootFunction
 										                 .builder()
-										                 .conditionally(this.createSmeltLootCondition())))
+										                 .conditionally(createSmeltLootCondition())))
 						                 .conditionally(KilledByPlayerLootCondition.builder())
 						                 .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-								                 this.registries,
+								                 registries,
 								                 0.025F,
 								                 0.01F
 						                 ))
@@ -1941,7 +1941,7 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 								                                 2.0F
 						                                 )))
 						                                 .apply(EnchantedCountIncreaseLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(0.0F, 1.0F)
 						                                 ))
 				                        )
@@ -1953,18 +1953,18 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                        ItemEntry.builder(Items.COD)
 						                                 .weight(3)
 						                                 .apply(EnchantedCountIncreaseLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(0.0F, 1.0F)
 						                                 ))
 						                                 .apply(FurnaceSmeltLootFunction
 								                                 .builder()
-								                                 .conditionally(this.createSmeltLootCondition()))
+								                                 .conditionally(createSmeltLootCondition()))
 				                        )
 				                        .with(
 						                        ItemEntry.builder(Items.PRISMARINE_CRYSTALS)
 						                                 .weight(2)
 						                                 .apply(EnchantedCountIncreaseLootFunction.builder(
-								                                 this.registries,
+								                                 registries,
 								                                 UniformLootNumberProvider.create(0.0F, 1.0F)
 						                                 ))
 				                        )
@@ -1983,11 +1983,11 @@ public class VanillaEntityLootTableGenerator extends EntityLootTableGenerator {
 						                        LootTableEntry.builder(LootTables.FISHING_FISH_GAMEPLAY)
 						                                      .apply(FurnaceSmeltLootFunction
 								                                      .builder()
-								                                      .conditionally(this.createSmeltLootCondition()))
+								                                      .conditionally(createSmeltLootCondition()))
 				                        )
 				                        .conditionally(KilledByPlayerLootCondition.builder())
 				                        .conditionally(RandomChanceWithEnchantedBonusLootCondition.builder(
-						                        this.registries,
+						                        registries,
 						                        0.025F,
 						                        0.01F
 				                        ))

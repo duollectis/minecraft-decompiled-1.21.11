@@ -17,14 +17,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScrollableLayoutWidget}.
+ * Виджет-обёртка над произвольным {@link LayoutWidget}, добавляющий вертикальную прокрутку.
+ * <p>
+ * Внутренний {@link Container} ограничивает видимую область по высоте и рисует полосу прокрутки.
+ * Ширина контейнера автоматически расширяется на {@link #SCROLLBAR_WIDTH} пикселей, чтобы
+ * оставить место для скроллбара, не перекрывая содержимое.
  */
+@Environment(EnvType.CLIENT)
 public class ScrollableLayoutWidget implements LayoutWidget {
 
 	private static final int SCROLLBAR_WIDTH = 4;
-	private static final int SCROLL_SPEED = 10;
+	/** Смещение содержимого по X, чтобы скроллбар не перекрывал виджеты. */
+	private static final int CONTENT_X_OFFSET = 10;
+	private static final double SCROLL_SPEED = 10.0;
+
 	final LayoutWidget layout;
 	private final ScrollableLayoutWidget.Container container;
 	private int width;
@@ -37,63 +44,66 @@ public class ScrollableLayoutWidget implements LayoutWidget {
 
 	public void setWidth(int width) {
 		this.width = width;
-		this.container.setWidth(Math.max(this.layout.getWidth(), width));
+		container.setWidth(Math.max(layout.getWidth(), width));
 	}
 
 	public void setHeight(int height) {
 		this.height = height;
-		this.container.setHeight(Math.min(this.layout.getHeight(), height));
-		this.container.refreshScroll();
+		container.setHeight(Math.min(layout.getHeight(), height));
+		container.refreshScroll();
 	}
 
 	@Override
 	public void refreshPositions() {
-		this.layout.refreshPositions();
-		int i = this.layout.getWidth();
-		this.container.setWidth(Math.max(i + 20, this.width));
-		this.container.setHeight(Math.min(this.layout.getHeight(), this.height));
-		this.container.refreshScroll();
+		layout.refreshPositions();
+		int layoutWidth = layout.getWidth();
+		container.setWidth(Math.max(layoutWidth + CONTENT_X_OFFSET * 2, width));
+		container.setHeight(Math.min(layout.getHeight(), height));
+		container.refreshScroll();
 	}
 
 	@Override
 	public void forEachElement(Consumer<Widget> consumer) {
-		consumer.accept(this.container);
+		consumer.accept(container);
 	}
 
 	@Override
 	public void setX(int x) {
-		this.container.setX(x);
+		container.setX(x);
 	}
 
 	@Override
 	public void setY(int y) {
-		this.container.setY(y);
+		container.setY(y);
 	}
 
 	@Override
 	public int getX() {
-		return this.container.getX();
+		return container.getX();
 	}
 
 	@Override
 	public int getY() {
-		return this.container.getY();
+		return container.getY();
 	}
 
 	@Override
 	public int getWidth() {
-		return this.container.getWidth();
+		return container.getWidth();
 	}
 
 	@Override
 	public int getHeight() {
-		return this.container.getHeight();
+		return container.getHeight();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Container}.
+	 * Внутренний контейнер, реализующий прокрутку содержимого {@link LayoutWidget}.
+	 * <p>
+	 * При фокусировке дочернего элемента через клавиатуру автоматически прокручивает
+	 * область видимости так, чтобы сфокусированный виджет оказался в поле зрения.
 	 */
+	@Environment(EnvType.CLIENT)
 	class Container extends ContainerWidget {
 
 		private final MinecraftClient client;
@@ -102,7 +112,7 @@ public class ScrollableLayoutWidget implements LayoutWidget {
 		public Container(final MinecraftClient client, final int width, final int height) {
 			super(0, 0, width, height, ScreenTexts.EMPTY);
 			this.client = client;
-			ScrollableLayoutWidget.this.layout.forEachChild(this.children::add);
+			ScrollableLayoutWidget.this.layout.forEachChild(children::add);
 		}
 
 		@Override
@@ -112,19 +122,19 @@ public class ScrollableLayoutWidget implements LayoutWidget {
 
 		@Override
 		protected double getDeltaYPerScroll() {
-			return 10.0;
+			return SCROLL_SPEED;
 		}
 
 		@Override
 		protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-			context.enableScissor(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height);
+			context.enableScissor(getX(), getY(), getX() + width, getY() + height);
 
-			for (ClickableWidget clickableWidget : this.children) {
-				clickableWidget.render(context, mouseX, mouseY, deltaTicks);
+			for (ClickableWidget child : children) {
+				child.render(context, mouseX, mouseY, deltaTicks);
 			}
 
 			context.disableScissor();
-			this.drawScrollbar(context, mouseX, mouseY);
+			drawScrollbar(context, mouseX, mouseY);
 		}
 
 		@Override
@@ -133,52 +143,61 @@ public class ScrollableLayoutWidget implements LayoutWidget {
 
 		@Override
 		public ScreenRect getBorder(NavigationDirection direction) {
-			return new ScreenRect(this.getX(), this.getY(), this.width, this.getContentsHeightWithPadding());
+			return new ScreenRect(getX(), getY(), width, getContentsHeightWithPadding());
 		}
 
+		/**
+		 * При фокусировке дочернего элемента через клавиатуру прокручивает список,
+		 * чтобы сфокусированный виджет оказался в видимой области.
+		 */
 		@Override
 		public void setFocused(@Nullable Element focused) {
 			super.setFocused(focused);
-			if (focused != null && this.client.getNavigationType().isKeyboard()) {
-				ScreenRect screenRect = this.getNavigationFocus();
-				ScreenRect screenRect2 = focused.getNavigationFocus();
-				int i = screenRect2.getTop() - screenRect.getTop();
-				int j = screenRect2.getBottom() - screenRect.getBottom();
-				if (i < 0) {
-					this.setScrollY(this.getScrollY() + i - 14.0);
-				}
-				else if (j > 0) {
-					this.setScrollY(this.getScrollY() + j + 14.0);
-				}
+
+			if (focused == null || !client.getNavigationType().isKeyboard()) {
+				return;
+			}
+
+			ScreenRect containerRect = getNavigationFocus();
+			ScreenRect focusedRect = focused.getNavigationFocus();
+			int topDelta = focusedRect.getTop() - containerRect.getTop();
+			int bottomDelta = focusedRect.getBottom() - containerRect.getBottom();
+
+			if (topDelta < 0) {
+				setScrollY(getScrollY() + topDelta - CONTENT_X_OFFSET);
+			}
+			else if (bottomDelta > 0) {
+				setScrollY(getScrollY() + bottomDelta + CONTENT_X_OFFSET);
 			}
 		}
 
 		@Override
 		public void setX(int x) {
 			super.setX(x);
-			ScrollableLayoutWidget.this.layout.setX(x + 10);
+			// Смещаем содержимое вправо, чтобы скроллбар не перекрывал виджеты
+			ScrollableLayoutWidget.this.layout.setX(x + CONTENT_X_OFFSET);
 		}
 
 		@Override
 		public void setY(int y) {
 			super.setY(y);
-			ScrollableLayoutWidget.this.layout.setY(y - (int) this.getScrollY());
+			ScrollableLayoutWidget.this.layout.setY(y - (int) getScrollY());
 		}
 
 		@Override
 		public void setScrollY(double scrollY) {
 			super.setScrollY(scrollY);
-			ScrollableLayoutWidget.this.layout.setY(this.getNavigationFocus().getTop() - (int) this.getScrollY());
+			ScrollableLayoutWidget.this.layout.setY(getNavigationFocus().getTop() - (int) getScrollY());
 		}
 
 		@Override
 		public List<? extends Element> children() {
-			return this.children;
+			return children;
 		}
 
 		@Override
 		public Collection<? extends Selectable> getNarratedParts() {
-			return this.children;
+			return children;
 		}
 	}
 }

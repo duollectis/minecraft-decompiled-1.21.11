@@ -44,7 +44,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code VaultBlockEntity}.
+ * Блок-сущность хранилища (vault). Хранит конфигурацию, серверные данные (список наград, игроков)
+ * и общие данные (отображаемый предмет, подключённые игроки), синхронизируемые с клиентом.
  */
 public class VaultBlockEntity extends BlockEntity {
 
@@ -66,45 +67,40 @@ public class VaultBlockEntity extends BlockEntity {
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
 		return Util.make(
 				new NbtCompound(),
-				nbt -> nbt.put(
-						"shared_data",
-						VaultSharedData.codec,
-						registries.getOps(NbtOps.INSTANCE),
-						this.sharedData
-				)
+				nbt -> nbt.put("shared_data", VaultSharedData.codec, registries.getOps(NbtOps.INSTANCE), sharedData)
 		);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.put("config", VaultConfig.codec, this.config);
-		view.put("shared_data", VaultSharedData.codec, this.sharedData);
-		view.put("server_data", VaultServerData.codec, this.serverData);
+		view.put("config", VaultConfig.codec, config);
+		view.put("shared_data", VaultSharedData.codec, sharedData);
+		view.put("server_data", VaultServerData.codec, serverData);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		view.<VaultServerData>read("server_data", VaultServerData.codec).ifPresent(this.serverData::copyFrom);
-		this.config = view.<VaultConfig>read("config", VaultConfig.codec).orElse(VaultConfig.DEFAULT);
-		view.<VaultSharedData>read("shared_data", VaultSharedData.codec).ifPresent(this.sharedData::copyFrom);
+		view.<VaultServerData>read("server_data", VaultServerData.codec).ifPresent(serverData::copyFrom);
+		config = view.<VaultConfig>read("config", VaultConfig.codec).orElse(VaultConfig.DEFAULT);
+		view.<VaultSharedData>read("shared_data", VaultSharedData.codec).ifPresent(sharedData::copyFrom);
 	}
 
 	public @Nullable VaultServerData getServerData() {
-		return this.world != null && !this.world.isClient() ? this.serverData : null;
+		return world != null && !world.isClient() ? serverData : null;
 	}
 
 	public VaultSharedData getSharedData() {
-		return this.sharedData;
+		return sharedData;
 	}
 
 	public VaultClientData getClientData() {
-		return this.clientData;
+		return clientData;
 	}
 
 	public VaultConfig getConfig() {
-		return this.config;
+		return config;
 	}
 
 	@VisibleForTesting
@@ -113,7 +109,8 @@ public class VaultBlockEntity extends BlockEntity {
 	}
 
 	/**
-	 * {@code Client}.
+	 * Клиентская логика хранилища: анимация вращения предмета, спавн частиц
+	 * и воспроизведение фонового звука на стороне клиента.
 	 */
 	public static final class Client {
 
@@ -131,7 +128,7 @@ public class VaultBlockEntity extends BlockEntity {
 				VaultSharedData sharedData
 		) {
 			clientData.rotateDisplay();
-			if (world.getTime() % 20L == 0L) {
+			if (world.getTime() % PARTICLE_SPAWN_INTERVAL_TICKS == 0L) {
 				spawnConnectedParticles(world, pos, state, sharedData);
 			}
 
@@ -154,31 +151,24 @@ public class VaultBlockEntity extends BlockEntity {
 			spawnConnectedParticles(world, pos, state, sharedData);
 			Random random = world.random;
 
-			for (int i = 0; i < 20; i++) {
+			for (int i = 0; i < PARTICLE_SPAWN_INTERVAL_TICKS; i++) {
 				Vec3d vec3d = getRegularParticlesPos(pos, random);
 				world.addParticleClient(ParticleTypes.SMOKE, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
 				world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
 			}
 		}
 
-		/**
-		 * Создаёт (спавнит) deactivate particles.
-		 *
-		 * @param world world
-		 * @param pos pos
-		 * @param particle particle
-		 */
 		public static void spawnDeactivateParticles(World world, BlockPos pos, ParticleEffect particle) {
 			Random random = world.random;
 
-			for (int i = 0; i < 20; i++) {
+			for (int i = 0; i < PARTICLE_SPAWN_INTERVAL_TICKS; i++) {
 				Vec3d vec3d = getDeactivateParticlesPos(pos, random);
 				Vec3d
 						vec3d2 =
 						new Vec3d(
-								random.nextGaussian() * 0.02,
-								random.nextGaussian() * 0.02,
-								random.nextGaussian() * 0.02
+								random.nextGaussian() * CONNECTED_PARTICLE_SPEED,
+								random.nextGaussian() * CONNECTED_PARTICLE_SPEED,
+								random.nextGaussian() * CONNECTED_PARTICLE_SPEED
 						);
 				world.addParticleClient(
 						particle,
@@ -258,7 +248,7 @@ public class VaultBlockEntity extends BlockEntity {
 		private static void playAmbientSound(World world, BlockPos pos, VaultSharedData sharedData) {
 			if (hasDisplayItem(sharedData)) {
 				Random random = world.getRandom();
-				if (random.nextFloat() <= 0.02F) {
+				if (random.nextFloat() <= CONNECTED_PARTICLE_SPEED) {
 					world.playSoundAtBlockCenterClient(
 							pos,
 							SoundEvents.BLOCK_VAULT_AMBIENT,
@@ -301,7 +291,7 @@ public class VaultBlockEntity extends BlockEntity {
 	}
 
 	/**
-	 * {@code Server}.
+	 * Серверная логика хранилища: тик состояния, разблокировка, генерация лута.
 	 */
 	public static final class Server {
 
@@ -318,26 +308,29 @@ public class VaultBlockEntity extends BlockEntity {
 				VaultSharedData sharedData
 		) {
 			VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
+
 			if (shouldUpdateDisplayItem(world.getTime(), vaultState)) {
 				updateDisplayItem(world, vaultState, config, sharedData, pos);
 			}
 
-			BlockState blockState = state;
+			BlockState updatedState = state;
+
 			if (world.getTime() >= serverData.getStateUpdatingResumeTime()) {
-				blockState =
-						state.with(
-								VaultBlock.VAULT_STATE,
-								vaultState.update(world, pos, config, serverData, sharedData)
-						);
-				if (state != blockState) {
-					changeVaultState(world, pos, state, blockState, config, sharedData);
+				updatedState = state.with(
+						VaultBlock.VAULT_STATE,
+						vaultState.update(world, pos, config, serverData, sharedData)
+				);
+
+				if (state != updatedState) {
+					changeVaultState(world, pos, state, updatedState, config, sharedData);
 				}
 			}
 
 			if (serverData.dirty || sharedData.dirty) {
 				VaultBlockEntity.markDirty(world, pos, state);
+
 				if (sharedData.dirty) {
-					world.updateListeners(pos, state, blockState, 2);
+					world.updateListeners(pos, state, updatedState, 2);
 				}
 
 				serverData.dirty = false;
@@ -356,24 +349,32 @@ public class VaultBlockEntity extends BlockEntity {
 				ItemStack stack
 		) {
 			VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
-			if (canBeUnlocked(config, vaultState)) {
-				if (!isValidKey(config, stack)) {
-					playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM_FAIL);
-				}
-				else if (serverData.hasRewardedPlayer(player)) {
-					playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_REJECT_REWARDED_PLAYER);
-				}
-				else {
-					List<ItemStack> list = generateLoot(world, config, pos, player, stack);
-					if (!list.isEmpty()) {
-						player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-						stack.decrementUnlessCreative(config.keyItem().getCount(), player);
-						unlock(world, state, pos, config, serverData, sharedData, list);
-						serverData.markPlayerAsRewarded(player);
-						sharedData.updateConnectedPlayers(world, pos, serverData, config, config.deactivationRange());
-					}
-				}
+
+			if (!canBeUnlocked(config, vaultState)) {
+				return;
 			}
+
+			if (!isValidKey(config, stack)) {
+				playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM_FAIL);
+				return;
+			}
+
+			if (serverData.hasRewardedPlayer(player)) {
+				playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_REJECT_REWARDED_PLAYER);
+				return;
+			}
+
+			List<ItemStack> loot = generateLoot(world, config, pos, player, stack);
+
+			if (loot.isEmpty()) {
+				return;
+			}
+
+			player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+			stack.decrementUnlessCreative(config.keyItem().getCount(), player);
+			unlock(world, state, pos, config, serverData, sharedData, loot);
+			serverData.markPlayerAsRewarded(player);
+			sharedData.updateConnectedPlayers(world, pos, serverData, config, config.deactivationRange());
 		}
 
 		static void changeVaultState(
@@ -384,10 +385,10 @@ public class VaultBlockEntity extends BlockEntity {
 				VaultConfig config,
 				VaultSharedData sharedData
 		) {
-			VaultState vaultState = oldState.get(VaultBlock.VAULT_STATE);
-			VaultState vaultState2 = newState.get(VaultBlock.VAULT_STATE);
+			VaultState oldVaultState = oldState.get(VaultBlock.VAULT_STATE);
+			VaultState newVaultState = newState.get(VaultBlock.VAULT_STATE);
 			world.setBlockState(pos, newState, 3);
-			vaultState.onStateChange(world, pos, vaultState2, config, sharedData, newState.get(VaultBlock.OMINOUS));
+			oldVaultState.onStateChange(world, pos, newVaultState, config, sharedData, newState.get(VaultBlock.OMINOUS));
 		}
 
 		public static void updateDisplayItem(
@@ -399,13 +400,11 @@ public class VaultBlockEntity extends BlockEntity {
 		) {
 			if (!canBeUnlocked(config, state)) {
 				sharedData.setDisplayItem(ItemStack.EMPTY);
+				return;
 			}
-			else {
-				ItemStack
-						itemStack =
-						generateDisplayItem(world, pos, config.overrideLootTableToDisplay().orElse(config.lootTable()));
-				sharedData.setDisplayItem(itemStack);
-			}
+
+			RegistryKey<LootTable> displayLootTable = config.overrideLootTableToDisplay().orElse(config.lootTable());
+			sharedData.setDisplayItem(generateDisplayItem(world, pos, displayLootTable));
 		}
 
 		private static ItemStack generateDisplayItem(
@@ -413,12 +412,13 @@ public class VaultBlockEntity extends BlockEntity {
 				BlockPos pos,
 				RegistryKey<LootTable> lootTable
 		) {
-			LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
-			LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
+			LootTable resolvedTable = world.getServer().getReloadableRegistries().getLootTable(lootTable);
+			LootWorldContext lootContext = new LootWorldContext.Builder(world)
 					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
 					.build(LootContextTypes.VAULT);
-			List<ItemStack> list = lootTable2.generateLoot(lootWorldContext, world.getRandom());
-			return list.isEmpty() ? ItemStack.EMPTY : Util.getRandom(list, world.getRandom());
+			List<ItemStack> items = resolvedTable.generateLoot(lootContext, world.getRandom());
+
+			return items.isEmpty() ? ItemStack.EMPTY : Util.getRandom(items, world.getRandom());
 		}
 
 		private static void unlock(
@@ -432,7 +432,7 @@ public class VaultBlockEntity extends BlockEntity {
 		) {
 			serverData.setItemsToEject(itemsToEject);
 			sharedData.setDisplayItem(serverData.getItemToDisplay());
-			serverData.setStateUpdatingResumeTime(world.getTime() + 14L);
+			serverData.setStateUpdatingResumeTime(world.getTime() + UNLOCK_TIME);
 			changeVaultState(
 					world,
 					pos,
@@ -451,13 +451,14 @@ public class VaultBlockEntity extends BlockEntity {
 				ItemStack key
 		) {
 			LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(config.lootTable());
-			LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
+			LootWorldContext lootContext = new LootWorldContext.Builder(world)
 					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
 					.luck(player.getLuck())
 					.add(LootContextParameters.THIS_ENTITY, player)
 					.add(LootContextParameters.TOOL, key)
 					.build(LootContextTypes.VAULT);
-			return lootTable.generateLoot(lootWorldContext);
+
+			return lootTable.generateLoot(lootContext);
 		}
 
 		private static boolean canBeUnlocked(VaultConfig config, VaultState state) {
@@ -465,13 +466,12 @@ public class VaultBlockEntity extends BlockEntity {
 		}
 
 		private static boolean isValidKey(VaultConfig config, ItemStack stack) {
-			return ItemStack.areItemsAndComponentsEqual(stack, config.keyItem()) && stack.getCount() >= config
-					.keyItem()
-					.getCount();
+			return ItemStack.areItemsAndComponentsEqual(stack, config.keyItem())
+					&& stack.getCount() >= config.keyItem().getCount();
 		}
 
 		private static boolean shouldUpdateDisplayItem(long time, VaultState state) {
-			return time % 20L == 0L && state == VaultState.ACTIVE;
+			return time % Client.PARTICLE_SPAWN_INTERVAL_TICKS == 0L && state == VaultState.ACTIVE;
 		}
 
 		private static void playFailedUnlockSound(
@@ -480,7 +480,7 @@ public class VaultBlockEntity extends BlockEntity {
 				BlockPos pos,
 				SoundEvent sound
 		) {
-			if (world.getTime() >= serverData.getLastFailedUnlockTime() + 15L) {
+			if (world.getTime() >= serverData.getLastFailedUnlockTime() + FAILED_UNLOCK_COOLDOWN) {
 				world.playSound(null, pos, sound, SoundCategory.BLOCKS);
 				serverData.setLastFailedUnlockTime(world.getTime());
 			}

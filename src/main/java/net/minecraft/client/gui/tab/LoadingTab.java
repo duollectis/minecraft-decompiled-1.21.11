@@ -12,42 +12,57 @@ import net.minecraft.text.Text;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LoadingTab}.
+ * Вкладка экрана, отображающая индикатор загрузки вместо обычного содержимого.
+ * Используется при асинхронной загрузке данных (например, список серверов, скины).
+ * Виджет загрузки центрируется в области вкладки с небольшим отступом снизу.
  */
+@Environment(EnvType.CLIENT)
 public class LoadingTab implements Tab {
+
+	/** Нижний отступ виджета загрузки для визуального смещения от центра вверх. */
+	private static final int LOADING_WIDGET_BOTTOM_MARGIN = 30;
+	/** Горизонтальное и вертикальное выравнивание по центру области вкладки. */
+	private static final float CENTER_ALIGNMENT = 0.5F;
 
 	private final Text title;
 	private final Text narratedHint;
 	protected final DirectionalLayoutWidget layout = DirectionalLayoutWidget.vertical();
 
+	/**
+	 * Создаёт вкладку загрузки с центрированным индикатором.
+	 *
+	 * @param textRenderer  рендерер текста для виджета загрузки
+	 * @param title         заголовок вкладки (отображается на кнопке вкладки)
+	 * @param narratedHint  текст для нарратора доступности
+	 */
 	public LoadingTab(TextRenderer textRenderer, Text title, Text narratedHint) {
 		this.title = title;
 		this.narratedHint = narratedHint;
+
 		LoadingWidget loadingWidget = new LoadingWidget(textRenderer, narratedHint);
-		this.layout.getMainPositioner().alignVerticalCenter().alignHorizontalCenter();
-		this.layout.add(loadingWidget, positioner -> positioner.marginBottom(30));
+		layout.getMainPositioner().alignVerticalCenter().alignHorizontalCenter();
+		layout.add(loadingWidget, positioner -> positioner.marginBottom(LOADING_WIDGET_BOTTOM_MARGIN));
 	}
 
 	@Override
 	public Text getTitle() {
-		return this.title;
+		return title;
 	}
 
 	@Override
 	public Text getNarratedHint() {
-		return this.narratedHint;
+		return narratedHint;
 	}
 
 	@Override
 	public void forEachChild(Consumer<ClickableWidget> consumer) {
-		this.layout.forEachChild(consumer);
+		layout.forEachChild(consumer);
 	}
 
 	@Override
 	public void refreshGrid(ScreenRect tabArea) {
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, tabArea, 0.5F, 0.5F);
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, tabArea, CENTER_ALIGNMENT, CENTER_ALIGNMENT);
 	}
 }

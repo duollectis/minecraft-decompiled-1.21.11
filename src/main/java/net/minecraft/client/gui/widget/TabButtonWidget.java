@@ -17,10 +17,11 @@ import net.minecraft.client.sound.SoundManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TabButtonWidget}.
+ * Кнопка вкладки в панели навигации. Отображает текстуру, подчёркивание активной вкладки
+ * и фоновую текстуру меню для выбранной вкладки.
  */
+@Environment(EnvType.CLIENT)
 public class TabButtonWidget extends ClickableWidget.InactivityIndicatingWidget {
 
 	private static final ButtonTextures TAB_BUTTON_TEXTURES = new ButtonTextures(
@@ -43,42 +44,31 @@ public class TabButtonWidget extends ClickableWidget.InactivityIndicatingWidget 
 		this.tab = tab;
 	}
 
+	private static final int TEXT_COLOR_ACTIVE = -1;
+	private static final int TEXT_COLOR_INACTIVE = -6250336;
+
 	@Override
 	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				TAB_BUTTON_TEXTURES.get(this.isCurrentTab(), this.isSelected()),
-				this.getX(),
-				this.getY(),
-				this.width,
-				this.height
+				TAB_BUTTON_TEXTURES.get(isCurrentTab(), isSelected()),
+				getX(),
+				getY(),
+				width,
+				height
 		);
 		TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
-		int i = this.active ? -1 : -6250336;
-		if (this.isCurrentTab()) {
-			this.renderBackgroundTexture(
-					context,
-					this.getX() + 2,
-					this.getY() + 2,
-					this.getRight() - 2,
-					this.getBottom()
-			);
-			this.drawCurrentTabLine(context, textRenderer, i);
+		int textColor = active ? TEXT_COLOR_ACTIVE : TEXT_COLOR_INACTIVE;
+
+		if (isCurrentTab()) {
+			renderBackgroundTexture(context, getX() + 2, getY() + 2, getRight() - 2, getBottom());
+			drawCurrentTabLine(context, textRenderer, textColor);
 		}
 
-		this.drawMessage(context.getHoverListener(this, DrawContext.HoverType.NONE));
-		this.setCursor(context);
+		drawMessage(context.getHoverListener(this, DrawContext.HoverType.NONE));
+		setCursor(context);
 	}
 
-	/**
-	 * Отрисовывает background texture.
-	 *
-	 * @param context context
-	 * @param left left
-	 * @param top top
-	 * @param right right
-	 * @param bottom bottom
-	 */
 	protected void renderBackgroundTexture(DrawContext context, int left, int top, int right, int bottom) {
 		Screen.renderBackgroundTexture(
 				context,
@@ -93,24 +83,24 @@ public class TabButtonWidget extends ClickableWidget.InactivityIndicatingWidget 
 	}
 
 	private void drawMessage(DrawnTextConsumer textConsumer) {
-		int i = this.getX() + 1;
-		int j = this.getY() + (this.isCurrentTab() ? 0 : 3);
-		int k = this.getX() + this.getWidth() - 1;
-		int l = this.getY() + this.getHeight();
-		textConsumer.text(this.getMessage(), i, k, j, l);
+		int textLeft = getX() + LEFT_PADDING;
+		int textTop = getY() + (isCurrentTab() ? 0 : TEXT_PADDING);
+		int textRight = getX() + getWidth() - RIGHT_PADDING;
+		int textBottom = getY() + getHeight();
+		textConsumer.text(getMessage(), textLeft, textRight, textTop, textBottom);
 	}
 
 	private void drawCurrentTabLine(DrawContext context, TextRenderer textRenderer, int color) {
-		int i = Math.min(textRenderer.getWidth(this.getMessage()), this.getWidth() - 4);
-		int j = this.getX() + (this.getWidth() - i) / 2;
-		int k = this.getY() + this.getHeight() - 2;
-		context.fill(j, k, j + i, k + 1, color);
+		int lineWidth = Math.min(textRenderer.getWidth(getMessage()), getWidth() - CONTENT_PADDING);
+		int lineX = getX() + (getWidth() - lineWidth) / 2;
+		int lineY = getY() + getHeight() - LINE_HEIGHT;
+		context.fill(lineX, lineY, lineX + lineWidth, lineY + 1, color);
 	}
 
 	@Override
 	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, Text.translatable("gui.narrate.tab", this.tab.getTitle()));
-		builder.put(NarrationPart.HINT, this.tab.getNarratedHint());
+		builder.put(NarrationPart.TITLE, Text.translatable("gui.narrate.tab", tab.getTitle()));
+		builder.put(NarrationPart.HINT, tab.getNarratedHint());
 	}
 
 	@Override
@@ -118,10 +108,10 @@ public class TabButtonWidget extends ClickableWidget.InactivityIndicatingWidget 
 	}
 
 	public Tab getTab() {
-		return this.tab;
+		return tab;
 	}
 
 	public boolean isCurrentTab() {
-		return this.tabManager.getCurrentTab() == this.tab;
+		return tabManager.getCurrentTab() == tab;
 	}
 }

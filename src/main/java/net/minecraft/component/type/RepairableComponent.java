@@ -12,8 +12,9 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntryList;
 
 /**
- * {@code RepairableComponent}.
- */
+	 * Компонент ремонтируемости предмета. Определяет список предметов,
+	 * которыми можно починить данный предмет на наковальне.
+	 */
 public record RepairableComponent(RegistryEntryList<Item> items) {
 
 	public static final Codec<RepairableComponent> CODEC = RecordCodecBuilder.create(
@@ -29,13 +30,12 @@ public record RepairableComponent(RegistryEntryList<Item> items) {
 	);
 
 	/**
-	 * Matches.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, может ли данный стек предметов использоваться для ремонта.
+		 *
+		 * @param stack стек предмета-материала для ремонта
+		 * @return {@code true} если предмет входит в список допустимых материалов
+		 */
 	public boolean matches(ItemStack stack) {
-		return stack.isIn(this.items);
+		return stack.isIn(items);
 	}
 }

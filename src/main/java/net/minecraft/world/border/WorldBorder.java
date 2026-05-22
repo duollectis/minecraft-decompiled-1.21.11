@@ -1,43 +1,66 @@
 package net.minecraft.world.border;
 
-import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.function.BooleanBiFunction;
-import net.minecraft.util.math.*;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateType;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code WorldBorder}.
+ * Граница мира — управляет размером, положением и параметрами урона игровой зоны.
+ * <p>
+ * Поддерживает два режима: статичный ({@link StaticArea}) и движущийся ({@link MovingArea}).
+ * Состояние сохраняется через {@link PersistentState} и восстанавливается при загрузке мира.
+ * Все изменения параметров рассылаются зарегистрированным {@link WorldBorderListener}.
  */
 public class WorldBorder extends PersistentState {
 
-	public static final double STATIC_AREA_SIZE = 5.999997E7F;
+	/** Размер границы по умолчанию — максимально допустимый статичный радиус. */
+	public static final double STATIC_AREA_SIZE = 5.999997E7;
+
+	/** Максимально допустимое смещение центра границы от нуля по осям X и Z. */
 	public static final double MAX_CENTER_COORDINATES = 2.9999984E7;
-	public static final Codec<WorldBorder>
-			CODEC =
-			WorldBorder.Properties.CODEC.xmap(WorldBorder::new, WorldBorder.Properties::new);
+
+	/** Максимальный радиус границы по умолчанию в блоках. */
+	private static final int DEFAULT_MAX_RADIUS = 29999984;
+
+	/** Смещение от края границы при проверке коллизий AABB, чтобы избежать граничных артефактов. */
+	private static final double BOUNDS_EPSILON = 1.0E-5;
+
+	/** Значение tickProgress для получения текущего (не интерполированного) положения границы. */
+	private static final float NO_TICK_PROGRESS = 0.0f;
+
+	public static final Codec<WorldBorder> CODEC =
+		WorldBorder.Properties.CODEC.xmap(WorldBorder::new, WorldBorder.Properties::new);
+
 	public static final PersistentStateType<WorldBorder> TYPE = new PersistentStateType<>(
-			"world_border", WorldBorder::new, CODEC, DataFixTypes.SAVED_DATA_WORLD_BORDER
+		"world_border", WorldBorder::new, CODEC, DataFixTypes.SAVED_DATA_WORLD_BORDER
 	);
+
 	private final WorldBorder.Properties properties;
 	private boolean initialized;
-	private final List<WorldBorderListener> listeners = Lists.newArrayList();
-	double damagePerBlock = 0.2;
-	double safeZone = 5.0;
-	int warningTime = 15;
-	int warningBlocks = 5;
-	double centerX;
-	double centerZ;
-	int maxRadius = 29999984;
-	WorldBorder.Area area = new WorldBorder.StaticArea(5.999997E7F);
+	private final List<WorldBorderListener> listeners = new ArrayList<>();
+
+	private double damagePerBlock = 0.2;
+	private double safeZone = 5.0;
+	private int warningTime = 15;
+	private int warningBlocks = 5;
+	private double centerX;
+	private double centerZ;
+	private int maxRadius = DEFAULT_MAX_RADIUS;
+	private WorldBorder.Area area = new WorldBorder.StaticArea(STATIC_AREA_SIZE);
 
 	public WorldBorder() {
 		this(WorldBorder.Properties.DEFAULT);
@@ -47,402 +70,363 @@ public class WorldBorder extends PersistentState {
 		this.properties = properties;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(BlockPos pos) {
-		return this.contains(pos.getX(), pos.getZ());
+		return contains(pos.getX(), pos.getZ());
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(Vec3d pos) {
-		return this.contains(pos.x, pos.z);
+		return contains(pos.x, pos.z);
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет, полностью ли чанк находится внутри границы мира.
+	 * Проверяются обе угловые точки чанка — северо-западная и юго-восточная.
 	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return boolean — результат операции
+	 * @param chunkPos позиция чанка
+	 * @return {@code true} если весь чанк внутри границы
 	 */
 	public boolean contains(ChunkPos chunkPos) {
-		return this.contains(chunkPos.getStartX(), chunkPos.getStartZ()) && this.contains(
-				chunkPos.getEndX(),
-				chunkPos.getEndZ()
-		);
+		return contains(chunkPos.getStartX(), chunkPos.getStartZ())
+			&& contains(chunkPos.getEndX(), chunkPos.getEndZ());
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет, находится ли AABB-бокс внутри границы мира.
+	 * Максимальные координаты уменьшаются на {@link #BOUNDS_EPSILON} во избежание граничных артефактов.
 	 *
-	 * @param box box
-	 *
-	 * @return boolean — результат операции
+	 * @param box проверяемый ограничивающий прямоугольник
+	 * @return {@code true} если бокс полностью внутри границы
 	 */
 	public boolean contains(Box box) {
-		return this.contains(box.minX, box.minZ, box.maxX - 1.0E-5F, box.maxZ - 1.0E-5F);
+		return contains(box.minX, box.minZ, box.maxX - BOUNDS_EPSILON, box.maxZ - BOUNDS_EPSILON);
 	}
 
 	private boolean contains(double minX, double minZ, double maxX, double maxZ) {
-		return this.contains(minX, minZ) && this.contains(maxX, maxZ);
+		return contains(minX, minZ) && contains(maxX, maxZ);
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(double x, double z) {
-		return this.contains(x, z, 0.0);
+		return contains(x, z, 0.0);
 	}
 
 	/**
-	 * Contains.
+	 * Проверяет, находится ли точка (x, z) внутри границы с дополнительным отступом.
 	 *
-	 * @param x x
-	 * @param z z
-	 * @param margin margin
-	 *
-	 * @return boolean — результат операции
+	 * @param x координата X
+	 * @param z координата Z
+	 * @param margin дополнительный отступ, расширяющий проверяемую область
+	 * @return {@code true} если точка внутри расширенной границы
 	 */
 	public boolean contains(double x, double z, double margin) {
-		return x >= this.getBoundWest() - margin && x < this.getBoundEast() + margin
-				&& z >= this.getBoundNorth() - margin && z < this.getBoundSouth() + margin;
+		return x >= getBoundWest() - margin
+			&& x < getBoundEast() + margin
+			&& z >= getBoundNorth() - margin
+			&& z < getBoundSouth() + margin;
 	}
 
-	/**
-	 * Clamp floored.
-	 *
-	 * @param pos pos
-	 *
-	 * @return BlockPos — результат операции
-	 */
 	public BlockPos clampFloored(BlockPos pos) {
-		return this.clampFloored(pos.getX(), pos.getY(), pos.getZ());
+		return clampFloored(pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	/**
-	 * Clamp floored.
-	 *
-	 * @param pos pos
-	 *
-	 * @return BlockPos — результат операции
-	 */
 	public BlockPos clampFloored(Vec3d pos) {
-		return this.clampFloored(pos.getX(), pos.getY(), pos.getZ());
+		return clampFloored(pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	/**
-	 * Clamp floored.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return BlockPos — результат операции
-	 */
 	public BlockPos clampFloored(double x, double y, double z) {
-		return BlockPos.ofFloored(this.clamp(x, y, z));
+		return BlockPos.ofFloored(clamp(x, y, z));
 	}
 
-	/**
-	 * Clamp.
-	 *
-	 * @param pos pos
-	 *
-	 * @return Vec3d — результат операции
-	 */
 	public Vec3d clamp(Vec3d pos) {
-		return this.clamp(pos.x, pos.y, pos.z);
+		return clamp(pos.x, pos.y, pos.z);
 	}
 
 	/**
-	 * Clamp.
+	 * Зажимает координаты (x, z) внутри текущих границ мира, оставляя Y без изменений.
+	 * Максимальные координаты уменьшаются на {@link #BOUNDS_EPSILON}.
 	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return Vec3d — результат операции
+	 * @param x координата X
+	 * @param y координата Y (не изменяется)
+	 * @param z координата Z
+	 * @return точка, гарантированно находящаяся внутри границы
 	 */
 	public Vec3d clamp(double x, double y, double z) {
 		return new Vec3d(
-				MathHelper.clamp(x, this.getBoundWest(), this.getBoundEast() - 1.0E-5F),
-				y,
-				MathHelper.clamp(z, this.getBoundNorth(), this.getBoundSouth() - 1.0E-5F)
+			MathHelper.clamp(x, getBoundWest(), getBoundEast() - BOUNDS_EPSILON),
+			y,
+			MathHelper.clamp(z, getBoundNorth(), getBoundSouth() - BOUNDS_EPSILON)
 		);
 	}
 
-	public double getDistanceInsideBorder(Entity entity) {
-		return this.getDistanceInsideBorder(entity.getX(), entity.getZ());
-	}
-
 	/**
-	 * As voxel shape.
+	 * Возвращает расстояние от сущности до ближайшей стены границы.
+	 * Отрицательное значение означает, что сущность находится за пределами границы.
 	 *
-	 * @return VoxelShape — результат операции
+	 * @param entity проверяемая сущность
+	 * @return расстояние в блоках; отрицательное — если сущность снаружи
 	 */
-	public VoxelShape asVoxelShape() {
-		return this.area.asVoxelShape();
-	}
-
-	public double getDistanceInsideBorder(double x, double z) {
-		double d = z - this.getBoundNorth();
-		double e = this.getBoundSouth() - z;
-		double f = x - this.getBoundWest();
-		double g = this.getBoundEast() - x;
-		double h = Math.min(f, g);
-		h = Math.min(h, d);
-		return Math.min(h, e);
+	public double getDistanceInsideBorder(Entity entity) {
+		return getDistanceInsideBorder(entity.getX(), entity.getZ());
 	}
 
 	/**
-	 * Проверяет возможность collide.
+	 * Возвращает расстояние от точки (x, z) до ближайшей стены границы.
+	 * Вычисляется как минимум из четырёх расстояний до каждой из сторон.
 	 *
-	 * @param entity entity
-	 * @param box box
+	 * @param x координата X
+	 * @param z координата Z
+	 * @return расстояние в блоках; отрицательное — если точка снаружи
+	 */
+	public double getDistanceInsideBorder(double x, double z) {
+		double distNorth = z - getBoundNorth();
+		double distSouth = getBoundSouth() - z;
+		double distWest = x - getBoundWest();
+		double distEast = getBoundEast() - x;
+
+		double minDist = Math.min(distWest, distEast);
+		minDist = Math.min(minDist, distNorth);
+		return Math.min(minDist, distSouth);
+	}
+
+	/**
+	 * Проверяет, может ли AABB-бокс сущности столкнуться со стеной границы.
+	 * Коллизия возможна, если сущность достаточно близко к стене и её бокс пересекает зону границы.
 	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param entity проверяемая сущность
+	 * @param box AABB-бокс сущности
+	 * @return {@code true} если коллизия с границей возможна
 	 */
 	public boolean canCollide(Entity entity, Box box) {
-		double d = Math.max(MathHelper.absMax(box.getLengthX(), box.getLengthZ()), 1.0);
-		return this.getDistanceInsideBorder(entity) < d * 2.0 && this.contains(entity.getX(), entity.getZ(), d);
+		double maxSide = Math.max(MathHelper.absMax(box.getLengthX(), box.getLengthZ()), 1.0);
+		return getDistanceInsideBorder(entity) < maxSide * 2.0
+			&& contains(entity.getX(), entity.getZ(), maxSide);
 	}
 
 	public WorldBorderStage getStage() {
-		return this.area.getStage();
+		return area.getStage();
 	}
 
 	public double getBoundWest() {
-		return this.getBoundWest(0.0F);
+		return getBoundWest(NO_TICK_PROGRESS);
 	}
 
 	public double getBoundWest(float tickProgress) {
-		return this.area.getBoundWest(tickProgress);
+		return area.getBoundWest(tickProgress);
 	}
 
 	public double getBoundNorth() {
-		return this.getBoundNorth(0.0F);
+		return getBoundNorth(NO_TICK_PROGRESS);
 	}
 
 	public double getBoundNorth(float tickProgress) {
-		return this.area.getBoundNorth(tickProgress);
+		return area.getBoundNorth(tickProgress);
 	}
 
 	public double getBoundEast() {
-		return this.getBoundEast(0.0F);
+		return getBoundEast(NO_TICK_PROGRESS);
 	}
 
 	public double getBoundEast(float tickProgress) {
-		return this.area.getBoundEast(tickProgress);
+		return area.getBoundEast(tickProgress);
 	}
 
 	public double getBoundSouth() {
-		return this.getBoundSouth(0.0F);
+		return getBoundSouth(NO_TICK_PROGRESS);
 	}
 
 	public double getBoundSouth(float tickProgress) {
-		return this.area.getBoundSouth(tickProgress);
+		return area.getBoundSouth(tickProgress);
 	}
 
 	public double getCenterX() {
-		return this.centerX;
+		return centerX;
 	}
 
 	public double getCenterZ() {
-		return this.centerZ;
+		return centerZ;
 	}
 
 	public void setCenter(double x, double z) {
-		this.centerX = x;
-		this.centerZ = z;
-		this.area.onCenterChanged();
-		this.markDirty();
+		centerX = x;
+		centerZ = z;
+		area.onCenterChanged();
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onCenterChanged(this, x, z);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onCenterChanged(this, x, z);
 		}
 	}
 
 	public double getSize() {
-		return this.area.getSize();
+		return area.getSize();
 	}
 
 	public long getSizeLerpTime() {
-		return this.area.getSizeLerpTime();
+		return area.getSizeLerpTime();
 	}
 
 	public double getSizeLerpTarget() {
-		return this.area.getSizeLerpTarget();
+		return area.getSizeLerpTarget();
 	}
 
 	public void setSize(double size) {
-		this.area = new WorldBorder.StaticArea(size);
-		this.markDirty();
+		area = new WorldBorder.StaticArea(size);
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onSizeChange(this, size);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onSizeChange(this, size);
 		}
 	}
 
 	/**
-	 * Interpolate size.
+	 * Запускает плавное изменение размера границы от {@code fromSize} до {@code toSize}
+	 * за указанное количество тиков, начиная с момента {@code timeStart}.
+	 * Если размеры совпадают — граница немедленно переходит в статичный режим.
 	 *
-	 * @param fromSize from size
-	 * @param toSize to size
-	 * @param timeDuration time duration
-	 * @param timeStart time start
+	 * @param fromSize начальный размер границы
+	 * @param toSize целевой размер границы
+	 * @param timeDuration длительность перехода в тиках
+	 * @param timeStart игровое время начала перехода в миллисекундах
 	 */
 	public void interpolateSize(double fromSize, double toSize, long timeDuration, long timeStart) {
-		this.area = (WorldBorder.Area) (fromSize == toSize
-		                                ? new WorldBorder.StaticArea(toSize)
-		                                : new WorldBorder.MovingArea(fromSize, toSize, timeDuration, timeStart)
-		);
-		this.markDirty();
+		area = fromSize == toSize
+			? new WorldBorder.StaticArea(toSize)
+			: new WorldBorder.MovingArea(fromSize, toSize, timeDuration, timeStart);
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onInterpolateSize(this, fromSize, toSize, timeDuration, timeStart);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onInterpolateSize(this, fromSize, toSize, timeDuration, timeStart);
 		}
 	}
 
 	protected List<WorldBorderListener> getListeners() {
-		return Lists.newArrayList(this.listeners);
+		return new ArrayList<>(listeners);
 	}
 
-	/**
-	 * Добавляет listener.
-	 *
-	 * @param listener listener
-	 */
 	public void addListener(WorldBorderListener listener) {
-		this.listeners.add(listener);
+		listeners.add(listener);
 	}
 
-	/**
-	 * Удаляет listener.
-	 *
-	 * @param listener listener
-	 */
 	public void removeListener(WorldBorderListener listener) {
-		this.listeners.remove(listener);
+		listeners.remove(listener);
 	}
 
 	public void setMaxRadius(int maxRadius) {
 		this.maxRadius = maxRadius;
-		this.area.onMaxRadiusChanged();
+		area.onMaxRadiusChanged();
 	}
 
 	public int getMaxRadius() {
-		return this.maxRadius;
+		return maxRadius;
 	}
 
 	public double getSafeZone() {
-		return this.safeZone;
+		return safeZone;
 	}
 
 	public void setSafeZone(double safeZone) {
 		this.safeZone = safeZone;
-		this.markDirty();
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onSafeZoneChanged(this, safeZone);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onSafeZoneChanged(this, safeZone);
 		}
 	}
 
 	public double getDamagePerBlock() {
-		return this.damagePerBlock;
+		return damagePerBlock;
 	}
 
 	public void setDamagePerBlock(double damagePerBlock) {
 		this.damagePerBlock = damagePerBlock;
-		this.markDirty();
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onDamagePerBlockChanged(this, damagePerBlock);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onDamagePerBlockChanged(this, damagePerBlock);
 		}
 	}
 
 	public double getShrinkingSpeed() {
-		return this.area.getShrinkingSpeed();
+		return area.getShrinkingSpeed();
 	}
 
 	public int getWarningTime() {
-		return this.warningTime;
+		return warningTime;
 	}
 
 	public void setWarningTime(int warningTime) {
 		this.warningTime = warningTime;
-		this.markDirty();
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onWarningTimeChanged(this, warningTime);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onWarningTimeChanged(this, warningTime);
 		}
 	}
 
 	public int getWarningBlocks() {
-		return this.warningBlocks;
+		return warningBlocks;
 	}
 
 	public void setWarningBlocks(int warningBlocks) {
 		this.warningBlocks = warningBlocks;
-		this.markDirty();
+		markDirty();
 
-		for (WorldBorderListener worldBorderListener : this.getListeners()) {
-			worldBorderListener.onWarningBlocksChanged(this, warningBlocks);
+		for (WorldBorderListener listener : getListeners()) {
+			listener.onWarningBlocksChanged(this, warningBlocks);
 		}
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние границы на один тик.
+	 * Для движущейся границы уменьшает оставшееся время и пересчитывает текущий размер.
+	 * При истечении времени автоматически переключается в статичный режим.
 	 */
 	public void tick() {
-		this.area = this.area.getAreaInstance();
+		area = area.getAreaInstance();
 	}
 
 	/**
-	 * Ensure initialized.
+	 * Инициализирует границу из сохранённых {@link Properties}, если она ещё не была инициализирована.
+	 * Вызывается при загрузке мира с передачей текущего игрового времени для корректного
+	 * восстановления движущейся границы с учётом прошедшего времени.
 	 *
-	 * @param time time
+	 * @param time текущее игровое время в миллисекундах
 	 */
 	public void ensureInitialized(long time) {
-		if (!this.initialized) {
-			this.setCenter(this.properties.centerX(), this.properties.centerZ());
-			this.setDamagePerBlock(this.properties.damagePerBlock());
-			this.setSafeZone(this.properties.safeZone());
-			this.setWarningBlocks(this.properties.warningBlocks());
-			this.setWarningTime(this.properties.warningTime());
-			if (this.properties.lerpTime() > 0L) {
-				this.interpolateSize(
-						this.properties.size(),
-						this.properties.lerpTarget(),
-						this.properties.lerpTime(),
-						time
-				);
-			}
-			else {
-				this.setSize(this.properties.size());
-			}
-
-			this.initialized = true;
+		if (initialized) {
+			return;
 		}
+
+		setCenter(properties.centerX(), properties.centerZ());
+		setDamagePerBlock(properties.damagePerBlock());
+		setSafeZone(properties.safeZone());
+		setWarningBlocks(properties.warningBlocks());
+		setWarningTime(properties.warningTime());
+
+		if (properties.lerpTime() > 0L) {
+			interpolateSize(properties.size(), properties.lerpTarget(), properties.lerpTime(), time);
+		} else {
+			setSize(properties.size());
+		}
+
+		initialized = true;
 	}
 
 	/**
-	 * {@code Area}.
+	 * Возвращает VoxelShape текущей области границы для расчёта коллизий.
+	 *
+	 * @return форма границы как {@link VoxelShape}
+	 */
+	public VoxelShape asVoxelShape() {
+		return area.asVoxelShape();
+	}
+
+	// -------------------------------------------------------------------------
+	// Внутренние типы
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Внутренний контракт области границы мира.
+	 * Реализуется двумя вариантами: {@link StaticArea} и {@link MovingArea}.
 	 */
 	interface Area {
 
@@ -468,13 +452,21 @@ public class WorldBorder extends PersistentState {
 
 		void onCenterChanged();
 
+		/**
+		 * Обновляет состояние области на один тик и возвращает актуальный экземпляр.
+		 * Движущаяся область может вернуть {@link StaticArea} при завершении анимации.
+		 *
+		 * @return актуальный экземпляр области после тика
+		 */
 		WorldBorder.Area getAreaInstance();
 
 		VoxelShape asVoxelShape();
 	}
 
 	/**
-	 * {@code MovingArea}.
+	 * Движущаяся область границы — плавно интерполирует размер от {@code oldSize} до {@code newSize}
+	 * за заданное количество тиков. При каждом тике пересчитывает текущий размер через линейную
+	 * интерполяцию. По истечении времени заменяется на {@link StaticArea}.
 	 */
 	class MovingArea implements WorldBorder.Area {
 
@@ -487,90 +479,93 @@ public class WorldBorder extends PersistentState {
 		private double currentSize;
 		private double lastSize;
 
-		MovingArea(final double oldSize, final double newSize, final long timeDuration, final long timeStart) {
+		MovingArea(double oldSize, double newSize, long timeDuration, long timeStart) {
 			this.oldSize = oldSize;
 			this.newSize = newSize;
 			this.timeDuration = timeDuration;
 			this.remainingTimeDuration = timeDuration;
 			this.timeStart = timeStart;
-			this.timeEnd = this.timeStart + timeDuration;
-			double d = this.currentSize();
-			this.currentSize = d;
-			this.lastSize = d;
+			this.timeEnd = timeStart + timeDuration;
+
+			double initialSize = computeCurrentSize();
+			currentSize = initialSize;
+			lastSize = initialSize;
 		}
 
 		@Override
 		public double getBoundWest(float tickProgress) {
 			return MathHelper.clamp(
-					WorldBorder.this.getCenterX()
-							- MathHelper.lerp((double) tickProgress, this.getLastSize(), this.getSize()) / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+				WorldBorder.this.getCenterX() - MathHelper.lerp(tickProgress, lastSize, currentSize) / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
 		}
 
 		@Override
 		public double getBoundNorth(float tickProgress) {
 			return MathHelper.clamp(
-					WorldBorder.this.getCenterZ()
-							- MathHelper.lerp((double) tickProgress, this.getLastSize(), this.getSize()) / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+				WorldBorder.this.getCenterZ() - MathHelper.lerp(tickProgress, lastSize, currentSize) / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
 		}
 
 		@Override
 		public double getBoundEast(float tickProgress) {
 			return MathHelper.clamp(
-					WorldBorder.this.getCenterX()
-							+ MathHelper.lerp((double) tickProgress, this.getLastSize(), this.getSize()) / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+				WorldBorder.this.getCenterX() + MathHelper.lerp(tickProgress, lastSize, currentSize) / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
 		}
 
 		@Override
 		public double getBoundSouth(float tickProgress) {
 			return MathHelper.clamp(
-					WorldBorder.this.getCenterZ()
-							+ MathHelper.lerp((double) tickProgress, this.getLastSize(), this.getSize()) / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+				WorldBorder.this.getCenterZ() + MathHelper.lerp(tickProgress, lastSize, currentSize) / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
 		}
 
 		@Override
 		public double getSize() {
-			return this.currentSize;
+			return currentSize;
 		}
 
 		public double getLastSize() {
-			return this.lastSize;
+			return lastSize;
 		}
 
-		private double currentSize() {
-			double d = (this.timeDuration - this.remainingTimeDuration) / this.timeDuration;
-			return d < 1.0 ? MathHelper.lerp(d, this.oldSize, this.newSize) : this.newSize;
+		/**
+		 * Вычисляет текущий размер границы через линейную интерполяцию на основе
+		 * прошедшей доли от общего времени перехода.
+		 *
+		 * @return интерполированный размер; {@code newSize} если переход завершён
+		 */
+		private double computeCurrentSize() {
+			double progress = (timeDuration - remainingTimeDuration) / timeDuration;
+			return progress < 1.0 ? MathHelper.lerp(progress, oldSize, newSize) : newSize;
 		}
 
 		@Override
 		public double getShrinkingSpeed() {
-			return Math.abs(this.oldSize - this.newSize) / (this.timeEnd - this.timeStart);
+			return Math.abs(oldSize - newSize) / (timeEnd - timeStart);
 		}
 
 		@Override
 		public long getSizeLerpTime() {
-			return this.remainingTimeDuration;
+			return remainingTimeDuration;
 		}
 
 		@Override
 		public double getSizeLerpTarget() {
-			return this.newSize;
+			return newSize;
 		}
 
 		@Override
 		public WorldBorderStage getStage() {
-			return this.newSize < this.oldSize ? WorldBorderStage.SHRINKING : WorldBorderStage.GROWING;
+			return newSize < oldSize ? WorldBorderStage.SHRINKING : WorldBorderStage.GROWING;
 		}
 
 		@Override
@@ -583,91 +578,39 @@ public class WorldBorder extends PersistentState {
 
 		@Override
 		public WorldBorder.Area getAreaInstance() {
-			this.remainingTimeDuration--;
-			this.lastSize = this.currentSize;
-			this.currentSize = this.currentSize();
-			if (this.remainingTimeDuration <= 0L) {
+			remainingTimeDuration--;
+			lastSize = currentSize;
+			currentSize = computeCurrentSize();
+
+			if (remainingTimeDuration <= 0L) {
 				WorldBorder.this.markDirty();
-				return WorldBorder.this.new StaticArea(this.newSize);
+				return WorldBorder.this.new StaticArea(newSize);
 			}
-			else {
-				return this;
-			}
+
+			return this;
 		}
 
 		@Override
 		public VoxelShape asVoxelShape() {
 			return VoxelShapes.combineAndSimplify(
-					VoxelShapes.UNBOUNDED,
-					VoxelShapes.cuboid(
-							Math.floor(this.getBoundWest(0.0F)),
-							Double.NEGATIVE_INFINITY,
-							Math.floor(this.getBoundNorth(0.0F)),
-							Math.ceil(this.getBoundEast(0.0F)),
-							Double.POSITIVE_INFINITY,
-							Math.ceil(this.getBoundSouth(0.0F))
-					),
-					BooleanBiFunction.ONLY_FIRST
+				VoxelShapes.UNBOUNDED,
+				VoxelShapes.cuboid(
+					Math.floor(getBoundWest(NO_TICK_PROGRESS)),
+					Double.NEGATIVE_INFINITY,
+					Math.floor(getBoundNorth(NO_TICK_PROGRESS)),
+					Math.ceil(getBoundEast(NO_TICK_PROGRESS)),
+					Double.POSITIVE_INFINITY,
+					Math.ceil(getBoundSouth(NO_TICK_PROGRESS))
+				),
+				BooleanBiFunction.ONLY_FIRST
 			);
 		}
 	}
 
 	/**
-	 * {@code Properties}.
-	 */
-	public record Properties(
-			double centerX,
-			double centerZ,
-			double damagePerBlock,
-			double safeZone,
-			int warningBlocks,
-			int warningTime,
-			double size,
-			long lerpTime,
-			double lerpTarget
-	) {
-
-		public static final WorldBorder.Properties
-				DEFAULT =
-				new WorldBorder.Properties(0.0, 0.0, 0.2, 5.0, 5, 300, 5.999997E7F, 0L, 0.0);
-		public static final Codec<WorldBorder.Properties> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    Codec
-								                    .doubleRange(-2.9999984E7, 2.9999984E7)
-								                    .fieldOf("center_x")
-								                    .forGetter(WorldBorder.Properties::centerX),
-						                    Codec
-								                    .doubleRange(-2.9999984E7, 2.9999984E7)
-								                    .fieldOf("center_z")
-								                    .forGetter(WorldBorder.Properties::centerZ),
-						                    Codec.DOUBLE.fieldOf("damage_per_block").forGetter(WorldBorder.Properties::damagePerBlock),
-						                    Codec.DOUBLE.fieldOf("safe_zone").forGetter(WorldBorder.Properties::safeZone),
-						                    Codec.INT.fieldOf("warning_blocks").forGetter(WorldBorder.Properties::warningBlocks),
-						                    Codec.INT.fieldOf("warning_time").forGetter(WorldBorder.Properties::warningTime),
-						                    Codec.DOUBLE.fieldOf("size").forGetter(WorldBorder.Properties::size),
-						                    Codec.LONG.fieldOf("lerp_time").forGetter(WorldBorder.Properties::lerpTime),
-						                    Codec.DOUBLE.fieldOf("lerp_target").forGetter(WorldBorder.Properties::lerpTarget)
-				                    )
-				                    .apply(instance, WorldBorder.Properties::new)
-		);
-
-		public Properties(WorldBorder worldBorder) {
-			this(
-					worldBorder.centerX,
-					worldBorder.centerZ,
-					worldBorder.damagePerBlock,
-					worldBorder.safeZone,
-					worldBorder.warningBlocks,
-					worldBorder.warningTime,
-					worldBorder.area.getSize(),
-					worldBorder.area.getSizeLerpTime(),
-					worldBorder.area.getSizeLerpTarget()
-			);
-		}
-	}
-
-	/**
-	 * {@code StaticArea}.
+	 * Статичная область границы с фиксированным размером.
+	 * Кэширует вычисленные границы и VoxelShape, пересчитывая их только при изменении
+	 * центра или максимального радиуса.
 	 */
 	class StaticArea implements WorldBorder.Area {
 
@@ -678,34 +621,34 @@ public class WorldBorder extends PersistentState {
 		private double boundSouth;
 		private VoxelShape shape;
 
-		public StaticArea(final double size) {
+		public StaticArea(double size) {
 			this.size = size;
-			this.recalculateBounds();
+			recalculateBounds();
 		}
 
 		@Override
 		public double getBoundWest(float tickProgress) {
-			return this.boundWest;
+			return boundWest;
 		}
 
 		@Override
 		public double getBoundEast(float tickProgress) {
-			return this.boundEast;
+			return boundEast;
 		}
 
 		@Override
 		public double getBoundNorth(float tickProgress) {
-			return this.boundNorth;
+			return boundNorth;
 		}
 
 		@Override
 		public double getBoundSouth(float tickProgress) {
-			return this.boundSouth;
+			return boundSouth;
 		}
 
 		@Override
 		public double getSize() {
-			return this.size;
+			return size;
 		}
 
 		@Override
@@ -725,52 +668,52 @@ public class WorldBorder extends PersistentState {
 
 		@Override
 		public double getSizeLerpTarget() {
-			return this.size;
+			return size;
 		}
 
 		private void recalculateBounds() {
-			this.boundWest = MathHelper.clamp(
-					WorldBorder.this.getCenterX() - this.size / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+			boundWest = MathHelper.clamp(
+				WorldBorder.this.getCenterX() - size / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
-			this.boundNorth = MathHelper.clamp(
-					WorldBorder.this.getCenterZ() - this.size / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+			boundNorth = MathHelper.clamp(
+				WorldBorder.this.getCenterZ() - size / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
-			this.boundEast = MathHelper.clamp(
-					WorldBorder.this.getCenterX() + this.size / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+			boundEast = MathHelper.clamp(
+				WorldBorder.this.getCenterX() + size / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
-			this.boundSouth = MathHelper.clamp(
-					WorldBorder.this.getCenterZ() + this.size / 2.0,
-					(double) (-WorldBorder.this.maxRadius),
-					(double) WorldBorder.this.maxRadius
+			boundSouth = MathHelper.clamp(
+				WorldBorder.this.getCenterZ() + size / 2.0,
+				-WorldBorder.this.maxRadius,
+				WorldBorder.this.maxRadius
 			);
-			this.shape = VoxelShapes.combineAndSimplify(
-					VoxelShapes.UNBOUNDED,
-					VoxelShapes.cuboid(
-							Math.floor(this.getBoundWest(0.0F)),
-							Double.NEGATIVE_INFINITY,
-							Math.floor(this.getBoundNorth(0.0F)),
-							Math.ceil(this.getBoundEast(0.0F)),
-							Double.POSITIVE_INFINITY,
-							Math.ceil(this.getBoundSouth(0.0F))
-					),
-					BooleanBiFunction.ONLY_FIRST
+			shape = VoxelShapes.combineAndSimplify(
+				VoxelShapes.UNBOUNDED,
+				VoxelShapes.cuboid(
+					Math.floor(getBoundWest(NO_TICK_PROGRESS)),
+					Double.NEGATIVE_INFINITY,
+					Math.floor(getBoundNorth(NO_TICK_PROGRESS)),
+					Math.ceil(getBoundEast(NO_TICK_PROGRESS)),
+					Double.POSITIVE_INFINITY,
+					Math.ceil(getBoundSouth(NO_TICK_PROGRESS))
+				),
+				BooleanBiFunction.ONLY_FIRST
 			);
 		}
 
 		@Override
 		public void onMaxRadiusChanged() {
-			this.recalculateBounds();
+			recalculateBounds();
 		}
 
 		@Override
 		public void onCenterChanged() {
-			this.recalculateBounds();
+			recalculateBounds();
 		}
 
 		@Override
@@ -780,7 +723,60 @@ public class WorldBorder extends PersistentState {
 
 		@Override
 		public VoxelShape asVoxelShape() {
-			return this.shape;
+			return shape;
+		}
+	}
+
+	/**
+	 * Снимок параметров границы мира, используемый для сериализации и десериализации
+	 * через {@link #CODEC}. Передаётся в конструктор {@link WorldBorder} при загрузке мира.
+	 */
+	public record Properties(
+		double centerX,
+		double centerZ,
+		double damagePerBlock,
+		double safeZone,
+		int warningBlocks,
+		int warningTime,
+		double size,
+		long lerpTime,
+		double lerpTarget
+	) {
+
+		/** Параметры границы по умолчанию для нового мира. */
+		public static final WorldBorder.Properties DEFAULT =
+			new WorldBorder.Properties(0.0, 0.0, 0.2, 5.0, 5, 300, STATIC_AREA_SIZE, 0L, 0.0);
+
+		public static final Codec<WorldBorder.Properties> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+				Codec.doubleRange(-MAX_CENTER_COORDINATES, MAX_CENTER_COORDINATES)
+					.fieldOf("center_x")
+					.forGetter(WorldBorder.Properties::centerX),
+				Codec.doubleRange(-MAX_CENTER_COORDINATES, MAX_CENTER_COORDINATES)
+					.fieldOf("center_z")
+					.forGetter(WorldBorder.Properties::centerZ),
+				Codec.DOUBLE.fieldOf("damage_per_block").forGetter(WorldBorder.Properties::damagePerBlock),
+				Codec.DOUBLE.fieldOf("safe_zone").forGetter(WorldBorder.Properties::safeZone),
+				Codec.INT.fieldOf("warning_blocks").forGetter(WorldBorder.Properties::warningBlocks),
+				Codec.INT.fieldOf("warning_time").forGetter(WorldBorder.Properties::warningTime),
+				Codec.DOUBLE.fieldOf("size").forGetter(WorldBorder.Properties::size),
+				Codec.LONG.fieldOf("lerp_time").forGetter(WorldBorder.Properties::lerpTime),
+				Codec.DOUBLE.fieldOf("lerp_target").forGetter(WorldBorder.Properties::lerpTarget)
+			).apply(instance, WorldBorder.Properties::new)
+		);
+
+		public Properties(WorldBorder worldBorder) {
+			this(
+				worldBorder.centerX,
+				worldBorder.centerZ,
+				worldBorder.damagePerBlock,
+				worldBorder.safeZone,
+				worldBorder.warningBlocks,
+				worldBorder.warningTime,
+				worldBorder.area.getSize(),
+				worldBorder.area.getSizeLerpTime(),
+				worldBorder.area.getSizeLerpTarget()
+			);
 		}
 	}
 }

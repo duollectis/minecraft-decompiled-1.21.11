@@ -18,12 +18,27 @@ import net.minecraft.registry.ContextSwapper;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemModel}.
+ * Базовый интерфейс модели предмета на стороне клиента.
+ * Отвечает за обновление состояния рендера {@link ItemRenderState} на основе
+ * текущего стека предмета, контекста отображения и мирового состояния.
+ * Реализации могут диспетчеризировать рендер по числовым свойствам,
+ * перечислимым значениям или делегировать специализированным рендерерам.
  */
+@Environment(EnvType.CLIENT)
 public interface ItemModel {
 
+	/**
+	 * Обновляет состояние рендера предмета для текущего кадра.
+	 *
+	 * @param state          изменяемое состояние рендера, в которое записываются слои и ключи
+	 * @param stack          стек предмета, для которого строится модель
+	 * @param resolver       менеджер моделей предметов для разрешения вложенных моделей
+	 * @param displayContext контекст отображения (рука, GUI, земля и т.д.)
+	 * @param world          клиентский мир; может быть {@code null} вне игры
+	 * @param heldItemContext контекст держателя предмета; может быть {@code null}
+	 * @param seed           случайное зерно для выбора вариантов модели
+	 */
 	void update(
 			ItemRenderState state,
 			ItemStack stack,
@@ -34,11 +49,12 @@ public interface ItemModel {
 			int seed
 	);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakeContext}.
+	 * Контекст запекания модели предмета, содержащий все необходимые зависимости
+	 * для преобразования несериализованной модели в готовую к рендеру форму.
 	 */
-	public record BakeContext(
+	@Environment(EnvType.CLIENT)
+	record BakeContext(
 			Baker blockModelBaker,
 			LoadedEntityModels entityModelSet,
 			SpriteHolder spriteHolder,
@@ -48,11 +64,12 @@ public interface ItemModel {
 	) implements SpecialModelRenderer.BakeContext {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма модели предмета, способная разрешать зависимости
+	 * и запекаться в готовую {@link ItemModel}.
 	 */
-	public interface Unbaked extends ResolvableModel {
+	@Environment(EnvType.CLIENT)
+	interface Unbaked extends ResolvableModel {
 
 		MapCodec<? extends ItemModel.Unbaked> getCodec();
 

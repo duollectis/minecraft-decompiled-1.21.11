@@ -11,7 +11,10 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ArmorSlot}.
+ * Слот экипировки для брони и снаряжения живых существ.
+ * <p>
+ * Ограничивает вставку предметами, подходящими для конкретного {@link EquipmentSlot},
+ * и запрещает снятие предметов с зачарованием {@code PREVENT_ARMOR_CHANGE} у не-творческих игроков.
  */
 public class ArmorSlot extends Slot {
 
@@ -36,7 +39,7 @@ public class ArmorSlot extends Slot {
 
 	@Override
 	public void setStack(ItemStack stack, ItemStack previousStack) {
-		this.entity.onEquipStack(this.equipmentSlot, previousStack, stack);
+		entity.onEquipStack(equipmentSlot, previousStack, stack);
 		super.setStack(stack, previousStack);
 	}
 
@@ -47,29 +50,26 @@ public class ArmorSlot extends Slot {
 
 	@Override
 	public boolean canInsert(ItemStack stack) {
-		return this.entity.canEquip(stack, this.equipmentSlot);
+		return entity.canEquip(stack, equipmentSlot);
 	}
 
 	@Override
 	public boolean isEnabled() {
-		return this.entity.canUseSlot(this.equipmentSlot);
+		return entity.canUseSlot(equipmentSlot);
 	}
 
 	@Override
-	public boolean canTakeItems(PlayerEntity playerEntity) {
-		ItemStack itemStack = this.getStack();
-		return !itemStack.isEmpty()
-				       && !playerEntity.isCreative()
-				       && EnchantmentHelper.hasAnyEnchantmentsWith(
-				itemStack,
-				EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE
-		)
-		       ? false
-		       : super.canTakeItems(playerEntity);
+	public boolean canTakeItems(PlayerEntity player) {
+		ItemStack equipped = getStack();
+		boolean cursed = !equipped.isEmpty()
+				&& !player.isCreative()
+				&& EnchantmentHelper.hasAnyEnchantmentsWith(equipped, EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE);
+
+		return cursed ? false : super.canTakeItems(player);
 	}
 
 	@Override
 	public @Nullable Identifier getBackgroundSprite() {
-		return this.backgroundSprite;
+		return backgroundSprite;
 	}
 }

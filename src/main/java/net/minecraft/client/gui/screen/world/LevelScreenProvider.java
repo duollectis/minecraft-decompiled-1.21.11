@@ -18,34 +18,28 @@ import net.minecraft.world.gen.feature.PlacedFeature;
 import java.util.Map;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LevelScreenProvider}.
+ * Провайдер экрана настройки генератора мира для конкретного пресета.
+ * Маппинг пресетов на соответствующие экраны настройки (плоский мир, один биом и т.д.).
  */
+@Environment(EnvType.CLIENT)
 public interface LevelScreenProvider {
 
 	Map<Optional<RegistryKey<WorldPreset>>, LevelScreenProvider> WORLD_PRESET_TO_SCREEN_PROVIDER = Map.of(
 			Optional.of(WorldPresets.FLAT),
 			(parent, generatorOptionsHolder) -> {
 				ChunkGenerator chunkGenerator = generatorOptionsHolder.selectedDimensions().getChunkGenerator();
-				DynamicRegistryManager dynamicRegistryManager = generatorOptionsHolder.getCombinedRegistryManager();
-				RegistryEntryLookup<Biome> registryEntryLookup = dynamicRegistryManager.getOrThrow(RegistryKeys.BIOME);
-				RegistryEntryLookup<StructureSet>
-						registryEntryLookup2 =
-						dynamicRegistryManager.getOrThrow(RegistryKeys.STRUCTURE_SET);
-				RegistryEntryLookup<PlacedFeature>
-						registryEntryLookup3 =
-						dynamicRegistryManager.getOrThrow(RegistryKeys.PLACED_FEATURE);
+				DynamicRegistryManager registryManager = generatorOptionsHolder.getCombinedRegistryManager();
+				RegistryEntryLookup<Biome> biomeLookup = registryManager.getOrThrow(RegistryKeys.BIOME);
+				RegistryEntryLookup<StructureSet> structureLookup = registryManager.getOrThrow(RegistryKeys.STRUCTURE_SET);
+				RegistryEntryLookup<PlacedFeature> featureLookup = registryManager.getOrThrow(RegistryKeys.PLACED_FEATURE);
+
 				return new CustomizeFlatLevelScreen(
 						parent,
 						config -> parent.getWorldCreator().applyModifier(createModifier(config)),
-						chunkGenerator instanceof FlatChunkGenerator
-						? ((FlatChunkGenerator) chunkGenerator).getConfig()
-						: FlatChunkGeneratorConfig.getDefaultConfig(
-								registryEntryLookup,
-								registryEntryLookup2,
-								registryEntryLookup3
-						)
+						chunkGenerator instanceof FlatChunkGenerator flatGenerator
+								? flatGenerator.getConfig()
+								: FlatChunkGeneratorConfig.getDefaultConfig(biomeLookup, structureLookup, featureLookup)
 				);
 			},
 			Optional.of(WorldPresets.SINGLE_BIOME_SURFACE),
@@ -67,14 +61,10 @@ public interface LevelScreenProvider {
 
 	private static GeneratorOptionsHolder.RegistryAwareModifier createModifier(RegistryEntry<Biome> biomeEntry) {
 		return (dynamicRegistryManager, dimensionsRegistryHolder) -> {
-			Registry<ChunkGeneratorSettings>
-					registry =
-					dynamicRegistryManager.getOrThrow(RegistryKeys.CHUNK_GENERATOR_SETTINGS);
-			RegistryEntry<ChunkGeneratorSettings>
-					registryEntry2 =
-					registry.getOrThrow(ChunkGeneratorSettings.OVERWORLD);
+			Registry<ChunkGeneratorSettings> settingsRegistry = dynamicRegistryManager.getOrThrow(RegistryKeys.CHUNK_GENERATOR_SETTINGS);
+			RegistryEntry<ChunkGeneratorSettings> overworldSettings = settingsRegistry.getOrThrow(ChunkGeneratorSettings.OVERWORLD);
 			BiomeSource biomeSource = new FixedBiomeSource(biomeEntry);
-			ChunkGenerator chunkGenerator = new NoiseChunkGenerator(biomeSource, registryEntry2);
+			ChunkGenerator chunkGenerator = new NoiseChunkGenerator(biomeSource, overworldSettings);
 			return dimensionsRegistryHolder.with(dynamicRegistryManager, chunkGenerator);
 		};
 	}

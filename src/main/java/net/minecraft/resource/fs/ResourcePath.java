@@ -20,7 +20,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code ResourcePath}.
+ * Реализация {@link Path} для виртуальной файловой системы ресурсов.
+ *
+ * <p>Каждый путь хранит ссылку на свой {@link ResourceFile}-узел, который определяет
+ * тип пути: директория ({@link ResourceFile.Directory}), файл ({@link ResourceFile.File}),
+ * несуществующий путь ({@link ResourceFile#EMPTY}) или относительный маркер
+ * ({@link ResourceFile#RELATIVE}).</p>
+ *
+ * <p>Список имён сегментов и строковое представление пути кэшируются лениво.</p>
  */
 class ResourcePath implements Path {
 
@@ -35,6 +42,7 @@ class ResourcePath implements Path {
 			return true;
 		}
 	};
+
 	private static final BasicFileAttributes FILE_ATTRIBUTES = new ResourceFileAttributes() {
 		@Override
 		public boolean isRegularFile() {
@@ -46,13 +54,17 @@ class ResourcePath implements Path {
 			return false;
 		}
 	};
+
 	private static final Comparator<ResourcePath> COMPARATOR = Comparator.comparing(ResourcePath::getPathString);
+
 	private final String name;
 	private final ResourceFileSystem fileSystem;
 	private final @Nullable ResourcePath parent;
+	private final ResourceFile file;
+
+	// Ленивые кэши — вычисляются при первом обращении
 	private @Nullable List<String> names;
 	private @Nullable String pathString;
-	private final ResourceFile file;
 
 	public ResourcePath(ResourceFileSystem fileSystem, String name, @Nullable ResourcePath parent, ResourceFile file) {
 		this.fileSystem = fileSystem;
@@ -61,154 +73,151 @@ class ResourcePath implements Path {
 		this.file = file;
 	}
 
-	private ResourcePath relativize(@Nullable ResourcePath path, String name) {
-		return new ResourcePath(this.fileSystem, name, path, ResourceFile.RELATIVE);
+	private ResourcePath relativize(@Nullable ResourcePath parent, String segmentName) {
+		return new ResourcePath(fileSystem, segmentName, parent, ResourceFile.RELATIVE);
 	}
 
 	public ResourceFileSystem getFileSystem() {
-		return this.fileSystem;
+		return fileSystem;
 	}
 
 	@Override
 	public boolean isAbsolute() {
-		return this.file != ResourceFile.RELATIVE;
+		return file != ResourceFile.RELATIVE;
 	}
 
 	@Override
 	public File toFile() {
-		if (this.file instanceof ResourceFile.File file) {
-			return file.contents().toFile();
+		if (file instanceof ResourceFile.File realFile) {
+			return realFile.contents().toFile();
 		}
-		else {
-			throw new UnsupportedOperationException("Path " + this.getPathString() + " does not represent file");
-		}
+
+		throw new UnsupportedOperationException("Path " + getPathString() + " does not represent file");
 	}
 
 	public @Nullable ResourcePath getRoot() {
-		return this.isAbsolute() ? this.fileSystem.getRoot() : null;
+		return isAbsolute() ? fileSystem.getRoot() : null;
 	}
 
 	public ResourcePath getFileName() {
-		return this.relativize(null, this.name);
+		return relativize(null, name);
 	}
 
 	public @Nullable ResourcePath getParent() {
-		return this.parent;
+		return parent;
 	}
 
 	@Override
 	public int getNameCount() {
-		return this.getNames().size();
+		return getNames().size();
 	}
 
 	private List<String> getNames() {
-		if (this.name.isEmpty()) {
+		if (name.isEmpty()) {
 			return List.of();
 		}
-		else {
-			if (this.names == null) {
-				Builder<String> builder = ImmutableList.builder();
-				if (this.parent != null) {
-					builder.addAll(this.parent.getNames());
-				}
 
-				builder.add(this.name);
-				this.names = builder.build();
+		if (names == null) {
+			Builder<String> builder = ImmutableList.builder();
+
+			if (parent != null) {
+				builder.addAll(parent.getNames());
 			}
 
-			return this.names;
+			builder.add(name);
+			names = builder.build();
 		}
+
+		return names;
 	}
 
-	public ResourcePath getName(int i) {
-		List<String> list = this.getNames();
-		if (i >= 0 && i < list.size()) {
-			return this.relativize(null, list.get(i));
+	public ResourcePath getName(int index) {
+		List<String> segments = getNames();
+
+		if (index < 0 || index >= segments.size()) {
+			throw new IllegalArgumentException("Invalid index: " + index);
 		}
-		else {
-			throw new IllegalArgumentException("Invalid index: " + i);
-		}
+
+		return relativize(null, segments.get(index));
 	}
 
-	public ResourcePath subpath(int i, int j) {
-		List<String> list = this.getNames();
-		if (i >= 0 && j <= list.size() && i < j) {
-			ResourcePath resourcePath = null;
+	public ResourcePath subpath(int from, int to) {
+		List<String> segments = getNames();
 
-			for (int k = i; k < j; k++) {
-				resourcePath = this.relativize(resourcePath, list.get(k));
-			}
-
-			return resourcePath;
-		}
-		else {
+		if (from < 0 || to > segments.size() || from >= to) {
 			throw new IllegalArgumentException();
 		}
+
+		ResourcePath result = null;
+
+		for (int index = from; index < to; index++) {
+			result = relativize(result, segments.get(index));
+		}
+
+		return result;
 	}
 
 	@Override
 	public boolean startsWith(Path other) {
-		if (other.isAbsolute() != this.isAbsolute()) {
+		if (other.isAbsolute() != isAbsolute()) {
 			return false;
 		}
-		else if (other instanceof ResourcePath resourcePath) {
-			if (resourcePath.fileSystem != this.fileSystem) {
+
+		if (!(other instanceof ResourcePath otherPath)) {
+			return false;
+		}
+
+		if (otherPath.fileSystem != fileSystem) {
+			return false;
+		}
+
+		List<String> myNames = getNames();
+		List<String> otherNames = otherPath.getNames();
+		int otherSize = otherNames.size();
+
+		if (otherSize > myNames.size()) {
+			return false;
+		}
+
+		for (int index = 0; index < otherSize; index++) {
+			if (!otherNames.get(index).equals(myNames.get(index))) {
 				return false;
 			}
-			else {
-				List<String> list = this.getNames();
-				List<String> list2 = resourcePath.getNames();
-				int i = list2.size();
-				if (i > list.size()) {
-					return false;
-				}
-				else {
-					for (int j = 0; j < i; j++) {
-						if (!list2.get(j).equals(list.get(j))) {
-							return false;
-						}
-					}
+		}
 
-					return true;
-				}
-			}
-		}
-		else {
-			return false;
-		}
+		return true;
 	}
 
 	@Override
 	public boolean endsWith(Path other) {
-		if (other.isAbsolute() && !this.isAbsolute()) {
+		if (other.isAbsolute() && !isAbsolute()) {
 			return false;
 		}
-		else if (other instanceof ResourcePath resourcePath) {
-			if (resourcePath.fileSystem != this.fileSystem) {
+
+		if (!(other instanceof ResourcePath otherPath)) {
+			return false;
+		}
+
+		if (otherPath.fileSystem != fileSystem) {
+			return false;
+		}
+
+		List<String> myNames = getNames();
+		List<String> otherNames = otherPath.getNames();
+		int otherSize = otherNames.size();
+		int offset = myNames.size() - otherSize;
+
+		if (offset < 0) {
+			return false;
+		}
+
+		for (int index = otherSize - 1; index >= 0; index--) {
+			if (!otherNames.get(index).equals(myNames.get(offset + index))) {
 				return false;
 			}
-			else {
-				List<String> list = this.getNames();
-				List<String> list2 = resourcePath.getNames();
-				int i = list2.size();
-				int j = list.size() - i;
-				if (j < 0) {
-					return false;
-				}
-				else {
-					for (int k = i - 1; k >= 0; k--) {
-						if (!list2.get(k).equals(list.get(j + k))) {
-							return false;
-						}
-					}
+		}
 
-					return true;
-				}
-			}
-		}
-		else {
-			return false;
-		}
+		return true;
 	}
 
 	public ResourcePath normalize() {
@@ -216,80 +225,86 @@ class ResourcePath implements Path {
 	}
 
 	public ResourcePath resolve(Path path) {
-		ResourcePath resourcePath = this.toResourcePath(path);
-		return path.isAbsolute() ? resourcePath : this.get(resourcePath.getNames());
+		ResourcePath resolved = toResourcePath(path);
+		return path.isAbsolute() ? resolved : get(resolved.getNames());
 	}
 
-	private ResourcePath get(List<String> paths) {
-		ResourcePath resourcePath = this;
+	private ResourcePath get(List<String> segments) {
+		ResourcePath current = this;
 
-		for (String string : paths) {
-			resourcePath = resourcePath.get(string);
+		for (String segment : segments) {
+			current = current.get(segment);
 		}
 
-		return resourcePath;
+		return current;
 	}
 
-	ResourcePath get(String name) {
-		if (isSpecial(this.file)) {
-			return new ResourcePath(this.fileSystem, name, this, this.file);
+	ResourcePath get(String segmentName) {
+		if (isSpecial(file)) {
+			return new ResourcePath(fileSystem, segmentName, this, file);
 		}
-		else if (this.file instanceof ResourceFile.Directory directory) {
-			ResourcePath resourcePath = directory.children().get(name);
-			return resourcePath != null ? resourcePath
-			                            : new ResourcePath(this.fileSystem, name, this, ResourceFile.EMPTY);
+
+		if (file instanceof ResourceFile.Directory directory) {
+			ResourcePath child = directory.children().get(segmentName);
+			return child != null
+					? child
+					: new ResourcePath(fileSystem, segmentName, this, ResourceFile.EMPTY);
 		}
-		else if (this.file instanceof ResourceFile.File) {
-			return new ResourcePath(this.fileSystem, name, this, ResourceFile.EMPTY);
+
+		if (file instanceof ResourceFile.File) {
+			return new ResourcePath(fileSystem, segmentName, this, ResourceFile.EMPTY);
 		}
-		else {
-			throw new AssertionError("All content types should be already handled");
-		}
+
+		throw new AssertionError("All content types should be already handled");
 	}
 
 	private static boolean isSpecial(ResourceFile file) {
 		return file == ResourceFile.EMPTY || file == ResourceFile.RELATIVE;
 	}
 
+	/**
+	 * Вычисляет относительный путь от этого пути до {@code path}.
+	 *
+	 * @throws IllegalArgumentException если пути несовместимы по абсолютности или не имеют общего префикса
+	 */
 	public ResourcePath relativize(Path path) {
-		ResourcePath resourcePath = this.toResourcePath(path);
-		if (this.isAbsolute() != resourcePath.isAbsolute()) {
+		ResourcePath target = toResourcePath(path);
+
+		if (isAbsolute() != target.isAbsolute()) {
 			throw new IllegalArgumentException("absolute mismatch");
 		}
-		else {
-			List<String> list = this.getNames();
-			List<String> list2 = resourcePath.getNames();
-			if (list.size() >= list2.size()) {
+
+		List<String> myNames = getNames();
+		List<String> targetNames = target.getNames();
+
+		if (myNames.size() >= targetNames.size()) {
+			throw new IllegalArgumentException();
+		}
+
+		for (int index = 0; index < myNames.size(); index++) {
+			if (!myNames.get(index).equals(targetNames.get(index))) {
 				throw new IllegalArgumentException();
 			}
-			else {
-				for (int i = 0; i < list.size(); i++) {
-					if (!list.get(i).equals(list2.get(i))) {
-						throw new IllegalArgumentException();
-					}
-				}
-
-				return resourcePath.subpath(list.size(), list2.size());
-			}
 		}
+
+		return target.subpath(myNames.size(), targetNames.size());
 	}
 
 	@Override
 	public URI toUri() {
 		try {
-			return new URI("x-mc-link", this.fileSystem.getStore().name(), this.getPathString(), null);
-		}
-		catch (URISyntaxException var2) {
-			throw new AssertionError("Failed to create URI", var2);
+			return new URI(ResourceFileSystemProvider.SCHEME, fileSystem.getStore().name(), getPathString(), null);
+		} catch (URISyntaxException exception) {
+			throw new AssertionError("Failed to create URI", exception);
 		}
 	}
 
 	public ResourcePath toAbsolutePath() {
-		return this.isAbsolute() ? this : this.fileSystem.getRoot().resolve(this);
+		return isAbsolute() ? this : fileSystem.getRoot().resolve(this);
 	}
 
 	public ResourcePath toRealPath(LinkOption... linkOptions) {
-		return this.toAbsolutePath();
+		return toAbsolutePath();
 	}
 
 	@Override
@@ -299,8 +314,7 @@ class ResourcePath implements Path {
 
 	@Override
 	public int compareTo(Path path) {
-		ResourcePath resourcePath = this.toResourcePath(path);
-		return COMPARATOR.compare(this, resourcePath);
+		return COMPARATOR.compare(this, toResourcePath(path));
 	}
 
 	@Override
@@ -308,81 +322,84 @@ class ResourcePath implements Path {
 		if (o == this) {
 			return true;
 		}
-		else if (o instanceof ResourcePath resourcePath) {
-			if (this.fileSystem != resourcePath.fileSystem) {
-				return false;
-			}
-			else {
-				boolean bl = this.isNormal();
-				if (bl != resourcePath.isNormal()) {
-					return false;
-				}
-				else {
-					return bl ? this.file == resourcePath.file
-					          : Objects.equals(this.parent, resourcePath.parent) && Objects.equals(
-							          this.name,
-							          resourcePath.name
-					          );
-				}
-			}
-		}
-		else {
+
+		if (!(o instanceof ResourcePath other)) {
 			return false;
 		}
+
+		if (fileSystem != other.fileSystem) {
+			return false;
+		}
+
+		boolean normal = isNormal();
+
+		if (normal != other.isNormal()) {
+			return false;
+		}
+
+		return normal
+				? file == other.file
+				: Objects.equals(parent, other.parent) && Objects.equals(name, other.name);
 	}
 
 	private boolean isNormal() {
-		return !isSpecial(this.file);
+		return !isSpecial(file);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.isNormal() ? this.file.hashCode() : this.name.hashCode();
+		return isNormal() ? file.hashCode() : name.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.getPathString();
+		return getPathString();
 	}
 
 	private String getPathString() {
-		if (this.pathString == null) {
-			StringBuilder stringBuilder = new StringBuilder();
-			if (this.isAbsolute()) {
-				stringBuilder.append("/");
+		if (pathString == null) {
+			StringBuilder builder = new StringBuilder();
+
+			if (isAbsolute()) {
+				builder.append("/");
 			}
 
-			Joiner.on("/").appendTo(stringBuilder, this.getNames());
-			this.pathString = stringBuilder.toString();
+			Joiner.on("/").appendTo(builder, getNames());
+			pathString = builder.toString();
 		}
 
-		return this.pathString;
+		return pathString;
 	}
 
 	private ResourcePath toResourcePath(@Nullable Path path) {
 		if (path == null) {
 			throw new NullPointerException();
 		}
-		else if (path instanceof ResourcePath resourcePath && resourcePath.fileSystem == this.fileSystem) {
+
+		if (path instanceof ResourcePath resourcePath && resourcePath.fileSystem == fileSystem) {
 			return resourcePath;
 		}
-		else {
-			throw new ProviderMismatchException();
-		}
+
+		throw new ProviderMismatchException();
 	}
 
 	public boolean isReadable() {
-		return this.isNormal();
+		return isNormal();
 	}
 
 	public @Nullable Path toPath() {
-		return this.file instanceof ResourceFile.File file ? file.contents() : null;
+		return file instanceof ResourceFile.File realFile ? realFile.contents() : null;
 	}
 
 	public ResourceFile.@Nullable Directory toDirectory() {
-		return this.file instanceof ResourceFile.Directory directory ? directory : null;
+		return file instanceof ResourceFile.Directory directory ? directory : null;
 	}
 
+	/**
+	 * Возвращает представление атрибутов этого пути в виде {@link BasicFileAttributeView}.
+	 *
+	 * <p>Операция {@code setTimes} запрещена — файловая система только для чтения.</p>
+	 */
 	public BasicFileAttributeView getAttributeView() {
 		return new BasicFileAttributeView() {
 			@Override
@@ -402,15 +419,20 @@ class ResourcePath implements Path {
 		};
 	}
 
+	/**
+	 * Возвращает атрибуты файла или директории.
+	 *
+	 * @throws NoSuchFileException если путь не существует (маркер {@link ResourceFile#EMPTY} или {@link ResourceFile#RELATIVE})
+	 */
 	public BasicFileAttributes getAttributes() throws IOException {
-		if (this.file instanceof ResourceFile.Directory) {
+		if (file instanceof ResourceFile.Directory) {
 			return DIRECTORY_ATTRIBUTES;
 		}
-		else if (this.file instanceof ResourceFile.File) {
+
+		if (file instanceof ResourceFile.File) {
 			return FILE_ATTRIBUTES;
 		}
-		else {
-			throw new NoSuchFileException(this.getPathString());
-		}
+
+		throw new NoSuchFileException(getPathString());
 	}
 }

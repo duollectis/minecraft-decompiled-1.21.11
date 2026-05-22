@@ -18,14 +18,13 @@ import net.minecraft.client.gl.RenderPipelines;
 import java.util.OptionalInt;
 
 @Environment(EnvType.CLIENT)
-/**
- * {@code TracyFrameCapturer}.
- */
 public class TracyFrameCapturer implements AutoCloseable {
 
 	private static final int MAX_WIDTH = 320;
 	private static final int MAX_HEIGHT = 180;
-	private static final long CAPTURE_INTERVAL_FRAMES = 4L;
+	private static final int ALIGNMENT_FACTOR = 4;
+	private static final int BYTES_PER_PIXEL = 4;
+
 	private int framebufferWidth;
 	private int framebufferHeight;
 	private int width;
@@ -35,146 +34,121 @@ public class TracyFrameCapturer implements AutoCloseable {
 	private GpuBuffer buffer;
 	private int offset;
 	private boolean captured;
-	private TracyFrameCapturer.Status status = TracyFrameCapturer.Status.WAITING_FOR_CAPTURE;
+	private Status status = Status.WAITING_FOR_CAPTURE;
 
 	public TracyFrameCapturer() {
-		this.width = 320;
-		this.height = 180;
+		width = MAX_WIDTH;
+		height = MAX_HEIGHT;
 		GpuDevice gpuDevice = RenderSystem.getDevice();
-		this.texture =
-				gpuDevice.createTexture("Tracy Frame Capture", 10, TextureFormat.RGBA8, this.width, this.height, 1, 1);
-		this.textureView = gpuDevice.createTextureView(this.texture);
-		this.buffer = gpuDevice.createBuffer(() -> "Tracy Frame Capture buffer", 9, this.width * this.height * 4L);
-	}
-
-	private void resize(int framebufferWidth, int framebufferHeight) {
-		float f = (float) framebufferWidth / framebufferHeight;
-		if (framebufferWidth > 320) {
-			framebufferWidth = 320;
-			framebufferHeight = (int) (320.0F / f);
-		}
-
-		if (framebufferHeight > 180) {
-			framebufferWidth = (int) (180.0F * f);
-			framebufferHeight = 180;
-		}
-
-		framebufferWidth = framebufferWidth / 4 * 4;
-		framebufferHeight = framebufferHeight / 4 * 4;
-		if (this.width != framebufferWidth || this.height != framebufferHeight) {
-			this.width = framebufferWidth;
-			this.height = framebufferHeight;
-			GpuDevice gpuDevice = RenderSystem.getDevice();
-			this.texture.close();
-			this.texture =
-					gpuDevice.createTexture(
-							"Tracy Frame Capture",
-							10,
-							TextureFormat.RGBA8,
-							framebufferWidth,
-							framebufferHeight,
-							1,
-							1
-					);
-			this.textureView.close();
-			this.textureView = gpuDevice.createTextureView(this.texture);
-			this.buffer.close();
-			this.buffer =
-					gpuDevice.createBuffer(
-							() -> "Tracy Frame Capture buffer",
-							9,
-							framebufferWidth * framebufferHeight * 4L
-					);
-		}
+		texture = gpuDevice.createTexture("Tracy Frame Capture", 10, TextureFormat.RGBA8, width, height, 1, 1);
+		textureView = gpuDevice.createTextureView(texture);
+		buffer = gpuDevice.createBuffer(() -> "Tracy Frame Capture buffer", 9, (long) width * height * BYTES_PER_PIXEL);
 	}
 
 	/**
-	 * Capture.
-	 *
-	 * @param framebuffer framebuffer
+	 * Пересчитывает размер capture-текстуры под новый размер фреймбуфера.
+	 * Размеры выравниваются до кратных 4 для совместимости с GPU-форматами.
 	 */
+	private void resize(int newFramebufferWidth, int newFramebufferHeight) {
+		float aspectRatio = (float) newFramebufferWidth / newFramebufferHeight;
+		if (newFramebufferWidth > MAX_WIDTH) {
+			newFramebufferWidth = MAX_WIDTH;
+			newFramebufferHeight = (int) (MAX_WIDTH / aspectRatio);
+		}
+
+		if (newFramebufferHeight > MAX_HEIGHT) {
+			newFramebufferWidth = (int) (MAX_HEIGHT * aspectRatio);
+			newFramebufferHeight = MAX_HEIGHT;
+		}
+
+		newFramebufferWidth = newFramebufferWidth / ALIGNMENT_FACTOR * ALIGNMENT_FACTOR;
+		newFramebufferHeight = newFramebufferHeight / ALIGNMENT_FACTOR * ALIGNMENT_FACTOR;
+
+		if (width == newFramebufferWidth && height == newFramebufferHeight) {
+			return;
+		}
+
+		width = newFramebufferWidth;
+		height = newFramebufferHeight;
+		GpuDevice gpuDevice = RenderSystem.getDevice();
+
+		texture.close();
+		texture = gpuDevice.createTexture("Tracy Frame Capture", 10, TextureFormat.RGBA8, width, height, 1, 1);
+		textureView.close();
+		textureView = gpuDevice.createTextureView(texture);
+		buffer.close();
+		buffer = gpuDevice.createBuffer(() -> "Tracy Frame Capture buffer", 9, (long) width * height * BYTES_PER_PIXEL);
+	}
+
 	public void capture(Framebuffer framebuffer) {
-		if (this.status == TracyFrameCapturer.Status.WAITING_FOR_CAPTURE && !this.captured
-				&& framebuffer.getColorAttachment() != null) {
-			this.captured = true;
-			if (framebuffer.textureWidth != this.framebufferWidth
-					|| framebuffer.textureHeight != this.framebufferHeight) {
-				this.framebufferWidth = framebuffer.textureWidth;
-				this.framebufferHeight = framebuffer.textureHeight;
-				this.resize(this.framebufferWidth, this.framebufferHeight);
-			}
+		if (status != Status.WAITING_FOR_CAPTURE || captured || framebuffer.getColorAttachment() == null) {
+			return;
+		}
 
-			this.status = TracyFrameCapturer.Status.WAITING_FOR_COPY;
-			CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
+		captured = true;
+		if (framebuffer.textureWidth != framebufferWidth || framebuffer.textureHeight != framebufferHeight) {
+			framebufferWidth = framebuffer.textureWidth;
+			framebufferHeight = framebuffer.textureHeight;
+			resize(framebufferWidth, framebufferHeight);
+		}
 
-			try (RenderPass renderPass = RenderSystem.getDevice()
-			                                         .createCommandEncoder()
-			                                         .createRenderPass(
-					                                         () -> "Tracy blit",
-					                                         this.textureView,
-					                                         OptionalInt.empty()
-			                                         )
-			) {
-				renderPass.setPipeline(RenderPipelines.TRACY_BLIT);
-				renderPass.bindTexture(
-						"InSampler",
-						framebuffer.getColorAttachmentView(),
-						RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
-				);
-				renderPass.draw(0, 3);
-			}
+		status = Status.WAITING_FOR_COPY;
+		CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
 
-			commandEncoder.copyTextureToBuffer(
-					this.texture,
-					this.buffer,
-					0L,
-					() -> this.status = TracyFrameCapturer.Status.WAITING_FOR_UPLOAD,
-					0
+		try (RenderPass renderPass = RenderSystem.getDevice()
+			.createCommandEncoder()
+			.createRenderPass(() -> "Tracy blit", textureView, OptionalInt.empty())
+		) {
+			renderPass.setPipeline(RenderPipelines.TRACY_BLIT);
+			renderPass.bindTexture(
+				"InSampler",
+				framebuffer.getColorAttachmentView(),
+				RenderSystem.getSamplerCache().get(FilterMode.LINEAR)
 			);
-			this.offset = 0;
+			renderPass.draw(0, 3);
 		}
+
+		commandEncoder.copyTextureToBuffer(
+			texture,
+			buffer,
+			0L,
+			() -> status = Status.WAITING_FOR_UPLOAD,
+			0
+		);
+		offset = 0;
 	}
 
-	/**
-	 * Upload.
-	 */
 	public void upload() {
-		if (this.status == TracyFrameCapturer.Status.WAITING_FOR_UPLOAD) {
-			this.status = TracyFrameCapturer.Status.WAITING_FOR_CAPTURE;
+		if (status != Status.WAITING_FOR_UPLOAD) {
+			return;
+		}
 
-			try (GpuBuffer.MappedView mappedView = RenderSystem
-					.getDevice()
-					.createCommandEncoder()
-					.mapBuffer(this.buffer, true, false)
-			) {
-				TracyClient.frameImage(mappedView.data(), this.width, this.height, this.offset, true);
-			}
+		status = Status.WAITING_FOR_CAPTURE;
+		try (GpuBuffer.MappedView mappedView = RenderSystem.getDevice()
+			.createCommandEncoder()
+			.mapBuffer(buffer, true, false)
+		) {
+			TracyClient.frameImage(mappedView.data(), width, height, offset, true);
 		}
 	}
 
-	/**
-	 * Mark frame.
-	 */
 	public void markFrame() {
-		this.offset++;
-		this.captured = false;
+		offset++;
+		captured = false;
 		TracyClient.markFrame();
 	}
 
 	@Override
 	public void close() {
-		this.texture.close();
-		this.textureView.close();
-		this.buffer.close();
+		texture.close();
+		textureView.close();
+		buffer.close();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Status}.
-	 */
-	static enum Status {
+	enum Status {
 		WAITING_FOR_CAPTURE,
 		WAITING_FOR_COPY,
-		WAITING_FOR_UPLOAD;
+		WAITING_FOR_UPLOAD
 	}
 }

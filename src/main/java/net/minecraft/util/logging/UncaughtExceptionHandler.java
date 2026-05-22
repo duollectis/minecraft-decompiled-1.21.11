@@ -3,9 +3,9 @@ package net.minecraft.util.logging;
 import org.slf4j.Logger;
 
 /**
- * {@code UncaughtExceptionHandler}.
+ * Обработчик необработанных исключений потока, логирующий и имя потока, и само исключение.
  */
-public class UncaughtExceptionHandler implements java.lang.Thread.UncaughtExceptionHandler {
+public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
 
 	private final Logger logger;
 
@@ -15,7 +15,7 @@ public class UncaughtExceptionHandler implements java.lang.Thread.UncaughtExcept
 
 	@Override
 	public void uncaughtException(Thread thread, Throwable throwable) {
-		this.logger.error("Caught previously unhandled exception :");
-		this.logger.error(thread.getName(), throwable);
+		logger.error("Caught previously unhandled exception :");
+		logger.error(thread.getName(), throwable);
 	}
 }

@@ -12,255 +12,232 @@ import net.minecraft.util.math.MathHelper;
 import java.util.List;
 
 /**
- * {@code EnchantmentLevelBasedValue}.
+ * Интерфейс для вычисления числового значения, зависящего от уровня зачарования.
+ * Реализации охватывают константы, линейные функции, дроби, степени и таблицы поиска.
  */
 public interface EnchantmentLevelBasedValue {
 
+	/**
+	 * Базовый кодек, использующий диспетчеризацию по типу из реестра.
+	 * Не обрабатывает сокращённую форму константы — для этого используйте {@link #CODEC}.
+	 */
 	Codec<EnchantmentLevelBasedValue> BASE_CODEC = Registries.ENCHANTMENT_LEVEL_BASED_VALUE_TYPE
 			.getCodec()
 			.dispatch(EnchantmentLevelBasedValue::getCodec, codec -> codec);
 
-	Codec<EnchantmentLevelBasedValue> CODEC = Codec.either(EnchantmentLevelBasedValue.Constant.CODEC, BASE_CODEC)
-	                                               .xmap(
-			                                               either -> (EnchantmentLevelBasedValue) either.map(
-					                                               type -> type,
-					                                               type -> type
-			                                               ),
-			                                               type -> type instanceof EnchantmentLevelBasedValue.Constant constant
-			                                                       ? Either.left(constant) : Either.right(type)
-	                                               );
+	/**
+	 * Полный кодек: числовой литерал десериализуется как {@link Constant},
+	 * все остальные типы — через {@link #BASE_CODEC}.
+	 */
+	Codec<EnchantmentLevelBasedValue> CODEC = Codec.either(Constant.CODEC, BASE_CODEC)
+			.xmap(
+					either -> either.map(type -> type, type -> type),
+					type -> type instanceof Constant constant ? Either.left(constant) : Either.right(type)
+			);
 
-	static MapCodec<? extends EnchantmentLevelBasedValue> registerAndGetDefault(Registry<MapCodec<? extends EnchantmentLevelBasedValue>> registry) {
-		Registry.register(registry, "clamped", EnchantmentLevelBasedValue.Clamped.CODEC);
-		Registry.register(registry, "fraction", EnchantmentLevelBasedValue.Fraction.CODEC);
-		Registry.register(registry, "levels_squared", EnchantmentLevelBasedValue.LevelsSquared.CODEC);
-		Registry.register(registry, "linear", EnchantmentLevelBasedValue.Linear.CODEC);
-		Registry.register(registry, "exponent", EnchantmentLevelBasedValue.Exponent.CODEC);
-		return Registry.register(registry, "lookup", EnchantmentLevelBasedValue.Lookup.CODEC);
+	/**
+	 * Регистрирует все встроенные типы в реестре и возвращает тип по умолчанию.
+	 */
+	static MapCodec<? extends EnchantmentLevelBasedValue> registerAndGetDefault(
+			Registry<MapCodec<? extends EnchantmentLevelBasedValue>> registry
+	) {
+		Registry.register(registry, "clamped", Clamped.CODEC);
+		Registry.register(registry, "fraction", Fraction.CODEC);
+		Registry.register(registry, "levels_squared", LevelsSquared.CODEC);
+		Registry.register(registry, "linear", Linear.CODEC);
+		Registry.register(registry, "exponent", Exponent.CODEC);
+		return Registry.register(registry, "lookup", Lookup.CODEC);
 	}
 
-	static EnchantmentLevelBasedValue.Constant constant(float value) {
-		return new EnchantmentLevelBasedValue.Constant(value);
+	static Constant constant(float value) {
+		return new Constant(value);
 	}
 
-	static EnchantmentLevelBasedValue.Linear linear(float base, float perLevelAboveFirst) {
-		return new EnchantmentLevelBasedValue.Linear(base, perLevelAboveFirst);
+	static Linear linear(float base, float perLevelAboveFirst) {
+		return new Linear(base, perLevelAboveFirst);
 	}
 
-	static EnchantmentLevelBasedValue.Linear linear(float base) {
+	static Linear linear(float base) {
 		return linear(base, base);
 	}
 
-	static EnchantmentLevelBasedValue.Lookup lookup(List<Float> values, EnchantmentLevelBasedValue fallback) {
-		return new EnchantmentLevelBasedValue.Lookup(values, fallback);
+	static Lookup lookup(List<Float> values, EnchantmentLevelBasedValue fallback) {
+		return new Lookup(values, fallback);
 	}
 
+	/** Вычисляет значение для указанного уровня зачарования. */
 	float getValue(int level);
 
 	MapCodec<? extends EnchantmentLevelBasedValue> getCodec();
 
 	/**
-	 * {@code Clamped}.
+	 * Ограничивает результат другого вычислителя в диапазоне [min, max].
 	 */
-	public record Clamped(
-			EnchantmentLevelBasedValue value,
-			float min,
-			float max
-	) implements EnchantmentLevelBasedValue {
+	record Clamped(EnchantmentLevelBasedValue value, float min, float max) implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.Clamped>
-				CODEC =
-				RecordCodecBuilder.<EnchantmentLevelBasedValue.Clamped>mapCodec(
-						                  instance -> instance.group(
-								                                      EnchantmentLevelBasedValue.CODEC
-										                                      .fieldOf("value")
-										                                      .forGetter(EnchantmentLevelBasedValue.Clamped::value),
-								                                      Codec.FLOAT.fieldOf("min").forGetter(EnchantmentLevelBasedValue.Clamped::min),
-								                                      Codec.FLOAT.fieldOf("max").forGetter(EnchantmentLevelBasedValue.Clamped::max)
-						                                      )
-						                                      .apply(instance, EnchantmentLevelBasedValue.Clamped::new)
-				                  )
-				                  .validate(
-						                  (EnchantmentLevelBasedValue.Clamped type) -> type.max <= type.min
-						                                                               ? DataResult.error(() ->
-						                                                                                  "Max must be larger than min, min: "
-						                                                                                  + type.min
-						                                                                                  + ", max: "
-						                                                                                  + type.max)
-						                                                               : DataResult.success(type)
-				                  );
+		public static final MapCodec<Clamped> CODEC = RecordCodecBuilder
+				.<Clamped>mapCodec(instance -> instance.group(
+						EnchantmentLevelBasedValue.CODEC.fieldOf("value").forGetter(Clamped::value),
+						Codec.FLOAT.fieldOf("min").forGetter(Clamped::min),
+						Codec.FLOAT.fieldOf("max").forGetter(Clamped::max)
+				).apply(instance, Clamped::new))
+				.validate(type -> type.max <= type.min
+						? DataResult.error(() -> "Max must be larger than min, min: " + type.min + ", max: " + type.max)
+						: DataResult.success(type)
+				);
 
 		@Override
 		public float getValue(int level) {
-			return MathHelper.clamp(this.value.getValue(level), this.min, this.max);
+			return MathHelper.clamp(value.getValue(level), min, max);
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Clamped> getCodec() {
+		public MapCodec<Clamped> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code Constant}.
+	 * Возвращает фиксированное значение независимо от уровня.
+	 * В JSON может быть записана как числовой литерал.
 	 */
-	public record Constant(float value) implements EnchantmentLevelBasedValue {
+	record Constant(float value) implements EnchantmentLevelBasedValue {
 
-		public static final Codec<EnchantmentLevelBasedValue.Constant> CODEC = Codec.FLOAT
-				.xmap(EnchantmentLevelBasedValue.Constant::new, EnchantmentLevelBasedValue.Constant::value);
-		public static final MapCodec<EnchantmentLevelBasedValue.Constant> TYPE_CODEC = RecordCodecBuilder.mapCodec(
+		public static final Codec<Constant> CODEC =
+				Codec.FLOAT.xmap(Constant::new, Constant::value);
+
+		public static final MapCodec<Constant> TYPE_CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance
-						.group(Codec.FLOAT.fieldOf("value").forGetter(EnchantmentLevelBasedValue.Constant::value))
-						.apply(instance, EnchantmentLevelBasedValue.Constant::new)
+						.group(Codec.FLOAT.fieldOf("value").forGetter(Constant::value))
+						.apply(instance, Constant::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			return this.value;
+			return value;
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Constant> getCodec() {
+		public MapCodec<Constant> getCodec() {
 			return TYPE_CODEC;
 		}
 	}
 
 	/**
-	 * {@code Exponent}.
+	 * Вычисляет {@code base ^ power}, где оба операнда зависят от уровня.
 	 */
-	public record Exponent(
-			EnchantmentLevelBasedValue base,
-			EnchantmentLevelBasedValue power
-	) implements EnchantmentLevelBasedValue {
+	record Exponent(EnchantmentLevelBasedValue base, EnchantmentLevelBasedValue power)
+			implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.Exponent> CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<Exponent> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    EnchantmentLevelBasedValue.CODEC
-								                    .fieldOf("base")
-								                    .forGetter(EnchantmentLevelBasedValue.Exponent::base),
-						                    EnchantmentLevelBasedValue.CODEC
-								                    .fieldOf("power")
-								                    .forGetter(EnchantmentLevelBasedValue.Exponent::power)
-				                    )
-				                    .apply(instance, EnchantmentLevelBasedValue.Exponent::new)
+						EnchantmentLevelBasedValue.CODEC.fieldOf("base").forGetter(Exponent::base),
+						EnchantmentLevelBasedValue.CODEC.fieldOf("power").forGetter(Exponent::power)
+				).apply(instance, Exponent::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			return (float) Math.pow(this.base.getValue(level), this.power.getValue(level));
+			return (float) Math.pow(base.getValue(level), power.getValue(level));
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Exponent> getCodec() {
+		public MapCodec<Exponent> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code Fraction}.
+	 * Вычисляет дробь {@code numerator / denominator}.
+	 * Если знаменатель равен нулю, возвращает 0.
 	 */
-	public record Fraction(
-			EnchantmentLevelBasedValue numerator,
-			EnchantmentLevelBasedValue denominator
-	) implements EnchantmentLevelBasedValue {
+	record Fraction(EnchantmentLevelBasedValue numerator, EnchantmentLevelBasedValue denominator)
+			implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.Fraction> CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<Fraction> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    EnchantmentLevelBasedValue.CODEC
-								                    .fieldOf("numerator")
-								                    .forGetter(EnchantmentLevelBasedValue.Fraction::numerator),
-						                    EnchantmentLevelBasedValue.CODEC
-								                    .fieldOf("denominator")
-								                    .forGetter(EnchantmentLevelBasedValue.Fraction::denominator)
-				                    )
-				                    .apply(instance, EnchantmentLevelBasedValue.Fraction::new)
+						EnchantmentLevelBasedValue.CODEC.fieldOf("numerator").forGetter(Fraction::numerator),
+						EnchantmentLevelBasedValue.CODEC.fieldOf("denominator").forGetter(Fraction::denominator)
+				).apply(instance, Fraction::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			float f = this.denominator.getValue(level);
-			return f == 0.0F ? 0.0F : this.numerator.getValue(level) / f;
+			float denom = denominator.getValue(level);
+			return denom == 0.0F ? 0.0F : numerator.getValue(level) / denom;
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Fraction> getCodec() {
+		public MapCodec<Fraction> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code LevelsSquared}.
+	 * Вычисляет {@code level² + added}.
 	 */
-	public record LevelsSquared(float added) implements EnchantmentLevelBasedValue {
+	record LevelsSquared(float added) implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.LevelsSquared> CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<LevelsSquared> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance
-						.group(Codec.FLOAT.fieldOf("added").forGetter(EnchantmentLevelBasedValue.LevelsSquared::added))
-						.apply(instance, EnchantmentLevelBasedValue.LevelsSquared::new)
+						.group(Codec.FLOAT.fieldOf("added").forGetter(LevelsSquared::added))
+						.apply(instance, LevelsSquared::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			return MathHelper.square(level) + this.added;
+			return MathHelper.square(level) + added;
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.LevelsSquared> getCodec() {
+		public MapCodec<LevelsSquared> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code Linear}.
+	 * Линейная функция: {@code base + perLevelAboveFirst * (level - 1)}.
 	 */
-	public record Linear(float base, float perLevelAboveFirst) implements EnchantmentLevelBasedValue {
+	record Linear(float base, float perLevelAboveFirst) implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.Linear> CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<Linear> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codec.FLOAT.fieldOf("base").forGetter(EnchantmentLevelBasedValue.Linear::base),
-						                    Codec.FLOAT
-								                    .fieldOf("per_level_above_first")
-								                    .forGetter(EnchantmentLevelBasedValue.Linear::perLevelAboveFirst)
-				                    )
-				                    .apply(instance, EnchantmentLevelBasedValue.Linear::new)
+						Codec.FLOAT.fieldOf("base").forGetter(Linear::base),
+						Codec.FLOAT.fieldOf("per_level_above_first").forGetter(Linear::perLevelAboveFirst)
+				).apply(instance, Linear::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			return this.base + this.perLevelAboveFirst * (level - 1);
+			return base + perLevelAboveFirst * (level - 1);
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Linear> getCodec() {
+		public MapCodec<Linear> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code Lookup}.
+	 * Таблица поиска: возвращает {@code values[level - 1]} для уровней в пределах списка,
+	 * иначе делегирует в {@code fallback}.
 	 */
-	public record Lookup(
-			List<Float> values,
-			EnchantmentLevelBasedValue fallback
-	) implements EnchantmentLevelBasedValue {
+	record Lookup(List<Float> values, EnchantmentLevelBasedValue fallback) implements EnchantmentLevelBasedValue {
 
-		public static final MapCodec<EnchantmentLevelBasedValue.Lookup> CODEC = RecordCodecBuilder.mapCodec(
+		public static final MapCodec<Lookup> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codec.FLOAT.listOf().fieldOf("values").forGetter(EnchantmentLevelBasedValue.Lookup::values),
-						                    EnchantmentLevelBasedValue.CODEC
-								                    .fieldOf("fallback")
-								                    .forGetter(EnchantmentLevelBasedValue.Lookup::fallback)
-				                    )
-				                    .apply(instance, EnchantmentLevelBasedValue.Lookup::new)
+						Codec.FLOAT.listOf().fieldOf("values").forGetter(Lookup::values),
+						EnchantmentLevelBasedValue.CODEC.fieldOf("fallback").forGetter(Lookup::fallback)
+				).apply(instance, Lookup::new)
 		);
 
 		@Override
 		public float getValue(int level) {
-			return level <= this.values.size() ? this.values.get(level - 1) : this.fallback.getValue(level);
+			return level <= values.size() ? values.get(level - 1) : fallback.getValue(level);
 		}
 
 		@Override
-		public MapCodec<EnchantmentLevelBasedValue.Lookup> getCodec() {
+		public MapCodec<Lookup> getCodec() {
 			return CODEC;
 		}
 	}

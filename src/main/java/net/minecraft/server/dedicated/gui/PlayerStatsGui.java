@@ -11,7 +11,7 @@ import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 /**
- * {@code PlayerStatsGui}.
+ * Класс Player Stats Gui.
  */
 public class PlayerStatsGui extends JComponent {
 
@@ -69,9 +69,6 @@ public class PlayerStatsGui extends JComponent {
 		}
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
 		this.timer.stop();
 	}

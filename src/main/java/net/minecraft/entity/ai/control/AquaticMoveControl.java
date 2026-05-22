@@ -5,12 +5,17 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code AquaticMoveControl}.
+ * Управление движением водных существ (дельфины, кальмары и т.п.).
+ * Поддерживает плавучесть, управление тангажом под водой и снижение
+ * скорости при повороте в воздухе.
  */
 public class AquaticMoveControl extends MoveControl {
 
 	private static final float MIN_ANGLE_FOR_SPEED_REDUCTION = 10.0F;
-	private static final float ANGLE_SPEED_REDUCTION_RANGE = 60.0F;
+	private static final float ANGLE_SPEED_REDUCTION_RANGE = 50.0F;
+	private static final float BUOYANCY_FORCE = 0.005F;
+	private static final float PITCH_ADJUST_SPEED = 5.0F;
+
 	private final int pitchChange;
 	private final int yawChange;
 	private final float speedInWater;
@@ -35,59 +40,63 @@ public class AquaticMoveControl extends MoveControl {
 
 	@Override
 	public void tick() {
-		if (this.buoyant && this.entity.isTouchingWater()) {
-			this.entity.setVelocity(this.entity.getVelocity().add(0.0, 0.005, 0.0));
+		if (buoyant && entity.isTouchingWater()) {
+			entity.setVelocity(entity.getVelocity().add(0.0, BUOYANCY_FORCE, 0.0));
 		}
 
-		if (this.state == MoveControl.State.MOVE_TO && !this.entity.getNavigation().isIdle()) {
-			double d = this.targetX - this.entity.getX();
-			double e = this.targetY - this.entity.getY();
-			double f = this.targetZ - this.entity.getZ();
-			double g = d * d + e * e + f * f;
-			if (g < 2.5000003E-7F) {
-				this.entity.setForwardSpeed(0.0F);
-			}
-			else {
-				float h = (float) (MathHelper.atan2(f, d) * 180.0F / (float) Math.PI) - 90.0F;
-				this.entity.setYaw(this.wrapDegrees(this.entity.getYaw(), h, this.yawChange));
-				this.entity.bodyYaw = this.entity.getYaw();
-				this.entity.headYaw = this.entity.getYaw();
-				float i = (float) (this.speed * this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
-				if (this.entity.isTouchingWater()) {
-					this.entity.setMovementSpeed(i * this.speedInWater);
-					double j = Math.sqrt(d * d + f * f);
-					if (Math.abs(e) > 1.0E-5F || Math.abs(j) > 1.0E-5F) {
-						float k = -((float) (MathHelper.atan2(e, j) * 180.0F / (float) Math.PI));
-						k =
-								MathHelper.clamp(
-										MathHelper.wrapDegrees(k),
-										(float) (-this.pitchChange),
-										(float) this.pitchChange
-								);
-						this.entity.setPitch(this.changeAngle(this.entity.getPitch(), k, 5.0F));
-					}
+		if (state != MoveControl.State.MOVE_TO || entity.getNavigation().isIdle()) {
+			entity.setMovementSpeed(0.0F);
+			entity.setSidewaysSpeed(0.0F);
+			entity.setUpwardSpeed(0.0F);
+			entity.setForwardSpeed(0.0F);
+			return;
+		}
 
-					float k = MathHelper.cos(this.entity.getPitch() * (float) (Math.PI / 180.0));
-					float l = MathHelper.sin(this.entity.getPitch() * (float) (Math.PI / 180.0));
-					this.entity.forwardSpeed = k * i;
-					this.entity.upwardSpeed = -l * i;
-				}
-				else {
-					float m = Math.abs(MathHelper.wrapDegrees(this.entity.getYaw() - h));
-					float n = calculateSpeedFactor(m);
-					this.entity.setMovementSpeed(i * this.speedInAir * n);
-				}
+		double dx = targetX - entity.getX();
+		double dy = targetY - entity.getY();
+		double dz = targetZ - entity.getZ();
+		double distSq = dx * dx + dy * dy + dz * dz;
+
+		if (distSq < REACHED_DESTINATION_DISTANCE_SQUARED) {
+			entity.setForwardSpeed(0.0F);
+			return;
+		}
+
+		float targetYaw = (float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F;
+		entity.setYaw(wrapDegrees(entity.getYaw(), targetYaw, yawChange));
+		entity.bodyYaw = entity.getYaw();
+		entity.headYaw = entity.getYaw();
+
+		float baseSpeed = (float) (speed * entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
+
+		if (entity.isTouchingWater()) {
+			entity.setMovementSpeed(baseSpeed * speedInWater);
+
+			double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+			if (Math.abs(dy) > 1.0E-5F || Math.abs(horizontalDist) > 1.0E-5F) {
+				float rawPitch = -((float) (MathHelper.atan2(dy, horizontalDist) * 180.0F / (float) Math.PI));
+				float clampedPitch = MathHelper.clamp(
+						MathHelper.wrapDegrees(rawPitch),
+						(float) (-pitchChange),
+						(float) pitchChange
+				);
+				entity.setPitch(changeAngle(entity.getPitch(), clampedPitch, PITCH_ADJUST_SPEED));
 			}
+
+			float pitchCos = MathHelper.cos(entity.getPitch() * (float) (Math.PI / 180.0));
+			float pitchSin = MathHelper.sin(entity.getPitch() * (float) (Math.PI / 180.0));
+			entity.forwardSpeed = pitchCos * baseSpeed;
+			entity.upwardSpeed = -pitchSin * baseSpeed;
 		}
 		else {
-			this.entity.setMovementSpeed(0.0F);
-			this.entity.setSidewaysSpeed(0.0F);
-			this.entity.setUpwardSpeed(0.0F);
-			this.entity.setForwardSpeed(0.0F);
+			float yawDiff = Math.abs(MathHelper.wrapDegrees(entity.getYaw() - targetYaw));
+			float speedFactor = calculateSpeedFactor(yawDiff);
+			entity.setMovementSpeed(baseSpeed * speedInAir * speedFactor);
 		}
 	}
 
-	private static float calculateSpeedFactor(float f) {
-		return 1.0F - MathHelper.clamp((f - 10.0F) / 50.0F, 0.0F, 1.0F);
+	private static float calculateSpeedFactor(float angleDiff) {
+		return 1.0F - MathHelper.clamp((angleDiff - MIN_ANGLE_FOR_SPEED_REDUCTION) / ANGLE_SPEED_REDUCTION_RANGE, 0.0F, 1.0F);
 	}
 }

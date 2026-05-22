@@ -14,7 +14,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Collection;
 
 /**
- * {@code MessageCommand}.
+ * Команда {@code /msg}: отправка личного сообщения игроку.
  */
 public class MessageCommand {
 

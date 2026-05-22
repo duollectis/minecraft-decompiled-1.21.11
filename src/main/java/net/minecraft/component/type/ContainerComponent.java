@@ -22,30 +22,31 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * {@code ContainerComponent}.
- */
+	 * Компонент контейнера предмета (сундук, шалкер-бокс и т.д.).
+	 * Хранит список стеков предметов по слотам. Пустые слоты в конце не сохраняются.
+	 */
 public final class ContainerComponent implements TooltipAppender {
 
-	private static final int ALL_SLOTS_EMPTY = -1;
+	private static final int NO_ITEMS = -1;
 	private static final int MAX_SLOTS = 256;
+	private static final int MAX_TOOLTIP_ITEMS = 4;
 	public static final ContainerComponent DEFAULT = new ContainerComponent(DefaultedList.of());
 	public static final Codec<ContainerComponent> CODEC = ContainerComponent.Slot.CODEC
-			.sizeLimitedListOf(256)
+			.sizeLimitedListOf(MAX_SLOTS)
 			.xmap(ContainerComponent::fromSlots, ContainerComponent::collectSlots);
 	public static final PacketCodec<RegistryByteBuf, ContainerComponent> PACKET_CODEC = ItemStack.OPTIONAL_PACKET_CODEC
-			.collect(PacketCodecs.toList(256))
+			.collect(PacketCodecs.toList(MAX_SLOTS))
 			.xmap(ContainerComponent::new, component -> component.stacks);
 	public final DefaultedList<ItemStack> stacks;
 	private final int hashCode;
 
 	private ContainerComponent(DefaultedList<ItemStack> stacks) {
-		if (stacks.size() > 256) {
-			throw new IllegalArgumentException("Got " + stacks.size() + " items, but maximum is 256");
+		if (stacks.size() > MAX_SLOTS) {
+			throw new IllegalArgumentException("Got " + stacks.size() + " items, but maximum is " + MAX_SLOTS);
 		}
-		else {
-			this.stacks = stacks;
-			this.hashCode = ItemStack.listHashCode(stacks);
-		}
+
+		this.stacks = stacks;
+		this.hashCode = ItemStack.listHashCode(stacks);
 	}
 
 	private ContainerComponent(int size) {
@@ -61,42 +62,33 @@ public final class ContainerComponent implements TooltipAppender {
 	}
 
 	private static ContainerComponent fromSlots(List<ContainerComponent.Slot> slots) {
-		OptionalInt optionalInt = slots.stream().mapToInt(ContainerComponent.Slot::index).max();
-		if (optionalInt.isEmpty()) {
+		OptionalInt maxIndex = slots.stream().mapToInt(ContainerComponent.Slot::index).max();
+		if (maxIndex.isEmpty()) {
 			return DEFAULT;
 		}
-		else {
-			ContainerComponent containerComponent = new ContainerComponent(optionalInt.getAsInt() + 1);
 
-			for (ContainerComponent.Slot slot : slots) {
-				containerComponent.stacks.set(slot.index(), slot.item());
-			}
+		ContainerComponent result = new ContainerComponent(maxIndex.getAsInt() + 1);
 
-			return containerComponent;
+		for (ContainerComponent.Slot slot : slots) {
+			result.stacks.set(slot.index(), slot.item());
 		}
+
+		return result;
 	}
 
-	/**
-	 * From stacks.
-	 *
-	 * @param stacks stacks
-	 *
-	 * @return ContainerComponent — результат операции
-	 */
 	public static ContainerComponent fromStacks(List<ItemStack> stacks) {
-		int i = findLastNonEmptyIndex(stacks);
-		if (i == -1) {
+		int lastNonEmpty = findLastNonEmptyIndex(stacks);
+		if (lastNonEmpty == NO_ITEMS) {
 			return DEFAULT;
 		}
-		else {
-			ContainerComponent containerComponent = new ContainerComponent(i + 1);
 
-			for (int j = 0; j <= i; j++) {
-				containerComponent.stacks.set(j, stacks.get(j).copy());
-			}
+		ContainerComponent result = new ContainerComponent(lastNonEmpty + 1);
 
-			return containerComponent;
+		for (int i = 0; i <= lastNonEmpty; i++) {
+			result.stacks.set(i, stacks.get(i).copy());
 		}
+
+		return result;
 	}
 
 	private static int findLastNonEmptyIndex(List<ItemStack> stacks) {
@@ -106,90 +98,59 @@ public final class ContainerComponent implements TooltipAppender {
 			}
 		}
 
-		return -1;
+		return NO_ITEMS;
 	}
 
 	private List<ContainerComponent.Slot> collectSlots() {
-		List<ContainerComponent.Slot> list = new ArrayList<>();
+		List<ContainerComponent.Slot> slots = new ArrayList<>();
 
-		for (int i = 0; i < this.stacks.size(); i++) {
-			ItemStack itemStack = this.stacks.get(i);
-			if (!itemStack.isEmpty()) {
-				list.add(new ContainerComponent.Slot(i, itemStack));
+		for (int i = 0; i < stacks.size(); i++) {
+			ItemStack stack = stacks.get(i);
+			if (!stack.isEmpty()) {
+				slots.add(new ContainerComponent.Slot(i, stack));
 			}
 		}
 
-		return list;
+		return slots;
 	}
 
-	/**
-	 * Создаёт копию to.
-	 *
-	 * @param stacks stacks
-	 */
-	public void copyTo(DefaultedList<ItemStack> stacks) {
-		for (int i = 0; i < stacks.size(); i++) {
-			ItemStack itemStack = i < this.stacks.size() ? this.stacks.get(i) : ItemStack.EMPTY;
-			stacks.set(i, itemStack.copy());
+	public void copyTo(DefaultedList<ItemStack> target) {
+		for (int i = 0; i < target.size(); i++) {
+			ItemStack stack = i < stacks.size() ? stacks.get(i) : ItemStack.EMPTY;
+			target.set(i, stack.copy());
 		}
 	}
 
-	/**
-	 * Создаёт копию first stack.
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack copyFirstStack() {
-		return this.stacks.isEmpty() ? ItemStack.EMPTY : this.stacks.get(0).copy();
+		return stacks.isEmpty() ? ItemStack.EMPTY : stacks.get(0).copy();
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<ItemStack> stream() {
-		return this.stacks.stream().map(ItemStack::copy);
+		return stacks.stream().map(ItemStack::copy);
 	}
 
-	/**
-	 * Stream non empty.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<ItemStack> streamNonEmpty() {
-		return this.stacks.stream().filter(stack -> !stack.isEmpty()).map(ItemStack::copy);
+		return stacks.stream().filter(stack -> !stack.isEmpty()).map(ItemStack::copy);
 	}
 
-	/**
-	 * Iterate non empty.
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public Iterable<ItemStack> iterateNonEmpty() {
-		return Iterables.filter(this.stacks, stack -> !stack.isEmpty());
+		return Iterables.filter(stacks, stack -> !stack.isEmpty());
 	}
 
-	/**
-	 * Iterate non empty copy.
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public Iterable<ItemStack> iterateNonEmptyCopy() {
-		return Iterables.transform(this.iterateNonEmpty(), ItemStack::copy);
+		return Iterables.transform(iterateNonEmpty(), ItemStack::copy);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof ContainerComponent containerComponent && ItemStack.stacksEqual(
-				this.stacks,
-				containerComponent.stacks
-		);
+		return this == o
+			? true
+			: o instanceof ContainerComponent other && ItemStack.stacksEqual(stacks, other.stacks);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.hashCode;
+		return hashCode;
 	}
 
 	@Override
@@ -199,37 +160,31 @@ public final class ContainerComponent implements TooltipAppender {
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		int i = 0;
-		int j = 0;
+		int shown = 0;
+		int total = 0;
 
-		for (ItemStack itemStack : this.iterateNonEmpty()) {
-			j++;
-			if (i <= 4) {
-				i++;
-				textConsumer.accept(Text.translatable(
-						"item.container.item_count",
-						itemStack.getName(),
-						itemStack.getCount()
-				));
+		for (ItemStack stack : iterateNonEmpty()) {
+			total++;
+			if (shown < MAX_TOOLTIP_ITEMS) {
+				shown++;
+				textConsumer.accept(Text.translatable("item.container.item_count", stack.getName(), stack.getCount()));
 			}
 		}
 
-		if (j - i > 0) {
-			textConsumer.accept(Text.translatable("item.container.more_items", j - i).formatted(Formatting.ITALIC));
+		int hidden = total - shown;
+		if (hidden > 0) {
+			textConsumer.accept(Text.translatable("item.container.more_items", hidden).formatted(Formatting.ITALIC));
 		}
 	}
 
-	/**
-	 * {@code Slot}.
-	 */
 	record Slot(int index, ItemStack item) {
 
 		public static final Codec<ContainerComponent.Slot> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.intRange(0, 255).fieldOf("slot").forGetter(ContainerComponent.Slot::index),
-						                    ItemStack.CODEC.fieldOf("item").forGetter(ContainerComponent.Slot::item)
-				                    )
-				                    .apply(instance, ContainerComponent.Slot::new)
+											Codec.intRange(0, MAX_SLOTS - 1).fieldOf("slot").forGetter(ContainerComponent.Slot::index),
+											ItemStack.CODEC.fieldOf("item").forGetter(ContainerComponent.Slot::item)
+									)
+									.apply(instance, ContainerComponent.Slot::new)
 		);
 	}
 }

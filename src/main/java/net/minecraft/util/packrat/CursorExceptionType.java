@@ -5,7 +5,9 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 
 /**
- * {@code CursorExceptionType}.
+ * Фабрика исключений, привязанных к позиции курсора в строке ввода.
+ * Позволяет создавать контекстно-зависимые ошибки парсинга с указанием
+ * точного места в строке, где произошла ошибка.
  */
 public interface CursorExceptionType<T extends Exception> {
 

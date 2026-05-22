@@ -6,21 +6,24 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.model.*;
+import net.minecraft.client.render.model.ModelRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.AxisRotation;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelVariant}.
+ * Вариант модели блока: связывает идентификатор JSON-модели с её трансформацией
+ * (вращение по осям X/Y/Z и UV-lock). Реализует {@link BlockModelPart.Unbaked},
+ * запекаясь в {@link BlockModelPart} через {@link GeometryBakedModel}.
  */
+@Environment(EnvType.CLIENT)
 public record ModelVariant(Identifier modelId, ModelVariant.ModelState modelState) implements BlockModelPart.Unbaked {
 
 	public static final MapCodec<ModelVariant> MAP_CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Identifier.CODEC.fieldOf("model").forGetter(ModelVariant::modelId),
-					                    ModelVariant.ModelState.CODEC.forGetter(ModelVariant::modelState)
-			                    )
-			                    .apply(instance, ModelVariant::new)
+					Identifier.CODEC.fieldOf("model").forGetter(ModelVariant::modelId),
+					ModelVariant.ModelState.CODEC.forGetter(ModelVariant::modelState)
+			)
+			.apply(instance, ModelVariant::new)
 	);
 	public static final Codec<ModelVariant> CODEC = MAP_CODEC.codec();
 
@@ -28,133 +31,85 @@ public record ModelVariant(Identifier modelId, ModelVariant.ModelState modelStat
 		this(model, ModelVariant.ModelState.DEFAULT);
 	}
 
-	/**
-	 * With rotation x.
-	 *
-	 * @param amount amount
-	 *
-	 * @return ModelVariant — результат операции
-	 */
 	public ModelVariant withRotationX(AxisRotation amount) {
-		return this.setState(this.modelState.setRotationX(amount));
+		return setState(modelState.setRotationX(amount));
 	}
 
-	/**
-	 * With rotation y.
-	 *
-	 * @param amount amount
-	 *
-	 * @return ModelVariant — результат операции
-	 */
 	public ModelVariant withRotationY(AxisRotation amount) {
-		return this.setState(this.modelState.setRotationY(amount));
+		return setState(modelState.setRotationY(amount));
 	}
 
-	/**
-	 * With rotation z.
-	 *
-	 * @param axisRotation axis rotation
-	 *
-	 * @return ModelVariant — результат операции
-	 */
 	public ModelVariant withRotationZ(AxisRotation axisRotation) {
-		return this.setState(this.modelState.setRotationZ(axisRotation));
+		return setState(modelState.setRotationZ(axisRotation));
 	}
 
-	/**
-	 * With u v lock.
-	 *
-	 * @param uvLock uv lock
-	 *
-	 * @return ModelVariant — результат операции
-	 */
 	public ModelVariant withUVLock(boolean uvLock) {
-		return this.setState(this.modelState.setUVLock(uvLock));
+		return setState(modelState.setUVLock(uvLock));
 	}
 
-	/**
-	 * With model.
-	 *
-	 * @param modelId model id
-	 *
-	 * @return ModelVariant — результат операции
-	 */
-	public ModelVariant withModel(Identifier modelId) {
-		return new ModelVariant(modelId, this.modelState);
+	public ModelVariant withModel(Identifier newModelId) {
+		return new ModelVariant(newModelId, modelState);
 	}
 
-	public ModelVariant setState(ModelVariant.ModelState modelState) {
-		return new ModelVariant(this.modelId, modelState);
+	public ModelVariant setState(ModelVariant.ModelState newState) {
+		return new ModelVariant(modelId, newState);
 	}
 
-	/**
-	 * With.
-	 *
-	 * @param variantOperator variant operator
-	 *
-	 * @return ModelVariant — результат операции
-	 */
 	public ModelVariant with(ModelVariantOperator variantOperator) {
 		return variantOperator.apply(this);
 	}
 
 	@Override
 	public BlockModelPart bake(Baker baker) {
-		return GeometryBakedModel.create(baker, this.modelId, this.modelState.asModelBakeSettings());
+		return GeometryBakedModel.create(baker, modelId, modelState.asModelBakeSettings());
 	}
 
 	@Override
 	public void resolve(ResolvableModel.Resolver resolver) {
-		resolver.markDependency(this.modelId);
+		resolver.markDependency(modelId);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ModelState}.
+	 * Состояние трансформации варианта модели: вращение по трём осям и флаг UV-lock.
+	 * Метод {@link #asModelBakeSettings()} комбинирует вращения через {@link AxisRotation#combineXYZ}
+	 * и возвращает либо {@link ModelRotation}, либо его UV-модель в зависимости от флага uvLock.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record ModelState(AxisRotation x, AxisRotation y, AxisRotation z, boolean uvLock) {
 
 		public static final MapCodec<ModelVariant.ModelState> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    AxisRotation.CODEC.optionalFieldOf("x", AxisRotation.R0).forGetter(ModelVariant.ModelState::x),
-						                    AxisRotation.CODEC.optionalFieldOf("y", AxisRotation.R0).forGetter(ModelVariant.ModelState::y),
-						                    AxisRotation.CODEC.optionalFieldOf("z", AxisRotation.R0).forGetter(ModelVariant.ModelState::z),
-						                    Codec.BOOL.optionalFieldOf("uvlock", false).forGetter(ModelVariant.ModelState::uvLock)
-				                    )
-				                    .apply(instance, ModelVariant.ModelState::new)
+						AxisRotation.CODEC.optionalFieldOf("x", AxisRotation.R0).forGetter(ModelVariant.ModelState::x),
+						AxisRotation.CODEC.optionalFieldOf("y", AxisRotation.R0).forGetter(ModelVariant.ModelState::y),
+						AxisRotation.CODEC.optionalFieldOf("z", AxisRotation.R0).forGetter(ModelVariant.ModelState::z),
+						Codec.BOOL.optionalFieldOf("uvlock", false).forGetter(ModelVariant.ModelState::uvLock)
+				)
+				.apply(instance, ModelVariant.ModelState::new)
 		);
-		public static final ModelVariant.ModelState
-				DEFAULT =
+		public static final ModelVariant.ModelState DEFAULT =
 				new ModelVariant.ModelState(AxisRotation.R0, AxisRotation.R0, AxisRotation.R0, false);
 
-		/**
-		 * As model bake settings.
-		 *
-		 * @return ModelBakeSettings — результат операции
-		 */
 		public ModelBakeSettings asModelBakeSettings() {
-			net.minecraft.client.render.model.ModelRotation
-					modelRotation =
-					net.minecraft.client.render.model.ModelRotation.fromDirectionTransformation(
-							AxisRotation.combineXYZ(this.x, this.y, this.z)
-					);
-			return (ModelBakeSettings) (this.uvLock ? modelRotation.getUVModel() : modelRotation);
+			ModelRotation modelRotation = ModelRotation.fromDirectionTransformation(
+					AxisRotation.combineXYZ(x, y, z)
+			);
+			return (ModelBakeSettings) (uvLock ? modelRotation.getUVModel() : modelRotation);
 		}
 
 		public ModelVariant.ModelState setRotationX(AxisRotation amount) {
-			return new ModelVariant.ModelState(amount, this.y, this.z, this.uvLock);
+			return new ModelVariant.ModelState(amount, y, z, uvLock);
 		}
 
 		public ModelVariant.ModelState setRotationY(AxisRotation amount) {
-			return new ModelVariant.ModelState(this.x, amount, this.z, this.uvLock);
+			return new ModelVariant.ModelState(x, amount, z, uvLock);
 		}
 
 		public ModelVariant.ModelState setRotationZ(AxisRotation axisRotation) {
-			return new ModelVariant.ModelState(this.x, this.y, axisRotation, this.uvLock);
+			return new ModelVariant.ModelState(x, y, axisRotation, uvLock);
 		}
 
-		public ModelVariant.ModelState setUVLock(boolean uvLock) {
-			return new ModelVariant.ModelState(this.x, this.y, this.z, uvLock);
+		public ModelVariant.ModelState setUVLock(boolean newUvLock) {
+			return new ModelVariant.ModelState(x, y, z, newUvLock);
 		}
 	}
 }

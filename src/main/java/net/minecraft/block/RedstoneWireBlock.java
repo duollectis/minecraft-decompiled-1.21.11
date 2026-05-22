@@ -500,7 +500,7 @@ public class RedstoneWireBlock extends Block {
 			float maxOffset
 	) {
 		float f = maxOffset - minOffset;
-		if (!(random.nextFloat() >= 0.2F * f)) {
+		if (!(random.nextFloat() >= PARTICLE_SPAWN_CHANCE * f)) {
 			float g = 0.4375F;
 			float h = minOffset + f * random.nextFloat();
 			double d = 0.5 + 0.4375F * perpendicular.getOffsetX() + h * direction.getOffsetX();

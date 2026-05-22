@@ -4,7 +4,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.light.LevelPropagator;
 
 /**
- * {@code ChunkPosDistanceLevelPropagator}.
+ * Класс Chunk Pos Distance Level Propagator.
  */
 public abstract class ChunkPosDistanceLevelPropagator extends LevelPropagator {
 

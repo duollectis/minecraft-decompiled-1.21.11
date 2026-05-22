@@ -11,23 +11,27 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * {@code BanEntry}.
+ * Базовая запись о бане игрока или IP-адреса.
+ * Хранит дату создания, источник, дату истечения и причину бана.
+ *
+ * @param <T> тип ключа записи (IP-строка или {@link PlayerConfigEntry})
  */
 public abstract class BanEntry<T> extends ServerConfigEntry<T> {
 
 	public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT);
 	public static final String FOREVER = "forever";
+
 	protected final Date creationDate;
 	protected final String source;
 	protected final @Nullable Date expiryDate;
 	protected final @Nullable String reason;
 
 	public BanEntry(
-			@Nullable T key,
-			@Nullable Date creationDate,
-			@Nullable String source,
-			@Nullable Date expiryDate,
-			@Nullable String reason
+		@Nullable T key,
+		@Nullable Date creationDate,
+		@Nullable String source,
+		@Nullable Date expiryDate,
+		@Nullable String reason
 	) {
 		super(key);
 		this.creationDate = creationDate == null ? new Date() : creationDate;
@@ -36,72 +40,70 @@ public abstract class BanEntry<T> extends ServerConfigEntry<T> {
 		this.reason = reason;
 	}
 
+	/**
+	 * Десериализует запись о бане из JSON-объекта.
+	 * Если поля {@code created} или {@code expires} содержат некорректную дату — используются значения по умолчанию.
+	 */
 	protected BanEntry(@Nullable T key, JsonObject json) {
 		super(key);
 
-		Date date;
+		Date parsedCreation;
 		try {
-			date = json.has("created") ? DATE_FORMAT.parse(json.get("created").getAsString()) : new Date();
-		}
-		catch (ParseException var7) {
-			date = new Date();
+			parsedCreation = json.has("created") ? DATE_FORMAT.parse(json.get("created").getAsString()) : new Date();
+		} catch (ParseException e) {
+			parsedCreation = new Date();
 		}
 
-		this.creationDate = date;
+		this.creationDate = parsedCreation;
 		this.source = json.has("source") ? json.get("source").getAsString() : "(Unknown)";
 
-		Date date2;
+		Date parsedExpiry;
 		try {
-			date2 = json.has("expires") ? DATE_FORMAT.parse(json.get("expires").getAsString()) : null;
-		}
-		catch (ParseException var6) {
-			date2 = null;
+			parsedExpiry = json.has("expires") ? DATE_FORMAT.parse(json.get("expires").getAsString()) : null;
+		} catch (ParseException e) {
+			parsedExpiry = null;
 		}
 
-		this.expiryDate = date2;
+		this.expiryDate = parsedExpiry;
 		this.reason = json.has("reason") ? json.get("reason").getAsString() : null;
 	}
 
 	public Date getCreationDate() {
-		return this.creationDate;
+		return creationDate;
 	}
 
 	public String getSource() {
-		return this.source;
+		return source;
 	}
 
 	public @Nullable Date getExpiryDate() {
-		return this.expiryDate;
+		return expiryDate;
 	}
 
 	public @Nullable String getReason() {
-		return this.reason;
+		return reason;
 	}
 
 	public Text getReasonText() {
-		String string = this.getReason();
-		return string == null ? Text.translatable("multiplayer.disconnect.banned.reason.default")
-		                      : Text.literal(string);
+		return reason == null
+			? Text.translatable("multiplayer.disconnect.banned.reason.default")
+			: Text.literal(reason);
 	}
 
-	/**
-	 * To text.
-	 *
-	 * @return Text — результат операции
-	 */
+	/** @return текстовое представление субъекта бана для отображения в списке */
 	public abstract Text toText();
 
 	@Override
 	boolean isInvalid() {
-		return this.expiryDate == null ? false : this.expiryDate.before(new Date());
+		return expiryDate != null && expiryDate.before(new Date());
 	}
 
 	@Override
 	protected void write(JsonObject json) {
-		json.addProperty("created", DATE_FORMAT.format(this.creationDate));
-		json.addProperty("source", this.source);
-		json.addProperty("expires", this.expiryDate == null ? "forever" : DATE_FORMAT.format(this.expiryDate));
-		json.addProperty("reason", this.reason);
+		json.addProperty("created", DATE_FORMAT.format(creationDate));
+		json.addProperty("source", source);
+		json.addProperty("expires", expiryDate == null ? FOREVER : DATE_FORMAT.format(expiryDate));
+		json.addProperty("reason", reason);
 	}
 
 	@Override
@@ -109,15 +111,15 @@ public abstract class BanEntry<T> extends ServerConfigEntry<T> {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			BanEntry<?> banEntry = (BanEntry<?>) o;
-			return Objects.equals(this.source, banEntry.source)
-					&& Objects.equals(this.expiryDate, banEntry.expiryDate)
-					&& Objects.equals(this.reason, banEntry.reason)
-					&& Objects.equals(this.getKey(), banEntry.getKey());
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		BanEntry<?> other = (BanEntry<?>) o;
+		return Objects.equals(source, other.source)
+			&& Objects.equals(expiryDate, other.expiryDate)
+			&& Objects.equals(reason, other.reason)
+			&& Objects.equals(getKey(), other.getKey());
 	}
 }

@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * {@code UpdateSignTextFormatFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class UpdateSignTextFormatFix extends ChoiceWriteReadFix {
 

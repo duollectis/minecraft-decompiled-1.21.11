@@ -5,7 +5,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code ElytraFlightController}.
+ * Контроллер полёта на элитрах для мобов.
  */
 public class ElytraFlightController {
 
@@ -23,74 +23,51 @@ public class ElytraFlightController {
 		this.entity = entity;
 	}
 
-	/**
-	 * Update.
-	 */
 	public void update() {
-		this.lastLeftWingPitch = this.leftWingPitch;
-		this.lastLeftWingYaw = this.leftWingYaw;
-		this.lastLeftWingRoll = this.leftWingRoll;
-		float g;
-		float h;
-		float i;
-		if (this.entity.isGliding()) {
-			float f = 1.0F;
-			Vec3d vec3d = this.entity.getVelocity();
-			if (vec3d.y < 0.0) {
-				Vec3d vec3d2 = vec3d.normalize();
-				f = 1.0F - (float) Math.pow(-vec3d2.y, 1.5);
+		lastLeftWingPitch = leftWingPitch;
+		lastLeftWingYaw = leftWingYaw;
+		lastLeftWingRoll = leftWingRoll;
+
+		float targetPitch;
+		float targetRoll;
+		float targetYaw;
+
+		if (entity.isGliding()) {
+			float glideBlend = 1.0F;
+			Vec3d velocity = entity.getVelocity();
+
+			if (velocity.y < 0.0) {
+				Vec3d normalized = velocity.normalize();
+				glideBlend = 1.0F - (float) Math.pow(-normalized.y, 1.5);
 			}
 
-			g = MathHelper.lerp(f, (float) (Math.PI / 12), (float) (Math.PI / 9));
-			h = MathHelper.lerp(f, (float) (-Math.PI / 12), (float) (-Math.PI / 2));
-			i = 0.0F;
-		}
-		else if (this.entity.isInSneakingPose()) {
-			g = (float) (Math.PI * 2.0 / 9.0);
-			h = (float) (-Math.PI / 4);
-			i = 0.08726646F;
-		}
-		else {
-			g = (float) (Math.PI / 12);
-			h = (float) (-Math.PI / 12);
-			i = 0.0F;
+			targetPitch = MathHelper.lerp(glideBlend, (float) (Math.PI / 12), (float) (Math.PI / 9));
+			targetRoll = MathHelper.lerp(glideBlend, (float) (-Math.PI / 12), (float) (-Math.PI / 2));
+			targetYaw = 0.0F;
+		} else if (entity.isInSneakingPose()) {
+			targetPitch = (float) (Math.PI * 2.0 / 9.0);
+			targetRoll = (float) (-Math.PI / 4);
+			targetYaw = 0.08726646F;
+		} else {
+			targetPitch = WING_PITCH_IDLE;
+			targetRoll = WING_ROLL_IDLE;
+			targetYaw = 0.0F;
 		}
 
-		this.leftWingPitch = this.leftWingPitch + (g - this.leftWingPitch) * 0.3F;
-		this.leftWingYaw = this.leftWingYaw + (i - this.leftWingYaw) * 0.3F;
-		this.leftWingRoll = this.leftWingRoll + (h - this.leftWingRoll) * 0.3F;
+		leftWingPitch = leftWingPitch + (targetPitch - leftWingPitch) * 0.3F;
+		leftWingYaw = leftWingYaw + (targetYaw - leftWingYaw) * 0.3F;
+		leftWingRoll = leftWingRoll + (targetRoll - leftWingRoll) * 0.3F;
 	}
 
-	/**
-	 * Left wing pitch.
-	 *
-	 * @param tickProgress tick progress
-	 *
-	 * @return float — результат операции
-	 */
 	public float leftWingPitch(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastLeftWingPitch, this.leftWingPitch);
+		return MathHelper.lerp(tickProgress, lastLeftWingPitch, leftWingPitch);
 	}
 
-	/**
-	 * Left wing yaw.
-	 *
-	 * @param tickProgress tick progress
-	 *
-	 * @return float — результат операции
-	 */
 	public float leftWingYaw(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastLeftWingYaw, this.leftWingYaw);
+		return MathHelper.lerp(tickProgress, lastLeftWingYaw, leftWingYaw);
 	}
 
-	/**
-	 * Left wing roll.
-	 *
-	 * @param tickProgress tick progress
-	 *
-	 * @return float — результат операции
-	 */
 	public float leftWingRoll(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastLeftWingRoll, this.leftWingRoll);
+		return MathHelper.lerp(tickProgress, lastLeftWingRoll, leftWingRoll);
 	}
 }

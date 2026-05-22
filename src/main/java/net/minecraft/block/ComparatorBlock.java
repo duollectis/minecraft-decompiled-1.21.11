@@ -28,12 +28,18 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code ComparatorBlock}.
+ * Блок компаратора — измеряет и сравнивает сигналы редстоуна.
+ * В режиме COMPARE выдаёт входной сигнал, если он не меньше бокового.
+ * В режиме SUBTRACT вычитает боковой сигнал из входного.
+ * Также считывает уровень заполнения контейнеров и рамок для предметов.
  */
 public class ComparatorBlock extends AbstractRedstoneGateBlock implements BlockEntityProvider {
 
 	public static final MapCodec<ComparatorBlock> CODEC = createCodec(ComparatorBlock::new);
 	public static final EnumProperty<ComparatorMode> MODE = Properties.COMPARATOR_MODE;
+
+	private static final int TICK_DELAY = 2;
+	private static final int MAX_SIGNAL = 15;
 
 	@Override
 	public MapCodec<ComparatorBlock> getCodec() {
@@ -42,16 +48,18 @@ public class ComparatorBlock extends AbstractRedstoneGateBlock implements BlockE
 
 	public ComparatorBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
-				.with(FACING, Direction.NORTH)
-				.with(POWERED, false)
-				.with(MODE, ComparatorMode.COMPARE));
+		setDefaultState(
+				stateManager
+						.getDefaultState()
+						.with(FACING, Direction.NORTH)
+						.with(POWERED, false)
+						.with(MODE, ComparatorMode.COMPARE)
+		);
 	}
 
 	@Override
 	protected int getUpdateDelayInternal(BlockState state) {
-		return 2;
+		return TICK_DELAY;
 	}
 
 	@Override
@@ -65,91 +73,103 @@ public class ComparatorBlock extends AbstractRedstoneGateBlock implements BlockE
 			BlockState neighborState,
 			Random random
 	) {
-		return direction == Direction.DOWN && !this.canPlaceAbove(world, neighborPos, neighborState)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+		return direction == Direction.DOWN && !canPlaceAbove(world, neighborPos, neighborState)
+				? Blocks.AIR.getDefaultState()
+				: super.getStateForNeighborUpdate(
+						state,
+						world,
+						tickView,
+						pos,
+						direction,
+						neighborPos,
+						neighborState,
+						random
+				);
 	}
 
 	@Override
 	protected int getOutputLevel(BlockView world, BlockPos pos, BlockState state) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		return blockEntity instanceof ComparatorBlockEntity ? ((ComparatorBlockEntity) blockEntity).getOutputSignal()
-		                                                    : 0;
+		return world.getBlockEntity(pos) instanceof ComparatorBlockEntity comparator
+				? comparator.getOutputSignal()
+				: 0;
 	}
 
+	/**
+	 * Вычисляет итоговый выходной сигнал с учётом режима (COMPARE / SUBTRACT) и боковых входов.
+	 * В режиме SUBTRACT: результат = входной − максимальный боковой (минимум 0).
+	 */
 	private int calculateOutputSignal(World world, BlockPos pos, BlockState state) {
-		int i = this.getPower(world, pos, state);
-		if (i == 0) {
+		int input = getPower(world, pos, state);
+
+		if (input == 0) {
 			return 0;
 		}
-		else {
-			int j = this.getMaxInputLevelSides(world, pos, state);
-			if (j > i) {
-				return 0;
-			}
-			else {
-				return state.get(MODE) == ComparatorMode.SUBTRACT ? i - j : i;
-			}
+
+		int sideMax = getMaxInputLevelSides(world, pos, state);
+
+		if (sideMax > input) {
+			return 0;
 		}
+
+		return state.get(MODE) == ComparatorMode.SUBTRACT ? input - sideMax : input;
 	}
 
 	@Override
 	protected boolean hasPower(World world, BlockPos pos, BlockState state) {
-		int i = this.getPower(world, pos, state);
-		if (i == 0) {
+		int input = getPower(world, pos, state);
+
+		if (input == 0) {
 			return false;
 		}
-		else {
-			int j = this.getMaxInputLevelSides(world, pos, state);
-			return i > j ? true : i == j && state.get(MODE) == ComparatorMode.COMPARE;
-		}
+
+		int sideMax = getMaxInputLevelSides(world, pos, state);
+
+		return input > sideMax || (input == sideMax && state.get(MODE) == ComparatorMode.COMPARE);
 	}
 
+	/**
+	 * Считывает мощность входного сигнала спереди.
+	 * Если блок спереди — сплошной, проверяет также рамку для предметов и блок за ним.
+	 */
 	@Override
 	protected int getPower(World world, BlockPos pos, BlockState state) {
-		int i = super.getPower(world, pos, state);
-		Direction direction = state.get(FACING);
-		BlockPos blockPos = pos.offset(direction);
-		BlockState blockState = world.getBlockState(blockPos);
-		if (blockState.hasComparatorOutput()) {
-			i = blockState.getComparatorOutput(world, blockPos, direction.getOpposite());
+		int power = super.getPower(world, pos, state);
+		Direction facing = state.get(FACING);
+		BlockPos frontPos = pos.offset(facing);
+		BlockState frontState = world.getBlockState(frontPos);
+
+		if (frontState.hasComparatorOutput()) {
+			return frontState.getComparatorOutput(world, frontPos, facing.getOpposite());
 		}
-		else if (i < 15 && blockState.isSolidBlock(world, blockPos)) {
-			blockPos = blockPos.offset(direction);
-			blockState = world.getBlockState(blockPos);
-			ItemFrameEntity itemFrameEntity = this.getAttachedItemFrame(world, direction, blockPos);
-			int j = Math.max(
-					itemFrameEntity == null ? Integer.MIN_VALUE : itemFrameEntity.getComparatorPower(),
-					blockState.hasComparatorOutput() ? blockState.getComparatorOutput(
-							world,
-							blockPos,
-							direction.getOpposite()
-					) : Integer.MIN_VALUE
+
+		if (power < MAX_SIGNAL && frontState.isSolidBlock(world, frontPos)) {
+			BlockPos behindPos = frontPos.offset(facing);
+			BlockState behindState = world.getBlockState(behindPos);
+			ItemFrameEntity itemFrame = getAttachedItemFrame(world, facing, behindPos);
+
+			int behindPower = Math.max(
+					itemFrame == null ? Integer.MIN_VALUE : itemFrame.getComparatorPower(),
+					behindState.hasComparatorOutput()
+							? behindState.getComparatorOutput(world, behindPos, facing.getOpposite())
+							: Integer.MIN_VALUE
 			);
-			if (j != Integer.MIN_VALUE) {
-				i = j;
+
+			if (behindPower != Integer.MIN_VALUE) {
+				return behindPower;
 			}
 		}
 
-		return i;
+		return power;
 	}
 
 	private @Nullable ItemFrameEntity getAttachedItemFrame(World world, Direction facing, BlockPos pos) {
-		List<ItemFrameEntity> list = world.getEntitiesByClass(
+		List<ItemFrameEntity> frames = world.getEntitiesByClass(
 				ItemFrameEntity.class,
 				new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1),
-				itemFrame -> itemFrame.getHorizontalFacing() == facing
+				frame -> frame.getHorizontalFacing() == facing
 		);
-		return list.size() == 1 ? list.get(0) : null;
+
+		return frames.size() == 1 ? frames.get(0) : null;
 	}
 
 	@Override
@@ -157,55 +177,59 @@ public class ComparatorBlock extends AbstractRedstoneGateBlock implements BlockE
 		if (!player.getAbilities().allowModifyWorld) {
 			return ActionResult.PASS;
 		}
-		else {
-			state = state.cycle(MODE);
-			float f = state.get(MODE) == ComparatorMode.SUBTRACT ? 0.55F : 0.5F;
-			world.playSound(player, pos, SoundEvents.BLOCK_COMPARATOR_CLICK, SoundCategory.BLOCKS, 0.3F, f);
-			world.setBlockState(pos, state, 2);
-			this.update(world, pos, state);
-			return ActionResult.SUCCESS;
-		}
+
+		state = state.cycle(MODE);
+		float pitch = state.get(MODE) == ComparatorMode.SUBTRACT ? 0.55F : 0.5F;
+		world.playSound(player, pos, SoundEvents.BLOCK_COMPARATOR_CLICK, SoundCategory.BLOCKS, 0.3F, pitch);
+		world.setBlockState(pos, state, Block.NOTIFY_LISTENERS);
+		update(world, pos, state);
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected void updatePowered(World world, BlockPos pos, BlockState state) {
-		if (!world.getBlockTickScheduler().isTicking(pos, this)) {
-			int i = this.calculateOutputSignal(world, pos, state);
-			BlockEntity blockEntity = world.getBlockEntity(pos);
-			int
-					j =
-					blockEntity instanceof ComparatorBlockEntity
-					? ((ComparatorBlockEntity) blockEntity).getOutputSignal() : 0;
-			if (i != j || state.get(POWERED) != this.hasPower(world, pos, state)) {
-				TickPriority
-						tickPriority =
-						this.isTargetNotAligned(world, pos, state) ? TickPriority.HIGH : TickPriority.NORMAL;
-				world.scheduleBlockTick(pos, this, 2, tickPriority);
-			}
+		if (world.getBlockTickScheduler().isTicking(pos, this)) {
+			return;
+		}
+
+		int newSignal = calculateOutputSignal(world, pos, state);
+		int currentSignal = world.getBlockEntity(pos) instanceof ComparatorBlockEntity comparator
+				? comparator.getOutputSignal()
+				: 0;
+
+		if (newSignal != currentSignal || state.get(POWERED) != hasPower(world, pos, state)) {
+			TickPriority priority = isTargetNotAligned(world, pos, state)
+					? TickPriority.HIGH
+					: TickPriority.NORMAL;
+
+			world.scheduleBlockTick(pos, this, TICK_DELAY, priority);
 		}
 	}
 
 	private void update(World world, BlockPos pos, BlockState state) {
-		int i = this.calculateOutputSignal(world, pos, state);
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		int j = 0;
-		if (blockEntity instanceof ComparatorBlockEntity comparatorBlockEntity) {
-			j = comparatorBlockEntity.getOutputSignal();
-			comparatorBlockEntity.setOutputSignal(i);
+		int newSignal = calculateOutputSignal(world, pos, state);
+		int prevSignal = 0;
+
+		if (world.getBlockEntity(pos) instanceof ComparatorBlockEntity comparator) {
+			prevSignal = comparator.getOutputSignal();
+			comparator.setOutputSignal(newSignal);
 		}
 
-		if (j != i || state.get(MODE) == ComparatorMode.COMPARE) {
-			boolean bl = this.hasPower(world, pos, state);
-			boolean bl2 = state.get(POWERED);
-			if (bl2 && !bl) {
-				world.setBlockState(pos, state.with(POWERED, false), 2);
-			}
-			else if (!bl2 && bl) {
-				world.setBlockState(pos, state.with(POWERED, true), 2);
-			}
-
-			this.updateTarget(world, pos, state);
+		if (prevSignal == newSignal && state.get(MODE) != ComparatorMode.COMPARE) {
+			return;
 		}
+
+		boolean powered = hasPower(world, pos, state);
+		boolean wasPowered = state.get(POWERED);
+
+		if (wasPowered && !powered) {
+			world.setBlockState(pos, state.with(POWERED, false), Block.NOTIFY_LISTENERS);
+		} else if (!wasPowered && powered) {
+			world.setBlockState(pos, state.with(POWERED, true), Block.NOTIFY_LISTENERS);
+		}
+
+		updateTarget(world, pos, state);
 	}
 
 	@Override

@@ -4,21 +4,19 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ActionResult}.
+ * Результат выполнения игрового действия (использование предмета, взаимодействие с блоком и т.д.).
+ * <p>
+ * Sealed-иерархия позволяет исчерпывающе обрабатывать все возможные исходы через {@code switch}.
+ * Каждый вариант несёт собственную семантику: успех с анимацией, провал, пропуск или
+ * делегирование стандартному обработчику блока.
  */
 public sealed interface ActionResult permits ActionResult.Success, ActionResult.Fail, ActionResult.Pass, ActionResult.PassToDefaultBlockAction {
 
-	ActionResult.Success
-			SUCCESS =
-			new ActionResult.Success(ActionResult.SwingSource.CLIENT, ActionResult.ItemContext.KEEP_HAND_STACK);
+	ActionResult.Success SUCCESS = new ActionResult.Success(SwingSource.CLIENT, ItemContext.KEEP_HAND_STACK);
 
-	ActionResult.Success
-			SUCCESS_SERVER =
-			new ActionResult.Success(ActionResult.SwingSource.SERVER, ActionResult.ItemContext.KEEP_HAND_STACK);
+	ActionResult.Success SUCCESS_SERVER = new ActionResult.Success(SwingSource.SERVER, ItemContext.KEEP_HAND_STACK);
 
-	ActionResult.Success
-			CONSUME =
-			new ActionResult.Success(ActionResult.SwingSource.NONE, ActionResult.ItemContext.KEEP_HAND_STACK);
+	ActionResult.Success CONSUME = new ActionResult.Success(SwingSource.NONE, ItemContext.KEEP_HAND_STACK);
 
 	ActionResult.Fail FAIL = new ActionResult.Fail();
 
@@ -31,76 +29,85 @@ public sealed interface ActionResult permits ActionResult.Success, ActionResult.
 	}
 
 	/**
-	 * {@code Fail}.
+	 * Действие завершилось провалом — операция не была выполнена.
 	 */
-	public record Fail() implements ActionResult {
+	record Fail() implements ActionResult {
 	}
 
 	/**
-	 * {@code ItemContext}.
+	 * Контекст изменения предмета в руке после успешного действия.
+	 *
+	 * @param incrementStat  нужно ли засчитывать статистику использования предмета
+	 * @param newHandStack   новый стек предмета в руке, или {@code null} если предмет не меняется
 	 */
-	public record ItemContext(boolean incrementStat, @Nullable ItemStack newHandStack) {
+	record ItemContext(boolean incrementStat, @Nullable ItemStack newHandStack) {
 
-		static ActionResult.ItemContext KEEP_HAND_STACK_NO_INCREMENT_STAT = new ActionResult.ItemContext(false, null);
-		static ActionResult.ItemContext KEEP_HAND_STACK = new ActionResult.ItemContext(true, null);
+		static final ItemContext KEEP_HAND_STACK_NO_INCREMENT_STAT = new ItemContext(false, null);
+		static final ItemContext KEEP_HAND_STACK = new ItemContext(true, null);
 	}
 
 	/**
-	 * {@code Pass}.
+	 * Действие пропущено — следующий обработчик в цепочке должен его обработать.
 	 */
-	public record Pass() implements ActionResult {
+	record Pass() implements ActionResult {
 	}
 
 	/**
-	 * {@code PassToDefaultBlockAction}.
+	 * Действие передаётся стандартному обработчику блока (например, открытие двери).
 	 */
-	public record PassToDefaultBlockAction() implements ActionResult {
+	record PassToDefaultBlockAction() implements ActionResult {
 	}
 
 	/**
-	 * {@code Success}.
+	 * Действие выполнено успешно.
+	 *
+	 * @param swingSource  источник анимации взмаха рукой
+	 * @param itemContext  контекст изменения предмета в руке
 	 */
-	public record Success(
-			ActionResult.SwingSource swingSource,
-			ActionResult.ItemContext itemContext
-	) implements ActionResult {
+	record Success(SwingSource swingSource, ItemContext itemContext) implements ActionResult {
 
 		@Override
 		public boolean isAccepted() {
 			return true;
 		}
 
+		/**
+		 * Создаёт новый результат с заменённым предметом в руке и включённым счётчиком статистики.
+		 *
+		 * @param newHandStack новый стек предмета, который окажется в руке игрока
+		 * @return новый {@code Success} с обновлённым контекстом предмета
+		 */
 		public ActionResult.Success withNewHandStack(ItemStack newHandStack) {
-			return new ActionResult.Success(this.swingSource, new ActionResult.ItemContext(true, newHandStack));
-		}
-
-		public ActionResult.Success noIncrementStat() {
-			return new ActionResult.Success(
-					this.swingSource,
-					ActionResult.ItemContext.KEEP_HAND_STACK_NO_INCREMENT_STAT
-			);
+			return new ActionResult.Success(swingSource, new ItemContext(true, newHandStack));
 		}
 
 		/**
-		 * Определяет, следует ли increment stat.
+		 * Создаёт новый результат без увеличения счётчика статистики использования предмета.
 		 *
-		 * @return boolean — результат операции
+		 * @return новый {@code Success} с отключённым инкрементом статистики
 		 */
+		public ActionResult.Success noIncrementStat() {
+			return new ActionResult.Success(swingSource, ItemContext.KEEP_HAND_STACK_NO_INCREMENT_STAT);
+		}
+
 		public boolean shouldIncrementStat() {
-			return this.itemContext.incrementStat;
+			return itemContext.incrementStat();
 		}
 
 		public @Nullable ItemStack getNewHandStack() {
-			return this.itemContext.newHandStack;
+			return itemContext.newHandStack();
 		}
 	}
 
 	/**
-	 * {@code SwingSource}.
+	 * Источник анимации взмаха рукой при успешном действии.
 	 */
-	public static enum SwingSource {
+	enum SwingSource {
+		/** Анимация не воспроизводится. */
 		NONE,
+		/** Анимация воспроизводится на клиенте. */
 		CLIENT,
-		SERVER;
+		/** Анимация воспроизводится на сервере и синхронизируется с клиентом. */
+		SERVER
 	}
 }

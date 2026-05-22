@@ -1,37 +1,26 @@
 package net.minecraft.util.math;
 
 /**
- * {@code Boxes}.
+ * Утилитарный класс для операций над {@link Box} (AABB в вещественных координатах).
  */
 public class Boxes {
 
 	/**
-	 * Stretch.
-	 *
-	 * @param box box
-	 * @param direction direction
-	 * @param length length
-	 *
-	 * @return Box — результат операции
+	 * Создаёт тонкий AABB, вытянутый от грани {@code box} в направлении {@code direction}
+	 * на длину {@code length}. Используется для проверки столкновений при движении сущностей.
 	 */
 	public static Box stretch(Box box, Direction direction, double length) {
-		double d = length * direction.getDirection().offset();
-		double e = Math.min(d, 0.0);
-		double f = Math.max(d, 0.0);
-		switch (direction) {
-			case WEST:
-				return new Box(box.minX + e, box.minY, box.minZ, box.minX + f, box.maxY, box.maxZ);
-			case EAST:
-				return new Box(box.maxX + e, box.minY, box.minZ, box.maxX + f, box.maxY, box.maxZ);
-			case DOWN:
-				return new Box(box.minX, box.minY + e, box.minZ, box.maxX, box.minY + f, box.maxZ);
-			case UP:
-			default:
-				return new Box(box.minX, box.maxY + e, box.minZ, box.maxX, box.maxY + f, box.maxZ);
-			case NORTH:
-				return new Box(box.minX, box.minY, box.minZ + e, box.maxX, box.maxY, box.minZ + f);
-			case SOUTH:
-				return new Box(box.minX, box.minY, box.maxZ + e, box.maxX, box.maxY, box.maxZ + f);
-		}
+		double offset = length * direction.getDirection().offset();
+		double negativeOffset = Math.min(offset, 0.0);
+		double positiveOffset = Math.max(offset, 0.0);
+
+		return switch (direction) {
+			case WEST -> new Box(box.minX + negativeOffset, box.minY, box.minZ, box.minX + positiveOffset, box.maxY, box.maxZ);
+			case EAST -> new Box(box.maxX + negativeOffset, box.minY, box.minZ, box.maxX + positiveOffset, box.maxY, box.maxZ);
+			case DOWN -> new Box(box.minX, box.minY + negativeOffset, box.minZ, box.maxX, box.minY + positiveOffset, box.maxZ);
+			case NORTH -> new Box(box.minX, box.minY, box.minZ + negativeOffset, box.maxX, box.maxY, box.minZ + positiveOffset);
+			case SOUTH -> new Box(box.minX, box.minY, box.maxZ + negativeOffset, box.maxX, box.maxY, box.maxZ + positiveOffset);
+			default -> new Box(box.minX, box.maxY + negativeOffset, box.minZ, box.maxX, box.maxY + positiveOffset, box.maxZ);
+		};
 	}
 }

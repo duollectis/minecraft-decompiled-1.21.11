@@ -8,7 +8,8 @@ import net.minecraft.util.Identifier;
 import java.nio.file.Path;
 
 /**
- * {@code DataOutput}.
+ * Управляет корневым путём вывода генератора данных и предоставляет
+ * вспомогательные методы для построения путей к конкретным файлам.
  */
 public class DataOutput {
 
@@ -19,68 +20,72 @@ public class DataOutput {
 	}
 
 	public Path getPath() {
-		return this.path;
+		return path;
 	}
 
-	public Path resolvePath(DataOutput.OutputType outputType) {
-		return this.getPath().resolve(outputType.path);
+	public Path resolvePath(OutputType outputType) {
+		return path.resolve(outputType.path);
 	}
 
-	public DataOutput.PathResolver getResolver(DataOutput.OutputType outputType, String directoryName) {
-		return new DataOutput.PathResolver(this, outputType, directoryName);
+	public PathResolver getResolver(OutputType outputType, String directoryName) {
+		return new PathResolver(this, outputType, directoryName);
 	}
 
-	public DataOutput.PathResolver getResolver(RegistryKey<? extends Registry<?>> registryRef) {
-		return this.getResolver(DataOutput.OutputType.DATA_PACK, RegistryKeys.getPath(registryRef));
+	public PathResolver getResolver(RegistryKey<? extends Registry<?>> registryRef) {
+		return getResolver(OutputType.DATA_PACK, RegistryKeys.getPath(registryRef));
 	}
 
-	public DataOutput.PathResolver getTagResolver(RegistryKey<? extends Registry<?>> registryRef) {
-		return this.getResolver(DataOutput.OutputType.DATA_PACK, RegistryKeys.getTagPath(registryRef));
+	public PathResolver getTagResolver(RegistryKey<? extends Registry<?>> registryRef) {
+		return getResolver(OutputType.DATA_PACK, RegistryKeys.getTagPath(registryRef));
 	}
 
 	/**
-	 * {@code OutputType}.
+	 * Тип выходной директории: пак данных, пак ресурсов или отчёты.
 	 */
-	public static enum OutputType {
+	public enum OutputType {
 		DATA_PACK("data"),
 		RESOURCE_PACK("assets"),
 		REPORTS("reports");
 
 		final String path;
 
-		private OutputType(final String path) {
+		OutputType(String path) {
 			this.path = path;
 		}
 	}
 
 	/**
-	 * {@code PathResolver}.
+	 * Резолвер путей для конкретного типа вывода и директории.
+	 * Строит пути вида {@code <outputType>/<namespace>/<directory>/<path>.json}.
 	 */
 	public static class PathResolver {
 
 		private final Path rootPath;
 		private final String directoryName;
 
-		PathResolver(DataOutput dataGenerator, DataOutput.OutputType outputType, String directoryName) {
-			this.rootPath = dataGenerator.resolvePath(outputType);
+		PathResolver(DataOutput dataOutput, OutputType outputType, String directoryName) {
+			this.rootPath = dataOutput.resolvePath(outputType);
 			this.directoryName = directoryName;
 		}
 
 		public Path resolve(Identifier id, String fileExtension) {
-			return this.rootPath
+			return rootPath
 					.resolve(id.getNamespace())
-					.resolve(this.directoryName)
+					.resolve(directoryName)
 					.resolve(id.getPath() + "." + fileExtension);
 		}
 
 		public Path resolveJson(Identifier id) {
-			return this.rootPath.resolve(id.getNamespace()).resolve(this.directoryName).resolve(id.getPath() + ".json");
+			return rootPath
+					.resolve(id.getNamespace())
+					.resolve(directoryName)
+					.resolve(id.getPath() + ".json");
 		}
 
 		public Path resolveJson(RegistryKey<?> key) {
-			return this.rootPath
+			return rootPath
 					.resolve(key.getValue().getNamespace())
-					.resolve(this.directoryName)
+					.resolve(directoryName)
 					.resolve(key.getValue().getPath() + ".json");
 		}
 	}

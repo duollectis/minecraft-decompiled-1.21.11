@@ -148,7 +148,7 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 				ArgumentSerializer.ArgumentTypeProperties<?>
 						argumentTypeProperties =
 						argumentSerializer.fromPacket(buf);
-				Identifier identifier = (flags & 16) != 0 ? buf.readIdentifier() : null;
+				Identifier identifier = (flags & HAS_SUGGESTION_PROVIDER) != 0 ? buf.readIdentifier() : null;
 				return new CommandTreeS2CPacket.ArgumentNode(string, argumentTypeProperties, identifier);
 			}
 		}
@@ -181,7 +181,7 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 
 		if (inspector.hasRequiredLevel(node)) {
-			i |= 32;
+			i |= REQUIRES_LEVEL;
 		}
 
 		CommandTreeS2CPacket.SuggestableNode suggestableNode;
@@ -199,7 +199,7 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 				);
 				i |= 2;
 				if (identifier != null) {
-					i |= 16;
+					i |= HAS_SUGGESTION_PROVIDER;
 				}
 				break;
 			case LiteralCommandNode<S> literalCommandNode:
@@ -385,7 +385,7 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 					}
 
 					boolean bl = (commandNodeData.flags & 4) != 0;
-					boolean bl2 = (commandNodeData.flags & 32) != 0;
+					boolean bl2 = (commandNodeData.flags & REQUIRES_LEVEL) != 0;
 					commandNode2 = this.nodeFactory.modifyNode(argumentBuilder, bl, bl2).build();
 				}
 

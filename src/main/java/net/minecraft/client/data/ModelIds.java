@@ -7,10 +7,12 @@ import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelIds}.
+ * Утилитарный класс для построения идентификаторов моделей блоков и предметов.
+ * Все идентификаторы формируются по соглашению: {@code namespace:block/<name>}
+ * или {@code namespace:item/<name>}.
  */
+@Environment(EnvType.CLIENT)
 public class ModelIds {
 
 	@Deprecated

@@ -11,7 +11,9 @@ import net.minecraft.world.gen.YOffset;
 import org.slf4j.Logger;
 
 /**
- * {@code TrapezoidHeightProvider}.
+ * Провайдер высоты с трапециевидным распределением.
+ * При plateau=0 даёт треугольное распределение (пик в центре),
+ * при plateau>0 — плоскую вершину трапеции.
  */
 public class TrapezoidHeightProvider extends HeightProvider {
 
@@ -36,50 +38,33 @@ public class TrapezoidHeightProvider extends HeightProvider {
 		this.plateau = plateau;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 * @param plateau plateau
-	 *
-	 * @return TrapezoidHeightProvider — результат операции
-	 */
 	public static TrapezoidHeightProvider create(YOffset minOffset, YOffset maxOffset, int plateau) {
 		return new TrapezoidHeightProvider(minOffset, maxOffset, plateau);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 *
-	 * @return TrapezoidHeightProvider — результат операции
-	 */
 	public static TrapezoidHeightProvider create(YOffset minOffset, YOffset maxOffset) {
 		return create(minOffset, maxOffset, 0);
 	}
 
 	@Override
 	public int get(Random random, HeightContext context) {
-		int i = this.minOffset.getY(context);
-		int j = this.maxOffset.getY(context);
-		if (i > j) {
+		int minY = minOffset.getY(context);
+		int maxY = maxOffset.getY(context);
+
+		if (minY > maxY) {
 			LOGGER.warn("Empty height range: {}", this);
-			return i;
+			return minY;
 		}
-		else {
-			int k = j - i;
-			if (this.plateau >= k) {
-				return MathHelper.nextBetween(random, i, j);
-			}
-			else {
-				int l = (k - this.plateau) / 2;
-				int m = k - l;
-				return i + MathHelper.nextBetween(random, 0, m) + MathHelper.nextBetween(random, 0, l);
-			}
+
+		int range = maxY - minY;
+
+		if (plateau >= range) {
+			return MathHelper.nextBetween(random, minY, maxY);
 		}
+
+		int slopeWidth = (range - plateau) / 2;
+		int maxSlope = range - slopeWidth;
+		return minY + MathHelper.nextBetween(random, 0, maxSlope) + MathHelper.nextBetween(random, 0, slopeWidth);
 	}
 
 	@Override
@@ -89,8 +74,8 @@ public class TrapezoidHeightProvider extends HeightProvider {
 
 	@Override
 	public String toString() {
-		return this.plateau == 0
-		       ? "triangle (" + this.minOffset + "-" + this.maxOffset + ")"
-		       : "trapezoid(" + this.plateau + ") in [" + this.minOffset + "-" + this.maxOffset + "]";
+		return plateau == 0
+				? "triangle (" + minOffset + "-" + maxOffset + ")"
+				: "trapezoid(" + plateau + ") in [" + minOffset + "-" + maxOffset + "]";
 	}
 }

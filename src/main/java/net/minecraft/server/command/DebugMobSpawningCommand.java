@@ -8,7 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.SpawnHelper;
 
 /**
- * {@code DebugMobSpawningCommand}.
+ * Команда {@code /debugmobspawning}: отладка алгоритма спавна мобов.
  */
 public class DebugMobSpawningCommand {
 

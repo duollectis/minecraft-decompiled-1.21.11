@@ -8,7 +8,8 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.function.Function;
 
 /**
- * {@code DimensionPadding}.
+ * Отступы по вертикали от границ измерения, в пределах которых запрещено генерировать структуры.
+ * Позволяет задать разные отступы снизу и сверху, либо одинаковый через компактный int-кодек.
  */
 public record DimensionPadding(int bottom, int top) {
 
@@ -35,12 +36,7 @@ public record DimensionPadding(int bottom, int top) {
 		this(value, value);
 	}
 
-	/**
-	 * Padded by same distance.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean paddedBySameDistance() {
-		return this.top == this.bottom;
+		return top == bottom;
 	}
 }

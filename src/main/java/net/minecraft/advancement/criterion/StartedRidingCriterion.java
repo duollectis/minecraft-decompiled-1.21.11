@@ -10,35 +10,33 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code StartedRidingCriterion}.
+ * Критерий выполняется, когда игрок начинает ехать верхом на сущности.
  */
 public class StartedRidingCriterion extends AbstractCriterion<StartedRidingCriterion.Conditions> {
 
 	@Override
-	public Codec<StartedRidingCriterion.Conditions> getConditionsCodec() {
-		return StartedRidingCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player) {
-		this.trigger(player, conditions -> true);
+		trigger(player, conditions -> true);
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(Optional<LootContextPredicate> player) implements AbstractCriterion.Conditions {
 
-		public static final Codec<StartedRidingCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance
 						.group(EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
 								.optionalFieldOf("player")
-								.forGetter(StartedRidingCriterion.Conditions::player))
-						.apply(instance, StartedRidingCriterion.Conditions::new)
+								.forGetter(Conditions::player))
+						.apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<StartedRidingCriterion.Conditions> create(EntityPredicate.Builder player) {
-			return Criteria.STARTED_RIDING.create(new StartedRidingCriterion.Conditions(Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(
-					player))));
+		public static AdvancementCriterion<Conditions> create(EntityPredicate.Builder player) {
+			return Criteria.STARTED_RIDING.create(new Conditions(
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(player))
+			));
 		}
 	}
 }

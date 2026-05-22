@@ -42,7 +42,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 	@Override
 	public void accept(RegistryWrapper.WrapperLookup registries, Consumer<AdvancementEntry> exporter) {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = registries.getOrThrow(RegistryKeys.ENTITY_TYPE);
-		RegistryEntryLookup<Item> registryEntryLookup2 = registries.getOrThrow(RegistryKeys.ITEM);
+		RegistryEntryLookup<Item> itemLookup = registries.getOrThrow(RegistryKeys.ITEM);
 		RegistryEntryLookup<Block> registryEntryLookup3 = registries.getOrThrow(RegistryKeys.BLOCK);
 		AdvancementEntry advancementEntry = Advancement.Builder.create()
 		                                                       .display(
@@ -489,7 +489,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 												                                                                  4
 										                                                                  ))
 						                                            ),
-						                   ItemPredicate.Builder.create().items(registryEntryLookup2, Blocks.GLOWSTONE)
+						                   ItemPredicate.Builder.create().items(itemLookup, Blocks.GLOWSTONE)
 				                   )
 		                   )
 		                   .build(exporter, "nether/charge_respawn_anchor");
@@ -526,7 +526,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 						                                                         Optional.of(ItemPredicate.Builder
 								                                                         .create()
 								                                                         .items(
-										                                                         registryEntryLookup2,
+										                                                         itemLookup,
 										                                                         Items.WARPED_FUNGUS_ON_A_STICK
 								                                                         )
 								                                                         .build()),
@@ -647,7 +647,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 										                                                    .head(ItemPredicate.Builder
 												                                                    .create()
 												                                                    .tag(
-														                                                    registryEntryLookup2,
+														                                                    itemLookup,
 														                                                    ItemTags.PIGLIN_SAFE_ARMOR
 												                                                    ))
 						                                                    )
@@ -663,7 +663,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 										                                                    .chest(ItemPredicate.Builder
 												                                                    .create()
 												                                                    .tag(
-														                                                    registryEntryLookup2,
+														                                                    itemLookup,
 														                                                    ItemTags.PIGLIN_SAFE_ARMOR
 												                                                    ))
 						                                                    )
@@ -679,7 +679,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 										                                                    .legs(ItemPredicate.Builder
 												                                                    .create()
 												                                                    .tag(
-														                                                    registryEntryLookup2,
+														                                                    itemLookup,
 														                                                    ItemTags.PIGLIN_SAFE_ARMOR
 												                                                    ))
 						                                                    )
@@ -695,7 +695,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 										                                                    .feet(ItemPredicate.Builder
 												                                                    .create()
 												                                                    .tag(
-														                                                    registryEntryLookup2,
+														                                                    itemLookup,
 														                                                    ItemTags.PIGLIN_SAFE_ARMOR
 												                                                    ))
 						                                                    )
@@ -722,7 +722,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 						                   lootContextPredicate,
 						                   Optional.of(ItemPredicate.Builder
 								                   .create()
-								                   .tag(registryEntryLookup2, ItemTags.PIGLIN_LOVED)
+								                   .tag(itemLookup, ItemTags.PIGLIN_LOVED)
 								                   .build()),
 						                   Optional.of(
 								                   EntityPredicate.contextPredicateFromEntityPredicate(
@@ -742,7 +742,7 @@ public class VanillaNetherTabAdvancementGenerator implements AdvancementTabGener
 						                   Optional.of(lootContextPredicate),
 						                   ItemPredicate.Builder
 								                   .create()
-								                   .items(registryEntryLookup2, PiglinBrain.BARTERING_ITEM),
+								                   .items(itemLookup, PiglinBrain.BARTERING_ITEM),
 						                   Optional.of(
 								                   EntityPredicate.contextPredicateFromEntityPredicate(
 										                   EntityPredicate.Builder

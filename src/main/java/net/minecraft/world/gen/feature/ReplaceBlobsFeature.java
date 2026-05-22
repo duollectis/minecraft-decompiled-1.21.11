@@ -12,7 +12,9 @@ import net.minecraft.world.gen.feature.util.FeatureContext;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ReplaceBlobsFeature}.
+ * Заменяет сферический объём блоков целевого типа на другой блок.
+ * Сначала ищет целевой блок вниз от начальной позиции, затем
+ * итерирует блоки в эллипсоиде с радиусами из конфига.
  */
 public class ReplaceBlobsFeature extends Feature<ReplaceBlobsFeatureConfig> {
 
@@ -22,52 +24,46 @@ public class ReplaceBlobsFeature extends Feature<ReplaceBlobsFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<ReplaceBlobsFeatureConfig> context) {
-		ReplaceBlobsFeatureConfig replaceBlobsFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		ReplaceBlobsFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
 		Random random = context.getRandom();
-		Block block = replaceBlobsFeatureConfig.target.getBlock();
-		BlockPos blockPos = moveDownToTarget(
-				structureWorldAccess,
-				context
-						.getOrigin()
-						.mutableCopy()
-						.clamp(
-								Direction.Axis.Y,
-								structureWorldAccess.getBottomY() + 1,
-								structureWorldAccess.getTopYInclusive()
-						),
-				block
+		Block targetBlock = config.target.getBlock();
+
+		BlockPos center = moveDownToTarget(
+			world,
+			context.getOrigin()
+				.mutableCopy()
+				.clamp(Direction.Axis.Y, world.getBottomY() + 1, world.getTopYInclusive()),
+			targetBlock
 		);
-		if (blockPos == null) {
+
+		if (center == null) {
 			return false;
 		}
-		else {
-			int i = replaceBlobsFeatureConfig.getRadius().get(random);
-			int j = replaceBlobsFeatureConfig.getRadius().get(random);
-			int k = replaceBlobsFeatureConfig.getRadius().get(random);
-			int l = Math.max(i, Math.max(j, k));
-			boolean bl = false;
 
-			for (BlockPos blockPos2 : BlockPos.iterateOutwards(blockPos, i, j, k)) {
-				if (blockPos2.getManhattanDistance(blockPos) > l) {
-					break;
-				}
+		int rx = config.getRadius().get(random);
+		int ry = config.getRadius().get(random);
+		int rz = config.getRadius().get(random);
+		int maxRadius = Math.max(rx, Math.max(ry, rz));
+		boolean placed = false;
 
-				BlockState blockState = structureWorldAccess.getBlockState(blockPos2);
-				if (blockState.isOf(block)) {
-					this.setBlockState(structureWorldAccess, blockPos2, replaceBlobsFeatureConfig.state);
-					bl = true;
-				}
+		for (BlockPos candidate : BlockPos.iterateOutwards(center, rx, ry, rz)) {
+			if (candidate.getManhattanDistance(center) > maxRadius) {
+				break;
 			}
 
-			return bl;
+			if (world.getBlockState(candidate).isOf(targetBlock)) {
+				setBlockState(world, candidate, config.state);
+				placed = true;
+			}
 		}
+
+		return placed;
 	}
 
 	private static @Nullable BlockPos moveDownToTarget(WorldAccess world, BlockPos.Mutable mutablePos, Block target) {
 		while (mutablePos.getY() > world.getBottomY() + 1) {
-			BlockState blockState = world.getBlockState(mutablePos);
-			if (blockState.isOf(target)) {
+			if (world.getBlockState(mutablePos).isOf(target)) {
 				return mutablePos;
 			}
 

@@ -20,16 +20,19 @@ import org.slf4j.Logger;
 
 import java.util.function.Predicate;
 
-/**
- * {@code DungeonFeature}.
- */
+/** Генерирует подземелье: прямоугольную комнату из булыжника с мшистым полом, спаунером и сундуками с лутом. */
 public class DungeonFeature extends Feature<DefaultFeatureConfig> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final EntityType<?>[]
-			MOB_SPAWNER_ENTITIES =
-			new EntityType[]{EntityType.SKELETON, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.SPIDER};
-	private static final BlockState AIR = Blocks.CAVE_AIR.getDefaultState();
+	private static final int MIN_ENTRANCES = 1;
+	private static final int MAX_ENTRANCES = 5;
+	private static final EntityType<?>[] MOB_SPAWNER_ENTITIES = new EntityType[]{
+			EntityType.SKELETON,
+			EntityType.ZOMBIE,
+			EntityType.ZOMBIE,
+			EntityType.SPIDER
+	};
+	private static final BlockState CAVE_AIR = Blocks.CAVE_AIR.getDefaultState();
 
 	public DungeonFeature(Codec<DefaultFeatureConfig> codec) {
 		super(codec);
@@ -37,134 +40,114 @@ public class DungeonFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		Predicate<BlockState> predicate = Feature.notInBlockTagPredicate(BlockTags.FEATURES_CANNOT_REPLACE);
-		BlockPos blockPos = context.getOrigin();
+		Predicate<BlockState> canReplace = Feature.notInBlockTagPredicate(BlockTags.FEATURES_CANNOT_REPLACE);
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		int i = 3;
-		int j = random.nextInt(2) + 2;
-		int k = -j - 1;
-		int l = j + 1;
-		int m = -1;
-		int n = 4;
-		int o = random.nextInt(2) + 2;
-		int p = -o - 1;
-		int q = o + 1;
-		int r = 0;
+		StructureWorldAccess world = context.getWorld();
+		int halfX = random.nextInt(2) + 2;
+		int minX = -halfX - 1;
+		int maxX = halfX + 1;
+		int halfZ = random.nextInt(2) + 2;
+		int minZ = -halfZ - 1;
+		int maxZ = halfZ + 1;
+		int entranceCount = 0;
 
-		for (int s = k; s <= l; s++) {
-			for (int t = -1; t <= 4; t++) {
-				for (int u = p; u <= q; u++) {
-					BlockPos blockPos2 = blockPos.add(s, t, u);
-					boolean bl = structureWorldAccess.getBlockState(blockPos2).isSolid();
-					if (t == -1 && !bl) {
+		for (int dx = minX; dx <= maxX; dx++) {
+			for (int dy = -1; dy <= 4; dy++) {
+				for (int dz = minZ; dz <= maxZ; dz++) {
+					BlockPos pos = origin.add(dx, dy, dz);
+					boolean isSolid = world.getBlockState(pos).isSolid();
+
+					if (dy == -1 && !isSolid) {
 						return false;
 					}
 
-					if (t == 4 && !bl) {
+					if (dy == 4 && !isSolid) {
 						return false;
 					}
 
-					if ((s == k || s == l || u == p || u == q) && t == 0 && structureWorldAccess.isAir(blockPos2)
-							&& structureWorldAccess.isAir(blockPos2.up())) {
-						r++;
+					if ((dx == minX || dx == maxX || dz == minZ || dz == maxZ)
+							&& dy == 0
+							&& world.isAir(pos)
+							&& world.isAir(pos.up())) {
+						entranceCount++;
 					}
 				}
 			}
 		}
 
-		if (r >= 1 && r <= 5) {
-			for (int s = k; s <= l; s++) {
-				for (int t = 3; t >= -1; t--) {
-					for (int u = p; u <= q; u++) {
-						BlockPos blockPos2x = blockPos.add(s, t, u);
-						BlockState blockState = structureWorldAccess.getBlockState(blockPos2x);
-						if (s == k || t == -1 || u == p || s == l || t == 4 || u == q) {
-							if (blockPos2x.getY() >= structureWorldAccess.getBottomY() && !structureWorldAccess
-									.getBlockState(blockPos2x.down())
-									.isSolid()) {
-								structureWorldAccess.setBlockState(blockPos2x, AIR, 2);
-							}
-							else if (blockState.isSolid() && !blockState.isOf(Blocks.CHEST)) {
-								if (t == -1 && random.nextInt(4) != 0) {
-									this.setBlockStateIf(
-											structureWorldAccess,
-											blockPos2x,
-											Blocks.MOSSY_COBBLESTONE.getDefaultState(),
-											predicate
-									);
-								}
-								else {
-									this.setBlockStateIf(
-											structureWorldAccess,
-											blockPos2x,
-											Blocks.COBBLESTONE.getDefaultState(),
-											predicate
-									);
-								}
-							}
-						}
-						else if (!blockState.isOf(Blocks.CHEST) && !blockState.isOf(Blocks.SPAWNER)) {
-							this.setBlockStateIf(structureWorldAccess, blockPos2x, AIR, predicate);
-						}
-					}
-				}
-			}
-
-			for (int s = 0; s < 2; s++) {
-				for (int t = 0; t < 3; t++) {
-					int ux = blockPos.getX() + random.nextInt(j * 2 + 1) - j;
-					int v = blockPos.getY();
-					int w = blockPos.getZ() + random.nextInt(o * 2 + 1) - o;
-					BlockPos blockPos3 = new BlockPos(ux, v, w);
-					if (structureWorldAccess.isAir(blockPos3)) {
-						int x = 0;
-
-						for (Direction direction : Direction.Type.HORIZONTAL) {
-							if (structureWorldAccess.getBlockState(blockPos3.offset(direction)).isSolid()) {
-								x++;
-							}
-						}
-
-						if (x == 1) {
-							this.setBlockStateIf(
-									structureWorldAccess,
-									blockPos3,
-									StructurePiece.orientateChest(
-											structureWorldAccess,
-											blockPos3,
-											Blocks.CHEST.getDefaultState()
-									),
-									predicate
-							);
-							LootableInventory.setLootTable(
-									structureWorldAccess,
-									random,
-									blockPos3,
-									LootTables.SIMPLE_DUNGEON_CHEST
-							);
-							break;
-						}
-					}
-				}
-			}
-
-			this.setBlockStateIf(structureWorldAccess, blockPos, Blocks.SPAWNER.getDefaultState(), predicate);
-			if (structureWorldAccess.getBlockEntity(blockPos) instanceof MobSpawnerBlockEntity mobSpawnerBlockEntity) {
-				mobSpawnerBlockEntity.setEntityType(this.getMobSpawnerEntity(random), random);
-			}
-			else {
-				LOGGER.error(
-						"Failed to fetch mob spawner entity at ({}, {}, {})",
-						new Object[]{blockPos.getX(), blockPos.getY(), blockPos.getZ()}
-				);
-			}
-
-			return true;
-		}
-		else {
+		if (entranceCount < MIN_ENTRANCES || entranceCount > MAX_ENTRANCES) {
 			return false;
 		}
+
+		for (int dx = minX; dx <= maxX; dx++) {
+			for (int dy = 3; dy >= -1; dy--) {
+				for (int dz = minZ; dz <= maxZ; dz++) {
+					BlockPos pos = origin.add(dx, dy, dz);
+					BlockState state = world.getBlockState(pos);
+					boolean isWall = dx == minX || dy == -1 || dz == minZ || dx == maxX || dy == 4 || dz == maxZ;
+
+					if (isWall) {
+						if (pos.getY() >= world.getBottomY() && !world.getBlockState(pos.down()).isSolid()) {
+							world.setBlockState(pos, CAVE_AIR, 2);
+						} else if (state.isSolid() && !state.isOf(Blocks.CHEST)) {
+							BlockState wallBlock = (dy == -1 && random.nextInt(4) != 0)
+									? Blocks.MOSSY_COBBLESTONE.getDefaultState()
+									: Blocks.COBBLESTONE.getDefaultState();
+							setBlockStateIf(world, pos, wallBlock, canReplace);
+						}
+					} else if (!state.isOf(Blocks.CHEST) && !state.isOf(Blocks.SPAWNER)) {
+						setBlockStateIf(world, pos, CAVE_AIR, canReplace);
+					}
+				}
+			}
+		}
+
+		for (int attempt = 0; attempt < 2; attempt++) {
+			for (int retry = 0; retry < 3; retry++) {
+				BlockPos chestPos = new BlockPos(
+						origin.getX() + random.nextInt(halfX * 2 + 1) - halfX,
+						origin.getY(),
+						origin.getZ() + random.nextInt(halfZ * 2 + 1) - halfZ
+				);
+
+				if (!world.isAir(chestPos)) {
+					continue;
+				}
+
+				int solidNeighbors = 0;
+
+				for (Direction direction : Direction.Type.HORIZONTAL) {
+					if (world.getBlockState(chestPos.offset(direction)).isSolid()) {
+						solidNeighbors++;
+					}
+				}
+
+				if (solidNeighbors == 1) {
+					setBlockStateIf(
+							world,
+							chestPos,
+							StructurePiece.orientateChest(world, chestPos, Blocks.CHEST.getDefaultState()),
+							canReplace
+					);
+					LootableInventory.setLootTable(world, random, chestPos, LootTables.SIMPLE_DUNGEON_CHEST);
+					break;
+				}
+			}
+		}
+
+		setBlockStateIf(world, origin, Blocks.SPAWNER.getDefaultState(), canReplace);
+
+		if (world.getBlockEntity(origin) instanceof MobSpawnerBlockEntity spawner) {
+			spawner.setEntityType(getMobSpawnerEntity(random), random);
+		} else {
+			LOGGER.error(
+					"Failed to fetch mob spawner entity at ({}, {}, {})",
+					origin.getX(), origin.getY(), origin.getZ()
+			);
+		}
+
+		return true;
 	}
 
 	private EntityType<?> getMobSpawnerEntity(Random random) {

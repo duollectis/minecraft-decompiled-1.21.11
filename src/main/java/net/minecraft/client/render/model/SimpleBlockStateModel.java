@@ -9,10 +9,11 @@ import net.minecraft.util.math.random.Random;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleBlockStateModel}.
+ * Простая модель состояния блока с единственной частью {@link BlockModelPart}.
+ * Используется для блоков с одним вариантом отображения без весовой выборки.
  */
+@Environment(EnvType.CLIENT)
 public class SimpleBlockStateModel implements BlockStateModel {
 
 	private final BlockModelPart part;
@@ -23,18 +24,19 @@ public class SimpleBlockStateModel implements BlockStateModel {
 
 	@Override
 	public void addParts(Random random, List<BlockModelPart> parts) {
-		parts.add(this.part);
+		parts.add(part);
 	}
 
 	@Override
 	public Sprite particleSprite() {
-		return this.part.particleSprite();
+		return part.particleSprite();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённый вариант простой модели состояния блока.
+	 * Хранит единственный {@link ModelVariant} и запекает его через {@link Baker}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(ModelVariant variant) implements BlockStateModel.Unbaked {
 
 		public static final Codec<SimpleBlockStateModel.Unbaked> CODEC = ModelVariant.CODEC
@@ -42,12 +44,12 @@ public class SimpleBlockStateModel implements BlockStateModel {
 
 		@Override
 		public BlockStateModel bake(Baker baker) {
-			return new SimpleBlockStateModel(this.variant.bake(baker));
+			return new SimpleBlockStateModel(variant.bake(baker));
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.variant.resolve(resolver);
+			variant.resolve(resolver);
 		}
 	}
 }

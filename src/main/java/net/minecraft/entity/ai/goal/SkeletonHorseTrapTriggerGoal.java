@@ -18,9 +18,15 @@ import net.minecraft.world.LocalDifficulty;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SkeletonHorseTrapTriggerGoal}.
+ * Цель-ловушка скелетной лошади: при приближении игрока на 10 блоков
+ * вызывает молнию и спавнит трёх дополнительных скелетов-всадников.
  */
 public class SkeletonHorseTrapTriggerGoal extends Goal {
+
+	private static final double TRIGGER_RADIUS = 10.0;
+	private static final int EXTRA_RIDERS = 3;
+	private static final int REGEN_DELAY = 60;
+	private static final double SCATTER_SPREAD = 1.1485;
 
 	private final SkeletonHorseEntity skeletonHorse;
 
@@ -30,109 +36,108 @@ public class SkeletonHorseTrapTriggerGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.skeletonHorse
-				.getEntityWorld()
-				.isPlayerInRange(this.skeletonHorse.getX(), this.skeletonHorse.getY(), this.skeletonHorse.getZ(), 10.0);
+		return skeletonHorse.getEntityWorld()
+			.isPlayerInRange(skeletonHorse.getX(), skeletonHorse.getY(), skeletonHorse.getZ(), TRIGGER_RADIUS);
 	}
 
 	@Override
 	public void tick() {
-		ServerWorld serverWorld = (ServerWorld) this.skeletonHorse.getEntityWorld();
-		LocalDifficulty localDifficulty = serverWorld.getLocalDifficulty(this.skeletonHorse.getBlockPos());
-		this.skeletonHorse.setTrapped(false);
-		this.skeletonHorse.setTame(true);
-		this.skeletonHorse.setBreedingAge(0);
-		LightningEntity lightningEntity = EntityType.LIGHTNING_BOLT.create(serverWorld, SpawnReason.TRIGGERED);
-		if (lightningEntity != null) {
-			lightningEntity.refreshPositionAfterTeleport(
-					this.skeletonHorse.getX(),
-					this.skeletonHorse.getY(),
-					this.skeletonHorse.getZ()
-			);
-			lightningEntity.setCosmetic(true);
-			serverWorld.spawnEntity(lightningEntity);
-			SkeletonEntity skeletonEntity = this.getSkeleton(localDifficulty, this.skeletonHorse);
-			if (skeletonEntity != null) {
-				skeletonEntity.startRiding(this.skeletonHorse);
-				serverWorld.spawnEntityAndPassengers(skeletonEntity);
+		ServerWorld serverWorld = (ServerWorld) skeletonHorse.getEntityWorld();
+		LocalDifficulty difficulty = serverWorld.getLocalDifficulty(skeletonHorse.getBlockPos());
 
-				for (int i = 0; i < 3; i++) {
-					AbstractHorseEntity abstractHorseEntity = this.getHorse(localDifficulty);
-					if (abstractHorseEntity != null) {
-						SkeletonEntity skeletonEntity2 = this.getSkeleton(localDifficulty, abstractHorseEntity);
-						if (skeletonEntity2 != null) {
-							skeletonEntity2.startRiding(abstractHorseEntity);
-							abstractHorseEntity.addVelocity(
-									this.skeletonHorse.getRandom().nextTriangular(0.0, 1.1485),
-									0.0,
-									this.skeletonHorse.getRandom().nextTriangular(0.0, 1.1485)
-							);
-							serverWorld.spawnEntityAndPassengers(abstractHorseEntity);
-						}
-					}
-				}
-			}
-		}
-	}
+		skeletonHorse.setTrapped(false);
+		skeletonHorse.setTame(true);
+		skeletonHorse.setBreedingAge(0);
 
-	private @Nullable AbstractHorseEntity getHorse(LocalDifficulty localDifficulty) {
-		SkeletonHorseEntity
-				skeletonHorseEntity =
-				EntityType.SKELETON_HORSE.create(this.skeletonHorse.getEntityWorld(), SpawnReason.TRIGGERED);
-		if (skeletonHorseEntity != null) {
-			skeletonHorseEntity.initialize(
-					(ServerWorld) this.skeletonHorse.getEntityWorld(),
-					localDifficulty,
-					SpawnReason.TRIGGERED,
-					null
-			);
-			skeletonHorseEntity.setPosition(
-					this.skeletonHorse.getX(),
-					this.skeletonHorse.getY(),
-					this.skeletonHorse.getZ()
-			);
-			skeletonHorseEntity.timeUntilRegen = 60;
-			skeletonHorseEntity.setPersistent();
-			skeletonHorseEntity.setTame(true);
-			skeletonHorseEntity.setBreedingAge(0);
+		LightningEntity lightning = EntityType.LIGHTNING_BOLT.create(serverWorld, SpawnReason.TRIGGERED);
+
+		if (lightning == null) {
+			return;
 		}
 
-		return skeletonHorseEntity;
-	}
+		lightning.refreshPositionAfterTeleport(skeletonHorse.getX(), skeletonHorse.getY(), skeletonHorse.getZ());
+		lightning.setCosmetic(true);
+		serverWorld.spawnEntity(lightning);
 
-	private @Nullable SkeletonEntity getSkeleton(LocalDifficulty localDifficulty, AbstractHorseEntity vehicle) {
-		SkeletonEntity skeletonEntity = EntityType.SKELETON.create(vehicle.getEntityWorld(), SpawnReason.TRIGGERED);
-		if (skeletonEntity != null) {
-			skeletonEntity.initialize(
-					(ServerWorld) vehicle.getEntityWorld(),
-					localDifficulty,
-					SpawnReason.TRIGGERED,
-					null
-			);
-			skeletonEntity.setPosition(vehicle.getX(), vehicle.getY(), vehicle.getZ());
-			skeletonEntity.timeUntilRegen = 60;
-			skeletonEntity.setPersistent();
-			if (skeletonEntity.getEquippedStack(EquipmentSlot.HEAD).isEmpty()) {
-				skeletonEntity.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+		SkeletonEntity mainRider = getSkeleton(difficulty, skeletonHorse);
+
+		if (mainRider == null) {
+			return;
+		}
+
+		mainRider.startRiding(skeletonHorse);
+		serverWorld.spawnEntityAndPassengers(mainRider);
+
+		for (int i = 0; i < EXTRA_RIDERS; i++) {
+			AbstractHorseEntity extraHorse = getHorse(difficulty);
+
+			if (extraHorse == null) {
+				continue;
 			}
 
-			this.enchantEquipment(skeletonEntity, EquipmentSlot.MAINHAND, localDifficulty);
-			this.enchantEquipment(skeletonEntity, EquipmentSlot.HEAD, localDifficulty);
-		}
+			SkeletonEntity extraRider = getSkeleton(difficulty, extraHorse);
 
-		return skeletonEntity;
+			if (extraRider == null) {
+				continue;
+			}
+
+			extraRider.startRiding(extraHorse);
+			extraHorse.addVelocity(
+				skeletonHorse.getRandom().nextTriangular(0.0, SCATTER_SPREAD),
+				0.0,
+				skeletonHorse.getRandom().nextTriangular(0.0, SCATTER_SPREAD)
+			);
+			serverWorld.spawnEntityAndPassengers(extraHorse);
+		}
 	}
 
-	private void enchantEquipment(SkeletonEntity rider, EquipmentSlot slot, LocalDifficulty localDifficulty) {
-		ItemStack itemStack = rider.getEquippedStack(slot);
-		itemStack.set(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
+	private @Nullable AbstractHorseEntity getHorse(LocalDifficulty difficulty) {
+		SkeletonHorseEntity horse = EntityType.SKELETON_HORSE.create(skeletonHorse.getEntityWorld(), SpawnReason.TRIGGERED);
+
+		if (horse == null) {
+			return null;
+		}
+
+		horse.initialize((ServerWorld) skeletonHorse.getEntityWorld(), difficulty, SpawnReason.TRIGGERED, null);
+		horse.setPosition(skeletonHorse.getX(), skeletonHorse.getY(), skeletonHorse.getZ());
+		horse.timeUntilRegen = REGEN_DELAY;
+		horse.setPersistent();
+		horse.setTame(true);
+		horse.setBreedingAge(0);
+		return horse;
+	}
+
+	private @Nullable SkeletonEntity getSkeleton(LocalDifficulty difficulty, AbstractHorseEntity vehicle) {
+		SkeletonEntity skeleton = EntityType.SKELETON.create(vehicle.getEntityWorld(), SpawnReason.TRIGGERED);
+
+		if (skeleton == null) {
+			return null;
+		}
+
+		skeleton.initialize((ServerWorld) vehicle.getEntityWorld(), difficulty, SpawnReason.TRIGGERED, null);
+		skeleton.setPosition(vehicle.getX(), vehicle.getY(), vehicle.getZ());
+		skeleton.timeUntilRegen = REGEN_DELAY;
+		skeleton.setPersistent();
+
+		if (skeleton.getEquippedStack(EquipmentSlot.HEAD).isEmpty()) {
+			skeleton.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+		}
+
+		enchantEquipment(skeleton, EquipmentSlot.MAINHAND, difficulty);
+		enchantEquipment(skeleton, EquipmentSlot.HEAD, difficulty);
+		return skeleton;
+	}
+
+	private void enchantEquipment(SkeletonEntity rider, EquipmentSlot slot, LocalDifficulty difficulty) {
+		ItemStack stack = rider.getEquippedStack(slot);
+		stack.set(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
 		EnchantmentHelper.applyEnchantmentProvider(
-				itemStack,
-				rider.getEntityWorld().getRegistryManager(),
-				EnchantmentProviders.MOB_SPAWN_EQUIPMENT,
-				localDifficulty,
-				rider.getRandom()
+			stack,
+			rider.getEntityWorld().getRegistryManager(),
+			EnchantmentProviders.MOB_SPAWN_EQUIPMENT,
+			difficulty,
+			rider.getRandom()
 		);
-		rider.equipStack(slot, itemStack);
+		rider.equipStack(slot, stack);
 	}
 }

@@ -6,7 +6,8 @@ import net.minecraft.potion.Potions;
 import net.minecraft.text.Text;
 
 /**
- * {@code TippedArrowItem}.
+ * Стрела с зельем, накладывающая эффекты зелья на поражённую цель.
+ * Название предмета формируется динамически из компонента {@code POTION_CONTENTS}.
  */
 public class TippedArrowItem extends ArrowItem {
 
@@ -23,8 +24,9 @@ public class TippedArrowItem extends ArrowItem {
 
 	@Override
 	public Text getName(ItemStack stack) {
-		PotionContentsComponent potionContentsComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
-		return potionContentsComponent != null ? potionContentsComponent.getName(this.translationKey + ".effect.")
-		                                       : super.getName(stack);
+		PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
+		return potionContents != null
+			? potionContents.getName(translationKey + ".effect.")
+			: super.getName(stack);
 	}
 }

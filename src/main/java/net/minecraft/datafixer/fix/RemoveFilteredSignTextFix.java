@@ -5,7 +5,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code RemoveFilteredSignTextFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RemoveFilteredSignTextFix extends ChoiceWriteReadFix {
 

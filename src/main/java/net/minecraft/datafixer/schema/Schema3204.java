@@ -9,21 +9,26 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3204}.
+ * Схема версии 3204 (Minecraft 1.20 — Trails & Tales).
+ * <p>
+ * Регистрирует тип данных для блок-сущности резного книжного шкафа
+ * ({@code minecraft:chiseled_bookshelf}), добавленного в обновлении 1.20.
+ * Шкаф хранит до 6 книг в поле {@code Items}.
  */
 public class Schema3204 extends IdentifierNormalizingSchema {
 
-	public Schema3204(int i, Schema schema) {
-		super(i, schema);
+	public Schema3204(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
 		schema.register(
-				map,
-				"minecraft:chiseled_bookshelf",
-				() -> DSL.optionalFields("Items", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
+			blockEntityTypes,
+			"minecraft:chiseled_bookshelf",
+			() -> DSL.optionalFields("Items", DSL.list(TypeReferences.ITEM_STACK.in(schema)))
 		);
-		return map;
+		return blockEntityTypes;
 	}
 }

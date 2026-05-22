@@ -4,7 +4,8 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * {@code BoundedRegionArray}.
+ * Двумерный массив значений, ограниченный прямоугольной областью в координатах чанков.
+ * Используется для кэширования данных региона вокруг центральной точки.
  */
 public class BoundedRegionArray<T> {
 
@@ -15,87 +16,71 @@ public class BoundedRegionArray<T> {
 	private final Object[] array;
 
 	public static <T> BoundedRegionArray<T> create(
-			int centerX,
-			int centerZ,
-			int radius,
-			BoundedRegionArray.Getter<T> getter
+		int centerX,
+		int centerZ,
+		int radius,
+		Getter<T> getter
 	) {
-		int i = centerX - radius;
-		int j = centerZ - radius;
-		int k = 2 * radius + 1;
-		return new BoundedRegionArray<>(i, j, k, k, getter);
+		int startX = centerX - radius;
+		int startZ = centerZ - radius;
+		int diameter = 2 * radius + 1;
+		return new BoundedRegionArray<>(startX, startZ, diameter, diameter, getter);
 	}
 
-	private BoundedRegionArray(int minX, int minZ, int maxX, int maxZ, BoundedRegionArray.Getter<T> getter) {
+	private BoundedRegionArray(int minX, int minZ, int maxX, int maxZ, Getter<T> getter) {
 		this.minX = minX;
 		this.minZ = minZ;
 		this.maxX = maxX;
 		this.maxZ = maxZ;
-		this.array = new Object[this.maxX * this.maxZ];
+		array = new Object[maxX * maxZ];
 
-		for (int i = minX; i < minX + maxX; i++) {
-			for (int j = minZ; j < minZ + maxZ; j++) {
-				this.array[this.toIndex(i, j)] = getter.get(i, j);
+		for (int x = minX; x < minX + maxX; x++) {
+			for (int z = minZ; z < minZ + maxZ; z++) {
+				array[toIndex(x, z)] = getter.get(x, z);
 			}
 		}
 	}
 
-	/**
-	 * For each.
-	 *
-	 * @param callback callback
-	 */
+	@SuppressWarnings("unchecked")
 	public void forEach(Consumer<T> callback) {
-		for (Object object : this.array) {
-			callback.accept((T) object);
+		for (Object element : array) {
+			callback.accept((T) element);
 		}
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param x x
-	 * @param z z
-	 *
-	 * @return T — 
-	 */
+	@SuppressWarnings("unchecked")
 	public T get(int x, int z) {
-		if (!this.isWithinBounds(x, z)) {
+		if (!isWithinBounds(x, z)) {
 			throw new IllegalArgumentException("Requested out of range value (" + x + "," + z + ") from " + this);
 		}
-		else {
-			return (T) this.array[this.toIndex(x, z)];
-		}
+
+		return (T) array[toIndex(x, z)];
 	}
 
 	public boolean isWithinBounds(int x, int z) {
-		int i = x - this.minX;
-		int j = z - this.minZ;
-		return i >= 0 && i < this.maxX && j >= 0 && j < this.maxZ;
+		int relX = x - minX;
+		int relZ = z - minZ;
+		return relX >= 0 && relX < maxX && relZ >= 0 && relZ < maxZ;
 	}
 
 	@Override
 	public String toString() {
 		return String.format(
-				Locale.ROOT,
-				"StaticCache2D[%d, %d, %d, %d]",
-				this.minX,
-				this.minZ,
-				this.minX + this.maxX,
-				this.minZ + this.maxZ
+			Locale.ROOT,
+			"StaticCache2D[%d, %d, %d, %d]",
+			minX,
+			minZ,
+			minX + maxX,
+			minZ + maxZ
 		);
 	}
 
 	private int toIndex(int x, int z) {
-		int i = x - this.minX;
-		int j = z - this.minZ;
-		return i * this.maxZ + j;
+		return (x - minX) * maxZ + (z - minZ);
 	}
 
+	/** Поставщик значений для заполнения массива при создании. */
 	@FunctionalInterface
-	/**
-	 * {@code Getter}.
-	 */
 	public interface Getter<T> {
 
 		T get(int x, int z);

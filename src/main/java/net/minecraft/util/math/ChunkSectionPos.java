@@ -170,7 +170,7 @@ public class ChunkSectionPos extends Vec3i {
 	}
 
 	public static int getLocalCoord(int coord) {
-		return coord & 15;
+		return coord & LOCAL_COORD_MASK;
 	}
 
 	/**
@@ -195,7 +195,7 @@ public class ChunkSectionPos extends Vec3i {
 	 * @return int — результат операции
 	 */
 	public static int unpackLocalX(short packedLocalPos) {
-		return packedLocalPos >>> 8 & 15;
+		return packedLocalPos >>> 8 & LOCAL_COORD_MASK;
 	}
 
 	/**
@@ -206,7 +206,7 @@ public class ChunkSectionPos extends Vec3i {
 	 * @return int — результат операции
 	 */
 	public static int unpackLocalY(short packedLocalPos) {
-		return packedLocalPos >>> 0 & 15;
+		return packedLocalPos >>> 0 & LOCAL_COORD_MASK;
 	}
 
 	/**
@@ -217,7 +217,7 @@ public class ChunkSectionPos extends Vec3i {
 	 * @return int — результат операции
 	 */
 	public static int unpackLocalZ(short packedLocalPos) {
-		return packedLocalPos >>> 4 & 15;
+		return packedLocalPos >>> 4 & LOCAL_COORD_MASK;
 	}
 
 	/**
@@ -284,7 +284,7 @@ public class ChunkSectionPos extends Vec3i {
 	 * @return int — результат операции
 	 */
 	public static int unpackX(long packed) {
-		return (int) (packed << 0 >> 42);
+		return (int) (packed << 0 >> PACKED_Z_SHIFT);
 	}
 
 	/**
@@ -306,7 +306,7 @@ public class ChunkSectionPos extends Vec3i {
 	 * @return int — результат операции
 	 */
 	public static int unpackZ(long packed) {
-		return (int) (packed << 22 >> 42);
+		return (int) (packed << 22 >> PACKED_Z_SHIFT);
 	}
 
 	public int getSectionX() {
@@ -334,15 +334,15 @@ public class ChunkSectionPos extends Vec3i {
 	}
 
 	public int getMaxX() {
-		return getOffsetPos(this.getSectionX(), 15);
+		return getOffsetPos(this.getSectionX(), LOCAL_COORD_MASK);
 	}
 
 	public int getMaxY() {
-		return getOffsetPos(this.getSectionY(), 15);
+		return getOffsetPos(this.getSectionY(), LOCAL_COORD_MASK);
 	}
 
 	public int getMaxZ() {
-		return getOffsetPos(this.getSectionZ(), 15);
+		return getOffsetPos(this.getSectionZ(), LOCAL_COORD_MASK);
 	}
 
 	/**
@@ -438,9 +438,9 @@ public class ChunkSectionPos extends Vec3i {
 	 */
 	public static long asLong(int x, int y, int z) {
 		long l = 0L;
-		l |= (x & 4194303L) << 42;
-		l |= (y & 1048575L) << 0;
-		return l | (z & 4194303L) << 20;
+		l |= (x & PACKED_X_MASK) << PACKED_Z_SHIFT;
+		l |= (y & PACKED_Y_MASK) << 0;
+		return l | (z & PACKED_X_MASK) << 20;
 	}
 
 	/**

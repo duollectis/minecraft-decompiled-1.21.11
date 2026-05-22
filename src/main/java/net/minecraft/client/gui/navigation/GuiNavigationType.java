@@ -3,10 +3,10 @@ package net.minecraft.client.gui.navigation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GuiNavigationType}.
+ * Тип навигации, определяющий источник фокусировки элемента GUI.
  */
+@Environment(EnvType.CLIENT)
 public enum GuiNavigationType {
 	NONE,
 	MOUSE,

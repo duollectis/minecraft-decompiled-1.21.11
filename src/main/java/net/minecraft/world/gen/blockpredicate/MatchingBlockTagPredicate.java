@@ -9,19 +9,22 @@ import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.Vec3i;
 
 /**
- * {@code MatchingBlockTagPredicate}.
+ * Предикат, проверяющий, принадлежит ли блок по смещённой позиции заданному тегу блоков.
  */
 public class MatchingBlockTagPredicate extends OffsetPredicate {
 
-	final TagKey<Block> tag;
 	public static final MapCodec<MatchingBlockTagPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> registerOffsetField(instance)
-					.and(TagKey
-							.unprefixedCodec(RegistryKeys.BLOCK)
-							.fieldOf("tag")
-							.forGetter(predicate -> predicate.tag))
-					.apply(instance, MatchingBlockTagPredicate::new)
+		instance -> registerOffsetField(instance)
+			.and(
+				TagKey
+					.unprefixedCodec(RegistryKeys.BLOCK)
+					.fieldOf("tag")
+					.forGetter(predicate -> predicate.tag)
+			)
+			.apply(instance, MatchingBlockTagPredicate::new)
 	);
+
+	final TagKey<Block> tag;
 
 	protected MatchingBlockTagPredicate(Vec3i offset, TagKey<Block> tag) {
 		super(offset);
@@ -30,7 +33,7 @@ public class MatchingBlockTagPredicate extends OffsetPredicate {
 
 	@Override
 	protected boolean test(BlockState state) {
-		return state.isIn(this.tag);
+		return state.isIn(tag);
 	}
 
 	@Override

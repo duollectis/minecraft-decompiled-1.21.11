@@ -8,7 +8,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code ScoreboardEntry}.
+ * Снимок одной записи скорборда для конкретной цели.
+ * Используется при отображении таблицы результатов и при сетевой синхронизации.
+ * <p>
+ * Владельцы, чьё имя начинается с {@code #}, считаются скрытыми
+ * и не отображаются в пользовательском интерфейсе.
  */
 public record ScoreboardEntry(
 		String owner,
@@ -17,15 +21,26 @@ public record ScoreboardEntry(
 		@Nullable NumberFormat numberFormatOverride
 ) {
 
+	/**
+	 * Возвращает {@code true}, если запись скрыта от отображения.
+	 * Скрытые записи используются для хранения данных без показа игрокам.
+	 */
 	public boolean hidden() {
-		return this.owner.startsWith("#");
+		return owner.startsWith(Scoreboard.TEAM_SCORE_PREFIX);
 	}
 
+	/**
+	 * Возвращает отображаемое имя: кастомный текст или литерал из имени владельца.
+	 */
 	public Text name() {
-		return (Text) (this.display != null ? this.display : Text.literal(this.owner()));
+		return display != null ? display : Text.literal(owner());
 	}
 
+	/**
+	 * Форматирует числовое значение очка, используя переопределённый формат
+	 * или переданный резервный формат.
+	 */
 	public MutableText formatted(NumberFormat format) {
-		return Objects.requireNonNullElse(this.numberFormatOverride, format).format(this.value);
+		return Objects.requireNonNullElse(numberFormatOverride, format).format(value);
 	}
 }

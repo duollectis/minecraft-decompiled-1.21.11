@@ -210,7 +210,7 @@ public abstract class AbstractSignBlockEntityRenderer implements BlockEntityRend
 
 	public static int getTextColor(SignText text) {
 		int i = text.getColor().getSignColor();
-		return i == DyeColor.BLACK.getSignColor() && text.isGlowing() ? -988212 : ColorHelper.scaleRgb(i, 0.4F);
+		return i == DyeColor.BLACK.getSignColor() && text.isGlowing() ? GLOWING_BLACK_TEXT_COLOR : ColorHelper.scaleRgb(i, 0.4F);
 	}
 
 	/**

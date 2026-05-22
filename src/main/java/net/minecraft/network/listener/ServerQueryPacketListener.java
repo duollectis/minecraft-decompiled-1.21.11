@@ -4,7 +4,8 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.c2s.query.QueryRequestC2SPacket;
 
 /**
- * Интерфейс server query packet listener.
+ * Слушатель серверных пакетов фазы {@link net.minecraft.network.NetworkPhase#STATUS}.
+ * Обрабатывает запрос статуса сервера (MOTD, версия, количество игроков).
  */
 public interface ServerQueryPacketListener extends ServerCrashSafePacketListener, ServerQueryPingPacketListener {
 

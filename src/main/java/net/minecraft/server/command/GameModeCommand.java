@@ -17,7 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code GameModeCommand}.
+ * Команда {@code /gamemode}: изменение режима игры игрока.
  */
 public class GameModeCommand {
 

@@ -7,7 +7,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code StriderGravityFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StriderGravityFix extends ChoiceFix {
 

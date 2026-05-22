@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Запись command suggestions s2 c packet.
+ * Пакет сервер→клиент с результатами автодополнения команды.
+ * Отправляется в ответ на {@code CommandSuggestionsRequestC2SPacket} и содержит
+ * список подсказок с позицией в строке ввода, к которой они относятся.
  */
 public record CommandSuggestionsS2CPacket(
 		int id,
@@ -61,15 +63,16 @@ public record CommandSuggestionsS2CPacket(
 		return PlayPackets.COMMAND_SUGGESTIONS;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param clientPlayPacketListener client play packet listener
-	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCommandSuggestions(this);
 	}
 
+	/**
+	 * Восстанавливает объект {@link Suggestions} Brigadier из данных пакета.
+	 * Каждая подсказка получает общий {@link StringRange}, вычисленный из {@code start} и {@code length}.
+	 *
+	 * @return объект подсказок для передачи в Brigadier
+	 */
 	public Suggestions getSuggestions() {
 		StringRange stringRange = StringRange.between(this.start, this.start + this.length);
 		return new Suggestions(
@@ -85,9 +88,6 @@ public record CommandSuggestionsS2CPacket(
 		);
 	}
 
-	/**
-	 * Запись suggestion.
-	 */
 	public record Suggestion(String text, Optional<Text> tooltip) {
 
 		public static final PacketCodec<RegistryByteBuf, CommandSuggestionsS2CPacket.Suggestion>

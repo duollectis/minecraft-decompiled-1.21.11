@@ -51,7 +51,7 @@ import java.util.function.BooleanSupplier;
 
 @Environment(EnvType.CLIENT)
 /**
- * {@code IntegratedServer}.
+ * Интегрированный сервер Minecraft: работает внутри клиента для одиночной игры.
  */
 public class IntegratedServer extends MinecraftServer {
 

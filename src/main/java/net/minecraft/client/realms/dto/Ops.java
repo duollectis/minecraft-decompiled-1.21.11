@@ -11,37 +11,37 @@ import org.slf4j.Logger;
 import java.util.HashSet;
 import java.util.Set;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Ops}.
+ * DTO списка операторов (ops) сервера Realms.
+ * Содержит множество имён игроков с правами оператора.
  */
+@Environment(EnvType.CLIENT)
 public record Ops(Set<String> ops) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
 	/**
-	 * Parse.
+	 * Парсит список операторов из JSON-строки ответа сервера Realms.
 	 *
-	 * @param json json
-	 *
-	 * @return Ops — результат операции
+	 * @param json JSON-строка с полем {@code ops}
+	 * @return множество имён операторов (может быть пустым при ошибке)
 	 */
 	public static Ops parse(String json) {
-		Set<String> set = new HashSet<>();
+		Set<String> result = new HashSet<>();
 
 		try {
 			JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
-			JsonElement jsonElement = jsonObject.get("ops");
-			if (jsonElement.isJsonArray()) {
-				for (JsonElement jsonElement2 : jsonElement.getAsJsonArray()) {
-					set.add(jsonElement2.getAsString());
+			JsonElement opsElement = jsonObject.get("ops");
+
+			if (opsElement.isJsonArray()) {
+				for (JsonElement element : opsElement.getAsJsonArray()) {
+					result.add(element.getAsString());
 				}
 			}
-		}
-		catch (Exception var6) {
-			LOGGER.error("Could not parse Ops", var6);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse Ops", ex);
 		}
 
-		return new Ops(set);
+		return new Ops(result);
 	}
 }

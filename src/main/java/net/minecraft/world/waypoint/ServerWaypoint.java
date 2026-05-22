@@ -12,32 +12,52 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code ServerWaypoint}.
+ * Серверная сторона вейпоинта — управляет отслеживанием и отправкой пакетов игрокам.
+ * <p>
+ * Каждый {@link ServerWaypoint} может создавать {@link WaypointTracker} для конкретного
+ * игрока-получателя. Трекер определяет, когда вейпоинт становится недействительным
+ * (источник вышел из зоны видимости, сменил позицию и т.д.) и отправляет обновления.
  */
 public interface ServerWaypoint extends Waypoint {
 
+	/**
+	 * Минимальное расстояние (в блоках), при котором используется азимутальный режим
+	 * вместо точной позиции. При большом расстоянии точная позиция не нужна.
+	 */
 	int AZIMUTH_THRESHOLD = 332;
 
 	boolean hasWaypoint();
 
-	Optional<ServerWaypoint.WaypointTracker> createTracker(ServerPlayerEntity receiver);
+	Optional<WaypointTracker> createTracker(ServerPlayerEntity receiver);
 
 	Waypoint.Config getWaypointConfig();
 
+	/**
+	 * Проверяет, не может ли игрок-получатель принять вейпоинт от источника.
+	 * <p>
+	 * Получение невозможно, если:
+	 * <ul>
+	 *   <li>источник — спектатор (не имеет физического присутствия);</li>
+	 *   <li>получатель едет на источнике (вейпоинт бессмысленен);</li>
+	 *   <li>расстояние между ними превышает минимум из дальностей передачи и приёма.</li>
+	 * </ul>
+	 * Спектатор-получатель всегда может принимать вейпоинты.
+	 */
 	static boolean cannotReceive(LivingEntity source, ServerPlayerEntity receiver) {
 		if (receiver.isSpectator()) {
 			return false;
 		}
-		else if (!source.isSpectator() && !source.hasPassengerDeep(receiver)) {
-			double d = Math.min(
-					source.getAttributeValue(EntityAttributes.WAYPOINT_TRANSMIT_RANGE),
-					receiver.getAttributeValue(EntityAttributes.WAYPOINT_RECEIVE_RANGE)
-			);
-			return source.distanceTo(receiver) >= d;
-		}
-		else {
+
+		if (source.isSpectator() || source.hasPassengerDeep(receiver)) {
 			return true;
 		}
+
+		double maxRange = Math.min(
+			source.getAttributeValue(EntityAttributes.WAYPOINT_TRANSMIT_RANGE),
+			receiver.getAttributeValue(EntityAttributes.WAYPOINT_RECEIVE_RANGE)
+		);
+
+		return source.distanceTo(receiver) >= maxRange;
 	}
 
 	static boolean canReceive(ChunkPos source, ServerPlayerEntity receiver) {
@@ -45,13 +65,14 @@ public interface ServerWaypoint extends Waypoint {
 	}
 
 	static boolean shouldUseAzimuth(LivingEntity source, ServerPlayerEntity receiver) {
-		return source.distanceTo(receiver) > 332.0F;
+		return source.distanceTo(receiver) > AZIMUTH_THRESHOLD;
 	}
 
 	/**
-	 * {@code AzimuthWaypointTracker}.
+	 * Трекер вейпоинта на основе азимута — используется, когда источник далеко
+	 * и точная позиция не нужна. Отправляет только угол направления.
 	 */
-	public static class AzimuthWaypointTracker implements ServerWaypoint.WaypointTracker {
+	class AzimuthWaypointTracker implements WaypointTracker {
 
 		private final LivingEntity source;
 		private final Waypoint.Config config;
@@ -62,63 +83,58 @@ public interface ServerWaypoint extends Waypoint {
 			this.source = source;
 			this.config = config;
 			this.receiver = receiver;
-			Vec3d vec3d = receiver.getEntityPos().subtract(source.getEntityPos()).rotateYClockwise();
-			this.azimuth = (float) MathHelper.atan2(vec3d.getZ(), vec3d.getX());
+			Vec3d direction = receiver.getEntityPos().subtract(source.getEntityPos()).rotateYClockwise();
+			azimuth = (float) MathHelper.atan2(direction.getZ(), direction.getX());
 		}
 
 		@Override
 		public boolean isInvalid() {
-			return ServerWaypoint.cannotReceive(this.source, this.receiver)
-					|| ServerWaypoint.canReceive(this.source.getChunkPos(), this.receiver)
-					|| !ServerWaypoint.shouldUseAzimuth(this.source, this.receiver);
+			return cannotReceive(source, receiver)
+				|| canReceive(source.getChunkPos(), receiver)
+				|| !shouldUseAzimuth(source, receiver);
 		}
 
 		@Override
 		public void track() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.trackAzimuth(
-					this.source.getUuid(),
-					this.config,
-					this.azimuth
-			));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.trackAzimuth(source.getUuid(), config, azimuth));
 		}
 
 		@Override
 		public void untrack() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(this.source.getUuid()));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(source.getUuid()));
 		}
 
 		@Override
 		public void update() {
-			Vec3d vec3d = this.receiver.getEntityPos().subtract(this.source.getEntityPos()).rotateYClockwise();
-			float f = (float) MathHelper.atan2(vec3d.getZ(), vec3d.getX());
-			if (MathHelper.abs(f - this.azimuth) > 0.008726646F) {
-				this.receiver.networkHandler.sendPacket(WaypointS2CPacket.updateAzimuth(
-						this.source.getUuid(),
-						this.config,
-						f
-				));
-				this.azimuth = f;
+			Vec3d direction = receiver.getEntityPos().subtract(source.getEntityPos()).rotateYClockwise();
+			float newAzimuth = (float) MathHelper.atan2(direction.getZ(), direction.getX());
+
+			if (MathHelper.abs(newAzimuth - azimuth) > 0.008726646F) {
+				receiver.networkHandler.sendPacket(WaypointS2CPacket.updateAzimuth(source.getUuid(), config, newAzimuth));
+				azimuth = newAzimuth;
 			}
 		}
 	}
 
 	/**
-	 * {@code ChebyshevDistanceValidatedTracker}.
+	 * Трекер, инвалидирующийся при смещении источника более чем на 1 чанк
+	 * по расстоянию Чебышёва от исходной позиции.
 	 */
-	public interface ChebyshevDistanceValidatedTracker extends ServerWaypoint.WaypointTracker {
+	interface ChebyshevDistanceValidatedTracker extends WaypointTracker {
 
 		int getDistanceToOriginalPos();
 
 		@Override
 		default boolean isInvalid() {
-			return this.getDistanceToOriginalPos() > 1;
+			return getDistanceToOriginalPos() > 1;
 		}
 	}
 
 	/**
-	 * {@code ChunkWaypointTracker}.
+	 * Трекер вейпоинта на основе позиции чанка — используется на средних дистанциях,
+	 * когда точная позиция блока не нужна, но азимут уже недостаточен.
 	 */
-	public static class ChunkWaypointTracker implements ServerWaypoint.ChebyshevDistanceValidatedTracker {
+	class ChunkWaypointTracker implements ChebyshevDistanceValidatedTracker {
 
 		private final LivingEntity source;
 		private final Waypoint.Config config;
@@ -129,69 +145,68 @@ public interface ServerWaypoint extends Waypoint {
 			this.source = source;
 			this.config = config;
 			this.receiver = receiver;
-			this.chunkPos = source.getChunkPos();
+			chunkPos = source.getChunkPos();
 		}
 
 		@Override
 		public int getDistanceToOriginalPos() {
-			return this.chunkPos.getChebyshevDistance(this.source.getChunkPos());
+			return chunkPos.getChebyshevDistance(source.getChunkPos());
 		}
 
 		@Override
 		public void track() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.trackChunk(
-					this.source.getUuid(),
-					this.config,
-					this.chunkPos
-			));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.trackChunk(source.getUuid(), config, chunkPos));
 		}
 
 		@Override
 		public void untrack() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(this.source.getUuid()));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(source.getUuid()));
 		}
 
 		@Override
 		public void update() {
-			ChunkPos chunkPos = this.source.getChunkPos();
-			if (chunkPos.getChebyshevDistance(this.chunkPos) > 0) {
-				this.receiver.networkHandler.sendPacket(WaypointS2CPacket.updateChunk(
-						this.source.getUuid(),
-						this.config,
-						chunkPos
-				));
-				this.chunkPos = chunkPos;
+			ChunkPos currentChunk = source.getChunkPos();
+
+			if (currentChunk.getChebyshevDistance(chunkPos) > 0) {
+				receiver.networkHandler.sendPacket(WaypointS2CPacket.updateChunk(source.getUuid(), config, currentChunk));
+				chunkPos = currentChunk;
 			}
 		}
 
+		/**
+		 * Трекер недействителен, если источник сместился, получатель не может принять
+		 * вейпоинт, или чанк источника попал в зону прямой видимости получателя
+		 * (в этом случае нужно переключиться на позиционный трекер).
+		 */
 		@Override
 		public boolean isInvalid() {
-			return !ServerWaypoint.ChebyshevDistanceValidatedTracker.super.isInvalid() && !ServerWaypoint.cannotReceive(
-					this.source,
-					this.receiver
-			)
-			       ? ServerWaypoint.canReceive(this.chunkPos, this.receiver)
-			       : true;
+			if (ChebyshevDistanceValidatedTracker.super.isInvalid() || cannotReceive(source, receiver)) {
+				return true;
+			}
+
+			return canReceive(chunkPos, receiver);
 		}
 	}
 
 	/**
-	 * {@code ManhattanDistanceValidatedTracker}.
+	 * Трекер, инвалидирующийся при смещении источника более чем на 1 блок
+	 * по манхэттенскому расстоянию от исходной позиции.
 	 */
-	public interface ManhattanDistanceValidatedTracker extends ServerWaypoint.WaypointTracker {
+	interface ManhattanDistanceValidatedTracker extends WaypointTracker {
 
 		int getDistanceToOriginalPos();
 
 		@Override
 		default boolean isInvalid() {
-			return this.getDistanceToOriginalPos() > 1;
+			return getDistanceToOriginalPos() > 1;
 		}
 	}
 
 	/**
-	 * {@code PositionalWaypointTracker}.
+	 * Трекер вейпоинта на основе точной позиции блока — используется вблизи,
+	 * когда источник находится в зоне прямой видимости получателя.
 	 */
-	public static class PositionalWaypointTracker implements ServerWaypoint.ManhattanDistanceValidatedTracker {
+	class PositionalWaypointTracker implements ManhattanDistanceValidatedTracker {
 
 		private final LivingEntity source;
 		private final Waypoint.Config config;
@@ -202,61 +217,55 @@ public interface ServerWaypoint extends Waypoint {
 			this.source = source;
 			this.receiver = receiver;
 			this.config = config;
-			this.pos = source.getBlockPos();
+			pos = source.getBlockPos();
 		}
 
 		@Override
 		public void track() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.trackPos(
-					this.source.getUuid(),
-					this.config,
-					this.pos
-			));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.trackPos(source.getUuid(), config, pos));
 		}
 
 		@Override
 		public void untrack() {
-			this.receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(this.source.getUuid()));
+			receiver.networkHandler.sendPacket(WaypointS2CPacket.untrack(source.getUuid()));
 		}
 
 		@Override
 		public void update() {
-			BlockPos blockPos = this.source.getBlockPos();
-			if (blockPos.getManhattanDistance(this.pos) > 0) {
-				this.receiver.networkHandler.sendPacket(WaypointS2CPacket.updatePos(
-						this.source.getUuid(),
-						this.config,
-						blockPos
-				));
-				this.pos = blockPos;
+			BlockPos currentPos = source.getBlockPos();
+
+			if (currentPos.getManhattanDistance(pos) > 0) {
+				receiver.networkHandler.sendPacket(WaypointS2CPacket.updatePos(source.getUuid(), config, currentPos));
+				pos = currentPos;
 			}
 		}
 
 		@Override
 		public int getDistanceToOriginalPos() {
-			return this.pos.getManhattanDistance(this.source.getBlockPos());
+			return pos.getManhattanDistance(source.getBlockPos());
 		}
 
 		@Override
 		public boolean isInvalid() {
-			return ServerWaypoint.ManhattanDistanceValidatedTracker.super.isInvalid() || ServerWaypoint.cannotReceive(
-					this.source,
-					this.receiver
-			);
+			return ManhattanDistanceValidatedTracker.super.isInvalid() || cannotReceive(source, receiver);
 		}
 	}
 
 	/**
-	 * {@code WaypointTracker}.
+	 * Контракт серверного трекера вейпоинта для одного игрока-получателя.
 	 */
-	public interface WaypointTracker {
+	interface WaypointTracker {
 
+		/** Отправляет пакет начала отслеживания. */
 		void track();
 
+		/** Отправляет пакет прекращения отслеживания. */
 		void untrack();
 
+		/** Отправляет пакет обновления, если данные изменились. */
 		void update();
 
+		/** Возвращает {@code true}, если трекер устарел и должен быть пересоздан. */
 		boolean isInvalid();
 	}
 }

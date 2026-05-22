@@ -15,36 +15,34 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpaceFont}.
+ * Шрифт пробелов — содержит только глифы с нулевой высотой и заданной шириной продвижения.
+ * Используется для управления горизонтальными отступами в тексте.
  */
+@Environment(EnvType.CLIENT)
 public class SpaceFont implements Font {
 
 	private final Int2ObjectMap<EmptyGlyph> codePointsToGlyphs;
 
 	public SpaceFont(Map<Integer, Float> codePointsToAdvances) {
-		this.codePointsToGlyphs = new Int2ObjectOpenHashMap(codePointsToAdvances.size());
-		codePointsToAdvances.forEach((codePoint, glyph) -> this.codePointsToGlyphs.put(
+		codePointsToGlyphs = new Int2ObjectOpenHashMap(codePointsToAdvances.size());
+		codePointsToAdvances.forEach((codePoint, advance) -> codePointsToGlyphs.put(
 				codePoint,
-				new EmptyGlyph(glyph)
+				new EmptyGlyph(advance)
 		));
 	}
 
 	@Override
 	public @Nullable Glyph getGlyph(int codePoint) {
-		return (Glyph) this.codePointsToGlyphs.get(codePoint);
+		return codePointsToGlyphs.get(codePoint);
 	}
 
 	@Override
 	public IntSet getProvidedGlyphs() {
-		return IntSets.unmodifiable(this.codePointsToGlyphs.keySet());
+		return IntSets.unmodifiable(codePointsToGlyphs.keySet());
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Loader}.
-	 */
 	public record Loader(Map<Integer, Float> advances) implements FontLoader {
 
 		public static final MapCodec<SpaceFont.Loader> CODEC = RecordCodecBuilder.mapCodec(
@@ -63,7 +61,7 @@ public class SpaceFont implements Font {
 
 		@Override
 		public Either<FontLoader.Loadable, FontLoader.Reference> build() {
-			FontLoader.Loadable loadable = resourceManager -> new SpaceFont(this.advances);
+			FontLoader.Loadable loadable = resourceManager -> new SpaceFont(advances);
 			return Either.left(loadable);
 		}
 	}

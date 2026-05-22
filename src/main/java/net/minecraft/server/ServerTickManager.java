@@ -10,7 +10,8 @@ import net.minecraft.world.tick.TickManager;
 import java.util.Locale;
 
 /**
- * {@code ServerTickManager}.
+ * Серверная реализация менеджера тиков с поддержкой спринта (ускоренного выполнения тиков),
+ * пошагового режима и синхронизации состояния с клиентами через пакеты.
  */
 public class ServerTickManager extends TickManager {
 
@@ -26,143 +27,110 @@ public class ServerTickManager extends TickManager {
 	}
 
 	public boolean isSprinting() {
-		return this.scheduledSprintTicks > 0L;
+		return scheduledSprintTicks > 0L;
 	}
 
 	@Override
 	public void setFrozen(boolean frozen) {
 		super.setFrozen(frozen);
-		this.sendUpdateTickRatePacket();
+		sendUpdateTickRatePacket();
 	}
 
 	private void sendUpdateTickRatePacket() {
-		this.server.getPlayerManager().sendToAll(UpdateTickRateS2CPacket.create(this));
+		server.getPlayerManager().sendToAll(UpdateTickRateS2CPacket.create(this));
 	}
 
 	private void sendStepPacket() {
-		this.server.getPlayerManager().sendToAll(TickStepS2CPacket.create(this));
+		server.getPlayerManager().sendToAll(TickStepS2CPacket.create(this));
 	}
 
-	/**
-	 * Step.
-	 *
-	 * @param ticks ticks
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean step(int ticks) {
-		if (!this.isFrozen()) {
+		if (!isFrozen()) {
 			return false;
 		}
-		else {
-			this.stepTicks = ticks;
-			this.sendStepPacket();
-			return true;
-		}
+
+		stepTicks = ticks;
+		sendStepPacket();
+		return true;
 	}
 
-	/**
-	 * Останавливает stepping.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean stopStepping() {
-		if (this.stepTicks > 0) {
-			this.stepTicks = 0;
-			this.sendStepPacket();
-			return true;
-		}
-		else {
+		if (stepTicks <= 0) {
 			return false;
 		}
+
+		stepTicks = 0;
+		sendStepPacket();
+		return true;
 	}
 
-	/**
-	 * Останавливает sprinting.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean stopSprinting() {
-		if (this.sprintTicks > 0L) {
-			this.finishSprinting();
-			return true;
-		}
-		else {
+		if (sprintTicks <= 0L) {
 			return false;
 		}
+
+		finishSprinting();
+		return true;
 	}
 
 	/**
-	 * Запускает sprint.
+	 * Запускает ускоренное выполнение указанного количества тиков.
+	 * Если спринт уже активен — перезапускает его с новым значением.
 	 *
-	 * @param ticks ticks
-	 *
-	 * @return boolean — результат операции
+	 * @param ticks количество тиков для ускоренного выполнения
+	 * @return {@code true} если спринт уже был активен до вызова
 	 */
 	public boolean startSprint(int ticks) {
-		boolean bl = this.sprintTicks > 0L;
-		this.sprintTime = 0L;
-		this.scheduledSprintTicks = ticks;
-		this.sprintTicks = ticks;
-		this.wasFrozen = this.isFrozen();
-		this.setFrozen(false);
-		return bl;
+		boolean wasAlreadySprinting = sprintTicks > 0L;
+		sprintTime = 0L;
+		scheduledSprintTicks = ticks;
+		sprintTicks = ticks;
+		wasFrozen = isFrozen();
+		setFrozen(false);
+		return wasAlreadySprinting;
 	}
 
 	private void finishSprinting() {
-		long l = this.scheduledSprintTicks - this.sprintTicks;
-		double d = Math.max(1.0, (double) this.sprintTime) / TimeHelper.MILLI_IN_NANOS;
-		int i = (int) (TimeHelper.SECOND_IN_MILLIS * l / d);
-		String string = String.format(Locale.ROOT, "%.2f", l == 0L ? this.getMillisPerTick() : d / l);
-		this.scheduledSprintTicks = 0L;
-		this.sprintTime = 0L;
-		this.server
+		long completedTicks = scheduledSprintTicks - sprintTicks;
+		double elapsedMillis = Math.max(1.0, (double) sprintTime) / TimeHelper.MILLI_IN_NANOS;
+		int ticksPerSecond = (int) (TimeHelper.SECOND_IN_MILLIS * completedTicks / elapsedMillis);
+		String msPerTick = String.format(Locale.ROOT, "%.2f", completedTicks == 0L ? getMillisPerTick() : elapsedMillis / completedTicks);
+		scheduledSprintTicks = 0L;
+		sprintTime = 0L;
+		server
 				.getCommandSource()
-				.sendFeedback(() -> Text.translatable("commands.tick.sprint.report", i, string), true);
-		this.sprintTicks = 0L;
-		this.setFrozen(this.wasFrozen);
-		this.server.updateAutosaveTicks();
+				.sendFeedback(() -> Text.translatable("commands.tick.sprint.report", ticksPerSecond, msPerTick), true);
+		sprintTicks = 0L;
+		setFrozen(wasFrozen);
+		server.updateAutosaveTicks();
 	}
 
-	/**
-	 * Sprint.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean sprint() {
-		if (!this.shouldTick) {
+		if (!shouldTick) {
 			return false;
 		}
-		else if (this.sprintTicks > 0L) {
-			this.sprintStartTime = System.nanoTime();
-			this.sprintTicks--;
-			return true;
-		}
-		else {
-			this.finishSprinting();
+
+		if (sprintTicks <= 0L) {
+			finishSprinting();
 			return false;
 		}
+
+		sprintStartTime = System.nanoTime();
+		sprintTicks--;
+		return true;
 	}
 
-	/**
-	 * Обновляет sprint time.
-	 */
 	public void updateSprintTime() {
-		this.sprintTime = this.sprintTime + (System.nanoTime() - this.sprintStartTime);
+		sprintTime = sprintTime + (System.nanoTime() - sprintStartTime);
 	}
 
 	@Override
 	public void setTickRate(float tickRate) {
 		super.setTickRate(tickRate);
-		this.server.updateAutosaveTicks();
-		this.sendUpdateTickRatePacket();
+		server.updateAutosaveTicks();
+		sendUpdateTickRatePacket();
 	}
 
-	/**
-	 * Отправляет packets.
-	 *
-	 * @param player player
-	 */
 	public void sendPackets(ServerPlayerEntity player) {
 		player.networkHandler.sendPacket(UpdateTickRateS2CPacket.create(this));
 		player.networkHandler.sendPacket(TickStepS2CPacket.create(this));

@@ -5,7 +5,8 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code PlayerEquipment}.
+ * Реализация экипировки игрока, перенаправляющая операции с основной рукой
+ * в инвентарь игрока (выбранный слот хотбара).
  */
 public class PlayerEquipment extends EntityEquipment {
 
@@ -17,17 +18,20 @@ public class PlayerEquipment extends EntityEquipment {
 
 	@Override
 	public ItemStack put(EquipmentSlot slot, ItemStack itemStack) {
-		return slot == EquipmentSlot.MAINHAND ? this.player.getInventory().setSelectedStack(itemStack)
-		                                      : super.put(slot, itemStack);
+		return slot == EquipmentSlot.MAINHAND
+			? player.getInventory().setSelectedStack(itemStack)
+			: super.put(slot, itemStack);
 	}
 
 	@Override
 	public ItemStack get(EquipmentSlot slot) {
-		return slot == EquipmentSlot.MAINHAND ? this.player.getInventory().getSelectedStack() : super.get(slot);
+		return slot == EquipmentSlot.MAINHAND
+			? player.getInventory().getSelectedStack()
+			: super.get(slot);
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.player.getInventory().getSelectedStack().isEmpty() && super.isEmpty();
+		return player.getInventory().getSelectedStack().isEmpty() && super.isEmpty();
 	}
 }

@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@code DataStreamHelper}.
+ * Вспомогательный класс для чтения/записи данных в потоках протокола RCON.
  */
 public class DataStreamHelper {
 
@@ -82,9 +82,6 @@ public class DataStreamHelper {
 		return this.byteArrayOutputStream.toByteArray();
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
 		this.byteArrayOutputStream.reset();
 	}

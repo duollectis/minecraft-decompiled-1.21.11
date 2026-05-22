@@ -7,7 +7,8 @@ import net.minecraft.entity.passive.TameableEntity;
 import java.util.EnumSet;
 
 /**
- * {@code AttackWithOwnerGoal}.
+ * Цель прирученного существа, атакующего ту же цель, что и его владелец.
+ * Синхронизируется с {@code lastAttackTime} владельца, чтобы не реагировать на старые атаки.
  */
 public class AttackWithOwnerGoal extends TrackTargetGoal {
 
@@ -18,35 +19,33 @@ public class AttackWithOwnerGoal extends TrackTargetGoal {
 	public AttackWithOwnerGoal(TameableEntity tameable) {
 		super(tameable, false);
 		this.tameable = tameable;
-		this.setControls(EnumSet.of(Goal.Control.TARGET));
+		setControls(EnumSet.of(Goal.Control.TARGET));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.tameable.isTamed() && !this.tameable.isSitting()) {
-			LivingEntity livingEntity = this.tameable.getOwner();
-			if (livingEntity == null) {
-				return false;
-			}
-			else {
-				this.attacking = livingEntity.getAttacking();
-				int i = livingEntity.getLastAttackTime();
-				return i != this.lastAttackTime
-						&& this.canTrack(this.attacking, TargetPredicate.DEFAULT)
-						&& this.tameable.canAttackWithOwner(this.attacking, livingEntity);
-			}
-		}
-		else {
+		if (!tameable.isTamed() || tameable.isSitting()) {
 			return false;
 		}
+
+		LivingEntity owner = tameable.getOwner();
+		if (owner == null) {
+			return false;
+		}
+
+		attacking = owner.getAttacking();
+		int attackTime = owner.getLastAttackTime();
+		return attackTime != lastAttackTime
+				&& canTrack(attacking, TargetPredicate.DEFAULT)
+				&& tameable.canAttackWithOwner(attacking, owner);
 	}
 
 	@Override
 	public void start() {
-		this.mob.setTarget(this.attacking);
-		LivingEntity livingEntity = this.tameable.getOwner();
-		if (livingEntity != null) {
-			this.lastAttackTime = livingEntity.getLastAttackTime();
+		mob.setTarget(attacking);
+		LivingEntity owner = tameable.getOwner();
+		if (owner != null) {
+			lastAttackTime = owner.getLastAttackTime();
 		}
 
 		super.start();

@@ -8,7 +8,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code BushFoliagePlacer}.
+ * Размещает листву куста: радиус каждого слоя уменьшается линейно
+ * по мере подъёма, создавая округлую форму куста.
  */
 public class BushFoliagePlacer extends BlobFoliagePlacer {
 
@@ -16,8 +17,8 @@ public class BushFoliagePlacer extends BlobFoliagePlacer {
 			instance -> createCodec(instance).apply(instance, BushFoliagePlacer::new)
 	);
 
-	public BushFoliagePlacer(IntProvider intProvider, IntProvider intProvider2, int i) {
-		super(intProvider, intProvider2, i);
+	public BushFoliagePlacer(IntProvider radius, IntProvider offset, int height) {
+		super(radius, offset, height);
 	}
 
 	@Override
@@ -37,9 +38,9 @@ public class BushFoliagePlacer extends BlobFoliagePlacer {
 			int radius,
 			int offset
 	) {
-		for (int i = offset; i >= offset - foliageHeight; i--) {
-			int j = radius + treeNode.getFoliageRadius() - 1 - i;
-			this.generateSquare(world, placer, random, config, treeNode.getCenter(), j, i, treeNode.isGiantTrunk());
+		for (int dy = offset; dy >= offset - foliageHeight; dy--) {
+			int layerRadius = radius + treeNode.getFoliageRadius() - 1 - dy;
+			generateSquare(world, placer, random, config, treeNode.getCenter(), layerRadius, dy, treeNode.isGiantTrunk());
 		}
 	}
 

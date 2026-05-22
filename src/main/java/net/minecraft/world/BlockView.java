@@ -19,15 +19,21 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * {@code BlockView}.
+ * Базовый интерфейс для чтения состояний блоков, жидкостей и блок-сущностей.
+ * Предоставляет алгоритмы рейкаста и обхода коллизий в пространстве блоков.
  */
 public interface BlockView extends HeightLimitView, FabricBlockView {
+
+	/** Малый эпсилон для смещения границ при обходе коллизий. */
+	float COLLISION_EPSILON = 1.0E-5F;
 
 	@Nullable BlockEntity getBlockEntity(BlockPos pos);
 
 	default <T extends BlockEntity> Optional<T> getBlockEntity(BlockPos pos, BlockEntityType<T> type) {
-		BlockEntity blockEntity = this.getBlockEntity(pos);
-		return blockEntity != null && blockEntity.getType() == type ? Optional.of((T) blockEntity) : Optional.empty();
+		BlockEntity blockEntity = getBlockEntity(pos);
+		return blockEntity != null && blockEntity.getType() == type
+			? Optional.of((T) blockEntity)
+			: Optional.empty();
 	}
 
 	BlockState getBlockState(BlockPos pos);
@@ -35,7 +41,7 @@ public interface BlockView extends HeightLimitView, FabricBlockView {
 	FluidState getFluidState(BlockPos pos);
 
 	default int getLuminance(BlockPos pos) {
-		return this.getBlockState(pos).getLuminance();
+		return getBlockState(pos).getLuminance();
 	}
 
 	default Stream<BlockState> getStatesInBox(Box box) {
@@ -44,312 +50,355 @@ public interface BlockView extends HeightLimitView, FabricBlockView {
 
 	default BlockHitResult raycast(BlockStateRaycastContext context) {
 		return raycast(
-				context.getStart(),
-				context.getEnd(),
-				context,
-				(innerContext, pos) -> {
-					BlockState blockState = this.getBlockState(pos);
-					Vec3d vec3d = innerContext.getStart().subtract(innerContext.getEnd());
-					return innerContext.getStatePredicate().test(blockState)
-					       ? new BlockHitResult(
-							innerContext.getEnd(),
-							Direction.getFacing(vec3d.x, vec3d.y, vec3d.z),
-							BlockPos.ofFloored(innerContext.getEnd()),
-							false
+			context.getStart(),
+			context.getEnd(),
+			context,
+			(innerContext, pos) -> {
+				BlockState blockState = getBlockState(pos);
+				Vec3d direction = innerContext.getStart().subtract(innerContext.getEnd());
+				return innerContext.getStatePredicate().test(blockState)
+					? new BlockHitResult(
+						innerContext.getEnd(),
+						Direction.getFacing(direction.x, direction.y, direction.z),
+						BlockPos.ofFloored(innerContext.getEnd()),
+						false
 					)
-					       : null;
-				},
-				innerContext -> {
-					Vec3d vec3d = innerContext.getStart().subtract(innerContext.getEnd());
-					return BlockHitResult.createMissed(
-							innerContext.getEnd(),
-							Direction.getFacing(vec3d.x, vec3d.y, vec3d.z),
-							BlockPos.ofFloored(innerContext.getEnd())
-					);
-				}
+					: null;
+			},
+			innerContext -> {
+				Vec3d direction = innerContext.getStart().subtract(innerContext.getEnd());
+				return BlockHitResult.createMissed(
+					innerContext.getEnd(),
+					Direction.getFacing(direction.x, direction.y, direction.z),
+					BlockPos.ofFloored(innerContext.getEnd())
+				);
+			}
 		);
 	}
 
+	/**
+	 * Выполняет рейкаст через блоки с учётом форм коллизий блоков и жидкостей.
+	 * Возвращает ближайшее пересечение из двух возможных (блок или жидкость).
+	 */
 	default BlockHitResult raycast(RaycastContext context) {
 		return raycast(
-				context.getStart(), context.getEnd(), context, (innerContext, pos) -> {
-					BlockState blockState = this.getBlockState(pos);
-					FluidState fluidState = this.getFluidState(pos);
-					Vec3d vec3d = innerContext.getStart();
-					Vec3d vec3d2 = innerContext.getEnd();
-					VoxelShape voxelShape = innerContext.getBlockShape(blockState, this, pos);
-					BlockHitResult blockHitResult = this.raycastBlock(vec3d, vec3d2, pos, voxelShape, blockState);
-					VoxelShape voxelShape2 = innerContext.getFluidShape(fluidState, this, pos);
-					BlockHitResult blockHitResult2 = voxelShape2.raycast(vec3d, vec3d2, pos);
-					double
-							d =
-							blockHitResult == null ? Double.MAX_VALUE
-							                       : innerContext.getStart().squaredDistanceTo(blockHitResult.getPos());
-					double
-							e =
-							blockHitResult2 == null ? Double.MAX_VALUE : innerContext
-							                                             .getStart()
-							                                             .squaredDistanceTo(blockHitResult2.getPos());
-					return d <= e ? blockHitResult : blockHitResult2;
-				}, innerContext -> {
-					Vec3d vec3d = innerContext.getStart().subtract(innerContext.getEnd());
-					return BlockHitResult.createMissed(
-							innerContext.getEnd(),
-							Direction.getFacing(vec3d.x, vec3d.y, vec3d.z),
-							BlockPos.ofFloored(innerContext.getEnd())
-					);
-				}
+			context.getStart(),
+			context.getEnd(),
+			context,
+			(innerContext, pos) -> {
+				BlockState blockState = getBlockState(pos);
+				FluidState fluidState = getFluidState(pos);
+				Vec3d start = innerContext.getStart();
+				Vec3d end = innerContext.getEnd();
+
+				VoxelShape blockShape = innerContext.getBlockShape(blockState, this, pos);
+				BlockHitResult blockHit = raycastBlock(start, end, pos, blockShape, blockState);
+
+				VoxelShape fluidShape = innerContext.getFluidShape(fluidState, this, pos);
+				BlockHitResult fluidHit = fluidShape.raycast(start, end, pos);
+
+				double blockDist = blockHit == null
+					? Double.MAX_VALUE
+					: innerContext.getStart().squaredDistanceTo(blockHit.getPos());
+				double fluidDist = fluidHit == null
+					? Double.MAX_VALUE
+					: innerContext.getStart().squaredDistanceTo(fluidHit.getPos());
+
+				return blockDist <= fluidDist ? blockHit : fluidHit;
+			},
+			innerContext -> {
+				Vec3d direction = innerContext.getStart().subtract(innerContext.getEnd());
+				return BlockHitResult.createMissed(
+					innerContext.getEnd(),
+					Direction.getFacing(direction.x, direction.y, direction.z),
+					BlockPos.ofFloored(innerContext.getEnd())
+				);
+			}
 		);
 	}
 
+	/**
+	 * Выполняет рейкаст через конкретный блок, уточняя сторону попадания
+	 * через форму рейкаста блока (может отличаться от формы коллизии).
+	 */
 	default @Nullable BlockHitResult raycastBlock(
-			Vec3d start,
-			Vec3d end,
-			BlockPos pos,
-			VoxelShape shape,
-			BlockState state
+		Vec3d start,
+		Vec3d end,
+		BlockPos pos,
+		VoxelShape shape,
+		BlockState state
 	) {
-		BlockHitResult blockHitResult = shape.raycast(start, end, pos);
-		if (blockHitResult != null) {
-			BlockHitResult blockHitResult2 = state.getRaycastShape(this, pos).raycast(start, end, pos);
-			if (blockHitResult2 != null && blockHitResult2.getPos().subtract(start).lengthSquared() < blockHitResult
-					.getPos()
-					.subtract(start)
-					.lengthSquared()) {
-				return blockHitResult.withSide(blockHitResult2.getSide());
-			}
+		BlockHitResult hit = shape.raycast(start, end, pos);
+		if (hit == null) {
+			return null;
 		}
 
-		return blockHitResult;
+		BlockHitResult refinedHit = state.getRaycastShape(this, pos).raycast(start, end, pos);
+		if (refinedHit != null
+			&& refinedHit.getPos().subtract(start).lengthSquared() < hit.getPos().subtract(start).lengthSquared()
+		) {
+			return hit.withSide(refinedHit.getSide());
+		}
+
+		return hit;
 	}
 
-	default double getDismountHeight(
-			VoxelShape blockCollisionShape,
-			Supplier<VoxelShape> belowBlockCollisionShapeGetter
-	) {
+	/**
+	 * Вычисляет высоту для спешивания (dismount) с учётом формы блока под ногами.
+	 * Если текущий блок пустой — берёт высоту блока снизу минус 1.
+	 */
+	default double getDismountHeight(VoxelShape blockCollisionShape, Supplier<VoxelShape> belowBlockShapeGetter) {
 		if (!blockCollisionShape.isEmpty()) {
 			return blockCollisionShape.getMax(Direction.Axis.Y);
 		}
-		else {
-			double d = belowBlockCollisionShapeGetter.get().getMax(Direction.Axis.Y);
-			return d >= 1.0 ? d - 1.0 : Double.NEGATIVE_INFINITY;
-		}
+
+		double belowMax = belowBlockShapeGetter.get().getMax(Direction.Axis.Y);
+		return belowMax >= 1.0 ? belowMax - 1.0 : Double.NEGATIVE_INFINITY;
 	}
 
 	default double getDismountHeight(BlockPos pos) {
-		return this.getDismountHeight(
-				this.getBlockState(pos).getCollisionShape(this, pos), () -> {
-					BlockPos blockPos2 = pos.down();
-					return this.getBlockState(blockPos2).getCollisionShape(this, blockPos2);
-				}
+		return getDismountHeight(
+			getBlockState(pos).getCollisionShape(this, pos),
+			() -> {
+				BlockPos below = pos.down();
+				return getBlockState(below).getCollisionShape(this, below);
+			}
 		);
 	}
 
+	/**
+	 * Универсальный алгоритм рейкаста по сетке блоков (DDA — Digital Differential Analyzer).
+	 * Проходит по всем блокам вдоль луча от start до end, вызывая blockHitFactory для каждого.
+	 * Возвращает первый ненулевой результат или результат missFactory при промахе.
+	 */
 	static <T, C> T raycast(
-			Vec3d start,
-			Vec3d end,
-			C context,
-			BiFunction<C, BlockPos, @Nullable T> blockHitFactory,
-			Function<C, T> missFactory
+		Vec3d start,
+		Vec3d end,
+		C context,
+		BiFunction<C, BlockPos, @Nullable T> blockHitFactory,
+		Function<C, T> missFactory
 	) {
 		if (start.equals(end)) {
 			return missFactory.apply(context);
 		}
-		else {
-			double d = MathHelper.lerp(-1.0E-7, end.x, start.x);
-			double e = MathHelper.lerp(-1.0E-7, end.y, start.y);
-			double f = MathHelper.lerp(-1.0E-7, end.z, start.z);
-			double g = MathHelper.lerp(-1.0E-7, start.x, end.x);
-			double h = MathHelper.lerp(-1.0E-7, start.y, end.y);
-			double i = MathHelper.lerp(-1.0E-7, start.z, end.z);
-			int j = MathHelper.floor(g);
-			int k = MathHelper.floor(h);
-			int l = MathHelper.floor(i);
-			BlockPos.Mutable mutable = new BlockPos.Mutable(j, k, l);
-			T object = blockHitFactory.apply(context, mutable);
-			if (object != null) {
-				return object;
-			}
-			else {
-				double m = d - g;
-				double n = e - h;
-				double o = f - i;
-				int p = MathHelper.sign(m);
-				int q = MathHelper.sign(n);
-				int r = MathHelper.sign(o);
-				double s = p == 0 ? Double.MAX_VALUE : p / m;
-				double t = q == 0 ? Double.MAX_VALUE : q / n;
-				double u = r == 0 ? Double.MAX_VALUE : r / o;
-				double v = s * (p > 0 ? 1.0 - MathHelper.fractionalPart(g) : MathHelper.fractionalPart(g));
-				double w = t * (q > 0 ? 1.0 - MathHelper.fractionalPart(h) : MathHelper.fractionalPart(h));
-				double x = u * (r > 0 ? 1.0 - MathHelper.fractionalPart(i) : MathHelper.fractionalPart(i));
 
-				while (v <= 1.0 || w <= 1.0 || x <= 1.0) {
-					if (v < w) {
-						if (v < x) {
-							j += p;
-							v += s;
-						}
-						else {
-							l += r;
-							x += u;
-						}
-					}
-					else if (w < x) {
-						k += q;
-						w += t;
-					}
-					else {
-						l += r;
-						x += u;
-					}
+		// Небольшое смещение внутрь для избежания граничных артефактов
+		double endX = MathHelper.lerp(-1.0E-7, end.x, start.x);
+		double endY = MathHelper.lerp(-1.0E-7, end.y, start.y);
+		double endZ = MathHelper.lerp(-1.0E-7, end.z, start.z);
+		double startX = MathHelper.lerp(-1.0E-7, start.x, end.x);
+		double startY = MathHelper.lerp(-1.0E-7, start.y, end.y);
+		double startZ = MathHelper.lerp(-1.0E-7, start.z, end.z);
 
-					T object2 = blockHitFactory.apply(context, mutable.set(j, k, l));
-					if (object2 != null) {
-						return object2;
-					}
+		int blockX = MathHelper.floor(startX);
+		int blockY = MathHelper.floor(startY);
+		int blockZ = MathHelper.floor(startZ);
+		BlockPos.Mutable mutable = new BlockPos.Mutable(blockX, blockY, blockZ);
+
+		T initialHit = blockHitFactory.apply(context, mutable);
+		if (initialHit != null) {
+			return initialHit;
+		}
+
+		double deltaX = endX - startX;
+		double deltaY = endY - startY;
+		double deltaZ = endZ - startZ;
+		int stepX = MathHelper.sign(deltaX);
+		int stepY = MathHelper.sign(deltaY);
+		int stepZ = MathHelper.sign(deltaZ);
+		double tDeltaX = stepX == 0 ? Double.MAX_VALUE : stepX / deltaX;
+		double tDeltaY = stepY == 0 ? Double.MAX_VALUE : stepY / deltaY;
+		double tDeltaZ = stepZ == 0 ? Double.MAX_VALUE : stepZ / deltaZ;
+		double tMaxX = tDeltaX * (stepX > 0 ? 1.0 - MathHelper.fractionalPart(startX) : MathHelper.fractionalPart(startX));
+		double tMaxY = tDeltaY * (stepY > 0 ? 1.0 - MathHelper.fractionalPart(startY) : MathHelper.fractionalPart(startY));
+		double tMaxZ = tDeltaZ * (stepZ > 0 ? 1.0 - MathHelper.fractionalPart(startZ) : MathHelper.fractionalPart(startZ));
+
+		while (tMaxX <= 1.0 || tMaxY <= 1.0 || tMaxZ <= 1.0) {
+			if (tMaxX < tMaxY) {
+				if (tMaxX < tMaxZ) {
+					blockX += stepX;
+					tMaxX += tDeltaX;
+				} else {
+					blockZ += stepZ;
+					tMaxZ += tDeltaZ;
 				}
+			} else if (tMaxY < tMaxZ) {
+				blockY += stepY;
+				tMaxY += tDeltaY;
+			} else {
+				blockZ += stepZ;
+				tMaxZ += tDeltaZ;
+			}
 
-				return missFactory.apply(context);
+			T hit = blockHitFactory.apply(context, mutable.set(blockX, blockY, blockZ));
+			if (hit != null) {
+				return hit;
 			}
 		}
+
+		return missFactory.apply(context);
 	}
 
+	/**
+	 * Собирает все блоки, которые пересекает движущийся AABB-бокс при перемещении из from в to.
+	 * Использует двухпроходный алгоритм: сначала обходит блоки у начальной позиции,
+	 * затем — у конечной, избегая дублирования через LongSet.
+	 */
 	static boolean collectCollisionsBetween(Vec3d from, Vec3d to, Box box, BlockView.CollisionVisitor visitor) {
-		Vec3d vec3d = to.subtract(from);
-		if (vec3d.lengthSquared() < MathHelper.square(1.0E-5F)) {
-			for (BlockPos blockPos : BlockPos.iterate(box)) {
-				if (!visitor.visit(blockPos, 0)) {
+		Vec3d delta = to.subtract(from);
+		if (delta.lengthSquared() < MathHelper.square(COLLISION_EPSILON)) {
+			for (BlockPos pos : BlockPos.iterate(box)) {
+				if (!visitor.visit(pos, 0)) {
 					return false;
 				}
 			}
 
 			return true;
 		}
-		else {
-			LongSet longSet = new LongOpenHashSet();
 
-			for (BlockPos blockPos2 : BlockPos.iterateCollisionOrder(box.offset(vec3d.multiply(-1.0)), vec3d)) {
-				if (!visitor.visit(blockPos2, 0)) {
-					return false;
-				}
+		LongSet visited = new LongOpenHashSet();
 
-				longSet.add(blockPos2.asLong());
-			}
-
-			int i = collectCollisionsBetween(longSet, vec3d, box, visitor);
-			if (i < 0) {
+		for (BlockPos pos : BlockPos.iterateCollisionOrder(box.offset(delta.multiply(-1.0)), delta)) {
+			if (!visitor.visit(pos, 0)) {
 				return false;
 			}
-			else {
-				for (BlockPos blockPos3 : BlockPos.iterateCollisionOrder(box, vec3d)) {
-					if (longSet.add(blockPos3.asLong()) && !visitor.visit(blockPos3, i + 1)) {
-						return false;
-					}
-				}
 
-				return true;
+			visited.add(pos.asLong());
+		}
+
+		int crossingCount = collectCollisionsBetween(visited, delta, box, visitor);
+		if (crossingCount < 0) {
+			return false;
+		}
+
+		for (BlockPos pos : BlockPos.iterateCollisionOrder(box, delta)) {
+			if (visited.add(pos.asLong()) && !visitor.visit(pos, crossingCount + 1)) {
+				return false;
 			}
 		}
+
+		return true;
 	}
 
-	private static int collectCollisionsBetween(
-			LongSet visited,
-			Vec3d delta,
-			Box box,
-			BlockView.CollisionVisitor visitor
-	) {
-		double d = box.getLengthX();
-		double e = box.getLengthY();
-		double f = box.getLengthZ();
-		Vec3i vec3i = toCollisionStepDirection(delta);
-		Vec3d vec3d = box.getCenter();
-		Vec3d
-				vec3d2 =
-				new Vec3d(
-						vec3d.getX() + d * 0.5 * vec3i.getX(),
-						vec3d.getY() + e * 0.5 * vec3i.getY(),
-						vec3d.getZ() + f * 0.5 * vec3i.getZ()
-				);
-		Vec3d vec3d3 = vec3d2.subtract(delta);
-		int i = MathHelper.floor(vec3d3.x);
-		int j = MathHelper.floor(vec3d3.y);
-		int k = MathHelper.floor(vec3d3.z);
-		int l = MathHelper.sign(delta.x);
-		int m = MathHelper.sign(delta.y);
-		int n = MathHelper.sign(delta.z);
-		double g = l == 0 ? Double.MAX_VALUE : l / delta.x;
-		double h = m == 0 ? Double.MAX_VALUE : m / delta.y;
-		double o = n == 0 ? Double.MAX_VALUE : n / delta.z;
-		double p = g * (l > 0 ? 1.0 - MathHelper.fractionalPart(vec3d3.x) : MathHelper.fractionalPart(vec3d3.x));
-		double q = h * (m > 0 ? 1.0 - MathHelper.fractionalPart(vec3d3.y) : MathHelper.fractionalPart(vec3d3.y));
-		double r = o * (n > 0 ? 1.0 - MathHelper.fractionalPart(vec3d3.z) : MathHelper.fractionalPart(vec3d3.z));
-		int s = 0;
-
-		while (p <= 1.0 || q <= 1.0 || r <= 1.0) {
-			if (p < q) {
-				if (p < r) {
-					i += l;
-					p += g;
-				}
-				else {
-					k += n;
-					r += o;
-				}
-			}
-			else if (q < r) {
-				j += m;
-				q += h;
-			}
-			else {
-				k += n;
-				r += o;
-			}
-
-			Optional<Vec3d> optional = Box.raycast(i, j, k, i + 1, j + 1, k + 1, vec3d3, vec3d2);
-			if (!optional.isEmpty()) {
-				s++;
-				Vec3d vec3d4 = optional.get();
-				double t = MathHelper.clamp(vec3d4.x, i + 1.0E-5F, i + 1.0 - 1.0E-5F);
-				double u = MathHelper.clamp(vec3d4.y, j + 1.0E-5F, j + 1.0 - 1.0E-5F);
-				double v = MathHelper.clamp(vec3d4.z, k + 1.0E-5F, k + 1.0 - 1.0E-5F);
-				int w = MathHelper.floor(t - d * vec3i.getX());
-				int x = MathHelper.floor(u - e * vec3i.getY());
-				int y = MathHelper.floor(v - f * vec3i.getZ());
-				int z = s;
-
-				for (BlockPos blockPos : BlockPos.iterateCollisionOrder(i, j, k, w, x, y, delta)) {
-					if (visited.add(blockPos.asLong()) && !visitor.visit(blockPos, z)) {
-						return -1;
-					}
-				}
-			}
-		}
-
-		return s;
-	}
-
-	private static Vec3i toCollisionStepDirection(Vec3d vec3d) {
-		double d = Math.abs(Vec3d.X.dotProduct(vec3d));
-		double e = Math.abs(Vec3d.Y.dotProduct(vec3d));
-		double f = Math.abs(Vec3d.Z.dotProduct(vec3d));
-		int i = vec3d.x >= 0.0 ? 1 : -1;
-		int j = vec3d.y >= 0.0 ? 1 : -1;
-		int k = vec3d.z >= 0.0 ? 1 : -1;
-		if (d <= e && d <= f) {
-			return new Vec3i(-i, -k, j);
-		}
-		else {
-			return e <= f ? new Vec3i(k, -j, -i) : new Vec3i(-j, i, -k);
-		}
-	}
-
-	@FunctionalInterface
 	/**
-	 * {@code CollisionVisitor}.
+	 * Внутренний проход: обходит блоки вдоль траектории центра AABB-бокса,
+	 * собирая блоки в промежуточных позициях пересечения граней.
+	 * Возвращает количество пересечений или -1 при прерывании.
 	 */
-	public interface CollisionVisitor {
+	private static int collectCollisionsBetween(
+		LongSet visited,
+		Vec3d delta,
+		Box box,
+		BlockView.CollisionVisitor visitor
+	) {
+		double sizeX = box.getLengthX();
+		double sizeY = box.getLengthY();
+		double sizeZ = box.getLengthZ();
+		Vec3i stepDir = toCollisionStepDirection(delta);
+		Vec3d center = box.getCenter();
+		Vec3d leadCorner = new Vec3d(
+			center.getX() + sizeX * 0.5 * stepDir.getX(),
+			center.getY() + sizeY * 0.5 * stepDir.getY(),
+			center.getZ() + sizeZ * 0.5 * stepDir.getZ()
+		);
+		Vec3d trailCorner = leadCorner.subtract(delta);
 
+		int blockX = MathHelper.floor(trailCorner.x);
+		int blockY = MathHelper.floor(trailCorner.y);
+		int blockZ = MathHelper.floor(trailCorner.z);
+		int stepX = MathHelper.sign(delta.x);
+		int stepY = MathHelper.sign(delta.y);
+		int stepZ = MathHelper.sign(delta.z);
+		double tDeltaX = stepX == 0 ? Double.MAX_VALUE : stepX / delta.x;
+		double tDeltaY = stepY == 0 ? Double.MAX_VALUE : stepY / delta.y;
+		double tDeltaZ = stepZ == 0 ? Double.MAX_VALUE : stepZ / delta.z;
+		double tMaxX = tDeltaX * (stepX > 0
+			? 1.0 - MathHelper.fractionalPart(trailCorner.x)
+			: MathHelper.fractionalPart(trailCorner.x));
+		double tMaxY = tDeltaY * (stepY > 0
+			? 1.0 - MathHelper.fractionalPart(trailCorner.y)
+			: MathHelper.fractionalPart(trailCorner.y));
+		double tMaxZ = tDeltaZ * (stepZ > 0
+			? 1.0 - MathHelper.fractionalPart(trailCorner.z)
+			: MathHelper.fractionalPart(trailCorner.z));
+		int crossingCount = 0;
+
+		while (tMaxX <= 1.0 || tMaxY <= 1.0 || tMaxZ <= 1.0) {
+			if (tMaxX < tMaxY) {
+				if (tMaxX < tMaxZ) {
+					blockX += stepX;
+					tMaxX += tDeltaX;
+				} else {
+					blockZ += stepZ;
+					tMaxZ += tDeltaZ;
+				}
+			} else if (tMaxY < tMaxZ) {
+				blockY += stepY;
+				tMaxY += tDeltaY;
+			} else {
+				blockZ += stepZ;
+				tMaxZ += tDeltaZ;
+			}
+
+			Optional<Vec3d> intersection = Box.raycast(
+				blockX, blockY, blockZ,
+				blockX + 1, blockY + 1, blockZ + 1,
+				trailCorner, leadCorner
+			);
+			if (intersection.isEmpty()) {
+				continue;
+			}
+
+			crossingCount++;
+			Vec3d point = intersection.get();
+			double clampedX = MathHelper.clamp(point.x, blockX + COLLISION_EPSILON, blockX + 1.0 - COLLISION_EPSILON);
+			double clampedY = MathHelper.clamp(point.y, blockY + COLLISION_EPSILON, blockY + 1.0 - COLLISION_EPSILON);
+			double clampedZ = MathHelper.clamp(point.z, blockZ + COLLISION_EPSILON, blockZ + 1.0 - COLLISION_EPSILON);
+			int cornerX = MathHelper.floor(clampedX - sizeX * stepDir.getX());
+			int cornerY = MathHelper.floor(clampedY - sizeY * stepDir.getY());
+			int cornerZ = MathHelper.floor(clampedZ - sizeZ * stepDir.getZ());
+			int currentCrossing = crossingCount;
+
+			for (BlockPos pos : BlockPos.iterateCollisionOrder(blockX, blockY, blockZ, cornerX, cornerY, cornerZ, delta)) {
+				if (visited.add(pos.asLong()) && !visitor.visit(pos, currentCrossing)) {
+					return -1;
+				}
+			}
+		}
+
+		return crossingCount;
+	}
+
+	/**
+	 * Определяет направление обхода коллизий на основе вектора движения.
+	 * Возвращает Vec3i с компонентами ±1, указывающими ведущий угол AABB.
+	 */
+	private static Vec3i toCollisionStepDirection(Vec3d delta) {
+		double absX = Math.abs(Vec3d.X.dotProduct(delta));
+		double absY = Math.abs(Vec3d.Y.dotProduct(delta));
+		double absZ = Math.abs(Vec3d.Z.dotProduct(delta));
+		int signX = delta.x >= 0.0 ? 1 : -1;
+		int signY = delta.y >= 0.0 ? 1 : -1;
+		int signZ = delta.z >= 0.0 ? 1 : -1;
+
+		if (absX <= absY && absX <= absZ) {
+			return new Vec3i(-signX, -signZ, signY);
+		}
+
+		return absY <= absZ
+			? new Vec3i(signZ, -signY, -signX)
+			: new Vec3i(-signY, signX, -signZ);
+	}
+
+	/** Функциональный интерфейс для посещения блоков при обходе коллизий. */
+	@FunctionalInterface
+	interface CollisionVisitor {
+
+		/**
+		 * @param pos     позиция блока
+		 * @param version порядковый номер пересечения (0 — начальная позиция)
+		 * @return {@code true} чтобы продолжить обход, {@code false} чтобы прервать
+		 */
 		boolean visit(BlockPos pos, int version);
 	}
 }

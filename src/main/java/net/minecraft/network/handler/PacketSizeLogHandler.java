@@ -6,7 +6,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 /**
- * Класс packet size log handler.
+ * Netty-обработчик входящих сообщений, который фиксирует размер каждого пакета
+ * в {@link PacketSizeLogger} для последующего отображения в профилировщике.
  */
 public class PacketSizeLogHandler extends ChannelInboundHandlerAdapter {
 
@@ -16,18 +17,14 @@ public class PacketSizeLogHandler extends ChannelInboundHandlerAdapter {
 		this.logger = logger;
 	}
 
-	/**
-	 * Channel read.
-	 *
-	 * @param context context
-	 * @param value value
-	 */
-	public void channelRead(ChannelHandlerContext context, Object value) {
-		value = OpaqueByteBufHolder.unpack(value);
-		if (value instanceof ByteBuf byteBuf) {
-			this.logger.increment(byteBuf.readableBytes());
+	@Override
+	public void channelRead(ChannelHandlerContext ctx, Object msg) {
+		Object unpacked = OpaqueByteBufHolder.unpack(msg);
+
+		if (unpacked instanceof ByteBuf byteBuf) {
+			logger.increment(byteBuf.readableBytes());
 		}
 
-		context.fireChannelRead(value);
+		ctx.fireChannelRead(unpacked);
 	}
 }

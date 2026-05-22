@@ -5,7 +5,9 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code BlockTags}.
+ * Статические ключи тегов блоков Minecraft.
+ * Теги используются для группировки блоков по материалу, инструменту добычи, поведению
+ * и другим характеристикам. Проверяются через {@link net.minecraft.registry.tag.TagKey}.
  */
 public final class BlockTags {
 

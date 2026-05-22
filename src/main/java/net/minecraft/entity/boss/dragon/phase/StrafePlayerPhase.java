@@ -14,193 +14,203 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code StrafePlayerPhase}.
+ * Фаза атаки на игрока огненным шаром. Дракон летит к цели и при достаточном
+ * выравнивании (угол < 10°, видимость 5 тиков подряд) выпускает {@link DragonFireballEntity}.
  */
 public class StrafePlayerPhase extends AbstractPhase {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int MINIMUM_TARGET_SPOT_AMOUNT = 5;
-	private int seenTargetTimes;
+
+	private static final int FIREBALL_SIGHT_TICKS = 5;
+	private static final double MIN_PATH_DIST_SQ = 100.0;
+	private static final double MAX_PATH_DIST_SQ = 22500.0;
+	private static final double FIREBALL_SIGHT_RANGE_SQ = 4096.0;
+	private static final double FIREBALL_ALIGNMENT_THRESHOLD = 10.0F;
+	private static final double FIREBALL_OFFSET = 1.0;
+	private static final double HEIGHT_APPROACH_MIN = 0.4;
+	private static final double HEIGHT_APPROACH_SCALE = 80.0;
+	private static final double HEIGHT_APPROACH_MAX = 10.0;
+	private static final int PATH_DIRECTION_CHANGE_CHANCE = 8;
+	private static final int PATH_DIRECTION_OFFSET = 6;
+	private static final int OUTER_RING_SIZE = 12;
+	private static final int INNER_RING_MASK = 7;
+	private static final float PATH_Y_RANDOM_RANGE = 20.0F;
+	private static final int WORLD_EVENT_FIREBALL = 1017;
+
+	private int seenTargetTicks;
 	private @Nullable Path path;
 	private @Nullable Vec3d pathTarget;
 	private @Nullable LivingEntity target;
 	private boolean shouldFindNewPath;
 
-	public StrafePlayerPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public StrafePlayerPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		if (this.target == null) {
+		if (target == null) {
 			LOGGER.warn("Skipping player strafe phase because no player was found");
-			this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			return;
 		}
-		else {
-			if (this.path != null && this.path.isFinished()) {
-				double d = this.target.getX();
-				double e = this.target.getZ();
-				double f = d - this.dragon.getX();
-				double g = e - this.dragon.getZ();
-				double h = Math.sqrt(f * f + g * g);
-				double i = Math.min(0.4F + h / 80.0 - 1.0, 10.0);
-				this.pathTarget = new Vec3d(d, this.target.getY() + i, e);
+
+		if (path != null && path.isFinished()) {
+			double targetX = target.getX();
+			double targetZ = target.getZ();
+			double relX = targetX - dragon.getX();
+			double relZ = targetZ - dragon.getZ();
+			double horizDist = Math.sqrt(relX * relX + relZ * relZ);
+			double heightOffset = Math.min(HEIGHT_APPROACH_MIN + horizDist / HEIGHT_APPROACH_SCALE - 1.0, HEIGHT_APPROACH_MAX);
+			pathTarget = new Vec3d(targetX, target.getY() + heightOffset, targetZ);
+		}
+
+		double distSq = pathTarget == null
+				? 0.0
+				: pathTarget.squaredDistanceTo(dragon.getX(), dragon.getY(), dragon.getZ());
+
+		if (distSq < MIN_PATH_DIST_SQ || distSq > MAX_PATH_DIST_SQ) {
+			updatePath();
+		}
+
+		if (target.squaredDistanceTo(dragon) < FIREBALL_SIGHT_RANGE_SQ) {
+			if (dragon.canSee(target)) {
+				seenTargetTicks++;
+				tryFireFireball(world);
+			} else if (seenTargetTicks > 0) {
+				seenTargetTicks--;
 			}
+		} else if (seenTargetTicks > 0) {
+			seenTargetTicks--;
+		}
+	}
 
-			double
-					d =
-					this.pathTarget == null ? 0.0 : this.pathTarget.squaredDistanceTo(
-							this.dragon.getX(),
-							this.dragon.getY(),
-							this.dragon.getZ()
-					);
-			if (d < 100.0 || d > 22500.0) {
-				this.updatePath();
-			}
+	private void tryFireFireball(ServerWorld world) {
+		Vec3d toTarget = new Vec3d(
+				target.getX() - dragon.getX(),
+				0.0,
+				target.getZ() - dragon.getZ()
+		).normalize();
+		Vec3d dragonDir = new Vec3d(
+				MathHelper.sin(dragon.getYaw() * (float) (Math.PI / 180.0)),
+				0.0,
+				-MathHelper.cos(dragon.getYaw() * (float) (Math.PI / 180.0))
+		).normalize();
 
-			double e = 64.0;
-			if (this.target.squaredDistanceTo(this.dragon) < 4096.0) {
-				if (this.dragon.canSee(this.target)) {
-					this.seenTargetTimes++;
-					Vec3d
-							vec3d =
-							new Vec3d(
-									this.target.getX() - this.dragon.getX(),
-									0.0,
-									this.target.getZ() - this.dragon.getZ()
-							).normalize();
-					Vec3d vec3d2 = new Vec3d(
-							MathHelper.sin(this.dragon.getYaw() * (float) (Math.PI / 180.0)),
-							0.0,
-							-MathHelper.cos(this.dragon.getYaw() * (float) (Math.PI / 180.0))
-					)
-							.normalize();
-					float j = (float) vec3d2.dotProduct(vec3d);
-					float k = (float) (Math.acos(j) * 180.0F / (float) Math.PI);
-					k += 0.5F;
-					if (this.seenTargetTimes >= 5 && k >= 0.0F && k < 10.0F) {
-						double h = 1.0;
-						Vec3d vec3d3 = this.dragon.getRotationVec(1.0F);
-						double l = this.dragon.head.getX() - vec3d3.x * 1.0;
-						double m = this.dragon.head.getBodyY(0.5) + 0.5;
-						double n = this.dragon.head.getZ() - vec3d3.z * 1.0;
-						double o = this.target.getX() - l;
-						double p = this.target.getBodyY(0.5) - m;
-						double q = this.target.getZ() - n;
-						Vec3d vec3d4 = new Vec3d(o, p, q);
-						if (!this.dragon.isSilent()) {
-							world.syncWorldEvent(null, 1017, this.dragon.getBlockPos(), 0);
-						}
+		float angleDot = (float) dragonDir.dotProduct(toTarget);
+		float angleDeg = (float) (Math.acos(angleDot) * 180.0F / (float) Math.PI) + 0.5F;
 
-						DragonFireballEntity
-								dragonFireballEntity =
-								new DragonFireballEntity(world, this.dragon, vec3d4.normalize());
-						dragonFireballEntity.refreshPositionAndAngles(l, m, n, 0.0F, 0.0F);
-						world.spawnEntity(dragonFireballEntity);
-						this.seenTargetTimes = 0;
-						if (this.path != null) {
-							while (!this.path.isFinished()) {
-								this.path.next();
-							}
-						}
+		if (seenTargetTicks < FIREBALL_SIGHT_TICKS || angleDeg < 0.0F || angleDeg >= FIREBALL_ALIGNMENT_THRESHOLD) {
+			return;
+		}
 
-						this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
-					}
-				}
-				else if (this.seenTargetTimes > 0) {
-					this.seenTargetTimes--;
-				}
-			}
-			else if (this.seenTargetTimes > 0) {
-				this.seenTargetTimes--;
+		Vec3d rotVec = dragon.getRotationVec(1.0F);
+		double originX = dragon.head.getX() - rotVec.x * FIREBALL_OFFSET;
+		double originY = dragon.head.getBodyY(0.5) + 0.5;
+		double originZ = dragon.head.getZ() - rotVec.z * FIREBALL_OFFSET;
+		Vec3d direction = new Vec3d(
+				target.getX() - originX,
+				target.getBodyY(0.5) - originY,
+				target.getZ() - originZ
+		).normalize();
+
+		if (!dragon.isSilent()) {
+			world.syncWorldEvent(null, WORLD_EVENT_FIREBALL, dragon.getBlockPos(), 0);
+		}
+
+		DragonFireballEntity fireball = new DragonFireballEntity(world, dragon, direction);
+		fireball.refreshPositionAndAngles(originX, originY, originZ, 0.0F, 0.0F);
+		world.spawnEntity(fireball);
+		seenTargetTicks = 0;
+
+		if (path != null) {
+			while (!path.isFinished()) {
+				path.next();
 			}
 		}
+
+		dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
 	}
 
 	private void updatePath() {
-		if (this.path == null || this.path.isFinished()) {
-			int i = this.dragon.getNearestPathNodeIndex();
-			int j = i;
-			if (this.dragon.getRandom().nextInt(8) == 0) {
-				this.shouldFindNewPath = !this.shouldFindNewPath;
-				j = i + 6;
+		if (path == null || path.isFinished()) {
+			int nearestNode = dragon.getNearestPathNodeIndex();
+			int targetNode = nearestNode;
+
+			if (dragon.getRandom().nextInt(PATH_DIRECTION_CHANGE_CHANCE) == 0) {
+				shouldFindNewPath = !shouldFindNewPath;
+				targetNode = nearestNode + PATH_DIRECTION_OFFSET;
 			}
 
-			if (this.shouldFindNewPath) {
-				j++;
-			}
-			else {
-				j--;
-			}
+			targetNode = shouldFindNewPath ? targetNode + 1 : targetNode - 1;
 
-			if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() > 0) {
-				j %= 12;
-				if (j < 0) {
-					j += 12;
+			if (dragon.getFight() != null && dragon.getFight().getAliveEndCrystals() > 0) {
+				targetNode %= OUTER_RING_SIZE;
+				if (targetNode < 0) {
+					targetNode += OUTER_RING_SIZE;
 				}
-			}
-			else {
-				j -= 12;
-				j &= 7;
-				j += 12;
+			} else {
+				targetNode -= OUTER_RING_SIZE;
+				targetNode &= INNER_RING_MASK;
+				targetNode += OUTER_RING_SIZE;
 			}
 
-			this.path = this.dragon.findPath(i, j, null);
-			if (this.path != null) {
-				this.path.next();
+			path = dragon.findPath(nearestNode, targetNode, null);
+			if (path != null) {
+				path.next();
 			}
 		}
 
-		this.followPath();
+		followPath();
 	}
 
 	private void followPath() {
-		if (this.path != null && !this.path.isFinished()) {
-			Vec3i vec3i = this.path.getCurrentNodePos();
-			this.path.next();
-			double d = vec3i.getX();
-			double e = vec3i.getZ();
-
-			double f;
-			do {
-				f = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
-			}
-			while (f < vec3i.getY());
-
-			this.pathTarget = new Vec3d(d, f, e);
+		if (path == null || path.isFinished()) {
+			return;
 		}
+
+		Vec3i nodePos = path.getCurrentNodePos();
+		path.next();
+
+		double targetY;
+		do {
+			targetY = nodePos.getY() + dragon.getRandom().nextFloat() * PATH_Y_RANDOM_RANGE;
+		} while (targetY < nodePos.getY());
+
+		pathTarget = new Vec3d(nodePos.getX(), targetY, nodePos.getZ());
 	}
 
 	@Override
 	public void beginPhase() {
-		this.seenTargetTimes = 0;
-		this.pathTarget = null;
-		this.path = null;
-		this.target = null;
+		seenTargetTicks = 0;
+		pathTarget = null;
+		path = null;
+		target = null;
 	}
 
 	public void setTargetEntity(LivingEntity targetEntity) {
-		this.target = targetEntity;
-		int i = this.dragon.getNearestPathNodeIndex();
-		int j = this.dragon.getNearestPathNodeIndex(this.target.getX(), this.target.getY(), this.target.getZ());
-		int k = this.target.getBlockX();
-		int l = this.target.getBlockZ();
-		double d = k - this.dragon.getX();
-		double e = l - this.dragon.getZ();
-		double f = Math.sqrt(d * d + e * e);
-		double g = Math.min(0.4F + f / 80.0 - 1.0, 10.0);
-		int m = MathHelper.floor(this.target.getY() + g);
-		PathNode pathNode = new PathNode(k, m, l);
-		this.path = this.dragon.findPath(i, j, pathNode);
-		if (this.path != null) {
-			this.path.next();
-			this.followPath();
+		target = targetEntity;
+		int nearestNode = dragon.getNearestPathNodeIndex();
+		int targetNode = dragon.getNearestPathNodeIndex(target.getX(), target.getY(), target.getZ());
+		int targetBlockX = target.getBlockX();
+		int targetBlockZ = target.getBlockZ();
+		double relX = targetBlockX - dragon.getX();
+		double relZ = targetBlockZ - dragon.getZ();
+		double horizDist = Math.sqrt(relX * relX + relZ * relZ);
+		double heightOffset = Math.min(HEIGHT_APPROACH_MIN + horizDist / HEIGHT_APPROACH_SCALE - 1.0, HEIGHT_APPROACH_MAX);
+		int approachY = MathHelper.floor(target.getY() + heightOffset);
+		PathNode approachNode = new PathNode(targetBlockX, approachY, targetBlockZ);
+		path = dragon.findPath(nearestNode, targetNode, approachNode);
+
+		if (path != null) {
+			path.next();
+			followPath();
 		}
 	}
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.pathTarget;
+		return pathTarget;
 	}
 
 	@Override

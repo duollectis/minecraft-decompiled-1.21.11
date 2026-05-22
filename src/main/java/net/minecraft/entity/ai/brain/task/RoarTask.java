@@ -13,12 +13,16 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Unit;
 
 /**
- * {@code RoarTask}.
+ * Задача мозга Вардена, реализующая рёв с задержкой звука и увеличением гнева к цели.
+ * После запуска устанавливает позу {@code ROARING}, через {@code SOUND_DELAY} тиков воспроизводит звук,
+ * а по завершении переводит цель рёва в цель атаки.
  */
 public class RoarTask extends MultiTickTask<WardenEntity> {
 
 	private static final int SOUND_DELAY = 25;
 	private static final int ANGER_INCREASE = 20;
+	private static final float ROAR_SOUND_VOLUME = 3.0F;
+	private static final float ROAR_SOUND_PITCH = 1.0F;
 
 	public RoarTask() {
 		super(
@@ -36,71 +40,48 @@ public class RoarTask extends MultiTickTask<WardenEntity> {
 		);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-		Brain<WardenEntity> brain = wardenEntity.getBrain();
-		brain.remember(MemoryModuleType.ROAR_SOUND_DELAY, Unit.INSTANCE, 25L);
+	@Override
+	protected void run(ServerWorld world, WardenEntity entity, long time) {
+		Brain<WardenEntity> brain = entity.getBrain();
+		brain.remember(MemoryModuleType.ROAR_SOUND_DELAY, Unit.INSTANCE, SOUND_DELAY);
 		brain.forget(MemoryModuleType.WALK_TARGET);
-		LivingEntity
-				livingEntity =
-				wardenEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ROAR_TARGET).get();
-		TargetUtil.lookAt(wardenEntity, livingEntity);
-		wardenEntity.setPose(EntityPose.ROARING);
-		wardenEntity.increaseAngerAt(livingEntity, 20, false);
+
+		LivingEntity roarTarget = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ROAR_TARGET).get();
+		TargetUtil.lookAt(entity, roarTarget);
+		entity.setPose(EntityPose.ROARING);
+		entity.increaseAngerAt(roarTarget, ANGER_INCREASE, false);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, WardenEntity entity, long time) {
 		return true;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-		if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.ROAR_SOUND_DELAY)
-				&& !wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.ROAR_SOUND_COOLDOWN)) {
-			wardenEntity
-					.getBrain()
-					.remember(MemoryModuleType.ROAR_SOUND_COOLDOWN, Unit.INSTANCE, WardenBrain.ROAR_DURATION - 25);
-			wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_ROAR, 3.0F, 1.0F);
+	@Override
+	protected void keepRunning(ServerWorld world, WardenEntity entity, long time) {
+		Brain<WardenEntity> brain = entity.getBrain();
+		boolean soundDelayExpired = !brain.hasMemoryModule(MemoryModuleType.ROAR_SOUND_DELAY);
+		boolean soundNotOnCooldown = !brain.hasMemoryModule(MemoryModuleType.ROAR_SOUND_COOLDOWN);
+
+		if (soundDelayExpired && soundNotOnCooldown) {
+			brain.remember(
+					MemoryModuleType.ROAR_SOUND_COOLDOWN,
+					Unit.INSTANCE,
+					WardenBrain.ROAR_DURATION - SOUND_DELAY
+			);
+			entity.playSound(SoundEvents.ENTITY_WARDEN_ROAR, ROAR_SOUND_VOLUME, ROAR_SOUND_PITCH);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-		if (wardenEntity.isInPose(EntityPose.ROARING)) {
-			wardenEntity.setPose(EntityPose.STANDING);
+	@Override
+	protected void finishRunning(ServerWorld world, WardenEntity entity, long time) {
+		if (entity.isInPose(EntityPose.ROARING)) {
+			entity.setPose(EntityPose.STANDING);
 		}
 
-		wardenEntity
-				.getBrain()
-				.getOptionalRegisteredMemory(MemoryModuleType.ROAR_TARGET)
-				.ifPresent(wardenEntity::updateAttackTarget);
-		wardenEntity.getBrain().forget(MemoryModuleType.ROAR_TARGET);
+		entity.getBrain()
+		      .getOptionalRegisteredMemory(MemoryModuleType.ROAR_TARGET)
+		      .ifPresent(entity::updateAttackTarget);
+		entity.getBrain().forget(MemoryModuleType.ROAR_TARGET);
 	}
 }

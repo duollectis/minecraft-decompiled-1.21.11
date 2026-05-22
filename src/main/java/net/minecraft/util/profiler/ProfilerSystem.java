@@ -24,12 +24,14 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
- * {@code ProfilerSystem}.
+ * Основная реализация {@link ReadableProfiler}, накапливающая иерархические замеры времени
+ * по стеку push/pop. Хранит {@link LocatedInfo} для каждого уникального пути секции.
  */
 public class ProfilerSystem implements ReadableProfiler {
 
 	private static final long TIMEOUT_NANOSECONDS = Duration.ofMillis(100L).toNanos();
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final List<String> path = Lists.newArrayList();
 	private final LongList timeList = new LongArrayList();
 	private final Map<String, ProfilerSystem.LocatedInfo> locationInfos = Maps.newHashMap();
@@ -37,11 +39,12 @@ public class ProfilerSystem implements ReadableProfiler {
 	private final LongSupplier timeGetter;
 	private final long startTime;
 	private final int startTick;
+	private final BooleanSupplier timeoutDisabled;
+	private final Set<Pair<String, SampleType>> sampleTypes = new ObjectArraySet<>();
+
 	private String fullPath = "";
 	private boolean tickStarted;
 	private ProfilerSystem.@Nullable LocatedInfo currentInfo;
-	private final BooleanSupplier timeoutDisabled;
-	private final Set<Pair<String, SampleType>> sampleTypes = new ObjectArraySet();
 
 	public ProfilerSystem(LongSupplier timeGetter, IntSupplier tickGetter, BooleanSupplier timeoutDisabled) {
 		this.startTime = timeGetter.getAsLong();
@@ -53,148 +56,154 @@ public class ProfilerSystem implements ReadableProfiler {
 
 	@Override
 	public void startTick() {
-		if (this.tickStarted) {
+		if (tickStarted) {
 			LOGGER.error("Profiler tick already started - missing endTick()?");
+			return;
 		}
-		else {
-			this.tickStarted = true;
-			this.fullPath = "";
-			this.path.clear();
-			this.push("root");
-		}
+
+		tickStarted = true;
+		fullPath = "";
+		path.clear();
+		push("root");
 	}
 
 	@Override
 	public void endTick() {
-		if (!this.tickStarted) {
+		if (!tickStarted) {
 			LOGGER.error("Profiler tick already ended - missing startTick()?");
+			return;
 		}
-		else {
-			this.pop();
-			this.tickStarted = false;
-			if (!this.fullPath.isEmpty()) {
-				LOGGER.error(
-						"Profiler tick ended before path was fully popped (remainder: '{}'). Mismatched push/pop?",
-						LogUtils.defer(() -> ProfileResult.getHumanReadableName(this.fullPath))
-				);
-			}
+
+		pop();
+		tickStarted = false;
+
+		if (!fullPath.isEmpty()) {
+			LOGGER.error(
+				"Profiler tick ended before path was fully popped (remainder: '{}'). Mismatched push/pop?",
+				LogUtils.defer(() -> ProfileResult.getHumanReadableName(fullPath))
+			);
 		}
 	}
 
 	@Override
 	public void push(String location) {
-		if (!this.tickStarted) {
+		if (!tickStarted) {
 			LOGGER.error(
-					"Cannot push '{}' to profiler if profiler tick hasn't started - missing startTick()?",
-					location
+				"Cannot push '{}' to profiler if profiler tick hasn't started - missing startTick()?",
+				location
 			);
+			return;
 		}
-		else {
-			if (!this.fullPath.isEmpty()) {
-				this.fullPath = this.fullPath + "\u001e";
-			}
 
-			this.fullPath = this.fullPath + location;
-			this.path.add(this.fullPath);
-			this.timeList.add(Util.getMeasuringTimeNano());
-			this.currentInfo = null;
+		if (!fullPath.isEmpty()) {
+			fullPath = fullPath + "\u001e";
 		}
+
+		fullPath = fullPath + location;
+		path.add(fullPath);
+		timeList.add(Util.getMeasuringTimeNano());
+		currentInfo = null;
 	}
 
 	@Override
 	public void push(Supplier<String> locationGetter) {
-		this.push(locationGetter.get());
+		push(locationGetter.get());
 	}
 
 	@Override
 	public void markSampleType(SampleType type) {
-		this.sampleTypes.add(Pair.of(this.fullPath, type));
+		sampleTypes.add(Pair.of(fullPath, type));
 	}
 
 	@Override
 	public void pop() {
-		if (!this.tickStarted) {
+		if (!tickStarted) {
 			LOGGER.error("Cannot pop from profiler if profiler tick hasn't started - missing startTick()?");
+			return;
 		}
-		else if (this.timeList.isEmpty()) {
-			LOGGER.error("Tried to pop one too many times! Mismatched push() and pop()?");
-		}
-		else {
-			long l = Util.getMeasuringTimeNano();
-			long m = this.timeList.removeLong(this.timeList.size() - 1);
-			this.path.removeLast();
-			long n = l - m;
-			ProfilerSystem.LocatedInfo locatedInfo = this.getCurrentInfo();
-			locatedInfo.totalTime += n;
-			locatedInfo.visits++;
-			locatedInfo.maxTime = Math.max(locatedInfo.maxTime, n);
-			locatedInfo.minTime = Math.min(locatedInfo.minTime, n);
-			if (n > TIMEOUT_NANOSECONDS && !this.timeoutDisabled.getAsBoolean()) {
-				LOGGER.warn(
-						"Something's taking too long! '{}' took aprox {} ms",
-						LogUtils.defer(() -> ProfileResult.getHumanReadableName(this.fullPath)),
-						LogUtils.defer(() -> n / 1000000.0)
-				);
-			}
 
-			this.fullPath = this.path.isEmpty() ? "" : this.path.getLast();
-			this.currentInfo = null;
+		if (timeList.isEmpty()) {
+			LOGGER.error("Tried to pop one too many times! Mismatched push() and pop()?");
+			return;
 		}
+
+		long now = Util.getMeasuringTimeNano();
+		long startTime = timeList.removeLong(timeList.size() - 1);
+		path.removeLast();
+		long elapsed = now - startTime;
+
+		ProfilerSystem.LocatedInfo info = getCurrentInfo();
+		info.totalTime += elapsed;
+		info.visits++;
+		info.maxTime = Math.max(info.maxTime, elapsed);
+		info.minTime = Math.min(info.minTime, elapsed);
+
+		if (elapsed > TIMEOUT_NANOSECONDS && !timeoutDisabled.getAsBoolean()) {
+			LOGGER.warn(
+				"Something's taking too long! '{}' took aprox {} ms",
+				LogUtils.defer(() -> ProfileResult.getHumanReadableName(fullPath)),
+				LogUtils.defer(() -> elapsed / 1000000.0)
+			);
+		}
+
+		fullPath = path.isEmpty() ? "" : path.getLast();
+		currentInfo = null;
 	}
 
 	@Override
 	public void swap(String location) {
-		this.pop();
-		this.push(location);
+		pop();
+		push(location);
 	}
 
 	@Override
 	public void swap(Supplier<String> locationGetter) {
-		this.pop();
-		this.push(locationGetter);
+		pop();
+		push(locationGetter);
 	}
 
 	private ProfilerSystem.LocatedInfo getCurrentInfo() {
-		if (this.currentInfo == null) {
-			this.currentInfo = this.locationInfos.computeIfAbsent(this.fullPath, k -> new ProfilerSystem.LocatedInfo());
+		if (currentInfo == null) {
+			currentInfo = locationInfos.computeIfAbsent(fullPath, k -> new ProfilerSystem.LocatedInfo());
 		}
 
-		return this.currentInfo;
+		return currentInfo;
 	}
 
 	@Override
 	public void visit(String marker, int num) {
-		this.getCurrentInfo().counts.addTo(marker, num);
+		getCurrentInfo().counts.addTo(marker, num);
 	}
 
 	@Override
 	public void visit(Supplier<String> markerGetter, int num) {
-		this.getCurrentInfo().counts.addTo(markerGetter.get(), num);
+		getCurrentInfo().counts.addTo(markerGetter.get(), num);
 	}
 
 	@Override
 	public ProfileResult getResult() {
 		return new ProfileResultImpl(
-				this.locationInfos,
-				this.startTime,
-				this.startTick,
-				this.timeGetter.getAsLong(),
-				this.endTickGetter.getAsInt()
+			locationInfos,
+			startTime,
+			startTick,
+			timeGetter.getAsLong(),
+			endTickGetter.getAsInt()
 		);
 	}
 
 	@Override
 	public ProfilerSystem.@Nullable LocatedInfo getInfo(String name) {
-		return this.locationInfos.get(name);
+		return locationInfos.get(name);
 	}
 
 	@Override
 	public Set<Pair<String, SampleType>> getSampleTargets() {
-		return this.sampleTypes;
+		return sampleTypes;
 	}
 
 	/**
-	 * {@code LocatedInfo}.
+	 * Накопленная статистика одной секции профайлера: суммарное, максимальное,
+	 * минимальное время и счётчики посещений маркеров.
 	 */
 	public static class LocatedInfo implements ProfileLocationInfo {
 
@@ -202,26 +211,26 @@ public class ProfilerSystem implements ReadableProfiler {
 		long minTime = Long.MAX_VALUE;
 		long totalTime;
 		long visits;
-		final Object2LongOpenHashMap<String> counts = new Object2LongOpenHashMap();
+		final Object2LongOpenHashMap<String> counts = new Object2LongOpenHashMap<>();
 
 		@Override
 		public long getTotalTime() {
-			return this.totalTime;
+			return totalTime;
 		}
 
 		@Override
 		public long getMaxTime() {
-			return this.maxTime;
+			return maxTime;
 		}
 
 		@Override
 		public long getVisitCount() {
-			return this.visits;
+			return visits;
 		}
 
 		@Override
 		public Object2LongMap<String> getCounts() {
-			return Object2LongMaps.unmodifiable(this.counts);
+			return Object2LongMaps.unmodifiable(counts);
 		}
 	}
 }

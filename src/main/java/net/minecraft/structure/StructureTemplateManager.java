@@ -1,7 +1,6 @@
 package net.minecraft.structure;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.Maps;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.DataFixer;
@@ -28,8 +27,20 @@ import net.minecraft.world.level.storage.LevelStorage;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 
-import java.io.*;
-import java.nio.file.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,78 +51,84 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * {@code StructureTemplateManager}.
+ * Управляет загрузкой, кэшированием и сохранением {@link StructureTemplate} (файлов .nbt/.snbt).
+ * Поддерживает несколько источников шаблонов: файловая система (generated/), ресурсы датапака
+ * и директория игровых тестов (только в режиме разработки).
  */
 public class StructureTemplateManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final String STRUCTURE_DIRECTORY = "structure";
 	private static final String STRUCTURES_DIRECTORY = "structures";
-	private static final String NBT_FILE_EXTENSION = ".nbt";
-	private static final String SNBT_FILE_EXTENSION = ".snbt";
+	private static final String NBT_EXTENSION = ".nbt";
+	private static final String SNBT_EXTENSION = ".snbt";
+	private static final ResourceFinder STRUCTURE_NBT_FINDER = new ResourceFinder("structure", ".nbt");
+
 	private final Map<Identifier, Optional<StructureTemplate>> templates = Maps.newConcurrentMap();
 	private final DataFixer dataFixer;
 	private ResourceManager resourceManager;
 	private final Path generatedPath;
-	private final List<StructureTemplateManager.Provider> providers;
+	private final List<Provider> providers;
 	private final RegistryEntryLookup<Block> blockLookup;
-	private static final ResourceFinder STRUCTURE_NBT_RESOURCE_FINDER = new ResourceFinder("structure", ".nbt");
 
 	public StructureTemplateManager(
-			ResourceManager resourceManager,
-			LevelStorage.Session session,
-			DataFixer dataFixer,
-			RegistryEntryLookup<Block> blockLookup
+		ResourceManager resourceManager,
+		LevelStorage.Session session,
+		DataFixer dataFixer,
+		RegistryEntryLookup<Block> blockLookup
 	) {
 		this.resourceManager = resourceManager;
 		this.dataFixer = dataFixer;
-		this.generatedPath = session.getDirectory(WorldSavePath.GENERATED).normalize();
+		generatedPath = session.getDirectory(WorldSavePath.GENERATED).normalize();
 		this.blockLookup = blockLookup;
-		Builder<StructureTemplateManager.Provider> builder = ImmutableList.builder();
-		builder.add(new StructureTemplateManager.Provider(this::loadTemplateFromFile, this::streamTemplatesFromFile));
+
+		ImmutableList.Builder<Provider> builder = ImmutableList.builder();
+		builder.add(new Provider(this::loadTemplateFromFile, this::streamTemplatesFromFile));
+
 		if (SharedConstants.isDevelopment) {
-			builder.add(new StructureTemplateManager.Provider(
-					this::loadTemplateFromGameTestFile,
-					this::streamTemplatesFromGameTestFile
-			));
+			builder.add(new Provider(this::loadTemplateFromGameTestFile, this::streamTemplatesFromGameTestFile));
 		}
 
-		builder.add(new StructureTemplateManager.Provider(
-				this::loadTemplateFromResource,
-				this::streamTemplatesFromResource
-		));
-		this.providers = builder.build();
+		builder.add(new Provider(this::loadTemplateFromResource, this::streamTemplatesFromResource));
+		providers = builder.build();
 	}
 
+	/**
+	 * Возвращает шаблон по идентификатору, либо пустой шаблон, если загрузка не удалась.
+	 * Пустой шаблон кэшируется, чтобы повторные обращения не вызывали повторную загрузку.
+	 */
 	public StructureTemplate getTemplateOrBlank(Identifier id) {
-		Optional<StructureTemplate> optional = this.getTemplate(id);
-		if (optional.isPresent()) {
-			return optional.get();
+		Optional<StructureTemplate> cached = getTemplate(id);
+		if (cached.isPresent()) {
+			return cached.get();
 		}
-		else {
-			StructureTemplate structureTemplate = new StructureTemplate();
-			this.templates.put(id, Optional.of(structureTemplate));
-			return structureTemplate;
-		}
+
+		StructureTemplate blank = new StructureTemplate();
+		templates.put(id, Optional.of(blank));
+		return blank;
 	}
 
 	public Optional<StructureTemplate> getTemplate(Identifier id) {
-		return this.templates.computeIfAbsent(id, this::loadTemplate);
+		return templates.computeIfAbsent(id, this::loadTemplate);
 	}
 
 	public Stream<Identifier> streamTemplates() {
-		return this.providers.stream().flatMap(provider -> provider.lister().get()).distinct();
+		return providers.stream().flatMap(provider -> provider.lister().get()).distinct();
 	}
 
+	/**
+	 * Перебирает провайдеры по приоритету и возвращает первый успешно загруженный шаблон.
+	 * Исключения от провайдеров намеренно подавляются — отсутствие шаблона не является ошибкой.
+	 */
 	private Optional<StructureTemplate> loadTemplate(Identifier id) {
-		for (StructureTemplateManager.Provider provider : this.providers) {
+		for (Provider provider : providers) {
 			try {
-				Optional<StructureTemplate> optional = provider.loader().apply(id);
-				if (optional.isPresent()) {
-					return optional;
+				Optional<StructureTemplate> result = provider.loader().apply(id);
+				if (result.isPresent()) {
+					return result;
 				}
-			}
-			catch (Exception var5) {
+			} catch (Exception ignored) {
+				// Провайдер не нашёл шаблон — пробуем следующий
 			}
 		}
 
@@ -120,107 +137,103 @@ public class StructureTemplateManager {
 
 	public void setResourceManager(ResourceManager resourceManager) {
 		this.resourceManager = resourceManager;
-		this.templates.clear();
+		templates.clear();
 	}
 
 	private Optional<StructureTemplate> loadTemplateFromResource(Identifier id) {
-		Identifier identifier = STRUCTURE_NBT_RESOURCE_FINDER.toResourcePath(id);
-		return this.loadTemplate(
-				() -> this.resourceManager.open(identifier),
-				throwable -> LOGGER.error("Couldn't load structure {}", id, throwable)
+		Identifier resourcePath = STRUCTURE_NBT_FINDER.toResourcePath(id);
+		return loadTemplate(
+			() -> resourceManager.open(resourcePath),
+			error -> LOGGER.error("Couldn't load structure {}", id, error)
 		);
 	}
 
 	private Stream<Identifier> streamTemplatesFromResource() {
-		return STRUCTURE_NBT_RESOURCE_FINDER
-				.findResources(this.resourceManager)
-				.keySet()
-				.stream()
-				.map(STRUCTURE_NBT_RESOURCE_FINDER::toResourceId);
+		return STRUCTURE_NBT_FINDER
+			.findResources(resourceManager)
+			.keySet()
+			.stream()
+			.map(STRUCTURE_NBT_FINDER::toResourceId);
 	}
 
 	private Optional<StructureTemplate> loadTemplateFromGameTestFile(Identifier id) {
-		return this.loadTemplateFromSnbt(id, TestInstanceUtil.testStructuresDirectoryName);
+		return loadTemplateFromSnbt(id, TestInstanceUtil.testStructuresDirectoryName);
 	}
 
 	private Stream<Identifier> streamTemplatesFromGameTestFile() {
 		if (!Files.isDirectory(TestInstanceUtil.testStructuresDirectoryName)) {
 			return Stream.empty();
 		}
-		else {
-			List<Identifier> list = new ArrayList<>();
-			this.streamTemplates(TestInstanceUtil.testStructuresDirectoryName, "minecraft", ".snbt", list::add);
-			return list.stream();
-		}
+
+		List<Identifier> ids = new ArrayList<>();
+		streamTemplates(TestInstanceUtil.testStructuresDirectoryName, "minecraft", SNBT_EXTENSION, ids::add);
+		return ids.stream();
 	}
 
 	private Optional<StructureTemplate> loadTemplateFromFile(Identifier id) {
-		if (!Files.isDirectory(this.generatedPath)) {
+		if (!Files.isDirectory(generatedPath)) {
 			return Optional.empty();
 		}
-		else {
-			Path path = this.getTemplatePath(id, ".nbt");
-			return this.loadTemplate(
-					() -> new FileInputStream(path.toFile()),
-					throwable -> LOGGER.error("Couldn't load structure from {}", path, throwable)
-			);
-		}
+
+		Path path = getTemplatePath(id, NBT_EXTENSION);
+		return loadTemplate(
+			() -> new FileInputStream(path.toFile()),
+			error -> LOGGER.error("Couldn't load structure from {}", path, error)
+		);
 	}
 
 	private Stream<Identifier> streamTemplatesFromFile() {
-		if (!Files.isDirectory(this.generatedPath)) {
+		if (!Files.isDirectory(generatedPath)) {
 			return Stream.empty();
 		}
-		else {
-			try {
-				List<Identifier> list = new ArrayList<>();
 
-				try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(
-						this.generatedPath,
-						pathx -> Files.isDirectory(pathx)
-				)
-				) {
-					for (Path path : directoryStream) {
-						String string = path.getFileName().toString();
-						Path path2 = path.resolve("structures");
-						this.streamTemplates(path2, string, ".nbt", list::add);
-					}
+		try {
+			List<Identifier> ids = new ArrayList<>();
+			try (DirectoryStream<Path> namespaceStream = Files.newDirectoryStream(generatedPath, Files::isDirectory)) {
+				for (Path namespacePath : namespaceStream) {
+					String namespace = namespacePath.getFileName().toString();
+					Path structuresPath = namespacePath.resolve(STRUCTURES_DIRECTORY);
+					streamTemplates(structuresPath, namespace, NBT_EXTENSION, ids::add);
 				}
+			}
 
-				return list.stream();
-			}
-			catch (IOException var9) {
-				return Stream.empty();
-			}
+			return ids.stream();
+		} catch (IOException e) {
+			return Stream.empty();
 		}
 	}
 
+	/**
+	 * Рекурсивно обходит директорию и передаёт идентификаторы найденных шаблонов в {@code idConsumer}.
+	 *
+	 * @param directory корневая директория поиска
+	 * @param namespace пространство имён для формирования идентификаторов
+	 * @param fileExtension расширение файлов для фильтрации
+	 * @param idConsumer получатель найденных идентификаторов
+	 */
 	private void streamTemplates(
-			Path directory,
-			String namespace,
-			String fileExtension,
-			Consumer<Identifier> idConsumer
+		Path directory,
+		String namespace,
+		String fileExtension,
+		Consumer<Identifier> idConsumer
 	) {
-		int i = fileExtension.length();
-		Function<String, String> function = filename -> filename.substring(0, filename.length() - i);
+		int extensionLength = fileExtension.length();
+		Function<String, String> stripExtension = name -> name.substring(0, name.length() - extensionLength);
 
-		try (Stream<Path> stream = Files.find(
-				directory,
-				Integer.MAX_VALUE,
-				(path, attributes) -> attributes.isRegularFile() && path.toString().endsWith(fileExtension)
-		)
-		) {
-			stream.forEach(path -> {
+		try (Stream<Path> fileStream = Files.find(
+			directory,
+			Integer.MAX_VALUE,
+			(path, attrs) -> attrs.isRegularFile() && path.toString().endsWith(fileExtension)
+		)) {
+			fileStream.forEach(path -> {
 				try {
-					idConsumer.accept(Identifier.of(namespace, function.apply(this.toRelativePath(directory, path))));
-				}
-				catch (InvalidIdentifierException var7x) {
-					LOGGER.error("Invalid location while listing folder {} contents", directory, var7x);
+					idConsumer.accept(Identifier.of(namespace, stripExtension.apply(toRelativePath(directory, path))));
+				} catch (InvalidIdentifierException e) {
+					LOGGER.error("Invalid location while listing folder {} contents", directory, e);
 				}
 			});
-		}
-		catch (IOException var12) {
-			LOGGER.error("Failed to list folder {} contents", directory, var12);
+		} catch (IOException e) {
+			LOGGER.error("Failed to list folder {} contents", directory, e);
 		}
 	}
 
@@ -228,148 +241,146 @@ public class StructureTemplateManager {
 		return root.relativize(path).toString().replace(File.separator, "/");
 	}
 
-	private Optional<StructureTemplate> loadTemplateFromSnbt(Identifier id, Path path) {
-		if (!Files.isDirectory(path)) {
+	private Optional<StructureTemplate> loadTemplateFromSnbt(Identifier id, Path directory) {
+		if (!Files.isDirectory(directory)) {
 			return Optional.empty();
 		}
-		else {
-			Path path2 = PathUtil.getResourcePath(path, id.getPath(), ".snbt");
 
-			try {
-				Optional var6;
-				try (BufferedReader bufferedReader = Files.newBufferedReader(path2)) {
-					String string = IOUtils.toString(bufferedReader);
-					var6 = Optional.of(this.createTemplate(NbtHelper.fromNbtProviderString(string)));
-				}
+		Path snbtPath = PathUtil.getResourcePath(directory, id.getPath(), SNBT_EXTENSION);
 
-				return var6;
-			}
-			catch (NoSuchFileException var9) {
-				return Optional.empty();
-			}
-			catch (CommandSyntaxException | IOException var10) {
-				LOGGER.error("Couldn't load structure from {}", path2, var10);
-				return Optional.empty();
-			}
-		}
-	}
-
-	private Optional<StructureTemplate> loadTemplate(
-			StructureTemplateManager.TemplateFileOpener opener,
-			Consumer<Throwable> exceptionConsumer
-	) {
-		try {
-			Optional var5;
-			try (
-					InputStream inputStream = opener.open();
-					InputStream inputStream2 = new FixedBufferInputStream(inputStream);
-			) {
-				var5 = Optional.of(this.readTemplate(inputStream2));
-			}
-
-			return var5;
-		}
-		catch (FileNotFoundException var11) {
+		try (BufferedReader reader = Files.newBufferedReader(snbtPath)) {
+			String content = IOUtils.toString(reader);
+			return Optional.of(createTemplate(NbtHelper.fromNbtProviderString(content)));
+		} catch (NoSuchFileException e) {
 			return Optional.empty();
-		}
-		catch (Throwable var12) {
-			exceptionConsumer.accept(var12);
+		} catch (CommandSyntaxException | IOException e) {
+			LOGGER.error("Couldn't load structure from {}", snbtPath, e);
 			return Optional.empty();
 		}
 	}
 
-	private StructureTemplate readTemplate(InputStream templateIInputStream) throws IOException {
-		NbtCompound nbtCompound = NbtIo.readCompressed(templateIInputStream, NbtSizeTracker.ofUnlimitedBytes());
-		return this.createTemplate(nbtCompound);
+	/**
+	 * Загружает шаблон из потока, открытого через {@code opener}.
+	 * При {@link FileNotFoundException} возвращает пустой Optional без логирования —
+	 * отсутствие файла является штатной ситуацией при переборе провайдеров.
+	 */
+	private Optional<StructureTemplate> loadTemplate(TemplateFileOpener opener, Consumer<Throwable> errorHandler) {
+		try (
+			InputStream raw = opener.open();
+			InputStream buffered = new FixedBufferInputStream(raw)
+		) {
+			return Optional.of(readTemplate(buffered));
+		} catch (FileNotFoundException e) {
+			return Optional.empty();
+		} catch (Throwable e) {
+			errorHandler.accept(e);
+			return Optional.empty();
+		}
+	}
+
+	private StructureTemplate readTemplate(InputStream stream) throws IOException {
+		NbtCompound nbt = NbtIo.readCompressed(stream, NbtSizeTracker.ofUnlimitedBytes());
+		return createTemplate(nbt);
 	}
 
 	public StructureTemplate createTemplate(NbtCompound nbt) {
-		StructureTemplate structureTemplate = new StructureTemplate();
-		int i = NbtHelper.getDataVersion(nbt, 500);
-		structureTemplate.readNbt(this.blockLookup, DataFixTypes.STRUCTURE.update(this.dataFixer, nbt, i));
-		return structureTemplate;
+		StructureTemplate template = new StructureTemplate();
+		int dataVersion = NbtHelper.getDataVersion(nbt, 500);
+		template.readNbt(blockLookup, DataFixTypes.STRUCTURE.update(dataFixer, nbt, dataVersion));
+		return template;
 	}
 
+	/**
+	 * Сохраняет шаблон на диск в формате .nbt или .snbt в зависимости от флага
+	 * {@link SharedConstants#SAVE_STRUCTURES_AS_SNBT}.
+	 *
+	 * @param id идентификатор шаблона
+	 * @return {@code true}, если сохранение прошло успешно
+	 */
 	public boolean saveTemplate(Identifier id) {
-		Optional<StructureTemplate> optional = this.templates.get(id);
-		if (optional.isEmpty()) {
+		Optional<StructureTemplate> cached = templates.get(id);
+		if (cached == null || cached.isEmpty()) {
 			return false;
 		}
-		else {
-			StructureTemplate structureTemplate = optional.get();
-			Path path = this.getTemplatePath(id, SharedConstants.SAVE_STRUCTURES_AS_SNBT ? ".snbt" : ".nbt");
-			Path path2 = path.getParent();
-			if (path2 == null) {
+
+		StructureTemplate template = cached.get();
+		String extension = SharedConstants.SAVE_STRUCTURES_AS_SNBT ? SNBT_EXTENSION : NBT_EXTENSION;
+		Path savePath = getTemplatePath(id, extension);
+		Path parentDir = savePath.getParent();
+
+		if (parentDir == null) {
+			return false;
+		}
+
+		try {
+			Files.createDirectories(Files.exists(parentDir) ? parentDir.toRealPath() : parentDir);
+		} catch (IOException e) {
+			LOGGER.error("Failed to create parent directory: {}", parentDir);
+			return false;
+		}
+
+		NbtCompound nbt = template.writeNbt(new NbtCompound());
+
+		if (SharedConstants.SAVE_STRUCTURES_AS_SNBT) {
+			try {
+				NbtProvider.writeTo(DataWriter.UNCACHED, savePath, NbtHelper.toNbtProviderString(nbt));
+			} catch (Throwable e) {
 				return false;
 			}
-			else {
-				try {
-					Files.createDirectories(Files.exists(path2) ? path2.toRealPath() : path2);
-				}
-				catch (IOException var14) {
-					LOGGER.error("Failed to create parent directory: {}", path2);
-					return false;
-				}
-
-				NbtCompound nbtCompound = structureTemplate.writeNbt(new NbtCompound());
-				if (SharedConstants.SAVE_STRUCTURES_AS_SNBT) {
-					try {
-						NbtProvider.writeTo(DataWriter.UNCACHED, path, NbtHelper.toNbtProviderString(nbtCompound));
-					}
-					catch (Throwable var13) {
-						return false;
-					}
-				}
-				else {
-					try (OutputStream outputStream = new FileOutputStream(path.toFile())) {
-						NbtIo.writeCompressed(nbtCompound, outputStream);
-					}
-					catch (Throwable var12) {
-						return false;
-					}
-				}
-
-				return true;
+		} else {
+			try (OutputStream output = new FileOutputStream(savePath.toFile())) {
+				NbtIo.writeCompressed(nbt, output);
+			} catch (Throwable e) {
+				return false;
 			}
 		}
+
+		return true;
 	}
 
+	/**
+	 * Вычисляет путь к файлу шаблона в директории {@code generated/}.
+	 * Проверяет, что путь не выходит за пределы {@code generatedPath} (path traversal protection).
+	 *
+	 * @param id идентификатор шаблона
+	 * @param extension расширение файла (например, {@code ".nbt"})
+	 * @return абсолютный путь к файлу шаблона
+	 * @throws InvalidIdentifierException если путь содержит недопустимые символы или выходит за пределы директории
+	 */
 	public Path getTemplatePath(Identifier id, String extension) {
 		if (id.getPath().contains("//")) {
 			throw new InvalidIdentifierException("Invalid resource path: " + id);
 		}
-		else {
-			try {
-				Path path = this.generatedPath.resolve(id.getNamespace());
-				Path path2 = path.resolve("structures");
-				Path path3 = PathUtil.getResourcePath(path2, id.getPath(), extension);
-				if (path3.startsWith(this.generatedPath) && PathUtil.isNormal(path3) && PathUtil.isAllowedName(path3)) {
-					return path3;
-				}
-				else {
-					throw new InvalidIdentifierException("Invalid resource path: " + path3);
-				}
+
+		try {
+			Path namespacePath = generatedPath.resolve(id.getNamespace());
+			Path structuresPath = namespacePath.resolve(STRUCTURES_DIRECTORY);
+			Path templatePath = PathUtil.getResourcePath(structuresPath, id.getPath(), extension);
+
+			if (templatePath.startsWith(generatedPath)
+				&& PathUtil.isNormal(templatePath)
+				&& PathUtil.isAllowedName(templatePath)
+			) {
+				return templatePath;
 			}
-			catch (InvalidPathException var6) {
-				throw new InvalidIdentifierException("Invalid resource path: " + id, var6);
-			}
+
+			throw new InvalidIdentifierException("Invalid resource path: " + templatePath);
+		} catch (InvalidPathException e) {
+			throw new InvalidIdentifierException("Invalid resource path: " + id, e);
 		}
 	}
 
 	public void unloadTemplate(Identifier id) {
-		this.templates.remove(id);
+		templates.remove(id);
 	}
 
 	/**
-	 * {@code Provider}.
+	 * Провайдер шаблонов: пара из загрузчика по идентификатору и перечислителя доступных идентификаторов.
 	 */
 	record Provider(Function<Identifier, Optional<StructureTemplate>> loader, Supplier<Stream<Identifier>> lister) {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code TemplateFileOpener}.
-	 */
 	interface TemplateFileOpener {
 
 		InputStream open() throws IOException;

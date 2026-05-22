@@ -5,7 +5,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code StructureKeys}.
+ * Реестр ключей всех именованных структур мира. Каждый ключ однозначно идентифицирует
+ * конкретную структуру в реестре {@link net.minecraft.registry.RegistryKeys#STRUCTURE}.
  */
 public interface StructureKeys {
 

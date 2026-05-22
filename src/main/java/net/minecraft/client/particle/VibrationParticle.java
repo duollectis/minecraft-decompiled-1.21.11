@@ -14,11 +14,19 @@ import org.joml.Quaternionf;
 
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VibrationParticle}.
+ * Частица вибрации (Vibration), летящая к источнику сигнала Sculk Sensor.
+ * Рендерится дважды с зеркальными кватернионами, создавая двустороннюю «крылатую» форму.
+ * Ориентация в пространстве обновляется каждый тик по направлению к целевой точке.
  */
+@Environment(EnvType.CLIENT)
 public class VibrationParticle extends BillboardParticle {
+
+	private static final float PARTICLE_SCALE = 0.3F;
+	private static final int FULL_BRIGHTNESS = 240;
+	// Угловая скорость колебания крыльев: 2π * 0.05 рад/тик
+	private static final float WING_OSCILLATION_SPEED = 0.05F;
+	private static final float PITCH_OFFSET = (float) (Math.PI / 2);
 
 	private final PositionSource vibration;
 	private float targetYaw;
@@ -36,35 +44,42 @@ public class VibrationParticle extends BillboardParticle {
 			Sprite sprite
 	) {
 		super(world, x, y, z, 0.0, 0.0, 0.0, sprite);
-		this.scale = 0.3F;
+		this.scale = PARTICLE_SCALE;
 		this.vibration = vibration;
 		this.maxAge = maxAge;
-		Optional<Vec3d> optional = vibration.getPos(world);
-		if (optional.isPresent()) {
-			Vec3d vec3d = optional.get();
-			double d = x - vec3d.getX();
-			double e = y - vec3d.getY();
-			double f = z - vec3d.getZ();
-			this.prevYaw = this.targetYaw = (float) MathHelper.atan2(d, f);
-			this.prevPitch = this.targetPitch = (float) MathHelper.atan2(e, Math.sqrt(d * d + f * f));
+
+		Optional<Vec3d> targetPos = vibration.getPos(world);
+		if (targetPos.isPresent()) {
+			Vec3d pos = targetPos.get();
+			double dx = x - pos.getX();
+			double dy = y - pos.getY();
+			double dz = z - pos.getZ();
+			this.prevYaw = this.targetYaw = (float) MathHelper.atan2(dx, dz);
+			this.prevPitch = this.targetPitch = (float) MathHelper.atan2(dy, Math.sqrt(dx * dx + dz * dz));
 		}
 	}
 
+	/**
+	 * Рендерит частицу дважды с зеркальными кватернионами для создания двустороннего эффекта.
+	 * Угол колебания крыльев вычисляется через синус от текущего возраста.
+	 */
 	@Override
 	public void render(BillboardParticleSubmittable submittable, Camera camera, float tickProgress) {
-		float f = MathHelper.sin((this.age + tickProgress - (float) (Math.PI * 2)) * 0.05F) * 2.0F;
-		float g = MathHelper.lerp(tickProgress, this.prevYaw, this.targetYaw);
-		float h = MathHelper.lerp(tickProgress, this.prevPitch, this.targetPitch) + (float) (Math.PI / 2);
-		Quaternionf quaternionf = new Quaternionf();
-		quaternionf.rotationY(g).rotateX(-h).rotateY(f);
-		this.render(submittable, camera, quaternionf, tickProgress);
-		quaternionf.rotationY((float) -Math.PI + g).rotateX(h).rotateY(f);
-		this.render(submittable, camera, quaternionf, tickProgress);
+		float wingAngle = MathHelper.sin((age + tickProgress - (float) (Math.PI * 2)) * WING_OSCILLATION_SPEED) * 2.0F;
+		float yaw = MathHelper.lerp(tickProgress, prevYaw, targetYaw);
+		float pitch = MathHelper.lerp(tickProgress, prevPitch, targetPitch) + PITCH_OFFSET;
+
+		Quaternionf rotation = new Quaternionf();
+		rotation.rotationY(yaw).rotateX(-pitch).rotateY(wingAngle);
+		this.render(submittable, camera, rotation, tickProgress);
+
+		rotation.rotationY((float) -Math.PI + yaw).rotateX(pitch).rotateY(wingAngle);
+		this.render(submittable, camera, rotation, tickProgress);
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -77,36 +92,35 @@ public class VibrationParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
-		if (this.age++ >= this.maxAge) {
+
+		if (age++ >= maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			Optional<Vec3d> optional = this.vibration.getPos(this.world);
-			if (optional.isEmpty()) {
-				this.markDead();
-			}
-			else {
-				int i = this.maxAge - this.age;
-				double d = 1.0 / i;
-				Vec3d vec3d = optional.get();
-				this.x = MathHelper.lerp(d, this.x, vec3d.getX());
-				this.y = MathHelper.lerp(d, this.y, vec3d.getY());
-				this.z = MathHelper.lerp(d, this.z, vec3d.getZ());
-				double e = this.x - vec3d.getX();
-				double f = this.y - vec3d.getY();
-				double g = this.z - vec3d.getZ();
-				this.prevYaw = this.targetYaw;
-				this.targetYaw = (float) MathHelper.atan2(e, g);
-				this.prevPitch = this.targetPitch;
-				this.targetPitch = (float) MathHelper.atan2(f, Math.sqrt(e * e + g * g));
-			}
+
+		Optional<Vec3d> targetPos = vibration.getPos(world);
+		if (targetPos.isEmpty()) {
+			this.markDead();
+			return;
 		}
+
+		Vec3d pos = targetPos.get();
+		int remaining = maxAge - age;
+		double lerpFactor = 1.0 / remaining;
+		this.x = MathHelper.lerp(lerpFactor, this.x, pos.getX());
+		this.y = MathHelper.lerp(lerpFactor, this.y, pos.getY());
+		this.z = MathHelper.lerp(lerpFactor, this.z, pos.getZ());
+
+		double dx = this.x - pos.getX();
+		double dy = this.y - pos.getY();
+		double dz = this.z - pos.getZ();
+		this.prevYaw = targetYaw;
+		this.targetYaw = (float) MathHelper.atan2(dx, dz);
+		this.prevPitch = targetPitch;
+		this.targetPitch = (float) MathHelper.atan2(dy, Math.sqrt(dx * dx + dz * dz));
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<VibrationParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -115,28 +129,29 @@ public class VibrationParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				VibrationParticleEffect vibrationParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				VibrationParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			VibrationParticle vibrationParticle = new VibrationParticle(
-					clientWorld,
-					d,
-					e,
-					f,
-					vibrationParticleEffect.getVibration(),
-					vibrationParticleEffect.getArrivalInTicks(),
-					this.spriteProvider.getSprite(random)
+			VibrationParticle particle = new VibrationParticle(
+					world,
+					x,
+					y,
+					z,
+					effect.getVibration(),
+					effect.getArrivalInTicks(),
+					spriteProvider.getSprite(random)
 			);
-			vibrationParticle.setAlpha(1.0F);
-			return vibrationParticle;
+			particle.setAlpha(1.0F);
+			return particle;
 		}
 	}
 }

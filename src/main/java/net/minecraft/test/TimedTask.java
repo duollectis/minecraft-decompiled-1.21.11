@@ -3,7 +3,9 @@ package net.minecraft.test;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TimedTask}.
+ * Задача с опциональной длительностью для использования в {@link TimedTaskRunner}.
+ * Если {@code duration} задана — после выполнения задачи проверяется,
+ * что прошло ровно столько тиков, сколько указано.
  */
 class TimedTask {
 

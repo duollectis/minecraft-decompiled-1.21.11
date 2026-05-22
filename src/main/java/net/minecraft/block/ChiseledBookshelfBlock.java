@@ -29,7 +29,11 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * {@code ChiseledBookshelfBlock}.
+ * Блок резного книжного шкафа — хранит до 6 книг в отдельных слотах.
+ * <p>
+ * Каждый слот отображается отдельным булевым свойством состояния блока.
+ * Поддерживает компараторный выход: сигнал равен номеру последнего
+ * взаимодействовавшего слота + 1 (от 1 до 6).
  */
 public class ChiseledBookshelfBlock extends BlockWithEntity implements InteractibleSlotContainer {
 
@@ -64,13 +68,13 @@ public class ChiseledBookshelfBlock extends BlockWithEntity implements Interacti
 
 	public ChiseledBookshelfBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		BlockState blockState = this.stateManager.getDefaultState().with(FACING, Direction.NORTH);
+		BlockState defaultState = stateManager.getDefaultState().with(FACING, Direction.NORTH);
 
-		for (BooleanProperty booleanProperty : SLOT_OCCUPIED_PROPERTIES) {
-			blockState = blockState.with(booleanProperty, false);
+		for (BooleanProperty slotProperty : SLOT_OCCUPIED_PROPERTIES) {
+			defaultState = defaultState.with(slotProperty, false);
 		}
 
-		this.setDefaultState(blockState);
+		setDefaultState(defaultState);
 	}
 
 	@Override
@@ -83,47 +87,44 @@ public class ChiseledBookshelfBlock extends BlockWithEntity implements Interacti
 			Hand hand,
 			BlockHitResult hit
 	) {
-		if (world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity chiseledBookshelfBlockEntity) {
-			if (!stack.isIn(ItemTags.BOOKSHELF_BOOKS)) {
-				return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-			}
-			else {
-				OptionalInt optionalInt = this.getHitSlot(hit, state.get(FACING));
-				if (optionalInt.isEmpty()) {
-					return ActionResult.PASS;
-				}
-				else if (state.get(SLOT_OCCUPIED_PROPERTIES.get(optionalInt.getAsInt()))) {
-					return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-				}
-				else {
-					tryAddBook(world, pos, player, chiseledBookshelfBlockEntity, stack, optionalInt.getAsInt());
-					return ActionResult.SUCCESS;
-				}
-			}
-		}
-		else {
+		if (!(world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity bookshelf)) {
 			return ActionResult.PASS;
 		}
+
+		if (!stack.isIn(ItemTags.BOOKSHELF_BOOKS)) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+
+		OptionalInt hitSlot = getHitSlot(hit, state.get(FACING));
+		if (hitSlot.isEmpty()) {
+			return ActionResult.PASS;
+		}
+
+		if (state.get(SLOT_OCCUPIED_PROPERTIES.get(hitSlot.getAsInt()))) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+
+		tryAddBook(world, pos, player, bookshelf, stack, hitSlot.getAsInt());
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity chiseledBookshelfBlockEntity) {
-			OptionalInt optionalInt = this.getHitSlot(hit, state.get(FACING));
-			if (optionalInt.isEmpty()) {
-				return ActionResult.PASS;
-			}
-			else if (!state.get(SLOT_OCCUPIED_PROPERTIES.get(optionalInt.getAsInt()))) {
-				return ActionResult.CONSUME;
-			}
-			else {
-				tryRemoveBook(world, pos, player, chiseledBookshelfBlockEntity, optionalInt.getAsInt());
-				return ActionResult.SUCCESS;
-			}
-		}
-		else {
+		if (!(world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity bookshelf)) {
 			return ActionResult.PASS;
 		}
+
+		OptionalInt hitSlot = getHitSlot(hit, state.get(FACING));
+		if (hitSlot.isEmpty()) {
+			return ActionResult.PASS;
+		}
+
+		if (!state.get(SLOT_OCCUPIED_PROPERTIES.get(hitSlot.getAsInt()))) {
+			return ActionResult.CONSUME;
+		}
+
+		tryRemoveBook(world, pos, player, bookshelf, hitSlot.getAsInt());
+		return ActionResult.SUCCESS;
 	}
 
 	private static void tryAddBook(
@@ -206,10 +207,9 @@ public class ChiseledBookshelfBlock extends BlockWithEntity implements Interacti
 		if (world.isClient()) {
 			return 0;
 		}
-		else {
-			return world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity chiseledBookshelfBlockEntity
-			       ? chiseledBookshelfBlockEntity.getLastInteractedSlot() + 1
-			       : 0;
-		}
+
+		return world.getBlockEntity(pos) instanceof ChiseledBookshelfBlockEntity bookshelf
+				? bookshelf.getLastInteractedSlot() + 1
+				: 0;
 	}
 }

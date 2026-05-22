@@ -11,7 +11,9 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 
 /**
- * {@code DropChancesFormatFix}.
+ * Мигрирует шансы выпадения снаряжения из отдельных полей {@code ArmorDropChances},
+ * {@code HandDropChances} и {@code body_armor_drop_chance} в единый объект {@code drop_chances}.
+ * Слоты со значением по умолчанию ({@link #DEFAULT_DROP_CHANCE}) не записываются.
  */
 public class DropChancesFormatFix extends DataFix {
 
@@ -24,51 +26,54 @@ public class DropChancesFormatFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				"DropChancesFormatFix", this.getInputSchema().getType(TypeReferences.ENTITY), typed -> typed.update(
-						DSL.remainderFinder(), dynamic -> {
-							List<Float> list = readDropChanceList(dynamic.get("ArmorDropChances"));
-							List<Float> list2 = readDropChanceList(dynamic.get("HandDropChances"));
-							float
-									f =
-									dynamic
-											.get("body_armor_drop_chance")
-											.asNumber()
-											.result()
-											.map(Number::floatValue)
-											.orElse(0.085F);
-							dynamic =
-									dynamic
-											.remove("ArmorDropChances")
-											.remove("HandDropChances")
-											.remove("body_armor_drop_chance");
-							Dynamic<?> dynamic2 = dynamic.emptyMap();
-							dynamic2 = applyDropChances(dynamic2, list, ARMOR_SLOT_NAMES);
-							dynamic2 = applyDropChances(dynamic2, list2, HAND_SLOT_NAMES);
-							if (f != 0.085F) {
-								dynamic2 = dynamic2.set("body", dynamic.createFloat(f));
+		return fixTypeEverywhereTyped(
+				"DropChancesFormatFix",
+				getInputSchema().getType(TypeReferences.ENTITY),
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						dynamic -> {
+							List<Float> armorChances = readDropChanceList(dynamic.get("ArmorDropChances"));
+							List<Float> handChances = readDropChanceList(dynamic.get("HandDropChances"));
+							float bodyChance = dynamic.get("body_armor_drop_chance")
+									.asNumber()
+									.result()
+									.map(Number::floatValue)
+									.orElse(DEFAULT_DROP_CHANCE);
+
+							dynamic = dynamic
+									.remove("ArmorDropChances")
+									.remove("HandDropChances")
+									.remove("body_armor_drop_chance");
+
+							Dynamic<?> dropChances = dynamic.emptyMap();
+							dropChances = applyDropChances(dropChances, armorChances, ARMOR_SLOT_NAMES);
+							dropChances = applyDropChances(dropChances, handChances, HAND_SLOT_NAMES);
+
+							if (bodyChance != DEFAULT_DROP_CHANCE) {
+								dropChances = dropChances.set("body", dynamic.createFloat(bodyChance));
 							}
 
-							return !dynamic2.equals(dynamic.emptyMap()) ? dynamic.set("drop_chances", dynamic2)
-							                                            : dynamic;
+							return dropChances.equals(dynamic.emptyMap())
+									? dynamic
+									: dynamic.set("drop_chances", dropChances);
 						}
 				)
 		);
 	}
 
-	private static Dynamic<?> applyDropChances(Dynamic<?> dynamic, List<Float> list, List<String> list2) {
-		for (int i = 0; i < list2.size() && i < list.size(); i++) {
-			String string = list2.get(i);
-			float f = list.get(i);
-			if (f != 0.085F) {
-				dynamic = dynamic.set(string, dynamic.createFloat(f));
+	private static Dynamic<?> applyDropChances(Dynamic<?> target, List<Float> chances, List<String> slotNames) {
+		for (int i = 0; i < slotNames.size() && i < chances.size(); i++) {
+			float chance = chances.get(i);
+
+			if (chance != DEFAULT_DROP_CHANCE) {
+				target = target.set(slotNames.get(i), target.createFloat(chance));
 			}
 		}
 
-		return dynamic;
+		return target;
 	}
 
 	private static List<Float> readDropChanceList(OptionalDynamic<?> optionalDynamic) {
-		return optionalDynamic.asStream().map(dynamic -> dynamic.asFloat(0.085F)).toList();
+		return optionalDynamic.asStream().map(entry -> entry.asFloat(DEFAULT_DROP_CHANCE)).toList();
 	}
 }

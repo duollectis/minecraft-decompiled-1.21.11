@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code SheepPredicate}.
+ * Предикат для проверки состояния овцы: острижена или нет.
  */
 public record SheepPredicate(Optional<Boolean> sheared) implements EntitySubPredicate {
 
@@ -22,6 +22,10 @@ public record SheepPredicate(Optional<Boolean> sheared) implements EntitySubPred
 					.apply(instance, SheepPredicate::new)
 	);
 
+	public static SheepPredicate unsheared() {
+		return new SheepPredicate(Optional.of(false));
+	}
+
 	@Override
 	public MapCodec<SheepPredicate> getCodec() {
 		return EntitySubPredicateTypes.SHEEP;
@@ -29,11 +33,10 @@ public record SheepPredicate(Optional<Boolean> sheared) implements EntitySubPred
 
 	@Override
 	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-		return entity instanceof SheepEntity sheepEntity ? !this.sheared.isPresent()
-		                                                   || sheepEntity.isSheared() == this.sheared.get() : false;
-	}
+		if (!(entity instanceof SheepEntity sheep)) {
+			return false;
+		}
 
-	public static SheepPredicate unsheared() {
-		return new SheepPredicate(Optional.of(false));
+		return sheared.isEmpty() || sheep.isSheared() == sheared.get();
 	}
 }

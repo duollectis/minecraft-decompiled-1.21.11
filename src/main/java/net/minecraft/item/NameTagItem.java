@@ -9,7 +9,9 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 
 /**
- * {@code NameTagItem}.
+ * Предмет «Бирка». При использовании на существе присваивает ему пользовательское
+ * имя из компонента {@link DataComponentTypes#CUSTOM_NAME}. Если существо является
+ * {@link MobEntity}, дополнительно делает его постоянным (не деспавнится).
  */
 public class NameTagItem extends Item {
 
@@ -19,21 +21,22 @@ public class NameTagItem extends Item {
 
 	@Override
 	public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
-		Text text = stack.get(DataComponentTypes.CUSTOM_NAME);
-		if (text != null && entity.getType().isSaveable()) {
-			if (!user.getEntityWorld().isClient() && entity.isAlive()) {
-				entity.setCustomName(text);
-				if (entity instanceof MobEntity mobEntity) {
-					mobEntity.setPersistent();
-				}
+		Text customName = stack.get(DataComponentTypes.CUSTOM_NAME);
 
-				stack.decrement(1);
-			}
-
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (customName == null || !entity.getType().isSaveable()) {
 			return ActionResult.PASS;
 		}
+
+		if (!user.getEntityWorld().isClient() && entity.isAlive()) {
+			entity.setCustomName(customName);
+
+			if (entity instanceof MobEntity mob) {
+				mob.setPersistent();
+			}
+
+			stack.decrement(1);
+		}
+
+		return ActionResult.SUCCESS;
 	}
 }

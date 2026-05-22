@@ -15,199 +15,213 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code EnvironmentAttributeMap}.
+ * Иммутабельная карта атрибутов окружения: хранит пары «атрибут → запись модификатора».
+ * Используется в биомах и измерениях для задания значений атрибутов.
+ * <p>
+ * Поддерживает три codec-а: полный, сетевой (только синхронизируемые атрибуты)
+ * и позиционный (только позиционные атрибуты).
  */
 public final class EnvironmentAttributeMap {
 
 	public static final EnvironmentAttributeMap EMPTY = new EnvironmentAttributeMap(Map.of());
+
 	@SuppressWarnings("unchecked")
 	public static final Codec<EnvironmentAttributeMap> CODEC = Codec.lazyInitialized(
-			() -> Codec
-					.dispatchedMap(
-							EnvironmentAttributes.CODEC,
-							Util.memoize(EnvironmentAttributeMap.Entry::createCodec)
-					)
-					.xmap(
-							EnvironmentAttributeMap::fromRawMap,
-							map -> (Map) map.entries
-					)
+		() -> Codec.dispatchedMap(
+			EnvironmentAttributes.CODEC,
+			Util.memoize(Entry::createCodec)
+		).<EnvironmentAttributeMap>xmap(
+			EnvironmentAttributeMap::fromRawMap,
+			map -> (Map) map.entries
+		)
 	);
+
+	public static final Codec<EnvironmentAttributeMap> NETWORK_CODEC = CODEC.xmap(
+		EnvironmentAttributeMap::retainSyncedAttributes,
+		EnvironmentAttributeMap::retainSyncedAttributes
+	);
+
+	public static final Codec<EnvironmentAttributeMap> POSITIONAL_CODEC = CODEC.validate(map -> {
+		List<EnvironmentAttribute<?>> nonPositional = map.keySet()
+			.stream()
+			.filter(attribute -> !attribute.isPositional())
+			.toList();
+
+		return nonPositional.isEmpty()
+			? DataResult.success(map)
+			: DataResult.error(() -> "The following attributes cannot be positional: " + nonPositional);
+	});
+
+	final Map<EnvironmentAttribute<?>, Entry<?, ?>> entries;
 
 	@SuppressWarnings("unchecked")
 	private static EnvironmentAttributeMap fromRawMap(Map<?, ?> raw) {
-		return new EnvironmentAttributeMap((Map<EnvironmentAttribute<?>, EnvironmentAttributeMap.Entry<?, ?>>) raw);
+		return new EnvironmentAttributeMap((Map<EnvironmentAttribute<?>, Entry<?, ?>>) raw);
 	}
-
-	public static final Codec<EnvironmentAttributeMap> NETWORK_CODEC = CODEC.xmap(
-			EnvironmentAttributeMap::retainSyncedAttributes, EnvironmentAttributeMap::retainSyncedAttributes
-	);
-	public static final Codec<EnvironmentAttributeMap> POSITIONAL_CODEC = CODEC.validate(map -> {
-		List<EnvironmentAttribute<?>>
-				list =
-				map.keySet().stream().filter(attribute -> !attribute.isPositional()).toList();
-		return !list.isEmpty() ? DataResult.error(() -> "The following attributes cannot be positional: " + list)
-		                       : DataResult.success(map);
-	});
-	final Map<EnvironmentAttribute<?>, EnvironmentAttributeMap.Entry<?, ?>> entries;
 
 	private static EnvironmentAttributeMap retainSyncedAttributes(EnvironmentAttributeMap map) {
 		return new EnvironmentAttributeMap(Map.copyOf(Maps.filterKeys(map.entries, EnvironmentAttribute::isSynced)));
 	}
 
-	EnvironmentAttributeMap(Map<EnvironmentAttribute<?>, EnvironmentAttributeMap.Entry<?, ?>> entries) {
+	EnvironmentAttributeMap(Map<EnvironmentAttribute<?>, Entry<?, ?>> entries) {
 		this.entries = entries;
 	}
 
-	public static EnvironmentAttributeMap.Builder builder() {
-		return new EnvironmentAttributeMap.Builder();
-	}
-
-	public <Value> EnvironmentAttributeMap.@Nullable Entry<Value, ?> getEntry(EnvironmentAttribute<Value> key) {
-		return (EnvironmentAttributeMap.Entry<Value, ?>) this.entries.get(key);
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	/**
-	 * Apply.
+	 * Возвращает запись модификатора для заданного атрибута, или {@code null} если не задана.
 	 *
-	 * @param key key
-	 * @param value value
+	 * @param key атрибут
+	 * @return запись или {@code null}
+	 */
+	@SuppressWarnings("unchecked")
+	public <Value> @Nullable Entry<Value, ?> getEntry(EnvironmentAttribute<Value> key) {
+		return (Entry<Value, ?>) entries.get(key);
+	}
+
+	/**
+	 * Применяет модификатор атрибута к переданному значению.
+	 * Если атрибут не задан в карте — возвращает значение без изменений.
 	 *
-	 * @return Value — результат операции
+	 * @param key атрибут
+	 * @param value исходное значение
+	 * @return модифицированное значение
 	 */
 	public <Value> Value apply(EnvironmentAttribute<Value> key, Value value) {
-		EnvironmentAttributeMap.Entry<Value, ?> entry = this.getEntry(key);
+		Entry<Value, ?> entry = getEntry(key);
 		return entry != null ? entry.apply(value) : value;
 	}
 
-	/**
-	 * Contains key.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Проверяет, задан ли атрибут в данной карте. */
 	public boolean containsKey(EnvironmentAttribute<?> key) {
-		return this.entries.containsKey(key);
+		return entries.containsKey(key);
 	}
 
-	/**
-	 * Key set.
-	 *
-	 * @return Set> — результат операции
-	 */
+	/** Возвращает множество всех атрибутов, заданных в данной карте. */
 	public Set<EnvironmentAttribute<?>> keySet() {
-		return this.entries.keySet();
+		return entries.keySet();
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return o == this ? true : o instanceof EnvironmentAttributeMap environmentAttributeMap && this.entries.equals(
-				environmentAttributeMap.entries);
+	public boolean equals(Object other) {
+		return other instanceof EnvironmentAttributeMap map && entries.equals(map.entries);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.entries.hashCode();
+		return entries.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.entries.toString();
+		return entries.toString();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Билдер для создания {@link EnvironmentAttributeMap}.
 	 */
 	public static class Builder {
 
-		private final Map<EnvironmentAttribute<?>, EnvironmentAttributeMap.Entry<?, ?>> entries = new HashMap<>();
+		private final Map<EnvironmentAttribute<?>, Entry<?, ?>> entries = new HashMap<>();
 
 		Builder() {
 		}
 
-		public EnvironmentAttributeMap.Builder addAll(EnvironmentAttributeMap map) {
-			this.entries.putAll(map.entries);
+		/** Добавляет все записи из другой карты атрибутов. */
+		public Builder addAll(EnvironmentAttributeMap map) {
+			entries.putAll(map.entries);
 			return this;
-		}
-
-		public <Value, Parameter> EnvironmentAttributeMap.Builder with(
-				EnvironmentAttribute<Value> key,
-				EnvironmentAttributeModifier<Value, Parameter> modifier,
-				Parameter param
-		) {
-			key.getType().validate(modifier);
-			this.entries.put(key, new EnvironmentAttributeMap.Entry<>(param, modifier));
-			return this;
-		}
-
-		public <Value> EnvironmentAttributeMap.Builder with(EnvironmentAttribute<Value> key, Value value) {
-			return this.with(key, EnvironmentAttributeModifier.override(), value);
 		}
 
 		/**
-		 * Build.
+		 * Добавляет запись с явным модификатором и аргументом.
 		 *
-		 * @return EnvironmentAttributeMap — результат операции
+		 * @param key атрибут
+		 * @param modifier модификатор
+		 * @param param аргумент модификатора
 		 */
+		public <Value, Parameter> Builder with(
+			EnvironmentAttribute<Value> key,
+			EnvironmentAttributeModifier<Value, Parameter> modifier,
+			Parameter param
+		) {
+			key.getType().validate(modifier);
+			entries.put(key, new Entry<>(param, modifier));
+			return this;
+		}
+
+		/**
+		 * Добавляет запись с модификатором-перезаписью (override).
+		 *
+		 * @param key атрибут
+		 * @param value новое значение
+		 */
+		public <Value> Builder with(EnvironmentAttribute<Value> key, Value value) {
+			return with(key, EnvironmentAttributeModifier.override(), value);
+		}
+
+		/** Собирает иммутабельную карту атрибутов. */
 		public EnvironmentAttributeMap build() {
-			return this.entries.isEmpty() ? EnvironmentAttributeMap.EMPTY
-			                              : new EnvironmentAttributeMap(Map.copyOf(this.entries));
+			return entries.isEmpty() ? EMPTY : new EnvironmentAttributeMap(Map.copyOf(entries));
 		}
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Запись карты атрибутов: хранит аргумент и модификатор для одного атрибута.
+	 *
+	 * @param <Value> тип значения атрибута
+	 * @param <Argument> тип аргумента модификатора
 	 */
 	public record Entry<Value, Argument>(Argument argument, EnvironmentAttributeModifier<Value, Argument> modifier) {
 
-		private static <Value> Codec<EnvironmentAttributeMap.Entry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
-			Codec<EnvironmentAttributeMap.Entry<Value, ?>> codec = attribute.getType()
-			                                                                .modifierCodec()
-			                                                                .dispatch(
-					                                                                "modifier",
-					                                                                EnvironmentAttributeMap.Entry::modifier,
-					                                                                Util.memoize(modifier -> createModifierDependentCodec(
-							                                                                attribute,
-							                                                                modifier
-					                                                                ))
-			                                                                );
-			return Codec.either(attribute.getCodec(), codec)
-			            .xmap(
-					            either -> (EnvironmentAttributeMap.Entry<Value, ?>) either.map(
-							            value -> new EnvironmentAttributeMap.Entry<>(
-									            value,
-									            EnvironmentAttributeModifier.override()
-							            ),
-							            entry -> entry
-					            ),
-					            entry -> entry.modifier == EnvironmentAttributeModifier.override()
-					                     ? Either.<Value, EnvironmentAttributeMap.Entry<Value, ?>>left((Value) entry.argument())
-					                     : Either.right(entry)
-			            );
+		/**
+		 * Создаёт codec для записи конкретного атрибута.
+		 * Поддерживает компактную форму (просто значение) и полную форму (с модификатором).
+		 */
+		@SuppressWarnings("unchecked")
+		private static <Value> Codec<Entry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
+			Codec<Entry<Value, ?>> fullCodec = attribute.getType()
+				.modifierCodec()
+				.dispatch(
+					"modifier",
+					Entry::modifier,
+					Util.memoize(modifier -> createModifierDependentCodec(attribute, modifier))
+				);
+
+			return Codec.either(attribute.getCodec(), fullCodec)
+				.xmap(
+					either -> (Entry<Value, ?>) either.map(
+						value -> new Entry<>(value, EnvironmentAttributeModifier.override()),
+						entry -> entry
+					),
+					entry -> entry.modifier == EnvironmentAttributeModifier.override()
+						? Either.<Value, Entry<Value, ?>>left((Value) entry.argument())
+						: Either.right(entry)
+				);
 		}
 
-		private static <Value, Argument> MapCodec<EnvironmentAttributeMap.Entry<Value, Argument>> createModifierDependentCodec(
-				EnvironmentAttribute<Value> attribute, EnvironmentAttributeModifier<Value, Argument> modifier
+		private static <Value, Argument> MapCodec<Entry<Value, Argument>> createModifierDependentCodec(
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeModifier<Value, Argument> modifier
 		) {
 			return RecordCodecBuilder.mapCodec(
-					instance -> instance
-							.group(modifier
-									.argumentCodec(attribute)
-									.fieldOf("argument")
-									.forGetter(EnvironmentAttributeMap.Entry::argument))
-							.apply(instance, argument -> new EnvironmentAttributeMap.Entry<>(argument, modifier))
+				instance -> instance
+					.group(modifier.argumentCodec(attribute).fieldOf("argument").forGetter(Entry::argument))
+					.apply(instance, argument -> new Entry<>(argument, modifier))
 			);
 		}
 
 		/**
-		 * Apply.
+		 * Применяет модификатор к переданному значению атрибута.
 		 *
-		 * @param value value
-		 *
-		 * @return Value — результат операции
+		 * @param value исходное значение
+		 * @return модифицированное значение
 		 */
 		public Value apply(Value value) {
-			return this.modifier.apply(value, this.argument);
+			return modifier.apply(value, argument);
 		}
 	}
 }

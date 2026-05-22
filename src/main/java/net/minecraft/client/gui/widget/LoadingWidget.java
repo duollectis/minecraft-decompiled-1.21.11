@@ -13,32 +13,37 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LoadingWidget}.
+ * Виджет индикатора загрузки: отображает сообщение и анимированную строку прогресса из {@link LoadingDisplay}.
  */
+@Environment(EnvType.CLIENT)
 public class LoadingWidget extends ClickableWidget {
+
+	private static final int TEXT_COLOR = -1;
+	private static final int LOADING_TEXT_COLOR = -8355712;
+	private static final int LINE_HEIGHT = 9;
 
 	private final TextRenderer textRenderer;
 
 	public LoadingWidget(TextRenderer textRenderer, Text message) {
-		super(0, 0, textRenderer.getWidth(message), 9 * 3, message);
+		super(0, 0, textRenderer.getWidth(message), LINE_HEIGHT * 3, message);
 		this.textRenderer = textRenderer;
 	}
 
 	@Override
 	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		int i = this.getX() + this.getWidth() / 2;
-		int j = this.getY() + this.getHeight() / 2;
-		Text text = this.getMessage();
-		context.drawTextWithShadow(this.textRenderer, text, i - this.textRenderer.getWidth(text) / 2, j - 9, -1);
-		String string = LoadingDisplay.get(Util.getMeasuringTimeMs());
+		int centerX = getX() + getWidth() / 2;
+		int centerY = getY() + getHeight() / 2;
+		Text message = getMessage();
+		context.drawTextWithShadow(textRenderer, message, centerX - textRenderer.getWidth(message) / 2, centerY - LINE_HEIGHT, TEXT_COLOR);
+
+		String loadingText = LoadingDisplay.get(Util.getMeasuringTimeMs());
 		context.drawTextWithShadow(
-				this.textRenderer,
-				string,
-				i - this.textRenderer.getWidth(string) / 2,
-				j + 9,
-				-8355712
+				textRenderer,
+				loadingText,
+				centerX - textRenderer.getWidth(loadingText) / 2,
+				centerY + LINE_HEIGHT,
+				LOADING_TEXT_COLOR
 		);
 	}
 

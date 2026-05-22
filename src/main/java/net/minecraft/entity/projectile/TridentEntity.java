@@ -29,19 +29,34 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code TridentEntity}.
+ * Трезубец — метательное оружие, которое может возвращаться к владельцу благодаря зачарованию «Верность».
+ * <p>
+ * После нанесения урона или застревания в блоке начинает обратный полёт к владельцу.
+ * Уровень верности определяет скорость возврата. Если владелец мёртв или недоступен —
+ * трезубец дропается на землю.
  */
 public class TridentEntity extends PersistentProjectileEntity {
 
-	private static final TrackedData<Byte>
-			LOYALTY =
-			DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BYTE);
-	private static final TrackedData<Boolean>
-			ENCHANTED =
-			DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final float BASE_DAMAGE = 8.0F;
+	private static final float RETURN_VELOCITY_FACTOR = 0.95F;
+	private static final float RETURN_Y_STEP_FACTOR = 0.015F;
+	private static final float RETURN_SPEED_PER_LOYALTY = 0.05F;
+	private static final float RETURN_VELOCITY_DAMPING_X = 0.02F;
+	private static final float RETURN_VELOCITY_DAMPING_Y = 0.2F;
+	private static final float RETURN_VELOCITY_DAMPING_Z = 0.02F;
+	private static final int GROUND_TIME_BEFORE_RETURN = 4;
+	private static final double NON_PLAYER_PICKUP_DISTANCE = 1.0;
+	private static final int MAX_LOYALTY_BYTE = 127;
+
+	private static final TrackedData<Byte> LOYALTY =
+		DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final TrackedData<Boolean> ENCHANTED =
+		DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+
+	/** Нестандартное сопротивление воды — трезубец почти не замедляется в воде. */
 	private static final float DRAG_IN_WATER = 0.99F;
-	private static final boolean DEFAULT_DEALT_DAMAGE = false;
-	private boolean dealtDamage = false;
+
+	private boolean dealtDamage;
 	public int returnTimer;
 
 	public TridentEntity(EntityType<? extends TridentEntity> entityType, World world) {
@@ -50,14 +65,14 @@ public class TridentEntity extends PersistentProjectileEntity {
 
 	public TridentEntity(World world, LivingEntity owner, ItemStack stack) {
 		super(EntityType.TRIDENT, owner, world, stack, null);
-		this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
-		this.dataTracker.set(ENCHANTED, stack.hasGlint());
+		dataTracker.set(LOYALTY, getLoyaltyLevel(stack));
+		dataTracker.set(ENCHANTED, stack.hasGlint());
 	}
 
 	public TridentEntity(World world, double x, double y, double z, ItemStack stack) {
 		super(EntityType.TRIDENT, x, y, z, world, stack, stack);
-		this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
-		this.dataTracker.set(ENCHANTED, stack.hasGlint());
+		dataTracker.set(LOYALTY, getLoyaltyLevel(stack));
+		dataTracker.set(ENCHANTED, stack.hasGlint());
 	}
 
 	@Override
@@ -69,131 +84,144 @@ public class TridentEntity extends PersistentProjectileEntity {
 
 	@Override
 	public void tick() {
-		if (this.inGroundTime > 4) {
-			this.dealtDamage = true;
+		if (inGroundTime > GROUND_TIME_BEFORE_RETURN) {
+			dealtDamage = true;
 		}
 
-		Entity entity = this.getOwner();
-		int i = this.dataTracker.get(LOYALTY);
-		if (i > 0 && (this.dealtDamage || this.isNoClip()) && entity != null) {
-			if (!this.isOwnerAlive()) {
-				if (this.getEntityWorld() instanceof ServerWorld serverWorld
-						&& this.pickupType == PersistentProjectileEntity.PickupPermission.ALLOWED) {
-					this.dropStack(serverWorld, this.asItemStack(), 0.1F);
+		Entity ownerEntity = getOwner();
+		int loyaltyLevel = dataTracker.get(LOYALTY);
+		if (loyaltyLevel > 0 && (dealtDamage || isNoClip()) && ownerEntity != null) {
+			if (!isOwnerAlive()) {
+				if (getEntityWorld() instanceof ServerWorld serverWorld
+					&& pickupType == PickupPermission.ALLOWED
+				) {
+					dropStack(serverWorld, asItemStack(), 0.1F);
 				}
 
-				this.discard();
-			}
-			else {
-				if (!(entity instanceof PlayerEntity)
-						&& this.getEntityPos().distanceTo(entity.getEyePos()) < entity.getWidth() + 1.0) {
-					this.discard();
+				discard();
+			} else {
+				// Не-игроки подбирают трезубец при достаточном сближении
+				if (!(ownerEntity instanceof PlayerEntity)
+					&& getEntityPos().distanceTo(ownerEntity.getEyePos()) < ownerEntity.getWidth() + NON_PLAYER_PICKUP_DISTANCE
+				) {
+					discard();
 					return;
 				}
 
-				this.setNoClip(true);
-				Vec3d vec3d = entity.getEyePos().subtract(this.getEntityPos());
-				this.setPos(this.getX(), this.getY() + vec3d.y * 0.015 * i, this.getZ());
-				double d = 0.05 * i;
-				this.setVelocity(this.getVelocity().multiply(0.95).add(vec3d.normalize().multiply(d)));
-				if (this.returnTimer == 0) {
-					this.playSound(SoundEvents.ITEM_TRIDENT_RETURN, 10.0F, 1.0F);
+				setNoClip(true);
+				Vec3d toOwner = ownerEntity.getEyePos().subtract(getEntityPos());
+				setPos(getX(), getY() + toOwner.y * RETURN_Y_STEP_FACTOR * loyaltyLevel, getZ());
+				double returnSpeed = RETURN_SPEED_PER_LOYALTY * loyaltyLevel;
+				setVelocity(
+					getVelocity()
+						.multiply(RETURN_VELOCITY_FACTOR)
+						.add(toOwner.normalize().multiply(returnSpeed))
+				);
+				if (returnTimer == 0) {
+					playSound(SoundEvents.ITEM_TRIDENT_RETURN, 10.0F, 1.0F);
 				}
 
-				this.returnTimer++;
+				returnTimer++;
 			}
 		}
 
 		super.tick();
 	}
 
+	/**
+	 * Проверяет, жив ли владелец и доступен ли он для возврата трезубца.
+	 * Игроки-наблюдатели считаются недоступными.
+	 */
 	private boolean isOwnerAlive() {
-		Entity entity = this.getOwner();
-		return entity == null || !entity.isAlive() ? false
-		                                           : !(entity instanceof ServerPlayerEntity) || !entity.isSpectator();
+		Entity ownerEntity = getOwner();
+		if (ownerEntity == null || !ownerEntity.isAlive()) {
+			return false;
+		}
+
+		return !(ownerEntity instanceof ServerPlayerEntity) || !ownerEntity.isSpectator();
 	}
 
 	public boolean isEnchanted() {
-		return this.dataTracker.get(ENCHANTED);
+		return dataTracker.get(ENCHANTED);
 	}
 
 	@Override
 	protected @Nullable EntityHitResult getEntityCollision(Vec3d currentPosition, Vec3d nextPosition) {
-		return this.dealtDamage ? null : super.getEntityCollision(currentPosition, nextPosition);
+		return dealtDamage ? null : super.getEntityCollision(currentPosition, nextPosition);
 	}
 
 	@Override
 	protected Collection<EntityHitResult> collectPiercingCollisions(Vec3d from, Vec3d to) {
-		EntityHitResult entityHitResult = this.getEntityCollision(from, to);
-		return entityHitResult != null ? List.of(entityHitResult) : List.of();
+		EntityHitResult entityHit = getEntityCollision(from, to);
+		return entityHit != null ? List.of(entityHit) : List.of();
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
-		Entity entity = entityHitResult.getEntity();
-		float f = 8.0F;
-		Entity entity2 = this.getOwner();
-		DamageSource damageSource = this.getDamageSources().trident(this, (Entity) (entity2 == null ? this : entity2));
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			f = EnchantmentHelper.getDamage(serverWorld, this.getWeaponStack(), entity, damageSource, f);
+		Entity target = entityHitResult.getEntity();
+		float damage = BASE_DAMAGE;
+		Entity ownerEntity = getOwner();
+		DamageSource damageSource = getDamageSources().trident(this, ownerEntity == null ? this : ownerEntity);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			damage = EnchantmentHelper.getDamage(serverWorld, getWeaponStack(), target, damageSource, damage);
 		}
 
-		this.dealtDamage = true;
-		if (entity.sidedDamage(damageSource, f)) {
-			if (entity.getType() == EntityType.ENDERMAN) {
+		dealtDamage = true;
+		if (target.sidedDamage(damageSource, damage)) {
+			if (target.getType() == EntityType.ENDERMAN) {
 				return;
 			}
 
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			if (getEntityWorld() instanceof ServerWorld serverWorld) {
 				EnchantmentHelper.onTargetDamaged(
-						serverWorld,
-						entity,
-						damageSource,
-						this.getWeaponStack(),
-						item -> this.kill(serverWorld)
+					serverWorld,
+					target,
+					damageSource,
+					getWeaponStack(),
+					item -> kill(serverWorld)
 				);
 			}
 
-			if (entity instanceof LivingEntity livingEntity) {
-				this.knockback(livingEntity, damageSource);
-				this.onHit(livingEntity);
+			if (target instanceof LivingEntity livingTarget) {
+				knockback(livingTarget, damageSource);
+				onHit(livingTarget);
 			}
 		}
 
-		this.deflect(ProjectileDeflection.SIMPLE, entity, this.owner, false);
-		this.setVelocity(this.getVelocity().multiply(0.02, 0.2, 0.02));
-		this.playSound(SoundEvents.ITEM_TRIDENT_HIT, 1.0F, 1.0F);
+		deflect(ProjectileDeflection.SIMPLE, target, owner, false);
+		setVelocity(getVelocity().multiply(RETURN_VELOCITY_DAMPING_X, RETURN_VELOCITY_DAMPING_Y, RETURN_VELOCITY_DAMPING_Z));
+		playSound(SoundEvents.ITEM_TRIDENT_HIT, 1.0F, 1.0F);
 	}
 
 	@Override
 	protected void onBlockHitEnchantmentEffects(
-			ServerWorld world,
-			BlockHitResult blockHitResult,
-			ItemStack weaponStack
+		ServerWorld world,
+		BlockHitResult blockHit,
+		ItemStack weaponStack
 	) {
-		Vec3d vec3d = blockHitResult.getBlockPos().clampToWithin(blockHitResult.getPos());
+		Vec3d hitPos = blockHit.getBlockPos().clampToWithin(blockHit.getPos());
 		EnchantmentHelper.onHitBlock(
-				world,
-				weaponStack,
-				this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null,
-				this,
-				null,
-				vec3d,
-				world.getBlockState(blockHitResult.getBlockPos()),
-				item -> this.kill(world)
+			world,
+			weaponStack,
+			getOwner() instanceof LivingEntity livingOwner ? livingOwner : null,
+			this,
+			null,
+			hitPos,
+			world.getBlockState(blockHit.getBlockPos()),
+			item -> kill(world)
 		);
 	}
 
 	@Override
 	public ItemStack getWeaponStack() {
-		return this.getItemStack();
+		return getItemStack();
 	}
 
 	@Override
 	protected boolean tryPickup(PlayerEntity player) {
-		return super.tryPickup(player) || this.isNoClip() && this.isOwner(player) && player
-				.getInventory()
-				.insertStack(this.asItemStack());
+		return super.tryPickup(player)
+			|| (isNoClip() && isOwner(player) && player.getInventory().insertStack(asItemStack()));
 	}
 
 	@Override
@@ -208,7 +236,7 @@ public class TridentEntity extends PersistentProjectileEntity {
 
 	@Override
 	public void onPlayerCollision(PlayerEntity player) {
-		if (this.isOwner(player) || this.getOwner() == null) {
+		if (isOwner(player) || getOwner() == null) {
 			super.onPlayerCollision(player);
 		}
 	}
@@ -216,37 +244,47 @@ public class TridentEntity extends PersistentProjectileEntity {
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.dealtDamage = view.getBoolean("DealtDamage", false);
-		this.dataTracker.set(LOYALTY, this.getLoyalty(this.getItemStack()));
+		dealtDamage = view.getBoolean("DealtDamage", false);
+		dataTracker.set(LOYALTY, getLoyaltyLevel(getItemStack()));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("DealtDamage", this.dealtDamage);
+		view.putBoolean("DealtDamage", dealtDamage);
 	}
 
-	private byte getLoyalty(ItemStack stack) {
-		return this.getEntityWorld() instanceof ServerWorld serverWorld
-		       ? (byte) MathHelper.clamp(
+	/**
+	 * Считывает уровень зачарования «Верность» из стека предмета.
+	 * Возвращает 0 на клиенте (зачарования доступны только на сервере).
+	 *
+	 * @param stack стек трезубца
+	 * @return уровень верности в диапазоне [0, 127]
+	 */
+	private byte getLoyaltyLevel(ItemStack stack) {
+		return getEntityWorld() instanceof ServerWorld serverWorld
+			? (byte) MathHelper.clamp(
 				EnchantmentHelper.getTridentReturnAcceleration(serverWorld, stack, this),
 				0,
-				127
-		)
-		       : 0;
+				MAX_LOYALTY_BYTE
+			)
+			: 0;
 	}
 
+	/**
+	 * Переопределяет логику устаревания: трезубец с верностью не исчезает со временем.
+	 */
 	@Override
 	public void age() {
-		int i = this.dataTracker.get(LOYALTY);
-		if (this.pickupType != PersistentProjectileEntity.PickupPermission.ALLOWED || i <= 0) {
+		int loyaltyLevel = dataTracker.get(LOYALTY);
+		if (pickupType != PickupPermission.ALLOWED || loyaltyLevel <= 0) {
 			super.age();
 		}
 	}
 
 	@Override
 	protected float getDragInWater() {
-		return 0.99F;
+		return DRAG_IN_WATER;
 	}
 
 	@Override

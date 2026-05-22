@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code ScoreboardCommand}.
+ * Команда {@code /scoreboard}: управление целями и очками таблицы результатов.
  */
 public class ScoreboardCommand {
 
@@ -1467,9 +1467,6 @@ public class ScoreboardCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code NumberFormatCommandExecutor}.
-	 */
 	public interface NumberFormatCommandExecutor {
 
 		int run(CommandContext<ServerCommandSource> context, @Nullable NumberFormat numberFormat)

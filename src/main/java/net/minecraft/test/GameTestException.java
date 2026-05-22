@@ -3,7 +3,8 @@ package net.minecraft.test;
 import net.minecraft.text.Text;
 
 /**
- * {@code GameTestException}.
+ * Исключение, возникающее в ходе выполнения игрового теста.
+ * Содержит текстовое сообщение об ошибке и номер тика, на котором произошёл сбой.
  */
 public class GameTestException extends TestException {
 
@@ -18,11 +19,11 @@ public class GameTestException extends TestException {
 
 	@Override
 	public Text getText() {
-		return Text.translatable("test.error.tick", this.message, this.tick);
+		return Text.translatable("test.error.tick", message, tick);
 	}
 
 	@Override
 	public String getMessage() {
-		return this.getText().getString();
+		return getText().getString();
 	}
 }

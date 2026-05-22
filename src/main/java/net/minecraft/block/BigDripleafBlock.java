@@ -38,7 +38,10 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * {@code BigDripleafBlock}.
+ * Блок большого листа капли. Имеет 4 состояния наклона ({@link Tilt}): NONE, UNSTABLE,
+ * PARTIAL, FULL. При нахождении существа на листе запускается таймер наклона: лист
+ * постепенно опускается (NONE → UNSTABLE → PARTIAL → FULL), затем сбрасывается обратно.
+ * Редстоун-сигнал немедленно сбрасывает наклон. Поддерживает водозаполнение и удобрение.
  */
 public class BigDripleafBlock extends HorizontalFacingBlock implements Fertilizable, Waterloggable {
 
@@ -46,27 +49,23 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 	private static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 	private static final EnumProperty<Tilt> TILT = Properties.TILT;
 	private static final int NO_TILT_DELAY = -1;
+	private static final int UNSTABLE_TILT_DELAY = 5;
+	private static final int LEAF_SHAPE_MIN_HEIGHT = 11;
+	private static final int LEAF_SHAPE_MAX_HEIGHT = 13;
 	private static final Object2IntMap<Tilt> NEXT_TILT_DELAYS = Util.make(
 			new Object2IntArrayMap(), delays -> {
-				delays.defaultReturnValue(-1);
+				delays.defaultReturnValue(NO_TILT_DELAY);
 				delays.put(Tilt.UNSTABLE, 10);
 				delays.put(Tilt.PARTIAL, 10);
 				delays.put(Tilt.FULL, 100);
 			}
 	);
-	private static final int UNSTABLE_TILT_DELAY = 5;
-	private static final int LEAF_SHAPE_MIN_HEIGHT = 11;
-	private static final int LEAF_SHAPE_MAX_HEIGHT = 13;
 	private static final Map<Tilt, VoxelShape> SHAPES_BY_TILT = Maps.newEnumMap(
 			Map.of(
-					Tilt.NONE,
-					Block.createColumnShape(16.0, 11.0, 15.0),
-					Tilt.UNSTABLE,
-					Block.createColumnShape(16.0, 11.0, 15.0),
-					Tilt.PARTIAL,
-					Block.createColumnShape(16.0, 11.0, 13.0),
-					Tilt.FULL,
-					VoxelShapes.empty()
+					Tilt.NONE, Block.createColumnShape(16.0, LEAF_SHAPE_MIN_HEIGHT, 15.0),
+					Tilt.UNSTABLE, Block.createColumnShape(16.0, LEAF_SHAPE_MIN_HEIGHT, 15.0),
+					Tilt.PARTIAL, Block.createColumnShape(16.0, LEAF_SHAPE_MIN_HEIGHT, LEAF_SHAPE_MAX_HEIGHT),
+					Tilt.FULL, VoxelShapes.empty()
 			)
 	);
 	private final Function<BlockState, VoxelShape> shapeFunction;
@@ -78,51 +77,46 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 
 	public BigDripleafBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(WATERLOGGED, false)
 				.with(FACING, Direction.NORTH)
 				.with(TILT, Tilt.NONE));
-		this.shapeFunction = this.createShapeFunction();
+		shapeFunction = createShapeFunction();
 	}
 
 	private Function<BlockState, VoxelShape> createShapeFunction() {
-		Map<Direction, VoxelShape>
-				map =
-				VoxelShapes.createHorizontalFacingShapeMap(Block
-						.createColumnShape(6.0, 0.0, 13.0)
-						.offset(0.0, 0.0, 0.25)
-						.simplify());
-		return this.createShapeFunction(
+		Map<Direction, VoxelShape> stemShapes = VoxelShapes.createHorizontalFacingShapeMap(
+				Block.createColumnShape(6.0, 0.0, 13.0).offset(0.0, 0.0, 0.25).simplify()
+		);
+
+		return createShapeFunction(
 				state -> VoxelShapes.union(
 						SHAPES_BY_TILT.get(state.get(TILT)),
-						map.get(state.get(FACING))
-				), WATERLOGGED
+						stemShapes.get(state.get(FACING))
+				),
+				WATERLOGGED
 		);
 	}
 
 	/**
-	 * Grow.
-	 *
-	 * @param world world
-	 * @param random random
-	 * @param pos pos
-	 * @param direction direction
+	 * Выращивает колонию большого листа капли заданной высоты (2–5 блоков) вверх от
+	 * указанной позиции. Заполняет промежуточные блоки стеблями, верхний — листом.
 	 */
 	public static void grow(WorldAccess world, Random random, BlockPos pos, Direction direction) {
-		int i = MathHelper.nextInt(random, 2, 5);
+		int targetHeight = MathHelper.nextInt(random, 2, 5);
 		BlockPos.Mutable mutable = pos.mutableCopy();
-		int j = 0;
+		int grownBlocks = 0;
 
-		while (j < i && canGrowInto(world, mutable, world.getBlockState(mutable))) {
-			j++;
+		while (grownBlocks < targetHeight && canGrowInto(world, mutable, world.getBlockState(mutable))) {
+			grownBlocks++;
 			mutable.move(Direction.UP);
 		}
 
-		int k = pos.getY() + j - 1;
+		int topY = pos.getY() + grownBlocks - 1;
 		mutable.setY(pos.getY());
 
-		while (mutable.getY() < k) {
+		while (mutable.getY() < topY) {
 			BigDripleafStemBlock.placeStemAt(world, mutable, world.getFluidState(mutable), direction);
 			mutable.move(Direction.UP);
 		}
@@ -134,17 +128,8 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 		return state.isAir() || state.isOf(Blocks.WATER) || state.isOf(Blocks.SMALL_DRIPLEAF);
 	}
 
-	/**
-	 * Проверяет возможность grow into.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected static boolean canGrowInto(HeightLimitView world, BlockPos pos, BlockState state) {
-		return !world.isOutOfHeightLimit(pos) && canGrowInto(state);
+		return world.isOutOfHeightLimit(pos) == false && canGrowInto(state);
 	}
 
 	protected static boolean placeDripleafAt(
@@ -153,18 +138,17 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 			FluidState fluidState,
 			Direction direction
 	) {
-		BlockState
-				blockState =
-				Blocks.BIG_DRIPLEAF
-						.getDefaultState()
-						.with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
-						.with(FACING, direction);
-		return world.setBlockState(pos, blockState, 3);
+		BlockState leafState = Blocks.BIG_DRIPLEAF
+				.getDefaultState()
+				.with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
+				.with(FACING, direction);
+
+		return world.setBlockState(pos, leafState, 3);
 	}
 
 	@Override
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-		this.changeTilt(state, world, hit.getBlockPos(), Tilt.FULL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
+		changeTilt(state, world, hit.getBlockPos(), Tilt.FULL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
 	}
 
 	@Override
@@ -174,10 +158,11 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		BlockState blockState = world.getBlockState(blockPos);
-		return blockState.isOf(this) || blockState.isOf(Blocks.BIG_DRIPLEAF_STEM)
-				|| blockState.isIn(BlockTags.BIG_DRIPLEAF_PLACEABLE);
+		BlockState belowState = world.getBlockState(pos.down());
+
+		return belowState.isOf(this)
+				|| belowState.isOf(Blocks.BIG_DRIPLEAF_STEM)
+				|| belowState.isIn(BlockTags.BIG_DRIPLEAF_PLACEABLE);
 	}
 
 	@Override
@@ -191,33 +176,31 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 			BlockState neighborState,
 			Random random
 	) {
-		if (direction == Direction.DOWN && !state.canPlaceAt(world, pos)) {
+		if (direction == Direction.DOWN && state.canPlaceAt(world, pos) == false) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			if (state.get(WATERLOGGED)) {
-				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-			}
 
-			return direction == Direction.UP && neighborState.isOf(this)
-			       ? Blocks.BIG_DRIPLEAF_STEM.getStateWithProperties(state)
-			       : super.getStateForNeighborUpdate(
-					       state,
-					       world,
-					       tickView,
-					       pos,
-					       direction,
-					       neighborPos,
-					       neighborState,
-					       random
-			       );
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
+
+		return direction == Direction.UP && neighborState.isOf(this)
+				? Blocks.BIG_DRIPLEAF_STEM.getStateWithProperties(state)
+				: super.getStateForNeighborUpdate(
+						state,
+						world,
+						tickView,
+						pos,
+						direction,
+						neighborPos,
+						neighborState,
+						random
+				);
 	}
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		BlockState blockState = world.getBlockState(pos.up());
-		return canGrowInto(blockState);
+		return canGrowInto(world.getBlockState(pos.up()));
 	}
 
 	@Override
@@ -227,13 +210,16 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		BlockPos blockPos = pos.up();
-		BlockState blockState = world.getBlockState(blockPos);
-		if (canGrowInto(world, blockPos, blockState)) {
-			Direction direction = state.get(FACING);
-			BigDripleafStemBlock.placeStemAt(world, pos, state.getFluidState(), direction);
-			placeDripleafAt(world, blockPos, blockState.getFluidState(), direction);
+		BlockPos abovePos = pos.up();
+		BlockState aboveState = world.getBlockState(abovePos);
+
+		if (canGrowInto(world, abovePos, aboveState) == false) {
+			return;
 		}
+
+		Direction facing = state.get(FACING);
+		BigDripleafStemBlock.placeStemAt(world, pos, state.getFluidState(), facing);
+		placeDripleafAt(world, abovePos, aboveState.getFluidState(), facing);
 	}
 
 	@Override
@@ -245,10 +231,15 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 			EntityCollisionHandler handler,
 			boolean bl
 	) {
-		if (!world.isClient()) {
-			if (state.get(TILT) == Tilt.NONE && isEntityAbove(pos, entity) && !world.isReceivingRedstonePower(pos)) {
-				this.changeTilt(state, world, pos, Tilt.UNSTABLE, null);
-			}
+		if (world.isClient()) {
+			return;
+		}
+
+		if (state.get(TILT) == Tilt.NONE
+				&& isEntityAbove(pos, entity)
+				&& world.isReceivingRedstonePower(pos) == false
+		) {
+			changeTilt(state, world, pos, Tilt.UNSTABLE, null);
 		}
 	}
 
@@ -256,18 +247,17 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 		if (world.isReceivingRedstonePower(pos)) {
 			resetTilt(state, world, pos);
+			return;
 		}
-		else {
-			Tilt tilt = state.get(TILT);
-			if (tilt == Tilt.UNSTABLE) {
-				this.changeTilt(state, world, pos, Tilt.PARTIAL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
-			}
-			else if (tilt == Tilt.PARTIAL) {
-				this.changeTilt(state, world, pos, Tilt.FULL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
-			}
-			else if (tilt == Tilt.FULL) {
-				resetTilt(state, world, pos);
-			}
+
+		Tilt tilt = state.get(TILT);
+
+		if (tilt == Tilt.UNSTABLE) {
+			changeTilt(state, world, pos, Tilt.PARTIAL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
+		} else if (tilt == Tilt.PARTIAL) {
+			changeTilt(state, world, pos, Tilt.FULL, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_DOWN);
+		} else if (tilt == Tilt.FULL) {
+			resetTilt(state, world, pos);
 		}
 	}
 
@@ -286,8 +276,8 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 	}
 
 	private static void playTiltSound(World world, BlockPos pos, SoundEvent soundEvent) {
-		float f = MathHelper.nextBetween(world.random, 0.8F, 1.2F);
-		world.playSound(null, pos, soundEvent, SoundCategory.BLOCKS, 1.0F, f);
+		float pitch = MathHelper.nextBetween(world.random, 0.8F, 1.2F);
+		world.playSound(null, pos, soundEvent, SoundCategory.BLOCKS, 1.0F, pitch);
 	}
 
 	private static boolean isEntityAbove(BlockPos pos, Entity entity) {
@@ -296,27 +286,31 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 
 	private void changeTilt(BlockState state, World world, BlockPos pos, Tilt tilt, @Nullable SoundEvent sound) {
 		changeTilt(state, world, pos, tilt);
+
 		if (sound != null) {
 			playTiltSound(world, pos, sound);
 		}
 
-		int i = NEXT_TILT_DELAYS.getInt(tilt);
-		if (i != -1) {
-			world.scheduleBlockTick(pos, this, i);
+		int delay = NEXT_TILT_DELAYS.getInt(tilt);
+
+		if (delay != NO_TILT_DELAY) {
+			world.scheduleBlockTick(pos, this, delay);
 		}
 	}
 
 	private static void resetTilt(BlockState state, World world, BlockPos pos) {
 		changeTilt(state, world, pos, Tilt.NONE);
+
 		if (state.get(TILT) != Tilt.NONE) {
 			playTiltSound(world, pos, SoundEvents.BLOCK_BIG_DRIPLEAF_TILT_UP);
 		}
 	}
 
 	private static void changeTilt(BlockState state, World world, BlockPos pos, Tilt tilt) {
-		Tilt tilt2 = state.get(TILT);
+		Tilt previousTilt = state.get(TILT);
 		world.setBlockState(pos, state.with(TILT, tilt), 2);
-		if (tilt.isStable() && tilt != tilt2) {
+
+		if (tilt.isStable() && tilt != previousTilt) {
 			world.emitGameEvent(null, GameEvent.BLOCK_CHANGE, pos);
 		}
 	}
@@ -328,17 +322,18 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.shapeFunction.apply(state);
+		return shapeFunction.apply(state);
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().down());
+		BlockState belowState = ctx.getWorld().getBlockState(ctx.getBlockPos().down());
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		boolean bl = blockState.isOf(Blocks.BIG_DRIPLEAF) || blockState.isOf(Blocks.BIG_DRIPLEAF_STEM);
-		return this.getDefaultState()
-		           .with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
-		           .with(FACING, bl ? blockState.get(FACING) : ctx.getHorizontalPlayerFacing().getOpposite());
+		boolean inheritFacing = belowState.isOf(Blocks.BIG_DRIPLEAF) || belowState.isOf(Blocks.BIG_DRIPLEAF_STEM);
+
+		return getDefaultState()
+				.with(WATERLOGGED, fluidState.isEqualAndStill(Fluids.WATER))
+				.with(FACING, inheritFacing ? belowState.get(FACING) : ctx.getHorizontalPlayerFacing().getOpposite());
 	}
 
 	@Override

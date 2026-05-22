@@ -10,29 +10,15 @@ import net.minecraft.util.Hand;
 import java.util.function.Predicate;
 
 /**
- * {@code MeleeAttackTask}.
+ * Фабричный класс задачи мозга для атаки в ближнем бою.
+ * Атака выполняется только если цель видима, в радиусе удара и моб не держит дальнобойное оружие.
  */
 public class MeleeAttackTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param cooldown cooldown
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static <T extends MobEntity> SingleTickTask<T> create(int cooldown) {
 		return create(target -> true, cooldown);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param targetPredicate target predicate
-	 * @param cooldown cooldown
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static <T extends MobEntity> SingleTickTask<T> create(Predicate<T> targetPredicate, int cooldown) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -44,22 +30,21 @@ public class MeleeAttackTask {
 				                  .apply(
 						                  context,
 						                  (lookTarget, attackTarget, attackCoolingDown, visibleMobs) -> (world, entity, time) -> {
-							                  LivingEntity livingEntity = context.getValue(attackTarget);
-							                  if (targetPredicate.test((T) entity)
+							                  LivingEntity target = context.getValue(attackTarget);
+							                  boolean canAttack = targetPredicate.test((T) entity)
 									                  && !isHoldingUsableRangedWeapon(entity)
-									                  && entity.isInAttackRange(livingEntity)
-									                  && context
-									                  .<LivingTargetCache>getValue(visibleMobs)
-									                  .contains(livingEntity)) {
-								                  lookTarget.remember(new EntityLookTarget(livingEntity, true));
-								                  entity.swingHand(Hand.MAIN_HAND);
-								                  entity.tryAttack(world, livingEntity);
-								                  attackCoolingDown.remember(true, cooldown);
-								                  return true;
-							                  }
-							                  else {
+									                  && entity.isInAttackRange(target)
+									                  && context.<LivingTargetCache>getValue(visibleMobs).contains(target);
+
+							                  if (!canAttack) {
 								                  return false;
 							                  }
+
+							                  lookTarget.remember(new EntityLookTarget(target, true));
+							                  entity.swingHand(Hand.MAIN_HAND);
+							                  entity.tryAttack(world, target);
+							                  attackCoolingDown.remember(true, cooldown);
+							                  return true;
 						                  }
 				                  )
 		);

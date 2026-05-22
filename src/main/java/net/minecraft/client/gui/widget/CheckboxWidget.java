@@ -16,10 +16,10 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CheckboxWidget}.
+ * Виджет флажка (checkbox) с поддержкой многострочного текста, тултипа и привязки к {@link SimpleOption}.
  */
+@Environment(EnvType.CLIENT)
 public class CheckboxWidget extends PressableWidget {
 
 	private static final Identifier
@@ -80,67 +80,54 @@ public class CheckboxWidget extends PressableWidget {
 
 	@Override
 	public void onPress(AbstractInput input) {
-		this.checked = !this.checked;
-		this.callback.onValueChange(this, this.checked);
+		checked = !checked;
+		callback.onValueChange(this, checked);
 	}
 
 	public boolean isChecked() {
-		return this.checked;
+		return checked;
 	}
 
 	@Override
 	public void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
-		if (this.active) {
-			if (this.isFocused()) {
-				builder.put(
-						NarrationPart.USAGE,
-						Text.translatable(this.checked ? "narration.checkbox.usage.focused.uncheck"
-						                               : "narration.checkbox.usage.focused.check")
-				);
-			}
-			else {
-				builder.put(
-						NarrationPart.USAGE,
-						Text.translatable(this.checked ? "narration.checkbox.usage.hovered.uncheck"
-						                               : "narration.checkbox.usage.hovered.check")
-				);
-			}
+		builder.put(NarrationPart.TITLE, getNarrationMessage());
+
+		if (active) {
+			String usageKey = isFocused()
+					? (checked ? "narration.checkbox.usage.focused.uncheck" : "narration.checkbox.usage.focused.check")
+					: (checked ? "narration.checkbox.usage.hovered.uncheck" : "narration.checkbox.usage.hovered.check");
+			builder.put(NarrationPart.USAGE, Text.translatable(usageKey));
 		}
 	}
 
 	@Override
 	public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		TextRenderer textRenderer = minecraftClient.textRenderer;
-		Identifier identifier;
-		if (this.checked) {
-			identifier = this.isFocused() ? SELECTED_HIGHLIGHTED_TEXTURE : SELECTED_TEXTURE;
-		}
-		else {
-			identifier = this.isFocused() ? HIGHLIGHTED_TEXTURE : TEXTURE;
-		}
+		TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
+		Identifier texture = checked
+				? (isFocused() ? SELECTED_HIGHLIGHTED_TEXTURE : SELECTED_TEXTURE)
+				: (isFocused() ? HIGHLIGHTED_TEXTURE : TEXTURE);
 
-		int i = getCheckboxSize(textRenderer);
+		int checkboxSize = getCheckboxSize(textRenderer);
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				identifier,
-				this.getX(),
-				this.getY(),
-				i,
-				i,
-				ColorHelper.getWhite(this.alpha)
+				texture,
+				getX(),
+				getY(),
+				checkboxSize,
+				checkboxSize,
+				ColorHelper.getWhite(alpha)
 		);
-		int j = this.getX() + i + 4;
-		int k = this.getY() + i / 2 - this.textWidget.getHeight() / 2;
-		this.textWidget.setPosition(j, k);
-		this.textWidget.draw(context.getHoverListener(this, DrawContext.HoverType.fromTooltip(this.isHovered())));
+
+		int textX = getX() + checkboxSize + CHECKBOX_PADDING;
+		int textY = getY() + checkboxSize / 2 - textWidget.getHeight() / 2;
+		textWidget.setPosition(textX, textY);
+		textWidget.draw(context.getHoverListener(this, DrawContext.HoverType.fromTooltip(isHovered())));
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link CheckboxWidget} с заданными параметрами.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final Text message;
@@ -192,36 +179,28 @@ public class CheckboxWidget extends PressableWidget {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return CheckboxWidget — результат операции
-		 */
 		public CheckboxWidget build() {
-			CheckboxWidget.Callback callback = this.option == null ? this.callback : (checkbox, checked) -> {
-				this.option.setValue(checked);
-				this.callback.onValueChange(checkbox, checked);
-			};
-			CheckboxWidget
-					checkboxWidget =
-					new CheckboxWidget(
-							this.x,
-							this.y,
-							this.maxWidth,
-							this.message,
-							this.textRenderer,
-							this.checked,
-							callback
-					);
-			checkboxWidget.setTooltip(this.tooltip);
+			CheckboxWidget.Callback resolvedCallback = option == null
+					? callback
+					: (checkbox, checked) -> {
+						option.setValue(checked);
+						callback.onValueChange(checkbox, checked);
+					};
+			CheckboxWidget checkboxWidget = new CheckboxWidget(
+					x,
+					y,
+					maxWidth,
+					message,
+					textRenderer,
+					checked,
+					resolvedCallback
+			);
+			checkboxWidget.setTooltip(tooltip);
 			return checkboxWidget;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Callback}.
-	 */
 	public interface Callback {
 
 		CheckboxWidget.Callback EMPTY = (checkbox, checked) -> {};

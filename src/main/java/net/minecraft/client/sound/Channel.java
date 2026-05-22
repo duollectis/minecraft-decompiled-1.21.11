@@ -5,7 +5,6 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -13,10 +12,12 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Channel}.
+ * Управляет набором активных OpenAL-источников звука ({@link Source}).
+ * Все операции с источниками выполняются через {@link #executor} звукового потока.
+ * Создание источников асинхронно — результат возвращается через {@link CompletableFuture}.
  */
+@Environment(EnvType.CLIENT)
 public class Channel {
 
 	private final Set<Channel.SourceManager> sources = Sets.newIdentityHashSet();
@@ -28,97 +29,85 @@ public class Channel {
 		this.executor = executor;
 	}
 
+	/**
+	 * Асинхронно создаёт новый {@link Source} в звуковом потоке.
+	 * Возвращает {@code null} в {@link CompletableFuture}, если пул источников исчерпан.
+	 *
+	 * @param mode режим воспроизведения (статический или потоковый)
+	 * @return future с менеджером источника или {@code null}
+	 */
 	public CompletableFuture<Channel.SourceManager> createSource(SoundEngine.RunMode mode) {
-		CompletableFuture<Channel.SourceManager> completableFuture = new CompletableFuture<>();
-		this.executor.execute(() -> {
-			Source source = this.soundEngine.createSource(mode);
+		CompletableFuture<Channel.SourceManager> future = new CompletableFuture<>();
+		executor.execute(() -> {
+			Source source = soundEngine.createSource(mode);
 			if (source != null) {
-				Channel.SourceManager sourceManager = new Channel.SourceManager(source);
-				this.sources.add(sourceManager);
-				completableFuture.complete(sourceManager);
-			}
-			else {
-				completableFuture.complete(null);
+				Channel.SourceManager manager = new Channel.SourceManager(source);
+				sources.add(manager);
+				future.complete(manager);
+			} else {
+				future.complete(null);
 			}
 		});
-		return completableFuture;
+		return future;
 	}
 
-	/**
-	 * Execute.
-	 *
-	 * @param sourcesConsumer sources consumer
-	 */
 	public void execute(Consumer<Stream<Source>> sourcesConsumer) {
-		this.executor.execute(() -> sourcesConsumer.accept(this.sources
-				.stream()
-				.map(source -> source.source)
-				.filter(Objects::nonNull)));
+		executor.execute(() -> sourcesConsumer.accept(
+			sources.stream()
+				.map(manager -> manager.source)
+				.filter(Objects::nonNull)
+		));
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		this.executor.execute(() -> {
-			Iterator<Channel.SourceManager> iterator = this.sources.iterator();
-
+		executor.execute(() -> {
+			var iterator = sources.iterator();
 			while (iterator.hasNext()) {
-				Channel.SourceManager sourceManager = iterator.next();
-				sourceManager.source.tick();
-				if (sourceManager.source.isStopped()) {
-					sourceManager.close();
+				Channel.SourceManager manager = iterator.next();
+				manager.source.tick();
+				if (manager.source.isStopped()) {
+					manager.close();
 					iterator.remove();
 				}
 			}
 		});
 	}
 
-	/**
-	 * Close.
-	 */
 	public void close() {
-		this.sources.forEach(Channel.SourceManager::close);
-		this.sources.clear();
+		sources.forEach(Channel.SourceManager::close);
+		sources.clear();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SourceManager}.
+	 * Обёртка над {@link Source}, обеспечивающая безопасное выполнение операций
+	 * в звуковом потоке и корректное освобождение ресурсов при остановке.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class SourceManager {
 
 		@Nullable Source source;
 		private boolean stopped;
 
 		public boolean isStopped() {
-			return this.stopped;
+			return stopped;
 		}
 
-		public SourceManager(final Source source) {
+		public SourceManager(Source source) {
 			this.source = source;
 		}
 
-		/**
-		 * Run.
-		 *
-		 * @param action action
-		 */
 		public void run(Consumer<Source> action) {
 			Channel.this.executor.execute(() -> {
-				if (this.source != null) {
-					action.accept(this.source);
+				if (source != null) {
+					action.accept(source);
 				}
 			});
 		}
 
-		/**
-		 * Close.
-		 */
 		public void close() {
-			this.stopped = true;
-			Channel.this.soundEngine.release(this.source);
-			this.source = null;
+			stopped = true;
+			Channel.this.soundEngine.release(source);
+			source = null;
 		}
 	}
 }

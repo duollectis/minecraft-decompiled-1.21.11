@@ -30,17 +30,17 @@ public class ChunkOcclusionDataBuilder {
 	private static final int STEP_Y = (int) Math.pow(16.0, 2.0);
 	private static final int INVALID_POS = -1;
 	private static final Direction[] DIRECTIONS = Direction.values();
-	private final BitSet closed = new BitSet(4096);
+	private final BitSet closed = new BitSet(TOTAL_BLOCKS);
 	private static final int[] EDGE_POINTS = Util.make(
 			new int[1352], edgePoints -> {
 				int i = 0;
-				int j = 15;
+				int j = COORD_MASK;
 				int k = 0;
 
-				for (int l = 0; l < 16; l++) {
-					for (int m = 0; m < 16; m++) {
-						for (int n = 0; n < 16; n++) {
-							if (l == 0 || l == 15 || m == 0 || m == 15 || n == 0 || n == 15) {
+				for (int l = 0; l < CHUNK_SIZE; l++) {
+					for (int m = 0; m < CHUNK_SIZE; m++) {
+						for (int n = 0; n < CHUNK_SIZE; n++) {
+							if (l == 0 || l == COORD_MASK || m == 0 || m == COORD_MASK || n == 0 || n == COORD_MASK) {
 								edgePoints[k++] = pack(l, m, n);
 							}
 						}
@@ -48,7 +48,7 @@ public class ChunkOcclusionDataBuilder {
 				}
 			}
 	);
-	private int openCount = 4096;
+	private int openCount = TOTAL_BLOCKS;
 
 	/**
 	 * Mark closed.
@@ -61,7 +61,7 @@ public class ChunkOcclusionDataBuilder {
 	}
 
 	private static int pack(BlockPos pos) {
-		return pack(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15);
+		return pack(pos.getX() & COORD_MASK, pos.getY() & COORD_MASK, pos.getZ() & COORD_MASK);
 	}
 
 	private static int pack(int x, int y, int z) {
@@ -75,7 +75,7 @@ public class ChunkOcclusionDataBuilder {
 	 */
 	public ChunkOcclusionData build() {
 		ChunkOcclusionData chunkOcclusionData = new ChunkOcclusionData();
-		if (4096 - this.openCount < 256) {
+		if (TOTAL_BLOCKS - this.openCount < 256) {
 			chunkOcclusionData.fill(true);
 		}
 		else if (this.openCount == 0) {
@@ -115,27 +115,27 @@ public class ChunkOcclusionDataBuilder {
 	}
 
 	private void addEdgeFaces(int pos, Set<Direction> openFaces) {
-		int i = pos >> 0 & 15;
+		int i = pos >> 0 & COORD_MASK;
 		if (i == 0) {
 			openFaces.add(Direction.WEST);
 		}
-		else if (i == 15) {
+		else if (i == COORD_MASK) {
 			openFaces.add(Direction.EAST);
 		}
 
-		int j = pos >> 8 & 15;
+		int j = pos >> 8 & COORD_MASK;
 		if (j == 0) {
 			openFaces.add(Direction.DOWN);
 		}
-		else if (j == 15) {
+		else if (j == COORD_MASK) {
 			openFaces.add(Direction.UP);
 		}
 
-		int k = pos >> 4 & 15;
+		int k = pos >> 4 & COORD_MASK;
 		if (k == 0) {
 			openFaces.add(Direction.NORTH);
 		}
-		else if (k == 15) {
+		else if (k == COORD_MASK) {
 			openFaces.add(Direction.SOUTH);
 		}
 	}
@@ -143,37 +143,37 @@ public class ChunkOcclusionDataBuilder {
 	private int offset(int pos, Direction direction) {
 		switch (direction) {
 			case DOWN:
-				if ((pos >> 8 & 15) == 0) {
+				if ((pos >> 8 & COORD_MASK) == 0) {
 					return -1;
 				}
 
 				return pos - STEP_Y;
 			case UP:
-				if ((pos >> 8 & 15) == 15) {
+				if ((pos >> 8 & COORD_MASK) == COORD_MASK) {
 					return -1;
 				}
 
 				return pos + STEP_Y;
 			case NORTH:
-				if ((pos >> 4 & 15) == 0) {
+				if ((pos >> 4 & COORD_MASK) == 0) {
 					return -1;
 				}
 
 				return pos - STEP_Z;
 			case SOUTH:
-				if ((pos >> 4 & 15) == 15) {
+				if ((pos >> 4 & COORD_MASK) == COORD_MASK) {
 					return -1;
 				}
 
 				return pos + STEP_Z;
 			case WEST:
-				if ((pos >> 0 & 15) == 0) {
+				if ((pos >> 0 & COORD_MASK) == 0) {
 					return -1;
 				}
 
 				return pos - STEP_X;
 			case EAST:
-				if ((pos >> 0 & 15) == 15) {
+				if ((pos >> 0 & COORD_MASK) == COORD_MASK) {
 					return -1;
 				}
 

@@ -10,10 +10,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SentInvite}.
+ * DTO отправленного приглашения на сервер Realms.
+ * Содержит имя профиля и UUID приглашённого игрока.
  */
+@Environment(EnvType.CLIENT)
 public class SentInvite implements RealmsSerializable {
 
 	@SerializedName("name")

@@ -8,7 +8,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code PineFoliagePlacer}.
+ * Размещает листву сосны: радиус нарастает снизу вверх, затем уменьшается
+ * у вершины, создавая характерную коническую форму.
  */
 public class PineFoliagePlacer extends FoliagePlacer {
 
@@ -41,15 +42,15 @@ public class PineFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		int i = 0;
+		int currentRadius = 0;
 
-		for (int j = offset; j >= offset - foliageHeight; j--) {
-			this.generateSquare(world, placer, random, config, treeNode.getCenter(), i, j, treeNode.isGiantTrunk());
-			if (i >= 1 && j == offset - foliageHeight + 1) {
-				i--;
-			}
-			else if (i < radius + treeNode.getFoliageRadius()) {
-				i++;
+		for (int dy = offset; dy >= offset - foliageHeight; dy--) {
+			generateSquare(world, placer, random, config, treeNode.getCenter(), currentRadius, dy, treeNode.isGiantTrunk());
+
+			if (currentRadius >= 1 && dy == offset - foliageHeight + 1) {
+				currentRadius--;
+			} else if (currentRadius < radius + treeNode.getFoliageRadius()) {
+				currentRadius++;
 			}
 		}
 	}

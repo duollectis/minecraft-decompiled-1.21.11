@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code HoglinBrain}.
+ * Мозг (Brain) для хоглина. Управляет поведением и памятью.
  */
 public class HoglinBrain {
 
@@ -42,13 +42,6 @@ public class HoglinBrain {
 	private static final float WALK_TO_ADULT_SPEED = 0.4F;
 	private static final float WANDER_SPEED = 0.6F;
 
-	/**
-	 * Create.
-	 *
-	 * @param brain brain
-	 *
-	 * @return Brain — результат операции
-	 */
 	protected static Brain<?> create(Brain<HoglinEntity> brain) {
 		addCoreTasks(brain);
 		addIdleTasks(brain);
@@ -73,21 +66,21 @@ public class HoglinBrain {
 				Activity.IDLE,
 				10,
 				ImmutableList.of(
-						PacifyTask.create(MemoryModuleType.NEAREST_REPELLENT, 200),
-						new BreedTask(EntityType.HOGLIN, 0.6F, 2),
+						PacifyTask.create(MemoryModuleType.NEAREST_REPELLENT, PACIFY_COOLDOWN),
+						new BreedTask(EntityType.HOGLIN, BREED_MOVE_SPEED, 2),
 						GoToRememberedPositionTask.createPosBased(MemoryModuleType.NEAREST_REPELLENT, 1.0F, 8, true),
 						UpdateAttackTargetTask.create(HoglinBrain::getNearestVisibleTargetablePlayer),
 						TaskTriggerer.runIf(
 								HoglinEntity::isAdult,
 								GoToRememberedPositionTask.createEntityBased(
 										MemoryModuleType.NEAREST_VISIBLE_ADULT_PIGLIN,
-										0.4F,
+										WALK_TO_ADULT_SPEED,
 										8,
 										false
 								)
 						),
 						LookAtMobWithIntervalTask.follow(8.0F, UniformIntProvider.create(30, 60)),
-						WalkTowardsEntityTask.createNearestVisibleAdult(WALK_TOWARD_CLOSEST_ADULT_RANGE, 0.6F),
+						WalkTowardsEntityTask.createNearestVisibleAdult(WALK_TOWARD_CLOSEST_ADULT_RANGE, BREED_MOVE_SPEED),
 						makeRandomWalkTask()
 				)
 		);
@@ -98,11 +91,11 @@ public class HoglinBrain {
 				Activity.FIGHT,
 				10,
 				ImmutableList.of(
-						PacifyTask.create(MemoryModuleType.NEAREST_REPELLENT, 200),
-						new BreedTask(EntityType.HOGLIN, 0.6F, 2),
+						PacifyTask.create(MemoryModuleType.NEAREST_REPELLENT, PACIFY_COOLDOWN),
+						new BreedTask(EntityType.HOGLIN, BREED_MOVE_SPEED, 2),
 						RangedApproachTask.create(1.0F),
-						TaskTriggerer.runIf(HoglinEntity::isAdult, MeleeAttackTask.create(40)),
-						TaskTriggerer.runIf(PassiveEntity::isBaby, MeleeAttackTask.create(15)),
+						TaskTriggerer.runIf(HoglinEntity::isAdult, MeleeAttackTask.create(ADULT_MELEE_ATTACK_COOLDOWN)),
+						TaskTriggerer.runIf(PassiveEntity::isBaby, MeleeAttackTask.create(BABY_MELEE_ATTACK_COOLDOWN)),
 						ForgetAttackTargetTask.create(),
 						ForgetTask.create(HoglinBrain::hasBreedTarget, MemoryModuleType.ATTACK_TARGET)
 				),
@@ -115,7 +108,7 @@ public class HoglinBrain {
 				Activity.AVOID,
 				10,
 				ImmutableList.of(
-						GoToRememberedPositionTask.createEntityBased(MemoryModuleType.AVOID_TARGET, 1.3F, 15, false),
+						GoToRememberedPositionTask.createEntityBased(MemoryModuleType.AVOID_TARGET, AVOID_TARGET_SPEED, FLEE_DISTANCE, false),
 						makeRandomWalkTask(),
 						LookAtMobWithIntervalTask.follow(8.0F, UniformIntProvider.create(30, 60)),
 						ForgetTask.create(HoglinBrain::isLoneAdult, MemoryModuleType.AVOID_TARGET)
@@ -127,18 +120,13 @@ public class HoglinBrain {
 	private static RandomTask<HoglinEntity> makeRandomWalkTask() {
 		return new RandomTask<>(
 				ImmutableList.of(
-						Pair.of(StrollTask.create(0.4F), 2),
-						Pair.of(GoToLookTargetTask.create(0.4F, 3), 2),
+						Pair.of(StrollTask.create(WALK_TO_ADULT_SPEED), 2),
+						Pair.of(GoToLookTargetTask.create(WALK_TO_ADULT_SPEED, 3), 2),
 						Pair.of(new WaitTask(30, 60), 1)
 				)
 		);
 	}
 
-	/**
-	 * Refresh activities.
-	 *
-	 * @param hoglin hoglin
-	 */
 	protected static void refreshActivities(HoglinEntity hoglin) {
 		Brain<HoglinEntity> brain = hoglin.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);
@@ -151,12 +139,6 @@ public class HoglinBrain {
 		hoglin.setAttacking(brain.hasMemoryModule(MemoryModuleType.ATTACK_TARGET));
 	}
 
-	/**
-	 * Обрабатывает событие attacking.
-	 *
-	 * @param hoglin hoglin
-	 * @param target target
-	 */
 	protected static void onAttacking(HoglinEntity hoglin, LivingEntity target) {
 		if (!hoglin.isBaby()) {
 			if (target.getType() == EntityType.PIGLIN && hasMoreHoglinsAround(hoglin)) {
@@ -225,28 +207,17 @@ public class HoglinBrain {
 		if (hoglin.isBaby()) {
 			return false;
 		}
-		else {
-			int
-					i =
-					hoglin
-							.getBrain()
-							.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_ADULT_PIGLIN_COUNT)
-							.orElse(0);
-			int
-					j =
-					hoglin.getBrain().getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT).orElse(0)
-							+ 1;
-			return i > j;
-		}
+
+		int visiblePiglinCount = hoglin.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_ADULT_PIGLIN_COUNT)
+				.orElse(0);
+		int visibleHoglinCount = hoglin.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT)
+				.orElse(0) + 1;
+
+		return visiblePiglinCount > visibleHoglinCount;
 	}
 
-	/**
-	 * Обрабатывает событие attacked.
-	 *
-	 * @param world world
-	 * @param hoglin hoglin
-	 * @param attacker attacker
-	 */
 	protected static void onAttacked(ServerWorld world, HoglinEntity hoglin, LivingEntity attacker) {
 		Brain<HoglinEntity> brain = hoglin.getBrain();
 		brain.forget(MemoryModuleType.PACIFIED);
@@ -276,7 +247,7 @@ public class HoglinBrain {
 		Brain<HoglinEntity> brain = hoglin.getBrain();
 		brain.forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
 		brain.forget(MemoryModuleType.BREED_TARGET);
-		brain.remember(MemoryModuleType.ATTACK_TARGET, target, 200L);
+		brain.remember(MemoryModuleType.ATTACK_TARGET, target, PACIFY_COOLDOWN);
 	}
 
 	private static void askAdultsForHelp(HoglinEntity hoglin, LivingEntity target) {

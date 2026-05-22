@@ -8,7 +8,8 @@ import net.minecraft.entity.passive.FrogEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code CroakTask}.
+ * Задача мозга лягушки, переводящая её в позу квакания на ограниченное время.
+ * Активируется только на суше в позе стояния.
  */
 public class CroakTask extends MultiTickTask<FrogEntity> {
 
@@ -17,67 +18,34 @@ public class CroakTask extends MultiTickTask<FrogEntity> {
 	private int runningTicks;
 
 	public CroakTask() {
-		super(ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryModuleState.VALUE_ABSENT), 100);
+		super(ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryModuleState.VALUE_ABSENT), RUN_TIME);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, FrogEntity frogEntity) {
-		return frogEntity.getPose() == EntityPose.STANDING;
+	@Override
+	protected boolean shouldRun(ServerWorld world, FrogEntity entity) {
+		return entity.getPose() == EntityPose.STANDING;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		return this.runningTicks < 60;
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, FrogEntity entity, long time) {
+		return runningTicks < MAX_RUN_TICK;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		if (!frogEntity.isInFluid()) {
-			frogEntity.setPose(EntityPose.CROAKING);
-			this.runningTicks = 0;
+	@Override
+	protected void run(ServerWorld world, FrogEntity entity, long time) {
+		if (!entity.isInFluid()) {
+			entity.setPose(EntityPose.CROAKING);
+			runningTicks = 0;
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		frogEntity.setPose(EntityPose.STANDING);
+	@Override
+	protected void finishRunning(ServerWorld world, FrogEntity entity, long time) {
+		entity.setPose(EntityPose.STANDING);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		this.runningTicks++;
+	@Override
+	protected void keepRunning(ServerWorld world, FrogEntity entity, long time) {
+		runningTicks++;
 	}
 }

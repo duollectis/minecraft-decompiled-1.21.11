@@ -21,7 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BannerBlockEntity}.
+ * Блок-сущность баннера. Хранит базовый цвет и список узоров {@link BannerPatternsComponent}.
  */
 public class BannerBlockEntity extends BlockEntity implements Nameable {
 
@@ -43,74 +43,69 @@ public class BannerBlockEntity extends BlockEntity implements Nameable {
 
 	@Override
 	public Text getName() {
-		return this.customName != null ? this.customName : BLOCK_NAME;
+		return customName != null ? customName : BLOCK_NAME;
 	}
 
 	@Override
 	public @Nullable Text getCustomName() {
-		return this.customName;
+		return customName;
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.patterns.equals(BannerPatternsComponent.DEFAULT)) {
-			view.put("patterns", BannerPatternsComponent.CODEC, this.patterns);
+
+		if (!patterns.equals(BannerPatternsComponent.DEFAULT)) {
+			view.put("patterns", BannerPatternsComponent.CODEC, patterns);
 		}
 
-		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
+		view.putNullable("CustomName", TextCodecs.CODEC, customName);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.customName = tryParseCustomName(view, "CustomName");
-		this.patterns =
-				view
-						.<BannerPatternsComponent>read("patterns", BannerPatternsComponent.CODEC)
-						.orElse(BannerPatternsComponent.DEFAULT);
+		customName = tryParseCustomName(view, "CustomName");
+		patterns = view.<BannerPatternsComponent>read("patterns", BannerPatternsComponent.CODEC)
+				.orElse(BannerPatternsComponent.DEFAULT);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createNbt(registries);
+		return createNbt(registries);
 	}
 
 	public BannerPatternsComponent getPatterns() {
-		return this.patterns;
+		return patterns;
 	}
 
 	public ItemStack getPickStack() {
-		ItemStack itemStack = new ItemStack(BannerBlock.getForColor(this.baseColor));
-		itemStack.applyComponentsFrom(this.createComponentMap());
-		return itemStack;
+		ItemStack stack = new ItemStack(BannerBlock.getForColor(baseColor));
+		stack.applyComponentsFrom(createComponentMap());
+		return stack;
 	}
 
 	public DyeColor getColorForState() {
-		return this.baseColor;
+		return baseColor;
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.patterns = components.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT);
-		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		patterns = components.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT);
+		customName = components.get(DataComponentTypes.CUSTOM_NAME);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.BANNER_PATTERNS, this.patterns);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
+		builder.add(DataComponentTypes.BANNER_PATTERNS, patterns);
+		builder.add(DataComponentTypes.CUSTOM_NAME, customName);
 	}
 
 	@Override

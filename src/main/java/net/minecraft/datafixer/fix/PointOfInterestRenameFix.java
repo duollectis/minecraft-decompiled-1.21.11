@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code PointOfInterestRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PointOfInterestRenameFix extends PointOfInterestFix {
 

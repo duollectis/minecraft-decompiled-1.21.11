@@ -7,9 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Set;
 
-/**
- * {@code LootNbtProvider}.
- */
+/** Провайдер NBT-данных для функций лута, извлекающий данные из контекста или хранилища. */
 public interface LootNbtProvider {
 
 	@Nullable NbtElement getNbt(LootContext context);

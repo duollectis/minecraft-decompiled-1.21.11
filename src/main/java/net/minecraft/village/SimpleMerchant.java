@@ -7,7 +7,10 @@ import net.minecraft.sound.SoundEvents;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SimpleMerchant}.
+ * Простая реализация торговца, привязанная к конкретному игроку.
+ * <p>
+ * Используется для странствующих торговцев и других сущностей,
+ * у которых нет сложной логики уровней и репутации.
  */
 public class SimpleMerchant implements Merchant {
 
@@ -21,7 +24,7 @@ public class SimpleMerchant implements Merchant {
 
 	@Override
 	public PlayerEntity getCustomer() {
-		return this.player;
+		return player;
 	}
 
 	@Override
@@ -30,7 +33,7 @@ public class SimpleMerchant implements Merchant {
 
 	@Override
 	public TradeOfferList getOffers() {
-		return this.offers;
+		return offers;
 	}
 
 	@Override
@@ -49,17 +52,17 @@ public class SimpleMerchant implements Merchant {
 
 	@Override
 	public boolean isClient() {
-		return this.player.getEntityWorld().isClient();
+		return player.getEntityWorld().isClient();
 	}
 
 	@Override
-	public boolean canInteract(PlayerEntity player) {
-		return this.player == player;
+	public boolean canInteract(PlayerEntity other) {
+		return player == other;
 	}
 
 	@Override
 	public int getExperience() {
-		return this.experience;
+		return experience;
 	}
 
 	@Override

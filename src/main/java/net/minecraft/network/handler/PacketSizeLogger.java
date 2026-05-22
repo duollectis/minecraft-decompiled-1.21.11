@@ -5,7 +5,9 @@ import net.minecraft.util.profiler.MultiValueDebugSampleLogImpl;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Класс packet size logger.
+ * Потокобезопасный счётчик суммарного объёма входящих пакетов за один тик.
+ * Накапливает байты через {@link #increment} и сбрасывает накопленное значение
+ * в профилировщик через {@link #push}, вызываемый раз в тик.
  */
 public class PacketSizeLogger {
 
@@ -16,19 +18,11 @@ public class PacketSizeLogger {
 		this.log = log;
 	}
 
-	/**
-	 * Increment.
-	 *
-	 * @param bytes bytes
-	 */
 	public void increment(int bytes) {
-		this.packetSizeInBytes.getAndAdd(bytes);
+		packetSizeInBytes.getAndAdd(bytes);
 	}
 
-	/**
-	 * Push.
-	 */
 	public void push() {
-		this.log.push(this.packetSizeInBytes.getAndSet(0));
+		log.push(packetSizeInBytes.getAndSet(0));
 	}
 }

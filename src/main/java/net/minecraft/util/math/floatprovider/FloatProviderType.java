@@ -5,7 +5,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code FloatProviderType}.
+ * Реестровый тип провайдера float-значений. Каждый тип связан с MapCodec для сериализации.
  */
 public interface FloatProviderType<P extends FloatProvider> {
 
@@ -13,9 +13,8 @@ public interface FloatProviderType<P extends FloatProvider> {
 
 	FloatProviderType<UniformFloatProvider> UNIFORM = register("uniform", UniformFloatProvider.CODEC);
 
-	FloatProviderType<ClampedNormalFloatProvider>
-			CLAMPED_NORMAL =
-			register("clamped_normal", ClampedNormalFloatProvider.CODEC);
+	FloatProviderType<ClampedNormalFloatProvider> CLAMPED_NORMAL =
+		register("clamped_normal", ClampedNormalFloatProvider.CODEC);
 
 	FloatProviderType<TrapezoidFloatProvider> TRAPEZOID = register("trapezoid", TrapezoidFloatProvider.CODEC);
 

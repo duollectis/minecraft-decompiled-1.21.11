@@ -3,7 +3,7 @@ package net.minecraft.server.function;
 import net.minecraft.text.Text;
 
 /**
- * {@code MacroException}.
+ * Исключение, выбрасываемое при ошибке подстановки макро-переменных в функцию.
  */
 public class MacroException extends Exception {
 
@@ -15,6 +15,6 @@ public class MacroException extends Exception {
 	}
 
 	public Text getTextMessage() {
-		return this.message;
+		return message;
 	}
 }

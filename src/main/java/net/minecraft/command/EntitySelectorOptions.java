@@ -662,18 +662,15 @@ public class EntitySelectorOptions {
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code SelectorHandler}.
+	 * Обработчик одной опции селектора сущностей (например, {@code name=}, {@code type=}).
 	 */
+	@FunctionalInterface
 	public interface SelectorHandler {
 
 		void handle(EntitySelectorReader reader) throws CommandSyntaxException;
 	}
 
-	/**
-	 * {@code SelectorOption}.
-	 */
 	record SelectorOption(
 			EntitySelectorOptions.SelectorHandler handler,
 			Predicate<EntitySelectorReader> condition,

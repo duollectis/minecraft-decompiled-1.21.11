@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4071}.
+ * Схема DataFixer версии 4071, регистрирующая новые сущности Creaking и Creaking Transient
+ * (мобы, связанные с бледным дубом), а также блок-сущность Creaking Heart.
  */
 public class Schema4071 extends IdentifierNormalizingSchema {
 
-	public Schema4071(int i, Schema schema) {
-		super(i, schema);
+	public Schema4071(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

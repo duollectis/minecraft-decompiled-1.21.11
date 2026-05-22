@@ -9,16 +9,13 @@ import net.minecraft.world.World;
 
 import java.util.function.Supplier;
 
-/**
- * {@code AbstractChestBlock}.
- */
 public abstract class AbstractChestBlock<E extends BlockEntity> extends BlockWithEntity {
 
 	protected final Supplier<BlockEntityType<? extends E>> entityTypeRetriever;
 
 	protected AbstractChestBlock(
-			AbstractBlock.Settings settings,
-			Supplier<BlockEntityType<? extends E>> entityTypeRetriever
+		AbstractBlock.Settings settings,
+		Supplier<BlockEntityType<? extends E>> entityTypeRetriever
 	) {
 		super(settings);
 		this.entityTypeRetriever = entityTypeRetriever;
@@ -27,7 +24,17 @@ public abstract class AbstractChestBlock<E extends BlockEntity> extends BlockWit
 	@Override
 	protected abstract MapCodec<? extends AbstractChestBlock<E>> getCodec();
 
+	/**
+	 * Возвращает источник свойств двойного блока для данного сундука.
+	 * Используется для объединения инвентарей соседних сундуков в двойной.
+	 *
+	 * @param state         текущее состояние блока
+	 * @param world         мир, в котором находится блок
+	 * @param pos           позиция блока
+	 * @param ignoreBlocked {@code true} — игнорировать блокировку крышки сундука
+	 * @return источник свойств двойного блока
+	 */
 	public abstract DoubleBlockProperties.PropertySource<? extends ChestBlockEntity> getBlockEntitySource(
-			BlockState state, World world, BlockPos pos, boolean ignoreBlocked
+		BlockState state, World world, BlockPos pos, boolean ignoreBlocked
 	);
 }

@@ -10,10 +10,11 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameOptionsScreen}.
+ * Базовый класс для всех экранов настроек игры. Предоставляет стандартную трёхчастную
+ * компоновку (заголовок / тело / подвал) и управление виджетом списка опций.
  */
+@Environment(EnvType.CLIENT)
 public abstract class GameOptionsScreen extends Screen {
 
 	protected final Screen parent;
@@ -29,76 +30,57 @@ public abstract class GameOptionsScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.initHeader();
-		this.initBody();
-		this.initFooter();
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		initHeader();
+		initBody();
+		initFooter();
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
-	/**
-	 * Инициализирует header.
-	 */
 	protected void initHeader() {
-		this.layout.addHeader(this.title, this.textRenderer);
+		layout.addHeader(title, textRenderer);
 	}
 
-	/**
-	 * Инициализирует body.
-	 */
 	protected void initBody() {
-		this.body = this.layout.addBody(new OptionListWidget(this.client, this.width, this));
-		this.addOptions();
-		if (this.body.getWidgetFor(this.gameOptions.getNarrator()) instanceof CyclingButtonWidget cyclingButtonWidget) {
-			this.narratorToggleButton = cyclingButtonWidget;
-			this.narratorToggleButton.active = this.client.getNarratorManager().isActive();
+		body = layout.addBody(new OptionListWidget(client, width, this));
+		addOptions();
+		if (body.getWidgetFor(gameOptions.getNarrator()) instanceof CyclingButtonWidget cyclingButtonWidget) {
+			narratorToggleButton = cyclingButtonWidget;
+			narratorToggleButton.active = client.getNarratorManager().isActive();
 		}
 	}
 
-	/**
-	 * Добавляет options.
-	 */
 	protected abstract void addOptions();
 
-	/**
-	 * Инициализирует footer.
-	 */
 	protected void initFooter() {
-		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).width(200).build());
+		layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> close()).width(200).build());
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		if (this.body != null) {
-			this.body.position(this.width, this.layout);
+		layout.refreshPositions();
+		if (body != null) {
+			body.position(width, layout);
 		}
 	}
 
 	@Override
 	public void removed() {
-		this.client.options.write();
+		client.options.write();
 	}
 
 	@Override
 	public void close() {
-		if (this.body != null) {
-			this.body.applyAllPendingValues();
+		if (body != null) {
+			body.applyAllPendingValues();
 		}
 
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
-	/**
-	 * Update.
-	 *
-	 * @param option option
-	 */
 	public void update(SimpleOption<?> option) {
-		if (this.body != null) {
-			this.body.update(option);
+		if (body != null) {
+			body.update(option);
 		}
 	}
 }

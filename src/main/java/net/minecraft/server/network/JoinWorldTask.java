@@ -6,7 +6,7 @@ import net.minecraft.network.packet.s2c.config.ReadyS2CPacket;
 import java.util.function.Consumer;
 
 /**
- * {@code JoinWorldTask}.
+ * Класс Join World Task.
  */
 public class JoinWorldTask implements ServerPlayerConfigurationTask {
 

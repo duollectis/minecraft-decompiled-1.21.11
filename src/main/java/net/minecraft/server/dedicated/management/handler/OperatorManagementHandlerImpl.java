@@ -12,7 +12,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code OperatorManagementHandlerImpl}.
+ * Класс Operator Management Handler Impl.
  */
 public class OperatorManagementHandlerImpl implements OperatorManagementHandler {
 

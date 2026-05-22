@@ -12,7 +12,9 @@ import net.minecraft.datafixer.FixUtil;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BeehiveFieldRenameFix}.
+ * Переименовывает поля блок-сущности улья: удаляет {@code EntityData} пчёл,
+ * переименовывает {@code TicksInHive} → {@code ticks_in_hive} и
+ * {@code MinOccupationTicks} → {@code min_ticks_in_hive}.
  */
 public class BeehiveFieldRenameFix extends DataFix {
 
@@ -20,46 +22,46 @@ public class BeehiveFieldRenameFix extends DataFix {
 		super(outputSchema, true);
 	}
 
+	@Override
+	public TypeRewriteRule makeRule() {
+		Type<?> beehiveInputType = getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:beehive");
+		OpticFinder<?> beehiveFinder = DSL.namedChoice("minecraft:beehive", beehiveInputType);
+		ListType<?> beesListType = (ListType<?>) beehiveInputType.findFieldType("Bees");
+		Type<?> beeType = beesListType.getElement();
+		OpticFinder<?> beesListFinder = DSL.fieldFinder("Bees", beesListType);
+		OpticFinder<?> beeFinder = DSL.typeFinder(beeType);
+		Type<?> blockEntityInputType = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		Type<?> blockEntityOutputType = getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
+
+		return fixTypeEverywhereTyped(
+			"BeehiveFieldRenameFix",
+			blockEntityInputType,
+			blockEntityOutputType,
+			typed -> FixUtil.withType(
+				blockEntityOutputType,
+				typed.updateTyped(
+					beehiveFinder,
+					beehive -> beehive
+						.update(DSL.remainderFinder(), this::removeBeesField)
+						.updateTyped(
+							beesListFinder,
+							beesList -> beesList.updateTyped(
+								beeFinder,
+								bee -> bee.update(DSL.remainderFinder(), this::renameFields)
+							)
+						)
+				)
+			)
+		);
+	}
+
 	private Dynamic<?> removeBeesField(Dynamic<?> dynamic) {
 		return dynamic.remove("Bees");
 	}
 
 	private Dynamic<?> renameFields(Dynamic<?> dynamic) {
-		dynamic = dynamic.remove("EntityData");
-		dynamic = dynamic.renameField("TicksInHive", "ticks_in_hive");
-		return dynamic.renameField("MinOccupationTicks", "min_ticks_in_hive");
-	}
-
-	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:beehive");
-		OpticFinder<?> opticFinder = DSL.namedChoice("minecraft:beehive", type);
-		ListType<?> listType = (ListType<?>) type.findFieldType("Bees");
-		Type<?> type2 = listType.getElement();
-		OpticFinder<?> opticFinder2 = DSL.fieldFinder("Bees", listType);
-		OpticFinder<?> opticFinder3 = DSL.typeFinder(type2);
-		Type<?> type3 = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		Type<?> type4 = this.getOutputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		return this.fixTypeEverywhereTyped(
-				"BeehiveFieldRenameFix",
-				type3,
-				type4,
-				typed -> FixUtil.withType(
-						type4,
-						typed.updateTyped(
-								opticFinder,
-								typedx -> typedx.update(DSL.remainderFinder(), this::removeBeesField)
-								                .updateTyped(
-										                opticFinder2,
-										                typedxx -> typedxx.updateTyped(
-												                opticFinder3,
-												                typedxxx -> typedxxx.update(
-														                DSL.remainderFinder(),
-														                this::renameFields
-												                )
-										                )
-								                )
-						)
-				)
-		);
+		return dynamic.remove("EntityData")
+			.renameField("TicksInHive", "ticks_in_hive")
+			.renameField("MinOccupationTicks", "min_ticks_in_hive");
 	}
 }

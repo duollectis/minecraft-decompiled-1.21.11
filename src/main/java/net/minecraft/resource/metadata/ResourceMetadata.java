@@ -17,10 +17,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code ResourceMetadata}.
+ * Метаданные ресурса, хранящиеся в файле {@code pack.mcmeta} или {@code .mcmeta}-файлах ресурсов.
+ *
+ * <p>Предоставляет типобезопасный доступ к секциям метаданных через {@link ResourceMetadataSerializer}.
+ * Константа {@link #NONE} используется как заглушка для ресурсов без метаданных.</p>
  */
 public interface ResourceMetadata {
 
+	/** Пустые метаданные — все запросы возвращают {@link Optional#empty()}. */
 	ResourceMetadata NONE = new ResourceMetadata() {
 		@Override
 		public <T> Optional<T> decode(ResourceMetadataSerializer<T> serializer) {
@@ -28,45 +32,64 @@ public interface ResourceMetadata {
 		}
 	};
 
+	/** Поставщик пустых метаданных для использования в {@link InputSupplier}-контекстах. */
 	InputSupplier<ResourceMetadata> NONE_SUPPLIER = () -> NONE;
 
+	/**
+	 * Парсит метаданные из JSON-потока.
+	 *
+	 * <p>Возвращает реализацию, которая при каждом вызове {@link #decode} ищет
+	 * нужную секцию в уже распарсенном {@link JsonObject} и декодирует её через кодек сериализатора.</p>
+	 *
+	 * @param stream входной поток с JSON-содержимым файла метаданных
+	 * @return распарсенные метаданные
+	 * @throws IOException если чтение потока завершилось ошибкой
+	 * @throws JsonParseException если JSON некорректен
+	 */
 	static ResourceMetadata create(InputStream stream) throws IOException {
-		ResourceMetadata var3;
-		try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
-				stream,
-				StandardCharsets.UTF_8
-		))
-		) {
-			final JsonObject jsonObject = JsonHelper.deserialize(bufferedReader);
-			var3 = new ResourceMetadata() {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+			final JsonObject jsonObject = JsonHelper.deserialize(reader);
+
+			return new ResourceMetadata() {
 				@Override
+				@SuppressWarnings("unchecked")
 				public <T> Optional<T> decode(ResourceMetadataSerializer<T> serializer) {
-					String string = serializer.name();
-					if (jsonObject.has(string)) {
-						T
-								object =
-								(T) serializer
-										.codec()
-										.parse(JsonOps.INSTANCE, jsonObject.get(string))
-										.getOrThrow(JsonParseException::new);
-						return Optional.of(object);
-					}
-					else {
+					String sectionName = serializer.name();
+
+					if (!jsonObject.has(sectionName)) {
 						return Optional.empty();
 					}
+
+					T value = (T) serializer
+							.codec()
+							.parse(JsonOps.INSTANCE, jsonObject.get(sectionName))
+							.getOrThrow(JsonParseException::new);
+
+					return Optional.of(value);
 				}
 			};
 		}
-
-		return var3;
 	}
 
+	/**
+	 * Декодирует секцию метаданных по заданному сериализатору.
+	 *
+	 * @param serializer сериализатор нужной секции
+	 * @param <T> тип декодируемых метаданных
+	 * @return декодированное значение, или {@link Optional#empty()} если секция отсутствует
+	 */
 	<T> Optional<T> decode(ResourceMetadataSerializer<T> serializer);
 
-	default <T> Optional<ResourceMetadataSerializer.Value<T>> decodeAsValue(ResourceMetadataSerializer<T> additionalMetadata) {
-		return this.decode(additionalMetadata).map(additionalMetadata::value);
+	default <T> Optional<ResourceMetadataSerializer.Value<T>> decodeAsValue(ResourceMetadataSerializer<T> serializer) {
+		return decode(serializer).map(serializer::value);
 	}
 
+	/**
+	 * Декодирует несколько секций метаданных и возвращает список успешно декодированных значений.
+	 *
+	 * @param serializers коллекция сериализаторов для декодирования
+	 * @return неизменяемый список декодированных значений (секции без данных пропускаются)
+	 */
 	default List<ResourceMetadataSerializer.Value<?>> decode(Collection<ResourceMetadataSerializer<?>> serializers) {
 		return serializers
 				.stream()

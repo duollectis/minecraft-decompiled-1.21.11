@@ -76,11 +76,11 @@ public class RealmsSubscriptionInfoTab extends GridScreenTab implements RealmsUp
 		this.serverData = server;
 		GridWidget.Adder adder = this.grid.setRowSpacing(6).createAdder(1);
 		TextRenderer textRenderer = screen.getTextRenderer();
-		adder.add(new TextWidget(200, 9, SUBSCRIPTION_START_LABEL_TEXT, textRenderer));
-		this.startDateTextWidget = adder.add(new TextWidget(200, 9, this.startDate, textRenderer));
+		adder.add(new TextWidget(CONTENT_WIDTH, 9, SUBSCRIPTION_START_LABEL_TEXT, textRenderer));
+		this.startDateTextWidget = adder.add(new TextWidget(CONTENT_WIDTH, 9, this.startDate, textRenderer));
 		adder.add(EmptyWidget.ofHeight(2));
-		this.timeLeftLabelTextWidget = adder.add(new TextWidget(200, 9, TIME_LEFT_LABEL_TEXT, textRenderer));
-		this.daysLeftTextWidget = adder.add(new TextWidget(200, 9, this.daysLeft, textRenderer));
+		this.timeLeftLabelTextWidget = adder.add(new TextWidget(CONTENT_WIDTH, 9, TIME_LEFT_LABEL_TEXT, textRenderer));
+		this.daysLeftTextWidget = adder.add(new TextWidget(CONTENT_WIDTH, 9, this.daysLeft, textRenderer));
 		adder.add(EmptyWidget.ofHeight(2));
 		adder.add(
 				ButtonWidget.builder(
@@ -93,7 +93,7 @@ public class RealmsSubscriptionInfoTab extends GridScreenTab implements RealmsUp
 								            )
 						            )
 				            )
-				            .dimensions(0, 0, 200, 20)
+				            .dimensions(0, 0, CONTENT_WIDTH, 20)
 				            .build()
 		);
 		adder.add(EmptyWidget.ofHeight(2));
@@ -108,12 +108,12 @@ public class RealmsSubscriptionInfoTab extends GridScreenTab implements RealmsUp
 								            )
 						            )
 				            )
-				            .dimensions(0, 0, 200, 20)
+				            .dimensions(0, 0, CONTENT_WIDTH, 20)
 				            .build()
 		);
 		adder.add(EmptyWidget.ofHeight(2));
 		this.subscriptionInfoTextWidget = adder.add(
-				NarratedMultilineTextWidget.builder(Text.empty(), textRenderer).width(200).build(),
+				NarratedMultilineTextWidget.builder(Text.empty(), textRenderer).width(CONTENT_WIDTH).build(),
 				Positioner.create().alignHorizontalCenter()
 		);
 		this.subscriptionInfoTextWidget.setCentered(false);

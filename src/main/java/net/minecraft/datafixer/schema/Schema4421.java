@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4421}.
+ * Схема DataFixer версии 4421, регистрирующая новую сущность
+ * {@code minecraft:happy_ghast} — дружелюбную версию гаста.
  */
 public class Schema4421 extends IdentifierNormalizingSchema {
 
-	public Schema4421(int i, Schema schema) {
-		super(i, schema);
+	public Schema4421(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

@@ -14,7 +14,8 @@ import java.util.EnumSet;
 import java.util.function.Predicate;
 
 /**
- * {@code TemptGoal}.
+ * Цель, заставляющая существо следовать за игроком, держащим приманку.
+ * Прерывается, если игрок двигается или поворачивает голову (режим пугливости).
  */
 public class TemptGoal extends Goal {
 
@@ -43,7 +44,7 @@ public class TemptGoal extends Goal {
 			Predicate<ItemStack> temptItemPredicate,
 			boolean canBeScared
 	) {
-		this((MobEntity) entity, speed, temptItemPredicate, canBeScared, 2.5);
+		this((MobEntity) entity, speed, temptItemPredicate, canBeScared, DEFAULT_RANGE);
 	}
 
 	public TemptGoal(
@@ -62,146 +63,129 @@ public class TemptGoal extends Goal {
 		this.temptItemPredicate = temptItemPredicate;
 		this.canBeScared = canBeScared;
 		this.range = range;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-		this.predicate = TEMPTING_ENTITY_PREDICATE.copy().setPredicate((target, world) -> this.isTemptedBy(target));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		predicate = TEMPTING_ENTITY_PREDICATE.copy().setPredicate((target, world) -> isTemptedBy(target));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (this.cooldown > 0) {
-			this.cooldown--;
+		if (cooldown > 0) {
+			cooldown--;
 			return false;
 		}
-		else {
-			this.closestPlayer = getServerWorld(this.mob)
-					.getClosestPlayer(
-							this.predicate.setBaseMaxDistance(this.mob.getAttributeValue(EntityAttributes.TEMPT_RANGE)),
-							this.mob
-					);
-			return this.closestPlayer != null;
-		}
+
+		closestPlayer = getServerWorld(mob)
+				.getClosestPlayer(
+						predicate.setBaseMaxDistance(mob.getAttributeValue(EntityAttributes.TEMPT_RANGE)),
+						mob
+				);
+		return closestPlayer != null;
 	}
 
 	private boolean isTemptedBy(LivingEntity entity) {
-		return this.temptItemPredicate.test(entity.getMainHandStack())
-				|| this.temptItemPredicate.test(entity.getOffHandStack());
+		return temptItemPredicate.test(entity.getMainHandStack())
+				|| temptItemPredicate.test(entity.getOffHandStack());
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		if (this.canBeScared()) {
-			if (this.mob.squaredDistanceTo(this.closestPlayer) < 36.0) {
-				if (this.closestPlayer.squaredDistanceTo(this.lastPlayerX, this.lastPlayerY, this.lastPlayerZ)
-						> 0.010000000000000002) {
+		if (canBeScared()) {
+			if (mob.squaredDistanceTo(closestPlayer) < 36.0) {
+				if (closestPlayer.squaredDistanceTo(lastPlayerX, lastPlayerY, lastPlayerZ) > 0.010000000000000002) {
 					return false;
 				}
 
-				if (Math.abs(this.closestPlayer.getPitch() - this.lastPlayerPitch) > 5.0
-						|| Math.abs(this.closestPlayer.getYaw() - this.lastPlayerYaw) > 5.0) {
+				if (Math.abs(closestPlayer.getPitch() - lastPlayerPitch) > 5.0
+						|| Math.abs(closestPlayer.getYaw() - lastPlayerYaw) > 5.0
+				) {
 					return false;
 				}
 			}
 			else {
-				this.lastPlayerX = this.closestPlayer.getX();
-				this.lastPlayerY = this.closestPlayer.getY();
-				this.lastPlayerZ = this.closestPlayer.getZ();
+				lastPlayerX = closestPlayer.getX();
+				lastPlayerY = closestPlayer.getY();
+				lastPlayerZ = closestPlayer.getZ();
 			}
 
-			this.lastPlayerPitch = this.closestPlayer.getPitch();
-			this.lastPlayerYaw = this.closestPlayer.getYaw();
+			lastPlayerPitch = closestPlayer.getPitch();
+			lastPlayerYaw = closestPlayer.getYaw();
 		}
 
-		return this.canStart();
+		return canStart();
 	}
 
-	/**
-	 * Проверяет возможность be scared.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canBeScared() {
-		return this.canBeScared;
+		return canBeScared;
 	}
 
 	@Override
 	public void start() {
-		this.lastPlayerX = this.closestPlayer.getX();
-		this.lastPlayerY = this.closestPlayer.getY();
-		this.lastPlayerZ = this.closestPlayer.getZ();
-		this.active = true;
+		lastPlayerX = closestPlayer.getX();
+		lastPlayerY = closestPlayer.getY();
+		lastPlayerZ = closestPlayer.getZ();
+		active = true;
 	}
 
 	@Override
 	public void stop() {
-		this.closestPlayer = null;
-		this.stopMoving();
-		this.cooldown = toGoalTicks(100);
-		this.active = false;
+		closestPlayer = null;
+		stopMoving();
+		cooldown = toGoalTicks(100);
+		active = false;
 	}
 
 	@Override
 	public void tick() {
-		this.mob
-				.getLookControl()
-				.lookAt(this.closestPlayer, this.mob.getMaxHeadRotation() + 20, this.mob.getMaxLookPitchChange());
-		if (this.mob.squaredDistanceTo(this.closestPlayer) < this.range * this.range) {
-			this.stopMoving();
+		mob.getLookControl().lookAt(closestPlayer, mob.getMaxHeadRotation() + 20, mob.getMaxLookPitchChange());
+		if (mob.squaredDistanceTo(closestPlayer) < range * range) {
+			stopMoving();
 		}
 		else {
-			this.startMovingTo(this.closestPlayer);
+			startMovingTo(closestPlayer);
 		}
 	}
 
-	/**
-	 * Останавливает moving.
-	 */
 	protected void stopMoving() {
-		this.mob.getNavigation().stop();
+		mob.getNavigation().stop();
 	}
 
-	/**
-	 * Запускает moving to.
-	 *
-	 * @param player player
-	 */
 	protected void startMovingTo(PlayerEntity player) {
-		this.mob.getNavigation().startMovingTo(player, this.speed);
+		mob.getNavigation().startMovingTo(player, speed);
 	}
 
 	public boolean isActive() {
-		return this.active;
+		return active;
 	}
 
 	/**
-	 * {@code HappyGhastTemptGoal}.
+	 * Специализированная версия для Happy Ghast: использует {@code MoveControl}
+	 * вместо навигации, чтобы двигаться в 3D-пространстве к позиции глаз игрока.
 	 */
 	public static class HappyGhastTemptGoal extends TemptGoal {
 
 		public HappyGhastTemptGoal(
 				MobEntity mobEntity,
-				double d,
-				Predicate<ItemStack> predicate,
-				boolean bl,
-				double e
+				double speed,
+				Predicate<ItemStack> temptItemPredicate,
+				boolean canBeScared,
+				double range
 		) {
-			super(mobEntity, d, predicate, bl, e);
+			super(mobEntity, speed, temptItemPredicate, canBeScared, range);
 		}
 
 		@Override
 		protected void stopMoving() {
-			this.mob.getMoveControl().setWaiting();
+			mob.getMoveControl().setWaiting();
 		}
 
 		@Override
 		protected void startMovingTo(PlayerEntity player) {
-			Vec3d
-					vec3d =
-					player
-							.getEyePos()
-							.subtract(this.mob.getEntityPos())
-							.multiply(this.mob.getRandom().nextDouble())
-							.add(this.mob.getEntityPos());
-			this.mob.getMoveControl().moveTo(vec3d.x, vec3d.y, vec3d.z, this.speed);
+			Vec3d targetPos = player
+					.getEyePos()
+					.subtract(mob.getEntityPos())
+					.multiply(mob.getRandom().nextDouble())
+					.add(mob.getEntityPos());
+			mob.getMoveControl().moveTo(targetPos.x, targetPos.y, targetPos.z, speed);
 		}
 	}
 }

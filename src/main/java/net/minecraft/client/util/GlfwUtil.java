@@ -5,23 +5,21 @@ import net.fabricmc.api.Environment;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.system.MemoryUtil;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlfwUtil}.
+ * Утилитарный класс для низкоуровневых операций GLFW.
  */
+@Environment(EnvType.CLIENT)
 public class GlfwUtil {
 
-	/**
-	 * Make jvm crash.
-	 */
+	private GlfwUtil() {
+	}
+
+	/** Намеренно вызывает крэш JVM через запись по нулевому адресу — только для отладки. */
 	public static void makeJvmCrash() {
 		MemoryUtil.memSet(0L, 0, 1L);
 	}
 
 	public static double getTime() {
 		return GLFW.glfwGetTime();
-	}
-
-	private GlfwUtil() {
 	}
 }

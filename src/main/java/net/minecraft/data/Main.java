@@ -39,7 +39,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 /**
- * {@code Main}.
+ * Точка входа для генерации данных Minecraft.
+ * Разбирает аргументы командной строки и запускает {@link DataGenerator}
+ * с нужным набором провайдеров.
  */
 public class Main {
 
@@ -47,38 +49,38 @@ public class Main {
 	@DontObfuscate
 	public static void main(String[] args) throws IOException {
 		SharedConstants.createGameVersion();
+
 		OptionParser optionParser = new OptionParser();
-		OptionSpec<Void> optionSpec = optionParser.accepts("help", "Show the help menu").forHelp();
-		OptionSpec<Void> optionSpec2 = optionParser.accepts("server", "Include server generators");
-		OptionSpec<Void> optionSpec3 = optionParser.accepts("dev", "Include development tools");
-		OptionSpec<Void> optionSpec4 = optionParser.accepts("reports", "Include data reports");
+		OptionSpec<Void> helpOption = optionParser.accepts("help", "Show the help menu").forHelp();
+		OptionSpec<Void> serverOption = optionParser.accepts("server", "Include server generators");
+		OptionSpec<Void> devOption = optionParser.accepts("dev", "Include development tools");
+		OptionSpec<Void> reportsOption = optionParser.accepts("reports", "Include data reports");
 		optionParser.accepts("validate", "Validate inputs");
-		OptionSpec<Void> optionSpec5 = optionParser.accepts("all", "Include all generators");
-		OptionSpec<String>
-				optionSpec6 =
-				optionParser
-						.accepts("output", "Output folder")
-						.withRequiredArg()
-						.defaultsTo("generated", new String[0]);
-		OptionSpec<String> optionSpec7 = optionParser.accepts("input", "Input folder").withRequiredArg();
+		OptionSpec<Void> allOption = optionParser.accepts("all", "Include all generators");
+		OptionSpec<String> outputOption = optionParser
+				.accepts("output", "Output folder")
+				.withRequiredArg()
+				.defaultsTo("generated", new String[0]);
+		OptionSpec<String> inputOption = optionParser.accepts("input", "Input folder").withRequiredArg();
+
 		OptionSet optionSet = optionParser.parse(args);
-		if (!optionSet.has(optionSpec) && optionSet.hasOptions()) {
-			Path path = Paths.get((String) optionSpec6.value(optionSet));
-			boolean bl = optionSet.has(optionSpec5);
-			boolean bl2 = bl || optionSet.has(optionSpec2);
-			boolean bl3 = bl || optionSet.has(optionSpec3);
-			boolean bl4 = bl || optionSet.has(optionSpec4);
-			Collection<Path>
-					collection =
-					optionSet.valuesOf(optionSpec7).stream().map(input -> Paths.get(input)).toList();
-			DataGenerator dataGenerator = new DataGenerator(path, SharedConstants.getGameVersion(), true);
-			create(dataGenerator, collection, bl2, bl3, bl4);
-			dataGenerator.run();
-			Util.shutdownExecutors();
-		}
-		else {
+
+		if (optionSet.has(helpOption) || !optionSet.hasOptions()) {
 			optionParser.printHelpOn(System.out);
+			return;
 		}
+
+		Path outputPath = Paths.get(outputOption.value(optionSet));
+		boolean includeAll = optionSet.has(allOption);
+		boolean includeServer = includeAll || optionSet.has(serverOption);
+		boolean includeDev = includeAll || optionSet.has(devOption);
+		boolean includeReports = includeAll || optionSet.has(reportsOption);
+		Collection<Path> inputPaths = optionSet.valuesOf(inputOption).stream().map(Paths::get).toList();
+
+		DataGenerator dataGenerator = new DataGenerator(outputPath, SharedConstants.getGameVersion(), true);
+		create(dataGenerator, inputPaths, includeServer, includeDev, includeReports);
+		dataGenerator.run();
+		Util.shutdownExecutors();
 	}
 
 	private static <T extends DataProvider> DataProvider.Factory<T> toFactory(
@@ -88,82 +90,105 @@ public class Main {
 		return output -> baseFactory.apply(output, registriesFuture);
 	}
 
+	/**
+	 * Регистрирует все провайдеры данных в переданном {@link DataGenerator}.
+	 *
+	 * @param dataGenerator генератор данных
+	 * @param inputs        пути к входным директориям (NBT/SNBT файлы)
+	 * @param includeServer включить серверные генераторы (рецепты, теги, достижения и т.д.)
+	 * @param includeDev    включить инструменты разработки (NBT → SNBT конвертер)
+	 * @param includeReports включить генераторы отчётов (blocks.json, items.json и т.д.)
+	 */
 	public static void create(
 			DataGenerator dataGenerator,
 			Collection<Path> inputs,
-			boolean includeClient,
 			boolean includeServer,
-			boolean includeDev
+			boolean includeDev,
+			boolean includeReports
 	) {
-		DataGenerator.Pack pack = dataGenerator.createVanillaPack(includeClient);
-		pack.addProvider(output -> new SnbtProvider(output, inputs).addWriter(new StructureValidatorProvider()));
-		CompletableFuture<RegistryWrapper.WrapperLookup> completableFuture = CompletableFuture.supplyAsync(
+		DataGenerator.Pack snbtPack = dataGenerator.createVanillaPack(includeServer);
+		snbtPack.addProvider(output -> new SnbtProvider(output, inputs).addWriter(new StructureValidatorProvider()));
+
+		CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture = CompletableFuture.supplyAsync(
 				BuiltinRegistries::createWrapperLookup, Util.getMainWorkerExecutor()
 		);
-		DataGenerator.Pack pack2 = dataGenerator.createVanillaPack(includeClient);
-		pack2.addProvider(toFactory(DynamicRegistriesProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaAdvancementProviders::createVanillaProvider, completableFuture));
-		pack2.addProvider(toFactory(VanillaLootTableProviders::createVanillaProvider, completableFuture));
-		pack2.addProvider(toFactory(VanillaRecipeGenerator.Provider::new, completableFuture));
-		TagProvider<Block> tagProvider = pack2.addProvider(toFactory(VanillaBlockTagProvider::new, completableFuture));
-		TagProvider<Item> tagProvider2 = pack2.addProvider(toFactory(VanillaItemTagProvider::new, completableFuture));
-		TagProvider<Biome> tagProvider3 = pack2.addProvider(toFactory(VanillaBiomeTagProvider::new, completableFuture));
-		TagProvider<BannerPattern>
-				tagProvider4 =
-				pack2.addProvider(toFactory(VanillaBannerPatternTagProvider::new, completableFuture));
-		TagProvider<Structure>
-				tagProvider5 =
-				pack2.addProvider(toFactory(VanillaStructureTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaDamageTypeTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaDialogTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaEntityTypeTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaFlatLevelGeneratorPresetTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaFluidTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaGameEventTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaInstrumentTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaPaintingVariantTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaPointOfInterestTypeTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaWorldPresetTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaEnchantmentTagProvider::new, completableFuture));
-		pack2.addProvider(toFactory(VanillaTimelineTagProvider::new, completableFuture));
-		pack2 = dataGenerator.createVanillaPack(includeServer);
-		pack2.addProvider(output -> new NbtProvider(output, inputs));
-		pack2 = dataGenerator.createVanillaPack(includeDev);
-		pack2.addProvider(toFactory(BiomeParametersProvider::new, completableFuture));
-		pack2.addProvider(toFactory(ItemListProvider::new, completableFuture));
-		pack2.addProvider(toFactory(BlockListProvider::new, completableFuture));
-		pack2.addProvider(toFactory(CommandSyntaxProvider::new, completableFuture));
-		pack2.addProvider(RegistryDumpProvider::new);
-		pack2.addProvider(PacketReportProvider::new);
-		pack2.addProvider(DataPackStructureProvider::new);
-		pack2.addProvider(RpcSchemaReferenceJsonProvider::new);
-		CompletableFuture<RegistryBuilder.FullPatchesRegistriesPair>
-				completableFuture2 =
-				TradeRebalanceBuiltinRegistries.validate(completableFuture);
-		CompletableFuture<RegistryWrapper.WrapperLookup>
-				completableFuture3 =
-				completableFuture2.thenApply(RegistryBuilder.FullPatchesRegistriesPair::patches);
-		DataGenerator.Pack pack3 = dataGenerator.createVanillaSubPack(includeClient, "trade_rebalance");
-		pack3.addProvider(toFactory(DynamicRegistriesProvider::new, completableFuture3));
-		pack3.addProvider(
+
+		DataGenerator.Pack vanillaPack = dataGenerator.createVanillaPack(includeServer);
+		vanillaPack.addProvider(toFactory(DynamicRegistriesProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaAdvancementProviders::createVanillaProvider, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaLootTableProviders::createVanillaProvider, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaRecipeGenerator.Provider::new, registriesFuture));
+
+		TagProvider<Block> blockTagProvider = vanillaPack.addProvider(toFactory(VanillaBlockTagProvider::new, registriesFuture));
+		TagProvider<Item> itemTagProvider = vanillaPack.addProvider(toFactory(VanillaItemTagProvider::new, registriesFuture));
+		TagProvider<Biome> biomeTagProvider = vanillaPack.addProvider(toFactory(VanillaBiomeTagProvider::new, registriesFuture));
+		TagProvider<BannerPattern> bannerPatternTagProvider = vanillaPack.addProvider(
+				toFactory(VanillaBannerPatternTagProvider::new, registriesFuture)
+		);
+		TagProvider<Structure> structureTagProvider = vanillaPack.addProvider(
+				toFactory(VanillaStructureTagProvider::new, registriesFuture)
+		);
+
+		vanillaPack.addProvider(toFactory(VanillaDamageTypeTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaDialogTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaEntityTypeTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaFlatLevelGeneratorPresetTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaFluidTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaGameEventTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaInstrumentTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaPaintingVariantTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaPointOfInterestTypeTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaWorldPresetTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaEnchantmentTagProvider::new, registriesFuture));
+		vanillaPack.addProvider(toFactory(VanillaTimelineTagProvider::new, registriesFuture));
+
+		DataGenerator.Pack nbtPack = dataGenerator.createVanillaPack(includeDev);
+		nbtPack.addProvider(output -> new NbtProvider(output, inputs));
+
+		DataGenerator.Pack reportsPack = dataGenerator.createVanillaPack(includeReports);
+		reportsPack.addProvider(toFactory(BiomeParametersProvider::new, registriesFuture));
+		reportsPack.addProvider(toFactory(ItemListProvider::new, registriesFuture));
+		reportsPack.addProvider(toFactory(BlockListProvider::new, registriesFuture));
+		reportsPack.addProvider(toFactory(CommandSyntaxProvider::new, registriesFuture));
+		reportsPack.addProvider(RegistryDumpProvider::new);
+		reportsPack.addProvider(PacketReportProvider::new);
+		reportsPack.addProvider(DataPackStructureProvider::new);
+		reportsPack.addProvider(RpcSchemaReferenceJsonProvider::new);
+
+		CompletableFuture<RegistryBuilder.FullPatchesRegistriesPair> tradeRebalanceFuture =
+				TradeRebalanceBuiltinRegistries.validate(registriesFuture);
+		CompletableFuture<RegistryWrapper.WrapperLookup> tradeRebalanceRegistries =
+				tradeRebalanceFuture.thenApply(RegistryBuilder.FullPatchesRegistriesPair::patches);
+
+		DataGenerator.Pack tradeRebalancePack = dataGenerator.createVanillaSubPack(includeServer, "trade_rebalance");
+		tradeRebalancePack.addProvider(toFactory(DynamicRegistriesProvider::new, tradeRebalanceRegistries));
+		tradeRebalancePack.addProvider(
 				output -> MetadataProvider.create(
 						output,
 						Text.translatable("dataPack.trade_rebalance.description"),
 						FeatureSet.of(FeatureFlags.TRADE_REBALANCE)
 				)
 		);
-		pack3.addProvider(toFactory(TradeRebalanceLootTableProviders::createTradeRebalanceProvider, completableFuture));
-		pack3.addProvider(toFactory(TradeRebalanceEnchantmentTagProvider::new, completableFuture));
-		pack2 = dataGenerator.createVanillaSubPack(includeClient, "redstone_experiments");
-		pack2.addProvider(
+		tradeRebalancePack.addProvider(
+				toFactory(TradeRebalanceLootTableProviders::createTradeRebalanceProvider, registriesFuture)
+		);
+		tradeRebalancePack.addProvider(toFactory(TradeRebalanceEnchantmentTagProvider::new, registriesFuture));
+
+		DataGenerator.Pack redstoneExperimentsPack = dataGenerator.createVanillaSubPack(
+				includeServer, "redstone_experiments"
+		);
+		redstoneExperimentsPack.addProvider(
 				output -> MetadataProvider.create(
 						output,
 						Text.translatable("dataPack.redstone_experiments.description"),
 						FeatureSet.of(FeatureFlags.REDSTONE_EXPERIMENTS)
 				)
 		);
-		pack2 = dataGenerator.createVanillaSubPack(includeClient, "minecart_improvements");
-		pack2.addProvider(
+
+		DataGenerator.Pack minecartImprovementsPack = dataGenerator.createVanillaSubPack(
+				includeServer, "minecart_improvements"
+		);
+		minecartImprovementsPack.addProvider(
 				output -> MetadataProvider.create(
 						output,
 						Text.translatable("dataPack.minecart_improvements.description"),

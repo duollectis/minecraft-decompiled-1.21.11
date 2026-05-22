@@ -8,17 +8,13 @@ import net.minecraft.util.math.intprovider.IntProvider;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
 /**
- * {@code StartSniffingTask}.
+ * Фабричный класс задачи мозга Вардена, инициирующей анимацию обнюхивания.
+ * Устанавливает позу {@code SNIFFING}, сбрасывает цель ходьбы и запускает кулдаун обнюхивания.
  */
 public class StartSniffingTask {
 
 	private static final IntProvider COOLDOWN = UniformIntProvider.create(100, 200);
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

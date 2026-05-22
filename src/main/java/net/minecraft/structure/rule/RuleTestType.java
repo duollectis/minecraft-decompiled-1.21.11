@@ -5,7 +5,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code RuleTestType}.
+ * Реестр типов {@link RuleTest}. Каждый тип связывает строковый идентификатор
+ * с кодеком для сериализации конкретной реализации теста.
  */
 public interface RuleTestType<P extends RuleTest> {
 
@@ -13,19 +14,13 @@ public interface RuleTestType<P extends RuleTest> {
 
 	RuleTestType<BlockMatchRuleTest> BLOCK_MATCH = register("block_match", BlockMatchRuleTest.CODEC);
 
-	RuleTestType<BlockStateMatchRuleTest>
-			BLOCKSTATE_MATCH =
-			register("blockstate_match", BlockStateMatchRuleTest.CODEC);
+	RuleTestType<BlockStateMatchRuleTest> BLOCKSTATE_MATCH = register("blockstate_match", BlockStateMatchRuleTest.CODEC);
 
 	RuleTestType<TagMatchRuleTest> TAG_MATCH = register("tag_match", TagMatchRuleTest.CODEC);
 
-	RuleTestType<RandomBlockMatchRuleTest>
-			RANDOM_BLOCK_MATCH =
-			register("random_block_match", RandomBlockMatchRuleTest.CODEC);
+	RuleTestType<RandomBlockMatchRuleTest> RANDOM_BLOCK_MATCH = register("random_block_match", RandomBlockMatchRuleTest.CODEC);
 
-	RuleTestType<RandomBlockStateMatchRuleTest>
-			RANDOM_BLOCKSTATE_MATCH =
-			register("random_blockstate_match", RandomBlockStateMatchRuleTest.CODEC);
+	RuleTestType<RandomBlockStateMatchRuleTest> RANDOM_BLOCKSTATE_MATCH = register("random_blockstate_match", RandomBlockStateMatchRuleTest.CODEC);
 
 	MapCodec<P> codec();
 

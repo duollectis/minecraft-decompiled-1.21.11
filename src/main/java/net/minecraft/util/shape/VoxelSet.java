@@ -6,7 +6,9 @@ import net.minecraft.util.math.DirectionTransformation;
 import org.joml.Vector3i;
 
 /**
- * {@code VoxelSet}.
+ * Трёхмерный битовый набор вокселей фиксированного размера.
+ * Хранит информацию о заполненности каждой ячейки сетки и предоставляет
+ * методы для итерации по рёбрам и граням. Является основой для {@link VoxelShape}.
  */
 public abstract class VoxelSet {
 

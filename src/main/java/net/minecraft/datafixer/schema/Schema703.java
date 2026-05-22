@@ -9,7 +9,10 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema703}.
+ * Схема DataFixer версии 703, разделяющая устаревший тип {@code EntityHorse}
+ * на отдельные типы: {@code Horse}, {@code Donkey}, {@code Mule},
+ * {@code ZombieHorse} и {@code SkeletonHorse} с соответствующими полями
+ * инвентаря и снаряжения.
  */
 public class Schema703 extends Schema {
 

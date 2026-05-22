@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code TrialSpawnerConfigTagFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TrialSpawnerConfigTagFix extends ChoiceWriteReadFix {
 

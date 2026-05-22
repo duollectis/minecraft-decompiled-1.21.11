@@ -7,7 +7,8 @@ import net.minecraft.particle.ParticlesMode;
 import net.minecraft.util.Arm;
 
 /**
- * Запись synced client options.
+ * Настройки клиента, синхронизируемые с сервером: язык, дальность прорисовки,
+ * видимость чата, части скина, основная рука, фильтрация текста и частицы.
  */
 public record SyncedClientOptions(
 		String language,
@@ -25,7 +26,7 @@ public record SyncedClientOptions(
 
 	public SyncedClientOptions(PacketByteBuf buf) {
 		this(
-				buf.readString(16),
+				buf.readString(MAX_LANGUAGE_CODE_LENGTH),
 				buf.readByte(),
 				buf.readEnumConstant(ChatVisibility.class),
 				buf.readBoolean(),
@@ -37,28 +38,18 @@ public record SyncedClientOptions(
 		);
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 */
 	public void write(PacketByteBuf buf) {
-		buf.writeString(this.language);
-		buf.writeByte(this.viewDistance);
-		buf.writeEnumConstant(this.chatVisibility);
-		buf.writeBoolean(this.chatColorsEnabled);
-		buf.writeByte(this.playerModelParts);
-		buf.writeEnumConstant(this.mainArm);
-		buf.writeBoolean(this.filtersText);
-		buf.writeBoolean(this.allowsServerListing);
-		buf.writeEnumConstant(this.particleStatus);
+		buf.writeString(language);
+		buf.writeByte(viewDistance);
+		buf.writeEnumConstant(chatVisibility);
+		buf.writeBoolean(chatColorsEnabled);
+		buf.writeByte(playerModelParts);
+		buf.writeEnumConstant(mainArm);
+		buf.writeBoolean(filtersText);
+		buf.writeBoolean(allowsServerListing);
+		buf.writeEnumConstant(particleStatus);
 	}
 
-	/**
-	 * Создаёт default.
-	 *
-	 * @return SyncedClientOptions — результат операции
-	 */
 	public static SyncedClientOptions createDefault() {
 		return new SyncedClientOptions(
 				"en_us",

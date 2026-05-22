@@ -25,10 +25,15 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemRenderState}.
+ * Мутабельный контейнер состояния рендеринга предмета, накапливающий слои отрисовки
+ * ({@link LayerRenderState}) перед финальным проходом GPU.
+ * <p>
+ * Каждый слой соответствует одному визуальному компоненту предмета: базовой геометрии,
+ * специальной модели, блеску (glint) и т.д. Состояние сбрасывается через {@link #clear()}
+ * перед каждым кадром.
  */
+@Environment(EnvType.CLIENT)
 public class ItemRenderState implements FabricRenderState {
 
 	public ItemDisplayContext displayContext = ItemDisplayContext.NONE;
@@ -41,95 +46,87 @@ public class ItemRenderState implements FabricRenderState {
 			new ItemRenderState.LayerRenderState[]{new ItemRenderState.LayerRenderState()};
 
 	/**
-	 * Добавляет layers.
+	 * Резервирует место для {@code add} дополнительных слоёв, расширяя внутренний массив
+	 * при необходимости. Вызывается перед {@link #newLayer()} для batch-аллокации.
 	 *
-	 * @param add add
+	 * @param add количество слоёв, которые планируется добавить
 	 */
 	public void addLayers(int add) {
-		int i = this.layers.length;
-		int j = this.layerCount + add;
-		if (j > i) {
-			this.layers = Arrays.copyOf(this.layers, j);
+		int currentCapacity = layers.length;
+		int required = layerCount + add;
 
-			for (int k = i; k < j; k++) {
-				this.layers[k] = new ItemRenderState.LayerRenderState();
+		if (required > currentCapacity) {
+			layers = Arrays.copyOf(layers, required);
+
+			for (int idx = currentCapacity; idx < required; idx++) {
+				layers[idx] = new ItemRenderState.LayerRenderState();
 			}
 		}
 	}
 
 	public ItemRenderState.LayerRenderState newLayer() {
-		this.addLayers(1);
-		return this.layers[this.layerCount++];
+		addLayers(1);
+		return layers[layerCount++];
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.displayContext = ItemDisplayContext.NONE;
+		displayContext = ItemDisplayContext.NONE;
 
-		for (int i = 0; i < this.layerCount; i++) {
-			this.layers[i].clear();
+		for (int idx = 0; idx < layerCount; idx++) {
+			layers[idx].clear();
 		}
 
-		this.layerCount = 0;
-		this.animated = false;
-		this.oversizedInGui = false;
-		this.cachedModelBoundingBox = null;
+		layerCount = 0;
+		animated = false;
+		oversizedInGui = false;
+		cachedModelBoundingBox = null;
 	}
 
-	/**
-	 * Mark animated.
-	 */
 	public void markAnimated() {
-		this.animated = true;
+		animated = true;
 	}
 
 	public boolean isAnimated() {
-		return this.animated;
+		return animated;
 	}
 
-	/**
-	 * Добавляет model key.
-	 *
-	 * @param modelKey model key
-	 */
 	public void addModelKey(Object modelKey) {
 	}
 
 	private ItemRenderState.LayerRenderState getFirstLayer() {
-		return this.layers[0];
+		return layers[0];
 	}
 
 	public boolean isEmpty() {
-		return this.layerCount == 0;
+		return layerCount == 0;
 	}
 
 	public boolean isSideLit() {
-		return this.getFirstLayer().useLight;
+		return getFirstLayer().useLight;
 	}
 
 	public @Nullable Sprite getParticleSprite(Random random) {
-		return this.layerCount == 0 ? null : this.layers[random.nextInt(this.layerCount)].particle;
+		return layerCount == 0 ? null : layers[random.nextInt(layerCount)].particle;
 	}
 
 	/**
-	 * Load.
+	 * Обходит все вершины всех слоёв с учётом трансформации контекста отображения
+	 * и передаёт их в {@code posConsumer}. Используется для вычисления AABB модели.
 	 *
-	 * @param posConsumer pos consumer
+	 * @param posConsumer получатель позиций вершин в мировом пространстве
 	 */
 	public void load(Consumer<Vector3fc> posConsumer) {
-		Vector3f vector3f = new Vector3f();
+		Vector3f scratch = new Vector3f();
 		MatrixStack.Entry entry = new MatrixStack.Entry();
 
-		for (int i = 0; i < this.layerCount; i++) {
-			ItemRenderState.LayerRenderState layerRenderState = this.layers[i];
-			layerRenderState.transform.apply(this.displayContext.isLeftHand(), entry);
-			Matrix4f matrix4f = entry.getPositionMatrix();
-			Vector3fc[] vector3fcs = layerRenderState.vertices.get();
+		for (int idx = 0; idx < layerCount; idx++) {
+			ItemRenderState.LayerRenderState layer = layers[idx];
+			layer.transform.apply(displayContext.isLeftHand(), entry);
+			Matrix4f matrix = entry.getPositionMatrix();
+			Vector3fc[] vertices = layer.vertices.get();
 
-			for (Vector3fc vector3fc : vector3fcs) {
-				posConsumer.accept(vector3f.set(vector3fc).mulPosition(matrix4f));
+			for (Vector3fc vertex : vertices) {
+				posConsumer.accept(scratch.set(vertex).mulPosition(matrix));
 			}
 
 			entry.loadIdentity();
@@ -141,24 +138,23 @@ public class ItemRenderState implements FabricRenderState {
 			OrderedRenderCommandQueue orderedRenderCommandQueue,
 			int light,
 			int overlay,
-			int i
+			int seed
 	) {
-		for (int j = 0; j < this.layerCount; j++) {
-			this.layers[j].render(matrices, orderedRenderCommandQueue, light, overlay, i);
+		for (int idx = 0; idx < layerCount; idx++) {
+			layers[idx].render(matrices, orderedRenderCommandQueue, light, overlay, seed);
 		}
 	}
 
 	public Box getModelBoundingBox() {
-		if (this.cachedModelBoundingBox != null) {
-			return this.cachedModelBoundingBox;
+		if (cachedModelBoundingBox != null) {
+			return cachedModelBoundingBox;
 		}
-		else {
-			Box.Builder builder = new Box.Builder();
-			this.load(builder::encompass);
-			Box box = builder.build();
-			this.cachedModelBoundingBox = box;
-			return box;
-		}
+
+		Box.Builder builder = new Box.Builder();
+		load(builder::encompass);
+		Box box = builder.build();
+		cachedModelBoundingBox = box;
+		return box;
 	}
 
 	public void setOversizedInGui(boolean oversizedInGui) {
@@ -166,23 +162,22 @@ public class ItemRenderState implements FabricRenderState {
 	}
 
 	public boolean isOversizedInGui() {
-		return this.oversizedInGui;
+		return oversizedInGui;
 	}
 
+	/** Тип блеска (glint) предмета: отсутствует, стандартный или специальный (компас/часы). */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Glint}.
-	 */
-	public static enum Glint {
+	public enum Glint {
 		NONE,
 		STANDARD,
 		SPECIAL;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LayerRenderState}.
+	 * Состояние одного визуального слоя предмета: геометрия, текстурный слой,
+	 * тинты, блеск и опциональная специальная модель.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class LayerRenderState implements FabricLayerRenderState, FabricRenderState {
 
 		private static final Vector3fc[] EMPTY = new Vector3fc[0];
@@ -198,28 +193,25 @@ public class ItemRenderState implements FabricRenderState {
 		private @Nullable Object data;
 		Supplier<Vector3fc[]> vertices = DEFAULT;
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			this.quads.clear();
-			this.renderLayer = null;
-			this.glint = ItemRenderState.Glint.NONE;
-			this.specialModelType = null;
-			this.data = null;
-			Arrays.fill(this.tints, -1);
-			this.useLight = false;
-			this.particle = null;
-			this.transform = Transformation.IDENTITY;
-			this.vertices = DEFAULT;
+			quads.clear();
+			renderLayer = null;
+			glint = ItemRenderState.Glint.NONE;
+			specialModelType = null;
+			data = null;
+			Arrays.fill(tints, -1);
+			useLight = false;
+			particle = null;
+			transform = Transformation.IDENTITY;
+			vertices = DEFAULT;
 		}
 
 		public List<BakedQuad> getQuads() {
-			return this.quads;
+			return quads;
 		}
 
 		public void setRenderLayer(RenderLayer layer) {
-			this.renderLayer = layer;
+			renderLayer = layer;
 		}
 
 		public void setUseLight(boolean useLight) {
@@ -252,19 +244,19 @@ public class ItemRenderState implements FabricRenderState {
 		}
 
 		/**
-		 * Инициализирует tints.
+		 * Инициализирует или расширяет массив тинтов до {@code maxIndex} элементов,
+		 * заполняя новые позиции значением {@code -1} (нет тинта).
 		 *
-		 * @param maxIndex max index
-		 *
-		 * @return int[] — результат операции
+		 * @param maxIndex требуемый размер массива тинтов
+		 * @return массив тинтов для заполнения вызывающим кодом
 		 */
 		public int[] initTints(int maxIndex) {
-			if (maxIndex > this.tints.length) {
-				this.tints = new int[maxIndex];
-				Arrays.fill(this.tints, -1);
+			if (maxIndex > tints.length) {
+				tints = new int[maxIndex];
+				Arrays.fill(tints, -1);
 			}
 
-			return this.tints;
+			return tints;
 		}
 
 		void render(
@@ -272,34 +264,34 @@ public class ItemRenderState implements FabricRenderState {
 				OrderedRenderCommandQueue orderedRenderCommandQueue,
 				int light,
 				int overlay,
-				int i
+				int seed
 		) {
 			matrices.push();
-			this.transform.apply(ItemRenderState.this.displayContext.isLeftHand(), matrices.peek());
-			if (this.specialModelType != null) {
-				this.specialModelType
-						.render(
-								this.data,
-								ItemRenderState.this.displayContext,
-								matrices,
-								orderedRenderCommandQueue,
-								light,
-								overlay,
-								this.glint != ItemRenderState.Glint.NONE,
-								i
-						);
+			transform.apply(ItemRenderState.this.displayContext.isLeftHand(), matrices.peek());
+
+			if (specialModelType != null) {
+				specialModelType.render(
+						data,
+						ItemRenderState.this.displayContext,
+						matrices,
+						orderedRenderCommandQueue,
+						light,
+						overlay,
+						glint != ItemRenderState.Glint.NONE,
+						seed
+				);
 			}
-			else if (this.renderLayer != null) {
+			else if (renderLayer != null) {
 				orderedRenderCommandQueue.submitItem(
 						matrices,
 						ItemRenderState.this.displayContext,
 						light,
 						overlay,
-						i,
-						this.tints,
-						this.quads,
-						this.renderLayer,
-						this.glint
+						seed,
+						tints,
+						quads,
+						renderLayer,
+						glint
 				);
 			}
 

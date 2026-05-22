@@ -4,14 +4,15 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code GenerationStep}.
+ * Шаги генерации мира, определяющие порядок размещения фич в биомах.
+ * Каждый шаг выполняется последовательно при генерации чанка.
  */
 public class GenerationStep {
 
 	/**
-	 * {@code Feature}.
+	 * Перечисление шагов генерации фич биома в порядке их выполнения.
 	 */
-	public static enum Feature implements StringIdentifiable {
+	public enum Feature implements StringIdentifiable {
 		RAW_GENERATION("raw_generation"),
 		LAKES("lakes"),
 		LOCAL_MODIFICATIONS("local_modifications"),
@@ -24,22 +25,21 @@ public class GenerationStep {
 		VEGETAL_DECORATION("vegetal_decoration"),
 		TOP_LAYER_MODIFICATION("top_layer_modification");
 
-		public static final Codec<GenerationStep.Feature>
-				CODEC =
-				StringIdentifiable.createCodec(GenerationStep.Feature::values);
+		public static final Codec<Feature> CODEC = StringIdentifiable.createCodec(Feature::values);
+
 		private final String name;
 
-		private Feature(final String name) {
+		Feature(String name) {
 			this.name = name;
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

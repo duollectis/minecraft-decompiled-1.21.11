@@ -34,8 +34,9 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 /**
- * {@code AttributeModifiersComponent}.
- */
+	 * Компонент модификаторов атрибутов предмета.
+	 * Хранит список записей, каждая из которых связывает атрибут с модификатором и слотом экипировки.
+	 */
 public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry> modifiers) {
 
 	public static final AttributeModifiersComponent DEFAULT = new AttributeModifiersComponent(List.of());
@@ -60,13 +61,11 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			EntityAttributeModifier modifier,
 			AttributeModifierSlot slot
 	) {
-		com.google.common.collect.ImmutableList.Builder<AttributeModifiersComponent.Entry>
-				builder =
-				ImmutableList.builderWithExpectedSize(
-						this.modifiers.size() + 1
-				);
+		ImmutableList.Builder<AttributeModifiersComponent.Entry> builder = ImmutableList.builderWithExpectedSize(
+				modifiers.size() + 1
+		);
 
-		for (AttributeModifiersComponent.Entry entry : this.modifiers) {
+		for (AttributeModifiersComponent.Entry entry : modifiers) {
 			if (!entry.matches(attribute, modifier.id())) {
 				builder.add(entry);
 			}
@@ -80,7 +79,7 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			AttributeModifierSlot slot,
 			TriConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier, AttributeModifiersComponent.Display> attributeConsumer
 	) {
-		for (AttributeModifiersComponent.Entry entry : this.modifiers) {
+		for (AttributeModifiersComponent.Entry entry : modifiers) {
 			if (entry.slot.equals(slot)) {
 				attributeConsumer.accept(entry.attribute, entry.modifier, entry.display);
 			}
@@ -91,7 +90,7 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			AttributeModifierSlot slot,
 			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> attributeConsumer
 	) {
-		for (AttributeModifiersComponent.Entry entry : this.modifiers) {
+		for (AttributeModifiersComponent.Entry entry : modifiers) {
 			if (entry.slot.equals(slot)) {
 				attributeConsumer.accept(entry.attribute, entry.modifier);
 			}
@@ -102,7 +101,7 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			EquipmentSlot slot,
 			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> attributeConsumer
 	) {
-		for (AttributeModifiersComponent.Entry entry : this.modifiers) {
+		for (AttributeModifiersComponent.Entry entry : modifiers) {
 			if (entry.slot.matches(slot)) {
 				attributeConsumer.accept(entry.attribute, entry.modifier);
 			}
@@ -110,40 +109,35 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 	}
 
 	/**
-	 * Применяет operations.
-	 *
-	 * @param attribute attribute
-	 * @param base base
-	 * @param slot slot
-	 *
-	 * @return double — результат операции
-	 */
+		 * Последовательно применяет все модификаторы атрибута для указанного слота к базовому значению.
+		 * Порядок применения: ADD_VALUE → ADD_MULTIPLIED_BASE → ADD_MULTIPLIED_TOTAL.
+		 *
+		 * @param attribute целевой атрибут
+		 * @param base      базовое значение атрибута
+		 * @param slot      слот экипировки
+		 * @return итоговое значение после применения всех модификаторов
+		 */
 	public double applyOperations(RegistryEntry<EntityAttribute> attribute, double base, EquipmentSlot slot) {
-		double d = base;
+		double result = base;
 
-		for (AttributeModifiersComponent.Entry entry : this.modifiers) {
+		for (AttributeModifiersComponent.Entry entry : modifiers) {
 			if (entry.slot.matches(slot) && entry.attribute == attribute) {
-				double e = entry.modifier.value();
+				double modifierValue = entry.modifier.value();
 
-				d += switch (entry.modifier.operation()) {
-					case ADD_VALUE -> e;
-					case ADD_MULTIPLIED_BASE -> e * base;
-					case ADD_MULTIPLIED_TOTAL -> e * d;
+				result += switch (entry.modifier.operation()) {
+					case ADD_VALUE -> modifierValue;
+					case ADD_MULTIPLIED_BASE -> modifierValue * base;
+					case ADD_MULTIPLIED_TOTAL -> modifierValue * result;
 				};
 			}
 		}
 
-		return d;
+		return result;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<AttributeModifiersComponent.Entry>
-				entries =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<AttributeModifiersComponent.Entry> entries = ImmutableList.builder();
 
 		Builder() {
 		}
@@ -153,7 +147,7 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 				EntityAttributeModifier modifier,
 				AttributeModifierSlot slot
 		) {
-			this.entries.add(new AttributeModifiersComponent.Entry(attribute, modifier, slot));
+			entries.add(new AttributeModifiersComponent.Entry(attribute, modifier, slot));
 			return this;
 		}
 
@@ -163,23 +157,19 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 				AttributeModifierSlot slot,
 				AttributeModifiersComponent.Display display
 		) {
-			this.entries.add(new AttributeModifiersComponent.Entry(attribute, modifier, slot, display));
+			entries.add(new AttributeModifiersComponent.Entry(attribute, modifier, slot, display));
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return AttributeModifiersComponent — результат операции
-		 */
 		public AttributeModifiersComponent build() {
-			return new AttributeModifiersComponent(this.entries.build());
+			return new AttributeModifiersComponent(entries.build());
 		}
 	}
 
 	/**
-	 * {@code Display}.
-	 */
+		 * Стратегия отображения модификатора атрибута в тултипе предмета.
+		 * Определяет, как именно будет показан модификатор: стандартно, скрыто или с переопределённым текстом.
+		 */
 	public interface Display {
 
 		Codec<AttributeModifiersComponent.Display> CODEC = AttributeModifiersComponent.Display.Type.CODEC
@@ -215,9 +205,6 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 				EntityAttributeModifier modifier
 		);
 
-		/**
-		 * {@code Default}.
-		 */
 		public record Default() implements AttributeModifiersComponent.Display {
 
 			static final AttributeModifiersComponent.Display.Default
@@ -240,70 +227,63 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 					RegistryEntry<EntityAttribute> attribute,
 					EntityAttributeModifier modifier
 			) {
-				double d = modifier.value();
-				boolean bl = false;
+				double value = modifier.value();
+				boolean isBaseModifier = false;
+
 				if (player != null) {
 					if (modifier.idMatches(Item.BASE_ATTACK_DAMAGE_MODIFIER_ID)) {
-						d += player.getAttributeBaseValue(EntityAttributes.ATTACK_DAMAGE);
-						bl = true;
-					}
-					else if (modifier.idMatches(Item.BASE_ATTACK_SPEED_MODIFIER_ID)) {
-						d += player.getAttributeBaseValue(EntityAttributes.ATTACK_SPEED);
-						bl = true;
+						value += player.getAttributeBaseValue(EntityAttributes.ATTACK_DAMAGE);
+						isBaseModifier = true;
+					} else if (modifier.idMatches(Item.BASE_ATTACK_SPEED_MODIFIER_ID)) {
+						value += player.getAttributeBaseValue(EntityAttributes.ATTACK_SPEED);
+						isBaseModifier = true;
 					}
 				}
 
-				double e;
+				double displayValue;
 				if (modifier.operation() == EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
 						|| modifier.operation() == EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
-					e = d * 100.0;
-				}
-				else if (attribute.matches(EntityAttributes.KNOCKBACK_RESISTANCE)) {
-					e = d * 10.0;
-				}
-				else {
-					e = d;
+					displayValue = value * 100.0;
+				} else if (attribute.matches(EntityAttributes.KNOCKBACK_RESISTANCE)) {
+					displayValue = value * 10.0;
+				} else {
+					displayValue = value;
 				}
 
-				if (bl) {
+				if (isBaseModifier) {
 					textConsumer.accept(
 							ScreenTexts.space()
-							           .append(
-									           Text.translatable(
-											           "attribute.modifier.equals." + modifier.operation().getId(),
-											           AttributeModifiersComponent.DECIMAL_FORMAT.format(e),
-											           Text.translatable(attribute.value().getTranslationKey())
-									           )
-							           )
-							           .formatted(Formatting.DARK_GREEN)
+										.append(
+												Text.translatable(
+														"attribute.modifier.equals." + modifier.operation().getId(),
+														DECIMAL_FORMAT.format(displayValue),
+														Text.translatable(attribute.value().getTranslationKey())
+												)
+										)
+										.formatted(Formatting.DARK_GREEN)
 					);
-				}
-				else if (d > 0.0) {
+				} else if (value > 0.0) {
 					textConsumer.accept(
 							Text.translatable(
-									    "attribute.modifier.plus." + modifier.operation().getId(),
-									    AttributeModifiersComponent.DECIMAL_FORMAT.format(e),
-									    Text.translatable(attribute.value().getTranslationKey())
-							    )
-							    .formatted(attribute.value().getFormatting(true))
+										"attribute.modifier.plus." + modifier.operation().getId(),
+										DECIMAL_FORMAT.format(displayValue),
+										Text.translatable(attribute.value().getTranslationKey())
+								)
+								.formatted(attribute.value().getFormatting(true))
 					);
-				}
-				else if (d < 0.0) {
+				} else if (value < 0.0) {
 					textConsumer.accept(
 							Text.translatable(
-									    "attribute.modifier.take." + modifier.operation().getId(),
-									    AttributeModifiersComponent.DECIMAL_FORMAT.format(-e),
-									    Text.translatable(attribute.value().getTranslationKey())
-							    )
-							    .formatted(attribute.value().getFormatting(false))
+										"attribute.modifier.take." + modifier.operation().getId(),
+										DECIMAL_FORMAT.format(-displayValue),
+										Text.translatable(attribute.value().getTranslationKey())
+								)
+								.formatted(attribute.value().getFormatting(false))
 					);
 				}
 			}
 		}
 
-		/**
-		 * {@code Hidden}.
-		 */
 		public record Hidden() implements AttributeModifiersComponent.Display {
 
 			static final AttributeModifiersComponent.Display.Hidden
@@ -329,9 +309,6 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			}
 		}
 
-		/**
-		 * {@code OverrideDisplay}.
-		 */
 		public record OverrideDisplay(Text value) implements AttributeModifiersComponent.Display {
 
 			static final MapCodec<AttributeModifiersComponent.Display.OverrideDisplay>
@@ -363,14 +340,11 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 					RegistryEntry<EntityAttribute> attribute,
 					EntityAttributeModifier modifier
 			) {
-				textConsumer.accept(this.value);
+				textConsumer.accept(value);
 			}
 		}
 
-		/**
-		 * {@code Type}.
-		 */
-		public static enum Type implements StringIdentifiable {
+		public enum Type implements StringIdentifiable {
 			DEFAULT(
 					"default",
 					0,
@@ -437,9 +411,6 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 		}
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	public record Entry(
 			RegistryEntry<EntityAttribute> attribute,
 			EntityAttributeModifier modifier,
@@ -449,16 +420,16 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 
 		public static final Codec<AttributeModifiersComponent.Entry> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityAttribute.CODEC.fieldOf("type").forGetter(AttributeModifiersComponent.Entry::attribute),
-						                    EntityAttributeModifier.MAP_CODEC.forGetter(AttributeModifiersComponent.Entry::modifier),
-						                    AttributeModifierSlot.CODEC
-								                    .optionalFieldOf("slot", AttributeModifierSlot.ANY)
-								                    .forGetter(AttributeModifiersComponent.Entry::slot),
-						                    AttributeModifiersComponent.Display.CODEC
-								                    .optionalFieldOf("display", AttributeModifiersComponent.Display.Default.INSTANCE)
-								                    .forGetter(AttributeModifiersComponent.Entry::display)
-				                    )
-				                    .apply(instance, AttributeModifiersComponent.Entry::new)
+											EntityAttribute.CODEC.fieldOf("type").forGetter(AttributeModifiersComponent.Entry::attribute),
+											EntityAttributeModifier.MAP_CODEC.forGetter(AttributeModifiersComponent.Entry::modifier),
+											AttributeModifierSlot.CODEC
+													.optionalFieldOf("slot", AttributeModifierSlot.ANY)
+													.forGetter(AttributeModifiersComponent.Entry::slot),
+											AttributeModifiersComponent.Display.CODEC
+													.optionalFieldOf("display", AttributeModifiersComponent.Display.Default.INSTANCE)
+													.forGetter(AttributeModifiersComponent.Entry::display)
+									)
+									.apply(instance, AttributeModifiersComponent.Entry::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, AttributeModifiersComponent.Entry>
 				PACKET_CODEC =
@@ -482,16 +453,8 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			this(attribute, modifier, slot, AttributeModifiersComponent.Display.getDefault());
 		}
 
-		/**
-		 * Matches.
-		 *
-		 * @param attribute attribute
-		 * @param modifierId modifier id
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean matches(RegistryEntry<EntityAttribute> attribute, Identifier modifierId) {
-			return attribute.equals(this.attribute) && this.modifier.idMatches(modifierId);
+			return attribute.equals(this.attribute) && modifier.idMatches(modifierId);
 		}
 	}
 }

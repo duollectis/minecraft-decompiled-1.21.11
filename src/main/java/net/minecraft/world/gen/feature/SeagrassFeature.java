@@ -13,7 +13,8 @@ import net.minecraft.world.gen.ProbabilityConfig;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code SeagrassFeature}.
+ * Генерирует морскую траву (обычную или высокую) на дне океана.
+ * Вероятность появления высокой травы задаётся через {@link ProbabilityConfig}.
  */
 public class SeagrassFeature extends Feature<ProbabilityConfig> {
 
@@ -23,35 +24,42 @@ public class SeagrassFeature extends Feature<ProbabilityConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<ProbabilityConfig> context) {
-		boolean bl = false;
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		ProbabilityConfig probabilityConfig = context.getConfig();
-		int i = random.nextInt(8) - random.nextInt(8);
-		int j = random.nextInt(8) - random.nextInt(8);
-		int k = structureWorldAccess.getTopY(Heightmap.Type.OCEAN_FLOOR, blockPos.getX() + i, blockPos.getZ() + j);
-		BlockPos blockPos2 = new BlockPos(blockPos.getX() + i, k, blockPos.getZ() + j);
-		if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER)) {
-			boolean bl2 = random.nextDouble() < probabilityConfig.probability;
-			BlockState blockState = bl2 ? Blocks.TALL_SEAGRASS.getDefaultState() : Blocks.SEAGRASS.getDefaultState();
-			if (blockState.canPlaceAt(structureWorldAccess, blockPos2)) {
-				if (bl2) {
-					BlockState blockState2 = blockState.with(TallSeagrassBlock.HALF, DoubleBlockHalf.UPPER);
-					BlockPos blockPos3 = blockPos2.up();
-					if (structureWorldAccess.getBlockState(blockPos3).isOf(Blocks.WATER)) {
-						structureWorldAccess.setBlockState(blockPos2, blockState, 2);
-						structureWorldAccess.setBlockState(blockPos3, blockState2, 2);
-					}
-				}
-				else {
-					structureWorldAccess.setBlockState(blockPos2, blockState, 2);
-				}
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		ProbabilityConfig config = context.getConfig();
 
-				bl = true;
-			}
+		int dx = random.nextInt(8) - random.nextInt(8);
+		int dz = random.nextInt(8) - random.nextInt(8);
+		int floorY = world.getTopY(Heightmap.Type.OCEAN_FLOOR, origin.getX() + dx, origin.getZ() + dz);
+		BlockPos pos = new BlockPos(origin.getX() + dx, floorY, origin.getZ() + dz);
+
+		if (!world.getBlockState(pos).isOf(Blocks.WATER)) {
+			return false;
 		}
 
-		return bl;
+		boolean isTall = random.nextDouble() < config.probability;
+		BlockState seagrassState = isTall
+			? Blocks.TALL_SEAGRASS.getDefaultState()
+			: Blocks.SEAGRASS.getDefaultState();
+
+		if (!seagrassState.canPlaceAt(world, pos)) {
+			return false;
+		}
+
+		if (isTall) {
+			BlockPos above = pos.up();
+
+			if (!world.getBlockState(above).isOf(Blocks.WATER)) {
+				return false;
+			}
+
+			world.setBlockState(pos, seagrassState, 2);
+			world.setBlockState(above, seagrassState.with(TallSeagrassBlock.HALF, DoubleBlockHalf.UPPER), 2);
+		} else {
+			world.setBlockState(pos, seagrassState, 2);
+		}
+
+		return true;
 	}
 }

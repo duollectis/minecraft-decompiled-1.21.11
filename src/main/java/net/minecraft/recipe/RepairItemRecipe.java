@@ -14,102 +14,104 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code RepairItemRecipe}.
+ * Рецепт починки предмета путём объединения двух одинаковых повреждённых предметов.
+ * Итоговая прочность = сумма остаточных прочностей обоих предметов + 5% бонус от максимальной прочности.
+ * Проклятия с обоих предметов переносятся на результат с максимальным уровнем.
  */
 public class RepairItemRecipe extends SpecialCraftingRecipe {
 
-	public RepairItemRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	/** Бонус прочности при объединении: 5% от максимальной прочности предмета. */
+	private static final int REPAIR_BONUS_PERCENT = 5;
+
+	public RepairItemRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	private static @Nullable Pair<ItemStack, ItemStack> findPair(CraftingRecipeInput craftingRecipeInput) {
-		if (craftingRecipeInput.getStackCount() != 2) {
+	private static @Nullable Pair<ItemStack, ItemStack> findPair(CraftingRecipeInput input) {
+		if (input.getStackCount() != 2) {
 			return null;
 		}
-		else {
-			ItemStack itemStack = null;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack2.isEmpty()) {
-					if (itemStack != null) {
-						return canCombineStacks(itemStack, itemStack2) ? Pair.of(itemStack, itemStack2) : null;
-					}
+		ItemStack first = null;
 
-					itemStack = itemStack2;
-				}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return null;
+			if (first == null) {
+				first = stack;
+				continue;
+			}
+
+			return canCombineStacks(first, stack) ? Pair.of(first, stack) : null;
 		}
+
+		return null;
 	}
 
 	private static boolean canCombineStacks(ItemStack first, ItemStack second) {
 		return second.isOf(first.getItem())
-				&& first.getCount() == 1
-				&& second.getCount() == 1
-				&& first.contains(DataComponentTypes.MAX_DAMAGE)
-				&& second.contains(DataComponentTypes.MAX_DAMAGE)
-				&& first.contains(DataComponentTypes.DAMAGE)
-				&& second.contains(DataComponentTypes.DAMAGE);
+			&& first.getCount() == 1
+			&& second.getCount() == 1
+			&& first.contains(DataComponentTypes.MAX_DAMAGE)
+			&& second.contains(DataComponentTypes.MAX_DAMAGE)
+			&& first.contains(DataComponentTypes.DAMAGE)
+			&& second.contains(DataComponentTypes.DAMAGE);
+	}
+
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		return findPair(input) != null;
 	}
 
 	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
+	 * Объединяет два повреждённых предмета в один с восстановленной прочностью.
+	 * Итоговый урон = max(maxDamage - combinedDurability, 0), где combinedDurability
+	 * включает 5%-й бонус от максимальной прочности.
 	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		return findPair(craftingRecipeInput) != null;
-	}
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup wrapperLookup) {
+		Pair<ItemStack, ItemStack> pair = findPair(input);
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		Pair<ItemStack, ItemStack> pair = findPair(craftingRecipeInput);
 		if (pair == null) {
 			return ItemStack.EMPTY;
 		}
-		else {
-			ItemStack itemStack = (ItemStack) pair.getFirst();
-			ItemStack itemStack2 = (ItemStack) pair.getSecond();
-			int i = Math.max(itemStack.getMaxDamage(), itemStack2.getMaxDamage());
-			int j = itemStack.getMaxDamage() - itemStack.getDamage();
-			int k = itemStack2.getMaxDamage() - itemStack2.getDamage();
-			int l = j + k + i * 5 / 100;
-			ItemStack itemStack3 = new ItemStack(itemStack.getItem());
-			itemStack3.set(DataComponentTypes.MAX_DAMAGE, i);
-			itemStack3.setDamage(Math.max(i - l, 0));
-			ItemEnchantmentsComponent itemEnchantmentsComponent = EnchantmentHelper.getEnchantments(itemStack);
-			ItemEnchantmentsComponent itemEnchantmentsComponent2 = EnchantmentHelper.getEnchantments(itemStack2);
-			EnchantmentHelper.apply(
-					itemStack3,
-					builder -> wrapperLookup.getOrThrow(RegistryKeys.ENCHANTMENT)
-					                        .streamEntries()
-					                        .filter(enchantment -> enchantment.isIn(EnchantmentTags.CURSE))
-					                        .forEach(enchantment -> {
-						                        int
-								                        ix =
-								                        Math.max(
-										                        itemEnchantmentsComponent.getLevel(enchantment),
-										                        itemEnchantmentsComponent2.getLevel(enchantment)
-								                        );
-						                        if (ix > 0) {
-							                        builder.add(enchantment, ix);
-						                        }
-					                        })
-			);
-			return itemStack3;
-		}
+
+		ItemStack first = pair.getFirst();
+		ItemStack second = pair.getSecond();
+		int maxDamage = Math.max(first.getMaxDamage(), second.getMaxDamage());
+		int firstDurability = first.getMaxDamage() - first.getDamage();
+		int secondDurability = second.getMaxDamage() - second.getDamage();
+		int combinedDurability = firstDurability + secondDurability + maxDamage * REPAIR_BONUS_PERCENT / 100;
+
+		ItemStack result = new ItemStack(first.getItem());
+		result.set(DataComponentTypes.MAX_DAMAGE, maxDamage);
+		result.setDamage(Math.max(maxDamage - combinedDurability, 0));
+
+		ItemEnchantmentsComponent firstEnchantments = EnchantmentHelper.getEnchantments(first);
+		ItemEnchantmentsComponent secondEnchantments = EnchantmentHelper.getEnchantments(second);
+
+		EnchantmentHelper.apply(
+			result,
+			builder -> wrapperLookup.getOrThrow(RegistryKeys.ENCHANTMENT)
+				.streamEntries()
+				.filter(enchantment -> enchantment.isIn(EnchantmentTags.CURSE))
+				.forEach(enchantment -> {
+					int curseLevel = Math.max(
+						firstEnchantments.getLevel(enchantment),
+						secondEnchantments.getLevel(enchantment)
+					);
+
+					if (curseLevel > 0) {
+						builder.add(enchantment, curseLevel);
+					}
+				})
+		);
+
+		return result;
 	}
 
 	@Override

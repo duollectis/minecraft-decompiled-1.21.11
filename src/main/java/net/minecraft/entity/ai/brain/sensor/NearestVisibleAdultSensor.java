@@ -10,7 +10,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code NearestVisibleAdultSensor}.
+ * Сенсор поиска ближайшего видимого взрослого моба того же типа.
+ * Подклассы могут переопределить {@link #find} для изменения критериев поиска.
  */
 public class NearestVisibleAdultSensor extends Sensor<LivingEntity> {
 
@@ -21,22 +22,15 @@ public class NearestVisibleAdultSensor extends Sensor<LivingEntity> {
 
 	@Override
 	protected void sense(ServerWorld world, LivingEntity entity) {
-		entity
-				.getBrain()
+		entity.getBrain()
 				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
-				.ifPresent(targetCache -> this.find(entity, targetCache));
+				.ifPresent(targetCache -> find(entity, targetCache));
 	}
 
-	/**
-	 * Find.
-	 *
-	 * @param entity entity
-	 * @param targetCache target cache
-	 */
 	protected void find(LivingEntity entity, LivingTargetCache targetCache) {
-		Optional<LivingEntity>
-				optional =
-				targetCache.findFirst(target -> target.getType() == entity.getType() && !target.isBaby());
-		entity.getBrain().remember(MemoryModuleType.NEAREST_VISIBLE_ADULT, optional);
+		Optional<LivingEntity> nearest = targetCache.findFirst(
+				target -> target.getType() == entity.getType() && !target.isBaby()
+		);
+		entity.getBrain().remember(MemoryModuleType.NEAREST_VISIBLE_ADULT, nearest);
 	}
 }

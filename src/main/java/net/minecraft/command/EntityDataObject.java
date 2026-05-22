@@ -26,16 +26,18 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * {@code EntityDataObject}.
+ * Реализация {@link DataCommandObject} для сущностей.
+ * Позволяет читать и записывать NBT-данные сущности через команду {@code /data}.
+ * Запись данных игрокам запрещена.
  */
 public class EntityDataObject implements DataCommandObject {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final SimpleCommandExceptionType
-			INVALID_ENTITY_EXCEPTION =
+
+	private static final SimpleCommandExceptionType INVALID_ENTITY_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.data.entity.invalid"));
-	public static final Function<String, DataCommand.ObjectType>
-			TYPE_FACTORY =
+
+	public static final Function<String, DataCommand.ObjectType> TYPE_FACTORY =
 			argumentName -> new DataCommand.ObjectType() {
 				@Override
 				public DataCommandObject getObject(CommandContext<ServerCommandSource> context)
@@ -56,6 +58,7 @@ public class EntityDataObject implements DataCommandObject {
 							))));
 				}
 			};
+
 	private final Entity entity;
 
 	public EntityDataObject(Entity entity) {
@@ -64,38 +67,33 @@ public class EntityDataObject implements DataCommandObject {
 
 	@Override
 	public void setNbt(NbtCompound nbt) throws CommandSyntaxException {
-		if (this.entity instanceof PlayerEntity) {
+		if (entity instanceof PlayerEntity) {
 			throw INVALID_ENTITY_EXCEPTION.create();
 		}
-		else {
-			UUID uUID = this.entity.getUuid();
 
-			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-					this.entity.getErrorReporterContext(),
-					LOGGER
-			)
-			) {
-				this.entity.readData(NbtReadView.create(logging, this.entity.getRegistryManager(), nbt));
-				this.entity.setUuid(uUID);
-			}
+		UUID originalUuid = entity.getUuid();
+
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
+			entity.readData(NbtReadView.create(logging, entity.getRegistryManager(), nbt));
+			entity.setUuid(originalUuid);
 		}
 	}
 
 	@Override
 	public NbtCompound getNbt() {
-		return NbtPredicate.entityToNbt(this.entity);
+		return NbtPredicate.entityToNbt(entity);
 	}
 
 	@Override
 	public Text feedbackModify() {
-		return Text.translatable("commands.data.entity.modified", this.entity.getDisplayName());
+		return Text.translatable("commands.data.entity.modified", entity.getDisplayName());
 	}
 
 	@Override
 	public Text feedbackQuery(NbtElement element) {
 		return Text.translatable(
 				"commands.data.entity.query",
-				this.entity.getDisplayName(),
+				entity.getDisplayName(),
 				NbtHelper.toPrettyPrintedText(element)
 		);
 	}
@@ -105,7 +103,7 @@ public class EntityDataObject implements DataCommandObject {
 		return Text.translatable(
 				"commands.data.entity.get",
 				path.getString(),
-				this.entity.getDisplayName(),
+				entity.getDisplayName(),
 				String.format(Locale.ROOT, "%.2f", scale),
 				result
 		);

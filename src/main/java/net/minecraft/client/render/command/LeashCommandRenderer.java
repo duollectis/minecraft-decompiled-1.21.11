@@ -39,17 +39,17 @@ public class LeashCommandRenderer {
 		float f = (float) (data.endPos.x - data.startPos.x);
 		float g = (float) (data.endPos.y - data.startPos.y);
 		float h = (float) (data.endPos.z - data.startPos.z);
-		float i = MathHelper.inverseSqrt(f * f + h * h) * 0.05F / 2.0F;
+		float i = MathHelper.inverseSqrt(f * f + h * h) * LEASH_WIDTH / 2.0F;
 		float j = h * i;
 		float k = f * i;
 		matrix.translate((float) data.offset.x, (float) data.offset.y, (float) data.offset.z);
 		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.leash());
 
-		for (int l = 0; l <= 24; l++) {
-			render(vertexConsumer, matrix, f, g, h, 0.05F, j, k, l, false, data);
+		for (int l = 0; l <= LEASH_SEGMENTS; l++) {
+			render(vertexConsumer, matrix, f, g, h, LEASH_WIDTH, j, k, l, false, data);
 		}
 
-		for (int l = 24; l >= 0; l--) {
+		for (int l = LEASH_SEGMENTS; l >= 0; l--) {
 			render(vertexConsumer, matrix, f, g, h, 0.0F, j, k, l, true, data);
 		}
 	}
@@ -90,7 +90,7 @@ public class LeashCommandRenderer {
 				.color(h, l, m, 1.0F)
 				.light(k);
 		vertexConsumer
-				.vertex(matrix, n + sideOffset, o + 0.05F - yOffset, p - perpendicularOffset)
+				.vertex(matrix, n + sideOffset, o + LEASH_WIDTH - yOffset, p - perpendicularOffset)
 				.color(h, l, m, 1.0F)
 				.light(k);
 	}

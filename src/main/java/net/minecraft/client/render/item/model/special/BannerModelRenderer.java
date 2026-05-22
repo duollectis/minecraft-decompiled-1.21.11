@@ -18,10 +18,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BannerModelRenderer}.
+ * Специализированный рендерер знамени как предмета.
+ * Делегирует рендер {@link BannerBlockEntityRenderer}, передавая базовый цвет
+ * и паттерны из компонента {@link DataComponentTypes#BANNER_PATTERNS}.
+ * При отсутствии компонента паттернов использует {@link BannerPatternsComponent#DEFAULT}.
  */
+@Environment(EnvType.CLIENT)
 public class BannerModelRenderer implements SpecialModelRenderer<BannerPatternsComponent> {
 
 	private final BannerBlockEntityRenderer blockEntityRenderer;
@@ -32,41 +35,43 @@ public class BannerModelRenderer implements SpecialModelRenderer<BannerPatternsC
 		this.baseColor = baseColor;
 	}
 
-	public @Nullable BannerPatternsComponent getData(ItemStack itemStack) {
-		return itemStack.get(DataComponentTypes.BANNER_PATTERNS);
+	@Override
+	public @Nullable BannerPatternsComponent getData(ItemStack stack) {
+		return stack.get(DataComponentTypes.BANNER_PATTERNS);
 	}
 
+	@Override
 	public void render(
-			@Nullable BannerPatternsComponent bannerPatternsComponent,
-			ItemDisplayContext itemDisplayContext,
-			MatrixStack matrixStack,
-			OrderedRenderCommandQueue orderedRenderCommandQueue,
-			int i,
-			int j,
-			boolean bl,
-			int k
+			@Nullable BannerPatternsComponent patterns,
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int seed
 	) {
-		this.blockEntityRenderer
-				.renderAsItem(
-						matrixStack,
-						orderedRenderCommandQueue,
-						i,
-						j,
-						this.baseColor,
-						Objects.requireNonNullElse(bannerPatternsComponent, BannerPatternsComponent.DEFAULT),
-						k
-				);
+		blockEntityRenderer.renderAsItem(
+				matrices,
+				queue,
+				light,
+				overlay,
+				baseColor,
+				Objects.requireNonNullElse(patterns, BannerPatternsComponent.DEFAULT),
+				seed
+		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		this.blockEntityRenderer.collectVertices(consumer);
+		blockEntityRenderer.collectVertices(consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера знамени.
+	 * Хранит базовый цвет знамени, определяющий фоновый цвет полотна.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(DyeColor baseColor) implements SpecialModelRenderer.Unbaked {
 
 		public static final MapCodec<BannerModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
@@ -82,7 +87,7 @@ public class BannerModelRenderer implements SpecialModelRenderer<BannerPatternsC
 
 		@Override
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			return new BannerModelRenderer(this.baseColor, new BannerBlockEntityRenderer(context));
+			return new BannerModelRenderer(baseColor, new BannerBlockEntityRenderer(context));
 		}
 	}
 }

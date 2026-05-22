@@ -5,7 +5,8 @@ import net.minecraft.server.command.AbstractServerCommandSource;
 import java.util.function.Consumer;
 
 /**
- * {@code IsolatedCommandAction}.
+ * Действие команды, выполняемое в изолированном фрейме с собственным
+ * потребителем возвращаемого значения.
  */
 public class IsolatedCommandAction<T extends AbstractServerCommandSource<T>> implements CommandAction<T> {
 
@@ -21,9 +22,9 @@ public class IsolatedCommandAction<T extends AbstractServerCommandSource<T>> imp
 	}
 
 	@Override
-	public void execute(CommandExecutionContext<T> commandExecutionContext, Frame frame) {
-		int i = frame.depth() + 1;
-		Frame frame2 = new Frame(i, this.returnValueConsumer, commandExecutionContext.getEscapeControl(i));
-		this.controlConsumer.accept(ExecutionControl.of(commandExecutionContext, frame2));
+	public void execute(CommandExecutionContext<T> context, Frame frame) {
+		int childDepth = frame.depth() + 1;
+		Frame childFrame = new Frame(childDepth, returnValueConsumer, context.getEscapeControl(childDepth));
+		controlConsumer.accept(ExecutionControl.of(context, childFrame));
 	}
 }

@@ -29,270 +29,276 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * {@code Carver}.
+ * Базовый абстрактный класс для всех карверов (пещеры, овраги и т.д.).
+ * Карвер вырезает пространство в чанке, формируя подземные полости.
+ *
+ * @param <C> тип конфигурации карвера
  */
 public abstract class Carver<C extends CarverConfig> {
 
 	public static final Carver<CaveCarverConfig> CAVE = register("cave", new CaveCarver(CaveCarverConfig.CAVE_CODEC));
-	public static final Carver<CaveCarverConfig>
-			NETHER_CAVE =
-			register("nether_cave", new NetherCaveCarver(CaveCarverConfig.CAVE_CODEC));
-	public static final Carver<RavineCarverConfig>
-			RAVINE =
-			register("canyon", new RavineCarver(RavineCarverConfig.RAVINE_CODEC));
+	public static final Carver<CaveCarverConfig> NETHER_CAVE = register(
+		"nether_cave",
+		new NetherCaveCarver(CaveCarverConfig.CAVE_CODEC)
+	);
+	public static final Carver<RavineCarverConfig> RAVINE = register(
+		"canyon",
+		new RavineCarver(RavineCarverConfig.RAVINE_CODEC)
+	);
+
 	protected static final BlockState AIR = Blocks.AIR.getDefaultState();
 	protected static final BlockState CAVE_AIR = Blocks.CAVE_AIR.getDefaultState();
 	protected static final FluidState WATER = Fluids.WATER.getDefaultState();
 	protected static final FluidState LAVA = Fluids.LAVA.getDefaultState();
-	protected Set<Fluid> carvableFluids = ImmutableSet.of(Fluids.WATER);
-	private final MapCodec<ConfiguredCarver<C>> codec;
 
-	private static <C extends CarverConfig, F extends Carver<C>> F register(String name, F carver) {
-		return Registry.register(Registries.CARVER, name, carver);
-	}
+	protected Set<Fluid> carvableFluids = ImmutableSet.of(Fluids.WATER);
+
+	private final MapCodec<ConfiguredCarver<C>> codec;
 
 	public Carver(Codec<C> configCodec) {
 		this.codec = configCodec.fieldOf("config").xmap(this::configure, ConfiguredCarver::config);
 	}
 
-	/**
-	 * Configure.
-	 *
-	 * @param config config
-	 *
-	 * @return ConfiguredCarver — результат операции
-	 */
 	public ConfiguredCarver<C> configure(C config) {
 		return new ConfiguredCarver<>(this, config);
 	}
 
 	public MapCodec<ConfiguredCarver<C>> getCodec() {
-		return this.codec;
+		return codec;
 	}
 
 	public int getBranchFactor() {
 		return 4;
 	}
 
+	/**
+	 * Вырезает регион пещеры/оврага в заданном чанке в пределах эллипсоида,
+	 * определённого центром (x, y, z) и полуосями (width, height).
+	 *
+	 * @return {@code true} если хотя бы один блок был изменён
+	 */
 	protected boolean carveRegion(
-			CarverContext context,
-			C config,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			AquiferSampler aquiferSampler,
-			double x,
-			double y,
-			double z,
-			double width,
-			double height,
-			CarvingMask mask,
-			Carver.SkipPredicate skipPredicate
+		CarverContext context,
+		C config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		AquiferSampler aquiferSampler,
+		double x,
+		double y,
+		double z,
+		double width,
+		double height,
+		CarvingMask mask,
+		Carver.SkipPredicate skipPredicate
 	) {
 		ChunkPos chunkPos = chunk.getPos();
-		double d = chunkPos.getCenterX();
-		double e = chunkPos.getCenterZ();
-		double f = 16.0 + width * 2.0;
-		if (!(Math.abs(x - d) > f) && !(Math.abs(z - e) > f)) {
-			int i = chunkPos.getStartX();
-			int j = chunkPos.getStartZ();
-			int k = Math.max(MathHelper.floor(x - width) - i - 1, 0);
-			int l = Math.min(MathHelper.floor(x + width) - i, 15);
-			int m = Math.max(MathHelper.floor(y - height) - 1, context.getMinY() + 1);
-			int n = chunk.hasBelowZeroRetrogen() ? 0 : 7;
-			int o = Math.min(MathHelper.floor(y + height) + 1, context.getMinY() + context.getHeight() - 1 - n);
-			int p = Math.max(MathHelper.floor(z - width) - j - 1, 0);
-			int q = Math.min(MathHelper.floor(z + width) - j, 15);
-			boolean bl = false;
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
-			BlockPos.Mutable mutable2 = new BlockPos.Mutable();
+		double centerX = chunkPos.getCenterX();
+		double centerZ = chunkPos.getCenterZ();
+		double maxDist = 16.0 + width * 2.0;
 
-			for (int r = k; r <= l; r++) {
-				int s = chunkPos.getOffsetX(r);
-				double g = (s + 0.5 - x) / width;
-
-				for (int t = p; t <= q; t++) {
-					int u = chunkPos.getOffsetZ(t);
-					double h = (u + 0.5 - z) / width;
-					if (!(g * g + h * h >= 1.0)) {
-						MutableBoolean mutableBoolean = new MutableBoolean(false);
-
-						for (int v = o; v > m; v--) {
-							double w = (v - 0.5 - y) / height;
-							if (!skipPredicate.shouldSkip(context, g, w, h, v) && (!mask.get(r, v, t)
-									|| isDebug(config)
-							)) {
-								mask.set(r, v, t);
-								mutable.set(s, v, u);
-								bl |=
-										this.carveAtPoint(
-												context,
-												config,
-												chunk,
-												posToBiome,
-												mask,
-												mutable,
-												mutable2,
-												aquiferSampler,
-												mutableBoolean
-										);
-							}
-						}
-					}
-				}
-			}
-
-			return bl;
-		}
-		else {
+		if (Math.abs(x - centerX) > maxDist || Math.abs(z - centerZ) > maxDist) {
 			return false;
 		}
+
+		int startX = chunkPos.getStartX();
+		int startZ = chunkPos.getStartZ();
+		int minLocalX = Math.max(MathHelper.floor(x - width) - startX - 1, 0);
+		int maxLocalX = Math.min(MathHelper.floor(x + width) - startX, 15);
+		int minY = Math.max(MathHelper.floor(y - height) - 1, context.getMinY() + 1);
+		int retrogrenOffset = chunk.hasBelowZeroRetrogen() ? 0 : 7;
+		int maxY = Math.min(
+			MathHelper.floor(y + height) + 1,
+			context.getMinY() + context.getHeight() - 1 - retrogrenOffset
+		);
+		int minLocalZ = Math.max(MathHelper.floor(z - width) - startZ - 1, 0);
+		int maxLocalZ = Math.min(MathHelper.floor(z + width) - startZ, 15);
+
+		boolean carved = false;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+		BlockPos.Mutable below = new BlockPos.Mutable();
+
+		for (int localX = minLocalX; localX <= maxLocalX; localX++) {
+			int worldX = chunkPos.getOffsetX(localX);
+			double relX = (worldX + 0.5 - x) / width;
+
+			for (int localZ = minLocalZ; localZ <= maxLocalZ; localZ++) {
+				int worldZ = chunkPos.getOffsetZ(localZ);
+				double relZ = (worldZ + 0.5 - z) / width;
+
+				if (relX * relX + relZ * relZ >= 1.0) {
+					continue;
+				}
+
+				MutableBoolean replacedGrassy = new MutableBoolean(false);
+
+				for (int blockY = maxY; blockY > minY; blockY--) {
+					double relY = (blockY - 0.5 - y) / height;
+
+					if (skipPredicate.shouldSkip(context, relX, relY, relZ, blockY)) {
+						continue;
+					}
+
+					if (mask.get(localX, blockY, localZ) && !isDebug(config)) {
+						continue;
+					}
+
+					mask.set(localX, blockY, localZ);
+					mutable.set(worldX, blockY, worldZ);
+					carved |= carveAtPoint(
+						context,
+						config,
+						chunk,
+						posToBiome,
+						mask,
+						mutable,
+						below,
+						aquiferSampler,
+						replacedGrassy
+					);
+				}
+			}
+		}
+
+		return carved;
 	}
 
 	protected boolean carveAtPoint(
-			CarverContext context,
-			C config,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			CarvingMask mask,
-			BlockPos.Mutable pos,
-			BlockPos.Mutable tmp,
-			AquiferSampler aquiferSampler,
-			MutableBoolean replacedGrassy
+		CarverContext context,
+		C config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		CarvingMask mask,
+		BlockPos.Mutable pos,
+		BlockPos.Mutable tmp,
+		AquiferSampler aquiferSampler,
+		MutableBoolean replacedGrassy
 	) {
-		BlockState blockState = chunk.getBlockState(pos);
-		if (blockState.isOf(Blocks.GRASS_BLOCK) || blockState.isOf(Blocks.MYCELIUM)) {
+		BlockState existing = chunk.getBlockState(pos);
+
+		if (existing.isOf(Blocks.GRASS_BLOCK) || existing.isOf(Blocks.MYCELIUM)) {
 			replacedGrassy.setTrue();
 		}
 
-		if (!this.canAlwaysCarveBlock(config, blockState) && !isDebug(config)) {
+		if (!canAlwaysCarveBlock(config, existing) && !isDebug(config)) {
 			return false;
 		}
-		else {
-			BlockState blockState2 = this.getState(context, config, pos, aquiferSampler);
-			if (blockState2 == null) {
-				return false;
-			}
-			else {
-				chunk.setBlockState(pos, blockState2);
-				if (aquiferSampler.needsFluidTick() && !blockState2.getFluidState().isEmpty()) {
-					chunk.markBlockForPostProcessing(pos);
-				}
 
-				if (replacedGrassy.isTrue()) {
-					tmp.set(pos, Direction.DOWN);
-					if (chunk.getBlockState(tmp).isOf(Blocks.DIRT)) {
-						context
-								.applyMaterialRule(posToBiome, chunk, tmp, !blockState2.getFluidState().isEmpty())
-								.ifPresent(state -> {
-									chunk.setBlockState(tmp, state);
-									if (!state.getFluidState().isEmpty()) {
-										chunk.markBlockForPostProcessing(tmp);
-									}
-								});
-					}
-				}
+		BlockState replacement = getState(context, config, pos, aquiferSampler);
 
-				return true;
+		if (replacement == null) {
+			return false;
+		}
+
+		chunk.setBlockState(pos, replacement);
+
+		if (aquiferSampler.needsFluidTick() && !replacement.getFluidState().isEmpty()) {
+			chunk.markBlockForPostProcessing(pos);
+		}
+
+		if (replacedGrassy.isTrue()) {
+			tmp.set(pos, Direction.DOWN);
+
+			if (chunk.getBlockState(tmp).isOf(Blocks.DIRT)) {
+				context
+					.applyMaterialRule(posToBiome, chunk, tmp, !replacement.getFluidState().isEmpty())
+					.ifPresent(state -> {
+						chunk.setBlockState(tmp, state);
+
+						if (!state.getFluidState().isEmpty()) {
+							chunk.markBlockForPostProcessing(tmp);
+						}
+					});
 			}
 		}
+
+		return true;
 	}
 
 	private @Nullable BlockState getState(CarverContext context, C config, BlockPos pos, AquiferSampler sampler) {
 		if (pos.getY() <= config.lavaLevel.getY(context)) {
 			return LAVA.getBlockState();
 		}
-		else {
-			BlockState
-					blockState =
-					sampler.apply(new DensityFunction.UnblendedNoisePos(pos.getX(), pos.getY(), pos.getZ()), 0.0);
-			if (blockState == null) {
-				return isDebug(config) ? config.debugConfig.getBarrierState() : null;
-			}
-			else {
-				return isDebug(config) ? getDebugState(config, blockState) : blockState;
-			}
+
+		BlockState aquiferState = sampler.apply(
+			new DensityFunction.UnblendedNoisePos(pos.getX(), pos.getY(), pos.getZ()),
+			0.0
+		);
+
+		if (aquiferState == null) {
+			return isDebug(config) ? config.debugConfig.getBarrierState() : null;
 		}
+
+		return isDebug(config) ? getDebugState(config, aquiferState) : aquiferState;
 	}
 
 	private static BlockState getDebugState(CarverConfig config, BlockState state) {
 		if (state.isOf(Blocks.AIR)) {
 			return config.debugConfig.getAirState();
 		}
-		else if (state.isOf(Blocks.WATER)) {
-			BlockState blockState = config.debugConfig.getWaterState();
-			return blockState.contains(Properties.WATERLOGGED) ? blockState.with(Properties.WATERLOGGED, true)
-			                                                   : blockState;
+
+		if (state.isOf(Blocks.WATER)) {
+			BlockState waterDebug = config.debugConfig.getWaterState();
+			return waterDebug.contains(Properties.WATERLOGGED)
+				? waterDebug.with(Properties.WATERLOGGED, true)
+				: waterDebug;
 		}
-		else {
-			return state.isOf(Blocks.LAVA) ? config.debugConfig.getLavaState() : state;
-		}
+
+		return state.isOf(Blocks.LAVA) ? config.debugConfig.getLavaState() : state;
 	}
 
 	public abstract boolean carve(
-			CarverContext context,
-			C config,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> posToBiome,
-			Random random,
-			AquiferSampler aquiferSampler,
-			ChunkPos pos,
-			CarvingMask mask
+		CarverContext context,
+		C config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		Random random,
+		AquiferSampler aquiferSampler,
+		ChunkPos pos,
+		CarvingMask mask
 	);
 
-	/**
-	 * Определяет, следует ли carve.
-	 *
-	 * @param config config
-	 * @param random random
-	 *
-	 * @return boolean — результат операции
-	 */
 	public abstract boolean shouldCarve(C config, Random random);
 
-	/**
-	 * Проверяет возможность always carve block.
-	 *
-	 * @param config config
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canAlwaysCarveBlock(C config, BlockState state) {
 		return state.isIn(config.replaceable);
 	}
 
 	protected static boolean canCarveBranch(
-			ChunkPos pos,
-			double x,
-			double z,
-			int branchIndex,
-			int branchCount,
-			float baseWidth
+		ChunkPos pos,
+		double x,
+		double z,
+		int branchIndex,
+		int branchCount,
+		float baseWidth
 	) {
-		double d = pos.getCenterX();
-		double e = pos.getCenterZ();
-		double f = x - d;
-		double g = z - e;
-		double h = branchCount - branchIndex;
-		double i = baseWidth + 2.0F + 16.0F;
-		return f * f + g * g - h * h <= i * i;
+		double centerX = pos.getCenterX();
+		double centerZ = pos.getCenterZ();
+		double dx = x - centerX;
+		double dz = z - centerZ;
+		double remaining = branchCount - branchIndex;
+		double maxReach = baseWidth + 2.0F + 16.0F;
+		return dx * dx + dz * dz - remaining * remaining <= maxReach * maxReach;
 	}
 
 	private static boolean isDebug(CarverConfig config) {
 		return SharedConstants.CARVERS || config.debugConfig.isDebugMode();
 	}
 
+	private static <C extends CarverConfig, F extends Carver<C>> F register(String name, F carver) {
+		return Registry.register(Registries.CARVER, name, carver);
+	}
+
 	/**
-	 * {@code SkipPredicate}.
+	 * Предикат, определяющий, нужно ли пропустить вырезание в данной точке.
 	 */
 	public interface SkipPredicate {
 
 		boolean shouldSkip(
-				CarverContext context,
-				double scaledRelativeX,
-				double scaledRelativeY,
-				double scaledRelativeZ,
-				int y
+			CarverContext context,
+			double scaledRelativeX,
+			double scaledRelativeY,
+			double scaledRelativeZ,
+			int y
 		);
 	}
 }

@@ -5,7 +5,7 @@ import net.minecraft.util.math.random.Random;
 import java.util.Arrays;
 
 /**
- * {@code MultipliedFloatSupplier}.
+ * Перемножает результаты нескольких {@link FloatSupplier} и возвращает их произведение.
  */
 public class MultipliedFloatSupplier implements FloatSupplier {
 
@@ -17,17 +17,17 @@ public class MultipliedFloatSupplier implements FloatSupplier {
 
 	@Override
 	public float get(Random random) {
-		float f = 1.0F;
+		float result = 1.0F;
 
-		for (FloatSupplier floatSupplier : this.multipliers) {
-			f *= floatSupplier.get(random);
+		for (FloatSupplier supplier : multipliers) {
+			result *= supplier.get(random);
 		}
 
-		return f;
+		return result;
 	}
 
 	@Override
 	public String toString() {
-		return "MultipliedFloats" + Arrays.toString((Object[]) this.multipliers);
+		return "MultipliedFloats" + Arrays.toString((Object[]) multipliers);
 	}
 }

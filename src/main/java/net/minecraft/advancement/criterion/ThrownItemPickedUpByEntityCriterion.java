@@ -16,78 +16,75 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ThrownItemPickedUpByEntityCriterion}.
+ * Критерий выполняется, когда брошенный игроком предмет подбирает сущность или сам игрок.
+ * Используется для двух сценариев: подбор сущностью и подбор игроком.
  */
 public class ThrownItemPickedUpByEntityCriterion extends AbstractCriterion<ThrownItemPickedUpByEntityCriterion.Conditions> {
 
 	@Override
-	public Codec<ThrownItemPickedUpByEntityCriterion.Conditions> getConditionsCodec() {
-		return ThrownItemPickedUpByEntityCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ItemStack stack, @Nullable Entity entity) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
-		this.trigger(player, conditions -> conditions.test(player, stack, lootContext));
+		LootContext entityContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
+		trigger(player, conditions -> conditions.test(player, stack, entityContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> item,
 			Optional<LootContextPredicate> entity
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<ThrownItemPickedUpByEntityCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(ThrownItemPickedUpByEntityCriterion.Conditions::player),
-						                    ItemPredicate.CODEC
-								                    .optionalFieldOf("item")
-								                    .forGetter(ThrownItemPickedUpByEntityCriterion.Conditions::item),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("entity")
-								                    .forGetter(ThrownItemPickedUpByEntityCriterion.Conditions::entity)
-				                    )
-				                    .apply(instance, ThrownItemPickedUpByEntityCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("entity")
+								.forGetter(Conditions::entity)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<ThrownItemPickedUpByEntityCriterion.Conditions> createThrownItemPickedUpByEntity(
+		public static AdvancementCriterion<Conditions> createThrownItemPickedUpByEntity(
 				LootContextPredicate player, Optional<ItemPredicate> item, Optional<LootContextPredicate> entity
 		) {
-			return Criteria.THROWN_ITEM_PICKED_UP_BY_ENTITY.create(new ThrownItemPickedUpByEntityCriterion.Conditions(
+			return Criteria.THROWN_ITEM_PICKED_UP_BY_ENTITY.create(new Conditions(
 					Optional.of(player),
 					item,
 					entity
 			));
 		}
 
-		public static AdvancementCriterion<ThrownItemPickedUpByEntityCriterion.Conditions> createThrownItemPickedUpByPlayer(
+		public static AdvancementCriterion<Conditions> createThrownItemPickedUpByPlayer(
 				Optional<LootContextPredicate> playerPredicate,
 				Optional<ItemPredicate> item,
 				Optional<LootContextPredicate> entity
 		) {
-			return Criteria.THROWN_ITEM_PICKED_UP_BY_PLAYER.create(new ThrownItemPickedUpByEntityCriterion.Conditions(
+			return Criteria.THROWN_ITEM_PICKED_UP_BY_PLAYER.create(new Conditions(
 					playerPredicate,
 					item,
 					entity
 			));
 		}
 
-		public boolean test(ServerPlayerEntity player, ItemStack stack, LootContext entity) {
-			return this.item.isPresent() && !this.item.get().test(stack) ? false
-			                                                             : !this.entity.isPresent() || this.entity
-			                                                                                           .get()
-			                                                                                           .test(entity);
+		public boolean test(ServerPlayerEntity player, ItemStack stack, LootContext entityContext) {
+			if (item.isPresent() && !item.get().test(stack)) {
+				return false;
+			}
+
+			return entity.isEmpty() || entity.get().test(entityContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.entity, "entity");
+			validator.validateEntityPredicate(entity, "entity");
 		}
 	}
 }

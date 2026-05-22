@@ -20,186 +20,269 @@ import java.util.Comparator;
 import java.util.Optional;
 
 /**
- * {@code PortalForcer}.
+ * Отвечает за поиск существующих и принудительное создание новых порталов в Нижний мир.
+ * При создании портала строит рамку из обсидиана 4×5 и заполняет её блоками портала 2×3.
  */
 public class PortalForcer {
 
 	public static final int PORTAL_WIDTH = 3;
+
 	private static final int NETHER_SEARCH_RADIUS = 16;
 	private static final int OVERWORLD_SEARCH_RADIUS = 128;
-	private static final int FRAME_HEIGHT = 5;
-	private static final int FRAME_WIDTH = 4;
 	private static final int PORTAL_HEIGHT = 3;
-	private static final int FRAME_BOTTOM_OFFSET = -1;
-	private static final int FRAME_TOP_OFFSET = 4;
 	private static final int FRAME_SIDE_START = -1;
 	private static final int FRAME_SIDE_END = 3;
 	private static final int FRAME_DEPTH_START = -1;
 	private static final int FRAME_DEPTH_END = 2;
-	private static final int FRAME_DEPTH_OUTER_START = -1;
+	private static final int FRAME_BOTTOM_OFFSET = -1;
+	private static final int FRAME_TOP_OFFSET = 4;
+	/** Минимальный запас высоты над порталом для размещения рамки. */
+	private static final int FRAME_CLEARANCE = 9;
+	/** Минимальная Y-координата для принудительного создания портала. */
+	private static final int FORCED_PORTAL_MIN_Y = 70;
+
 	private final ServerWorld world;
 
 	public PortalForcer(ServerWorld world) {
 		this.world = world;
 	}
 
+	/**
+	 * Ищет ближайший существующий портал в радиусе поиска (16 блоков для Нижнего мира,
+	 * 128 для Верхнего мира). Возвращает позицию ближайшего блока портала внутри границ мира.
+	 *
+	 * @param pos          центр поиска
+	 * @param destIsNether true, если целевое измерение — Нижний мир (меньший радиус поиска)
+	 * @param worldBorder  граница мира для фильтрации позиций
+	 * @return позиция ближайшего портала или пустой Optional
+	 */
 	public Optional<BlockPos> getPortalPos(BlockPos pos, boolean destIsNether, WorldBorder worldBorder) {
-		PointOfInterestStorage pointOfInterestStorage = this.world.getPointOfInterestStorage();
-		int i = destIsNether ? 16 : 128;
-		pointOfInterestStorage.preloadChunks(this.world, pos, i);
-		return pointOfInterestStorage.getInSquare(
-				                             poiType -> poiType.matchesKey(PointOfInterestTypes.NETHER_PORTAL),
-				                             pos,
-				                             i,
-				                             PointOfInterestStorage.OccupationStatus.ANY
-		                             )
-		                             .map(PointOfInterest::getPos)
-		                             .filter(worldBorder::contains)
-		                             .filter(portalPos -> this.world
-				                             .getBlockState(portalPos)
-				                             .contains(Properties.HORIZONTAL_AXIS))
-		                             .min(Comparator
-				                             .<BlockPos>comparingDouble(portalPos -> portalPos.getSquaredDistance(pos))
-				                             .thenComparingInt(Vec3i::getY));
+		PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
+		int searchRadius = destIsNether ? NETHER_SEARCH_RADIUS : OVERWORLD_SEARCH_RADIUS;
+		poiStorage.preloadChunks(world, pos, searchRadius);
+
+		return poiStorage.getInSquare(
+				poiType -> poiType.matchesKey(PointOfInterestTypes.NETHER_PORTAL),
+				pos,
+				searchRadius,
+				PointOfInterestStorage.OccupationStatus.ANY
+			)
+			.map(PointOfInterest::getPos)
+			.filter(worldBorder::contains)
+			.filter(portalPos -> world.getBlockState(portalPos).contains(Properties.HORIZONTAL_AXIS))
+			.min(
+				Comparator.<BlockPos>comparingDouble(portalPos -> portalPos.getSquaredDistance(pos))
+					.thenComparingInt(Vec3i::getY)
+			);
 	}
 
+	/**
+	 * Создаёт новый портал в Нижний мир рядом с указанной позицией.
+	 * Алгоритм:
+	 * 1. Ищет подходящее место с твёрдым основанием и свободным пространством над ним.
+	 * 2. Если место не найдено — принудительно размещает портал на безопасной высоте.
+	 * 3. Строит рамку из обсидиана и заполняет её блоками портала.
+	 *
+	 * @param pos  желаемая позиция для создания портала
+	 * @param axis ось ориентации портала (X или Z)
+	 * @return прямоугольник созданного портала (2×3) или пустой Optional, если место не найдено
+	 */
 	public Optional<BlockLocating.Rectangle> createPortal(BlockPos pos, Direction.Axis axis) {
-		Direction direction = Direction.get(Direction.AxisDirection.POSITIVE, axis);
-		double d = -1.0;
-		BlockPos blockPos = null;
-		double e = -1.0;
-		BlockPos blockPos2 = null;
-		WorldBorder worldBorder = this.world.getWorldBorder();
-		int i = Math.min(this.world.getTopYInclusive(), this.world.getBottomY() + this.world.getLogicalHeight() - 1);
-		int j = 1;
-		BlockPos.Mutable mutable = pos.mutableCopy();
+		Direction portalDir = Direction.get(Direction.AxisDirection.POSITIVE, axis);
+		int maxY = Math.min(world.getTopYInclusive(), world.getBottomY() + world.getLogicalHeight() - 1);
 
-		for (BlockPos.Mutable mutable2 : BlockPos.iterateInSquare(pos, 16, Direction.EAST, Direction.SOUTH)) {
-			int k = Math.min(i, this.world.getTopY(Heightmap.Type.MOTION_BLOCKING, mutable2.getX(), mutable2.getZ()));
-			if (worldBorder.contains(mutable2) && worldBorder.contains(mutable2.move(direction, 1))) {
-				mutable2.move(direction.getOpposite(), 1);
+		double bestScore = -1.0;
+		BlockPos bestPos = null;
+		double fallbackScore = -1.0;
+		BlockPos fallbackPos = null;
 
-				for (int l = k; l >= this.world.getBottomY(); l--) {
-					mutable2.setY(l);
-					if (this.isBlockStateValid(mutable2)) {
-						int m = l;
+		BlockPos.Mutable temp = pos.mutableCopy();
 
-						while (l > this.world.getBottomY() && this.isBlockStateValid(mutable2.move(Direction.DOWN))) {
-							l--;
-						}
+		for (BlockPos.Mutable candidate : BlockPos.iterateInSquare(pos, NETHER_SEARCH_RADIUS, Direction.EAST, Direction.SOUTH)) {
+			int surfaceY = Math.min(maxY, world.getTopY(Heightmap.Type.MOTION_BLOCKING, candidate.getX(), candidate.getZ()));
+			if (!world.getWorldBorder().contains(candidate)
+				|| !world.getWorldBorder().contains(candidate.move(portalDir, 1))
+			) {
+				continue;
+			}
 
-						if (l + 4 <= i) {
-							int n = m - l;
-							if (n <= 0 || n >= 3) {
-								mutable2.setY(l);
-								if (this.isValidPortalPos(mutable2, mutable, direction, 0)) {
-									double f = pos.getSquaredDistance(mutable2);
-									if (this.isValidPortalPos(mutable2, mutable, direction, -1)
-											&& this.isValidPortalPos(mutable2, mutable, direction, 1)
-											&& (d == -1.0 || d > f)) {
-										d = f;
-										blockPos = mutable2.toImmutable();
-									}
+			candidate.move(portalDir.getOpposite(), 1);
 
-									if (d == -1.0 && (e == -1.0 || e > f)) {
-										e = f;
-										blockPos2 = mutable2.toImmutable();
-									}
-								}
-							}
-						}
-					}
+			for (int y = surfaceY; y >= world.getBottomY(); y--) {
+				candidate.setY(y);
+				if (!isBlockStateValid(candidate)) {
+					continue;
+				}
+
+				int solidY = y;
+				while (y > world.getBottomY() && isBlockStateValid(candidate.move(Direction.DOWN))) {
+					y--;
+				}
+
+				if (y + FRAME_TOP_OFFSET > maxY) {
+					continue;
+				}
+
+				int airColumnHeight = solidY - y;
+				if (airColumnHeight > 0 && airColumnHeight < PORTAL_HEIGHT) {
+					continue;
+				}
+
+				candidate.setY(y);
+				if (!isValidPortalPos(candidate, temp, portalDir, 0)) {
+					continue;
+				}
+
+				double score = pos.getSquaredDistance(candidate);
+				if (isValidPortalPos(candidate, temp, portalDir, FRAME_BOTTOM_OFFSET)
+					&& isValidPortalPos(candidate, temp, portalDir, 1)
+					&& (bestScore == -1.0 || bestScore > score)
+				) {
+					bestScore = score;
+					bestPos = candidate.toImmutable();
+				}
+
+				if (bestScore == -1.0 && (fallbackScore == -1.0 || fallbackScore > score)) {
+					fallbackScore = score;
+					fallbackPos = candidate.toImmutable();
 				}
 			}
 		}
 
-		if (d == -1.0 && e != -1.0) {
-			blockPos = blockPos2;
-			d = e;
+		if (bestScore == -1.0 && fallbackScore != -1.0) {
+			bestPos = fallbackPos;
+			bestScore = fallbackScore;
 		}
 
-		if (d == -1.0) {
-			int o = Math.max(this.world.getBottomY() - -1, 70);
-			int p = i - 9;
-			if (p < o) {
+		if (bestScore == -1.0) {
+			bestPos = buildForcedPortalBase(pos, portalDir, maxY, temp);
+			if (bestPos == null) {
 				return Optional.empty();
 			}
+		}
 
-			blockPos =
-					new BlockPos(
-							pos.getX() - direction.getOffsetX() * 1,
-							MathHelper.clamp(pos.getY(), o, p),
-							pos.getZ() - direction.getOffsetZ() * 1
-					)
-							.toImmutable();
-			blockPos = worldBorder.clampFloored(blockPos);
-			Direction direction2 = direction.rotateYClockwise();
+		buildObsidianFrame(bestPos, portalDir, temp);
 
-			for (int lx = -1; lx < 2; lx++) {
-				for (int m = 0; m < 2; m++) {
-					for (int n = -1; n < 3; n++) {
-						BlockState
-								blockState =
-								n < 0 ? Blocks.OBSIDIAN.getDefaultState() : Blocks.AIR.getDefaultState();
-						mutable.set(
-								blockPos,
-								m * direction.getOffsetX() + lx * direction2.getOffsetX(),
-								n,
-								m * direction.getOffsetZ() + lx * direction2.getOffsetZ()
-						);
-						this.world.setBlockState(mutable, blockState);
-					}
+		BlockState portalState = Blocks.NETHER_PORTAL.getDefaultState().with(NetherPortalBlock.AXIS, axis);
+		for (int depthOffset = 0; depthOffset < 2; depthOffset++) {
+			for (int heightOffset = 0; heightOffset < PORTAL_HEIGHT; heightOffset++) {
+				temp.set(
+					bestPos,
+					depthOffset * portalDir.getOffsetX(),
+					heightOffset,
+					depthOffset * portalDir.getOffsetZ()
+				);
+				world.setBlockState(temp, portalState, 18);
+			}
+		}
+
+		return Optional.of(new BlockLocating.Rectangle(bestPos.toImmutable(), 2, PORTAL_HEIGHT));
+	}
+
+	/**
+	 * Принудительно размещает основание портала на безопасной высоте, если подходящее место не найдено.
+	 * Расчищает пространство 2×2×3 (воздух) и кладёт обсидиановый пол.
+	 *
+	 * @param pos       желаемая позиция
+	 * @param portalDir направление портала
+	 * @param maxY      максимальная допустимая Y-координата
+	 * @param temp      изменяемый BlockPos для временных вычислений
+	 * @return позиция основания или null, если высота не позволяет разместить портал
+	 */
+	private @org.jspecify.annotations.Nullable BlockPos buildForcedPortalBase(
+		BlockPos pos,
+		Direction portalDir,
+		int maxY,
+		BlockPos.Mutable temp
+	) {
+		int minSafeY = Math.max(world.getBottomY() - FRAME_BOTTOM_OFFSET, FORCED_PORTAL_MIN_Y);
+		int maxSafeY = maxY - FRAME_CLEARANCE;
+		if (maxSafeY < minSafeY) {
+			return null;
+		}
+
+		BlockPos basePos = new BlockPos(
+			pos.getX() - portalDir.getOffsetX(),
+			MathHelper.clamp(pos.getY(), minSafeY, maxSafeY),
+			pos.getZ() - portalDir.getOffsetZ()
+		).toImmutable();
+		basePos = world.getWorldBorder().clampFloored(basePos);
+
+		Direction sideDir = portalDir.rotateYClockwise();
+		for (int side = FRAME_SIDE_START; side < 2; side++) {
+			for (int depth = 0; depth < 2; depth++) {
+				for (int height = FRAME_BOTTOM_OFFSET; height < FRAME_SIDE_END; height++) {
+					BlockState fill = height < 0 ? Blocks.OBSIDIAN.getDefaultState() : Blocks.AIR.getDefaultState();
+					temp.set(
+						basePos,
+						depth * portalDir.getOffsetX() + side * sideDir.getOffsetX(),
+						height,
+						depth * portalDir.getOffsetZ() + side * sideDir.getOffsetZ()
+					);
+					world.setBlockState(temp, fill);
 				}
 			}
 		}
 
-		for (int o = -1; o < 3; o++) {
-			for (int p = -1; p < 4; p++) {
-				if (o == -1 || o == 2 || p == -1 || p == 3) {
-					mutable.set(blockPos, o * direction.getOffsetX(), p, o * direction.getOffsetZ());
-					this.world.setBlockState(mutable, Blocks.OBSIDIAN.getDefaultState(), 3);
+		return basePos;
+	}
+
+	/**
+	 * Строит рамку из обсидиана вокруг позиции портала.
+	 * Рамка охватывает периметр прямоугольника 4×5 (ширина × высота).
+	 *
+	 * @param portalBase позиция нижнего левого угла портала
+	 * @param portalDir  направление портала
+	 * @param temp       изменяемый BlockPos для временных вычислений
+	 */
+	private void buildObsidianFrame(BlockPos portalBase, Direction portalDir, BlockPos.Mutable temp) {
+		for (int side = FRAME_SIDE_START; side < FRAME_SIDE_END; side++) {
+			for (int height = FRAME_BOTTOM_OFFSET; height < FRAME_TOP_OFFSET; height++) {
+				if (side == FRAME_SIDE_START || side == 2 || height == FRAME_BOTTOM_OFFSET || height == FRAME_SIDE_END) {
+					temp.set(portalBase, side * portalDir.getOffsetX(), height, side * portalDir.getOffsetZ());
+					world.setBlockState(temp, Blocks.OBSIDIAN.getDefaultState(), 3);
 				}
 			}
 		}
-
-		BlockState blockState2 = Blocks.NETHER_PORTAL.getDefaultState().with(NetherPortalBlock.AXIS, axis);
-
-		for (int px = 0; px < 2; px++) {
-			for (int k = 0; k < 3; k++) {
-				mutable.set(blockPos, px * direction.getOffsetX(), k, px * direction.getOffsetZ());
-				this.world.setBlockState(mutable, blockState2, 18);
-			}
-		}
-
-		return Optional.of(new BlockLocating.Rectangle(blockPos.toImmutable(), 2, 3));
 	}
 
 	private boolean isBlockStateValid(BlockPos.Mutable pos) {
-		BlockState blockState = this.world.getBlockState(pos);
-		return blockState.isReplaceable() && blockState.getFluidState().isEmpty();
+		BlockState state = world.getBlockState(pos);
+		return state.isReplaceable() && state.getFluidState().isEmpty();
 	}
 
+	/**
+	 * Проверяет, что позиция пригодна для размещения портала:
+	 * блоки ниже основания — твёрдые, блоки в области портала — заменяемые и без жидкости.
+	 *
+	 * @param pos                    базовая позиция портала
+	 * @param temp                   изменяемый BlockPos для временных вычислений
+	 * @param portalDirection        направление портала
+	 * @param orthogonalOffset       смещение по перпендикулярной оси (для проверки соседних колонн)
+	 * @return true, если позиция пригодна для портала
+	 */
 	private boolean isValidPortalPos(
-			BlockPos pos,
-			BlockPos.Mutable temp,
-			Direction portalDirection,
-			int distanceOrthogonalToPortal
+		BlockPos pos,
+		BlockPos.Mutable temp,
+		Direction portalDirection,
+		int orthogonalOffset
 	) {
-		Direction direction = portalDirection.rotateYClockwise();
+		Direction sideDir = portalDirection.rotateYClockwise();
 
-		for (int i = -1; i < 3; i++) {
-			for (int j = -1; j < 4; j++) {
+		for (int depth = FRAME_SIDE_START; depth < FRAME_SIDE_END; depth++) {
+			for (int height = FRAME_BOTTOM_OFFSET; height < FRAME_TOP_OFFSET; height++) {
 				temp.set(
-						pos,
-						portalDirection.getOffsetX() * i + direction.getOffsetX() * distanceOrthogonalToPortal,
-						j,
-						portalDirection.getOffsetZ() * i + direction.getOffsetZ() * distanceOrthogonalToPortal
+					pos,
+					portalDirection.getOffsetX() * depth + sideDir.getOffsetX() * orthogonalOffset,
+					height,
+					portalDirection.getOffsetZ() * depth + sideDir.getOffsetZ() * orthogonalOffset
 				);
-				if (j < 0 && !this.world.getBlockState(temp).isSolid()) {
+
+				if (height < 0 && !world.getBlockState(temp).isSolid()) {
 					return false;
 				}
 
-				if (j >= 0 && !this.isBlockStateValid(temp)) {
+				if (height >= 0 && !isBlockStateValid(temp)) {
 					return false;
 				}
 			}

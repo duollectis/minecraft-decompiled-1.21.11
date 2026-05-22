@@ -8,20 +8,21 @@ import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 
 /**
- * {@code BlockState}.
+ * Конкретная реализация состояния блока. Хранит ссылку на {@link Block} и набор
+ * значений свойств ({@link net.minecraft.state.property.Property}), определяющих
+ * внешний вид и поведение блока в мире.
  */
 public class BlockState extends AbstractBlock.AbstractBlockState implements FabricBlockState {
 
-	public static final Codec<BlockState>
-			CODEC =
+	public static final Codec<BlockState> CODEC =
 			createCodec(Registries.BLOCK.getCodec(), Block::getDefaultState).stable();
 
 	public BlockState(
 			Block block,
-			Reference2ObjectArrayMap<Property<?>, Comparable<?>> reference2ObjectArrayMap,
+			Reference2ObjectArrayMap<Property<?>, Comparable<?>> propertyMap,
 			MapCodec<BlockState> mapCodec
 	) {
-		super(block, reference2ObjectArrayMap, mapCodec);
+		super(block, propertyMap, mapCodec);
 	}
 
 	@Override

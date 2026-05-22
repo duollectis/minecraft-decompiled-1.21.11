@@ -16,143 +16,127 @@ import net.minecraft.world.World;
 import java.util.Map;
 
 /**
- * {@code FireworkStarRecipe}.
+ * Рецепт крафта звезды фейерверка.
+ * <p>
+ * Обязательные ингредиенты: порох (ровно один) и хотя бы один краситель.
+ * Опциональные модификаторы (каждый не более одного):
+ * <ul>
+ *   <li>Форма взрыва — предметы из {@link #SHAPE_MODIFIER_MAP}</li>
+ *   <li>Эффект «след» — алмаз</li>
+ *   <li>Эффект «мерцание» — светящийся камень</li>
+ * </ul>
  */
 public class FireworkStarRecipe extends SpecialCraftingRecipe {
 
-	private static final Map<Item, FireworkExplosionComponent.Type> TYPE_MODIFIER_MAP = Map.of(
-			Items.FIRE_CHARGE,
-			FireworkExplosionComponent.Type.LARGE_BALL,
-			Items.FEATHER,
-			FireworkExplosionComponent.Type.BURST,
-			Items.GOLD_NUGGET,
-			FireworkExplosionComponent.Type.STAR,
-			Items.SKELETON_SKULL,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.WITHER_SKELETON_SKULL,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.CREEPER_HEAD,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.PLAYER_HEAD,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.DRAGON_HEAD,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.ZOMBIE_HEAD,
-			FireworkExplosionComponent.Type.CREEPER,
-			Items.PIGLIN_HEAD,
-			FireworkExplosionComponent.Type.CREEPER
+	private static final Map<Item, FireworkExplosionComponent.Type> SHAPE_MODIFIER_MAP = Map.of(
+		Items.FIRE_CHARGE, FireworkExplosionComponent.Type.LARGE_BALL,
+		Items.FEATHER, FireworkExplosionComponent.Type.BURST,
+		Items.GOLD_NUGGET, FireworkExplosionComponent.Type.STAR,
+		Items.SKELETON_SKULL, FireworkExplosionComponent.Type.CREEPER,
+		Items.WITHER_SKELETON_SKULL, FireworkExplosionComponent.Type.CREEPER,
+		Items.CREEPER_HEAD, FireworkExplosionComponent.Type.CREEPER,
+		Items.PLAYER_HEAD, FireworkExplosionComponent.Type.CREEPER,
+		Items.DRAGON_HEAD, FireworkExplosionComponent.Type.CREEPER,
+		Items.ZOMBIE_HEAD, FireworkExplosionComponent.Type.CREEPER,
+		Items.PIGLIN_HEAD, FireworkExplosionComponent.Type.CREEPER
 	);
+
 	private static final Ingredient TRAIL_MODIFIER = Ingredient.ofItem(Items.DIAMOND);
 	private static final Ingredient FLICKER_MODIFIER = Ingredient.ofItem(Items.GLOWSTONE_DUST);
 	private static final Ingredient GUNPOWDER = Ingredient.ofItem(Items.GUNPOWDER);
 
-	public FireworkStarRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public FireworkStarRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
-			boolean bl3 = false;
-			boolean bl4 = false;
-			boolean bl5 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (TYPE_MODIFIER_MAP.containsKey(itemStack.getItem())) {
-						if (bl3) {
-							return false;
-						}
+		boolean hasGunpowder = false;
+		boolean hasDye = false;
+		boolean hasShapeModifier = false;
+		boolean hasTrail = false;
+		boolean hasFlicker = false;
 
-						bl3 = true;
-					}
-					else if (FLICKER_MODIFIER.test(itemStack)) {
-						if (bl5) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						bl5 = true;
-					}
-					else if (TRAIL_MODIFIER.test(itemStack)) {
-						if (bl4) {
-							return false;
-						}
-
-						bl4 = true;
-					}
-					else if (GUNPOWDER.test(itemStack)) {
-						if (bl) {
-							return false;
-						}
-
-						bl = true;
-					}
-					else {
-						if (!(itemStack.getItem() instanceof DyeItem)) {
-							return false;
-						}
-
-						bl2 = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl && bl2;
+			if (SHAPE_MODIFIER_MAP.containsKey(stack.getItem())) {
+				if (hasShapeModifier) {
+					return false;
+				}
+
+				hasShapeModifier = true;
+			} else if (FLICKER_MODIFIER.test(stack)) {
+				if (hasFlicker) {
+					return false;
+				}
+
+				hasFlicker = true;
+			} else if (TRAIL_MODIFIER.test(stack)) {
+				if (hasTrail) {
+					return false;
+				}
+
+				hasTrail = true;
+			} else if (GUNPOWDER.test(stack)) {
+				if (hasGunpowder) {
+					return false;
+				}
+
+				hasGunpowder = true;
+			} else {
+				if (!(stack.getItem() instanceof DyeItem)) {
+					return false;
+				}
+
+				hasDye = true;
+			}
 		}
+
+		return hasGunpowder && hasDye;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		FireworkExplosionComponent.Type type = FireworkExplosionComponent.Type.SMALL_BALL;
-		boolean bl = false;
-		boolean bl2 = false;
-		IntList intList = new IntArrayList();
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		FireworkExplosionComponent.Type explosionShape = FireworkExplosionComponent.Type.SMALL_BALL;
+		boolean hasTrail = false;
+		boolean hasFlicker = false;
+		IntList colors = new IntArrayList();
 
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-			if (!itemStack.isEmpty()) {
-				FireworkExplosionComponent.Type type2 = TYPE_MODIFIER_MAP.get(itemStack.getItem());
-				if (type2 != null) {
-					type = type2;
-				}
-				else if (FLICKER_MODIFIER.test(itemStack)) {
-					bl = true;
-				}
-				else if (TRAIL_MODIFIER.test(itemStack)) {
-					bl2 = true;
-				}
-				else if (itemStack.getItem() instanceof DyeItem dyeItem) {
-					intList.add(dyeItem.getColor().getFireworkColor());
-				}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			FireworkExplosionComponent.Type shapeOverride = SHAPE_MODIFIER_MAP.get(stack.getItem());
+
+			if (shapeOverride != null) {
+				explosionShape = shapeOverride;
+			} else if (FLICKER_MODIFIER.test(stack)) {
+				hasFlicker = true;
+			} else if (TRAIL_MODIFIER.test(stack)) {
+				hasTrail = true;
+			} else if (stack.getItem() instanceof DyeItem dyeItem) {
+				colors.add(dyeItem.getColor().getFireworkColor());
 			}
 		}
 
-		ItemStack itemStack2 = new ItemStack(Items.FIREWORK_STAR);
-		itemStack2.set(
-				DataComponentTypes.FIREWORK_EXPLOSION,
-				new FireworkExplosionComponent(type, intList, IntList.of(), bl2, bl)
+		ItemStack result = new ItemStack(Items.FIREWORK_STAR);
+		result.set(
+			DataComponentTypes.FIREWORK_EXPLOSION,
+			new FireworkExplosionComponent(explosionShape, colors, IntList.of(), hasTrail, hasFlicker)
 		);
-		return itemStack2;
+		return result;
 	}
 
 	@Override

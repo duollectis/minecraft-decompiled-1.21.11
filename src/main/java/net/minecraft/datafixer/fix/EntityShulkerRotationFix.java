@@ -9,7 +9,9 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 
 /**
- * {@code EntityShulkerRotationFix}.
+ * Исправляет угол поворота шалкера: при переходе на новый формат
+ * первый элемент списка {@code Rotation} смещался на 180°, поэтому
+ * здесь вычитается 180° для корректного отображения ориентации.
  */
 public class EntityShulkerRotationFix extends ChoiceFix {
 
@@ -17,22 +19,23 @@ public class EntityShulkerRotationFix extends ChoiceFix {
 		super(outputSchema, false, "EntityShulkerRotationFix", TypeReferences.ENTITY, "minecraft:shulker");
 	}
 
-	public Dynamic<?> fixRotation(Dynamic<?> shulkerDynamic) {
-		List<Double> list = shulkerDynamic.get("Rotation").asList(rotationDynamic -> rotationDynamic.asDouble(180.0));
-		if (!list.isEmpty()) {
-			list.set(0, list.get(0) - 180.0);
-			return shulkerDynamic.set(
-					"Rotation",
-					shulkerDynamic.createList(list.stream().map(shulkerDynamic::createDouble))
-			);
-		}
-		else {
-			return shulkerDynamic;
-		}
-	}
-
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
 		return inputTyped.update(DSL.remainderFinder(), this::fixRotation);
+	}
+
+	private Dynamic<?> fixRotation(Dynamic<?> shulker) {
+		List<Double> rotationValues = shulker.get("Rotation").asList(d -> d.asDouble(180.0));
+
+		if (rotationValues.isEmpty()) {
+			return shulker;
+		}
+
+		rotationValues.set(0, rotationValues.get(0) - 180.0);
+
+		return shulker.set(
+			"Rotation",
+			shulker.createList(rotationValues.stream().map(shulker::createDouble))
+		);
 	}
 }

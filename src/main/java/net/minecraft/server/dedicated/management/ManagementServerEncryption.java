@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.security.KeyStore;
 
 /**
- * {@code ManagementServerEncryption}.
+ * Класс Management Server Encryption.
  */
 public class ManagementServerEncryption {
 

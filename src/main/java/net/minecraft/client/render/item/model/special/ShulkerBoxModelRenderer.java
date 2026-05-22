@@ -18,10 +18,12 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ShulkerBoxModelRenderer}.
+ * Рендерер ящика шалкера как предмета инвентаря.
+ * Делегирует отрисовку {@link ShulkerBoxBlockEntityRenderer} с заданными параметрами
+ * ориентации и степени открытия крышки.
  */
+@Environment(EnvType.CLIENT)
 public class ShulkerBoxModelRenderer implements SimpleSpecialModelRenderer {
 
 	private final ShulkerBoxBlockEntityRenderer blockEntityRenderer;
@@ -49,30 +51,31 @@ public class ShulkerBoxModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
-		this.blockEntityRenderer.render(
+		blockEntityRenderer.render(
 				matrices,
 				queue,
 				light,
 				overlay,
-				this.facing,
-				this.openness,
+				facing,
+				openness,
 				null,
-				this.textureId,
-				i
+				textureId,
+				seed
 		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		this.blockEntityRenderer.collectVertices(this.facing, this.openness, consumer);
+		blockEntityRenderer.collectVertices(facing, openness, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованный дескриптор рендерера ящика шалкера.
+	 * Хранит идентификатор текстуры, степень открытия крышки и направление ориентации.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			Identifier texture,
 			float openness,

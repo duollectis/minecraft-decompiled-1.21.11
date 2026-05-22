@@ -14,19 +14,25 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code NearestLivingEntitiesSensor}.
+ * Базовый сенсор обнаружения ближайших живых существ в радиусе атрибута {@code FOLLOW_RANGE}.
+ * Записывает в память {@code MOBS} полный список и {@code VISIBLE_MOBS} — кэш видимости.
  */
 public class NearestLivingEntitiesSensor<T extends LivingEntity> extends Sensor<T> {
 
 	@Override
 	protected void sense(ServerWorld world, T entity) {
-		double d = entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-		Box box = entity.getBoundingBox().expand(d, d, d);
-		List<LivingEntity> list = world.getEntitiesByClass(LivingEntity.class, box, e -> e != entity && e.isAlive());
-		list.sort(Comparator.comparingDouble(entity::squaredDistanceTo));
+		double followRange = entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+		Box box = entity.getBoundingBox().expand(followRange, followRange, followRange);
+		List<LivingEntity> entities = world.getEntitiesByClass(
+				LivingEntity.class,
+				box,
+				e -> e != entity && e.isAlive()
+		);
+		entities.sort(Comparator.comparingDouble(entity::squaredDistanceTo));
+
 		Brain<?> brain = entity.getBrain();
-		brain.remember(MemoryModuleType.MOBS, list);
-		brain.remember(MemoryModuleType.VISIBLE_MOBS, new LivingTargetCache(world, entity, list));
+		brain.remember(MemoryModuleType.MOBS, entities);
+		brain.remember(MemoryModuleType.VISIBLE_MOBS, new LivingTargetCache(world, entity, entities));
 	}
 
 	@Override

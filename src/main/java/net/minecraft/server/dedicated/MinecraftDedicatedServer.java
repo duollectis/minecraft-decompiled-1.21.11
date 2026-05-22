@@ -63,7 +63,7 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 
 /**
- * {@code MinecraftDedicatedServer}.
+ * Конкретная реализация выделенного сервера Minecraft: точка входа и полный жизненный цикл.
  */
 public class MinecraftDedicatedServer extends MinecraftServer implements DedicatedServer {
 
@@ -794,7 +794,7 @@ public class MinecraftDedicatedServer extends MinecraftServer implements Dedicat
 
 	private void sleepFiveSeconds() {
 		try {
-			Thread.sleep(5000L);
+			Thread.sleep(SHUTDOWN_TIMEOUT_MS);
 		}
 		catch (InterruptedException var2) {
 		}

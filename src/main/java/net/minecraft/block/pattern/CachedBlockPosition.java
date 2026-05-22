@@ -9,7 +9,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code CachedBlockPosition}.
+ * Обёртка над позицией блока с ленивым кэшированием его состояния и блок-сущности.
+ * <p>
+ * Используется в {@link BlockPattern} для избежания повторных обращений к миру
+ * при многократной проверке одной и той же позиции в ходе поиска шаблона.
+ * Состояние блока загружается только при первом обращении и только если чанк загружен
+ * (или установлен флаг {@code forceLoad}).
  */
 public class CachedBlockPosition {
 
@@ -26,39 +31,41 @@ public class CachedBlockPosition {
 		this.forceLoad = forceLoad;
 	}
 
-	public BlockState getBlockState() {
-		if (this.state == null && (this.forceLoad || this.world.isChunkLoaded(this.pos))) {
-			this.state = this.world.getBlockState(this.pos);
+	public @Nullable BlockState getBlockState() {
+		if (state == null && (forceLoad || world.isChunkLoaded(pos))) {
+			state = world.getBlockState(pos);
 		}
 
-		return this.state;
+		return state;
 	}
 
 	public @Nullable BlockEntity getBlockEntity() {
-		if (this.blockEntity == null && !this.cachedEntity) {
-			this.blockEntity = this.world.getBlockEntity(this.pos);
-			this.cachedEntity = true;
+		if (blockEntity == null && cachedEntity == false) {
+			blockEntity = world.getBlockEntity(pos);
+			cachedEntity = true;
 		}
 
-		return this.blockEntity;
+		return blockEntity;
 	}
 
 	public WorldView getWorld() {
-		return this.world;
+		return world;
 	}
 
 	public BlockPos getBlockPos() {
-		return this.pos;
+		return pos;
 	}
 
 	/**
-	 * Matches block state.
+	 * Создаёт предикат, проверяющий состояние блока в кэшированной позиции.
+	 * <p>
+	 * Возвращает {@code false} для {@code null}-позиций (незагруженные чанки),
+	 * что позволяет безопасно использовать предикат в {@link BlockPattern}.
 	 *
-	 * @param state state
-	 *
-	 * @return Predicate — результат операции
+	 * @param statePredicate условие проверки состояния блока
+	 * @return предикат над {@link CachedBlockPosition}, безопасный к {@code null}
 	 */
-	public static Predicate<@Nullable CachedBlockPosition> matchesBlockState(Predicate<BlockState> state) {
-		return pos -> pos != null && state.test(pos.getBlockState());
+	public static Predicate<@Nullable CachedBlockPosition> matchesBlockState(Predicate<BlockState> statePredicate) {
+		return cached -> cached != null && statePredicate.test(cached.getBlockState());
 	}
 }

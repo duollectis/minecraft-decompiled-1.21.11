@@ -8,7 +8,10 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code Forkable}.
+ * Интерфейс для команд, поддерживающих ветвление (fork) — выполнение
+ * одной команды для нескольких источников одновременно.
+ *
+ * @param <T> тип источника команды
  */
 public interface Forkable<T> {
 
@@ -21,9 +24,9 @@ public interface Forkable<T> {
 	);
 
 	/**
-	 * {@code RedirectModifier}.
+	 * Модификатор перенаправления с поддержкой ветвления.
 	 */
-	public interface RedirectModifier<T> extends com.mojang.brigadier.RedirectModifier<T>, Forkable<T> {
+	interface RedirectModifier<T> extends com.mojang.brigadier.RedirectModifier<T>, Forkable<T> {
 
 		default Collection<T> apply(CommandContext<T> context) throws CommandSyntaxException {
 			throw new UnsupportedOperationException("This function should not run");

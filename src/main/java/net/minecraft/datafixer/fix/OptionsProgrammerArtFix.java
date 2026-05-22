@@ -8,7 +8,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsProgrammerArtFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsProgrammerArtFix extends DataFix {
 
@@ -17,9 +17,9 @@ public class OptionsProgrammerArtFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsProgrammerArtFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						options -> options

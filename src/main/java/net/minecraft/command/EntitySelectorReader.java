@@ -131,79 +131,77 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 
 	public EntitySelector build() {
 		Box box;
-		if (this.dx == null && this.dy == null && this.dz == null) {
-			if (this.distance != null && this.distance.getMax().isPresent()) {
-				double d = (Double) this.distance.getMax().get();
-				box = new Box(-d, -d, -d, d + 1.0, d + 1.0, d + 1.0);
+		if (dx == null && dy == null && dz == null) {
+			if (distance != null && distance.getMax().isPresent()) {
+				double maxDist = (Double) distance.getMax().get();
+				box = new Box(-maxDist, -maxDist, -maxDist, maxDist + 1.0, maxDist + 1.0, maxDist + 1.0);
 			}
 			else {
 				box = null;
 			}
 		}
 		else {
-			box =
-					this.createBox(
-							this.dx == null ? 0.0 : this.dx,
-							this.dy == null ? 0.0 : this.dy,
-							this.dz == null ? 0.0 : this.dz
-					);
+			box = createBox(
+					dx == null ? 0.0 : dx,
+					dy == null ? 0.0 : dy,
+					dz == null ? 0.0 : dz
+			);
 		}
 
-		Function<Vec3d, Vec3d> function;
-		if (this.x == null && this.y == null && this.z == null) {
-			function = pos -> pos;
+		Function<Vec3d, Vec3d> positionFunction;
+		if (x == null && y == null && z == null) {
+			positionFunction = pos -> pos;
 		}
 		else {
-			function =
-					pos -> new Vec3d(
-							this.x == null ? pos.x : this.x,
-							this.y == null ? pos.y : this.y,
-							this.z == null ? pos.z : this.z
-					);
+			positionFunction = pos -> new Vec3d(
+					x == null ? pos.x : x,
+					y == null ? pos.y : y,
+					z == null ? pos.z : z
+			);
 		}
 
 		return new EntitySelector(
-				this.limit,
-				this.includesNonPlayers,
-				this.localWorldOnly,
-				List.copyOf(this.predicates),
-				this.distance,
-				function,
+				limit,
+				includesNonPlayers,
+				localWorldOnly,
+				List.copyOf(predicates),
+				distance,
+				positionFunction,
 				box,
-				this.sorter,
-				this.senderOnly,
-				this.playerName,
-				this.uuid,
-				this.entityType,
-				this.usesAt
+				sorter,
+				senderOnly,
+				playerName,
+				uuid,
+				entityType,
+				usesAt
 		);
 	}
 
 	private Box createBox(double x, double y, double z) {
-		boolean bl = x < 0.0;
-		boolean bl2 = y < 0.0;
-		boolean bl3 = z < 0.0;
-		double d = bl ? x : 0.0;
-		double e = bl2 ? y : 0.0;
-		double f = bl3 ? z : 0.0;
-		double g = (bl ? 0.0 : x) + 1.0;
-		double h = (bl2 ? 0.0 : y) + 1.0;
-		double i = (bl3 ? 0.0 : z) + 1.0;
-		return new Box(d, e, f, g, h, i);
+		boolean negX = x < 0.0;
+		boolean negY = y < 0.0;
+		boolean negZ = z < 0.0;
+		double minX = negX ? x : 0.0;
+		double minY = negY ? y : 0.0;
+		double minZ = negZ ? z : 0.0;
+		double maxX = (negX ? 0.0 : x) + 1.0;
+		double maxY = (negY ? 0.0 : y) + 1.0;
+		double maxZ = (negZ ? 0.0 : z) + 1.0;
+		return new Box(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	private void buildPredicate() {
-		if (this.pitchRange != null) {
-			this.predicates.add(this.rotationPredicate(this.pitchRange, Entity::getPitch));
+		if (pitchRange != null) {
+			predicates.add(rotationPredicate(pitchRange, Entity::getPitch));
 		}
 
-		if (this.yawRange != null) {
-			this.predicates.add(this.rotationPredicate(this.yawRange, Entity::getYaw));
+		if (yawRange != null) {
+			predicates.add(rotationPredicate(yawRange, Entity::getYaw));
 		}
 
-		if (this.levelRange != null) {
-			this.predicates.add(entity -> entity instanceof ServerPlayerEntity serverPlayerEntity
-					&& this.levelRange.test(serverPlayerEntity.experienceLevel));
+		if (levelRange != null) {
+			predicates.add(entity -> entity instanceof ServerPlayerEntity player
+					&& levelRange.test(player.experienceLevel));
 		}
 	}
 
@@ -211,187 +209,186 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			NumberRange.AngleRange range,
 			Object2FloatFunction<Entity> rotationGetter
 	) {
-		float f = MathHelper.wrapDegrees(range.getMin().orElse(0.0F));
-		float g = MathHelper.wrapDegrees(range.getMax().orElse(359.0F));
+		float minAngle = MathHelper.wrapDegrees(range.getMin().orElse(0.0F));
+		float maxAngle = MathHelper.wrapDegrees(range.getMax().orElse(359.0F));
 		return entity -> {
-			float h = MathHelper.wrapDegrees(rotationGetter.applyAsFloat(entity));
-			return f > g ? h >= f || h <= g : h >= f && h <= g;
+			float angle = MathHelper.wrapDegrees(rotationGetter.applyAsFloat(entity));
+			return minAngle > maxAngle ? angle >= minAngle || angle <= maxAngle : angle >= minAngle && angle <= maxAngle;
 		};
 	}
 
 	protected void readAtVariable() throws CommandSyntaxException {
-		this.usesAt = true;
-		this.suggestionProvider = this::suggestSelectorRest;
-		if (!this.reader.canRead()) {
-			throw MISSING_EXCEPTION.createWithContext(this.reader);
+		usesAt = true;
+		suggestionProvider = this::suggestSelectorRest;
+		if (!reader.canRead()) {
+			throw MISSING_EXCEPTION.createWithContext(reader);
 		}
-		else {
-			int i = this.reader.getCursor();
-			char c = this.reader.read();
 
-			if (switch (c) {
-				case 'a' -> {
-					this.limit = Integer.MAX_VALUE;
-					this.includesNonPlayers = false;
-					this.sorter = EntitySelector.ARBITRARY;
-					this.setEntityType(EntityType.PLAYER);
-					yield false;
-				}
-				default -> {
-					this.reader.setCursor(i);
-					throw UNKNOWN_SELECTOR_EXCEPTION.createWithContext(this.reader, "@" + c);
-				}
-				case 'e' -> {
-					this.limit = Integer.MAX_VALUE;
-					this.includesNonPlayers = true;
-					this.sorter = EntitySelector.ARBITRARY;
-					yield true;
-				}
-				case 'n' -> {
-					this.limit = 1;
-					this.includesNonPlayers = true;
-					this.sorter = NEAREST;
-					yield true;
-				}
-				case 'p' -> {
-					this.limit = 1;
-					this.includesNonPlayers = false;
-					this.sorter = NEAREST;
-					this.setEntityType(EntityType.PLAYER);
-					yield false;
-				}
-				case 'r' -> {
-					this.limit = 1;
-					this.includesNonPlayers = false;
-					this.sorter = RANDOM;
-					this.setEntityType(EntityType.PLAYER);
-					yield false;
-				}
-				case 's' -> {
-					this.limit = 1;
-					this.includesNonPlayers = true;
-					this.senderOnly = true;
-					yield false;
-				}
-			}) {
-				this.predicates.add(Entity::isAlive);
-			}
+		int cursorBeforeSelector = reader.getCursor();
+		char selectorChar = reader.read();
 
-			this.suggestionProvider = this::suggestOpen;
-			if (this.reader.canRead() && this.reader.peek() == '[') {
-				this.reader.skip();
-				this.suggestionProvider = this::suggestOptionOrEnd;
-				this.readArguments();
+		boolean requiresAlive = switch (selectorChar) {
+			case ALL_PLAYERS -> {
+				limit = Integer.MAX_VALUE;
+				includesNonPlayers = false;
+				sorter = EntitySelector.ARBITRARY;
+				setEntityType(EntityType.PLAYER);
+				yield false;
 			}
+			case ALL_ENTITIES -> {
+				limit = Integer.MAX_VALUE;
+				includesNonPlayers = true;
+				sorter = EntitySelector.ARBITRARY;
+				yield true;
+			}
+			case NEAREST_ENTITY -> {
+				limit = 1;
+				includesNonPlayers = true;
+				sorter = NEAREST;
+				yield true;
+			}
+			case NEAREST_PLAYER -> {
+				limit = 1;
+				includesNonPlayers = false;
+				sorter = NEAREST;
+				setEntityType(EntityType.PLAYER);
+				yield false;
+			}
+			case RANDOM_PLAYER -> {
+				limit = 1;
+				includesNonPlayers = false;
+				sorter = RANDOM;
+				setEntityType(EntityType.PLAYER);
+				yield false;
+			}
+			case SELF -> {
+				limit = 1;
+				includesNonPlayers = true;
+				senderOnly = true;
+				yield false;
+			}
+			default -> {
+				reader.setCursor(cursorBeforeSelector);
+				throw UNKNOWN_SELECTOR_EXCEPTION.createWithContext(reader, "@" + selectorChar);
+			}
+		};
+
+		if (requiresAlive) {
+			predicates.add(Entity::isAlive);
+		}
+
+		suggestionProvider = this::suggestOpen;
+		if (reader.canRead() && reader.peek() == ARGUMENTS_OPENING) {
+			reader.skip();
+			suggestionProvider = this::suggestOptionOrEnd;
+			readArguments();
 		}
 	}
 
 	protected void readRegular() throws CommandSyntaxException {
-		if (this.reader.canRead()) {
-			this.suggestionProvider = this::suggestNormal;
+		if (reader.canRead()) {
+			suggestionProvider = this::suggestNormal;
 		}
 
-		int i = this.reader.getCursor();
-		String string = this.reader.readString();
+		int startCursorPos = reader.getCursor();
+		String token = reader.readString();
 
 		try {
-			this.uuid = UUID.fromString(string);
-			this.includesNonPlayers = true;
+			uuid = UUID.fromString(token);
+			includesNonPlayers = true;
 		}
-		catch (IllegalArgumentException var4) {
-			if (string.isEmpty() || string.length() > 16) {
-				this.reader.setCursor(i);
-				throw INVALID_ENTITY_EXCEPTION.createWithContext(this.reader);
+		catch (IllegalArgumentException ignored) {
+			if (token.isEmpty() || token.length() > 16) {
+				reader.setCursor(startCursorPos);
+				throw INVALID_ENTITY_EXCEPTION.createWithContext(reader);
 			}
 
-			this.includesNonPlayers = false;
-			this.playerName = string;
+			includesNonPlayers = false;
+			playerName = token;
 		}
 
-		this.limit = 1;
+		limit = 1;
 	}
 
 	protected void readArguments() throws CommandSyntaxException {
-		this.suggestionProvider = this::suggestOption;
-		this.reader.skipWhitespace();
+		suggestionProvider = this::suggestOption;
+		reader.skipWhitespace();
 
-		while (this.reader.canRead() && this.reader.peek() != ']') {
-			this.reader.skipWhitespace();
-			int i = this.reader.getCursor();
-			String string = this.reader.readString();
-			EntitySelectorOptions.SelectorHandler selectorHandler = EntitySelectorOptions.getHandler(this, string, i);
-			this.reader.skipWhitespace();
-			if (!this.reader.canRead() || this.reader.peek() != '=') {
-				this.reader.setCursor(i);
-				throw VALUELESS_EXCEPTION.createWithContext(this.reader, string);
+		while (reader.canRead() && reader.peek() != ARGUMENTS_CLOSING) {
+			reader.skipWhitespace();
+			int optionCursor = reader.getCursor();
+			String optionName = reader.readString();
+			EntitySelectorOptions.SelectorHandler handler = EntitySelectorOptions.getHandler(this, optionName, optionCursor);
+			reader.skipWhitespace();
+			if (!reader.canRead() || reader.peek() != ARGUMENT_DEFINER) {
+				reader.setCursor(optionCursor);
+				throw VALUELESS_EXCEPTION.createWithContext(reader, optionName);
 			}
 
-			this.reader.skip();
-			this.reader.skipWhitespace();
-			this.suggestionProvider = DEFAULT_SUGGESTION_PROVIDER;
-			selectorHandler.handle(this);
-			this.reader.skipWhitespace();
-			this.suggestionProvider = this::suggestEndNext;
-			if (this.reader.canRead()) {
-				if (this.reader.peek() != ',') {
-					if (this.reader.peek() != ']') {
-						throw UNTERMINATED_EXCEPTION.createWithContext(this.reader);
+			reader.skip();
+			reader.skipWhitespace();
+			suggestionProvider = DEFAULT_SUGGESTION_PROVIDER;
+			handler.handle(this);
+			reader.skipWhitespace();
+			suggestionProvider = this::suggestEndNext;
+			if (reader.canRead()) {
+				if (reader.peek() != ARGUMENT_SEPARATOR) {
+					if (reader.peek() != ARGUMENTS_CLOSING) {
+						throw UNTERMINATED_EXCEPTION.createWithContext(reader);
 					}
 					break;
 				}
 
-				this.reader.skip();
-				this.suggestionProvider = this::suggestOption;
+				reader.skip();
+				suggestionProvider = this::suggestOption;
 			}
 		}
 
-		if (this.reader.canRead()) {
-			this.reader.skip();
-			this.suggestionProvider = DEFAULT_SUGGESTION_PROVIDER;
+		if (reader.canRead()) {
+			reader.skip();
+			suggestionProvider = DEFAULT_SUGGESTION_PROVIDER;
 		}
 		else {
-			throw UNTERMINATED_EXCEPTION.createWithContext(this.reader);
+			throw UNTERMINATED_EXCEPTION.createWithContext(reader);
 		}
 	}
 
 	public boolean readNegationCharacter() {
-		this.reader.skipWhitespace();
-		if (this.reader.canRead() && this.reader.peek() == '!') {
-			this.reader.skip();
-			this.reader.skipWhitespace();
+		reader.skipWhitespace();
+		if (reader.canRead() && reader.peek() == INVERT_MODIFIER) {
+			reader.skip();
+			reader.skipWhitespace();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	public boolean readTagCharacter() {
-		this.reader.skipWhitespace();
-		if (this.reader.canRead() && this.reader.peek() == '#') {
-			this.reader.skip();
-			this.reader.skipWhitespace();
+		reader.skipWhitespace();
+		if (reader.canRead() && reader.peek() == TAG_MODIFIER) {
+			reader.skip();
+			reader.skipWhitespace();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	public StringReader getReader() {
-		return this.reader;
+		return reader;
 	}
 
 	public void addPredicate(Predicate<Entity> predicate) {
-		this.predicates.add(predicate);
+		predicates.add(predicate);
 	}
 
 	public void setLocalWorldOnly() {
-		this.localWorldOnly = true;
+		localWorldOnly = true;
 	}
 
 	public NumberRange.@Nullable DoubleRange getDistance() {
-		return this.distance;
+		return distance;
 	}
 
 	public void setDistance(NumberRange.DoubleRange distance) {
@@ -399,7 +396,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public NumberRange.@Nullable IntRange getLevelRange() {
-		return this.levelRange;
+		return levelRange;
 	}
 
 	public void setLevelRange(NumberRange.IntRange levelRange) {
@@ -407,7 +404,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public NumberRange.@Nullable AngleRange getPitchRange() {
-		return this.pitchRange;
+		return pitchRange;
 	}
 
 	public void setPitchRange(NumberRange.AngleRange pitchRange) {
@@ -415,7 +412,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public NumberRange.@Nullable AngleRange getYawRange() {
-		return this.yawRange;
+		return yawRange;
 	}
 
 	public void setYawRange(NumberRange.AngleRange yawRange) {
@@ -423,15 +420,15 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public @Nullable Double getX() {
-		return this.x;
+		return x;
 	}
 
 	public @Nullable Double getY() {
-		return this.y;
+		return y;
 	}
 
 	public @Nullable Double getZ() {
-		return this.z;
+		return z;
 	}
 
 	public void setX(double x) {
@@ -459,15 +456,15 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public @Nullable Double getDx() {
-		return this.dx;
+		return dx;
 	}
 
 	public @Nullable Double getDy() {
-		return this.dy;
+		return dy;
 	}
 
 	public @Nullable Double getDz() {
-		return this.dz;
+		return dz;
 	}
 
 	public void setLimit(int limit) {
@@ -479,7 +476,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public BiConsumer<Vec3d, List<? extends Entity>> getSorter() {
-		return this.sorter;
+		return sorter;
 	}
 
 	public void setSorter(BiConsumer<Vec3d, List<? extends Entity>> sorter) {
@@ -487,22 +484,22 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public EntitySelector read() throws CommandSyntaxException {
-		this.startCursor = this.reader.getCursor();
-		this.suggestionProvider = this::suggestSelector;
-		if (this.reader.canRead() && this.reader.peek() == '@') {
-			if (!this.atAllowed) {
-				throw NOT_ALLOWED_EXCEPTION.createWithContext(this.reader);
+		startCursor = reader.getCursor();
+		suggestionProvider = this::suggestSelector;
+		if (reader.canRead() && reader.peek() == SELECTOR_PREFIX) {
+			if (!atAllowed) {
+				throw NOT_ALLOWED_EXCEPTION.createWithContext(reader);
 			}
 
-			this.reader.skip();
-			this.readAtVariable();
+			reader.skip();
+			readAtVariable();
 		}
 		else {
-			this.readRegular();
+			readRegular();
 		}
 
-		this.buildPredicate();
-		return this.build();
+		buildPredicate();
+		return build();
 	}
 
 	private static void suggestSelector(SuggestionsBuilder builder) {
@@ -519,7 +516,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			Consumer<SuggestionsBuilder> consumer
 	) {
 		consumer.accept(builder);
-		if (this.atAllowed) {
+		if (atAllowed) {
 			suggestSelector(builder);
 		}
 
@@ -530,18 +527,18 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		SuggestionsBuilder suggestionsBuilder = builder.createOffset(this.startCursor);
-		consumer.accept(suggestionsBuilder);
-		return builder.add(suggestionsBuilder).buildFuture();
+		SuggestionsBuilder offsetBuilder = builder.createOffset(startCursor);
+		consumer.accept(offsetBuilder);
+		return builder.add(offsetBuilder).buildFuture();
 	}
 
 	private CompletableFuture<Suggestions> suggestSelectorRest(
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		SuggestionsBuilder suggestionsBuilder = builder.createOffset(builder.getStart() - 1);
-		suggestSelector(suggestionsBuilder);
-		builder.add(suggestionsBuilder);
+		SuggestionsBuilder offsetBuilder = builder.createOffset(builder.getStart() - 1);
+		suggestSelector(offsetBuilder);
+		builder.add(offsetBuilder);
 		return builder.buildFuture();
 	}
 
@@ -549,7 +546,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		builder.suggest(String.valueOf('['));
+		builder.suggest(String.valueOf(ARGUMENTS_OPENING));
 		return builder.buildFuture();
 	}
 
@@ -557,7 +554,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		builder.suggest(String.valueOf(']'));
+		builder.suggest(String.valueOf(ARGUMENTS_CLOSING));
 		EntitySelectorOptions.suggestOptions(this, builder);
 		return builder.buildFuture();
 	}
@@ -574,8 +571,8 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		builder.suggest(String.valueOf(','));
-		builder.suggest(String.valueOf(']'));
+		builder.suggest(String.valueOf(ARGUMENT_SEPARATOR));
+		builder.suggest(String.valueOf(ARGUMENTS_CLOSING));
 		return builder.buildFuture();
 	}
 
@@ -583,15 +580,17 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		builder.suggest(String.valueOf('='));
+		builder.suggest(String.valueOf(ARGUMENT_DEFINER));
 		return builder.buildFuture();
 	}
 
 	public boolean isSenderOnly() {
-		return this.senderOnly;
+		return senderOnly;
 	}
 
-	public void setSuggestionProvider(BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestionProvider) {
+	public void setSuggestionProvider(
+			BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestionProvider
+	) {
 		this.suggestionProvider = suggestionProvider;
 	}
 
@@ -599,11 +598,11 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 			SuggestionsBuilder builder,
 			Consumer<SuggestionsBuilder> consumer
 	) {
-		return this.suggestionProvider.apply(builder.createOffset(this.reader.getCursor()), consumer);
+		return suggestionProvider.apply(builder.createOffset(reader.getCursor()), consumer);
 	}
 
 	public boolean selectsName() {
-		return this.selectsName;
+		return selectsName;
 	}
 
 	public void setSelectsName(boolean selectsName) {
@@ -611,7 +610,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean excludesName() {
-		return this.excludesName;
+		return excludesName;
 	}
 
 	public void setExcludesName(boolean excludesName) {
@@ -619,7 +618,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean hasLimit() {
-		return this.hasLimit;
+		return hasLimit;
 	}
 
 	public void setHasLimit(boolean hasLimit) {
@@ -627,7 +626,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean hasSorter() {
-		return this.hasSorter;
+		return hasSorter;
 	}
 
 	public void setHasSorter(boolean hasSorter) {
@@ -635,7 +634,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean selectsGameMode() {
-		return this.selectsGameMode;
+		return selectsGameMode;
 	}
 
 	public void setSelectsGameMode(boolean selectsGameMode) {
@@ -643,7 +642,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean excludesGameMode() {
-		return this.excludesGameMode;
+		return excludesGameMode;
 	}
 
 	public void setExcludesGameMode(boolean excludesGameMode) {
@@ -651,7 +650,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean selectsTeam() {
-		return this.selectsTeam;
+		return selectsTeam;
 	}
 
 	public void setSelectsTeam(boolean selectsTeam) {
@@ -659,7 +658,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean excludesTeam() {
-		return this.excludesTeam;
+		return excludesTeam;
 	}
 
 	public void setExcludesTeam(boolean excludesTeam) {
@@ -671,19 +670,19 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public void setExcludesEntityType() {
-		this.excludesEntityType = true;
+		excludesEntityType = true;
 	}
 
 	public boolean selectsEntityType() {
-		return this.entityType != null;
+		return entityType != null;
 	}
 
 	public boolean excludesEntityType() {
-		return this.excludesEntityType;
+		return excludesEntityType;
 	}
 
 	public boolean selectsScores() {
-		return this.selectsScores;
+		return selectsScores;
 	}
 
 	public void setSelectsScores(boolean selectsScores) {
@@ -691,7 +690,7 @@ public class EntitySelectorReader implements FabricEntitySelectorReader {
 	}
 
 	public boolean selectsAdvancements() {
-		return this.selectsAdvancements;
+		return selectsAdvancements;
 	}
 
 	public void setSelectsAdvancements(boolean selectsAdvancements) {

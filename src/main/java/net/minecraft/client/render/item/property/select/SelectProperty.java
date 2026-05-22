@@ -18,10 +18,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SelectProperty}.
+ * Свойство выбора для системы предметных моделей ({@code select} модели).
+ * Возвращает значение типа {@code T}, по которому выбирается нужная ветка модели.
  */
+@Environment(EnvType.CLIENT)
 public interface SelectProperty<T> {
 
 	@Nullable T getValue(
@@ -36,11 +37,11 @@ public interface SelectProperty<T> {
 
 	SelectProperty.Type<? extends SelectProperty<T>, T> getType();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Type}.
+	 * Метаданные типа свойства выбора: содержит кодек для десериализации {@code UnbakedSwitch}.
 	 */
-	public record Type<P extends SelectProperty<T>, T>(MapCodec<SelectItemModel.UnbakedSwitch<P, T>> switchCodec) {
+	@Environment(EnvType.CLIENT)
+	record Type<P extends SelectProperty<T>, T>(MapCodec<SelectItemModel.UnbakedSwitch<P, T>> switchCodec) {
 
 		public static <P extends SelectProperty<T>, T> SelectProperty.Type<P, T> create(
 				MapCodec<P> propertyCodec,

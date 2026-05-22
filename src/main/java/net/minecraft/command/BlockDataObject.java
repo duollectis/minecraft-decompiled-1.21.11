@@ -25,30 +25,28 @@ import java.util.Locale;
 import java.util.function.Function;
 
 /**
- * {@code BlockDataObject}.
+ * Реализация {@link DataCommandObject} для блоков с {@link BlockEntity}.
+ * Позволяет читать и записывать NBT-данные блочной сущности через команду {@code /data}.
  */
 public class BlockDataObject implements DataCommandObject {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	static final SimpleCommandExceptionType
-			INVALID_BLOCK_EXCEPTION =
+
+	static final SimpleCommandExceptionType INVALID_BLOCK_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.data.block.invalid"));
-	public static final Function<String, DataCommand.ObjectType>
-			TYPE_FACTORY =
+
+	public static final Function<String, DataCommand.ObjectType> TYPE_FACTORY =
 			argumentName -> new DataCommand.ObjectType() {
 				@Override
 				public DataCommandObject getObject(CommandContext<ServerCommandSource> context)
 				throws CommandSyntaxException {
-					BlockPos blockPos = BlockPosArgumentType.getLoadedBlockPos(context, argumentName + "Pos");
-					BlockEntity
-							blockEntity =
-							((ServerCommandSource) context.getSource()).getWorld().getBlockEntity(blockPos);
+					BlockPos pos = BlockPosArgumentType.getLoadedBlockPos(context, argumentName + "Pos");
+					BlockEntity blockEntity = context.getSource().getWorld().getBlockEntity(pos);
 					if (blockEntity == null) {
-						throw BlockDataObject.INVALID_BLOCK_EXCEPTION.create();
+						throw INVALID_BLOCK_EXCEPTION.create();
 					}
-					else {
-						return new BlockDataObject(blockEntity, blockPos);
-					}
+
+					return new BlockDataObject(blockEntity, pos);
 				}
 
 				@Override
@@ -66,6 +64,7 @@ public class BlockDataObject implements DataCommandObject {
 					);
 				}
 			};
+
 	private final BlockEntity blockEntity;
 	private final BlockPos pos;
 
@@ -76,32 +75,32 @@ public class BlockDataObject implements DataCommandObject {
 
 	@Override
 	public void setNbt(NbtCompound nbt) {
-		BlockState blockState = this.blockEntity.getWorld().getBlockState(this.pos);
+		BlockState blockState = blockEntity.getWorld().getBlockState(pos);
 
-		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.blockEntity.getReporterContext(), LOGGER)) {
-			this.blockEntity.read(NbtReadView.create(logging, this.blockEntity.getWorld().getRegistryManager(), nbt));
-			this.blockEntity.markDirty();
-			this.blockEntity.getWorld().updateListeners(this.pos, blockState, blockState, 3);
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
+			blockEntity.read(NbtReadView.create(logging, blockEntity.getWorld().getRegistryManager(), nbt));
+			blockEntity.markDirty();
+			blockEntity.getWorld().updateListeners(pos, blockState, blockState, 3);
 		}
 	}
 
 	@Override
 	public NbtCompound getNbt() {
-		return this.blockEntity.createNbtWithIdentifyingData(this.blockEntity.getWorld().getRegistryManager());
+		return blockEntity.createNbtWithIdentifyingData(blockEntity.getWorld().getRegistryManager());
 	}
 
 	@Override
 	public Text feedbackModify() {
-		return Text.translatable("commands.data.block.modified", this.pos.getX(), this.pos.getY(), this.pos.getZ());
+		return Text.translatable("commands.data.block.modified", pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	@Override
 	public Text feedbackQuery(NbtElement element) {
 		return Text.translatable(
 				"commands.data.block.query",
-				this.pos.getX(),
-				this.pos.getY(),
-				this.pos.getZ(),
+				pos.getX(),
+				pos.getY(),
+				pos.getZ(),
 				NbtHelper.toPrettyPrintedText(element)
 		);
 	}
@@ -111,9 +110,9 @@ public class BlockDataObject implements DataCommandObject {
 		return Text.translatable(
 				"commands.data.block.get",
 				path.getString(),
-				this.pos.getX(),
-				this.pos.getY(),
-				this.pos.getZ(),
+				pos.getX(),
+				pos.getY(),
+				pos.getZ(),
 				String.format(Locale.ROOT, "%.2f", scale),
 				result
 		);

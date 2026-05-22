@@ -17,67 +17,44 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OptionListWidget}.
+ * Список виджетов настроек игры. Отображает опции попарно в две колонки,
+ * поддерживает заголовки секций и применение отложенных значений слайдеров.
+ * Используется на экранах настроек {@link GameOptionsScreen}.
  */
+@Environment(EnvType.CLIENT)
 public class OptionListWidget extends ElementListWidget<OptionListWidget.Component> {
 
 	private static final int OPTION_WIDTH = 310;
 	private static final int OPTION_HEIGHT = 25;
+
 	private final GameOptionsScreen optionsScreen;
 
 	public OptionListWidget(MinecraftClient client, int width, GameOptionsScreen optionsScreen) {
-		super(client, width, optionsScreen.layout.getContentHeight(), optionsScreen.layout.getHeaderHeight(), 25);
-		this.centerListVertically = false;
+		super(client, width, optionsScreen.layout.getContentHeight(), optionsScreen.layout.getHeaderHeight(), OPTION_HEIGHT);
+		centerListVertically = false;
 		this.optionsScreen = optionsScreen;
 	}
 
-	/**
-	 * Добавляет single option entry.
-	 *
-	 * @param option option
-	 */
 	public void addSingleOptionEntry(SimpleOption<?> option) {
-		this.addEntry(OptionListWidget.WidgetEntry.create(this.client.options, option, this.optionsScreen));
+		addEntry(OptionListWidget.WidgetEntry.create(client.options, option, optionsScreen));
 	}
 
-	/**
-	 * Добавляет all.
-	 *
-	 * @param options options
-	 */
 	public void addAll(SimpleOption<?>... options) {
-		for (int i = 0; i < options.length; i += 2) {
-			SimpleOption<?> simpleOption = i < options.length - 1 ? options[i + 1] : null;
-			this.addEntry(OptionListWidget.WidgetEntry.create(
-					this.client.options,
-					options[i],
-					simpleOption,
-					this.optionsScreen
-			));
+		for (int index = 0; index < options.length; index += 2) {
+			SimpleOption<?> second = index < options.length - 1 ? options[index + 1] : null;
+			addEntry(OptionListWidget.WidgetEntry.create(client.options, options[index], second, optionsScreen));
 		}
 	}
 
-	/**
-	 * Добавляет all.
-	 *
-	 * @param widgets widgets
-	 */
 	public void addAll(List<ClickableWidget> widgets) {
-		for (int i = 0; i < widgets.size(); i += 2) {
-			this.addWidgetEntry(widgets.get(i), i < widgets.size() - 1 ? widgets.get(i + 1) : null);
+		for (int index = 0; index < widgets.size(); index += 2) {
+			addWidgetEntry(widgets.get(index), index < widgets.size() - 1 ? widgets.get(index + 1) : null);
 		}
 	}
 
-	/**
-	 * Добавляет widget entry.
-	 *
-	 * @param firstWidget first widget
-	 * @param secondWidget second widget
-	 */
 	public void addWidgetEntry(ClickableWidget firstWidget, @Nullable ClickableWidget secondWidget) {
-		this.addEntry(OptionListWidget.WidgetEntry.create(firstWidget, secondWidget, this.optionsScreen));
+		addEntry(OptionListWidget.WidgetEntry.create(firstWidget, secondWidget, optionsScreen));
 	}
 
 	public void addWidgetEntry(
@@ -85,31 +62,26 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 			SimpleOption<?> option,
 			@Nullable ClickableWidget secondWidget
 	) {
-		this.addEntry(OptionListWidget.WidgetEntry.create(firstWidget, option, secondWidget, this.optionsScreen));
+		addEntry(OptionListWidget.WidgetEntry.create(firstWidget, option, secondWidget, optionsScreen));
 	}
 
-	/**
-	 * Добавляет header.
-	 *
-	 * @param title title
-	 */
 	public void addHeader(Text title) {
-		int i = 9;
-		int j = this.children().isEmpty() ? 0 : i * 2;
-		this.addEntry(new OptionListWidget.Header(this.optionsScreen, title, j), j + i + 4);
+		int lineHeight = 9;
+		int topPadding = children().isEmpty() ? 0 : lineHeight * 2;
+		addEntry(new OptionListWidget.Header(optionsScreen, title, topPadding), topPadding + lineHeight + 4);
 	}
 
 	@Override
 	public int getRowWidth() {
-		return 310;
+		return OPTION_WIDTH;
 	}
 
 	public @Nullable ClickableWidget getWidgetFor(SimpleOption<?> option) {
-		for (OptionListWidget.Component component : this.children()) {
+		for (OptionListWidget.Component component : children()) {
 			if (component instanceof OptionListWidget.WidgetEntry widgetEntry) {
-				ClickableWidget clickableWidget = widgetEntry.getWidgetFor(option);
-				if (clickableWidget != null) {
-					return clickableWidget;
+				ClickableWidget widget = widgetEntry.getWidgetFor(option);
+				if (widget != null) {
+					return widget;
 				}
 			}
 		}
@@ -118,51 +90,45 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 	}
 
 	/**
-	 * Применяет all pending values.
+	 * Применяет все отложенные значения слайдеров, которые ещё не были подтверждены.
+	 * Вызывается при закрытии экрана настроек.
 	 */
 	public void applyAllPendingValues() {
-		for (OptionListWidget.Component component : this.children()) {
-			if (component instanceof OptionListWidget.WidgetEntry widgetEntry) {
-				for (OptionListWidget.OptionAssociatedWidget optionAssociatedWidget : widgetEntry.widgets) {
-					if (optionAssociatedWidget.optionInstance() != null
-							&& optionAssociatedWidget.widget() instanceof SimpleOption.OptionSliderWidgetImpl<?> optionSliderWidgetImpl) {
-						optionSliderWidgetImpl.applyPendingValue();
-					}
+		for (OptionListWidget.Component component : children()) {
+			if (!(component instanceof OptionListWidget.WidgetEntry widgetEntry)) {
+				continue;
+			}
+
+			for (OptionListWidget.OptionAssociatedWidget associated : widgetEntry.widgets) {
+				if (associated.optionInstance() != null
+						&& associated.widget() instanceof SimpleOption.OptionSliderWidgetImpl<?> slider) {
+					slider.applyPendingValue();
 				}
 			}
 		}
 	}
 
-	/**
-	 * Update.
-	 *
-	 * @param simpleOption simple option
-	 */
 	public void update(SimpleOption<?> simpleOption) {
-		for (OptionListWidget.Component component : this.children()) {
-			if (component instanceof OptionListWidget.WidgetEntry widgetEntry) {
-				for (OptionListWidget.OptionAssociatedWidget optionAssociatedWidget : widgetEntry.widgets) {
-					if (optionAssociatedWidget.optionInstance() == simpleOption
-							&& optionAssociatedWidget.widget() instanceof Updatable updatable) {
-						updatable.update();
-						return;
-					}
+		for (OptionListWidget.Component component : children()) {
+			if (!(component instanceof OptionListWidget.WidgetEntry widgetEntry)) {
+				continue;
+			}
+
+			for (OptionListWidget.OptionAssociatedWidget associated : widgetEntry.widgets) {
+				if (associated.optionInstance() == simpleOption
+						&& associated.widget() instanceof Updatable updatable) {
+					updatable.update();
+					return;
 				}
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Component}.
-	 */
 	protected abstract static class Component extends ElementListWidget.Entry<OptionListWidget.Component> {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Header}.
-	 */
 	protected static class Header extends OptionListWidget.Component {
 
 		private final Screen parent;
@@ -177,25 +143,26 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 
 		@Override
 		public List<? extends Selectable> selectableChildren() {
-			return List.of(this.title);
+			return List.of(title);
 		}
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			this.title.setPosition(this.parent.width / 2 - 155, this.getContentY() + this.yOffset);
-			this.title.render(context, mouseX, mouseY, deltaTicks);
+			title.setPosition(parent.width / 2 - 155, getContentY() + yOffset);
+			title.render(context, mouseX, mouseY, deltaTicks);
 		}
 
 		@Override
 		public List<? extends Element> children() {
-			return List.of(this.title);
+			return List.of(title);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code OptionAssociatedWidget}.
+	 * Запись, связывающая виджет с конкретной опцией {@link SimpleOption}.
+	 * Используется для поиска виджета по опции и применения отложенных значений.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record OptionAssociatedWidget(ClickableWidget widget, @Nullable SimpleOption<?> optionInstance) {
 
 		public OptionAssociatedWidget(ClickableWidget widget) {
@@ -204,14 +171,12 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code WidgetEntry}.
-	 */
 	protected static class WidgetEntry extends OptionListWidget.Component {
+
+		private static final int WIDGET_X_SPACING = 160;
 
 		final List<OptionListWidget.OptionAssociatedWidget> widgets;
 		private final Screen screen;
-		private static final int WIDGET_X_SPACING = 160;
 
 		private WidgetEntry(List<OptionListWidget.OptionAssociatedWidget> widgets, Screen screen) {
 			this.widgets = widgets;
@@ -221,13 +186,10 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		public static OptionListWidget.WidgetEntry create(GameOptions options, SimpleOption<?> option, Screen screen) {
 			return new OptionListWidget.WidgetEntry(
 					List.of(new OptionListWidget.OptionAssociatedWidget(
-							option.createWidget(
-									options,
-									0,
-									0,
-									310
-							), option
-					)), screen
+							option.createWidget(options, 0, 0, OPTION_WIDTH),
+							option
+					)),
+					screen
 			);
 		}
 
@@ -237,16 +199,17 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 				Screen screen
 		) {
 			return secondWidget == null
-			       ? new OptionListWidget.WidgetEntry(
-					List.of(new OptionListWidget.OptionAssociatedWidget(firstWidget)),
-					screen
-			)
-			       : new OptionListWidget.WidgetEntry(
-					       List.of(
-							       new OptionListWidget.OptionAssociatedWidget(firstWidget),
-							       new OptionListWidget.OptionAssociatedWidget(secondWidget)
-					       ), screen
-			       );
+					? new OptionListWidget.WidgetEntry(
+							List.of(new OptionListWidget.OptionAssociatedWidget(firstWidget)),
+							screen
+					)
+					: new OptionListWidget.WidgetEntry(
+							List.of(
+									new OptionListWidget.OptionAssociatedWidget(firstWidget),
+									new OptionListWidget.OptionAssociatedWidget(secondWidget)
+							),
+							screen
+					);
 		}
 
 		public static OptionListWidget.WidgetEntry create(
@@ -256,18 +219,17 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 				Screen screen
 		) {
 			return secondWidget == null
-			       ? new OptionListWidget.WidgetEntry(
-					List.of(new OptionListWidget.OptionAssociatedWidget(
-							firstWidget,
-							option
-					)), screen
-			)
-			       : new OptionListWidget.WidgetEntry(
-					       List.of(
-							       new OptionListWidget.OptionAssociatedWidget(firstWidget, option),
-							       new OptionListWidget.OptionAssociatedWidget(secondWidget)
-					       ), screen
-			       );
+					? new OptionListWidget.WidgetEntry(
+							List.of(new OptionListWidget.OptionAssociatedWidget(firstWidget, option)),
+							screen
+					)
+					: new OptionListWidget.WidgetEntry(
+							List.of(
+									new OptionListWidget.OptionAssociatedWidget(firstWidget, option),
+									new OptionListWidget.OptionAssociatedWidget(secondWidget)
+							),
+							screen
+					);
 		}
 
 		public static OptionListWidget.WidgetEntry create(
@@ -276,52 +238,47 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 				@Nullable SimpleOption<?> secondOption,
 				GameOptionsScreen screen
 		) {
-			ClickableWidget clickableWidget = firstOption.createWidget(options);
+			ClickableWidget firstWidget = firstOption.createWidget(options);
 			return secondOption == null
-			       ? new OptionListWidget.WidgetEntry(
-					List.of(new OptionListWidget.OptionAssociatedWidget(
-							clickableWidget,
-							firstOption
-					)), screen
-			)
-			       : new OptionListWidget.WidgetEntry(
-					       List.of(
-							       new OptionListWidget.OptionAssociatedWidget(clickableWidget, firstOption),
-							       new OptionListWidget.OptionAssociatedWidget(
-									       secondOption.createWidget(options),
-									       secondOption
-							       )
-					       ),
-					       screen
-			       );
+					? new OptionListWidget.WidgetEntry(
+							List.of(new OptionListWidget.OptionAssociatedWidget(firstWidget, firstOption)),
+							screen
+					)
+					: new OptionListWidget.WidgetEntry(
+							List.of(
+									new OptionListWidget.OptionAssociatedWidget(firstWidget, firstOption),
+									new OptionListWidget.OptionAssociatedWidget(secondOption.createWidget(options), secondOption)
+							),
+							screen
+					);
 		}
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			int i = 0;
-			int j = this.screen.width / 2 - 155;
+			int xOffset = 0;
+			int baseX = screen.width / 2 - 155;
 
-			for (OptionListWidget.OptionAssociatedWidget optionAssociatedWidget : this.widgets) {
-				optionAssociatedWidget.widget().setPosition(j + i, this.getContentY());
-				optionAssociatedWidget.widget().render(context, mouseX, mouseY, deltaTicks);
-				i += 160;
+			for (OptionListWidget.OptionAssociatedWidget associated : widgets) {
+				associated.widget().setPosition(baseX + xOffset, getContentY());
+				associated.widget().render(context, mouseX, mouseY, deltaTicks);
+				xOffset += WIDGET_X_SPACING;
 			}
 		}
 
 		@Override
 		public List<? extends Element> children() {
-			return Lists.transform(this.widgets, OptionListWidget.OptionAssociatedWidget::widget);
+			return Lists.transform(widgets, OptionListWidget.OptionAssociatedWidget::widget);
 		}
 
 		@Override
 		public List<? extends Selectable> selectableChildren() {
-			return Lists.transform(this.widgets, OptionListWidget.OptionAssociatedWidget::widget);
+			return Lists.transform(widgets, OptionListWidget.OptionAssociatedWidget::widget);
 		}
 
 		public @Nullable ClickableWidget getWidgetFor(SimpleOption<?> option) {
-			for (OptionListWidget.OptionAssociatedWidget optionAssociatedWidget : this.widgets) {
-				if (optionAssociatedWidget.optionInstance == option) {
-					return optionAssociatedWidget.widget();
+			for (OptionListWidget.OptionAssociatedWidget associated : widgets) {
+				if (associated.optionInstance == option) {
+					return associated.widget();
 				}
 			}
 

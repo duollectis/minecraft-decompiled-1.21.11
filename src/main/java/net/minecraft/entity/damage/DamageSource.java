@@ -13,7 +13,9 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DamageSource}.
+ * Источник урона: инкапсулирует тип урона, атакующую сущность, снаряд-посредник
+ * и опциональную позицию. Используется для формирования сообщений о смерти,
+ * расчёта масштабирования по сложности и применения эффектов.
  */
 public class DamageSource {
 
@@ -21,31 +23,6 @@ public class DamageSource {
 	private final @Nullable Entity attacker;
 	private final @Nullable Entity source;
 	private final @Nullable Vec3d position;
-
-	@Override
-	public String toString() {
-		return "DamageSource (" + this.getType().msgId() + ")";
-	}
-
-	public float getExhaustion() {
-		return this.getType().exhaustion();
-	}
-
-	public boolean isDirect() {
-		return this.attacker == this.source;
-	}
-
-	private DamageSource(
-			RegistryEntry<DamageType> type,
-			@Nullable Entity source,
-			@Nullable Entity attacker,
-			@Nullable Vec3d position
-	) {
-		this.type = type;
-		this.attacker = attacker;
-		this.source = source;
-		this.position = position;
-	}
 
 	public DamageSource(RegistryEntry<DamageType> type, @Nullable Entity source, @Nullable Entity attacker) {
 		this(type, source, attacker, null);
@@ -63,82 +40,114 @@ public class DamageSource {
 		this(type, null, null, null);
 	}
 
+	private DamageSource(
+		RegistryEntry<DamageType> type,
+		@Nullable Entity source,
+		@Nullable Entity attacker,
+		@Nullable Vec3d position
+	) {
+		this.type = type;
+		this.attacker = attacker;
+		this.source = source;
+		this.position = position;
+	}
+
+	@Override
+	public String toString() {
+		return "DamageSource (" + getType().msgId() + ")";
+	}
+
+	public float getExhaustion() {
+		return getType().exhaustion();
+	}
+
+	public boolean isDirect() {
+		return attacker == source;
+	}
+
 	public @Nullable Entity getSource() {
-		return this.source;
+		return source;
 	}
 
 	public @Nullable Entity getAttacker() {
-		return this.attacker;
+		return attacker;
 	}
 
 	public @Nullable ItemStack getWeaponStack() {
-		return this.source != null ? this.source.getWeaponStack() : null;
+		return source != null ? source.getWeaponStack() : null;
 	}
 
+	/**
+	 * Формирует локализованное сообщение о смерти с учётом атакующего,
+	 * оружия с кастомным именем и наличия последнего противника.
+	 *
+	 * @param killed погибшая сущность
+	 * @return текст сообщения о смерти
+	 */
 	public Text getDeathMessage(LivingEntity killed) {
-		String string = "death.attack." + this.getType().msgId();
-		if (this.attacker == null && this.source == null) {
-			LivingEntity livingEntity2 = killed.getPrimeAdversary();
-			String string2 = string + ".player";
-			return livingEntity2 != null
-			       ? Text.translatable(string2, killed.getDisplayName(), livingEntity2.getDisplayName())
-			       : Text.translatable(string, killed.getDisplayName());
+		String baseKey = "death.attack." + getType().msgId();
+
+		if (attacker == null && source == null) {
+			LivingEntity primeAdversary = killed.getPrimeAdversary();
+			return primeAdversary != null
+				? Text.translatable(baseKey + ".player", killed.getDisplayName(), primeAdversary.getDisplayName())
+				: Text.translatable(baseKey, killed.getDisplayName());
 		}
-		else {
-			Text text = this.attacker == null ? this.source.getDisplayName() : this.attacker.getDisplayName();
-			ItemStack
-					itemStack =
-					this.attacker instanceof LivingEntity livingEntity ? livingEntity.getMainHandStack()
-					                                                   : ItemStack.EMPTY;
-			return !itemStack.isEmpty() && itemStack.contains(DataComponentTypes.CUSTOM_NAME)
-			       ? Text.translatable(string + ".item", killed.getDisplayName(), text, itemStack.toHoverableText())
-			       : Text.translatable(string, killed.getDisplayName(), text);
-		}
+
+		Text attackerName = attacker == null ? source.getDisplayName() : attacker.getDisplayName();
+		ItemStack weapon = attacker instanceof LivingEntity living ? living.getMainHandStack() : ItemStack.EMPTY;
+
+		return !weapon.isEmpty() && weapon.contains(DataComponentTypes.CUSTOM_NAME)
+			? Text.translatable(baseKey + ".item", killed.getDisplayName(), attackerName, weapon.toHoverableText())
+			: Text.translatable(baseKey, killed.getDisplayName(), attackerName);
 	}
 
 	public String getName() {
-		return this.getType().msgId();
+		return getType().msgId();
 	}
 
 	public boolean isScaledWithDifficulty() {
-		return switch (this.getType().scaling()) {
+		return switch (getType().scaling()) {
 			case NEVER -> false;
 			case WHEN_CAUSED_BY_LIVING_NON_PLAYER ->
-					this.attacker instanceof LivingEntity && !(this.attacker instanceof PlayerEntity);
+				attacker instanceof LivingEntity && !(attacker instanceof PlayerEntity);
 			case ALWAYS -> true;
 		};
 	}
 
 	public boolean isSourceCreativePlayer() {
-		return this.getAttacker() instanceof PlayerEntity playerEntity && playerEntity.getAbilities().creativeMode;
+		return getAttacker() instanceof PlayerEntity player && player.getAbilities().creativeMode;
 	}
 
+	/**
+	 * Возвращает позицию источника урона: сначала проверяется явно заданная позиция,
+	 * затем позиция сущности-снаряда, иначе {@code null}.
+	 *
+	 * @return позиция или {@code null}
+	 */
 	public @Nullable Vec3d getPosition() {
-		if (this.position != null) {
-			return this.position;
-		}
-		else {
-			return this.source != null ? this.source.getEntityPos() : null;
-		}
+		return position != null
+			? position
+			: (source != null ? source.getEntityPos() : null);
 	}
 
 	public @Nullable Vec3d getStoredPosition() {
-		return this.position;
+		return position;
 	}
 
 	public boolean isIn(TagKey<DamageType> tag) {
-		return this.type.isIn(tag);
+		return type.isIn(tag);
 	}
 
 	public boolean isOf(RegistryKey<DamageType> typeKey) {
-		return this.type.matchesKey(typeKey);
+		return type.matchesKey(typeKey);
 	}
 
 	public DamageType getType() {
-		return this.type.value();
+		return type.value();
 	}
 
 	public RegistryEntry<DamageType> getTypeRegistryEntry() {
-		return this.type;
+		return type;
 	}
 }

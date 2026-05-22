@@ -8,16 +8,19 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code UnobstructedBlockPredicate}.
+ * Предикат, проверяющий, что в позиции с учётом смещения нет пересекающихся сущностей
+ * (т.е. пространство не занято). Используется при размещении структур и фич.
  */
 record UnobstructedBlockPredicate(Vec3i offset) implements BlockPredicate {
 
-	public static MapCodec<UnobstructedBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Vec3i.CODEC
-							.optionalFieldOf("offset", Vec3i.ZERO)
-							.forGetter(UnobstructedBlockPredicate::offset))
-					.apply(instance, UnobstructedBlockPredicate::new)
+	public static final MapCodec<UnobstructedBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> instance
+			.group(
+				Vec3i.CODEC
+					.optionalFieldOf("offset", Vec3i.ZERO)
+					.forGetter(UnobstructedBlockPredicate::offset)
+			)
+			.apply(instance, UnobstructedBlockPredicate::new)
 	);
 
 	@Override
@@ -25,15 +28,8 @@ record UnobstructedBlockPredicate(Vec3i offset) implements BlockPredicate {
 		return BlockPredicateType.UNOBSTRUCTED;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		return structureWorldAccess.doesNotIntersectEntities(null, VoxelShapes.fullCube().offset(blockPos));
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		return world.doesNotIntersectEntities(null, VoxelShapes.fullCube().offset(pos));
 	}
 }

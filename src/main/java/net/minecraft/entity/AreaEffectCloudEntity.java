@@ -27,7 +27,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code AreaEffectCloudEntity}.
+ * Сущность облака эффектов (зелье-брызги, зелье-туман). Хранит набор эффектов
+ * {@link net.minecraft.component.type.PotionContentsComponent} и периодически
+ * применяет их к живым существам в радиусе действия. Поддерживает изменение
+ * радиуса со временем ({@code radiusGrowth}) и при каждом применении ({@code radiusOnUse}).
  */
 public class AreaEffectCloudEntity extends Entity implements Ownable {
 
@@ -89,7 +92,7 @@ public class AreaEffectCloudEntity extends Entity implements Ownable {
 
 	public void setRadius(float radius) {
 		if (!this.getEntityWorld().isClient()) {
-			this.getDataTracker().set(RADIUS, MathHelper.clamp(radius, 0.0F, 32.0F));
+			this.getDataTracker().set(RADIUS, MathHelper.clamp(radius, 0.0F, MAX_RADIUS));
 		}
 	}
 
@@ -125,16 +128,11 @@ public class AreaEffectCloudEntity extends Entity implements Ownable {
 			this.dataTracker.set(PARTICLE, this.customParticle);
 		}
 		else {
-			int i = ColorHelper.fullAlpha(this.potionContentsComponent.getColor());
-			this.dataTracker.set(PARTICLE, TintedParticleEffect.create(DEFAULT_PARTICLE_EFFECT.getType(), i));
+			int color = ColorHelper.fullAlpha(this.potionContentsComponent.getColor());
+			this.dataTracker.set(PARTICLE, TintedParticleEffect.create(DEFAULT_PARTICLE_EFFECT.getType(), color));
 		}
 	}
 
-	/**
-	 * Добавляет effect.
-	 *
-	 * @param effect effect
-	 */
 	public void addEffect(StatusEffectInstance effect) {
 		this.setPotionContents(this.potionContentsComponent.with(effect));
 	}
@@ -171,144 +169,150 @@ public class AreaEffectCloudEntity extends Entity implements Ownable {
 	}
 
 	private void clientTick() {
-		boolean bl = this.isWaiting();
-		float f = this.getRadius();
-		if (!bl || !this.random.nextBoolean()) {
-			ParticleEffect particleEffect = this.getParticleType();
-			int i;
-			float g;
-			if (bl) {
-				i = 2;
-				g = 0.2F;
-			}
-			else {
-				i = MathHelper.ceil((float) Math.PI * f * f);
-				g = f;
-			}
+		boolean waiting = this.isWaiting();
+		float radius = this.getRadius();
+		if (waiting && this.random.nextBoolean()) {
+			return;
+		}
 
-			for (int j = 0; j < i; j++) {
-				float h = this.random.nextFloat() * (float) (Math.PI * 2);
-				float k = MathHelper.sqrt(this.random.nextFloat()) * g;
-				double d = this.getX() + MathHelper.cos(h) * k;
-				double e = this.getY();
-				double l = this.getZ() + MathHelper.sin(h) * k;
-				if (particleEffect.getType() == ParticleTypes.ENTITY_EFFECT) {
-					if (bl && this.random.nextBoolean()) {
-						this
-								.getEntityWorld()
-								.addImportantParticleClient(DEFAULT_PARTICLE_EFFECT, d, e, l, 0.0, 0.0, 0.0);
-					}
-					else {
-						this.getEntityWorld().addImportantParticleClient(particleEffect, d, e, l, 0.0, 0.0, 0.0);
-					}
-				}
-				else if (bl) {
-					this.getEntityWorld().addImportantParticleClient(particleEffect, d, e, l, 0.0, 0.0, 0.0);
+		ParticleEffect particleEffect = this.getParticleType();
+		int particleCount;
+		float spread;
+		if (waiting) {
+			particleCount = 2;
+			spread = 0.2F;
+		}
+		else {
+			particleCount = MathHelper.ceil((float) Math.PI * radius * radius);
+			spread = radius;
+		}
+
+		for (int index = 0; index < particleCount; index++) {
+			float angle = this.random.nextFloat() * (float) (Math.PI * 2);
+			float distance = MathHelper.sqrt(this.random.nextFloat()) * spread;
+			double particleX = this.getX() + MathHelper.cos(angle) * distance;
+			double particleY = this.getY();
+			double particleZ = this.getZ() + MathHelper.sin(angle) * distance;
+
+			if (particleEffect.getType() == ParticleTypes.ENTITY_EFFECT) {
+				if (waiting && this.random.nextBoolean()) {
+					this.getEntityWorld()
+					    .addImportantParticleClient(DEFAULT_PARTICLE_EFFECT, particleX, particleY, particleZ, 0.0, 0.0, 0.0);
 				}
 				else {
 					this.getEntityWorld()
-					    .addImportantParticleClient(
-							    particleEffect,
-							    d,
-							    e,
-							    l,
-							    (0.5 - this.random.nextDouble()) * 0.15,
-							    0.01F,
-							    (0.5 - this.random.nextDouble()) * 0.15
-					    );
+					    .addImportantParticleClient(particleEffect, particleX, particleY, particleZ, 0.0, 0.0, 0.0);
 				}
+			}
+			else if (waiting) {
+				this.getEntityWorld()
+				    .addImportantParticleClient(particleEffect, particleX, particleY, particleZ, 0.0, 0.0, 0.0);
+			}
+			else {
+				this.getEntityWorld()
+				    .addImportantParticleClient(
+						    particleEffect,
+						    particleX,
+						    particleY,
+						    particleZ,
+						    (0.5 - this.random.nextDouble()) * 0.15,
+						    0.01F,
+						    (0.5 - this.random.nextDouble()) * 0.15
+				    );
 			}
 		}
 	}
 
 	private void serverTick(ServerWorld world) {
-		if (this.duration != -1 && this.age - this.waitTime >= this.duration) {
+		if (this.duration != DEFAULT_DURATION && this.age - this.waitTime >= this.duration) {
 			this.discard();
+			return;
 		}
-		else {
-			boolean bl = this.isWaiting();
-			boolean bl2 = this.age < this.waitTime;
-			if (bl != bl2) {
-				this.setWaiting(bl2);
+
+		boolean wasWaiting = this.isWaiting();
+		boolean isWaiting = this.age < this.waitTime;
+		if (wasWaiting != isWaiting) {
+			this.setWaiting(isWaiting);
+		}
+
+		if (isWaiting) {
+			return;
+		}
+
+		float currentRadius = this.getRadius();
+		if (this.radiusGrowth != 0.0F) {
+			currentRadius += this.radiusGrowth;
+			if (currentRadius < 0.5F) {
+				this.discard();
+				return;
 			}
 
-			if (!bl2) {
-				float f = this.getRadius();
-				if (this.radiusGrowth != 0.0F) {
-					f += this.radiusGrowth;
-					if (f < 0.5F) {
-						this.discard();
-						return;
-					}
+			this.setRadius(currentRadius);
+		}
 
-					this.setRadius(f);
+		if (this.age % PARTICLE_INTERVAL != 0) {
+			return;
+		}
+
+		this.affectedEntities.entrySet().removeIf(entry -> this.age >= entry.getValue());
+		if (!this.potionContentsComponent.hasEffects()) {
+			this.affectedEntities.clear();
+			return;
+		}
+
+		List<StatusEffectInstance> effects = new ArrayList<>();
+		this.potionContentsComponent.forEachEffect(effects::add, this.potionDurationScale);
+		List<LivingEntity> nearbyEntities = this.getEntityWorld()
+		                                        .getNonSpectatingEntities(LivingEntity.class, this.getBoundingBox());
+
+		for (LivingEntity livingEntity : nearbyEntities) {
+			if (this.affectedEntities.containsKey(livingEntity)) {
+				continue;
+			}
+
+			if (!livingEntity.isAffectedBySplashPotions()) {
+				continue;
+			}
+
+			if (effects.stream().noneMatch(livingEntity::canHaveStatusEffect)) {
+				continue;
+			}
+
+			double deltaX = livingEntity.getX() - this.getX();
+			double deltaZ = livingEntity.getZ() - this.getZ();
+			double distanceSq = deltaX * deltaX + deltaZ * deltaZ;
+			if (distanceSq > currentRadius * currentRadius) {
+				continue;
+			}
+
+			this.affectedEntities.put(livingEntity, this.age + this.reapplicationDelay);
+
+			for (StatusEffectInstance effect : effects) {
+				if (effect.getEffectType().value().isInstant()) {
+					effect.getEffectType()
+					      .value()
+					      .applyInstantEffect(world, this, this.getOwner(), livingEntity, effect.getAmplifier(), 0.5);
+				}
+				else {
+					livingEntity.addStatusEffect(new StatusEffectInstance(effect), this);
+				}
+			}
+
+			if (this.radiusOnUse != 0.0F) {
+				currentRadius += this.radiusOnUse;
+				if (currentRadius < 0.5F) {
+					this.discard();
+					return;
 				}
 
-				if (this.age % 5 == 0) {
-					this.affectedEntities.entrySet().removeIf(entity -> this.age >= entity.getValue());
-					if (!this.potionContentsComponent.hasEffects()) {
-						this.affectedEntities.clear();
-					}
-					else {
-						List<StatusEffectInstance> list = new ArrayList<>();
-						this.potionContentsComponent.forEachEffect(list::add, this.potionDurationScale);
-						List<LivingEntity>
-								list2 =
-								this
-										.getEntityWorld()
-										.getNonSpectatingEntities(LivingEntity.class, this.getBoundingBox());
-						if (!list2.isEmpty()) {
-							for (LivingEntity livingEntity : list2) {
-								if (!this.affectedEntities.containsKey(livingEntity)
-										&& livingEntity.isAffectedBySplashPotions()
-										&& !list.stream().noneMatch(livingEntity::canHaveStatusEffect)) {
-									double d = livingEntity.getX() - this.getX();
-									double e = livingEntity.getZ() - this.getZ();
-									double g = d * d + e * e;
-									if (g <= f * f) {
-										this.affectedEntities.put(livingEntity, this.age + this.reapplicationDelay);
+				this.setRadius(currentRadius);
+			}
 
-										for (StatusEffectInstance statusEffectInstance : list) {
-											if (statusEffectInstance.getEffectType().value().isInstant()) {
-												statusEffectInstance.getEffectType()
-												                    .value()
-												                    .applyInstantEffect(
-														                    world,
-														                    this,
-														                    this.getOwner(),
-														                    livingEntity,
-														                    statusEffectInstance.getAmplifier(),
-														                    0.5
-												                    );
-											}
-											else {
-												livingEntity.addStatusEffect(
-														new StatusEffectInstance(statusEffectInstance), this);
-											}
-										}
-
-										if (this.radiusOnUse != 0.0F) {
-											f += this.radiusOnUse;
-											if (f < 0.5F) {
-												this.discard();
-												return;
-											}
-
-											this.setRadius(f);
-										}
-
-										if (this.durationOnUse != 0 && this.duration != -1) {
-											this.duration = this.duration + this.durationOnUse;
-											if (this.duration <= 0) {
-												this.discard();
-												return;
-											}
-										}
-									}
-								}
-							}
-						}
-					}
+			if (this.durationOnUse != 0 && this.duration != DEFAULT_DURATION) {
+				this.duration += this.durationOnUse;
+				if (this.duration <= 0) {
+					this.discard();
+					return;
 				}
 			}
 		}
@@ -358,8 +362,8 @@ public class AreaEffectCloudEntity extends Entity implements Ownable {
 	protected void readCustomData(ReadView view) {
 		this.age = view.getInt("Age", 0);
 		this.duration = view.getInt("Duration", -1);
-		this.waitTime = view.getInt("WaitTime", 20);
-		this.reapplicationDelay = view.getInt("ReapplicationDelay", 20);
+		this.waitTime = view.getInt("WaitTime", DEFAULT_WAIT_TIME);
+		this.reapplicationDelay = view.getInt("ReapplicationDelay", DEFAULT_REAPPLICATION_DELAY);
 		this.durationOnUse = view.getInt("DurationOnUse", 0);
 		this.radiusOnUse = view.getFloat("RadiusOnUse", 0.0F);
 		this.radiusGrowth = view.getFloat("RadiusPerTick", 0.0F);

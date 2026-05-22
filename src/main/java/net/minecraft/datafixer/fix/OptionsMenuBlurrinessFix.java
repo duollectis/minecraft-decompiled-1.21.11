@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsMenuBlurrinessFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsMenuBlurrinessFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class OptionsMenuBlurrinessFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsMenuBlurrinessFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(), optionsDynamic -> optionsDynamic.update(
 								"menuBackgroundBlurriness", dynamic -> {

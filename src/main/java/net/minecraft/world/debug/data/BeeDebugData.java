@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code BeeDebugData}.
+ * Отладочные данные пчелы: улей, цветок, время в пути и список заблокированных ульев.
  */
 public record BeeDebugData(
 		Optional<BlockPos> hivePos,
@@ -31,13 +31,12 @@ public record BeeDebugData(
 	);
 
 	/**
-	 * Hive pos equals.
+	 * Проверяет, совпадает ли позиция улья пчелы с заданной позицией.
 	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
+	 * @param pos позиция для сравнения
+	 * @return {@code true}, если улей присутствует и его позиция совпадает с {@code pos}
 	 */
 	public boolean hivePosEquals(BlockPos pos) {
-		return this.hivePos.isPresent() && pos.equals(this.hivePos.get());
+		return hivePos.isPresent() && pos.equals(hivePos.get());
 	}
 }

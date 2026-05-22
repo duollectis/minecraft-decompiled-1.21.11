@@ -13,77 +13,74 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code ItemDurabilityChangedCriterion}.
+ * Критерий: изменилась прочность предмета.
+ * Проверяет предмет, текущую прочность и дельту изменения.
  */
 public class ItemDurabilityChangedCriterion extends AbstractCriterion<ItemDurabilityChangedCriterion.Conditions> {
 
 	@Override
-	public Codec<ItemDurabilityChangedCriterion.Conditions> getConditionsCodec() {
-		return ItemDurabilityChangedCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ItemStack stack, int durability) {
-		this.trigger(player, conditions -> conditions.matches(stack, durability));
+		trigger(player, conditions -> conditions.matches(stack, durability));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> item,
 			NumberRange.IntRange durability,
 			NumberRange.IntRange delta
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<ItemDurabilityChangedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(ItemDurabilityChangedCriterion.Conditions::player),
-						                    ItemPredicate.CODEC
-								                    .optionalFieldOf("item")
-								                    .forGetter(ItemDurabilityChangedCriterion.Conditions::item),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("durability", NumberRange.IntRange.ANY)
-								                    .forGetter(ItemDurabilityChangedCriterion.Conditions::durability),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("delta", NumberRange.IntRange.ANY)
-								                    .forGetter(ItemDurabilityChangedCriterion.Conditions::delta)
-				                    )
-				                    .apply(instance, ItemDurabilityChangedCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("durability", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::durability),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("delta", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::delta)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<ItemDurabilityChangedCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				Optional<ItemPredicate> item,
 				NumberRange.IntRange durability
 		) {
 			return create(Optional.empty(), item, durability);
 		}
 
-		public static AdvancementCriterion<ItemDurabilityChangedCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				Optional<LootContextPredicate> playerPredicate,
 				Optional<ItemPredicate> item,
 				NumberRange.IntRange durability
 		) {
-			return Criteria.ITEM_DURABILITY_CHANGED
-					.create(new ItemDurabilityChangedCriterion.Conditions(
-							playerPredicate,
-							item,
-							durability,
-							NumberRange.IntRange.ANY
-					));
+			return Criteria.ITEM_DURABILITY_CHANGED.create(new Conditions(
+					playerPredicate,
+					item,
+					durability,
+					NumberRange.IntRange.ANY
+			));
 		}
 
 		public boolean matches(ItemStack stack, int durability) {
-			if (this.item.isPresent() && !this.item.get().test(stack)) {
+			if (item.isPresent() && !item.get().test(stack)) {
 				return false;
 			}
-			else {
-				return !this.durability.test(stack.getMaxDamage() - durability) ? false : this.delta.test(
-						stack.getDamage() - durability);
+
+			if (!this.durability.test(stack.getMaxDamage() - durability)) {
+				return false;
 			}
+
+			return delta.test(stack.getDamage() - durability);
 		}
 	}
 }

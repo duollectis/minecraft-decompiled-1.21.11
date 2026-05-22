@@ -7,7 +7,8 @@ import net.minecraft.network.packet.Packet;
 import java.util.List;
 
 /**
- * Класс packet unbundler.
+ * Netty-обработчик исходящих пакетов: разворачивает бандл пакетов в отдельные сообщения.
+ * Если пакет инициирует смену состояния сети, обработчик удаляет себя из пайплайна.
  */
 public class PacketUnbundler extends MessageToMessageEncoder<Packet<?>> {
 
@@ -17,11 +18,12 @@ public class PacketUnbundler extends MessageToMessageEncoder<Packet<?>> {
 		this.bundleHandler = bundleHandler;
 	}
 
-	protected void encode(ChannelHandlerContext channelHandlerContext, Packet<?> packet, List<Object> list)
-	throws Exception {
-		this.bundleHandler.forEachPacket(packet, list::add);
+	@Override
+	protected void encode(ChannelHandlerContext ctx, Packet<?> packet, List<Object> output) throws Exception {
+		bundleHandler.forEachPacket(packet, output::add);
+
 		if (packet.transitionsNetworkState()) {
-			channelHandlerContext.pipeline().remove(channelHandlerContext.name());
+			ctx.pipeline().remove(ctx.name());
 		}
 	}
 }

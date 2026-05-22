@@ -94,7 +94,7 @@ public class SuffixArray<T> {
 		for (int k = Math.min(i, this.maxTextLength); j * 2 < k; j *= 2) {
 			for (int l = 0; l < i; ls[l] = l++) {
 				js[l] = is[l];
-				ks[l] = l + j < i ? is[l + j] : -2;
+				ks[l] = l + j < i ? is[l + j] : SENTINEL_INDEX;
 			}
 
 			Arrays.quickSort(0, i, intComparator, swapper);

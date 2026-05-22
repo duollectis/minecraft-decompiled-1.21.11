@@ -24,22 +24,28 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsSettingsTab}.
+ * Вкладка настроек Realms-сервера: имя мира, описание и предпочтение региона.
+ * Содержит кнопку переключения состояния сервера (открыт/закрыт).
+ * При выгрузке вкладки автоматически сохраняет изменённые настройки.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsSettingsTab extends GridScreenTab implements RealmsUpdatableTab {
 
 	private static final int TEXT_FIELD_WIDTH = 212;
 	private static final int SPACING = 2;
 	private static final int ROW_SPACING = 6;
+	private static final int COLOR_INVALID_NAME = -2142128;
+	private static final int COLOR_VALID_NAME = -2039584;
+
 	public static final Text TITLE_TEXT = Text.translatable("mco.configure.world.settings.title");
 	private static final Text WORLD_NAME_TEXT = Text.translatable("mco.configure.world.name");
 	private static final Text DESCRIPTION_TEXT = Text.translatable("mco.configure.world.description");
 	private static final Text REGION_PREFERENCE_TEXT = Text.translatable("mco.configure.world.region_preference");
-	private static final Tooltip
-			WHITESPACE_TOOLTIP =
-			Tooltip.of(Text.translatable("mco.configure.world.name.validation.whitespace"));
+	private static final Tooltip WHITESPACE_TOOLTIP = Tooltip.of(
+		Text.translatable("mco.configure.world.name.validation.whitespace")
+	);
+
 	private final RealmsConfigureWorldScreen screen;
 	private final MinecraftClient client;
 	private RealmsServer server;
@@ -52,207 +58,213 @@ public class RealmsSettingsTab extends GridScreenTab implements RealmsUpdatableT
 	private RealmsSettingsTab.Region region;
 
 	public RealmsSettingsTab(
-			RealmsConfigureWorldScreen screen,
-			MinecraftClient minecraftClient,
-			RealmsServer realmsServer,
-			Map<RealmsRegion, ServiceQuality> availableRegions
+		RealmsConfigureWorldScreen screen,
+		MinecraftClient client,
+		RealmsServer realmsServer,
+		Map<RealmsRegion, ServiceQuality> availableRegions
 	) {
 		super(TITLE_TEXT);
 		this.screen = screen;
-		this.client = minecraftClient;
-		this.server = realmsServer;
+		this.client = client;
+		server = realmsServer;
 		this.availableRegions = availableRegions;
-		GridWidget.Adder adder = this.grid.setRowSpacing(6).createAdder(1);
+
+		GridWidget.Adder adder = grid.setRowSpacing(ROW_SPACING).createAdder(1);
+
 		adder.add(new TextWidget(WORLD_NAME_TEXT, screen.getTextRenderer()));
-		this.worldNameTextField =
-				new TextFieldWidget(
-						minecraftClient.textRenderer,
-						0,
-						0,
-						212,
-						20,
-						Text.translatable("mco.configure.world.name")
-				);
-		this.worldNameTextField.setMaxLength(32);
-		this.worldNameTextField.setChangedListener(string -> {
-			if (!this.isWorldNameValid()) {
-				this.worldNameTextField.setEditableColor(-2142128);
-				this.worldNameTextField.setTooltip(WHITESPACE_TOOLTIP);
-			}
-			else {
-				this.worldNameTextField.setTooltip(null);
-				this.worldNameTextField.setEditableColor(-2039584);
+		worldNameTextField = new TextFieldWidget(
+			client.textRenderer,
+			0,
+			0,
+			TEXT_FIELD_WIDTH,
+			20,
+			Text.translatable("mco.configure.world.name")
+		);
+		worldNameTextField.setMaxLength(32);
+		worldNameTextField.setChangedListener(value -> {
+			if (!isWorldNameValid()) {
+				worldNameTextField.setEditableColor(COLOR_INVALID_NAME);
+				worldNameTextField.setTooltip(WHITESPACE_TOOLTIP);
+			} else {
+				worldNameTextField.setTooltip(null);
+				worldNameTextField.setEditableColor(COLOR_VALID_NAME);
 			}
 		});
-		adder.add(this.worldNameTextField);
-		adder.add(EmptyWidget.ofHeight(2));
+		adder.add(worldNameTextField);
+		adder.add(EmptyWidget.ofHeight(SPACING));
+
 		adder.add(new TextWidget(DESCRIPTION_TEXT, screen.getTextRenderer()));
-		this.descriptionTextField =
-				new TextFieldWidget(
-						minecraftClient.textRenderer,
-						0,
-						0,
-						212,
-						20,
-						Text.translatable("mco.configure.world.description")
-				);
-		this.descriptionTextField.setMaxLength(32);
-		adder.add(this.descriptionTextField);
-		adder.add(EmptyWidget.ofHeight(2));
+		descriptionTextField = new TextFieldWidget(
+			client.textRenderer,
+			0,
+			0,
+			TEXT_FIELD_WIDTH,
+			20,
+			Text.translatable("mco.configure.world.description")
+		);
+		descriptionTextField.setMaxLength(32);
+		adder.add(descriptionTextField);
+		adder.add(EmptyWidget.ofHeight(SPACING));
+
 		adder.add(new TextWidget(REGION_PREFERENCE_TEXT, screen.getTextRenderer()));
-		AxisGridWidget axisGridWidget = new AxisGridWidget(0, 0, 212, 9, AxisGridWidget.DisplayAxis.HORIZONTAL);
-		this.regionText = axisGridWidget.add(new TextWidget(192, 9, Text.empty(), screen.getTextRenderer()));
-		this.serviceQualityIcon = axisGridWidget.add(IconWidget.create(10, 8, ServiceQuality.UNKNOWN.getIcon()));
-		adder.add(axisGridWidget);
+		AxisGridWidget regionRow = new AxisGridWidget(0, 0, TEXT_FIELD_WIDTH, 9, AxisGridWidget.DisplayAxis.HORIZONTAL);
+		regionText = regionRow.add(new TextWidget(192, 9, Text.empty(), screen.getTextRenderer()));
+		serviceQualityIcon = regionRow.add(IconWidget.create(10, 8, ServiceQuality.UNKNOWN.getIcon()));
+		adder.add(regionRow);
 		adder.add(
-				ButtonWidget
-						.builder(
-								Text.translatable("mco.configure.world.buttons.region_preference"),
-								button -> this.showRegionPreferenceScreen()
-						)
-						.dimensions(0, 0, 212, 20)
-						.build()
+			ButtonWidget.builder(
+				Text.translatable("mco.configure.world.buttons.region_preference"),
+				button -> showRegionPreferenceScreen()
+			)
+			.dimensions(0, 0, TEXT_FIELD_WIDTH, 20)
+			.build()
 		);
-		adder.add(EmptyWidget.ofHeight(2));
-		this.switchStateButton = adder.add(
-				ButtonWidget.builder(
-						            Text.empty(),
-						            buttonWidget -> {
-							            if (realmsServer.state == RealmsServer.State.OPEN) {
-								            minecraftClient.setScreen(
-										            RealmsPopups.createCustomPopup(
-												            screen,
-												            Text.translatable("mco.configure.world.close.question.title"),
-												            Text.translatable("mco.configure.world.close.question.line1"),
-												            popupScreen -> {
-													            this.saveSettings();
-													            screen.closeTheWorld();
-												            }
-										            )
-								            );
-							            }
-							            else {
-								            this.saveSettings();
-								            screen.openTheWorld(false);
-							            }
-						            }
-				            )
-				            .dimensions(0, 0, 212, 20)
-				            .build()
+		adder.add(EmptyWidget.ofHeight(SPACING));
+
+		switchStateButton = adder.add(
+			ButtonWidget.builder(
+				Text.empty(),
+				button -> {
+					if (realmsServer.state == RealmsServer.State.OPEN) {
+						client.setScreen(
+							RealmsPopups.createCustomPopup(
+								screen,
+								Text.translatable("mco.configure.world.close.question.title"),
+								Text.translatable("mco.configure.world.close.question.line1"),
+								popupScreen -> {
+									saveSettings();
+									screen.closeTheWorld();
+								}
+							)
+						);
+					} else {
+						saveSettings();
+						screen.openTheWorld(false);
+					}
+				}
+			)
+			.dimensions(0, 0, TEXT_FIELD_WIDTH, 20)
+			.build()
 		);
-		this.switchStateButton.active = false;
-		this.update(realmsServer);
+		switchStateButton.active = false;
+
+		update(realmsServer);
 	}
 
 	private static MutableText getRegionText(RealmsSettingsTab.Region region) {
-		return (region.preference().equals(RegionSelectionMethod.MANUAL) && region.region() != null
-		        ? Text.translatable(region.region().translationKey)
-		        : Text.translatable(region.preference().translationKey)
-		)
-				.formatted(Formatting.GRAY);
+		boolean isManualWithRegion = region.preference().equals(RegionSelectionMethod.MANUAL)
+			&& region.region() != null;
+
+		return (isManualWithRegion
+			? Text.translatable(region.region().translationKey)
+			: Text.translatable(region.preference().translationKey)
+		).formatted(Formatting.GRAY);
 	}
 
 	private static Identifier getQualityIcon(
-			RealmsSettingsTab.Region region,
-			Map<RealmsRegion, ServiceQuality> qualityByRegion
+		RealmsSettingsTab.Region region,
+		Map<RealmsRegion, ServiceQuality> qualityByRegion
 	) {
-		if (region.region() != null && qualityByRegion.containsKey(region.region())) {
-			ServiceQuality serviceQuality = qualityByRegion.getOrDefault(region.region(), ServiceQuality.UNKNOWN);
-			return serviceQuality.getIcon();
-		}
-		else {
+		if (region.region() == null || !qualityByRegion.containsKey(region.region())) {
 			return ServiceQuality.UNKNOWN.getIcon();
 		}
+
+		return qualityByRegion.getOrDefault(region.region(), ServiceQuality.UNKNOWN).getIcon();
 	}
 
 	private boolean isWorldNameValid() {
-		String string = this.worldNameTextField.getText();
-		String string2 = string.trim();
-		return !string2.isEmpty() && string.length() == string2.length();
+		String name = worldNameTextField.getText();
+		String trimmed = name.trim();
+		return !trimmed.isEmpty() && name.length() == trimmed.length();
 	}
 
 	private void showRegionPreferenceScreen() {
-		this.client.setScreen(new RealmsRegionPreferenceScreen(
-				this.screen,
-				this::onRegionChanged,
-				this.availableRegions,
-				this.region
+		client.setScreen(new RealmsRegionPreferenceScreen(
+			screen,
+			this::onRegionChanged,
+			availableRegions,
+			region
 		));
 	}
 
-	private void onRegionChanged(RegionSelectionMethod selectionMethod, RealmsRegion region) {
-		this.region = new RealmsSettingsTab.Region(selectionMethod, region);
-		this.refreshRegionText();
+	private void onRegionChanged(RegionSelectionMethod selectionMethod, RealmsRegion selectedRegion) {
+		region = new RealmsSettingsTab.Region(selectionMethod, selectedRegion);
+		refreshRegionText();
 	}
 
 	private void refreshRegionText() {
-		this.regionText.setMessage(getRegionText(this.region));
-		this.serviceQualityIcon.setTexture(getQualityIcon(this.region, this.availableRegions));
-		this.serviceQualityIcon.visible = this.region.preference == RegionSelectionMethod.MANUAL;
+		regionText.setMessage(getRegionText(region));
+		serviceQualityIcon.setTexture(getQualityIcon(region, availableRegions));
+		serviceQualityIcon.visible = region.preference == RegionSelectionMethod.MANUAL;
 	}
 
 	@Override
-	public void onLoaded(RealmsServer server) {
-		this.update(server);
+	public void onLoaded(RealmsServer updatedServer) {
+		update(updatedServer);
 	}
 
 	@Override
-	public void update(RealmsServer server) {
-		this.server = server;
+	public void update(RealmsServer updatedServer) {
+		server = updatedServer;
+
 		if (server.regionSelectionPreference == null) {
 			server.regionSelectionPreference = RealmsRegionSelectionPreference.DEFAULT;
 		}
 
 		if (server.regionSelectionPreference.selectionMethod == RegionSelectionMethod.MANUAL
-				&& server.regionSelectionPreference.preferredRegion == null) {
-			Optional<RealmsRegion> optional = this.availableRegions.keySet().stream().findFirst();
-			optional.ifPresent(region -> server.regionSelectionPreference.preferredRegion = region);
+			&& server.regionSelectionPreference.preferredRegion == null
+		) {
+			Optional<RealmsRegion> firstRegion = availableRegions.keySet().stream().findFirst();
+			firstRegion.ifPresent(r -> server.regionSelectionPreference.preferredRegion = r);
 		}
 
-		String
-				string =
-				server.state == RealmsServer.State.OPEN ? "mco.configure.world.buttons.close"
-				                                        : "mco.configure.world.buttons.open";
-		this.switchStateButton.setMessage(Text.translatable(string));
-		this.switchStateButton.active = true;
-		this.region =
-				new RealmsSettingsTab.Region(
-						server.regionSelectionPreference.selectionMethod,
-						server.regionSelectionPreference.preferredRegion
-				);
-		this.worldNameTextField.setText(Objects.requireNonNullElse(server.getName(), ""));
-		this.descriptionTextField.setText(server.getDescription());
-		this.refreshRegionText();
+		String switchKey = server.state == RealmsServer.State.OPEN
+			? "mco.configure.world.buttons.close"
+			: "mco.configure.world.buttons.open";
+
+		switchStateButton.setMessage(Text.translatable(switchKey));
+		switchStateButton.active = true;
+
+		region = new RealmsSettingsTab.Region(
+			server.regionSelectionPreference.selectionMethod,
+			server.regionSelectionPreference.preferredRegion
+		);
+
+		worldNameTextField.setText(Objects.requireNonNullElse(server.getName(), ""));
+		descriptionTextField.setText(server.getDescription());
+		refreshRegionText();
 	}
 
 	@Override
-	public void onUnloaded(RealmsServer server) {
-		this.saveSettings();
+	public void onUnloaded(RealmsServer updatedServer) {
+		saveSettings();
 	}
 
 	/**
-	 * Сохраняет settings.
+	 * Сохраняет настройки, если хотя бы одно из полей изменилось по сравнению с текущим состоянием сервера.
+	 * Имя мира обрезается от пробелов перед сохранением.
 	 */
 	public void saveSettings() {
-		String string = this.worldNameTextField.getText().trim();
-		if (this.server.regionSelectionPreference == null
-				|| !Objects.equals(string, this.server.name)
-				|| !Objects.equals(this.descriptionTextField.getText(), this.server.description)
-				|| this.region.preference() != this.server.regionSelectionPreference.selectionMethod
-				|| this.region.region() != this.server.regionSelectionPreference.preferredRegion) {
-			this.screen.saveSettings(
-					string,
-					this.descriptionTextField.getText(),
-					this.region.preference(),
-					this.region.region()
-			);
+		String trimmedName = worldNameTextField.getText().trim();
+		boolean hasChanges = server.regionSelectionPreference == null
+			|| !Objects.equals(trimmedName, server.name)
+			|| !Objects.equals(descriptionTextField.getText(), server.description)
+			|| region.preference() != server.regionSelectionPreference.selectionMethod
+			|| region.region() != server.regionSelectionPreference.preferredRegion;
+
+		if (!hasChanges) {
+			return;
 		}
+
+		screen.saveSettings(
+			trimmedName,
+			descriptionTextField.getText(),
+			region.preference(),
+			region.region()
+		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Region}.
-	 */
 	public record Region(RegionSelectionMethod preference, @Nullable RealmsRegion region) {
 	}
 }

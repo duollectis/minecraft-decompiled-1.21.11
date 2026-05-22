@@ -13,9 +13,12 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code FollowMobGoal}.
+ * Цель следования за другим мобом иного вида: держится на минимальной дистанции,
+ * при необходимости отступает, если цель смотрит прямо на преследователя.
  */
 public class FollowMobGoal extends Goal {
+
+	private static final int UPDATE_INTERVAL_TICKS = 10;
 
 	private final MobEntity mob;
 	private final Predicate<MobEntity> targetPredicate;
@@ -29,12 +32,12 @@ public class FollowMobGoal extends Goal {
 
 	public FollowMobGoal(MobEntity mob, double speed, float minDistance, float maxDistance) {
 		this.mob = mob;
-		this.targetPredicate = target -> mob.getClass() != target.getClass();
+		this.targetPredicate = candidate -> mob.getClass() != candidate.getClass();
 		this.speed = speed;
 		this.navigation = mob.getNavigation();
 		this.minDistance = minDistance;
 		this.maxDistance = maxDistance;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 		if (!(mob.getNavigation() instanceof MobNavigation) && !(mob.getNavigation() instanceof BirdNavigation)) {
 			throw new IllegalArgumentException("Unsupported mob type for FollowMobGoal");
 		}
@@ -42,19 +45,13 @@ public class FollowMobGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		List<MobEntity> list = this.mob
+		List<MobEntity> candidates = mob
 				.getEntityWorld()
-				.getEntitiesByClass(
-						MobEntity.class,
-						this.mob.getBoundingBox().expand(this.maxDistance),
-						this.targetPredicate
-				);
-		if (!list.isEmpty()) {
-			for (MobEntity mobEntity : list) {
-				if (!mobEntity.isInvisible()) {
-					this.target = mobEntity;
-					return true;
-				}
+				.getEntitiesByClass(MobEntity.class, mob.getBoundingBox().expand(maxDistance), targetPredicate);
+		for (MobEntity candidate : candidates) {
+			if (!candidate.isInvisible()) {
+				target = candidate;
+				return true;
 			}
 		}
 
@@ -63,54 +60,54 @@ public class FollowMobGoal extends Goal {
 
 	@Override
 	public boolean shouldContinue() {
-		return this.target != null && !this.navigation.isIdle()
-				&& this.mob.squaredDistanceTo(this.target) > this.minDistance * this.minDistance;
+		return target != null && !navigation.isIdle()
+				&& mob.squaredDistanceTo(target) > minDistance * minDistance;
 	}
 
 	@Override
 	public void start() {
-		this.updateCountdownTicks = 0;
-		this.oldWaterPathFindingPenalty = this.mob.getPathfindingPenalty(PathNodeType.WATER);
-		this.mob.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		updateCountdownTicks = 0;
+		oldWaterPathFindingPenalty = mob.getPathfindingPenalty(PathNodeType.WATER);
+		mob.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 	}
 
 	@Override
 	public void stop() {
-		this.target = null;
-		this.navigation.stop();
-		this.mob.setPathfindingPenalty(PathNodeType.WATER, this.oldWaterPathFindingPenalty);
+		target = null;
+		navigation.stop();
+		mob.setPathfindingPenalty(PathNodeType.WATER, oldWaterPathFindingPenalty);
 	}
 
 	@Override
 	public void tick() {
-		if (this.target != null && !this.mob.isLeashed()) {
-			this.mob.getLookControl().lookAt(this.target, 10.0F, this.mob.getMaxLookPitchChange());
-			if (--this.updateCountdownTicks <= 0) {
-				this.updateCountdownTicks = this.getTickCount(10);
-				double d = this.mob.getX() - this.target.getX();
-				double e = this.mob.getY() - this.target.getY();
-				double f = this.mob.getZ() - this.target.getZ();
-				double g = d * d + e * e + f * f;
-				if (!(g <= this.minDistance * this.minDistance)) {
-					this.navigation.startMovingTo(this.target, this.speed);
-				}
-				else {
-					this.navigation.stop();
-					LookControl lookControl = this.target.getLookControl();
-					if (g <= this.minDistance
-							|| lookControl.getLookX() == this.mob.getX() && lookControl.getLookY() == this.mob.getY()
-							&& lookControl.getLookZ() == this.mob.getZ()) {
-						double h = this.target.getX() - this.mob.getX();
-						double i = this.target.getZ() - this.mob.getZ();
-						this.navigation.startMovingTo(
-								this.mob.getX() - h,
-								this.mob.getY(),
-								this.mob.getZ() - i,
-								this.speed
-						);
-					}
-				}
-			}
+		if (target == null || mob.isLeashed()) {
+			return;
+		}
+
+		mob.getLookControl().lookAt(target, 10.0F, mob.getMaxLookPitchChange());
+		if (--updateCountdownTicks > 0) {
+			return;
+		}
+
+		updateCountdownTicks = getTickCount(UPDATE_INTERVAL_TICKS);
+		double dx = mob.getX() - target.getX();
+		double dy = mob.getY() - target.getY();
+		double dz = mob.getZ() - target.getZ();
+		double distSq = dx * dx + dy * dy + dz * dz;
+		if (distSq > minDistance * minDistance) {
+			navigation.startMovingTo(target, speed);
+			return;
+		}
+
+		navigation.stop();
+		LookControl lookControl = target.getLookControl();
+		boolean targetLookingAtMob = lookControl.getLookX() == mob.getX()
+				&& lookControl.getLookY() == mob.getY()
+				&& lookControl.getLookZ() == mob.getZ();
+		if (distSq <= minDistance || targetLookingAtMob) {
+			double awayX = target.getX() - mob.getX();
+			double awayZ = target.getZ() - mob.getZ();
+			navigation.startMovingTo(mob.getX() - awayX, mob.getY(), mob.getZ() - awayZ, speed);
 		}
 	}
 }

@@ -13,10 +13,11 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NowPlayingToast}.
+ * Тост "Сейчас играет" — отображается поверх экрана при смене музыкального трека.
+ * Содержит анимированную иконку нот с циклической сменой цвета и название трека.
  */
+@Environment(EnvType.CLIENT)
 public class NowPlayingToast implements Toast {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("toast/now_playing");
@@ -25,12 +26,16 @@ public class NowPlayingToast implements Toast {
 	private static final int MUSIC_NOTES_ICON_SIZE = 16;
 	private static final int FADE_IN_TICKS = 30;
 	private static final int DISPLAY_TICKS = 30;
-	private static final int VISIBILITY_DURATION = 5000;
-	private static final int TEXT_COLOR = DyeColor.LIGHT_GRAY.getSignColor();
 	private static final long MUSIC_NOTE_COLOR_CHANGE_INTERVAL = 25L;
+	private static final int TEXT_X_OFFSET = 30;
+	private static final int TEXT_Y_OFFSET = 15;
+	private static final int HALF_FONT_HEIGHT = 9 / 2;
+	private static final int TEXT_COLOR = DyeColor.LIGHT_GRAY.getSignColor();
+
 	private static int musicNoteColorChanges;
 	private static long lastMusicNoteColorChangeTime;
 	private static int musicNotesIconColor = -1;
+
 	private boolean showing;
 	private double displayTimeMultiplier;
 	private final MinecraftClient client;
@@ -40,56 +45,51 @@ public class NowPlayingToast implements Toast {
 		this.client = MinecraftClient.getInstance();
 	}
 
-	/**
-	 * Draw.
-	 *
-	 * @param context context
-	 * @param textRenderer text renderer
-	 */
 	public static void draw(DrawContext context, TextRenderer textRenderer) {
-		String string = getCurrentMusicTranslationKey();
-		if (string != null) {
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					TEXTURE,
-					0,
-					0,
-					getMusicTextWidth(string, textRenderer),
-					30
-			);
-			int i = 7;
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, MUSIC_NOTES_ICON, 7, 7, 16, 16, musicNotesIconColor);
-			context.drawTextWithShadow(textRenderer, getMusicText(string), 30, 15 - 9 / 2, TEXT_COLOR);
+		String translationKey = getCurrentMusicTranslationKey();
+		if (translationKey == null) {
+			return;
 		}
+
+		context.drawGuiTexture(
+			RenderPipelines.GUI_TEXTURED,
+			TEXTURE,
+			0,
+			0,
+			getMusicTextWidth(translationKey, textRenderer),
+			FADE_IN_TICKS
+		);
+		context.drawGuiTexture(
+			RenderPipelines.GUI_TEXTURED,
+			MUSIC_NOTES_ICON,
+			MARGIN,
+			MARGIN,
+			MUSIC_NOTES_ICON_SIZE,
+			MUSIC_NOTES_ICON_SIZE,
+			musicNotesIconColor
+		);
+		context.drawTextWithShadow(
+			textRenderer,
+			getMusicText(translationKey),
+			TEXT_X_OFFSET,
+			TEXT_Y_OFFSET - HALF_FONT_HEIGHT,
+			TEXT_COLOR
+		);
 	}
 
-	private static @Nullable String getCurrentMusicTranslationKey() {
-		return MinecraftClient.getInstance().getMusicTracker().getCurrentMusicTranslationKey();
-	}
-
-	/**
-	 * Tick.
-	 */
 	public static void tick() {
-		if (getCurrentMusicTranslationKey() != null) {
-			long l = System.currentTimeMillis();
-			if (l > lastMusicNoteColorChangeTime + 25L) {
-				musicNoteColorChanges++;
-				lastMusicNoteColorChangeTime = l;
-				musicNotesIconColor = ColorLerper.lerpColor(ColorLerper.Type.MUSIC_NOTE, musicNoteColorChanges);
-			}
+		if (getCurrentMusicTranslationKey() == null) {
+			return;
+		}
+
+		long now = System.currentTimeMillis();
+		if (now > lastMusicNoteColorChangeTime + MUSIC_NOTE_COLOR_CHANGE_INTERVAL) {
+			musicNoteColorChanges++;
+			lastMusicNoteColorChangeTime = now;
+			musicNotesIconColor = ColorLerper.lerpColor(ColorLerper.Type.MUSIC_NOTE, musicNoteColorChanges);
 		}
 	}
 
-	private static Text getMusicText(@Nullable String translationKey) {
-		return translationKey == null ? Text.empty() : Text.translatable(translationKey.replace("/", "."));
-	}
-
-	/**
-	 * Show.
-	 *
-	 * @param options options
-	 */
 	public void show(GameOptions options) {
 		this.showing = true;
 		this.displayTimeMultiplier = options.getNotificationDisplayTime().getValue();
@@ -98,11 +98,14 @@ public class NowPlayingToast implements Toast {
 
 	@Override
 	public void update(ToastManager manager, long time) {
-		if (this.showing) {
-			this.visibility =
-					time < 5000.0 * this.displayTimeMultiplier ? Toast.Visibility.SHOW : Toast.Visibility.HIDE;
-			tick();
+		if (!this.showing) {
+			return;
 		}
+
+		this.visibility = time < 5000.0 * this.displayTimeMultiplier
+			? Toast.Visibility.SHOW
+			: Toast.Visibility.HIDE;
+		tick();
 	}
 
 	@Override
@@ -120,13 +123,9 @@ public class NowPlayingToast implements Toast {
 		return getMusicTextWidth(getCurrentMusicTranslationKey(), this.client.textRenderer);
 	}
 
-	private static int getMusicTextWidth(@Nullable String translationKey, TextRenderer textRenderer) {
-		return 30 + textRenderer.getWidth(getMusicText(translationKey)) + 7;
-	}
-
 	@Override
 	public int getHeight() {
-		return 30;
+		return DISPLAY_TICKS;
 	}
 
 	@Override
@@ -146,5 +145,19 @@ public class NowPlayingToast implements Toast {
 
 	public void setVisibility(Toast.Visibility visibility) {
 		this.visibility = visibility;
+	}
+
+	private static @Nullable String getCurrentMusicTranslationKey() {
+		return MinecraftClient.getInstance().getMusicTracker().getCurrentMusicTranslationKey();
+	}
+
+	private static Text getMusicText(@Nullable String translationKey) {
+		return translationKey == null
+			? Text.empty()
+			: Text.translatable(translationKey.replace("/", "."));
+	}
+
+	private static int getMusicTextWidth(@Nullable String translationKey, TextRenderer textRenderer) {
+		return TEXT_X_OFFSET + textRenderer.getWidth(getMusicText(translationKey)) + MARGIN;
 	}
 }

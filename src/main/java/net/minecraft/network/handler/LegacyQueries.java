@@ -5,7 +5,8 @@ import io.netty.buffer.ByteBuf;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Класс legacy queries.
+ * Утилитарный класс для работы с legacy-запросами пинга (протоколы до 1.7).
+ * Строки кодируются в UTF-16BE с предшествующим short-размером.
  */
 public class LegacyQueries {
 
@@ -16,29 +17,16 @@ public class LegacyQueries {
 	public static final int BUFFER_SIZE = 255;
 	public static final int PROTOCOL_VERSION = 127;
 
-	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 * @param string string
-	 */
 	public static void write(ByteBuf buf, String string) {
 		buf.writeShort(string.length());
 		buf.writeCharSequence(string, StandardCharsets.UTF_16BE);
 	}
 
-	/**
-	 * Read.
-	 *
-	 * @param buf buf
-	 *
-	 * @return String — результат операции
-	 */
 	public static String read(ByteBuf buf) {
-		int i = buf.readShort();
-		int j = i * 2;
-		String string = buf.toString(buf.readerIndex(), j, StandardCharsets.UTF_16BE);
-		buf.skipBytes(j);
-		return string;
+		int charCount = buf.readShort();
+		int byteCount = charCount * 2;
+		String result = buf.toString(buf.readerIndex(), byteCount, StandardCharsets.UTF_16BE);
+		buf.skipBytes(byteCount);
+		return result;
 	}
 }

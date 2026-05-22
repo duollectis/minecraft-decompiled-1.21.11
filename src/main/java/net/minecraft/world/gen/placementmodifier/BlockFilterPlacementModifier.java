@@ -8,16 +8,17 @@ import net.minecraft.world.gen.blockpredicate.BlockPredicate;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 
 /**
- * {@code BlockFilterPlacementModifier}.
+ * Модификатор размещения, фильтрующий позиции по предикату блока —
+ * пропускает позицию только если {@link BlockPredicate} возвращает {@code true}.
  */
 public class BlockFilterPlacementModifier extends AbstractConditionalPlacementModifier {
 
 	public static final MapCodec<BlockFilterPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(BlockPredicate.BASE_CODEC
-							.fieldOf("predicate")
-							.forGetter(placementModifier -> placementModifier.predicate))
-					.apply(instance, BlockFilterPlacementModifier::new)
+		instance -> instance
+			.group(BlockPredicate.BASE_CODEC
+				.fieldOf("predicate")
+				.forGetter(modifier -> modifier.predicate))
+			.apply(instance, BlockFilterPlacementModifier::new)
 	);
 	private final BlockPredicate predicate;
 
@@ -25,20 +26,13 @@ public class BlockFilterPlacementModifier extends AbstractConditionalPlacementMo
 		this.predicate = predicate;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param predicate predicate
-	 *
-	 * @return BlockFilterPlacementModifier — результат операции
-	 */
 	public static BlockFilterPlacementModifier of(BlockPredicate predicate) {
 		return new BlockFilterPlacementModifier(predicate);
 	}
 
 	@Override
 	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
-		return this.predicate.test(context.getWorld(), pos);
+		return predicate.test(context.getWorld(), pos);
 	}
 
 	@Override

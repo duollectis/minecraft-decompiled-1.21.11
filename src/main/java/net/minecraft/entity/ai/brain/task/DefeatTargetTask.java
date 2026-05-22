@@ -8,7 +8,8 @@ import net.minecraft.world.rule.GameRules;
 import java.util.function.BiPredicate;
 
 /**
- * {@code DefeatTargetTask}.
+ * Фабричный класс задачи мозга, обрабатывающей победу над целью атаки.
+ * Запускает празднование, запоминает позицию победы и сбрасывает цель атаки.
  */
 public class DefeatTargetTask {
 
@@ -18,38 +19,32 @@ public class DefeatTargetTask {
 	) {
 		return TaskTriggerer.task(
 				context -> context.group(
-						                  context.queryMemoryValue(MemoryModuleType.ATTACK_TARGET),
-						                  context.queryMemoryOptional(MemoryModuleType.ANGRY_AT),
-						                  context.queryMemoryAbsent(MemoryModuleType.CELEBRATE_LOCATION),
-						                  context.queryMemoryOptional(MemoryModuleType.DANCING)
-				                  )
-				                  .apply(
-						                  context,
-						                  (attackTarget, angryAt, celebrateLocation, dancing) -> (world, entity, time) -> {
-							                  LivingEntity livingEntity = context.getValue(attackTarget);
-							                  if (!livingEntity.isDead()) {
-								                  return false;
-							                  }
-							                  else {
-								                  if (predicate.test(entity, livingEntity)) {
-									                  dancing.remember(true, celebrationDuration);
-								                  }
+						context.queryMemoryValue(MemoryModuleType.ATTACK_TARGET),
+						context.queryMemoryOptional(MemoryModuleType.ANGRY_AT),
+						context.queryMemoryAbsent(MemoryModuleType.CELEBRATE_LOCATION),
+						context.queryMemoryOptional(MemoryModuleType.DANCING)
+				).apply(
+						context,
+						(attackTarget, angryAt, celebrateLocation, dancing) -> (world, entity, time) -> {
+							LivingEntity defeated = context.getValue(attackTarget);
+							if (!defeated.isDead()) {
+								return false;
+							}
 
-								                  celebrateLocation.remember(
-										                  livingEntity.getBlockPos(),
-										                  celebrationDuration
-								                  );
-								                  if (livingEntity.getType() != EntityType.PLAYER || world
-										                  .getGameRules()
-										                  .getValue(GameRules.FORGIVE_DEAD_PLAYERS)) {
-									                  attackTarget.forget();
-									                  angryAt.forget();
-								                  }
+							if (predicate.test(entity, defeated)) {
+								dancing.remember(true, celebrationDuration);
+							}
 
-								                  return true;
-							                  }
-						                  }
-				                  )
+							celebrateLocation.remember(defeated.getBlockPos(), celebrationDuration);
+							if (defeated.getType() != EntityType.PLAYER
+									|| world.getGameRules().getValue(GameRules.FORGIVE_DEAD_PLAYERS)) {
+								attackTarget.forget();
+								angryAt.forget();
+							}
+
+							return true;
+						}
+				)
 		);
 	}
 }

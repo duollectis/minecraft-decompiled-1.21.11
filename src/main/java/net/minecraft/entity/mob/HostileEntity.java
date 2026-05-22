@@ -23,13 +23,16 @@ import net.minecraft.world.rule.GameRules;
 import java.util.function.Predicate;
 
 /**
- * {@code HostileEntity}.
+ * Базовый класс для всех враждебных мобов. Управляет деспауном на свету.
  */
 public abstract class HostileEntity extends PathAwareEntity implements Monster {
 
+	private static final float BRIGHT_DESPAWN_THRESHOLD = 0.5F;
+	private static final int BRIGHT_DESPAWN_INCREMENT = 2;
+
 	protected HostileEntity(EntityType<? extends HostileEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 5;
+		experiencePoints = 5;
 	}
 
 	@Override
@@ -39,18 +42,14 @@ public abstract class HostileEntity extends PathAwareEntity implements Monster {
 
 	@Override
 	public void tickMovement() {
-		this.tickHandSwing();
-		this.updateDespawnCounter();
+		tickHandSwing();
+		updateDespawnCounter();
 		super.tickMovement();
 	}
 
-	/**
-	 * Обновляет despawn counter.
-	 */
 	protected void updateDespawnCounter() {
-		float f = this.getBrightnessAtEyes();
-		if (f > 0.5F) {
-			this.despawnCounter += 2;
+		if (getBrightnessAtEyes() > BRIGHT_DESPAWN_THRESHOLD) {
+			despawnCounter += BRIGHT_DESPAWN_INCREMENT;
 		}
 	}
 
@@ -88,17 +87,17 @@ public abstract class HostileEntity extends PathAwareEntity implements Monster {
 		if (world.getLightLevel(LightType.SKY, pos) > random.nextInt(32)) {
 			return false;
 		}
-		else {
-			DimensionType dimensionType = world.getDimension();
-			int i = dimensionType.monsterSpawnBlockLightLimit();
-			if (i < 15 && world.getLightLevel(LightType.BLOCK, pos) > i) {
-				return false;
-			}
-			else {
-				int j = world.toServerWorld().isThundering() ? world.getLightLevel(pos, 10) : world.getLightLevel(pos);
-				return j <= dimensionType.monsterSpawnLightTest().get(random);
-			}
+
+		DimensionType dimensionType = world.getDimension();
+		int blockLightLimit = dimensionType.monsterSpawnBlockLightLimit();
+		if (blockLightLimit < 15 && world.getLightLevel(LightType.BLOCK, pos) > blockLightLimit) {
+			return false;
 		}
+
+		int lightLevel = world.toServerWorld().isThundering()
+				? world.getLightLevel(pos, 10)
+				: world.getLightLevel(pos);
+		return lightLevel <= dimensionType.monsterSpawnLightTest().get(random);
 	}
 
 	public static boolean canSpawnInDark(
@@ -155,13 +154,12 @@ public abstract class HostileEntity extends PathAwareEntity implements Monster {
 
 	@Override
 	public ItemStack getProjectileType(ItemStack stack) {
-		if (stack.getItem() instanceof RangedWeaponItem) {
-			Predicate<ItemStack> predicate = ((RangedWeaponItem) stack.getItem()).getHeldProjectiles();
-			ItemStack itemStack = RangedWeaponItem.getHeldProjectile(this, predicate);
-			return itemStack.isEmpty() ? new ItemStack(Items.ARROW) : itemStack;
+		if (stack.getItem() instanceof RangedWeaponItem rangedWeapon) {
+			Predicate<ItemStack> heldProjectiles = rangedWeapon.getHeldProjectiles();
+			ItemStack projectile = RangedWeaponItem.getHeldProjectile(this, heldProjectiles);
+			return projectile.isEmpty() ? new ItemStack(Items.ARROW) : projectile;
 		}
-		else {
-			return ItemStack.EMPTY;
-		}
+
+		return ItemStack.EMPTY;
 	}
 }

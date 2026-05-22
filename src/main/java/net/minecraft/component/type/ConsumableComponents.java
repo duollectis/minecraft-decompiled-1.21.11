@@ -8,8 +8,9 @@ import net.minecraft.sound.SoundEvents;
 import java.util.List;
 
 /**
- * {@code ConsumableComponents}.
- */
+	 * Реестр предустановленных компонентов потребления для стандартных предметов еды и питья.
+	 * Содержит готовые конфигурации с эффектами, звуками и временем потребления.
+	 */
 public class ConsumableComponents {
 
 	public static final ConsumableComponent FOOD = food().build();
@@ -75,6 +76,10 @@ public class ConsumableComponents {
 			CHORUS_FRUIT =
 			food().consumeEffect(new TeleportRandomlyConsumeEffect()).build();
 
+	/**
+		 * Создаёт базовый билдер компонента еды: анимация поедания, стандартный звук
+		 * и частицы откусывания за 1.6 секунды.
+		 */
 	public static ConsumableComponent.Builder food() {
 		return ConsumableComponent
 				.builder()
@@ -84,6 +89,10 @@ public class ConsumableComponents {
 				.consumeParticles(true);
 	}
 
+	/**
+		 * Создаёт базовый билдер компонента питья: анимация питья, стандартный звук
+		 * без частиц за 1.6 секунды.
+		 */
 	public static ConsumableComponent.Builder drink() {
 		return ConsumableComponent
 				.builder()

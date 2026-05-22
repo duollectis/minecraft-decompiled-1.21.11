@@ -7,17 +7,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3328}.
+ * Схема версии 3328 (Minecraft 1.20 — Trails & Tales).
+ * <p>
+ * Регистрирует тип данных для сущности взаимодействия ({@code minecraft:interaction}) —
+ * невидимой сущности с настраиваемой зоной столкновения, предназначенной для
+ * создания пользовательских интерактивных областей на картах.
  */
 public class Schema3328 extends IdentifierNormalizingSchema {
 
-	public Schema3328(int i, Schema schema) {
-		super(i, schema);
+	public Schema3328(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:interaction");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:interaction");
+		return entityTypes;
 	}
 }

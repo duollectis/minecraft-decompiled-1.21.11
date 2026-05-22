@@ -7,22 +7,24 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code EntityShulkerColorFix}.
+ * Устанавливает цвет шалкера по умолчанию (фиолетовый, индекс 10), если поле {@code Color} отсутствует.
  */
 public class EntityShulkerColorFix extends ChoiceFix {
 
-	public EntityShulkerColorFix(Schema schema, boolean bl) {
-		super(schema, bl, "EntityShulkerColorFix", TypeReferences.ENTITY, "minecraft:shulker");
-	}
+	private static final byte DEFAULT_PURPLE_COLOR = 10;
 
-	public Dynamic<?> fixShulkerColor(Dynamic<?> shulkerDynamic) {
-		return shulkerDynamic.get("Color").map(Dynamic::asNumber).result().isEmpty()
-		       ? shulkerDynamic.set("Color", shulkerDynamic.createByte((byte) 10))
-		       : shulkerDynamic;
+	public EntityShulkerColorFix(Schema outputSchema, boolean changesType) {
+		super(outputSchema, changesType, "EntityShulkerColorFix", TypeReferences.ENTITY, "minecraft:shulker");
 	}
 
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
 		return inputTyped.update(DSL.remainderFinder(), this::fixShulkerColor);
+	}
+
+	private Dynamic<?> fixShulkerColor(Dynamic<?> shulker) {
+		return shulker.get("Color").map(Dynamic::asNumber).result().isEmpty()
+				? shulker.set("Color", shulker.createByte(DEFAULT_PURPLE_COLOR))
+				: shulker;
 	}
 }

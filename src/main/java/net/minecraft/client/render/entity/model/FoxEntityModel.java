@@ -44,7 +44,7 @@ public class FoxEntityModel extends EntityModel<FoxEntityRenderState> {
 		ModelPartData modelPartData2 = modelPartData.addChild(
 				"head",
 				ModelPartBuilder.create().uv(1, 5).cuboid(-3.0F, -2.0F, -5.0F, 8.0F, 6.0F, 6.0F),
-				ModelTransform.origin(-1.0F, 16.5F, -3.0F)
+				ModelTransform.origin(-1.0F, HEAD_Y_PIVOT, -3.0F)
 		);
 		modelPartData2.addChild(
 				"right_ear",
@@ -73,10 +73,10 @@ public class FoxEntityModel extends EntityModel<FoxEntityRenderState> {
 		ModelPartBuilder
 				modelPartBuilder2 =
 				ModelPartBuilder.create().uv(13, 24).cuboid(2.0F, 0.5F, -1.0F, 2.0F, 6.0F, 2.0F, dilation);
-		modelPartData.addChild("right_hind_leg", modelPartBuilder2, ModelTransform.origin(-5.0F, 17.5F, 7.0F));
-		modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(-1.0F, 17.5F, 7.0F));
-		modelPartData.addChild("right_front_leg", modelPartBuilder2, ModelTransform.origin(-5.0F, 17.5F, 0.0F));
-		modelPartData.addChild("left_front_leg", modelPartBuilder, ModelTransform.origin(-1.0F, 17.5F, 0.0F));
+		modelPartData.addChild("right_hind_leg", modelPartBuilder2, ModelTransform.origin(-5.0F, LEG_Y_PIVOT, 7.0F));
+		modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(-1.0F, LEG_Y_PIVOT, 7.0F));
+		modelPartData.addChild("right_front_leg", modelPartBuilder2, ModelTransform.origin(-5.0F, LEG_Y_PIVOT, 0.0F));
+		modelPartData.addChild("left_front_leg", modelPartBuilder, ModelTransform.origin(-1.0F, LEG_Y_PIVOT, 0.0F));
 		modelPartData3.addChild(
 				"tail",
 				ModelPartBuilder.create().uv(30, 0).cuboid(2.0F, 0.0F, -1.0F, 4.0F, 9.0F, 5.0F),

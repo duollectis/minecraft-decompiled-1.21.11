@@ -14,50 +14,56 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code TextColor}.
+ * Цвет текстового компонента, представленный 24-битным RGB-значением.
+ * Может быть создан из {@link Formatting} (именованные цвета) или произвольного RGB-числа.
+ * Именованные цвета хранят строковое имя; произвольные — сериализуются как {@code #RRGGBB}.
  */
 public final class TextColor {
 
+	/** Маска для ограничения значения 24-битным диапазоном (0x000000–0xFFFFFF). */
+	private static final int RGB_MASK = 0xFFFFFF;
+
 	private static final String RGB_PREFIX = "#";
+
 	public static final Codec<TextColor> CODEC = Codec.STRING.comapFlatMap(TextColor::parse, TextColor::getName);
+
 	private static final Map<Formatting, TextColor> FORMATTING_TO_COLOR = Stream.of(Formatting.values())
-	                                                                            .filter(Formatting::isColor)
-	                                                                            .collect(ImmutableMap.toImmutableMap(
-			                                                                            Function.identity(),
-			                                                                            formatting -> new TextColor(
-					                                                                            formatting.getColorValue(),
-					                                                                            formatting.getName()
-			                                                                            )
-	                                                                            ));
+		.filter(Formatting::isColor)
+		.collect(ImmutableMap.toImmutableMap(
+			Function.identity(),
+			formatting -> new TextColor(formatting.getColorValue(), formatting.getName())
+		));
+
 	private static final Map<String, TextColor> BY_NAME = FORMATTING_TO_COLOR.values()
-	                                                                         .stream()
-	                                                                         .collect(ImmutableMap.toImmutableMap(
-			                                                                         textColor -> textColor.name,
-			                                                                         Function.identity()
-	                                                                         ));
+		.stream()
+		.collect(ImmutableMap.toImmutableMap(
+			textColor -> textColor.name,
+			Function.identity()
+		));
+
 	private final int rgb;
 	private final @Nullable String name;
 
 	private TextColor(int rgb, String name) {
-		this.rgb = rgb & 16777215;
+		this.rgb = rgb & RGB_MASK;
 		this.name = name;
 	}
 
 	private TextColor(int rgb) {
-		this.rgb = rgb & 16777215;
+		this.rgb = rgb & RGB_MASK;
 		this.name = null;
 	}
 
 	public int getRgb() {
-		return this.rgb;
+		return rgb;
 	}
 
 	public String getName() {
-		return this.name != null ? this.name : this.getHexCode();
+		return name != null ? name : getHexCode();
 	}
 
-	public final String getHexCode() {
-		return String.format(Locale.ROOT, "#%06X", this.rgb);
+	public String getHexCode() {
+		return String.format(Locale.ROOT, "#%06X", rgb);
 	}
 
 	@Override
@@ -65,69 +71,58 @@ public final class TextColor {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			TextColor textColor = (TextColor) o;
-			return this.rgb == textColor.rgb;
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		return rgb == ((TextColor) o).rgb;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.rgb, this.name);
+		return Objects.hash(rgb, name);
 	}
 
 	@Override
 	public String toString() {
-		return this.getName();
+		return getName();
 	}
 
 	/**
-	 * From formatting.
-	 *
-	 * @param formatting formatting
-	 *
-	 * @return @Nullable TextColor — результат операции
+	 * Возвращает цвет, соответствующий форматированию Minecraft, или {@code null},
+	 * если форматирование не является цветовым.
 	 */
 	public static @Nullable TextColor fromFormatting(Formatting formatting) {
 		return FORMATTING_TO_COLOR.get(formatting);
 	}
 
-	/**
-	 * From rgb.
-	 *
-	 * @param rgb rgb
-	 *
-	 * @return TextColor — результат операции
-	 */
 	public static TextColor fromRgb(int rgb) {
 		return new TextColor(rgb);
 	}
 
 	/**
-	 * Parse.
+	 * Разбирает цвет из строки: либо {@code #RRGGBB} (hex), либо именованный цвет Minecraft.
+	 * Hex-значение должно быть в диапазоне {@code 0x000000}–{@code 0xFFFFFF}.
 	 *
-	 * @param name name
-	 *
-	 * @return DataResult — результат операции
+	 * @param name строковое представление цвета
+	 * @return успешный результат с {@link TextColor} или ошибка с описанием
 	 */
 	public static DataResult<TextColor> parse(String name) {
-		if (name.startsWith("#")) {
+		if (name.startsWith(RGB_PREFIX)) {
 			try {
-				int i = Integer.parseInt(name.substring(1), 16);
-				return i >= 0 && i <= 16777215 ? DataResult.success(fromRgb(i), Lifecycle.stable())
-				                               : DataResult.error(() -> "Color value out of range: " + name);
-			}
-			catch (NumberFormatException var2) {
+				int rgb = Integer.parseInt(name.substring(1), 16);
+				return rgb >= 0 && rgb <= RGB_MASK
+					? DataResult.success(fromRgb(rgb), Lifecycle.stable())
+					: DataResult.error(() -> "Color value out of range: " + name);
+			} catch (NumberFormatException e) {
 				return DataResult.error(() -> "Invalid color value: " + name);
 			}
 		}
-		else {
-			TextColor textColor = BY_NAME.get(name);
-			return textColor == null ? DataResult.error(() -> "Invalid color name: " + name)
-			                         : DataResult.success(textColor, Lifecycle.stable());
-		}
+
+		TextColor textColor = BY_NAME.get(name);
+		return textColor == null
+			? DataResult.error(() -> "Invalid color name: " + name)
+			: DataResult.success(textColor, Lifecycle.stable());
 	}
 }

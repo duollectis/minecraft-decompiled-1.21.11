@@ -19,12 +19,12 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LootableInventory}.
+ * Инвентарь, способный генерировать содержимое из лут-таблицы при первом открытии.
+ * Реализующие классы должны хранить ключ таблицы и сид до момента генерации.
  */
 public interface LootableInventory extends Inventory {
 
 	String LOOT_TABLE_KEY = "LootTable";
-
 	String LOOT_TABLE_SEED_KEY = "LootTableSeed";
 
 	@Nullable RegistryKey<LootTable> getLootTable();
@@ -32,8 +32,8 @@ public interface LootableInventory extends Inventory {
 	void setLootTable(@Nullable RegistryKey<LootTable> lootTable);
 
 	default void setLootTable(RegistryKey<LootTable> lootTableId, long lootTableSeed) {
-		this.setLootTable(lootTableId);
-		this.setLootTableSeed(lootTableSeed);
+		setLootTable(lootTableId);
+		setLootTableSeed(lootTableSeed);
 	}
 
 	long getLootTableSeed();
@@ -44,59 +44,92 @@ public interface LootableInventory extends Inventory {
 
 	@Nullable World getWorld();
 
+	/**
+	 * Назначает лут-таблицу блок-сущности по позиции, если она реализует {@link LootableInventory}.
+	 *
+	 * @param world       мир, в котором находится блок-сущность
+	 * @param random      генератор случайных чисел для создания сида
+	 * @param pos         позиция блок-сущности
+	 * @param lootTableId ключ лут-таблицы для назначения
+	 */
 	static void setLootTable(BlockView world, Random random, BlockPos pos, RegistryKey<LootTable> lootTableId) {
 		if (world.getBlockEntity(pos) instanceof LootableInventory lootableInventory) {
 			lootableInventory.setLootTable(lootTableId, random.nextLong());
 		}
 	}
 
+	/**
+	 * Читает ключ лут-таблицы и сид из NBT-представления.
+	 *
+	 * @param view источник данных
+	 * @return {@code true}, если лут-таблица была прочитана (ключ присутствовал в данных)
+	 */
 	default boolean readLootTable(ReadView view) {
-		RegistryKey<LootTable>
-				registryKey =
-				view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
-		this.setLootTable(registryKey);
-		this.setLootTableSeed(view.getLong("LootTableSeed", 0L));
-		return registryKey != null;
+		RegistryKey<LootTable> lootTableKey = view.<RegistryKey<LootTable>>read(LOOT_TABLE_KEY, LootTable.TABLE_KEY)
+			.orElse(null);
+
+		setLootTable(lootTableKey);
+		setLootTableSeed(view.getLong(LOOT_TABLE_SEED_KEY, 0L));
+
+		return lootTableKey != null;
 	}
 
+	/**
+	 * Записывает ключ лут-таблицы и сид в NBT-представление.
+	 * Сид записывается только если он ненулевой.
+	 *
+	 * @param view целевое представление для записи
+	 * @return {@code true}, если лут-таблица была записана (ключ не {@code null})
+	 */
 	default boolean writeLootTable(WriteView view) {
-		RegistryKey<LootTable> registryKey = this.getLootTable();
-		if (registryKey == null) {
+		RegistryKey<LootTable> lootTableKey = getLootTable();
+
+		if (lootTableKey == null) {
 			return false;
 		}
-		else {
-			view.put("LootTable", LootTable.TABLE_KEY, registryKey);
-			long l = this.getLootTableSeed();
-			if (l != 0L) {
-				view.putLong("LootTableSeed", l);
-			}
 
-			return true;
+		view.put(LOOT_TABLE_KEY, LootTable.TABLE_KEY, lootTableKey);
+
+		long seed = getLootTableSeed();
+
+		if (seed != 0L) {
+			view.putLong(LOOT_TABLE_SEED_KEY, seed);
 		}
+
+		return true;
 	}
 
+	/**
+	 * Генерирует содержимое инвентаря из привязанной лут-таблицы.
+	 * Вызывается при первом открытии контейнера игроком.
+	 * После генерации лут-таблица сбрасывается в {@code null}.
+	 *
+	 * @param player игрок, открывший контейнер; может быть {@code null} для безликой генерации
+	 */
 	default void generateLoot(@Nullable PlayerEntity player) {
-		World world = this.getWorld();
-		BlockPos blockPos = this.getPos();
-		RegistryKey<LootTable> registryKey = this.getLootTable();
-		if (registryKey != null && world != null && world.getServer() != null) {
-			LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(registryKey);
-			if (player instanceof ServerPlayerEntity) {
-				Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger((ServerPlayerEntity) player, registryKey);
-			}
+		World world = getWorld();
+		BlockPos blockPos = getPos();
+		RegistryKey<LootTable> lootTableKey = getLootTable();
 
-			this.setLootTable(null);
-			LootWorldContext.Builder
-					builder =
-					new LootWorldContext.Builder((ServerWorld) world).add(
-							LootContextParameters.ORIGIN,
-							Vec3d.ofCenter(blockPos)
-					);
-			if (player != null) {
-				builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
-			}
-
-			lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), this.getLootTableSeed());
+		if (lootTableKey == null || world == null || world.getServer() == null) {
+			return;
 		}
+
+		LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(lootTableKey);
+
+		if (player instanceof ServerPlayerEntity serverPlayer) {
+			Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(serverPlayer, lootTableKey);
+		}
+
+		setLootTable(null);
+
+		LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld) world)
+			.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(blockPos));
+
+		if (player != null) {
+			builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
+		}
+
+		lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), getLootTableSeed());
 	}
 }

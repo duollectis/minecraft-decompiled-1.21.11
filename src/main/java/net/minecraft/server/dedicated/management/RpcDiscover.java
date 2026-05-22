@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code RpcDiscover}.
+ * Класс Rpc Discover.
  */
 public class RpcDiscover {
 
@@ -41,9 +41,6 @@ public class RpcDiscover {
 		return new RpcDiscover.Document("1.3.2", info, list, new RpcDiscover.Components(map));
 	}
 
-	/**
-	 * {@code Components}.
-	 */
 	public record Components(Map<String, RpcSchema<?>> schemas) {
 
 		public static final MapCodec<RpcDiscover.Components> CODEC = createCodec();
@@ -61,9 +58,6 @@ public class RpcDiscover {
 		}
 	}
 
-	/**
-	 * {@code Document}.
-	 */
 	public record Document(
 			String jsonRpcProtocolVersion,
 			RpcDiscover.Info discoverInfo,
@@ -88,9 +82,6 @@ public class RpcDiscover {
 		);
 	}
 
-	/**
-	 * {@code Info}.
-	 */
 	public record Info(String title, String version) {
 
 		public static final MapCodec<RpcDiscover.Info> CODEC = RecordCodecBuilder.mapCodec(

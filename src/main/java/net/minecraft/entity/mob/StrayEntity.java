@@ -18,7 +18,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code StrayEntity}.
+ * Бродяга — ледяной вариант скелета, стреляющий стрелами замедления.
  */
 public class StrayEntity extends AbstractSkeletonEntity {
 
@@ -33,15 +33,13 @@ public class StrayEntity extends AbstractSkeletonEntity {
 			BlockPos pos,
 			Random random
 	) {
-		BlockPos blockPos = pos;
-
-		do {
-			blockPos = blockPos.up();
+		BlockPos skyCheckPos = pos.up();
+		while (world.getBlockState(skyCheckPos).isOf(Blocks.POWDER_SNOW)) {
+			skyCheckPos = skyCheckPos.up();
 		}
-		while (world.getBlockState(blockPos).isOf(Blocks.POWDER_SNOW));
 
 		return HostileEntity.canSpawnInDark(type, world, spawnReason, pos, random)
-				&& (SpawnReason.isAnySpawner(spawnReason) || world.isSkyVisible(blockPos.down()));
+				&& (SpawnReason.isAnySpawner(spawnReason) || world.isSkyVisible(skyCheckPos.down()));
 	}
 
 	@Override
@@ -64,19 +62,20 @@ public class StrayEntity extends AbstractSkeletonEntity {
 		return SoundEvents.ENTITY_STRAY_STEP;
 	}
 
+	private static final int SLOWNESS_DURATION = 600;
+
 	@Override
 	protected PersistentProjectileEntity createArrowProjectile(
 			ItemStack arrow,
 			float damageModifier,
 			@Nullable ItemStack shotFrom
 	) {
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				super.createArrowProjectile(arrow, damageModifier, shotFrom);
-		if (persistentProjectileEntity instanceof ArrowEntity) {
-			((ArrowEntity) persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 600));
+		PersistentProjectileEntity projectile = super.createArrowProjectile(arrow, damageModifier, shotFrom);
+
+		if (projectile instanceof ArrowEntity arrowEntity) {
+			arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, SLOWNESS_DURATION));
 		}
 
-		return persistentProjectileEntity;
+		return projectile;
 	}
 }

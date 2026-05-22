@@ -9,10 +9,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockModelPart}.
+ * Запечённая часть блочной модели: предоставляет квады по направлению грани,
+ * флаг ambient occlusion и спрайт частиц при разрушении блока.
  */
+@Environment(EnvType.CLIENT)
 public interface BlockModelPart extends FabricBlockModelPart {
 
 	List<BakedQuad> getQuads(@Nullable Direction side);
@@ -21,11 +22,12 @@ public interface BlockModelPart extends FabricBlockModelPart {
 
 	Sprite particleSprite();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённая часть блочной модели, способная разрешать зависимости
+	 * и запекаться в {@link BlockModelPart} через {@link Baker}.
 	 */
-	public interface Unbaked extends ResolvableModel {
+	@Environment(EnvType.CLIENT)
+	interface Unbaked extends ResolvableModel {
 
 		BlockModelPart bake(Baker baker);
 	}

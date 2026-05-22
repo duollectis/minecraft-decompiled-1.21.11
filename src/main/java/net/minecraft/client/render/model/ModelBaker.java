@@ -33,10 +33,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelBaker}.
+ * Оркестратор запекания всех моделей блоков и предметов.
+ * Содержит статические идентификаторы спрайтов жидкостей, огня и баннеров,
+ * а также управляет асинхронным запеканием через {@link BakerImpl}.
  */
+@Environment(EnvType.CLIENT)
 public class ModelBaker {
 
 	public static final SpriteIdentifier FIRE_0 = TexturedRenderLayers.BLOCK_SPRITE_MAPPER.mapVanilla("fire_0");
@@ -62,7 +64,7 @@ public class ModelBaker {
 			TexturedRenderLayers.SHIELD_PATTERNS_ATLAS_TEXTURE, Identifier.ofVanilla("entity/shield_base_nopattern")
 	);
 	public static final int MAX_BLOCK_DESTRUCTION_STAGE = 10;
-	public static final List<Identifier> BLOCK_DESTRUCTION_STAGES = IntStream.range(0, 10)
+	public static final List<Identifier> BLOCK_DESTRUCTION_STAGES = IntStream.range(0, MAX_BLOCK_DESTRUCTION_STAGE)
 	                                                                         .mapToObj(stage -> Identifier.ofVanilla(
 			                                                                         "block/destroy_stage_" + stage))
 	                                                                         .collect(Collectors.toList());
@@ -161,10 +163,10 @@ public class ModelBaker {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakedModels}.
+	 * Результат запекания: содержит модели-заглушки, карту моделей блоков и предметов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record BakedModels(
 			ModelBaker.BlockItemModels missingModels,
 			Map<BlockState, BlockStateModel> blockStateModels,
@@ -173,10 +175,10 @@ public class ModelBaker {
 	) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BakerImpl}.
+	 * Реализация {@link Baker} с кэшированием результатов вычислений через {@link ConcurrentHashMap}.
 	 */
+	@Environment(EnvType.CLIENT)
 	class BakerImpl implements Baker {
 
 		private final ErrorCollectingSpriteGetter spriteGetter;
@@ -187,11 +189,11 @@ public class ModelBaker {
 
 		BakerImpl(
 				final ErrorCollectingSpriteGetter spriteGetter,
-				final Baker.VertexInterner arg,
+				final Baker.VertexInterner vertexInterner,
 				final ModelBaker.BlockItemModels blockItemModels
 		) {
 			this.spriteGetter = spriteGetter;
-			this.vertexInterner = arg;
+			this.vertexInterner = vertexInterner;
 			this.blockItemModels = blockItemModels;
 		}
 
@@ -232,10 +234,11 @@ public class ModelBaker {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BlockItemModels}.
+	 * Тройка запечённых моделей-заглушек: часть блока, модель блока и модель предмета.
+	 * Используется как fallback при отсутствии реальной модели.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record BlockItemModels(BlockModelPart blockPart, BlockStateModel block, ItemModel item) {
 
 		public static ModelBaker.BlockItemModels bake(
@@ -287,17 +290,17 @@ public class ModelBaker {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code VectorInternerImpl}.
+	 * Реализация интернирования вершин через {@link Interner} для дедупликации одинаковых позиций.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class VectorInternerImpl implements Baker.VertexInterner {
 
 		private final Interner<Vector3fc> vectorInterner = Interners.newStrongInterner();
 
 		@Override
-		public Vector3fc internVector(Vector3fc vector3fc) {
-			return (Vector3fc) this.vectorInterner.intern(vector3fc);
+		public Vector3fc internVector(Vector3fc vector) {
+			return vectorInterner.intern(vector);
 		}
 	}
 }

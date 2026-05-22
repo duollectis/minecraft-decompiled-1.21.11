@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code UpwardsBranchingTrunkPlacer}.
+ * Алгоритм размещения ствола с восходящими ветвями (мангровое дерево).
+ * Строит прямой ствол и с заданной вероятностью на каждом уровне генерирует
+ * боковую ветвь, которая растёт вверх и в сторону на несколько шагов.
  */
 public class UpwardsBranchingTrunkPlacer extends TrunkPlacer {
 
@@ -82,27 +84,29 @@ public class UpwardsBranchingTrunkPlacer extends TrunkPlacer {
 			BlockPos startPos,
 			TreeFeatureConfig config
 	) {
-		List<FoliagePlacer.TreeNode> list = Lists.newArrayList();
+		List<FoliagePlacer.TreeNode> nodes = Lists.newArrayList();
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = 0; i < height; i++) {
-			int j = startPos.getY() + i;
-			if (this.getAndSetState(world, replacer, random, mutable.set(startPos.getX(), j, startPos.getZ()), config)
-					&& i < height - 1
-					&& random.nextFloat() < this.placeBranchPerLogProbability) {
-				Direction direction = Direction.Type.HORIZONTAL.random(random);
-				int k = this.extraBranchLength.get(random);
-				int l = Math.max(0, k - this.extraBranchLength.get(random) - 1);
-				int m = this.extraBranchSteps.get(random);
-				this.generateExtraBranch(world, replacer, random, height, config, list, mutable, j, direction, l, m);
+		for (int y = 0; y < height; y++) {
+			int worldY = startPos.getY() + y;
+
+			if (getAndSetState(world, replacer, random, mutable.set(startPos.getX(), worldY, startPos.getZ()), config)
+					&& y < height - 1
+					&& random.nextFloat() < placeBranchPerLogProbability
+			) {
+				Direction branchDir = Direction.Type.HORIZONTAL.random(random);
+				int branchLen = extraBranchLength.get(random);
+				int startOffset = Math.max(0, branchLen - extraBranchLength.get(random) - 1);
+				int branchSteps = extraBranchSteps.get(random);
+				generateExtraBranch(world, replacer, random, height, config, nodes, mutable, worldY, branchDir, startOffset, branchSteps);
 			}
 
-			if (i == height - 1) {
-				list.add(new FoliagePlacer.TreeNode(mutable.set(startPos.getX(), j + 1, startPos.getZ()), 0, false));
+			if (y == height - 1) {
+				nodes.add(new FoliagePlacer.TreeNode(mutable.set(startPos.getX(), worldY + 1, startPos.getZ()), 0, false));
 			}
 		}
 
-		return list;
+		return nodes;
 	}
 
 	private void generateExtraBranch(
@@ -113,42 +117,43 @@ public class UpwardsBranchingTrunkPlacer extends TrunkPlacer {
 			TreeFeatureConfig config,
 			List<FoliagePlacer.TreeNode> nodes,
 			BlockPos.Mutable pos,
-			int yOffset,
+			int baseY,
 			Direction direction,
-			int length,
+			int startOffset,
 			int steps
 	) {
-		int i = yOffset + length;
-		int j = pos.getX();
-		int k = pos.getZ();
-		int l = length;
+		int topY = baseY + startOffset;
+		int currentX = pos.getX();
+		int currentZ = pos.getZ();
+		int offset = startOffset;
 
-		while (l < height && steps > 0) {
-			if (l >= 1) {
-				int m = yOffset + l;
-				j += direction.getOffsetX();
-				k += direction.getOffsetZ();
-				i = m;
-				if (this.getAndSetState(world, replacer, random, pos.set(j, m, k), config)) {
-					i = m + 1;
+		while (offset < height && steps > 0) {
+			if (offset >= 1) {
+				int worldY = baseY + offset;
+				currentX += direction.getOffsetX();
+				currentZ += direction.getOffsetZ();
+				topY = worldY;
+
+				if (getAndSetState(world, replacer, random, pos.set(currentX, worldY, currentZ), config)) {
+					topY = worldY + 1;
 				}
 
 				nodes.add(new FoliagePlacer.TreeNode(pos.toImmutable(), 0, false));
 			}
 
-			l++;
+			offset++;
 			steps--;
 		}
 
-		if (i - yOffset > 1) {
-			BlockPos blockPos = new BlockPos(j, i, k);
-			nodes.add(new FoliagePlacer.TreeNode(blockPos, 0, false));
-			nodes.add(new FoliagePlacer.TreeNode(blockPos.down(2), 0, false));
+		if (topY - baseY > 1) {
+			BlockPos branchTop = new BlockPos(currentX, topY, currentZ);
+			nodes.add(new FoliagePlacer.TreeNode(branchTop, 0, false));
+			nodes.add(new FoliagePlacer.TreeNode(branchTop.down(2), 0, false));
 		}
 	}
 
 	@Override
 	protected boolean canReplace(TestableWorld world, BlockPos pos) {
-		return super.canReplace(world, pos) || world.testBlockState(pos, state -> state.isIn(this.canGrowThrough));
+		return super.canReplace(world, pos) || world.testBlockState(pos, state -> state.isIn(canGrowThrough));
 	}
 }

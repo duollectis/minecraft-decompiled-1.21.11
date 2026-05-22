@@ -117,7 +117,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code ServerPlayerEntity}.
+ * Класс Server Player Entity.
  */
 public class ServerPlayerEntity extends PlayerEntity {
 
@@ -784,7 +784,7 @@ public class ServerPlayerEntity extends PlayerEntity {
 				}
 			}
 
-			if (this.age % 10 == 0 && this.hungerManager.isNotFull()) {
+			if (this.age % FORGIVE_ANGER_RADIUS_Y == 0 && this.hungerManager.isNotFull()) {
 				this.hungerManager.setFoodLevel(this.hungerManager.getFoodLevel() + 1);
 			}
 		}
@@ -1672,7 +1672,7 @@ public class ServerPlayerEntity extends PlayerEntity {
 			}
 			else {
 				int i = Math.round((float) Math.sqrt(deltaX * deltaX + deltaZ * deltaZ) * 100.0F);
-				if (i > 25) {
+				if (i > MIN_FLY_STAT_DISTANCE) {
 					this.increaseStat(Stats.FLY_ONE_CM, i);
 				}
 			}
@@ -2661,9 +2661,6 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return !this.server.getSubscriberTracker().canSubscribe(this) ? Set.of() : this.subscribedTypes;
 	}
 
-	/**
-	 * {@code Respawn}.
-	 */
 	public record Respawn(WorldProperties.SpawnPoint respawnData, boolean forced) {
 
 		public static final Codec<ServerPlayerEntity.Respawn> CODEC = RecordCodecBuilder.create(
@@ -2690,9 +2687,6 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
-	/**
-	 * {@code RespawnPos}.
-	 */
 	record RespawnPos(Vec3d pos, float yaw, float pitch) {
 
 		public static ServerPlayerEntity.RespawnPos fromCurrentPos(Vec3d respawnPos, BlockPos currentPos, float f) {
@@ -2705,9 +2699,6 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
-	/**
-	 * {@code SavePos}.
-	 */
 	public record SavePos(Optional<RegistryKey<World>> dimension, Optional<Vec3d> position, Optional<Vec2f> rotation) {
 
 		public static final MapCodec<ServerPlayerEntity.SavePos> CODEC = RecordCodecBuilder.mapCodec(

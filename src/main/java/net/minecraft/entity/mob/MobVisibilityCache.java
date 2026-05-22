@@ -7,7 +7,7 @@ import net.minecraft.util.profiler.Profiler;
 import net.minecraft.util.profiler.Profilers;
 
 /**
- * {@code MobVisibilityCache}.
+ * Кэш видимости мобов для оптимизации проверок линии видимости.
  */
 public class MobVisibilityCache {
 
@@ -19,42 +19,33 @@ public class MobVisibilityCache {
 		this.owner = owner;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.visibleEntities.clear();
-		this.invisibleEntities.clear();
+		visibleEntities.clear();
+		invisibleEntities.clear();
 	}
 
-	/**
-	 * Проверяет возможность see.
-	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canSee(Entity entity) {
-		int i = entity.getId();
-		if (this.visibleEntities.contains(i)) {
+		int entityId = entity.getId();
+
+		if (visibleEntities.contains(entityId)) {
 			return true;
 		}
-		else if (this.invisibleEntities.contains(i)) {
+
+		if (invisibleEntities.contains(entityId)) {
 			return false;
 		}
-		else {
-			Profiler profiler = Profilers.get();
-			profiler.push("hasLineOfSight");
-			boolean bl = this.owner.canSee(entity);
-			profiler.pop();
-			if (bl) {
-				this.visibleEntities.add(i);
-			}
-			else {
-				this.invisibleEntities.add(i);
-			}
 
-			return bl;
+		Profiler profiler = Profilers.get();
+		profiler.push("hasLineOfSight");
+		boolean visible = owner.canSee(entity);
+		profiler.pop();
+
+		if (visible) {
+			visibleEntities.add(entityId);
+		} else {
+			invisibleEntities.add(entityId);
 		}
+
+		return visible;
 	}
 }

@@ -20,29 +20,28 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 
 /**
- * {@code EndermiteEntity}.
+ * Эндермит — маленький враждебный моб, появляющийся при телепортации.
  */
 public class EndermiteEntity extends HostileEntity {
 
 	private static final int DESPAWN_TIME = 2400;
-	private static final int DEFAULT_LIFETIME = 0;
-	private int lifeTime = 0;
+	private int lifeTime;
 
 	public EndermiteEntity(EntityType<? extends EndermiteEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 3;
+		experiencePoints = 3;
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
-		this.goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
-		this.goalSelector.add(3, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(8, new LookAroundGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(1, new PowderSnowJumpGoal(this, getEntityWorld()));
+		goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
+		goalSelector.add(3, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(8, new LookAroundGoal(this));
+		targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+		targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
 	}
 
 	public static DefaultAttributeContainer.Builder createEndermiteAttributes() {
@@ -74,57 +73,57 @@ public class EndermiteEntity extends HostileEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_ENDERMITE_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_ENDERMITE_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.lifeTime = view.getInt("Lifetime", 0);
+		lifeTime = view.getInt("Lifetime", 0);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Lifetime", this.lifeTime);
+		view.putInt("Lifetime", lifeTime);
 	}
 
 	@Override
 	public void tick() {
-		this.bodyYaw = this.getYaw();
+		bodyYaw = getYaw();
 		super.tick();
 	}
 
 	@Override
 	public void setBodyYaw(float bodyYaw) {
-		this.setYaw(bodyYaw);
+		setYaw(bodyYaw);
 		super.setBodyYaw(bodyYaw);
 	}
 
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (this.getEntityWorld().isClient()) {
-			for (int i = 0; i < 2; i++) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    ParticleTypes.PORTAL,
-						    this.getParticleX(0.5),
-						    this.getRandomBodyY(),
-						    this.getParticleZ(0.5),
-						    (this.random.nextDouble() - 0.5) * 2.0,
-						    -this.random.nextDouble(),
-						    (this.random.nextDouble() - 0.5) * 2.0
-				    );
+		if (getEntityWorld().isClient()) {
+			for (int particleIndex = 0; particleIndex < 2; particleIndex++) {
+				getEntityWorld()
+					.addParticleClient(
+						ParticleTypes.PORTAL,
+						getParticleX(0.5),
+						getRandomBodyY(),
+						getParticleZ(0.5),
+						(random.nextDouble() - 0.5) * 2.0,
+						-random.nextDouble(),
+						(random.nextDouble() - 0.5) * 2.0
+					);
 			}
 		}
 		else {
-			if (!this.isPersistent()) {
-				this.lifeTime++;
+			if (!isPersistent()) {
+				lifeTime++;
 			}
 
-			if (this.lifeTime >= 2400) {
-				this.discard();
+			if (lifeTime >= DESPAWN_TIME) {
+				discard();
 			}
 		}
 	}
@@ -139,14 +138,12 @@ public class EndermiteEntity extends HostileEntity {
 		if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
 			return false;
 		}
-		else if (SpawnReason.isAnySpawner(spawnReason)) {
+
+		if (SpawnReason.isAnySpawner(spawnReason)) {
 			return true;
 		}
-		else {
-			PlayerEntity
-					playerEntity =
-					world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
-			return playerEntity == null;
-		}
+
+		PlayerEntity nearestPlayer = world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
+		return nearestPlayer == null;
 	}
 }

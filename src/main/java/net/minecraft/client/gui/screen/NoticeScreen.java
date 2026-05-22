@@ -11,13 +11,17 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NoticeScreen}.
+ * Экран уведомления с текстом и одной кнопкой действия.
  */
+@Environment(EnvType.CLIENT)
 public class NoticeScreen extends Screen {
 
 	private static final int NOTICE_TEXT_Y = 90;
+	private static final int BUTTON_WIDTH = 150;
+	private static final int BUTTON_HEIGHT = 20;
+	private static final int LINE_HEIGHT = 9;
+
 	private final Text notice;
 	private MultilineText noticeLines = MultilineText.EMPTY;
 	private final Runnable actionHandler;
@@ -38,32 +42,33 @@ public class NoticeScreen extends Screen {
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(super.getNarratedTitle(), this.notice);
+		return ScreenTexts.joinSentences(super.getNarratedTitle(), notice);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.noticeLines = MultilineText.create(this.textRenderer, this.notice, this.width - 50);
-		int i = this.noticeLines.getLineCount() * 9;
-		int j = MathHelper.clamp(90 + i + 12, this.height / 6 + 96, this.height - 24);
-		int k = 150;
-		this.addDrawableChild(ButtonWidget
-				.builder(this.buttonText, button -> this.actionHandler.run())
-				.dimensions((this.width - 150) / 2, j, 150, 20)
-				.build());
+		noticeLines = MultilineText.create(textRenderer, notice, width - 50);
+		int textHeight = noticeLines.getLineCount() * LINE_HEIGHT;
+		int buttonY = MathHelper.clamp(NOTICE_TEXT_Y + textHeight + 12, height / 6 + 96, height - 24);
+
+		addDrawableChild(
+				ButtonWidget.builder(buttonText, button -> actionHandler.run())
+						.dimensions((width - BUTTON_WIDTH) / 2, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT)
+						.build()
+		);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
 		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 70, -1);
-		this.noticeLines.draw(Alignment.CENTER, this.width / 2, 90, 9, drawnTextConsumer);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 70, -1);
+		noticeLines.draw(Alignment.CENTER, width / 2, NOTICE_TEXT_Y, LINE_HEIGHT, drawnTextConsumer);
 	}
 
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return this.shouldCloseOnEsc;
+		return shouldCloseOnEsc;
 	}
 }

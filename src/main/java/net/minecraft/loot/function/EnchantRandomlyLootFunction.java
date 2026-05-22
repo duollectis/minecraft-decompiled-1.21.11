@@ -25,34 +25,32 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-/**
- * {@code EnchantRandomlyLootFunction}.
- */
+/** Функция лута, добавляющая случайное зачарование к предмету. */
 public class EnchantRandomlyLootFunction extends ConditionalLootFunction {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<EnchantRandomlyLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									RegistryCodecs
-											.entryList(RegistryKeys.ENCHANTMENT)
-											.optionalFieldOf("options")
-											.forGetter(function -> function.options),
-									Codec.BOOL
-											.optionalFieldOf("only_compatible", true)
-											.forGetter(function -> function.onlyCompatible)
-							)
-					)
-					.apply(instance, EnchantRandomlyLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				RegistryCodecs
+					.entryList(RegistryKeys.ENCHANTMENT)
+					.optionalFieldOf("options")
+					.forGetter(function -> function.options),
+				Codec.BOOL
+					.optionalFieldOf("only_compatible", true)
+					.forGetter(function -> function.onlyCompatible)
+			))
+			.apply(instance, EnchantRandomlyLootFunction::new)
 	);
+
 	private final Optional<RegistryEntryList<Enchantment>> options;
 	private final boolean onlyCompatible;
 
 	EnchantRandomlyLootFunction(
-			List<LootCondition> conditions,
-			Optional<RegistryEntryList<Enchantment>> options,
-			boolean onlyCompatible
+		List<LootCondition> conditions,
+		Optional<RegistryEntryList<Enchantment>> options,
+		boolean onlyCompatible
 	) {
 		super(conditions);
 		this.options = options;
@@ -67,82 +65,85 @@ public class EnchantRandomlyLootFunction extends ConditionalLootFunction {
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		Random random = context.getRandom();
-		boolean bl = stack.isOf(Items.BOOK);
-		boolean bl2 = !bl && this.onlyCompatible;
-		Stream<RegistryEntry<Enchantment>> stream = this.options
-				.map(RegistryEntryList::stream)
-				.orElseGet(() -> context
-						.getWorld()
-						.getRegistryManager()
-						.getOrThrow(RegistryKeys.ENCHANTMENT)
-						.streamEntries()
-						.map(Function.identity()))
-				.filter(entry -> !bl2 || entry.value().isAcceptableItem(stack));
-		List<RegistryEntry<Enchantment>> list = stream.toList();
-		Optional<RegistryEntry<Enchantment>> optional = Util.getRandomOrEmpty(list, random);
-		if (optional.isEmpty()) {
+		boolean isBook = stack.isOf(Items.BOOK);
+		boolean filterCompatible = !isBook && onlyCompatible;
+
+		Stream<RegistryEntry<Enchantment>> enchantmentStream = options
+			.map(RegistryEntryList::stream)
+			.orElseGet(() -> context
+				.getWorld()
+				.getRegistryManager()
+				.getOrThrow(RegistryKeys.ENCHANTMENT)
+				.streamEntries()
+				.map(Function.identity()))
+			.filter(entry -> !filterCompatible || entry.value().isAcceptableItem(stack));
+
+		List<RegistryEntry<Enchantment>> candidates = enchantmentStream.toList();
+		Optional<RegistryEntry<Enchantment>> chosen = Util.getRandomOrEmpty(candidates, random);
+
+		if (chosen.isEmpty()) {
 			LOGGER.warn("Couldn't find a compatible enchantment for {}", stack);
 			return stack;
 		}
-		else {
-			return addEnchantmentToStack(stack, optional.get(), random);
-		}
+
+		return addEnchantmentToStack(stack, chosen.get(), random);
 	}
 
 	private static ItemStack addEnchantmentToStack(
-			ItemStack stack,
-			RegistryEntry<Enchantment> enchantment,
-			Random random
+		ItemStack stack,
+		RegistryEntry<Enchantment> enchantment,
+		Random random
 	) {
-		int i = MathHelper.nextInt(random, enchantment.value().getMinLevel(), enchantment.value().getMaxLevel());
+		int level = MathHelper.nextInt(random, enchantment.value().getMinLevel(), enchantment.value().getMaxLevel());
+
 		if (stack.isOf(Items.BOOK)) {
 			stack = new ItemStack(Items.ENCHANTED_BOOK);
 		}
 
-		stack.addEnchantment(enchantment, i);
+		stack.addEnchantment(enchantment, level);
+
 		return stack;
 	}
 
 	public static EnchantRandomlyLootFunction.Builder create() {
-		return new EnchantRandomlyLootFunction.Builder();
+		return new Builder();
 	}
 
 	public static EnchantRandomlyLootFunction.Builder builder(RegistryWrapper.WrapperLookup registries) {
 		return create().options(registries
-				.getOrThrow(RegistryKeys.ENCHANTMENT)
-				.getOrThrow(EnchantmentTags.ON_RANDOM_LOOT));
+			.getOrThrow(RegistryKeys.ENCHANTMENT)
+			.getOrThrow(EnchantmentTags.ON_RANDOM_LOOT));
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<EnchantRandomlyLootFunction.Builder> {
+	/** Строитель функции случайного зачарования. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private Optional<RegistryEntryList<Enchantment>> options = Optional.empty();
 		private boolean onlyCompatible = true;
 
-		protected EnchantRandomlyLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
 			return this;
 		}
 
-		public EnchantRandomlyLootFunction.Builder option(RegistryEntry<Enchantment> enchantment) {
-			this.options = Optional.of(RegistryEntryList.of(enchantment));
+		public Builder option(RegistryEntry<Enchantment> enchantment) {
+			options = Optional.of(RegistryEntryList.of(enchantment));
 			return this;
 		}
 
-		public EnchantRandomlyLootFunction.Builder options(RegistryEntryList<Enchantment> options) {
+		public Builder options(RegistryEntryList<Enchantment> options) {
 			this.options = Optional.of(options);
 			return this;
 		}
 
-		public EnchantRandomlyLootFunction.Builder allowIncompatible() {
-			this.onlyCompatible = false;
+		public Builder allowIncompatible() {
+			onlyCompatible = false;
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new EnchantRandomlyLootFunction(this.getConditions(), this.options, this.onlyCompatible);
+			return new EnchantRandomlyLootFunction(getConditions(), options, onlyCompatible);
 		}
 	}
 }

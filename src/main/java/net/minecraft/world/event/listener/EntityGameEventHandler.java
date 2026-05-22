@@ -10,7 +10,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * {@code EntityGameEventHandler}.
+ * Управляет регистрацией {@link GameEventListener} сущности в диспетчерах событий чанков.
+ * <p>
+ * При перемещении сущности автоматически переносит слушателя из старой секции чанка
+ * в новую, обеспечивая корректное получение событий независимо от позиции сущности.
+ *
+ * @param <T> тип слушателя игровых событий
  */
 public class EntityGameEventHandler<T extends GameEventListener> {
 
@@ -21,53 +26,52 @@ public class EntityGameEventHandler<T extends GameEventListener> {
 		this.listener = listener;
 	}
 
+	public T getListener() {
+		return listener;
+	}
+
 	/**
-	 * Обрабатывает событие entity set pos callback.
-	 *
-	 * @param world world
+	 * Вызывается движком при установке позиции сущности через колбэк.
+	 * Делегирует в {@link #onEntitySetPos(ServerWorld)}.
 	 */
 	public void onEntitySetPosCallback(ServerWorld world) {
-		this.onEntitySetPos(world);
-	}
-
-	public T getListener() {
-		return this.listener;
+		onEntitySetPos(world);
 	}
 
 	/**
-	 * Обрабатывает событие entity removal.
-	 *
-	 * @param world world
+	 * Удаляет слушателя из диспетчера текущей секции чанка при удалении сущности из мира.
 	 */
 	public void onEntityRemoval(ServerWorld world) {
-		updateDispatcher(world, this.sectionPos, dispatcher -> dispatcher.removeListener(this.listener));
+		updateDispatcher(world, sectionPos, dispatcher -> dispatcher.removeListener(listener));
 	}
 
 	/**
-	 * Обрабатывает событие entity set pos.
-	 *
-	 * @param world world
+	 * Обновляет регистрацию слушателя при изменении позиции сущности.
+	 * Если сущность перешла в другую секцию чанка — снимает регистрацию со старой
+	 * и регистрирует в новой.
 	 */
 	public void onEntitySetPos(ServerWorld world) {
-		this.listener.getPositionSource().getPos(world).map(ChunkSectionPos::from).ifPresent(sectionPos -> {
-			if (this.sectionPos == null || !this.sectionPos.equals(sectionPos)) {
-				updateDispatcher(world, this.sectionPos, dispatcher -> dispatcher.removeListener(this.listener));
-				this.sectionPos = sectionPos;
-				updateDispatcher(world, this.sectionPos, dispatcher -> dispatcher.addListener(this.listener));
+		listener.getPositionSource().getPos(world).map(ChunkSectionPos::from).ifPresent(newSectionPos -> {
+			if (sectionPos == null || !sectionPos.equals(newSectionPos)) {
+				updateDispatcher(world, sectionPos, dispatcher -> dispatcher.removeListener(listener));
+				sectionPos = newSectionPos;
+				updateDispatcher(world, sectionPos, dispatcher -> dispatcher.addListener(listener));
 			}
 		});
 	}
 
 	private static void updateDispatcher(
-			WorldView world,
-			@Nullable ChunkSectionPos sectionPos,
-			Consumer<GameEventDispatcher> dispatcherConsumer
+		WorldView world,
+		@Nullable ChunkSectionPos sectionPos,
+		Consumer<GameEventDispatcher> dispatcherConsumer
 	) {
-		if (sectionPos != null) {
-			Chunk chunk = world.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.FULL, false);
-			if (chunk != null) {
-				dispatcherConsumer.accept(chunk.getGameEventDispatcher(sectionPos.getSectionY()));
-			}
+		if (sectionPos == null) {
+			return;
+		}
+
+		Chunk chunk = world.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.FULL, false);
+		if (chunk != null) {
+			dispatcherConsumer.accept(chunk.getGameEventDispatcher(sectionPos.getSectionY()));
 		}
 	}
 }

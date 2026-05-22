@@ -13,61 +13,64 @@ import net.minecraft.util.ErrorReporter;
 import java.util.stream.Stream;
 
 /**
- * {@code LootDataType}.
+ * Описывает тип данных лут-системы: ключ реестра, кодек и валидатор.
+ *
+ * <p>Три стандартных типа: {@link #PREDICATES} (условия), {@link #ITEM_MODIFIERS} (функции)
+ * и {@link #LOOT_TABLES} (таблицы). Используется при загрузке и валидации данных.</p>
+ *
+ * @param <T> тип данных
  */
 public record LootDataType<T>(
-		RegistryKey<Registry<T>> registryKey,
-		Codec<T> codec,
-		LootDataType.Validator<T> validator
+	RegistryKey<Registry<T>> registryKey,
+	Codec<T> codec,
+	LootDataType.Validator<T> validator
 ) {
 
-	public static final LootDataType<LootCondition>
-			PREDICATES =
-			new LootDataType<>(RegistryKeys.PREDICATE, LootCondition.CODEC, simpleValidator());
-	public static final LootDataType<LootFunction>
-			ITEM_MODIFIERS =
-			new LootDataType<>(RegistryKeys.ITEM_MODIFIER, LootFunctionTypes.CODEC, simpleValidator());
-	public static final LootDataType<LootTable>
-			LOOT_TABLES =
-			new LootDataType<>(RegistryKeys.LOOT_TABLE, LootTable.CODEC, tableValidator());
+	public static final LootDataType<LootCondition> PREDICATES = new LootDataType<>(
+		RegistryKeys.PREDICATE,
+		LootCondition.CODEC,
+		simpleValidator()
+	);
 
-	/**
-	 * Validate.
-	 *
-	 * @param reporter reporter
-	 * @param key key
-	 * @param value value
-	 */
+	public static final LootDataType<LootFunction> ITEM_MODIFIERS = new LootDataType<>(
+		RegistryKeys.ITEM_MODIFIER,
+		LootFunctionTypes.CODEC,
+		simpleValidator()
+	);
+
+	public static final LootDataType<LootTable> LOOT_TABLES = new LootDataType<>(
+		RegistryKeys.LOOT_TABLE,
+		LootTable.CODEC,
+		tableValidator()
+	);
+
 	public void validate(LootTableReporter reporter, RegistryKey<T> key, T value) {
-		this.validator.run(reporter, key, value);
+		validator.run(reporter, key, value);
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream> — результат операции
-	 */
 	public static Stream<LootDataType<?>> stream() {
 		return Stream.of(PREDICATES, ITEM_MODIFIERS, LOOT_TABLES);
 	}
 
 	private static <T extends LootContextAware> LootDataType.Validator<T> simpleValidator() {
-		return (reporter, key, value) -> value.validate(reporter.makeChild(
-				new ErrorReporter.LootTableContext(key),
-				key
-		));
+		return (reporter, key, value) -> value.validate(
+			reporter.makeChild(new ErrorReporter.LootTableContext(key), key)
+		);
 	}
 
 	private static LootDataType.Validator<LootTable> tableValidator() {
-		return (reporter, key, value) -> value.validate(reporter
-				.withContextType(value.getType())
-				.makeChild(new ErrorReporter.LootTableContext(key), key));
+		return (reporter, key, value) -> value.validate(
+			reporter.withContextType(value.getType())
+				.makeChild(new ErrorReporter.LootTableContext(key), key)
+		);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Validator}.
+	 * Функциональный интерфейс для валидации элемента лут-данных.
+	 *
+	 * @param <T> тип валидируемого элемента
 	 */
+	@FunctionalInterface
 	public interface Validator<T> {
 
 		void run(LootTableReporter reporter, RegistryKey<T> key, T value);

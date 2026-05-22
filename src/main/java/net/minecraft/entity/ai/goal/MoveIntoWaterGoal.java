@@ -6,9 +6,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code MoveIntoWaterGoal}.
+ * Цель, заставляющая моба войти в ближайшую воду в радиусе {@code WATER_SEARCH_RADIUS} блоков.
+ * Активируется, когда моб стоит на земле вне воды.
  */
 public class MoveIntoWaterGoal extends Goal {
+
+	private static final int WATER_SEARCH_RADIUS = 2;
+	private static final double MOVE_SPEED = 1.0;
 
 	private final PathAwareEntity mob;
 
@@ -18,32 +22,22 @@ public class MoveIntoWaterGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		return this.mob.isOnGround() && !this.mob
-				.getEntityWorld()
-				.getFluidState(this.mob.getBlockPos())
-				.isIn(FluidTags.WATER);
+		return mob.isOnGround() && !mob.getEntityWorld().getFluidState(mob.getBlockPos()).isIn(FluidTags.WATER);
 	}
 
 	@Override
 	public void start() {
-		BlockPos blockPos = null;
+		int minX = MathHelper.floor(mob.getX() - WATER_SEARCH_RADIUS);
+		int minY = MathHelper.floor(mob.getY() - WATER_SEARCH_RADIUS);
+		int minZ = MathHelper.floor(mob.getZ() - WATER_SEARCH_RADIUS);
+		int maxX = MathHelper.floor(mob.getX() + WATER_SEARCH_RADIUS);
+		int maxZ = MathHelper.floor(mob.getZ() + WATER_SEARCH_RADIUS);
 
-		for (BlockPos blockPos2 : BlockPos.iterate(
-				MathHelper.floor(this.mob.getX() - 2.0),
-				MathHelper.floor(this.mob.getY() - 2.0),
-				MathHelper.floor(this.mob.getZ() - 2.0),
-				MathHelper.floor(this.mob.getX() + 2.0),
-				this.mob.getBlockY(),
-				MathHelper.floor(this.mob.getZ() + 2.0)
-		)) {
-			if (this.mob.getEntityWorld().getFluidState(blockPos2).isIn(FluidTags.WATER)) {
-				blockPos = blockPos2;
+		for (BlockPos candidate : BlockPos.iterate(minX, minY, minZ, maxX, mob.getBlockY(), maxZ)) {
+			if (mob.getEntityWorld().getFluidState(candidate).isIn(FluidTags.WATER)) {
+				mob.getMoveControl().moveTo(candidate.getX(), candidate.getY(), candidate.getZ(), MOVE_SPEED);
 				break;
 			}
-		}
-
-		if (blockPos != null) {
-			this.mob.getMoveControl().moveTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0);
 		}
 	}
 }

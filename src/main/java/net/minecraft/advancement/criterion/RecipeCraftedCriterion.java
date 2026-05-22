@@ -17,97 +17,98 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code RecipeCraftedCriterion}.
+ * Критерий выполняется, когда игрок создаёт предмет по рецепту.
+ * Поддерживает проверку конкретных ингредиентов, использованных при крафте.
  */
 public class RecipeCraftedCriterion extends AbstractCriterion<RecipeCraftedCriterion.Conditions> {
 
 	@Override
-	public Codec<RecipeCraftedCriterion.Conditions> getConditionsCodec() {
-		return RecipeCraftedCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
-		this.trigger(player, conditions -> conditions.matches(recipeKey, ingredients));
+		trigger(player, conditions -> conditions.matches(recipeKey, ingredients));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			RegistryKey<Recipe<?>> recipeId,
 			List<ItemPredicate> ingredients
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<RecipeCraftedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(RecipeCraftedCriterion.Conditions::player),
-						                    Recipe.KEY_CODEC.fieldOf("recipe_id").forGetter(RecipeCraftedCriterion.Conditions::recipeId),
-						                    ItemPredicate.CODEC
-								                    .listOf()
-								                    .optionalFieldOf("ingredients", List.of())
-								                    .forGetter(RecipeCraftedCriterion.Conditions::ingredients)
-				                    )
-				                    .apply(instance, RecipeCraftedCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						Recipe.KEY_CODEC
+								.fieldOf("recipe_id")
+								.forGetter(Conditions::recipeId),
+						ItemPredicate.CODEC
+								.listOf()
+								.optionalFieldOf("ingredients", List.of())
+								.forGetter(Conditions::ingredients)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				RegistryKey<Recipe<?>> recipeKey,
 				List<ItemPredicate.Builder> ingredients
 		) {
-			return Criteria.RECIPE_CRAFTED
-					.create(new RecipeCraftedCriterion.Conditions(
-							Optional.empty(),
-							recipeKey,
-							ingredients.stream().map(ItemPredicate.Builder::build).toList()
-					));
+			return Criteria.RECIPE_CRAFTED.create(new Conditions(
+					Optional.empty(),
+					recipeKey,
+					ingredients.stream().map(ItemPredicate.Builder::build).toList()
+			));
 		}
 
-		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(RegistryKey<Recipe<?>> recipeKey) {
-			return Criteria.RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> create(RegistryKey<Recipe<?>> recipeKey) {
+			return Criteria.RECIPE_CRAFTED.create(new Conditions(
 					Optional.empty(),
 					recipeKey,
 					List.of()
 			));
 		}
 
-		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> createCrafterRecipeCrafted(RegistryKey<Recipe<?>> recipeKey) {
-			return Criteria.CRAFTER_RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> createCrafterRecipeCrafted(RegistryKey<Recipe<?>> recipeKey) {
+			return Criteria.CRAFTER_RECIPE_CRAFTED.create(new Conditions(
 					Optional.empty(),
 					recipeKey,
 					List.of()
 			));
 		}
 
+		/**
+		 * Проверяет, что рецепт совпадает и все требуемые предикаты ингредиентов
+		 * находят соответствие среди фактически использованных ингредиентов.
+		 * Каждый предикат потребляет один ингредиент — повторное использование невозможно.
+		 */
 		boolean matches(RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
-			if (recipeKey != this.recipeId) {
+			if (recipeKey != recipeId) {
 				return false;
 			}
-			else {
-				List<ItemStack> list = new ArrayList<>(ingredients);
 
-				for (ItemPredicate itemPredicate : this.ingredients) {
-					boolean bl = false;
-					Iterator<ItemStack> iterator = list.iterator();
+			List<ItemStack> remaining = new ArrayList<>(ingredients);
 
-					while (iterator.hasNext()) {
-						if (itemPredicate.test(iterator.next())) {
-							iterator.remove();
-							bl = true;
-							break;
-						}
-					}
+			for (ItemPredicate predicate : this.ingredients) {
+				boolean matched = false;
+				Iterator<ItemStack> iterator = remaining.iterator();
 
-					if (!bl) {
-						return false;
+				while (iterator.hasNext()) {
+					if (predicate.test(iterator.next())) {
+						iterator.remove();
+						matched = true;
+						break;
 					}
 				}
 
-				return true;
+				if (!matched) {
+					return false;
+				}
 			}
+
+			return true;
 		}
 	}
 }

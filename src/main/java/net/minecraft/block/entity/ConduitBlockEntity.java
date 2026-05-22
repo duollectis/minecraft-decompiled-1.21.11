@@ -34,19 +34,26 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code ConduitBlockEntity}.
+ * Блок-сущность кондуита. Управляет активацией, атакой монстров и эффектами
+ * для игроков в воде. Активируется при наличии достаточного числа призмариновых блоков
+ * в радиусе {@code ACTIVATION_FRAME_RADIUS}.
  */
 public class ConduitBlockEntity extends BlockEntity {
 
-	private static final int ACTIVATION_CHECK_RADIUS = 2;
-	private static final int ACTIVATION_FRAME_RADIUS = 13;
+	private static final int ACTIVATION_CHECK_INTERVAL = 40;
+	private static final int AMBIENT_SOUND_INTERVAL = 80;
 	private static final float EYE_ROTATION_SPEED = -0.0375F;
 	private static final int MIN_BLOCKS_TO_ACTIVATE_PARTIAL = 16;
 	private static final int MIN_BLOCKS_TO_ACTIVATE = 42;
 	private static final int EFFECT_RANGE_PER_BLOCK = 8;
-	private static final Block[]
-			ACTIVATING_BLOCKS =
-			new Block[]{Blocks.PRISMARINE, Blocks.PRISMARINE_BRICKS, Blocks.SEA_LANTERN, Blocks.DARK_PRISMARINE};
+	private static final int CONDUIT_POWER_DURATION = 260;
+	private static final Block[] ACTIVATING_BLOCKS = {
+			Blocks.PRISMARINE,
+			Blocks.PRISMARINE_BRICKS,
+			Blocks.SEA_LANTERN,
+			Blocks.DARK_PRISMARINE
+	};
+
 	public int ticks;
 	private float ticksActive;
 	private boolean active;
@@ -62,125 +69,114 @@ public class ConduitBlockEntity extends BlockEntity {
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.targetEntity = LazyEntityReference.fromData(view, "Target");
+		targetEntity = LazyEntityReference.fromData(view, "Target");
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		LazyEntityReference.writeData(this.targetEntity, view, "Target");
+		LazyEntityReference.writeData(targetEntity, view, "Target");
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
-	/**
-	 * Client tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, ConduitBlockEntity blockEntity) {
 		blockEntity.ticks++;
-		long l = world.getTime();
-		List<BlockPos> list = blockEntity.activatingBlocks;
-		if (l % 40L == 0L) {
-			blockEntity.active = updateActivatingBlocks(world, pos, list);
-			openEye(blockEntity, list);
+		long worldTime = world.getTime();
+		List<BlockPos> frames = blockEntity.activatingBlocks;
+
+		if (worldTime % ACTIVATION_CHECK_INTERVAL == 0L) {
+			blockEntity.active = updateActivatingBlocks(world, pos, frames);
+			openEye(blockEntity, frames);
 		}
 
-		LivingEntity livingEntity = LazyEntityReference.getLivingEntity(blockEntity.targetEntity, world);
-		spawnNautilusParticles(world, pos, list, livingEntity, blockEntity.ticks);
+		LivingEntity target = LazyEntityReference.getLivingEntity(blockEntity.targetEntity, world);
+		spawnNautilusParticles(world, pos, frames, target, blockEntity.ticks);
+
 		if (blockEntity.isActive()) {
 			blockEntity.ticksActive++;
 		}
 	}
 
-	/**
-	 * Server tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, ConduitBlockEntity blockEntity) {
 		blockEntity.ticks++;
-		long l = world.getTime();
-		List<BlockPos> list = blockEntity.activatingBlocks;
-		if (l % 40L == 0L) {
-			boolean bl = updateActivatingBlocks(world, pos, list);
-			if (bl != blockEntity.active) {
-				SoundEvent soundEvent = bl ? SoundEvents.BLOCK_CONDUIT_ACTIVATE : SoundEvents.BLOCK_CONDUIT_DEACTIVATE;
-				world.playSound(null, pos, soundEvent, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		long worldTime = world.getTime();
+		List<BlockPos> frames = blockEntity.activatingBlocks;
+
+		if (worldTime % ACTIVATION_CHECK_INTERVAL == 0L) {
+			boolean nowActive = updateActivatingBlocks(world, pos, frames);
+			if (nowActive != blockEntity.active) {
+				SoundEvent sound = nowActive
+						? SoundEvents.BLOCK_CONDUIT_ACTIVATE
+						: SoundEvents.BLOCK_CONDUIT_DEACTIVATE;
+				world.playSound(null, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
 			}
 
-			blockEntity.active = bl;
-			openEye(blockEntity, list);
-			if (bl) {
-				givePlayersEffects(world, pos, list);
-				tryAttack((ServerWorld) world, pos, state, blockEntity, list.size() >= 42);
+			blockEntity.active = nowActive;
+			openEye(blockEntity, frames);
+
+			if (nowActive) {
+				givePlayersEffects(world, pos, frames);
+				tryAttack((ServerWorld) world, pos, state, blockEntity, frames.size() >= MIN_BLOCKS_TO_ACTIVATE);
 			}
 		}
 
 		if (blockEntity.isActive()) {
-			if (l % 80L == 0L) {
+			if (worldTime % AMBIENT_SOUND_INTERVAL == 0L) {
 				world.playSound(null, pos, SoundEvents.BLOCK_CONDUIT_AMBIENT, SoundCategory.BLOCKS, 1.0F, 1.0F);
 			}
 
-			if (l > blockEntity.nextAmbientSoundTime) {
-				blockEntity.nextAmbientSoundTime = l + 60L + world.getRandom().nextInt(40);
+			if (worldTime > blockEntity.nextAmbientSoundTime) {
+				blockEntity.nextAmbientSoundTime = worldTime
+						+ Entity.MAX_RIDING_COOLDOWN
+						+ world.getRandom().nextInt(Entity.FREEZING_DAMAGE_INTERVAL);
 				world.playSound(null, pos, SoundEvents.BLOCK_CONDUIT_AMBIENT_SHORT, SoundCategory.BLOCKS, 1.0F, 1.0F);
 			}
 		}
 	}
 
 	private static void openEye(ConduitBlockEntity blockEntity, List<BlockPos> activatingBlocks) {
-		blockEntity.setEyeOpen(activatingBlocks.size() >= 42);
+		blockEntity.setEyeOpen(activatingBlocks.size() >= MIN_BLOCKS_TO_ACTIVATE);
 	}
 
 	private static boolean updateActivatingBlocks(World world, BlockPos pos, List<BlockPos> activatingBlocks) {
 		activatingBlocks.clear();
 
-		for (int i = -1; i <= 1; i++) {
-			for (int j = -1; j <= 1; j++) {
-				for (int k = -1; k <= 1; k++) {
-					BlockPos blockPos = pos.add(i, j, k);
-					if (!world.isWater(blockPos)) {
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					if (!world.isWater(pos.add(dx, dy, dz))) {
 						return false;
 					}
 				}
 			}
 		}
 
-		for (int i = -2; i <= 2; i++) {
-			for (int j = -2; j <= 2; j++) {
-				for (int kx = -2; kx <= 2; kx++) {
-					int l = Math.abs(i);
-					int m = Math.abs(j);
-					int n = Math.abs(kx);
-					if ((l > 1 || m > 1 || n > 1) && (i == 0 && (m == 2 || n == 2) || j == 0 && (l == 2 || n == 2)
-							|| kx == 0 && (l == 2 || m == 2)
-					)) {
-						BlockPos blockPos2 = pos.add(i, j, kx);
-						BlockState blockState = world.getBlockState(blockPos2);
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dy = -2; dy <= 2; dy++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					int absDx = Math.abs(dx);
+					int absDy = Math.abs(dy);
+					int absDz = Math.abs(dz);
+					boolean isFramePos = (absDx > 1 || absDy > 1 || absDz > 1)
+							&& (dx == 0 && (absDy == 2 || absDz == 2)
+							|| dy == 0 && (absDx == 2 || absDz == 2)
+							|| dz == 0 && (absDx == 2 || absDy == 2));
 
+					if (isFramePos) {
+						BlockPos framePos = pos.add(dx, dy, dz);
+						BlockState frameState = world.getBlockState(framePos);
 						for (Block block : ACTIVATING_BLOCKS) {
-							if (blockState.isOf(block)) {
-								activatingBlocks.add(blockPos2);
+							if (frameState.isOf(block)) {
+								activatingBlocks.add(framePos);
 							}
 						}
 					}
@@ -188,28 +184,29 @@ public class ConduitBlockEntity extends BlockEntity {
 			}
 		}
 
-		return activatingBlocks.size() >= 16;
+		return activatingBlocks.size() >= MIN_BLOCKS_TO_ACTIVATE_PARTIAL;
 	}
 
 	private static void givePlayersEffects(World world, BlockPos pos, List<BlockPos> activatingBlocks) {
-		int i = activatingBlocks.size();
-		int j = i / 7 * 16;
-		int k = pos.getX();
-		int l = pos.getY();
-		int m = pos.getZ();
-		Box box = new Box(k, l, m, k + 1, l + 1, m + 1).expand(j).stretch(0.0, world.getHeight(), 0.0);
-		List<PlayerEntity> list = world.getNonSpectatingEntities(PlayerEntity.class, box);
-		if (!list.isEmpty()) {
-			for (PlayerEntity playerEntity : list) {
-				if (pos.isWithinDistance(playerEntity.getBlockPos(), j) && playerEntity.isTouchingWaterOrRain()) {
-					playerEntity.addStatusEffect(new StatusEffectInstance(
-							StatusEffects.CONDUIT_POWER,
-							260,
-							0,
-							true,
-							true
-					));
-				}
+		int frameCount = activatingBlocks.size();
+		int effectRange = frameCount / 7 * EFFECT_RANGE_PER_BLOCK;
+		int posX = pos.getX();
+		int posY = pos.getY();
+		int posZ = pos.getZ();
+
+		Box searchBox = new Box(posX, posY, posZ, posX + 1, posY + 1, posZ + 1)
+				.expand(effectRange)
+				.stretch(0.0, world.getHeight(), 0.0);
+
+		for (PlayerEntity player : world.getNonSpectatingEntities(PlayerEntity.class, searchBox)) {
+			if (pos.isWithinDistance(player.getBlockPos(), effectRange) && player.isTouchingWaterOrRain()) {
+				player.addStatusEffect(new StatusEffectInstance(
+						StatusEffects.CONDUIT_POWER,
+						CONDUIT_POWER_DURATION,
+						0,
+						true,
+						true
+				));
 			}
 		}
 	}
@@ -221,26 +218,25 @@ public class ConduitBlockEntity extends BlockEntity {
 			ConduitBlockEntity blockEntity,
 			boolean canAttack
 	) {
-		LazyEntityReference<LivingEntity>
-				lazyEntityReference =
-				getValidTarget(blockEntity.targetEntity, world, pos, canAttack);
-		LivingEntity livingEntity = LazyEntityReference.getLivingEntity(lazyEntityReference, world);
-		if (livingEntity != null) {
+		LazyEntityReference<LivingEntity> newTarget = getValidTarget(blockEntity.targetEntity, world, pos, canAttack);
+		LivingEntity target = LazyEntityReference.getLivingEntity(newTarget, world);
+
+		if (target != null) {
 			world.playSound(
 					null,
-					livingEntity.getX(),
-					livingEntity.getY(),
-					livingEntity.getZ(),
+					target.getX(),
+					target.getY(),
+					target.getZ(),
 					SoundEvents.BLOCK_CONDUIT_ATTACK_TARGET,
 					SoundCategory.BLOCKS,
 					1.0F,
 					1.0F
 			);
-			livingEntity.damage(world, world.getDamageSources().magic(), 4.0F);
+			target.damage(world, world.getDamageSources().magic(), 4.0F);
 		}
 
-		if (!Objects.equals(lazyEntityReference, blockEntity.targetEntity)) {
-			blockEntity.targetEntity = lazyEntityReference;
+		if (!Objects.equals(newTarget, blockEntity.targetEntity)) {
+			blockEntity.targetEntity = newTarget;
 			world.updateListeners(pos, state, state, 2);
 		}
 	}
@@ -254,29 +250,24 @@ public class ConduitBlockEntity extends BlockEntity {
 		if (!canAttack) {
 			return null;
 		}
-		else if (currentTarget == null) {
+
+		if (currentTarget == null) {
 			return findAttackTarget(world, pos);
 		}
-		else {
-			LivingEntity livingEntity = LazyEntityReference.getLivingEntity(currentTarget, world);
-			return livingEntity != null && livingEntity.isAlive() && pos.isWithinDistance(
-					livingEntity.getBlockPos(),
-					8.0
-			) ? currentTarget : null;
-		}
+
+		LivingEntity entity = LazyEntityReference.getLivingEntity(currentTarget, world);
+		return entity != null && entity.isAlive() && pos.isWithinDistance(entity.getBlockPos(), EFFECT_RANGE_PER_BLOCK)
+				? currentTarget
+				: null;
 	}
 
 	private static @Nullable LazyEntityReference<LivingEntity> findAttackTarget(ServerWorld world, BlockPos pos) {
-		List<LivingEntity> list = world.getEntitiesByClass(
+		List<LivingEntity> monsters = world.getEntitiesByClass(
 				LivingEntity.class,
-				getAttackZone(pos),
+				new Box(pos).expand(EFFECT_RANGE_PER_BLOCK),
 				entity -> entity instanceof Monster && entity.isTouchingWaterOrRain()
 		);
-		return list.isEmpty() ? null : LazyEntityReference.of(Util.getRandom(list, world.random));
-	}
-
-	private static Box getAttackZone(BlockPos pos) {
-		return new Box(pos).expand(8.0);
+		return monsters.isEmpty() ? null : LazyEntityReference.of(Util.getRandom(monsters, world.random));
 	}
 
 	private static void spawnNautilusParticles(
@@ -287,36 +278,35 @@ public class ConduitBlockEntity extends BlockEntity {
 			int ticks
 	) {
 		Random random = world.random;
-		double d = MathHelper.sin((ticks + 35) * 0.1F) / 2.0F + 0.5F;
-		d = (d * d + d) * 0.3F;
-		Vec3d vec3d = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.5 + d, pos.getZ() + 0.5);
+		double eyeOffset = MathHelper.sin((ticks + 35) * 0.1F) / 2.0F + 0.5F;
+		eyeOffset = (eyeOffset * eyeOffset + eyeOffset) * 0.3F;
+		Vec3d eyePos = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.5 + eyeOffset, pos.getZ() + 0.5);
 
-		for (BlockPos blockPos : activatingBlocks) {
+		for (BlockPos framePos : activatingBlocks) {
 			if (random.nextInt(50) == 0) {
-				BlockPos blockPos2 = blockPos.subtract(pos);
-				float f = -0.5F + random.nextFloat() + blockPos2.getX();
-				float g = -2.0F + random.nextFloat() + blockPos2.getY();
-				float h = -0.5F + random.nextFloat() + blockPos2.getZ();
-				world.addParticleClient(ParticleTypes.NAUTILUS, vec3d.x, vec3d.y, vec3d.z, f, g, h);
+				BlockPos relative = framePos.subtract(pos);
+				float velX = -0.5F + random.nextFloat() + relative.getX();
+				float velY = -2.0F + random.nextFloat() + relative.getY();
+				float velZ = -0.5F + random.nextFloat() + relative.getZ();
+				world.addParticleClient(ParticleTypes.NAUTILUS, eyePos.x, eyePos.y, eyePos.z, velX, velY, velZ);
 			}
 		}
 
 		if (entity != null) {
-			Vec3d vec3d2 = new Vec3d(entity.getX(), entity.getEyeY(), entity.getZ());
-			float i = (-0.5F + random.nextFloat()) * (3.0F + entity.getWidth());
-			float j = -1.0F + random.nextFloat() * entity.getHeight();
-			float f = (-0.5F + random.nextFloat()) * (3.0F + entity.getWidth());
-			Vec3d vec3d3 = new Vec3d(i, j, f);
-			world.addParticleClient(ParticleTypes.NAUTILUS, vec3d2.x, vec3d2.y, vec3d2.z, vec3d3.x, vec3d3.y, vec3d3.z);
+			Vec3d entityEye = new Vec3d(entity.getX(), entity.getEyeY(), entity.getZ());
+			float velX = (-0.5F + random.nextFloat()) * (3.0F + entity.getWidth());
+			float velY = -1.0F + random.nextFloat() * entity.getHeight();
+			float velZ = (-0.5F + random.nextFloat()) * (3.0F + entity.getWidth());
+			world.addParticleClient(ParticleTypes.NAUTILUS, entityEye.x, entityEye.y, entityEye.z, velX, velY, velZ);
 		}
 	}
 
 	public boolean isActive() {
-		return this.active;
+		return active;
 	}
 
 	public boolean isEyeOpen() {
-		return this.eyeOpen;
+		return eyeOpen;
 	}
 
 	private void setEyeOpen(boolean eyeOpen) {
@@ -324,6 +314,6 @@ public class ConduitBlockEntity extends BlockEntity {
 	}
 
 	public float getRotation(float tickProgress) {
-		return (this.ticksActive + tickProgress) * -0.0375F;
+		return (ticksActive + tickProgress) * EYE_ROTATION_SPEED;
 	}
 }

@@ -11,7 +11,8 @@ import net.minecraft.recipe.display.StonecutterRecipeDisplay;
 import java.util.List;
 
 /**
- * {@code StonecuttingRecipe}.
+ * Рецепт камнерезного станка: преобразует один каменный материал в другой.
+ * В отличие от крафтового стола, позволяет получать больше вариантов из одного блока.
  */
 public class StonecuttingRecipe extends SingleStackRecipe {
 
@@ -32,21 +33,16 @@ public class StonecuttingRecipe extends SingleStackRecipe {
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new StonecutterRecipeDisplay(
-						this.ingredient().toDisplay(),
-						this.createResultDisplay(),
-						new SlotDisplay.ItemSlotDisplay(Items.STONECUTTER)
-				)
+			new StonecutterRecipeDisplay(
+				ingredient().toDisplay(),
+				createResultDisplay(),
+				new SlotDisplay.ItemSlotDisplay(Items.STONECUTTER)
+			)
 		);
 	}
 
-	/**
-	 * Создаёт result display.
-	 *
-	 * @return SlotDisplay — результат операции
-	 */
 	public SlotDisplay createResultDisplay() {
-		return new SlotDisplay.StackSlotDisplay(this.result());
+		return new SlotDisplay.StackSlotDisplay(result());
 	}
 
 	@Override

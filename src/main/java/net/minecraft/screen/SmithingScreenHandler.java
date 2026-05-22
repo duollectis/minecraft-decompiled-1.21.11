@@ -17,7 +17,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code SmithingScreenHandler}.
+ * Обработчик экрана кузнечного стола.
+ *
+ * <p>Управляет тремя входными слотами (шаблон, снаряжение, материал)
+ * и одним выходным. Проверяет допустимость ингредиентов через
+ * {@link RecipePropertySet} и отображает индикатор «неверный рецепт»
+ * через синхронизируемое свойство {@code invalidRecipe}.</p>
  */
 public class SmithingScreenHandler extends ForgingScreenHandler {
 
@@ -30,6 +35,9 @@ public class SmithingScreenHandler extends ForgingScreenHandler {
 	public static final int MATERIAL_X = 44;
 	private static final int OUTPUT_X = 98;
 	public static final int SLOT_Y = 48;
+	private static final int INVALID_RECIPE_FALSE = 0;
+	private static final int INVALID_RECIPE_TRUE = 1;
+
 	private final World world;
 	private final RecipePropertySet basePropertySet;
 	private final RecipePropertySet templatePropertySet;
@@ -45,35 +53,36 @@ public class SmithingScreenHandler extends ForgingScreenHandler {
 	}
 
 	private SmithingScreenHandler(
-			int syncId,
-			PlayerInventory playerInventory,
-			ScreenHandlerContext context,
-			World world
+		int syncId,
+		PlayerInventory playerInventory,
+		ScreenHandlerContext context,
+		World world
 	) {
 		super(
-				ScreenHandlerType.SMITHING,
-				syncId,
-				playerInventory,
-				context,
-				createForgingSlotsManager(world.getRecipeManager())
+			ScreenHandlerType.SMITHING,
+			syncId,
+			playerInventory,
+			context,
+			createForgingSlotsManager(world.getRecipeManager())
 		);
 		this.world = world;
-		this.basePropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_BASE);
-		this.templatePropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_TEMPLATE);
-		this.additionPropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_ADDITION);
-		this.addProperty(this.invalidRecipe).set(0);
+		basePropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_BASE);
+		templatePropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_TEMPLATE);
+		additionPropertySet = world.getRecipeManager().getPropertySet(RecipePropertySet.SMITHING_ADDITION);
+		addProperty(invalidRecipe).set(INVALID_RECIPE_FALSE);
 	}
 
 	private static ForgingSlotsManager createForgingSlotsManager(RecipeManager recipeManager) {
-		RecipePropertySet recipePropertySet = recipeManager.getPropertySet(RecipePropertySet.SMITHING_BASE);
-		RecipePropertySet recipePropertySet2 = recipeManager.getPropertySet(RecipePropertySet.SMITHING_TEMPLATE);
-		RecipePropertySet recipePropertySet3 = recipeManager.getPropertySet(RecipePropertySet.SMITHING_ADDITION);
+		RecipePropertySet baseSet = recipeManager.getPropertySet(RecipePropertySet.SMITHING_BASE);
+		RecipePropertySet templateSet = recipeManager.getPropertySet(RecipePropertySet.SMITHING_TEMPLATE);
+		RecipePropertySet additionSet = recipeManager.getPropertySet(RecipePropertySet.SMITHING_ADDITION);
+
 		return ForgingSlotsManager.builder()
-		                          .input(0, 8, 48, recipePropertySet2::canUse)
-		                          .input(1, 26, 48, recipePropertySet::canUse)
-		                          .input(2, 44, 48, recipePropertySet3::canUse)
-		                          .output(3, 98, 48)
-		                          .build();
+			.input(TEMPLATE_ID, TEMPLATE_X, SLOT_Y, templateSet::canUse)
+			.input(EQUIPMENT_ID, EQUIPMENT_X, SLOT_Y, baseSet::canUse)
+			.input(MATERIAL_ID, MATERIAL_X, SLOT_Y, additionSet::canUse)
+			.output(OUTPUT_ID, OUTPUT_X, SLOT_Y)
+			.build();
 	}
 
 	@Override
@@ -84,83 +93,98 @@ public class SmithingScreenHandler extends ForgingScreenHandler {
 	@Override
 	protected void onTakeOutput(PlayerEntity player, ItemStack stack) {
 		stack.onCraftByPlayer(player, stack.getCount());
-		this.output.unlockLastRecipe(player, this.getInputStacks());
-		this.decrementStack(0);
-		this.decrementStack(1);
-		this.decrementStack(2);
-		this.context.run((world, pos) -> world.syncWorldEvent(1044, pos, 0));
-	}
-
-	private List<ItemStack> getInputStacks() {
-		return List.of(this.input.getStack(0), this.input.getStack(1), this.input.getStack(2));
-	}
-
-	private SmithingRecipeInput createRecipeInput() {
-		return new SmithingRecipeInput(this.input.getStack(0), this.input.getStack(1), this.input.getStack(2));
-	}
-
-	private void decrementStack(int slot) {
-		ItemStack itemStack = this.input.getStack(slot);
-		if (!itemStack.isEmpty()) {
-			itemStack.decrement(1);
-			this.input.setStack(slot, itemStack);
-		}
+		output.unlockLastRecipe(player, getInputStacks());
+		decrementStack(TEMPLATE_ID);
+		decrementStack(EQUIPMENT_ID);
+		decrementStack(MATERIAL_ID);
+		context.run((world, pos) -> world.syncWorldEvent(1044, pos, 0));
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
 		super.onContentChanged(inventory);
-		if (this.world instanceof ServerWorld) {
-			boolean bl = this.getSlot(0).hasStack()
-					&& this.getSlot(1).hasStack()
-					&& this.getSlot(2).hasStack()
-					&& !this.getSlot(this.getResultSlotIndex()).hasStack();
-			this.invalidRecipe.set(bl ? 1 : 0);
+
+		if (world instanceof ServerWorld == false) {
+			return;
 		}
+
+		boolean allInputsPresent = getSlot(TEMPLATE_ID).hasStack()
+			&& getSlot(EQUIPMENT_ID).hasStack()
+			&& getSlot(MATERIAL_ID).hasStack()
+			&& !getSlot(getResultSlotIndex()).hasStack();
+
+		invalidRecipe.set(allInputsPresent ? INVALID_RECIPE_TRUE : INVALID_RECIPE_FALSE);
 	}
 
+	/**
+	 * Ищет подходящий рецепт кузнечного стола и обновляет выходной слот.
+	 *
+	 * <p>На клиентской стороне всегда очищает выход, так как рецепты
+	 * вычисляются только на сервере.</p>
+	 */
 	@Override
 	public void updateResult() {
-		SmithingRecipeInput smithingRecipeInput = this.createRecipeInput();
-		Optional<RecipeEntry<SmithingRecipe>> optional;
-		if (this.world instanceof ServerWorld serverWorld) {
-			optional =
-					serverWorld.getRecipeManager().getFirstMatch(RecipeType.SMITHING, smithingRecipeInput, serverWorld);
-		}
-		else {
-			optional = Optional.empty();
-		}
+		SmithingRecipeInput recipeInput = createRecipeInput();
+
+		Optional<RecipeEntry<SmithingRecipe>> optional = world instanceof ServerWorld serverWorld
+			? serverWorld.getRecipeManager().getFirstMatch(RecipeType.SMITHING, recipeInput, serverWorld)
+			: Optional.empty();
 
 		optional.ifPresentOrElse(
-				recipe -> {
-					ItemStack itemStack = recipe.value().craft(smithingRecipeInput, this.world.getRegistryManager());
-					this.output.setLastRecipe((RecipeEntry<?>) recipe);
-					this.output.setStack(0, itemStack);
-				}, () -> {
-					this.output.setLastRecipe(null);
-					this.output.setStack(0, ItemStack.EMPTY);
-				}
+			recipe -> {
+				ItemStack result = recipe.value().craft(recipeInput, world.getRegistryManager());
+				output.setLastRecipe((RecipeEntry<?>) recipe);
+				output.setStack(0, result);
+			},
+			() -> {
+				output.setLastRecipe(null);
+				output.setStack(0, ItemStack.EMPTY);
+			}
 		);
 	}
 
 	@Override
 	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-		return slot.inventory != this.output && super.canInsertIntoSlot(stack, slot);
+		return slot.inventory != output && super.canInsertIntoSlot(stack, slot);
 	}
 
 	@Override
 	public boolean isValidIngredient(ItemStack stack) {
-		if (this.templatePropertySet.canUse(stack) && !this.getSlot(0).hasStack()) {
+		if (templatePropertySet.canUse(stack) && !getSlot(TEMPLATE_ID).hasStack()) {
 			return true;
 		}
-		else {
-			return this.basePropertySet.canUse(stack) && !this.getSlot(1).hasStack()
-			       ? true
-			       : this.additionPropertySet.canUse(stack) && !this.getSlot(2).hasStack();
+
+		if (basePropertySet.canUse(stack) && !getSlot(EQUIPMENT_ID).hasStack()) {
+			return true;
 		}
+
+		return additionPropertySet.canUse(stack) && !getSlot(MATERIAL_ID).hasStack();
 	}
 
 	public boolean hasInvalidRecipe() {
-		return this.invalidRecipe.get() > 0;
+		return invalidRecipe.get() > INVALID_RECIPE_FALSE;
+	}
+
+	private List<ItemStack> getInputStacks() {
+		return List.of(input.getStack(TEMPLATE_ID), input.getStack(EQUIPMENT_ID), input.getStack(MATERIAL_ID));
+	}
+
+	private SmithingRecipeInput createRecipeInput() {
+		return new SmithingRecipeInput(
+			input.getStack(TEMPLATE_ID),
+			input.getStack(EQUIPMENT_ID),
+			input.getStack(MATERIAL_ID)
+		);
+	}
+
+	private void decrementStack(int slot) {
+		ItemStack stack = input.getStack(slot);
+
+		if (stack.isEmpty()) {
+			return;
+		}
+
+		stack.decrement(1);
+		input.setStack(slot, stack);
 	}
 }

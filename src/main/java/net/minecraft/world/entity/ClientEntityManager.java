@@ -11,100 +11,119 @@ import net.minecraft.util.math.ChunkSectionPos;
 import org.slf4j.Logger;
 
 /**
- * {@code ClientEntityManager}.
+ * Клиентский менеджер сущностей, управляющий жизненным циклом сущностей
+ * в клиентском мире. Отслеживает, какие чанк-секции активно тикаются,
+ * и уведомляет {@link EntityHandler} при изменении статуса сущностей.
+ *
+ * <p>Каждая добавленная сущность получает {@link Listener}, который автоматически
+ * обновляет её позицию в {@link SectionedEntityCache} при перемещении или удалении.
+ *
+ * @param <T> тип сущностей (должен реализовывать {@link EntityLike})
  */
 public class ClientEntityManager<T extends EntityLike> {
 
 	static final Logger LOGGER = LogUtils.getLogger();
+
 	final EntityHandler<T> handler;
 	final EntityIndex<T> index;
 	final SectionedEntityCache<T> cache;
+
 	private final LongSet tickingChunkSections = new LongOpenHashSet();
 	private final EntityLookup<T> lookup;
 
 	public ClientEntityManager(Class<T> entityClass, EntityHandler<T> handler) {
 		this.index = new EntityIndex<>();
 		this.cache = new SectionedEntityCache<>(
-				entityClass,
-				pos -> this.tickingChunkSections.contains(pos) ? EntityTrackingStatus.TICKING
-				                                               : EntityTrackingStatus.TRACKED
+			entityClass,
+			pos -> tickingChunkSections.contains(pos)
+				? EntityTrackingStatus.TICKING
+				: EntityTrackingStatus.TRACKED
 		);
 		this.handler = handler;
-		this.lookup = new SimpleEntityLookup<>(this.index, this.cache);
+		this.lookup = new SimpleEntityLookup<>(index, cache);
 	}
 
 	/**
-	 * Запускает ticking.
+	 * Переводит все секции указанного чанка в статус TICKING.
+	 * Для каждой секции, которая ранее не тикалась, вызывает {@code startTicking}
+	 * для всех не-игровых сущностей в ней.
 	 *
-	 * @param pos pos
+	 * @param pos позиция чанка
 	 */
 	public void startTicking(ChunkPos pos) {
-		long l = pos.toLong();
-		this.tickingChunkSections.add(l);
-		this.cache.getTrackingSections(l).forEach(sections -> {
-			EntityTrackingStatus entityTrackingStatus = sections.swapStatus(EntityTrackingStatus.TICKING);
-			if (!entityTrackingStatus.shouldTick()) {
-				sections.stream().filter(e -> !e.isPlayer()).forEach(this.handler::startTicking);
+		long packedPos = pos.toLong();
+		tickingChunkSections.add(packedPos);
+		cache.getTrackingSections(packedPos).forEach(section -> {
+			EntityTrackingStatus previous = section.swapStatus(EntityTrackingStatus.TICKING);
+			if (!previous.shouldTick()) {
+				section.stream().filter(entity -> !entity.isPlayer()).forEach(handler::startTicking);
 			}
 		});
 	}
 
 	/**
-	 * Останавливает ticking.
+	 * Переводит все секции указанного чанка в статус TRACKED (без тикинга).
+	 * Для каждой секции, которая ранее тикалась, вызывает {@code stopTicking}
+	 * для всех не-игровых сущностей в ней.
 	 *
-	 * @param pos pos
+	 * @param pos позиция чанка
 	 */
 	public void stopTicking(ChunkPos pos) {
-		long l = pos.toLong();
-		this.tickingChunkSections.remove(l);
-		this.cache.getTrackingSections(l).forEach(sections -> {
-			EntityTrackingStatus entityTrackingStatus = sections.swapStatus(EntityTrackingStatus.TRACKED);
-			if (entityTrackingStatus.shouldTick()) {
-				sections.stream().filter(e -> !e.isPlayer()).forEach(this.handler::stopTicking);
+		long packedPos = pos.toLong();
+		tickingChunkSections.remove(packedPos);
+		cache.getTrackingSections(packedPos).forEach(section -> {
+			EntityTrackingStatus previous = section.swapStatus(EntityTrackingStatus.TRACKED);
+			if (previous.shouldTick()) {
+				section.stream().filter(entity -> !entity.isPlayer()).forEach(handler::stopTicking);
 			}
 		});
 	}
 
 	public EntityLookup<T> getLookup() {
-		return this.lookup;
+		return lookup;
 	}
 
 	/**
-	 * Добавляет entity.
+	 * Добавляет сущность в менеджер: регистрирует в индексе, помещает в секцию кэша,
+	 * назначает слушатель изменений и уведомляет handler о создании и начале отслеживания.
+	 * Если секция тикается или сущность является игроком — также запускает тикинг.
 	 *
-	 * @param entity entity
+	 * @param entity добавляемая сущность
 	 */
 	public void addEntity(T entity) {
-		this.index.add(entity);
-		long l = ChunkSectionPos.toLong(entity.getBlockPos());
-		EntityTrackingSection<T> entityTrackingSection = this.cache.getTrackingSection(l);
-		entityTrackingSection.add(entity);
-		entity.setChangeListener(new ClientEntityManager.Listener(entity, l, entityTrackingSection));
-		this.handler.create(entity);
-		this.handler.startTracking(entity);
-		if (entity.isPlayer() || entityTrackingSection.getStatus().shouldTick()) {
-			this.handler.startTicking(entity);
+		index.add(entity);
+		long sectionPos = ChunkSectionPos.toLong(entity.getBlockPos());
+		EntityTrackingSection<T> section = cache.getTrackingSection(sectionPos);
+		section.add(entity);
+		entity.setChangeListener(new Listener(entity, sectionPos, section));
+		handler.create(entity);
+		handler.startTracking(entity);
+
+		if (entity.isPlayer() || section.getStatus().shouldTick()) {
+			handler.startTicking(entity);
 		}
 	}
 
 	@Debug
 	public int getEntityCount() {
-		return this.index.size();
-	}
-
-	void removeIfEmpty(long packedChunkSection, EntityTrackingSection<T> entities) {
-		if (entities.isEmpty()) {
-			this.cache.removeSection(packedChunkSection);
-		}
+		return index.size();
 	}
 
 	@Debug
 	public String getDebugString() {
-		return this.index.size() + "," + this.cache.sectionCount() + "," + this.tickingChunkSections.size();
+		return index.size() + "," + cache.sectionCount() + "," + tickingChunkSections.size();
+	}
+
+	void removeIfEmpty(long packedChunkSection, EntityTrackingSection<T> section) {
+		if (section.isEmpty()) {
+			cache.removeSection(packedChunkSection);
+		}
 	}
 
 	/**
-	 * {@code Listener}.
+	 * Внутренний слушатель, привязанный к конкретной сущности.
+	 * Обновляет позицию сущности в {@link SectionedEntityCache} при её перемещении
+	 * и корректно очищает все ссылки при удалении.
 	 */
 	class Listener implements EntityChangeListener {
 
@@ -112,65 +131,67 @@ public class ClientEntityManager<T extends EntityLike> {
 		private long lastSectionPos;
 		private EntityTrackingSection<T> section;
 
-		Listener(final T entity, final long pos, final EntityTrackingSection<T> section) {
+		Listener(T entity, long sectionPos, EntityTrackingSection<T> section) {
 			this.entity = entity;
-			this.lastSectionPos = pos;
+			this.lastSectionPos = sectionPos;
 			this.section = section;
 		}
 
 		@Override
 		public void updateEntityPosition() {
-			BlockPos blockPos = this.entity.getBlockPos();
-			long l = ChunkSectionPos.toLong(blockPos);
-			if (l != this.lastSectionPos) {
-				EntityTrackingStatus entityTrackingStatus = this.section.getStatus();
-				if (!this.section.remove(this.entity)) {
-					ClientEntityManager.LOGGER
-							.warn(
-									"Entity {} wasn't found in section {} (moving to {})",
-									new Object[]{this.entity, ChunkSectionPos.from(this.lastSectionPos), l}
-							);
-				}
+			BlockPos blockPos = entity.getBlockPos();
+			long newSectionPos = ChunkSectionPos.toLong(blockPos);
+			if (newSectionPos == lastSectionPos) {
+				return;
+			}
 
-				ClientEntityManager.this.removeIfEmpty(this.lastSectionPos, this.section);
-				EntityTrackingSection<T> entityTrackingSection = ClientEntityManager.this.cache.getTrackingSection(l);
-				entityTrackingSection.add(this.entity);
-				this.section = entityTrackingSection;
-				this.lastSectionPos = l;
-				ClientEntityManager.this.handler.updateLoadStatus(this.entity);
-				if (!this.entity.isPlayer()) {
-					boolean bl = entityTrackingStatus.shouldTick();
-					boolean bl2 = entityTrackingSection.getStatus().shouldTick();
-					if (bl && !bl2) {
-						ClientEntityManager.this.handler.stopTicking(this.entity);
-					}
-					else if (!bl && bl2) {
-						ClientEntityManager.this.handler.startTicking(this.entity);
-					}
-				}
+			EntityTrackingStatus previousStatus = section.getStatus();
+			if (!section.remove(entity)) {
+				LOGGER.warn(
+					"Entity {} wasn't found in section {} (moving to {})",
+					new Object[]{ entity, ChunkSectionPos.from(lastSectionPos), newSectionPos }
+				);
+			}
+
+			ClientEntityManager.this.removeIfEmpty(lastSectionPos, section);
+
+			EntityTrackingSection<T> newSection = ClientEntityManager.this.cache.getTrackingSection(newSectionPos);
+			newSection.add(entity);
+			section = newSection;
+			lastSectionPos = newSectionPos;
+			ClientEntityManager.this.handler.updateLoadStatus(entity);
+
+			if (entity.isPlayer()) {
+				return;
+			}
+
+			boolean wasTicking = previousStatus.shouldTick();
+			boolean nowTicking = newSection.getStatus().shouldTick();
+			if (wasTicking && !nowTicking) {
+				ClientEntityManager.this.handler.stopTicking(entity);
+			} else if (!wasTicking && nowTicking) {
+				ClientEntityManager.this.handler.startTicking(entity);
 			}
 		}
 
 		@Override
 		public void remove(Entity.RemovalReason reason) {
-			if (!this.section.remove(this.entity)) {
-				ClientEntityManager.LOGGER
-						.warn(
-								"Entity {} wasn't found in section {} (destroying due to {})",
-								new Object[]{this.entity, ChunkSectionPos.from(this.lastSectionPos), reason}
-						);
+			if (!section.remove(entity)) {
+				LOGGER.warn(
+					"Entity {} wasn't found in section {} (destroying due to {})",
+					new Object[]{ entity, ChunkSectionPos.from(lastSectionPos), reason }
+				);
 			}
 
-			EntityTrackingStatus entityTrackingStatus = this.section.getStatus();
-			if (entityTrackingStatus.shouldTick() || this.entity.isPlayer()) {
-				ClientEntityManager.this.handler.stopTicking(this.entity);
+			if (section.getStatus().shouldTick() || entity.isPlayer()) {
+				ClientEntityManager.this.handler.stopTicking(entity);
 			}
 
-			ClientEntityManager.this.handler.stopTracking(this.entity);
-			ClientEntityManager.this.handler.destroy(this.entity);
-			ClientEntityManager.this.index.remove(this.entity);
-			this.entity.setChangeListener(NONE);
-			ClientEntityManager.this.removeIfEmpty(this.lastSectionPos, this.section);
+			ClientEntityManager.this.handler.stopTracking(entity);
+			ClientEntityManager.this.handler.destroy(entity);
+			ClientEntityManager.this.index.remove(entity);
+			entity.setChangeListener(NONE);
+			ClientEntityManager.this.removeIfEmpty(lastSectionPos, section);
 		}
 	}
 }

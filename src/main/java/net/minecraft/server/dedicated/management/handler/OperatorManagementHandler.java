@@ -9,7 +9,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code OperatorManagementHandler}.
+ * Класс Operator Management Handler.
  */
 public interface OperatorManagementHandler {
 

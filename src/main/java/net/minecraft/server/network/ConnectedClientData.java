@@ -4,7 +4,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 
 /**
- * {@code ConnectedClientData}.
+ * Класс Connected Client Data.
  */
 public record ConnectedClientData(
 		GameProfile gameProfile,

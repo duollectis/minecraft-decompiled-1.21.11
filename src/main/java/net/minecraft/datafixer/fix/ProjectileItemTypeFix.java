@@ -12,7 +12,12 @@ import net.minecraft.util.Util;
 import java.util.function.Function;
 
 /**
- * {@code ProjectileItemTypeFix}.
+ * Исправление DataFixer, которое добавляет поле {@code item} к снарядам-стрелам и трезубцам.
+ * <p>
+ * До версии 1.20.5 стрелы хранили информацию о зелье в поле {@code Potion},
+ * а трезубцы не имели явного поля предмета. Это исправление создаёт стек предмета
+ * в поле {@code item} для {@code minecraft:arrow}, {@code minecraft:spectral_arrow}
+ * и {@code minecraft:trident}.
  */
 public class ProjectileItemTypeFix extends DataFix {
 
@@ -23,9 +28,9 @@ public class ProjectileItemTypeFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.ENTITY);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.ENTITY);
+		return fixTypeEverywhereTyped(
 				"Fix AbstractArrow item type",
 				type,
 				type2,
@@ -38,8 +43,8 @@ public class ProjectileItemTypeFix extends DataFix {
 	}
 
 	private Function<Typed<?>, Typed<?>> createFixApplier(String id, ProjectileItemTypeFix.Fixer<?> fixer) {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, id);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.ENTITY, id);
+		Type<?> type = getInputSchema().getChoiceType(TypeReferences.ENTITY, id);
+		Type<?> type2 = getOutputSchema().getChoiceType(TypeReferences.ENTITY, id);
 		return createFixApplier(id, fixer, type, type2);
 	}
 
@@ -60,8 +65,9 @@ public class ProjectileItemTypeFix extends DataFix {
 	}
 
 	private static String getArrowId(Dynamic<?> arrowData) {
-		return arrowData.get("Potion").asString("minecraft:empty").equals("minecraft:empty") ? "minecraft:arrow"
-		                                                                                     : "minecraft:tipped_arrow";
+		return arrowData.get("Potion").asString(EMPTY_ID).equals(EMPTY_ID)
+				? "minecraft:arrow"
+				: "minecraft:tipped_arrow";
 	}
 
 	private static <T> Typed<T> fixSpectralArrow(Typed<?> typed, Type<T> type) {
@@ -84,7 +90,7 @@ public class ProjectileItemTypeFix extends DataFix {
 	}
 
 	/**
-	 * {@code Fixer}.
+	 * Функциональный интерфейс для применения исправления к конкретному типу снаряда.
 	 */
 	interface Fixer<F> {
 

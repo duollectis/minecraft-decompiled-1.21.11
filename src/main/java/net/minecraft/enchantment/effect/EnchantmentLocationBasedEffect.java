@@ -13,7 +13,9 @@ import net.minecraft.util.math.Vec3d;
 import java.util.function.Function;
 
 /**
- * {@code EnchantmentLocationBasedEffect}.
+ * Эффект зачарования, привязанный к местоположению сущности.
+ * Применяется и снимается при изменении позиции носителя (например, атрибутные бонусы
+ * от зачарований брони, активные только пока предмет надет).
  */
 public interface EnchantmentLocationBasedEffect {
 
@@ -21,7 +23,13 @@ public interface EnchantmentLocationBasedEffect {
 			.getCodec()
 			.dispatch(EnchantmentLocationBasedEffect::getCodec, Function.identity());
 
-	static MapCodec<? extends EnchantmentLocationBasedEffect> registerAndGetDefault(Registry<MapCodec<? extends EnchantmentLocationBasedEffect>> registry) {
+	/**
+	 * Регистрирует все реализации эффектов в реестре и возвращает реализацию по умолчанию.
+	 * Вызывается при инициализации реестра {@code ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE}.
+	 */
+	static MapCodec<? extends EnchantmentLocationBasedEffect> registerAndGetDefault(
+			Registry<MapCodec<? extends EnchantmentLocationBasedEffect>> registry
+	) {
 		Registry.register(registry, "all_of", AllOfEnchantmentEffects.LocationBasedEffects.CODEC);
 		Registry.register(registry, "apply_mob_effect", ApplyMobEffectEnchantmentEffect.CODEC);
 		Registry.register(registry, "attribute", AttributeEnchantmentEffect.CODEC);
@@ -37,6 +45,7 @@ public interface EnchantmentLocationBasedEffect {
 		Registry.register(registry, "run_function", RunFunctionEnchantmentEffect.CODEC);
 		Registry.register(registry, "set_block_properties", SetBlockPropertiesEnchantmentEffect.CODEC);
 		Registry.register(registry, "spawn_particles", SpawnParticlesEnchantmentEffect.CODEC);
+
 		return Registry.register(registry, "summon_entity", SummonEntityEnchantmentEffect.CODEC);
 	}
 

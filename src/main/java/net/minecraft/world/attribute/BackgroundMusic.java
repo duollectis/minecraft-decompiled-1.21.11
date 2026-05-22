@@ -10,27 +10,32 @@ import net.minecraft.sound.SoundEvent;
 import java.util.Optional;
 
 /**
- * {@code BackgroundMusic}.
+ * Описывает фоновую музыку окружения с тремя независимыми слотами:
+ * обычный режим, творческий режим и подводный режим.
+ * Используется как атрибут биома/измерения для управления музыкой.
  */
 public record BackgroundMusic(
-		Optional<MusicSound> defaultMusic,
-		Optional<MusicSound> creativeMusic,
-		Optional<MusicSound> underwaterMusic
+	Optional<MusicSound> defaultMusic,
+	Optional<MusicSound> creativeMusic,
+	Optional<MusicSound> underwaterMusic
 ) {
 
-	public static final BackgroundMusic
-			EMPTY =
-			new BackgroundMusic(Optional.empty(), Optional.empty(), Optional.empty());
-	public static final BackgroundMusic
-			DEFAULT =
-			new BackgroundMusic(Optional.of(MusicType.GAME), Optional.of(MusicType.CREATIVE), Optional.empty());
+	/** Полностью пустой набор — музыка не задана ни для одного режима. */
+	public static final BackgroundMusic EMPTY = new BackgroundMusic(Optional.empty(), Optional.empty(), Optional.empty());
+
+	/** Стандартный набор: обычная игровая музыка и музыка творческого режима. */
+	public static final BackgroundMusic DEFAULT = new BackgroundMusic(
+		Optional.of(MusicType.GAME),
+		Optional.of(MusicType.CREATIVE),
+		Optional.empty()
+	);
+
 	public static final Codec<BackgroundMusic> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    MusicSound.CODEC.optionalFieldOf("default").forGetter(BackgroundMusic::defaultMusic),
-					                    MusicSound.CODEC.optionalFieldOf("creative").forGetter(BackgroundMusic::creativeMusic),
-					                    MusicSound.CODEC.optionalFieldOf("underwater").forGetter(BackgroundMusic::underwaterMusic)
-			                    )
-			                    .apply(instance, BackgroundMusic::new)
+		instance -> instance.group(
+			MusicSound.CODEC.optionalFieldOf("default").forGetter(BackgroundMusic::defaultMusic),
+			MusicSound.CODEC.optionalFieldOf("creative").forGetter(BackgroundMusic::creativeMusic),
+			MusicSound.CODEC.optionalFieldOf("underwater").forGetter(BackgroundMusic::underwaterMusic)
+		).apply(instance, BackgroundMusic::new)
 	);
 
 	public BackgroundMusic(MusicSound defaultMusic) {
@@ -42,22 +47,28 @@ public record BackgroundMusic(
 	}
 
 	/**
-	 * With underwater.
+	 * Создаёт копию с заданной подводной музыкой.
 	 *
-	 * @param underwater underwater
-	 *
-	 * @return BackgroundMusic — результат операции
+	 * @param underwater музыка для подводного режима
+	 * @return новый экземпляр с установленной подводной музыкой
 	 */
 	public BackgroundMusic withUnderwater(MusicSound underwater) {
-		return new BackgroundMusic(this.defaultMusic, this.creativeMusic, Optional.of(underwater));
+		return new BackgroundMusic(defaultMusic, creativeMusic, Optional.of(underwater));
 	}
 
+	/**
+	 * Возвращает актуальный трек музыки в зависимости от текущего режима игры.
+	 * Приоритет: подводный > творческий > обычный.
+	 *
+	 * @param creative {@code true} если игрок в творческом режиме
+	 * @param underwater {@code true} если игрок под водой
+	 * @return подходящий трек или {@link Optional#empty()} если музыка не задана
+	 */
 	public Optional<MusicSound> getCurrent(boolean creative, boolean underwater) {
-		if (underwater && this.underwaterMusic.isPresent()) {
-			return this.underwaterMusic;
+		if (underwater && underwaterMusic.isPresent()) {
+			return underwaterMusic;
 		}
-		else {
-			return creative && this.creativeMusic.isPresent() ? this.creativeMusic : this.defaultMusic;
-		}
+
+		return creative && creativeMusic.isPresent() ? creativeMusic : defaultMusic;
 	}
 }

@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * {@code StructureFeatureChildrenPoolElementFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StructureFeatureChildrenPoolElementFix extends DataFix {
 
@@ -42,10 +42,10 @@ public class StructureFeatureChildrenPoolElementFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.writeFixAndRead(
+		return writeFixAndRead(
 				"SavedDataFeaturePoolElementFix",
-				this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE),
-				this.getOutputSchema().getType(TypeReferences.STRUCTURE_FEATURE),
+				getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE),
+				getOutputSchema().getType(TypeReferences.STRUCTURE_FEATURE),
 				StructureFeatureChildrenPoolElementFix::updateStructureFeature
 		);
 	}

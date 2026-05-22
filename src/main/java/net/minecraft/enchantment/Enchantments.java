@@ -103,22 +103,23 @@ public class Enchantments {
 	public static final RegistryKey<Enchantment> VANISHING_CURSE = of("vanishing_curse");
 
 	/**
-	 * Bootstrap.
+	 * Регистрирует все встроенные зачарования Minecraft в реестре.
+	 * Вызывается при инициализации динамического реестра зачарований.
 	 *
-	 * @param registry registry
+	 * @param registry целевой реестр зачарований
 	 */
 	public static void bootstrap(Registerable<Enchantment> registry) {
-		RegistryEntryLookup<DamageType> registryEntryLookup = registry.getRegistryLookup(RegistryKeys.DAMAGE_TYPE);
-		RegistryEntryLookup<Enchantment> registryEntryLookup2 = registry.getRegistryLookup(RegistryKeys.ENCHANTMENT);
-		RegistryEntryLookup<Item> registryEntryLookup3 = registry.getRegistryLookup(RegistryKeys.ITEM);
-		RegistryEntryLookup<Block> registryEntryLookup4 = registry.getRegistryLookup(RegistryKeys.BLOCK);
-		RegistryEntryLookup<EntityType<?>> registryEntryLookup5 = registry.getRegistryLookup(RegistryKeys.ENTITY_TYPE);
+		RegistryEntryLookup<DamageType> damageTypes = registry.getRegistryLookup(RegistryKeys.DAMAGE_TYPE);
+		RegistryEntryLookup<Enchantment> enchantments = registry.getRegistryLookup(RegistryKeys.ENCHANTMENT);
+		RegistryEntryLookup<Item> items = registry.getRegistryLookup(RegistryKeys.ITEM);
+		RegistryEntryLookup<Block> blocks = registry.getRegistryLookup(RegistryKeys.BLOCK);
+		RegistryEntryLookup<EntityType<?>> entityTypes = registry.getRegistryLookup(RegistryKeys.ENTITY_TYPE);
 		register(
 				registry,
 				PROTECTION,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
 								           10,
 								           4,
 								           Enchantment.leveledCost(1, 11),
@@ -127,7 +128,7 @@ public class Enchantments {
 								           AttributeModifierSlot.ARMOR
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE_PROTECTION,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(1.0F)),
@@ -143,7 +144,7 @@ public class Enchantments {
 				FIRE_PROTECTION,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
 								           5,
 								           4,
 								           Enchantment.leveledCost(10, 8),
@@ -152,7 +153,7 @@ public class Enchantments {
 								           AttributeModifierSlot.ARMOR
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE_PROTECTION,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.0F)),
@@ -181,7 +182,7 @@ public class Enchantments {
 				FEATHER_FALLING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
 								           5,
 								           4,
 								           Enchantment.leveledCost(5, 6),
@@ -205,7 +206,7 @@ public class Enchantments {
 				BLAST_PROTECTION,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
 								           2,
 								           4,
 								           Enchantment.leveledCost(5, 8),
@@ -214,7 +215,7 @@ public class Enchantments {
 								           AttributeModifierSlot.ARMOR
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE_PROTECTION,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.0F)),
@@ -239,7 +240,7 @@ public class Enchantments {
 				PROJECTILE_PROTECTION,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
 								           5,
 								           4,
 								           Enchantment.leveledCost(3, 6),
@@ -248,7 +249,7 @@ public class Enchantments {
 								           AttributeModifierSlot.ARMOR
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.ARMOR_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE_PROTECTION,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.0F)),
@@ -264,7 +265,7 @@ public class Enchantments {
 				RESPIRATION,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.HEAD_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.HEAD_ARMOR_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(10, 10),
@@ -288,7 +289,7 @@ public class Enchantments {
 				AQUA_AFFINITY,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.HEAD_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.HEAD_ARMOR_ENCHANTABLE),
 								           2,
 								           1,
 								           Enchantment.constantCost(1),
@@ -312,8 +313,8 @@ public class Enchantments {
 				THORNS,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
-								           registryEntryLookup3.getOrThrow(ItemTags.CHEST_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.CHEST_ARMOR_ENCHANTABLE),
 								           1,
 								           3,
 								           Enchantment.leveledCost(10, 20),
@@ -330,7 +331,7 @@ public class Enchantments {
 								           new DamageEntityEnchantmentEffect(
 										           EnchantmentLevelBasedValue.constant(1.0F),
 										           EnchantmentLevelBasedValue.constant(5.0F),
-										           registryEntryLookup.getOrThrow(DamageTypes.THORNS)
+										           damageTypes.getOrThrow(DamageTypes.THORNS)
 								           ),
 								           new ChangeItemDamageEnchantmentEffect(EnchantmentLevelBasedValue.constant(
 										           2.0F))
@@ -344,7 +345,7 @@ public class Enchantments {
 				DEPTH_STRIDER,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(10, 10),
@@ -353,7 +354,7 @@ public class Enchantments {
 								           AttributeModifierSlot.FEET
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.BOOTS_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.BOOTS_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.ATTRIBUTES,
 						           new AttributeEnchantmentEffect(
@@ -369,7 +370,7 @@ public class Enchantments {
 				FROST_WALKER,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
 								           2,
 								           2,
 								           Enchantment.leveledCost(10, 10),
@@ -378,7 +379,7 @@ public class Enchantments {
 								           AttributeModifierSlot.FEET
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.BOOTS_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.BOOTS_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE_IMMUNITY,
 						           DamageImmunityEnchantmentEffect.INSTANCE,
@@ -436,7 +437,7 @@ public class Enchantments {
 				BINDING_CURSE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.EQUIPPABLE_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.EQUIPPABLE_ENCHANTABLE),
 								           1,
 								           1,
 								           Enchantment.constantCost(25),
@@ -460,7 +461,7 @@ public class Enchantments {
 				                                                                                  .block(net.minecraft.predicate.BlockPredicate.Builder
 						                                                                                  .create()
 						                                                                                  .tag(
-								                                                                                  registryEntryLookup4,
+								                                                                                  blocks,
 								                                                                                  BlockTags.SOUL_SPEED_BLOCKS
 						                                                                                  ))
 		                                                         );
@@ -489,7 +490,7 @@ public class Enchantments {
 														                                                .block(net.minecraft.predicate.BlockPredicate.Builder
 																                                                .create()
 																                                                .tag(
-																		                                                registryEntryLookup4,
+																		                                                blocks,
 																		                                                BlockTags.SOUL_SPEED_BLOCKS
 																                                                ))
 												                       )
@@ -513,7 +514,7 @@ public class Enchantments {
 												                                                .block(net.minecraft.predicate.BlockPredicate.Builder
 														                                                .create()
 														                                                .tag(
-																                                                registryEntryLookup4,
+																                                                blocks,
 																                                                BlockTags.SOUL_SPEED_BLOCKS
 														                                                ))
 										                       )
@@ -529,7 +530,7 @@ public class Enchantments {
 				SOUL_SPEED,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FOOT_ARMOR_ENCHANTABLE),
 								           1,
 								           3,
 								           Enchantment.leveledCost(10, 10),
@@ -573,7 +574,7 @@ public class Enchantments {
 												                                                           .block(net.minecraft.predicate.BlockPredicate.Builder
 														                                                           .create()
 														                                                           .tag(
-																                                                           registryEntryLookup4,
+																                                                           blocks,
 																                                                           BlockTags.SOUL_SPEED_BLOCKS
 														                                                           ))
 										                                  )
@@ -614,7 +615,7 @@ public class Enchantments {
 				SWIFT_SNEAK,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.LEG_ARMOR_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.LEG_ARMOR_ENCHANTABLE),
 								           1,
 								           3,
 								           Enchantment.leveledCost(25, 25),
@@ -638,8 +639,8 @@ public class Enchantments {
 				SHARPNESS,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.SHARP_WEAPON_ENCHANTABLE),
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.SHARP_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           10,
 								           5,
 								           Enchantment.leveledCost(1, 11),
@@ -648,7 +649,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(1.0F, 0.5F))
@@ -659,8 +660,8 @@ public class Enchantments {
 				SMITE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.WEAPON_ENCHANTABLE),
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           5,
 								           5,
 								           Enchantment.leveledCost(5, 8),
@@ -669,7 +670,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.5F)),
@@ -678,7 +679,7 @@ public class Enchantments {
 								           EntityPredicate.Builder
 										           .create()
 										           .type(EntityTypePredicate.create(
-												           registryEntryLookup5,
+												           entityTypes,
 												           EntityTypeTags.SENSITIVE_TO_SMITE
 										           ))
 						           )
@@ -689,8 +690,8 @@ public class Enchantments {
 				BANE_OF_ARTHROPODS,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.WEAPON_ENCHANTABLE),
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           5,
 								           5,
 								           Enchantment.leveledCost(5, 8),
@@ -699,7 +700,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.5F)),
@@ -708,7 +709,7 @@ public class Enchantments {
 								           EntityPredicate.Builder
 										           .create()
 										           .type(EntityTypePredicate.create(
-												           registryEntryLookup5,
+												           entityTypes,
 												           EntityTypeTags.SENSITIVE_TO_BANE_OF_ARTHROPODS
 										           ))
 						           )
@@ -729,7 +730,7 @@ public class Enchantments {
 								                                        EntityPredicate.Builder
 										                                        .create()
 										                                        .type(EntityTypePredicate.create(
-												                                        registryEntryLookup5,
+												                                        entityTypes,
 												                                        EntityTypeTags.SENSITIVE_TO_BANE_OF_ARTHROPODS
 										                                        ))
 						                                        )
@@ -744,7 +745,7 @@ public class Enchantments {
 				KNOCKBACK,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           5,
 								           2,
 								           Enchantment.leveledCost(5, 20),
@@ -763,8 +764,8 @@ public class Enchantments {
 				FIRE_ASPECT,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FIRE_ASPECT_ENCHANTABLE),
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FIRE_ASPECT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           2,
 								           2,
 								           Enchantment.leveledCost(10, 20),
@@ -788,7 +789,7 @@ public class Enchantments {
 				LOOTING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MELEE_WEAPON_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(15, 9),
@@ -807,7 +808,7 @@ public class Enchantments {
 								           EntityPredicate.Builder
 										           .create()
 										           .type(EntityTypePredicate.create(
-												           registryEntryLookup5,
+												           entityTypes,
 												           EntityType.PLAYER
 										           ))
 						           )
@@ -818,7 +819,7 @@ public class Enchantments {
 				SWEEPING_EDGE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.SWEEPING_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.SWEEPING_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(5, 9),
@@ -845,7 +846,7 @@ public class Enchantments {
 				EFFICIENCY,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MINING_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MINING_ENCHANTABLE),
 								           10,
 								           5,
 								           Enchantment.leveledCost(1, 10),
@@ -869,7 +870,7 @@ public class Enchantments {
 				SILK_TOUCH,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MINING_LOOT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MINING_LOOT_ENCHANTABLE),
 								           1,
 								           1,
 								           Enchantment.constantCost(15),
@@ -878,7 +879,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.MINING_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.MINING_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.BLOCK_EXPERIENCE,
 						           new SetEnchantmentEffect(EnchantmentLevelBasedValue.constant(0.0F))
@@ -889,7 +890,7 @@ public class Enchantments {
 				UNBREAKING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.DURABILITY_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.DURABILITY_ENCHANTABLE),
 								           5,
 								           3,
 								           Enchantment.leveledCost(5, 8),
@@ -908,7 +909,7 @@ public class Enchantments {
 						           ),
 						           MatchToolLootCondition.builder(ItemPredicate.Builder
 								           .create()
-								           .tag(registryEntryLookup3, ItemTags.ARMOR_ENCHANTABLE))
+								           .tag(items, ItemTags.ARMOR_ENCHANTABLE))
 				           )
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.ITEM_DAMAGE,
@@ -921,7 +922,7 @@ public class Enchantments {
 						           InvertedLootCondition.builder(
 								           MatchToolLootCondition.builder(ItemPredicate.Builder
 										           .create()
-										           .tag(registryEntryLookup3, ItemTags.ARMOR_ENCHANTABLE))
+										           .tag(items, ItemTags.ARMOR_ENCHANTABLE))
 						           )
 				           )
 		);
@@ -930,7 +931,7 @@ public class Enchantments {
 				FORTUNE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MINING_LOOT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MINING_LOOT_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(15, 9),
@@ -939,14 +940,14 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.MINING_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.MINING_EXCLUSIVE_SET))
 		);
 		register(
 				registry,
 				POWER,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.BOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.BOW_ENCHANTABLE),
 								           10,
 								           5,
 								           Enchantment.leveledCost(1, 10),
@@ -962,7 +963,7 @@ public class Enchantments {
 								           LootContext.EntityReference.DIRECT_ATTACKER,
 								           EntityPredicate.Builder
 										           .create()
-										           .type(registryEntryLookup5, EntityTypeTags.ARROWS)
+										           .type(entityTypes, EntityTypeTags.ARROWS)
 										           .build()
 						           )
 				           )
@@ -972,7 +973,7 @@ public class Enchantments {
 				PUNCH,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.BOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.BOW_ENCHANTABLE),
 								           2,
 								           2,
 								           Enchantment.leveledCost(12, 20),
@@ -988,7 +989,7 @@ public class Enchantments {
 								           LootContext.EntityReference.DIRECT_ATTACKER,
 								           EntityPredicate.Builder
 										           .create()
-										           .type(registryEntryLookup5, EntityTypeTags.ARROWS)
+										           .type(entityTypes, EntityTypeTags.ARROWS)
 										           .build()
 						           )
 				           )
@@ -998,7 +999,7 @@ public class Enchantments {
 				FLAME,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.BOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.BOW_ENCHANTABLE),
 								           2,
 								           1,
 								           Enchantment.constantCost(20),
@@ -1017,7 +1018,7 @@ public class Enchantments {
 				INFINITY,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.BOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.BOW_ENCHANTABLE),
 								           1,
 								           1,
 								           Enchantment.constantCost(20),
@@ -1026,13 +1027,13 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.BOW_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.BOW_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.AMMO_USE,
 						           new SetEnchantmentEffect(EnchantmentLevelBasedValue.constant(0.0F)),
 						           MatchToolLootCondition.builder(ItemPredicate.Builder
 								           .create()
-								           .items(registryEntryLookup3, Items.ARROW))
+								           .items(items, Items.ARROW))
 				           )
 		);
 		register(
@@ -1040,7 +1041,7 @@ public class Enchantments {
 				LUCK_OF_THE_SEA,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FISHING_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FISHING_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(15, 9),
@@ -1059,7 +1060,7 @@ public class Enchantments {
 				LURE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.FISHING_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.FISHING_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(15, 9),
@@ -1078,7 +1079,7 @@ public class Enchantments {
 				LOYALTY,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
 								           5,
 								           3,
 								           Enchantment.leveledCost(12, 7),
@@ -1097,7 +1098,7 @@ public class Enchantments {
 				IMPALING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
 								           2,
 								           5,
 								           Enchantment.leveledCost(1, 8),
@@ -1106,7 +1107,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.DAMAGE,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.5F)),
@@ -1115,7 +1116,7 @@ public class Enchantments {
 								           EntityPredicate.Builder
 										           .create()
 										           .type(EntityTypePredicate.create(
-												           registryEntryLookup5,
+												           entityTypes,
 												           EntityTypeTags.SENSITIVE_TO_IMPALING
 										           ))
 										           .build()
@@ -1127,7 +1128,7 @@ public class Enchantments {
 				RIPTIDE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(17, 7),
@@ -1136,7 +1137,7 @@ public class Enchantments {
 								           AttributeModifierSlot.HAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.RIPTIDE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.RIPTIDE_EXCLUSIVE_SET))
 				           .addNonListEffect(
 						           EnchantmentEffectComponentTypes.TRIDENT_SPIN_ATTACK_STRENGTH,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(1.5F, 0.75F))
@@ -1155,7 +1156,7 @@ public class Enchantments {
 				LUNGE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.LUNGE_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.LUNGE_ENCHANTABLE),
 								           5,
 								           3,
 								           Enchantment.leveledCost(5, 8),
@@ -1218,7 +1219,7 @@ public class Enchantments {
 				CHANNELING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.TRIDENT_ENCHANTABLE),
 								           1,
 								           1,
 								           Enchantment.constantCost(25),
@@ -1254,7 +1255,7 @@ public class Enchantments {
 										           LootContext.EntityReference.DIRECT_ATTACKER,
 										           EntityPredicate.Builder
 												           .create()
-												           .type(registryEntryLookup5, EntityType.TRIDENT)
+												           .type(entityTypes, EntityType.TRIDENT)
 								           )
 						           )
 				           )
@@ -1277,7 +1278,7 @@ public class Enchantments {
 										           LootContext.EntityReference.THIS,
 										           EntityPredicate.Builder
 												           .create()
-												           .type(registryEntryLookup5, EntityType.TRIDENT)
+												           .type(entityTypes, EntityType.TRIDENT)
 								           ),
 								           LocationCheckLootCondition.builder(
 										           LocationPredicate.Builder.create()
@@ -1285,7 +1286,7 @@ public class Enchantments {
 										                                    .block(net.minecraft.predicate.BlockPredicate.Builder
 												                                    .create()
 												                                    .tag(
-														                                    registryEntryLookup4,
+														                                    blocks,
 														                                    BlockTags.LIGHTNING_RODS
 												                                    ))
 								           )
@@ -1297,7 +1298,7 @@ public class Enchantments {
 				MULTISHOT,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
 								           2,
 								           1,
 								           Enchantment.constantCost(20),
@@ -1306,7 +1307,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.PROJECTILE_COUNT,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(2.0F))
@@ -1321,7 +1322,7 @@ public class Enchantments {
 				QUICK_CHARGE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
 								           5,
 								           3,
 								           Enchantment.leveledCost(12, 20),
@@ -1361,7 +1362,7 @@ public class Enchantments {
 				PIERCING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.CROSSBOW_ENCHANTABLE),
 								           10,
 								           4,
 								           Enchantment.leveledCost(1, 10),
@@ -1370,7 +1371,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.CROSSBOW_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.PROJECTILE_PIERCING,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(1.0F))
@@ -1381,7 +1382,7 @@ public class Enchantments {
 				DENSITY,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MACE_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MACE_ENCHANTABLE),
 								           5,
 								           5,
 								           Enchantment.leveledCost(5, 8),
@@ -1390,7 +1391,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.SMASH_DAMAGE_PER_FALLEN_BLOCK,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(0.5F))
@@ -1401,7 +1402,7 @@ public class Enchantments {
 				BREACH,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MACE_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MACE_ENCHANTABLE),
 								           2,
 								           4,
 								           Enchantment.leveledCost(15, 9),
@@ -1410,7 +1411,7 @@ public class Enchantments {
 								           AttributeModifierSlot.MAINHAND
 						           )
 				           )
-				           .exclusiveSet(registryEntryLookup2.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
+				           .exclusiveSet(enchantments.getOrThrow(EnchantmentTags.DAMAGE_EXCLUSIVE_SET))
 				           .addEffect(
 						           EnchantmentEffectComponentTypes.ARMOR_EFFECTIVENESS,
 						           new AddEnchantmentEffect(EnchantmentLevelBasedValue.linear(-0.15F))
@@ -1421,7 +1422,7 @@ public class Enchantments {
 				WIND_BURST,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.MACE_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.MACE_ENCHANTABLE),
 								           2,
 								           3,
 								           Enchantment.leveledCost(15, 9),
@@ -1441,7 +1442,7 @@ public class Enchantments {
 										           List.of(1.2F, 1.75F, 2.2F),
 										           EnchantmentLevelBasedValue.linear(1.5F, 0.35F)
 								           )),
-								           registryEntryLookup4
+								           blocks
 										           .getOptional(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS)
 										           .map(Function.identity()),
 								           Vec3d.ZERO,
@@ -1469,7 +1470,7 @@ public class Enchantments {
 				MENDING,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.DURABILITY_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.DURABILITY_ENCHANTABLE),
 								           2,
 								           1,
 								           Enchantment.leveledCost(25, 25),
@@ -1488,7 +1489,7 @@ public class Enchantments {
 				VANISHING_CURSE,
 				Enchantment.builder(
 						           Enchantment.definition(
-								           registryEntryLookup3.getOrThrow(ItemTags.VANISHING_ENCHANTABLE),
+								           items.getOrThrow(ItemTags.VANISHING_ENCHANTABLE),
 								           1,
 								           1,
 								           Enchantment.constantCost(25),

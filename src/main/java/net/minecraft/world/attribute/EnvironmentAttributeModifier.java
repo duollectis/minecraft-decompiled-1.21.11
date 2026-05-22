@@ -7,106 +7,119 @@ import net.minecraft.util.math.Interpolator;
 import java.util.Map;
 
 /**
- * {@code EnvironmentAttributeModifier}.
+ * Модификатор атрибута окружения: применяет операцию к текущему значению атрибута
+ * с заданным аргументом. Каждый тип атрибута имеет свой набор допустимых модификаторов.
+ *
+ * @param <Subject> тип значения атрибута
+ * @param <Argument> тип аргумента операции
  */
 public interface EnvironmentAttributeModifier<Subject, Argument> {
 
-	Map<EnvironmentAttributeModifier.Type, EnvironmentAttributeModifier<Boolean, ?>> BOOLEAN_MODIFIERS = Map.of(
-			EnvironmentAttributeModifier.Type.AND,
-			BooleanModifier.AND,
-			EnvironmentAttributeModifier.Type.NAND,
-			BooleanModifier.NAND,
-			EnvironmentAttributeModifier.Type.OR,
-			BooleanModifier.OR,
-			EnvironmentAttributeModifier.Type.NOR,
-			BooleanModifier.NOR,
-			EnvironmentAttributeModifier.Type.XOR,
-			BooleanModifier.XOR,
-			EnvironmentAttributeModifier.Type.XNOR,
-			BooleanModifier.XNOR
+	/** Стандартные булевые модификаторы, индексированные по типу. */
+	Map<Type, EnvironmentAttributeModifier<Boolean, ?>> BOOLEAN_MODIFIERS = Map.of(
+		Type.AND, BooleanModifier.AND,
+		Type.NAND, BooleanModifier.NAND,
+		Type.OR, BooleanModifier.OR,
+		Type.NOR, BooleanModifier.NOR,
+		Type.XOR, BooleanModifier.XOR,
+		Type.XNOR, BooleanModifier.XNOR
 	);
 
-	Map<EnvironmentAttributeModifier.Type, EnvironmentAttributeModifier<Float, ?>> FLOAT_MODIFIERS = Map.of(
-			EnvironmentAttributeModifier.Type.ALPHA_BLEND,
-			FloatModifier.ALPHA_BLEND,
-			EnvironmentAttributeModifier.Type.ADD,
-			FloatModifier.ADD,
-			EnvironmentAttributeModifier.Type.SUBTRACT,
-			FloatModifier.SUBTRACT,
-			EnvironmentAttributeModifier.Type.MULTIPLY,
-			FloatModifier.MULTIPLY,
-			EnvironmentAttributeModifier.Type.MINIMUM,
-			FloatModifier.MINIMUM,
-			EnvironmentAttributeModifier.Type.MAXIMUM,
-			FloatModifier.MAXIMUM
+	/** Стандартные числовые модификаторы для float-атрибутов. */
+	Map<Type, EnvironmentAttributeModifier<Float, ?>> FLOAT_MODIFIERS = Map.of(
+		Type.ALPHA_BLEND, FloatModifier.ALPHA_BLEND,
+		Type.ADD, FloatModifier.ADD,
+		Type.SUBTRACT, FloatModifier.SUBTRACT,
+		Type.MULTIPLY, FloatModifier.MULTIPLY,
+		Type.MINIMUM, FloatModifier.MINIMUM,
+		Type.MAXIMUM, FloatModifier.MAXIMUM
 	);
 
-	Map<EnvironmentAttributeModifier.Type, EnvironmentAttributeModifier<Integer, ?>> RGB = Map.of(
-			EnvironmentAttributeModifier.Type.ALPHA_BLEND,
-			ColorModifier.ALPHA_BLEND,
-			EnvironmentAttributeModifier.Type.ADD,
-			ColorModifier.ADD,
-			EnvironmentAttributeModifier.Type.SUBTRACT,
-			ColorModifier.SUBTRACT,
-			EnvironmentAttributeModifier.Type.MULTIPLY,
-			ColorModifier.MULTIPLY_RGB,
-			EnvironmentAttributeModifier.Type.BLEND_TO_GRAY,
-			ColorModifier.BLEND_TO_GRAY
+	/** Стандартные цветовые модификаторы для RGB-атрибутов (без альфа-канала). */
+	Map<Type, EnvironmentAttributeModifier<Integer, ?>> RGB = Map.of(
+		Type.ALPHA_BLEND, ColorModifier.ALPHA_BLEND,
+		Type.ADD, ColorModifier.ADD,
+		Type.SUBTRACT, ColorModifier.SUBTRACT,
+		Type.MULTIPLY, ColorModifier.MULTIPLY_RGB,
+		Type.BLEND_TO_GRAY, ColorModifier.BLEND_TO_GRAY
 	);
 
-	Map<EnvironmentAttributeModifier.Type, EnvironmentAttributeModifier<Integer, ?>> ARGB = Map.of(
-			EnvironmentAttributeModifier.Type.ALPHA_BLEND,
-			ColorModifier.ALPHA_BLEND,
-			EnvironmentAttributeModifier.Type.ADD,
-			ColorModifier.ADD,
-			EnvironmentAttributeModifier.Type.SUBTRACT,
-			ColorModifier.SUBTRACT,
-			EnvironmentAttributeModifier.Type.MULTIPLY,
-			ColorModifier.MULTIPLY_ARGB,
-			EnvironmentAttributeModifier.Type.BLEND_TO_GRAY,
-			ColorModifier.BLEND_TO_GRAY
+	/** Стандартные цветовые модификаторы для ARGB-атрибутов (с альфа-каналом). */
+	Map<Type, EnvironmentAttributeModifier<Integer, ?>> ARGB = Map.of(
+		Type.ALPHA_BLEND, ColorModifier.ALPHA_BLEND,
+		Type.ADD, ColorModifier.ADD,
+		Type.SUBTRACT, ColorModifier.SUBTRACT,
+		Type.MULTIPLY, ColorModifier.MULTIPLY_ARGB,
+		Type.BLEND_TO_GRAY, ColorModifier.BLEND_TO_GRAY
 	);
 
+	/**
+	 * Возвращает синглтон-модификатор перезаписи: просто заменяет текущее значение аргументом.
+	 *
+	 * @param <Value> тип значения
+	 * @return модификатор-перезапись
+	 */
 	@SuppressWarnings("unchecked")
 	static <Value> EnvironmentAttributeModifier<Value, Value> override() {
-		return (EnvironmentAttributeModifier<Value, Value>) EnvironmentAttributeModifier.OverrideModifier.INSTANCE;
+		return (EnvironmentAttributeModifier<Value, Value>) OverrideModifier.INSTANCE;
 	}
 
+	/**
+	 * Применяет модификацию к текущему значению атрибута.
+	 *
+	 * @param value текущее значение
+	 * @param argument аргумент операции
+	 * @return модифицированное значение
+	 */
 	Subject apply(Subject value, Argument argument);
 
+	/**
+	 * Возвращает codec для аргумента данного модификатора в контексте конкретного атрибута.
+	 *
+	 * @param attribute атрибут, для которого используется модификатор
+	 * @return codec аргумента
+	 */
 	Codec<Argument> argumentCodec(EnvironmentAttribute<Subject> attribute);
 
+	/**
+	 * Возвращает интерполятор для аргументов в ключевых кадрах таймлайна.
+	 *
+	 * @param attribute атрибут, для которого используется модификатор
+	 * @return интерполятор аргументов
+	 */
 	Interpolator<Argument> argumentKeyframeLerp(EnvironmentAttribute<Subject> attribute);
 
 	/**
-	 * {@code OverrideModifier}.
+	 * Модификатор-перезапись: игнорирует текущее значение и возвращает аргумент.
+	 * Используется как значение по умолчанию при сериализации без явного модификатора.
+	 *
+	 * @param <Value> тип значения
 	 */
-	public record OverrideModifier<Value>() implements EnvironmentAttributeModifier<Value, Value> {
+	record OverrideModifier<Value>() implements EnvironmentAttributeModifier<Value, Value> {
 
-		static final EnvironmentAttributeModifier.OverrideModifier<?>
-				INSTANCE =
-				new EnvironmentAttributeModifier.OverrideModifier();
+		static final OverrideModifier<?> INSTANCE = new OverrideModifier<>();
 
 		@Override
-		public Value apply(Value object, Value object2) {
-			return object2;
+		public Value apply(Value current, Value argument) {
+			return argument;
 		}
 
 		@Override
-		public Codec<Value> argumentCodec(EnvironmentAttribute<Value> environmentAttribute) {
-			return environmentAttribute.getCodec();
+		public Codec<Value> argumentCodec(EnvironmentAttribute<Value> attribute) {
+			return attribute.getCodec();
 		}
 
 		@Override
-		public Interpolator<Value> argumentKeyframeLerp(EnvironmentAttribute<Value> environmentAttribute) {
-			return environmentAttribute.getType().keyframeLerp();
+		public Interpolator<Value> argumentKeyframeLerp(EnvironmentAttribute<Value> attribute) {
+			return attribute.getType().keyframeLerp();
 		}
 	}
 
 	/**
-	 * {@code Type}.
+	 * Перечисление всех поддерживаемых типов модификаторов.
+	 * Используется как ключ в библиотеках модификаторов и при сериализации.
 	 */
-	public static enum Type implements StringIdentifiable {
+	enum Type implements StringIdentifiable {
 		OVERRIDE("override"),
 		ALPHA_BLEND("alpha_blend"),
 		ADD("add"),
@@ -122,18 +135,17 @@ public interface EnvironmentAttributeModifier<Subject, Argument> {
 		XOR("xor"),
 		XNOR("xnor");
 
-		public static final Codec<EnvironmentAttributeModifier.Type>
-				CODEC =
-				StringIdentifiable.createCodec(EnvironmentAttributeModifier.Type::values);
+		public static final Codec<Type> CODEC = StringIdentifiable.createCodec(Type::values);
+
 		private final String name;
 
-		private Type(final String name) {
+		Type(String name) {
 			this.name = name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

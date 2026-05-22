@@ -14,7 +14,8 @@ import net.minecraft.world.event.GameEvent;
 import java.util.List;
 
 /**
- * {@code LeadItem}.
+ * Предмет «Поводок». При использовании на заборе привязывает всех существ,
+ * которых игрок ведёт на поводке, к узлу поводка на этом блоке.
  */
 public class LeadItem extends Item {
 
@@ -25,56 +26,61 @@ public class LeadItem extends Item {
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
-		if (blockState.isIn(BlockTags.FENCES)) {
-			PlayerEntity playerEntity = context.getPlayer();
-			if (!world.isClient() && playerEntity != null) {
-				return attachHeldMobsToBlock(playerEntity, world, blockPos);
-			}
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
+
+		if (!blockState.isIn(BlockTags.FENCES)) {
+			return ActionResult.PASS;
 		}
 
-		return ActionResult.PASS;
+		PlayerEntity player = context.getPlayer();
+
+		if (world.isClient() || player == null) {
+			return ActionResult.PASS;
+		}
+
+		return attachHeldMobsToBlock(player, world, pos);
 	}
 
 	/**
-	 * Attach held mobs to block.
+	 * Привязывает всех существ, которых ведёт {@code player}, к узлу поводка
+	 * на позиции {@code pos}. Узел создаётся лениво — только при первом
+	 * подходящем существе. Если хотя бы одно существо было привязано,
+	 * испускает игровое событие {@link GameEvent#BLOCK_ATTACH}.
 	 *
-	 * @param player player
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return ActionResult — результат операции
+	 * @param player игрок, держащий поводки
+	 * @param world мир, в котором происходит действие
+	 * @param pos позиция блока забора
+	 * @return {@link ActionResult#SUCCESS_SERVER} если привязано хотя бы одно существо,
+	 *         иначе {@link ActionResult#PASS}
 	 */
 	public static ActionResult attachHeldMobsToBlock(PlayerEntity player, World world, BlockPos pos) {
-		LeashKnotEntity leashKnotEntity = null;
-		List<Leashable>
-				list =
-				Leashable.collectLeashablesAround(
-						world,
-						Vec3d.ofCenter(pos),
-						entity -> entity.getLeashHolder() == player
-				);
-		boolean bl = false;
+		List<Leashable> leashedMobs = Leashable.collectLeashablesAround(
+			world,
+			Vec3d.ofCenter(pos),
+			entity -> entity.getLeashHolder() == player
+		);
 
-		for (Leashable leashable : list) {
-			if (leashKnotEntity == null) {
-				leashKnotEntity = LeashKnotEntity.getOrCreate(world, pos);
-				leashKnotEntity.onPlace();
+		LeashKnotEntity knot = null;
+		boolean didAttach = false;
+
+		for (Leashable leashable : leashedMobs) {
+			if (knot == null) {
+				knot = LeashKnotEntity.getOrCreate(world, pos);
+				knot.onPlace();
 			}
 
-			if (leashable.canBeLeashedTo(leashKnotEntity)) {
-				leashable.attachLeash(leashKnotEntity, true);
-				bl = true;
+			if (leashable.canBeLeashedTo(knot)) {
+				leashable.attachLeash(knot, true);
+				didAttach = true;
 			}
 		}
 
-		if (bl) {
+		if (didAttach) {
 			world.emitGameEvent(GameEvent.BLOCK_ATTACH, pos, GameEvent.Emitter.of(player));
 			return ActionResult.SUCCESS_SERVER;
 		}
-		else {
-			return ActionResult.PASS;
-		}
+
+		return ActionResult.PASS;
 	}
 }

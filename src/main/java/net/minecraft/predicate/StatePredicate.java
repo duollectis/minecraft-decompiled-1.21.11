@@ -19,37 +19,38 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code StatePredicate}.
+ * Предикат для проверки свойств состояния блока или жидкости.
+ * Каждое условие ({@link Condition}) проверяет одно свойство по имени.
+ * Поддерживает точное совпадение ({@link ExactValueMatcher}) и диапазон ({@link RangedValueMatcher}).
  */
 public record StatePredicate(List<StatePredicate.Condition> conditions) {
 
-	private static final Codec<List<StatePredicate.Condition>>
-			CONDITION_LIST_CODEC =
+	/**
+	 * Codec для преобразования карты {@code {имя_свойства -> матчер}} в список условий.
+	 * Декомпилятор добавлял лишние касты {@code (String)} и {@code (ValueMatcher)} — убраны.
+	 */
+	private static final Codec<List<StatePredicate.Condition>> CONDITION_LIST_CODEC =
 			Codec.unboundedMap(Codec.STRING, StatePredicate.ValueMatcher.CODEC)
-			     .xmap(
-					     states -> states.entrySet()
-					                     .stream()
-					                     .map(state -> new StatePredicate.Condition(
-							                     (String) state.getKey(),
-							                     (StatePredicate.ValueMatcher) state.getValue()
-					                     ))
-					                     .toList(),
-					     conditions -> conditions
-							     .stream()
-							     .collect(Collectors.toMap(
-									     StatePredicate.Condition::key,
-									     StatePredicate.Condition::valueMatcher
-							     ))
-			     );
-	public static final Codec<StatePredicate>
-			CODEC =
+					.xmap(
+							states -> states.entrySet()
+									.stream()
+									.map(entry -> new StatePredicate.Condition(entry.getKey(), entry.getValue()))
+									.toList(),
+							conditions -> conditions.stream()
+									.collect(Collectors.toMap(
+											StatePredicate.Condition::key,
+											StatePredicate.Condition::valueMatcher
+									))
+					);
+
+	public static final Codec<StatePredicate> CODEC =
 			CONDITION_LIST_CODEC.xmap(StatePredicate::new, StatePredicate::conditions);
 	public static final PacketCodec<ByteBuf, StatePredicate> PACKET_CODEC = StatePredicate.Condition.PACKET_CODEC
 			.collect(PacketCodecs.toList())
 			.xmap(StatePredicate::new, StatePredicate::conditions);
 
 	public <S extends State<?, S>> boolean test(StateManager<?, S> stateManager, S container) {
-		for (StatePredicate.Condition condition : this.conditions) {
+		for (StatePredicate.Condition condition : conditions) {
 			if (!condition.test(stateManager, container)) {
 				return false;
 			}
@@ -59,32 +60,28 @@ public record StatePredicate(List<StatePredicate.Condition> conditions) {
 	}
 
 	public boolean test(BlockState state) {
-		return this.test(state.getBlock().getStateManager(), state);
+		return test(state.getBlock().getStateManager(), state);
 	}
 
 	public boolean test(FluidState state) {
-		return this.test(state.getFluid().getStateManager(), state);
+		return test(state.getFluid().getStateManager(), state);
 	}
 
 	public Optional<String> findMissing(StateManager<?, ?> stateManager) {
-		for (StatePredicate.Condition condition : this.conditions) {
-			Optional<String> optional = condition.reportMissing(stateManager);
-			if (optional.isPresent()) {
-				return optional;
+		for (StatePredicate.Condition condition : conditions) {
+			Optional<String> missing = condition.reportMissing(stateManager);
+
+			if (missing.isPresent()) {
+				return missing;
 			}
 		}
 
 		return Optional.empty();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<StatePredicate.Condition>
-				conditions =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<StatePredicate.Condition> conditions = ImmutableList.builder();
 
 		private Builder() {
 		}
@@ -94,7 +91,7 @@ public record StatePredicate(List<StatePredicate.Condition> conditions) {
 		}
 
 		public StatePredicate.Builder exactMatch(Property<?> property, String valueName) {
-			this.conditions.add(new StatePredicate.Condition(
+			conditions.add(new StatePredicate.Condition(
 					property.getName(),
 					new StatePredicate.ExactValueMatcher(valueName)
 			));
@@ -102,52 +99,44 @@ public record StatePredicate(List<StatePredicate.Condition> conditions) {
 		}
 
 		public StatePredicate.Builder exactMatch(Property<Integer> property, int value) {
-			return this.exactMatch(property, Integer.toString(value));
+			return exactMatch(property, Integer.toString(value));
 		}
 
 		public StatePredicate.Builder exactMatch(Property<Boolean> property, boolean value) {
-			return this.exactMatch(property, Boolean.toString(value));
+			return exactMatch(property, Boolean.toString(value));
 		}
 
 		public <T extends Comparable<T> & StringIdentifiable> StatePredicate.Builder exactMatch(
 				Property<T> property,
 				T value
 		) {
-			return this.exactMatch(property, value.asString());
+			return exactMatch(property, value.asString());
 		}
 
 		public Optional<StatePredicate> build() {
-			return Optional.of(new StatePredicate(this.conditions.build()));
+			return Optional.of(new StatePredicate(conditions.build()));
 		}
 	}
 
-	/**
-	 * {@code Condition}.
-	 */
 	record Condition(String key, StatePredicate.ValueMatcher valueMatcher) {
 
 		public static final PacketCodec<ByteBuf, StatePredicate.Condition> PACKET_CODEC = PacketCodec.tuple(
-				PacketCodecs.STRING,
-				StatePredicate.Condition::key,
-				StatePredicate.ValueMatcher.PACKET_CODEC,
-				StatePredicate.Condition::valueMatcher,
+				PacketCodecs.STRING, StatePredicate.Condition::key,
+				StatePredicate.ValueMatcher.PACKET_CODEC, StatePredicate.Condition::valueMatcher,
 				StatePredicate.Condition::new
 		);
 
 		public <S extends State<?, S>> boolean test(StateManager<?, S> stateManager, S state) {
-			Property<?> property = stateManager.getProperty(this.key);
-			return property != null && this.valueMatcher.test(state, property);
+			Property<?> property = stateManager.getProperty(key);
+			return property != null && valueMatcher.test(state, property);
 		}
 
 		public Optional<String> reportMissing(StateManager<?, ?> factory) {
-			Property<?> property = factory.getProperty(this.key);
-			return property != null ? Optional.empty() : Optional.of(this.key);
+			Property<?> property = factory.getProperty(key);
+			return property == null ? Optional.of(key) : Optional.empty();
 		}
 	}
 
-	/**
-	 * {@code ExactValueMatcher}.
-	 */
 	record ExactValueMatcher(String value) implements StatePredicate.ValueMatcher {
 
 		public static final Codec<StatePredicate.ExactValueMatcher> CODEC = Codec.STRING
@@ -157,45 +146,43 @@ public record StatePredicate(List<StatePredicate.Condition> conditions) {
 
 		@Override
 		public <T extends Comparable<T>> boolean test(State<?, ?> state, Property<T> property) {
-			T comparable = state.get(property);
-			Optional<T> optional = property.parse(this.value);
-			return optional.isPresent() && comparable.compareTo(optional.get()) == 0;
+			T current = state.get(property);
+			Optional<T> parsed = property.parse(value);
+			return parsed.isPresent() && current.compareTo(parsed.get()) == 0;
 		}
 	}
 
-	/**
-	 * {@code RangedValueMatcher}.
-	 */
 	record RangedValueMatcher(Optional<String> min, Optional<String> max) implements StatePredicate.ValueMatcher {
 
 		public static final Codec<StatePredicate.RangedValueMatcher> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.STRING.optionalFieldOf("min").forGetter(StatePredicate.RangedValueMatcher::min),
-						                    Codec.STRING.optionalFieldOf("max").forGetter(StatePredicate.RangedValueMatcher::max)
-				                    )
-				                    .apply(instance, StatePredicate.RangedValueMatcher::new)
+						Codec.STRING.optionalFieldOf("min").forGetter(StatePredicate.RangedValueMatcher::min),
+						Codec.STRING.optionalFieldOf("max").forGetter(StatePredicate.RangedValueMatcher::max)
+				)
+				.apply(instance, StatePredicate.RangedValueMatcher::new)
 		);
 		public static final PacketCodec<ByteBuf, StatePredicate.RangedValueMatcher> PACKET_CODEC = PacketCodec.tuple(
-				PacketCodecs.optional(PacketCodecs.STRING),
-				StatePredicate.RangedValueMatcher::min,
-				PacketCodecs.optional(PacketCodecs.STRING),
-				StatePredicate.RangedValueMatcher::max,
+				PacketCodecs.optional(PacketCodecs.STRING), StatePredicate.RangedValueMatcher::min,
+				PacketCodecs.optional(PacketCodecs.STRING), StatePredicate.RangedValueMatcher::max,
 				StatePredicate.RangedValueMatcher::new
 		);
 
 		@Override
 		public <T extends Comparable<T>> boolean test(State<?, ?> state, Property<T> property) {
-			T comparable = state.get(property);
-			if (this.min.isPresent()) {
-				Optional<T> optional = property.parse(this.min.get());
-				if (optional.isEmpty() || comparable.compareTo(optional.get()) < 0) {
+			T current = state.get(property);
+
+			if (min.isPresent()) {
+				Optional<T> parsedMin = property.parse(min.get());
+
+				if (parsedMin.isEmpty() || current.compareTo(parsedMin.get()) < 0) {
 					return false;
 				}
 			}
 
-			if (this.max.isPresent()) {
-				Optional<T> optional = property.parse(this.max.get());
-				if (optional.isEmpty() || comparable.compareTo(optional.get()) > 0) {
+			if (max.isPresent()) {
+				Optional<T> parsedMax = property.parse(max.get());
+
+				if (parsedMax.isEmpty() || current.compareTo(parsedMax.get()) > 0) {
 					return false;
 				}
 			}
@@ -205,46 +192,46 @@ public record StatePredicate(List<StatePredicate.Condition> conditions) {
 	}
 
 	/**
-	 * {@code ValueMatcher}.
+	 * Интерфейс для сопоставления значения свойства состояния.
+	 * Реализации: {@link ExactValueMatcher} и {@link RangedValueMatcher}.
 	 */
 	interface ValueMatcher {
 
-		Codec<StatePredicate.ValueMatcher>
-				CODEC =
+		Codec<StatePredicate.ValueMatcher> CODEC =
 				Codec.either(StatePredicate.ExactValueMatcher.CODEC, StatePredicate.RangedValueMatcher.CODEC)
-				     .xmap(
-						     Either::unwrap, valueMatcher -> {
-							     if (valueMatcher instanceof StatePredicate.ExactValueMatcher exactValueMatcher) {
-								     return Either.left(exactValueMatcher);
-							     }
-							     else if (valueMatcher instanceof StatePredicate.RangedValueMatcher rangedValueMatcher) {
-								     return Either.right(rangedValueMatcher);
-							     }
-							     else {
-								     throw new UnsupportedOperationException();
-							     }
-						     }
-				     );
+						.xmap(
+								Either::unwrap,
+								valueMatcher -> {
+									if (valueMatcher instanceof StatePredicate.ExactValueMatcher exact) {
+										return Either.left(exact);
+									}
+
+									if (valueMatcher instanceof StatePredicate.RangedValueMatcher ranged) {
+										return Either.right(ranged);
+									}
+
+									throw new UnsupportedOperationException();
+								}
+						);
 
 		PacketCodec<ByteBuf, StatePredicate.ValueMatcher> PACKET_CODEC = PacketCodecs.either(
-				                                                                             StatePredicate.ExactValueMatcher.PACKET_CODEC, StatePredicate.RangedValueMatcher.PACKET_CODEC
-		                                                                             )
-		                                                                             .xmap(
-				                                                                             Either::unwrap,
-				                                                                             valueMatcher -> {
-					                                                                             if (valueMatcher instanceof StatePredicate.ExactValueMatcher exactValueMatcher) {
-						                                                                             return Either.left(
-								                                                                             exactValueMatcher);
-					                                                                             }
-					                                                                             else if (valueMatcher instanceof StatePredicate.RangedValueMatcher rangedValueMatcher) {
-						                                                                             return Either.right(
-								                                                                             rangedValueMatcher);
-					                                                                             }
-					                                                                             else {
-						                                                                             throw new UnsupportedOperationException();
-					                                                                             }
-				                                                                             }
-		                                                                             );
+				StatePredicate.ExactValueMatcher.PACKET_CODEC,
+				StatePredicate.RangedValueMatcher.PACKET_CODEC
+		)
+		.xmap(
+				Either::unwrap,
+				valueMatcher -> {
+					if (valueMatcher instanceof StatePredicate.ExactValueMatcher exact) {
+						return Either.left(exact);
+					}
+
+					if (valueMatcher instanceof StatePredicate.RangedValueMatcher ranged) {
+						return Either.right(ranged);
+					}
+
+					throw new UnsupportedOperationException();
+				}
+		);
 
 		<T extends Comparable<T>> boolean test(State<?, ?> state, Property<T> property);
 	}

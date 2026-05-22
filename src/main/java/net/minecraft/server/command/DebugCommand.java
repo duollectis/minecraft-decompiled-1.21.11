@@ -32,7 +32,7 @@ import java.util.Collection;
 import java.util.Locale;
 
 /**
- * {@code DebugCommand}.
+ * Команда {@code /debug}: запуск и остановка профилировщика сервера.
  */
 public class DebugCommand {
 
@@ -118,9 +118,6 @@ public class DebugCommand {
 		}
 	}
 
-	/**
-	 * {@code Command}.
-	 */
 	static class Command extends ControlFlowAware.Helper<ServerCommandSource> implements ControlFlowAware.Command<ServerCommandSource> {
 
 		public void executeInner(
@@ -223,9 +220,6 @@ public class DebugCommand {
 		}
 	}
 
-	/**
-	 * {@code Tracer}.
-	 */
 	static class Tracer implements CommandOutput, net.minecraft.server.function.Tracer {
 
 		public static final int MARGIN = 1;

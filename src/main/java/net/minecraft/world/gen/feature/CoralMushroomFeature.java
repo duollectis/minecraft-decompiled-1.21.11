@@ -7,9 +7,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.WorldAccess;
 
-/**
- * {@code CoralMushroomFeature}.
- */
+/** Генерирует коралл в форме гриба: полый прямоугольный параллелепипед с открытыми гранями. */
 public class CoralMushroomFeature extends CoralFeature {
 
 	public CoralMushroomFeature(Codec<DefaultFeatureConfig> codec) {
@@ -18,24 +16,36 @@ public class CoralMushroomFeature extends CoralFeature {
 
 	@Override
 	protected boolean generateCoral(WorldAccess world, Random random, BlockPos pos, BlockState state) {
-		int i = random.nextInt(3) + 3;
-		int j = random.nextInt(3) + 3;
-		int k = random.nextInt(3) + 3;
-		int l = random.nextInt(3) + 1;
+		int sizeX = random.nextInt(3) + 3;
+		int sizeY = random.nextInt(3) + 3;
+		int sizeZ = random.nextInt(3) + 3;
+		int offsetDown = random.nextInt(3) + 1;
 		BlockPos.Mutable mutable = pos.mutableCopy();
 
-		for (int m = 0; m <= j; m++) {
-			for (int n = 0; n <= i; n++) {
-				for (int o = 0; o <= k; o++) {
-					mutable.set(m + pos.getX(), n + pos.getY(), o + pos.getZ());
-					mutable.move(Direction.DOWN, l);
-					if ((m != 0 && m != j || n != 0 && n != i)
-							&& (o != 0 && o != k || n != 0 && n != i)
-							&& (m != 0 && m != j || o != 0 && o != k)
-							&& (m == 0 || m == j || n == 0 || n == i || o == 0 || o == k)
-							&& !(random.nextFloat() < 0.1F)
-							&& !this.generateCoralPiece(world, random, mutable, state)) {
+		for (int dx = 0; dx <= sizeX; dx++) {
+			for (int dy = 0; dy <= sizeY; dy++) {
+				for (int dz = 0; dz <= sizeZ; dz++) {
+					mutable.set(dx + pos.getX(), dy + pos.getY(), dz + pos.getZ());
+					mutable.move(Direction.DOWN, offsetDown);
+
+					boolean onXEdge = dx == 0 || dx == sizeX;
+					boolean onYEdge = dy == 0 || dy == sizeY;
+					boolean onZEdge = dz == 0 || dz == sizeZ;
+
+					// Пропускаем внутренние блоки и рёбра, оставляя только грани
+					if ((onXEdge || onYEdge) && (onZEdge || onYEdge) && (onXEdge || onZEdge)) {
+						continue;
 					}
+
+					if (!onXEdge && !onYEdge && !onZEdge) {
+						continue;
+					}
+
+					if (random.nextFloat() < 0.1F) {
+						continue;
+					}
+
+					generateCoralPiece(world, random, mutable, state);
 				}
 			}
 		}

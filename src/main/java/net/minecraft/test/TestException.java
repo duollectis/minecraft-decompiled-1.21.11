@@ -3,7 +3,8 @@ package net.minecraft.test;
 import net.minecraft.text.Text;
 
 /**
- * {@code TestException}.
+ * Базовый класс для всех исключений, возникающих в процессе выполнения игровых тестов.
+ * Наследники обязаны предоставить форматированное текстовое описание ошибки.
  */
 public abstract class TestException extends RuntimeException {
 

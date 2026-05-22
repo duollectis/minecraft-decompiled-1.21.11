@@ -1,7 +1,8 @@
 package net.minecraft.util.crash;
 
 /**
- * {@code CrashException}.
+ * Непроверяемое исключение, оборачивающее {@link CrashReport}.
+ * Используется для прерывания выполнения при критических ошибках с сохранением полного контекста.
  */
 public class CrashException extends RuntimeException {
 
@@ -12,16 +13,16 @@ public class CrashException extends RuntimeException {
 	}
 
 	public CrashReport getReport() {
-		return this.report;
+		return report;
 	}
 
 	@Override
 	public Throwable getCause() {
-		return this.report.getCause();
+		return report.getCause();
 	}
 
 	@Override
 	public String getMessage() {
-		return this.report.getMessage();
+		return report.getMessage();
 	}
 }

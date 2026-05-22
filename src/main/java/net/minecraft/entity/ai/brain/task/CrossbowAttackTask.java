@@ -16,11 +16,14 @@ import net.minecraft.item.Items;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code CrossbowAttackTask}.
+ * Задача мозга для атаки арбалетом: управляет циклом зарядки, ожидания и выстрела.
+ * Состояния: UNCHARGED → CHARGING → CHARGED → READY_TO_ATTACK → UNCHARGED.
  */
 public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends LivingEntity> extends MultiTickTask<E> {
 
 	private static final int RUN_TIME = 1200;
+	private static final int CHARGED_COOLDOWN_BASE = 20;
+	private static final int CHARGED_COOLDOWN_VARIANCE = 20;
 	private int chargingCooldown;
 	private CrossbowAttackTask.CrossbowState state = CrossbowAttackTask.CrossbowState.UNCHARGED;
 
@@ -31,101 +34,67 @@ public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends Li
 						MemoryModuleState.REGISTERED,
 						MemoryModuleType.ATTACK_TARGET,
 						MemoryModuleState.VALUE_PRESENT
-				), 1200
+				), RUN_TIME
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, E mobEntity) {
-		LivingEntity livingEntity = getAttackTarget(mobEntity);
-		return mobEntity.isHolding(Items.CROSSBOW)
-				&& TargetUtil.isVisibleInMemory(mobEntity, livingEntity)
-				&& TargetUtil.isTargetWithinAttackRange(mobEntity, livingEntity, 0);
+	@Override
+	protected boolean shouldRun(ServerWorld world, E entity) {
+		LivingEntity target = getAttackTarget(entity);
+		return entity.isHolding(Items.CROSSBOW)
+				&& TargetUtil.isVisibleInMemory(entity, target)
+				&& TargetUtil.isTargetWithinAttackRange(entity, target, 0);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, E mobEntity, long l) {
-		return mobEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET) && this.shouldRun(
-				serverWorld,
-				mobEntity
-		);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET) && shouldRun(world, entity);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, E mobEntity, long l) {
-		LivingEntity livingEntity = getAttackTarget(mobEntity);
-		this.setLookTarget(mobEntity, livingEntity);
-		this.tickState(mobEntity, livingEntity);
+	@Override
+	protected void keepRunning(ServerWorld world, E entity, long time) {
+		LivingEntity target = getAttackTarget(entity);
+		setLookTarget(entity, target);
+		tickState(entity, target);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, E mobEntity, long l) {
-		if (mobEntity.isUsingItem()) {
-			mobEntity.clearActiveItem();
+	@Override
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+		if (entity.isUsingItem()) {
+			entity.clearActiveItem();
 		}
 
-		if (mobEntity.isHolding(Items.CROSSBOW)) {
-			mobEntity.setCharging(false);
-			mobEntity.getActiveItem().set(DataComponentTypes.CHARGED_PROJECTILES, ChargedProjectilesComponent.DEFAULT);
+		if (entity.isHolding(Items.CROSSBOW)) {
+			entity.setCharging(false);
+			entity.getActiveItem().set(DataComponentTypes.CHARGED_PROJECTILES, ChargedProjectilesComponent.DEFAULT);
 		}
 	}
 
 	private void tickState(E entity, LivingEntity target) {
-		if (this.state == CrossbowAttackTask.CrossbowState.UNCHARGED) {
+		if (state == CrossbowState.UNCHARGED) {
 			entity.setCurrentHand(ProjectileUtil.getHandPossiblyHolding(entity, Items.CROSSBOW));
-			this.state = CrossbowAttackTask.CrossbowState.CHARGING;
+			state = CrossbowState.CHARGING;
 			entity.setCharging(true);
-		}
-		else if (this.state == CrossbowAttackTask.CrossbowState.CHARGING) {
+		} else if (state == CrossbowState.CHARGING) {
 			if (!entity.isUsingItem()) {
-				this.state = CrossbowAttackTask.CrossbowState.UNCHARGED;
+				state = CrossbowState.UNCHARGED;
 			}
 
-			int i = entity.getItemUseTime();
-			ItemStack itemStack = entity.getActiveItem();
-			if (i >= CrossbowItem.getPullTime(itemStack, entity)) {
+			ItemStack activeItem = entity.getActiveItem();
+			if (entity.getItemUseTime() >= CrossbowItem.getPullTime(activeItem, entity)) {
 				entity.stopUsingItem();
-				this.state = CrossbowAttackTask.CrossbowState.CHARGED;
-				this.chargingCooldown = 20 + entity.getRandom().nextInt(20);
+				state = CrossbowState.CHARGED;
+				chargingCooldown = CHARGED_COOLDOWN_BASE + entity.getRandom().nextInt(CHARGED_COOLDOWN_VARIANCE);
 				entity.setCharging(false);
 			}
-		}
-		else if (this.state == CrossbowAttackTask.CrossbowState.CHARGED) {
-			this.chargingCooldown--;
-			if (this.chargingCooldown == 0) {
-				this.state = CrossbowAttackTask.CrossbowState.READY_TO_ATTACK;
+		} else if (state == CrossbowState.CHARGED) {
+			chargingCooldown--;
+			if (chargingCooldown == 0) {
+				state = CrossbowState.READY_TO_ATTACK;
 			}
-		}
-		else if (this.state == CrossbowAttackTask.CrossbowState.READY_TO_ATTACK) {
+		} else if (state == CrossbowState.READY_TO_ATTACK) {
 			entity.shootAt(target, 1.0F);
-			this.state = CrossbowAttackTask.CrossbowState.UNCHARGED;
+			state = CrossbowState.UNCHARGED;
 		}
 	}
 
@@ -137,10 +106,7 @@ public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends Li
 		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
 	}
 
-	/**
-	 * {@code CrossbowState}.
-	 */
-	static enum CrossbowState {
+	enum CrossbowState {
 		UNCHARGED,
 		CHARGING,
 		CHARGED,

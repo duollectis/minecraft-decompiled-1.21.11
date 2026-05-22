@@ -55,28 +55,50 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * {@code LevelStorage}.
+ * Управляет директорией сохранений: перечисление миров, создание/удаление сессий,
+ * резервное копирование и чтение/запись level.dat.
+ *
+ * <p>Точка входа — {@link #create(Path)} для стандартного использования или
+ * конструктор для кастомных путей. Каждый открытый мир представлен объектом
+ * {@link Session}, который удерживает {@link SessionLock} на директорию.
  */
 public class LevelStorage {
 
 	static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final String DATA_KEY = "Data";
-	private static final PathMatcher DEFAULT_ALLOWED_SYMLINK_MATCHER = path -> false;
 	public static final String ALLOWED_SYMLINKS_FILE_NAME = "allowed_symlinks.txt";
-	private static final int RECOMMENDED_USABLE_SPACE_BYTES = 67108864;
+
+	/** Формат Anvil (текущий). */
+	private static final int FORMAT_ANVIL = 19133;
+	/** Устаревший формат McRegion. */
+	private static final int FORMAT_MC_REGION = 19132;
+	/** Минимальный рекомендуемый свободный объём диска в байтах (64 МБ). */
+	private static final long RECOMMENDED_USABLE_SPACE_BYTES = 67108864L;
+	/** Максимальное количество попыток удаления директории мира. */
+	private static final int MAX_DELETE_ATTEMPTS = 5;
+	/** Задержка между попытками удаления в миллисекундах. */
+	private static final long DELETE_RETRY_DELAY_MS = 500L;
+
+	private static final PathMatcher DEFAULT_ALLOWED_SYMLINK_MATCHER = path -> false;
+
 	private final Path savesDirectory;
 	private final Path backupsDirectory;
 	final DataFixer dataFixer;
 	private final SymlinkFinder symlinkFinder;
 
-	public LevelStorage(Path savesDirectory, Path backupsDirectory, SymlinkFinder symlinkFinder, DataFixer dataFixer) {
+	public LevelStorage(
+		Path savesDirectory,
+		Path backupsDirectory,
+		SymlinkFinder symlinkFinder,
+		DataFixer dataFixer
+	) {
 		this.dataFixer = dataFixer;
 
 		try {
 			PathUtil.createDirectories(savesDirectory);
-		}
-		catch (IOException var6) {
-			throw new UncheckedIOException(var6);
+		} catch (IOException exception) {
+			throw new UncheckedIOException(exception);
 		}
 
 		this.savesDirectory = savesDirectory;
@@ -85,24 +107,18 @@ public class LevelStorage {
 	}
 
 	/**
-	 * Создаёт symlink finder.
+	 * Создаёт {@link SymlinkFinder} на основе файла {@code allowed_symlinks.txt}.
+	 * Если файл отсутствует — все симлинки запрещены. При ошибке парсинга — тоже.
 	 *
-	 * @param allowedSymlinksFile allowed symlinks file
-	 *
-	 * @return SymlinkFinder — результат операции
+	 * @param allowedSymlinksFile путь к файлу разрешённых симлинков
+	 * @return настроенный {@code SymlinkFinder}
 	 */
 	public static SymlinkFinder createSymlinkFinder(Path allowedSymlinksFile) {
 		if (Files.exists(allowedSymlinksFile)) {
-			try {
-				SymlinkFinder var2;
-				try (BufferedReader bufferedReader = Files.newBufferedReader(allowedSymlinksFile)) {
-					var2 = new SymlinkFinder(AllowedSymlinkPathMatcher.fromReader(bufferedReader));
-				}
-
-				return var2;
-			}
-			catch (Exception var6) {
-				LOGGER.error("Failed to parse {}, disallowing all symbolic links", "allowed_symlinks.txt", var6);
+			try (BufferedReader reader = Files.newBufferedReader(allowedSymlinksFile)) {
+				return new SymlinkFinder(AllowedSymlinkPathMatcher.fromReader(reader));
+			} catch (Exception exception) {
+				LOGGER.error("Failed to parse {}, disallowing all symbolic links", ALLOWED_SYMLINKS_FILE_NAME, exception);
 			}
 		}
 
@@ -110,60 +126,70 @@ public class LevelStorage {
 	}
 
 	/**
-	 * Create.
+	 * Создаёт {@code LevelStorage} для стандартной директории сохранений.
+	 * Резервные копии помещаются в {@code ../backups} относительно {@code path}.
 	 *
-	 * @param path path
-	 *
-	 * @return LevelStorage — результат операции
+	 * @param path директория сохранений
+	 * @return настроенный экземпляр {@code LevelStorage}
 	 */
 	public static LevelStorage create(Path path) {
-		SymlinkFinder symlinkFinder = createSymlinkFinder(path.resolve("allowed_symlinks.txt"));
+		SymlinkFinder symlinkFinder = createSymlinkFinder(path.resolve(ALLOWED_SYMLINKS_FILE_NAME));
 		return new LevelStorage(path, path.resolve("../backups"), symlinkFinder, Schemas.getFixer());
 	}
 
 	/**
-	 * Разбирает data pack settings.
+	 * Разбирает конфигурацию датапаков из NBT-совместимого {@link Dynamic}.
+	 * При ошибке парсинга возвращает безопасный режим ({@link DataConfiguration#SAFE_MODE}).
 	 *
-	 * @param dynamic dynamic
-	 *
-	 * @return DataConfiguration — результат операции
+	 * @param dynamic динамическое представление данных уровня
+	 * @return конфигурация датапаков
 	 */
 	public static DataConfiguration parseDataPackSettings(Dynamic<?> dynamic) {
 		return DataConfiguration.CODEC
-				.parse(dynamic)
-				.resultOrPartial(LOGGER::error)
-				.orElse(DataConfiguration.SAFE_MODE);
+			.parse(dynamic)
+			.resultOrPartial(LOGGER::error)
+			.orElse(DataConfiguration.SAFE_MODE);
 	}
 
 	public static SaveLoading.DataPacks parseDataPacks(
-			Dynamic<?> dynamic,
-			ResourcePackManager dataPackManager,
-			boolean safeMode
+		Dynamic<?> dynamic,
+		ResourcePackManager dataPackManager,
+		boolean safeMode
 	) {
 		return new SaveLoading.DataPacks(dataPackManager, parseDataPackSettings(dynamic), safeMode, false);
 	}
 
+	/**
+	 * Полностью разбирает свойства сохранения из NBT-данных уровня.
+	 * Применяет DataFixer, разрешает конфигурацию измерений и вычисляет жизненный цикл.
+	 *
+	 * @param dynamic            обновлённые данные уровня
+	 * @param dataConfiguration  конфигурация датапаков
+	 * @param dimensionsRegistry реестр конфигураций измерений
+	 * @param registries         обёртка динамических реестров
+	 * @return разобранные свойства сохранения с конфигурацией измерений
+	 */
 	public static ParsedSaveProperties parseSaveProperties(
-			Dynamic<?> dynamic,
-			DataConfiguration dataConfiguration,
-			Registry<DimensionOptions> dimensionsRegistry,
-			RegistryWrapper.WrapperLookup registries
+		Dynamic<?> dynamic,
+		DataConfiguration dataConfiguration,
+		Registry<DimensionOptions> dimensionsRegistry,
+		RegistryWrapper.WrapperLookup registries
 	) {
-		Dynamic<?> dynamic2 = RegistryOps.withRegistry(dynamic, registries);
-		Dynamic<?> dynamic3 = dynamic2.get("WorldGenSettings").orElseEmptyMap();
-		WorldGenSettings worldGenSettings = (WorldGenSettings) WorldGenSettings.CODEC.parse(dynamic3).getOrThrow();
-		LevelInfo levelInfo = LevelInfo.fromDynamic(dynamic2, dataConfiguration);
-		DimensionOptionsRegistryHolder.DimensionsConfig
-				dimensionsConfig =
-				worldGenSettings.dimensionOptionsRegistryHolder().toConfig(dimensionsRegistry);
+		Dynamic<?> registryDynamic = RegistryOps.withRegistry(dynamic, registries);
+		Dynamic<?> worldGenDynamic = registryDynamic.get("WorldGenSettings").orElseEmptyMap();
+		WorldGenSettings worldGenSettings = WorldGenSettings.CODEC.parse(worldGenDynamic).getOrThrow();
+		LevelInfo levelInfo = LevelInfo.fromDynamic(registryDynamic, dataConfiguration);
+		DimensionOptionsRegistryHolder.DimensionsConfig dimensionsConfig =
+			worldGenSettings.dimensionOptionsRegistryHolder().toConfig(dimensionsRegistry);
 		Lifecycle lifecycle = dimensionsConfig.getLifecycle().add(registries.getLifecycle());
 		LevelProperties levelProperties = LevelProperties.readProperties(
-				dynamic2,
-				levelInfo,
-				dimensionsConfig.specialWorldProperty(),
-				worldGenSettings.generatorOptions(),
-				lifecycle
+			registryDynamic,
+			levelInfo,
+			dimensionsConfig.specialWorldProperty(),
+			worldGenSettings.generatorOptions(),
+			lifecycle
 		);
+
 		return new ParsedSaveProperties(levelProperties, dimensionsConfig);
 	}
 
@@ -171,146 +197,147 @@ public class LevelStorage {
 		return "Anvil";
 	}
 
-	public LevelStorage.LevelList getLevelList() throws LevelStorageException {
-		if (!Files.isDirectory(this.savesDirectory)) {
+	/**
+	 * Возвращает список всех директорий миров в директории сохранений.
+	 * Включает только директории с файлом {@code level.dat} или {@code level.dat_old}.
+	 *
+	 * @return список сохранений
+	 * @throws LevelStorageException если директория сохранений недоступна
+	 */
+	public LevelList getLevelList() throws LevelStorageException {
+		if (!Files.isDirectory(savesDirectory)) {
 			throw new LevelStorageException(Text.translatable("selectWorld.load_folder_access"));
 		}
-		else {
-			try {
-				LevelStorage.LevelList var3;
-				try (Stream<Path> stream = Files.list(this.savesDirectory)) {
-					List<LevelStorage.LevelSave> list = stream.filter(path -> Files.isDirectory(path))
-					                                          .map(LevelStorage.LevelSave::new)
-					                                          .filter(levelSave ->
-							                                          Files.isRegularFile(levelSave.getLevelDatPath())
-									                                          || Files.isRegularFile(levelSave.getLevelDatOldPath()))
-					                                          .toList();
-					var3 = new LevelStorage.LevelList(list);
-				}
 
-				return var3;
-			}
-			catch (IOException var6) {
-				throw new LevelStorageException(Text.translatable("selectWorld.load_folder_access"));
-			}
+		try (Stream<Path> stream = Files.list(savesDirectory)) {
+			List<LevelSave> saves = stream
+				.filter(Files::isDirectory)
+				.map(LevelSave::new)
+				.filter(save ->
+					Files.isRegularFile(save.getLevelDatPath())
+						|| Files.isRegularFile(save.getLevelDatOldPath())
+				)
+				.toList();
+
+			return new LevelList(saves);
+		} catch (IOException exception) {
+			throw new LevelStorageException(Text.translatable("selectWorld.load_folder_access"));
 		}
 	}
 
 	/**
-	 * Загружает summaries.
+	 * Асинхронно загружает краткие сводки для всех миров из списка.
+	 * Миры с ошибками чтения возвращают {@code null} и фильтруются из результата.
+	 * При нехватке памяти генерирует {@link CrashException} с подробным отчётом.
 	 *
-	 * @param levels levels
-	 *
-	 * @return CompletableFuture> — результат операции
+	 * @param levels список директорий миров
+	 * @return будущий список сводок, отсортированных по времени последней игры
 	 */
-	public CompletableFuture<List<LevelSummary>> loadSummaries(LevelStorage.LevelList levels) {
-		List<CompletableFuture<LevelSummary>> list = new ArrayList<>(levels.levels.size());
+	public CompletableFuture<List<LevelSummary>> loadSummaries(LevelList levels) {
+		List<CompletableFuture<LevelSummary>> futures = new ArrayList<>(levels.levels.size());
 
-		for (LevelStorage.LevelSave levelSave : levels.levels) {
-			list.add(CompletableFuture.supplyAsync(
-					() -> {
-						boolean bl;
+		for (LevelSave levelSave : levels.levels) {
+			futures.add(CompletableFuture.supplyAsync(
+				() -> {
+					boolean isLocked;
+					try {
+						isLocked = SessionLock.isLocked(levelSave.path());
+					} catch (Exception exception) {
+						LOGGER.warn("Failed to read {} lock", levelSave.path(), exception);
+						return null;
+					}
+
+					try {
+						return readSummary(levelSave, isLocked);
+					} catch (OutOfMemoryError oom) {
+						CrashMemoryReserve.releaseMemory();
+						String message = "Ran out of memory trying to read summary of world folder \""
+							+ levelSave.getRootPath() + "\"";
+						LOGGER.error(LogUtils.FATAL_MARKER, message);
+						OutOfMemoryError wrappedOom = new OutOfMemoryError("Ran out of memory reading level data");
+						wrappedOom.initCause(oom);
+						CrashReport crashReport = CrashReport.create(wrappedOom, message);
+						CrashReportSection section = crashReport.addElement("World details");
+						section.add("Folder Name", levelSave.getRootPath());
+
 						try {
-							bl = SessionLock.isLocked(levelSave.path());
-						}
-						catch (Exception var13) {
-							LOGGER.warn("Failed to read {} lock", levelSave.path(), var13);
-							return null;
+							long datSize = Files.size(levelSave.getLevelDatPath());
+							section.add("level.dat size", datSize);
+						} catch (IOException sizeException) {
+							section.add("level.dat size", (Throwable) sizeException);
 						}
 
-						try {
-							return this.readSummary(levelSave, bl);
-						}
-						catch (OutOfMemoryError var12) {
-							CrashMemoryReserve.releaseMemory();
-							String
-									string =
-									"Ran out of memory trying to read summary of world folder \""
-											+ levelSave.getRootPath() + "\"";
-							LOGGER.error(LogUtils.FATAL_MARKER, string);
-							OutOfMemoryError
-									outOfMemoryError2 =
-									new OutOfMemoryError("Ran out of memory reading level data");
-							outOfMemoryError2.initCause(var12);
-							CrashReport crashReport = CrashReport.create(outOfMemoryError2, string);
-							CrashReportSection crashReportSection = crashReport.addElement("World details");
-							crashReportSection.add("Folder Name", levelSave.getRootPath());
-
-							try {
-								long l = Files.size(levelSave.getLevelDatPath());
-								crashReportSection.add("level.dat size", l);
-							}
-							catch (IOException var11) {
-								crashReportSection.add("level.dat size", (Throwable) var11);
-							}
-
-							throw new CrashException(crashReport);
-						}
-					}, Util.getMainWorkerExecutor().named("loadLevelSummaries")
+						throw new CrashException(crashReport);
+					}
+				},
+				Util.getMainWorkerExecutor().named("loadLevelSummaries")
 			));
 		}
 
-		return Util
-				.combineCancellable(list)
-				.thenApply(summaries -> summaries.stream().filter(Objects::nonNull).sorted().toList());
-	}
-
-	private int getCurrentVersion() {
-		return 19133;
+		return Util.combineCancellable(futures)
+			.thenApply(summaries -> summaries.stream().filter(Objects::nonNull).sorted().toList());
 	}
 
 	static NbtCompound readLevelProperties(Path path) throws IOException {
 		return NbtIo.readCompressed(path, NbtSizeTracker.forLevel());
 	}
 
+	/**
+	 * Читает и обновляет данные level.dat через DataFixer.
+	 * Применяет фиксеры для типов {@code LEVEL}, {@code PLAYER} и {@code WORLD_GEN_SETTINGS}.
+	 *
+	 * @param path      путь к файлу level.dat
+	 * @param dataFixer фиксер данных
+	 * @return обновлённое динамическое представление данных уровня
+	 */
 	static Dynamic<?> readLevelProperties(Path path, DataFixer dataFixer) throws IOException {
-		NbtCompound nbtCompound = readLevelProperties(path);
-		NbtCompound nbtCompound2 = nbtCompound.getCompoundOrEmpty("Data");
-		int i = NbtHelper.getDataVersion(nbtCompound2);
-		Dynamic<?> dynamic = DataFixTypes.LEVEL.update(dataFixer, new Dynamic(NbtOps.INSTANCE, nbtCompound2), i);
-		dynamic = dynamic.update("Player", player -> DataFixTypes.PLAYER.update(dataFixer, player, i));
+		NbtCompound root = readLevelProperties(path);
+		NbtCompound data = root.getCompoundOrEmpty("Data");
+		int dataVersion = NbtHelper.getDataVersion(data);
+		Dynamic<?> dynamic = DataFixTypes.LEVEL.update(dataFixer, new Dynamic<>(NbtOps.INSTANCE, data), dataVersion);
+		dynamic = dynamic.update("Player", player -> DataFixTypes.PLAYER.update(dataFixer, player, dataVersion));
+
 		return dynamic.update(
-				"WorldGenSettings",
-				worldGenSettings -> DataFixTypes.WORLD_GEN_SETTINGS.update(dataFixer, worldGenSettings, i)
+			"WorldGenSettings",
+			worldGen -> DataFixTypes.WORLD_GEN_SETTINGS.update(dataFixer, worldGen, dataVersion)
 		);
 	}
 
-	private LevelSummary readSummary(LevelStorage.LevelSave save, boolean locked) {
-		Path path = save.getLevelDatPath();
-		if (Files.exists(path)) {
+	private LevelSummary readSummary(LevelSave save, boolean locked) {
+		Path levelDatPath = save.getLevelDatPath();
+
+		if (Files.exists(levelDatPath)) {
 			try {
-				if (Files.isSymbolicLink(path)) {
-					List<SymlinkEntry> list = this.symlinkFinder.validate(path);
-					if (!list.isEmpty()) {
-						LOGGER.warn("{}", SymlinkValidationException.getMessage(path, list));
+				if (Files.isSymbolicLink(levelDatPath)) {
+					List<SymlinkEntry> symlinkEntries = symlinkFinder.validate(levelDatPath);
+					if (!symlinkEntries.isEmpty()) {
+						LOGGER.warn("{}", SymlinkValidationException.getMessage(levelDatPath, symlinkEntries));
 						return new LevelSummary.SymlinkLevelSummary(save.getRootPath(), save.getIconPath());
 					}
 				}
 
-				if (loadCompactLevelData(path) instanceof NbtCompound nbtCompound) {
-					NbtCompound nbtCompound2 = nbtCompound.getCompoundOrEmpty("Data");
-					int i = NbtHelper.getDataVersion(nbtCompound2);
-					Dynamic<?>
-							dynamic =
-							DataFixTypes.LEVEL_SUMMARY.update(
-									this.dataFixer,
-									new Dynamic(NbtOps.INSTANCE, nbtCompound2),
-									i
-							);
-					return this.parseSummary(dynamic, save, locked);
+				if (loadCompactLevelData(levelDatPath) instanceof NbtCompound nbtCompound) {
+					NbtCompound data = nbtCompound.getCompoundOrEmpty("Data");
+					int dataVersion = NbtHelper.getDataVersion(data);
+					Dynamic<?> dynamic = DataFixTypes.LEVEL_SUMMARY.update(
+						dataFixer,
+						new Dynamic<>(NbtOps.INSTANCE, data),
+						dataVersion
+					);
+
+					return parseSummary(dynamic, save, locked);
 				}
 
-				LOGGER.warn("Invalid root tag in {}", path);
-			}
-			catch (Exception var9) {
-				LOGGER.error("Exception reading {}", path, var9);
+				LOGGER.warn("Invalid root tag in {}", levelDatPath);
+			} catch (Exception exception) {
+				LOGGER.error("Exception reading {}", levelDatPath, exception);
 			}
 		}
 
 		return new LevelSummary.RecoveryWarning(save.getRootPath(), save.getIconPath(), getLastModifiedTime(save));
 	}
 
-	private static long getLastModifiedTime(LevelStorage.LevelSave save) {
+	private static long getLastModifiedTime(LevelSave save) {
 		Instant instant = getLastModifiedTime(save.getLevelDatPath());
 		if (instant == null) {
 			instant = getLastModifiedTime(save.getLevelDatOldPath());
@@ -322,215 +349,211 @@ public class LevelStorage {
 	static @Nullable Instant getLastModifiedTime(Path path) {
 		try {
 			return Files.getLastModifiedTime(path).toInstant();
-		}
-		catch (IOException var2) {
+		} catch (IOException exception) {
 			return null;
 		}
 	}
 
-	LevelSummary parseSummary(Dynamic<?> dynamic, LevelStorage.LevelSave save, boolean locked) {
+	/**
+	 * Разбирает краткую сводку мира из NBT-данных.
+	 * Проверяет совместимость формата уровня: допустимы только {@link #FORMAT_MC_REGION}
+	 * и {@link #FORMAT_ANVIL}.
+	 *
+	 * @param dynamic динамическое представление данных уровня
+	 * @param save    директория мира
+	 * @param locked  заблокирован ли мир другим процессом
+	 * @return краткая сводка мира
+	 * @throws InvalidNbtException если формат уровня неизвестен
+	 */
+	LevelSummary parseSummary(Dynamic<?> dynamic, LevelSave save, boolean locked) {
 		SaveVersionInfo saveVersionInfo = SaveVersionInfo.fromDynamic(dynamic);
-		int i = saveVersionInfo.getLevelFormatVersion();
-		if (i != 19132 && i != 19133) {
-			throw new InvalidNbtException("Unknown data version: " + Integer.toHexString(i));
+		int levelFormatVersion = saveVersionInfo.getLevelFormatVersion();
+
+		if (levelFormatVersion != FORMAT_MC_REGION && levelFormatVersion != FORMAT_ANVIL) {
+			throw new InvalidNbtException("Unknown data version: " + Integer.toHexString(levelFormatVersion));
 		}
-		else {
-			boolean bl = i != this.getCurrentVersion();
-			Path path = save.getIconPath();
-			DataConfiguration dataConfiguration = parseDataPackSettings(dynamic);
-			LevelInfo levelInfo = LevelInfo.fromDynamic(dynamic, dataConfiguration);
-			FeatureSet featureSet = parseEnabledFeatures(dynamic);
-			boolean bl2 = FeatureFlags.isNotVanilla(featureSet);
-			return new LevelSummary(levelInfo, saveVersionInfo, save.getRootPath(), bl, locked, bl2, path);
-		}
+
+		boolean requiresConversion = levelFormatVersion != FORMAT_ANVIL;
+		DataConfiguration dataConfiguration = parseDataPackSettings(dynamic);
+		LevelInfo levelInfo = LevelInfo.fromDynamic(dynamic, dataConfiguration);
+		FeatureSet featureSet = parseEnabledFeatures(dynamic);
+		boolean isExperimental = FeatureFlags.isNotVanilla(featureSet);
+
+		return new LevelSummary(levelInfo, saveVersionInfo, save.getRootPath(), requiresConversion, locked, isExperimental, save.getIconPath());
 	}
 
 	private static FeatureSet parseEnabledFeatures(Dynamic<?> levelData) {
-		Set<Identifier> set = levelData.get("enabled_features")
-		                               .asStream()
-		                               .flatMap(featureFlag -> featureFlag
-				                               .asString()
-				                               .result()
-				                               .map(Identifier::tryParse)
-				                               .stream())
-		                               .collect(Collectors.toSet());
-		return FeatureFlags.FEATURE_MANAGER.featureSetOf(set, id -> {});
+		Set<Identifier> featureIds = levelData.get("enabled_features")
+			.asStream()
+			.flatMap(flag -> flag.asString().result().map(Identifier::tryParse).stream())
+			.collect(Collectors.toSet());
+
+		return FeatureFlags.FEATURE_MANAGER.featureSetOf(featureIds, id -> {});
 	}
 
 	private static @Nullable NbtElement loadCompactLevelData(Path path) throws IOException {
-		ExclusiveNbtCollector exclusiveNbtCollector = new ExclusiveNbtCollector(
-				new NbtScanQuery("Data", NbtCompound.TYPE, "Player"),
-				new NbtScanQuery("Data", NbtCompound.TYPE, "WorldGenSettings")
+		ExclusiveNbtCollector collector = new ExclusiveNbtCollector(
+			new NbtScanQuery("Data", NbtCompound.TYPE, "Player"),
+			new NbtScanQuery("Data", NbtCompound.TYPE, "WorldGenSettings")
 		);
-		NbtIo.scanCompressed(path, exclusiveNbtCollector, NbtSizeTracker.forLevel());
-		return exclusiveNbtCollector.getRoot();
+		NbtIo.scanCompressed(path, collector, NbtSizeTracker.forLevel());
+
+		return collector.getRoot();
 	}
 
 	public boolean isLevelNameValid(String name) {
 		try {
-			Path path = this.resolve(name);
+			Path path = resolve(name);
 			Files.createDirectory(path);
 			Files.deleteIfExists(path);
 			return true;
-		}
-		catch (IOException var3) {
+		} catch (IOException exception) {
 			return false;
 		}
 	}
 
-	/**
-	 * Level exists.
-	 *
-	 * @param name name
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean levelExists(String name) {
 		try {
-			return Files.isDirectory(this.resolve(name));
-		}
-		catch (InvalidPathException var3) {
+			return Files.isDirectory(resolve(name));
+		} catch (InvalidPathException exception) {
 			return false;
 		}
 	}
 
-	/**
-	 * Resolve.
-	 *
-	 * @param name name
-	 *
-	 * @return Path — результат операции
-	 */
 	public Path resolve(String name) {
-		return this.savesDirectory.resolve(name);
+		return savesDirectory.resolve(name);
 	}
 
 	public Path getSavesDirectory() {
-		return this.savesDirectory;
+		return savesDirectory;
 	}
 
 	public Path getBackupsDirectory() {
-		return this.backupsDirectory;
+		return backupsDirectory;
 	}
 
-	public LevelStorage.Session createSession(String directoryName) throws IOException, SymlinkValidationException {
-		Path path = this.resolve(directoryName);
-		List<SymlinkEntry> list = this.symlinkFinder.collect(path, true);
-		if (!list.isEmpty()) {
-			throw new SymlinkValidationException(path, list);
+	/**
+	 * Создаёт сессию для работы с миром, предварительно проверяя симлинки.
+	 *
+	 * @param directoryName имя директории мира
+	 * @return открытая сессия с захваченной блокировкой
+	 * @throws SymlinkValidationException если директория содержит небезопасные симлинки
+	 */
+	public Session createSession(String directoryName) throws IOException, SymlinkValidationException {
+		Path path = resolve(directoryName);
+		List<SymlinkEntry> symlinkEntries = symlinkFinder.collect(path, true);
+
+		if (!symlinkEntries.isEmpty()) {
+			throw new SymlinkValidationException(path, symlinkEntries);
 		}
-		else {
-			return new LevelStorage.Session(directoryName, path);
-		}
+
+		return new Session(directoryName, path);
 	}
 
-	public LevelStorage.Session createSessionWithoutSymlinkCheck(String directoryName) throws IOException {
-		Path path = this.resolve(directoryName);
-		return new LevelStorage.Session(directoryName, path);
+	public Session createSessionWithoutSymlinkCheck(String directoryName) throws IOException {
+		Path path = resolve(directoryName);
+		return new Session(directoryName, path);
 	}
 
 	public SymlinkFinder getSymlinkFinder() {
-		return this.symlinkFinder;
+		return symlinkFinder;
 	}
 
 	/**
-	 * {@code LevelList}.
+	 * Список директорий миров в директории сохранений.
 	 */
-	public record LevelList(List<LevelStorage.LevelSave> levels) implements Iterable<LevelStorage.LevelSave> {
+	public record LevelList(List<LevelSave> levels) implements Iterable<LevelSave> {
 
 		public boolean isEmpty() {
-			return this.levels.isEmpty();
+			return levels.isEmpty();
 		}
 
 		@Override
-		public Iterator<LevelStorage.LevelSave> iterator() {
-			return this.levels.iterator();
+		public Iterator<LevelSave> iterator() {
+			return levels.iterator();
 		}
 	}
 
 	/**
-	 * {@code LevelSave}.
+	 * Представляет директорию одного сохранённого мира.
+	 * Предоставляет удобные методы для получения путей к стандартным файлам.
 	 */
 	public record LevelSave(Path path) {
 
 		public String getRootPath() {
-			return this.path.getFileName().toString();
+			return path.getFileName().toString();
 		}
 
 		public Path getLevelDatPath() {
-			return this.getPath(WorldSavePath.LEVEL_DAT);
+			return getPath(WorldSavePath.LEVEL_DAT);
 		}
 
 		public Path getLevelDatOldPath() {
-			return this.getPath(WorldSavePath.LEVEL_DAT_OLD);
+			return getPath(WorldSavePath.LEVEL_DAT_OLD);
 		}
 
 		public Path getCorruptedLevelDatPath(ZonedDateTime dateTime) {
-			return this.path.resolve(WorldSavePath.LEVEL_DAT.getRelativePath() + "_corrupted_" + dateTime.format(
-					DateTimeFormatters.MINUTES));
+			return path.resolve(
+				WorldSavePath.LEVEL_DAT.getRelativePath() + "_corrupted_" + dateTime.format(DateTimeFormatters.MINUTES)
+			);
 		}
 
 		public Path getRawLevelDatPath(ZonedDateTime dateTime) {
-			return this.path.resolve(
-					WorldSavePath.LEVEL_DAT.getRelativePath() + "_raw_" + dateTime.format(DateTimeFormatters.MINUTES));
+			return path.resolve(
+				WorldSavePath.LEVEL_DAT.getRelativePath() + "_raw_" + dateTime.format(DateTimeFormatters.MINUTES)
+			);
 		}
 
 		public Path getIconPath() {
-			return this.getPath(WorldSavePath.ICON_PNG);
+			return getPath(WorldSavePath.ICON_PNG);
 		}
 
 		public Path getSessionLockPath() {
-			return this.getPath(WorldSavePath.SESSION_LOCK);
+			return getPath(WorldSavePath.SESSION_LOCK);
 		}
 
 		public Path getPath(WorldSavePath savePath) {
-			return this.path.resolve(savePath.getRelativePath());
+			return path.resolve(savePath.getRelativePath());
 		}
 	}
 
 	/**
-	 * {@code Session}.
+	 * Активная сессия работы с миром. Удерживает {@link SessionLock} на директорию,
+	 * предоставляет методы чтения/записи level.dat, создания резервных копий и удаления.
+	 *
+	 * <p>Реализует {@link AutoCloseable}: закрытие освобождает блокировку файла.
 	 */
 	public class Session implements AutoCloseable {
 
 		final SessionLock lock;
-		final LevelStorage.LevelSave directory;
+		final LevelSave directory;
 		private final String directoryName;
 		private final Map<WorldSavePath, Path> paths = Maps.newHashMap();
 
-		Session(final String directoryName, final Path path) throws IOException {
+		Session(String directoryName, Path path) throws IOException {
 			this.directoryName = directoryName;
-			this.directory = new LevelStorage.LevelSave(path);
+			this.directory = new LevelSave(path);
 			this.lock = SessionLock.create(path);
 		}
 
 		public long getUsableSpace() {
 			try {
-				return Files.getFileStore(this.directory.path).getUsableSpace();
-			}
-			catch (Exception var2) {
+				return Files.getFileStore(directory.path()).getUsableSpace();
+			} catch (Exception exception) {
 				return Long.MAX_VALUE;
 			}
 		}
 
-		/**
-		 * Определяет, следует ли show low disk space warning.
-		 *
-		 * @return boolean — результат операции
-		 */
+		/** Возвращает {@code true} если свободного места меньше рекомендуемого минимума (64 МБ). */
 		public boolean shouldShowLowDiskSpaceWarning() {
-			return this.getUsableSpace() < 67108864L;
+			return getUsableSpace() < RECOMMENDED_USABLE_SPACE_BYTES;
 		}
 
-		/**
-		 * Try close.
-		 */
 		public void tryClose() {
 			try {
-				this.close();
-			}
-			catch (IOException var2) {
-				LevelStorage.LOGGER.warn("Failed to unlock access to level {}", this.getDirectoryName(), var2);
+				close();
+			} catch (IOException exception) {
+				LevelStorage.LOGGER.warn("Failed to unlock access to level {}", getDirectoryName(), exception);
 			}
 		}
 
@@ -538,278 +561,259 @@ public class LevelStorage {
 			return LevelStorage.this;
 		}
 
-		public LevelStorage.LevelSave getDirectory() {
-			return this.directory;
+		public LevelSave getDirectory() {
+			return directory;
 		}
 
 		public String getDirectoryName() {
-			return this.directoryName;
+			return directoryName;
 		}
 
 		public Path getDirectory(WorldSavePath savePath) {
-			return this.paths.computeIfAbsent(savePath, this.directory::getPath);
+			return paths.computeIfAbsent(savePath, directory::getPath);
 		}
 
 		public Path getWorldDirectory(RegistryKey<World> key) {
-			return DimensionType.getSaveDirectory(key, this.directory.path());
+			return DimensionType.getSaveDirectory(key, directory.path());
 		}
 
 		private void checkValid() {
-			if (!this.lock.isValid()) {
+			if (!lock.isValid()) {
 				throw new IllegalStateException("Lock is no longer valid");
 			}
 		}
 
-		/**
-		 * Создаёт save handler.
-		 *
-		 * @return PlayerSaveHandler — результат операции
-		 */
 		public PlayerSaveHandler createSaveHandler() {
-			this.checkValid();
+			checkValid();
 			return new PlayerSaveHandler(this, LevelStorage.this.dataFixer);
 		}
 
 		public LevelSummary getLevelSummary(Dynamic<?> dynamic) {
-			this.checkValid();
-			return LevelStorage.this.parseSummary(dynamic, this.directory, false);
+			checkValid();
+			return LevelStorage.this.parseSummary(dynamic, directory, false);
 		}
 
-		/**
-		 * Читает level properties.
-		 *
-		 * @return Dynamic — результат операции
-		 */
 		public Dynamic<?> readLevelProperties() throws IOException {
-			return this.readLevelProperties(false);
+			return readLevelProperties(false);
 		}
 
-		/**
-		 * Читает old level properties.
-		 *
-		 * @return Dynamic — результат операции
-		 */
 		public Dynamic<?> readOldLevelProperties() throws IOException {
-			return this.readLevelProperties(true);
+			return readLevelProperties(true);
 		}
 
 		private Dynamic<?> readLevelProperties(boolean old) throws IOException {
-			this.checkValid();
-			return LevelStorage.readLevelProperties(
-					old ? this.directory.getLevelDatOldPath() : this.directory.getLevelDatPath(),
-					LevelStorage.this.dataFixer
-			);
+			checkValid();
+			Path datPath = old ? directory.getLevelDatOldPath() : directory.getLevelDatPath();
+			return LevelStorage.readLevelProperties(datPath, LevelStorage.this.dataFixer);
+		}
+
+		public void backupLevelDataFile(DynamicRegistryManager registryManager, SaveProperties saveProperties) {
+			backupLevelDataFile(registryManager, saveProperties, null);
 		}
 
 		/**
-		 * Backup level data file.
+		 * Сериализует и сохраняет свойства мира в level.dat.
+		 * Если передан {@code nbt} — используется как данные игрока вместо сохранённых.
 		 *
-		 * @param registryManager registry manager
-		 * @param saveProperties save properties
+		 * @param registryManager менеджер реестров для кодирования
+		 * @param saveProperties  свойства мира для сохранения
+		 * @param nbt             данные игрока или {@code null}
 		 */
-		public void backupLevelDataFile(DynamicRegistryManager registryManager, SaveProperties saveProperties) {
-			this.backupLevelDataFile(registryManager, saveProperties, null);
-		}
-
 		public void backupLevelDataFile(
-				DynamicRegistryManager registryManager,
-				SaveProperties saveProperties,
-				@Nullable NbtCompound nbt
+			DynamicRegistryManager registryManager,
+			SaveProperties saveProperties,
+			@Nullable NbtCompound nbt
 		) {
-			NbtCompound nbtCompound = saveProperties.cloneWorldNbt(registryManager, nbt);
-			NbtCompound nbtCompound2 = new NbtCompound();
-			nbtCompound2.put("Data", nbtCompound);
-			this.save(nbtCompound2);
+			NbtCompound worldNbt = saveProperties.cloneWorldNbt(registryManager, nbt);
+			NbtCompound root = new NbtCompound();
+			root.put("Data", worldNbt);
+			save(root);
 		}
 
 		private void save(NbtCompound nbt) {
-			Path path = this.directory.path();
+			Path worldPath = directory.path();
 
 			try {
-				Path path2 = Files.createTempFile(path, "level", ".dat");
-				NbtIo.writeCompressed(nbt, path2);
-				Path path3 = this.directory.getLevelDatOldPath();
-				Path path4 = this.directory.getLevelDatPath();
-				Util.backupAndReplace(path4, path2, path3);
-			}
-			catch (Exception var6) {
-				LevelStorage.LOGGER.error("Failed to save level {}", path, var6);
+				Path tempFile = Files.createTempFile(worldPath, "level", ".dat");
+				NbtIo.writeCompressed(nbt, tempFile);
+				Path oldDat = directory.getLevelDatOldPath();
+				Path currentDat = directory.getLevelDatPath();
+				Util.backupAndReplace(currentDat, tempFile, oldDat);
+			} catch (Exception exception) {
+				LevelStorage.LOGGER.error("Failed to save level {}", worldPath, exception);
 			}
 		}
 
 		public Optional<Path> getIconFile() {
-			return !this.lock.isValid() ? Optional.empty() : Optional.of(this.directory.getIconPath());
+			return !lock.isValid() ? Optional.empty() : Optional.of(directory.getIconPath());
 		}
 
 		/**
-		 * Delete session lock.
+		 * Удаляет всю директорию мира, пропуская файл блокировки сессии до последнего.
+		 * Повторяет попытку до {@link LevelStorage#MAX_DELETE_ATTEMPTS} раз при ошибках.
+		 *
+		 * @throws IOException если удаление не удалось после всех попыток
 		 */
 		public void deleteSessionLock() throws IOException {
-			this.checkValid();
-			final Path path = this.directory.getSessionLockPath();
-			LevelStorage.LOGGER.info("Deleting level {}", this.directoryName);
+			checkValid();
+			final Path sessionLockPath = directory.getSessionLockPath();
+			LOGGER.info("Deleting level {}", directoryName);
 
-			for (int i = 1; i <= 5; i++) {
-				LevelStorage.LOGGER.info("Attempt {}...", i);
+			for (int attempt = 1; attempt <= MAX_DELETE_ATTEMPTS; attempt++) {
+				LOGGER.info("Attempt {}...", attempt);
 
 				try {
-					Files.walkFileTree(
-							this.directory.path(), new SimpleFileVisitor<Path>() {
-								public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes)
-								throws IOException {
-									if (!path.equals(path)) {
-										LevelStorage.LOGGER.debug("Deleting {}", path);
-										Files.delete(path);
-									}
-
-									return FileVisitResult.CONTINUE;
-								}
-
-								public FileVisitResult postVisitDirectory(Path path, @Nullable IOException iOException)
-								throws IOException {
-									if (iOException != null) {
-										throw iOException;
-									}
-									else {
-										if (path.equals(Session.this.directory.path())) {
-											Session.this.lock.close();
-											Files.deleteIfExists(path);
-										}
-
-										Files.delete(path);
-										return FileVisitResult.CONTINUE;
-									}
-								}
+					Files.walkFileTree(directory.path(), new SimpleFileVisitor<>() {
+						@Override
+						public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+							// Файл блокировки удаляется последним в postVisitDirectory
+							if (!file.equals(sessionLockPath)) {
+								LOGGER.debug("Deleting {}", file);
+								Files.delete(file);
 							}
-					);
+
+							return FileVisitResult.CONTINUE;
+						}
+
+						@Override
+						public FileVisitResult postVisitDirectory(Path dir, @Nullable IOException exception)
+						throws IOException {
+							if (exception != null) {
+								throw exception;
+							}
+
+							if (dir.equals(Session.this.directory.path())) {
+								Session.this.lock.close();
+								Files.deleteIfExists(sessionLockPath);
+							}
+
+							Files.delete(dir);
+							return FileVisitResult.CONTINUE;
+						}
+					});
+
 					break;
-				}
-				catch (IOException var6) {
-					if (i >= 5) {
-						throw var6;
+				} catch (IOException exception) {
+					if (attempt >= MAX_DELETE_ATTEMPTS) {
+						throw exception;
 					}
 
-					LevelStorage.LOGGER.warn("Failed to delete {}", this.directory.path(), var6);
+					LOGGER.warn("Failed to delete {}", directory.path(), exception);
 
 					try {
-						Thread.sleep(500L);
-					}
-					catch (InterruptedException var5) {
+						Thread.sleep(DELETE_RETRY_DELAY_MS);
+					} catch (InterruptedException interrupted) {
+						Thread.currentThread().interrupt();
 					}
 				}
 			}
 		}
 
 		/**
-		 * Save.
+		 * Переименовывает мир, обновляя поле {@code LevelName} в level.dat.
 		 *
-		 * @param name name
+		 * @param name новое отображаемое имя мира
 		 */
 		public void save(String name) throws IOException {
-			this.save(nbt -> nbt.putString("LevelName", name.trim()));
+			save(nbt -> nbt.putString("LevelName", name.trim()));
 		}
 
 		/**
-		 * Удаляет player and save.
+		 * Переименовывает мир и удаляет данные игрока из level.dat.
+		 * Используется при пересоздании мира, чтобы игрок начал с нуля.
 		 *
-		 * @param name name
+		 * @param name новое отображаемое имя мира
 		 */
 		public void removePlayerAndSave(String name) throws IOException {
-			this.save(nbt -> {
+			save(nbt -> {
 				nbt.putString("LevelName", name.trim());
 				nbt.remove("Player");
 			});
 		}
 
 		private void save(Consumer<NbtCompound> nbtProcessor) throws IOException {
-			this.checkValid();
-			NbtCompound nbtCompound = LevelStorage.readLevelProperties(this.directory.getLevelDatPath());
-			nbtProcessor.accept(nbtCompound.getCompoundOrEmpty("Data"));
-			this.save(nbtCompound);
+			checkValid();
+			NbtCompound root = LevelStorage.readLevelProperties(directory.getLevelDatPath());
+			nbtProcessor.accept(root.getCompoundOrEmpty("Data"));
+			save(root);
 		}
 
 		/**
-		 * Создаёт backup.
+		 * Создаёт ZIP-архив резервной копии мира в директории резервных копий.
+		 * Имя архива включает дату/время и имя директории мира.
+		 * Файл {@code session.lock} исключается из архива.
 		 *
-		 * @return long — результат операции
+		 * @return размер созданного архива в байтах
+		 * @throws IOException при ошибке создания архива
 		 */
 		public long createBackup() throws IOException {
-			this.checkValid();
-			String string = DateTimeFormatters.MINUTES.format(ZonedDateTime.now()) + "_" + this.directoryName;
-			Path path = LevelStorage.this.getBackupsDirectory();
+			checkValid();
+			String archiveName = DateTimeFormatters.MINUTES.format(ZonedDateTime.now()) + "_" + directoryName;
+			Path backupsPath = LevelStorage.this.getBackupsDirectory();
 
 			try {
-				PathUtil.createDirectories(path);
-			}
-			catch (IOException var9) {
-				throw new RuntimeException(var9);
+				PathUtil.createDirectories(backupsPath);
+			} catch (IOException exception) {
+				throw new RuntimeException(exception);
 			}
 
-			Path path2 = path.resolve(PathUtil.getNextUniqueName(path, string, ".zip"));
+			Path archivePath = backupsPath.resolve(PathUtil.getNextUniqueName(backupsPath, archiveName, ".zip"));
 
-			try (final ZipOutputStream zipOutputStream = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(
-					path2)))
-			) {
-				final Path path3 = Paths.get(this.directoryName);
-				Files.walkFileTree(
-						this.directory.path(), new SimpleFileVisitor<Path>() {
-							public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes)
-							throws IOException {
-								if (path.endsWith("session.lock")) {
-									return FileVisitResult.CONTINUE;
-								}
-								else {
-									String
-											stringx =
-											path3
-													.resolve(Session.this.directory.path().relativize(path))
-													.toString()
-													.replace('\\', '/');
-									ZipEntry zipEntry = new ZipEntry(stringx);
-									zipOutputStream.putNextEntry(zipEntry);
-									com.google.common.io.Files.asByteSource(path.toFile()).copyTo(zipOutputStream);
-									zipOutputStream.closeEntry();
-									return FileVisitResult.CONTINUE;
-								}
-							}
+			try (ZipOutputStream zipOut = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(archivePath)))) {
+				final Path relativeRoot = Paths.get(directoryName);
+
+				Files.walkFileTree(directory.path(), new SimpleFileVisitor<>() {
+					@Override
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+						if (file.endsWith("session.lock")) {
+							return FileVisitResult.CONTINUE;
 						}
-				);
+
+						String entryName = relativeRoot
+							.resolve(Session.this.directory.path().relativize(file))
+							.toString()
+							.replace('\\', '/');
+						ZipEntry entry = new ZipEntry(entryName);
+						zipOut.putNextEntry(entry);
+						com.google.common.io.Files.asByteSource(file.toFile()).copyTo(zipOut);
+						zipOut.closeEntry();
+
+						return FileVisitResult.CONTINUE;
+					}
+				});
 			}
 
-			return Files.size(path2);
+			return Files.size(archivePath);
 		}
 
-		/**
-		 * Level dat exists.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean levelDatExists() {
-			return Files.exists(this.directory.getLevelDatPath()) || Files.exists(this.directory.getLevelDatOldPath());
+			return Files.exists(directory.getLevelDatPath()) || Files.exists(directory.getLevelDatOldPath());
 		}
 
 		@Override
 		public void close() throws IOException {
-			this.lock.close();
+			lock.close();
 		}
 
 		/**
-		 * Try restore backup.
+		 * Пытается восстановить level.dat из резервной копии ({@code level.dat_old}).
+		 * Повреждённый файл переименовывается с суффиксом {@code _corrupted_<дата>}.
 		 *
-		 * @return boolean — результат операции
+		 * @return {@code true} если восстановление прошло успешно
 		 */
 		public boolean tryRestoreBackup() {
 			return Util.backupAndReplace(
-					this.directory.getLevelDatPath(),
-					this.directory.getLevelDatOldPath(),
-					this.directory.getCorruptedLevelDatPath(ZonedDateTime.now()),
-					true
+				directory.getLevelDatPath(),
+				directory.getLevelDatOldPath(),
+				directory.getCorruptedLevelDatPath(ZonedDateTime.now()),
+				true
 			);
 		}
 
 		public @Nullable Instant getLastModifiedTime(boolean old) {
 			return LevelStorage.getLastModifiedTime(
-					old ? this.directory.getLevelDatOldPath() : this.directory.getLevelDatPath());
+				old ? directory.getLevelDatOldPath() : directory.getLevelDatPath()
+			);
 		}
 	}
 }

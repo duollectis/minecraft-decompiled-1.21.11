@@ -14,7 +14,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code SpawnerMinecartEntity}.
+ * Вагонетка с мобспавнером — переносит логику {@link MobSpawnerLogic} в движущуюся сущность.
+ *
+ * <p>Тикер выбирается один раз при создании сущности в зависимости от стороны (сервер/клиент),
+ * чтобы избежать проверки {@code instanceof ServerWorld} на каждом тике.
  */
 public class SpawnerMinecartEntity extends AbstractMinecartEntity {
 
@@ -24,11 +27,12 @@ public class SpawnerMinecartEntity extends AbstractMinecartEntity {
 			world.sendEntityStatus(SpawnerMinecartEntity.this, (byte) status);
 		}
 	};
+
 	private final Runnable ticker;
 
 	public SpawnerMinecartEntity(EntityType<? extends SpawnerMinecartEntity> entityType, World world) {
 		super(entityType, world);
-		this.ticker = this.getTicker(world);
+		ticker = buildTicker(world);
 	}
 
 	@Override
@@ -41,12 +45,6 @@ public class SpawnerMinecartEntity extends AbstractMinecartEntity {
 		return new ItemStack(Items.MINECART);
 	}
 
-	private Runnable getTicker(World world) {
-		return world instanceof ServerWorld
-		       ? () -> this.logic.serverTick((ServerWorld) world, this.getBlockPos())
-		       : () -> this.logic.clientTick(world, this.getBlockPos());
-	}
-
 	@Override
 	public BlockState getDefaultContainedBlock() {
 		return Blocks.SPAWNER.getDefaultState();
@@ -55,27 +53,39 @@ public class SpawnerMinecartEntity extends AbstractMinecartEntity {
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.logic.readData(this.getEntityWorld(), this.getBlockPos(), view);
+		logic.readData(getEntityWorld(), getBlockPos(), view);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.logic.writeData(view);
+		logic.writeData(view);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		this.logic.handleStatus(this.getEntityWorld(), status);
+		logic.handleStatus(getEntityWorld(), status);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		this.ticker.run();
+		ticker.run();
 	}
 
 	public MobSpawnerLogic getLogic() {
-		return this.logic;
+		return logic;
+	}
+
+	/**
+	 * Создаёт тикер, специфичный для стороны выполнения.
+	 *
+	 * <p>Разделение на серверный и клиентский тикер позволяет избежать
+	 * повторной проверки типа мира на каждом игровом тике.
+	 */
+	private Runnable buildTicker(World world) {
+		return world instanceof ServerWorld serverWorld
+			? () -> logic.serverTick(serverWorld, getBlockPos())
+			: () -> logic.clientTick(world, getBlockPos());
 	}
 }

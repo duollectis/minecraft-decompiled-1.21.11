@@ -8,25 +8,28 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GpuUtilizationDebugHudEntry}.
+ * Запись отладочного HUD: загрузка GPU в процентах.
+ * При превышении 100% значение выделяется красным.
  */
+@Environment(EnvType.CLIENT)
 public class GpuUtilizationDebugHudEntry implements DebugHudEntry {
+
+	private static final double GPU_OVERLOAD_THRESHOLD = 100.0;
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		String string = "GPU: "
-				+ (minecraftClient.getGpuUtilizationPercentage() > 100.0 ? Formatting.RED + "100%" :
-				   Math.round(minecraftClient.getGpuUtilizationPercentage()) + "%"
-		);
-		lines.addLine(string);
+		double gpuUsage = MinecraftClient.getInstance().getGpuUtilizationPercentage();
+		String usageLabel = gpuUsage > GPU_OVERLOAD_THRESHOLD
+			? Formatting.RED + "100%"
+			: Math.round(gpuUsage) + "%";
+
+		lines.addLine("GPU: " + usageLabel);
 	}
 
 	@Override

@@ -14,7 +14,8 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code EmptyItemInHotbarFix}.
+ * Заменяет пустые или невалидные предметы в хотбаре (воздух или нулевой Count)
+ * на пустые слоты, чтобы избежать ошибок при загрузке инвентаря.
  */
 public class EmptyItemInHotbarFix extends DataFix {
 
@@ -25,29 +26,30 @@ public class EmptyItemInHotbarFix extends DataFix {
 	@SuppressWarnings("unchecked")
 	public TypeRewriteRule makeRule() {
 		OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>>
-				opticFinder =
+				itemFinder =
 				(OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>>) DSL.typeFinder(
-						this.getInputSchema().getType(TypeReferences.ITEM_STACK)
+						getInputSchema().getType(TypeReferences.ITEM_STACK)
 				);
-		return this.fixTypeEverywhereTyped(
+
+		return fixTypeEverywhereTyped(
 				"EmptyItemInHotbarFix",
-				this.getInputSchema().getType(TypeReferences.HOTBAR),
+				getInputSchema().getType(TypeReferences.HOTBAR),
 				hotbarTyped -> hotbarTyped.update(
-						opticFinder, itemPair -> itemPair.mapSecond(pairx -> {
-							Optional<String>
-									optional =
-									((Either<Pair<String, String>, Unit>) pairx.getFirst())
-											.left()
-											.map(p -> p.getSecond());
-							Dynamic<?> dynamic = (Dynamic<?>) ((Pair<?, ?>) pairx.getSecond()).getSecond();
-							boolean isEmpty = optional.isEmpty() || optional.get().equals("minecraft:air");
-							boolean hasNoCount = dynamic.get("Count").asInt(0) <= 0;
+						itemFinder,
+						itemPair -> itemPair.mapSecond(inner -> {
+							Optional<String> itemId = ((Either<Pair<String, String>, Unit>) inner.getFirst())
+									.left()
+									.map(Pair::getSecond);
+							Dynamic<?> nbt = (Dynamic<?>) ((Pair<?, ?>) inner.getSecond()).getSecond();
+							boolean isEmpty = itemId.isEmpty() || "minecraft:air".equals(itemId.get());
+							boolean hasNoCount = nbt.get("Count").asInt(0) <= 0;
+
 							return isEmpty || hasNoCount
-							       ? Pair.of(
-									Either.right(Unit.INSTANCE),
-									Pair.of(Either.right(Unit.INSTANCE), dynamic.emptyMap())
-							)
-							       : pairx;
+									? Pair.of(
+											Either.right(Unit.INSTANCE),
+											Pair.of(Either.right(Unit.INSTANCE), nbt.emptyMap())
+									)
+									: inner;
 						})
 				)
 		);

@@ -11,41 +11,44 @@ import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GpuDeviceInfo}.
+ * Кэшированная информация о GPU-устройстве с эвристиками для обходов известных
+ * проблем конкретных видеокарт (Intel Gen11, AMD, D3D12-бэкенд на ARM Windows).
  */
+@Environment(EnvType.CLIENT)
 public class GpuDeviceInfo {
 
 	private static final List<String> OTHER_INTEL_DEVICES = List.of(
-			"i3-1000g1",
-			"i3-1000g4",
-			"i3-1000ng4",
-			"i3-1005g1",
-			"i3-l13g4",
-			"i5-1030g4",
-			"i5-1030g7",
-			"i5-1030ng7",
-			"i5-1034g1",
-			"i5-1035g1",
-			"i5-1035g4",
-			"i5-1035g7",
-			"i5-1038ng7",
-			"i5-l16g7",
-			"i7-1060g7",
-			"i7-1060ng7",
-			"i7-1065g7",
-			"i7-1068g7",
-			"i7-1068ng7"
+		"i3-1000g1",
+		"i3-1000g4",
+		"i3-1000ng4",
+		"i3-1005g1",
+		"i3-l13g4",
+		"i5-1030g4",
+		"i5-1030g7",
+		"i5-1030ng7",
+		"i5-1034g1",
+		"i5-1035g1",
+		"i5-1035g4",
+		"i5-1035g7",
+		"i5-1038ng7",
+		"i5-l16g7",
+		"i7-1060g7",
+		"i7-1060ng7",
+		"i7-1065g7",
+		"i7-1068g7",
+		"i7-1068ng7"
 	);
-	private static final List<String>
-			ATOM_DEVICES =
-			List.of("x6211e", "x6212re", "x6214re", "x6413e", "x6414re", "x6416re", "x6425e", "x6425re", "x6427fe");
-	private static final List<String>
-			CELERON_DEVICES =
-			List.of("j6412", "j6413", "n4500", "n4505", "n5095", "n5095a", "n5100", "n5105", "n6210", "n6211");
+	private static final List<String> ATOM_DEVICES = List.of(
+		"x6211e", "x6212re", "x6214re", "x6413e", "x6414re", "x6416re", "x6425e", "x6425re", "x6427fe"
+	);
+	private static final List<String> CELERON_DEVICES = List.of(
+		"j6412", "j6413", "n4500", "n4505", "n5095", "n5095a", "n5100", "n5105", "n6210", "n6211"
+	);
 	private static final List<String> PENTIUM_DEVICES = List.of("6805", "j6426", "n6415", "n6000", "n6005");
+
 	private static @Nullable GpuDeviceInfo instance;
+
 	private final WeakReference<GpuDevice> device;
 	private final boolean requiresRecreateOnUploadToBuffer;
 	private final boolean shouldDisableArbDirectAccess;
@@ -53,71 +56,67 @@ public class GpuDeviceInfo {
 
 	private GpuDeviceInfo(GpuDevice device) {
 		this.device = new WeakReference<>(device);
-		this.requiresRecreateOnUploadToBuffer = requiresRecreateOnUploadToBuffer(device);
-		this.shouldDisableArbDirectAccess = shouldDisableArbDirectAccess(device);
-		this.isAmdGpu = detectAmdGpu(device);
+		requiresRecreateOnUploadToBuffer = requiresRecreateOnUploadToBuffer(device);
+		shouldDisableArbDirectAccess = shouldDisableArbDirectAccess(device);
+		isAmdGpu = detectAmdGpu(device);
 	}
 
 	/**
-	 * Get.
-	 *
-	 * @param device device
-	 *
-	 * @return GpuDeviceInfo — 
+	 * Возвращает кэшированный экземпляр для данного устройства.
+	 * Пересоздаёт кэш при смене устройства (например, при переинициализации GL-контекста).
 	 */
 	public static GpuDeviceInfo get(GpuDevice device) {
-		GpuDeviceInfo gpuDeviceInfo = instance;
-		if (gpuDeviceInfo == null || gpuDeviceInfo.device.get() != device) {
-			instance = gpuDeviceInfo = new GpuDeviceInfo(device);
+		GpuDeviceInfo cached = instance;
+
+		if (cached == null || cached.device.get() != device) {
+			instance = cached = new GpuDeviceInfo(device);
 		}
 
-		return gpuDeviceInfo;
+		return cached;
 	}
 
-	/**
-	 * Requires recreate on upload to buffer.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean requiresRecreateOnUploadToBuffer() {
-		return this.requiresRecreateOnUploadToBuffer;
+		return requiresRecreateOnUploadToBuffer;
 	}
 
-	/**
-	 * Определяет, следует ли disable arb direct access.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldDisableArbDirectAccess() {
-		return this.shouldDisableArbDirectAccess;
+		return shouldDisableArbDirectAccess;
 	}
 
 	public boolean isAmdGpu() {
-		return this.isAmdGpu;
+		return isAmdGpu;
 	}
 
+	/**
+	 * Определяет, требует ли данный Intel GPU пересоздания буфера при загрузке данных.
+	 * Затрагивает только Gen11 iGPU в конкретных процессорах Atom/Celeron/Pentium/Core.
+	 */
 	private static boolean requiresRecreateOnUploadToBuffer(GpuDevice device) {
-		String string = GLX._getCpuInfo().toLowerCase(Locale.ROOT);
-		String string2 = device.getRenderer().toLowerCase(Locale.ROOT);
-		if (!string.contains("intel") || !string2.contains("intel") || string2.contains("mesa")) {
+		String cpuInfo = GLX._getCpuInfo().toLowerCase(Locale.ROOT);
+		String renderer = device.getRenderer().toLowerCase(Locale.ROOT);
+
+		if (!cpuInfo.contains("intel") || !renderer.contains("intel") || renderer.contains("mesa")) {
 			return false;
 		}
-		else if (string2.endsWith("gen11")) {
+
+		if (renderer.endsWith("gen11")) {
 			return true;
 		}
-		else {
-			return !string2.contains("uhd graphics") && !string2.contains("iris")
-			       ? false
-			       : string.contains("atom") && ATOM_DEVICES.stream().anyMatch(string::contains)
-			         || string.contains("celeron") && CELERON_DEVICES.stream().anyMatch(string::contains)
-			         || string.contains("pentium") && PENTIUM_DEVICES.stream().anyMatch(string::contains)
-			         || OTHER_INTEL_DEVICES.stream().anyMatch(string::contains);
+
+		if (!renderer.contains("uhd graphics") && !renderer.contains("iris")) {
+			return false;
 		}
+
+		return cpuInfo.contains("atom") && ATOM_DEVICES.stream().anyMatch(cpuInfo::contains)
+			|| cpuInfo.contains("celeron") && CELERON_DEVICES.stream().anyMatch(cpuInfo::contains)
+			|| cpuInfo.contains("pentium") && PENTIUM_DEVICES.stream().anyMatch(cpuInfo::contains)
+			|| OTHER_INTEL_DEVICES.stream().anyMatch(cpuInfo::contains);
 	}
 
 	private static boolean shouldDisableArbDirectAccess(GpuDevice device) {
-		boolean bl = Util.getOperatingSystem() == Util.OperatingSystem.WINDOWS && Util.isOnAarch64();
-		return bl || device.getRenderer().startsWith("D3D12");
+		boolean isWindowsArm = Util.getOperatingSystem() == Util.OperatingSystem.WINDOWS && Util.isOnAarch64();
+
+		return isWindowsArm || device.getRenderer().startsWith("D3D12");
 	}
 
 	private static boolean detectAmdGpu(GpuDevice gpuDevice) {

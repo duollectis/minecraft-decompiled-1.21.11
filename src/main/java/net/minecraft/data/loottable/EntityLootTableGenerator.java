@@ -34,7 +34,9 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
- * {@code EntityLootTableGenerator}.
+ * Базовый генератор таблиц лута для сущностей.
+ * Обходит все зарегистрированные типы сущностей и проверяет наличие
+ * соответствующих таблиц лута, выбрасывая исключение при их отсутствии.
  */
 public abstract class EntityLootTableGenerator implements LootTableGenerator, FabricEntityLootTableGenerator {
 
@@ -44,7 +46,7 @@ public abstract class EntityLootTableGenerator implements LootTableGenerator, Fa
 	private final Map<EntityType<?>, Map<RegistryKey<LootTable>, LootTable.Builder>> lootTables = Maps.newHashMap();
 
 	protected final AnyOfLootCondition.Builder createSmeltLootCondition() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> enchantmentLookup = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		return AnyOfLootCondition.builder(
 				EntityPropertiesLootCondition.builder(
 						LootContext.EntityReference.THIS,
@@ -56,23 +58,20 @@ public abstract class EntityLootTableGenerator implements LootTableGenerator, Fa
 						                       .equipment(
 								                       EntityEquipmentPredicate.Builder.create()
 								                                                       .mainhand(
-										                                                       ItemPredicate.Builder
-												                                                       .create()
-												                                                       .components(
-														                                                       ComponentsPredicate.Builder
-																                                                       .create()
-																                                                       .partial(
-																		                                                       ComponentPredicateTypes.ENCHANTMENTS,
-																		                                                       EnchantmentsPredicate.enchantments(
-																				                                                       List.of(new EnchantmentPredicate(
-																						                                                       impl.getOrThrow(
-																								                                                       EnchantmentTags.SMELTS_LOOT),
-																						                                                       NumberRange.IntRange.ANY
-																				                                                       ))
-																		                                                       )
-																                                                       )
-																                                                       .build()
-												                                                       )
+										                                                       ItemPredicate.Builder.create()
+										                                                                           .components(
+												                                                                           ComponentsPredicate.Builder.create()
+												                                                                                                      .partial(
+														                                                                                                       ComponentPredicateTypes.ENCHANTMENTS,
+														                                                                                                       EnchantmentsPredicate.enchantments(
+																                                                                                                       List.of(new EnchantmentPredicate(
+																				                                                                                                       enchantmentLookup.getOrThrow(EnchantmentTags.SMELTS_LOOT),
+																				                                                                                                       NumberRange.IntRange.ANY
+																                                                                                                               ))
+														                                                                                                       )
+												                                                                                                      )
+												                                                                                                      .build()
+										                                                                           )
 								                                                       )
 						                       )
 				)
@@ -125,81 +124,78 @@ public abstract class EntityLootTableGenerator implements LootTableGenerator, Fa
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		this.generate();
-		Set<RegistryKey<LootTable>> set = new HashSet<>();
-		Registries.ENTITY_TYPE
-				.streamEntries()
-				.forEach(
-						entityType -> {
-							EntityType<?> entityType2 = entityType.value();
-							if (entityType2.isEnabled(this.requiredFeatures)) {
-								Optional<RegistryKey<LootTable>> optional = entityType2.getLootTableKey();
-								if (optional.isPresent()) {
-									Map<RegistryKey<LootTable>, LootTable.Builder>
-											map =
-											this.lootTables.remove(entityType2);
-									if (entityType2.isEnabled(this.featureSet) && (map == null || !map.containsKey(
-											optional.get())
-									)) {
-										throw new IllegalStateException(
-												String.format(
-														Locale.ROOT,
-														"Missing loottable '%s' for '%s'",
-														optional.get(),
-														entityType.registryKey().getValue()
-												)
-										);
-									}
+		generate();
+		Set<RegistryKey<LootTable>> registeredKeys = new HashSet<>();
 
-									if (map != null) {
-										map.forEach(
-												(tableKey, lootTableBuilder) -> {
-													if (!set.add((RegistryKey<LootTable>) tableKey)) {
-														throw new IllegalStateException(
-																String.format(
-																		Locale.ROOT,
-																		"Duplicate loottable '%s' for '%s'",
-																		tableKey,
-																		entityType.registryKey().getValue()
-																)
-														);
-													}
-													else {
-														lootTableBiConsumer.accept(
-																(RegistryKey<LootTable>) tableKey,
-																lootTableBuilder
-														);
-													}
-												}
-										);
-									}
-								}
-								else {
-									Map<RegistryKey<LootTable>, LootTable.Builder>
-											mapx =
-											this.lootTables.remove(entityType2);
-									if (mapx != null) {
-										throw new IllegalStateException(
-												String.format(
-														Locale.ROOT,
-														"Weird loottables '%s' for '%s', not a LivingEntity so should not have loot",
-														mapx
-																.keySet()
-																.stream()
-																.map(key -> key.getValue().toString())
-																.collect(Collectors.joining(",")),
-														entityType.registryKey().getValue()
-												)
-										);
-									}
-								}
-							}
-						}
+		Registries.ENTITY_TYPE.streamEntries().forEach(entityTypeEntry -> {
+			EntityType<?> type = entityTypeEntry.value();
+
+			if (type.isEnabled(requiredFeatures) == false) {
+				return;
+			}
+
+			Optional<RegistryKey<LootTable>> lootTableKey = type.getLootTableKey();
+
+			if (lootTableKey.isPresent()) {
+				Map<RegistryKey<LootTable>, LootTable.Builder> tableMaps = lootTables.remove(type);
+
+				if (type.isEnabled(featureSet) && (tableMaps == null || tableMaps.containsKey(lootTableKey.get()) == false)) {
+					throw new IllegalStateException(
+							String.format(
+									Locale.ROOT,
+									"Missing loottable '%s' for '%s'",
+									lootTableKey.get(),
+									entityTypeEntry.registryKey().getValue()
+							)
+					);
+				}
+
+				if (tableMaps == null) {
+					return;
+				}
+
+				tableMaps.forEach((tableKey, tableBuilder) -> {
+					if (registeredKeys.add(tableKey) == false) {
+						throw new IllegalStateException(
+								String.format(
+										Locale.ROOT,
+										"Duplicate loottable '%s' for '%s'",
+										tableKey,
+										entityTypeEntry.registryKey().getValue()
+								)
+						);
+					}
+
+					lootTableBiConsumer.accept(tableKey, tableBuilder);
+				});
+			} else {
+				Map<RegistryKey<LootTable>, LootTable.Builder> orphanedTables = lootTables.remove(type);
+
+				if (orphanedTables == null) {
+					return;
+				}
+
+				throw new IllegalStateException(
+						String.format(
+								Locale.ROOT,
+								"Weird loottables '%s' for '%s', not a LivingEntity so should not have loot",
+								orphanedTables.keySet()
+								             .stream()
+								             .map(key -> key.getValue().toString())
+								             .collect(Collectors.joining(",")),
+								entityTypeEntry.registryKey().getValue()
+						)
 				);
-		if (!this.lootTables.isEmpty()) {
-			throw new IllegalStateException(
-					"Created loot tables for entities not supported by datapack: " + this.lootTables.keySet());
+			}
+		});
+
+		if (lootTables.isEmpty()) {
+			return;
 		}
+
+		throw new IllegalStateException(
+				"Created loot tables for entities not supported by datapack: " + lootTables.keySet()
+		);
 	}
 
 	protected LootCondition.Builder killedByFrog(RegistryEntryLookup<EntityType<?>> entityTypeLookup) {
@@ -234,16 +230,15 @@ public abstract class EntityLootTableGenerator implements LootTableGenerator, Fa
 	}
 
 	public void register(EntityType<?> entityType, LootTable.Builder lootTable) {
-		this.register(
+		register(
 				entityType,
-				entityType
-						.getLootTableKey()
-						.orElseThrow(() -> new IllegalStateException("Entity " + entityType + " has no loot table")),
+				entityType.getLootTableKey()
+				          .orElseThrow(() -> new IllegalStateException("Entity " + entityType + " has no loot table")),
 				lootTable
 		);
 	}
 
 	public void register(EntityType<?> entityType, RegistryKey<LootTable> tableKey, LootTable.Builder lootTable) {
-		this.lootTables.computeIfAbsent(entityType, type -> new HashMap<>()).put(tableKey, lootTable);
+		lootTables.computeIfAbsent(entityType, ignored -> new HashMap<>()).put(tableKey, lootTable);
 	}
 }

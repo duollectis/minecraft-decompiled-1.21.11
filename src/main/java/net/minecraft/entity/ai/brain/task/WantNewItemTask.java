@@ -8,17 +8,11 @@ import net.minecraft.entity.mob.PiglinEntity;
 import java.util.Optional;
 
 /**
- * {@code WantNewItemTask}.
+ * Фабричный класс задачи мозга пиглина, сбрасывающей флаг восхищения предметом.
+ * Активируется когда рука свободна и ближайший желанный предмет вне радиуса {@code range}.
  */
 public class WantNewItemTask<E extends PiglinEntity> {
 
-	/**
-	 * Create.
-	 *
-	 * @param range range
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(int range) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -31,18 +25,15 @@ public class WantNewItemTask<E extends PiglinEntity> {
 							                  if (!entity.getOffHandStack().isEmpty()) {
 								                  return false;
 							                  }
-							                  else {
-								                  Optional<ItemEntity>
-										                  optional =
-										                  context.getOptionalValue(nearestVisibleWantedItem);
-								                  if (optional.isPresent() && optional.get().isInRange(entity, range)) {
-									                  return false;
-								                  }
-								                  else {
-									                  admiringItem.forget();
-									                  return true;
-								                  }
+
+							                  Optional<ItemEntity> nearestItemOpt = context.getOptionalValue(nearestVisibleWantedItem);
+
+							                  if (nearestItemOpt.isPresent() && nearestItemOpt.get().isInRange(entity, range)) {
+								                  return false;
 							                  }
+
+							                  admiringItem.forget();
+							                  return true;
 						                  }
 				                  )
 		);

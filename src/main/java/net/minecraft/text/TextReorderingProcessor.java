@@ -9,7 +9,13 @@ import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code TextReorderingProcessor}.
+ * Процессор переупорядочивания текста для поддержки двунаправленного письма (BiDi).
+ *
+ * <p>Хранит строку символов и соответствующий список стилей (по одному на каждый char).
+ * Метод {@link #process(int, int, boolean)} разбивает диапазон на сегменты с одинаковым стилем
+ * и создаёт {@link OrderedText} для каждого сегмента — прямой или обратный в зависимости от флага.
+ * Фабричный метод {@link #create(StringVisitable, Int2IntFunction, UnaryOperator)} строит процессор
+ * из произвольного {@link StringVisitable}, применяя шейпер строки (например, для арабского текста).</p>
  */
 public class TextReorderingProcessor {
 
@@ -24,88 +30,103 @@ public class TextReorderingProcessor {
 	}
 
 	public String getString() {
-		return this.string;
+		return string;
 	}
 
 	/**
-	 * Process.
+	 * Разбивает диапазон символов на сегменты с одинаковым стилем и создаёт список {@link OrderedText}.
 	 *
-	 * @param start start
-	 * @param length length
-	 * @param reverse reverse
+	 * <p>При {@code reverse = true} каждый сегмент обходится в обратном порядке,
+	 * а итоговый список сегментов также переворачивается — для корректного отображения RTL-текста.</p>
 	 *
-	 * @return List — результат операции
+	 * @param start начальный индекс в строке (включительно)
+	 * @param length количество символов для обработки
+	 * @param reverse {@code true} для обратного (RTL) порядка
+	 * @return список {@link OrderedText} по одному на каждый стилевой сегмент
 	 */
 	public List<OrderedText> process(int start, int length, boolean reverse) {
 		if (length == 0) {
 			return ImmutableList.of();
 		}
-		else {
-			List<OrderedText> list = Lists.newArrayList();
-			Style style = this.styles.get(start);
-			int i = start;
 
-			for (int j = 1; j < length; j++) {
-				int k = start + j;
-				Style style2 = this.styles.get(k);
-				if (!style2.equals(style)) {
-					String string = this.string.substring(i, k);
-					list.add(
-							reverse ? OrderedText.styledBackwardsVisitedString(string, style, this.reverser)
-							        : OrderedText.styledForwardsVisitedString(string, style)
-					);
-					style = style2;
-					i = k;
-				}
-			}
+		List<OrderedText> result = Lists.newArrayList();
+		Style currentStyle = styles.get(start);
+		int segmentStart = start;
 
-			if (i < start + length) {
-				String string2 = this.string.substring(i, start + length);
-				list.add(
-						reverse ? OrderedText.styledBackwardsVisitedString(string2, style, this.reverser)
-						        : OrderedText.styledForwardsVisitedString(string2, style)
+		for (int offset = 1; offset < length; offset++) {
+			int pos = start + offset;
+			Style styleAtPos = styles.get(pos);
+
+			if (!styleAtPos.equals(currentStyle)) {
+				String segment = string.substring(segmentStart, pos);
+				result.add(
+						reverse
+								? OrderedText.styledBackwardsVisitedString(segment, currentStyle, reverser)
+								: OrderedText.styledForwardsVisitedString(segment, currentStyle)
 				);
+				currentStyle = styleAtPos;
+				segmentStart = pos;
 			}
-
-			return reverse ? Lists.reverse(list) : list;
 		}
+
+		if (segmentStart < start + length) {
+			String lastSegment = string.substring(segmentStart, start + length);
+			result.add(
+					reverse
+							? OrderedText.styledBackwardsVisitedString(lastSegment, currentStyle, reverser)
+							: OrderedText.styledForwardsVisitedString(lastSegment, currentStyle)
+			);
+		}
+
+		return reverse ? Lists.reverse(result) : result;
 	}
 
 	/**
-	 * Create.
+	 * Создаёт процессор с тождественным реверсером и без шейпинга строки.
 	 *
-	 * @param visitable visitable
-	 *
-	 * @return TextReorderingProcessor — результат операции
+	 * @param visitable источник текста
 	 */
 	public static TextReorderingProcessor create(StringVisitable visitable) {
 		return create(visitable, codePoint -> codePoint, string -> string);
 	}
 
+	/**
+	 * Создаёт процессор из {@link StringVisitable} с заданным реверсером и шейпером строки.
+	 *
+	 * <p>Обходит весь текст, собирая символы в {@link StringBuilder} и стили в список.
+	 * Шейпер применяется к итоговой строке (например, для арабского/иврита через HarfBuzz).</p>
+	 *
+	 * @param visitable источник текста
+	 * @param reverser функция маппинга кодовых точек при обратном обходе
+	 * @param shaper функция преобразования итоговой строки (шейпинг)
+	 */
 	public static TextReorderingProcessor create(
 			StringVisitable visitable,
 			Int2IntFunction reverser,
 			UnaryOperator<String> shaper
 	) {
-		StringBuilder stringBuilder = new StringBuilder();
-		List<Style> list = Lists.newArrayList();
+		StringBuilder builder = new StringBuilder();
+		List<Style> styleList = Lists.newArrayList();
+
 		visitable.visit(
 				(style, text) -> {
 					TextVisitFactory.visitFormatted(
-							text, style, (charIndex, stylex, codePoint) -> {
-								stringBuilder.appendCodePoint(codePoint);
-								int i = Character.charCount(codePoint);
+							text, style, (charIndex, visitedStyle, codePoint) -> {
+								builder.appendCodePoint(codePoint);
+								int charCount = Character.charCount(codePoint);
 
-								for (int j = 0; j < i; j++) {
-									list.add(stylex);
+								for (int charUnit = 0; charUnit < charCount; charUnit++) {
+									styleList.add(visitedStyle);
 								}
 
 								return true;
 							}
 					);
 					return Optional.empty();
-				}, Style.EMPTY
+				},
+				Style.EMPTY
 		);
-		return new TextReorderingProcessor(shaper.apply(stringBuilder.toString()), list, reverser);
+
+		return new TextReorderingProcessor(shaper.apply(builder.toString()), styleList, reverser);
 	}
 }

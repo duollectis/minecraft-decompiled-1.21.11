@@ -12,12 +12,17 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code ResourceFileSystemProvider}.
+ * Реализация {@link FileSystemProvider} для виртуальной файловой системы ресурсов.
+ *
+ * <p>Файловая система доступна только для чтения. Все операции записи
+ * ({@code createDirectory}, {@code delete}, {@code copy}, {@code move}, {@code setAttribute})
+ * выбрасывают {@link ReadOnlyFileSystemException}.</p>
+ *
+ * <p>Схема URI: {@value #SCHEME}.</p>
  */
 class ResourceFileSystemProvider extends FileSystemProvider {
 
@@ -25,7 +30,7 @@ class ResourceFileSystemProvider extends FileSystemProvider {
 
 	@Override
 	public String getScheme() {
-		return "x-mc-link";
+		return SCHEME;
 	}
 
 	@Override
@@ -43,51 +48,66 @@ class ResourceFileSystemProvider extends FileSystemProvider {
 		throw new UnsupportedOperationException();
 	}
 
+	/**
+	 * Открывает байтовый канал для чтения файла.
+	 *
+	 * <p>Поддерживается только режим чтения. Любые опции записи
+	 * ({@code CREATE_NEW}, {@code CREATE}, {@code APPEND}, {@code WRITE}) запрещены.</p>
+	 *
+	 * @throws UnsupportedOperationException если запрошен режим записи
+	 * @throws NoSuchFileException если путь не указывает на реальный файл
+	 */
 	@Override
 	public SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs)
 	throws IOException {
-		if (!options.contains(StandardOpenOption.CREATE_NEW)
-				&& !options.contains(StandardOpenOption.CREATE)
-				&& !options.contains(StandardOpenOption.APPEND)
-				&& !options.contains(StandardOpenOption.WRITE)) {
-			Path path2 = toResourcePath(path).toAbsolutePath().toPath();
-			if (path2 == null) {
-				throw new NoSuchFileException(path.toString());
-			}
-			else {
-				return Files.newByteChannel(path2, options, attrs);
-			}
-		}
-		else {
+		if (options.contains(StandardOpenOption.CREATE_NEW)
+				|| options.contains(StandardOpenOption.CREATE)
+				|| options.contains(StandardOpenOption.APPEND)
+				|| options.contains(StandardOpenOption.WRITE)) {
 			throw new UnsupportedOperationException();
 		}
+
+		Path realPath = toResourcePath(path).toAbsolutePath().toPath();
+
+		if (realPath == null) {
+			throw new NoSuchFileException(path.toString());
+		}
+
+		return Files.newByteChannel(realPath, options, attrs);
 	}
 
+	/**
+	 * Открывает поток содержимого директории с применением фильтра.
+	 *
+	 * @throws NotDirectoryException если путь не является директорией
+	 */
 	@Override
 	public DirectoryStream<Path> newDirectoryStream(Path dir, Filter<? super Path> filter) throws IOException {
-		final ResourceFile.Directory directory = toResourcePath(dir).toAbsolutePath().toDirectory();
+		ResourceFile.Directory directory = toResourcePath(dir).toAbsolutePath().toDirectory();
+
 		if (directory == null) {
 			throw new NotDirectoryException(dir.toString());
 		}
-		else {
-			return new DirectoryStream<Path>() {
-				@Override
-				public Iterator<Path> iterator() {
-					return directory.children().values().stream().filter(child -> {
-						try {
-							return filter.accept(child);
-						}
-						catch (IOException var3) {
-							throw new DirectoryIteratorException(var3);
-						}
-					}).map(child -> (Path) child).iterator();
-				}
 
-				@Override
-				public void close() {
-				}
-			};
-		}
+		return new DirectoryStream<>() {
+			@Override
+			public java.util.Iterator<Path> iterator() {
+				return directory.children().values().stream()
+						.filter(child -> {
+							try {
+								return filter.accept(child);
+							} catch (IOException exception) {
+								throw new DirectoryIteratorException(exception);
+							}
+						})
+						.map(child -> (Path) child)
+						.iterator();
+			}
+
+			@Override
+			public void close() {
+			}
+		};
 	}
 
 	@Override
@@ -125,54 +145,62 @@ class ResourceFileSystemProvider extends FileSystemProvider {
 		return toResourcePath(path).getFileSystem().getStore();
 	}
 
+	/**
+	 * Проверяет доступность пути для заданных режимов доступа.
+	 *
+	 * <p>Режимы {@code WRITE} и {@code EXECUTE} всегда запрещены.
+	 * Режим {@code READ} разрешён только для существующих (не пустых) путей.</p>
+	 *
+	 * @throws NoSuchFileException если путь не существует и запрошен режим {@code READ}
+	 * @throws AccessDeniedException если запрошен режим {@code WRITE} или {@code EXECUTE}
+	 */
 	@Override
 	public void checkAccess(Path path, AccessMode... modes) throws IOException {
 		if (modes.length == 0 && !toResourcePath(path).isReadable()) {
 			throw new NoSuchFileException(path.toString());
 		}
-		else {
-			AccessMode[] var3 = modes;
-			int var4 = modes.length;
-			int var5 = 0;
 
-			while (var5 < var4) {
-				AccessMode accessMode = var3[var5];
-				switch (accessMode) {
-					case READ:
-						if (!toResourcePath(path).isReadable()) {
-							throw new NoSuchFileException(path.toString());
-						}
-					default:
-						var5++;
-						break;
-					case EXECUTE:
-					case WRITE:
-						throw new AccessDeniedException(accessMode.toString());
+		for (AccessMode accessMode : modes) {
+			switch (accessMode) {
+				case READ -> {
+					if (!toResourcePath(path).isReadable()) {
+						throw new NoSuchFileException(path.toString());
+					}
 				}
+				case EXECUTE, WRITE -> throw new AccessDeniedException(accessMode.toString());
 			}
 		}
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <V extends FileAttributeView> @Nullable V getFileAttributeView(
 			Path path,
 			Class<V> type,
 			LinkOption... options
 	) {
 		ResourcePath resourcePath = toResourcePath(path);
-		return (V) (type == BasicFileAttributeView.class ? resourcePath.getAttributeView() : null);
+		return type == BasicFileAttributeView.class ? (V) resourcePath.getAttributeView() : null;
 	}
 
+	/**
+	 * Читает атрибуты файла по пути.
+	 *
+	 * <p>Поддерживается только тип {@link BasicFileAttributes}.</p>
+	 *
+	 * @throws UnsupportedOperationException если запрошен неподдерживаемый тип атрибутов
+	 */
 	@Override
+	@SuppressWarnings("unchecked")
 	public <A extends BasicFileAttributes> A readAttributes(Path path, Class<A> type, LinkOption... options)
 	throws IOException {
 		ResourcePath resourcePath = toResourcePath(path).toAbsolutePath();
+
 		if (type == BasicFileAttributes.class) {
 			return (A) resourcePath.getAttributes();
 		}
-		else {
-			throw new UnsupportedOperationException("Attributes of type " + type.getName() + " not supported");
-		}
+
+		throw new UnsupportedOperationException("Attributes of type " + type.getName() + " not supported");
 	}
 
 	@Override
@@ -189,11 +217,11 @@ class ResourceFileSystemProvider extends FileSystemProvider {
 		if (path == null) {
 			throw new NullPointerException();
 		}
-		else if (path instanceof ResourcePath resourcePath) {
+
+		if (path instanceof ResourcePath resourcePath) {
 			return resourcePath;
 		}
-		else {
-			throw new ProviderMismatchException();
-		}
+
+		throw new ProviderMismatchException();
 	}
 }

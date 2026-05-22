@@ -7,7 +7,8 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code DebugProfileOverlayReferenceFix}.
+ * Переименовывает устаревшее значение {@code inF3} в {@code inOverlay}
+ * в пользовательских настройках отображения профиля отладки.
  */
 public class DebugProfileOverlayReferenceFix extends DataFix {
 
@@ -16,15 +17,18 @@ public class DebugProfileOverlayReferenceFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"DebugProfileOverlayReferenceFix",
-				this.getInputSchema().getType(TypeReferences.DEBUG_PROFILE),
+				getInputSchema().getType(TypeReferences.DEBUG_PROFILE),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						profile -> profile.update(
 								"custom",
-								map -> map.updateMapValues(pair -> pair.mapSecond(value ->
-										value.asString("").equals("inF3") ? value.createString("inOverlay") : value))
+								map -> map.updateMapValues(pair -> pair.mapSecond(
+										value -> "inF3".equals(value.asString(""))
+												? value.createString("inOverlay")
+												: value
+								))
 						)
 				)
 		);

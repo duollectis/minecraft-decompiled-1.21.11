@@ -14,7 +14,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code SpawnRestriction}.
+ * Реестр ограничений спауна мобов.
+ * Хранит правила для каждого {@link EntityType}: допустимое местоположение спауна,
+ * тип карты высот и предикат проверки конкретной позиции.
  */
 public class SpawnRestriction {
 
@@ -26,10 +28,9 @@ public class SpawnRestriction {
 			Heightmap.Type heightmapType,
 			SpawnRestriction.SpawnPredicate<T> predicate
 	) {
-		SpawnRestriction.Entry
-				entry =
-				RESTRICTIONS.put(type, new SpawnRestriction.Entry(heightmapType, location, predicate));
-		if (entry != null) {
+		Entry previous = RESTRICTIONS.put(type, new Entry(heightmapType, location, predicate));
+
+		if (previous != null) {
 			throw new IllegalStateException("Duplicate registration for type " + Registries.ENTITY_TYPE.getId(type));
 		}
 	}
@@ -576,15 +577,15 @@ public class SpawnRestriction {
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Запись, хранящая правила спауна для конкретного типа сущности.
 	 */
 	record Entry(Heightmap.Type heightmapType, SpawnLocation location, SpawnRestriction.SpawnPredicate<?> predicate) {
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code SpawnPredicate}.
+	 * Предикат проверки допустимости спауна сущности в заданной позиции.
 	 */
+	@FunctionalInterface
 	public interface SpawnPredicate<T extends Entity> {
 
 		boolean test(EntityType<T> type, ServerWorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random);

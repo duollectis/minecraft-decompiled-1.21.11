@@ -345,10 +345,10 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 		RegistryEntry<DimensionType> registryEntry = commonPlayerSpawnInfo.dimensionType();
 		chunkLoadDistance = packet.viewDistance();
 		simulationDistance = packet.simulationDistance();
-		boolean bl = commonPlayerSpawnInfo.isDebug();
-		boolean bl2 = commonPlayerSpawnInfo.isFlat();
-		int i = commonPlayerSpawnInfo.seaLevel();
-		ClientWorld.Properties properties = new ClientWorld.Properties(Difficulty.NORMAL, packet.hardcore(), bl2);
+		boolean isDebug = commonPlayerSpawnInfo.isDebug();
+		boolean isFlat = commonPlayerSpawnInfo.isFlat();
+		int seaLevel = commonPlayerSpawnInfo.seaLevel();
+		ClientWorld.Properties properties = new ClientWorld.Properties(Difficulty.NORMAL, packet.hardcore(), isFlat);
 		worldProperties = properties;
 		world = new ClientWorld(
 				this,
@@ -358,9 +358,9 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 				chunkLoadDistance,
 				simulationDistance,
 				client.worldRenderer,
-				bl,
+				isDebug,
 				commonPlayerSpawnInfo.seed(),
-				i
+				seaLevel
 		);
 		client.joinWorld(world);
 		if (client.player == null) {
@@ -466,16 +466,11 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 			client.getSoundManager().play(new MovingMinecartSoundInstance(abstractMinecartEntity));
 		}
 		else if (entity instanceof BeeEntity beeEntity) {
-			boolean bl = beeEntity.hasAngerTime();
-			AbstractBeeSoundInstance abstractBeeSoundInstance;
-			if (bl) {
-				abstractBeeSoundInstance = new AggressiveBeeSoundInstance(beeEntity);
-			}
-			else {
-				abstractBeeSoundInstance = new PassiveBeeSoundInstance(beeEntity);
-			}
+			AbstractBeeSoundInstance beeSound = beeEntity.hasAngerTime()
+					? new AggressiveBeeSoundInstance(beeEntity)
+					: new PassiveBeeSoundInstance(beeEntity);
 
-			client.getSoundManager().playNextTick(abstractBeeSoundInstance);
+			client.getSoundManager().playNextTick(beeSound);
 		}
 	}
 
@@ -1245,18 +1240,19 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 		RegistryEntry<DimensionType> registryEntry = commonPlayerSpawnInfo.dimensionType();
 		ClientPlayerEntity clientPlayerEntity = client.player;
 		RegistryKey<World> registryKey2 = clientPlayerEntity.getEntityWorld().getRegistryKey();
-		boolean bl = registryKey != registryKey2;
+		boolean isDimensionChanged = registryKey != registryKey2;
 		LevelLoadingScreen.WorldEntryReason
 				worldEntryReason =
 				getWorldEntryReason(clientPlayerEntity.isDead(), registryKey, registryKey2);
-		if (bl) {
+
+		if (isDimensionChanged) {
 			Map<MapIdComponent, MapState> map = world.getMapStates();
-			boolean bl2 = commonPlayerSpawnInfo.isDebug();
-			boolean bl3 = commonPlayerSpawnInfo.isFlat();
-			int i = commonPlayerSpawnInfo.seaLevel();
+			boolean isDebug = commonPlayerSpawnInfo.isDebug();
+			boolean isFlat = commonPlayerSpawnInfo.isFlat();
+			int seaLevel = commonPlayerSpawnInfo.seaLevel();
 			ClientWorld.Properties
 					properties =
-					new ClientWorld.Properties(worldProperties.getDifficulty(), worldProperties.isHardcore(), bl3);
+					new ClientWorld.Properties(worldProperties.getDifficulty(), worldProperties.isHardcore(), isFlat);
 			worldProperties = properties;
 			world = new ClientWorld(
 					this,
@@ -1266,9 +1262,9 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 					chunkLoadDistance,
 					simulationDistance,
 					client.worldRenderer,
-					bl2,
+					isDebug,
 					commonPlayerSpawnInfo.seed(),
-					i
+					seaLevel
 			);
 			world.putMapStates(map);
 			client.joinWorld(world);
@@ -1305,7 +1301,7 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 		startWorldLoading(clientPlayerEntity2, world, worldEntryReason);
 		clientPlayerEntity2.setId(clientPlayerEntity.getId());
 		client.player = clientPlayerEntity2;
-		if (bl) {
+		if (isDimensionChanged) {
 			client.getMusicTracker().stop();
 		}
 
@@ -2924,7 +2920,7 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	 * @param displayed displayed
 	 */
 	public void acknowledge(MessageSignatureData signature, boolean displayed) {
-		if (lastSeenMessagesCollector.add(signature, displayed) && lastSeenMessagesCollector.getMessageCount() > 64) {
+		if (lastSeenMessagesCollector.add(signature, displayed) && lastSeenMessagesCollector.getMessageCount() > ACKNOWLEDGMENT_BATCH_SIZE) {
 			sendAcknowledgment();
 		}
 	}

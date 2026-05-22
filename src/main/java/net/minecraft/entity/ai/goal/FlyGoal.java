@@ -7,27 +7,43 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code FlyGoal}.
+ * Цель полёта: ищет позицию над землёй, при неудаче — твёрдую поверхность без штрафа.
  */
 public class FlyGoal extends WanderAroundFarGoal {
 
-	public FlyGoal(PathAwareEntity pathAwareEntity, double d) {
-		super(pathAwareEntity, d);
+	private static final int FLY_HORIZONTAL_RANGE = 8;
+	private static final int FLY_VERTICAL_RANGE = 7;
+	private static final int SOLID_VERTICAL_RANGE = 4;
+	private static final int SOLID_VERTICAL_OFFSET = -2;
+	private static final float HALF_PI = (float) (Math.PI / 2);
+
+	public FlyGoal(PathAwareEntity mob, double speed) {
+		super(mob, speed);
 	}
 
 	@Override
 	protected @Nullable Vec3d getWanderTarget() {
-		Vec3d vec3d = this.mob.getRotationVec(0.0F);
-		int i = 8;
-		Vec3d vec3d2 = AboveGroundTargeting.find(this.mob, 8, 7, vec3d.x, vec3d.z, (float) (Math.PI / 2), 3, 1);
-		return vec3d2 != null ? vec3d2 : NoPenaltySolidTargeting.find(
-				this.mob,
-				8,
-				4,
-				-2,
-				vec3d.x,
-				vec3d.z,
-				(float) (Math.PI / 2)
+		Vec3d rotationVec = mob.getRotationVec(0.0F);
+		Vec3d aboveGround = AboveGroundTargeting.find(
+				mob,
+				FLY_HORIZONTAL_RANGE,
+				FLY_VERTICAL_RANGE,
+				rotationVec.x,
+				rotationVec.z,
+				HALF_PI,
+				3,
+				1
 		);
+		return aboveGround != null
+				? aboveGround
+				: NoPenaltySolidTargeting.find(
+						mob,
+						FLY_HORIZONTAL_RANGE,
+						SOLID_VERTICAL_RANGE,
+						SOLID_VERTICAL_OFFSET,
+						rotationVec.x,
+						rotationVec.z,
+						HALF_PI
+				);
 	}
 }

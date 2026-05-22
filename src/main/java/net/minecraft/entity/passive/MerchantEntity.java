@@ -34,31 +34,39 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 
 /**
- * {@code MerchantEntity}.
+ * Базовый класс для торговцев (жители, странствующий торговец).
+ * Управляет списком торговых предложений, инвентарём и анимацией «кивания головой».
  */
 public abstract class MerchantEntity extends PassiveEntity implements InventoryOwner, Npc, Merchant {
 
-	private static final TrackedData<Integer>
-			HEAD_ROLLING_TIME_LEFT =
-			DataTracker.registerData(MerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final TrackedData<Integer> HEAD_ROLLING_TIME_LEFT = DataTracker.registerData(
+		MerchantEntity.class,
+		TrackedDataHandlerRegistry.INTEGER
+	);
+
 	public static final int HEAD_ROLLING_DURATION = 300;
 	private static final int INVENTORY_SIZE = 8;
+	/** Смещение слотов инвентаря торговца в глобальной адресации слотов. */
+	private static final int INVENTORY_SLOT_OFFSET = 300;
+	private static final int PRODUCE_PARTICLE_COUNT = 5;
+	private static final int INTERACT_DISTANCE = 4;
+
 	private @Nullable PlayerEntity customer;
 	protected @Nullable TradeOfferList offers;
-	private final SimpleInventory inventory = new SimpleInventory(8);
+	private final SimpleInventory inventory = new SimpleInventory(INVENTORY_SIZE);
 
 	public MerchantEntity(EntityType<? extends MerchantEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.DANGER_FIRE, 16.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, -1.0F);
+		setPathfindingPenalty(PathNodeType.DANGER_FIRE, 16.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, -1.0F);
 	}
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		if (entityData == null) {
 			entityData = new PassiveEntity.PassiveData(false);
@@ -68,11 +76,11 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 	}
 
 	public int getHeadRollingTimeLeft() {
-		return this.dataTracker.get(HEAD_ROLLING_TIME_LEFT);
+		return dataTracker.get(HEAD_ROLLING_TIME_LEFT);
 	}
 
 	public void setHeadRollingTimeLeft(int ticks) {
-		this.dataTracker.set(HEAD_ROLLING_TIME_LEFT, ticks);
+		dataTracker.set(HEAD_ROLLING_TIME_LEFT, ticks);
 	}
 
 	@Override
@@ -93,26 +101,31 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 
 	@Override
 	public @Nullable PlayerEntity getCustomer() {
-		return this.customer;
+		return customer;
 	}
 
 	public boolean hasCustomer() {
-		return this.customer != null;
+		return customer != null;
 	}
 
+	/**
+	 * Возвращает список торговых предложений, инициализируя его при первом обращении.
+	 * Вызов на клиенте запрещён — предложения загружаются только на сервере.
+	 *
+	 * @throws IllegalStateException если вызван на клиентской стороне
+	 */
 	@Override
 	public TradeOfferList getOffers() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			if (this.offers == null) {
-				this.offers = new TradeOfferList();
-				this.fillRecipes(serverWorld);
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			if (offers == null) {
+				offers = new TradeOfferList();
+				fillRecipes(serverWorld);
 			}
 
-			return this.offers;
+			return offers;
 		}
-		else {
-			throw new IllegalStateException("Cannot load Villager offers on the client");
-		}
+
+		throw new IllegalStateException("Cannot load Villager offers on the client");
 	}
 
 	@Override
@@ -126,18 +139,13 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 	@Override
 	public void trade(TradeOffer offer) {
 		offer.use();
-		this.ambientSoundChance = -this.getMinAmbientSoundDelay();
-		this.afterUsing(offer);
-		if (this.customer instanceof ServerPlayerEntity) {
-			Criteria.VILLAGER_TRADE.trigger((ServerPlayerEntity) this.customer, this, offer.getSellItem());
+		ambientSoundChance = -getMinAmbientSoundDelay();
+		afterUsing(offer);
+		if (customer instanceof ServerPlayerEntity serverPlayer) {
+			Criteria.VILLAGER_TRADE.trigger(serverPlayer, this, offer.getSellItem());
 		}
 	}
 
-	/**
-	 * After using.
-	 *
-	 * @param offer offer
-	 */
 	protected abstract void afterUsing(TradeOffer offer);
 
 	@Override
@@ -147,10 +155,12 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 
 	@Override
 	public void onSellingItem(ItemStack stack) {
-		if (!this.getEntityWorld().isClient() && this.ambientSoundChance > -this.getMinAmbientSoundDelay() + 20) {
-			this.ambientSoundChance = -this.getMinAmbientSoundDelay();
-			this.playSound(this.getTradingSound(!stack.isEmpty()));
+		if (getEntityWorld().isClient() || ambientSoundChance <= -getMinAmbientSoundDelay() + 20) {
+			return;
 		}
+
+		ambientSoundChance = -getMinAmbientSoundDelay();
+		playSound(getTradingSound(!stack.isEmpty()));
 	}
 
 	@Override
@@ -162,73 +172,60 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		return sold ? SoundEvents.ENTITY_VILLAGER_YES : SoundEvents.ENTITY_VILLAGER_NO;
 	}
 
-	/**
-	 * Play celebrate sound.
-	 */
 	public void playCelebrateSound() {
-		this.playSound(SoundEvents.ENTITY_VILLAGER_CELEBRATE);
+		playSound(SoundEvents.ENTITY_VILLAGER_CELEBRATE);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		if (!this.getEntityWorld().isClient()) {
-			TradeOfferList tradeOfferList = this.getOffers();
-			if (!tradeOfferList.isEmpty()) {
-				view.put("Offers", TradeOfferList.CODEC, tradeOfferList);
+		if (!getEntityWorld().isClient()) {
+			TradeOfferList tradeOffers = getOffers();
+			if (!tradeOffers.isEmpty()) {
+				view.put("Offers", TradeOfferList.CODEC, tradeOffers);
 			}
 		}
 
-		this.writeInventory(view);
+		writeInventory(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.offers = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
-		this.readInventory(view);
+		offers = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
+		readInventory(view);
 	}
 
 	@Override
 	public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
-		this.resetCustomer();
+		resetCustomer();
 		return super.teleportTo(teleportTarget);
 	}
 
-	/**
-	 * Сбрасывает customer.
-	 */
 	protected void resetCustomer() {
-		this.setCustomer(null);
+		setCustomer(null);
 	}
 
 	@Override
 	public void onDeath(DamageSource damageSource) {
 		super.onDeath(damageSource);
-		this.resetCustomer();
+		resetCustomer();
 	}
 
-	/**
-	 * Produce particles.
-	 *
-	 * @param parameters parameters
-	 */
 	protected void produceParticles(ParticleEffect parameters) {
-		for (int i = 0; i < 5; i++) {
-			double d = this.random.nextGaussian() * 0.02;
-			double e = this.random.nextGaussian() * 0.02;
-			double f = this.random.nextGaussian() * 0.02;
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							parameters,
-							this.getParticleX(1.0),
-							this.getRandomBodyY() + 1.0,
-							this.getParticleZ(1.0),
-							d,
-							e,
-							f
-					);
+		for (int count = 0; count < PRODUCE_PARTICLE_COUNT; count++) {
+			double vx = random.nextGaussian() * 0.02;
+			double vy = random.nextGaussian() * 0.02;
+			double vz = random.nextGaussian() * 0.02;
+			getEntityWorld().addParticleClient(
+				parameters,
+				getParticleX(1.0),
+				getRandomBodyY() + 1.0,
+				getParticleZ(1.0),
+				vx,
+				vy,
+				vz
+			);
 		}
 	}
 
@@ -239,57 +236,59 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 
 	@Override
 	public SimpleInventory getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
 	public @Nullable StackReference getStackReference(int slot) {
-		int i = slot - 300;
-		return i >= 0 && i < this.inventory.size() ? this.inventory.getStackReference(i)
-		                                           : super.getStackReference(slot);
+		int inventorySlot = slot - INVENTORY_SLOT_OFFSET;
+		return inventorySlot >= 0 && inventorySlot < inventory.size()
+			? inventory.getStackReference(inventorySlot)
+			: super.getStackReference(slot);
 	}
 
-	/**
-	 * Fill recipes.
-	 *
-	 * @param world world
-	 */
 	protected abstract void fillRecipes(ServerWorld world);
 
+	/**
+	 * Заполняет список предложений случайными записями из пула фабрик.
+	 *
+	 * @param world      серверный мир
+	 * @param recipeList список, в который добавляются предложения
+	 * @param pool       массив фабрик предложений
+	 * @param count      сколько предложений нужно добавить
+	 */
 	protected void fillRecipesFromPool(
-			ServerWorld world,
-			TradeOfferList recipeList,
-			TradeOffers.Factory[] pool,
-			int count
+		ServerWorld world,
+		TradeOfferList recipeList,
+		TradeOffers.Factory[] pool,
+		int count
 	) {
-		ArrayList<TradeOffers.Factory> arrayList = Lists.newArrayList(pool);
-		int i = 0;
+		ArrayList<TradeOffers.Factory> factories = Lists.newArrayList(pool);
+		int added = 0;
 
-		while (i < count && !arrayList.isEmpty()) {
-			TradeOffer
-					tradeOffer =
-					arrayList.remove(this.random.nextInt(arrayList.size())).create(world, this, this.random);
-			if (tradeOffer != null) {
-				recipeList.add(tradeOffer);
-				i++;
+		while (added < count && !factories.isEmpty()) {
+			TradeOffer offer = factories.remove(random.nextInt(factories.size())).create(world, this, random);
+			if (offer != null) {
+				recipeList.add(offer);
+				added++;
 			}
 		}
 	}
 
 	@Override
 	public Vec3d getLeashPos(float tickProgress) {
-		float f = MathHelper.lerp(tickProgress, this.lastBodyYaw, this.bodyYaw) * (float) (Math.PI / 180.0);
-		Vec3d vec3d = new Vec3d(0.0, this.getBoundingBox().getLengthY() - 1.0, 0.2);
-		return this.getLerpedPos(tickProgress).add(vec3d.rotateY(-f));
+		float yawRad = MathHelper.lerp(tickProgress, lastBodyYaw, bodyYaw) * (float) (Math.PI / 180.0);
+		Vec3d offset = new Vec3d(0.0, getBoundingBox().getLengthY() - 1.0, 0.2);
+		return getLerpedPos(tickProgress).add(offset.rotateY(-yawRad));
 	}
 
 	@Override
 	public boolean isClient() {
-		return this.getEntityWorld().isClient();
+		return getEntityWorld().isClient();
 	}
 
 	@Override
 	public boolean canInteract(PlayerEntity player) {
-		return this.getCustomer() == player && this.isAlive() && player.canInteractWithEntity(this, 4.0);
+		return getCustomer() == player && isAlive() && player.canInteractWithEntity(this, INTERACT_DISTANCE);
 	}
 }

@@ -3,7 +3,11 @@ package net.minecraft.entity.ai.brain.task;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.ai.brain.*;
+import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.EntityLookTarget;
+import net.minecraft.entity.ai.brain.MemoryModuleState;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -14,19 +18,21 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code TemptTask}.
+ * Задача мозга, заставляющая существо следовать за игроком, держащим приманку.
+ * Останавливается при размножении, панике или выходе игрока из зоны видимости; после завершения устанавливает кулдаун.
  */
 public class TemptTask extends MultiTickTask<PathAwareEntity> {
 
 	public static final int TEMPTATION_COOLDOWN_TICKS = 100;
 	public static final double DEFAULT_STOP_DISTANCE = 2.5;
 	public static final double LARGE_ENTITY_STOP_DISTANCE = 3.5;
+	private static final int WALK_COMPLETION_RANGE = 2;
 	private final Function<LivingEntity, Float> speed;
 	private final Function<LivingEntity, Double> stopDistanceGetter;
 	private final boolean useEyeHeight;
 
 	public TemptTask(Function<LivingEntity, Float> speed) {
-		this(speed, entity -> 2.5);
+		this(speed, entity -> DEFAULT_STOP_DISTANCE);
 	}
 
 	public TemptTask(Function<LivingEntity, Float> speed, Function<LivingEntity, Double> stopDistanceGetter) {
@@ -55,7 +61,7 @@ public class TemptTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	protected float getSpeed(PathAwareEntity entity) {
-		return this.speed.apply(entity);
+		return speed.apply(entity);
 	}
 
 	private Optional<PlayerEntity> getTemptingPlayer(PathAwareEntity entity) {
@@ -67,69 +73,44 @@ public class TemptTask extends MultiTickTask<PathAwareEntity> {
 		return false;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return this.getTemptingPlayer(pathAwareEntity).isPresent()
-				&& !pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.BREED_TARGET)
-				&& !pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		return getTemptingPlayer(entity).isPresent()
+				&& !entity.getBrain().hasMemoryModule(MemoryModuleType.BREED_TARGET)
+				&& !entity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.getBrain().remember(MemoryModuleType.IS_TEMPTED, true);
+	@Override
+	protected void run(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.getBrain().remember(MemoryModuleType.IS_TEMPTED, true);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		Brain<?> brain = pathAwareEntity.getBrain();
-		brain.remember(MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, 100);
+	@Override
+	protected void finishRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		Brain<?> brain = entity.getBrain();
+		brain.remember(MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, TEMPTATION_COOLDOWN_TICKS);
 		brain.forget(MemoryModuleType.IS_TEMPTED);
 		brain.forget(MemoryModuleType.WALK_TARGET);
 		brain.forget(MemoryModuleType.LOOK_TARGET);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		PlayerEntity playerEntity = this.getTemptingPlayer(pathAwareEntity).get();
-		Brain<?> brain = pathAwareEntity.getBrain();
-		brain.remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(playerEntity, true));
-		double d = this.stopDistanceGetter.apply(pathAwareEntity);
-		if (pathAwareEntity.squaredDistanceTo(playerEntity) < MathHelper.square(d)) {
+	@Override
+	protected void keepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		PlayerEntity temptingPlayer = getTemptingPlayer(entity).get();
+		Brain<?> brain = entity.getBrain();
+		brain.remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(temptingPlayer, true));
+
+		double stopDistance = stopDistanceGetter.apply(entity);
+
+		if (entity.squaredDistanceTo(temptingPlayer) < MathHelper.square(stopDistance)) {
 			brain.forget(MemoryModuleType.WALK_TARGET);
-		}
-		else {
+		} else {
 			brain.remember(
 					MemoryModuleType.WALK_TARGET,
 					new WalkTarget(
-							new EntityLookTarget(playerEntity, this.useEyeHeight, this.useEyeHeight),
-							this.getSpeed(pathAwareEntity),
-							2
+							new EntityLookTarget(temptingPlayer, useEyeHeight, useEyeHeight),
+							getSpeed(entity),
+							WALK_COMPLETION_RANGE
 					)
 			);
 		}

@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code ArrayPalette}.
+ * Линейная палитра на основе массива — используется для небольших секций
+ * (до 2^indexBits элементов). Поиск по значению линейный O(n),
+ * что приемлемо при малом размере (≤16 элементов).
  */
 public class ArrayPalette<T> implements Palette<T> {
 
@@ -17,63 +19,56 @@ public class ArrayPalette<T> implements Palette<T> {
 	private final int indexBits;
 	private int size;
 
+	@SuppressWarnings("unchecked")
 	private ArrayPalette(int indexBits, List<T> values) {
-		this.array = (T[]) (new Object[1 << indexBits]);
+		this.array = (T[]) new Object[1 << indexBits];
 		this.indexBits = indexBits;
 		Validate.isTrue(
-				values.size() <= this.array.length,
-				"Can't initialize LinearPalette of size %d with %d entries",
-				new Object[]{this.array.length, values.size()}
+			values.size() <= array.length,
+			"Can't initialize LinearPalette of size %d with %d entries",
+			array.length, values.size()
 		);
 
 		for (int i = 0; i < values.size(); i++) {
-			this.array[i] = values.get(i);
+			array[i] = values.get(i);
 		}
 
-		this.size = values.size();
+		size = values.size();
 	}
 
+	@SuppressWarnings("unchecked")
 	private ArrayPalette(T[] array, int indexBits, int size) {
 		this.array = array;
 		this.indexBits = indexBits;
 		this.size = size;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param bits bits
-	 * @param values values
-	 *
-	 * @return Palette — результат операции
-	 */
 	public static <A> Palette<A> create(int bits, List<A> values) {
 		return new ArrayPalette<>(bits, values);
 	}
 
 	@Override
 	public int index(T object, PaletteResizeListener<T> listener) {
-		for (int i = 0; i < this.size; i++) {
-			if (this.array[i] == object) {
+		for (int i = 0; i < size; i++) {
+			if (array[i] == object) {
 				return i;
 			}
 		}
 
-		int ix = this.size;
-		if (ix < this.array.length) {
-			this.array[ix] = object;
-			this.size++;
-			return ix;
+		int nextIndex = size;
+		if (nextIndex < array.length) {
+			array[nextIndex] = object;
+			size++;
+			return nextIndex;
 		}
-		else {
-			return listener.onResize(this.indexBits + 1, object);
-		}
+
+		return listener.onResize(indexBits + 1, object);
 	}
 
 	@Override
 	public boolean hasAny(Predicate<T> predicate) {
-		for (int i = 0; i < this.size; i++) {
-			if (predicate.test(this.array[i])) {
+		for (int i = 0; i < size; i++) {
+			if (predicate.test(array[i])) {
 				return true;
 			}
 		}
@@ -83,50 +78,50 @@ public class ArrayPalette<T> implements Palette<T> {
 
 	@Override
 	public T get(int id) {
-		if (id >= 0 && id < this.size) {
-			return this.array[id];
+		if (id >= 0 && id < size) {
+			return array[id];
 		}
-		else {
-			throw new EntryMissingException(id);
-		}
+
+		throw new EntryMissingException(id);
 	}
 
 	@Override
 	public void readPacket(PacketByteBuf buf, IndexedIterable<T> idList) {
-		this.size = buf.readVarInt();
+		size = buf.readVarInt();
 
-		for (int i = 0; i < this.size; i++) {
-			this.array[i] = idList.getOrThrow(buf.readVarInt());
+		for (int i = 0; i < size; i++) {
+			array[i] = idList.getOrThrow(buf.readVarInt());
 		}
 	}
 
 	@Override
 	public void writePacket(PacketByteBuf buf, IndexedIterable<T> idList) {
-		buf.writeVarInt(this.size);
+		buf.writeVarInt(size);
 
-		for (int i = 0; i < this.size; i++) {
-			buf.writeVarInt(idList.getRawId(this.array[i]));
+		for (int i = 0; i < size; i++) {
+			buf.writeVarInt(idList.getRawId(array[i]));
 		}
 	}
 
 	@Override
 	public int getPacketSize(IndexedIterable<T> idList) {
-		int i = VarInts.getSizeInBytes(this.getSize());
+		int totalSize = VarInts.getSizeInBytes(getSize());
 
-		for (int j = 0; j < this.getSize(); j++) {
-			i += VarInts.getSizeInBytes(idList.getRawId(this.array[j]));
+		for (int i = 0; i < getSize(); i++) {
+			totalSize += VarInts.getSizeInBytes(idList.getRawId(array[i]));
 		}
 
-		return i;
+		return totalSize;
 	}
 
 	@Override
 	public int getSize() {
-		return this.size;
+		return size;
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public Palette<T> copy() {
-		return new ArrayPalette<>((T[]) ((Object[]) this.array.clone()), this.indexBits, this.size);
+		return new ArrayPalette<>((T[]) array.clone(), indexBits, size);
 	}
 }

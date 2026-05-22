@@ -11,7 +11,9 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * {@code RecipeCache}.
+ * LRU-кэш результатов крафта для ускорения повторных запросов к менеджеру рецептов.
+ * При смене менеджера рецептов (перезагрузка ресурсов) кэш автоматически инвалидируется.
+ * Ссылка на менеджер слабая — не препятствует его сборке мусором.
  */
 public class RecipeCache {
 
@@ -19,93 +21,86 @@ public class RecipeCache {
 	private WeakReference<@Nullable ServerRecipeManager> recipeManagerRef = new WeakReference<>(null);
 
 	public RecipeCache(int size) {
-		this.cache = new RecipeCache.CachedRecipe[size];
+		cache = new RecipeCache.CachedRecipe[size];
 	}
 
 	public Optional<RecipeEntry<CraftingRecipe>> getRecipe(ServerWorld world, CraftingRecipeInput input) {
 		if (input.isEmpty()) {
 			return Optional.empty();
 		}
-		else {
-			this.validateRecipeManager(world);
 
-			for (int i = 0; i < this.cache.length; i++) {
-				RecipeCache.CachedRecipe cachedRecipe = this.cache[i];
-				if (cachedRecipe != null && cachedRecipe.matches(input)) {
-					this.sendToFront(i);
-					return Optional.ofNullable(cachedRecipe.value());
-				}
+		validateRecipeManager(world);
+
+		for (int index = 0; index < cache.length; index++) {
+			RecipeCache.CachedRecipe cached = cache[index];
+
+			if (cached != null && cached.matches(input)) {
+				sendToFront(index);
+				return Optional.ofNullable(cached.value());
 			}
-
-			return this.getAndCacheRecipe(input, world);
 		}
+
+		return getAndCacheRecipe(input, world);
 	}
 
 	private void validateRecipeManager(ServerWorld world) {
-		ServerRecipeManager serverRecipeManager = world.getRecipeManager();
-		if (serverRecipeManager != this.recipeManagerRef.get()) {
-			this.recipeManagerRef = new WeakReference<>(serverRecipeManager);
-			Arrays.fill(this.cache, null);
+		ServerRecipeManager manager = world.getRecipeManager();
+
+		if (manager != recipeManagerRef.get()) {
+			recipeManagerRef = new WeakReference<>(manager);
+			Arrays.fill(cache, null);
 		}
 	}
 
 	private Optional<RecipeEntry<CraftingRecipe>> getAndCacheRecipe(CraftingRecipeInput input, ServerWorld world) {
-		Optional<RecipeEntry<CraftingRecipe>>
-				optional =
-				world.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, input, world);
-		this.cache(input, optional.orElse(null));
-		return optional;
+		Optional<RecipeEntry<CraftingRecipe>> result = world.getRecipeManager()
+			.getFirstMatch(RecipeType.CRAFTING, input, world);
+
+		cache(input, result.orElse(null));
+
+		return result;
 	}
 
 	private void sendToFront(int index) {
-		if (index > 0) {
-			RecipeCache.CachedRecipe cachedRecipe = this.cache[index];
-			System.arraycopy(this.cache, 0, this.cache, 1, index);
-			this.cache[0] = cachedRecipe;
+		if (index <= 0) {
+			return;
 		}
+
+		RecipeCache.CachedRecipe cached = cache[index];
+		System.arraycopy(cache, 0, cache, 1, index);
+		cache[0] = cached;
 	}
 
 	private void cache(CraftingRecipeInput input, @Nullable RecipeEntry<CraftingRecipe> recipe) {
-		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+		DefaultedList<ItemStack> snapshot = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-		for (int i = 0; i < input.size(); i++) {
-			defaultedList.set(i, input.getStackInSlot(i).copyWithCount(1));
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			snapshot.set(slotIndex, input.getStackInSlot(slotIndex).copyWithCount(1));
 		}
 
-		System.arraycopy(this.cache, 0, this.cache, 1, this.cache.length - 1);
-		this.cache[0] = new RecipeCache.CachedRecipe(defaultedList, input.getWidth(), input.getHeight(), recipe);
+		System.arraycopy(cache, 0, cache, 1, cache.length - 1);
+		cache[0] = new RecipeCache.CachedRecipe(snapshot, input.getWidth(), input.getHeight(), recipe);
 	}
 
-	/**
-	 * {@code CachedRecipe}.
-	 */
 	record CachedRecipe(
-			DefaultedList<ItemStack> key,
-			int width,
-			int height,
-			@Nullable RecipeEntry<CraftingRecipe> value
+		DefaultedList<ItemStack> key,
+		int width,
+		int height,
+		@Nullable RecipeEntry<CraftingRecipe> value
 	) {
 
-		/**
-		 * Matches.
-		 *
-		 * @param input input
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean matches(CraftingRecipeInput input) {
-			if (this.width == input.getWidth() && this.height == input.getHeight()) {
-				for (int i = 0; i < this.key.size(); i++) {
-					if (!ItemStack.areItemsAndComponentsEqual(this.key.get(i), input.getStackInSlot(i))) {
-						return false;
-					}
-				}
-
-				return true;
-			}
-			else {
+			if (width != input.getWidth() || height != input.getHeight()) {
 				return false;
 			}
+
+			for (int slotIndex = 0; slotIndex < key.size(); slotIndex++) {
+				if (!ItemStack.areItemsAndComponentsEqual(key.get(slotIndex), input.getStackInSlot(slotIndex))) {
+					return false;
+				}
+			}
+
+			return true;
 		}
 	}
 }

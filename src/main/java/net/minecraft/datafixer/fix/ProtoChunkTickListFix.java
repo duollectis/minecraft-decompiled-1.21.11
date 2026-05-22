@@ -23,7 +23,9 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * {@code ProtoChunkTickListFix}.
+ * Конвертирует устаревшие списки тиков блоков ({@code ToBeTicked}, {@code LiquidsToBeTicked})
+ * в новый формат {@code block_ticks} / {@code fluid_ticks}, используя паллетизированные
+ * данные секций для восстановления идентификаторов блоков по локальным позициям.
  */
 public class ProtoChunkTickListFix extends DataFix {
 
@@ -40,157 +42,134 @@ public class ProtoChunkTickListFix extends DataFix {
 		super(outputSchema, false);
 	}
 
+	@Override
+	@SuppressWarnings("unchecked")
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("Level");
-		OpticFinder<?> opticFinder2 = opticFinder.type().findField("Sections");
-		OpticFinder<?> opticFinder3 = ((ListType) opticFinder2.type()).getElement().finder();
-		OpticFinder<?> opticFinder4 = opticFinder3.type().findField("block_states");
-		OpticFinder<?> opticFinder5 = opticFinder3.type().findField("biomes");
-		OpticFinder<?> opticFinder6 = opticFinder4.type().findField("palette");
-		OpticFinder<?> opticFinder7 = opticFinder.type().findField("TileTicks");
-		return this.fixTypeEverywhereTyped(
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> levelFinder = chunkType.findField("Level");
+		OpticFinder<?> sectionsFinder = levelFinder.type().findField("Sections");
+		OpticFinder<?> sectionFinder = ((ListType) sectionsFinder.type()).getElement().finder();
+		OpticFinder<?> blockStatesFinder = sectionFinder.type().findField("block_states");
+		OpticFinder<?> biomesFinder = sectionFinder.type().findField("biomes");
+		OpticFinder<?> paletteFinder = blockStatesFinder.type().findField("palette");
+		OpticFinder<?> tileTicksFinder = levelFinder.type().findField("TileTicks");
+
+		return fixTypeEverywhereTyped(
 				"ChunkProtoTickListFix",
-				type,
+				chunkType,
 				chunkTyped -> chunkTyped.updateTyped(
-						opticFinder,
+						levelFinder,
 						levelTyped -> {
 							levelTyped = levelTyped.update(
 									DSL.remainderFinder(),
-									levelDynamic -> (Dynamic) DataFixUtils.orElse(
+									levelDynamic -> (Dynamic<?>) DataFixUtils.orElse(
 											levelDynamic.get("LiquidTicks")
 											            .result()
-											            .map(liquidTicksDynamic -> levelDynamic
-													            .set("fluid_ticks", liquidTicksDynamic)
+											            .map(liquidTicks -> levelDynamic
+													            .set("fluid_ticks", liquidTicks)
 													            .remove("LiquidTicks")),
 											levelDynamic
 									)
 							);
-							Dynamic<?> dynamic = (Dynamic<?>) levelTyped.get(DSL.remainderFinder());
-							MutableInt mutableInt = new MutableInt();
-							Int2ObjectMap<Supplier<ProtoChunkTickListFix.PalettedSection>>
-									int2ObjectMap =
-									new Int2ObjectArrayMap();
-							levelTyped.getOptionalTyped(opticFinder2)
-							          .ifPresent(
-									          sectionsTyped -> sectionsTyped.getAllTyped(opticFinder3)
-									                                        .forEach(
-											                                        sectionTyped -> {
-												                                        Dynamic<?>
-														                                        dynamicx =
-														                                        (Dynamic<?>) sectionTyped.get(
-																                                        DSL.remainderFinder());
-												                                        int
-														                                        ix =
-														                                        dynamicx
-																                                        .get("Y")
-																                                        .asInt(Integer.MAX_VALUE);
-												                                        if (ix != Integer.MAX_VALUE) {
-													                                        if (sectionTyped
-															                                        .getOptionalTyped(
-																	                                        opticFinder5)
-															                                        .isPresent()) {
-														                                        mutableInt.setValue(Math.min(
-																                                        ix,
-																                                        mutableInt.intValue()
-														                                        ));
-													                                        }
 
-													                                        sectionTyped
-															                                        .getOptionalTyped(
-																	                                        opticFinder4)
-															                                        .ifPresent(
-																	                                        blockStatesTyped -> int2ObjectMap.put(
-																			                                        ix,
-																			                                        Suppliers.memoize(
-																					                                        () -> {
-																						                                        List<? extends Dynamic<?>>
-																								                                        list =
-																								                                        blockStatesTyped
-																										                                        .getOptionalTyped(
-																												                                        opticFinder6)
-																										                                        .map(
-																												                                        paletteTyped -> paletteTyped
-																														                                        .write()
-																														                                        .result()
-																														                                        .map(paletteDynamic -> paletteDynamic.asList(
-																																                                        Function.identity()))
-																														                                        .orElse(Collections.emptyList())
-																										                                        )
-																										                                        .orElse(Collections.emptyList());
-																						                                        long[]
-																								                                        ls =
-																								                                        ((Dynamic) blockStatesTyped.get(
-																										                                        DSL.remainderFinder())
-																								                                        )
-																										                                        .get("data")
-																										                                        .asLongStream()
-																										                                        .toArray();
-																						                                        return new ProtoChunkTickListFix.PalettedSection(
-																								                                        list,
-																								                                        ls
-																						                                        );
-																					                                        }
-																			                                        )
-																	                                        )
-															                                        );
-												                                        }
-											                                        }
-									                                        )
+							Dynamic<?> levelDynamic = (Dynamic<?>) levelTyped.get(DSL.remainderFinder());
+							MutableInt minSectionY = new MutableInt();
+							Int2ObjectMap<Supplier<PalettedSection>> sectionsByY = new Int2ObjectArrayMap<>();
+
+							levelTyped.getOptionalTyped(sectionsFinder)
+							          .ifPresent(sectionsTyped -> sectionsTyped
+									          .getAllTyped(sectionFinder)
+									          .forEach(sectionTyped -> {
+										          Dynamic<?> sectionDynamic = (Dynamic<?>) sectionTyped.get(
+												          DSL.remainderFinder()
+										          );
+										          int sectionY = sectionDynamic.get("Y").asInt(Integer.MAX_VALUE);
+
+										          if (sectionY == Integer.MAX_VALUE) {
+											          return;
+										          }
+
+										          if (sectionTyped.getOptionalTyped(biomesFinder).isPresent()) {
+											          minSectionY.setValue(
+													          Math.min(sectionY, minSectionY.intValue())
+											          );
+										          }
+
+										          sectionTyped.getOptionalTyped(blockStatesFinder)
+										                      .ifPresent(blockStatesTyped -> sectionsByY.put(
+												                      sectionY,
+												                      Suppliers.memoize(() -> {
+													                      List<? extends Dynamic<?>> palette =
+															                      blockStatesTyped
+																		                      .getOptionalTyped(paletteFinder)
+																		                      .map(paletteTyped -> paletteTyped
+																				                      .write()
+																				                      .result()
+																				                      .map(d -> d.asList(Function.identity()))
+																				                      .orElse(Collections.emptyList())
+																		                      )
+																		                      .orElse(Collections.emptyList());
+													                      long[] data = ((Dynamic<?>) blockStatesTyped.get(
+															                      DSL.remainderFinder()
+													                      ))
+															                      .get("data")
+															                      .asLongStream()
+															                      .toArray();
+													                      return new PalettedSection(palette, data);
+												                      })
+										                      ));
+									          })
 							          );
-							byte b = mutableInt.byteValue();
-							levelTyped =
-									levelTyped.update(
-											DSL.remainderFinder(),
-											levelDynamic -> levelDynamic.update(
-													"yPos",
-													yDynamic -> yDynamic.createByte(b)
-											)
-									);
-							if (!levelTyped.getOptionalTyped(opticFinder7).isPresent() && !dynamic
-									.get("fluid_ticks")
-									.result()
-									.isPresent()) {
-								int i = dynamic.get("xPos").asInt(0);
-								int j = dynamic.get("zPos").asInt(0);
-								Dynamic<?> dynamic2 = this.fixToBeTicked(
-										dynamic,
-										int2ObjectMap,
-										b,
-										i,
-										j,
-										"LiquidsToBeTicked",
-										ProtoChunkTickListFix::getFluidBlockIdToBeTicked
-								);
-								Dynamic<?>
-										dynamic3 =
-										this.fixToBeTicked(
-												dynamic,
-												int2ObjectMap,
-												b,
-												i,
-												j,
-												"ToBeTicked",
-												ProtoChunkTickListFix::getBlockIdToBeTicked
-										);
-								Optional<? extends Pair<? extends Typed<?>, ?>>
-										optional =
-										opticFinder7.type().readTyped(dynamic3).result();
-								if (optional.isPresent()) {
-									levelTyped = levelTyped.set(opticFinder7, (Typed) optional.get().getFirst());
-								}
 
-								return levelTyped.update(
-										DSL.remainderFinder(),
-										levelDynamic -> levelDynamic
-												.remove("ToBeTicked")
-												.remove("LiquidsToBeTicked")
-												.set("fluid_ticks", dynamic2)
-								);
-							}
-							else {
+							byte bottomSectionY = minSectionY.byteValue();
+							levelTyped = levelTyped.update(
+									DSL.remainderFinder(),
+									d -> d.update("yPos", yPos -> yPos.createByte(bottomSectionY))
+							);
+
+							boolean hasTileTicks = levelTyped.getOptionalTyped(tileTicksFinder).isPresent();
+							boolean hasFluidTicks = levelDynamic.get("fluid_ticks").result().isPresent();
+
+							if (hasTileTicks || hasFluidTicks) {
 								return levelTyped;
 							}
+
+							int chunkX = levelDynamic.get("xPos").asInt(0);
+							int chunkZ = levelDynamic.get("zPos").asInt(0);
+							Dynamic<?> fluidTicks = fixToBeTicked(
+									levelDynamic,
+									sectionsByY,
+									bottomSectionY,
+									chunkX,
+									chunkZ,
+									"LiquidsToBeTicked",
+									ProtoChunkTickListFix::getFluidBlockIdToBeTicked
+							);
+							Dynamic<?> blockTicks = fixToBeTicked(
+									levelDynamic,
+									sectionsByY,
+									bottomSectionY,
+									chunkX,
+									chunkZ,
+									"ToBeTicked",
+									ProtoChunkTickListFix::getBlockIdToBeTicked
+							);
+							Optional<? extends Pair<? extends Typed<?>, ?>> tileTicksOptional =
+									tileTicksFinder.type().readTyped(blockTicks).result();
+
+							if (tileTicksOptional.isPresent()) {
+								levelTyped = levelTyped.set(
+										tileTicksFinder,
+										(Typed<?>) tileTicksOptional.get().getFirst()
+								);
+							}
+
+							return levelTyped.update(
+									DSL.remainderFinder(),
+									d -> d.remove("ToBeTicked")
+									      .remove("LiquidsToBeTicked")
+									      .set("fluid_ticks", fluidTicks)
+							);
 						}
 				)
 		);
@@ -198,88 +177,89 @@ public class ProtoChunkTickListFix extends DataFix {
 
 	private Dynamic<?> fixToBeTicked(
 			Dynamic<?> levelDynamic,
-			Int2ObjectMap<Supplier<ProtoChunkTickListFix.PalettedSection>> palettedSectionsByY,
-			byte sectionY,
-			int localX,
-			int localZ,
+			Int2ObjectMap<Supplier<PalettedSection>> sectionsByY,
+			byte bottomSectionY,
+			int chunkX,
+			int chunkZ,
 			String key,
 			Function<Dynamic<?>, String> blockIdGetter
 	) {
-		Stream<Dynamic<?>> stream = Stream.empty();
-		List<? extends Dynamic<?>> list = levelDynamic.get(key).asList(Function.identity());
+		Stream<Dynamic<?>> tickStream = Stream.empty();
+		List<? extends Dynamic<?>> sectionTickLists = levelDynamic.get(key).asList(Function.identity());
 
-		for (int i = 0; i < list.size(); i++) {
-			int j = i + sectionY;
-			Supplier<ProtoChunkTickListFix.PalettedSection>
-					supplier =
-					(Supplier<ProtoChunkTickListFix.PalettedSection>) palettedSectionsByY.get(j);
-			Stream<? extends Dynamic<?>> stream2 = list.get(i)
-			                                           .asStream()
-			                                           .mapToInt(posDynamic -> posDynamic.asShort((short) -1))
-			                                           .filter(packedLocalPos -> packedLocalPos > 0)
-			                                           .mapToObj(packedLocalPos -> this.createTileTickObject(
-					                                           levelDynamic,
-					                                           supplier,
-					                                           localX,
-					                                           j,
-					                                           localZ,
-					                                           packedLocalPos,
-					                                           blockIdGetter
-			                                           ));
-			stream = Stream.concat(stream, stream2);
+		for (int listIdx = 0; listIdx < sectionTickLists.size(); listIdx++) {
+			int absoluteSectionY = listIdx + bottomSectionY;
+			Supplier<PalettedSection> sectionSupplier = sectionsByY.get(absoluteSectionY);
+			Stream<? extends Dynamic<?>> sectionTicks = sectionTickLists.get(listIdx)
+			                                                             .asStream()
+			                                                             .mapToInt(d -> d.asShort((short) -1))
+			                                                             .filter(packedPos -> packedPos > 0)
+			                                                             .mapToObj(packedPos -> createTileTickObject(
+					                                                             levelDynamic,
+					                                                             sectionSupplier,
+					                                                             chunkX,
+					                                                             absoluteSectionY,
+					                                                             chunkZ,
+					                                                             packedPos,
+					                                                             blockIdGetter
+			                                                             ));
+			tickStream = Stream.concat(tickStream, sectionTicks);
 		}
 
-		return levelDynamic.createList(stream);
+		return levelDynamic.createList(tickStream);
 	}
 
-	private static String getBlockIdToBeTicked(@Nullable Dynamic<?> blockStateDynamic) {
-		return blockStateDynamic != null ? blockStateDynamic.get("Name").asString("minecraft:air") : "minecraft:air";
+	private static String getBlockIdToBeTicked(@Nullable Dynamic<?> blockState) {
+		return blockState != null ? blockState.get("Name").asString("minecraft:air") : "minecraft:air";
 	}
 
-	private static String getFluidBlockIdToBeTicked(@Nullable Dynamic<?> blockStateDynamic) {
-		if (blockStateDynamic == null) {
+	private static String getFluidBlockIdToBeTicked(@Nullable Dynamic<?> blockState) {
+		if (blockState == null) {
 			return "minecraft:empty";
 		}
-		else {
-			String string = blockStateDynamic.get("Name").asString("");
-			if ("minecraft:water".equals(string)) {
-				return blockStateDynamic.get("Properties").get("level").asInt(0) == 0 ? "minecraft:water"
-				                                                                      : "minecraft:flowing_water";
-			}
-			else if ("minecraft:lava".equals(string)) {
-				return blockStateDynamic.get("Properties").get("level").asInt(0) == 0 ? "minecraft:lava"
-				                                                                      : "minecraft:flowing_lava";
-			}
-			else {
-				return !ALWAYS_WATERLOGGED_BLOCK_IDS.contains(string) && !blockStateDynamic
-						.get("Properties")
-						.get("waterlogged")
-						.asBoolean(false)
-				       ? "minecraft:empty"
-				       : "minecraft:water";
-			}
+
+		String blockName = blockState.get("Name").asString("");
+
+		if ("minecraft:water".equals(blockName)) {
+			return blockState.get("Properties").get("level").asInt(0) == 0
+					? "minecraft:water"
+					: "minecraft:flowing_water";
 		}
+
+		if ("minecraft:lava".equals(blockName)) {
+			return blockState.get("Properties").get("level").asInt(0) == 0
+					? "minecraft:lava"
+					: "minecraft:flowing_lava";
+		}
+
+		boolean isAlwaysWaterlogged = ALWAYS_WATERLOGGED_BLOCK_IDS.contains(blockName);
+		boolean isWaterlogged = blockState.get("Properties").get("waterlogged").asBoolean(false);
+
+		return isAlwaysWaterlogged || isWaterlogged ? "minecraft:water" : "minecraft:empty";
 	}
 
 	private Dynamic<?> createTileTickObject(
 			Dynamic<?> levelDynamic,
-			@Nullable Supplier<ProtoChunkTickListFix.PalettedSection> sectionSupplier,
+			@Nullable Supplier<PalettedSection> sectionSupplier,
 			int sectionX,
 			int sectionY,
 			int sectionZ,
 			int packedLocalPos,
 			Function<Dynamic<?>, String> blockIdGetter
 	) {
-		int i = packedLocalPos & 15;
-		int j = packedLocalPos >>> 4 & 15;
-		int k = packedLocalPos >>> 8 & 15;
-		String string = blockIdGetter.apply(sectionSupplier != null ? sectionSupplier.get().get(i, j, k) : null);
+		int localX = packedLocalPos & 15;
+		int localY = packedLocalPos >>> 4 & 15;
+		int localZ = packedLocalPos >>> 8 & 15;
+		String blockId = blockIdGetter.apply(
+				sectionSupplier != null ? sectionSupplier.get().get(localX, localY, localZ) : null
+		);
+
 		return levelDynamic.createMap(
 				ImmutableMap.<Dynamic<?>, Dynamic<?>>builder()
-				            .put(levelDynamic.createString("i"), levelDynamic.createString(string))
-				            .put(levelDynamic.createString("x"), levelDynamic.createInt(sectionX * 16 + i))
-				            .put(levelDynamic.createString("y"), levelDynamic.createInt(sectionY * 16 + j))
-				            .put(levelDynamic.createString("z"), levelDynamic.createInt(sectionZ * 16 + k))
+				            .put(levelDynamic.createString("i"), levelDynamic.createString(blockId))
+				            .put(levelDynamic.createString("x"), levelDynamic.createInt(sectionX * CHUNK_EDGE_LENGTH + localX))
+				            .put(levelDynamic.createString("y"), levelDynamic.createInt(sectionY * CHUNK_EDGE_LENGTH + localY))
+				            .put(levelDynamic.createString("z"), levelDynamic.createInt(sectionZ * CHUNK_EDGE_LENGTH + localZ))
 				            .put(levelDynamic.createString("t"), levelDynamic.createInt(0))
 				            .put(levelDynamic.createString("p"), levelDynamic.createInt(0))
 				            .build()
@@ -287,7 +267,8 @@ public class ProtoChunkTickListFix extends DataFix {
 	}
 
 	/**
-	 * {@code PalettedSection}.
+	 * Паллетизированная секция блоков чанка: хранит палитру блок-стейтов и упакованный
+	 * массив индексов для быстрого доступа к блоку по локальным координатам.
 	 */
 	public static final class PalettedSection {
 
@@ -307,26 +288,28 @@ public class ProtoChunkTickListFix extends DataFix {
 		}
 
 		public @Nullable Dynamic<?> get(int localX, int localY, int localZ) {
-			int i = this.palette.size();
-			if (i < 1) {
+			int paletteSize = palette.size();
+
+			if (paletteSize < 1) {
 				return null;
 			}
-			else if (i == 1) {
-				return (Dynamic<?>) this.palette.getFirst();
+
+			if (paletteSize == 1) {
+				return palette.getFirst();
 			}
-			else {
-				int j = this.packLocalPos(localX, localY, localZ);
-				int k = j / this.unitsPerLong;
-				if (k >= 0 && k < this.data.length) {
-					long l = this.data[k];
-					int m = (j - k * this.unitsPerLong) * this.unitSize;
-					int n = (int) (l >> m & this.unitMask);
-					return (Dynamic<?>) (n >= 0 && n < i ? this.palette.get(n) : null);
-				}
-				else {
-					return null;
-				}
+
+			int packedPos = packLocalPos(localX, localY, localZ);
+			int longIndex = packedPos / unitsPerLong;
+
+			if (longIndex < 0 || longIndex >= data.length) {
+				return null;
 			}
+
+			long packedLong = data[longIndex];
+			int bitOffset = (packedPos - longIndex * unitsPerLong) * unitSize;
+			int paletteIndex = (int) (packedLong >> bitOffset & unitMask);
+
+			return paletteIndex >= 0 && paletteIndex < paletteSize ? palette.get(paletteIndex) : null;
 		}
 
 		private int packLocalPos(int localX, int localY, int localZ) {
@@ -334,11 +317,11 @@ public class ProtoChunkTickListFix extends DataFix {
 		}
 
 		public List<? extends Dynamic<?>> getPalette() {
-			return this.palette;
+			return Collections.unmodifiableList(palette);
 		}
 
 		public long[] getData() {
-			return this.data;
+			return data.clone();
 		}
 	}
 }

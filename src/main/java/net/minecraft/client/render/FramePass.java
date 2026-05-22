@@ -5,10 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.util.ClosableFactory;
 import net.minecraft.client.util.Handle;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FramePass}.
+ * Представляет один проход рендеринга в графе кадра ({@link FrameGraphBuilder}).
+ * Каждый проход объявляет зависимости от ресурсов и других проходов,
+ * а также задаёт {@link Runnable}-рендерер, выполняемый при обходе графа.
  */
+@Environment(EnvType.CLIENT)
 public interface FramePass {
 
 	<T> Handle<T> addRequiredResource(String name, ClosableFactory<T> factory);

@@ -9,21 +9,25 @@ import java.util.Map.Entry;
 import java.util.Objects;
 
 /**
- * {@code EntityEquipment}.
+ * Хранит снаряжение сущности по слотам экипировки.
+ * Внутренне использует {@link EnumMap} для эффективного доступа по {@link EquipmentSlot}.
+ * Пустые стаки нормализуются к {@link ItemStack#EMPTY} при чтении и записи через кодек.
  */
 public class EntityEquipment {
 
 	public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(
-			map -> {
-				EnumMap<EquipmentSlot, ItemStack> enumMap = new EnumMap<>(EquipmentSlot.class);
-				enumMap.putAll(map);
-				return new EntityEquipment(enumMap);
-			}, equipment -> {
-				Map<EquipmentSlot, ItemStack> map = new EnumMap<>(equipment.map);
-				map.values().removeIf(ItemStack::isEmpty);
-				return map;
-			}
+		map -> {
+			EnumMap<EquipmentSlot, ItemStack> enumMap = new EnumMap<>(EquipmentSlot.class);
+			enumMap.putAll(map);
+			return new EntityEquipment(enumMap);
+		},
+		equipment -> {
+			Map<EquipmentSlot, ItemStack> map = new EnumMap<>(equipment.map);
+			map.values().removeIf(ItemStack::isEmpty);
+			return map;
+		}
 	);
+
 	private final EnumMap<EquipmentSlot, ItemStack> map;
 
 	private EntityEquipment(EnumMap<EquipmentSlot, ItemStack> map) {
@@ -35,30 +39,22 @@ public class EntityEquipment {
 	}
 
 	/**
-	 * Put.
+	 * Устанавливает предмет в слот, возвращая предыдущий.
 	 *
-	 * @param slot slot
-	 * @param itemStack item stack
-	 *
-	 * @return ItemStack — результат операции
+	 * @param slot      целевой слот экипировки
+	 * @param itemStack новый предмет
+	 * @return предыдущий предмет в слоте, или {@link ItemStack#EMPTY} если слот был пуст
 	 */
 	public ItemStack put(EquipmentSlot slot, ItemStack itemStack) {
-		return Objects.requireNonNullElse(this.map.put(slot, itemStack), ItemStack.EMPTY);
+		return Objects.requireNonNullElse(map.put(slot, itemStack), ItemStack.EMPTY);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param slot slot
-	 *
-	 * @return ItemStack — 
-	 */
 	public ItemStack get(EquipmentSlot slot) {
-		return this.map.getOrDefault(slot, ItemStack.EMPTY);
+		return map.getOrDefault(slot, ItemStack.EMPTY);
 	}
 
 	public boolean isEmpty() {
-		for (ItemStack itemStack : this.map.values()) {
+		for (ItemStack itemStack : map.values()) {
 			if (!itemStack.isEmpty()) {
 				return false;
 			}
@@ -68,12 +64,12 @@ public class EntityEquipment {
 	}
 
 	/**
-	 * Tick.
+	 * Вызывает {@code inventoryTick} для каждого непустого предмета в снаряжении.
 	 *
-	 * @param entity entity
+	 * @param entity сущность-носитель снаряжения
 	 */
 	public void tick(Entity entity) {
-		for (Entry<EquipmentSlot, ItemStack> entry : this.map.entrySet()) {
+		for (Entry<EquipmentSlot, ItemStack> entry : map.entrySet()) {
 			ItemStack itemStack = entry.getValue();
 			if (!itemStack.isEmpty()) {
 				itemStack.inventoryTick(entity.getEntityWorld(), entity, entry.getKey());
@@ -81,33 +77,25 @@ public class EntityEquipment {
 		}
 	}
 
-	/**
-	 * Создаёт копию from.
-	 *
-	 * @param equipment equipment
-	 */
 	public void copyFrom(EntityEquipment equipment) {
-		this.map.clear();
-		this.map.putAll(equipment.map);
+		map.clear();
+		map.putAll(equipment.map);
 	}
 
 	/**
-	 * Бросает all.
+	 * Выбрасывает все предметы снаряжения в мир и очищает слоты.
 	 *
-	 * @param entity entity
+	 * @param entity сущность, от которой выбрасываются предметы
 	 */
 	public void dropAll(LivingEntity entity) {
-		for (ItemStack itemStack : this.map.values()) {
+		for (ItemStack itemStack : map.values()) {
 			entity.dropItem(itemStack, true, false);
 		}
 
-		this.clear();
+		clear();
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.map.replaceAll((slot, stack) -> ItemStack.EMPTY);
+		map.replaceAll((slot, stack) -> ItemStack.EMPTY);
 	}
 }

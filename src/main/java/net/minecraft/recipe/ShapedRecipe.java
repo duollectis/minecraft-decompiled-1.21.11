@@ -21,7 +21,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ShapedRecipe}.
+ * Рецепт крафта с фиксированным расположением ингредиентов (форменный крафт).
+ * <p>
+ * Паттерн хранится в {@link RawShapedRecipe}, который поддерживает зеркальное
+ * отражение по горизонтали. Ленивая инициализация {@link IngredientPlacement}
+ * откладывает вычисление слотов до первого обращения.
  */
 public class ShapedRecipe implements CraftingRecipe {
 
@@ -33,11 +37,11 @@ public class ShapedRecipe implements CraftingRecipe {
 	private @Nullable IngredientPlacement ingredientPlacement;
 
 	public ShapedRecipe(
-			String group,
-			CraftingRecipeCategory category,
-			RawShapedRecipe raw,
-			ItemStack result,
-			boolean showNotification
+		String group,
+		CraftingRecipeCategory category,
+		RawShapedRecipe raw,
+		ItemStack result,
+		boolean showNotification
 	) {
 		this.group = group;
 		this.category = category;
@@ -57,106 +61,91 @@ public class ShapedRecipe implements CraftingRecipe {
 
 	@Override
 	public String getGroup() {
-		return this.group;
+		return group;
 	}
 
 	@Override
 	public CraftingRecipeCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
 	@VisibleForTesting
 	public List<Optional<Ingredient>> getIngredients() {
-		return this.raw.getIngredients();
+		return raw.getIngredients();
 	}
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement = IngredientPlacement.forMultipleSlots(this.raw.getIngredients());
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forMultipleSlots(raw.getIngredients());
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
 	}
 
 	@Override
 	public boolean showNotification() {
-		return this.showNotification;
+		return showNotification;
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		return this.raw.matches(craftingRecipeInput);
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		return raw.matches(input);
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		return this.result.copy();
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		return result.copy();
 	}
 
 	public int getWidth() {
-		return this.raw.getWidth();
+		return raw.getWidth();
 	}
 
 	public int getHeight() {
-		return this.raw.getHeight();
+		return raw.getHeight();
 	}
 
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new ShapedCraftingRecipeDisplay(
-						this.raw.getWidth(),
-						this.raw.getHeight(),
-						this.raw
-								.getIngredients()
-								.stream()
-								.map(ingredient -> ingredient
-										.<SlotDisplay>map(Ingredient::toDisplay)
-										.orElse(SlotDisplay.EmptySlotDisplay.INSTANCE))
-								.toList(),
-						new SlotDisplay.StackSlotDisplay(this.result),
-						new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
-				)
+			new ShapedCraftingRecipeDisplay(
+				raw.getWidth(),
+				raw.getHeight(),
+				raw.getIngredients()
+					.stream()
+					.map(ingredient -> ingredient
+						.<SlotDisplay>map(Ingredient::toDisplay)
+						.orElse(SlotDisplay.EmptySlotDisplay.INSTANCE))
+					.toList(),
+				new SlotDisplay.StackSlotDisplay(result),
+				new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
+			)
 		);
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор форменного рецепта крафта.
+	 * Использует ручное чтение/запись пакета вместо {@code PacketCodec.tuple},
+	 * так как {@link RawShapedRecipe} имеет собственный {@code PACKET_CODEC}.
 	 */
 	public static class Serializer implements RecipeSerializer<ShapedRecipe> {
 
 		public static final MapCodec<ShapedRecipe> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
-						                    CraftingRecipeCategory.CODEC
-								                    .fieldOf("category")
-								                    .orElse(CraftingRecipeCategory.MISC)
-								                    .forGetter(recipe -> recipe.category),
-						                    RawShapedRecipe.CODEC.forGetter(recipe -> recipe.raw),
-						                    ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
-						                    Codec.BOOL
-								                    .optionalFieldOf("show_notification", true)
-								                    .forGetter(recipe -> recipe.showNotification)
-				                    )
-				                    .apply(instance, ShapedRecipe::new)
+			instance -> instance.group(
+				Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
+				CraftingRecipeCategory.CODEC
+					.fieldOf("category")
+					.orElse(CraftingRecipeCategory.MISC)
+					.forGetter(recipe -> recipe.category),
+				RawShapedRecipe.CODEC.forGetter(recipe -> recipe.raw),
+				ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
+				Codec.BOOL.optionalFieldOf("show_notification", true).forGetter(recipe -> recipe.showNotification)
+			).apply(instance, ShapedRecipe::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, ShapedRecipe> PACKET_CODEC = PacketCodec.ofStatic(
-				ShapedRecipe.Serializer::write, ShapedRecipe.Serializer::read
+			ShapedRecipe.Serializer::write,
+			ShapedRecipe.Serializer::read
 		);
 
 		@Override
@@ -170,12 +159,12 @@ public class ShapedRecipe implements CraftingRecipe {
 		}
 
 		private static ShapedRecipe read(RegistryByteBuf buf) {
-			String string = buf.readString();
-			CraftingRecipeCategory craftingRecipeCategory = buf.readEnumConstant(CraftingRecipeCategory.class);
-			RawShapedRecipe rawShapedRecipe = RawShapedRecipe.PACKET_CODEC.decode(buf);
-			ItemStack itemStack = ItemStack.PACKET_CODEC.decode(buf);
-			boolean bl = buf.readBoolean();
-			return new ShapedRecipe(string, craftingRecipeCategory, rawShapedRecipe, itemStack, bl);
+			String group = buf.readString();
+			CraftingRecipeCategory category = buf.readEnumConstant(CraftingRecipeCategory.class);
+			RawShapedRecipe raw = RawShapedRecipe.PACKET_CODEC.decode(buf);
+			ItemStack result = ItemStack.PACKET_CODEC.decode(buf);
+			boolean showNotification = buf.readBoolean();
+			return new ShapedRecipe(group, category, raw, result, showNotification);
 		}
 
 		private static void write(RegistryByteBuf buf, ShapedRecipe recipe) {

@@ -44,14 +44,14 @@ public class RealmsCreateRealmScreen extends RealmsScreen {
 		this.layout.addHeader(this.title, this.textRenderer);
 		DirectionalLayoutWidget
 				directionalLayoutWidget =
-				this.layout.addBody(DirectionalLayoutWidget.vertical()).spacing(10);
+				this.layout.addBody(DirectionalLayoutWidget.vertical()).spacing(NAME_MAX_LENGTH);
 		ButtonWidget
 				buttonWidget =
 				ButtonWidget.builder(ScreenTexts.CONTINUE, button -> this.worldCreator.run()).build();
 		buttonWidget.active = false;
-		this.nameBox = new TextFieldWidget(this.textRenderer, 210, 20, WORLD_NAME_TEXT);
+		this.nameBox = new TextFieldWidget(this.textRenderer, DESCRIPTION_MAX_LENGTH, 20, WORLD_NAME_TEXT);
 		this.nameBox.setChangedListener(name -> buttonWidget.active = !StringHelper.isBlank(name));
-		this.descriptionBox = new TextFieldWidget(this.textRenderer, 210, 20, WORLD_DESCRIPTION_TEXT);
+		this.descriptionBox = new TextFieldWidget(this.textRenderer, DESCRIPTION_MAX_LENGTH, 20, WORLD_DESCRIPTION_TEXT);
 		directionalLayoutWidget.add(LayoutWidgets.createLabeledWidget(
 				this.textRenderer,
 				this.nameBox,
@@ -64,7 +64,7 @@ public class RealmsCreateRealmScreen extends RealmsScreen {
 		));
 		DirectionalLayoutWidget
 				directionalLayoutWidget2 =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(10));
+				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(NAME_MAX_LENGTH));
 		directionalLayoutWidget2.add(buttonWidget);
 		directionalLayoutWidget2.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
 		this.layout.forEachChild(child -> {

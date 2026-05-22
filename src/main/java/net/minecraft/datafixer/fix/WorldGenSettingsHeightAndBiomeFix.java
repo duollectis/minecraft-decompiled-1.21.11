@@ -16,7 +16,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import java.util.stream.Stream;
 
 /**
- * {@code WorldGenSettingsHeightAndBiomeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WorldGenSettingsHeightAndBiomeFix extends DataFix {
 
@@ -28,11 +28,11 @@ public class WorldGenSettingsHeightAndBiomeFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
+		Type<?> type = getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
 		OpticFinder<?> opticFinder = type.findField("dimensions");
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
 		Type<?> type3 = type2.findFieldType("dimensions");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"WorldGenSettingsHeightAndBiomeFix",
 				type,
 				type2,

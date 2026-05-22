@@ -24,356 +24,361 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * {@code ExperimentalMinecartController}.
+ * Экспериментальный контроллер движения вагонетки (флаг {@code minecart_improvements}).
+ * Реализует субтиковое движение по рельсам с плавной клиентской интерполяцией через
+ * систему шагов ({@link Step}). За один серверный тик вагонетка может пройти несколько
+ * блоков рельса, что устраняет «дёрганье» при высоких скоростях.
  */
 public class ExperimentalMinecartController extends MinecartController {
 
 	public static final int REFRESH_FREQUENCY = 3;
 	public static final double RAIL_VERTICAL_OFFSET = 0.1;
 	public static final double MIN_VELOCITY_SQUARED_THRESHOLD = 0.005;
-	private ExperimentalMinecartController.@Nullable InterpolatedStep lastReturnedInterpolatedStep;
+
+	private static final double MIN_VELOCITY_LENGTH = 1.0E-5F;
+	private static final double PLAYER_INPUT_SPEED_THRESHOLD = 0.01;
+	private static final double PLAYER_INPUT_NUDGE = 0.001;
+	private static final double POWERED_RAIL_BOOST = 0.06;
+	private static final double POWERED_RAIL_LAUNCH = 0.2;
+	private static final double POWERED_RAIL_STOP_THRESHOLD = 0.01;
+	private static final double BRAKE_STOP_THRESHOLD = 0.03;
+	private static final double SLOPE_GRAVITY_BASE = 0.0078125;
+	private static final double SLOPE_GRAVITY_SPEED_FACTOR = 0.02;
+	private static final double SLOPE_GRAVITY_WATER_FACTOR = 0.2;
+	private static final double YAW_FLIP_RANGE_LOW = 175.0;
+	private static final double YAW_FLIP_RANGE_HIGH = 185.0;
+	private static final double COLLISION_BOX_EXPAND_PICKUP = 0.2;
+	private static final double COLLISION_BOX_EXPAND_PUSH = 1.0E-7;
+	private static final float PITCH_LERP_FACTOR = 0.2F;
+	private static final float LERP_STEPS_TOTAL = 3.0F;
+
+	private @Nullable InterpolatedStep lastReturnedInterpolatedStep;
 	private int lastQueriedTicksToNextRefresh;
 	private float lastQueriedTickProgress;
 	private int ticksToNextRefresh = 0;
-	public final List<ExperimentalMinecartController.Step> stagingLerpSteps = new LinkedList<>();
-	public final List<ExperimentalMinecartController.Step> currentLerpSteps = new LinkedList<>();
-	public double totalWeight = 0.0;
-	public ExperimentalMinecartController.Step initialStep = ExperimentalMinecartController.Step.ZERO;
 
-	public ExperimentalMinecartController(AbstractMinecartEntity abstractMinecartEntity) {
-		super(abstractMinecartEntity);
+	public final List<Step> stagingLerpSteps = new LinkedList<>();
+	public final List<Step> currentLerpSteps = new LinkedList<>();
+	public double totalWeight = 0.0;
+	public Step initialStep = Step.ZERO;
+
+	public ExperimentalMinecartController(AbstractMinecartEntity minecart) {
+		super(minecart);
 	}
 
 	@Override
 	public void tick() {
-		if (this.getWorld() instanceof ServerWorld serverWorld) {
-			BlockPos var5 = this.minecart.getRailOrMinecartPos();
-			BlockState blockState = this.getWorld().getBlockState(var5);
-			if (this.minecart.isFirstUpdate()) {
-				this.minecart.setOnRail(AbstractRailBlock.isRail(blockState));
-				this.adjustToRail(var5, blockState, true);
+		if (getWorld() instanceof ServerWorld serverWorld) {
+			BlockPos railPos = minecart.getRailOrMinecartPos();
+			BlockState blockState = getWorld().getBlockState(railPos);
+
+			if (minecart.isFirstUpdate()) {
+				minecart.setOnRail(AbstractRailBlock.isRail(blockState));
+				adjustToRail(railPos, blockState, true);
 			}
 
-			this.minecart.applyGravity();
-			this.minecart.moveOnRail(serverWorld);
-		}
-		else {
-			this.tickClient();
-			boolean bl = AbstractRailBlock.isRail(this.getWorld().getBlockState(this.minecart.getRailOrMinecartPos()));
-			this.minecart.setOnRail(bl);
+			minecart.applyGravity();
+			minecart.moveOnRail(serverWorld);
+		} else {
+			tickClient();
+			boolean isOnRail = AbstractRailBlock.isRail(
+					getWorld().getBlockState(minecart.getRailOrMinecartPos())
+			);
+			minecart.setOnRail(isOnRail);
 		}
 	}
 
 	private void tickClient() {
-		if (--this.ticksToNextRefresh <= 0) {
-			this.setInitialStep();
-			this.currentLerpSteps.clear();
-			if (!this.stagingLerpSteps.isEmpty()) {
-				this.currentLerpSteps.addAll(this.stagingLerpSteps);
-				this.stagingLerpSteps.clear();
-				this.totalWeight = 0.0;
-
-				for (ExperimentalMinecartController.Step step : this.currentLerpSteps) {
-					this.totalWeight = this.totalWeight + step.weight;
-				}
-
-				this.ticksToNextRefresh = this.totalWeight == 0.0 ? 0 : 3;
-			}
+		if (--ticksToNextRefresh > 0) {
+			return;
 		}
 
-		if (this.hasCurrentLerpSteps()) {
-			this.setPos(this.getLerpedPosition(1.0F));
-			this.setVelocity(this.getLerpedVelocity(1.0F));
-			this.setPitch(this.getLerpedPitch(1.0F));
-			this.setYaw(this.getLerpedYaw(1.0F));
+		setInitialStep();
+		currentLerpSteps.clear();
+
+		if (stagingLerpSteps.isEmpty()) {
+			return;
+		}
+
+		currentLerpSteps.addAll(stagingLerpSteps);
+		stagingLerpSteps.clear();
+		totalWeight = 0.0;
+
+		for (Step step : currentLerpSteps) {
+			totalWeight += step.weight;
+		}
+
+		ticksToNextRefresh = totalWeight == 0.0 ? 0 : REFRESH_FREQUENCY;
+
+		if (hasCurrentLerpSteps()) {
+			setPos(getLerpedPosition(1.0F));
+			setVelocity(getLerpedVelocity(1.0F));
+			setPitch(getLerpedPitch(1.0F));
+			setYaw(getLerpedYaw(1.0F));
 		}
 	}
 
 	public void setInitialStep() {
-		this.initialStep =
-				new ExperimentalMinecartController.Step(
-						this.getPos(),
-						this.getVelocity(),
-						this.getYaw(),
-						this.getPitch(),
-						0.0F
-				);
+		initialStep = new Step(getPos(), getVelocity(), getYaw(), getPitch(), 0.0F);
 	}
 
 	public boolean hasCurrentLerpSteps() {
-		return !this.currentLerpSteps.isEmpty();
+		return !currentLerpSteps.isEmpty();
 	}
 
 	public float getLerpedPitch(float tickProgress) {
-		ExperimentalMinecartController.InterpolatedStep interpolatedStep = this.getLerpedStep(tickProgress);
-		return MathHelper.lerpAngleDegrees(
-				interpolatedStep.partialTicksInStep,
-				interpolatedStep.previousStep.xRot,
-				interpolatedStep.currentStep.xRot
-		);
+		InterpolatedStep step = getLerpedStep(tickProgress);
+		return MathHelper.lerpAngleDegrees(step.partialTicksInStep, step.previousStep.xRot, step.currentStep.xRot);
 	}
 
 	public float getLerpedYaw(float tickProgress) {
-		ExperimentalMinecartController.InterpolatedStep interpolatedStep = this.getLerpedStep(tickProgress);
-		return MathHelper.lerpAngleDegrees(
-				interpolatedStep.partialTicksInStep,
-				interpolatedStep.previousStep.yRot,
-				interpolatedStep.currentStep.yRot
-		);
+		InterpolatedStep step = getLerpedStep(tickProgress);
+		return MathHelper.lerpAngleDegrees(step.partialTicksInStep, step.previousStep.yRot, step.currentStep.yRot);
 	}
 
 	public Vec3d getLerpedPosition(float tickProgress) {
-		ExperimentalMinecartController.InterpolatedStep interpolatedStep = this.getLerpedStep(tickProgress);
-		return MathHelper.lerp(
-				interpolatedStep.partialTicksInStep,
-				interpolatedStep.previousStep.position,
-				interpolatedStep.currentStep.position
-		);
+		InterpolatedStep step = getLerpedStep(tickProgress);
+		return MathHelper.lerp(step.partialTicksInStep, step.previousStep.position, step.currentStep.position);
 	}
 
 	public Vec3d getLerpedVelocity(float tickProgress) {
-		ExperimentalMinecartController.InterpolatedStep interpolatedStep = this.getLerpedStep(tickProgress);
-		return MathHelper.lerp(
-				interpolatedStep.partialTicksInStep,
-				interpolatedStep.previousStep.movement,
-				interpolatedStep.currentStep.movement
-		);
-	}
-
-	private ExperimentalMinecartController.InterpolatedStep getLerpedStep(float tickProgress) {
-		if (tickProgress == this.lastQueriedTickProgress
-				&& this.ticksToNextRefresh == this.lastQueriedTicksToNextRefresh
-				&& this.lastReturnedInterpolatedStep != null) {
-			return this.lastReturnedInterpolatedStep;
-		}
-		else {
-			float f = (3 - this.ticksToNextRefresh + tickProgress) / 3.0F;
-			float g = 0.0F;
-			float h = 1.0F;
-			boolean bl = false;
-
-			int i;
-			for (i = 0; i < this.currentLerpSteps.size(); i++) {
-				float j = this.currentLerpSteps.get(i).weight;
-				if (!(j <= 0.0F)) {
-					g += j;
-					if (g >= this.totalWeight * f) {
-						float k = g - j;
-						h = (float) ((f * this.totalWeight - k) / j);
-						bl = true;
-						break;
-					}
-				}
-			}
-
-			if (!bl) {
-				i = this.currentLerpSteps.size() - 1;
-			}
-
-			ExperimentalMinecartController.Step step = this.currentLerpSteps.get(i);
-			ExperimentalMinecartController.Step step2 = i > 0 ? this.currentLerpSteps.get(i - 1) : this.initialStep;
-			this.lastReturnedInterpolatedStep = new ExperimentalMinecartController.InterpolatedStep(h, step, step2);
-			this.lastQueriedTicksToNextRefresh = this.ticksToNextRefresh;
-			this.lastQueriedTickProgress = tickProgress;
-			return this.lastReturnedInterpolatedStep;
-		}
+		InterpolatedStep step = getLerpedStep(tickProgress);
+		return MathHelper.lerp(step.partialTicksInStep, step.previousStep.movement, step.currentStep.movement);
 	}
 
 	/**
-	 * Adjust to rail.
+	 * Вычисляет интерполированный шаг для заданного прогресса тика.
+	 * Кэширует результат для повторных вызовов с теми же параметрами.
+	 */
+	private InterpolatedStep getLerpedStep(float tickProgress) {
+		if (tickProgress == lastQueriedTickProgress
+				&& ticksToNextRefresh == lastQueriedTicksToNextRefresh
+				&& lastReturnedInterpolatedStep != null) {
+			return lastReturnedInterpolatedStep;
+		}
+
+		float normalizedProgress = (REFRESH_FREQUENCY - ticksToNextRefresh + tickProgress) / LERP_STEPS_TOTAL;
+		float accumulated = 0.0F;
+		float partialInStep = 1.0F;
+		boolean found = false;
+		int stepIndex = 0;
+
+		for (int i = 0; i < currentLerpSteps.size(); i++) {
+			float stepWeight = currentLerpSteps.get(i).weight;
+
+			if (stepWeight <= 0.0F) {
+				continue;
+			}
+
+			accumulated += stepWeight;
+
+			if (accumulated >= totalWeight * normalizedProgress) {
+				float prevAccumulated = accumulated - stepWeight;
+				partialInStep = (float) ((normalizedProgress * totalWeight - prevAccumulated) / stepWeight);
+				stepIndex = i;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			stepIndex = currentLerpSteps.size() - 1;
+		}
+
+		Step currentStep = currentLerpSteps.get(stepIndex);
+		Step previousStep = stepIndex > 0 ? currentLerpSteps.get(stepIndex - 1) : initialStep;
+		lastReturnedInterpolatedStep = new InterpolatedStep(partialInStep, currentStep, previousStep);
+		lastQueriedTicksToNextRefresh = ticksToNextRefresh;
+		lastQueriedTickProgress = tickProgress;
+		return lastReturnedInterpolatedStep;
+	}
+
+	/**
+	 * Выравнивает позицию и угол вагонетки по рельсу.
+	 * При {@code ignoreWeight = true} шаг добавляется с нулевым весом (мгновенное выравнивание без анимации).
 	 *
-	 * @param pos pos
-	 * @param blockState block state
-	 * @param ignoreWeight ignore weight
+	 * @param pos позиция блока рельса
+	 * @param blockState состояние блока рельса
+	 * @param ignoreWeight если {@code true} — шаг не учитывается в интерполяции
 	 */
 	public void adjustToRail(BlockPos pos, BlockState blockState, boolean ignoreWeight) {
-		if (AbstractRailBlock.isRail(blockState)) {
-			RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
-			Pair<Vec3i, Vec3i> pair = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
-			Vec3d vec3d = new Vec3d((Vec3i) pair.getFirst()).multiply(0.5);
-			Vec3d vec3d2 = new Vec3d((Vec3i) pair.getSecond()).multiply(0.5);
-			Vec3d vec3d3 = vec3d.getHorizontal();
-			Vec3d vec3d4 = vec3d2.getHorizontal();
-			if (this.getVelocity().length() > 1.0E-5F && this.getVelocity().dotProduct(vec3d3) < this
-					.getVelocity()
-					.dotProduct(vec3d4)
-					|| this.ascends(vec3d4, railShape)) {
-				Vec3d vec3d5 = vec3d3;
-				vec3d3 = vec3d4;
-				vec3d4 = vec3d5;
-			}
+		if (!AbstractRailBlock.isRail(blockState)) {
+			return;
+		}
 
-			float f = 180.0F - (float) (Math.atan2(vec3d3.z, vec3d3.x) * 180.0 / Math.PI);
-			f += this.minecart.isYawFlipped() ? 180.0F : 0.0F;
-			Vec3d vec3d6 = this.getPos();
-			boolean bl = vec3d.getX() != vec3d2.getX() && vec3d.getZ() != vec3d2.getZ();
-			Vec3d vec3d10;
-			if (bl) {
-				Vec3d vec3d7 = vec3d2.subtract(vec3d);
-				Vec3d vec3d8 = vec3d6.subtract(pos.toBottomCenterPos()).subtract(vec3d);
-				Vec3d vec3d9 = vec3d7.multiply(vec3d7.dotProduct(vec3d8) / vec3d7.dotProduct(vec3d7));
-				vec3d10 = pos.toBottomCenterPos().add(vec3d).add(vec3d9);
-				f = 180.0F - (float) (Math.atan2(vec3d9.z, vec3d9.x) * 180.0 / Math.PI);
-				f += this.minecart.isYawFlipped() ? 180.0F : 0.0F;
-			}
-			else {
-				boolean bl2 = vec3d.subtract(vec3d2).x != 0.0;
-				boolean bl3 = vec3d.subtract(vec3d2).z != 0.0;
-				vec3d10 =
-						new Vec3d(
-								bl3 ? pos.toCenterPos().x : vec3d6.x,
-								pos.getY(),
-								bl2 ? pos.toCenterPos().z : vec3d6.z
-						);
-			}
+		RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
+		Pair<Vec3i, Vec3i> railEnds = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
+		Vec3d dirA = new Vec3d(railEnds.getFirst()).multiply(0.5);
+		Vec3d dirB = new Vec3d(railEnds.getSecond()).multiply(0.5);
+		Vec3d horizontalA = dirA.getHorizontal();
+		Vec3d horizontalB = dirB.getHorizontal();
 
-			Vec3d vec3d7 = vec3d10.subtract(vec3d6);
-			this.setPos(vec3d6.add(vec3d7));
-			float g = 0.0F;
-			boolean bl4 = vec3d.getY() != vec3d2.getY();
-			if (bl4) {
-				Vec3d vec3d11 = pos.toBottomCenterPos().add(vec3d4);
-				double d = vec3d11.distanceTo(this.getPos());
-				this.setPos(this.getPos().add(0.0, d + 0.1, 0.0));
-				g = this.minecart.isYawFlipped() ? 45.0F : -45.0F;
-			}
-			else {
-				this.setPos(this.getPos().add(0.0, RAIL_VERTICAL_OFFSET, 0.0));
-			}
+		boolean preferB = getVelocity().length() > MIN_VELOCITY_LENGTH
+				&& getVelocity().dotProduct(horizontalA) < getVelocity().dotProduct(horizontalB);
 
-			this.setAngles(f, g);
-			double e = vec3d6.distanceTo(this.getPos());
-			if (e > 0.0) {
-				this.stagingLerpSteps
-						.add(new ExperimentalMinecartController.Step(
-								this.getPos(),
-								this.getVelocity(),
-								this.getYaw(),
-								this.getPitch(),
-								ignoreWeight ? 0.0F : (float) e
-						));
-			}
+		if (preferB || ascends(horizontalB, railShape)) {
+			Vec3d temp = horizontalA;
+			horizontalA = horizontalB;
+			horizontalB = temp;
+		}
+
+		float yaw = 180.0F - (float) (Math.atan2(horizontalA.z, horizontalA.x) * 180.0 / Math.PI);
+		yaw += minecart.isYawFlipped() ? 180.0F : 0.0F;
+
+		Vec3d currentPos = getPos();
+		boolean isDiagonal = dirA.getX() != dirB.getX() && dirA.getZ() != dirB.getZ();
+		Vec3d targetPos;
+
+		if (isDiagonal) {
+			Vec3d railDir = dirB.subtract(dirA);
+			Vec3d relativePos = currentPos.subtract(pos.toBottomCenterPos()).subtract(dirA);
+			Vec3d projected = railDir.multiply(railDir.dotProduct(relativePos) / railDir.dotProduct(railDir));
+			targetPos = pos.toBottomCenterPos().add(dirA).add(projected);
+			yaw = 180.0F - (float) (Math.atan2(projected.z, projected.x) * 180.0 / Math.PI);
+			yaw += minecart.isYawFlipped() ? 180.0F : 0.0F;
+		} else {
+			boolean alignZ = dirA.subtract(dirB).x != 0.0;
+			boolean alignX = dirA.subtract(dirB).z != 0.0;
+			targetPos = new Vec3d(
+					alignX ? pos.toCenterPos().x : currentPos.x,
+					pos.getY(),
+					alignZ ? pos.toCenterPos().z : currentPos.z
+			);
+		}
+
+		Vec3d posOffset = targetPos.subtract(currentPos);
+		setPos(currentPos.add(posOffset));
+
+		float pitch = 0.0F;
+		boolean isSloped = dirA.getY() != dirB.getY();
+
+		if (isSloped) {
+			Vec3d slopeEnd = pos.toBottomCenterPos().add(horizontalB);
+			double distToEnd = slopeEnd.distanceTo(getPos());
+			setPos(getPos().add(0.0, distToEnd + RAIL_VERTICAL_OFFSET, 0.0));
+			pitch = minecart.isYawFlipped() ? 45.0F : -45.0F;
+		} else {
+			setPos(getPos().add(0.0, RAIL_VERTICAL_OFFSET, 0.0));
+		}
+
+		setAngles(yaw, pitch);
+
+		double distMoved = currentPos.distanceTo(getPos());
+
+		if (distMoved > 0.0) {
+			stagingLerpSteps.add(new Step(
+					getPos(), getVelocity(), getYaw(), getPitch(),
+					ignoreWeight ? 0.0F : (float) distMoved
+			));
 		}
 	}
 
 	private void setAngles(float yaw, float pitch) {
-		double d = Math.abs(yaw - this.getYaw());
-		if (d >= 175.0 && d <= 185.0) {
-			this.minecart.setYawFlipped(!this.minecart.isYawFlipped());
+		double yawDiff = Math.abs(yaw - getYaw());
+
+		if (yawDiff >= YAW_FLIP_RANGE_LOW && yawDiff <= YAW_FLIP_RANGE_HIGH) {
+			minecart.setYawFlipped(!minecart.isYawFlipped());
 			yaw -= 180.0F;
 			pitch *= -1.0F;
 		}
 
 		pitch = Math.clamp(pitch, -45.0F, 45.0F);
-		this.setPitch(pitch % 360.0F);
-		this.setYaw(yaw % 360.0F);
+		setPitch(pitch % 360.0F);
+		setYaw(yaw % 360.0F);
 	}
 
+	/**
+	 * Выполняет субтиковое движение по рельсам: за один тик вагонетка может пройти несколько
+	 * блоков рельса, пока не исчерпает оставшееся расстояние ({@code remainingMovement}).
+	 * Каждая итерация добавляет шаг в {@code stagingLerpSteps} для клиентской интерполяции.
+	 */
 	@Override
 	public void moveOnRail(ServerWorld world) {
-		for (ExperimentalMinecartController.MoveIteration
-		     moveIteration =
-		     new ExperimentalMinecartController.MoveIteration();
-		     moveIteration.shouldContinue() && this.minecart.isAlive();
-		     moveIteration.initial = false
-		) {
-			Vec3d vec3d = this.getVelocity();
-			BlockPos blockPos = this.minecart.getRailOrMinecartPos();
-			BlockState blockState = this.getWorld().getBlockState(blockPos);
-			boolean bl = AbstractRailBlock.isRail(blockState);
-			if (this.minecart.isOnRail() != bl) {
-				this.minecart.setOnRail(bl);
-				this.adjustToRail(blockPos, blockState, false);
+		for (MoveIteration iteration = new MoveIteration();
+				iteration.shouldContinue() && minecart.isAlive();
+				iteration.initial = false) {
+
+			Vec3d velocityBefore = getVelocity();
+			BlockPos blockPos = minecart.getRailOrMinecartPos();
+			BlockState blockState = getWorld().getBlockState(blockPos);
+			boolean isOnRail = AbstractRailBlock.isRail(blockState);
+
+			if (minecart.isOnRail() != isOnRail) {
+				minecart.setOnRail(isOnRail);
+				adjustToRail(blockPos, blockState, false);
 			}
 
-			if (bl) {
-				this.minecart.onLanding();
-				this.minecart.resetPosition();
+			if (isOnRail) {
+				minecart.onLanding();
+				minecart.resetPosition();
+
 				if (blockState.isOf(Blocks.ACTIVATOR_RAIL)) {
-					this.minecart.onActivatorRail(
+					minecart.onActivatorRail(
 							world,
-							blockPos.getX(),
-							blockPos.getY(),
-							blockPos.getZ(),
+							blockPos.getX(), blockPos.getY(), blockPos.getZ(),
 							blockState.get(PoweredRailBlock.POWERED)
 					);
 				}
 
 				RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
-				Vec3d
-						vec3d2 =
-						this.calcNewHorizontalVelocity(
-								world,
-								vec3d.getHorizontal(),
-								moveIteration,
-								blockPos,
-								blockState,
-								railShape
-						);
-				if (moveIteration.initial) {
-					moveIteration.remainingMovement = vec3d2.horizontalLength();
-				}
-				else {
-					moveIteration.remainingMovement =
-							moveIteration.remainingMovement + (vec3d2.horizontalLength() - vec3d.horizontalLength());
+				Vec3d newHorizontalVelocity = calcNewHorizontalVelocity(
+						world, velocityBefore.getHorizontal(), iteration, blockPos, blockState, railShape
+				);
+
+				if (iteration.initial) {
+					iteration.remainingMovement = newHorizontalVelocity.horizontalLength();
+				} else {
+					iteration.remainingMovement += newHorizontalVelocity.horizontalLength()
+							- velocityBefore.horizontalLength();
 				}
 
-				this.setVelocity(vec3d2);
-				moveIteration.remainingMovement =
-						this.minecart.moveAlongTrack(blockPos, railShape, moveIteration.remainingMovement);
-			}
-			else {
-				this.minecart.moveOffRail(world);
-				moveIteration.remainingMovement = 0.0;
+				setVelocity(newHorizontalVelocity);
+				iteration.remainingMovement = minecart.moveAlongTrack(
+						blockPos, railShape, iteration.remainingMovement
+				);
+			} else {
+				minecart.moveOffRail(world);
+				iteration.remainingMovement = 0.0;
 			}
 
-			Vec3d vec3d3 = this.getPos();
-			Vec3d vec3d2 = vec3d3.subtract(this.minecart.getLastRenderPos());
-			double d = vec3d2.length();
-			if (d > 1.0E-5F) {
-				if (!(vec3d2.horizontalLengthSquared() > 1.0E-5F)) {
-					if (!this.minecart.isOnRail()) {
-						this.setPitch(this.minecart.isOnGround() ? 0.0F : MathHelper.lerpAngleDegrees(
-								0.2F,
-								this.getPitch(),
-								0.0F
-						));
+			Vec3d currentPos = getPos();
+			Vec3d posChange = currentPos.subtract(minecart.getLastRenderPos());
+			double distMoved = posChange.length();
+
+			if (distMoved > MIN_VELOCITY_LENGTH) {
+				if (posChange.horizontalLengthSquared() > MIN_VELOCITY_LENGTH) {
+					float yaw = 180.0F - (float) (Math.atan2(posChange.z, posChange.x) * 180.0 / Math.PI);
+					float pitch;
+
+					if (minecart.isOnGround() && !minecart.isOnRail()) {
+						pitch = 0.0F;
+					} else {
+						pitch = 90.0F - (float) (Math.atan2(
+								posChange.horizontalLength(), posChange.y
+						) * 180.0 / Math.PI);
 					}
-				}
-				else {
-					float f = 180.0F - (float) (Math.atan2(vec3d2.z, vec3d2.x) * 180.0 / Math.PI);
-					float g = this.minecart.isOnGround() && !this.minecart.isOnRail()
-					          ? 0.0F
-					          : 90.0F - (float) (Math.atan2(vec3d2.horizontalLength(), vec3d2.y) * 180.0 / Math.PI);
-					f += this.minecart.isYawFlipped() ? 180.0F : 0.0F;
-					g *= this.minecart.isYawFlipped() ? -1.0F : 1.0F;
-					this.setAngles(f, g);
+
+					yaw += minecart.isYawFlipped() ? 180.0F : 0.0F;
+					pitch *= minecart.isYawFlipped() ? -1.0F : 1.0F;
+					setAngles(yaw, pitch);
+				} else if (!minecart.isOnRail()) {
+					setPitch(minecart.isOnGround()
+							? 0.0F
+							: MathHelper.lerpAngleDegrees(PITCH_LERP_FACTOR, getPitch(), 0.0F)
+					);
 				}
 
-				this.stagingLerpSteps
-						.add(
-								new ExperimentalMinecartController.Step(
-										vec3d3,
-										this.getVelocity(),
-										this.getYaw(),
-										this.getPitch(),
-										(float) Math.min(d, this.getMaxSpeed(world))
-								)
-						);
-			}
-			else if (vec3d.horizontalLengthSquared() > 0.0) {
-				this.stagingLerpSteps.add(new ExperimentalMinecartController.Step(
-						vec3d3,
-						this.getVelocity(),
-						this.getYaw(),
-						this.getPitch(),
-						1.0F
+				stagingLerpSteps.add(new Step(
+						currentPos, getVelocity(), getYaw(), getPitch(),
+						(float) Math.min(distMoved, getMaxSpeed(world))
 				));
+			} else if (velocityBefore.horizontalLengthSquared() > 0.0) {
+				stagingLerpSteps.add(new Step(currentPos, getVelocity(), getYaw(), getPitch(), 1.0F));
 			}
 
-			if (d > 1.0E-5F || moveIteration.initial) {
-				this.minecart.tickBlockCollision();
-				this.minecart.tickBlockCollision();
+			if (distMoved > MIN_VELOCITY_LENGTH || iteration.initial) {
+				minecart.tickBlockCollision();
+				minecart.tickBlockCollision();
 			}
 		}
 	}
@@ -381,209 +386,233 @@ public class ExperimentalMinecartController extends MinecartController {
 	private Vec3d calcNewHorizontalVelocity(
 			ServerWorld world,
 			Vec3d horizontalVelocity,
-			ExperimentalMinecartController.MoveIteration iteration,
+			MoveIteration iteration,
 			BlockPos pos,
 			BlockState railState,
 			RailShape railShape
 	) {
-		Vec3d vec3d = horizontalVelocity;
+		Vec3d velocity = horizontalVelocity;
+
 		if (!iteration.slopeVelocityApplied) {
-			Vec3d vec3d2 = this.applySlopeVelocity(horizontalVelocity, railShape);
-			if (vec3d2.horizontalLengthSquared() != horizontalVelocity.horizontalLengthSquared()) {
+			Vec3d withSlope = applySlopeVelocity(velocity, railShape);
+
+			if (withSlope.horizontalLengthSquared() != velocity.horizontalLengthSquared()) {
 				iteration.slopeVelocityApplied = true;
-				vec3d = vec3d2;
+				velocity = withSlope;
 			}
 		}
 
 		if (iteration.initial) {
-			Vec3d vec3d2 = this.applyInitialVelocity(vec3d);
-			if (vec3d2.horizontalLengthSquared() != vec3d.horizontalLengthSquared()) {
+			Vec3d withInput = applyInitialVelocity(velocity);
+
+			if (withInput.horizontalLengthSquared() != velocity.horizontalLengthSquared()) {
 				iteration.decelerated = true;
-				vec3d = vec3d2;
+				velocity = withInput;
 			}
 		}
 
 		if (!iteration.decelerated) {
-			Vec3d vec3d2 = this.decelerateFromPoweredRail(vec3d, railState);
-			if (vec3d2.horizontalLengthSquared() != vec3d.horizontalLengthSquared()) {
+			Vec3d decelerated = decelerateFromPoweredRail(velocity, railState);
+
+			if (decelerated.horizontalLengthSquared() != velocity.horizontalLengthSquared()) {
 				iteration.decelerated = true;
-				vec3d = vec3d2;
+				velocity = decelerated;
 			}
 		}
 
 		if (iteration.initial) {
-			vec3d = this.minecart.applySlowdown(vec3d);
-			if (vec3d.lengthSquared() > 0.0) {
-				double d = Math.min(vec3d.length(), this.minecart.getMaxSpeed(world));
-				vec3d = vec3d.normalize().multiply(d);
+			velocity = minecart.applySlowdown(velocity);
+
+			if (velocity.lengthSquared() > 0.0) {
+				double maxSpeed = Math.min(velocity.length(), minecart.getMaxSpeed(world));
+				velocity = velocity.normalize().multiply(maxSpeed);
 			}
 		}
 
 		if (!iteration.accelerated) {
-			Vec3d vec3d2 = this.accelerateFromPoweredRail(vec3d, pos, railState);
-			if (vec3d2.horizontalLengthSquared() != vec3d.horizontalLengthSquared()) {
+			Vec3d accelerated = accelerateFromPoweredRail(velocity, pos, railState);
+
+			if (accelerated.horizontalLengthSquared() != velocity.horizontalLengthSquared()) {
 				iteration.accelerated = true;
-				vec3d = vec3d2;
+				velocity = accelerated;
 			}
 		}
 
-		return vec3d;
+		return velocity;
 	}
 
 	private Vec3d applySlopeVelocity(Vec3d horizontalVelocity, RailShape railShape) {
-		double d = Math.max(0.0078125, horizontalVelocity.horizontalLength() * 0.02);
-		if (this.minecart.isTouchingWater()) {
-			d *= 0.2;
+		double gravity = Math.max(SLOPE_GRAVITY_BASE, horizontalVelocity.horizontalLength() * SLOPE_GRAVITY_SPEED_FACTOR);
+
+		if (minecart.isTouchingWater()) {
+			gravity *= SLOPE_GRAVITY_WATER_FACTOR;
 		}
+
 		return switch (railShape) {
-			case ASCENDING_EAST -> horizontalVelocity.add(-d, 0.0, 0.0);
-			case ASCENDING_WEST -> horizontalVelocity.add(d, 0.0, 0.0);
-			case ASCENDING_NORTH -> horizontalVelocity.add(0.0, 0.0, d);
-			case ASCENDING_SOUTH -> horizontalVelocity.add(0.0, 0.0, -d);
+			case ASCENDING_EAST -> horizontalVelocity.add(-gravity, 0.0, 0.0);
+			case ASCENDING_WEST -> horizontalVelocity.add(gravity, 0.0, 0.0);
+			case ASCENDING_NORTH -> horizontalVelocity.add(0.0, 0.0, gravity);
+			case ASCENDING_SOUTH -> horizontalVelocity.add(0.0, 0.0, -gravity);
 			default -> horizontalVelocity;
 		};
 	}
 
 	private Vec3d applyInitialVelocity(Vec3d horizontalVelocity) {
-		if (this.minecart.getFirstPassenger() instanceof ServerPlayerEntity serverPlayerEntity) {
-			Vec3d vec3d = serverPlayerEntity.getInputVelocityForMinecart();
-			if (vec3d.lengthSquared() > 0.0) {
-				Vec3d vec3d2 = vec3d.normalize();
-				double d = horizontalVelocity.horizontalLengthSquared();
-				if (vec3d2.lengthSquared() > 0.0 && d < 0.01) {
-					return horizontalVelocity.add(new Vec3d(vec3d2.x, 0.0, vec3d2.z).normalize().multiply(0.001));
-				}
-			}
+		if (!(minecart.getFirstPassenger() instanceof ServerPlayerEntity serverPlayer)) {
+			return horizontalVelocity;
+		}
 
+		Vec3d playerInput = serverPlayer.getInputVelocityForMinecart();
+
+		if (playerInput.lengthSquared() <= 0.0) {
 			return horizontalVelocity;
 		}
-		else {
-			return horizontalVelocity;
+
+		Vec3d normalizedInput = playerInput.normalize();
+		double speedSq = horizontalVelocity.horizontalLengthSquared();
+
+		if (normalizedInput.lengthSquared() > 0.0 && speedSq < PLAYER_INPUT_SPEED_THRESHOLD) {
+			return horizontalVelocity.add(
+					new Vec3d(normalizedInput.x, 0.0, normalizedInput.z).normalize().multiply(PLAYER_INPUT_NUDGE)
+			);
 		}
+
+		return horizontalVelocity;
 	}
 
 	private Vec3d decelerateFromPoweredRail(Vec3d velocity, BlockState railState) {
-		if (railState.isOf(Blocks.POWERED_RAIL) && !railState.get(PoweredRailBlock.POWERED)) {
-			return velocity.length() < 0.03 ? Vec3d.ZERO : velocity.multiply(0.5);
-		}
-		else {
+		if (!railState.isOf(Blocks.POWERED_RAIL) || railState.get(PoweredRailBlock.POWERED)) {
 			return velocity;
 		}
+
+		return velocity.length() < BRAKE_STOP_THRESHOLD ? Vec3d.ZERO : velocity.multiply(0.5);
 	}
 
 	private Vec3d accelerateFromPoweredRail(Vec3d velocity, BlockPos railPos, BlockState railState) {
-		if (railState.isOf(Blocks.POWERED_RAIL) && railState.get(PoweredRailBlock.POWERED)) {
-			if (velocity.length() > 0.01) {
-				return velocity.normalize().multiply(velocity.length() + 0.06);
-			}
-			else {
-				Vec3d vec3d = this.minecart.getLaunchDirection(railPos);
-				return vec3d.lengthSquared() <= 0.0 ? velocity : vec3d.multiply(velocity.length() + 0.2);
-			}
-		}
-		else {
+		if (!railState.isOf(Blocks.POWERED_RAIL) || !railState.get(PoweredRailBlock.POWERED)) {
 			return velocity;
 		}
+
+		if (velocity.length() > POWERED_RAIL_STOP_THRESHOLD) {
+			return velocity.normalize().multiply(velocity.length() + POWERED_RAIL_BOOST);
+		}
+
+		Vec3d launchDir = minecart.getLaunchDirection(railPos);
+		return launchDir.lengthSquared() <= 0.0
+				? velocity
+				: launchDir.multiply(velocity.length() + POWERED_RAIL_LAUNCH);
 	}
 
+	/**
+	 * Перемещает вагонетку вдоль рельса на {@code remainingMovement} блоков.
+	 * Учитывает наклонные рельсы и останавливает вагонетку в V-образных впадинах.
+	 */
 	@Override
 	public double moveAlongTrack(BlockPos blockPos, RailShape railShape, double remainingMovement) {
-		if (remainingMovement < 1.0E-5F) {
+		if (remainingMovement < MIN_VELOCITY_LENGTH) {
 			return 0.0;
 		}
-		else {
-			Vec3d vec3d = this.getPos();
-			Pair<Vec3i, Vec3i> pair = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
-			Vec3i vec3i = (Vec3i) pair.getFirst();
-			Vec3i vec3i2 = (Vec3i) pair.getSecond();
-			Vec3d vec3d2 = this.getVelocity().getHorizontal();
-			if (vec3d2.length() < 1.0E-5F) {
-				this.setVelocity(Vec3d.ZERO);
+
+		Vec3d startPos = getPos();
+		Pair<Vec3i, Vec3i> railEnds = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
+		Vec3i endA = railEnds.getFirst();
+		Vec3i endB = railEnds.getSecond();
+		Vec3d horizontalVelocity = getVelocity().getHorizontal();
+
+		if (horizontalVelocity.length() < MIN_VELOCITY_LENGTH) {
+			setVelocity(Vec3d.ZERO);
+			return 0.0;
+		}
+
+		boolean isSloped = endA.getY() != endB.getY();
+		Vec3d dirB = new Vec3d(endB).multiply(0.5).getHorizontal();
+		Vec3d dirA = new Vec3d(endA).multiply(0.5).getHorizontal();
+
+		if (horizontalVelocity.dotProduct(dirA) < horizontalVelocity.dotProduct(dirB)) {
+			dirA = dirB;
+		}
+
+		Vec3d targetPos = blockPos.toBottomCenterPos()
+				.add(dirA)
+				.add(0.0, RAIL_VERTICAL_OFFSET, 0.0)
+				.add(dirA.normalize().multiply(MIN_VELOCITY_LENGTH));
+
+		if (isSloped && !ascends(horizontalVelocity, railShape)) {
+			targetPos = targetPos.add(0.0, 1.0, 0.0);
+		}
+
+		Vec3d toTarget = targetPos.subtract(getPos()).normalize();
+		Vec3d adjustedVelocity = toTarget.multiply(horizontalVelocity.length() / toTarget.horizontalLength());
+		Vec3d moveTarget = startPos.add(
+				adjustedVelocity.normalize().multiply(
+						remainingMovement * (isSloped ? MathHelper.SQUARE_ROOT_OF_TWO : 1.0F)
+				)
+		);
+
+		if (startPos.squaredDistanceTo(targetPos) <= startPos.squaredDistanceTo(moveTarget)) {
+			remainingMovement = targetPos.subtract(moveTarget).horizontalLength();
+			moveTarget = targetPos;
+		} else {
+			remainingMovement = 0.0;
+		}
+
+		minecart.move(MovementType.SELF, moveTarget.subtract(startPos));
+
+		BlockState newBlockState = getWorld().getBlockState(BlockPos.ofFloored(moveTarget));
+
+		if (isSloped && AbstractRailBlock.isRail(newBlockState)) {
+			RailShape newRailShape = newBlockState.get(
+					((AbstractRailBlock) newBlockState.getBlock()).getShapeProperty()
+			);
+
+			if (restOnVShapedTrack(railShape, newRailShape)) {
 				return 0.0;
 			}
-			else {
-				boolean bl = vec3i.getY() != vec3i2.getY();
-				Vec3d vec3d3 = new Vec3d(vec3i2).multiply(0.5).getHorizontal();
-				Vec3d vec3d4 = new Vec3d(vec3i).multiply(0.5).getHorizontal();
-				if (vec3d2.dotProduct(vec3d4) < vec3d2.dotProduct(vec3d3)) {
-					vec3d4 = vec3d3;
-				}
 
-				Vec3d
-						vec3d5 =
-						blockPos
-								.toBottomCenterPos()
-								.add(vec3d4)
-								.add(0.0, RAIL_VERTICAL_OFFSET, 0.0)
-								.add(vec3d4.normalize().multiply(1.0E-5F));
-				if (bl && !this.ascends(vec3d2, railShape)) {
-					vec3d5 = vec3d5.add(0.0, 1.0, 0.0);
-				}
+			double distToTarget = targetPos.getHorizontal().distanceTo(getPos().getHorizontal());
+			double targetY = targetPos.y + (ascends(adjustedVelocity, railShape) ? distToTarget : -distToTarget);
 
-				Vec3d vec3d6 = vec3d5.subtract(this.getPos()).normalize();
-				vec3d2 = vec3d6.multiply(vec3d2.length() / vec3d6.horizontalLength());
-				Vec3d
-						vec3d7 =
-						vec3d.add(vec3d2
-								.normalize()
-								.multiply(remainingMovement * (bl ? MathHelper.SQUARE_ROOT_OF_TWO : 1.0F)));
-				if (vec3d.squaredDistanceTo(vec3d5) <= vec3d.squaredDistanceTo(vec3d7)) {
-					remainingMovement = vec3d5.subtract(vec3d7).horizontalLength();
-					vec3d7 = vec3d5;
-				}
-				else {
-					remainingMovement = 0.0;
-				}
-
-				this.minecart.move(MovementType.SELF, vec3d7.subtract(vec3d));
-				BlockState blockState = this.getWorld().getBlockState(BlockPos.ofFloored(vec3d7));
-				if (bl) {
-					if (AbstractRailBlock.isRail(blockState)) {
-						RailShape
-								railShape2 =
-								blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
-						if (this.restOnVShapedTrack(railShape, railShape2)) {
-							return 0.0;
-						}
-					}
-
-					double d = vec3d5.getHorizontal().distanceTo(this.getPos().getHorizontal());
-					double e = vec3d5.y + (this.ascends(vec3d2, railShape) ? d : -d);
-					if (this.getPos().y < e) {
-						this.setPos(this.getPos().x, e, this.getPos().z);
-					}
-				}
-
-				if (this.getPos().distanceTo(vec3d) < 1.0E-5F && vec3d7.distanceTo(vec3d) > 1.0E-5F) {
-					this.setVelocity(Vec3d.ZERO);
-					return 0.0;
-				}
-				else {
-					this.setVelocity(vec3d2);
-					return remainingMovement;
-				}
+			if (getPos().y < targetY) {
+				setPos(getPos().x, targetY, getPos().z);
 			}
 		}
+
+		if (getPos().distanceTo(startPos) < MIN_VELOCITY_LENGTH
+				&& moveTarget.distanceTo(startPos) > MIN_VELOCITY_LENGTH) {
+			setVelocity(Vec3d.ZERO);
+			return 0.0;
+		}
+
+		setVelocity(adjustedVelocity);
+		return remainingMovement;
 	}
 
-	private boolean restOnVShapedTrack(RailShape currentRailShape, RailShape newRailShape) {
-		if (this.getVelocity().lengthSquared() < MIN_VELOCITY_SQUARED_THRESHOLD
-				&& newRailShape.isAscending()
-				&& this.ascends(this.getVelocity(), currentRailShape)
-				&& !this.ascends(this.getVelocity(), newRailShape)) {
-			this.setVelocity(Vec3d.ZERO);
-			return true;
-		}
-		else {
+	private boolean restOnVShapedTrack(RailShape currentShape, RailShape newShape) {
+		if (getVelocity().lengthSquared() >= MIN_VELOCITY_SQUARED_THRESHOLD) {
 			return false;
 		}
+
+		if (!newShape.isAscending()) {
+			return false;
+		}
+
+		if (!ascends(getVelocity(), currentShape)) {
+			return false;
+		}
+
+		if (ascends(getVelocity(), newShape)) {
+			return false;
+		}
+
+		setVelocity(Vec3d.ZERO);
+		return true;
 	}
 
 	@Override
 	public double getMaxSpeed(ServerWorld world) {
-		return world.getGameRules().getValue(GameRules.MAX_MINECART_SPEED).intValue() * (this.minecart.isTouchingWater()
-		                                                                                 ? 0.5 : 1.0
-		) / 20.0;
+		double speedFromRules = world.getGameRules().getValue(GameRules.MAX_MINECART_SPEED).intValue();
+		double waterFactor = minecart.isTouchingWater() ? 0.5 : 1.0;
+		return speedFromRules * waterFactor / 20.0;
 	}
 
 	private boolean ascends(Vec3d velocity, RailShape railShape) {
@@ -598,46 +627,47 @@ public class ExperimentalMinecartController extends MinecartController {
 
 	@Override
 	public double getSpeedRetention() {
-		return this.minecart.hasPassengers() ? 0.997 : 0.975;
+		return minecart.hasPassengers() ? 0.997 : 0.975;
 	}
 
 	@Override
 	public boolean handleCollision() {
-		boolean bl = this.pickUpEntities(this.minecart.getBoundingBox().expand(0.2, 0.0, 0.2));
-		if (!this.minecart.horizontalCollision && !this.minecart.verticalCollision) {
+		boolean pickedUp = pickUpEntities(minecart.getBoundingBox().expand(COLLISION_BOX_EXPAND_PICKUP, 0.0, COLLISION_BOX_EXPAND_PICKUP));
+
+		if (!minecart.horizontalCollision && !minecart.verticalCollision) {
 			return false;
 		}
-		else {
-			boolean bl2 = this.pushAwayFromEntities(this.minecart.getBoundingBox().expand(1.0E-7));
-			return bl && !bl2;
-		}
+
+		boolean pushedAway = pushAwayFromEntities(minecart.getBoundingBox().expand(COLLISION_BOX_EXPAND_PUSH));
+		return pickedUp && !pushedAway;
 	}
 
 	/**
-	 * Подбирает up entities.
+	 * Пытается посадить ближайшую подходящую сущность в вагонетку.
 	 *
-	 * @param box box
-	 *
-	 * @return boolean — результат операции
+	 * @param box область поиска сущностей
+	 * @return {@code true} если хотя бы одна сущность была посажена
 	 */
 	public boolean pickUpEntities(Box box) {
-		if (this.minecart.isRideable() && !this.minecart.hasPassengers()) {
-			List<Entity>
-					list =
-					this.getWorld().getOtherEntities(this.minecart, box, EntityPredicates.canBePushedBy(this.minecart));
-			if (!list.isEmpty()) {
-				for (Entity entity : list) {
-					if (!(entity instanceof PlayerEntity)
-							&& !(entity instanceof IronGolemEntity)
-							&& !(entity instanceof AbstractMinecartEntity)
-							&& !this.minecart.hasPassengers()
-							&& !entity.hasVehicle()) {
-						boolean bl = entity.startRiding(this.minecart);
-						if (bl) {
-							return true;
-						}
-					}
-				}
+		if (!minecart.isRideable() || minecart.hasPassengers()) {
+			return false;
+		}
+
+		List<Entity> entities = getWorld().getOtherEntities(
+				minecart, box, EntityPredicates.canBePushedBy(minecart)
+		);
+
+		for (Entity entity : entities) {
+			if (entity instanceof PlayerEntity
+					|| entity instanceof IronGolemEntity
+					|| entity instanceof AbstractMinecartEntity
+					|| minecart.hasPassengers()
+					|| entity.hasVehicle()) {
+				continue;
+			}
+
+			if (entity.startRiding(minecart)) {
+				return true;
 			}
 		}
 
@@ -645,57 +675,52 @@ public class ExperimentalMinecartController extends MinecartController {
 	}
 
 	/**
-	 * Push away from entities.
+	 * Отталкивает сущности от вагонетки при столкновении.
 	 *
-	 * @param box box
-	 *
-	 * @return boolean — результат операции
+	 * @param box область поиска сущностей
+	 * @return {@code true} если хотя бы одна сущность была оттолкнута
 	 */
 	public boolean pushAwayFromEntities(Box box) {
-		boolean bl = false;
-		if (this.minecart.isRideable()) {
-			List<Entity>
-					list =
-					this.getWorld().getOtherEntities(this.minecart, box, EntityPredicates.canBePushedBy(this.minecart));
-			if (!list.isEmpty()) {
-				for (Entity entity : list) {
-					if (entity instanceof PlayerEntity
-							|| entity instanceof IronGolemEntity
-							|| entity instanceof AbstractMinecartEntity
-							|| this.minecart.hasPassengers()
-							|| entity.hasVehicle()) {
-						entity.pushAwayFrom(this.minecart);
-						bl = true;
-					}
+		boolean pushed = false;
+
+		if (minecart.isRideable()) {
+			List<Entity> entities = getWorld().getOtherEntities(
+					minecart, box, EntityPredicates.canBePushedBy(minecart)
+			);
+
+			for (Entity entity : entities) {
+				if (entity instanceof PlayerEntity
+						|| entity instanceof IronGolemEntity
+						|| entity instanceof AbstractMinecartEntity
+						|| minecart.hasPassengers()
+						|| entity.hasVehicle()) {
+					entity.pushAwayFrom(minecart);
+					pushed = true;
 				}
 			}
-		}
-		else {
-			for (Entity entity2 : this.getWorld().getOtherEntities(this.minecart, box)) {
-				if (!this.minecart.hasPassenger(entity2) && entity2.isPushable()
-						&& entity2 instanceof AbstractMinecartEntity) {
-					entity2.pushAwayFrom(this.minecart);
-					bl = true;
+		} else {
+			for (Entity entity : getWorld().getOtherEntities(minecart, box)) {
+				if (!minecart.hasPassenger(entity)
+						&& entity.isPushable()
+						&& entity instanceof AbstractMinecartEntity) {
+					entity.pushAwayFrom(minecart);
+					pushed = true;
 				}
 			}
 		}
 
-		return bl;
+		return pushed;
 	}
 
-	/**
-	 * {@code InterpolatedStep}.
-	 */
+	/** Хранит один шаг интерполяции: позицию, скорость, углы и вес для клиентской анимации. */
 	record InterpolatedStep(
 			float partialTicksInStep,
-			ExperimentalMinecartController.Step currentStep,
-			ExperimentalMinecartController.Step previousStep
+			Step currentStep,
+			Step previousStep
 	) {
 	}
 
-	/**
-	 * {@code MoveIteration}.
-	 */
+	/** Состояние итерации субтикового движения по рельсам. */
 	static class MoveIteration {
 
 		double remainingMovement = 0.0;
@@ -704,36 +729,27 @@ public class ExperimentalMinecartController extends MinecartController {
 		boolean decelerated = false;
 		boolean accelerated = false;
 
-		/**
-		 * Определяет, следует ли continue.
-		 *
-		 * @return boolean — результат операции
-		 */
+		/** Продолжать итерацию, пока это первый шаг или осталось расстояние для движения. */
 		public boolean shouldContinue() {
-			return this.initial || this.remainingMovement > 1.0E-5F;
+			return initial || remainingMovement > MIN_VELOCITY_LENGTH;
 		}
 	}
 
 	/**
-	 * {@code Step}.
+	 * Один шаг движения вагонетки для клиентской интерполяции.
+	 * Передаётся от сервера к клиенту через пакет и воспроизводится плавно.
 	 */
 	public record Step(Vec3d position, Vec3d movement, float yRot, float xRot, float weight) {
 
-		public static final PacketCodec<ByteBuf, ExperimentalMinecartController.Step> PACKET_CODEC = PacketCodec.tuple(
-				Vec3d.PACKET_CODEC,
-				ExperimentalMinecartController.Step::position,
-				Vec3d.PACKET_CODEC,
-				ExperimentalMinecartController.Step::movement,
-				PacketCodecs.DEGREES,
-				ExperimentalMinecartController.Step::yRot,
-				PacketCodecs.DEGREES,
-				ExperimentalMinecartController.Step::xRot,
-				PacketCodecs.FLOAT,
-				ExperimentalMinecartController.Step::weight,
-				ExperimentalMinecartController.Step::new
+		public static final PacketCodec<ByteBuf, Step> PACKET_CODEC = PacketCodec.tuple(
+				Vec3d.PACKET_CODEC, Step::position,
+				Vec3d.PACKET_CODEC, Step::movement,
+				PacketCodecs.DEGREES, Step::yRot,
+				PacketCodecs.DEGREES, Step::xRot,
+				PacketCodecs.FLOAT, Step::weight,
+				Step::new
 		);
-		public static ExperimentalMinecartController.Step
-				ZERO =
-				new ExperimentalMinecartController.Step(Vec3d.ZERO, Vec3d.ZERO, 0.0F, 0.0F, 0.0F);
+
+		public static final Step ZERO = new Step(Vec3d.ZERO, Vec3d.ZERO, 0.0F, 0.0F, 0.0F);
 	}
 }

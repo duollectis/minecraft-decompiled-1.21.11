@@ -6,10 +6,12 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import org.joml.Vector3fc;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BakedQuad}.
+ * Запечённый четырёхугольник (quad) блочной модели.
+ * Хранит 4 вершины с позициями и упакованными UV-координатами, а также метаданные
+ * для рендеринга: индекс тинта, направление грани, спрайт, затенение и эмиссию света.
  */
+@Environment(EnvType.CLIENT)
 public record BakedQuad(
 		Vector3fc position0,
 		Vector3fc position1,
@@ -27,27 +29,28 @@ public record BakedQuad(
 ) {
 
 	public static final int NUM_VERTICES = 4;
+	private static final int NO_TINT = -1;
 
 	public boolean hasTint() {
-		return this.tintIndex != -1;
+		return tintIndex != NO_TINT;
 	}
 
 	public Vector3fc getPosition(int index) {
 		return switch (index) {
-			case 0 -> this.position0;
-			case 1 -> this.position1;
-			case 2 -> this.position2;
-			case 3 -> this.position3;
+			case 0 -> position0;
+			case 1 -> position1;
+			case 2 -> position2;
+			case 3 -> position3;
 			default -> throw new IndexOutOfBoundsException(index);
 		};
 	}
 
 	public long getTexcoords(int index) {
 		return switch (index) {
-			case 0 -> this.packedUV0;
-			case 1 -> this.packedUV1;
-			case 2 -> this.packedUV2;
-			case 3 -> this.packedUV3;
+			case 0 -> packedUV0;
+			case 1 -> packedUV1;
+			case 2 -> packedUV2;
+			case 3 -> packedUV3;
 			default -> throw new IndexOutOfBoundsException(index);
 		};
 	}

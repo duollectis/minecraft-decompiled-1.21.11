@@ -8,7 +8,8 @@ import net.minecraft.util.Identifier;
 import java.util.function.Consumer;
 
 /**
- * {@code AdvancementTabGenerator}.
+ * Генератор достижений для одной вкладки (таба) экрана достижений.
+ * Реализации заполняют переданный {@code exporter} достижениями своей вкладки.
  */
 public interface AdvancementTabGenerator {
 

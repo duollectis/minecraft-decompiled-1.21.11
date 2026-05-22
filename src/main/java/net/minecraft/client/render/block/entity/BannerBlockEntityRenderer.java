@@ -185,7 +185,7 @@ public class BannerBlockEntityRenderer implements BlockEntityRenderer<BannerBloc
 		matrices.push();
 		matrices.translate(0.5F, 0.0F, 0.5F);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw));
-		matrices.scale(0.6666667F, -0.6666667F, -0.6666667F);
+		matrices.scale(BANNER_SCALE, -BANNER_SCALE, -BANNER_SCALE);
 		SpriteIdentifier spriteIdentifier = ModelBaker.BANNER_BASE;
 		queue.submitModel(
 				model,
@@ -274,7 +274,7 @@ public class BannerBlockEntityRenderer implements BlockEntityRenderer<BannerBloc
 				crumblingOverlayCommand
 		);
 
-		for (int j = 0; j < 16 && j < patterns.layers().size(); j++) {
+		for (int j = 0; j < ROTATIONS && j < patterns.layers().size(); j++) {
 			BannerPatternsComponent.Layer layer = patterns.layers().get(j);
 			SpriteIdentifier spriteIdentifier = useBannerLayer
 			                                    ? TexturedRenderLayers.getBannerPatternTextureId(layer.pattern())
@@ -329,7 +329,7 @@ public class BannerBlockEntityRenderer implements BlockEntityRenderer<BannerBloc
 	public void collectVertices(Consumer<Vector3fc> consumer) {
 		MatrixStack matrixStack = new MatrixStack();
 		matrixStack.translate(0.5F, 0.0F, 0.5F);
-		matrixStack.scale(0.6666667F, -0.6666667F, -0.6666667F);
+		matrixStack.scale(BANNER_SCALE, -BANNER_SCALE, -BANNER_SCALE);
 		this.standingModel.getRootPart().collectVertices(matrixStack, consumer);
 		this.standingFlagModel.setAngles(0.0F);
 		this.standingFlagModel.getRootPart().collectVertices(matrixStack, consumer);

@@ -9,7 +9,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@code ChunkTicketType}.
+ * Класс Chunk Ticket Type.
  */
 public record ChunkTicketType(long expiryTicks, @ChunkTicketType.Flags int flags) {
 
@@ -65,7 +65,7 @@ public record ChunkTicketType(long expiryTicks, @ChunkTicketType.Flags int flags
 	 * @return boolean — {@code true} если условие выполнено
 	 */
 	public boolean canExpireBeforeLoad() {
-		return (this.flags & 16) != 0;
+		return (this.flags & CAN_EXPIRE_BEFORE_LOAD) != 0;
 	}
 
 	/**
@@ -87,9 +87,6 @@ public record ChunkTicketType(long expiryTicks, @ChunkTicketType.Flags int flags
 					ElementType.TYPE_USE
 			}
 	)
-	/**
-	 * {@code Flags}.
-	 */
 	public @interface Flags {
 	}
 }

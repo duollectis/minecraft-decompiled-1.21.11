@@ -1,7 +1,6 @@
 package net.minecraft.datafixer.fix;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.mojang.datafixers.*;
 import com.mojang.datafixers.schemas.Schema;
@@ -15,97 +14,105 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.HashMap;
 
 /**
- * {@code BedBlockEntityFix}.
+ * Инжектирует блок-сущности кроватей в чанки, которые содержат блок кровати (id=26) в старом формате.
+ * До флаттенинга кровати не имели блок-сущности — этот фикс создаёт их с цветом по умолчанию (красный).
  */
 public class BedBlockEntityFix extends DataFix {
 
-	public BedBlockEntityFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	/**
+	 * Числовой идентификатор блока кровати в старом формате (до флаттенинга).
+	 * Значение 416 = 0x1A0 соответствует блоку minecraft:bed (id=26) со сдвигом на 4 бита.
+	 */
+	private static final int LEGACY_BED_BLOCK_ID_SHIFTED = 416;
+
+	/** Цвет кровати по умолчанию при инжекции (красный = 14). */
+	private static final short DEFAULT_BED_COLOR = 14;
+
+	public BedBlockEntityFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = type.findFieldType("Level");
-		if (!(type2.findFieldType("TileEntities") instanceof ListType<?> listType)) {
+		Type<?> chunkType = getOutputSchema().getType(TypeReferences.CHUNK);
+		Type<?> levelType = chunkType.findFieldType("Level");
+
+		if (!(levelType.findFieldType("TileEntities") instanceof ListType<?> listType)) {
 			throw new IllegalStateException("Tile entity type is not a list type.");
 		}
-		else {
-			return this.fix(type2, listType);
-		}
+
+		return fix(levelType, listType);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <TE> TypeRewriteRule fix(Type<?> level, ListType<TE> blockEntities) {
-		Type<TE> type = blockEntities.getElement();
-		OpticFinder<?> opticFinder = DSL.fieldFinder("Level", level);
-		OpticFinder<List<TE>> opticFinder2 = DSL.fieldFinder("TileEntities", blockEntities);
-		int i = 416;
-		return TypeRewriteRule.seq(
-				this.fixTypeEverywhere(
-						"InjectBedBlockEntityType",
-						(TaggedChoiceType<String>) this.getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
-						(TaggedChoiceType<String>) this.getOutputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
-						dynamicOps -> pair -> pair
-				),
-				this.fixTypeEverywhereTyped(
-						"BedBlockEntityInjecter",
-						this.getOutputSchema().getType(TypeReferences.CHUNK),
-						typed -> {
-							Typed<?> typed2 = typed.getTyped(opticFinder);
-							Dynamic<?> dynamic = (Dynamic<?>) typed2.get(DSL.remainderFinder());
-							int ix = dynamic.get("xPos").asInt(0);
-							int j = dynamic.get("zPos").asInt(0);
-							List<TE> list = Lists.newArrayList((Iterable) typed2.getOrCreate(opticFinder2));
+	private <TE> TypeRewriteRule fix(Type<?> levelType, ListType<TE> blockEntitiesType) {
+		Type<TE> elementType = blockEntitiesType.getElement();
+		OpticFinder<?> levelFinder = DSL.fieldFinder("Level", levelType);
+		OpticFinder<List<TE>> tileEntitiesFinder = DSL.fieldFinder("TileEntities", blockEntitiesType);
 
-							for (Dynamic<?> dynamic2 : dynamic.get("Sections").asList(Function.identity())) {
-								int k = dynamic2.get("Y").asInt(0);
-								Streams.mapWithIndex(
-										       dynamic2.get("Blocks").asIntStream(), (blockData, index) -> {
-											       if (416 == (blockData & 0xFF) << 4) {
-												       int l = (int) index;
-												       int m = l & 15;
-												       int n = l >> 8 & 15;
-												       int o = l >> 4 & 15;
-												       Map<Dynamic<?>, Dynamic<?>> map = Maps.newHashMap();
-												       map.put(
-														       dynamic2.createString("id"),
-														       dynamic2.createString("minecraft:bed")
-												       );
-												       map.put(dynamic2.createString("x"), dynamic2.createInt(m + (ix << 4)));
-												       map.put(dynamic2.createString("y"), dynamic2.createInt(n + (k << 4)));
-												       map.put(dynamic2.createString("z"), dynamic2.createInt(o + (j << 4)));
-												       map.put(
-														       dynamic2.createString("color"),
-														       dynamic2.createShort((short) 14)
-												       );
-												       return map;
-											       }
-											       else {
-												       return null;
-											       }
-										       }
-								       )
-								       .forEachOrdered(
-										       map -> {
-											       if (map != null) {
-												       list.add(
-														       (TE) ((Pair) type.read(dynamic2.createMap(map))
-														                        .result()
-														                        .orElseThrow(() -> new IllegalStateException(
-																                        "Could not parse newly created bed block entity."))
-														       )
-																       .getFirst()
-												       );
-											       }
-										       }
-								       );
+		return TypeRewriteRule.seq(
+			fixTypeEverywhere(
+				"InjectBedBlockEntityType",
+				(TaggedChoiceType<String>) getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
+				(TaggedChoiceType<String>) getOutputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY),
+				dynamicOps -> pair -> pair
+			),
+			fixTypeEverywhereTyped(
+				"BedBlockEntityInjecter",
+				getOutputSchema().getType(TypeReferences.CHUNK),
+				typed -> {
+					Typed<?> levelTyped = typed.getTyped(levelFinder);
+					Dynamic<?> levelDynamic = (Dynamic<?>) levelTyped.get(DSL.remainderFinder());
+					int chunkX = levelDynamic.get("xPos").asInt(0);
+					int chunkZ = levelDynamic.get("zPos").asInt(0);
+					List<TE> tileEntities = Lists.newArrayList((Iterable<TE>) levelTyped.getOrCreate(tileEntitiesFinder));
+
+					for (Dynamic<?> section : levelDynamic.get("Sections").asList(Function.identity())) {
+						int sectionY = section.get("Y").asInt(0);
+
+						Streams.mapWithIndex(
+							section.get("Blocks").asIntStream(),
+							(blockData, index) -> {
+								if (LEGACY_BED_BLOCK_ID_SHIFTED != (blockData & 0xFF) << 4) {
+									return null;
+								}
+
+								int flatIndex = (int) index;
+								int localX = flatIndex & 15;
+								int localY = flatIndex >> 8 & 15;
+								int localZ = flatIndex >> 4 & 15;
+
+								Map<Dynamic<?>, Dynamic<?>> beData = new HashMap<>();
+								beData.put(section.createString("id"), section.createString("minecraft:bed"));
+								beData.put(section.createString("x"), section.createInt(localX + (chunkX << 4)));
+								beData.put(section.createString("y"), section.createInt(localY + (sectionY << 4)));
+								beData.put(section.createString("z"), section.createInt(localZ + (chunkZ << 4)));
+								beData.put(section.createString("color"), section.createShort(DEFAULT_BED_COLOR));
+
+								return beData;
+							}
+						).forEachOrdered(beData -> {
+							if (beData == null) {
+								return;
 							}
 
-							return !list.isEmpty() ? typed.set(opticFinder, typed2.set(opticFinder2, list)) : typed;
-						}
-				)
+							tileEntities.add(
+								(TE) ((Pair<?, ?>) elementType.read(section.createMap(beData))
+									.result()
+									.orElseThrow(() -> new IllegalStateException("Could not parse newly created bed block entity."))
+								).getFirst()
+							);
+						});
+					}
+
+					return tileEntities.isEmpty()
+						? typed
+						: typed.set(levelFinder, levelTyped.set(tileEntitiesFinder, tileEntities));
+				}
+			)
 		);
 	}
 }

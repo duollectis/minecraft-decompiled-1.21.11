@@ -8,7 +8,9 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code AutomaticItemPlacementContext}.
+ * Контекст автоматического размещения блока без участия игрока.
+ * <p>Используется диспенсерами и другими механизмами автоматического размещения.
+ * Переопределяет методы, зависящие от игрока, возвращая фиксированные значения.</p>
  */
 public class AutomaticItemPlacementContext extends ItemPlacementContext {
 
@@ -21,17 +23,17 @@ public class AutomaticItemPlacementContext extends ItemPlacementContext {
 
 	@Override
 	public BlockPos getBlockPos() {
-		return this.getHitResult().getBlockPos();
+		return getHitResult().getBlockPos();
 	}
 
 	@Override
 	public boolean canPlace() {
-		return this.getWorld().getBlockState(this.getHitResult().getBlockPos()).canReplace(this);
+		return getWorld().getBlockState(getHitResult().getBlockPos()).canReplace(this);
 	}
 
 	@Override
 	public boolean canReplaceExisting() {
-		return this.canPlace();
+		return canPlace();
 	}
 
 	@Override
@@ -39,70 +41,46 @@ public class AutomaticItemPlacementContext extends ItemPlacementContext {
 		return Direction.DOWN;
 	}
 
+	/**
+	 * Возвращает порядок направлений для размещения блока в зависимости от стороны диспенсера.
+	 * <p>Первым всегда идёт DOWN, затем направление диспенсера, затем остальные стороны.
+	 * Это обеспечивает корректную ориентацию блоков при автоматическом размещении.</p>
+	 *
+	 * @return массив направлений в порядке приоритета
+	 */
 	@Override
 	public Direction[] getPlacementDirections() {
-		switch (this.facing) {
-			case DOWN:
-			default:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.NORTH,
-						Direction.EAST,
-						Direction.SOUTH,
-						Direction.WEST,
-						Direction.UP
-				};
-			case UP:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.UP,
-						Direction.NORTH,
-						Direction.EAST,
-						Direction.SOUTH,
-						Direction.WEST
-				};
-			case NORTH:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.NORTH,
-						Direction.EAST,
-						Direction.WEST,
-						Direction.UP,
-						Direction.SOUTH
-				};
-			case SOUTH:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.SOUTH,
-						Direction.EAST,
-						Direction.WEST,
-						Direction.UP,
-						Direction.NORTH
-				};
-			case WEST:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.WEST,
-						Direction.SOUTH,
-						Direction.UP,
-						Direction.NORTH,
-						Direction.EAST
-				};
-			case EAST:
-				return new Direction[]{
-						Direction.DOWN,
-						Direction.EAST,
-						Direction.SOUTH,
-						Direction.UP,
-						Direction.NORTH,
-						Direction.WEST
-				};
-		}
+		return switch (facing) {
+			case UP -> new Direction[]{
+					Direction.DOWN, Direction.UP,
+					Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
+			};
+			case NORTH -> new Direction[]{
+					Direction.DOWN, Direction.NORTH,
+					Direction.EAST, Direction.WEST, Direction.UP, Direction.SOUTH
+			};
+			case SOUTH -> new Direction[]{
+					Direction.DOWN, Direction.SOUTH,
+					Direction.EAST, Direction.WEST, Direction.UP, Direction.NORTH
+			};
+			case WEST -> new Direction[]{
+					Direction.DOWN, Direction.WEST,
+					Direction.SOUTH, Direction.UP, Direction.NORTH, Direction.EAST
+			};
+			case EAST -> new Direction[]{
+					Direction.DOWN, Direction.EAST,
+					Direction.SOUTH, Direction.UP, Direction.NORTH, Direction.WEST
+			};
+			default -> new Direction[]{
+					Direction.DOWN, Direction.NORTH,
+					Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP
+			};
+		};
 	}
 
 	@Override
 	public Direction getHorizontalPlayerFacing() {
-		return this.facing.getAxis() == Direction.Axis.Y ? Direction.NORTH : this.facing;
+		return facing.getAxis() == Direction.Axis.Y ? Direction.NORTH : facing;
 	}
 
 	@Override
@@ -112,6 +90,6 @@ public class AutomaticItemPlacementContext extends ItemPlacementContext {
 
 	@Override
 	public float getPlayerYaw() {
-		return this.facing.getHorizontalQuarterTurns() * 90;
+		return facing.getHorizontalQuarterTurns() * 90;
 	}
 }

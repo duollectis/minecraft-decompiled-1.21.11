@@ -6,7 +6,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code WeaponsmithChestLootTableFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WeaponsmithChestLootTableFix extends ChoiceFix {
 

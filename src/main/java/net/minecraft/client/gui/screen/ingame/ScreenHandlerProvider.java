@@ -4,10 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.screen.ScreenHandler;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScreenHandlerProvider}.
+ * Маркерный интерфейс для экранов, предоставляющих доступ к своему {@link ScreenHandler}.
  */
+@Environment(EnvType.CLIENT)
 public interface ScreenHandlerProvider<T extends ScreenHandler> {
 
 	T getScreenHandler();

@@ -9,7 +9,7 @@ import net.minecraft.datafixer.FixUtil;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code RaidRenamesDataFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RaidRenamesDataFix extends DataFix {
 
@@ -18,9 +18,9 @@ public class RaidRenamesDataFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"RaidRenamesDataFix",
-				this.getInputSchema().getType(TypeReferences.SAVED_DATA_RAIDS),
+				getInputSchema().getType(TypeReferences.SAVED_DATA_RAIDS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						dynamic -> dynamic.update("data", RaidRenamesDataFix::fixRaidsData)

@@ -10,10 +10,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PropertiesMap}.
+ * Иммутабельная карта значений свойств блока, используемая как ключ в
+ * {@link BlockStateVariantMap}. Хранит упорядоченный список пар свойство→значение
+ * и предоставляет строковое представление для JSON-ключей blockstate.
  */
+@Environment(EnvType.CLIENT)
 public record PropertiesMap(List<Property.Value<?>> values) {
 
 	public static final PropertiesMap EMPTY = new PropertiesMap(List.of());
@@ -33,11 +35,10 @@ public record PropertiesMap(List<Property.Value<?>> values) {
 	}
 
 	/**
-	 * Создаёт копию of.
+	 * Создаёт новую карту, объединяя значения текущей и переданной карты.
 	 *
-	 * @param propertiesMap properties map
-	 *
-	 * @return PropertiesMap — результат операции
+	 * @param propertiesMap карта свойств для объединения
+	 * @return новая карта с объединёнными значениями
 	 */
 	public PropertiesMap copyOf(PropertiesMap propertiesMap) {
 		return new PropertiesMap(
@@ -60,9 +61,10 @@ public record PropertiesMap(List<Property.Value<?>> values) {
 	}
 
 	/**
-	 * As string.
+	 * Возвращает строковое представление карты в формате JSON-ключа blockstate:
+	 * свойства отсортированы по имени и разделены запятыми.
 	 *
-	 * @return String — результат операции
+	 * @return строка вида {@code "facing=north,powered=true"}
 	 */
 	public String asString() {
 		return this.values.stream().sorted(COMPARATOR).map(Property.Value::toString).collect(Collectors.joining(","));

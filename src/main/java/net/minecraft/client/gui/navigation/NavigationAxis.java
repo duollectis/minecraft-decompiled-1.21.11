@@ -3,10 +3,10 @@ package net.minecraft.client.gui.navigation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NavigationAxis}.
+ * Ось навигации в двумерном пространстве GUI.
  */
+@Environment(EnvType.CLIENT)
 public enum NavigationAxis {
 	HORIZONTAL,
 	VERTICAL;
@@ -33,6 +33,6 @@ public enum NavigationAxis {
 	}
 
 	public NavigationDirection getDirection(boolean positive) {
-		return positive ? this.getPositiveDirection() : this.getNegativeDirection();
+		return positive ? getPositiveDirection() : getNegativeDirection();
 	}
 }

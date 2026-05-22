@@ -15,252 +15,255 @@ import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.dimension.DimensionType;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.LongSupplier;
 import java.util.stream.Stream;
 
 /**
- * {@code WorldEnvironmentAttributeAccess}.
+ * Реализация {@link EnvironmentAttributeAccess} для реального мира.
+ * Вычисляет значения атрибутов, применяя цепочку функций модификации:
+ * константных (из измерения), временны́х (из таймлайнов и погоды)
+ * и позиционных (из биомов).
+ * <p>
+ * Константные функции в начале цепочки вычисляются один раз и кешируются.
+ * Временны́е функции пересчитываются каждый тик.
+ * Позиционные функции пересчитываются при каждом запросе с позицией.
  */
 public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAccess {
 
-	private final Map<EnvironmentAttribute<?>, WorldEnvironmentAttributeAccess.Entry<?>>
-			entries =
-			new Reference2ObjectOpenHashMap();
+	private final Map<EnvironmentAttribute<?>, Entry<?>> entries = new Reference2ObjectOpenHashMap<>();
 
+	@SuppressWarnings("unchecked")
 	WorldEnvironmentAttributeAccess(Map<EnvironmentAttribute<?>, List<EnvironmentAttributeFunction<?>>> modificationsByAttribute) {
-		modificationsByAttribute.forEach(
-				(attribute, mods) -> this.entries
-						.put(
-								(EnvironmentAttribute<?>) attribute,
-								this.computeEntry(
-										(EnvironmentAttribute<?>) attribute,
-										(List<? extends EnvironmentAttributeFunction<?>>) mods
-								)
-						)
+		modificationsByAttribute.forEach((attribute, mods) ->
+			entries.put(
+				attribute,
+				computeEntry(
+					(EnvironmentAttribute<Object>) attribute,
+					(List<EnvironmentAttributeFunction<Object>>) (List<?>) mods
+				)
+			)
 		);
 	}
 
-	private <Value> WorldEnvironmentAttributeAccess.Entry<Value> computeEntry(
-			EnvironmentAttribute<Value> attribute, List<? extends EnvironmentAttributeFunction<?>> mods
+	private <Value> Entry<Value> computeEntry(
+		EnvironmentAttribute<Value> attribute,
+		List<? extends EnvironmentAttributeFunction<?>> mods
 	) {
-		List<EnvironmentAttributeFunction<Value>>
-				list =
-				new ArrayList<>((Collection<? extends EnvironmentAttributeFunction<Value>>) mods);
-		Value object = attribute.getDefaultValue();
+		@SuppressWarnings("unchecked")
+		List<EnvironmentAttributeFunction<Value>> functions = new ArrayList<>(
+			(Collection<? extends EnvironmentAttributeFunction<Value>>) mods
+		);
+		Value defaultValue = attribute.getDefaultValue();
 
-		while (!list.isEmpty()) {
-			if (!(list.getFirst() instanceof EnvironmentAttributeFunction.Constant<Value> constant)) {
+		// Применяем константные функции в начале цепочки сразу — они не меняются
+		while (!functions.isEmpty()) {
+			if (!(functions.getFirst() instanceof EnvironmentAttributeFunction.Constant<Value> constant)) {
 				break;
 			}
 
-			object = constant.applyConstant(object);
-			list.removeFirst();
+			defaultValue = constant.applyConstant(defaultValue);
+			functions.removeFirst();
 		}
 
-		boolean bl = list.stream().anyMatch(function -> function instanceof EnvironmentAttributeFunction.Positional);
-		return new WorldEnvironmentAttributeAccess.Entry<>(attribute, object, List.copyOf(list), bl);
+		boolean hasPositional = functions.stream()
+			.anyMatch(fn -> fn instanceof EnvironmentAttributeFunction.Positional);
+
+		return new Entry<>(attribute, defaultValue, List.copyOf(functions), hasPositional);
 	}
 
-	public static WorldEnvironmentAttributeAccess.Builder builder() {
-		return new WorldEnvironmentAttributeAccess.Builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
-	static void addModifiersFromWorld(WorldEnvironmentAttributeAccess.Builder builder, World world) {
-		DynamicRegistryManager dynamicRegistryManager = world.getRegistryManager();
+	static void addModifiersFromWorld(Builder builder, World world) {
+		DynamicRegistryManager registryManager = world.getRegistryManager();
 		BiomeAccess biomeAccess = world.getBiomeAccess();
-		LongSupplier longSupplier = world::getTimeOfDay;
+		LongSupplier timeSupplier = world::getTimeOfDay;
+
 		addModifiersFromDimension(builder, world.getDimension());
-		addModifiersFromBiomes(builder, dynamicRegistryManager.getOrThrow(RegistryKeys.BIOME), biomeAccess);
-		world
-				.getDimension()
-				.timelines()
-				.forEach(attribute -> builder.addFromTimeline((RegistryEntry<Timeline>) attribute, longSupplier));
+		addModifiersFromBiomes(builder, registryManager.getOrThrow(RegistryKeys.BIOME), biomeAccess);
+
+		world.getDimension()
+			.timelines()
+			.forEach(timeline -> builder.addFromTimeline((RegistryEntry<Timeline>) timeline, timeSupplier));
+
 		if (world.canHaveWeather()) {
 			WeatherAttributes.addWeatherAttributes(builder, WeatherAttributes.WeatherAccess.ofWorld(world));
 		}
 	}
 
-	private static void addModifiersFromDimension(
-			WorldEnvironmentAttributeAccess.Builder builder,
-			DimensionType dimensionType
-	) {
+	private static void addModifiersFromDimension(Builder builder, DimensionType dimensionType) {
 		builder.addFromMap(dimensionType.attributes());
 	}
 
 	private static void addModifiersFromBiomes(
-			WorldEnvironmentAttributeAccess.Builder builder,
-			RegistryWrapper<Biome> biome,
-			BiomeAccess biomeAccess
+		Builder builder,
+		RegistryWrapper<Biome> biomeRegistry,
+		BiomeAccess biomeAccess
 	) {
-		Stream<EnvironmentAttribute<?>> stream = biome.streamEntries()
-		                                              .flatMap(biomex -> ((Biome) biomex.value())
-				                                              .getEnvironmentAttributes()
-				                                              .keySet()
-				                                              .stream())
-		                                              .distinct();
-		stream.forEach(attribute -> addModifiersFromBiomes(builder, (EnvironmentAttribute<?>) attribute, biomeAccess));
+		Stream<EnvironmentAttribute<?>> biomeAttributes = biomeRegistry.streamEntries()
+			.flatMap(biome -> biome.value().getEnvironmentAttributes().keySet().stream())
+			.distinct();
+
+		biomeAttributes.forEach(attribute -> addModifiersFromBiomes(builder, attribute, biomeAccess));
 	}
 
 	private static <Value> void addModifiersFromBiomes(
-			WorldEnvironmentAttributeAccess.Builder builder,
-			EnvironmentAttribute<Value> attribute,
-			BiomeAccess biomeAccess
+		Builder builder,
+		EnvironmentAttribute<Value> attribute,
+		BiomeAccess biomeAccess
 	) {
-		builder.positional(
-				attribute, (value, pos, weightedAttributeList) -> {
-					if (weightedAttributeList != null && attribute.isInterpolated()) {
-						return weightedAttributeList.interpolate(attribute, value);
-					}
-					else {
-						RegistryEntry<Biome> registryEntry = biomeAccess.getBiomeForNoiseGen(pos.x, pos.y, pos.z);
-						return registryEntry.value().getEnvironmentAttributes().apply(attribute, value);
-					}
-				}
-		);
+		builder.positional(attribute, (value, pos, weightedAttributeList) -> {
+			if (weightedAttributeList != null && attribute.isInterpolated()) {
+				return weightedAttributeList.interpolate(attribute, value);
+			}
+
+			RegistryEntry<Biome> biome = biomeAccess.getBiomeForNoiseGen(pos.x, pos.y, pos.z);
+			return biome.value().getEnvironmentAttributes().apply(attribute, value);
+		});
 	}
 
-	/**
-	 * Tick.
-	 */
+	/** Инвалидирует кеш всех записей для следующего тика. */
 	public void tick() {
-		this.entries.values().forEach(WorldEnvironmentAttributeAccess.Entry::tick);
+		entries.values().forEach(Entry::tick);
 	}
 
-	private <Value> WorldEnvironmentAttributeAccess.@Nullable Entry<Value> getEntry(EnvironmentAttribute<Value> attribute) {
-		return (WorldEnvironmentAttributeAccess.Entry<Value>) this.entries.get(attribute);
+	@SuppressWarnings("unchecked")
+	private <Value> @Nullable Entry<Value> getEntry(EnvironmentAttribute<Value> attribute) {
+		return (Entry<Value>) entries.get(attribute);
 	}
 
 	@Override
 	public <Value> Value getAttributeValue(EnvironmentAttribute<Value> attribute) {
 		if (SharedConstants.isDevelopment && attribute.isPositional()) {
-			throw new IllegalStateException("Position must always be provided for positional attribute " + attribute);
+			throw new IllegalStateException(
+				"Position must always be provided for positional attribute " + attribute
+			);
 		}
-		else {
-			WorldEnvironmentAttributeAccess.Entry<Value> entry = this.getEntry(attribute);
-			return entry == null ? attribute.getDefaultValue() : entry.get();
-		}
+
+		Entry<Value> entry = getEntry(attribute);
+		return entry == null ? attribute.getDefaultValue() : entry.get();
 	}
 
 	@Override
 	public <Value> Value getAttributeValue(
-			EnvironmentAttribute<Value> attribute,
-			Vec3d pos,
-			@Nullable WeightedAttributeList pool
+		EnvironmentAttribute<Value> attribute,
+		Vec3d pos,
+		@Nullable WeightedAttributeList pool
 	) {
-		WorldEnvironmentAttributeAccess.Entry<Value> entry = this.getEntry(attribute);
+		Entry<Value> entry = getEntry(attribute);
 		return entry == null ? attribute.getDefaultValue() : entry.getAt(pos, pool);
 	}
 
 	@VisibleForTesting
 	<Value> Value getDefaultValue(EnvironmentAttribute<Value> attribute) {
-		WorldEnvironmentAttributeAccess.Entry<Value> entry = this.getEntry(attribute);
+		Entry<Value> entry = getEntry(attribute);
 		return entry != null ? entry.defaultValue : attribute.getDefaultValue();
 	}
 
 	@VisibleForTesting
 	boolean isPositional(EnvironmentAttribute<?> attribute) {
-		WorldEnvironmentAttributeAccess.Entry<?> entry = this.getEntry(attribute);
+		Entry<?> entry = getEntry(attribute);
 		return entry != null && entry.positional;
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Билдер для создания {@link WorldEnvironmentAttributeAccess}.
+	 * Позволяет добавлять функции модификации из различных источников:
+	 * карт атрибутов, таймлайнов, погоды и биомов.
 	 */
 	public static class Builder {
 
-		private final Map<EnvironmentAttribute<?>, List<EnvironmentAttributeFunction<?>>>
-				modifications =
-				new HashMap<>();
+		private final Map<EnvironmentAttribute<?>, List<EnvironmentAttributeFunction<?>>> modifications = new HashMap<>();
 
 		Builder() {
 		}
 
-		public WorldEnvironmentAttributeAccess.Builder world(World world) {
+		/** Добавляет все модификаторы из реального мира (измерение, биомы, таймлайны, погода). */
+		public Builder world(World world) {
 			WorldEnvironmentAttributeAccess.addModifiersFromWorld(this, world);
 			return this;
 		}
 
-		public WorldEnvironmentAttributeAccess.Builder addFromMap(EnvironmentAttributeMap attributes) {
-			for (EnvironmentAttribute<?> environmentAttribute : attributes.keySet()) {
-				this.addFromMap(environmentAttribute, attributes);
+		/** Добавляет все атрибуты из карты как константные модификаторы. */
+		public Builder addFromMap(EnvironmentAttributeMap attributes) {
+			for (EnvironmentAttribute<?> attribute : attributes.keySet()) {
+				addFromMap(attribute, attributes);
 			}
 
 			return this;
 		}
 
-		private <Value> WorldEnvironmentAttributeAccess.Builder addFromMap(
-				EnvironmentAttribute<Value> attribute,
-				EnvironmentAttributeMap attributeMap
-		) {
+		private <Value> Builder addFromMap(EnvironmentAttribute<Value> attribute, EnvironmentAttributeMap attributeMap) {
 			EnvironmentAttributeMap.Entry<Value, ?> entry = attributeMap.getEntry(attribute);
 			if (entry == null) {
 				throw new IllegalArgumentException("Missing attribute " + attribute);
 			}
-			else {
-				return this.constant(attribute, entry::apply);
-			}
+
+			return constant(attribute, entry::apply);
 		}
 
-		public <Value> WorldEnvironmentAttributeAccess.Builder constant(
-				EnvironmentAttribute<Value> attribute,
-				EnvironmentAttributeFunction.Constant<Value> mod
+		public <Value> Builder constant(
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeFunction.Constant<Value> mod
 		) {
-			return this.addModification(attribute, mod);
+			return addModification(attribute, mod);
 		}
 
-		public <Value> WorldEnvironmentAttributeAccess.Builder timeBased(
-				EnvironmentAttribute<Value> attribute,
-				EnvironmentAttributeFunction.TimeBased<Value> mod
+		public <Value> Builder timeBased(
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeFunction.TimeBased<Value> mod
 		) {
-			return this.addModification(attribute, mod);
+			return addModification(attribute, mod);
 		}
 
-		public <Value> WorldEnvironmentAttributeAccess.Builder positional(
-				EnvironmentAttribute<Value> attribute, EnvironmentAttributeFunction.Positional<Value> mod
+		public <Value> Builder positional(
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeFunction.Positional<Value> mod
 		) {
-			return this.addModification(attribute, mod);
+			return addModification(attribute, mod);
 		}
 
-		private <Value> WorldEnvironmentAttributeAccess.Builder addModification(
-				EnvironmentAttribute<Value> attribute,
-				EnvironmentAttributeFunction<Value> mod
+		private <Value> Builder addModification(
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeFunction<Value> mod
 		) {
-			this.modifications.computeIfAbsent(attribute, environmentAttribute -> new ArrayList<>()).add(mod);
+			modifications.computeIfAbsent(attribute, key -> new ArrayList<>()).add(mod);
 			return this;
 		}
 
-		public WorldEnvironmentAttributeAccess.Builder addFromTimeline(
-				RegistryEntry<Timeline> timeline,
-				LongSupplier timeSupplier
-		) {
-			for (EnvironmentAttribute<?> environmentAttribute : timeline.value().getAttributes()) {
-				this.addModificationFromTimeline(timeline, environmentAttribute, timeSupplier);
+		/** Добавляет временны́е модификаторы из таймлайна для всех его атрибутов. */
+		public Builder addFromTimeline(RegistryEntry<Timeline> timeline, LongSupplier timeSupplier) {
+			for (EnvironmentAttribute<?> attribute : timeline.value().getAttributes()) {
+				addModificationFromTimeline(timeline, attribute, timeSupplier);
 			}
 
 			return this;
 		}
 
 		private <Value> void addModificationFromTimeline(
-				RegistryEntry<Timeline> timeline,
-				EnvironmentAttribute<Value> attribute,
-				LongSupplier timeSupplier
+			RegistryEntry<Timeline> timeline,
+			EnvironmentAttribute<Value> attribute,
+			LongSupplier timeSupplier
 		) {
-			this.timeBased(attribute, timeline.value().getModification(attribute, timeSupplier));
+			timeBased(attribute, timeline.value().getModification(attribute, timeSupplier));
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return WorldEnvironmentAttributeAccess — результат операции
-		 */
+		/** Собирает {@link WorldEnvironmentAttributeAccess} из накопленных модификаторов. */
 		public WorldEnvironmentAttributeAccess build() {
-			return new WorldEnvironmentAttributeAccess(this.modifications);
+			return new WorldEnvironmentAttributeAccess(modifications);
 		}
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Запись для одного атрибута: хранит предвычисленное базовое значение,
+	 * список оставшихся функций и кешированное текущее значение.
 	 */
 	static class Entry<Value> {
 
@@ -272,10 +275,10 @@ public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAcce
 		private int age;
 
 		Entry(
-				EnvironmentAttribute<Value> attribute,
-				Value defaultValue,
-				List<EnvironmentAttributeFunction<Value>> modifications,
-				boolean positional
+			EnvironmentAttribute<Value> attribute,
+			Value defaultValue,
+			List<EnvironmentAttributeFunction<Value>> modifications,
+			boolean positional
 		) {
 			this.attribute = attribute;
 			this.defaultValue = defaultValue;
@@ -283,71 +286,59 @@ public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAcce
 			this.positional = positional;
 		}
 
-		/**
-		 * Tick.
-		 */
+		/** Инвалидирует кеш и увеличивает счётчик тиков. */
 		public void tick() {
-			this.cachedValue = null;
-			this.age++;
+			cachedValue = null;
+			age++;
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @return Value — 
-		 */
+		/** Возвращает глобальное значение (без позиции), используя кеш. */
 		public Value get() {
-			if (this.cachedValue != null) {
-				return this.cachedValue;
+			if (cachedValue != null) {
+				return cachedValue;
 			}
-			else {
-				Value object = this.compute();
-				this.cachedValue = object;
-				return object;
-			}
+
+			cachedValue = compute();
+			return cachedValue;
 		}
 
+		/** Возвращает значение для заданной позиции. Если не позиционный — использует кеш. */
 		public Value getAt(Vec3d pos, @Nullable WeightedAttributeList weightedAttributeList) {
-			return !this.positional ? this.get() : this.computeAt(pos, weightedAttributeList);
+			return positional ? computeAt(pos, weightedAttributeList) : get();
 		}
 
 		private Value computeAt(Vec3d pos, @Nullable WeightedAttributeList weightedAttributeList) {
-			Value object = this.defaultValue;
+			Value value = defaultValue;
 
-			for (EnvironmentAttributeFunction<Value> environmentAttributeFunction : this.modifications) {
-				object = (Value) (switch (environmentAttributeFunction) {
+			for (EnvironmentAttributeFunction<Value> function : modifications) {
+				value = switch (function) {
 					case EnvironmentAttributeFunction.Constant<Value> constant ->
-							(Object) constant.applyConstant(object);
+						constant.applyConstant(value);
 					case EnvironmentAttributeFunction.TimeBased<Value> timeBased ->
-							(Object) timeBased.applyTimeBased(object, this.age);
-					case EnvironmentAttributeFunction.Positional<Value> positional ->
-							(Object) positional.applyPositional(
-									object, Objects.requireNonNull(pos), weightedAttributeList
-							);
-					default -> throw new MatchException(null, null);
-				}
-				);
+						timeBased.applyTimeBased(value, age);
+					case EnvironmentAttributeFunction.Positional<Value> positionalFn ->
+						positionalFn.applyPositional(value, Objects.requireNonNull(pos), weightedAttributeList);
+				};
 			}
 
-			return this.attribute.clamp(object);
+			return attribute.clamp(value);
 		}
 
 		private Value compute() {
-			Value object = this.defaultValue;
+			Value value = defaultValue;
 
-			for (EnvironmentAttributeFunction<Value> environmentAttributeFunction : this.modifications) {
-				object = (Value) (switch (environmentAttributeFunction) {
+			for (EnvironmentAttributeFunction<Value> function : modifications) {
+				value = switch (function) {
 					case EnvironmentAttributeFunction.Constant<Value> constant ->
-							(Object) constant.applyConstant(object);
+						constant.applyConstant(value);
 					case EnvironmentAttributeFunction.TimeBased<Value> timeBased ->
-							(Object) timeBased.applyTimeBased(object, this.age);
-					case EnvironmentAttributeFunction.Positional<Value> positional -> (Object) object;
-					default -> throw new MatchException(null, null);
-				}
-				);
+						timeBased.applyTimeBased(value, age);
+					// Позиционные функции пропускаются при глобальном вычислении
+					case EnvironmentAttributeFunction.Positional<Value> ignored -> value;
+				};
 			}
 
-			return this.attribute.clamp(object);
+			return attribute.clamp(value);
 		}
 	}
 }

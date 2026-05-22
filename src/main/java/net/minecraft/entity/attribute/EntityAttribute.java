@@ -10,18 +10,21 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Formatting;
 
 /**
- * {@code EntityAttribute}.
+ * Базовый класс атрибута сущности. Определяет числовую характеристику (здоровье, скорость, урон и т.д.),
+ * которая может быть изменена через {@link EntityAttributeModifier}.
+ * <p>
+ * Подклассы (например, {@link ClampedEntityAttribute}) могут ограничивать допустимый диапазон значений.
  */
 public class EntityAttribute {
 
 	public static final Codec<RegistryEntry<EntityAttribute>> CODEC = Registries.ATTRIBUTE.getEntryCodec();
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<EntityAttribute>>
-			PACKET_CODEC =
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<EntityAttribute>> PACKET_CODEC =
 			PacketCodecs.registryEntry(RegistryKeys.ATTRIBUTE);
+
 	private final double fallback;
-	private boolean tracked;
 	private final String translationKey;
-	private EntityAttribute.Category category = EntityAttribute.Category.POSITIVE;
+	private boolean tracked;
+	private Category category = Category.POSITIVE;
 
 	protected EntityAttribute(String translationKey, double fallback) {
 		this.fallback = fallback;
@@ -29,11 +32,11 @@ public class EntityAttribute {
 	}
 
 	public double getDefaultValue() {
-		return this.fallback;
+		return fallback;
 	}
 
 	public boolean isTracked() {
-		return this.tracked;
+		return tracked;
 	}
 
 	public EntityAttribute setTracked(boolean tracked) {
@@ -41,34 +44,32 @@ public class EntityAttribute {
 		return this;
 	}
 
-	public EntityAttribute setCategory(EntityAttribute.Category category) {
+	public EntityAttribute setCategory(Category category) {
 		this.category = category;
 		return this;
 	}
 
 	/**
-	 * Clamp.
-	 *
-	 * @param value value
-	 *
-	 * @return double — результат операции
+	 * Ограничивает значение атрибута допустимым диапазоном.
+	 * Базовая реализация не накладывает ограничений — переопределяется в {@link ClampedEntityAttribute}.
 	 */
 	public double clamp(double value) {
 		return value;
 	}
 
 	public String getTranslationKey() {
-		return this.translationKey;
+		return translationKey;
 	}
 
 	public Formatting getFormatting(boolean addition) {
-		return this.category.getFormatting(addition);
+		return category.getFormatting(addition);
 	}
 
 	/**
-	 * {@code Category}.
+	 * Семантическая категория атрибута, определяющая цвет отображения в подсказке предмета.
+	 * {@code POSITIVE} — полезный атрибут, {@code NEGATIVE} — вредный, {@code NEUTRAL} — нейтральный.
 	 */
-	public static enum Category {
+	public enum Category {
 		POSITIVE,
 		NEUTRAL,
 		NEGATIVE;

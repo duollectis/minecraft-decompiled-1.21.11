@@ -18,18 +18,21 @@ import net.minecraft.world.explosion.Explosion;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code VehicleEntity}.
+ * Базовый класс для всех транспортных средств (лодки, вагонетки).
+ * Управляет общей логикой получения урона, анимацией тряски при ударе
+ * и дропом предмета при уничтожении.
  */
 public abstract class VehicleEntity extends Entity {
 
-	protected static final TrackedData<Integer>
-			DAMAGE_WOBBLE_TICKS =
+	private static final int DAMAGE_WOBBLE_TICKS_ON_HIT = 10;
+	private static final float DAMAGE_WOBBLE_STRENGTH_MULTIPLIER = 10.0F;
+	private static final float DAMAGE_WOBBLE_KILL_THRESHOLD = 40.0F;
+
+	protected static final TrackedData<Integer> DAMAGE_WOBBLE_TICKS =
 			DataTracker.registerData(VehicleEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	protected static final TrackedData<Integer>
-			DAMAGE_WOBBLE_SIDE =
+	protected static final TrackedData<Integer> DAMAGE_WOBBLE_SIDE =
 			DataTracker.registerData(VehicleEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	protected static final TrackedData<Float>
-			DAMAGE_WOBBLE_STRENGTH =
+	protected static final TrackedData<Float> DAMAGE_WOBBLE_STRENGTH =
 			DataTracker.registerData(VehicleEntity.class, TrackedDataHandlerRegistry.FLOAT);
 
 	public VehicleEntity(EntityType<?> entityType, World world) {
@@ -41,43 +44,42 @@ public abstract class VehicleEntity extends Entity {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает получение урона транспортным средством.
+	 * Накапливает силу тряски; при превышении порога или атаке в режиме творчества — уничтожает.
+	 */
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isRemoved()) {
+		if (isRemoved()) {
 			return true;
 		}
-		else if (this.isAlwaysInvulnerableTo(source)) {
+
+		if (isAlwaysInvulnerableTo(source)) {
 			return false;
 		}
-		else {
-			this.setDamageWobbleSide(-this.getDamageWobbleSide());
-			this.setDamageWobbleTicks(10);
-			this.scheduleVelocityUpdate();
-			this.setDamageWobbleStrength(this.getDamageWobbleStrength() + amount * 10.0F);
-			this.emitGameEvent(GameEvent.ENTITY_DAMAGE, source.getAttacker());
-			boolean
-					bl =
-					source.getAttacker() instanceof PlayerEntity playerEntity
-							&& playerEntity.getAbilities().creativeMode;
-			if ((bl || !(this.getDamageWobbleStrength() > 40.0F)) && !this.shouldAlwaysKill(source)) {
-				if (bl) {
-					this.discard();
-				}
-			}
-			else {
-				this.killAndDropSelf(world, source);
-			}
 
-			return true;
+		setDamageWobbleSide(-getDamageWobbleSide());
+		setDamageWobbleTicks(DAMAGE_WOBBLE_TICKS_ON_HIT);
+		scheduleVelocityUpdate();
+		setDamageWobbleStrength(getDamageWobbleStrength() + amount * DAMAGE_WOBBLE_STRENGTH_MULTIPLIER);
+		emitGameEvent(GameEvent.ENTITY_DAMAGE, source.getAttacker());
+
+		boolean isCreativeAttack = source.getAttacker() instanceof PlayerEntity player
+				&& player.getAbilities().creativeMode;
+		boolean shouldKill = getDamageWobbleStrength() > DAMAGE_WOBBLE_KILL_THRESHOLD || shouldAlwaysKill(source);
+
+		if (isCreativeAttack) {
+			discard();
+		} else if (shouldKill) {
+			killAndDropSelf(world, source);
 		}
+
+		return true;
 	}
 
 	/**
-	 * Определяет, следует ли always kill.
-	 *
-	 * @param source source
-	 *
-	 * @return boolean — результат операции
+	 * Переопределяется подклассами, которые должны уничтожаться при определённых источниках урона
+	 * (например, {@link TntMinecartEntity} при огне или взрыве).
 	 */
 	protected boolean shouldAlwaysKill(DamageSource source) {
 		return false;
@@ -85,24 +87,20 @@ public abstract class VehicleEntity extends Entity {
 
 	@Override
 	public boolean isImmuneToExplosion(Explosion explosion) {
-		return explosion.getCausingEntity() instanceof MobEntity && !explosion
-				.getWorld()
-				.getGameRules()
-				.getValue(GameRules.DO_MOB_GRIEFING);
+		return explosion.getCausingEntity() instanceof MobEntity
+				&& !explosion.getWorld().getGameRules().getValue(GameRules.DO_MOB_GRIEFING);
 	}
 
 	/**
-	 * Уничтожает and drop item.
-	 *
-	 * @param world world
-	 * @param item item
+	 * Уничтожает транспортное средство и дропает указанный предмет с сохранением кастомного имени.
 	 */
 	public void killAndDropItem(ServerWorld world, Item item) {
-		this.kill(world);
+		kill(world);
+
 		if (world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-			ItemStack itemStack = new ItemStack(item);
-			itemStack.set(DataComponentTypes.CUSTOM_NAME, this.getCustomName());
-			this.dropStack(world, itemStack);
+			ItemStack stack = new ItemStack(item);
+			stack.set(DataComponentTypes.CUSTOM_NAME, getCustomName());
+			dropStack(world, stack);
 		}
 	}
 
@@ -113,38 +111,36 @@ public abstract class VehicleEntity extends Entity {
 		builder.add(DAMAGE_WOBBLE_STRENGTH, 0.0F);
 	}
 
-	public void setDamageWobbleTicks(int damageWobbleTicks) {
-		this.dataTracker.set(DAMAGE_WOBBLE_TICKS, damageWobbleTicks);
+	public void setDamageWobbleTicks(int ticks) {
+		dataTracker.set(DAMAGE_WOBBLE_TICKS, ticks);
 	}
 
-	public void setDamageWobbleSide(int damageWobbleSide) {
-		this.dataTracker.set(DAMAGE_WOBBLE_SIDE, damageWobbleSide);
+	public void setDamageWobbleSide(int side) {
+		dataTracker.set(DAMAGE_WOBBLE_SIDE, side);
 	}
 
-	public void setDamageWobbleStrength(float damageWobbleStrength) {
-		this.dataTracker.set(DAMAGE_WOBBLE_STRENGTH, damageWobbleStrength);
+	public void setDamageWobbleStrength(float strength) {
+		dataTracker.set(DAMAGE_WOBBLE_STRENGTH, strength);
 	}
 
 	public float getDamageWobbleStrength() {
-		return this.dataTracker.get(DAMAGE_WOBBLE_STRENGTH);
+		return dataTracker.get(DAMAGE_WOBBLE_STRENGTH);
 	}
 
 	public int getDamageWobbleTicks() {
-		return this.dataTracker.get(DAMAGE_WOBBLE_TICKS);
+		return dataTracker.get(DAMAGE_WOBBLE_TICKS);
 	}
 
 	public int getDamageWobbleSide() {
-		return this.dataTracker.get(DAMAGE_WOBBLE_SIDE);
+		return dataTracker.get(DAMAGE_WOBBLE_SIDE);
 	}
 
 	/**
-	 * Уничтожает and drop self.
-	 *
-	 * @param world world
-	 * @param damageSource damage source
+	 * Уничтожает транспортное средство и дропает соответствующий предмет.
+	 * Переопределяется в подклассах с инвентарём для дополнительного дропа содержимого.
 	 */
 	protected void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
-		this.killAndDropItem(world, this.asItem());
+		killAndDropItem(world, asItem());
 	}
 
 	@Override
@@ -152,10 +148,6 @@ public abstract class VehicleEntity extends Entity {
 		return 10;
 	}
 
-	/**
-	 * As item.
-	 *
-	 * @return Item — результат операции
-	 */
+	/** Возвращает предмет, соответствующий данному транспортному средству. */
 	protected abstract Item asItem();
 }

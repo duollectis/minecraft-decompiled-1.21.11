@@ -10,99 +10,101 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextRenderingUtils}.
+ * Утилита для разбора текста с встроенными ссылками-плейсхолдерами {@code %link}.
+ * <p>
+ * Текст разбивается на строки по символу {@code \n}, затем каждая строка
+ * разбивается по плейсхолдеру {@code %link}, который заменяется на переданные
+ * объекты {@link LineSegment} в порядке их следования.
  */
+@Environment(EnvType.CLIENT)
 public class TextRenderingUtils {
 
 	private TextRenderingUtils() {
 	}
 
 	@VisibleForTesting
-	/**
-	 * Line break.
-	 *
-	 * @param text text
-	 *
-	 * @return List — результат операции
-	 */
 	protected static List<String> lineBreak(String text) {
 		return Arrays.asList(text.split("\\n"));
 	}
 
+	/**
+	 * Разбирает текст с плейсхолдерами {@code %link} и заменяет их на переданные сегменты.
+	 *
+	 * @param text  исходный текст с плейсхолдерами {@code %link} и переносами строк {@code \n}
+	 * @param links сегменты-ссылки в порядке замены плейсхолдеров
+	 * @return список строк, каждая из которых содержит список сегментов
+	 */
 	public static List<TextRenderingUtils.Line> decompose(String text, TextRenderingUtils.LineSegment... links) {
 		return decompose(text, Arrays.asList(links));
 	}
 
 	private static List<TextRenderingUtils.Line> decompose(String text, List<TextRenderingUtils.LineSegment> links) {
-		List<String> list = lineBreak(text);
-		return insertLinks(list, links);
+		return insertLinks(lineBreak(text), links);
 	}
 
 	private static List<TextRenderingUtils.Line> insertLinks(
-			List<String> lines,
-			List<TextRenderingUtils.LineSegment> links
+		List<String> lines,
+		List<TextRenderingUtils.LineSegment> links
 	) {
-		int i = 0;
-		List<TextRenderingUtils.Line> list = Lists.newArrayList();
+		int linkIndex = 0;
+		List<TextRenderingUtils.Line> result = Lists.newArrayList();
 
-		for (String string : lines) {
-			List<TextRenderingUtils.LineSegment> list2 = Lists.newArrayList();
+		for (String line : lines) {
+			List<TextRenderingUtils.LineSegment> segments = Lists.newArrayList();
 
-			for (String string2 : split(string, "%link")) {
-				if ("%link".equals(string2)) {
-					list2.add(links.get(i++));
-				}
-				else {
-					list2.add(TextRenderingUtils.LineSegment.text(string2));
+			for (String part : split(line, "%link")) {
+				if ("%link".equals(part)) {
+					segments.add(links.get(linkIndex++));
+				} else {
+					segments.add(TextRenderingUtils.LineSegment.text(part));
 				}
 			}
 
-			list.add(new TextRenderingUtils.Line(list2));
+			result.add(new TextRenderingUtils.Line(segments));
 		}
 
-		return list;
+		return result;
 	}
 
 	/**
-	 * Split.
+	 * Разбивает строку по разделителю, включая сам разделитель как отдельный элемент.
+	 * Пустые части между разделителями не добавляются.
 	 *
-	 * @param line line
-	 * @param delimiter delimiter
-	 *
-	 * @return List — результат операции
+	 * @param line      исходная строка
+	 * @param delimiter разделитель (не может быть пустой строкой)
+	 * @return список частей строки, включая вхождения разделителя
 	 */
 	public static List<String> split(String line, String delimiter) {
 		if (delimiter.isEmpty()) {
 			throw new IllegalArgumentException("Delimiter cannot be the empty string");
 		}
-		else {
-			List<String> list = Lists.newArrayList();
-			int i = 0;
 
-			int j;
-			while ((j = line.indexOf(delimiter, i)) != -1) {
-				if (j > i) {
-					list.add(line.substring(i, j));
-				}
+		List<String> parts = Lists.newArrayList();
+		int searchFrom = 0;
 
-				list.add(delimiter);
-				i = j + delimiter.length();
+		int matchIndex;
+		while ((matchIndex = line.indexOf(delimiter, searchFrom)) != -1) {
+			if (matchIndex > searchFrom) {
+				parts.add(line.substring(searchFrom, matchIndex));
 			}
 
-			if (i < line.length()) {
-				list.add(line.substring(i));
-			}
-
-			return list;
+			parts.add(delimiter);
+			searchFrom = matchIndex + delimiter.length();
 		}
+
+		if (searchFrom < line.length()) {
+			parts.add(line.substring(searchFrom));
+		}
+
+		return parts;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Line}.
+	 * Одна строка текста, состоящая из последовательности сегментов.
+	 * Сегменты могут быть обычным текстом или кликабельными ссылками.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Line {
 
 		public final List<TextRenderingUtils.LineSegment> segments;
@@ -116,34 +118,35 @@ public class TextRenderingUtils {
 		}
 
 		@Override
-		public String toString() {
-			return "Line{segments=" + this.segments + "}";
-		}
-
-		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
 				return true;
 			}
-			else if (o != null && this.getClass() == o.getClass()) {
-				TextRenderingUtils.Line line = (TextRenderingUtils.Line) o;
-				return Objects.equals(this.segments, line.segments);
-			}
-			else {
+
+			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
+
+			TextRenderingUtils.Line line = (TextRenderingUtils.Line) o;
+			return Objects.equals(segments, line.segments);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(this.segments);
+			return Objects.hash(segments);
+		}
+
+		@Override
+		public String toString() {
+			return "Line{segments=" + segments + "}";
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LineSegment}.
+	 * Сегмент строки — либо обычный текст, либо кликабельная ссылка с заголовком и URL.
+	 * Ссылка создаётся через {@link #link}, обычный текст — через {@link #text}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class LineSegment {
 
 		private final String fullText;
@@ -152,8 +155,8 @@ public class TextRenderingUtils {
 
 		private LineSegment(String fullText) {
 			this.fullText = fullText;
-			this.linkTitle = null;
-			this.linkUrl = null;
+			linkTitle = null;
+			linkUrl = null;
 		}
 
 		private LineSegment(String fullText, @Nullable String linkTitle, @Nullable String linkUrl) {
@@ -167,48 +170,41 @@ public class TextRenderingUtils {
 			if (this == o) {
 				return true;
 			}
-			else if (o != null && this.getClass() == o.getClass()) {
-				TextRenderingUtils.LineSegment lineSegment = (TextRenderingUtils.LineSegment) o;
-				return Objects.equals(this.fullText, lineSegment.fullText)
-						&& Objects.equals(this.linkTitle, lineSegment.linkTitle)
-						&& Objects.equals(this.linkUrl, lineSegment.linkUrl);
-			}
-			else {
+
+			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
+
+			TextRenderingUtils.LineSegment segment = (TextRenderingUtils.LineSegment) o;
+			return Objects.equals(fullText, segment.fullText)
+				&& Objects.equals(linkTitle, segment.linkTitle)
+				&& Objects.equals(linkUrl, segment.linkUrl);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(this.fullText, this.linkTitle, this.linkUrl);
+			return Objects.hash(fullText, linkTitle, linkUrl);
 		}
 
 		@Override
 		public String toString() {
-			return "Segment{fullText='" + this.fullText + "', linkTitle='" + this.linkTitle + "', linkUrl='"
-					+ this.linkUrl + "'}";
+			return "Segment{fullText='" + fullText + "', linkTitle='" + linkTitle + "', linkUrl='" + linkUrl + "'}";
 		}
 
-		/**
-		 * Отрисовывает ed text.
-		 *
-		 * @return String — результат операции
-		 */
 		public String renderedText() {
-			return this.isLink() ? this.linkTitle : this.fullText;
+			return isLink() ? linkTitle : fullText;
 		}
 
 		public boolean isLink() {
-			return this.linkTitle != null;
+			return linkTitle != null;
 		}
 
 		public String getLinkUrl() {
-			if (!this.isLink()) {
+			if (!isLink()) {
 				throw new IllegalStateException("Not a link: " + this);
 			}
-			else {
-				return this.linkUrl;
-			}
+
+			return linkUrl;
 		}
 
 		public static TextRenderingUtils.LineSegment link(String linkTitle, String linkUrl) {

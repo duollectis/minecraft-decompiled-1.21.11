@@ -13,16 +13,21 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code DamageSourcePropertiesLootCondition}.
+ * Условие, проверяющее источник урона через {@link DamageSourcePredicate}.
+ *
+ * <p>Требует параметры {@link LootContextParameters#ORIGIN} и
+ * {@link LootContextParameters#DAMAGE_SOURCE}. Если оба отсутствуют — условие не выполняется.</p>
  */
 public record DamageSourcePropertiesLootCondition(Optional<DamageSourcePredicate> predicate) implements LootCondition {
 
 	public static final MapCodec<DamageSourcePropertiesLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(DamageSourcePredicate.CODEC
-							.optionalFieldOf("predicate")
-							.forGetter(DamageSourcePropertiesLootCondition::predicate))
-					.apply(instance, DamageSourcePropertiesLootCondition::new)
+		instance -> instance
+			.group(
+				DamageSourcePredicate.CODEC
+					.optionalFieldOf("predicate")
+					.forGetter(DamageSourcePropertiesLootCondition::predicate)
+			)
+			.apply(instance, DamageSourcePropertiesLootCondition::new)
 	);
 
 	@Override
@@ -35,23 +40,15 @@ public record DamageSourcePropertiesLootCondition(Optional<DamageSourcePredicate
 		return Set.of(LootContextParameters.ORIGIN, LootContextParameters.DAMAGE_SOURCE);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
 		DamageSource damageSource = lootContext.get(LootContextParameters.DAMAGE_SOURCE);
-		Vec3d vec3d = lootContext.get(LootContextParameters.ORIGIN);
-		return vec3d != null && damageSource != null ? this.predicate.isEmpty() || this.predicate
-		                                                                           .get()
-		                                                                           .test(
-				                                                                           lootContext.getWorld(),
-				                                                                           vec3d,
-				                                                                           damageSource
-		                                                                           ) : false;
+		Vec3d origin = lootContext.get(LootContextParameters.ORIGIN);
+
+		if (damageSource == null || origin == null) {
+			return false;
+		}
+
+		return predicate.isEmpty() || predicate.get().test(lootContext.getWorld(), origin, damageSource);
 	}
 
 	public static LootCondition.Builder builder(DamageSourcePredicate.Builder builder) {

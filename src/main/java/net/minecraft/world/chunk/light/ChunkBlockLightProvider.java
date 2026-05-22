@@ -10,7 +10,10 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.chunk.ChunkProvider;
 
 /**
- * {@code ChunkBlockLightProvider}.
+ * Провайдер блочного освещения.
+ * <p>
+ * Реализует алгоритм BFS-распространения блочного света (от факелов, лавы и т.д.).
+ * Источником света является яркость ({@code luminance}) самого блока.
  */
 public final class ChunkBlockLightProvider extends ChunkLightProvider<BlockLightStorage.Data, BlockLightStorage> {
 
@@ -27,129 +30,160 @@ public final class ChunkBlockLightProvider extends ChunkLightProvider<BlockLight
 
 	@Override
 	protected void checkForLightUpdate(long blockPos) {
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		if (this.lightStorage.hasSection(l)) {
-			BlockState blockState = this.getStateForLighting(this.mutablePos.set(blockPos));
-			int i = this.getLightSourceLuminance(blockPos, blockState);
-			int j = this.lightStorage.get(blockPos);
-			if (i < j) {
-				this.lightStorage.set(blockPos, 0);
-				this.queueLightDecrease(blockPos, ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(j));
-			}
-			else {
-				this.queueLightDecrease(blockPos, INITIAL_PACKED_INFO);
-			}
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
 
-			if (i > 0) {
-				this.queueLightIncrease(
-						blockPos,
-						ChunkLightProvider.PackedInfo.packWithForce(i, isTrivialForLighting(blockState))
-				);
-			}
+		if (!lightStorage.hasSection(sectionPos)) {
+			return;
+		}
+
+		BlockState blockState = getStateForLighting(mutablePos.set(blockPos));
+		int luminance = getLightSourceLuminance(blockPos, blockState);
+		int storedLevel = lightStorage.get(blockPos);
+
+		if (luminance < storedLevel) {
+			lightStorage.set(blockPos, 0);
+			queueLightDecrease(blockPos, ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(storedLevel));
+		} else {
+			queueLightDecrease(blockPos, INITIAL_PACKED_INFO);
+		}
+
+		if (luminance > 0) {
+			queueLightIncrease(
+				blockPos,
+				ChunkLightProvider.PackedInfo.packWithForce(luminance, isTrivialForLighting(blockState))
+			);
 		}
 	}
 
 	@Override
 	protected void propagateLightIncrease(long blockPos, long packed, int lightLevel) {
-		BlockState blockState = null;
+		BlockState sourceState = null;
 
 		for (Direction direction : DIRECTIONS) {
-			if (ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
-				long l = BlockPos.offset(blockPos, direction);
-				if (this.lightStorage.hasSection(ChunkSectionPos.fromBlockPos(l))) {
-					int i = this.lightStorage.get(l);
-					int j = lightLevel - 1;
-					if (j > i) {
-						this.mutablePos.set(l);
-						BlockState blockState2 = this.getStateForLighting(this.mutablePos);
-						int k = lightLevel - this.getOpacity(blockState2);
-						if (k > i) {
-							if (blockState == null) {
-								blockState = ChunkLightProvider.PackedInfo.isTrivial(packed)
-								             ? Blocks.AIR.getDefaultState()
-								             : this.getStateForLighting(this.mutablePos.set(blockPos));
-							}
+			if (!ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
+				continue;
+			}
 
-							if (!this.shapesCoverFullCube(blockState, blockState2, direction)) {
-								this.lightStorage.set(l, k);
-								if (k > 1) {
-									this.queueLightIncrease(
-											l,
-											ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-													k,
-													isTrivialForLighting(blockState2),
-													direction.getOpposite()
-											)
-									);
-								}
-							}
-						}
-					}
-				}
+			long neighborPos = BlockPos.offset(blockPos, direction);
+
+			if (!lightStorage.hasSection(ChunkSectionPos.fromBlockPos(neighborPos))) {
+				continue;
+			}
+
+			int neighborLevel = lightStorage.get(neighborPos);
+			int minRequired = lightLevel - 1;
+
+			if (minRequired <= neighborLevel) {
+				continue;
+			}
+
+			mutablePos.set(neighborPos);
+			BlockState neighborState = getStateForLighting(mutablePos);
+			int propagated = lightLevel - getOpacity(neighborState);
+
+			if (propagated <= neighborLevel) {
+				continue;
+			}
+
+			if (sourceState == null) {
+				sourceState = ChunkLightProvider.PackedInfo.isTrivial(packed)
+					? Blocks.AIR.getDefaultState()
+					: getStateForLighting(mutablePos.set(blockPos));
+			}
+
+			if (shapesCoverFullCube(sourceState, neighborState, direction)) {
+				continue;
+			}
+
+			lightStorage.set(neighborPos, propagated);
+
+			if (propagated > 1) {
+				queueLightIncrease(
+					neighborPos,
+					ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+						propagated,
+						isTrivialForLighting(neighborState),
+						direction.getOpposite()
+					)
+				);
 			}
 		}
 	}
 
 	@Override
 	protected void propagateLightDecrease(long blockPos, long packed) {
-		int i = ChunkLightProvider.PackedInfo.getLightLevel(packed);
+		int packedLevel = ChunkLightProvider.PackedInfo.getLightLevel(packed);
 
 		for (Direction direction : DIRECTIONS) {
-			if (ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
-				long l = BlockPos.offset(blockPos, direction);
-				if (this.lightStorage.hasSection(ChunkSectionPos.fromBlockPos(l))) {
-					int j = this.lightStorage.get(l);
-					if (j != 0) {
-						if (j <= i - 1) {
-							BlockState blockState = this.getStateForLighting(this.mutablePos.set(l));
-							int k = this.getLightSourceLuminance(l, blockState);
-							this.lightStorage.set(l, 0);
-							if (k < j) {
-								this.queueLightDecrease(
-										l,
-										ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-												j,
-												direction.getOpposite()
-										)
-								);
-							}
+			if (!ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
+				continue;
+			}
 
-							if (k > 0) {
-								this.queueLightIncrease(
-										l,
-										ChunkLightProvider.PackedInfo.packWithForce(k, isTrivialForLighting(blockState))
-								);
-							}
-						}
-						else {
-							this.queueLightIncrease(
-									l,
-									ChunkLightProvider.PackedInfo.packWithRepropagate(j, false, direction.getOpposite())
-							);
-						}
-					}
+			long neighborPos = BlockPos.offset(blockPos, direction);
+
+			if (!lightStorage.hasSection(ChunkSectionPos.fromBlockPos(neighborPos))) {
+				continue;
+			}
+
+			int neighborLevel = lightStorage.get(neighborPos);
+
+			if (neighborLevel == 0) {
+				continue;
+			}
+
+			if (neighborLevel <= packedLevel - 1) {
+				BlockState neighborState = getStateForLighting(mutablePos.set(neighborPos));
+				int luminance = getLightSourceLuminance(neighborPos, neighborState);
+				lightStorage.set(neighborPos, 0);
+
+				if (luminance < neighborLevel) {
+					queueLightDecrease(
+						neighborPos,
+						ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+							neighborLevel,
+							direction.getOpposite()
+						)
+					);
 				}
+
+				if (luminance > 0) {
+					queueLightIncrease(
+						neighborPos,
+						ChunkLightProvider.PackedInfo.packWithForce(luminance, isTrivialForLighting(neighborState))
+					);
+				}
+			} else {
+				queueLightIncrease(
+					neighborPos,
+					ChunkLightProvider.PackedInfo.packWithRepropagate(neighborLevel, false, direction.getOpposite())
+				);
 			}
 		}
 	}
 
 	private int getLightSourceLuminance(long blockPos, BlockState blockState) {
-		int i = blockState.getLuminance();
-		return i > 0 && this.lightStorage.isSectionInEnabledColumn(ChunkSectionPos.fromBlockPos(blockPos)) ? i : 0;
+		int luminance = blockState.getLuminance();
+
+		return luminance > 0 && lightStorage.isSectionInEnabledColumn(ChunkSectionPos.fromBlockPos(blockPos))
+			? luminance
+			: 0;
 	}
 
 	@Override
 	public void propagateLight(ChunkPos chunkPos) {
-		this.setColumnEnabled(chunkPos, true);
-		LightSourceView lightSourceView = this.chunkProvider.getChunk(chunkPos.x, chunkPos.z);
-		if (lightSourceView != null) {
-			lightSourceView.forEachLightSource((blockPos, blockState) -> {
-				int i = blockState.getLuminance();
-				this.queueLightIncrease(
-						blockPos.asLong(),
-						ChunkLightProvider.PackedInfo.packWithForce(i, isTrivialForLighting(blockState))
-				);
-			});
+		setColumnEnabled(chunkPos, true);
+		LightSourceView chunk = chunkProvider.getChunk(chunkPos.x, chunkPos.z);
+
+		if (chunk == null) {
+			return;
 		}
+
+		chunk.forEachLightSource((blockPos, blockState) -> {
+			int luminance = blockState.getLuminance();
+			queueLightIncrease(
+				blockPos.asLong(),
+				ChunkLightProvider.PackedInfo.packWithForce(luminance, isTrivialForLighting(blockState))
+			);
+		});
 	}
 }

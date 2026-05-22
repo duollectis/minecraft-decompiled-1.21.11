@@ -9,7 +9,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code NavigationConditions}.
+ * Набор предикатов для проверки условий навигации существ.
+ * Используется алгоритмами fuzzy-таргетинга для фильтрации невалидных позиций.
  */
 public class NavigationConditions {
 
@@ -19,8 +20,7 @@ public class NavigationConditions {
 
 	public static boolean isPositionTargetInRange(PathAwareEntity entity, double extraDistance) {
 		return entity.hasPositionTarget()
-				&& entity
-				.getPositionTarget()
+				&& entity.getPositionTarget()
 				.isWithinDistance(entity.getEntityPos(), entity.getPositionTargetRange() + extraDistance + 1.0);
 	}
 

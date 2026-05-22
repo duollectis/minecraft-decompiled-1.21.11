@@ -66,7 +66,7 @@ public class WardenEntityModel extends EntityModel<WardenEntityRenderState> {
 				modelPartData.addChild("bone", ModelPartBuilder.create(), ModelTransform.origin(0.0F, 24.0F, 0.0F));
 		ModelPartData modelPartData3 = modelPartData2.addChild(
 				"body",
-				ModelPartBuilder.create().uv(0, 0).cuboid(-9.0F, -13.0F, -4.0F, 18.0F, 21.0F, 11.0F),
+				ModelPartBuilder.create().uv(0, 0).cuboid(-9.0F, -TENDRIL_ROTATION_SCALE, -4.0F, 18.0F, 21.0F, 11.0F),
 				ModelTransform.origin(0.0F, -21.0F, 0.0F)
 		);
 		modelPartData3.addChild(
@@ -87,37 +87,37 @@ public class WardenEntityModel extends EntityModel<WardenEntityRenderState> {
 		ModelPartData modelPartData4 = modelPartData3.addChild(
 				"head",
 				ModelPartBuilder.create().uv(0, 32).cuboid(-8.0F, -16.0F, -5.0F, 16.0F, 16.0F, 10.0F),
-				ModelTransform.origin(0.0F, -13.0F, 0.0F)
+				ModelTransform.origin(0.0F, -TENDRIL_ROTATION_SCALE, 0.0F)
 		);
 		modelPartData4.addChild(
 				"right_tendril",
-				ModelPartBuilder.create().uv(52, 32).cuboid(-16.0F, -13.0F, 0.0F, 16.0F, 16.0F, 0.0F),
+				ModelPartBuilder.create().uv(52, 32).cuboid(-16.0F, -TENDRIL_ROTATION_SCALE, 0.0F, 16.0F, 16.0F, 0.0F),
 				ModelTransform.origin(-8.0F, -12.0F, 0.0F)
 		);
 		modelPartData4.addChild(
 				"left_tendril",
-				ModelPartBuilder.create().uv(58, 0).cuboid(0.0F, -13.0F, 0.0F, 16.0F, 16.0F, 0.0F),
+				ModelPartBuilder.create().uv(58, 0).cuboid(0.0F, -TENDRIL_ROTATION_SCALE, 0.0F, 16.0F, 16.0F, 0.0F),
 				ModelTransform.origin(8.0F, -12.0F, 0.0F)
 		);
 		modelPartData3.addChild(
 				"right_arm",
 				ModelPartBuilder.create().uv(44, 50).cuboid(-4.0F, 0.0F, -4.0F, 8.0F, 28.0F, 8.0F),
-				ModelTransform.origin(-13.0F, -13.0F, 1.0F)
+				ModelTransform.origin(-TENDRIL_ROTATION_SCALE, -TENDRIL_ROTATION_SCALE, 1.0F)
 		);
 		modelPartData3.addChild(
 				"left_arm",
 				ModelPartBuilder.create().uv(0, 58).cuboid(-4.0F, 0.0F, -4.0F, 8.0F, 28.0F, 8.0F),
-				ModelTransform.origin(13.0F, -13.0F, 1.0F)
+				ModelTransform.origin(TENDRIL_ROTATION_SCALE, -TENDRIL_ROTATION_SCALE, 1.0F)
 		);
 		modelPartData2.addChild(
 				"right_leg",
-				ModelPartBuilder.create().uv(76, 48).cuboid(-3.1F, 0.0F, -3.0F, 6.0F, 13.0F, 6.0F),
-				ModelTransform.origin(-5.9F, -13.0F, 0.0F)
+				ModelPartBuilder.create().uv(76, 48).cuboid(-3.1F, 0.0F, -3.0F, 6.0F, TENDRIL_ROTATION_SCALE, 6.0F),
+				ModelTransform.origin(-5.9F, -TENDRIL_ROTATION_SCALE, 0.0F)
 		);
 		modelPartData2.addChild(
 				"left_leg",
-				ModelPartBuilder.create().uv(76, 76).cuboid(-2.9F, 0.0F, -3.0F, 6.0F, 13.0F, 6.0F),
-				ModelTransform.origin(5.9F, -13.0F, 0.0F)
+				ModelPartBuilder.create().uv(76, 76).cuboid(-2.9F, 0.0F, -3.0F, 6.0F, TENDRIL_ROTATION_SCALE, 6.0F),
+				ModelTransform.origin(5.9F, -TENDRIL_ROTATION_SCALE, 0.0F)
 		);
 		return TexturedModelData.of(modelData, 128, 128);
 	}
@@ -211,12 +211,12 @@ public class WardenEntityModel extends EntityModel<WardenEntityRenderState> {
 	private void setArmPivots() {
 		this.leftArm.yaw = 0.0F;
 		this.leftArm.originZ = 1.0F;
-		this.leftArm.originX = 13.0F;
-		this.leftArm.originY = -13.0F;
+		this.leftArm.originX = TENDRIL_ROTATION_SCALE;
+		this.leftArm.originY = -TENDRIL_ROTATION_SCALE;
 		this.rightArm.yaw = 0.0F;
 		this.rightArm.originZ = 1.0F;
-		this.rightArm.originX = -13.0F;
-		this.rightArm.originY = -13.0F;
+		this.rightArm.originX = -TENDRIL_ROTATION_SCALE;
+		this.rightArm.originY = -TENDRIL_ROTATION_SCALE;
 	}
 
 	private void setTendrilPitches(WardenEntityRenderState state, float animationProgress) {

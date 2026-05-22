@@ -13,15 +13,14 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EvokerFangsEntity}.
+ * Клыки вуки — снаряд призывателя, наносящий урон.
  */
 public class EvokerFangsEntity extends Entity implements Ownable {
 
 	public static final int ANIMATION_DURATION = 20;
 	public static final int ANIMATION_END_OFFSET = 2;
 	public static final int PARTICLE_SPAWN_TICKS_LEFT = 14;
-	private static final int DEFAULT_WARMUP = 0;
-	private int warmup = 0;
+	private int warmup;
 	private boolean startedAttack;
 	private int ticksLeft = 22;
 	private boolean playingAnimation;
@@ -66,38 +65,42 @@ public class EvokerFangsEntity extends Entity implements Ownable {
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			if (this.playingAnimation) {
-				this.ticksLeft--;
-				if (this.ticksLeft == 14) {
-					for (int i = 0; i < 12; i++) {
-						double d = this.getX() + (this.random.nextDouble() * 2.0 - 1.0) * this.getWidth() * 0.5;
-						double e = this.getY() + 0.05 + this.random.nextDouble();
-						double f = this.getZ() + (this.random.nextDouble() * 2.0 - 1.0) * this.getWidth() * 0.5;
-						double g = (this.random.nextDouble() * 2.0 - 1.0) * 0.3;
-						double h = 0.3 + this.random.nextDouble() * 0.3;
-						double j = (this.random.nextDouble() * 2.0 - 1.0) * 0.3;
-						this.getEntityWorld().addParticleClient(ParticleTypes.CRIT, d, e + 1.0, f, g, h, j);
+
+		if (getEntityWorld().isClient()) {
+			if (playingAnimation) {
+				ticksLeft--;
+
+				if (ticksLeft == PARTICLE_SPAWN_TICKS_LEFT) {
+					for (int count = 0; count < 12; count++) {
+						double particleX = getX() + (random.nextDouble() * 2.0 - 1.0) * getWidth() * 0.5;
+						double particleY = getY() + 0.05 + random.nextDouble();
+						double particleZ = getZ() + (random.nextDouble() * 2.0 - 1.0) * getWidth() * 0.5;
+						double velX = (random.nextDouble() * 2.0 - 1.0) * 0.3;
+						double velY = 0.3 + random.nextDouble() * 0.3;
+						double velZ = (random.nextDouble() * 2.0 - 1.0) * 0.3;
+						getEntityWorld().addParticleClient(ParticleTypes.CRIT, particleX, particleY + 1.0, particleZ, velX, velY, velZ);
 					}
 				}
 			}
+
+			return;
 		}
-		else if (--this.warmup < 0) {
-			if (this.warmup == -8) {
-				for (LivingEntity livingEntity : this
-						.getEntityWorld()
-						.getNonSpectatingEntities(LivingEntity.class, this.getBoundingBox().expand(0.2, 0.0, 0.2))) {
-					this.damage(livingEntity);
+
+		if (--warmup < 0) {
+			if (warmup == -8) {
+				for (LivingEntity livingEntity : getEntityWorld()
+						.getNonSpectatingEntities(LivingEntity.class, getBoundingBox().expand(0.2, 0.0, 0.2))) {
+					damage(livingEntity);
 				}
 			}
 
-			if (!this.startedAttack) {
-				this.getEntityWorld().sendEntityStatus(this, (byte) 4);
-				this.startedAttack = true;
+			if (!startedAttack) {
+				getEntityWorld().sendEntityStatus(this, (byte) 4);
+				startedAttack = true;
 			}
 
-			if (--this.ticksLeft < 0) {
-				this.discard();
+			if (--ticksLeft < 0) {
+				discard();
 			}
 		}
 	}
@@ -147,13 +150,12 @@ public class EvokerFangsEntity extends Entity implements Ownable {
 	}
 
 	public float getAnimationProgress(float tickProgress) {
-		if (!this.playingAnimation) {
+		if (!playingAnimation) {
 			return 0.0F;
 		}
-		else {
-			int i = this.ticksLeft - 2;
-			return i <= 0 ? 1.0F : 1.0F - (i - tickProgress) / 20.0F;
-		}
+
+		int remaining = ticksLeft - 2;
+		return remaining <= 0 ? 1.0F : 1.0F - (remaining - tickProgress) / 20.0F;
 	}
 
 	@Override

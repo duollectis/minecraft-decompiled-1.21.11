@@ -24,7 +24,8 @@ import net.minecraft.world.poi.PointOfInterestTypes;
 import java.util.Optional;
 
 /**
- * {@code VillagerTaskListProvider}.
+ * Провайдер списков задач мозга для жителей деревни.
+ * Формирует наборы задач для каждой активности: работа, отдых, встреча, паника, рейд и т.д.
  */
 public class VillagerTaskListProvider {
 
@@ -126,8 +127,8 @@ public class VillagerTaskListProvider {
 						new RandomTask(
 								ImmutableList.of(
 										Pair.of(villagerWorkTask, 7),
-										Pair.of(GoAroundTask.create(MemoryModuleType.JOB_SITE, 0.4F, 4), 2),
-										Pair.of(GoToPosTask.create(MemoryModuleType.JOB_SITE, 0.4F, 1, 10), 5),
+										Pair.of(GoAroundTask.create(MemoryModuleType.JOB_SITE, JOB_WALKING_SPEED, 4), 2),
+										Pair.of(GoToPosTask.create(MemoryModuleType.JOB_SITE, JOB_WALKING_SPEED, 1, 10), 5),
 										Pair.of(
 												GoToSecondaryPositionTask.create(
 														MemoryModuleType.SECONDARY_JOB_SITE,
@@ -156,13 +157,6 @@ public class VillagerTaskListProvider {
 		);
 	}
 
-	/**
-	 * Создаёт play tasks.
-	 *
-	 * @param speed speed
-	 *
-	 * @return ImmutableList>> — результат операции
-	 */
 	public static ImmutableList<Pair<Integer, ? extends Task<? super VillagerEntity>>> createPlayTasks(float speed) {
 		return ImmutableList.of(
 				Pair.of(0, new MoveToTargetTask(80, 120)),
@@ -244,7 +238,7 @@ public class VillagerTaskListProvider {
 						Tasks.pickRandomly(
 								ImmutableList.of(
 										Pair.of(
-												GoAroundTask.create(MemoryModuleType.MEETING_POINT, 0.4F, 40),
+												GoAroundTask.create(MemoryModuleType.MEETING_POINT, JOB_WALKING_SPEED, 40),
 												2
 										), Pair.of(MeetVillagerTask.create(), 2)
 								)
@@ -419,7 +413,6 @@ public class VillagerTaskListProvider {
 	public static ImmutableList<Pair<Integer, ? extends Task<? super VillagerEntity>>> createHideTasks(
 			RegistryEntry<VillagerProfession> registryEntry, float speed
 	) {
-		int i = 2;
 		return ImmutableList.of(
 				Pair.of(0, ForgetBellRingTask.create(15, 3)),
 				Pair.of(1, HideInHomeTask.create(32, speed * 1.25F, 2)),

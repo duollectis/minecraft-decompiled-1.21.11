@@ -11,7 +11,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code OxidizableCopperChestBlock}.
+ * Медный сундук с поддержкой окисления. Деградирует со временем, если не покрыт воском.
+ * Тик окисления пропускается, пока сундук открыт хотя бы одним игроком или является
+ * правой половиной двойного сундука (чтобы избежать двойного тика).
  */
 public class OxidizableCopperChestBlock extends CopperChestBlock implements Oxidizable {
 
@@ -34,11 +36,11 @@ public class OxidizableCopperChestBlock extends CopperChestBlock implements Oxid
 
 	public OxidizableCopperChestBlock(
 			Oxidizable.OxidationLevel oxidationLevel,
-			SoundEvent soundEvent,
-			SoundEvent soundEvent2,
+			SoundEvent openSound,
+			SoundEvent closeSound,
 			AbstractBlock.Settings settings
 	) {
-		super(oxidationLevel, soundEvent, soundEvent2, settings);
+		super(oxidationLevel, openSound, closeSound, settings);
 	}
 
 	@Override
@@ -51,12 +53,12 @@ public class OxidizableCopperChestBlock extends CopperChestBlock implements Oxid
 		if (!state.get(ChestBlock.CHEST_TYPE).equals(ChestType.RIGHT)
 				&& world.getBlockEntity(pos) instanceof ChestBlockEntity chestBlockEntity
 				&& chestBlockEntity.getViewingUsers().isEmpty()) {
-			this.tickDegradation(state, world, pos, random);
+			tickDegradation(state, world, pos, random);
 		}
 	}
 
 	public Oxidizable.OxidationLevel getDegradationLevel() {
-		return this.getOxidationLevel();
+		return getOxidationLevel();
 	}
 
 	@Override

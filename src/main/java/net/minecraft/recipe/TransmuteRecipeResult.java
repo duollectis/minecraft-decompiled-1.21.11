@@ -14,32 +14,35 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code TransmuteRecipeResult}.
+ * Описывает результат рецепта трансмутации: целевой предмет, количество и изменения компонентов.
+ * При применении копирует компоненты исходного предмета и накладывает поверх {@code components}.
  */
 public record TransmuteRecipeResult(RegistryEntry<Item> itemEntry, int count, ComponentChanges components) {
 
 	private static final Codec<TransmuteRecipeResult> BASE_CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Item.ENTRY_CODEC.fieldOf("id").forGetter(TransmuteRecipeResult::itemEntry),
-					                    Codecs.rangedInt(1, 99).optionalFieldOf("count", 1).forGetter(TransmuteRecipeResult::count),
-					                    ComponentChanges.CODEC
-							                    .optionalFieldOf("components", ComponentChanges.EMPTY)
-							                    .forGetter(TransmuteRecipeResult::components)
-			                    )
-			                    .apply(instance, TransmuteRecipeResult::new)
+		instance -> instance.group(
+			Item.ENTRY_CODEC.fieldOf("id").forGetter(TransmuteRecipeResult::itemEntry),
+			Codecs.rangedInt(1, 99).optionalFieldOf("count", 1).forGetter(TransmuteRecipeResult::count),
+			ComponentChanges.CODEC
+				.optionalFieldOf("components", ComponentChanges.EMPTY)
+				.forGetter(TransmuteRecipeResult::components)
+		).apply(instance, TransmuteRecipeResult::new)
 	);
+
 	public static final Codec<TransmuteRecipeResult> CODEC = Codec.withAlternative(
-			                                                              BASE_CODEC, Item.ENTRY_CODEC, itemEntry -> new TransmuteRecipeResult((Item) itemEntry.value())
-	                                                              )
-	                                                              .validate(TransmuteRecipeResult::validate);
+		BASE_CODEC,
+		Item.ENTRY_CODEC,
+		itemEntry -> new TransmuteRecipeResult(itemEntry.value())
+	).validate(TransmuteRecipeResult::validate);
+
 	public static final PacketCodec<RegistryByteBuf, TransmuteRecipeResult> PACKET_CODEC = PacketCodec.tuple(
-			Item.ENTRY_PACKET_CODEC,
-			TransmuteRecipeResult::itemEntry,
-			PacketCodecs.VAR_INT,
-			TransmuteRecipeResult::count,
-			ComponentChanges.PACKET_CODEC,
-			TransmuteRecipeResult::components,
-			TransmuteRecipeResult::new
+		Item.ENTRY_PACKET_CODEC,
+		TransmuteRecipeResult::itemEntry,
+		PacketCodecs.VAR_INT,
+		TransmuteRecipeResult::count,
+		ComponentChanges.PACKET_CODEC,
+		TransmuteRecipeResult::components,
+		TransmuteRecipeResult::new
 	);
 
 	public TransmuteRecipeResult(Item item) {
@@ -48,34 +51,28 @@ public record TransmuteRecipeResult(RegistryEntry<Item> itemEntry, int count, Co
 
 	private static DataResult<TransmuteRecipeResult> validate(TransmuteRecipeResult result) {
 		return ItemStack
-				.validate(new ItemStack(result.itemEntry, result.count, result.components))
-				.map(stack -> result);
+			.validate(new ItemStack(result.itemEntry, result.count, result.components))
+			.map(stack -> result);
 	}
 
 	/**
-	 * Apply.
-	 *
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
+	 * Применяет трансмутацию к стеку: копирует компоненты исходного предмета
+	 * в новый предмет типа {@code itemEntry}, затем накладывает {@code components}.
 	 */
 	public ItemStack apply(ItemStack stack) {
-		ItemStack itemStack = stack.copyComponentsToNewStack(this.itemEntry.value(), this.count);
-		itemStack.applyUnvalidatedChanges(this.components);
-		return itemStack;
+		ItemStack transmuted = stack.copyComponentsToNewStack(itemEntry.value(), count);
+		transmuted.applyUnvalidatedChanges(components);
+
+		return transmuted;
 	}
 
 	public boolean isEqualToResult(ItemStack stack) {
-		ItemStack itemStack = this.apply(stack);
-		return itemStack.getCount() == 1 && ItemStack.areItemsAndComponentsEqual(stack, itemStack);
+		ItemStack applied = apply(stack);
+
+		return applied.getCount() == 1 && ItemStack.areItemsAndComponentsEqual(stack, applied);
 	}
 
-	/**
-	 * Создаёт slot display.
-	 *
-	 * @return SlotDisplay — результат операции
-	 */
 	public SlotDisplay createSlotDisplay() {
-		return new SlotDisplay.StackSlotDisplay(new ItemStack(this.itemEntry, this.count, this.components));
+		return new SlotDisplay.StackSlotDisplay(new ItemStack(itemEntry, count, components));
 	}
 }

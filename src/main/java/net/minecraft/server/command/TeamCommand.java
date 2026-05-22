@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code TeamCommand}.
+ * Команда {@code /team}: управление командами в таблице результатов.
  */
 public class TeamCommand {
 

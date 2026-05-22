@@ -7,51 +7,54 @@ import net.minecraft.util.collection.Weighted;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code WeightedListIntProvider}.
+ * Поставщик целых чисел, выбирающий один из вложенных {@link IntProvider}
+ * с учётом весов. Диапазон {@code [min, max]} вычисляется как объединение
+ * диапазонов всех вложенных поставщиков.
  */
 public class WeightedListIntProvider extends IntProvider {
 
 	public static final MapCodec<WeightedListIntProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Pool
-							.createNonEmptyCodec(IntProvider.VALUE_CODEC)
-							.fieldOf("distribution")
-							.forGetter(provider -> provider.weightedList))
-					.apply(instance, WeightedListIntProvider::new)
+		instance -> instance
+			.group(
+				Pool.createNonEmptyCodec(IntProvider.VALUE_CODEC)
+					.fieldOf("distribution")
+					.forGetter(provider -> provider.weightedList)
+			)
+			.apply(instance, WeightedListIntProvider::new)
 	);
+
 	private final Pool<IntProvider> weightedList;
 	private final int min;
 	private final int max;
 
 	public WeightedListIntProvider(Pool<IntProvider> weightedList) {
 		this.weightedList = weightedList;
-		int i = Integer.MAX_VALUE;
-		int j = Integer.MIN_VALUE;
+
+		int globalMin = Integer.MAX_VALUE;
+		int globalMax = Integer.MIN_VALUE;
 
 		for (Weighted<IntProvider> weighted : weightedList.getEntries()) {
-			int k = weighted.value().getMin();
-			int l = weighted.value().getMax();
-			i = Math.min(i, k);
-			j = Math.max(j, l);
+			globalMin = Math.min(globalMin, weighted.value().getMin());
+			globalMax = Math.max(globalMax, weighted.value().getMax());
 		}
 
-		this.min = i;
-		this.max = j;
+		min = globalMin;
+		max = globalMax;
 	}
 
 	@Override
 	public int get(Random random) {
-		return this.weightedList.get(random).get(random);
+		return weightedList.get(random).get(random);
 	}
 
 	@Override
 	public int getMin() {
-		return this.min;
+		return min;
 	}
 
 	@Override
 	public int getMax() {
-		return this.max;
+		return max;
 	}
 
 	@Override

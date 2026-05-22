@@ -23,7 +23,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code CrafterBlockEntity}.
+ * Блок-сущность крафтера. Хранит 9 слотов крафтинговой сетки, состояние
+ * отключённых слотов и флаг триггера. Поддерживает автоматический крафт
+ * при получении редстоун-сигнала.
  */
 public class CrafterBlockEntity extends LootableContainerBlockEntity implements RecipeInputInventory {
 
@@ -34,33 +36,31 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 	public static final int SLOT_ENABLED = 0;
 	public static final int TRIGGERED_PROPERTY = 9;
 	public static final int PROPERTIES_COUNT = 10;
-	private static final int DEFAULT_CRAFTING_TICKS_REMAINING = 0;
-	private static final int DEFAULT_TRIGGERED = 0;
 	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.crafter");
-	private DefaultedList<ItemStack> inputStacks = DefaultedList.ofSize(9, ItemStack.EMPTY);
-	private int craftingTicksRemaining = 0;
+
+	private DefaultedList<ItemStack> inputStacks = DefaultedList.ofSize(GRID_SIZE, ItemStack.EMPTY);
+	private int craftingTicksRemaining;
 	protected final PropertyDelegate propertyDelegate = new PropertyDelegate() {
-		private final int[] disabledSlots = new int[9];
-		private int triggered = 0;
+		private final int[] disabledSlots = new int[GRID_SIZE];
+		private int triggered;
 
 		@Override
 		public int get(int index) {
-			return index == 9 ? this.triggered : this.disabledSlots[index];
+			return index == TRIGGERED_PROPERTY ? triggered : disabledSlots[index];
 		}
 
 		@Override
 		public void set(int index, int value) {
-			if (index == 9) {
-				this.triggered = value;
-			}
-			else {
-				this.disabledSlots[index] = value;
+			if (index == TRIGGERED_PROPERTY) {
+				triggered = value;
+			} else {
+				disabledSlots[index] = value;
 			}
 		}
 
 		@Override
 		public int size() {
-			return 10;
+			return PROPERTIES_COUNT;
 		}
 	};
 
@@ -75,47 +75,49 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 
 	@Override
 	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-		return new CrafterScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+		return new CrafterScreenHandler(syncId, playerInventory, this, propertyDelegate);
 	}
 
 	public void setSlotEnabled(int slot, boolean enabled) {
-		if (this.canToggleSlot(slot)) {
-			this.propertyDelegate.set(slot, enabled ? 0 : 1);
-			this.markDirty();
+		if (canToggleSlot(slot)) {
+			propertyDelegate.set(slot, enabled ? SLOT_ENABLED : SLOT_DISABLED);
+			markDirty();
 		}
 	}
 
 	public boolean isSlotDisabled(int slot) {
-		return slot >= 0 && slot < 9 ? this.propertyDelegate.get(slot) == 1 : false;
+		return slot >= 0 && slot < GRID_SIZE
+				? propertyDelegate.get(slot) == SLOT_DISABLED
+				: false;
 	}
 
 	@Override
 	public boolean isValid(int slot, ItemStack stack) {
-		if (this.propertyDelegate.get(slot) == 1) {
+		if (propertyDelegate.get(slot) == SLOT_DISABLED) {
 			return false;
 		}
-		else {
-			ItemStack itemStack = this.inputStacks.get(slot);
-			int i = itemStack.getCount();
-			if (i >= itemStack.getMaxCount()) {
-				return false;
-			}
-			else {
-				return itemStack.isEmpty() ? true : !this.betterSlotExists(i, itemStack, slot);
-			}
+
+		ItemStack existing = inputStacks.get(slot);
+		int existingCount = existing.getCount();
+
+		if (existingCount >= existing.getMaxCount()) {
+			return false;
 		}
+
+		return existing.isEmpty() ? true : !betterSlotExists(existingCount, existing, slot);
 	}
 
 	private boolean betterSlotExists(int count, ItemStack stack, int slot) {
-		for (int i = slot + 1; i < 9; i++) {
-			if (!this.isSlotDisabled(i)) {
-				ItemStack itemStack = this.getStack(i);
-				if (itemStack.isEmpty() || itemStack.getCount() < count && ItemStack.areItemsAndComponentsEqual(
-						itemStack,
-						stack
-				)) {
-					return true;
-				}
+		for (int nextSlot = slot + 1; nextSlot < GRID_SIZE; nextSlot++) {
+			if (isSlotDisabled(nextSlot)) {
+				continue;
+			}
+
+			ItemStack candidate = getStack(nextSlot);
+			if (candidate.isEmpty()
+					|| candidate.getCount() < count && ItemStack.areItemsAndComponentsEqual(candidate, stack)
+			) {
+				return true;
 			}
 		}
 
@@ -125,47 +127,47 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.craftingTicksRemaining = view.getInt("crafting_ticks_remaining", 0);
-		this.inputStacks = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-		if (!this.readLootTable(view)) {
-			Inventories.readData(view, this.inputStacks);
+		craftingTicksRemaining = view.getInt("crafting_ticks_remaining", 0);
+		inputStacks = DefaultedList.ofSize(size(), ItemStack.EMPTY);
+		if (!readLootTable(view)) {
+			Inventories.readData(view, inputStacks);
 		}
 
-		for (int i = 0; i < 9; i++) {
-			this.propertyDelegate.set(i, 0);
+		for (int slot = 0; slot < GRID_SIZE; slot++) {
+			propertyDelegate.set(slot, 0);
 		}
 
 		view.getOptionalIntArray("disabled_slots").ifPresent(slots -> {
-			for (int ix : slots) {
-				if (this.canToggleSlot(ix)) {
-					this.propertyDelegate.set(ix, 1);
+			for (int slot : slots) {
+				if (canToggleSlot(slot)) {
+					propertyDelegate.set(slot, SLOT_DISABLED);
 				}
 			}
 		});
-		this.propertyDelegate.set(9, view.getInt("triggered", 0));
+		propertyDelegate.set(TRIGGERED_PROPERTY, view.getInt("triggered", 0));
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.putInt("crafting_ticks_remaining", this.craftingTicksRemaining);
-		if (!this.writeLootTable(view)) {
-			Inventories.writeData(view, this.inputStacks);
+		view.putInt("crafting_ticks_remaining", craftingTicksRemaining);
+		if (!writeLootTable(view)) {
+			Inventories.writeData(view, inputStacks);
 		}
 
-		this.putDisabledSlots(view);
-		this.putTriggered(view);
+		putDisabledSlots(view);
+		putTriggered(view);
 	}
 
 	@Override
 	public int size() {
-		return 9;
+		return GRID_SIZE;
 	}
 
 	@Override
 	public boolean isEmpty() {
-		for (ItemStack itemStack : this.inputStacks) {
-			if (!itemStack.isEmpty()) {
+		for (ItemStack stack : inputStacks) {
+			if (!stack.isEmpty()) {
 				return false;
 			}
 		}
@@ -175,13 +177,13 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 
 	@Override
 	public ItemStack getStack(int slot) {
-		return this.inputStacks.get(slot);
+		return inputStacks.get(slot);
 	}
 
 	@Override
 	public void setStack(int slot, ItemStack stack) {
-		if (this.isSlotDisabled(slot)) {
-			this.setSlotEnabled(slot, true);
+		if (isSlotDisabled(slot)) {
+			setSlotEnabled(slot, true);
 		}
 
 		super.setStack(slot, stack);
@@ -194,69 +196,61 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 
 	@Override
 	public DefaultedList<ItemStack> getHeldStacks() {
-		return this.inputStacks;
+		return inputStacks;
 	}
 
 	@Override
 	protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
-		this.inputStacks = inventory;
+		inputStacks = inventory;
 	}
 
 	@Override
 	public int getWidth() {
-		return 3;
+		return GRID_WIDTH;
 	}
 
 	@Override
 	public int getHeight() {
-		return 3;
+		return GRID_HEIGHT;
 	}
 
 	@Override
 	public void provideRecipeInputs(RecipeFinder finder) {
-		for (ItemStack itemStack : this.inputStacks) {
-			finder.addInputIfUsable(itemStack);
+		for (ItemStack stack : inputStacks) {
+			finder.addInputIfUsable(stack);
 		}
 	}
 
 	private void putDisabledSlots(WriteView view) {
-		IntList intList = new IntArrayList();
+		IntList disabledList = new IntArrayList();
 
-		for (int i = 0; i < 9; i++) {
-			if (this.isSlotDisabled(i)) {
-				intList.add(i);
+		for (int slot = 0; slot < GRID_SIZE; slot++) {
+			if (isSlotDisabled(slot)) {
+				disabledList.add(slot);
 			}
 		}
 
-		view.putIntArray("disabled_slots", intList.toIntArray());
+		view.putIntArray("disabled_slots", disabledList.toIntArray());
 	}
 
 	private void putTriggered(WriteView view) {
-		view.putInt("triggered", this.propertyDelegate.get(9));
+		view.putInt("triggered", propertyDelegate.get(TRIGGERED_PROPERTY));
 	}
 
 	public void setTriggered(boolean triggered) {
-		this.propertyDelegate.set(9, triggered ? 1 : 0);
+		propertyDelegate.set(TRIGGERED_PROPERTY, triggered ? 1 : 0);
 	}
 
 	@VisibleForTesting
 	public boolean isTriggered() {
-		return this.propertyDelegate.get(9) == 1;
+		return propertyDelegate.get(TRIGGERED_PROPERTY) == 1;
 	}
 
-	/**
-	 * Выполняет тик обновления для crafting.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tickCrafting(World world, BlockPos pos, BlockState state, CrafterBlockEntity blockEntity) {
-		int i = blockEntity.craftingTicksRemaining - 1;
-		if (i >= 0) {
-			blockEntity.craftingTicksRemaining = i;
-			if (i == 0) {
+		int remaining = blockEntity.craftingTicksRemaining - 1;
+		if (remaining >= 0) {
+			blockEntity.craftingTicksRemaining = remaining;
+			if (remaining == 0) {
 				world.setBlockState(pos, state.with(CrafterBlock.CRAFTING, false), 3);
 			}
 		}
@@ -267,19 +261,18 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 	}
 
 	public int getComparatorOutput() {
-		int i = 0;
+		int filledSlots = 0;
 
-		for (int j = 0; j < this.size(); j++) {
-			ItemStack itemStack = this.getStack(j);
-			if (!itemStack.isEmpty() || this.isSlotDisabled(j)) {
-				i++;
+		for (int slot = 0; slot < size(); slot++) {
+			if (!getStack(slot).isEmpty() || isSlotDisabled(slot)) {
+				filledSlots++;
 			}
 		}
 
-		return i;
+		return filledSlots;
 	}
 
 	private boolean canToggleSlot(int slot) {
-		return slot > -1 && slot < 9 && this.inputStacks.get(slot).isEmpty();
+		return slot > -1 && slot < GRID_SIZE && inputStacks.get(slot).isEmpty();
 	}
 }

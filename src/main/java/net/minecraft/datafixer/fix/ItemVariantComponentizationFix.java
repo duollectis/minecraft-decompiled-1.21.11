@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code ItemVariantComponentizationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemVariantComponentizationFix extends DataFix {
 
@@ -24,12 +24,12 @@ public class ItemVariantComponentizationFix extends DataFix {
 
 	@SuppressWarnings("unchecked")
 	public final TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		OpticFinder<Object> opticFinder2 = (OpticFinder<Object>) type.findField("components");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemStack bucket_entity_data variants to separate components",
 				type,
 				typed -> {

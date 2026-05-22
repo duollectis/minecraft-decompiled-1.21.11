@@ -15,19 +15,25 @@ import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.texture.PlayerSkinCache;
 import net.minecraft.client.texture.SpriteHolder;
 
+/**
+ * Фабрика рендереров блок-энтити. Функциональный интерфейс, создающий
+ * {@link BlockEntityRenderer} из контекста с зависимостями рендеринга.
+ * Регистрируется в {@code BlockEntityRendererFactories} для каждого типа блок-энтити.
+ *
+ * @param <T> тип блок-энтити
+ * @param <S> тип состояния рендеринга блок-энтити
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
-/**
- * {@code BlockEntityRendererFactory}.
- */
 public interface BlockEntityRendererFactory<T extends BlockEntity, S extends BlockEntityRenderState> {
 
 	BlockEntityRenderer<T, S> create(BlockEntityRendererFactory.Context ctx);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Context}.
+	 * Контекст с зависимостями, доступными рендереру блок-энтити при создании.
+	 * Предоставляет доступ к менеджерам рендеринга, шрифтам, моделям и текстурам.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Context(
 			BlockEntityRenderManager renderDispatcher,
 			BlockRenderManager renderManager,
@@ -41,7 +47,7 @@ public interface BlockEntityRendererFactory<T extends BlockEntity, S extends Blo
 	) {
 
 		public ModelPart getLayerModelPart(EntityModelLayer modelLayer) {
-			return this.loadedEntityModels.getModelPart(modelLayer);
+			return loadedEntityModels.getModelPart(modelLayer);
 		}
 	}
 }

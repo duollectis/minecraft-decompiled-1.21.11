@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ServerRpcDispatcher}.
+ * Класс Server Rpc Dispatcher.
  */
 public class ServerRpcDispatcher {
 
@@ -94,9 +94,6 @@ public class ServerRpcDispatcher {
 		}
 	}
 
-	/**
-	 * {@code RpcStatus}.
-	 */
 	public record RpcStatus(boolean started, List<RpcPlayer> players, ServerMetadata.Version version) {
 
 		public static final Codec<ServerRpcDispatcher.RpcStatus> CODEC = RecordCodecBuilder.create(
@@ -118,9 +115,6 @@ public class ServerRpcDispatcher {
 				new ServerRpcDispatcher.RpcStatus(false, List.of(), ServerMetadata.Version.create());
 	}
 
-	/**
-	 * {@code RpcSystemMessage}.
-	 */
 	public record RpcSystemMessage(RpcKickReason message, boolean overlay, Optional<List<RpcPlayer>> receivingPlayers) {
 
 		public static final Codec<ServerRpcDispatcher.RpcSystemMessage> CODEC = RecordCodecBuilder.create(

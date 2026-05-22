@@ -10,32 +10,34 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryFixedCodec;
 
 /**
- * {@code DamageType}.
+ * Неизменяемый тип урона, загружаемый из датапака. Определяет идентификатор
+ * сообщения о смерти, масштабирование по сложности, усталость, звуковой эффект
+ * и формат сообщения о смерти.
  */
 public record DamageType(
-		String msgId,
-		DamageScaling scaling,
-		float exhaustion,
-		DamageEffects effects,
-		DeathMessageType deathMessageType
+	String msgId,
+	DamageScaling scaling,
+	float exhaustion,
+	DamageEffects effects,
+	DeathMessageType deathMessageType
 ) {
 
 	public static final Codec<DamageType> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Codec.STRING.fieldOf("message_id").forGetter(DamageType::msgId),
-					                    DamageScaling.CODEC.fieldOf("scaling").forGetter(DamageType::scaling),
-					                    Codec.FLOAT.fieldOf("exhaustion").forGetter(DamageType::exhaustion),
-					                    DamageEffects.CODEC.optionalFieldOf("effects", DamageEffects.HURT).forGetter(DamageType::effects),
-					                    DeathMessageType.CODEC
-							                    .optionalFieldOf("death_message_type", DeathMessageType.DEFAULT)
-							                    .forGetter(DamageType::deathMessageType)
-			                    )
-			                    .apply(instance, DamageType::new)
+		instance -> instance.group(
+			Codec.STRING.fieldOf("message_id").forGetter(DamageType::msgId),
+			DamageScaling.CODEC.fieldOf("scaling").forGetter(DamageType::scaling),
+			Codec.FLOAT.fieldOf("exhaustion").forGetter(DamageType::exhaustion),
+			DamageEffects.CODEC.optionalFieldOf("effects", DamageEffects.HURT).forGetter(DamageType::effects),
+			DeathMessageType.CODEC
+				.optionalFieldOf("death_message_type", DeathMessageType.DEFAULT)
+				.forGetter(DamageType::deathMessageType)
+		).apply(instance, DamageType::new)
 	);
+
 	public static final Codec<RegistryEntry<DamageType>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.DAMAGE_TYPE);
-	public static final PacketCodec<RegistryByteBuf, RegistryEntry<DamageType>>
-			ENTRY_PACKET_CODEC =
-			PacketCodecs.registryEntry(RegistryKeys.DAMAGE_TYPE);
+
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<DamageType>> ENTRY_PACKET_CODEC =
+		PacketCodecs.registryEntry(RegistryKeys.DAMAGE_TYPE);
 
 	public DamageType(String msgId, DamageScaling scaling, float exhaustion) {
 		this(msgId, scaling, exhaustion, DamageEffects.HURT, DeathMessageType.DEFAULT);

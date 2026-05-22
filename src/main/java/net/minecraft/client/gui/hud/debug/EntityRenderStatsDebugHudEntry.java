@@ -7,22 +7,23 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EntityRenderStatsDebugHudEntry}.
+ * Запись отладочного HUD: статистика рендеринга сущностей.
  */
+@Environment(EnvType.CLIENT)
 public class EntityRenderStatsDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		String string = MinecraftClient.getInstance().worldRenderer.getEntitiesDebugString();
-		if (string != null) {
-			lines.addLine(string);
+		String debugString = MinecraftClient.getInstance().worldRenderer.getEntitiesDebugString();
+
+		if (debugString != null) {
+			lines.addLine(debugString);
 		}
 	}
 

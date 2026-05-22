@@ -38,11 +38,15 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code DataComponentTypes}.
- */
+	 * Реестр всех стандартных типов компонентов данных предметов Minecraft.
+	 * Каждая константа регистрируется в {@link Registries#DATA_COMPONENT_TYPE}
+	 * и определяет кодек сериализации и/или сетевой кодек для своего типа данных.
+	 */
 public class DataComponentTypes {
 
-	static final CodecCache CACHE = new CodecCache(512);
+	private static final int CODEC_CACHE_SIZE = 512;
+
+	static final CodecCache CACHE = new CodecCache(CODEC_CACHE_SIZE);
 	public static final ComponentType<NbtComponent>
 			CUSTOM_DATA =
 			register("custom_data", builder -> builder.codec(NbtComponent.CODEC));
@@ -316,7 +320,7 @@ public class DataComponentTypes {
 	public static final ComponentType<TypedEntityData<BlockEntityType<?>>> BLOCK_ENTITY_DATA = register(
 			"block_entity_data",
 			builder -> builder.codec(TypedEntityData.createCodec(Registries.BLOCK_ENTITY_TYPE.getCodec()))
-			                  .packetCodec(TypedEntityData.createPacketCodec(PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE)))
+								.packetCodec(TypedEntityData.createPacketCodec(PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE)))
 	);
 	public static final ComponentType<InstrumentComponent> INSTRUMENT = register(
 			"instrument",
@@ -516,35 +520,35 @@ public class DataComponentTypes {
 			"shulker/color", builder -> builder.codec(DyeColor.CODEC).packetCodec(DyeColor.PACKET_CODEC)
 	);
 	public static final ComponentMap DEFAULT_ITEM_COMPONENTS = ComponentMap.builder()
-	                                                                       .add(MAX_STACK_SIZE, 64)
-	                                                                       .add(LORE, LoreComponent.DEFAULT)
-	                                                                       .add(
-			                                                                       ENCHANTMENTS,
-			                                                                       ItemEnchantmentsComponent.DEFAULT
-	                                                                       )
-	                                                                       .add(REPAIR_COST, 0)
-	                                                                       .add(
-			                                                                       USE_EFFECTS,
-			                                                                       UseEffectsComponent.DEFAULT
-	                                                                       )
-	                                                                       .add(
-			                                                                       ATTRIBUTE_MODIFIERS,
-			                                                                       AttributeModifiersComponent.DEFAULT
-	                                                                       )
-	                                                                       .add(RARITY, Rarity.COMMON)
-	                                                                       .add(
-			                                                                       BREAK_SOUND,
-			                                                                       SoundEvents.ENTITY_ITEM_BREAK
-	                                                                       )
-	                                                                       .add(
-			                                                                       TOOLTIP_DISPLAY,
-			                                                                       TooltipDisplayComponent.DEFAULT
-	                                                                       )
-	                                                                       .add(
-			                                                                       SWING_ANIMATION,
-			                                                                       SwingAnimationComponent.DEFAULT
-	                                                                       )
-	                                                                       .build();
+																			.add(MAX_STACK_SIZE, 64)
+																			.add(LORE, LoreComponent.DEFAULT)
+																			.add(
+																					ENCHANTMENTS,
+																					ItemEnchantmentsComponent.DEFAULT
+																			)
+																			.add(REPAIR_COST, 0)
+																			.add(
+																					USE_EFFECTS,
+																					UseEffectsComponent.DEFAULT
+																			)
+																			.add(
+																					ATTRIBUTE_MODIFIERS,
+																					AttributeModifiersComponent.DEFAULT
+																			)
+																			.add(RARITY, Rarity.COMMON)
+																			.add(
+																					BREAK_SOUND,
+																					SoundEvents.ENTITY_ITEM_BREAK
+																			)
+																			.add(
+																					TOOLTIP_DISPLAY,
+																					TooltipDisplayComponent.DEFAULT
+																			)
+																			.add(
+																					SWING_ANIMATION,
+																					SwingAnimationComponent.DEFAULT
+																			)
+																			.build();
 
 	public static ComponentType<?> getDefault(Registry<ComponentType<?>> registry) {
 		return CUSTOM_DATA;

@@ -11,19 +11,18 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MapRenderState}.
+ * Состояние рендеринга карты: хранит идентификатор текстуры карты и список декораций
+ * (маркеров) для отрисовки поверх неё. Заполняется перед каждым кадром рендеринга карты.
  */
+@Environment(EnvType.CLIENT)
 public class MapRenderState implements FabricRenderState {
 
 	public @Nullable Identifier texture;
 	public final List<MapRenderState.Decoration> decorations = new ArrayList<>();
 
+	/** Декорация карты: спрайт маркера с позицией, поворотом и опциональным именем. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Decoration}.
-	 */
 	public static class Decoration implements FabricRenderState {
 
 		public @Nullable Sprite sprite;

@@ -8,20 +8,25 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code WouldSurviveBlockPredicate}.
+ * Предикат, проверяющий, может ли заданный {@link BlockState} выжить (canPlaceAt)
+ * в позиции с учётом смещения. Используется при условном размещении растений и декораций.
  */
 public class WouldSurviveBlockPredicate implements BlockPredicate {
 
 	public static final MapCodec<WouldSurviveBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Vec3i
-							                    .createOffsetCodec(16)
-							                    .optionalFieldOf("offset", Vec3i.ZERO)
-							                    .forGetter(predicate -> predicate.offset),
-					                    BlockState.CODEC.fieldOf("state").forGetter(predicate -> predicate.state)
-			                    )
-			                    .apply(instance, WouldSurviveBlockPredicate::new)
+		instance -> instance
+			.group(
+				Vec3i
+					.createOffsetCodec(16)
+					.optionalFieldOf("offset", Vec3i.ZERO)
+					.forGetter(predicate -> predicate.offset),
+				BlockState.CODEC
+					.fieldOf("state")
+					.forGetter(predicate -> predicate.state)
+			)
+			.apply(instance, WouldSurviveBlockPredicate::new)
 	);
+
 	private final Vec3i offset;
 	private final BlockState state;
 
@@ -30,16 +35,9 @@ public class WouldSurviveBlockPredicate implements BlockPredicate {
 		this.state = state;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		return this.state.canPlaceAt(structureWorldAccess, blockPos.add(this.offset));
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		return state.canPlaceAt(world, pos.add(offset));
 	}
 
 	@Override

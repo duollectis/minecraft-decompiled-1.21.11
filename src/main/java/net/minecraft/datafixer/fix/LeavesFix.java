@@ -21,7 +21,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * {@code LeavesFix}.
+ * Мигрирует данные листвы (leaves) в чанках из старого формата блок-состояний в новый.
+ * <p>
+ * Вычисляет расстояние от каждого листового блока до ближайшего бревна (log) методом BFS
+ * по 6 осям и проставляет свойства {@code distance} и {@code persistent}. Также обновляет
+ * флаги {@code UpgradeData.Sides} для граничных чанков, требующих повторной обработки.
  */
 public class LeavesFix extends DataFix {
 
@@ -39,16 +43,7 @@ public class LeavesFix extends DataFix {
 	private static final int DISTANCE_MASK = 7;
 	private static final int BITS_PER_BLOCK = 12;
 	private static final int BLOCKS_PER_SECTION = 4096;
-	static final Object2IntMap<String> LEAVES_MAP = (Object2IntMap<String>) DataFixUtils.make(
-			new Object2IntOpenHashMap(), map -> {
-				map.put("minecraft:acacia_leaves", 0);
-				map.put("minecraft:birch_leaves", 1);
-				map.put("minecraft:dark_oak_leaves", 2);
-				map.put("minecraft:jungle_leaves", 3);
-				map.put("minecraft:oak_leaves", 4);
-				map.put("minecraft:spruce_leaves", 5);
-			}
-	);
+	static final Object2IntMap<String> LEAVES_MAP = buildLeavesMap();
 	static final Set<String> LOGS_MAP = ImmutableSet.of(
 			"minecraft:acacia_bark",
 			"minecraft:birch_bark",
@@ -72,164 +67,144 @@ public class LeavesFix extends DataFix {
 			}
 	);
 
-	public LeavesFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public LeavesFix(Schema schema, boolean outputChanges) {
+		super(schema, outputChanges);
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("Level");
-		OpticFinder<?> opticFinder2 = opticFinder.type().findField("Sections");
-		Type<?> type2 = opticFinder2.type();
-		if (!(type2 instanceof ListType)) {
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> levelFinder = chunkType.findField("Level");
+		OpticFinder<?> sectionsFinder = levelFinder.type().findField("Sections");
+		Type<?> sectionsType = sectionsFinder.type();
+		if (!(sectionsType instanceof ListType)) {
 			throw new IllegalStateException("Expecting sections to be a list.");
 		}
-		else {
-			Type<?> type3 = ((ListType) type2).getElement();
-			OpticFinder<?> opticFinder3 = DSL.typeFinder(type3);
-			return this.fixTypeEverywhereTyped(
-					"Leaves fix",
-					type,
-					chunkTyped -> chunkTyped.updateTyped(
-							opticFinder,
-							levelTyped -> {
-								int[] is = new int[]{0};
-								Typed<?> typed = levelTyped.updateTyped(
-										opticFinder2,
-										sectionsTyped -> {
-											Int2ObjectMap<LeavesFix.LeavesLogFixer>
-													int2ObjectMap =
-													new Int2ObjectOpenHashMap(
-															sectionsTyped.getAllTyped(opticFinder3)
-															             .stream()
-															             .map(sectionTyped -> new LeavesFix.LeavesLogFixer(
-																	             (Typed<?>) sectionTyped,
-																	             this.getInputSchema()
-															             ))
-															             .collect(Collectors.toMap(
-																	             LeavesFix.ListFixer::getY,
-																	             fixer -> (LeavesFix.LeavesLogFixer) fixer
-															             ))
-													);
-											if (int2ObjectMap
-													.values()
-													.stream()
-													.allMatch(LeavesFix.ListFixer::isFixed)) {
-												return sectionsTyped;
-											}
-											else {
-												List<IntSet> list = Lists.newArrayList();
 
-												for (int i = 0; i < 7; i++) {
-													list.add(new IntOpenHashSet());
-												}
-
-												ObjectIterator var25 = int2ObjectMap.values().iterator();
-
-												while (var25.hasNext()) {
-													LeavesFix.LeavesLogFixer
-															leavesLogFixer =
-															(LeavesFix.LeavesLogFixer) var25.next();
-													if (!leavesLogFixer.isFixed()) {
-														for (int j = 0; j < 4096; j++) {
-															int k = leavesLogFixer.blockStateAt(j);
-															if (leavesLogFixer.isLog(k)) {
-																list.get(0).add(leavesLogFixer.getY() << 12 | j);
-															}
-															else if (leavesLogFixer.isLeaf(k)) {
-																int l = this.getX(j);
-																int m = this.getZ(j);
-																is[0] |=
-																		getBoundaryClassBit(
-																				l == 0,
-																				l == 15,
-																				m == 0,
-																				m == 15
-																		);
-															}
-														}
-													}
-												}
-
-												for (int i = 1; i < 7; i++) {
-													IntSet intSet = list.get(i - 1);
-													IntSet intSet2 = list.get(i);
-													IntIterator intIterator = intSet.iterator();
-
-													while (intIterator.hasNext()) {
-														int l = intIterator.nextInt();
-														int m = this.getX(l);
-														int n = this.getY(l);
-														int o = this.getZ(l);
-
-														for (int[] js : AXIAL_OFFSETS) {
-															int p = m + js[0];
-															int q = n + js[1];
-															int r = o + js[2];
-															if (p >= 0 && p <= 15 && r >= 0 && r <= 15 && q >= 0
-																	&& q <= 255) {
-																LeavesFix.LeavesLogFixer
-																		leavesLogFixer2 =
-																		(LeavesFix.LeavesLogFixer) int2ObjectMap.get(
-																				q >> 4);
-																if (leavesLogFixer2 != null
-																		&& !leavesLogFixer2.isFixed()) {
-																	int s = packLocalPos(p, q & 15, r);
-																	int t = leavesLogFixer2.blockStateAt(s);
-																	if (leavesLogFixer2.isLeaf(t)) {
-																		int u = leavesLogFixer2.getDistanceToLog(t);
-																		if (u > i) {
-																			leavesLogFixer2.computeLeafStates(s, t, i);
-																			intSet2.add(packLocalPos(p, q, r));
-																		}
-																	}
-																}
-															}
-														}
-													}
-												}
-
-												return sectionsTyped.updateTyped(
-														opticFinder3,
-														sectionDynamic -> ((LeavesFix.LeavesLogFixer) int2ObjectMap.get(
-																((Dynamic) sectionDynamic.get(DSL.remainderFinder()))
-																		.get("Y")
-																		.asInt(0)
-														)
-														)
-																.finalizeFix(sectionDynamic)
+		Type<?> sectionElementType = ((ListType) sectionsType).getElement();
+		OpticFinder<?> sectionFinder = DSL.typeFinder(sectionElementType);
+		return fixTypeEverywhereTyped(
+				"Leaves fix",
+				chunkType,
+				chunkTyped -> chunkTyped.updateTyped(
+						levelFinder,
+						levelTyped -> {
+							int[] boundaryFlags = new int[]{0};
+							Typed<?> typed = levelTyped.updateTyped(
+									sectionsFinder,
+									sectionsTyped -> {
+										Int2ObjectMap<LeavesFix.LeavesLogFixer> fixersByY =
+												new Int2ObjectOpenHashMap<>(
+														sectionsTyped.getAllTyped(sectionFinder)
+														             .stream()
+														             .map(sectionTyped -> new LeavesFix.LeavesLogFixer(
+																             (Typed<?>) sectionTyped,
+																             getInputSchema()
+														             ))
+														             .collect(Collectors.toMap(
+																             LeavesFix.ListFixer::getY,
+																             fixer -> (LeavesFix.LeavesLogFixer) fixer
+														             ))
 												);
+										if (fixersByY.values().stream().allMatch(LeavesFix.ListFixer::isFixed)) {
+											return sectionsTyped;
+										}
+
+										List<IntSet> distanceSets = Lists.newArrayList();
+										for (int dist = 0; dist < 7; dist++) {
+											distanceSets.add(new IntOpenHashSet());
+										}
+
+										for (LeavesFix.LeavesLogFixer fixer : fixersByY.values()) {
+											if (fixer.isFixed()) {
+												continue;
+											}
+
+											for (int blockIndex = 0; blockIndex < BLOCKS_PER_SECTION; blockIndex++) {
+												int stateIndex = fixer.blockStateAt(blockIndex);
+												if (fixer.isLog(stateIndex)) {
+													distanceSets.get(0).add(fixer.getY() << BITS_PER_BLOCK | blockIndex);
+												}
+												else if (fixer.isLeaf(stateIndex)) {
+													int localX = this.getX(blockIndex);
+													int localZ = this.getZ(blockIndex);
+													boundaryFlags[0] |= getBoundaryClassBit(
+															localX == 0,
+															localX == 15,
+															localZ == 0,
+															localZ == 15
+													);
+												}
 											}
 										}
-								);
-								if (is[0] != 0) {
-									typed = typed.update(
-											DSL.remainderFinder(), dynamic -> {
-												Dynamic<?>
-														dynamic2 =
-														(Dynamic<?>) DataFixUtils.orElse(
-																dynamic
-																		.get("UpgradeData")
-																		.result(), dynamic.emptyMap()
-														);
-												return dynamic.set(
-														"UpgradeData",
-														dynamic2.set(
-																"Sides",
-																dynamic.createByte((byte) (
-																		dynamic2.get("Sides").asByte((byte) 0) | is[0]
-																))
-														)
-												);
-											}
-									);
-								}
 
-								return typed;
+										for (int dist = 1; dist < 7; dist++) {
+											IntSet currentSet = distanceSets.get(dist - 1);
+											IntSet nextSet = distanceSets.get(dist);
+											IntIterator iterator = currentSet.iterator();
+
+											while (iterator.hasNext()) {
+												int packed = iterator.nextInt();
+												int localX = this.getX(packed);
+												int globalY = this.getY(packed);
+												int localZ = this.getZ(packed);
+
+												for (int[] offset : AXIAL_OFFSETS) {
+													int nx = localX + offset[0];
+													int ny = globalY + offset[1];
+													int nz = localZ + offset[2];
+													if (nx >= 0 && nx <= 15 && nz >= 0 && nz <= 15 && ny >= 0 && ny <= 255) {
+														LeavesFix.LeavesLogFixer neighborFixer =
+																(LeavesFix.LeavesLogFixer) fixersByY.get(ny >> 4);
+														if (neighborFixer == null || neighborFixer.isFixed()) {
+															continue;
+														}
+
+														int neighborPos = packLocalPos(nx, ny & 15, nz);
+														int neighborState = neighborFixer.blockStateAt(neighborPos);
+														if (neighborFixer.isLeaf(neighborState)
+																&& neighborFixer.getDistanceToLog(neighborState) > dist) {
+															neighborFixer.computeLeafStates(neighborPos, neighborState, dist);
+															nextSet.add(packLocalPos(nx, ny, nz));
+														}
+													}
+												}
+											}
+										}
+
+										return sectionsTyped.updateTyped(
+												sectionFinder,
+												sectionTyped -> fixersByY.get(
+														((Dynamic<?>) sectionTyped.get(DSL.remainderFinder()))
+																.get("Y")
+																.asInt(0)
+												).finalizeFix(sectionTyped)
+										);
+									}
+							);
+							if (boundaryFlags[0] != 0) {
+								typed = typed.update(
+										DSL.remainderFinder(), dynamic -> {
+											Dynamic<?> upgradeData = (Dynamic<?>) DataFixUtils.orElse(
+													dynamic.get("UpgradeData").result(),
+													dynamic.emptyMap()
+											);
+											return dynamic.set(
+													"UpgradeData",
+													upgradeData.set(
+															"Sides",
+															dynamic.createByte((byte) (
+																	upgradeData.get("Sides").asByte((byte) 0) | boundaryFlags[0]
+															))
+													)
+											);
+										}
+								);
 							}
-					)
-			);
-		}
+
+							return typed;
+						}
+				)
+		);
 	}
 
 	public static int packLocalPos(int localX, int localY, int localZ) {
@@ -254,41 +229,42 @@ public class LeavesFix extends DataFix {
 			boolean northernmost,
 			boolean southernmost
 	) {
-		int i = 0;
+		int flags = 0;
 		if (northernmost) {
 			if (easternmost) {
-				i |= 2;
+				flags |= SIDE_FLAG_NORTH_EAST;
 			}
 			else if (westernmost) {
-				i |= 128;
+				flags |= SIDE_FLAG_NORTH_WEST;
 			}
 			else {
-				i |= 1;
+				flags |= SIDE_FLAG_NORTH;
 			}
 		}
 		else if (southernmost) {
 			if (westernmost) {
-				i |= 32;
+				flags |= SIDE_FLAG_SOUTH_WEST;
 			}
 			else if (easternmost) {
-				i |= 8;
+				flags |= SIDE_FLAG_SOUTH_EAST;
 			}
 			else {
-				i |= 16;
+				flags |= SIDE_FLAG_SOUTH;
 			}
 		}
 		else if (easternmost) {
-			i |= 4;
+			flags |= SIDE_FLAG_EAST;
 		}
 		else if (westernmost) {
-			i |= 64;
+			flags |= SIDE_FLAG_WEST;
 		}
 
-		return i;
+		return flags;
 	}
 
 	/**
-	 * {@code LeavesLogFixer}.
+	 * Вычисляет и обновляет состояния листовых блоков в одной секции чанка,
+	 * проставляя корректные значения {@code distance} и {@code persistent}.
 	 */
 	public static final class LeavesLogFixer extends LeavesFix.ListFixer {
 
@@ -366,9 +342,9 @@ public class LeavesFix extends DataFix {
 
 			int j = this.leafStates.get(i);
 			if (1 << this.blockStateMap.getUnitSize() <= j) {
-				WordPackedArray wordPackedArray = new WordPackedArray(this.blockStateMap.getUnitSize() + 1, 4096);
+				WordPackedArray wordPackedArray = new WordPackedArray(this.blockStateMap.getUnitSize() + 1, BLOCKS_PER_SECTION);
 
-				for (int k = 0; k < 4096; k++) {
+				for (int k = 0; k < BLOCKS_PER_SECTION; k++) {
 					wordPackedArray.set(k, this.blockStateMap.get(k));
 				}
 
@@ -380,7 +356,9 @@ public class LeavesFix extends DataFix {
 	}
 
 	/**
-	 * {@code ListFixer}.
+	 * Базовый класс для исправления палитры блок-состояний в одной секции чанка (16×16×16 блоков).
+	 * Загружает палитру и упакованный массив {@code BlockStates} из NBT и предоставляет
+	 * методы для чтения и записи индексов состояний.
 	 */
 	public abstract static class ListFixer {
 
@@ -423,7 +401,7 @@ public class LeavesFix extends DataFix {
 			else {
 				long[] ls = dynamic.get("BlockStates").asLongStream().toArray();
 				int i = Math.max(4, DataFixUtils.ceillog2(this.properties.size()));
-				this.blockStateMap = new WordPackedArray(i, 4096, ls);
+				this.blockStateMap = new WordPackedArray(i, BLOCKS_PER_SECTION, ls);
 			}
 		}
 
@@ -459,7 +437,7 @@ public class LeavesFix extends DataFix {
 		}
 
 		protected int computeFlags(String leafBlockName, boolean persistent, int distance) {
-			return LeavesFix.LEAVES_MAP.get(leafBlockName) << 5 | (persistent ? 16 : 0) | distance;
+			return LeavesFix.LEAVES_MAP.get(leafBlockName) << 5 | (persistent ? SIDE_FLAG_SOUTH : 0) | distance;
 		}
 
 		int getY() {
@@ -467,5 +445,17 @@ public class LeavesFix extends DataFix {
 		}
 
 		protected abstract boolean computeIsFixed();
+	}
+
+	private static Object2IntMap<String> buildLeavesMap() {
+		Object2IntOpenHashMap<String> map = new Object2IntOpenHashMap<>();
+		map.defaultReturnValue(-1);
+		map.put("minecraft:acacia_leaves", 0);
+		map.put("minecraft:birch_leaves", 1);
+		map.put("minecraft:dark_oak_leaves", 2);
+		map.put("minecraft:jungle_leaves", 3);
+		map.put("minecraft:oak_leaves", 4);
+		map.put("minecraft:spruce_leaves", 5);
+		return map;
 	}
 }

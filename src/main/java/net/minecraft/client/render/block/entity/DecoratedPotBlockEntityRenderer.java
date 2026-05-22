@@ -208,7 +208,7 @@ public class DecoratedPotBlockEntityRenderer implements BlockEntityRenderer<Deco
 						f =
 						MathHelper.sin(
 								-decoratedPotBlockEntityRenderState.wobbleAnimationProgress * 3.0F * (float) Math.PI)
-								* 0.125F;
+								* POT_SCALE;
 				float g = 1.0F - decoratedPotBlockEntityRenderState.wobbleAnimationProgress;
 				matrixStack.multiply(RotationAxis.POSITIVE_Y.rotation(f * g), 0.5F, 0.0F, 0.5F);
 			}

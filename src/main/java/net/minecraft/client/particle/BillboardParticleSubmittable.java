@@ -24,18 +24,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BillboardParticleSubmittable}.
+ * Реализует накопление и отправку billboard-частиц на GPU.
+ * Буферизует данные всех частиц по типу рендера, затем за один проход
+ * строит единый {@link BuiltBuffer} и отправляет его через {@link OrderedRenderCommandQueue}.
  */
+@Environment(EnvType.CLIENT)
 public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.LayeredCustom, Submittable {
 
 	private static final int INITIAL_BUFFER_MAX_LENGTH = 1024;
 	private static final int BUFFER_FLOAT_FIELDS = 12;
 	private static final int BUFFER_INT_FIELDS = 2;
-	private final Map<BillboardParticle.RenderType, BillboardParticleSubmittable.Vertices>
-			bufferByType =
-			new HashMap<>();
+
+	private final Map<BillboardParticle.RenderType, BillboardParticleSubmittable.Vertices> bufferByType = new HashMap<>();
 	private int particles;
 
 	public void render(
@@ -55,8 +56,8 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			int color,
 			int brightness
 	) {
-		this.bufferByType
-				.computeIfAbsent(renderType, renderTypex -> new BillboardParticleSubmittable.Vertices())
+		bufferByType
+				.computeIfAbsent(renderType, key -> new BillboardParticleSubmittable.Vertices())
 				.vertex(
 						x,
 						y,
@@ -73,88 +74,91 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 						color,
 						brightness
 				);
-		this.particles++;
+		particles++;
 	}
 
 	@Override
 	public void onFrameEnd() {
-		this.bufferByType.values().forEach(BillboardParticleSubmittable.Vertices::reset);
-		this.particles = 0;
+		bufferByType.values().forEach(BillboardParticleSubmittable.Vertices::reset);
+		particles = 0;
 	}
 
+	/**
+	 * Собирает все накопленные вершины в единый GPU-буфер и возвращает дескриптор слоёв.
+	 * Возвращает {@code null}, если частиц нет (буфер пуст).
+	 */
 	@Override
 	public BillboardParticleSubmittable.@Nullable Buffers submit(LayeredCustomCommandRenderer.VerticesCache cache) {
-		int i = this.particles * 4;
+		int vertexCount = particles * 4;
 
-		Object var13;
-		try (BufferAllocator bufferAllocator = BufferAllocator.fixedSized(
-				i * VertexFormats.POSITION_TEXTURE_COLOR_LIGHT.getVertexSize())
+		try (BufferAllocator allocator = BufferAllocator.fixedSized(
+				vertexCount * VertexFormats.POSITION_TEXTURE_COLOR_LIGHT.getVertexSize())
 		) {
-			BufferBuilder
-					bufferBuilder =
-					new BufferBuilder(
-							bufferAllocator,
-							VertexFormat.DrawMode.QUADS,
-							VertexFormats.POSITION_TEXTURE_COLOR_LIGHT
-					);
-			Map<BillboardParticle.RenderType, BillboardParticleSubmittable.Layer> map = new HashMap<>();
-			int j = 0;
+			BufferBuilder bufferBuilder = new BufferBuilder(
+					allocator,
+					VertexFormat.DrawMode.QUADS,
+					VertexFormats.POSITION_TEXTURE_COLOR_LIGHT
+			);
+			Map<BillboardParticle.RenderType, BillboardParticleSubmittable.Layer> layers = new HashMap<>();
+			int vertexOffset = 0;
 
-			for (Entry<BillboardParticle.RenderType, BillboardParticleSubmittable.Vertices> entry : this.bufferByType.entrySet()) {
+			for (Entry<BillboardParticle.RenderType, BillboardParticleSubmittable.Vertices> entry : bufferByType.entrySet()) {
 				entry.getValue()
-				     .render(
-						     (x, y, z, rotationX, rotationY, rotationZ, rotationW, size, minU, maxU, minV, maxV, color, brightness) -> this.drawFace(
-								     bufferBuilder,
-								     x,
-								     y,
-								     z,
-								     rotationX,
-								     rotationY,
-								     rotationZ,
-								     rotationW,
-								     size,
-								     minU,
-								     maxU,
-								     minV,
-								     maxV,
-								     color,
-								     brightness
-						     )
-				     );
+						.render(
+								(x, y, z, rotationX, rotationY, rotationZ, rotationW, size, minU, maxU, minV, maxV, color, brightness)
+										-> drawFace(
+												bufferBuilder,
+												x,
+												y,
+												z,
+												rotationX,
+												rotationY,
+												rotationZ,
+												rotationW,
+												size,
+												minU,
+												maxU,
+												minV,
+												maxV,
+												color,
+												brightness
+										)
+						);
+
 				if (entry.getValue().nextVertexIndex() > 0) {
-					map.put(
+					layers.put(
 							entry.getKey(),
-							new BillboardParticleSubmittable.Layer(j, entry.getValue().nextVertexIndex() * 6)
+							new BillboardParticleSubmittable.Layer(vertexOffset, entry.getValue().nextVertexIndex() * 6)
 					);
 				}
 
-				j += entry.getValue().nextVertexIndex() * 4;
+				vertexOffset += entry.getValue().nextVertexIndex() * 4;
 			}
 
 			BuiltBuffer builtBuffer = bufferBuilder.endNullable();
-			if (builtBuffer != null) {
-				cache.write(builtBuffer.getBuffer());
-				RenderSystem
-						.getSequentialBuffer(VertexFormat.DrawMode.QUADS)
-						.getIndexBuffer(builtBuffer.getDrawParameters().indexCount());
-				GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
-				                                            .write(
-						                                            RenderSystem.getModelViewMatrix(),
-						                                            new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
-						                                            new Vector3f(),
-						                                            new Matrix4f()
-				                                            );
-				return new BillboardParticleSubmittable.Buffers(
-						builtBuffer.getDrawParameters().indexCount(),
-						gpuBufferSlice,
-						map
-				);
+
+			if (builtBuffer == null) {
+				return null;
 			}
 
-			var13 = null;
-		}
+			cache.write(builtBuffer.getBuffer());
+			RenderSystem
+					.getSequentialBuffer(VertexFormat.DrawMode.QUADS)
+					.getIndexBuffer(builtBuffer.getDrawParameters().indexCount());
+			GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+					.write(
+							RenderSystem.getModelViewMatrix(),
+							new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
+							new Vector3f(),
+							new Matrix4f()
+					);
 
-		return (BillboardParticleSubmittable.Buffers) var13;
+			return new BillboardParticleSubmittable.Buffers(
+					builtBuffer.getDrawParameters().indexCount(),
+					dynamicTransforms,
+					layers
+			);
+		}
 	}
 
 	@Override
@@ -173,8 +177,8 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 		for (Entry<BillboardParticle.RenderType, BillboardParticleSubmittable.Layer> entry : buffers.layers.entrySet()) {
 			if (translucent == entry.getKey().translucent()) {
 				renderPass.setPipeline(entry.getKey().pipeline());
-				AbstractTexture abstractTexture = manager.getTexture(entry.getKey().textureAtlasLocation());
-				renderPass.bindTexture("Sampler0", abstractTexture.getGlTextureView(), abstractTexture.getSampler());
+				AbstractTexture texture = manager.getTexture(entry.getKey().textureAtlasLocation());
+				renderPass.bindTexture("Sampler0", texture.getGlTextureView(), texture.getSampler());
 				renderPass.drawIndexed(entry.getValue().vertexOffset, 0, entry.getValue().indexCount, 1);
 			}
 		}
@@ -197,11 +201,11 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			int color,
 			int brightness
 	) {
-		Quaternionf quaternionf = new Quaternionf(rotationX, rotationY, rotationZ, rotationW);
-		this.renderVertex(vertexConsumer, quaternionf, x, y, z, 1.0F, -1.0F, size, maxU, maxV, color, brightness);
-		this.renderVertex(vertexConsumer, quaternionf, x, y, z, 1.0F, 1.0F, size, maxU, minV, color, brightness);
-		this.renderVertex(vertexConsumer, quaternionf, x, y, z, -1.0F, 1.0F, size, minU, minV, color, brightness);
-		this.renderVertex(vertexConsumer, quaternionf, x, y, z, -1.0F, -1.0F, size, minU, maxV, color, brightness);
+		Quaternionf rotation = new Quaternionf(rotationX, rotationY, rotationZ, rotationW);
+		renderVertex(vertexConsumer, rotation, x, y, z, 1.0F, -1.0F, size, maxU, maxV, color, brightness);
+		renderVertex(vertexConsumer, rotation, x, y, z, 1.0F, 1.0F, size, maxU, minV, color, brightness);
+		renderVertex(vertexConsumer, rotation, x, y, z, -1.0F, 1.0F, size, minU, minV, color, brightness);
+		renderVertex(vertexConsumer, rotation, x, y, z, -1.0F, -1.0F, size, minU, maxV, color, brightness);
 	}
 
 	private void renderVertex(
@@ -213,30 +217,30 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			float localX,
 			float localY,
 			float size,
-			float maxU,
-			float maxV,
+			float u,
+			float v,
 			int color,
 			int brightness
 	) {
-		Vector3f vector3f = new Vector3f(localX, localY, 0.0F).rotate(rotation).mul(size).add(x, y, z);
+		Vector3f pos = new Vector3f(localX, localY, 0.0F).rotate(rotation).mul(size).add(x, y, z);
 		vertexConsumer
-				.vertex(vector3f.x(), vector3f.y(), vector3f.z())
-				.texture(maxU, maxV)
+				.vertex(pos.x(), pos.y(), pos.z())
+				.texture(u, v)
 				.color(color)
 				.light(brightness);
 	}
 
 	@Override
-	public void submit(OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
-		if (this.particles > 0) {
-			orderedRenderCommandQueue.submitCustom(this);
+	public void submit(OrderedRenderCommandQueue queue, CameraRenderState cameraRenderState) {
+		if (particles > 0) {
+			queue.submitCustom(this);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Buffers}.
+	 * Дескриптор готового GPU-буфера: количество индексов, uniform-данные камеры и карта слоёв по типу рендера.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Buffers(
 			int indexCount,
 			GpuBufferSlice dynamicTransforms,
@@ -244,11 +248,11 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 	) {
 	}
 
+	/**
+	 * Функциональный интерфейс для потребления данных одной billboard-вершины.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Consumer}.
-	 */
 	public interface Consumer {
 
 		void consume(
@@ -269,22 +273,21 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 		);
 	}
 
+	/** Смещение и количество индексов одного слоя в общем GPU-буфере. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Layer}.
-	 */
 	public record Layer(int vertexOffset, int indexCount) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Vertices}.
+	 * Внутренний буфер вершин одного типа рендера.
+	 * Хранит данные в двух параллельных массивах (float и int) и удваивает ёмкость при переполнении.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Vertices {
 
-		private int maxVertices = 1024;
-		private float[] floatData = new float[12288];
-		private int[] intData = new int[2048];
+		private int maxVertices = INITIAL_BUFFER_MAX_LENGTH;
+		private float[] floatData = new float[INITIAL_BUFFER_MAX_LENGTH * BUFFER_FLOAT_FIELDS];
+		private int[] intData = new int[INITIAL_BUFFER_MAX_LENGTH * BUFFER_INT_FIELDS];
 		private int nextVertexIndex;
 
 		public void vertex(
@@ -303,77 +306,66 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 				int color,
 				int brightness
 		) {
-			if (this.nextVertexIndex >= this.maxVertices) {
-				this.increaseCapacity();
+			if (nextVertexIndex >= maxVertices) {
+				increaseCapacity();
 			}
 
-			int i = this.nextVertexIndex * 12;
-			this.floatData[i++] = x;
-			this.floatData[i++] = y;
-			this.floatData[i++] = z;
-			this.floatData[i++] = rotationX;
-			this.floatData[i++] = rotationY;
-			this.floatData[i++] = rotationZ;
-			this.floatData[i++] = rotationW;
-			this.floatData[i++] = size;
-			this.floatData[i++] = minU;
-			this.floatData[i++] = maxU;
-			this.floatData[i++] = minV;
-			this.floatData[i] = maxV;
-			i = this.nextVertexIndex * 2;
-			this.intData[i++] = color;
-			this.intData[i] = brightness;
-			this.nextVertexIndex++;
+			int floatIndex = nextVertexIndex * BUFFER_FLOAT_FIELDS;
+			floatData[floatIndex++] = x;
+			floatData[floatIndex++] = y;
+			floatData[floatIndex++] = z;
+			floatData[floatIndex++] = rotationX;
+			floatData[floatIndex++] = rotationY;
+			floatData[floatIndex++] = rotationZ;
+			floatData[floatIndex++] = rotationW;
+			floatData[floatIndex++] = size;
+			floatData[floatIndex++] = minU;
+			floatData[floatIndex++] = maxU;
+			floatData[floatIndex++] = minV;
+			floatData[floatIndex] = maxV;
+
+			int intIndex = nextVertexIndex * BUFFER_INT_FIELDS;
+			intData[intIndex++] = color;
+			intData[intIndex] = brightness;
+
+			nextVertexIndex++;
 		}
 
-		/**
-		 * Render.
-		 *
-		 * @param vertexConsumer vertex consumer
-		 */
-		public void render(BillboardParticleSubmittable.Consumer vertexConsumer) {
-			for (int i = 0; i < this.nextVertexIndex; i++) {
-				int j = i * 12;
-				int k = i * 2;
-				vertexConsumer.consume(
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j++],
-						this.floatData[j],
-						this.intData[k++],
-						this.intData[k]
+		public void render(BillboardParticleSubmittable.Consumer consumer) {
+			for (int i = 0; i < nextVertexIndex; i++) {
+				int floatIndex = i * BUFFER_FLOAT_FIELDS;
+				int intIndex = i * BUFFER_INT_FIELDS;
+				consumer.consume(
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex++],
+						floatData[floatIndex],
+						intData[intIndex++],
+						intData[intIndex]
 				);
 			}
 		}
 
-		/**
-		 * Reset.
-		 */
 		public void reset() {
-			this.nextVertexIndex = 0;
+			nextVertexIndex = 0;
+		}
+
+		public int nextVertexIndex() {
+			return nextVertexIndex;
 		}
 
 		private void increaseCapacity() {
-			this.maxVertices *= 2;
-			this.floatData = Arrays.copyOf(this.floatData, this.maxVertices * 12);
-			this.intData = Arrays.copyOf(this.intData, this.maxVertices * 2);
-		}
-
-		/**
-		 * Next vertex index.
-		 *
-		 * @return int — результат операции
-		 */
-		public int nextVertexIndex() {
-			return this.nextVertexIndex;
+			maxVertices *= 2;
+			floatData = Arrays.copyOf(floatData, maxVertices * BUFFER_FLOAT_FIELDS);
+			intData = Arrays.copyOf(intData, maxVertices * BUFFER_INT_FIELDS);
 		}
 	}
 }

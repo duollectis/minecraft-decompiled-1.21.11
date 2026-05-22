@@ -26,7 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /**
- * {@code ChunkTicketManager}.
+ * Класс Chunk Ticket Manager.
  */
 public class ChunkTicketManager extends PersistentState {
 
@@ -518,17 +518,11 @@ public class ChunkTicketManager extends PersistentState {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code LevelUpdater}.
-	 */
 	public interface LevelUpdater {
 
 		void update(long pos, int level, boolean added);
 	}
 
-	/**
-	 * {@code TicketPredicate}.
-	 */
 	public interface TicketPredicate {
 
 		boolean test(ChunkTicket ticket, long pos);

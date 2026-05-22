@@ -19,22 +19,23 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityScoresLootCondition}.
+ * Условие, проверяющее очки сущности на табло по нескольким целям.
+ *
+ * <p>Все указанные цели должны соответствовать своим диапазонам — условие работает как AND.</p>
  */
 public record EntityScoresLootCondition(
-		Map<String, BoundedIntUnaryOperator> scores,
-		LootContext.EntityReference entity
+	Map<String, BoundedIntUnaryOperator> scores,
+	LootContext.EntityReference entity
 ) implements LootCondition {
 
 	public static final MapCodec<EntityScoresLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec
-							                    .unboundedMap(Codec.STRING, BoundedIntUnaryOperator.CODEC)
-							                    .fieldOf("scores")
-							                    .forGetter(EntityScoresLootCondition::scores),
-					                    LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityScoresLootCondition::entity)
-			                    )
-			                    .apply(instance, EntityScoresLootCondition::new)
+		instance -> instance.group(
+			Codec.unboundedMap(Codec.STRING, BoundedIntUnaryOperator.CODEC)
+				.fieldOf("scores")
+				.forGetter(EntityScoresLootCondition::scores),
+			LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityScoresLootCondition::entity)
+		)
+		.apply(instance, EntityScoresLootCondition::new)
 	);
 
 	@Override
@@ -44,68 +45,54 @@ public record EntityScoresLootCondition(
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Stream
-				.concat(
-						Stream.of(this.entity.contextParam()),
-						this.scores.values().stream().flatMap(operator -> operator.getRequiredParameters().stream())
-				)
-				.collect(ImmutableSet.toImmutableSet());
+		return Stream.concat(
+			Stream.of(entity.contextParam()),
+			scores.values().stream().flatMap(operator -> operator.getRequiredParameters().stream())
+		).collect(ImmutableSet.toImmutableSet());
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
-		Entity entity = lootContext.get(this.entity.contextParam());
-		if (entity == null) {
+		Entity target = lootContext.get(entity.contextParam());
+
+		if (target == null) {
 			return false;
 		}
-		else {
-			Scoreboard scoreboard = lootContext.getWorld().getScoreboard();
 
-			for (Entry<String, BoundedIntUnaryOperator> entry : this.scores.entrySet()) {
-				if (!this.entityScoreIsInRange(lootContext, entity, scoreboard, entry.getKey(), entry.getValue())) {
-					return false;
-				}
+		Scoreboard scoreboard = lootContext.getWorld().getScoreboard();
+
+		for (Entry<String, BoundedIntUnaryOperator> entry : scores.entrySet()) {
+			if (!entityScoreIsInRange(lootContext, target, scoreboard, entry.getKey(), entry.getValue())) {
+				return false;
 			}
-
-			return true;
 		}
+
+		return true;
 	}
 
 	protected boolean entityScoreIsInRange(
-			LootContext context,
-			Entity entity,
-			Scoreboard scoreboard,
-			String objectiveName,
-			BoundedIntUnaryOperator range
+		LootContext context,
+		Entity target,
+		Scoreboard scoreboard,
+		String objectiveName,
+		BoundedIntUnaryOperator range
 	) {
-		ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(objectiveName);
-		if (scoreboardObjective == null) {
+		ScoreboardObjective objective = scoreboard.getNullableObjective(objectiveName);
+
+		if (objective == null) {
 			return false;
 		}
-		else {
-			ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(entity, scoreboardObjective);
-			return readableScoreboardScore == null ? false : range.test(context, readableScoreboardScore.getScore());
-		}
+
+		ReadableScoreboardScore score = scoreboard.getScore(target, objective);
+		return score != null && range.test(context, score.getScore());
 	}
 
 	public static EntityScoresLootCondition.Builder create(LootContext.EntityReference target) {
 		return new EntityScoresLootCondition.Builder(target);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder implements LootCondition.Builder {
 
-		private final com.google.common.collect.ImmutableMap.Builder<String, BoundedIntUnaryOperator>
-				scores =
-				ImmutableMap.builder();
+		private final ImmutableMap.Builder<String, BoundedIntUnaryOperator> scores = ImmutableMap.builder();
 		private final LootContext.EntityReference target;
 
 		public Builder(LootContext.EntityReference target) {
@@ -113,13 +100,13 @@ public record EntityScoresLootCondition(
 		}
 
 		public EntityScoresLootCondition.Builder score(String name, BoundedIntUnaryOperator value) {
-			this.scores.put(name, value);
+			scores.put(name, value);
 			return this;
 		}
 
 		@Override
 		public LootCondition build() {
-			return new EntityScoresLootCondition(this.scores.build(), this.target);
+			return new EntityScoresLootCondition(scores.build(), target);
 		}
 	}
 }

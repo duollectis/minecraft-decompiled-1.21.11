@@ -6,10 +6,12 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ExplosionSmokeParticle}.
+ * Частица дыма взрыва — серо-белый клуб дыма, появляющийся после взрыва.
+ * Поднимается вверх (отрицательная гравитация), постепенно рассеивается
+ * и меняет спрайт по анимации. Живёт 18–82 тика.
  */
+@Environment(EnvType.CLIENT)
 public class ExplosionSmokeParticle extends BillboardParticle {
 
 	private final SpriteProvider spriteProvider;
@@ -31,10 +33,10 @@ public class ExplosionSmokeParticle extends BillboardParticle {
 		this.velocityX = velocityX + (this.random.nextFloat() * 2.0F - 1.0F) * 0.05F;
 		this.velocityY = velocityY + (this.random.nextFloat() * 2.0F - 1.0F) * 0.05F;
 		this.velocityZ = velocityZ + (this.random.nextFloat() * 2.0F - 1.0F) * 0.05F;
-		float f = this.random.nextFloat() * 0.3F + 0.7F;
-		this.red = f;
-		this.green = f;
-		this.blue = f;
+		float grayTone = this.random.nextFloat() * 0.3F + 0.7F;
+		this.red = grayTone;
+		this.green = grayTone;
+		this.blue = grayTone;
 		this.scale = 0.1F * (this.random.nextFloat() * this.random.nextFloat() * 6.0F + 1.0F);
 		this.maxAge = (int) (16.0 / (this.random.nextFloat() * 0.8 + 0.2)) + 2;
 		this.updateSprite(spriteProvider);
@@ -51,10 +53,10 @@ public class ExplosionSmokeParticle extends BillboardParticle {
 		this.updateSprite(this.spriteProvider);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц дыма взрыва.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -63,18 +65,19 @@ public class ExplosionSmokeParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new ExplosionSmokeParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			return new ExplosionSmokeParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
 		}
 	}
 }

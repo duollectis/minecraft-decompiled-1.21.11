@@ -75,7 +75,8 @@ import java.util.Optional;
 import java.util.function.BiPredicate;
 
 /**
- * {@code VillagerEntity}.
+ * Житель деревни — торговец с профессиями и репутационной системой.
+ * Торгует предметами, размножается, спит ночью и убегает от зомби.
  */
 public class VillagerEntity extends MerchantEntity implements InteractionObserver, VillagerDataContainer {
 
@@ -727,11 +728,11 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 
 	@Override
 	public boolean isReadyToBreed() {
-		return this.foodLevel + this.getAvailableFood() >= 12 && !this.isSleeping() && this.getBreedingAge() == 0;
+		return this.foodLevel + this.getAvailableFood() >= MAX_FOOD_LEVEL && !this.isSleeping() && this.getBreedingAge() == 0;
 	}
 
 	private boolean canEatFood() {
-		return this.foodLevel < 12;
+		return this.foodLevel < MAX_FOOD_LEVEL;
 	}
 
 	private void consumeAvailableFood() {
@@ -769,7 +770,7 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 	 */
 	public void eatForBreeding() {
 		this.consumeAvailableFood();
-		this.depleteFood(12);
+		this.depleteFood(MAX_FOOD_LEVEL);
 	}
 
 	public void setOffers(TradeOfferList offers) {
@@ -793,7 +794,7 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 12) {
+		if (status == MAX_FOOD_LEVEL) {
 			this.produceParticles(ParticleTypes.HEART);
 		}
 		else if (status == 13) {
@@ -931,7 +932,7 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 	 * @return boolean — результат операции
 	 */
 	public boolean needsFoodForBreeding() {
-		return this.getAvailableFood() < 12;
+		return this.getAvailableFood() < MAX_FOOD_LEVEL;
 	}
 
 	private int getAvailableFood() {
@@ -986,8 +987,8 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 	 * @param time time
 	 */
 	public void talkWithVillager(ServerWorld world, VillagerEntity villager, long time) {
-		if ((time < this.gossipStartTime || time >= this.gossipStartTime + 1200L)
-				&& (time < villager.gossipStartTime || time >= villager.gossipStartTime + 1200L)) {
+		if ((time < this.gossipStartTime || time >= this.gossipStartTime + RESTOCK_COOLDOWN_TICKS)
+				&& (time < villager.gossipStartTime || time >= villager.gossipStartTime + RESTOCK_COOLDOWN_TICKS)) {
 			this.gossip.shareGossipFrom(villager.gossip, this.random, 10);
 			this.gossipStartTime = time;
 			villager.gossipStartTime = time;
@@ -1000,7 +1001,7 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		if (this.lastGossipDecayTime == 0L) {
 			this.lastGossipDecayTime = l;
 		}
-		else if (l >= this.lastGossipDecayTime + 24000L) {
+		else if (l >= this.lastGossipDecayTime + GOSSIP_DECAY_PERIOD_TICKS) {
 			this.gossip.decay();
 			this.lastGossipDecayTime = l;
 		}
@@ -1111,7 +1112,7 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 
 	private boolean hasRecentlySlept(long worldTime) {
 		Optional<Long> optional = this.brain.getOptionalRegisteredMemory(MemoryModuleType.LAST_SLEPT);
-		return optional.filter(lastSlept -> worldTime - lastSlept < 24000L).isPresent();
+		return optional.filter(lastSlept -> worldTime - lastSlept < GOSSIP_DECAY_PERIOD_TICKS).isPresent();
 	}
 
 	@Override

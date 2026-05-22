@@ -4,7 +4,11 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code TrackedDataHandler}.
+ * Обработчик типа отслеживаемых данных сущности.
+ * Отвечает за сериализацию/десериализацию значения через {@link PacketCodec}
+ * и за создание {@link TrackedData} с уникальным идентификатором.
+ *
+ * @param <T> тип отслеживаемого значения
  */
 public interface TrackedDataHandler<T> {
 
@@ -16,8 +20,13 @@ public interface TrackedDataHandler<T> {
 
 	T copy(T value);
 
+	/**
+	 * Создаёт иммутабельный обработчик на основе готового кодека.
+	 * Метод {@code copy} возвращает то же самое значение без копирования,
+	 * что безопасно только для неизменяемых типов.
+	 */
 	static <T> TrackedDataHandler<T> create(PacketCodec<? super RegistryByteBuf, T> codec) {
-		return new TrackedDataHandler.ImmutableHandler<>() {
+		return new ImmutableHandler<>() {
 			@Override
 			public PacketCodec<? super RegistryByteBuf, T> codec() {
 				return codec;
@@ -26,9 +35,9 @@ public interface TrackedDataHandler<T> {
 	}
 
 	/**
-	 * {@code ImmutableHandler}.
+	 * Специализация для иммутабельных типов: {@code copy} возвращает оригинал без клонирования.
 	 */
-	public interface ImmutableHandler<T> extends TrackedDataHandler<T> {
+	interface ImmutableHandler<T> extends TrackedDataHandler<T> {
 
 		@Override
 		default T copy(T object) {

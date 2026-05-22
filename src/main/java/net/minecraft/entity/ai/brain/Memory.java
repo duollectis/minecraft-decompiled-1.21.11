@@ -7,7 +7,9 @@ import net.minecraft.util.annotation.Debug;
 import java.util.Optional;
 
 /**
- * {@code Memory}.
+ * Хранит одно значение в памяти мозга сущности с опциональным временем жизни (TTL).
+ * Постоянные воспоминания имеют {@code expiry == Long.MAX_VALUE} и никогда не истекают.
+ * Временные воспоминания уменьшают счётчик на каждом тике и удаляются при достижении нуля.
  */
 public class Memory<T> {
 
@@ -19,79 +21,57 @@ public class Memory<T> {
 		this.expiry = expiry;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.isTimed()) {
-			this.expiry--;
+		if (isTimed()) {
+			expiry--;
 		}
 	}
 
-	/**
-	 * Permanent.
-	 *
-	 * @param value value
-	 *
-	 * @return Memory — результат операции
-	 */
 	public static <T> Memory<T> permanent(T value) {
 		return new Memory<>(value, Long.MAX_VALUE);
 	}
 
-	/**
-	 * Timed.
-	 *
-	 * @param value value
-	 * @param expiry expiry
-	 *
-	 * @return Memory — результат операции
-	 */
 	public static <T> Memory<T> timed(T value, long expiry) {
 		return new Memory<>(value, expiry);
 	}
 
 	public long getExpiry() {
-		return this.expiry;
+		return expiry;
 	}
 
 	public T getValue() {
-		return this.value;
+		return value;
 	}
 
 	public boolean isExpired() {
-		return this.expiry <= 0L;
+		return expiry <= 0L;
 	}
 
 	@Override
 	public String toString() {
-		return this.value + (this.isTimed() ? " (ttl: " + this.expiry + ")" : "");
+		return value + (isTimed() ? " (ttl: " + expiry + ")" : "");
 	}
 
 	@Debug
 	public boolean isTimed() {
-		return this.expiry != Long.MAX_VALUE;
+		return expiry != Long.MAX_VALUE;
 	}
 
 	/**
-	 * Создаёт codec.
-	 *
-	 * @param codec codec
-	 *
-	 * @return Codec> — результат операции
+	 * Сериализует память в codec с поддержкой опционального TTL.
+	 * Если память постоянная (expiry == Long.MAX_VALUE), поле "ttl" не записывается.
 	 */
 	public static <T> Codec<Memory<T>> createCodec(Codec<T> codec) {
 		return RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    codec.fieldOf("value").forGetter(memory -> memory.value),
-						                    Codec.LONG
-								                    .lenientOptionalFieldOf("ttl")
-								                    .forGetter(memory -> memory.isTimed() ? Optional.of(memory.expiry) : Optional.empty())
-				                    )
-				                    .apply(
-						                    instance,
-						                    (value, expiry) -> new Memory<>(value, expiry.orElse(Long.MAX_VALUE))
-				                    )
+						codec.fieldOf("value").forGetter(memory -> memory.value),
+						Codec.LONG
+								.lenientOptionalFieldOf("ttl")
+								.forGetter(memory -> memory.isTimed() ? Optional.of(memory.expiry) : Optional.empty())
+				).apply(
+						instance,
+						(value, expiry) -> new Memory<>(value, expiry.orElse(Long.MAX_VALUE))
+				)
 		);
 	}
 }

@@ -9,12 +9,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1920}.
+ * Схема версии 1920: добавляет блок-сущность {@code minecraft:campfire}
+ * с полем {@code Items} — слотами для предметов, готовящихся на костре.
  */
 public class Schema1920 extends IdentifierNormalizingSchema {
 
-	public Schema1920(int i, Schema schema) {
-		super(i, schema);
+	public Schema1920(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	protected static void registerContainerBlockEntity(Schema schema, Map<String, Supplier<TypeTemplate>> map, String name) {
@@ -22,8 +23,8 @@ public class Schema1920 extends IdentifierNormalizingSchema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
-		registerContainerBlockEntity(schema, map, "minecraft:campfire");
-		return map;
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
+		registerContainerBlockEntity(schema, blockEntityTypes, "minecraft:campfire");
+		return blockEntityTypes;
 	}
 }

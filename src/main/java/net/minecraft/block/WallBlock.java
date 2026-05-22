@@ -31,7 +31,9 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 /**
- * {@code WallBlock}.
+ * Блок стены, автоматически соединяющийся с соседними блоками стен, заборов
+ * и сплошными поверхностями. Поддерживает три формы соединения: NONE, LOW, TALL.
+ * Реализует {@link Waterloggable} — может быть заполнен водой.
  */
 public class WallBlock extends Block implements Waterloggable {
 
@@ -90,7 +92,6 @@ public class WallBlock extends Block implements Waterloggable {
 
 	private Function<BlockState, VoxelShape> createShapeFunction(float tallHeight, float lowHeight) {
 		VoxelShape voxelShape = Block.createColumnShape(8.0, 0.0, tallHeight);
-		int i = 6;
 		Map<Direction, VoxelShape>
 				map =
 				VoxelShapes.createHorizontalFacingShapeMap(Block.createCuboidZShape(6.0, 0.0, lowHeight, 0.0, 11.0));
@@ -153,36 +154,28 @@ public class WallBlock extends Block implements Waterloggable {
 		BlockState blockState3 = worldView.getBlockState(blockPos4);
 		BlockState blockState4 = worldView.getBlockState(blockPos5);
 		BlockState blockState5 = worldView.getBlockState(blockPos6);
-		boolean
-				bl =
-				this.shouldConnectTo(
-						blockState,
-						blockState.isSideSolidFullSquare(worldView, blockPos2, Direction.SOUTH),
-						Direction.SOUTH
-				);
-		boolean
-				bl2 =
-				this.shouldConnectTo(
-						blockState2,
-						blockState2.isSideSolidFullSquare(worldView, blockPos3, Direction.WEST),
-						Direction.WEST
-				);
-		boolean
-				bl3 =
-				this.shouldConnectTo(
-						blockState3,
-						blockState3.isSideSolidFullSquare(worldView, blockPos4, Direction.NORTH),
-						Direction.NORTH
-				);
-		boolean
-				bl4 =
-				this.shouldConnectTo(
-						blockState4,
-						blockState4.isSideSolidFullSquare(worldView, blockPos5, Direction.EAST),
-						Direction.EAST
-				);
+		boolean connectNorth = this.shouldConnectTo(
+				blockState,
+				blockState.isSideSolidFullSquare(worldView, blockPos2, Direction.SOUTH),
+				Direction.SOUTH
+		);
+		boolean connectEast = this.shouldConnectTo(
+				blockState2,
+				blockState2.isSideSolidFullSquare(worldView, blockPos3, Direction.WEST),
+				Direction.WEST
+		);
+		boolean connectSouth = this.shouldConnectTo(
+				blockState3,
+				blockState3.isSideSolidFullSquare(worldView, blockPos4, Direction.NORTH),
+				Direction.NORTH
+		);
+		boolean connectWest = this.shouldConnectTo(
+				blockState4,
+				blockState4.isSideSolidFullSquare(worldView, blockPos5, Direction.EAST),
+				Direction.EAST
+		);
 		BlockState blockState6 = this.getDefaultState().with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
-		return this.getStateWith(worldView, blockState6, blockPos6, blockState5, bl, bl2, bl3, bl4);
+		return this.getStateWith(worldView, blockState6, blockPos6, blockState5, connectNorth, connectEast, connectSouth, connectWest);
 	}
 
 	@Override

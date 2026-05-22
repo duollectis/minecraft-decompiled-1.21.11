@@ -14,7 +14,8 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code OceanRuinStructure}.
+ * Структура руин океана. Тип биома (тёплый/холодный) определяет набор используемых шаблонов.
+ * Вероятности {@code largeProbability} и {@code clusterProbability} управляют размером и кластеризацией.
  */
 public class OceanRuinStructure extends Structure {
 
@@ -56,7 +57,7 @@ public class OceanRuinStructure extends Structure {
 		return getStructurePosition(
 				context,
 				Heightmap.Type.OCEAN_FLOOR_WG,
-				collector -> this.addPieces(collector, context)
+				collector -> addPieces(collector, context)
 		);
 	}
 
@@ -78,33 +79,31 @@ public class OceanRuinStructure extends Structure {
 		return StructureType.OCEAN_RUIN;
 	}
 
-	/**
-	 * {@code BiomeTemperature}.
-	 */
-	public static enum BiomeTemperature implements StringIdentifiable {
+	/** Температурный тип биома, определяющий набор шаблонов руин. */
+	public enum BiomeTemperature implements StringIdentifiable {
 		WARM("warm"),
 		COLD("cold");
 
-		public static final Codec<OceanRuinStructure.BiomeTemperature>
-				CODEC =
-				StringIdentifiable.createCodec(OceanRuinStructure.BiomeTemperature::values);
+		public static final Codec<OceanRuinStructure.BiomeTemperature> CODEC = StringIdentifiable.createCodec(OceanRuinStructure.BiomeTemperature::values);
+
+		/**
+		 * @deprecated Используется только для обратной совместимости при чтении старых сохранений.
+		 */
 		@Deprecated
-		public static final Codec<OceanRuinStructure.BiomeTemperature>
-				ENUM_NAME_CODEC =
-				Codecs.enumByName(OceanRuinStructure.BiomeTemperature::valueOf);
+		public static final Codec<OceanRuinStructure.BiomeTemperature> ENUM_NAME_CODEC = Codecs.enumByName(OceanRuinStructure.BiomeTemperature::valueOf);
 		private final String name;
 
-		private BiomeTemperature(final String name) {
+		BiomeTemperature(String name) {
 			this.name = name;
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

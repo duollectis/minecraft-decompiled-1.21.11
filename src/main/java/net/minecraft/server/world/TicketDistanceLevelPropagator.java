@@ -1,7 +1,7 @@
 package net.minecraft.server.world;
 
 /**
- * {@code TicketDistanceLevelPropagator}.
+ * Класс Ticket Distance Level Propagator.
  */
 class TicketDistanceLevelPropagator extends ChunkPosDistanceLevelPropagator {
 

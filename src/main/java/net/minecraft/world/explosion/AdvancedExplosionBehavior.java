@@ -12,9 +12,19 @@ import net.minecraft.world.BlockView;
 import java.util.Optional;
 
 /**
- * {@code AdvancedExplosionBehavior}.
+ * Расширенное поведение взрыва с явной настройкой разрушения блоков,
+ * урона сущностям, множителя отбрасывания и списка иммунных блоков.
+ * <p>
+ * Используется для взрывов с нестандартными правилами, например взрывов
+ * из компонентов предметов или специальных игровых механик.
  */
 public class AdvancedExplosionBehavior extends ExplosionBehavior {
+
+	/**
+	 * Сопротивление взрыву, которое делает блок фактически неразрушимым
+	 * (аналогично бедроку).
+	 */
+	private static final float INDESTRUCTIBLE_BLAST_RESISTANCE = 3600000.0F;
 
 	private final boolean destroyBlocks;
 	private final boolean damageEntities;
@@ -33,6 +43,11 @@ public class AdvancedExplosionBehavior extends ExplosionBehavior {
 		this.immuneBlocks = immuneBlocks;
 	}
 
+	/**
+	 * Если задан список иммунных блоков — блоки из этого списка получают
+	 * максимальное сопротивление взрыву (неразрушимы), остальные — нулевое.
+	 * Если список не задан — делегирует базовой логике.
+	 */
 	@Override
 	public Optional<Float> getBlastResistance(
 			Explosion explosion,
@@ -41,27 +56,36 @@ public class AdvancedExplosionBehavior extends ExplosionBehavior {
 			BlockState blockState,
 			FluidState fluidState
 	) {
-		if (this.immuneBlocks.isPresent()) {
-			return blockState.isIn(this.immuneBlocks.get()) ? Optional.of(3600000.0F) : Optional.empty();
-		}
-		else {
+		if (immuneBlocks.isEmpty()) {
 			return super.getBlastResistance(explosion, world, pos, blockState, fluidState);
 		}
+
+		return blockState.isIn(immuneBlocks.get())
+			? Optional.of(INDESTRUCTIBLE_BLAST_RESISTANCE)
+			: Optional.empty();
 	}
 
 	@Override
 	public boolean canDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float power) {
-		return this.destroyBlocks;
+		return destroyBlocks;
 	}
 
 	@Override
 	public boolean shouldDamage(Explosion explosion, Entity entity) {
-		return this.damageEntities;
+		return damageEntities;
 	}
 
+	/**
+	 * Возвращает множитель отбрасывания. Летящие игроки не получают отбрасывания.
+	 * Если множитель не задан явно — делегирует базовой логике.
+	 */
 	@Override
 	public float getKnockbackModifier(Entity entity) {
-		boolean bl = entity instanceof PlayerEntity playerEntity && playerEntity.getAbilities().flying;
-		return bl ? 0.0F : this.knockbackModifier.orElseGet(() -> super.getKnockbackModifier(entity));
+		boolean isFlying = entity instanceof PlayerEntity player && player.getAbilities().flying;
+		if (isFlying) {
+			return 0.0F;
+		}
+
+		return knockbackModifier.orElseGet(() -> super.getKnockbackModifier(entity));
 	}
 }

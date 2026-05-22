@@ -40,7 +40,9 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * {@code DoorBlock}.
+ * Блок двери — двухблочная конструкция (нижняя и верхняя половины).
+ * Поддерживает открытие вручную, редстоун-сигналом и взрывом ветра.
+ * Петля двери определяется геометрией окружения при установке.
  */
 public class DoorBlock extends Block {
 
@@ -87,13 +89,15 @@ public class DoorBlock extends Block {
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		Direction direction = state.get(FACING);
-		Direction direction2 = state.get(OPEN)
-		                       ? (state.get(HINGE) == DoorHinge.RIGHT ? direction.rotateYCounterclockwise()
-		                                                              : direction.rotateYClockwise()
-		                       )
-		                       : direction;
-		return SHAPES_BY_DIRECTION.get(direction2);
+		Direction facing = state.get(FACING);
+		Direction visualFacing = state.get(OPEN)
+				? (state.get(HINGE) == DoorHinge.RIGHT
+						? facing.rotateYCounterclockwise()
+						: facing.rotateYClockwise()
+				)
+				: facing;
+
+		return SHAPES_BY_DIRECTION.get(visualFacing);
 	}
 
 	@Override
@@ -107,31 +111,28 @@ public class DoorBlock extends Block {
 			BlockState neighborState,
 			Random random
 	) {
-		DoubleBlockHalf doubleBlockHalf = state.get(HALF);
-		if (direction.getAxis() != Direction.Axis.Y || doubleBlockHalf == DoubleBlockHalf.LOWER != (direction
-				== Direction.UP
-		)) {
-			return doubleBlockHalf == DoubleBlockHalf.LOWER && direction == Direction.DOWN && !state.canPlaceAt(
-					world,
-					pos
-			)
-			       ? Blocks.AIR.getDefaultState()
-			       : super.getStateForNeighborUpdate(
-					       state,
-					       world,
-					       tickView,
-					       pos,
-					       direction,
-					       neighborPos,
-					       neighborState,
-					       random
-			       );
+		DoubleBlockHalf half = state.get(HALF);
+		boolean isVertical = direction.getAxis() == Direction.Axis.Y;
+		boolean isMatchingVertical = half == DoubleBlockHalf.LOWER == (direction == Direction.UP);
+
+		if (isVertical && isMatchingVertical) {
+			return neighborState.getBlock() instanceof DoorBlock && neighborState.get(HALF) != half
+					? neighborState.with(HALF, half)
+					: Blocks.AIR.getDefaultState();
 		}
-		else {
-			return neighborState.getBlock() instanceof DoorBlock && neighborState.get(HALF) != doubleBlockHalf
-			       ? neighborState.with(HALF, doubleBlockHalf)
-			       : Blocks.AIR.getDefaultState();
-		}
+
+		return half == DoubleBlockHalf.LOWER && direction == Direction.DOWN && state.canPlaceAt(world, pos) == false
+				? Blocks.AIR.getDefaultState()
+				: super.getStateForNeighborUpdate(
+						state,
+						world,
+						tickView,
+						pos,
+						direction,
+						neighborPos,
+						neighborState,
+						random
+				);
 	}
 
 	@Override
@@ -142,9 +143,12 @@ public class DoorBlock extends Block {
 			Explosion explosion,
 			BiConsumer<ItemStack, BlockPos> stackMerger
 	) {
-		if (explosion.canTriggerBlocks() && state.get(HALF) == DoubleBlockHalf.LOWER
-				&& this.blockSetType.canOpenByWindCharge() && !state.get(POWERED)) {
-			this.setOpen(null, world, state, pos, !this.isOpen(state));
+		if (explosion.canTriggerBlocks()
+				&& state.get(HALF) == DoubleBlockHalf.LOWER
+				&& blockSetType.canOpenByWindCharge()
+				&& state.get(POWERED) == false
+		) {
+			setOpen(null, world, state, pos, isOpen(state) == false);
 		}
 
 		super.onExploded(state, world, pos, explosion, stackMerger);
@@ -171,18 +175,19 @@ public class DoorBlock extends Block {
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		BlockPos blockPos = ctx.getBlockPos();
 		World world = ctx.getWorld();
-		if (blockPos.getY() < world.getTopYInclusive() && world.getBlockState(blockPos.up()).canReplace(ctx)) {
-			boolean bl = world.isReceivingRedstonePower(blockPos) || world.isReceivingRedstonePower(blockPos.up());
-			return this.getDefaultState()
-			           .with(FACING, ctx.getHorizontalPlayerFacing())
-			           .with(HINGE, this.getHinge(ctx))
-			           .with(POWERED, bl)
-			           .with(OPEN, bl)
-			           .with(HALF, DoubleBlockHalf.LOWER);
-		}
-		else {
+
+		if (blockPos.getY() >= world.getTopYInclusive() || world.getBlockState(blockPos.up()).canReplace(ctx) == false) {
 			return null;
 		}
+
+		boolean powered = world.isReceivingRedstonePower(blockPos) || world.isReceivingRedstonePower(blockPos.up());
+
+		return getDefaultState()
+				.with(FACING, ctx.getHorizontalPlayerFacing())
+				.with(HINGE, getHinge(ctx))
+				.with(POWERED, powered)
+				.with(OPEN, powered)
+				.with(HALF, DoubleBlockHalf.LOWER);
 	}
 
 	@Override
@@ -193,63 +198,73 @@ public class DoorBlock extends Block {
 			@Nullable LivingEntity placer,
 			ItemStack itemStack
 	) {
-		world.setBlockState(pos.up(), state.with(HALF, DoubleBlockHalf.UPPER), 3);
+		world.setBlockState(pos.up(), state.with(HALF, DoubleBlockHalf.UPPER), Block.NOTIFY_ALL);
 	}
 
+	/**
+	 * Определяет сторону петли двери при установке на основе геометрии соседних блоков
+	 * и точки попадания курсора. Учитывает наличие соседних дверей и полных кубов.
+	 */
 	private DoorHinge getHinge(ItemPlacementContext ctx) {
 		BlockView blockView = ctx.getWorld();
 		BlockPos blockPos = ctx.getBlockPos();
-		Direction direction = ctx.getHorizontalPlayerFacing();
-		BlockPos blockPos2 = blockPos.up();
-		Direction direction2 = direction.rotateYCounterclockwise();
-		BlockPos blockPos3 = blockPos.offset(direction2);
-		BlockState blockState = blockView.getBlockState(blockPos3);
-		BlockPos blockPos4 = blockPos2.offset(direction2);
-		BlockState blockState2 = blockView.getBlockState(blockPos4);
-		Direction direction3 = direction.rotateYClockwise();
-		BlockPos blockPos5 = blockPos.offset(direction3);
-		BlockState blockState3 = blockView.getBlockState(blockPos5);
-		BlockPos blockPos6 = blockPos2.offset(direction3);
-		BlockState blockState4 = blockView.getBlockState(blockPos6);
-		int i = (blockState.isFullCube(blockView, blockPos3) ? -1 : 0)
-				+ (blockState2.isFullCube(blockView, blockPos4) ? -1 : 0)
-				+ (blockState3.isFullCube(blockView, blockPos5) ? 1 : 0)
-				+ (blockState4.isFullCube(blockView, blockPos6) ? 1 : 0);
-		boolean bl = blockState.getBlock() instanceof DoorBlock && blockState.get(HALF) == DoubleBlockHalf.LOWER;
-		boolean bl2 = blockState3.getBlock() instanceof DoorBlock && blockState3.get(HALF) == DoubleBlockHalf.LOWER;
-		if ((!bl || bl2) && i <= 0) {
-			if ((!bl2 || bl) && i >= 0) {
-				int j = direction.getOffsetX();
-				int k = direction.getOffsetZ();
-				Vec3d vec3d = ctx.getHitPos();
-				double d = vec3d.x - blockPos.getX();
-				double e = vec3d.z - blockPos.getZ();
-				return (j >= 0 || !(e < 0.5)) && (j <= 0 || !(e > 0.5)) && (k >= 0 || !(d > 0.5)) && (k <= 0 || !(d
-						< 0.5
-				)
-				) ? DoorHinge.LEFT : DoorHinge.RIGHT;
+		Direction facing = ctx.getHorizontalPlayerFacing();
+		BlockPos above = blockPos.up();
+
+		Direction ccw = facing.rotateYCounterclockwise();
+		BlockPos ccwPos = blockPos.offset(ccw);
+		BlockState ccwState = blockView.getBlockState(ccwPos);
+		BlockPos ccwAbove = above.offset(ccw);
+		BlockState ccwAboveState = blockView.getBlockState(ccwAbove);
+
+		Direction cw = facing.rotateYClockwise();
+		BlockPos cwPos = blockPos.offset(cw);
+		BlockState cwState = blockView.getBlockState(cwPos);
+		BlockPos cwAbove = above.offset(cw);
+		BlockState cwAboveState = blockView.getBlockState(cwAbove);
+
+		int score = (ccwState.isFullCube(blockView, ccwPos) ? -1 : 0)
+				+ (ccwAboveState.isFullCube(blockView, ccwAbove) ? -1 : 0)
+				+ (cwState.isFullCube(blockView, cwPos) ? 1 : 0)
+				+ (cwAboveState.isFullCube(blockView, cwAbove) ? 1 : 0);
+
+		boolean hasCcwDoor = ccwState.getBlock() instanceof DoorBlock && ccwState.get(HALF) == DoubleBlockHalf.LOWER;
+		boolean hasCwDoor = cwState.getBlock() instanceof DoorBlock && cwState.get(HALF) == DoubleBlockHalf.LOWER;
+
+		if ((hasCcwDoor == false || hasCwDoor) && score <= 0) {
+			if ((hasCwDoor == false || hasCcwDoor) && score >= 0) {
+				int offsetX = facing.getOffsetX();
+				int offsetZ = facing.getOffsetZ();
+				Vec3d hit = ctx.getHitPos();
+				double hitX = hit.x - blockPos.getX();
+				double hitZ = hit.z - blockPos.getZ();
+
+				return (offsetX >= 0 || hitZ >= 0.5)
+						&& (offsetX <= 0 || hitZ <= 0.5)
+						&& (offsetZ >= 0 || hitX <= 0.5)
+						&& (offsetZ <= 0 || hitX >= 0.5)
+						? DoorHinge.LEFT
+						: DoorHinge.RIGHT;
 			}
-			else {
-				return DoorHinge.LEFT;
-			}
+
+			return DoorHinge.LEFT;
 		}
-		else {
-			return DoorHinge.RIGHT;
-		}
+
+		return DoorHinge.RIGHT;
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!this.blockSetType.canOpenByHand()) {
+		if (blockSetType.canOpenByHand() == false) {
 			return ActionResult.PASS;
 		}
-		else {
-			state = state.cycle(OPEN);
-			world.setBlockState(pos, state, 10);
-			this.playOpenCloseSound(player, world, pos, state.get(OPEN));
-			world.emitGameEvent(player, this.isOpen(state) ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
-			return ActionResult.SUCCESS;
-		}
+
+		state = state.cycle(OPEN);
+		world.setBlockState(pos, state, 10);
+		playOpenCloseSound(player, world, pos, state.get(OPEN));
+		world.emitGameEvent(player, isOpen(state) ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
+
+		return ActionResult.SUCCESS;
 	}
 
 	public boolean isOpen(BlockState state) {
@@ -257,11 +272,13 @@ public class DoorBlock extends Block {
 	}
 
 	public void setOpen(@Nullable Entity entity, World world, BlockState state, BlockPos pos, boolean open) {
-		if (state.isOf(this) && state.get(OPEN) != open) {
-			world.setBlockState(pos, state.with(OPEN, open), 10);
-			this.playOpenCloseSound(entity, world, pos, open);
-			world.emitGameEvent(entity, open ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
+		if (state.isOf(this) == false || state.get(OPEN) == open) {
+			return;
 		}
+
+		world.setBlockState(pos, state.with(OPEN, open), 10);
+		playOpenCloseSound(entity, world, pos, open);
+		world.emitGameEvent(entity, open ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
 	}
 
 	@Override
@@ -273,17 +290,20 @@ public class DoorBlock extends Block {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		boolean bl = world.isReceivingRedstonePower(pos)
-				|| world.isReceivingRedstonePower(pos.offset(
-				state.get(HALF) == DoubleBlockHalf.LOWER ? Direction.UP : Direction.DOWN));
-		if (!this.getDefaultState().isOf(sourceBlock) && bl != state.get(POWERED)) {
-			if (bl != state.get(OPEN)) {
-				this.playOpenCloseSound(null, world, pos, bl);
-				world.emitGameEvent(null, bl ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
-			}
+		Direction otherHalf = state.get(HALF) == DoubleBlockHalf.LOWER ? Direction.UP : Direction.DOWN;
+		boolean powered = world.isReceivingRedstonePower(pos) || world.isReceivingRedstonePower(pos.offset(otherHalf));
+		boolean wasPowered = state.get(POWERED);
 
-			world.setBlockState(pos, state.with(POWERED, bl).with(OPEN, bl), 2);
+		if (getDefaultState().isOf(sourceBlock) || powered == wasPowered) {
+			return;
 		}
+
+		if (powered != state.get(OPEN)) {
+			playOpenCloseSound(null, world, pos, powered);
+			world.emitGameEvent(null, powered ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
+		}
+
+		world.setBlockState(pos, state.with(POWERED, powered).with(OPEN, powered), Block.NOTIFY_LISTENERS);
 	}
 
 	@Override
@@ -332,25 +352,10 @@ public class DoorBlock extends Block {
 		builder.add(HALF, FACING, OPEN, HINGE, POWERED);
 	}
 
-	/**
-	 * Проверяет возможность open by hand.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canOpenByHand(World world, BlockPos pos) {
 		return canOpenByHand(world.getBlockState(pos));
 	}
 
-	/**
-	 * Проверяет возможность open by hand.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canOpenByHand(BlockState state) {
 		return state.getBlock() instanceof DoorBlock doorBlock && doorBlock.getBlockSetType().canOpenByHand();
 	}

@@ -12,46 +12,41 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code FilledBucketCriterion}.
+ * Критерий: игрок наполнил ведро.
  */
 public class FilledBucketCriterion extends AbstractCriterion<FilledBucketCriterion.Conditions> {
 
 	@Override
-	public Codec<FilledBucketCriterion.Conditions> getConditionsCodec() {
-		return FilledBucketCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ItemStack stack) {
-		this.trigger(player, conditions -> conditions.matches(stack));
+		trigger(player, conditions -> conditions.matches(stack));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> item
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<FilledBucketCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(FilledBucketCriterion.Conditions::player),
-						                    ItemPredicate.CODEC.optionalFieldOf("item").forGetter(FilledBucketCriterion.Conditions::item)
-				                    )
-				                    .apply(instance, FilledBucketCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<FilledBucketCriterion.Conditions> create(ItemPredicate.Builder item) {
-			return Criteria.FILLED_BUCKET.create(new FilledBucketCriterion.Conditions(
-					Optional.empty(),
-					Optional.of(item.build())
-			));
+		public static AdvancementCriterion<Conditions> create(ItemPredicate.Builder item) {
+			return Criteria.FILLED_BUCKET.create(new Conditions(Optional.empty(), Optional.of(item.build())));
 		}
 
 		public boolean matches(ItemStack stack) {
-			return !this.item.isPresent() || this.item.get().test(stack);
+			return item.isEmpty() || item.get().test(stack);
 		}
 	}
 }

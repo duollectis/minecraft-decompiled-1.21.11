@@ -18,32 +18,34 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code SetContentsLootFunction}.
+ * Функция лута, заполняющая контейнерный компонент предмета (например, содержимое сундука или связки)
+ * предметами, сгенерированными из списка записей лут-таблицы.
  */
 public class SetContentsLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetContentsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									ContainerComponentModifiers.MODIFIER_CODEC
-											.fieldOf("component")
-											.forGetter(function -> function.component),
-									LootPoolEntryTypes.CODEC
-											.listOf()
-											.fieldOf("entries")
-											.forGetter(function -> function.entries)
-							)
-					)
-					.apply(instance, SetContentsLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					ContainerComponentModifiers.MODIFIER_CODEC
+						.fieldOf("component")
+						.forGetter(function -> function.component),
+					LootPoolEntryTypes.CODEC
+						.listOf()
+						.fieldOf("entries")
+						.forGetter(function -> function.entries)
+				)
+			)
+			.apply(instance, SetContentsLootFunction::new)
 	);
+
 	private final ContainerComponentModifier<?> component;
 	private final List<LootPoolEntry> entries;
 
 	SetContentsLootFunction(
-			List<LootCondition> conditions,
-			ContainerComponentModifier<?> component,
-			List<LootPoolEntry> entries
+		List<LootCondition> conditions,
+		ContainerComponentModifier<?> component,
+		List<LootPoolEntry> entries
 	) {
 		super(conditions);
 		this.component = component;
@@ -60,27 +62,25 @@ public class SetContentsLootFunction extends ConditionalLootFunction {
 		if (stack.isEmpty()) {
 			return stack;
 		}
-		else {
-			Stream.Builder<ItemStack> builder = Stream.builder();
-			this.entries
-					.forEach(entry -> entry.expand(
-							context,
-							choice -> choice.generateLoot(
-									LootTable.processStacks(context.getWorld(), builder::add),
-									context
-							)
-					));
-			this.component.apply(stack, builder.build());
-			return stack;
-		}
+
+		Stream.Builder<ItemStack> streamBuilder = Stream.builder();
+		entries.forEach(entry -> entry.expand(
+			context,
+			choice -> choice.generateLoot(
+				LootTable.processStacks(context.getWorld(), streamBuilder::add),
+				context
+			)
+		));
+		component.apply(stack, streamBuilder.build());
+		return stack;
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		super.validate(reporter);
 
-		for (int i = 0; i < this.entries.size(); i++) {
-			this.entries.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", i)));
+		for (int index = 0; index < entries.size(); index++) {
+			entries.get(index).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", index)));
 		}
 	}
 
@@ -88,30 +88,29 @@ public class SetContentsLootFunction extends ConditionalLootFunction {
 		return new SetContentsLootFunction.Builder(componentModifier);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель функции заполнения контейнерного компонента предмета. */
 	public static class Builder extends ConditionalLootFunction.Builder<SetContentsLootFunction.Builder> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+		private final ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
 		private final ContainerComponentModifier<?> componentModifier;
 
 		public Builder(ContainerComponentModifier<?> componentModifier) {
 			this.componentModifier = componentModifier;
 		}
 
+		@Override
 		protected SetContentsLootFunction.Builder getThisBuilder() {
 			return this;
 		}
 
 		public SetContentsLootFunction.Builder withEntry(LootPoolEntry.Builder<?> entryBuilder) {
-			this.entries.add(entryBuilder.build());
+			entries.add(entryBuilder.build());
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new SetContentsLootFunction(this.getConditions(), this.componentModifier, this.entries.build());
+			return new SetContentsLootFunction(getConditions(), componentModifier, entries.build());
 		}
 	}
 }

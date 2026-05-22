@@ -10,7 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code FallenTreeFeatureConfig}.
+ * Конфигурация фичи упавшего дерева. Задаёт провайдер блоков ствола,
+ * длину бревна и декораторы для пня и бревна. Строится через {@link Builder}.
  */
 public class FallenTreeFeatureConfig implements FeatureConfig {
 
@@ -51,9 +52,7 @@ public class FallenTreeFeatureConfig implements FeatureConfig {
 		this.logDecorators = logDecorators;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель конфигурации упавшего дерева с опциональными декораторами пня и бревна. */
 	public static class Builder {
 
 		private final BlockStateProvider trunkProvider;
@@ -76,11 +75,6 @@ public class FallenTreeFeatureConfig implements FeatureConfig {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return FallenTreeFeatureConfig — результат операции
-		 */
 		public FallenTreeFeatureConfig build() {
 			return new FallenTreeFeatureConfig(
 					this.trunkProvider,

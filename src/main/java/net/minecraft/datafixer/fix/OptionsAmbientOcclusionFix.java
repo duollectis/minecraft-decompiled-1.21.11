@@ -9,7 +9,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsAmbientOcclusionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsAmbientOcclusionFix extends DataFix {
 
@@ -18,9 +18,9 @@ public class OptionsAmbientOcclusionFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsAmbientOcclusionFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(),
 						options -> (Dynamic) DataFixUtils.orElse(

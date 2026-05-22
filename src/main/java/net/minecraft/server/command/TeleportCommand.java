@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
- * {@code TeleportCommand}.
+ * Команда {@code /teleport}: телепортация сущностей.
  */
 public class TeleportCommand {
 

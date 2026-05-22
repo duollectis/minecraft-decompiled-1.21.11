@@ -15,7 +15,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code ServerWorldProperties}.
+ * Расширение {@link MutableWorldProperties} для серверного контекста.
+ * Добавляет управление погодой, блуждающим торговцем, игровым режимом,
+ * границей мира и таймером запланированных событий.
+ *
+ * <p>Реализация по умолчанию {@link #populateCrashReport} дополняет отчёт
+ * о сбое именем уровня, режимом игры и текущим состоянием погоды.
  */
 public interface ServerWorldProperties extends MutableWorldProperties {
 
@@ -36,26 +41,26 @@ public interface ServerWorldProperties extends MutableWorldProperties {
 		MutableWorldProperties.super.populateCrashReport(reportSection, world);
 		reportSection.add("Level name", this::getLevelName);
 		reportSection.add(
-				"Level game mode",
-				() -> String.format(
-						Locale.ROOT,
-						"Game mode: %s (ID %d). Hardcore: %b. Commands: %b",
-						this.getGameMode().getId(),
-						this.getGameMode().getIndex(),
-						this.isHardcore(),
-						this.areCommandsAllowed()
-				)
+			"Level game mode",
+			() -> String.format(
+				Locale.ROOT,
+				"Game mode: %s (ID %d). Hardcore: %b. Commands: %b",
+				getGameMode().getId(),
+				getGameMode().getIndex(),
+				isHardcore(),
+				areCommandsAllowed()
+			)
 		);
 		reportSection.add(
-				"Level weather",
-				() -> String.format(
-						Locale.ROOT,
-						"Rain time: %d (now: %b), thunder time: %d (now: %b)",
-						this.getRainTime(),
-						this.isRaining(),
-						this.getThunderTime(),
-						this.isThundering()
-				)
+			"Level weather",
+			() -> String.format(
+				Locale.ROOT,
+				"Rain time: %d (now: %b), thunder time: %d (now: %b)",
+				getRainTime(),
+				isRaining(),
+				getThunderTime(),
+				isThundering()
+			)
 		);
 	}
 

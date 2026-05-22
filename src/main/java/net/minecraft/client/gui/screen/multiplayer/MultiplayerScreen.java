@@ -20,15 +20,19 @@ import org.slf4j.Logger;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MultiplayerScreen}.
+ * Экран выбора многопользовательского сервера.
+ * Отображает список серверов, LAN-серверов и предоставляет кнопки управления.
  */
+@Environment(EnvType.CLIENT)
 public class MultiplayerScreen extends Screen {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int WIDE_BUTTON_WIDTH = 100;
 	private static final int NARROW_BUTTON_WIDTH = 74;
+	private static final int KEY_F5 = 294;
+	private static final int SERVER_ENTRY_HEIGHT = 36;
+
 	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this, 33, 60);
 	private final MultiplayerServerListPinger serverListPinger = new MultiplayerServerListPinger();
 	private final Screen parent;
@@ -48,207 +52,204 @@ public class MultiplayerScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.layout.addHeader(this.title, this.textRenderer);
-		this.serverList = new ServerList(this.client);
-		this.serverList.loadFile();
-		this.lanServers = new LanServerQueryManager.LanServerEntryList();
+		layout.addHeader(title, textRenderer);
+		serverList = new ServerList(client);
+		serverList.loadFile();
+		lanServers = new LanServerQueryManager.LanServerEntryList();
 
 		try {
-			this.lanServerDetector = new LanServerQueryManager.LanServerDetector(this.lanServers);
-			this.lanServerDetector.start();
+			lanServerDetector = new LanServerQueryManager.LanServerDetector(lanServers);
+			lanServerDetector.start();
 		}
-		catch (Exception var4) {
-			LOGGER.warn("Unable to start LAN server detection: {}", var4.getMessage());
+		catch (Exception exception) {
+			LOGGER.warn("Unable to start LAN server detection: {}", exception.getMessage());
 		}
 
-		this.serverListWidget = this.layout
-				.addBody(new MultiplayerServerListWidget(
-						this,
-						this.client,
-						this.width,
-						this.layout.getContentHeight(),
-						this.layout.getHeaderHeight(),
-						36
+		serverListWidget = layout.addBody(new MultiplayerServerListWidget(
+			this,
+			client,
+			width,
+			layout.getContentHeight(),
+			layout.getHeaderHeight(),
+			SERVER_ENTRY_HEIGHT
+		));
+		serverListWidget.setServers(serverList);
+
+		DirectionalLayoutWidget footerLayout = layout.addFooter(DirectionalLayoutWidget.vertical().spacing(4));
+		footerLayout.getMainPositioner().alignHorizontalCenter();
+		DirectionalLayoutWidget topRow = footerLayout.add(DirectionalLayoutWidget.horizontal().spacing(4));
+		DirectionalLayoutWidget bottomRow = footerLayout.add(DirectionalLayoutWidget.horizontal().spacing(4));
+
+		buttonJoin = topRow.add(ButtonWidget.builder(
+			Text.translatable("selectServer.select"), button -> {
+				MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+				if (entry != null) {
+					entry.connect();
+				}
+			}
+		).width(WIDE_BUTTON_WIDTH).build());
+
+		topRow.add(ButtonWidget.builder(
+			Text.translatable("selectServer.direct"), button -> {
+				selectedEntry = new ServerInfo(I18n.translate("selectServer.defaultName"), "", ServerInfo.ServerType.OTHER);
+				client.setScreen(new DirectConnectScreen(this, this::directConnect, selectedEntry));
+			}
+		).width(WIDE_BUTTON_WIDTH).build());
+
+		topRow.add(ButtonWidget.builder(
+			Text.translatable("selectServer.add"), button -> {
+				selectedEntry = new ServerInfo("", "", ServerInfo.ServerType.OTHER);
+				client.setScreen(new AddServerScreen(
+					this,
+					Text.translatable("manageServer.add.title"),
+					this::addEntry,
+					selectedEntry
 				));
-		this.serverListWidget.setServers(this.serverList);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.vertical().spacing(4));
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(4));
-		DirectionalLayoutWidget
-				directionalLayoutWidget3 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(4));
-		this.buttonJoin = directionalLayoutWidget2.add(ButtonWidget.builder(
-				Text.translatable("selectServer.select"), button -> {
-					MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-					if (entry != null) {
-						entry.connect();
-					}
-				}
-		).width(100).build());
-		directionalLayoutWidget2.add(ButtonWidget.builder(
-				Text.translatable("selectServer.direct"), button -> {
-					this.selectedEntry =
-							new ServerInfo(I18n.translate("selectServer.defaultName"), "", ServerInfo.ServerType.OTHER);
-					this.client.setScreen(new DirectConnectScreen(this, this::directConnect, this.selectedEntry));
-				}
-		).width(100).build());
-		directionalLayoutWidget2.add(ButtonWidget.builder(
-				Text.translatable("selectServer.add"), button -> {
-					this.selectedEntry = new ServerInfo("", "", ServerInfo.ServerType.OTHER);
-					this.client.setScreen(new AddServerScreen(
-							this,
-							Text.translatable("manageServer.add.title"),
-							this::addEntry,
-							this.selectedEntry
+			}
+		).width(WIDE_BUTTON_WIDTH).build());
+
+		buttonEdit = bottomRow.add(ButtonWidget.builder(
+			Text.translatable("selectServer.edit"), button -> {
+				MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+				if (entry instanceof MultiplayerServerListWidget.ServerEntry serverEntry) {
+					ServerInfo serverInfo = serverEntry.getServer();
+					selectedEntry = new ServerInfo(serverInfo.name, serverInfo.address, ServerInfo.ServerType.OTHER);
+					selectedEntry.copyWithSettingsFrom(serverInfo);
+					client.setScreen(new AddServerScreen(
+						this,
+						Text.translatable("manageServer.edit.title"),
+						this::editEntry,
+						selectedEntry
 					));
 				}
-		).width(100).build());
-		this.buttonEdit = directionalLayoutWidget3.add(ButtonWidget.builder(
-				Text.translatable("selectServer.edit"), button -> {
-					MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-					if (entry instanceof MultiplayerServerListWidget.ServerEntry) {
-						ServerInfo serverInfo = ((MultiplayerServerListWidget.ServerEntry) entry).getServer();
-						this.selectedEntry =
-								new ServerInfo(serverInfo.name, serverInfo.address, ServerInfo.ServerType.OTHER);
-						this.selectedEntry.copyWithSettingsFrom(serverInfo);
-						this.client.setScreen(new AddServerScreen(
-								this,
-								Text.translatable("manageServer.edit.title"),
-								this::editEntry,
-								this.selectedEntry
-						));
+			}
+		).width(NARROW_BUTTON_WIDTH).build());
+
+		buttonDelete = bottomRow.add(ButtonWidget.builder(
+			Text.translatable("selectServer.delete"), button -> {
+				MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+				if (entry instanceof MultiplayerServerListWidget.ServerEntry serverEntry) {
+					String serverName = serverEntry.getServer().name;
+					if (serverName != null) {
+						Text question = Text.translatable("selectServer.deleteQuestion");
+						Text warning = Text.translatable("selectServer.deleteWarning", serverName);
+						Text deleteButton = Text.translatable("selectServer.deleteButton");
+						client.setScreen(new ConfirmScreen(this::removeEntry, question, warning, deleteButton, ScreenTexts.CANCEL));
 					}
 				}
-		).width(74).build());
-		this.buttonDelete = directionalLayoutWidget3.add(ButtonWidget.builder(
-				Text.translatable("selectServer.delete"), button -> {
-					MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-					if (entry instanceof MultiplayerServerListWidget.ServerEntry) {
-						String string = ((MultiplayerServerListWidget.ServerEntry) entry).getServer().name;
-						if (string != null) {
-							Text text = Text.translatable("selectServer.deleteQuestion");
-							Text text2 = Text.translatable("selectServer.deleteWarning", string);
-							Text text3 = Text.translatable("selectServer.deleteButton");
-							Text text4 = ScreenTexts.CANCEL;
-							this.client.setScreen(new ConfirmScreen(this::removeEntry, text, text2, text3, text4));
-						}
-					}
-				}
-		).width(74).build());
-		directionalLayoutWidget3.add(ButtonWidget
-				.builder(Text.translatable("selectServer.refresh"), button -> this.refresh())
-				.width(74)
-				.build());
-		directionalLayoutWidget3.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).width(74).build());
-		this.layout.forEachChild(element -> {
-			ClickableWidget var10000 = this.addDrawableChild(element);
-		});
-		this.refreshWidgetPositions();
-		this.updateButtonActivationStates();
+			}
+		).width(NARROW_BUTTON_WIDTH).build());
+
+		bottomRow.add(ButtonWidget.builder(Text.translatable("selectServer.refresh"), button -> refresh())
+			.width(NARROW_BUTTON_WIDTH)
+			.build());
+
+		bottomRow.add(ButtonWidget.builder(ScreenTexts.BACK, button -> close())
+			.width(NARROW_BUTTON_WIDTH)
+			.build());
+
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
+		updateButtonActivationStates();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		if (this.serverListWidget != null) {
-			this.serverListWidget.position(this.width, this.layout);
+		layout.refreshPositions();
+		if (serverListWidget != null) {
+			serverListWidget.position(width, layout);
 		}
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		List<LanServerInfo> list = this.lanServers.getEntriesIfUpdated();
-		if (list != null) {
-			this.serverListWidget.setLanServers(list);
+		List<LanServerInfo> updatedLanServers = lanServers.getEntriesIfUpdated();
+		if (updatedLanServers != null) {
+			serverListWidget.setLanServers(updatedLanServers);
 		}
 
-		this.serverListPinger.tick();
+		serverListPinger.tick();
 	}
 
 	@Override
 	public void removed() {
-		if (this.lanServerDetector != null) {
-			this.lanServerDetector.interrupt();
-			this.lanServerDetector = null;
+		if (lanServerDetector != null) {
+			lanServerDetector.interrupt();
+			lanServerDetector = null;
 		}
 
-		this.serverListPinger.cancel();
-		this.serverListWidget.onRemoved();
+		serverListPinger.cancel();
+		serverListWidget.onRemoved();
 	}
 
 	private void refresh() {
-		this.client.setScreen(new MultiplayerScreen(this.parent));
+		client.setScreen(new MultiplayerScreen(parent));
 	}
 
-	private void removeEntry(boolean confirmedAction) {
-		MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-		if (confirmedAction && entry instanceof MultiplayerServerListWidget.ServerEntry) {
-			this.serverList.remove(((MultiplayerServerListWidget.ServerEntry) entry).getServer());
-			this.serverList.saveFile();
-			this.serverListWidget.setSelected(null);
-			this.serverListWidget.setServers(this.serverList);
+	private void removeEntry(boolean confirmed) {
+		MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+		if (confirmed && entry instanceof MultiplayerServerListWidget.ServerEntry serverEntry) {
+			serverList.remove(serverEntry.getServer());
+			serverList.saveFile();
+			serverListWidget.setSelected(null);
+			serverListWidget.setServers(serverList);
 		}
 
-		this.client.setScreen(this);
+		client.setScreen(this);
 	}
 
-	private void editEntry(boolean confirmedAction) {
-		MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-		if (confirmedAction && entry instanceof MultiplayerServerListWidget.ServerEntry) {
-			ServerInfo serverInfo = ((MultiplayerServerListWidget.ServerEntry) entry).getServer();
-			serverInfo.name = this.selectedEntry.name;
-			serverInfo.address = this.selectedEntry.address;
-			serverInfo.copyWithSettingsFrom(this.selectedEntry);
-			this.serverList.saveFile();
-			this.serverListWidget.setServers(this.serverList);
+	private void editEntry(boolean confirmed) {
+		MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+		if (confirmed && entry instanceof MultiplayerServerListWidget.ServerEntry serverEntry) {
+			ServerInfo serverInfo = serverEntry.getServer();
+			serverInfo.name = selectedEntry.name;
+			serverInfo.address = selectedEntry.address;
+			serverInfo.copyWithSettingsFrom(selectedEntry);
+			serverList.saveFile();
+			serverListWidget.setServers(serverList);
 		}
 
-		this.client.setScreen(this);
+		client.setScreen(this);
 	}
 
-	private void addEntry(boolean confirmedAction) {
-		if (confirmedAction) {
-			ServerInfo serverInfo = this.serverList.tryUnhide(this.selectedEntry.address);
-			if (serverInfo != null) {
-				serverInfo.copyFrom(this.selectedEntry);
-				this.serverList.saveFile();
+	private void addEntry(boolean confirmed) {
+		if (confirmed) {
+			ServerInfo existing = serverList.tryUnhide(selectedEntry.address);
+			if (existing != null) {
+				existing.copyFrom(selectedEntry);
 			}
 			else {
-				this.serverList.add(this.selectedEntry, false);
-				this.serverList.saveFile();
+				serverList.add(selectedEntry, false);
 			}
 
-			this.serverListWidget.setSelected(null);
-			this.serverListWidget.setServers(this.serverList);
+			serverList.saveFile();
+			serverListWidget.setSelected(null);
+			serverListWidget.setServers(serverList);
 		}
 
-		this.client.setScreen(this);
+		client.setScreen(this);
 	}
 
-	private void directConnect(boolean confirmedAction) {
-		if (confirmedAction) {
-			ServerInfo serverInfo = this.serverList.get(this.selectedEntry.address);
-			if (serverInfo == null) {
-				this.serverList.add(this.selectedEntry, true);
-				this.serverList.saveFile();
-				this.connect(this.selectedEntry);
-			}
-			else {
-				this.connect(serverInfo);
-			}
+	private void directConnect(boolean confirmed) {
+		if (!confirmed) {
+			client.setScreen(this);
+			return;
+		}
+
+		ServerInfo existing = serverList.get(selectedEntry.address);
+		if (existing == null) {
+			serverList.add(selectedEntry, true);
+			serverList.saveFile();
+			connect(selectedEntry);
 		}
 		else {
-			this.client.setScreen(this);
+			connect(existing);
 		}
 	}
 
@@ -257,46 +258,48 @@ public class MultiplayerScreen extends Screen {
 		if (super.keyPressed(input)) {
 			return true;
 		}
-		else if (input.key() == 294) {
-			this.refresh();
+
+		if (input.key() == KEY_F5) {
+			refresh();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	/**
-	 * Connect.
+	 * Подключается к указанному серверу через {@link ConnectScreen}.
 	 *
-	 * @param entry entry
+	 * @param entry информация о сервере для подключения
 	 */
 	public void connect(ServerInfo entry) {
-		ConnectScreen.connect(this, this.client, ServerAddress.parse(entry.address), entry, false, null);
+		ConnectScreen.connect(this, client, ServerAddress.parse(entry.address), entry, false, null);
 	}
 
 	/**
-	 * Обновляет button activation states.
+	 * Обновляет активность кнопок в зависимости от выбранного элемента списка.
 	 */
 	protected void updateButtonActivationStates() {
-		this.buttonJoin.active = false;
-		this.buttonEdit.active = false;
-		this.buttonDelete.active = false;
-		MultiplayerServerListWidget.Entry entry = this.serverListWidget.getSelectedOrNull();
-		if (entry != null && !(entry instanceof MultiplayerServerListWidget.ScanningEntry)) {
-			this.buttonJoin.active = true;
-			if (entry instanceof MultiplayerServerListWidget.ServerEntry) {
-				this.buttonEdit.active = true;
-				this.buttonDelete.active = true;
-			}
+		buttonJoin.active = false;
+		buttonEdit.active = false;
+		buttonDelete.active = false;
+		MultiplayerServerListWidget.Entry entry = serverListWidget.getSelectedOrNull();
+		if (entry == null || entry instanceof MultiplayerServerListWidget.ScanningEntry) {
+			return;
+		}
+
+		buttonJoin.active = true;
+		if (entry instanceof MultiplayerServerListWidget.ServerEntry) {
+			buttonEdit.active = true;
+			buttonDelete.active = true;
 		}
 	}
 
 	public MultiplayerServerListPinger getServerListPinger() {
-		return this.serverListPinger;
+		return serverListPinger;
 	}
 
 	public ServerList getServerList() {
-		return this.serverList;
+		return serverList;
 	}
 }

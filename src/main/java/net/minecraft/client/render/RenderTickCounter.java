@@ -4,14 +4,16 @@ import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RenderTickCounter}.
+ * Счётчик тиков рендеринга, предоставляющий интерполяционный прогресс между тиками.
+ * Используется для плавной анимации между игровыми тиками.
+ * Предоставляет две реализации: {@link Constant} для фиксированного значения
+ * и {@link Dynamic} для динамического расчёта на основе реального времени.
  */
+@Environment(EnvType.CLIENT)
 public interface RenderTickCounter {
 
 	RenderTickCounter ZERO = new RenderTickCounter.Constant(0.0F);
-
 	RenderTickCounter ONE = new RenderTickCounter.Constant(1.0F);
 
 	float getDynamicDeltaTicks();
@@ -20,10 +22,8 @@ public interface RenderTickCounter {
 
 	float getFixedDeltaTicks();
 
+	/** Константная реализация, всегда возвращающая одно фиксированное значение. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Constant}.
-	 */
 	public static class Constant implements RenderTickCounter {
 
 		private final float value;
@@ -34,25 +34,31 @@ public interface RenderTickCounter {
 
 		@Override
 		public float getDynamicDeltaTicks() {
-			return this.value;
+			return value;
 		}
 
 		@Override
 		public float getTickProgress(boolean ignoreFreeze) {
-			return this.value;
+			return value;
 		}
 
 		@Override
 		public float getFixedDeltaTicks() {
-			return this.value;
+			return value;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Dynamic}.
+	 * Динамическая реализация, вычисляющая прогресс тика на основе реального времени.
+	 * Поддерживает паузу, заморозку тиков и настраиваемую скорость через {@link FloatUnaryOperator}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Dynamic implements RenderTickCounter {
+
+		/** Порог фиксированной дельты, выше которого возвращается 0.5 для предотвращения рывков. */
+		private static final float MAX_FIXED_DELTA_TICKS = 7.0F;
+		private static final float FIXED_DELTA_FALLBACK = 0.5F;
+		private static final float MILLIS_PER_SECOND = 1000.0F;
 
 		private float dynamicDeltaTicks;
 		private float tickProgress;
@@ -66,67 +72,61 @@ public interface RenderTickCounter {
 		private boolean tickFrozen;
 
 		public Dynamic(float tps, long timeMillis, FloatUnaryOperator targetMillisPerTick) {
-			this.tickTime = 1000.0F / tps;
-			this.timeMillis = this.lastTimeMillis = timeMillis;
+			tickTime = MILLIS_PER_SECOND / tps;
+			this.timeMillis = lastTimeMillis = timeMillis;
 			this.targetMillisPerTick = targetMillisPerTick;
 		}
 
 		/**
-		 * Begin render tick.
+		 * Начинает новый кадр рендеринга: обновляет время и при необходимости вычисляет
+		 * количество игровых тиков, которые нужно выполнить.
 		 *
-		 * @param timeMillis time millis
-		 * @param tick tick
-		 *
-		 * @return int — результат операции
+		 * @param timeMillis текущее время в миллисекундах
+		 * @param tick       {@code true} — выполнять расчёт тиков
+		 * @return количество игровых тиков для выполнения в этом кадре
 		 */
 		public int beginRenderTick(long timeMillis, boolean tick) {
-			this.setTimeMillis(timeMillis);
-			return tick ? this.beginRenderTick(timeMillis) : 0;
+			setTimeMillis(timeMillis);
+			return tick ? beginRenderTick(timeMillis) : 0;
 		}
 
 		private int beginRenderTick(long timeMillis) {
-			this.dynamicDeltaTicks =
-					(float) (timeMillis - this.lastTimeMillis) / this.targetMillisPerTick.apply(this.tickTime);
-			this.lastTimeMillis = timeMillis;
-			this.tickProgress = this.tickProgress + this.dynamicDeltaTicks;
-			int i = (int) this.tickProgress;
-			this.tickProgress -= i;
-			return i;
+			dynamicDeltaTicks = (float) (timeMillis - lastTimeMillis) / targetMillisPerTick.apply(tickTime);
+			lastTimeMillis = timeMillis;
+			tickProgress = tickProgress + dynamicDeltaTicks;
+			int completedTicks = (int) tickProgress;
+			tickProgress -= completedTicks;
+			return completedTicks;
 		}
 
 		private void setTimeMillis(long timeMillis) {
-			this.fixedDeltaTicks = (float) (timeMillis - this.timeMillis) / this.tickTime;
+			fixedDeltaTicks = (float) (timeMillis - this.timeMillis) / tickTime;
 			this.timeMillis = timeMillis;
 		}
 
-		/**
-		 * Tick.
-		 *
-		 * @param paused paused
-		 */
 		public void tick(boolean paused) {
 			if (paused) {
-				this.tickPaused();
+				tickPaused();
 			}
 			else {
-				this.tickUnpaused();
+				tickUnpaused();
 			}
 		}
 
 		private void tickPaused() {
-			if (!this.paused) {
-				this.tickProgressBeforePause = this.tickProgress;
+			if (!paused) {
+				tickProgressBeforePause = tickProgress;
 			}
 
-			this.paused = true;
+			paused = true;
 		}
 
 		private void tickUnpaused() {
-			if (this.paused) {
-				this.tickProgress = this.tickProgressBeforePause;
+			if (paused) {
+				tickProgress = tickProgressBeforePause;
 			}
 
-			this.paused = false;
+			paused = false;
 		}
 
 		public void setTickFrozen(boolean tickFrozen) {
@@ -135,22 +135,21 @@ public interface RenderTickCounter {
 
 		@Override
 		public float getDynamicDeltaTicks() {
-			return this.dynamicDeltaTicks;
+			return dynamicDeltaTicks;
 		}
 
 		@Override
 		public float getTickProgress(boolean ignoreFreeze) {
-			if (!ignoreFreeze && this.tickFrozen) {
+			if (!ignoreFreeze && tickFrozen) {
 				return 1.0F;
 			}
-			else {
-				return this.paused ? this.tickProgressBeforePause : this.tickProgress;
-			}
+
+			return paused ? tickProgressBeforePause : tickProgress;
 		}
 
 		@Override
 		public float getFixedDeltaTicks() {
-			return this.fixedDeltaTicks > 7.0F ? 0.5F : this.fixedDeltaTicks;
+			return fixedDeltaTicks > MAX_FIXED_DELTA_TICKS ? FIXED_DELTA_FALLBACK : fixedDeltaTicks;
 		}
 	}
 }

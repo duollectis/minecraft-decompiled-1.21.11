@@ -15,9 +15,17 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Map;
 
 /**
- * {@code BreezeSlideTowardsTargetTask}.
+ * Задача мозга бриза, управляющая скольжением к цели или от неё.
+ * При слишком близком расстоянии убегает; иначе перемещается за спину цели или в средний диапазон.
  */
 public class BreezeSlideTowardsTargetTask extends MultiTickTask<BreezeEntity> {
+
+	private static final float SLIDE_WALK_SPEED = 0.6F;
+	private static final int SLIDE_COMPLETION_RANGE = 1;
+	private static final int FLEE_HORIZONTAL_RANGE = 5;
+	private static final int FLEE_VERTICAL_RANGE = 5;
+	private static final double MEDIUM_RANGE_MIN = 4.0;
+	private static final double MEDIUM_RANGE_MAX = 8.0;
 
 	public BreezeSlideTowardsTargetTask() {
 		super(
@@ -34,59 +42,45 @@ public class BreezeSlideTowardsTargetTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
-		return breezeEntity.isOnGround() && !breezeEntity.isTouchingWater()
-				&& breezeEntity.getPose() == EntityPose.STANDING;
+	@Override
+	protected boolean shouldRun(ServerWorld world, BreezeEntity entity) {
+		return entity.isOnGround()
+				&& !entity.isTouchingWater()
+				&& entity.getPose() == EntityPose.STANDING;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		LivingEntity
-				livingEntity =
-				breezeEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
-		if (livingEntity != null) {
-			boolean bl = breezeEntity.isWithinShortRange(livingEntity.getEntityPos());
-			Vec3d vec3d = null;
-			if (bl) {
-				Vec3d vec3d2 = NoPenaltyTargeting.findFrom(breezeEntity, 5, 5, livingEntity.getEntityPos());
-				if (vec3d2 != null
-						&& BreezeMovementUtil.canMoveTo(breezeEntity, vec3d2)
-						&& livingEntity.squaredDistanceTo(vec3d2.x, vec3d2.y, vec3d2.z)
-						> livingEntity.squaredDistanceTo(breezeEntity)) {
-					vec3d = vec3d2;
-				}
-			}
-
-			if (vec3d == null) {
-				vec3d = breezeEntity.getRandom().nextBoolean()
-				        ? BreezeMovementUtil.getRandomPosBehindTarget(livingEntity, breezeEntity.getRandom())
-				        : getRandomPosInMediumRange(breezeEntity, livingEntity);
-			}
-
-			breezeEntity
-					.getBrain()
-					.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(BlockPos.ofFloored(vec3d), 0.6F, 1));
+	@Override
+	protected void run(ServerWorld world, BreezeEntity entity, long time) {
+		LivingEntity target = entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
+				.orElse(null);
+		if (target == null) {
+			return;
 		}
+
+		Vec3d destination = null;
+		if (entity.isWithinShortRange(target.getEntityPos())) {
+			Vec3d fleePos = NoPenaltyTargeting.findFrom(entity, FLEE_HORIZONTAL_RANGE, FLEE_VERTICAL_RANGE, target.getEntityPos());
+			if (fleePos != null
+					&& BreezeMovementUtil.canMoveTo(entity, fleePos)
+					&& target.squaredDistanceTo(fleePos.x, fleePos.y, fleePos.z) > target.squaredDistanceTo(entity)) {
+				destination = fleePos;
+			}
+		}
+
+		if (destination == null) {
+			destination = entity.getRandom().nextBoolean()
+					? BreezeMovementUtil.getRandomPosBehindTarget(target, entity.getRandom())
+					: getRandomPosInMediumRange(entity, target);
+		}
+
+		entity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(BlockPos.ofFloored(destination), SLIDE_WALK_SPEED, SLIDE_COMPLETION_RANGE));
 	}
 
 	private static Vec3d getRandomPosInMediumRange(BreezeEntity breeze, LivingEntity target) {
-		Vec3d vec3d = target.getEntityPos().subtract(breeze.getEntityPos());
-		double d = vec3d.length() - MathHelper.lerp(breeze.getRandom().nextDouble(), 8.0, 4.0);
-		Vec3d vec3d2 = vec3d.normalize().multiply(d, d, d);
-		return breeze.getEntityPos().add(vec3d2);
+		Vec3d toTarget = target.getEntityPos().subtract(breeze.getEntityPos());
+		double distance = toTarget.length() - MathHelper.lerp(breeze.getRandom().nextDouble(), MEDIUM_RANGE_MIN, MEDIUM_RANGE_MAX);
+		Vec3d offset = toTarget.normalize().multiply(distance, distance, distance);
+		return breeze.getEntityPos().add(offset);
 	}
 }

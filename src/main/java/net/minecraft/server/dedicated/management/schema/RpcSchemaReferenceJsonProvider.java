@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RpcSchemaReferenceJsonProvider}.
+ * Класс Rpc Schema Reference Json Provider.
  */
 public class RpcSchemaReferenceJsonProvider implements DataProvider {
 

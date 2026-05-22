@@ -10,12 +10,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4301}.
+ * Схема DataFixer версии 4301, переводящая снаряжение сущностей на новый формат:
+ * вместо массива {@code Equipment} теперь используется объект {@code equipment}
+ * с именованными слотами (mainhand, offhand, feet, legs, chest, head, body, saddle).
  */
 public class Schema4301 extends IdentifierNormalizingSchema {
 
-	public Schema4301(int i, Schema schema) {
-		super(i, schema);
+	public Schema4301(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(

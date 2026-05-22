@@ -13,29 +13,30 @@ import net.minecraft.util.math.ColorHelper;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpectatorMenu}.
+ * Спектаторское меню быстрых действий (телепорт, смена страницы, закрытие).
+ * Отображается в виде 9 слотов хотбара при нажатии соответствующей клавиши.
  */
+@Environment(EnvType.CLIENT)
 public class SpectatorMenu {
 
 	static final Identifier CLOSE_TEXTURE = Identifier.ofVanilla("spectator/close");
 	static final Identifier SCROLL_LEFT_TEXTURE = Identifier.ofVanilla("spectator/scroll_left");
 	static final Identifier SCROLL_RIGHT_TEXTURE = Identifier.ofVanilla("spectator/scroll_right");
-	private static final SpectatorMenuCommand CLOSE_COMMAND = new SpectatorMenu.CloseSpectatorMenuCommand();
-	private static final SpectatorMenuCommand
-			PREVIOUS_PAGE_COMMAND =
-			new SpectatorMenu.ChangePageSpectatorMenuCommand(-1, true);
-	private static final SpectatorMenuCommand
-			NEXT_PAGE_COMMAND =
-			new SpectatorMenu.ChangePageSpectatorMenuCommand(1, true);
-	private static final SpectatorMenuCommand
-			DISABLED_NEXT_PAGE_COMMAND =
-			new SpectatorMenu.ChangePageSpectatorMenuCommand(1, false);
+
+	private static final SpectatorMenuCommand CLOSE_COMMAND = new CloseSpectatorMenuCommand();
+	private static final SpectatorMenuCommand PREVIOUS_PAGE_COMMAND = new ChangePageSpectatorMenuCommand(-1, true);
+	private static final SpectatorMenuCommand NEXT_PAGE_COMMAND = new ChangePageSpectatorMenuCommand(1, true);
+	private static final SpectatorMenuCommand DISABLED_NEXT_PAGE_COMMAND = new ChangePageSpectatorMenuCommand(1, false);
+
 	private static final int CLOSE_SLOT = 8;
+	private static final int NEXT_PAGE_SLOT = 7;
+	private static final int COMMANDS_PER_PAGE = 6;
+
 	static final Text CLOSE_TEXT = Text.translatable("spectatorMenu.close");
 	static final Text PREVIOUS_PAGE_TEXT = Text.translatable("spectatorMenu.previous_page");
 	static final Text NEXT_PAGE_TEXT = Text.translatable("spectatorMenu.next_page");
+
 	public static final SpectatorMenuCommand BLANK_COMMAND = new SpectatorMenuCommand() {
 		@Override
 		public void use(SpectatorMenu menu) {
@@ -55,159 +56,122 @@ public class SpectatorMenu {
 			return false;
 		}
 	};
+
 	private final SpectatorMenuCloseCallback closeCallback;
 	private SpectatorMenuCommandGroup currentGroup;
 	private int selectedSlot = -1;
 	int page;
 
 	public SpectatorMenu(SpectatorMenuCloseCallback closeCallback) {
-		this.currentGroup = new RootSpectatorCommandGroup();
+		currentGroup = new RootSpectatorCommandGroup();
 		this.closeCallback = closeCallback;
 	}
 
 	public SpectatorMenuCommand getCommand(int slot) {
-		int i = slot + this.page * 6;
-		if (this.page > 0 && slot == 0) {
+		int absoluteIndex = slot + page * COMMANDS_PER_PAGE;
+
+		if (page > 0 && slot == 0) {
 			return PREVIOUS_PAGE_COMMAND;
 		}
-		else if (slot == 7) {
-			return i < this.currentGroup.getCommands().size() ? NEXT_PAGE_COMMAND : DISABLED_NEXT_PAGE_COMMAND;
+
+		if (slot == NEXT_PAGE_SLOT) {
+			return absoluteIndex < currentGroup.getCommands().size() ? NEXT_PAGE_COMMAND : DISABLED_NEXT_PAGE_COMMAND;
 		}
-		else if (slot == 8) {
+
+		if (slot == CLOSE_SLOT) {
 			return CLOSE_COMMAND;
 		}
-		else {
-			return i >= 0 && i < this.currentGroup.getCommands().size()
-			       ? (SpectatorMenuCommand) MoreObjects.firstNonNull(
-					this.currentGroup.getCommands().get(i),
-					BLANK_COMMAND
-			)
-			       : BLANK_COMMAND;
-		}
+
+		return absoluteIndex >= 0 && absoluteIndex < currentGroup.getCommands().size()
+			? (SpectatorMenuCommand) MoreObjects.firstNonNull(currentGroup.getCommands().get(absoluteIndex), BLANK_COMMAND)
+			: BLANK_COMMAND;
 	}
 
 	public List<SpectatorMenuCommand> getCommands() {
-		List<SpectatorMenuCommand> list = Lists.newArrayList();
+		List<SpectatorMenuCommand> commands = Lists.newArrayList();
 
-		for (int i = 0; i <= 8; i++) {
-			list.add(this.getCommand(i));
+		for (int slot = 0; slot <= CLOSE_SLOT; slot++) {
+			commands.add(getCommand(slot));
 		}
 
-		return list;
+		return commands;
 	}
 
 	public SpectatorMenuCommand getSelectedCommand() {
-		return this.getCommand(this.selectedSlot);
+		return getCommand(selectedSlot);
 	}
 
 	public SpectatorMenuCommandGroup getCurrentGroup() {
-		return this.currentGroup;
+		return currentGroup;
 	}
 
-	/**
-	 * Использует command.
-	 *
-	 * @param slot slot
-	 */
 	public void useCommand(int slot) {
-		SpectatorMenuCommand spectatorMenuCommand = this.getCommand(slot);
-		if (spectatorMenuCommand != BLANK_COMMAND) {
-			if (this.selectedSlot == slot && spectatorMenuCommand.isEnabled()) {
-				spectatorMenuCommand.use(this);
-			}
-			else {
-				this.selectedSlot = slot;
-			}
+		SpectatorMenuCommand command = getCommand(slot);
+
+		if (command == BLANK_COMMAND) {
+			return;
+		}
+
+		if (selectedSlot == slot && command.isEnabled()) {
+			command.use(this);
+		} else {
+			selectedSlot = slot;
 		}
 	}
 
-	/**
-	 * Close.
-	 */
 	public void close() {
-		this.closeCallback.close(this);
+		closeCallback.close(this);
 	}
 
 	public int getSelectedSlot() {
-		return this.selectedSlot;
+		return selectedSlot;
 	}
 
-	/**
-	 * Select element.
-	 *
-	 * @param group group
-	 */
 	public void selectElement(SpectatorMenuCommandGroup group) {
-		this.currentGroup = group;
-		this.selectedSlot = -1;
-		this.page = 0;
+		currentGroup = group;
+		selectedSlot = -1;
+		page = 0;
 	}
 
 	public SpectatorMenuState getCurrentState() {
-		return new SpectatorMenuState(this.getCommands(), this.selectedSlot);
+		return new SpectatorMenuState(getCommands(), selectedSlot);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ChangePageSpectatorMenuCommand}.
-	 */
 	static class ChangePageSpectatorMenuCommand implements SpectatorMenuCommand {
 
 		private final int direction;
 		private final boolean enabled;
 
-		public ChangePageSpectatorMenuCommand(int direction, boolean enabled) {
+		ChangePageSpectatorMenuCommand(int direction, boolean enabled) {
 			this.direction = direction;
 			this.enabled = enabled;
 		}
 
 		@Override
 		public void use(SpectatorMenu menu) {
-			menu.page = menu.page + this.direction;
+			menu.page += direction;
 		}
 
 		@Override
 		public Text getName() {
-			return this.direction < 0 ? SpectatorMenu.PREVIOUS_PAGE_TEXT : SpectatorMenu.NEXT_PAGE_TEXT;
+			return direction < 0 ? SpectatorMenu.PREVIOUS_PAGE_TEXT : SpectatorMenu.NEXT_PAGE_TEXT;
 		}
 
 		@Override
 		public void renderIcon(DrawContext context, float brightness, float alpha) {
-			int i = ColorHelper.fromFloats(alpha, brightness, brightness, brightness);
-			if (this.direction < 0) {
-				context.drawGuiTexture(
-						RenderPipelines.GUI_TEXTURED,
-						SpectatorMenu.SCROLL_LEFT_TEXTURE,
-						0,
-						0,
-						16,
-						16,
-						i
-				);
-			}
-			else {
-				context.drawGuiTexture(
-						RenderPipelines.GUI_TEXTURED,
-						SpectatorMenu.SCROLL_RIGHT_TEXTURE,
-						0,
-						0,
-						16,
-						16,
-						i
-				);
-			}
+			int color = ColorHelper.fromFloats(alpha, brightness, brightness, brightness);
+			Identifier texture = direction < 0 ? SpectatorMenu.SCROLL_LEFT_TEXTURE : SpectatorMenu.SCROLL_RIGHT_TEXTURE;
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 16, 16, color);
 		}
 
 		@Override
 		public boolean isEnabled() {
-			return this.enabled;
+			return enabled;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CloseSpectatorMenuCommand}.
-	 */
 	static class CloseSpectatorMenuCommand implements SpectatorMenuCommand {
 
 		@Override
@@ -223,13 +187,13 @@ public class SpectatorMenu {
 		@Override
 		public void renderIcon(DrawContext context, float brightness, float alpha) {
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					SpectatorMenu.CLOSE_TEXTURE,
-					0,
-					0,
-					16,
-					16,
-					ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
+				RenderPipelines.GUI_TEXTURED,
+				SpectatorMenu.CLOSE_TEXTURE,
+				0,
+				0,
+				16,
+				16,
+				ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
 			);
 		}
 

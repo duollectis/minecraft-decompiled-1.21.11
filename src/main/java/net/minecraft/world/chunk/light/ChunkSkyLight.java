@@ -16,116 +16,132 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkSection;
 
 /**
- * {@code ChunkSkyLight}.
+ * Хранит высоту поверхности для каждой колонки блоков (16×16) в чанке.
+ * <p>
+ * «Поверхность» — это Y-координата первого блока сверху, который блокирует небесный свет.
+ * Значение {@link #NO_LIGHT_LEVEL} означает, что колонка полностью прозрачна до самого дна.
+ * <p>
+ * Данные хранятся в упакованном виде через {@link PaletteStorage} для экономии памяти.
  */
 public class ChunkSkyLight {
 
 	private static final int SECTION_SIZE = 16;
 	public static final int NO_LIGHT_LEVEL = Integer.MIN_VALUE;
+
 	private final int minY;
 	private final PaletteStorage palette;
 	private final BlockPos.Mutable reusableBlockPos1 = new BlockPos.Mutable();
 	private final BlockPos.Mutable reusableBlockPos2 = new BlockPos.Mutable();
 
 	public ChunkSkyLight(HeightLimitView heightLimitView) {
-		this.minY = heightLimitView.getBottomY() - 1;
-		int i = heightLimitView.getTopYInclusive() + 1;
-		int j = MathHelper.ceilLog2(i - this.minY + 1);
-		this.palette = new PackedIntegerArray(j, 256);
+		minY = heightLimitView.getBottomY() - 1;
+		int topY = heightLimitView.getTopYInclusive() + 1;
+		int bitsNeeded = MathHelper.ceilLog2(topY - minY + 1);
+		palette = new PackedIntegerArray(bitsNeeded, 256);
 	}
 
 	/**
-	 * Refresh surface y.
-	 *
-	 * @param chunk chunk
+	 * Пересчитывает высоту поверхности для всех 256 колонок чанка.
+	 * Вызывается при загрузке чанка или изменении блоков, влияющих на небесный свет.
 	 */
 	public void refreshSurfaceY(Chunk chunk) {
-		int i = chunk.getHighestNonEmptySection();
-		if (i == -1) {
-			this.fill(this.minY);
+		int topSectionIndex = chunk.getHighestNonEmptySection();
+
+		if (topSectionIndex == -1) {
+			fill(minY);
+			return;
 		}
-		else {
-			for (int j = 0; j < 16; j++) {
-				for (int k = 0; k < 16; k++) {
-					int l = Math.max(this.calculateSurfaceY(chunk, i, k, j), this.minY);
-					this.set(getPackedIndex(k, j), l);
-				}
+
+		for (int localX = 0; localX < SECTION_SIZE; localX++) {
+			for (int localZ = 0; localZ < SECTION_SIZE; localZ++) {
+				int surfaceY = Math.max(calculateSurfaceY(chunk, topSectionIndex, localX, localZ), minY);
+				set(getPackedIndex(localX, localZ), surfaceY);
 			}
 		}
 	}
 
+	/**
+	 * Вычисляет Y-координату поверхности для одной колонки, сканируя секции сверху вниз.
+	 * Останавливается на первом блоке, который блокирует свет снизу.
+	 */
 	private int calculateSurfaceY(Chunk chunk, int topSectionIndex, int localX, int localZ) {
-		int i = ChunkSectionPos.getBlockCoord(chunk.sectionIndexToCoord(topSectionIndex) + 1);
-		BlockPos.Mutable mutable = this.reusableBlockPos1.set(localX, i, localZ);
-		BlockPos.Mutable mutable2 = this.reusableBlockPos2.set(mutable, Direction.DOWN);
-		BlockState blockState = Blocks.AIR.getDefaultState();
+		int startY = ChunkSectionPos.getBlockCoord(chunk.sectionIndexToCoord(topSectionIndex) + 1);
+		BlockPos.Mutable upper = reusableBlockPos1.set(localX, startY, localZ);
+		BlockPos.Mutable lower = reusableBlockPos2.set(upper, Direction.DOWN);
+		BlockState upperState = Blocks.AIR.getDefaultState();
 
-		for (int j = topSectionIndex; j >= 0; j--) {
-			ChunkSection chunkSection = chunk.getSection(j);
-			if (chunkSection.isEmpty()) {
-				blockState = Blocks.AIR.getDefaultState();
-				int k = chunk.sectionIndexToCoord(j);
-				mutable.setY(ChunkSectionPos.getBlockCoord(k));
-				mutable2.setY(mutable.getY() - 1);
-			}
-			else {
-				for (int k = 15; k >= 0; k--) {
-					BlockState blockState2 = chunkSection.getBlockState(localX, k, localZ);
-					if (faceBlocksLight(blockState, blockState2)) {
-						return mutable.getY();
+		for (int sectionIndex = topSectionIndex; sectionIndex >= 0; sectionIndex--) {
+			ChunkSection section = chunk.getSection(sectionIndex);
+
+			if (section.isEmpty()) {
+				upperState = Blocks.AIR.getDefaultState();
+				int sectionY = chunk.sectionIndexToCoord(sectionIndex);
+				upper.setY(ChunkSectionPos.getBlockCoord(sectionY));
+				lower.setY(upper.getY() - 1);
+			} else {
+				for (int localY = 15; localY >= 0; localY--) {
+					BlockState lowerState = section.getBlockState(localX, localY, localZ);
+
+					if (faceBlocksLight(upperState, lowerState)) {
+						return upper.getY();
 					}
 
-					blockState = blockState2;
-					mutable.set(mutable2);
-					mutable2.move(Direction.DOWN);
+					upperState = lowerState;
+					upper.set(lower);
+					lower.move(Direction.DOWN);
 				}
 			}
 		}
 
-		return this.minY;
+		return minY;
 	}
 
+	/**
+	 * Проверяет, доступен ли небесный свет для блока на заданной Y-координате.
+	 * Также обновляет высоту поверхности, если блок изменился.
+	 */
 	public boolean isSkyLightAccessible(BlockView blockView, int localX, int y, int localZ) {
-		int i = y + 1;
-		int j = getPackedIndex(localX, localZ);
-		int k = this.get(j);
-		if (i < k) {
+		int aboveY = y + 1;
+		int packedIndex = getPackedIndex(localX, localZ);
+		int surfaceY = get(packedIndex);
+
+		if (aboveY < surfaceY) {
 			return false;
 		}
-		else {
-			BlockPos blockPos = this.reusableBlockPos1.set(localX, y + 1, localZ);
-			BlockState blockState = blockView.getBlockState(blockPos);
-			BlockPos blockPos2 = this.reusableBlockPos2.set(localX, y, localZ);
-			BlockState blockState2 = blockView.getBlockState(blockPos2);
-			if (this.isSkyLightAccessible(blockView, j, k, blockPos, blockState, blockPos2, blockState2)) {
-				return true;
-			}
-			else {
-				BlockPos blockPos3 = this.reusableBlockPos1.set(localX, y - 1, localZ);
-				BlockState blockState3 = blockView.getBlockState(blockPos3);
-				return this.isSkyLightAccessible(blockView, j, k, blockPos2, blockState2, blockPos3, blockState3);
-			}
+
+		BlockPos upperPos = reusableBlockPos1.set(localX, y + 1, localZ);
+		BlockState upperState = blockView.getBlockState(upperPos);
+		BlockPos lowerPos = reusableBlockPos2.set(localX, y, localZ);
+		BlockState lowerState = blockView.getBlockState(lowerPos);
+
+		if (isSkyLightAccessible(blockView, packedIndex, surfaceY, upperPos, upperState, lowerPos, lowerState)) {
+			return true;
 		}
+
+		BlockPos belowPos = reusableBlockPos1.set(localX, y - 1, localZ);
+		BlockState belowState = blockView.getBlockState(belowPos);
+
+		return isSkyLightAccessible(blockView, packedIndex, surfaceY, lowerPos, lowerState, belowPos, belowState);
 	}
 
 	private boolean isSkyLightAccessible(
-			BlockView blockView,
-			int packedIndex,
-			int value,
-			BlockPos upperPos,
-			BlockState upperState,
-			BlockPos lowerPos,
-			BlockState lowerState
+		BlockView blockView,
+		int packedIndex,
+		int surfaceY,
+		BlockPos upperPos,
+		BlockState upperState,
+		BlockPos lowerPos,
+		BlockState lowerState
 	) {
-		int i = upperPos.getY();
+		int upperY = upperPos.getY();
+
 		if (faceBlocksLight(upperState, lowerState)) {
-			if (i > value) {
-				this.set(packedIndex, i);
+			if (upperY > surfaceY) {
+				set(packedIndex, upperY);
 				return true;
 			}
-		}
-		else if (i == value) {
-			this.set(packedIndex, this.locateLightBlockingBlockBelow(blockView, lowerPos, lowerState));
+		} else if (upperY == surfaceY) {
+			set(packedIndex, locateLightBlockingBlockBelow(blockView, lowerPos, lowerState));
 			return true;
 		}
 
@@ -133,82 +149,75 @@ public class ChunkSkyLight {
 	}
 
 	private int locateLightBlockingBlockBelow(BlockView blockView, BlockPos pos, BlockState blockState) {
-		BlockPos.Mutable mutable = this.reusableBlockPos1.set(pos);
-		BlockPos.Mutable mutable2 = this.reusableBlockPos2.set(pos, Direction.DOWN);
-		BlockState blockState2 = blockState;
+		BlockPos.Mutable current = reusableBlockPos1.set(pos);
+		BlockPos.Mutable below = reusableBlockPos2.set(pos, Direction.DOWN);
+		BlockState currentState = blockState;
 
-		while (mutable2.getY() >= this.minY) {
-			BlockState blockState3 = blockView.getBlockState(mutable2);
-			if (faceBlocksLight(blockState2, blockState3)) {
-				return mutable.getY();
+		while (below.getY() >= minY) {
+			BlockState belowState = blockView.getBlockState(below);
+
+			if (faceBlocksLight(currentState, belowState)) {
+				return current.getY();
 			}
 
-			blockState2 = blockState3;
-			mutable.set(mutable2);
-			mutable2.move(Direction.DOWN);
+			currentState = belowState;
+			current.set(below);
+			below.move(Direction.DOWN);
 		}
 
-		return this.minY;
+		return minY;
 	}
 
 	private static boolean faceBlocksLight(BlockState upper, BlockState lower) {
 		if (lower.getOpacity() != 0) {
 			return true;
 		}
-		else {
-			VoxelShape voxelShape = ChunkLightProvider.getOpaqueShape(upper, Direction.DOWN);
-			VoxelShape voxelShape2 = ChunkLightProvider.getOpaqueShape(lower, Direction.UP);
-			return VoxelShapes.unionCoversFullCube(voxelShape, voxelShape2);
-		}
+
+		VoxelShape upperShape = ChunkLightProvider.getOpaqueShape(upper, Direction.DOWN);
+		VoxelShape lowerShape = ChunkLightProvider.getOpaqueShape(lower, Direction.UP);
+
+		return VoxelShapes.unionCoversFullCube(upperShape, lowerShape);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param localX local x
-	 * @param localZ local z
-	 *
-	 * @return int — 
-	 */
 	public int get(int localX, int localZ) {
-		int i = this.get(getPackedIndex(localX, localZ));
-		return this.convertMinY(i);
+		return convertMinY(get(getPackedIndex(localX, localZ)));
 	}
 
 	public int getMaxSurfaceY() {
-		int i = Integer.MIN_VALUE;
+		int maxRaw = Integer.MIN_VALUE;
 
-		for (int j = 0; j < this.palette.getSize(); j++) {
-			int k = this.palette.get(j);
-			if (k > i) {
-				i = k;
+		for (int index = 0; index < palette.getSize(); index++) {
+			int raw = palette.get(index);
+
+			if (raw > maxRaw) {
+				maxRaw = raw;
 			}
 		}
 
-		return this.convertMinY(i + this.minY);
+		return convertMinY(maxRaw + minY);
 	}
 
 	private void fill(int y) {
-		int i = y - this.minY;
+		int relativeY = y - minY;
 
-		for (int j = 0; j < this.palette.getSize(); j++) {
-			this.palette.set(j, i);
+		for (int index = 0; index < palette.getSize(); index++) {
+			palette.set(index, relativeY);
 		}
 	}
 
 	private void set(int index, int y) {
-		this.palette.set(index, y - this.minY);
+		palette.set(index, y - minY);
 	}
 
 	private int get(int index) {
-		return this.palette.get(index) + this.minY;
+		return palette.get(index) + minY;
 	}
 
 	private int convertMinY(int y) {
-		return y == this.minY ? Integer.MIN_VALUE : y;
+		return y == minY ? Integer.MIN_VALUE : y;
 	}
 
 	private static int getPackedIndex(int localX, int localZ) {
-		return localX + localZ * 16;
+		return localX + localZ * SECTION_SIZE;
 	}
 }

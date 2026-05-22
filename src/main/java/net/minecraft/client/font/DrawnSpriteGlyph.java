@@ -5,29 +5,34 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix4f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DrawnSpriteGlyph}.
+ * Интерфейс для глифов-спрайтов фиксированного размера 8×8 пикселей
+ * (аватары игроков, иконки и т.п.).
+ * Реализует стандартный рендеринг с тенью через метод {@link #render}.
  */
+@Environment(EnvType.CLIENT)
 public interface DrawnSpriteGlyph extends TextDrawable.DrawnGlyphRect {
 
-	float glyphWidth = 8.0F;
+	float GLYPH_WIDTH = 8.0F;
+	float GLYPH_HEIGHT = 8.0F;
+	float GLYPH_ADVANCE = 8.0F;
 
-	float glyphHeight = 8.0F;
-
-	float glyphAdvance = 8.0F;
+	/** Смещение по Z между слоем тени и основным слоем. */
+	float SHADOW_Z_STEP = 0.03F;
 
 	@Override
 	default void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth) {
-		float f = 0.0F;
-		if (this.shadowColor() != 0) {
-			this.draw(matrix4f, consumer, light, this.shadowOffset(), this.shadowOffset(), 0.0F, this.shadowColor());
+		float zOffset = 0.0F;
+
+		if (shadowColor() != 0) {
+			draw(matrix4f, consumer, light, shadowOffset(), shadowOffset(), 0.0F, shadowColor());
+
 			if (!noDepth) {
-				f += 0.03F;
+				zOffset += SHADOW_Z_STEP;
 			}
 		}
 
-		this.draw(matrix4f, consumer, light, 0.0F, 0.0F, f, this.color());
+		draw(matrix4f, consumer, light, 0.0F, 0.0F, zOffset, color());
 	}
 
 	void draw(Matrix4f matrix, VertexConsumer vertexConsumer, int light, float x, float y, float z, int color);
@@ -43,34 +48,34 @@ public interface DrawnSpriteGlyph extends TextDrawable.DrawnGlyphRect {
 	float shadowOffset();
 
 	default float getWidth() {
-		return 8.0F;
+		return GLYPH_WIDTH;
 	}
 
 	default float getHeight() {
-		return 8.0F;
+		return GLYPH_HEIGHT;
 	}
 
 	default float getAscent() {
-		return 8.0F;
+		return GLYPH_HEIGHT;
 	}
 
 	@Override
 	default float getEffectiveMinX() {
-		return this.x();
+		return x();
 	}
 
 	@Override
 	default float getEffectiveMaxX() {
-		return this.getEffectiveMinX() + this.getWidth();
+		return getEffectiveMinX() + getWidth();
 	}
 
 	@Override
 	default float getEffectiveMinY() {
-		return this.y() + 7.0F - this.getAscent();
+		return y() + 7.0F - getAscent();
 	}
 
 	@Override
 	default float getEffectiveMaxY() {
-		return this.getTop() + this.getHeight();
+		return getTop() + getHeight();
 	}
 }

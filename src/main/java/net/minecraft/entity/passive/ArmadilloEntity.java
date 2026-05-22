@@ -46,7 +46,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code ArmadilloEntity}.
+ * Броненосец — пассивный моб, сворачивающийся в шар при угрозе.
+ * Периодически роняет чешуйки броненосца.
  */
 public class ArmadilloEntity extends AnimalEntity {
 
@@ -179,7 +180,7 @@ public class ArmadilloEntity extends AnimalEntity {
 
 	@Override
 	public float getScaleFactor() {
-		return this.isBaby() ? 0.6F : 1.0F;
+		return this.isBaby() ? BABY_SCALE_FACTOR : 1.0F;
 	}
 
 	private void updateAnimationStates() {
@@ -255,21 +256,23 @@ public class ArmadilloEntity extends AnimalEntity {
 	}
 
 	public boolean isEntityThreatening(LivingEntity entity) {
-		if (!this.getBoundingBox().expand(7.0, 2.0, 7.0).intersects(entity.getBoundingBox())) {
+		if (!this.getBoundingBox().expand(THREAT_DETECTION_RANGE, THREAT_DETECTION_HEIGHT, THREAT_DETECTION_RANGE).intersects(entity.getBoundingBox())) {
 			return false;
 		}
-		else if (entity.getType().isIn(EntityTypeTags.UNDEAD)) {
+
+		if (entity.getType().isIn(EntityTypeTags.UNDEAD)) {
 			return true;
 		}
-		else if (this.getAttacker() == entity) {
+
+		if (this.getAttacker() == entity) {
 			return true;
 		}
-		else if (entity instanceof PlayerEntity playerEntity) {
-			return playerEntity.isSpectator() ? false : playerEntity.isSprinting() || playerEntity.hasVehicle();
+
+		if (entity instanceof PlayerEntity playerEntity) {
+			return !playerEntity.isSpectator() && (playerEntity.isSprinting() || playerEntity.hasVehicle());
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
@@ -326,7 +329,7 @@ public class ArmadilloEntity extends AnimalEntity {
 		super.applyDamage(world, source, amount);
 		if (!this.isAiDisabled() && !this.isDead()) {
 			if (source.getAttacker() instanceof LivingEntity) {
-				this.getBrain().remember(MemoryModuleType.DANGER_DETECTED_RECENTLY, true, 80L);
+				this.getBrain().remember(MemoryModuleType.DANGER_DETECTED_RECENTLY, true, SCUTE_SHED_COOLDOWN_TICKS);
 				if (this.canRollUp()) {
 					this.startRolling();
 				}
@@ -436,8 +439,8 @@ public class ArmadilloEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code State}.
-	 */
+ * Состояние броненосца: нормальное или свёрнутое.
+ */
 	public static enum State implements StringIdentifiable {
 		IDLE("idle", false, 0, 0) {
 			@Override

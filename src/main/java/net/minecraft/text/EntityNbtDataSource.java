@@ -17,7 +17,12 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityNbtDataSource}.
+ * Источник NBT-данных, читающий данные из сущностей, найденных по селектору.
+ *
+ * <p>Селектор парсится из строки при создании объекта. Если строка невалидна,
+ * поле {@code selector} будет {@code null} и {@link #get} вернёт пустой поток.
+ * Сравнение экземпляров выполняется только по строке {@code rawSelector},
+ * так как {@code selector} является производным полем.</p>
  */
 public record EntityNbtDataSource(String rawSelector, @Nullable EntitySelector selector) implements NbtDataSource {
 
@@ -27,29 +32,28 @@ public record EntityNbtDataSource(String rawSelector, @Nullable EntitySelector s
 					.apply(instance, EntityNbtDataSource::new)
 	);
 
-	public EntityNbtDataSource(String rawPath) {
-		this(rawPath, parseSelector(rawPath));
+	public EntityNbtDataSource(String rawSelector) {
+		this(rawSelector, parseSelector(rawSelector));
 	}
 
 	private static @Nullable EntitySelector parseSelector(String rawSelector) {
 		try {
-			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(new StringReader(rawSelector), true);
-			return entitySelectorReader.read();
+			EntitySelectorReader reader = new EntitySelectorReader(new StringReader(rawSelector), true);
+			return reader.read();
 		}
-		catch (CommandSyntaxException var2) {
+		catch (CommandSyntaxException e) {
 			return null;
 		}
 	}
 
 	@Override
 	public Stream<NbtCompound> get(ServerCommandSource source) throws CommandSyntaxException {
-		if (this.selector != null) {
-			List<? extends Entity> list = this.selector.getEntities(source);
-			return list.stream().map(NbtPredicate::entityToNbt);
-		}
-		else {
+		if (selector == null) {
 			return Stream.empty();
 		}
+
+		List<? extends Entity> entities = selector.getEntities(source);
+		return entities.stream().map(NbtPredicate::entityToNbt);
 	}
 
 	@Override
@@ -59,17 +63,20 @@ public record EntityNbtDataSource(String rawSelector, @Nullable EntitySelector s
 
 	@Override
 	public String toString() {
-		return "entity=" + this.rawSelector;
+		return "entity=" + rawSelector;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o ? true : o instanceof EntityNbtDataSource entityNbtDataSource && this.rawSelector.equals(
-				entityNbtDataSource.rawSelector);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof EntityNbtDataSource other && rawSelector.equals(other.rawSelector);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.rawSelector.hashCode();
+		return rawSelector.hashCode();
 	}
 }

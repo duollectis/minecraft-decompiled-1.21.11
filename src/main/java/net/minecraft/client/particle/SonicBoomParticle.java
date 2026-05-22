@@ -6,30 +6,32 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SonicBoomParticle}.
+ * Частица звукового удара Warden'а: крупная (масштаб 1.5) анимированная
+ * вспышка, живущая ровно 16 тиков. Наследует логику рендеринга от
+ * {@link ExplosionLargeParticle}.
  */
+@Environment(EnvType.CLIENT)
 public class SonicBoomParticle extends ExplosionLargeParticle {
 
+	private static final int LIFETIME = 16;
+	private static final float SCALE = 1.5F;
+
 	protected SonicBoomParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
 			SpriteProvider spriteProvider
 	) {
-		super(clientWorld, d, e, f, g, spriteProvider);
-		this.maxAge = 16;
-		this.scale = 1.5F;
+		super(world, x, y, z, velocityX, spriteProvider);
+		this.maxAge = LIFETIME;
+		this.scale = SCALE;
 		this.updateSprite(spriteProvider);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -38,18 +40,19 @@ public class SonicBoomParticle extends ExplosionLargeParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new SonicBoomParticle(clientWorld, d, e, f, g, this.spriteProvider);
+			return new SonicBoomParticle(world, x, y, z, velocityX, this.spriteProvider);
 		}
 	}
 }

@@ -4,7 +4,8 @@ import com.google.common.annotations.VisibleForTesting;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code TrackedPosition}.
+ * Хранит позицию сущности в упакованном целочисленном формате для точной передачи по сети.
+ * Координаты масштабируются с коэффициентом {@code 4096} для сохранения субблочной точности.
  */
 public class TrackedPosition {
 
@@ -13,63 +14,51 @@ public class TrackedPosition {
 
 	@VisibleForTesting
 	static long pack(double value) {
-		return Math.round(value * 4096.0);
+		return Math.round(value * COORDINATE_SCALE);
 	}
 
 	@VisibleForTesting
 	static double unpack(long value) {
-		return value / 4096.0;
+		return value / COORDINATE_SCALE;
 	}
 
 	/**
-	 * With delta.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return Vec3d — результат операции
+	 * Применяет сетевые дельта-значения к текущей позиции и возвращает новую позицию.
+	 * Если дельта по оси равна нулю — координата остаётся без изменений.
 	 */
 	public Vec3d withDelta(long x, long y, long z) {
 		if (x == 0L && y == 0L && z == 0L) {
-			return this.pos;
+			return pos;
 		}
-		else {
-			double d = x == 0L ? this.pos.x : unpack(pack(this.pos.x) + x);
-			double e = y == 0L ? this.pos.y : unpack(pack(this.pos.y) + y);
-			double f = z == 0L ? this.pos.z : unpack(pack(this.pos.z) + z);
-			return new Vec3d(d, e, f);
-		}
+
+		double newX = x == 0L ? pos.x : unpack(pack(pos.x) + x);
+		double newY = y == 0L ? pos.y : unpack(pack(pos.y) + y);
+		double newZ = z == 0L ? pos.z : unpack(pack(pos.z) + z);
+
+		return new Vec3d(newX, newY, newZ);
 	}
 
-	public long getDeltaX(Vec3d pos) {
-		return pack(pos.x) - pack(this.pos.x);
+	public long getDeltaX(Vec3d newPos) {
+		return pack(newPos.x) - pack(pos.x);
 	}
 
-	public long getDeltaY(Vec3d pos) {
-		return pack(pos.y) - pack(this.pos.y);
+	public long getDeltaY(Vec3d newPos) {
+		return pack(newPos.y) - pack(pos.y);
 	}
 
-	public long getDeltaZ(Vec3d pos) {
-		return pack(pos.z) - pack(this.pos.z);
+	public long getDeltaZ(Vec3d newPos) {
+		return pack(newPos.z) - pack(pos.z);
 	}
 
-	/**
-	 * Subtract.
-	 *
-	 * @param pos pos
-	 *
-	 * @return Vec3d — результат операции
-	 */
-	public Vec3d subtract(Vec3d pos) {
-		return pos.subtract(this.pos);
+	public Vec3d subtract(Vec3d other) {
+		return other.subtract(pos);
 	}
 
-	public void setPos(Vec3d pos) {
-		this.pos = pos;
+	public void setPos(Vec3d newPos) {
+		pos = newPos;
 	}
 
 	public Vec3d getPos() {
-		return this.pos;
+		return pos;
 	}
 }

@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * {@code Spawner}.
+ * Контракт для блок-сущностей, способных спаунить мобов (спаунер, испытательный спаунер).
  */
 public interface Spawner {
 
@@ -22,32 +22,34 @@ public interface Spawner {
 			Consumer<Text> textConsumer,
 			String spawnDataKey
 	) {
-		Text text = getSpawnedEntityText(nbtComponent, spawnDataKey);
-		if (text != null) {
-			textConsumer.accept(text);
+		Text spawnedEntityText = getSpawnedEntityText(nbtComponent, spawnDataKey);
+
+		if (spawnedEntityText != null) {
+			textConsumer.accept(spawnedEntityText);
+			return;
 		}
-		else {
-			textConsumer.accept(ScreenTexts.EMPTY);
-			textConsumer.accept(Text.translatable("block.minecraft.spawner.desc1").formatted(Formatting.GRAY));
-			textConsumer.accept(ScreenTexts
-					.space()
-					.append(Text.translatable("block.minecraft.spawner.desc2").formatted(Formatting.BLUE)));
-		}
+
+		textConsumer.accept(ScreenTexts.EMPTY);
+		textConsumer.accept(Text.translatable("block.minecraft.spawner.desc1").formatted(Formatting.GRAY));
+		textConsumer.accept(
+				ScreenTexts.space()
+						.append(Text.translatable("block.minecraft.spawner.desc2").formatted(Formatting.BLUE))
+		);
 	}
 
 	static @Nullable Text getSpawnedEntityText(
 			@Nullable TypedEntityData<BlockEntityType<?>> nbtComponent,
 			String spawnDataKey
 	) {
-		return nbtComponent == null
-		       ? null
-		       : nbtComponent.getNbtWithoutId()
-		                     .getCompound(spawnDataKey)
-		                     .flatMap(spawnDataNbt -> spawnDataNbt.getCompound("entity"))
-		                     .flatMap(entityNbt -> entityNbt.get("id", EntityType.CODEC))
-		                     .map(entityType -> Text
-		                                        .translatable(entityType.getTranslationKey())
-		                                        .formatted(Formatting.GRAY))
-		                     .orElse(null);
+		if (nbtComponent == null) {
+			return null;
+		}
+
+		return nbtComponent.getNbtWithoutId()
+				.getCompound(spawnDataKey)
+				.flatMap(spawnDataNbt -> spawnDataNbt.getCompound("entity"))
+				.flatMap(entityNbt -> entityNbt.get("id", EntityType.CODEC))
+				.map(entityType -> Text.translatable(entityType.getTranslationKey()).formatted(Formatting.GRAY))
+				.orElse(null);
 	}
 }

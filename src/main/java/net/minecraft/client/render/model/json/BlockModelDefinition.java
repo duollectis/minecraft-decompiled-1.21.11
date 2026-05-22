@@ -2,7 +2,6 @@ package net.minecraft.client.render.model.json;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
-import com.google.common.collect.UnmodifiableIterator;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -26,10 +25,12 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockModelDefinition}.
+ * Определение модели блока, загружаемое из JSON-файла состояний блока.
+ * Содержит либо набор вариантов ({@code variants}), либо мультипарт-модель ({@code multipart}),
+ * либо оба сразу. Хотя бы одно из полей обязано присутствовать.
  */
+@Environment(EnvType.CLIENT)
 public record BlockModelDefinition(
 		Optional<BlockModelDefinition.Variants> simpleModels,
 		Optional<BlockModelDefinition.Multipart> multipartModel
@@ -84,10 +85,10 @@ public record BlockModelDefinition(
 		return map;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Multipart}.
+	 * Мультипарт-определение: список компонентов с условиями на состояние блока.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Multipart(List<MultipartModelComponent> selectors) {
 
 		public static final Codec<BlockModelDefinition.Multipart>
@@ -111,10 +112,10 @@ public record BlockModelDefinition(
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Variants}.
+	 * Набор вариантов модели блока: отображение строки-предиката на незапечённую модель.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Variants(Map<String, BlockStateModel.Unbaked> models) {
 
 		public static final Codec<BlockModelDefinition.Variants>
@@ -127,32 +128,27 @@ public record BlockModelDefinition(
 				Supplier<String> idSupplier,
 				BiConsumer<BlockState, BlockStateModel.UnbakedGrouped> callback
 		) {
-			this.models
-					.forEach(
-							(predicate, model) -> {
-								try {
-									Predicate<State<Block, BlockState>>
-											predicate2 =
-											BlockPropertiesPredicate.parse(stateManager, predicate);
-									BlockStateModel.UnbakedGrouped unbakedGrouped = model.cached();
-									UnmodifiableIterator var7 = stateManager.getStates().iterator();
-
-									while (var7.hasNext()) {
-										BlockState blockState = (BlockState) var7.next();
-										if (predicate2.test(blockState)) {
-											callback.accept(blockState, unbakedGrouped);
-										}
-									}
-								}
-								catch (Exception var9) {
-									BlockModelDefinition.LOGGER
-											.warn(
-													"Exception loading blockstate definition: '{}' for variant: '{}': {}",
-													new Object[]{idSupplier.get(), predicate, var9.getMessage()}
-											);
-								}
-							}
+			this.models.forEach((predicate, model) -> {
+				try {
+					Predicate<State<Block, BlockState>> statePredicate = BlockPropertiesPredicate.parse(
+							stateManager,
+							predicate
 					);
+					BlockStateModel.UnbakedGrouped unbakedGrouped = model.cached();
+
+					for (BlockState blockState : stateManager.getStates()) {
+						if (statePredicate.test(blockState)) {
+							callback.accept(blockState, unbakedGrouped);
+						}
+					}
+				}
+				catch (Exception exception) {
+					BlockModelDefinition.LOGGER.warn(
+							"Exception loading blockstate definition: '{}' for variant: '{}': {}",
+							new Object[]{idSupplier.get(), predicate, exception.getMessage()}
+					);
+				}
+			});
 		}
 	}
 }

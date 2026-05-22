@@ -7,7 +7,8 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code SproutsBlock}.
+ * Блок ростков — небольшое подземное растение, которое может расти
+ * на нилии, душевой почве и стандартных блоках для растений.
  */
 public class SproutsBlock extends PlantBlock {
 

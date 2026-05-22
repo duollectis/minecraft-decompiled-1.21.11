@@ -20,16 +20,23 @@ import net.minecraft.client.util.Handle;
 import net.minecraft.util.Identifier;
 import org.lwjgl.system.MemoryStack;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PostEffectPass}.
+ * Один проход пост-обработки: привязывает входные сэмплеры, записывает uniform-данные
+ * в кольцевой буфер и рисует полноэкранный треугольник в целевой фреймбуфер.
  */
+@Environment(EnvType.CLIENT)
 public class PostEffectPass implements AutoCloseable {
 
-	private static final int SIZE = new Std140SizeCalculator().putVec2().get();
+	// Размер одного vec2 в std140-раскладке (используется для SamplerInfo UBO)
+	private static final int VEC2_STD140_SIZE = new Std140SizeCalculator().putVec2().get();
+
 	private final String id;
 	private final RenderPipeline pipeline;
 	private final Identifier outputTargetId;
@@ -38,173 +45,143 @@ public class PostEffectPass implements AutoCloseable {
 	private final List<PostEffectPass.Sampler> samplers;
 
 	public PostEffectPass(
-			RenderPipeline pipeline,
-			Identifier outputTargetId,
-			Map<String, List<UniformValue>> uniforms,
-			List<PostEffectPass.Sampler> samplers
+		RenderPipeline pipeline,
+		Identifier outputTargetId,
+		Map<String, List<UniformValue>> uniforms,
+		List<PostEffectPass.Sampler> samplers
 	) {
 		this.pipeline = pipeline;
-		this.id = pipeline.getLocation().toString();
+		id = pipeline.getLocation().toString();
 		this.outputTargetId = outputTargetId;
 		this.samplers = samplers;
 
 		for (Entry<String, List<UniformValue>> entry : uniforms.entrySet()) {
-			List<UniformValue> list = entry.getValue();
-			if (!list.isEmpty()) {
-				Std140SizeCalculator std140SizeCalculator = new Std140SizeCalculator();
+			List<UniformValue> values = entry.getValue();
 
-				for (UniformValue uniformValue : list) {
-					uniformValue.addSize(std140SizeCalculator);
+			if (values.isEmpty()) {
+				continue;
+			}
+
+			Std140SizeCalculator sizeCalculator = new Std140SizeCalculator();
+
+			for (UniformValue value : values) {
+				value.addSize(sizeCalculator);
+			}
+
+			int bufferSize = sizeCalculator.get();
+
+			try (MemoryStack stack = MemoryStack.stackPush()) {
+				Std140Builder builder = Std140Builder.onStack(stack, bufferSize);
+
+				for (UniformValue value : values) {
+					value.write(builder);
 				}
 
-				int i = std140SizeCalculator.get();
-				MemoryStack memoryStack = MemoryStack.stackPush();
-
-				try {
-					Std140Builder std140Builder = Std140Builder.onStack(memoryStack, i);
-
-					for (UniformValue uniformValue2 : list) {
-						uniformValue2.write(std140Builder);
-					}
-
-					this.uniformBuffers.put(
-							entry.getKey(),
-							RenderSystem
-									.getDevice()
-									.createBuffer(() -> this.id + " / " + entry.getKey(), 128, std140Builder.get())
-					);
-				}
-				catch (Throwable var15) {
-					if (memoryStack != null) {
-						try {
-							memoryStack.close();
-						}
-						catch (Throwable var14) {
-							var15.addSuppressed(var14);
-						}
-					}
-
-					throw var15;
-				}
-
-				if (memoryStack != null) {
-					memoryStack.close();
-				}
+				uniformBuffers.put(
+					entry.getKey(),
+					RenderSystem.getDevice().createBuffer(() -> id + " / " + entry.getKey(), 128, builder.get())
+				);
 			}
 		}
 
-		this.samplerInfoBuffer =
-				new MappableRingBuffer(() -> this.id + " SamplerInfo", 130, (samplers.size() + 1) * SIZE);
+		samplerInfoBuffer = new MappableRingBuffer(
+			() -> id + " SamplerInfo",
+			130,
+			(samplers.size() + 1) * VEC2_STD140_SIZE
+		);
 	}
 
 	/**
-	 * Render.
-	 *
-	 * @param builder builder
-	 * @param handles handles
-	 * @param slice slice
+	 * Регистрирует проход в {@link FrameGraphBuilder} и задаёт рендерер, который:
+	 * обновляет SamplerInfo UBO размерами текстур, выполняет draw-call полноэкранного треугольника.
 	 */
 	public void render(FrameGraphBuilder builder, Map<Identifier, Handle<Framebuffer>> handles, GpuBufferSlice slice) {
-		FramePass framePass = builder.createPass(this.id);
+		FramePass framePass = builder.createPass(id);
 
-		for (PostEffectPass.Sampler sampler : this.samplers) {
+		for (PostEffectPass.Sampler sampler : samplers) {
 			sampler.preRender(framePass, handles);
 		}
 
-		Handle<Framebuffer>
-				handle =
-				handles.computeIfPresent(
-						this.outputTargetId,
-						(id, handlex) -> framePass.transfer((Handle<Framebuffer>) handlex)
-				);
-		if (handle == null) {
-			throw new IllegalStateException("Missing handle for target " + this.outputTargetId);
+		Handle<Framebuffer> outputHandle = handles.computeIfPresent(
+			outputTargetId,
+			(targetId, handle) -> framePass.transfer(handle)
+		);
+
+		if (outputHandle == null) {
+			throw new IllegalStateException("Missing handle for target " + outputTargetId);
 		}
-		else {
-			framePass.setRenderer(
-					() -> {
-						Framebuffer framebuffer = handle.get();
-						RenderSystem.backupProjectionMatrix();
-						RenderSystem.setProjectionMatrix(slice, ProjectionType.ORTHOGRAPHIC);
-						CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
-						SamplerCache samplerCache = RenderSystem.getSamplerCache();
-						List<PostEffectPass.Target> list = this.samplers
-								.stream()
-								.map(
-										samplerxx -> new PostEffectPass.Target(
-												samplerxx.samplerName(),
-												samplerxx.getTexture(handles),
-												samplerCache.get(
-														samplerxx.bilinear() ? FilterMode.LINEAR : FilterMode.NEAREST)
-										)
-								)
-								.toList();
 
-						try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(
-								this.samplerInfoBuffer.getBlocking(),
-								false,
-								true
-						)
-						) {
-							Std140Builder std140Builder = Std140Builder.intoBuffer(mappedView.data());
-							std140Builder.putVec2(framebuffer.textureWidth, framebuffer.textureHeight);
+		framePass.setRenderer(() -> {
+			Framebuffer framebuffer = outputHandle.get();
+			RenderSystem.backupProjectionMatrix();
+			RenderSystem.setProjectionMatrix(slice, ProjectionType.ORTHOGRAPHIC);
 
-							for (PostEffectPass.Target target : list) {
-								std140Builder.putVec2(target.view.getWidth(0), target.view.getHeight(0));
-							}
-						}
+			CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
+			SamplerCache samplerCache = RenderSystem.getSamplerCache();
 
-						try (RenderPass renderPass = commandEncoder.createRenderPass(
-								() -> "Post pass " + this.id,
-								framebuffer.getColorAttachmentView(),
-								OptionalInt.empty(),
-								framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null,
-								OptionalDouble.empty()
-						)
-						) {
-							renderPass.setPipeline(this.pipeline);
-							RenderSystem.bindDefaultUniforms(renderPass);
-							renderPass.setUniform("SamplerInfo", this.samplerInfoBuffer.getBlocking());
+			List<PostEffectPass.Target> targets = samplers
+				.stream()
+				.map(sampler -> new PostEffectPass.Target(
+					sampler.samplerName(),
+					sampler.getTexture(handles),
+					samplerCache.get(sampler.bilinear() ? FilterMode.LINEAR : FilterMode.NEAREST)
+				))
+				.toList();
 
-							for (Entry<String, GpuBuffer> entry : this.uniformBuffers.entrySet()) {
-								renderPass.setUniform(entry.getKey(), entry.getValue());
-							}
+			try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(
+				samplerInfoBuffer.getBlocking(),
+				false,
+				true
+			)) {
+				Std140Builder std140Builder = Std140Builder.intoBuffer(mappedView.data());
+				std140Builder.putVec2(framebuffer.textureWidth, framebuffer.textureHeight);
 
-							for (PostEffectPass.Target target2 : list) {
-								renderPass.bindTexture(
-										target2.samplerName() + "Sampler",
-										target2.view(),
-										target2.sampler()
-								);
-							}
+				for (PostEffectPass.Target target : targets) {
+					std140Builder.putVec2(target.view().getWidth(0), target.view().getHeight(0));
+				}
+			}
 
-							renderPass.draw(0, 3);
-						}
+			try (RenderPass renderPass = commandEncoder.createRenderPass(
+				() -> "Post pass " + id,
+				framebuffer.getColorAttachmentView(),
+				OptionalInt.empty(),
+				framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null,
+				OptionalDouble.empty()
+			)) {
+				renderPass.setPipeline(pipeline);
+				RenderSystem.bindDefaultUniforms(renderPass);
+				renderPass.setUniform("SamplerInfo", samplerInfoBuffer.getBlocking());
 
-						this.samplerInfoBuffer.rotate();
-						RenderSystem.restoreProjectionMatrix();
+				for (Entry<String, GpuBuffer> entry : uniformBuffers.entrySet()) {
+					renderPass.setUniform(entry.getKey(), entry.getValue());
+				}
 
-						for (PostEffectPass.Sampler samplerx : this.samplers) {
-							samplerx.postRender(handles);
-						}
-					}
-			);
-		}
+				for (PostEffectPass.Target target : targets) {
+					renderPass.bindTexture(target.samplerName() + "Sampler", target.view(), target.sampler());
+				}
+
+				renderPass.draw(0, 3);
+			}
+
+			samplerInfoBuffer.rotate();
+			RenderSystem.restoreProjectionMatrix();
+
+			for (PostEffectPass.Sampler sampler : samplers) {
+				sampler.postRender(handles);
+			}
+		});
 	}
 
 	@Override
 	public void close() {
-		for (GpuBuffer gpuBuffer : this.uniformBuffers.values()) {
-			gpuBuffer.close();
+		for (GpuBuffer buffer : uniformBuffers.values()) {
+			buffer.close();
 		}
 
-		this.samplerInfoBuffer.close();
+		samplerInfoBuffer.close();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Sampler}.
-	 */
 	public interface Sampler {
 
 		void preRender(FramePass pass, Map<Identifier, Handle<Framebuffer>> internalTargets);
@@ -220,65 +197,62 @@ public class PostEffectPass implements AutoCloseable {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Target}.
-	 */
 	record Target(String samplerName, GpuTextureView view, GpuSampler sampler) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TargetSampler}.
+	 * Сэмплер, читающий цвет или глубину из внутреннего целевого фреймбуфера пост-эффекта.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record TargetSampler(
-			String samplerName,
-			Identifier targetId,
-			boolean depthBuffer,
-			boolean bilinear
+		String samplerName,
+		Identifier targetId,
+		boolean depthBuffer,
+		boolean bilinear
 	) implements PostEffectPass.Sampler {
 
 		private Handle<Framebuffer> getTarget(Map<Identifier, Handle<Framebuffer>> internalTargets) {
-			Handle<Framebuffer> handle = internalTargets.get(this.targetId);
+			Handle<Framebuffer> handle = internalTargets.get(targetId);
+
 			if (handle == null) {
-				throw new IllegalStateException("Missing handle for target " + this.targetId);
+				throw new IllegalStateException("Missing handle for target " + targetId);
 			}
-			else {
-				return handle;
-			}
+
+			return handle;
 		}
 
 		@Override
 		public void preRender(FramePass pass, Map<Identifier, Handle<Framebuffer>> internalTargets) {
-			pass.dependsOn(this.getTarget(internalTargets));
+			pass.dependsOn(getTarget(internalTargets));
 		}
 
 		@Override
 		public GpuTextureView getTexture(Map<Identifier, Handle<Framebuffer>> internalTargets) {
-			Handle<Framebuffer> handle = this.getTarget(internalTargets);
-			Framebuffer framebuffer = handle.get();
-			GpuTextureView
-					gpuTextureView =
-					this.depthBuffer ? framebuffer.getDepthAttachmentView() : framebuffer.getColorAttachmentView();
-			if (gpuTextureView == null) {
+			Framebuffer framebuffer = getTarget(internalTargets).get();
+			GpuTextureView view = depthBuffer
+				? framebuffer.getDepthAttachmentView()
+				: framebuffer.getColorAttachmentView();
+
+			if (view == null) {
 				throw new IllegalStateException(
-						"Missing " + (this.depthBuffer ? "depth" : "color") + "texture for target " + this.targetId);
+					"Missing " + (depthBuffer ? "depth" : "color") + "texture for target " + targetId
+				);
 			}
-			else {
-				return gpuTextureView;
-			}
+
+			return view;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TextureSampler}.
+	 * Сэмплер, читающий данные из статической текстуры (не из фреймбуфера).
 	 */
+	@Environment(EnvType.CLIENT)
 	public record TextureSampler(
-			String samplerName,
-			AbstractTexture texture,
-			int width,
-			int height,
-			boolean bilinear
+		String samplerName,
+		AbstractTexture texture,
+		int width,
+		int height,
+		boolean bilinear
 	) implements PostEffectPass.Sampler {
 
 		@Override
@@ -287,7 +261,7 @@ public class PostEffectPass implements AutoCloseable {
 
 		@Override
 		public GpuTextureView getTexture(Map<Identifier, Handle<Framebuffer>> internalTargets) {
-			return this.texture.getGlTextureView();
+			return texture.getGlTextureView();
 		}
 	}
 }

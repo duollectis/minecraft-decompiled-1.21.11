@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code ServerCommonNetworkHandler}.
+ * Класс Server Common Network Handler.
  */
 public abstract class ServerCommonNetworkHandler implements ServerCommonPacketListener {
 
@@ -126,7 +126,7 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 	protected void baseTick() {
 		Profilers.get().push("keepAlive");
 		long l = Util.getMeasuringTimeMs();
-		if (!this.isHost() && l - this.lastKeepAliveTime >= 15000L) {
+		if (!this.isHost() && l - this.lastKeepAliveTime >= KEEP_ALIVE_INTERVAL) {
 			if (this.waitingForKeepAlive) {
 				this.disconnect(TIMEOUT_TEXT);
 			}
@@ -143,7 +143,7 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 
 	private boolean checkTransitionTimeout(long time) {
 		if (this.transitioning) {
-			if (time - this.transitionStartTime >= 15000L) {
+			if (time - this.transitionStartTime >= TRANSITION_TIMEOUT) {
 				this.disconnect(TIMEOUT_TEXT);
 			}
 

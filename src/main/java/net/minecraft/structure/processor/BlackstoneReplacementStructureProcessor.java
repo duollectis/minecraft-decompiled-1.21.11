@@ -12,81 +12,83 @@ import net.minecraft.world.WorldView;
 import java.util.Map;
 
 /**
- * {@code BlackstoneReplacementStructureProcessor}.
+ * Процессор структур, заменяющий каменные блоки на их блэкстоун-аналоги.
+ * Используется при генерации бастионов в Нижнем мире, где каменные материалы
+ * заменяются на полированный чёрный камень и его производные.
+ * Является синглтоном — используется через {@link #INSTANCE}.
  */
 public class BlackstoneReplacementStructureProcessor extends StructureProcessor {
 
-	public static final MapCodec<BlackstoneReplacementStructureProcessor>
-			CODEC =
-			MapCodec.unit(() -> BlackstoneReplacementStructureProcessor.INSTANCE);
-	public static final BlackstoneReplacementStructureProcessor
-			INSTANCE =
-			new BlackstoneReplacementStructureProcessor();
-	private final Map<Block, Block> replacementMap = Util.make(
-			Maps.newHashMap(), replacements -> {
-				replacements.put(Blocks.COBBLESTONE, Blocks.BLACKSTONE);
-				replacements.put(Blocks.MOSSY_COBBLESTONE, Blocks.BLACKSTONE);
-				replacements.put(Blocks.STONE, Blocks.POLISHED_BLACKSTONE);
-				replacements.put(Blocks.STONE_BRICKS, Blocks.POLISHED_BLACKSTONE_BRICKS);
-				replacements.put(Blocks.MOSSY_STONE_BRICKS, Blocks.POLISHED_BLACKSTONE_BRICKS);
-				replacements.put(Blocks.COBBLESTONE_STAIRS, Blocks.BLACKSTONE_STAIRS);
-				replacements.put(Blocks.MOSSY_COBBLESTONE_STAIRS, Blocks.BLACKSTONE_STAIRS);
-				replacements.put(Blocks.STONE_STAIRS, Blocks.POLISHED_BLACKSTONE_STAIRS);
-				replacements.put(Blocks.STONE_BRICK_STAIRS, Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
-				replacements.put(Blocks.MOSSY_STONE_BRICK_STAIRS, Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
-				replacements.put(Blocks.COBBLESTONE_SLAB, Blocks.BLACKSTONE_SLAB);
-				replacements.put(Blocks.MOSSY_COBBLESTONE_SLAB, Blocks.BLACKSTONE_SLAB);
-				replacements.put(Blocks.SMOOTH_STONE_SLAB, Blocks.POLISHED_BLACKSTONE_SLAB);
-				replacements.put(Blocks.STONE_SLAB, Blocks.POLISHED_BLACKSTONE_SLAB);
-				replacements.put(Blocks.STONE_BRICK_SLAB, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB);
-				replacements.put(Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB);
-				replacements.put(Blocks.STONE_BRICK_WALL, Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
-				replacements.put(Blocks.MOSSY_STONE_BRICK_WALL, Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
-				replacements.put(Blocks.COBBLESTONE_WALL, Blocks.BLACKSTONE_WALL);
-				replacements.put(Blocks.MOSSY_COBBLESTONE_WALL, Blocks.BLACKSTONE_WALL);
-				replacements.put(Blocks.CHISELED_STONE_BRICKS, Blocks.CHISELED_POLISHED_BLACKSTONE);
-				replacements.put(Blocks.CRACKED_STONE_BRICKS, Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS);
-				replacements.put(Blocks.IRON_BARS, Blocks.IRON_CHAIN);
-			}
-	);
+	public static final MapCodec<BlackstoneReplacementStructureProcessor> CODEC =
+		MapCodec.unit(() -> BlackstoneReplacementStructureProcessor.INSTANCE);
+
+	public static final BlackstoneReplacementStructureProcessor INSTANCE =
+		new BlackstoneReplacementStructureProcessor();
+
+	private final Map<Block, Block> replacementMap = Util.make(Maps.newHashMap(), replacements -> {
+		replacements.put(Blocks.COBBLESTONE, Blocks.BLACKSTONE);
+		replacements.put(Blocks.MOSSY_COBBLESTONE, Blocks.BLACKSTONE);
+		replacements.put(Blocks.STONE, Blocks.POLISHED_BLACKSTONE);
+		replacements.put(Blocks.STONE_BRICKS, Blocks.POLISHED_BLACKSTONE_BRICKS);
+		replacements.put(Blocks.MOSSY_STONE_BRICKS, Blocks.POLISHED_BLACKSTONE_BRICKS);
+		replacements.put(Blocks.COBBLESTONE_STAIRS, Blocks.BLACKSTONE_STAIRS);
+		replacements.put(Blocks.MOSSY_COBBLESTONE_STAIRS, Blocks.BLACKSTONE_STAIRS);
+		replacements.put(Blocks.STONE_STAIRS, Blocks.POLISHED_BLACKSTONE_STAIRS);
+		replacements.put(Blocks.STONE_BRICK_STAIRS, Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
+		replacements.put(Blocks.MOSSY_STONE_BRICK_STAIRS, Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
+		replacements.put(Blocks.COBBLESTONE_SLAB, Blocks.BLACKSTONE_SLAB);
+		replacements.put(Blocks.MOSSY_COBBLESTONE_SLAB, Blocks.BLACKSTONE_SLAB);
+		replacements.put(Blocks.SMOOTH_STONE_SLAB, Blocks.POLISHED_BLACKSTONE_SLAB);
+		replacements.put(Blocks.STONE_SLAB, Blocks.POLISHED_BLACKSTONE_SLAB);
+		replacements.put(Blocks.STONE_BRICK_SLAB, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB);
+		replacements.put(Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB);
+		replacements.put(Blocks.STONE_BRICK_WALL, Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
+		replacements.put(Blocks.MOSSY_STONE_BRICK_WALL, Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
+		replacements.put(Blocks.COBBLESTONE_WALL, Blocks.BLACKSTONE_WALL);
+		replacements.put(Blocks.MOSSY_COBBLESTONE_WALL, Blocks.BLACKSTONE_WALL);
+		replacements.put(Blocks.CHISELED_STONE_BRICKS, Blocks.CHISELED_POLISHED_BLACKSTONE);
+		replacements.put(Blocks.CRACKED_STONE_BRICKS, Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS);
+		replacements.put(Blocks.IRON_BARS, Blocks.IRON_CHAIN);
+	});
 
 	private BlackstoneReplacementStructureProcessor() {
 	}
 
 	@Override
 	public StructureTemplate.StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
-		Block block = this.replacementMap.get(currentBlockInfo.state().getBlock());
-		if (block == null) {
+		Block replacement = replacementMap.get(currentBlockInfo.state().getBlock());
+
+		if (replacement == null) {
 			return currentBlockInfo;
 		}
-		else {
-			BlockState blockState = currentBlockInfo.state();
-			BlockState blockState2 = block.getDefaultState();
-			if (blockState.contains(StairsBlock.FACING)) {
-				blockState2 = blockState2.with(StairsBlock.FACING, blockState.get(StairsBlock.FACING));
-			}
 
-			if (blockState.contains(StairsBlock.HALF)) {
-				blockState2 = blockState2.with(StairsBlock.HALF, blockState.get(StairsBlock.HALF));
-			}
+		BlockState sourceState = currentBlockInfo.state();
+		BlockState targetState = replacement.getDefaultState();
 
-			if (blockState.contains(SlabBlock.TYPE)) {
-				blockState2 = blockState2.with(SlabBlock.TYPE, blockState.get(SlabBlock.TYPE));
-			}
-
-			return new StructureTemplate.StructureBlockInfo(
-					currentBlockInfo.pos(),
-					blockState2,
-					currentBlockInfo.nbt()
-			);
+		if (sourceState.contains(StairsBlock.FACING)) {
+			targetState = targetState.with(StairsBlock.FACING, sourceState.get(StairsBlock.FACING));
 		}
+
+		if (sourceState.contains(StairsBlock.HALF)) {
+			targetState = targetState.with(StairsBlock.HALF, sourceState.get(StairsBlock.HALF));
+		}
+
+		if (sourceState.contains(SlabBlock.TYPE)) {
+			targetState = targetState.with(SlabBlock.TYPE, sourceState.get(SlabBlock.TYPE));
+		}
+
+		return new StructureTemplate.StructureBlockInfo(
+			currentBlockInfo.pos(),
+			targetState,
+			currentBlockInfo.nbt()
+		);
 	}
 
 	@Override

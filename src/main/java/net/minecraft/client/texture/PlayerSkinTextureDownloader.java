@@ -130,35 +130,35 @@ public class PlayerSkinTextureDownloader {
 	private static NativeImage remapTexture(NativeImage image, String uri) {
 		int i = image.getHeight();
 		int j = image.getWidth();
-		if (j == 64 && (i == 32 || i == 64)) {
-			boolean bl = i == 32;
+		if (j == SKIN_HEIGHT && (i == OLD_SKIN_HEIGHT || i == 64)) {
+			boolean bl = i == OLD_SKIN_HEIGHT;
 			if (bl) {
-				NativeImage nativeImage = new NativeImage(64, 64, true);
+				NativeImage nativeImage = new NativeImage(SKIN_WIDTH, 64, true);
 				nativeImage.copyFrom(image);
 				image.close();
 				image = nativeImage;
-				nativeImage.fillRect(0, 32, 64, 32, 0);
-				nativeImage.copyRect(4, 16, 16, 32, 4, 4, true, false);
-				nativeImage.copyRect(8, 16, 16, 32, 4, 4, true, false);
-				nativeImage.copyRect(0, 20, 24, 32, 4, 12, true, false);
-				nativeImage.copyRect(4, 20, 16, 32, 4, 12, true, false);
-				nativeImage.copyRect(8, 20, 8, 32, 4, 12, true, false);
-				nativeImage.copyRect(12, 20, 16, 32, 4, 12, true, false);
-				nativeImage.copyRect(44, 16, -8, 32, 4, 4, true, false);
-				nativeImage.copyRect(48, 16, -8, 32, 4, 4, true, false);
-				nativeImage.copyRect(40, 20, 0, 32, 4, 12, true, false);
-				nativeImage.copyRect(44, 20, -8, 32, 4, 12, true, false);
-				nativeImage.copyRect(48, 20, -16, 32, 4, 12, true, false);
-				nativeImage.copyRect(52, 20, -8, 32, 4, 12, true, false);
+				nativeImage.fillRect(0, OLD_SKIN_HEIGHT, SKIN_HEIGHT, OLD_SKIN_HEIGHT, 0);
+				nativeImage.copyRect(4, 16, 16, OLD_SKIN_HEIGHT, 4, 4, true, false);
+				nativeImage.copyRect(8, 16, 16, OLD_SKIN_HEIGHT, 4, 4, true, false);
+				nativeImage.copyRect(0, 20, 24, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(4, 20, 16, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(8, 20, 8, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(12, 20, 16, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(44, 16, -8, OLD_SKIN_HEIGHT, 4, 4, true, false);
+				nativeImage.copyRect(48, 16, -8, OLD_SKIN_HEIGHT, 4, 4, true, false);
+				nativeImage.copyRect(40, 20, 0, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(44, 20, -8, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(48, 20, -16, OLD_SKIN_HEIGHT, 4, 12, true, false);
+				nativeImage.copyRect(52, 20, -8, OLD_SKIN_HEIGHT, 4, 12, true, false);
 			}
 
-			stripAlpha(image, 0, 0, 32, 16);
+			stripAlpha(image, 0, 0, OLD_SKIN_HEIGHT, 16);
 			if (bl) {
-				stripColor(image, 32, 0, 64, 32);
+				stripColor(image, OLD_SKIN_HEIGHT, 0, SKIN_HEIGHT, OLD_SKIN_HEIGHT);
 			}
 
-			stripAlpha(image, 0, 16, 64, 32);
-			stripAlpha(image, 16, 48, 48, 64);
+			stripAlpha(image, 0, 16, SKIN_HEIGHT, OLD_SKIN_HEIGHT);
+			stripAlpha(image, 16, 48, 48, SKIN_WIDTH);
 			return image;
 		}
 		else {

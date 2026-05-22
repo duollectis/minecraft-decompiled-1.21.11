@@ -7,7 +7,9 @@ import net.minecraft.world.chunk.ChunkNibbleArray;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkLightingView}.
+ * Представление освещения для отдельного чанка.
+ * Расширяет {@link LightingView} методами получения данных о свете на уровне секций и блоков.
+ * Содержит заглушку {@link Empty} для измерений без освещения.
  */
 public interface ChunkLightingView extends LightingView {
 
@@ -16,9 +18,9 @@ public interface ChunkLightingView extends LightingView {
 	int getLightLevel(BlockPos pos);
 
 	/**
-	 * {@code Empty}.
+	 * Заглушка-реализация для измерений без освещения (например, Nether без неба).
 	 */
-	public static enum Empty implements ChunkLightingView {
+	enum Empty implements ChunkLightingView {
 		INSTANCE;
 
 		@Override

@@ -16,10 +16,14 @@ import net.minecraft.world.rule.ServerGameRules;
 import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GeneratorOptionsHolder}.
+ * Иммутабельный контейнер всех параметров генерации мира на клиенте.
+ *
+ * <p>Хранит {@link GeneratorOptions}, реестр измерений, объединённые динамические реестры,
+ * содержимое датапаков и начальные параметры создания мира. Все методы {@code apply} и {@code with}
+ * возвращают новый экземпляр, не изменяя текущий.
  */
+@Environment(EnvType.CLIENT)
 public record GeneratorOptionsHolder(
 		GeneratorOptions generatorOptions,
 		Registry<DimensionOptions> dimensionOptionsRegistry,
@@ -71,78 +75,82 @@ public record GeneratorOptionsHolder(
 	) {
 		return new GeneratorOptionsHolder(
 				generatorOptions,
-				this.dimensionOptionsRegistry,
+				dimensionOptionsRegistry,
 				selectedDimensions,
-				this.combinedDynamicRegistries,
-				this.dataPackContents,
-				this.dataConfiguration,
-				this.initialWorldCreationOptions
+				combinedDynamicRegistries,
+				dataPackContents,
+				dataConfiguration,
+				initialWorldCreationOptions
 		);
 	}
 
 	/**
-	 * Apply.
+	 * Применяет модификатор к {@link GeneratorOptions}, возвращая новый экземпляр держателя.
 	 *
-	 * @param modifier modifier
-	 *
-	 * @return GeneratorOptionsHolder — результат операции
+	 * @param modifier функция-преобразователь параметров генератора
+	 * @return новый {@code GeneratorOptionsHolder} с изменёнными параметрами генератора
 	 */
 	public GeneratorOptionsHolder apply(GeneratorOptionsHolder.Modifier modifier) {
 		return new GeneratorOptionsHolder(
-				modifier.apply(this.generatorOptions),
-				this.dimensionOptionsRegistry,
-				this.selectedDimensions,
-				this.combinedDynamicRegistries,
-				this.dataPackContents,
-				this.dataConfiguration,
-				this.initialWorldCreationOptions
+				modifier.apply(generatorOptions),
+				dimensionOptionsRegistry,
+				selectedDimensions,
+				combinedDynamicRegistries,
+				dataPackContents,
+				dataConfiguration,
+				initialWorldCreationOptions
 		);
 	}
 
 	/**
-	 * Apply.
+	 * Применяет реестро-зависимый модификатор к {@link DimensionOptionsRegistryHolder},
+	 * возвращая новый экземпляр держателя с обновлёнными измерениями.
 	 *
-	 * @param modifier modifier
-	 *
-	 * @return GeneratorOptionsHolder — результат операции
+	 * @param modifier функция, принимающая объединённый реестр и текущие измерения
+	 * @return новый {@code GeneratorOptionsHolder} с изменёнными измерениями
 	 */
 	public GeneratorOptionsHolder apply(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
 		return new GeneratorOptionsHolder(
-				this.generatorOptions,
-				this.dimensionOptionsRegistry,
-				modifier.apply(this.getCombinedRegistryManager(), this.selectedDimensions),
-				this.combinedDynamicRegistries,
-				this.dataPackContents,
-				this.dataConfiguration,
-				this.initialWorldCreationOptions
+				generatorOptions,
+				dimensionOptionsRegistry,
+				modifier.apply(getCombinedRegistryManager(), selectedDimensions),
+				combinedDynamicRegistries,
+				dataPackContents,
+				dataConfiguration,
+				initialWorldCreationOptions
 		);
 	}
 
 	public DynamicRegistryManager.Immutable getCombinedRegistryManager() {
-		return this.combinedDynamicRegistries.getCombinedRegistryManager();
+		return combinedDynamicRegistries.getCombinedRegistryManager();
 	}
 
 	/**
-	 * Инициализирует ialize indexed features lists.
+	 * Инициализирует индексированные списки фич для всех генераторов чанков в реестре измерений.
+	 * Должен вызываться после финальной сборки реестра перед стартом генерации.
 	 */
 	public void initializeIndexedFeaturesLists() {
-		for (DimensionOptions dimensionOptions : this.dimensionOptionsRegistry()) {
+		for (DimensionOptions dimensionOptions : dimensionOptionsRegistry()) {
 			dimensionOptions.chunkGenerator().initializeIndexedFeaturesList();
 		}
+
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Modifier}.
+	 * Функциональный интерфейс для модификации {@link GeneratorOptions}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Modifier extends UnaryOperator<GeneratorOptions> {
 	}
 
+	/**
+	 * Функциональный интерфейс для модификации {@link DimensionOptionsRegistryHolder}
+	 * с доступом к объединённому реестру.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RegistryAwareModifier}.
-	 */
-	public interface RegistryAwareModifier extends BiFunction<DynamicRegistryManager.Immutable, DimensionOptionsRegistryHolder, DimensionOptionsRegistryHolder> {
+	public interface RegistryAwareModifier
+			extends BiFunction<DynamicRegistryManager.Immutable, DimensionOptionsRegistryHolder, DimensionOptionsRegistryHolder> {
 	}
+
 }

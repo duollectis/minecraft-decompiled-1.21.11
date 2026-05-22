@@ -4,19 +4,22 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ResolvableModel}.
+ * Модель, способная декларировать свои зависимости от других моделей перед запеканием.
+ * Вызов {@link #resolve(Resolver)} позволяет системе загрузки заранее собрать
+ * полный граф зависимостей и гарантировать их наличие к моменту запекания.
  */
+@Environment(EnvType.CLIENT)
 public interface ResolvableModel {
 
 	void resolve(ResolvableModel.Resolver resolver);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Resolver}.
+	 * Коллектор зависимостей: принимает идентификаторы моделей,
+	 * от которых зависит текущая модель.
 	 */
-	public interface Resolver {
+	@Environment(EnvType.CLIENT)
+	interface Resolver {
 
 		void markDependency(Identifier id);
 	}

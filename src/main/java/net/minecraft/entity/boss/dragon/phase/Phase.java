@@ -9,7 +9,8 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code Phase}.
+ * Контракт одной фазы поведения Дракона Края. Каждая фаза управляет движением,
+ * анимацией и реакцией на события (урон, уничтожение кристалла) в рамках своего состояния.
  */
 public interface Phase {
 

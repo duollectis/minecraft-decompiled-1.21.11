@@ -18,7 +18,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code TransferCommand}.
+ * Команда {@code /transfer}: перевод игрока на другой сервер (только dedicated).
  */
 public class TransferCommand {
 

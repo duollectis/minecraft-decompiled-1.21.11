@@ -6,7 +6,10 @@ import net.minecraft.loot.context.LootContext;
 import java.util.function.Consumer;
 
 /**
- * {@code LootChoice}.
+ * Один вариант выбора в лут-пуле с весом и логикой генерации предметов.
+ *
+ * <p>Вес определяет вероятность выбора данного варианта относительно других
+ * в пуле. Чем выше удача ({@code luck}), тем больший вес может получить вариант.</p>
  */
 public interface LootChoice {
 

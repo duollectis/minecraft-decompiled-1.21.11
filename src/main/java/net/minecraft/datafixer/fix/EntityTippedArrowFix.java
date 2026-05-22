@@ -5,12 +5,13 @@ import com.mojang.datafixers.schemas.Schema;
 import java.util.Objects;
 
 /**
- * {@code EntityTippedArrowFix}.
+ * Переименовывает устаревший тип сущности {@code TippedArrow} в {@code Arrow},
+ * так как в новых версиях зелейные стрелы объединены с обычными.
  */
 public class EntityTippedArrowFix extends EntityRenameFix {
 
-	public EntityTippedArrowFix(Schema schema, boolean bl) {
-		super("EntityTippedArrowFix", schema, bl);
+	public EntityTippedArrowFix(Schema schema, boolean changesType) {
+		super("EntityTippedArrowFix", schema, changesType);
 	}
 
 	@Override

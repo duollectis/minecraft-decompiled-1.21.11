@@ -7,9 +7,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code EndGatewayFeature}.
- */
+/** Генерирует портал Края: блок ворот в центре, обёрнутый в бедрок с воздушными боковыми гранями. */
 public class EndGatewayFeature extends Feature<EndGatewayFeatureConfig> {
 
 	public EndGatewayFeature(Codec<EndGatewayFeatureConfig> codec) {
@@ -18,35 +16,32 @@ public class EndGatewayFeature extends Feature<EndGatewayFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<EndGatewayFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		EndGatewayFeatureConfig endGatewayFeatureConfig = context.getConfig();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		EndGatewayFeatureConfig config = context.getConfig();
 
-		for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-1, -2, -1), blockPos.add(1, 2, 1))) {
-			boolean bl = blockPos2.getX() == blockPos.getX();
-			boolean bl2 = blockPos2.getY() == blockPos.getY();
-			boolean bl3 = blockPos2.getZ() == blockPos.getZ();
-			boolean bl4 = Math.abs(blockPos2.getY() - blockPos.getY()) == 2;
-			if (bl && bl2 && bl3) {
-				BlockPos blockPos3 = blockPos2.toImmutable();
-				this.setBlockState(structureWorldAccess, blockPos3, Blocks.END_GATEWAY.getDefaultState());
-				endGatewayFeatureConfig.getExitPos().ifPresent(pos -> {
-					if (structureWorldAccess.getBlockEntity(blockPos3) instanceof EndGatewayBlockEntity endGatewayBlockEntity) {
-						endGatewayBlockEntity.setExitPortalPos(pos, endGatewayFeatureConfig.isExact());
+		for (BlockPos pos : BlockPos.iterate(origin.add(-1, -2, -1), origin.add(1, 2, 1))) {
+			boolean onCenterX = pos.getX() == origin.getX();
+			boolean onCenterY = pos.getY() == origin.getY();
+			boolean onCenterZ = pos.getZ() == origin.getZ();
+			boolean onTopOrBottom = Math.abs(pos.getY() - origin.getY()) == 2;
+
+			if (onCenterX && onCenterY && onCenterZ) {
+				BlockPos gatewayPos = pos.toImmutable();
+				setBlockState(world, gatewayPos, Blocks.END_GATEWAY.getDefaultState());
+				config.getExitPos().ifPresent(exitPos -> {
+					if (world.getBlockEntity(gatewayPos) instanceof EndGatewayBlockEntity gateway) {
+						gateway.setExitPortalPos(exitPos, config.isExact());
 					}
 				});
-			}
-			else if (bl2) {
-				this.setBlockState(structureWorldAccess, blockPos2, Blocks.AIR.getDefaultState());
-			}
-			else if (bl4 && bl && bl3) {
-				this.setBlockState(structureWorldAccess, blockPos2, Blocks.BEDROCK.getDefaultState());
-			}
-			else if ((bl || bl3) && !bl4) {
-				this.setBlockState(structureWorldAccess, blockPos2, Blocks.BEDROCK.getDefaultState());
-			}
-			else {
-				this.setBlockState(structureWorldAccess, blockPos2, Blocks.AIR.getDefaultState());
+			} else if (onCenterY) {
+				setBlockState(world, pos, Blocks.AIR.getDefaultState());
+			} else if (onTopOrBottom && onCenterX && onCenterZ) {
+				setBlockState(world, pos, Blocks.BEDROCK.getDefaultState());
+			} else if ((onCenterX || onCenterZ) && !onTopOrBottom) {
+				setBlockState(world, pos, Blocks.BEDROCK.getDefaultState());
+			} else {
+				setBlockState(world, pos, Blocks.AIR.getDefaultState());
 			}
 		}
 

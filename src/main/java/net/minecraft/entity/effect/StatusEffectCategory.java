@@ -3,7 +3,10 @@ package net.minecraft.entity.effect;
 import net.minecraft.util.Formatting;
 
 /**
- * {@code StatusEffectCategory}.
+ * Категория статусного эффекта, определяющая его визуальное оформление в инвентаре.
+ *
+ * <p>{@link #BENEFICIAL} и {@link #NEUTRAL} отображаются синим цветом,
+ * {@link #HARMFUL} — красным.</p>
  */
 public enum StatusEffectCategory {
 	BENEFICIAL(Formatting.BLUE),
@@ -12,11 +15,11 @@ public enum StatusEffectCategory {
 
 	private final Formatting formatting;
 
-	private StatusEffectCategory(final Formatting format) {
-		this.formatting = format;
+	StatusEffectCategory(Formatting formatting) {
+		this.formatting = formatting;
 	}
 
 	public Formatting getFormatting() {
-		return this.formatting;
+		return formatting;
 	}
 }

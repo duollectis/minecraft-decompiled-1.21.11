@@ -27,35 +27,38 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code SetNameLootFunction}.
+ * Функция лута, устанавливающая имя предмета (пользовательское или встроенное).
+ * Поддерживает разрешение текстовых компонентов через источник-сущность.
  */
 public class SetNameLootFunction extends ConditionalLootFunction {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<SetNameLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									TextCodecs.CODEC.optionalFieldOf("name").forGetter(function -> function.name),
-									LootContext.EntityReference.CODEC
-											.optionalFieldOf("entity")
-											.forGetter(function -> function.entity),
-									SetNameLootFunction.Target.CODEC
-											.optionalFieldOf("target", SetNameLootFunction.Target.CUSTOM_NAME)
-											.forGetter(function -> function.target)
-							)
-					)
-					.apply(instance, SetNameLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					TextCodecs.CODEC.optionalFieldOf("name").forGetter(function -> function.name),
+					LootContext.EntityReference.CODEC
+						.optionalFieldOf("entity")
+						.forGetter(function -> function.entity),
+					SetNameLootFunction.Target.CODEC
+						.optionalFieldOf("target", SetNameLootFunction.Target.CUSTOM_NAME)
+						.forGetter(function -> function.target)
+				)
+			)
+			.apply(instance, SetNameLootFunction::new)
 	);
+
 	private final Optional<Text> name;
 	private final Optional<LootContext.EntityReference> entity;
 	private final SetNameLootFunction.Target target;
 
 	private SetNameLootFunction(
-			List<LootCondition> conditions,
-			Optional<Text> name,
-			Optional<LootContext.EntityReference> entity,
-			SetNameLootFunction.Target target
+		List<LootCondition> conditions,
+		Optional<Text> name,
+		Optional<LootContext.EntityReference> entity,
+		SetNameLootFunction.Target target
 	) {
 		super(conditions);
 		this.name = name;
@@ -70,41 +73,44 @@ public class SetNameLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.entity.<Set<ContextParameter<?>>>map(entity -> Set.of(entity.contextParam())).orElse(Set.of());
+		return entity.<Set<ContextParameter<?>>>map(ref -> Set.of(ref.contextParam())).orElse(Set.of());
 	}
 
+	/**
+	 * Создаёт оператор разрешения текстового компонента через команду сущности.
+	 * Если сущность недоступна в контексте, возвращает оператор-идентичность.
+	 */
 	public static UnaryOperator<Text> applySourceEntity(
-			LootContext context,
-			LootContext.@Nullable EntityReference sourceEntity
+		LootContext context,
+		LootContext.@Nullable EntityReference sourceEntity
 	) {
-		if (sourceEntity != null) {
-			Entity entity = context.get(sourceEntity.contextParam());
-			if (entity != null) {
-				ServerCommandSource
-						serverCommandSource =
-						entity
-								.getCommandSource(context.getWorld())
-								.withPermissions(LeveledPermissionPredicate.GAMEMASTERS);
-				return textComponent -> {
-					try {
-						return Texts.parse(serverCommandSource, textComponent, entity, 0);
-					}
-					catch (CommandSyntaxException var4) {
-						LOGGER.warn("Failed to resolve text component", var4);
-						return textComponent;
-					}
-				};
-			}
+		if (sourceEntity == null) {
+			return text -> text;
 		}
 
-		return textComponent -> textComponent;
+		Entity entity = context.get(sourceEntity.contextParam());
+		if (entity == null) {
+			return text -> text;
+		}
+
+		ServerCommandSource source = entity
+			.getCommandSource(context.getWorld())
+			.withPermissions(LeveledPermissionPredicate.GAMEMASTERS);
+		return text -> {
+			try {
+				return Texts.parse(source, text, entity, 0);
+			} catch (CommandSyntaxException exception) {
+				LOGGER.warn("Failed to resolve text component", exception);
+				return text;
+			}
+		};
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		this.name.ifPresent(name -> stack.set(
-				this.target.getComponentType(),
-				applySourceEntity(context, this.entity.orElse(null)).apply(name)
+		name.ifPresent(nameText -> stack.set(
+			target.getComponentType(),
+			applySourceEntity(context, entity.orElse(null)).apply(nameText)
 		));
 		return stack;
 	}
@@ -114,37 +120,35 @@ public class SetNameLootFunction extends ConditionalLootFunction {
 	}
 
 	public static ConditionalLootFunction.Builder<?> builder(
-			Text name,
-			SetNameLootFunction.Target target,
-			LootContext.EntityReference entity
+		Text name,
+		SetNameLootFunction.Target target,
+		LootContext.EntityReference entity
 	) {
 		return builder(conditions -> new SetNameLootFunction(
-				conditions,
-				Optional.of(name),
-				Optional.of(entity),
-				target
+			conditions,
+			Optional.of(name),
+			Optional.of(entity),
+			target
 		));
 	}
 
-	/**
-	 * {@code Target}.
-	 */
-	public static enum Target implements StringIdentifiable {
+	/** Цель установки имени: пользовательское имя или встроенное имя предмета. */
+	public enum Target implements StringIdentifiable {
 		CUSTOM_NAME("custom_name"),
 		ITEM_NAME("item_name");
 
-		public static final Codec<SetNameLootFunction.Target>
-				CODEC =
-				StringIdentifiable.createCodec(SetNameLootFunction.Target::values);
+		public static final Codec<SetNameLootFunction.Target> CODEC =
+			StringIdentifiable.createCodec(SetNameLootFunction.Target::values);
+
 		private final String id;
 
-		private Target(final String id) {
+		Target(String id) {
 			this.id = id;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 
 		public ComponentType<Text> getComponentType() {

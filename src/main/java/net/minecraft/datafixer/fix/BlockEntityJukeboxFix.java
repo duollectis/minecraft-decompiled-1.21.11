@@ -10,38 +10,44 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BlockEntityJukeboxFix}.
+ * Конвертирует устаревший числовой ID пластинки (поле {@code Record}) в полноценный
+ * ItemStack-объект в поле {@code RecordItem}, используя таблицу маппинга предметов.
  */
 public class BlockEntityJukeboxFix extends ChoiceFix {
 
-	public BlockEntityJukeboxFix(Schema schema, boolean bl) {
-		super(schema, bl, "BlockEntityJukeboxFix", TypeReferences.BLOCK_ENTITY, "minecraft:jukebox");
+	public BlockEntityJukeboxFix(Schema schema, boolean changesType) {
+		super(schema, changesType, "BlockEntityJukeboxFix", TypeReferences.BLOCK_ENTITY, "minecraft:jukebox");
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:jukebox");
-		Type<?> type2 = type.findFieldType("RecordItem");
-		OpticFinder<?> opticFinder = DSL.fieldFinder("RecordItem", type2);
-		Dynamic<?> dynamic = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
-		int i = dynamic.get("Record").asInt(0);
-		if (i > 0) {
-			dynamic.remove("Record");
-			String string = ItemInstanceTheFlatteningFix.getItem(ItemIdFix.fromId(i), 0);
-			if (string != null) {
-				Dynamic<?> dynamic2 = dynamic.emptyMap();
-				dynamic2 = dynamic2.set("id", dynamic2.createString(string));
-				dynamic2 = dynamic2.set("Count", dynamic2.createByte((byte) 1));
-				return inputTyped.set(
-						                 opticFinder,
-						                 (Typed) ((Pair) type2
-								                 .readTyped(dynamic2)
-								                 .result()
-								                 .orElseThrow(() -> new IllegalStateException("Could not create record item stack."))
-						                 )
-								                 .getFirst()
-				                 )
-				                 .set(DSL.remainderFinder(), dynamic);
+		Type<?> jukeboxType = getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:jukebox");
+		Type<?> recordItemFieldType = jukeboxType.findFieldType("RecordItem");
+		OpticFinder<?> recordItemFinder = DSL.fieldFinder("RecordItem", recordItemFieldType);
+
+		Dynamic<?> remainder = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
+		int recordId = remainder.get("Record").asInt(0);
+
+		if (recordId > 0) {
+			// Dynamic иммутабелен — результат remove() нужно присвоить обратно
+			remainder = remainder.remove("Record");
+			String itemId = ItemInstanceTheFlatteningFix.getItem(ItemIdFix.fromId(recordId), 0);
+
+			if (itemId != null) {
+				Dynamic<?> recordItem = remainder.emptyMap();
+				recordItem = recordItem.set("id", recordItem.createString(itemId));
+				recordItem = recordItem.set("Count", recordItem.createByte((byte) 1));
+
+				Typed<?> recordItemTyped = (Typed<?>) ((Pair<?, ?>) recordItemFieldType
+						.readTyped(recordItem)
+						.result()
+						.orElseThrow(() -> new IllegalStateException("Could not create record item stack."))
+				).getFirst();
+
+				return inputTyped
+						.set(recordItemFinder, recordItemTyped)
+						.set(DSL.remainderFinder(), remainder);
 			}
 		}
 

@@ -16,8 +16,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code ToolComponent}.
- */
+	 * Компонент инструмента. Определяет скорость добычи блоков, урон предмету
+	 * за каждый сломанный блок и набор правил для конкретных типов блоков.
+	 */
 public record ToolComponent(
 		List<ToolComponent.Rule> rules,
 		float defaultMiningSpeed,
@@ -27,18 +28,18 @@ public record ToolComponent(
 
 	public static final Codec<ToolComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    ToolComponent.Rule.CODEC.listOf().fieldOf("rules").forGetter(ToolComponent::rules),
-					                    Codec.FLOAT
-							                    .optionalFieldOf("default_mining_speed", 1.0F)
-							                    .forGetter(ToolComponent::defaultMiningSpeed),
-					                    Codecs.NON_NEGATIVE_INT
-							                    .optionalFieldOf("damage_per_block", 1)
-							                    .forGetter(ToolComponent::damagePerBlock),
-					                    Codec.BOOL
-							                    .optionalFieldOf("can_destroy_blocks_in_creative", true)
-							                    .forGetter(ToolComponent::canDestroyBlocksInCreative)
-			                    )
-			                    .apply(instance, ToolComponent::new)
+										ToolComponent.Rule.CODEC.listOf().fieldOf("rules").forGetter(ToolComponent::rules),
+										Codec.FLOAT
+												.optionalFieldOf("default_mining_speed", 1.0F)
+												.forGetter(ToolComponent::defaultMiningSpeed),
+										Codecs.NON_NEGATIVE_INT
+												.optionalFieldOf("damage_per_block", 1)
+												.forGetter(ToolComponent::damagePerBlock),
+										Codec.BOOL
+												.optionalFieldOf("can_destroy_blocks_in_creative", true)
+												.forGetter(ToolComponent::canDestroyBlocksInCreative)
+								)
+								.apply(instance, ToolComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, ToolComponent> PACKET_CODEC = PacketCodec.tuple(
 			ToolComponent.Rule.PACKET_CODEC.collect(PacketCodecs.toList()),
@@ -73,20 +74,21 @@ public record ToolComponent(
 	}
 
 	/**
-	 * {@code Rule}.
-	 */
+		 * Правило инструмента: задаёт скорость добычи и флаг корректного дропа
+		 * для конкретного набора блоков.
+		 */
 	public record Rule(RegistryEntryList<Block> blocks, Optional<Float> speed, Optional<Boolean> correctForDrops) {
 
 		public static final Codec<ToolComponent.Rule> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    RegistryCodecs
-								                    .entryList(RegistryKeys.BLOCK)
-								                    .fieldOf("blocks")
-								                    .forGetter(ToolComponent.Rule::blocks),
-						                    Codecs.POSITIVE_FLOAT.optionalFieldOf("speed").forGetter(ToolComponent.Rule::speed),
-						                    Codec.BOOL.optionalFieldOf("correct_for_drops").forGetter(ToolComponent.Rule::correctForDrops)
-				                    )
-				                    .apply(instance, ToolComponent.Rule::new)
+											RegistryCodecs
+													.entryList(RegistryKeys.BLOCK)
+													.fieldOf("blocks")
+													.forGetter(ToolComponent.Rule::blocks),
+											Codecs.POSITIVE_FLOAT.optionalFieldOf("speed").forGetter(ToolComponent.Rule::speed),
+											Codec.BOOL.optionalFieldOf("correct_for_drops").forGetter(ToolComponent.Rule::correctForDrops)
+									)
+									.apply(instance, ToolComponent.Rule::new)
 		);
 		public static final PacketCodec<RegistryByteBuf, ToolComponent.Rule> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.registryEntryList(RegistryKeys.BLOCK),

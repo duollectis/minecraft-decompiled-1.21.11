@@ -68,13 +68,13 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				"head",
 				ModelPartBuilder.create()
 				                .uv(0, 0)
-				                .cuboid(-4.0F, -5.0F, -5.0F, 8.0F, 5.0F, 10.0F, new Dilation(0.015F))
+				                .cuboid(-4.0F, -5.0F, -5.0F, 8.0F, 5.0F, 10.0F, new Dilation(ANIMATION_SPEED))
 				                .uv(56, 0)
 				                .cuboid(-1.0F, -2.0F, -6.0F, 2.0F, 3.0F, 2.0F, Dilation.NONE)
 				                .uv(37, 8)
-				                .cuboid(-1.0F, -9.0F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-0.015F))
+				                .cuboid(-1.0F, -9.0F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-ANIMATION_SPEED))
 				                .uv(37, 0)
-				                .cuboid(-2.0F, -13.0F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-0.015F)),
+				                .cuboid(-2.0F, -13.0F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-ANIMATION_SPEED)),
 				ModelTransform.origin(0.0F, -6.0F, 0.0F)
 		);
 		modelPartData2.addChild(
@@ -128,9 +128,9 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				                .uv(56, 0)
 				                .cuboid(-1.02F, -2.1F, -6.0F, 2.0F, 3.0F, 2.0F, new Dilation(0.0F))
 				                .uv(37, 8)
-				                .cuboid(-1.02F, -9.1F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-0.015F))
+				                .cuboid(-1.02F, -9.1F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-ANIMATION_SPEED))
 				                .uv(37, 0)
-				                .cuboid(-2.0F, -13.1F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-0.015F)),
+				                .cuboid(-2.0F, -13.1F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-ANIMATION_SPEED)),
 				ModelTransform.origin(0.7F, -5.6F, -1.8F)
 		);
 		ModelPartData
@@ -223,9 +223,9 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				"head",
 				ModelPartBuilder.create()
 				                .uv(37, 8)
-				                .cuboid(-1.0F, -7.0F, -3.3F, 2.0F, 4.0F, 2.0F, new Dilation(-0.015F))
+				                .cuboid(-1.0F, -7.0F, -3.3F, 2.0F, 4.0F, 2.0F, new Dilation(-ANIMATION_SPEED))
 				                .uv(37, 0)
-				                .cuboid(-2.0F, -11.0F, -4.3F, 4.0F, 4.0F, 4.0F, new Dilation(-0.015F))
+				                .cuboid(-2.0F, -11.0F, -4.3F, 4.0F, 4.0F, 4.0F, new Dilation(-ANIMATION_SPEED))
 				                .uv(0, 0)
 				                .cuboid(-4.0F, -3.0F, -7.325F, 8.0F, 5.0F, 10.0F, new Dilation(0.0F))
 				                .uv(56, 0)
@@ -307,9 +307,9 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				                .uv(56, 0)
 				                .cuboid(-1.0F, -2.0F, -6.0F, 2.0F, 3.0F, 2.0F, new Dilation(0.0F))
 				                .uv(37, 8)
-				                .cuboid(-1.0F, -9.0F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-0.015F))
+				                .cuboid(-1.0F, -9.0F, -1.0F, 2.0F, 4.0F, 2.0F, new Dilation(-ANIMATION_SPEED))
 				                .uv(37, 0)
-				                .cuboid(-2.0F, -13.0F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-0.015F)),
+				                .cuboid(-2.0F, -13.0F, -2.0F, 4.0F, 4.0F, 4.0F, new Dilation(-ANIMATION_SPEED)),
 				ModelTransform.origin(0.0F, -6.0F, 0.0F)
 		);
 		ModelPartData
@@ -346,7 +346,7 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				);
 		modelPartData5.addChild(
 				"right_leg_r1",
-				ModelPartBuilder.create().uv(0, 27).cuboid(-2.0F, -2.5F, -2.0F, 4.0F, 5.0F, 4.0F, new Dilation(0.0F)),
+				ModelPartBuilder.create().uv(0, 27).cuboid(-2.0F, -BODY_SCALE_Y, -2.0F, 4.0F, 5.0F, 4.0F, new Dilation(0.0F)),
 				ModelTransform.of(0.35F, 2.0F, 0.01F, 0.0F, 0.0F, 0.2618F)
 		);
 		ModelPartData
@@ -354,7 +354,7 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 				modelPartData.addChild("left_leg", ModelPartBuilder.create(), ModelTransform.origin(1.0F, -5.0F, 0.0F));
 		modelPartData6.addChild(
 				"left_leg_r1",
-				ModelPartBuilder.create().uv(16, 27).cuboid(-2.0F, -2.5F, -2.0F, 4.0F, 5.0F, 4.0F, new Dilation(0.0F)),
+				ModelPartBuilder.create().uv(16, 27).cuboid(-2.0F, -BODY_SCALE_Y, -2.0F, 4.0F, 5.0F, 4.0F, new Dilation(0.0F)),
 				ModelTransform.of(1.65F, 2.0F, 0.0F, 0.0F, 0.0F, -0.2618F)
 		);
 		return TexturedModelData.of(modelData, 64, 64);
@@ -378,7 +378,7 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 							copperGolemEntityRenderState.limbSwingAnimationProgress,
 							copperGolemEntityRenderState.limbSwingAmplitude,
 							2.0F,
-							2.5F
+							BODY_SCALE_Y
 					);
 		}
 		else {
@@ -387,7 +387,7 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 							copperGolemEntityRenderState.limbSwingAnimationProgress,
 							copperGolemEntityRenderState.limbSwingAmplitude,
 							2.0F,
-							2.5F
+							BODY_SCALE_Y
 					);
 			this.clampArmRotations();
 		}

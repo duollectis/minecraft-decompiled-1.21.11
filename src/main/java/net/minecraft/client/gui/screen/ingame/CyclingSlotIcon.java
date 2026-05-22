@@ -11,15 +11,17 @@ import net.minecraft.util.math.ColorHelper;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CyclingSlotIcon}.
+ * Анимированная иконка слота, циклически переключающаяся между несколькими текстурами
+ * с плавным переходом (fade) каждые {@code CYCLE_INTERVAL_TICKS} тиков.
  */
+@Environment(EnvType.CLIENT)
 public class CyclingSlotIcon {
 
 	private static final int CYCLE_INTERVAL_TICKS = 30;
 	private static final int ICON_SIZE = 16;
 	private static final int FADE_TICKS = 4;
+
 	private final int slotId;
 	private List<Identifier> textures = List.of();
 	private int timer;
@@ -29,59 +31,48 @@ public class CyclingSlotIcon {
 		this.slotId = slotId;
 	}
 
-	/**
-	 * Обновляет texture.
-	 *
-	 * @param textures textures
-	 */
 	public void updateTexture(List<Identifier> textures) {
 		if (!this.textures.equals(textures)) {
 			this.textures = textures;
-			this.currentIndex = 0;
+			currentIndex = 0;
 		}
 
-		if (!this.textures.isEmpty() && ++this.timer % 30 == 0) {
-			this.currentIndex = (this.currentIndex + 1) % this.textures.size();
+		if (!this.textures.isEmpty() && ++timer % CYCLE_INTERVAL_TICKS == 0) {
+			currentIndex = (currentIndex + 1) % this.textures.size();
 		}
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param screenHandler screen handler
-	 * @param context context
-	 * @param deltaTicks delta ticks
-	 * @param x x
-	 * @param y y
-	 */
 	public void render(ScreenHandler screenHandler, DrawContext context, float deltaTicks, int x, int y) {
-		Slot slot = screenHandler.getSlot(this.slotId);
-		if (!this.textures.isEmpty() && !slot.hasStack()) {
-			boolean bl = this.textures.size() > 1 && this.timer >= 30;
-			float f = bl ? this.computeAlpha(deltaTicks) : 1.0F;
-			if (f < 1.0F) {
-				int i = Math.floorMod(this.currentIndex - 1, this.textures.size());
-				this.drawIcon(slot, this.textures.get(i), 1.0F - f, context, x, y);
-			}
-
-			this.drawIcon(slot, this.textures.get(this.currentIndex), f, context, x, y);
+		Slot slot = screenHandler.getSlot(slotId);
+		if (textures.isEmpty() || slot.hasStack()) {
+			return;
 		}
+
+		boolean isCycling = textures.size() > 1 && timer >= CYCLE_INTERVAL_TICKS;
+		float alpha = isCycling ? computeAlpha(deltaTicks) : 1.0F;
+
+		if (alpha < 1.0F) {
+			int previousIndex = Math.floorMod(currentIndex - 1, textures.size());
+			drawIcon(slot, textures.get(previousIndex), 1.0F - alpha, context, x, y);
+		}
+
+		drawIcon(slot, textures.get(currentIndex), alpha, context, x, y);
 	}
 
 	private void drawIcon(Slot slot, Identifier texture, float alpha, DrawContext context, int x, int y) {
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				texture,
-				x + slot.x,
-				y + slot.y,
-				16,
-				16,
-				ColorHelper.getWhite(alpha)
+			RenderPipelines.GUI_TEXTURED,
+			texture,
+			x + slot.x,
+			y + slot.y,
+			ICON_SIZE,
+			ICON_SIZE,
+			ColorHelper.getWhite(alpha)
 		);
 	}
 
 	private float computeAlpha(float deltaTicks) {
-		float f = this.timer % 30 + deltaTicks;
-		return Math.min(f, 4.0F) / 4.0F;
+		float elapsed = timer % CYCLE_INTERVAL_TICKS + deltaTicks;
+		return Math.min(elapsed, FADE_TICKS) / FADE_TICKS;
 	}
 }

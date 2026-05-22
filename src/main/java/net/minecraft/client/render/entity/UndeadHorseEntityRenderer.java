@@ -9,10 +9,14 @@ import net.minecraft.client.render.entity.state.LivingHorseEntityRenderState;
 import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * Класс undead horse entity renderer.
+ * Рендерер для нежити-лошадей: скелетной и зомби-лошади.
+ * <p>
+ * Добавляет два слоя {@link SaddleFeatureRenderer}: один для брони
+ * ({@link EquipmentModel.LayerType#HORSE_BODY}), второй — для седла,
+ * специфичного для каждого типа нежити.
  */
+@Environment(EnvType.CLIENT)
 public class UndeadHorseEntityRenderer
 		extends AbstractHorseEntityRenderer<AbstractHorseEntity, LivingHorseEntityRenderState, AbstractHorseEntityModel<LivingHorseEntityRenderState>> {
 
@@ -24,8 +28,8 @@ public class UndeadHorseEntityRenderer
 				new HorseEntityModel(ctx.getPart(type.modelLayer)),
 				new HorseEntityModel(ctx.getPart(type.babyModelLayer))
 		);
-		this.texture = type.texture;
-		this.addFeature(
+		texture = type.texture;
+		addFeature(
 				new SaddleFeatureRenderer<>(
 						this,
 						ctx.getEquipmentRenderer(),
@@ -35,7 +39,7 @@ public class UndeadHorseEntityRenderer
 						new HorseEntityModel(ctx.getPart(EntityModelLayers.UNDEAD_HORSE_BABY_ARMOR))
 				)
 		);
-		this.addFeature(
+		addFeature(
 				new SaddleFeatureRenderer<>(
 						this,
 						ctx.getEquipmentRenderer(),
@@ -47,24 +51,19 @@ public class UndeadHorseEntityRenderer
 		);
 	}
 
-	public Identifier getTexture(LivingHorseEntityRenderState livingHorseEntityRenderState) {
-		return this.texture;
+	@Override
+	public Identifier getTexture(LivingHorseEntityRenderState state) {
+		return texture;
 	}
 
-	/**
-	 * Создаёт render state.
-	 *
-	 * @return LivingHorseEntityRenderState — результат операции
-	 */
+	@Override
 	public LivingHorseEntityRenderState createRenderState() {
 		return new LivingHorseEntityRenderState();
 	}
 
+	/** Перечисление конкретных видов нежити-лошадей с их текстурами и слоями моделей. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		SKELETON(
 				Identifier.ofVanilla("textures/entity/horse/horse_skeleton.png"),
 				EntityModelLayers.SKELETON_HORSE,
@@ -89,7 +88,7 @@ public class UndeadHorseEntityRenderer
 		final EntityModelLayer saddleModelLayer;
 		final EntityModelLayer babySaddleModelLayer;
 
-		private Type(
+		Type(
 				final Identifier texture,
 				final EntityModelLayer modelLayer,
 				final EntityModelLayer babyModelLayer,

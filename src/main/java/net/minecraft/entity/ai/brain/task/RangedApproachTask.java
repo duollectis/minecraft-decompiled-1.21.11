@@ -11,30 +11,17 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code RangedApproachTask}.
+ * Фабричный класс задачи мозга, управляющей сближением с целью атаки для дальнего боя.
+ * Если цель видима и находится в радиусе атаки — сбрасывает цель ходьбы; иначе — идёт к ней.
  */
 public class RangedApproachTask {
 
 	private static final int WEAPON_REACH_REDUCTION = 1;
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<MobEntity> create(float speed) {
 		return create(entity -> speed);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<MobEntity> create(Function<LivingEntity, Float> speed) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -46,25 +33,20 @@ public class RangedApproachTask {
 				                  .apply(
 						                  context,
 						                  (walkTarget, lookTarget, attackTarget, visibleMobs) -> (world, entity, time) -> {
-							                  LivingEntity livingEntity = context.getValue(attackTarget);
-							                  Optional<LivingTargetCache>
-									                  optional =
-									                  context.getOptionalValue(visibleMobs);
-							                  if (optional.isPresent() && optional.get().contains(livingEntity)
-									                  && TargetUtil.isTargetWithinAttackRange(
-									                  entity,
-									                  livingEntity,
-									                  1
-							                  )) {
+							                  LivingEntity target = context.getValue(attackTarget);
+							                  Optional<LivingTargetCache> mobs = context.getOptionalValue(visibleMobs);
+							                  boolean inRangeAndVisible = mobs.isPresent()
+									                  && mobs.get().contains(target)
+									                  && TargetUtil.isTargetWithinAttackRange(entity, target, WEAPON_REACH_REDUCTION);
+
+							                  if (inRangeAndVisible) {
 								                  walkTarget.forget();
-							                  }
-							                  else {
-								                  lookTarget.remember(new EntityLookTarget(livingEntity, true));
+							                  } else {
+								                  lookTarget.remember(new EntityLookTarget(target, true));
 								                  walkTarget.remember(new WalkTarget(
-										                  new EntityLookTarget(
-												                  livingEntity,
-												                  false
-										                  ), speed.apply(entity), 0
+										                  new EntityLookTarget(target, false),
+										                  speed.apply(entity),
+										                  0
 								                  ));
 							                  }
 

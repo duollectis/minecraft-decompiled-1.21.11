@@ -9,7 +9,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code JungleFoliagePlacer}.
+ * Размещает листву джунглей: количество слоёв зависит от типа ствола
+ * (гигантский — фиксированное, обычный — случайное 1–2).
  */
 public class JungleFoliagePlacer extends FoliagePlacer {
 
@@ -42,11 +43,11 @@ public class JungleFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		int i = treeNode.isGiantTrunk() ? foliageHeight : 1 + random.nextInt(2);
+		int layers = treeNode.isGiantTrunk() ? foliageHeight : 1 + random.nextInt(2);
 
-		for (int j = offset; j >= offset - i; j--) {
-			int k = radius + treeNode.getFoliageRadius() + 1 - j;
-			this.generateSquare(world, placer, random, config, treeNode.getCenter(), k, j, treeNode.isGiantTrunk());
+		for (int dy = offset; dy >= offset - layers; dy--) {
+			int layerRadius = radius + treeNode.getFoliageRadius() + 1 - dy;
+			generateSquare(world, placer, random, config, treeNode.getCenter(), layerRadius, dy, treeNode.isGiantTrunk());
 		}
 	}
 
@@ -57,6 +58,6 @@ public class JungleFoliagePlacer extends FoliagePlacer {
 
 	@Override
 	protected boolean isInvalidForLeaves(Random random, int dx, int y, int dz, int radius, boolean giantTrunk) {
-		return dx + dz >= 7 ? true : dx * dx + dz * dz > radius * radius;
+		return dx + dz >= 7 || dx * dx + dz * dz > radius * radius;
 	}
 }

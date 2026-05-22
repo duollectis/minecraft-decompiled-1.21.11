@@ -15,7 +15,10 @@ import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 import java.util.List;
 
 /**
- * {@code PlaceOnGroundTreeDecorator}.
+ * Декоратор дерева, размещающий блоки на земле вокруг основания дерева.
+ * Вычисляет ограничивающий прямоугольник листового опада на уровне земли,
+ * расширяет его на заданный радиус и высоту, затем случайным образом
+ * пробует разместить блоки внутри этой области поверх непрозрачных блоков.
  */
 public class PlaceOnGroundTreeDecorator extends TreeDecorator {
 
@@ -55,46 +58,50 @@ public class PlaceOnGroundTreeDecorator extends TreeDecorator {
 
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
-		List<BlockPos> list = TreeFeature.getLeafLitterPositions(generator);
-		if (!list.isEmpty()) {
-			BlockPos blockPos = list.getFirst();
-			int i = blockPos.getY();
-			int j = blockPos.getX();
-			int k = blockPos.getX();
-			int l = blockPos.getZ();
-			int m = blockPos.getZ();
+		List<BlockPos> litterPositions = TreeFeature.getLeafLitterPositions(generator);
 
-			for (BlockPos blockPos2 : list) {
-				if (blockPos2.getY() == i) {
-					j = Math.min(j, blockPos2.getX());
-					k = Math.max(k, blockPos2.getX());
-					l = Math.min(l, blockPos2.getZ());
-					m = Math.max(m, blockPos2.getZ());
-				}
+		if (litterPositions.isEmpty()) {
+			return;
+		}
+
+		BlockPos first = litterPositions.getFirst();
+		int baseY = first.getY();
+		int minX = first.getX();
+		int maxX = first.getX();
+		int minZ = first.getZ();
+		int maxZ = first.getZ();
+
+		for (BlockPos pos : litterPositions) {
+			if (pos.getY() == baseY) {
+				minX = Math.min(minX, pos.getX());
+				maxX = Math.max(maxX, pos.getX());
+				minZ = Math.min(minZ, pos.getZ());
+				maxZ = Math.max(maxZ, pos.getZ());
 			}
+		}
 
-			Random random = generator.getRandom();
-			BlockBox blockBox = new BlockBox(j, i, l, k, i, m).expand(this.radius, this.height, this.radius);
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
+		Random random = generator.getRandom();
+		BlockBox bounds = new BlockBox(minX, baseY, minZ, maxX, baseY, maxZ).expand(radius, height, radius);
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			for (int n = 0; n < this.tries; n++) {
-				mutable.set(
-						random.nextBetween(blockBox.getMinX(), blockBox.getMaxX()),
-						random.nextBetween(blockBox.getMinY(), blockBox.getMaxY()),
-						random.nextBetween(blockBox.getMinZ(), blockBox.getMaxZ())
-				);
-				this.generate(generator, mutable);
-			}
+		for (int attempt = 0; attempt < tries; attempt++) {
+			mutable.set(
+					random.nextBetween(bounds.getMinX(), bounds.getMaxX()),
+					random.nextBetween(bounds.getMinY(), bounds.getMaxY()),
+					random.nextBetween(bounds.getMinZ(), bounds.getMaxZ())
+			);
+			tryPlaceBlock(generator, mutable);
 		}
 	}
 
-	private void generate(TreeDecorator.Generator generator, BlockPos pos) {
-		BlockPos blockPos = pos.up();
-		if (generator.getWorld().testBlockState(blockPos, state -> state.isAir() || state.isOf(Blocks.VINE))
+	private void tryPlaceBlock(TreeDecorator.Generator generator, BlockPos pos) {
+		BlockPos above = pos.up();
+
+		if (generator.getWorld().testBlockState(above, state -> state.isAir() || state.isOf(Blocks.VINE))
 				&& generator.matches(pos, AbstractBlock.AbstractBlockState::isOpaqueFullCube)
-				&& generator.getWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, pos).getY()
-				<= blockPos.getY()) {
-			generator.replace(blockPos, this.blockStateProvider.get(generator.getRandom(), blockPos));
+				&& generator.getWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, pos).getY() <= above.getY()
+		) {
+			generator.replace(above, blockStateProvider.get(generator.getRandom(), above));
 		}
 	}
 }

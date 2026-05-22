@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code VerticallyAttachableBlockItem}.
+ * Предмет-блок, который может размещаться как на полу/потолке (вертикально), так и на стене.
+ * Примеры: знаки, баннеры, головы игроков.
  */
 public class VerticallyAttachableBlockItem extends BlockItem {
 
@@ -29,41 +30,35 @@ public class VerticallyAttachableBlockItem extends BlockItem {
 		this.verticalAttachmentDirection = verticalAttachmentDirection;
 	}
 
-	/**
-	 * Проверяет возможность place at.
-	 *
-	 * @param world world
-	 * @param state state
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
 		return state.canPlaceAt(world, pos);
 	}
 
 	@Override
 	protected @Nullable BlockState getPlacementState(ItemPlacementContext context) {
-		BlockState blockState = this.wallBlock.getPlacementState(context);
-		BlockState blockState2 = null;
+		BlockState wallState = wallBlock.getPlacementState(context);
+		BlockState candidate = null;
 		WorldView worldView = context.getWorld();
 		BlockPos blockPos = context.getBlockPos();
 
 		for (Direction direction : context.getPlacementDirections()) {
-			if (direction != this.verticalAttachmentDirection.getOpposite()) {
-				BlockState
-						blockState3 =
-						direction == this.verticalAttachmentDirection ? this.getBlock().getPlacementState(context)
-						                                              : blockState;
-				if (blockState3 != null && this.canPlaceAt(worldView, blockState3, blockPos)) {
-					blockState2 = blockState3;
-					break;
-				}
+			if (direction == verticalAttachmentDirection.getOpposite()) {
+				continue;
+			}
+
+			BlockState stateForDirection = direction == verticalAttachmentDirection
+					? getBlock().getPlacementState(context)
+					: wallState;
+
+			if (stateForDirection != null && canPlaceAt(worldView, stateForDirection, blockPos)) {
+				candidate = stateForDirection;
+				break;
 			}
 		}
 
-		return blockState2 != null && worldView.canPlace(blockState2, blockPos, ShapeContext.absent()) ? blockState2
-		                                                                                               : null;
+		return candidate != null && worldView.canPlace(candidate, blockPos, ShapeContext.absent())
+				? candidate
+				: null;
 	}
 
 	@Override

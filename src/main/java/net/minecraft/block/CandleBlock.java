@@ -32,7 +32,8 @@ import java.util.List;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code CandleBlock}.
+ * Блок свечи. Поддерживает от 1 до 4 свечей в одном блоке, заливание водой и поджигание.
+ * Яркость пропорциональна количеству свечей: {@code 3 * count}.
  */
 public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 
@@ -42,33 +43,35 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 	public static final IntProperty CANDLES = Properties.CANDLES;
 	public static final BooleanProperty LIT = AbstractCandleBlock.LIT;
 	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-	public static final ToIntFunction<BlockState>
-			STATE_TO_LUMINANCE =
+	public static final ToIntFunction<BlockState> STATE_TO_LUMINANCE =
 			state -> state.get(LIT) ? 3 * state.get(CANDLES) : 0;
+	private static final float PIXEL = 0.0625F;
 	private static final Int2ObjectMap<List<Vec3d>> CANDLES_TO_PARTICLE_OFFSETS = Util.make(
 			new Int2ObjectOpenHashMap(4),
-			int2ObjectOpenHashMap -> {
-				float f = 0.0625F;
-				int2ObjectOpenHashMap.put(1, List.of(new Vec3d(8.0, 8.0, 8.0).multiply(0.0625)));
-				int2ObjectOpenHashMap.put(
+			map -> {
+				map.put(1, List.of(new Vec3d(8.0, 8.0, 8.0).multiply(PIXEL)));
+				map.put(
 						2,
-						List.of(new Vec3d(6.0, 7.0, 8.0).multiply(0.0625), new Vec3d(10.0, 8.0, 7.0).multiply(0.0625))
-				);
-				int2ObjectOpenHashMap.put(
-						3,
 						List.of(
-								new Vec3d(8.0, 5.0, 10.0).multiply(0.0625),
-								new Vec3d(6.0, 7.0, 8.0).multiply(0.0625),
-								new Vec3d(9.0, 8.0, 7.0).multiply(0.0625)
+								new Vec3d(6.0, 7.0, 8.0).multiply(PIXEL),
+								new Vec3d(10.0, 8.0, 7.0).multiply(PIXEL)
 						)
 				);
-				int2ObjectOpenHashMap.put(
+				map.put(
+						3,
+						List.of(
+								new Vec3d(8.0, 5.0, 10.0).multiply(PIXEL),
+								new Vec3d(6.0, 7.0, 8.0).multiply(PIXEL),
+								new Vec3d(9.0, 8.0, 7.0).multiply(PIXEL)
+						)
+				);
+				map.put(
 						4,
 						List.of(
-								new Vec3d(7.0, 5.0, 9.0).multiply(0.0625),
-								new Vec3d(10.0, 7.0, 9.0).multiply(0.0625),
-								new Vec3d(6.0, 7.0, 6.0).multiply(0.0625),
-								new Vec3d(9.0, 8.0, 6.0).multiply(0.0625)
+								new Vec3d(7.0, 5.0, 9.0).multiply(PIXEL),
+								new Vec3d(10.0, 7.0, 9.0).multiply(PIXEL),
+								new Vec3d(6.0, 7.0, 6.0).multiply(PIXEL),
+								new Vec3d(9.0, 8.0, 6.0).multiply(PIXEL)
 						)
 				);
 			}
@@ -87,8 +90,7 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 
 	public CandleBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
+		setDefaultState(stateManager.getDefaultState()
 				.with(CANDLES, 1)
 				.with(LIT, false)
 				.with(WATERLOGGED, false));
@@ -108,30 +110,29 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 			extinguish(player, state, world, pos);
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
-		}
+
+		return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
 	}
 
 	@Override
 	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
-		return !context.shouldCancelInteraction() && context.getStack().getItem() == this.asItem()
-				       && state.get(CANDLES) < 4
-		       ? true
-		       : super.canReplace(state, context);
+		return context.shouldCancelInteraction() == false
+				&& context.getStack().getItem() == asItem()
+				&& state.get(CANDLES) < MAX_CANDLE_AMOUNT
+				? true
+				: super.canReplace(state, context);
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos());
-		if (blockState.isOf(this)) {
-			return blockState.cycle(CANDLES);
+		BlockState existing = ctx.getWorld().getBlockState(ctx.getBlockPos());
+		if (existing.isOf(this)) {
+			return existing.cycle(CANDLES);
 		}
-		else {
-			FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-			boolean bl = fluidState.getFluid() == Fluids.WATER;
-			return super.getPlacementState(ctx).with(WATERLOGGED, bl);
-		}
+
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		boolean isWaterlogged = fluidState.getFluid() == Fluids.WATER;
+		return super.getPlacementState(ctx).with(WATERLOGGED, isWaterlogged);
 	}
 
 	@Override
@@ -178,33 +179,29 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 
 	@Override
 	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-		if (!state.get(WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
-			BlockState blockState = state.with(WATERLOGGED, true);
-			if (state.get(LIT)) {
-				extinguish(null, blockState, world, pos);
-			}
-			else {
-				world.setBlockState(pos, blockState, 3);
-			}
-
-			world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
-			return true;
-		}
-		else {
+		if (state.get(WATERLOGGED) || fluidState.getFluid() != Fluids.WATER) {
 			return false;
 		}
+
+		BlockState waterloggedState = state.with(WATERLOGGED, true);
+		if (state.get(LIT)) {
+			extinguish(null, waterloggedState, world, pos);
+		} else {
+			world.setBlockState(pos, waterloggedState, 3);
+		}
+
+		world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
+		return true;
 	}
 
 	/**
-	 * Проверяет возможность be lit.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Возвращает {@code true}, если свечу можно поджечь: она принадлежит тегу {@code CANDLES},
+	 * содержит свойства {@code LIT} и {@code WATERLOGGED}, и при этом не горит и не залита водой.
 	 */
 	public static boolean canBeLit(BlockState state) {
-		return state.isIn(BlockTags.CANDLES, statex -> statex.contains(LIT) && statex.contains(WATERLOGGED))
-				&& !state.get(LIT) && !state.get(WATERLOGGED);
+		return state.isIn(BlockTags.CANDLES, s -> s.contains(LIT) && s.contains(WATERLOGGED))
+				&& state.get(LIT) == false
+				&& state.get(WATERLOGGED) == false;
 	}
 
 	@Override
@@ -212,9 +209,8 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 		return (Iterable<Vec3d>) CANDLES_TO_PARTICLE_OFFSETS.get(state.get(CANDLES));
 	}
 
-	@Override
 	protected boolean isNotLit(BlockState state) {
-		return !state.get(WATERLOGGED) && super.isNotLit(state);
+		return !state.get(WATERLOGGED) && !state.get(LIT);
 	}
 
 	@Override

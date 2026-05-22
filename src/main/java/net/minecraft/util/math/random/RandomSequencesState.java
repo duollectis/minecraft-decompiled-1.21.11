@@ -13,33 +13,35 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
- * {@code RandomSequencesState}.
+ * Персистентное состояние, хранящее именованные случайные последовательности мира.
+ * Каждая последовательность идентифицируется по {@link Identifier} и может быть
+ * воспроизведена при тех же параметрах сида мира, соли и флагов включения.
  */
 public class RandomSequencesState extends PersistentState {
 
 	public static final Codec<RandomSequencesState> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codec.INT.fieldOf("salt").forGetter(RandomSequencesState::getSalt),
-					                    Codec.BOOL
-							                    .optionalFieldOf("include_world_seed", true)
-							                    .forGetter(RandomSequencesState::shouldIncludeWorldSeed),
-					                    Codec.BOOL
-							                    .optionalFieldOf("include_sequence_id", true)
-							                    .forGetter(RandomSequencesState::shouldIncludeSequenceId),
-					                    Codec
-							                    .unboundedMap(Identifier.CODEC, RandomSequence.CODEC)
-							                    .fieldOf("sequences")
-							                    .forGetter(randomSequencesState -> randomSequencesState.sequences)
-			                    )
-			                    .apply(instance, RandomSequencesState::new)
+					Codec.INT.fieldOf("salt").forGetter(RandomSequencesState::getSalt),
+					Codec.BOOL
+							.optionalFieldOf("include_world_seed", true)
+							.forGetter(RandomSequencesState::shouldIncludeWorldSeed),
+					Codec.BOOL
+							.optionalFieldOf("include_sequence_id", true)
+							.forGetter(RandomSequencesState::shouldIncludeSequenceId),
+					Codec.unboundedMap(Identifier.CODEC, RandomSequence.CODEC)
+							.fieldOf("sequences")
+							.forGetter(state -> state.sequences)
+			).apply(instance, RandomSequencesState::new)
 	);
+
 	public static final PersistentStateType<RandomSequencesState> STATE_TYPE = new PersistentStateType<>(
 			"random_sequences", RandomSequencesState::new, CODEC, DataFixTypes.SAVED_DATA_RANDOM_SEQUENCES
 	);
+
 	private int salt;
 	private boolean includeWorldSeed = true;
 	private boolean includeSequenceId = true;
-	private final Map<Identifier, RandomSequence> sequences = new Object2ObjectOpenHashMap();
+	private final Map<Identifier, RandomSequence> sequences = new Object2ObjectOpenHashMap<>();
 
 	public RandomSequencesState() {
 	}
@@ -57,12 +59,12 @@ public class RandomSequencesState extends PersistentState {
 	}
 
 	public Random getOrCreate(Identifier id, long worldSeed) {
-		Random random = this.sequences.computeIfAbsent(id, idx -> this.createSequence(idx, worldSeed)).getSource();
-		return new RandomSequencesState.WrappedRandom(random);
+		Random random = sequences.computeIfAbsent(id, idx -> createSequence(idx, worldSeed)).getSource();
+		return new WrappedRandom(random);
 	}
 
 	private RandomSequence createSequence(Identifier id, long worldSeed) {
-		return this.createSequence(id, worldSeed, this.salt, this.includeWorldSeed, this.includeSequenceId);
+		return createSequence(id, worldSeed, salt, includeWorldSeed, includeSequenceId);
 	}
 
 	private RandomSequence createSequence(
@@ -72,17 +74,12 @@ public class RandomSequencesState extends PersistentState {
 			boolean includeWorldSeed,
 			boolean includeSequenceId
 	) {
-		long l = (includeWorldSeed ? worldSeed : 0L) ^ salt;
-		return new RandomSequence(l, includeSequenceId ? Optional.of(id) : Optional.empty());
+		long seed = (includeWorldSeed ? worldSeed : 0L) ^ salt;
+		return new RandomSequence(seed, includeSequenceId ? Optional.of(id) : Optional.empty());
 	}
 
-	/**
-	 * For each sequence.
-	 *
-	 * @param consumer consumer
-	 */
 	public void forEachSequence(BiConsumer<Identifier, RandomSequence> consumer) {
-		this.sequences.forEach(consumer);
+		sequences.forEach(consumer);
 	}
 
 	public void setDefaultParameters(int salt, boolean includeWorldSeed, boolean includeSequenceId) {
@@ -91,121 +88,102 @@ public class RandomSequencesState extends PersistentState {
 		this.includeSequenceId = includeSequenceId;
 	}
 
-	/**
-	 * Сбрасывает all.
-	 *
-	 * @return int — результат операции
-	 */
 	public int resetAll() {
-		int i = this.sequences.size();
-		this.sequences.clear();
-		return i;
+		int count = sequences.size();
+		sequences.clear();
+		return count;
 	}
 
-	/**
-	 * Reset.
-	 *
-	 * @param id id
-	 * @param worldSeed world seed
-	 */
 	public void reset(Identifier id, long worldSeed) {
-		this.sequences.put(id, this.createSequence(id, worldSeed));
+		sequences.put(id, createSequence(id, worldSeed));
 	}
 
-	/**
-	 * Reset.
-	 *
-	 * @param id id
-	 * @param worldSeed world seed
-	 * @param salt salt
-	 * @param includeWorldSeed include world seed
-	 * @param includeSequenceId include sequence id
-	 */
 	public void reset(Identifier id, long worldSeed, int salt, boolean includeWorldSeed, boolean includeSequenceId) {
-		this.sequences.put(id, this.createSequence(id, worldSeed, salt, includeWorldSeed, includeSequenceId));
+		sequences.put(id, createSequence(id, worldSeed, salt, includeWorldSeed, includeSequenceId));
 	}
 
 	private int getSalt() {
-		return this.salt;
+		return salt;
 	}
 
 	private boolean shouldIncludeWorldSeed() {
-		return this.includeWorldSeed;
+		return includeWorldSeed;
 	}
 
 	private boolean shouldIncludeSequenceId() {
-		return this.includeSequenceId;
+		return includeSequenceId;
 	}
 
 	/**
-	 * {@code WrappedRandom}.
+	 * Обёртка над {@link Random}, которая помечает состояние как изменённое
+	 * при каждом обращении к генератору, обеспечивая корректное сохранение.
 	 */
 	class WrappedRandom implements Random {
 
 		private final Random random;
 
-		WrappedRandom(final Random random) {
+		WrappedRandom(Random random) {
 			this.random = random;
 		}
 
 		@Override
 		public Random split() {
 			RandomSequencesState.this.markDirty();
-			return this.random.split();
+			return random.split();
 		}
 
 		@Override
 		public RandomSplitter nextSplitter() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextSplitter();
+			return random.nextSplitter();
 		}
 
 		@Override
 		public void setSeed(long seed) {
 			RandomSequencesState.this.markDirty();
-			this.random.setSeed(seed);
+			random.setSeed(seed);
 		}
 
 		@Override
 		public int nextInt() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextInt();
+			return random.nextInt();
 		}
 
 		@Override
 		public int nextInt(int bound) {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextInt(bound);
+			return random.nextInt(bound);
 		}
 
 		@Override
 		public long nextLong() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextLong();
+			return random.nextLong();
 		}
 
 		@Override
 		public boolean nextBoolean() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextBoolean();
+			return random.nextBoolean();
 		}
 
 		@Override
 		public float nextFloat() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextFloat();
+			return random.nextFloat();
 		}
 
 		@Override
 		public double nextDouble() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextDouble();
+			return random.nextDouble();
 		}
 
 		@Override
 		public double nextGaussian() {
 			RandomSequencesState.this.markDirty();
-			return this.random.nextGaussian();
+			return random.nextGaussian();
 		}
 
 		@Override
@@ -213,10 +191,10 @@ public class RandomSequencesState extends PersistentState {
 			if (this == o) {
 				return true;
 			}
-			else {
-				return o instanceof RandomSequencesState.WrappedRandom wrappedRandom
-				       ? this.random.equals(wrappedRandom.random) : false;
-			}
+
+			return o instanceof WrappedRandom other
+					? random.equals(other.random)
+					: false;
 		}
 	}
 }

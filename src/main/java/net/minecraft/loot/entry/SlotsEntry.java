@@ -14,24 +14,23 @@ import net.minecraft.util.ErrorReporter;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * {@code SlotsEntry}.
- */
+/** Запись пула лута, генерирующая предметы из слотов инвентаря через источник слотов. */
 public class SlotsEntry extends LeafEntry {
 
 	public static final MapCodec<SlotsEntry> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(entry -> entry.slotSource))
-			                    .and(addLeafFields(instance))
-			                    .apply(instance, SlotsEntry::new)
+		instance -> instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(entry -> entry.slotSource))
+			.and(addLeafFields(instance))
+			.apply(instance, SlotsEntry::new)
 	);
+
 	private final SlotSource slotSource;
 
 	private SlotsEntry(
-			SlotSource slotSource,
-			int weight,
-			int quality,
-			List<LootCondition> conditions,
-			List<LootFunction> functions
+		SlotSource slotSource,
+		int weight,
+		int quality,
+		List<LootCondition> conditions,
+		List<LootFunction> functions
 	) {
 		super(weight, quality, conditions, functions);
 		this.slotSource = slotSource;
@@ -44,12 +43,12 @@ public class SlotsEntry extends LeafEntry {
 
 	@Override
 	public void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
-		this.slotSource.stream(context).itemCopies().filter(stack -> !stack.isEmpty()).forEach(lootConsumer);
+		slotSource.stream(context).itemCopies().filter(stack -> !stack.isEmpty()).forEach(lootConsumer);
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		super.validate(reporter);
-		this.slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
+		slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
 	}
 }

@@ -6,7 +6,7 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 
 /**
- * {@code PropertiesManagementHandler}.
+ * Класс Properties Management Handler.
  */
 public interface PropertiesManagementHandler {
 

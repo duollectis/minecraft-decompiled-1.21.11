@@ -7,34 +7,40 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code CreeperIgniteGoal}.
+ * Цель поджигания крипера: активирует фитиль при сближении с целью,
+ * гасит его если цель потеряна, слишком далеко или не видна.
  */
 public class CreeperIgniteGoal extends Goal {
+
+	private static final double IGNITE_DISTANCE_SQ = 9.0;
+	private static final double ABORT_DISTANCE_SQ = 49.0;
+	private static final int FUSE_ACTIVE = 1;
+	private static final int FUSE_INACTIVE = -1;
 
 	private final CreeperEntity creeper;
 	private @Nullable LivingEntity target;
 
 	public CreeperIgniteGoal(CreeperEntity creeper) {
 		this.creeper = creeper;
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		LivingEntity livingEntity = this.creeper.getTarget();
-		return this.creeper.getFuseSpeed() > 0
-				|| livingEntity != null && this.creeper.squaredDistanceTo(livingEntity) < 9.0;
+		LivingEntity currentTarget = creeper.getTarget();
+		return creeper.getFuseSpeed() > 0
+				|| currentTarget != null && creeper.squaredDistanceTo(currentTarget) < IGNITE_DISTANCE_SQ;
 	}
 
 	@Override
 	public void start() {
-		this.creeper.getNavigation().stop();
-		this.target = this.creeper.getTarget();
+		creeper.getNavigation().stop();
+		target = creeper.getTarget();
 	}
 
 	@Override
 	public void stop() {
-		this.target = null;
+		target = null;
 	}
 
 	@Override
@@ -44,17 +50,14 @@ public class CreeperIgniteGoal extends Goal {
 
 	@Override
 	public void tick() {
-		if (this.target == null) {
-			this.creeper.setFuseSpeed(-1);
+		if (target == null
+				|| creeper.squaredDistanceTo(target) > ABORT_DISTANCE_SQ
+				|| !creeper.getVisibilityCache().canSee(target)
+		) {
+			creeper.setFuseSpeed(FUSE_INACTIVE);
+			return;
 		}
-		else if (this.creeper.squaredDistanceTo(this.target) > 49.0) {
-			this.creeper.setFuseSpeed(-1);
-		}
-		else if (!this.creeper.getVisibilityCache().canSee(this.target)) {
-			this.creeper.setFuseSpeed(-1);
-		}
-		else {
-			this.creeper.setFuseSpeed(1);
-		}
+
+		creeper.setFuseSpeed(FUSE_ACTIVE);
 	}
 }

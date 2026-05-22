@@ -7,10 +7,13 @@ import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerSkinGuiElementRenderState}.
+ * Состояние скина игрока в GUI.
+ * Хранит модель игрока, текстуру скина и параметры вращения для интерактивного
+ * превью (например, на экране настройки внешнего вида).
+ * {@code yPivot} задаёт нормализованную точку вращения по оси Y относительно высоты модели.
  */
+@Environment(EnvType.CLIENT)
 public record PlayerSkinGuiElementRenderState(
 		PlayerEntityModel playerModel,
 		Identifier texture,

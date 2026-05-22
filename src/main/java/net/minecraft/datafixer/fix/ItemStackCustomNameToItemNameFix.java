@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code ItemStackCustomNameToItemNameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemStackCustomNameToItemNameFix extends DataFix {
 
@@ -37,12 +37,12 @@ public class ItemStackCustomNameToItemNameFix extends DataFix {
 	}
 
 	public final TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		OpticFinder<?> opticFinder2 = type.findField("components");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemStack custom_name to item_name component fix",
 				type,
 				itemStackTyped -> {

@@ -7,14 +7,15 @@ import net.minecraft.loot.condition.LootCondition;
 import java.util.List;
 
 /**
- * {@code SequenceEntry}.
+ * Запись пула лута, выполняющая дочерние записи последовательно с коротким замыканием.
+ * Аналог логического AND: останавливается при первой неудачной записи.
  */
 public class SequenceEntry extends CombinedEntry {
 
 	public static final MapCodec<SequenceEntry> CODEC = createCodec(SequenceEntry::new);
 
-	SequenceEntry(List<LootPoolEntry> list, List<LootCondition> list2) {
-		super(list, list2);
+	SequenceEntry(List<LootPoolEntry> children, List<LootCondition> conditions) {
+		super(children, conditions);
 	}
 
 	@Override
@@ -28,9 +29,9 @@ public class SequenceEntry extends CombinedEntry {
 			case 0 -> ALWAYS_TRUE;
 			case 1 -> (EntryCombiner) terms.get(0);
 			case 2 -> terms.get(0).and(terms.get(1));
-			default -> (context, lootChoiceExpander) -> {
-				for (EntryCombiner entryCombiner : terms) {
-					if (!entryCombiner.expand(context, lootChoiceExpander)) {
+			default -> (context, choiceConsumer) -> {
+				for (EntryCombiner combiner : terms) {
+					if (!combiner.expand(context, choiceConsumer)) {
 						return false;
 					}
 				}
@@ -44,12 +45,10 @@ public class SequenceEntry extends CombinedEntry {
 		return new SequenceEntry.Builder(entries);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель последовательной записи пула лута. */
 	public static class Builder extends LootPoolEntry.Builder<SequenceEntry.Builder> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+		private final ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
 
 		public Builder(LootPoolEntry.Builder<?>... entries) {
 			for (LootPoolEntry.Builder<?> builder : entries) {
@@ -57,19 +56,20 @@ public class SequenceEntry extends CombinedEntry {
 			}
 		}
 
+		@Override
 		protected SequenceEntry.Builder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public SequenceEntry.Builder sequenceEntry(LootPoolEntry.Builder<?> entry) {
-			this.entries.add(entry.build());
+			entries.add(entry.build());
 			return this;
 		}
 
 		@Override
 		public LootPoolEntry build() {
-			return new SequenceEntry(this.entries.build(), this.getConditions());
+			return new SequenceEntry(entries.build(), getConditions());
 		}
 	}
 }

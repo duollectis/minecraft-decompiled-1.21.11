@@ -23,15 +23,16 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * {@code BlockPredicatesComponent}.
- */
+	 * Компонент предикатов блоков для режима приключений (can_break / can_place_on).
+	 * Кэширует результат последней проверки для оптимизации повторных вызовов на одной позиции.
+	 */
 public class BlockPredicatesComponent {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final Codec<BlockPredicatesComponent>
 			CODEC =
 			Codecs.listOrSingle(BlockPredicate.CODEC, Codecs.nonEmptyList(BlockPredicate.CODEC.listOf()))
-			      .xmap(BlockPredicatesComponent::new, checker -> checker.predicates);
+					.xmap(BlockPredicatesComponent::new, checker -> checker.predicates);
 	public static final PacketCodec<RegistryByteBuf, BlockPredicatesComponent> PACKET_CODEC = PacketCodec.tuple(
 			BlockPredicate.PACKET_CODEC.collect(PacketCodecs.toList()),
 			blockPredicatesChecker -> blockPredicatesChecker.predicates,
@@ -60,26 +61,28 @@ public class BlockPredicatesComponent {
 		if (cachedPos == null || pos.getBlockState() != cachedPos.getBlockState()) {
 			return false;
 		}
-		else if (!nbtAware) {
-			return true;
-		}
-		else if (pos.getBlockEntity() == null && cachedPos.getBlockEntity() == null) {
-			return true;
-		}
-		else if (pos.getBlockEntity() != null && cachedPos.getBlockEntity() != null) {
-			boolean var7;
-			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
-				DynamicRegistryManager dynamicRegistryManager = pos.getWorld().getRegistryManager();
-				NbtCompound nbtCompound = getNbt(pos.getBlockEntity(), dynamicRegistryManager, logging);
-				NbtCompound nbtCompound2 = getNbt(cachedPos.getBlockEntity(), dynamicRegistryManager, logging);
-				var7 = Objects.equals(nbtCompound, nbtCompound2);
-			}
 
-			return var7;
+		if (!nbtAware) {
+			return true;
 		}
-		else {
+
+		if (pos.getBlockEntity() == null && cachedPos.getBlockEntity() == null) {
+			return true;
+		}
+
+		if (pos.getBlockEntity() == null || cachedPos.getBlockEntity() == null) {
 			return false;
 		}
+
+		boolean nbtEqual;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
+			DynamicRegistryManager registries = pos.getWorld().getRegistryManager();
+			NbtCompound posNbt = getNbt(pos.getBlockEntity(), registries, logging);
+			NbtCompound cachedNbt = getNbt(cachedPos.getBlockEntity(), registries, logging);
+			nbtEqual = Objects.equals(posNbt, cachedNbt);
+		}
+
+		return nbtEqual;
 	}
 
 	private static NbtCompound getNbt(
@@ -95,48 +98,43 @@ public class BlockPredicatesComponent {
 	}
 
 	/**
-	 * Check.
-	 *
-	 * @param cachedPos cached pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean check(CachedBlockPosition cachedPos) {
-		if (canUseCache(cachedPos, this.cachedPos, this.nbtAware)) {
-			return this.lastResult;
+		 * Проверяет, удовлетворяет ли позиция хотя бы одному из предикатов.
+		 * Результат кэшируется: повторный вызов для той же позиции возвращает кэшированное значение
+		 * без повторного обхода предикатов.
+		 *
+		 * @param pos позиция блока для проверки
+		 * @return {@code true} если хотя бы один предикат выполнен
+		 */
+	public boolean check(CachedBlockPosition pos) {
+		if (canUseCache(pos, cachedPos, nbtAware)) {
+			return lastResult;
 		}
-		else {
-			this.cachedPos = cachedPos;
-			this.nbtAware = false;
 
-			for (BlockPredicate blockPredicate : this.predicates) {
-				if (blockPredicate.test(cachedPos)) {
-					this.nbtAware = this.nbtAware | blockPredicate.hasNbt();
-					this.lastResult = true;
-					return true;
-				}
+		cachedPos = pos;
+		nbtAware = false;
+
+		for (BlockPredicate predicate : predicates) {
+			if (predicate.test(pos)) {
+				nbtAware |= predicate.hasNbt();
+				lastResult = true;
+				return true;
 			}
-
-			this.lastResult = false;
-			return false;
 		}
+
+		lastResult = false;
+		return false;
 	}
 
 	private List<Text> getOrCreateTooltipText() {
-		if (this.tooltipText == null) {
-			this.tooltipText = createTooltipText(this.predicates);
+		if (tooltipText == null) {
+			tooltipText = createTooltipText(predicates);
 		}
 
-		return this.tooltipText;
+		return tooltipText;
 	}
 
-	/**
-	 * Добавляет tooltips.
-	 *
-	 * @param adder adder
-	 */
 	public void addTooltips(Consumer<Text> adder) {
-		this.getOrCreateTooltipText().forEach(adder);
+		getOrCreateTooltipText().forEach(adder);
 	}
 
 	private static List<Text> createTooltipText(List<BlockPredicate> blockPredicates) {
@@ -147,10 +145,10 @@ public class BlockPredicatesComponent {
 		}
 
 		return blockPredicates.stream()
-		                      .flatMap(predicate -> predicate.blocks().orElseThrow().stream())
-		                      .distinct()
-		                      .map(block -> (Text) block.value().getName().formatted(Formatting.DARK_GRAY))
-		                      .toList();
+								.flatMap(predicate -> predicate.blocks().orElseThrow().stream())
+								.distinct()
+								.map(block -> (Text) block.value().getName().formatted(Formatting.DARK_GRAY))
+								.toList();
 	}
 
 	@Override
@@ -158,19 +156,17 @@ public class BlockPredicatesComponent {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return o instanceof BlockPredicatesComponent blockPredicatesComponent ? this.predicates.equals(
-					blockPredicatesComponent.predicates) : false;
-		}
+
+		return o instanceof BlockPredicatesComponent other && predicates.equals(other.predicates);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.predicates.hashCode();
+		return predicates.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "AdventureModePredicate{predicates=" + this.predicates + "}";
+		return "AdventureModePredicate{predicates=" + predicates + "}";
 	}
 }

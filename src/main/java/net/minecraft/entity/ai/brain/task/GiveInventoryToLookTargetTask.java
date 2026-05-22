@@ -23,12 +23,19 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code GiveInventoryToLookTargetTask}.
+ * Задача мозга, бросающая предметы из инвентаря сущности в сторону цели взгляда.
+ * Используется Аллаем для доставки предметов к блоку или игроку.
  */
 public class GiveInventoryToLookTargetTask<E extends LivingEntity & InventoryOwner> extends MultiTickTask<E> {
 
 	private static final int COMPLETION_RANGE = 3;
 	private static final int ITEM_PICKUP_COOLDOWN_TICKS = 60;
+	private static final long THROW_SOUND_INTERVAL = 7L;
+	private static final double THROW_SOUND_CHANCE = 0.9;
+	private static final float THROW_VELOCITY_X = 0.2F;
+	private static final float THROW_VELOCITY_Y = 0.3F;
+	private static final float THROW_VELOCITY_Z = 0.2F;
+	private static final float THROW_SPREAD = 0.2F;
 	private final Function<LivingEntity, Optional<LookTarget>> lookTargetFunction;
 	private final float speed;
 
@@ -54,83 +61,68 @@ public class GiveInventoryToLookTargetTask<E extends LivingEntity & InventoryOwn
 
 	@Override
 	protected boolean shouldRun(ServerWorld world, E entity) {
-		return this.hasItemAndTarget(entity);
+		return hasItemAndTarget(entity);
 	}
 
 	@Override
 	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
-		return this.hasItemAndTarget(entity);
+		return hasItemAndTarget(entity);
 	}
 
 	@Override
 	protected void run(ServerWorld world, E entity, long time) {
-		this.lookTargetFunction
-				.apply(entity)
-				.ifPresent(target -> TargetUtil.walkTowards(entity, target, this.speed, 3));
+		lookTargetFunction.apply(entity).ifPresent(target -> TargetUtil.walkTowards(entity, target, speed, COMPLETION_RANGE));
 	}
 
 	@Override
 	protected void keepRunning(ServerWorld world, E entity, long time) {
-		Optional<LookTarget> optional = this.lookTargetFunction.apply(entity);
-		if (!optional.isEmpty()) {
-			LookTarget lookTarget = optional.get();
-			double d = lookTarget.getPos().distanceTo(entity.getEyePos());
-			if (d < 3.0) {
-				ItemStack itemStack = entity.getInventory().removeStack(0, 1);
-				if (!itemStack.isEmpty()) {
-					playThrowSound(entity, itemStack, offsetTarget(lookTarget));
-					if (entity instanceof AllayEntity allayEntity) {
-						AllayBrain
-								.getLikedPlayer(allayEntity)
-								.ifPresent(player -> this.triggerCriterion(lookTarget, itemStack, player));
-					}
+		Optional<LookTarget> target = lookTargetFunction.apply(entity);
 
-					entity.getBrain().remember(MemoryModuleType.ITEM_PICKUP_COOLDOWN_TICKS, 60);
-				}
-			}
+		if (target.isEmpty()) {
+			return;
 		}
+
+		LookTarget lookTarget = target.get();
+		double distance = lookTarget.getPos().distanceTo(entity.getEyePos());
+
+		if (distance >= COMPLETION_RANGE) {
+			return;
+		}
+
+		ItemStack thrown = entity.getInventory().removeStack(0, 1);
+
+		if (thrown.isEmpty()) {
+			return;
+		}
+
+		playThrowSound(entity, thrown, offsetTarget(lookTarget));
+
+		if (entity instanceof AllayEntity allay) {
+			AllayBrain.getLikedPlayer(allay).ifPresent(player -> triggerCriterion(lookTarget, thrown, player));
+		}
+
+		entity.getBrain().remember(MemoryModuleType.ITEM_PICKUP_COOLDOWN_TICKS, ITEM_PICKUP_COOLDOWN_TICKS);
 	}
 
 	private void triggerCriterion(LookTarget target, ItemStack stack, ServerPlayerEntity player) {
-		BlockPos blockPos = target.getBlockPos().down();
-		Criteria.ALLAY_DROP_ITEM_ON_BLOCK.trigger(player, blockPos, stack);
+		Criteria.ALLAY_DROP_ITEM_ON_BLOCK.trigger(player, target.getBlockPos().down(), stack);
 	}
 
 	private boolean hasItemAndTarget(E entity) {
-		if (entity.getInventory().isEmpty()) {
-			return false;
-		}
-		else {
-			Optional<LookTarget> optional = this.lookTargetFunction.apply(entity);
-			return optional.isPresent();
-		}
+		return !entity.getInventory().isEmpty() && lookTargetFunction.apply(entity).isPresent();
 	}
 
 	private static Vec3d offsetTarget(LookTarget target) {
 		return target.getPos().add(0.0, 1.0, 0.0);
 	}
 
-	/**
-	 * Play throw sound.
-	 *
-	 * @param entity entity
-	 * @param stack stack
-	 * @param target target
-	 */
 	public static void playThrowSound(LivingEntity entity, ItemStack stack, Vec3d target) {
-		Vec3d vec3d = new Vec3d(0.2F, 0.3F, 0.2F);
-		TargetUtil.give(entity, stack, target, vec3d, 0.2F);
+		TargetUtil.give(entity, stack, target, new Vec3d(THROW_VELOCITY_X, THROW_VELOCITY_Y, THROW_VELOCITY_Z), THROW_SPREAD);
 		World world = entity.getEntityWorld();
-		if (world.getTime() % 7L == 0L && world.random.nextDouble() < 0.9) {
-			float f = Util.<Float>getRandom(AllayEntity.THROW_SOUND_PITCHES, world.getRandom());
-			world.playSoundFromEntity(
-					null,
-					entity,
-					SoundEvents.ENTITY_ALLAY_ITEM_THROWN,
-					SoundCategory.NEUTRAL,
-					1.0F,
-					f
-			);
+
+		if (world.getTime() % THROW_SOUND_INTERVAL == 0L && world.random.nextDouble() < THROW_SOUND_CHANCE) {
+			float pitch = Util.<Float>getRandom(AllayEntity.THROW_SOUND_PITCHES, world.getRandom());
+			world.playSoundFromEntity(null, entity, SoundEvents.ENTITY_ALLAY_ITEM_THROWN, SoundCategory.NEUTRAL, 1.0F, pitch);
 		}
 	}
 }

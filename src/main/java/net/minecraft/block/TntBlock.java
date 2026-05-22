@@ -29,7 +29,9 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TntBlock}.
+ * Блок динамита. Поджигается кремнём, огненным зарядом, редстоун-сигналом
+ * или горящим снарядом. При взрыве соседней взрывчатки создаёт сущность
+ * {@link net.minecraft.entity.TntEntity} с укороченным запалом.
  */
 public class TntBlock extends Block {
 
@@ -81,23 +83,19 @@ public class TntBlock extends Block {
 	@Override
 	public void onDestroyedByExplosion(ServerWorld world, BlockPos pos, Explosion explosion) {
 		if (world.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-			TntEntity
-					tntEntity =
-					new TntEntity(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, explosion.getCausingEntity());
-			int i = tntEntity.getFuse();
-			tntEntity.setFuse((short) (world.random.nextInt(i / 4) + i / 8));
+			TntEntity tntEntity = new TntEntity(
+					world,
+					pos.getX() + 0.5,
+					pos.getY(),
+					pos.getZ() + 0.5,
+					explosion.getCausingEntity()
+			);
+			int originalFuse = tntEntity.getFuse();
+			tntEntity.setFuse((short) (world.random.nextInt(originalFuse / 4) + originalFuse / 8));
 			world.spawnEntity(tntEntity);
 		}
 	}
 
-	/**
-	 * Prime tnt.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean primeTnt(World world, BlockPos pos) {
 		return primeTnt(world, pos, null);
 	}
@@ -139,6 +137,7 @@ public class TntBlock extends Block {
 		}
 		else {
 			if (primeTnt(world, pos, player)) {
+				// 11 = Block.NOTIFY_ALL | Block.REDRAW_ON_MAIN_THREAD — уведомить соседей и перерисовать
 				world.setBlockState(pos, Blocks.AIR.getDefaultState(), 11);
 				Item item = stack.getItem();
 				if (stack.isOf(Items.FLINT_AND_STEEL)) {

@@ -23,10 +23,12 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BitmapFont}.
+ * Шрифт на основе растрового изображения (bitmap).
+ * Каждый символ задаётся прямоугольной областью в PNG-текстуре,
+ * а сетка символов описывается двумерным массивом кодовых точек.
  */
+@Environment(EnvType.CLIENT)
 public class BitmapFont implements Font {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -40,23 +42,24 @@ public class BitmapFont implements Font {
 
 	@Override
 	public void close() {
-		this.image.close();
+		image.close();
 	}
 
 	@Override
 	public @Nullable Glyph getGlyph(int codePoint) {
-		return this.glyphs.get(codePoint);
+		return glyphs.get(codePoint);
 	}
 
 	@Override
 	public IntSet getProvidedGlyphs() {
-		return IntSets.unmodifiable(this.glyphs.getProvidedGlyphs());
+		return IntSets.unmodifiable(glyphs.getProvidedGlyphs());
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BitmapFontGlyph}.
+	 * Один глиф растрового шрифта: хранит ссылку на исходное изображение,
+	 * координаты своей области в нём и метрики для рендеринга.
 	 */
+	@Environment(EnvType.CLIENT)
 	record BitmapFontGlyph(
 			float scaleFactor,
 			NativeImage image,
@@ -70,13 +73,13 @@ public class BitmapFont implements Font {
 
 		@Override
 		public GlyphMetrics getMetrics() {
-			return GlyphMetrics.empty(this.advance);
+			return GlyphMetrics.empty(advance);
 		}
 
 		@Override
 		public BakedGlyph bake(Glyph.AbstractGlyphBaker baker) {
 			return baker.bake(
-					this.getMetrics(),
+					getMetrics(),
 					new UploadableGlyph() {
 						@Override
 						public float getOversample() {
@@ -125,74 +128,76 @@ public class BitmapFont implements Font {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Loader}.
+	 * Загрузчик растрового шрифта из JSON-описания ресурс-пака.
+	 * Читает PNG-файл, разбивает его на ячейки по сетке кодовых точек
+	 * и вычисляет реальную ширину каждого символа по непрозрачным пикселям.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Loader(Identifier file, int height, int ascent, int[][] codepointGrid) implements FontLoader {
 
 		private static final Codec<int[][]> CODE_POINT_GRID_CODEC = Codec.STRING.listOf().xmap(
 				strings -> {
-					int i = strings.size();
-					int[][] is = new int[i][];
+					int rowCount = strings.size();
+					int[][] grid = new int[rowCount][];
 
-					for (int j = 0; j < i; j++) {
-						is[j] = ((String) strings.get(j)).codePoints().toArray();
+					for (int row = 0; row < rowCount; row++) {
+						grid[row] = strings.get(row).codePoints().toArray();
 					}
 
-					return is;
-				}, codePointGrid -> {
+					return grid;
+				},
+				codePointGrid -> {
 					List<String> list = new ArrayList<>(codePointGrid.length);
 
-					for (int[] is : codePointGrid) {
-						list.add(new String(is, 0, is.length));
+					for (int[] row : codePointGrid) {
+						list.add(new String(row, 0, row.length));
 					}
 
 					return list;
 				}
 		).validate(BitmapFont.Loader::validateCodePointGrid);
+
 		public static final MapCodec<BitmapFont.Loader> CODEC = RecordCodecBuilder.<BitmapFont.Loader>mapCodec(
-				                                                                          instance -> instance.<Identifier, Integer, Integer, int[][]>group(
-						                                                                                              Identifier.CODEC.fieldOf("file").forGetter(BitmapFont.Loader::file),
-						                                                                                              Codec.INT.optionalFieldOf("height", 8).forGetter(BitmapFont.Loader::height),
-						                                                                                              Codec.INT.fieldOf("ascent").forGetter(BitmapFont.Loader::ascent),
-						                                                                                              CODE_POINT_GRID_CODEC.fieldOf("chars").forGetter(BitmapFont.Loader::codepointGrid)
-				                                                                                              )
-				                                                                                              .apply(instance, BitmapFont.Loader::new)
-		                                                                          )
-		                                                                          .validate(BitmapFont.Loader::validate);
+				instance -> instance.<Identifier, Integer, Integer, int[][]>group(
+						Identifier.CODEC.fieldOf("file").forGetter(BitmapFont.Loader::file),
+						Codec.INT.optionalFieldOf("height", 8).forGetter(BitmapFont.Loader::height),
+						Codec.INT.fieldOf("ascent").forGetter(BitmapFont.Loader::ascent),
+						CODE_POINT_GRID_CODEC.fieldOf("chars").forGetter(BitmapFont.Loader::codepointGrid)
+				).apply(instance, BitmapFont.Loader::new)
+		).validate(BitmapFont.Loader::validate);
 
 		private static DataResult<int[][]> validateCodePointGrid(int[][] codePointGrid) {
-			int i = codePointGrid.length;
-			if (i == 0) {
+			int rowCount = codePointGrid.length;
+
+			if (rowCount == 0) {
 				return DataResult.error(() -> "Expected to find data in codepoint grid");
 			}
-			else {
-				int[] is = codePointGrid[0];
-				int j = is.length;
-				if (j == 0) {
-					return DataResult.error(() -> "Expected to find data in codepoint grid");
-				}
-				else {
-					for (int k = 1; k < i; k++) {
-						int[] js = codePointGrid[k];
-						if (js.length != j) {
-							return DataResult.error(
-									() -> "Lines in codepoint grid have to be the same length (found: " + js.length
-											+ " codepoints, expected: " + j + "), pad with \\u0000"
-							);
-						}
-					}
 
-					return DataResult.success(codePointGrid);
+			int firstRowLength = codePointGrid[0].length;
+
+			if (firstRowLength == 0) {
+				return DataResult.error(() -> "Expected to find data in codepoint grid");
+			}
+
+			for (int row = 1; row < rowCount; row++) {
+				int[] currentRow = codePointGrid[row];
+
+				if (currentRow.length != firstRowLength) {
+					return DataResult.error(
+							() -> "Lines in codepoint grid have to be the same length (found: " + currentRow.length
+									+ " codepoints, expected: " + firstRowLength + "), pad with \\u0000"
+					);
 				}
 			}
+
+			return DataResult.success(codePointGrid);
 		}
 
-		private static DataResult<BitmapFont.Loader> validate(BitmapFont.Loader fontLoader) {
-			return fontLoader.ascent > fontLoader.height
-			       ? DataResult.error(() -> "Ascent " + fontLoader.ascent + " higher than height " + fontLoader.height)
-			       : DataResult.success(fontLoader);
+		private static DataResult<BitmapFont.Loader> validate(BitmapFont.Loader loader) {
+			return loader.ascent > loader.height
+			       ? DataResult.error(() -> "Ascent " + loader.ascent + " higher than height " + loader.height)
+			       : DataResult.success(loader);
 		}
 
 		@Override
@@ -205,58 +210,77 @@ public class BitmapFont implements Font {
 			return Either.left(this::load);
 		}
 
+		/**
+		 * Загружает PNG-текстуру и строит контейнер глифов.
+		 * Ширина каждого символа определяется по крайнему правому непрозрачному пикселю.
+		 */
 		private Font load(ResourceManager resourceManager) throws IOException {
-			Identifier identifier = this.file.withPrefixedPath("textures/");
+			Identifier textureId = file.withPrefixedPath("textures/");
 
-			BitmapFont var22;
-			try (InputStream inputStream = resourceManager.open(identifier)) {
+			BitmapFont result;
+			try (InputStream inputStream = resourceManager.open(textureId)) {
 				NativeImage nativeImage = NativeImage.read(NativeImage.Format.RGBA, inputStream);
-				int i = nativeImage.getWidth();
-				int j = nativeImage.getHeight();
-				int k = i / this.codepointGrid[0].length;
-				int l = j / this.codepointGrid.length;
-				float f = (float) this.height / l;
+				int imageWidth = nativeImage.getWidth();
+				int imageHeight = nativeImage.getHeight();
+				int cellWidth = imageWidth / codepointGrid[0].length;
+				int cellHeight = imageHeight / codepointGrid.length;
+				float scaleFactor = (float) height / cellHeight;
 				GlyphContainer<BitmapFont.BitmapFontGlyph> glyphContainer = new GlyphContainer<>(
 						BitmapFont.BitmapFontGlyph[]::new, BitmapFont.BitmapFontGlyph[][]::new
 				);
 
-				for (int m = 0; m < this.codepointGrid.length; m++) {
-					int n = 0;
+				for (int row = 0; row < codepointGrid.length; row++) {
+					int col = 0;
 
-					for (int o : this.codepointGrid[m]) {
-						int p = n++;
-						if (o != 0) {
-							int q = this.findCharacterStartX(nativeImage, k, l, p, m);
-							BitmapFont.BitmapFontGlyph bitmapFontGlyph = glyphContainer.put(
-									o,
-									new BitmapFont.BitmapFontGlyph(
-											f,
-											nativeImage,
-											p * k,
-											m * l,
-											k,
-											l,
-											(int) (0.5 + q * f) + 1,
-											this.ascent
-									)
+					for (int codePoint : codepointGrid[row]) {
+						int currentCol = col++;
+
+						if (codePoint == 0) {
+							continue;
+						}
+
+						int charWidth = findCharacterStartX(nativeImage, cellWidth, cellHeight, currentCol, row);
+						BitmapFont.BitmapFontGlyph existing = glyphContainer.put(
+								codePoint,
+								new BitmapFont.BitmapFontGlyph(
+										scaleFactor,
+										nativeImage,
+										currentCol * cellWidth,
+										row * cellHeight,
+										cellWidth,
+										cellHeight,
+										(int) (0.5 + charWidth * scaleFactor) + 1,
+										ascent
+								)
+						);
+
+						if (existing != null) {
+							LOGGER.warn(
+									"Codepoint '{}' declared multiple times in {}",
+									Integer.toHexString(codePoint),
+									textureId
 							);
-							if (bitmapFontGlyph != null) {
-								BitmapFont.LOGGER.warn(
-										"Codepoint '{}' declared multiple times in {}",
-										Integer.toHexString(o),
-										identifier
-								);
-							}
 						}
 					}
 				}
 
-				var22 = new BitmapFont(nativeImage, glyphContainer);
+				result = new BitmapFont(nativeImage, glyphContainer);
 			}
 
-			return var22;
+			return result;
 		}
 
+		/**
+		 * Находит X-координату правого края непрозрачной области символа
+		 * путём сканирования столбцов справа налево.
+		 *
+		 * @param image           исходное изображение шрифта
+		 * @param characterWidth  ширина ячейки символа в пикселях
+		 * @param characterHeight высота ячейки символа в пикселях
+		 * @param charPosX        позиция символа по X в сетке (в ячейках)
+		 * @param charPosY        позиция символа по Y в сетке (в ячейках)
+		 * @return ширина непрозрачной части символа (1-based)
+		 */
 		private int findCharacterStartX(
 				NativeImage image,
 				int characterWidth,
@@ -264,19 +288,21 @@ public class BitmapFont implements Font {
 				int charPosX,
 				int charPosY
 		) {
-			int i;
-			for (i = characterWidth - 1; i >= 0; i--) {
-				int j = charPosX * characterWidth + i;
+			int col;
 
-				for (int k = 0; k < characterHeight; k++) {
-					int l = charPosY * characterHeight + k;
-					if (image.getOpacity(j, l) != 0) {
-						return i + 1;
+			for (col = characterWidth - 1; col >= 0; col--) {
+				int pixelX = charPosX * characterWidth + col;
+
+				for (int row = 0; row < characterHeight; row++) {
+					int pixelY = charPosY * characterHeight + row;
+
+					if (image.getOpacity(pixelX, pixelY) != 0) {
+						return col + 1;
 					}
 				}
 			}
 
-			return i + 1;
+			return col + 1;
 		}
 	}
 }

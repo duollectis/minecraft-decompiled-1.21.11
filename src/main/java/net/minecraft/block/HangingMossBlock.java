@@ -18,7 +18,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code HangingMossBlock}.
+ * Блок свисающего мха (бледный мох). Растёт вниз цепочкой; нижний блок помечается как TIP.
+ * Поддерживает удобрение костяной мукой для наращивания цепочки вниз.
  */
 public class HangingMossBlock extends Block implements Fertilizable {
 
@@ -34,7 +35,7 @@ public class HangingMossBlock extends Block implements Fertilizable {
 
 	public HangingMossBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(TIP, true));
+		setDefaultState(stateManager.getDefaultState().with(TIP, true));
 	}
 
 	@Override
@@ -68,14 +69,14 @@ public class HangingMossBlock extends Block implements Fertilizable {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		return this.canPlaceAt(world, pos);
+		return canPlaceAt(world, pos);
 	}
 
 	private boolean canPlaceAt(BlockView world, BlockPos pos) {
-		BlockPos blockPos = pos.offset(Direction.UP);
-		BlockState blockState = world.getBlockState(blockPos);
-		return MultifaceBlock.canGrowOn(world, Direction.UP, blockPos, blockState)
-				|| blockState.isOf(Blocks.PALE_HANGING_MOSS);
+		BlockPos above = pos.offset(Direction.UP);
+		BlockState aboveState = world.getBlockState(above);
+		return MultifaceBlock.canGrowOn(world, Direction.UP, above, aboveState)
+				|| aboveState.isOf(Blocks.PALE_HANGING_MOSS);
 	}
 
 	@Override
@@ -89,16 +90,16 @@ public class HangingMossBlock extends Block implements Fertilizable {
 			BlockState neighborState,
 			Random random
 	) {
-		if (!this.canPlaceAt(world, pos)) {
+		if (canPlaceAt(world, pos) == false) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
-		return state.with(TIP, !world.getBlockState(pos.down()).isOf(this));
+		return state.with(TIP, world.getBlockState(pos.down()).isOf(this) == false);
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (!this.canPlaceAt(world, pos)) {
+		if (canPlaceAt(world, pos) == false) {
 			world.breakBlock(pos, true);
 		}
 	}
@@ -110,7 +111,7 @@ public class HangingMossBlock extends Block implements Fertilizable {
 
 	@Override
 	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-		return this.canGrowInto(world.getBlockState(this.getTipPos(world, pos).down()));
+		return canGrowInto(world.getBlockState(getTipPos(world, pos).down()));
 	}
 
 	private boolean canGrowInto(BlockState state) {
@@ -119,13 +120,11 @@ public class HangingMossBlock extends Block implements Fertilizable {
 
 	public BlockPos getTipPos(BlockView world, BlockPos pos) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
-
-		BlockState blockState;
+		BlockState current;
 		do {
 			mutable.move(Direction.DOWN);
-			blockState = world.getBlockState(mutable);
-		}
-		while (blockState.isOf(this));
+			current = world.getBlockState(mutable);
+		} while (current.isOf(this));
 
 		return mutable.offset(Direction.UP).toImmutable();
 	}
@@ -137,9 +136,9 @@ public class HangingMossBlock extends Block implements Fertilizable {
 
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-		BlockPos blockPos = this.getTipPos(world, pos).down();
-		if (this.canGrowInto(world.getBlockState(blockPos))) {
-			world.setBlockState(blockPos, state.with(TIP, true));
+		BlockPos tipBelow = getTipPos(world, pos).down();
+		if (canGrowInto(world.getBlockState(tipBelow))) {
+			world.setBlockState(tipBelow, state.with(TIP, true));
 		}
 	}
 }

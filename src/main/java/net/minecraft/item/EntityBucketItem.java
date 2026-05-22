@@ -18,7 +18,8 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EntityBucketItem}.
+ * Ведро с живой сущностью (рыбой, аксолотлем и т.д.).
+ * При выливании спавнит сущность и восстанавливает её сохранённые данные.
  */
 public class EntityBucketItem extends BucketItem {
 
@@ -26,10 +27,10 @@ public class EntityBucketItem extends BucketItem {
 	private final SoundEvent emptyingSound;
 
 	public EntityBucketItem(
-			EntityType<? extends MobEntity> type,
-			Fluid fluid,
-			SoundEvent emptyingSound,
-			Item.Settings settings
+		EntityType<? extends MobEntity> type,
+		Fluid fluid,
+		SoundEvent emptyingSound,
+		Item.Settings settings
 	) {
 		super(fluid, settings);
 		this.entityType = type;
@@ -38,37 +39,36 @@ public class EntityBucketItem extends BucketItem {
 
 	@Override
 	public void onEmptied(@Nullable LivingEntity user, World world, ItemStack stack, BlockPos pos) {
-		if (world instanceof ServerWorld) {
-			this.spawnEntity((ServerWorld) world, stack, pos);
+		if (world instanceof ServerWorld serverWorld) {
+			spawnEntity(serverWorld, stack, pos);
 			world.emitGameEvent(user, GameEvent.ENTITY_PLACE, pos);
 		}
 	}
 
 	@Override
 	protected void playEmptyingSound(@Nullable LivingEntity user, WorldAccess world, BlockPos pos) {
-		world.playSound(user, pos, this.emptyingSound, SoundCategory.NEUTRAL, 1.0F, 1.0F);
+		world.playSound(user, pos, emptyingSound, SoundCategory.NEUTRAL, 1.0F, 1.0F);
 	}
 
 	private void spawnEntity(ServerWorld world, ItemStack stack, BlockPos pos) {
-		MobEntity
-				mobEntity =
-				this.entityType.create(
-						world,
-						EntityType.copier(world, stack, null),
-						pos,
-						SpawnReason.BUCKET,
-						true,
-						false
-				);
-		if (mobEntity instanceof Bucketable bucketable) {
-			NbtComponent nbtComponent = stack.getOrDefault(DataComponentTypes.BUCKET_ENTITY_DATA, NbtComponent.DEFAULT);
-			bucketable.copyDataFromNbt(nbtComponent.copyNbt());
+		MobEntity mob = entityType.create(
+			world,
+			EntityType.copier(world, stack, null),
+			pos,
+			SpawnReason.BUCKET,
+			true,
+			false
+		);
+
+		if (mob instanceof Bucketable bucketable) {
+			NbtComponent nbtData = stack.getOrDefault(DataComponentTypes.BUCKET_ENTITY_DATA, NbtComponent.DEFAULT);
+			bucketable.copyDataFromNbt(nbtData.copyNbt());
 			bucketable.setFromBucket(true);
 		}
 
-		if (mobEntity != null) {
-			world.spawnEntityAndPassengers(mobEntity);
-			mobEntity.playAmbientSound();
+		if (mob != null) {
+			world.spawnEntityAndPassengers(mob);
+			mob.playAmbientSound();
 		}
 	}
 }

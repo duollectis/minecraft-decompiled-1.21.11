@@ -28,7 +28,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code SalmonEntity}.
+ * Лосось — стайная рыба с тремя размерными вариантами: маленький, нормальный, большой.
+ * Вариант влияет на хитбокс и количество дропа.
  */
 public class SalmonEntity extends SchoolingFishEntity {
 
@@ -162,8 +163,8 @@ public class SalmonEntity extends SchoolingFishEntity {
 	}
 
 	/**
-	 * {@code Variant}.
-	 */
+ * Размерный вариант лосося: маленький, нормальный, большой.
+ */
 	public static enum Variant implements StringIdentifiable {
 		SMALL("small", 0, 0.5F),
 		MEDIUM("medium", 1, 1.0F),

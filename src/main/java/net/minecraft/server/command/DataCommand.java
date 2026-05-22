@@ -29,7 +29,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * {@code DataCommand}.
+ * Команда {@code /data}: чтение и изменение NBT-данных блоков, сущностей и хранилища.
  */
 public class DataCommand {
 
@@ -601,18 +601,12 @@ public class DataCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ModifyArgumentCreator}.
-	 */
 	interface ModifyArgumentCreator {
 
 		ArgumentBuilder<ServerCommandSource, ?> create(DataCommand.ModifyOperation modifier);
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ModifyOperation}.
-	 */
 	interface ModifyOperation {
 
 		int modify(
@@ -623,9 +617,6 @@ public class DataCommand {
 		) throws CommandSyntaxException;
 	}
 
-	/**
-	 * {@code ObjectType}.
-	 */
 	public interface ObjectType {
 
 		DataCommandObject getObject(CommandContext<ServerCommandSource> context) throws CommandSyntaxException;
@@ -637,9 +628,6 @@ public class DataCommand {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Processor}.
-	 */
 	interface Processor {
 
 		String process(String string) throws CommandSyntaxException;

@@ -9,20 +9,20 @@ import net.minecraft.screen.NautilusScreenHandler;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NautilusScreen}.
+ * Экран инвентаря наутилуса. Поддерживает слоты седла и брони (BODY).
  */
+@Environment(EnvType.CLIENT)
 public class NautilusScreen extends MountScreen<NautilusScreenHandler> {
 
 	private static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("container/slot");
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/nautilus.png");
 
 	public NautilusScreen(
-			NautilusScreenHandler handler,
-			PlayerInventory inventory,
-			AbstractNautilusEntity nautilus,
-			int slotColumnCount
+		NautilusScreenHandler handler,
+		PlayerInventory inventory,
+		AbstractNautilusEntity nautilus,
+		int slotColumnCount
 	) {
 		super(handler, inventory, nautilus.getDisplayName(), slotColumnCount, nautilus);
 	}
@@ -44,11 +44,11 @@ public class NautilusScreen extends MountScreen<NautilusScreenHandler> {
 
 	@Override
 	protected boolean canEquipSaddle() {
-		return this.mount.canUseSlot(EquipmentSlot.SADDLE);
+		return mount.canUseSlot(EquipmentSlot.SADDLE);
 	}
 
 	@Override
 	protected boolean canEquipArmor() {
-		return this.mount.canUseSlot(EquipmentSlot.BODY);
+		return mount.canUseSlot(EquipmentSlot.BODY);
 	}
 }

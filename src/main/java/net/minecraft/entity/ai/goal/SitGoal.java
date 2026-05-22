@@ -6,54 +6,60 @@ import net.minecraft.entity.passive.TameableEntity;
 import java.util.EnumSet;
 
 /**
- * {@code SitGoal}.
+ * Цель прирученного существа, удерживающая его в сидячей позе.
+ * Прерывается, если хозяин рядом и на него нападают.
  */
 public class SitGoal extends Goal {
+
+	private static final double OWNER_NEAR_DISTANCE_SQ = 144.0;
 
 	private final TameableEntity tameable;
 
 	public SitGoal(TameableEntity tameable) {
 		this.tameable = tameable;
-		this.setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.tameable.isSitting();
+		return tameable.isSitting();
 	}
 
 	@Override
 	public boolean canStart() {
-		boolean bl = this.tameable.isSitting();
-		if (!bl && !this.tameable.isTamed()) {
+		boolean isSitting = tameable.isSitting();
+		if (!isSitting && !tameable.isTamed()) {
 			return false;
 		}
-		else if (this.tameable.isTouchingWater()) {
+
+		if (tameable.isTouchingWater()) {
 			return false;
 		}
-		else if (!this.tameable.isOnGround()) {
+
+		if (!tameable.isOnGround()) {
 			return false;
 		}
-		else {
-			LivingEntity livingEntity = this.tameable.getOwner();
-			if (livingEntity == null || livingEntity.getEntityWorld() != this.tameable.getEntityWorld()) {
-				return true;
-			}
-			else {
-				return this.tameable.squaredDistanceTo(livingEntity) < 144.0 && livingEntity.getAttacker() != null
-				       ? false : bl;
-			}
+
+		LivingEntity owner = tameable.getOwner();
+		if (owner == null || owner.getEntityWorld() != tameable.getEntityWorld()) {
+			return true;
 		}
+
+		if (tameable.squaredDistanceTo(owner) < OWNER_NEAR_DISTANCE_SQ && owner.getAttacker() != null) {
+			return false;
+		}
+
+		return isSitting;
 	}
 
 	@Override
 	public void start() {
-		this.tameable.getNavigation().stop();
-		this.tameable.setInSittingPose(true);
+		tameable.getNavigation().stop();
+		tameable.setInSittingPose(true);
 	}
 
 	@Override
 	public void stop() {
-		this.tameable.setInSittingPose(false);
+		tameable.setInSittingPose(false);
 	}
 }

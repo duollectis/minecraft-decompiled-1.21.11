@@ -6,10 +6,15 @@ import net.minecraft.client.gui.ScreenRect;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Widget}.
+ * Базовый интерфейс всех GUI-виджетов клиента.
+ * Определяет минимальный контракт: позиция, размеры, навигационный прямоугольник
+ * и итерация по дочерним {@link ClickableWidget}-ам.
+ *
+ * <p>Расширяется {@link LayoutWidget} для контейнеров и
+ * {@link ClickableWidget} для интерактивных элементов.</p>
  */
+@Environment(EnvType.CLIENT)
 public interface Widget {
 
 	void setX(int x);
@@ -24,14 +29,24 @@ public interface Widget {
 
 	int getHeight();
 
+	/**
+	 * Возвращает прямоугольник виджета для клавиатурной навигации.
+	 * По умолчанию совпадает с границами виджета.
+	 */
 	default ScreenRect getNavigationFocus() {
-		return new ScreenRect(this.getX(), this.getY(), this.getWidth(), this.getHeight());
+		return new ScreenRect(getX(), getY(), getWidth(), getHeight());
 	}
 
 	default void setPosition(int x, int y) {
-		this.setX(x);
-		this.setY(y);
+		setX(x);
+		setY(y);
 	}
 
+	/**
+	 * Итерирует по всем дочерним {@link ClickableWidget}-ам этого виджета.
+	 * Для листовых виджетов реализация пустая; для контейнеров — рекурсивная.
+	 *
+	 * @param consumer обработчик каждого дочернего виджета
+	 */
 	void forEachChild(Consumer<ClickableWidget> consumer);
 }

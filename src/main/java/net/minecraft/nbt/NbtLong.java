@@ -9,22 +9,20 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtLong}.
+ * NBT-элемент, хранящий значение типа {@code long}.
+ *
+ * <p>Значения в диапазоне [{@link Cache#MIN}, {@link Cache#MAX}] кэшируются.
+ * Используйте фабричный метод {@link #of(long)} вместо конструктора record.</p>
  */
 public record NbtLong(long value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 8 байт данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 16;
-	public static final NbtType<NbtLong> TYPE = new NbtType.OfFixedSize<NbtLong>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtLong — результат операции
-		 */
-		public NbtLong read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtLong.of(readLong(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtLong> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtLong read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtLong.of(readLong(input, tracker));
 		}
 
 		@Override
@@ -34,7 +32,7 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 		}
 
 		private static long readLong(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(16L);
+			tracker.add(SIZE);
 			return input.readLong();
 		}
 
@@ -60,29 +58,31 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает кэшированный экземпляр для значений в диапазоне кэша,
+	 * иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtLong — результат операции
+	 * @param value значение long
+	 * @return {@link NbtLong} для заданного значения
 	 */
 	public static NbtLong of(long value) {
-		return value >= -128L && value <= 1024L ? NbtLong.Cache.VALUES[(int) value - -128] : new NbtLong(value);
+		return value >= Cache.MIN && value <= Cache.MAX
+				? Cache.VALUES[(int) value - Cache.MIN]
+				: new NbtLong(value);
 	}
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeLong(this.value);
+		output.writeLong(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 16;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 4;
+		return LONG_TYPE;
 	}
 
 	@Override
@@ -90,11 +90,7 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtLong — результат операции
-	 */
+	@Override
 	public NbtLong copy() {
 		return this;
 	}
@@ -106,66 +102,68 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 
 	@Override
 	public long longValue() {
-		return this.value;
+		return value;
 	}
 
+	/**
+	 * Усекает long до int, сохраняя все 32 младших бита (без знакового расширения).
+	 * Маска {@code -1L} (все биты единицы) гарантирует корректное усечение.
+	 */
 	@Override
 	public int intValue() {
-		return (int) (this.value & -1L);
+		return (int) (value & -1L);
 	}
 
 	@Override
 	public short shortValue() {
-		return (short) (this.value & 65535L);
+		return (short) (value & 0xFFFFL);
 	}
 
 	@Override
 	public byte byteValue() {
-		return (byte) (this.value & 255L);
+		return (byte) (value & 0xFFL);
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return (float) this.value;
+		return (float) value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitLong(this.value);
+		return visitor.visitLong(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitLong(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitLong(this);
+		return writer.getString();
 	}
 
-	/**
-	 * {@code Cache}.
-	 */
+	/** Кэш часто используемых значений long. */
 	static class Cache {
 
-		private static final int MAX = 1024;
-		private static final int MIN = -128;
-		static final NbtLong[] VALUES = new NbtLong[1153];
+		static final int MIN = -128;
+		static final int MAX = 1024;
+		static final NbtLong[] VALUES = new NbtLong[MAX - MIN + 1];
 
 		private Cache() {
 		}
 
 		static {
-			for (int i = 0; i < VALUES.length; i++) {
-				VALUES[i] = new NbtLong(-128 + i);
+			for (int index = 0; index < VALUES.length; index++) {
+				VALUES[index] = new NbtLong(MIN + index);
 			}
 		}
 	}

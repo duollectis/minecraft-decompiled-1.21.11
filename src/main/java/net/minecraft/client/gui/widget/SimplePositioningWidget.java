@@ -10,10 +10,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimplePositioningWidget}.
+ * Виджет-контейнер, позиционирующий дочерние элементы внутри себя
+ * с помощью относительных координат через {@link Positioner}.
+ * <p>
+ * По умолчанию все добавленные виджеты центрируются (relative 0.5, 0.5).
+ * Размер контейнера автоматически вычисляется как максимум из {@code minWidth}/{@code minHeight}
+ * и размеров всех дочерних элементов.
  */
+@Environment(EnvType.CLIENT)
 public class SimplePositioningWidget extends WrapperWidget {
 
 	private final List<SimplePositioningWidget.Element> elements = new ArrayList<>();
@@ -29,13 +34,13 @@ public class SimplePositioningWidget extends WrapperWidget {
 		this(0, 0, width, height);
 	}
 
-	public SimplePositioningWidget(int i, int j, int k, int l) {
-		super(i, j, k, l);
-		this.setDimensions(k, l);
+	public SimplePositioningWidget(int x, int y, int width, int height) {
+		super(x, y, width, height);
+		setDimensions(width, height);
 	}
 
 	public SimplePositioningWidget setDimensions(int minWidth, int minHeight) {
-		return this.setMinWidth(minWidth).setMinHeight(minHeight);
+		return setMinWidth(minWidth).setMinHeight(minHeight);
 	}
 
 	public SimplePositioningWidget setMinHeight(int minHeight) {
@@ -48,78 +53,50 @@ public class SimplePositioningWidget extends WrapperWidget {
 		return this;
 	}
 
-	/**
-	 * Создаёт копию positioner.
-	 *
-	 * @return Positioner — результат операции
-	 */
 	public Positioner copyPositioner() {
-		return this.mainPositioner.copy();
+		return mainPositioner.copy();
 	}
 
 	public Positioner getMainPositioner() {
-		return this.mainPositioner;
+		return mainPositioner;
 	}
 
 	@Override
 	public void refreshPositions() {
 		super.refreshPositions();
-		int i = this.minWidth;
-		int j = this.minHeight;
+		int computedWidth = minWidth;
+		int computedHeight = minHeight;
 
-		for (SimplePositioningWidget.Element element : this.elements) {
-			i = Math.max(i, element.getWidth());
-			j = Math.max(j, element.getHeight());
+		for (SimplePositioningWidget.Element element : elements) {
+			computedWidth = Math.max(computedWidth, element.getWidth());
+			computedHeight = Math.max(computedHeight, element.getHeight());
 		}
 
-		for (SimplePositioningWidget.Element element : this.elements) {
-			element.setX(this.getX(), i);
-			element.setY(this.getY(), j);
+		for (SimplePositioningWidget.Element element : elements) {
+			element.setX(getX(), computedWidth);
+			element.setY(getY(), computedHeight);
 		}
 
-		this.width = i;
-		this.height = j;
+		width = computedWidth;
+		height = computedHeight;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget) {
-		return this.add(widget, this.copyPositioner());
+		return add(widget, copyPositioner());
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param positioner positioner
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, Positioner positioner) {
-		this.elements.add(new SimplePositioningWidget.Element(widget, positioner));
+		elements.add(new SimplePositioningWidget.Element(widget, positioner));
 		return widget;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param callback callback
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, Consumer<Positioner> callback) {
-		return this.add(widget, Util.make(this.copyPositioner(), callback));
+		return add(widget, Util.make(copyPositioner(), callback));
 	}
 
 	@Override
 	public void forEachElement(Consumer<Widget> consumer) {
-		this.elements.forEach(element -> consumer.accept(element.widget));
+		elements.forEach(element -> consumer.accept(element.widget));
 	}
 
 	public static void setPos(Widget widget, int left, int top, int right, int bottom) {
@@ -147,15 +124,16 @@ public class SimplePositioningWidget extends WrapperWidget {
 		setPos(top, bottom, widget.getHeight(), widget::setY, relativeY);
 	}
 
+	/**
+	 * Вычисляет позицию виджета внутри диапазона {@code [low, low + high - length]} по относительной
+	 * координате {@code relative} (0.0 = начало, 1.0 = конец) и передаёт результат в {@code setter}.
+	 */
 	public static void setPos(int low, int high, int length, Consumer<Integer> setter, float relative) {
-		int i = (int) MathHelper.lerp(relative, 0.0F, (float) (high - length));
-		setter.accept(low + i);
+		int offset = (int) MathHelper.lerp(relative, 0.0F, (float) (high - length));
+		setter.accept(low + offset);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Element}.
-	 */
 	static class Element extends WrapperWidget.WrappedElement {
 
 		protected Element(Widget widget, Positioner positioner) {

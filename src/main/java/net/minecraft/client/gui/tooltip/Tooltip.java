@@ -13,17 +13,21 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Tooltip}.
+ * Тултип виджета: хранит текст содержимого и опциональный текст для нарратора.
+ * Кэширует разбитые на строки {@link OrderedText} и инвалидирует кэш
+ * при смене языка игры, чтобы корректно отображать переключение локализации.
  */
+@Environment(EnvType.CLIENT)
 public class Tooltip implements Narratable {
 
+	/** Максимальная ширина строки тултипа в пикселях. */
 	private static final int ROW_LENGTH = 170;
+
 	private final Text content;
+	private final @Nullable Text narration;
 	private @Nullable List<OrderedText> lines;
 	private @Nullable Language language;
-	private final @Nullable Text narration;
 
 	private Tooltip(Text content, @Nullable Text narration) {
 		this.content = content;
@@ -31,54 +35,50 @@ public class Tooltip implements Narratable {
 	}
 
 	/**
-	 * Of.
+	 * Создаёт тултип с отдельным текстом для нарратора доступности.
 	 *
-	 * @param content content
-	 * @param narration narration
-	 *
-	 * @return Tooltip — результат операции
+	 * @param content   текст, отображаемый в тултипе
+	 * @param narration текст для нарратора (может быть {@code null} — тогда нарратор молчит)
 	 */
 	public static Tooltip of(Text content, @Nullable Text narration) {
 		return new Tooltip(content, narration);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param content content
-	 *
-	 * @return Tooltip — результат операции
-	 */
+	/** Создаёт тултип, где текст нарратора совпадает с отображаемым текстом. */
 	public static Tooltip of(Text content) {
 		return new Tooltip(content, content);
 	}
 
 	@Override
 	public void appendNarrations(NarrationMessageBuilder builder) {
-		if (this.narration != null) {
-			builder.put(NarrationPart.HINT, this.narration);
+		if (narration != null) {
+			builder.put(NarrationPart.HINT, narration);
 		}
-	}
-
-	public List<OrderedText> getLines(MinecraftClient client) {
-		Language language = Language.getInstance();
-		if (this.lines == null || language != this.language) {
-			this.lines = wrapLines(client, this.content);
-			this.language = language;
-		}
-
-		return this.lines;
 	}
 
 	/**
-	 * Wrap lines.
+	 * Возвращает строки тултипа, разбитые по ширине {@value #ROW_LENGTH} пикселей.
+	 * Кэш инвалидируется при смене активного языка игры.
 	 *
-	 * @param client client
-	 * @param text text
+	 * @param client экземпляр клиента для доступа к {@code textRenderer}
+	 */
+	public List<OrderedText> getLines(MinecraftClient client) {
+		Language currentLanguage = Language.getInstance();
+		if (lines == null || currentLanguage != language) {
+			lines = wrapLines(client, content);
+			language = currentLanguage;
+		}
+
+		return lines;
+	}
+
+	/**
+	 * Разбивает текст на строки по ширине {@value #ROW_LENGTH} пикселей.
 	 *
-	 * @return List — результат операции
+	 * @param client экземпляр клиента
+	 * @param text   текст для разбивки
 	 */
 	public static List<OrderedText> wrapLines(MinecraftClient client, Text text) {
-		return client.textRenderer.wrapLines(text, 170);
+		return client.textRenderer.wrapLines(text, ROW_LENGTH);
 	}
 }

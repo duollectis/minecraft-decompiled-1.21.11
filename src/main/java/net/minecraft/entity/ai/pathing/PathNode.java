@@ -7,7 +7,8 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PathNode}.
+ * Узел пути в алгоритме A*.
+ * Хранит координаты, метрики пути и ссылку на предыдущий узел для восстановления маршрута.
  */
 public class PathNode {
 
@@ -29,158 +30,132 @@ public class PathNode {
 		this.x = x;
 		this.y = y;
 		this.z = z;
-		this.hashCode = hash(x, y, z);
+		hashCode = hash(x, y, z);
 	}
 
-	/**
-	 * Создаёт копию with new position.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return PathNode — результат операции
-	 */
+	/** Создаёт копию узла с новыми координатами, сохраняя все метрики пути. */
 	public PathNode copyWithNewPosition(int x, int y, int z) {
-		PathNode pathNode = new PathNode(x, y, z);
-		pathNode.heapIndex = this.heapIndex;
-		pathNode.penalizedPathLength = this.penalizedPathLength;
-		pathNode.distanceToNearestTarget = this.distanceToNearestTarget;
-		pathNode.heapWeight = this.heapWeight;
-		pathNode.previous = this.previous;
-		pathNode.visited = this.visited;
-		pathNode.pathLength = this.pathLength;
-		pathNode.penalty = this.penalty;
-		pathNode.type = this.type;
-		return pathNode;
+		PathNode copy = new PathNode(x, y, z);
+		copy.heapIndex = heapIndex;
+		copy.penalizedPathLength = penalizedPathLength;
+		copy.distanceToNearestTarget = distanceToNearestTarget;
+		copy.heapWeight = heapWeight;
+		copy.previous = previous;
+		copy.visited = visited;
+		copy.pathLength = pathLength;
+		copy.penalty = penalty;
+		copy.type = type;
+		return copy;
 	}
 
 	/**
-	 * Проверяет наличие h.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return int — {@code true} если условие выполнено
+	 * Вычисляет хэш-код для координат узла.
+	 * Упаковывает x, y, z в одно int-значение с учётом знаков координат.
 	 */
 	public static int hash(int x, int y, int z) {
-		return y & 0xFF | (x & 32767) << 8 | (z & 32767) << 24 | (x < 0 ? Integer.MIN_VALUE : 0) | (z < 0 ? 32768 : 0);
+		return y & 0xFF
+				| (x & 32767) << 8
+				| (z & 32767) << 24
+				| (x < 0 ? Integer.MIN_VALUE : 0)
+				| (z < 0 ? 32768 : 0);
 	}
 
 	public float getDistance(PathNode node) {
-		float f = node.x - this.x;
-		float g = node.y - this.y;
-		float h = node.z - this.z;
-		return MathHelper.sqrt(f * f + g * g + h * h);
+		float dx = node.x - x;
+		float dy = node.y - y;
+		float dz = node.z - z;
+		return MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
 	}
 
 	public float getHorizontalDistance(PathNode node) {
-		float f = node.x - this.x;
-		float g = node.z - this.z;
-		return MathHelper.sqrt(f * f + g * g);
+		float dx = node.x - x;
+		float dz = node.z - z;
+		return MathHelper.sqrt(dx * dx + dz * dz);
 	}
 
 	public float getDistance(BlockPos pos) {
-		float f = pos.getX() - this.x;
-		float g = pos.getY() - this.y;
-		float h = pos.getZ() - this.z;
-		return MathHelper.sqrt(f * f + g * g + h * h);
+		float dx = pos.getX() - x;
+		float dy = pos.getY() - y;
+		float dz = pos.getZ() - z;
+		return MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
 	}
 
 	public float getSquaredDistance(PathNode node) {
-		float f = node.x - this.x;
-		float g = node.y - this.y;
-		float h = node.z - this.z;
-		return f * f + g * g + h * h;
+		float dx = node.x - x;
+		float dy = node.y - y;
+		float dz = node.z - z;
+		return dx * dx + dy * dy + dz * dz;
 	}
 
 	public float getSquaredDistance(BlockPos pos) {
-		float f = pos.getX() - this.x;
-		float g = pos.getY() - this.y;
-		float h = pos.getZ() - this.z;
-		return f * f + g * g + h * h;
+		float dx = pos.getX() - x;
+		float dy = pos.getY() - y;
+		float dz = pos.getZ() - z;
+		return dx * dx + dy * dy + dz * dz;
 	}
 
 	public float getManhattanDistance(PathNode node) {
-		float f = Math.abs(node.x - this.x);
-		float g = Math.abs(node.y - this.y);
-		float h = Math.abs(node.z - this.z);
-		return f + g + h;
+		float dx = Math.abs(node.x - x);
+		float dy = Math.abs(node.y - y);
+		float dz = Math.abs(node.z - z);
+		return dx + dy + dz;
 	}
 
 	public float getManhattanDistance(BlockPos pos) {
-		float f = Math.abs(pos.getX() - this.x);
-		float g = Math.abs(pos.getY() - this.y);
-		float h = Math.abs(pos.getZ() - this.z);
-		return f + g + h;
+		float dx = Math.abs(pos.getX() - x);
+		float dy = Math.abs(pos.getY() - y);
+		float dz = Math.abs(pos.getZ() - z);
+		return dx + dy + dz;
 	}
 
 	public BlockPos getBlockPos() {
-		return new BlockPos(this.x, this.y, this.z);
+		return new BlockPos(x, y, z);
 	}
 
 	public Vec3d getPos() {
-		return new Vec3d(this.x, this.y, this.z);
+		return new Vec3d(x, y, z);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return !(o instanceof PathNode pathNode)
-		       ? false
-		       : this.hashCode == pathNode.hashCode && this.x == pathNode.x && this.y == pathNode.y
-		         && this.z == pathNode.z;
+		if (o instanceof PathNode other) {
+			return hashCode == other.hashCode && x == other.x && y == other.y && z == other.z;
+		}
+
+		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.hashCode;
+		return hashCode;
 	}
 
 	public boolean isInHeap() {
-		return this.heapIndex >= 0;
+		return heapIndex >= 0;
 	}
 
 	@Override
 	public String toString() {
-		return "Node{x=" + this.x + ", y=" + this.y + ", z=" + this.z + "}";
+		return "Node{x=" + x + ", y=" + y + ", z=" + z + "}";
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 */
 	public void write(PacketByteBuf buf) {
-		buf.writeInt(this.x);
-		buf.writeInt(this.y);
-		buf.writeInt(this.z);
-		buf.writeFloat(this.pathLength);
-		buf.writeFloat(this.penalty);
-		buf.writeBoolean(this.visited);
-		buf.writeEnumConstant(this.type);
-		buf.writeFloat(this.heapWeight);
+		buf.writeInt(x);
+		buf.writeInt(y);
+		buf.writeInt(z);
+		buf.writeFloat(pathLength);
+		buf.writeFloat(penalty);
+		buf.writeBoolean(visited);
+		buf.writeEnumConstant(type);
+		buf.writeFloat(heapWeight);
 	}
 
-	/**
-	 * From buf.
-	 *
-	 * @param buf buf
-	 *
-	 * @return PathNode — результат операции
-	 */
 	public static PathNode fromBuf(PacketByteBuf buf) {
-		PathNode pathNode = new PathNode(buf.readInt(), buf.readInt(), buf.readInt());
-		readFromBuf(buf, pathNode);
-		return pathNode;
+		PathNode node = new PathNode(buf.readInt(), buf.readInt(), buf.readInt());
+		readFromBuf(buf, node);
+		return node;
 	}
 
-	/**
-	 * Читает from buf.
-	 *
-	 * @param buf buf
-	 * @param target target
-	 */
 	protected static void readFromBuf(PacketByteBuf buf, PathNode target) {
 		target.pathLength = buf.readFloat();
 		target.penalty = buf.readFloat();

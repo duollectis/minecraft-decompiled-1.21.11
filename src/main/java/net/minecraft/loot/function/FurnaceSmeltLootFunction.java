@@ -15,14 +15,13 @@ import org.slf4j.Logger;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * {@code FurnaceSmeltLootFunction}.
- */
+/** Функция лута, переплавляющая предмет в печи, если для него существует рецепт плавки. */
 public class FurnaceSmeltLootFunction extends ConditionalLootFunction {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<FurnaceSmeltLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance).apply(instance, FurnaceSmeltLootFunction::new)
+		instance -> addConditionsField(instance).apply(instance, FurnaceSmeltLootFunction::new)
 	);
 
 	private FurnaceSmeltLootFunction(List<LootCondition> conditions) {
@@ -39,27 +38,23 @@ public class FurnaceSmeltLootFunction extends ConditionalLootFunction {
 		if (stack.isEmpty()) {
 			return stack;
 		}
-		else {
-			SingleStackRecipeInput singleStackRecipeInput = new SingleStackRecipeInput(stack);
-			Optional<RecipeEntry<SmeltingRecipe>> optional = context.getWorld()
-			                                                        .getRecipeManager()
-			                                                        .getFirstMatch(
-					                                                        RecipeType.SMELTING,
-					                                                        singleStackRecipeInput,
-					                                                        context.getWorld()
-			                                                        );
-			if (optional.isPresent()) {
-				ItemStack
-						itemStack =
-						optional.get().value().craft(singleStackRecipeInput, context.getWorld().getRegistryManager());
-				if (!itemStack.isEmpty()) {
-					return itemStack.copyWithCount(stack.getCount());
-				}
-			}
 
-			LOGGER.warn("Couldn't smelt {} because there is no smelting recipe", stack);
-			return stack;
+		SingleStackRecipeInput recipeInput = new SingleStackRecipeInput(stack);
+		Optional<RecipeEntry<SmeltingRecipe>> recipe = context.getWorld()
+			.getRecipeManager()
+			.getFirstMatch(RecipeType.SMELTING, recipeInput, context.getWorld());
+
+		if (recipe.isPresent()) {
+			ItemStack result = recipe.get().value().craft(recipeInput, context.getWorld().getRegistryManager());
+
+			if (!result.isEmpty()) {
+				return result.copyWithCount(stack.getCount());
+			}
 		}
+
+		LOGGER.warn("Couldn't smelt {} because there is no smelting recipe", stack);
+
+		return stack;
 	}
 
 	public static ConditionalLootFunction.Builder<?> builder() {

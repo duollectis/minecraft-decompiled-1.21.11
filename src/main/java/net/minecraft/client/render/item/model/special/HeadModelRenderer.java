@@ -19,10 +19,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HeadModelRenderer}.
+ * Рендерер предмета-головы (черепа) — делегирует отрисовку {@link SkullBlockEntityRenderer}.
+ * Поддерживает анимацию (например, вращение нижней челюсти у дракона) через параметр {@code animation}.
  */
+@Environment(EnvType.CLIENT)
 public class HeadModelRenderer implements SimpleSpecialModelRenderer {
 
 	private final SkullBlockEntityModel model;
@@ -43,38 +44,40 @@ public class HeadModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
 		SkullBlockEntityRenderer.render(
 				null,
 				180.0F,
-				this.animation,
+				animation,
 				matrices,
 				queue,
 				light,
-				this.model,
-				this.renderLayer,
-				i,
+				model,
+				renderLayer,
+				seed,
 				null
 		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		matrixStack.translate(0.5F, 0.0F, 0.5F);
-		matrixStack.scale(-1.0F, -1.0F, 1.0F);
-		SkullBlockEntityModel.SkullModelState skullModelState = new SkullBlockEntityModel.SkullModelState();
-		skullModelState.poweredTicks = this.animation;
-		skullModelState.yaw = 180.0F;
-		this.model.setAngles(skullModelState);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		matrices.translate(0.5F, 0.0F, 0.5F);
+		matrices.scale(-1.0F, -1.0F, 1.0F);
+
+		SkullBlockEntityModel.SkullModelState skullState = new SkullBlockEntityModel.SkullModelState();
+		skullState.poweredTicks = animation;
+		skullState.yaw = 180.0F;
+		model.setAngles(skullState);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованный дескриптор рендерера головы.
+	 * Хранит тип черепа, опциональный путь к текстуре и значение анимации (например, угол открытия челюсти).
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			SkullBlock.SkullType kind,
 			Optional<Identifier> textureOverride,
@@ -103,21 +106,18 @@ public class HeadModelRenderer implements SimpleSpecialModelRenderer {
 
 		@Override
 		public @Nullable SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			SkullBlockEntityModel
-					skullBlockEntityModel =
-					SkullBlockEntityRenderer.getModels(context.entityModelSet(), this.kind);
-			Identifier
-					identifier =
-					this.textureOverride
-							.<Identifier>map(id -> id.withPath(texture -> "textures/entity/" + texture + ".png"))
-							.orElse(null);
-			if (skullBlockEntityModel == null) {
+			SkullBlockEntityModel skullModel = SkullBlockEntityRenderer.getModels(context.entityModelSet(), kind);
+
+			if (skullModel == null) {
 				return null;
 			}
-			else {
-				RenderLayer renderLayer = SkullBlockEntityRenderer.getCutoutRenderLayer(this.kind, identifier);
-				return new HeadModelRenderer(skullBlockEntityModel, this.animation, renderLayer);
-			}
+
+			Identifier textureId = textureOverride
+					.<Identifier>map(id -> id.withPath(texture -> "textures/entity/" + texture + ".png"))
+					.orElse(null);
+			RenderLayer layer = SkullBlockEntityRenderer.getCutoutRenderLayer(kind, textureId);
+
+			return new HeadModelRenderer(skullModel, animation, layer);
 		}
 	}
 }

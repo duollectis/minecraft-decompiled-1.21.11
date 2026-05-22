@@ -16,7 +16,13 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code Inventory}.
+ * Базовый интерфейс инвентаря Minecraft. Определяет контракт для любого
+ * хранилища предметов: доступ по слоту, изменение содержимого, уведомление
+ * об изменениях и проверку прав доступа игрока.
+ *
+ * <p>Реализует {@link Iterable} для удобного перебора всех стаков,
+ * а также {@link StackReferenceGetter} для унифицированного доступа
+ * через {@link StackReference}.
  */
 public interface Inventory extends Clearable, StackReferenceGetter, Iterable<ItemStack> {
 
@@ -39,7 +45,7 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 	}
 
 	default int getMaxCount(ItemStack stack) {
-		return Math.min(this.getMaxCountPerStack(), stack.getMaxCount());
+		return Math.min(getMaxCountPerStack(), stack.getMaxCount());
 	}
 
 	void markDirty();
@@ -65,24 +71,24 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 	}
 
 	default int count(Item item) {
-		int i = 0;
+		int total = 0;
 
-		for (ItemStack itemStack : this) {
-			if (itemStack.getItem().equals(item)) {
-				i += itemStack.getCount();
+		for (ItemStack stack : this) {
+			if (stack.getItem().equals(item)) {
+				total += stack.getCount();
 			}
 		}
 
-		return i;
+		return total;
 	}
 
 	default boolean containsAny(Set<Item> items) {
-		return this.containsAny(stack -> !stack.isEmpty() && items.contains(stack.getItem()));
+		return containsAny(stack -> !stack.isEmpty() && items.contains(stack.getItem()));
 	}
 
 	default boolean containsAny(Predicate<ItemStack> predicate) {
-		for (ItemStack itemStack : this) {
-			if (predicate.test(itemStack)) {
+		for (ItemStack stack : this) {
+			if (predicate.test(stack)) {
 				return true;
 			}
 		}
@@ -90,25 +96,50 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 		return false;
 	}
 
+	/**
+	 * Проверяет, может ли игрок взаимодействовать с блок-сущностью
+	 * в пределах дистанции {@link #DEFAULT_MAX_INTERACTION_RANGE}.
+	 *
+	 * @param blockEntity блок-сущность контейнера
+	 * @param player      игрок, пытающийся открыть контейнер
+	 * @return {@code true}, если взаимодействие разрешено
+	 */
 	static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player) {
-		return canPlayerUse(blockEntity, player, 4.0F);
+		return canPlayerUse(blockEntity, player, DEFAULT_MAX_INTERACTION_RANGE);
 	}
 
+	/**
+	 * Проверяет, может ли игрок взаимодействовать с блок-сущностью
+	 * в пределах заданной дистанции. Возвращает {@code false}, если мир
+	 * не загружен или блок-сущность была заменена другим блоком.
+	 *
+	 * @param blockEntity блок-сущность контейнера
+	 * @param player      игрок, пытающийся открыть контейнер
+	 * @param range       максимальная дистанция взаимодействия в блоках
+	 * @return {@code true}, если взаимодействие разрешено
+	 */
 	static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player, float range) {
 		World world = blockEntity.getWorld();
-		BlockPos blockPos = blockEntity.getPos();
+		BlockPos pos = blockEntity.getPos();
+
 		if (world == null) {
 			return false;
 		}
-		else {
-			return world.getBlockEntity(blockPos) != blockEntity ? false
-			                                                     : player.canInteractWithBlockAt(blockPos, range);
+
+		if (world.getBlockEntity(pos) != blockEntity) {
+			return false;
 		}
+
+		return player.canInteractWithBlockAt(pos, range);
 	}
 
 	@Override
 	default @Nullable StackReference getStackReference(int slot) {
-		return slot >= 0 && slot < this.size() ? new StackReference() {
+		if (slot < 0 || slot >= size()) {
+			return null;
+		}
+
+		return new StackReference() {
 			@Override
 			public ItemStack get() {
 				return Inventory.this.getStack(slot);
@@ -119,7 +150,7 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 				Inventory.this.setStack(slot, stack);
 				return true;
 			}
-		} : null;
+		};
 	}
 
 	@Override
@@ -128,9 +159,10 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 	}
 
 	/**
-	 * {@code Iterator}.
+	 * Итератор по слотам инвентаря. Фиксирует размер инвентаря в момент создания,
+	 * чтобы избежать проблем при изменении инвентаря во время итерации.
 	 */
-	public static class Iterator implements java.util.Iterator<ItemStack> {
+	class Iterator implements java.util.Iterator<ItemStack> {
 
 		private final Inventory inventory;
 		private int index;
@@ -143,16 +175,16 @@ public interface Inventory extends Clearable, StackReferenceGetter, Iterable<Ite
 
 		@Override
 		public boolean hasNext() {
-			return this.index < this.size;
+			return index < size;
 		}
 
+		@Override
 		public ItemStack next() {
-			if (!this.hasNext()) {
+			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
-			else {
-				return this.inventory.getStack(this.index++);
-			}
+
+			return inventory.getStack(index++);
 		}
 	}
 }

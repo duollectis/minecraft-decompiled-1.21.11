@@ -15,13 +15,15 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import java.util.function.Function;
 
 /**
- * {@code NetherCaveCarver}.
+ * Карвер пещер Нижнего мира. Отличается от обычного карвера:
+ * более широкими туннелями (ratio 5.0), меньшим количеством пещер (10),
+ * а также тем, что ниже y=31 заполняет пространство лавой вместо воздуха.
  */
 public class NetherCaveCarver extends CaveCarver {
 
 	public NetherCaveCarver(Codec<CaveCarverConfig> codec) {
 		super(codec);
-		this.carvableFluids = ImmutableSet.of(Fluids.LAVA, Fluids.WATER);
+		carvableFluids = ImmutableSet.of(Fluids.LAVA, Fluids.WATER);
 	}
 
 	@Override
@@ -39,31 +41,28 @@ public class NetherCaveCarver extends CaveCarver {
 		return 5.0;
 	}
 
+	@Override
 	protected boolean carveAtPoint(
-			CarverContext carverContext,
-			CaveCarverConfig caveCarverConfig,
-			Chunk chunk,
-			Function<BlockPos, RegistryEntry<Biome>> function,
-			CarvingMask carvingMask,
-			BlockPos.Mutable mutable,
-			BlockPos.Mutable mutable2,
-			AquiferSampler aquiferSampler,
-			MutableBoolean mutableBoolean
+		CarverContext context,
+		CaveCarverConfig config,
+		Chunk chunk,
+		Function<BlockPos, RegistryEntry<Biome>> posToBiome,
+		CarvingMask mask,
+		BlockPos.Mutable pos,
+		BlockPos.Mutable tmp,
+		AquiferSampler aquiferSampler,
+		MutableBoolean replacedGrassy
 	) {
-		if (this.canAlwaysCarveBlock(caveCarverConfig, chunk.getBlockState(mutable))) {
-			BlockState blockState;
-			if (mutable.getY() <= carverContext.getMinY() + 31) {
-				blockState = LAVA.getBlockState();
-			}
-			else {
-				blockState = CAVE_AIR;
-			}
-
-			chunk.setBlockState(mutable, blockState);
-			return true;
-		}
-		else {
+		if (!canAlwaysCarveBlock(config, chunk.getBlockState(pos))) {
 			return false;
 		}
+
+		// Ниже y=31 в Нижнем мире пространство заполняется лавой
+		BlockState fill = pos.getY() <= context.getMinY() + 31
+			? LAVA.getBlockState()
+			: CAVE_AIR;
+
+		chunk.setBlockState(pos, fill);
+		return true;
 	}
 }

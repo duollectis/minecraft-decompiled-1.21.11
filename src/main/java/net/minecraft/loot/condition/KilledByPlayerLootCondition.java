@@ -8,7 +8,9 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Set;
 
 /**
- * {@code KilledByPlayerLootCondition}.
+ * Условие, проверяющее, что последний урон был нанесён игроком.
+ *
+ * <p>Синглтон — не имеет параметров сериализации, всегда один экземпляр.</p>
  */
 public class KilledByPlayerLootCondition implements LootCondition {
 
@@ -28,13 +30,6 @@ public class KilledByPlayerLootCondition implements LootCondition {
 		return Set.of(LootContextParameters.LAST_DAMAGE_PLAYER);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
 		return lootContext.hasParameter(LootContextParameters.LAST_DAMAGE_PLAYER);
 	}

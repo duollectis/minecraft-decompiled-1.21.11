@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code TicksInWrongChunkFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TicksInWrongChunkFix extends DataFix {
 
@@ -19,9 +19,9 @@ public class TicksInWrongChunkFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
+		Type<?> type = getInputSchema().getType(TypeReferences.CHUNK);
 		OpticFinder<?> opticFinder = type.findField("block_ticks");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Handle ticks saved in the wrong chunk", type, chunkTyped -> {
 					Optional<? extends Typed<?>> optional = chunkTyped.getOptionalTyped(opticFinder);
 					Optional<? extends Dynamic<?>>

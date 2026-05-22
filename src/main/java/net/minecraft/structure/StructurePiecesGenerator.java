@@ -6,16 +6,20 @@ import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.FeatureConfig;
 
-@FunctionalInterface
 /**
- * {@code StructurePiecesGenerator}.
+ * Генератор кусков структуры. Получает контекст генерации и заполняет
+ * {@link StructurePiecesCollector} набором {@link StructurePiece}, из которых
+ * будет собрана структура в мире.
  */
+@FunctionalInterface
 public interface StructurePiecesGenerator<C extends FeatureConfig> {
 
 	void generatePieces(StructurePiecesCollector collector, StructurePiecesGenerator.Context<C> context);
 
 	/**
-	 * {@code Context}.
+	 * Контекст генерации кусков структуры. Содержит конфигурацию, генератор чанков,
+	 * менеджер шаблонов, позицию чанка, ограничения высоты, генератор случайных чисел
+	 * и зерно мира.
 	 */
 	public record Context<C extends FeatureConfig>(
 			C config,

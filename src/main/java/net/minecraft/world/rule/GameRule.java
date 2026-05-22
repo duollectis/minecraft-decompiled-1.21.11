@@ -15,7 +15,10 @@ import java.util.Objects;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code GameRule}.
+ * Правило игры — типизированная настройка сервера, доступная через команду {@code /gamerule}.
+ * Каждое правило имеет категорию, тип данных, значение по умолчанию и набор требуемых фич.
+ *
+ * @param <T> тип значения правила ({@link Boolean} или {@link Integer})
  */
 public final class GameRule<T> implements ToggleableFeature {
 
@@ -29,14 +32,14 @@ public final class GameRule<T> implements ToggleableFeature {
 	private final FeatureSet requiredFeatures;
 
 	public GameRule(
-			GameRuleCategory category,
-			GameRuleType type,
-			ArgumentType<T> argumentType,
-			GameRules.Acceptor<T> acceptor,
-			Codec<T> codec,
-			ToIntFunction<T> commandResultSupplier,
-			T defaultValue,
-			FeatureSet requiredFeatures
+		GameRuleCategory category,
+		GameRuleType type,
+		ArgumentType<T> argumentType,
+		GameRules.Acceptor<T> acceptor,
+		Codec<T> codec,
+		ToIntFunction<T> commandResultSupplier,
+		T defaultValue,
+		FeatureSet requiredFeatures
 	) {
 		this.category = category;
 		this.type = type;
@@ -50,16 +53,11 @@ public final class GameRule<T> implements ToggleableFeature {
 
 	@Override
 	public String toString() {
-		return this.toShortString();
+		return toShortString();
 	}
 
-	/**
-	 * To short string.
-	 *
-	 * @return String — результат операции
-	 */
 	public String toShortString() {
-		return this.getId().toShortString();
+		return getId().toShortString();
 	}
 
 	public Identifier getId() {
@@ -67,7 +65,7 @@ public final class GameRule<T> implements ToggleableFeature {
 	}
 
 	public String getTranslationKey() {
-		return Util.createTranslationKey("gamerule", this.getId());
+		return Util.createTranslationKey("gamerule", getId());
 	}
 
 	public String getValueName(T value) {
@@ -75,63 +73,58 @@ public final class GameRule<T> implements ToggleableFeature {
 	}
 
 	/**
-	 * Deserialize.
+	 * Десериализует строковое значение правила через {@link ArgumentType}.
+	 * Возвращает ошибку, если строка содержит лишние символы после разбора.
 	 *
-	 * @param value value
-	 *
-	 * @return DataResult — результат операции
+	 * @param value строковое представление значения
+	 * @return результат десериализации или описание ошибки
 	 */
 	public DataResult<T> deserialize(String value) {
 		try {
-			StringReader stringReader = new StringReader(value);
-			T object = (T) this.argumentType.parse(stringReader);
-			return stringReader.canRead() ? DataResult.error(() -> "Failed to deserialize; trailing characters", object)
-			                              : DataResult.success(object);
-		}
-		catch (CommandSyntaxException var4) {
+			StringReader reader = new StringReader(value);
+			T parsed = (T) argumentType.parse(reader);
+			return reader.canRead()
+				? DataResult.error(() -> "Failed to deserialize; trailing characters", parsed)
+				: DataResult.success(parsed);
+		} catch (CommandSyntaxException e) {
 			return DataResult.error(() -> "Failed to deserialize");
 		}
 	}
 
 	public Class<T> getValueClass() {
-		return (Class<T>) this.defaultValue.getClass();
+		return (Class<T>) defaultValue.getClass();
 	}
 
-	/**
-	 * Accept.
-	 *
-	 * @param visitor visitor
-	 */
 	public void accept(GameRuleVisitor visitor) {
-		this.acceptor.call(visitor, this);
+		acceptor.call(visitor, this);
 	}
 
 	public int getCommandResult(T value) {
-		return this.commandResultSupplier.applyAsInt(value);
+		return commandResultSupplier.applyAsInt(value);
 	}
 
 	public GameRuleCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
 	public GameRuleType getType() {
-		return this.type;
+		return type;
 	}
 
 	public ArgumentType<T> getArgumentType() {
-		return this.argumentType;
+		return argumentType;
 	}
 
 	public Codec<T> getCodec() {
-		return this.codec;
+		return codec;
 	}
 
 	public T getDefaultValue() {
-		return this.defaultValue;
+		return defaultValue;
 	}
 
 	@Override
 	public FeatureSet getRequiredFeatures() {
-		return this.requiredFeatures;
+		return requiredFeatures;
 	}
 }

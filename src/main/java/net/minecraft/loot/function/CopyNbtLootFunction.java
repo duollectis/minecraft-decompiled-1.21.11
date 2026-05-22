@@ -26,9 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/**
- * {@code CopyNbtLootFunction}.
- */
 public class CopyNbtLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<CopyNbtLootFunction> CODEC = RecordCodecBuilder.mapCodec(
@@ -44,6 +41,7 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 					)
 					.apply(instance, CopyNbtLootFunction::new)
 	);
+
 	private final LootNbtProvider source;
 	private final List<CopyNbtLootFunction.Operation> operations;
 
@@ -64,34 +62,37 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.source.getRequiredParameters();
+		return source.getRequiredParameters();
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		NbtElement nbtElement = this.source.getNbt(context);
-		if (nbtElement == null) {
+		NbtElement sourceNbt = source.getNbt(context);
+
+		if (sourceNbt == null) {
 			return stack;
 		}
-		else {
-			MutableObject<NbtCompound> mutableObject = new MutableObject();
-			Supplier<NbtElement> supplier = () -> {
-				if (mutableObject.get() == null) {
-					mutableObject.setValue(stack
-							.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT)
-							.copyNbt());
-				}
 
-				return (NbtElement) mutableObject.get();
-			};
-			this.operations.forEach(operation -> operation.execute(supplier, nbtElement));
-			NbtCompound nbtCompound = (NbtCompound) mutableObject.get();
-			if (nbtCompound != null) {
-				NbtComponent.set(DataComponentTypes.CUSTOM_DATA, stack, nbtCompound);
+		MutableObject<NbtCompound> targetNbt = new MutableObject<>();
+		Supplier<NbtElement> lazyTargetNbt = () -> {
+			if (targetNbt.getValue() == null) {
+				targetNbt.setValue(
+						stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt()
+				);
 			}
 
-			return stack;
+			return targetNbt.getValue();
+		};
+
+		operations.forEach(operation -> operation.execute(lazyTargetNbt, sourceNbt));
+
+		NbtCompound result = targetNbt.getValue();
+
+		if (result != null) {
+			NbtComponent.set(DataComponentTypes.CUSTOM_DATA, stack, result);
 		}
+
+		return stack;
 	}
 
 	@Deprecated
@@ -103,9 +104,6 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 		return new CopyNbtLootFunction.Builder(ContextLootNbtProvider.fromTarget(target));
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends ConditionalLootFunction.Builder<CopyNbtLootFunction.Builder> {
 
 		private final LootNbtProvider source;
@@ -116,26 +114,25 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 		}
 
 		public CopyNbtLootFunction.Builder withOperation(
-				String source,
-				String target,
+				String sourcePath,
+				String targetPath,
 				CopyNbtLootFunction.Operator operator
 		) {
 			try {
-				this.operations
-						.add(new CopyNbtLootFunction.Operation(
-								NbtPathArgumentType.NbtPath.parse(source),
-								NbtPathArgumentType.NbtPath.parse(target),
-								operator
-						));
+				operations.add(new CopyNbtLootFunction.Operation(
+						NbtPathArgumentType.NbtPath.parse(sourcePath),
+						NbtPathArgumentType.NbtPath.parse(targetPath),
+						operator
+				));
+
 				return this;
-			}
-			catch (CommandSyntaxException var5) {
-				throw new IllegalArgumentException(var5);
+			} catch (CommandSyntaxException exception) {
+				throw new IllegalArgumentException(exception);
 			}
 		}
 
-		public CopyNbtLootFunction.Builder withOperation(String source, String target) {
-			return this.withOperation(source, target, CopyNbtLootFunction.Operator.REPLACE);
+		public CopyNbtLootFunction.Builder withOperation(String sourcePath, String targetPath) {
+			return withOperation(sourcePath, targetPath, CopyNbtLootFunction.Operator.REPLACE);
 		}
 
 		protected CopyNbtLootFunction.Builder getThisBuilder() {
@@ -144,13 +141,10 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 
 		@Override
 		public LootFunction build() {
-			return new CopyNbtLootFunction(this.getConditions(), this.source, this.operations);
+			return new CopyNbtLootFunction(getConditions(), source, operations);
 		}
 	}
 
-	/**
-	 * {@code Operation}.
-	 */
 	record Operation(
 			NbtPathArgumentType.NbtPath parsedSourcePath,
 			NbtPathArgumentType.NbtPath parsedTargetPath,
@@ -159,70 +153,70 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 
 		public static final Codec<CopyNbtLootFunction.Operation> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    NbtPathArgumentType.NbtPath.CODEC
-								                    .fieldOf("source")
-								                    .forGetter(CopyNbtLootFunction.Operation::parsedSourcePath),
-						                    NbtPathArgumentType.NbtPath.CODEC
-								                    .fieldOf("target")
-								                    .forGetter(CopyNbtLootFunction.Operation::parsedTargetPath),
-						                    CopyNbtLootFunction.Operator.CODEC
-								                    .fieldOf("op")
-								                    .forGetter(CopyNbtLootFunction.Operation::operator)
-				                    )
-				                    .apply(instance, CopyNbtLootFunction.Operation::new)
+						NbtPathArgumentType.NbtPath.CODEC
+								.fieldOf("source")
+								.forGetter(CopyNbtLootFunction.Operation::parsedSourcePath),
+						NbtPathArgumentType.NbtPath.CODEC
+								.fieldOf("target")
+								.forGetter(CopyNbtLootFunction.Operation::parsedTargetPath),
+						CopyNbtLootFunction.Operator.CODEC
+								.fieldOf("op")
+								.forGetter(CopyNbtLootFunction.Operation::operator)
+				).apply(instance, CopyNbtLootFunction.Operation::new)
 		);
 
-		/**
-		 * Execute.
-		 *
-		 * @param itemNbtGetter item nbt getter
-		 * @param sourceEntityNbt source entity nbt
-		 */
 		public void execute(Supplier<NbtElement> itemNbtGetter, NbtElement sourceEntityNbt) {
 			try {
-				List<NbtElement> list = this.parsedSourcePath.get(sourceEntityNbt);
-				if (!list.isEmpty()) {
-					this.operator.merge(itemNbtGetter.get(), this.parsedTargetPath, list);
+				List<NbtElement> sourceElements = parsedSourcePath.get(sourceEntityNbt);
+
+				if (!sourceElements.isEmpty()) {
+					operator.merge(itemNbtGetter.get(), parsedTargetPath, sourceElements);
 				}
-			}
-			catch (CommandSyntaxException var4) {
+			} catch (CommandSyntaxException ignored) {
+				// Ошибки пути NBT при копировании намеренно игнорируются — невалидный путь не должен ломать лут
 			}
 		}
 	}
 
-	/**
-	 * {@code Operator}.
-	 */
-	public static enum Operator implements StringIdentifiable {
+	public enum Operator implements StringIdentifiable {
 		REPLACE("replace") {
 			@Override
-			public void merge(NbtElement itemNbt, NbtPathArgumentType.NbtPath targetPath, List<NbtElement> sourceNbts)
-			throws CommandSyntaxException {
-				targetPath.put(itemNbt, (NbtElement) Iterables.getLast(sourceNbts));
+			public void merge(
+					NbtElement itemNbt,
+					NbtPathArgumentType.NbtPath targetPath,
+					List<NbtElement> sourceNbts
+			) throws CommandSyntaxException {
+				targetPath.put(itemNbt, Iterables.getLast(sourceNbts));
 			}
 		},
 		APPEND("append") {
 			@Override
-			public void merge(NbtElement itemNbt, NbtPathArgumentType.NbtPath targetPath, List<NbtElement> sourceNbts)
-			throws CommandSyntaxException {
-				List<NbtElement> list = targetPath.getOrInit(itemNbt, NbtList::new);
-				list.forEach(foundNbt -> {
-					if (foundNbt instanceof NbtList) {
-						sourceNbts.forEach(sourceNbt -> ((NbtList) foundNbt).add(sourceNbt.copy()));
+			public void merge(
+					NbtElement itemNbt,
+					NbtPathArgumentType.NbtPath targetPath,
+					List<NbtElement> sourceNbts
+			) throws CommandSyntaxException {
+				List<NbtElement> targets = targetPath.getOrInit(itemNbt, NbtList::new);
+				targets.forEach(foundNbt -> {
+					if (foundNbt instanceof NbtList nbtList) {
+						sourceNbts.forEach(sourceNbt -> nbtList.add(sourceNbt.copy()));
 					}
 				});
 			}
 		},
 		MERGE("merge") {
 			@Override
-			public void merge(NbtElement itemNbt, NbtPathArgumentType.NbtPath targetPath, List<NbtElement> sourceNbts)
-			throws CommandSyntaxException {
-				List<NbtElement> list = targetPath.getOrInit(itemNbt, NbtCompound::new);
-				list.forEach(foundNbt -> {
-					if (foundNbt instanceof NbtCompound) {
+			public void merge(
+					NbtElement itemNbt,
+					NbtPathArgumentType.NbtPath targetPath,
+					List<NbtElement> sourceNbts
+			) throws CommandSyntaxException {
+				List<NbtElement> targets = targetPath.getOrInit(itemNbt, NbtCompound::new);
+				targets.forEach(foundNbt -> {
+					if (foundNbt instanceof NbtCompound targetCompound) {
 						sourceNbts.forEach(sourceNbt -> {
-							if (sourceNbt instanceof NbtCompound) {
-								((NbtCompound) foundNbt).copyFrom((NbtCompound) sourceNbt);
+							if (sourceNbt instanceof NbtCompound sourceCompound) {
+								targetCompound.copyFrom(sourceCompound);
 							}
 						});
 					}
@@ -230,9 +224,9 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 			}
 		};
 
-		public static final Codec<CopyNbtLootFunction.Operator>
-				CODEC =
+		public static final Codec<CopyNbtLootFunction.Operator> CODEC =
 				StringIdentifiable.createCodec(CopyNbtLootFunction.Operator::values);
+
 		private final String name;
 
 		public abstract void merge(
@@ -247,7 +241,7 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

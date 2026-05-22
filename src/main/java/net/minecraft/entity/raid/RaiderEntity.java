@@ -68,10 +68,10 @@ public abstract class RaiderEntity extends PatrolEntity {
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(1, new RaiderEntity.PickUpBannerAsLeaderGoal<>(this));
-		this.goalSelector.add(3, new MoveToRaidCenterGoal<>(this));
-		this.goalSelector.add(4, new RaiderEntity.AttackHomeGoal(this, 1.05F, 1));
-		this.goalSelector.add(5, new RaiderEntity.CelebrateGoal(this));
+		goalSelector.add(1, new RaiderEntity.PickUpBannerAsLeaderGoal<>(this));
+		goalSelector.add(3, new MoveToRaidCenterGoal<>(this));
+		goalSelector.add(4, new RaiderEntity.AttackHomeGoal(this, 1.05F, 1));
+		goalSelector.add(5, new RaiderEntity.CelebrateGoal(this));
 	}
 
 	@Override
@@ -89,31 +89,23 @@ public abstract class RaiderEntity extends PatrolEntity {
 	 */
 	public abstract void addBonusForWave(ServerWorld world, int wave, boolean unused);
 
-	/**
-	 * @return {@code true}, если существо может присоединиться к рейду
-	 */
 	public boolean canJoinRaid() {
-		return this.ableToJoinRaid;
+		return ableToJoinRaid;
 	}
 
-	/**
-	 * Устанавливает флаг возможности присоединения к рейду.
-	 *
-	 * @param ableToJoinRaid {@code true} — существо может вступить в рейд
-	 */
 	public void setAbleToJoinRaid(boolean ableToJoinRaid) {
 		this.ableToJoinRaid = ableToJoinRaid;
 	}
 
 	@Override
 	public void tickMovement() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.isAlive()) {
-			Raid currentRaid = this.getRaid();
+		if (getEntityWorld() instanceof ServerWorld serverWorld && isAlive()) {
+			Raid currentRaid = getRaid();
 
-			if (this.canJoinRaid()) {
+			if (canJoinRaid()) {
 				if (currentRaid == null) {
-					if (this.getEntityWorld().getTime() % 20L == 0L) {
-						Raid nearbyRaid = serverWorld.getRaidAt(this.getBlockPos());
+					if (getEntityWorld().getTime() % 20L == 0L) {
+						Raid nearbyRaid = serverWorld.getRaidAt(getBlockPos());
 
 						if (nearbyRaid != null && RaidManager.isValidRaiderFor(this)) {
 							nearbyRaid.addRaider(serverWorld, nearbyRaid.getGroupsSpawned(), this, null, true);
@@ -121,12 +113,12 @@ public abstract class RaiderEntity extends PatrolEntity {
 					}
 				}
 				else {
-					LivingEntity livingEntity = this.getTarget();
+					LivingEntity target = getTarget();
 
-					if (livingEntity != null && (livingEntity.getType() == EntityType.PLAYER
-							|| livingEntity.getType() == EntityType.IRON_GOLEM
+					if (target != null && (target.getType() == EntityType.PLAYER
+							|| target.getType() == EntityType.IRON_GOLEM
 					)) {
-						this.despawnCounter = 0;
+						despawnCounter = 0;
 					}
 				}
 			}
@@ -137,22 +129,22 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 	@Override
 	protected void updateDespawnCounter() {
-		this.despawnCounter += 2;
+		despawnCounter += 2;
 	}
 
 	@Override
 	public void onDeath(DamageSource damageSource) {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Entity entity = damageSource.getAttacker();
-			Raid currentRaid = this.getRaid();
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			Entity attacker = damageSource.getAttacker();
+			Raid currentRaid = getRaid();
 
 			if (currentRaid != null) {
-				if (this.isPatrolLeader()) {
-					currentRaid.removeLeader(this.getWave());
+				if (isPatrolLeader()) {
+					currentRaid.removeLeader(getWave());
 				}
 
-				if (entity != null && entity.getType() == EntityType.PLAYER) {
-					currentRaid.addHero(entity);
+				if (attacker != null && attacker.getType() == EntityType.PLAYER) {
+					currentRaid.addHero(attacker);
 				}
 
 				currentRaid.removeFromWave(serverWorld, this, false);
@@ -164,139 +156,126 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 	@Override
 	public boolean hasNoRaid() {
-		return !this.hasActiveRaid();
+		return !hasActiveRaid();
 	}
 
-	/**
-	 * Привязывает существо к указанному рейду.
-	 *
-	 * @param raid рейд или {@code null} для отвязки
-	 */
 	public void setRaid(@Nullable Raid raid) {
 		this.raid = raid;
 	}
 
-	/**
-	 * @return текущий рейд или {@code null}, если существо не участвует в рейде
-	 */
 	public @Nullable Raid getRaid() {
-		return this.raid;
+		return raid;
 	}
 
 	/**
 	 * Проверяет, является ли существо капитаном волны.
-	 * <p>Капитан — это патрульный лидер, несущий зловещее знамя на голове.</p>
+	 * Капитан — это патрульный лидер, несущий зловещее знамя на голове.
 	 */
 	public boolean isCaptain() {
-		ItemStack itemStack = this.getEquippedStack(EquipmentSlot.HEAD);
-		boolean bl = !itemStack.isEmpty()
+		ItemStack headStack = getEquippedStack(EquipmentSlot.HEAD);
+		boolean wearsOminousBanner = !headStack.isEmpty()
 				&& ItemStack.areEqual(
-				itemStack,
-				Raid.createOminousBanner(this.getRegistryManager().getOrThrow(RegistryKeys.BANNER_PATTERN))
-		);
-		boolean bl2 = this.isPatrolLeader();
-		return bl && bl2;
+						headStack,
+						Raid.createOminousBanner(getRegistryManager().getOrThrow(RegistryKeys.BANNER_PATTERN))
+				);
+		return wearsOminousBanner && isPatrolLeader();
 	}
 
 	/**
-	 * @return {@code true}, если существо связано с рейдом или рядом есть активный рейд
+	 * Возвращает {@code true}, если существо связано с рейдом или рядом есть активный рейд.
 	 */
 	public boolean hasRaid() {
-		return !(this.getEntityWorld() instanceof ServerWorld serverWorld) ? false : this.getRaid() != null ||
-		                                                                             serverWorld.getRaidAt(this.getBlockPos())
-		                                                                             != null;
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			return getRaid() != null || serverWorld.getRaidAt(getBlockPos()) != null;
+		}
+
+		return false;
 	}
 
 	/**
-	 * @return {@code true}, если существо участвует в активном (незавершённом) рейде
+	 * Возвращает {@code true}, если существо участвует в активном (незавершённом) рейде.
 	 */
 	public boolean hasActiveRaid() {
-		return this.getRaid() != null && this.getRaid().isActive();
+		return getRaid() != null && getRaid().isActive();
 	}
 
-	/**
-	 * Устанавливает номер волны рейда, к которой принадлежит существо.
-	 *
-	 * @param wave номер волны (начиная с 1)
-	 */
 	public void setWave(int wave) {
 		this.wave = wave;
 	}
 
-	/**
-	 * @return номер волны рейда, к которой принадлежит существо
-	 */
 	public int getWave() {
-		return this.wave;
+		return wave;
 	}
 
-	/**
-	 * @return {@code true}, если существо находится в режиме празднования победы
-	 */
 	public boolean isCelebrating() {
-		return this.dataTracker.get(CELEBRATING);
+		return dataTracker.get(CELEBRATING);
 	}
 
-	/**
-	 * Включает или выключает режим празднования.
-	 *
-	 * @param celebrating {@code true} — начать праздновать
-	 */
 	public void setCelebrating(boolean celebrating) {
-		this.dataTracker.set(CELEBRATING, celebrating);
+		dataTracker.set(CELEBRATING, celebrating);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Wave", this.wave);
-		view.putBoolean("CanJoinRaid", this.ableToJoinRaid);
-		if (this.raid != null && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			serverWorld.getRaidManager().getRaidId(this.raid).ifPresent(raidId -> view.putInt("RaidId", raidId));
+		view.putInt("Wave", wave);
+		view.putBoolean("CanJoinRaid", ableToJoinRaid);
+
+		if (raid != null && getEntityWorld() instanceof ServerWorld serverWorld) {
+			serverWorld.getRaidManager().getRaidId(raid).ifPresent(raidId -> view.putInt("RaidId", raidId));
 		}
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.wave = view.getInt("Wave", 0);
-		this.ableToJoinRaid = view.getBoolean("CanJoinRaid", false);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+		wave = view.getInt("Wave", 0);
+		ableToJoinRaid = view.getBoolean("CanJoinRaid", false);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
 			view.getOptionalInt("RaidId").ifPresent(raidId -> {
-				this.raid = serverWorld.getRaidManager().getRaid(raidId);
-				if (this.raid != null) {
-					this.raid.addToWave(serverWorld, this.wave, this, false);
-					if (this.isPatrolLeader()) {
-						this.raid.setWaveCaptain(this.wave, this);
+				raid = serverWorld.getRaidManager().getRaid(raidId);
+
+				if (raid != null) {
+					raid.addToWave(serverWorld, wave, this, false);
+
+					if (isPatrolLeader()) {
+						raid.setWaveCaptain(wave, this);
 					}
 				}
 			});
 		}
 	}
 
+	/**
+	 * Подбирает зловещее знамя с земли, если в текущей волне нет живого капитана.
+	 * Сбрасывает предыдущий головной предмет с шансом, назначает себя капитаном волны.
+	 */
 	@Override
 	protected void loot(ServerWorld world, ItemEntity itemEntity) {
-		ItemStack itemStack = itemEntity.getStack();
-		boolean bl = this.hasActiveRaid() && this.getRaid().getCaptain(this.getWave()) != null;
-		if (this.hasActiveRaid()
-				&& !bl
+		ItemStack droppedStack = itemEntity.getStack();
+		boolean waveHasCaptain = hasActiveRaid() && getRaid().getCaptain(getWave()) != null;
+
+		if (hasActiveRaid()
+				&& !waveHasCaptain
 				&& ItemStack.areEqual(
-				itemStack,
-				Raid.createOminousBanner(this.getRegistryManager().getOrThrow(RegistryKeys.BANNER_PATTERN))
-		)) {
-			EquipmentSlot equipmentSlot = EquipmentSlot.HEAD;
-			ItemStack itemStack2 = this.getEquippedStack(equipmentSlot);
-			double d = this.getEquipmentDropChances().get(equipmentSlot);
-			if (!itemStack2.isEmpty() && Math.max(this.random.nextFloat() - 0.1F, 0.0F) < d) {
-				this.dropStack(world, itemStack2);
+						droppedStack,
+						Raid.createOminousBanner(getRegistryManager().getOrThrow(RegistryKeys.BANNER_PATTERN))
+				)
+		) {
+			ItemStack currentHead = getEquippedStack(EquipmentSlot.HEAD);
+			double dropChance = getEquipmentDropChances().get(EquipmentSlot.HEAD);
+
+			if (!currentHead.isEmpty() && Math.max(random.nextFloat() - 0.1F, 0.0F) < dropChance) {
+				dropStack(world, currentHead);
 			}
 
-			this.triggerItemPickedUpByEntityCriteria(itemEntity);
-			this.equipStack(equipmentSlot, itemStack);
-			this.sendPickup(itemEntity, itemStack.getCount());
+			triggerItemPickedUpByEntityCriteria(itemEntity);
+			equipStack(EquipmentSlot.HEAD, droppedStack);
+			sendPickup(itemEntity, droppedStack.getCount());
 			itemEntity.discard();
-			this.getRaid().setWaveCaptain(this.getWave(), this);
-			this.setPatrolLeader(true);
+			getRaid().setWaveCaptain(getWave(), this);
+			setPatrolLeader(true);
 		}
 		else {
 			super.loot(world, itemEntity);
@@ -305,34 +284,26 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 	@Override
 	public boolean canImmediatelyDespawn(double distanceSquared) {
-		return this.getRaid() == null ? super.canImmediatelyDespawn(distanceSquared) : false;
+		return getRaid() == null ? super.canImmediatelyDespawn(distanceSquared) : false;
 	}
 
 	@Override
 	public boolean cannotDespawn() {
-		return super.cannotDespawn() || this.getRaid() != null;
+		return super.cannotDespawn() || getRaid() != null;
 	}
 
-	/**
-	 * @return счётчик тиков, проведённых вне зоны рейда
-	 */
 	public int getOutOfRaidCounter() {
-		return this.outOfRaidCounter;
+		return outOfRaidCounter;
 	}
 
-	/**
-	 * Устанавливает счётчик тиков вне зоны рейда.
-	 *
-	 * @param outOfRaidCounter новое значение счётчика
-	 */
 	public void setOutOfRaidCounter(int outOfRaidCounter) {
 		this.outOfRaidCounter = outOfRaidCounter;
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.hasActiveRaid()) {
-			this.getRaid().updateBar();
+		if (hasActiveRaid()) {
+			getRaid().updateBar();
 		}
 
 		return super.damage(world, source, amount);
@@ -345,7 +316,7 @@ public abstract class RaiderEntity extends PatrolEntity {
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		this.setAbleToJoinRaid(this.getType() != EntityType.WITCH || spawnReason != SpawnReason.NATURAL);
+		setAbleToJoinRaid(getType() != EntityType.WITCH || spawnReason != SpawnReason.NATURAL);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
@@ -387,32 +358,34 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 		private boolean tryFindHome() {
 			ServerWorld serverWorld = (ServerWorld) this.raider.getEntityWorld();
-			BlockPos blockPos = this.raider.getBlockPos();
-			Optional<BlockPos> optional = serverWorld.getPointOfInterestStorage()
-			                                         .getPosition(
-					                                         poi -> poi.matchesKey(PointOfInterestTypes.HOME),
-					                                         this::canLootHome,
-					                                         PointOfInterestStorage.OccupationStatus.ANY,
-					                                         blockPos,
-					                                         48,
-					                                         this.raider.random
-			                                         );
-			if (optional.isEmpty()) {
+			BlockPos raiderPos = this.raider.getBlockPos();
+			Optional<BlockPos> found = serverWorld.getPointOfInterestStorage()
+				.getPosition(
+					poi -> poi.matchesKey(PointOfInterestTypes.HOME),
+					this::canLootHome,
+					PointOfInterestStorage.OccupationStatus.ANY,
+					raiderPos,
+					48,
+					this.raider.random
+				);
+
+			if (found.isEmpty()) {
 				return false;
 			}
-			else {
-				this.home = optional.get().toImmutable();
-				return true;
-			}
+
+			this.home = found.get().toImmutable();
+			return true;
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			return this.raider.getNavigation().isIdle()
-			       ? false
-			       : this.raider.getTarget() == null
-			         && !this.home.isWithinDistance(this.raider.getEntityPos(), this.raider.getWidth() + this.distance)
-			         && !this.finished;
+			if (this.raider.getNavigation().isIdle()) {
+				return false;
+			}
+
+			return this.raider.getTarget() == null
+					&& !this.home.isWithinDistance(this.raider.getEntityPos(), this.raider.getWidth() + this.distance)
+					&& !this.finished;
 		}
 
 		@Override
@@ -432,20 +405,23 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 		@Override
 		public void tick() {
-			if (this.raider.getNavigation().isIdle()) {
-				Vec3d vec3d = Vec3d.ofBottomCenter(this.home);
-				Vec3d vec3d2 = NoPenaltyTargeting.findTo(this.raider, 16, 7, vec3d, (float) (Math.PI / 10));
-				if (vec3d2 == null) {
-					vec3d2 = NoPenaltyTargeting.findTo(this.raider, 8, 7, vec3d, (float) (Math.PI / 2));
-				}
-
-				if (vec3d2 == null) {
-					this.finished = true;
-					return;
-				}
-
-				this.raider.getNavigation().startMovingTo(vec3d2.x, vec3d2.y, vec3d2.z, this.speed);
+			if (!this.raider.getNavigation().isIdle()) {
+				return;
 			}
+
+			Vec3d homeCenter = Vec3d.ofBottomCenter(this.home);
+			Vec3d wanderTarget = NoPenaltyTargeting.findTo(this.raider, 16, 7, homeCenter, (float) (Math.PI / 10));
+
+			if (wanderTarget == null) {
+				wanderTarget = NoPenaltyTargeting.findTo(this.raider, 8, 7, homeCenter, (float) (Math.PI / 2));
+			}
+
+			if (wanderTarget == null) {
+				this.finished = true;
+				return;
+			}
+
+			this.raider.getNavigation().startMovingTo(wanderTarget.x, wanderTarget.y, wanderTarget.z, this.speed);
 		}
 
 		private boolean canLootHome(BlockPos pos) {
@@ -651,7 +627,7 @@ public abstract class RaiderEntity extends PatrolEntity {
 
 						int2LongOpenHashMap.put(
 								itemEntity.getId(),
-								RaiderEntity.this.getEntityWorld().getTime() + 600L
+								RaiderEntity.this.getEntityWorld().getTime() + Raid.FINISH_COOLDOWN_MAX_TICKS
 						);
 					}
 				}
@@ -666,12 +642,12 @@ public abstract class RaiderEntity extends PatrolEntity {
 			if (this.bannerItemEntity == null || this.path == null) {
 				return false;
 			}
-			else if (this.bannerItemEntity.isRemoved()) {
+
+			if (this.bannerItemEntity.isRemoved()) {
 				return false;
 			}
-			else {
-				return this.path.isFinished() ? false : !this.shouldStop();
-			}
+
+			return !this.path.isFinished() && !this.shouldStop();
 		}
 
 		private boolean shouldStop() {

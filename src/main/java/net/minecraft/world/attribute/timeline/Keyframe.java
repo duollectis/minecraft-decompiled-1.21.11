@@ -5,16 +5,20 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code Keyframe}.
+ * Один ключевой кадр анимационного трека — пара (момент времени в тиках, значение атрибута).
+ * Треки состоят из упорядоченного списка кадров; интерполятор вычисляет промежуточные значения
+ * между соседними кадрами с учётом выбранного {@link EasingType}.
+ *
+ * @param <T> тип значения атрибута
  */
 public record Keyframe<T>(int ticks, T value) {
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт codec для сериализации кадра с произвольным типом значения.
 	 *
-	 * @param valueCodec value codec
-	 *
-	 * @return Codec> — результат операции
+	 * @param <T>        тип значения
+	 * @param valueCodec codec для сериализации значения
+	 * @return codec, кодирующий кадр как объект с полями {@code ticks} и {@code value}
 	 */
 	public static <T> Codec<Keyframe<T>> createCodec(Codec<T> valueCodec) {
 		return RecordCodecBuilder.create(

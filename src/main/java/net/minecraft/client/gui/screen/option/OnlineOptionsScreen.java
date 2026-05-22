@@ -17,13 +17,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OnlineOptionsScreen}.
+ * Экран онлайн-настроек — управляет уведомлениями Realms, видимостью в списке серверов
+ * и отображает текущую сложность мира (только для чтения, если мир загружен).
  */
+@Environment(EnvType.CLIENT)
 public class OnlineOptionsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE_TEXT = Text.translatable("options.online.title");
+
 	private @Nullable SimpleOption<Unit> difficulty;
 
 	public OnlineOptionsScreen(Screen parent, GameOptions gameOptions) {
@@ -33,26 +35,28 @@ public class OnlineOptionsScreen extends GameOptionsScreen {
 	@Override
 	protected void init() {
 		super.init();
-		if (this.difficulty != null) {
-			ClickableWidget clickableWidget = this.body.getWidgetFor(this.difficulty);
-			if (clickableWidget != null) {
-				clickableWidget.active = false;
-			}
+		if (difficulty == null) {
+			return;
+		}
+
+		ClickableWidget difficultyWidget = body.getWidgetFor(difficulty);
+		if (difficultyWidget != null) {
+			difficultyWidget.active = false;
 		}
 	}
 
 	private SimpleOption<?>[] collectOptions(GameOptions gameOptions, MinecraftClient client) {
-		List<SimpleOption<?>> list = new ArrayList<>();
-		list.add(gameOptions.getRealmsNotifications());
-		list.add(gameOptions.getAllowServerListing());
-		SimpleOption<Unit> simpleOption = Nullables.map(
+		List<SimpleOption<?>> options = new ArrayList<>();
+		options.add(gameOptions.getRealmsNotifications());
+		options.add(gameOptions.getAllowServerListing());
+		SimpleOption<Unit> difficultyOption = Nullables.map(
 				client.world,
 				world -> {
-					Difficulty difficulty = world.getDifficulty();
+					Difficulty worldDifficulty = world.getDifficulty();
 					return new SimpleOption<>(
 							"options.difficulty.online",
 							SimpleOption.emptyTooltip(),
-							(text, unit) -> difficulty.getTranslatableName(),
+							(text, unit) -> worldDifficulty.getTranslatableName(),
 							new SimpleOption.PotentialValuesBasedCallbacks<>(
 									List.of(Unit.INSTANCE),
 									Codec.EMPTY.codec()
@@ -62,16 +66,16 @@ public class OnlineOptionsScreen extends GameOptionsScreen {
 					);
 				}
 		);
-		if (simpleOption != null) {
-			this.difficulty = simpleOption;
-			list.add(simpleOption);
+		if (difficultyOption != null) {
+			difficulty = difficultyOption;
+			options.add(difficultyOption);
 		}
 
-		return list.toArray(new SimpleOption[0]);
+		return options.toArray(new SimpleOption[0]);
 	}
 
 	@Override
 	protected void addOptions() {
-		this.body.addAll(this.collectOptions(this.gameOptions, this.client));
+		body.addAll(collectOptions(gameOptions, client));
 	}
 }

@@ -3,7 +3,7 @@ package net.minecraft.entity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code Targeter}.
+ * Маркерный интерфейс для сущностей, способных выбирать цель атаки.
  */
 public interface Targeter {
 

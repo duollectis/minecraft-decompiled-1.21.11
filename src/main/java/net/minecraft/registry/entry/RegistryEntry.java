@@ -13,7 +13,13 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code RegistryEntry}.
+ * Обёртка над значением реестра. Существует в двух формах:
+ * <ul>
+ *   <li>{@link Direct} — анонимное значение без ключа реестра (используется в inline-определениях)</li>
+ *   <li>{@link Reference} — именованная ссылка на зарегистрированное значение с ключом</li>
+ * </ul>
+ *
+ * @param <T> тип хранимого значения
  */
 public interface RegistryEntry<T> {
 
@@ -43,7 +49,9 @@ public interface RegistryEntry<T> {
 	boolean ownerEquals(RegistryEntryOwner<T> owner);
 
 	default String getIdAsString() {
-		return this.getKey().map(key -> key.getValue().toString()).orElse("[unregistered]");
+		return getKey()
+				.map(key -> key.getValue().toString())
+				.orElse("[unregistered]");
 	}
 
 	static <T> RegistryEntry<T> of(T value) {
@@ -51,9 +59,13 @@ public interface RegistryEntry<T> {
 	}
 
 	/**
-	 * {@code Direct}.
+	 * Анонимная запись реестра без ключа. Используется для inline-определений
+	 * в JSON-файлах, где значение задаётся непосредственно, а не по ссылке.
+	 * Никогда не принадлежит тегам и не имеет идентификатора.
+	 *
+	 * @param <T> тип хранимого значения
 	 */
-	public record Direct<T>(T value) implements RegistryEntry<T> {
+	record Direct<T>(T value) implements RegistryEntry<T> {
 
 		@Override
 		public boolean hasKeyAndValue() {
@@ -77,7 +89,7 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public boolean matches(RegistryEntry<T> entry) {
-			return this.value.equals(entry.value());
+			return value.equals(entry.value());
 		}
 
 		@Override
@@ -87,7 +99,7 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public Either<RegistryKey<T>, T> getKeyOrValue() {
-			return Either.right(this.value);
+			return Either.right(value);
 		}
 
 		@Override
@@ -102,7 +114,7 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public String toString() {
-			return "Direct{" + this.value + "}";
+			return "Direct{" + value + "}";
 		}
 
 		@Override
@@ -117,9 +129,18 @@ public interface RegistryEntry<T> {
 	}
 
 	/**
-	 * {@code Reference}.
+	 * Именованная ссылка на зарегистрированное значение. Хранит ключ реестра,
+	 * само значение и набор тегов, которым принадлежит запись.
+	 * <p>
+	 * Существует в двух режимах:
+	 * <ul>
+	 *   <li>{@link Type#STAND_ALONE} — создана вне реестра (datagen, тесты)</li>
+	 *   <li>{@link Type#INTRUSIVE} — создана самим объектом при инициализации (устаревший механизм)</li>
+	 * </ul>
+	 *
+	 * @param <T> тип хранимого значения
 	 */
-	public static class Reference<T> implements RegistryEntry<T> {
+	class Reference<T> implements RegistryEntry<T> {
 
 		private final RegistryEntryOwner<T> owner;
 		private @Nullable Set<TagKey<T>> tags;
@@ -152,63 +173,60 @@ public interface RegistryEntry<T> {
 		}
 
 		/**
-		 * Registry key.
+		 * Возвращает ключ реестра этой записи.
 		 *
-		 * @return RegistryKey — результат операции
+		 * @throws IllegalStateException если запись ещё не привязана к ключу
 		 */
 		public RegistryKey<T> registryKey() {
-			if (this.registryKey == null) {
+			if (registryKey == null) {
 				throw new IllegalStateException(
-						"Trying to access unbound value '" + this.value + "' from registry " + this.owner);
+						"Trying to access unbound value '" + value + "' from registry " + owner);
 			}
-			else {
-				return this.registryKey;
-			}
+
+			return registryKey;
 		}
 
 		@Override
 		public T value() {
-			if (this.value == null) {
+			if (value == null) {
 				throw new IllegalStateException(
-						"Trying to access unbound value '" + this.registryKey + "' from registry " + this.owner);
+						"Trying to access unbound value '" + registryKey + "' from registry " + owner);
 			}
-			else {
-				return this.value;
-			}
+
+			return value;
 		}
 
 		@Override
 		public boolean matchesId(Identifier id) {
-			return this.registryKey().getValue().equals(id);
+			return registryKey().getValue().equals(id);
 		}
 
 		@Override
 		public boolean matchesKey(RegistryKey<T> key) {
-			return this.registryKey() == key;
+			return registryKey() == key;
 		}
 
 		private Set<TagKey<T>> getTags() {
-			if (this.tags == null) {
+			if (tags == null) {
 				throw new IllegalStateException("Tags not bound");
 			}
-			else {
-				return this.tags;
-			}
+
+			return tags;
 		}
 
 		@Override
 		public boolean isIn(TagKey<T> tag) {
-			return this.getTags().contains(tag);
+			return getTags().contains(tag);
 		}
 
 		@Override
 		public boolean matches(RegistryEntry<T> entry) {
-			return entry.matchesKey(this.registryKey());
+			return entry.matchesKey(registryKey());
 		}
 
 		@Override
 		public boolean matches(Predicate<RegistryKey<T>> predicate) {
-			return predicate.test(this.registryKey());
+			return predicate.test(registryKey());
 		}
 
 		@Override
@@ -218,12 +236,12 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public Either<RegistryKey<T>, T> getKeyOrValue() {
-			return Either.left(this.registryKey());
+			return Either.left(registryKey());
 		}
 
 		@Override
 		public Optional<RegistryKey<T>> getKey() {
-			return Optional.of(this.registryKey());
+			return Optional.of(registryKey());
 		}
 
 		@Override
@@ -233,28 +251,37 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public boolean hasKeyAndValue() {
-			return this.registryKey != null && this.value != null;
+			return registryKey != null && value != null;
 		}
 
+		/**
+		 * Привязывает ключ реестра к этой записи. Вызывается при регистрации
+		 * intrusive-записи в реестре.
+		 *
+		 * @throws IllegalStateException если запись уже имеет другой ключ
+		 */
 		public void setRegistryKey(RegistryKey<T> registryKey) {
 			if (this.registryKey != null && registryKey != this.registryKey) {
 				throw new IllegalStateException(
 						"Can't change holder key: existing=" + this.registryKey + ", new=" + registryKey);
 			}
-			else {
-				this.registryKey = registryKey;
-			}
+
+			this.registryKey = registryKey;
 		}
 
+		/**
+		 * Устанавливает значение записи. Для intrusive-записей значение
+		 * нельзя изменить после первоначальной установки.
+		 *
+		 * @throws IllegalStateException если intrusive-запись уже имеет другое значение
+		 */
 		public void setValue(T value) {
-			if (this.referenceType == RegistryEntry.Reference.Type.INTRUSIVE && this.value != value) {
+			if (referenceType == RegistryEntry.Reference.Type.INTRUSIVE && this.value != value) {
 				throw new IllegalStateException(
-						"Can't change holder " + this.registryKey + " value: existing=" + this.value + ", new="
-								+ value);
+						"Can't change holder " + registryKey + " value: existing=" + this.value + ", new=" + value);
 			}
-			else {
-				this.value = value;
-			}
+
+			this.value = value;
 		}
 
 		public void setTags(Collection<TagKey<T>> tags) {
@@ -263,28 +290,28 @@ public interface RegistryEntry<T> {
 
 		@Override
 		public Stream<TagKey<T>> streamTags() {
-			return this.getTags().stream();
+			return getTags().stream();
 		}
 
 		@Override
 		public String toString() {
-			return "Reference{" + this.registryKey + "=" + this.value + "}";
+			return "Reference{" + registryKey + "=" + value + "}";
 		}
 
 		/**
-		 * {@code Type}.
+		 * Тип ссылочной записи реестра.
 		 */
-		protected static enum Type {
+		protected enum Type {
 			STAND_ALONE,
-			INTRUSIVE;
+			INTRUSIVE
 		}
 	}
 
 	/**
-	 * {@code Type}.
+	 * Тип записи реестра: именованная ссылка или анонимное прямое значение.
 	 */
-	public static enum Type {
+	enum Type {
 		REFERENCE,
-		DIRECT;
+		DIRECT
 	}
 }

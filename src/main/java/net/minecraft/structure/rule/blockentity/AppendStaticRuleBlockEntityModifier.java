@@ -7,14 +7,17 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AppendStaticRuleBlockEntityModifier}.
+ * Реализация {@link RuleBlockEntityModifier}, добавляющая статические NBT-данные к блок-сущности.
+ * Если входной NBT равен {@code null}, возвращает копию статических данных.
+ * Иначе копирует статические данные поверх существующего NBT (перезаписывает совпадающие ключи).
  */
 public class AppendStaticRuleBlockEntityModifier implements RuleBlockEntityModifier {
 
 	public static final MapCodec<AppendStaticRuleBlockEntityModifier> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(NbtCompound.CODEC.fieldOf("data").forGetter(modifier -> modifier.nbt))
-			                    .apply(instance, AppendStaticRuleBlockEntityModifier::new)
+		instance -> instance.group(NbtCompound.CODEC.fieldOf("data").forGetter(modifier -> modifier.nbt))
+			.apply(instance, AppendStaticRuleBlockEntityModifier::new)
 	);
+
 	private final NbtCompound nbt;
 
 	public AppendStaticRuleBlockEntityModifier(NbtCompound nbt) {

@@ -14,27 +14,30 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code StructureProcessorRule}.
+ * Правило замены блока в процессоре структур.
+ * Содержит три предиката: для входного блока шаблона, для блока в мире на той же позиции
+ * и для позиции блока. Если все три предиката выполнены, блок заменяется на {@code outputState},
+ * а его NBT-данные модифицируются через {@code blockEntityModifier}.
  */
 public class StructureProcessorRule {
 
-	public static final PassthroughRuleBlockEntityModifier
-			DEFAULT_BLOCK_ENTITY_MODIFIER =
-			PassthroughRuleBlockEntityModifier.INSTANCE;
+	public static final PassthroughRuleBlockEntityModifier DEFAULT_BLOCK_ENTITY_MODIFIER =
+		PassthroughRuleBlockEntityModifier.INSTANCE;
+
 	public static final Codec<StructureProcessorRule> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    RuleTest.TYPE_CODEC.fieldOf("input_predicate").forGetter(rule -> rule.inputPredicate),
-					                    RuleTest.TYPE_CODEC.fieldOf("location_predicate").forGetter(rule -> rule.locationPredicate),
-					                    PosRuleTest.BASE_CODEC
-							                    .lenientOptionalFieldOf("position_predicate", AlwaysTruePosRuleTest.INSTANCE)
-							                    .forGetter(rule -> rule.positionPredicate),
-					                    BlockState.CODEC.fieldOf("output_state").forGetter(rule -> rule.outputState),
-					                    RuleBlockEntityModifier.TYPE_CODEC
-							                    .lenientOptionalFieldOf("block_entity_modifier", DEFAULT_BLOCK_ENTITY_MODIFIER)
-							                    .forGetter(rule -> rule.blockEntityModifier)
-			                    )
-			                    .apply(instance, StructureProcessorRule::new)
+		instance -> instance.group(
+			RuleTest.TYPE_CODEC.fieldOf("input_predicate").forGetter(rule -> rule.inputPredicate),
+			RuleTest.TYPE_CODEC.fieldOf("location_predicate").forGetter(rule -> rule.locationPredicate),
+			PosRuleTest.BASE_CODEC
+				.lenientOptionalFieldOf("position_predicate", AlwaysTruePosRuleTest.INSTANCE)
+				.forGetter(rule -> rule.positionPredicate),
+			BlockState.CODEC.fieldOf("output_state").forGetter(rule -> rule.outputState),
+			RuleBlockEntityModifier.TYPE_CODEC
+				.lenientOptionalFieldOf("block_entity_modifier", DEFAULT_BLOCK_ENTITY_MODIFIER)
+				.forGetter(rule -> rule.blockEntityModifier)
+		).apply(instance, StructureProcessorRule::new)
 	);
+
 	private final RuleTest inputPredicate;
 	private final RuleTest locationPredicate;
 	private final PosRuleTest positionPredicate;
@@ -46,20 +49,20 @@ public class StructureProcessorRule {
 	}
 
 	public StructureProcessorRule(
-			RuleTest inputPredicate,
-			RuleTest locationPredicate,
-			PosRuleTest positionPredicate,
-			BlockState state
+		RuleTest inputPredicate,
+		RuleTest locationPredicate,
+		PosRuleTest positionPredicate,
+		BlockState state
 	) {
 		this(inputPredicate, locationPredicate, positionPredicate, state, DEFAULT_BLOCK_ENTITY_MODIFIER);
 	}
 
 	public StructureProcessorRule(
-			RuleTest inputPredicate,
-			RuleTest locationPredicate,
-			PosRuleTest positionPredicate,
-			BlockState outputState,
-			RuleBlockEntityModifier blockEntityModifier
+		RuleTest inputPredicate,
+		RuleTest locationPredicate,
+		PosRuleTest positionPredicate,
+		BlockState outputState,
+		RuleBlockEntityModifier blockEntityModifier
 	) {
 		this.inputPredicate = inputPredicate;
 		this.locationPredicate = locationPredicate;
@@ -69,23 +72,23 @@ public class StructureProcessorRule {
 	}
 
 	public boolean test(
-			BlockState input,
-			BlockState currentState,
-			BlockPos originalPos,
-			BlockPos currentPos,
-			BlockPos pivot,
-			Random random
+		BlockState input,
+		BlockState worldState,
+		BlockPos originalPos,
+		BlockPos currentPos,
+		BlockPos pivot,
+		Random random
 	) {
-		return this.inputPredicate.test(input, random)
-				&& this.locationPredicate.test(currentState, random)
-				&& this.positionPredicate.test(originalPos, currentPos, pivot, random);
+		return inputPredicate.test(input, random)
+			&& locationPredicate.test(worldState, random)
+			&& positionPredicate.test(originalPos, currentPos, pivot, random);
 	}
 
 	public BlockState getOutputState() {
-		return this.outputState;
+		return outputState;
 	}
 
 	public @Nullable NbtCompound getOutputNbt(Random random, @Nullable NbtCompound nbt) {
-		return this.blockEntityModifier.modifyBlockEntityNbt(random, nbt);
+		return blockEntityModifier.modifyBlockEntityNbt(random, nbt);
 	}
 }

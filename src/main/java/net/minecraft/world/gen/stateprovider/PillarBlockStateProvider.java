@@ -10,7 +10,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code PillarBlockStateProvider}.
+ * Поставщик состояний блоков-столбов ({@link PillarBlock}).
+ * При каждом запросе выбирает случайную ось вращения, создавая визуальное разнообразие.
  */
 public class PillarBlockStateProvider extends BlockStateProvider {
 
@@ -32,6 +33,6 @@ public class PillarBlockStateProvider extends BlockStateProvider {
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
 		Direction.Axis axis = Direction.Axis.pickRandomAxis(random);
-		return this.block.getDefaultState().withIfExists(PillarBlock.AXIS, axis);
+		return block.getDefaultState().withIfExists(PillarBlock.AXIS, axis);
 	}
 }

@@ -10,27 +10,31 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code Arm}.
+ * Рука игрока — основная или вспомогательная.
+ * Используется для определения, какой рукой выполняется действие,
+ * а также для настройки доминирующей руки в параметрах игрока.
  */
 public enum Arm implements StringIdentifiable {
 	LEFT(0, "left", "options.mainHand.left"),
 	RIGHT(1, "right", "options.mainHand.right");
 
 	public static final Codec<Arm> CODEC = StringIdentifiable.createCodec(Arm::values);
-	private static final IntFunction<Arm> BY_ID = ValueLists.createIndexToValueFunction(
-			(Arm arm) -> arm.id, values(), ValueLists.OutOfBoundsHandling.ZERO
+	private static final IntFunction<Arm> BY_ID = ValueLists.<Arm>createIndexToValueFunction(
+		arm -> arm.id, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
 	public static final PacketCodec<ByteBuf, Arm> PACKET_CODEC = PacketCodecs.indexed(BY_ID, arm -> arm.id);
+
 	private final int id;
 	private final String name;
 	private final Text text;
 
-	private Arm(final int id, final String name, final String translationKey) {
+	Arm(int id, String name, String translationKey) {
 		this.id = id;
 		this.name = name;
 		this.text = Text.translatable(translationKey);
 	}
 
+	/** @return противоположная рука */
 	public Arm getOpposite() {
 		return switch (this) {
 			case LEFT -> RIGHT;
@@ -39,11 +43,11 @@ public enum Arm implements StringIdentifiable {
 	}
 
 	public Text getText() {
-		return this.text;
+		return text;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

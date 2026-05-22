@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import java.util.List;
 
 /**
- * {@code JsonElementToWebSocketFrameEncoder}.
+ * Класс Json Element To Web Socket Frame Encoder.
  */
 public class JsonElementToWebSocketFrameEncoder extends MessageToMessageEncoder<JsonElement> {
 

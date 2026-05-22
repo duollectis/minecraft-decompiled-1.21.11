@@ -14,28 +14,38 @@ import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
 
 /**
- * {@code FuzzyPositions}.
+ * Утилита генерации «размытых» (fuzzy) позиций для навигации существ.
+ * Использует гауссово распределение для выбора лучшей из нескольких случайных точек.
  */
 public class FuzzyPositions {
 
+	/** Количество попыток генерации кандидатов при выборе лучшей позиции. */
 	private static final int GAUSS_RANGE = 10;
 
 	/**
-	 * Local fuzz.
-	 *
-	 * @param random random
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 *
-	 * @return BlockPos — результат операции
+	 * Генерирует случайное смещение в заданном горизонтальном и вертикальном диапазоне.
 	 */
 	public static BlockPos localFuzz(Random random, int horizontalRange, int verticalRange) {
-		int i = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
-		int j = random.nextInt(2 * verticalRange + 1) - verticalRange;
-		int k = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
-		return new BlockPos(i, j, k);
+		int dx = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
+		int dy = random.nextInt(2 * verticalRange + 1) - verticalRange;
+		int dz = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
+		return new BlockPos(dx, dy, dz);
 	}
 
+	/**
+	 * Генерирует случайное смещение с учётом направления и угла разброса.
+	 * Возвращает {@code null}, если сгенерированная точка выходит за пределы горизонтального диапазона.
+	 *
+	 * @param random источник случайности
+	 * @param minHorizontalRange минимальный горизонтальный радиус
+	 * @param maxHorizontalRange максимальный горизонтальный радиус
+	 * @param verticalRange вертикальный диапазон
+	 * @param startHeight начальное смещение по Y
+	 * @param directionX X-компонента вектора направления
+	 * @param directionZ Z-компонента вектора направления
+	 * @param angleRange угол разброса в радианах
+	 * @return смещение в виде {@link BlockPos} или {@code null}
+	 */
 	public static @Nullable BlockPos localFuzz(
 			Random random,
 			double minHorizontalRange,
@@ -46,155 +56,142 @@ public class FuzzyPositions {
 			double directionZ,
 			double angleRange
 	) {
-		double d = MathHelper.atan2(directionZ, directionX) - (float) (Math.PI / 2);
-		double e = d + (2.0F * random.nextFloat() - 1.0F) * angleRange;
-		double
-				f =
-				MathHelper.lerp(Math.sqrt(random.nextDouble()), minHorizontalRange, maxHorizontalRange)
-						* MathHelper.SQUARE_ROOT_OF_TWO;
-		double g = -f * Math.sin(e);
-		double h = f * Math.cos(e);
-		if (!(Math.abs(g) > maxHorizontalRange) && !(Math.abs(h) > maxHorizontalRange)) {
-			int i = random.nextInt(2 * verticalRange + 1) - verticalRange + startHeight;
-			return BlockPos.ofFloored(g, i, h);
-		}
-		else {
+		double baseAngle = MathHelper.atan2(directionZ, directionX) - (float) (Math.PI / 2);
+		double scatteredAngle = baseAngle + (2.0F * random.nextFloat() - 1.0F) * angleRange;
+		double radius = MathHelper.lerp(Math.sqrt(random.nextDouble()), minHorizontalRange, maxHorizontalRange)
+				* MathHelper.SQUARE_ROOT_OF_TWO;
+		double offsetX = -radius * Math.sin(scatteredAngle);
+		double offsetZ = radius * Math.cos(scatteredAngle);
+
+		if (Math.abs(offsetX) > maxHorizontalRange || Math.abs(offsetZ) > maxHorizontalRange) {
 			return null;
 		}
+
+		int offsetY = random.nextInt(2 * verticalRange + 1) - verticalRange + startHeight;
+		return BlockPos.ofFloored(offsetX, offsetY, offsetZ);
 	}
 
-	@VisibleForTesting
 	/**
-	 * Up while.
-	 *
-	 * @param pos pos
-	 * @param maxY max y
-	 * @param condition condition
-	 *
-	 * @return BlockPos — результат операции
+	 * Поднимает позицию вверх, пока выполняется условие или не достигнут максимум Y.
 	 */
+	@VisibleForTesting
 	public static BlockPos upWhile(BlockPos pos, int maxY, Predicate<BlockPos> condition) {
 		if (!condition.test(pos)) {
 			return pos;
 		}
-		else {
-			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			while (mutable.getY() <= maxY && condition.test(mutable)) {
-				mutable.move(Direction.UP);
-			}
+		BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			return mutable.toImmutable();
+		while (mutable.getY() <= maxY && condition.test(mutable)) {
+			mutable.move(Direction.UP);
 		}
+
+		return mutable.toImmutable();
 	}
 
-	@VisibleForTesting
 	/**
-	 * Up while.
+	 * Поднимает позицию вверх над твёрдой поверхностью на заданное количество блоков.
+	 * Сначала поднимается до первого нетвёрдого блока, затем ещё на {@code extraAbove} блоков.
 	 *
-	 * @param pos pos
-	 * @param extraAbove extra above
-	 * @param max max
-	 * @param condition condition
-	 *
-	 * @return BlockPos — результат операции
+	 * @param pos начальная позиция
+	 * @param extraAbove количество блоков над поверхностью (должно быть >= 0)
+	 * @param max максимальная Y-координата
+	 * @param condition предикат «блок твёрдый»
+	 * @return итоговая позиция над поверхностью
 	 */
+	@VisibleForTesting
 	public static BlockPos upWhile(BlockPos pos, int extraAbove, int max, Predicate<BlockPos> condition) {
 		if (extraAbove < 0) {
 			throw new IllegalArgumentException("aboveSolidAmount was " + extraAbove + ", expected >= 0");
 		}
-		else if (!condition.test(pos)) {
+
+		if (!condition.test(pos)) {
 			return pos;
 		}
-		else {
-			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			while (mutable.getY() <= max && condition.test(mutable)) {
-				mutable.move(Direction.UP);
-			}
+		BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-			int i = mutable.getY();
-
-			while (mutable.getY() <= max && mutable.getY() - i < extraAbove) {
-				mutable.move(Direction.UP);
-				if (condition.test(mutable)) {
-					mutable.move(Direction.DOWN);
-					break;
-				}
-			}
-
-			return mutable.toImmutable();
+		while (mutable.getY() <= max && condition.test(mutable)) {
+			mutable.move(Direction.UP);
 		}
+
+		int surfaceY = mutable.getY();
+
+		while (mutable.getY() <= max && mutable.getY() - surfaceY < extraAbove) {
+			mutable.move(Direction.UP);
+			if (condition.test(mutable)) {
+				mutable.move(Direction.DOWN);
+				break;
+			}
+		}
+
+		return mutable.toImmutable();
 	}
 
 	/**
-	 * Guess best path target.
-	 *
-	 * @param entity entity
-	 * @param factory factory
-	 *
-	 * @return @Nullable Vec3d — результат операции
+	 * Выбирает лучшую из {@value #GAUSS_RANGE} случайных позиций по оценке пригодности пути существа.
 	 */
 	public static @Nullable Vec3d guessBestPathTarget(PathAwareEntity entity, Supplier<@Nullable BlockPos> factory) {
 		return guessBest(factory, entity::getPathfindingFavor);
 	}
 
 	/**
-	 * Guess best.
+	 * Выбирает лучшую из {@value #GAUSS_RANGE} случайных позиций по произвольной функции оценки.
 	 *
-	 * @param factory factory
-	 * @param scorer scorer
-	 *
-	 * @return @Nullable Vec3d — результат операции
+	 * @param factory поставщик случайных кандидатов
+	 * @param scorer функция оценки позиции (чем выше — тем лучше)
+	 * @return центр нижней грани лучшей позиции или {@code null}, если ни одна не подошла
 	 */
 	public static @Nullable Vec3d guessBest(Supplier<@Nullable BlockPos> factory, ToDoubleFunction<BlockPos> scorer) {
-		double d = Double.NEGATIVE_INFINITY;
-		BlockPos blockPos = null;
+		double bestScore = Double.NEGATIVE_INFINITY;
+		BlockPos bestPos = null;
 
-		for (int i = 0; i < 10; i++) {
-			BlockPos blockPos2 = factory.get();
-			if (blockPos2 != null) {
-				double e = scorer.applyAsDouble(blockPos2);
-				if (e > d) {
-					d = e;
-					blockPos = blockPos2;
-				}
+		for (int attempt = 0; attempt < GAUSS_RANGE; attempt++) {
+			BlockPos candidate = factory.get();
+			if (candidate == null) {
+				continue;
+			}
+
+			double score = scorer.applyAsDouble(candidate);
+			if (score > bestScore) {
+				bestScore = score;
+				bestPos = candidate;
 			}
 		}
 
-		return blockPos != null ? Vec3d.ofBottomCenter(blockPos) : null;
+		return bestPos != null ? Vec3d.ofBottomCenter(bestPos) : null;
 	}
 
 	/**
-	 * Toward target.
+	 * Смещает относительную позицию {@code fuzz} к цели существа (если она задана),
+	 * добавляя случайное притяжение в сторону {@link PathAwareEntity#getPositionTarget()}.
 	 *
-	 * @param entity entity
-	 * @param horizontalRange horizontal range
-	 * @param random random
-	 * @param fuzz fuzz
-	 *
-	 * @return BlockPos — результат операции
+	 * @param entity существо с возможной целевой позицией
+	 * @param horizontalRange горизонтальный радиус для масштабирования притяжения
+	 * @param random источник случайности
+	 * @param fuzz относительное смещение
+	 * @return абсолютная позиция в мире
 	 */
 	public static BlockPos towardTarget(PathAwareEntity entity, double horizontalRange, Random random, BlockPos fuzz) {
-		double d = fuzz.getX();
-		double e = fuzz.getZ();
+		double targetX = fuzz.getX();
+		double targetZ = fuzz.getZ();
+
 		if (entity.hasPositionTarget() && horizontalRange > 1.0) {
-			BlockPos blockPos = entity.getPositionTarget();
-			if (entity.getX() > blockPos.getX()) {
-				d -= random.nextDouble() * horizontalRange / 2.0;
-			}
-			else {
-				d += random.nextDouble() * horizontalRange / 2.0;
+			BlockPos posTarget = entity.getPositionTarget();
+
+			if (entity.getX() > posTarget.getX()) {
+				targetX -= random.nextDouble() * horizontalRange / 2.0;
+			} else {
+				targetX += random.nextDouble() * horizontalRange / 2.0;
 			}
 
-			if (entity.getZ() > blockPos.getZ()) {
-				e -= random.nextDouble() * horizontalRange / 2.0;
-			}
-			else {
-				e += random.nextDouble() * horizontalRange / 2.0;
+			if (entity.getZ() > posTarget.getZ()) {
+				targetZ -= random.nextDouble() * horizontalRange / 2.0;
+			} else {
+				targetZ += random.nextDouble() * horizontalRange / 2.0;
 			}
 		}
 
-		return BlockPos.ofFloored(d + entity.getX(), fuzz.getY() + entity.getY(), e + entity.getZ());
+		return BlockPos.ofFloored(targetX + entity.getX(), fuzz.getY() + entity.getY(), targetZ + entity.getZ());
 	}
 }

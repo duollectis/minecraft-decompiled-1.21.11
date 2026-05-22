@@ -13,12 +13,13 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code NearestItemsSensor}.
+ * Сенсор поиска ближайшего видимого предмета, который моб хочет подобрать.
+ * Ищет {@link ItemEntity} в радиусе {@code MAX_RANGE} блоков и фильтрует по {@code canGather}.
  */
 public class NearestItemsSensor extends Sensor<MobEntity> {
 
-	private static final long HORIZONTAL_RANGE = 32L;
-	private static final long VERTICAL_RANGE = 16L;
+	private static final double HORIZONTAL_RANGE = 32.0;
+	private static final double VERTICAL_RANGE = 16.0;
 	public static final int MAX_RANGE = 32;
 
 	@Override
@@ -26,30 +27,23 @@ public class NearestItemsSensor extends Sensor<MobEntity> {
 		return ImmutableSet.of(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM);
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 */
-	protected void sense(ServerWorld serverWorld, MobEntity mobEntity) {
-		Brain<?> brain = mobEntity.getBrain();
-		List<ItemEntity>
-				list =
-				serverWorld.getEntitiesByClass(
-						ItemEntity.class,
-						mobEntity.getBoundingBox().expand(32.0, 16.0, 32.0),
-						itemEntity -> true
-				);
-		list.sort(Comparator.comparingDouble(mobEntity::squaredDistanceTo));
-		Optional<ItemEntity> optional = list.stream()
-		                                    .filter(itemEntity -> mobEntity.canGather(
-				                                    serverWorld,
-				                                    itemEntity.getStack()
-		                                    ))
-		                                    .filter(itemEntityx -> itemEntityx.isInRange(mobEntity, 32.0))
-		                                    .filter(mobEntity::canSee)
-		                                    .findFirst();
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, optional);
+	@Override
+	protected void sense(ServerWorld world, MobEntity entity) {
+		Brain<?> brain = entity.getBrain();
+
+		List<ItemEntity> items = world.getEntitiesByClass(
+				ItemEntity.class,
+				entity.getBoundingBox().expand(HORIZONTAL_RANGE, VERTICAL_RANGE, HORIZONTAL_RANGE),
+				itemEntity -> true
+		);
+		items.sort(Comparator.comparingDouble(entity::squaredDistanceTo));
+
+		Optional<ItemEntity> nearest = items.stream()
+				.filter(item -> entity.canGather(world, item.getStack()))
+				.filter(item -> item.isInRange(entity, MAX_RANGE))
+				.filter(entity::canSee)
+				.findFirst();
+
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM, nearest);
 	}
 }

@@ -1,6 +1,10 @@
 package net.minecraft.world;
 
-import net.minecraft.block.*;
+import net.minecraft.block.AbstractBlock;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.EntityShapeContext;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.fluid.FluidState;
@@ -16,32 +20,24 @@ import net.minecraft.world.rule.GameRules;
 import java.util.function.Predicate;
 
 /**
- * {@code RaycastContext}.
+ * Контекст для выполнения рейкаста (трассировки луча) в мире.
+ * Определяет начальную и конечную точки луча, тип проверяемых форм блоков
+ * и режим обработки жидкостей.
  */
 public class RaycastContext {
 
 	private final Vec3d start;
 	private final Vec3d end;
-	private final RaycastContext.ShapeType shapeType;
-	private final RaycastContext.FluidHandling fluid;
+	private final ShapeType shapeType;
+	private final FluidHandling fluid;
 	private final ShapeContext shapeContext;
 
 	public RaycastContext(
-			Vec3d start,
-			Vec3d end,
-			RaycastContext.ShapeType shapeType,
-			RaycastContext.FluidHandling fluidHandling,
-			Entity entity
-	) {
-		this(start, end, shapeType, fluidHandling, ShapeContext.of(entity));
-	}
-
-	public RaycastContext(
-			Vec3d start,
-			Vec3d end,
-			RaycastContext.ShapeType shapeType,
-			RaycastContext.FluidHandling fluidHandling,
-			ShapeContext shapeContext
+		Vec3d start,
+		Vec3d end,
+		ShapeType shapeType,
+		FluidHandling fluidHandling,
+		ShapeContext shapeContext
 	) {
 		this.start = start;
 		this.end = end;
@@ -50,26 +46,36 @@ public class RaycastContext {
 		this.shapeContext = shapeContext;
 	}
 
-	public Vec3d getEnd() {
-		return this.end;
+	public RaycastContext(
+		Vec3d start,
+		Vec3d end,
+		ShapeType shapeType,
+		FluidHandling fluidHandling,
+		Entity entity
+	) {
+		this(start, end, shapeType, fluidHandling, ShapeContext.of(entity));
 	}
 
 	public Vec3d getStart() {
-		return this.start;
+		return start;
+	}
+
+	public Vec3d getEnd() {
+		return end;
 	}
 
 	public VoxelShape getBlockShape(BlockState state, BlockView world, BlockPos pos) {
-		return this.shapeType.get(state, world, pos, this.shapeContext);
+		return shapeType.get(state, world, pos, shapeContext);
 	}
 
 	public VoxelShape getFluidShape(FluidState state, BlockView world, BlockPos pos) {
-		return this.fluid.handled(state) ? state.getShape(world, pos) : VoxelShapes.empty();
+		return fluid.handled(state) ? state.getShape(world, pos) : VoxelShapes.empty();
 	}
 
 	/**
-	 * {@code FluidHandling}.
+	 * Определяет, какие жидкости считаются препятствием при рейкасте.
 	 */
-	public static enum FluidHandling {
+	public enum FluidHandling {
 		NONE(state -> false),
 		SOURCE_ONLY(FluidState::isStill),
 		ANY(state -> !state.isEmpty()),
@@ -77,24 +83,17 @@ public class RaycastContext {
 
 		private final Predicate<FluidState> predicate;
 
-		private FluidHandling(final Predicate<FluidState> predicate) {
+		FluidHandling(final Predicate<FluidState> predicate) {
 			this.predicate = predicate;
 		}
 
-		/**
-		 * Обрабатывает d.
-		 *
-		 * @param state state
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean handled(FluidState state) {
-			return this.predicate.test(state);
+			return predicate.test(state);
 		}
 	}
 
 	/**
-	 * {@code ShapeProvider}.
+	 * Поставщик формы столкновения для блока в заданном контексте.
 	 */
 	public interface ShapeProvider {
 
@@ -102,53 +101,50 @@ public class RaycastContext {
 	}
 
 	/**
-	 * {@code ShapeType}.
+	 * Тип формы блока, используемой при рейкасте.
+	 * {@link #FALLDAMAGE_RESETTING} — специальный тип для определения сброса урона от падения:
+	 * возвращает полный куб для блоков, сбрасывающих урон, порталов и нетер-порталов
+	 * с нулевой задержкой (только для игроков).
 	 */
-	public static enum ShapeType implements RaycastContext.ShapeProvider {
+	public enum ShapeType implements ShapeProvider {
 		COLLIDER(AbstractBlock.AbstractBlockState::getCollisionShape),
 		OUTLINE(AbstractBlock.AbstractBlockState::getOutlineShape),
 		VISUAL(AbstractBlock.AbstractBlockState::getCameraCollisionShape),
 		FALLDAMAGE_RESETTING(
-				(state, world, pos, context) -> {
-					if (state.isIn(BlockTags.FALL_DAMAGE_RESETTING)) {
+			(state, world, pos, context) -> {
+				if (state.isIn(BlockTags.FALL_DAMAGE_RESETTING)) {
+					return VoxelShapes.fullCube();
+				}
+
+				if (context instanceof EntityShapeContext entityShapeContext
+					&& entityShapeContext.getEntity() != null
+					&& entityShapeContext.getEntity().getType() == EntityType.PLAYER
+				) {
+					if (state.isOf(Blocks.END_GATEWAY) || state.isOf(Blocks.END_PORTAL)) {
 						return VoxelShapes.fullCube();
 					}
-					else {
-						if (context instanceof EntityShapeContext entityShapeContext
-								&& entityShapeContext.getEntity() != null
-								&& entityShapeContext.getEntity().getType() == EntityType.PLAYER) {
-							if (state.isOf(Blocks.END_GATEWAY) || state.isOf(Blocks.END_PORTAL)) {
-								return VoxelShapes.fullCube();
-							}
 
-							if (world instanceof ServerWorld serverWorld
-									&& state.isOf(Blocks.NETHER_PORTAL)
-									&&
-									serverWorld.getGameRules().getValue(GameRules.PLAYERS_NETHER_PORTAL_DEFAULT_DELAY)
-											== 0) {
-								return VoxelShapes.fullCube();
-							}
-						}
-
-						return VoxelShapes.empty();
+					if (world instanceof ServerWorld serverWorld
+						&& state.isOf(Blocks.NETHER_PORTAL)
+						&& serverWorld.getGameRules().getValue(GameRules.PLAYERS_NETHER_PORTAL_DEFAULT_DELAY) == 0
+					) {
+						return VoxelShapes.fullCube();
 					}
 				}
+
+				return VoxelShapes.empty();
+			}
 		);
 
-		private final RaycastContext.ShapeProvider provider;
+		private final ShapeProvider provider;
 
-		private ShapeType(final RaycastContext.ShapeProvider provider) {
+		ShapeType(final ShapeProvider provider) {
 			this.provider = provider;
 		}
 
 		@Override
-		public VoxelShape get(
-				BlockState blockState,
-				BlockView blockView,
-				BlockPos blockPos,
-				ShapeContext shapeContext
-		) {
-			return this.provider.get(blockState, blockView, blockPos, shapeContext);
+		public VoxelShape get(BlockState blockState, BlockView blockView, BlockPos blockPos, ShapeContext shapeContext) {
+			return provider.get(blockState, blockView, blockPos, shapeContext);
 		}
 	}
 }

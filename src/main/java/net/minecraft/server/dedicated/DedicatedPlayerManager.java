@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 
 /**
- * {@code DedicatedPlayerManager}.
+ * Менеджер игроков выделенного сервера: управление белым списком, операторами и ограничениями подключения.
  */
 public class DedicatedPlayerManager extends PlayerManager {
 

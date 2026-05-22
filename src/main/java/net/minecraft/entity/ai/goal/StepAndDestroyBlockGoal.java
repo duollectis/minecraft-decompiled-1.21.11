@@ -22,14 +22,25 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code StepAndDestroyBlockGoal}.
+ * Цель уничтожения блока путём топтания: моб подходит к целевому блоку и
+ * прыгает на нём, пока не разрушит его (при включённом {@code DO_MOB_GRIEFING}).
  */
 public class StepAndDestroyBlockGoal extends MoveToTargetPosGoal {
+
+	private static final int MAX_COOLDOWN = 20;
+	private static final int DESTROY_TICKS = 60;
+	private static final int STEP_INTERVAL = 2;
+	private static final int TICK_INTERVAL = 6;
+	private static final int POOF_COUNT = 20;
+	private static final double PARTICLE_SPREAD = 0.02;
+	private static final double PARTICLE_SPEED = 0.15;
+	private static final double JUMP_UP_VELOCITY = 0.3;
+	private static final double JUMP_DOWN_VELOCITY = -0.3;
+	private static final double EGG_PARTICLE_SPREAD = 0.08;
 
 	private final Block targetBlock;
 	private final MobEntity stepAndDestroyMob;
 	private int counter;
-	private static final int MAX_COOLDOWN = 20;
 
 	public StepAndDestroyBlockGoal(Block targetBlock, PathAwareEntity mob, double speed, int maxYDifference) {
 		super(mob, speed, 24, maxYDifference);
@@ -39,151 +50,132 @@ public class StepAndDestroyBlockGoal extends MoveToTargetPosGoal {
 
 	@Override
 	public boolean canStart() {
-		if (!getServerWorld(this.stepAndDestroyMob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+		if (!getServerWorld(stepAndDestroyMob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
 			return false;
 		}
-		else if (this.cooldown > 0) {
-			this.cooldown--;
+
+		if (cooldown > 0) {
+			cooldown--;
 			return false;
 		}
-		else if (this.findTargetPos()) {
-			this.cooldown = toGoalTicks(20);
+
+		if (findTargetPos()) {
+			cooldown = toGoalTicks(MAX_COOLDOWN);
 			return true;
 		}
-		else {
-			this.cooldown = this.getInterval(this.mob);
-			return false;
-		}
+
+		cooldown = getInterval(mob);
+		return false;
 	}
 
 	@Override
 	public void stop() {
 		super.stop();
-		this.stepAndDestroyMob.fallDistance = 1.0;
+		stepAndDestroyMob.fallDistance = 1.0;
 	}
 
 	@Override
 	public void start() {
 		super.start();
-		this.counter = 0;
+		counter = 0;
 	}
 
-	/**
-	 * Выполняет тик обновления для stepping.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 */
 	public void tickStepping(WorldAccess world, BlockPos pos) {
 	}
 
-	/**
-	 * Обрабатывает событие destroy block.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 */
 	public void onDestroyBlock(World world, BlockPos pos) {
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		World world = this.stepAndDestroyMob.getEntityWorld();
-		BlockPos blockPos = this.stepAndDestroyMob.getBlockPos();
-		BlockPos blockPos2 = this.tweakToProperPos(blockPos, world);
-		Random random = this.stepAndDestroyMob.getRandom();
-		if (this.hasReached() && blockPos2 != null) {
-			if (this.counter > 0) {
-				Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
-				this.stepAndDestroyMob.setVelocity(vec3d.x, 0.3, vec3d.z);
-				if (!world.isClient()) {
-					double d = 0.08;
-					((ServerWorld) world)
-							.spawnParticles(
-									new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.EGG)),
-									blockPos2.getX() + 0.5,
-									blockPos2.getY() + 0.7,
-									blockPos2.getZ() + 0.5,
-									3,
-									(random.nextFloat() - 0.5) * 0.08,
-									(random.nextFloat() - 0.5) * 0.08,
-									(random.nextFloat() - 0.5) * 0.08,
-									0.15F
-							);
-				}
-			}
-
-			if (this.counter % 2 == 0) {
-				Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
-				this.stepAndDestroyMob.setVelocity(vec3d.x, -0.3, vec3d.z);
-				if (this.counter % 6 == 0) {
-					this.tickStepping(world, this.targetPos);
-				}
-			}
-
-			if (this.counter > 60) {
-				world.removeBlock(blockPos2, false);
-				if (!world.isClient()) {
-					for (int i = 0; i < 20; i++) {
-						double d = random.nextGaussian() * 0.02;
-						double e = random.nextGaussian() * 0.02;
-						double f = random.nextGaussian() * 0.02;
-						((ServerWorld) world).spawnParticles(
-								ParticleTypes.POOF,
-								blockPos2.getX() + 0.5,
-								blockPos2.getY(),
-								blockPos2.getZ() + 0.5,
-								1,
-								d,
-								e,
-								f,
-								0.15F
-						);
-					}
-
-					this.onDestroyBlock(world, blockPos2);
-				}
-			}
-
-			this.counter++;
+		World world = stepAndDestroyMob.getEntityWorld();
+		BlockPos blockPos = stepAndDestroyMob.getBlockPos();
+		BlockPos targetPos = tweakToProperPos(blockPos, world);
+		Random random = stepAndDestroyMob.getRandom();
+		if (!hasReached() || targetPos == null) {
+			return;
 		}
+
+		if (counter > 0) {
+			Vec3d velocity = stepAndDestroyMob.getVelocity();
+			stepAndDestroyMob.setVelocity(velocity.x, JUMP_UP_VELOCITY, velocity.z);
+			if (!world.isClient()) {
+				((ServerWorld) world).spawnParticles(
+						new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.EGG)),
+						targetPos.getX() + 0.5,
+						targetPos.getY() + 0.7,
+						targetPos.getZ() + 0.5,
+						3,
+						(random.nextFloat() - 0.5) * EGG_PARTICLE_SPREAD,
+						(random.nextFloat() - 0.5) * EGG_PARTICLE_SPREAD,
+						(random.nextFloat() - 0.5) * EGG_PARTICLE_SPREAD,
+						(float) PARTICLE_SPEED
+				);
+			}
+		}
+
+		if (counter % STEP_INTERVAL == 0) {
+			Vec3d velocity = stepAndDestroyMob.getVelocity();
+			stepAndDestroyMob.setVelocity(velocity.x, JUMP_DOWN_VELOCITY, velocity.z);
+			if (counter % TICK_INTERVAL == 0) {
+				tickStepping(world, this.targetPos);
+			}
+		}
+
+		if (counter > DESTROY_TICKS) {
+			world.removeBlock(targetPos, false);
+			if (!world.isClient()) {
+				for (int i = 0; i < POOF_COUNT; i++) {
+					double dx = random.nextGaussian() * PARTICLE_SPREAD;
+					double dy = random.nextGaussian() * PARTICLE_SPREAD;
+					double dz = random.nextGaussian() * PARTICLE_SPREAD;
+					((ServerWorld) world).spawnParticles(
+							ParticleTypes.POOF,
+							targetPos.getX() + 0.5,
+							targetPos.getY(),
+							targetPos.getZ() + 0.5,
+							1,
+							dx,
+							dy,
+							dz,
+							(float) PARTICLE_SPEED
+					);
+				}
+
+				onDestroyBlock(world, targetPos);
+			}
+		}
+
+		counter++;
 	}
 
 	private @Nullable BlockPos tweakToProperPos(BlockPos pos, BlockView world) {
-		if (world.getBlockState(pos).isOf(this.targetBlock)) {
+		if (world.getBlockState(pos).isOf(targetBlock)) {
 			return pos;
 		}
-		else {
-			BlockPos[]
-					blockPoss =
-					new BlockPos[]{pos.down(), pos.west(), pos.east(), pos.north(), pos.south(), pos.down().down()};
 
-			for (BlockPos blockPos : blockPoss) {
-				if (world.getBlockState(blockPos).isOf(this.targetBlock)) {
-					return blockPos;
-				}
+		BlockPos[] neighbors = {pos.down(), pos.west(), pos.east(), pos.north(), pos.south(), pos.down().down()};
+		for (BlockPos neighbor : neighbors) {
+			if (world.getBlockState(neighbor).isOf(targetBlock)) {
+				return neighbor;
 			}
-
-			return null;
 		}
+
+		return null;
 	}
 
 	@Override
 	protected boolean isTargetPos(WorldView world, BlockPos pos) {
-		Chunk
-				chunk =
-				world.getChunk(
-						ChunkSectionPos.getSectionCoord(pos.getX()),
-						ChunkSectionPos.getSectionCoord(pos.getZ()),
-						ChunkStatus.FULL,
-						false
-				);
-		return chunk == null
-		       ? false
-		       : chunk.getBlockState(pos).isOf(this.targetBlock) && chunk.getBlockState(pos.up()).isAir() && chunk
-		                                                                                                     .getBlockState(
-				                                                                                                     pos.up(2))
-		                                                                                                     .isAir();
+		Chunk chunk = world.getChunk(
+				ChunkSectionPos.getSectionCoord(pos.getX()),
+				ChunkSectionPos.getSectionCoord(pos.getZ()),
+				ChunkStatus.FULL,
+				false
+		);
+		return chunk != null
+				&& chunk.getBlockState(pos).isOf(targetBlock)
+				&& chunk.getBlockState(pos.up()).isAir()
+				&& chunk.getBlockState(pos.up(2)).isAir();
 	}
 }

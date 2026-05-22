@@ -9,7 +9,11 @@ import net.minecraft.util.Identifier;
 import java.util.stream.Stream;
 
 /**
- * {@code StorageNbtDataSource}.
+ * Источник NBT-данных, читающий данные из командного хранилища данных (data storage) по идентификатору.
+ *
+ * <p>Хранилище данных — это глобальное серверное хранилище NBT-тегов,
+ * доступное через команду {@code /data storage}. Всегда возвращает ровно один
+ * {@link NbtCompound} (возможно пустой, если хранилище не содержит данных по этому ключу).</p>
  */
 public record StorageNbtDataSource(Identifier id) implements NbtDataSource {
 
@@ -21,8 +25,8 @@ public record StorageNbtDataSource(Identifier id) implements NbtDataSource {
 
 	@Override
 	public Stream<NbtCompound> get(ServerCommandSource source) {
-		NbtCompound nbtCompound = source.getServer().getDataCommandStorage().get(this.id);
-		return Stream.of(nbtCompound);
+		NbtCompound nbt = source.getServer().getDataCommandStorage().get(id);
+		return Stream.of(nbt);
 	}
 
 	@Override
@@ -32,6 +36,6 @@ public record StorageNbtDataSource(Identifier id) implements NbtDataSource {
 
 	@Override
 	public String toString() {
-		return "storage=" + this.id;
+		return "storage=" + id;
 	}
 }

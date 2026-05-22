@@ -22,17 +22,19 @@ import net.minecraft.world.tick.ScheduledTickView;
 import java.util.Map;
 
 /**
- * {@code BannerBlock}.
+ * Напольный баннер с 16 вариантами поворота ({@link #ROTATION}).
+ * Регистрирует себя в статической карте {@code COLORED_BANNERS} по цвету,
+ * что позволяет получить нужный блок через {@link #getForColor(DyeColor)}.
  */
 public class BannerBlock extends AbstractBannerBlock {
 
 	public static final MapCodec<BannerBlock> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(
-							DyeColor.CODEC.fieldOf("color").forGetter(AbstractBannerBlock::getColor),
-							createSettingsCodec()
-					)
-					.apply(instance, BannerBlock::new)
+		instance -> instance
+			.group(
+				DyeColor.CODEC.fieldOf("color").forGetter(AbstractBannerBlock::getColor),
+				createSettingsCodec()
+			)
+			.apply(instance, BannerBlock::new)
 	);
 	public static final IntProperty ROTATION = Properties.ROTATION;
 	private static final Map<DyeColor, Block> COLORED_BANNERS = Maps.newHashMap();
@@ -45,7 +47,7 @@ public class BannerBlock extends AbstractBannerBlock {
 
 	public BannerBlock(DyeColor dyeColor, AbstractBlock.Settings settings) {
 		super(dyeColor, settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(ROTATION, 0));
+		setDefaultState(stateManager.getDefaultState().with(ROTATION, 0));
 		COLORED_BANNERS.put(dyeColor, this);
 	}
 
@@ -61,32 +63,32 @@ public class BannerBlock extends AbstractBannerBlock {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F));
+		return getDefaultState().with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F));
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		return direction == Direction.DOWN && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+		return direction == Direction.DOWN && state.canPlaceAt(world, pos) == false
+			? Blocks.AIR.getDefaultState()
+			: super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			);
 	}
 
 	@Override

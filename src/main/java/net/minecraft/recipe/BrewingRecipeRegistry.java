@@ -18,20 +18,23 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code BrewingRecipeRegistry}.
+ * Реестр рецептов варочного стола. Хранит три категории рецептов:
+ * типы зелий (допустимые контейнеры), рецепты превращения зелий и рецепты превращения предметов.
+ * Экземпляр создаётся через {@link Builder} и является иммутабельным после построения.
  */
 public class BrewingRecipeRegistry {
 
 	public static final int FUEL_TIME = 20;
 	public static final BrewingRecipeRegistry EMPTY = new BrewingRecipeRegistry(List.of(), List.of(), List.of());
+
 	private final List<Ingredient> potionTypes;
-	private final List<BrewingRecipeRegistry.Recipe<Potion>> potionRecipes;
-	private final List<BrewingRecipeRegistry.Recipe<Item>> itemRecipes;
+	private final List<Recipe<Potion>> potionRecipes;
+	private final List<Recipe<Item>> itemRecipes;
 
 	BrewingRecipeRegistry(
 			List<Ingredient> potionTypes,
-			List<BrewingRecipeRegistry.Recipe<Potion>> potionRecipes,
-			List<BrewingRecipeRegistry.Recipe<Item>> itemRecipes
+			List<Recipe<Potion>> potionRecipes,
+			List<Recipe<Item>> itemRecipes
 	) {
 		this.potionTypes = potionTypes;
 		this.potionRecipes = potionRecipes;
@@ -39,11 +42,11 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean isValidIngredient(ItemStack stack) {
-		return this.isItemRecipeIngredient(stack) || this.isPotionRecipeIngredient(stack);
+		return isItemRecipeIngredient(stack) || isPotionRecipeIngredient(stack);
 	}
 
 	private boolean isPotionType(ItemStack stack) {
-		for (Ingredient ingredient : this.potionTypes) {
+		for (Ingredient ingredient : potionTypes) {
 			if (ingredient.test(stack)) {
 				return true;
 			}
@@ -53,7 +56,7 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean isItemRecipeIngredient(ItemStack stack) {
-		for (BrewingRecipeRegistry.Recipe<Item> recipe : this.itemRecipes) {
+		for (Recipe<Item> recipe : itemRecipes) {
 			if (recipe.ingredient.test(stack)) {
 				return true;
 			}
@@ -63,7 +66,7 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean isPotionRecipeIngredient(ItemStack stack) {
-		for (BrewingRecipeRegistry.Recipe<Potion> recipe : this.potionRecipes) {
+		for (Recipe<Potion> recipe : potionRecipes) {
 			if (recipe.ingredient.test(stack)) {
 				return true;
 			}
@@ -73,7 +76,7 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean isBrewable(RegistryEntry<Potion> potion) {
-		for (BrewingRecipeRegistry.Recipe<Potion> recipe : this.potionRecipes) {
+		for (Recipe<Potion> recipe : potionRecipes) {
 			if (recipe.to.matches(potion)) {
 				return true;
 			}
@@ -83,14 +86,11 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean hasRecipe(ItemStack input, ItemStack ingredient) {
-		return !this.isPotionType(input) ? false : this.hasItemRecipe(input, ingredient) || this.hasPotionRecipe(
-				input,
-				ingredient
-		);
+		return isPotionType(input) && (hasItemRecipe(input, ingredient) || hasPotionRecipe(input, ingredient));
 	}
 
 	public boolean hasItemRecipe(ItemStack input, ItemStack ingredient) {
-		for (BrewingRecipeRegistry.Recipe<Item> recipe : this.itemRecipes) {
+		for (Recipe<Item> recipe : itemRecipes) {
 			if (input.itemMatches(recipe.from) && recipe.ingredient.test(ingredient)) {
 				return true;
 			}
@@ -100,79 +100,64 @@ public class BrewingRecipeRegistry {
 	}
 
 	public boolean hasPotionRecipe(ItemStack input, ItemStack ingredient) {
-		Optional<RegistryEntry<Potion>>
-				optional =
-				input.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT).potion();
-		if (optional.isEmpty()) {
+		Optional<RegistryEntry<Potion>> potion = input
+				.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT)
+				.potion();
+		if (potion.isEmpty()) {
 			return false;
 		}
-		else {
-			for (BrewingRecipeRegistry.Recipe<Potion> recipe : this.potionRecipes) {
-				if (recipe.from.matches(optional.get()) && recipe.ingredient.test(ingredient)) {
-					return true;
-				}
-			}
 
-			return false;
+		for (Recipe<Potion> recipe : potionRecipes) {
+			if (recipe.from.matches(potion.get()) && recipe.ingredient.test(ingredient)) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	/**
-	 * Craft.
+	 * Применяет ингредиент к входному стеку и возвращает результирующий стек зелья.
+	 * Сначала проверяются рецепты превращения предметов, затем рецепты превращения зелий.
 	 *
-	 * @param ingredient ingredient
-	 * @param input input
-	 *
-	 * @return ItemStack — результат операции
+	 * @param ingredient ингредиент, добавляемый в варочный стол
+	 * @param input входной стек (флакон с зельем или без)
+	 * @return результирующий стек, либо исходный {@code input} если рецепт не найден
 	 */
 	public ItemStack craft(ItemStack ingredient, ItemStack input) {
 		if (input.isEmpty()) {
 			return input;
 		}
-		else {
-			Optional<RegistryEntry<Potion>>
-					optional =
-					input.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT).potion();
-			if (optional.isEmpty()) {
-				return input;
-			}
-			else {
-				for (BrewingRecipeRegistry.Recipe<Item> recipe : this.itemRecipes) {
-					if (input.itemMatches(recipe.from) && recipe.ingredient.test(ingredient)) {
-						return PotionContentsComponent.createStack(recipe.to.value(), optional.get());
-					}
-				}
 
-				for (BrewingRecipeRegistry.Recipe<Potion> recipex : this.potionRecipes) {
-					if (recipex.from.matches(optional.get()) && recipex.ingredient.test(ingredient)) {
-						return PotionContentsComponent.createStack(input.getItem(), recipex.to);
-					}
-				}
+		Optional<RegistryEntry<Potion>> potion = input
+				.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT)
+				.potion();
+		if (potion.isEmpty()) {
+			return input;
+		}
 
-				return input;
+		for (Recipe<Item> recipe : itemRecipes) {
+			if (input.itemMatches(recipe.from) && recipe.ingredient.test(ingredient)) {
+				return PotionContentsComponent.createStack(recipe.to.value(), potion.get());
 			}
 		}
+
+		for (Recipe<Potion> recipe : potionRecipes) {
+			if (recipe.from.matches(potion.get()) && recipe.ingredient.test(ingredient)) {
+				return PotionContentsComponent.createStack(input.getItem(), recipe.to);
+			}
+		}
+
+		return input;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param enabledFeatures enabled features
-	 *
-	 * @return BrewingRecipeRegistry — результат операции
-	 */
 	public static BrewingRecipeRegistry create(FeatureSet enabledFeatures) {
-		BrewingRecipeRegistry.Builder builder = new BrewingRecipeRegistry.Builder(enabledFeatures);
+		Builder builder = new Builder(enabledFeatures);
 		registerDefaults(builder);
 		return builder.build();
 	}
 
-	/**
-	 * Регистрирует defaults.
-	 *
-	 * @param builder builder
-	 */
-	public static void registerDefaults(BrewingRecipeRegistry.Builder builder) {
+	public static void registerDefaults(Builder builder) {
 		builder.registerPotionType(Items.POTION);
 		builder.registerPotionType(Items.SPLASH_POTION);
 		builder.registerPotionType(Items.LINGERING_POTION);
@@ -233,13 +218,14 @@ public class BrewingRecipeRegistry {
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель реестра рецептов варочного стола. Накапливает рецепты с учётом
+	 * активных фич-флагов и строит иммутабельный {@link BrewingRecipeRegistry}.
 	 */
 	public static class Builder implements FabricBrewingRecipeRegistryBuilder {
 
 		private final List<Ingredient> potionTypes = new ArrayList<>();
-		private final List<BrewingRecipeRegistry.Recipe<Potion>> potionRecipes = new ArrayList<>();
-		private final List<BrewingRecipeRegistry.Recipe<Item>> itemRecipes = new ArrayList<>();
+		private final List<Recipe<Potion>> potionRecipes = new ArrayList<>();
+		private final List<Recipe<Item>> itemRecipes = new ArrayList<>();
 		private final FeatureSet enabledFeatures;
 
 		public Builder(FeatureSet enabledFeatures) {
@@ -247,92 +233,66 @@ public class BrewingRecipeRegistry {
 		}
 
 		private static void assertPotion(Item potionType) {
-			if (!(potionType instanceof PotionItem)) {
-				throw new IllegalArgumentException("Expected a potion, got: " + Registries.ITEM.getId(potionType));
+			if (potionType instanceof PotionItem) {
+				return;
 			}
+
+			throw new IllegalArgumentException("Expected a potion, got: " + Registries.ITEM.getId(potionType));
 		}
 
-		/**
-		 * Регистрирует item recipe.
-		 *
-		 * @param input input
-		 * @param ingredient ingredient
-		 * @param output output
-		 */
 		public void registerItemRecipe(Item input, Item ingredient, Item output) {
-			if (input.isEnabled(this.enabledFeatures) && ingredient.isEnabled(this.enabledFeatures) && output.isEnabled(
-					this.enabledFeatures)) {
-				assertPotion(input);
-				assertPotion(output);
-				this.itemRecipes.add(new BrewingRecipeRegistry.Recipe<>(
-						input.getRegistryEntry(),
-						Ingredient.ofItem(ingredient),
-						output.getRegistryEntry()
-				));
+			if (!input.isEnabled(enabledFeatures)
+					|| !ingredient.isEnabled(enabledFeatures)
+					|| !output.isEnabled(enabledFeatures)) {
+				return;
 			}
+
+			assertPotion(input);
+			assertPotion(output);
+			itemRecipes.add(new Recipe<>(
+					input.getRegistryEntry(),
+					Ingredient.ofItem(ingredient),
+					output.getRegistryEntry()
+			));
 		}
 
-		/**
-		 * Регистрирует potion type.
-		 *
-		 * @param item item
-		 */
 		public void registerPotionType(Item item) {
-			if (item.isEnabled(this.enabledFeatures)) {
-				assertPotion(item);
-				this.potionTypes.add(Ingredient.ofItem(item));
+			if (!item.isEnabled(enabledFeatures)) {
+				return;
 			}
+
+			assertPotion(item);
+			potionTypes.add(Ingredient.ofItem(item));
 		}
 
-		/**
-		 * Регистрирует potion recipe.
-		 *
-		 * @param input input
-		 * @param ingredient ingredient
-		 * @param output output
-		 */
 		public void registerPotionRecipe(RegistryEntry<Potion> input, Item ingredient, RegistryEntry<Potion> output) {
-			if (input.value().isEnabled(this.enabledFeatures) && ingredient.isEnabled(this.enabledFeatures) && output
-					.value()
-					.isEnabled(this.enabledFeatures)) {
-				this.potionRecipes.add(new BrewingRecipeRegistry.Recipe<>(
-						input,
-						Ingredient.ofItem(ingredient),
-						output
-				));
+			if (!input.value().isEnabled(enabledFeatures)
+					|| !ingredient.isEnabled(enabledFeatures)
+					|| !output.value().isEnabled(enabledFeatures)) {
+				return;
 			}
+
+			potionRecipes.add(new Recipe<>(input, Ingredient.ofItem(ingredient), output));
 		}
 
-		/**
-		 * Регистрирует recipes.
-		 *
-		 * @param ingredient ingredient
-		 * @param potion potion
-		 */
 		public void registerRecipes(Item ingredient, RegistryEntry<Potion> potion) {
-			if (potion.value().isEnabled(this.enabledFeatures)) {
-				this.registerPotionRecipe(Potions.WATER, ingredient, Potions.MUNDANE);
-				this.registerPotionRecipe(Potions.AWKWARD, ingredient, potion);
+			if (!potion.value().isEnabled(enabledFeatures)) {
+				return;
 			}
+
+			registerPotionRecipe(Potions.WATER, ingredient, Potions.MUNDANE);
+			registerPotionRecipe(Potions.AWKWARD, ingredient, potion);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return BrewingRecipeRegistry — результат операции
-		 */
 		public BrewingRecipeRegistry build() {
 			return new BrewingRecipeRegistry(
-					List.copyOf(this.potionTypes),
-					List.copyOf(this.potionRecipes),
-					List.copyOf(this.itemRecipes)
+					List.copyOf(potionTypes),
+					List.copyOf(potionRecipes),
+					List.copyOf(itemRecipes)
 			);
 		}
 	}
 
-	/**
-	 * {@code Recipe}.
-	 */
 	record Recipe<T>(RegistryEntry<T> from, Ingredient ingredient, RegistryEntry<T> to) {
 	}
 }

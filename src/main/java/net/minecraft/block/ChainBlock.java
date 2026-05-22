@@ -20,7 +20,8 @@ import net.minecraft.world.tick.ScheduledTickView;
 import java.util.Map;
 
 /**
- * {@code ChainBlock}.
+ * Блок цепи. Ориентируется по оси размещения, поддерживает заполнение водой.
+ * Форма зависит от оси: узкий столбик 3×3 пикселя в центре.
  */
 public class ChainBlock extends PillarBlock implements Waterloggable {
 
@@ -37,7 +38,7 @@ public class ChainBlock extends PillarBlock implements Waterloggable {
 
 	public ChainBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false).with(AXIS, Direction.Axis.Y));
+		setDefaultState(stateManager.getDefaultState().with(WATERLOGGED, false).with(AXIS, Direction.Axis.Y));
 	}
 
 	@Override

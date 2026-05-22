@@ -37,7 +37,8 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code Items}.
+ * Реестр всех стандартных предметов Minecraft. Содержит статические константы для каждого
+ * зарегистрированного предмета и вспомогательные методы регистрации через {@link Registry}.
  */
 public class Items {
 

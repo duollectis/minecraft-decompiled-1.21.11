@@ -4,102 +4,106 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * {@code FixedBufferInputStream}.
+ * Буферизованный входной поток с фиксированным буфером фиксированного размера.
+ * <p>
+ * В отличие от {@link java.io.BufferedInputStream}, использует буфер фиксированного
+ * размера без возможности изменения. Оптимизирован для случаев, когда размер буфера
+ * известен заранее и не должен меняться в процессе работы.
  */
 public class FixedBufferInputStream extends InputStream {
 
 	private static final int DEFAULT_BUFFER_SIZE = 8192;
+
 	private final InputStream stream;
-	private final byte[] buf;
+	private final byte[] buffer;
 	private int end;
 	private int start;
 
 	public FixedBufferInputStream(InputStream stream) {
-		this(stream, 8192);
+		this(stream, DEFAULT_BUFFER_SIZE);
 	}
 
 	public FixedBufferInputStream(InputStream stream, int size) {
 		this.stream = stream;
-		this.buf = new byte[size];
+		this.buffer = new byte[size];
 	}
 
 	@Override
 	public int read() throws IOException {
-		if (this.start >= this.end) {
-			this.fill();
-			if (this.start >= this.end) {
+		if (start >= end) {
+			fill();
+
+			if (start >= end) {
 				return -1;
 			}
 		}
 
-		return Byte.toUnsignedInt(this.buf[this.start++]);
+		return Byte.toUnsignedInt(buffer[start++]);
 	}
 
 	@Override
-	public int read(byte[] buf, int offset, int length) throws IOException {
-		int i = this.getAvailableBuffer();
-		if (i <= 0) {
-			if (length >= this.buf.length) {
-				return this.stream.read(buf, offset, length);
+	public int read(byte[] dest, int offset, int length) throws IOException {
+		int available = getAvailableBuffer();
+
+		if (available <= 0) {
+			if (length >= buffer.length) {
+				return stream.read(dest, offset, length);
 			}
 
-			this.fill();
-			i = this.getAvailableBuffer();
-			if (i <= 0) {
+			fill();
+			available = getAvailableBuffer();
+
+			if (available <= 0) {
 				return -1;
 			}
 		}
 
-		if (length > i) {
-			length = i;
-		}
+		int toRead = Math.min(length, available);
+		System.arraycopy(buffer, start, dest, offset, toRead);
+		start += toRead;
 
-		System.arraycopy(this.buf, this.start, buf, offset, length);
-		this.start += length;
-		return length;
+		return toRead;
 	}
 
 	@Override
-	public long skip(long n) throws IOException {
-		if (n <= 0L) {
+	public long skip(long count) throws IOException {
+		if (count <= 0L) {
 			return 0L;
 		}
-		else {
-			long l = this.getAvailableBuffer();
-			if (l <= 0L) {
-				return this.stream.skip(n);
-			}
-			else {
-				if (n > l) {
-					n = l;
-				}
 
-				this.start = (int) (this.start + n);
-				return n;
-			}
+		long available = getAvailableBuffer();
+
+		if (available <= 0L) {
+			return stream.skip(count);
 		}
+
+		long toSkip = Math.min(count, available);
+		start = (int) (start + toSkip);
+
+		return toSkip;
 	}
 
 	@Override
 	public int available() throws IOException {
-		return this.getAvailableBuffer() + this.stream.available();
+		return getAvailableBuffer() + stream.available();
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.stream.close();
+		stream.close();
 	}
 
 	private int getAvailableBuffer() {
-		return this.end - this.start;
+		return end - start;
 	}
 
 	private void fill() throws IOException {
-		this.end = 0;
-		this.start = 0;
-		int i = this.stream.read(this.buf, 0, this.buf.length);
-		if (i > 0) {
-			this.end = i;
+		end = 0;
+		start = 0;
+		int bytesRead = stream.read(buffer, 0, buffer.length);
+
+		if (bytesRead > 0) {
+			end = bytesRead;
 		}
 	}
 }

@@ -13,7 +13,7 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Map;
 
 /**
- * {@code StatsRenameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StatsRenameFix extends DataFix {
 
@@ -31,8 +31,8 @@ public class StatsRenameFix extends DataFix {
 	}
 
 	private TypeRewriteRule renameObjectives() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.OBJECTIVE);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.OBJECTIVE);
+		Type<?> type = getOutputSchema().getType(TypeReferences.OBJECTIVE);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.OBJECTIVE);
 		OpticFinder<?> opticFinder = type2.findField("CriteriaType");
 		TaggedChoiceType<?> taggedChoiceType = (TaggedChoiceType<?>) opticFinder.type()
 		                                                                        .findChoiceType("type", -1)
@@ -45,7 +45,7 @@ public class StatsRenameFix extends DataFix {
 		else {
 			OpticFinder<?> opticFinder2 = DSL.namedChoice("minecraft:custom", type3);
 			OpticFinder<String> opticFinder3 = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
-			return this.fixTypeEverywhereTyped(
+			return fixTypeEverywhereTyped(
 					this.name,
 					type2,
 					type,
@@ -64,12 +64,12 @@ public class StatsRenameFix extends DataFix {
 	}
 
 	private TypeRewriteRule renameStats() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.STATS);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.STATS);
+		Type<?> type = getOutputSchema().getType(TypeReferences.STATS);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.STATS);
 		OpticFinder<?> opticFinder = type2.findField("stats");
 		OpticFinder<?> opticFinder2 = opticFinder.type().findField("minecraft:custom");
 		OpticFinder<String> opticFinder3 = IdentifierNormalizingSchema.getIdentifierType().finder();
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
 				type2,
 				type,

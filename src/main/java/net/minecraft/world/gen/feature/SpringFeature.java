@@ -7,7 +7,10 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code SpringFeature}.
+ * Генерирует источник жидкости (воды или лавы) в стене пещеры.
+ * Проверяет, что вокруг точки ровно {@code rockCount} твёрдых блоков
+ * и {@code holeCount} воздушных — это гарантирует, что источник
+ * находится в стене, а не в открытом пространстве.
  */
 public class SpringFeature extends Feature<SpringFeatureConfig> {
 
@@ -17,74 +20,74 @@ public class SpringFeature extends Feature<SpringFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<SpringFeatureConfig> context) {
-		SpringFeatureConfig springFeatureConfig = context.getConfig();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		if (!structureWorldAccess.getBlockState(blockPos.up()).isIn(springFeatureConfig.validBlocks)) {
+		SpringFeatureConfig config = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos pos = context.getOrigin();
+
+		if (!world.getBlockState(pos.up()).isIn(config.validBlocks)) {
 			return false;
 		}
-		else if (springFeatureConfig.requiresBlockBelow && !structureWorldAccess
-				.getBlockState(blockPos.down())
-				.isIn(springFeatureConfig.validBlocks)) {
+
+		if (config.requiresBlockBelow && !world.getBlockState(pos.down()).isIn(config.validBlocks)) {
 			return false;
 		}
-		else {
-			BlockState blockState = structureWorldAccess.getBlockState(blockPos);
-			if (!blockState.isAir() && !blockState.isIn(springFeatureConfig.validBlocks)) {
-				return false;
-			}
-			else {
-				int i = 0;
-				int j = 0;
-				if (structureWorldAccess.getBlockState(blockPos.west()).isIn(springFeatureConfig.validBlocks)) {
-					j++;
-				}
 
-				if (structureWorldAccess.getBlockState(blockPos.east()).isIn(springFeatureConfig.validBlocks)) {
-					j++;
-				}
+		BlockState existing = world.getBlockState(pos);
 
-				if (structureWorldAccess.getBlockState(blockPos.north()).isIn(springFeatureConfig.validBlocks)) {
-					j++;
-				}
-
-				if (structureWorldAccess.getBlockState(blockPos.south()).isIn(springFeatureConfig.validBlocks)) {
-					j++;
-				}
-
-				if (structureWorldAccess.getBlockState(blockPos.down()).isIn(springFeatureConfig.validBlocks)) {
-					j++;
-				}
-
-				int k = 0;
-				if (structureWorldAccess.isAir(blockPos.west())) {
-					k++;
-				}
-
-				if (structureWorldAccess.isAir(blockPos.east())) {
-					k++;
-				}
-
-				if (structureWorldAccess.isAir(blockPos.north())) {
-					k++;
-				}
-
-				if (structureWorldAccess.isAir(blockPos.south())) {
-					k++;
-				}
-
-				if (structureWorldAccess.isAir(blockPos.down())) {
-					k++;
-				}
-
-				if (j == springFeatureConfig.rockCount && k == springFeatureConfig.holeCount) {
-					structureWorldAccess.setBlockState(blockPos, springFeatureConfig.state.getBlockState(), 2);
-					structureWorldAccess.scheduleFluidTick(blockPos, springFeatureConfig.state.getFluid(), 0);
-					i++;
-				}
-
-				return i > 0;
-			}
+		if (!existing.isAir() && !existing.isIn(config.validBlocks)) {
+			return false;
 		}
+
+		int solidNeighbors = 0;
+
+		if (world.getBlockState(pos.west()).isIn(config.validBlocks)) {
+			solidNeighbors++;
+		}
+
+		if (world.getBlockState(pos.east()).isIn(config.validBlocks)) {
+			solidNeighbors++;
+		}
+
+		if (world.getBlockState(pos.north()).isIn(config.validBlocks)) {
+			solidNeighbors++;
+		}
+
+		if (world.getBlockState(pos.south()).isIn(config.validBlocks)) {
+			solidNeighbors++;
+		}
+
+		if (world.getBlockState(pos.down()).isIn(config.validBlocks)) {
+			solidNeighbors++;
+		}
+
+		int airNeighbors = 0;
+
+		if (world.isAir(pos.west())) {
+			airNeighbors++;
+		}
+
+		if (world.isAir(pos.east())) {
+			airNeighbors++;
+		}
+
+		if (world.isAir(pos.north())) {
+			airNeighbors++;
+		}
+
+		if (world.isAir(pos.south())) {
+			airNeighbors++;
+		}
+
+		if (world.isAir(pos.down())) {
+			airNeighbors++;
+		}
+
+		if (solidNeighbors != config.rockCount || airNeighbors != config.holeCount) {
+			return false;
+		}
+
+		world.setBlockState(pos, config.state.getBlockState(), 2);
+		world.scheduleFluidTick(pos, config.state.getFluid(), 0);
+		return true;
 	}
 }

@@ -27,10 +27,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CustomizeFlatLevelScreen}.
+ * Экран настройки суперплоского мира. Отображает список слоёв генерации
+ * ({@link SuperflatLayersListWidget}) и позволяет удалять слои, переходить
+ * к экрану пресетов ({@link PresetsScreen}) и подтверждать конфигурацию.
  */
+@Environment(EnvType.CLIENT)
 public class CustomizeFlatLevelScreen extends Screen {
 
 	private static final Text TITLE = Text.translatable("createWorld.customize.flat.title");
@@ -60,98 +62,105 @@ public class CustomizeFlatLevelScreen extends Screen {
 	}
 
 	public FlatChunkGeneratorConfig getConfig() {
-		return this.config;
+		return config;
 	}
 
 	public void setConfig(FlatChunkGeneratorConfig config) {
 		this.config = config;
-		if (this.layers != null) {
-			this.layers.updateLayers();
-			this.updateRemoveLayerButton();
+
+		if (layers == null) {
+			return;
 		}
+
+		layers.updateLayers();
+		updateRemoveLayerButton();
 	}
 
 	@Override
 	protected void init() {
-		this.layout.addHeader(this.title, this.textRenderer);
-		this.layers = this.layout.addBody(new CustomizeFlatLevelScreen.SuperflatLayersListWidget());
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.vertical().spacing(4));
-		directionalLayoutWidget.getMainPositioner().alignVerticalCenter();
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(8));
-		DirectionalLayoutWidget
-				directionalLayoutWidget3 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal().spacing(8));
-		this.widgetButtonRemoveLayer = directionalLayoutWidget2.add(
+		layout.addHeader(title, textRenderer);
+		layers = layout.addBody(new CustomizeFlatLevelScreen.SuperflatLayersListWidget());
+		DirectionalLayoutWidget footer = layout.addFooter(DirectionalLayoutWidget.vertical().spacing(4));
+		footer.getMainPositioner().alignVerticalCenter();
+		DirectionalLayoutWidget topRow = footer.add(DirectionalLayoutWidget.horizontal().spacing(8));
+		DirectionalLayoutWidget bottomRow = footer.add(DirectionalLayoutWidget.horizontal().spacing(8));
+
+		widgetButtonRemoveLayer = topRow.add(
 				ButtonWidget.builder(
-						            Text.translatable("createWorld.customize.flat.removeLayer"),
-						            button -> {
-							            if (this.layers != null
-									            && this.layers.getSelectedOrNull() instanceof CustomizeFlatLevelScreen.SuperflatLayersListWidget.SuperflatLayerEntry superflatLayerEntry) {
-								            this.layers.removeLayer(superflatLayerEntry);
-							            }
-						            }
-				            )
-				            .build()
+						Text.translatable("createWorld.customize.flat.removeLayer"),
+						button -> {
+							if (layers != null
+									&& layers.getSelectedOrNull() instanceof SuperflatLayersListWidget.SuperflatLayerEntry entry) {
+								layers.removeLayer(entry);
+							}
+						}
+				).build()
 		);
-		directionalLayoutWidget2.add(ButtonWidget.builder(
-				Text.translatable("createWorld.customize.presets"), button -> {
-					this.client.setScreen(new PresetsScreen(this));
-					this.config.updateLayerBlocks();
-					this.updateRemoveLayerButton();
+
+		topRow.add(ButtonWidget.builder(
+				Text.translatable("createWorld.customize.presets"),
+				button -> {
+					client.setScreen(new PresetsScreen(this));
+					config.updateLayerBlocks();
+					updateRemoveLayerButton();
 				}
 		).build());
-		directionalLayoutWidget3.add(ButtonWidget.builder(
-				ScreenTexts.DONE, button -> {
-					this.configConsumer.accept(this.config);
-					this.close();
-					this.config.updateLayerBlocks();
+
+		bottomRow.add(ButtonWidget.builder(
+				ScreenTexts.DONE,
+				button -> {
+					configConsumer.accept(config);
+					close();
+					config.updateLayerBlocks();
 				}
 		).build());
-		directionalLayoutWidget3.add(ButtonWidget.builder(
-				ScreenTexts.CANCEL, button -> {
-					this.close();
-					this.config.updateLayerBlocks();
+
+		bottomRow.add(ButtonWidget.builder(
+				ScreenTexts.CANCEL,
+				button -> {
+					close();
+					config.updateLayerBlocks();
 				}
 		).build());
-		this.config.updateLayerBlocks();
-		this.updateRemoveLayerButton();
-		this.layout.forEachChild(this::addDrawableChild);
-		this.refreshWidgetPositions();
+
+		config.updateLayerBlocks();
+		updateRemoveLayerButton();
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		if (this.layers != null) {
-			this.layers.position(this.width, this.layout);
+		if (layers != null) {
+			layers.position(width, layout);
 		}
 
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	void updateRemoveLayerButton() {
-		if (this.widgetButtonRemoveLayer != null) {
-			this.widgetButtonRemoveLayer.active = this.hasLayerSelected();
+		if (widgetButtonRemoveLayer == null) {
+			return;
 		}
+
+		widgetButtonRemoveLayer.active = hasLayerSelected();
 	}
 
 	private boolean hasLayerSelected() {
-		return this.layers != null
-				&& this.layers.getSelectedOrNull() instanceof CustomizeFlatLevelScreen.SuperflatLayersListWidget.SuperflatLayerEntry;
+		return layers != null
+				&& layers.getSelectedOrNull() instanceof SuperflatLayersListWidget.SuperflatLayerEntry;
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SuperflatLayersListWidget}.
+	 * Список слоёв суперплоского мира. Первая строка — заголовок с названиями колонок,
+	 * остальные — записи {@link SuperflatLayerEntry} в обратном порядке (верхний слой первым).
 	 */
+	@Environment(EnvType.CLIENT)
 	class SuperflatLayersListWidget extends AlwaysSelectedEntryListWidget<CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry> {
 
 		static final Text
@@ -161,6 +170,8 @@ public class CustomizeFlatLevelScreen extends Screen {
 				HEIGHT_TEXT =
 				Text.translatable("createWorld.customize.flat.height").formatted(Formatting.UNDERLINE);
 
+		private static final int HEADER_HEIGHT = 13;
+
 		public SuperflatLayersListWidget() {
 			super(
 					CustomizeFlatLevelScreen.this.client,
@@ -169,21 +180,15 @@ public class CustomizeFlatLevelScreen extends Screen {
 					43,
 					24
 			);
-			this.refreshLayers();
+			refreshLayers();
 		}
 
 		private void refreshLayers() {
-			this.addEntry(
-					new CustomizeFlatLevelScreen.SuperflatLayersListWidget.HeaderEntry(CustomizeFlatLevelScreen.this.textRenderer),
-					(int) (9.0 * 1.5)
-			);
-			List<FlatChunkGeneratorLayer> list = CustomizeFlatLevelScreen.this.config.getLayers().reversed();
+			addEntry(new HeaderEntry(CustomizeFlatLevelScreen.this.textRenderer), HEADER_HEIGHT);
+			List<FlatChunkGeneratorLayer> reversedLayers = CustomizeFlatLevelScreen.this.config.getLayers().reversed();
 
-			for (int i = 0; i < list.size(); i++) {
-				this.addEntry(new CustomizeFlatLevelScreen.SuperflatLayersListWidget.SuperflatLayerEntry(
-						list.get(i),
-						i
-				));
+			for (int i = 0; i < reversedLayers.size(); i++) {
+				addEntry(new SuperflatLayerEntry(reversedLayers.get(i), i));
 			}
 		}
 
@@ -192,41 +197,33 @@ public class CustomizeFlatLevelScreen extends Screen {
 			CustomizeFlatLevelScreen.this.updateRemoveLayerButton();
 		}
 
-		/**
-		 * Обновляет layers.
-		 */
 		public void updateLayers() {
-			int i = this.children().indexOf(this.getSelectedOrNull());
-			this.clearEntries();
-			this.refreshLayers();
-			List<CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry> list = this.children();
-			if (i >= 0 && i < list.size()) {
-				this.setSelected(list.get(i));
+			int selectedIndex = children().indexOf(getSelectedOrNull());
+			clearEntries();
+			refreshLayers();
+			List<CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry> entries = children();
+
+			if (selectedIndex >= 0 && selectedIndex < entries.size()) {
+				setSelected(entries.get(selectedIndex));
 			}
 		}
 
 		void removeLayer(CustomizeFlatLevelScreen.SuperflatLayersListWidget.SuperflatLayerEntry layer) {
-			List<FlatChunkGeneratorLayer> list = CustomizeFlatLevelScreen.this.config.getLayers();
-			int i = this.children().indexOf(layer);
-			this.removeEntry(layer);
-			list.remove(layer.layer);
-			this.setSelected(list.isEmpty() ? null : this.children().get(Math.min(i, list.size())));
+			List<FlatChunkGeneratorLayer> flatLayers = CustomizeFlatLevelScreen.this.config.getLayers();
+			int layerIndex = children().indexOf(layer);
+			removeEntry(layer);
+			flatLayers.remove(layer.layer);
+			setSelected(flatLayers.isEmpty() ? null : children().get(Math.min(layerIndex, flatLayers.size())));
 			CustomizeFlatLevelScreen.this.config.updateLayerBlocks();
-			this.updateLayers();
+			updateLayers();
 			CustomizeFlatLevelScreen.this.updateRemoveLayerButton();
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code Entry}.
-		 */
 		abstract static class Entry extends AlwaysSelectedEntryListWidget.Entry<CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry> {
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code HeaderEntry}.
-		 */
 		static class HeaderEntry extends CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry {
 
 			private final TextRenderer textRenderer;
@@ -236,38 +233,34 @@ public class CustomizeFlatLevelScreen extends Screen {
 			}
 
 			@Override
-			public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-				context.drawTextWithShadow(
-						this.textRenderer,
-						CustomizeFlatLevelScreen.SuperflatLayersListWidget.LAYER_MATERIAL_TEXT,
-						this.getContentX(),
-						this.getContentY(),
-						-1
-				);
-				context.drawTextWithShadow(
-						this.textRenderer,
-						CustomizeFlatLevelScreen.SuperflatLayersListWidget.HEIGHT_TEXT,
-						this.getContentRightEnd()
-								- this.textRenderer.getWidth(CustomizeFlatLevelScreen.SuperflatLayersListWidget.HEIGHT_TEXT),
-						this.getContentY(),
-						-1
-				);
+				public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
+					context.drawTextWithShadow(
+							textRenderer,
+							SuperflatLayersListWidget.LAYER_MATERIAL_TEXT,
+							getContentX(),
+							getContentY(),
+							-1
+					);
+					context.drawTextWithShadow(
+							textRenderer,
+							SuperflatLayersListWidget.HEIGHT_TEXT,
+							getContentRightEnd() - textRenderer.getWidth(SuperflatLayersListWidget.HEIGHT_TEXT),
+							getContentY(),
+							-1
+					);
+				}
+	
+				@Override
+				public Text getNarration() {
+					return ScreenTexts.joinSentences(
+							SuperflatLayersListWidget.LAYER_MATERIAL_TEXT,
+							SuperflatLayersListWidget.HEIGHT_TEXT
+					);
+				}
 			}
-
-			@Override
-			public Text getNarration() {
-				return ScreenTexts.joinSentences(
-						CustomizeFlatLevelScreen.SuperflatLayersListWidget.LAYER_MATERIAL_TEXT,
-						CustomizeFlatLevelScreen.SuperflatLayersListWidget.HEIGHT_TEXT
-				);
-			}
-		}
-
-		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code SuperflatLayerEntry}.
-		 */
-		class SuperflatLayerEntry extends CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry {
+	
+			@Environment(EnvType.CLIENT)
+			class SuperflatLayerEntry extends CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry {
 
 			final FlatChunkGeneratorLayer layer;
 			private final int index;
@@ -278,88 +271,90 @@ public class CustomizeFlatLevelScreen extends Screen {
 			}
 
 			@Override
-			public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-				BlockState blockState = this.layer.getBlockState();
-				ItemStack itemStack = this.createItemStackFor(blockState);
-				this.renderIcon(context, this.getContentX(), this.getContentY(), itemStack);
-				int i = this.getContentMiddleY() - 9 / 2;
-				context.drawTextWithShadow(
-						CustomizeFlatLevelScreen.this.textRenderer,
-						itemStack.getName(),
-						this.getContentX() + 18 + 5,
-						i,
-						-1
-				);
-				Text text;
-				if (this.index == 0) {
-					text = Text.translatable("createWorld.customize.flat.layer.top", this.layer.getThickness());
-				}
-				else if (this.index == CustomizeFlatLevelScreen.this.config.getLayers().size() - 1) {
-					text = Text.translatable("createWorld.customize.flat.layer.bottom", this.layer.getThickness());
-				}
-				else {
-					text = Text.translatable("createWorld.customize.flat.layer", this.layer.getThickness());
-				}
-
-				context.drawTextWithShadow(
-						CustomizeFlatLevelScreen.this.textRenderer,
-						text,
-						this.getContentRightEnd() - CustomizeFlatLevelScreen.this.textRenderer.getWidth(text),
-						i,
-						-1
-				);
-			}
-
-			private ItemStack createItemStackFor(BlockState state) {
-				Item item = state.getBlock().asItem();
-				if (item == Items.AIR) {
-					if (state.isOf(Blocks.WATER)) {
-						item = Items.WATER_BUCKET;
+				public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
+					BlockState blockState = layer.getBlockState();
+					ItemStack iconStack = createItemStackFor(blockState);
+					renderIcon(context, getContentX(), getContentY(), iconStack);
+					int textY = getContentMiddleY() - 9 / 2;
+	
+					context.drawTextWithShadow(
+							CustomizeFlatLevelScreen.this.textRenderer,
+							iconStack.getName(),
+							getContentX() + ICON_SIZE + 5,
+							textY,
+							-1
+					);
+	
+					int lastLayerIndex = CustomizeFlatLevelScreen.this.config.getLayers().size() - 1;
+					Text layerText;
+	
+					if (index == 0) {
+						layerText = Text.translatable("createWorld.customize.flat.layer.top", layer.getThickness());
+					} else if (index == lastLayerIndex) {
+						layerText = Text.translatable("createWorld.customize.flat.layer.bottom", layer.getThickness());
+					} else {
+						layerText = Text.translatable("createWorld.customize.flat.layer", layer.getThickness());
 					}
-					else if (state.isOf(Blocks.LAVA)) {
-						item = Items.LAVA_BUCKET;
+	
+					context.drawTextWithShadow(
+							CustomizeFlatLevelScreen.this.textRenderer,
+							layerText,
+							getContentRightEnd() - CustomizeFlatLevelScreen.this.textRenderer.getWidth(layerText),
+							textY,
+							-1
+					);
+				}
+	
+				private ItemStack createItemStackFor(BlockState state) {
+					Item item = state.getBlock().asItem();
+	
+					if (item == Items.AIR) {
+						if (state.isOf(Blocks.WATER)) {
+							item = Items.WATER_BUCKET;
+						} else if (state.isOf(Blocks.LAVA)) {
+							item = Items.LAVA_BUCKET;
+						}
+					}
+	
+					return new ItemStack(item);
+				}
+	
+				@Override
+				public Text getNarration() {
+					ItemStack iconStack = createItemStackFor(layer.getBlockState());
+					return iconStack.isEmpty()
+							? ScreenTexts.EMPTY
+							: ScreenTexts.joinSentences(
+									Text.translatable("narrator.select", iconStack.getName()),
+									SuperflatLayersListWidget.HEIGHT_TEXT,
+									Text.literal(String.valueOf(layer.getThickness()))
+							);
+				}
+	
+				@Override
+				public boolean mouseClicked(Click click, boolean doubled) {
+					SuperflatLayersListWidget.this.setSelected(this);
+					return super.mouseClicked(click, doubled);
+				}
+	
+				private void renderIcon(DrawContext context, int x, int y, ItemStack iconItem) {
+					renderIconBackgroundTexture(context, x + ICON_BACKGROUND_OFFSET_X, y + ICON_BACKGROUND_OFFSET_Y);
+	
+					if (!iconItem.isEmpty()) {
+						context.drawItemWithoutEntity(iconItem, x + ICON_OFFSET_X, y + ICON_OFFSET_Y);
 					}
 				}
-
-				return new ItemStack(item);
-			}
-
-			@Override
-			public Text getNarration() {
-				ItemStack itemStack = this.createItemStackFor(this.layer.getBlockState());
-				return (Text) (!itemStack.isEmpty()
-				               ? ScreenTexts.joinSentences(
-						Text.translatable("narrator.select", itemStack.getName()),
-						CustomizeFlatLevelScreen.SuperflatLayersListWidget.HEIGHT_TEXT,
-						Text.literal(String.valueOf(this.layer.getThickness()))
-				)
-				               : ScreenTexts.EMPTY
-				);
-			}
-
-			@Override
-			public boolean mouseClicked(Click click, boolean doubled) {
-				SuperflatLayersListWidget.this.setSelected((CustomizeFlatLevelScreen.SuperflatLayersListWidget.Entry) this);
-				return super.mouseClicked(click, doubled);
-			}
-
-			private void renderIcon(DrawContext context, int x, int y, ItemStack iconItem) {
-				this.renderIconBackgroundTexture(context, x + 1, y + 1);
-				if (!iconItem.isEmpty()) {
-					context.drawItemWithoutEntity(iconItem, x + 2, y + 2);
+	
+				private void renderIconBackgroundTexture(DrawContext context, int x, int y) {
+					context.drawGuiTexture(
+							RenderPipelines.GUI_TEXTURED,
+							CustomizeFlatLevelScreen.SLOT_TEXTURE,
+							x,
+							y,
+							ICON_SIZE,
+							ICON_SIZE
+					);
 				}
-			}
-
-			private void renderIconBackgroundTexture(DrawContext context, int x, int y) {
-				context.drawGuiTexture(
-						RenderPipelines.GUI_TEXTURED,
-						CustomizeFlatLevelScreen.SLOT_TEXTURE,
-						x,
-						y,
-						18,
-						18
-				);
-			}
 		}
 	}
 }

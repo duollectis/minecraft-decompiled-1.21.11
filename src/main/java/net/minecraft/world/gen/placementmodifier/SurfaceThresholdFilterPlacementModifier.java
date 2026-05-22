@@ -9,23 +9,24 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 
 /**
- * {@code SurfaceThresholdFilterPlacementModifier}.
+ * Модификатор размещения, фильтрующий позиции по высоте относительно поверхности —
+ * пропускает только те, чья Y-координата находится в диапазоне {@code [surface+min, surface+max]}.
  */
 public class SurfaceThresholdFilterPlacementModifier extends AbstractConditionalPlacementModifier {
 
 	public static final MapCodec<SurfaceThresholdFilterPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Heightmap.Type.CODEC
-							                    .fieldOf("heightmap")
-							                    .forGetter(placementModifier -> placementModifier.heightmap),
-					                    Codec.INT
-							                    .optionalFieldOf("min_inclusive", Integer.MIN_VALUE)
-							                    .forGetter(placementModifier -> placementModifier.min),
-					                    Codec.INT
-							                    .optionalFieldOf("max_inclusive", Integer.MAX_VALUE)
-							                    .forGetter(placementModifier -> placementModifier.max)
-			                    )
-			                    .apply(instance, SurfaceThresholdFilterPlacementModifier::new)
+		instance -> instance.group(
+			Heightmap.Type.CODEC
+				.fieldOf("heightmap")
+				.forGetter(modifier -> modifier.heightmap),
+			Codec.INT
+				.optionalFieldOf("min_inclusive", Integer.MIN_VALUE)
+				.forGetter(modifier -> modifier.min),
+			Codec.INT
+				.optionalFieldOf("max_inclusive", Integer.MAX_VALUE)
+				.forGetter(modifier -> modifier.max)
+		)
+		.apply(instance, SurfaceThresholdFilterPlacementModifier::new)
 	);
 	private final Heightmap.Type heightmap;
 	private final int min;
@@ -37,25 +38,16 @@ public class SurfaceThresholdFilterPlacementModifier extends AbstractConditional
 		this.max = max;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param heightmap heightmap
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return SurfaceThresholdFilterPlacementModifier — результат операции
-	 */
 	public static SurfaceThresholdFilterPlacementModifier of(Heightmap.Type heightmap, int min, int max) {
 		return new SurfaceThresholdFilterPlacementModifier(heightmap, min, max);
 	}
 
 	@Override
 	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
-		long l = context.getTopY(this.heightmap, pos.getX(), pos.getZ());
-		long m = l + this.min;
-		long n = l + this.max;
-		return m <= pos.getY() && pos.getY() <= n;
+		long surfaceY = context.getTopY(heightmap, pos.getX(), pos.getZ());
+		long minY = surfaceY + min;
+		long maxY = surfaceY + max;
+		return minY <= pos.getY() && pos.getY() <= maxY;
 	}
 
 	@Override

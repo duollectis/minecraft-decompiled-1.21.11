@@ -17,7 +17,7 @@ import net.minecraft.util.AssetInfo;
 import java.util.List;
 
 /**
- * {@code FrogVariant}.
+ * Климатический вариант лягушки (умеренный, тёплый, холодный).
  */
 public record FrogVariant(AssetInfo.TextureAssetInfo assetInfo, SpawnConditionSelectors spawnConditions)
 		implements VariantSelectorProvider<SpawnContext, SpawnCondition> {

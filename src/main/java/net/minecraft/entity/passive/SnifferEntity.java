@@ -49,7 +49,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * {@code SnifferEntity}.
+ * Снифер — древнее существо, вынюхивающее и выкапывающее семена
+ * вымерших растений. Вылупляется из яйца снифера.
  */
 public class SnifferEntity extends AnimalEntity {
 
@@ -61,7 +62,7 @@ public class SnifferEntity extends AnimalEntity {
 	private static final float HEIGHT_OFFSET = 0.4F;
 	private static final EntityDimensions
 			DIMENSIONS =
-			EntityDimensions.changing(EntityType.SNIFFER.getWidth(), EntityType.SNIFFER.getHeight() - 0.4F)
+			EntityDimensions.changing(EntityType.SNIFFER.getWidth(), EntityType.SNIFFER.getHeight() - HEIGHT_OFFSET)
 			                .withEyeHeight(0.81F);
 	private static final TrackedData<SnifferEntity.State>
 			STATE =
@@ -252,7 +253,7 @@ public class SnifferEntity extends AnimalEntity {
 	}
 
 	private SnifferEntity setDigging() {
-		this.dataTracker.set(FINISH_DIG_TIME, this.age + 120);
+		this.dataTracker.set(FINISH_DIG_TIME, this.age + RISE_TICKS);
 		this.getEntityWorld().sendEntityStatus(this, (byte) 63);
 		return this;
 	}
@@ -327,13 +328,13 @@ public class SnifferEntity extends AnimalEntity {
 	private SnifferEntity spawnDiggingParticles(AnimationState diggingAnimationState) {
 		boolean
 				bl =
-				diggingAnimationState.getTimeInMilliseconds(this.age) > 1700L
-						&& diggingAnimationState.getTimeInMilliseconds(this.age) < 6000L;
+				diggingAnimationState.getTimeInMilliseconds(this.age) > ANIMATION_TICKS
+						&& diggingAnimationState.getTimeInMilliseconds(this.age) < SEARCH_TICKS;
 		if (bl) {
 			BlockPos blockPos = this.getDigPos();
 			BlockState blockState = this.getEntityWorld().getBlockState(blockPos.down());
 			if (blockState.getRenderType() != BlockRenderType.INVISIBLE) {
-				for (int i = 0; i < 30; i++) {
+				for (int i = 0; i < DIG_TICKS; i++) {
 					Vec3d vec3d = Vec3d.ofCenter(blockPos).add(0.0, -0.65F, 0.0);
 					this
 							.getEntityWorld()
@@ -508,7 +509,7 @@ public class SnifferEntity extends AnimalEntity {
 
 	@Override
 	public void setBaby(boolean baby) {
-		this.setBreedingAge(baby ? -48000 : 0);
+		this.setBreedingAge(baby ? -COOLDOWN_TICKS : 0);
 	}
 
 	@Override
@@ -561,8 +562,8 @@ public class SnifferEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code State}.
-	 */
+ * Состояние снифера: нюхает, копает, отдыхает и т.д.
+ */
 	public static enum State {
 		IDLING(0),
 		FEELING_HAPPY(1),

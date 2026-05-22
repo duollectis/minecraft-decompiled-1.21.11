@@ -11,48 +11,41 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code ConstructBeaconCriterion}.
+ * Критерий, срабатывающий при постройке маяка игроком.
  */
 public class ConstructBeaconCriterion extends AbstractCriterion<ConstructBeaconCriterion.Conditions> {
 
 	@Override
 	public Codec<ConstructBeaconCriterion.Conditions> getConditionsCodec() {
-		return ConstructBeaconCriterion.Conditions.CODEC;
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, int level) {
-		this.trigger(player, conditions -> conditions.matches(level));
+		trigger(player, conditions -> conditions.matches(level));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			NumberRange.IntRange level
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<ConstructBeaconCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(ConstructBeaconCriterion.Conditions::player),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("level", NumberRange.IntRange.ANY)
-								                    .forGetter(ConstructBeaconCriterion.Conditions::level)
-				                    )
-				                    .apply(instance, ConstructBeaconCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("level", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::level)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<ConstructBeaconCriterion.Conditions> create() {
-			return Criteria.CONSTRUCT_BEACON.create(new ConstructBeaconCriterion.Conditions(
-					Optional.empty(),
-					NumberRange.IntRange.ANY
-			));
+		public static AdvancementCriterion<Conditions> create() {
+			return Criteria.CONSTRUCT_BEACON.create(new Conditions(Optional.empty(), NumberRange.IntRange.ANY));
 		}
 
-		public static AdvancementCriterion<ConstructBeaconCriterion.Conditions> level(NumberRange.IntRange level) {
-			return Criteria.CONSTRUCT_BEACON.create(new ConstructBeaconCriterion.Conditions(Optional.empty(), level));
+		public static AdvancementCriterion<Conditions> level(NumberRange.IntRange level) {
+			return Criteria.CONSTRUCT_BEACON.create(new Conditions(Optional.empty(), level));
 		}
 
 		public boolean matches(int level) {

@@ -22,86 +22,87 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ShelfBlockEntityRenderer}.
+ * Рендерер блока полки. Отображает предметы на полке с учётом направления блока
+ * и флага выравнивания по нижнему краю.
  */
+@Environment(EnvType.CLIENT)
 public class ShelfBlockEntityRenderer implements BlockEntityRenderer<ShelfBlockEntity, ShelfBlockEntityRenderState> {
 
 	private static final float ITEM_SCALE = 0.25F;
 	private static final float BOTTOM_ALIGNED_OFFSET = -0.25F;
+	private static final float SLOT_STRIDE = 0.3125F;
+	private static final float SLOT_INDEX_OFFSET = 1;
+
 	private final ItemModelManager itemModelManager;
 
 	public ShelfBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
 		this.itemModelManager = context.itemModelManager();
 	}
 
-	/**
-	 * Создаёт render state.
-	 *
-	 * @return ShelfBlockEntityRenderState — результат операции
-	 */
+	@Override
 	public ShelfBlockEntityRenderState createRenderState() {
 		return new ShelfBlockEntityRenderState();
 	}
 
+	@Override
 	public void updateRenderState(
 			ShelfBlockEntity shelfBlockEntity,
 			ShelfBlockEntityRenderState shelfBlockEntityRenderState,
-			float f,
-			Vec3d vec3d,
+			float tickProgress,
+			Vec3d cameraPos,
 			ModelCommandRenderer.@Nullable CrumblingOverlayCommand crumblingOverlayCommand
 	) {
 		BlockEntityRenderer.super.updateRenderState(
 				shelfBlockEntity,
 				shelfBlockEntityRenderState,
-				f,
-				vec3d,
+				tickProgress,
+				cameraPos,
 				crumblingOverlayCommand
 		);
 		shelfBlockEntityRenderState.alignItemsToBottom = shelfBlockEntity.shouldAlignItemsToBottom();
-		DefaultedList<ItemStack> defaultedList = shelfBlockEntity.getHeldStacks();
-		int i = HashCommon.long2int(shelfBlockEntity.getPos().asLong());
 
-		for (int j = 0; j < defaultedList.size(); j++) {
-			ItemStack itemStack = defaultedList.get(j);
-			if (!itemStack.isEmpty()) {
-				ItemRenderState itemRenderState = new ItemRenderState();
-				this.itemModelManager
-						.clearAndUpdate(
-								itemRenderState,
-								itemStack,
-								ItemDisplayContext.ON_SHELF,
-								shelfBlockEntity.getEntityWorld(),
-								shelfBlockEntity,
-								i + j
-						);
-				shelfBlockEntityRenderState.itemRenderStates[j] = itemRenderState;
+		DefaultedList<ItemStack> heldStacks = shelfBlockEntity.getHeldStacks();
+		int positionSeed = HashCommon.long2int(shelfBlockEntity.getPos().asLong());
+
+		for (int slotIndex = 0; slotIndex < heldStacks.size(); slotIndex++) {
+			ItemStack itemStack = heldStacks.get(slotIndex);
+			if (itemStack.isEmpty()) {
+				continue;
 			}
+
+			ItemRenderState itemRenderState = new ItemRenderState();
+			this.itemModelManager.clearAndUpdate(
+					itemRenderState,
+					itemStack,
+					ItemDisplayContext.ON_SHELF,
+					shelfBlockEntity.getEntityWorld(),
+					shelfBlockEntity,
+					positionSeed + slotIndex
+			);
+			shelfBlockEntityRenderState.itemRenderStates[slotIndex] = itemRenderState;
 		}
 	}
 
+	@Override
 	public void render(
 			ShelfBlockEntityRenderState shelfBlockEntityRenderState,
 			MatrixStack matrixStack,
 			OrderedRenderCommandQueue orderedRenderCommandQueue,
 			CameraRenderState cameraRenderState
 	) {
-		Direction direction = shelfBlockEntityRenderState.blockState.get(ShelfBlock.FACING);
-		float f = direction.getAxis().isHorizontal() ? -direction.getPositiveHorizontalDegrees() : 180.0F;
+		Direction facing = shelfBlockEntityRenderState.blockState.get(ShelfBlock.FACING);
+		float rotationDegrees = facing.getAxis().isHorizontal()
+				? -facing.getPositiveHorizontalDegrees()
+				: 180.0F;
 
-		for (int i = 0; i < shelfBlockEntityRenderState.itemRenderStates.length; i++) {
-			ItemRenderState itemRenderState = shelfBlockEntityRenderState.itemRenderStates[i];
-			if (itemRenderState != null) {
-				this.renderItem(
-						shelfBlockEntityRenderState,
-						itemRenderState,
-						matrixStack,
-						orderedRenderCommandQueue,
-						i,
-						f
-				);
+		for (int slotIndex = 0; slotIndex < shelfBlockEntityRenderState.itemRenderStates.length; slotIndex++) {
+			ItemRenderState itemRenderState = shelfBlockEntityRenderState.itemRenderStates[slotIndex];
+			if (itemRenderState == null) {
+				continue;
 			}
+
+			renderItem(shelfBlockEntityRenderState, itemRenderState, matrixStack, orderedRenderCommandQueue, slotIndex, rotationDegrees);
 		}
 	}
 
@@ -110,23 +111,25 @@ public class ShelfBlockEntityRenderer implements BlockEntityRenderer<ShelfBlockE
 			ItemRenderState itemRenderState,
 			MatrixStack matrices,
 			OrderedRenderCommandQueue queue,
-			int overlay,
+			int slotIndex,
 			float rotationDegrees
 	) {
-		float f = (overlay - 1) * 0.3125F;
-		Vec3d vec3d = new Vec3d(f, state.alignItemsToBottom ? -0.25 : 0.0, -0.25);
+		float slotOffset = (slotIndex - SLOT_INDEX_OFFSET) * SLOT_STRIDE;
+		Vec3d itemOffset = new Vec3d(slotOffset, state.alignItemsToBottom ? BOTTOM_ALIGNED_OFFSET : 0.0, BOTTOM_ALIGNED_OFFSET);
+
 		matrices.push();
 		matrices.translate(0.5F, 0.5F, 0.5F);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rotationDegrees));
-		matrices.translate(vec3d);
-		matrices.scale(0.25F, 0.25F, 0.25F);
-		Box box = itemRenderState.getModelBoundingBox();
-		double d = -box.minY;
+		matrices.translate(itemOffset);
+		matrices.scale(ITEM_SCALE, ITEM_SCALE, ITEM_SCALE);
+
+		Box modelBounds = itemRenderState.getModelBoundingBox();
+		double verticalOffset = -modelBounds.minY;
 		if (!state.alignItemsToBottom) {
-			d += -(box.maxY - box.minY) / 2.0;
+			verticalOffset += -(modelBounds.maxY - modelBounds.minY) / 2.0;
 		}
 
-		matrices.translate(0.0, d, 0.0);
+		matrices.translate(0.0, verticalOffset, 0.0);
 		itemRenderState.render(matrices, queue, state.lightmapCoordinates, OverlayTexture.DEFAULT_UV, 0);
 		matrices.pop();
 	}

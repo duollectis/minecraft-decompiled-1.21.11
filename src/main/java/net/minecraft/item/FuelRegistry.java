@@ -14,7 +14,8 @@ import java.util.Collections;
 import java.util.SequencedSet;
 
 /**
- * {@code FuelRegistry}.
+ * Реестр топлива для печей. Хранит соответствие предмет → количество тиков горения.
+ * <p>Создаётся через {@link Builder} или фабричный метод {@link #createDefault}.</p>
  */
 public class FuelRegistry {
 
@@ -24,30 +25,38 @@ public class FuelRegistry {
 		this.fuelValues = fuelValues;
 	}
 
-	public boolean isFuel(ItemStack item) {
-		return this.fuelValues.containsKey(item.getItem());
+	public boolean isFuel(ItemStack stack) {
+		return fuelValues.containsKey(stack.getItem());
 	}
 
 	public SequencedSet<Item> getFuelItems() {
-		return Collections.unmodifiableSequencedSet(this.fuelValues.keySet());
+		return Collections.unmodifiableSequencedSet(fuelValues.keySet());
 	}
 
-	public int getFuelTicks(ItemStack item) {
-		return item.isEmpty() ? 0 : this.fuelValues.getInt(item.getItem());
+	public int getFuelTicks(ItemStack stack) {
+		return stack.isEmpty() ? 0 : fuelValues.getInt(stack.getItem());
 	}
 
 	/**
-	 * Создаёт default.
+	 * Создаёт реестр топлива со стандартными значениями Minecraft.
+	 * <p>Использует базовое время плавки 200 тиков (10 секунд) для одного предмета.</p>
 	 *
-	 * @param registries registries
-	 * @param enabledFeatures enabled features
-	 *
-	 * @return FuelRegistry — результат операции
+	 * @param registries      реестры для поиска тегов предметов
+	 * @param enabledFeatures активные фичи (для фильтрации отключённых предметов)
+	 * @return реестр топлива с дефолтными значениями
 	 */
 	public static FuelRegistry createDefault(RegistryWrapper.WrapperLookup registries, FeatureSet enabledFeatures) {
 		return createDefault(registries, enabledFeatures, 200);
 	}
 
+	/**
+	 * Создаёт реестр топлива со стандартными значениями Minecraft и заданным базовым временем плавки.
+	 *
+	 * @param registries      реестры для поиска тегов предметов
+	 * @param enabledFeatures активные фичи
+	 * @param itemSmeltTime   базовое время плавки одного предмета в тиках
+	 * @return реестр топлива с дефолтными значениями
+	 */
 	public static FuelRegistry createDefault(
 			RegistryWrapper.WrapperLookup registries,
 			FeatureSet enabledFeatures,
@@ -55,7 +64,7 @@ public class FuelRegistry {
 	) {
 		return new FuelRegistry.Builder(registries, enabledFeatures)
 				.add(Items.LAVA_BUCKET, itemSmeltTime * 100)
-				.add(Blocks.COAL_BLOCK, itemSmeltTime * 8 * 10)
+				.add(Blocks.COAL_BLOCK, itemSmeltTime * 80)
 				.add(Items.BLAZE_ROD, itemSmeltTime * 12)
 				.add(Items.COAL, itemSmeltTime * 8)
 				.add(Items.CHARCOAL, itemSmeltTime * 8)
@@ -123,51 +132,46 @@ public class FuelRegistry {
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Билдер реестра топлива. Позволяет добавлять предметы и теги с указанием времени горения,
+	 * а также удалять предметы по тегу.
 	 */
 	public static class Builder {
 
 		private final RegistryWrapper<Item> itemLookup;
 		private final FeatureSet enabledFeatures;
-		private final Object2IntSortedMap<Item> fuelValues = new Object2IntLinkedOpenHashMap();
+		private final Object2IntSortedMap<Item> fuelValues = new Object2IntLinkedOpenHashMap<>();
 
 		public Builder(RegistryWrapper.WrapperLookup registries, FeatureSet enabledFeatures) {
-			this.itemLookup = registries.getOrThrow(RegistryKeys.ITEM);
+			itemLookup = registries.getOrThrow(RegistryKeys.ITEM);
 			this.enabledFeatures = enabledFeatures;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return FuelRegistry — результат операции
-		 */
 		public FuelRegistry build() {
-			return new FuelRegistry(this.fuelValues);
+			return new FuelRegistry(fuelValues);
 		}
 
 		public FuelRegistry.Builder remove(TagKey<Item> tag) {
-			this.fuelValues.keySet().removeIf(item -> item.getRegistryEntry().isIn(tag));
+			fuelValues.keySet().removeIf(item -> item.getRegistryEntry().isIn(tag));
 			return this;
 		}
 
 		public FuelRegistry.Builder add(TagKey<Item> tag, int value) {
-			this.itemLookup.getOptional(tag).ifPresent(tagx -> {
-				for (RegistryEntry<Item> registryEntry : tagx) {
-					this.add(value, registryEntry.value());
+			itemLookup.getOptional(tag).ifPresent(tagEntries -> {
+				for (RegistryEntry<Item> entry : tagEntries) {
+					addIfEnabled(value, entry.value());
 				}
 			});
 			return this;
 		}
 
 		public FuelRegistry.Builder add(ItemConvertible item, int value) {
-			Item item2 = item.asItem();
-			this.add(value, item2);
+			addIfEnabled(value, item.asItem());
 			return this;
 		}
 
-		private void add(int value, Item item) {
-			if (item.isEnabled(this.enabledFeatures)) {
-				this.fuelValues.put(item, value);
+		private void addIfEnabled(int value, Item item) {
+			if (item.isEnabled(enabledFeatures)) {
+				fuelValues.put(item, value);
 			}
 		}
 	}

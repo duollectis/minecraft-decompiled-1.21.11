@@ -10,45 +10,32 @@ import java.io.IOException;
 import java.util.function.BooleanSupplier;
 
 /**
- * {@code ChunkManager}.
+ * Абстрактный менеджер чанков, предоставляющий базовый API для получения,
+ * тикания и управления чанками мира. Реализует {@link ChunkProvider} и {@link AutoCloseable}.
  */
 public abstract class ChunkManager implements ChunkProvider, AutoCloseable {
 
 	public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ, boolean create) {
-		return (WorldChunk) this.getChunk(chunkX, chunkZ, ChunkStatus.FULL, create);
+		return (WorldChunk) getChunk(chunkX, chunkZ, ChunkStatus.FULL, create);
 	}
 
 	public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ) {
-		return this.getWorldChunk(chunkX, chunkZ, false);
+		return getWorldChunk(chunkX, chunkZ, false);
 	}
 
 	@Override
 	public @Nullable LightSourceView getChunk(int chunkX, int chunkZ) {
-		return this.getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
+		return getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
 	}
 
 	public boolean isChunkLoaded(int x, int z) {
-		return this.getChunk(x, z, ChunkStatus.FULL, false) != null;
+		return getChunk(x, z, ChunkStatus.FULL, false) != null;
 	}
 
 	public abstract @Nullable Chunk getChunk(int x, int z, ChunkStatus leastStatus, boolean create);
 
-	/**
-	 * Tick.
-	 *
-	 * @param shouldKeepTicking should keep ticking
-	 * @param tickChunks tick chunks
-	 */
 	public abstract void tick(BooleanSupplier shouldKeepTicking, boolean tickChunks);
 
-	/**
-	 * Обрабатывает событие section status changed.
-	 *
-	 * @param x x
-	 * @param sectionY section y
-	 * @param z z
-	 * @param previouslyEmpty previously empty
-	 */
 	public void onSectionStatusChanged(int x, int sectionY, int z, boolean previouslyEmpty) {
 	}
 

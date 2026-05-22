@@ -10,7 +10,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.Function;
 
 /**
- * {@code AdvancementRenameFix}.
+ * Переименовывает ключи достижений в данных игрока, применяя заданную функцию переименования.
  */
 public class AdvancementRenameFix extends DataFix {
 
@@ -18,26 +18,28 @@ public class AdvancementRenameFix extends DataFix {
 	private final Function<String, String> renamer;
 
 	public AdvancementRenameFix(
-			Schema outputSchema,
-			boolean changesType,
-			String name,
-			Function<String, String> renamer
+		Schema outputSchema,
+		boolean changesType,
+		String name,
+		Function<String, String> renamer
 	) {
 		super(outputSchema, changesType);
 		this.name = name;
 		this.renamer = renamer;
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				this.name,
-				this.getInputSchema().getType(TypeReferences.ADVANCEMENTS),
-				typed -> typed.update(
-						DSL.remainderFinder(), dynamic -> dynamic.updateMapValues(pair -> {
-							String string = ((Dynamic) pair.getFirst()).asString("");
-							return pair.mapFirst(dynamic2 -> dynamic.createString(this.renamer.apply(string)));
-						})
-				)
+		return fixTypeEverywhereTyped(
+			name,
+			getInputSchema().getType(TypeReferences.ADVANCEMENTS),
+			typed -> typed.update(
+				DSL.remainderFinder(),
+				dynamic -> dynamic.updateMapValues(pair -> {
+					String key = ((Dynamic<?>) pair.getFirst()).asString("");
+					return pair.mapFirst(d -> dynamic.createString(renamer.apply(key)));
+				})
+			)
 		);
 	}
 }

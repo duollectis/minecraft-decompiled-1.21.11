@@ -12,11 +12,16 @@ import net.minecraft.client.render.entity.state.DonkeyEntityRenderState;
 import net.minecraft.entity.passive.AbstractDonkeyEntity;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractDonkeyEntityRenderer}.
+ * Базовый рендерер для осла и мула.
+ * <p>
+ * Загружает модели взрослой и детской особи, а также добавляет
+ * {@link SaddleFeatureRenderer} для отображения седла. Конкретный тип
+ * (осёл или мул) задаётся через {@link Type}.
  */
-public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity> extends AbstractHorseEntityRenderer<T, DonkeyEntityRenderState, DonkeyEntityModel> {
+@Environment(EnvType.CLIENT)
+public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity>
+		extends AbstractHorseEntityRenderer<T, DonkeyEntityRenderState, DonkeyEntityModel> {
 
 	private final Identifier texture;
 
@@ -26,8 +31,8 @@ public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity> extend
 				new DonkeyEntityModel(context.getPart(type.adultModelLayer)),
 				new DonkeyEntityModel(context.getPart(type.babyModelLayer))
 		);
-		this.texture = type.texture;
-		this.addFeature(
+		texture = type.texture;
+		addFeature(
 				new SaddleFeatureRenderer<>(
 						this,
 						context.getEquipmentRenderer(),
@@ -39,36 +44,25 @@ public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity> extend
 		);
 	}
 
-	public Identifier getTexture(DonkeyEntityRenderState donkeyEntityRenderState) {
-		return this.texture;
+	@Override
+	public Identifier getTexture(DonkeyEntityRenderState state) {
+		return texture;
 	}
 
-	/**
-	 * Создаёт render state.
-	 *
-	 * @return DonkeyEntityRenderState — результат операции
-	 */
+	@Override
 	public DonkeyEntityRenderState createRenderState() {
 		return new DonkeyEntityRenderState();
 	}
 
-	/**
-	 * Обновляет render state.
-	 *
-	 * @param abstractDonkeyEntity abstract donkey entity
-	 * @param donkeyEntityRenderState donkey entity render state
-	 * @param f f
-	 */
-	public void updateRenderState(T abstractDonkeyEntity, DonkeyEntityRenderState donkeyEntityRenderState, float f) {
-		super.updateRenderState(abstractDonkeyEntity, donkeyEntityRenderState, f);
-		donkeyEntityRenderState.hasChest = abstractDonkeyEntity.hasChest();
+	@Override
+	public void updateRenderState(T entity, DonkeyEntityRenderState state, float tickProgress) {
+		super.updateRenderState(entity, state, tickProgress);
+		state.hasChest = entity.hasChest();
 	}
 
+	/** Перечисление конкретных видов ослиных существ с их текстурами и слоями моделей. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		DONKEY(
 				Identifier.ofVanilla("textures/entity/horse/donkey.png"),
 				EntityModelLayers.DONKEY,
@@ -93,7 +87,7 @@ public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity> extend
 		final EntityModelLayer adultSaddleModelLayer;
 		final EntityModelLayer babySaddleModelLayer;
 
-		private Type(
+		Type(
 				final Identifier texture,
 				final EntityModelLayer adultModelLayer,
 				final EntityModelLayer babyModelLayer,

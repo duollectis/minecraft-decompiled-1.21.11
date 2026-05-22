@@ -8,53 +8,55 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.ToDoubleFunction;
 
 /**
- * {@code FuzzyTargeting}.
+ * Утилита поиска случайных целевых позиций для наземной навигации существ.
+ * Генерирует кандидатов через {@link FuzzyPositions} и фильтрует невалидные позиции.
  */
 public class FuzzyTargeting {
 
-	/**
-	 * Find.
-	 *
-	 * @param entity entity
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 *
-	 * @return @Nullable Vec3d — 
-	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
 		return find(entity, horizontalRange, verticalRange, entity::getPathfindingFavor);
 	}
 
+	/**
+	 * Ищет случайную позицию в заданном радиусе с пользовательской функцией оценки.
+	 *
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус поиска
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param scorer функция оценки пригодности позиции
+	 * @return лучшая найденная позиция или {@code null}
+	 */
 	public static @Nullable Vec3d find(
 			PathAwareEntity entity,
 			int horizontalRange,
 			int verticalRange,
 			ToDoubleFunction<BlockPos> scorer
 	) {
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+
 		return FuzzyPositions.guessBest(
 				() -> {
-					BlockPos blockPos = FuzzyPositions.localFuzz(entity.getRandom(), horizontalRange, verticalRange);
-					BlockPos blockPos2 = towardTarget(entity, horizontalRange, bl, blockPos);
-					return blockPos2 == null ? null : validate(entity, blockPos2);
-				}, scorer
+					BlockPos fuzzPos = FuzzyPositions.localFuzz(entity.getRandom(), horizontalRange, verticalRange);
+					BlockPos targetPos = towardTarget(entity, horizontalRange, posTargetInRange, fuzzPos);
+					return targetPos == null ? null : validate(entity, targetPos);
+				},
+				scorer
 		);
 	}
 
 	/**
-	 * Ищет to.
+	 * Ищет позицию в направлении заданной точки {@code end}.
 	 *
-	 * @param entity entity
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 * @param end end
-	 *
-	 * @return @Nullable Vec3d — to
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус поиска
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param end целевая точка, в сторону которой ищется позиция
+	 * @return позиция в направлении цели или {@code null}
 	 */
 	public static @Nullable Vec3d findTo(PathAwareEntity entity, int horizontalRange, int verticalRange, Vec3d end) {
-		Vec3d vec3d = end.subtract(entity.getX(), entity.getY(), entity.getZ());
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
-		return findValid(entity, 0.0, horizontalRange, verticalRange, vec3d, bl);
+		Vec3d direction = end.subtract(entity.getX(), entity.getY(), entity.getZ());
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		return findValid(entity, 0.0, horizontalRange, verticalRange, direction, posTargetInRange);
 	}
 
 	public static @Nullable Vec3d findFrom(
@@ -66,6 +68,17 @@ public class FuzzyTargeting {
 		return findFrom(entity, 0.0, horizontalRange, verticalRange, start);
 	}
 
+	/**
+	 * Ищет позицию в направлении «от» заданной точки {@code start}.
+	 * Если вектор нулевой — выбирается случайное направление.
+	 *
+	 * @param entity существо-навигатор
+	 * @param minHorizontalRange минимальный горизонтальный радиус
+	 * @param maxHorizontalRange максимальный горизонтальный радиус
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param start точка, от которой убегает существо
+	 * @return позиция в направлении «от» цели или {@code null}
+	 */
 	public static @Nullable Vec3d findFrom(
 			PathAwareEntity entity,
 			double minHorizontalRange,
@@ -73,13 +86,18 @@ public class FuzzyTargeting {
 			int verticalRange,
 			Vec3d start
 	) {
-		Vec3d vec3d = entity.getEntityPos().subtract(start);
-		if (vec3d.length() == 0.0) {
-			vec3d = new Vec3d(entity.getRandom().nextDouble() - 0.5, 0.0, entity.getRandom().nextDouble() - 0.5);
+		Vec3d direction = entity.getEntityPos().subtract(start);
+
+		if (direction.length() == 0.0) {
+			direction = new Vec3d(
+					entity.getRandom().nextDouble() - 0.5,
+					0.0,
+					entity.getRandom().nextDouble() - 0.5
+			);
 		}
 
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, maxHorizontalRange);
-		return findValid(entity, minHorizontalRange, maxHorizontalRange, verticalRange, vec3d, bl);
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, maxHorizontalRange);
+		return findValid(entity, minHorizontalRange, maxHorizontalRange, verticalRange, direction, posTargetInRange);
 	}
 
 	private static @Nullable Vec3d findValid(
@@ -93,7 +111,7 @@ public class FuzzyTargeting {
 		return FuzzyPositions.guessBestPathTarget(
 				entity,
 				() -> {
-					BlockPos blockPos = FuzzyPositions.localFuzz(
+					BlockPos fuzzPos = FuzzyPositions.localFuzz(
 							entity.getRandom(),
 							minHorizontalRange,
 							maxHorizontalRange,
@@ -103,49 +121,58 @@ public class FuzzyTargeting {
 							direction.z,
 							(float) (Math.PI / 2)
 					);
-					if (blockPos == null) {
+
+					if (fuzzPos == null) {
 						return null;
 					}
-					else {
-						BlockPos blockPos2 = towardTarget(entity, maxHorizontalRange, posTargetInRange, blockPos);
-						return blockPos2 == null ? null : validate(entity, blockPos2);
-					}
+
+					BlockPos targetPos = towardTarget(entity, maxHorizontalRange, posTargetInRange, fuzzPos);
+					return targetPos == null ? null : validate(entity, targetPos);
 				}
 		);
 	}
 
 	/**
-	 * Validate.
+	 * Проверяет позицию: поднимает над твёрдой поверхностью и отклоняет воду и штрафные зоны.
 	 *
-	 * @param entity entity
-	 * @param pos pos
-	 *
-	 * @return @Nullable BlockPos — результат операции
+	 * @param entity существо для проверки штрафов пути
+	 * @param pos кандидат позиции
+	 * @return валидная позиция или {@code null}
 	 */
 	public static @Nullable BlockPos validate(PathAwareEntity entity, BlockPos pos) {
-		pos =
-				FuzzyPositions.upWhile(
-						pos,
-						entity.getEntityWorld().getTopYInclusive(),
-						currentPos -> NavigationConditions.isSolidAt(entity, currentPos)
-				);
-		return !NavigationConditions.isWaterAt(entity, pos) && !NavigationConditions.hasPathfindingPenalty(entity, pos)
-		       ? pos : null;
+		BlockPos elevated = FuzzyPositions.upWhile(
+				pos,
+				entity.getEntityWorld().getTopYInclusive(),
+				currentPos -> NavigationConditions.isSolidAt(entity, currentPos)
+		);
+
+		return NavigationConditions.isWaterAt(entity, elevated)
+				|| NavigationConditions.hasPathfindingPenalty(entity, elevated)
+				? null
+				: elevated;
 	}
 
+	/**
+	 * Смещает относительную позицию к цели существа и проверяет валидность высоты и навигации.
+	 *
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус для притяжения к цели
+	 * @param posTargetInRange флаг: целевая позиция существа находится в радиусе
+	 * @param relativePos относительное смещение
+	 * @return абсолютная валидная позиция или {@code null}
+	 */
 	public static @Nullable BlockPos towardTarget(
 			PathAwareEntity entity,
 			double horizontalRange,
 			boolean posTargetInRange,
-			BlockPos relativeInRangePos
+			BlockPos relativePos
 	) {
-		BlockPos
-				blockPos =
-				FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), relativeInRangePos);
-		return !NavigationConditions.isHeightInvalid(blockPos, entity)
-				       && !NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, blockPos)
-				       && !NavigationConditions.isInvalidPosition(entity.getNavigation(), blockPos)
-		       ? blockPos
-		       : null;
+		BlockPos targetPos = FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), relativePos);
+
+		return NavigationConditions.isHeightInvalid(targetPos, entity)
+				|| NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, targetPos)
+				|| NavigationConditions.isInvalidPosition(entity.getNavigation(), targetPos)
+				? null
+				: targetPos;
 	}
 }

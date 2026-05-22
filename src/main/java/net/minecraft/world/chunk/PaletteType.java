@@ -3,7 +3,8 @@ package net.minecraft.world.chunk;
 import java.util.List;
 
 /**
- * {@code PaletteType}.
+ * Описывает конфигурацию палитры: сколько бит используется в памяти и при хранении,
+ * нужно ли перепаковывать данные при десериализации.
  */
 public interface PaletteType {
 
@@ -16,9 +17,10 @@ public interface PaletteType {
 	<T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values);
 
 	/**
-	 * {@code Dynamic}.
+	 * Динамическая палитра — использует глобальный реестр идентификаторов.
+	 * Требует перепаковки при загрузке, так как биты хранения могут отличаться от памяти.
 	 */
-	public record Dynamic(int bitsInMemory, int bitsInStorage) implements PaletteType {
+	record Dynamic(int bitsInMemory, int bitsInStorage) implements PaletteType {
 
 		@Override
 		public boolean shouldRepack() {
@@ -32,9 +34,10 @@ public interface PaletteType {
 	}
 
 	/**
-	 * {@code Static}.
+	 * Статическая палитра с фиксированным числом бит.
+	 * Не требует перепаковки — биты памяти и хранения совпадают.
 	 */
-	public record Static(Palette.Factory factory, int bits) implements PaletteType {
+	record Static(Palette.Factory factory, int bits) implements PaletteType {
 
 		@Override
 		public boolean shouldRepack() {
@@ -43,17 +46,17 @@ public interface PaletteType {
 
 		@Override
 		public <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values) {
-			return this.factory.create(this.bits, values);
+			return factory.create(bits, values);
 		}
 
 		@Override
 		public int bitsInMemory() {
-			return this.bits;
+			return bits;
 		}
 
 		@Override
 		public int bitsInStorage() {
-			return this.bits;
+			return bits;
 		}
 	}
 }

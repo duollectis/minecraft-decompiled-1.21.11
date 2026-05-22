@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Запись argument signature data map.
+ * Карта подписей аргументов подписанной команды.
+ * Каждая запись связывает имя аргумента с его криптографической подписью.
  */
 public record ArgumentSignatureDataMap(List<ArgumentSignatureDataMap.Entry> entries) {
 
@@ -19,60 +20,63 @@ public record ArgumentSignatureDataMap(List<ArgumentSignatureDataMap.Entry> entr
 
 	public ArgumentSignatureDataMap(PacketByteBuf buf) {
 		this(buf.<ArgumentSignatureDataMap.Entry, ArrayList<ArgumentSignatureDataMap.Entry>>readCollection(
-				PacketByteBuf.getMaxValidator(ArrayList::new, 8),
+				PacketByteBuf.getMaxValidator(ArrayList::new, MAX_ARGUMENTS),
 				ArgumentSignatureDataMap.Entry::new
 		));
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 */
 	public void write(PacketByteBuf buf) {
-		buf.writeCollection(this.entries, (buf2, entry) -> entry.write(buf2));
+		buf.writeCollection(entries, (packetBuf, entry) -> entry.write(packetBuf));
 	}
 
+	/**
+	 * Подписывает все аргументы из списка с помощью переданного подписчика.
+	 * Аргументы, для которых подписчик вернул {@code null}, исключаются из результата.
+	 *
+	 * @param arguments список аргументов команды с их значениями
+	 * @param signer    функция подписи строкового значения аргумента
+	 * @return карта подписей для всех успешно подписанных аргументов
+	 */
 	public static ArgumentSignatureDataMap sign(
 			SignedArgumentList<?> arguments,
 			ArgumentSignatureDataMap.ArgumentSigner signer
 	) {
-		List<ArgumentSignatureDataMap.Entry> list = arguments.arguments().stream().map(argument -> {
-			MessageSignatureData messageSignatureData = signer.sign(argument.value());
-			return messageSignatureData != null ? new ArgumentSignatureDataMap.Entry(
-					argument.getNodeName(),
-					messageSignatureData
-			) : null;
-		}).filter(Objects::nonNull).toList();
-		return new ArgumentSignatureDataMap(list);
+		List<ArgumentSignatureDataMap.Entry> signed = arguments
+				.arguments()
+				.stream()
+				.map(argument -> {
+					MessageSignatureData signature = signer.sign(argument.value());
+					return signature != null
+							? new ArgumentSignatureDataMap.Entry(argument.getNodeName(), signature)
+							: null;
+				})
+				.filter(Objects::nonNull)
+				.toList();
+
+		return new ArgumentSignatureDataMap(signed);
 	}
 
-	@FunctionalInterface
 	/**
-	 * Интерфейс argument signer.
+	 * Функциональный интерфейс для подписи строкового значения аргумента команды.
 	 */
+	@FunctionalInterface
 	public interface ArgumentSigner {
 
 		@Nullable MessageSignatureData sign(String value);
 	}
 
 	/**
-	 * Запись entry.
+	 * Пара «имя аргумента — подпись» для одного аргумента подписанной команды.
 	 */
 	public record Entry(String name, MessageSignatureData signature) {
 
 		public Entry(PacketByteBuf buf) {
-			this(buf.readString(16), MessageSignatureData.fromBuf(buf));
+			this(buf.readString(MAX_ARGUMENT_NAME_LENGTH), MessageSignatureData.fromBuf(buf));
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
-			buf.writeString(this.name, 16);
-			MessageSignatureData.write(buf, this.signature);
+			buf.writeString(name, MAX_ARGUMENT_NAME_LENGTH);
+			MessageSignatureData.write(buf, signature);
 		}
 	}
 }

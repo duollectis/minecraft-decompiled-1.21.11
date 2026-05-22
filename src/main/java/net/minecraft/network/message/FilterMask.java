@@ -17,153 +17,148 @@ import java.util.BitSet;
 import java.util.function.Supplier;
 
 /**
- * Класс filter mask.
+ * Маска фильтрации чат-сообщения на стороне сервера.
+ * Определяет, какие символы сообщения были отфильтрованы модерацией.
+ * Три режима: пропустить всё ({@code PASS_THROUGH}), заблокировать всё ({@code FULLY_FILTERED}),
+ * или частичная фильтрация по битовой маске ({@code PARTIALLY_FILTERED}).
  */
 public class FilterMask {
 
-	public static final Codec<FilterMask> CODEC = StringIdentifiable.createCodec(FilterMask.FilterStatus::values)
-	                                                                .dispatch(
-			                                                                FilterMask::getStatus,
-			                                                                FilterMask.FilterStatus::getCodec
-	                                                                );
-	public static final FilterMask
-			FULLY_FILTERED =
-			new FilterMask(new BitSet(0), FilterMask.FilterStatus.FULLY_FILTERED);
-	public static final FilterMask PASS_THROUGH = new FilterMask(new BitSet(0), FilterMask.FilterStatus.PASS_THROUGH);
+	public static final Codec<FilterMask> CODEC = StringIdentifiable
+			.createCodec(FilterMask.FilterStatus::values)
+			.dispatch(FilterMask::getStatus, FilterMask.FilterStatus::getCodec);
+
+	public static final FilterMask FULLY_FILTERED = new FilterMask(new BitSet(0), FilterStatus.FULLY_FILTERED);
+	public static final FilterMask PASS_THROUGH = new FilterMask(new BitSet(0), FilterStatus.PASS_THROUGH);
 	public static final Style FILTERED_STYLE = Style.EMPTY
 			.withColor(Formatting.DARK_GRAY)
 			.withHoverEvent(new HoverEvent.ShowText(Text.translatable("chat.filtered")));
+
 	static final MapCodec<FilterMask> PASS_THROUGH_CODEC = MapCodec.unit(PASS_THROUGH);
 	static final MapCodec<FilterMask> FULLY_FILTERED_CODEC = MapCodec.unit(FULLY_FILTERED);
-	static final MapCodec<FilterMask>
-			PARTIALLY_FILTERED_CODEC =
-			Codecs.BIT_SET.xmap(FilterMask::new, FilterMask::getMask).fieldOf("value");
-	private static final char FILTERED = '#';
-	private final BitSet mask;
-	private final FilterMask.FilterStatus status;
+	static final MapCodec<FilterMask> PARTIALLY_FILTERED_CODEC = Codecs.BIT_SET
+			.xmap(FilterMask::new, FilterMask::getMask)
+			.fieldOf("value");
 
-	private FilterMask(BitSet mask, FilterMask.FilterStatus status) {
+	private static final char FILTERED_CHAR = '#';
+
+	private final BitSet mask;
+	private final FilterStatus status;
+
+	private FilterMask(BitSet mask, FilterStatus status) {
 		this.mask = mask;
 		this.status = status;
 	}
 
 	private FilterMask(BitSet mask) {
 		this.mask = mask;
-		this.status = FilterMask.FilterStatus.PARTIALLY_FILTERED;
+		this.status = FilterStatus.PARTIALLY_FILTERED;
 	}
 
 	public FilterMask(int length) {
-		this(new BitSet(length), FilterMask.FilterStatus.PARTIALLY_FILTERED);
+		this(new BitSet(length), FilterStatus.PARTIALLY_FILTERED);
 	}
 
-	private FilterMask.FilterStatus getStatus() {
-		return this.status;
+	private FilterStatus getStatus() {
+		return status;
 	}
 
 	private BitSet getMask() {
-		return this.mask;
+		return mask;
 	}
 
-	/**
-	 * Читает mask.
-	 *
-	 * @param buf buf
-	 *
-	 * @return FilterMask — результат операции
-	 */
 	public static FilterMask readMask(PacketByteBuf buf) {
-		FilterMask.FilterStatus filterStatus = buf.readEnumConstant(FilterMask.FilterStatus.class);
+		FilterStatus filterStatus = buf.readEnumConstant(FilterStatus.class);
 
 		return switch (filterStatus) {
 			case PASS_THROUGH -> PASS_THROUGH;
 			case FULLY_FILTERED -> FULLY_FILTERED;
-			case PARTIALLY_FILTERED -> new FilterMask(buf.readBitSet(), FilterMask.FilterStatus.PARTIALLY_FILTERED);
+			case PARTIALLY_FILTERED -> new FilterMask(buf.readBitSet(), FilterStatus.PARTIALLY_FILTERED);
 		};
 	}
 
-	/**
-	 * Записывает mask.
-	 *
-	 * @param buf buf
-	 * @param mask mask
-	 */
 	public static void writeMask(PacketByteBuf buf, FilterMask mask) {
 		buf.writeEnumConstant(mask.status);
-		if (mask.status == FilterMask.FilterStatus.PARTIALLY_FILTERED) {
+
+		if (mask.status == FilterStatus.PARTIALLY_FILTERED) {
 			buf.writeBitSet(mask.mask);
 		}
 	}
 
-	/**
-	 * Mark filtered.
-	 *
-	 * @param index index
-	 */
 	public void markFiltered(int index) {
-		this.mask.set(index);
+		mask.set(index);
 	}
 
 	/**
-	 * Filter.
+	 * Применяет маску к строке: заменяет отфильтрованные символы на {@code '#'}.
 	 *
-	 * @param raw raw
-	 *
-	 * @return @Nullable String — результат операции
+	 * @param raw исходная строка сообщения
+	 * @return отфильтрованная строка, или {@code null} если сообщение полностью заблокировано
 	 */
 	public @Nullable String filter(String raw) {
-		return switch (this.status) {
+		return switch (status) {
 			case PASS_THROUGH -> raw;
 			case FULLY_FILTERED -> null;
 			case PARTIALLY_FILTERED -> {
-				char[] cs = raw.toCharArray();
+				char[] chars = raw.toCharArray();
 
-				for (int i = 0; i < cs.length && i < this.mask.length(); i++) {
-					if (this.mask.get(i)) {
-						cs[i] = '#';
+				for (int index = 0; index < chars.length && index < mask.length(); index++) {
+					if (mask.get(index)) {
+						chars[index] = FILTERED_CHAR;
 					}
 				}
 
-				yield new String(cs);
+				yield new String(chars);
 			}
 		};
 	}
 
+	/**
+	 * Строит форматированный {@link Text} с визуальным выделением отфильтрованных фрагментов.
+	 * Отфильтрованные участки заменяются серыми символами {@code '#'} со стилем {@link #FILTERED_STYLE}.
+	 *
+	 * @param message исходная строка сообщения
+	 * @return форматированный текст, или {@code null} если сообщение полностью заблокировано
+	 */
 	public @Nullable Text getFilteredText(String message) {
-		return switch (this.status) {
+		return switch (status) {
 			case PASS_THROUGH -> Text.literal(message);
 			case FULLY_FILTERED -> null;
 			case PARTIALLY_FILTERED -> {
-				MutableText mutableText = Text.empty();
-				int i = 0;
-				boolean bl = this.mask.get(0);
+				MutableText result = Text.empty();
+				int pos = 0;
+				boolean inFiltered = mask.get(0);
 
 				while (true) {
-					int j = bl ? this.mask.nextClearBit(i) : this.mask.nextSetBit(i);
-					j = j < 0 ? message.length() : j;
-					if (j == i) {
-						yield mutableText;
+					int nextBoundary = inFiltered ? mask.nextClearBit(pos) : mask.nextSetBit(pos);
+					nextBoundary = nextBoundary < 0 ? message.length() : nextBoundary;
+
+					if (nextBoundary == pos) {
+						yield result;
 					}
 
-					if (bl) {
-						mutableText.append(Text.literal(StringUtils.repeat('#', j - i)).fillStyle(FILTERED_STYLE));
-					}
-					else {
-						mutableText.append(message.substring(i, j));
+					if (inFiltered) {
+						result.append(
+								Text.literal(StringUtils.repeat(FILTERED_CHAR, nextBoundary - pos))
+										.fillStyle(FILTERED_STYLE)
+						);
+					} else {
+						result.append(message.substring(pos, nextBoundary));
 					}
 
-					bl = !bl;
-					i = j;
+					inFiltered = !inFiltered;
+					pos = nextBoundary;
 				}
 			}
 		};
 	}
 
 	public boolean isPassThrough() {
-		return this.status == FilterMask.FilterStatus.PASS_THROUGH;
+		return status == FilterStatus.PASS_THROUGH;
 	}
 
 	public boolean isFullyFiltered() {
-		return this.status == FilterMask.FilterStatus.FULLY_FILTERED;
+		return status == FilterStatus.FULLY_FILTERED;
 	}
 
 	@Override
@@ -171,22 +166,21 @@ public class FilterMask {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			FilterMask filterMask = (FilterMask) o;
-			return this.mask.equals(filterMask.mask) && this.status == filterMask.status;
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		FilterMask other = (FilterMask) o;
+		return mask.equals(other.mask) && status == other.status;
 	}
 
 	@Override
 	public int hashCode() {
-		int i = this.mask.hashCode();
-		return 31 * i + this.status.hashCode();
+		return 31 * mask.hashCode() + status.hashCode();
 	}
 
-	static enum FilterStatus implements StringIdentifiable {
+	enum FilterStatus implements StringIdentifiable {
 		PASS_THROUGH("pass_through", () -> FilterMask.PASS_THROUGH_CODEC),
 		FULLY_FILTERED("fully_filtered", () -> FilterMask.FULLY_FILTERED_CODEC),
 		PARTIALLY_FILTERED("partially_filtered", () -> FilterMask.PARTIALLY_FILTERED_CODEC);
@@ -194,18 +188,18 @@ public class FilterMask {
 		private final String id;
 		private final Supplier<MapCodec<FilterMask>> codecSupplier;
 
-		private FilterStatus(final String id, final Supplier<MapCodec<FilterMask>> codecSupplier) {
+		FilterStatus(final String id, final Supplier<MapCodec<FilterMask>> codecSupplier) {
 			this.id = id;
 			this.codecSupplier = codecSupplier;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 
 		private MapCodec<FilterMask> getCodec() {
-			return this.codecSupplier.get();
+			return codecSupplier.get();
 		}
 	}
 }

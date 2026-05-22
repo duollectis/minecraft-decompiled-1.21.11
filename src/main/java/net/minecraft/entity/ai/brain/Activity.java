@@ -4,7 +4,10 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code Activity}.
+ * Представляет тип активности мозга сущности.
+ * Активности определяют, какой набор задач ({@link Brain}) выполняется в данный момент.
+ * Каждая сущность с мозгом может иметь несколько одновременно активных активностей
+ * (например, CORE всегда активна), но только одна не-ядровая активность является текущей.
  */
 public class Activity {
 
@@ -34,6 +37,7 @@ public class Activity {
 	public static final Activity ROAR = register("roar");
 	public static final Activity EMERGE = register("emerge");
 	public static final Activity DIG = register("dig");
+
 	private final String id;
 	private final int hashCode;
 
@@ -43,7 +47,7 @@ public class Activity {
 	}
 
 	public String getId() {
-		return this.id;
+		return id;
 	}
 
 	private static Activity register(String id) {
@@ -55,22 +59,22 @@ public class Activity {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			Activity activity = (Activity) o;
-			return this.id.equals(activity.id);
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		Activity activity = (Activity) o;
+		return id.equals(activity.id);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.hashCode;
+		return hashCode;
 	}
 
 	@Override
 	public String toString() {
-		return this.getId();
+		return getId();
 	}
 }

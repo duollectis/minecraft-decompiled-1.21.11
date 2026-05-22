@@ -18,9 +18,23 @@ import net.minecraft.world.poi.PointOfInterestTypes;
 import java.util.Optional;
 
 /**
- * {@code VillagerBreedTask}.
+ * Задача мозга жителя, реализующая процесс размножения.
+ * Ищет свободный дом для ребёнка, создаёт дочернего жителя и устанавливает кулдауны размножения родителям.
  */
 public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
+
+	private static final float BREED_WALK_SPEED = 0.5F;
+	private static final int BREED_COMPLETION_RANGE = 2;
+	private static final int BREED_DURATION_MIN = 275;
+	private static final int BREED_DURATION_VARIANCE = 50;
+	private static final int PARENT_COOLDOWN_TICKS = 6000;
+	private static final int CHILD_COOLDOWN_TICKS = -24000;
+	private static final byte STATUS_HEARTS = 18;
+	private static final byte STATUS_SMOKE = 12;
+	private static final byte STATUS_NO_HOME = 13;
+	private static final double MAX_BREED_DIST_SQ = 5.0;
+	private static final int HEART_PARTICLE_CHANCE = 35;
+	private static final int HOME_SEARCH_RADIUS = 48;
 
 	private long breedEndTime;
 
@@ -37,124 +51,93 @@ public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		return this.isReadyToBreed(villagerEntity);
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		return isReadyToBreed(entity);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return l <= this.breedEndTime && this.isReadyToBreed(villagerEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return time <= breedEndTime && isReadyToBreed(entity);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		PassiveEntity
-				passiveEntity =
-				villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET).get();
-		TargetUtil.lookAtAndWalkTowardsEachOther(villagerEntity, passiveEntity, 0.5F, 2);
-		serverWorld.sendEntityStatus(passiveEntity, (byte) 18);
-		serverWorld.sendEntityStatus(villagerEntity, (byte) 18);
-		int i = 275 + villagerEntity.getRandom().nextInt(50);
-		this.breedEndTime = l + i;
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		PassiveEntity partner = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET).get();
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, BREED_WALK_SPEED, BREED_COMPLETION_RANGE);
+		world.sendEntityStatus(partner, STATUS_HEARTS);
+		world.sendEntityStatus(entity, STATUS_HEARTS);
+		int duration = BREED_DURATION_MIN + entity.getRandom().nextInt(BREED_DURATION_VARIANCE);
+		breedEndTime = time + duration;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		VillagerEntity
-				villagerEntity2 =
-				(VillagerEntity) villagerEntity
-						.getBrain()
-						.getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET)
-						.get();
-		if (!(villagerEntity.squaredDistanceTo(villagerEntity2) > 5.0)) {
-			TargetUtil.lookAtAndWalkTowardsEachOther(villagerEntity, villagerEntity2, 0.5F, 2);
-			if (l >= this.breedEndTime) {
-				villagerEntity.eatForBreeding();
-				villagerEntity2.eatForBreeding();
-				this.goHome(serverWorld, villagerEntity, villagerEntity2);
-			}
-			else if (villagerEntity.getRandom().nextInt(35) == 0) {
-				serverWorld.sendEntityStatus(villagerEntity2, (byte) 12);
-				serverWorld.sendEntityStatus(villagerEntity, (byte) 12);
-			}
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		VillagerEntity partner = (VillagerEntity) entity.getBrain()
+		                                                .getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET)
+		                                                .get();
+
+		if (entity.squaredDistanceTo(partner) > MAX_BREED_DIST_SQ) {
+			return;
 		}
+
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, BREED_WALK_SPEED, BREED_COMPLETION_RANGE);
+
+		if (time >= breedEndTime) {
+			entity.eatForBreeding();
+			partner.eatForBreeding();
+			goHome(world, entity, partner);
+		} else if (entity.getRandom().nextInt(HEART_PARTICLE_CHANCE) == 0) {
+			world.sendEntityStatus(partner, STATUS_SMOKE);
+			world.sendEntityStatus(entity, STATUS_SMOKE);
+		}
+	}
+
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		entity.getBrain().forget(MemoryModuleType.BREED_TARGET);
 	}
 
 	private void goHome(ServerWorld world, VillagerEntity first, VillagerEntity second) {
-		Optional<BlockPos> optional = this.getReachableHome(world, first);
-		if (optional.isEmpty()) {
-			world.sendEntityStatus(second, (byte) 13);
-			world.sendEntityStatus(first, (byte) 13);
-		}
-		else {
-			Optional<VillagerEntity> optional2 = this.createChild(world, first, second);
-			if (optional2.isPresent()) {
-				this.setChildHome(world, optional2.get(), optional.get());
-			}
-			else {
-				world.getPointOfInterestStorage().releaseTicket(optional.get());
-				world.getSubscriptionTracker().onPoiUpdated(optional.get());
-			}
-		}
-	}
+		Optional<BlockPos> homePos = getReachableHome(world, first);
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		villagerEntity.getBrain().forget(MemoryModuleType.BREED_TARGET);
+		if (homePos.isEmpty()) {
+			world.sendEntityStatus(second, STATUS_NO_HOME);
+			world.sendEntityStatus(first, STATUS_NO_HOME);
+			return;
+		}
+
+		Optional<VillagerEntity> child = createChild(world, first, second);
+
+		if (child.isPresent()) {
+			setChildHome(world, child.get(), homePos.get());
+		} else {
+			world.getPointOfInterestStorage().releaseTicket(homePos.get());
+			world.getSubscriptionTracker().onPoiUpdated(homePos.get());
+		}
 	}
 
 	private boolean isReadyToBreed(VillagerEntity villager) {
 		Brain<VillagerEntity> brain = villager.getBrain();
-		Optional<PassiveEntity> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET)
-		                                        .filter(passiveEntity -> passiveEntity.getType()
-				                                        == EntityType.VILLAGER);
-		return optional.isEmpty()
-		       ? false
-		       : TargetUtil.canSee(brain, MemoryModuleType.BREED_TARGET, EntityType.VILLAGER)
-		         && villager.isReadyToBreed() && optional.get().isReadyToBreed();
+		Optional<PassiveEntity> breedTarget = brain.getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET)
+		                                           .filter(target -> target.getType() == EntityType.VILLAGER);
+
+		if (breedTarget.isEmpty()) {
+			return false;
+		}
+
+		return TargetUtil.canSee(brain, MemoryModuleType.BREED_TARGET, EntityType.VILLAGER)
+				&& villager.isReadyToBreed()
+				&& breedTarget.get().isReadyToBreed();
 	}
 
 	private Optional<BlockPos> getReachableHome(ServerWorld world, VillagerEntity villager) {
 		return world.getPointOfInterestStorage()
 		            .getPosition(
 				            poiType -> poiType.matchesKey(PointOfInterestTypes.HOME),
-				            (poiType, pos) -> this.canReachHome(villager, pos, poiType),
+				            (poiType, pos) -> canReachHome(villager, pos, poiType),
 				            villager.getBlockPos(),
-				            48
+				            HOME_SEARCH_RADIUS
 		            );
 	}
 
@@ -164,23 +147,22 @@ public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
 	}
 
 	private Optional<VillagerEntity> createChild(ServerWorld world, VillagerEntity parent, VillagerEntity partner) {
-		VillagerEntity villagerEntity = parent.createChild(world, partner);
-		if (villagerEntity == null) {
+		VillagerEntity child = parent.createChild(world, partner);
+
+		if (child == null) {
 			return Optional.empty();
 		}
-		else {
-			parent.setBreedingAge(6000);
-			partner.setBreedingAge(6000);
-			villagerEntity.setBreedingAge(-24000);
-			villagerEntity.refreshPositionAndAngles(parent.getX(), parent.getY(), parent.getZ(), 0.0F, 0.0F);
-			world.spawnEntityAndPassengers(villagerEntity);
-			world.sendEntityStatus(villagerEntity, (byte) 12);
-			return Optional.of(villagerEntity);
-		}
+
+		parent.setBreedingAge(PARENT_COOLDOWN_TICKS);
+		partner.setBreedingAge(PARENT_COOLDOWN_TICKS);
+		child.setBreedingAge(CHILD_COOLDOWN_TICKS);
+		child.refreshPositionAndAngles(parent.getX(), parent.getY(), parent.getZ(), 0.0F, 0.0F);
+		world.spawnEntityAndPassengers(child);
+		world.sendEntityStatus(child, STATUS_SMOKE);
+		return Optional.of(child);
 	}
 
 	private void setChildHome(ServerWorld world, VillagerEntity child, BlockPos pos) {
-		GlobalPos globalPos = GlobalPos.create(world.getRegistryKey(), pos);
-		child.getBrain().remember(MemoryModuleType.HOME, globalPos);
+		child.getBrain().remember(MemoryModuleType.HOME, GlobalPos.create(world.getRegistryKey(), pos));
 	}
 }

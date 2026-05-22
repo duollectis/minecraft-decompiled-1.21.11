@@ -8,7 +8,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.rule.GameRule;
 
 /**
- * {@code BlankManagementListener}.
+ * Класс Blank Management Listener.
  */
 public class BlankManagementListener implements ManagementListener {
 

@@ -6,15 +6,16 @@ import net.minecraft.obfuscate.DontObfuscate;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * JFR-событие сводной статистики сети. Записывается каждые 10 секунд и содержит
+ * суммарное количество отправленных и полученных байт/пакетов для конкретного соединения.
+ */
 @Name("minecraft.NetworkSummary")
 @Label("Network Summary")
 @Category({"Minecraft", "Network"})
 @StackTrace(false)
 @Period("10 s")
 @DontObfuscate
-/**
- * {@code NetworkSummaryEvent}.
- */
 public class NetworkSummaryEvent extends Event {
 
 	public static final String EVENT_NAME = "minecraft.NetworkSummary";
@@ -41,24 +42,18 @@ public class NetworkSummaryEvent extends Event {
 		this.remoteAddress = remoteAddress;
 	}
 
-	/**
-	 * {@code Names}.
-	 */
 	public static final class Names {
 
 		public static final String REMOTE_ADDRESS = "remoteAddress";
 		public static final String SENT_BYTES = "sentBytes";
-		private static final String SENT_PACKETS = "sentPackets";
+		public static final String SENT_PACKETS = "sentPackets";
 		public static final String RECEIVED_BYTES = "receivedBytes";
-		private static final String RECEIVED_PACKETS = "receivedPackets";
+		public static final String RECEIVED_PACKETS = "receivedPackets";
 
 		private Names() {
 		}
 	}
 
-	/**
-	 * {@code Recorder}.
-	 */
 	public static final class Recorder {
 
 		private final AtomicLong sentBytes = new AtomicLong();
@@ -72,29 +67,16 @@ public class NetworkSummaryEvent extends Event {
 			this.event.begin();
 		}
 
-		/**
-		 * Добавляет sent packet.
-		 *
-		 * @param bytes bytes
-		 */
 		public void addSentPacket(int bytes) {
 			this.sentPackets.incrementAndGet();
 			this.sentBytes.addAndGet(bytes);
 		}
 
-		/**
-		 * Добавляет received packet.
-		 *
-		 * @param bytes bytes
-		 */
 		public void addReceivedPacket(int bytes) {
 			this.receivedPackets.incrementAndGet();
 			this.receivedBytes.addAndGet(bytes);
 		}
 
-		/**
-		 * Commit.
-		 */
 		public void commit() {
 			this.event.sentBytes = this.sentBytes.get();
 			this.event.sentPackets = this.sentPackets.get();

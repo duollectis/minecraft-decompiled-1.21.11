@@ -7,96 +7,93 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code ForgingSlotsManager}.
+ * Управляет конфигурацией слотов для экранов ковки (наковальня, точильный камень, кузнечный стол).
+ * <p>
+ * Хранит описание входных слотов и слота результата, включая их позиции и предикаты допустимых предметов.
+ * Создаётся через {@link Builder} и передаётся в конструктор {@link net.minecraft.screen.ForgingScreenHandler}.
  */
 public class ForgingSlotsManager {
 
-	private final List<ForgingSlotsManager.ForgingSlot> inputSlots;
-	private final ForgingSlotsManager.ForgingSlot resultSlot;
+	private final List<ForgingSlot> inputSlots;
+	private final ForgingSlot resultSlot;
 
-	ForgingSlotsManager(List<ForgingSlotsManager.ForgingSlot> inputSlots, ForgingSlotsManager.ForgingSlot resultSlot) {
-		if (!inputSlots.isEmpty() && !resultSlot.equals(ForgingSlotsManager.ForgingSlot.DEFAULT)) {
-			this.inputSlots = inputSlots;
-			this.resultSlot = resultSlot;
-		}
-		else {
+	ForgingSlotsManager(List<ForgingSlot> inputSlots, ForgingSlot resultSlot) {
+		if (inputSlots.isEmpty() || resultSlot.equals(ForgingSlot.DEFAULT)) {
 			throw new IllegalArgumentException("Need to define both inputSlots and resultSlot");
 		}
+
+		this.inputSlots = inputSlots;
+		this.resultSlot = resultSlot;
 	}
 
-	public static ForgingSlotsManager.Builder builder() {
-		return new ForgingSlotsManager.Builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
-	public ForgingSlotsManager.ForgingSlot getInputSlot(int index) {
-		return this.inputSlots.get(index);
+	public ForgingSlot getInputSlot(int index) {
+		return inputSlots.get(index);
 	}
 
-	public ForgingSlotsManager.ForgingSlot getResultSlot() {
-		return this.resultSlot;
+	public ForgingSlot getResultSlot() {
+		return resultSlot;
 	}
 
-	public List<ForgingSlotsManager.ForgingSlot> getInputSlots() {
-		return this.inputSlots;
+	public List<ForgingSlot> getInputSlots() {
+		return inputSlots;
 	}
 
 	public int getInputSlotCount() {
-		return this.inputSlots.size();
+		return inputSlots.size();
 	}
 
 	public int getResultSlotIndex() {
-		return this.getInputSlotCount();
+		return getInputSlotCount();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель конфигурации слотов ковки.
+	 * <p>
+	 * Слоты должны добавляться с непрерывными индексами, начиная с 0.
+	 * Слот результата должен следовать сразу за последним входным слотом.
 	 */
 	public static class Builder {
 
-		private final List<ForgingSlotsManager.ForgingSlot> inputs = new ArrayList<>();
-		private ForgingSlotsManager.ForgingSlot resultSlot = ForgingSlotsManager.ForgingSlot.DEFAULT;
+		private final List<ForgingSlot> inputs = new ArrayList<>();
+		private ForgingSlot resultSlot = ForgingSlot.DEFAULT;
 
-		public ForgingSlotsManager.Builder input(int slotId, int x, int y, Predicate<ItemStack> mayPlace) {
-			this.inputs.add(new ForgingSlotsManager.ForgingSlot(slotId, x, y, mayPlace));
+		public Builder input(int slotId, int x, int y, Predicate<ItemStack> mayPlace) {
+			inputs.add(new ForgingSlot(slotId, x, y, mayPlace));
 			return this;
 		}
 
-		public ForgingSlotsManager.Builder output(int slotId, int x, int y) {
-			this.resultSlot = new ForgingSlotsManager.ForgingSlot(slotId, x, y, stack -> false);
+		public Builder output(int slotId, int x, int y) {
+			resultSlot = new ForgingSlot(slotId, x, y, stack -> false);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ForgingSlotsManager — результат операции
-		 */
 		public ForgingSlotsManager build() {
-			int i = this.inputs.size();
+			int inputCount = inputs.size();
 
-			for (int j = 0; j < i; j++) {
-				ForgingSlotsManager.ForgingSlot forgingSlot = this.inputs.get(j);
-				if (forgingSlot.slotId != j) {
+			for (int index = 0; index < inputCount; index++) {
+				ForgingSlot slot = inputs.get(index);
+				if (slot.slotId != index) {
 					throw new IllegalArgumentException("Expected input slots to have continous indexes");
 				}
 			}
 
-			if (this.resultSlot.slotId != i) {
+			if (resultSlot.slotId != inputCount) {
 				throw new IllegalArgumentException("Expected result slot index to follow last input slot");
 			}
-			else {
-				return new ForgingSlotsManager(this.inputs, this.resultSlot);
-			}
+
+			return new ForgingSlotsManager(inputs, resultSlot);
 		}
 	}
 
 	/**
-	 * {@code ForgingSlot}.
+	 * Описание одного слота ковки: его идентификатор, экранные координаты и предикат допустимых предметов.
 	 */
 	public record ForgingSlot(int slotId, int x, int y, Predicate<ItemStack> mayPlace) {
 
-		static final ForgingSlotsManager.ForgingSlot
-				DEFAULT =
-				new ForgingSlotsManager.ForgingSlot(0, 0, 0, stack -> true);
+		static final ForgingSlot DEFAULT = new ForgingSlot(0, 0, 0, stack -> true);
 	}
 }

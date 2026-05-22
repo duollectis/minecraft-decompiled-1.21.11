@@ -61,7 +61,7 @@ public class OminousItemSpawnerEntityRenderer extends EntityRenderer<OminousItem
 				matrixStack.scale(f, f, f);
 			}
 
-			float f = MathHelper.wrapDegrees(itemStackEntityRenderState.age * 40.0F);
+			float f = MathHelper.wrapDegrees(itemStackEntityRenderState.age * ROTATION_SPEED);
 			matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f));
 			ItemEntityRenderer.render(
 					matrixStack,

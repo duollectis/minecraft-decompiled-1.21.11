@@ -6,7 +6,8 @@ import net.minecraft.entity.passive.TameableEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code UntamedActiveTargetGoal}.
+ * Цель активного поиска цели, работающая только пока существо не приручено.
+ * Если задан {@code targetPredicate}, он используется вместо стандартной проверки {@code shouldContinue}.
  */
 public class UntamedActiveTargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
 
@@ -24,15 +25,13 @@ public class UntamedActiveTargetGoal<T extends LivingEntity> extends ActiveTarge
 
 	@Override
 	public boolean canStart() {
-		return !this.tameable.isTamed() && super.canStart();
+		return !tameable.isTamed() && super.canStart();
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.targetPredicate != null ? this.targetPredicate.test(
-				getServerWorld(this.mob),
-				this.mob,
-				this.targetEntity
-		) : super.shouldContinue();
+		return targetPredicate != null
+				? targetPredicate.test(getServerWorld(mob), mob, targetEntity)
+				: super.shouldContinue();
 	}
 }

@@ -7,34 +7,25 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code InsideWorldBoundsBlockPredicate}.
+ * Предикат, проверяющий что позиция со смещением находится в пределах высот мира.
  */
 public class InsideWorldBoundsBlockPredicate implements BlockPredicate {
 
 	public static final MapCodec<InsideWorldBoundsBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Vec3i
-							.createOffsetCodec(16)
-							.optionalFieldOf("offset", BlockPos.ORIGIN)
-							.forGetter(predicate -> predicate.offset))
-					.apply(instance, InsideWorldBoundsBlockPredicate::new)
+		instance -> instance
+			.group(Vec3i.createOffsetCodec(16).optionalFieldOf("offset", BlockPos.ORIGIN).forGetter(p -> p.offset))
+			.apply(instance, InsideWorldBoundsBlockPredicate::new)
 	);
+
 	private final Vec3i offset;
 
 	public InsideWorldBoundsBlockPredicate(Vec3i offset) {
 		this.offset = offset;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		return !structureWorldAccess.isOutOfHeightLimit(blockPos.add(this.offset));
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		return !world.isOutOfHeightLimit(pos.add(offset));
 	}
 
 	@Override

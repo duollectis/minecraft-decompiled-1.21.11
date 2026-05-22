@@ -12,64 +12,56 @@ import net.minecraft.world.gen.blockpredicate.BlockPredicate;
 import java.util.List;
 
 /**
- * {@code PredicatedStateProvider}.
+ * Поставщик состояний блоков с условной логикой на основе предикатов.
+ * Перебирает список правил {@link Rule} и возвращает первый подходящий блок,
+ * чей предикат {@code ifTrue} выполняется в данной позиции. Если ни одно правило
+ * не сработало — возвращает {@code fallback}.
  */
 public record PredicatedStateProvider(BlockStateProvider fallback, List<PredicatedStateProvider.Rule> rules) {
 
 	public static final Codec<PredicatedStateProvider> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    BlockStateProvider.TYPE_CODEC.fieldOf("fallback").forGetter(PredicatedStateProvider::fallback),
-					                    PredicatedStateProvider.Rule.CODEC
-							                    .listOf()
-							                    .fieldOf("rules")
-							                    .forGetter(PredicatedStateProvider::rules)
-			                    )
-			                    .apply(instance, PredicatedStateProvider::new)
+					BlockStateProvider.TYPE_CODEC
+							.fieldOf("fallback")
+							.forGetter(PredicatedStateProvider::fallback),
+					PredicatedStateProvider.Rule.CODEC
+							.listOf()
+							.fieldOf("rules")
+							.forGetter(PredicatedStateProvider::rules)
+			)
+			.apply(instance, PredicatedStateProvider::new)
 	);
 
-	/**
-	 * Of.
-	 *
-	 * @param stateProvider state provider
-	 *
-	 * @return PredicatedStateProvider — результат операции
-	 */
 	public static PredicatedStateProvider of(BlockStateProvider stateProvider) {
 		return new PredicatedStateProvider(stateProvider, List.of());
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param block block
-	 *
-	 * @return PredicatedStateProvider — результат операции
-	 */
 	public static PredicatedStateProvider of(Block block) {
 		return of(BlockStateProvider.of(block));
 	}
 
 	public BlockState getBlockState(StructureWorldAccess world, Random random, BlockPos pos) {
-		for (PredicatedStateProvider.Rule rule : this.rules) {
+		for (Rule rule : rules) {
 			if (rule.ifTrue().test(world, pos)) {
 				return rule.then().get(random, pos);
 			}
 		}
 
-		return this.fallback.get(random, pos);
+		return fallback.get(random, pos);
 	}
 
-	/**
-	 * {@code Rule}.
-	 */
 	public record Rule(BlockPredicate ifTrue, BlockStateProvider then) {
 
 		public static final Codec<PredicatedStateProvider.Rule> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    BlockPredicate.BASE_CODEC.fieldOf("if_true").forGetter(PredicatedStateProvider.Rule::ifTrue),
-						                    BlockStateProvider.TYPE_CODEC.fieldOf("then").forGetter(PredicatedStateProvider.Rule::then)
-				                    )
-				                    .apply(instance, PredicatedStateProvider.Rule::new)
+						BlockPredicate.BASE_CODEC
+								.fieldOf("if_true")
+								.forGetter(PredicatedStateProvider.Rule::ifTrue),
+						BlockStateProvider.TYPE_CODEC
+								.fieldOf("then")
+								.forGetter(PredicatedStateProvider.Rule::then)
+				)
+				.apply(instance, PredicatedStateProvider.Rule::new)
 		);
 	}
 }

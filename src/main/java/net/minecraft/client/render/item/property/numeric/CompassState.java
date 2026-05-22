@@ -19,10 +19,12 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CompassState}.
+ * Числовое свойство компаса для системы предметных моделей.
+ * Вычисляет угол стрелки компаса в диапазоне [0, 1) в зависимости от цели ({@link Target}).
+ * При отсутствии цели или невозможности указать на неё — стрелка хаотично вращается.
  */
+@Environment(EnvType.CLIENT)
 public class CompassState extends NeedleAngleState {
 
 	public static final MapCodec<CompassState> CODEC = RecordCodecBuilder.mapCodec(
@@ -39,59 +41,61 @@ public class CompassState extends NeedleAngleState {
 
 	public CompassState(boolean wobble, CompassState.Target target) {
 		super(wobble);
-		this.aimedAngler = this.createAngler(0.8F);
-		this.aimlessAngler = this.createAngler(0.8F);
+		aimedAngler = createAngler(0.8F);
+		aimlessAngler = createAngler(0.8F);
 		this.target = target;
 	}
 
 	@Override
 	protected float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context) {
-		GlobalPos globalPos = this.target.getPosition(world, stack, context);
-		long l = world.getTime();
-		return !canPointTo(context, globalPos) ? this.getAimlessAngle(seed, l)
-		                                       : this.getAngleTo(context, l, globalPos.pos());
+		GlobalPos globalPos = target.getPosition(world, stack, context);
+		long time = world.getTime();
+		return !canPointTo(context, globalPos)
+				? getAimlessAngle(seed, time)
+				: getAngleTo(context, time, globalPos.pos());
 	}
 
 	private float getAimlessAngle(int seed, long time) {
-		if (this.aimlessAngler.shouldUpdate(time)) {
-			this.aimlessAngler.update(time, this.random.nextFloat());
+		if (aimlessAngler.shouldUpdate(time)) {
+			aimlessAngler.update(time, random.nextFloat());
 		}
 
-		float f = this.aimlessAngler.getAngle() + scatter(seed) / 2.1474836E9F;
-		return MathHelper.floorMod(f, 1.0F);
+		float angle = aimlessAngler.getAngle() + scatter(seed) / 2.1474836E9F;
+		return MathHelper.floorMod(angle, 1.0F);
 	}
 
 	private float getAngleTo(HeldItemContext from, long time, BlockPos to) {
-		float f = (float) getAngleTo(from, to);
-		float g = getBodyYaw(from);
-		float h;
-		if (from.getEntity() instanceof PlayerEntity playerEntity && playerEntity.isMainPlayer() && playerEntity
-				.getEntityWorld()
-				.getTickManager()
-				.shouldTick()) {
-			if (this.aimedAngler.shouldUpdate(time)) {
-				this.aimedAngler.update(time, 0.5F - (g - 0.25F));
+		float targetAngle = (float) getAngleTo(from, to);
+		float bodyYaw = getBodyYaw(from);
+		float resultAngle;
+		if (from.getEntity() instanceof PlayerEntity playerEntity
+				&& playerEntity.isMainPlayer()
+				&& playerEntity.getEntityWorld().getTickManager().shouldTick()
+		) {
+			if (aimedAngler.shouldUpdate(time)) {
+				aimedAngler.update(time, 0.5F - (bodyYaw - 0.25F));
 			}
 
-			h = f + this.aimedAngler.getAngle();
+			resultAngle = targetAngle + aimedAngler.getAngle();
 		}
 		else {
-			h = 0.5F - (g - 0.25F - f);
+			resultAngle = 0.5F - (bodyYaw - 0.25F - targetAngle);
 		}
 
-		return MathHelper.floorMod(h, 1.0F);
+		return MathHelper.floorMod(resultAngle, 1.0F);
 	}
 
 	private static boolean canPointTo(HeldItemContext from, @Nullable GlobalPos to) {
-		return to != null && to.dimension() == from.getEntityWorld().getRegistryKey() && !(
-				to.pos().getSquaredDistance(from.getEntityPos()) < 1.0E-5F
-		);
+		return to != null
+				&& to.dimension() == from.getEntityWorld().getRegistryKey()
+				&& !(to.pos().getSquaredDistance(from.getEntityPos()) < 1.0E-5F);
 	}
 
 	private static double getAngleTo(HeldItemContext from, BlockPos to) {
-		Vec3d vec3d = Vec3d.ofCenter(to);
-		Vec3d vec3d2 = from.getEntityPos();
-		return Math.atan2(vec3d.getZ() - vec3d2.getZ(), vec3d.getX() - vec3d2.getX()) / (float) (Math.PI * 2);
+		Vec3d targetCenter = Vec3d.ofCenter(to);
+		Vec3d entityPos = from.getEntityPos();
+		return Math.atan2(targetCenter.getZ() - entityPos.getZ(), targetCenter.getX() - entityPos.getX())
+				/ (float) (Math.PI * 2);
 	}
 
 	private static float getBodyYaw(HeldItemContext context) {
@@ -103,14 +107,14 @@ public class CompassState extends NeedleAngleState {
 	}
 
 	protected CompassState.Target getTarget() {
-		return this.target;
+		return target;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Target}.
+	 * Цель, на которую указывает стрелка компаса.
 	 */
-	public static enum Target implements StringIdentifiable {
+	@Environment(EnvType.CLIENT)
+	public enum Target implements StringIdentifiable {
 		NONE("none") {
 			@Override
 			public @Nullable GlobalPos getPosition(

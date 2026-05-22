@@ -29,37 +29,37 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code FlatChunkGeneratorConfig}.
+ * Конфигурация плоского генератора чанков. Описывает стек слоёв, биом,
+ * наличие озёр и фич, а также опциональные переопределения структур.
+ * <p>
+ * Слои хранятся в порядке снизу вверх; {@link #updateLayerBlocks()} разворачивает
+ * их в плоский список {@code BlockState} для быстрого доступа по Y-индексу.
  */
 public class FlatChunkGeneratorConfig {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final Codec<FlatChunkGeneratorConfig> CODEC = RecordCodecBuilder.<FlatChunkGeneratorConfig>create(
-			                                                                              instance -> instance.group(
-					                                                                                                  RegistryCodecs.entryList(RegistryKeys.STRUCTURE_SET)
-					                                                                                                                .lenientOptionalFieldOf("structure_overrides")
-					                                                                                                                .forGetter(config -> config.structureOverrides),
-					                                                                                                  FlatChunkGeneratorLayer.CODEC
-							                                                                                                  .listOf()
-							                                                                                                  .fieldOf("layers")
-							                                                                                                  .forGetter(FlatChunkGeneratorConfig::getLayers),
-					                                                                                                  Codec.BOOL.fieldOf("lakes").orElse(false).forGetter(config -> config.hasLakes),
-					                                                                                                  Codec.BOOL.fieldOf("features").orElse(false).forGetter(config -> config.hasFeatures),
-					                                                                                                  Biome.REGISTRY_CODEC
-							                                                                                                  .lenientOptionalFieldOf("biome")
-							                                                                                                  .orElseGet(Optional::empty)
-							                                                                                                  .forGetter(config -> Optional.of(config.biome)),
-					                                                                                                  RegistryOps.<Biome, FlatChunkGeneratorConfig>getEntryCodec(BiomeKeys.PLAINS),
-					                                                                                                  RegistryOps.<PlacedFeature, FlatChunkGeneratorConfig>getEntryCodec(MiscPlacedFeatures.LAKE_LAVA_UNDERGROUND),
-					                                                                                                  RegistryOps.<PlacedFeature, FlatChunkGeneratorConfig>getEntryCodec(MiscPlacedFeatures.LAKE_LAVA_SURFACE)
-			                                                                                                  )
-			                                                                                                  .apply(instance, FlatChunkGeneratorConfig::new)
-	                                                                              )
-	                                                                              .comapFlatMap(
-			                                                                              FlatChunkGeneratorConfig::checkHeight,
-			                                                                              Function.identity()
-	                                                                              )
-	                                                                              .stable();
+			instance -> instance.group(
+					RegistryCodecs.entryList(RegistryKeys.STRUCTURE_SET)
+					              .lenientOptionalFieldOf("structure_overrides")
+					              .forGetter(config -> config.structureOverrides),
+					FlatChunkGeneratorLayer.CODEC
+					                      .listOf()
+					                      .fieldOf("layers")
+					                      .forGetter(FlatChunkGeneratorConfig::getLayers),
+					Codec.BOOL.fieldOf("lakes").orElse(false).forGetter(config -> config.hasLakes),
+					Codec.BOOL.fieldOf("features").orElse(false).forGetter(config -> config.hasFeatures),
+					Biome.REGISTRY_CODEC
+					     .lenientOptionalFieldOf("biome")
+					     .orElseGet(Optional::empty)
+					     .forGetter(config -> Optional.of(config.biome)),
+					RegistryOps.<Biome, FlatChunkGeneratorConfig>getEntryCodec(BiomeKeys.PLAINS),
+					RegistryOps.<PlacedFeature, FlatChunkGeneratorConfig>getEntryCodec(MiscPlacedFeatures.LAKE_LAVA_UNDERGROUND),
+					RegistryOps.<PlacedFeature, FlatChunkGeneratorConfig>getEntryCodec(MiscPlacedFeatures.LAKE_LAVA_SURFACE)
+			).apply(instance, FlatChunkGeneratorConfig::new)
+	).comapFlatMap(FlatChunkGeneratorConfig::checkHeight, Function.identity()).stable();
+
 	private final Optional<RegistryEntryList<StructureSet>> structureOverrides;
 	private final List<FlatChunkGeneratorLayer> layers = Lists.newArrayList();
 	private final RegistryEntry<Biome> biome;
@@ -70,10 +70,11 @@ public class FlatChunkGeneratorConfig {
 	private final List<RegistryEntry<PlacedFeature>> features;
 
 	private static DataResult<FlatChunkGeneratorConfig> checkHeight(FlatChunkGeneratorConfig config) {
-		int i = config.layers.stream().mapToInt(FlatChunkGeneratorLayer::getThickness).sum();
-		return i > DimensionType.MAX_HEIGHT
-		       ? DataResult.error(() -> "Sum of layer heights is > " + DimensionType.MAX_HEIGHT, config)
-		       : DataResult.success(config);
+		int totalHeight = config.layers.stream().mapToInt(FlatChunkGeneratorLayer::getThickness).sum();
+
+		return totalHeight > DimensionType.MAX_HEIGHT
+				? DataResult.error(() -> "Sum of layer heights is > " + DimensionType.MAX_HEIGHT, config)
+				: DataResult.success(config);
 	}
 
 	private FlatChunkGeneratorConfig(
@@ -91,18 +92,24 @@ public class FlatChunkGeneratorConfig {
 				getBiome(biome, fallback),
 				List.of(undergroundLavaLakeFeature, surfaceLavaLakeFeature)
 		);
+
 		if (lakes) {
-			this.enableLakes();
+			enableLakes();
 		}
 
 		if (features) {
-			this.enableFeatures();
+			enableFeatures();
 		}
 
 		this.layers.addAll(layers);
-		this.updateLayerBlocks();
+		updateLayerBlocks();
 	}
 
+	/**
+	 * Возвращает биом из Optional, либо fallback (Plains) с предупреждением в лог.
+	 * Unchecked cast безопасен: тип гарантирован структурой Codec.
+	 */
+	@SuppressWarnings("unchecked")
 	private static RegistryEntry<Biome> getBiome(
 			Optional<? extends RegistryEntry<Biome>> biome,
 			RegistryEntry<Biome> fallback
@@ -111,9 +118,8 @@ public class FlatChunkGeneratorConfig {
 			LOGGER.error("Unknown biome, defaulting to plains");
 			return fallback;
 		}
-		else {
-			return (RegistryEntry<Biome>) biome.get();
-		}
+
+		return (RegistryEntry<Biome>) biome.get();
 	}
 
 	public FlatChunkGeneratorConfig(
@@ -132,125 +138,120 @@ public class FlatChunkGeneratorConfig {
 			Optional<RegistryEntryList<StructureSet>> structureOverrides,
 			RegistryEntry<Biome> biome
 	) {
-		FlatChunkGeneratorConfig
-				flatChunkGeneratorConfig =
-				new FlatChunkGeneratorConfig(structureOverrides, biome, this.features);
+		FlatChunkGeneratorConfig copy = new FlatChunkGeneratorConfig(structureOverrides, biome, this.features);
 
-		for (FlatChunkGeneratorLayer flatChunkGeneratorLayer : layers) {
-			flatChunkGeneratorConfig.layers
-					.add(new FlatChunkGeneratorLayer(
-							flatChunkGeneratorLayer.getThickness(),
-							flatChunkGeneratorLayer.getBlockState().getBlock()
-					));
-			flatChunkGeneratorConfig.updateLayerBlocks();
+		for (FlatChunkGeneratorLayer layer : layers) {
+			copy.layers.add(new FlatChunkGeneratorLayer(layer.getThickness(), layer.getBlockState().getBlock()));
+			copy.updateLayerBlocks();
 		}
 
-		if (this.hasFeatures) {
-			flatChunkGeneratorConfig.enableFeatures();
+		if (hasFeatures) {
+			copy.enableFeatures();
 		}
 
-		if (this.hasLakes) {
-			flatChunkGeneratorConfig.enableLakes();
+		if (hasLakes) {
+			copy.enableLakes();
 		}
 
-		return flatChunkGeneratorConfig;
+		return copy;
 	}
 
-	/**
-	 * Включает features.
-	 */
 	public void enableFeatures() {
-		this.hasFeatures = true;
+		hasFeatures = true;
 	}
 
-	/**
-	 * Включает lakes.
-	 */
 	public void enableLakes() {
-		this.hasLakes = true;
+		hasLakes = true;
 	}
 
 	/**
-	 * Создаёт generation settings.
-	 *
-	 * @param biomeEntry biome entry
-	 *
-	 * @return GenerationSettings — результат операции
+	 * Создаёт {@link GenerationSettings} для данного биома с учётом конфигурации плоского мира.
+	 * <p>
+	 * Если переданный биом не совпадает с биомом конфига — возвращает его родные настройки генерации.
+	 * Иначе строит кастомные настройки: добавляет лавовые озёра (если включены), фичи биома
+	 * (кроме структур и, опционально, озёр), а также FILL_LAYER-фичи для непрозрачных блоков слоёв.
 	 */
 	public GenerationSettings createGenerationSettings(RegistryEntry<Biome> biomeEntry) {
-		if (!biomeEntry.equals(this.biome)) {
+		if (!biomeEntry.equals(biome)) {
 			return biomeEntry.value().getGenerationSettings();
 		}
-		else {
-			GenerationSettings generationSettings = this.getBiome().value().getGenerationSettings();
-			GenerationSettings.Builder builder = new GenerationSettings.Builder();
-			if (this.hasLakes) {
-				for (RegistryEntry<PlacedFeature> registryEntry : this.features) {
-					builder.feature(GenerationStep.Feature.LAKES, registryEntry);
-				}
+
+		GenerationSettings biomeSettings = getBiome().value().getGenerationSettings();
+		GenerationSettings.Builder builder = new GenerationSettings.Builder();
+
+		if (hasLakes) {
+			for (RegistryEntry<PlacedFeature> lavaLake : features) {
+				builder.feature(GenerationStep.Feature.LAKES, lavaLake);
 			}
-
-			boolean bl = (!this.hasNoTerrain || biomeEntry.matchesKey(BiomeKeys.THE_VOID)) && this.hasFeatures;
-			if (bl) {
-				List<RegistryEntryList<PlacedFeature>> list = generationSettings.getFeatures();
-
-				for (int i = 0; i < list.size(); i++) {
-					if (i != GenerationStep.Feature.UNDERGROUND_STRUCTURES.ordinal()
-							&& i != GenerationStep.Feature.SURFACE_STRUCTURES.ordinal()
-							&& (!this.hasLakes || i != GenerationStep.Feature.LAKES.ordinal())) {
-						for (RegistryEntry<PlacedFeature> registryEntry2 : list.get(i)) {
-							builder.addFeature(i, registryEntry2);
-						}
-					}
-				}
-			}
-
-			List<BlockState> list = this.getLayerBlocks();
-
-			for (int ix = 0; ix < list.size(); ix++) {
-				BlockState blockState = list.get(ix);
-				if (!Heightmap.Type.MOTION_BLOCKING.getBlockPredicate().test(blockState)) {
-					list.set(ix, null);
-					builder.feature(
-							GenerationStep.Feature.TOP_LAYER_MODIFICATION,
-							PlacedFeatures.createEntry(Feature.FILL_LAYER, new FillLayerFeatureConfig(ix, blockState))
-					);
-				}
-			}
-
-			return builder.build();
 		}
+
+		boolean shouldAddFeatures = (!hasNoTerrain || biomeEntry.matchesKey(BiomeKeys.THE_VOID)) && hasFeatures;
+
+		if (shouldAddFeatures) {
+			List<RegistryEntryList<PlacedFeature>> biomeFeatures = biomeSettings.getFeatures();
+
+			for (int step = 0; step < biomeFeatures.size(); step++) {
+				if (step == GenerationStep.Feature.UNDERGROUND_STRUCTURES.ordinal()
+						|| step == GenerationStep.Feature.SURFACE_STRUCTURES.ordinal()
+						|| (hasLakes && step == GenerationStep.Feature.LAKES.ordinal())) {
+					continue;
+				}
+
+				for (RegistryEntry<PlacedFeature> feature : biomeFeatures.get(step)) {
+					builder.addFeature(step, feature);
+				}
+			}
+		}
+
+		List<BlockState> blocks = getLayerBlocks();
+
+		for (int layerIndex = 0; layerIndex < blocks.size(); layerIndex++) {
+			BlockState blockState = blocks.get(layerIndex);
+
+			if (Heightmap.Type.MOTION_BLOCKING.getBlockPredicate().test(blockState)) {
+				continue;
+			}
+
+			blocks.set(layerIndex, null);
+			builder.feature(
+					GenerationStep.Feature.TOP_LAYER_MODIFICATION,
+					PlacedFeatures.createEntry(Feature.FILL_LAYER, new FillLayerFeatureConfig(layerIndex, blockState))
+			);
+		}
+
+		return builder.build();
 	}
 
 	public Optional<RegistryEntryList<StructureSet>> getStructureOverrides() {
-		return this.structureOverrides;
+		return structureOverrides;
 	}
 
 	public RegistryEntry<Biome> getBiome() {
-		return this.biome;
+		return biome;
 	}
 
 	public List<FlatChunkGeneratorLayer> getLayers() {
-		return this.layers;
+		return layers;
 	}
 
 	public List<BlockState> getLayerBlocks() {
-		return this.layerBlocks;
+		return layerBlocks;
 	}
 
 	/**
-	 * Обновляет layer blocks.
+	 * Перестраивает плоский список {@link BlockState} из стека слоёв.
+	 * Вызывается после каждого изменения {@link #layers}.
 	 */
 	public void updateLayerBlocks() {
-		this.layerBlocks.clear();
+		layerBlocks.clear();
 
-		for (FlatChunkGeneratorLayer flatChunkGeneratorLayer : this.layers) {
-			for (int i = 0; i < flatChunkGeneratorLayer.getThickness(); i++) {
-				this.layerBlocks.add(flatChunkGeneratorLayer.getBlockState());
+		for (FlatChunkGeneratorLayer layer : layers) {
+			for (int repeat = 0; repeat < layer.getThickness(); repeat++) {
+				layerBlocks.add(layer.getBlockState());
 			}
 		}
 
-		this.hasNoTerrain = this.layerBlocks.stream().allMatch(state -> state.isOf(Blocks.AIR));
+		hasNoTerrain = layerBlocks.stream().allMatch(state -> state.isOf(Blocks.AIR));
 	}
 
 	public static FlatChunkGeneratorConfig getDefaultConfig(
@@ -258,18 +259,20 @@ public class FlatChunkGeneratorConfig {
 			RegistryEntryLookup<StructureSet> structureSetLookup,
 			RegistryEntryLookup<PlacedFeature> featureLookup
 	) {
-		RegistryEntryList<StructureSet> registryEntryList = RegistryEntryList.of(
+		RegistryEntryList<StructureSet> defaultStructures = RegistryEntryList.of(
 				structureSetLookup.getOrThrow(StructureSetKeys.STRONGHOLDS),
 				structureSetLookup.getOrThrow(StructureSetKeys.VILLAGES)
 		);
-		FlatChunkGeneratorConfig flatChunkGeneratorConfig = new FlatChunkGeneratorConfig(
-				Optional.of(registryEntryList), getPlains(biomeLookup), getLavaLakes(featureLookup)
+		FlatChunkGeneratorConfig config = new FlatChunkGeneratorConfig(
+				Optional.of(defaultStructures), getPlains(biomeLookup), getLavaLakes(featureLookup)
 		);
-		flatChunkGeneratorConfig.getLayers().add(new FlatChunkGeneratorLayer(1, Blocks.BEDROCK));
-		flatChunkGeneratorConfig.getLayers().add(new FlatChunkGeneratorLayer(2, Blocks.DIRT));
-		flatChunkGeneratorConfig.getLayers().add(new FlatChunkGeneratorLayer(1, Blocks.GRASS_BLOCK));
-		flatChunkGeneratorConfig.updateLayerBlocks();
-		return flatChunkGeneratorConfig;
+
+		config.getLayers().add(new FlatChunkGeneratorLayer(1, Blocks.BEDROCK));
+		config.getLayers().add(new FlatChunkGeneratorLayer(2, Blocks.DIRT));
+		config.getLayers().add(new FlatChunkGeneratorLayer(1, Blocks.GRASS_BLOCK));
+		config.updateLayerBlocks();
+
+		return config;
 	}
 
 	public static RegistryEntry<Biome> getPlains(RegistryEntryLookup<Biome> biomeLookup) {

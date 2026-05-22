@@ -10,7 +10,9 @@ import net.minecraft.world.gen.YOffset;
 import org.slf4j.Logger;
 
 /**
- * {@code BiasedToBottomHeightProvider}.
+ * Провайдер высоты со смещением к нижней границе диапазона.
+ * Использует двойную случайность: сначала выбирается диапазон, затем позиция внутри него,
+ * что создаёт нелинейное распределение с концентрацией значений у минимума.
  */
 public class BiasedToBottomHeightProvider extends HeightProvider {
 
@@ -36,31 +38,22 @@ public class BiasedToBottomHeightProvider extends HeightProvider {
 		this.inner = inner;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 * @param inner inner
-	 *
-	 * @return BiasedToBottomHeightProvider — результат операции
-	 */
 	public static BiasedToBottomHeightProvider create(YOffset minOffset, YOffset maxOffset, int inner) {
 		return new BiasedToBottomHeightProvider(minOffset, maxOffset, inner);
 	}
 
 	@Override
 	public int get(Random random, HeightContext context) {
-		int i = this.minOffset.getY(context);
-		int j = this.maxOffset.getY(context);
-		if (j - i - this.inner + 1 <= 0) {
+		int minY = minOffset.getY(context);
+		int maxY = maxOffset.getY(context);
+
+		if (maxY - minY - inner + 1 <= 0) {
 			LOGGER.warn("Empty height range: {}", this);
-			return i;
+			return minY;
 		}
-		else {
-			int k = random.nextInt(j - i - this.inner + 1);
-			return random.nextInt(k + this.inner) + i;
-		}
+
+		int range = random.nextInt(maxY - minY - inner + 1);
+		return random.nextInt(range + inner) + minY;
 	}
 
 	@Override
@@ -70,6 +63,6 @@ public class BiasedToBottomHeightProvider extends HeightProvider {
 
 	@Override
 	public String toString() {
-		return "biased[" + this.minOffset + "-" + this.maxOffset + " inner: " + this.inner + "]";
+		return "biased[" + minOffset + "-" + maxOffset + " inner: " + inner + "]";
 	}
 }

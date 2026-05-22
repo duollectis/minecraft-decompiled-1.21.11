@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.function.IntFunction;
 
 /**
- * {@code EquipmentSlot}.
+ * Перечисление слотов снаряжения сущности.
+ * Охватывает руки, броню гуманоидов, броню животных и седло.
  */
 public enum EquipmentSlot implements StringIdentifiable {
 	MAINHAND(EquipmentSlot.Type.HAND, 0, 0, "mainhand"),
@@ -26,27 +27,18 @@ public enum EquipmentSlot implements StringIdentifiable {
 	public static final int NO_MAX_COUNT = 0;
 	public static final List<EquipmentSlot> VALUES = List.of(values());
 	public static final IntFunction<EquipmentSlot> FROM_INDEX = ValueLists.createIndexToValueFunction(
-			(EquipmentSlot slot) -> slot.index, values(), ValueLists.OutOfBoundsHandling.ZERO
+		(EquipmentSlot slot) -> slot.index, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
-	public static final StringIdentifiable.EnumCodec<EquipmentSlot>
-			CODEC =
-			StringIdentifiable.createCodec(EquipmentSlot::values);
-	public static final PacketCodec<ByteBuf, EquipmentSlot>
-			PACKET_CODEC =
-			PacketCodecs.indexed(FROM_INDEX, EquipmentSlot::getIndex);
+	public static final StringIdentifiable.EnumCodec<EquipmentSlot> CODEC = StringIdentifiable.createCodec(EquipmentSlot::values);
+	public static final PacketCodec<ByteBuf, EquipmentSlot> PACKET_CODEC = PacketCodecs.indexed(FROM_INDEX, EquipmentSlot::getIndex);
+
 	private final EquipmentSlot.Type type;
 	private final int entityId;
 	private final int maxCount;
 	private final int index;
 	private final String name;
 
-	private EquipmentSlot(
-			final EquipmentSlot.Type type,
-			final int entityId,
-			final int maxCount,
-			final int index,
-			final String name
-	) {
+	private EquipmentSlot(EquipmentSlot.Type type, int entityId, int maxCount, int index, String name) {
 		this.type = type;
 		this.entityId = entityId;
 		this.maxCount = maxCount;
@@ -54,84 +46,85 @@ public enum EquipmentSlot implements StringIdentifiable {
 		this.name = name;
 	}
 
-	private EquipmentSlot(final EquipmentSlot.Type type, final int entityId, final int index, final String name) {
+	private EquipmentSlot(EquipmentSlot.Type type, int entityId, int index, String name) {
 		this(type, entityId, 0, index, name);
 	}
 
 	public EquipmentSlot.Type getType() {
-		return this.type;
+		return type;
 	}
 
 	public int getEntitySlotId() {
-		return this.entityId;
+		return entityId;
 	}
 
 	public int getOffsetEntitySlotId(int offset) {
-		return offset + this.entityId;
+		return offset + entityId;
 	}
 
 	/**
-	 * Split.
+	 * Разделяет стак предмета согласно ограничению слота.
+	 * Если {@code maxCount > 0}, возвращает стак размером не более {@code maxCount}.
+	 * Иначе возвращает весь стак без изменений.
 	 *
-	 * @param stack stack
-	 *
-	 * @return ItemStack — результат операции
+	 * @param stack исходный стак предмета
+	 * @return стак, помещённый в данный слот
 	 */
 	public ItemStack split(ItemStack stack) {
-		return this.maxCount > 0 ? stack.split(this.maxCount) : stack;
+		return maxCount > 0 ? stack.split(maxCount) : stack;
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
 	public int getOffsetIndex(int offset) {
-		return this.index + offset;
+		return index + offset;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public boolean isArmorSlot() {
-		return this.type == EquipmentSlot.Type.HUMANOID_ARMOR || this.type == EquipmentSlot.Type.ANIMAL_ARMOR;
+		return type == EquipmentSlot.Type.HUMANOID_ARMOR || type == EquipmentSlot.Type.ANIMAL_ARMOR;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 
 	/**
-	 * Increases dropped experience.
+	 * Определяет, влияет ли предмет в данном слоте на количество опыта при выпадении.
+	 * Слот {@link Type#SADDLE} не учитывается в расчёте опыта.
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если слот участвует в расчёте выпадаемого опыта
 	 */
 	public boolean increasesDroppedExperience() {
-		return this.type != EquipmentSlot.Type.SADDLE;
+		return type != EquipmentSlot.Type.SADDLE;
 	}
 
 	/**
-	 * By name.
+	 * Находит слот по строковому имени.
 	 *
-	 * @param name name
-	 *
-	 * @return EquipmentSlot — результат операции
+	 * @param name строковый идентификатор слота
+	 * @return соответствующий слот
+	 * @throws IllegalArgumentException если слот с таким именем не существует
 	 */
 	public static EquipmentSlot byName(String name) {
-		EquipmentSlot equipmentSlot = CODEC.byId(name);
-		if (equipmentSlot != null) {
-			return equipmentSlot;
+		EquipmentSlot slot = CODEC.byId(name);
+		if (slot != null) {
+			return slot;
 		}
-		else {
-			throw new IllegalArgumentException("Invalid slot '" + name + "'");
-		}
+
+		throw new IllegalArgumentException("Invalid slot '" + name + "'");
 	}
 
 	/**
-	 * {@code Type}.
+	 * Категория слота снаряжения, определяющая тип носителя.
 	 */
-	public static enum Type {
+	public enum Type {
 		HAND,
 		HUMANOID_ARMOR,
 		ANIMAL_ARMOR,

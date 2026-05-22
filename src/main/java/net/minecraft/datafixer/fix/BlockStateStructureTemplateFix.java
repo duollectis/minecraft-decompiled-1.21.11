@@ -7,18 +7,19 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code BlockStateStructureTemplateFix}.
+ * Конвертирует блок-стейты в шаблонах структур из устаревшего числового формата
+ * в новый именованный формат через {@link BlockStateFlattening#lookupState}.
  */
 public class BlockStateStructureTemplateFix extends DataFix {
 
-	public BlockStateStructureTemplateFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public BlockStateStructureTemplateFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"BlockStateStructureTemplateFix",
-				this.getInputSchema().getType(TypeReferences.BLOCK_STATE),
+				getInputSchema().getType(TypeReferences.BLOCK_STATE),
 				typed -> typed.update(DSL.remainderFinder(), BlockStateFlattening::lookupState)
 		);
 	}

@@ -24,12 +24,12 @@ public class VanillaWorldPresetTagProvider extends SimpleTagProvider<WorldPreset
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(WorldPresetTags.NORMAL)
+		builder(WorldPresetTags.NORMAL)
 		    .add(WorldPresets.DEFAULT)
 		    .add(WorldPresets.FLAT)
 		    .add(WorldPresets.LARGE_BIOMES)
 		    .add(WorldPresets.AMPLIFIED)
 		    .add(WorldPresets.SINGLE_BIOME_SURFACE);
-		this.builder(WorldPresetTags.EXTENDED).addTag(WorldPresetTags.NORMAL).add(WorldPresets.DEBUG_ALL_BLOCK_STATES);
+		builder(WorldPresetTags.EXTENDED).addTag(WorldPresetTags.NORMAL).add(WorldPresets.DEBUG_ALL_BLOCK_STATES);
 	}
 }

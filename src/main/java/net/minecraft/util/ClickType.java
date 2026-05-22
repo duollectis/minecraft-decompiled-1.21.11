@@ -1,9 +1,10 @@
 package net.minecraft.util;
 
 /**
- * {@code ClickType}.
+ * Тип клика мышью — левая или правая кнопка.
+ * Используется в обработчиках взаимодействия с инвентарём и GUI.
  */
 public enum ClickType {
 	LEFT,
-	RIGHT;
+	RIGHT
 }

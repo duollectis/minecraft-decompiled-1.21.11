@@ -11,20 +11,19 @@ import net.minecraft.util.math.BlockPos;
 import org.apache.commons.lang3.mutable.MutableLong;
 
 /**
- * {@code SeekWaterTask}.
+ * Фабричный класс задачи мозга, направляющей существо к ближайшей воде.
+ * Предпочитает открытую воду (без блока сверху), при отсутствии — ищет покрытую воду.
  */
 public class SeekWaterTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param range range
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
+	private static final long RETRY_DELAY_SHORT = 20L;
+	private static final long RETRY_DELAY_LONG = 40L;
+	private static final long RETRY_DELAY_EXTRA = 2L;
+	private static final double MIN_WATER_ENTRY_DISTANCE = 1.5;
+
 	public static Task<PathAwareEntity> create(int range, float speed) {
-		MutableLong mutableLong = new MutableLong(0L);
+		MutableLong nextUpdateTime = new MutableLong(0L);
+
 		return TaskTriggerer.task(
 				context -> context.group(
 						                  context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
@@ -36,61 +35,49 @@ public class SeekWaterTask {
 							                  if (world.getFluidState(entity.getBlockPos()).isIn(FluidTags.WATER)) {
 								                  return false;
 							                  }
-							                  else if (time < mutableLong.longValue()) {
-								                  mutableLong.setValue(time + 20L + 2L);
+
+							                  if (time < nextUpdateTime.longValue()) {
+								                  nextUpdateTime.setValue(time + RETRY_DELAY_SHORT + RETRY_DELAY_EXTRA);
 								                  return true;
 							                  }
-							                  else {
-								                  BlockPos blockPos = null;
-								                  BlockPos blockPos2 = null;
-								                  BlockPos blockPos3 = entity.getBlockPos();
 
-								                  for (BlockPos blockPos4 : BlockPos.iterateOutwards(
-										                  blockPos3,
-										                  range,
-										                  range,
-										                  range
-								                  )) {
-									                  if (blockPos4.getX() != blockPos3.getX()
-											                  || blockPos4.getZ() != blockPos3.getZ()) {
-										                  BlockState
-												                  blockState =
-												                  entity.getEntityWorld().getBlockState(blockPos4.up());
-										                  BlockState
-												                  blockState2 =
-												                  entity.getEntityWorld().getBlockState(blockPos4);
-										                  if (blockState2.isOf(Blocks.WATER)) {
-											                  if (blockState.isAir()) {
-												                  blockPos = blockPos4.toImmutable();
-												                  break;
-											                  }
+							                  BlockPos entityPos = entity.getBlockPos();
+							                  BlockPos openWaterPos = null;
+							                  BlockPos coveredWaterPos = null;
 
-											                  if (blockPos2 == null && !blockPos4.isWithinDistance(
-													                  entity.getEntityPos(),
-													                  1.5
-											                  )) {
-												                  blockPos2 = blockPos4.toImmutable();
-											                  }
-										                  }
-									                  }
+							                  for (BlockPos candidate : BlockPos.iterateOutwards(entityPos, range, range, range)) {
+								                  if (candidate.getX() == entityPos.getX() && candidate.getZ() == entityPos.getZ()) {
+									                  continue;
 								                  }
 
-								                  if (blockPos == null) {
-									                  blockPos = blockPos2;
+								                  BlockState aboveState = entity.getEntityWorld().getBlockState(candidate.up());
+								                  BlockState candidateState = entity.getEntityWorld().getBlockState(candidate);
+
+								                  if (!candidateState.isOf(Blocks.WATER)) {
+									                  continue;
 								                  }
 
-								                  if (blockPos != null) {
-									                  lookTarget.remember(new BlockPosLookTarget(blockPos));
-									                  walkTarget.remember(new WalkTarget(
-											                  new BlockPosLookTarget(blockPos),
-											                  speed,
-											                  0
-									                  ));
+								                  if (aboveState.isAir()) {
+									                  openWaterPos = candidate.toImmutable();
+									                  break;
 								                  }
 
-								                  mutableLong.setValue(time + 40L);
-								                  return true;
+								                  if (coveredWaterPos == null
+										                  && !candidate.isWithinDistance(entity.getEntityPos(), MIN_WATER_ENTRY_DISTANCE)
+								                  ) {
+									                  coveredWaterPos = candidate.toImmutable();
+								                  }
 							                  }
+
+							                  BlockPos targetPos = openWaterPos != null ? openWaterPos : coveredWaterPos;
+
+							                  if (targetPos != null) {
+								                  lookTarget.remember(new BlockPosLookTarget(targetPos));
+								                  walkTarget.remember(new WalkTarget(new BlockPosLookTarget(targetPos), speed, 0));
+							                  }
+
+							                  nextUpdateTime.setValue(time + RETRY_DELAY_LONG);
+							                  return true;
 						                  }
 				                  )
 		);

@@ -9,10 +9,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code KeyInput}.
+ * Событие нажатия/отпускания клавиши клавиатуры.
+ * Содержит GLFW-код клавиши, скан-код и битовую маску модификаторов.
  */
+@Environment(EnvType.CLIENT)
 public record KeyInput(
 		@InputUtil.Keycode int key,
 		int scancode,
@@ -21,9 +22,10 @@ public record KeyInput(
 
 	@Override
 	public int getKeycode() {
-		return this.key;
+		return key;
 	}
 
+	/** Аннотация-маркер для значений действия клавиши (нажата/отпущена/удерживается). */
 	@Retention(RetentionPolicy.CLASS)
 	@Target(
 			{
@@ -35,9 +37,6 @@ public record KeyInput(
 			}
 	)
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code KeyAction}.
-	 */
 	public @interface KeyAction {
 	}
 }

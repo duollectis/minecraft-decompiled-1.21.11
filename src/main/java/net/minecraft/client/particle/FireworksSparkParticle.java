@@ -21,17 +21,29 @@ import net.minecraft.util.math.random.Random;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FireworksSparkParticle}.
+ * Контейнерный класс для всех частиц фейерверка. Содержит:
+ * <ul>
+ *   <li>{@link Explosion} — одиночная искра взрыва с поддержкой шлейфа и мерцания;</li>
+ *   <li>{@link FireworkParticle} — невидимый оркестратор, порождающий взрывы по паттернам;</li>
+ *   <li>{@link Flash} — кратковременная вспышка при взрыве;</li>
+ *   <li>{@link ExplosionFactory} и {@link FlashFactory} — фабрики для регистрации в системе частиц.</li>
+ * </ul>
  */
+@Environment(EnvType.CLIENT)
 public class FireworksSparkParticle {
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Explosion}.
+	 * Одиночная искра взрыва фейерверка. Поддерживает шлейф (trail) —
+	 * порождение дочерних искр позади себя, и мерцание (flicker) —
+	 * периодическое скрытие частицы.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Explosion extends AnimatedParticle {
+
+		private static final int BASE_MAX_AGE = 48;
+		private static final int MAX_AGE_VARIANCE = 12;
+		private static final float SCALE_FACTOR = 0.75F;
 
 		private boolean trail;
 		private boolean flicker;
@@ -57,8 +69,8 @@ public class FireworksSparkParticle {
 			this.velocityY = velocityY;
 			this.velocityZ = velocityZ;
 			this.particleManager = particleManager;
-			this.scale *= 0.75F;
-			this.maxAge = 48 + this.random.nextInt(12);
+			this.scale *= SCALE_FACTOR;
+			this.maxAge = BASE_MAX_AGE + this.random.nextInt(MAX_AGE_VARIANCE);
 			this.updateSprite(spriteProvider);
 		}
 
@@ -80,30 +92,42 @@ public class FireworksSparkParticle {
 		@Override
 		public void tick() {
 			super.tick();
-			if (this.trail && this.age < this.maxAge / 2 && (this.age + this.maxAge) % 2 == 0) {
-				FireworksSparkParticle.Explosion explosion = new FireworksSparkParticle.Explosion(
-						this.world, this.x, this.y, this.z, 0.0, 0.0, 0.0, this.particleManager, this.spriteProvider
-				);
-				explosion.setAlpha(0.99F);
-				explosion.setColor(this.red, this.green, this.blue);
-				explosion.age = explosion.maxAge / 2;
-				if (this.hasFadeColor) {
-					explosion.hasFadeColor = true;
-					explosion.targetRed = this.targetRed;
-					explosion.targetGreen = this.targetGreen;
-					explosion.targetBlue = this.targetBlue;
-				}
 
-				explosion.flicker = this.flicker;
-				this.particleManager.addParticle(explosion);
+			if (!this.trail || this.age >= this.maxAge / 2 || (this.age + this.maxAge) % 2 != 0) {
+				return;
 			}
+
+			Explosion trailExplosion = new Explosion(
+					this.world,
+					this.x,
+					this.y,
+					this.z,
+					0.0,
+					0.0,
+					0.0,
+					this.particleManager,
+					this.spriteProvider
+			);
+			trailExplosion.setAlpha(0.99F);
+			trailExplosion.setColor(this.red, this.green, this.blue);
+			trailExplosion.age = trailExplosion.maxAge / 2;
+
+			if (this.hasFadeColor) {
+				trailExplosion.hasFadeColor = true;
+				trailExplosion.targetRed = this.targetRed;
+				trailExplosion.targetGreen = this.targetGreen;
+				trailExplosion.targetBlue = this.targetBlue;
+			}
+
+			trailExplosion.flicker = this.flicker;
+			this.particleManager.addParticle(trailExplosion);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ExplosionFactory}.
+	 * Фабрика для создания одиночных искр взрыва фейерверка.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class ExplosionFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -112,32 +136,43 @@ public class FireworksSparkParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			FireworksSparkParticle.Explosion explosion = new FireworksSparkParticle.Explosion(
-					clientWorld, d, e, f, g, h, i, MinecraftClient.getInstance().particleManager, this.spriteProvider
+			Explosion explosion = new Explosion(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ,
+					MinecraftClient.getInstance().particleManager,
+					this.spriteProvider
 			);
 			explosion.setAlpha(0.99F);
 			return explosion;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code FireworkParticle}.
+	 * Невидимый оркестратор взрывов фейерверка. Последовательно запускает
+	 * взрывы по списку {@link FireworkExplosionComponent}, воспроизводит
+	 * соответствующие звуки и порождает вспышки.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class FireworkParticle extends NoRenderParticle {
 
-		private static final double[][] CREEPER_PATTERN = new double[][]{
+		private static final double[][] CREEPER_PATTERN = {
 				{0.0, 0.2},
 				{0.2, 0.2},
 				{0.2, 0.6},
@@ -151,7 +186,7 @@ public class FireworksSparkParticle {
 				{0.2, -0.4},
 				{0.0, -0.4}
 		};
-		private static final double[][] STAR_PATTERN = new double[][]{
+		private static final double[][] STAR_PATTERN = {
 				{0.0, 1.0},
 				{0.3455, 0.309},
 				{0.9511, 0.309},
@@ -159,6 +194,10 @@ public class FireworksSparkParticle {
 				{0.6122448979591837, -0.8040816326530612},
 				{0.0, -0.35918367346938773}
 		};
+		private static final double FAR_DISTANCE_SQUARED = 256.0;
+		private static final int LARGE_EXPLOSION_THRESHOLD = 3;
+		private static final int BURST_PARTICLE_COUNT = 70;
+
 		private int age;
 		private final ParticleManager particleManager;
 		private final List<FireworkExplosionComponent> explosions;
@@ -180,19 +219,19 @@ public class FireworksSparkParticle {
 			this.velocityY = velocityY;
 			this.velocityZ = velocityZ;
 			this.particleManager = particleManager;
+
 			if (fireworkExplosions.isEmpty()) {
 				throw new IllegalArgumentException("Cannot create firework starter with no explosions");
 			}
-			else {
-				this.explosions = fireworkExplosions;
-				this.maxAge = fireworkExplosions.size() * 2 - 1;
 
-				for (FireworkExplosionComponent fireworkExplosionComponent : fireworkExplosions) {
-					if (fireworkExplosionComponent.hasTwinkle()) {
-						this.flicker = true;
-						this.maxAge += 15;
-						break;
-					}
+			this.explosions = fireworkExplosions;
+			this.maxAge = fireworkExplosions.size() * 2 - 1;
+
+			for (FireworkExplosionComponent component : fireworkExplosions) {
+				if (component.hasTwinkle()) {
+					this.flicker = true;
+					this.maxAge += 15;
+					break;
 				}
 			}
 		}
@@ -200,112 +239,108 @@ public class FireworksSparkParticle {
 		@Override
 		public void tick() {
 			if (this.age == 0) {
-				boolean bl = this.isFar();
-				boolean bl2 = false;
-				if (this.explosions.size() >= 3) {
-					bl2 = true;
-				}
-				else {
-					for (FireworkExplosionComponent fireworkExplosionComponent : this.explosions) {
-						if (fireworkExplosionComponent.shape() == FireworkExplosionComponent.Type.LARGE_BALL) {
-							bl2 = true;
-							break;
-						}
-					}
-				}
-
-				SoundEvent soundEvent;
-				if (bl2) {
-					soundEvent =
-							bl ? SoundEvents.ENTITY_FIREWORK_ROCKET_LARGE_BLAST_FAR
-							   : SoundEvents.ENTITY_FIREWORK_ROCKET_LARGE_BLAST;
-				}
-				else {
-					soundEvent =
-							bl ? SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST_FAR
-							   : SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST;
-				}
-
-				this.world.playSoundClient(
-						this.x,
-						this.y,
-						this.z,
-						soundEvent,
-						SoundCategory.AMBIENT,
-						20.0F,
-						0.95F + this.random.nextFloat() * 0.1F,
-						true
-				);
+				playExplosionSound();
 			}
 
 			if (this.age % 2 == 0 && this.age / 2 < this.explosions.size()) {
-				int i = this.age / 2;
-				FireworkExplosionComponent fireworkExplosionComponent2 = this.explosions.get(i);
-				boolean bl3 = fireworkExplosionComponent2.hasTrail();
-				boolean bl4 = fireworkExplosionComponent2.hasTwinkle();
-				IntList intList = fireworkExplosionComponent2.colors();
-				IntList intList2 = fireworkExplosionComponent2.fadeColors();
-				if (intList.isEmpty()) {
-					intList = IntList.of(DyeColor.BLACK.getFireworkColor());
-				}
-
-				switch (fireworkExplosionComponent2.shape()) {
-					case SMALL_BALL:
-						this.explodeBall(0.25, 2, intList, intList2, bl3, bl4);
-						break;
-					case LARGE_BALL:
-						this.explodeBall(0.5, 4, intList, intList2, bl3, bl4);
-						break;
-					case STAR:
-						this.explodeStar(0.5, STAR_PATTERN, intList, intList2, bl3, bl4, false);
-						break;
-					case CREEPER:
-						this.explodeStar(0.5, CREEPER_PATTERN, intList, intList2, bl3, bl4, true);
-						break;
-					case BURST:
-						this.explodeBurst(intList, intList2, bl3, bl4);
-				}
-
-				int j = intList.getInt(0);
-				this.particleManager.addParticle(
-						TintedParticleEffect.create(ParticleTypes.FLASH, j),
-						this.x,
-						this.y,
-						this.z,
-						0.0,
-						0.0,
-						0.0
-				);
+				triggerExplosion(this.age / 2);
 			}
 
 			this.age++;
+
 			if (this.age > this.maxAge) {
 				if (this.flicker) {
-					boolean blx = this.isFar();
-					SoundEvent
-							soundEvent2 =
-							blx ? SoundEvents.ENTITY_FIREWORK_ROCKET_TWINKLE_FAR
-							    : SoundEvents.ENTITY_FIREWORK_ROCKET_TWINKLE;
-					this.world.playSoundClient(
-							this.x,
-							this.y,
-							this.z,
-							soundEvent2,
-							SoundCategory.AMBIENT,
-							20.0F,
-							0.9F + this.random.nextFloat() * 0.15F,
-							true
-					);
+					playTwinkleSound();
 				}
 
 				this.markDead();
 			}
 		}
 
+		private void playExplosionSound() {
+			boolean isFar = isFar();
+			boolean isLarge = this.explosions.size() >= LARGE_EXPLOSION_THRESHOLD;
+
+			if (!isLarge) {
+				for (FireworkExplosionComponent component : this.explosions) {
+					if (component.shape() == FireworkExplosionComponent.Type.LARGE_BALL) {
+						isLarge = true;
+						break;
+					}
+				}
+			}
+
+			SoundEvent sound = isLarge
+					? (isFar ? SoundEvents.ENTITY_FIREWORK_ROCKET_LARGE_BLAST_FAR : SoundEvents.ENTITY_FIREWORK_ROCKET_LARGE_BLAST)
+					: (isFar ? SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST_FAR : SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST);
+
+			this.world.playSoundClient(
+					this.x,
+					this.y,
+					this.z,
+					sound,
+					SoundCategory.AMBIENT,
+					20.0F,
+					0.95F + this.random.nextFloat() * 0.1F,
+					true
+			);
+		}
+
+		private void playTwinkleSound() {
+			boolean isFar = isFar();
+			SoundEvent sound = isFar
+					? SoundEvents.ENTITY_FIREWORK_ROCKET_TWINKLE_FAR
+					: SoundEvents.ENTITY_FIREWORK_ROCKET_TWINKLE;
+
+			this.world.playSoundClient(
+					this.x,
+					this.y,
+					this.z,
+					sound,
+					SoundCategory.AMBIENT,
+					20.0F,
+					0.9F + this.random.nextFloat() * 0.15F,
+					true
+			);
+		}
+
+		private void triggerExplosion(int explosionIndex) {
+			FireworkExplosionComponent component = this.explosions.get(explosionIndex);
+			boolean hasTrail = component.hasTrail();
+			boolean hasTwinkle = component.hasTwinkle();
+			IntList colors = component.colors();
+			IntList fadeColors = component.fadeColors();
+
+			if (colors.isEmpty()) {
+				colors = IntList.of(DyeColor.BLACK.getFireworkColor());
+			}
+
+			switch (component.shape()) {
+				case SMALL_BALL -> this.explodeBall(0.25, 2, colors, fadeColors, hasTrail, hasTwinkle);
+				case LARGE_BALL -> this.explodeBall(0.5, 4, colors, fadeColors, hasTrail, hasTwinkle);
+				case STAR -> this.explodeStar(0.5, STAR_PATTERN, colors, fadeColors, hasTrail, hasTwinkle, false);
+				case CREEPER -> this.explodeStar(0.5, CREEPER_PATTERN, colors, fadeColors, hasTrail, hasTwinkle, true);
+				case BURST -> this.explodeBurst(colors, fadeColors, hasTrail, hasTwinkle);
+			}
+
+			int firstColor = colors.getInt(0);
+			this.particleManager.addParticle(
+					TintedParticleEffect.create(ParticleTypes.FLASH, firstColor),
+					this.x,
+					this.y,
+					this.z,
+					0.0,
+					0.0,
+					0.0
+			);
+		}
+
 		private boolean isFar() {
-			MinecraftClient minecraftClient = MinecraftClient.getInstance();
-			return minecraftClient.gameRenderer.getCamera().getCameraPos().squaredDistanceTo(this.x, this.y, this.z)
-					>= 256.0;
+			return MinecraftClient.getInstance()
+					.gameRenderer
+					.getCamera()
+					.getCameraPos()
+					.squaredDistanceTo(this.x, this.y, this.z) >= FAR_DISTANCE_SQUARED;
 		}
 
 		private void addExplosionParticle(
@@ -320,12 +355,20 @@ public class FireworksSparkParticle {
 				boolean trail,
 				boolean flicker
 		) {
-			FireworksSparkParticle.Explosion explosion = (FireworksSparkParticle.Explosion) this.particleManager
-					.addParticle(ParticleTypes.FIREWORK, x, y, z, velocityX, velocityY, velocityZ);
+			Explosion explosion = (Explosion) this.particleManager.addParticle(
+					ParticleTypes.FIREWORK,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ
+			);
 			explosion.setTrail(trail);
 			explosion.setFlicker(flicker);
 			explosion.setAlpha(0.99F);
 			explosion.setColor(Util.<Integer>getRandom(colors, this.random));
+
 			if (!targetColors.isEmpty()) {
 				explosion.setTargetColor(Util.<Integer>getRandom(targetColors, this.random));
 			}
@@ -339,20 +382,31 @@ public class FireworksSparkParticle {
 				boolean trail,
 				boolean flicker
 		) {
-			double d = this.x;
-			double e = this.y;
-			double f = this.z;
+			for (int dx = -amount; dx <= amount; dx++) {
+				for (int dy = -amount; dy <= amount; dy++) {
+					for (int dz = -amount; dz <= amount; dz++) {
+						double jitteredDy = dy + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
+						double jitteredDx = dx + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
+						double jitteredDz = dz + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
+						double distance = Math.sqrt(
+								jitteredDy * jitteredDy + jitteredDx * jitteredDx + jitteredDz * jitteredDz
+						) / size + this.random.nextGaussian() * 0.05;
 
-			for (int i = -amount; i <= amount; i++) {
-				for (int j = -amount; j <= amount; j++) {
-					for (int k = -amount; k <= amount; k++) {
-						double g = j + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
-						double h = i + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
-						double l = k + (this.random.nextDouble() - this.random.nextDouble()) * 0.5;
-						double m = Math.sqrt(g * g + h * h + l * l) / size + this.random.nextGaussian() * 0.05;
-						this.addExplosionParticle(d, e, f, g / m, h / m, l / m, colors, targetColors, trail, flicker);
-						if (i != -amount && i != amount && j != -amount && j != amount) {
-							k += amount * 2 - 1;
+						this.addExplosionParticle(
+								this.x,
+								this.y,
+								this.z,
+								jitteredDy / distance,
+								jitteredDx / distance,
+								jitteredDz / distance,
+								colors,
+								targetColors,
+								trail,
+								flicker
+						);
+
+						if (dx != -amount && dx != amount && dy != -amount && dy != amount) {
+							dz += amount * 2 - 1;
 						}
 					}
 				}
@@ -368,46 +422,47 @@ public class FireworksSparkParticle {
 				boolean flicker,
 				boolean keepShape
 		) {
-			double d = pattern[0][0];
-			double e = pattern[0][1];
+			double startX = pattern[0][0];
+			double startY = pattern[0][1];
 			this.addExplosionParticle(
 					this.x,
 					this.y,
 					this.z,
-					d * size,
-					e * size,
+					startX * size,
+					startY * size,
 					0.0,
 					colors,
 					targetColors,
 					trail,
 					flicker
 			);
-			float f = this.random.nextFloat() * (float) Math.PI;
-			double g = keepShape ? 0.034 : 0.34;
 
-			for (int i = 0; i < 3; i++) {
-				double h = f + i * (float) Math.PI * g;
-				double j = d;
-				double k = e;
+			float baseAngle = this.random.nextFloat() * (float) Math.PI;
+			double angleStep = keepShape ? 0.034 : 0.34;
 
-				for (int l = 1; l < pattern.length; l++) {
-					double m = pattern[l][0];
-					double n = pattern[l][1];
+			for (int rotation = 0; rotation < 3; rotation++) {
+				double angle = baseAngle + rotation * (float) Math.PI * angleStep;
+				double prevX = startX;
+				double prevY = startY;
 
-					for (double o = 0.25; o <= 1.0; o += 0.25) {
-						double p = MathHelper.lerp(o, j, m) * size;
-						double q = MathHelper.lerp(o, k, n) * size;
-						double r = p * Math.sin(h);
-						p *= Math.cos(h);
+				for (int segmentIndex = 1; segmentIndex < pattern.length; segmentIndex++) {
+					double nextX = pattern[segmentIndex][0];
+					double nextY = pattern[segmentIndex][1];
 
-						for (double s = -1.0; s <= 1.0; s += 2.0) {
+					for (double t = 0.25; t <= 1.0; t += 0.25) {
+						double lerpedX = MathHelper.lerp(t, prevX, nextX) * size;
+						double lerpedY = MathHelper.lerp(t, prevY, nextY) * size;
+						double rotatedZ = lerpedX * Math.sin(angle);
+						lerpedX *= Math.cos(angle);
+
+						for (double side = -1.0; side <= 1.0; side += 2.0) {
 							this.addExplosionParticle(
 									this.x,
 									this.y,
 									this.z,
-									p * s,
-									q,
-									r * s,
+									lerpedX * side,
+									lerpedY,
+									rotatedZ * side,
 									colors,
 									targetColors,
 									trail,
@@ -416,34 +471,50 @@ public class FireworksSparkParticle {
 						}
 					}
 
-					j = m;
-					k = n;
+					prevX = nextX;
+					prevY = nextY;
 				}
 			}
 		}
 
 		private void explodeBurst(IntList colors, IntList targetColors, boolean trail, boolean flicker) {
-			double d = this.random.nextGaussian() * 0.05;
-			double e = this.random.nextGaussian() * 0.05;
+			double offsetX = this.random.nextGaussian() * 0.05;
+			double offsetZ = this.random.nextGaussian() * 0.05;
 
-			for (int i = 0; i < 70; i++) {
-				double f = this.velocityX * 0.5 + this.random.nextGaussian() * 0.15 + d;
-				double g = this.velocityZ * 0.5 + this.random.nextGaussian() * 0.15 + e;
-				double h = this.velocityY * 0.5 + this.random.nextDouble() * 0.5;
-				this.addExplosionParticle(this.x, this.y, this.z, f, h, g, colors, targetColors, trail, flicker);
+			for (int particleIndex = 0; particleIndex < BURST_PARTICLE_COUNT; particleIndex++) {
+				double velocityX = this.velocityX * 0.5 + this.random.nextGaussian() * 0.15 + offsetX;
+				double velocityZ = this.velocityZ * 0.5 + this.random.nextGaussian() * 0.15 + offsetZ;
+				double velocityY = this.velocityY * 0.5 + this.random.nextDouble() * 0.5;
+				this.addExplosionParticle(
+						this.x,
+						this.y,
+						this.z,
+						velocityX,
+						velocityY,
+						velocityZ,
+						colors,
+						targetColors,
+						trail,
+						flicker
+				);
 			}
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Flash}.
+	 * Кратковременная вспышка при взрыве фейерверка — полупрозрачный
+	 * расширяющийся диск, живущий 4 тика.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Flash extends BillboardParticle {
 
-		Flash(ClientWorld clientWorld, double d, double e, double f, Sprite sprite) {
-			super(clientWorld, d, e, f, sprite);
-			this.maxAge = 4;
+		private static final int MAX_AGE = 4;
+		private static final float ALPHA_DECAY = 0.25F * 0.5F;
+		private static final float SIZE_SCALE = 7.1F;
+
+		Flash(ClientWorld world, double x, double y, double z, Sprite sprite) {
+			super(world, x, y, z, sprite);
+			this.maxAge = MAX_AGE;
 		}
 
 		@Override
@@ -453,20 +524,20 @@ public class FireworksSparkParticle {
 
 		@Override
 		public void render(BillboardParticleSubmittable submittable, Camera camera, float tickProgress) {
-			this.setAlpha(0.6F - (this.age + tickProgress - 1.0F) * 0.25F * 0.5F);
+			this.setAlpha(0.6F - (this.age + tickProgress - 1.0F) * ALPHA_DECAY);
 			super.render(submittable, camera, tickProgress);
 		}
 
 		@Override
 		public float getSize(float tickProgress) {
-			return 7.1F * MathHelper.sin((this.age + tickProgress - 1.0F) * 0.25F * (float) Math.PI);
+			return SIZE_SCALE * MathHelper.sin((this.age + tickProgress - 1.0F) * 0.25F * (float) Math.PI);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code FlashFactory}.
+	 * Фабрика для создания вспышек фейерверка с цветом из {@link TintedParticleEffect}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class FlashFactory implements ParticleFactory<TintedParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -475,26 +546,21 @@ public class FireworksSparkParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				TintedParticleEffect tintedParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				TintedParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			FireworksSparkParticle.Flash
-					flash =
-					new FireworksSparkParticle.Flash(clientWorld, d, e, f, this.spriteProvider.getSprite(random));
-			flash.setColor(
-					tintedParticleEffect.getRed(),
-					tintedParticleEffect.getGreen(),
-					tintedParticleEffect.getBlue()
-			);
-			flash.setAlpha(tintedParticleEffect.getAlpha());
+			Flash flash = new Flash(world, x, y, z, this.spriteProvider.getSprite(random));
+			flash.setColor(effect.getRed(), effect.getGreen(), effect.getBlue());
+			flash.setAlpha(effect.getAlpha());
 			return flash;
 		}
 	}

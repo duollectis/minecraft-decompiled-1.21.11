@@ -12,97 +12,90 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.world.World;
 
 /**
- * {@code BannerDuplicateRecipe}.
+ * Рецепт копирования узора баннера на чистый баннер того же цвета.
+ * <p>
+ * Принимает ровно два баннера одного цвета: один с узором (источник)
+ * и один без узора (цель). Количество слоёв узора не должно превышать
+ * {@link #MAX_BANNER_PATTERN_LAYERS}.
  */
 public class BannerDuplicateRecipe extends SpecialCraftingRecipe {
 
-	public BannerDuplicateRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	private static final int MAX_BANNER_PATTERN_LAYERS = 6;
+
+	public BannerDuplicateRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() != 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() != 2) {
 			return false;
 		}
-		else {
-			DyeColor dyeColor = null;
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (!(itemStack.getItem() instanceof BannerItem bannerItem)) {
-						return false;
-					}
+		DyeColor bannerColor = null;
+		boolean hasPatternedBanner = false;
+		boolean hasBlankBanner = false;
 
-					if (dyeColor == null) {
-						dyeColor = bannerItem.getColor();
-					}
-					else if (dyeColor != bannerItem.getColor()) {
-						return false;
-					}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-					int
-							j =
-							itemStack
-									.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
-									.layers()
-									.size();
-					if (j > 6) {
-						return false;
-					}
-
-					if (j > 0) {
-						if (bl2) {
-							return false;
-						}
-
-						bl2 = true;
-					}
-					else {
-						if (bl) {
-							return false;
-						}
-
-						bl = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl2 && bl;
+			if (!(stack.getItem() instanceof BannerItem bannerItem)) {
+				return false;
+			}
+
+			if (bannerColor == null) {
+				bannerColor = bannerItem.getColor();
+			} else if (bannerColor != bannerItem.getColor()) {
+				return false;
+			}
+
+			int patternCount = stack
+				.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
+				.layers()
+				.size();
+
+			if (patternCount > 6) {
+				return false;
+			}
+
+			if (patternCount > 0) {
+				if (hasPatternedBanner) {
+					return false;
+				}
+
+				hasPatternedBanner = true;
+			} else {
+				if (hasBlankBanner) {
+					return false;
+				}
+
+				hasBlankBanner = true;
+			}
 		}
+
+		return hasPatternedBanner && hasBlankBanner;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-			if (!itemStack.isEmpty()) {
-				int
-						j =
-						itemStack
-								.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
-								.layers()
-								.size();
-				if (j > 0 && j <= 6) {
-					return itemStack.copyWithCount(1);
-				}
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			int patternCount = stack
+				.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
+				.layers()
+				.size();
+
+			if (patternCount > 0 && patternCount <= 6) {
+				return stack.copyWithCount(1);
 			}
 		}
 
@@ -111,25 +104,29 @@ public class BannerDuplicateRecipe extends SpecialCraftingRecipe {
 
 	@Override
 	public DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
-		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+		DefaultedList<ItemStack> remainders = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-		for (int i = 0; i < defaultedList.size(); i++) {
-			ItemStack itemStack = input.getStackInSlot(i);
-			if (!itemStack.isEmpty()) {
-				ItemStack itemStack2 = itemStack.getItem().getRecipeRemainder();
-				if (!itemStack2.isEmpty()) {
-					defaultedList.set(i, itemStack2);
-				}
-				else if (!itemStack
-						.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
-						.layers()
-						.isEmpty()) {
-					defaultedList.set(i, itemStack.copyWithCount(1));
-				}
+		for (int slotIndex = 0; slotIndex < remainders.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			ItemStack remainder = stack.getItem().getRecipeRemainder();
+
+			if (!remainder.isEmpty()) {
+				remainders.set(slotIndex, remainder);
+			} else if (!stack
+				.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
+				.layers()
+				.isEmpty()
+			) {
+				remainders.set(slotIndex, stack.copyWithCount(1));
 			}
 		}
 
-		return defaultedList;
+		return remainders;
 	}
 
 	@Override

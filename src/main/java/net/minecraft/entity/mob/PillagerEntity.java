@@ -36,7 +36,9 @@ import net.minecraft.world.*;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PillagerEntity}.
+ * Мародёр — иллагер дальнего боя с арбалетом. Подбирает знамёна капитана рейда
+ * и хранит их в инвентаре. При рейде получает зачарованный арбалет в зависимости
+ * от волны. С шансом 1/300 при спавне получает зачарование «Мультивыстрел».
  */
 public class PillagerEntity extends IllagerEntity implements CrossbowUser, InventoryOwner {
 
@@ -45,7 +47,9 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 			DataTracker.registerData(PillagerEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 	private static final int INVENTORY_SIZE = 5;
 	private static final int MULTISHOT_ENCHANT_CHANCE_DENOMINATOR = 300;
-	private final SimpleInventory inventory = new SimpleInventory(5);
+	/** Смещение слота для доступа к инвентарю через {@link #getStackReference}. */
+	private static final int INVENTORY_SLOT_OFFSET = 300;
+	private final SimpleInventory inventory = new SimpleInventory(INVENTORY_SIZE);
 
 	public PillagerEntity(EntityType<? extends PillagerEntity> entityType, World world) {
 		super(entityType, world);
@@ -54,17 +58,17 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
-		this.goalSelector.add(2, new RaiderEntity.PatrolApproachGoal(this, 10.0F));
-		this.goalSelector.add(3, new CrossbowAttackGoal<>(this, 1.0, 8.0F));
-		this.goalSelector.add(8, new WanderAroundGoal(this, 0.6));
-		this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 15.0F, 1.0F));
-		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 15.0F));
-		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, MerchantEntity.class, false));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
+		goalSelector.add(2, new RaiderEntity.PatrolApproachGoal(this, 10.0F));
+		goalSelector.add(3, new CrossbowAttackGoal<>(this, 1.0, 8.0F));
+		goalSelector.add(8, new WanderAroundGoal(this, 0.6));
+		goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 15.0F, 1.0F));
+		goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 15.0F));
+		targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, MerchantEntity.class, false));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
 	}
 
 	public static DefaultAttributeContainer.Builder createPillagerAttributes() {
@@ -87,17 +91,17 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 	}
 
 	public boolean isCharging() {
-		return this.dataTracker.get(CHARGING);
+		return dataTracker.get(CHARGING);
 	}
 
 	@Override
 	public void setCharging(boolean charging) {
-		this.dataTracker.set(CHARGING, charging);
+		dataTracker.set(CHARGING, charging);
 	}
 
 	@Override
 	public void postShoot() {
-		this.despawnCounter = 0;
+		despawnCounter = 0;
 	}
 
 	@Override
@@ -108,27 +112,27 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.writeInventory(view);
+		writeInventory(view);
 	}
 
 	@Override
 	public IllagerEntity.State getState() {
-		if (this.isCharging()) {
+		if (isCharging()) {
 			return IllagerEntity.State.CROSSBOW_CHARGE;
 		}
-		else if (this.isHolding(Items.CROSSBOW)) {
+
+		if (isHolding(Items.CROSSBOW)) {
 			return IllagerEntity.State.CROSSBOW_HOLD;
 		}
-		else {
-			return this.isAttacking() ? IllagerEntity.State.ATTACKING : IllagerEntity.State.NEUTRAL;
-		}
+
+		return isAttacking() ? IllagerEntity.State.ATTACKING : IllagerEntity.State.NEUTRAL;
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.readInventory(view);
-		this.setCanPickUpLoot(true);
+		readInventory(view);
+		setCanPickUpLoot(true);
 	}
 
 	@Override
@@ -149,24 +153,24 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 			@Nullable EntityData entityData
 	) {
 		Random random = world.getRandom();
-		this.initEquipment(random, difficulty);
-		this.updateEnchantments(world, random, difficulty);
+		initEquipment(random, difficulty);
+		updateEnchantments(world, random, difficulty);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.CROSSBOW));
+		equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.CROSSBOW));
 	}
 
 	@Override
 	protected void enchantMainHandItem(ServerWorldAccess world, Random random, LocalDifficulty localDifficulty) {
 		super.enchantMainHandItem(world, random, localDifficulty);
-		if (random.nextInt(300) == 0) {
-			ItemStack itemStack = this.getMainHandStack();
-			if (itemStack.isOf(Items.CROSSBOW)) {
+		if (random.nextInt(MULTISHOT_ENCHANT_CHANCE_DENOMINATOR) == 0) {
+			ItemStack crossbow = getMainHandStack();
+			if (crossbow.isOf(Items.CROSSBOW)) {
 				EnchantmentHelper.applyEnchantmentProvider(
-						itemStack,
+						crossbow,
 						world.getRegistryManager(),
 						EnchantmentProviders.PILLAGER_SPAWN_CROSSBOW,
 						localDifficulty,
@@ -193,70 +197,68 @@ public class PillagerEntity extends IllagerEntity implements CrossbowUser, Inven
 
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		this.shoot(this, 1.6F);
+		shoot(this, 1.6F);
 	}
 
 	@Override
 	public SimpleInventory getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
 	protected void loot(ServerWorld world, ItemEntity itemEntity) {
-		ItemStack itemStack = itemEntity.getStack();
-		if (itemStack.getItem() instanceof BannerItem) {
+		ItemStack stack = itemEntity.getStack();
+		if (stack.getItem() instanceof BannerItem) {
 			super.loot(world, itemEntity);
-		}
-		else if (this.isRaidCaptain(itemStack)) {
-			this.triggerItemPickedUpByEntityCriteria(itemEntity);
-			ItemStack itemStack2 = this.inventory.addStack(itemStack);
-			if (itemStack2.isEmpty()) {
+		} else if (isRaidCaptain(stack)) {
+			triggerItemPickedUpByEntityCriteria(itemEntity);
+			ItemStack remainder = inventory.addStack(stack);
+			if (remainder.isEmpty()) {
 				itemEntity.discard();
-			}
-			else {
-				itemStack.setCount(itemStack2.getCount());
+			} else {
+				stack.setCount(remainder.getCount());
 			}
 		}
 	}
 
 	private boolean isRaidCaptain(ItemStack stack) {
-		return this.hasActiveRaid() && stack.isOf(Items.WHITE_BANNER);
+		return hasActiveRaid() && stack.isOf(Items.WHITE_BANNER);
 	}
 
 	@Override
 	public @Nullable StackReference getStackReference(int slot) {
-		int i = slot - 300;
-		return i >= 0 && i < this.inventory.size() ? this.inventory.getStackReference(i)
-		                                           : super.getStackReference(slot);
+		int inventorySlot = slot - INVENTORY_SLOT_OFFSET;
+		return inventorySlot >= 0 && inventorySlot < inventory.size()
+				? inventory.getStackReference(inventorySlot)
+				: super.getStackReference(slot);
 	}
 
 	@Override
 	public void addBonusForWave(ServerWorld world, int wave, boolean unused) {
-		Raid raid = this.getRaid();
-		boolean bl = this.random.nextFloat() <= raid.getEnchantmentChance();
-		if (bl) {
-			ItemStack itemStack = new ItemStack(Items.CROSSBOW);
-			RegistryKey<EnchantmentProvider> registryKey;
-			if (wave > raid.getMaxWaves(Difficulty.NORMAL)) {
-				registryKey = EnchantmentProviders.PILLAGER_POST_WAVE_5_RAID;
-			}
-			else if (wave > raid.getMaxWaves(Difficulty.EASY)) {
-				registryKey = EnchantmentProviders.PILLAGER_POST_WAVE_3_RAID;
-			}
-			else {
-				registryKey = null;
-			}
+		Raid raid = getRaid();
+		if (random.nextFloat() > raid.getEnchantmentChance()) {
+			return;
+		}
 
-			if (registryKey != null) {
-				EnchantmentHelper.applyEnchantmentProvider(
-						itemStack,
-						world.getRegistryManager(),
-						registryKey,
-						world.getLocalDifficulty(this.getBlockPos()),
-						this.getRandom()
-				);
-				this.equipStack(EquipmentSlot.MAINHAND, itemStack);
-			}
+		ItemStack crossbow = new ItemStack(Items.CROSSBOW);
+		RegistryKey<EnchantmentProvider> enchantKey;
+		if (wave > raid.getMaxWaves(Difficulty.NORMAL)) {
+			enchantKey = EnchantmentProviders.PILLAGER_POST_WAVE_5_RAID;
+		} else if (wave > raid.getMaxWaves(Difficulty.EASY)) {
+			enchantKey = EnchantmentProviders.PILLAGER_POST_WAVE_3_RAID;
+		} else {
+			enchantKey = null;
+		}
+
+		if (enchantKey != null) {
+			EnchantmentHelper.applyEnchantmentProvider(
+					crossbow,
+					world.getRegistryManager(),
+					enchantKey,
+					world.getLocalDifficulty(getBlockPos()),
+					getRandom()
+			);
+			equipStack(EquipmentSlot.MAINHAND, crossbow);
 		}
 	}
 

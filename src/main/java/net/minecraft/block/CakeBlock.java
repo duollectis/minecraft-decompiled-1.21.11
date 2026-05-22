@@ -27,7 +27,8 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code CakeBlock}.
+ * Блок торта. Поддерживает до {@link #MAX_BITES} укусов, каждый из которых
+ * восстанавливает голод игрока. Первый укус можно заменить установкой свечи.
  */
 public class CakeBlock extends Block {
 
@@ -46,7 +47,7 @@ public class CakeBlock extends Block {
 
 	public CakeBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(BITES, 0));
+		setDefaultState(stateManager.getDefaultState().with(BITES, 0));
 	}
 
 	@Override
@@ -56,17 +57,20 @@ public class CakeBlock extends Block {
 
 	@Override
 	protected ActionResult onUseWithItem(
-			ItemStack stack,
-			BlockState state,
-			World world,
-			BlockPos pos,
-			PlayerEntity player,
-			Hand hand,
-			BlockHitResult hit
+		ItemStack stack,
+		BlockState state,
+		World world,
+		BlockPos pos,
+		PlayerEntity player,
+		Hand hand,
+		BlockHitResult hit
 	) {
 		Item item = stack.getItem();
-		if (stack.isIn(ItemTags.CANDLES) && state.get(BITES) == 0
-				&& Block.getBlockFromItem(item) instanceof CandleBlock candleBlock) {
+
+		if (stack.isIn(ItemTags.CANDLES)
+			&& state.get(BITES) == 0
+			&& Block.getBlockFromItem(item) instanceof CandleBlock candleBlock
+		) {
 			stack.decrementUnlessCreative(1, player);
 			world.playSound(null, pos, SoundEvents.BLOCK_CAKE_ADD_CANDLE, SoundCategory.BLOCKS, 1.0F, 1.0F);
 			world.setBlockState(pos, CandleCakeBlock.getCandleCakeFromCandle(candleBlock));
@@ -74,9 +78,8 @@ public class CakeBlock extends Block {
 			player.incrementStat(Stats.USED.getOrCreateStat(item));
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-		}
+
+		return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
 	}
 
 	@Override
@@ -95,59 +98,52 @@ public class CakeBlock extends Block {
 	}
 
 	/**
-	 * Try eat.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param player player
-	 *
-	 * @return ActionResult — результат операции
+	 * Пытается съесть кусок торта. Увеличивает счётчик укусов или удаляет блок при последнем укусе.
+	 * Требует, чтобы игрок мог есть (не полный голод).
 	 */
 	protected static ActionResult tryEat(WorldAccess world, BlockPos pos, BlockState state, PlayerEntity player) {
-		if (!player.canConsume(false)) {
+		if (player.canConsume(false) == false) {
 			return ActionResult.PASS;
 		}
-		else {
-			player.incrementStat(Stats.EAT_CAKE_SLICE);
-			player.getHungerManager().add(2, 0.1F);
-			int i = state.get(BITES);
-			world.emitGameEvent(player, GameEvent.EAT, pos);
-			if (i < 6) {
-				world.setBlockState(pos, state.with(BITES, i + 1), 3);
-			}
-			else {
-				world.removeBlock(pos, false);
-				world.emitGameEvent(player, GameEvent.BLOCK_DESTROY, pos);
-			}
 
-			return ActionResult.SUCCESS;
+		player.incrementStat(Stats.EAT_CAKE_SLICE);
+		player.getHungerManager().add(2, 0.1F);
+		int bites = state.get(BITES);
+		world.emitGameEvent(player, GameEvent.EAT, pos);
+
+		if (bites < MAX_BITES) {
+			world.setBlockState(pos, state.with(BITES, bites + 1), 3);
+		} else {
+			world.removeBlock(pos, false);
+			world.emitGameEvent(player, GameEvent.BLOCK_DESTROY, pos);
 		}
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
-		return direction == Direction.DOWN && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+		return direction == Direction.DOWN && state.canPlaceAt(world, pos) == false
+			? Blocks.AIR.getDefaultState()
+			: super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			);
 	}
 
 	@Override

@@ -6,9 +6,7 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 
-/**
- * {@code AirBlock}.
- */
+/** Блок воздуха — невидимый, без формы столкновения. */
 public class AirBlock extends Block {
 
 	public static final MapCodec<AirBlock> CODEC = createCodec(AirBlock::new);

@@ -4,11 +4,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.annotation.DeobfuscateClass;
 
+/**
+ * Фактор назначения (destination factor) для операции смешивания цветов (blending).
+ * Определяет, на что умножается цвет уже существующего пикселя в буфере кадра
+ * перед сложением с цветом нового фрагмента.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code DestFactor}.
- */
 public enum DestFactor {
 	CONSTANT_ALPHA,
 	CONSTANT_COLOR,

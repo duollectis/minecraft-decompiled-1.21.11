@@ -28,7 +28,7 @@ public class ElytraSoundInstance extends MovingSoundInstance {
 	@Override
 	public void tick() {
 		this.tickCount++;
-		if (!this.player.isRemoved() && (this.tickCount <= 20 || this.player.isGliding())) {
+		if (!this.player.isRemoved() && (this.tickCount <= FADE_TICKS || this.player.isGliding())) {
 			this.x = (float) this.player.getX();
 			this.y = (float) this.player.getY();
 			this.z = (float) this.player.getZ();
@@ -40,11 +40,11 @@ public class ElytraSoundInstance extends MovingSoundInstance {
 				this.volume = 0.0F;
 			}
 
-			if (this.tickCount < 20) {
+			if (this.tickCount < FADE_TICKS) {
 				this.volume = 0.0F;
 			}
 			else if (this.tickCount < 40) {
-				this.volume = this.volume * ((this.tickCount - 20) / 20.0F);
+				this.volume = this.volume * ((this.tickCount - FADE_TICKS) / 20.0F);
 			}
 
 			float g = 0.8F;

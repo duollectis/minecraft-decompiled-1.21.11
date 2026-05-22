@@ -13,17 +13,17 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerGameRules}.
+ * Низкоуровневое хранилище значений правил игры на сервере.
+ * Использует {@link Reference2ObjectOpenHashMap} для эффективного хранения
+ * пар {@code GameRule → значение} без лишних аллокаций.
  */
 public final class ServerGameRules {
 
 	@SuppressWarnings("unchecked")
-	public static final Codec<ServerGameRules>
-			CODEC =
-			((Codec<Map<GameRule<?>, Object>>) (Codec<?>) Codec.dispatchedMap(
-					Registries.GAME_RULE.getCodec(), GameRule::getCodec
-			)
-			).xmap(ServerGameRules::of, ServerGameRules::getRuleValues);
+	public static final Codec<ServerGameRules> CODEC = ((Codec<Map<GameRule<?>, Object>>) (Codec<?>) Codec.dispatchedMap(
+		Registries.GAME_RULE.getCodec(), GameRule::getCodec
+	)).xmap(ServerGameRules::of, ServerGameRules::getRuleValues);
+
 	private final Reference2ObjectMap<GameRule<?>, Object> ruleValues;
 
 	ServerGameRules(Reference2ObjectMap<GameRule<?>, Object> ruleValues) {
@@ -31,145 +31,96 @@ public final class ServerGameRules {
 	}
 
 	private static ServerGameRules of(Map<GameRule<?>, Object> ruleValues) {
-		return new ServerGameRules(new Reference2ObjectOpenHashMap(ruleValues));
+		return new ServerGameRules(new Reference2ObjectOpenHashMap<>(ruleValues));
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @return ServerGameRules — результат операции
-	 */
 	public static ServerGameRules of() {
-		return new ServerGameRules(new Reference2ObjectOpenHashMap());
+		return new ServerGameRules(new Reference2ObjectOpenHashMap<>());
 	}
 
 	/**
-	 * Of default.
+	 * Создаёт {@link ServerGameRules} с дефолтными значениями для всех переданных правил.
 	 *
-	 * @param rules rules
-	 *
-	 * @return ServerGameRules — результат операции
+	 * @param rules поток правил для инициализации
+	 * @return новый экземпляр с дефолтными значениями
 	 */
 	public static ServerGameRules ofDefault(Stream<GameRule<?>> rules) {
-		Reference2ObjectOpenHashMap<GameRule<?>, Object>
-				reference2ObjectOpenHashMap =
-				new Reference2ObjectOpenHashMap();
-		rules.forEach(gameRule -> reference2ObjectOpenHashMap.put(gameRule, gameRule.getDefaultValue()));
-		return new ServerGameRules(reference2ObjectOpenHashMap);
+		Reference2ObjectOpenHashMap<GameRule<?>, Object> map = new Reference2ObjectOpenHashMap<>();
+		rules.forEach(rule -> map.put(rule, rule.getDefaultValue()));
+		return new ServerGameRules(map);
 	}
 
 	/**
-	 * Создаёт копию of.
+	 * Создаёт глубокую копию переданного экземпляра.
 	 *
-	 * @param rules rules
-	 *
-	 * @return ServerGameRules — результат операции
+	 * @param rules исходный экземпляр
+	 * @return независимая копия
 	 */
 	public static ServerGameRules copyOf(ServerGameRules rules) {
-		return new ServerGameRules(new Reference2ObjectOpenHashMap(rules.ruleValues));
+		return new ServerGameRules(new Reference2ObjectOpenHashMap<>(rules.ruleValues));
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param rule rule
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(GameRule<?> rule) {
-		return this.ruleValues.containsKey(rule);
+		return ruleValues.containsKey(rule);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param rule rule
-	 *
-	 * @return @Nullable T — 
-	 */
 	public <T> @Nullable T get(GameRule<T> rule) {
-		return (T) this.ruleValues.get(rule);
+		return (T) ruleValues.get(rule);
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param rule rule
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void put(GameRule<T> rule, T value) {
-		this.ruleValues.put(rule, value);
+		ruleValues.put(rule, value);
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param rule rule
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public <T> @Nullable T remove(GameRule<T> rule) {
-		return (T) this.ruleValues.remove(rule);
+		return (T) ruleValues.remove(rule);
 	}
 
-	/**
-	 * Key set.
-	 *
-	 * @return Set> — результат операции
-	 */
 	public Set<GameRule<?>> keySet() {
-		return this.ruleValues.keySet();
+		return ruleValues.keySet();
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.ruleValues.size();
+		return ruleValues.size();
 	}
 
 	@Override
 	public String toString() {
-		return this.ruleValues.toString();
+		return ruleValues.toString();
 	}
 
 	/**
-	 * With override.
+	 * Возвращает новый экземпляр, в котором значения из {@code override} перекрывают текущие.
 	 *
-	 * @param override override
-	 *
-	 * @return ServerGameRules — результат операции
+	 * @param override правила-переопределения
+	 * @return новый экземпляр с применёнными переопределениями
 	 */
 	public ServerGameRules withOverride(ServerGameRules override) {
-		ServerGameRules serverGameRules = copyOf(this);
-		serverGameRules.copyFrom(override, rule -> true);
-		return serverGameRules;
+		ServerGameRules copy = copyOf(this);
+		copy.copyFrom(override, rule -> true);
+		return copy;
 	}
 
 	/**
-	 * Создаёт копию from.
+	 * Копирует значения из {@code rules} в текущий экземпляр, применяя фильтр предикатом.
 	 *
-	 * @param rules rules
-	 * @param predicate predicate
+	 * @param rules     источник значений
+	 * @param predicate фильтр правил для копирования
 	 */
 	public void copyFrom(ServerGameRules rules, Predicate<GameRule<?>> predicate) {
-		for (GameRule<?> gameRule : rules.keySet()) {
-			if (predicate.test(gameRule)) {
-				setFrom(rules, gameRule, this);
+		for (GameRule<?> rule : rules.keySet()) {
+			if (predicate.test(rule)) {
+				setFrom(rules, rule, this);
 			}
 		}
 	}
 
-	private static <T> void setFrom(ServerGameRules oldRules, GameRule<T> rule, ServerGameRules newRules) {
-		newRules.put(rule, Objects.requireNonNull(oldRules.get(rule)));
+	private static <T> void setFrom(ServerGameRules source, GameRule<T> rule, ServerGameRules target) {
+		target.put(rule, Objects.requireNonNull(source.get(rule)));
 	}
 
 	private Map<GameRule<?>, Object> getRuleValues() {
-		return Map.copyOf(this.ruleValues);
+		return Map.copyOf(ruleValues);
 	}
 
 	@Override
@@ -177,39 +128,34 @@ public final class ServerGameRules {
 		if (o == this) {
 			return true;
 		}
-		else if (o != null && o.getClass() == this.getClass()) {
-			ServerGameRules serverGameRules = (ServerGameRules) o;
-			return Objects.equals(this.ruleValues, serverGameRules.ruleValues);
-		}
-		else {
+
+		if (o == null || o.getClass() != getClass()) {
 			return false;
 		}
+
+		ServerGameRules other = (ServerGameRules) o;
+		return Objects.equals(ruleValues, other.ruleValues);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.ruleValues);
+		return Objects.hash(ruleValues);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошагового создания {@link ServerGameRules}.
 	 */
 	public static class Builder {
 
-		final Reference2ObjectMap<GameRule<?>, Object> ruleValues = new Reference2ObjectOpenHashMap();
+		final Reference2ObjectMap<GameRule<?>, Object> ruleValues = new Reference2ObjectOpenHashMap<>();
 
-		public <T> ServerGameRules.Builder put(GameRule<T> rule, T value) {
-			this.ruleValues.put(rule, value);
+		public <T> Builder put(GameRule<T> rule, T value) {
+			ruleValues.put(rule, value);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ServerGameRules — результат операции
-		 */
 		public ServerGameRules build() {
-			return new ServerGameRules(this.ruleValues);
+			return new ServerGameRules(ruleValues);
 		}
 	}
 }

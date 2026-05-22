@@ -20,53 +20,51 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.Arrays;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ControlsListWidget}.
+ * Виджет списка привязок клавиш — отображает категории и отдельные записи клавиш
+ * с кнопками редактирования и сброса.
  */
+@Environment(EnvType.CLIENT)
 public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Entry> {
 
 	private static final int ENTRY_HEIGHT = 20;
+
 	final KeybindsScreen parent;
 	private int maxKeyNameLength;
 
 	public ControlsListWidget(KeybindsScreen parent, MinecraftClient client) {
-		super(client, parent.width, parent.layout.getContentHeight(), parent.layout.getHeaderHeight(), 20);
+		super(client, parent.width, parent.layout.getContentHeight(), parent.layout.getHeaderHeight(), ENTRY_HEIGHT);
 		this.parent = parent;
 		KeyBinding[] keyBindings = (KeyBinding[]) ArrayUtils.clone(client.options.allKeys);
 		Arrays.sort((Object[]) keyBindings);
-		KeyBinding.Category category = null;
+		KeyBinding.Category currentCategory = null;
 
 		for (KeyBinding keyBinding : keyBindings) {
-			KeyBinding.Category category2 = keyBinding.getCategory();
-			if (category2 != category) {
-				category = category2;
-				this.addEntry(new ControlsListWidget.CategoryEntry(category2));
+			KeyBinding.Category bindingCategory = keyBinding.getCategory();
+
+			if (bindingCategory != currentCategory) {
+				currentCategory = bindingCategory;
+				addEntry(new ControlsListWidget.CategoryEntry(bindingCategory));
 			}
 
-			Text text = Text.translatable(keyBinding.getId());
-			int i = client.textRenderer.getWidth(text);
-			if (i > this.maxKeyNameLength) {
-				this.maxKeyNameLength = i;
+			Text bindingName = Text.translatable(keyBinding.getId());
+			int nameWidth = client.textRenderer.getWidth(bindingName);
+
+			if (nameWidth > maxKeyNameLength) {
+				maxKeyNameLength = nameWidth;
 			}
 
-			this.addEntry(new ControlsListWidget.KeyBindingEntry(keyBinding, text));
+			addEntry(new ControlsListWidget.KeyBindingEntry(keyBinding, bindingName));
 		}
 	}
 
-	/**
-	 * Update.
-	 */
 	public void update() {
 		KeyBinding.updateKeysByCode();
-		this.updateChildren();
+		updateChildren();
 	}
 
-	/**
-	 * Обновляет children.
-	 */
 	public void updateChildren() {
-		this.children().forEach(ControlsListWidget.Entry::update);
+		children().forEach(ControlsListWidget.Entry::update);
 	}
 
 	@Override
@@ -74,16 +72,16 @@ public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Ent
 		return 340;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CategoryEntry}.
+	 * Запись-заголовок категории клавиш.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class CategoryEntry extends ControlsListWidget.Entry {
 
 		private final NarratedMultilineTextWidget categoryLabel;
 
 		public CategoryEntry(final KeyBinding.Category category) {
-			this.categoryLabel =
+			categoryLabel =
 					NarratedMultilineTextWidget
 							.builder(category.getLabel(), ControlsListWidget.this.client.textRenderer)
 							.alwaysShowBorders(false)
@@ -93,22 +91,21 @@ public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Ent
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			this.categoryLabel
-					.setPosition(
-							ControlsListWidget.this.width / 2 - this.categoryLabel.getWidth() / 2,
-							this.getContentBottomEnd() - this.categoryLabel.getHeight()
-					);
-			this.categoryLabel.render(context, mouseX, mouseY, deltaTicks);
+			categoryLabel.setPosition(
+					ControlsListWidget.this.width / 2 - categoryLabel.getWidth() / 2,
+					getContentBottomEnd() - categoryLabel.getHeight()
+			);
+			categoryLabel.render(context, mouseX, mouseY, deltaTicks);
 		}
 
 		@Override
 		public List<? extends Element> children() {
-			return List.of(this.categoryLabel);
+			return List.of(categoryLabel);
 		}
 
 		@Override
 		public List<? extends Selectable> selectableChildren() {
-			return List.of(this.categoryLabel);
+			return List.of(categoryLabel);
 		}
 
 		@Override
@@ -116,23 +113,28 @@ public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Ent
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Базовый абстрактный тип записи списка.
 	 */
+	@Environment(EnvType.CLIENT)
 	public abstract static class Entry extends ElementListWidget.Entry<ControlsListWidget.Entry> {
 
 		abstract void update();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code KeyBindingEntry}.
+	 * Запись привязки клавиши — отображает название действия, кнопку редактирования
+	 * и кнопку сброса, а также маркер дублирования при конфликте клавиш.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class KeyBindingEntry extends ControlsListWidget.Entry {
 
 		private static final Text RESET_TEXT = Text.translatable("controls.reset");
 		private static final int RESET_BUTTON_MARGIN = 10;
+		private static final int DUPLICATE_MARKER_WIDTH = 3;
+		private static final int DUPLICATE_MARKER_OFFSET_X = 6;
+		private static final int COLOR_DUPLICATE_MARKER = -256;
+
 		private final KeyBinding binding;
 		private final Text bindingName;
 		private final ButtonWidget editButton;
@@ -142,120 +144,114 @@ public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Ent
 		KeyBindingEntry(final KeyBinding binding, final Text bindingName) {
 			this.binding = binding;
 			this.bindingName = bindingName;
-			this.editButton = ButtonWidget.builder(
-					                              bindingName, button -> {
-						                              ControlsListWidget.this.parent.selectedKeyBinding = binding;
-						                              ControlsListWidget.this.update();
-					                              }
-			                              )
-			                              .dimensions(0, 0, 75, 20)
-			                              .narrationSupplier(
-					                              textSupplier -> binding.isUnbound()
-					                                              ? Text.translatable(
-							                              "narrator.controls.unbound",
-							                              bindingName
-					                              )
-					                                              : Text.translatable(
-							                                              "narrator.controls.bound",
-							                                              bindingName,
-							                                              textSupplier.get()
-					                                              )
-			                              )
-			                              .build();
-			this.resetButton = ButtonWidget
+			editButton = ButtonWidget
+					.builder(
+							bindingName, button -> {
+								ControlsListWidget.this.parent.selectedKeyBinding = binding;
+								ControlsListWidget.this.update();
+							}
+					)
+					.dimensions(0, 0, 75, ENTRY_HEIGHT)
+					.narrationSupplier(
+							textSupplier -> binding.isUnbound()
+									? Text.translatable("narrator.controls.unbound", bindingName)
+									: Text.translatable("narrator.controls.bound", bindingName, textSupplier.get())
+					)
+					.build();
+			resetButton = ButtonWidget
 					.builder(
 							RESET_TEXT, button -> {
 								binding.setBoundKey(binding.getDefaultKey());
 								ControlsListWidget.this.update();
 							}
 					)
-					.dimensions(0, 0, 50, 20)
+					.dimensions(0, 0, 50, ENTRY_HEIGHT)
 					.narrationSupplier(textSupplier -> Text.translatable("narrator.controls.reset", bindingName))
 					.build();
-			this.update();
+			update();
 		}
 
 		@Override
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-			int i = ControlsListWidget.this.getScrollbarX() - this.resetButton.getWidth() - 10;
-			int j = this.getContentY() - 2;
-			this.resetButton.setPosition(i, j);
-			this.resetButton.render(context, mouseX, mouseY, deltaTicks);
-			int k = i - 5 - this.editButton.getWidth();
-			this.editButton.setPosition(k, j);
-			this.editButton.render(context, mouseX, mouseY, deltaTicks);
+			int resetX = ControlsListWidget.this.getScrollbarX() - resetButton.getWidth() - RESET_BUTTON_MARGIN;
+			int entryY = getContentY() - 2;
+
+			resetButton.setPosition(resetX, entryY);
+			resetButton.render(context, mouseX, mouseY, deltaTicks);
+
+			int editX = resetX - 5 - editButton.getWidth();
+
+			editButton.setPosition(editX, entryY);
+			editButton.render(context, mouseX, mouseY, deltaTicks);
+
 			context.drawTextWithShadow(
 					ControlsListWidget.this.client.textRenderer,
-					this.bindingName,
-					this.getContentX(),
-					this.getContentMiddleY() - 9 / 2,
+					bindingName,
+					getContentX(),
+					getContentMiddleY() - 9 / 2,
 					-1
 			);
-			if (this.duplicate) {
-				int l = 3;
-				int m = this.editButton.getX() - 6;
-				context.fill(m, this.getContentY() - 1, m + 3, this.getContentBottomEnd(), -256);
+
+			if (duplicate) {
+				int markerX = editButton.getX() - DUPLICATE_MARKER_OFFSET_X;
+				context.fill(markerX, getContentY() - 1, markerX + DUPLICATE_MARKER_WIDTH, getContentBottomEnd(), COLOR_DUPLICATE_MARKER);
 			}
 		}
 
 		@Override
 		public List<? extends Element> children() {
-			return ImmutableList.of(this.editButton, this.resetButton);
+			return ImmutableList.of(editButton, resetButton);
 		}
 
 		@Override
 		public List<? extends Selectable> selectableChildren() {
-			return ImmutableList.of(this.editButton, this.resetButton);
+			return ImmutableList.of(editButton, resetButton);
 		}
 
 		@Override
 		protected void update() {
-			this.editButton.setMessage(this.binding.getBoundKeyLocalizedText());
-			this.resetButton.active = !this.binding.isDefault();
-			this.duplicate = false;
-			MutableText mutableText = Text.empty();
-			if (!this.binding.isUnbound()) {
-				for (KeyBinding keyBinding : ControlsListWidget.this.client.options.allKeys) {
-					if (keyBinding != this.binding && this.binding.equals(keyBinding) && (!keyBinding.isDefault()
-							|| !this.binding.isDefault()
-					)) {
-						if (this.duplicate) {
-							mutableText.append(", ");
-						}
+			editButton.setMessage(binding.getBoundKeyLocalizedText());
+			resetButton.active = !binding.isDefault();
+			duplicate = false;
+			MutableText conflictNames = Text.empty();
 
-						this.duplicate = true;
-						mutableText.append(Text.translatable(keyBinding.getId()));
+			if (binding.isUnbound()) {
+				return;
+			}
+
+			for (KeyBinding keyBinding : ControlsListWidget.this.client.options.allKeys) {
+				if (keyBinding != binding
+						&& binding.equals(keyBinding)
+						&& (!keyBinding.isDefault() || !binding.isDefault())
+				) {
+					if (duplicate) {
+						conflictNames.append(", ");
 					}
+
+					duplicate = true;
+					conflictNames.append(Text.translatable(keyBinding.getId()));
 				}
 			}
 
-			if (this.duplicate) {
-				this.editButton
-						.setMessage(Text
-								.literal("[ ")
-								.append(this.editButton.getMessage().copy().formatted(Formatting.WHITE))
+			if (duplicate) {
+				editButton.setMessage(
+						Text.literal("[ ")
+								.append(editButton.getMessage().copy().formatted(Formatting.WHITE))
 								.append(" ]")
-								.formatted(Formatting.YELLOW));
-				this.editButton.setTooltip(Tooltip.of(Text.translatable(
-						"controls.keybinds.duplicateKeybinds",
-						mutableText
-				)));
-			}
-			else {
-				this.editButton.setTooltip(null);
+								.formatted(Formatting.YELLOW)
+				);
+				editButton.setTooltip(Tooltip.of(Text.translatable("controls.keybinds.duplicateKeybinds", conflictNames)));
+			} else {
+				editButton.setTooltip(null);
 			}
 
-			if (ControlsListWidget.this.parent.selectedKeyBinding == this.binding) {
-				this.editButton
-						.setMessage(
-								Text.literal("> ")
-								    .append(this.editButton
-										    .getMessage()
-										    .copy()
-										    .formatted(Formatting.WHITE, Formatting.UNDERLINE))
-								    .append(" <")
-								    .formatted(Formatting.YELLOW)
-						);
+			if (ControlsListWidget.this.parent.selectedKeyBinding == binding) {
+				editButton.setMessage(
+						Text.literal("> ")
+								.append(editButton.getMessage().copy().formatted(Formatting.WHITE, Formatting.UNDERLINE))
+								.append(" <")
+								.formatted(Formatting.YELLOW)
+				);
 			}
 		}
 	}

@@ -8,9 +8,17 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 
 /**
- * {@code GenericContainerScreenHandler}.
+ * Универсальный обработчик экрана контейнера с сеткой 9×N (от 1 до 6 рядов).
+ * <p>
+ * Используется для сундуков, бочек и других блоков-хранилищ.
+ * Количество рядов определяется при создании и влияет на расположение
+ * слотов инвентаря игрока.
  */
 public class GenericContainerScreenHandler extends ScreenHandler {
+
+	private static final int COLUMNS = 9;
+	private static final int SLOT_STEP = 18;
+	private static final int PLAYER_INVENTORY_TOP_OFFSET = 13;
 
 	private final Inventory inventory;
 	private final int rows;
@@ -21,81 +29,42 @@ public class GenericContainerScreenHandler extends ScreenHandler {
 			PlayerInventory playerInventory,
 			int rows
 	) {
-		this(type, syncId, playerInventory, new SimpleInventory(9 * rows), rows);
+		this(type, syncId, playerInventory, new SimpleInventory(COLUMNS * rows), rows);
 	}
 
-	/**
-	 * Создаёт generic9x1.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
-	 */
 	public static GenericContainerScreenHandler createGeneric9x1(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X1, syncId, playerInventory, 1);
 	}
 
-	/**
-	 * Создаёт generic9x2.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
-	 */
 	public static GenericContainerScreenHandler createGeneric9x2(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X2, syncId, playerInventory, 2);
 	}
 
 	/**
-	 * Создаёт generic9x3.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
+	 * Создаёт обработчик для контейнера 9×3 с пустым инвентарём (клиентская сторона).
 	 */
 	public static GenericContainerScreenHandler createGeneric9x3(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X3, syncId, playerInventory, 3);
 	}
 
-	/**
-	 * Создаёт generic9x4.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
-	 */
 	public static GenericContainerScreenHandler createGeneric9x4(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X4, syncId, playerInventory, 4);
 	}
 
-	/**
-	 * Создаёт generic9x5.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
-	 */
 	public static GenericContainerScreenHandler createGeneric9x5(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X5, syncId, playerInventory, 5);
 	}
 
 	/**
-	 * Создаёт generic9x6.
-	 *
-	 * @param syncId sync id
-	 * @param playerInventory player inventory
-	 *
-	 * @return GenericContainerScreenHandler — результат операции
+	 * Создаёт обработчик для контейнера 9×6 с пустым инвентарём (клиентская сторона).
 	 */
 	public static GenericContainerScreenHandler createGeneric9x6(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X6, syncId, playerInventory, 6);
 	}
 
+	/**
+	 * Создаёт обработчик для контейнера 9×3 с реальным инвентарём блока (серверная сторона).
+	 */
 	public static GenericContainerScreenHandler createGeneric9x3(
 			int syncId,
 			PlayerInventory playerInventory,
@@ -104,6 +73,9 @@ public class GenericContainerScreenHandler extends ScreenHandler {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X3, syncId, playerInventory, inventory, 3);
 	}
 
+	/**
+	 * Создаёт обработчик для контейнера 9×6 с реальным инвентарём блока (серверная сторона).
+	 */
 	public static GenericContainerScreenHandler createGeneric9x6(
 			int syncId,
 			PlayerInventory playerInventory,
@@ -120,67 +92,70 @@ public class GenericContainerScreenHandler extends ScreenHandler {
 			int rows
 	) {
 		super(type, syncId);
-		checkSize(inventory, rows * 9);
+		checkSize(inventory, rows * COLUMNS);
 		this.inventory = inventory;
 		this.rows = rows;
 		inventory.onOpen(playerInventory.player);
-		int i = 18;
-		this.addInventorySlots(inventory, 8, 18);
-		int j = 18 + this.rows * 18 + 13;
-		this.addPlayerSlots(playerInventory, 8, j);
+		addInventorySlots(inventory, 8, SLOT_STEP);
+		int playerSlotsTop = SLOT_STEP + rows * SLOT_STEP + PLAYER_INVENTORY_TOP_OFFSET;
+		addPlayerSlots(playerInventory, 8, playerSlotsTop);
 	}
 
 	private void addInventorySlots(Inventory inventory, int left, int top) {
-		for (int i = 0; i < this.rows; i++) {
-			for (int j = 0; j < 9; j++) {
-				this.addSlot(new Slot(inventory, j + i * 9, left + j * 18, top + i * 18));
+		for (int row = 0; row < rows; row++) {
+			for (int col = 0; col < COLUMNS; col++) {
+				addSlot(new Slot(inventory, col + row * COLUMNS, left + col * SLOT_STEP, top + row * SLOT_STEP));
 			}
 		}
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.inventory.canPlayerUse(player);
+		return inventory.canPlayerUse(player);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot < this.rows * 9) {
-				if (!this.insertItem(itemStack2, this.rows * 9, this.slots.size(), true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 0, this.rows * 9, false)) {
-				return ItemStack.EMPTY;
-			}
+		Slot sourceSlot = slots.get(slot);
 
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
+		int containerSize = rows * COLUMNS;
+
+		if (slot < containerSize) {
+			if (!insertItem(slotStack, containerSize, slots.size(), true)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (!insertItem(slotStack, 0, containerSize, false)) {
+			return ItemStack.EMPTY;
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+		else {
+			sourceSlot.markDirty();
+		}
+
+		return original;
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.inventory.onClose(player);
+		inventory.onClose(player);
 	}
 
 	public Inventory getInventory() {
-		return this.inventory;
+		return inventory;
 	}
 
 	public int getRows() {
-		return this.rows;
+		return rows;
 	}
 }

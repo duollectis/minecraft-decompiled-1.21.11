@@ -5,12 +5,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code AlwaysTruePosRuleTest}.
+ * Реализация {@link PosRuleTest}, которая всегда возвращает {@code true}.
+ * Используется как заглушка, когда позиционная проверка не требуется.
  */
 public class AlwaysTruePosRuleTest extends PosRuleTest {
 
-	public static final MapCodec<AlwaysTruePosRuleTest> CODEC = MapCodec.unit(() -> AlwaysTruePosRuleTest.INSTANCE);
 	public static final AlwaysTruePosRuleTest INSTANCE = new AlwaysTruePosRuleTest();
+	public static final MapCodec<AlwaysTruePosRuleTest> CODEC = MapCodec.unit(() -> INSTANCE);
 
 	private AlwaysTruePosRuleTest() {
 	}

@@ -22,10 +22,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogBodyHandlers}.
+ * Реестр обработчиков тел диалогов. Каждый обработчик создаёт виджет для конкретного типа {@link DialogBody}.
  */
+@Environment(EnvType.CLIENT)
 public class DialogBodyHandlers {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -53,14 +53,14 @@ public class DialogBodyHandlers {
 	 * @return @Nullable Widget — результат операции
 	 */
 	public static <B extends DialogBody> @Nullable Widget createWidget(DialogScreen<?> dialogScreen, B dialogBody) {
-		DialogBodyHandler<B> dialogBodyHandler = getHandler(dialogBody);
-		if (dialogBodyHandler == null) {
+		DialogBodyHandler<B> handler = getHandler(dialogBody);
+
+		if (handler == null) {
 			LOGGER.warn("Unrecognized dialog body {}", dialogBody);
 			return null;
 		}
-		else {
-			return dialogBodyHandler.createWidget(dialogScreen, dialogBody);
-		}
+
+		return handler.createWidget(dialogScreen, dialogBody);
 	}
 
 	/**
@@ -80,82 +80,65 @@ public class DialogBodyHandlers {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ItemDialogBodyHandler}.
+	 * Обработчик тела диалога с предметом инвентаря.
+	 * Если есть описание — отображает предмет рядом с текстом, иначе только предмет.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class ItemDialogBodyHandler implements DialogBodyHandler<ItemDialogBody> {
 
-		/**
-		 * Создаёт widget.
-		 *
-		 * @param dialogScreen dialog screen
-		 * @param itemDialogBody item dialog body
-		 *
-		 * @return Widget — результат операции
-		 */
-		public Widget createWidget(DialogScreen<?> dialogScreen, ItemDialogBody itemDialogBody) {
-			if (itemDialogBody.description().isPresent()) {
-				PlainMessageDialogBody plainMessageDialogBody = itemDialogBody.description().get();
-				DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(2);
-				directionalLayoutWidget.getMainPositioner().alignVerticalCenter();
-				ItemStackWidget itemStackWidget = new ItemStackWidget(
-						MinecraftClient.getInstance(),
-						0,
-						0,
-						itemDialogBody.width(),
-						itemDialogBody.height(),
-						ScreenTexts.EMPTY,
-						itemDialogBody.item(),
-						itemDialogBody.showDecorations(),
-						itemDialogBody.showTooltip()
-				);
-				directionalLayoutWidget.add(itemStackWidget);
-				directionalLayoutWidget.add(
-						NarratedMultilineTextWidget
-								.builder(plainMessageDialogBody.contents(), dialogScreen.getTextRenderer())
-								.width(plainMessageDialogBody.width())
-								.alwaysShowBorders(false)
-								.backgroundRendering(NarratedMultilineTextWidget.BackgroundRendering.NEVER)
-								.build()
-								.onClick(style -> DialogBodyHandlers.runActionFromStyle(dialogScreen, style))
-				);
-				return directionalLayoutWidget;
-			}
-			else {
+		public Widget createWidget(DialogScreen<?> dialogScreen, ItemDialogBody body) {
+			if (body.description().isEmpty()) {
 				return new ItemStackWidget(
 						MinecraftClient.getInstance(),
 						0,
 						0,
-						itemDialogBody.width(),
-						itemDialogBody.height(),
-						itemDialogBody.item().getName(),
-						itemDialogBody.item(),
-						itemDialogBody.showDecorations(),
-						itemDialogBody.showTooltip()
+						body.width(),
+						body.height(),
+						body.item().getName(),
+						body.item(),
+						body.showDecorations(),
+						body.showTooltip()
 				);
 			}
+
+			PlainMessageDialogBody description = body.description().get();
+			DirectionalLayoutWidget row = DirectionalLayoutWidget.horizontal().spacing(2);
+			row.getMainPositioner().alignVerticalCenter();
+			row.add(new ItemStackWidget(
+					MinecraftClient.getInstance(),
+					0,
+					0,
+					body.width(),
+					body.height(),
+					ScreenTexts.EMPTY,
+					body.item(),
+					body.showDecorations(),
+					body.showTooltip()
+			));
+			row.add(
+					NarratedMultilineTextWidget
+							.builder(description.contents(), dialogScreen.getTextRenderer())
+							.width(description.width())
+							.alwaysShowBorders(false)
+							.backgroundRendering(NarratedMultilineTextWidget.BackgroundRendering.NEVER)
+							.build()
+							.onClick(style -> DialogBodyHandlers.runActionFromStyle(dialogScreen, style))
+			);
+			return row;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code PlainMessageDialogBodyHandler}.
+	 * Обработчик тела диалога с простым текстовым сообщением.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class PlainMessageDialogBodyHandler implements DialogBodyHandler<PlainMessageDialogBody> {
 
-		/**
-		 * Создаёт widget.
-		 *
-		 * @param dialogScreen dialog screen
-		 * @param plainMessageDialogBody plain message dialog body
-		 *
-		 * @return Widget — результат операции
-		 */
-		public Widget createWidget(DialogScreen<?> dialogScreen, PlainMessageDialogBody plainMessageDialogBody) {
+		public Widget createWidget(DialogScreen<?> dialogScreen, PlainMessageDialogBody body) {
 			return NarratedMultilineTextWidget
-					.builder(plainMessageDialogBody.contents(), dialogScreen.getTextRenderer())
-					.width(plainMessageDialogBody.width())
+					.builder(body.contents(), dialogScreen.getTextRenderer())
+					.width(body.width())
 					.alwaysShowBorders(false)
 					.backgroundRendering(NarratedMultilineTextWidget.BackgroundRendering.NEVER)
 					.build()

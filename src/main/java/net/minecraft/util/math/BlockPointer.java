@@ -5,16 +5,12 @@ import net.minecraft.block.entity.DispenserBlockEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code BlockPointer}.
+ * Указатель на блок диспенсера в мире: содержит мир, позицию, состояние блока
+ * и ссылку на блок-сущность. Используется в логике диспенсеров при выбросе предметов.
  */
 public record BlockPointer(ServerWorld world, BlockPos pos, BlockState state, DispenserBlockEntity blockEntity) {
 
-	/**
-	 * Center pos.
-	 *
-	 * @return Vec3d — результат операции
-	 */
 	public Vec3d centerPos() {
-		return this.pos.toCenterPos();
+		return pos.toCenterPos();
 	}
 }

@@ -21,47 +21,56 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code NbtPredicate}.
+ * Предикат для проверки NBT-данных сущности, предмета или блока.
+ * Использует частичное совпадение: проверяемый NBT должен содержать все ключи из {@link #nbt}.
  */
 public record NbtPredicate(NbtCompound nbt) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final Codec<NbtPredicate>
-			CODEC =
+	public static final Codec<NbtPredicate> CODEC =
 			StringNbtReader.NBT_COMPOUND_CODEC.xmap(NbtPredicate::new, NbtPredicate::nbt);
-	public static final PacketCodec<ByteBuf, NbtPredicate>
-			PACKET_CODEC =
+	public static final PacketCodec<ByteBuf, NbtPredicate> PACKET_CODEC =
 			PacketCodecs.NBT_COMPOUND.xmap(NbtPredicate::new, NbtPredicate::nbt);
 	public static final String SELECTED_ITEM_KEY = "SelectedItem";
 
 	public boolean test(ComponentsAccess components) {
 		NbtComponent nbtComponent = components.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
-		return nbtComponent.matches(this.nbt);
+		return nbtComponent.matches(nbt);
 	}
 
 	public boolean test(Entity entity) {
-		return this.test(entityToNbt(entity));
+		return test(entityToNbt(entity));
 	}
 
 	public boolean test(@Nullable NbtElement element) {
-		return element != null && NbtHelper.matches(this.nbt, element, true);
+		return element != null && NbtHelper.matches(nbt, element, true);
 	}
 
+	/**
+	 * Сериализует сущность в NBT для последующей проверки предикатом.
+	 * Для игроков дополнительно добавляет выбранный предмет под ключом {@value #SELECTED_ITEM_KEY}.
+	 *
+	 * @param entity сущность для сериализации
+	 * @return NBT-представление сущности
+	 */
 	public static NbtCompound entityToNbt(Entity entity) {
-		NbtCompound var7;
+		NbtCompound result;
+
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
 			entity.writeData(nbtWriteView);
+
 			if (entity instanceof PlayerEntity playerEntity) {
-				ItemStack itemStack = playerEntity.getInventory().getSelectedStack();
-				if (!itemStack.isEmpty()) {
-					nbtWriteView.put("SelectedItem", ItemStack.CODEC, itemStack);
+				ItemStack selectedStack = playerEntity.getInventory().getSelectedStack();
+
+				if (!selectedStack.isEmpty()) {
+					nbtWriteView.put(SELECTED_ITEM_KEY, ItemStack.CODEC, selectedStack);
 				}
 			}
 
-			var7 = nbtWriteView.getNbt();
+			result = nbtWriteView.getNbt();
 		}
 
-		return var7;
+		return result;
 	}
 }

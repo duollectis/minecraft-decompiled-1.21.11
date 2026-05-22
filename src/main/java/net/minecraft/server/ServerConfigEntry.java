@@ -4,7 +4,10 @@ import com.google.gson.JsonObject;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ServerConfigEntry}.
+ * Базовая запись конфигурации сервера (бан, оператор, белый список).
+ * Хранит ключ записи и предоставляет механизм сериализации в JSON.
+ *
+ * @param <T> тип ключа записи (например, {@link PlayerConfigEntry} или {@link String} для IP)
  */
 public abstract class ServerConfigEntry<T> {
 
@@ -15,17 +18,12 @@ public abstract class ServerConfigEntry<T> {
 	}
 
 	public @Nullable T getKey() {
-		return this.key;
+		return key;
 	}
 
 	boolean isInvalid() {
 		return false;
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param json json
-	 */
 	protected abstract void write(JsonObject json);
 }

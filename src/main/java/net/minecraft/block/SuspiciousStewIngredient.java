@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * {@code SuspiciousStewIngredient}.
+ * Маркерный интерфейс для блоков-цветков, которые могут быть ингредиентом подозрительного рагу.
  */
 public interface SuspiciousStewIngredient {
 
@@ -25,14 +25,16 @@ public interface SuspiciousStewIngredient {
 				.collect(Collectors.toList());
 	}
 
+	/**
+	 * Возвращает ингредиент рагу для предмета, если он является блоком-цветком
+	 * или напрямую реализует этот интерфейс. Иначе возвращает {@code null}.
+	 */
 	static @Nullable SuspiciousStewIngredient of(ItemConvertible item) {
 		if (item.asItem() instanceof BlockItem blockItem
-				&& blockItem.getBlock() instanceof SuspiciousStewIngredient suspiciousStewIngredient) {
-			return suspiciousStewIngredient;
+				&& blockItem.getBlock() instanceof SuspiciousStewIngredient ingredient) {
+			return ingredient;
 		}
-		else {
-			return item.asItem() instanceof SuspiciousStewIngredient suspiciousStewIngredient2
-			       ? suspiciousStewIngredient2 : null;
-		}
+
+		return item.asItem() instanceof SuspiciousStewIngredient ingredient ? ingredient : null;
 	}
 }

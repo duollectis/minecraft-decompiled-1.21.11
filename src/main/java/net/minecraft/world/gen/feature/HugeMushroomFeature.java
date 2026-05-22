@@ -11,7 +11,9 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code HugeMushroomFeature}.
+ * Базовый класс для генерации огромных грибов.
+ * Подклассы реализуют форму шляпки через {@link #generateCap} и
+ * радиус шляпки на каждом уровне через {@link #getCapSize}.
  */
 public abstract class HugeMushroomFeature extends Feature<HugeMushroomFeatureConfig> {
 
@@ -20,103 +22,105 @@ public abstract class HugeMushroomFeature extends Feature<HugeMushroomFeatureCon
 	}
 
 	protected void generateStem(
-			WorldAccess world,
-			Random random,
-			BlockPos pos,
-			HugeMushroomFeatureConfig config,
-			int height,
-			BlockPos.Mutable mutablePos
+		WorldAccess world,
+		Random random,
+		BlockPos pos,
+		HugeMushroomFeatureConfig config,
+		int height,
+		BlockPos.Mutable mutablePos
 	) {
-		for (int i = 0; i < height; i++) {
-			mutablePos.set(pos).move(Direction.UP, i);
-			this.generateStem(world, mutablePos, config.stemProvider.get(random, pos));
+		for (int step = 0; step < height; step++) {
+			mutablePos.set(pos).move(Direction.UP, step);
+			generateStem(world, mutablePos, config.stemProvider.get(random, pos));
 		}
 	}
 
-	/**
-	 * Generate stem.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	protected void generateStem(WorldAccess world, BlockPos.Mutable pos, BlockState state) {
-		BlockState blockState = world.getBlockState(pos);
-		if (blockState.isAir() || blockState.isIn(BlockTags.REPLACEABLE_BY_MUSHROOMS)) {
-			this.setBlockState(world, pos, state);
+		BlockState current = world.getBlockState(pos);
+
+		if (current.isAir() || current.isIn(BlockTags.REPLACEABLE_BY_MUSHROOMS)) {
+			setBlockState(world, pos, state);
 		}
 	}
 
 	protected int getHeight(Random random) {
-		int i = random.nextInt(3) + 4;
+		int height = random.nextInt(3) + 4;
+
 		if (random.nextInt(12) == 0) {
-			i *= 2;
+			height *= 2;
 		}
 
-		return i;
+		return height;
 	}
 
+	/**
+	 * Проверяет, можно ли сгенерировать гриб в данной позиции:
+	 * основание должно быть почвой или блоком роста грибов,
+	 * а весь объём шляпки — свободным (воздух или листья).
+	 */
 	protected boolean canGenerate(
-			WorldAccess world,
-			BlockPos pos,
-			int height,
-			BlockPos.Mutable mutablePos,
-			HugeMushroomFeatureConfig config
+		WorldAccess world,
+		BlockPos pos,
+		int height,
+		BlockPos.Mutable mutablePos,
+		HugeMushroomFeatureConfig config
 	) {
-		int i = pos.getY();
-		if (i >= world.getBottomY() + 1 && i + height + 1 <= world.getTopYInclusive()) {
-			BlockState blockState = world.getBlockState(pos.down());
-			if (!isSoil(blockState) && !blockState.isIn(BlockTags.MUSHROOM_GROW_BLOCK)) {
-				return false;
-			}
-			else {
-				for (int j = 0; j <= height; j++) {
-					int k = this.getCapSize(-1, -1, config.foliageRadius, j);
+		int baseY = pos.getY();
 
-					for (int l = -k; l <= k; l++) {
-						for (int m = -k; m <= k; m++) {
-							BlockState blockState2 = world.getBlockState(mutablePos.set(pos, l, j, m));
-							if (!blockState2.isAir() && !blockState2.isIn(BlockTags.LEAVES)) {
-								return false;
-							}
-						}
-					}
-				}
-
-				return true;
-			}
-		}
-		else {
+		if (baseY < world.getBottomY() + 1 || baseY + height + 1 > world.getTopYInclusive()) {
 			return false;
 		}
+
+		BlockState baseState = world.getBlockState(pos.down());
+
+		if (!isSoil(baseState) && !baseState.isIn(BlockTags.MUSHROOM_GROW_BLOCK)) {
+			return false;
+		}
+
+		for (int dy = 0; dy <= height; dy++) {
+			int capRadius = getCapSize(-1, -1, config.foliageRadius, dy);
+
+			for (int dx = -capRadius; dx <= capRadius; dx++) {
+				for (int dz = -capRadius; dz <= capRadius; dz++) {
+					BlockState state = world.getBlockState(mutablePos.set(pos, dx, dy, dz));
+
+					if (!state.isAir() && !state.isIn(BlockTags.LEAVES)) {
+						return false;
+					}
+				}
+			}
+		}
+
+		return true;
 	}
 
 	@Override
 	public boolean generate(FeatureContext<HugeMushroomFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		HugeMushroomFeatureConfig hugeMushroomFeatureConfig = context.getConfig();
-		int i = this.getHeight(random);
+		HugeMushroomFeatureConfig config = context.getConfig();
+		int height = getHeight(random);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		if (!this.canGenerate(structureWorldAccess, blockPos, i, mutable, hugeMushroomFeatureConfig)) {
+
+		if (!canGenerate(world, origin, height, mutable, config)) {
 			return false;
 		}
-		else {
-			this.generateCap(structureWorldAccess, random, blockPos, i, mutable, hugeMushroomFeatureConfig);
-			this.generateStem(structureWorldAccess, random, blockPos, hugeMushroomFeatureConfig, i, mutable);
-			return true;
-		}
+
+		generateCap(world, random, origin, height, mutable, config);
+		generateStem(world, random, origin, config, height, mutable);
+
+		return true;
 	}
 
 	protected abstract int getCapSize(int i, int j, int capSize, int y);
 
 	protected abstract void generateCap(
-			WorldAccess world,
-			Random random,
-			BlockPos start,
-			int y,
-			BlockPos.Mutable mutable,
-			HugeMushroomFeatureConfig config
+		WorldAccess world,
+		Random random,
+		BlockPos start,
+		int y,
+		BlockPos.Mutable mutable,
+		HugeMushroomFeatureConfig config
 	);
 }

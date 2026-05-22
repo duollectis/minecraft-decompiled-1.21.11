@@ -28,30 +28,32 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/**
- * {@code LootPool}.
- */
 public class LootPool {
 
 	public static final Codec<LootPool> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    LootPoolEntryTypes.CODEC.listOf().fieldOf("entries").forGetter(pool -> pool.entries),
-					                    LootCondition.CODEC
-							                    .listOf()
-							                    .optionalFieldOf("conditions", List.of())
-							                    .forGetter(pool -> pool.conditions),
-					                    LootFunctionTypes.CODEC
-							                    .listOf()
-							                    .optionalFieldOf("functions", List.of())
-							                    .forGetter(pool -> pool.functions),
-					                    LootNumberProviderTypes.CODEC.fieldOf("rolls").forGetter(pool -> pool.rolls),
-					                    LootNumberProviderTypes.CODEC
-							                    .fieldOf("bonus_rolls")
-							                    .orElse(ConstantLootNumberProvider.create(0.0F))
-							                    .forGetter(pool -> pool.bonusRolls)
-			                    )
-			                    .apply(instance, LootPool::new)
+					LootPoolEntryTypes.CODEC
+							.listOf()
+							.fieldOf("entries")
+							.forGetter(pool -> pool.entries),
+					LootCondition.CODEC
+							.listOf()
+							.optionalFieldOf("conditions", List.of())
+							.forGetter(pool -> pool.conditions),
+					LootFunctionTypes.CODEC
+							.listOf()
+							.optionalFieldOf("functions", List.of())
+							.forGetter(pool -> pool.functions),
+					LootNumberProviderTypes.CODEC
+							.fieldOf("rolls")
+							.forGetter(pool -> pool.rolls),
+					LootNumberProviderTypes.CODEC
+							.fieldOf("bonus_rolls")
+							.orElse(ConstantLootNumberProvider.create(0.0F))
+							.forGetter(pool -> pool.bonusRolls)
+			).apply(instance, LootPool::new)
 	);
+
 	public final List<LootPoolEntry> entries;
 	public final List<LootCondition> conditions;
 	private final Predicate<LootContext> predicate;
@@ -69,93 +71,95 @@ public class LootPool {
 	) {
 		this.entries = entries;
 		this.conditions = conditions;
-		this.predicate = Util.allOf(conditions);
+		predicate = Util.allOf(conditions);
 		this.functions = functions;
-		this.javaFunctions = LootFunctionTypes.join(functions);
+		javaFunctions = LootFunctionTypes.join(functions);
 		this.rolls = rolls;
 		this.bonusRolls = bonusRolls;
 	}
 
+	/**
+	 * Выполняет один розыгрыш из пула: собирает все доступные варианты с их весами,
+	 * затем выбирает один случайным образом пропорционально весу.
+	 */
 	private void supplyOnce(Consumer<ItemStack> lootConsumer, LootContext context) {
 		Random random = context.getRandom();
-		List<LootChoice> list = Lists.newArrayList();
-		MutableInt mutableInt = new MutableInt();
+		List<LootChoice> choices = Lists.newArrayList();
+		MutableInt totalWeight = new MutableInt();
 
-		for (LootPoolEntry lootPoolEntry : this.entries) {
-			lootPoolEntry.expand(
-					context, choice -> {
-						int i = choice.getWeight(context.getLuck());
-						if (i > 0) {
-							list.add(choice);
-							mutableInt.add(i);
-						}
-					}
-			);
+		for (LootPoolEntry entry : entries) {
+			entry.expand(context, choice -> {
+				int weight = choice.getWeight(context.getLuck());
+
+				if (weight > 0) {
+					choices.add(choice);
+					totalWeight.add(weight);
+				}
+			});
 		}
 
-		int i = list.size();
-		if (mutableInt.intValue() != 0 && i != 0) {
-			if (i == 1) {
-				list.get(0).generateLoot(lootConsumer, context);
-			}
-			else {
-				int j = random.nextInt(mutableInt.intValue());
+		int choiceCount = choices.size();
 
-				for (LootChoice lootChoice : list) {
-					j -= lootChoice.getWeight(context.getLuck());
-					if (j < 0) {
-						lootChoice.generateLoot(lootConsumer, context);
-						return;
-					}
-				}
+		if (totalWeight.intValue() == 0 || choiceCount == 0) {
+			return;
+		}
+
+		if (choiceCount == 1) {
+			choices.get(0).generateLoot(lootConsumer, context);
+			return;
+		}
+
+		int roll = random.nextInt(totalWeight.intValue());
+
+		for (LootChoice choice : choices) {
+			roll -= choice.getWeight(context.getLuck());
+
+			if (roll < 0) {
+				choice.generateLoot(lootConsumer, context);
+				return;
 			}
 		}
 	}
 
 	/**
-	 * Добавляет generated loot.
+	 * Генерирует лут для данного пула: вычисляет количество розыгрышей с учётом бонусных бросков
+	 * от удачи игрока, затем выполняет каждый розыгрыш через {@link #supplyOnce}.
 	 *
-	 * @param lootConsumer loot consumer
-	 * @param context context
+	 * @param lootConsumer получатель сгенерированных стаков
+	 * @param context контекст лута с параметрами мира и игрока
 	 */
 	public void addGeneratedLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
-		if (this.predicate.test(context)) {
-			Consumer<ItemStack> consumer = LootFunction.apply(this.javaFunctions, lootConsumer, context);
-			int
-					i =
-					this.rolls.nextInt(context) + MathHelper.floor(
-							this.bonusRolls.nextFloat(context) * context.getLuck());
+		if (!predicate.test(context)) {
+			return;
+		}
 
-			for (int j = 0; j < i; j++) {
-				this.supplyOnce(consumer, context);
-			}
+		Consumer<ItemStack> consumer = LootFunction.apply(javaFunctions, lootConsumer, context);
+		int rollCount = rolls.nextInt(context)
+				+ MathHelper.floor(bonusRolls.nextFloat(context) * context.getLuck());
+
+		for (int rollIndex = 0; rollIndex < rollCount; rollIndex++) {
+			supplyOnce(consumer, context);
 		}
 	}
 
-	/**
-	 * Validate.
-	 *
-	 * @param reporter reporter
-	 */
 	public void validate(LootTableReporter reporter) {
-		for (int i = 0; i < this.conditions.size(); i++) {
-			this.conditions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", i)));
+		for (int index = 0; index < conditions.size(); index++) {
+			conditions.get(index)
+					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("conditions", index)));
 		}
 
-		for (int i = 0; i < this.functions.size(); i++) {
-			this.functions
-					.get(i)
-					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", i)));
+		for (int index = 0; index < functions.size(); index++) {
+			functions.get(index)
+					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("functions", index)));
 		}
 
-		for (int i = 0; i < this.entries.size(); i++) {
-			this.entries.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", i)));
+		for (int index = 0; index < entries.size(); index++) {
+			entries.get(index)
+					.validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", index)));
 		}
 
-		this.rolls.validate(reporter.makeChild(new ErrorReporter.MapElementContext("rolls")));
-		this.bonusRolls.validate(reporter.makeChild(new ErrorReporter.MapElementContext("bonus_rolls")));
+		rolls.validate(reporter.makeChild(new ErrorReporter.MapElementContext("rolls")));
+		bonusRolls.validate(reporter.makeChild(new ErrorReporter.MapElementContext("bonus_rolls")));
 	}
 
 	public static LootPool.Builder builder() {
@@ -167,18 +171,16 @@ public class LootPool {
 			LootConditionConsumingBuilder<LootPool.Builder>,
 			FabricLootPoolBuilder {
 
+		private final ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+		private final ImmutableList.Builder<LootCondition> conditions = ImmutableList.builder();
+		private final ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
+		private LootNumberProvider rolls = ConstantLootNumberProvider.create(1.0F);
+		private LootNumberProvider bonusRollsRange = ConstantLootNumberProvider.create(0.0F);
+
 		@Override
 		public LootPool.Builder getThisConditionConsumingBuilder() {
 			return this;
 		}
-
-		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
-		private final com.google.common.collect.ImmutableList.Builder<LootCondition>
-				conditions =
-				ImmutableList.builder();
-		private final com.google.common.collect.ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
-		private LootNumberProvider rolls = ConstantLootNumberProvider.create(1.0F);
-		private LootNumberProvider bonusRollsRange = ConstantLootNumberProvider.create(0.0F);
 
 		public LootPool.Builder rolls(LootNumberProvider rolls) {
 			this.rolls = rolls;
@@ -190,37 +192,32 @@ public class LootPool {
 		}
 
 		public LootPool.Builder bonusRolls(LootNumberProvider bonusRolls) {
-			this.bonusRollsRange = bonusRolls;
+			bonusRollsRange = bonusRolls;
 			return this;
 		}
 
 		public LootPool.Builder with(LootPoolEntry.Builder<?> entry) {
-			this.entries.add(entry.build());
+			entries.add(entry.build());
 			return this;
 		}
 
 		public LootPool.Builder conditionally(LootCondition.Builder builder) {
-			this.conditions.add(builder.build());
+			conditions.add(builder.build());
 			return this;
 		}
 
 		public LootPool.Builder apply(LootFunction.Builder builder) {
-			this.functions.add(builder.build());
+			functions.add(builder.build());
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return LootPool — результат операции
-		 */
 		public LootPool build() {
 			return new LootPool(
-					this.entries.build(),
-					this.conditions.build(),
-					this.functions.build(),
-					this.rolls,
-					this.bonusRollsRange
+					entries.build(),
+					conditions.build(),
+					functions.build(),
+					rolls,
+					bonusRollsRange
 			);
 		}
 	}

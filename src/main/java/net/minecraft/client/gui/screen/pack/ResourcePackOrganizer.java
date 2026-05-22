@@ -19,10 +19,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ResourcePackOrganizer}.
+ * Организатор пакетов ресурсов — управляет списками включённых и отключённых паков,
+ * обеспечивает их перемещение, включение/отключение и применение изменений.
  */
+@Environment(EnvType.CLIENT)
 public class ResourcePackOrganizer {
 
 	private final ResourcePackManager resourcePackManager;
@@ -41,53 +42,47 @@ public class ResourcePackOrganizer {
 		this.updateCallback = updateCallback;
 		this.iconIdSupplier = iconIdSupplier;
 		this.resourcePackManager = resourcePackManager;
-		this.enabledPacks = Lists.newArrayList(resourcePackManager.getEnabledProfiles());
-		Collections.reverse(this.enabledPacks);
-		this.disabledPacks = Lists.newArrayList(resourcePackManager.getProfiles());
-		this.disabledPacks.removeAll(this.enabledPacks);
+		enabledPacks = Lists.newArrayList(resourcePackManager.getEnabledProfiles());
+		Collections.reverse(enabledPacks);
+		disabledPacks = Lists.newArrayList(resourcePackManager.getProfiles());
+		disabledPacks.removeAll(enabledPacks);
 		this.applier = applier;
 	}
 
 	public Stream<ResourcePackOrganizer.Pack> getDisabledPacks() {
-		return this.disabledPacks.stream().map(pack -> new ResourcePackOrganizer.DisabledPack(pack));
+		return disabledPacks.stream().map(pack -> new ResourcePackOrganizer.DisabledPack(pack));
 	}
 
 	public Stream<ResourcePackOrganizer.Pack> getEnabledPacks() {
-		return this.enabledPacks.stream().map(pack -> new ResourcePackOrganizer.EnabledPack(pack));
+		return enabledPacks.stream().map(pack -> new ResourcePackOrganizer.EnabledPack(pack));
 	}
 
 	void refreshEnabledProfiles() {
-		this.resourcePackManager
-				.setEnabledProfiles(Lists
-						.reverse(this.enabledPacks)
+		resourcePackManager.setEnabledProfiles(
+				Lists.reverse(enabledPacks)
 						.stream()
 						.map(ResourcePackProfile::getId)
-						.collect(ImmutableList.toImmutableList()));
+						.collect(ImmutableList.toImmutableList())
+		);
 	}
 
-	/**
-	 * Apply.
-	 */
 	public void apply() {
-		this.refreshEnabledProfiles();
-		this.applier.accept(this.resourcePackManager);
+		refreshEnabledProfiles();
+		applier.accept(resourcePackManager);
 	}
 
-	/**
-	 * Refresh.
-	 */
 	public void refresh() {
-		this.resourcePackManager.scanPacks();
-		this.enabledPacks.retainAll(this.resourcePackManager.getProfiles());
-		this.disabledPacks.clear();
-		this.disabledPacks.addAll(this.resourcePackManager.getProfiles());
-		this.disabledPacks.removeAll(this.enabledPacks);
+		resourcePackManager.scanPacks();
+		enabledPacks.retainAll(resourcePackManager.getProfiles());
+		disabledPacks.clear();
+		disabledPacks.addAll(resourcePackManager.getProfiles());
+		disabledPacks.removeAll(enabledPacks);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code AbstractPack}.
+	 * Базовый класс пака — делегирует операции к профилю и спискам организатора.
 	 */
+	@Environment(EnvType.CLIENT)
 	public abstract class AbstractPack implements ResourcePackOrganizer.Pack {
 
 		private final ResourcePackProfile profile;
@@ -102,106 +97,98 @@ public class ResourcePackOrganizer {
 
 		@Override
 		public Identifier getIconId() {
-			return ResourcePackOrganizer.this.iconIdSupplier.apply(this.profile);
+			return ResourcePackOrganizer.this.iconIdSupplier.apply(profile);
 		}
 
 		@Override
 		public ResourcePackCompatibility getCompatibility() {
-			return this.profile.getCompatibility();
+			return profile.getCompatibility();
 		}
 
 		@Override
 		public String getName() {
-			return this.profile.getId();
+			return profile.getId();
 		}
 
 		@Override
 		public Text getDisplayName() {
-			return this.profile.getDisplayName();
+			return profile.getDisplayName();
 		}
 
 		@Override
 		public Text getDescription() {
-			return this.profile.getDescription();
+			return profile.getDescription();
 		}
 
 		@Override
 		public ResourcePackSource getSource() {
-			return this.profile.getSource();
+			return profile.getSource();
 		}
 
 		@Override
 		public boolean isPinned() {
-			return this.profile.isPinned();
+			return profile.isPinned();
 		}
 
 		@Override
 		public boolean isAlwaysEnabled() {
-			return this.profile.isRequired();
+			return profile.isRequired();
 		}
 
-		/**
-		 * Toggle.
-		 */
 		protected void toggle() {
-			this.getCurrentList().remove(this.profile);
-			this.profile
-					.getInitialPosition()
-					.insert(this.getOppositeList(), this.profile, ResourcePackProfile::getPosition, true);
+			getCurrentList().remove(profile);
+			profile.getInitialPosition().insert(getOppositeList(), profile, ResourcePackProfile::getPosition, true);
 			ResourcePackOrganizer.this.updateCallback.accept(this);
 			ResourcePackOrganizer.this.refreshEnabledProfiles();
-			this.toggleHighContrastOption();
+			toggleHighContrastOption();
 		}
 
 		private void toggleHighContrastOption() {
-			if (this.profile.getId().equals("high_contrast")) {
-				SimpleOption<Boolean> simpleOption = MinecraftClient.getInstance().options.getHighContrast();
-				simpleOption.setValue(!simpleOption.getValue());
+			if (!profile.getId().equals("high_contrast")) {
+				return;
 			}
+
+			SimpleOption<Boolean> highContrast = MinecraftClient.getInstance().options.getHighContrast();
+			highContrast.setValue(!highContrast.getValue());
 		}
 
-		/**
-		 * Move.
-		 *
-		 * @param offset offset
-		 */
 		protected void move(int offset) {
-			List<ResourcePackProfile> list = this.getCurrentList();
-			int i = list.indexOf(this.profile);
-			list.remove(i);
-			list.add(i + offset, this.profile);
+			List<ResourcePackProfile> list = getCurrentList();
+			int currentIndex = list.indexOf(profile);
+			list.remove(currentIndex);
+			list.add(currentIndex + offset, profile);
 			ResourcePackOrganizer.this.updateCallback.accept(this);
 		}
 
 		@Override
 		public boolean canMoveTowardStart() {
-			List<ResourcePackProfile> list = this.getCurrentList();
-			int i = list.indexOf(this.profile);
-			return i > 0 && !list.get(i - 1).isPinned();
+			List<ResourcePackProfile> list = getCurrentList();
+			int currentIndex = list.indexOf(profile);
+			return currentIndex > 0 && !list.get(currentIndex - 1).isPinned();
 		}
 
 		@Override
 		public void moveTowardStart() {
-			this.move(-1);
+			move(-1);
 		}
 
 		@Override
 		public boolean canMoveTowardEnd() {
-			List<ResourcePackProfile> list = this.getCurrentList();
-			int i = list.indexOf(this.profile);
-			return i >= 0 && i < list.size() - 1 && !list.get(i + 1).isPinned();
+			List<ResourcePackProfile> list = getCurrentList();
+			int currentIndex = list.indexOf(profile);
+			return currentIndex >= 0 && currentIndex < list.size() - 1 && !list.get(currentIndex + 1).isPinned();
 		}
 
 		@Override
 		public void moveTowardEnd() {
-			this.move(1);
+			move(1);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DisabledPack}.
+	 * Отключённый пак — может быть включён.
 	 */
+	@Environment(EnvType.CLIENT)
 	class DisabledPack extends ResourcePackOrganizer.AbstractPack {
 
 		public DisabledPack(final ResourcePackProfile resourcePackProfile) {
@@ -225,7 +212,7 @@ public class ResourcePackOrganizer {
 
 		@Override
 		public void enable() {
-			this.toggle();
+			toggle();
 		}
 
 		@Override
@@ -233,10 +220,10 @@ public class ResourcePackOrganizer {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code EnabledPack}.
+	 * Включённый пак — может быть отключён.
 	 */
+	@Environment(EnvType.CLIENT)
 	class EnabledPack extends ResourcePackOrganizer.AbstractPack {
 
 		public EnabledPack(final ResourcePackProfile resourcePackProfile) {
@@ -264,14 +251,14 @@ public class ResourcePackOrganizer {
 
 		@Override
 		public void disable() {
-			this.toggle();
+			toggle();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Pack}.
+	 * Интерфейс пака ресурсов — описывает контракт для включения, отключения и перемещения.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Pack {
 
 		Identifier getIconId();
@@ -287,7 +274,7 @@ public class ResourcePackOrganizer {
 		ResourcePackSource getSource();
 
 		default Text getDecoratedDescription() {
-			return this.getSource().decorate(this.getDescription());
+			return getSource().decorate(getDescription());
 		}
 
 		boolean isPinned();
@@ -305,11 +292,11 @@ public class ResourcePackOrganizer {
 		boolean isEnabled();
 
 		default boolean canBeEnabled() {
-			return !this.isEnabled();
+			return !isEnabled();
 		}
 
 		default boolean canBeDisabled() {
-			return this.isEnabled() && !this.isAlwaysEnabled();
+			return isEnabled() && !isAlwaysEnabled();
 		}
 
 		boolean canMoveTowardStart();

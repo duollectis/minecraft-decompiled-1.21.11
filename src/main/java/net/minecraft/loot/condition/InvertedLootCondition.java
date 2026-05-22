@@ -9,14 +9,14 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Set;
 
 /**
- * {@code InvertedLootCondition}.
+ * Условие-инверсия: выполняется, если вложенное условие НЕ выполняется.
  */
 public record InvertedLootCondition(LootCondition term) implements LootCondition {
 
 	public static final MapCodec<InvertedLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(LootCondition.CODEC.fieldOf("term").forGetter(InvertedLootCondition::term))
-					.apply(instance, InvertedLootCondition::new)
+		instance -> instance
+			.group(LootCondition.CODEC.fieldOf("term").forGetter(InvertedLootCondition::term))
+			.apply(instance, InvertedLootCondition::new)
 	);
 
 	@Override
@@ -24,30 +24,23 @@ public record InvertedLootCondition(LootCondition term) implements LootCondition
 		return LootConditionTypes.INVERTED;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext lootContext) {
-		return !this.term.test(lootContext);
+		return !term.test(lootContext);
 	}
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.term.getAllowedParameters();
+		return term.getAllowedParameters();
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		LootCondition.super.validate(reporter);
-		this.term.validate(reporter);
+		term.validate(reporter);
 	}
 
 	public static LootCondition.Builder builder(LootCondition.Builder term) {
-		InvertedLootCondition invertedLootCondition = new InvertedLootCondition(term.build());
-		return () -> invertedLootCondition;
+		InvertedLootCondition inverted = new InvertedLootCondition(term.build());
+		return () -> inverted;
 	}
 }

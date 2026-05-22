@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import java.util.Collection;
 
 /**
- * {@code ReloadCommand}.
+ * Команда {@code /reload}: перезагрузка пакетов данных и ресурсов.
  */
 public class ReloadCommand {
 

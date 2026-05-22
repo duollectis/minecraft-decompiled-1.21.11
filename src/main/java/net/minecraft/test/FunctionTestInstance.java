@@ -11,20 +11,20 @@ import net.minecraft.text.Text;
 import java.util.function.Consumer;
 
 /**
- * {@code FunctionTestInstance}.
+ * Реализация тестового инстанса, делегирующая логику зарегистрированной функции
+ * из реестра {@link RegistryKeys#TEST_FUNCTION}.
  */
 public class FunctionTestInstance extends TestInstance {
 
 	public static final MapCodec<FunctionTestInstance> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    RegistryKey
-							                    .createCodec(RegistryKeys.TEST_FUNCTION)
-							                    .fieldOf("function")
-							                    .forGetter(FunctionTestInstance::getFunction),
-					                    TestData.CODEC.forGetter(TestInstance::getData)
-			                    )
-			                    .apply(instance, FunctionTestInstance::new)
+					RegistryKey.createCodec(RegistryKeys.TEST_FUNCTION)
+							.fieldOf("function")
+							.forGetter(FunctionTestInstance::getFunction),
+					TestData.CODEC.forGetter(TestInstance::getData)
+			).apply(instance, FunctionTestInstance::new)
 	);
+
 	private final RegistryKey<Consumer<TestContext>> function;
 
 	public FunctionTestInstance(
@@ -35,19 +35,19 @@ public class FunctionTestInstance extends TestInstance {
 		this.function = function;
 	}
 
+	/**
+	 * Запускает тест, вызывая функцию из реестра по ключу {@link #function}.
+	 * Бросает {@link IllegalStateException}, если функция не найдена в реестре.
+	 */
 	@Override
 	public void start(TestContext context) {
 		context.getWorld()
-		       .getRegistryManager()
-		       .getOptionalEntry(this.function)
-		       .map(RegistryEntry.Reference::value)
-		       .orElseThrow(() -> new IllegalStateException(
-				       "Trying to access missing test function: " + this.function.getValue()))
-		       .accept(context);
-	}
-
-	private RegistryKey<Consumer<TestContext>> getFunction() {
-		return this.function;
+				.getRegistryManager()
+				.getOptionalEntry(function)
+				.map(RegistryEntry.Reference::value)
+				.orElseThrow(() -> new IllegalStateException(
+						"Trying to access missing test function: " + function.getValue()))
+				.accept(context);
 	}
 
 	@Override
@@ -62,11 +62,15 @@ public class FunctionTestInstance extends TestInstance {
 
 	@Override
 	public Text getDescription() {
-		return this.getFormattedTypeDescription()
-		           .append(this.getFormattedDescription(
-				           "test_instance.description.function",
-				           this.function.getValue().toString()
-		           ))
-		           .append(this.getStructureAndBatchDescription());
+		return getFormattedTypeDescription()
+				.append(getFormattedDescription(
+						"test_instance.description.function",
+						function.getValue().toString()
+				))
+				.append(getStructureAndBatchDescription());
+	}
+
+	private RegistryKey<Consumer<TestContext>> getFunction() {
+		return function;
 	}
 }

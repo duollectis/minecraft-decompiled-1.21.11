@@ -42,7 +42,7 @@ public class Tessellator {
 	}
 
 	public Tessellator() {
-		this(786432);
+		this(MAX_BUFFER_SIZE);
 	}
 
 	/**

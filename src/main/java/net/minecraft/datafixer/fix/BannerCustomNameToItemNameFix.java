@@ -13,64 +13,67 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code BannerCustomNameToItemNameFix}.
+ * Конвертирует поле {@code CustomName} баннера-знамени (Ominous Banner) в компонент предмета
+ * {@code minecraft:item_name}, добавляя также {@code minecraft:hide_additional_tooltip}.
  */
 public class BannerCustomNameToItemNameFix extends DataFix {
+
+	private static final String OMINOUS_BANNER_TRANSLATION_KEY = "block.minecraft.ominous_banner";
 
 	public BannerCustomNameToItemNameFix(Schema outputSchema) {
 		super(outputSchema, false);
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		TaggedChoiceType<?> taggedChoiceType = this.getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
-		OpticFinder<String> opticFinder = (OpticFinder<String>) type.findField("CustomName");
-		OpticFinder<Pair<String, String>>
-				opticFinder2 =
-				(OpticFinder<Pair<String, String>>) DSL.typeFinder(this
-						.getInputSchema()
-						.getType(TypeReferences.TEXT_COMPONENT));
-		return this.fixTypeEverywhereTyped(
-				"Banner entity custom_name to item_name component fix", type, typed -> {
-					Object object = ((Pair) typed.get(taggedChoiceType.finder())).getFirst();
-					return object.equals("minecraft:banner") ? this.fix(typed, opticFinder2, opticFinder) : typed;
-				}
+		Type<?> blockEntityType = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		TaggedChoiceType<?> choiceType = getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
+		OpticFinder<String> customNameFinder = (OpticFinder<String>) blockEntityType.findField("CustomName");
+		OpticFinder<Pair<String, String>> textComponentFinder =
+			(OpticFinder<Pair<String, String>>) DSL.typeFinder(getInputSchema().getType(TypeReferences.TEXT_COMPONENT));
+
+		return fixTypeEverywhereTyped(
+			"Banner entity custom_name to item_name component fix",
+			blockEntityType,
+			typed -> {
+				Object entityId = ((Pair<?, ?>) typed.get(choiceType.finder())).getFirst();
+
+				return entityId.equals("minecraft:banner")
+					? fix(typed, textComponentFinder, customNameFinder)
+					: typed;
+			}
 		);
 	}
 
 	private Typed<?> fix(
-			Typed<?> typed,
-			OpticFinder<Pair<String, String>> opticFinder,
-			OpticFinder<String> opticFinder2
+		Typed<?> typed,
+		OpticFinder<Pair<String, String>> textComponentFinder,
+		OpticFinder<String> customNameFinder
 	) {
-		Optional<String>
-				optional =
-				typed
-						.getOptionalTyped(opticFinder2)
-						.flatMap(typedx -> typedx.getOptional(opticFinder).map(Pair::getSecond));
-		boolean
-				bl =
-				optional
-						.flatMap(TextFixes::getTranslate)
-						.filter(name -> name.equals("block.minecraft.ominous_banner"))
-						.isPresent();
-		return bl
-		       ? Util.apply(
+		Optional<String> customName = typed.getOptionalTyped(customNameFinder)
+			.flatMap(inner -> inner.getOptional(textComponentFinder).map(Pair::getSecond));
+
+		boolean isOminousBanner = customName
+			.flatMap(TextFixes::getTranslate)
+			.filter(OMINOUS_BANNER_TRANSLATION_KEY::equals)
+			.isPresent();
+
+		return isOminousBanner
+			? Util.apply(
 				typed,
 				typed.getType(),
 				dynamic -> {
-					Dynamic<?> dynamic2 = dynamic.createMap(
-							Map.of(
-									dynamic.createString("minecraft:item_name"),
-									dynamic.createString(optional.get()),
-									dynamic.createString("minecraft:hide_additional_tooltip"),
-									dynamic.emptyMap()
-							)
+					Dynamic<?> components = dynamic.createMap(
+						Map.of(
+							dynamic.createString("minecraft:item_name"), dynamic.createString(customName.get()),
+							dynamic.createString("minecraft:hide_additional_tooltip"), dynamic.emptyMap()
+						)
 					);
-					return dynamic.set("components", dynamic2).remove("CustomName");
+
+					return dynamic.set("components", components).remove("CustomName");
 				}
-		)
-		       : typed;
+			)
+			: typed;
 	}
 }

@@ -15,7 +15,10 @@ import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code IceBlock}.
+ * Блок льда, тающий при достаточном уровне освещения.
+ * <p>При разрушении без зачарования «Шёлковое касание» превращается в воду,
+ * если под ним есть твёрдый блок или жидкость. В измерениях с испарением воды
+ * блок просто удаляется без образования воды.</p>
  */
 public class IceBlock extends TranslucentBlock {
 
@@ -66,13 +69,6 @@ public class IceBlock extends TranslucentBlock {
 		}
 	}
 
-	/**
-	 * Melt.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 */
 	protected void melt(BlockState state, World world, BlockPos pos) {
 		if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
 			world.removeBlock(pos, false);

@@ -38,17 +38,29 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ChickenEntity}.
+ * Курица — животное, периодически откладывающее яйца.
+ * Поддерживает анимацию взмахов крыльями и замедление падения.
+ * Если на курице сидит джокей (зомби-ребёнок), она деспавнится вместе с ним.
  */
 public class ChickenEntity extends AnimalEntity {
 
-	private static final EntityDimensions
-			BABY_BASE_DIMENSIONS =
-			EntityType.CHICKEN.getDimensions().scaled(0.5F).withEyeHeight(0.2975F);
+	private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.CHICKEN
+		.getDimensions()
+		.scaled(0.5F)
+		.withEyeHeight(0.2975F);
+
 	private static final TrackedData<RegistryEntry<ChickenVariant>> VARIANT = DataTracker.registerData(
-			ChickenEntity.class, TrackedDataHandlerRegistry.CHICKEN_VARIANT
+		ChickenEntity.class,
+		TrackedDataHandlerRegistry.CHICKEN_VARIANT
 	);
-	private static final boolean DEFAULT_HAS_JOCKEY = false;
+
+	/** Минимальное время между кладками яиц (в тиках). */
+	private static final int EGG_LAY_MIN_TICKS = 6000;
+	/** Случайный разброс времени кладки яиц (в тиках). */
+	private static final int EGG_LAY_RANDOM_TICKS = 6000;
+	/** Опыт за убийство курицы-джокея. */
+	private static final int JOCKEY_EXPERIENCE = 10;
+
 	public float flapProgress;
 	public float maxWingDeviation;
 	public float lastMaxWingDeviation;
@@ -60,75 +72,74 @@ public class ChickenEntity extends AnimalEntity {
 
 	public ChickenEntity(EntityType<? extends ChickenEntity> entityType, World world) {
 		super(entityType, world);
-		this.eggLayTime = this.random.nextInt(6000) + 6000;
-		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		eggLayTime = random.nextInt(EGG_LAY_RANDOM_TICKS) + EGG_LAY_MIN_TICKS;
+		setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new EscapeDangerGoal(this, 1.4));
-		this.goalSelector.add(2, new AnimalMateGoal(this, 1.0));
-		this.goalSelector.add(3, new TemptGoal(this, 1.0, stack -> stack.isIn(ItemTags.CHICKEN_FOOD), false));
-		this.goalSelector.add(4, new FollowParentGoal(this, 1.1));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-		this.goalSelector.add(7, new LookAroundGoal(this));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new EscapeDangerGoal(this, 1.4));
+		goalSelector.add(2, new AnimalMateGoal(this, 1.0));
+		goalSelector.add(3, new TemptGoal(this, 1.0, stack -> stack.isIn(ItemTags.CHICKEN_FOOD), false));
+		goalSelector.add(4, new FollowParentGoal(this, 1.1));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		goalSelector.add(7, new LookAroundGoal(this));
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 
 	public static DefaultAttributeContainer.Builder createChickenAttributes() {
-		return AnimalEntity
-				.createAnimalAttributes()
-				.add(EntityAttributes.MAX_HEALTH, 4.0)
-				.add(EntityAttributes.MOVEMENT_SPEED, 0.25);
+		return AnimalEntity.createAnimalAttributes()
+			.add(EntityAttributes.MAX_HEALTH, 4.0)
+			.add(EntityAttributes.MOVEMENT_SPEED, 0.25);
 	}
 
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		this.lastFlapProgress = this.flapProgress;
-		this.lastMaxWingDeviation = this.maxWingDeviation;
-		this.maxWingDeviation = this.maxWingDeviation + (this.isOnGround() ? -1.0F : 4.0F) * 0.3F;
-		this.maxWingDeviation = MathHelper.clamp(this.maxWingDeviation, 0.0F, 1.0F);
-		if (!this.isOnGround() && this.flapSpeed < 1.0F) {
-			this.flapSpeed = 1.0F;
+		lastFlapProgress = flapProgress;
+		lastMaxWingDeviation = maxWingDeviation;
+		maxWingDeviation += (isOnGround() ? -1.0F : 4.0F) * 0.3F;
+		maxWingDeviation = MathHelper.clamp(maxWingDeviation, 0.0F, 1.0F);
+		if (!isOnGround() && flapSpeed < 1.0F) {
+			flapSpeed = 1.0F;
 		}
 
-		this.flapSpeed *= 0.9F;
-		Vec3d vec3d = this.getVelocity();
-		if (!this.isOnGround() && vec3d.y < 0.0) {
-			this.setVelocity(vec3d.multiply(1.0, 0.6, 1.0));
+		flapSpeed *= 0.9F;
+		Vec3d velocity = getVelocity();
+		if (!isOnGround() && velocity.y < 0.0) {
+			setVelocity(velocity.multiply(1.0, 0.6, 1.0));
 		}
 
-		this.flapProgress = this.flapProgress + this.flapSpeed * 2.0F;
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.isAlive() && !this.isBaby()
-				&& !this.hasJockey() && --this.eggLayTime <= 0) {
-			if (this.forEachGiftedItem(serverWorld, LootTables.CHICKEN_LAY_GAMEPLAY, this::dropStack)) {
-				this.playSound(
-						SoundEvents.ENTITY_CHICKEN_EGG,
-						1.0F,
-						(this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F
+		flapProgress += flapSpeed * 2.0F;
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld && isAlive() && !isBaby() && !hasJockey() && --eggLayTime <= 0) {
+			if (forEachGiftedItem(serverWorld, LootTables.CHICKEN_LAY_GAMEPLAY, this::dropStack)) {
+				playSound(
+					SoundEvents.ENTITY_CHICKEN_EGG,
+					1.0F,
+					(random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F
 				);
-				this.emitGameEvent(GameEvent.ENTITY_PLACE);
+				emitGameEvent(GameEvent.ENTITY_PLACE);
 			}
 
-			this.eggLayTime = this.random.nextInt(6000) + 6000;
+			eggLayTime = random.nextInt(EGG_LAY_RANDOM_TICKS) + EGG_LAY_MIN_TICKS;
 		}
 	}
 
 	@Override
 	protected boolean isFlappingWings() {
-		return this.speed > this.wingFlapSpeedThreshold;
+		return speed > wingFlapSpeedThreshold;
 	}
 
 	@Override
 	protected void addFlapEffects() {
-		this.wingFlapSpeedThreshold = this.speed + this.maxWingDeviation / 2.0F;
+		wingFlapSpeedThreshold = speed + maxWingDeviation / 2.0F;
 	}
 
 	@Override
@@ -148,36 +159,30 @@ public class ChickenEntity extends AnimalEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_CHICKEN_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_CHICKEN_STEP, 0.15F, 1.0F);
 	}
 
 	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable ChickenEntity — результат операции
+	 * Создаёт детёныша при размножении. Вариант наследуется случайно от одного из родителей.
 	 */
+	@Override
 	public @Nullable ChickenEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-		ChickenEntity chickenEntity = EntityType.CHICKEN.create(serverWorld, SpawnReason.BREEDING);
-		if (chickenEntity != null && passiveEntity instanceof ChickenEntity chickenEntity2) {
-			chickenEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : chickenEntity2.getVariant());
+		ChickenEntity baby = EntityType.CHICKEN.create(serverWorld, SpawnReason.BREEDING);
+		if (baby != null && passiveEntity instanceof ChickenEntity otherChicken) {
+			baby.setVariant(random.nextBoolean() ? getVariant() : otherChicken.getVariant());
 		}
 
-		return chickenEntity;
+		return baby;
 	}
 
 	@Override
 	public EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
-		Variants
-				.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.CHICKEN_VARIANT)
-				.ifPresent(this::setVariant);
+		Variants.select(SpawnContext.of(world, getBlockPos()), RegistryKeys.CHICKEN_VARIANT).ifPresent(this::setVariant);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
@@ -188,87 +193,83 @@ public class ChickenEntity extends AnimalEntity {
 
 	@Override
 	protected int getExperienceToDrop(ServerWorld world) {
-		return this.hasJockey() ? 10 : super.getExperienceToDrop(world);
+		return hasJockey() ? JOCKEY_EXPERIENCE : super.getExperienceToDrop(world);
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), ChickenVariants.TEMPERATE));
+		builder.add(VARIANT, Variants.getOrDefaultOrThrow(getRegistryManager(), ChickenVariants.TEMPERATE));
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.hasJockey = view.getBoolean("IsChickenJockey", false);
-		view.getOptionalInt("EggLayTime").ifPresent(eggLayTime -> this.eggLayTime = eggLayTime);
+		hasJockey = view.getBoolean("IsChickenJockey", false);
+		view.getOptionalInt("EggLayTime").ifPresent(time -> eggLayTime = time);
 		Variants.fromData(view, RegistryKeys.CHICKEN_VARIANT).ifPresent(this::setVariant);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("IsChickenJockey", this.hasJockey);
-		view.putInt("EggLayTime", this.eggLayTime);
-		Variants.writeData(view, this.getVariant());
+		view.putBoolean("IsChickenJockey", hasJockey);
+		view.putInt("EggLayTime", eggLayTime);
+		Variants.writeData(view, getVariant());
 	}
 
 	public void setVariant(RegistryEntry<ChickenVariant> variant) {
-		this.dataTracker.set(VARIANT, variant);
+		dataTracker.set(VARIANT, variant);
 	}
 
 	public RegistryEntry<ChickenVariant> getVariant() {
-		return this.dataTracker.get(VARIANT);
+		return dataTracker.get(VARIANT);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
 		return type == DataComponentTypes.CHICKEN_VARIANT
-		       ? castComponentValue((ComponentType<T>) type, new LazyRegistryEntryReference<>(this.getVariant()))
-		       : super.get(type);
+			? castComponentValue((ComponentType<T>) type, new LazyRegistryEntryReference<>(getVariant()))
+			: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.CHICKEN_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.CHICKEN_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.CHICKEN_VARIANT) {
-			Optional<RegistryEntry<ChickenVariant>>
-					optional =
-					castComponentValue(DataComponentTypes.CHICKEN_VARIANT, value)
-							.resolveEntry(this.getRegistryManager());
-			if (optional.isPresent()) {
-				this.setVariant(optional.get());
+			Optional<RegistryEntry<ChickenVariant>> resolved = castComponentValue(DataComponentTypes.CHICKEN_VARIANT, value)
+				.resolveEntry(getRegistryManager());
+			if (resolved.isPresent()) {
+				setVariant(resolved.get());
 				return true;
 			}
-			else {
-				return false;
-			}
+
+			return false;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
 	@Override
 	public boolean canImmediatelyDespawn(double distanceSquared) {
-		return this.hasJockey();
+		return hasJockey();
 	}
 
 	@Override
 	protected void updatePassengerPosition(Entity passenger, Entity.PositionUpdater positionUpdater) {
 		super.updatePassengerPosition(passenger, positionUpdater);
-		if (passenger instanceof LivingEntity) {
-			((LivingEntity) passenger).bodyYaw = this.bodyYaw;
+		if (passenger instanceof LivingEntity livingPassenger) {
+			livingPassenger.bodyYaw = bodyYaw;
 		}
 	}
 
 	public boolean hasJockey() {
-		return this.hasJockey;
+		return hasJockey;
 	}
 
 	public void setHasJockey(boolean hasJockey) {

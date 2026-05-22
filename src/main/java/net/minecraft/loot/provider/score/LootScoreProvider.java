@@ -8,7 +8,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code LootScoreProvider}.
+ * Стратегия разрешения держателя очков ({@link ScoreHolder}) в контексте таблицы лута.
+ * Используется в условиях и функциях лута, работающих со счётом на табло.
  */
 public interface LootScoreProvider {
 

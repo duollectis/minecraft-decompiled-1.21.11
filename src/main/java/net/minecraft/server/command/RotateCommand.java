@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec2f;
 
 /**
- * {@code RotateCommand}.
+ * Команда {@code /rotate}: изменение поворота сущностей.
  */
 public class RotateCommand {
 

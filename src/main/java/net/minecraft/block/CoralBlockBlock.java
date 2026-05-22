@@ -16,9 +16,15 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CoralBlockBlock}.
+ * Твёрдый коралловый блок (не растение). Без воды рядом запускает таймер смерти
+ * и превращается в мёртвый коралловый блок через {@value #DEATH_DELAY_MIN}–{@value #DEATH_DELAY_MAX} тиков.
  */
 public class CoralBlockBlock extends Block {
+
+	/** Минимальная задержка (в тиках) до гибели кораллового блока без воды. */
+	private static final int DEATH_DELAY_MIN = 60;
+	/** Максимальная задержка (в тиках) до гибели кораллового блока без воды. */
+	private static final int DEATH_DELAY_MAX = 40;
 
 	public static final MapCodec<Block> DEAD_FIELD = Registries.BLOCK.getCodec().fieldOf("dead");
 	public static final MapCodec<CoralBlockBlock> CODEC = RecordCodecBuilder.mapCodec(
@@ -40,8 +46,8 @@ public class CoralBlockBlock extends Block {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (!this.isInWater(world, pos)) {
-			world.setBlockState(pos, this.deadCoralBlock.getDefaultState(), 2);
+		if (!isInWater(world, pos)) {
+			world.setBlockState(pos, deadCoralBlock.getDefaultState(), Block.NOTIFY_LISTENERS);
 		}
 	}
 
@@ -56,8 +62,8 @@ public class CoralBlockBlock extends Block {
 			BlockState neighborState,
 			Random random
 	) {
-		if (!this.isInWater(world, pos)) {
-			tickView.scheduleBlockTick(pos, this, 60 + random.nextInt(40));
+		if (!isInWater(world, pos)) {
+			tickView.scheduleBlockTick(pos, this, DEATH_DELAY_MIN + random.nextInt(DEATH_DELAY_MAX));
 		}
 
 		return super.getStateForNeighborUpdate(
@@ -85,10 +91,14 @@ public class CoralBlockBlock extends Block {
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		if (!this.isInWater(ctx.getWorld(), ctx.getBlockPos())) {
-			ctx.getWorld().scheduleBlockTick(ctx.getBlockPos(), this, 60 + ctx.getWorld().getRandom().nextInt(40));
+		if (!isInWater(ctx.getWorld(), ctx.getBlockPos())) {
+			ctx.getWorld().scheduleBlockTick(
+					ctx.getBlockPos(),
+					this,
+					DEATH_DELAY_MIN + ctx.getWorld().getRandom().nextInt(DEATH_DELAY_MAX)
+			);
 		}
 
-		return this.getDefaultState();
+		return getDefaultState();
 	}
 }

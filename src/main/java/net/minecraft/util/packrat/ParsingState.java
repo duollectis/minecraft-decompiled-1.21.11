@@ -5,7 +5,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ParsingState}.
+ * Состояние парсера: хранит текущую позицию в потоке ввода, результаты разбора
+ * и список ошибок. Предоставляет механизм отсечения (cut) для управления откатом.
  */
 public interface ParsingState<S> {
 
@@ -14,17 +15,17 @@ public interface ParsingState<S> {
 	ParseErrorList<S> getErrors();
 
 	default <T> Optional<T> startParsing(ParsingRuleEntry<S, T> rule) {
-		T object = this.parse(rule);
-		if (object != null) {
-			this.getErrors().setCursor(this.getCursor());
+		T result = parse(rule);
+
+		if (result != null) {
+			getErrors().setCursor(getCursor());
 		}
 
-		if (!this.getResults().areFramesPlacedCorrectly()) {
-			throw new IllegalStateException("Malformed scope: " + this.getResults());
+		if (!getResults().areFramesPlacedCorrectly()) {
+			throw new IllegalStateException("Malformed scope: " + getResults());
 		}
-		else {
-			return Optional.ofNullable(object);
-		}
+
+		return Optional.ofNullable(result);
 	}
 
 	<T> @Nullable T parse(ParsingRuleEntry<S, T> rule);

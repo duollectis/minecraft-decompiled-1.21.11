@@ -52,7 +52,7 @@ public class SculkSensorBlock extends BlockWithEntity implements Waterloggable {
 	private static final VoxelShape OUTLINE_SHAPE = Block.createColumnShape(16.0, 0.0, 8.0);
 	private static final float[] RESONATION_NOTE_PITCHES = Util.make(
 			new float[16], frequency -> {
-				int[] is = new int[]{0, 0, 2, 4, 6, 7, 9, 10, 12, 14, 15, 18, 19, 21, 22, 24};
+				int[] is = new int[]{0, 0, 2, 4, 6, 7, 9, COOLDOWN_TICKS, 12, 14, 15, 18, 19, 21, 22, 24};
 
 				for (int i = 0; i < 16; i++) {
 					frequency[i] = NoteBlock.getNotePitch(is[i]);
@@ -229,13 +229,13 @@ public class SculkSensorBlock extends BlockWithEntity implements Waterloggable {
 
 	public static void setCooldown(World world, BlockPos pos, BlockState state) {
 		world.setBlockState(pos, state.with(SCULK_SENSOR_PHASE, SculkSensorPhase.COOLDOWN).with(POWER, 0), 3);
-		world.scheduleBlockTick(pos, state.getBlock(), 10);
+		world.scheduleBlockTick(pos, state.getBlock(), COOLDOWN_TICKS);
 		updateNeighbors(world, pos, state);
 	}
 
 	@VisibleForTesting
 	public int getCooldownTime() {
-		return 30;
+		return ACTIVE_TICKS;
 	}
 
 	public void setActive(

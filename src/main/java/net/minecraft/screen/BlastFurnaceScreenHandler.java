@@ -7,7 +7,8 @@ import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.book.RecipeBookType;
 
 /**
- * {@code BlastFurnaceScreenHandler}.
+ * Обработчик экрана доменной печи.
+ * Принимает только металлические руды и блоки, плавит их быстрее обычной печи.
  */
 public class BlastFurnaceScreenHandler extends AbstractFurnaceScreenHandler {
 

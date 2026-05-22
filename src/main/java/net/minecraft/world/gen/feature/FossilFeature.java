@@ -19,9 +19,18 @@ import net.minecraft.world.gen.feature.util.FeatureContext;
 import org.apache.commons.lang3.mutable.MutableInt;
 
 /**
- * {@code FossilFeature}.
+ * Генерирует ископаемое (fossil) из NBT-шаблона структуры под землёй.
+ * Выбирает случайный шаблон из конфига, определяет минимальную высоту поверхности
+ * в пределах структуры и размещает её на безопасной глубине.
+ * Если слишком много угловых блоков структуры оказываются в воздухе или жидкости —
+ * генерация отменяется, чтобы избежать плавающих ископаемых.
  */
 public class FossilFeature extends Feature<FossilFeatureConfig> {
+
+	private static final int DEPTH_BELOW_SURFACE = 15;
+	private static final int DEPTH_RANDOM_EXTRA = 10;
+	private static final int MIN_Y_ABOVE_BOTTOM = 10;
+	private static final int PLACE_FLAGS = 260;
 
 	public FossilFeature(Codec<FossilFeatureConfig> codec) {
 		super(codec);
@@ -30,80 +39,74 @@ public class FossilFeature extends Feature<FossilFeatureConfig> {
 	@Override
 	public boolean generate(FeatureContext<FossilFeatureConfig> context) {
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		BlockRotation blockRotation = BlockRotation.random(random);
-		FossilFeatureConfig fossilFeatureConfig = context.getConfig();
-		int i = random.nextInt(fossilFeatureConfig.fossilStructures.size());
-		StructureTemplateManager
-				structureTemplateManager =
-				structureWorldAccess.toServerWorld().getServer().getStructureTemplateManager();
-		StructureTemplate
-				structureTemplate =
-				structureTemplateManager.getTemplateOrBlank(fossilFeatureConfig.fossilStructures.get(i));
-		StructureTemplate
-				structureTemplate2 =
-				structureTemplateManager.getTemplateOrBlank(fossilFeatureConfig.overlayStructures.get(i));
-		ChunkPos chunkPos = new ChunkPos(blockPos);
-		BlockBox blockBox = new BlockBox(
-				chunkPos.getStartX() - 16,
-				structureWorldAccess.getBottomY(),
-				chunkPos.getStartZ() - 16,
-				chunkPos.getEndX() + 16,
-				structureWorldAccess.getTopYInclusive(),
-				chunkPos.getEndZ() + 16
-		);
-		StructurePlacementData
-				structurePlacementData =
-				new StructurePlacementData().setRotation(blockRotation).setBoundingBox(blockBox).setRandom(random);
-		Vec3i vec3i = structureTemplate.getRotatedSize(blockRotation);
-		BlockPos blockPos2 = blockPos.add(-vec3i.getX() / 2, 0, -vec3i.getZ() / 2);
-		int j = blockPos.getY();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		BlockRotation rotation = BlockRotation.random(random);
+		FossilFeatureConfig config = context.getConfig();
 
-		for (int k = 0; k < vec3i.getX(); k++) {
-			for (int l = 0; l < vec3i.getZ(); l++) {
-				j =
-						Math.min(
-								j,
-								structureWorldAccess.getTopY(
-										Heightmap.Type.OCEAN_FLOOR_WG,
-										blockPos2.getX() + k,
-										blockPos2.getZ() + l
-								)
-						);
+		int structureIdx = random.nextInt(config.fossilStructures.size());
+		StructureTemplateManager templateManager = world.toServerWorld().getServer().getStructureTemplateManager();
+		StructureTemplate fossilTemplate = templateManager.getTemplateOrBlank(config.fossilStructures.get(structureIdx));
+		StructureTemplate overlayTemplate = templateManager.getTemplateOrBlank(config.overlayStructures.get(structureIdx));
+
+		ChunkPos chunkPos = new ChunkPos(origin);
+		BlockBox bounds = new BlockBox(
+			chunkPos.getStartX() - 16,
+			world.getBottomY(),
+			chunkPos.getStartZ() - 16,
+			chunkPos.getEndX() + 16,
+			world.getTopYInclusive(),
+			chunkPos.getEndZ() + 16
+		);
+		StructurePlacementData placement = new StructurePlacementData()
+			.setRotation(rotation)
+			.setBoundingBox(bounds)
+			.setRandom(random);
+
+		Vec3i size = fossilTemplate.getRotatedSize(rotation);
+		BlockPos corner = origin.add(-size.getX() / 2, 0, -size.getZ() / 2);
+		int minY = origin.getY();
+
+		for (int dx = 0; dx < size.getX(); dx++) {
+			for (int dz = 0; dz < size.getZ(); dz++) {
+				minY = Math.min(
+					minY,
+					world.getTopY(Heightmap.Type.OCEAN_FLOOR_WG, corner.getX() + dx, corner.getZ() + dz)
+				);
 			}
 		}
 
-		int k = Math.max(j - 15 - random.nextInt(10), structureWorldAccess.getBottomY() + 10);
-		BlockPos
-				blockPos3 =
-				structureTemplate.offsetByTransformedSize(blockPos2.withY(k), BlockMirror.NONE, blockRotation);
-		if (getEmptyCorners(
-				structureWorldAccess,
-				structureTemplate.calculateBoundingBox(structurePlacementData, blockPos3)
-		)
-				> fossilFeatureConfig.maxEmptyCorners) {
+		int placeY = Math.max(
+			minY - DEPTH_BELOW_SURFACE - random.nextInt(DEPTH_RANDOM_EXTRA),
+			world.getBottomY() + MIN_Y_ABOVE_BOTTOM
+		);
+		BlockPos placePos = fossilTemplate.offsetByTransformedSize(corner.withY(placeY), BlockMirror.NONE, rotation);
+
+		if (getEmptyCorners(world, fossilTemplate.calculateBoundingBox(placement, placePos)) > config.maxEmptyCorners) {
 			return false;
 		}
-		else {
-			structurePlacementData.clearProcessors();
-			fossilFeatureConfig.fossilProcessors.value().getList().forEach(structurePlacementData::addProcessor);
-			structureTemplate.place(structureWorldAccess, blockPos3, blockPos3, structurePlacementData, random, 260);
-			structurePlacementData.clearProcessors();
-			fossilFeatureConfig.overlayProcessors.value().getList().forEach(structurePlacementData::addProcessor);
-			structureTemplate2.place(structureWorldAccess, blockPos3, blockPos3, structurePlacementData, random, 260);
-			return true;
-		}
+
+		placement.clearProcessors();
+		config.fossilProcessors.value().getList().forEach(placement::addProcessor);
+		fossilTemplate.place(world, placePos, placePos, placement, random, PLACE_FLAGS);
+
+		placement.clearProcessors();
+		config.overlayProcessors.value().getList().forEach(placement::addProcessor);
+		overlayTemplate.place(world, placePos, placePos, placement, random, PLACE_FLAGS);
+
+		return true;
 	}
 
 	private static int getEmptyCorners(StructureWorldAccess world, BlockBox box) {
-		MutableInt mutableInt = new MutableInt(0);
+		MutableInt count = new MutableInt(0);
 		box.forEachVertex(pos -> {
-			BlockState blockState = world.getBlockState(pos);
-			if (blockState.isAir() || blockState.isOf(Blocks.LAVA) || blockState.isOf(Blocks.WATER)) {
-				mutableInt.add(1);
+			BlockState state = world.getBlockState(pos);
+
+			if (state.isAir() || state.isOf(Blocks.LAVA) || state.isOf(Blocks.WATER)) {
+				count.add(1);
 			}
 		});
-		return mutableInt.intValue();
+
+		return count.intValue();
 	}
 }

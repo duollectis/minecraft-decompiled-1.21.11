@@ -8,7 +8,7 @@ import net.minecraft.world.World;
 import java.util.function.Supplier;
 
 /**
- * {@code ChestBoatEntity}.
+ * Лодка со встроенным сундуком. Пассажир крепится на высоте 1/3 от высоты корпуса.
  */
 public class ChestBoatEntity extends AbstractChestBoatEntity {
 

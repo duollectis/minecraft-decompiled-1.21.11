@@ -7,7 +7,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
 /**
- * {@code WrittenBookItem}.
+ * Написанная книга — открывает интерфейс чтения книги при использовании.
  */
 public class WrittenBookItem extends Item {
 

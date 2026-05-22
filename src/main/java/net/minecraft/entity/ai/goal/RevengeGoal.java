@@ -12,18 +12,19 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 
 /**
- * {@code RevengeGoal}.
+ * Цель мести: атакует существо, которое последним ударило моба.
+ * Поддерживает групповую месть — оповещает соседних мобов того же типа.
  */
 public class RevengeGoal extends TrackTargetGoal {
 
-	private static final TargetPredicate
-			VALID_AVOIDABLES_PREDICATE =
+	private static final TargetPredicate VALID_AVOIDABLES_PREDICATE =
 			TargetPredicate.createAttackable().ignoreVisibility().ignoreDistanceScalingFactor();
 	private static final int BOX_VERTICAL_EXPANSION = 10;
+	private static final int MAX_VISIBILITY_WITHOUT_SIGHT = 300;
+
 	private boolean groupRevenge;
 	private int lastAttackedTime;
 	private final Class<?>[] noRevengeTypes;
@@ -32,106 +33,95 @@ public class RevengeGoal extends TrackTargetGoal {
 	public RevengeGoal(PathAwareEntity mob, Class<?>... noRevengeTypes) {
 		super(mob, true);
 		this.noRevengeTypes = noRevengeTypes;
-		this.setControls(EnumSet.of(Goal.Control.TARGET));
+		setControls(EnumSet.of(Goal.Control.TARGET));
 	}
 
 	@Override
 	public boolean canStart() {
-		int i = this.mob.getLastAttackedTime();
-		LivingEntity livingEntity = this.mob.getAttacker();
-		if (i != this.lastAttackedTime && livingEntity != null) {
-			if (livingEntity.getType() == EntityType.PLAYER && getServerWorld(this.mob)
-					.getGameRules()
-					.getValue(GameRules.UNIVERSAL_ANGER)) {
-				return false;
-			}
-			else {
-				for (Class<?> class_ : this.noRevengeTypes) {
-					if (class_.isAssignableFrom(livingEntity.getClass())) {
-						return false;
-					}
-				}
+		int attackedTime = mob.getLastAttackedTime();
+		LivingEntity attacker = mob.getAttacker();
 
-				return this.canTrack(livingEntity, VALID_AVOIDABLES_PREDICATE);
-			}
-		}
-		else {
+		if (attackedTime == lastAttackedTime || attacker == null) {
 			return false;
 		}
+
+		if (attacker.getType() == EntityType.PLAYER
+				&& getServerWorld(mob).getGameRules().getValue(GameRules.UNIVERSAL_ANGER)) {
+			return false;
+		}
+
+		for (Class<?> excluded : noRevengeTypes) {
+			if (excluded.isAssignableFrom(attacker.getClass())) {
+				return false;
+			}
+		}
+
+		return canTrack(attacker, VALID_AVOIDABLES_PREDICATE);
 	}
 
 	public RevengeGoal setGroupRevenge(Class<?>... noHelpTypes) {
-		this.groupRevenge = true;
+		groupRevenge = true;
 		this.noHelpTypes = noHelpTypes;
 		return this;
 	}
 
 	@Override
 	public void start() {
-		this.mob.setTarget(this.mob.getAttacker());
-		this.target = this.mob.getTarget();
-		this.lastAttackedTime = this.mob.getLastAttackedTime();
-		this.maxTimeWithoutVisibility = 300;
-		if (this.groupRevenge) {
-			this.callSameTypeForRevenge();
+		mob.setTarget(mob.getAttacker());
+		target = mob.getTarget();
+		lastAttackedTime = mob.getLastAttackedTime();
+		maxTimeWithoutVisibility = MAX_VISIBILITY_WITHOUT_SIGHT;
+
+		if (groupRevenge) {
+			callSameTypeForRevenge();
 		}
 
 		super.start();
 	}
 
-	/**
-	 * Call same type for revenge.
-	 */
 	protected void callSameTypeForRevenge() {
-		double d = this.getFollowRange();
-		Box box = Box.from(this.mob.getEntityPos()).expand(d, 10.0, d);
-		List<? extends MobEntity> list = this.mob
-				.getEntityWorld()
-				.getEntitiesByClass(
-						(Class<? extends MobEntity>) this.mob.getClass(),
-						box,
-						EntityPredicates.EXCEPT_SPECTATOR
-				);
-		Iterator var5 = list.iterator();
+		double followRange = getFollowRange();
+		Box searchBox = Box.from(mob.getEntityPos()).expand(followRange, BOX_VERTICAL_EXPANSION, followRange);
 
-		while (true) {
-			MobEntity mobEntity;
-			while (true) {
-				if (!var5.hasNext()) {
-					return;
-				}
+		@SuppressWarnings("unchecked")
+		List<? extends MobEntity> nearby = mob.getEntityWorld().getEntitiesByClass(
+				(Class<? extends MobEntity>) mob.getClass(),
+				searchBox,
+				EntityPredicates.EXCEPT_SPECTATOR
+		);
 
-				mobEntity = (MobEntity) var5.next();
-				if (this.mob != mobEntity
-						&& mobEntity.getTarget() == null
-						&& (!(this.mob instanceof TameableEntity)
-						|| ((TameableEntity) this.mob).getOwner() == ((TameableEntity) mobEntity).getOwner()
-				)
-						&& !mobEntity.isTeammate(this.mob.getAttacker())) {
-					if (this.noHelpTypes == null) {
-						break;
-					}
+		LivingEntity attacker = mob.getAttacker();
 
-					boolean bl = false;
-
-					for (Class<?> class_ : this.noHelpTypes) {
-						if (mobEntity.getClass() == class_) {
-							bl = true;
-							break;
-						}
-					}
-
-					if (!bl) {
-						break;
-					}
-				}
+		for (MobEntity ally : nearby) {
+			if (ally == mob || ally.getTarget() != null || ally.isTeammate(attacker)) {
+				continue;
 			}
 
-			this.setMobEntityTarget(mobEntity, this.mob.getAttacker());
+			if (mob instanceof TameableEntity thisTameable
+					&& ally instanceof TameableEntity allyTameable
+					&& thisTameable.getOwner() != allyTameable.getOwner()) {
+				continue;
+			}
+
+			if (noHelpTypes != null && isExcludedFromHelp(ally)) {
+				continue;
+			}
+
+			setMobEntityTarget(ally, attacker);
 		}
 	}
 
-	protected void setMobEntityTarget(MobEntity mob, LivingEntity target) {
-		mob.setTarget(target);
+	private boolean isExcludedFromHelp(MobEntity ally) {
+		for (Class<?> excluded : noHelpTypes) {
+			if (ally.getClass() == excluded) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	protected void setMobEntityTarget(MobEntity ally, LivingEntity target) {
+		ally.setTarget(target);
 	}
 }

@@ -20,16 +20,14 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.CommandBlockExecutor;
 
 /**
- * {@code CommandBlockBlockEntity}.
+ * Блок-сущность командного блока. Хранит состояние питания, режим авто-выполнения
+ * и результат проверки условия для цепочечных командных блоков.
  */
 public class CommandBlockBlockEntity extends BlockEntity {
 
-	private static final boolean DEFAULT_POWERED = false;
-	private static final boolean DEFAULT_AUTO = false;
-	private static final boolean DEFAULT_CONDITION_MET = false;
-	private boolean powered = false;
-	private boolean auto = false;
-	private boolean conditionMet = false;
+	private boolean powered;
+	private boolean auto;
+	private boolean conditionMet;
 	private final CommandBlockExecutor commandExecutor = new CommandBlockExecutor() {
 		@Override
 		public void setCommand(String command) {
@@ -72,23 +70,23 @@ public class CommandBlockBlockEntity extends BlockEntity {
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		this.commandExecutor.writeData(view);
-		view.putBoolean("powered", this.isPowered());
-		view.putBoolean("conditionMet", this.isConditionMet());
-		view.putBoolean("auto", this.isAuto());
+		commandExecutor.writeData(view);
+		view.putBoolean("powered", isPowered());
+		view.putBoolean("conditionMet", isConditionMet());
+		view.putBoolean("auto", isAuto());
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.commandExecutor.readData(view);
-		this.powered = view.getBoolean("powered", false);
-		this.conditionMet = view.getBoolean("conditionMet", false);
-		this.setAuto(view.getBoolean("auto", false));
+		commandExecutor.readData(view);
+		powered = view.getBoolean("powered", false);
+		conditionMet = view.getBoolean("conditionMet", false);
+		setAuto(view.getBoolean("auto", false));
 	}
 
 	public CommandBlockExecutor getCommandExecutor() {
-		return this.commandExecutor;
+		return commandExecutor;
 	}
 
 	public void setPowered(boolean powered) {
@@ -96,97 +94,92 @@ public class CommandBlockBlockEntity extends BlockEntity {
 	}
 
 	public boolean isPowered() {
-		return this.powered;
+		return powered;
 	}
 
 	public boolean isAuto() {
-		return this.auto;
+		return auto;
 	}
 
 	public void setAuto(boolean auto) {
-		boolean bl = this.auto;
+		boolean wasAuto = this.auto;
 		this.auto = auto;
-		if (!bl && auto && !this.powered && this.world != null
-				&& this.getCommandBlockType() != CommandBlockBlockEntity.Type.SEQUENCE) {
-			this.scheduleAutoTick();
+		if (!wasAuto && auto && !powered && world != null
+				&& getCommandBlockType() != Type.SEQUENCE
+		) {
+			scheduleAutoTick();
 		}
 	}
 
 	/**
-	 * Обновляет command block.
+	 * Планирует авто-тик для повторяющегося командного блока, если он активен
+	 * (получает питание или работает в режиме авто).
 	 */
 	public void updateCommandBlock() {
-		CommandBlockBlockEntity.Type type = this.getCommandBlockType();
-		if (type == CommandBlockBlockEntity.Type.AUTO && (this.powered || this.auto) && this.world != null) {
-			this.scheduleAutoTick();
+		if (getCommandBlockType() == Type.AUTO && (powered || auto) && world != null) {
+			scheduleAutoTick();
 		}
 	}
 
 	private void scheduleAutoTick() {
-		Block block = this.getCachedState().getBlock();
+		Block block = getCachedState().getBlock();
 		if (block instanceof CommandBlock) {
-			this.updateConditionMet();
-			this.world.scheduleBlockTick(this.pos, block, 1);
+			updateConditionMet();
+			world.scheduleBlockTick(pos, block, 1);
 		}
 	}
 
 	public boolean isConditionMet() {
-		return this.conditionMet;
+		return conditionMet;
 	}
 
 	/**
-	 * Обновляет condition met.
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, выполнено ли условие для цепочечного командного блока:
+	 * предыдущий блок в цепочке должен был успешно выполнить команду.
 	 */
 	public boolean updateConditionMet() {
-		this.conditionMet = true;
-		if (this.isConditionalCommandBlock()) {
-			BlockPos
-					blockPos =
-					this.pos.offset(this.world.getBlockState(this.pos).get(CommandBlock.FACING).getOpposite());
-			if (this.world.getBlockState(blockPos).getBlock() instanceof CommandBlock) {
-				BlockEntity blockEntity = this.world.getBlockEntity(blockPos);
-				this.conditionMet = blockEntity instanceof CommandBlockBlockEntity
-						&& ((CommandBlockBlockEntity) blockEntity).getCommandExecutor().getSuccessCount() > 0;
-			}
-			else {
-				this.conditionMet = false;
+		conditionMet = true;
+		if (isConditionalCommandBlock()) {
+			BlockPos prevPos = pos.offset(world.getBlockState(pos).get(CommandBlock.FACING).getOpposite());
+			if (world.getBlockState(prevPos).getBlock() instanceof CommandBlock) {
+				conditionMet = world.getBlockEntity(prevPos) instanceof CommandBlockBlockEntity prevBlock
+						&& prevBlock.getCommandExecutor().getSuccessCount() > 0;
+			} else {
+				conditionMet = false;
 			}
 		}
 
-		return this.conditionMet;
+		return conditionMet;
 	}
 
-	public CommandBlockBlockEntity.Type getCommandBlockType() {
-		BlockState blockState = this.getCachedState();
+	public Type getCommandBlockType() {
+		BlockState blockState = getCachedState();
 		if (blockState.isOf(Blocks.COMMAND_BLOCK)) {
-			return CommandBlockBlockEntity.Type.REDSTONE;
+			return Type.REDSTONE;
+		} else if (blockState.isOf(Blocks.REPEATING_COMMAND_BLOCK)) {
+			return Type.AUTO;
 		}
-		else if (blockState.isOf(Blocks.REPEATING_COMMAND_BLOCK)) {
-			return CommandBlockBlockEntity.Type.AUTO;
-		}
-		else {
-			return blockState.isOf(Blocks.CHAIN_COMMAND_BLOCK) ? CommandBlockBlockEntity.Type.SEQUENCE
-			                                                   : CommandBlockBlockEntity.Type.REDSTONE;
-		}
+
+		return blockState.isOf(Blocks.CHAIN_COMMAND_BLOCK) ? Type.SEQUENCE : Type.REDSTONE;
 	}
 
 	public boolean isConditionalCommandBlock() {
-		BlockState blockState = this.world.getBlockState(this.getPos());
-		return blockState.getBlock() instanceof CommandBlock ? blockState.get(CommandBlock.CONDITIONAL) : false;
+		BlockState blockState = world.getBlockState(getPos());
+		return blockState.getBlock() instanceof CommandBlock
+				? blockState.get(CommandBlock.CONDITIONAL)
+				: false;
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.commandExecutor.setCustomName(components.get(DataComponentTypes.CUSTOM_NAME));
+		commandExecutor.setCustomName(components.get(DataComponentTypes.CUSTOM_NAME));
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.CUSTOM_NAME, this.commandExecutor.getCustomName());
+		builder.add(DataComponentTypes.CUSTOM_NAME, commandExecutor.getCustomName());
 	}
 
 	@Override
@@ -197,12 +190,9 @@ public class CommandBlockBlockEntity extends BlockEntity {
 		view.remove("powered");
 	}
 
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		SEQUENCE,
 		AUTO,
-		REDSTONE;
+		REDSTONE
 	}
 }

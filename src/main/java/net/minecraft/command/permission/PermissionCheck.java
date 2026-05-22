@@ -6,22 +6,20 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.registry.Registries;
 
 /**
- * {@code PermissionCheck}.
+ * Проверка наличия разрешения у источника команды.
+ * {@link AlwaysPass} — безусловно разрешает, {@link Require} — требует конкретное {@link Permission}.
  */
 public interface PermissionCheck {
 
-	Codec<PermissionCheck>
-			CODEC =
-			Registries.PERMISSION_CHECK_TYPE.getCodec().dispatch(PermissionCheck::getCodec, codec -> codec);
+	Codec<PermissionCheck> CODEC = Registries.PERMISSION_CHECK_TYPE
+			.getCodec()
+			.dispatch(PermissionCheck::getCodec, codec -> codec);
 
 	boolean allows(PermissionPredicate permissions);
 
 	MapCodec<? extends PermissionCheck> getCodec();
 
-	/**
-	 * {@code AlwaysPass}.
-	 */
-	public static class AlwaysPass implements PermissionCheck {
+	class AlwaysPass implements PermissionCheck {
 
 		public static final PermissionCheck.AlwaysPass INSTANCE = new PermissionCheck.AlwaysPass();
 		public static final MapCodec<PermissionCheck.AlwaysPass> CODEC = MapCodec.unit(INSTANCE);
@@ -40,10 +38,7 @@ public interface PermissionCheck {
 		}
 	}
 
-	/**
-	 * {@code Require}.
-	 */
-	public record Require(Permission permission) implements PermissionCheck {
+	record Require(Permission permission) implements PermissionCheck {
 
 		public static final MapCodec<PermissionCheck.Require> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance
@@ -58,7 +53,7 @@ public interface PermissionCheck {
 
 		@Override
 		public boolean allows(PermissionPredicate permissions) {
-			return permissions.hasPermission(this.permission);
+			return permissions.hasPermission(permission);
 		}
 	}
 }

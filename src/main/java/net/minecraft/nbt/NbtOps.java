@@ -22,7 +22,10 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 /**
- * {@code NbtOps}.
+ * Реализация {@link DynamicOps} для NBT-формата.
+ * <p>
+ * Позволяет использовать NBT как целевой формат для кодеков DFU ({@code Codec}, {@code MapCodec}).
+ * Синглтон — доступен через {@link #INSTANCE}.
  */
 public class NbtOps implements DynamicOps<NbtElement> {
 
@@ -31,489 +34,338 @@ public class NbtOps implements DynamicOps<NbtElement> {
 	private NbtOps() {
 	}
 
-	/**
-	 * Empty.
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement empty() {
 		return NbtEnd.INSTANCE;
 	}
 
-	/**
-	 * Empty list.
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement emptyList() {
 		return new NbtList();
 	}
 
-	/**
-	 * Empty map.
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement emptyMap() {
 		return new NbtCompound();
 	}
 
 	/**
-	 * Конвертирует to.
-	 *
-	 * @param dynamicOps dynamic ops
-	 * @param nbtElement nbt element
-	 *
-	 * @return U — результат операции
+	 * Конвертирует NBT-элемент в целевой формат {@code U}, используя соответствующий метод {@link DynamicOps}.
+	 * Поддерживает все 13 типов NBT через exhaustive pattern matching.
 	 */
-	public <U> U convertTo(DynamicOps<U> dynamicOps, NbtElement nbtElement) {
-		return (U) (switch (nbtElement) {
-			case NbtEnd nbtEnd -> (Object) dynamicOps.empty();
-			case NbtByte(byte var34) -> (Object) dynamicOps.createByte(var34);
-			case NbtShort(short var35) -> (Object) dynamicOps.createShort(var35);
-			case NbtInt(int var36) -> (Object) dynamicOps.createInt(var36);
-			case NbtLong(long var37) -> (Object) dynamicOps.createLong(var37);
-			case NbtFloat(float var38) -> (Object) dynamicOps.createFloat(var38);
-			case NbtDouble(double var39) -> (Object) dynamicOps.createDouble(var39);
-			case NbtByteArray nbtByteArray ->
-					(Object) dynamicOps.createByteList(ByteBuffer.wrap(nbtByteArray.getByteArray()));
-			case NbtString(String var40) -> (Object) dynamicOps.createString(var40);
-			case NbtList nbtList -> (Object) this.convertList(dynamicOps, nbtList);
-			case NbtCompound nbtCompound -> (Object) this.convertMap(dynamicOps, nbtCompound);
-			case NbtIntArray nbtIntArray -> (Object) dynamicOps.createIntList(Arrays.stream(nbtIntArray.getIntArray()));
-			case NbtLongArray nbtLongArray ->
-					(Object) dynamicOps.createLongList(Arrays.stream(nbtLongArray.getLongArray()));
+	@Override
+	public <U> U convertTo(DynamicOps<U> dynamicOps, NbtElement element) {
+		return (U) (switch (element) {
+			case NbtEnd ignored -> (Object) dynamicOps.empty();
+			case NbtByte(byte value) -> (Object) dynamicOps.createByte(value);
+			case NbtShort(short value) -> (Object) dynamicOps.createShort(value);
+			case NbtInt(int value) -> (Object) dynamicOps.createInt(value);
+			case NbtLong(long value) -> (Object) dynamicOps.createLong(value);
+			case NbtFloat(float value) -> (Object) dynamicOps.createFloat(value);
+			case NbtDouble(double value) -> (Object) dynamicOps.createDouble(value);
+			case NbtByteArray array -> (Object) dynamicOps.createByteList(ByteBuffer.wrap(array.getByteArray()));
+			case NbtString(String value) -> (Object) dynamicOps.createString(value);
+			case NbtList list -> (Object) convertList(dynamicOps, list);
+			case NbtCompound compound -> (Object) convertMap(dynamicOps, compound);
+			case NbtIntArray array -> (Object) dynamicOps.createIntList(Arrays.stream(array.getIntArray()));
+			case NbtLongArray array -> (Object) dynamicOps.createLongList(Arrays.stream(array.getLongArray()));
 			default -> throw new MatchException(null, null);
-		}
-		);
+		});
 	}
 
-	public DataResult<Number> getNumberValue(NbtElement nbtElement) {
-		return nbtElement
-				.asNumber()
-				.<DataResult<Number>>map(DataResult::success)
-				.orElseGet(() -> DataResult.error(() -> "Not a number"));
+	@Override
+	public DataResult<Number> getNumberValue(NbtElement element) {
+		return element
+			.asNumber()
+			.<DataResult<Number>>map(DataResult::success)
+			.orElseGet(() -> DataResult.error(() -> "Not a number"));
 	}
 
-	/**
-	 * Создаёт numeric.
-	 *
-	 * @param number number
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement createNumeric(Number number) {
 		return NbtDouble.of(number.doubleValue());
 	}
 
-	/**
-	 * Создаёт byte.
-	 *
-	 * @param b b
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createByte(byte b) {
-		return NbtByte.of(b);
+	@Override
+	public NbtElement createByte(byte value) {
+		return NbtByte.of(value);
+	}
+
+	@Override
+	public NbtElement createShort(short value) {
+		return NbtShort.of(value);
+	}
+
+	@Override
+	public NbtElement createInt(int value) {
+		return NbtInt.of(value);
+	}
+
+	@Override
+	public NbtElement createLong(long value) {
+		return NbtLong.of(value);
+	}
+
+	@Override
+	public NbtElement createFloat(float value) {
+		return NbtFloat.of(value);
+	}
+
+	@Override
+	public NbtElement createDouble(double value) {
+		return NbtDouble.of(value);
+	}
+
+	@Override
+	public NbtElement createBoolean(boolean value) {
+		return NbtByte.of(value);
+	}
+
+	@Override
+	public DataResult<String> getStringValue(NbtElement element) {
+		return element instanceof NbtString(String value)
+			? DataResult.success(value)
+			: DataResult.error(() -> "Not a string");
+	}
+
+	@Override
+	public NbtElement createString(String value) {
+		return NbtString.of(value);
+	}
+
+	@Override
+	public DataResult<NbtElement> mergeToList(NbtElement list, NbtElement element) {
+		return createMerger(list)
+			.map(merger -> DataResult.success(merger.merge(element).getResult()))
+			.orElseGet(() -> DataResult.error(
+				() -> "mergeToList called with not a list: " + list,
+				list
+			));
+	}
+
+	@Override
+	public DataResult<NbtElement> mergeToList(NbtElement list, List<NbtElement> elements) {
+		return createMerger(list)
+			.map(merger -> DataResult.success(merger.merge(elements).getResult()))
+			.orElseGet(() -> DataResult.error(
+				() -> "mergeToList called with not a list: " + list,
+				list
+			));
 	}
 
 	/**
-	 * Создаёт short.
-	 *
-	 * @param s s
-	 *
-	 * @return NbtElement — результат операции
+	 * Добавляет пару ключ-значение в NBT-компаунд.
+	 * Ключ должен быть {@link NbtString}, иначе возвращается ошибка.
 	 */
-	public NbtElement createShort(short s) {
-		return NbtShort.of(s);
-	}
-
-	/**
-	 * Создаёт int.
-	 *
-	 * @param i i
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createInt(int i) {
-		return NbtInt.of(i);
-	}
-
-	/**
-	 * Создаёт long.
-	 *
-	 * @param l l
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createLong(long l) {
-		return NbtLong.of(l);
-	}
-
-	/**
-	 * Создаёт float.
-	 *
-	 * @param f f
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createFloat(float f) {
-		return NbtFloat.of(f);
-	}
-
-	/**
-	 * Создаёт double.
-	 *
-	 * @param d d
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createDouble(double d) {
-		return NbtDouble.of(d);
-	}
-
-	/**
-	 * Создаёт boolean.
-	 *
-	 * @param bl bl
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createBoolean(boolean bl) {
-		return NbtByte.of(bl);
-	}
-
-	public DataResult<String> getStringValue(NbtElement nbtElement) {
-		return nbtElement instanceof NbtString(String var4) ? DataResult.success(var4)
-		                                                    : DataResult.error(() -> "Not a string");
-	}
-
-	/**
-	 * Создаёт string.
-	 *
-	 * @param string string
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createString(String string) {
-		return NbtString.of(string);
-	}
-
-	/**
-	 * Merge to list.
-	 *
-	 * @param nbtElement nbt element
-	 * @param nbtElement2 nbt element2
-	 *
-	 * @return DataResult — результат операции
-	 */
-	public DataResult<NbtElement> mergeToList(NbtElement nbtElement, NbtElement nbtElement2) {
-		return createMerger(nbtElement)
-				.map(merger -> DataResult.success(merger.merge(nbtElement2).getResult()))
-				.orElseGet(() -> DataResult.error(
-						() -> "mergeToList called with not a list: " + nbtElement,
-						nbtElement
-				));
-	}
-
-	/**
-	 * Merge to list.
-	 *
-	 * @param nbtElement nbt element
-	 * @param list list
-	 *
-	 * @return DataResult — результат операции
-	 */
-	public DataResult<NbtElement> mergeToList(NbtElement nbtElement, List<NbtElement> list) {
-		return createMerger(nbtElement)
-				.map(merger -> DataResult.success(merger.merge(list).getResult()))
-				.orElseGet(() -> DataResult.error(
-						() -> "mergeToList called with not a list: " + nbtElement,
-						nbtElement
-				));
-	}
-
-	/**
-	 * Merge to map.
-	 *
-	 * @param nbtElement nbt element
-	 * @param nbtElement2 nbt element2
-	 * @param nbtElement3 nbt element3
-	 *
-	 * @return DataResult — результат операции
-	 */
-	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, NbtElement nbtElement2, NbtElement nbtElement3) {
-		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
-			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
+	@Override
+	public DataResult<NbtElement> mergeToMap(NbtElement map, NbtElement key, NbtElement value) {
+		if (!(map instanceof NbtCompound) && !(map instanceof NbtEnd)) {
+			return DataResult.error(() -> "mergeToMap called with not a map: " + map, map);
 		}
-		else if (nbtElement2 instanceof NbtString(String var10)) {
-			String nbtCompound = var10;
-			NbtCompound
-					nbtCompound2 =
-					nbtElement instanceof NbtCompound nbtCompoundx ? nbtCompoundx.shallowCopy() : new NbtCompound();
-			nbtCompound2.put(nbtCompound, nbtElement3);
-			return DataResult.success(nbtCompound2);
+
+		if (!(key instanceof NbtString(String keyStr))) {
+			return DataResult.error(() -> "key is not a string: " + key, map);
 		}
-		else {
-			return DataResult.error(() -> "key is not a string: " + nbtElement2, nbtElement);
-		}
+
+		NbtCompound result = map instanceof NbtCompound compound ? compound.shallowCopy() : new NbtCompound();
+		result.put(keyStr, value);
+		return DataResult.success(result);
 	}
 
-	/**
-	 * Merge to map.
-	 *
-	 * @param nbtElement nbt element
-	 * @param mapLike map like
-	 *
-	 * @return DataResult — результат операции
-	 */
-	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, MapLike<NbtElement> mapLike) {
-		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
-			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
+	@Override
+	public DataResult<NbtElement> mergeToMap(NbtElement map, MapLike<NbtElement> entries) {
+		if (!(map instanceof NbtCompound) && !(map instanceof NbtEnd)) {
+			return DataResult.error(() -> "mergeToMap called with not a map: " + map, map);
 		}
-		else {
-			Iterator<Pair<NbtElement, NbtElement>> iterator = mapLike.entries().iterator();
-			if (!iterator.hasNext()) {
-				return nbtElement == this.empty() ? DataResult.success(this.emptyMap())
-				                                  : DataResult.success(nbtElement);
+
+		Iterator<Pair<NbtElement, NbtElement>> iterator = entries.entries().iterator();
+		if (!iterator.hasNext()) {
+			return map == empty() ? DataResult.success(emptyMap()) : DataResult.success(map);
+		}
+
+		NbtCompound result = map instanceof NbtCompound compound ? compound.shallowCopy() : new NbtCompound();
+		List<NbtElement> invalidKeys = new ArrayList<>();
+
+		iterator.forEachRemaining(pair -> {
+			NbtElement entryKey = (NbtElement) pair.getFirst();
+			if (entryKey instanceof NbtString(String keyStr)) {
+				result.put(keyStr, (NbtElement) pair.getSecond());
 			}
 			else {
-				NbtCompound
-						nbtCompound2 =
-						nbtElement instanceof NbtCompound nbtCompound ? nbtCompound.shallowCopy() : new NbtCompound();
-				List<NbtElement> list = new ArrayList<>();
-				iterator.forEachRemaining(pair -> {
-					NbtElement nbtElementx = (NbtElement) pair.getFirst();
-					if (nbtElementx instanceof NbtString(String string)) {
-						nbtCompound2.put(string, (NbtElement) pair.getSecond());
-					}
-					else {
-						list.add(nbtElementx);
-					}
-				});
-				return !list.isEmpty() ? DataResult.error(() -> "some keys are not strings: " + list, nbtCompound2)
-				                       : DataResult.success(nbtCompound2);
-			}
-		}
-	}
-
-	/**
-	 * Merge to map.
-	 *
-	 * @param nbtElement nbt element
-	 * @param map map
-	 *
-	 * @return DataResult — результат операции
-	 */
-	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, Map<NbtElement, NbtElement> map) {
-		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
-			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
-		}
-		else if (map.isEmpty()) {
-			return nbtElement == this.empty() ? DataResult.success(this.emptyMap()) : DataResult.success(nbtElement);
-		}
-		else {
-			NbtCompound
-					nbtCompound2 =
-					nbtElement instanceof NbtCompound nbtCompound ? nbtCompound.shallowCopy() : new NbtCompound();
-			List<NbtElement> list = new ArrayList<>();
-
-			for (Entry<NbtElement, NbtElement> entry : map.entrySet()) {
-				NbtElement nbtElement2 = entry.getKey();
-				if (nbtElement2 instanceof NbtString(String var10)) {
-					nbtCompound2.put(var10, entry.getValue());
-				}
-				else {
-					list.add(nbtElement2);
-				}
-			}
-
-			return !list.isEmpty() ? DataResult.error(() -> "some keys are not strings: " + list, nbtCompound2)
-			                       : DataResult.success(nbtCompound2);
-		}
-	}
-
-	public DataResult<Stream<Pair<NbtElement, NbtElement>>> getMapValues(NbtElement nbtElement) {
-		return nbtElement instanceof NbtCompound nbtCompound
-		       ? DataResult.success(nbtCompound
-		                            .entrySet()
-		                            .stream()
-		                            .map(entry -> Pair.of(this.createString(entry.getKey()), entry.getValue())))
-		       : DataResult.error(() -> "Not a map: " + nbtElement);
-	}
-
-	public DataResult<Consumer<BiConsumer<NbtElement, NbtElement>>> getMapEntries(NbtElement nbtElement) {
-		return nbtElement instanceof NbtCompound nbtCompound
-		       ? DataResult.success((Consumer<BiConsumer<NbtElement, NbtElement>>) biConsumer -> {
-			for (Entry<String, NbtElement> entry : nbtCompound.entrySet()) {
-				biConsumer.accept(this.createString(entry.getKey()), entry.getValue());
-			}
-		}) : DataResult.error(() -> "Not a map: " + nbtElement);
-	}
-
-	public DataResult<MapLike<NbtElement>> getMap(NbtElement nbtElement) {
-		return nbtElement instanceof NbtCompound nbtCompound ? DataResult.success(new MapLike<NbtElement>() {
-			/**
-			 * Get.
-			 *
-			 * @param nbtElement nbt element
-			 *
-			 * @return @Nullable NbtElement — 
-			 */
-			public @Nullable NbtElement get(NbtElement nbtElement) {
-				if (nbtElement instanceof NbtString(String var4)) {
-					return nbtCompound.get(var4);
-				}
-				else {
-					throw new UnsupportedOperationException("Cannot get map entry with non-string key: " + nbtElement);
-				}
-			}
-
-			/**
-			 * Get.
-			 *
-			 * @param string string
-			 *
-			 * @return @Nullable NbtElement — 
-			 */
-			public @Nullable NbtElement get(String string) {
-				return nbtCompound.get(string);
-			}
-
-			/**
-			 * Entries.
-			 *
-			 * @return Stream> — результат операции
-			 */
-			public Stream<Pair<NbtElement, NbtElement>> entries() {
-				return nbtCompound
-						.entrySet()
-						.stream()
-						.map(entry -> Pair.of(NbtOps.this.createString(entry.getKey()), entry.getValue()));
-			}
-
-			@Override
-			public String toString() {
-				return "MapLike[" + nbtCompound + "]";
-			}
-		}) : DataResult.error(() -> "Not a map: " + nbtElement);
-	}
-
-	/**
-	 * Создаёт map.
-	 *
-	 * @param stream stream
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement createMap(Stream<Pair<NbtElement, NbtElement>> stream) {
-		NbtCompound nbtCompound = new NbtCompound();
-		stream.forEach(entry -> {
-			NbtElement nbtElement = (NbtElement) entry.getFirst();
-			NbtElement nbtElement2 = (NbtElement) entry.getSecond();
-			if (nbtElement instanceof NbtString(String string)) {
-				nbtCompound.put(string, nbtElement2);
-			}
-			else {
-				throw new UnsupportedOperationException("Cannot create map with non-string key: " + nbtElement);
+				invalidKeys.add(entryKey);
 			}
 		});
-		return nbtCompound;
+
+		return invalidKeys.isEmpty()
+			? DataResult.success(result)
+			: DataResult.error(() -> "some keys are not strings: " + invalidKeys, result);
 	}
 
-	public DataResult<Stream<NbtElement>> getStream(NbtElement nbtElement) {
-		return nbtElement instanceof AbstractNbtList abstractNbtList ? DataResult.success(abstractNbtList.stream())
-		                                                             : DataResult.error(() -> "Not a list");
+	@Override
+	public DataResult<NbtElement> mergeToMap(NbtElement map, Map<NbtElement, NbtElement> entries) {
+		if (!(map instanceof NbtCompound) && !(map instanceof NbtEnd)) {
+			return DataResult.error(() -> "mergeToMap called with not a map: " + map, map);
+		}
+
+		if (entries.isEmpty()) {
+			return map == empty() ? DataResult.success(emptyMap()) : DataResult.success(map);
+		}
+
+		NbtCompound result = map instanceof NbtCompound compound ? compound.shallowCopy() : new NbtCompound();
+		List<NbtElement> invalidKeys = new ArrayList<>();
+
+		for (Entry<NbtElement, NbtElement> entry : entries.entrySet()) {
+			NbtElement entryKey = entry.getKey();
+			if (entryKey instanceof NbtString(String keyStr)) {
+				result.put(keyStr, entry.getValue());
+			}
+			else {
+				invalidKeys.add(entryKey);
+			}
+		}
+
+		return invalidKeys.isEmpty()
+			? DataResult.success(result)
+			: DataResult.error(() -> "some keys are not strings: " + invalidKeys, result);
 	}
 
-	public DataResult<Consumer<Consumer<NbtElement>>> getList(NbtElement nbtElement) {
-		return nbtElement instanceof AbstractNbtList abstractNbtList
-		       ? DataResult.success(abstractNbtList::forEach)
-		       : DataResult.error(() -> "Not a list: " + nbtElement);
+	@Override
+	public DataResult<Stream<Pair<NbtElement, NbtElement>>> getMapValues(NbtElement element) {
+		return element instanceof NbtCompound compound
+			? DataResult.success(
+				compound.entrySet()
+					.stream()
+					.map(entry -> Pair.of(createString(entry.getKey()), entry.getValue()))
+			)
+			: DataResult.error(() -> "Not a map: " + element);
 	}
 
-	public DataResult<ByteBuffer> getByteBuffer(NbtElement nbtElement) {
-		return nbtElement instanceof NbtByteArray nbtByteArray
-		       ? DataResult.success(ByteBuffer.wrap(nbtByteArray.getByteArray()))
-		       : DynamicOps.super.getByteBuffer(nbtElement);
+	@Override
+	public DataResult<Consumer<BiConsumer<NbtElement, NbtElement>>> getMapEntries(NbtElement element) {
+		return element instanceof NbtCompound compound
+			? DataResult.success((Consumer<BiConsumer<NbtElement, NbtElement>>) biConsumer -> {
+				for (Entry<String, NbtElement> entry : compound.entrySet()) {
+					biConsumer.accept(createString(entry.getKey()), entry.getValue());
+				}
+			})
+			: DataResult.error(() -> "Not a map: " + element);
 	}
 
-	/**
-	 * Создаёт byte list.
-	 *
-	 * @param byteBuffer byte buffer
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
+	public DataResult<MapLike<NbtElement>> getMap(NbtElement element) {
+		return element instanceof NbtCompound compound
+			? DataResult.success(new MapLike<NbtElement>() {
+				public @Nullable NbtElement get(NbtElement key) {
+					if (key instanceof NbtString(String keyStr)) {
+						return compound.get(keyStr);
+					}
+
+					throw new UnsupportedOperationException(
+						"Cannot get map entry with non-string key: " + key
+					);
+				}
+
+				public @Nullable NbtElement get(String key) {
+					return compound.get(key);
+				}
+
+				public Stream<Pair<NbtElement, NbtElement>> entries() {
+					return compound.entrySet()
+						.stream()
+						.map(entry -> Pair.of(NbtOps.this.createString(entry.getKey()), entry.getValue()));
+				}
+
+				@Override
+				public String toString() {
+					return "MapLike[" + compound + "]";
+				}
+			})
+			: DataResult.error(() -> "Not a map: " + element);
+	}
+
+	@Override
+	public NbtElement createMap(Stream<Pair<NbtElement, NbtElement>> stream) {
+		NbtCompound compound = new NbtCompound();
+		stream.forEach(entry -> {
+			NbtElement key = (NbtElement) entry.getFirst();
+			NbtElement value = (NbtElement) entry.getSecond();
+			if (key instanceof NbtString(String keyStr)) {
+				compound.put(keyStr, value);
+			}
+			else {
+				throw new UnsupportedOperationException("Cannot create map with non-string key: " + key);
+			}
+		});
+		return compound;
+	}
+
+	@Override
+	public DataResult<Stream<NbtElement>> getStream(NbtElement element) {
+		return element instanceof AbstractNbtList list
+			? DataResult.success(list.stream())
+			: DataResult.error(() -> "Not a list");
+	}
+
+	@Override
+	public DataResult<Consumer<Consumer<NbtElement>>> getList(NbtElement element) {
+		return element instanceof AbstractNbtList list
+			? DataResult.success(list::forEach)
+			: DataResult.error(() -> "Not a list: " + element);
+	}
+
+	@Override
+	public DataResult<ByteBuffer> getByteBuffer(NbtElement element) {
+		return element instanceof NbtByteArray array
+			? DataResult.success(ByteBuffer.wrap(array.getByteArray()))
+			: DynamicOps.super.getByteBuffer(element);
+	}
+
+	@Override
 	public NbtElement createByteList(ByteBuffer byteBuffer) {
-		ByteBuffer byteBuffer2 = byteBuffer.duplicate().clear();
-		byte[] bs = new byte[byteBuffer.capacity()];
-		byteBuffer2.get(0, bs, 0, bs.length);
-		return new NbtByteArray(bs);
+		ByteBuffer duplicate = byteBuffer.duplicate().clear();
+		byte[] bytes = new byte[byteBuffer.capacity()];
+		duplicate.get(0, bytes, 0, bytes.length);
+		return new NbtByteArray(bytes);
 	}
 
-	public DataResult<IntStream> getIntStream(NbtElement nbtElement) {
-		return nbtElement instanceof NbtIntArray nbtIntArray
-		       ? DataResult.success(Arrays.stream(nbtIntArray.getIntArray()))
-		       : DynamicOps.super.getIntStream(nbtElement);
+	@Override
+	public DataResult<IntStream> getIntStream(NbtElement element) {
+		return element instanceof NbtIntArray array
+			? DataResult.success(Arrays.stream(array.getIntArray()))
+			: DynamicOps.super.getIntStream(element);
 	}
 
-	/**
-	 * Создаёт int list.
-	 *
-	 * @param intStream int stream
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement createIntList(IntStream intStream) {
 		return new NbtIntArray(intStream.toArray());
 	}
 
-	public DataResult<LongStream> getLongStream(NbtElement nbtElement) {
-		return nbtElement instanceof NbtLongArray nbtLongArray
-		       ? DataResult.success(Arrays.stream(nbtLongArray.getLongArray()))
-		       : DynamicOps.super.getLongStream(nbtElement);
+	@Override
+	public DataResult<LongStream> getLongStream(NbtElement element) {
+		return element instanceof NbtLongArray array
+			? DataResult.success(Arrays.stream(array.getLongArray()))
+			: DynamicOps.super.getLongStream(element);
 	}
 
-	/**
-	 * Создаёт long list.
-	 *
-	 * @param longStream long stream
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement createLongList(LongStream longStream) {
 		return new NbtLongArray(longStream.toArray());
 	}
 
-	/**
-	 * Создаёт list.
-	 *
-	 * @param stream stream
-	 *
-	 * @return NbtElement — результат операции
-	 */
+	@Override
 	public NbtElement createList(Stream<NbtElement> stream) {
 		return new NbtList(stream.collect(Util.toArrayList()));
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param nbtElement nbt element
-	 * @param string string
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement remove(NbtElement nbtElement, String string) {
-		if (nbtElement instanceof NbtCompound nbtCompound) {
-			NbtCompound nbtCompound2 = nbtCompound.shallowCopy();
-			nbtCompound2.remove(string);
-			return nbtCompound2;
+	@Override
+	public NbtElement remove(NbtElement element, String key) {
+		if (element instanceof NbtCompound compound) {
+			NbtCompound copy = compound.shallowCopy();
+			copy.remove(key);
+			return copy;
 		}
-		else {
-			return nbtElement;
-		}
+
+		return element;
 	}
 
 	@Override
@@ -521,11 +373,7 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		return "NBT";
 	}
 
-	/**
-	 * Map builder.
-	 *
-	 * @return RecordBuilder — результат операции
-	 */
+	@Override
 	public RecordBuilder<NbtElement> mapBuilder() {
 		return new NbtOps.MapBuilder();
 	}
@@ -534,57 +382,55 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		if (nbt instanceof NbtEnd) {
 			return Optional.of(new NbtOps.CompoundListMerger());
 		}
-		else if (nbt instanceof AbstractNbtList abstractNbtList) {
-			if (abstractNbtList.isEmpty()) {
+
+		if (nbt instanceof AbstractNbtList list) {
+			if (list.isEmpty()) {
 				return Optional.of(new NbtOps.CompoundListMerger());
 			}
-			else {
-				return switch (abstractNbtList) {
-					case NbtList nbtList -> Optional.of(new NbtOps.CompoundListMerger(nbtList));
-					case NbtByteArray nbtByteArray ->
-							Optional.of(new NbtOps.ByteArrayMerger(nbtByteArray.getByteArray()));
-					case NbtIntArray nbtIntArray -> Optional.of(new NbtOps.IntArrayMerger(nbtIntArray.getIntArray()));
-					case NbtLongArray nbtLongArray ->
-							Optional.of(new NbtOps.LongArrayMerger(nbtLongArray.getLongArray()));
-					default -> throw new MatchException(null, null);
-				};
-			}
+
+			return switch (list) {
+				case NbtList nbtList -> Optional.of(new NbtOps.CompoundListMerger(nbtList));
+				case NbtByteArray array -> Optional.of(new NbtOps.ByteArrayMerger(array.getByteArray()));
+				case NbtIntArray array -> Optional.of(new NbtOps.IntArrayMerger(array.getIntArray()));
+				case NbtLongArray array -> Optional.of(new NbtOps.LongArrayMerger(array.getLongArray()));
+				default -> throw new MatchException(null, null);
+			};
 		}
-		else {
-			return Optional.empty();
-		}
+
+		return Optional.empty();
 	}
 
 	/**
-	 * {@code ByteArrayMerger}.
+	 * Слияние элементов в {@link NbtByteArray}.
+	 * При добавлении не-байтового элемента автоматически деградирует до {@link CompoundListMerger}.
 	 */
 	static class ByteArrayMerger implements NbtOps.Merger {
 
 		private final ByteArrayList list = new ByteArrayList();
 
 		public ByteArrayMerger(byte[] values) {
-			this.list.addElements(0, values);
+			list.addElements(0, values);
 		}
 
 		@Override
 		public NbtOps.Merger merge(NbtElement nbt) {
 			if (nbt instanceof NbtByte nbtByte) {
-				this.list.add(nbtByte.byteValue());
+				list.add(nbtByte.byteValue());
 				return this;
 			}
-			else {
-				return new NbtOps.CompoundListMerger(this.list).merge(nbt);
-			}
+
+			return new NbtOps.CompoundListMerger(list).merge(nbt);
 		}
 
 		@Override
 		public NbtElement getResult() {
-			return new NbtByteArray(this.list.toByteArray());
+			return new NbtByteArray(list.toByteArray());
 		}
 	}
 
 	/**
-	 * {@code CompoundListMerger}.
+	 * Слияние элементов в {@link NbtList}.
+	 * Используется как универсальный fallback при гетерогенных типах.
 	 */
 	static class CompoundListMerger implements NbtOps.Merger {
 
@@ -594,91 +440,91 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		}
 
 		CompoundListMerger(NbtList nbtList) {
-			this.list.addAll(nbtList);
+			list.addAll(nbtList);
 		}
 
-		public CompoundListMerger(IntArrayList list) {
-			list.forEach(value -> this.list.add(NbtInt.of(value)));
+		public CompoundListMerger(IntArrayList source) {
+			source.forEach(value -> list.add(NbtInt.of(value)));
 		}
 
-		public CompoundListMerger(ByteArrayList list) {
-			list.forEach(value -> this.list.add(NbtByte.of(value)));
+		public CompoundListMerger(ByteArrayList source) {
+			source.forEach(value -> list.add(NbtByte.of(value)));
 		}
 
-		public CompoundListMerger(LongArrayList list) {
-			list.forEach(value -> this.list.add(NbtLong.of(value)));
+		public CompoundListMerger(LongArrayList source) {
+			source.forEach(value -> list.add(NbtLong.of(value)));
 		}
 
 		@Override
 		public NbtOps.Merger merge(NbtElement nbt) {
-			this.list.add(nbt);
+			list.add(nbt);
 			return this;
 		}
 
 		@Override
 		public NbtElement getResult() {
-			return this.list;
+			return list;
 		}
 	}
 
 	/**
-	 * {@code IntArrayMerger}.
+	 * Слияние элементов в {@link NbtIntArray}.
+	 * При добавлении не-int элемента деградирует до {@link CompoundListMerger}.
 	 */
 	static class IntArrayMerger implements NbtOps.Merger {
 
 		private final IntArrayList list = new IntArrayList();
 
 		public IntArrayMerger(int[] values) {
-			this.list.addElements(0, values);
+			list.addElements(0, values);
 		}
 
 		@Override
 		public NbtOps.Merger merge(NbtElement nbt) {
 			if (nbt instanceof NbtInt nbtInt) {
-				this.list.add(nbtInt.intValue());
+				list.add(nbtInt.intValue());
 				return this;
 			}
-			else {
-				return new NbtOps.CompoundListMerger(this.list).merge(nbt);
-			}
+
+			return new NbtOps.CompoundListMerger(list).merge(nbt);
 		}
 
 		@Override
 		public NbtElement getResult() {
-			return new NbtIntArray(this.list.toIntArray());
+			return new NbtIntArray(list.toIntArray());
 		}
 	}
 
 	/**
-	 * {@code LongArrayMerger}.
+	 * Слияние элементов в {@link NbtLongArray}.
+	 * При добавлении не-long элемента деградирует до {@link CompoundListMerger}.
 	 */
 	static class LongArrayMerger implements NbtOps.Merger {
 
 		private final LongArrayList list = new LongArrayList();
 
 		public LongArrayMerger(long[] values) {
-			this.list.addElements(0, values);
+			list.addElements(0, values);
 		}
 
 		@Override
 		public NbtOps.Merger merge(NbtElement nbt) {
 			if (nbt instanceof NbtLong nbtLong) {
-				this.list.add(nbtLong.longValue());
+				list.add(nbtLong.longValue());
 				return this;
 			}
-			else {
-				return new NbtOps.CompoundListMerger(this.list).merge(nbt);
-			}
+
+			return new NbtOps.CompoundListMerger(list).merge(nbt);
 		}
 
 		@Override
 		public NbtElement getResult() {
-			return new NbtLongArray(this.list.toLongArray());
+			return new NbtLongArray(list.toLongArray());
 		}
 	}
 
 	/**
-	 * {@code MapBuilder}.
+	 * Построитель NBT-компаунда для использования с DFU {@link RecordBuilder}.
 	 */
 	class MapBuilder extends AbstractStringBuilder<NbtElement, NbtCompound> {
 
@@ -686,58 +532,48 @@ public class NbtOps implements DynamicOps<NbtElement> {
 			super(NbtOps.this);
 		}
 
-		/**
-		 * Инициализирует builder.
-		 *
-		 * @return NbtCompound — результат операции
-		 */
+		@Override
 		protected NbtCompound initBuilder() {
 			return new NbtCompound();
 		}
 
-		/**
-		 * Append.
-		 *
-		 * @param string string
-		 * @param nbtElement nbt element
-		 * @param nbtCompound nbt compound
-		 *
-		 * @return NbtCompound — результат операции
-		 */
-		protected NbtCompound append(String string, NbtElement nbtElement, NbtCompound nbtCompound) {
-			nbtCompound.put(string, nbtElement);
-			return nbtCompound;
+		@Override
+		protected NbtCompound append(String key, NbtElement value, NbtCompound compound) {
+			compound.put(key, value);
+			return compound;
 		}
 
 		/**
-		 * Build.
-		 *
-		 * @param nbtCompound nbt compound
-		 * @param nbtElement nbt element
-		 *
-		 * @return DataResult — результат операции
+		 * Финализирует построение: если {@code prefix} является компаундом,
+		 * сливает накопленные поля в его копию. Если {@code prefix} — {@code NbtEnd} или {@code null},
+		 * возвращает накопленный компаунд как есть.
 		 */
-		protected DataResult<NbtElement> build(NbtCompound nbtCompound, NbtElement nbtElement) {
-			if (nbtElement == null || nbtElement == NbtEnd.INSTANCE) {
-				return DataResult.success(nbtCompound);
+		@Override
+		protected DataResult<NbtElement> build(NbtCompound accumulated, NbtElement prefix) {
+			if (prefix == null || prefix == NbtEnd.INSTANCE) {
+				return DataResult.success(accumulated);
 			}
-			else if (!(nbtElement instanceof NbtCompound nbtCompound2)) {
-				return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
-			}
-			else {
-				NbtCompound nbtCompound3 = nbtCompound2.shallowCopy();
 
-				for (Entry<String, NbtElement> entry : nbtCompound.entrySet()) {
-					nbtCompound3.put(entry.getKey(), entry.getValue());
-				}
-
-				return DataResult.success(nbtCompound3);
+			if (!(prefix instanceof NbtCompound prefixCompound)) {
+				return DataResult.error(
+					() -> "mergeToMap called with not a map: " + prefix,
+					prefix
+				);
 			}
+
+			NbtCompound result = prefixCompound.shallowCopy();
+
+			for (Entry<String, NbtElement> entry : accumulated.entrySet()) {
+				result.put(entry.getKey(), entry.getValue());
+			}
+
+			return DataResult.success(result);
 		}
 	}
 
 	/**
-	 * {@code Merger}.
+	 * Стратегия слияния NBT-элементов в коллекцию.
+	 * Реализации выбирают оптимальный тип контейнера и деградируют при необходимости.
 	 */
 	interface Merger {
 
@@ -746,15 +582,15 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		default NbtOps.Merger merge(Iterable<NbtElement> nbts) {
 			NbtOps.Merger merger = this;
 
-			for (NbtElement nbtElement : nbts) {
-				merger = merger.merge(nbtElement);
+			for (NbtElement element : nbts) {
+				merger = merger.merge(element);
 			}
 
 			return merger;
 		}
 
 		default NbtOps.Merger merge(Stream<NbtElement> nbts) {
-			return this.merge(nbts::iterator);
+			return merge(nbts::iterator);
 		}
 
 		NbtElement getResult();

@@ -13,13 +13,14 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code Path}.
+ * Маршрут навигации существа — упорядоченный список узлов пути от старта до цели.
+ * Хранит текущую позицию в маршруте и отладочную информацию для визуализации.
  */
 public final class Path {
 
-	public static final PacketCodec<PacketByteBuf, Path>
-			PACKET_CODEC =
+	public static final PacketCodec<PacketByteBuf, Path> PACKET_CODEC =
 			PacketCodec.ofStatic((buf, path) -> path.toBuf(buf), Path::fromBuf);
+
 	private final List<PathNode> nodes;
 	private Path.@Nullable DebugNodeInfo debugNodeInfos;
 	private int currentNodeIndex;
@@ -30,231 +31,197 @@ public final class Path {
 	public Path(List<PathNode> nodes, BlockPos target, boolean reachesTarget) {
 		this.nodes = nodes;
 		this.target = target;
-		this.manhattanDistanceFromTarget =
-				nodes.isEmpty() ? Float.MAX_VALUE
-				                : this.nodes.get(this.nodes.size() - 1).getManhattanDistance(this.target);
+		manhattanDistanceFromTarget = nodes.isEmpty()
+				? Float.MAX_VALUE
+				: nodes.get(nodes.size() - 1).getManhattanDistance(target);
 		this.reachesTarget = reachesTarget;
 	}
 
-	/**
-	 * Next.
-	 */
 	public void next() {
-		this.currentNodeIndex++;
+		currentNodeIndex++;
 	}
 
 	public boolean isStart() {
-		return this.currentNodeIndex <= 0;
+		return currentNodeIndex <= 0;
 	}
 
 	public boolean isFinished() {
-		return this.currentNodeIndex >= this.nodes.size();
+		return currentNodeIndex >= nodes.size();
 	}
 
 	public @Nullable PathNode getEnd() {
-		return !this.nodes.isEmpty() ? this.nodes.get(this.nodes.size() - 1) : null;
+		return nodes.isEmpty() ? null : nodes.get(nodes.size() - 1);
 	}
 
 	public PathNode getNode(int index) {
-		return this.nodes.get(index);
+		return nodes.get(index);
 	}
 
 	public void setLength(int length) {
-		if (this.nodes.size() > length) {
-			this.nodes.subList(length, this.nodes.size()).clear();
+		if (nodes.size() > length) {
+			nodes.subList(length, nodes.size()).clear();
 		}
 	}
 
 	public void setNode(int index, PathNode node) {
-		this.nodes.set(index, node);
+		nodes.set(index, node);
 	}
 
 	public int getLength() {
-		return this.nodes.size();
+		return nodes.size();
 	}
 
 	public int getCurrentNodeIndex() {
-		return this.currentNodeIndex;
+		return currentNodeIndex;
 	}
 
 	public void setCurrentNodeIndex(int nodeIndex) {
-		this.currentNodeIndex = nodeIndex;
-	}
-
-	public Vec3d getNodePosition(Entity entity, int index) {
-		PathNode pathNode = this.nodes.get(index);
-		double d = pathNode.x + (int) (entity.getWidth() + 1.0F) * 0.5;
-		double e = pathNode.y;
-		double f = pathNode.z + (int) (entity.getWidth() + 1.0F) * 0.5;
-		return new Vec3d(d, e, f);
-	}
-
-	public BlockPos getNodePos(int index) {
-		return this.nodes.get(index).getBlockPos();
-	}
-
-	public Vec3d getNodePosition(Entity entity) {
-		return this.getNodePosition(entity, this.currentNodeIndex);
-	}
-
-	public BlockPos getCurrentNodePos() {
-		return this.nodes.get(this.currentNodeIndex).getBlockPos();
-	}
-
-	public PathNode getCurrentNode() {
-		return this.nodes.get(this.currentNodeIndex);
-	}
-
-	public @Nullable PathNode getLastNode() {
-		return this.currentNodeIndex > 0 ? this.nodes.get(this.currentNodeIndex - 1) : null;
+		currentNodeIndex = nodeIndex;
 	}
 
 	/**
-	 * Проверяет равенство с path.
-	 *
-	 * @param path path
-	 *
-	 * @return boolean — результат операции
+	 * Вычисляет мировую позицию узла с учётом ширины существа (центрирование по X/Z).
 	 */
+	public Vec3d getNodePosition(Entity entity, int index) {
+		PathNode node = nodes.get(index);
+		double halfWidth = (int) (entity.getWidth() + 1.0F) * 0.5;
+		return new Vec3d(node.x + halfWidth, node.y, node.z + halfWidth);
+	}
+
+	public BlockPos getNodePos(int index) {
+		return nodes.get(index).getBlockPos();
+	}
+
+	public Vec3d getNodePosition(Entity entity) {
+		return getNodePosition(entity, currentNodeIndex);
+	}
+
+	public BlockPos getCurrentNodePos() {
+		return nodes.get(currentNodeIndex).getBlockPos();
+	}
+
+	public PathNode getCurrentNode() {
+		return nodes.get(currentNodeIndex);
+	}
+
+	public @Nullable PathNode getLastNode() {
+		return currentNodeIndex > 0 ? nodes.get(currentNodeIndex - 1) : null;
+	}
+
 	public boolean equalsPath(@Nullable Path path) {
-		return path != null && this.nodes.equals(path.nodes);
+		return path != null && nodes.equals(path.nodes);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return !(o instanceof Path path)
-		       ? false
-		       : this.currentNodeIndex == path.currentNodeIndex
-		         && this.debugNodeInfos == path.debugNodeInfos
-		         && this.reachesTarget == path.reachesTarget
-		         && this.target.equals(path.target)
-		         && this.nodes.equals(path.nodes);
+		if (o instanceof Path other) {
+			return currentNodeIndex == other.currentNodeIndex
+					&& debugNodeInfos == other.debugNodeInfos
+					&& reachesTarget == other.reachesTarget
+					&& target.equals(other.target)
+					&& nodes.equals(other.nodes);
+		}
+
+		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return this.currentNodeIndex + this.nodes.hashCode() * 31;
+		return currentNodeIndex + nodes.hashCode() * 31;
 	}
 
-	/**
-	 * Reaches target.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean reachesTarget() {
-		return this.reachesTarget;
+		return reachesTarget;
 	}
 
 	@Debug
 	void setDebugInfo(PathNode[] debugNodes, PathNode[] debugSecondNodes, Set<TargetPathNode> debugTargetNodes) {
-		this.debugNodeInfos = new Path.DebugNodeInfo(debugNodes, debugSecondNodes, debugTargetNodes);
+		debugNodeInfos = new Path.DebugNodeInfo(debugNodes, debugSecondNodes, debugTargetNodes);
 	}
 
 	public Path.@Nullable DebugNodeInfo getDebugNodeInfos() {
-		return this.debugNodeInfos;
+		return debugNodeInfos;
 	}
 
 	/**
-	 * To buf.
-	 *
-	 * @param buf buf
+	 * Сериализует путь в буфер пакета. Требует наличия отладочных данных.
 	 */
 	public void toBuf(PacketByteBuf buf) {
-		if (this.debugNodeInfos != null && !this.debugNodeInfos.targetNodes.isEmpty()) {
-			buf.writeBoolean(this.reachesTarget);
-			buf.writeInt(this.currentNodeIndex);
-			buf.writeBlockPos(this.target);
-			buf.writeCollection(this.nodes, (bufx, node) -> node.write(bufx));
-			this.debugNodeInfos.write(buf);
-		}
-		else {
+		if (debugNodeInfos == null || debugNodeInfos.targetNodes.isEmpty()) {
 			throw new IllegalStateException("Missing debug data");
 		}
+
+		buf.writeBoolean(reachesTarget);
+		buf.writeInt(currentNodeIndex);
+		buf.writeBlockPos(target);
+		buf.writeCollection(nodes, (bufx, node) -> node.write(bufx));
+		debugNodeInfos.write(buf);
 	}
 
-	/**
-	 * From buf.
-	 *
-	 * @param buf buf
-	 *
-	 * @return Path — результат операции
-	 */
 	public static Path fromBuf(PacketByteBuf buf) {
-		boolean bl = buf.readBoolean();
-		int i = buf.readInt();
-		BlockPos blockPos = buf.readBlockPos();
-		List<PathNode> list = buf.readList(PathNode::fromBuf);
-		Path.DebugNodeInfo debugNodeInfo = Path.DebugNodeInfo.fromBuf(buf);
-		Path path = new Path(list, blockPos, bl);
-		path.debugNodeInfos = debugNodeInfo;
-		path.currentNodeIndex = i;
+		boolean reachesTarget = buf.readBoolean();
+		int nodeIndex = buf.readInt();
+		BlockPos targetPos = buf.readBlockPos();
+		List<PathNode> nodeList = buf.readList(PathNode::fromBuf);
+		Path.DebugNodeInfo debugInfo = Path.DebugNodeInfo.fromBuf(buf);
+		Path path = new Path(nodeList, targetPos, reachesTarget);
+		path.debugNodeInfos = debugInfo;
+		path.currentNodeIndex = nodeIndex;
 		return path;
 	}
 
 	@Override
 	public String toString() {
-		return "Path(length=" + this.nodes.size() + ")";
+		return "Path(length=" + nodes.size() + ")";
 	}
 
 	public BlockPos getTarget() {
-		return this.target;
+		return target;
 	}
 
 	public float getManhattanDistanceFromTarget() {
-		return this.manhattanDistanceFromTarget;
+		return manhattanDistanceFromTarget;
 	}
 
 	static PathNode[] nodesFromBuf(PacketByteBuf buf) {
-		PathNode[] pathNodes = new PathNode[buf.readVarInt()];
+		PathNode[] result = new PathNode[buf.readVarInt()];
 
-		for (int i = 0; i < pathNodes.length; i++) {
-			pathNodes[i] = PathNode.fromBuf(buf);
+		for (int i = 0; i < result.length; i++) {
+			result[i] = PathNode.fromBuf(buf);
 		}
 
-		return pathNodes;
+		return result;
 	}
 
 	static void write(PacketByteBuf buf, PathNode[] nodes) {
 		buf.writeVarInt(nodes.length);
 
-		for (PathNode pathNode : nodes) {
-			pathNode.write(buf);
+		for (PathNode node : nodes) {
+			node.write(buf);
 		}
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return Path — результат операции
-	 */
 	public Path copy() {
-		Path path = new Path(this.nodes, this.target, this.reachesTarget);
-		path.debugNodeInfos = this.debugNodeInfos;
-		path.currentNodeIndex = this.currentNodeIndex;
-		return path;
+		Path copy = new Path(nodes, target, reachesTarget);
+		copy.debugNodeInfos = debugNodeInfos;
+		copy.currentNodeIndex = currentNodeIndex;
+		return copy;
 	}
 
-	/**
-	 * {@code DebugNodeInfo}.
-	 */
+	/** Отладочная информация о состоянии алгоритма A* для визуализации пути. */
 	public record DebugNodeInfo(PathNode[] openSet, PathNode[] closedSet, Set<TargetPathNode> targetNodes) {
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
-			buf.writeCollection(this.targetNodes, (bufx, node) -> node.write(bufx));
-			Path.write(buf, this.openSet);
-			Path.write(buf, this.closedSet);
+			buf.writeCollection(targetNodes, (bufx, node) -> node.write(bufx));
+			Path.write(buf, openSet);
+			Path.write(buf, closedSet);
 		}
 
 		public static Path.DebugNodeInfo fromBuf(PacketByteBuf buf) {
-			HashSet<TargetPathNode> hashSet = buf.readCollection(HashSet::new, TargetPathNode::fromBuffer);
-			PathNode[] pathNodes = Path.nodesFromBuf(buf);
-			PathNode[] pathNodes2 = Path.nodesFromBuf(buf);
-			return new Path.DebugNodeInfo(pathNodes, pathNodes2, hashSet);
+			HashSet<TargetPathNode> targets = buf.readCollection(HashSet::new, TargetPathNode::fromBuffer);
+			PathNode[] openNodes = Path.nodesFromBuf(buf);
+			PathNode[] closedNodes = Path.nodesFromBuf(buf);
+			return new Path.DebugNodeInfo(openNodes, closedNodes, targets);
 		}
 	}
 }

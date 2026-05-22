@@ -13,17 +13,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code SeekSkyTask}.
+ * Фабричный класс задачи мозга, направляющей существо к ближайшей позиции с открытым небом.
+ * Используется для существ, которым необходимо избегать закрытых пространств (например, летучие мыши).
  */
 public class SeekSkyTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
+	private static final int SEARCH_ATTEMPTS = 10;
+	private static final int SEARCH_HORIZONTAL_RANGE = 20;
+	private static final int SEARCH_VERTICAL_RANGE = 6;
+
 	public static SingleTickTask<LivingEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET)).apply(
@@ -31,11 +29,11 @@ public class SeekSkyTask {
 							if (world.isSkyVisible(entity.getBlockPos())) {
 								return false;
 							}
-							else {
-								Optional<Vec3d> optional = Optional.ofNullable(findNearbySky(world, entity));
-								optional.ifPresent(pos -> walkTarget.remember(new WalkTarget(pos, speed, 0)));
-								return true;
-							}
+
+							Optional.ofNullable(findNearbySky(world, entity))
+							        .ifPresent(pos -> walkTarget.remember(new WalkTarget(pos, speed, 0)));
+
+							return true;
 						}
 				)
 		);
@@ -43,12 +41,17 @@ public class SeekSkyTask {
 
 	private static @Nullable Vec3d findNearbySky(ServerWorld world, LivingEntity entity) {
 		Random random = entity.getRandom();
-		BlockPos blockPos = entity.getBlockPos();
+		BlockPos origin = entity.getBlockPos();
 
-		for (int i = 0; i < 10; i++) {
-			BlockPos blockPos2 = blockPos.add(random.nextInt(20) - 10, random.nextInt(6) - 3, random.nextInt(20) - 10);
-			if (isSkyVisible(world, entity, blockPos2)) {
-				return Vec3d.ofBottomCenter(blockPos2);
+		for (int attempt = 0; attempt < SEARCH_ATTEMPTS; attempt++) {
+			BlockPos candidate = origin.add(
+					random.nextInt(SEARCH_HORIZONTAL_RANGE) - SEARCH_HORIZONTAL_RANGE / 2,
+					random.nextInt(SEARCH_VERTICAL_RANGE) - SEARCH_VERTICAL_RANGE / 2,
+					random.nextInt(SEARCH_HORIZONTAL_RANGE) - SEARCH_HORIZONTAL_RANGE / 2
+			);
+
+			if (isSkyVisible(world, entity, candidate)) {
+				return Vec3d.ofBottomCenter(candidate);
 			}
 		}
 

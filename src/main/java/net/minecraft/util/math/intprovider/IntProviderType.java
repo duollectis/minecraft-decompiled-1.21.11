@@ -5,25 +5,17 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code IntProviderType}.
+ * Реестровый тип поставщика целых чисел. Связывает строковый идентификатор
+ * с конкретной реализацией {@link IntProvider} через {@link MapCodec}.
  */
 public interface IntProviderType<P extends IntProvider> {
 
 	IntProviderType<ConstantIntProvider> CONSTANT = register("constant", ConstantIntProvider.CODEC);
-
 	IntProviderType<UniformIntProvider> UNIFORM = register("uniform", UniformIntProvider.CODEC);
-
-	IntProviderType<BiasedToBottomIntProvider>
-			BIASED_TO_BOTTOM =
-			register("biased_to_bottom", BiasedToBottomIntProvider.CODEC);
-
+	IntProviderType<BiasedToBottomIntProvider> BIASED_TO_BOTTOM = register("biased_to_bottom", BiasedToBottomIntProvider.CODEC);
 	IntProviderType<ClampedIntProvider> CLAMPED = register("clamped", ClampedIntProvider.CODEC);
-
 	IntProviderType<WeightedListIntProvider> WEIGHTED_LIST = register("weighted_list", WeightedListIntProvider.CODEC);
-
-	IntProviderType<ClampedNormalIntProvider>
-			CLAMPED_NORMAL =
-			register("clamped_normal", ClampedNormalIntProvider.CODEC);
+	IntProviderType<ClampedNormalIntProvider> CLAMPED_NORMAL = register("clamped_normal", ClampedNormalIntProvider.CODEC);
 
 	MapCodec<P> codec();
 

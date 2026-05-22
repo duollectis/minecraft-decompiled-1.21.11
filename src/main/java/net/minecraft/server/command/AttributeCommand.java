@@ -27,7 +27,7 @@ import net.minecraft.util.Identifier;
 import java.util.stream.Stream;
 
 /**
- * {@code AttributeCommand}.
+ * Команда {@code /attribute}: чтение и изменение атрибутов сущностей.
  */
 public class AttributeCommand {
 

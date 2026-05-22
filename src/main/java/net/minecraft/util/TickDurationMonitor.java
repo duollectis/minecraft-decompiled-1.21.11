@@ -2,7 +2,11 @@ package net.minecraft.util;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.SharedConstants;
-import net.minecraft.util.profiler.*;
+import net.minecraft.util.profiler.DummyProfiler;
+import net.minecraft.util.profiler.ProfileResult;
+import net.minecraft.util.profiler.Profiler;
+import net.minecraft.util.profiler.ProfilerSystem;
+import net.minecraft.util.profiler.ReadableProfiler;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -10,15 +14,17 @@ import java.io.File;
 import java.util.function.LongSupplier;
 
 /**
- * {@code TickDurationMonitor}.
+ * Монитор длительности тиков: если тик превышает порог {@code overtime},
+ * результат профилирования сохраняется в файл для последующего анализа.
  */
 public class TickDurationMonitor {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final LongSupplier timeGetter;
 	private final long overtime;
-	private int tickCount;
 	private final File tickResultsDirectory;
+	private int tickCount;
 	private ReadableProfiler profiler = DummyProfiler.INSTANCE;
 
 	public TickDurationMonitor(LongSupplier timeGetter, String filename, long overtime) {
@@ -28,55 +34,53 @@ public class TickDurationMonitor {
 	}
 
 	/**
-	 * Next profiler.
+	 * Создаёт новый профилировщик для следующего тика и инкрементирует счётчик тиков.
 	 *
-	 * @return Profiler — результат операции
+	 * @return активный {@link Profiler} для текущего тика
 	 */
 	public Profiler nextProfiler() {
-		this.profiler = new ProfilerSystem(this.timeGetter, () -> this.tickCount, () -> true);
-		this.tickCount++;
-		return this.profiler;
+		profiler = new ProfilerSystem(timeGetter, () -> tickCount, () -> true);
+		tickCount++;
+		return profiler;
 	}
 
 	/**
-	 * End tick.
+	 * Завершает тик: если время выполнения превысило порог, сохраняет результат профилирования в файл.
 	 */
 	public void endTick() {
-		if (this.profiler != DummyProfiler.INSTANCE) {
-			ProfileResult profileResult = this.profiler.getResult();
-			this.profiler = DummyProfiler.INSTANCE;
-			if (profileResult.getTimeSpan() >= this.overtime) {
-				File
-						file =
-						new File(this.tickResultsDirectory, "tick-results-" + Util.getFormattedCurrentTime() + ".txt");
-				profileResult.save(file.toPath());
-				LOGGER.info("Recorded long tick -- wrote info to: {}", file.getAbsolutePath());
-			}
+		if (profiler == DummyProfiler.INSTANCE) {
+			return;
+		}
+
+		ProfileResult profileResult = profiler.getResult();
+		profiler = DummyProfiler.INSTANCE;
+
+		if (profileResult.getTimeSpan() >= overtime) {
+			File file = new File(tickResultsDirectory, "tick-results-" + Util.getFormattedCurrentTime() + ".txt");
+			profileResult.save(file.toPath());
+			LOGGER.info("Recorded long tick -- wrote info to: {}", file.getAbsolutePath());
 		}
 	}
 
 	/**
-	 * Create.
+	 * Создаёт монитор, если включён флаг {@link SharedConstants#MONITOR_TICK_TIMES},
+	 * иначе возвращает {@code null}.
 	 *
-	 * @param name name
-	 *
-	 * @return @Nullable TickDurationMonitor — результат операции
+	 * @param name имя файла для сохранения результатов
+	 * @return монитор или {@code null}
 	 */
 	public static @Nullable TickDurationMonitor create(String name) {
-		return SharedConstants.MONITOR_TICK_TIMES ? new TickDurationMonitor(
-				Util.nanoTimeSupplier,
-				name,
-				SharedConstants.TICK_OVERTIME_THRESHOLD_NS
-		) : null;
+		return SharedConstants.MONITOR_TICK_TIMES
+				? new TickDurationMonitor(Util.nanoTimeSupplier, name, SharedConstants.TICK_OVERTIME_THRESHOLD_NS)
+				: null;
 	}
 
 	/**
-	 * Выполняет тик обновления для profiler.
+	 * Объединяет переданный профилировщик с профилировщиком монитора (если монитор активен).
 	 *
-	 * @param profiler profiler
-	 * @param monitor monitor
-	 *
-	 * @return Profiler — результат операции
+	 * @param profiler базовый профилировщик
+	 * @param monitor  монитор или {@code null}
+	 * @return объединённый или исходный профилировщик
 	 */
 	public static Profiler tickProfiler(Profiler profiler, @Nullable TickDurationMonitor monitor) {
 		return monitor != null ? Profiler.union(monitor.nextProfiler(), profiler) : profiler;

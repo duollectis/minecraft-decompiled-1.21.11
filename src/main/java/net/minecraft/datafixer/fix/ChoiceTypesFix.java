@@ -9,7 +9,8 @@ import com.mojang.datafixers.types.templates.TaggedChoice.TaggedChoiceType;
 import java.util.Locale;
 
 /**
- * {@code ChoiceTypesFix}.
+ * Мигрирует все варианты (choices) типа данных из входной схемы в выходную,
+ * проверяя, что каждый встреченный вариант присутствует в новой схеме.
  */
 public class ChoiceTypesFix extends DataFix {
 
@@ -23,37 +24,36 @@ public class ChoiceTypesFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		TaggedChoiceType<?> taggedChoiceType = this.getInputSchema().findChoiceType(this.types);
-		TaggedChoiceType<?> taggedChoiceType2 = this.getOutputSchema().findChoiceType(this.types);
-		return this.fixChoiceTypes(taggedChoiceType, taggedChoiceType2);
+		TaggedChoiceType<?> inputChoiceType = getInputSchema().findChoiceType(types);
+		TaggedChoiceType<?> outputChoiceType = getOutputSchema().findChoiceType(types);
+		return fixChoiceTypes(inputChoiceType, outputChoiceType);
 	}
 
 	@SuppressWarnings("unchecked")
 	private <K> TypeRewriteRule fixChoiceTypes(
-			TaggedChoiceType<K> inputChoiceType,
-			TaggedChoiceType<?> outputChoiceType
+		TaggedChoiceType<K> inputChoiceType,
+		TaggedChoiceType<?> outputChoiceType
 	) {
 		if (inputChoiceType.getKeyType() != outputChoiceType.getKeyType()) {
 			throw new IllegalStateException("Could not inject: key type is not the same");
 		}
-		else {
-			TaggedChoiceType<K> typedOutput = (TaggedChoiceType<K>) outputChoiceType;
-			return this.fixTypeEverywhere(
-					this.name, inputChoiceType, typedOutput, dynamicOps -> pair -> {
-						if (!typedOutput.hasType(pair.getFirst())) {
-							throw new IllegalArgumentException(String.format(
-									Locale.ROOT,
-									"%s: Unknown type %s in '%s'",
-									this.name,
-									pair.getFirst(),
-									this.types.typeName()
-							));
-						}
-						else {
-							return pair;
-						}
-					}
-			);
-		}
+
+		TaggedChoiceType<K> typedOutput = (TaggedChoiceType<K>) outputChoiceType;
+
+		return fixTypeEverywhere(
+			name, inputChoiceType, typedOutput, dynamicOps -> pair -> {
+				if (!typedOutput.hasType(pair.getFirst())) {
+					throw new IllegalArgumentException(String.format(
+						Locale.ROOT,
+						"%s: Unknown type %s in '%s'",
+						name,
+						pair.getFirst(),
+						types.typeName()
+					));
+				}
+
+				return pair;
+			}
+		);
 	}
 }

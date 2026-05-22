@@ -33,7 +33,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code EvokerEntity}.
+ * Эвокер — иллагер-заклинатель, вызывающий вексов и клыки эвокера.
+ * Может перекрашивать синих овец в красных (Wololo). Считает вексов
+ * своего призыва союзниками. Получает 10 очков опыта при смерти.
  */
 public class EvokerEntity extends SpellcastingIllagerEntity {
 
@@ -41,32 +43,32 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 
 	public EvokerEntity(EntityType<? extends EvokerEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 10;
+		experiencePoints = 10;
 	}
 
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new EvokerEntity.LookAtTargetOrWololoTarget());
-		this.goalSelector.add(2, new FleeEntityGoal<>(this, PlayerEntity.class, 8.0F, 0.6, 1.0));
-		this.goalSelector.add(3, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 0.6, 1.0));
-		this.goalSelector.add(4, new EvokerEntity.SummonVexGoal());
-		this.goalSelector.add(5, new EvokerEntity.ConjureFangsGoal());
-		this.goalSelector.add(6, new EvokerEntity.WololoGoal());
-		this.goalSelector.add(8, new WanderAroundGoal(this, 0.6));
-		this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
-		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
-		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-		this.targetSelector.add(
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new EvokerEntity.LookAtTargetOrWololoTarget());
+		goalSelector.add(2, new FleeEntityGoal<>(this, PlayerEntity.class, 8.0F, 0.6, 1.0));
+		goalSelector.add(3, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 0.6, 1.0));
+		goalSelector.add(4, new EvokerEntity.SummonVexGoal());
+		goalSelector.add(5, new EvokerEntity.ConjureFangsGoal());
+		goalSelector.add(6, new EvokerEntity.WololoGoal());
+		goalSelector.add(8, new WanderAroundGoal(this, 0.6));
+		goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
+		goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+		targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		targetSelector.add(
 				2,
 				new ActiveTargetGoal<>(this, PlayerEntity.class, true).setMaxTimeWithoutVisibility(300)
 		);
-		this.targetSelector.add(
+		targetSelector.add(
 				3,
 				new ActiveTargetGoal<>(this, MerchantEntity.class, false).setMaxTimeWithoutVisibility(300)
 		);
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, false));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, IronGolemEntity.class, false));
 	}
 
 	public static DefaultAttributeContainer.Builder createEvokerAttributes() {
@@ -86,13 +88,13 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 		if (other == this) {
 			return true;
 		}
-		else if (super.isInSameTeam(other)) {
+
+		if (super.isInSameTeam(other)) {
 			return true;
 		}
-		else {
-			return other instanceof VexEntity vexEntity && vexEntity.getOwner() != null
-			       ? this.isInSameTeam(vexEntity.getOwner()) : false;
-		}
+
+		return other instanceof VexEntity vexEntity && vexEntity.getOwner() != null
+				&& isInSameTeam(vexEntity.getOwner());
 	}
 
 	@Override
@@ -114,8 +116,9 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 		this.wololoTarget = wololoTarget;
 	}
 
-	@Nullable SheepEntity getWololoTarget() {
-		return this.wololoTarget;
+	@Nullable
+	SheepEntity getWololoTarget() {
+		return wololoTarget;
 	}
 
 	@Override
@@ -127,9 +130,6 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 	public void addBonusForWave(ServerWorld world, int wave, boolean unused) {
 	}
 
-	/**
-	 * {@code ConjureFangsGoal}.
-	 */
 	class ConjureFangsGoal extends SpellcastingIllagerEntity.CastSpellGoal {
 
 		@Override
@@ -144,100 +144,79 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 
 		@Override
 		protected void castSpell() {
-			LivingEntity livingEntity = EvokerEntity.this.getTarget();
-			double d = Math.min(livingEntity.getY(), EvokerEntity.this.getY());
-			double e = Math.max(livingEntity.getY(), EvokerEntity.this.getY()) + 1.0;
-			float
-					f =
-					(float) MathHelper.atan2(
-							livingEntity.getZ() - EvokerEntity.this.getZ(),
-							livingEntity.getX() - EvokerEntity.this.getX()
-					);
-			if (EvokerEntity.this.squaredDistanceTo(livingEntity) < 9.0) {
-				for (int i = 0; i < 5; i++) {
-					float g = f + i * (float) Math.PI * 0.4F;
-					this.conjureFangs(
-							EvokerEntity.this.getX() + MathHelper.cos(g) * 1.5,
-							EvokerEntity.this.getZ() + MathHelper.sin(g) * 1.5,
-							d,
-							e,
-							g,
-							0
+			LivingEntity target = EvokerEntity.this.getTarget();
+			double minY = Math.min(target.getY(), EvokerEntity.this.getY());
+			double maxY = Math.max(target.getY(), EvokerEntity.this.getY()) + 1.0;
+			float yaw = (float) MathHelper.atan2(
+					target.getZ() - EvokerEntity.this.getZ(),
+					target.getX() - EvokerEntity.this.getX()
+			);
+
+			if (EvokerEntity.this.squaredDistanceTo(target) < 9.0) {
+				for (int ringIndex = 0; ringIndex < 5; ringIndex++) {
+					float angle = yaw + ringIndex * (float) Math.PI * 0.4F;
+					conjureFangs(
+							EvokerEntity.this.getX() + MathHelper.cos(angle) * 1.5,
+							EvokerEntity.this.getZ() + MathHelper.sin(angle) * 1.5,
+							minY, maxY, angle, 0
 					);
 				}
 
-				for (int i = 0; i < 8; i++) {
-					float g = f + i * (float) Math.PI * 2.0F / 8.0F + (float) (Math.PI * 2.0 / 5.0);
-					this.conjureFangs(
-							EvokerEntity.this.getX() + MathHelper.cos(g) * 2.5,
-							EvokerEntity.this.getZ() + MathHelper.sin(g) * 2.5,
-							d,
-							e,
-							g,
-							3
+				for (int outerIndex = 0; outerIndex < 8; outerIndex++) {
+					float angle = yaw + outerIndex * (float) Math.PI * 2.0F / 8.0F + (float) (Math.PI * 2.0 / 5.0);
+					conjureFangs(
+							EvokerEntity.this.getX() + MathHelper.cos(angle) * 2.5,
+							EvokerEntity.this.getZ() + MathHelper.sin(angle) * 2.5,
+							minY, maxY, angle, 3
 					);
 				}
-			}
-			else {
-				for (int i = 0; i < 16; i++) {
-					double h = 1.25 * (i + 1);
-					int j = 1 * i;
-					this.conjureFangs(
-							EvokerEntity.this.getX() + MathHelper.cos(f) * h,
-							EvokerEntity.this.getZ() + MathHelper.sin(f) * h,
-							d,
-							e,
-							f,
-							j
+			} else {
+				for (int lineIndex = 0; lineIndex < 16; lineIndex++) {
+					double dist = 1.25 * (lineIndex + 1);
+					int warmup = lineIndex;
+					conjureFangs(
+							EvokerEntity.this.getX() + MathHelper.cos(yaw) * dist,
+							EvokerEntity.this.getZ() + MathHelper.sin(yaw) * dist,
+							minY, maxY, yaw, warmup
 					);
 				}
 			}
 		}
 
 		private void conjureFangs(double x, double z, double maxY, double y, float yaw, int warmup) {
-			BlockPos blockPos = BlockPos.ofFloored(x, y, z);
-			boolean bl = false;
-			double d = 0.0;
+			BlockPos spawnPos = BlockPos.ofFloored(x, y, z);
+			boolean foundGround = false;
+			double heightOffset = 0.0;
 
 			do {
-				BlockPos blockPos2 = blockPos.down();
-				BlockState blockState = EvokerEntity.this.getEntityWorld().getBlockState(blockPos2);
-				if (blockState.isSideSolidFullSquare(EvokerEntity.this.getEntityWorld(), blockPos2, Direction.UP)) {
-					if (!EvokerEntity.this.getEntityWorld().isAir(blockPos)) {
-						BlockState blockState2 = EvokerEntity.this.getEntityWorld().getBlockState(blockPos);
-						VoxelShape
-								voxelShape =
-								blockState2.getCollisionShape(EvokerEntity.this.getEntityWorld(), blockPos);
-						if (!voxelShape.isEmpty()) {
-							d = voxelShape.getMax(Direction.Axis.Y);
+				BlockPos below = spawnPos.down();
+				BlockState belowState = EvokerEntity.this.getEntityWorld().getBlockState(below);
+				if (belowState.isSideSolidFullSquare(EvokerEntity.this.getEntityWorld(), below, Direction.UP)) {
+					if (!EvokerEntity.this.getEntityWorld().isAir(spawnPos)) {
+						BlockState atPos = EvokerEntity.this.getEntityWorld().getBlockState(spawnPos);
+						VoxelShape shape = atPos.getCollisionShape(EvokerEntity.this.getEntityWorld(), spawnPos);
+						if (!shape.isEmpty()) {
+							heightOffset = shape.getMax(Direction.Axis.Y);
 						}
 					}
 
-					bl = true;
+					foundGround = true;
 					break;
 				}
 
-				blockPos = blockPos.down();
-			}
-			while (blockPos.getY() >= MathHelper.floor(maxY) - 1);
+				spawnPos = spawnPos.down();
+			} while (spawnPos.getY() >= MathHelper.floor(maxY) - 1);
 
-			if (bl) {
-				EvokerEntity.this.getEntityWorld()
-				                 .spawnEntity(new EvokerFangsEntity(
-						                 EvokerEntity.this.getEntityWorld(),
-						                 x,
-						                 blockPos.getY() + d,
-						                 z,
-						                 yaw,
-						                 warmup,
-						                 EvokerEntity.this
-				                 ));
-				EvokerEntity.this.getEntityWorld()
-				                 .emitGameEvent(
-						                 GameEvent.ENTITY_PLACE,
-						                 new Vec3d(x, blockPos.getY() + d, z),
-						                 GameEvent.Emitter.of(EvokerEntity.this)
-				                 );
+			if (foundGround) {
+				double spawnY = spawnPos.getY() + heightOffset;
+				EvokerEntity.this.getEntityWorld().spawnEntity(
+						new EvokerFangsEntity(EvokerEntity.this.getEntityWorld(), x, spawnY, z, yaw, warmup, EvokerEntity.this)
+				);
+				EvokerEntity.this.getEntityWorld().emitGameEvent(
+						GameEvent.ENTITY_PLACE,
+						new Vec3d(x, spawnY, z),
+						GameEvent.Emitter.of(EvokerEntity.this)
+				);
 			}
 		}
 
@@ -252,9 +231,6 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 		}
 	}
 
-	/**
-	 * {@code LookAtTargetOrWololoTarget}.
-	 */
 	class LookAtTargetOrWololoTarget extends SpellcastingIllagerEntity.LookAtTargetGoal {
 
 		@Override
@@ -278,9 +254,6 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 		}
 	}
 
-	/**
-	 * {@code SummonVexGoal}.
-	 */
 	class SummonVexGoal extends SpellcastingIllagerEntity.CastSpellGoal {
 
 		private final TargetPredicate closeVexPredicate = TargetPredicate.createNonAttackable()
@@ -293,17 +266,16 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 			if (!super.canStart()) {
 				return false;
 			}
-			else {
-				int i = castToServerWorld(EvokerEntity.this.getEntityWorld())
-						.getTargets(
-								VexEntity.class,
-								this.closeVexPredicate,
-								EvokerEntity.this,
-								EvokerEntity.this.getBoundingBox().expand(16.0)
-						)
-						.size();
-				return EvokerEntity.this.random.nextInt(8) + 1 > i;
-			}
+
+			int nearbyVexCount = castToServerWorld(EvokerEntity.this.getEntityWorld())
+					.getTargets(
+							VexEntity.class,
+							closeVexPredicate,
+							EvokerEntity.this,
+							EvokerEntity.this.getBoundingBox().expand(16.0)
+					)
+					.size();
+			return EvokerEntity.this.random.nextInt(8) + 1 > nearbyVexCount;
 		}
 
 		@Override
@@ -321,7 +293,7 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 			ServerWorld serverWorld = (ServerWorld) EvokerEntity.this.getEntityWorld();
 			Team team = EvokerEntity.this.getScoreboardTeam();
 
-			for (int i = 0; i < 3; i++) {
+			for (int vexIndex = 0; vexIndex < 3; vexIndex++) {
 				BlockPos
 						blockPos =
 						EvokerEntity.this
@@ -370,9 +342,6 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 		}
 	}
 
-	/**
-	 * {@code WololoGoal}.
-	 */
 	public class WololoGoal extends SpellcastingIllagerEntity.CastSpellGoal {
 
 		private final TargetPredicate convertibleSheepPredicate = TargetPredicate.createNonAttackable()
@@ -386,33 +355,32 @@ public class EvokerEntity extends SpellcastingIllagerEntity {
 			if (EvokerEntity.this.getTarget() != null) {
 				return false;
 			}
-			else if (EvokerEntity.this.isSpellcasting()) {
+
+			if (EvokerEntity.this.isSpellcasting()) {
 				return false;
 			}
-			else if (EvokerEntity.this.age < this.startTime) {
+
+			if (EvokerEntity.this.age < startTime) {
 				return false;
 			}
-			else {
-				ServerWorld serverWorld = castToServerWorld(EvokerEntity.this.getEntityWorld());
-				if (!serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-					return false;
-				}
-				else {
-					List<SheepEntity> list = serverWorld.getTargets(
-							SheepEntity.class,
-							this.convertibleSheepPredicate,
-							EvokerEntity.this,
-							EvokerEntity.this.getBoundingBox().expand(16.0, 4.0, 16.0)
-					);
-					if (list.isEmpty()) {
-						return false;
-					}
-					else {
-						EvokerEntity.this.setWololoTarget(list.get(EvokerEntity.this.random.nextInt(list.size())));
-						return true;
-					}
-				}
+
+			ServerWorld serverWorld = castToServerWorld(EvokerEntity.this.getEntityWorld());
+			if (!serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				return false;
 			}
+
+			List<SheepEntity> blueSheep = serverWorld.getTargets(
+					SheepEntity.class,
+					convertibleSheepPredicate,
+					EvokerEntity.this,
+					EvokerEntity.this.getBoundingBox().expand(16.0, 4.0, 16.0)
+			);
+			if (blueSheep.isEmpty()) {
+				return false;
+			}
+
+			EvokerEntity.this.setWololoTarget(blueSheep.get(EvokerEntity.this.random.nextInt(blueSheep.size())));
+			return true;
 		}
 
 		@Override

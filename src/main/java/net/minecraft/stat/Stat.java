@@ -12,57 +12,86 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code Stat}.
+ * Представляет одну игровую статистику, привязанную к конкретному значению реестра.
+ *
+ * <p>Каждый {@code Stat} является критерием скорборда и идентифицируется строкой вида
+ * {@code "stat_type.namespace.path:value.namespace.path"}. Форматирование числового
+ * значения делегируется {@link StatFormatter}.
+ *
+ * @param <T> тип значения, к которому привязана статистика (блок, предмет, сущность и т.д.)
  */
 public class Stat<T> extends ScoreboardCriterion {
 
-	public static final PacketCodec<RegistryByteBuf, Stat<?>>
-			PACKET_CODEC =
-			PacketCodecs.registryValue(RegistryKeys.STAT_TYPE)
-			            .dispatch(Stat::getType, StatType::getPacketCodec);
+	/**
+	 * Кодек для сериализации/десериализации {@code Stat} в сетевых пакетах.
+	 * Диспетчеризация происходит по типу статистики ({@link StatType}).
+	 */
+	public static final PacketCodec<RegistryByteBuf, Stat<?>> PACKET_CODEC =
+		PacketCodecs.registryValue(RegistryKeys.STAT_TYPE)
+			.dispatch(Stat::getType, StatType::getPacketCodec);
+
 	private final StatFormatter formatter;
 	private final T value;
 	private final StatType<T> type;
 
 	protected Stat(StatType<T> type, T value, StatFormatter formatter) {
-		super(getName(type, value));
+		super(buildName(type, value));
 		this.type = type;
 		this.formatter = formatter;
 		this.value = value;
 	}
 
-	public static <T> String getName(StatType<T> type, T value) {
-		return getName(Registries.STAT_TYPE.getId(type)) + ":" + getName(type.getRegistry().getId(value));
+	/**
+	 * Строит строковый идентификатор статистики в формате
+	 * {@code "statType.namespace.path:value.namespace.path"}.
+	 *
+	 * @param type  тип статистики
+	 * @param value значение из реестра типа
+	 * @param <T>   тип значения
+	 * @return строковый идентификатор
+	 */
+	public static <T> String buildName(StatType<T> type, T value) {
+		return identifierToName(Registries.STAT_TYPE.getId(type))
+			+ ":"
+			+ identifierToName(type.getRegistry().getId(value));
 	}
 
-	private static String getName(@Nullable Identifier id) {
+	private static String identifierToName(@Nullable Identifier id) {
 		return id.toString().replace(':', '.');
 	}
 
 	public StatType<T> getType() {
-		return this.type;
+		return type;
 	}
 
 	public T getValue() {
-		return this.value;
+		return value;
 	}
 
-	public String format(int value) {
-		return this.formatter.format(value);
+	/**
+	 * Форматирует числовое значение статистики в читаемую строку
+	 * с помощью привязанного {@link StatFormatter}.
+	 *
+	 * @param rawValue сырое целочисленное значение статистики
+	 * @return отформатированная строка (например, "1.23 km" или "5 min")
+	 */
+	public String format(int rawValue) {
+		return formatter.format(rawValue);
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof Stat && Objects.equals(this.getName(), ((Stat) o).getName());
+	public boolean equals(Object other) {
+		return this == other
+			|| other instanceof Stat<?> stat && Objects.equals(getName(), stat.getName());
 	}
 
 	@Override
 	public int hashCode() {
-		return this.getName().hashCode();
+		return getName().hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "Stat{name=" + this.getName() + ", formatter=" + this.formatter + "}";
+		return "Stat{name=" + getName() + ", formatter=" + formatter + "}";
 	}
 }

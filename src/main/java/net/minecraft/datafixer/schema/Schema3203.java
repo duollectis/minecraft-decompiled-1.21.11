@@ -7,17 +7,21 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3203}.
+ * Схема версии 3203 (Minecraft 1.20 — Trails & Tales).
+ * <p>
+ * Регистрирует тип данных для сущности верблюда ({@code minecraft:camel}),
+ * добавленного в обновлении 1.20 как верховое животное пустыни.
  */
 public class Schema3203 extends IdentifierNormalizingSchema {
 
-	public Schema3203(int i, Schema schema) {
-		super(i, schema);
+	public Schema3203(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:camel");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:camel");
+		return entityTypes;
 	}
 }

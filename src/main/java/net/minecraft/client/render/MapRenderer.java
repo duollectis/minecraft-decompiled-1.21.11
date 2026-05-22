@@ -44,10 +44,10 @@ public class MapRenderer {
 	) {
 		queue.submitCustom(
 				matrices, RenderLayers.text(state.texture), (matrix, vertexConsumer) -> {
-					vertexConsumer.vertex(matrix, 0.0F, 128.0F, -0.01F).color(-1).texture(0.0F, 1.0F).light(light);
-					vertexConsumer.vertex(matrix, 128.0F, 128.0F, -0.01F).color(-1).texture(1.0F, 1.0F).light(light);
-					vertexConsumer.vertex(matrix, 128.0F, 0.0F, -0.01F).color(-1).texture(1.0F, 0.0F).light(light);
-					vertexConsumer.vertex(matrix, 0.0F, 0.0F, -0.01F).color(-1).texture(0.0F, 0.0F).light(light);
+					vertexConsumer.vertex(matrix, 0.0F, 128.0F, MAP_Z_OFFSET).color(-1).texture(0.0F, 1.0F).light(light);
+					vertexConsumer.vertex(matrix, 128.0F, 128.0F, MAP_Z_OFFSET).color(-1).texture(1.0F, 1.0F).light(light);
+					vertexConsumer.vertex(matrix, 128.0F, 0.0F, MAP_Z_OFFSET).color(-1).texture(1.0F, 0.0F).light(light);
+					vertexConsumer.vertex(matrix, 0.0F, 0.0F, MAP_Z_OFFSET).color(-1).texture(0.0F, 0.0F).light(light);
 				}
 		);
 		int i = 0;

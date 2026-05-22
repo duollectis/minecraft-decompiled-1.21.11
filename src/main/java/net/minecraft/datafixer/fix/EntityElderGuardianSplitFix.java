@@ -7,20 +7,22 @@ import com.mojang.serialization.Dynamic;
 import java.util.Objects;
 
 /**
- * {@code EntityElderGuardianSplitFix}.
+ * Разделяет старый тип сущности {@code Guardian} на {@code Guardian} и {@code ElderGuardian}.
+ * До версии 1.8 старший страж хранился как {@code Guardian} с флагом {@code Elder = true}.
  */
 public class EntityElderGuardianSplitFix extends EntitySimpleTransformFix {
 
-	public EntityElderGuardianSplitFix(Schema schema, boolean bl) {
-		super("EntityElderGuardianSplitFix", schema, bl);
+	public EntityElderGuardianSplitFix(Schema outputSchema, boolean changesType) {
+		super("EntityElderGuardianSplitFix", outputSchema, changesType);
 	}
 
 	@Override
-	protected Pair<String, Dynamic<?>> transform(String choice, Dynamic<?> entityDynamic) {
+	protected Pair<String, Dynamic<?>> transform(String choice, Dynamic<?> entity) {
+		boolean isElderGuardian = Objects.equals(choice, "Guardian") && entity.get("Elder").asBoolean(false);
+
 		return Pair.of(
-				Objects.equals(choice, "Guardian") && entityDynamic.get("Elder").asBoolean(false) ? "ElderGuardian"
-				                                                                                  : choice,
-				entityDynamic
+				isElderGuardian ? "ElderGuardian" : choice,
+				entity
 		);
 	}
 }

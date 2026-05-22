@@ -17,14 +17,14 @@ public record CustomPayloadS2CPacket(CustomPayload payload) implements Packet<Cl
 	public static final PacketCodec<RegistryByteBuf, CustomPayloadS2CPacket>
 			PLAY_CODEC =
 			CustomPayload.<RegistryByteBuf>createCodec(
-					             id -> UnknownCustomPayload.createCodec(id, 1048576),
+					             id -> UnknownCustomPayload.createCodec(id, MAX_PAYLOAD_SIZE),
 					             List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
 			             )
 			             .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);
 	public static final PacketCodec<PacketByteBuf, CustomPayloadS2CPacket>
 			CONFIGURATION_CODEC =
 			CustomPayload.<PacketByteBuf>createCodec(
-					             id -> UnknownCustomPayload.createCodec(id, 1048576),
+					             id -> UnknownCustomPayload.createCodec(id, MAX_PAYLOAD_SIZE),
 					             List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
 			             )
 			             .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);

@@ -8,10 +8,11 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ControlsOptionsScreen}.
+ * Экран настроек управления — содержит кнопки перехода к настройкам мыши и клавиш,
+ * а также набор переключаемых опций (прыжок, спринт, атака и т.д.).
  */
+@Environment(EnvType.CLIENT)
 public class ControlsOptionsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE_TEXT = Text.translatable("controls.title");
@@ -34,21 +35,20 @@ public class ControlsOptionsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void addOptions() {
-		this.body
-				.addWidgetEntry(
-						ButtonWidget
-								.builder(
-										Text.translatable("options.mouse_settings"),
-										button -> this.client.setScreen(new MouseOptionsScreen(this, this.gameOptions))
-								)
-								.build(),
-						ButtonWidget
-								.builder(
-										Text.translatable("controls.keybinds"),
-										button -> this.client.setScreen(new KeybindsScreen(this, this.gameOptions))
-								)
-								.build()
-				);
-		this.body.addAll(getOptions(this.gameOptions));
+		body.addWidgetEntry(
+				ButtonWidget
+						.builder(
+								Text.translatable("options.mouse_settings"),
+								button -> client.setScreen(new MouseOptionsScreen(this, gameOptions))
+						)
+						.build(),
+				ButtonWidget
+						.builder(
+								Text.translatable("controls.keybinds"),
+								button -> client.setScreen(new KeybindsScreen(this, gameOptions))
+						)
+						.build()
+		);
+		body.addAll(getOptions(gameOptions));
 	}
 }

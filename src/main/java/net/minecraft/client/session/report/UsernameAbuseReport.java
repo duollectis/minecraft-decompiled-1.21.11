@@ -13,10 +13,11 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UsernameAbuseReport}.
+ * Жалоба на нарушение правил, связанное с именем пользователя.
+ * Не требует выбора причины — достаточно комментария и подтверждения.
  */
+@Environment(EnvType.CLIENT)
 public class UsernameAbuseReport extends AbuseReport {
 
 	private final String username;
@@ -27,21 +28,14 @@ public class UsernameAbuseReport extends AbuseReport {
 	}
 
 	public String getUsername() {
-		return this.username;
+		return username;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return UsernameAbuseReport — результат операции
-	 */
 	public UsernameAbuseReport copy() {
-		UsernameAbuseReport
-				usernameAbuseReport =
-				new UsernameAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid, this.username);
-		usernameAbuseReport.opinionComments = this.opinionComments;
-		usernameAbuseReport.attested = this.attested;
-		return usernameAbuseReport;
+		UsernameAbuseReport copy = new UsernameAbuseReport(reportId, currentTime, reportedPlayerUuid, username);
+		copy.opinionComments = opinionComments;
+		copy.attested = attested;
+		return copy;
 	}
 
 	@Override
@@ -49,10 +43,8 @@ public class UsernameAbuseReport extends AbuseReport {
 		return new UsernameReportScreen(parent, context, this);
 	}
 
+	/** Строитель жалобы на имя пользователя. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends AbuseReport.Builder<UsernameAbuseReport> {
 
 		public Builder(UsernameAbuseReport report, AbuseReportLimits limits) {
@@ -77,23 +69,17 @@ public class UsernameAbuseReport extends AbuseReport {
 
 		@Override
 		public Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context) {
-			AbuseReport.ValidationError validationError = this.validate();
+			AbuseReport.ValidationError validationError = validate();
 			if (validationError != null) {
 				return Either.right(validationError);
 			}
-			else {
-				ReportedEntity reportedEntity = new ReportedEntity(this.report.reportedPlayerUuid);
-				com.mojang.authlib.minecraft.report.AbuseReport
-						abuseReport =
-						com.mojang.authlib.minecraft.report.AbuseReport.name(
-								this.report.opinionComments, reportedEntity, this.report.currentTime
-						);
-				return Either.left(new AbuseReport.ReportWithId(
-						this.report.reportId,
-						AbuseReportType.USERNAME,
-						abuseReport
-				));
-			}
+
+			ReportedEntity reportedEntity = new ReportedEntity(report.reportedPlayerUuid);
+			com.mojang.authlib.minecraft.report.AbuseReport abuseReport =
+					com.mojang.authlib.minecraft.report.AbuseReport.name(
+							report.opinionComments, reportedEntity, report.currentTime
+					);
+			return Either.left(new AbuseReport.ReportWithId(report.reportId, AbuseReportType.USERNAME, abuseReport));
 		}
 	}
 }

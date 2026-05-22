@@ -6,11 +6,15 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LargeFireSmokeParticle}.
+ * Крупная частица дыма от огня — увеличенная версия {@link FireSmokeParticle}
+ * с масштабным коэффициентом 2.5. Используется для больших источников огня,
+ * например костров и факелов в Нижнем мире.
  */
+@Environment(EnvType.CLIENT)
 public class LargeFireSmokeParticle extends FireSmokeParticle {
+
+	private static final float LARGE_SCALE = 2.5F;
 
 	protected LargeFireSmokeParticle(
 			ClientWorld world,
@@ -22,13 +26,10 @@ public class LargeFireSmokeParticle extends FireSmokeParticle {
 			double velocityZ,
 			SpriteProvider spriteProvider
 	) {
-		super(world, x, y, z, velocityX, velocityY, velocityZ, 2.5F, spriteProvider);
+		super(world, x, y, z, velocityX, velocityY, velocityZ, LARGE_SCALE, spriteProvider);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -37,18 +38,19 @@ public class LargeFireSmokeParticle extends FireSmokeParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new LargeFireSmokeParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			return new LargeFireSmokeParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
 		}
 	}
 }

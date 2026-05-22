@@ -1,7 +1,8 @@
 package net.minecraft.util.profiler.log;
 
 /**
- * {@code MultiValueDebugSampleLog}.
+ * Интерфейс кольцевого буфера многомерных отладочных сэмплов.
+ * Позволяет читать накопленные значения по индексу и измерению.
  */
 public interface MultiValueDebugSampleLog {
 

@@ -9,9 +9,7 @@ import net.minecraft.world.WorldAccess;
 
 import java.util.List;
 
-/**
- * {@code CoralTreeFeature}.
- */
+/** Генерирует коралл в форме дерева: вертикальный ствол с несколькими горизонтальными ветвями, изгибающимися вверх. */
 public class CoralTreeFeature extends CoralFeature {
 
 	public CoralTreeFeature(Codec<DefaultFeatureConfig> codec) {
@@ -21,32 +19,33 @@ public class CoralTreeFeature extends CoralFeature {
 	@Override
 	protected boolean generateCoral(WorldAccess world, Random random, BlockPos pos, BlockState state) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
-		int i = random.nextInt(3) + 1;
+		int trunkHeight = random.nextInt(3) + 1;
 
-		for (int j = 0; j < i; j++) {
-			if (!this.generateCoralPiece(world, random, mutable, state)) {
+		for (int step = 0; step < trunkHeight; step++) {
+			if (!generateCoralPiece(world, random, mutable, state)) {
 				return true;
 			}
 
 			mutable.move(Direction.UP);
 		}
 
-		BlockPos blockPos = mutable.toImmutable();
-		int k = random.nextInt(3) + 2;
-		List<Direction> list = Direction.Type.HORIZONTAL.getShuffled(random);
+		BlockPos trunkTop = mutable.toImmutable();
+		int branchCount = random.nextInt(3) + 2;
+		List<Direction> directions = Direction.Type.HORIZONTAL.getShuffled(random);
 
-		for (Direction direction : list.subList(0, k)) {
-			mutable.set(blockPos);
-			mutable.move(direction);
-			int l = random.nextInt(5) + 2;
-			int m = 0;
+		for (Direction branchDir : directions.subList(0, branchCount)) {
+			mutable.set(trunkTop);
+			mutable.move(branchDir);
+			int branchLength = random.nextInt(5) + 2;
+			int straightCount = 0;
 
-			for (int n = 0; n < l && this.generateCoralPiece(world, random, mutable, state); n++) {
-				m++;
+			for (int step = 0; step < branchLength && generateCoralPiece(world, random, mutable, state); step++) {
+				straightCount++;
 				mutable.move(Direction.UP);
-				if (n == 0 || m >= 2 && random.nextFloat() < 0.25F) {
-					mutable.move(direction);
-					m = 0;
+
+				if (step == 0 || straightCount >= 2 && random.nextFloat() < 0.25F) {
+					mutable.move(branchDir);
+					straightCount = 0;
 				}
 			}
 		}

@@ -1,7 +1,7 @@
 package net.minecraft.server.dedicated.management;
 
 /**
- * {@code RpcEncodingException}.
+ * Класс Rpc Encoding Exception.
  */
 public class RpcEncodingException extends RuntimeException {
 

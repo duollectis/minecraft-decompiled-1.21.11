@@ -10,7 +10,8 @@ import net.minecraft.world.event.listener.GameEventListener;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BlockEntityProvider}.
+ * Интерфейс для блоков, которые создают и управляют {@link BlockEntity}.
+ * Реализуется блоками, имеющими тикающую логику (печи, сундуки, знаки и т.д.).
  */
 public interface BlockEntityProvider {
 

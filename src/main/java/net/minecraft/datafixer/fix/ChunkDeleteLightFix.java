@@ -9,7 +9,8 @@ import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code ChunkDeleteLightFix}.
+ * Удаляет устаревшие данные освещения из чанка: флаг {@code isLightOn} и массивы
+ * {@code BlockLight}/{@code SkyLight} из каждой секции. Освещение будет пересчитано движком.
  */
 public class ChunkDeleteLightFix extends DataFix {
 
@@ -18,18 +19,21 @@ public class ChunkDeleteLightFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		OpticFinder<?> opticFinder = type.findField("sections");
-		return this.fixTypeEverywhereTyped(
-				"ChunkDeleteLightFix for " + this.getOutputSchema().getVersionKey(), type, typed -> {
-					typed = typed.update(DSL.remainderFinder(), dynamic -> dynamic.remove("isLightOn"));
-					return typed.updateTyped(opticFinder,
-							typedx -> typedx.update(
-									DSL.remainderFinder(),
-									dynamic -> dynamic.remove("BlockLight").remove("SkyLight")
-							)
-					);
-				}
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> sectionsFinder = chunkType.findField("sections");
+
+		return fixTypeEverywhereTyped(
+			"ChunkDeleteLightFix for " + getOutputSchema().getVersionKey(),
+			chunkType,
+			typed -> typed
+				.update(DSL.remainderFinder(), dynamic -> dynamic.remove("isLightOn"))
+				.updateTyped(
+					sectionsFinder,
+					section -> section.update(
+						DSL.remainderFinder(),
+						dynamic -> dynamic.remove("BlockLight").remove("SkyLight")
+					)
+				)
 		);
 	}
 }

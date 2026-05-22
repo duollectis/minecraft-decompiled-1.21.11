@@ -15,11 +15,15 @@ import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BuiltBuffer}.
+ * Хранит результат построения вершинного буфера: сырые вершинные данные и параметры отрисовки.
+ * Поддерживает сортировку квадов по глубине для корректного рендеринга прозрачных поверхностей.
+ * Реализует {@link AutoCloseable} — освобождает нативную память при закрытии.
  */
+@Environment(EnvType.CLIENT)
 public class BuiltBuffer implements AutoCloseable {
+
+	private static final int VERTICES_PER_QUAD = 4;
 
 	private final BufferAllocator.CloseableBuffer buffer;
 	private BufferAllocator.@Nullable CloseableBuffer sortedBuffer;
@@ -30,79 +34,90 @@ public class BuiltBuffer implements AutoCloseable {
 		this.drawParameters = drawParameters;
 	}
 
+	/**
+	 * Вычисляет центроиды всех квадов в буфере для последующей сортировки по глубине.
+	 * Центроид каждого квада определяется как среднее между первой и третьей вершинами (диагональ).
+	 *
+	 * @param buffer      байтовый буфер с вершинными данными
+	 * @param vertexCount общее количество вершин
+	 * @param format      формат вершин, определяющий смещение позиции и размер вершины
+	 * @return массив центроидов квадов
+	 */
 	private static Vec3fArray collectCentroids(ByteBuffer buffer, int vertexCount, VertexFormat format) {
-		int i = format.getOffset(VertexFormatElement.POSITION);
-		if (i == -1) {
+		int positionOffset = format.getOffset(VertexFormatElement.POSITION);
+		if (positionOffset == -1) {
 			throw new IllegalArgumentException("Cannot identify quad centers with no position element");
 		}
-		else {
-			FloatBuffer floatBuffer = buffer.asFloatBuffer();
-			int j = format.getVertexSize() / 4;
-			int k = j * 4;
-			int l = vertexCount / 4;
-			Vec3fArray vec3fArray = new Vec3fArray(l);
 
-			for (int m = 0; m < l; m++) {
-				int n = m * k + i;
-				int o = n + j * 2;
-				float f = floatBuffer.get(n + 0);
-				float g = floatBuffer.get(n + 1);
-				float h = floatBuffer.get(n + 2);
-				float p = floatBuffer.get(o + 0);
-				float q = floatBuffer.get(o + 1);
-				float r = floatBuffer.get(o + 2);
-				float s = (f + p) / 2.0F;
-				float t = (g + q) / 2.0F;
-				float u = (h + r) / 2.0F;
-				vec3fArray.set(m, s, t, u);
-			}
+		FloatBuffer floatBuffer = buffer.asFloatBuffer();
+		int floatsPerVertex = format.getVertexSize() / 4;
+		int floatsPerQuad = floatsPerVertex * VERTICES_PER_QUAD;
+		int quadCount = vertexCount / VERTICES_PER_QUAD;
+		Vec3fArray centroids = new Vec3fArray(quadCount);
 
-			return vec3fArray;
+		for (int quadIndex = 0; quadIndex < quadCount; quadIndex++) {
+			int vertex0Offset = quadIndex * floatsPerQuad + positionOffset;
+			int vertex2Offset = vertex0Offset + floatsPerVertex * 2;
+			float x0 = floatBuffer.get(vertex0Offset);
+			float y0 = floatBuffer.get(vertex0Offset + 1);
+			float z0 = floatBuffer.get(vertex0Offset + 2);
+			float x2 = floatBuffer.get(vertex2Offset);
+			float y2 = floatBuffer.get(vertex2Offset + 1);
+			float z2 = floatBuffer.get(vertex2Offset + 2);
+			centroids.set(quadIndex, (x0 + x2) / 2.0F, (y0 + y2) / 2.0F, (z0 + z2) / 2.0F);
 		}
+
+		return centroids;
 	}
 
 	public ByteBuffer getBuffer() {
-		return this.buffer.getBuffer();
+		return buffer.getBuffer();
 	}
 
 	public @Nullable ByteBuffer getSortedBuffer() {
-		return this.sortedBuffer != null ? this.sortedBuffer.getBuffer() : null;
+		return sortedBuffer != null ? sortedBuffer.getBuffer() : null;
 	}
 
 	public BuiltBuffer.DrawParameters getDrawParameters() {
-		return this.drawParameters;
+		return drawParameters;
 	}
 
+	/**
+	 * Сортирует квады по глубине с помощью переданного {@link VertexSorter} и сохраняет
+	 * переупорядоченный индексный буфер. Возвращает {@code null}, если режим отрисовки — не QUADS.
+	 *
+	 * @param allocator аллокатор для нового индексного буфера
+	 * @param sorter    стратегия сортировки квадов по глубине
+	 * @return состояние сортировки с центроидами, либо {@code null}
+	 */
 	public BuiltBuffer.@Nullable SortState sortQuads(BufferAllocator allocator, VertexSorter sorter) {
-		if (this.drawParameters.mode() != VertexFormat.DrawMode.QUADS) {
+		if (drawParameters.mode() != VertexFormat.DrawMode.QUADS) {
 			return null;
 		}
-		else {
-			Vec3fArray
-					vec3fArray =
-					collectCentroids(
-							this.buffer.getBuffer(),
-							this.drawParameters.vertexCount(),
-							this.drawParameters.format()
-					);
-			BuiltBuffer.SortState sortState = new BuiltBuffer.SortState(vec3fArray, this.drawParameters.indexType());
-			this.sortedBuffer = sortState.sortAndStore(allocator, sorter);
-			return sortState;
-		}
+
+		Vec3fArray centroids = collectCentroids(
+				buffer.getBuffer(),
+				drawParameters.vertexCount(),
+				drawParameters.format()
+		);
+		BuiltBuffer.SortState sortState = new BuiltBuffer.SortState(centroids, drawParameters.indexType());
+		sortedBuffer = sortState.sortAndStore(allocator, sorter);
+		return sortState;
 	}
 
 	@Override
 	public void close() {
-		this.buffer.close();
-		if (this.sortedBuffer != null) {
-			this.sortedBuffer.close();
+		buffer.close();
+		if (sortedBuffer != null) {
+			sortedBuffer.close();
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DrawParameters}.
+	 * Параметры отрисовки построенного буфера: формат вершин, количество вершин и индексов,
+	 * режим примитивов и тип индексов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record DrawParameters(
 			VertexFormat format,
 			int vertexCount,
@@ -112,35 +127,45 @@ public class BuiltBuffer implements AutoCloseable {
 	) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SortState}.
+	 * Хранит центроиды квадов и тип индексов для повторной сортировки буфера по глубине.
+	 * Используется при изменении позиции камеры для обновления порядка прозрачных квадов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record SortState(Vec3fArray centroids, VertexFormat.IndexType indexType) {
 
+		/**
+		 * Сортирует квады по центроидам, записывает индексы треугольников (2 на квад) в новый буфер.
+		 * Каждый квад разбивается на два треугольника: (0,1,2) и (2,3,0).
+		 *
+		 * @param allocator аллокатор нативной памяти
+		 * @param sorter    стратегия сортировки
+		 * @return буфер с отсортированными индексами, либо {@code null}
+		 */
 		public BufferAllocator.@Nullable CloseableBuffer sortAndStore(BufferAllocator allocator, VertexSorter sorter) {
-			int[] is = sorter.sort(this.centroids);
-			long l = allocator.allocate(is.length * 6 * this.indexType.size);
-			IntConsumer intConsumer = this.getStorer(l, this.indexType);
+			int[] sortedIndices = sorter.sort(centroids);
+			long bufferPointer = allocator.allocate(sortedIndices.length * 6 * indexType.size);
+			IntConsumer indexWriter = getStorer(bufferPointer, indexType);
 
-			for (int i : is) {
-				intConsumer.accept(i * 4 + 0);
-				intConsumer.accept(i * 4 + 1);
-				intConsumer.accept(i * 4 + 2);
-				intConsumer.accept(i * 4 + 2);
-				intConsumer.accept(i * 4 + 3);
-				intConsumer.accept(i * 4 + 0);
+			for (int quadIndex : sortedIndices) {
+				int base = quadIndex * VERTICES_PER_QUAD;
+				indexWriter.accept(base);
+				indexWriter.accept(base + 1);
+				indexWriter.accept(base + 2);
+				indexWriter.accept(base + 2);
+				indexWriter.accept(base + 3);
+				indexWriter.accept(base);
 			}
 
 			return allocator.getAllocated();
 		}
 
 		private IntConsumer getStorer(long pointer, VertexFormat.IndexType indexType) {
-			MutableLong mutableLong = new MutableLong(pointer);
+			MutableLong cursor = new MutableLong(pointer);
 
 			return switch (indexType) {
-				case SHORT -> i -> MemoryUtil.memPutShort(mutableLong.getAndAdd(2L), (short) i);
-				case INT -> i -> MemoryUtil.memPutInt(mutableLong.getAndAdd(4L), i);
+				case SHORT -> index -> MemoryUtil.memPutShort(cursor.getAndAdd(2L), (short) index);
+				case INT -> index -> MemoryUtil.memPutInt(cursor.getAndAdd(4L), index);
 			};
 		}
 	}

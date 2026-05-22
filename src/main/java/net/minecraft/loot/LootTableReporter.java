@@ -13,7 +13,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code LootTableReporter}.
+ * Репортер ошибок валидации лут-таблиц с поддержкой контекста и стека ссылок.
+ *
+ * <p>Отслеживает стек посещённых ключей реестра для обнаружения рекурсивных ссылок
+ * и проверяет соответствие параметров контекста допустимым для данного типа таблицы.</p>
  */
 public class LootTableReporter {
 
@@ -23,9 +26,9 @@ public class LootTableReporter {
 	private final Set<RegistryKey<?>> referenceStack;
 
 	public LootTableReporter(
-			ErrorReporter errorReporter,
-			ContextType contextType,
-			RegistryEntryLookup.RegistryLookup dataLookup
+		ErrorReporter errorReporter,
+		ContextType contextType,
+		RegistryEntryLookup.RegistryLookup dataLookup
 	) {
 		this(errorReporter, contextType, Optional.of(dataLookup), Set.of());
 	}
@@ -35,10 +38,10 @@ public class LootTableReporter {
 	}
 
 	private LootTableReporter(
-			ErrorReporter errorReporter,
-			ContextType contextType,
-			Optional<RegistryEntryLookup.RegistryLookup> dataLookup,
-			Set<RegistryKey<?>> referenceStack
+		ErrorReporter errorReporter,
+		ContextType contextType,
+		Optional<RegistryEntryLookup.RegistryLookup> dataLookup,
+		Set<RegistryKey<?>> referenceStack
 	) {
 		this.errorReporter = errorReporter;
 		this.contextType = contextType;
@@ -46,131 +49,99 @@ public class LootTableReporter {
 		this.referenceStack = referenceStack;
 	}
 
-	/**
-	 * Make child.
-	 *
-	 * @param context context
-	 *
-	 * @return LootTableReporter — результат операции
-	 */
 	public LootTableReporter makeChild(ErrorReporter.Context context) {
 		return new LootTableReporter(
-				this.errorReporter.makeChild(context),
-				this.contextType,
-				this.dataLookup,
-				this.referenceStack
+			errorReporter.makeChild(context),
+			contextType,
+			dataLookup,
+			referenceStack
 		);
 	}
 
 	/**
-	 * Make child.
-	 *
-	 * @param context context
-	 * @param key key
-	 *
-	 * @return LootTableReporter — результат операции
+	 * Создаёт дочерний репортер, добавляя ключ в стек посещённых ссылок
+	 * для последующего обнаружения рекурсии.
 	 */
 	public LootTableReporter makeChild(ErrorReporter.Context context, RegistryKey<?> key) {
-		Set<RegistryKey<?>> set = ImmutableSet.<RegistryKey<?>>builder().addAll(this.referenceStack).add(key).build();
-		return new LootTableReporter(this.errorReporter.makeChild(context), this.contextType, this.dataLookup, set);
+		Set<RegistryKey<?>> updatedStack = ImmutableSet.<RegistryKey<?>>builder()
+			.addAll(referenceStack)
+			.add(key)
+			.build();
+
+		return new LootTableReporter(errorReporter.makeChild(context), contextType, dataLookup, updatedStack);
 	}
 
 	public boolean isInStack(RegistryKey<?> key) {
-		return this.referenceStack.contains(key);
+		return referenceStack.contains(key);
 	}
 
-	/**
-	 * Report.
-	 *
-	 * @param error error
-	 */
 	public void report(ErrorReporter.Error error) {
-		this.errorReporter.report(error);
+		errorReporter.report(error);
 	}
 
 	/**
-	 * Валидирует context.
-	 *
-	 * @param contextAware context aware
+	 * Проверяет, что все параметры контекста, требуемые {@code contextAware},
+	 * присутствуют в текущем типе контекста. Сообщает об ошибке при несоответствии.
 	 */
 	public void validateContext(LootContextAware contextAware) {
-		Set<ContextParameter<?>> set = contextAware.getAllowedParameters();
-		Set<ContextParameter<?>> set2 = Sets.difference(set, this.contextType.getAllowed());
-		if (!set2.isEmpty()) {
-			this.errorReporter.report(new LootTableReporter.ParametersNotProvidedError(set2));
+		Set<ContextParameter<?>> required = contextAware.getAllowedParameters();
+		Set<ContextParameter<?>> missing = Sets.difference(required, contextType.getAllowed());
+
+		if (!missing.isEmpty()) {
+			errorReporter.report(new LootTableReporter.ParametersNotProvidedError(missing));
 		}
 	}
 
 	public RegistryEntryLookup.RegistryLookup getDataLookup() {
-		return this.dataLookup.orElseThrow(() -> new UnsupportedOperationException("References not allowed"));
+		return dataLookup.orElseThrow(() -> new UnsupportedOperationException("References not allowed"));
 	}
 
-	/**
-	 * Проверяет возможность use references.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canUseReferences() {
-		return this.dataLookup.isPresent();
+		return dataLookup.isPresent();
 	}
 
-	/**
-	 * With context type.
-	 *
-	 * @param contextType context type
-	 *
-	 * @return LootTableReporter — результат операции
-	 */
 	public LootTableReporter withContextType(ContextType contextType) {
-		return new LootTableReporter(this.errorReporter, contextType, this.dataLookup, this.referenceStack);
+		return new LootTableReporter(errorReporter, contextType, dataLookup, referenceStack);
 	}
 
 	public ErrorReporter getErrorReporter() {
-		return this.errorReporter;
+		return errorReporter;
 	}
 
-	/**
-	 * {@code MissingElementError}.
-	 */
+	/** Ошибка: ссылка на несуществующий элемент реестра. */
 	public record MissingElementError(RegistryKey<?> referenced) implements ErrorReporter.Error {
 
 		@Override
 		public String getMessage() {
-			return "Missing element " + this.referenced.getValue() + " of type " + this.referenced.getRegistry();
+			return "Missing element " + referenced.getValue() + " of type " + referenced.getRegistry();
 		}
 	}
 
-	/**
-	 * {@code ParametersNotProvidedError}.
-	 */
+	/** Ошибка: требуемые параметры контекста не предоставлены в текущем типе таблицы. */
 	public record ParametersNotProvidedError(Set<ContextParameter<?>> notProvided) implements ErrorReporter.Error {
 
 		@Override
 		public String getMessage() {
-			return "Parameters " + this.notProvided + " are not provided in this context";
+			return "Parameters " + notProvided + " are not provided in this context";
 		}
 	}
 
-	/**
-	 * {@code RecursionError}.
-	 */
+	/** Ошибка: обнаружена рекурсивная ссылка на элемент реестра. */
 	public record RecursionError(RegistryKey<?> referenced) implements ErrorReporter.Error {
 
 		@Override
 		public String getMessage() {
-			return this.referenced.getValue() + " of type " + this.referenced.getRegistry() + " is recursively called";
+			return referenced.getValue() + " of type " + referenced.getRegistry() + " is recursively called";
 		}
 	}
 
-	/**
-	 * {@code ReferenceNotAllowedError}.
-	 */
+	/** Ошибка: ссылки запрещены в текущем контексте валидации. */
 	public record ReferenceNotAllowedError(RegistryKey<?> referenced) implements ErrorReporter.Error {
 
 		@Override
 		public String getMessage() {
-			return "Reference to " + this.referenced.getValue() + " of type " + this.referenced.getRegistry()
-					+ " was used, but references are not allowed";
+			return "Reference to " + referenced.getValue() + " of type " + referenced.getRegistry()
+				+ " was used, but references are not allowed";
 		}
 	}
 }

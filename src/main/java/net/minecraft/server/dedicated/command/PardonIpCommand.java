@@ -13,7 +13,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 /**
- * {@code PardonIpCommand}.
+ * Команда {@code /pardon-ip}: снятие блокировки IP-адреса (только dedicated).
  */
 public class PardonIpCommand {
 

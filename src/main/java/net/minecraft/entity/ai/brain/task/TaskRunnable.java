@@ -4,7 +4,10 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code TaskRunnable}.
+ * Функциональный интерфейс для запускаемой логики задачи мозга.
+ * Используется как строительный блок в {@link TaskTriggerer} для создания однотиковых задач.
+ *
+ * @param <E> тип сущности
  */
 public interface TaskRunnable<E extends LivingEntity> {
 

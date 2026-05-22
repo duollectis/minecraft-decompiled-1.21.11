@@ -22,7 +22,10 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /**
- * {@code DyeColor}.
+ * Цвет краски — один из 16 стандартных цветов Minecraft.
+ * Каждый цвет имеет уникальный числовой индекс, строковый идентификатор,
+ * а также несколько цветовых представлений для разных контекстов:
+ * цвет сущностей, цвет фейерверков, цвет знаков и цвет карты.
  */
 public enum DyeColor implements StringIdentifiable {
 	WHITE(0, "white", 16383998, MapColor.WHITE, 15790320, 16777215),
@@ -43,17 +46,21 @@ public enum DyeColor implements StringIdentifiable {
 	BLACK(15, "black", 1908001, MapColor.BLACK, 1973019, 0);
 
 	private static final IntFunction<DyeColor> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
-			DyeColor::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
+		DyeColor::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
 	);
-	private static final Int2ObjectOpenHashMap<DyeColor> BY_FIREWORK_COLOR = new Int2ObjectOpenHashMap(
-			Arrays.stream(values()).collect(Collectors.toMap(color -> color.fireworkColor, color -> (DyeColor) color))
+	private static final Int2ObjectOpenHashMap<DyeColor> BY_FIREWORK_COLOR = new Int2ObjectOpenHashMap<>(
+		Arrays.stream(values()).collect(Collectors.toMap(color -> color.fireworkColor, color -> color))
 	);
+
 	public static final StringIdentifiable.EnumCodec<DyeColor> CODEC = StringIdentifiable.createCodec(DyeColor::values);
-	public static final PacketCodec<ByteBuf, DyeColor>
-			PACKET_CODEC =
-			PacketCodecs.indexed(INDEX_MAPPER, DyeColor::getIndex);
+	public static final PacketCodec<ByteBuf, DyeColor> PACKET_CODEC = PacketCodecs.indexed(
+		INDEX_MAPPER, DyeColor::getIndex
+	);
 	@Deprecated
-	public static final Codec<DyeColor> INDEX_CODEC = Codec.BYTE.xmap(DyeColor::byIndex, color -> (byte) color.index);
+	public static final Codec<DyeColor> INDEX_CODEC = Codec.BYTE.xmap(
+		DyeColor::byIndex, color -> (byte) color.index
+	);
+
 	private final int index;
 	private final String id;
 	private final MapColor mapColor;
@@ -61,14 +68,7 @@ public enum DyeColor implements StringIdentifiable {
 	private final int fireworkColor;
 	private final int signColor;
 
-	private DyeColor(
-			final int index,
-			final String id,
-			final int entityColor,
-			final MapColor mapColor,
-			final int fireworkColor,
-			final int signColor
-	) {
+	DyeColor(int index, String id, int entityColor, MapColor mapColor, int fireworkColor, int signColor) {
 		this.index = index;
 		this.id = id;
 		this.mapColor = mapColor;
@@ -78,101 +78,89 @@ public enum DyeColor implements StringIdentifiable {
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
 	public String getId() {
-		return this.id;
+		return id;
 	}
 
 	public int getEntityColor() {
-		return this.entityColor;
+		return entityColor;
 	}
 
 	public MapColor getMapColor() {
-		return this.mapColor;
+		return mapColor;
 	}
 
 	public int getFireworkColor() {
-		return this.fireworkColor;
+		return fireworkColor;
 	}
 
 	public int getSignColor() {
-		return this.signColor;
+		return signColor;
 	}
 
-	/**
-	 * By index.
-	 *
-	 * @param index index
-	 *
-	 * @return DyeColor — результат операции
-	 */
+	/** @return цвет краски по числовому индексу (0–15), при выходе за границы возвращает WHITE */
 	public static DyeColor byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}
 
-	@Contract("_,!null->!null;_,null->_")
 	/**
-	 * By id.
+	 * Ищет цвет краски по строковому идентификатору.
 	 *
-	 * @param id id
-	 * @param fallback fallback
-	 *
-	 * @return @Nullable DyeColor — результат операции
+	 * @param id       строковый идентификатор цвета
+	 * @param fallback значение по умолчанию, если цвет не найден
+	 * @return найденный цвет или {@code fallback}
 	 */
+	@Contract("_,!null->!null;_,null->_")
 	public static @Nullable DyeColor byId(String id, @Nullable DyeColor fallback) {
-		DyeColor dyeColor = CODEC.byId(id);
-		return dyeColor != null ? dyeColor : fallback;
+		DyeColor found = CODEC.byId(id);
+		return found != null ? found : fallback;
 	}
 
-	/**
-	 * By firework color.
-	 *
-	 * @param color color
-	 *
-	 * @return @Nullable DyeColor — результат операции
-	 */
+	/** @return цвет краски по цвету фейерверка, или {@code null} если не найден */
 	public static @Nullable DyeColor byFireworkColor(int color) {
-		return (DyeColor) BY_FIREWORK_COLOR.get(color);
+		return BY_FIREWORK_COLOR.get(color);
 	}
 
 	@Override
 	public String toString() {
-		return this.id;
+		return id;
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 
 	/**
-	 * Mix colors.
+	 * Смешивает два цвета краски через рецепт крафта, используя серверный менеджер рецептов.
+	 * Если подходящий рецепт не найден или результат не является краской, возвращает один из
+	 * исходных цветов случайным образом.
 	 *
-	 * @param world world
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return DyeColor — результат операции
+	 * @param world  серверный мир для доступа к менеджеру рецептов
+	 * @param first  первый цвет
+	 * @param second второй цвет
+	 * @return результирующий цвет после смешивания
 	 */
 	public static DyeColor mixColors(ServerWorld world, DyeColor first, DyeColor second) {
-		CraftingRecipeInput craftingRecipeInput = createColorMixingRecipeInput(first, second);
+		CraftingRecipeInput recipeInput = createColorMixingRecipeInput(first, second);
 		return world.getRecipeManager()
-		            .getFirstMatch(RecipeType.CRAFTING, craftingRecipeInput, world)
-		            .map(recipe -> recipe.value().craft(craftingRecipeInput, world.getRegistryManager()))
-		            .map(ItemStack::getItem)
-		            .filter(DyeItem.class::isInstance)
-		            .map(DyeItem.class::cast)
-		            .map(DyeItem::getColor)
-		            .orElseGet(() -> world.random.nextBoolean() ? first : second);
+			.getFirstMatch(RecipeType.CRAFTING, recipeInput, world)
+			.map(recipe -> recipe.value().craft(recipeInput, world.getRegistryManager()))
+			.map(ItemStack::getItem)
+			.filter(DyeItem.class::isInstance)
+			.map(DyeItem.class::cast)
+			.map(DyeItem::getColor)
+			.orElseGet(() -> world.random.nextBoolean() ? first : second);
 	}
 
 	private static CraftingRecipeInput createColorMixingRecipeInput(DyeColor first, DyeColor second) {
 		return CraftingRecipeInput.create(
-				2,
-				1,
-				List.of(new ItemStack(DyeItem.byColor(first)), new ItemStack(DyeItem.byColor(second)))
+			2,
+			1,
+			List.of(new ItemStack(DyeItem.byColor(first)), new ItemStack(DyeItem.byColor(second)))
 		);
 	}
 }

@@ -9,7 +9,8 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code BasicTempleStructure}.
+ * Базовая реализация простых храмовых структур (джунглевый храм, пустынная пирамида),
+ * которые размещаются по одному куску на поверхности мира.
  */
 public abstract class BasicTempleStructure extends Structure {
 
@@ -45,10 +46,10 @@ public abstract class BasicTempleStructure extends Structure {
 		collector.addPiece(this.constructor.construct(context.random(), chunkPos.getStartX(), chunkPos.getStartZ()));
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Constructor}.
+	 * Фабричный интерфейс для создания единственного куска храмовой структуры.
 	 */
+	@FunctionalInterface
 	protected interface Constructor {
 
 		StructurePiece construct(ChunkRandom random, int startX, int startZ);

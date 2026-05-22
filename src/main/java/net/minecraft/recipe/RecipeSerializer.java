@@ -7,7 +7,13 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code RecipeSerializer}.
+ * Реестр сериализаторов рецептов и базовый контракт для их реализации.
+ * <p>
+ * Каждый тип рецепта регистрирует свой сериализатор здесь. Сериализатор отвечает
+ * за кодирование/декодирование рецепта из JSON (через {@link MapCodec}) и из
+ * сетевого пакета (через {@link PacketCodec}).
+ *
+ * @param <T> конкретный тип рецепта, обслуживаемый данным сериализатором
  */
 public interface RecipeSerializer<T extends Recipe<?>> {
 
@@ -15,96 +21,119 @@ public interface RecipeSerializer<T extends Recipe<?>> {
 
 	RecipeSerializer<ShapelessRecipe> SHAPELESS = register("crafting_shapeless", new ShapelessRecipe.Serializer());
 
-	RecipeSerializer<ArmorDyeRecipe>
-			ARMOR_DYE =
-			register(
-					"crafting_special_armordye",
-					new SpecialCraftingRecipe.SpecialRecipeSerializer<>(ArmorDyeRecipe::new)
-			);
+	RecipeSerializer<ArmorDyeRecipe> ARMOR_DYE = register(
+		"crafting_special_armordye",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(ArmorDyeRecipe::new)
+	);
 
 	RecipeSerializer<BookCloningRecipe> BOOK_CLONING = register(
-			"crafting_special_bookcloning", new SpecialCraftingRecipe.SpecialRecipeSerializer<>(BookCloningRecipe::new)
+		"crafting_special_bookcloning",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(BookCloningRecipe::new)
 	);
 
 	RecipeSerializer<MapCloningRecipe> MAP_CLONING = register(
-			"crafting_special_mapcloning", new SpecialCraftingRecipe.SpecialRecipeSerializer<>(MapCloningRecipe::new)
+		"crafting_special_mapcloning",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(MapCloningRecipe::new)
 	);
 
 	RecipeSerializer<MapExtendingRecipe> MAP_EXTENDING = register(
-			"crafting_special_mapextending",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(MapExtendingRecipe::new)
+		"crafting_special_mapextending",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(MapExtendingRecipe::new)
 	);
 
 	RecipeSerializer<FireworkRocketRecipe> FIREWORK_ROCKET = register(
-			"crafting_special_firework_rocket",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkRocketRecipe::new)
+		"crafting_special_firework_rocket",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkRocketRecipe::new)
 	);
 
 	RecipeSerializer<FireworkStarRecipe> FIREWORK_STAR = register(
-			"crafting_special_firework_star",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkStarRecipe::new)
+		"crafting_special_firework_star",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkStarRecipe::new)
 	);
 
 	RecipeSerializer<FireworkStarFadeRecipe> FIREWORK_STAR_FADE = register(
-			"crafting_special_firework_star_fade",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkStarFadeRecipe::new)
+		"crafting_special_firework_star_fade",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(FireworkStarFadeRecipe::new)
 	);
 
 	RecipeSerializer<TippedArrowRecipe> TIPPED_ARROW = register(
-			"crafting_special_tippedarrow", new SpecialCraftingRecipe.SpecialRecipeSerializer<>(TippedArrowRecipe::new)
+		"crafting_special_tippedarrow",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(TippedArrowRecipe::new)
 	);
 
 	RecipeSerializer<BannerDuplicateRecipe> BANNER_DUPLICATE = register(
-			"crafting_special_bannerduplicate",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(BannerDuplicateRecipe::new)
+		"crafting_special_bannerduplicate",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(BannerDuplicateRecipe::new)
 	);
 
 	RecipeSerializer<ShieldDecorationRecipe> SHIELD_DECORATION = register(
-			"crafting_special_shielddecoration",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(ShieldDecorationRecipe::new)
+		"crafting_special_shielddecoration",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(ShieldDecorationRecipe::new)
 	);
 
-	RecipeSerializer<TransmuteRecipe>
-			CRAFTING_TRANSMUTE =
-			register("crafting_transmute", new TransmuteRecipe.Serializer());
+	RecipeSerializer<TransmuteRecipe> CRAFTING_TRANSMUTE = register(
+		"crafting_transmute",
+		new TransmuteRecipe.Serializer()
+	);
 
 	RecipeSerializer<RepairItemRecipe> REPAIR_ITEM = register(
-			"crafting_special_repairitem", new SpecialCraftingRecipe.SpecialRecipeSerializer<>(RepairItemRecipe::new)
+		"crafting_special_repairitem",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(RepairItemRecipe::new)
 	);
 
-	RecipeSerializer<SmeltingRecipe>
-			SMELTING =
-			register("smelting", new AbstractCookingRecipe.Serializer<>(SmeltingRecipe::new, 200));
+	RecipeSerializer<SmeltingRecipe> SMELTING = register(
+		"smelting",
+		new AbstractCookingRecipe.Serializer<>(SmeltingRecipe::new, 200)
+	);
 
-	RecipeSerializer<BlastingRecipe>
-			BLASTING =
-			register("blasting", new AbstractCookingRecipe.Serializer<>(BlastingRecipe::new, 100));
+	RecipeSerializer<BlastingRecipe> BLASTING = register(
+		"blasting",
+		new AbstractCookingRecipe.Serializer<>(BlastingRecipe::new, 100)
+	);
 
-	RecipeSerializer<SmokingRecipe>
-			SMOKING =
-			register("smoking", new AbstractCookingRecipe.Serializer<>(SmokingRecipe::new, 100));
+	RecipeSerializer<SmokingRecipe> SMOKING = register(
+		"smoking",
+		new AbstractCookingRecipe.Serializer<>(SmokingRecipe::new, 100)
+	);
 
 	RecipeSerializer<CampfireCookingRecipe> CAMPFIRE_COOKING = register(
-			"campfire_cooking", new AbstractCookingRecipe.Serializer<>(CampfireCookingRecipe::new, 100)
+		"campfire_cooking",
+		new AbstractCookingRecipe.Serializer<>(CampfireCookingRecipe::new, 100)
 	);
 
-	RecipeSerializer<StonecuttingRecipe>
-			STONECUTTING =
-			register("stonecutting", new SingleStackRecipe.Serializer<>(StonecuttingRecipe::new));
+	RecipeSerializer<StonecuttingRecipe> STONECUTTING = register(
+		"stonecutting",
+		new SingleStackRecipe.Serializer<>(StonecuttingRecipe::new)
+	);
 
-	RecipeSerializer<SmithingTransformRecipe>
-			SMITHING_TRANSFORM =
-			register("smithing_transform", new SmithingTransformRecipe.Serializer());
+	RecipeSerializer<SmithingTransformRecipe> SMITHING_TRANSFORM = register(
+		"smithing_transform",
+		new SmithingTransformRecipe.Serializer()
+	);
 
-	RecipeSerializer<SmithingTrimRecipe> SMITHING_TRIM = register("smithing_trim", new SmithingTrimRecipe.Serializer());
+	RecipeSerializer<SmithingTrimRecipe> SMITHING_TRIM = register(
+		"smithing_trim",
+		new SmithingTrimRecipe.Serializer()
+	);
 
 	RecipeSerializer<CraftingDecoratedPotRecipe> CRAFTING_DECORATED_POT = register(
-			"crafting_decorated_pot",
-			new SpecialCraftingRecipe.SpecialRecipeSerializer<>(CraftingDecoratedPotRecipe::new)
+		"crafting_decorated_pot",
+		new SpecialCraftingRecipe.SpecialRecipeSerializer<>(CraftingDecoratedPotRecipe::new)
 	);
 
+	/**
+	 * Возвращает кодек для сериализации рецепта в/из JSON-формата датапаков.
+	 *
+	 * @return {@link MapCodec} для данного типа рецепта
+	 */
 	MapCodec<T> codec();
 
+	/**
+	 * Возвращает кодек для сериализации рецепта в/из сетевого пакета.
+	 *
+	 * @return {@link PacketCodec} для данного типа рецепта
+	 * @deprecated сетевая синхронизация рецептов переходит на систему отображений
+	 */
 	@Deprecated
 	PacketCodec<RegistryByteBuf, T> packetCodec();
 

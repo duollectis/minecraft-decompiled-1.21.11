@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code GameRuleCategory}.
+ * Категория правила игры, используемая для группировки правил в интерфейсе и командах.
+ * Все зарегистрированные категории хранятся в статическом списке {@code CATEGORIES}.
  */
 public record GameRuleCategory(Identifier id) {
 
 	private static final List<GameRuleCategory> CATEGORIES = new ArrayList<>();
+
 	public static final GameRuleCategory PLAYER = register("player");
 	public static final GameRuleCategory MOBS = register("mobs");
 	public static final GameRuleCategory SPAWNING = register("spawning");
@@ -23,7 +25,7 @@ public record GameRuleCategory(Identifier id) {
 	public static final GameRuleCategory MISC = register("misc");
 
 	public Identifier getCategory() {
-		return this.id;
+		return id;
 	}
 
 	private static GameRuleCategory register(String name) {
@@ -31,24 +33,27 @@ public record GameRuleCategory(Identifier id) {
 	}
 
 	/**
-	 * Register.
+	 * Регистрирует новую категорию правил игры.
+	 * Бросает исключение, если категория с таким идентификатором уже зарегистрирована.
 	 *
-	 * @param id id
-	 *
-	 * @return GameRuleCategory — результат операции
+	 * @param id идентификатор категории
+	 * @return зарегистрированная категория
+	 * @throws IllegalArgumentException если категория уже существует
 	 */
 	public static GameRuleCategory register(Identifier id) {
-		GameRuleCategory gameRuleCategory = new GameRuleCategory(id);
-		if (CATEGORIES.contains(gameRuleCategory)) {
-			throw new IllegalArgumentException(String.format(Locale.ROOT, "Category '%s' is already registered.", id));
+		GameRuleCategory category = new GameRuleCategory(id);
+
+		if (CATEGORIES.contains(category)) {
+			throw new IllegalArgumentException(
+				String.format(Locale.ROOT, "Category '%s' is already registered.", id)
+			);
 		}
-		else {
-			CATEGORIES.add(gameRuleCategory);
-			return gameRuleCategory;
-		}
+
+		CATEGORIES.add(category);
+		return category;
 	}
 
 	public MutableText getText() {
-		return Text.translatable(this.id.toTranslationKey("gamerule.category"));
+		return Text.translatable(id.toTranslationKey("gamerule.category"));
 	}
 }

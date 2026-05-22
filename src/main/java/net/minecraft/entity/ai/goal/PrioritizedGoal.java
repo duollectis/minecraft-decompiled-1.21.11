@@ -4,9 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.EnumSet;
 
-/**
- * {@code PrioritizedGoal}.
- */
+/** Обёртка над {@link Goal}, добавляющая приоритет и флаг активности для {@link GoalSelector}. */
 public class PrioritizedGoal extends Goal {
 
 	private final Goal goal;
@@ -18,83 +16,76 @@ public class PrioritizedGoal extends Goal {
 		this.goal = goal;
 	}
 
-	/**
-	 * Проверяет возможность be replaced by.
-	 *
-	 * @param goal goal
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canBeReplacedBy(PrioritizedGoal goal) {
-		return this.canStop() && goal.getPriority() < this.getPriority();
+	public boolean canBeReplacedBy(PrioritizedGoal other) {
+		return canStop() && other.getPriority() < priority;
 	}
 
 	@Override
 	public boolean canStart() {
-		return this.goal.canStart();
+		return goal.canStart();
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.goal.shouldContinue();
+		return goal.shouldContinue();
 	}
 
 	@Override
 	public boolean canStop() {
-		return this.goal.canStop();
+		return goal.canStop();
 	}
 
 	@Override
 	public void start() {
-		if (!this.running) {
-			this.running = true;
-			this.goal.start();
+		if (!running) {
+			running = true;
+			goal.start();
 		}
 	}
 
 	@Override
 	public void stop() {
-		if (this.running) {
-			this.running = false;
-			this.goal.stop();
+		if (running) {
+			running = false;
+			goal.stop();
 		}
 	}
 
 	@Override
 	public boolean shouldRunEveryTick() {
-		return this.goal.shouldRunEveryTick();
+		return goal.shouldRunEveryTick();
 	}
 
 	@Override
 	protected int getTickCount(int ticks) {
-		return this.goal.getTickCount(ticks);
+		return goal.getTickCount(ticks);
 	}
 
 	@Override
 	public void tick() {
-		this.goal.tick();
+		goal.tick();
 	}
 
 	@Override
 	public void setControls(EnumSet<Goal.Control> controls) {
-		this.goal.setControls(controls);
+		goal.setControls(controls);
 	}
 
 	@Override
 	public EnumSet<Goal.Control> getControls() {
-		return this.goal.getControls();
+		return goal.getControls();
 	}
 
 	public boolean isRunning() {
-		return this.running;
+		return running;
 	}
 
 	public int getPriority() {
-		return this.priority;
+		return priority;
 	}
 
 	public Goal getGoal() {
-		return this.goal;
+		return goal;
 	}
 
 	@Override
@@ -102,13 +93,12 @@ public class PrioritizedGoal extends Goal {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return o != null && this.getClass() == o.getClass() ? this.goal.equals(((PrioritizedGoal) o).goal) : false;
-		}
+
+		return o != null && getClass() == o.getClass() && goal.equals(((PrioritizedGoal) o).goal);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.goal.hashCode();
+		return goal.hashCode();
 	}
 }

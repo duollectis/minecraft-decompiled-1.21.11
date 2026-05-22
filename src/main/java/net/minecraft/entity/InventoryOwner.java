@@ -8,7 +8,8 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 
 /**
- * {@code InventoryOwner}.
+ * Интерфейс для сущностей, владеющих инвентарём (например, лошади, лисы).
+ * Предоставляет логику подбора предметов с земли и сериализации инвентаря.
  */
 public interface InventoryOwner {
 
@@ -16,34 +17,45 @@ public interface InventoryOwner {
 
 	SimpleInventory getInventory();
 
+	/**
+	 * Обрабатывает подбор предмета с земли в инвентарь сущности.
+	 * Предмет подбирается только если сущность может его собрать и в инвентаре есть место.
+	 * Остаток предмета, не вошедший в инвентарь, остаётся на земле.
+	 *
+	 * @param world          серверный мир
+	 * @param entity         сущность-подборщик
+	 * @param inventoryOwner владелец инвентаря
+	 * @param item           сущность предмета на земле
+	 */
 	static void pickUpItem(ServerWorld world, MobEntity entity, InventoryOwner inventoryOwner, ItemEntity item) {
 		ItemStack itemStack = item.getStack();
-		if (entity.canGather(world, itemStack)) {
-			SimpleInventory simpleInventory = inventoryOwner.getInventory();
-			boolean bl = simpleInventory.canInsert(itemStack);
-			if (!bl) {
-				return;
-			}
+		if (!entity.canGather(world, itemStack)) {
+			return;
+		}
 
-			entity.triggerItemPickedUpByEntityCriteria(item);
-			int i = itemStack.getCount();
-			ItemStack itemStack2 = simpleInventory.addStack(itemStack);
-			entity.sendPickup(item, i - itemStack2.getCount());
-			if (itemStack2.isEmpty()) {
-				item.discard();
-			}
-			else {
-				itemStack.setCount(itemStack2.getCount());
-			}
+		SimpleInventory inventory = inventoryOwner.getInventory();
+		if (!inventory.canInsert(itemStack)) {
+			return;
+		}
+
+		entity.triggerItemPickedUpByEntityCriteria(item);
+		int originalCount = itemStack.getCount();
+		ItemStack remainder = inventory.addStack(itemStack);
+		entity.sendPickup(item, originalCount - remainder.getCount());
+
+		if (remainder.isEmpty()) {
+			item.discard();
+		} else {
+			itemStack.setCount(remainder.getCount());
 		}
 	}
 
 	default void readInventory(ReadView view) {
 		view.getOptionalTypedListView("Inventory", ItemStack.CODEC)
-		    .ifPresent(list -> this.getInventory().readDataList((ReadView.TypedListReadView<ItemStack>) list));
+			.ifPresent(list -> getInventory().readDataList((ReadView.TypedListReadView<ItemStack>) list));
 	}
 
 	default void writeInventory(WriteView view) {
-		this.getInventory().toDataList(view.getListAppender("Inventory", ItemStack.CODEC));
+		getInventory().toDataList(view.getListAppender("Inventory", ItemStack.CODEC));
 	}
 }

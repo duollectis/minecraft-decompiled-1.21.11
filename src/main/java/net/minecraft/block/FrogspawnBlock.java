@@ -33,8 +33,8 @@ public class FrogspawnBlock extends Block {
 	private static final int MIN_HATCH_TIME = 3600;
 	private static final int MAX_HATCH_TIME = 12000;
 	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 1.5);
-	private static int minHatchTime = 3600;
-	private static int maxHatchTime = 12000;
+	private static int minHatchTime = MIN_HATCH_TIME;
+	private static int maxHatchTime = MAX_HATCH_TIME;
 
 	@Override
 	public MapCodec<FrogspawnBlock> getCodec() {
@@ -161,7 +161,7 @@ public class FrogspawnBlock extends Block {
 	 * Сбрасывает hatch time range.
 	 */
 	public static void resetHatchTimeRange() {
-		minHatchTime = 3600;
-		maxHatchTime = 12000;
+		minHatchTime = MIN_HATCH_TIME;
+		maxHatchTime = MAX_HATCH_TIME;
 	}
 }

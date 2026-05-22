@@ -5,7 +5,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code DimensionTypes}.
+ * Ключи реестра для ванильных типов измерений.
  */
 public class DimensionTypes {
 

@@ -17,17 +17,19 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code FoodComponent}.
- */
+	 * Компонент еды предмета. Определяет количество восстанавливаемых единиц голода
+	 * ({@code nutrition}), насыщение ({@code saturation}) и флаг возможности есть
+	 * в любое время ({@code canAlwaysEat}).
+	 */
 public record FoodComponent(int nutrition, float saturation, boolean canAlwaysEat) implements Consumable {
 
 	public static final Codec<FoodComponent> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    Codecs.NON_NEGATIVE_INT.fieldOf("nutrition").forGetter(FoodComponent::nutrition),
-					                    Codec.FLOAT.fieldOf("saturation").forGetter(FoodComponent::saturation),
-					                    Codec.BOOL.optionalFieldOf("can_always_eat", false).forGetter(FoodComponent::canAlwaysEat)
-			                    )
-			                    .apply(instance, FoodComponent::new)
+										Codecs.NON_NEGATIVE_INT.fieldOf("nutrition").forGetter(FoodComponent::nutrition),
+										Codec.FLOAT.fieldOf("saturation").forGetter(FoodComponent::saturation),
+										Codec.BOOL.optionalFieldOf("can_always_eat", false).forGetter(FoodComponent::canAlwaysEat)
+								)
+								.apply(instance, FoodComponent::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, FoodComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.VAR_INT,
@@ -68,8 +70,9 @@ public record FoodComponent(int nutrition, float saturation, boolean canAlwaysEa
 	}
 
 	/**
-	 * {@code Builder}.
-	 */
+		 * Строитель для создания {@link FoodComponent}. Вычисляет итоговое насыщение
+		 * через {@link HungerConstants#calculateSaturation} при вызове {@link #build()}.
+		 */
 	public static class Builder {
 
 		private int nutrition;
@@ -91,14 +94,9 @@ public record FoodComponent(int nutrition, float saturation, boolean canAlwaysEa
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return FoodComponent — результат операции
-		 */
 		public FoodComponent build() {
-			float f = HungerConstants.calculateSaturation(this.nutrition, this.saturationModifier);
-			return new FoodComponent(this.nutrition, f, this.canAlwaysEat);
+			float saturation = HungerConstants.calculateSaturation(nutrition, saturationModifier);
+			return new FoodComponent(nutrition, saturation, canAlwaysEat);
 		}
 	}
 }

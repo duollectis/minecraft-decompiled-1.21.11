@@ -29,7 +29,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code Schemas}.
+ * Центральный реестр всех схем и исправлений системы DataFixer.
+ * <p>
+ * Содержит статический метод {@link #getFixer()}, возвращающий готовый {@link DataFixer},
+ * который умеет мигрировать данные мира от версии 99 (Beta 1.3) до текущей версии
+ * {@link #LATEST_SCHEMA_VERSION}. Каждая схема описывает типовую систему данных
+ * для конкретной версии игры, а каждое исправление (Fix) выполняет миграцию данных
+ * между соседними схемами.
  */
 public class Schemas {
 
@@ -338,7 +344,7 @@ public class Schemas {
 		builder.addFixer(
 				new DataFix(schema58, false) {
 					protected TypeRewriteRule makeRule() {
-						Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
+						Type<?> type = getInputSchema().getType(TypeReferences.ENTITY);
 						OpticFinder<String>
 								opticFinder =
 								DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
@@ -349,7 +355,7 @@ public class Schemas {
 								(OpticFinder<Pair<String, String>>) DSL.typeFinder(this
 										.getInputSchema()
 										.getType(TypeReferences.TEXT_COMPONENT));
-						return this.fixTypeEverywhereTyped(
+						return fixTypeEverywhereTyped(
 								"Command block minecart custom name fix",
 								type,
 								typed -> {
@@ -1629,7 +1635,7 @@ public class Schemas {
 						value -> value.equals("true") ? "awake" : "uprooted"
 				)
 		);
-		Schema schema253 = builder.addSchema(4295, EMPTY_IDENTIFIER_NORMALIZE);
+		Schema schema253 = builder.addSchema(LATEST_SCHEMA_VERSION, EMPTY_IDENTIFIER_NORMALIZE);
 		builder.addFixer(new BlendingDataFix(schema253));
 		Schema schema254 = builder.addSchema(4296, EMPTY_IDENTIFIER_NORMALIZE);
 		builder.addFixer(new AreaEffectCloudDurationScaleFix(schema254));

@@ -10,440 +10,429 @@ import net.minecraft.client.texture.TextureSetup;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GuiRenderState}.
+ * Центральное хранилище состояния GUI-рендера для одного кадра.
+ * Организует элементы в дерево слоёв ({@link Layer}), где каждый слой содержит
+ * элементы, которые не пересекаются между собой. Пересекающиеся элементы
+ * автоматически помещаются в дочерний слой, обеспечивая корректный z-order.
+ *
+ * <p>Поддерживает разделение на зоны до и после blur-эффекта через {@link #applyBlur()}.
  */
+@Environment(EnvType.CLIENT)
 public class GuiRenderState {
 
-	private static final int DEFAULT_BACKGROUND_COLOR = 2000962815;
-	private final List<GuiRenderState.Layer> rootLayers = new ArrayList<>();
+	/** Цвет отладочного фона для визуализации слоёв GUI (полупрозрачный синий). */
+	private static final int DEBUG_LAYER_BACKGROUND_COLOR = 2000962815;
+
+	private final List<Layer> rootLayers = new ArrayList<>();
 	private int blurLayer = Integer.MAX_VALUE;
-	private GuiRenderState.Layer currentLayer;
+	private Layer currentLayer;
 	private final Set<Object> itemModelKeys = new HashSet<>();
 	private @Nullable ScreenRect currentLayerBounds;
 
 	public GuiRenderState() {
-		this.createNewRootLayer();
+		createNewRootLayer();
 	}
 
-	/**
-	 * Создаёт new root layer.
-	 */
 	public void createNewRootLayer() {
-		this.currentLayer = new GuiRenderState.Layer(null);
-		this.rootLayers.add(this.currentLayer);
+		currentLayer = new Layer(null);
+		rootLayers.add(currentLayer);
 	}
 
 	/**
-	 * Применяет blur.
+	 * Фиксирует текущую позицию как границу blur-эффекта.
+	 * Все элементы до этой точки рендерятся до blur, после — поверх него.
+	 *
+	 * @throws IllegalStateException если blur уже был применён в этом кадре
 	 */
 	public void applyBlur() {
-		if (this.blurLayer != Integer.MAX_VALUE) {
+		if (blurLayer != Integer.MAX_VALUE) {
 			throw new IllegalStateException("Can only blur once per frame");
 		}
-		else {
-			this.blurLayer = this.rootLayers.size() - 1;
-		}
+
+		blurLayer = rootLayers.size() - 1;
 	}
 
-	/**
-	 * Go up layer.
-	 */
 	public void goUpLayer() {
-		if (this.currentLayer.up == null) {
-			this.currentLayer.up = new GuiRenderState.Layer(this.currentLayer);
+		if (currentLayer.up == null) {
+			currentLayer.up = new Layer(currentLayer);
 		}
 
-		this.currentLayer = this.currentLayer.up;
+		currentLayer = currentLayer.up;
 	}
 
-	/**
-	 * Добавляет item.
-	 *
-	 * @param state state
-	 */
 	public void addItem(ItemGuiElementRenderState state) {
-		if (this.findAndGoToLayerToAdd(state)) {
-			this.itemModelKeys.add(state.state().getModelKey());
-			this.currentLayer.addItem(state);
-			this.onElementAdded(state.bounds());
+		if (!findAndGoToLayerToAdd(state)) {
+			return;
 		}
+
+		itemModelKeys.add(state.state().getModelKey());
+		currentLayer.addItem(state);
+		onElementAdded(state.bounds());
 	}
 
-	/**
-	 * Добавляет text.
-	 *
-	 * @param state state
-	 */
 	public void addText(TextGuiElementRenderState state) {
-		if (this.findAndGoToLayerToAdd(state)) {
-			this.currentLayer.addText(state);
-			this.onElementAdded(state.bounds());
+		if (!findAndGoToLayerToAdd(state)) {
+			return;
 		}
+
+		currentLayer.addText(state);
+		onElementAdded(state.bounds());
 	}
 
-	/**
-	 * Добавляет special element.
-	 *
-	 * @param state state
-	 */
 	public void addSpecialElement(SpecialGuiElementRenderState state) {
-		if (this.findAndGoToLayerToAdd(state)) {
-			this.currentLayer.addSpecialElement(state);
-			this.onElementAdded(state.bounds());
+		if (!findAndGoToLayerToAdd(state)) {
+			return;
 		}
+
+		currentLayer.addSpecialElement(state);
+		onElementAdded(state.bounds());
+	}
+
+	public void addSimpleElement(SimpleGuiElementRenderState state) {
+		if (!findAndGoToLayerToAdd(state)) {
+			return;
+		}
+
+		currentLayer.addSimpleElement(state);
+		onElementAdded(state.bounds());
 	}
 
 	/**
-	 * Добавляет simple element.
-	 *
-	 * @param state state
+	 * В режиме отладки слоёв добавляет полупрозрачный фон поверх каждого элемента,
+	 * чтобы визуально показать границы слоёв GUI.
 	 */
-	public void addSimpleElement(SimpleGuiElementRenderState state) {
-		if (this.findAndGoToLayerToAdd(state)) {
-			this.currentLayer.addSimpleElement(state);
-			this.onElementAdded(state.bounds());
-		}
-	}
-
 	private void onElementAdded(@Nullable ScreenRect bounds) {
-		if (SharedConstants.RENDER_UI_LAYERING_RECTANGLES && bounds != null) {
-			this.goUpLayer();
-			this.currentLayer
-					.addSimpleElement(
-							new ColoredQuadGuiElementRenderState(
-									RenderPipelines.GUI,
-									TextureSetup.empty(),
-									new Matrix3x2f(),
-									0,
-									0,
-									10000,
-									10000,
-									2000962815,
-									2000962815,
-									bounds
-							)
-					);
+		if (!SharedConstants.RENDER_UI_LAYERING_RECTANGLES || bounds == null) {
+			return;
 		}
+
+		goUpLayer();
+		currentLayer.addSimpleElement(
+				new ColoredQuadGuiElementRenderState(
+						RenderPipelines.GUI,
+						TextureSetup.empty(),
+						new Matrix3x2f(),
+						0,
+						0,
+						10000,
+						10000,
+						DEBUG_LAYER_BACKGROUND_COLOR,
+						DEBUG_LAYER_BACKGROUND_COLOR,
+						bounds
+				)
+		);
 	}
 
+	/**
+	 * Находит подходящий слой для нового элемента и переходит в него.
+	 * Если элемент не имеет bounds — пропускается.
+	 * Если текущий слой содержит элемент, который полностью содержит новый — переходим вверх.
+	 * Иначе ищем слой с пересечением и переходим на уровень выше него.
+	 *
+	 * @return {@code true}, если элемент нужно добавить; {@code false} — если bounds == null
+	 */
 	private boolean findAndGoToLayerToAdd(GuiElementRenderState state) {
-		ScreenRect screenRect = state.bounds();
-		if (screenRect == null) {
+		ScreenRect bounds = state.bounds();
+		if (bounds == null) {
 			return false;
 		}
-		else {
-			if (this.currentLayerBounds != null && this.currentLayerBounds.contains(screenRect)) {
-				this.goUpLayer();
-			}
-			else {
-				this.findAndGoToLayerIntersecting(screenRect);
-			}
 
-			this.currentLayerBounds = screenRect;
-			return true;
+		if (currentLayerBounds != null && currentLayerBounds.contains(bounds)) {
+			goUpLayer();
+		} else {
+			findAndGoToLayerIntersecting(bounds);
 		}
+
+		currentLayerBounds = bounds;
+		return true;
 	}
 
+	/**
+	 * Обходит дерево слоёв снизу вверх, ища слой, элементы которого пересекаются
+	 * с переданными bounds. Если пересечение найдено — переходит на уровень выше.
+	 */
 	private void findAndGoToLayerIntersecting(ScreenRect bounds) {
-		GuiRenderState.Layer layer = this.rootLayers.getLast();
+		Layer layer = rootLayers.getLast();
 
 		while (layer.up != null) {
 			layer = layer.up;
 		}
 
-		boolean bl = false;
+		boolean hasIntersection = false;
 
-		while (!bl) {
-			bl = this.anyIntersect(bounds, layer.simpleElementRenderStates)
-					|| this.anyIntersect(bounds, layer.itemElementRenderStates)
-					|| this.anyIntersect(bounds, layer.textElementRenderStates)
-					|| this.anyIntersect(bounds, layer.specialElementRenderStates);
+		while (!hasIntersection) {
+			hasIntersection = anyIntersect(bounds, layer.simpleElementRenderStates)
+					|| anyIntersect(bounds, layer.itemElementRenderStates)
+					|| anyIntersect(bounds, layer.textElementRenderStates)
+					|| anyIntersect(bounds, layer.specialElementRenderStates);
+
 			if (layer.parent == null) {
 				break;
 			}
 
-			if (!bl) {
+			if (!hasIntersection) {
 				layer = layer.parent;
 			}
 		}
 
-		this.currentLayer = layer;
-		if (bl) {
-			this.goUpLayer();
+		currentLayer = layer;
+
+		if (hasIntersection) {
+			goUpLayer();
 		}
 	}
 
-	private boolean anyIntersect(
-			ScreenRect bounds,
-			@Nullable List<? extends GuiElementRenderState> elementRenderStates
-	) {
-		if (elementRenderStates != null) {
-			for (GuiElementRenderState guiElementRenderState : elementRenderStates) {
-				ScreenRect screenRect = guiElementRenderState.bounds();
-				if (screenRect != null && screenRect.intersects(bounds)) {
-					return true;
-				}
+	private boolean anyIntersect(ScreenRect bounds, @Nullable List<? extends GuiElementRenderState> elements) {
+		if (elements == null) {
+			return false;
+		}
+
+		for (GuiElementRenderState element : elements) {
+			ScreenRect elementBounds = element.bounds();
+			if (elementBounds != null && elementBounds.intersects(bounds)) {
+				return true;
 			}
 		}
 
 		return false;
 	}
 
-	/**
-	 * Добавляет simple element to current layer.
-	 *
-	 * @param state state
-	 */
 	public void addSimpleElementToCurrentLayer(TexturedQuadGuiElementRenderState state) {
-		this.currentLayer.addSimpleElement(state);
+		currentLayer.addSimpleElement(state);
 	}
 
-	/**
-	 * Добавляет prepared text element.
-	 *
-	 * @param state state
-	 */
 	public void addPreparedTextElement(SimpleGuiElementRenderState state) {
-		this.currentLayer.addPreparedText(state);
+		currentLayer.addPreparedText(state);
 	}
 
 	public Set<Object> getItemModelKeys() {
-		return this.itemModelKeys;
+		return itemModelKeys;
 	}
 
-	public void forEachSimpleElement(
-			Consumer<SimpleGuiElementRenderState> consumer,
-			GuiRenderState.LayerFilter filter
-	) {
-		this.forEachLayer(
+	public void forEachSimpleElement(Consumer<SimpleGuiElementRenderState> consumer, LayerFilter filter) {
+		forEachLayer(
 				layer -> {
-					if (layer.simpleElementRenderStates != null || layer.preparedTextElementRenderStates != null) {
-						if (layer.simpleElementRenderStates != null) {
-							for (SimpleGuiElementRenderState simpleGuiElementRenderState : layer.simpleElementRenderStates) {
-								consumer.accept(simpleGuiElementRenderState);
-							}
-						}
-
-						if (layer.preparedTextElementRenderStates != null) {
-							for (SimpleGuiElementRenderState simpleGuiElementRenderState : layer.preparedTextElementRenderStates) {
-								consumer.accept(simpleGuiElementRenderState);
-							}
-						}
+					if (layer.simpleElementRenderStates == null && layer.preparedTextElementRenderStates == null) {
+						return;
 					}
-				}, filter
-		);
-	}
 
-	/**
-	 * For each item element.
-	 *
-	 * @param itemElementStateConsumer item element state consumer
-	 */
-	public void forEachItemElement(Consumer<ItemGuiElementRenderState> itemElementStateConsumer) {
-		GuiRenderState.Layer layer = this.currentLayer;
-		this.forEachLayer(
-				layerx -> {
-					if (layerx.itemElementRenderStates != null) {
-						this.currentLayer = layerx;
-
-						for (ItemGuiElementRenderState itemGuiElementRenderState : layerx.itemElementRenderStates) {
-							itemElementStateConsumer.accept(itemGuiElementRenderState);
-						}
-					}
-				}, GuiRenderState.LayerFilter.ALL
-		);
-		this.currentLayer = layer;
-	}
-
-	/**
-	 * For each text element.
-	 *
-	 * @param textElementStateConsumer text element state consumer
-	 */
-	public void forEachTextElement(Consumer<TextGuiElementRenderState> textElementStateConsumer) {
-		GuiRenderState.Layer layer = this.currentLayer;
-		this.forEachLayer(
-				layerx -> {
-					if (layerx.textElementRenderStates != null) {
-						for (TextGuiElementRenderState textGuiElementRenderState : layerx.textElementRenderStates) {
-							this.currentLayer = layerx;
-							textElementStateConsumer.accept(textGuiElementRenderState);
-						}
-					}
-				}, GuiRenderState.LayerFilter.ALL
-		);
-		this.currentLayer = layer;
-	}
-
-	/**
-	 * For each special element.
-	 *
-	 * @param specialElementStateConsumer special element state consumer
-	 */
-	public void forEachSpecialElement(Consumer<SpecialGuiElementRenderState> specialElementStateConsumer) {
-		GuiRenderState.Layer layer = this.currentLayer;
-		this.forEachLayer(
-				layerx -> {
-					if (layerx.specialElementRenderStates != null) {
-						this.currentLayer = layerx;
-
-						for (SpecialGuiElementRenderState specialGuiElementRenderState : layerx.specialElementRenderStates) {
-							specialElementStateConsumer.accept(specialGuiElementRenderState);
-						}
-					}
-				}, GuiRenderState.LayerFilter.ALL
-		);
-		this.currentLayer = layer;
-	}
-
-	/**
-	 * Sort simple elements.
-	 *
-	 * @param simpleElementStateComparator simple element state comparator
-	 */
-	public void sortSimpleElements(Comparator<SimpleGuiElementRenderState> simpleElementStateComparator) {
-		this.forEachLayer(
-				layer -> {
 					if (layer.simpleElementRenderStates != null) {
-						if (SharedConstants.SHUFFLE_UI_RENDERING_ORDER) {
-							Collections.shuffle(layer.simpleElementRenderStates);
+						for (SimpleGuiElementRenderState element : layer.simpleElementRenderStates) {
+							consumer.accept(element);
 						}
-
-						layer.simpleElementRenderStates.sort(simpleElementStateComparator);
 					}
-				}, GuiRenderState.LayerFilter.ALL
+
+					if (layer.preparedTextElementRenderStates != null) {
+						for (SimpleGuiElementRenderState element : layer.preparedTextElementRenderStates) {
+							consumer.accept(element);
+						}
+					}
+				},
+				filter
 		);
 	}
 
-	private void forEachLayer(Consumer<GuiRenderState.Layer> layerConsumer, GuiRenderState.LayerFilter filter) {
-		int i = 0;
-		int j = this.rootLayers.size();
-		if (filter == GuiRenderState.LayerFilter.BEFORE_BLUR) {
-			j = Math.min(this.blurLayer, this.rootLayers.size());
-		}
-		else if (filter == GuiRenderState.LayerFilter.AFTER_BLUR) {
-			i = this.blurLayer;
+	/**
+	 * Итерирует все элементы-предметы по всем слоям, временно переключая
+	 * {@code currentLayer} на обрабатываемый слой для корректной работы
+	 * методов добавления элементов внутри колбэка.
+	 */
+	public void forEachItemElement(Consumer<ItemGuiElementRenderState> consumer) {
+		Layer savedLayer = currentLayer;
+
+		forEachLayer(
+				layer -> {
+					if (layer.itemElementRenderStates == null) {
+						return;
+					}
+
+					currentLayer = layer;
+
+					for (ItemGuiElementRenderState element : layer.itemElementRenderStates) {
+						consumer.accept(element);
+					}
+				},
+				LayerFilter.ALL
+		);
+
+		currentLayer = savedLayer;
+	}
+
+	/**
+	 * Итерирует все текстовые элементы по всем слоям, временно переключая
+	 * {@code currentLayer} для корректной работы методов добавления глифов.
+	 */
+	public void forEachTextElement(Consumer<TextGuiElementRenderState> consumer) {
+		Layer savedLayer = currentLayer;
+
+		forEachLayer(
+				layer -> {
+					if (layer.textElementRenderStates == null) {
+						return;
+					}
+
+					for (TextGuiElementRenderState element : layer.textElementRenderStates) {
+						currentLayer = layer;
+						consumer.accept(element);
+					}
+				},
+				LayerFilter.ALL
+		);
+
+		currentLayer = savedLayer;
+	}
+
+	/**
+	 * Итерирует все специальные элементы по всем слоям, временно переключая
+	 * {@code currentLayer} для корректной работы методов добавления PIP-квадов.
+	 */
+	public void forEachSpecialElement(Consumer<SpecialGuiElementRenderState> consumer) {
+		Layer savedLayer = currentLayer;
+
+		forEachLayer(
+				layer -> {
+					if (layer.specialElementRenderStates == null) {
+						return;
+					}
+
+					currentLayer = layer;
+
+					for (SpecialGuiElementRenderState element : layer.specialElementRenderStates) {
+						consumer.accept(element);
+					}
+				},
+				LayerFilter.ALL
+		);
+
+		currentLayer = savedLayer;
+	}
+
+	public void sortSimpleElements(Comparator<SimpleGuiElementRenderState> comparator) {
+		forEachLayer(
+				layer -> {
+					if (layer.simpleElementRenderStates == null) {
+						return;
+					}
+
+					if (SharedConstants.SHUFFLE_UI_RENDERING_ORDER) {
+						Collections.shuffle(layer.simpleElementRenderStates);
+					}
+
+					layer.simpleElementRenderStates.sort(comparator);
+				},
+				LayerFilter.ALL
+		);
+	}
+
+	private void forEachLayer(Consumer<Layer> layerConsumer, LayerFilter filter) {
+		int from = 0;
+		int to = rootLayers.size();
+
+		if (filter == LayerFilter.BEFORE_BLUR) {
+			to = Math.min(blurLayer, rootLayers.size());
+		} else if (filter == LayerFilter.AFTER_BLUR) {
+			from = blurLayer;
 		}
 
-		for (int k = i; k < j; k++) {
-			GuiRenderState.Layer layer = this.rootLayers.get(k);
-			this.traverseLayers(layer, layerConsumer);
+		for (int index = from; index < to; index++) {
+			traverseLayers(rootLayers.get(index), layerConsumer);
 		}
 	}
 
-	private void traverseLayers(GuiRenderState.Layer layer, Consumer<GuiRenderState.Layer> layerConsumer) {
+	private void traverseLayers(Layer layer, Consumer<Layer> layerConsumer) {
 		layerConsumer.accept(layer);
+
 		if (layer.up != null) {
-			this.traverseLayers(layer.up, layerConsumer);
+			traverseLayers(layer.up, layerConsumer);
 		}
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.itemModelKeys.clear();
-		this.rootLayers.clear();
-		this.blurLayer = Integer.MAX_VALUE;
-		this.createNewRootLayer();
+		itemModelKeys.clear();
+		rootLayers.clear();
+		blurLayer = Integer.MAX_VALUE;
+		currentLayerBounds = null;
+		createNewRootLayer();
 	}
 
-	@Environment(EnvType.CLIENT)
+	// -------------------------------------------------------------------------
+	// Вложенные типы
+	// -------------------------------------------------------------------------
+
 	/**
-	 * {@code Layer}.
+	 * Один слой дерева GUI-рендера. Хранит списки элементов разных типов,
+	 * инициализируемые лениво при первом добавлении элемента.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Layer {
 
-		public final GuiRenderState.@Nullable Layer parent;
-		public GuiRenderState.@Nullable Layer up;
+		public final @Nullable Layer parent;
+		public @Nullable Layer up;
 		public @Nullable List<SimpleGuiElementRenderState> simpleElementRenderStates;
 		public @Nullable List<SimpleGuiElementRenderState> preparedTextElementRenderStates;
 		public @Nullable List<ItemGuiElementRenderState> itemElementRenderStates;
 		public @Nullable List<TextGuiElementRenderState> textElementRenderStates;
 		public @Nullable List<SpecialGuiElementRenderState> specialElementRenderStates;
 
-		Layer(GuiRenderState.@Nullable Layer parent) {
+		Layer(@Nullable Layer parent) {
 			this.parent = parent;
 		}
 
-		/**
-		 * Добавляет item.
-		 *
-		 * @param state state
-		 */
 		public void addItem(ItemGuiElementRenderState state) {
-			if (this.itemElementRenderStates == null) {
-				this.itemElementRenderStates = new ArrayList<>();
+			if (itemElementRenderStates == null) {
+				itemElementRenderStates = new ArrayList<>();
 			}
 
-			this.itemElementRenderStates.add(state);
+			itemElementRenderStates.add(state);
 		}
 
-		/**
-		 * Добавляет text.
-		 *
-		 * @param state state
-		 */
 		public void addText(TextGuiElementRenderState state) {
-			if (this.textElementRenderStates == null) {
-				this.textElementRenderStates = new ArrayList<>();
+			if (textElementRenderStates == null) {
+				textElementRenderStates = new ArrayList<>();
 			}
 
-			this.textElementRenderStates.add(state);
+			textElementRenderStates.add(state);
 		}
 
-		/**
-		 * Добавляет special element.
-		 *
-		 * @param state state
-		 */
 		public void addSpecialElement(SpecialGuiElementRenderState state) {
-			if (this.specialElementRenderStates == null) {
-				this.specialElementRenderStates = new ArrayList<>();
+			if (specialElementRenderStates == null) {
+				specialElementRenderStates = new ArrayList<>();
 			}
 
-			this.specialElementRenderStates.add(state);
+			specialElementRenderStates.add(state);
 		}
 
-		/**
-		 * Добавляет simple element.
-		 *
-		 * @param state state
-		 */
 		public void addSimpleElement(SimpleGuiElementRenderState state) {
-			if (this.simpleElementRenderStates == null) {
-				this.simpleElementRenderStates = new ArrayList<>();
+			if (simpleElementRenderStates == null) {
+				simpleElementRenderStates = new ArrayList<>();
 			}
 
-			this.simpleElementRenderStates.add(state);
+			simpleElementRenderStates.add(state);
 		}
 
-		/**
-		 * Добавляет prepared text.
-		 *
-		 * @param state state
-		 */
 		public void addPreparedText(SimpleGuiElementRenderState state) {
-			if (this.preparedTextElementRenderStates == null) {
-				this.preparedTextElementRenderStates = new ArrayList<>();
+			if (preparedTextElementRenderStates == null) {
+				preparedTextElementRenderStates = new ArrayList<>();
 			}
 
-			this.preparedTextElementRenderStates.add(state);
+			preparedTextElementRenderStates.add(state);
 		}
 	}
 
+	/** Фильтр слоёв относительно позиции blur-эффекта. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LayerFilter}.
-	 */
-	public static enum LayerFilter {
+	public enum LayerFilter {
 		ALL,
 		BEFORE_BLUR,
-		AFTER_BLUR;
+		AFTER_BLUR
 	}
 }

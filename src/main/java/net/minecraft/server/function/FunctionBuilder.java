@@ -12,7 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code FunctionBuilder}.
+ * Построитель {@link CommandFunction}: накапливает команды и макро-строки,
+ * затем создаёт либо {@link ExpandedMacro} (без макросов), либо {@link Macro} (с макросами).
  */
 class FunctionBuilder<T extends AbstractServerCommandSource<T>> {
 
@@ -20,83 +21,67 @@ class FunctionBuilder<T extends AbstractServerCommandSource<T>> {
 	private @Nullable List<Macro.Line<T>> macroLines;
 	private final List<String> usedVariables = new ArrayList<>();
 
-	/**
-	 * Добавляет action.
-	 *
-	 * @param action action
-	 */
 	public void addAction(SourcedCommandAction<T> action) {
-		if (this.macroLines != null) {
-			this.macroLines.add(new Macro.FixedLine<>(action));
+		if (macroLines != null) {
+			macroLines.add(new Macro.FixedLine<>(action));
 		}
 		else {
-			this.actions.add(action);
+			actions.add(action);
 		}
 	}
 
 	private int indexOfVariable(String variable) {
-		int i = this.usedVariables.indexOf(variable);
-		if (i == -1) {
-			i = this.usedVariables.size();
-			this.usedVariables.add(variable);
+		int index = usedVariables.indexOf(variable);
+
+		if (index == -1) {
+			index = usedVariables.size();
+			usedVariables.add(variable);
 		}
 
-		return i;
+		return index;
 	}
 
 	private IntList indicesOfVariables(List<String> variables) {
-		IntArrayList intArrayList = new IntArrayList(variables.size());
+		IntArrayList indices = new IntArrayList(variables.size());
 
-		for (String string : variables) {
-			intArrayList.add(this.indexOfVariable(string));
+		for (String variable : variables) {
+			indices.add(indexOfVariable(variable));
 		}
 
-		return intArrayList;
+		return indices;
 	}
 
-	/**
-	 * Добавляет macro command.
-	 *
-	 * @param command command
-	 * @param lineNum line num
-	 * @param source source
-	 */
 	public void addMacroCommand(String command, int lineNum, T source) {
-		MacroInvocation macroInvocation;
+		MacroInvocation invocation;
 		try {
-			macroInvocation = MacroInvocation.parse(command);
+			invocation = MacroInvocation.parse(command);
 		}
-		catch (Exception var7) {
-			throw new IllegalArgumentException("Can't parse function line " + lineNum + ": '" + command + "'", var7);
+		catch (Exception exception) {
+			throw new IllegalArgumentException(
+					"Can't parse function line " + lineNum + ": '" + command + "'", exception
+			);
 		}
 
-		if (this.actions != null) {
-			this.macroLines = new ArrayList<>(this.actions.size() + 1);
+		if (actions != null) {
+			macroLines = new ArrayList<>(actions.size() + 1);
 
-			for (SourcedCommandAction<T> sourcedCommandAction : this.actions) {
-				this.macroLines.add(new Macro.FixedLine<>(sourcedCommandAction));
+			for (SourcedCommandAction<T> action : actions) {
+				macroLines.add(new Macro.FixedLine<>(action));
 			}
 
-			this.actions = null;
+			actions = null;
 		}
 
-		this.macroLines.add(new Macro.VariableLine<>(
-				macroInvocation,
-				this.indicesOfVariables(macroInvocation.variables()),
+		macroLines.add(new Macro.VariableLine<>(
+				invocation,
+				indicesOfVariables(invocation.variables()),
 				source
 		));
 	}
 
-	/**
-	 * To command function.
-	 *
-	 * @param id id
-	 *
-	 * @return CommandFunction — результат операции
-	 */
 	public CommandFunction<T> toCommandFunction(Identifier id) {
-		return (CommandFunction<T>) (this.macroLines != null ? new Macro<>(id, this.macroLines, this.usedVariables)
-		                                                     : new ExpandedMacro<>(id, this.actions)
-		);
+		return (CommandFunction<T>) (macroLines != null
+				? new Macro<>(id, macroLines, usedVariables)
+				: new ExpandedMacro<>(id, actions));
 	}
 }

@@ -7,7 +7,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code PatternParsingRule}.
+ * Правило разбора, сопоставляющее текущую позицию в {@link StringReader}
+ * с регулярным выражением. Использует {@link Matcher#lookingAt()} для проверки
+ * совпадения начиная с текущего курсора без сдвига всего ввода.
  */
 public final class PatternParsingRule implements ParsingRule<StringReader, String> {
 
@@ -19,24 +21,18 @@ public final class PatternParsingRule implements ParsingRule<StringReader, Strin
 		this.exception = exception;
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return String — результат операции
-	 */
+	@Override
 	public String parse(ParsingState<StringReader> parsingState) {
-		StringReader stringReader = parsingState.getReader();
-		String string = stringReader.getString();
-		Matcher matcher = this.pattern.matcher(string).region(stringReader.getCursor(), string.length());
+		StringReader reader = parsingState.getReader();
+		String input = reader.getString();
+		Matcher matcher = pattern.matcher(input).region(reader.getCursor(), input.length());
+
 		if (!matcher.lookingAt()) {
-			parsingState.getErrors().add(parsingState.getCursor(), this.exception);
+			parsingState.getErrors().add(parsingState.getCursor(), exception);
 			return null;
 		}
-		else {
-			stringReader.setCursor(matcher.end());
-			return matcher.group(0);
-		}
+
+		reader.setCursor(matcher.end());
+		return matcher.group(0);
 	}
 }

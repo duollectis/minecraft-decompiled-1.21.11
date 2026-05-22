@@ -6,10 +6,12 @@ import net.minecraft.client.render.model.json.ModelTransformation;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UnbakedModel}.
+ * Незапечённая JSON-модель блока или предмета.
+ * Описывает иерархию наследования через {@link #parent()}, текстуры, геометрию
+ * и параметры отображения. Запекается в {@link BakedSimpleModel} через систему {@link Baker}.
  */
+@Environment(EnvType.CLIENT)
 public interface UnbakedModel {
 
 	String PARTICLE_TEXTURE = "particle";
@@ -38,17 +40,18 @@ public interface UnbakedModel {
 		return null;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code GuiLight}.
+	 * Режим освещения модели в GUI: {@code ITEM} — освещение спереди (плоские предметы),
+	 * {@code BLOCK} — освещение сбоку (объёмные блоки).
 	 */
-	public static enum GuiLight {
+	@Environment(EnvType.CLIENT)
+	enum GuiLight {
 		ITEM("front"),
 		BLOCK("side");
 
 		private final String name;
 
-		private GuiLight(final String name) {
+		GuiLight(String name) {
 			this.name = name;
 		}
 

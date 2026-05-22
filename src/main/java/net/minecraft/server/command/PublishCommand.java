@@ -17,7 +17,7 @@ import net.minecraft.world.GameMode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PublishCommand}.
+ * Команда {@code /publish}: публикация одиночного мира в локальную сеть (только integrated).
  */
 public class PublishCommand {
 

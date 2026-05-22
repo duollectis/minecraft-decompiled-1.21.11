@@ -34,12 +34,16 @@ import java.util.Arrays;
 import java.util.UUID;
 
 /**
- * {@code AbstractSignBlock}.
+ * Базовый класс для всех типов табличек (напольные и настенные).
+ * Управляет логикой редактирования текста, нанесения воска,
+ * выполнения команд при клике и водозаполнением.
  */
 public abstract class AbstractSignBlock extends BlockWithEntity implements Waterloggable {
 
 	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+
 	private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 16.0);
+
 	private final WoodType type;
 
 	protected AbstractSignBlock(WoodType type, AbstractBlock.Settings settings) {
@@ -52,28 +56,28 @@ public abstract class AbstractSignBlock extends BlockWithEntity implements Water
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		if (state.get(WATERLOGGED)) {
 			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
 
 		return super.getStateForNeighborUpdate(
-				state,
-				world,
-				tickView,
-				pos,
-				direction,
-				neighborPos,
-				neighborState,
-				random
+			state,
+			world,
+			tickView,
+			pos,
+			direction,
+			neighborPos,
+			neighborState,
+			random
 		);
 	}
 
@@ -92,96 +96,102 @@ public abstract class AbstractSignBlock extends BlockWithEntity implements Water
 		return new SignBlockEntity(pos, state);
 	}
 
+	/**
+	 * Обрабатывает взаимодействие с предметом (перо, воск и т.п.).
+	 * Применяет инструмент к тексту таблички, если игрок имеет право на редактирование
+	 * и табличка не запечатана воском.
+	 */
 	@Override
 	protected ActionResult onUseWithItem(
-			ItemStack stack,
-			BlockState state,
-			World world,
-			BlockPos pos,
-			PlayerEntity player,
-			Hand hand,
-			BlockHitResult hit
+		ItemStack stack,
+		BlockState state,
+		World world,
+		BlockPos pos,
+		PlayerEntity player,
+		Hand hand,
+		BlockHitResult hit
 	) {
-		if (world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity) {
-			SignChangingItem
-					signChangingItem2 =
-					stack.getItem() instanceof SignChangingItem signChangingItem ? signChangingItem : null;
-			boolean bl = signChangingItem2 != null && player.canModifyBlocks();
-			if (world instanceof ServerWorld serverWorld) {
-				if (bl && !signBlockEntity.isWaxed() && !this.isOtherPlayerEditing(player, signBlockEntity)) {
-					boolean bl2 = signBlockEntity.isPlayerFacingFront(player);
-					if (signChangingItem2.canUseOnSignText(signBlockEntity.getText(bl2), player)
-							&& signChangingItem2.useOnSign(serverWorld, signBlockEntity, bl2, player)) {
-						signBlockEntity.runCommandClickEvent(serverWorld, player, pos, bl2);
-						player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-						serverWorld.emitGameEvent(
-								GameEvent.BLOCK_CHANGE,
-								signBlockEntity.getPos(),
-								GameEvent.Emitter.of(player, signBlockEntity.getCachedState())
-						);
-						stack.decrementUnlessCreative(1, player);
-						return ActionResult.SUCCESS;
-					}
-					else {
-						return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-					}
-				}
-				else {
-					return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-				}
-			}
-			else {
-				return !bl && !signBlockEntity.isWaxed() ? ActionResult.CONSUME : ActionResult.SUCCESS;
-			}
-		}
-		else {
+		if (!(world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity)) {
 			return ActionResult.PASS;
 		}
+
+		SignChangingItem signChangingItem = stack.getItem() instanceof SignChangingItem item ? item : null;
+		boolean canEdit = signChangingItem != null && player.canModifyBlocks();
+
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return !canEdit && !signBlockEntity.isWaxed() ? ActionResult.CONSUME : ActionResult.SUCCESS;
+		}
+
+		if (!canEdit || signBlockEntity.isWaxed() || isOtherPlayerEditing(player, signBlockEntity)) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+
+		boolean isFront = signBlockEntity.isPlayerFacingFront(player);
+
+		if (!signChangingItem.canUseOnSignText(signBlockEntity.getText(isFront), player)
+			|| !signChangingItem.useOnSign(serverWorld, signBlockEntity, isFront, player)) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+
+		signBlockEntity.runCommandClickEvent(serverWorld, player, pos, isFront);
+		player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+		serverWorld.emitGameEvent(
+			GameEvent.BLOCK_CHANGE,
+			signBlockEntity.getPos(),
+			GameEvent.Emitter.of(player, signBlockEntity.getCachedState())
+		);
+		stack.decrementUnlessCreative(1, player);
+
+		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Обрабатывает клик по табличке без предмета в руке:
+	 * выполняет команду, открывает редактор или воспроизводит звук запечатанной таблички.
+	 */
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity) {
-			if (world instanceof ServerWorld serverWorld) {
-				boolean bl = signBlockEntity.isPlayerFacingFront(player);
-				boolean bl2 = signBlockEntity.runCommandClickEvent(serverWorld, player, pos, bl);
-				if (signBlockEntity.isWaxed()) {
-					serverWorld.playSound(
-							null,
-							signBlockEntity.getPos(),
-							signBlockEntity.getInteractionFailSound(),
-							SoundCategory.BLOCKS
-					);
-					return ActionResult.SUCCESS_SERVER;
-				}
-				else if (bl2) {
-					return ActionResult.SUCCESS_SERVER;
-				}
-				else if (!this.isOtherPlayerEditing(player, signBlockEntity)
-						&& player.canModifyBlocks()
-						&& this.isTextLiteralOrEmpty(player, signBlockEntity, bl)) {
-					this.openEditScreen(player, signBlockEntity, bl);
-					return ActionResult.SUCCESS_SERVER;
-				}
-				else {
-					return ActionResult.PASS;
-				}
-			}
-			else {
-				Util.getFatalOrPause(new IllegalStateException("Expected to only call this on server"));
-				return ActionResult.CONSUME;
-			}
-		}
-		else {
+		if (!(world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity)) {
 			return ActionResult.PASS;
 		}
+
+		if (!(world instanceof ServerWorld serverWorld)) {
+			Util.getFatalOrPause(new IllegalStateException("Expected to only call this on server"));
+			return ActionResult.CONSUME;
+		}
+
+		boolean isFront = signBlockEntity.isPlayerFacingFront(player);
+		boolean commandExecuted = signBlockEntity.runCommandClickEvent(serverWorld, player, pos, isFront);
+
+		if (signBlockEntity.isWaxed()) {
+			serverWorld.playSound(
+				null,
+				signBlockEntity.getPos(),
+				signBlockEntity.getInteractionFailSound(),
+				SoundCategory.BLOCKS
+			);
+			return ActionResult.SUCCESS_SERVER;
+		}
+
+		if (commandExecuted) {
+			return ActionResult.SUCCESS_SERVER;
+		}
+
+		if (!isOtherPlayerEditing(player, signBlockEntity)
+			&& player.canModifyBlocks()
+			&& isTextLiteralOrEmpty(player, signBlockEntity, isFront)) {
+			openEditScreen(player, signBlockEntity, isFront);
+			return ActionResult.SUCCESS_SERVER;
+		}
+
+		return ActionResult.PASS;
 	}
 
 	private boolean isTextLiteralOrEmpty(PlayerEntity player, SignBlockEntity blockEntity, boolean front) {
 		SignText signText = blockEntity.getText(front);
 		return Arrays.stream(signText.getMessages(player.shouldFilterText()))
-		             .allMatch(message -> message.equals(ScreenTexts.EMPTY)
-				             || message.getContent() instanceof PlainTextContent);
+			.allMatch(message -> message.equals(ScreenTexts.EMPTY)
+				|| message.getContent() instanceof PlainTextContent);
 	}
 
 	public abstract float getRotationDegrees(BlockState state);
@@ -196,43 +206,28 @@ public abstract class AbstractSignBlock extends BlockWithEntity implements Water
 	}
 
 	public WoodType getWoodType() {
-		return this.type;
+		return type;
 	}
 
 	public static WoodType getWoodType(Block block) {
-		WoodType woodType;
-		if (block instanceof AbstractSignBlock) {
-			woodType = ((AbstractSignBlock) block).getWoodType();
-		}
-		else {
-			woodType = WoodType.OAK;
-		}
-
-		return woodType;
+		return block instanceof AbstractSignBlock signBlock ? signBlock.getWoodType() : WoodType.OAK;
 	}
 
-	/**
-	 * Открывает edit screen.
-	 *
-	 * @param player player
-	 * @param blockEntity block entity
-	 * @param front front
-	 */
 	public void openEditScreen(PlayerEntity player, SignBlockEntity blockEntity, boolean front) {
 		blockEntity.setEditor(player.getUuid());
 		player.openEditSignScreen(blockEntity, front);
 	}
 
 	private boolean isOtherPlayerEditing(PlayerEntity player, SignBlockEntity blockEntity) {
-		UUID uUID = blockEntity.getEditor();
-		return uUID != null && !uUID.equals(player.getUuid());
+		UUID editorId = blockEntity.getEditor();
+		return editorId != null && !editorId.equals(player.getUuid());
 	}
 
 	@Override
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
-			World world,
-			BlockState state,
-			BlockEntityType<T> type
+		World world,
+		BlockState state,
+		BlockEntityType<T> type
 	) {
 		return validateTicker(type, BlockEntityType.SIGN, SignBlockEntity::tick);
 	}

@@ -81,7 +81,10 @@ import net.minecraft.recipe.display.RecipeDisplay;
 import net.minecraft.recipe.display.RecipeDisplayBootstrap;
 import net.minecraft.recipe.display.SlotDisplay;
 import net.minecraft.recipe.display.SlotDisplays;
+import com.mojang.serialization.Lifecycle;
 import net.minecraft.registry.entry.RegistryEntryInfo;
+
+import java.util.Optional;
 import net.minecraft.scoreboard.number.NumberFormatType;
 import net.minecraft.scoreboard.number.NumberFormatTypes;
 import net.minecraft.screen.ScreenHandlerType;
@@ -153,303 +156,226 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * {@code Registries}.
+ * Центральный реестр всех статических (встроенных) реестров Minecraft.
+ *
+ * <p>Каждое поле — это конкретный реестр, созданный при загрузке класса.
+ * Метод {@link #bootstrap()} инициализирует все реестры, заполняя их
+ * стандартными значениями через соответствующие bootstrap-классы.</p>
+ *
+ * <p>Реестры создаются через приватные фабричные методы {@code create} и {@code createIntrusive}.
+ * Интрузивные реестры ({@code createIntrusive}) требуют, чтобы объекты сами регистрировались
+ * в реестре при создании (используется для блоков, предметов, сущностей).</p>
  */
 public class Registries {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Map<Identifier, Supplier<?>> DEFAULT_ENTRIES = Maps.newLinkedHashMap();
-	private static final MutableRegistry<MutableRegistry<?>>
-			ROOT =
+	private static final MutableRegistry<MutableRegistry<?>> ROOT =
 			new SimpleRegistry<>(RegistryKey.ofRegistry(RegistryKeys.ROOT), Lifecycle.stable());
-	public static final DefaultedRegistry<GameEvent>
-			GAME_EVENT =
+
+	public static final DefaultedRegistry<GameEvent> GAME_EVENT =
 			create(RegistryKeys.GAME_EVENT, "step", GameEvent::registerAndGetDefault);
-	public static final Registry<SoundEvent>
-			SOUND_EVENT =
+	public static final Registry<SoundEvent> SOUND_EVENT =
 			create(RegistryKeys.SOUND_EVENT, registry -> SoundEvents.ENTITY_ITEM_PICKUP);
-	public static final DefaultedRegistry<Fluid>
-			FLUID =
+	public static final DefaultedRegistry<Fluid> FLUID =
 			createIntrusive(RegistryKeys.FLUID, "empty", registry -> Fluids.EMPTY);
-	public static final Registry<StatusEffect>
-			STATUS_EFFECT =
+	public static final Registry<StatusEffect> STATUS_EFFECT =
 			create(RegistryKeys.STATUS_EFFECT, StatusEffects::registerAndGetDefault);
-	public static final DefaultedRegistry<Block>
-			BLOCK =
+	public static final DefaultedRegistry<Block> BLOCK =
 			createIntrusive(RegistryKeys.BLOCK, "air", registry -> Blocks.AIR);
-	public static final Registry<DebugSubscriptionType<?>> DEBUG_SUBSCRIPTION = create(
-			RegistryKeys.DEBUG_SUBSCRIPTION, DebugSubscriptionTypes::registerAndGetDefault
-	);
-	public static final DefaultedRegistry<EntityType<?>>
-			ENTITY_TYPE =
+	public static final Registry<DebugSubscriptionType<?>> DEBUG_SUBSCRIPTION =
+			create(RegistryKeys.DEBUG_SUBSCRIPTION, DebugSubscriptionTypes::registerAndGetDefault);
+	public static final DefaultedRegistry<EntityType<?>> ENTITY_TYPE =
 			createIntrusive(RegistryKeys.ENTITY_TYPE, "pig", registry -> EntityType.PIG);
-	public static final DefaultedRegistry<Item> ITEM = createIntrusive(RegistryKeys.ITEM, "air", registry -> Items.AIR);
-	public static final Registry<Potion> POTION = create(RegistryKeys.POTION, Potions::registerAndGetDefault);
-	public static final Registry<ParticleType<?>>
-			PARTICLE_TYPE =
+	public static final DefaultedRegistry<Item> ITEM =
+			createIntrusive(RegistryKeys.ITEM, "air", registry -> Items.AIR);
+	public static final Registry<Potion> POTION =
+			create(RegistryKeys.POTION, Potions::registerAndGetDefault);
+	public static final Registry<ParticleType<?>> PARTICLE_TYPE =
 			create(RegistryKeys.PARTICLE_TYPE, registry -> ParticleTypes.BLOCK);
-	public static final Registry<BlockEntityType<?>>
-			BLOCK_ENTITY_TYPE =
+	public static final Registry<BlockEntityType<?>> BLOCK_ENTITY_TYPE =
 			createIntrusive(RegistryKeys.BLOCK_ENTITY_TYPE, registry -> BlockEntityType.FURNACE);
-	public static final Registry<Identifier> CUSTOM_STAT = create(RegistryKeys.CUSTOM_STAT, registry -> Stats.JUMP);
-	public static final DefaultedRegistry<ChunkStatus>
-			CHUNK_STATUS =
+	public static final Registry<Identifier> CUSTOM_STAT =
+			create(RegistryKeys.CUSTOM_STAT, registry -> Stats.JUMP);
+	public static final DefaultedRegistry<ChunkStatus> CHUNK_STATUS =
 			create(RegistryKeys.CHUNK_STATUS, "empty", registry -> ChunkStatus.EMPTY);
-	public static final Registry<RuleTestType<?>>
-			RULE_TEST =
+	public static final Registry<RuleTestType<?>> RULE_TEST =
 			create(RegistryKeys.RULE_TEST, registry -> RuleTestType.ALWAYS_TRUE);
-	public static final Registry<RuleBlockEntityModifierType<?>> RULE_BLOCK_ENTITY_MODIFIER = create(
-			RegistryKeys.RULE_BLOCK_ENTITY_MODIFIER, registry -> RuleBlockEntityModifierType.PASSTHROUGH
-	);
-	public static final Registry<PosRuleTestType<?>>
-			POS_RULE_TEST =
+	public static final Registry<RuleBlockEntityModifierType<?>> RULE_BLOCK_ENTITY_MODIFIER =
+			create(RegistryKeys.RULE_BLOCK_ENTITY_MODIFIER, registry -> RuleBlockEntityModifierType.PASSTHROUGH);
+	public static final Registry<PosRuleTestType<?>> POS_RULE_TEST =
 			create(RegistryKeys.POS_RULE_TEST, registry -> PosRuleTestType.ALWAYS_TRUE);
-	public static final Registry<ScreenHandlerType<?>>
-			SCREEN_HANDLER =
+	public static final Registry<ScreenHandlerType<?>> SCREEN_HANDLER =
 			create(RegistryKeys.SCREEN_HANDLER, registry -> ScreenHandlerType.ANVIL);
-	public static final Registry<RecipeType<?>>
-			RECIPE_TYPE =
+	public static final Registry<RecipeType<?>> RECIPE_TYPE =
 			create(RegistryKeys.RECIPE_TYPE, registry -> RecipeType.CRAFTING);
-	public static final Registry<RecipeSerializer<?>>
-			RECIPE_SERIALIZER =
+	public static final Registry<RecipeSerializer<?>> RECIPE_SERIALIZER =
 			create(RegistryKeys.RECIPE_SERIALIZER, registry -> RecipeSerializer.SHAPELESS);
-	public static final Registry<EntityAttribute>
-			ATTRIBUTE =
+	public static final Registry<EntityAttribute> ATTRIBUTE =
 			create(RegistryKeys.ATTRIBUTE, EntityAttributes::registerAndGetDefault);
-	public static final Registry<PositionSourceType<?>>
-			POSITION_SOURCE_TYPE =
+	public static final Registry<PositionSourceType<?>> POSITION_SOURCE_TYPE =
 			create(RegistryKeys.POSITION_SOURCE_TYPE, registry -> PositionSourceType.BLOCK);
-	public static final Registry<ArgumentSerializer<?, ?>>
-			COMMAND_ARGUMENT_TYPE =
+	public static final Registry<ArgumentSerializer<?, ?>> COMMAND_ARGUMENT_TYPE =
 			create(RegistryKeys.COMMAND_ARGUMENT_TYPE, ArgumentTypes::register);
-	public static final Registry<StatType<?>> STAT_TYPE = create(RegistryKeys.STAT_TYPE, registry -> Stats.USED);
-	public static final DefaultedRegistry<VillagerType>
-			VILLAGER_TYPE =
+	public static final Registry<StatType<?>> STAT_TYPE =
+			create(RegistryKeys.STAT_TYPE, registry -> Stats.USED);
+	public static final DefaultedRegistry<VillagerType> VILLAGER_TYPE =
 			create(RegistryKeys.VILLAGER_TYPE, "plains", VillagerType::registerAndGetDefault);
-	public static final DefaultedRegistry<VillagerProfession> VILLAGER_PROFESSION = create(
-			RegistryKeys.VILLAGER_PROFESSION, "none", VillagerProfession::registerAndGetDefault
-	);
-	public static final Registry<PointOfInterestType> POINT_OF_INTEREST_TYPE = create(
-			RegistryKeys.POINT_OF_INTEREST_TYPE, PointOfInterestTypes::registerAndGetDefault
-	);
-	public static final DefaultedRegistry<MemoryModuleType<?>> MEMORY_MODULE_TYPE = create(
-			RegistryKeys.MEMORY_MODULE_TYPE, "dummy", registry -> MemoryModuleType.DUMMY
-	);
-	public static final DefaultedRegistry<SensorType<?>>
-			SENSOR_TYPE =
+	public static final DefaultedRegistry<VillagerProfession> VILLAGER_PROFESSION =
+			create(RegistryKeys.VILLAGER_PROFESSION, "none", VillagerProfession::registerAndGetDefault);
+	public static final Registry<PointOfInterestType> POINT_OF_INTEREST_TYPE =
+			create(RegistryKeys.POINT_OF_INTEREST_TYPE, PointOfInterestTypes::registerAndGetDefault);
+	public static final DefaultedRegistry<MemoryModuleType<?>> MEMORY_MODULE_TYPE =
+			create(RegistryKeys.MEMORY_MODULE_TYPE, "dummy", registry -> MemoryModuleType.DUMMY);
+	public static final DefaultedRegistry<SensorType<?>> SENSOR_TYPE =
 			create(RegistryKeys.SENSOR_TYPE, "dummy", registry -> SensorType.DUMMY);
-	public static final Registry<Activity> ACTIVITY = create(RegistryKeys.ACTIVITY, registry -> Activity.IDLE);
-	public static final Registry<LootPoolEntryType>
-			LOOT_POOL_ENTRY_TYPE =
+	public static final Registry<Activity> ACTIVITY =
+			create(RegistryKeys.ACTIVITY, registry -> Activity.IDLE);
+	public static final Registry<LootPoolEntryType> LOOT_POOL_ENTRY_TYPE =
 			create(RegistryKeys.LOOT_POOL_ENTRY_TYPE, registry -> LootPoolEntryTypes.EMPTY);
-	public static final Registry<LootFunctionType<?>>
-			LOOT_FUNCTION_TYPE =
+	public static final Registry<LootFunctionType<?>> LOOT_FUNCTION_TYPE =
 			create(RegistryKeys.LOOT_FUNCTION_TYPE, registry -> LootFunctionTypes.SET_COUNT);
-	public static final Registry<LootConditionType>
-			LOOT_CONDITION_TYPE =
+	public static final Registry<LootConditionType> LOOT_CONDITION_TYPE =
 			create(RegistryKeys.LOOT_CONDITION_TYPE, registry -> LootConditionTypes.INVERTED);
-	public static final Registry<LootNumberProviderType> LOOT_NUMBER_PROVIDER_TYPE = create(
-			RegistryKeys.LOOT_NUMBER_PROVIDER_TYPE, registry -> LootNumberProviderTypes.CONSTANT
-	);
-	public static final Registry<LootNbtProviderType> LOOT_NBT_PROVIDER_TYPE = create(
-			RegistryKeys.LOOT_NBT_PROVIDER_TYPE, registry -> LootNbtProviderTypes.CONTEXT
-	);
-	public static final Registry<LootScoreProviderType> LOOT_SCORE_PROVIDER_TYPE = create(
-			RegistryKeys.LOOT_SCORE_PROVIDER_TYPE, registry -> LootScoreProviderTypes.CONTEXT
-	);
-	public static final Registry<FloatProviderType<?>>
-			FLOAT_PROVIDER_TYPE =
+	public static final Registry<LootNumberProviderType> LOOT_NUMBER_PROVIDER_TYPE =
+			create(RegistryKeys.LOOT_NUMBER_PROVIDER_TYPE, registry -> LootNumberProviderTypes.CONSTANT);
+	public static final Registry<LootNbtProviderType> LOOT_NBT_PROVIDER_TYPE =
+			create(RegistryKeys.LOOT_NBT_PROVIDER_TYPE, registry -> LootNbtProviderTypes.CONTEXT);
+	public static final Registry<LootScoreProviderType> LOOT_SCORE_PROVIDER_TYPE =
+			create(RegistryKeys.LOOT_SCORE_PROVIDER_TYPE, registry -> LootScoreProviderTypes.CONTEXT);
+	public static final Registry<FloatProviderType<?>> FLOAT_PROVIDER_TYPE =
 			create(RegistryKeys.FLOAT_PROVIDER_TYPE, registry -> FloatProviderType.CONSTANT);
-	public static final Registry<IntProviderType<?>>
-			INT_PROVIDER_TYPE =
+	public static final Registry<IntProviderType<?>> INT_PROVIDER_TYPE =
 			create(RegistryKeys.INT_PROVIDER_TYPE, registry -> IntProviderType.CONSTANT);
-	public static final Registry<HeightProviderType<?>>
-			HEIGHT_PROVIDER_TYPE =
+	public static final Registry<HeightProviderType<?>> HEIGHT_PROVIDER_TYPE =
 			create(RegistryKeys.HEIGHT_PROVIDER_TYPE, registry -> HeightProviderType.CONSTANT);
-	public static final Registry<BlockPredicateType<?>>
-			BLOCK_PREDICATE_TYPE =
+	public static final Registry<BlockPredicateType<?>> BLOCK_PREDICATE_TYPE =
 			create(RegistryKeys.BLOCK_PREDICATE_TYPE, registry -> BlockPredicateType.NOT);
-	public static final Registry<Carver<?>> CARVER = create(RegistryKeys.CARVER, registry -> Carver.CAVE);
-	public static final Registry<Feature<?>> FEATURE = create(RegistryKeys.FEATURE, registry -> Feature.ORE);
-	public static final Registry<StructurePlacementType<?>> STRUCTURE_PLACEMENT = create(
-			RegistryKeys.STRUCTURE_PLACEMENT, registry -> StructurePlacementType.RANDOM_SPREAD
-	);
-	public static final Registry<StructurePieceType>
-			STRUCTURE_PIECE =
+	public static final Registry<Carver<?>> CARVER =
+			create(RegistryKeys.CARVER, registry -> Carver.CAVE);
+	public static final Registry<Feature<?>> FEATURE =
+			create(RegistryKeys.FEATURE, registry -> Feature.ORE);
+	public static final Registry<StructurePlacementType<?>> STRUCTURE_PLACEMENT =
+			create(RegistryKeys.STRUCTURE_PLACEMENT, registry -> StructurePlacementType.RANDOM_SPREAD);
+	public static final Registry<StructurePieceType> STRUCTURE_PIECE =
 			create(RegistryKeys.STRUCTURE_PIECE, registry -> StructurePieceType.MINESHAFT_ROOM);
-	public static final Registry<StructureType<?>>
-			STRUCTURE_TYPE =
+	public static final Registry<StructureType<?>> STRUCTURE_TYPE =
 			create(RegistryKeys.STRUCTURE_TYPE, registry -> StructureType.JIGSAW);
-	public static final Registry<PlacementModifierType<?>> PLACEMENT_MODIFIER_TYPE = create(
-			RegistryKeys.PLACEMENT_MODIFIER_TYPE, registry -> PlacementModifierType.COUNT
-	);
-	public static final Registry<BlockStateProviderType<?>> BLOCK_STATE_PROVIDER_TYPE = create(
-			RegistryKeys.BLOCK_STATE_PROVIDER_TYPE, registry -> BlockStateProviderType.SIMPLE_STATE_PROVIDER
-	);
-	public static final Registry<FoliagePlacerType<?>> FOLIAGE_PLACER_TYPE = create(
-			RegistryKeys.FOLIAGE_PLACER_TYPE, registry -> FoliagePlacerType.BLOB_FOLIAGE_PLACER
-	);
-	public static final Registry<TrunkPlacerType<?>> TRUNK_PLACER_TYPE = create(
-			RegistryKeys.TRUNK_PLACER_TYPE, registry -> TrunkPlacerType.STRAIGHT_TRUNK_PLACER
-	);
-	public static final Registry<RootPlacerType<?>>
-			ROOT_PLACER_TYPE =
+	public static final Registry<PlacementModifierType<?>> PLACEMENT_MODIFIER_TYPE =
+			create(RegistryKeys.PLACEMENT_MODIFIER_TYPE, registry -> PlacementModifierType.COUNT);
+	public static final Registry<BlockStateProviderType<?>> BLOCK_STATE_PROVIDER_TYPE =
+			create(RegistryKeys.BLOCK_STATE_PROVIDER_TYPE, registry -> BlockStateProviderType.SIMPLE_STATE_PROVIDER);
+	public static final Registry<FoliagePlacerType<?>> FOLIAGE_PLACER_TYPE =
+			create(RegistryKeys.FOLIAGE_PLACER_TYPE, registry -> FoliagePlacerType.BLOB_FOLIAGE_PLACER);
+	public static final Registry<TrunkPlacerType<?>> TRUNK_PLACER_TYPE =
+			create(RegistryKeys.TRUNK_PLACER_TYPE, registry -> TrunkPlacerType.STRAIGHT_TRUNK_PLACER);
+	public static final Registry<RootPlacerType<?>> ROOT_PLACER_TYPE =
 			create(RegistryKeys.ROOT_PLACER_TYPE, registry -> RootPlacerType.MANGROVE_ROOT_PLACER);
-	public static final Registry<TreeDecoratorType<?>>
-			TREE_DECORATOR_TYPE =
+	public static final Registry<TreeDecoratorType<?>> TREE_DECORATOR_TYPE =
 			create(RegistryKeys.TREE_DECORATOR_TYPE, registry -> TreeDecoratorType.LEAVE_VINE);
-	public static final Registry<FeatureSizeType<?>> FEATURE_SIZE_TYPE = create(
-			RegistryKeys.FEATURE_SIZE_TYPE, registry -> FeatureSizeType.TWO_LAYERS_FEATURE_SIZE
-	);
-	public static final Registry<MapCodec<? extends BiomeSource>>
-			BIOME_SOURCE =
+	public static final Registry<FeatureSizeType<?>> FEATURE_SIZE_TYPE =
+			create(RegistryKeys.FEATURE_SIZE_TYPE, registry -> FeatureSizeType.TWO_LAYERS_FEATURE_SIZE);
+	public static final Registry<MapCodec<? extends BiomeSource>> BIOME_SOURCE =
 			create(RegistryKeys.BIOME_SOURCE, BiomeSources::registerAndGetDefault);
-	public static final Registry<MapCodec<? extends ChunkGenerator>> CHUNK_GENERATOR = create(
-			RegistryKeys.CHUNK_GENERATOR, ChunkGenerators::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends MaterialRules.MaterialCondition>> MATERIAL_CONDITION = create(
-			RegistryKeys.MATERIAL_CONDITION, MaterialRules.MaterialCondition::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends MaterialRules.MaterialRule>> MATERIAL_RULE = create(
-			RegistryKeys.MATERIAL_RULE, MaterialRules.MaterialRule::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends DensityFunction>> DENSITY_FUNCTION_TYPE = create(
-			RegistryKeys.DENSITY_FUNCTION_TYPE, DensityFunctionTypes::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends Block>>
-			BLOCK_TYPE =
+	public static final Registry<MapCodec<? extends ChunkGenerator>> CHUNK_GENERATOR =
+			create(RegistryKeys.CHUNK_GENERATOR, ChunkGenerators::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends MaterialRules.MaterialCondition>> MATERIAL_CONDITION =
+			create(RegistryKeys.MATERIAL_CONDITION, MaterialRules.MaterialCondition::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends MaterialRules.MaterialRule>> MATERIAL_RULE =
+			create(RegistryKeys.MATERIAL_RULE, MaterialRules.MaterialRule::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends DensityFunction>> DENSITY_FUNCTION_TYPE =
+			create(RegistryKeys.DENSITY_FUNCTION_TYPE, DensityFunctionTypes::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends Block>> BLOCK_TYPE =
 			create(RegistryKeys.BLOCK_TYPE, BlockTypes::registerAndGetDefault);
-	public static final Registry<StructureProcessorType<?>> STRUCTURE_PROCESSOR = create(
-			RegistryKeys.STRUCTURE_PROCESSOR, registry -> StructureProcessorType.BLOCK_IGNORE
-	);
-	public static final Registry<StructurePoolElementType<?>> STRUCTURE_POOL_ELEMENT = create(
-			RegistryKeys.STRUCTURE_POOL_ELEMENT, registry -> StructurePoolElementType.EMPTY_POOL_ELEMENT
-	);
-	public static final Registry<MapCodec<? extends StructurePoolAliasBinding>> POOL_ALIAS_BINDING = create(
-			RegistryKeys.POOL_ALIAS_BINDING, StructurePoolAliasBindings::registerAndGetDefault
-	);
-	public static final Registry<DecoratedPotPattern> DECORATED_POT_PATTERN = create(
-			RegistryKeys.DECORATED_POT_PATTERN, DecoratedPotPatterns::registerAndGetDefault
-	);
-	public static final Registry<ItemGroup>
-			ITEM_GROUP =
+	public static final Registry<StructureProcessorType<?>> STRUCTURE_PROCESSOR =
+			create(RegistryKeys.STRUCTURE_PROCESSOR, registry -> StructureProcessorType.BLOCK_IGNORE);
+	public static final Registry<StructurePoolElementType<?>> STRUCTURE_POOL_ELEMENT =
+			create(RegistryKeys.STRUCTURE_POOL_ELEMENT, registry -> StructurePoolElementType.EMPTY_POOL_ELEMENT);
+	public static final Registry<MapCodec<? extends StructurePoolAliasBinding>> POOL_ALIAS_BINDING =
+			create(RegistryKeys.POOL_ALIAS_BINDING, StructurePoolAliasBindings::registerAndGetDefault);
+	public static final Registry<DecoratedPotPattern> DECORATED_POT_PATTERN =
+			create(RegistryKeys.DECORATED_POT_PATTERN, DecoratedPotPatterns::registerAndGetDefault);
+	public static final Registry<ItemGroup> ITEM_GROUP =
 			create(RegistryKeys.ITEM_GROUP, ItemGroups::registerAndGetDefault);
-	public static final Registry<Criterion<?>> CRITERION = create(RegistryKeys.CRITERION, Criteria::getDefault);
-	public static final Registry<NumberFormatType<?>>
-			NUMBER_FORMAT_TYPE =
+	public static final Registry<Criterion<?>> CRITERION =
+			create(RegistryKeys.CRITERION, Criteria::getDefault);
+	public static final Registry<NumberFormatType<?>> NUMBER_FORMAT_TYPE =
 			create(RegistryKeys.NUMBER_FORMAT_TYPE, NumberFormatTypes::registerAndGetDefault);
-	public static final Registry<ComponentType<?>>
-			DATA_COMPONENT_TYPE =
+	public static final Registry<ComponentType<?>> DATA_COMPONENT_TYPE =
 			create(RegistryKeys.DATA_COMPONENT_TYPE, DataComponentTypes::getDefault);
-	public static final Registry<GameRule<?>>
-			GAME_RULE =
+	public static final Registry<GameRule<?>> GAME_RULE =
 			create(RegistryKeys.GAME_RULE, GameRules::registerAndGetDefault);
-	public static final Registry<MapCodec<? extends EntitySubPredicate>> ENTITY_SUB_PREDICATE_TYPE = create(
-			RegistryKeys.ENTITY_SUB_PREDICATE_TYPE, EntitySubPredicateTypes::getDefault
-	);
-	public static final Registry<ComponentPredicate.Type<?>> DATA_COMPONENT_PREDICATE_TYPE = create(
-			RegistryKeys.DATA_COMPONENT_PREDICATE_TYPE, ComponentPredicateTypes::getDefault
-	);
-	public static final Registry<MapDecorationType>
-			MAP_DECORATION_TYPE =
+	public static final Registry<MapCodec<? extends EntitySubPredicate>> ENTITY_SUB_PREDICATE_TYPE =
+			create(RegistryKeys.ENTITY_SUB_PREDICATE_TYPE, EntitySubPredicateTypes::getDefault);
+	public static final Registry<ComponentPredicate.Type<?>> DATA_COMPONENT_PREDICATE_TYPE =
+			create(RegistryKeys.DATA_COMPONENT_PREDICATE_TYPE, ComponentPredicateTypes::getDefault);
+	public static final Registry<MapDecorationType> MAP_DECORATION_TYPE =
 			create(RegistryKeys.MAP_DECORATION_TYPE, MapDecorationTypes::getDefault);
-	public static final Registry<ComponentType<?>> ENCHANTMENT_EFFECT_COMPONENT_TYPE = create(
-			RegistryKeys.ENCHANTMENT_EFFECT_COMPONENT_TYPE, EnchantmentEffectComponentTypes::getDefault
-	);
-	public static final Registry<MapCodec<? extends EnchantmentLevelBasedValue>>
-			ENCHANTMENT_LEVEL_BASED_VALUE_TYPE =
-			create(
-					RegistryKeys.ENCHANTMENT_LEVEL_BASED_VALUE_TYPE, EnchantmentLevelBasedValue::registerAndGetDefault
-			);
-	public static final Registry<MapCodec<? extends EnchantmentEntityEffect>> ENCHANTMENT_ENTITY_EFFECT_TYPE = create(
-			RegistryKeys.ENCHANTMENT_ENTITY_EFFECT_TYPE, EnchantmentEntityEffect::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends EnchantmentLocationBasedEffect>>
-			ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE =
-			create(
-					RegistryKeys.ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE,
-					EnchantmentLocationBasedEffect::registerAndGetDefault
-			);
-	public static final Registry<MapCodec<? extends EnchantmentValueEffect>> ENCHANTMENT_VALUE_EFFECT_TYPE = create(
-			RegistryKeys.ENCHANTMENT_VALUE_EFFECT_TYPE, EnchantmentValueEffect::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends EnchantmentProvider>> ENCHANTMENT_PROVIDER_TYPE = create(
-			RegistryKeys.ENCHANTMENT_PROVIDER_TYPE, EnchantmentProviderType::registerAndGetDefault
-	);
-	public static final Registry<ConsumeEffect.Type<?>> CONSUME_EFFECT_TYPE = create(
-			RegistryKeys.CONSUME_EFFECT_TYPE, registry -> ConsumeEffect.Type.APPLY_EFFECTS
-	);
-	public static final Registry<RecipeDisplay.Serializer<?>>
-			RECIPE_DISPLAY =
+	public static final Registry<ComponentType<?>> ENCHANTMENT_EFFECT_COMPONENT_TYPE =
+			create(RegistryKeys.ENCHANTMENT_EFFECT_COMPONENT_TYPE, EnchantmentEffectComponentTypes::getDefault);
+	public static final Registry<MapCodec<? extends EnchantmentLevelBasedValue>> ENCHANTMENT_LEVEL_BASED_VALUE_TYPE =
+			create(RegistryKeys.ENCHANTMENT_LEVEL_BASED_VALUE_TYPE, EnchantmentLevelBasedValue::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends EnchantmentEntityEffect>> ENCHANTMENT_ENTITY_EFFECT_TYPE =
+			create(RegistryKeys.ENCHANTMENT_ENTITY_EFFECT_TYPE, EnchantmentEntityEffect::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends EnchantmentLocationBasedEffect>> ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE =
+			create(RegistryKeys.ENCHANTMENT_LOCATION_BASED_EFFECT_TYPE, EnchantmentLocationBasedEffect::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends EnchantmentValueEffect>> ENCHANTMENT_VALUE_EFFECT_TYPE =
+			create(RegistryKeys.ENCHANTMENT_VALUE_EFFECT_TYPE, EnchantmentValueEffect::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends EnchantmentProvider>> ENCHANTMENT_PROVIDER_TYPE =
+			create(RegistryKeys.ENCHANTMENT_PROVIDER_TYPE, EnchantmentProviderType::registerAndGetDefault);
+	public static final Registry<ConsumeEffect.Type<?>> CONSUME_EFFECT_TYPE =
+			create(RegistryKeys.CONSUME_EFFECT_TYPE, registry -> ConsumeEffect.Type.APPLY_EFFECTS);
+	public static final Registry<RecipeDisplay.Serializer<?>> RECIPE_DISPLAY =
 			create(RegistryKeys.RECIPE_DISPLAY, RecipeDisplayBootstrap::registerAndGetDefault);
-	public static final Registry<SlotDisplay.Serializer<?>>
-			SLOT_DISPLAY =
+	public static final Registry<SlotDisplay.Serializer<?>> SLOT_DISPLAY =
 			create(RegistryKeys.SLOT_DISPLAY, SlotDisplays::registerAndGetDefault);
-	public static final Registry<RecipeBookCategory> RECIPE_BOOK_CATEGORY = create(
-			RegistryKeys.RECIPE_BOOK_CATEGORY, RecipeBookCategories::registerAndGetDefault
-	);
-	public static final Registry<ChunkTicketType>
-			TICKET_TYPE =
+	public static final Registry<RecipeBookCategory> RECIPE_BOOK_CATEGORY =
+			create(RegistryKeys.RECIPE_BOOK_CATEGORY, RecipeBookCategories::registerAndGetDefault);
+	public static final Registry<ChunkTicketType> TICKET_TYPE =
 			create(RegistryKeys.TICKET_TYPE, registry -> ChunkTicketType.UNKNOWN);
-	public static final Registry<IncomingRpcMethod<?, ?>> INCOMING_RPC_METHOD = create(
-			RegistryKeys.INCOMING_RPC_METHODS, IncomingRpcMethods::registerAndGetDefault
-	);
-	public static final Registry<OutgoingRpcMethod<?, ?>> OUTGOING_RPC_METHOD = create(
-			RegistryKeys.OUTGOING_RPC_METHODS, registry -> OutgoingRpcMethods.SERVER_STARTED
-	);
-	public static final Registry<MapCodec<? extends TestEnvironmentDefinition>>
-			TEST_ENVIRONMENT_DEFINITION_TYPE =
-			create(
-					RegistryKeys.TEST_ENVIRONMENT_DEFINITION_TYPE, TestEnvironmentDefinition::registerAndGetDefault
-			);
-	public static final Registry<MapCodec<? extends TestInstance>> TEST_INSTANCE_TYPE = create(
-			RegistryKeys.TEST_INSTANCE_TYPE, TestInstance::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends SpawnCondition>> SPAWN_CONDITION_TYPE = create(
-			RegistryKeys.SPAWN_CONDITION_TYPE, SpawnConditions::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends Dialog>>
-			DIALOG_TYPE =
+	public static final Registry<IncomingRpcMethod<?, ?>> INCOMING_RPC_METHOD =
+			create(RegistryKeys.INCOMING_RPC_METHODS, IncomingRpcMethods::registerAndGetDefault);
+	public static final Registry<OutgoingRpcMethod<?, ?>> OUTGOING_RPC_METHOD =
+			create(RegistryKeys.OUTGOING_RPC_METHODS, registry -> OutgoingRpcMethods.SERVER_STARTED);
+	public static final Registry<MapCodec<? extends TestEnvironmentDefinition>> TEST_ENVIRONMENT_DEFINITION_TYPE =
+			create(RegistryKeys.TEST_ENVIRONMENT_DEFINITION_TYPE, TestEnvironmentDefinition::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends TestInstance>> TEST_INSTANCE_TYPE =
+			create(RegistryKeys.TEST_INSTANCE_TYPE, TestInstance::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends SpawnCondition>> SPAWN_CONDITION_TYPE =
+			create(RegistryKeys.SPAWN_CONDITION_TYPE, SpawnConditions::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends Dialog>> DIALOG_TYPE =
 			create(RegistryKeys.DIALOG_TYPE, DialogTypes::registerAndGetDefault);
-	public static final Registry<MapCodec<? extends DialogAction>> DIALOG_ACTION_TYPE = create(
-			RegistryKeys.DIALOG_ACTION_TYPE, DialogActionTypes::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends InputControl>> INPUT_CONTROL_TYPE = create(
-			RegistryKeys.INPUT_CONTROL_TYPE, InputControlTypes::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends DialogBody>>
-			DIALOG_BODY_TYPE =
+	public static final Registry<MapCodec<? extends DialogAction>> DIALOG_ACTION_TYPE =
+			create(RegistryKeys.DIALOG_ACTION_TYPE, DialogActionTypes::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends InputControl>> INPUT_CONTROL_TYPE =
+			create(RegistryKeys.INPUT_CONTROL_TYPE, InputControlTypes::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends DialogBody>> DIALOG_BODY_TYPE =
 			create(RegistryKeys.DIALOG_BODY_TYPE, DialogBodyTypes::registerAndGetDefault);
-	public static final Registry<MapCodec<? extends Permission>>
-			PERMISSION_TYPE =
+	public static final Registry<MapCodec<? extends Permission>> PERMISSION_TYPE =
 			create(RegistryKeys.PERMISSION_TYPE, Permissions::registerAndGetDefault);
-	public static final Registry<MapCodec<? extends PermissionCheck>> PERMISSION_CHECK_TYPE = create(
-			RegistryKeys.PERMISSION_CHECK_TYPE, PermissionChecks::registerAndGetDefault
-	);
-	public static final Registry<EnvironmentAttribute<?>> ENVIRONMENTAL_ATTRIBUTE = create(
-			RegistryKeys.ENVIRONMENT_ATTRIBUTE, EnvironmentAttributes::registerAndGetDefault
-	);
-	public static final Registry<EnvironmentAttributeType<?>> ATTRIBUTE_TYPE = create(
-			RegistryKeys.ATTRIBUTE_TYPE, EnvironmentAttributeTypes::registerAndGetDefault
-	);
-	public static final Registry<MapCodec<? extends SlotSource>>
-			SLOT_SOURCE_TYPE =
+	public static final Registry<MapCodec<? extends PermissionCheck>> PERMISSION_CHECK_TYPE =
+			create(RegistryKeys.PERMISSION_CHECK_TYPE, PermissionChecks::registerAndGetDefault);
+	public static final Registry<EnvironmentAttribute<?>> ENVIRONMENTAL_ATTRIBUTE =
+			create(RegistryKeys.ENVIRONMENT_ATTRIBUTE, EnvironmentAttributes::registerAndGetDefault);
+	public static final Registry<EnvironmentAttributeType<?>> ATTRIBUTE_TYPE =
+			create(RegistryKeys.ATTRIBUTE_TYPE, EnvironmentAttributeTypes::registerAndGetDefault);
+	public static final Registry<MapCodec<? extends SlotSource>> SLOT_SOURCE_TYPE =
 			create(RegistryKeys.SLOT_SOURCE_TYPE, SlotSources::registerAndGetDefault);
-	public static final Registry<Consumer<TestContext>>
-			TEST_FUNCTION =
+	public static final Registry<Consumer<TestContext>> TEST_FUNCTION =
 			create(RegistryKeys.TEST_FUNCTION, BuiltinTestFunctions::registerAndGetDefault);
+
 	public static final Registry<? extends Registry<?>> REGISTRIES = ROOT;
 
 	private static <T> Registry<T> create(
 			RegistryKey<? extends Registry<T>> key,
-			Registries.Initializer<T> initializer
+			Initializer<T> initializer
 	) {
 		return create(key, new SimpleRegistry<>(key, Lifecycle.stable(), false), initializer);
 	}
 
 	private static <T> Registry<T> createIntrusive(
 			RegistryKey<? extends Registry<T>> key,
-			Registries.Initializer<T> initializer
+			Initializer<T> initializer
 	) {
 		return create(key, new SimpleRegistry<>(key, Lifecycle.stable(), true), initializer);
 	}
@@ -457,7 +383,7 @@ public class Registries {
 	private static <T> DefaultedRegistry<T> create(
 			RegistryKey<? extends Registry<T>> key,
 			String defaultId,
-			Registries.Initializer<T> initializer
+			Initializer<T> initializer
 	) {
 		return create(key, new SimpleDefaultedRegistry<>(defaultId, key, Lifecycle.stable(), false), initializer);
 	}
@@ -465,7 +391,7 @@ public class Registries {
 	private static <T> DefaultedRegistry<T> createIntrusive(
 			RegistryKey<? extends Registry<T>> key,
 			String defaultId,
-			Registries.Initializer<T> initializer
+			Initializer<T> initializer
 	) {
 		return create(key, new SimpleDefaultedRegistry<>(defaultId, key, Lifecycle.stable(), true), initializer);
 	}
@@ -473,17 +399,19 @@ public class Registries {
 	private static <T, R extends MutableRegistry<T>> R create(
 			RegistryKey<? extends Registry<T>> key,
 			R registry,
-			Registries.Initializer<T> initializer
+			Initializer<T> initializer
 	) {
 		Bootstrap.ensureBootstrapped(() -> "registry " + key.getValue());
-		Identifier identifier = key.getValue();
-		DEFAULT_ENTRIES.put(identifier, () -> initializer.run(registry));
-		ROOT.add((RegistryKey<MutableRegistry<?>>) (RegistryKey<?>) key, registry, RegistryEntryInfo.DEFAULT);
+		Identifier registryId = key.getValue();
+		DEFAULT_ENTRIES.put(registryId, () -> initializer.run(registry));
+		ROOT.add((RegistryKey<MutableRegistry<?>>) (RegistryKey<?>) key, registry, new RegistryEntryInfo(Optional.empty(), Lifecycle.stable()));
 		return registry;
 	}
 
 	/**
-	 * Bootstrap.
+	 * Инициализирует все реестры, заполняет их стандартными значениями и замораживает.
+	 *
+	 * <p>Должен вызываться один раз при старте игры через {@link Bootstrap}.</p>
 	 */
 	public static void bootstrap() {
 		init();
@@ -515,22 +443,15 @@ public class Registries {
 			}
 
 			if (registry instanceof DefaultedRegistry) {
-				Identifier identifier = ((DefaultedRegistry) registry).getDefaultId();
+				Identifier defaultId = ((DefaultedRegistry) registry).getDefaultId();
 				Objects.requireNonNull(
-						registry.get(identifier),
-						"Missing default of DefaultedMappedRegistry: " + identifier
+						registry.get(defaultId),
+						"Missing default of DefaultedMappedRegistry: " + defaultId
 				);
 			}
 		});
 	}
 
-	/**
-	 * Создаёт entry lookup.
-	 *
-	 * @param registry registry
-	 *
-	 * @return RegistryEntryLookup — результат операции
-	 */
 	public static <T> RegistryEntryLookup<T> createEntryLookup(Registry<T> registry) {
 		return ((MutableRegistry) registry).createMutableRegistryLookup();
 	}
@@ -540,9 +461,6 @@ public class Registries {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Initializer}.
-	 */
 	interface Initializer<T> {
 
 		Object run(Registry<T> registry);

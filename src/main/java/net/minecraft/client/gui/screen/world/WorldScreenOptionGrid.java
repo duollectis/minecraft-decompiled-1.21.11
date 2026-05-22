@@ -17,10 +17,11 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WorldScreenOptionGrid}.
+ * Сетка переключателей опций мира (структуры, бонусный сундук и т.д.).
+ * Каждая опция — кнопка ON/OFF с текстовой меткой и опциональным описанием.
  */
+@Environment(EnvType.CLIENT)
 class WorldScreenOptionGrid {
 
 	private static final int BUTTON_WIDTH = 44;
@@ -33,14 +34,11 @@ class WorldScreenOptionGrid {
 	}
 
 	public LayoutWidget getLayout() {
-		return this.layout;
+		return layout;
 	}
 
-	/**
-	 * Refresh.
-	 */
 	public void refresh() {
-		this.options.forEach(WorldScreenOptionGrid.Option::refresh);
+		options.forEach(WorldScreenOptionGrid.Option::refresh);
 	}
 
 	public static WorldScreenOptionGrid.Builder builder(int width) {
@@ -48,9 +46,6 @@ class WorldScreenOptionGrid {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		final int width;
@@ -71,7 +66,7 @@ class WorldScreenOptionGrid {
 		public WorldScreenOptionGrid.OptionBuilder add(Text text, BooleanSupplier getter, Consumer<Boolean> setter) {
 			WorldScreenOptionGrid.OptionBuilder
 					optionBuilder =
-					new WorldScreenOptionGrid.OptionBuilder(text, getter, setter, 44);
+					new WorldScreenOptionGrid.OptionBuilder(text, getter, setter, BUTTON_WIDTH);
 			this.options.add(optionBuilder);
 			return optionBuilder;
 		}
@@ -86,15 +81,10 @@ class WorldScreenOptionGrid {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return WorldScreenOptionGrid — результат операции
-		 */
 		public WorldScreenOptionGrid build() {
 			GridWidget gridWidget = new GridWidget().setRowSpacing(this.rowSpacing);
-			gridWidget.add(EmptyWidget.ofWidth(this.width - 44), 0, 0);
-			gridWidget.add(EmptyWidget.ofWidth(44), 0, 1);
+			gridWidget.add(EmptyWidget.ofWidth(this.width - BUTTON_WIDTH), 0, 0);
+			gridWidget.add(EmptyWidget.ofWidth(BUTTON_WIDTH), 0, 1);
 			List<WorldScreenOptionGrid.Option> list = new ArrayList<>();
 			this.rows = 0;
 
@@ -116,26 +106,17 @@ class WorldScreenOptionGrid {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Option}.
-	 */
 	record Option(CyclingButtonWidget<Boolean> button, BooleanSupplier getter, @Nullable BooleanSupplier toggleable) {
 
-		/**
-		 * Refresh.
-		 */
 		public void refresh() {
-			this.button.setValue(this.getter.getAsBoolean());
-			if (this.toggleable != null) {
-				this.button.active = this.toggleable.getAsBoolean();
+			button.setValue(getter.getAsBoolean());
+			if (toggleable != null) {
+				button.active = toggleable.getAsBoolean();
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code OptionBuilder}.
-	 */
 	public static class OptionBuilder {
 
 		private final Text text;
@@ -164,70 +145,67 @@ class WorldScreenOptionGrid {
 
 		WorldScreenOptionGrid.Option build(WorldScreenOptionGrid.Builder gridBuilder, GridWidget gridWidget, int row) {
 			gridBuilder.incrementRows();
-			TextWidget textWidget = new TextWidget(this.text, MinecraftClient.getInstance().textRenderer);
+			TextWidget textWidget = new TextWidget(text, MinecraftClient.getInstance().textRenderer);
 			gridWidget.add(
 					textWidget,
 					gridBuilder.rows,
 					row,
 					gridWidget.copyPositioner().relative(0.0F, 0.5F).marginLeft(gridBuilder.marginLeft)
 			);
-			Optional<WorldScreenOptionGrid.TooltipBoxDisplay> optional = gridBuilder.tooltipBoxDisplay;
-			CyclingButtonWidget.Builder<Boolean> builder = CyclingButtonWidget.onOffBuilder(this.getter.getAsBoolean());
+			Optional<WorldScreenOptionGrid.TooltipBoxDisplay> tooltipBoxOpt = gridBuilder.tooltipBoxDisplay;
+			CyclingButtonWidget.Builder<Boolean> builder = CyclingButtonWidget.onOffBuilder(getter.getAsBoolean());
 			builder.omitKeyText();
-			boolean bl = this.tooltip != null && optional.isEmpty();
-			if (bl) {
-				Tooltip tooltip = Tooltip.of(this.tooltip);
-				builder.tooltip(value -> tooltip);
+			boolean hasTooltipOnly = tooltip != null && tooltipBoxOpt.isEmpty();
+
+			if (hasTooltipOnly) {
+				Tooltip tooltipWidget = Tooltip.of(tooltip);
+				builder.tooltip(value -> tooltipWidget);
 			}
 
-			if (this.tooltip != null && !bl) {
+			if (tooltip != null && !hasTooltipOnly) {
 				builder.narration(button -> ScreenTexts.joinSentences(
-						this.text,
+						text,
 						button.getGenericNarrationMessage(),
-						this.tooltip
+						tooltip
 				));
 			}
 			else {
-				builder.narration(button -> ScreenTexts.joinSentences(this.text, button.getGenericNarrationMessage()));
+				builder.narration(button -> ScreenTexts.joinSentences(text, button.getGenericNarrationMessage()));
 			}
 
-			CyclingButtonWidget<Boolean> cyclingButtonWidget = builder.build(
-					0, 0, this.buttonWidth, 20, Text.empty(), (button, value) -> this.setter.accept(value)
+			CyclingButtonWidget<Boolean> cyclingButton = builder.build(
+					0, 0, buttonWidth, 20, Text.empty(), (button, value) -> setter.accept(value)
 			);
-			if (this.toggleable != null) {
-				cyclingButtonWidget.active = this.toggleable.getAsBoolean();
+			if (toggleable != null) {
+				cyclingButton.active = toggleable.getAsBoolean();
 			}
 
-			gridWidget.add(cyclingButtonWidget, gridBuilder.rows, row + 1, gridWidget.copyPositioner().alignRight());
-			if (this.tooltip != null) {
-				optional.ifPresent(tooltipBoxDisplay -> {
-					Text text = this.tooltip.copy().formatted(Formatting.GRAY);
+			gridWidget.add(cyclingButton, gridBuilder.rows, row + 1, gridWidget.copyPositioner().alignRight());
+			if (tooltip != null) {
+				tooltipBoxOpt.ifPresent(tooltipBoxDisplay -> {
+					Text tooltipText = tooltip.copy().formatted(Formatting.GRAY);
 					TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
-					MultilineTextWidget multilineTextWidget = new MultilineTextWidget(text, textRenderer);
-					multilineTextWidget.setMaxWidth(gridBuilder.width - gridBuilder.marginLeft - this.buttonWidth);
+					MultilineTextWidget multilineTextWidget = new MultilineTextWidget(tooltipText, textRenderer);
+					multilineTextWidget.setMaxWidth(gridBuilder.width - gridBuilder.marginLeft - buttonWidth);
 					multilineTextWidget.setMaxRows(tooltipBoxDisplay.maxInfoRows());
 					gridBuilder.incrementRows();
-					int
-							j =
-							tooltipBoxDisplay.alwaysMaxHeight ? 9 * tooltipBoxDisplay.maxInfoRows
-							                                    - multilineTextWidget.getHeight() : 0;
+					int bottomPadding = tooltipBoxDisplay.alwaysMaxHeight
+							? 9 * tooltipBoxDisplay.maxInfoRows - multilineTextWidget.getHeight()
+							: 0;
 					gridWidget.add(
 							multilineTextWidget,
 							gridBuilder.rows,
 							row,
-							gridWidget.copyPositioner().marginTop(-gridBuilder.rowSpacing).marginBottom(j)
+							gridWidget.copyPositioner().marginTop(-gridBuilder.rowSpacing).marginBottom(bottomPadding)
 					);
 				});
 			}
 
-			return new WorldScreenOptionGrid.Option(cyclingButtonWidget, this.getter, this.toggleable);
+			return new WorldScreenOptionGrid.Option(cyclingButton, getter, toggleable);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code TooltipBoxDisplay}.
-	 */
 	record TooltipBoxDisplay(int maxInfoRows, boolean alwaysMaxHeight) {
 	}
 }

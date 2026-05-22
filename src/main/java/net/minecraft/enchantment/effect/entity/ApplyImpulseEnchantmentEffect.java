@@ -11,7 +11,9 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code ApplyImpulseEnchantmentEffect}.
+ * Эффект зачарования, применяющий импульс (толчок) к сущности в направлении её взгляда.
+ * Направление трансформируется в локальное пространство сущности, масштабируется
+ * по {@code coordinateScale} и умножается на {@code magnitude} от уровня зачарования.
  */
 public record ApplyImpulseEnchantmentEffect(
 		Vec3d direction,
@@ -19,32 +21,32 @@ public record ApplyImpulseEnchantmentEffect(
 		EnchantmentLevelBasedValue magnitude
 ) implements EnchantmentEntityEffect {
 
+	private static final int EXPLOSION_RESET_GRACE_TICKS = 10;
+
 	public static final MapCodec<ApplyImpulseEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Vec3d.CODEC.fieldOf("direction").forGetter(ApplyImpulseEnchantmentEffect::direction),
-					                    Vec3d.CODEC.fieldOf("coordinate_scale").forGetter(ApplyImpulseEnchantmentEffect::coordinateScale),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("magnitude")
-							                    .forGetter(ApplyImpulseEnchantmentEffect::magnitude)
-			                    )
-			                    .apply(instance, ApplyImpulseEnchantmentEffect::new)
+					Vec3d.CODEC.fieldOf("direction").forGetter(ApplyImpulseEnchantmentEffect::direction),
+					Vec3d.CODEC.fieldOf("coordinate_scale").forGetter(ApplyImpulseEnchantmentEffect::coordinateScale),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("magnitude")
+							.forGetter(ApplyImpulseEnchantmentEffect::magnitude)
+			).apply(instance, ApplyImpulseEnchantmentEffect::new)
 	);
-	private static final int CURRENT_EXPLOSION_RESET_GRACE_TIME = 10;
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		Vec3d vec3d = user.getRotationVector();
-		Vec3d
-				vec3d2 =
-				vec3d
-						.transformLocalPos(this.direction)
-						.multiply(this.coordinateScale)
-						.multiply(this.magnitude.getValue(level));
-		user.addVelocityInternal(vec3d2);
+		Vec3d rotationVector = user.getRotationVector();
+		Vec3d impulse = rotationVector
+				.transformLocalPos(direction)
+				.multiply(coordinateScale)
+				.multiply(magnitude.getValue(level));
+
+		user.addVelocityInternal(impulse);
 		user.knockedBack = true;
 		user.velocityDirty = true;
-		if (user instanceof PlayerEntity playerEntity) {
-			playerEntity.setCurrentExplosionResetGraceTime(10);
+
+		if (user instanceof PlayerEntity player) {
+			player.setCurrentExplosionResetGraceTime(EXPLOSION_RESET_GRACE_TICKS);
 		}
 	}
 

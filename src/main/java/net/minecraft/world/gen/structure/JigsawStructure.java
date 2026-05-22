@@ -26,7 +26,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code JigsawStructure}.
+ * Универсальная структура на основе пазлов (Jigsaw). Используется для деревень, бастионов,
+ * древних городов и других процедурно собираемых из кусков структур.
  */
 public final class JigsawStructure extends Structure {
 
@@ -36,35 +37,41 @@ public final class JigsawStructure extends Structure {
 	public static final int DEFAULT_MAX_DISTANCE_FROM_CENTER = 0;
 	public static final int MAX_GENERATION_DEPTH = 20;
 	public static final MapCodec<JigsawStructure> CODEC = RecordCodecBuilder.<JigsawStructure>mapCodec(
-			                                                                        instance -> instance.group(
-					                                                                                            configCodecBuilder(instance),
-					                                                                                            StructurePool.REGISTRY_CODEC.fieldOf("start_pool").forGetter(structure -> structure.startPool),
-					                                                                                            Identifier.CODEC
-							                                                                                            .optionalFieldOf("start_jigsaw_name")
-							                                                                                            .forGetter(structure -> structure.startJigsawName),
-					                                                                                            Codec.intRange(0, 20).fieldOf("size").forGetter(structure -> structure.size),
-					                                                                                            HeightProvider.CODEC.fieldOf("start_height").forGetter(structure -> structure.startHeight),
-					                                                                                            Codec.BOOL.fieldOf("use_expansion_hack").forGetter(structure -> structure.useExpansionHack),
-					                                                                                            Heightmap.Type.CODEC
-							                                                                                            .optionalFieldOf("project_start_to_heightmap")
-							                                                                                            .forGetter(structure -> structure.projectStartToHeightmap),
-					                                                                                            JigsawStructure.MaxDistanceFromCenter.CODEC
-							                                                                                            .fieldOf("max_distance_from_center")
-							                                                                                            .forGetter(structure -> structure.maxDistanceFromCenter),
-					                                                                                            Codec
-							                                                                                            .list(StructurePoolAliasBinding.CODEC)
-							                                                                                            .optionalFieldOf("pool_aliases", List.of())
-							                                                                                            .forGetter(structure -> structure.poolAliasBindings),
-					                                                                                            DimensionPadding.CODEC
-							                                                                                            .optionalFieldOf("dimension_padding", DEFAULT_DIMENSION_PADDING)
-							                                                                                            .forGetter(structure -> structure.dimensionPadding),
-					                                                                                            StructureLiquidSettings.codec
-							                                                                                            .optionalFieldOf("liquid_settings", DEFAULT_LIQUID_SETTINGS)
-							                                                                                            .forGetter(jigsawStructure -> jigsawStructure.liquidSettings)
-			                                                                                            )
-			                                                                                            .apply(instance, JigsawStructure::new)
-	                                                                        )
-	                                                                        .validate(JigsawStructure::validate);
+			instance -> instance.group(
+					configCodecBuilder(instance),
+					StructurePool.REGISTRY_CODEC
+							.fieldOf("start_pool")
+							.forGetter(structure -> structure.startPool),
+					Identifier.CODEC
+							.optionalFieldOf("start_jigsaw_name")
+							.forGetter(structure -> structure.startJigsawName),
+					Codec.intRange(0, MAX_GENERATION_DEPTH)
+							.fieldOf("size")
+							.forGetter(structure -> structure.size),
+					HeightProvider.CODEC
+							.fieldOf("start_height")
+							.forGetter(structure -> structure.startHeight),
+					Codec.BOOL
+							.fieldOf("use_expansion_hack")
+							.forGetter(structure -> structure.useExpansionHack),
+					Heightmap.Type.CODEC
+							.optionalFieldOf("project_start_to_heightmap")
+							.forGetter(structure -> structure.projectStartToHeightmap),
+					JigsawStructure.MaxDistanceFromCenter.CODEC
+							.fieldOf("max_distance_from_center")
+							.forGetter(structure -> structure.maxDistanceFromCenter),
+					Codec.list(StructurePoolAliasBinding.CODEC)
+							.optionalFieldOf("pool_aliases", List.of())
+							.forGetter(structure -> structure.poolAliasBindings),
+					DimensionPadding.CODEC
+							.optionalFieldOf("dimension_padding", DEFAULT_DIMENSION_PADDING)
+							.forGetter(structure -> structure.dimensionPadding),
+					StructureLiquidSettings.codec
+							.optionalFieldOf("liquid_settings", DEFAULT_LIQUID_SETTINGS)
+							.forGetter(structure -> structure.liquidSettings)
+			)
+			.apply(instance, JigsawStructure::new)
+	).validate(JigsawStructure::validate);
 	private final RegistryEntry<StructurePool> startPool;
 	private final Optional<Identifier> startJigsawName;
 	private final int size;
@@ -77,13 +84,13 @@ public final class JigsawStructure extends Structure {
 	private final StructureLiquidSettings liquidSettings;
 
 	private static DataResult<JigsawStructure> validate(JigsawStructure structure) {
-		int i = switch (structure.getTerrainAdaptation()) {
+		int terrainAdaptationPadding = switch (structure.getTerrainAdaptation()) {
 			case NONE -> 0;
 			case BURY, BEARD_THIN, BEARD_BOX, ENCAPSULATE -> 12;
 		};
-		return structure.maxDistanceFromCenter.horizontal() + i > 128
-		       ? DataResult.error(() -> "Horizontal structure size including terrain adaptation must not exceed 128")
-		       : DataResult.success(structure);
+		return structure.maxDistanceFromCenter.horizontal() + terrainAdaptationPadding > MAX_SIZE
+				? DataResult.error(() -> "Horizontal structure size including terrain adaptation must not exceed 128")
+				: DataResult.success(structure);
 	}
 
 	public JigsawStructure(
@@ -160,20 +167,21 @@ public final class JigsawStructure extends Structure {
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		ChunkPos chunkPos = context.chunkPos();
-		int i = this.startHeight.get(context.random(), new HeightContext(context.chunkGenerator(), context.world()));
-		BlockPos blockPos = new BlockPos(chunkPos.getStartX(), i, chunkPos.getStartZ());
+		int startY = startHeight.get(context.random(), new HeightContext(context.chunkGenerator(), context.world()));
+		BlockPos startPos = new BlockPos(chunkPos.getStartX(), startY, chunkPos.getStartZ());
+
 		return StructurePoolBasedGenerator.generate(
 				context,
-				this.startPool,
-				this.startJigsawName,
-				this.size,
-				blockPos,
-				this.useExpansionHack,
-				this.projectStartToHeightmap,
-				this.maxDistanceFromCenter,
-				StructurePoolAliasLookup.create(this.poolAliasBindings, blockPos, context.seed()),
-				this.dimensionPadding,
-				this.liquidSettings
+				startPool,
+				startJigsawName,
+				size,
+				startPos,
+				useExpansionHack,
+				projectStartToHeightmap,
+				maxDistanceFromCenter,
+				StructurePoolAliasLookup.create(poolAliasBindings, startPos, context.seed()),
+				dimensionPadding,
+				liquidSettings
 		);
 	}
 
@@ -184,42 +192,39 @@ public final class JigsawStructure extends Structure {
 
 	@VisibleForTesting
 	public RegistryEntry<StructurePool> getStartPool() {
-		return this.startPool;
+		return startPool;
 	}
 
 	@VisibleForTesting
 	public List<StructurePoolAliasBinding> getPoolAliasBindings() {
-		return this.poolAliasBindings;
+		return poolAliasBindings;
 	}
 
 	/**
-	 * {@code MaxDistanceFromCenter}.
+	 * Ограничение максимального расстояния от центра структуры по горизонтали и вертикали.
+	 * Используется для отсечения кусков, вышедших за допустимые границы.
 	 */
 	public record MaxDistanceFromCenter(int horizontal, int vertical) {
 
-		private static final Codec<Integer> DISTANCE_CODEC = Codec.intRange(1, 128);
+		private static final Codec<Integer> DISTANCE_CODEC = Codec.intRange(1, MAX_SIZE);
 		private static final Codec<JigsawStructure.MaxDistanceFromCenter> EXPANDED_CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    DISTANCE_CODEC
-								                    .fieldOf("horizontal")
-								                    .forGetter(JigsawStructure.MaxDistanceFromCenter::horizontal),
-						                    Codecs.rangedInt(1, DimensionType.MAX_HEIGHT)
-						                          .optionalFieldOf("vertical", DimensionType.MAX_HEIGHT)
-						                          .forGetter(JigsawStructure.MaxDistanceFromCenter::vertical)
-				                    )
-				                    .apply(instance, JigsawStructure.MaxDistanceFromCenter::new)
+						DISTANCE_CODEC
+								.fieldOf("horizontal")
+								.forGetter(JigsawStructure.MaxDistanceFromCenter::horizontal),
+						Codecs.rangedInt(1, DimensionType.MAX_HEIGHT)
+								.optionalFieldOf("vertical", DimensionType.MAX_HEIGHT)
+								.forGetter(JigsawStructure.MaxDistanceFromCenter::vertical)
+				)
+				.apply(instance, JigsawStructure.MaxDistanceFromCenter::new)
 		);
-		public static final Codec<JigsawStructure.MaxDistanceFromCenter>
-				CODEC =
-				Codec.either(EXPANDED_CODEC, DISTANCE_CODEC)
-				     .xmap(
-						     either -> (JigsawStructure.MaxDistanceFromCenter) either.map(
-								     Function.identity(),
-								     JigsawStructure.MaxDistanceFromCenter::new
-						     ),
-						     distance -> distance.horizontal == distance.vertical ? Either.right(distance.horizontal)
-						                                                          : Either.left(distance)
-				     );
+		public static final Codec<JigsawStructure.MaxDistanceFromCenter> CODEC = Codec.either(EXPANDED_CODEC, DISTANCE_CODEC)
+				.xmap(
+						either -> either.map(Function.identity(), JigsawStructure.MaxDistanceFromCenter::new),
+						distance -> distance.horizontal == distance.vertical
+								? Either.right(distance.horizontal)
+								: Either.left(distance)
+				);
 
 		public MaxDistanceFromCenter(int distance) {
 			this(distance, distance);

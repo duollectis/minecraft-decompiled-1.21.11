@@ -24,7 +24,7 @@ public class VanillaFluidTagProvider extends ValueLookupTagProvider<Fluid> {
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(FluidTags.WATER).add(Fluids.WATER, Fluids.FLOWING_WATER);
-		this.builder(FluidTags.LAVA).add(Fluids.LAVA, Fluids.FLOWING_LAVA);
+		builder(FluidTags.WATER).add(Fluids.WATER, Fluids.FLOWING_WATER);
+		builder(FluidTags.LAVA).add(Fluids.LAVA, Fluids.FLOWING_LAVA);
 	}
 }

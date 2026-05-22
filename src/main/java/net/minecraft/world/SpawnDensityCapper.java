@@ -14,12 +14,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code SpawnDensityCapper}.
+ * Ограничитель плотности спавна мобов на основе количества мобов,
+ * видимых каждым игроком в радиусе загрузки чанков.
+ * <p>
+ * Для каждого игрока отслеживается счётчик мобов по группам спавна.
+ * Спавн разрешается, если хотя бы один игрок, наблюдающий за чанком,
+ * не превысил лимит своей группы.
  */
 public class SpawnDensityCapper {
 
-	private final Long2ObjectMap<List<ServerPlayerEntity>> chunkPosToMobSpawnablePlayers = new Long2ObjectOpenHashMap();
-	private final Map<ServerPlayerEntity, SpawnDensityCapper.DensityCap> playersToDensityCap = Maps.newHashMap();
+	private final Long2ObjectMap<List<ServerPlayerEntity>> chunkPosToMobSpawnablePlayers = new Long2ObjectOpenHashMap<>();
+	private final Map<ServerPlayerEntity, DensityCap> playersToDensityCap = Maps.newHashMap();
 	private final ServerChunkLoadingManager chunkLoadingManager;
 
 	public SpawnDensityCapper(ServerChunkLoadingManager chunkLoadingManager) {
@@ -27,35 +32,39 @@ public class SpawnDensityCapper {
 	}
 
 	private List<ServerPlayerEntity> getMobSpawnablePlayers(ChunkPos chunkPos) {
-		return (List<ServerPlayerEntity>) this.chunkPosToMobSpawnablePlayers
-				.computeIfAbsent(chunkPos.toLong(), pos -> this.chunkLoadingManager.getPlayersWatchingChunk(chunkPos));
+		return chunkPosToMobSpawnablePlayers.computeIfAbsent(
+			chunkPos.toLong(),
+			pos -> chunkLoadingManager.getPlayersWatchingChunk(chunkPos)
+		);
 	}
 
 	/**
-	 * Increase density.
+	 * Увеличивает счётчик плотности для всех игроков, наблюдающих за данным чанком.
 	 *
-	 * @param chunkPos chunk pos
-	 * @param spawnGroup spawn group
+	 * @param chunkPos   позиция чанка
+	 * @param spawnGroup группа спавна
 	 */
 	public void increaseDensity(ChunkPos chunkPos, SpawnGroup spawnGroup) {
-		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
-			this.playersToDensityCap
-					.computeIfAbsent(serverPlayerEntity, player -> new SpawnDensityCapper.DensityCap())
-					.increaseDensity(spawnGroup);
+		for (ServerPlayerEntity player : getMobSpawnablePlayers(chunkPos)) {
+			playersToDensityCap
+				.computeIfAbsent(player, p -> new DensityCap())
+				.increaseDensity(spawnGroup);
 		}
 	}
 
 	/**
-	 * Проверяет возможность spawn.
+	 * Проверяет, разрешён ли спавн в данном чанке для указанной группы.
+	 * <p>
+	 * Возвращает {@code true}, если хотя бы один наблюдающий игрок
+	 * не превысил лимит своей группы спавна.
 	 *
-	 * @param spawnGroup spawn group
-	 * @param chunkPos chunk pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param spawnGroup группа спавна
+	 * @param chunkPos   позиция чанка
+	 * @return {@code true} если спавн разрешён
 	 */
 	public boolean canSpawn(SpawnGroup spawnGroup, ChunkPos chunkPos) {
-		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
-			SpawnDensityCapper.DensityCap densityCap = this.playersToDensityCap.get(serverPlayerEntity);
+		for (ServerPlayerEntity player : getMobSpawnablePlayers(chunkPos)) {
+			DensityCap densityCap = playersToDensityCap.get(player);
 			if (densityCap == null || densityCap.canSpawn(spawnGroup)) {
 				return true;
 			}
@@ -65,32 +74,19 @@ public class SpawnDensityCapper {
 	}
 
 	/**
-	 * {@code DensityCap}.
+	 * Хранит счётчики мобов по группам спавна для одного игрока.
 	 */
 	static class DensityCap {
 
-		private final Object2IntMap<SpawnGroup>
-				spawnGroupsToDensity =
-				new Object2IntOpenHashMap(SpawnGroup.values().length);
+		private final Object2IntMap<SpawnGroup> spawnGroupsToDensity =
+			new Object2IntOpenHashMap<>(SpawnGroup.values().length);
 
-		/**
-		 * Increase density.
-		 *
-		 * @param spawnGroup spawn group
-		 */
-		public void increaseDensity(SpawnGroup spawnGroup) {
-			this.spawnGroupsToDensity.computeInt(spawnGroup, (group, density) -> density == null ? 1 : density + 1);
+		void increaseDensity(SpawnGroup spawnGroup) {
+			spawnGroupsToDensity.computeInt(spawnGroup, (group, density) -> density == null ? 1 : density + 1);
 		}
 
-		/**
-		 * Проверяет возможность spawn.
-		 *
-		 * @param spawnGroup spawn group
-		 *
-		 * @return boolean — {@code true} если условие выполнено
-		 */
-		public boolean canSpawn(SpawnGroup spawnGroup) {
-			return this.spawnGroupsToDensity.getOrDefault(spawnGroup, 0) < spawnGroup.getCapacity();
+		boolean canSpawn(SpawnGroup spawnGroup) {
+			return spawnGroupsToDensity.getOrDefault(spawnGroup, 0) < spawnGroup.getCapacity();
 		}
 	}
 }

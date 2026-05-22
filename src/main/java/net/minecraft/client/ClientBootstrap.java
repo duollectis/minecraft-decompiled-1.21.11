@@ -13,30 +13,35 @@ import net.minecraft.client.render.item.property.select.SelectProperties;
 import net.minecraft.client.render.item.tint.TintSourceTypes;
 import net.minecraft.client.texture.atlas.AtlasSourceManager;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientBootstrap}.
+ * Точка входа для регистрации всех клиентских типов и обработчиков.
+ * Гарантирует однократную инициализацию через volatile-флаг.
  */
+@Environment(EnvType.CLIENT)
 public class ClientBootstrap {
 
 	private static volatile boolean initialized;
 
 	/**
-	 * Инициализирует ialize.
+	 * Регистрирует все клиентские типы: модели предметов, источники тинта,
+	 * свойства предметов, атласы текстур и обработчики диалогов.
+	 * Идемпотентен — повторный вызов не имеет эффекта.
 	 */
 	public static void initialize() {
-		if (!initialized) {
-			initialized = true;
-			ItemModelTypes.bootstrap();
-			SpecialModelTypes.bootstrap();
-			TintSourceTypes.bootstrap();
-			SelectProperties.bootstrap();
-			BooleanProperties.bootstrap();
-			NumericProperties.bootstrap();
-			AtlasSourceManager.bootstrap();
-			DialogScreens.bootstrap();
-			InputControlHandlers.bootstrap();
-			DialogBodyHandlers.bootstrap();
+		if (initialized) {
+			return;
 		}
+
+		initialized = true;
+		ItemModelTypes.bootstrap();
+		SpecialModelTypes.bootstrap();
+		TintSourceTypes.bootstrap();
+		SelectProperties.bootstrap();
+		BooleanProperties.bootstrap();
+		NumericProperties.bootstrap();
+		AtlasSourceManager.bootstrap();
+		DialogScreens.bootstrap();
+		InputControlHandlers.bootstrap();
+		DialogBodyHandlers.bootstrap();
 	}
 }

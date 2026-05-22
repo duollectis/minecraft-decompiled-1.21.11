@@ -10,30 +10,46 @@ import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.ColorHelper;
 
 /**
- * {@code EffectParticleEffect}.
+ * Эффект частицы с цветом и интенсивностью (мощностью).
+ * Используется для частиц зелий и мгновенных эффектов.
+ * Цвет хранится как упакованный RGB-int; значение {@code -1} означает «цвет не задан».
  */
 public class EffectParticleEffect implements ParticleEffect {
+
+	/** Нормализующий делитель для перевода байтового канала цвета [0..255] в float [0..1]. */
+	private static final float COLOR_CHANNEL_MAX = 255.0F;
+
+	/** Значение цвета по умолчанию — «не задан». */
+	private static final int NO_COLOR = -1;
+
+	/** Мощность частицы по умолчанию. */
+	private static final float DEFAULT_POWER = 1.0F;
 
 	private final ParticleType<EffectParticleEffect> type;
 	private final int color;
 	private final float power;
 
+	/**
+	 * Создаёт фабричный {@link MapCodec} для данного типа частицы.
+	 * Поле {@code color} опционально и по умолчанию равно {@value #NO_COLOR}.
+	 * Поле {@code power} опционально и по умолчанию равно {@value #DEFAULT_POWER}.
+	 */
 	public static MapCodec<EffectParticleEffect> createCodec(ParticleType<EffectParticleEffect> type) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Codecs.RGB.optionalFieldOf("color", -1).forGetter(effect -> effect.color),
-						                    Codec.FLOAT.optionalFieldOf("power", 1.0F).forGetter(effect -> effect.power)
-				                    )
-				                    .apply(instance, (color, power) -> new EffectParticleEffect(type, color, power))
+						Codecs.RGB.optionalFieldOf("color", NO_COLOR).forGetter(effect -> effect.color),
+						Codec.FLOAT.optionalFieldOf("power", DEFAULT_POWER).forGetter(effect -> effect.power)
+				)
+				.apply(instance, (color, power) -> new EffectParticleEffect(type, color, power))
 		);
 	}
 
-	public static PacketCodec<? super ByteBuf, EffectParticleEffect> createPacketCodec(ParticleType<EffectParticleEffect> type) {
+	public static PacketCodec<? super ByteBuf, EffectParticleEffect> createPacketCodec(
+			ParticleType<EffectParticleEffect> type
+	) {
 		return PacketCodec.tuple(
-				PacketCodecs.INTEGER,
-				effect -> effect.color,
-				PacketCodecs.FLOAT,
-				effect -> effect.power,
+				PacketCodecs.INTEGER, effect -> effect.color,
+				PacketCodecs.FLOAT, effect -> effect.power,
 				(color, power) -> new EffectParticleEffect(type, color, power)
 		);
 	}
@@ -46,23 +62,23 @@ public class EffectParticleEffect implements ParticleEffect {
 
 	@Override
 	public ParticleType<EffectParticleEffect> getType() {
-		return this.type;
+		return type;
 	}
 
 	public float getRed() {
-		return ColorHelper.getRed(this.color) / 255.0F;
+		return ColorHelper.getRed(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getGreen() {
-		return ColorHelper.getGreen(this.color) / 255.0F;
+		return ColorHelper.getGreen(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getBlue() {
-		return ColorHelper.getBlue(this.color) / 255.0F;
+		return ColorHelper.getBlue(color) / COLOR_CHANNEL_MAX;
 	}
 
 	public float getPower() {
-		return this.power;
+		return power;
 	}
 
 	public static EffectParticleEffect of(ParticleType<EffectParticleEffect> type, int color, float power) {

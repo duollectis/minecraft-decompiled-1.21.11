@@ -10,7 +10,7 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import java.util.Collection;
 
 /**
- * {@code BanManagementHandlerImpl}.
+ * Класс Ban Management Handler Impl.
  */
 public class BanManagementHandlerImpl implements BanManagementHandler {
 

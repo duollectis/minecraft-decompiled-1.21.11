@@ -11,7 +11,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * {@code ServerManagementHandlerImpl}.
+ * Класс Server Management Handler Impl.
  */
 public class ServerManagementHandlerImpl implements ServerManagementHandler {
 

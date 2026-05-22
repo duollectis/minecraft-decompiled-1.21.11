@@ -11,7 +11,7 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Optional;
 
 /**
- * {@code ItemWaterPotionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemWaterPotionFix extends DataFix {
 
@@ -20,12 +20,12 @@ public class ItemWaterPotionFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		OpticFinder<?> opticFinder2 = type.findField("tag");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemWaterPotionFix",
 				type,
 				itemStackTyped -> {

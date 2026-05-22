@@ -4,7 +4,8 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code WaitTask}.
+ * Задача мозга, блокирующая выполнение других задач на случайный промежуток времени
+ * в диапазоне [{@code minRunTime}, {@code maxRunTime}] тиков.
  */
 public class WaitTask implements Task<LivingEntity> {
 
@@ -20,31 +21,31 @@ public class WaitTask implements Task<LivingEntity> {
 
 	@Override
 	public MultiTickTask.Status getStatus() {
-		return this.status;
+		return status;
 	}
 
 	@Override
 	public final boolean tryStarting(ServerWorld world, LivingEntity entity, long time) {
-		this.status = MultiTickTask.Status.RUNNING;
-		int i = this.minRunTime + world.getRandom().nextInt(this.maxRunTime + 1 - this.minRunTime);
-		this.waitUntil = time + i;
+		status = MultiTickTask.Status.RUNNING;
+		int duration = minRunTime + world.getRandom().nextInt(maxRunTime + 1 - minRunTime);
+		waitUntil = time + duration;
 		return true;
 	}
 
 	@Override
 	public final void tick(ServerWorld world, LivingEntity entity, long time) {
-		if (time > this.waitUntil) {
-			this.stop(world, entity, time);
+		if (time > waitUntil) {
+			stop(world, entity, time);
 		}
 	}
 
 	@Override
 	public final void stop(ServerWorld world, LivingEntity entity, long time) {
-		this.status = MultiTickTask.Status.STOPPED;
+		status = MultiTickTask.Status.STOPPED;
 	}
 
 	@Override
 	public String getName() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 }

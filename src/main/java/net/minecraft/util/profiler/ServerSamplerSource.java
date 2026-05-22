@@ -20,116 +20,120 @@ import java.util.function.ToDoubleFunction;
 import java.util.stream.IntStream;
 
 /**
- * {@code ServerSamplerSource}.
+ * Источник сэмплеров для серверного профилирования: время тика, загрузка CPU
+ * по каждому логическому ядру, использование кучи JVM и метрики пулов потоков.
  */
 public class ServerSamplerSource implements SamplerSource {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private final Set<Sampler> samplers = new ObjectOpenHashSet();
+
+	// Порог обновления данных CPU: не чаще одного раза в 501 мс
+	private static final long CPU_REFRESH_INTERVAL_MS = 501L;
+
+	private final Set<Sampler> samplers = new ObjectOpenHashSet<>();
 	private final SamplerFactory factory = new SamplerFactory();
 
 	public ServerSamplerSource(LongSupplier nanoTimeSupplier, boolean includeSystem) {
-		this.samplers.add(createTickTimeTracker(nanoTimeSupplier));
+		samplers.add(createTickTimeTracker(nanoTimeSupplier));
+
 		if (includeSystem) {
-			this.samplers.addAll(createSystemSamplers());
+			samplers.addAll(createSystemSamplers());
 		}
 	}
 
 	/**
-	 * Создаёт system samplers.
-	 *
-	 * @return Set — результат операции
+	 * Создаёт набор системных сэмплеров: CPU по ядрам, куча JVM и пулы потоков.
+	 * При недоступности OSHI логирует предупреждение и пропускает CPU-метрики.
 	 */
 	public static Set<Sampler> createSystemSamplers() {
 		Builder<Sampler> builder = ImmutableSet.builder();
 
 		try {
-			ServerSamplerSource.CpuUsageFetcher cpuUsageFetcher = new ServerSamplerSource.CpuUsageFetcher();
-			IntStream.range(0, cpuUsageFetcher.logicalProcessorCount)
-			         .mapToObj(index -> Sampler.create(
-					         "cpu#" + index,
-					         SampleType.CPU,
-					         () -> cpuUsageFetcher.getCpuUsage(index)
-			         ))
-			         .forEach(builder::add);
+			ServerSamplerSource.CpuUsageFetcher cpuFetcher = new ServerSamplerSource.CpuUsageFetcher();
+			IntStream.range(0, cpuFetcher.logicalProcessorCount)
+				.mapToObj(index -> Sampler.create(
+					"cpu#" + index,
+					SampleType.CPU,
+					() -> cpuFetcher.getCpuUsage(index)
+				))
+				.forEach(builder::add);
 		}
-		catch (Throwable var2) {
-			LOGGER.warn("Failed to query cpu, no cpu stats will be recorded", var2);
+		catch (Throwable error) {
+			LOGGER.warn("Failed to query cpu, no cpu stats will be recorded", error);
 		}
 
 		builder.add(
-				Sampler.create(
-						"heap MiB",
-						SampleType.JVM,
-						() -> SystemDetails.toMebibytes(
-								Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())
+			Sampler.create(
+				"heap MiB",
+				SampleType.JVM,
+				() -> SystemDetails.toMebibytes(
+					Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
 				)
+			)
 		);
+
 		builder.addAll(ExecutorSampling.INSTANCE.createSamplers());
 		return builder.build();
 	}
 
 	@Override
 	public Set<Sampler> getSamplers(Supplier<ReadableProfiler> profilerSupplier) {
-		this.samplers.addAll(this.factory.createSamplers(profilerSupplier));
-		return this.samplers;
+		samplers.addAll(factory.createSamplers(profilerSupplier));
+		return samplers;
 	}
 
 	/**
-	 * Создаёт tick time tracker.
-	 *
-	 * @param nanoTimeSupplier nano time supplier
-	 *
-	 * @return Sampler — результат операции
+	 * Создаёт сэмплер времени тика на основе {@link Stopwatch} с кастомным {@link Ticker}.
+	 * Детектор отклонений срабатывает при росте времени тика более чем в 2 раза.
 	 */
 	public static Sampler createTickTimeTracker(LongSupplier nanoTimeSupplier) {
 		Stopwatch stopwatch = Stopwatch.createUnstarted(new Ticker() {
-			/**
-			 * Read.
-			 *
-			 * @return long — результат операции
-			 */
+			@Override
 			public long read() {
 				return nanoTimeSupplier.getAsLong();
 			}
 		});
-		ToDoubleFunction<Stopwatch> toDoubleFunction = watch -> {
+
+		ToDoubleFunction<Stopwatch> elapsed = watch -> {
 			if (watch.isRunning()) {
 				watch.stop();
 			}
 
-			long l = watch.elapsed(TimeUnit.NANOSECONDS);
+			long nanos = watch.elapsed(TimeUnit.NANOSECONDS);
 			watch.reset();
-			return l;
+			return nanos;
 		};
-		Sampler.RatioDeviationChecker ratioDeviationChecker = new Sampler.RatioDeviationChecker(2.0F);
-		return Sampler.builder("ticktime", SampleType.TICK_LOOP, toDoubleFunction, stopwatch)
-		              .startAction(Stopwatch::start)
-		              .deviationChecker(ratioDeviationChecker)
-		              .build();
+
+		Sampler.RatioDeviationChecker deviationChecker = new Sampler.RatioDeviationChecker(2.0F);
+		return Sampler.builder("ticktime", SampleType.TICK_LOOP, elapsed, stopwatch)
+			.startAction(Stopwatch::start)
+			.deviationChecker(deviationChecker)
+			.build();
 	}
 
 	/**
-	 * {@code CpuUsageFetcher}.
+	 * Кэширующий поставщик загрузки CPU через OSHI.
+	 * Обновляет данные не чаще одного раза в {@link #CPU_REFRESH_INTERVAL_MS} мс.
 	 */
 	static class CpuUsageFetcher {
 
 		private final SystemInfo systemInfo = new SystemInfo();
-		private final CentralProcessor processor = this.systemInfo.getHardware().getProcessor();
-		public final int logicalProcessorCount = this.processor.getLogicalProcessorCount();
-		private long[][] loadTicks = this.processor.getProcessorCpuLoadTicks();
-		private double[] loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
+		private final CentralProcessor processor = systemInfo.getHardware().getProcessor();
+		public final int logicalProcessorCount = processor.getLogicalProcessorCount();
+		private long[][] loadTicks = processor.getProcessorCpuLoadTicks();
+		private double[] loadBetweenTicks = processor.getProcessorCpuLoadBetweenTicks(loadTicks);
 		private long lastCheckTime;
 
 		public double getCpuUsage(int index) {
-			long l = System.currentTimeMillis();
-			if (this.lastCheckTime == 0L || this.lastCheckTime + 501L < l) {
-				this.loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
-				this.loadTicks = this.processor.getProcessorCpuLoadTicks();
-				this.lastCheckTime = l;
+			long now = System.currentTimeMillis();
+
+			if (lastCheckTime == 0L || lastCheckTime + CPU_REFRESH_INTERVAL_MS < now) {
+				loadBetweenTicks = processor.getProcessorCpuLoadBetweenTicks(loadTicks);
+				loadTicks = processor.getProcessorCpuLoadTicks();
+				lastCheckTime = now;
 			}
 
-			return this.loadBetweenTicks[index] * 100.0;
+			return loadBetweenTicks[index] * 100.0;
 		}
 	}
 }

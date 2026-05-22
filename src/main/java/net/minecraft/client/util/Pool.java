@@ -9,27 +9,29 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Pool}.
+ * Пул объектов с ограниченным временем жизни.
+ * Возвращённые объекты хранятся в пуле до истечения {@code lifespan} тиков,
+ * после чего автоматически закрываются через {@link ClosableFactory#close}.
  */
+@Environment(EnvType.CLIENT)
 public class Pool implements ObjectAllocator, AutoCloseable {
 
 	private final int lifespan;
-	private final Deque<Pool.Entry<?>> entries = new ArrayDeque<>();
+	private final Deque<Entry<?>> entries = new ArrayDeque<>();
 
 	public Pool(int lifespan) {
 		this.lifespan = lifespan;
 	}
 
 	/**
-	 * Decrement lifespan.
+	 * Уменьшает счётчик жизни каждой записи пула на 1.
+	 * Записи с истёкшим сроком жизни закрываются и удаляются.
 	 */
 	public void decrementLifespan() {
-		Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
-
+		Iterator<? extends Entry<?>> iterator = entries.iterator();
 		while (iterator.hasNext()) {
-			Pool.Entry<?> entry = (Pool.Entry<?>) iterator.next();
+			Entry<?> entry = iterator.next();
 			if (entry.lifespan-- == 0) {
 				entry.close();
 				iterator.remove();
@@ -39,16 +41,16 @@ public class Pool implements ObjectAllocator, AutoCloseable {
 
 	@Override
 	public <T> T acquire(ClosableFactory<T> factory) {
-		T object = this.acquireUnprepared(factory);
+		T object = acquireUnprepared(factory);
 		factory.prepare(object);
 		return object;
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> T acquireUnprepared(ClosableFactory<T> factory) {
-		Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
-
+		Iterator<? extends Entry<?>> iterator = entries.iterator();
 		while (iterator.hasNext()) {
-			Pool.Entry<?> entry = (Pool.Entry<?>) iterator.next();
+			Entry<?> entry = iterator.next();
 			if (factory.equals(entry.factory)) {
 				iterator.remove();
 				return (T) entry.object;
@@ -60,32 +62,26 @@ public class Pool implements ObjectAllocator, AutoCloseable {
 
 	@Override
 	public <T> void release(ClosableFactory<T> factory, T value) {
-		this.entries.addFirst(new Pool.Entry<>(factory, value, this.lifespan));
+		entries.addFirst(new Entry<>(factory, value, lifespan));
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.entries.forEach(Pool.Entry::close);
-		this.entries.clear();
+		entries.forEach(Entry::close);
+		entries.clear();
 	}
 
 	@Override
 	public void close() {
-		this.clear();
+		clear();
 	}
 
 	@VisibleForTesting
-	protected Collection<Pool.Entry<?>> getEntries() {
-		return this.entries;
+	protected Collection<Entry<?>> getEntries() {
+		return entries;
 	}
 
 	@Environment(EnvType.CLIENT)
 	@VisibleForTesting
-	/**
-	 * {@code Entry}.
-	 */
 	protected static final class Entry<T> implements AutoCloseable {
 
 		final ClosableFactory<T> factory;
@@ -100,7 +96,7 @@ public class Pool implements ObjectAllocator, AutoCloseable {
 
 		@Override
 		public void close() {
-			this.factory.close(this.object);
+			factory.close(object);
 		}
 	}
 }

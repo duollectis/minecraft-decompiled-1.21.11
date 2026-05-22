@@ -12,7 +12,7 @@ import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.util.Util;
 
 /**
- * {@code StructureSettingsFlattenFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StructureSettingsFlattenFix extends DataFix {
 
@@ -21,9 +21,9 @@ public class StructureSettingsFlattenFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
+		Type<?> type = getInputSchema().getType(TypeReferences.WORLD_GEN_SETTINGS);
 		OpticFinder<?> opticFinder = type.findField("dimensions");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"StructureSettingsFlatten",
 				type,
 				worldGenSettingsTyped -> worldGenSettingsTyped.updateTyped(

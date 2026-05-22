@@ -8,10 +8,12 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EntityGuiElementRenderState}.
+ * Состояние сущности, отображаемой в GUI (например, превью персонажа в инвентаре).
+ * Хранит состояние рендера сущности, трансформации и опциональный кватернион
+ * для переопределения угла камеры при отображении.
  */
+@Environment(EnvType.CLIENT)
 public record EntityGuiElementRenderState(
 		EntityRenderState renderState,
 		Vector3f translation,

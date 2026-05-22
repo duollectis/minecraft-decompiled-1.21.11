@@ -21,101 +21,90 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code GoToHomeTask}.
+ * Фабричный класс задачи мозга, направляющей сущность к ближайшей незанятой кровати (HOME POI).
+ * Кэширует уже проверенные позиции для предотвращения повторных попыток.
  */
 public class GoToHomeTask {
 
 	private static final int POI_EXPIRY = 40;
 	private static final int MAX_TRIES = 5;
 	private static final int RUN_TIME = 20;
-	private static final int MAX_DISTANCE = 4;
+	private static final double MIN_DISTANCE_SQ = 4.0;
+	private static final int SEARCH_RADIUS = 48;
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<PathAwareEntity> create(float speed) {
-		Long2LongMap long2LongMap = new Long2LongOpenHashMap();
-		MutableLong mutableLong = new MutableLong(0L);
-		return TaskTriggerer.task(
-				taskContext -> taskContext
-						.group(
-								taskContext.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
-								taskContext.queryMemoryAbsent(MemoryModuleType.HOME)
-						)
-						.apply(
-								taskContext,
-								(walkTarget, home) -> (world, entity, time) -> {
-									if (world.getTime() - mutableLong.longValue() < 20L) {
-										return false;
-									}
-									else {
-										PointOfInterestStorage
-												pointOfInterestStorage =
-												world.getPointOfInterestStorage();
-										Optional<BlockPos> optional = pointOfInterestStorage.getNearestPosition(
-												poiType -> poiType.matchesKey(PointOfInterestTypes.HOME),
-												entity.getBlockPos(),
-												48,
-												PointOfInterestStorage.OccupationStatus.ANY
-										);
-										if (!optional.isEmpty() && !(
-												optional.get().getSquaredDistance(entity.getBlockPos()) <= 4.0
-										)) {
-											MutableInt mutableInt = new MutableInt(0);
-											mutableLong.setValue(world.getTime() + world.getRandom().nextInt(20));
-											Predicate<BlockPos> predicate = pos -> {
-												long l = pos.asLong();
-												if (long2LongMap.containsKey(l)) {
-													return false;
-												}
-												else if (mutableInt.incrementAndGet() >= 5) {
-													return false;
-												}
-												else {
-													long2LongMap.put(l, mutableLong.longValue() + 40L);
-													return true;
-												}
-											};
-											Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>>
-													set =
-													pointOfInterestStorage.getTypesAndPositions(
-															                      poiType -> poiType.matchesKey(PointOfInterestTypes.HOME),
-															                      predicate,
-															                      entity.getBlockPos(),
-															                      48,
-															                      PointOfInterestStorage.OccupationStatus.ANY
-													                      )
-													                      .collect(Collectors.toSet());
-											Path path = FindPointOfInterestTask.findPathToPoi(entity, set);
-											if (path != null && path.reachesTarget()) {
-												BlockPos blockPos = path.getTarget();
-												Optional<RegistryEntry<PointOfInterestType>>
-														optional2 =
-														pointOfInterestStorage.getType(blockPos);
-												if (optional2.isPresent()) {
-													walkTarget.remember(new WalkTarget(blockPos, speed, 1));
-													world.getSubscriptionTracker().onPoiUpdated(blockPos);
-												}
-											}
-											else if (mutableInt.intValue() < 5) {
-												long2LongMap
-														.long2LongEntrySet()
-														.removeIf(entry -> entry.getLongValue()
-																< mutableLong.longValue());
-											}
+		Long2LongMap triedPositions = new Long2LongOpenHashMap();
+		MutableLong nextRunTime = new MutableLong(0L);
 
-											return true;
-										}
-										else {
-											return false;
-										}
-									}
+		return TaskTriggerer.task(
+				taskContext -> taskContext.group(
+						taskContext.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
+						taskContext.queryMemoryAbsent(MemoryModuleType.HOME)
+				).apply(
+						taskContext,
+						(walkTarget, home) -> (world, entity, time) -> {
+							if (world.getTime() - nextRunTime.longValue() < RUN_TIME) {
+								return false;
+							}
+
+							PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
+							Optional<BlockPos> nearest = poiStorage.getNearestPosition(
+									poiType -> poiType.matchesKey(PointOfInterestTypes.HOME),
+									entity.getBlockPos(),
+									SEARCH_RADIUS,
+									PointOfInterestStorage.OccupationStatus.ANY
+							);
+
+							if (nearest.isEmpty()
+									|| nearest.get().getSquaredDistance(entity.getBlockPos()) <= MIN_DISTANCE_SQ) {
+								return false;
+							}
+
+							MutableInt triedCount = new MutableInt(0);
+							nextRunTime.setValue(world.getTime() + world.getRandom().nextInt(RUN_TIME));
+
+							Predicate<BlockPos> posFilter = pos -> {
+								long key = pos.asLong();
+
+								if (triedPositions.containsKey(key)) {
+									return false;
 								}
-						)
+
+								if (triedCount.incrementAndGet() >= MAX_TRIES) {
+									return false;
+								}
+
+								triedPositions.put(key, nextRunTime.longValue() + POI_EXPIRY);
+								return true;
+							};
+
+							Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>> candidates = poiStorage
+									.getTypesAndPositions(
+											poiType -> poiType.matchesKey(PointOfInterestTypes.HOME),
+											posFilter,
+											entity.getBlockPos(),
+											SEARCH_RADIUS,
+											PointOfInterestStorage.OccupationStatus.ANY
+									)
+									.collect(Collectors.toSet());
+
+							Path path = FindPointOfInterestTask.findPathToPoi(entity, candidates);
+
+							if (path != null && path.reachesTarget()) {
+								BlockPos target = path.getTarget();
+
+								if (poiStorage.getType(target).isPresent()) {
+									walkTarget.remember(new WalkTarget(target, speed, 1));
+									world.getSubscriptionTracker().onPoiUpdated(target);
+								}
+							} else if (triedCount.intValue() < MAX_TRIES) {
+								triedPositions.long2LongEntrySet()
+										.removeIf(entry -> entry.getLongValue() < nextRunTime.longValue());
+							}
+
+							return true;
+						}
+				)
 		);
 	}
 }

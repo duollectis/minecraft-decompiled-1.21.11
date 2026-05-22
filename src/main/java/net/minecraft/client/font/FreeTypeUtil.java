@@ -9,46 +9,33 @@ import org.lwjgl.util.freetype.FT_Vector;
 import org.lwjgl.util.freetype.FreeType;
 import org.slf4j.Logger;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FreeTypeUtil}.
+ * Утилитарный класс для работы с нативной библиотекой FreeType через LWJGL.
+ * Управляет жизненным циклом глобального экземпляра FreeType и предоставляет
+ * вспомогательные методы для проверки ошибок и конвертации координат.
  */
+@Environment(EnvType.CLIENT)
 public class FreeTypeUtil {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	// Масштабный коэффициент FreeType: 1 пиксель = 64 единицы
+	private static final float FREETYPE_SCALE = 64.0F;
 	public static final Object LOCK = new Object();
 	private static long freeType = 0L;
 
 	/**
-	 * Инициализирует ialize.
+	 * Инициализирует глобальный экземпляр FreeType, если он ещё не создан.
+	 * Метод потокобезопасен — синхронизирован по {@link #LOCK}.
 	 *
-	 * @return long — результат операции
+	 * @return нативный указатель на библиотеку FreeType
 	 */
 	public static long initialize() {
 		synchronized (LOCK) {
 			if (freeType == 0L) {
-				MemoryStack memoryStack = MemoryStack.stackPush();
-
-				try {
-					PointerBuffer pointerBuffer = memoryStack.mallocPointer(1);
-					checkFatalError(FreeType.FT_Init_FreeType(pointerBuffer), "Initializing FreeType library");
-					freeType = pointerBuffer.get();
-				}
-				catch (Throwable var6) {
-					if (memoryStack != null) {
-						try {
-							memoryStack.close();
-						}
-						catch (Throwable var5) {
-							var6.addSuppressed(var5);
-						}
-					}
-
-					throw var6;
-				}
-
-				if (memoryStack != null) {
-					memoryStack.close();
+				try (MemoryStack stack = MemoryStack.stackPush()) {
+					PointerBuffer pointer = stack.mallocPointer(1);
+					checkFatalError(FreeType.FT_Init_FreeType(pointer), "Initializing FreeType library");
+					freeType = pointer.get();
 				}
 			}
 
@@ -57,10 +44,10 @@ public class FreeTypeUtil {
 	}
 
 	/**
-	 * Проверяет fatal error.
+	 * Проверяет код возврата FreeType и выбрасывает исключение при ошибке.
 	 *
-	 * @param code code
-	 * @param description description
+	 * @param code код возврата FreeType (0 = успех)
+	 * @param description описание операции для сообщения об ошибке
 	 */
 	public static void checkFatalError(int code, String description) {
 		if (code != 0) {
@@ -69,50 +56,44 @@ public class FreeTypeUtil {
 	}
 
 	/**
-	 * Проверяет error.
+	 * Проверяет код возврата FreeType и логирует ошибку при её наличии.
 	 *
-	 * @param code code
-	 * @param description description
-	 *
-	 * @return boolean — результат операции
+	 * @param code код возврата FreeType (0 = успех)
+	 * @param description описание операции для сообщения об ошибке
+	 * @return {@code true} если произошла ошибка
 	 */
 	public static boolean checkError(int code, String description) {
 		if (code != 0) {
 			LOGGER.error("FreeType error: {} ({})", getErrorMessage(code), description);
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	private static String getErrorMessage(int code) {
-		String string = FreeType.FT_Error_String(code);
-		return string != null ? string : "Unrecognized error: 0x" + Integer.toHexString(code);
+		String message = FreeType.FT_Error_String(code);
+		return message != null ? message : "Unrecognized error: 0x" + Integer.toHexString(code);
 	}
 
 	/**
-	 * Set.
+	 * Устанавливает координаты вектора FreeType, конвертируя пиксели в единицы FreeType (×64).
 	 *
-	 * @param vec vec
-	 * @param x x
-	 * @param y y
-	 *
-	 * @return FT_Vector — результат операции
+	 * @param vec целевой вектор FreeType
+	 * @param x координата X в пикселях
+	 * @param y координата Y в пикселях
+	 * @return тот же вектор {@code vec} с обновлёнными координатами
 	 */
 	public static FT_Vector set(FT_Vector vec, float x, float y) {
-		long l = Math.round(x * 64.0F);
-		long m = Math.round(y * 64.0F);
-		return vec.set(l, m);
+		long scaledX = Math.round(x * FREETYPE_SCALE);
+		long scaledY = Math.round(y * FREETYPE_SCALE);
+		return vec.set(scaledX, scaledY);
 	}
 
 	public static float getX(FT_Vector vec) {
-		return (float) vec.x() / 64.0F;
+		return (float) vec.x() / FREETYPE_SCALE;
 	}
 
-	/**
-	 * Release.
-	 */
 	public static void release() {
 		synchronized (LOCK) {
 			if (freeType != 0L) {

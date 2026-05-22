@@ -28,21 +28,25 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code DataProvider}.
+ * Базовый интерфейс провайдера данных. Предоставляет утилитарные методы
+ * для сериализации объектов в JSON и записи их на диск через {@link DataWriter}.
  */
 public interface DataProvider {
 
+	/**
+	 * Порядок сортировки ключей JSON: {@code "type"} идёт первым, {@code "parent"} — вторым,
+	 * остальные ключи сортируются лексикографически. Обеспечивает стабильный diff в Git.
+	 */
 	ToIntFunction<String> JSON_KEY_SORT_ORDER = Util.make(
-			new Object2IntOpenHashMap(), map -> {
+			new Object2IntOpenHashMap<>(), map -> {
 				map.put("type", 0);
 				map.put("parent", 1);
 				map.defaultReturnValue(2);
 			}
 	);
 
-	Comparator<String>
-			JSON_KEY_SORTING_COMPARATOR =
-			Comparator.comparingInt(JSON_KEY_SORT_ORDER).thenComparing(key -> (String) key);
+	Comparator<String> JSON_KEY_SORTING_COMPARATOR =
+			Comparator.comparingInt(JSON_KEY_SORT_ORDER).thenComparing(key -> key);
 
 	Logger LOGGER = LogUtils.getLogger();
 
@@ -66,7 +70,10 @@ public interface DataProvider {
 			Map<T, E> idsToValues
 	) {
 		return writeAllToPath(
-				writer, value -> codec.encodeStart(JsonOps.INSTANCE, value).getOrThrow(), pathResolver, idsToValues
+				writer,
+				value -> codec.encodeStart(JsonOps.INSTANCE, value).getOrThrow(),
+				pathResolver,
+				idsToValues
 		);
 	}
 
@@ -76,11 +83,13 @@ public interface DataProvider {
 			Function<T, Path> pathResolver,
 			Map<T, E> idsToValues
 	) {
-		return CompletableFuture.allOf(idsToValues.entrySet().stream().map(entry -> {
-			Path path = pathResolver.apply(entry.getKey());
-			JsonElement jsonElement = serializer.apply(entry.getValue());
-			return writeToPath(writer, jsonElement, path);
-		}).toArray(CompletableFuture[]::new));
+		return CompletableFuture.allOf(
+				idsToValues.entrySet().stream().map(entry -> {
+					Path path = pathResolver.apply(entry.getKey());
+					JsonElement jsonElement = serializer.apply(entry.getValue());
+					return writeToPath(writer, jsonElement, path);
+				}).toArray(CompletableFuture[]::new)
+		);
 	}
 
 	static <T> CompletableFuture<?> writeCodecToPath(
@@ -105,53 +114,43 @@ public interface DataProvider {
 			T value,
 			Path path
 	) {
-		JsonElement jsonElement = (JsonElement) codec.encodeStart(ops, value).getOrThrow();
+		JsonElement jsonElement = codec.encodeStart(ops, value).getOrThrow();
 		return writeToPath(writer, jsonElement, path);
 	}
 
+	/**
+	 * Асинхронно сериализует JSON-элемент в байты, вычисляет SHA-1 хэш
+	 * и записывает результат через {@link DataWriter} (с учётом кэша).
+	 */
 	static CompletableFuture<?> writeToPath(DataWriter writer, JsonElement json, Path path) {
 		return CompletableFuture.runAsync(
 				() -> {
 					try {
-						ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-						HashingOutputStream
-								hashingOutputStream =
-								new HashingOutputStream(Hashing.sha1(), byteArrayOutputStream);
-						JsonWriter
-								jsonWriter =
-								new JsonWriter(new OutputStreamWriter(hashingOutputStream, StandardCharsets.UTF_8));
+						ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+						HashingOutputStream hashingOutput = new HashingOutputStream(Hashing.sha1(), byteOutput);
 
-						try {
+						try (JsonWriter jsonWriter = new JsonWriter(
+								new OutputStreamWriter(hashingOutput, StandardCharsets.UTF_8)
+						)) {
 							jsonWriter.setSerializeNulls(false);
 							jsonWriter.setIndent("  ");
 							JsonHelper.writeSorted(jsonWriter, json, JSON_KEY_SORTING_COMPARATOR);
 						}
-						catch (Throwable var9) {
-							try {
-								jsonWriter.close();
-							}
-							catch (Throwable var8) {
-								var9.addSuppressed(var8);
-							}
 
-							throw var9;
-						}
-
-						jsonWriter.close();
-						writer.write(path, byteArrayOutputStream.toByteArray(), hashingOutputStream.hash());
+						writer.write(path, byteOutput.toByteArray(), hashingOutput.hash());
+					} catch (IOException exception) {
+						LOGGER.error("Failed to save file to {}", path, exception);
 					}
-					catch (IOException var10) {
-						LOGGER.error("Failed to save file to {}", path, var10);
-					}
-				}, Util.getMainWorkerExecutor().named("saveStable")
+				},
+				Util.getMainWorkerExecutor().named("saveStable")
 		);
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания провайдера данных по заданному {@link DataOutput}.
 	 */
-	public interface Factory<T extends DataProvider> {
+	@FunctionalInterface
+	interface Factory<T extends DataProvider> {
 
 		T create(DataOutput output);
 	}

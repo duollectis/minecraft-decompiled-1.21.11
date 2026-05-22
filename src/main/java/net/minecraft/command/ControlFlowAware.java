@@ -8,16 +8,19 @@ import net.minecraft.server.function.Tracer;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ControlFlowAware}.
+ * Интерфейс для команд, осведомлённых о потоке управления выполнения.
+ * Позволяет команде самостоятельно управлять очередью и ветвлением.
+ *
+ * @param <T> тип источника команды
  */
 public interface ControlFlowAware<T> {
 
 	void execute(T source, ContextChain<T> contextChain, ExecutionFlags flags, ExecutionControl<T> control);
 
 	/**
-	 * {@code Command}.
+	 * Команда с поддержкой потока управления, реализующая brigadier-контракт.
 	 */
-	public interface Command<T> extends com.mojang.brigadier.Command<T>, ControlFlowAware<T> {
+	interface Command<T> extends com.mojang.brigadier.Command<T>, ControlFlowAware<T> {
 
 		default int run(CommandContext<T> context) throws CommandSyntaxException {
 			throw new UnsupportedOperationException("This function should not run");
@@ -25,22 +28,22 @@ public interface ControlFlowAware<T> {
 	}
 
 	/**
-	 * {@code Helper}.
+	 * Базовый класс-помощник, перехватывающий {@link CommandSyntaxException}
+	 * и делегирующий обработку ошибок источнику команды.
 	 */
-	public abstract static class Helper<T extends AbstractServerCommandSource<T>> implements ControlFlowAware<T> {
+	abstract class Helper<T extends AbstractServerCommandSource<T>> implements ControlFlowAware<T> {
 
 		public final void execute(
-				T abstractServerCommandSource,
+				T source,
 				ContextChain<T> contextChain,
-				ExecutionFlags executionFlags,
-				ExecutionControl<T> executionControl
+				ExecutionFlags flags,
+				ExecutionControl<T> control
 		) {
 			try {
-				this.executeInner(abstractServerCommandSource, contextChain, executionFlags, executionControl);
-			}
-			catch (CommandSyntaxException var6) {
-				this.sendError(var6, abstractServerCommandSource, executionFlags, executionControl.getTracer());
-				abstractServerCommandSource.getReturnValueConsumer().onFailure();
+				executeInner(source, contextChain, flags, control);
+			} catch (CommandSyntaxException exception) {
+				sendError(exception, source, flags, control.getTracer());
+				source.getReturnValueConsumer().onFailure();
 			}
 		}
 

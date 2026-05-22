@@ -19,35 +19,38 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code TestRunContext}.
+ * Контекст выполнения набора тестовых батчей.
+ * Управляет последовательным запуском батчей, применением/откатом окружений,
+ * принудительной загрузкой чанков и повторным запуском упавших тестов.
  */
 public class TestRunContext {
 
 	public static final int DEFAULT_TESTS_PER_ROW = 8;
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	final ServerWorld world;
 	private final TestManager manager;
 	private final List<GameTestState> states;
 	private ImmutableList<GameTestBatch> batches;
 	final List<BatchListener> batchListeners = Lists.newArrayList();
 	private final List<GameTestState> toBeRetried = Lists.newArrayList();
-	private final TestRunContext.Batcher batcher;
+	private final Batcher batcher;
 	private boolean stopped = true;
 	private @Nullable RegistryEntry<TestEnvironmentDefinition> environment;
-	private final TestRunContext.TestStructureSpawner reuseSpawner;
-	private final TestRunContext.TestStructureSpawner initialSpawner;
+	private final TestStructureSpawner reuseSpawner;
+	private final TestStructureSpawner initialSpawner;
 	final boolean stopAfterFailure;
 	private final boolean clearBetweenBatches;
 
 	protected TestRunContext(
-			TestRunContext.Batcher batcher,
-			Collection<GameTestBatch> batches,
-			ServerWorld world,
-			TestManager manager,
-			TestRunContext.TestStructureSpawner reuseSpawner,
-			TestRunContext.TestStructureSpawner initialSpawner,
-			boolean stopAfterFailure,
-			boolean clearBetweenBatches
+		Batcher batcher,
+		Collection<GameTestBatch> batches,
+		ServerWorld world,
+		TestManager manager,
+		TestStructureSpawner reuseSpawner,
+		TestStructureSpawner initialSpawner,
+		boolean stopAfterFailure,
+		boolean clearBetweenBatches
 	) {
 		this.world = world;
 		this.manager = manager;
@@ -57,149 +60,177 @@ public class TestRunContext {
 		this.batches = ImmutableList.copyOf(batches);
 		this.stopAfterFailure = stopAfterFailure;
 		this.clearBetweenBatches = clearBetweenBatches;
-		this.states = this.batches.stream().flatMap(batch -> batch.states().stream()).collect(Util.toArrayList());
+		this.states = this.batches.stream()
+			.flatMap(batch -> batch.states().stream())
+			.collect(Util.toArrayList());
 		manager.setRunContext(this);
 		this.states.forEach(state -> state.addListener(new StructureTestListener()));
 	}
 
 	public List<GameTestState> getStates() {
-		return this.states;
+		return states;
 	}
 
 	public void start() {
-		this.stopped = false;
-		this.runBatch(0);
+		stopped = false;
+		runBatch(0);
 	}
 
 	public void clear() {
-		this.stopped = true;
-		if (this.environment != null) {
-			this.clearEnvironment();
+		stopped = true;
+
+		if (environment != null) {
+			clearEnvironment();
 		}
 	}
 
 	public void retry(GameTestState state) {
-		GameTestState gameTestState = state.copy();
-		state.streamListeners().forEach(listener -> listener.onRetry(state, gameTestState, this));
-		this.states.add(gameTestState);
-		this.toBeRetried.add(gameTestState);
-		if (this.stopped) {
-			this.onFinish();
+		GameTestState copy = state.copy();
+		state.streamListeners().forEach(listener -> listener.onRetry(state, copy, this));
+		states.add(copy);
+		toBeRetried.add(copy);
+
+		if (stopped) {
+			onFinish();
 		}
-	}
-
-	void runBatch(int batchIndex) {
-		if (batchIndex >= this.batches.size()) {
-			this.clearEnvironment();
-			this.onFinish();
-		}
-		else {
-			if (batchIndex > 0 && this.clearBetweenBatches) {
-				GameTestBatch gameTestBatch = (GameTestBatch) this.batches.get(batchIndex - 1);
-				gameTestBatch.states().forEach(state -> {
-					TestInstanceBlockEntity testInstanceBlockEntity = state.getTestInstanceBlockEntity();
-					TestInstanceUtil.clearArea(testInstanceBlockEntity.getBlockBox(), this.world);
-					this.world.breakBlock(testInstanceBlockEntity.getPos(), false);
-				});
-			}
-
-			final GameTestBatch gameTestBatch = (GameTestBatch) this.batches.get(batchIndex);
-			this.reuseSpawner.onBatch(this.world);
-			this.initialSpawner.onBatch(this.world);
-			Collection<GameTestState> collection = this.prepareStructures(gameTestBatch.states());
-			LOGGER.info(
-					"Running test environment '{}' batch {} ({} tests)...",
-					new Object[]{gameTestBatch.environment().getIdAsString(), gameTestBatch.index(), collection.size()}
-			);
-			this.clearEnvironment();
-			this.environment = gameTestBatch.environment();
-			this.environment.value().setup(this.world);
-			this.batchListeners.forEach(listener -> listener.onStarted(gameTestBatch));
-			final TestSet testSet = new TestSet();
-			collection.forEach(testSet::add);
-			testSet.addListener(new TestListener() {
-				private void onFinished(GameTestState state) {
-					state.getTestInstanceBlockEntity().clearBarriers();
-					if (testSet.isDone()) {
-						TestRunContext.this.batchListeners.forEach(listener -> listener.onFinished(gameTestBatch));
-						LongSet longSet = new LongArraySet(TestRunContext.this.world.getForcedChunks());
-						longSet.forEach(chunkPos -> TestRunContext.this.world.setChunkForced(
-								ChunkPos.getPackedX(chunkPos), ChunkPos.getPackedZ(chunkPos), false));
-						TestRunContext.this.runBatch(batchIndex + 1);
-					}
-				}
-
-				@Override
-				public void onStarted(GameTestState test) {
-				}
-
-				@Override
-				public void onPassed(GameTestState test, TestRunContext context) {
-					this.onFinished(test);
-				}
-
-				@Override
-				public void onFailed(GameTestState test, TestRunContext context) {
-					if (TestRunContext.this.stopAfterFailure) {
-						TestRunContext.this.clearEnvironment();
-						LongSet longSet = new LongArraySet(TestRunContext.this.world.getForcedChunks());
-						longSet.forEach(chunkPos -> TestRunContext.this.world.setChunkForced(
-								ChunkPos.getPackedX(chunkPos), ChunkPos.getPackedZ(chunkPos), false));
-						TestManager.INSTANCE.clear();
-						test.getTestInstanceBlockEntity().clearBarriers();
-					}
-					else {
-						this.onFinished(test);
-					}
-				}
-
-				@Override
-				public void onRetry(GameTestState lastState, GameTestState nextState, TestRunContext context) {
-				}
-			});
-			collection.forEach(this.manager::start);
-		}
-	}
-
-	void clearEnvironment() {
-		if (this.environment != null) {
-			this.environment.value().teardown(this.world);
-			this.environment = null;
-		}
-	}
-
-	private void onFinish() {
-		if (!this.toBeRetried.isEmpty()) {
-			LOGGER.info(
-					"Starting re-run of tests: {}",
-					this.toBeRetried.stream().map(state -> state.getId().toString()).collect(Collectors.joining(", "))
-			);
-			this.batches = ImmutableList.copyOf(this.batcher.batch(this.toBeRetried));
-			this.toBeRetried.clear();
-			this.stopped = false;
-			this.runBatch(0);
-		}
-		else {
-			this.batches = ImmutableList.of();
-			this.stopped = true;
-		}
-	}
-
-	public void addBatchListener(BatchListener batchListener) {
-		this.batchListeners.add(batchListener);
-	}
-
-	private Collection<GameTestState> prepareStructures(Collection<GameTestState> oldStates) {
-		return oldStates.stream().map(this::prepareStructure).flatMap(Optional::stream).toList();
-	}
-
-	private Optional<GameTestState> prepareStructure(GameTestState oldState) {
-		return oldState.getPos() == null ? this.initialSpawner.spawnStructure(oldState)
-		                                 : this.reuseSpawner.spawnStructure(oldState);
 	}
 
 	/**
-	 * {@code Batcher}.
+	 * Запускает батч по индексу. Если индекс выходит за пределы — завершает прогон.
+	 * Перед запуском батча очищает предыдущий (если включено {@code clearBetweenBatches}),
+	 * применяет окружение и принудительно загружает чанки.
+	 */
+	void runBatch(int batchIndex) {
+		if (batchIndex >= batches.size()) {
+			clearEnvironment();
+			onFinish();
+			return;
+		}
+
+		if (batchIndex > 0 && clearBetweenBatches) {
+			GameTestBatch previousBatch = batches.get(batchIndex - 1);
+			previousBatch.states().forEach(state -> {
+				TestInstanceBlockEntity blockEntity = state.getTestInstanceBlockEntity();
+				TestInstanceUtil.clearArea(blockEntity.getBlockBox(), world);
+				world.breakBlock(blockEntity.getPos(), false);
+			});
+		}
+
+		GameTestBatch batch = batches.get(batchIndex);
+		reuseSpawner.onBatch(world);
+		initialSpawner.onBatch(world);
+
+		Collection<GameTestState> prepared = prepareStructures(batch.states());
+		LOGGER.info(
+			"Running test environment '{}' batch {} ({} tests)...",
+			batch.environment().getIdAsString(),
+			batch.index(),
+			prepared.size()
+		);
+
+		clearEnvironment();
+		environment = batch.environment();
+		environment.value().setup(world);
+		batchListeners.forEach(listener -> listener.onStarted(batch));
+
+		TestSet testSet = new TestSet();
+		prepared.forEach(testSet::add);
+		testSet.addListener(new TestListener() {
+			private void onFinished(GameTestState state) {
+				state.getTestInstanceBlockEntity().clearBarriers();
+
+				if (testSet.isDone()) {
+					batchListeners.forEach(listener -> listener.onFinished(batch));
+					unforceAllChunks();
+					runBatch(batchIndex + 1);
+				}
+			}
+
+			private void unforceAllChunks() {
+				LongSet forcedChunks = new LongArraySet(world.getForcedChunks());
+				forcedChunks.forEach(chunkPos -> world.setChunkForced(
+					ChunkPos.getPackedX(chunkPos),
+					ChunkPos.getPackedZ(chunkPos),
+					false
+				));
+			}
+
+			@Override
+			public void onStarted(GameTestState test) {
+			}
+
+			@Override
+			public void onPassed(GameTestState test, TestRunContext context) {
+				onFinished(test);
+			}
+
+			@Override
+			public void onFailed(GameTestState test, TestRunContext context) {
+				if (stopAfterFailure) {
+					clearEnvironment();
+					unforceAllChunks();
+					TestManager.INSTANCE.clear();
+					test.getTestInstanceBlockEntity().clearBarriers();
+				} else {
+					onFinished(test);
+				}
+			}
+
+			@Override
+			public void onRetry(GameTestState lastState, GameTestState nextState, TestRunContext context) {
+			}
+		});
+
+		prepared.forEach(manager::start);
+	}
+
+	void clearEnvironment() {
+		if (environment == null) {
+			return;
+		}
+
+		environment.value().teardown(world);
+		environment = null;
+	}
+
+	private void onFinish() {
+		if (toBeRetried.isEmpty()) {
+			batches = ImmutableList.of();
+			stopped = true;
+			return;
+		}
+
+		LOGGER.info(
+			"Starting re-run of tests: {}",
+			toBeRetried.stream()
+				.map(state -> state.getId().toString())
+				.collect(Collectors.joining(", "))
+		);
+		batches = ImmutableList.copyOf(batcher.batch(toBeRetried));
+		toBeRetried.clear();
+		stopped = false;
+		runBatch(0);
+	}
+
+	public void addBatchListener(BatchListener batchListener) {
+		batchListeners.add(batchListener);
+	}
+
+	private Collection<GameTestState> prepareStructures(Collection<GameTestState> oldStates) {
+		return oldStates.stream()
+			.map(this::prepareStructure)
+			.flatMap(Optional::stream)
+			.toList();
+	}
+
+	private Optional<GameTestState> prepareStructure(GameTestState oldState) {
+		return oldState.getPos() == null
+			? initialSpawner.spawnStructure(oldState)
+			: reuseSpawner.spawnStructure(oldState);
+	}
+
+	/**
+	 * Стратегия разбивки набора тестов на батчи.
 	 */
 	public interface Batcher {
 
@@ -207,15 +238,15 @@ public class TestRunContext {
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель {@link TestRunContext} с fluent API.
 	 */
 	public static class Builder {
 
 		private final ServerWorld world;
 		private final TestManager manager = TestManager.INSTANCE;
-		private TestRunContext.Batcher batcher = Batches.defaultBatcher();
-		private TestRunContext.TestStructureSpawner reuseSpawner = TestRunContext.TestStructureSpawner.REUSE;
-		private TestRunContext.TestStructureSpawner initialSpawner = TestRunContext.TestStructureSpawner.NOOP;
+		private Batcher batcher = Batches.defaultBatcher();
+		private TestStructureSpawner reuseSpawner = TestStructureSpawner.REUSE;
+		private TestStructureSpawner initialSpawner = TestStructureSpawner.NOOP;
 		private final Collection<GameTestBatch> batches;
 		private boolean stopAfterFailure = false;
 		private boolean clearBetweenBatches = false;
@@ -225,63 +256,62 @@ public class TestRunContext {
 			this.world = world;
 		}
 
-		public static TestRunContext.Builder of(Collection<GameTestBatch> batches, ServerWorld world) {
-			return new TestRunContext.Builder(batches, world);
+		public static Builder of(Collection<GameTestBatch> batches, ServerWorld world) {
+			return new Builder(batches, world);
 		}
 
-		public static TestRunContext.Builder ofStates(Collection<GameTestState> states, ServerWorld world) {
+		public static Builder ofStates(Collection<GameTestState> states, ServerWorld world) {
 			return of(Batches.defaultBatcher().batch(states), world);
 		}
 
-		public TestRunContext.Builder stopAfterFailure() {
-			this.stopAfterFailure = true;
+		public Builder stopAfterFailure() {
+			stopAfterFailure = true;
 			return this;
 		}
 
-		public TestRunContext.Builder clearBetweenBatches() {
-			this.clearBetweenBatches = true;
+		public Builder clearBetweenBatches() {
+			clearBetweenBatches = true;
 			return this;
 		}
 
-		public TestRunContext.Builder initialSpawner(TestRunContext.TestStructureSpawner initialSpawner) {
+		public Builder initialSpawner(TestStructureSpawner initialSpawner) {
 			this.initialSpawner = initialSpawner;
 			return this;
 		}
 
-		public TestRunContext.Builder reuseSpawner(TestStructurePlacer reuseSpawner) {
+		public Builder reuseSpawner(TestStructurePlacer reuseSpawner) {
 			this.reuseSpawner = reuseSpawner;
 			return this;
 		}
 
-		public TestRunContext.Builder batcher(TestRunContext.Batcher batcher) {
+		public Builder batcher(Batcher batcher) {
 			this.batcher = batcher;
 			return this;
 		}
 
 		public TestRunContext build() {
 			return new TestRunContext(
-					this.batcher,
-					this.batches,
-					this.world,
-					this.manager,
-					this.reuseSpawner,
-					this.initialSpawner,
-					this.stopAfterFailure,
-					this.clearBetweenBatches
+				batcher,
+				batches,
+				world,
+				manager,
+				reuseSpawner,
+				initialSpawner,
+				stopAfterFailure,
+				clearBetweenBatches
 			);
 		}
 	}
 
 	/**
-	 * {@code TestStructureSpawner}.
+	 * Стратегия размещения структур тестов в мире.
 	 */
 	public interface TestStructureSpawner {
 
-		TestRunContext.TestStructureSpawner
-				REUSE =
-				oldState -> Optional.ofNullable(oldState.init()).map(gameTestState -> gameTestState.startCountdown(1));
+		TestStructureSpawner REUSE =
+			oldState -> Optional.ofNullable(oldState.init()).map(state -> state.startCountdown(1));
 
-		TestRunContext.TestStructureSpawner NOOP = oldState -> Optional.empty();
+		TestStructureSpawner NOOP = oldState -> Optional.empty();
 
 		Optional<GameTestState> spawnStructure(GameTestState oldState);
 

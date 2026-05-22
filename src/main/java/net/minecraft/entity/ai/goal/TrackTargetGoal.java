@@ -10,13 +10,18 @@ import net.minecraft.scoreboard.AbstractTeam;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TrackTargetGoal}.
+ * Базовая цель слежения за целью. Управляет логикой продолжения преследования:
+ * проверяет видимость, дальность, команду и возможность навигации к цели.
  */
 public abstract class TrackTargetGoal extends Goal {
 
-	private static final int UNSET = 0;
-	private static final int CAN_TRACK = 1;
-	private static final int CANNOT_TRACK = 2;
+	private static final int NAVIGATE_UNSET = 0;
+	private static final int NAVIGATE_CAN = 1;
+	private static final int NAVIGATE_CANNOT = 2;
+	private static final double MAX_PATH_END_DISTANCE_SQ = 2.25;
+	private static final int NAVIGATE_COOLDOWN_BASE = 10;
+	private static final int NAVIGATE_COOLDOWN_JITTER = 5;
+
 	protected final MobEntity mob;
 	protected final boolean checkVisibility;
 	private final boolean checkCanNavigate;
@@ -38,120 +43,119 @@ public abstract class TrackTargetGoal extends Goal {
 
 	@Override
 	public boolean shouldContinue() {
-		LivingEntity livingEntity = this.mob.getTarget();
-		if (livingEntity == null) {
-			livingEntity = this.target;
+		LivingEntity currentTarget = mob.getTarget();
+
+		if (currentTarget == null) {
+			currentTarget = target;
 		}
 
-		if (livingEntity == null) {
+		if (currentTarget == null) {
 			return false;
 		}
-		else if (!this.mob.canTarget(livingEntity)) {
+
+		if (!mob.canTarget(currentTarget)) {
 			return false;
 		}
-		else {
-			AbstractTeam abstractTeam = this.mob.getScoreboardTeam();
-			AbstractTeam abstractTeam2 = livingEntity.getScoreboardTeam();
-			if (abstractTeam != null && abstractTeam2 == abstractTeam) {
+
+		AbstractTeam mobTeam = mob.getScoreboardTeam();
+		AbstractTeam targetTeam = currentTarget.getScoreboardTeam();
+
+		if (mobTeam != null && targetTeam == mobTeam) {
+			return false;
+		}
+
+		double followRange = getFollowRange();
+
+		if (mob.squaredDistanceTo(currentTarget) > followRange * followRange) {
+			return false;
+		}
+
+		if (checkVisibility) {
+			if (mob.getVisibilityCache().canSee(currentTarget)) {
+				timeWithoutVisibility = 0;
+			}
+			else if (++timeWithoutVisibility > toGoalTicks(maxTimeWithoutVisibility)) {
 				return false;
 			}
-			else {
-				double d = this.getFollowRange();
-				if (this.mob.squaredDistanceTo(livingEntity) > d * d) {
-					return false;
-				}
-				else {
-					if (this.checkVisibility) {
-						if (this.mob.getVisibilityCache().canSee(livingEntity)) {
-							this.timeWithoutVisibility = 0;
-						}
-						else if (++this.timeWithoutVisibility > toGoalTicks(this.maxTimeWithoutVisibility)) {
-							return false;
-						}
-					}
-
-					this.mob.setTarget(livingEntity);
-					return true;
-				}
-			}
 		}
+
+		mob.setTarget(currentTarget);
+		return true;
 	}
 
 	protected double getFollowRange() {
-		return this.mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+		return mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
 	}
 
 	@Override
 	public void start() {
-		this.canNavigateFlag = 0;
-		this.checkCanNavigateCooldown = 0;
-		this.timeWithoutVisibility = 0;
+		canNavigateFlag = NAVIGATE_UNSET;
+		checkCanNavigateCooldown = 0;
+		timeWithoutVisibility = 0;
 	}
 
 	@Override
 	public void stop() {
-		this.mob.setTarget(null);
-		this.target = null;
+		mob.setTarget(null);
+		target = null;
 	}
 
 	/**
-	 * Проверяет возможность track.
-	 *
-	 * @param target target
-	 * @param targetPredicate target predicate
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Проверяет, может ли моб отслеживать указанную цель с учётом предиката,
+	 * дальности позиционной цели и (опционально) возможности навигации.
 	 */
 	protected boolean canTrack(@Nullable LivingEntity target, TargetPredicate targetPredicate) {
 		if (target == null) {
 			return false;
 		}
-		else if (!targetPredicate.test(getServerWorld(this.mob), this.mob, target)) {
+
+		if (!targetPredicate.test(getServerWorld(mob), mob, target)) {
 			return false;
 		}
-		else if (!this.mob.isInPositionTargetRange(target.getBlockPos())) {
+
+		if (!mob.isInPositionTargetRange(target.getBlockPos())) {
 			return false;
 		}
-		else {
-			if (this.checkCanNavigate) {
-				if (--this.checkCanNavigateCooldown <= 0) {
-					this.canNavigateFlag = 0;
-				}
 
-				if (this.canNavigateFlag == 0) {
-					this.canNavigateFlag = this.canNavigateToEntity(target) ? 1 : 2;
-				}
-
-				if (this.canNavigateFlag == 2) {
-					return false;
-				}
+		if (checkCanNavigate) {
+			if (--checkCanNavigateCooldown <= 0) {
+				canNavigateFlag = NAVIGATE_UNSET;
 			}
 
-			return true;
+			if (canNavigateFlag == NAVIGATE_UNSET) {
+				canNavigateFlag = canNavigateToEntity(target) ? NAVIGATE_CAN : NAVIGATE_CANNOT;
+			}
+
+			if (canNavigateFlag == NAVIGATE_CANNOT) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	private boolean canNavigateToEntity(LivingEntity entity) {
-		this.checkCanNavigateCooldown = toGoalTicks(10 + this.mob.getRandom().nextInt(5));
-		Path path = this.mob.getNavigation().findPathTo(entity, 0);
+		checkCanNavigateCooldown = toGoalTicks(NAVIGATE_COOLDOWN_BASE + mob.getRandom().nextInt(NAVIGATE_COOLDOWN_JITTER));
+
+		Path path = mob.getNavigation().findPathTo(entity, 0);
+
 		if (path == null) {
 			return false;
 		}
-		else {
-			PathNode pathNode = path.getEnd();
-			if (pathNode == null) {
-				return false;
-			}
-			else {
-				int i = pathNode.x - entity.getBlockX();
-				int j = pathNode.z - entity.getBlockZ();
-				return i * i + j * j <= 2.25;
-			}
+
+		PathNode endNode = path.getEnd();
+
+		if (endNode == null) {
+			return false;
 		}
+
+		int dx = endNode.x - entity.getBlockX();
+		int dz = endNode.z - entity.getBlockZ();
+		return dx * dx + dz * dz <= MAX_PATH_END_DISTANCE_SQ;
 	}
 
 	public TrackTargetGoal setMaxTimeWithoutVisibility(int time) {
-		this.maxTimeWithoutVisibility = time;
+		maxTimeWithoutVisibility = time;
 		return this;
 	}
 }

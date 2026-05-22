@@ -9,34 +9,42 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema3689}.
+ * Схема версии 3689 (Minecraft 1.21 — Tricky Trials).
+ * <p>
+ * Регистрирует типы данных для новых сущностей обновления 1.21:
+ * бриза ({@code minecraft:breeze}), заряда ветра ({@code minecraft:wind_charge})
+ * и заряда ветра бриза ({@code minecraft:breeze_wind_charge}).
+ * Также добавляет блок-сущность испытательного спаунера ({@code minecraft:trial_spawner})
+ * с поддержкой потенциальных спаунеров и текущих данных спауна.
  */
 public class Schema3689 extends IdentifierNormalizingSchema {
 
-	public Schema3689(int i, Schema schema) {
-		super(i, schema);
+	public Schema3689(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:breeze");
-		schema.registerSimple(map, "minecraft:wind_charge");
-		schema.registerSimple(map, "minecraft:breeze_wind_charge");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:breeze");
+		schema.registerSimple(entityTypes, "minecraft:wind_charge");
+		schema.registerSimple(entityTypes, "minecraft:breeze_wind_charge");
+		return entityTypes;
 	}
 
+	@Override
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
 		schema.register(
-				map,
-				"minecraft:trial_spawner",
-				() -> DSL.optionalFields(
-						"spawn_potentials",
-						DSL.list(DSL.fields("data", DSL.fields("entity", TypeReferences.ENTITY_TREE.in(schema)))),
-						"spawn_data",
-						DSL.fields("entity", TypeReferences.ENTITY_TREE.in(schema))
-				)
+			blockEntityTypes,
+			"minecraft:trial_spawner",
+			() -> DSL.optionalFields(
+				"spawn_potentials",
+				DSL.list(DSL.fields("data", DSL.fields("entity", TypeReferences.ENTITY_TREE.in(schema)))),
+				"spawn_data",
+				DSL.fields("entity", TypeReferences.ENTITY_TREE.in(schema))
+			)
 		);
-		return map;
+		return blockEntityTypes;
 	}
 }

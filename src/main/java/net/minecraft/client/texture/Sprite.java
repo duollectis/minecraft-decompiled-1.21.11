@@ -14,10 +14,14 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Sprite}.
+ * Спрайт — прямоугольная область внутри текстурного атласа.
+ *
+ * <p>Хранит нормализованные UV-координаты ({@code minU/maxU/minV/maxV}) и
+ * пиксельные координаты ({@code x/y}) своей позиции в атласе.
+ * Делегирует загрузку пикселей и анимацию в {@link SpriteContents}.
  */
+@Environment(EnvType.CLIENT)
 public class Sprite implements AutoCloseable {
 
 	private final Identifier atlasId;
@@ -31,85 +35,71 @@ public class Sprite implements AutoCloseable {
 	private final int padding;
 
 	protected Sprite(
-			Identifier atlasId,
-			SpriteContents contents,
-			int atlasWidth,
-			int atlasHeight,
-			int x,
-			int y,
-			int padding
+		Identifier atlasId,
+		SpriteContents contents,
+		int atlasWidth,
+		int atlasHeight,
+		int x,
+		int y,
+		int padding
 	) {
 		this.atlasId = atlasId;
 		this.contents = contents;
 		this.padding = padding;
 		this.x = x;
 		this.y = y;
-		this.minU = (float) (x + padding) / atlasWidth;
-		this.maxU = (float) (x + padding + contents.getWidth()) / atlasWidth;
-		this.minV = (float) (y + padding) / atlasHeight;
-		this.maxV = (float) (y + padding + contents.getHeight()) / atlasHeight;
+		minU = (float) (x + padding) / atlasWidth;
+		maxU = (float) (x + padding + contents.getWidth()) / atlasWidth;
+		minV = (float) (y + padding) / atlasHeight;
+		maxV = (float) (y + padding + contents.getHeight()) / atlasHeight;
 	}
 
 	public int getX() {
-		return this.x;
+		return x;
 	}
 
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	public float getMinU() {
-		return this.minU;
+		return minU;
 	}
 
 	public float getMaxU() {
-		return this.maxU;
-	}
-
-	public SpriteContents getContents() {
-		return this.contents;
-	}
-
-	public SpriteContents.@Nullable Animator createAnimator(GpuBufferSlice bufferSlice, int animationInfoSize) {
-		return this.contents.createAnimator(bufferSlice, animationInfoSize);
-	}
-
-	public float getFrameU(float frame) {
-		float f = this.maxU - this.minU;
-		return this.minU + f * frame;
+		return maxU;
 	}
 
 	public float getMinV() {
-		return this.minV;
+		return minV;
 	}
 
 	public float getMaxV() {
-		return this.maxV;
+		return maxV;
 	}
 
-	public float getFrameV(float frame) {
-		float f = this.maxV - this.minV;
-		return this.minV + f * frame;
+	public SpriteContents getContents() {
+		return contents;
 	}
 
 	public Identifier getAtlasId() {
-		return this.atlasId;
+		return atlasId;
 	}
 
-	@Override
-	public String toString() {
-		return "TextureAtlasSprite{contents='" + this.contents + "', u0=" + this.minU + ", u1=" + this.maxU + ", v0="
-				+ this.minV + ", v1=" + this.maxV + "}";
+	public SpriteContents.@Nullable Animator createAnimator(GpuBufferSlice bufferSlice, int animationInfoSize) {
+		return contents.createAnimator(bufferSlice, animationInfoSize);
 	}
 
-	/**
-	 * Upload.
-	 *
-	 * @param texture texture
-	 * @param mipmap mipmap
-	 */
-	public void upload(GpuTexture texture, int mipmap) {
-		this.contents.upload(texture, mipmap);
+	/** Возвращает U-координату для заданной доли {@code frame} внутри диапазона спрайта. */
+	public float getFrameU(float frame) {
+		float range = maxU - minU;
+		return minU + range * frame;
+	}
+
+	/** Возвращает V-координату для заданной доли {@code frame} внутри диапазона спрайта. */
+	public float getFrameV(float frame) {
+		float range = maxV - minV;
+		return minV + range * frame;
 	}
 
 	public VertexConsumer getTextureSpecificVertexConsumer(VertexConsumer consumer) {
@@ -117,40 +107,47 @@ public class Sprite implements AutoCloseable {
 	}
 
 	boolean isAnimated() {
-		return this.contents.isAnimated();
+		return contents.isAnimated();
 	}
 
 	/**
-	 * Put sprite info.
+	 * Записывает данные спрайта в GPU-буфер для каждого уровня mipmap.
 	 *
-	 * @param buffer buffer
-	 * @param offset offset
-	 * @param maxLevel max level
-	 * @param width width
-	 * @param height height
-	 * @param stride stride
+	 * <p>Для каждого уровня {@code i} от 0 до {@code maxLevel} включительно записывает
+	 * две матрицы (ортографическая проекция атласа и трансформация спрайта) и
+	 * два float-значения отступа. Используется шейдером анимации спрайтов.
 	 */
 	public void putSpriteInfo(ByteBuffer buffer, int offset, int maxLevel, int width, int height, int stride) {
-		for (int i = 0; i <= maxLevel; i++) {
-			Std140Builder.intoBuffer(MemoryUtil.memSlice(buffer, offset + i * stride, stride))
-			             .putMat4f(new Matrix4f().ortho2D(0.0F, width >> i, 0.0F, height >> i))
-			             .putMat4f(
-					             new Matrix4f()
-							             .translate(this.x >> i, this.y >> i, 0.0F)
-							             .scale(
-									             this.contents.getWidth() + this.padding * 2 >> i,
-									             this.contents.getHeight() + this.padding * 2 >> i,
-									             1.0F
-							             )
-			             )
-			             .putFloat((float) this.padding / this.contents.getWidth())
-			             .putFloat((float) this.padding / this.contents.getHeight())
-			             .putInt(i);
+		for (int level = 0; level <= maxLevel; level++) {
+			Std140Builder.intoBuffer(MemoryUtil.memSlice(buffer, offset + level * stride, stride))
+				.putMat4f(new Matrix4f().ortho2D(0.0F, width >> level, 0.0F, height >> level))
+				.putMat4f(
+					new Matrix4f()
+						.translate(x >> level, y >> level, 0.0F)
+						.scale(
+							contents.getWidth() + padding * 2 >> level,
+							contents.getHeight() + padding * 2 >> level,
+							1.0F
+						)
+				)
+				.putFloat((float) padding / contents.getWidth())
+				.putFloat((float) padding / contents.getHeight())
+				.putInt(level);
 		}
+	}
+
+	public void upload(GpuTexture texture, int mipmap) {
+		contents.upload(texture, mipmap);
+	}
+
+	@Override
+	public String toString() {
+		return "TextureAtlasSprite{contents='" + contents + "', u0=" + minU + ", u1=" + maxU
+			+ ", v0=" + minV + ", v1=" + maxV + "}";
 	}
 
 	@Override
 	public void close() {
-		this.contents.close();
+		contents.close();
 	}
 }

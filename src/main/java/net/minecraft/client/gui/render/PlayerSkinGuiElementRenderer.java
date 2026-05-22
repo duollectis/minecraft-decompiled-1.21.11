@@ -13,11 +13,15 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4fStack;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerSkinGuiElementRenderer}.
+ * Рендерер скина игрока в GUI (например, на экране настройки внешнего вида).
+ * Применяет вращение через стек матриц модели-вида, а не через MatrixStack,
+ * чтобы корректно обработать поворот вокруг оси X с учётом pivot-точки по Y.
  */
+@Environment(EnvType.CLIENT)
 public class PlayerSkinGuiElementRenderer extends SpecialGuiElementRenderer<PlayerSkinGuiElementRenderState> {
+
+	private static final float PLAYER_Y_TRANSLATE = -1.6010001F;
 
 	public PlayerSkinGuiElementRenderer(VertexConsumerProvider.Immediate immediate) {
 		super(immediate);
@@ -29,35 +33,42 @@ public class PlayerSkinGuiElementRenderer extends SpecialGuiElementRenderer<Play
 	}
 
 	/**
-	 * Render.
-	 *
-	 * @param playerSkinGuiElementRenderState player skin gui element render state
-	 * @param matrixStack matrix stack
+	 * Отрисовывает модель скина игрока.
+	 * Поворот по оси X выполняется через {@link Matrix4fStack} модели-вида с учётом
+	 * pivot-точки по Y, масштабированной на текущий scale-фактор окна.
+	 * Это позволяет вращать модель вокруг нужной точки без искажений.
 	 */
-	protected void render(PlayerSkinGuiElementRenderState playerSkinGuiElementRenderState, MatrixStack matrixStack) {
+	@Override
+	protected void render(PlayerSkinGuiElementRenderState state, MatrixStack matrices) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()
 				.setShaderLights(DiffuseLighting.Type.PLAYER_SKIN);
-		int i = MinecraftClient.getInstance().getWindow().getScaleFactor();
-		Matrix4fStack matrix4fStack = RenderSystem.getModelViewStack();
-		matrix4fStack.pushMatrix();
-		float f = playerSkinGuiElementRenderState.scale() * i;
-		matrix4fStack.rotateAround(
-				RotationAxis.POSITIVE_X.rotationDegrees(playerSkinGuiElementRenderState.xRotation()),
+
+		int scaleFactor = MinecraftClient.getInstance().getWindow().getScaleFactor();
+		Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+		modelViewStack.pushMatrix();
+
+		float scaledPivotY = state.scale() * scaleFactor;
+		modelViewStack.rotateAround(
+				RotationAxis.POSITIVE_X.rotationDegrees(state.xRotation()),
 				0.0F,
-				f * -playerSkinGuiElementRenderState.yPivot(),
+				scaledPivotY * -state.yPivot(),
 				0.0F
 		);
-		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-playerSkinGuiElementRenderState.yRotation()));
-		matrixStack.translate(0.0F, -1.6010001F, 0.0F);
-		RenderLayer
-				renderLayer =
-				playerSkinGuiElementRenderState.playerModel().getLayer(playerSkinGuiElementRenderState.texture());
-		playerSkinGuiElementRenderState
-				.playerModel()
-				.render(matrixStack, this.vertexConsumers.getBuffer(renderLayer), 15728880, OverlayTexture.DEFAULT_UV);
-		this.vertexConsumers.draw();
-		matrix4fStack.popMatrix();
+
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-state.yRotation()));
+		matrices.translate(0.0F, PLAYER_Y_TRANSLATE, 0.0F);
+
+		RenderLayer renderLayer = state.playerModel().getLayer(state.texture());
+		state.playerModel().render(
+				matrices,
+				vertexConsumers.getBuffer(renderLayer),
+				15728880,
+				OverlayTexture.DEFAULT_UV
+		);
+
+		vertexConsumers.draw();
+		modelViewStack.popMatrix();
 	}
 
 	@Override

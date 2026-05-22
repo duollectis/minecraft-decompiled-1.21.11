@@ -6,7 +6,8 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code Unit}.
+ * Тип-единица (Unit type): единственное значение {@link #INSTANCE},
+ * аналог {@code void} в контексте обобщённых типов.
  */
 public enum Unit {
 	INSTANCE;

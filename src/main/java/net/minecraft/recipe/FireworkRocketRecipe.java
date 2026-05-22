@@ -14,91 +14,85 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code FireworkRocketRecipe}.
+ * Рецепт крафта фейерверочной ракеты.
+ * <p>
+ * Требует ровно один лист бумаги и от 1 до {@link #MAX_GUNPOWDER_COUNT} пороха.
+ * Опционально принимает любое количество звёзд фейерверка.
+ * Результат — стак из {@link #ROCKET_OUTPUT_COUNT} ракет с заданной длительностью.
  */
 public class FireworkRocketRecipe extends SpecialCraftingRecipe {
 
+	private static final int MAX_GUNPOWDER_COUNT = 3;
+	private static final int ROCKET_OUTPUT_COUNT = 3;
+
 	private static final Ingredient PAPER = Ingredient.ofItem(Items.PAPER);
-	private static final Ingredient DURATION_MODIFIER = Ingredient.ofItem(Items.GUNPOWDER);
+	private static final Ingredient GUNPOWDER = Ingredient.ofItem(Items.GUNPOWDER);
 	private static final Ingredient FIREWORK_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-	public FireworkRocketRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public FireworkRocketRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			int i = 0;
 
-			for (int j = 0; j < craftingRecipeInput.size(); j++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
-				if (!itemStack.isEmpty()) {
-					if (PAPER.test(itemStack)) {
-						if (bl) {
-							return false;
-						}
+		boolean hasPaper = false;
+		int gunpowderCount = 0;
 
-						bl = true;
-					}
-					else if (DURATION_MODIFIER.test(itemStack)) {
-						if (++i > 3) {
-							return false;
-						}
-					}
-					else if (!FIREWORK_STAR.test(itemStack)) {
-						return false;
-					}
-				}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl && i >= 1;
+			if (PAPER.test(stack)) {
+				if (hasPaper) {
+					return false;
+				}
+
+				hasPaper = true;
+			} else if (GUNPOWDER.test(stack)) {
+				if (++gunpowderCount > MAX_GUNPOWDER_COUNT) {
+					return false;
+				}
+			} else if (!FIREWORK_STAR.test(stack)) {
+				return false;
+			}
 		}
+
+		return hasPaper && gunpowderCount >= 1;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		List<FireworkExplosionComponent> list = new ArrayList<>();
-		int i = 0;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		List<FireworkExplosionComponent> explosions = new ArrayList<>();
+		int gunpowderCount = 0;
 
-		for (int j = 0; j < craftingRecipeInput.size(); j++) {
-			ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
-			if (!itemStack.isEmpty()) {
-				if (DURATION_MODIFIER.test(itemStack)) {
-					i++;
-				}
-				else if (FIREWORK_STAR.test(itemStack)) {
-					FireworkExplosionComponent
-							fireworkExplosionComponent =
-							itemStack.get(DataComponentTypes.FIREWORK_EXPLOSION);
-					if (fireworkExplosionComponent != null) {
-						list.add(fireworkExplosionComponent);
-					}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
+
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			if (GUNPOWDER.test(stack)) {
+				gunpowderCount++;
+			} else if (FIREWORK_STAR.test(stack)) {
+				FireworkExplosionComponent explosion = stack.get(DataComponentTypes.FIREWORK_EXPLOSION);
+
+				if (explosion != null) {
+					explosions.add(explosion);
 				}
 			}
 		}
 
-		ItemStack itemStack2 = new ItemStack(Items.FIREWORK_ROCKET, 3);
-		itemStack2.set(DataComponentTypes.FIREWORKS, new FireworksComponent(i, list));
-		return itemStack2;
+		ItemStack result = new ItemStack(Items.FIREWORK_ROCKET, ROCKET_OUTPUT_COUNT);
+		result.set(DataComponentTypes.FIREWORKS, new FireworksComponent(gunpowderCount, explosions));
+		return result;
 	}
 
 	@Override

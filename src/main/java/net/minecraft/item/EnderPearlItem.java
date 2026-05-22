@@ -12,11 +12,11 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
 /**
- * {@code EnderPearlItem}.
+ * Предмет «Жемчуг Края». При броске телепортирует игрока к месту приземления снаряда.
  */
 public class EnderPearlItem extends Item {
 
-	public static float POWER = 1.5F;
+	public static final float POWER = 1.5F;
 
 	public EnderPearlItem(Item.Settings settings) {
 		super(settings);
@@ -24,7 +24,8 @@ public class EnderPearlItem extends Item {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		world.playSound(
 				null,
 				user.getX(),
@@ -35,12 +36,14 @@ public class EnderPearlItem extends Item {
 				0.5F,
 				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
 		);
+
 		if (world instanceof ServerWorld serverWorld) {
-			ProjectileEntity.spawnWithVelocity(EnderPearlEntity::new, serverWorld, itemStack, user, 0.0F, POWER, 1.0F);
+			ProjectileEntity.spawnWithVelocity(EnderPearlEntity::new, serverWorld, stack, user, 0.0F, POWER, 1.0F);
 		}
 
 		user.incrementStat(Stats.USED.getOrCreateStat(this));
-		itemStack.decrementUnlessCreative(1, user);
+		stack.decrementUnlessCreative(1, user);
+
 		return ActionResult.SUCCESS;
 	}
 }

@@ -9,11 +9,14 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ConfirmScreen}.
+ * Экран подтверждения с кнопками «Да» и «Нет».
+ * Поддерживает временную блокировку кнопок через {@link #disableButtons(int)}.
  */
+@Environment(EnvType.CLIENT)
 public class ConfirmScreen extends Screen {
+
+	private static final int KEY_ESCAPE = 256;
 
 	private final Text message;
 	protected DirectionalLayoutWidget layout = DirectionalLayoutWidget.vertical().spacing(8);
@@ -38,67 +41,55 @@ public class ConfirmScreen extends Screen {
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(super.getNarratedTitle(), this.message);
+		return ScreenTexts.joinSentences(super.getNarratedTitle(), message);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.layout.getMainPositioner().alignHorizontalCenter();
-		this.layout.add(new TextWidget(this.title, this.textRenderer));
-		this.layout.add(new MultilineTextWidget(this.message, this.textRenderer)
-				.setMaxWidth(this.width - 50)
-				.setMaxRows(15)
-				.setCentered(true));
-		this.initExtras();
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.add(DirectionalLayoutWidget.horizontal().spacing(4));
-		directionalLayoutWidget.getMainPositioner().marginTop(16);
-		this.addButtons(directionalLayoutWidget);
-		this.layout.forEachChild(this::addDrawableChild);
-		this.refreshWidgetPositions();
+		layout.getMainPositioner().alignHorizontalCenter();
+		layout.add(new TextWidget(title, textRenderer));
+		layout.add(
+				new MultilineTextWidget(message, textRenderer)
+						.setMaxWidth(width - 50)
+						.setMaxRows(15)
+						.setCentered(true)
+		);
+		initExtras();
+
+		DirectionalLayoutWidget buttonRow = layout.add(DirectionalLayoutWidget.horizontal().spacing(4));
+		buttonRow.getMainPositioner().marginTop(16);
+		addButtons(buttonRow);
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, getNavigationFocus());
 	}
 
-	/**
-	 * Инициализирует extras.
-	 */
 	protected void initExtras() {
 	}
 
-	/**
-	 * Добавляет buttons.
-	 *
-	 * @param layout layout
-	 */
-	protected void addButtons(DirectionalLayoutWidget layout) {
-		this.yesButton = layout.add(ButtonWidget.builder(this.yesText, button -> this.callback.accept(true)).build());
-		this.noButton = layout.add(ButtonWidget.builder(this.noText, button -> this.callback.accept(false)).build());
+	protected void addButtons(DirectionalLayoutWidget buttonLayout) {
+		yesButton = buttonLayout.add(ButtonWidget.builder(yesText, button -> callback.accept(true)).build());
+		noButton = buttonLayout.add(ButtonWidget.builder(noText, button -> callback.accept(false)).build());
 	}
 
-	/**
-	 * Отключает buttons.
-	 *
-	 * @param ticks ticks
-	 */
 	public void disableButtons(int ticks) {
-		this.buttonEnableTimer = ticks;
-		this.yesButton.active = false;
-		this.noButton.active = false;
+		buttonEnableTimer = ticks;
+		yesButton.active = false;
+		noButton.active = false;
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (--this.buttonEnableTimer == 0) {
-			this.yesButton.active = true;
-			this.noButton.active = true;
+		if (--buttonEnableTimer == 0) {
+			yesButton.active = true;
+			noButton.active = true;
 		}
 	}
 
@@ -109,12 +100,11 @@ public class ConfirmScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.buttonEnableTimer <= 0 && input.key() == 256) {
-			this.callback.accept(false);
+		if (buttonEnableTimer <= 0 && input.key() == KEY_ESCAPE) {
+			callback.accept(false);
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 }

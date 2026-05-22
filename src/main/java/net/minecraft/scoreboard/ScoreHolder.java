@@ -6,7 +6,11 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ScoreHolder}.
+ * Держатель очков скорборда — любой объект, который может иметь очки в системе скорборда.
+ * <p>
+ * Реализуется сущностями, игроками и псевдо-держателями (командные счётчики с префиксом {@code #}).
+ * Специальный экземпляр {@link #WILDCARD} с именем {@code *} используется в командах
+ * для обозначения «всех держателей».
  */
 public interface ScoreHolder {
 
@@ -15,7 +19,7 @@ public interface ScoreHolder {
 	ScoreHolder WILDCARD = new ScoreHolder() {
 		@Override
 		public String getNameForScoreboard() {
-			return "*";
+			return WILDCARD_NAME;
 		}
 	};
 
@@ -25,41 +29,51 @@ public interface ScoreHolder {
 		return null;
 	}
 
+	/**
+	 * Возвращает отображаемое имя с hover-подсказкой, показывающей внутреннее имя скорборда.
+	 * Если отображаемое имя не задано — возвращает простой текстовый литерал.
+	 */
 	default Text getStyledDisplayName() {
-		Text text = this.getDisplayName();
-		return text != null
-		       ? text
-		         .copy()
-		         .styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(this.getNameForScoreboard()))))
-		       : Text.literal(this.getNameForScoreboard());
+		Text displayName = getDisplayName();
+		return displayName != null
+				? displayName.copy().styled(style -> style.withHoverEvent(
+						new HoverEvent.ShowText(Text.literal(getNameForScoreboard()))
+				))
+				: Text.literal(getNameForScoreboard());
 	}
 
+	/**
+	 * Создаёт держателя очков из строкового имени.
+	 * Если имя равно {@code *} — возвращает {@link #WILDCARD}.
+	 */
 	static ScoreHolder fromName(String name) {
-		if (name.equals("*")) {
+		if (name.equals(WILDCARD_NAME)) {
 			return WILDCARD;
 		}
-		else {
-			final Text text = Text.literal(name);
-			return new ScoreHolder() {
-				@Override
-				public String getNameForScoreboard() {
-					return name;
-				}
 
-				@Override
-				public Text getStyledDisplayName() {
-					return text;
-				}
-			};
-		}
-	}
-
-	static ScoreHolder fromProfile(GameProfile gameProfile) {
-		final String string = gameProfile.name();
+		final Text nameText = Text.literal(name);
 		return new ScoreHolder() {
 			@Override
 			public String getNameForScoreboard() {
-				return string;
+				return name;
+			}
+
+			@Override
+			public Text getStyledDisplayName() {
+				return nameText;
+			}
+		};
+	}
+
+	/**
+	 * Создаёт держателя очков из профиля игрока.
+	 */
+	static ScoreHolder fromProfile(GameProfile gameProfile) {
+		final String profileName = gameProfile.name();
+		return new ScoreHolder() {
+			@Override
+			public String getNameForScoreboard() {
+				return profileName;
 			}
 		};
 	}

@@ -11,7 +11,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code DefaultRedstoneController}.
+ * Стандартный контроллер редстоуна.
+ * При изменении мощности провода обновляет его состояние и рассылает
+ * уведомления всем соседним блокам.
  */
 public class DefaultRedstoneController extends RedstoneController {
 
@@ -21,33 +23,36 @@ public class DefaultRedstoneController extends RedstoneController {
 
 	@Override
 	public void update(
-			World world,
-			BlockPos pos,
-			BlockState state,
-			@Nullable WireOrientation orientation,
-			boolean blockAdded
+		World world,
+		BlockPos pos,
+		BlockState state,
+		@Nullable WireOrientation orientation,
+		boolean blockAdded
 	) {
-		int i = this.calculateTotalPowerAt(world, pos);
-		if (state.get(RedstoneWireBlock.POWER) != i) {
-			if (world.getBlockState(pos) == state) {
-				world.setBlockState(pos, state.with(RedstoneWireBlock.POWER, i), 2);
-			}
+		int newPower = calculateTotalPowerAt(world, pos);
 
-			Set<BlockPos> set = Sets.newHashSet();
-			set.add(pos);
+		if (state.get(RedstoneWireBlock.POWER).equals(newPower)) {
+			return;
+		}
 
-			for (Direction direction : Direction.values()) {
-				set.add(pos.offset(direction));
-			}
+		if (world.getBlockState(pos) == state) {
+			world.setBlockState(pos, state.with(RedstoneWireBlock.POWER, newPower), 2);
+		}
 
-			for (BlockPos blockPos : set) {
-				world.updateNeighbors(blockPos, this.wire);
-			}
+		Set<BlockPos> toUpdate = Sets.newHashSet();
+		toUpdate.add(pos);
+
+		for (Direction direction : Direction.values()) {
+			toUpdate.add(pos.offset(direction));
+		}
+
+		for (BlockPos blockPos : toUpdate) {
+			world.updateNeighbors(blockPos, wire);
 		}
 	}
 
 	private int calculateTotalPowerAt(World world, BlockPos pos) {
-		int i = this.getStrongPowerAt(world, pos);
-		return i == 15 ? i : Math.max(i, this.calculateWirePowerAt(world, pos));
+		int strongPower = getStrongPowerAt(world, pos);
+		return strongPower == 15 ? strongPower : Math.max(strongPower, calculateWirePowerAt(world, pos));
 	}
 }

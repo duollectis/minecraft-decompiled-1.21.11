@@ -14,66 +14,60 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code CuredZombieVillagerCriterion}.
+ * Критерий, срабатывающий при исцелении зомби-жителя игроком.
  */
 public class CuredZombieVillagerCriterion extends AbstractCriterion<CuredZombieVillagerCriterion.Conditions> {
 
 	@Override
 	public Codec<CuredZombieVillagerCriterion.Conditions> getConditionsCodec() {
-		return CuredZombieVillagerCriterion.Conditions.CODEC;
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ZombieEntity zombie, VillagerEntity villager) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, zombie);
-		LootContext lootContext2 = EntityPredicate.createAdvancementEntityLootContext(player, villager);
-		this.trigger(player, conditions -> conditions.matches(lootContext, lootContext2));
+		LootContext zombieContext = EntityPredicate.createAdvancementEntityLootContext(player, zombie);
+		LootContext villagerContext = EntityPredicate.createAdvancementEntityLootContext(player, villager);
+		trigger(player, conditions -> conditions.matches(zombieContext, villagerContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> zombie,
 			Optional<LootContextPredicate> villager
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<CuredZombieVillagerCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(CuredZombieVillagerCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("zombie")
-								                    .forGetter(CuredZombieVillagerCriterion.Conditions::zombie),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("villager")
-								                    .forGetter(CuredZombieVillagerCriterion.Conditions::villager)
-				                    )
-				                    .apply(instance, CuredZombieVillagerCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("zombie")
+								.forGetter(Conditions::zombie),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("villager")
+								.forGetter(Conditions::villager)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<CuredZombieVillagerCriterion.Conditions> any() {
-			return Criteria.CURED_ZOMBIE_VILLAGER.create(new CuredZombieVillagerCriterion.Conditions(
-					Optional.empty(),
-					Optional.empty(),
-					Optional.empty()
+		public static AdvancementCriterion<Conditions> any() {
+			return Criteria.CURED_ZOMBIE_VILLAGER.create(new Conditions(
+					Optional.empty(), Optional.empty(), Optional.empty()
 			));
 		}
 
-		public boolean matches(LootContext zombie, LootContext villager) {
-			return this.zombie.isPresent() && !this.zombie.get().test(zombie) ? false : !this.villager.isPresent()
-			                                                                            || this.villager
-			                                                                               .get()
-			                                                                               .test(villager);
+		public boolean matches(LootContext zombieContext, LootContext villagerContext) {
+			if (zombie.isPresent() && !zombie.get().test(zombieContext)) {
+				return false;
+			}
+
+			return villager.isEmpty() || villager.get().test(villagerContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.zombie, "zombie");
-			validator.validateEntityPredicate(this.villager, "villager");
+			validator.validateEntityPredicate(zombie, "zombie");
+			validator.validateEntityPredicate(villager, "villager");
 		}
 	}
 }

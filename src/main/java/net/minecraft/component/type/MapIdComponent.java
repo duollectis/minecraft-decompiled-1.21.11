@@ -16,8 +16,9 @@ import net.minecraft.util.Formatting;
 import java.util.function.Consumer;
 
 /**
- * {@code MapIdComponent}.
- */
+	 * Компонент идентификатора карты. Связывает предмет карты с конкретным
+	 * состоянием {@link MapState} в мире через числовой идентификатор.
+	 */
 public record MapIdComponent(int id) implements TooltipAppender {
 
 	public static final Codec<MapIdComponent> CODEC = Codec.INT.xmap(MapIdComponent::new, MapIdComponent::id);
@@ -26,13 +27,11 @@ public record MapIdComponent(int id) implements TooltipAppender {
 			PacketCodecs.VAR_INT.xmap(MapIdComponent::new, MapIdComponent::id);
 	private static final Text LOCKED_TOOLTIP_TEXT = Text.translatable("filled_map.locked").formatted(Formatting.GRAY);
 
-	/**
-	 * As string.
-	 *
-	 * @return String — результат операции
-	 */
+	/** Максимальный уровень масштаба карты. */
+	private static final int MAX_MAP_SCALE = 4;
+
 	public String asString() {
-		return "map_" + this.id;
+		return "map_" + id;
 	}
 
 	@Override
@@ -43,27 +42,27 @@ public record MapIdComponent(int id) implements TooltipAppender {
 			ComponentsAccess components
 	) {
 		MapState mapState = context.getMapState(this);
+
 		if (mapState == null) {
 			textConsumer.accept(Text.translatable("filled_map.unknown").formatted(Formatting.GRAY));
+			return;
 		}
-		else {
-			MapPostProcessingComponent
-					mapPostProcessingComponent =
-					components.get(DataComponentTypes.MAP_POST_PROCESSING);
-			if (components.get(DataComponentTypes.CUSTOM_NAME) == null && mapPostProcessingComponent == null) {
-				textConsumer.accept(Text.translatable("filled_map.id", this.id).formatted(Formatting.GRAY));
-			}
 
-			if (mapState.locked || mapPostProcessingComponent == MapPostProcessingComponent.LOCK) {
-				textConsumer.accept(LOCKED_TOOLTIP_TEXT);
-			}
+		MapPostProcessingComponent postProcessing = components.get(DataComponentTypes.MAP_POST_PROCESSING);
 
-			if (type.isAdvanced()) {
-				int i = mapPostProcessingComponent == MapPostProcessingComponent.SCALE ? 1 : 0;
-				int j = Math.min(mapState.scale + i, 4);
-				textConsumer.accept(Text.translatable("filled_map.scale", 1 << j).formatted(Formatting.GRAY));
-				textConsumer.accept(Text.translatable("filled_map.level", j, 4).formatted(Formatting.GRAY));
-			}
+		if (components.get(DataComponentTypes.CUSTOM_NAME) == null && postProcessing == null) {
+			textConsumer.accept(Text.translatable("filled_map.id", id).formatted(Formatting.GRAY));
+		}
+
+		if (mapState.locked || postProcessing == MapPostProcessingComponent.LOCK) {
+			textConsumer.accept(LOCKED_TOOLTIP_TEXT);
+		}
+
+		if (type.isAdvanced()) {
+			int scaleBonus = postProcessing == MapPostProcessingComponent.SCALE ? 1 : 0;
+			int scaleLevel = Math.min(mapState.scale + scaleBonus, MAX_MAP_SCALE);
+			textConsumer.accept(Text.translatable("filled_map.scale", 1 << scaleLevel).formatted(Formatting.GRAY));
+			textConsumer.accept(Text.translatable("filled_map.level", scaleLevel, MAX_MAP_SCALE).formatted(Formatting.GRAY));
 		}
 	}
 }

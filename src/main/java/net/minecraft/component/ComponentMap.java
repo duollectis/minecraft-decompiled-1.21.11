@@ -17,9 +17,23 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code ComponentMap}.
- */
+	 * Неизменяемый набор компонентов данных предмета.
+	 * Каждый тип компонента может присутствовать не более одного раза.
+	 * Для изменяемого варианта используется {@link MergedComponentMap}.
+	 */
 public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
+
+	/**
+		 * Характеристики сплитератора для {@link #stream()}.
+		 * {@code SIZED | DISTINCT | NONNULL} = 0x541 = 1345
+		 */
+	int STREAM_SPLITERATOR_CHARACTERISTICS = Spliterator.SIZED | Spliterator.DISTINCT | Spliterator.NONNULL;
+
+	/**
+		 * Порог размера карты, при котором {@link Builder} переключается
+		 * с {@link Reference2ObjectArrayMap} на {@link Reference2ObjectOpenHashMap}.
+		 */
+	int HASH_MAP_THRESHOLD = 8;
 
 	ComponentMap EMPTY = new ComponentMap() {
 		@Override
@@ -44,36 +58,49 @@ public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
 		return createCodecFromValueMap(Codec.dispatchedMap(componentTypeCodec, ComponentType::getCodecOrThrow));
 	}
 
+	/**
+		 * Создаёт кодек {@link ComponentMap} из кодека карты «тип → значение».
+		 * При сериализации пропускает транзитные компоненты (без кодека).
+		 *
+		 * @param typeToValueMapCodec кодек карты типов к значениям
+		 * @return кодек для {@link ComponentMap}
+		 */
 	static Codec<ComponentMap> createCodecFromValueMap(Codec<Map<ComponentType<?>, Object>> typeToValueMapCodec) {
 		return typeToValueMapCodec.flatComapMap(
-				ComponentMap.Builder::build, componentMap -> {
-					int i = componentMap.size();
-					if (i == 0) {
+				ComponentMap.Builder::build,
+				componentMap -> {
+					int size = componentMap.size();
+					if (size == 0) {
 						return DataResult.success(Reference2ObjectMaps.emptyMap());
 					}
-					else {
-						Reference2ObjectMap<ComponentType<?>, Object>
-								reference2ObjectMap =
-								new Reference2ObjectArrayMap(i);
 
-						for (Component<?> component : componentMap) {
-							if (!component.type().shouldSkipSerialization()) {
-								reference2ObjectMap.put(component.type(), component.value());
-							}
+					Reference2ObjectMap<ComponentType<?>, Object> result = new Reference2ObjectArrayMap<>(size);
+
+					for (Component<?> component : componentMap) {
+						if (!component.type().shouldSkipSerialization()) {
+							result.put(component.type(), component.value());
 						}
-
-						return DataResult.success(reference2ObjectMap);
 					}
+
+					return DataResult.success(result);
 				}
 		);
 	}
 
+	/**
+		 * Создаёт представление, объединяющее два набора компонентов.
+		 * Значения из {@code overrides} имеют приоритет над {@code base}.
+		 *
+		 * @param base      базовые компоненты
+		 * @param overrides компоненты-переопределения
+		 * @return объединённый вид
+		 */
 	static ComponentMap of(ComponentMap base, ComponentMap overrides) {
 		return new ComponentMap() {
 			@Override
 			public <T> @Nullable T get(ComponentType<? extends T> type) {
-				T object = overrides.get(type);
-				return object != null ? object : base.get(type);
+				T value = overrides.get(type);
+				return value != null ? value : base.get(type);
 			}
 
 			@Override
@@ -90,24 +117,27 @@ public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
 	Set<ComponentType<?>> getTypes();
 
 	default boolean contains(ComponentType<?> type) {
-		return this.get(type) != null;
+		return get(type) != null;
 	}
 
 	@Override
 	default Iterator<Component<?>> iterator() {
-		return Iterators.transform(this.getTypes().iterator(), type -> Objects.requireNonNull(this.getTyped(type)));
+		return Iterators.transform(getTypes().iterator(), type -> Objects.requireNonNull(getTyped(type)));
 	}
 
 	default Stream<Component<?>> stream() {
-		return StreamSupport.stream(Spliterators.spliterator(this.iterator(), (long) this.size(), 1345), false);
+		return StreamSupport.stream(
+				Spliterators.spliterator(iterator(), (long) size(), STREAM_SPLITERATOR_CHARACTERISTICS),
+				false
+		);
 	}
 
 	default int size() {
-		return this.getTypes().size();
+		return getTypes().size();
 	}
 
 	default boolean isEmpty() {
-		return this.size() == 0;
+		return size() == 0;
 	}
 
 	default ComponentMap filtered(Predicate<ComponentType<?>> predicate) {
@@ -124,91 +154,78 @@ public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
 		};
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder implements FabricComponentMapBuilder {
+	class Builder implements FabricComponentMapBuilder {
 
-		private final Reference2ObjectMap<ComponentType<?>, Object> components = new Reference2ObjectArrayMap();
+		private final Reference2ObjectMap<ComponentType<?>, Object> components = new Reference2ObjectArrayMap<>();
 
 		Builder() {
 		}
 
 		public <T> ComponentMap.Builder add(ComponentType<T> type, @Nullable T value) {
-			this.put(type, value);
+			put(type, value);
 			return this;
 		}
 
 		<T> void put(ComponentType<T> type, @Nullable Object value) {
 			if (value != null) {
-				this.components.put(type, value);
-			}
-			else {
-				this.components.remove(type);
+				components.put(type, value);
+			} else {
+				components.remove(type);
 			}
 		}
 
 		public ComponentMap.Builder addAll(ComponentMap componentSet) {
 			for (Component<?> component : componentSet) {
-				this.components.put(component.type(), component.value());
+				components.put(component.type(), component.value());
 			}
 
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ComponentMap — результат операции
-		 */
 		public ComponentMap build() {
-			return build(this.components);
+			return build(components);
 		}
 
 		private static ComponentMap build(Map<ComponentType<?>, Object> components) {
 			if (components.isEmpty()) {
 				return ComponentMap.EMPTY;
 			}
-			else {
-				return components.size() < 8
-				       ? new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectArrayMap(components))
-				       : new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectOpenHashMap(components));
-			}
+
+			return components.size() < HASH_MAP_THRESHOLD
+				? new SimpleComponentMap(new Reference2ObjectArrayMap<>(components))
+				: new SimpleComponentMap(new Reference2ObjectOpenHashMap<>(components));
 		}
 
-		/**
-		 * {@code SimpleComponentMap}.
-		 */
 		record SimpleComponentMap(Reference2ObjectMap<ComponentType<?>, Object> map) implements ComponentMap {
 
 			@Override
 			public <T> @Nullable T get(ComponentType<? extends T> type) {
-				return (T) this.map.get(type);
+				return (T) map.get(type);
 			}
 
 			@Override
 			public boolean contains(ComponentType<?> type) {
-				return this.map.containsKey(type);
+				return map.containsKey(type);
 			}
 
 			@Override
 			public Set<ComponentType<?>> getTypes() {
-				return this.map.keySet();
+				return map.keySet();
 			}
 
 			@Override
 			public Iterator<Component<?>> iterator() {
-				return Iterators.transform(Reference2ObjectMaps.fastIterator(this.map), Component::of);
+				return Iterators.transform(Reference2ObjectMaps.fastIterator(map), Component::of);
 			}
 
 			@Override
 			public int size() {
-				return this.map.size();
+				return map.size();
 			}
 
 			@Override
 			public String toString() {
-				return this.map.toString();
+				return map.toString();
 			}
 		}
 	}

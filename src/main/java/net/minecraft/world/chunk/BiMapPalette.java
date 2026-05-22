@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * {@code BiMapPalette}.
+ * Палитра на основе двунаправленного отображения {@link Int2ObjectBiMap}.
+ * Используется для средних секций (5–8 бит, до 256 уникальных значений).
+ * Обеспечивает O(1) поиск как по объекту, так и по идентификатору.
  */
 public class BiMapPalette<T> implements Palette<T> {
 
@@ -19,7 +21,7 @@ public class BiMapPalette<T> implements Palette<T> {
 
 	public BiMapPalette(int indexBits, List<T> values) {
 		this(indexBits);
-		values.forEach(this.map::add);
+		values.forEach(map::add);
 	}
 
 	public BiMapPalette(int indexBits) {
@@ -31,35 +33,27 @@ public class BiMapPalette<T> implements Palette<T> {
 		this.map = map;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param bits bits
-	 * @param values values
-	 *
-	 * @return Palette — результат операции
-	 */
 	public static <A> Palette<A> create(int bits, List<A> values) {
 		return new BiMapPalette<>(bits, values);
 	}
 
 	@Override
 	public int index(T object, PaletteResizeListener<T> listener) {
-		int i = this.map.getRawId(object);
-		if (i == -1) {
-			i = this.map.add(object);
-			if (i >= 1 << this.indexBits) {
-				i = listener.onResize(this.indexBits + 1, object);
+		int id = map.getRawId(object);
+		if (id == -1) {
+			id = map.add(object);
+			if (id >= 1 << indexBits) {
+				id = listener.onResize(indexBits + 1, object);
 			}
 		}
 
-		return i;
+		return id;
 	}
 
 	@Override
 	public boolean hasAny(Predicate<T> predicate) {
-		for (int i = 0; i < this.getSize(); i++) {
-			if (predicate.test(this.map.get(i))) {
+		for (int i = 0; i < getSize(); i++) {
+			if (predicate.test(map.get(i))) {
 				return true;
 			}
 		}
@@ -69,59 +63,58 @@ public class BiMapPalette<T> implements Palette<T> {
 
 	@Override
 	public T get(int id) {
-		T object = this.map.get(id);
+		T object = map.get(id);
 		if (object == null) {
 			throw new EntryMissingException(id);
 		}
-		else {
-			return object;
-		}
+
+		return object;
 	}
 
 	@Override
 	public void readPacket(PacketByteBuf buf, IndexedIterable<T> idList) {
-		this.map.clear();
-		int i = buf.readVarInt();
+		map.clear();
+		int count = buf.readVarInt();
 
-		for (int j = 0; j < i; j++) {
-			this.map.add(idList.getOrThrow(buf.readVarInt()));
+		for (int i = 0; i < count; i++) {
+			map.add(idList.getOrThrow(buf.readVarInt()));
 		}
 	}
 
 	@Override
 	public void writePacket(PacketByteBuf buf, IndexedIterable<T> idList) {
-		int i = this.getSize();
-		buf.writeVarInt(i);
+		int count = getSize();
+		buf.writeVarInt(count);
 
-		for (int j = 0; j < i; j++) {
-			buf.writeVarInt(idList.getRawId(this.map.get(j)));
+		for (int i = 0; i < count; i++) {
+			buf.writeVarInt(idList.getRawId(map.get(i)));
 		}
 	}
 
 	@Override
 	public int getPacketSize(IndexedIterable<T> idList) {
-		int i = VarInts.getSizeInBytes(this.getSize());
+		int totalSize = VarInts.getSizeInBytes(getSize());
 
-		for (int j = 0; j < this.getSize(); j++) {
-			i += VarInts.getSizeInBytes(idList.getRawId(this.map.get(j)));
+		for (int i = 0; i < getSize(); i++) {
+			totalSize += VarInts.getSizeInBytes(idList.getRawId(map.get(i)));
 		}
 
-		return i;
+		return totalSize;
 	}
 
 	public List<T> getElements() {
-		ArrayList<T> arrayList = new ArrayList<>();
-		this.map.iterator().forEachRemaining(arrayList::add);
-		return arrayList;
+		List<T> elements = new ArrayList<>();
+		map.iterator().forEachRemaining(elements::add);
+		return elements;
 	}
 
 	@Override
 	public int getSize() {
-		return this.map.size();
+		return map.size();
 	}
 
 	@Override
 	public Palette<T> copy() {
-		return new BiMapPalette<>(this.indexBits, this.map.copy());
+		return new BiMapPalette<>(indexBits, map.copy());
 	}
 }

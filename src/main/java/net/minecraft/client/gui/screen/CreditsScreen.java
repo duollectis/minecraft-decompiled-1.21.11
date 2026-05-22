@@ -36,21 +36,28 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CreditsScreen}.
+ * Экран финальных титров и поэмы конца игры.
+ * Поддерживает ускорение прокрутки пробелом и Ctrl, а также обратную прокрутку стрелкой вверх.
  */
+@Environment(EnvType.CLIENT)
 public class CreditsScreen extends Screen {
 
 	private static final Identifier VIGNETTE_TEXTURE = Identifier.ofVanilla("textures/misc/credits_vignette.png");
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Text SEPARATOR_LINE = Text.literal("============").formatted(Formatting.WHITE);
 	private static final String CENTERED_LINE_PREFIX = "           ";
-	private static final String
-			OBFUSCATION_PLACEHOLDER =
+	private static final String OBFUSCATION_PLACEHOLDER =
 			"" + Formatting.WHITE + Formatting.OBFUSCATED + Formatting.GREEN + Formatting.AQUA;
 	private static final float SPACE_BAR_SPEED_MULTIPLIER = 5.0F;
 	private static final float CTRL_KEY_SPEED_MULTIPLIER = 15.0F;
+	private static final int KEY_LEFT_CTRL = 341;
+	private static final int KEY_RIGHT_CTRL = 345;
+	private static final int KEY_SPACE = 32;
+	private static final int CREDITS_LINE_HEIGHT = 12;
+	private static final int CREDITS_WRAP_WIDTH = 256;
+	private static final int LOGO_OFFSET_Y = 100;
+	private static final int CREDITS_BOTTOM_PADDING = 24;
 	private static final Identifier END_POEM_TEXT_LOCATION = Identifier.ofVanilla("texts/end.txt");
 	private static final Identifier CREDITS_TEXT_LOCATION = Identifier.ofVanilla("texts/credits.json");
 	private static final Identifier POST_CREDITS_TEXT_LOCATION = Identifier.ofVanilla("texts/postcredits.txt");
@@ -72,284 +79,262 @@ public class CreditsScreen extends Screen {
 		super(NarratorManager.EMPTY);
 		this.endCredits = endCredits;
 		this.finishAction = finishAction;
-		if (!endCredits) {
-			this.baseSpeed = 0.75F;
-		}
-		else {
-			this.baseSpeed = 0.5F;
-		}
-
-		this.speedMultiplier = 1;
-		this.speed = this.baseSpeed;
+		baseSpeed = endCredits ? 0.5F : 0.75F;
+		speedMultiplier = 1;
+		speed = baseSpeed;
 	}
 
 	private float getSpeed() {
-		return this.spaceKeyPressed
-		       ? this.baseSpeed * (5.0F + this.pressedCtrlKeys.size() * 15.0F) * this.speedMultiplier
-		       : this.baseSpeed * this.speedMultiplier;
+		return spaceKeyPressed
+				? baseSpeed * (5.0F + pressedCtrlKeys.size() * CTRL_KEY_SPEED_MULTIPLIER) * speedMultiplier
+				: baseSpeed * speedMultiplier;
 	}
 
 	@Override
 	public void tick() {
-		this.client.getMusicTracker().tick();
-		this.client.getSoundManager().tick(false);
-		float f = this.creditsHeight + this.height + this.height + 24;
-		if (this.time > f) {
-			this.closeScreen();
+		client.getMusicTracker().tick();
+		client.getSoundManager().tick(false);
+		float totalHeight = creditsHeight + height + height + CREDITS_BOTTOM_PADDING;
+
+		if (time > totalHeight) {
+			closeScreen();
 		}
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.isUp()) {
-			this.speedMultiplier = -1;
-		}
-		else if (input.key() == 341 || input.key() == 345) {
-			this.pressedCtrlKeys.add(input.key());
-		}
-		else if (input.key() == 32) {
-			this.spaceKeyPressed = true;
+			speedMultiplier = -1;
+		} else if (input.key() == KEY_LEFT_CTRL || input.key() == KEY_RIGHT_CTRL) {
+			pressedCtrlKeys.add(input.key());
+		} else if (input.key() == KEY_SPACE) {
+			spaceKeyPressed = true;
 		}
 
-		this.speed = this.getSpeed();
+		speed = getSpeed();
 		return super.keyPressed(input);
 	}
 
 	@Override
 	public boolean keyReleased(KeyInput input) {
 		if (input.isUp()) {
-			this.speedMultiplier = 1;
+			speedMultiplier = 1;
 		}
 
-		if (input.key() == 32) {
-			this.spaceKeyPressed = false;
-		}
-		else if (input.key() == 341 || input.key() == 345) {
-			this.pressedCtrlKeys.remove(input.key());
+		if (input.key() == KEY_SPACE) {
+			spaceKeyPressed = false;
+		} else if (input.key() == KEY_LEFT_CTRL || input.key() == KEY_RIGHT_CTRL) {
+			pressedCtrlKeys.remove(input.key());
 		}
 
-		this.speed = this.getSpeed();
+		speed = getSpeed();
 		return super.keyReleased(input);
 	}
 
 	@Override
 	public void close() {
-		this.closeScreen();
+		closeScreen();
 	}
 
 	private void closeScreen() {
-		this.finishAction.run();
+		finishAction.run();
 	}
 
 	@Override
 	protected void init() {
-		if (this.credits == null) {
-			this.credits = Lists.newArrayList();
-			this.narratedCredits = Lists.newArrayList();
-			this.centeredLines = new IntOpenHashSet();
-			if (this.endCredits) {
-				this.load(END_POEM_TEXT_LOCATION, this::readPoem);
-			}
-
-			this.load(CREDITS_TEXT_LOCATION, this::readCredits);
-			if (this.endCredits) {
-				this.load(POST_CREDITS_TEXT_LOCATION, this::readPoem);
-			}
-
-			this.creditsHeight = this.credits.size() * 12;
+		if (credits != null) {
+			return;
 		}
+
+		credits = Lists.newArrayList();
+		narratedCredits = Lists.newArrayList();
+		centeredLines = new IntOpenHashSet();
+
+		if (endCredits) {
+			load(END_POEM_TEXT_LOCATION, this::readPoem);
+		}
+
+		load(CREDITS_TEXT_LOCATION, this::readCredits);
+
+		if (endCredits) {
+			load(POST_CREDITS_TEXT_LOCATION, this::readPoem);
+		}
+
+		creditsHeight = credits.size() * CREDITS_LINE_HEIGHT;
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(this.narratedCredits.toArray(Text[]::new));
+		return ScreenTexts.joinSentences(narratedCredits.toArray(Text[]::new));
 	}
 
-	private void load(Identifier fileLocation, CreditsScreen.CreditsReader reader) {
-		try (Reader reader2 = this.client.getResourceManager().openAsReader(fileLocation)) {
-			reader.read(reader2);
-		}
-		catch (Exception var8) {
-			LOGGER.error("Couldn't load credits from file {}", fileLocation, var8);
+	private void load(Identifier fileLocation, CreditsReader reader) {
+		try (Reader fileReader = client.getResourceManager().openAsReader(fileLocation)) {
+			reader.read(fileReader);
+		} catch (Exception exception) {
+			LOGGER.error("Couldn't load credits from file {}", fileLocation, exception);
 		}
 	}
 
 	private void readPoem(Reader reader) throws IOException {
 		BufferedReader bufferedReader = new BufferedReader(reader);
 		Random random = Random.create(8124371L);
+		String line;
 
-		String string;
-		while ((string = bufferedReader.readLine()) != null) {
-			string = string.replaceAll("PLAYERNAME", this.client.getSession().getUsername());
+		while ((line = bufferedReader.readLine()) != null) {
+			line = line.replaceAll("PLAYERNAME", client.getSession().getUsername());
+			int placeholderIndex;
 
-			int i;
-			while ((i = string.indexOf(OBFUSCATION_PLACEHOLDER)) != -1) {
-				String string2 = string.substring(0, i);
-				String string3 = string.substring(i + OBFUSCATION_PLACEHOLDER.length());
-				string =
-						string2 + Formatting.WHITE + Formatting.OBFUSCATED + "XXXXXXXX".substring(
-								0,
-								random.nextInt(4) + 3
-						) + string3;
+			while ((placeholderIndex = line.indexOf(OBFUSCATION_PLACEHOLDER)) != -1) {
+				String before = line.substring(0, placeholderIndex);
+				String after = line.substring(placeholderIndex + OBFUSCATION_PLACEHOLDER.length());
+				line = before + Formatting.WHITE + Formatting.OBFUSCATED
+						+ "XXXXXXXX".substring(0, random.nextInt(4) + 3) + after;
 			}
 
-			this.addText(string);
-			this.addEmptyLine();
+			addText(line);
+			addEmptyLine();
 		}
 
-		for (int i = 0; i < 8; i++) {
-			this.addEmptyLine();
+		for (int padding = 0; padding < 8; padding++) {
+			addEmptyLine();
 		}
 	}
 
 	private void readCredits(Reader reader) {
-		for (JsonElement jsonElement : JsonHelper.deserializeArray(reader)) {
-			JsonObject jsonObject = jsonElement.getAsJsonObject();
-			String string = jsonObject.get("section").getAsString();
-			this.addText(SEPARATOR_LINE, true, false);
-			this.addText(Text.literal(string).formatted(Formatting.YELLOW), true, true);
-			this.addText(SEPARATOR_LINE, true, false);
-			this.addEmptyLine();
-			this.addEmptyLine();
+		for (JsonElement sectionElement : JsonHelper.deserializeArray(reader)) {
+			JsonObject sectionObj = sectionElement.getAsJsonObject();
+			String sectionName = sectionObj.get("section").getAsString();
+			addText(SEPARATOR_LINE, true, false);
+			addText(Text.literal(sectionName).formatted(Formatting.YELLOW), true, true);
+			addText(SEPARATOR_LINE, true, false);
+			addEmptyLine();
+			addEmptyLine();
 
-			for (JsonElement jsonElement2 : jsonObject.getAsJsonArray("disciplines")) {
-				JsonObject jsonObject2 = jsonElement2.getAsJsonObject();
-				String string2 = jsonObject2.get("discipline").getAsString();
-				if (StringUtils.isNotEmpty(string2)) {
-					this.addText(Text.literal(string2).formatted(Formatting.YELLOW), true, true);
-					this.addEmptyLine();
-					this.addEmptyLine();
+			for (JsonElement disciplineElement : sectionObj.getAsJsonArray("disciplines")) {
+				JsonObject disciplineObj = disciplineElement.getAsJsonObject();
+				String disciplineName = disciplineObj.get("discipline").getAsString();
+
+				if (StringUtils.isNotEmpty(disciplineName)) {
+					addText(Text.literal(disciplineName).formatted(Formatting.YELLOW), true, true);
+					addEmptyLine();
+					addEmptyLine();
 				}
 
-				for (JsonElement jsonElement3 : jsonObject2.getAsJsonArray("titles")) {
-					JsonObject jsonObject3 = jsonElement3.getAsJsonObject();
-					String string3 = jsonObject3.get("title").getAsString();
-					JsonArray jsonArray4 = jsonObject3.getAsJsonArray("names");
-					this.addText(Text.literal(string3).formatted(Formatting.GRAY), false, true);
+				for (JsonElement titleElement : disciplineObj.getAsJsonArray("titles")) {
+					JsonObject titleObj = titleElement.getAsJsonObject();
+					String titleName = titleObj.get("title").getAsString();
+					JsonArray namesArray = titleObj.getAsJsonArray("names");
+					addText(Text.literal(titleName).formatted(Formatting.GRAY), false, true);
 
-					for (JsonElement jsonElement4 : jsonArray4) {
-						String string4 = jsonElement4.getAsString();
-						this.addText(
-								Text.literal("           ").append(string4).formatted(Formatting.WHITE),
+					for (JsonElement nameElement : namesArray) {
+						addText(
+								Text.literal(CENTERED_LINE_PREFIX).append(nameElement.getAsString()).formatted(Formatting.WHITE),
 								false,
 								true
 						);
 					}
 
-					this.addEmptyLine();
-					this.addEmptyLine();
+					addEmptyLine();
+					addEmptyLine();
 				}
 			}
 		}
 	}
 
 	private void addEmptyLine() {
-		this.credits.add(OrderedText.EMPTY);
-		this.narratedCredits.add(ScreenTexts.EMPTY);
+		credits.add(OrderedText.EMPTY);
+		narratedCredits.add(ScreenTexts.EMPTY);
 	}
 
 	private void addText(String text) {
-		Text text2 = Text.literal(text);
-		this.credits.addAll(this.client.textRenderer.wrapLines(text2, 256));
-		this.narratedCredits.add(text2);
+		Text textObj = Text.literal(text);
+		credits.addAll(client.textRenderer.wrapLines(textObj, CREDITS_WRAP_WIDTH));
+		narratedCredits.add(textObj);
 	}
 
 	private void addText(Text text, boolean centered, boolean narrate) {
 		if (centered) {
-			this.centeredLines.add(this.credits.size());
+			centeredLines.add(credits.size());
 		}
 
-		this.credits.add(text.asOrderedText());
+		credits.add(text.asOrderedText());
+
 		if (narrate) {
-			this.narratedCredits.add(text);
+			narratedCredits.add(text);
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.renderVignette(context);
-		this.time = Math.max(0.0F, this.time + deltaTicks * this.speed);
-		int i = this.width / 2 - 128;
-		int j = this.height + 50;
-		float f = -this.time;
+		renderVignette(context);
+		time = Math.max(0.0F, time + deltaTicks * speed);
+		int centerX = width / 2 - 128;
+		int logoY = height + 50;
+		float scrollOffset = -time;
 		context.getMatrices().pushMatrix();
-		context.getMatrices().translate(0.0F, f);
+		context.getMatrices().translate(0.0F, scrollOffset);
 		context.createNewRootLayer();
-		this.logoDrawer.draw(context, this.width, 1.0F, j);
-		int k = j + 100;
+		logoDrawer.draw(context, width, 1.0F, logoY);
+		int lineY = logoY + LOGO_OFFSET_Y;
 
-		for (int l = 0; l < this.credits.size(); l++) {
-			if (l == this.credits.size() - 1) {
-				float g = k + f - (this.height / 2 - 6);
-				if (g < 0.0F) {
-					context.getMatrices().translate(0.0F, -g);
+		for (int lineIndex = 0; lineIndex < credits.size(); lineIndex++) {
+			if (lineIndex == credits.size() - 1) {
+				float lastLineOffset = lineY + scrollOffset - (height / 2 - 6);
+
+				if (lastLineOffset < 0.0F) {
+					context.getMatrices().translate(0.0F, -lastLineOffset);
 				}
 			}
 
-			if (k + f + 12.0F + 8.0F > 0.0F && k + f < this.height) {
-				OrderedText orderedText = this.credits.get(l);
-				if (this.centeredLines.contains(l)) {
-					context.drawCenteredTextWithShadow(this.textRenderer, orderedText, i + 128, k, -1);
-				}
-				else {
-					context.drawTextWithShadow(this.textRenderer, orderedText, i, k, -1);
+			if (lineY + scrollOffset + CREDITS_LINE_HEIGHT + 8.0F > 0.0F && lineY + scrollOffset < height) {
+				OrderedText line = credits.get(lineIndex);
+
+				if (centeredLines.contains(lineIndex)) {
+					context.drawCenteredTextWithShadow(textRenderer, line, centerX + 128, lineY, -1);
+				} else {
+					context.drawTextWithShadow(textRenderer, line, centerX, lineY, -1);
 				}
 			}
 
-			k += 12;
+			lineY += CREDITS_LINE_HEIGHT;
 		}
 
 		context.getMatrices().popMatrix();
 	}
 
 	private void renderVignette(DrawContext context) {
-		context.drawTexture(
-				RenderPipelines.VIGNETTE,
-				VIGNETTE_TEXTURE,
-				0,
-				0,
-				0.0F,
-				0.0F,
-				this.width,
-				this.height,
-				this.width,
-				this.height
-		);
+		context.drawTexture(RenderPipelines.VIGNETTE, VIGNETTE_TEXTURE, 0, 0, 0.0F, 0.0F, width, height, width, height);
 	}
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (this.endCredits) {
+		if (endCredits) {
 			TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
-			AbstractTexture
-					abstractTexture =
-					textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.SKY_TEXTURE);
-			AbstractTexture
-					abstractTexture2 =
-					textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.PORTAL_TEXTURE);
+			AbstractTexture skyTexture = textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.SKY_TEXTURE);
+			AbstractTexture portalTexture = textureManager.getTexture(AbstractEndPortalBlockEntityRenderer.PORTAL_TEXTURE);
 			TextureSetup textureSetup = TextureSetup.of(
-					abstractTexture.getGlTextureView(),
-					abstractTexture.getSampler(),
-					abstractTexture2.getGlTextureView(),
-					abstractTexture2.getSampler()
+					skyTexture.getGlTextureView(),
+					skyTexture.getSampler(),
+					portalTexture.getGlTextureView(),
+					portalTexture.getSampler()
 			);
-			context.fill(RenderPipelines.END_PORTAL, textureSetup, 0, 0, this.width, this.height);
-		}
-		else {
+			context.fill(RenderPipelines.END_PORTAL, textureSetup, 0, 0, width, height);
+		} else {
 			super.renderBackground(context, mouseX, mouseY, deltaTicks);
 		}
 	}
 
 	@Override
 	protected void renderDarkening(DrawContext context, int x, int y, int width, int height) {
-		float f = this.time * 0.5F;
-		Screen.renderBackgroundTexture(context, Screen.MENU_BACKGROUND_TEXTURE, 0, 0, 0.0F, f, width, height);
+		float scrollProgress = time * 0.5F;
+		Screen.renderBackgroundTexture(context, Screen.MENU_BACKGROUND_TEXTURE, 0, 0, 0.0F, scrollProgress, width, height);
 	}
 
 	@Override
 	public boolean shouldPause() {
-		return !this.endCredits;
+		return !endCredits;
 	}
 
 	@Override
@@ -359,7 +344,7 @@ public class CreditsScreen extends Screen {
 
 	@Override
 	public void removed() {
-		this.client.getMusicTracker().stop(MusicType.CREDITS);
+		client.getMusicTracker().stop(MusicType.CREDITS);
 	}
 
 	@Override
@@ -369,9 +354,6 @@ public class CreditsScreen extends Screen {
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CreditsReader}.
-	 */
 	interface CreditsReader {
 
 		void read(Reader reader) throws IOException;

@@ -7,7 +7,8 @@ import net.minecraft.world.chunk.light.LightSourceView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkProvider}.
+ * Поставщик чанков для системы освещения. Предоставляет доступ к чанкам
+ * по координатам и уведомляет об изменениях освещения в секциях.
  */
 public interface ChunkProvider {
 

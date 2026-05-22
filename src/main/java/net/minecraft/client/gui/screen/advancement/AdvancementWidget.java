@@ -19,28 +19,32 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AdvancementWidget}.
+ * Виджет одного достижения в дереве вкладки достижений.
+ * Отвечает за отрисовку рамки, иконки, линий связи и всплывающей подсказки.
  */
+@Environment(EnvType.CLIENT)
 public class AdvancementWidget {
 
 	private static final Identifier TITLE_BOX_TEXTURE = Identifier.ofVanilla("advancements/title_box");
 	private static final int WIDGET_HEIGHT = 26;
-	private static final int WIDGET_X_OFFSET = 0;
 	private static final int MAX_WIDGET_WIDTH = 200;
-	private static final int ICON_HEIGHT = 26;
 	private static final int ICON_OFFSET_X = 8;
 	private static final int ICON_OFFSET_Y = 5;
-	private static final int ICON_SIZE = 26;
 	private static final int PROGRESS_PADDING = 3;
 	private static final int DESCRIPTION_PADDING = 5;
 	private static final int TITLE_OFFSET_X = 32;
-	private static final int TITLE_OFFSET_Y = 9;
-	private static final int TITLE_PADDING = 8;
 	private static final int TITLE_MAX_WIDTH = 163;
 	private static final int MIN_DESCRIPTION_WIDTH = 80;
+	private static final int LINE_HEIGHT = 9;
+	private static final int TITLE_BOX_PADDING = 8;
+	private static final int DESCRIPTION_BOX_PADDING = 6;
+	private static final int DESCRIPTION_WRAP_THRESHOLD = 10;
+	private static final int PAGE_HEIGHT = 113;
 	private static final int[] SPLIT_OFFSET_CANDIDATES = new int[]{0, 10, -10, 25, -25};
+	private static final int COLOR_WHITE = -1;
+	private static final int COLOR_GREEN = -16711936;
+
 	private final AdvancementTab tab;
 	private final PlacedAdvancement advancement;
 	private final AdvancementDisplay display;
@@ -55,358 +59,316 @@ public class AdvancementWidget {
 	private final int y;
 
 	public AdvancementWidget(
-			AdvancementTab tab,
-			MinecraftClient client,
-			PlacedAdvancement advancement,
-			AdvancementDisplay display
+		AdvancementTab tab,
+		MinecraftClient client,
+		PlacedAdvancement advancement,
+		AdvancementDisplay display
 	) {
 		this.tab = tab;
 		this.advancement = advancement;
 		this.display = display;
 		this.client = client;
-		this.title = client.textRenderer.wrapLines(display.getTitle(), 163);
-		this.x = MathHelper.floor(display.getX() * 28.0F);
-		this.y = MathHelper.floor(display.getY() * 27.0F);
-		int i = Math.max(this.title.stream().mapToInt(client.textRenderer::getWidth).max().orElse(0), 80);
-		int j = this.getProgressWidth();
-		int k = 29 + i + j;
+		this.title = client.textRenderer.wrapLines(display.getTitle(), TITLE_MAX_WIDTH);
+		x = MathHelper.floor(display.getX() * 28.0F);
+		y = MathHelper.floor(display.getY() * 27.0F);
+		int titleWidth = Math.max(title.stream().mapToInt(client.textRenderer::getWidth).max().orElse(0), MIN_DESCRIPTION_WIDTH);
+		int progressWidth = getProgressWidth();
+		int boxWidth = 29 + titleWidth + progressWidth;
 		this.description = Language.getInstance()
-		                           .reorder(this.wrapDescription(
-				                           Texts.withStyle(
-						                           display.getDescription(),
-						                           Style.EMPTY.withColor(display.getFrame().getTitleFormat())
-				                           ), k
-		                           ));
+			.reorder(wrapDescription(
+				Texts.withStyle(
+					display.getDescription(),
+					Style.EMPTY.withColor(display.getFrame().getTitleFormat())
+				), boxWidth
+			));
 
-		for (OrderedText orderedText : this.description) {
-			k = Math.max(k, client.textRenderer.getWidth(orderedText));
+		for (OrderedText line : this.description) {
+			boxWidth = Math.max(boxWidth, client.textRenderer.getWidth(line));
 		}
 
-		this.width = k + 3 + 5;
+		width = boxWidth + PROGRESS_PADDING + DESCRIPTION_PADDING;
 	}
 
 	private int getProgressWidth() {
-		int i = this.advancement.getAdvancement().requirements().getLength();
-		if (i <= 1) {
+		int requirementCount = advancement.getAdvancement().requirements().getLength();
+		if (requirementCount <= 1) {
 			return 0;
 		}
-		else {
-			int j = 8;
-			Text text = Text.translatable("advancements.progress", i, i);
-			return this.client.textRenderer.getWidth(text) + 8;
-		}
+
+		Text progressText = Text.translatable("advancements.progress", requirementCount, requirementCount);
+		return client.textRenderer.getWidth(progressText) + TITLE_BOX_PADDING;
 	}
 
 	private static float getMaxWidth(TextHandler textHandler, List<StringVisitable> lines) {
 		return (float) lines.stream().mapToDouble(textHandler::getWidth).max().orElse(0.0);
 	}
 
-	private List<StringVisitable> wrapDescription(Text text, int width) {
-		TextHandler textHandler = this.client.textRenderer.getTextHandler();
-		List<StringVisitable> list = null;
-		float f = Float.MAX_VALUE;
+	private List<StringVisitable> wrapDescription(Text text, int boxWidth) {
+		TextHandler textHandler = client.textRenderer.getTextHandler();
+		List<StringVisitable> bestLines = null;
+		float bestDelta = Float.MAX_VALUE;
 
-		for (int i : SPLIT_OFFSET_CANDIDATES) {
-			List<StringVisitable> list2 = textHandler.wrapLines(text, width - i, Style.EMPTY);
-			float g = Math.abs(getMaxWidth(textHandler, list2) - width);
-			if (g <= 10.0F) {
-				return list2;
+		for (int offset : SPLIT_OFFSET_CANDIDATES) {
+			List<StringVisitable> lines = textHandler.wrapLines(text, boxWidth - offset, Style.EMPTY);
+			float delta = Math.abs(getMaxWidth(textHandler, lines) - boxWidth);
+			if (delta <= DESCRIPTION_WRAP_THRESHOLD) {
+				return lines;
 			}
 
-			if (g < f) {
-				f = g;
-				list = list2;
+			if (delta < bestDelta) {
+				bestDelta = delta;
+				bestLines = lines;
 			}
 		}
 
-		return list;
+		return bestLines;
 	}
 
-	private @Nullable AdvancementWidget getParent(PlacedAdvancement advancement) {
+	private @Nullable AdvancementWidget getParent(PlacedAdvancement placed) {
 		do {
-			advancement = advancement.getParent();
+			placed = placed.getParent();
 		}
-		while (advancement != null && advancement.getAdvancement().display().isEmpty());
+		while (placed != null && placed.getAdvancement().display().isEmpty());
 
-		return advancement != null && !advancement.getAdvancement().display().isEmpty()
-		       ? this.tab.getWidget(advancement.getAdvancementEntry()) : null;
+		return placed != null && placed.getAdvancement().display().isPresent()
+			? tab.getWidget(placed.getAdvancementEntry())
+			: null;
 	}
 
-	/**
-	 * Отрисовывает lines.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param border border
-	 */
-	public void renderLines(DrawContext context, int x, int y, boolean border) {
-		if (this.parent != null) {
-			int i = x + this.parent.x + 13;
-			int j = x + this.parent.x + 26 + 4;
-			int k = y + this.parent.y + 13;
-			int l = x + this.x + 13;
-			int m = y + this.y + 13;
-			int n = border ? -16777216 : -1;
+	public void renderLines(DrawContext context, int originX, int originY, boolean border) {
+		if (parent != null) {
+			int parentCenterX = originX + parent.x + 13;
+			int parentRightX = originX + parent.x + 26 + 4;
+			int parentCenterY = originY + parent.y + 13;
+			int thisCenterX = originX + x + 13;
+			int thisCenterY = originY + y + 13;
+			int lineColor = border ? -16777216 : COLOR_WHITE;
+
 			if (border) {
-				context.drawHorizontalLine(j, i, k - 1, n);
-				context.drawHorizontalLine(j + 1, i, k, n);
-				context.drawHorizontalLine(j, i, k + 1, n);
-				context.drawHorizontalLine(l, j - 1, m - 1, n);
-				context.drawHorizontalLine(l, j - 1, m, n);
-				context.drawHorizontalLine(l, j - 1, m + 1, n);
-				context.drawVerticalLine(j - 1, m, k, n);
-				context.drawVerticalLine(j + 1, m, k, n);
+				context.drawHorizontalLine(parentRightX, parentCenterX, parentCenterY - 1, lineColor);
+				context.drawHorizontalLine(parentRightX + 1, parentCenterX, parentCenterY, lineColor);
+				context.drawHorizontalLine(parentRightX, parentCenterX, parentCenterY + 1, lineColor);
+				context.drawHorizontalLine(thisCenterX, parentRightX - 1, thisCenterY - 1, lineColor);
+				context.drawHorizontalLine(thisCenterX, parentRightX - 1, thisCenterY, lineColor);
+				context.drawHorizontalLine(thisCenterX, parentRightX - 1, thisCenterY + 1, lineColor);
+				context.drawVerticalLine(parentRightX - 1, thisCenterY, parentCenterY, lineColor);
+				context.drawVerticalLine(parentRightX + 1, thisCenterY, parentCenterY, lineColor);
 			}
 			else {
-				context.drawHorizontalLine(j, i, k, n);
-				context.drawHorizontalLine(l, j, m, n);
-				context.drawVerticalLine(j, m, k, n);
+				context.drawHorizontalLine(parentRightX, parentCenterX, parentCenterY, lineColor);
+				context.drawHorizontalLine(thisCenterX, parentRightX, thisCenterY, lineColor);
+				context.drawVerticalLine(parentRightX, thisCenterY, parentCenterY, lineColor);
 			}
 		}
 
-		for (AdvancementWidget advancementWidget : this.children) {
-			advancementWidget.renderLines(context, x, y, border);
+		for (AdvancementWidget child : children) {
+			child.renderLines(context, originX, originY, border);
 		}
 	}
 
-	/**
-	 * Отрисовывает widgets.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 */
-	public void renderWidgets(DrawContext context, int x, int y) {
-		if (!this.display.isHidden() || this.progress != null && this.progress.isDone()) {
-			float f = this.progress == null ? 0.0F : this.progress.getProgressBarPercentage();
-			AdvancementObtainedStatus advancementObtainedStatus;
-			if (f >= 1.0F) {
-				advancementObtainedStatus = AdvancementObtainedStatus.OBTAINED;
-			}
-			else {
-				advancementObtainedStatus = AdvancementObtainedStatus.UNOBTAINED;
-			}
-
+	public void renderWidgets(DrawContext context, int originX, int originY) {
+		boolean visible = !display.isHidden() || (progress != null && progress.isDone());
+		if (visible) {
+			float progressPct = progress == null ? 0.0F : progress.getProgressBarPercentage();
+			AdvancementObtainedStatus status = progressPct >= 1.0F
+				? AdvancementObtainedStatus.OBTAINED
+				: AdvancementObtainedStatus.UNOBTAINED;
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					advancementObtainedStatus.getFrameTexture(this.display.getFrame()),
-					x + this.x + 3,
-					y + this.y,
-					26,
-					26
+				RenderPipelines.GUI_TEXTURED,
+				status.getFrameTexture(display.getFrame()),
+				originX + x + PROGRESS_PADDING,
+				originY + y,
+				WIDGET_HEIGHT,
+				WIDGET_HEIGHT
 			);
-			context.drawItemWithoutEntity(this.display.getIcon(), x + this.x + 8, y + this.y + 5);
+			context.drawItemWithoutEntity(display.getIcon(), originX + x + ICON_OFFSET_X, originY + y + ICON_OFFSET_Y);
 		}
 
-		for (AdvancementWidget advancementWidget : this.children) {
-			advancementWidget.renderWidgets(context, x, y);
+		for (AdvancementWidget child : children) {
+			child.renderWidgets(context, originX, originY);
 		}
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public void setProgress(AdvancementProgress progress) {
 		this.progress = progress;
 	}
 
-	/**
-	 * Добавляет child.
-	 *
-	 * @param widget widget
-	 */
 	public void addChild(AdvancementWidget widget) {
-		this.children.add(widget);
+		children.add(widget);
 	}
 
 	/**
-	 * Draw tooltip.
+	 * Отрисовывает всплывающую подсказку достижения с прогресс-баром, описанием и иконкой.
+	 * Автоматически выбирает сторону отображения, чтобы не выйти за границы экрана.
 	 *
-	 * @param context context
-	 * @param originX origin x
-	 * @param originY origin y
-	 * @param alpha alpha
-	 * @param x x
-	 * @param y y
+	 * @param context контекст отрисовки
+	 * @param originX смещение дерева по X
+	 * @param originY смещение дерева по Y
+	 * @param alpha прозрачность фона подсказки
+	 * @param screenX абсолютная X-координата страницы
+	 * @param screenY абсолютная Y-координата страницы
 	 */
-	public void drawTooltip(DrawContext context, int originX, int originY, float alpha, int x, int y) {
-		TextRenderer textRenderer = this.client.textRenderer;
-		int i = 9 * this.title.size() + 9 + 8;
-		int j = originY + this.y + (26 - i) / 2;
-		int k = j + i;
-		int l = this.description.size() * 9;
-		int m = 6 + l;
-		boolean bl = x + originX + this.x + this.width + 26 >= this.tab.getScreen().width;
-		Text text = this.progress == null ? null : this.progress.getProgressBarFraction();
-		int n = text == null ? 0 : textRenderer.getWidth(text);
-		boolean bl2 = k + m >= 113;
-		float f = this.progress == null ? 0.0F : this.progress.getProgressBarPercentage();
-		int o = MathHelper.floor(f * this.width);
-		AdvancementObtainedStatus advancementObtainedStatus;
-		AdvancementObtainedStatus advancementObtainedStatus2;
-		AdvancementObtainedStatus advancementObtainedStatus3;
-		if (f >= 1.0F) {
-			o = this.width / 2;
-			advancementObtainedStatus = AdvancementObtainedStatus.OBTAINED;
-			advancementObtainedStatus2 = AdvancementObtainedStatus.OBTAINED;
-			advancementObtainedStatus3 = AdvancementObtainedStatus.OBTAINED;
+	public void drawTooltip(DrawContext context, int originX, int originY, float alpha, int screenX, int screenY) {
+		TextRenderer textRenderer = client.textRenderer;
+		int titleBoxHeight = LINE_HEIGHT * title.size() + LINE_HEIGHT + TITLE_BOX_PADDING;
+		int boxTop = originY + y + (WIDGET_HEIGHT - titleBoxHeight) / 2;
+		int boxBottom = boxTop + titleBoxHeight;
+		int descLinesHeight = description.size() * LINE_HEIGHT;
+		int descBoxHeight = DESCRIPTION_BOX_PADDING + descLinesHeight;
+		boolean flipLeft = screenX + originX + x + width + WIDGET_HEIGHT >= tab.getScreen().width;
+		Text progressFraction = progress == null ? null : progress.getProgressBarFraction();
+		int progressTextWidth = progressFraction == null ? 0 : textRenderer.getWidth(progressFraction);
+		boolean flipUp = boxBottom + descBoxHeight >= PAGE_HEIGHT;
+		float progressPct = progress == null ? 0.0F : progress.getProgressBarPercentage();
+		int progressBarWidth = MathHelper.floor(progressPct * width);
+
+		AdvancementObtainedStatus leftStatus;
+		AdvancementObtainedStatus rightStatus;
+		AdvancementObtainedStatus frameStatus;
+
+		if (progressPct >= 1.0F) {
+			progressBarWidth = width / 2;
+			leftStatus = AdvancementObtainedStatus.OBTAINED;
+			rightStatus = AdvancementObtainedStatus.OBTAINED;
+			frameStatus = AdvancementObtainedStatus.OBTAINED;
 		}
-		else if (o < 2) {
-			o = this.width / 2;
-			advancementObtainedStatus = AdvancementObtainedStatus.UNOBTAINED;
-			advancementObtainedStatus2 = AdvancementObtainedStatus.UNOBTAINED;
-			advancementObtainedStatus3 = AdvancementObtainedStatus.UNOBTAINED;
+		else if (progressBarWidth < 2) {
+			progressBarWidth = width / 2;
+			leftStatus = AdvancementObtainedStatus.UNOBTAINED;
+			rightStatus = AdvancementObtainedStatus.UNOBTAINED;
+			frameStatus = AdvancementObtainedStatus.UNOBTAINED;
 		}
-		else if (o > this.width - 2) {
-			o = this.width / 2;
-			advancementObtainedStatus = AdvancementObtainedStatus.OBTAINED;
-			advancementObtainedStatus2 = AdvancementObtainedStatus.OBTAINED;
-			advancementObtainedStatus3 = AdvancementObtainedStatus.UNOBTAINED;
+		else if (progressBarWidth > width - 2) {
+			progressBarWidth = width / 2;
+			leftStatus = AdvancementObtainedStatus.OBTAINED;
+			rightStatus = AdvancementObtainedStatus.OBTAINED;
+			frameStatus = AdvancementObtainedStatus.UNOBTAINED;
 		}
 		else {
-			advancementObtainedStatus = AdvancementObtainedStatus.OBTAINED;
-			advancementObtainedStatus2 = AdvancementObtainedStatus.UNOBTAINED;
-			advancementObtainedStatus3 = AdvancementObtainedStatus.UNOBTAINED;
+			leftStatus = AdvancementObtainedStatus.OBTAINED;
+			rightStatus = AdvancementObtainedStatus.UNOBTAINED;
+			frameStatus = AdvancementObtainedStatus.UNOBTAINED;
 		}
 
-		int p = this.width - o;
-		int q;
-		if (bl) {
-			q = originX + this.x - this.width + 26 + 6;
-		}
-		else {
-			q = originX + this.x;
+		int rightBarWidth = width - progressBarWidth;
+		int boxLeft = flipLeft
+			? originX + x - width + WIDGET_HEIGHT + DESCRIPTION_BOX_PADDING
+			: originX + x;
+		int totalBoxHeight = titleBoxHeight + descBoxHeight;
+
+		if (!description.isEmpty()) {
+			int boxY = flipUp ? boxBottom - totalBoxHeight : boxTop;
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TITLE_BOX_TEXTURE, boxLeft, boxY, width, totalBoxHeight);
 		}
 
-		int r = i + m;
-		if (!this.description.isEmpty()) {
-			if (bl2) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TITLE_BOX_TEXTURE, q, k - r, this.width, r);
-			}
-			else {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TITLE_BOX_TEXTURE, q, j, this.width, r);
-			}
-		}
-
-		if (advancementObtainedStatus != advancementObtainedStatus2) {
+		if (leftStatus != rightStatus) {
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					advancementObtainedStatus.getBoxTexture(),
-					200,
-					i,
-					0,
-					0,
-					q,
-					j,
-					o,
-					i
+				RenderPipelines.GUI_TEXTURED,
+				leftStatus.getBoxTexture(),
+				MAX_WIDGET_WIDTH,
+				titleBoxHeight,
+				0,
+				0,
+				boxLeft,
+				boxTop,
+				progressBarWidth,
+				titleBoxHeight
 			);
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					advancementObtainedStatus2.getBoxTexture(),
-					200,
-					i,
-					200 - p,
-					0,
-					q + o,
-					j,
-					p,
-					i
+				RenderPipelines.GUI_TEXTURED,
+				rightStatus.getBoxTexture(),
+				MAX_WIDGET_WIDTH,
+				titleBoxHeight,
+				MAX_WIDGET_WIDTH - rightBarWidth,
+				0,
+				boxLeft + progressBarWidth,
+				boxTop,
+				rightBarWidth,
+				titleBoxHeight
 			);
 		}
 		else {
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					advancementObtainedStatus.getBoxTexture(),
-					q,
-					j,
-					this.width,
-					i
+				RenderPipelines.GUI_TEXTURED,
+				leftStatus.getBoxTexture(),
+				boxLeft,
+				boxTop,
+				width,
+				titleBoxHeight
 			);
 		}
 
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				advancementObtainedStatus3.getFrameTexture(this.display.getFrame()),
-				originX + this.x + 3,
-				originY + this.y,
-				26,
-				26
+			RenderPipelines.GUI_TEXTURED,
+			frameStatus.getFrameTexture(display.getFrame()),
+			originX + x + PROGRESS_PADDING,
+			originY + y,
+			WIDGET_HEIGHT,
+			WIDGET_HEIGHT
 		);
-		int s = q + 5;
-		if (bl) {
-			this.drawText(context, this.title, s, j + 9, -1);
-			if (text != null) {
-				context.drawTextWithShadow(textRenderer, text, originX + this.x - n, j + 9, -1);
+
+		int textX = boxLeft + DESCRIPTION_PADDING;
+		if (flipLeft) {
+			drawText(context, title, textX, boxTop + LINE_HEIGHT, COLOR_WHITE);
+			if (progressFraction != null) {
+				context.drawTextWithShadow(textRenderer, progressFraction, originX + x - progressTextWidth, boxTop + LINE_HEIGHT, COLOR_WHITE);
 			}
 		}
 		else {
-			this.drawText(context, this.title, originX + this.x + 32, j + 9, -1);
-			if (text != null) {
-				context.drawTextWithShadow(textRenderer, text, originX + this.x + this.width - n - 5, j + 9, -1);
+			drawText(context, title, originX + x + TITLE_OFFSET_X, boxTop + LINE_HEIGHT, COLOR_WHITE);
+			if (progressFraction != null) {
+				context.drawTextWithShadow(textRenderer, progressFraction, originX + x + width - progressTextWidth - DESCRIPTION_PADDING, boxTop + LINE_HEIGHT, COLOR_WHITE);
 			}
 		}
 
-		if (bl2) {
-			this.drawText(context, this.description, s, j - l + 1, -16711936);
+		if (flipUp) {
+			drawText(context, description, textX, boxTop - descLinesHeight + 1, COLOR_GREEN);
 		}
 		else {
-			this.drawText(context, this.description, s, k, -16711936);
+			drawText(context, description, textX, boxBottom, COLOR_GREEN);
 		}
 
-		context.drawItemWithoutEntity(this.display.getIcon(), originX + this.x + 8, originY + this.y + 5);
+		context.drawItemWithoutEntity(display.getIcon(), originX + x + ICON_OFFSET_X, originY + y + ICON_OFFSET_Y);
 	}
 
-	private void drawText(DrawContext context, List<OrderedText> text, int x, int y, int color) {
-		TextRenderer textRenderer = this.client.textRenderer;
-
-		for (int i = 0; i < text.size(); i++) {
-			context.drawTextWithShadow(textRenderer, text.get(i), x, y + i * 9, color);
+	private void drawText(DrawContext context, List<OrderedText> lines, int x, int y, int color) {
+		TextRenderer textRenderer = client.textRenderer;
+		for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+			context.drawTextWithShadow(textRenderer, lines.get(lineIndex), x, y + lineIndex * LINE_HEIGHT, color);
 		}
 	}
 
-	/**
-	 * Определяет, следует ли render.
-	 *
-	 * @param originX origin x
-	 * @param originY origin y
-	 * @param mouseX mouse x
-	 * @param mouseY mouse y
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldRender(int originX, int originY, int mouseX, int mouseY) {
-		if (!this.display.isHidden() || this.progress != null && this.progress.isDone()) {
-			int i = originX + this.x;
-			int j = i + 26;
-			int k = originY + this.y;
-			int l = k + 26;
-			return mouseX >= i && mouseX <= j && mouseY >= k && mouseY <= l;
-		}
-		else {
+		boolean visible = !display.isHidden() || (progress != null && progress.isDone());
+		if (!visible) {
 			return false;
 		}
+
+		int left = originX + x;
+		int right = left + WIDGET_HEIGHT;
+		int top = originY + y;
+		int bottom = top + WIDGET_HEIGHT;
+		return mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom;
 	}
 
-	/**
-	 * Добавляет to tree.
-	 */
 	public void addToTree() {
-		if (this.parent == null && this.advancement.getParent() != null) {
-			this.parent = this.getParent(this.advancement);
-			if (this.parent != null) {
-				this.parent.addChild(this);
+		if (parent == null && advancement.getParent() != null) {
+			parent = getParent(advancement);
+			if (parent != null) {
+				parent.addChild(this);
 			}
 		}
 	}
 
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	public int getX() {
-		return this.x;
+		return x;
 	}
 }

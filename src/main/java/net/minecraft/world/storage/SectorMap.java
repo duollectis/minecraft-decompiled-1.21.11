@@ -8,56 +8,59 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import java.util.BitSet;
 
 /**
- * {@code SectorMap}.
+ * Карта занятых секторов в файле региона (.mca).
+ * Каждый бит соответствует одному сектору размером 4096 байт.
+ * Используется для поиска свободных диапазонов при записи чанков.
  */
 public class SectorMap {
 
 	private final BitSet bitSet = new BitSet();
 
 	/**
-	 * Allocate.
+	 * Помечает диапазон секторов как занятый.
 	 *
-	 * @param start start
-	 * @param size size
+	 * @param start начальный индекс сектора
+	 * @param size количество секторов
 	 */
 	public void allocate(int start, int size) {
-		this.bitSet.set(start, start + size);
+		bitSet.set(start, start + size);
 	}
 
 	/**
-	 * Free.
+	 * Освобождает диапазон секторов.
 	 *
-	 * @param start start
-	 * @param size size
+	 * @param start начальный индекс сектора
+	 * @param size количество секторов
 	 */
 	public void free(int start, int size) {
-		this.bitSet.clear(start, start + size);
+		bitSet.clear(start, start + size);
 	}
 
 	/**
-	 * Allocate.
+	 * Находит первый свободный непрерывный диапазон нужного размера,
+	 * помечает его как занятый и возвращает начальный индекс.
 	 *
-	 * @param size size
-	 *
-	 * @return int — результат операции
+	 * @param size требуемое количество секторов
+	 * @return начальный индекс выделенного диапазона
 	 */
 	public int allocate(int size) {
-		int i = 0;
+		int searchFrom = 0;
 
 		while (true) {
-			int j = this.bitSet.nextClearBit(i);
-			int k = this.bitSet.nextSetBit(j);
-			if (k == -1 || k - j >= size) {
-				this.allocate(j, size);
-				return j;
+			int freeStart = bitSet.nextClearBit(searchFrom);
+			int nextOccupied = bitSet.nextSetBit(freeStart);
+
+			if (nextOccupied == -1 || nextOccupied - freeStart >= size) {
+				allocate(freeStart, size);
+				return freeStart;
 			}
 
-			i = k;
+			searchFrom = nextOccupied;
 		}
 	}
 
 	@VisibleForTesting
 	public IntSet getAllocatedBits() {
-		return this.bitSet.stream().collect(IntArraySet::new, IntCollection::add, IntCollection::addAll);
+		return bitSet.stream().collect(IntArraySet::new, IntCollection::add, IntCollection::addAll);
 	}
 }

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code RenameEntityNbtKeyFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameEntityNbtKeyFix extends ChoiceFix {
 

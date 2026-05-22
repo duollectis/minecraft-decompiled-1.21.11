@@ -15,9 +15,18 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code ServerScoreboard}.
+ * Серверная реализация скорборда с поддержкой сетевой синхронизации.
+ * <p>
+ * Расширяет {@link Scoreboard}, добавляя отправку пакетов всем игрокам
+ * при изменении целей, очков и команд. Также управляет набором
+ * «синхронизируемых» целей ({@code syncableObjectives}), которые
+ * активно транслируются клиентам.
  */
 public class ServerScoreboard extends Scoreboard {
+
+	private static final int PACKET_MODE_ADD = 0;
+	private static final int PACKET_MODE_REMOVE = 1;
+	private static final int PACKET_MODE_UPDATE = 2;
 
 	private final MinecraftServer server;
 	private final Set<ScoreboardObjective> syncableObjectives = Sets.newHashSet();
@@ -27,273 +36,303 @@ public class ServerScoreboard extends Scoreboard {
 		this.server = server;
 	}
 
+	/**
+	 * Загружает состояние скорборда из упакованного снимка.
+	 * Вызывается при старте сервера для восстановления данных с диска.
+	 */
 	public void read(ScoreboardState.Packed packed) {
-		packed.objectives().forEach(objective -> this.addObjective(objective));
-		packed.scores().forEach(score -> this.addEntry(score));
-		packed.displaySlots().forEach((slot, objective) -> {
-			ScoreboardObjective scoreboardObjective = this.getNullableObjective(objective);
-			this.setObjectiveSlot(slot, scoreboardObjective);
+		packed.objectives().forEach(this::addObjective);
+		packed.scores().forEach(this::addEntry);
+		packed.displaySlots().forEach((slot, objectiveName) -> {
+			ScoreboardObjective objective = getNullableObjective(objectiveName);
+			setObjectiveSlot(slot, objective);
 		});
-		packed.teams().forEach(team -> this.addTeam(team));
+		packed.teams().forEach(this::addTeam);
 	}
 
 	private ScoreboardState.Packed toPacked() {
 		return new ScoreboardState.Packed(
-				this.getPackedObjectives(),
-				this.pack(),
-				this.getObjectivesBySlots(),
-				this.getPackedTeams()
+				getPackedObjectives(),
+				pack(),
+				getObjectivesBySlots(),
+				getPackedTeams()
 		);
 	}
 
 	@Override
 	protected void updateScore(ScoreHolder scoreHolder, ScoreboardObjective objective, ScoreboardScore score) {
 		super.updateScore(scoreHolder, objective, score);
-		if (this.syncableObjectives.contains(objective)) {
-			this.server
-					.getPlayerManager()
-					.sendToAll(
-							new ScoreboardScoreUpdateS2CPacket(
-									scoreHolder.getNameForScoreboard(),
-									objective.getName(),
-									score.getScore(),
-									Optional.ofNullable(score.getDisplayText()),
-									Optional.ofNullable(score.getNumberFormat())
-							)
-					);
+		if (syncableObjectives.contains(objective)) {
+			server.getPlayerManager().sendToAll(
+					new ScoreboardScoreUpdateS2CPacket(
+							scoreHolder.getNameForScoreboard(),
+							objective.getName(),
+							score.getScore(),
+							Optional.ofNullable(score.getDisplayText()),
+							Optional.ofNullable(score.getNumberFormat())
+					)
+			);
 		}
 
-		this.markDirty();
+		markDirty();
 	}
 
 	@Override
 	protected void resetScore(ScoreHolder scoreHolder, ScoreboardObjective objective) {
 		super.resetScore(scoreHolder, objective);
-		this.markDirty();
+		markDirty();
 	}
 
 	@Override
 	public void onScoreHolderRemoved(ScoreHolder scoreHolder) {
 		super.onScoreHolderRemoved(scoreHolder);
-		this.server
-				.getPlayerManager()
-				.sendToAll(new ScoreboardScoreResetS2CPacket(scoreHolder.getNameForScoreboard(), null));
-		this.markDirty();
+		server.getPlayerManager().sendToAll(
+				new ScoreboardScoreResetS2CPacket(scoreHolder.getNameForScoreboard(), null)
+		);
+		markDirty();
 	}
 
 	@Override
 	public void onScoreRemoved(ScoreHolder scoreHolder, ScoreboardObjective objective) {
 		super.onScoreRemoved(scoreHolder, objective);
-		if (this.syncableObjectives.contains(objective)) {
-			this.server
-					.getPlayerManager()
-					.sendToAll(new ScoreboardScoreResetS2CPacket(
-							scoreHolder.getNameForScoreboard(),
-							objective.getName()
-					));
+		if (syncableObjectives.contains(objective)) {
+			server.getPlayerManager().sendToAll(
+					new ScoreboardScoreResetS2CPacket(scoreHolder.getNameForScoreboard(), objective.getName())
+			);
 		}
 
-		this.markDirty();
+		markDirty();
 	}
 
+	/**
+	 * Переназначает цель на слот отображения, управляя синхронизацией старой и новой цели.
+	 * Если старая цель больше не отображается ни в одном слоте — останавливает её синхронизацию.
+	 */
 	@Override
 	public void setObjectiveSlot(ScoreboardDisplaySlot slot, @Nullable ScoreboardObjective objective) {
-		ScoreboardObjective scoreboardObjective = this.getObjectiveForSlot(slot);
+		ScoreboardObjective previousObjective = getObjectiveForSlot(slot);
 		super.setObjectiveSlot(slot, objective);
-		if (scoreboardObjective != objective && scoreboardObjective != null) {
-			if (this.countDisplaySlots(scoreboardObjective) > 0) {
-				this.server.getPlayerManager().sendToAll(new ScoreboardDisplayS2CPacket(slot, objective));
-			}
-			else {
-				this.stopSyncing(scoreboardObjective);
+
+		if (previousObjective != objective && previousObjective != null) {
+			if (countDisplaySlots(previousObjective) > 0) {
+				server.getPlayerManager().sendToAll(new ScoreboardDisplayS2CPacket(slot, objective));
+			} else {
+				stopSyncing(previousObjective);
 			}
 		}
 
-		if (objective != null) {
-			if (this.syncableObjectives.contains(objective)) {
-				this.server.getPlayerManager().sendToAll(new ScoreboardDisplayS2CPacket(slot, objective));
-			}
-			else {
-				this.startSyncing(objective);
-			}
+		if (objective == null) {
+			return;
 		}
 
-		this.markDirty();
+		if (syncableObjectives.contains(objective)) {
+			server.getPlayerManager().sendToAll(new ScoreboardDisplayS2CPacket(slot, objective));
+		} else {
+			startSyncing(objective);
+		}
+
+		markDirty();
 	}
 
 	@Override
 	public boolean addScoreHolderToTeam(String scoreHolderName, Team team) {
-		if (super.addScoreHolderToTeam(scoreHolderName, team)) {
-			this.server
-					.getPlayerManager()
-					.sendToAll(TeamS2CPacket.changePlayerTeam(team, scoreHolderName, TeamS2CPacket.Operation.ADD));
-			this.refreshWaypointTrackingFor(scoreHolderName);
-			this.markDirty();
-			return true;
-		}
-		else {
+		if (!super.addScoreHolderToTeam(scoreHolderName, team)) {
 			return false;
 		}
+
+		server.getPlayerManager().sendToAll(
+				TeamS2CPacket.changePlayerTeam(team, scoreHolderName, TeamS2CPacket.Operation.ADD)
+		);
+		refreshWaypointTrackingFor(scoreHolderName);
+		markDirty();
+		return true;
 	}
 
 	@Override
 	public void removeScoreHolderFromTeam(String scoreHolderName, Team team) {
 		super.removeScoreHolderFromTeam(scoreHolderName, team);
-		this.server
-				.getPlayerManager()
-				.sendToAll(TeamS2CPacket.changePlayerTeam(team, scoreHolderName, TeamS2CPacket.Operation.REMOVE));
-		this.refreshWaypointTrackingFor(scoreHolderName);
-		this.markDirty();
+		server.getPlayerManager().sendToAll(
+				TeamS2CPacket.changePlayerTeam(team, scoreHolderName, TeamS2CPacket.Operation.REMOVE)
+		);
+		refreshWaypointTrackingFor(scoreHolderName);
+		markDirty();
 	}
 
 	@Override
 	public void updateObjective(ScoreboardObjective objective) {
 		super.updateObjective(objective);
-		this.markDirty();
+		markDirty();
 	}
 
 	@Override
 	public void updateExistingObjective(ScoreboardObjective objective) {
 		super.updateExistingObjective(objective);
-		if (this.syncableObjectives.contains(objective)) {
-			this.server.getPlayerManager().sendToAll(new ScoreboardObjectiveUpdateS2CPacket(objective, 2));
+		if (syncableObjectives.contains(objective)) {
+			server.getPlayerManager().sendToAll(
+					new ScoreboardObjectiveUpdateS2CPacket(objective, PACKET_MODE_UPDATE)
+			);
 		}
 
-		this.markDirty();
+		markDirty();
 	}
 
 	@Override
 	public void updateRemovedObjective(ScoreboardObjective objective) {
 		super.updateRemovedObjective(objective);
-		if (this.syncableObjectives.contains(objective)) {
-			this.stopSyncing(objective);
+		if (syncableObjectives.contains(objective)) {
+			stopSyncing(objective);
 		}
 
-		this.markDirty();
+		markDirty();
 	}
 
 	@Override
 	public void updateScoreboardTeamAndPlayers(Team team) {
 		super.updateScoreboardTeamAndPlayers(team);
-		this.server.getPlayerManager().sendToAll(TeamS2CPacket.updateTeam(team, true));
-		this.markDirty();
+		server.getPlayerManager().sendToAll(TeamS2CPacket.updateTeam(team, true));
+		markDirty();
 	}
 
 	@Override
 	public void updateScoreboardTeam(Team team) {
 		super.updateScoreboardTeam(team);
-		this.server.getPlayerManager().sendToAll(TeamS2CPacket.updateTeam(team, false));
-		this.refreshWaypointTrackingFor(team);
-		this.markDirty();
+		server.getPlayerManager().sendToAll(TeamS2CPacket.updateTeam(team, false));
+		refreshWaypointTrackingFor(team);
+		markDirty();
 	}
 
 	@Override
 	public void updateRemovedTeam(Team team) {
 		super.updateRemovedTeam(team);
-		this.server.getPlayerManager().sendToAll(TeamS2CPacket.updateRemovedTeam(team));
-		this.refreshWaypointTrackingFor(team);
-		this.markDirty();
+		server.getPlayerManager().sendToAll(TeamS2CPacket.updateRemovedTeam(team));
+		refreshWaypointTrackingFor(team);
+		markDirty();
 	}
 
 	protected void markDirty() {
-		this.dirty = true;
+		dirty = true;
 	}
 
+	/**
+	 * Записывает текущее состояние скорборда в {@link ScoreboardState}, если оно изменилось.
+	 * Вызывается периодически сервером для сохранения данных на диск.
+	 */
 	public void writeTo(ScoreboardState state) {
-		if (this.dirty) {
-			this.dirty = false;
-			state.set(this.toPacked());
+		if (!dirty) {
+			return;
 		}
+
+		dirty = false;
+		state.set(toPacked());
 	}
 
+	/**
+	 * Создаёт список пакетов для добавления цели клиенту:
+	 * пакет создания цели, пакеты назначения слотов и пакеты всех текущих очков.
+	 */
 	public List<Packet<?>> createChangePackets(ScoreboardObjective objective) {
-		List<Packet<?>> list = Lists.newArrayList();
-		list.add(new ScoreboardObjectiveUpdateS2CPacket(objective, 0));
+		List<Packet<?>> packets = Lists.newArrayList();
+		packets.add(new ScoreboardObjectiveUpdateS2CPacket(objective, PACKET_MODE_ADD));
 
-		for (ScoreboardDisplaySlot scoreboardDisplaySlot : ScoreboardDisplaySlot.values()) {
-			if (this.getObjectiveForSlot(scoreboardDisplaySlot) == objective) {
-				list.add(new ScoreboardDisplayS2CPacket(scoreboardDisplaySlot, objective));
+		for (ScoreboardDisplaySlot slot : ScoreboardDisplaySlot.values()) {
+			if (getObjectiveForSlot(slot) == objective) {
+				packets.add(new ScoreboardDisplayS2CPacket(slot, objective));
 			}
 		}
 
-		for (ScoreboardEntry scoreboardEntry : this.getScoreboardEntries(objective)) {
-			list.add(
-					new ScoreboardScoreUpdateS2CPacket(
-							scoreboardEntry.owner(),
-							objective.getName(),
-							scoreboardEntry.value(),
-							Optional.ofNullable(scoreboardEntry.display()),
-							Optional.ofNullable(scoreboardEntry.numberFormatOverride())
-					)
-			);
+		for (ScoreboardEntry entry : getScoreboardEntries(objective)) {
+			packets.add(new ScoreboardScoreUpdateS2CPacket(
+					entry.owner(),
+					objective.getName(),
+					entry.value(),
+					Optional.ofNullable(entry.display()),
+					Optional.ofNullable(entry.numberFormatOverride())
+			));
 		}
 
-		return list;
+		return packets;
 	}
 
+	/**
+	 * Начинает синхронизацию цели: отправляет все текущие данные всем игрокам
+	 * и добавляет цель в набор синхронизируемых.
+	 */
 	public void startSyncing(ScoreboardObjective objective) {
-		List<Packet<?>> list = this.createChangePackets(objective);
+		List<Packet<?>> packets = createChangePackets(objective);
 
-		for (ServerPlayerEntity serverPlayerEntity : this.server.getPlayerManager().getPlayerList()) {
-			for (Packet<?> packet : list) {
-				serverPlayerEntity.networkHandler.sendPacket(packet);
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			for (Packet<?> packet : packets) {
+				player.networkHandler.sendPacket(packet);
 			}
 		}
 
-		this.syncableObjectives.add(objective);
+		syncableObjectives.add(objective);
 	}
 
+	/**
+	 * Создаёт список пакетов для удаления цели у клиента:
+	 * пакет удаления цели и пакеты очистки слотов отображения.
+	 */
 	public List<Packet<?>> createRemovePackets(ScoreboardObjective objective) {
-		List<Packet<?>> list = Lists.newArrayList();
-		list.add(new ScoreboardObjectiveUpdateS2CPacket(objective, 1));
+		List<Packet<?>> packets = Lists.newArrayList();
+		packets.add(new ScoreboardObjectiveUpdateS2CPacket(objective, PACKET_MODE_REMOVE));
 
-		for (ScoreboardDisplaySlot scoreboardDisplaySlot : ScoreboardDisplaySlot.values()) {
-			if (this.getObjectiveForSlot(scoreboardDisplaySlot) == objective) {
-				list.add(new ScoreboardDisplayS2CPacket(scoreboardDisplaySlot, objective));
+		for (ScoreboardDisplaySlot slot : ScoreboardDisplaySlot.values()) {
+			if (getObjectiveForSlot(slot) == objective) {
+				packets.add(new ScoreboardDisplayS2CPacket(slot, objective));
 			}
 		}
 
-		return list;
+		return packets;
 	}
 
+	/**
+	 * Останавливает синхронизацию цели: отправляет пакеты удаления всем игрокам
+	 * и убирает цель из набора синхронизируемых.
+	 */
 	public void stopSyncing(ScoreboardObjective objective) {
-		List<Packet<?>> list = this.createRemovePackets(objective);
+		List<Packet<?>> packets = createRemovePackets(objective);
 
-		for (ServerPlayerEntity serverPlayerEntity : this.server.getPlayerManager().getPlayerList()) {
-			for (Packet<?> packet : list) {
-				serverPlayerEntity.networkHandler.sendPacket(packet);
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			for (Packet<?> packet : packets) {
+				player.networkHandler.sendPacket(packet);
 			}
 		}
 
-		this.syncableObjectives.remove(objective);
+		syncableObjectives.remove(objective);
 	}
 
+	/**
+	 * Подсчитывает количество слотов отображения, на которые назначена данная цель.
+	 */
 	public int countDisplaySlots(ScoreboardObjective objective) {
-		int i = 0;
+		int count = 0;
 
-		for (ScoreboardDisplaySlot scoreboardDisplaySlot : ScoreboardDisplaySlot.values()) {
-			if (this.getObjectiveForSlot(scoreboardDisplaySlot) == objective) {
-				i++;
+		for (ScoreboardDisplaySlot slot : ScoreboardDisplaySlot.values()) {
+			if (getObjectiveForSlot(slot) == objective) {
+				count++;
 			}
 		}
 
-		return i;
+		return count;
 	}
 
 	private void refreshWaypointTrackingFor(String playerName) {
-		ServerPlayerEntity serverPlayerEntity = this.server.getPlayerManager().getPlayer(playerName);
-		if (serverPlayerEntity != null) {
-			serverPlayerEntity.getEntityWorld().getWaypointHandler().refreshTracking(serverPlayerEntity);
+		ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerName);
+		if (player == null) {
+			return;
 		}
+
+		player.getEntityWorld().getWaypointHandler().refreshTracking(player);
 	}
 
 	private void refreshWaypointTrackingFor(Team team) {
-		for (ServerWorld serverWorld : this.server.getWorlds()) {
+		for (ServerWorld world : server.getWorlds()) {
 			team.getPlayerList()
-			    .stream()
-			    .map(playerName -> this.server.getPlayerManager().getPlayer(playerName))
-			    .filter(Objects::nonNull)
-			    .forEach(player -> serverWorld.getWaypointHandler().refreshTracking(player));
+					.stream()
+					.map(playerName -> server.getPlayerManager().getPlayer(playerName))
+					.filter(Objects::nonNull)
+					.forEach(player -> world.getWaypointHandler().refreshTracking(player));
 		}
 	}
 }

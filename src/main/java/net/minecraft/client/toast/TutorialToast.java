@@ -14,10 +14,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TutorialToast}.
+ * Toast обучающей подсказки с иконкой, текстом и опциональной полосой прогресса.
+ *
+ * <p>Если задан {@code displayDuration > 0}, прогресс-бар заполняется автоматически
+ * за указанное время, после чего toast скрывается. Иначе прогресс управляется
+ * вручную через {@link #setProgress(float)}.
  */
+@Environment(EnvType.CLIENT)
 public class TutorialToast implements Toast {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("toast/tutorial");
@@ -30,7 +34,9 @@ public class TutorialToast implements Toast {
 	private static final int TITLE_PADDING = 11;
 	private static final int ICON_WIDTH = 30;
 	private static final int TEXT_WIDTH = 126;
-	private final TutorialToast.Type type;
+	private static final float LERP_SPEED = 100.0F;
+
+	private final Type type;
 	private final List<OrderedText> text;
 	private Toast.Visibility visibility = Toast.Visibility.SHOW;
 	private long lastTime;
@@ -40,18 +46,19 @@ public class TutorialToast implements Toast {
 	private final int displayDuration;
 
 	public TutorialToast(
-			TextRenderer textRenderer,
-			TutorialToast.Type type,
-			Text title,
-			@Nullable Text description,
-			boolean hasProgressBar,
-			int displayDuration
+		TextRenderer textRenderer,
+		Type type,
+		Text title,
+		@Nullable Text description,
+		boolean hasProgressBar,
+		int displayDuration
 	) {
 		this.type = type;
-		this.text = new ArrayList<>(2);
-		this.text.addAll(textRenderer.wrapLines(title.copy().withColor(-11534256), 126));
+		text = new ArrayList<>(2);
+		text.addAll(textRenderer.wrapLines(title.copy().withColor(-11534256), TEXT_WIDTH));
+
 		if (description != null) {
-			this.text.addAll(textRenderer.wrapLines(description, 126));
+			text.addAll(textRenderer.wrapLines(description, TEXT_WIDTH));
 		}
 
 		this.hasProgressBar = hasProgressBar;
@@ -59,89 +66,81 @@ public class TutorialToast implements Toast {
 	}
 
 	public TutorialToast(
-			TextRenderer textRenderer,
-			TutorialToast.Type type,
-			Text title,
-			@Nullable Text description,
-			boolean hasProgressBar
+		TextRenderer textRenderer,
+		Type type,
+		Text title,
+		@Nullable Text description,
+		boolean hasProgressBar
 	) {
 		this(textRenderer, type, title, description, hasProgressBar, 0);
 	}
 
 	@Override
 	public Toast.Visibility getVisibility() {
-		return this.visibility;
+		return visibility;
 	}
 
 	@Override
 	public void update(ToastManager manager, long time) {
-		if (this.displayDuration > 0) {
-			this.progress = Math.min((float) time / this.displayDuration, 1.0F);
-			this.lastProgress = this.progress;
-			this.lastTime = time;
-			if (time > this.displayDuration) {
-				this.hide();
+		if (displayDuration > 0) {
+			progress = Math.min((float) time / displayDuration, 1.0F);
+			lastProgress = progress;
+			lastTime = time;
+
+			if (time > displayDuration) {
+				hide();
 			}
-		}
-		else if (this.hasProgressBar) {
-			this.lastProgress =
-					MathHelper.clampedLerp((float) (time - this.lastTime) / 100.0F, this.lastProgress, this.progress);
-			this.lastTime = time;
+		} else if (hasProgressBar) {
+			lastProgress = MathHelper.clampedLerp(
+				(float) (time - lastTime) / LERP_SPEED,
+				lastProgress,
+				progress
+			);
+			lastTime = time;
 		}
 	}
 
 	@Override
 	public int getHeight() {
-		return 7 + this.getTextHeight() + 3;
+		return ICON_PADDING + getTextHeight() + TEXT_PADDING;
 	}
 
 	private int getTextHeight() {
-		return Math.max(this.text.size(), 2) * 11;
+		return Math.max(text.size(), 2) * TITLE_PADDING;
 	}
 
 	@Override
 	public void draw(DrawContext context, TextRenderer textRenderer, long startTime) {
-		int i = this.getHeight();
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, this.getWidth(), i);
-		this.type.drawIcon(context, 6, 6);
-		int j = this.text.size() * 11;
-		int k = 7 + (this.getTextHeight() - j) / 2;
+		int height = getHeight();
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, getWidth(), height);
+		type.drawIcon(context, 6, 6);
 
-		for (int l = 0; l < this.text.size(); l++) {
-			context.drawText(textRenderer, this.text.get(l), 30, k + l * 11, -16777216, false);
+		int textBlockHeight = text.size() * TITLE_PADDING;
+		int textStartY = ICON_PADDING + (getTextHeight() - textBlockHeight) / 2;
+
+		for (int lineIndex = 0; lineIndex < text.size(); lineIndex++) {
+			context.drawText(textRenderer, text.get(lineIndex), ICON_WIDTH, textStartY + lineIndex * TITLE_PADDING, -16777216, false);
 		}
 
-		if (this.hasProgressBar) {
-			int l = i - 4;
-			context.fill(3, l, 157, l + 1, -1);
-			int m;
-			if (this.progress >= this.lastProgress) {
-				m = -16755456;
-			}
-			else {
-				m = -11206656;
-			}
-
-			context.fill(3, l, (int) (3.0F + 154.0F * this.lastProgress), l + 1, m);
+		if (hasProgressBar) {
+			int barY = height - PADDING;
+			context.fill(PROGRESS_BAR_X, barY, 157, barY + PROGRESS_BAR_HEIGHT, -1);
+			int barColor = progress >= lastProgress ? -16755456 : -11206656;
+			context.fill(PROGRESS_BAR_X, barY, (int) (PROGRESS_BAR_X + PROGRESS_BAR_WIDTH * lastProgress), barY + PROGRESS_BAR_HEIGHT, barColor);
 		}
 	}
 
-	/**
-	 * Hide.
-	 */
 	public void hide() {
-		this.visibility = Toast.Visibility.HIDE;
+		visibility = Toast.Visibility.HIDE;
 	}
 
 	public void setProgress(float progress) {
 		this.progress = progress;
 	}
 
+	/** Тип обучающего toast с иконкой, отображаемой слева от текста. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Type}.
-	 */
-	public static enum Type {
+	public enum Type {
 		MOVEMENT_KEYS(Identifier.ofVanilla("toast/movement_keys")),
 		MOUSE(Identifier.ofVanilla("toast/mouse")),
 		TREE(Identifier.ofVanilla("toast/tree")),
@@ -152,19 +151,12 @@ public class TutorialToast implements Toast {
 
 		private final Identifier texture;
 
-		private Type(final Identifier texture) {
+		Type(final Identifier texture) {
 			this.texture = texture;
 		}
 
-		/**
-		 * Draw icon.
-		 *
-		 * @param context context
-		 * @param x x
-		 * @param y y
-		 */
 		public void drawIcon(DrawContext context, int x, int y) {
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.texture, x, y, 20, 20);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, 20, 20);
 		}
 	}
 }

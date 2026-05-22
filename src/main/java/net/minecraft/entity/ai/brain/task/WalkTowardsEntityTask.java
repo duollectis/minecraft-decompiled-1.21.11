@@ -9,7 +9,8 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import java.util.function.Function;
 
 /**
- * {@code WalkTowardsEntityTask}.
+ * Фабричный класс задачи мозга детёныша, следующего за ближайшим видимым взрослым.
+ * Задаёт цель ходьбы только если детёныш находится в допустимом диапазоне расстояний.
  */
 public class WalkTowardsEntityTask {
 
@@ -38,27 +39,23 @@ public class WalkTowardsEntityTask {
 							                  if (!entity.isBaby()) {
 								                  return false;
 							                  }
-							                  else {
-								                  LivingEntity livingEntity = context.getValue(target);
-								                  if (entity.isInRange(livingEntity, executionRange.getMax() + 1)
-										                  && !entity.isInRange(livingEntity, executionRange.getMin())) {
-									                  WalkTarget walkTargetx = new WalkTarget(
-											                  new EntityLookTarget(livingEntity, eyeHeight, eyeHeight),
-											                  speed.apply(entity),
-											                  executionRange.getMin() - 1
-									                  );
-									                  lookTarget.remember(new EntityLookTarget(
-											                  livingEntity,
-											                  true,
-											                  eyeHeight
-									                  ));
-									                  walkTarget.remember(walkTargetx);
-									                  return true;
-								                  }
-								                  else {
-									                  return false;
-								                  }
+
+							                  LivingEntity followTarget = context.getValue(target);
+							                  boolean inOuterRange = entity.isInRange(followTarget, executionRange.getMax() + 1);
+							                  boolean notInInnerRange = !entity.isInRange(followTarget, executionRange.getMin());
+
+							                  if (inOuterRange && notInInnerRange) {
+								                  WalkTarget newWalkTarget = new WalkTarget(
+										                  new EntityLookTarget(followTarget, eyeHeight, eyeHeight),
+										                  speed.apply(entity),
+										                  executionRange.getMin() - 1
+								                  );
+								                  lookTarget.remember(new EntityLookTarget(followTarget, true, eyeHeight));
+								                  walkTarget.remember(newWalkTarget);
+								                  return true;
 							                  }
+
+							                  return false;
 						                  }
 				                  )
 		);

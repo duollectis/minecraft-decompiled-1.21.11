@@ -16,7 +16,12 @@ import java.util.*;
 import java.util.stream.Stream;
 
 /**
- * {@code NbtReadView}.
+ * Реализация {@link ReadView} поверх {@link NbtCompound}.
+ * <p>
+ * Читает поля из NBT-тега, декодируя их через кодеки DFU. При ошибках
+ * декодирования или несоответствии типов сообщает об этом через
+ * {@link ErrorReporter}, не бросая исключений. Поддерживает вложенные
+ * объекты и списки с автоматическим созданием дочерних контекстов ошибок.
  */
 public class NbtReadView implements ReadView {
 
@@ -30,238 +35,281 @@ public class NbtReadView implements ReadView {
 		this.nbt = nbt;
 	}
 
-	public static ReadView create(ErrorReporter reporter, RegistryWrapper.WrapperLookup registries, NbtCompound nbt) {
+	/**
+	 * Создаёт корневое представление для чтения из {@link NbtCompound}.
+	 *
+	 * @param reporter   получатель ошибок декодирования
+	 * @param registries реестры для разрешения ссылок
+	 * @param nbt        исходный NBT-тег
+	 * @return новый {@link ReadView}
+	 */
+	public static ReadView create(
+			ErrorReporter reporter,
+			RegistryWrapper.WrapperLookup registries,
+			NbtCompound nbt
+	) {
 		return new NbtReadView(reporter, new ReadContext(registries, NbtOps.INSTANCE), nbt);
 	}
 
+	/**
+	 * Создаёт корневое представление для чтения из списка {@link NbtCompound}.
+	 *
+	 * @param reporter   получатель ошибок декодирования
+	 * @param registries реестры для разрешения ссылок
+	 * @param elements   список NBT-тегов
+	 * @return новый {@link ReadView.ListReadView}
+	 */
 	public static ReadView.ListReadView createList(
 			ErrorReporter reporter,
 			RegistryWrapper.WrapperLookup registries,
 			List<NbtCompound> elements
 	) {
-		return new NbtReadView.NbtListReadView(reporter, new ReadContext(registries, NbtOps.INSTANCE), elements);
+		return new NbtListReadView(reporter, new ReadContext(registries, NbtOps.INSTANCE), elements);
 	}
 
 	@Override
 	public <T> Optional<T> read(String key, Codec<T> codec) {
-		NbtElement nbtElement = this.nbt.get(key);
-		if (nbtElement == null) {
+		NbtElement element = nbt.get(key);
+
+		if (element == null) {
 			return Optional.empty();
 		}
-		else {
-			return switch (codec.parse(this.context.getOps(), nbtElement)) {
-				case Success<T> success -> Optional.of(success.value());
-				case Error<T> error -> {
-					this.reporter.report(new NbtReadView.DecodeError(key, nbtElement, error));
-					yield error.partialValue();
-				}
-				default -> throw new MatchException(null, null);
-			};
-		}
-	}
 
-	@Override
-	public <T> Optional<T> read(MapCodec<T> mapCodec) {
-		DynamicOps<NbtElement> dynamicOps = this.context.getOps();
-
-		return switch (dynamicOps.getMap(this.nbt).flatMap(map -> mapCodec.decode(dynamicOps, map))) {
+		return switch (codec.parse(context.getOps(), element)) {
 			case Success<T> success -> Optional.of(success.value());
 			case Error<T> error -> {
-				this.reporter.report(new NbtReadView.DecodeMapError(error));
+				reporter.report(new DecodeError(key, element, error));
 				yield error.partialValue();
 			}
 			default -> throw new MatchException(null, null);
 		};
 	}
 
-	private <T extends NbtElement> @Nullable T get(String key, NbtType<T> type) {
-		NbtElement nbtElement = this.nbt.get(key);
-		if (nbtElement == null) {
-			return null;
-		}
-		else {
-			NbtType<?> nbtType = nbtElement.getNbtType();
-			if (nbtType != type) {
-				this.reporter.report(new NbtReadView.ExpectedTypeError(key, type, nbtType));
-				return null;
+	@Override
+	public <T> Optional<T> read(MapCodec<T> mapCodec) {
+		DynamicOps<NbtElement> ops = context.getOps();
+
+		return switch (ops.getMap(nbt).flatMap(map -> mapCodec.decode(ops, map))) {
+			case Success<T> success -> Optional.of(success.value());
+			case Error<T> error -> {
+				reporter.report(new DecodeMapError(error));
+				yield error.partialValue();
 			}
-			else {
-				return (T) nbtElement;
-			}
-		}
+			default -> throw new MatchException(null, null);
+		};
 	}
 
-	private @Nullable AbstractNbtNumber get(String key) {
-		NbtElement nbtElement = this.nbt.get(key);
-		if (nbtElement == null) {
+	/**
+	 * Извлекает NBT-элемент по ключу и проверяет соответствие ожидаемому типу.
+	 * При несоответствии типа сообщает об ошибке и возвращает {@code null}.
+	 */
+	@SuppressWarnings("unchecked")
+	private <T extends NbtElement> @Nullable T get(String key, NbtType<T> expectedType) {
+		NbtElement element = nbt.get(key);
+
+		if (element == null) {
 			return null;
 		}
-		else if (nbtElement instanceof AbstractNbtNumber abstractNbtNumber) {
-			return abstractNbtNumber;
-		}
-		else {
-			this.reporter.report(new NbtReadView.ExpectedNumberError(key, nbtElement.getNbtType()));
+
+		NbtType<?> actualType = element.getNbtType();
+
+		if (actualType != expectedType) {
+			reporter.report(new ExpectedTypeError(key, expectedType, actualType));
 			return null;
 		}
+
+		return (T) element;
+	}
+
+	/**
+	 * Извлекает числовой NBT-элемент по ключу.
+	 * При отсутствии числового типа сообщает об ошибке и возвращает {@code null}.
+	 */
+	private @Nullable AbstractNbtNumber getNumber(String key) {
+		NbtElement element = nbt.get(key);
+
+		if (element == null) {
+			return null;
+		}
+
+		if (element instanceof AbstractNbtNumber number) {
+			return number;
+		}
+
+		reporter.report(new ExpectedNumberError(key, element.getNbtType()));
+		return null;
 	}
 
 	@Override
 	public Optional<ReadView> getOptionalReadView(String key) {
-		NbtCompound nbtCompound = this.get(key, NbtCompound.TYPE);
-		return nbtCompound != null ? Optional.of(this.createChildReadView(key, nbtCompound)) : Optional.empty();
+		NbtCompound compound = get(key, NbtCompound.TYPE);
+		return compound != null
+				? Optional.of(createChildReadView(key, compound))
+				: Optional.empty();
 	}
 
 	@Override
 	public ReadView getReadView(String key) {
-		NbtCompound nbtCompound = this.get(key, NbtCompound.TYPE);
-		return nbtCompound != null ? this.createChildReadView(key, nbtCompound) : this.context.getEmptyReadView();
+		NbtCompound compound = get(key, NbtCompound.TYPE);
+		return compound != null
+				? createChildReadView(key, compound)
+				: context.getEmptyReadView();
 	}
 
 	@Override
 	public Optional<ReadView.ListReadView> getOptionalListReadView(String key) {
-		NbtList nbtList = this.get(key, NbtList.TYPE);
-		return nbtList != null ? Optional.of(this.createChildListReadView(key, this.context, nbtList))
-		                       : Optional.empty();
+		NbtList list = get(key, NbtList.TYPE);
+		return list != null
+				? Optional.of(createChildListReadView(key, context, list))
+				: Optional.empty();
 	}
 
 	@Override
 	public ReadView.ListReadView getListReadView(String key) {
-		NbtList nbtList = this.get(key, NbtList.TYPE);
-		return nbtList != null ? this.createChildListReadView(key, this.context, nbtList)
-		                       : this.context.getEmptyListReadView();
+		NbtList list = get(key, NbtList.TYPE);
+		return list != null
+				? createChildListReadView(key, context, list)
+				: context.getEmptyListReadView();
 	}
 
 	@Override
 	public <T> Optional<ReadView.TypedListReadView<T>> getOptionalTypedListView(String key, Codec<T> typeCodec) {
-		NbtList nbtList = this.get(key, NbtList.TYPE);
-		return nbtList != null ? Optional.of(this.createTypedListReadView(key, nbtList, typeCodec)) : Optional.empty();
+		NbtList list = get(key, NbtList.TYPE);
+		return list != null
+				? Optional.of(createTypedListReadView(key, list, typeCodec))
+				: Optional.empty();
 	}
 
 	@Override
 	public <T> ReadView.TypedListReadView<T> getTypedListView(String key, Codec<T> typeCodec) {
-		NbtList nbtList = this.get(key, NbtList.TYPE);
-		return nbtList != null ? this.createTypedListReadView(key, nbtList, typeCodec)
-		                       : this.context.getEmptyTypedListReadView();
+		NbtList list = get(key, NbtList.TYPE);
+		return list != null
+				? createTypedListReadView(key, list, typeCodec)
+				: context.getEmptyTypedListReadView();
 	}
 
 	@Override
 	public boolean getBoolean(String key, boolean fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.byteValue() != 0 : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.byteValue() != 0 : fallback;
 	}
 
 	@Override
 	public byte getByte(String key, byte fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.byteValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.byteValue() : fallback;
 	}
 
 	@Override
 	public int getShort(String key, short fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.shortValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.shortValue() : fallback;
 	}
 
 	@Override
 	public Optional<Integer> getOptionalInt(String key) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? Optional.of(abstractNbtNumber.intValue()) : Optional.empty();
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? Optional.of(number.intValue()) : Optional.empty();
 	}
 
 	@Override
 	public int getInt(String key, int fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.intValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.intValue() : fallback;
 	}
 
 	@Override
 	public long getLong(String key, long fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.longValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.longValue() : fallback;
 	}
 
 	@Override
 	public Optional<Long> getOptionalLong(String key) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? Optional.of(abstractNbtNumber.longValue()) : Optional.empty();
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? Optional.of(number.longValue()) : Optional.empty();
 	}
 
 	@Override
 	public float getFloat(String key, float fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.floatValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.floatValue() : fallback;
 	}
 
 	@Override
 	public double getDouble(String key, double fallback) {
-		AbstractNbtNumber abstractNbtNumber = this.get(key);
-		return abstractNbtNumber != null ? abstractNbtNumber.doubleValue() : fallback;
+		AbstractNbtNumber number = getNumber(key);
+		return number != null ? number.doubleValue() : fallback;
 	}
 
 	@Override
 	public Optional<String> getOptionalString(String key) {
-		NbtString nbtString = this.get(key, NbtString.TYPE);
-		return nbtString != null ? Optional.of(nbtString.value()) : Optional.empty();
+		NbtString string = get(key, NbtString.TYPE);
+		return string != null ? Optional.of(string.value()) : Optional.empty();
 	}
 
 	@Override
 	public String getString(String key, String fallback) {
-		NbtString nbtString = this.get(key, NbtString.TYPE);
-		return nbtString != null ? nbtString.value() : fallback;
+		NbtString string = get(key, NbtString.TYPE);
+		return string != null ? string.value() : fallback;
 	}
 
 	@Override
 	public Optional<int[]> getOptionalIntArray(String key) {
-		NbtIntArray nbtIntArray = this.get(key, NbtIntArray.TYPE);
-		return nbtIntArray != null ? Optional.of(nbtIntArray.getIntArray()) : Optional.empty();
+		NbtIntArray array = get(key, NbtIntArray.TYPE);
+		return array != null ? Optional.of(array.getIntArray()) : Optional.empty();
 	}
 
 	@Override
 	public RegistryWrapper.WrapperLookup getRegistries() {
-		return this.context.getRegistries();
+		return context.getRegistries();
 	}
 
-	private ReadView createChildReadView(String key, NbtCompound nbt) {
-		return (ReadView) (nbt.isEmpty()
-		                   ? this.context.getEmptyReadView()
-		                   : new NbtReadView(
-				                   this.reporter.makeChild(new ErrorReporter.MapElementContext(key)),
-				                   this.context,
-				                   nbt
-		                   )
+	private ReadView createChildReadView(String key, NbtCompound compound) {
+		if (compound.isEmpty()) {
+			return context.getEmptyReadView();
+		}
+
+		return new NbtReadView(
+				reporter.makeChild(new ErrorReporter.MapElementContext(key)),
+				context,
+				compound
 		);
 	}
 
 	static ReadView createReadView(ErrorReporter reporter, ReadContext context, NbtCompound nbt) {
-		return (ReadView) (nbt.isEmpty() ? context.getEmptyReadView() : new NbtReadView(reporter, context, nbt));
+		return nbt.isEmpty()
+				? context.getEmptyReadView()
+				: new NbtReadView(reporter, context, nbt);
 	}
 
-	private ReadView.ListReadView createChildListReadView(String key, ReadContext context, NbtList list) {
-		return (ReadView.ListReadView) (list.isEmpty() ? context.getEmptyListReadView()
-		                                               : new NbtReadView.ChildListReadView(
-				                                               this.reporter,
-				                                               key,
-				                                               context,
-				                                               list
-		                                               )
-		);
+	private ReadView.ListReadView createChildListReadView(String key, ReadContext ctx, NbtList list) {
+		if (list.isEmpty()) {
+			return ctx.getEmptyListReadView();
+		}
+
+		return new ChildListReadView(reporter, key, ctx, list);
 	}
 
-	private <T> ReadView.TypedListReadView<T> createTypedListReadView(String key, NbtList list, Codec<T> typeCodec) {
-		return (ReadView.TypedListReadView<T>) (list.isEmpty()
-		                                        ? this.context.getEmptyTypedListReadView()
-		                                        : new NbtReadView.NbtTypedListReadView<>(
-				                                        this.reporter,
-				                                        key,
-				                                        this.context,
-				                                        typeCodec,
-				                                        list
-		                                        )
-		);
+	private <T> ReadView.TypedListReadView<T> createTypedListReadView(
+			String key,
+			NbtList list,
+			Codec<T> typeCodec
+	) {
+		if (list.isEmpty()) {
+			return context.getEmptyTypedListReadView();
+		}
+
+		return new NbtTypedListReadView<>(reporter, key, context, typeCodec, list);
 	}
+
+	// -------------------------------------------------------------------------
+	// Вложенные классы
+	// -------------------------------------------------------------------------
 
 	/**
-	 * {@code ChildListReadView}.
+	 * Представление списка вложенных NBT-объектов, привязанное к именованному полю.
+	 * Используется при чтении {@link NbtList} из поля {@link NbtCompound}.
 	 */
 	static class ChildListReadView implements ReadView.ListReadView {
 
@@ -279,16 +327,16 @@ public class NbtReadView implements ReadView {
 
 		@Override
 		public boolean isEmpty() {
-			return this.list.isEmpty();
+			return list.isEmpty();
 		}
 
 		ErrorReporter createErrorReporter(int index) {
-			return this.reporter.makeChild(new ErrorReporter.NamedListElementContext(this.name, index));
+			return reporter.makeChild(new ErrorReporter.NamedListElementContext(name, index));
 		}
 
 		void reportExpectedTypeAtIndexError(int index, NbtElement element) {
-			this.reporter.report(new NbtReadView.ExpectedTypeAtIndexError(
-					this.name,
+			reporter.report(new ExpectedTypeAtIndexError(
+					name,
 					index,
 					NbtCompound.TYPE,
 					element.getNbtType()
@@ -298,145 +346,53 @@ public class NbtReadView implements ReadView {
 		@Override
 		public Stream<ReadView> stream() {
 			return Streams.mapWithIndex(
-					this.list.stream(), (element, index) -> {
-						if (element instanceof NbtCompound nbtCompound) {
-							return NbtReadView.createReadView(
-									this.createErrorReporter((int) index),
-									this.context,
-									nbtCompound
-							);
+					list.stream(),
+					(element, rawIndex) -> {
+						int index = (int) rawIndex;
+
+						if (element instanceof NbtCompound compound) {
+							return NbtReadView.createReadView(createErrorReporter(index), context, compound);
 						}
-						else {
-							this.reportExpectedTypeAtIndexError((int) index, element);
-							return null;
-						}
+
+						reportExpectedTypeAtIndexError(index, element);
+						return null;
 					}
 			).filter(Objects::nonNull);
 		}
 
 		@Override
 		public Iterator<ReadView> iterator() {
-			final Iterator<NbtElement> iterator = this.list.iterator();
-			return new AbstractIterator<ReadView>() {
+			Iterator<NbtElement> elementIterator = list.iterator();
+
+			return new AbstractIterator<>() {
 				private int index;
 
+				@Override
 				protected @Nullable ReadView computeNext() {
-					while (iterator.hasNext()) {
-						NbtElement nbtElement = iterator.next();
-						int i = this.index++;
-						if (nbtElement instanceof NbtCompound nbtCompound) {
+					while (elementIterator.hasNext()) {
+						NbtElement element = elementIterator.next();
+						int currentIndex = index++;
+
+						if (element instanceof NbtCompound compound) {
 							return NbtReadView.createReadView(
-									ChildListReadView.this.createErrorReporter(i),
-									ChildListReadView.this.context,
-									nbtCompound
+									createErrorReporter(currentIndex),
+									context,
+									compound
 							);
 						}
 
-						ChildListReadView.this.reportExpectedTypeAtIndexError(i, nbtElement);
+						reportExpectedTypeAtIndexError(currentIndex, element);
 					}
 
-					return (ReadView) this.endOfData();
+					return endOfData();
 				}
 			};
 		}
 	}
 
 	/**
-	 * {@code DecodeAtIndexError}.
-	 */
-	public record DecodeAtIndexError(
-			String name,
-			int index,
-			NbtElement element,
-			Error<?> error
-	) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to decode value '" + this.element + "' from field '" + this.name + "' at index " + this.index
-					+ "': " + this.error.message();
-		}
-	}
-
-	/**
-	 * {@code DecodeError}.
-	 */
-	public record DecodeError(String name, NbtElement element, Error<?> error) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to decode value '" + this.element + "' from field '" + this.name + "': "
-					+ this.error.message();
-		}
-	}
-
-	/**
-	 * {@code DecodeMapError}.
-	 */
-	public record DecodeMapError(Error<?> error) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to decode from map: " + this.error.message();
-		}
-	}
-
-	/**
-	 * {@code ExpectedNumberError}.
-	 */
-	public record ExpectedNumberError(String name, NbtType<?> actual) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Expected field '" + this.name + "' to contain number, but got " + this.actual.getCrashReportName();
-		}
-	}
-
-	/**
-	 * {@code ExpectedTypeAtIndexError}.
-	 */
-	public record ExpectedTypeAtIndexError(
-			String name,
-			int index,
-			NbtType<?> expected,
-			NbtType<?> actual
-	) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Expected list '"
-					+ this.name
-					+ "' to contain at index "
-					+ this.index
-					+ " value of type "
-					+ this.expected.getCrashReportName()
-					+ ", but got "
-					+ this.actual.getCrashReportName();
-		}
-	}
-
-	/**
-	 * {@code ExpectedTypeError}.
-	 */
-	public record ExpectedTypeError(
-			String name,
-			NbtType<?> expected,
-			NbtType<?> actual
-	) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Expected field '"
-					+ this.name
-					+ "' to contain value of type "
-					+ this.expected.getCrashReportName()
-					+ ", but got "
-					+ this.actual.getCrashReportName();
-		}
-	}
-
-	/**
-	 * {@code NbtListReadView}.
+	 * Представление списка {@link NbtCompound}, созданного напрямую из {@link java.util.List}.
+	 * Используется при создании через {@link NbtReadView#createList}.
 	 */
 	static class NbtListReadView implements ReadView.ListReadView {
 
@@ -444,7 +400,7 @@ public class NbtReadView implements ReadView {
 		private final ReadContext context;
 		private final List<NbtCompound> nbts;
 
-		public NbtListReadView(ErrorReporter reporter, ReadContext context, List<NbtCompound> nbts) {
+		NbtListReadView(ErrorReporter reporter, ReadContext context, List<NbtCompound> nbts) {
 			this.reporter = reporter;
 			this.context = context;
 			this.nbts = nbts;
@@ -452,42 +408,48 @@ public class NbtReadView implements ReadView {
 
 		ReadView createReadView(int index, NbtCompound nbt) {
 			return NbtReadView.createReadView(
-					this.reporter.makeChild(new ErrorReporter.ListElementContext(index)),
-					this.context,
+					reporter.makeChild(new ErrorReporter.ListElementContext(index)),
+					context,
 					nbt
 			);
 		}
 
 		@Override
 		public boolean isEmpty() {
-			return this.nbts.isEmpty();
+			return nbts.isEmpty();
 		}
 
 		@Override
 		public Stream<ReadView> stream() {
-			return Streams.mapWithIndex(this.nbts.stream(), (nbt, index) -> this.createReadView((int) index, nbt));
+			return Streams.mapWithIndex(
+					nbts.stream(),
+					(nbt, rawIndex) -> createReadView((int) rawIndex, nbt)
+			);
 		}
 
 		@Override
 		public Iterator<ReadView> iterator() {
-			final ListIterator<NbtCompound> listIterator = this.nbts.listIterator();
-			return new AbstractIterator<ReadView>() {
+			ListIterator<NbtCompound> listIterator = nbts.listIterator();
+
+			return new AbstractIterator<>() {
+				@Override
 				protected @Nullable ReadView computeNext() {
 					if (listIterator.hasNext()) {
-						int i = listIterator.nextIndex();
-						NbtCompound nbtCompound = listIterator.next();
-						return NbtListReadView.this.createReadView(i, nbtCompound);
+						int index = listIterator.nextIndex();
+						NbtCompound compound = listIterator.next();
+						return NbtListReadView.this.createReadView(index, compound);
 					}
-					else {
-						return (ReadView) this.endOfData();
-					}
+
+					return endOfData();
 				}
 			};
 		}
 	}
 
 	/**
-	 * {@code NbtTypedListReadView}.
+	 * Типизированное представление {@link NbtList}, элементы которого декодируются через кодек.
+	 *
+	 * @param <T> тип декодированных элементов
 	 */
 	static class NbtTypedListReadView<T> implements ReadView.TypedListReadView<T> {
 
@@ -513,59 +475,199 @@ public class NbtReadView implements ReadView {
 
 		@Override
 		public boolean isEmpty() {
-			return this.list.isEmpty();
+			return list.isEmpty();
 		}
 
 		void reportDecodeAtIndexError(int index, NbtElement element, Error<?> error) {
-			this.reporter.report(new NbtReadView.DecodeAtIndexError(this.name, index, element, error));
+			reporter.report(new DecodeAtIndexError(name, index, element, error));
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
 		public Stream<T> stream() {
 			return (Stream<T>) Streams.mapWithIndex(
-					this.list.stream(), (element, index) -> {
-						return switch (this.typeCodec.parse(this.context.getOps(), element)) {
-							case Success<T> success -> (Object) success.value();
-							case Error<T> error -> {
-								this.reportDecodeAtIndexError((int) index, element, error);
-								yield error.partialValue().orElse(null);
-							}
-							default -> throw new MatchException(null, null);
-						};
+					list.stream(),
+					(element, rawIndex) -> switch (typeCodec.parse(context.getOps(), element)) {
+						case Success<T> success -> (Object) success.value();
+						case Error<T> error -> {
+							reportDecodeAtIndexError((int) rawIndex, element, error);
+							yield error.partialValue().orElse(null);
+						}
+						default -> throw new MatchException(null, null);
 					}
 			).filter(Objects::nonNull);
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public Iterator<T> iterator() {
-			final ListIterator<NbtElement> listIterator = this.list.listIterator();
-			return new AbstractIterator<T>() {
+			ListIterator<NbtElement> listIterator = list.listIterator();
+
+			return new AbstractIterator<>() {
+				@Override
 				protected @Nullable T computeNext() {
 					while (listIterator.hasNext()) {
-						int i = listIterator.nextIndex();
-						NbtElement nbtElement = listIterator.next();
-						switch (NbtTypedListReadView.this.typeCodec.parse(
-								NbtTypedListReadView.this.context.getOps(),
-								nbtElement
-						)) {
+						int index = listIterator.nextIndex();
+						NbtElement element = listIterator.next();
+
+						switch (typeCodec.parse(context.getOps(), element)) {
 							case Success<T> success:
 								return (T) success.value();
 							case Error<T> error:
-								NbtTypedListReadView.this.reportDecodeAtIndexError(i, nbtElement, error);
-								if (!error.partialValue().isPresent()) {
-									break;
+								reportDecodeAtIndexError(index, element, error);
+								Optional<T> partial = error.partialValue();
+
+								if (partial.isPresent()) {
+									return partial.get();
 								}
 
-								return (T) error.partialValue().get();
+								break;
 							default:
 								throw new MatchException(null, null);
 						}
 					}
 
-					return (T) this.endOfData();
+					return (T) endOfData();
 				}
 			};
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Записи об ошибках
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Ошибка декодирования элемента списка по индексу.
+	 *
+	 * @param name    имя поля-списка
+	 * @param index   индекс элемента в списке
+	 * @param element NBT-элемент, который не удалось декодировать
+	 * @param error   результат ошибки от DFU
+	 */
+	public record DecodeAtIndexError(
+			String name,
+			int index,
+			NbtElement element,
+			Error<?> error
+	) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to decode value '"
+					+ element
+					+ "' from field '"
+					+ name
+					+ "' at index "
+					+ index
+					+ "': "
+					+ error.message();
+		}
+	}
+
+	/**
+	 * Ошибка декодирования значения поля через {@link Codec}.
+	 *
+	 * @param name    имя поля
+	 * @param element NBT-элемент, который не удалось декодировать
+	 * @param error   результат ошибки от DFU
+	 */
+	public record DecodeError(
+			String name,
+			NbtElement element,
+			Error<?> error
+	) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to decode value '"
+					+ element
+					+ "' from field '"
+					+ name
+					+ "': "
+					+ error.message();
+		}
+	}
+
+	/**
+	 * Ошибка декодирования через {@link MapCodec} из плоской карты полей.
+	 *
+	 * @param error результат ошибки от DFU
+	 */
+	public record DecodeMapError(Error<?> error) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to decode from map: " + error.message();
+		}
+	}
+
+	/**
+	 * Ошибка: поле содержит не числовой NBT-тип, хотя ожидалось число.
+	 *
+	 * @param name   имя поля
+	 * @param actual фактический NBT-тип поля
+	 */
+	public record ExpectedNumberError(String name, NbtType<?> actual) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Expected field '"
+					+ name
+					+ "' to contain number, but got "
+					+ actual.getCrashReportName();
+		}
+	}
+
+	/**
+	 * Ошибка: элемент списка по индексу имеет неожиданный NBT-тип.
+	 *
+	 * @param name     имя поля-списка
+	 * @param index    индекс элемента
+	 * @param expected ожидаемый NBT-тип
+	 * @param actual   фактический NBT-тип
+	 */
+	public record ExpectedTypeAtIndexError(
+			String name,
+			int index,
+			NbtType<?> expected,
+			NbtType<?> actual
+	) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Expected list '"
+					+ name
+					+ "' to contain at index "
+					+ index
+					+ " value of type "
+					+ expected.getCrashReportName()
+					+ ", but got "
+					+ actual.getCrashReportName();
+		}
+	}
+
+	/**
+	 * Ошибка: поле содержит NBT-элемент неожиданного типа.
+	 *
+	 * @param name     имя поля
+	 * @param expected ожидаемый NBT-тип
+	 * @param actual   фактический NBT-тип
+	 */
+	public record ExpectedTypeError(
+			String name,
+			NbtType<?> expected,
+			NbtType<?> actual
+	) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Expected field '"
+					+ name
+					+ "' to contain value of type "
+					+ expected.getCrashReportName()
+					+ ", but got "
+					+ actual.getCrashReportName();
 		}
 	}
 }

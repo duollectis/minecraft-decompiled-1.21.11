@@ -18,35 +18,35 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * {@code NbtIo}.
+ * Утилитарный класс для чтения и записи NBT-данных в бинарном формате.
+ * <p>
+ * Поддерживает как сжатый (GZIP), так и несжатый формат, а также
+ * потоковое сканирование через {@link NbtScanner} без полной десериализации.
  */
 public class NbtIo {
 
 	private static final OpenOption[] OPEN_OPTIONS = new OpenOption[]{
-			StandardOpenOption.SYNC,
-			StandardOpenOption.WRITE,
-			StandardOpenOption.CREATE,
-			StandardOpenOption.TRUNCATE_EXISTING
+		StandardOpenOption.SYNC,
+		StandardOpenOption.WRITE,
+		StandardOpenOption.CREATE,
+		StandardOpenOption.TRUNCATE_EXISTING
 	};
 
 	/**
-	 * Читает compressed.
+	 * Читает сжатый (GZIP) NBT-компаунд из файла.
 	 *
-	 * @param path path
-	 * @param tagSizeTracker tag size tracker
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param path           путь к файлу
+	 * @param tagSizeTracker трекер размера для защиты от переполнения
+	 * @return прочитанный {@link NbtCompound}
+	 * @throws IOException при ошибке чтения или превышении лимита размера
 	 */
 	public static NbtCompound readCompressed(Path path, NbtSizeTracker tagSizeTracker) throws IOException {
-		NbtCompound var4;
 		try (
-				InputStream inputStream = Files.newInputStream(path);
-				InputStream inputStream2 = new FixedBufferInputStream(inputStream);
+			InputStream inputStream = Files.newInputStream(path);
+			InputStream buffered = new FixedBufferInputStream(inputStream)
 		) {
-			var4 = readCompressed(inputStream2, tagSizeTracker);
+			return readCompressed(buffered, tagSizeTracker);
 		}
-
-		return var4;
 	}
 
 	private static DataInputStream decompress(InputStream stream) throws IOException {
@@ -58,35 +58,33 @@ public class NbtIo {
 	}
 
 	/**
-	 * Читает compressed.
+	 * Читает сжатый (GZIP) NBT-компаунд из потока.
 	 *
-	 * @param stream stream
-	 * @param tagSizeTracker tag size tracker
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param stream         входной поток
+	 * @param tagSizeTracker трекер размера
+	 * @return прочитанный {@link NbtCompound}
+	 * @throws IOException при ошибке чтения
 	 */
 	public static NbtCompound readCompressed(InputStream stream, NbtSizeTracker tagSizeTracker) throws IOException {
-		NbtCompound var3;
 		try (DataInputStream dataInputStream = decompress(stream)) {
-			var3 = readCompound(dataInputStream, tagSizeTracker);
+			return readCompound(dataInputStream, tagSizeTracker);
 		}
-
-		return var3;
 	}
 
 	/**
-	 * Scan compressed.
+	 * Сканирует сжатый (GZIP) NBT из файла через {@link NbtScanner} без полной десериализации.
 	 *
-	 * @param path path
-	 * @param scanner scanner
-	 * @param tracker tracker
+	 * @param path    путь к файлу
+	 * @param scanner сканер для обхода структуры
+	 * @param tracker трекер размера
+	 * @throws IOException при ошибке чтения
 	 */
 	public static void scanCompressed(Path path, NbtScanner scanner, NbtSizeTracker tracker) throws IOException {
 		try (
-				InputStream inputStream = Files.newInputStream(path);
-				InputStream inputStream2 = new FixedBufferInputStream(inputStream);
+			InputStream inputStream = Files.newInputStream(path);
+			InputStream buffered = new FixedBufferInputStream(inputStream)
 		) {
-			scanCompressed(inputStream2, scanner, tracker);
+			scanCompressed(buffered, scanner, tracker);
 		}
 	}
 
@@ -98,25 +96,28 @@ public class NbtIo {
 	}
 
 	/**
-	 * Записывает compressed.
+	 * Записывает NBT-компаунд в файл в сжатом (GZIP) формате.
+	 * Использует {@link StandardOpenOption#SYNC} для гарантии записи на диск.
 	 *
-	 * @param nbt nbt
-	 * @param path path
+	 * @param nbt  компаунд для записи
+	 * @param path путь к файлу
+	 * @throws IOException при ошибке записи
 	 */
 	public static void writeCompressed(NbtCompound nbt, Path path) throws IOException {
 		try (
-				OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
-				OutputStream outputStream2 = new BufferedOutputStream(outputStream);
+			OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
+			OutputStream buffered = new BufferedOutputStream(outputStream)
 		) {
-			writeCompressed(nbt, outputStream2);
+			writeCompressed(nbt, buffered);
 		}
 	}
 
 	/**
-	 * Записывает compressed.
+	 * Записывает NBT-компаунд в поток в сжатом (GZIP) формате.
 	 *
-	 * @param nbt nbt
-	 * @param stream stream
+	 * @param nbt    компаунд для записи
+	 * @param stream выходной поток
+	 * @throws IOException при ошибке записи
 	 */
 	public static void writeCompressed(NbtCompound nbt, OutputStream stream) throws IOException {
 		try (DataOutputStream dataOutputStream = compress(stream)) {
@@ -125,198 +126,207 @@ public class NbtIo {
 	}
 
 	/**
-	 * Write.
+	 * Записывает NBT-компаунд в файл в несжатом формате.
 	 *
-	 * @param nbt nbt
-	 * @param path path
+	 * @param nbt  компаунд для записи
+	 * @param path путь к файлу
+	 * @throws IOException при ошибке записи
 	 */
 	public static void write(NbtCompound nbt, Path path) throws IOException {
 		try (
-				OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
-				OutputStream outputStream2 = new BufferedOutputStream(outputStream);
-				DataOutputStream dataOutputStream = new DataOutputStream(outputStream2);
+			OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
+			OutputStream buffered = new BufferedOutputStream(outputStream);
+			DataOutputStream dataOutputStream = new DataOutputStream(buffered)
 		) {
 			writeCompound(nbt, dataOutputStream);
 		}
 	}
 
 	/**
-	 * Read.
+	 * Читает NBT-компаунд из файла в несжатом формате.
+	 * Возвращает {@code null}, если файл не существует.
 	 *
-	 * @param path path
-	 *
-	 * @return @Nullable NbtCompound — результат операции
+	 * @param path путь к файлу
+	 * @return прочитанный {@link NbtCompound} или {@code null}
+	 * @throws IOException при ошибке чтения
 	 */
 	public static @Nullable NbtCompound read(Path path) throws IOException {
 		if (!Files.exists(path)) {
 			return null;
 		}
-		else {
-			NbtCompound var3;
-			try (
-					InputStream inputStream = Files.newInputStream(path);
-					DataInputStream dataInputStream = new DataInputStream(inputStream);
-			) {
-				var3 = readCompound(dataInputStream, NbtSizeTracker.ofUnlimitedBytes());
-			}
 
-			return var3;
+		try (
+			InputStream inputStream = Files.newInputStream(path);
+			DataInputStream dataInputStream = new DataInputStream(inputStream)
+		) {
+			return readCompound(dataInputStream, NbtSizeTracker.ofUnlimitedBytes());
 		}
 	}
 
 	/**
-	 * Читает compound.
+	 * Читает NBT-компаунд из потока без ограничений по размеру.
 	 *
-	 * @param input input
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param input входной поток данных
+	 * @return прочитанный {@link NbtCompound}
+	 * @throws IOException при ошибке чтения или если корневой тег не является компаундом
 	 */
 	public static NbtCompound readCompound(DataInput input) throws IOException {
 		return readCompound(input, NbtSizeTracker.ofUnlimitedBytes());
 	}
 
 	/**
-	 * Читает compound.
+	 * Читает NBT-компаунд из потока с проверкой ограничений по размеру.
 	 *
-	 * @param input input
-	 * @param tracker tracker
-	 *
-	 * @return NbtCompound — результат операции
+	 * @param input   входной поток данных
+	 * @param tracker трекер размера
+	 * @return прочитанный {@link NbtCompound}
+	 * @throws IOException при ошибке чтения или если корневой тег не является компаундом
 	 */
 	public static NbtCompound readCompound(DataInput input, NbtSizeTracker tracker) throws IOException {
-		NbtElement nbtElement = readElement(input, tracker);
-		if (nbtElement instanceof NbtCompound) {
-			return (NbtCompound) nbtElement;
+		NbtElement element = readElement(input, tracker);
+		if (element instanceof NbtCompound compound) {
+			return compound;
 		}
-		else {
-			throw new IOException("Root tag must be a named compound tag");
-		}
+
+		throw new IOException("Root tag must be a named compound tag");
 	}
 
 	/**
-	 * Записывает compound.
+	 * Записывает NBT-компаунд в поток данных.
 	 *
-	 * @param nbt nbt
-	 * @param output output
+	 * @param nbt    компаунд для записи
+	 * @param output выходной поток данных
+	 * @throws IOException при ошибке записи
 	 */
 	public static void writeCompound(NbtCompound nbt, DataOutput output) throws IOException {
 		write(nbt, output);
 	}
 
 	/**
-	 * Scan.
+	 * Сканирует NBT-данные из потока через {@link NbtScanner} без полной десериализации.
+	 * Позволяет выборочно читать поля без создания промежуточных объектов.
 	 *
-	 * @param input input
-	 * @param scanner scanner
-	 * @param tracker tracker
+	 * @param input   входной поток данных
+	 * @param scanner сканер для обхода структуры
+	 * @param tracker трекер размера
+	 * @throws IOException при ошибке чтения
 	 */
 	public static void scan(DataInput input, NbtScanner scanner, NbtSizeTracker tracker) throws IOException {
 		NbtType<?> nbtType = NbtTypes.byId(input.readByte());
+
 		if (nbtType == NbtEnd.TYPE) {
 			if (scanner.start(NbtEnd.TYPE) == NbtScanner.Result.CONTINUE) {
 				scanner.visitEnd();
 			}
+			return;
 		}
-		else {
-			switch (scanner.start(nbtType)) {
-				case HALT:
-				default:
-					break;
-				case BREAK:
-					NbtString.skip(input);
-					nbtType.skip(input, tracker);
-					break;
-				case CONTINUE:
-					NbtString.skip(input);
-					nbtType.doAccept(input, scanner, tracker);
-			}
+
+		switch (scanner.start(nbtType)) {
+			case HALT:
+			default:
+				break;
+			case BREAK:
+				NbtString.skip(input);
+				nbtType.skip(input, tracker);
+				break;
+			case CONTINUE:
+				NbtString.skip(input);
+				nbtType.doAccept(input, scanner, tracker);
 		}
 	}
 
 	/**
-	 * Read.
+	 * Читает один NBT-элемент из потока (с заголовком типа и именем).
 	 *
-	 * @param input input
-	 * @param tracker tracker
-	 *
-	 * @return NbtElement — результат операции
+	 * @param input   входной поток данных
+	 * @param tracker трекер размера
+	 * @return прочитанный элемент
+	 * @throws IOException при ошибке чтения
 	 */
 	public static NbtElement read(DataInput input, NbtSizeTracker tracker) throws IOException {
-		byte b = input.readByte();
-		return (NbtElement) (b == 0 ? NbtEnd.INSTANCE : readElement(input, tracker, b));
+		byte typeId = input.readByte();
+		return typeId == NbtElement.END_TYPE ? NbtEnd.INSTANCE : readElement(input, tracker, typeId);
 	}
 
 	/**
-	 * Записывает for packet.
+	 * Записывает NBT-элемент в поток с заголовком типа и пустым именем.
+	 * Используется для записи в сетевые пакеты.
 	 *
-	 * @param nbt nbt
-	 * @param output output
+	 * @param nbt    элемент для записи
+	 * @param output выходной поток данных
+	 * @throws IOException при ошибке записи
 	 */
 	public static void writeForPacket(NbtElement nbt, DataOutput output) throws IOException {
 		output.writeByte(nbt.getType());
-		if (nbt.getType() != 0) {
+		if (nbt.getType() != NbtElement.END_TYPE) {
 			nbt.write(output);
 		}
 	}
 
 	/**
-	 * Записывает unsafe.
+	 * Записывает NBT-элемент в поток с заголовком типа и пустой строкой имени.
+	 * Используется для небезопасной записи (без валидации UTF).
 	 *
-	 * @param nbt nbt
-	 * @param output output
+	 * @param nbt    элемент для записи
+	 * @param output выходной поток данных
+	 * @throws IOException при ошибке записи
 	 */
 	public static void writeUnsafe(NbtElement nbt, DataOutput output) throws IOException {
 		output.writeByte(nbt.getType());
-		if (nbt.getType() != 0) {
+		if (nbt.getType() != NbtElement.END_TYPE) {
 			output.writeUTF("");
 			nbt.write(output);
 		}
 	}
 
 	/**
-	 * Write.
+	 * Записывает NBT-элемент через {@link InvalidUtfSkippingDataOutput},
+	 * который молча заменяет некорректные UTF-строки на пустые.
 	 *
-	 * @param nbt nbt
-	 * @param output output
+	 * @param nbt    элемент для записи
+	 * @param output выходной поток данных
+	 * @throws IOException при ошибке записи
 	 */
 	public static void write(NbtElement nbt, DataOutput output) throws IOException {
 		writeUnsafe(nbt, new NbtIo.InvalidUtfSkippingDataOutput(output));
 	}
 
-	@VisibleForTesting
 	/**
-	 * Читает element.
+	 * Читает NBT-элемент из потока, пропуская заголовок имени.
+	 * Если тип равен {@code TAG_End}, возвращает {@link NbtEnd#INSTANCE}.
 	 *
-	 * @param input input
-	 * @param tracker tracker
-	 *
-	 * @return NbtElement — результат операции
+	 * @param input   входной поток данных
+	 * @param tracker трекер размера
+	 * @return прочитанный элемент
+	 * @throws IOException при ошибке чтения
 	 */
+	@VisibleForTesting
 	public static NbtElement readElement(DataInput input, NbtSizeTracker tracker) throws IOException {
-		byte b = input.readByte();
-		if (b == 0) {
+		byte typeId = input.readByte();
+		if (typeId == NbtElement.END_TYPE) {
 			return NbtEnd.INSTANCE;
 		}
-		else {
-			NbtString.skip(input);
-			return readElement(input, tracker, b);
-		}
+
+		NbtString.skip(input);
+		return readElement(input, tracker, typeId);
 	}
 
 	private static NbtElement readElement(DataInput input, NbtSizeTracker tracker, byte typeId) {
 		try {
 			return NbtTypes.byId(typeId).read(input, tracker);
 		}
-		catch (IOException var6) {
-			CrashReport crashReport = CrashReport.create(var6, "Loading NBT data");
-			CrashReportSection crashReportSection = crashReport.addElement("NBT Tag");
-			crashReportSection.add("Tag type", typeId);
+		catch (IOException exception) {
+			CrashReport crashReport = CrashReport.create(exception, "Loading NBT data");
+			CrashReportSection section = crashReport.addElement("NBT Tag");
+			section.add("Tag type", typeId);
 			throw new NbtCrashException(crashReport);
 		}
 	}
 
 	/**
-	 * {@code InvalidUtfSkippingDataOutput}.
+	 * Обёртка над {@link DataOutput}, которая при ошибке записи некорректной UTF-строки
+	 * логирует проблему и записывает пустую строку вместо исходной.
+	 * Предотвращает падение сервера из-за повреждённых строковых данных в NBT.
 	 */
 	public static class InvalidUtfSkippingDataOutput extends DelegatingDataOutput {
 
@@ -329,8 +339,8 @@ public class NbtIo {
 			try {
 				super.writeUTF(string);
 			}
-			catch (UTFDataFormatException var3) {
-				Util.logErrorOrPause("Failed to write NBT String", var3);
+			catch (UTFDataFormatException exception) {
+				Util.logErrorOrPause("Failed to write NBT String", exception);
 				super.writeUTF("");
 			}
 		}

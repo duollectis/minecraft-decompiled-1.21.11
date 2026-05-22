@@ -4,7 +4,9 @@ import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.play.*;
 
 /**
- * Интерфейс client play packet listener.
+ * Слушатель клиентских пакетов фазы {@link net.minecraft.network.NetworkPhase#PLAY}.
+ * Содержит обработчики для всех игровых пакетов: сущности, мир, инвентарь, чат,
+ * звуки, частицы, граница мира, таблицы очков и прочее.
  */
 public interface ClientPlayPacketListener extends ClientCommonPacketListener, ClientPingResultPacketListener {
 

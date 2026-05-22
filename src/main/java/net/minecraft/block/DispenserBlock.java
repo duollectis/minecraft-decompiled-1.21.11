@@ -40,7 +40,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * {@code DispenserBlock}.
+ * Диспенсер — блок, выбрасывающий предметы при получении сигнала редстоуна.
+ * Поведение выброса зависит от типа предмета и регистрируется через {@link #BEHAVIORS}.
  */
 public class DispenserBlock extends BlockWithEntity {
 
@@ -57,88 +58,68 @@ public class DispenserBlock extends BlockWithEntity {
 		return CODEC;
 	}
 
-	/**
-	 * Регистрирует behavior.
-	 *
-	 * @param provider provider
-	 * @param behavior behavior
-	 */
 	public static void registerBehavior(ItemConvertible provider, DispenserBehavior behavior) {
 		BEHAVIORS.put(provider.asItem(), behavior);
 	}
 
-	/**
-	 * Регистрирует projectile behavior.
-	 *
-	 * @param projectile projectile
-	 */
 	public static void registerProjectileBehavior(ItemConvertible projectile) {
 		BEHAVIORS.put(projectile.asItem(), new ProjectileDispenserBehavior(projectile.asItem()));
 	}
 
 	public DispenserBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(TRIGGERED, false));
+		setDefaultState(stateManager.getDefaultState().with(FACING, Direction.NORTH).with(TRIGGERED, false));
 	}
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient() && world.getBlockEntity(pos) instanceof DispenserBlockEntity dispenserBlockEntity) {
-			player.openHandledScreen(dispenserBlockEntity);
-			player.incrementStat(dispenserBlockEntity instanceof DropperBlockEntity ? Stats.INSPECT_DROPPER
-			                                                                        : Stats.INSPECT_DISPENSER);
+		if (world.isClient() == false && world.getBlockEntity(pos) instanceof DispenserBlockEntity dispenser) {
+			player.openHandledScreen(dispenser);
+			player.incrementStat(dispenser instanceof DropperBlockEntity ? Stats.INSPECT_DROPPER : Stats.INSPECT_DISPENSER);
 		}
 
 		return ActionResult.SUCCESS;
 	}
 
-	/**
-	 * Dispense.
-	 *
-	 * @param world world
-	 * @param state state
-	 * @param pos pos
-	 */
 	protected void dispense(ServerWorld world, BlockState state, BlockPos pos) {
-		DispenserBlockEntity dispenserBlockEntity = world.getBlockEntity(pos, BlockEntityType.DISPENSER).orElse(null);
-		if (dispenserBlockEntity == null) {
+		DispenserBlockEntity dispenser = world.getBlockEntity(pos, BlockEntityType.DISPENSER).orElse(null);
+
+		if (dispenser == null) {
 			LOGGER.warn("Ignoring dispensing attempt for Dispenser without matching block entity at {}", pos);
+			return;
 		}
-		else {
-			BlockPointer blockPointer = new BlockPointer(world, pos, state, dispenserBlockEntity);
-			int i = dispenserBlockEntity.chooseNonEmptySlot(world.random);
-			if (i < 0) {
-				world.syncWorldEvent(1001, pos, 0);
-				world.emitGameEvent(
-						GameEvent.BLOCK_ACTIVATE,
-						pos,
-						GameEvent.Emitter.of(dispenserBlockEntity.getCachedState())
-				);
-			}
-			else {
-				ItemStack itemStack = dispenserBlockEntity.getStack(i);
-				DispenserBehavior dispenserBehavior = this.getBehaviorForItem(world, itemStack);
-				if (dispenserBehavior != DispenserBehavior.NOOP) {
-					dispenserBlockEntity.setStack(i, dispenserBehavior.dispense(blockPointer, itemStack));
-				}
-			}
+
+		BlockPointer pointer = new BlockPointer(world, pos, state, dispenser);
+		int slot = dispenser.chooseNonEmptySlot(world.random);
+
+		if (slot < 0) {
+			world.syncWorldEvent(1001, pos, 0);
+			world.emitGameEvent(GameEvent.BLOCK_ACTIVATE, pos, GameEvent.Emitter.of(dispenser.getCachedState()));
+			return;
+		}
+
+		ItemStack stack = dispenser.getStack(slot);
+		DispenserBehavior behavior = getBehaviorForItem(world, stack);
+
+		if (behavior != DispenserBehavior.NOOP) {
+			dispenser.setStack(slot, behavior.dispense(pointer, stack));
 		}
 	}
 
 	protected DispenserBehavior getBehaviorForItem(World world, ItemStack stack) {
-		if (!stack.isItemEnabled(world.getEnabledFeatures())) {
+		if (stack.isItemEnabled(world.getEnabledFeatures()) == false) {
 			return DEFAULT_BEHAVIOR;
 		}
-		else {
-			DispenserBehavior dispenserBehavior = BEHAVIORS.get(stack.getItem());
-			return dispenserBehavior != null ? dispenserBehavior : getBehaviorForItem(stack);
-		}
+
+		DispenserBehavior registered = BEHAVIORS.get(stack.getItem());
+
+		return registered != null ? registered : getBehaviorForItem(stack);
 	}
 
 	private static DispenserBehavior getBehaviorForItem(ItemStack stack) {
-		return (DispenserBehavior) (stack.contains(DataComponentTypes.EQUIPPABLE) ? EquippableDispenserBehavior.INSTANCE
-		                                                                          : DEFAULT_BEHAVIOR
-		);
+		return stack.contains(DataComponentTypes.EQUIPPABLE)
+			? EquippableDispenserBehavior.INSTANCE
+			: DEFAULT_BEHAVIOR;
 	}
 
 	@Override
@@ -150,20 +131,20 @@ public class DispenserBlock extends BlockWithEntity {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		boolean bl = world.isReceivingRedstonePower(pos) || world.isReceivingRedstonePower(pos.up());
-		boolean bl2 = state.get(TRIGGERED);
-		if (bl && !bl2) {
-			world.scheduleBlockTick(pos, this, 4);
-			world.setBlockState(pos, state.with(TRIGGERED, true), 2);
-		}
-		else if (!bl && bl2) {
-			world.setBlockState(pos, state.with(TRIGGERED, false), 2);
+		boolean powered = world.isReceivingRedstonePower(pos) || world.isReceivingRedstonePower(pos.up());
+		boolean wasTriggered = state.get(TRIGGERED);
+
+		if (powered && wasTriggered == false) {
+			world.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
+			world.setBlockState(pos, state.with(TRIGGERED, true), Block.NOTIFY_LISTENERS);
+		} else if (powered == false && wasTriggered) {
+			world.setBlockState(pos, state.with(TRIGGERED, false), Block.NOTIFY_LISTENERS);
 		}
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		this.dispense(world, state, pos);
+		dispense(world, state, pos);
 	}
 
 	@Override
@@ -173,7 +154,7 @@ public class DispenserBlock extends BlockWithEntity {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return this.getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
+		return getDefaultState().with(FACING, ctx.getPlayerLookDirection().getOpposite());
 	}
 
 	@Override

@@ -7,7 +7,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Set;
 
 /**
- * {@code PlayerChunkWatchingManager}.
+ * Класс Player Chunk Watching Manager.
  */
 public final class PlayerChunkWatchingManager {
 

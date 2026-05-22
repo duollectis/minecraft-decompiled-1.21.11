@@ -9,7 +9,9 @@ import net.minecraft.world.chunk.ChunkProvider;
 import net.minecraft.world.chunk.ChunkToNibbleArrayMap;
 
 /**
- * {@code BlockLightStorage}.
+ * Хранилище данных блочного освещения.
+ * Управляет массивами nibble-данных для каждой секции чанка,
+ * возвращая уровень блочного света для заданной позиции блока.
  */
 public class BlockLightStorage extends LightStorage<BlockLightStorage.Data> {
 
@@ -19,24 +21,25 @@ public class BlockLightStorage extends LightStorage<BlockLightStorage.Data> {
 
 	@Override
 	protected int getLight(long blockPos) {
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		ChunkNibbleArray chunkNibbleArray = this.getLightSection(l, false);
-		return chunkNibbleArray == null
-		       ? 0
-		       : chunkNibbleArray.get(
-				       ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
-				       ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
-				       ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos))
-		       );
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+		ChunkNibbleArray section = getLightSection(sectionPos, false);
+
+		return section == null
+				? 0
+				: section.get(
+						ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
+						ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
+						ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos))
+				);
 	}
 
 	/**
-	 * {@code Data}.
+	 * Данные блочного освещения — карта секций к nibble-массивам.
 	 */
 	protected static final class Data extends ChunkToNibbleArrayMap<BlockLightStorage.Data> {
 
-		public Data(Long2ObjectOpenHashMap<ChunkNibbleArray> long2ObjectOpenHashMap) {
-			super(long2ObjectOpenHashMap);
+		public Data(Long2ObjectOpenHashMap<ChunkNibbleArray> arrays) {
+			super(arrays);
 		}
 
 		public BlockLightStorage.Data copy() {

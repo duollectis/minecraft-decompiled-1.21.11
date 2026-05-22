@@ -77,7 +77,7 @@ public class SkyRendering implements AutoCloseable {
 		this.moonPhaseVertexBuffer = createMoonPhases(this.celestialAtlasTexture);
 		this.sunRiseVertexBuffer = this.createSunRise();
 
-		try (BufferAllocator bufferAllocator = BufferAllocator.fixedSized(10 * VertexFormats.POSITION.getVertexSize())
+		try (BufferAllocator bufferAllocator = BufferAllocator.fixedSized(SKY_DISC_VERTEX_COUNT * VertexFormats.POSITION.getVertexSize())
 		) {
 			BufferBuilder
 					bufferBuilder =
@@ -125,7 +125,7 @@ public class SkyRendering implements AutoCloseable {
 			int l = ColorHelper.getWhite(0.0F);
 			bufferBuilder.vertex(0.0F, 100.0F, 0.0F).color(k);
 
-			for (int m = 0; m <= 16; m++) {
+			for (int m = 0; m <= SUNRISE_SEGMENT_COUNT; m++) {
 				float f = m * (float) (Math.PI * 2) / 16.0F;
 				float g = MathHelper.sin(f);
 				float h = MathHelper.cos(f);
@@ -199,13 +199,13 @@ public class SkyRendering implements AutoCloseable {
 
 		GpuBuffer var19;
 		try (BufferAllocator bufferAllocator = BufferAllocator.fixedSized(
-				VertexFormats.POSITION.getVertexSize() * 1500 * 4)
+				VertexFormats.POSITION.getVertexSize() * STAR_COUNT * 4)
 		) {
 			BufferBuilder
 					bufferBuilder =
 					new BufferBuilder(bufferAllocator, VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
 
-			for (int i = 0; i < 1500; i++) {
+			for (int i = 0; i < STAR_COUNT; i++) {
 				float g = random.nextFloat() * 2.0F - 1.0F;
 				float h = random.nextFloat() * 2.0F - 1.0F;
 				float j = random.nextFloat() * 2.0F - 1.0F;
@@ -236,14 +236,14 @@ public class SkyRendering implements AutoCloseable {
 	}
 
 	private void createSky(VertexConsumer vertexConsumer, float height) {
-		float f = Math.signum(height) * 512.0F;
+		float f = Math.signum(height) * SKY_DISC_RADIUS;
 		vertexConsumer.vertex(0.0F, height, 0.0F);
 
 		for (int i = -180; i <= 180; i += 45) {
 			vertexConsumer.vertex(
 					f * MathHelper.cos(i * (float) (Math.PI / 180.0)),
 					height,
-					512.0F * MathHelper.sin(i * (float) (Math.PI / 180.0))
+					SKY_DISC_RADIUS * MathHelper.sin(i * (float) (Math.PI / 180.0))
 			);
 		}
 	}
@@ -327,7 +327,7 @@ public class SkyRendering implements AutoCloseable {
 			RenderSystem.bindDefaultUniforms(renderPass);
 			renderPass.setUniform("DynamicTransforms", gpuBufferSlice);
 			renderPass.setVertexBuffer(0, this.topSkyVertexBuffer);
-			renderPass.draw(0, 10);
+			renderPass.draw(0, SKY_DISC_VERTEX_COUNT);
 		}
 	}
 
@@ -419,7 +419,7 @@ public class SkyRendering implements AutoCloseable {
 			RenderSystem.bindDefaultUniforms(renderPass);
 			renderPass.setUniform("DynamicTransforms", gpuBufferSlice);
 			renderPass.setVertexBuffer(0, this.bottomSkyVertexBuffer);
-			renderPass.draw(0, 10);
+			renderPass.draw(0, SKY_DISC_VERTEX_COUNT);
 		}
 
 		matrix4fStack.popMatrix();
@@ -459,7 +459,7 @@ public class SkyRendering implements AutoCloseable {
 		matrix4fStack.pushMatrix();
 		matrix4fStack.mul(matrices.peek().getPositionMatrix());
 		matrix4fStack.translate(0.0F, 100.0F, 0.0F);
-		matrix4fStack.scale(30.0F, 1.0F, 30.0F);
+		matrix4fStack.scale(SUN_SCALE, 1.0F, SUN_SCALE);
 		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
 		                                            .write(
 				                                            matrix4fStack,
@@ -503,7 +503,7 @@ public class SkyRendering implements AutoCloseable {
 		matrix4fStack.pushMatrix();
 		matrix4fStack.mul(matrices.peek().getPositionMatrix());
 		matrix4fStack.translate(0.0F, 100.0F, 0.0F);
-		matrix4fStack.scale(20.0F, 1.0F, 20.0F);
+		matrix4fStack.scale(MOON_SCALE, 1.0F, MOON_SCALE);
 		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
 		                                            .write(
 				                                            matrix4fStack,
@@ -684,7 +684,7 @@ public class SkyRendering implements AutoCloseable {
 		matrix4fStack.pushMatrix();
 		matrix4fStack.mul(matrices.peek().getPositionMatrix());
 		matrix4fStack.translate(0.0F, 100.0F, 0.0F);
-		matrix4fStack.scale(60.0F, 1.0F, 60.0F);
+		matrix4fStack.scale(END_FLASH_SCALE, 1.0F, END_FLASH_SCALE);
 		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
 		                                            .write(
 				                                            matrix4fStack,

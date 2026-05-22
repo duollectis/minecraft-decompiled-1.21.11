@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code SetBlockCommand}.
+ * Команда {@code /setblock}: установка блока в указанной позиции.
  */
 public class SetBlockCommand {
 
@@ -194,10 +194,7 @@ public class SetBlockCommand {
 		}
 	}
 
-	/**
-	 * {@code Mode}.
-	 */
-	public static enum Mode {
+	public enum Mode {
 		REPLACE,
 		DESTROY;
 	}

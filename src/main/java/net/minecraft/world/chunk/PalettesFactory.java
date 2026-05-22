@@ -12,47 +12,43 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 
 /**
- * {@code PalettesFactory}.
+ * Фабрика палитризованных контейнеров для блок-стейтов и биомов.
+ * Создаётся один раз при инициализации мира и переиспользуется для всех секций.
  */
 public record PalettesFactory(
-		PaletteProvider<BlockState> blockStatesStrategy,
-		BlockState defaultBlockState,
-		Codec<PalettedContainer<BlockState>> blockStatesContainerCodec,
-		PaletteProvider<RegistryEntry<Biome>> biomeStrategy,
-		RegistryEntry<Biome> defaultBiome,
-		Codec<ReadableContainer<RegistryEntry<Biome>>> biomeContainerCodec
+	PaletteProvider<BlockState> blockStatesStrategy,
+	BlockState defaultBlockState,
+	Codec<PalettedContainer<BlockState>> blockStatesContainerCodec,
+	PaletteProvider<RegistryEntry<Biome>> biomeStrategy,
+	RegistryEntry<Biome> defaultBiome,
+	Codec<ReadableContainer<RegistryEntry<Biome>>> biomeContainerCodec
 ) {
 
 	/**
-	 * From registry manager.
-	 *
-	 * @param registryManager registry manager
-	 *
-	 * @return PalettesFactory — результат операции
+	 * Создаёт фабрику на основе динамического реестра.
+	 * Дефолтный блок — воздух, дефолтный биом — равнины.
 	 */
 	public static PalettesFactory fromRegistryManager(DynamicRegistryManager registryManager) {
-		PaletteProvider<BlockState> paletteProvider = PaletteProvider.forBlockStates(Block.STATE_IDS);
-		BlockState blockState = Blocks.AIR.getDefaultState();
-		Registry<Biome> registry = registryManager.getOrThrow(RegistryKeys.BIOME);
-		PaletteProvider<RegistryEntry<Biome>>
-				paletteProvider2 =
-				PaletteProvider.forBiomes(registry.getIndexedEntries());
-		RegistryEntry.Reference<Biome> reference = registry.getOrThrow(BiomeKeys.PLAINS);
+		PaletteProvider<BlockState> blockStatesProvider = PaletteProvider.forBlockStates(Block.STATE_IDS);
+		BlockState defaultBlock = Blocks.AIR.getDefaultState();
+		Registry<Biome> biomeRegistry = registryManager.getOrThrow(RegistryKeys.BIOME);
+		PaletteProvider<RegistryEntry<Biome>> biomeProvider = PaletteProvider.forBiomes(biomeRegistry.getIndexedEntries());
+		RegistryEntry.Reference<Biome> plainsEntry = biomeRegistry.getOrThrow(BiomeKeys.PLAINS);
 		return new PalettesFactory(
-				paletteProvider,
-				blockState,
-				PalettedContainer.createPalettedContainerCodec(BlockState.CODEC, paletteProvider, blockState),
-				paletteProvider2,
-				reference,
-				PalettedContainer.createReadableContainerCodec(registry.getEntryCodec(), paletteProvider2, reference)
+			blockStatesProvider,
+			defaultBlock,
+			PalettedContainer.createPalettedContainerCodec(BlockState.CODEC, blockStatesProvider, defaultBlock),
+			biomeProvider,
+			plainsEntry,
+			PalettedContainer.createReadableContainerCodec(biomeRegistry.getEntryCodec(), biomeProvider, plainsEntry)
 		);
 	}
 
 	public PalettedContainer<BlockState> getBlockStateContainer() {
-		return new PalettedContainer<>(this.defaultBlockState, this.blockStatesStrategy);
+		return new PalettedContainer<>(defaultBlockState, blockStatesStrategy);
 	}
 
 	public PalettedContainer<RegistryEntry<Biome>> getBiomeContainer() {
-		return new PalettedContainer<>(this.defaultBiome, this.biomeStrategy);
+		return new PalettedContainer<>(defaultBiome, biomeStrategy);
 	}
 }

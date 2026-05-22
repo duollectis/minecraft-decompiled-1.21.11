@@ -29,7 +29,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code IllusionerEntity}.
+ * Иллюзионист — иллагер дальнего боя с луком. Накладывает на себя невидимость
+ * и создаёт 4 зеркальные копии. При атаке ослепляет цель на нормальной и сложной
+ * сложности. Копии плавно смещаются при получении урона или каждые 1200 тиков.
  */
 public class IllusionerEntity extends SpellcastingIllagerEntity implements RangedAttackMob {
 
@@ -41,37 +43,37 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 
 	public IllusionerEntity(EntityType<? extends IllusionerEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 5;
-		this.mirrorCopyOffsets = new Vec3d[2][4];
+		experiencePoints = 5;
+		mirrorCopyOffsets = new Vec3d[2][MIRROR_COPY_COUNT];
 
-		for (int i = 0; i < 4; i++) {
-			this.mirrorCopyOffsets[0][i] = Vec3d.ZERO;
-			this.mirrorCopyOffsets[1][i] = Vec3d.ZERO;
+		for (int copyIndex = 0; copyIndex < MIRROR_COPY_COUNT; copyIndex++) {
+			mirrorCopyOffsets[0][copyIndex] = Vec3d.ZERO;
+			mirrorCopyOffsets[1][copyIndex] = Vec3d.ZERO;
 		}
 	}
 
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new SpellcastingIllagerEntity.LookAtTargetGoal());
-		this.goalSelector.add(3, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
-		this.goalSelector.add(4, new IllusionerEntity.GiveInvisibilityGoal());
-		this.goalSelector.add(5, new IllusionerEntity.BlindTargetGoal());
-		this.goalSelector.add(6, new BowAttackGoal<>(this, 0.5, 20, 15.0F));
-		this.goalSelector.add(8, new WanderAroundGoal(this, 0.6));
-		this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
-		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
-		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-		this.targetSelector.add(
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new SpellcastingIllagerEntity.LookAtTargetGoal());
+		goalSelector.add(3, new FleeEntityGoal<>(this, CreakingEntity.class, 8.0F, 1.0, 1.2));
+		goalSelector.add(4, new IllusionerEntity.GiveInvisibilityGoal());
+		goalSelector.add(5, new IllusionerEntity.BlindTargetGoal());
+		goalSelector.add(6, new BowAttackGoal<>(this, 0.5, 20, 15.0F));
+		goalSelector.add(8, new WanderAroundGoal(this, 0.6));
+		goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
+		goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+		targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		targetSelector.add(
 				2,
 				new ActiveTargetGoal<>(this, PlayerEntity.class, true).setMaxTimeWithoutVisibility(300)
 		);
-		this.targetSelector.add(
+		targetSelector.add(
 				3,
 				new ActiveTargetGoal<>(this, MerchantEntity.class, false).setMaxTimeWithoutVisibility(300)
 		);
-		this.targetSelector.add(
+		targetSelector.add(
 				3,
 				new ActiveTargetGoal<>(this, IronGolemEntity.class, false).setMaxTimeWithoutVisibility(300)
 		);
@@ -91,66 +93,56 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+		equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (this.getEntityWorld().isClient() && this.isInvisible()) {
-			this.mirrorSpellTimer--;
-			if (this.mirrorSpellTimer < 0) {
-				this.mirrorSpellTimer = 0;
+		if (!getEntityWorld().isClient() || !isInvisible()) {
+			return;
+		}
+
+		mirrorSpellTimer--;
+		if (mirrorSpellTimer < 0) {
+			mirrorSpellTimer = 0;
+		}
+
+		if (hurtTime == 1 || age % 1200 == 0) {
+			mirrorSpellTimer = MIRROR_SPELL_TIMER_DURATION;
+
+			for (int copyIndex = 0; copyIndex < MIRROR_COPY_COUNT; copyIndex++) {
+				mirrorCopyOffsets[0][copyIndex] = mirrorCopyOffsets[1][copyIndex];
+				mirrorCopyOffsets[1][copyIndex] = new Vec3d(
+						(-6.0F + random.nextInt(13)) * 0.5,
+						Math.max(0, random.nextInt(6) - 4),
+						(-6.0F + random.nextInt(13)) * 0.5
+				);
 			}
 
-			if (this.hurtTime == 1 || this.age % 1200 == 0) {
-				this.mirrorSpellTimer = 3;
-				float f = -6.0F;
-				int i = 13;
-
-				for (int j = 0; j < 4; j++) {
-					this.mirrorCopyOffsets[0][j] = this.mirrorCopyOffsets[1][j];
-					this.mirrorCopyOffsets[1][j] = new Vec3d(
-							(-6.0F + this.random.nextInt(13)) * 0.5,
-							Math.max(0, this.random.nextInt(6) - 4),
-							(-6.0F + this.random.nextInt(13)) * 0.5
-					);
-				}
-
-				for (int j = 0; j < 16; j++) {
-					this
-							.getEntityWorld()
-							.addParticleClient(
-									ParticleTypes.CLOUD,
-									this.getParticleX(0.5),
-									this.getRandomBodyY(),
-									this.getBodyZ(0.5),
-									0.0,
-									0.0,
-									0.0
-							);
-				}
-
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE,
-						    this.getSoundCategory(),
-						    1.0F,
-						    1.0F,
-						    false
-				    );
+			for (int particleIndex = 0; particleIndex < 16; particleIndex++) {
+				getEntityWorld().addParticleClient(
+						ParticleTypes.CLOUD,
+						getParticleX(0.5),
+						getRandomBodyY(),
+						getBodyZ(0.5),
+						0.0, 0.0, 0.0
+				);
 			}
-			else if (this.hurtTime == this.maxHurtTime - 1) {
-				this.mirrorSpellTimer = 3;
 
-				for (int k = 0; k < 4; k++) {
-					this.mirrorCopyOffsets[0][k] = this.mirrorCopyOffsets[1][k];
-					this.mirrorCopyOffsets[1][k] = new Vec3d(0.0, 0.0, 0.0);
-				}
+			getEntityWorld().playSoundClient(
+					getX(), getY(), getZ(),
+					SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE,
+					getSoundCategory(),
+					1.0F, 1.0F, false
+			);
+		} else if (hurtTime == maxHurtTime - 1) {
+			mirrorSpellTimer = MIRROR_SPELL_TIMER_DURATION;
+
+			for (int copyIndex = 0; copyIndex < MIRROR_COPY_COUNT; copyIndex++) {
+				mirrorCopyOffsets[0][copyIndex] = mirrorCopyOffsets[1][copyIndex];
+				mirrorCopyOffsets[1][copyIndex] = Vec3d.ZERO;
 			}
 		}
 	}
@@ -161,21 +153,20 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 	}
 
 	public Vec3d[] getMirrorCopyOffsets(float tickProgress) {
-		if (this.mirrorSpellTimer <= 0) {
-			return this.mirrorCopyOffsets[1];
+		if (mirrorSpellTimer <= 0) {
+			return mirrorCopyOffsets[1];
 		}
-		else {
-			double d = (this.mirrorSpellTimer - tickProgress) / 3.0F;
-			d = Math.pow(d, 0.25);
-			Vec3d[] vec3ds = new Vec3d[4];
 
-			for (int i = 0; i < 4; i++) {
-				vec3ds[i] =
-						this.mirrorCopyOffsets[1][i].multiply(1.0 - d).add(this.mirrorCopyOffsets[0][i].multiply(d));
-			}
+		double blend = Math.pow((mirrorSpellTimer - tickProgress) / MIRROR_SPELL_DURATION, 0.25);
+		Vec3d[] result = new Vec3d[MIRROR_COPY_COUNT];
 
-			return vec3ds;
+		for (int copyIndex = 0; copyIndex < MIRROR_COPY_COUNT; copyIndex++) {
+			result[copyIndex] = mirrorCopyOffsets[1][copyIndex]
+					.multiply(1.0 - blend)
+					.add(mirrorCopyOffsets[0][copyIndex].multiply(blend));
 		}
+
+		return result;
 	}
 
 	@Override
@@ -204,44 +195,39 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 
 	@Override
 	public void shootAt(LivingEntity target, float pullProgress) {
-		ItemStack itemStack = this.getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
-		ItemStack itemStack2 = this.getProjectileType(itemStack);
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				ProjectileUtil.createArrowProjectile(this, itemStack2, pullProgress, itemStack);
-		double d = target.getX() - this.getX();
-		double e = target.getBodyY(0.3333333333333333) - persistentProjectileEntity.getY();
-		double f = target.getZ() - this.getZ();
-		double g = Math.sqrt(d * d + f * f);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+		ItemStack bowStack = getStackInHand(ProjectileUtil.getHandPossiblyHolding(this, Items.BOW));
+		ItemStack arrowStack = getProjectileType(bowStack);
+		PersistentProjectileEntity arrow = ProjectileUtil.createArrowProjectile(this, arrowStack, pullProgress, bowStack);
+		double dx = target.getX() - getX();
+		double dy = target.getBodyY(0.3333333333333333) - arrow.getY();
+		double dz = target.getZ() - getZ();
+		double horizDist = Math.sqrt(dx * dx + dz * dz);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
 			ProjectileEntity.spawnWithVelocity(
-					persistentProjectileEntity,
+					arrow,
 					serverWorld,
-					itemStack2,
-					d,
-					e + g * 0.2F,
-					f,
+					arrowStack,
+					dx,
+					dy + horizDist * 0.2F,
+					dz,
 					1.6F,
 					14 - serverWorld.getDifficulty().getId() * 4
 			);
 		}
 
-		this.playSound(SoundEvents.ENTITY_SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+		playSound(SoundEvents.ENTITY_SKELETON_SHOOT, 1.0F, 1.0F / (getRandom().nextFloat() * 0.4F + 0.8F));
 	}
 
 	@Override
 	public IllagerEntity.State getState() {
-		if (this.isSpellcasting()) {
+		if (isSpellcasting()) {
 			return IllagerEntity.State.SPELLCASTING;
 		}
-		else {
-			return this.isAttacking() ? IllagerEntity.State.BOW_AND_ARROW : IllagerEntity.State.CROSSED;
-		}
+
+		return isAttacking() ? IllagerEntity.State.BOW_AND_ARROW : IllagerEntity.State.CROSSED;
 	}
 
-	/**
-	 * {@code BlindTargetGoal}.
-	 */
 	class BlindTargetGoal extends SpellcastingIllagerEntity.CastSpellGoal {
 
 		private int targetId;
@@ -251,16 +237,18 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 			if (!super.canStart()) {
 				return false;
 			}
-			else if (IllusionerEntity.this.getTarget() == null) {
+
+			if (IllusionerEntity.this.getTarget() == null) {
 				return false;
 			}
-			else {
-				return IllusionerEntity.this.getTarget().getId() == this.targetId
-				       ? false
-				       : getServerWorld(IllusionerEntity.this)
-				         .getLocalDifficulty(IllusionerEntity.this.getBlockPos())
-				         .isHarderThan(Difficulty.NORMAL.ordinal());
+
+			if (IllusionerEntity.this.getTarget().getId() == targetId) {
+				return false;
 			}
+
+			return getServerWorld(IllusionerEntity.this)
+					.getLocalDifficulty(IllusionerEntity.this.getBlockPos())
+					.isHarderThan(Difficulty.NORMAL.ordinal());
 		}
 
 		@Override
@@ -300,14 +288,15 @@ public class IllusionerEntity extends SpellcastingIllagerEntity implements Range
 		}
 	}
 
-	/**
-	 * {@code GiveInvisibilityGoal}.
-	 */
 	class GiveInvisibilityGoal extends SpellcastingIllagerEntity.CastSpellGoal {
 
 		@Override
 		public boolean canStart() {
-			return !super.canStart() ? false : !IllusionerEntity.this.hasStatusEffect(StatusEffects.INVISIBILITY);
+			if (!super.canStart()) {
+				return false;
+			}
+
+			return !IllusionerEntity.this.hasStatusEffect(StatusEffects.INVISIBILITY);
 		}
 
 		@Override

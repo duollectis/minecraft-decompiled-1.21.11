@@ -7,14 +7,22 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TrialSpawnerDetectionParticle}.
+ * Частица обнаружения пробного спаунера (Trial Spawner Detection).
+ * Поднимается вверх с анимированным спрайтом; размер нарастает в первые тики
+ * через clamp-функцию, создавая эффект «появления» частицы.
  */
+@Environment(EnvType.CLIENT)
 public class TrialSpawnerDetectionParticle extends BillboardParticle {
 
+	private static final int BASE_LIFETIME = 8;
+	private static final float FULL_BRIGHTNESS = 240;
+	private static final float VELOCITY_MULTIPLIER = 0.96F;
+	private static final float GRAVITY_STRENGTH = -0.1F;
+	private static final float SCALE_FACTOR = 0.75F;
+	private static final float SIZE_RAMP_TICKS = 32.0F;
+
 	private final SpriteProvider spriteProvider;
-	private static final int PARTICLE_LIFETIME = 8;
 
 	protected TrialSpawnerDetectionParticle(
 			ClientWorld world,
@@ -29,8 +37,8 @@ public class TrialSpawnerDetectionParticle extends BillboardParticle {
 	) {
 		super(world, x, y, z, 0.0, 0.0, 0.0, spriteProvider.getFirst());
 		this.spriteProvider = spriteProvider;
-		this.velocityMultiplier = 0.96F;
-		this.gravityStrength = -0.1F;
+		this.velocityMultiplier = VELOCITY_MULTIPLIER;
+		this.gravityStrength = GRAVITY_STRENGTH;
 		this.ascending = true;
 		this.velocityX *= 0.0;
 		this.velocityY *= 0.9;
@@ -38,9 +46,8 @@ public class TrialSpawnerDetectionParticle extends BillboardParticle {
 		this.velocityX += velocityX;
 		this.velocityY += velocityY;
 		this.velocityZ += velocityZ;
-		this.scale *= 0.75F * scale;
-		this.maxAge = (int) (8.0F / MathHelper.nextBetween(this.random, 0.5F, 1.0F) * scale);
-		this.maxAge = Math.max(this.maxAge, 1);
+		this.scale *= SCALE_FACTOR * scale;
+		this.maxAge = Math.max((int) (BASE_LIFETIME / MathHelper.nextBetween(random, 0.5F, 1.0F) * scale), 1);
 		this.updateSprite(spriteProvider);
 		this.collidesWithWorld = true;
 	}
@@ -52,7 +59,7 @@ public class TrialSpawnerDetectionParticle extends BillboardParticle {
 
 	@Override
 	public int getBrightness(float tint) {
-		return 240;
+		return (int) FULL_BRIGHTNESS;
 	}
 
 	@Override
@@ -63,19 +70,18 @@ public class TrialSpawnerDetectionParticle extends BillboardParticle {
 	@Override
 	public void tick() {
 		super.tick();
-		this.updateSprite(this.spriteProvider);
+		this.updateSprite(spriteProvider);
 	}
 
 	@Override
 	public float getSize(float tickProgress) {
-		return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * 32.0F, 0.0F, 1.0F);
+		return scale * MathHelper.clamp((age + tickProgress) / maxAge * SIZE_RAMP_TICKS, 0.0F, 1.0F);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
+
+		private static final float DEFAULT_SCALE = 1.5F;
 
 		private final SpriteProvider spriteProvider;
 
@@ -83,18 +89,29 @@ public class TrialSpawnerDetectionParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new TrialSpawnerDetectionParticle(clientWorld, d, e, f, g, h, i, 1.5F, this.spriteProvider);
+			return new TrialSpawnerDetectionParticle(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ,
+					DEFAULT_SCALE,
+					spriteProvider
+			);
 		}
 	}
 }

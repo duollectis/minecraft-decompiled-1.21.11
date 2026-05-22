@@ -7,7 +7,8 @@ import net.minecraft.sound.SoundEvents;
 import java.util.Map;
 
 /**
- * {@code ArmorMaterials}.
+ * Стандартные материалы брони, определяющие прочность, защиту, зачарованность
+ * и звук экипировки для каждого типа снаряжения в игре.
  */
 public interface ArmorMaterials {
 

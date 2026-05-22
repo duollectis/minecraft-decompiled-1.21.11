@@ -14,7 +14,8 @@ import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
 /**
- * {@code EggItem}.
+ * Предмет «Яйцо». При использовании бросает снаряд {@link EggEntity}.
+ * Может случайно заспавнить цыплёнка при попадании.
  */
 public class EggItem extends Item implements ProjectileItem {
 
@@ -26,7 +27,8 @@ public class EggItem extends Item implements ProjectileItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		world.playSound(
 				null,
 				user.getX(),
@@ -37,12 +39,14 @@ public class EggItem extends Item implements ProjectileItem {
 				0.5F,
 				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
 		);
+
 		if (world instanceof ServerWorld serverWorld) {
-			ProjectileEntity.spawnWithVelocity(EggEntity::new, serverWorld, itemStack, user, 0.0F, 1.5F, 1.0F);
+			ProjectileEntity.spawnWithVelocity(EggEntity::new, serverWorld, stack, user, 0.0F, POWER, 1.0F);
 		}
 
 		user.incrementStat(Stats.USED.getOrCreateStat(this));
-		itemStack.decrementUnlessCreative(1, user);
+		stack.decrementUnlessCreative(1, user);
+
 		return ActionResult.SUCCESS;
 	}
 

@@ -35,7 +35,8 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * {@code FenceGateBlock}.
+ * Блок калитки (ворот) для заборов. Поддерживает открытие/закрытие игроком и редстоун-сигналом,
+ * а также автоматически опускается при установке рядом со стеной (IN_WALL).
  */
 public class FenceGateBlock extends HorizontalFacingBlock {
 
@@ -128,12 +129,9 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 					random
 			);
 		}
-		else {
-			boolean
-					bl =
-					this.isWall(neighborState) || this.isWall(world.getBlockState(pos.offset(direction.getOpposite())));
-			return state.with(IN_WALL, bl);
-		}
+
+		boolean inWall = isWall(neighborState) || isWall(world.getBlockState(pos.offset(direction.getOpposite())));
+		return state.with(IN_WALL, inWall);
 	}
 
 	@Override
@@ -156,34 +154,28 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 
 	@Override
 	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-		switch (type) {
-			case LAND:
-				return state.get(OPEN);
-			case WATER:
-				return false;
-			case AIR:
-				return state.get(OPEN);
-			default:
-				return false;
-		}
+		return switch (type) {
+			case LAND, AIR -> state.get(OPEN);
+			case WATER -> false;
+		};
 	}
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		World world = ctx.getWorld();
-		BlockPos blockPos = ctx.getBlockPos();
-		boolean bl = world.isReceivingRedstonePower(blockPos);
+		BlockPos pos = ctx.getBlockPos();
+		boolean powered = world.isReceivingRedstonePower(pos);
 		Direction direction = ctx.getHorizontalPlayerFacing();
 		Direction.Axis axis = direction.getAxis();
-		boolean
-				bl2 =
-				axis == Direction.Axis.Z && (this.isWall(world.getBlockState(blockPos.west()))
-						|| this.isWall(world.getBlockState(blockPos.east()))
-				)
-						|| axis == Direction.Axis.X && (this.isWall(world.getBlockState(blockPos.north()))
-						|| this.isWall(world.getBlockState(blockPos.south()))
-				);
-		return this.getDefaultState().with(FACING, direction).with(OPEN, bl).with(POWERED, bl).with(IN_WALL, bl2);
+		boolean inWall = axis == Direction.Axis.Z
+				&& (isWall(world.getBlockState(pos.west())) || isWall(world.getBlockState(pos.east())))
+				|| axis == Direction.Axis.X
+				&& (isWall(world.getBlockState(pos.north())) || isWall(world.getBlockState(pos.south())));
+		return getDefaultState()
+				.with(FACING, direction)
+				.with(OPEN, powered)
+				.with(POWERED, powered)
+				.with(IN_WALL, inWall);
 	}
 
 	private boolean isWall(BlockState state) {
@@ -194,28 +186,27 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		if (state.get(OPEN)) {
 			state = state.with(OPEN, false);
-			world.setBlockState(pos, state, 10);
-		}
-		else {
+		} else {
 			Direction direction = player.getHorizontalFacing();
 			if (state.get(FACING) == direction.getOpposite()) {
 				state = state.with(FACING, direction);
 			}
 
 			state = state.with(OPEN, true);
-			world.setBlockState(pos, state, 10);
 		}
 
-		boolean bl = state.get(OPEN);
+		world.setBlockState(pos, state, 10);
+
+		boolean open = state.get(OPEN);
 		world.playSound(
 				player,
 				pos,
-				bl ? this.type.fenceGateOpen() : this.type.fenceGateClose(),
+				open ? type.fenceGateOpen() : type.fenceGateClose(),
 				SoundCategory.BLOCKS,
 				1.0F,
 				world.getRandom().nextFloat() * 0.1F + 0.9F
 		);
-		world.emitGameEvent(player, bl ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
+		world.emitGameEvent(player, open ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
 		return ActionResult.SUCCESS;
 	}
 
@@ -227,18 +218,18 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 			Explosion explosion,
 			BiConsumer<ItemStack, BlockPos> stackMerger
 	) {
-		if (explosion.canTriggerBlocks() && !state.get(POWERED)) {
-			boolean bl = state.get(OPEN);
-			world.setBlockState(pos, state.with(OPEN, !bl));
+		if (explosion.canTriggerBlocks() && state.get(POWERED) == false) {
+			boolean open = state.get(OPEN);
+			world.setBlockState(pos, state.with(OPEN, open == false));
 			world.playSound(
 					null,
 					pos,
-					bl ? this.type.fenceGateClose() : this.type.fenceGateOpen(),
+					open ? type.fenceGateClose() : type.fenceGateOpen(),
 					SoundCategory.BLOCKS,
 					1.0F,
 					world.getRandom().nextFloat() * 0.1F + 0.9F
 			);
-			world.emitGameEvent(bl ? GameEvent.BLOCK_CLOSE : GameEvent.BLOCK_OPEN, pos, GameEvent.Emitter.of(state));
+			world.emitGameEvent(open ? GameEvent.BLOCK_CLOSE : GameEvent.BLOCK_OPEN, pos, GameEvent.Emitter.of(state));
 		}
 
 		super.onExploded(state, world, pos, explosion, stackMerger);
@@ -253,22 +244,27 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		if (!world.isClient()) {
-			boolean bl = world.isReceivingRedstonePower(pos);
-			if (state.get(POWERED) != bl) {
-				world.setBlockState(pos, state.with(POWERED, bl).with(OPEN, bl), 2);
-				if (state.get(OPEN) != bl) {
-					world.playSound(
-							null,
-							pos,
-							bl ? this.type.fenceGateOpen() : this.type.fenceGateClose(),
-							SoundCategory.BLOCKS,
-							1.0F,
-							world.getRandom().nextFloat() * 0.1F + 0.9F
-					);
-					world.emitGameEvent(null, bl ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
-				}
-			}
+		if (world.isClient()) {
+			return;
+		}
+
+		boolean powered = world.isReceivingRedstonePower(pos);
+		if (state.get(POWERED) == powered) {
+			return;
+		}
+
+		world.setBlockState(pos, state.with(POWERED, powered).with(OPEN, powered), Block.NOTIFY_LISTENERS);
+
+		if (state.get(OPEN) != powered) {
+			world.playSound(
+					null,
+					pos,
+					powered ? type.fenceGateOpen() : type.fenceGateClose(),
+					SoundCategory.BLOCKS,
+					1.0F,
+					world.getRandom().nextFloat() * 0.1F + 0.9F
+			);
+			world.emitGameEvent(null, powered ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, pos);
 		}
 	}
 
@@ -277,14 +273,6 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 		builder.add(FACING, OPEN, POWERED, IN_WALL);
 	}
 
-	/**
-	 * Проверяет возможность wall connect.
-	 *
-	 * @param state state
-	 * @param side side
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canWallConnect(BlockState state, Direction side) {
 		return state.get(FACING).getAxis() == side.rotateYClockwise().getAxis();
 	}

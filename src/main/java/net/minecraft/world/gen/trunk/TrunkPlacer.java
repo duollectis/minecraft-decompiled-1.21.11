@@ -21,7 +21,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * {@code TrunkPlacer}.
+ * Абстрактный базовый класс для алгоритмов размещения ствола дерева.
+ * Определяет общую логику вычисления высоты ствола, установки блоков земли под деревом
+ * и размещения блоков бревна с учётом возможности замены существующих блоков.
  */
 public abstract class TrunkPlacer {
 
@@ -35,18 +37,11 @@ public abstract class TrunkPlacer {
 	protected final int firstRandomHeight;
 	protected final int secondRandomHeight;
 
-	/**
-	 * Fill trunk placer fields.
-	 *
-	 * @param instance instance
-	 *
-	 * @return P3, Integer, Integer, Integer> — результат операции
-	 */
 	protected static <P extends TrunkPlacer> P3<Mu<P>, Integer, Integer, Integer> fillTrunkPlacerFields(Instance<P> instance) {
 		return instance.group(
-				Codec.intRange(0, 32).fieldOf("base_height").forGetter(placer -> placer.baseHeight),
-				Codec.intRange(0, 24).fieldOf("height_rand_a").forGetter(placer -> placer.firstRandomHeight),
-				Codec.intRange(0, 24).fieldOf("height_rand_b").forGetter(placer -> placer.secondRandomHeight)
+				Codec.intRange(0, MAX_BASE_HEIGHT).fieldOf("base_height").forGetter(placer -> placer.baseHeight),
+				Codec.intRange(0, MAX_RANDOM_HEIGHT).fieldOf("height_rand_a").forGetter(placer -> placer.firstRandomHeight),
+				Codec.intRange(0, MAX_RANDOM_HEIGHT).fieldOf("height_rand_b").forGetter(placer -> placer.secondRandomHeight)
 		);
 	}
 
@@ -68,8 +63,7 @@ public abstract class TrunkPlacer {
 	);
 
 	public int getHeight(Random random) {
-		return this.baseHeight + random.nextInt(this.firstRandomHeight + 1) + random.nextInt(
-				this.secondRandomHeight + 1);
+		return baseHeight + random.nextInt(firstRandomHeight + 1) + random.nextInt(secondRandomHeight + 1);
 	}
 
 	private static boolean canGenerate(TestableWorld world, BlockPos pos) {
@@ -98,7 +92,7 @@ public abstract class TrunkPlacer {
 			BlockPos pos,
 			TreeFeatureConfig config
 	) {
-		return this.getAndSetState(world, replacer, random, pos, config, Function.identity());
+		return getAndSetState(world, replacer, random, pos, config, Function.identity());
 	}
 
 	protected boolean getAndSetState(
@@ -109,13 +103,12 @@ public abstract class TrunkPlacer {
 			TreeFeatureConfig config,
 			Function<BlockState, BlockState> function
 	) {
-		if (this.canReplace(world, pos)) {
-			replacer.accept(pos, function.apply(config.trunkProvider.get(random, pos)));
-			return true;
-		}
-		else {
+		if (!canReplace(world, pos)) {
 			return false;
 		}
+
+		replacer.accept(pos, function.apply(config.trunkProvider.get(random, pos)));
+		return true;
 	}
 
 	protected void trySetState(
@@ -125,32 +118,16 @@ public abstract class TrunkPlacer {
 			BlockPos.Mutable pos,
 			TreeFeatureConfig config
 	) {
-		if (this.canReplaceOrIsLog(world, pos)) {
-			this.getAndSetState(world, replacer, random, pos, config);
+		if (canReplaceOrIsLog(world, pos)) {
+			getAndSetState(world, replacer, random, pos, config);
 		}
 	}
 
-	/**
-	 * Проверяет возможность replace.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canReplace(TestableWorld world, BlockPos pos) {
 		return TreeFeature.canReplace(world, pos);
 	}
 
-	/**
-	 * Проверяет возможность replace or is log.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canReplaceOrIsLog(TestableWorld world, BlockPos pos) {
-		return this.canReplace(world, pos) || world.testBlockState(pos, state -> state.isIn(BlockTags.LOGS));
+		return canReplace(world, pos) || world.testBlockState(pos, state -> state.isIn(BlockTags.LOGS));
 	}
 }

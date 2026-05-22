@@ -3,25 +3,28 @@ package net.minecraft.block.enums;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code PistonType}.
+ * Тип поршня: обычный или липкий.
+ * Определяет, будет ли поршень тянуть блоки обратно при втягивании.
  */
 public enum PistonType implements StringIdentifiable {
+	/** Обычный поршень — только толкает блоки, не тянет. */
 	DEFAULT("normal"),
+	/** Липкий поршень — толкает и тянет блоки обратно при втягивании. */
 	STICKY("sticky");
 
 	private final String name;
 
-	private PistonType(final String name) {
+	PistonType(final String name) {
 		this.name = name;
 	}
 
 	@Override
 	public String toString() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

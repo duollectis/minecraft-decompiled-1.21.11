@@ -42,7 +42,9 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TurtleEntity}.
+ * Черепаха — земноводное животное, откладывающее яйца на домашнем пляже.
+ * Беременные самки ищут домашний пляж для кладки. Детёныши при взрослении
+ * роняют щиток черепахи.
  */
 public class TurtleEntity extends AnimalEntity {
 
@@ -58,7 +60,7 @@ public class TurtleEntity extends AnimalEntity {
 			.withAttachments(EntityAttachments
 					.builder()
 					.add(EntityAttachmentType.PASSENGER, 0.0F, EntityType.TURTLE.getHeight(), -0.25F))
-			.scaled(0.3F);
+			.scaled(BABY_SCALE);
 	private static final boolean DEFAULT_HAS_EGG = false;
 	int sandDiggingCounter;
 	public static final TargetPredicate.EntityPredicate
@@ -217,7 +219,7 @@ public class TurtleEntity extends AnimalEntity {
 
 	@Override
 	public float getScaleFactor() {
-		return this.isBaby() ? 0.3F : 1.0F;
+		return this.isBaby() ? BABY_SCALE : 1.0F;
 	}
 
 	@Override
@@ -304,8 +306,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code GoHomeGoal}.
-	 */
+ * Задача черепахи: идти к домашнему пляжу.
+ */
 	static class GoHomeGoal extends Goal {
 
 		private final TurtleEntity turtle;
@@ -351,7 +353,7 @@ public class TurtleEntity extends AnimalEntity {
 		@Override
 		public boolean shouldContinue() {
 			return !this.turtle.homePos.isWithinDistance(this.turtle.getEntityPos(), 7.0) && !this.noPath
-					&& this.homeReachingTryTicks <= this.getTickCount(600);
+					&& this.homeReachingTryTicks <= this.getTickCount(MAX_TRY_TICKS);
 		}
 
 		@Override
@@ -387,8 +389,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code LayEggGoal}.
-	 */
+ * Задача черепахи: откладывать яйца на пляже.
+ */
 	static class LayEggGoal extends MoveToTargetPosGoal {
 
 		private final TurtleEntity turtle;
@@ -425,7 +427,7 @@ public class TurtleEntity extends AnimalEntity {
 							blockPos,
 							SoundEvents.ENTITY_TURTLE_LAY_EGG,
 							SoundCategory.BLOCKS,
-							0.3F,
+							BABY_SCALE,
 							0.9F + world.random.nextFloat() * 0.2F
 					);
 					BlockPos blockPos2 = this.targetPos.up();
@@ -458,8 +460,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code MateGoal}.
-	 */
+ * Задача черепахи: идти к воде.
+ */
 	static class MateGoal extends AnimalMateGoal {
 
 		private final TurtleEntity turtle;
@@ -505,8 +507,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code TravelGoal}.
-	 */
+ * Задача черепахи: плыть к берегу.
+ */
 	static class TravelGoal extends Goal {
 
 		private final TurtleEntity turtle;
@@ -586,8 +588,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code TurtleEscapeDangerGoal}.
-	 */
+ * Задача черепахи: случайное плавание.
+ */
 	static class TurtleEscapeDangerGoal extends EscapeDangerGoal {
 
 		TurtleEscapeDangerGoal(TurtleEntity turtle, double speed) {
@@ -615,8 +617,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code TurtleMoveControl}.
-	 */
+ * Задача черепахи: случайное блуждание по суше.
+ */
 	static class TurtleMoveControl extends MoveControl {
 
 		private final TurtleEntity turtle;
@@ -672,8 +674,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code TurtleSwimNavigation}.
-	 */
+ * Задача черепахи: спариваться с другой черепахой.
+ */
 	static class TurtleSwimNavigation extends AmphibiousSwimNavigation {
 
 		TurtleSwimNavigation(TurtleEntity owner, World world) {
@@ -689,8 +691,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code WanderInWaterGoal}.
-	 */
+ * Задача черепахи: искать партнёра для спаривания.
+ */
 	static class WanderInWaterGoal extends MoveToTargetPosGoal {
 
 		private static final int MAX_WANDER_TRYING_TIME = 1200;
@@ -704,7 +706,7 @@ public class TurtleEntity extends AnimalEntity {
 
 		@Override
 		public boolean shouldContinue() {
-			return !this.turtle.isTouchingWater() && this.tryingTime <= 1200
+			return !this.turtle.isTouchingWater() && this.tryingTime <= MAX_WANDER_TRYING_TIME
 					&& this.isTargetPos(this.turtle.getEntityWorld(), this.targetPos);
 		}
 
@@ -731,8 +733,8 @@ public class TurtleEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code WanderOnLandGoal}.
-	 */
+ * Задача черепахи: убегать от хищников.
+ */
 	static class WanderOnLandGoal extends WanderAroundGoal {
 
 		private final TurtleEntity turtle;

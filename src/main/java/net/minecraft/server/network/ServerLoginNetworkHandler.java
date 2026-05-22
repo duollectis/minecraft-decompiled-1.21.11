@@ -48,7 +48,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code ServerLoginNetworkHandler}.
+ * Класс Server Login Network Handler.
  */
 public class ServerLoginNetworkHandler implements ServerLoginPacketListener, TickablePacketListener {
 
@@ -85,7 +85,7 @@ public class ServerLoginNetworkHandler implements ServerLoginPacketListener, Tic
 			this.sendSuccessPacket(this.profile);
 		}
 
-		if (this.loginTicks++ == 600) {
+		if (this.loginTicks++ == TIMEOUT_TICKS) {
 			this.disconnect(Text.translatable("multiplayer.disconnect.slow_login"));
 		}
 	}
@@ -322,9 +322,6 @@ public class ServerLoginNetworkHandler implements ServerLoginPacketListener, Tic
 		this.disconnect(ServerCommonNetworkHandler.UNEXPECTED_QUERY_RESPONSE_TEXT);
 	}
 
-	/**
-	 * {@code State}.
-	 */
 	static enum State {
 		HELLO,
 		KEY,

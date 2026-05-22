@@ -20,58 +20,73 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * {@code FeatureUpdater}.
+ * Мигрирует устаревшие данные структур (до версии 1493) в новый формат.
+ * <p>
+ * До версии 1493 данные о стартовых позициях структур хранились в отдельных
+ * файлах {@code .dat} (например, {@code Village.dat}). Этот класс читает
+ * эти файлы при первом обращении и встраивает данные непосредственно в NBT
+ * каждого чанка в секции {@code Level.Structures}.
  */
 public class FeatureUpdater implements ChunkUpdater {
 
 	public static final int TARGET_DATA_VERSION = 1493;
+
+	/** Радиус поиска соседних чанков при восстановлении ссылок на структуры. */
+	private static final int STRUCTURE_SEARCH_RADIUS = 8;
+
 	private static final Map<String, String> OLD_TO_NEW = Util.make(
-			Maps.newHashMap(), map -> {
-				map.put("Village", "Village");
-				map.put("Mineshaft", "Mineshaft");
-				map.put("Mansion", "Mansion");
-				map.put("Igloo", "Temple");
-				map.put("Desert_Pyramid", "Temple");
-				map.put("Jungle_Pyramid", "Temple");
-				map.put("Swamp_Hut", "Temple");
-				map.put("Stronghold", "Stronghold");
-				map.put("Monument", "Monument");
-				map.put("Fortress", "Fortress");
-				map.put("EndCity", "EndCity");
-			}
+		Maps.newHashMap(), map -> {
+			map.put("Village", "Village");
+			map.put("Mineshaft", "Mineshaft");
+			map.put("Mansion", "Mansion");
+			map.put("Igloo", "Temple");
+			map.put("Desert_Pyramid", "Temple");
+			map.put("Jungle_Pyramid", "Temple");
+			map.put("Swamp_Hut", "Temple");
+			map.put("Stronghold", "Stronghold");
+			map.put("Monument", "Monument");
+			map.put("Fortress", "Fortress");
+			map.put("EndCity", "EndCity");
+		}
 	);
+
 	private static final Map<String, String> ANCIENT_TO_OLD = Util.make(
-			Maps.newHashMap(), map -> {
-				map.put("Iglu", "Igloo");
-				map.put("TeDP", "Desert_Pyramid");
-				map.put("TeJP", "Jungle_Pyramid");
-				map.put("TeSH", "Swamp_Hut");
-			}
+		Maps.newHashMap(), map -> {
+			map.put("Iglu", "Igloo");
+			map.put("TeDP", "Desert_Pyramid");
+			map.put("TeJP", "Jungle_Pyramid");
+			map.put("TeSH", "Swamp_Hut");
+		}
 	);
-	private static final Set<String> NEW_STRUCTURE_NAMES = Set.of(
-			"pillager_outpost",
-			"mineshaft",
-			"mansion",
-			"jungle_pyramid",
-			"desert_pyramid",
-			"igloo",
-			"ruined_portal",
-			"shipwreck",
-			"swamp_hut",
-			"stronghold",
-			"monument",
-			"ocean_ruin",
-			"fortress",
-			"endcity",
-			"buried_treasure",
-			"village",
-			"nether_fossil",
-			"bastion_remnant"
+
+	private static final java.util.Set<String> NEW_STRUCTURE_NAMES = java.util.Set.of(
+		"pillager_outpost",
+		"mineshaft",
+		"mansion",
+		"jungle_pyramid",
+		"desert_pyramid",
+		"igloo",
+		"ruined_portal",
+		"shipwreck",
+		"swamp_hut",
+		"stronghold",
+		"monument",
+		"ocean_ruin",
+		"fortress",
+		"endcity",
+		"buried_treasure",
+		"village",
+		"nether_fossil",
+		"bastion_remnant"
 	);
+
 	private final boolean needsUpdate;
 	private final Map<String, Long2ObjectMap<NbtCompound>> featureIdToChunkNbt = Maps.newHashMap();
 	private final Map<String, ChunkUpdateState> updateStates = Maps.newHashMap();
@@ -82,244 +97,278 @@ public class FeatureUpdater implements ChunkUpdater {
 	private boolean initialized;
 
 	public FeatureUpdater(
-			@Nullable PersistentStateManager persistentStateManager,
-			List<String> oldNames,
-			List<String> newNames,
-			DataFixer dataFixer
+		@Nullable PersistentStateManager persistentStateManager,
+		List<String> oldNames,
+		List<String> newNames,
+		DataFixer dataFixer
 	) {
 		this.persistentStateManager = persistentStateManager;
 		this.oldNames = oldNames;
 		this.newNames = newNames;
 		this.dataFixer = dataFixer;
-		boolean bl = false;
 
-		for (String string : this.newNames) {
-			bl |= this.featureIdToChunkNbt.get(string) != null;
+		boolean hasData = false;
+
+		for (String name : newNames) {
+			hasData |= featureIdToChunkNbt.get(name) != null;
 		}
 
-		this.needsUpdate = bl;
+		needsUpdate = hasData;
 	}
 
 	@Override
 	public void markChunkDone(ChunkPos chunkPos) {
-		long l = chunkPos.toLong();
+		long chunkKey = chunkPos.toLong();
 
-		for (String string : this.oldNames) {
-			ChunkUpdateState chunkUpdateState = this.updateStates.get(string);
-			if (chunkUpdateState != null && chunkUpdateState.isRemaining(l)) {
-				chunkUpdateState.markResolved(l);
+		for (String name : oldNames) {
+			ChunkUpdateState state = updateStates.get(name);
+
+			if (state != null && state.isRemaining(chunkKey)) {
+				state.markResolved(chunkKey);
 			}
 		}
 	}
 
 	@Override
 	public int targetDataVersion() {
-		return 1493;
+		return TARGET_DATA_VERSION;
 	}
 
 	@Override
-	public NbtCompound applyFix(NbtCompound nbtCompound) {
-		if (!this.initialized && this.persistentStateManager != null) {
-			this.init(this.persistentStateManager);
+	public NbtCompound applyFix(NbtCompound nbt) {
+		if (!initialized && persistentStateManager != null) {
+			init(persistentStateManager);
 		}
 
-		int i = NbtHelper.getDataVersion(nbtCompound);
-		if (i < 1493) {
-			nbtCompound = DataFixTypes.CHUNK.update(this.dataFixer, nbtCompound, i, 1493);
-			if (nbtCompound
-					.getCompound("Level")
-					.flatMap(levelTag -> levelTag.getBoolean("hasLegacyStructureData"))
-					.orElse(false)) {
-				nbtCompound = this.getUpdatedReferences(nbtCompound);
-			}
+		int dataVersion = NbtHelper.getDataVersion(nbt);
+
+		if (dataVersion >= TARGET_DATA_VERSION) {
+			return nbt;
 		}
 
-		return nbtCompound;
+		nbt = DataFixTypes.CHUNK.update(dataFixer, nbt, dataVersion, TARGET_DATA_VERSION);
+
+		boolean hasLegacyData = nbt
+			.getCompound("Level")
+			.flatMap(levelTag -> levelTag.getBoolean("hasLegacyStructureData"))
+			.orElse(false);
+
+		return hasLegacyData ? getUpdatedReferences(nbt) : nbt;
 	}
 
+	/**
+	 * Восстанавливает ссылки на структуры в секции {@code Level.Structures.References}.
+	 * <p>
+	 * Для каждой новой структуры, у которой ещё нет ссылок, сканирует квадрат
+	 * {@code STRUCTURE_SEARCH_RADIUS × STRUCTURE_SEARCH_RADIUS} соседних чанков
+	 * и добавляет ключи тех, в которых структура действительно начинается.
+	 */
 	private NbtCompound getUpdatedReferences(NbtCompound nbt) {
-		NbtCompound nbtCompound = nbt.getCompoundOrEmpty("Level");
-		ChunkPos chunkPos = new ChunkPos(nbtCompound.getInt("xPos", 0), nbtCompound.getInt("zPos", 0));
-		if (this.needsUpdate(chunkPos.x, chunkPos.z)) {
-			nbt = this.getUpdatedStarts(nbt, chunkPos);
+		NbtCompound levelTag = nbt.getCompoundOrEmpty("Level");
+		ChunkPos chunkPos = new ChunkPos(levelTag.getInt("xPos", 0), levelTag.getInt("zPos", 0));
+
+		if (needsUpdate(chunkPos.x, chunkPos.z)) {
+			nbt = getUpdatedStarts(nbt, chunkPos);
 		}
 
-		NbtCompound nbtCompound2 = nbtCompound.getCompoundOrEmpty("Structures");
-		NbtCompound nbtCompound3 = nbtCompound2.getCompoundOrEmpty("References");
+		NbtCompound structuresTag = levelTag.getCompoundOrEmpty("Structures");
+		NbtCompound referencesTag = structuresTag.getCompoundOrEmpty("References");
 
-		for (String string : this.newNames) {
-			boolean bl = NEW_STRUCTURE_NAMES.contains(string.toLowerCase(Locale.ROOT));
-			if (!nbtCompound3.getLongArray(string).isPresent() && bl) {
-				int i = 8;
-				LongList longList = new LongArrayList();
+		for (String name : newNames) {
+			boolean isKnownStructure = NEW_STRUCTURE_NAMES.contains(name.toLowerCase(Locale.ROOT));
 
-				for (int j = chunkPos.x - 8; j <= chunkPos.x + 8; j++) {
-					for (int k = chunkPos.z - 8; k <= chunkPos.z + 8; k++) {
-						if (this.needsUpdate(j, k, string)) {
-							longList.add(ChunkPos.toLong(j, k));
-						}
+			if (referencesTag.getLongArray(name).isPresent() || !isKnownStructure) {
+				continue;
+			}
+
+			LongList references = new LongArrayList();
+
+			for (int chunkX = chunkPos.x - STRUCTURE_SEARCH_RADIUS; chunkX <= chunkPos.x + STRUCTURE_SEARCH_RADIUS; chunkX++) {
+				for (int chunkZ = chunkPos.z - STRUCTURE_SEARCH_RADIUS; chunkZ <= chunkPos.z + STRUCTURE_SEARCH_RADIUS; chunkZ++) {
+					if (needsUpdate(chunkX, chunkZ, name)) {
+						references.add(ChunkPos.toLong(chunkX, chunkZ));
 					}
 				}
-
-				nbtCompound3.putLongArray(string, longList.toLongArray());
 			}
+
+			referencesTag.putLongArray(name, references.toLongArray());
 		}
 
-		nbtCompound2.put("References", nbtCompound3);
-		nbtCompound.put("Structures", nbtCompound2);
-		nbt.put("Level", nbtCompound);
+		structuresTag.put("References", referencesTag);
+		levelTag.put("Structures", structuresTag);
+		nbt.put("Level", levelTag);
+
 		return nbt;
 	}
 
 	private boolean needsUpdate(int chunkX, int chunkZ, String id) {
-		return !this.needsUpdate
-		       ? false
-		       : this.featureIdToChunkNbt.get(id) != null && this.updateStates
-		                                                     .get(OLD_TO_NEW.get(id))
-		                                                     .contains(ChunkPos.toLong(chunkX, chunkZ));
+		return needsUpdate
+			&& featureIdToChunkNbt.get(id) != null
+			&& updateStates.get(OLD_TO_NEW.get(id)).contains(ChunkPos.toLong(chunkX, chunkZ));
 	}
 
 	private boolean needsUpdate(int chunkX, int chunkZ) {
-		if (!this.needsUpdate) {
+		if (!needsUpdate) {
 			return false;
 		}
-		else {
-			for (String string : this.newNames) {
-				if (this.featureIdToChunkNbt.get(string) != null && this.updateStates
-						.get(OLD_TO_NEW.get(string))
-						.isRemaining(ChunkPos.toLong(chunkX, chunkZ))) {
-					return true;
-				}
-			}
 
-			return false;
+		for (String name : newNames) {
+			if (featureIdToChunkNbt.get(name) != null
+				&& updateStates.get(OLD_TO_NEW.get(name)).isRemaining(ChunkPos.toLong(chunkX, chunkZ))
+			) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	private NbtCompound getUpdatedStarts(NbtCompound nbt, ChunkPos pos) {
-		NbtCompound nbtCompound = nbt.getCompoundOrEmpty("Level");
-		NbtCompound nbtCompound2 = nbtCompound.getCompoundOrEmpty("Structures");
-		NbtCompound nbtCompound3 = nbtCompound2.getCompoundOrEmpty("Starts");
+		NbtCompound levelTag = nbt.getCompoundOrEmpty("Level");
+		NbtCompound structuresTag = levelTag.getCompoundOrEmpty("Structures");
+		NbtCompound startsTag = structuresTag.getCompoundOrEmpty("Starts");
 
-		for (String string : this.newNames) {
-			Long2ObjectMap<NbtCompound> long2ObjectMap = this.featureIdToChunkNbt.get(string);
-			if (long2ObjectMap != null) {
-				long l = pos.toLong();
-				if (this.updateStates.get(OLD_TO_NEW.get(string)).isRemaining(l)) {
-					NbtCompound nbtCompound4 = (NbtCompound) long2ObjectMap.get(l);
-					if (nbtCompound4 != null) {
-						nbtCompound3.put(string, nbtCompound4);
-					}
-				}
+		for (String name : newNames) {
+			Long2ObjectMap<NbtCompound> chunkNbtMap = featureIdToChunkNbt.get(name);
+
+			if (chunkNbtMap == null) {
+				continue;
+			}
+
+			long chunkKey = pos.toLong();
+
+			if (!updateStates.get(OLD_TO_NEW.get(name)).isRemaining(chunkKey)) {
+				continue;
+			}
+
+			NbtCompound startNbt = chunkNbtMap.get(chunkKey);
+
+			if (startNbt != null) {
+				startsTag.put(name, startNbt);
 			}
 		}
 
-		nbtCompound2.put("Starts", nbtCompound3);
-		nbtCompound.put("Structures", nbtCompound2);
-		nbt.put("Level", nbtCompound);
+		structuresTag.put("Starts", startsTag);
+		levelTag.put("Structures", structuresTag);
+		nbt.put("Level", levelTag);
+
 		return nbt;
 	}
 
-	private synchronized void init(PersistentStateManager persistentStateManager) {
-		if (!this.initialized) {
-			for (String string : this.oldNames) {
-				NbtCompound nbtCompound = new NbtCompound();
+	/**
+	 * Лениво инициализирует данные из файлов {@code .dat} при первом вызове {@link #applyFix}.
+	 * <p>
+	 * Синхронизирован, так как {@link #applyFix} может вызываться из нескольких потоков
+	 * во время параллельного обновления чанков.
+	 */
+	private synchronized void init(PersistentStateManager stateManager) {
+		if (initialized) {
+			return;
+		}
 
-				try {
-					nbtCompound =
-							persistentStateManager
-									.readNbt(string, DataFixTypes.SAVED_DATA_STRUCTURE_FEATURE_INDICES, 1493)
-									.getCompoundOrEmpty("data")
-									.getCompoundOrEmpty("Features");
-					if (nbtCompound.isEmpty()) {
-						continue;
-					}
-				}
-				catch (IOException var8) {
-				}
+		for (String name : oldNames) {
+			NbtCompound featuresNbt = new NbtCompound();
 
-				nbtCompound.forEach(
-						(key, nbt) -> {
-							if (nbt instanceof NbtCompound nbtCompoundx) {
-								long
-										l =
-										ChunkPos.toLong(
-												nbtCompoundx.getInt("ChunkX", 0),
-												nbtCompoundx.getInt("ChunkZ", 0)
-										);
-								NbtList nbtList = nbtCompoundx.getListOrEmpty("Children");
-								if (!nbtList.isEmpty()) {
-									Optional<String>
-											optional =
-											nbtList.getCompound(0).flatMap(child -> child.getString("id"));
-									optional.map(ANCIENT_TO_OLD::get).ifPresent(id -> nbtCompoundx.putString("id", id));
-								}
+			try {
+				featuresNbt = stateManager
+					.readNbt(name, DataFixTypes.SAVED_DATA_STRUCTURE_FEATURE_INDICES, TARGET_DATA_VERSION)
+					.getCompoundOrEmpty("data")
+					.getCompoundOrEmpty("Features");
 
-								nbtCompoundx.getString("id")
-								            .ifPresent(id -> this.featureIdToChunkNbt
-										            .computeIfAbsent(id, featureId -> new Long2ObjectOpenHashMap())
-										            .put(l, nbtCompoundx));
-							}
-						}
-				);
-				String string2 = string + "_index";
-				ChunkUpdateState
-						chunkUpdateState =
-						persistentStateManager.getOrCreate(ChunkUpdateState.createStateType(string2));
-				if (chunkUpdateState.getAll().isEmpty()) {
-					ChunkUpdateState chunkUpdateState2 = new ChunkUpdateState();
-					this.updateStates.put(string, chunkUpdateState2);
-					nbtCompound.forEach((key, nbt) -> {
-						if (nbt instanceof NbtCompound nbtCompoundx) {
-							chunkUpdateState2.add(ChunkPos.toLong(
-									nbtCompoundx.getInt("ChunkX", 0),
-									nbtCompoundx.getInt("ChunkZ", 0)
-							));
-						}
-					});
+				if (featuresNbt.isEmpty()) {
+					continue;
 				}
-				else {
-					this.updateStates.put(string, chunkUpdateState);
-				}
+			} catch (IOException ignored) {
 			}
 
-			this.initialized = true;
+			featuresNbt.forEach((key, nbt) -> {
+				if (!(nbt instanceof NbtCompound featureNbt)) {
+					return;
+				}
+
+				long chunkKey = ChunkPos.toLong(
+					featureNbt.getInt("ChunkX", 0),
+					featureNbt.getInt("ChunkZ", 0)
+				);
+
+				NbtList children = featureNbt.getListOrEmpty("Children");
+
+				if (!children.isEmpty()) {
+					Optional<String> childId = children.getCompound(0).flatMap(child -> child.getString("id"));
+					childId.map(ANCIENT_TO_OLD::get).ifPresent(id -> featureNbt.putString("id", id));
+				}
+
+				featureNbt.getString("id").ifPresent(id ->
+					featureIdToChunkNbt
+						.computeIfAbsent(id, featureId -> new Long2ObjectOpenHashMap<>())
+						.put(chunkKey, featureNbt)
+				);
+			});
+
+			String indexName = name + "_index";
+			ChunkUpdateState existingState = stateManager.getOrCreate(ChunkUpdateState.createStateType(indexName));
+
+			if (existingState.getAll().isEmpty()) {
+				ChunkUpdateState freshState = new ChunkUpdateState();
+				updateStates.put(name, freshState);
+
+				featuresNbt.forEach((key, nbt) -> {
+					if (nbt instanceof NbtCompound featureNbt) {
+						freshState.add(ChunkPos.toLong(
+							featureNbt.getInt("ChunkX", 0),
+							featureNbt.getInt("ChunkZ", 0)
+						));
+					}
+				});
+			} else {
+				updateStates.put(name, existingState);
+			}
 		}
+
+		initialized = true;
 	}
 
+	/**
+	 * Создаёт фабрику {@link FeatureUpdater} для указанного измерения.
+	 * <p>
+	 * Каждое измерение имеет свой набор старых и новых имён структур.
+	 * Для измерений, не являющихся Overworld/Nether/End, возвращает
+	 * {@link ChunkUpdater#PASSTHROUGH_FACTORY} — обновление не требуется.
+	 */
 	public static Supplier<ChunkUpdater> create(
-			RegistryKey<World> world,
-			Supplier<@Nullable PersistentStateManager> persistentStateManagerSupplier,
-			DataFixer dataFixer
+		RegistryKey<World> world,
+		Supplier<@Nullable PersistentStateManager> persistentStateManagerSupplier,
+		DataFixer dataFixer
 	) {
 		if (world == World.OVERWORLD) {
 			return () -> new FeatureUpdater(
-					persistentStateManagerSupplier.get(),
-					ImmutableList.of("Monument", "Stronghold", "Village", "Mineshaft", "Temple", "Mansion"),
-					ImmutableList.of(
-							"Village",
-							"Mineshaft",
-							"Mansion",
-							"Igloo",
-							"Desert_Pyramid",
-							"Jungle_Pyramid",
-							"Swamp_Hut",
-							"Stronghold",
-							"Monument"
-					),
-					dataFixer
+				persistentStateManagerSupplier.get(),
+				ImmutableList.of("Monument", "Stronghold", "Village", "Mineshaft", "Temple", "Mansion"),
+				ImmutableList.of(
+					"Village",
+					"Mineshaft",
+					"Mansion",
+					"Igloo",
+					"Desert_Pyramid",
+					"Jungle_Pyramid",
+					"Swamp_Hut",
+					"Stronghold",
+					"Monument"
+				),
+				dataFixer
 			);
 		}
-		else if (world == World.NETHER) {
-			List<String> list = ImmutableList.of("Fortress");
-			return () -> new FeatureUpdater(persistentStateManagerSupplier.get(), list, list, dataFixer);
+
+		if (world == World.NETHER) {
+			List<String> fortressList = ImmutableList.of("Fortress");
+			return () -> new FeatureUpdater(persistentStateManagerSupplier.get(), fortressList, fortressList, dataFixer);
 		}
-		else if (world == World.END) {
-			List<String> list = ImmutableList.of("EndCity");
-			return () -> new FeatureUpdater(persistentStateManagerSupplier.get(), list, list, dataFixer);
+
+		if (world == World.END) {
+			List<String> endCityList = ImmutableList.of("EndCity");
+			return () -> new FeatureUpdater(persistentStateManagerSupplier.get(), endCityList, endCityList, dataFixer);
 		}
-		else {
-			return ChunkUpdater.PASSTHROUGH_FACTORY;
-		}
+
+		return ChunkUpdater.PASSTHROUGH_FACTORY;
 	}
 }

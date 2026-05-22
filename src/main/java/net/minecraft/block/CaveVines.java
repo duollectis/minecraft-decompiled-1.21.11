@@ -17,7 +17,8 @@ import net.minecraft.world.event.GameEvent;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code CaveVines}.
+ * Интерфейс пещерных лоз. Определяет общую форму, свойство {@link #BERRIES}
+ * и логику сбора ягод для {@link CaveVinesBodyBlock} и {@link CaveVinesHeadBlock}.
  */
 public interface CaveVines {
 

@@ -28,36 +28,49 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HorseEntity}.
+ * Лошадь — верховое животное с уникальной комбинацией цвета и маркировки.
+ * <p>
+ * Вариант лошади упакован в один {@code int}: младший байт — цвет ({@link HorseColor}),
+ * старший байт — маркировка ({@link HorseMarking}). При скрещивании двух лошадей
+ * цвет наследуется с вероятностью 4/9 от каждого родителя и 1/9 случайно;
+ * маркировка — 2/5, 2/5 и 1/5 соответственно. Лошадь также может скрещиваться
+ * с ослом, порождая мула.
  */
 public class HorseEntity extends AbstractHorseEntity {
 
-	private static final TrackedData<Integer>
-			VARIANT =
-			DataTracker.registerData(HorseEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final int COLOR_MASK = 0xFF;
+	private static final int MARKING_MASK = 0xFF00;
+	private static final int MARKING_SHIFT = 8;
+	private static final int COLOR_ROLL_PARENT_A_MAX = 4;
+	private static final int COLOR_ROLL_PARENT_B_MAX = 8;
+	private static final int COLOR_ROLL_TOTAL = 9;
+	private static final int MARKING_ROLL_PARENT_A_MAX = 2;
+	private static final int MARKING_ROLL_PARENT_B_MAX = 4;
+	private static final int MARKING_ROLL_TOTAL = 5;
+
+	private static final TrackedData<Integer> VARIANT = DataTracker.registerData(
+		HorseEntity.class,
+		TrackedDataHandlerRegistry.INTEGER
+	);
 	private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.HORSE
-			.getDimensions()
-			.withAttachments(EntityAttachments
-					.builder()
-					.add(EntityAttachmentType.PASSENGER, 0.0F, EntityType.HORSE.getHeight() + 0.125F, 0.0F))
-			.scaled(0.5F);
-	private static final int DEFAULT_VARIANT = 0;
+		.getDimensions()
+		.withAttachments(
+			EntityAttachments.builder()
+				.add(EntityAttachmentType.PASSENGER, 0.0F, EntityType.HORSE.getHeight() + 0.125F, 0.0F)
+		)
+		.scaled(0.5F);
 
 	public HorseEntity(EntityType<? extends HorseEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.DANGER_OTHER, -1.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, -1.0F);
+		setPathfindingPenalty(PathNodeType.DANGER_OTHER, -1.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, -1.0F);
 	}
 
 	@Override
 	protected void initAttributes(Random random) {
-		this.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(getChildHealthBonus(random::nextInt));
-		this
-				.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED)
-				.setBaseValue(getChildMovementSpeedBonus(random::nextDouble));
-		this
-				.getAttributeInstance(EntityAttributes.JUMP_STRENGTH)
-				.setBaseValue(getChildJumpStrengthBonus(random::nextDouble));
+		getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(getChildHealthBonus(random::nextInt));
+		getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(getChildMovementSpeedBonus(random::nextDouble));
+		getAttributeInstance(EntityAttributes.JUMP_STRENGTH).setBaseValue(getChildJumpStrengthBonus(random::nextDouble));
 	}
 
 	@Override
@@ -69,69 +82,71 @@ public class HorseEntity extends AbstractHorseEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Variant", this.getHorseVariant());
+		view.putInt("Variant", getHorseVariant());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setHorseVariant(view.getInt("Variant", 0));
+		setHorseVariant(view.getInt("Variant", 0));
 	}
 
 	private void setHorseVariant(int variant) {
-		this.dataTracker.set(VARIANT, variant);
+		dataTracker.set(VARIANT, variant);
 	}
 
 	private int getHorseVariant() {
-		return this.dataTracker.get(VARIANT);
+		return dataTracker.get(VARIANT);
 	}
 
+	/**
+	 * Упаковывает цвет и маркировку в один {@code int}: цвет — в младший байт,
+	 * маркировка — в старший байт.
+	 */
 	private void setHorseVariant(HorseColor color, HorseMarking marking) {
-		this.setHorseVariant(color.getIndex() & 0xFF | marking.getIndex() << 8 & 0xFF00);
+		setHorseVariant(color.getIndex() & COLOR_MASK | marking.getIndex() << MARKING_SHIFT & MARKING_MASK);
 	}
 
 	public HorseColor getHorseColor() {
-		return HorseColor.byIndex(this.getHorseVariant() & 0xFF);
+		return HorseColor.byIndex(getHorseVariant() & COLOR_MASK);
 	}
 
 	private void setHorseColor(HorseColor color) {
-		this.setHorseVariant(color.getIndex() & 0xFF | this.getHorseVariant() & -256);
+		setHorseVariant(color.getIndex() & COLOR_MASK | getHorseVariant() & ~COLOR_MASK);
+	}
+
+	public HorseMarking getMarking() {
+		return HorseMarking.byIndex((getHorseVariant() & MARKING_MASK) >> MARKING_SHIFT);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.HORSE_VARIANT ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getHorseColor()
-		) : super.get(type);
+		return type == DataComponentTypes.HORSE_VARIANT
+			? castComponentValue((ComponentType<T>) type, getHorseColor())
+			: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.HORSE_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.HORSE_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.HORSE_VARIANT) {
-			this.setHorseColor(castComponentValue(DataComponentTypes.HORSE_VARIANT, value));
+			setHorseColor(castComponentValue(DataComponentTypes.HORSE_VARIANT, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
-	}
 
-	public HorseMarking getMarking() {
-		return HorseMarking.byIndex((this.getHorseVariant() & 0xFF00) >> 8);
+		return super.setApplicableComponent(type, value);
 	}
 
 	@Override
 	protected void playWalkSound(BlockSoundGroup group) {
 		super.playWalkSound(group);
-		if (this.random.nextInt(10) == 0) {
-			this.playSound(SoundEvents.ENTITY_HORSE_BREATHE, group.getVolume() * 0.6F, group.getPitch());
+		if (random.nextInt(10) == 0) {
+			playSound(SoundEvents.ENTITY_HORSE_BREATHE, group.getVolume() * 0.6F, group.getPitch());
 		}
 	}
 
@@ -162,82 +177,95 @@ public class HorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		boolean bl = !this.isBaby() && this.isTame() && player.shouldCancelInteraction();
-		if (!this.hasPassengers() && !bl) {
-			ItemStack itemStack = player.getStackInHand(hand);
-			if (!itemStack.isEmpty()) {
-				if (this.isBreedingItem(itemStack)) {
-					return this.interactHorse(player, itemStack);
-				}
+		boolean wantsToOpenInventory = !isBaby() && isTame() && player.shouldCancelInteraction();
+		if (hasPassengers() || wantsToOpenInventory) {
+			return super.interactMob(player, hand);
+		}
 
-				if (!this.isTame()) {
-					this.playAngrySound();
-					return ActionResult.SUCCESS;
-				}
+		ItemStack stack = player.getStackInHand(hand);
+		if (!stack.isEmpty()) {
+			if (isBreedingItem(stack)) {
+				return interactHorse(player, stack);
 			}
 
-			return super.interactMob(player, hand);
+			if (!isTame()) {
+				playAngrySound();
+				return ActionResult.SUCCESS;
+			}
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
+	/**
+	 * Лошадь может скрещиваться с другой лошадью или ослом (для создания мула).
+	 * Скрещивание с самим собой запрещено.
+	 */
 	@Override
 	public boolean canBreedWith(AnimalEntity other) {
 		if (other == this) {
 			return false;
 		}
-		else {
-			return !(other instanceof DonkeyEntity) && !(other instanceof HorseEntity) ? false : this.canBreed()
-			                                                                                     && ((AbstractHorseEntity) other).canBreed();
+
+		if (other instanceof DonkeyEntity donkey) {
+			return canBreed() && donkey.canBreed();
 		}
+
+		if (other instanceof HorseEntity otherHorse) {
+			return canBreed() && otherHorse.canBreed();
+		}
+
+		return false;
 	}
 
+	/**
+	 * Создаёт потомка. При скрещивании с ослом — мул, при скрещивании с лошадью —
+	 * жеребёнок с унаследованными цветом и маркировкой.
+	 * <p>
+	 * Цвет: 4/9 от первого родителя, 4/9 от второго, 1/9 случайный.
+	 * Маркировка: 2/5 от первого, 2/5 от второго, 1/5 случайная.
+	 */
 	@Override
 	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
 		if (entity instanceof DonkeyEntity) {
-			MuleEntity muleEntity = EntityType.MULE.create(world, SpawnReason.BREEDING);
-			if (muleEntity != null) {
-				this.setChildAttributes(entity, muleEntity);
+			MuleEntity mule = EntityType.MULE.create(world, SpawnReason.BREEDING);
+			if (mule != null) {
+				setChildAttributes(entity, mule);
 			}
 
-			return muleEntity;
+			return mule;
 		}
-		else {
-			HorseEntity horseEntity = (HorseEntity) entity;
-			HorseEntity horseEntity2 = EntityType.HORSE.create(world, SpawnReason.BREEDING);
-			if (horseEntity2 != null) {
-				int i = this.random.nextInt(9);
-				HorseColor horseColor;
-				if (i < 4) {
-					horseColor = this.getHorseColor();
-				}
-				else if (i < 8) {
-					horseColor = horseEntity.getHorseColor();
-				}
-				else {
-					horseColor = Util.getRandom(HorseColor.values(), this.random);
-				}
 
-				int j = this.random.nextInt(5);
-				HorseMarking horseMarking;
-				if (j < 2) {
-					horseMarking = this.getMarking();
-				}
-				else if (j < 4) {
-					horseMarking = horseEntity.getMarking();
-				}
-				else {
-					horseMarking = Util.getRandom(HorseMarking.values(), this.random);
-				}
-
-				horseEntity2.setHorseVariant(horseColor, horseMarking);
-				this.setChildAttributes(entity, horseEntity2);
-			}
-
-			return horseEntity2;
+		HorseEntity otherHorse = (HorseEntity) entity;
+		HorseEntity child = EntityType.HORSE.create(world, SpawnReason.BREEDING);
+		if (child == null) {
+			return null;
 		}
+
+		int colorRoll = random.nextInt(COLOR_ROLL_TOTAL);
+		HorseColor color;
+		if (colorRoll < COLOR_ROLL_PARENT_A_MAX) {
+			color = getHorseColor();
+		} else if (colorRoll < COLOR_ROLL_PARENT_B_MAX) {
+			color = otherHorse.getHorseColor();
+		} else {
+			color = Util.getRandom(HorseColor.values(), random);
+		}
+
+		int markingRoll = random.nextInt(MARKING_ROLL_TOTAL);
+		HorseMarking marking;
+		if (markingRoll < MARKING_ROLL_PARENT_A_MAX) {
+			marking = getMarking();
+		} else if (markingRoll < MARKING_ROLL_PARENT_B_MAX) {
+			marking = otherHorse.getMarking();
+		} else {
+			marking = Util.getRandom(HorseMarking.values(), random);
+		}
+
+		child.setHorseVariant(color, marking);
+		setChildAttributes(entity, child);
+
+		return child;
 	}
 
 	@Override
@@ -247,37 +275,37 @@ public class HorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public void damageArmor(DamageSource source, float amount) {
-		this.damageEquipment(source, amount, EquipmentSlot.BODY);
+		damageEquipment(source, amount, EquipmentSlot.BODY);
 	}
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		Random random = world.getRandom();
-		HorseColor horseColor;
-		if (entityData instanceof HorseEntity.HorseData) {
-			horseColor = ((HorseEntity.HorseData) entityData).color;
-		}
-		else {
-			horseColor = Util.getRandom(HorseColor.values(), random);
-			entityData = new HorseEntity.HorseData(horseColor);
+		HorseColor color;
+		if (entityData instanceof HorseData horseData) {
+			color = horseData.color;
+		} else {
+			color = Util.getRandom(HorseColor.values(), random);
+			entityData = new HorseData(color);
 		}
 
-		this.setHorseVariant(horseColor, Util.getRandom(HorseMarking.values(), random));
+		setHorseVariant(color, Util.getRandom(HorseMarking.values(), random));
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 
 	/**
-	 * {@code HorseData}.
+	 * Данные спавна лошади. Хранит фиксированный цвет для всего табуна,
+	 * чтобы лошади в одной группе имели одинаковый окрас.
 	 */
 	public static class HorseData extends PassiveEntity.PassiveData {
 

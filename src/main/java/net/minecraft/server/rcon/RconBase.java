@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code RconBase}.
+ * Базовый класс RCON-соединения: общая логика чтения/записи пакетов.
  */
 public abstract class RconBase implements Runnable {
 
@@ -42,9 +42,6 @@ public abstract class RconBase implements Runnable {
 		}
 	}
 
-	/**
-	 * Stop.
-	 */
 	public synchronized void stop() {
 		this.running = false;
 		if (null != this.thread) {

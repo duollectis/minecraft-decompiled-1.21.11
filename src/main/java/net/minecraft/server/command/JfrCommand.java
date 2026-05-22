@@ -17,7 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * {@code JfrCommand}.
+ * Команда {@code /jfr}: управление Java Flight Recorder для профилирования.
  */
 public class JfrCommand {
 

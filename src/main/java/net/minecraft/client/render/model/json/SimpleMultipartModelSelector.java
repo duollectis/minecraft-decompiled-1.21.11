@@ -18,26 +18,29 @@ import org.slf4j.Logger;
 import java.util.*;
 import java.util.function.Predicate;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleMultipartModelSelector}.
+ * Условие мультипарт-модели на основе простых проверок свойств блока.
+ * Хранит карту {@code propertyName → Terms}, где каждый {@link Terms} — список
+ * допустимых значений (с поддержкой отрицания через префикс {@code !} и
+ * перечисления через разделитель {@code |}).
  */
+@Environment(EnvType.CLIENT)
 public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelector.Terms> tests) implements MultipartModelCondition {
 
 	static final Logger LOGGER = LogUtils.getLogger();
 	public static final Codec<SimpleMultipartModelSelector> CODEC = Codecs.nonEmptyMap(
-			                                                                      Codec.unboundedMap(Codec.STRING, SimpleMultipartModelSelector.Terms.VALUE_CODEC)
-	                                                                      )
-	                                                                      .xmap(
-			                                                                      SimpleMultipartModelSelector::new,
-			                                                                      SimpleMultipartModelSelector::tests
-	                                                                      );
+			Codec.unboundedMap(Codec.STRING, SimpleMultipartModelSelector.Terms.VALUE_CODEC)
+	)
+	.xmap(
+			SimpleMultipartModelSelector::new,
+			SimpleMultipartModelSelector::tests
+	);
 
 	@Override
 	public <O, S extends State<O, S>> Predicate<S> instantiate(StateManager<O, S> stateManager) {
-		List<Predicate<S>> list = new ArrayList<>(this.tests.size());
-		this.tests.forEach((property, terms) -> list.add(init(stateManager, property, terms)));
-		return Util.allOf(list);
+		List<Predicate<S>> predicates = new ArrayList<>(tests.size());
+		tests.forEach((property, terms) -> predicates.add(init(stateManager, property, terms)));
+		return Util.allOf(predicates);
 	}
 
 	private static <O, S extends State<O, S>> Predicate<S> init(
@@ -45,8 +48,8 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 			String property,
 			SimpleMultipartModelSelector.Terms terms
 	) {
-		Property<?> property2 = stateManager.getProperty(property);
-		if (property2 == null) {
+		Property<?> resolvedProperty = stateManager.getProperty(property);
+		if (resolvedProperty == null) {
 			throw new IllegalArgumentException(String.format(
 					Locale.ROOT,
 					"Unknown property '%s' on '%s'",
@@ -54,15 +57,15 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 					stateManager.getOwner()
 			));
 		}
-		else {
-			return terms.instantiate(stateManager.getOwner(), property2);
-		}
+
+		return terms.instantiate(stateManager.getOwner(), resolvedProperty);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Term}.
+	 * Одиночный терм условия: значение свойства и флаг отрицания.
+	 * Парсится из строки: {@code "!value"} → negated=true, {@code "value"} → negated=false.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Term(String value, boolean negated) {
 
 		private static final String NEGATED_PREFIX = "!";
@@ -71,42 +74,41 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 			if (value.isEmpty()) {
 				throw new IllegalArgumentException("Empty term");
 			}
-			else {
-				this.value = value;
-				this.negated = negated;
-			}
+
+			this.value = value;
+			this.negated = negated;
 		}
 
 		public static SimpleMultipartModelSelector.Term parse(String value) {
-			return value.startsWith("!") ? new SimpleMultipartModelSelector.Term(value.substring(1), true)
-			                             : new SimpleMultipartModelSelector.Term(value, false);
+			return value.startsWith("!")
+					? new SimpleMultipartModelSelector.Term(value.substring(1), true)
+					: new SimpleMultipartModelSelector.Term(value, false);
 		}
 
 		@Override
 		public String toString() {
-			return this.negated ? "!" + this.value : this.value;
+			return negated ? "!" + value : value;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Terms}.
+	 * Список термов для одного свойства блока, разделённых символом {@code |}.
+	 * Метод {@link #instantiate} строит оптимальный предикат: если совпадающих значений
+	 * меньше, чем несовпадающих — проверяет вхождение в список; иначе инвертирует логику
+	 * и проверяет исключение из списка несовпадающих значений.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Terms(List<SimpleMultipartModelSelector.Term> entries) {
 
 		private static final char DELIMITER = '|';
 		private static final Joiner JOINER = Joiner.on('|');
 		private static final Splitter SPLITTER = Splitter.on('|');
 		private static final Codec<String> CODEC = Codec.either(Codec.INT, Codec.BOOL)
-		                                                .flatComapMap(
-				                                                either -> (String) either.map(
-						                                                String::valueOf,
-						                                                String::valueOf
-				                                                ),
-				                                                string -> DataResult.error(() -> "This codec can't be used for encoding")
-		                                                );
-		public static final Codec<SimpleMultipartModelSelector.Terms>
-				VALUE_CODEC =
+				.flatComapMap(
+						either -> (String) either.map(String::valueOf, String::valueOf),
+						string -> DataResult.error(() -> "This codec can't be used for encoding")
+				);
+		public static final Codec<SimpleMultipartModelSelector.Terms> VALUE_CODEC =
 				Codec.withAlternative(Codec.STRING, CODEC)
 				     .comapFlatMap(
 						     SimpleMultipartModelSelector.Terms::tryParse,
@@ -117,90 +119,84 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 			if (entries.isEmpty()) {
 				throw new IllegalArgumentException("Empty value for property");
 			}
-			else {
-				this.entries = entries;
-			}
+
+			this.entries = entries;
 		}
 
 		public static DataResult<SimpleMultipartModelSelector.Terms> tryParse(String terms) {
-			List<SimpleMultipartModelSelector.Term>
-					list =
+			List<SimpleMultipartModelSelector.Term> parsed =
 					SPLITTER.splitToStream(terms).map(SimpleMultipartModelSelector.Term::parse).toList();
-			if (list.isEmpty()) {
+			if (parsed.isEmpty()) {
 				return DataResult.error(() -> "Empty value for property");
 			}
-			else {
-				for (SimpleMultipartModelSelector.Term term : list) {
-					if (term.value.isEmpty()) {
-						return DataResult.error(() -> "Empty term in value '" + terms + "'");
-					}
-				}
 
-				return DataResult.success(new SimpleMultipartModelSelector.Terms(list));
+			for (SimpleMultipartModelSelector.Term term : parsed) {
+				if (term.value().isEmpty()) {
+					return DataResult.error(() -> "Empty term in value '" + terms + "'");
+				}
 			}
+
+			return DataResult.success(new SimpleMultipartModelSelector.Terms(parsed));
 		}
 
 		@Override
 		public String toString() {
-			return JOINER.join(this.entries);
+			return JOINER.join(entries);
 		}
 
 		public <O, S extends State<O, S>, T extends Comparable<T>> Predicate<S> instantiate(
 				O object,
 				Property<T> property
 		) {
-			Predicate<T>
-					predicate =
-					Util.anyOf(Lists.transform(this.entries, term -> this.instantiate(object, property, term)));
-			List<T> list = new ArrayList<>(property.getValues());
-			int i = list.size();
-			list.removeIf(predicate.negate());
-			int j = list.size();
-			if (j == 0) {
+			Predicate<T> predicate =
+					Util.anyOf(Lists.transform(entries, term -> this.instantiate(object, property, term)));
+			List<T> allValues = new ArrayList<>(property.getValues());
+			int totalCount = allValues.size();
+			allValues.removeIf(predicate.negate());
+			int matchCount = allValues.size();
+
+			if (matchCount == 0) {
 				SimpleMultipartModelSelector.LOGGER.warn(
 						"Condition {} for property {} on {} is always false",
 						new Object[]{this, property.getName(), object}
 				);
 				return state -> false;
 			}
-			else {
-				int k = i - j;
-				if (k == 0) {
-					SimpleMultipartModelSelector.LOGGER.warn(
-							"Condition {} for property {} on {} is always true",
-							new Object[]{this, property.getName(), object}
-					);
-					return state -> true;
-				}
-				else {
-					boolean bl;
-					List<T> list2;
-					if (j <= k) {
-						bl = false;
-						list2 = list;
-					}
-					else {
-						bl = true;
-						List<T> list3 = new ArrayList<>(property.getValues());
-						list3.removeIf(predicate);
-						list2 = list3;
-					}
 
-					if (list2.size() == 1) {
-						T comparable = (T) list2.getFirst();
-						return state -> {
-							T comparable2 = state.get(property);
-							return comparable.equals(comparable2) ^ bl;
-						};
-					}
-					else {
-						return state -> {
-							T comparablex = state.get(property);
-							return list2.contains(comparablex) ^ bl;
-						};
-					}
-				}
+			int excludeCount = totalCount - matchCount;
+			if (excludeCount == 0) {
+				SimpleMultipartModelSelector.LOGGER.warn(
+						"Condition {} for property {} on {} is always true",
+						new Object[]{this, property.getName(), object}
+				);
+				return state -> true;
 			}
+
+			boolean useNegation;
+			List<T> matchingValues;
+			if (matchCount <= excludeCount) {
+				useNegation = false;
+				matchingValues = allValues;
+			}
+			else {
+				useNegation = true;
+				List<T> excludedValues = new ArrayList<>(property.getValues());
+				excludedValues.removeIf(predicate);
+				matchingValues = excludedValues;
+			}
+
+			if (matchingValues.size() == 1) {
+				T singleValue = matchingValues.getFirst();
+				return state -> {
+					T stateValue = state.get(property);
+					return singleValue.equals(stateValue) ^ useNegation;
+				};
+			}
+
+			return state -> {
+				T stateValue = state.get(property);
+				return matchingValues.contains(stateValue) ^ useNegation;
+			};
 		}
 
 		private <T extends Comparable<T>> T parseValue(Object object, Property<T> property, String value) {
@@ -215,9 +211,8 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 						this
 				));
 			}
-			else {
-				return optional.get();
-			}
+
+			return optional.get();
 		}
 
 		private <T extends Comparable<T>> Predicate<T> instantiate(
@@ -225,8 +220,10 @@ public record SimpleMultipartModelSelector(Map<String, SimpleMultipartModelSelec
 				Property<T> property,
 				SimpleMultipartModelSelector.Term term
 		) {
-			T comparable = this.parseValue(object, property, term.value);
-			return term.negated ? value -> !value.equals(comparable) : value -> value.equals(comparable);
+			T comparable = parseValue(object, property, term.value());
+			return term.negated()
+					? value -> !value.equals(comparable)
+					: value -> value.equals(comparable);
 		}
 	}
 }

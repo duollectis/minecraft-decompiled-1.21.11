@@ -9,9 +9,13 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 
 /**
- * {@code EmergeTask}.
+ * Задача мозга стража, запускающая анимацию появления из земли.
+ * Требует наличия памяти {@code IS_EMERGING} и выполняется до её истечения.
  */
 public class EmergeTask<E extends WardenEntity> extends MultiTickTask<E> {
+
+	private static final float SOUND_VOLUME = 5.0F;
+	private static final float SOUND_PITCH = 1.0F;
 
 	public EmergeTask(int duration) {
 		super(
@@ -27,41 +31,21 @@ public class EmergeTask<E extends WardenEntity> extends MultiTickTask<E> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
 		return true;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
-		wardenEntity.setPose(EntityPose.EMERGING);
-		wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_EMERGE, 5.0F, 1.0F);
+	@Override
+	protected void run(ServerWorld world, E entity, long time) {
+		entity.setPose(EntityPose.EMERGING);
+		entity.playSound(SoundEvents.ENTITY_WARDEN_EMERGE, SOUND_VOLUME, SOUND_PITCH);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param wardenEntity warden entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
-		if (wardenEntity.isInPose(EntityPose.EMERGING)) {
-			wardenEntity.setPose(EntityPose.STANDING);
+	@Override
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+		if (entity.isInPose(EntityPose.EMERGING)) {
+			entity.setPose(EntityPose.STANDING);
 		}
 	}
 }

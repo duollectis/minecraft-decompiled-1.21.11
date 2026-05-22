@@ -18,11 +18,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code GatherItemsVillagerTask}.
+ * Задача мозга жителя, реализующая обмен предметами с другим жителем при встрече.
+ * Фермеры делятся пшеницей и едой; жители передают предметы, нужные профессии партнёра.
  */
 public class GatherItemsVillagerTask extends MultiTickTask<VillagerEntity> {
 
-	private Set<Item> items = ImmutableSet.of();
+	private static final float WALK_SPEED = 0.5F;
+	private static final int APPROACH_RANGE = 2;
+	private static final double TALK_DISTANCE_SQ = 5.0;
+	private static final int WHEAT_SHARE_THRESHOLD = 24;
+
+	private Set<Item> gatherableItems = ImmutableSet.of();
 
 	public GatherItemsVillagerTask() {
 		super(
@@ -35,136 +41,91 @@ public class GatherItemsVillagerTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		return TargetUtil.canSee(villagerEntity.getBrain(), MemoryModuleType.INTERACTION_TARGET, EntityType.VILLAGER);
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		return TargetUtil.canSee(entity.getBrain(), MemoryModuleType.INTERACTION_TARGET, EntityType.VILLAGER);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return this.shouldRun(serverWorld, villagerEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return shouldRun(world, entity);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		VillagerEntity
-				villagerEntity2 =
-				(VillagerEntity) villagerEntity
-						.getBrain()
-						.getOptionalRegisteredMemory(MemoryModuleType.INTERACTION_TARGET)
-						.get();
-		TargetUtil.lookAtAndWalkTowardsEachOther(villagerEntity, villagerEntity2, 0.5F, 2);
-		this.items = getGatherableItems(villagerEntity, villagerEntity2);
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		VillagerEntity partner = (VillagerEntity) entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.INTERACTION_TARGET).get();
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, WALK_SPEED, APPROACH_RANGE);
+		gatherableItems = getGatherableItems(entity, partner);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		VillagerEntity
-				villagerEntity2 =
-				(VillagerEntity) villagerEntity
-						.getBrain()
-						.getOptionalRegisteredMemory(MemoryModuleType.INTERACTION_TARGET)
-						.get();
-		if (!(villagerEntity.squaredDistanceTo(villagerEntity2) > 5.0)) {
-			TargetUtil.lookAtAndWalkTowardsEachOther(villagerEntity, villagerEntity2, 0.5F, 2);
-			villagerEntity.talkWithVillager(serverWorld, villagerEntity2, l);
-			boolean bl = villagerEntity.getVillagerData().profession().matchesKey(VillagerProfession.FARMER);
-			if (villagerEntity.canShareFoodForBreeding() && (bl || villagerEntity2.needsFoodForBreeding())) {
-				giveHalfOfStack(villagerEntity, VillagerEntity.ITEM_FOOD_VALUES.keySet(), villagerEntity2);
-			}
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		VillagerEntity partner = (VillagerEntity) entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.INTERACTION_TARGET).get();
 
-			if (bl && villagerEntity.getInventory().count(Items.WHEAT) > Items.WHEAT.getMaxCount() / 2) {
-				giveHalfOfStack(villagerEntity, ImmutableSet.of(Items.WHEAT), villagerEntity2);
-			}
+		if (entity.squaredDistanceTo(partner) > TALK_DISTANCE_SQ) {
+			return;
+		}
 
-			if (!this.items.isEmpty() && villagerEntity.getInventory().containsAny(this.items)) {
-				giveHalfOfStack(villagerEntity, this.items, villagerEntity2);
-			}
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, WALK_SPEED, APPROACH_RANGE);
+		entity.talkWithVillager(world, partner, time);
+
+		boolean isFarmer = entity.getVillagerData().profession().matchesKey(VillagerProfession.FARMER);
+
+		if (entity.canShareFoodForBreeding() && (isFarmer || partner.needsFoodForBreeding())) {
+			giveHalfOfStack(entity, VillagerEntity.ITEM_FOOD_VALUES.keySet(), partner);
+		}
+
+		if (isFarmer && entity.getInventory().count(Items.WHEAT) > Items.WHEAT.getMaxCount() / 2) {
+			giveHalfOfStack(entity, ImmutableSet.of(Items.WHEAT), partner);
+		}
+
+		if (!gatherableItems.isEmpty() && entity.getInventory().containsAny(gatherableItems)) {
+			giveHalfOfStack(entity, gatherableItems, partner);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		villagerEntity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		entity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);
 	}
 
 	private static Set<Item> getGatherableItems(VillagerEntity entity, VillagerEntity target) {
-		ImmutableSet<Item> immutableSet = target.getVillagerData().profession().value().gatherableItems();
-		ImmutableSet<Item> immutableSet2 = entity.getVillagerData().profession().value().gatherableItems();
-		return immutableSet.stream().filter(item -> !immutableSet2.contains(item)).collect(Collectors.toSet());
+		ImmutableSet<Item> targetItems = target.getVillagerData().profession().value().gatherableItems();
+		ImmutableSet<Item> entityItems = entity.getVillagerData().profession().value().gatherableItems();
+		return targetItems.stream().filter(item -> !entityItems.contains(item)).collect(Collectors.toSet());
 	}
 
 	private static void giveHalfOfStack(VillagerEntity villager, Set<Item> validItems, LivingEntity target) {
-		SimpleInventory simpleInventory = villager.getInventory();
-		ItemStack itemStack = ItemStack.EMPTY;
-		int i = 0;
+		SimpleInventory inventory = villager.getInventory();
+		ItemStack toGive = ItemStack.EMPTY;
 
-		while (i < simpleInventory.size()) {
-			ItemStack itemStack2;
-			Item item;
-			int j;
-			label28:
-			{
-				itemStack2 = simpleInventory.getStack(i);
-				if (!itemStack2.isEmpty()) {
-					item = itemStack2.getItem();
-					if (validItems.contains(item)) {
-						if (itemStack2.getCount() > itemStack2.getMaxCount() / 2) {
-							j = itemStack2.getCount() / 2;
-							break label28;
-						}
+		for (int slot = 0; slot < inventory.size(); slot++) {
+			ItemStack stack = inventory.getStack(slot);
 
-						if (itemStack2.getCount() > 24) {
-							j = itemStack2.getCount() - 24;
-							break label28;
-						}
-					}
-				}
-
-				i++;
+			if (stack.isEmpty() || !validItems.contains(stack.getItem())) {
 				continue;
 			}
 
-			itemStack2.decrement(j);
-			itemStack = new ItemStack(item, j);
+			int count = stack.getCount();
+			int toTake;
+
+			if (count > stack.getMaxCount() / 2) {
+				toTake = count / 2;
+			} else if (count > WHEAT_SHARE_THRESHOLD) {
+				toTake = count - WHEAT_SHARE_THRESHOLD;
+			} else {
+				continue;
+			}
+
+			stack.decrement(toTake);
+			toGive = new ItemStack(stack.getItem(), toTake);
 			break;
 		}
 
-		if (!itemStack.isEmpty()) {
-			TargetUtil.give(villager, itemStack, target.getEntityPos());
+		if (!toGive.isEmpty()) {
+			TargetUtil.give(villager, toGive, target.getEntityPos());
 		}
 	}
 }

@@ -11,7 +11,11 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
- * {@code ArmadilloScareDetectedSensor}.
+ * Сенсор обнаружения угрозы для броненосца.
+ * Проверяет список видимых мобов через {@code threateningEntityPredicate} и при обнаружении угрозы
+ * записывает в указанный модуль памяти флаг с заданным временем жизни.
+ *
+ * @param <T> тип сущности-броненосца
  */
 public class ArmadilloScareDetectedSensor<T extends LivingEntity> extends Sensor<T> {
 
@@ -36,11 +40,10 @@ public class ArmadilloScareDetectedSensor<T extends LivingEntity> extends Sensor
 
 	@Override
 	protected void sense(ServerWorld world, T entity) {
-		if (!this.canRollUpPredicate.test(entity)) {
-			this.clear(entity);
-		}
-		else {
-			this.tryDetectThreat(entity);
+		if (canRollUpPredicate.test(entity)) {
+			tryDetectThreat(entity);
+		} else {
+			clear(entity);
 		}
 	}
 
@@ -49,38 +52,26 @@ public class ArmadilloScareDetectedSensor<T extends LivingEntity> extends Sensor
 		return Set.of(MemoryModuleType.MOBS);
 	}
 
-	/**
-	 * Try detect threat.
-	 *
-	 * @param entity entity
-	 */
 	public void tryDetectThreat(T entity) {
-		Optional<List<LivingEntity>> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
-		if (!optional.isEmpty()) {
-			boolean
-					bl =
-					optional.get().stream().anyMatch(threat -> this.threateningEntityPredicate.test(entity, threat));
-			if (bl) {
-				this.onDetected(entity);
-			}
+		Optional<List<LivingEntity>> mobs = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
+
+		if (mobs.isEmpty()) {
+			return;
+		}
+
+		boolean threatDetected = mobs.get().stream().anyMatch(threat -> threateningEntityPredicate.test(entity, threat));
+
+		if (threatDetected) {
+			onDetected(entity);
 		}
 	}
 
-	/**
-	 * Обрабатывает событие detected.
-	 *
-	 * @param entity entity
-	 */
+	/** Запоминает факт обнаружения угрозы с заданным временем жизни памяти. */
 	public void onDetected(T entity) {
-		entity.getBrain().remember(this.memoryModuleType, true, this.expiry);
+		entity.getBrain().remember(memoryModuleType, true, expiry);
 	}
 
-	/**
-	 * Clear.
-	 *
-	 * @param entity entity
-	 */
 	public void clear(T entity) {
-		entity.getBrain().forget(this.memoryModuleType);
+		entity.getBrain().forget(memoryModuleType);
 	}
 }

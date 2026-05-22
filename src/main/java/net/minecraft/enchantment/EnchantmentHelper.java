@@ -50,54 +50,47 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code EnchantmentHelper}.
+ * Утилитарный класс для работы с зачарованиями на предметах и сущностях.
+ * Предоставляет методы для чтения, применения и генерации зачарований.
  */
 public class EnchantmentHelper {
 
 	public static int getLevel(RegistryEntry<Enchantment> enchantment, ItemStack stack) {
-		ItemEnchantmentsComponent
-				itemEnchantmentsComponent =
+		ItemEnchantmentsComponent component =
 				stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
-		return itemEnchantmentsComponent.getLevel(enchantment);
+		return component.getLevel(enchantment);
 	}
 
+	/**
+	 * Применяет изменения к компоненту зачарований предмета через переданный строитель.
+	 * Если предмет не содержит компонент зачарований, возвращает {@link ItemEnchantmentsComponent#DEFAULT}.
+	 *
+	 * @param stack   предмет для изменения
+	 * @param applier функция, изменяющая строитель компонента
+	 * @return новый компонент зачарований после применения изменений
+	 */
 	public static ItemEnchantmentsComponent apply(
 			ItemStack stack,
 			java.util.function.Consumer<ItemEnchantmentsComponent.Builder> applier
 	) {
 		ComponentType<ItemEnchantmentsComponent> componentType = getEnchantmentsComponentType(stack);
-		ItemEnchantmentsComponent itemEnchantmentsComponent = stack.get(componentType);
-		if (itemEnchantmentsComponent == null) {
+		ItemEnchantmentsComponent existing = stack.get(componentType);
+
+		if (existing == null) {
 			return ItemEnchantmentsComponent.DEFAULT;
 		}
-		else {
-			ItemEnchantmentsComponent.Builder
-					builder =
-					new ItemEnchantmentsComponent.Builder(itemEnchantmentsComponent);
-			applier.accept(builder);
-			ItemEnchantmentsComponent itemEnchantmentsComponent2 = builder.build();
-			stack.set(componentType, itemEnchantmentsComponent2);
-			return itemEnchantmentsComponent2;
-		}
+
+		ItemEnchantmentsComponent.Builder builder = new ItemEnchantmentsComponent.Builder(existing);
+		applier.accept(builder);
+		ItemEnchantmentsComponent result = builder.build();
+		stack.set(componentType, result);
+		return result;
 	}
 
-	/**
-	 * Проверяет возможность have enchantments.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canHaveEnchantments(ItemStack stack) {
 		return stack.contains(getEnchantmentsComponentType(stack));
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param stack stack
-	 * @param enchantments enchantments
-	 */
 	public static void set(ItemStack stack, ItemEnchantmentsComponent enchantments) {
 		stack.set(getEnchantmentsComponentType(stack), enchantments);
 	}
@@ -106,25 +99,30 @@ public class EnchantmentHelper {
 		return stack.getOrDefault(getEnchantmentsComponentType(stack), ItemEnchantmentsComponent.DEFAULT);
 	}
 
+	/**
+	 * Возвращает тип компонента зачарований для предмета.
+	 * Зачарованные книги используют {@link DataComponentTypes#STORED_ENCHANTMENTS},
+	 * все остальные предметы — {@link DataComponentTypes#ENCHANTMENTS}.
+	 */
 	public static ComponentType<ItemEnchantmentsComponent> getEnchantmentsComponentType(ItemStack stack) {
-		return stack.isOf(Items.ENCHANTED_BOOK) ? DataComponentTypes.STORED_ENCHANTMENTS
-		                                        : DataComponentTypes.ENCHANTMENTS;
+		return stack.isOf(Items.ENCHANTED_BOOK)
+				? DataComponentTypes.STORED_ENCHANTMENTS
+				: DataComponentTypes.ENCHANTMENTS;
 	}
 
 	public static boolean hasEnchantments(ItemStack stack) {
 		return !stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT).isEmpty()
-				|| !stack
-				.getOrDefault(DataComponentTypes.STORED_ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT)
+				|| !stack.getOrDefault(DataComponentTypes.STORED_ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT)
 				.isEmpty();
 	}
 
 	public static int getItemDamage(ServerWorld world, ItemStack stack, int baseItemDamage) {
-		MutableFloat mutableFloat = new MutableFloat(baseItemDamage);
+		MutableFloat damage = new MutableFloat(baseItemDamage);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment.value().modifyItemDamage(world, level, stack, mutableFloat)
+				(enchantment, level) -> enchantment.value().modifyItemDamage(world, level, stack, damage)
 		);
-		return mutableFloat.intValue();
+		return damage.intValue();
 	}
 
 	public static int getAmmoUse(
@@ -133,21 +131,21 @@ public class EnchantmentHelper {
 			ItemStack projectileStack,
 			int baseAmmoUse
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseAmmoUse);
+		MutableFloat ammoUse = new MutableFloat(baseAmmoUse);
 		forEachEnchantment(
 				rangedWeaponStack,
-				(enchantment, level) -> enchantment.value().modifyAmmoUse(world, level, projectileStack, mutableFloat)
+				(enchantment, level) -> enchantment.value().modifyAmmoUse(world, level, projectileStack, ammoUse)
 		);
-		return mutableFloat.intValue();
+		return ammoUse.intValue();
 	}
 
 	public static int getBlockExperience(ServerWorld world, ItemStack stack, int baseBlockExperience) {
-		MutableFloat mutableFloat = new MutableFloat(baseBlockExperience);
+		MutableFloat experience = new MutableFloat(baseBlockExperience);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment.value().modifyBlockExperience(world, level, stack, mutableFloat)
+				(enchantment, level) -> enchantment.value().modifyBlockExperience(world, level, stack, experience)
 		);
-		return mutableFloat.intValue();
+		return experience.intValue();
 	}
 
 	public static int getMobExperience(
@@ -157,94 +155,105 @@ public class EnchantmentHelper {
 			int baseMobExperience
 	) {
 		if (attacker instanceof LivingEntity livingEntity) {
-			MutableFloat mutableFloat = new MutableFloat(baseMobExperience);
+			MutableFloat experience = new MutableFloat(baseMobExperience);
 			forEachEnchantment(
 					livingEntity,
-					(enchantment, level, context) -> enchantment
-							.value()
-							.modifyMobExperience(world, level, context.stack(), mob, mutableFloat)
+					(enchantment, level, context) -> enchantment.value()
+							.modifyMobExperience(world, level, context.stack(), mob, experience)
 			);
-			return mutableFloat.intValue();
+			return experience.intValue();
 		}
-		else {
-			return baseMobExperience;
-		}
+
+		return baseMobExperience;
 	}
 
 	public static ItemStack getEnchantedBookWith(EnchantmentLevelEntry entry) {
-		ItemStack itemStack = new ItemStack(Items.ENCHANTED_BOOK);
-		itemStack.addEnchantment(entry.enchantment(), entry.level());
-		return itemStack;
+		ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+		book.addEnchantment(entry.enchantment(), entry.level());
+		return book;
 	}
 
 	/**
-	 * For each enchantment.
+	 * Итерирует по всем зачарованиям предмета (компонент {@link DataComponentTypes#ENCHANTMENTS}).
 	 *
-	 * @param stack stack
-	 * @param consumer consumer
+	 * @param stack    предмет для итерации
+	 * @param consumer потребитель, получающий запись реестра зачарования и его уровень
 	 */
 	public static void forEachEnchantment(ItemStack stack, EnchantmentHelper.Consumer consumer) {
-		ItemEnchantmentsComponent
-				itemEnchantmentsComponent =
+		ItemEnchantmentsComponent component =
 				stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
 
-		for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
+		for (Entry<RegistryEntry<Enchantment>> entry : component.getEnchantmentEntries()) {
 			consumer.accept((RegistryEntry<Enchantment>) entry.getKey(), entry.getIntValue());
 		}
 	}
 
+	/**
+	 * Итерирует по зачарованиям предмета в конкретном слоте, фильтруя по совместимости слота.
+	 * Создаёт контекст эффекта для каждого подходящего зачарования.
+	 */
 	public static void forEachEnchantment(
 			ItemStack stack,
 			EquipmentSlot slot,
 			LivingEntity entity,
 			EnchantmentHelper.ContextAwareConsumer contextAwareConsumer
 	) {
-		if (!stack.isEmpty()) {
-			ItemEnchantmentsComponent itemEnchantmentsComponent = stack.get(DataComponentTypes.ENCHANTMENTS);
-			if (itemEnchantmentsComponent != null && !itemEnchantmentsComponent.isEmpty()) {
-				EnchantmentEffectContext enchantmentEffectContext = new EnchantmentEffectContext(stack, slot, entity);
+		if (stack.isEmpty()) {
+			return;
+		}
 
-				for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
-					RegistryEntry<Enchantment> registryEntry = (RegistryEntry<Enchantment>) entry.getKey();
-					if (registryEntry.value().slotMatches(slot)) {
-						contextAwareConsumer.accept(registryEntry, entry.getIntValue(), enchantmentEffectContext);
-					}
-				}
+		ItemEnchantmentsComponent component = stack.get(DataComponentTypes.ENCHANTMENTS);
+
+		if (component == null || component.isEmpty()) {
+			return;
+		}
+
+		EnchantmentEffectContext context = new EnchantmentEffectContext(stack, slot, entity);
+
+		for (Entry<RegistryEntry<Enchantment>> entry : component.getEnchantmentEntries()) {
+			RegistryEntry<Enchantment> enchantment = (RegistryEntry<Enchantment>) entry.getKey();
+
+			if (enchantment.value().slotMatches(slot)) {
+				contextAwareConsumer.accept(enchantment, entry.getIntValue(), context);
 			}
 		}
 	}
 
+	/**
+	 * Итерирует по всем зачарованиям во всех слотах экипировки сущности.
+	 */
 	public static void forEachEnchantment(
 			LivingEntity entity,
 			EnchantmentHelper.ContextAwareConsumer contextAwareConsumer
 	) {
-		for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
-			forEachEnchantment(entity.getEquippedStack(equipmentSlot), equipmentSlot, entity, contextAwareConsumer);
+		for (EquipmentSlot slot : EquipmentSlot.VALUES) {
+			forEachEnchantment(entity.getEquippedStack(slot), slot, entity, contextAwareConsumer);
 		}
 	}
 
+	/**
+	 * Проверяет, делает ли какое-либо зачарование сущность неуязвимой к данному источнику урона.
+	 */
 	public static boolean isInvulnerableTo(ServerWorld world, LivingEntity user, DamageSource damageSource) {
-		MutableBoolean mutableBoolean = new MutableBoolean();
+		MutableBoolean invulnerable = new MutableBoolean();
 		forEachEnchantment(
 				user,
-				(enchantment, level, context) -> mutableBoolean.setValue(
-						mutableBoolean.isTrue() || enchantment
-								.value()
-								.hasDamageImmunityTo(world, level, user, damageSource)
+				(enchantment, level, context) -> invulnerable.setValue(
+						invulnerable.isTrue()
+								|| enchantment.value().hasDamageImmunityTo(world, level, user, damageSource)
 				)
 		);
-		return mutableBoolean.isTrue();
+		return invulnerable.isTrue();
 	}
 
 	public static float getProtectionAmount(ServerWorld world, LivingEntity user, DamageSource damageSource) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat protection = new MutableFloat(0.0F);
 		forEachEnchantment(
 				user,
-				(enchantment, level, context) -> enchantment
-						.value()
-						.modifyDamageProtection(world, level, context.stack(), user, damageSource, mutableFloat)
+				(enchantment, level, context) -> enchantment.value()
+						.modifyDamageProtection(world, level, context.stack(), user, damageSource, protection)
 		);
-		return mutableFloat.floatValue();
+		return protection.floatValue();
 	}
 
 	public static float getDamage(
@@ -254,14 +263,13 @@ public class EnchantmentHelper {
 			DamageSource damageSource,
 			float baseDamage
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseDamage);
+		MutableFloat damage = new MutableFloat(baseDamage);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyDamage(world, level, stack, target, damageSource, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyDamage(world, level, stack, target, damageSource, damage)
 		);
-		return mutableFloat.floatValue();
+		return damage.floatValue();
 	}
 
 	public static float getSmashDamagePerFallenBlock(
@@ -271,14 +279,13 @@ public class EnchantmentHelper {
 			DamageSource damageSource,
 			float baseSmashDamagePerFallenBlock
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseSmashDamagePerFallenBlock);
+		MutableFloat damage = new MutableFloat(baseSmashDamagePerFallenBlock);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifySmashDamagePerFallenBlock(world, level, stack, target, damageSource, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifySmashDamagePerFallenBlock(world, level, stack, target, damageSource, damage)
 		);
-		return mutableFloat.floatValue();
+		return damage.floatValue();
 	}
 
 	public static float getArmorEffectiveness(
@@ -288,14 +295,13 @@ public class EnchantmentHelper {
 			DamageSource damageSource,
 			float baseArmorEffectiveness
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseArmorEffectiveness);
+		MutableFloat effectiveness = new MutableFloat(baseArmorEffectiveness);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyArmorEffectiveness(world, level, stack, user, damageSource, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyArmorEffectiveness(world, level, stack, user, damageSource, effectiveness)
 		);
-		return mutableFloat.floatValue();
+		return effectiveness.floatValue();
 	}
 
 	public static float modifyKnockback(
@@ -305,37 +311,29 @@ public class EnchantmentHelper {
 			DamageSource damageSource,
 			float baseKnockback
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseKnockback);
+		MutableFloat knockback = new MutableFloat(baseKnockback);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyKnockback(world, level, stack, target, damageSource, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyKnockback(world, level, stack, target, damageSource, knockback)
 		);
-		return mutableFloat.floatValue();
+		return knockback.floatValue();
 	}
 
 	/**
-	 * Обрабатывает событие target damaged.
-	 *
-	 * @param world world
-	 * @param target target
-	 * @param damageSource damage source
+	 * Вызывает POST_ATTACK эффекты зачарований после нанесения урона цели.
+	 * Если атакующий — живая сущность, используется её оружие.
 	 */
 	public static void onTargetDamaged(ServerWorld world, Entity target, DamageSource damageSource) {
 		if (damageSource.getAttacker() instanceof LivingEntity livingEntity) {
 			onTargetDamaged(world, target, damageSource, livingEntity.getWeaponStack());
-		}
-		else {
+		} else {
 			onTargetDamaged(world, target, damageSource, null);
 		}
 	}
 
 	/**
-	 * Обрабатывает событие attack.
-	 *
-	 * @param world world
-	 * @param attacker attacker
+	 * Вызывает POST_PIERCING_ATTACK эффекты зачарований при пробивающей атаке.
 	 */
 	public static void onAttack(ServerWorld world, Entity attacker) {
 		if (attacker instanceof LivingEntity livingEntity) {
@@ -343,8 +341,7 @@ public class EnchantmentHelper {
 					attacker.getWeaponStack(),
 					EquipmentSlot.MAINHAND,
 					livingEntity,
-					(enchantment, level, context) -> enchantment
-							.value()
+					(enchantment, level, context) -> enchantment.value()
 							.onPiercingAttack(world, level, context, attacker)
 			);
 		}
@@ -359,6 +356,13 @@ public class EnchantmentHelper {
 		onTargetDamaged(world, target, damageSource, weapon, null);
 	}
 
+	/**
+	 * Полная версия обработки POST_ATTACK эффектов.
+	 * Применяет эффекты как к жертве (VICTIM), так и к атакующему (ATTACKER).
+	 *
+	 * @param weapon        оружие атакующего (может быть null)
+	 * @param breakCallback колбэк поломки оружия (используется если атакующий не живая сущность)
+	 */
 	public static void onTargetDamaged(
 			ServerWorld world,
 			Entity target,
@@ -366,70 +370,61 @@ public class EnchantmentHelper {
 			@Nullable ItemStack weapon,
 			java.util.function.@Nullable Consumer<Item> breakCallback
 	) {
-		if (target instanceof LivingEntity livingEntity) {
+		if (target instanceof LivingEntity livingTarget) {
 			forEachEnchantment(
-					livingEntity,
-					(enchantment, level, context) -> enchantment
-							.value()
-							.onTargetDamaged(
-									world,
-									level,
-									context,
-									EnchantmentEffectTarget.VICTIM,
-									target,
-									damageSource
-							)
+					livingTarget,
+					(enchantment, level, context) -> enchantment.value().onTargetDamaged(
+							world,
+							level,
+							context,
+							EnchantmentEffectTarget.VICTIM,
+							target,
+							damageSource
+					)
 			);
 		}
 
-		if (weapon != null) {
-			if (damageSource.getAttacker() instanceof LivingEntity livingEntity) {
-				forEachEnchantment(
-						weapon,
-						EquipmentSlot.MAINHAND,
-						livingEntity,
-						(enchantment, level, context) -> enchantment.value()
-						                                            .onTargetDamaged(
-								                                            world,
-								                                            level,
-								                                            context,
-								                                            EnchantmentEffectTarget.ATTACKER,
-								                                            target,
-								                                            damageSource
-						                                            )
-				);
-			}
-			else if (breakCallback != null) {
-				EnchantmentEffectContext
-						enchantmentEffectContext =
-						new EnchantmentEffectContext(weapon, null, null, breakCallback);
-				forEachEnchantment(
-						weapon,
-						(enchantment, level) -> enchantment.value()
-						                                   .onTargetDamaged(
-								                                   world,
-								                                   level,
-								                                   enchantmentEffectContext,
-								                                   EnchantmentEffectTarget.ATTACKER,
-								                                   target,
-								                                   damageSource
-						                                   )
-				);
-			}
+		if (weapon == null) {
+			return;
+		}
+
+		if (damageSource.getAttacker() instanceof LivingEntity livingAttacker) {
+			forEachEnchantment(
+					weapon,
+					EquipmentSlot.MAINHAND,
+					livingAttacker,
+					(enchantment, level, context) -> enchantment.value().onTargetDamaged(
+							world,
+							level,
+							context,
+							EnchantmentEffectTarget.ATTACKER,
+							target,
+							damageSource
+					)
+			);
+		} else if (breakCallback != null) {
+			EnchantmentEffectContext context = new EnchantmentEffectContext(weapon, null, null, breakCallback);
+			forEachEnchantment(
+					weapon,
+					(enchantment, level) -> enchantment.value().onTargetDamaged(
+							world,
+							level,
+							context,
+							EnchantmentEffectTarget.ATTACKER,
+							target,
+							damageSource
+					)
+			);
 		}
 	}
 
 	/**
-	 * Применяет location based effects.
-	 *
-	 * @param world world
-	 * @param user user
+	 * Применяет локационные эффекты всех зачарований для всех слотов сущности.
 	 */
 	public static void applyLocationBasedEffects(ServerWorld world, LivingEntity user) {
 		forEachEnchantment(
 				user,
-				(enchantment, level, context) -> enchantment
-						.value()
+				(enchantment, level, context) -> enchantment.value()
 						.applyLocationBasedEffects(world, level, context, user)
 		);
 	}
@@ -444,17 +439,11 @@ public class EnchantmentHelper {
 				stack,
 				slot,
 				user,
-				(enchantment, level, context) -> enchantment
-						.value()
+				(enchantment, level, context) -> enchantment.value()
 						.applyLocationBasedEffects(world, level, context, user)
 		);
 	}
 
-	/**
-	 * Удаляет location based effects.
-	 *
-	 * @param user user
-	 */
 	public static void removeLocationBasedEffects(LivingEntity user) {
 		forEachEnchantment(
 				user,
@@ -462,13 +451,6 @@ public class EnchantmentHelper {
 		);
 	}
 
-	/**
-	 * Удаляет location based effects.
-	 *
-	 * @param stack stack
-	 * @param user user
-	 * @param slot slot
-	 */
 	public static void removeLocationBasedEffects(ItemStack stack, LivingEntity user, EquipmentSlot slot) {
 		forEachEnchantment(
 				stack,
@@ -478,12 +460,6 @@ public class EnchantmentHelper {
 		);
 	}
 
-	/**
-	 * Обрабатывает событие tick.
-	 *
-	 * @param world world
-	 * @param user user
-	 */
 	public static void onTick(ServerWorld world, LivingEntity user) {
 		forEachEnchantment(
 				user,
@@ -491,29 +467,32 @@ public class EnchantmentHelper {
 		);
 	}
 
+	/**
+	 * Возвращает максимальный уровень зачарования среди всех предметов экипировки сущности,
+	 * в которых это зачарование активно.
+	 */
 	public static int getEquipmentLevel(RegistryEntry<Enchantment> enchantment, LivingEntity entity) {
-		Iterable<ItemStack> iterable = enchantment.value().getEquipment(entity).values();
-		int i = 0;
+		int maxLevel = 0;
 
-		for (ItemStack itemStack : iterable) {
-			int j = getLevel(enchantment, itemStack);
-			if (j > i) {
-				i = j;
+		for (ItemStack stack : enchantment.value().getEquipment(entity).values()) {
+			int stackLevel = getLevel(enchantment, stack);
+
+			if (stackLevel > maxLevel) {
+				maxLevel = stackLevel;
 			}
 		}
 
-		return i;
+		return maxLevel;
 	}
 
 	public static int getProjectileCount(ServerWorld world, ItemStack stack, Entity user, int baseProjectileCount) {
-		MutableFloat mutableFloat = new MutableFloat(baseProjectileCount);
+		MutableFloat count = new MutableFloat(baseProjectileCount);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyProjectileCount(world, level, stack, user, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyProjectileCount(world, level, stack, user, count)
 		);
-		return Math.max(0, mutableFloat.intValue());
+		return Math.max(0, count.intValue());
 	}
 
 	public static float getProjectileSpread(
@@ -522,25 +501,23 @@ public class EnchantmentHelper {
 			Entity user,
 			float baseProjectileSpread
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseProjectileSpread);
+		MutableFloat spread = new MutableFloat(baseProjectileSpread);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyProjectileSpread(world, level, stack, user, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyProjectileSpread(world, level, stack, user, spread)
 		);
-		return Math.max(0.0F, mutableFloat.floatValue());
+		return Math.max(0.0F, spread.floatValue());
 	}
 
 	public static int getProjectilePiercing(ServerWorld world, ItemStack weaponStack, ItemStack projectileStack) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat piercing = new MutableFloat(0.0F);
 		forEachEnchantment(
 				weaponStack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyProjectilePiercing(world, level, projectileStack, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyProjectilePiercing(world, level, projectileStack, piercing)
 		);
-		return Math.max(0, mutableFloat.intValue());
+		return Math.max(0, piercing.intValue());
 	}
 
 	public static void onProjectileSpawned(
@@ -549,15 +526,12 @@ public class EnchantmentHelper {
 			ProjectileEntity projectile,
 			java.util.function.Consumer<Item> onBreak
 	) {
-		LivingEntity livingEntity2 = projectile.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null;
-		EnchantmentEffectContext
-				enchantmentEffectContext =
-				new EnchantmentEffectContext(weaponStack, null, livingEntity2, onBreak);
+		LivingEntity owner = projectile.getOwner() instanceof LivingEntity living ? living : null;
+		EnchantmentEffectContext context = new EnchantmentEffectContext(weaponStack, null, owner, onBreak);
 		forEachEnchantment(
 				weaponStack,
-				(enchantment, level) -> enchantment
-						.value()
-						.onProjectileSpawned(world, level, enchantmentEffectContext, projectile)
+				(enchantment, level) -> enchantment.value()
+						.onProjectileSpawned(world, level, context, projectile)
 		);
 	}
 
@@ -571,70 +545,63 @@ public class EnchantmentHelper {
 			BlockState state,
 			java.util.function.Consumer<Item> onBreak
 	) {
-		EnchantmentEffectContext enchantmentEffectContext = new EnchantmentEffectContext(stack, slot, user, onBreak);
+		EnchantmentEffectContext context = new EnchantmentEffectContext(stack, slot, user, onBreak);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.onHitBlock(world, level, enchantmentEffectContext, enchantedEntity, pos, state)
+				(enchantment, level) -> enchantment.value()
+						.onHitBlock(world, level, context, enchantedEntity, pos, state)
 		);
 	}
 
 	public static int getRepairWithExperience(ServerWorld world, ItemStack stack, int baseRepairWithExperience) {
-		MutableFloat mutableFloat = new MutableFloat(baseRepairWithExperience);
+		MutableFloat repair = new MutableFloat(baseRepairWithExperience);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyRepairWithExperience(world, level, stack, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyRepairWithExperience(world, level, stack, repair)
 		);
-		return Math.max(0, mutableFloat.intValue());
+		return Math.max(0, repair.intValue());
 	}
 
+	/**
+	 * Вычисляет шанс выпадения экипировки с учётом зачарований атакующего и жертвы.
+	 * Эффекты EQUIPMENT_DROPS применяются для ролей VICTIM (на жертве) и ATTACKER (на атакующем).
+	 */
 	public static float getEquipmentDropChance(
 			ServerWorld world,
 			LivingEntity attacker,
 			DamageSource damageSource,
 			float baseEquipmentDropChance
 	) {
-		MutableFloat mutableFloat = new MutableFloat(baseEquipmentDropChance);
+		MutableFloat dropChance = new MutableFloat(baseEquipmentDropChance);
 		Random random = attacker.getRandom();
-		forEachEnchantment(
-				attacker, (enchantment, level, context) -> {
-					LootContext
-							lootContext =
-							Enchantment.createEnchantedDamageLootContext(world, level, attacker, damageSource);
-					enchantment.value().getEffect(EnchantmentEffectComponentTypes.EQUIPMENT_DROPS).forEach(effect -> {
-						if (effect.enchanted() == EnchantmentEffectTarget.VICTIM
-								&& effect.affected() == EnchantmentEffectTarget.VICTIM && effect.test(lootContext)) {
-							mutableFloat.setValue(effect.effect().apply(level, random, mutableFloat.floatValue()));
-						}
-					});
+
+		forEachEnchantment(attacker, (enchantment, level, context) -> {
+			LootContext lootContext = Enchantment.createEnchantedDamageLootContext(world, level, attacker, damageSource);
+			enchantment.value().getEffect(EnchantmentEffectComponentTypes.EQUIPMENT_DROPS).forEach(effect -> {
+				if (effect.enchanted() == EnchantmentEffectTarget.VICTIM
+						&& effect.affected() == EnchantmentEffectTarget.VICTIM
+						&& effect.test(lootContext)) {
+					dropChance.setValue(effect.effect().apply(level, random, dropChance.floatValue()));
 				}
-		);
-		if (damageSource.getAttacker() instanceof LivingEntity livingEntity) {
-			forEachEnchantment(
-					livingEntity, (enchantment, level, context) -> {
-						LootContext
-								lootContext =
-								Enchantment.createEnchantedDamageLootContext(world, level, attacker, damageSource);
-						enchantment
-								.value()
-								.getEffect(EnchantmentEffectComponentTypes.EQUIPMENT_DROPS)
-								.forEach(effect -> {
-									if (effect.enchanted() == EnchantmentEffectTarget.ATTACKER
-											&& effect.affected() == EnchantmentEffectTarget.VICTIM && effect.test(
-											lootContext)) {
-										mutableFloat.setValue(effect
-												.effect()
-												.apply(level, random, mutableFloat.floatValue()));
-									}
-								});
+			});
+		});
+
+		if (damageSource.getAttacker() instanceof LivingEntity livingAttacker) {
+			forEachEnchantment(livingAttacker, (enchantment, level, context) -> {
+				LootContext lootContext =
+						Enchantment.createEnchantedDamageLootContext(world, level, attacker, damageSource);
+				enchantment.value().getEffect(EnchantmentEffectComponentTypes.EQUIPMENT_DROPS).forEach(effect -> {
+					if (effect.enchanted() == EnchantmentEffectTarget.ATTACKER
+							&& effect.affected() == EnchantmentEffectTarget.VICTIM
+							&& effect.test(lootContext)) {
+						dropChance.setValue(effect.effect().apply(level, random, dropChance.floatValue()));
 					}
-			);
+				});
+			});
 		}
 
-		return mutableFloat.floatValue();
+		return dropChance.floatValue();
 	}
 
 	public static void applyAttributeModifiers(
@@ -642,19 +609,16 @@ public class EnchantmentHelper {
 			AttributeModifierSlot slot,
 			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> attributeModifierConsumer
 	) {
-		forEachEnchantment(
-				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES)
-						.forEach(effect -> {
-							if (((Enchantment) enchantment.value()).definition().slots().contains(slot)) {
-								attributeModifierConsumer.accept(
-										effect.attribute(),
-										effect.createAttributeModifier(level, slot)
-								);
-							}
-						})
+		forEachEnchantment(stack, (enchantment, level) -> enchantment.value()
+				.getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES)
+				.forEach(effect -> {
+					if (enchantment.value().definition().slots().contains(slot)) {
+						attributeModifierConsumer.accept(
+								effect.attribute(),
+								effect.createAttributeModifier(level, slot)
+						);
+					}
+				})
 		);
 	}
 
@@ -663,85 +627,77 @@ public class EnchantmentHelper {
 			EquipmentSlot slot,
 			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> attributeModifierConsumer
 	) {
-		forEachEnchantment(
-				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES)
-						.forEach(effect -> {
-							if (((Enchantment) enchantment.value()).slotMatches(slot)) {
-								attributeModifierConsumer.accept(
-										effect.attribute(),
-										effect.createAttributeModifier(level, slot)
-								);
-							}
-						})
+		forEachEnchantment(stack, (enchantment, level) -> enchantment.value()
+				.getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES)
+				.forEach(effect -> {
+					if (enchantment.value().slotMatches(slot)) {
+						attributeModifierConsumer.accept(
+								effect.attribute(),
+								effect.createAttributeModifier(level, slot)
+						);
+					}
+				})
 		);
 	}
 
 	public static int getFishingLuckBonus(ServerWorld world, ItemStack stack, Entity user) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat bonus = new MutableFloat(0.0F);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyFishingLuckBonus(world, level, stack, user, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyFishingLuckBonus(world, level, stack, user, bonus)
 		);
-		return Math.max(0, mutableFloat.intValue());
+		return Math.max(0, bonus.intValue());
 	}
 
 	public static float getFishingTimeReduction(ServerWorld world, ItemStack stack, Entity user) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat reduction = new MutableFloat(0.0F);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyFishingTimeReduction(world, level, stack, user, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyFishingTimeReduction(world, level, stack, user, reduction)
 		);
-		return Math.max(0.0F, mutableFloat.floatValue());
+		return Math.max(0.0F, reduction.floatValue());
 	}
 
 	public static int getTridentReturnAcceleration(ServerWorld world, ItemStack stack, Entity user) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat acceleration = new MutableFloat(0.0F);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyTridentReturnAcceleration(world, level, stack, user, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyTridentReturnAcceleration(world, level, stack, user, acceleration)
 		);
-		return Math.max(0, mutableFloat.intValue());
+		return Math.max(0, acceleration.intValue());
 	}
 
 	public static float getCrossbowChargeTime(ItemStack stack, LivingEntity user, float baseCrossbowChargeTime) {
-		MutableFloat mutableFloat = new MutableFloat(baseCrossbowChargeTime);
+		MutableFloat chargeTime = new MutableFloat(baseCrossbowChargeTime);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyCrossbowChargeTime(user.getRandom(), level, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyCrossbowChargeTime(user.getRandom(), level, chargeTime)
 		);
-		return Math.max(0.0F, mutableFloat.floatValue());
+		return Math.max(0.0F, chargeTime.floatValue());
 	}
 
 	public static float getTridentSpinAttackStrength(ItemStack stack, LivingEntity user) {
-		MutableFloat mutableFloat = new MutableFloat(0.0F);
+		MutableFloat strength = new MutableFloat(0.0F);
 		forEachEnchantment(
 				stack,
-				(enchantment, level) -> enchantment
-						.value()
-						.modifyTridentSpinAttackStrength(user.getRandom(), level, mutableFloat)
+				(enchantment, level) -> enchantment.value()
+						.modifyTridentSpinAttackStrength(user.getRandom(), level, strength)
 		);
-		return mutableFloat.floatValue();
+		return strength.floatValue();
 	}
 
 	public static boolean hasAnyEnchantmentsIn(ItemStack stack, TagKey<Enchantment> tag) {
-		ItemEnchantmentsComponent
-				itemEnchantmentsComponent =
+		ItemEnchantmentsComponent component =
 				stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
 
-		for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
-			RegistryEntry<Enchantment> registryEntry = (RegistryEntry<Enchantment>) entry.getKey();
-			if (registryEntry.isIn(tag)) {
+		for (Entry<RegistryEntry<Enchantment>> entry : component.getEnchantmentEntries()) {
+			RegistryEntry<Enchantment> enchantment = (RegistryEntry<Enchantment>) entry.getKey();
+
+			if (enchantment.isIn(tag)) {
 				return true;
 			}
 		}
@@ -750,70 +706,99 @@ public class EnchantmentHelper {
 	}
 
 	public static boolean hasAnyEnchantmentsWith(ItemStack stack, ComponentType<?> componentType) {
-		MutableBoolean mutableBoolean = new MutableBoolean(false);
-		forEachEnchantment(
-				stack, (enchantment, level) -> {
-					if (enchantment.value().effects().contains(componentType)) {
-						mutableBoolean.setTrue();
-					}
-				}
-		);
-		return mutableBoolean.booleanValue();
+		MutableBoolean found = new MutableBoolean(false);
+		forEachEnchantment(stack, (enchantment, level) -> {
+			if (enchantment.value().effects().contains(componentType)) {
+				found.setTrue();
+			}
+		});
+		return found.booleanValue();
 	}
 
+	/**
+	 * Возвращает эффект наивысшего уровня зачарования из списочного компонента.
+	 * Если уровень превышает размер списка, возвращается последний элемент.
+	 */
 	public static <T> Optional<T> getEffect(ItemStack stack, ComponentType<List<T>> componentType) {
 		Pair<List<T>, Integer> pair = getHighestLevelEffect(stack, componentType);
-		if (pair != null) {
-			List<T> list = (List<T>) pair.getFirst();
-			int i = (Integer) pair.getSecond();
-			return Optional.of(list.get(Math.min(i, list.size()) - 1));
-		}
-		else {
+
+		if (pair == null) {
 			return Optional.empty();
 		}
+
+		List<T> effects = pair.getFirst();
+		int level = pair.getSecond();
+		return Optional.of(effects.get(Math.min(level, effects.size()) - 1));
 	}
 
+	/**
+	 * Возвращает пару (эффект, уровень) для зачарования с наибольшим уровнем,
+	 * содержащего указанный компонент.
+	 *
+	 * @param stack         предмет для поиска
+	 * @param componentType тип компонента эффекта
+	 * @return пара (значение компонента, уровень зачарования) или {@code null}, если не найдено
+	 */
 	public static <T> Pair<T, Integer> getHighestLevelEffect(ItemStack stack, ComponentType<T> componentType) {
-		MutableObject<Pair<T, Integer>> mutableObject = new MutableObject();
-		forEachEnchantment(
-				stack, (enchantment, level) -> {
-					if (mutableObject.get() == null || (Integer) ((Pair) mutableObject.get()).getSecond() < level) {
-						T object = enchantment.value().effects().get(componentType);
-						if (object != null) {
-							mutableObject.setValue(Pair.of(object, level));
-						}
-					}
+		MutableObject<Pair<T, Integer>> result = new MutableObject<>();
+		forEachEnchantment(stack, (enchantment, level) -> {
+			if (result.getValue() == null || result.getValue().getSecond() < level) {
+				T value = enchantment.value().effects().get(componentType);
+
+				if (value != null) {
+					result.setValue(Pair.of(value, level));
 				}
-		);
-		return (Pair<T, Integer>) mutableObject.get();
+			}
+		});
+		return result.getValue();
 	}
 
+	/**
+	 * Выбирает случайный слот экипировки сущности, предмет в котором удовлетворяет предикату
+	 * и содержит зачарование с указанным компонентом.
+	 *
+	 * @param componentType  тип компонента зачарования
+	 * @param entity         сущность для поиска
+	 * @param stackPredicate дополнительный фильтр по предмету
+	 * @return случайный контекст эффекта или {@link Optional#empty()}
+	 */
 	public static Optional<EnchantmentEffectContext> chooseEquipmentWith(
-			ComponentType<?> componentType, LivingEntity entity, Predicate<ItemStack> stackPredicate
+			ComponentType<?> componentType,
+			LivingEntity entity,
+			Predicate<ItemStack> stackPredicate
 	) {
-		List<EnchantmentEffectContext> list = new ArrayList<>();
+		List<EnchantmentEffectContext> candidates = new ArrayList<>();
 
-		for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
-			ItemStack itemStack = entity.getEquippedStack(equipmentSlot);
-			if (stackPredicate.test(itemStack)) {
-				ItemEnchantmentsComponent
-						itemEnchantmentsComponent =
-						itemStack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
+		for (EquipmentSlot slot : EquipmentSlot.VALUES) {
+			ItemStack stack = entity.getEquippedStack(slot);
 
-				for (Entry<RegistryEntry<Enchantment>> entry : itemEnchantmentsComponent.getEnchantmentEntries()) {
-					RegistryEntry<Enchantment> registryEntry = (RegistryEntry<Enchantment>) entry.getKey();
-					if (registryEntry.value().effects().contains(componentType) && registryEntry
-							.value()
-							.slotMatches(equipmentSlot)) {
-						list.add(new EnchantmentEffectContext(itemStack, equipmentSlot, entity));
-					}
+			if (!stackPredicate.test(stack)) {
+				continue;
+			}
+
+			ItemEnchantmentsComponent component =
+					stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
+
+			for (Entry<RegistryEntry<Enchantment>> entry : component.getEnchantmentEntries()) {
+				RegistryEntry<Enchantment> enchantment = (RegistryEntry<Enchantment>) entry.getKey();
+
+				if (enchantment.value().effects().contains(componentType)
+						&& enchantment.value().slotMatches(slot)) {
+					candidates.add(new EnchantmentEffectContext(stack, slot, entity));
 				}
 			}
 		}
 
-		return Util.getRandomOrEmpty(list, entity.getRandom());
+		return Util.getRandomOrEmpty(candidates, entity.getRandom());
 	}
 
+	/**
+	 * Вычисляет требуемый уровень опыта для зачарования в столе зачарований.
+	 * Алгоритм учитывает количество книжных полок и случайность.
+	 *
+	 * @param slotIndex     индекс слота стола (0 — дешёвый, 1 — средний, 2 — дорогой)
+	 * @param bookshelfCount количество книжных полок (ограничивается до 15)
+	 */
 	public static int calculateRequiredExperienceLevel(
 			Random random,
 			int slotIndex,
@@ -821,24 +806,25 @@ public class EnchantmentHelper {
 			ItemStack stack
 	) {
 		EnchantableComponent enchantableComponent = stack.get(DataComponentTypes.ENCHANTABLE);
+
 		if (enchantableComponent == null) {
 			return 0;
 		}
-		else {
-			if (bookshelfCount > 15) {
-				bookshelfCount = 15;
-			}
 
-			int i = random.nextInt(8) + 1 + (bookshelfCount >> 1) + random.nextInt(bookshelfCount + 1);
-			if (slotIndex == 0) {
-				return Math.max(i / 3, 1);
-			}
-			else {
-				return slotIndex == 1 ? i * 2 / 3 + 1 : Math.max(i, bookshelfCount * 2);
-			}
+		int clampedBookshelfCount = Math.min(bookshelfCount, 15);
+		int base = random.nextInt(8) + 1 + (clampedBookshelfCount >> 1) + random.nextInt(clampedBookshelfCount + 1);
+
+		if (slotIndex == 0) {
+			return Math.max(base / 3, 1);
 		}
+
+		return slotIndex == 1 ? base * 2 / 3 + 1 : Math.max(base, clampedBookshelfCount * 2);
 	}
 
+	/**
+	 * Зачаровывает предмет, используя указанный уровень и список возможных зачарований.
+	 * Если передан {@link Optional#empty()}, используются все зачарования из реестра.
+	 */
 	public static ItemStack enchant(
 			Random random,
 			ItemStack stack,
@@ -851,12 +837,11 @@ public class EnchantmentHelper {
 				stack,
 				level,
 				enchantments.map(RegistryEntryList::stream)
-				            .orElseGet(
-						            () -> dynamicRegistryManager
-								            .getOrThrow(RegistryKeys.ENCHANTMENT)
-								            .streamEntries()
-								            .map(reference -> (RegistryEntry<Enchantment>) reference)
-				            )
+						.orElseGet(() -> dynamicRegistryManager
+								.getOrThrow(RegistryKeys.ENCHANTMENT)
+								.streamEntries()
+								.map(reference -> (RegistryEntry<Enchantment>) reference)
+						)
 		);
 	}
 
@@ -866,70 +851,90 @@ public class EnchantmentHelper {
 			int level,
 			Stream<RegistryEntry<Enchantment>> possibleEnchantments
 	) {
-		List<EnchantmentLevelEntry> list = generateEnchantments(random, stack, level, possibleEnchantments);
+		List<EnchantmentLevelEntry> enchantmentList = generateEnchantments(random, stack, level, possibleEnchantments);
+
 		if (stack.isOf(Items.BOOK)) {
 			stack = new ItemStack(Items.ENCHANTED_BOOK);
 		}
 
-		for (EnchantmentLevelEntry enchantmentLevelEntry : list) {
-			stack.addEnchantment(enchantmentLevelEntry.enchantment(), enchantmentLevelEntry.level());
+		for (EnchantmentLevelEntry entry : enchantmentList) {
+			stack.addEnchantment(entry.enchantment(), entry.level());
 		}
 
 		return stack;
 	}
 
+	/**
+	 * Генерирует список зачарований для предмета на основе уровня силы зачарования.
+	 * Алгоритм: случайно выбирает первое зачарование, затем итеративно добавляет
+	 * совместимые зачарования, пока уровень делится на 2 и выпадает шанс (level из 50).
+	 *
+	 * @param level                уровень силы зачарования (модифицируется внутри)
+	 * @param possibleEnchantments поток возможных зачарований для выбора
+	 */
 	public static List<EnchantmentLevelEntry> generateEnchantments(
-			Random random, ItemStack stack, int level, Stream<RegistryEntry<Enchantment>> possibleEnchantments
+			Random random,
+			ItemStack stack,
+			int level,
+			Stream<RegistryEntry<Enchantment>> possibleEnchantments
 	) {
-		List<EnchantmentLevelEntry> list = Lists.newArrayList();
+		List<EnchantmentLevelEntry> result = Lists.newArrayList();
 		EnchantableComponent enchantableComponent = stack.get(DataComponentTypes.ENCHANTABLE);
+
 		if (enchantableComponent == null) {
-			return list;
+			return result;
 		}
-		else {
-			level +=
-					1 + random.nextInt(enchantableComponent.value() / 4 + 1) + random.nextInt(
-							enchantableComponent.value() / 4 + 1);
-			float f = (random.nextFloat() + random.nextFloat() - 1.0F) * 0.15F;
-			level = MathHelper.clamp(Math.round(level + level * f), 1, Integer.MAX_VALUE);
-			List<EnchantmentLevelEntry> list2 = getPossibleEntries(level, stack, possibleEnchantments);
-			if (!list2.isEmpty()) {
-				Weighting.getRandom(random, list2, EnchantmentLevelEntry::getWeight).ifPresent(list::add);
 
-				while (random.nextInt(50) <= level) {
-					if (!list.isEmpty()) {
-						removeConflicts(list2, list.getLast());
-					}
+		level += 1
+				+ random.nextInt(enchantableComponent.value() / 4 + 1)
+				+ random.nextInt(enchantableComponent.value() / 4 + 1);
 
-					if (list2.isEmpty()) {
-						break;
-					}
+		float bonus = (random.nextFloat() + random.nextFloat() - 1.0F) * 0.15F;
+		level = MathHelper.clamp(Math.round(level + level * bonus), 1, Integer.MAX_VALUE);
 
-					Weighting.getRandom(random, list2, EnchantmentLevelEntry::getWeight).ifPresent(list::add);
-					level /= 2;
-				}
+		List<EnchantmentLevelEntry> candidates = getPossibleEntries(level, stack, possibleEnchantments);
+
+		if (candidates.isEmpty()) {
+			return result;
+		}
+
+		Weighting.getRandom(random, candidates, EnchantmentLevelEntry::getWeight).ifPresent(result::add);
+
+		while (random.nextInt(50) <= level) {
+			if (!result.isEmpty()) {
+				removeConflicts(candidates, result.getLast());
 			}
 
-			return list;
+			if (candidates.isEmpty()) {
+				break;
+			}
+
+			Weighting.getRandom(random, candidates, EnchantmentLevelEntry::getWeight).ifPresent(result::add);
+			level /= 2;
 		}
+
+		return result;
 	}
 
 	/**
-	 * Удаляет conflicts.
-	 *
-	 * @param possibleEntries possible entries
-	 * @param pickedEntry picked entry
+	 * Удаляет из списка кандидатов все зачарования, конфликтующие с выбранным.
 	 */
-	public static void removeConflicts(List<EnchantmentLevelEntry> possibleEntries, EnchantmentLevelEntry pickedEntry) {
+	public static void removeConflicts(
+			List<EnchantmentLevelEntry> possibleEntries,
+			EnchantmentLevelEntry pickedEntry
+	) {
 		possibleEntries.removeIf(entry -> !Enchantment.canBeCombined(pickedEntry.enchantment(), entry.enchantment()));
 	}
 
+	/**
+	 * Проверяет, совместимо ли зачарование-кандидат со всеми уже выбранными зачарованиями.
+	 */
 	public static boolean isCompatible(
 			Collection<RegistryEntry<Enchantment>> existing,
 			RegistryEntry<Enchantment> candidate
 	) {
-		for (RegistryEntry<Enchantment> registryEntry : existing) {
-			if (!Enchantment.canBeCombined(registryEntry, candidate)) {
+		for (RegistryEntry<Enchantment> existing1 : existing) {
+			if (!Enchantment.canBeCombined(existing1, candidate)) {
 				return false;
 			}
 		}
@@ -937,28 +942,43 @@ public class EnchantmentHelper {
 		return true;
 	}
 
+	/**
+	 * Возвращает список возможных зачарований с уровнями для данного предмета и уровня силы.
+	 * Для каждого зачарования выбирается наибольший уровень, при котором стоимость попадает в диапазон.
+	 *
+	 * @param level                уровень силы зачарования
+	 * @param stack                зачаровываемый предмет
+	 * @param possibleEnchantments поток зачарований для фильтрации
+	 */
 	public static List<EnchantmentLevelEntry> getPossibleEntries(
 			int level,
 			ItemStack stack,
 			Stream<RegistryEntry<Enchantment>> possibleEnchantments
 	) {
-		List<EnchantmentLevelEntry> list = Lists.newArrayList();
-		boolean bl = stack.isOf(Items.BOOK);
-		possibleEnchantments
-				.filter(enchantment -> enchantment.value().isPrimaryItem(stack) || bl)
-				.forEach(enchantmentx -> {
-					Enchantment enchantment = enchantmentx.value();
+		List<EnchantmentLevelEntry> result = Lists.newArrayList();
+		boolean isBook = stack.isOf(Items.BOOK);
 
-					for (int j = enchantment.getMaxLevel(); j >= enchantment.getMinLevel(); j--) {
-						if (level >= enchantment.getMinPower(j) && level <= enchantment.getMaxPower(j)) {
-							list.add(new EnchantmentLevelEntry((RegistryEntry<Enchantment>) enchantmentx, j));
+		possibleEnchantments
+				.filter(enchantment -> enchantment.value().isPrimaryItem(stack) || isBook)
+				.forEach(enchantment -> {
+					Enchantment value = enchantment.value();
+
+					for (int enchLevel = value.getMaxLevel(); enchLevel >= value.getMinLevel(); enchLevel--) {
+						if (level >= value.getMinPower(enchLevel) && level <= value.getMaxPower(enchLevel)) {
+							result.add(new EnchantmentLevelEntry((RegistryEntry<Enchantment>) enchantment, enchLevel));
 							break;
 						}
 					}
 				});
-		return list;
+
+		return result;
 	}
 
+	/**
+	 * Применяет провайдер зачарований к предмету, если провайдер зарегистрирован.
+	 *
+	 * @param providerKey ключ провайдера в реестре {@link RegistryKeys#ENCHANTMENT_PROVIDER}
+	 */
 	public static void applyEnchantmentProvider(
 			ItemStack stack,
 			DynamicRegistryManager registryManager,
@@ -966,35 +986,28 @@ public class EnchantmentHelper {
 			LocalDifficulty localDifficulty,
 			Random random
 	) {
-		EnchantmentProvider
-				enchantmentProvider =
+		EnchantmentProvider provider =
 				registryManager.getOrThrow(RegistryKeys.ENCHANTMENT_PROVIDER).get(providerKey);
-		if (enchantmentProvider != null) {
-			apply(
-					stack,
-					componentBuilder -> enchantmentProvider.provideEnchantments(
-							stack,
-							componentBuilder,
-							random,
-							localDifficulty
-					)
-			);
+
+		if (provider == null) {
+			return;
 		}
+
+		apply(
+				stack,
+				componentBuilder -> provider.provideEnchantments(stack, componentBuilder, random, localDifficulty)
+		);
 	}
 
+	/** Потребитель зачарования и его уровня без контекста слота. */
 	@FunctionalInterface
-	/**
-	 * {@code Consumer}.
-	 */
 	public interface Consumer {
 
 		void accept(RegistryEntry<Enchantment> enchantment, int level);
 	}
 
+	/** Потребитель зачарования, уровня и контекста эффекта (слот + предмет + владелец). */
 	@FunctionalInterface
-	/**
-	 * {@code ContextAwareConsumer}.
-	 */
 	public interface ContextAwareConsumer {
 
 		void accept(RegistryEntry<Enchantment> enchantment, int level, EnchantmentEffectContext context);

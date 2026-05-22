@@ -5,45 +5,49 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.TimeHelper;
 
 /**
- * {@code TickManager}.
+ * Управляет скоростью тиков сервера: частотой, заморозкой и пошаговым режимом.
+ * Используется командами {@code /tick} для отладки и замедления симуляции.
  */
 public class TickManager {
 
 	public static final float MIN_TICK_RATE = 1.0F;
-	protected float tickRate = 20.0F;
-	protected long nanosPerTick = TimeHelper.SECOND_IN_NANOS / 20L;
+	private static final float DEFAULT_TICK_RATE = 20.0F;
+
+	protected float tickRate = DEFAULT_TICK_RATE;
+	protected long nanosPerTick = TimeHelper.SECOND_IN_NANOS / (long) DEFAULT_TICK_RATE;
 	protected int stepTicks = 0;
 	protected boolean shouldTick = true;
 	protected boolean frozen = false;
 
+	/**
+	 * Устанавливает частоту тиков в секунду. Значение ниже {@link #MIN_TICK_RATE} игнорируется.
+	 * Автоматически пересчитывает {@code nanosPerTick}.
+	 *
+	 * @param tickRate новая частота тиков (тиков/сек)
+	 */
 	public void setTickRate(float tickRate) {
-		this.tickRate = Math.max(tickRate, 1.0F);
-		this.nanosPerTick = (long) ((double) TimeHelper.SECOND_IN_NANOS / this.tickRate);
+		this.tickRate = Math.max(tickRate, MIN_TICK_RATE);
+		nanosPerTick = (long) ((double) TimeHelper.SECOND_IN_NANOS / this.tickRate);
 	}
 
 	public float getTickRate() {
-		return this.tickRate;
+		return tickRate;
 	}
 
 	public float getMillisPerTick() {
-		return (float) this.nanosPerTick / (float) TimeHelper.MILLI_IN_NANOS;
+		return (float) nanosPerTick / (float) TimeHelper.MILLI_IN_NANOS;
 	}
 
 	public long getNanosPerTick() {
-		return this.nanosPerTick;
+		return nanosPerTick;
 	}
 
-	/**
-	 * Определяет, следует ли tick.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldTick() {
-		return this.shouldTick;
+		return shouldTick;
 	}
 
 	public boolean isStepping() {
-		return this.stepTicks > 0;
+		return stepTicks > 0;
 	}
 
 	public void setStepTicks(int stepTicks) {
@@ -51,7 +55,7 @@ public class TickManager {
 	}
 
 	public int getStepTicks() {
-		return this.stepTicks;
+		return stepTicks;
 	}
 
 	public void setFrozen(boolean frozen) {
@@ -59,27 +63,30 @@ public class TickManager {
 	}
 
 	public boolean isFrozen() {
-		return this.frozen;
+		return frozen;
 	}
 
 	/**
-	 * Step.
+	 * Обновляет флаг {@code shouldTick} на основе состояния заморозки и пошагового режима.
+	 * Если мир заморожен и шагов не осталось — тик пропускается.
+	 * Вызывается один раз в начале каждого серверного тика.
 	 */
 	public void step() {
-		this.shouldTick = !this.frozen || this.stepTicks > 0;
-		if (this.stepTicks > 0) {
-			this.stepTicks--;
+		shouldTick = !frozen || stepTicks > 0;
+
+		if (stepTicks > 0) {
+			stepTicks--;
 		}
 	}
 
 	/**
-	 * Определяет, следует ли skip tick.
+	 * Определяет, нужно ли пропустить тик для данной сущности.
+	 * Игроки и сущности с пассажирами-игроками всегда тикают, даже при заморозке.
 	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — результат операции
+	 * @param entity сущность для проверки
+	 * @return {@code true}, если тик сущности следует пропустить
 	 */
 	public boolean shouldSkipTick(Entity entity) {
-		return !this.shouldTick() && !(entity instanceof PlayerEntity) && entity.getPlayerPassengers() <= 0;
+		return !shouldTick() && !(entity instanceof PlayerEntity) && entity.getPlayerPassengers() <= 0;
 	}
 }

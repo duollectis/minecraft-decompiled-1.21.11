@@ -11,7 +11,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code AdvancementCriteriaRenameFix}.
+ * Переименовывает критерии конкретного достижения по заданному маппингу {@code renamer}.
  */
 public class AdvancementCriteriaRenameFix extends DataFix {
 
@@ -32,25 +32,25 @@ public class AdvancementCriteriaRenameFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
-				this.description,
-				this.getInputSchema().getType(TypeReferences.ADVANCEMENTS),
-				typed -> typed.update(DSL.remainderFinder(), this::update)
+		return fixTypeEverywhereTyped(
+				description,
+				getInputSchema().getType(TypeReferences.ADVANCEMENTS),
+				typed -> typed.update(DSL.remainderFinder(), this::renameAdvancementCriteria)
 		);
 	}
 
-	private Dynamic<?> update(Dynamic<?> advancements) {
+	private Dynamic<?> renameAdvancementCriteria(Dynamic<?> advancements) {
 		return advancements.update(
-				this.advancementId,
+				advancementId,
 				advancement -> advancement.update(
 						"criteria",
 						criteria -> criteria.updateMapValues(
 								pair -> pair.mapFirst(
 										key -> (Dynamic) DataFixUtils.orElse(
+												key.asString()
+														.map(keyString -> key.createString(renamer.apply(keyString)))
+														.result(),
 												key
-														.asString()
-														.map(keyString -> key.createString(this.renamer.apply(keyString)))
-														.result(), key
 										)
 								)
 						)

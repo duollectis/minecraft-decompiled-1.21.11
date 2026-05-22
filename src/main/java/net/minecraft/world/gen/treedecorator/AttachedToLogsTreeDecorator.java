@@ -13,7 +13,9 @@ import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 import java.util.List;
 
 /**
- * {@code AttachedToLogsTreeDecorator}.
+ * Декоратор дерева, размещающий блоки, прикреплённые к брёвнам.
+ * Для каждого бревна случайно выбирается направление из разрешённого списка,
+ * и если соседний блок является воздухом, с заданной вероятностью размещается декоративный блок.
  */
 public class AttachedToLogsTreeDecorator extends TreeDecorator {
 
@@ -51,11 +53,12 @@ public class AttachedToLogsTreeDecorator extends TreeDecorator {
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
 
-		for (BlockPos blockPos : Util.copyShuffled(generator.getLogPositions(), random)) {
-			Direction direction = Util.getRandom(this.directions, random);
-			BlockPos blockPos2 = blockPos.offset(direction);
-			if (random.nextFloat() <= this.probability && generator.isAir(blockPos2)) {
-				generator.replace(blockPos2, this.blockProvider.get(random, blockPos2));
+		for (BlockPos logPos : Util.copyShuffled(generator.getLogPositions(), random)) {
+			Direction direction = Util.getRandom(directions, random);
+			BlockPos offsetPos = logPos.offset(direction);
+
+			if (random.nextFloat() <= probability && generator.isAir(offsetPos)) {
+				generator.replace(offsetPos, blockProvider.get(random, offsetPos));
 			}
 		}
 	}

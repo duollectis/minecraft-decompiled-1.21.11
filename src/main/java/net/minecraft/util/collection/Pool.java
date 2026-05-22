@@ -18,186 +18,116 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code Pool}.
+ * Взвешенный пул элементов для случайного выбора.
+ * При суммарном весе меньше {@link #FLATTENED_CONTENT_THRESHOLD} использует
+ * развёрнутый массив для O(1) выборки; иначе — линейный поиск по весам.
+ *
+ * @param <E> тип элементов пула
  */
 public final class Pool<E> {
 
 	private static final int FLATTENED_CONTENT_THRESHOLD = 64;
+
 	private final int totalWeight;
 	private final List<Weighted<E>> entries;
-	private final Pool.@Nullable Content<E> content;
+	private final @Nullable Content<E> content;
 
 	Pool(List<? extends Weighted<E>> entries) {
 		this.entries = List.copyOf(entries);
-		this.totalWeight = Weighting.getWeightSum(entries, Weighted::weight);
-		if (this.totalWeight == 0) {
-			this.content = null;
-		}
-		else if (this.totalWeight < 64) {
-			this.content = new Pool.FlattenedContent<>(this.entries, this.totalWeight);
-		}
-		else {
-			this.content = new Pool.WrappedContent<>(this.entries);
+		totalWeight = Weighting.getWeightSum(entries, Weighted::weight);
+
+		if (totalWeight == 0) {
+			content = null;
+		} else if (totalWeight < FLATTENED_CONTENT_THRESHOLD) {
+			content = new FlattenedContent<>(this.entries, totalWeight);
+		} else {
+			content = new WrappedContent<>(this.entries);
 		}
 	}
 
-	/**
-	 * Empty.
-	 *
-	 * @return Pool — результат операции
-	 */
 	public static <E> Pool<E> empty() {
 		return new Pool<>(List.of());
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param entry entry
-	 *
-	 * @return Pool — результат операции
-	 */
 	public static <E> Pool<E> of(E entry) {
 		return new Pool<>(List.of(new Weighted<>(entry, 1)));
 	}
 
-	@SafeVarargs
 	/**
-	 * Of.
+	 * Создаёт пул из набора взвешенных элементов.
 	 *
-	 * @param entries entries
-	 *
-	 * @return Pool — результат операции
+	 * @param entries взвешенные элементы
 	 */
+	@SafeVarargs
 	public static <E> Pool<E> of(Weighted<E>... entries) {
 		return new Pool<>(List.of(entries));
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param entries entries
-	 *
-	 * @return Pool — результат операции
-	 */
 	public static <E> Pool<E> of(List<Weighted<E>> entries) {
 		return new Pool<>(entries);
 	}
 
-	public static <E> Pool.Builder<E> builder() {
-		return new Pool.Builder<>();
+	public static <E> Builder<E> builder() {
+		return new Builder<>();
 	}
 
 	public boolean isEmpty() {
-		return this.entries.isEmpty();
+		return entries.isEmpty();
 	}
 
-	/**
-	 * Transform.
-	 *
-	 * @param function function
-	 *
-	 * @return Pool — результат операции
-	 */
 	public <T> Pool<T> transform(Function<E, T> function) {
-		return new Pool(Lists.transform(this.entries, entry -> entry.transform(function)));
+		return new Pool<>(Lists.transform(entries, entry -> entry.transform(function)));
 	}
 
 	public Optional<E> getOrEmpty(Random random) {
-		if (this.content == null) {
+		if (content == null) {
 			return Optional.empty();
 		}
-		else {
-			int i = random.nextInt(this.totalWeight);
-			return Optional.of(this.content.get(i));
-		}
+
+		return Optional.of(content.get(random.nextInt(totalWeight)));
 	}
 
 	/**
-	 * Get.
+	 * Возвращает случайный элемент пула с учётом весов.
 	 *
-	 * @param random random
-	 *
-	 * @return E — 
+	 * @param random источник случайности
+	 * @return случайный элемент
+	 * @throws IllegalStateException если пул пуст
 	 */
 	public E get(Random random) {
-		if (this.content == null) {
+		if (content == null) {
 			throw new IllegalStateException("Weighted list has no elements");
 		}
-		else {
-			int i = random.nextInt(this.totalWeight);
-			return this.content.get(i);
-		}
+
+		return content.get(random.nextInt(totalWeight));
 	}
 
 	public List<Weighted<E>> getEntries() {
-		return this.entries;
+		return entries;
 	}
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param entryCodec entry codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Pool<E>> createCodec(Codec<E> entryCodec) {
 		return Weighted.createCodec(entryCodec).listOf().xmap(Pool::of, Pool::getEntries);
 	}
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param entryCodec entry codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Pool<E>> createCodec(MapCodec<E> entryCodec) {
 		return Weighted.createCodec(entryCodec).listOf().xmap(Pool::of, Pool::getEntries);
 	}
 
-	/**
-	 * Создаёт non empty codec.
-	 *
-	 * @param entryCodec entry codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Pool<E>> createNonEmptyCodec(Codec<E> entryCodec) {
 		return Codecs.nonEmptyList(Weighted.createCodec(entryCodec).listOf()).xmap(Pool::of, Pool::getEntries);
 	}
 
-	/**
-	 * Создаёт non empty codec.
-	 *
-	 * @param entryCodec entry codec
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <E> Codec<Pool<E>> createNonEmptyCodec(MapCodec<E> entryCodec) {
 		return Codecs.nonEmptyList(Weighted.createCodec(entryCodec).listOf()).xmap(Pool::of, Pool::getEntries);
 	}
 
-	/**
-	 * Создаёт packet codec.
-	 *
-	 * @param entryCodec entry codec
-	 *
-	 * @return PacketCodec> — результат операции
-	 */
 	public static <E, B extends ByteBuf> PacketCodec<B, Pool<E>> createPacketCodec(PacketCodec<B, E> entryCodec) {
 		return Weighted.createPacketCodec(entryCodec).collect(PacketCodecs.toList()).xmap(Pool::of, Pool::getEntries);
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param value value
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(E value) {
-		for (Weighted<E> weighted : this.entries) {
+		for (Weighted<E> weighted : entries) {
 			if (weighted.value().equals(value)) {
 				return true;
 			}
@@ -207,86 +137,75 @@ public final class Pool<E> {
 	}
 
 	@Override
-	public boolean equals(@Nullable Object o) {
-		if (this == o) {
+	public boolean equals(@Nullable Object other) {
+		if (this == other) {
 			return true;
 		}
-		else {
-			return !(o instanceof Pool<?> pool) ? false : this.totalWeight == pool.totalWeight && Objects.equals(
-					this.entries,
-					pool.entries
-			);
-		}
+
+		return other instanceof Pool<?> pool
+			? totalWeight == pool.totalWeight && Objects.equals(entries, pool.entries)
+			: false;
 	}
 
 	@Override
 	public int hashCode() {
-		int i = this.totalWeight;
-		return 31 * i + this.entries.hashCode();
+		return 31 * totalWeight + entries.hashCode();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder<E> {
 
-		private final com.google.common.collect.ImmutableList.Builder<Weighted<E>> entries = ImmutableList.builder();
+		private final ImmutableList.Builder<Weighted<E>> entries = ImmutableList.builder();
 
-		public Pool.Builder<E> add(E object) {
-			return this.add(object, 1);
+		public Builder<E> add(E object) {
+			return add(object, 1);
 		}
 
-		public Pool.Builder<E> add(E object, int weight) {
-			this.entries.add(new Weighted<>(object, weight));
+		public Builder<E> add(E object, int weight) {
+			entries.add(new Weighted<>(object, weight));
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return Pool — результат операции
-		 */
 		public Pool<E> build() {
-			return new Pool<>(this.entries.build());
+			return new Pool<>(entries.build());
 		}
 	}
 
-	/**
-	 * {@code Content}.
-	 */
 	interface Content<E> {
 
 		E get(int i);
 	}
 
 	/**
-	 * {@code FlattenedContent}.
+	 * Развёрнутое хранилище: каждый элемент повторяется {@code weight} раз,
+	 * что обеспечивает O(1) выборку по случайному индексу.
 	 */
-	static class FlattenedContent<E> implements Pool.Content<E> {
+	static class FlattenedContent<E> implements Content<E> {
 
 		private final Object[] entries;
 
 		FlattenedContent(List<Weighted<E>> entries, int totalWeight) {
 			this.entries = new Object[totalWeight];
-			int i = 0;
+			int offset = 0;
 
 			for (Weighted<E> weighted : entries) {
-				int j = weighted.weight();
-				Arrays.fill(this.entries, i, i + j, weighted.value());
-				i += j;
+				int weight = weighted.weight();
+				Arrays.fill(this.entries, offset, offset + weight, weighted.value());
+				offset += weight;
 			}
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public E get(int i) {
-			return (E) this.entries[i];
+			return (E) entries[i];
 		}
 	}
 
 	/**
-	 * {@code WrappedContent}.
+	 * Хранилище с линейным поиском по весам.
+	 * Используется когда суммарный вес превышает {@link #FLATTENED_CONTENT_THRESHOLD}.
 	 */
-	static class WrappedContent<E> implements Pool.Content<E> {
+	static class WrappedContent<E> implements Content<E> {
 
 		private final Weighted<?>[] entries;
 
@@ -295,9 +214,11 @@ public final class Pool<E> {
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public E get(int i) {
-			for (Weighted<?> weighted : this.entries) {
+			for (Weighted<?> weighted : entries) {
 				i -= weighted.weight();
+
 				if (i < 0) {
 					return (E) weighted.value();
 				}

@@ -27,10 +27,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookScreen}.
+ * Экран чтения книги. Отображает страницы книги с поддержкой кликабельных ссылок,
+ * перелистывания и навигации по страницам через клавиши PageUp/PageDown.
  */
+@Environment(EnvType.CLIENT)
 public class BookScreen extends Screen {
 
 	public static final int PAGE_INDICATOR_Y_OFFSET = 16;
@@ -38,6 +39,15 @@ public class BookScreen extends Screen {
 	public static final int TEXT_Y_OFFSET = 30;
 	private static final int TEXTURE_WIDTH = 256;
 	private static final int TEXTURE_HEIGHT = 256;
+	private static final int PAGE_INDICATOR_X_OFFSET = 148;
+	private static final int PAGE_TURN_BUTTON_Y_OFFSET = 157;
+	private static final int PREV_PAGE_BUTTON_X_OFFSET = 43;
+	private static final int NEXT_PAGE_BUTTON_X_OFFSET = 116;
+	private static final int CLOSE_BUTTON_WIDTH = 200;
+	private static final int LINE_HEIGHT = 9;
+	private static final int KEY_PAGE_UP = 266;
+	private static final int KEY_PAGE_DOWN = 267;
+	private static final int LEFT_MOUSE_BUTTON = 0;
 	private static final Text TITLE_TEXT = Text.translatable("book.view.title");
 	private static final Style TEXT_STYLE = Style.EMPTY.withoutShadow().withColor(-16777216);
 	public static final BookScreen.Contents EMPTY_PROVIDER = new BookScreen.Contents(List.of());
@@ -45,11 +55,8 @@ public class BookScreen extends Screen {
 	protected static final int MAX_TEXT_WIDTH = 114;
 	protected static final int MAX_TEXT_HEIGHT = 128;
 	protected static final int WIDTH = 192;
-	private static final int PAGE_INDICATOR_X_OFFSET = 148;
 	protected static final int HEIGHT = 192;
-	private static final int PAGE_TURN_BUTTON_Y_OFFSET = 157;
-	private static final int PREV_PAGE_BUTTON_X_OFFSET = 43;
-	private static final int NEXT_PAGE_BUTTON_X_OFFSET = 116;
+
 	private BookScreen.Contents contents;
 	private int pageIndex;
 	private List<OrderedText> cachedPage = Collections.emptyList();
@@ -70,128 +77,106 @@ public class BookScreen extends Screen {
 	private BookScreen(BookScreen.Contents contents, boolean playPageTurnSound) {
 		super(TITLE_TEXT);
 		this.contents = contents;
-		this.pageTurnSound = playPageTurnSound;
+		pageTurnSound = playPageTurnSound;
 	}
 
 	public void setPageProvider(BookScreen.Contents pageProvider) {
-		this.contents = pageProvider;
-		this.pageIndex = MathHelper.clamp(this.pageIndex, 0, pageProvider.getPageCount());
-		this.updatePageButtons();
-		this.cachedPageIndex = -1;
+		contents = pageProvider;
+		pageIndex = MathHelper.clamp(pageIndex, 0, pageProvider.getPageCount());
+		updatePageButtons();
+		cachedPageIndex = -1;
 	}
 
 	public boolean setPage(int index) {
-		int i = MathHelper.clamp(index, 0, this.contents.getPageCount() - 1);
-		if (i != this.pageIndex) {
-			this.pageIndex = i;
-			this.updatePageButtons();
-			this.cachedPageIndex = -1;
-			return true;
-		}
-		else {
+		int clampedIndex = MathHelper.clamp(index, 0, contents.getPageCount() - 1);
+
+		if (clampedIndex == pageIndex) {
 			return false;
 		}
+
+		pageIndex = clampedIndex;
+		updatePageButtons();
+		cachedPageIndex = -1;
+		return true;
 	}
 
-	/**
-	 * Jump to page.
-	 *
-	 * @param page page
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean jumpToPage(int page) {
-		return this.setPage(page);
+		return setPage(page);
 	}
 
 	@Override
 	protected void init() {
-		this.addCloseButton();
-		this.addPageButtons();
+		addCloseButton();
+		addPageButtons();
 	}
 
 	@Override
 	public Text getNarratedTitle() {
 		return ScreenTexts.joinLines(
-				super.getNarratedTitle(),
-				this.getPageIndicatorText(),
-				this.contents.getPage(this.pageIndex)
+			super.getNarratedTitle(),
+			getPageIndicatorText(),
+			contents.getPage(pageIndex)
 		);
 	}
 
 	private Text getPageIndicatorText() {
-		return Text
-				.translatable("book.pageIndicator", this.pageIndex + 1, Math.max(this.getPageCount(), 1))
-				.fillStyle(TEXT_STYLE);
+		return Text.translatable("book.pageIndicator", pageIndex + 1, Math.max(getPageCount(), 1))
+			.fillStyle(TEXT_STYLE);
 	}
 
-	/**
-	 * Добавляет close button.
-	 */
 	protected void addCloseButton() {
-		this.addDrawableChild(
-				ButtonWidget
-						.builder(ScreenTexts.DONE, button -> this.close())
-						.position((this.width - 200) / 2, this.getCloseButtonY())
-						.width(200)
-						.build()
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.DONE, button -> close())
+				.position((width - CLOSE_BUTTON_WIDTH) / 2, getCloseButtonY())
+				.width(CLOSE_BUTTON_WIDTH)
+				.build()
 		);
 	}
 
-	/**
-	 * Добавляет page buttons.
-	 */
 	protected void addPageButtons() {
-		int i = this.getBookX();
-		int j = this.getBookY();
-		this.nextPageButton =
-				this.addDrawableChild(new PageTurnWidget(
-						i + 116,
-						j + 157,
-						true,
-						button -> this.goToNextPage(),
-						this.pageTurnSound
-				));
-		this.previousPageButton =
-				this.addDrawableChild(new PageTurnWidget(
-						i + 43,
-						j + 157,
-						false,
-						button -> this.goToPreviousPage(),
-						this.pageTurnSound
-				));
-		this.updatePageButtons();
+		int bookX = getBookX();
+		int bookY = getBookY();
+
+		nextPageButton = addDrawableChild(new PageTurnWidget(
+			bookX + NEXT_PAGE_BUTTON_X_OFFSET,
+			bookY + PAGE_TURN_BUTTON_Y_OFFSET,
+			true,
+			button -> goToNextPage(),
+			pageTurnSound
+		));
+		previousPageButton = addDrawableChild(new PageTurnWidget(
+			bookX + PREV_PAGE_BUTTON_X_OFFSET,
+			bookY + PAGE_TURN_BUTTON_Y_OFFSET,
+			false,
+			button -> goToPreviousPage(),
+			pageTurnSound
+		));
+		updatePageButtons();
 	}
 
 	private int getPageCount() {
-		return this.contents.getPageCount();
+		return contents.getPageCount();
 	}
 
-	/**
-	 * Go to previous page.
-	 */
 	protected void goToPreviousPage() {
-		if (this.pageIndex > 0) {
-			this.pageIndex--;
+		if (pageIndex > 0) {
+			pageIndex--;
 		}
 
-		this.updatePageButtons();
+		updatePageButtons();
 	}
 
-	/**
-	 * Go to next page.
-	 */
 	protected void goToNextPage() {
-		if (this.pageIndex < this.getPageCount() - 1) {
-			this.pageIndex++;
+		if (pageIndex < getPageCount() - 1) {
+			pageIndex++;
 		}
 
-		this.updatePageButtons();
+		updatePageButtons();
 	}
 
 	private void updatePageButtons() {
-		this.nextPageButton.visible = this.pageIndex < this.getPageCount() - 1;
-		this.previousPageButton.visible = this.pageIndex > 0;
+		nextPageButton.visible = pageIndex < getPageCount() - 1;
+		previousPageButton.visible = pageIndex > 0;
 	}
 
 	@Override
@@ -199,46 +184,46 @@ public class BookScreen extends Screen {
 		if (super.keyPressed(input)) {
 			return true;
 		}
-		else {
-			return switch (input.key()) {
-				case 266 -> {
-					this.previousPageButton.onPress(input);
-					yield true;
-				}
-				case 267 -> {
-					this.nextPageButton.onPress(input);
-					yield true;
-				}
-				default -> false;
-			};
-		}
+
+		return switch (input.key()) {
+			case KEY_PAGE_UP -> {
+				previousPageButton.onPress(input);
+				yield true;
+			}
+			case KEY_PAGE_DOWN -> {
+				nextPageButton.onPress(input);
+				yield true;
+			}
+			default -> false;
+		};
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.renderPageContent(context.getTextConsumer(DrawContext.HoverType.TOOLTIP_AND_CURSOR), false);
+		renderPageContent(context.getTextConsumer(DrawContext.HoverType.TOOLTIP_AND_CURSOR), false);
 	}
 
-	private void renderPageContent(DrawnTextConsumer drawer, boolean bl) {
-		if (this.cachedPageIndex != this.pageIndex) {
-			StringVisitable stringVisitable = Texts.withStyle(this.contents.getPage(this.pageIndex), TEXT_STYLE);
-			this.cachedPage = this.textRenderer.wrapLines(stringVisitable, 114);
-			this.pageIndexText = this.getPageIndicatorText();
-			this.cachedPageIndex = this.pageIndex;
+	private void renderPageContent(DrawnTextConsumer drawer, boolean clickMode) {
+		if (cachedPageIndex != pageIndex) {
+			StringVisitable styledPage = Texts.withStyle(contents.getPage(pageIndex), TEXT_STYLE);
+			cachedPage = textRenderer.wrapLines(styledPage, MAX_TEXT_WIDTH);
+			pageIndexText = getPageIndicatorText();
+			cachedPageIndex = pageIndex;
 		}
 
-		int i = this.getBookX();
-		int j = this.getBookY();
-		if (!bl) {
-			drawer.text(Alignment.RIGHT, i + 148, j + 16, this.pageIndexText);
+		int bookX = getBookX();
+		int bookY = getBookY();
+
+		if (!clickMode) {
+			drawer.text(Alignment.RIGHT, bookX + PAGE_INDICATOR_X_OFFSET, bookY + PAGE_INDICATOR_Y_OFFSET, pageIndexText);
 		}
 
-		int k = Math.min(128 / 9, this.cachedPage.size());
+		int visibleLines = Math.min(MAX_TEXT_HEIGHT / LINE_HEIGHT, cachedPage.size());
 
-		for (int l = 0; l < k; l++) {
-			OrderedText orderedText = this.cachedPage.get(l);
-			drawer.text(i + 36, j + 30 + l * 9, orderedText);
+		for (int lineIndex = 0; lineIndex < visibleLines; lineIndex++) {
+			OrderedText line = cachedPage.get(lineIndex);
+			drawer.text(bookX + TEXT_X_OFFSET, bookY + TEXT_Y_OFFSET + lineIndex * LINE_HEIGHT, line);
 		}
 	}
 
@@ -246,21 +231,21 @@ public class BookScreen extends Screen {
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.renderBackground(context, mouseX, mouseY, deltaTicks);
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				BOOK_TEXTURE,
-				this.getBookX(),
-				this.getBookY(),
-				0.0F,
-				0.0F,
-				192,
-				192,
-				256,
-				256
+			RenderPipelines.GUI_TEXTURED,
+			BOOK_TEXTURE,
+			getBookX(),
+			getBookY(),
+			0.0F,
+			0.0F,
+			WIDTH,
+			WIDTH,
+			TEXTURE_WIDTH,
+			TEXTURE_WIDTH
 		);
 	}
 
 	private int getBookX() {
-		return (this.width - 192) / 2;
+		return (width - WIDTH) / 2;
 	}
 
 	private int getBookY() {
@@ -268,18 +253,21 @@ public class BookScreen extends Screen {
 	}
 
 	protected int getCloseButtonY() {
-		return this.getBookY() + 192 + 2;
+		return getBookY() + WIDTH + 2;
 	}
 
 	@Override
 	public boolean mouseClicked(Click click, boolean doubled) {
-		if (click.button() == 0) {
-			DrawnTextConsumer.ClickHandler
-					clickHandler =
-					new DrawnTextConsumer.ClickHandler(this.textRenderer, (int) click.x(), (int) click.y());
-			this.renderPageContent(clickHandler, true);
+		if (click.button() == LEFT_MOUSE_BUTTON) {
+			DrawnTextConsumer.ClickHandler clickHandler = new DrawnTextConsumer.ClickHandler(
+				textRenderer,
+				(int) click.x(),
+				(int) click.y()
+			);
+			renderPageContent(clickHandler, true);
 			Style style = clickHandler.getStyle();
-			if (style != null && this.handleClickEvent(style.getClickEvent())) {
+
+			if (style != null && handleClickEvent(style.getClickEvent())) {
 				return true;
 			}
 		}
@@ -288,37 +276,28 @@ public class BookScreen extends Screen {
 	}
 
 	/**
-	 * Обрабатывает click event.
-	 *
-	 * @param clickEvent click event
-	 *
-	 * @return boolean — результат операции
+	 * Обрабатывает клик по тексту книги. Поддерживает переход на страницу,
+	 * выполнение команды и стандартные события кликов.
 	 */
 	protected boolean handleClickEvent(@Nullable ClickEvent clickEvent) {
 		if (clickEvent == null) {
 			return false;
 		}
-		else {
-			ClientPlayerEntity clientPlayerEntity = Objects.requireNonNull(this.client.player, "Player not available");
-			switch (clickEvent) {
-				case ClickEvent.ChangePage(int var12):
-					this.jumpToPage(var12 - 1);
-					break;
-				case ClickEvent.RunCommand(String var9):
-					this.closeScreen();
-					handleRunCommand(clientPlayerEntity, var9, null);
-					break;
-				default:
-					handleClickEvent(clickEvent, this.client, this);
-			}
 
-			return true;
+		ClientPlayerEntity player = Objects.requireNonNull(client.player, "Player not available");
+
+		switch (clickEvent) {
+			case ClickEvent.ChangePage(int page) -> jumpToPage(page - 1);
+			case ClickEvent.RunCommand(String command) -> {
+				closeScreen();
+				handleRunCommand(player, command, null);
+			}
+			default -> handleClickEvent(clickEvent, client, this);
 		}
+
+		return true;
 	}
 
-	/**
-	 * Закрывает screen.
-	 */
 	protected void closeScreen() {
 	}
 
@@ -327,38 +306,34 @@ public class BookScreen extends Screen {
 		return true;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Contents}.
+	 * Провайдер страниц книги. Хранит список текстовых страниц и умеет
+	 * создавать себя из компонентов написанной или записываемой книги.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Contents(List<Text> pages) {
 
 		public int getPageCount() {
-			return this.pages.size();
+			return pages.size();
 		}
 
 		public Text getPage(int index) {
-			return index >= 0 && index < this.getPageCount() ? this.pages.get(index) : ScreenTexts.EMPTY;
+			return index >= 0 && index < getPageCount() ? pages.get(index) : ScreenTexts.EMPTY;
 		}
 
 		public static BookScreen.@Nullable Contents create(ItemStack stack) {
-			boolean bl = MinecraftClient.getInstance().shouldFilterText();
-			WrittenBookContentComponent
-					writtenBookContentComponent =
-					stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
-			if (writtenBookContentComponent != null) {
-				return new BookScreen.Contents(writtenBookContentComponent.getPages(bl));
+			boolean filterText = MinecraftClient.getInstance().shouldFilterText();
+			WrittenBookContentComponent writtenBook = stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+
+			if (writtenBook != null) {
+				return new BookScreen.Contents(writtenBook.getPages(filterText));
 			}
-			else {
-				WritableBookContentComponent
-						writableBookContentComponent =
-						stack.get(DataComponentTypes.WRITABLE_BOOK_CONTENT);
-				return writableBookContentComponent != null
-				       ? new BookScreen.Contents((List<Text>) (List<?>) writableBookContentComponent
-				                                                        .stream(bl)
-				                                                        .map(Text::literal)
-				                                                        .toList()) : null;
-			}
+
+			WritableBookContentComponent writableBook = stack.get(DataComponentTypes.WRITABLE_BOOK_CONTENT);
+
+			return writableBook != null
+				? new BookScreen.Contents((List<Text>) (List<?>) writableBook.stream(filterText).map(Text::literal).toList())
+				: null;
 		}
 	}
 }

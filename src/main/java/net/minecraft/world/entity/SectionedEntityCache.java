@@ -17,87 +17,125 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code SectionedEntityCache}.
+ * Пространственный кэш сущностей, разбитый по чанк-секциям (16×16×16 блоков).
+ * Обеспечивает эффективный поиск сущностей в заданном AABB через итерацию
+ * только по секциям, пересекающимся с областью поиска.
+ *
+ * <p>Секции организованы в отсортированном множестве по упакованным координатам,
+ * что позволяет быстро находить все секции в заданном диапазоне X.
+ *
+ * @param <T> тип сущностей в кэше
  */
 public class SectionedEntityCache<T extends EntityLike> {
 
+	/** Сдвиг для перевода координат блоков в координаты секций (2^2 = 4 блока на секцию). */
 	public static final int SECTION_SHIFT = 2;
+	/** Размер секции в блоках по каждой оси. */
 	public static final int SECTION_SIZE = 4;
+
+	/**
+	 * Расширение области поиска по горизонтали (X/Z) при запросе секций.
+	 * Компенсирует сущности, чьи bounding box выходят за пределы их секции.
+	 */
+	private static final double HORIZONTAL_SEARCH_EXPANSION = 2.0;
+	/**
+	 * Расширение области поиска вниз по Y.
+	 * Увеличено до 4.0 для учёта высоких сущностей (лошади, великаны и т.д.).
+	 */
+	private static final double VERTICAL_SEARCH_EXPANSION_DOWN = 4.0;
+
+	/** Характеристики сплитератора: ORDERED | DISTINCT | NONNULL | IMMUTABLE. */
+	private static final int SPLITERATOR_CHARACTERISTICS = 1301;
+
 	private final Class<T> entityClass;
 	private final Long2ObjectFunction<EntityTrackingStatus> posToStatus;
-	private final Long2ObjectMap<EntityTrackingSection<T>> trackingSections = new Long2ObjectOpenHashMap();
+	private final Long2ObjectMap<EntityTrackingSection<T>> trackingSections = new Long2ObjectOpenHashMap<>();
 	private final LongSortedSet trackedPositions = new LongAVLTreeSet();
 
 	public SectionedEntityCache(
-			Class<T> entityClass,
-			Long2ObjectFunction<EntityTrackingStatus> chunkStatusDiscriminator
+		Class<T> entityClass,
+		Long2ObjectFunction<EntityTrackingStatus> chunkStatusDiscriminator
 	) {
 		this.entityClass = entityClass;
 		this.posToStatus = chunkStatusDiscriminator;
 	}
 
 	/**
-	 * For each in box.
+	 * Итерирует все непустые отслеживаемые секции, пересекающиеся с указанным box.
+	 * Область поиска расширяется на {@link #HORIZONTAL_SEARCH_EXPANSION} по X/Z
+	 * и на {@link #VERTICAL_SEARCH_EXPANSION_DOWN} вниз по Y для корректного захвата
+	 * сущностей на границах секций.
 	 *
-	 * @param box box
-	 * @param consumer consumer
+	 * @param box      область поиска
+	 * @param consumer получатель секций; итерация прерывается при {@code ABORT}
 	 */
 	public void forEachInBox(Box box, LazyIterationConsumer<EntityTrackingSection<T>> consumer) {
-		int i = ChunkSectionPos.getSectionCoord(box.minX - 2.0);
-		int j = ChunkSectionPos.getSectionCoord(box.minY - 4.0);
-		int k = ChunkSectionPos.getSectionCoord(box.minZ - 2.0);
-		int l = ChunkSectionPos.getSectionCoord(box.maxX + 2.0);
-		int m = ChunkSectionPos.getSectionCoord(box.maxY + 0.0);
-		int n = ChunkSectionPos.getSectionCoord(box.maxZ + 2.0);
+		int minSectionX = ChunkSectionPos.getSectionCoord(box.minX - HORIZONTAL_SEARCH_EXPANSION);
+		int minSectionY = ChunkSectionPos.getSectionCoord(box.minY - VERTICAL_SEARCH_EXPANSION_DOWN);
+		int minSectionZ = ChunkSectionPos.getSectionCoord(box.minZ - HORIZONTAL_SEARCH_EXPANSION);
+		int maxSectionX = ChunkSectionPos.getSectionCoord(box.maxX + HORIZONTAL_SEARCH_EXPANSION);
+		int maxSectionY = ChunkSectionPos.getSectionCoord(box.maxY + 0.0);
+		int maxSectionZ = ChunkSectionPos.getSectionCoord(box.maxZ + HORIZONTAL_SEARCH_EXPANSION);
 
-		for (int o = i; o <= l; o++) {
-			long p = ChunkSectionPos.asLong(o, 0, 0);
-			long q = ChunkSectionPos.asLong(o, -1, -1);
-			LongIterator longIterator = this.trackedPositions.subSet(p, q + 1L).iterator();
+		for (int sectionX = minSectionX; sectionX <= maxSectionX; sectionX++) {
+			long rangeStart = ChunkSectionPos.asLong(sectionX, 0, 0);
+			long rangeEnd = ChunkSectionPos.asLong(sectionX, -1, -1);
+			LongIterator iterator = trackedPositions.subSet(rangeStart, rangeEnd + 1L).iterator();
 
-			while (longIterator.hasNext()) {
-				long r = longIterator.nextLong();
-				int s = ChunkSectionPos.unpackY(r);
-				int t = ChunkSectionPos.unpackZ(r);
-				if (s >= j && s <= m && t >= k && t <= n) {
-					EntityTrackingSection<T>
-							entityTrackingSection =
-							(EntityTrackingSection<T>) this.trackingSections.get(r);
-					if (entityTrackingSection != null
-							&& !entityTrackingSection.isEmpty()
-							&& entityTrackingSection.getStatus().shouldTrack()
-							&& consumer.accept(entityTrackingSection).shouldAbort()) {
-						return;
-					}
+			while (iterator.hasNext()) {
+				long sectionPos = iterator.nextLong();
+				int sectionY = ChunkSectionPos.unpackY(sectionPos);
+				int sectionZ = ChunkSectionPos.unpackZ(sectionPos);
+
+				if (sectionY < minSectionY || sectionY > maxSectionY
+					|| sectionZ < minSectionZ || sectionZ > maxSectionZ
+				) {
+					continue;
+				}
+
+				EntityTrackingSection<T> section = trackingSections.get(sectionPos);
+				if (section != null
+					&& !section.isEmpty()
+					&& section.getStatus().shouldTrack()
+					&& consumer.accept(section).shouldAbort()
+				) {
+					return;
 				}
 			}
 		}
 	}
 
+	/**
+	 * Возвращает поток упакованных позиций всех секций в указанном чанке.
+	 *
+	 * @param chunkPos упакованная позиция чанка
+	 * @return поток упакованных позиций секций
+	 */
 	public LongStream getSections(long chunkPos) {
-		int i = ChunkPos.getPackedX(chunkPos);
-		int j = ChunkPos.getPackedZ(chunkPos);
-		LongSortedSet longSortedSet = this.getSections(i, j);
-		if (longSortedSet.isEmpty()) {
+		int chunkX = ChunkPos.getPackedX(chunkPos);
+		int chunkZ = ChunkPos.getPackedZ(chunkPos);
+		LongSortedSet sections = getSectionsInColumn(chunkX, chunkZ);
+		if (sections.isEmpty()) {
 			return LongStream.empty();
 		}
-		else {
-			OfLong ofLong = longSortedSet.iterator();
-			return StreamSupport.longStream(Spliterators.spliteratorUnknownSize(ofLong, 1301), false);
-		}
+
+		OfLong iterator = sections.iterator();
+		return StreamSupport.longStream(
+			Spliterators.spliteratorUnknownSize(iterator, SPLITERATOR_CHARACTERISTICS),
+			false
+		);
 	}
 
-	private LongSortedSet getSections(int chunkX, int chunkZ) {
-		long l = ChunkSectionPos.asLong(chunkX, 0, chunkZ);
-		long m = ChunkSectionPos.asLong(chunkX, -1, chunkZ);
-		return this.trackedPositions.subSet(l, m + 1L);
+	private LongSortedSet getSectionsInColumn(int chunkX, int chunkZ) {
+		long rangeStart = ChunkSectionPos.asLong(chunkX, 0, chunkZ);
+		long rangeEnd = ChunkSectionPos.asLong(chunkX, -1, chunkZ);
+		return trackedPositions.subSet(rangeStart, rangeEnd + 1L);
 	}
 
 	public Stream<EntityTrackingSection<T>> getTrackingSections(long chunkPos) {
-		return this
-				.getSections(chunkPos)
-				.<EntityTrackingSection<T>>mapToObj(this.trackingSections::get)
-				.filter(Objects::nonNull);
+		return getSections(chunkPos)
+			.<EntityTrackingSection<T>>mapToObj(trackingSections::get)
+			.filter(Objects::nonNull);
 	}
 
 	private static long chunkPosFromSectionPos(long sectionPos) {
@@ -105,73 +143,41 @@ public class SectionedEntityCache<T extends EntityLike> {
 	}
 
 	public EntityTrackingSection<T> getTrackingSection(long sectionPos) {
-		return (EntityTrackingSection<T>) this.trackingSections.computeIfAbsent(sectionPos, this::addSection);
+		return trackingSections.computeIfAbsent(sectionPos, this::addSection);
 	}
 
-	/**
-	 * Ищет tracking section.
-	 *
-	 * @param sectionPos section pos
-	 *
-	 * @return @Nullable EntityTrackingSection — tracking section
-	 */
 	public @Nullable EntityTrackingSection<T> findTrackingSection(long sectionPos) {
-		return (EntityTrackingSection<T>) this.trackingSections.get(sectionPos);
+		return trackingSections.get(sectionPos);
 	}
 
 	private EntityTrackingSection<T> addSection(long sectionPos) {
-		long l = chunkPosFromSectionPos(sectionPos);
-		EntityTrackingStatus entityTrackingStatus = (EntityTrackingStatus) this.posToStatus.get(l);
-		this.trackedPositions.add(sectionPos);
-		return new EntityTrackingSection<>(this.entityClass, entityTrackingStatus);
+		long chunkPos = chunkPosFromSectionPos(sectionPos);
+		EntityTrackingStatus status = posToStatus.get(chunkPos);
+		trackedPositions.add(sectionPos);
+		return new EntityTrackingSection<>(entityClass, status);
 	}
 
 	public LongSet getChunkPositions() {
-		LongSet longSet = new LongOpenHashSet();
-		this.trackingSections.keySet().forEach(sectionPos -> longSet.add(chunkPosFromSectionPos(sectionPos)));
-		return longSet;
+		LongSet result = new LongOpenHashSet();
+		trackingSections.keySet().forEach(sectionPos -> result.add(chunkPosFromSectionPos(sectionPos)));
+		return result;
 	}
 
-	/**
-	 * For each intersects.
-	 *
-	 * @param box box
-	 * @param consumer consumer
-	 */
 	public void forEachIntersects(Box box, LazyIterationConsumer<T> consumer) {
-		this.forEachInBox(box, section -> section.forEach(box, consumer));
+		forEachInBox(box, section -> section.forEach(box, consumer));
 	}
 
-	/**
-	 * For each intersects.
-	 *
-	 * @param filter filter
-	 * @param box box
-	 * @param consumer consumer
-	 *
-	 * @return void — результат операции
-	 */
 	public <U extends T> void forEachIntersects(TypeFilter<T, U> filter, Box box, LazyIterationConsumer<U> consumer) {
-		this.forEachInBox(box, section -> section.forEach(filter, box, consumer));
+		forEachInBox(box, section -> section.forEach(filter, box, consumer));
 	}
 
-	/**
-	 * Удаляет section.
-	 *
-	 * @param sectionPos section pos
-	 */
 	public void removeSection(long sectionPos) {
-		this.trackingSections.remove(sectionPos);
-		this.trackedPositions.remove(sectionPos);
+		trackingSections.remove(sectionPos);
+		trackedPositions.remove(sectionPos);
 	}
 
 	@Debug
-	/**
-	 * Section count.
-	 *
-	 * @return int — результат операции
-	 */
 	public int sectionCount() {
-		return this.trackedPositions.size();
+		return trackedPositions.size();
 	}
 }

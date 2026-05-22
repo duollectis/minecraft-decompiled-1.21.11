@@ -7,61 +7,69 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code ParseErrorList}.
+ * Коллектор ошибок разбора, отслеживающий только ошибки на максимальной позиции курсора.
+ * Это соответствует принципу «наиболее продвинутой ошибки» (furthest failure heuristic),
+ * который даёт наиболее полезные сообщения об ошибках в PEG-парсерах.
  */
 public interface ParseErrorList<S> {
 
 	void add(int cursor, Suggestable<S> suggestions, Object reason);
 
 	default void add(int cursor, Object reason) {
-		this.add(cursor, Suggestable.empty(), reason);
+		add(cursor, Suggestable.empty(), reason);
 	}
 
 	void setCursor(int cursor);
 
 	/**
-	 * {@code Impl}.
+	 * Стандартная реализация с динамически расширяемым массивом записей.
+	 * Хранит только ошибки на максимальной позиции курсора.
 	 */
-	public static class Impl<S> implements ParseErrorList<S> {
+	class Impl<S> implements ParseErrorList<S> {
 
-		private ParseErrorList.Impl.@Nullable Entry<S>[] errors = new ParseErrorList.Impl.Entry[16];
+		private static final int INITIAL_CAPACITY = 16;
+
+		private @Nullable Entry<S>[] errors = new Entry[INITIAL_CAPACITY];
 		private int topIndex;
 		private int cursor = -1;
 
-		private void moveCursor(int cursor) {
-			if (cursor > this.cursor) {
-				this.cursor = cursor;
-				this.topIndex = 0;
+		private void moveCursor(int newCursor) {
+			if (newCursor > cursor) {
+				cursor = newCursor;
+				topIndex = 0;
 			}
 		}
 
 		@Override
 		public void setCursor(int cursor) {
-			this.moveCursor(cursor);
+			moveCursor(cursor);
 		}
 
 		@Override
 		public void add(int cursor, Suggestable<S> suggestions, Object reason) {
-			this.moveCursor(cursor);
+			moveCursor(cursor);
+
 			if (cursor == this.cursor) {
-				this.add(suggestions, reason);
+				addEntry(suggestions, reason);
 			}
 		}
 
-		private void add(Suggestable<S> suggestions, Object reason) {
-			int i = this.errors.length;
-			if (this.topIndex >= i) {
-				int j = Util.nextCapacity(i, this.topIndex + 1);
-				ParseErrorList.Impl.Entry<S>[] entrys = new ParseErrorList.Impl.Entry[j];
-				System.arraycopy(this.errors, 0, entrys, 0, i);
-				this.errors = entrys;
+		private void addEntry(Suggestable<S> suggestions, Object reason) {
+			int capacity = errors.length;
+
+			if (topIndex >= capacity) {
+				int newCapacity = Util.nextCapacity(capacity, topIndex + 1);
+				Entry<S>[] expanded = new Entry[newCapacity];
+				System.arraycopy(errors, 0, expanded, 0, capacity);
+				errors = expanded;
 			}
 
-			int j = this.topIndex++;
-			ParseErrorList.Impl.Entry<S> entry = this.errors[j];
+			int index = topIndex++;
+			Entry<S> entry = errors[index];
+
 			if (entry == null) {
-				entry = new ParseErrorList.Impl.Entry<>();
-				this.errors[j] = entry;
+				entry = new Entry<>();
+				errors[index] = entry;
 			}
 
 			entry.suggestions = suggestions;
@@ -69,29 +77,24 @@ public interface ParseErrorList<S> {
 		}
 
 		public List<ParseError<S>> getErrors() {
-			int i = this.topIndex;
-			if (i == 0) {
+			if (topIndex == 0) {
 				return List.of();
 			}
-			else {
-				List<ParseError<S>> list = new ArrayList<>(i);
 
-				for (int j = 0; j < i; j++) {
-					ParseErrorList.Impl.Entry<S> entry = this.errors[j];
-					list.add(new ParseError<>(this.cursor, entry.suggestions, entry.reason));
-				}
+			List<ParseError<S>> result = new ArrayList<>(topIndex);
 
-				return list;
+			for (int i = 0; i < topIndex; i++) {
+				Entry<S> entry = errors[i];
+				result.add(new ParseError<>(cursor, entry.suggestions, entry.reason));
 			}
+
+			return result;
 		}
 
 		public int getCursor() {
-			return this.cursor;
+			return cursor;
 		}
 
-		/**
-		 * {@code Entry}.
-		 */
 		static class Entry<S> {
 
 			Suggestable<S> suggestions = Suggestable.empty();
@@ -100,9 +103,10 @@ public interface ParseErrorList<S> {
 	}
 
 	/**
-	 * {@code Noop}.
+	 * Реализация-заглушка, которая игнорирует все ошибки.
+	 * Используется в режиме подавления ошибок при lookahead-проверках.
 	 */
-	public static class Noop<S> implements ParseErrorList<S> {
+	class Noop<S> implements ParseErrorList<S> {
 
 		@Override
 		public void add(int cursor, Suggestable<S> suggestions, Object reason) {

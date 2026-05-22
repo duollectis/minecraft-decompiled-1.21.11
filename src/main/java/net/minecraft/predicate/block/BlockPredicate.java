@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code BlockPredicate}.
+ * Предикат для проверки принадлежности состояния блока конкретному типу блока.
  */
 public class BlockPredicate implements Predicate<BlockState> {
 
@@ -22,6 +22,6 @@ public class BlockPredicate implements Predicate<BlockState> {
 	}
 
 	public boolean test(@Nullable BlockState blockState) {
-		return blockState != null && blockState.isOf(this.block);
+		return blockState != null && blockState.isOf(block);
 	}
 }

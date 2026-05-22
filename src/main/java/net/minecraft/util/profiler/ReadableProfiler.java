@@ -6,7 +6,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code ReadableProfiler}.
+ * Расширение {@link Profiler}, позволяющее читать накопленные результаты профилирования
+ * и получать информацию о конкретных секциях и целях сэмплирования.
  */
 public interface ReadableProfiler extends Profiler {
 

@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code ArrowStoredWeaponFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ArrowStoredWeaponFix extends DataFix {
 
@@ -20,9 +20,9 @@ public class ArrowStoredWeaponFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.ENTITY);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.ENTITY);
+		return fixTypeEverywhereTyped(
 				"Fix Arrow stored weapon",
 				type,
 				type2,
@@ -31,8 +31,8 @@ public class ArrowStoredWeaponFix extends DataFix {
 	}
 
 	private Function<Typed<?>, Typed<?>> fixFor(String entityId) {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
+		Type<?> type = getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
+		Type<?> type2 = getOutputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
 		return createEntityFixer(entityId, type, type2);
 	}
 

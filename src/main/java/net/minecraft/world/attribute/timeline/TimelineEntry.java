@@ -11,7 +11,15 @@ import java.util.Optional;
 import java.util.function.LongSupplier;
 
 /**
- * {@code TimelineEntry}.
+ * Запись в {@link Timeline}, связывающая конкретный {@link EnvironmentAttributeModifier}
+ * с анимационным треком {@link Track}, чьи ключевые кадры задают аргумент модификатора.
+ *
+ * <p>Codec создаётся динамически через {@link #createCodec}: сначала десериализуется
+ * модификатор (или используется override по умолчанию), затем — трек с типом аргумента,
+ * соответствующим выбранному модификатору.
+ *
+ * @param <Value>    тип значения атрибута
+ * @param <Argument> тип аргумента модификатора (тип значений в треке)
  */
 public record TimelineEntry<Value, Argument>(
 		EnvironmentAttributeModifier<Value, Argument> modifier,
@@ -19,32 +27,44 @@ public record TimelineEntry<Value, Argument>(
 ) {
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт codec для записи с произвольным типом аргумента.
+	 * Модификатор десериализуется первым и определяет тип аргумента трека.
 	 *
-	 * @param attribute attribute
-	 *
-	 * @return Codec> — результат операции
+	 * @param <Value>   тип значения атрибута
+	 * @param attribute атрибут, для которого создаётся codec
+	 * @return codec, поддерживающий любой зарегистрированный модификатор атрибута
 	 */
 	public static <Value> Codec<TimelineEntry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
-		MapCodec<EnvironmentAttributeModifier<Value, ?>> mapCodec = attribute.getType()
-		                                                                     .modifierCodec()
-		                                                                     .optionalFieldOf(
-				                                                                     "modifier",
-				                                                                     EnvironmentAttributeModifier.override()
-		                                                                     );
-		return mapCodec.dispatch(
+		MapCodec<EnvironmentAttributeModifier<Value, ?>> modifierCodec = attribute.getType()
+				.modifierCodec()
+				.optionalFieldOf("modifier", EnvironmentAttributeModifier.override());
+
+		return modifierCodec.dispatch(
 				TimelineEntry::modifier,
 				Util.memoize(modifier -> createMapCodec(attribute, modifier))
 		);
 	}
 
 	private static <Value, Argument> MapCodec<TimelineEntry<Value, Argument>> createMapCodec(
-			EnvironmentAttribute<Value> attribute, EnvironmentAttributeModifier<Value, Argument> modifier
+			EnvironmentAttribute<Value> attribute,
+			EnvironmentAttributeModifier<Value, Argument> modifier
 	) {
 		return Track.createCodec(modifier.argumentCodec(attribute))
-		            .xmap(argumentTrack -> new TimelineEntry<>(modifier, argumentTrack), TimelineEntry::argumentTrack);
+				.xmap(
+						argumentTrack -> new TimelineEntry<>(modifier, argumentTrack),
+						TimelineEntry::argumentTrack
+				);
 	}
 
+	/**
+	 * Создаёт {@link TrackAttributeModification} — исполняемый объект, применяющий
+	 * данный трек к атрибуту в реальном времени.
+	 *
+	 * @param attribute    атрибут, к которому применяется модификация
+	 * @param period       период шкалы (если задан, время берётся по модулю)
+	 * @param timeSupplier поставщик текущего времени в тиках
+	 * @return объект модификации, готовый к использованию в {@link TrackEvaluator}
+	 */
 	public TrackAttributeModification<Value, Argument> toModification(
 			EnvironmentAttribute<Value> attribute,
 			Optional<Integer> period,
@@ -52,20 +72,20 @@ public record TimelineEntry<Value, Argument>(
 	) {
 		return new TrackAttributeModification<>(
 				period,
-				this.modifier,
-				this.argumentTrack,
-				this.modifier.argumentKeyframeLerp(attribute),
+				modifier,
+				argumentTrack,
+				modifier.argumentKeyframeLerp(attribute),
 				timeSupplier
 		);
 	}
 
 	/**
-	 * Валидирует keyframes in period.
+	 * Проверяет, что все ключевые кадры трека укладываются в заданный период.
 	 *
-	 * @param entry entry
-	 * @param period period
-	 *
-	 * @return DataResult> — результат операции
+	 * @param entry  запись для проверки
+	 * @param period длина периода в тиках
+	 * @return {@code DataResult.success} если все кадры в диапазоне {@code [0; period]},
+	 *         иначе — ошибка с описанием нарушения
 	 */
 	public static DataResult<TimelineEntry<?, ?>> validateKeyframesInPeriod(TimelineEntry<?, ?> entry, int period) {
 		return Track.validateKeyframesInPeriod(entry.argumentTrack(), period).map(track -> entry);

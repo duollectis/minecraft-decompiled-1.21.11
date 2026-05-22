@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * {@code ManagementLogger}.
+ * Класс Management Logger.
  */
 public class ManagementLogger {
 

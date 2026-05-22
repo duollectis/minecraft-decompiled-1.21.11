@@ -18,22 +18,23 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SliderWidget}.
+ * Абстрактный виджет слайдера с поддержкой мыши, клавиатуры и нарративного описания.
+ * Подклассы реализуют {@link #updateMessage()} и {@link #applyValue()} для конкретной логики.
  */
+@Environment(EnvType.CLIENT)
 public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingWidget {
 
 	private static final Identifier TEXTURE = Identifier.ofVanilla("widget/slider");
 	private static final Identifier HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("widget/slider_highlighted");
 	private static final Identifier HANDLE_TEXTURE = Identifier.ofVanilla("widget/slider_handle");
-	private static final Identifier
-			HANDLE_HIGHLIGHTED_TEXTURE =
-			Identifier.ofVanilla("widget/slider_handle_highlighted");
+	private static final Identifier HANDLE_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("widget/slider_handle_highlighted");
+
 	protected static final int TEXT_MARGIN = 2;
 	public static final int DEFAULT_HEIGHT = 20;
 	protected static final int HANDLE_WIDTH = 8;
 	private static final int HANDLE_HALF_WIDTH = 4;
+
 	protected double value;
 	protected boolean sliderFocused;
 	private boolean dragging;
@@ -44,33 +45,28 @@ public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingW
 	}
 
 	private Identifier getTexture() {
-		return this.isInteractable() && this.isFocused() && !this.sliderFocused ? HIGHLIGHTED_TEXTURE : TEXTURE;
+		return isInteractable() && isFocused() && !sliderFocused ? HIGHLIGHTED_TEXTURE : TEXTURE;
 	}
 
 	private Identifier getHandleTexture() {
-		return !this.isInteractable() || !this.hovered && !this.sliderFocused ? HANDLE_TEXTURE
-		                                                                      : HANDLE_HIGHLIGHTED_TEXTURE;
+		return isInteractable() && (hovered || sliderFocused) ? HANDLE_HIGHLIGHTED_TEXTURE : HANDLE_TEXTURE;
 	}
 
 	@Override
 	protected MutableText getNarrationMessage() {
-		return Text.translatable("gui.narrate.slider", this.getMessage());
+		return Text.translatable("gui.narrate.slider", getMessage());
 	}
 
 	@Override
 	public void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
-		if (this.active) {
-			if (this.isFocused()) {
-				if (this.sliderFocused) {
-					builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.focused"));
-				}
-				else {
-					builder.put(
-							NarrationPart.USAGE,
-							Text.translatable("narration.slider.usage.focused.keyboard_cannot_change_value")
-					);
-				}
+		builder.put(NarrationPart.TITLE, getNarrationMessage());
+
+		if (active) {
+			if (isFocused()) {
+				String usageKey = sliderFocused
+						? "narration.slider.usage.focused"
+						: "narration.slider.usage.focused.keyboard_cannot_change_value";
+				builder.put(NarrationPart.USAGE, Text.translatable(usageKey));
 			}
 			else {
 				builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.hovered"));
@@ -82,86 +78,87 @@ public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingW
 	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				this.getTexture(),
-				this.getX(),
-				this.getY(),
-				this.getWidth(),
-				this.getHeight(),
-				ColorHelper.getWhite(this.alpha)
+				getTexture(),
+				getX(),
+				getY(),
+				getWidth(),
+				getHeight(),
+				ColorHelper.getWhite(alpha)
 		);
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				this.getHandleTexture(),
-				this.getX() + (int) (this.value * (this.width - 8)),
-				this.getY(),
-				8,
-				this.getHeight(),
-				ColorHelper.getWhite(this.alpha)
+				getHandleTexture(),
+				getX() + (int) (value * (width - HANDLE_WIDTH)),
+				getY(),
+				HANDLE_WIDTH,
+				getHeight(),
+				ColorHelper.getWhite(alpha)
 		);
-		this.drawTextWithMargin(context.getHoverListener(this, DrawContext.HoverType.NONE), this.getMessage(), 2);
-		if (this.isHovered()) {
-			context.setCursor(this.dragging ? StandardCursors.RESIZE_EW : StandardCursors.POINTING_HAND);
+		drawTextWithMargin(context.getHoverListener(this, DrawContext.HoverType.NONE), getMessage(), TEXT_MARGIN);
+
+		if (isHovered()) {
+			context.setCursor(dragging ? StandardCursors.RESIZE_EW : StandardCursors.POINTING_HAND);
 		}
 	}
 
 	@Override
 	public void onClick(Click click, boolean doubled) {
-		this.dragging = this.active;
-		this.setValueFromMouse(click);
+		dragging = active;
+		setValueFromMouse(click);
 	}
 
 	@Override
 	public void setFocused(boolean focused) {
 		super.setFocused(focused);
-		if (!focused) {
-			this.sliderFocused = false;
+		if (focused) {
+			GuiNavigationType navType = MinecraftClient.getInstance().getNavigationType();
+			if (navType == GuiNavigationType.MOUSE || navType == GuiNavigationType.KEYBOARD_TAB) {
+				sliderFocused = true;
+			}
 		}
 		else {
-			GuiNavigationType guiNavigationType = MinecraftClient.getInstance().getNavigationType();
-			if (guiNavigationType == GuiNavigationType.MOUSE || guiNavigationType == GuiNavigationType.KEYBOARD_TAB) {
-				this.sliderFocused = true;
-			}
+			sliderFocused = false;
 		}
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.isEnterOrSpace()) {
-			this.sliderFocused = !this.sliderFocused;
+			sliderFocused = !sliderFocused;
 			return true;
 		}
-		else {
-			if (this.sliderFocused) {
-				boolean bl = input.isLeft();
-				boolean bl2 = input.isRight();
-				if (bl || bl2) {
-					float f = bl ? -1.0F : 1.0F;
-					this.setValue(this.value + f / (this.width - 8));
-					return true;
-				}
-			}
 
-			return false;
+		if (sliderFocused) {
+			boolean isLeft = input.isLeft();
+			boolean isRight = input.isRight();
+			if (isLeft || isRight) {
+				float direction = isLeft ? -1.0F : 1.0F;
+				setValue(value + direction / (width - HANDLE_WIDTH));
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	private void setValueFromMouse(Click click) {
-		this.setValue((click.x() - (this.getX() + 4)) / (this.width - 8));
+		setValue((click.x() - (getX() + HANDLE_HALF_WIDTH)) / (width - HANDLE_WIDTH));
 	}
 
 	protected void setValue(double value) {
-		double d = this.value;
+		double previous = this.value;
 		this.value = MathHelper.clamp(value, 0.0, 1.0);
-		if (d != this.value) {
-			this.applyValue();
+
+		if (previous != this.value) {
+			applyValue();
 		}
 
-		this.updateMessage();
+		updateMessage();
 	}
 
 	@Override
 	protected void onDrag(Click click, double offsetX, double offsetY) {
-		this.setValueFromMouse(click);
+		setValueFromMouse(click);
 		super.onDrag(click, offsetX, offsetY);
 	}
 
@@ -171,17 +168,11 @@ public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingW
 
 	@Override
 	public void onRelease(Click click) {
-		this.dragging = false;
+		dragging = false;
 		super.playDownSound(MinecraftClient.getInstance().getSoundManager());
 	}
 
-	/**
-	 * Обновляет message.
-	 */
 	protected abstract void updateMessage();
 
-	/**
-	 * Применяет value.
-	 */
 	protected abstract void applyValue();
 }

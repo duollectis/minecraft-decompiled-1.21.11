@@ -9,7 +9,8 @@ import net.minecraft.util.math.random.Random;
 import java.util.Set;
 
 /**
- * {@code SurvivesExplosionLootCondition}.
+ * Условие лута: предмет выживает при взрыве с вероятностью {@code 1 / радиус_взрыва}.
+ * Если радиус взрыва не задан в контексте — условие всегда истинно.
  */
 public class SurvivesExplosionLootCondition implements LootCondition {
 
@@ -29,23 +30,17 @@ public class SurvivesExplosionLootCondition implements LootCondition {
 		return Set.of(LootContextParameters.EXPLOSION_RADIUS);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		Float float_ = lootContext.get(LootContextParameters.EXPLOSION_RADIUS);
-		if (float_ != null) {
-			Random random = lootContext.getRandom();
-			float f = 1.0F / float_;
-			return random.nextFloat() <= f;
-		}
-		else {
+		Float radius = lootContext.get(LootContextParameters.EXPLOSION_RADIUS);
+
+		if (radius == null) {
 			return true;
 		}
+
+		Random random = lootContext.getRandom();
+		float survivalChance = 1.0F / radius;
+		return random.nextFloat() <= survivalChance;
 	}
 
 	public static LootCondition.Builder builder() {

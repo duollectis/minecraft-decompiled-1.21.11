@@ -14,9 +14,13 @@ import net.minecraft.world.event.listener.GameEventListener;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code GameEvent}.
+ * Игровое событие — именованный сигнал, который сущности и блоки могут испускать в мир.
+ * Каждое событие имеет радиус оповещения {@link #notificationRadius()}, в пределах которого
+ * слушатели ({@link GameEventListener}) получают уведомление.
  */
 public record GameEvent(int notificationRadius) {
+
+	public static final int DEFAULT_RANGE = 16;
 
 	public static final RegistryEntry.Reference<GameEvent> BLOCK_ACTIVATE = register("block_activate");
 	public static final RegistryEntry.Reference<GameEvent> BLOCK_ATTACH = register("block_attach");
@@ -55,9 +59,8 @@ public record GameEvent(int notificationRadius) {
 	public static final RegistryEntry.Reference<GameEvent> PRIME_FUSE = register("prime_fuse");
 	public static final RegistryEntry.Reference<GameEvent> PROJECTILE_LAND = register("projectile_land");
 	public static final RegistryEntry.Reference<GameEvent> PROJECTILE_SHOOT = register("projectile_shoot");
-	public static final RegistryEntry.Reference<GameEvent>
-			SCULK_SENSOR_TENDRILS_CLICKING =
-			register("sculk_sensor_tendrils_clicking");
+	public static final RegistryEntry.Reference<GameEvent> SCULK_SENSOR_TENDRILS_CLICKING =
+		register("sculk_sensor_tendrils_clicking");
 	public static final RegistryEntry.Reference<GameEvent> SHEAR = register("shear");
 	public static final RegistryEntry.Reference<GameEvent> SHRIEK = register("shriek", 32);
 	public static final RegistryEntry.Reference<GameEvent> SPLASH = register("splash");
@@ -80,22 +83,19 @@ public record GameEvent(int notificationRadius) {
 	public static final RegistryEntry.Reference<GameEvent> RESONATE_13 = register("resonate_13");
 	public static final RegistryEntry.Reference<GameEvent> RESONATE_14 = register("resonate_14");
 	public static final RegistryEntry.Reference<GameEvent> RESONATE_15 = register("resonate_15");
-	public static final int DEFAULT_RANGE = 16;
+
 	public static final Codec<RegistryEntry<GameEvent>> CODEC = RegistryFixedCodec.of(RegistryKeys.GAME_EVENT);
 
 	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return RegistryEntry — результат операции
+	 * Возвращает первое зарегистрированное событие — используется как значение по умолчанию
+	 * при инициализации реестра.
 	 */
 	public static RegistryEntry<GameEvent> registerAndGetDefault(Registry<GameEvent> registry) {
 		return BLOCK_ACTIVATE;
 	}
 
 	private static RegistryEntry.Reference<GameEvent> register(String id) {
-		return register(id, 16);
+		return register(id, DEFAULT_RANGE);
 	}
 
 	private static RegistryEntry.Reference<GameEvent> register(String id, int range) {
@@ -103,40 +103,42 @@ public record GameEvent(int notificationRadius) {
 	}
 
 	/**
-	 * {@code Emitter}.
+	 * Описывает источник игрового события: сущность и/или состояние блока, которые его вызвали.
 	 */
 	public record Emitter(@Nullable Entity sourceEntity, @Nullable BlockState affectedState) {
 
-		public static GameEvent.Emitter of(@Nullable Entity sourceEntity) {
-			return new GameEvent.Emitter(sourceEntity, null);
+		public static Emitter of(@Nullable Entity sourceEntity) {
+			return new Emitter(sourceEntity, null);
 		}
 
-		public static GameEvent.Emitter of(@Nullable BlockState affectedState) {
-			return new GameEvent.Emitter(null, affectedState);
+		public static Emitter of(@Nullable BlockState affectedState) {
+			return new Emitter(null, affectedState);
 		}
 
-		public static GameEvent.Emitter of(@Nullable Entity sourceEntity, @Nullable BlockState affectedState) {
-			return new GameEvent.Emitter(sourceEntity, affectedState);
+		public static Emitter of(@Nullable Entity sourceEntity, @Nullable BlockState affectedState) {
+			return new Emitter(sourceEntity, affectedState);
 		}
 	}
 
 	/**
-	 * {@code Message}.
+	 * Сообщение о произошедшем игровом событии, адресованное конкретному слушателю.
+	 * Реализует {@link Comparable} для сортировки по расстоянию от источника до слушателя,
+	 * что позволяет обрабатывать ближайших слушателей первыми.
 	 */
-	public static final class Message implements Comparable<GameEvent.Message> {
+	public static final class Message implements Comparable<Message> {
 
 		private final RegistryEntry<GameEvent> event;
 		private final Vec3d emitterPos;
-		private final GameEvent.Emitter emitter;
+		private final Emitter emitter;
 		private final GameEventListener listener;
 		private final double distanceTraveled;
 
 		public Message(
-				RegistryEntry<GameEvent> event,
-				Vec3d emitterPos,
-				GameEvent.Emitter emitter,
-				GameEventListener listener,
-				Vec3d listenerPos
+			RegistryEntry<GameEvent> event,
+			Vec3d emitterPos,
+			Emitter emitter,
+			GameEventListener listener,
+			Vec3d listenerPos
 		) {
 			this.event = event;
 			this.emitterPos = emitterPos;
@@ -145,31 +147,25 @@ public record GameEvent(int notificationRadius) {
 			this.distanceTraveled = emitterPos.squaredDistanceTo(listenerPos);
 		}
 
-		/**
-		 * Compare to.
-		 *
-		 * @param message message
-		 *
-		 * @return int — результат операции
-		 */
-		public int compareTo(GameEvent.Message message) {
-			return Double.compare(this.distanceTraveled, message.distanceTraveled);
+		@Override
+		public int compareTo(Message other) {
+			return Double.compare(distanceTraveled, other.distanceTraveled);
 		}
 
 		public RegistryEntry<GameEvent> getEvent() {
-			return this.event;
+			return event;
 		}
 
 		public Vec3d getEmitterPos() {
-			return this.emitterPos;
+			return emitterPos;
 		}
 
-		public GameEvent.Emitter getEmitter() {
-			return this.emitter;
+		public Emitter getEmitter() {
+			return emitter;
 		}
 
 		public GameEventListener getListener() {
-			return this.listener;
+			return listener;
 		}
 	}
 }

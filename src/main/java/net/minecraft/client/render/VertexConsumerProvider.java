@@ -11,10 +11,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.SequencedMap;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VertexConsumerProvider}.
+ * Поставщик вершинных потребителей ({@link VertexConsumer}) для различных слоёв рендеринга.
+ * Абстрагирует управление буферами: каждый {@link RenderLayer} получает свой буфер,
+ * который автоматически сбрасывается при переключении слоёв.
  */
+@Environment(EnvType.CLIENT)
 public interface VertexConsumerProvider {
 
 	static VertexConsumerProvider.Immediate immediate(BufferAllocator buffer) {
@@ -30,10 +32,12 @@ public interface VertexConsumerProvider {
 
 	VertexConsumer getBuffer(RenderLayer layer);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Immediate}.
+	 * Немедленная реализация: буферизует вершины по слоям и отправляет их на GPU
+	 * при переключении слоя или явном вызове {@link #draw()}.
+	 * Слои с выделенными буферами ({@link #layerBuffers}) могут накапливаться параллельно.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Immediate implements VertexConsumerProvider {
 
 		protected final BufferAllocator allocator;
@@ -48,64 +52,54 @@ public interface VertexConsumerProvider {
 
 		@Override
 		public VertexConsumer getBuffer(RenderLayer layer) {
-			BufferBuilder bufferBuilder = this.pending.get(layer);
+			BufferBuilder bufferBuilder = pending.get(layer);
 			if (bufferBuilder != null && !layer.areVerticesNotShared()) {
-				this.draw(layer, bufferBuilder);
+				draw(layer, bufferBuilder);
 				bufferBuilder = null;
 			}
 
 			if (bufferBuilder != null) {
 				return bufferBuilder;
 			}
+
+			BufferAllocator dedicatedAllocator = layerBuffers.get(layer);
+			if (dedicatedAllocator != null) {
+				bufferBuilder = new BufferBuilder(dedicatedAllocator, layer.getDrawMode(), layer.getVertexFormat());
+			}
 			else {
-				BufferAllocator bufferAllocator = this.layerBuffers.get(layer);
-				if (bufferAllocator != null) {
-					bufferBuilder = new BufferBuilder(bufferAllocator, layer.getDrawMode(), layer.getVertexFormat());
-				}
-				else {
-					if (this.currentLayer != null) {
-						this.draw(this.currentLayer);
-					}
-
-					bufferBuilder = new BufferBuilder(this.allocator, layer.getDrawMode(), layer.getVertexFormat());
-					this.currentLayer = layer;
+				if (currentLayer != null) {
+					draw(currentLayer);
 				}
 
-				this.pending.put(layer, bufferBuilder);
-				return bufferBuilder;
+				bufferBuilder = new BufferBuilder(allocator, layer.getDrawMode(), layer.getVertexFormat());
+				currentLayer = layer;
 			}
+
+			pending.put(layer, bufferBuilder);
+			return bufferBuilder;
 		}
 
-		/**
-		 * Draw current layer.
-		 */
 		public void drawCurrentLayer() {
-			if (this.currentLayer != null) {
-				this.draw(this.currentLayer);
-				this.currentLayer = null;
+			if (currentLayer == null) {
+				return;
 			}
+
+			draw(currentLayer);
+			currentLayer = null;
 		}
 
-		/**
-		 * Draw.
-		 */
 		public void draw() {
-			this.drawCurrentLayer();
+			drawCurrentLayer();
 
-			for (RenderLayer renderLayer : this.layerBuffers.keySet()) {
-				this.draw(renderLayer);
+			for (RenderLayer renderLayer : layerBuffers.keySet()) {
+				draw(renderLayer);
 			}
 		}
 
-		/**
-		 * Draw.
-		 *
-		 * @param layer layer
-		 */
 		public void draw(RenderLayer layer) {
-			BufferBuilder bufferBuilder = this.pending.remove(layer);
+			BufferBuilder bufferBuilder = pending.remove(layer);
 			if (bufferBuilder != null) {
-				this.draw(layer, bufferBuilder);
+				draw(layer, bufferBuilder);
 			}
 		}
 
@@ -113,15 +107,15 @@ public interface VertexConsumerProvider {
 			BuiltBuffer builtBuffer = builder.endNullable();
 			if (builtBuffer != null) {
 				if (layer.isTranslucent()) {
-					BufferAllocator bufferAllocator = this.layerBuffers.getOrDefault(layer, this.allocator);
-					builtBuffer.sortQuads(bufferAllocator, RenderSystem.getProjectionType().getVertexSorter());
+					BufferAllocator sortAllocator = layerBuffers.getOrDefault(layer, allocator);
+					builtBuffer.sortQuads(sortAllocator, RenderSystem.getProjectionType().getVertexSorter());
 				}
 
 				layer.draw(builtBuffer);
 			}
 
-			if (layer.equals(this.currentLayer)) {
-				this.currentLayer = null;
+			if (layer.equals(currentLayer)) {
+				currentLayer = null;
 			}
 		}
 	}

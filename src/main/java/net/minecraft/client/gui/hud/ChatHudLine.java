@@ -11,48 +11,41 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatHudLine}.
+ * Строка чата с метаданными: тик создания, подпись и индикатор сообщения.
  */
+@Environment(EnvType.CLIENT)
 public record ChatHudLine(
-		int creationTick,
-		Text content,
-		@Nullable MessageSignatureData signature,
-		@Nullable MessageIndicator indicator
+	int creationTick,
+	Text content,
+	@Nullable MessageSignatureData signature,
+	@Nullable MessageIndicator indicator
 ) {
 
 	private static final int PADDING = 4;
+	private static final int ICON_MARGIN = 2;
 
-	/**
-	 * Ломает lines.
-	 *
-	 * @param textRenderer text renderer
-	 * @param width width
-	 *
-	 * @return List — результат операции
-	 */
 	public List<OrderedText> breakLines(TextRenderer textRenderer, int width) {
-		if (this.indicator != null && this.indicator.icon() != null) {
-			width -= this.indicator.icon().width + 4 + 2;
+		if (indicator != null && indicator.icon() != null) {
+			width -= indicator.icon().width + PADDING + ICON_MARGIN;
 		}
 
-		return ChatMessages.breakRenderedChatMessageLines(this.content, width, textRenderer);
+		return ChatMessages.breakRenderedChatMessageLines(content, width, textRenderer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Visible}.
+	 * Видимая (отрендеренная) строка чата с временем добавления и флагом конца записи.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Visible(
-			int addedTime,
-			OrderedText content,
-			@Nullable MessageIndicator indicator,
-			boolean endOfEntry
+		int addedTime,
+		OrderedText content,
+		@Nullable MessageIndicator indicator,
+		boolean endOfEntry
 	) {
 
 		public int getWidth(TextRenderer textRenderer) {
-			return textRenderer.getWidth(this.content) + 4;
+			return textRenderer.getWidth(content) + PADDING;
 		}
 	}
 }

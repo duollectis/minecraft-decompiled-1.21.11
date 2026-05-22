@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import net.minecraft.util.math.ChunkPos;
 
 /**
- * {@code SimulationDistanceLevelPropagator}.
+ * Класс Simulation Distance Level Propagator.
  */
 public class SimulationDistanceLevelPropagator extends ChunkPosDistanceLevelPropagator {
 
@@ -17,7 +17,7 @@ public class SimulationDistanceLevelPropagator extends ChunkPosDistanceLevelProp
 		super(34, 16, 256);
 		this.ticketManager = ticketManager;
 		ticketManager.setSimulationLevelUpdater(this::updateLevel);
-		this.levels.defaultReturnValue((byte) 33);
+		this.levels.defaultReturnValue((byte) BASE_LEVEL);
 	}
 
 	@Override
@@ -36,7 +36,7 @@ public class SimulationDistanceLevelPropagator extends ChunkPosDistanceLevelProp
 
 	@Override
 	protected void setLevel(long id, int level) {
-		if (level >= 33) {
+		if (level >= BASE_LEVEL) {
 			this.levels.remove(id);
 		}
 		else {

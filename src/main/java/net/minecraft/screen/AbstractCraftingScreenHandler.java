@@ -16,7 +16,10 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.List;
 
 /**
- * {@code AbstractCraftingScreenHandler}.
+ * Базовый обработчик экрана крафтинга.
+ * <p>
+ * Управляет сеткой входных слотов и слотом результата, а также реализует логику
+ * автозаполнения рецептов через {@link InputSlotFiller}.
  */
 public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreenHandler {
 
@@ -29,54 +32,43 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 		super(type, syncId);
 		this.width = width;
 		this.height = height;
-		this.craftingInventory = new CraftingInventory(this, width, height);
+		craftingInventory = new CraftingInventory(this, width, height);
 	}
 
-	/**
-	 * Добавляет result slot.
-	 *
-	 * @param player player
-	 * @param x x
-	 * @param y y
-	 *
-	 * @return Slot — результат операции
-	 */
 	protected Slot addResultSlot(PlayerEntity player, int x, int y) {
-		return this.addSlot(new CraftingResultSlot(
+		return addSlot(new CraftingResultSlot(
 				player,
-				this.craftingInventory,
-				this.craftingResultInventory,
+				craftingInventory,
+				craftingResultInventory,
 				0,
 				x,
 				y
 		));
 	}
 
-	/**
-	 * Добавляет input slots.
-	 *
-	 * @param x x
-	 * @param y y
-	 */
 	protected void addInputSlots(int x, int y) {
-		for (int i = 0; i < this.width; i++) {
-			for (int j = 0; j < this.height; j++) {
-				this.addSlot(new Slot(this.craftingInventory, j + i * this.width, x + j * 18, y + i * 18));
+		for (int row = 0; row < height; row++) {
+			for (int col = 0; col < width; col++) {
+				addSlot(new Slot(craftingInventory, col + row * width, x + col * 18, y + row * 18));
 			}
 		}
 	}
 
+	/**
+	 * Заполняет входные слоты предметами для выбранного рецепта крафтинга.
+	 * Использует {@link InputSlotFiller} для поиска предметов в инвентаре игрока.
+	 */
 	@Override
-	public AbstractRecipeScreenHandler.PostFillAction fillInputSlots(
+	public PostFillAction fillInputSlots(
 			boolean craftAll, boolean creative, RecipeEntry<?> recipe, ServerWorld world, PlayerInventory inventory
 	) {
-		RecipeEntry<CraftingRecipe> recipeEntry = (RecipeEntry<CraftingRecipe>) recipe;
-		this.onInputSlotFillStart();
+		RecipeEntry<CraftingRecipe> craftingRecipe = (RecipeEntry<CraftingRecipe>) recipe;
+		onInputSlotFillStart();
 
-		AbstractRecipeScreenHandler.PostFillAction var8;
+		PostFillAction result;
 		try {
-			List<Slot> list = this.getInputSlots();
-			var8 = InputSlotFiller.fill(
+			List<Slot> inputSlots = getInputSlots();
+			result = InputSlotFiller.fill(
 					new InputSlotFiller.Handler<CraftingRecipe>() {
 						@Override
 						public void populateRecipeFinder(RecipeFinder finder) {
@@ -92,41 +84,31 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 						@Override
 						public boolean matches(RecipeEntry<CraftingRecipe> entry) {
 							return entry.value()
-							            .matches(
-									            AbstractCraftingScreenHandler.this.craftingInventory.createRecipeInput(),
-									            AbstractCraftingScreenHandler.this.getPlayer().getEntityWorld()
-							            );
+									.matches(
+											AbstractCraftingScreenHandler.this.craftingInventory.createRecipeInput(),
+											AbstractCraftingScreenHandler.this.getPlayer().getEntityWorld()
+									);
 						}
 					},
-					this.width,
-					this.height,
-					list,
-					list,
+					width,
+					height,
+					inputSlots,
+					inputSlots,
 					inventory,
-					recipeEntry,
+					craftingRecipe,
 					craftAll,
 					creative
 			);
-		}
-		finally {
-			this.onInputSlotFillFinish(world, (RecipeEntry<CraftingRecipe>) recipe);
+		} finally {
+			onInputSlotFillFinish(world, craftingRecipe);
 		}
 
-		return var8;
+		return result;
 	}
 
-	/**
-	 * Обрабатывает событие input slot fill start.
-	 */
 	protected void onInputSlotFillStart() {
 	}
 
-	/**
-	 * Обрабатывает событие input slot fill finish.
-	 *
-	 * @param world world
-	 * @param recipe recipe
-	 */
 	protected void onInputSlotFillFinish(ServerWorld world, RecipeEntry<CraftingRecipe> recipe) {
 	}
 
@@ -135,17 +117,17 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 	public abstract List<Slot> getInputSlots();
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	protected abstract PlayerEntity getPlayer();
 
 	@Override
 	public void populateRecipeFinder(RecipeFinder finder) {
-		this.craftingInventory.provideRecipeInputs(finder);
+		craftingInventory.provideRecipeInputs(finder);
 	}
 }

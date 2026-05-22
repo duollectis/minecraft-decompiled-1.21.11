@@ -15,11 +15,19 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code HugeFungusFeature}.
+ * Генерирует огромный гриб Нижнего мира (варпед или алый).
+ * Ствол может быть толстым (2×2) с 6% шансом, шляпка формируется
+ * многоуровневым куполом с убывающим радиусом снизу вверх.
+ * При посадке вручную (planted=true) ломает блоки на пути ствола.
  */
 public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 
 	private static final float DECORATION_CHANCE = 0.06F;
+	private static final float THICK_STEM_CORNER_CHANCE = 0.1F;
+	private static final float VINE_CHANCE_INNER = 0.15F;
+	private static final int STEM_HEIGHT_MIN = 4;
+	private static final int STEM_HEIGHT_MAX = 13;
+	private static final int STEM_HEIGHT_RARE_MULTIPLIER = 12;
 
 	public HugeFungusFeature(Codec<HugeFungusFeatureConfig> codec) {
 		super(codec);
@@ -27,90 +35,86 @@ public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<HugeFungusFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		ChunkGenerator chunkGenerator = context.getGenerator();
-		HugeFungusFeatureConfig hugeFungusFeatureConfig = context.getConfig();
-		Block block = hugeFungusFeatureConfig.validBaseBlock.getBlock();
-		BlockPos blockPos2 = null;
-		BlockState blockState = structureWorldAccess.getBlockState(blockPos.down());
-		if (blockState.isOf(block)) {
-			blockPos2 = blockPos;
-		}
+		ChunkGenerator generator = context.getGenerator();
+		HugeFungusFeatureConfig config = context.getConfig();
 
-		if (blockPos2 == null) {
+		Block validBase = config.validBaseBlock.getBlock();
+		BlockState baseState = world.getBlockState(origin.down());
+
+		if (baseState.isOf(validBase) == false) {
 			return false;
 		}
-		else {
-			int i = MathHelper.nextInt(random, 4, 13);
-			if (random.nextInt(12) == 0) {
-				i *= 2;
-			}
 
-			if (!hugeFungusFeatureConfig.planted) {
-				int j = chunkGenerator.getWorldHeight();
-				if (blockPos2.getY() + i + 1 >= j) {
-					return false;
-				}
-			}
+		int stemHeight = MathHelper.nextInt(random, STEM_HEIGHT_MIN, STEM_HEIGHT_MAX);
 
-			boolean bl = !hugeFungusFeatureConfig.planted && random.nextFloat() < 0.06F;
-			structureWorldAccess.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 260);
-			this.generateStem(structureWorldAccess, random, hugeFungusFeatureConfig, blockPos2, i, bl);
-			this.generateHat(structureWorldAccess, random, hugeFungusFeatureConfig, blockPos2, i, bl);
-			return true;
+		if (random.nextInt(STEM_HEIGHT_RARE_MULTIPLIER) == 0) {
+			stemHeight *= 2;
 		}
+
+		if (!config.planted && origin.getY() + stemHeight + 1 >= generator.getWorldHeight()) {
+			return false;
+		}
+
+		boolean thickStem = !config.planted && random.nextFloat() < DECORATION_CHANCE;
+
+		world.setBlockState(origin, Blocks.AIR.getDefaultState(), Block.SKIP_REDRAW_AND_BLOCK_ENTITY_REPLACED_CALLBACK);
+		generateStem(world, random, config, origin, stemHeight, thickStem);
+		generateHat(world, random, config, origin, stemHeight, thickStem);
+
+		return true;
 	}
 
 	private static boolean isReplaceable(
-			StructureWorldAccess world,
-			BlockPos pos,
-			HugeFungusFeatureConfig config,
-			boolean checkConfig
+		StructureWorldAccess world,
+		BlockPos pos,
+		HugeFungusFeatureConfig config,
+		boolean checkConfig
 	) {
 		if (world.testBlockState(pos, AbstractBlock.AbstractBlockState::isReplaceable)) {
 			return true;
 		}
-		else {
-			return checkConfig ? config.replaceableBlocks.test(world, pos) : false;
-		}
+
+		return checkConfig && config.replaceableBlocks.test(world, pos);
 	}
 
 	private void generateStem(
-			StructureWorldAccess world,
-			Random random,
-			HugeFungusFeatureConfig config,
-			BlockPos pos,
-			int stemHeight,
-			boolean thickStem
+		StructureWorldAccess world,
+		Random random,
+		HugeFungusFeatureConfig config,
+		BlockPos pos,
+		int stemHeight,
+		boolean thickStem
 	) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		BlockState blockState = config.stemState;
-		int i = thickStem ? 1 : 0;
+		BlockState stemState = config.stemState;
+		int halfThick = thickStem ? 1 : 0;
 
-		for (int j = -i; j <= i; j++) {
-			for (int k = -i; k <= i; k++) {
-				boolean bl = thickStem && MathHelper.abs(j) == i && MathHelper.abs(k) == i;
+		for (int dx = -halfThick; dx <= halfThick; dx++) {
+			for (int dz = -halfThick; dz <= halfThick; dz++) {
+				boolean isCorner = thickStem && MathHelper.abs(dx) == halfThick && MathHelper.abs(dz) == halfThick;
 
-				for (int l = 0; l < stemHeight; l++) {
-					mutable.set(pos, j, l, k);
-					if (isReplaceable(world, mutable, config, true)) {
-						if (config.planted) {
-							if (!world.getBlockState(mutable.down()).isAir()) {
-								world.breakBlock(mutable, true);
-							}
+				for (int dy = 0; dy < stemHeight; dy++) {
+					mutable.set(pos, dx, dy, dz);
 
-							world.setBlockState(mutable, blockState, 3);
+					if (!isReplaceable(world, mutable, config, true)) {
+						continue;
+					}
+
+					if (config.planted) {
+						if (!world.getBlockState(mutable.down()).isAir()) {
+							world.breakBlock(mutable, true);
 						}
-						else if (bl) {
-							if (random.nextFloat() < 0.1F) {
-								this.setBlockState(world, mutable, blockState);
-							}
+
+						world.setBlockState(mutable, stemState, 3);
+					} else if (isCorner) {
+						if (random.nextFloat() < THICK_STEM_CORNER_CHANCE) {
+							setBlockState(world, mutable, stemState);
 						}
-						else {
-							this.setBlockState(world, mutable, blockState);
-						}
+					} else {
+						setBlockState(world, mutable, stemState);
 					}
 				}
 			}
@@ -118,55 +122,57 @@ public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 	}
 
 	private void generateHat(
-			StructureWorldAccess world,
-			Random random,
-			HugeFungusFeatureConfig config,
-			BlockPos pos,
-			int hatHeight,
-			boolean thickStem
+		StructureWorldAccess world,
+		Random random,
+		HugeFungusFeatureConfig config,
+		BlockPos pos,
+		int hatHeight,
+		boolean thickStem
 	) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		boolean bl = config.hatState.isOf(Blocks.NETHER_WART_BLOCK);
-		int i = Math.min(random.nextInt(1 + hatHeight / 3) + 5, hatHeight);
-		int j = hatHeight - i;
+		boolean isWartBlock = config.hatState.isOf(Blocks.NETHER_WART_BLOCK);
+		int hatStartOffset = Math.min(random.nextInt(1 + hatHeight / 3) + 5, hatHeight);
+		int hatStartY = hatHeight - hatStartOffset;
 
-		for (int k = j; k <= hatHeight; k++) {
-			int l = k < hatHeight - random.nextInt(3) ? 2 : 1;
-			if (i > 8 && k < j + 4) {
-				l = 3;
+		for (int dy = hatStartY; dy <= hatHeight; dy++) {
+			int radius = dy < hatHeight - random.nextInt(3) ? 2 : 1;
+
+			if (hatStartOffset > 8 && dy < hatStartY + 4) {
+				radius = 3;
 			}
 
 			if (thickStem) {
-				l++;
+				radius++;
 			}
 
-			for (int m = -l; m <= l; m++) {
-				for (int n = -l; n <= l; n++) {
-					boolean bl2 = m == -l || m == l;
-					boolean bl3 = n == -l || n == l;
-					boolean bl4 = !bl2 && !bl3 && k != hatHeight;
-					boolean bl5 = bl2 && bl3;
-					boolean bl6 = k < j + 3;
-					mutable.set(pos, m, k, n);
-					if (isReplaceable(world, mutable, config, false)) {
-						if (config.planted && !world.getBlockState(mutable.down()).isAir()) {
-							world.breakBlock(mutable, true);
-						}
+			for (int dx = -radius; dx <= radius; dx++) {
+				for (int dz = -radius; dz <= radius; dz++) {
+					boolean onXEdge = dx == -radius || dx == radius;
+					boolean onZEdge = dz == -radius || dz == radius;
+					boolean isInterior = !onXEdge && !onZEdge && dy != hatHeight;
+					boolean isCorner = onXEdge && onZEdge;
+					boolean isLowerSection = dy < hatStartY + 3;
 
-						if (bl6) {
-							if (!bl4) {
-								this.placeWithOptionalVines(world, random, mutable, config.hatState, bl);
-							}
+					mutable.set(pos, dx, dy, dz);
+
+					if (!isReplaceable(world, mutable, config, false)) {
+						continue;
+					}
+
+					if (config.planted && !world.getBlockState(mutable.down()).isAir()) {
+						world.breakBlock(mutable, true);
+					}
+
+					if (isLowerSection) {
+						if (!isInterior) {
+							placeWithOptionalVines(world, random, mutable, config.hatState, isWartBlock);
 						}
-						else if (bl4) {
-							this.placeHatBlock(world, random, config, mutable, 0.1F, 0.2F, bl ? 0.1F : 0.0F);
-						}
-						else if (bl5) {
-							this.placeHatBlock(world, random, config, mutable, 0.01F, 0.7F, bl ? 0.083F : 0.0F);
-						}
-						else {
-							this.placeHatBlock(world, random, config, mutable, 5.0E-4F, 0.98F, bl ? 0.07F : 0.0F);
-						}
+					} else if (isInterior) {
+						placeHatBlock(world, random, config, mutable, 0.1F, 0.2F, isWartBlock ? 0.1F : 0.0F);
+					} else if (isCorner) {
+						placeHatBlock(world, random, config, mutable, 0.01F, 0.7F, isWartBlock ? 0.083F : 0.0F);
+					} else {
+						placeHatBlock(world, random, config, mutable, 5.0E-4F, 0.98F, isWartBlock ? 0.07F : 0.0F);
 					}
 				}
 			}
@@ -174,19 +180,19 @@ public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 	}
 
 	private void placeHatBlock(
-			WorldAccess world,
-			Random random,
-			HugeFungusFeatureConfig config,
-			BlockPos.Mutable pos,
-			float decorationChance,
-			float generationChance,
-			float vineChance
+		WorldAccess world,
+		Random random,
+		HugeFungusFeatureConfig config,
+		BlockPos.Mutable pos,
+		float decorationChance,
+		float generationChance,
+		float vineChance
 	) {
 		if (random.nextFloat() < decorationChance) {
-			this.setBlockState(world, pos, config.decorationState);
-		}
-		else if (random.nextFloat() < generationChance) {
-			this.setBlockState(world, pos, config.hatState);
+			setBlockState(world, pos, config.decorationState);
+		} else if (random.nextFloat() < generationChance) {
+			setBlockState(world, pos, config.hatState);
+
 			if (random.nextFloat() < vineChance) {
 				generateVines(pos, world, random);
 			}
@@ -194,17 +200,17 @@ public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 	}
 
 	private void placeWithOptionalVines(
-			WorldAccess world,
-			Random random,
-			BlockPos pos,
-			BlockState state,
-			boolean vines
+		WorldAccess world,
+		Random random,
+		BlockPos pos,
+		BlockState state,
+		boolean vines
 	) {
 		if (world.getBlockState(pos.down()).isOf(state.getBlock())) {
-			this.setBlockState(world, pos, state);
-		}
-		else if (random.nextFloat() < 0.15) {
-			this.setBlockState(world, pos, state);
+			setBlockState(world, pos, state);
+		} else if (random.nextFloat() < VINE_CHANCE_INNER) {
+			setBlockState(world, pos, state);
+
 			if (vines && random.nextInt(11) == 0) {
 				generateVines(pos, world, random);
 			}
@@ -213,15 +219,17 @@ public class HugeFungusFeature extends Feature<HugeFungusFeatureConfig> {
 
 	private static void generateVines(BlockPos pos, WorldAccess world, Random random) {
 		BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.DOWN);
-		if (world.isAir(mutable)) {
-			int i = MathHelper.nextInt(random, 1, 5);
-			if (random.nextInt(7) == 0) {
-				i *= 2;
-			}
 
-			int j = 23;
-			int k = 25;
-			WeepingVinesFeature.generateVineColumn(world, random, mutable, i, 23, 25);
+		if (world.isAir(mutable) == false) {
+			return;
 		}
+
+		int vineLength = MathHelper.nextInt(random, 1, 5);
+
+		if (random.nextInt(7) == 0) {
+			vineLength *= 2;
+		}
+
+		WeepingVinesFeature.generateVineColumn(world, random, mutable, vineLength, 23, 25);
 	}
 }

@@ -13,33 +13,54 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * {@code DialogAction}.
+ * Действие, выполняемое при нажатии кнопки диалога.
+ * <p>
+ * Реализации создают {@link ClickEvent} на основе текущих значений полей ввода диалога.
+ * Диспетчеризация типов происходит через реестр {@code DIALOG_ACTION_TYPE}.
  */
 public interface DialogAction {
 
-	Codec<DialogAction>
-			CODEC =
-			Registries.DIALOG_ACTION_TYPE.getCodec().dispatch(DialogAction::getCodec, codec -> codec);
+	Codec<DialogAction> CODEC = Registries.DIALOG_ACTION_TYPE
+		.getCodec()
+		.dispatch(DialogAction::getCodec, codec -> codec);
 
 	MapCodec<? extends DialogAction> getCodec();
 
-	Optional<ClickEvent> createClickEvent(Map<String, DialogAction.ValueGetter> valueGetters);
+	/**
+	 * Создаёт событие клика на основе текущих значений полей ввода.
+	 *
+	 * @param valueGetters карта имён полей ввода к их текущим значениям
+	 * @return событие клика, или {@link Optional#empty()} если действие неприменимо
+	 */
+	Optional<ClickEvent> createClickEvent(Map<String, ValueGetter> valueGetters);
 
 	/**
-	 * {@code ValueGetter}.
+	 * Поставщик значения поля ввода диалога в строковом и NBT-форматах.
 	 */
-	public interface ValueGetter {
+	interface ValueGetter {
 
 		String get();
 
 		NbtElement getAsNbt();
 
-		static Map<String, String> resolveAll(Map<String, DialogAction.ValueGetter> valueGetters) {
-			return Maps.transformValues(valueGetters, DialogAction.ValueGetter::get);
+		/**
+		 * Преобразует карту поставщиков значений в карту строковых значений.
+		 *
+		 * @param valueGetters карта поставщиков значений
+		 * @return карта строковых значений
+		 */
+		static Map<String, String> resolveAll(Map<String, ValueGetter> valueGetters) {
+			return Maps.transformValues(valueGetters, ValueGetter::get);
 		}
 
-		static DialogAction.ValueGetter of(String value) {
-			return new DialogAction.ValueGetter() {
+		/**
+		 * Создаёт поставщик из фиксированной строки.
+		 *
+		 * @param value фиксированное строковое значение
+		 * @return поставщик, всегда возвращающий данную строку
+		 */
+		static ValueGetter of(String value) {
+			return new ValueGetter() {
 				@Override
 				public String get() {
 					return value;
@@ -52,8 +73,14 @@ public interface DialogAction {
 			};
 		}
 
-		static DialogAction.ValueGetter of(Supplier<String> valueSupplier) {
-			return new DialogAction.ValueGetter() {
+		/**
+		 * Создаёт поставщик из ленивого поставщика строки.
+		 *
+		 * @param valueSupplier поставщик строкового значения
+		 * @return поставщик, делегирующий вычисление значения
+		 */
+		static ValueGetter of(Supplier<String> valueSupplier) {
+			return new ValueGetter() {
 				@Override
 				public String get() {
 					return valueSupplier.get();

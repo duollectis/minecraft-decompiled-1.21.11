@@ -37,7 +37,7 @@ public record VanillaFishingLootTableGenerator(RegistryWrapper.WrapperLookup reg
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<Biome> impl = this.registries.getOrThrow(RegistryKeys.BIOME);
+		RegistryWrapper.Impl<Biome> biomeLookup = registries.getOrThrow(RegistryKeys.BIOME);
 		lootTableBiConsumer.accept(
 				LootTables.FISHING_GAMEPLAY,
 				LootTable.builder()
@@ -113,11 +113,11 @@ public record VanillaFishingLootTableGenerator(RegistryWrapper.WrapperLookup reg
 												                          LocationPredicate.Builder.create()
 												                                                   .biome(
 														                                                   RegistryEntryList.of(
-																                                                   impl.getOrThrow(
+																                                                   biomeLookup.getOrThrow(
 																		                                                   BiomeKeys.JUNGLE),
-																                                                   impl.getOrThrow(
+																                                                   biomeLookup.getOrThrow(
 																		                                                   BiomeKeys.SPARSE_JUNGLE),
-																                                                   impl.getOrThrow(
+																                                                   biomeLookup.getOrThrow(
 																		                                                   BiomeKeys.BAMBOO_JUNGLE)
 														                                                   )
 												                                                   )
@@ -141,7 +141,7 @@ public record VanillaFishingLootTableGenerator(RegistryWrapper.WrapperLookup reg
 										                          0.25F
 								                          )))
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          ConstantLootNumberProvider.create(30.0F)
 								                          ))
 						                 )
@@ -152,14 +152,14 @@ public record VanillaFishingLootTableGenerator(RegistryWrapper.WrapperLookup reg
 										                          0.25F
 								                          )))
 								                          .apply(EnchantWithLevelsLootFunction.builder(
-										                          this.registries,
+										                          registries,
 										                          ConstantLootNumberProvider.create(30.0F)
 								                          ))
 						                 )
 						                 .with(ItemEntry
 								                 .builder(Items.BOOK)
 								                 .apply(EnchantWithLevelsLootFunction.builder(
-										                 this.registries,
+										                 registries,
 										                 ConstantLootNumberProvider.create(30.0F)
 								                 )))
 						                 .with(ItemEntry.builder(Items.NAUTILUS_SHELL))

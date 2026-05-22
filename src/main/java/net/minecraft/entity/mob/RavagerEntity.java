@@ -37,7 +37,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code RavagerEntity}.
+ * Равагер — мощный рейдовый моб. При получении удара с шансом 50% оглушается на {@code STUN_TICKS} тиков,
+ * после чего издаёт рёв, отбрасывающий всех существ в радиусе 4 блоков.
+ * Ломает листья при движении. Иммунен к жидкостям при спавне.
  */
 public class RavagerEntity extends RaiderEntity {
 
@@ -61,55 +63,52 @@ public class RavagerEntity extends RaiderEntity {
 	private static final float STUNNED_PARTICLE_RED = 0.49803922F;
 	public static final int ROAR_TRIGGER_TICK = 10;
 	public static final int STUN_TICKS = 40;
-	private static final int DEFAULT_ATTACK_TICK = 0;
-	private static final int DEFAULT_STUN_TICK = 0;
-	private static final int DEFAULT_ROAR_TICK = 0;
-	private int attackTick = 0;
-	private int stunTick = 0;
-	private int roarTick = 0;
+	private static final int ROAR_DELAY_AFTER_STUN = 20;
+	private static final byte ATTACK_STATUS = 4;
+	private static final byte STUN_STATUS = 39;
+	private static final byte ROAR_STATUS = 69;
+	private int attackTick;
+	private int stunTick;
+	private int roarTick;
 
 	public RavagerEntity(EntityType<? extends RavagerEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 20;
-		this.setPathfindingPenalty(PathNodeType.LEAVES, 0.0F);
+		experiencePoints = 20;
+		setPathfindingPenalty(PathNodeType.LEAVES, 0.0F);
 	}
 
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, true));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.4));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
-		this.targetSelector.add(2, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-		this.targetSelector.add(
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(4, new MeleeAttackGoal(this, 1.0, true));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 0.4));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		goalSelector.add(ROAR_TRIGGER_TICK, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+		targetSelector.add(2, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		targetSelector.add(
 				4,
 				new ActiveTargetGoal<>(this, MerchantEntity.class, true, (entity, world) -> !entity.isBaby())
 		);
-		this.targetSelector.add(4, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
+		targetSelector.add(4, new ActiveTargetGoal<>(this, IronGolemEntity.class, true));
 	}
 
 	@Override
 	protected void updateGoalControls() {
-		boolean
-				bl =
-				!(this.getControllingPassenger() instanceof MobEntity) || this
-						.getControllingPassenger()
-						.getType()
-						.isIn(EntityTypeTags.RAIDERS);
-		boolean bl2 = !(this.getVehicle() instanceof AbstractBoatEntity);
-		this.goalSelector.setControlEnabled(Goal.Control.MOVE, bl);
-		this.goalSelector.setControlEnabled(Goal.Control.JUMP, bl && bl2);
-		this.goalSelector.setControlEnabled(Goal.Control.LOOK, bl);
-		this.goalSelector.setControlEnabled(Goal.Control.TARGET, bl);
+		boolean canControl = !(getControllingPassenger() instanceof MobEntity)
+				|| getControllingPassenger().getType().isIn(EntityTypeTags.RAIDERS);
+		boolean notInBoat = !(getVehicle() instanceof AbstractBoatEntity);
+		goalSelector.setControlEnabled(Goal.Control.MOVE, canControl);
+		goalSelector.setControlEnabled(Goal.Control.JUMP, canControl && notInBoat);
+		goalSelector.setControlEnabled(Goal.Control.LOOK, canControl);
+		goalSelector.setControlEnabled(Goal.Control.TARGET, canControl);
 	}
 
 	public static DefaultAttributeContainer.Builder createRavagerAttributes() {
 		return HostileEntity.createHostileAttributes()
 		                    .add(EntityAttributes.MAX_HEALTH, 100.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.3)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, BASE_MOVEMENT_SPEED)
 		                    .add(EntityAttributes.KNOCKBACK_RESISTANCE, 0.75)
 		                    .add(EntityAttributes.ATTACK_DAMAGE, 12.0)
 		                    .add(EntityAttributes.ATTACK_KNOCKBACK, 1.5)
@@ -120,17 +119,17 @@ public class RavagerEntity extends RaiderEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("AttackTick", this.attackTick);
-		view.putInt("StunTick", this.stunTick);
-		view.putInt("RoarTick", this.roarTick);
+		view.putInt("AttackTick", attackTick);
+		view.putInt("StunTick", stunTick);
+		view.putInt("RoarTick", roarTick);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.attackTick = view.getInt("AttackTick", 0);
-		this.stunTick = view.getInt("StunTick", 0);
-		this.roarTick = view.getInt("RoarTick", 0);
+		attackTick = view.getInt("AttackTick", 0);
+		stunTick = view.getInt("StunTick", 0);
+		roarTick = view.getInt("RoarTick", 0);
 	}
 
 	@Override
@@ -146,202 +145,195 @@ public class RavagerEntity extends RaiderEntity {
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (this.isAlive()) {
-			if (this.isImmobile()) {
-				this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(0.0);
-			}
-			else {
-				double d = this.getTarget() != null ? 0.35 : 0.3;
-				double e = this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).getBaseValue();
-				this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(MathHelper.lerp(0.1, e, d));
-			}
 
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld
-					&& this.horizontalCollision
-					&& serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-				boolean bl = false;
-				Box box = this.getBoundingBox().expand(0.2);
+		if (!isAlive()) {
+			return;
+		}
 
-				for (BlockPos blockPos : BlockPos.iterate(
-						MathHelper.floor(box.minX),
-						MathHelper.floor(box.minY),
-						MathHelper.floor(box.minZ),
-						MathHelper.floor(box.maxX),
-						MathHelper.floor(box.maxY),
-						MathHelper.floor(box.maxZ)
-				)) {
-					BlockState blockState = serverWorld.getBlockState(blockPos);
-					Block block = blockState.getBlock();
-					if (block instanceof LeavesBlock) {
-						bl = serverWorld.breakBlock(blockPos, true, this) || bl;
-					}
-				}
+		if (isImmobile()) {
+			getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(0.0);
+		} else {
+			double targetSpeed = getTarget() != null ? CHASING_MOVEMENT_SPEED : BASE_MOVEMENT_SPEED;
+			double currentSpeed = getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).getBaseValue();
+			getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(MathHelper.lerp(0.1, currentSpeed, targetSpeed));
+		}
 
-				if (!bl && this.isOnGround()) {
-					this.jump();
+		if (getEntityWorld() instanceof ServerWorld serverWorld
+				&& horizontalCollision
+				&& serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+		) {
+			boolean brokeLeaves = false;
+			Box box = getBoundingBox().expand(0.2);
+
+			for (BlockPos blockPos : BlockPos.iterate(
+					MathHelper.floor(box.minX),
+					MathHelper.floor(box.minY),
+					MathHelper.floor(box.minZ),
+					MathHelper.floor(box.maxX),
+					MathHelper.floor(box.maxY),
+					MathHelper.floor(box.maxZ)
+			)) {
+				BlockState blockState = serverWorld.getBlockState(blockPos);
+				if (blockState.getBlock() instanceof LeavesBlock) {
+					brokeLeaves = serverWorld.breakBlock(blockPos, true, this) || brokeLeaves;
 				}
 			}
 
-			if (this.roarTick > 0) {
-				this.roarTick--;
-				if (this.roarTick == 10) {
-					this.roar();
-				}
+			if (!brokeLeaves && isOnGround()) {
+				jump();
 			}
+		}
 
-			if (this.attackTick > 0) {
-				this.attackTick--;
+		if (roarTick > 0) {
+			roarTick--;
+			if (roarTick == ROAR_TRIGGER_TICK) {
+				roar();
 			}
+		}
 
-			if (this.stunTick > 0) {
-				this.stunTick--;
-				this.spawnStunnedParticles();
-				if (this.stunTick == 0) {
-					this.playSound(SoundEvents.ENTITY_RAVAGER_ROAR, 1.0F, 1.0F);
-					this.roarTick = 20;
-				}
+		if (attackTick > 0) {
+			attackTick--;
+		}
+
+		if (stunTick > 0) {
+			stunTick--;
+			spawnStunnedParticles();
+			if (stunTick == 0) {
+				playSound(SoundEvents.ENTITY_RAVAGER_ROAR, 1.0F, 1.0F);
+				roarTick = ROAR_DELAY_AFTER_STUN;
 			}
 		}
 	}
 
 	private void spawnStunnedParticles() {
-		if (this.random.nextInt(6) == 0) {
-			double
-					d =
-					this.getX() - this.getWidth() * Math.sin(this.bodyYaw * (float) (Math.PI / 180.0)) + (
-							this.random.nextDouble() * 0.6 - 0.3
-					);
-			double e = this.getY() + this.getHeight() - 0.3;
-			double
-					f =
-					this.getZ() + this.getWidth() * Math.cos(this.bodyYaw * (float) (Math.PI / 180.0)) + (
-							this.random.nextDouble() * 0.6 - 0.3
-					);
-			this.getEntityWorld()
-			    .addParticleClient(
-					    TintedParticleEffect.create(
-							    ParticleTypes.ENTITY_EFFECT,
-							    0.49803922F,
-							    0.5137255F,
-							    0.57254905F
-					    ), d, e, f, 0.0, 0.0, 0.0
-			    );
+		if (random.nextInt(6) != 0) {
+			return;
 		}
+
+		double px = getX() - getWidth() * Math.sin(bodyYaw * (float) (Math.PI / 180.0)) + (random.nextDouble() * 0.6 - BASE_MOVEMENT_SPEED);
+		double py = getY() + getHeight() - 0.3;
+		double pz = getZ() + getWidth() * Math.cos(bodyYaw * (float) (Math.PI / 180.0)) + (random.nextDouble() * 0.6 - BASE_MOVEMENT_SPEED);
+		getEntityWorld().addParticleClient(
+				TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, STUNNED_PARTICLE_RED, STUNNED_PARTICLE_GREEN, STUNNED_PARTICLE_BLUE),
+				px, py, pz, 0.0, 0.0, 0.0
+		);
 	}
 
 	@Override
 	protected boolean isImmobile() {
-		return super.isImmobile() || this.attackTick > 0 || this.stunTick > 0 || this.roarTick > 0;
+		return super.isImmobile() || attackTick > 0 || stunTick > 0 || roarTick > 0;
 	}
 
 	@Override
 	public boolean canSee(Entity entity) {
-		return this.stunTick <= 0 && this.roarTick <= 0 ? super.canSee(entity) : false;
+		return stunTick <= 0 && roarTick <= 0 && super.canSee(entity);
 	}
 
 	@Override
 	protected void knockback(LivingEntity target) {
-		if (this.roarTick == 0) {
-			if (this.random.nextDouble() < 0.5) {
-				this.stunTick = 40;
-				this.playSound(SoundEvents.ENTITY_RAVAGER_STUNNED, 1.0F, 1.0F);
-				this.getEntityWorld().sendEntityStatus(this, (byte) 39);
-				target.pushAwayFrom(this);
-			}
-			else {
-				this.knockBack(target);
-			}
-
-			target.knockedBack = true;
+		if (roarTick != 0) {
+			return;
 		}
+
+		if (random.nextDouble() < 0.5) {
+			stunTick = STUN_TICKS;
+			playSound(SoundEvents.ENTITY_RAVAGER_STUNNED, 1.0F, 1.0F);
+			getEntityWorld().sendEntityStatus(this, STUN_STATUS);
+			target.pushAwayFrom(this);
+		} else {
+			knockBack(target);
+		}
+
+		target.knockedBack = true;
 	}
 
 	private void roar() {
-		if (this.isAlive() && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Predicate<Entity> predicate = serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-			                              ? CAN_KNOCK_BACK_WITH_ROAR
-			                              : CAN_KNOCK_BACK_WITH_ROAR_NO_MOB_GRIEFING;
+		if (!isAlive()) {
+			return;
+		}
 
-			for (LivingEntity livingEntity : this
-					.getEntityWorld()
-					.getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand(4.0), predicate)) {
-				if (!(livingEntity instanceof IllagerEntity)) {
-					livingEntity.damage(serverWorld, this.getDamageSources().mobAttack(this), 6.0F);
-				}
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
 
-				if (!(livingEntity instanceof PlayerEntity)) {
-					this.knockBack(livingEntity);
-				}
+		Predicate<Entity> predicate = serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+				? CAN_KNOCK_BACK_WITH_ROAR
+				: CAN_KNOCK_BACK_WITH_ROAR_NO_MOB_GRIEFING;
+
+		for (LivingEntity nearby : getEntityWorld().getEntitiesByClass(LivingEntity.class, getBoundingBox().expand(4.0), predicate)) {
+			if (!(nearby instanceof IllagerEntity)) {
+				nearby.damage(serverWorld, getDamageSources().mobAttack(this), 6.0F);
 			}
 
-			this.emitGameEvent(GameEvent.ENTITY_ACTION);
-			serverWorld.sendEntityStatus(this, (byte) 69);
+			if (!(nearby instanceof PlayerEntity)) {
+				knockBack(nearby);
+			}
 		}
+
+		emitGameEvent(GameEvent.ENTITY_ACTION);
+		serverWorld.sendEntityStatus(this, ROAR_STATUS);
 	}
 
 	private void roarKnockBackOnClient() {
-		for (LivingEntity livingEntity : this.getEntityWorld()
-		                                     .getEntitiesByClass(
-				                                     LivingEntity.class,
-				                                     this.getBoundingBox().expand(4.0),
-				                                     CAN_KNOCK_BACK_WITH_ROAR_ON_CLIENT
-		                                     )) {
-			this.knockBack(livingEntity);
+		for (LivingEntity nearby : getEntityWorld().getEntitiesByClass(
+				LivingEntity.class,
+				getBoundingBox().expand(4.0),
+				CAN_KNOCK_BACK_WITH_ROAR_ON_CLIENT
+		)) {
+			knockBack(nearby);
 		}
 	}
 
 	private void knockBack(Entity entity) {
-		double d = entity.getX() - this.getX();
-		double e = entity.getZ() - this.getZ();
-		double f = Math.max(d * d + e * e, 0.001);
-		entity.addVelocity(d / f * 4.0, 0.2, e / f * 4.0);
+		double dx = entity.getX() - getX();
+		double dz = entity.getZ() - getZ();
+		double distSq = Math.max(dx * dx + dz * dz, 0.001);
+		entity.addVelocity(dx / distSq * 4.0, Entity.MOVEMENT_SPEED_THRESHOLD, dz / distSq * 4.0);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 4) {
-			this.attackTick = 10;
-			this.playSound(SoundEvents.ENTITY_RAVAGER_ATTACK, 1.0F, 1.0F);
-		}
-		else if (status == 39) {
-			this.stunTick = 40;
-		}
-		else if (status == 69) {
-			this.addRoarParticlesOnClient();
-			this.roarKnockBackOnClient();
+		if (status == ATTACK_STATUS) {
+			attackTick = ROAR_TRIGGER_TICK;
+			playSound(SoundEvents.ENTITY_RAVAGER_ATTACK, 1.0F, 1.0F);
+		} else if (status == STUN_STATUS) {
+			stunTick = STUN_TICKS;
+		} else if (status == ROAR_STATUS) {
+			addRoarParticlesOnClient();
+			roarKnockBackOnClient();
 		}
 
 		super.handleStatus(status);
 	}
 
 	private void addRoarParticlesOnClient() {
-		Vec3d vec3d = this.getBoundingBox().getCenter();
+		Vec3d center = getBoundingBox().getCenter();
 
-		for (int i = 0; i < 40; i++) {
-			double d = this.random.nextGaussian() * 0.2;
-			double e = this.random.nextGaussian() * 0.2;
-			double f = this.random.nextGaussian() * 0.2;
-			this.getEntityWorld().addParticleClient(ParticleTypes.POOF, vec3d.x, vec3d.y, vec3d.z, d, e, f);
+		for (int particleIndex = 0; particleIndex < STUN_TICKS; particleIndex++) {
+			double vx = random.nextGaussian() * 0.2;
+			double vy = random.nextGaussian() * 0.2;
+			double vz = random.nextGaussian() * 0.2;
+			getEntityWorld().addParticleClient(ParticleTypes.POOF, center.x, center.y, center.z, vx, vy, vz);
 		}
 	}
 
 	public int getAttackTick() {
-		return this.attackTick;
+		return attackTick;
 	}
 
 	public int getStunTick() {
-		return this.stunTick;
+		return stunTick;
 	}
 
 	public int getRoarTick() {
-		return this.roarTick;
+		return roarTick;
 	}
 
 	@Override
 	public boolean tryAttack(ServerWorld world, Entity target) {
-		this.attackTick = 10;
-		world.sendEntityStatus(this, (byte) 4);
-		this.playSound(SoundEvents.ENTITY_RAVAGER_ATTACK, 1.0F, 1.0F);
+		attackTick = ROAR_TRIGGER_TICK;
+		world.sendEntityStatus(this, ATTACK_STATUS);
+		playSound(SoundEvents.ENTITY_RAVAGER_ATTACK, 1.0F, 1.0F);
 		return super.tryAttack(world, target);
 	}
 
@@ -362,12 +354,12 @@ public class RavagerEntity extends RaiderEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_RAVAGER_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_RAVAGER_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	public boolean canSpawn(WorldView world) {
-		return !world.containsFluid(this.getBoundingBox());
+		return !world.containsFluid(getBoundingBox());
 	}
 
 	@Override

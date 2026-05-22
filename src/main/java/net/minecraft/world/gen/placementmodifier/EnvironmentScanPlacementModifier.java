@@ -13,7 +13,8 @@ import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import java.util.stream.Stream;
 
 /**
- * {@code EnvironmentScanPlacementModifier}.
+ * Модификатор размещения, сканирующий окружение в заданном вертикальном направлении
+ * до нахождения целевого блока или превышения лимита шагов.
  */
 public class EnvironmentScanPlacementModifier extends PlacementModifier {
 
@@ -22,22 +23,21 @@ public class EnvironmentScanPlacementModifier extends PlacementModifier {
 	private final BlockPredicate allowedSearchPredicate;
 	private final int maxSteps;
 	public static final MapCodec<EnvironmentScanPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Direction.VERTICAL_CODEC
-							                    .fieldOf("direction_of_search")
-							                    .forGetter(placementModifier -> placementModifier.direction),
-					                    BlockPredicate.BASE_CODEC
-							                    .fieldOf("target_condition")
-							                    .forGetter(placementModifier -> placementModifier.targetPredicate),
-					                    BlockPredicate.BASE_CODEC
-							                    .optionalFieldOf("allowed_search_condition", BlockPredicate.alwaysTrue())
-							                    .forGetter(placementModifier -> placementModifier.allowedSearchPredicate),
-					                    Codec
-							                    .intRange(1, 32)
-							                    .fieldOf("max_steps")
-							                    .forGetter(placementModifier -> placementModifier.maxSteps)
-			                    )
-			                    .apply(instance, EnvironmentScanPlacementModifier::new)
+		instance -> instance.group(
+			Direction.VERTICAL_CODEC
+				.fieldOf("direction_of_search")
+				.forGetter(modifier -> modifier.direction),
+			BlockPredicate.BASE_CODEC
+				.fieldOf("target_condition")
+				.forGetter(modifier -> modifier.targetPredicate),
+			BlockPredicate.BASE_CODEC
+				.optionalFieldOf("allowed_search_condition", BlockPredicate.alwaysTrue())
+				.forGetter(modifier -> modifier.allowedSearchPredicate),
+			Codec.intRange(1, 32)
+				.fieldOf("max_steps")
+				.forGetter(modifier -> modifier.maxSteps)
+		)
+		.apply(instance, EnvironmentScanPlacementModifier::new)
 	);
 
 	private EnvironmentScanPlacementModifier(
@@ -72,28 +72,29 @@ public class EnvironmentScanPlacementModifier extends PlacementModifier {
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		if (!this.allowedSearchPredicate.test(structureWorldAccess, mutable)) {
+		StructureWorldAccess world = context.getWorld();
+
+		if (!allowedSearchPredicate.test(world, mutable)) {
 			return Stream.of();
 		}
-		else {
-			for (int i = 0; i < this.maxSteps; i++) {
-				if (this.targetPredicate.test(structureWorldAccess, mutable)) {
-					return Stream.of(mutable);
-				}
 
-				mutable.move(this.direction);
-				if (structureWorldAccess.isOutOfHeightLimit(mutable.getY())) {
-					return Stream.of();
-				}
-
-				if (!this.allowedSearchPredicate.test(structureWorldAccess, mutable)) {
-					break;
-				}
+		for (int step = 0; step < maxSteps; step++) {
+			if (targetPredicate.test(world, mutable)) {
+				return Stream.of(mutable);
 			}
 
-			return this.targetPredicate.test(structureWorldAccess, mutable) ? Stream.of(mutable) : Stream.of();
+			mutable.move(direction);
+
+			if (world.isOutOfHeightLimit(mutable.getY())) {
+				return Stream.of();
+			}
+
+			if (!allowedSearchPredicate.test(world, mutable)) {
+				break;
+			}
 		}
+
+		return targetPredicate.test(world, mutable) ? Stream.of(mutable) : Stream.of();
 	}
 
 	@Override

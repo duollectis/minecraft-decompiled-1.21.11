@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code Angerable}.
+ * Интерфейс для мобов, способных злиться на игроков. Управляет таймером гнева и целью атаки.
  */
 public interface Angerable {
 
@@ -45,17 +45,17 @@ public interface Angerable {
 	}
 
 	default void readAngerFromData(World world, ReadView view) {
-		Optional<Long> optional = view.getOptionalLong("anger_end_time");
-		if (optional.isPresent()) {
-			this.setAngerEndTime(optional.get());
-		}
-		else {
-			Optional<Integer> optional2 = view.getOptionalInt("AngerTime");
-			if (optional2.isPresent()) {
-				this.setAngerDuration(optional2.get().intValue());
-			}
-			else {
-				this.setAngerEndTime(-1L);
+		Optional<Long> angerEndTime = view.getOptionalLong("anger_end_time");
+
+		if (angerEndTime.isPresent()) {
+			this.setAngerEndTime(angerEndTime.get());
+		} else {
+			Optional<Integer> legacyAngerTime = view.getOptionalInt("AngerTime");
+
+			if (legacyAngerTime.isPresent()) {
+				this.setAngerDuration(legacyAngerTime.get());
+			} else {
+				this.setAngerEndTime(NO_ANGER_END_TIME);
 			}
 		}
 
@@ -115,14 +115,8 @@ public interface Angerable {
 	}
 
 	default boolean hasAngerTime() {
-		long l = this.getAngerEndTime();
-		if (l > 0L) {
-			long m = l - this.getEntityWorld().getTime();
-			return m > 0L;
-		}
-		else {
-			return false;
-		}
+		long endTime = this.getAngerEndTime();
+		return endTime > 0L && (endTime - this.getEntityWorld().getTime()) > 0L;
 	}
 
 	default void forgive(ServerWorld world, PlayerEntity player) {

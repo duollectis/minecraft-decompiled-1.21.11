@@ -28,54 +28,54 @@ import net.minecraft.world.*;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ZombifiedPiglinEntity}.
+ * Зомбированный пиглин — нейтральный моб Нижнего мира. Атакует группой при агрессии к одному.
+ * При атаке получает бонус к скорости. Не превращается в воде. Не спавнится на блоках варт.
  */
 public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
-	private static final EntityDimensions
-			BABY_BASE_DIMENSIONS =
-			EntityType.ZOMBIFIED_PIGLIN.getDimensions().scaled(0.5F).withEyeHeight(0.97F);
+	private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.ZOMBIFIED_PIGLIN.getDimensions().scaled(0.5F).withEyeHeight(0.97F);
 	private static final Identifier ATTACKING_SPEED_MODIFIER_ID = Identifier.ofVanilla("attacking");
 	private static final EntityAttributeModifier ATTACKING_SPEED_BOOST = new EntityAttributeModifier(
 			ATTACKING_SPEED_MODIFIER_ID, 0.05, EntityAttributeModifier.Operation.ADD_VALUE
 	);
 	private static final UniformIntProvider ANGRY_SOUND_DELAY_RANGE = TimeHelper.betweenSeconds(0, 1);
-	private int angrySoundDelay;
 	private static final UniformIntProvider ANGER_TIME_RANGE = TimeHelper.betweenSeconds(20, 39);
-	private long angerEndTime;
-	private @Nullable LazyEntityReference<LivingEntity> angryAt;
 	private static final int ANGER_TARGET_CHANCE = 10;
 	private static final UniformIntProvider ANGER_PASSING_COOLDOWN_RANGE = TimeHelper.betweenSeconds(4, 6);
+
+	private int angrySoundDelay;
+	private long angerEndTime;
+	private @Nullable LazyEntityReference<LivingEntity> angryAt;
 	private int angerPassingCooldown;
 
 	public ZombifiedPiglinEntity(EntityType<? extends ZombifiedPiglinEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
+		setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
 	}
 
 	@Override
 	protected void initCustomGoals() {
-		this.goalSelector.add(1, new ChargeKineticWeaponGoal<>(this, 1.0, 1.0, 10.0F, 2.0F));
-		this.goalSelector.add(2, new ZombieAttackGoal(this, 1.0, false));
-		this.goalSelector.add(7, new WanderAroundFarGoal(this, 1.0));
-		this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-		this.targetSelector.add(
+		goalSelector.add(1, new ChargeKineticWeaponGoal<>(this, 1.0, 1.0, 10.0F, 2.0F));
+		goalSelector.add(2, new ZombieAttackGoal(this, 1.0, false));
+		goalSelector.add(7, new WanderAroundFarGoal(this, 1.0));
+		targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+		targetSelector.add(
 				2,
-				new ActiveTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::shouldAngerAt)
+				new ActiveTargetGoal<>(this, PlayerEntity.class, ANGER_TARGET_CHANCE, true, false, this::shouldAngerAt)
 		);
-		this.targetSelector.add(3, new UniversalAngerGoal<>(this, true));
+		targetSelector.add(3, new UniversalAngerGoal<>(this, true));
 	}
 
 	public static DefaultAttributeContainer.Builder createZombifiedPiglinAttributes() {
 		return ZombieEntity.createZombieAttributes()
-		                   .add(EntityAttributes.SPAWN_REINFORCEMENTS, 0.0)
-		                   .add(EntityAttributes.MOVEMENT_SPEED, 0.23F)
-		                   .add(EntityAttributes.ATTACK_DAMAGE, 5.0);
+				.add(EntityAttributes.SPAWN_REINFORCEMENTS, 0.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.23F)
+				.add(EntityAttributes.ATTACK_DAMAGE, 5.0);
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 
 	@Override
@@ -85,73 +85,80 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	protected void mobTick(ServerWorld world) {
-		EntityAttributeInstance entityAttributeInstance = this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-		if (this.hasAngerTime()) {
-			if (!this.isBaby() && !entityAttributeInstance.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
-				entityAttributeInstance.addTemporaryModifier(ATTACKING_SPEED_BOOST);
+		EntityAttributeInstance speedAttribute = getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+
+		if (hasAngerTime()) {
+			if (!isBaby() && !speedAttribute.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
+				speedAttribute.addTemporaryModifier(ATTACKING_SPEED_BOOST);
 			}
 
-			this.tickAngrySound();
+			tickAngrySound();
 		}
-		else if (entityAttributeInstance.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
-			entityAttributeInstance.removeModifier(ATTACKING_SPEED_MODIFIER_ID);
+		else if (speedAttribute.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
+			speedAttribute.removeModifier(ATTACKING_SPEED_MODIFIER_ID);
 		}
 
-		this.tickAngerLogic(world, true);
-		if (this.getTarget() != null) {
-			this.tickAngerPassing();
+		tickAngerLogic(world, true);
+
+		if (getTarget() != null) {
+			tickAngerPassing();
 		}
 
 		super.mobTick(world);
 	}
 
 	private void tickAngrySound() {
-		if (this.angrySoundDelay > 0) {
-			this.angrySoundDelay--;
-			if (this.angrySoundDelay == 0) {
-				this.playAngrySound();
-			}
+		if (angrySoundDelay <= 0) {
+			return;
+		}
+
+		angrySoundDelay--;
+
+		if (angrySoundDelay == 0) {
+			playAngrySound();
 		}
 	}
 
 	private void tickAngerPassing() {
-		if (this.angerPassingCooldown > 0) {
-			this.angerPassingCooldown--;
+		if (angerPassingCooldown > 0) {
+			angerPassingCooldown--;
+			return;
 		}
-		else {
-			if (this.getVisibilityCache().canSee(this.getTarget())) {
-				this.angerNearbyZombifiedPiglins();
-			}
 
-			this.angerPassingCooldown = ANGER_PASSING_COOLDOWN_RANGE.get(this.random);
+		if (getVisibilityCache().canSee(getTarget())) {
+			angerNearbyZombifiedPiglins();
 		}
+
+		angerPassingCooldown = ANGER_PASSING_COOLDOWN_RANGE.get(random);
 	}
 
 	private void angerNearbyZombifiedPiglins() {
-		double d = this.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-		Box box = Box.from(this.getEntityPos()).expand(d, 10.0, d);
-		this.getEntityWorld()
-		    .getEntitiesByClass(ZombifiedPiglinEntity.class, box, EntityPredicates.EXCEPT_SPECTATOR)
-		    .stream()
-		    .filter(zombifiedPiglin -> zombifiedPiglin != this)
-		    .filter(zombifiedPiglin -> zombifiedPiglin.getTarget() == null)
-		    .filter(zombifiedPiglin -> !zombifiedPiglin.isTeammate(this.getTarget()))
-		    .forEach(zombifiedPiglin -> zombifiedPiglin.setTarget(this.getTarget()));
+		double followRange = getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+		Box searchBox = Box.from(getEntityPos()).expand(followRange, 10.0, followRange);
+		LivingEntity currentTarget = getTarget();
+
+		getEntityWorld()
+				.getEntitiesByClass(ZombifiedPiglinEntity.class, searchBox, EntityPredicates.EXCEPT_SPECTATOR)
+				.stream()
+				.filter(piglin -> piglin != this)
+				.filter(piglin -> piglin.getTarget() == null)
+				.filter(piglin -> !piglin.isTeammate(currentTarget))
+				.forEach(piglin -> piglin.setTarget(currentTarget));
 	}
 
 	private void playAngrySound() {
-		this.playSound(
+		playSound(
 				SoundEvents.ENTITY_ZOMBIFIED_PIGLIN_ANGRY,
-				this.getSoundVolume() * 2.0F,
-				this.getSoundPitch() * 1.8F
+				getSoundVolume() * 2.0F,
+				getSoundPitch() * 1.8F
 		);
 	}
 
 	@Override
 	public void setTarget(@Nullable LivingEntity target) {
-		if (this.getTarget() == null && target != null) {
-			this.angrySoundDelay = ANGRY_SOUND_DELAY_RANGE.get(this.random);
-			this.angerPassingCooldown = ANGER_PASSING_COOLDOWN_RANGE.get(this.random);
+		if (getTarget() == null && target != null) {
+			angrySoundDelay = ANGRY_SOUND_DELAY_RANGE.get(random);
+			angerPassingCooldown = ANGER_PASSING_COOLDOWN_RANGE.get(random);
 		}
 
 		super.setTarget(target);
@@ -159,7 +166,7 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	public void chooseRandomAngerTime() {
-		this.setAngerDuration(ANGER_TIME_RANGE.get(this.random));
+		setAngerDuration(ANGER_TIME_RANGE.get(random));
 	}
 
 	public static boolean canSpawn(
@@ -169,26 +176,25 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 			BlockPos pos,
 			Random random
 	) {
-		return world.getDifficulty() != Difficulty.PEACEFUL && !world
-				.getBlockState(pos.down())
-				.isOf(Blocks.NETHER_WART_BLOCK);
+		return world.getDifficulty() != Difficulty.PEACEFUL
+				&& !world.getBlockState(pos.down()).isOf(Blocks.NETHER_WART_BLOCK);
 	}
 
 	@Override
 	public boolean canSpawn(WorldView world) {
-		return world.doesNotIntersectEntities(this) && !world.containsFluid(this.getBoundingBox());
+		return world.doesNotIntersectEntities(this) && !world.containsFluid(getBoundingBox());
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		this.writeAngerToData(view);
+		writeAngerToData(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.readAngerFromData(this.getEntityWorld(), view);
+		readAngerFromData(getEntityWorld(), view);
 	}
 
 	@Override
@@ -198,7 +204,7 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	public long getAngerEndTime() {
-		return this.angerEndTime;
+		return angerEndTime;
 	}
 
 	@Override
@@ -208,8 +214,9 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.hasAngerTime() ? SoundEvents.ENTITY_ZOMBIFIED_PIGLIN_ANGRY
-		                           : SoundEvents.ENTITY_ZOMBIFIED_PIGLIN_AMBIENT;
+		return hasAngerTime()
+				? SoundEvents.ENTITY_ZOMBIFIED_PIGLIN_ANGRY
+				: SoundEvents.ENTITY_ZOMBIFIED_PIGLIN_AMBIENT;
 	}
 
 	@Override
@@ -224,7 +231,7 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	public void initEquipment(Random random, LocalDifficulty localDifficulty) {
-		this.equipStack(
+		equipStack(
 				EquipmentSlot.MAINHAND,
 				new ItemStack(random.nextInt(20) == 0 ? Items.GOLDEN_SPEAR : Items.GOLDEN_SWORD)
 		);
@@ -232,21 +239,21 @@ public class ZombifiedPiglinEntity extends ZombieEntity implements Angerable {
 
 	@Override
 	protected void initAttributes() {
-		this.getAttributeInstance(EntityAttributes.SPAWN_REINFORCEMENTS).setBaseValue(0.0);
+		getAttributeInstance(EntityAttributes.SPAWN_REINFORCEMENTS).setBaseValue(0.0);
 	}
 
 	@Override
 	public @Nullable LazyEntityReference<LivingEntity> getAngryAt() {
-		return this.angryAt;
+		return angryAt;
 	}
 
 	@Override
 	public boolean isAngryAt(ServerWorld world, PlayerEntity player) {
-		return this.shouldAngerAt(player, world);
+		return shouldAngerAt(player, world);
 	}
 
 	@Override
 	public boolean canGather(ServerWorld world, ItemStack stack) {
-		return this.canPickupItem(stack);
+		return canPickupItem(stack);
 	}
 }

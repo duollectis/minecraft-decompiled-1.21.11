@@ -8,7 +8,8 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 /**
- * Запись client options c2 s packet.
+ * Пакет C→S, передающий настройки клиента на сервер.
+ * Отправляется при изменении параметров в меню настроек (язык, дальность прорисовки, скин и т.д.).
  */
 public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Packet<ServerCommonPacketListener> {
 
@@ -21,7 +22,7 @@ public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Pac
 	}
 
 	private void write(PacketByteBuf buf) {
-		this.options.write(buf);
+		options.write(buf);
 	}
 
 	@Override
@@ -29,12 +30,8 @@ public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Pac
 		return CommonPackets.CLIENT_INFORMATION;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param serverCommonPacketListener server common packet listener
-	 */
-	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-		serverCommonPacketListener.onClientOptions(this);
+	@Override
+	public void apply(ServerCommonPacketListener listener) {
+		listener.onClientOptions(this);
 	}
 }

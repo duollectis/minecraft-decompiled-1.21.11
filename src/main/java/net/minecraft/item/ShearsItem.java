@@ -25,7 +25,8 @@ import net.minecraft.world.event.GameEvent;
 import java.util.List;
 
 /**
- * {@code ShearsItem}.
+ * Предмет «Ножницы». Поддерживает стрижку растений-стеблей (устанавливает максимальный
+ * возраст) и корректно учитывает урон инструмента через компонент {@link DataComponentTypes#TOOL}.
  */
 public class ShearsItem extends Item {
 
@@ -34,84 +35,78 @@ public class ShearsItem extends Item {
 	}
 
 	/**
-	 * Создаёт tool component.
-	 *
-	 * @return ToolComponent — результат операции
+	 * Создаёт компонент инструмента для ножниц с правилами скорости добычи:
+	 * паутина (15x), листья (15x), шерсть (5x), лоза и светящийся лишайник (2x).
 	 */
 	public static ToolComponent createToolComponent() {
-		RegistryEntryLookup<Block> registryEntryLookup = Registries.createEntryLookup(Registries.BLOCK);
+		RegistryEntryLookup<Block> blockLookup = Registries.createEntryLookup(Registries.BLOCK);
+
 		return new ToolComponent(
-				List.of(
-						ToolComponent.Rule.ofAlwaysDropping(
-								RegistryEntryList.of(Blocks.COBWEB.getRegistryEntry()),
-								15.0F
-						),
-						ToolComponent.Rule.of(registryEntryLookup.getOrThrow(BlockTags.LEAVES), 15.0F),
-						ToolComponent.Rule.of(registryEntryLookup.getOrThrow(BlockTags.WOOL), 5.0F),
-						ToolComponent.Rule.of(
-								RegistryEntryList.of(
-										Blocks.VINE.getRegistryEntry(),
-										Blocks.GLOW_LICHEN.getRegistryEntry()
-								), 2.0F
-						)
+			List.of(
+				ToolComponent.Rule.ofAlwaysDropping(
+					RegistryEntryList.of(Blocks.COBWEB.getRegistryEntry()),
+					15.0F
 				),
-				1.0F,
-				1,
-				true
+				ToolComponent.Rule.of(blockLookup.getOrThrow(BlockTags.LEAVES), 15.0F),
+				ToolComponent.Rule.of(blockLookup.getOrThrow(BlockTags.WOOL), 5.0F),
+				ToolComponent.Rule.of(
+					RegistryEntryList.of(
+						Blocks.VINE.getRegistryEntry(),
+						Blocks.GLOW_LICHEN.getRegistryEntry()
+					),
+					2.0F
+				)
+			),
+			1.0F,
+			1,
+			true
 		);
 	}
 
 	@Override
 	public boolean postMine(ItemStack stack, World world, BlockState state, BlockPos pos, LivingEntity miner) {
 		ToolComponent toolComponent = stack.get(DataComponentTypes.TOOL);
+
 		if (toolComponent == null) {
 			return false;
 		}
-		else {
-			if (!world.isClient() && !state.isIn(BlockTags.FIRE) && toolComponent.damagePerBlock() > 0) {
-				stack.damage(toolComponent.damagePerBlock(), miner, EquipmentSlot.MAINHAND);
-			}
 
-			return true;
+		if (!world.isClient() && !state.isIn(BlockTags.FIRE) && toolComponent.damagePerBlock() > 0) {
+			stack.damage(toolComponent.damagePerBlock(), miner, EquipmentSlot.MAINHAND);
 		}
+
+		return true;
 	}
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
-		if (blockState.getBlock() instanceof AbstractPlantStemBlock abstractPlantStemBlock
-				&& !abstractPlantStemBlock.hasMaxAge(blockState)) {
-			PlayerEntity playerEntity = context.getPlayer();
-			ItemStack itemStack = context.getStack();
-			if (playerEntity instanceof ServerPlayerEntity) {
-				Criteria.ITEM_USED_ON_BLOCK.trigger((ServerPlayerEntity) playerEntity, blockPos, itemStack);
-			}
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
 
-			world.playSound(
-					playerEntity,
-					blockPos,
-					SoundEvents.BLOCK_GROWING_PLANT_CROP,
-					SoundCategory.BLOCKS,
-					1.0F,
-					1.0F
-			);
-			BlockState blockState2 = abstractPlantStemBlock.withMaxAge(blockState);
-			world.setBlockState(blockPos, blockState2);
-			world.emitGameEvent(
-					GameEvent.BLOCK_CHANGE,
-					blockPos,
-					GameEvent.Emitter.of(context.getPlayer(), blockState2)
-			);
-			if (playerEntity != null) {
-				itemStack.damage(1, playerEntity, context.getHand().getEquipmentSlot());
-			}
-
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (!(blockState.getBlock() instanceof AbstractPlantStemBlock stemBlock)
+			|| stemBlock.hasMaxAge(blockState)
+		) {
 			return super.useOnBlock(context);
 		}
+
+		PlayerEntity player = context.getPlayer();
+		ItemStack stack = context.getStack();
+
+		if (player instanceof ServerPlayerEntity serverPlayer) {
+			Criteria.ITEM_USED_ON_BLOCK.trigger(serverPlayer, pos, stack);
+		}
+
+		world.playSound(player, pos, SoundEvents.BLOCK_GROWING_PLANT_CROP, SoundCategory.BLOCKS, 1.0F, 1.0F);
+
+		BlockState maxAgeState = stemBlock.withMaxAge(blockState);
+		world.setBlockState(pos, maxAgeState);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, maxAgeState));
+
+		if (player != null) {
+			stack.damage(1, player, context.getHand().getEquipmentSlot());
+		}
+
+		return ActionResult.SUCCESS;
 	}
 }

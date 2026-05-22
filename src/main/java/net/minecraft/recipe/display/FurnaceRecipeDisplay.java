@@ -9,7 +9,9 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
 /**
- * {@code FurnaceRecipeDisplay}.
+ * Отображение рецепта печи (плавки, копчения, доменной печи, костра).
+ * Содержит слоты ингредиента, топлива, результата и станка, а также
+ * длительность и количество опыта.
  */
 public record FurnaceRecipeDisplay(
 		SlotDisplay ingredient,
@@ -18,38 +20,30 @@ public record FurnaceRecipeDisplay(
 		SlotDisplay craftingStation,
 		int duration,
 		float experience
-)
-		implements RecipeDisplay {
+) implements RecipeDisplay {
 
 	public static final MapCodec<FurnaceRecipeDisplay> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    SlotDisplay.CODEC.fieldOf("ingredient").forGetter(FurnaceRecipeDisplay::ingredient),
-					                    SlotDisplay.CODEC.fieldOf("fuel").forGetter(FurnaceRecipeDisplay::fuel),
-					                    SlotDisplay.CODEC.fieldOf("result").forGetter(FurnaceRecipeDisplay::result),
-					                    SlotDisplay.CODEC.fieldOf("crafting_station").forGetter(FurnaceRecipeDisplay::craftingStation),
-					                    Codec.INT.fieldOf("duration").forGetter(FurnaceRecipeDisplay::duration),
-					                    Codec.FLOAT.fieldOf("experience").forGetter(FurnaceRecipeDisplay::experience)
-			                    )
-			                    .apply(instance, FurnaceRecipeDisplay::new)
+					SlotDisplay.CODEC.fieldOf("ingredient").forGetter(FurnaceRecipeDisplay::ingredient),
+					SlotDisplay.CODEC.fieldOf("fuel").forGetter(FurnaceRecipeDisplay::fuel),
+					SlotDisplay.CODEC.fieldOf("result").forGetter(FurnaceRecipeDisplay::result),
+					SlotDisplay.CODEC.fieldOf("crafting_station").forGetter(FurnaceRecipeDisplay::craftingStation),
+					Codec.INT.fieldOf("duration").forGetter(FurnaceRecipeDisplay::duration),
+					Codec.FLOAT.fieldOf("experience").forGetter(FurnaceRecipeDisplay::experience)
+			).apply(instance, FurnaceRecipeDisplay::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, FurnaceRecipeDisplay> PACKET_CODEC = PacketCodec.tuple(
-			SlotDisplay.PACKET_CODEC,
-			FurnaceRecipeDisplay::ingredient,
-			SlotDisplay.PACKET_CODEC,
-			FurnaceRecipeDisplay::fuel,
-			SlotDisplay.PACKET_CODEC,
-			FurnaceRecipeDisplay::result,
-			SlotDisplay.PACKET_CODEC,
-			FurnaceRecipeDisplay::craftingStation,
-			PacketCodecs.VAR_INT,
-			FurnaceRecipeDisplay::duration,
-			PacketCodecs.FLOAT,
-			FurnaceRecipeDisplay::experience,
+			SlotDisplay.PACKET_CODEC, FurnaceRecipeDisplay::ingredient,
+			SlotDisplay.PACKET_CODEC, FurnaceRecipeDisplay::fuel,
+			SlotDisplay.PACKET_CODEC, FurnaceRecipeDisplay::result,
+			SlotDisplay.PACKET_CODEC, FurnaceRecipeDisplay::craftingStation,
+			PacketCodecs.VAR_INT, FurnaceRecipeDisplay::duration,
+			PacketCodecs.FLOAT, FurnaceRecipeDisplay::experience,
 			FurnaceRecipeDisplay::new
 	);
-	public static final RecipeDisplay.Serializer<FurnaceRecipeDisplay>
-			SERIALIZER =
-			new RecipeDisplay.Serializer<>(CODEC, PACKET_CODEC);
+	public static final RecipeDisplay.Serializer<FurnaceRecipeDisplay> SERIALIZER = new RecipeDisplay.Serializer<>(
+			CODEC, PACKET_CODEC
+	);
 
 	@Override
 	public RecipeDisplay.Serializer<FurnaceRecipeDisplay> serializer() {
@@ -58,7 +52,6 @@ public record FurnaceRecipeDisplay(
 
 	@Override
 	public boolean isEnabled(FeatureSet features) {
-		return this.ingredient.isEnabled(features) && this.fuel().isEnabled(features) && RecipeDisplay.super.isEnabled(
-				features);
+		return ingredient.isEnabled(features) && fuel.isEnabled(features) && RecipeDisplay.super.isEnabled(features);
 	}
 }

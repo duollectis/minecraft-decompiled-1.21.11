@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code BreezeBrain}.
+ * Мозг (Brain) для моба Бриз. Управляет поведением и памятью.
  */
 public class BreezeBrain {
 
@@ -57,14 +57,6 @@ public class BreezeBrain {
 	);
 	private static final int TIME_BEFORE_FORGETTING_TARGET = 100;
 
-	/**
-	 * Create.
-	 *
-	 * @param breeze breeze
-	 * @param brain brain
-	 *
-	 * @return Brain — результат операции
-	 */
 	protected static Brain<?> create(BreezeEntity breeze, Brain<BreezeEntity> brain) {
 		addCoreTasks(brain);
 		addIdleTasks(brain);
@@ -101,8 +93,8 @@ public class BreezeBrain {
 						Pair.of(
 								3,
 								new RandomTask(ImmutableList.of(
-										Pair.of(new WaitTask(20, 100), 1),
-										Pair.of(StrollTask.create(0.6F), 2)
+										Pair.of(new WaitTask(20, TIME_BEFORE_FORGETTING_TARGET), 1),
+										Pair.of(StrollTask.create(WALK_SPEED), 2)
 								))
 						)
 				)
@@ -116,7 +108,7 @@ public class BreezeBrain {
 						Pair.of(
 								0,
 								ForgetAttackTargetTask.create(Sensor
-										.hasTargetBeenAttackableRecently(breeze, 100)
+										.hasTargetBeenAttackableRecently(breeze, TIME_BEFORE_FORGETTING_TARGET)
 										.negate()::test)
 						),
 						Pair.of(1, new BreezeShootTask()),
@@ -135,15 +127,13 @@ public class BreezeBrain {
 		breeze.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
 	}
 
-	/**
-	 * {@code SlideAroundTask}.
-	 */
+	/** Задача скольжения бриза вокруг цели — перемещение по дуге для уклонения и позиционирования. */
 	public static class SlideAroundTask extends MoveToTargetTask {
 
 		@VisibleForTesting
-		public SlideAroundTask(int i, int j) {
-			super(i, j);
-		}
+			public SlideAroundTask(int minRunTime, int maxRunTime) {
+				super(minRunTime, maxRunTime);
+			}
 
 		@Override
 		protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {

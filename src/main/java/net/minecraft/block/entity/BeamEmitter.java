@@ -3,38 +3,36 @@ package net.minecraft.block.entity;
 import java.util.List;
 
 /**
- * {@code BeamEmitter}.
+ * Интерфейс для блок-сущностей, испускающих вертикальный луч (например, маяк).
  */
 public interface BeamEmitter {
 
 	List<BeamEmitter.BeamSegment> getBeamSegments();
 
 	/**
-	 * {@code BeamSegment}.
+	 * Один непрерывный сегмент луча маяка с единым цветом.
+	 * Высота сегмента увеличивается при прохождении через прозрачные блоки того же цвета.
 	 */
-	public static class BeamSegment {
+	class BeamSegment {
 
 		private final int color;
 		private int height;
 
 		public BeamSegment(int color) {
 			this.color = color;
-			this.height = 1;
+			height = 1;
 		}
 
-		/**
-		 * Increase height.
-		 */
 		public void increaseHeight() {
-			this.height++;
+			height++;
 		}
 
 		public int getColor() {
-			return this.color;
+			return color;
 		}
 
 		public int getHeight() {
-			return this.height;
+			return height;
 		}
 	}
 }

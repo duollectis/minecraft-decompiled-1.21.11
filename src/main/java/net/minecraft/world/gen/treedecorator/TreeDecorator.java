@@ -18,7 +18,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /**
- * {@code TreeDecorator}.
+ * Абстрактный декоратор дерева. Применяется после генерации ствола и листьев,
+ * добавляя дополнительные блоки (лианы, ульи, какао, мох и т.д.).
  */
 public abstract class TreeDecorator {
 
@@ -28,15 +29,11 @@ public abstract class TreeDecorator {
 
 	protected abstract TreeDecoratorType<?> getType();
 
-	/**
-	 * Generate.
-	 *
-	 * @param generator generator
-	 */
 	public abstract void generate(TreeDecorator.Generator generator);
 
 	/**
-	 * {@code Generator}.
+	 * Контекст генерации декоратора дерева. Предоставляет доступ к позициям брёвен,
+	 * листьев и корней, а также методы для замены блоков в мире.
 	 */
 	public static final class Generator {
 
@@ -66,60 +63,40 @@ public abstract class TreeDecorator {
 			this.rootPositions.sort(Comparator.comparingInt(Vec3i::getY));
 		}
 
-		/**
-		 * Replace with vine.
-		 *
-		 * @param pos pos
-		 * @param faceProperty face property
-		 */
 		public void replaceWithVine(BlockPos pos, BooleanProperty faceProperty) {
-			this.replace(pos, Blocks.VINE.getDefaultState().with(faceProperty, true));
+			replace(pos, Blocks.VINE.getDefaultState().with(faceProperty, true));
 		}
 
-		/**
-		 * Replace.
-		 *
-		 * @param pos pos
-		 * @param state state
-		 */
 		public void replace(BlockPos pos, BlockState state) {
-			this.replacer.accept(pos, state);
+			replacer.accept(pos, state);
 		}
 
 		public boolean isAir(BlockPos pos) {
-			return this.world.testBlockState(pos, AbstractBlock.AbstractBlockState::isAir);
+			return world.testBlockState(pos, AbstractBlock.AbstractBlockState::isAir);
 		}
 
-		/**
-		 * Matches.
-		 *
-		 * @param pos pos
-		 * @param statePredicate state predicate
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean matches(BlockPos pos, Predicate<BlockState> statePredicate) {
-			return this.world.testBlockState(pos, statePredicate);
+			return world.testBlockState(pos, statePredicate);
 		}
 
 		public TestableWorld getWorld() {
-			return this.world;
+			return world;
 		}
 
 		public Random getRandom() {
-			return this.random;
+			return random;
 		}
 
 		public ObjectArrayList<BlockPos> getLogPositions() {
-			return this.logPositions;
+			return logPositions;
 		}
 
 		public ObjectArrayList<BlockPos> getLeavesPositions() {
-			return this.leavesPositions;
+			return leavesPositions;
 		}
 
 		public ObjectArrayList<BlockPos> getRootPositions() {
-			return this.rootPositions;
+			return rootPositions;
 		}
 	}
 }

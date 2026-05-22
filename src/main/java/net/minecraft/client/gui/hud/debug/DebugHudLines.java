@@ -6,10 +6,11 @@ import net.minecraft.util.Identifier;
 
 import java.util.Collection;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DebugHudLines}.
+ * Приёмник строк для отладочного HUD. Позволяет добавлять строки
+ * как в приоритетный список, так и в именованные секции.
  */
+@Environment(EnvType.CLIENT)
 public interface DebugHudLines {
 
 	void addPriorityLine(String line);

@@ -34,14 +34,17 @@ import java.util.UUID;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code SignBlockEntity}.
+ * Блок-сущность таблички (Sign). Хранит текст двух сторон ({@code frontText} и {@code backText}),
+ * поддерживает режим редактирования с привязкой к UUID игрока, восковую защиту от изменений
+ * и выполнение команд по клику на текст.
  */
 public class SignBlockEntity extends BlockEntity {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int MAX_TEXT_WIDTH = 90;
 	private static final int TEXT_LINE_HEIGHT = 10;
-	private static final boolean DEFAULT_WAXED = false;
+	private static final int LINE_COUNT = 4;
+	private static final double EDIT_REACH_DISTANCE = 4.0;
 	private @Nullable UUID editor;
 	private SignText frontText;
 	private SignText backText;
@@ -53,121 +56,106 @@ public class SignBlockEntity extends BlockEntity {
 
 	public SignBlockEntity(BlockEntityType blockEntityType, BlockPos blockPos, BlockState blockState) {
 		super(blockEntityType, blockPos, blockState);
-		this.frontText = this.createText();
-		this.backText = this.createText();
+		frontText = createText();
+		backText = createText();
 	}
 
-	/**
-	 * Создаёт text.
-	 *
-	 * @return SignText — результат операции
-	 */
 	protected SignText createText() {
 		return new SignText();
 	}
 
+	/**
+	 * Определяет, смотрит ли игрок на лицевую сторону таблички.
+	 * Вычисляется через угол между направлением таблички и вектором от таблички к игроку.
+	 */
 	public boolean isPlayerFacingFront(PlayerEntity player) {
-		if (this.getCachedState().getBlock() instanceof AbstractSignBlock abstractSignBlock) {
-			Vec3d vec3d = abstractSignBlock.getCenter(this.getCachedState());
-			double d = player.getX() - (this.getPos().getX() + vec3d.x);
-			double e = player.getZ() - (this.getPos().getZ() + vec3d.z);
-			float f = abstractSignBlock.getRotationDegrees(this.getCachedState());
-			float g = (float) (MathHelper.atan2(e, d) * 180.0F / (float) Math.PI) - 90.0F;
-			return MathHelper.angleBetween(f, g) <= 90.0F;
-		}
-		else {
+		if (!(getCachedState().getBlock() instanceof AbstractSignBlock signBlock)) {
 			return false;
 		}
+
+		Vec3d center = signBlock.getCenter(getCachedState());
+		double deltaX = player.getX() - (getPos().getX() + center.x);
+		double deltaZ = player.getZ() - (getPos().getZ() + center.z);
+		float signRotation = signBlock.getRotationDegrees(getCachedState());
+		float playerAngle = (float) (MathHelper.atan2(deltaZ, deltaX) * 180.0F / (float) Math.PI) - 90.0F;
+		return MathHelper.angleBetween(signRotation, playerAngle) <= 90.0F;
 	}
 
 	public SignText getText(boolean front) {
-		return front ? this.frontText : this.backText;
+		return front ? frontText : backText;
 	}
 
 	public SignText getFrontText() {
-		return this.frontText;
+		return frontText;
 	}
 
 	public SignText getBackText() {
-		return this.backText;
+		return backText;
 	}
 
 	public int getTextLineHeight() {
-		return 10;
+		return TEXT_LINE_HEIGHT;
 	}
 
 	public int getMaxTextWidth() {
-		return 90;
+		return MAX_TEXT_WIDTH;
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.put("front_text", SignText.CODEC, this.frontText);
-		view.put("back_text", SignText.CODEC, this.backText);
-		view.putBoolean("is_waxed", this.waxed);
+		view.put("front_text", SignText.CODEC, frontText);
+		view.put("back_text", SignText.CODEC, backText);
+		view.putBoolean("is_waxed", waxed);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.frontText =
-				view.<SignText>read("front_text", SignText.CODEC).map(this::parseLines).orElseGet(SignText::new);
-		this.backText = view.<SignText>read("back_text", SignText.CODEC).map(this::parseLines).orElseGet(SignText::new);
-		this.waxed = view.getBoolean("is_waxed", false);
+		frontText = view.<SignText>read("front_text", SignText.CODEC).map(this::parseLines).orElseGet(SignText::new);
+		backText = view.<SignText>read("back_text", SignText.CODEC).map(this::parseLines).orElseGet(SignText::new);
+		waxed = view.getBoolean("is_waxed", false);
 	}
 
 	private SignText parseLines(SignText signText) {
-		for (int i = 0; i < 4; i++) {
-			Text text = this.parseLine(signText.getMessage(i, false));
-			Text text2 = this.parseLine(signText.getMessage(i, true));
-			signText = signText.withMessage(i, text, text2);
+		for (int line = 0; line < LINE_COUNT; line++) {
+			Text raw = parseLine(signText.getMessage(line, false));
+			Text filtered = parseLine(signText.getMessage(line, true));
+			signText = signText.withMessage(line, raw, filtered);
 		}
 
 		return signText;
 	}
 
 	private Text parseLine(Text text) {
-		if (this.world instanceof ServerWorld serverWorld) {
-			try {
-				return Texts.parse(createCommandSource(null, serverWorld, this.pos), text, null, 0);
-			}
-			catch (CommandSyntaxException var4) {
-			}
+		if (!(world instanceof ServerWorld serverWorld)) {
+			return text;
 		}
 
-		return text;
+		try {
+			return Texts.parse(createCommandSource(null, serverWorld, pos), text, null, 0);
+		} catch (CommandSyntaxException ignored) {
+			return text;
+		}
 	}
 
 	/**
-	 * Try change text.
-	 *
-	 * @param player player
-	 * @param front front
-	 * @param messages messages
+	 * Применяет список отфильтрованных сообщений к указанной стороне таблички.
+	 * Разрешено только текущему редактору (по UUID) и только если табличка не запечатана воском.
 	 */
 	public void tryChangeText(PlayerEntity player, boolean front, List<FilteredMessage> messages) {
-		if (!this.isWaxed() && player.getUuid().equals(this.getEditor()) && this.world != null) {
-			this.changeText(text -> this.getTextWithMessages(player, messages, text), front);
-			this.setEditor(null);
-			this.world.updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), 3);
-		}
-		else {
+		if (isWaxed() || !player.getUuid().equals(getEditor()) || world == null) {
 			LOGGER.warn("Player {} just tried to change non-editable sign", player.getStringifiedName());
+			return;
 		}
+
+		changeText(text -> getTextWithMessages(player, messages, text), front);
+		setEditor(null);
+		world.updateListeners(getPos(), getCachedState(), getCachedState(), 3);
 	}
 
-	/**
-	 * Change text.
-	 *
-	 * @param textChanger text changer
-	 * @param front front
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean changeText(UnaryOperator<SignText> textChanger, boolean front) {
-		SignText signText = this.getText(front);
-		return this.setText(textChanger.apply(signText), front);
+		return setText(textChanger.apply(getText(front)), front);
 	}
 
 	private SignText getTextWithMessages(PlayerEntity player, List<FilteredMessage> messages, SignText text) {
@@ -176,14 +164,12 @@ public class SignBlockEntity extends BlockEntity {
 			Style style = text.getMessage(i, player.shouldFilterText()).getStyle();
 			if (player.shouldFilterText()) {
 				text = text.withMessage(i, Text.literal(filteredMessage.getString()).setStyle(style));
-			}
-			else {
-				text =
-						text.withMessage(
-								i,
-								Text.literal(filteredMessage.raw()).setStyle(style),
-								Text.literal(filteredMessage.getString()).setStyle(style)
-						);
+			} else {
+				text = text.withMessage(
+					i,
+					Text.literal(filteredMessage.raw()).setStyle(style),
+					Text.literal(filteredMessage.getString()).setStyle(style)
+				);
 			}
 		}
 
@@ -191,114 +177,95 @@ public class SignBlockEntity extends BlockEntity {
 	}
 
 	public boolean setText(SignText text, boolean front) {
-		return front ? this.setFrontText(text) : this.setBackText(text);
+		return front ? setFrontText(text) : setBackText(text);
 	}
 
-	private boolean setBackText(SignText backText) {
-		if (backText != this.backText) {
-			this.backText = backText;
-			this.updateListeners();
-			return true;
-		}
-		else {
+	private boolean setBackText(SignText newBackText) {
+		if (newBackText == backText) {
 			return false;
 		}
+
+		backText = newBackText;
+		updateListeners();
+		return true;
 	}
 
-	private boolean setFrontText(SignText frontText) {
-		if (frontText != this.frontText) {
-			this.frontText = frontText;
-			this.updateListeners();
-			return true;
-		}
-		else {
+	private boolean setFrontText(SignText newFrontText) {
+		if (newFrontText == frontText) {
 			return false;
 		}
+
+		frontText = newFrontText;
+		updateListeners();
+		return true;
 	}
 
-	/**
-	 * Проверяет возможность run command click event.
-	 *
-	 * @param front front
-	 * @param player player
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canRunCommandClickEvent(boolean front, PlayerEntity player) {
-		return this.isWaxed() && this.getText(front).hasRunCommandClickEvent(player);
+		return isWaxed() && getText(front).hasRunCommandClickEvent(player);
 	}
 
 	/**
-	 * Run command click event.
+	 * Выполняет все команды и диалоги, привязанные к кликабельным событиям строк таблички.
+	 * Обрабатывает {@code RUN_COMMAND}, {@code ShowDialog} и кастомные действия.
 	 *
-	 * @param world world
-	 * @param player player
-	 * @param pos pos
-	 * @param front front
-	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если хотя бы одно событие было обработано
 	 */
 	public boolean runCommandClickEvent(ServerWorld world, PlayerEntity player, BlockPos pos, boolean front) {
-		boolean bl = false;
+		boolean executed = false;
 
-		for (Text text : this.getText(front).getMessages(player.shouldFilterText())) {
+		for (Text text : getText(front).getMessages(player.shouldFilterText())) {
 			Style style = text.getStyle();
 			switch (style.getClickEvent()) {
 				case ClickEvent.RunCommand runCommand:
-					world
-							.getServer()
-							.getCommandManager()
-							.parseAndExecute(createCommandSource(player, world, pos), runCommand.command());
-					bl = true;
+					world.getServer()
+						.getCommandManager()
+						.parseAndExecute(createCommandSource(player, world, pos), runCommand.command());
+					executed = true;
 					break;
 				case ClickEvent.ShowDialog showDialog:
 					player.openDialog(showDialog.dialog());
-					bl = true;
+					executed = true;
 					break;
 				case ClickEvent.Custom custom:
 					world.getServer().handleCustomClickAction(custom.id(), custom.payload());
-					bl = true;
+					executed = true;
 					break;
 				case null:
 				default:
 			}
 		}
 
-		return bl;
+		return executed;
 	}
 
 	private static ServerCommandSource createCommandSource(
-			@Nullable PlayerEntity player,
-			ServerWorld world,
-			BlockPos pos
+		@Nullable PlayerEntity player,
+		ServerWorld world,
+		BlockPos pos
 	) {
-		String string = player == null ? "Sign" : player.getStringifiedName();
-		Text text = (Text) (player == null ? Text.literal("Sign") : player.getDisplayName());
+		String name = player == null ? "Sign" : player.getStringifiedName();
+		Text displayName = player == null ? Text.literal("Sign") : player.getDisplayName();
 		return new ServerCommandSource(
-				CommandOutput.DUMMY,
-				Vec3d.ofCenter(pos),
-				Vec2f.ZERO,
-				world,
-				LeveledPermissionPredicate.GAMEMASTERS,
-				string,
-				text,
-				world.getServer(),
-				player
+			CommandOutput.DUMMY,
+			Vec3d.ofCenter(pos),
+			Vec2f.ZERO,
+			world,
+			LeveledPermissionPredicate.GAMEMASTERS,
+			name,
+			displayName,
+			world.getServer(),
+			player
 		);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	public void setEditor(@Nullable UUID editor) {
@@ -306,51 +273,40 @@ public class SignBlockEntity extends BlockEntity {
 	}
 
 	public @Nullable UUID getEditor() {
-		return this.editor;
+		return editor;
 	}
 
 	private void updateListeners() {
-		this.markDirty();
-		this.world.updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), 3);
+		markDirty();
+		world.updateListeners(getPos(), getCachedState(), getCachedState(), 3);
 	}
 
 	public boolean isWaxed() {
-		return this.waxed;
+		return waxed;
 	}
 
-	public boolean setWaxed(boolean waxed) {
-		if (this.waxed != waxed) {
-			this.waxed = waxed;
-			this.updateListeners();
-			return true;
-		}
-		else {
+	public boolean setWaxed(boolean newWaxed) {
+		if (waxed == newWaxed) {
 			return false;
 		}
+
+		waxed = newWaxed;
+		updateListeners();
+		return true;
 	}
 
 	public boolean isPlayerTooFarToEdit(UUID uuid) {
-		PlayerEntity playerEntity = this.world.getPlayerByUuid(uuid);
-		return playerEntity == null || !playerEntity.canInteractWithBlockAt(this.getPos(), 4.0);
+		PlayerEntity player = world.getPlayerByUuid(uuid);
+		return player == null || !player.canInteractWithBlockAt(getPos(), EDIT_REACH_DISTANCE);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SignBlockEntity blockEntity) {
-		UUID uUID = blockEntity.getEditor();
-		if (uUID != null) {
-			blockEntity.tryClearInvalidEditor(blockEntity, world, uUID);
+		UUID editorUuid = blockEntity.getEditor();
+		if (editorUuid == null) {
+			return;
 		}
-	}
 
-	private void tryClearInvalidEditor(SignBlockEntity blockEntity, World world, UUID uuid) {
-		if (blockEntity.isPlayerTooFarToEdit(uuid)) {
+		if (blockEntity.isPlayerTooFarToEdit(editorUuid)) {
 			blockEntity.setEditor(null);
 		}
 	}

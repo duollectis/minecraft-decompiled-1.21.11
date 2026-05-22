@@ -20,196 +20,157 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScreenshotRecorder}.
+ * Утилита для захвата и сохранения скриншотов из фреймбуфера OpenGL.
+ * Поддерживает уменьшение разрешения с усреднением пикселей для антиалиасинга.
  */
+@Environment(EnvType.CLIENT)
 public class ScreenshotRecorder {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final String SCREENSHOTS_DIRECTORY = "screenshots";
 
-	/**
-	 * Сохраняет screenshot.
-	 *
-	 * @param gameDirectory game directory
-	 * @param framebuffer framebuffer
-	 * @param messageReceiver message receiver
-	 */
 	public static void saveScreenshot(File gameDirectory, Framebuffer framebuffer, Consumer<Text> messageReceiver) {
 		saveScreenshot(gameDirectory, null, framebuffer, 1, messageReceiver);
 	}
 
+	/**
+	 * Делает скриншот фреймбуфера и асинхронно сохраняет его в директорию screenshots.
+	 * При успехе отправляет кликабельное сообщение с именем файла, при ошибке — сообщение об ошибке.
+	 *
+	 * @param gameDirectory    корневая директория игры
+	 * @param fileName         имя файла или {@code null} для автогенерации по времени
+	 * @param framebuffer      фреймбуфер для захвата
+	 * @param downscaleFactor  коэффициент уменьшения (1 = без уменьшения)
+	 * @param messageReceiver  получатель сообщения о результате
+	 */
 	public static void saveScreenshot(
-			File gameDirectory,
-			@Nullable String fileName,
-			Framebuffer framebuffer,
-			int downscaleFactor,
-			Consumer<Text> messageReceiver
+		File gameDirectory,
+		@Nullable String fileName,
+		Framebuffer framebuffer,
+		int downscaleFactor,
+		Consumer<Text> messageReceiver
 	) {
-		takeScreenshot(
-				framebuffer,
-				downscaleFactor,
-				image -> {
-					File file2 = new File(gameDirectory, "screenshots");
-					file2.mkdir();
-					File file3;
-					if (fileName == null) {
-						file3 = getScreenshotFilename(file2);
-					}
-					else {
-						file3 = new File(file2, fileName);
-					}
+		takeScreenshot(framebuffer, downscaleFactor, image -> {
+			File screenshotsDir = new File(gameDirectory, SCREENSHOTS_DIRECTORY);
+			screenshotsDir.mkdir();
 
-					Util.getIoWorkerExecutor()
-					    .execute(
-							    () -> {
-								    try {
-									    NativeImage exception = image;
+			File outputFile = fileName == null
+				? getScreenshotFilename(screenshotsDir)
+				: new File(screenshotsDir, fileName);
 
-									    try {
-										    image.writeTo(file3);
-										    Text text = Text.literal(file3.getName())
-										                    .formatted(Formatting.UNDERLINE)
-										                    .styled(style -> style.withClickEvent(new ClickEvent.OpenFile(
-												                    file3.getAbsoluteFile())));
-										    messageReceiver.accept(Text.translatable("screenshot.success", text));
-									    }
-									    catch (Throwable var7) {
-										    if (image != null) {
-											    try {
-												    exception.close();
-											    }
-											    catch (Throwable var6) {
-												    var7.addSuppressed(var6);
-											    }
-										    }
-
-										    throw var7;
-									    }
-
-									    if (image != null) {
-										    image.close();
-									    }
-								    }
-								    catch (Exception var8) {
-									    LOGGER.warn("Couldn't save screenshot", var8);
-									    messageReceiver.accept(Text.translatable(
-											    "screenshot.failure",
-											    var8.getMessage()
-									    ));
-								    }
-							    }
-					    );
+			Util.getIoWorkerExecutor().execute(() -> {
+				try (NativeImage capturedImage = image) {
+					capturedImage.writeTo(outputFile);
+					Text fileLink = Text.literal(outputFile.getName())
+						.formatted(Formatting.UNDERLINE)
+						.styled(style -> style.withClickEvent(new ClickEvent.OpenFile(outputFile.getAbsoluteFile())));
+					messageReceiver.accept(Text.translatable("screenshot.success", fileLink));
+				} catch (Exception exception) {
+					LOGGER.warn("Couldn't save screenshot", exception);
+					messageReceiver.accept(Text.translatable("screenshot.failure", exception.getMessage()));
 				}
-		);
+			});
+		});
 	}
 
-	/**
-	 * Take screenshot.
-	 *
-	 * @param framebuffer framebuffer
-	 * @param callback callback
-	 */
 	public static void takeScreenshot(Framebuffer framebuffer, Consumer<NativeImage> callback) {
 		takeScreenshot(framebuffer, 1, callback);
 	}
 
 	/**
-	 * Take screenshot.
+	 * Захватывает содержимое фреймбуфера в {@link NativeImage} с опциональным уменьшением.
+	 * При {@code downscaleFactor > 1} усредняет пиксели блоками для антиалиасинга.
+	 * Изображение переворачивается по вертикали (OpenGL хранит строки снизу вверх).
 	 *
-	 * @param framebuffer framebuffer
-	 * @param downscaleFactor downscale factor
-	 * @param callback callback
+	 * @param framebuffer     фреймбуфер для захвата
+	 * @param downscaleFactor коэффициент уменьшения; размеры должны делиться на него нацело
+	 * @param callback        получатель готового изображения
+	 * @throws IllegalStateException    если фреймбуфер неполный
+	 * @throws IllegalArgumentException если размеры не делятся на коэффициент
 	 */
 	public static void takeScreenshot(Framebuffer framebuffer, int downscaleFactor, Consumer<NativeImage> callback) {
-		int i = framebuffer.textureWidth;
-		int j = framebuffer.textureHeight;
-		GpuTexture gpuTexture = framebuffer.getColorAttachment();
-		if (gpuTexture == null) {
+		int textureWidth = framebuffer.textureWidth;
+		int textureHeight = framebuffer.textureHeight;
+		GpuTexture colorAttachment = framebuffer.getColorAttachment();
+
+		if (colorAttachment == null) {
 			throw new IllegalStateException("Tried to capture screenshot of an incomplete framebuffer");
 		}
-		else if (i % downscaleFactor == 0 && j % downscaleFactor == 0) {
-			GpuBuffer
-					gpuBuffer =
-					RenderSystem
-							.getDevice()
-							.createBuffer(
-									() -> "Screenshot buffer",
-									9,
-									(long) i * j * gpuTexture.getFormat().pixelSize()
-							);
-			CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
-			RenderSystem.getDevice().createCommandEncoder().copyTextureToBuffer(
-					gpuTexture, gpuBuffer, 0L, () -> {
-						try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(gpuBuffer, true, false)) {
-							int l = j / downscaleFactor;
-							int m = i / downscaleFactor;
-							NativeImage nativeImage = new NativeImage(m, l, false);
 
-							for (int n = 0; n < l; n++) {
-								for (int o = 0; o < m; o++) {
-									if (downscaleFactor == 1) {
-										int
-												p =
-												mappedView
-														.data()
-														.getInt((o + n * i) * gpuTexture.getFormat().pixelSize());
-										nativeImage.setColor(o, j - n - 1, p | 0xFF000000);
-									}
-									else {
-										int p = 0;
-										int q = 0;
-										int r = 0;
-
-										for (int s = 0; s < downscaleFactor; s++) {
-											for (int t = 0; t < downscaleFactor; t++) {
-												int
-														u =
-														mappedView
-																.data()
-																.getInt((o * downscaleFactor + s
-																		+ (n * downscaleFactor + t) * i
-																) * gpuTexture.getFormat().pixelSize());
-												p += ColorHelper.getRed(u);
-												q += ColorHelper.getGreen(u);
-												r += ColorHelper.getBlue(u);
-											}
-										}
-
-										int s = downscaleFactor * downscaleFactor;
-										nativeImage.setColor(
-												o,
-												l - n - 1,
-												ColorHelper.getArgb(255, p / s, q / s, r / s)
-										);
-									}
-								}
-							}
-
-							callback.accept(nativeImage);
-						}
-
-						gpuBuffer.close();
-					}, 0
-			);
-		}
-		else {
+		if (textureWidth % downscaleFactor != 0 || textureHeight % downscaleFactor != 0) {
 			throw new IllegalArgumentException("Image size is not divisible by downscale factor");
 		}
+
+		GpuBuffer gpuBuffer = RenderSystem.getDevice().createBuffer(
+			() -> "Screenshot buffer",
+			9,
+			(long) textureWidth * textureHeight * colorAttachment.getFormat().pixelSize()
+		);
+
+		CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
+		RenderSystem.getDevice().createCommandEncoder().copyTextureToBuffer(
+			colorAttachment,
+			gpuBuffer,
+			0L,
+			() -> {
+				try (GpuBuffer.MappedView mappedView = commandEncoder.mapBuffer(gpuBuffer, true, false)) {
+					int outputWidth = textureWidth / downscaleFactor;
+					int outputHeight = textureHeight / downscaleFactor;
+					NativeImage image = new NativeImage(outputWidth, outputHeight, false);
+					int pixelSize = colorAttachment.getFormat().pixelSize();
+
+					for (int row = 0; row < outputHeight; row++) {
+						for (int col = 0; col < outputWidth; col++) {
+							if (downscaleFactor == 1) {
+								int packedColor = mappedView.data().getInt((col + row * textureWidth) * pixelSize);
+								image.setColor(col, textureHeight - row - 1, packedColor | 0xFF000000);
+							} else {
+								int totalRed = 0;
+								int totalGreen = 0;
+								int totalBlue = 0;
+
+								for (int sampleX = 0; sampleX < downscaleFactor; sampleX++) {
+									for (int sampleY = 0; sampleY < downscaleFactor; sampleY++) {
+										int srcX = col * downscaleFactor + sampleX;
+										int srcY = row * downscaleFactor + sampleY;
+										int packedColor = mappedView.data().getInt((srcX + srcY * textureWidth) * pixelSize);
+										totalRed += ColorHelper.getRed(packedColor);
+										totalGreen += ColorHelper.getGreen(packedColor);
+										totalBlue += ColorHelper.getBlue(packedColor);
+									}
+								}
+
+								int sampleCount = downscaleFactor * downscaleFactor;
+								image.setColor(
+									col,
+									outputHeight - row - 1,
+									ColorHelper.getArgb(255, totalRed / sampleCount, totalGreen / sampleCount, totalBlue / sampleCount)
+								);
+							}
+						}
+					}
+
+					callback.accept(image);
+				}
+
+				gpuBuffer.close();
+			},
+			0
+		);
 	}
 
 	private static File getScreenshotFilename(File directory) {
-		String string = Util.getFormattedCurrentTime();
-		int i = 1;
+		String timestamp = Util.getFormattedCurrentTime();
+		int counter = 1;
 
 		while (true) {
-			File file = new File(directory, string + (i == 1 ? "" : "_" + i) + ".png");
+			File file = new File(directory, timestamp + (counter == 1 ? "" : "_" + counter) + ".png");
 			if (!file.exists()) {
 				return file;
 			}
 
-			i++;
+			counter++;
 		}
 	}
 }

@@ -4,18 +4,17 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code ChunkGenerators}.
+ * Регистрирует все встроенные типы генераторов чанков в реестр кодеков.
  */
 public class ChunkGenerators {
 
 	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return MapCodec — результат операции
+	 * Регистрирует генераторы {@code noise}, {@code flat} и {@code debug},
+	 * возвращая кодек последнего как значение по умолчанию.
 	 */
-	public static MapCodec<? extends ChunkGenerator> registerAndGetDefault(Registry<MapCodec<? extends ChunkGenerator>> registry) {
+	public static MapCodec<? extends ChunkGenerator> registerAndGetDefault(
+			Registry<MapCodec<? extends ChunkGenerator>> registry
+	) {
 		Registry.register(registry, "noise", NoiseChunkGenerator.CODEC);
 		Registry.register(registry, "flat", FlatChunkGenerator.CODEC);
 		return Registry.register(registry, "debug", DebugChunkGenerator.CODEC);

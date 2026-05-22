@@ -9,9 +9,14 @@ import net.minecraft.util.math.Vec3d;
 import java.util.EnumSet;
 
 /**
- * {@code HorseBondWithPlayerGoal}.
+ * Цель укрощения лошади: лошадь мечется, пока игрок сидит верхом,
+ * периодически проверяя темперамент и решая — принять или сбросить всадника.
  */
 public class HorseBondWithPlayerGoal extends Goal {
+
+	private static final int TAMING_CHECK_INTERVAL = 50;
+	private static final int TEMPER_INCREASE = 5;
+	private static final byte ANGRY_STATUS = 6;
 
 	private final AbstractHorseEntity horse;
 	private final double speed;
@@ -22,60 +27,60 @@ public class HorseBondWithPlayerGoal extends Goal {
 	public HorseBondWithPlayerGoal(AbstractHorseEntity horse, double speed) {
 		this.horse = horse;
 		this.speed = speed;
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (!this.horse.isControlledByMob() && !this.horse.isTame() && this.horse.hasPassengers()) {
-			Vec3d vec3d = NoPenaltyTargeting.find(this.horse, 5, 4);
-			if (vec3d == null) {
-				return false;
-			}
-			else {
-				this.targetX = vec3d.x;
-				this.targetY = vec3d.y;
-				this.targetZ = vec3d.z;
-				return true;
-			}
-		}
-		else {
+		if (horse.isControlledByMob() || horse.isTame() || !horse.hasPassengers()) {
 			return false;
 		}
+
+		Vec3d wanderPos = NoPenaltyTargeting.find(horse, 5, 4);
+		if (wanderPos == null) {
+			return false;
+		}
+
+		targetX = wanderPos.x;
+		targetY = wanderPos.y;
+		targetZ = wanderPos.z;
+		return true;
 	}
 
 	@Override
 	public void start() {
-		this.horse.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
+		horse.getNavigation().startMovingTo(targetX, targetY, targetZ, speed);
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.horse.isTame() && !this.horse.getNavigation().isIdle() && this.horse.hasPassengers();
+		return !horse.isTame() && !horse.getNavigation().isIdle() && horse.hasPassengers();
 	}
 
 	@Override
 	public void tick() {
-		if (!this.horse.isTame() && this.horse.getRandom().nextInt(this.getTickCount(50)) == 0) {
-			Entity entity = this.horse.getFirstPassenger();
-			if (entity == null) {
+		if (horse.isTame() || horse.getRandom().nextInt(getTickCount(TAMING_CHECK_INTERVAL)) != 0) {
+			return;
+		}
+
+		Entity passenger = horse.getFirstPassenger();
+		if (passenger == null) {
+			return;
+		}
+
+		if (passenger instanceof PlayerEntity player) {
+			int temper = horse.getTemper();
+			int maxTemper = horse.getMaxTemper();
+			if (maxTemper > 0 && horse.getRandom().nextInt(maxTemper) < temper) {
+				horse.bondWithPlayer(player);
 				return;
 			}
 
-			if (entity instanceof PlayerEntity playerEntity) {
-				int i = this.horse.getTemper();
-				int j = this.horse.getMaxTemper();
-				if (j > 0 && this.horse.getRandom().nextInt(j) < i) {
-					this.horse.bondWithPlayer(playerEntity);
-					return;
-				}
-
-				this.horse.addTemper(5);
-			}
-
-			this.horse.removeAllPassengers();
-			this.horse.playAngrySound();
-			this.horse.getEntityWorld().sendEntityStatus(this.horse, (byte) 6);
+			horse.addTemper(TEMPER_INCREASE);
 		}
+
+		horse.removeAllPassengers();
+		horse.playAngrySound();
+		horse.getEntityWorld().sendEntityStatus(horse, ANGRY_STATUS);
 	}
 }

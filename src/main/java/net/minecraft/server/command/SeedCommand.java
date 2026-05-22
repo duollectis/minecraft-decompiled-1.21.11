@@ -6,7 +6,7 @@ import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
 
 /**
- * {@code SeedCommand}.
+ * Команда {@code /seed}: вывод зерна генерации мира.
  */
 public class SeedCommand {
 

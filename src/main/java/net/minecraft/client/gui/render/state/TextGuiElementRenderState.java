@@ -8,10 +8,15 @@ import net.minecraft.text.OrderedText;
 import org.joml.Matrix3x2fc;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TextGuiElementRenderState}.
+ * Состояние текстового элемента GUI до его растеризации в глифы.
+ * Хранит все параметры, необходимые для подготовки текста через {@link TextRenderer}.
+ *
+ * <p>Подготовка ({@link #prepare()}) выполняется лениво при первом обращении к {@link #bounds()}.
+ * После подготовки вычисляется ограничивающий прямоугольник с учётом матрицы трансформации
+ * и области отсечения, который используется системой слоёв GUI.
  */
+@Environment(EnvType.CLIENT)
 public final class TextGuiElementRenderState implements GuiElementRenderState {
 
 	public final TextRenderer textRenderer;
@@ -24,6 +29,7 @@ public final class TextGuiElementRenderState implements GuiElementRenderState {
 	public final boolean shadow;
 	final boolean trackEmpty;
 	public final @Nullable ScreenRect clipBounds;
+
 	private TextRenderer.@Nullable GlyphDrawable preparation;
 	private @Nullable ScreenRect bounds;
 
@@ -51,31 +57,38 @@ public final class TextGuiElementRenderState implements GuiElementRenderState {
 		this.clipBounds = clipBounds;
 	}
 
+	/**
+	 * Выполняет растеризацию текста в набор глифов.
+	 * Вычисляет и кэширует ограничивающий прямоугольник с учётом матрицы и области отсечения.
+	 * Повторные вызовы возвращают кэшированный результат.
+	 */
 	public TextRenderer.GlyphDrawable prepare() {
-		if (this.preparation == null) {
-			this.preparation =
-					this.textRenderer.prepare(
-							this.orderedText,
-							this.x,
-							this.y,
-							this.color,
-							this.shadow,
-							this.trackEmpty,
-							this.backgroundColor
-					);
-			ScreenRect screenRect = this.preparation.getScreenRect();
-			if (screenRect != null) {
-				screenRect = screenRect.transformEachVertex(this.matrix);
-				this.bounds = this.clipBounds != null ? this.clipBounds.intersection(screenRect) : screenRect;
-			}
+		if (preparation != null) {
+			return preparation;
 		}
 
-		return this.preparation;
+		preparation = textRenderer.prepare(
+				orderedText,
+				x,
+				y,
+				color,
+				shadow,
+				trackEmpty,
+				backgroundColor
+		);
+
+		ScreenRect textRect = preparation.getScreenRect();
+		if (textRect != null) {
+			textRect = textRect.transformEachVertex(matrix);
+			bounds = clipBounds != null ? clipBounds.intersection(textRect) : textRect;
+		}
+
+		return preparation;
 	}
 
 	@Override
 	public @Nullable ScreenRect bounds() {
-		this.prepare();
-		return this.bounds;
+		prepare();
+		return bounds;
 	}
 }

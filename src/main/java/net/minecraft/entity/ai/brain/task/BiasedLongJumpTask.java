@@ -16,7 +16,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
- * {@code BiasedLongJumpTask}.
+ * Расширение {@link LongJumpTask}, предпочитающее приземляться на блоки из тега {@code favoredBlocks}.
+ * С вероятностью {@code biasChance} откладывает нежелательные цели и сначала проверяет предпочтительные.
  */
 public class BiasedLongJumpTask<E extends MobEntity> extends LongJumpTask<E> {
 
@@ -41,33 +42,34 @@ public class BiasedLongJumpTask<E extends MobEntity> extends LongJumpTask<E> {
 	}
 
 	@Override
-	protected void run(ServerWorld serverWorld, E mobEntity, long l) {
-		super.run(serverWorld, mobEntity, l);
-		this.unfavoredTargets.clear();
-		this.useBias = mobEntity.getRandom().nextFloat() < this.biasChance;
+	protected void run(ServerWorld world, E entity, long time) {
+		super.run(world, entity, time);
+		unfavoredTargets.clear();
+		useBias = entity.getRandom().nextFloat() < biasChance;
 	}
 
 	@Override
 	protected Optional<LongJumpTask.Target> removeRandomTarget(ServerWorld world) {
-		if (!this.useBias) {
+		if (!useBias) {
 			return super.removeRandomTarget(world);
 		}
-		else {
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			while (!this.potentialTargets.isEmpty()) {
-				Optional<LongJumpTask.Target> optional = super.removeRandomTarget(world);
-				if (optional.isPresent()) {
-					LongJumpTask.Target target = optional.get();
-					if (world.getBlockState(mutable.set(target.pos(), Direction.DOWN)).isIn(this.favoredBlocks)) {
-						return optional;
-					}
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-					this.unfavoredTargets.add(target);
+		while (!potentialTargets.isEmpty()) {
+			Optional<LongJumpTask.Target> candidate = super.removeRandomTarget(world);
+			if (candidate.isPresent()) {
+				LongJumpTask.Target target = candidate.get();
+				if (world.getBlockState(mutable.set(target.pos(), Direction.DOWN)).isIn(favoredBlocks)) {
+					return candidate;
 				}
-			}
 
-			return !this.unfavoredTargets.isEmpty() ? Optional.of(this.unfavoredTargets.remove(0)) : Optional.empty();
+				unfavoredTargets.add(target);
+			}
 		}
+
+		return unfavoredTargets.isEmpty()
+				? Optional.empty()
+				: Optional.of(unfavoredTargets.remove(0));
 	}
 }

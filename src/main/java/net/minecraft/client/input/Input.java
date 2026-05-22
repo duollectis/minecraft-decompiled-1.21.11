@@ -5,41 +5,40 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Vec2f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Input}.
+ * Базовый класс источника ввода игрока. Хранит текущее состояние движения
+ * и флаги действий (прыжок, присед, спринт). Подклассы переопределяют
+ * {@link #tick()} для обновления состояния из реального устройства ввода.
  */
+@Environment(EnvType.CLIENT)
 public class Input {
+
+	private static final float FORWARD_THRESHOLD = 1.0E-5F;
 
 	public PlayerInput playerInput = PlayerInput.DEFAULT;
 	protected Vec2f movementVector = Vec2f.ZERO;
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 	}
 
 	public Vec2f getMovementInput() {
-		return this.movementVector;
+		return movementVector;
 	}
 
 	public boolean hasForwardMovement() {
-		return this.movementVector.y > 1.0E-5F;
+		return movementVector.y > FORWARD_THRESHOLD;
 	}
 
-	/**
-	 * Jump.
-	 */
+	/** Принудительно устанавливает флаг прыжка в текущем состоянии ввода. */
 	public void jump() {
-		this.playerInput = new PlayerInput(
-				this.playerInput.forward(),
-				this.playerInput.backward(),
-				this.playerInput.left(),
-				this.playerInput.right(),
+		playerInput = new PlayerInput(
+				playerInput.forward(),
+				playerInput.backward(),
+				playerInput.left(),
+				playerInput.right(),
 				true,
-				this.playerInput.sneak(),
-				this.playerInput.sprint()
+				playerInput.sneak(),
+				playerInput.sprint()
 		);
 	}
 }

@@ -19,7 +19,7 @@ import net.minecraft.world.border.WorldBorder;
 import java.util.Locale;
 
 /**
- * {@code WorldBorderCommand}.
+ * Команда {@code /worldborder}: управление границей мира.
  */
 public class WorldBorderCommand {
 

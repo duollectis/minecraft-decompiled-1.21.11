@@ -1,14 +1,15 @@
 package net.minecraft.command;
 
-@FunctionalInterface
 /**
- * {@code ReturnValueConsumer}.
+ * Потребитель возвращаемого значения команды.
+ * Вызывается при успешном завершении или провале выполнения команды.
  */
+@FunctionalInterface
 public interface ReturnValueConsumer {
 
 	ReturnValueConsumer EMPTY = new ReturnValueConsumer() {
 		@Override
-		public void onResult(boolean bl, int i) {
+		public void onResult(boolean successful, int returnValue) {
 		}
 
 		@Override
@@ -19,23 +20,28 @@ public interface ReturnValueConsumer {
 
 	void onResult(boolean successful, int returnValue);
 
-	default void onSuccess(int successful) {
-		this.onResult(true, successful);
+	default void onSuccess(int returnValue) {
+		onResult(true, returnValue);
 	}
 
 	default void onFailure() {
-		this.onResult(false, 0);
+		onResult(false, 0);
 	}
 
-	static ReturnValueConsumer chain(ReturnValueConsumer a, ReturnValueConsumer b) {
-		if (a == EMPTY) {
-			return b;
+	/**
+	 * Объединяет двух потребителей в один: оба получат уведомление об одном результате.
+	 * Если один из них {@link #EMPTY}, возвращается другой без создания обёртки.
+	 */
+	static ReturnValueConsumer chain(ReturnValueConsumer first, ReturnValueConsumer second) {
+		if (first == EMPTY) {
+			return second;
 		}
-		else {
-			return b == EMPTY ? a : (successful, returnValue) -> {
-				a.onResult(successful, returnValue);
-				b.onResult(successful, returnValue);
-			};
-		}
+
+		return second == EMPTY
+				? first
+				: (successful, returnValue) -> {
+					first.onResult(successful, returnValue);
+					second.onResult(successful, returnValue);
+				};
 	}
 }

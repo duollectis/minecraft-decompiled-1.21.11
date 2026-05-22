@@ -6,7 +6,7 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 
 /**
- * {@code WriteAndReadFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WriteAndReadFix extends DataFix {
 
@@ -22,8 +22,8 @@ public class WriteAndReadFix extends DataFix {
 	protected TypeRewriteRule makeRule() {
 		return this.writeAndRead(
 				this.name,
-				this.getInputSchema().getType(this.type),
-				this.getOutputSchema().getType(this.type)
+				getInputSchema().getType(this.type),
+				getOutputSchema().getType(this.type)
 		);
 	}
 }

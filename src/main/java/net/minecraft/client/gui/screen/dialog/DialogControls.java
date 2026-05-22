@@ -17,10 +17,10 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogControls}.
+ * Управляет созданием виджетов ввода и кнопок действий для диалогового экрана.
  */
+@Environment(EnvType.CLIENT)
 public class DialogControls {
 
 	public static final Supplier<Optional<ClickEvent>> EMPTY_ACTION_CLICK_EVENT = Optional::empty;

@@ -16,35 +16,41 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code RegistryWrapper}.
+ * Обёртка над реестром, предоставляющая доступ только для чтения.
+ * Используется для безопасной передачи реестра в контексты сериализации и генерации данных.
+ *
+ * @param <T> тип элементов реестра
  */
 public interface RegistryWrapper<T> extends RegistryEntryLookup<T> {
 
 	Stream<RegistryEntry.Reference<T>> streamEntries();
 
 	default Stream<RegistryKey<T>> streamKeys() {
-		return this.streamEntries().map(RegistryEntry.Reference::registryKey);
+		return streamEntries().map(RegistryEntry.Reference::registryKey);
 	}
 
 	Stream<RegistryEntryList.Named<T>> getTags();
 
 	default Stream<TagKey<T>> streamTagKeys() {
-		return this.getTags().map(RegistryEntryList.Named::getTag);
+		return getTags().map(RegistryEntryList.Named::getTag);
 	}
 
 	/**
-	 * {@code Impl}.
+	 * Полноценная реализация {@link RegistryWrapper}, дополнительно реализующая
+	 * {@link RegistryEntryOwner} для проверки принадлежности записей.
+	 *
+	 * @param <T> тип элементов реестра
 	 */
-	public interface Impl<T> extends RegistryWrapper<T>, RegistryEntryOwner<T> {
+	interface Impl<T> extends RegistryWrapper<T>, RegistryEntryOwner<T> {
 
 		RegistryKey<? extends Registry<? extends T>> getKey();
 
 		Lifecycle getLifecycle();
 
 		default RegistryWrapper.Impl<T> withFeatureFilter(FeatureSet enabledFeatures) {
-			return ToggleableFeature.FEATURE_ENABLED_REGISTRY_KEYS.contains(this.getKey())
-			       ? this.withPredicateFilter(feature -> ((ToggleableFeature) feature).isEnabled(enabledFeatures))
-			       : this;
+			return ToggleableFeature.FEATURE_ENABLED_REGISTRY_KEYS.contains(getKey())
+				? withPredicateFilter(feature -> ((ToggleableFeature) feature).isEnabled(enabledFeatures))
+				: this;
 		}
 
 		default RegistryWrapper.Impl<T> withPredicateFilter(Predicate<T> predicate) {
@@ -56,72 +62,75 @@ public interface RegistryWrapper<T> extends RegistryEntryLookup<T> {
 
 				@Override
 				public Optional<RegistryEntry.Reference<T>> getOptional(RegistryKey<T> key) {
-					return this.getBase().getOptional(key).filter(entry -> predicate.test(entry.value()));
+					return getBase().getOptional(key).filter(entry -> predicate.test(entry.value()));
 				}
 
 				@Override
 				public Stream<RegistryEntry.Reference<T>> streamEntries() {
-					return this.getBase().streamEntries().filter(entry -> predicate.test(entry.value()));
+					return getBase().streamEntries().filter(entry -> predicate.test(entry.value()));
 				}
 			};
 		}
 
 		/**
-		 * {@code Delegating}.
+		 * Делегирующая реализация {@link Impl}, перенаправляющая все вызовы к базовому wrapper'у.
+		 * Используется для создания фильтрующих и декорирующих обёрток.
+		 *
+		 * @param <T> тип элементов реестра
 		 */
-		public interface Delegating<T> extends RegistryWrapper.Impl<T> {
+		interface Delegating<T> extends RegistryWrapper.Impl<T> {
 
 			RegistryWrapper.Impl<T> getBase();
 
 			@Override
 			default RegistryKey<? extends Registry<? extends T>> getKey() {
-				return this.getBase().getKey();
+				return getBase().getKey();
 			}
 
 			@Override
 			default Lifecycle getLifecycle() {
-				return this.getBase().getLifecycle();
+				return getBase().getLifecycle();
 			}
 
 			@Override
 			default Optional<RegistryEntry.Reference<T>> getOptional(RegistryKey<T> key) {
-				return this.getBase().getOptional(key);
+				return getBase().getOptional(key);
 			}
 
 			@Override
 			default Stream<RegistryEntry.Reference<T>> streamEntries() {
-				return this.getBase().streamEntries();
+				return getBase().streamEntries();
 			}
 
 			@Override
 			default Optional<RegistryEntryList.Named<T>> getOptional(TagKey<T> tag) {
-				return this.getBase().getOptional(tag);
+				return getBase().getOptional(tag);
 			}
 
 			@Override
 			default Stream<RegistryEntryList.Named<T>> getTags() {
-				return this.getBase().getTags();
+				return getBase().getTags();
 			}
 		}
 	}
 
 	/**
-	 * {@code WrapperLookup}.
+	 * Агрегированный lookup по нескольким реестрам.
+	 * Используется как точка входа для получения любого реестра по его ключу.
 	 */
-	public interface WrapperLookup extends RegistryEntryLookup.RegistryLookup {
+	interface WrapperLookup extends RegistryEntryLookup.RegistryLookup {
 
 		Stream<RegistryKey<? extends Registry<?>>> streamAllRegistryKeys();
 
 		default Stream<RegistryWrapper.Impl<?>> stream() {
-			return this.streamAllRegistryKeys().map(this::getOrThrow);
+			return streamAllRegistryKeys().map(this::getOrThrow);
 		}
 
 		@Override
 		<T> Optional<? extends RegistryWrapper.Impl<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef);
 
 		default <T> RegistryWrapper.Impl<T> getOrThrow(RegistryKey<? extends Registry<? extends T>> registryRef) {
-			return this
-					.getOptional(registryRef)
+			return getOptional(registryRef)
 					.orElseThrow(() -> new IllegalStateException("Registry " + registryRef.getValue() + " not found"));
 		}
 
@@ -129,10 +138,17 @@ public interface RegistryWrapper<T> extends RegistryEntryLookup<T> {
 			return RegistryOps.of(delegate, this);
 		}
 
+		/**
+		 * Создаёт {@link WrapperLookup} из потока wrapper'ов, индексируя их по ключу реестра.
+		 *
+		 * @param wrappers поток wrapper'ов для объединения
+		 * @return иммутабельный lookup по всем переданным реестрам
+		 */
 		static RegistryWrapper.WrapperLookup of(Stream<RegistryWrapper.Impl<?>> wrappers) {
 			final Map<RegistryKey<? extends Registry<?>>, RegistryWrapper.Impl<?>> map = wrappers.collect(
 					Collectors.toUnmodifiableMap(RegistryWrapper.Impl::getKey, wrapper -> wrapper)
 			);
+
 			return new RegistryWrapper.WrapperLookup() {
 				@Override
 				public Stream<RegistryKey<? extends Registry<?>>> streamAllRegistryKeys() {
@@ -140,14 +156,16 @@ public interface RegistryWrapper<T> extends RegistryEntryLookup<T> {
 				}
 
 				@Override
-				public <T> Optional<RegistryWrapper.Impl<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef) {
+				public <T> Optional<RegistryWrapper.Impl<T>> getOptional(
+						RegistryKey<? extends Registry<? extends T>> registryRef
+				) {
 					return Optional.ofNullable((RegistryWrapper.Impl<T>) map.get(registryRef));
 				}
 			};
 		}
 
 		default Lifecycle getLifecycle() {
-			return this.stream().map(RegistryWrapper.Impl::getLifecycle).reduce(Lifecycle.stable(), Lifecycle::add);
+			return stream().map(RegistryWrapper.Impl::getLifecycle).reduce(Lifecycle.stable(), Lifecycle::add);
 		}
 	}
 }

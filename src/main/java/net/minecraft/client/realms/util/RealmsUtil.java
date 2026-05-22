@@ -22,10 +22,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsUtil}.
+ * Утилитарный класс для общих операций Realms-клиента:
+ * форматирование временных меток, отрисовка аватаров игроков,
+ * асинхронное выполнение запросов к Realms API и обработка ошибок.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsUtil {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -35,136 +37,124 @@ public class RealmsUtil {
 	private static final int SECONDS_PER_DAY = 86400;
 
 	/**
-	 * Конвертирует to age presentation.
+	 * Преобразует количество миллисекунд в человекочитаемую строку вида «N минут назад».
+	 * Отрицательное значение означает «только что».
 	 *
-	 * @param milliseconds milliseconds
-	 *
-	 * @return Text — результат операции
+	 * @param milliseconds прошедшее время в миллисекундах
+	 * @return локализованный текст с относительным временем
 	 */
 	public static Text convertToAgePresentation(long milliseconds) {
 		if (milliseconds < 0L) {
 			return NOW_TEXT;
 		}
-		else {
-			long l = milliseconds / 1000L;
-			if (l < 60L) {
-				return Text.translatable("mco.time.secondsAgo", l);
-			}
-			else if (l < 3600L) {
-				long m = l / 60L;
-				return Text.translatable("mco.time.minutesAgo", m);
-			}
-			else if (l < 86400L) {
-				long m = l / 3600L;
-				return Text.translatable("mco.time.hoursAgo", m);
-			}
-			else {
-				long m = l / 86400L;
-				return Text.translatable("mco.time.daysAgo", m);
-			}
+
+		long totalSeconds = milliseconds / 1000L;
+
+		if (totalSeconds < SECONDS_PER_MINUTE) {
+			return Text.translatable("mco.time.secondsAgo", totalSeconds);
 		}
+
+		if (totalSeconds < SECONDS_PER_HOUR) {
+			return Text.translatable("mco.time.minutesAgo", totalSeconds / SECONDS_PER_MINUTE);
+		}
+
+		if (totalSeconds < SECONDS_PER_DAY) {
+			return Text.translatable("mco.time.hoursAgo", totalSeconds / SECONDS_PER_HOUR);
+		}
+
+		return Text.translatable("mco.time.daysAgo", totalSeconds / SECONDS_PER_DAY);
 	}
 
-	/**
-	 * Конвертирует to age presentation.
-	 *
-	 * @param instant instant
-	 *
-	 * @return Text — результат операции
-	 */
 	public static Text convertToAgePresentation(Instant instant) {
 		return convertToAgePresentation(System.currentTimeMillis() - instant.toEpochMilli());
 	}
 
-	/**
-	 * Draw player head.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param size size
-	 * @param playerUuid player uuid
-	 */
 	public static void drawPlayerHead(DrawContext context, int x, int y, int size, UUID playerUuid) {
-		PlayerSkinCache.Entry
-				entry =
-				MinecraftClient.getInstance().getPlayerSkinCache().get(ProfileComponent.ofDynamic(playerUuid));
+		PlayerSkinCache.Entry entry = MinecraftClient.getInstance()
+			.getPlayerSkinCache()
+			.get(ProfileComponent.ofDynamic(playerUuid));
+
 		PlayerSkinDrawer.draw(context, entry.getTextures(), x, y, size);
 	}
 
+	/**
+	 * Выполняет асинхронный запрос к Realms API в пуле загрузочных потоков.
+	 * При {@link RealmsServiceException} вызывает {@code errorCallback} (если задан),
+	 * при любой другой ошибке — логирует и пробрасывает как {@link RuntimeException}.
+	 *
+	 * @param supplier      поставщик результата, получающий {@link RealmsClient}
+	 * @param errorCallback обработчик ошибок Realms API или {@code null}
+	 * @param <T>           тип результата
+	 * @return {@link CompletableFuture} с результатом операции
+	 */
 	public static <T> CompletableFuture<T> runAsync(
-			RealmsUtil.RealmsSupplier<T> supplier,
-			@Nullable Consumer<RealmsServiceException> errorCallback
+		RealmsUtil.RealmsSupplier<T> supplier,
+		@Nullable Consumer<RealmsServiceException> errorCallback
 	) {
 		return CompletableFuture.supplyAsync(
-				() -> {
-					RealmsClient realmsClient = RealmsClient.create();
+			() -> {
+				RealmsClient realmsClient = RealmsClient.create();
 
-					try {
-						return supplier.apply(realmsClient);
+				try {
+					return supplier.apply(realmsClient);
+				} catch (Throwable ex) {
+					if (ex instanceof RealmsServiceException serviceException) {
+						if (errorCallback != null) {
+							errorCallback.accept(serviceException);
+						}
+					} else {
+						LOGGER.error("Unhandled exception", ex);
 					}
-					catch (Throwable var5) {
-						if (var5 instanceof RealmsServiceException realmsServiceException) {
-							if (errorCallback != null) {
-								errorCallback.accept(realmsServiceException);
-							}
-						}
-						else {
-							LOGGER.error("Unhandled exception", var5);
-						}
 
-						throw new RuntimeException(var5);
-					}
-				}, Util.getDownloadWorkerExecutor()
+					throw new RuntimeException(ex);
+				}
+			},
+			Util.getDownloadWorkerExecutor()
 		);
 	}
 
 	public static CompletableFuture<Void> runAsync(
-			RealmsUtil.RealmsRunnable runnable,
-			@Nullable Consumer<RealmsServiceException> errorCallback
+		RealmsUtil.RealmsRunnable runnable,
+		@Nullable Consumer<RealmsServiceException> errorCallback
 	) {
 		return RealmsUtil.<Void>runAsync((RealmsUtil.RealmsSupplier<Void>) runnable, errorCallback);
 	}
 
-	/**
-	 * Открывает ing screen.
-	 *
-	 * @param screenCreator screen creator
-	 *
-	 * @return Consumer — результат операции
-	 */
 	public static Consumer<RealmsServiceException> openingScreen(Function<RealmsServiceException, Screen> screenCreator) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		return error -> minecraftClient.execute(() -> minecraftClient.setScreen(screenCreator.apply(error)));
+		MinecraftClient client = MinecraftClient.getInstance();
+		return error -> client.execute(() -> client.setScreen(screenCreator.apply(error)));
 	}
 
 	public static Consumer<RealmsServiceException> openingScreenAndLogging(
-			Function<RealmsServiceException, Screen> screenCreator,
-			String errorPrefix
+		Function<RealmsServiceException, Screen> screenCreator,
+		String errorPrefix
 	) {
 		return openingScreen(screenCreator).andThen(error -> LOGGER.error(errorPrefix, error));
 	}
 
+	/**
+	 * Функциональный интерфейс для операций Realms, не возвращающих значение.
+	 * Реализует {@link RealmsSupplier}{@code <Void>} через делегирование к {@link #accept}.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RealmsRunnable}.
-	 */
 	public interface RealmsRunnable extends RealmsUtil.RealmsSupplier<Void> {
 
 		void accept(RealmsClient client) throws RealmsServiceException;
 
-		default Void apply(RealmsClient realmsClient) throws RealmsServiceException {
-			this.accept(realmsClient);
+		default Void apply(RealmsClient client) throws RealmsServiceException {
+			accept(client);
 			return null;
 		}
 	}
 
+	/**
+	 * Функциональный интерфейс для операций Realms, возвращающих значение типа {@code T}.
+	 *
+	 * @param <T> тип возвращаемого значения
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RealmsSupplier}.
-	 */
 	public interface RealmsSupplier<T> {
 
 		T apply(RealmsClient client) throws RealmsServiceException;

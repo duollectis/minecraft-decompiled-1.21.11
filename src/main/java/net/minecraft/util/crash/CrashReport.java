@@ -22,14 +22,16 @@ import java.util.Locale;
 import java.util.concurrent.CompletionException;
 
 /**
- * {@code CrashReport}.
+ * Полный отчёт о сбое: содержит сообщение, причину, секции с деталями и системную информацию.
+ * Может быть сохранён в файл или преобразован в строку для вывода.
  */
 public class CrashReport {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final DateTimeFormatter
-			DATE_TIME_FORMATTER =
+	private static final DateTimeFormatter DATE_TIME_FORMATTER =
 			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
+	private static final int SEPARATOR_LENGTH = 87;
+
 	private final String message;
 	private final Throwable cause;
 	private final List<CrashReportSection> otherSections = Lists.newArrayList();
@@ -44,257 +46,215 @@ public class CrashReport {
 	}
 
 	public String getMessage() {
-		return this.message;
+		return message;
 	}
 
 	public Throwable getCause() {
-		return this.cause;
+		return cause;
 	}
 
 	public String getStackTrace() {
-		StringBuilder stringBuilder = new StringBuilder();
-		this.addDetails(stringBuilder);
-		return stringBuilder.toString();
+		StringBuilder builder = new StringBuilder();
+		addDetails(builder);
+		return builder.toString();
 	}
 
 	/**
-	 * Добавляет details.
+	 * Добавляет в {@code builder} заголовок стека, все секции и системные детали.
 	 *
-	 * @param crashReportBuilder crash report builder
+	 * @param builder целевой строковый буфер
 	 */
-	public void addDetails(StringBuilder crashReportBuilder) {
-		if ((this.stackTrace == null || this.stackTrace.length <= 0) && !this.otherSections.isEmpty()) {
-			this.stackTrace =
-					(StackTraceElement[]) ArrayUtils.subarray(this.otherSections.get(0).getStackTrace(), 0, 1);
+	public void addDetails(StringBuilder builder) {
+		if ((stackTrace == null || stackTrace.length <= 0) && !otherSections.isEmpty()) {
+			stackTrace = (StackTraceElement[]) ArrayUtils.subarray(otherSections.get(0).getStackTrace(), 0, 1);
 		}
 
-		if (this.stackTrace != null && this.stackTrace.length > 0) {
-			crashReportBuilder.append("-- Head --\n");
-			crashReportBuilder.append("Thread: ").append(Thread.currentThread().getName()).append("\n");
-			crashReportBuilder.append("Stacktrace:\n");
+		if (stackTrace != null && stackTrace.length > 0) {
+			builder.append("-- Head --\n");
+			builder.append("Thread: ").append(Thread.currentThread().getName()).append("\n");
+			builder.append("Stacktrace:\n");
 
-			for (StackTraceElement stackTraceElement : this.stackTrace) {
-				crashReportBuilder.append("\t").append("at ").append(stackTraceElement);
-				crashReportBuilder.append("\n");
+			for (StackTraceElement element : stackTrace) {
+				builder.append("\t").append("at ").append(element).append("\n");
 			}
 
-			crashReportBuilder.append("\n");
+			builder.append("\n");
 		}
 
-		for (CrashReportSection crashReportSection : this.otherSections) {
-			crashReportSection.addStackTrace(crashReportBuilder);
-			crashReportBuilder.append("\n\n");
+		for (CrashReportSection section : otherSections) {
+			section.addStackTrace(builder);
+			builder.append("\n\n");
 		}
 
-		this.systemDetailsSection.writeTo(crashReportBuilder);
+		systemDetailsSection.writeTo(builder);
 	}
 
 	public String getCauseAsString() {
-		StringWriter stringWriter = null;
-		PrintWriter printWriter = null;
-		Throwable throwable = this.cause;
+		Throwable throwable = cause;
+
 		if (throwable.getMessage() == null) {
 			if (throwable instanceof NullPointerException) {
-				throwable = new NullPointerException(this.message);
+				throwable = new NullPointerException(message);
 			}
 			else if (throwable instanceof StackOverflowError) {
-				throwable = new StackOverflowError(this.message);
+				throwable = new StackOverflowError(message);
 			}
 			else if (throwable instanceof OutOfMemoryError) {
-				throwable = new OutOfMemoryError(this.message);
+				throwable = new OutOfMemoryError(message);
 			}
 
-			throwable.setStackTrace(this.cause.getStackTrace());
+			throwable.setStackTrace(cause.getStackTrace());
 		}
 
-		String var4;
+		StringWriter stringWriter = new StringWriter();
+		PrintWriter printWriter = new PrintWriter(stringWriter);
+
 		try {
-			stringWriter = new StringWriter();
-			printWriter = new PrintWriter(stringWriter);
 			throwable.printStackTrace(printWriter);
-			var4 = stringWriter.toString();
+			return stringWriter.toString();
 		}
 		finally {
 			IOUtils.closeQuietly(stringWriter);
 			IOUtils.closeQuietly(printWriter);
 		}
-
-		return var4;
 	}
 
 	/**
-	 * As string.
+	 * Формирует полный текст отчёта о сбое с заголовком, временем, описанием и деталями.
 	 *
-	 * @param type type
-	 * @param extraInfo extra info
-	 *
-	 * @return String — результат операции
+	 * @param type      тип отчёта (определяет заголовок и случайную фразу)
+	 * @param extraInfo дополнительные строки после заголовка
+	 * @return полный текст отчёта
 	 */
 	public String asString(ReportType type, List<String> extraInfo) {
-		StringBuilder stringBuilder = new StringBuilder();
-		type.addHeaderAndNugget(stringBuilder, extraInfo);
-		stringBuilder.append("Time: ");
-		stringBuilder.append(DATE_TIME_FORMATTER.format(ZonedDateTime.now()));
-		stringBuilder.append("\n");
-		stringBuilder.append("Description: ");
-		stringBuilder.append(this.message);
-		stringBuilder.append("\n\n");
-		stringBuilder.append(this.getCauseAsString());
-		stringBuilder.append(
-				"\n\nA detailed walkthrough of the error, its code path and all known details is as follows:\n");
-
-		for (int i = 0; i < 87; i++) {
-			stringBuilder.append("-");
-		}
-
-		stringBuilder.append("\n\n");
-		this.addDetails(stringBuilder);
-		return stringBuilder.toString();
+		StringBuilder builder = new StringBuilder();
+		type.addHeaderAndNugget(builder, extraInfo);
+		builder.append("Time: ").append(DATE_TIME_FORMATTER.format(ZonedDateTime.now())).append("\n");
+		builder.append("Description: ").append(message).append("\n\n");
+		builder.append(getCauseAsString());
+		builder.append("\n\nA detailed walkthrough of the error, its code path and all known details is as follows:\n");
+		builder.append("-".repeat(SEPARATOR_LENGTH)).append("\n\n");
+		addDetails(builder);
+		return builder.toString();
 	}
 
-	/**
-	 * As string.
-	 *
-	 * @param type type
-	 *
-	 * @return String — результат операции
-	 */
 	public String asString(ReportType type) {
-		return this.asString(type, List.of());
+		return asString(type, List.of());
 	}
 
 	public @Nullable Path getFile() {
-		return this.file;
+		return file;
 	}
 
 	/**
-	 * Записывает to file.
+	 * Записывает отчёт в файл по указанному пути.
+	 * Если файл уже был записан ранее, возвращает {@code false} без повторной записи.
 	 *
-	 * @param path path
-	 * @param type type
-	 * @param extraInfo extra info
-	 *
-	 * @return boolean — результат операции
+	 * @param path      путь для сохранения
+	 * @param type      тип отчёта
+	 * @param extraInfo дополнительные строки
+	 * @return {@code true} при успешной записи
 	 */
 	public boolean writeToFile(Path path, ReportType type, List<String> extraInfo) {
-		if (this.file != null) {
+		if (file != null) {
 			return false;
 		}
-		else {
-			try {
-				if (path.getParent() != null) {
-					PathUtil.createDirectories(path.getParent());
-				}
 
-				try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-					writer.write(this.asString(type, extraInfo));
-				}
+		try {
+			if (path.getParent() != null) {
+				PathUtil.createDirectories(path.getParent());
+			}
 
-				this.file = path;
-				return true;
+			try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+				writer.write(asString(type, extraInfo));
 			}
-			catch (Throwable var9) {
-				LOGGER.error("Could not save crash report to {}", path, var9);
-				return false;
-			}
+
+			file = path;
+			return true;
+		}
+		catch (Throwable exception) {
+			LOGGER.error("Could not save crash report to {}", path, exception);
+			return false;
 		}
 	}
 
-	/**
-	 * Записывает to file.
-	 *
-	 * @param path path
-	 * @param type type
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean writeToFile(Path path, ReportType type) {
-		return this.writeToFile(path, type, List.of());
+		return writeToFile(path, type, List.of());
 	}
 
 	public SystemDetails getSystemDetailsSection() {
-		return this.systemDetailsSection;
+		return systemDetailsSection;
 	}
 
-	/**
-	 * Добавляет element.
-	 *
-	 * @param name name
-	 *
-	 * @return CrashReportSection — результат операции
-	 */
 	public CrashReportSection addElement(String name) {
-		return this.addElement(name, 1);
+		return addElement(name, 1);
 	}
 
 	/**
-	 * Добавляет element.
+	 * Добавляет новую секцию в отчёт и пытается связать её со стек-трейсом причины.
 	 *
-	 * @param name name
-	 * @param ignoredStackTraceCallCount ignored stack trace call count
-	 *
-	 * @return CrashReportSection — результат операции
+	 * @param name                      название секции
+	 * @param ignoredStackTraceCallCount количество фреймов стека для пропуска
+	 * @return созданная секция
 	 */
 	public CrashReportSection addElement(String name, int ignoredStackTraceCallCount) {
-		CrashReportSection crashReportSection = new CrashReportSection(name);
-		if (this.hasStackTrace) {
-			int i = crashReportSection.initStackTrace(ignoredStackTraceCallCount);
-			StackTraceElement[] stackTraceElements = this.cause.getStackTrace();
-			StackTraceElement stackTraceElement = null;
-			StackTraceElement stackTraceElement2 = null;
-			int j = stackTraceElements.length - i;
-			if (j < 0) {
-				LOGGER.error("Negative index in crash report handler ({}/{})", stackTraceElements.length, i);
+		CrashReportSection section = new CrashReportSection(name);
+
+		if (hasStackTrace) {
+			int sectionDepth = section.initStackTrace(ignoredStackTraceCallCount);
+			StackTraceElement[] causeTrace = cause.getStackTrace();
+			StackTraceElement prev = null;
+			StackTraceElement next = null;
+			int index = causeTrace.length - sectionDepth;
+
+			if (index < 0) {
+				LOGGER.error("Negative index in crash report handler ({}/{})", causeTrace.length, sectionDepth);
 			}
 
-			if (stackTraceElements != null && 0 <= j && j < stackTraceElements.length) {
-				stackTraceElement = stackTraceElements[j];
-				if (stackTraceElements.length + 1 - i < stackTraceElements.length) {
-					stackTraceElement2 = stackTraceElements[stackTraceElements.length + 1 - i];
+			if (causeTrace != null && 0 <= index && index < causeTrace.length) {
+				prev = causeTrace[index];
+
+				if (causeTrace.length + 1 - sectionDepth < causeTrace.length) {
+					next = causeTrace[causeTrace.length + 1 - sectionDepth];
 				}
 			}
 
-			this.hasStackTrace = crashReportSection.shouldGenerateStackTrace(stackTraceElement, stackTraceElement2);
-			if (stackTraceElements != null && stackTraceElements.length >= i && 0 <= j
-					&& j < stackTraceElements.length) {
-				this.stackTrace = new StackTraceElement[j];
-				System.arraycopy(stackTraceElements, 0, this.stackTrace, 0, this.stackTrace.length);
+			hasStackTrace = section.shouldGenerateStackTrace(prev, next);
+
+			if (causeTrace != null && causeTrace.length >= sectionDepth && 0 <= index && index < causeTrace.length) {
+				stackTrace = new StackTraceElement[index];
+				System.arraycopy(causeTrace, 0, stackTrace, 0, stackTrace.length);
 			}
 			else {
-				this.hasStackTrace = false;
+				hasStackTrace = false;
 			}
 		}
 
-		this.otherSections.add(crashReportSection);
-		return crashReportSection;
+		otherSections.add(section);
+		return section;
 	}
 
 	/**
-	 * Create.
+	 * Создаёт отчёт о сбое из исключения, разворачивая {@link CompletionException} и
+	 * переиспользуя существующий отчёт из {@link CrashException}.
 	 *
-	 * @param cause cause
-	 * @param title title
-	 *
-	 * @return CrashReport — результат операции
+	 * @param cause причина сбоя
+	 * @param title заголовок отчёта
+	 * @return отчёт о сбое
 	 */
 	public static CrashReport create(Throwable cause, String title) {
 		while (cause instanceof CompletionException && cause.getCause() != null) {
 			cause = cause.getCause();
 		}
 
-		CrashReport crashReport;
-		if (cause instanceof CrashException crashException) {
-			crashReport = crashException.getReport();
-		}
-		else {
-			crashReport = new CrashReport(title, cause);
-		}
-
-		return crashReport;
+		return cause instanceof CrashException crashException
+				? crashException.getReport()
+				: new CrashReport(title, cause);
 	}
 
 	/**
-	 * Инициализирует crash report.
+	 * Прогревает систему отчётов о сбоях: резервирует память и инициализирует шаблон отчёта.
+	 * Вызывается при старте игры для снижения задержки при первом реальном сбое.
 	 */
 	public static void initCrashReport() {
 		CrashMemoryReserve.reserveMemory();

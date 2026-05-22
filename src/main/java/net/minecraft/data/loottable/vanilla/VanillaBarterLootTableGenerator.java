@@ -27,7 +27,7 @@ public record VanillaBarterLootTableGenerator(RegistryWrapper.WrapperLookup regi
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Enchantment> enchantmentLookup = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
 		lootTableBiConsumer.accept(
 				LootTables.PIGLIN_BARTERING_GAMEPLAY,
 				LootTable.builder()
@@ -38,13 +38,13 @@ public record VanillaBarterLootTableGenerator(RegistryWrapper.WrapperLookup regi
 								                 ItemEntry
 										                 .builder(Items.BOOK)
 										                 .weight(5)
-										                 .apply(new EnchantRandomlyLootFunction.Builder().option(impl.getOrThrow(
+										                 .apply(new EnchantRandomlyLootFunction.Builder().option(enchantmentLookup.getOrThrow(
 												                 Enchantments.SOUL_SPEED)))
 						                 )
 						                 .with(
 								                 ItemEntry.builder(Items.IRON_BOOTS)
 								                          .weight(8)
-								                          .apply(new EnchantRandomlyLootFunction.Builder().option(impl.getOrThrow(
+								                          .apply(new EnchantRandomlyLootFunction.Builder().option(enchantmentLookup.getOrThrow(
 										                          Enchantments.SOUL_SPEED)))
 						                 )
 						                 .with(ItemEntry

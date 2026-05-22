@@ -3,20 +3,21 @@ package net.minecraft.world.gen.noise;
 import java.util.Locale;
 
 /**
- * {@code NoiseHelper}.
+ * Утилитарные методы для работы с шумом: применение slide-функции
+ * и форматирование отладочной информации о сэмплерах.
  */
 public class NoiseHelper {
 
 	/**
-	 * Применяет slide.
+	 * Применяет синусоидальное смягчение к значению шума.
+	 * Используется для плавного перехода между значениями у границ диапазона.
 	 *
-	 * @param d d
-	 * @param e e
-	 *
-	 * @return double — результат операции
+	 * @param value исходное значение шума
+	 * @param factor коэффициент силы смягчения
+	 * @return сглаженное значение
 	 */
-	public static double applySlide(double d, double e) {
-		return d + Math.sin(Math.PI * d) * e / Math.PI;
+	public static double applySlide(double value, double factor) {
+		return value + Math.sin(Math.PI * value) * factor / Math.PI;
 	}
 
 	public static void appendDebugInfo(

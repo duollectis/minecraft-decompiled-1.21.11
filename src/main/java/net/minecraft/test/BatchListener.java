@@ -1,7 +1,8 @@
 package net.minecraft.test;
 
 /**
- * {@code BatchListener}.
+ * Слушатель жизненного цикла батча тестов.
+ * Уведомляет о начале и завершении выполнения {@link GameTestBatch}.
  */
 public interface BatchListener {
 

@@ -7,7 +7,8 @@ import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code DecoratedPotFieldRenameFix}.
+ * Конвертирует тип блок-энтити {@code minecraft:decorated_pot} в новую схему
+ * (переименование полей обрабатывается на уровне схемы).
  */
 public class DecoratedPotFieldRenameFix extends DataFix {
 
@@ -18,8 +19,8 @@ public class DecoratedPotFieldRenameFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
-		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
-		return this.convertUnchecked("DecoratedPotFieldRenameFix", type, type2);
+		Type<?> inputType = getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, DECORATED_POT_ID);
+		Type<?> outputType = getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, DECORATED_POT_ID);
+		return convertUnchecked("DecoratedPotFieldRenameFix", inputType, outputType);
 	}
 }

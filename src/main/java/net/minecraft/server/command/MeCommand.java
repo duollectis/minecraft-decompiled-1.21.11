@@ -7,7 +7,7 @@ import net.minecraft.network.message.MessageType;
 import net.minecraft.server.PlayerManager;
 
 /**
- * {@code MeCommand}.
+ * Команда {@code /me}: отправка сообщения от третьего лица в чат.
  */
 public class MeCommand {
 

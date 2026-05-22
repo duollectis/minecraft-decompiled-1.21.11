@@ -17,15 +17,28 @@ import org.slf4j.Logger;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EditBox}.
+ * Модель текстового поля ввода с поддержкой многострочного текста, выделения,
+ * навигации по словам и ограничений на длину/количество строк.
  */
+@Environment(EnvType.CLIENT)
 public class EditBox {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final int UNLIMITED_LENGTH = Integer.MAX_VALUE;
 	private static final int CURSOR_WIDTH = 2;
+	private static final int KEY_ENTER = 257;
+	private static final int KEY_NUMPAD_ENTER = 335;
+	private static final int KEY_BACKSPACE = 259;
+	private static final int KEY_DELETE = 261;
+	private static final int KEY_RIGHT = 262;
+	private static final int KEY_LEFT = 263;
+	private static final int KEY_DOWN = 264;
+	private static final int KEY_UP = 265;
+	private static final int KEY_PAGE_UP = 266;
+	private static final int KEY_PAGE_DOWN = 267;
+	private static final int KEY_HOME = 268;
+	private static final int KEY_END = 269;
 	private final TextRenderer textRenderer;
 	private final List<EditBox.Substring> lines = Lists.newArrayList();
 	private String text;
@@ -52,18 +65,16 @@ public class EditBox {
 		if (maxLength < 0) {
 			throw new IllegalArgumentException("Character limit cannot be negative");
 		}
-		else {
-			this.maxLength = maxLength;
-		}
+
+		this.maxLength = maxLength;
 	}
 
 	public void setMaxLines(int maxLines) {
 		if (maxLines < 0) {
 			throw new IllegalArgumentException("Character limit cannot be negative");
 		}
-		else {
-			this.maxLines = maxLines;
-		}
+
+		this.maxLines = maxLines;
 	}
 
 	public boolean hasMaxLength() {
@@ -100,11 +111,6 @@ public class EditBox {
 		return this.text;
 	}
 
-	/**
-	 * Replace selection.
-	 *
-	 * @param string string
-	 */
 	public void replaceSelection(String string) {
 		if (!string.isEmpty() || this.hasSelection()) {
 			String string2 = this.truncate(StringHelper.stripInvalidChars(string, true));
@@ -121,11 +127,6 @@ public class EditBox {
 		}
 	}
 
-	/**
-	 * Delete.
-	 *
-	 * @param offset offset
-	 */
 	public void delete(int offset) {
 		if (!this.hasSelection()) {
 			this.selectionEnd = MathHelper.clamp(this.cursor + offset, 0, this.text.length());
@@ -168,12 +169,6 @@ public class EditBox {
 		return this.lines.get(MathHelper.clamp(index, 0, this.lines.size() - 1));
 	}
 
-	/**
-	 * Перемещает cursor.
-	 *
-	 * @param movement movement
-	 * @param amount amount
-	 */
 	public void moveCursor(CursorMovement movement, int amount) {
 		switch (movement) {
 			case ABSOLUTE:
@@ -193,11 +188,6 @@ public class EditBox {
 		}
 	}
 
-	/**
-	 * Перемещает cursor line.
-	 *
-	 * @param offset offset
-	 */
 	public void moveCursorLine(int offset) {
 		if (offset != 0) {
 			int i = this.textRenderer.getWidth(this.text.substring(this.getCurrentLine().beginIndex, this.cursor)) + 2;
@@ -211,12 +201,6 @@ public class EditBox {
 		}
 	}
 
-	/**
-	 * Перемещает cursor.
-	 *
-	 * @param x x
-	 * @param y y
-	 */
 	public void moveCursor(double x, double y) {
 		int i = MathHelper.floor(x);
 		int j = MathHelper.floor(y / 9.0);
@@ -229,9 +213,6 @@ public class EditBox {
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex + k);
 	}
 
-	/**
-	 * Select word.
-	 */
 	public void selectWord() {
 		EditBox.Substring substring = this.getPreviousWordAtCursor();
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex);
@@ -239,13 +220,6 @@ public class EditBox {
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.endIndex);
 	}
 
-	/**
-	 * Обрабатывает special key.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean handleSpecialKey(KeyInput key) {
 		this.selecting = key.hasShift();
 		if (key.isSelectAll()) {
@@ -268,83 +242,83 @@ public class EditBox {
 		}
 		else {
 			switch (key.key()) {
-				case 257:
-				case 335:
-					this.replaceSelection("\n");
+				case KEY_ENTER:
+				case KEY_NUMPAD_ENTER:
+					replaceSelection("\n");
 					return true;
-				case 259:
+				case KEY_BACKSPACE:
 					if (key.hasCtrlOrCmd()) {
-						EditBox.Substring substring = this.getPreviousWordAtCursor();
-						this.delete(substring.beginIndex - this.cursor);
+						Substring prevWord = getPreviousWordAtCursor();
+						delete(prevWord.beginIndex - cursor);
 					}
 					else {
-						this.delete(-1);
+						delete(-1);
 					}
 
 					return true;
-				case 261:
+				case KEY_DELETE:
 					if (key.hasCtrlOrCmd()) {
-						EditBox.Substring substring = this.getNextWordAtCursor();
-						this.delete(substring.beginIndex - this.cursor);
+						Substring nextWord = getNextWordAtCursor();
+						delete(nextWord.beginIndex - cursor);
 					}
 					else {
-						this.delete(1);
+						delete(1);
 					}
 
 					return true;
-				case 262:
+				case KEY_RIGHT:
 					if (key.hasCtrlOrCmd()) {
-						EditBox.Substring substring = this.getNextWordAtCursor();
-						this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex);
+						Substring nextWord = getNextWordAtCursor();
+						moveCursor(CursorMovement.ABSOLUTE, nextWord.beginIndex);
 					}
 					else {
-						this.moveCursor(CursorMovement.RELATIVE, 1);
+						moveCursor(CursorMovement.RELATIVE, 1);
 					}
 
 					return true;
-				case 263:
+				case KEY_LEFT:
 					if (key.hasCtrlOrCmd()) {
-						EditBox.Substring substring = this.getPreviousWordAtCursor();
-						this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex);
+						Substring prevWord = getPreviousWordAtCursor();
+						moveCursor(CursorMovement.ABSOLUTE, prevWord.beginIndex);
 					}
 					else {
-						this.moveCursor(CursorMovement.RELATIVE, -1);
+						moveCursor(CursorMovement.RELATIVE, -1);
 					}
 
 					return true;
-				case 264:
+				case KEY_DOWN:
 					if (!key.hasCtrlOrCmd()) {
-						this.moveCursorLine(1);
+						moveCursorLine(1);
 					}
 
 					return true;
-				case 265:
+				case KEY_UP:
 					if (!key.hasCtrlOrCmd()) {
-						this.moveCursorLine(-1);
+						moveCursorLine(-1);
 					}
 
 					return true;
-				case 266:
-					this.moveCursor(CursorMovement.ABSOLUTE, 0);
+				case KEY_PAGE_UP:
+					moveCursor(CursorMovement.ABSOLUTE, 0);
 					return true;
-				case 267:
-					this.moveCursor(CursorMovement.END, 0);
+				case KEY_PAGE_DOWN:
+					moveCursor(CursorMovement.END, 0);
 					return true;
-				case 268:
+				case KEY_HOME:
 					if (key.hasCtrlOrCmd()) {
-						this.moveCursor(CursorMovement.ABSOLUTE, 0);
+						moveCursor(CursorMovement.ABSOLUTE, 0);
 					}
 					else {
-						this.moveCursor(CursorMovement.ABSOLUTE, this.getCurrentLine().beginIndex);
+						moveCursor(CursorMovement.ABSOLUTE, getCurrentLine().beginIndex);
 					}
 
 					return true;
-				case 269:
+				case KEY_END:
 					if (key.hasCtrlOrCmd()) {
-						this.moveCursor(CursorMovement.END, 0);
+						moveCursor(CursorMovement.END, 0);
 					}
 					else {
-						this.moveCursor(CursorMovement.ABSOLUTE, this.getCurrentLine().endIndex);
+						moveCursor(CursorMovement.ABSOLUTE, getCurrentLine().endIndex);
 					}
 
 					return true;
@@ -465,13 +439,12 @@ public class EditBox {
 	}
 
 	private String truncate(String value) {
-		String string = value;
-		if (this.hasMaxLength()) {
-			int i = this.maxLength - this.text.length();
-			string = StringHelper.truncate(value, i, false);
+		if (!hasMaxLength()) {
+			return value;
 		}
 
-		return string;
+		int remaining = maxLength - text.length();
+		return StringHelper.truncate(value, remaining, false);
 	}
 
 	private boolean exceedsMaxLines(String text) {
@@ -481,10 +454,11 @@ public class EditBox {
 		) > this.maxLines;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Substring}.
+	 * Диапазон символов в тексте поля ввода, задаваемый начальным и конечным индексами.
+	 * Используется для представления строк при переносе текста и выделения.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Substring(int beginIndex, int endIndex) {
 
 		static final EditBox.Substring EMPTY = new EditBox.Substring(0, 0);

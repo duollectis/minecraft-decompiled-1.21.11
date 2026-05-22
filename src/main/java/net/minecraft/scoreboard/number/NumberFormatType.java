@@ -5,7 +5,10 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * {@code NumberFormatType}.
+ * Тип формата числового значения скорборда.
+ * Предоставляет кодеки для сериализации в NBT/JSON и сетевой передачи.
+ *
+ * @param <T> конкретный тип формата
  */
 public interface NumberFormatType<T extends NumberFormat> {
 

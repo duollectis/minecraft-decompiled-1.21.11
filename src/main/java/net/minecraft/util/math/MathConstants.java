@@ -1,7 +1,7 @@
 package net.minecraft.util.math;
 
 /**
- * {@code MathConstants}.
+ * Математические константы, используемые в игровой логике.
  */
 public class MathConstants {
 

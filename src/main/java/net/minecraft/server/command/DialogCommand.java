@@ -14,7 +14,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code DialogCommand}.
+ * Команда {@code /dialog}: управление диалогами с игроками.
  */
 public class DialogCommand {
 

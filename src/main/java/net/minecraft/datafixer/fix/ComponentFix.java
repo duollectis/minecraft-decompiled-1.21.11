@@ -12,7 +12,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code ComponentFix}.
+ * Базовый класс для фиксов, трансформирующих отдельный компонент предмета.
+ * Находит компонент по {@code oldComponentId}, применяет {@link #fixComponent} и
+ * записывает результат под {@code newComponentId} (может совпадать со старым).
  */
 public abstract class ComponentFix extends DataFix {
 
@@ -32,24 +34,28 @@ public abstract class ComponentFix extends DataFix {
 	}
 
 	public final TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
-		return this.fixTypeEverywhereTyped(
-				this.name, type, typed -> typed.update(
-						DSL.remainderFinder(), dynamic -> {
-							Optional<? extends Dynamic<?>> optional = dynamic.get(this.oldComponentId).result();
-							if (optional.isEmpty()) {
+		Type<?> dataComponentsType = getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
+
+		return fixTypeEverywhereTyped(
+				name,
+				dataComponentsType,
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						dynamic -> {
+							Optional<? extends Dynamic<?>> componentValue = dynamic.get(oldComponentId).result();
+
+							if (componentValue.isEmpty()) {
 								return dynamic;
 							}
-							else {
-								Dynamic<?> dynamic2 = this.fixComponent(optional.get());
-								return dynamic
-										.remove(this.oldComponentId)
-										.setFieldIfPresent(this.newComponentId, Optional.ofNullable(dynamic2));
-							}
+
+							Dynamic<?> fixed = fixComponent(componentValue.get());
+							return dynamic
+									.remove(oldComponentId)
+									.setFieldIfPresent(newComponentId, Optional.ofNullable(fixed));
 						}
 				)
 		);
 	}
 
-	protected abstract <T> @Nullable Dynamic<T> fixComponent(Dynamic<T> dynamic);
+	protected abstract <T> @Nullable Dynamic<T> fixComponent(Dynamic<T> component);
 }

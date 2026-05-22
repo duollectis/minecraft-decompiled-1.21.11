@@ -17,7 +17,9 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.Map;
 
 /**
- * {@code ArmorTrimAssets}.
+ * Описывает визуальные ассеты материала украшения брони (trim material).
+ * Хранит базовый суффикс текстуры и опциональные переопределения для конкретных
+ * типов экипировки (например, железо на железной броне выглядит темнее).
  */
 public record ArmorTrimAssets(
 		ArmorTrimAssets.AssetId base,
@@ -63,25 +65,10 @@ public record ArmorTrimAssets(
 	public static final ArmorTrimAssets AMETHYST = of("amethyst");
 	public static final ArmorTrimAssets RESIN = of("resin");
 
-	/**
-	 * Of.
-	 *
-	 * @param suffix suffix
-	 *
-	 * @return ArmorTrimAssets — результат операции
-	 */
 	public static ArmorTrimAssets of(String suffix) {
 		return new ArmorTrimAssets(new ArmorTrimAssets.AssetId(suffix), Map.of());
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param suffix suffix
-	 * @param overrides overrides
-	 *
-	 * @return ArmorTrimAssets — результат операции
-	 */
 	public static ArmorTrimAssets of(String suffix, Map<RegistryKey<EquipmentAsset>, String> overrides) {
 		return new ArmorTrimAssets(
 				new ArmorTrimAssets.AssetId(suffix),
@@ -94,7 +81,8 @@ public record ArmorTrimAssets(
 	}
 
 	/**
-	 * {@code AssetId}.
+	 * Идентификатор ассета трима — суффикс, добавляемый к пути текстуры материала.
+	 * Валидируется как корректный путь ресурса Minecraft при создании.
 	 */
 	public record AssetId(String suffix) {
 
@@ -108,9 +96,8 @@ public record ArmorTrimAssets(
 			if (!Identifier.isPathValid(suffix)) {
 				throw new IllegalArgumentException("Invalid string to use as a resource path element: " + suffix);
 			}
-			else {
-				this.suffix = suffix;
-			}
+
+			this.suffix = suffix;
 		}
 	}
 }

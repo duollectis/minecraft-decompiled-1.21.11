@@ -11,34 +11,28 @@ import java.io.InputStream;
 import java.util.Locale;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MacWindowUtil}.
+ * Утилитарный класс для macOS-специфичных операций с окном через JNA/Cocoa.
+ * На не-Mac платформах все методы являются заглушками.
  */
+@Environment(EnvType.CLIENT)
 public class MacWindowUtil {
 
 	public static final boolean IS_MAC = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac");
+
 	private static final int STYLE_MASK_RESIZE_BIT = 8;
 	private static final int FULLSCREEN_MASK = 16384;
 
-	/**
-	 * Toggle fullscreen.
-	 *
-	 * @param window window
-	 */
 	public static void toggleFullscreen(Window window) {
-		getCocoaWindow(window).filter(MacWindowUtil::isFullscreen).ifPresent(MacWindowUtil::toggleFullscreen);
+		getCocoaWindow(window)
+			.filter(MacWindowUtil::isFullscreen)
+			.ifPresent(MacWindowUtil::toggleFullscreen);
 	}
 
-	/**
-	 * Fix style mask.
-	 *
-	 * @param window window
-	 */
 	public static void fixStyleMask(Window window) {
 		getCocoaWindow(window).ifPresent(windowHandle -> {
 			long styleMask = getStyleMask(windowHandle);
-			sendMessage(windowHandle, "setStyleMask:", styleMask & -9L);
+			sendMessage(windowHandle, "setStyleMask:", styleMask & ~STYLE_MASK_RESIZE_BIT);
 		});
 	}
 
@@ -48,7 +42,7 @@ public class MacWindowUtil {
 	}
 
 	private static boolean isFullscreen(Object handle) {
-		return (getStyleMask(handle) & 16384L) != 0L;
+		return (getStyleMask(handle) & FULLSCREEN_MASK) != 0L;
 	}
 
 	private static long getStyleMask(Object handle) {

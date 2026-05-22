@@ -7,10 +7,13 @@ import net.minecraft.client.render.entity.model.ModelTransformer;
 
 import java.util.function.UnaryOperator;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelData}.
+ * Иерархическое описание модели в виде дерева {@link ModelPartData}.
+ * Используется как промежуточное представление при построении модели:
+ * сначала создаётся {@code ModelData}, затем из него строится {@link ModelPart}.
+ * Поддерживает применение трансформаций ко всему дереву через {@link #transform}.
  */
+@Environment(EnvType.CLIENT)
 public class ModelData {
 
 	private final ModelPartData data;
@@ -24,26 +27,24 @@ public class ModelData {
 	}
 
 	public ModelPartData getRoot() {
-		return this.data;
+		return data;
 	}
 
 	/**
-	 * Transform.
+	 * Применяет функцию трансформации ко всем частям дерева и возвращает новый экземпляр.
 	 *
-	 * @param transformer transformer
-	 *
-	 * @return ModelData — результат операции
+	 * @param transformer функция преобразования {@link ModelTransform}
+	 * @return новый {@code ModelData} с применёнными трансформациями
 	 */
 	public ModelData transform(UnaryOperator<ModelTransform> transformer) {
-		return new ModelData(this.data.applyTransformer(transformer));
+		return new ModelData(data.applyTransformer(transformer));
 	}
 
 	/**
-	 * Transform.
+	 * Применяет {@link ModelTransformer} к данному экземпляру и возвращает результат.
 	 *
-	 * @param transformer transformer
-	 *
-	 * @return ModelData — результат операции
+	 * @param transformer трансформер модели
+	 * @return преобразованный {@code ModelData}
 	 */
 	public ModelData transform(ModelTransformer transformer) {
 		return transformer.apply(this);

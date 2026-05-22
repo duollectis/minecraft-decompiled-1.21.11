@@ -18,20 +18,26 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code ShearsDispenserBehavior}.
+ * Поведение диспенсера для ножниц: стрижёт улей или существо перед диспенсером.
+ * При успехе наносит 1 единицу урона ножницам.
  */
 public class ShearsDispenserBehavior extends FallibleItemDispenserBehavior {
+
+	/** Урон ножницам при каждом успешном использовании через диспенсер. */
+	private static final int SHEARS_DAMAGE_PER_USE = 1;
 
 	@Override
 	protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
 		ServerWorld serverWorld = pointer.world();
-		if (!serverWorld.isClient()) {
-			BlockPos blockPos = pointer.pos().offset(pointer.state().get(DispenserBlock.FACING));
-			this.setSuccess(
-					tryShearBlock(serverWorld, stack, blockPos) || tryShearEntity(serverWorld, blockPos, stack));
-			if (this.isSuccess()) {
-				stack.damage(1, serverWorld, null, item -> {});
-			}
+		if (serverWorld.isClient()) {
+			return stack;
+		}
+
+		BlockPos targetPos = pointer.pos().offset(pointer.state().get(DispenserBlock.FACING));
+		setSuccess(tryShearBlock(serverWorld, stack, targetPos) || tryShearEntity(serverWorld, targetPos, stack));
+
+		if (isSuccess()) {
+			stack.damage(SHEARS_DAMAGE_PER_USE, serverWorld, null, item -> {});
 		}
 
 		return stack;
@@ -42,24 +48,25 @@ public class ShearsDispenserBehavior extends FallibleItemDispenserBehavior {
 		if (blockState.isIn(
 				BlockTags.BEEHIVES,
 				state -> state.contains(BeehiveBlock.HONEY_LEVEL) && state.getBlock() instanceof BeehiveBlock
-		)) {
-			int i = blockState.get(BeehiveBlock.HONEY_LEVEL);
-			if (i >= 5) {
-				world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.BLOCKS, 1.0F, 1.0F);
-				BeehiveBlock.dropHoneycomb(world, tool, blockState, world.getBlockEntity(pos), null, pos);
-				((BeehiveBlock) blockState.getBlock()).takeHoney(
-						world,
-						blockState,
-						pos,
-						null,
-						BeehiveBlockEntity.BeeState.BEE_RELEASED
-				);
-				world.emitGameEvent(null, GameEvent.SHEAR, pos);
-				return true;
-			}
+		) == false) {
+			return false;
 		}
 
-		return false;
+		if (blockState.get(BeehiveBlock.HONEY_LEVEL) < BeehiveBlock.FULL_HONEY_LEVEL) {
+			return false;
+		}
+
+		world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		BeehiveBlock.dropHoneycomb(world, tool, blockState, world.getBlockEntity(pos), null, pos);
+		((BeehiveBlock) blockState.getBlock()).takeHoney(
+				world,
+				blockState,
+				pos,
+				null,
+				BeehiveBlockEntity.BeeState.BEE_RELEASED
+		);
+		world.emitGameEvent(null, GameEvent.SHEAR, pos);
+		return true;
 	}
 
 	private static boolean tryShearEntity(ServerWorld world, BlockPos pos, ItemStack shears) {

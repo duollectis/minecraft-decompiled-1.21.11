@@ -12,10 +12,12 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbuseReport}.
+ * Базовый класс жалобы на нарушение правил (abuse report).
+ * Содержит общие поля: идентификатор жалобы, UUID нарушителя, комментарий и причину.
+ * Конкретные типы жалоб (чат, скин, имя) реализуются в подклассах.
  */
+@Environment(EnvType.CLIENT)
 public abstract class AbuseReport {
 
 	protected final UUID reportId;
@@ -59,10 +61,11 @@ public abstract class AbuseReport {
 	 */
 	public abstract Screen createReportScreen(Screen parent, AbuseReportContext context);
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Базовый строитель жалобы. Хранит ссылку на изменяемый объект жалобы
+	 * и лимиты, полученные от сервера авторизации Mojang.
 	 */
+	@Environment(EnvType.CLIENT)
 	public abstract static class Builder<R extends AbuseReport> {
 
 		protected final R report;
@@ -74,50 +77,50 @@ public abstract class AbuseReport {
 		}
 
 		public R getReport() {
-			return this.report;
+			return report;
 		}
 
 		public UUID getReportedPlayerUuid() {
-			return this.report.reportedPlayerUuid;
+			return report.reportedPlayerUuid;
 		}
 
 		public String getOpinionComments() {
-			return this.report.opinionComments;
+			return report.opinionComments;
 		}
 
 		public boolean isAttested() {
-			return this.getReport().attested;
+			return report.attested;
 		}
 
 		public void setOpinionComments(String opinionComments) {
-			this.report.opinionComments = opinionComments;
+			report.opinionComments = opinionComments;
 		}
 
 		public @Nullable AbuseReportReason getReason() {
-			return this.report.reason;
+			return report.reason;
 		}
 
 		public void setReason(AbuseReportReason reason) {
-			this.report.reason = reason;
+			report.reason = reason;
 		}
 
 		public void setAttested(boolean attested) {
-			this.report.attested = attested;
+			report.attested = attested;
 		}
 
 		public abstract boolean hasEnoughInfo();
 
 		public AbuseReport.@Nullable ValidationError validate() {
-			return !this.getReport().attested ? AbuseReport.ValidationError.NOT_ATTESTED : null;
+			return report.attested ? null : AbuseReport.ValidationError.NOT_ATTESTED;
 		}
 
 		public abstract Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ReportWithId}.
+	 * Жалоба, готовая к отправке: содержит сгенерированный UUID и сериализованный объект Mojang Authlib.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record ReportWithId(
 			UUID id,
 			AbuseReportType reportType,
@@ -125,10 +128,10 @@ public abstract class AbuseReport {
 	) {
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ValidationError}.
+	 * Ошибка валидации жалобы перед отправкой. Содержит локализованное сообщение для отображения пользователю.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record ValidationError(Text message) {
 
 		public static final AbuseReport.ValidationError
@@ -147,11 +150,6 @@ public abstract class AbuseReport {
 				NOT_ATTESTED =
 				new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.not_attested"));
 
-		/**
-		 * Создаёт tooltip.
-		 *
-		 * @return Tooltip — результат операции
-		 */
 		public Tooltip createTooltip() {
 			return Tooltip.of(this.message);
 		}

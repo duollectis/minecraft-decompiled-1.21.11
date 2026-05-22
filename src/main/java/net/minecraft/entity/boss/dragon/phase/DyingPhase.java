@@ -10,63 +10,63 @@ import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DyingPhase}.
+ * Финальная фаза гибели дракона. Дракон летит к центру портала;
+ * при достижении или столкновении здоровье обнуляется, запуская анимацию смерти.
  */
 public class DyingPhase extends AbstractPhase {
+
+	private static final int EXPLOSION_PARTICLE_INTERVAL = 10;
+	private static final float EXPLOSION_SPREAD_XZ = 8.0F;
+	private static final float EXPLOSION_SPREAD_Y = 4.0F;
+	private static final double MIN_DIST_SQ = 100.0;
+	private static final double MAX_DIST_SQ = 22500.0;
 
 	private @Nullable Vec3d target;
 	private int ticks;
 
-	public DyingPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public DyingPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void clientTick() {
-		if (this.ticks++ % 10 == 0) {
-			float f = (this.dragon.getRandom().nextFloat() - 0.5F) * 8.0F;
-			float g = (this.dragon.getRandom().nextFloat() - 0.5F) * 4.0F;
-			float h = (this.dragon.getRandom().nextFloat() - 0.5F) * 8.0F;
-			this.dragon
-					.getEntityWorld()
-					.addParticleClient(
-							ParticleTypes.EXPLOSION_EMITTER,
-							this.dragon.getX() + f,
-							this.dragon.getY() + 2.0 + g,
-							this.dragon.getZ() + h,
-							0.0,
-							0.0,
-							0.0
-					);
+		if (ticks++ % EXPLOSION_PARTICLE_INTERVAL == 0) {
+			float offsetX = (dragon.getRandom().nextFloat() - 0.5F) * EXPLOSION_SPREAD_XZ;
+			float offsetY = (dragon.getRandom().nextFloat() - 0.5F) * EXPLOSION_SPREAD_Y;
+			float offsetZ = (dragon.getRandom().nextFloat() - 0.5F) * EXPLOSION_SPREAD_XZ;
+			dragon.getEntityWorld().addParticleClient(
+					ParticleTypes.EXPLOSION_EMITTER,
+					dragon.getX() + offsetX,
+					dragon.getY() + 2.0 + offsetY,
+					dragon.getZ() + offsetZ,
+					0.0, 0.0, 0.0
+			);
 		}
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		this.ticks++;
-		if (this.target == null) {
-			BlockPos
-					blockPos =
-					world.getTopPosition(
-							Heightmap.Type.MOTION_BLOCKING,
-							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
-					);
-			this.target = Vec3d.ofBottomCenter(blockPos);
+		ticks++;
+
+		if (target == null) {
+			BlockPos portalTop = world.getTopPosition(
+					Heightmap.Type.MOTION_BLOCKING,
+					EndPortalFeature.offsetOrigin(dragon.getFightOrigin())
+			);
+			target = Vec3d.ofBottomCenter(portalTop);
 		}
 
-		double d = this.target.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
-		if (!(d < 100.0) && !(d > 22500.0) && !this.dragon.horizontalCollision && !this.dragon.verticalCollision) {
-			this.dragon.setHealth(1.0F);
-		}
-		else {
-			this.dragon.setHealth(0.0F);
-		}
+		double distSq = target.squaredDistanceTo(dragon.getX(), dragon.getY(), dragon.getZ());
+		boolean inRange = distSq >= MIN_DIST_SQ && distSq <= MAX_DIST_SQ;
+		boolean noCollision = !dragon.horizontalCollision && !dragon.verticalCollision;
+
+		dragon.setHealth(inRange && noCollision ? 1.0F : 0.0F);
 	}
 
 	@Override
 	public void beginPhase() {
-		this.target = null;
-		this.ticks = 0;
+		target = null;
+		ticks = 0;
 	}
 
 	@Override
@@ -76,7 +76,7 @@ public class DyingPhase extends AbstractPhase {
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.target;
+		return target;
 	}
 
 	@Override

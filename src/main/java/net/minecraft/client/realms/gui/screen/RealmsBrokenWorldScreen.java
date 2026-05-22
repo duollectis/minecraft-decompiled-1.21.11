@@ -98,7 +98,7 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 								                           new SwitchSlotTask(this.serverData.id, i, this::play)
 						                           ))
 				                           )
-				                           .dimensions(this.getFramePositionX(i), row(8), 80, 20)
+				                           .dimensions(this.getFramePositionX(i), row(8), BUTTON_WIDTH, 20)
 				                           .build();
 				buttonWidget.active = !this.serverData.slots.get(i).options.empty;
 			}
@@ -114,7 +114,7 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 										                           )
 								                           )
 				                           )
-				                           .dimensions(this.getFramePositionX(i), row(8), 80, 20)
+				                           .dimensions(this.getFramePositionX(i), row(8), BUTTON_WIDTH, 20)
 				                           .build();
 			}
 
@@ -330,7 +330,7 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 					74,
 					ColorHelper.fromFloats(1.0F, f, f, f)
 			);
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SLOT_FRAME_TEXTURE, x, y, 80, 80);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SLOT_FRAME_TEXTURE, x, y, BUTTON_WIDTH, BUTTON_WIDTH);
 		}
 		else {
 			int i = ColorHelper.fromFloats(1.0F, 0.56F, 0.56F, 0.56F);
@@ -349,7 +349,7 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 					74,
 					i
 			);
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SLOT_FRAME_TEXTURE, x, y, 80, 80, i);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SLOT_FRAME_TEXTURE, x, y, BUTTON_WIDTH, BUTTON_WIDTH, i);
 		}
 
 		context.drawCenteredTextWithShadow(this.textRenderer, slotName, x + 40, y + 66, -1);

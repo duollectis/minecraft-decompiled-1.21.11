@@ -8,7 +8,8 @@ import java.util.BitSet;
 import java.util.Objects;
 
 /**
- * Класс last seen messages collector.
+ * Кольцевой буфер последних просмотренных сообщений на стороне клиента.
+ * Накапливает подтверждения и формирует снимок окна для отправки серверу.
  */
 public class LastSeenMessagesCollector {
 
@@ -18,90 +19,96 @@ public class LastSeenMessagesCollector {
 	private @Nullable MessageSignatureData lastAdded;
 
 	public LastSeenMessagesCollector(int size) {
-		this.acknowledgedMessages = new AcknowledgedMessage[size];
+		acknowledgedMessages = new AcknowledgedMessage[size];
 	}
 
 	/**
-	 * Add.
+	 * Добавляет подпись сообщения в кольцевой буфер.
+	 * Дублирующие подписи (та же, что и последняя добавленная) игнорируются.
 	 *
-	 * @param signature signature
-	 * @param displayed displayed
-	 *
-	 * @return boolean — результат операции
+	 * @param signature подпись сообщения
+	 * @param displayed {@code true} если сообщение было отображено пользователю
+	 * @return {@code true} если подпись была добавлена, {@code false} если проигнорирована как дубликат
 	 */
 	public boolean add(MessageSignatureData signature, boolean displayed) {
-		if (Objects.equals(signature, this.lastAdded)) {
+		if (Objects.equals(signature, lastAdded)) {
 			return false;
 		}
-		else {
-			this.lastAdded = signature;
-			this.add(displayed ? new AcknowledgedMessage(signature, true) : null);
-			return true;
-		}
+
+		lastAdded = signature;
+		addToBuffer(displayed ? new AcknowledgedMessage(signature, true) : null);
+		return true;
 	}
 
-	private void add(@Nullable AcknowledgedMessage message) {
-		int i = this.nextIndex;
-		this.nextIndex = (i + 1) % this.acknowledgedMessages.length;
-		this.messageCount++;
-		this.acknowledgedMessages[i] = message;
+	private void addToBuffer(@Nullable AcknowledgedMessage message) {
+		int slot = nextIndex;
+		nextIndex = (slot + 1) % acknowledgedMessages.length;
+		messageCount++;
+		acknowledgedMessages[slot] = message;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param signature signature
-	 */
 	public void remove(MessageSignatureData signature) {
-		for (int i = 0; i < this.acknowledgedMessages.length; i++) {
-			AcknowledgedMessage acknowledgedMessage = this.acknowledgedMessages[i];
-			if (acknowledgedMessage != null && acknowledgedMessage.pending()
-					&& signature.equals(acknowledgedMessage.signature())) {
-				this.acknowledgedMessages[i] = null;
+		for (int index = 0; index < acknowledgedMessages.length; index++) {
+			AcknowledgedMessage msg = acknowledgedMessages[index];
+
+			if (msg != null && msg.pending() && signature.equals(msg.signature())) {
+				acknowledgedMessages[index] = null;
 				break;
 			}
 		}
 	}
 
 	/**
-	 * Сбрасывает message count.
+	 * Сбрасывает счётчик новых сообщений и возвращает его значение.
+	 * Используется для формирования поля {@code offset} в пакете подтверждений.
 	 *
-	 * @return int — результат операции
+	 * @return количество сообщений, накопленных с момента последнего сброса
 	 */
 	public int resetMessageCount() {
-		int i = this.messageCount;
-		this.messageCount = 0;
-		return i;
-	}
-
-	public LastSeenMessagesCollector.LastSeenMessages collect() {
-		int i = this.resetMessageCount();
-		BitSet bitSet = new BitSet(this.acknowledgedMessages.length);
-		ObjectList<MessageSignatureData> objectList = new ObjectArrayList(this.acknowledgedMessages.length);
-
-		for (int j = 0; j < this.acknowledgedMessages.length; j++) {
-			int k = (this.nextIndex + j) % this.acknowledgedMessages.length;
-			AcknowledgedMessage acknowledgedMessage = this.acknowledgedMessages[k];
-			if (acknowledgedMessage != null) {
-				bitSet.set(j, true);
-				objectList.add(acknowledgedMessage.signature());
-				this.acknowledgedMessages[k] = acknowledgedMessage.unmarkAsPending();
-			}
-		}
-
-		LastSeenMessageList lastSeenMessageList = new LastSeenMessageList(objectList);
-		LastSeenMessageList.Acknowledgment
-				acknowledgment =
-				new LastSeenMessageList.Acknowledgment(i, bitSet, lastSeenMessageList.calculateChecksum());
-		return new LastSeenMessagesCollector.LastSeenMessages(lastSeenMessageList, acknowledgment);
-	}
-
-	public int getMessageCount() {
-		return this.messageCount;
+		int count = messageCount;
+		messageCount = 0;
+		return count;
 	}
 
 	/**
-	 * Запись last seen messages.
+	 * Формирует снимок текущего состояния окна для отправки серверу.
+	 * Обходит кольцевой буфер начиная с {@code nextIndex}, строит битовую маску
+	 * и список подписей, затем снимает флаг {@code pending} у всех включённых сообщений.
+	 *
+	 * @return пара (список подписей, пакет подтверждений)
+	 */
+	public LastSeenMessagesCollector.LastSeenMessages collect() {
+		int offset = resetMessageCount();
+		BitSet acknowledged = new BitSet(acknowledgedMessages.length);
+		ObjectList<MessageSignatureData> signatures = new ObjectArrayList(acknowledgedMessages.length);
+
+		for (int slot = 0; slot < acknowledgedMessages.length; slot++) {
+			int bufferIndex = (nextIndex + slot) % acknowledgedMessages.length;
+			AcknowledgedMessage msg = acknowledgedMessages[bufferIndex];
+
+			if (msg != null) {
+				acknowledged.set(slot, true);
+				signatures.add(msg.signature());
+				acknowledgedMessages[bufferIndex] = msg.unmarkAsPending();
+			}
+		}
+
+		LastSeenMessageList lastSeen = new LastSeenMessageList(signatures);
+		LastSeenMessageList.Acknowledgment acknowledgment = new LastSeenMessageList.Acknowledgment(
+				offset,
+				acknowledged,
+				lastSeen.calculateChecksum()
+		);
+
+		return new LastSeenMessagesCollector.LastSeenMessages(lastSeen, acknowledgment);
+	}
+
+	public int getMessageCount() {
+		return messageCount;
+	}
+
+	/**
+	 * Снимок окна последних просмотренных сообщений вместе с пакетом подтверждений.
 	 */
 	public record LastSeenMessages(LastSeenMessageList lastSeen, LastSeenMessageList.Acknowledgment update) {
 	}

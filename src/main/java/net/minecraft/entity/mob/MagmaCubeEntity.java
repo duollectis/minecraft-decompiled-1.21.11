@@ -20,7 +20,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 
 /**
- * {@code MagmaCubeEntity}.
+ * Магмовый куб — огненный вариант слизня из Нижнего мира.
  */
 public class MagmaCubeEntity extends SlimeEntity {
 
@@ -42,10 +42,16 @@ public class MagmaCubeEntity extends SlimeEntity {
 		return world.getDifficulty() != Difficulty.PEACEFUL;
 	}
 
+	private static final float STRETCH_DECAY = 0.9F;
+	private static final float JUMP_VELOCITY_SIZE_FACTOR = 0.1F;
+	private static final float LAVA_SWIM_BASE_VELOCITY = 0.22F;
+	private static final float LAVA_SWIM_SIZE_FACTOR = 0.05F;
+	private static final int ARMOR_PER_SIZE = 3;
+
 	@Override
 	public void setSize(int size, boolean heal) {
 		super.setSize(size, heal);
-		this.getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(size * 3);
+		getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(size * ARMOR_PER_SIZE);
 	}
 
 	@Override
@@ -70,32 +76,32 @@ public class MagmaCubeEntity extends SlimeEntity {
 
 	@Override
 	protected void updateStretch() {
-		this.targetStretch *= 0.9F;
+		targetStretch *= STRETCH_DECAY;
 	}
 
 	@Override
 	public void jump() {
-		Vec3d vec3d = this.getVelocity();
-		float f = this.getSize() * 0.1F;
-		this.setVelocity(vec3d.x, this.getJumpVelocity() + f, vec3d.z);
-		this.velocityDirty = true;
+		Vec3d velocity = getVelocity();
+		float sizeBonus = getSize() * JUMP_VELOCITY_SIZE_FACTOR;
+		setVelocity(velocity.x, getJumpVelocity() + sizeBonus, velocity.z);
+		velocityDirty = true;
 	}
 
 	@Override
 	protected void swimUpward(TagKey<Fluid> fluid) {
-		if (fluid == FluidTags.LAVA) {
-			Vec3d vec3d = this.getVelocity();
-			this.setVelocity(vec3d.x, 0.22F + this.getSize() * 0.05F, vec3d.z);
-			this.velocityDirty = true;
-		}
-		else {
+		if (fluid != FluidTags.LAVA) {
 			super.swimUpward(fluid);
+			return;
 		}
+
+		Vec3d velocity = getVelocity();
+		setVelocity(velocity.x, LAVA_SWIM_BASE_VELOCITY + getSize() * LAVA_SWIM_SIZE_FACTOR, velocity.z);
+		velocityDirty = true;
 	}
 
 	@Override
 	protected boolean canAttack() {
-		return this.canActVoluntarily();
+		return canActVoluntarily();
 	}
 
 	@Override
@@ -105,17 +111,17 @@ public class MagmaCubeEntity extends SlimeEntity {
 
 	@Override
 	protected SoundEvent getHurtSound(DamageSource source) {
-		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_HURT;
+		return isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_HURT;
 	}
 
 	@Override
 	protected SoundEvent getDeathSound() {
-		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_DEATH;
+		return isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_DEATH;
 	}
 
 	@Override
 	protected SoundEvent getSquishSound() {
-		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_SQUISH;
+		return isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_SQUISH;
 	}
 
 	@Override

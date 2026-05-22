@@ -21,395 +21,431 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code DefaultMinecartController}.
+ * Стандартный контроллер движения вагонетки, реализующий классическую физику рельсов Minecraft.
+ * Управляет движением по рельсам ({@link #moveOnRail}), обработкой столкновений ({@link #handleCollision}),
+ * привязкой позиции к рельсу ({@link #snapPositionToRail}) и интерполяцией позиции на клиенте.
  */
 public class DefaultMinecartController extends MinecartController {
 
 	private static final double MIN_VELOCITY_THRESHOLD = 0.01;
-	private static final double COLLISION_PUSH_SPEED = 0.2;
-	private static final double COLLISION_PUSH_SPEED_FAST = 0.4;
-	private static final double COLLISION_PUSH_SPEED_VERTICAL = 0.4;
+	private static final double MAX_SPEED_NORMAL = 0.4;
+	private static final double MAX_SPEED_IN_WATER = 0.2;
+	private static final double COLLISION_BOX_EXPAND = 0.2;
+	private static final double SLOPE_GRAVITY = 0.0078125;
+	private static final double SLOPE_GRAVITY_IN_WATER_FACTOR = 0.2;
+	private static final double BRAKE_STOP_THRESHOLD = 0.03;
+	private static final double POWERED_RAIL_BOOST = 0.06;
+	private static final double POWERED_RAIL_NUDGE = 0.02;
+	private static final double PASSENGER_SLOWDOWN = 0.75;
+	private static final double SPEED_RETENTION_WITH_PASSENGERS = 0.997;
+	private static final double SPEED_RETENTION_EMPTY = 0.96;
+	private static final double YAW_FLIP_THRESHOLD_LOW = -170.0;
+	private static final double YAW_FLIP_THRESHOLD_HIGH = 170.0;
+	private static final double MIN_MOVEMENT_SQ = 0.001;
+	private static final double RAIL_SURFACE_OFFSET = 0.0625;
+	private static final double RAIL_AXIS_Y_SCALE = 2.0;
+
 	private final PositionInterpolator interpolator;
 	private Vec3d velocity = Vec3d.ZERO;
 
-	public DefaultMinecartController(AbstractMinecartEntity abstractMinecartEntity) {
-		super(abstractMinecartEntity);
-		this.interpolator = new PositionInterpolator(abstractMinecartEntity, this::onLerp);
+	public DefaultMinecartController(AbstractMinecartEntity minecart) {
+		super(minecart);
+		interpolator = new PositionInterpolator(minecart, this::onLerp);
 	}
 
 	@Override
 	public PositionInterpolator getInterpolator() {
-		return this.interpolator;
+		return interpolator;
 	}
 
 	/**
-	 * Обрабатывает событие lerp.
-	 *
-	 * @param interpolator interpolator
+	 * Вызывается интерполятором при каждом шаге клиентской интерполяции позиции.
+	 * Синхронизирует вектор скорости вагонетки с последним полученным от сервера значением.
 	 */
 	public void onLerp(PositionInterpolator interpolator) {
-		this.setVelocity(this.velocity);
+		setVelocity(velocity);
 	}
 
 	@Override
 	public void setLerpTargetVelocity(Vec3d vec3d) {
-		this.velocity = vec3d;
-		this.setVelocity(this.velocity);
+		velocity = vec3d;
+		setVelocity(velocity);
 	}
 
 	@Override
 	public void tick() {
-		if (this.getWorld() instanceof ServerWorld serverWorld) {
-			this.minecart.applyGravity();
-			BlockPos var11 = this.minecart.getRailOrMinecartPos();
-			BlockState blockState = this.getWorld().getBlockState(var11);
-			boolean bl = AbstractRailBlock.isRail(blockState);
-			this.minecart.setOnRail(bl);
-			if (bl) {
-				this.moveOnRail(serverWorld);
+		if (getWorld() instanceof ServerWorld serverWorld) {
+			minecart.applyGravity();
+			BlockPos railPos = minecart.getRailOrMinecartPos();
+			BlockState blockState = getWorld().getBlockState(railPos);
+			boolean isOnRail = AbstractRailBlock.isRail(blockState);
+			minecart.setOnRail(isOnRail);
+
+			if (isOnRail) {
+				moveOnRail(serverWorld);
+
 				if (blockState.isOf(Blocks.ACTIVATOR_RAIL)) {
-					this.minecart.onActivatorRail(
+					minecart.onActivatorRail(
 							serverWorld,
-							var11.getX(),
-							var11.getY(),
-							var11.getZ(),
+							railPos.getX(), railPos.getY(), railPos.getZ(),
 							blockState.get(PoweredRailBlock.POWERED)
 					);
 				}
-			}
-			else {
-				this.minecart.moveOffRail(serverWorld);
+			} else {
+				minecart.moveOffRail(serverWorld);
 			}
 
-			this.minecart.tickBlockCollision();
-			this.setPitch(0.0F);
-			double d = this.minecart.lastX - this.getX();
-			double e = this.minecart.lastZ - this.getZ();
-			if (d * d + e * e > 0.001) {
-				this.setYaw((float) (MathHelper.atan2(e, d) * 180.0 / Math.PI));
-				if (this.minecart.isYawFlipped()) {
-					this.setYaw(this.getYaw() + 180.0F);
+			minecart.tickBlockCollision();
+			setPitch(0.0F);
+
+			double deltaX = minecart.lastX - getX();
+			double deltaZ = minecart.lastZ - getZ();
+
+			if (deltaX * deltaX + deltaZ * deltaZ > MIN_MOVEMENT_SQ) {
+				setYaw((float) (MathHelper.atan2(deltaZ, deltaX) * 180.0 / Math.PI));
+
+				if (minecart.isYawFlipped()) {
+					setYaw(getYaw() + 180.0F);
 				}
 			}
 
-			double f = MathHelper.wrapDegrees(this.getYaw() - this.minecart.lastYaw);
-			if (f < -170.0 || f >= 170.0) {
-				this.setYaw(this.getYaw() + 180.0F);
-				this.minecart.setYawFlipped(!this.minecart.isYawFlipped());
+			double yawDelta = MathHelper.wrapDegrees(getYaw() - minecart.lastYaw);
+
+			if (yawDelta < YAW_FLIP_THRESHOLD_LOW || yawDelta >= YAW_FLIP_THRESHOLD_HIGH) {
+				setYaw(getYaw() + 180.0F);
+				minecart.setYawFlipped(!minecart.isYawFlipped());
 			}
 
-			this.setPitch(this.getPitch() % 360.0F);
-			this.setYaw(this.getYaw() % 360.0F);
-			this.handleCollision();
-		}
-		else {
-			if (this.interpolator.isInterpolating()) {
-				this.interpolator.tick();
-			}
-			else {
-				this.minecart.refreshPosition();
-				this.setPitch(this.getPitch() % 360.0F);
-				this.setYaw(this.getYaw() % 360.0F);
+			setPitch(getPitch() % 360.0F);
+			setYaw(getYaw() % 360.0F);
+			handleCollision();
+		} else {
+			if (interpolator.isInterpolating()) {
+				interpolator.tick();
+			} else {
+				minecart.refreshPosition();
+				setPitch(getPitch() % 360.0F);
+				setYaw(getYaw() % 360.0F);
 			}
 		}
 	}
 
+	/**
+	 * Выполняет полный цикл физики движения по рельсу за один тик:
+	 * применяет гравитацию уклона, вычисляет направление по форме рельса,
+	 * обрабатывает ввод игрока, торможение/ускорение и коррекцию высоты по наклону.
+	 */
 	@Override
 	public void moveOnRail(ServerWorld world) {
-		BlockPos blockPos = this.minecart.getRailOrMinecartPos();
-		BlockState blockState = this.getWorld().getBlockState(blockPos);
-		this.minecart.onLanding();
-		double d = this.minecart.getX();
-		double e = this.minecart.getY();
-		double f = this.minecart.getZ();
-		Vec3d vec3d = this.snapPositionToRail(d, e, f);
-		e = blockPos.getY();
-		boolean bl = false;
-		boolean bl2 = false;
+		BlockPos blockPos = minecart.getRailOrMinecartPos();
+		BlockState blockState = getWorld().getBlockState(blockPos);
+		minecart.onLanding();
+
+		double cartX = minecart.getX();
+		double cartY = minecart.getY();
+		double cartZ = minecart.getZ();
+		Vec3d snappedPos = snapPositionToRail(cartX, cartY, cartZ);
+		cartY = blockPos.getY();
+
+		boolean isPowered = false;
+		boolean isBraking = false;
+
 		if (blockState.isOf(Blocks.POWERED_RAIL)) {
-			bl = blockState.get(PoweredRailBlock.POWERED);
-			bl2 = !bl;
+			isPowered = blockState.get(PoweredRailBlock.POWERED);
+			isBraking = !isPowered;
 		}
 
-		double g = 0.0078125;
-		if (this.minecart.isTouchingWater()) {
-			g *= 0.2;
+		double slopeGravity = SLOPE_GRAVITY;
+
+		if (minecart.isTouchingWater()) {
+			slopeGravity *= SLOPE_GRAVITY_IN_WATER_FACTOR;
 		}
 
-		Vec3d vec3d2 = this.getVelocity();
+		Vec3d currentVelocity = getVelocity();
 		RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
+
 		switch (railShape) {
-			case ASCENDING_EAST:
-				this.setVelocity(vec3d2.add(-g, 0.0, 0.0));
-				e++;
-				break;
-			case ASCENDING_WEST:
-				this.setVelocity(vec3d2.add(g, 0.0, 0.0));
-				e++;
-				break;
-			case ASCENDING_NORTH:
-				this.setVelocity(vec3d2.add(0.0, 0.0, g));
-				e++;
-				break;
-			case ASCENDING_SOUTH:
-				this.setVelocity(vec3d2.add(0.0, 0.0, -g));
-				e++;
-		}
-
-		vec3d2 = this.getVelocity();
-		Pair<Vec3i, Vec3i> pair = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
-		Vec3i vec3i = (Vec3i) pair.getFirst();
-		Vec3i vec3i2 = (Vec3i) pair.getSecond();
-		double h = vec3i2.getX() - vec3i.getX();
-		double i = vec3i2.getZ() - vec3i.getZ();
-		double j = Math.sqrt(h * h + i * i);
-		double k = vec3d2.x * h + vec3d2.z * i;
-		if (k < 0.0) {
-			h = -h;
-			i = -i;
-		}
-
-		double l = Math.min(2.0, vec3d2.horizontalLength());
-		vec3d2 = new Vec3d(l * h / j, vec3d2.y, l * i / j);
-		this.setVelocity(vec3d2);
-		Entity entity = this.minecart.getFirstPassenger();
-		Vec3d vec3d3;
-		if (this.minecart.getFirstPassenger() instanceof ServerPlayerEntity serverPlayerEntity) {
-			vec3d3 = serverPlayerEntity.getInputVelocityForMinecart();
-		}
-		else {
-			vec3d3 = Vec3d.ZERO;
-		}
-
-		if (entity instanceof PlayerEntity && vec3d3.lengthSquared() > 0.0) {
-			Vec3d vec3d4 = vec3d3.normalize();
-			double m = this.getVelocity().horizontalLengthSquared();
-			if (vec3d4.lengthSquared() > 0.0 && m < 0.01) {
-				this.setVelocity(this.getVelocity().add(vec3d3.x * 0.001, 0.0, vec3d3.z * 0.001));
-				bl2 = false;
+			case ASCENDING_EAST -> {
+				setVelocity(currentVelocity.add(-slopeGravity, 0.0, 0.0));
+				cartY++;
+			}
+			case ASCENDING_WEST -> {
+				setVelocity(currentVelocity.add(slopeGravity, 0.0, 0.0));
+				cartY++;
+			}
+			case ASCENDING_NORTH -> {
+				setVelocity(currentVelocity.add(0.0, 0.0, slopeGravity));
+				cartY++;
+			}
+			case ASCENDING_SOUTH -> {
+				setVelocity(currentVelocity.add(0.0, 0.0, -slopeGravity));
+				cartY++;
 			}
 		}
 
-		if (bl2) {
-			double n = this.getVelocity().horizontalLength();
-			if (n < 0.03) {
-				this.setVelocity(Vec3d.ZERO);
-			}
-			else {
-				this.setVelocity(this.getVelocity().multiply(0.5, 0.0, 0.5));
+		currentVelocity = getVelocity();
+		Pair<Vec3i, Vec3i> railEnds = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
+		Vec3i endA = railEnds.getFirst();
+		Vec3i endB = railEnds.getSecond();
+		double dirX = endB.getX() - endA.getX();
+		double dirZ = endB.getZ() - endA.getZ();
+		double dirLength = Math.sqrt(dirX * dirX + dirZ * dirZ);
+		double dotProduct = currentVelocity.x * dirX + currentVelocity.z * dirZ;
+
+		if (dotProduct < 0.0) {
+			dirX = -dirX;
+			dirZ = -dirZ;
+		}
+
+		double speed = Math.min(2.0, currentVelocity.horizontalLength());
+		currentVelocity = new Vec3d(speed * dirX / dirLength, currentVelocity.y, speed * dirZ / dirLength);
+		setVelocity(currentVelocity);
+
+		Entity firstPassenger = minecart.getFirstPassenger();
+		Vec3d playerInput = firstPassenger instanceof ServerPlayerEntity serverPlayer
+				? serverPlayer.getInputVelocityForMinecart()
+				: Vec3d.ZERO;
+
+		if (firstPassenger instanceof PlayerEntity && playerInput.lengthSquared() > 0.0) {
+			Vec3d normalizedInput = playerInput.normalize();
+			double playerSpeedSq = getVelocity().horizontalLengthSquared();
+
+			if (normalizedInput.lengthSquared() > 0.0 && playerSpeedSq < MIN_VELOCITY_THRESHOLD) {
+				setVelocity(getVelocity().add(playerInput.x * 0.001, 0.0, playerInput.z * 0.001));
+				isBraking = false;
 			}
 		}
 
-		double n = blockPos.getX() + 0.5 + vec3i.getX() * 0.5;
-		double o = blockPos.getZ() + 0.5 + vec3i.getZ() * 0.5;
-		double p = blockPos.getX() + 0.5 + vec3i2.getX() * 0.5;
-		double q = blockPos.getZ() + 0.5 + vec3i2.getZ() * 0.5;
-		h = p - n;
-		i = q - o;
-		double r;
-		if (h == 0.0) {
-			r = f - blockPos.getZ();
-		}
-		else if (i == 0.0) {
-			r = d - blockPos.getX();
-		}
-		else {
-			double s = d - n;
-			double t = f - o;
-			r = (s * h + t * i) * 2.0;
+		if (isBraking) {
+			double brakeSpeed = getVelocity().horizontalLength();
+
+			if (brakeSpeed < BRAKE_STOP_THRESHOLD) {
+				setVelocity(Vec3d.ZERO);
+			} else {
+				setVelocity(getVelocity().multiply(0.5, 0.0, 0.5));
+			}
 		}
 
-		d = n + h * r;
-		f = o + i * r;
-		this.setPos(d, e, f);
-		double s = this.minecart.hasPassengers() ? 0.75 : 1.0;
-		double t = this.minecart.getMaxSpeed(world);
-		vec3d2 = this.getVelocity();
-		this.minecart.move(
+		double railEndAX = blockPos.getX() + 0.5 + endA.getX() * 0.5;
+		double railEndAZ = blockPos.getZ() + 0.5 + endA.getZ() * 0.5;
+		double railEndBX = blockPos.getX() + 0.5 + endB.getX() * 0.5;
+		double railEndBZ = blockPos.getZ() + 0.5 + endB.getZ() * 0.5;
+		dirX = railEndBX - railEndAX;
+		dirZ = railEndBZ - railEndAZ;
+
+		double interpolation;
+
+		if (dirX == 0.0) {
+			interpolation = cartZ - blockPos.getZ();
+		} else if (dirZ == 0.0) {
+			interpolation = cartX - blockPos.getX();
+		} else {
+			double relX = cartX - railEndAX;
+			double relZ = cartZ - railEndAZ;
+			interpolation = (relX * dirX + relZ * dirZ) * 2.0;
+		}
+
+		cartX = railEndAX + dirX * interpolation;
+		cartZ = railEndAZ + dirZ * interpolation;
+		setPos(cartX, cartY, cartZ);
+
+		double passengerSlowdown = minecart.hasPassengers() ? PASSENGER_SLOWDOWN : 1.0;
+		double maxSpeed = minecart.getMaxSpeed(world);
+		currentVelocity = getVelocity();
+		minecart.move(
 				MovementType.SELF,
-				new Vec3d(MathHelper.clamp(s * vec3d2.x, -t, t), 0.0, MathHelper.clamp(s * vec3d2.z, -t, t))
+				new Vec3d(
+						MathHelper.clamp(passengerSlowdown * currentVelocity.x, -maxSpeed, maxSpeed),
+						0.0,
+						MathHelper.clamp(passengerSlowdown * currentVelocity.z, -maxSpeed, maxSpeed)
+				)
 		);
-		if (vec3i.getY() != 0
-				&& MathHelper.floor(this.minecart.getX()) - blockPos.getX() == vec3i.getX()
-				&& MathHelper.floor(this.minecart.getZ()) - blockPos.getZ() == vec3i.getZ()) {
-			this.setPos(this.minecart.getX(), this.minecart.getY() + vec3i.getY(), this.minecart.getZ());
-		}
-		else if (vec3i2.getY() != 0
-				&& MathHelper.floor(this.minecart.getX()) - blockPos.getX() == vec3i2.getX()
-				&& MathHelper.floor(this.minecart.getZ()) - blockPos.getZ() == vec3i2.getZ()) {
-			this.setPos(this.minecart.getX(), this.minecart.getY() + vec3i2.getY(), this.minecart.getZ());
+
+		if (endA.getY() != 0
+				&& MathHelper.floor(minecart.getX()) - blockPos.getX() == endA.getX()
+				&& MathHelper.floor(minecart.getZ()) - blockPos.getZ() == endA.getZ()) {
+			setPos(minecart.getX(), minecart.getY() + endA.getY(), minecart.getZ());
+		} else if (endB.getY() != 0
+				&& MathHelper.floor(minecart.getX()) - blockPos.getX() == endB.getX()
+				&& MathHelper.floor(minecart.getZ()) - blockPos.getZ() == endB.getZ()) {
+			setPos(minecart.getX(), minecart.getY() + endB.getY(), minecart.getZ());
 		}
 
-		this.setVelocity(this.minecart.applySlowdown(this.getVelocity()));
-		Vec3d vec3d5 = this.snapPositionToRail(this.minecart.getX(), this.minecart.getY(), this.minecart.getZ());
-		if (vec3d5 != null && vec3d != null) {
-			double u = (vec3d.y - vec3d5.y) * 0.05;
-			Vec3d vec3d6 = this.getVelocity();
-			double v = vec3d6.horizontalLength();
-			if (v > 0.0) {
-				this.setVelocity(vec3d6.multiply((v + u) / v, 1.0, (v + u) / v));
+		setVelocity(minecart.applySlowdown(getVelocity()));
+
+		Vec3d newSnappedPos = snapPositionToRail(minecart.getX(), minecart.getY(), minecart.getZ());
+
+		if (newSnappedPos != null && snappedPos != null) {
+			double heightDiff = (snappedPos.y - newSnappedPos.y) * 0.05;
+			Vec3d vel = getVelocity();
+			double horizSpeed = vel.horizontalLength();
+
+			if (horizSpeed > 0.0) {
+				double factor = (horizSpeed + heightDiff) / horizSpeed;
+				setVelocity(vel.multiply(factor, 1.0, factor));
 			}
 
-			this.setPos(this.minecart.getX(), vec3d5.y, this.minecart.getZ());
+			setPos(minecart.getX(), newSnappedPos.y, minecart.getZ());
 		}
 
-		int w = MathHelper.floor(this.minecart.getX());
-		int x = MathHelper.floor(this.minecart.getZ());
-		if (w != blockPos.getX() || x != blockPos.getZ()) {
-			Vec3d vec3d6 = this.getVelocity();
-			double v = vec3d6.horizontalLength();
-			this.setVelocity(v * (w - blockPos.getX()), vec3d6.y, v * (x - blockPos.getZ()));
+		int newBlockX = MathHelper.floor(minecart.getX());
+		int newBlockZ = MathHelper.floor(minecart.getZ());
+
+		if (newBlockX != blockPos.getX() || newBlockZ != blockPos.getZ()) {
+			Vec3d vel = getVelocity();
+			double horizSpeed = vel.horizontalLength();
+			setVelocity(
+					horizSpeed * (newBlockX - blockPos.getX()),
+					vel.y,
+					horizSpeed * (newBlockZ - blockPos.getZ())
+			);
 		}
 
-		if (bl) {
-			Vec3d vec3d6 = this.getVelocity();
-			double v = vec3d6.horizontalLength();
-			if (v > 0.01) {
-				double y = 0.06;
-				this.setVelocity(vec3d6.add(vec3d6.x / v * 0.06, 0.0, vec3d6.z / v * 0.06));
-			}
-			else {
-				Vec3d vec3d7 = this.getVelocity();
-				double z = vec3d7.x;
-				double aa = vec3d7.z;
+		if (isPowered) {
+			Vec3d vel = getVelocity();
+			double horizSpeed = vel.horizontalLength();
+
+			if (horizSpeed > MIN_VELOCITY_THRESHOLD) {
+				setVelocity(vel.add(
+						vel.x / horizSpeed * POWERED_RAIL_BOOST,
+						0.0,
+						vel.z / horizSpeed * POWERED_RAIL_BOOST
+				));
+			} else {
+				double newVelX = vel.x;
+				double newVelZ = vel.z;
+
 				if (railShape == RailShape.EAST_WEST) {
-					if (this.minecart.willHitBlockAt(blockPos.west())) {
-						z = 0.02;
+					if (minecart.willHitBlockAt(blockPos.west())) {
+						newVelX = POWERED_RAIL_NUDGE;
+					} else if (minecart.willHitBlockAt(blockPos.east())) {
+						newVelX = -POWERED_RAIL_NUDGE;
 					}
-					else if (this.minecart.willHitBlockAt(blockPos.east())) {
-						z = -0.02;
-					}
-				}
-				else {
+				} else {
 					if (railShape != RailShape.NORTH_SOUTH) {
 						return;
 					}
 
-					if (this.minecart.willHitBlockAt(blockPos.north())) {
-						aa = 0.02;
-					}
-					else if (this.minecart.willHitBlockAt(blockPos.south())) {
-						aa = -0.02;
+					if (minecart.willHitBlockAt(blockPos.north())) {
+						newVelZ = POWERED_RAIL_NUDGE;
+					} else if (minecart.willHitBlockAt(blockPos.south())) {
+						newVelZ = -POWERED_RAIL_NUDGE;
 					}
 				}
 
-				this.setVelocity(z, vec3d7.y, aa);
+				setVelocity(newVelX, vel.y, newVelZ);
 			}
 		}
 	}
 
 	/**
-	 * Simulate movement.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param movement movement
-	 *
-	 * @return @Nullable Vec3d — результат операции
+	 * Симулирует движение вагонетки вперёд на {@code movement} блоков вдоль рельса
+	 * и возвращает итоговую позицию, привязанную к рельсу. Используется для предсказания позиции.
 	 */
 	public @Nullable Vec3d simulateMovement(double x, double y, double z, double movement) {
-		int i = MathHelper.floor(x);
-		int j = MathHelper.floor(y);
-		int k = MathHelper.floor(z);
-		if (this.getWorld().getBlockState(new BlockPos(i, j - 1, k)).isIn(BlockTags.RAILS)) {
-			j--;
+		int blockX = MathHelper.floor(x);
+		int blockY = MathHelper.floor(y);
+		int blockZ = MathHelper.floor(z);
+
+		if (getWorld().getBlockState(new BlockPos(blockX, blockY - 1, blockZ)).isIn(BlockTags.RAILS)) {
+			blockY--;
 		}
 
-		BlockState blockState = this.getWorld().getBlockState(new BlockPos(i, j, k));
-		if (AbstractRailBlock.isRail(blockState)) {
-			RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
-			y = j;
-			if (railShape.isAscending()) {
-				y = j + 1;
-			}
+		BlockState blockState = getWorld().getBlockState(new BlockPos(blockX, blockY, blockZ));
 
-			Pair<Vec3i, Vec3i> pair = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
-			Vec3i vec3i = (Vec3i) pair.getFirst();
-			Vec3i vec3i2 = (Vec3i) pair.getSecond();
-			double d = vec3i2.getX() - vec3i.getX();
-			double e = vec3i2.getZ() - vec3i.getZ();
-			double f = Math.sqrt(d * d + e * e);
-			d /= f;
-			e /= f;
-			x += d * movement;
-			z += e * movement;
-			if (vec3i.getY() != 0 && MathHelper.floor(x) - i == vec3i.getX()
-					&& MathHelper.floor(z) - k == vec3i.getZ()) {
-				y += vec3i.getY();
-			}
-			else if (vec3i2.getY() != 0 && MathHelper.floor(x) - i == vec3i2.getX()
-					&& MathHelper.floor(z) - k == vec3i2.getZ()) {
-				y += vec3i2.getY();
-			}
-
-			return this.snapPositionToRail(x, y, z);
-		}
-		else {
+		if (!AbstractRailBlock.isRail(blockState)) {
 			return null;
 		}
+
+		RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
+		y = blockY;
+
+		if (railShape.isAscending()) {
+			y = blockY + 1;
+		}
+
+		Pair<Vec3i, Vec3i> railEnds = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
+		Vec3i endA = railEnds.getFirst();
+		Vec3i endB = railEnds.getSecond();
+		double dirX = endB.getX() - endA.getX();
+		double dirZ = endB.getZ() - endA.getZ();
+		double dirLength = Math.sqrt(dirX * dirX + dirZ * dirZ);
+		dirX /= dirLength;
+		dirZ /= dirLength;
+		x += dirX * movement;
+		z += dirZ * movement;
+
+		if (endA.getY() != 0
+				&& MathHelper.floor(x) - blockX == endA.getX()
+				&& MathHelper.floor(z) - blockZ == endA.getZ()) {
+			y += endA.getY();
+		} else if (endB.getY() != 0
+				&& MathHelper.floor(x) - blockX == endB.getX()
+				&& MathHelper.floor(z) - blockZ == endB.getZ()) {
+			y += endB.getY();
+		}
+
+		return snapPositionToRail(x, y, z);
 	}
 
 	/**
-	 * Snap position to rail.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return @Nullable Vec3d — результат операции
+	 * Привязывает произвольную позицию к ближайшей точке на рельсе, вычисляя интерполяцию
+	 * вдоль оси рельса. Возвращает {@code null}, если под позицией нет рельса.
 	 */
 	public @Nullable Vec3d snapPositionToRail(double x, double y, double z) {
-		int i = MathHelper.floor(x);
-		int j = MathHelper.floor(y);
-		int k = MathHelper.floor(z);
-		if (this.getWorld().getBlockState(new BlockPos(i, j - 1, k)).isIn(BlockTags.RAILS)) {
-			j--;
+		int blockX = MathHelper.floor(x);
+		int blockY = MathHelper.floor(y);
+		int blockZ = MathHelper.floor(z);
+
+		if (getWorld().getBlockState(new BlockPos(blockX, blockY - 1, blockZ)).isIn(BlockTags.RAILS)) {
+			blockY--;
 		}
 
-		BlockState blockState = this.getWorld().getBlockState(new BlockPos(i, j, k));
-		if (AbstractRailBlock.isRail(blockState)) {
-			RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
-			Pair<Vec3i, Vec3i> pair = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
-			Vec3i vec3i = (Vec3i) pair.getFirst();
-			Vec3i vec3i2 = (Vec3i) pair.getSecond();
-			double d = i + 0.5 + vec3i.getX() * 0.5;
-			double e = j + 0.0625 + vec3i.getY() * 0.5;
-			double f = k + 0.5 + vec3i.getZ() * 0.5;
-			double g = i + 0.5 + vec3i2.getX() * 0.5;
-			double h = j + 0.0625 + vec3i2.getY() * 0.5;
-			double l = k + 0.5 + vec3i2.getZ() * 0.5;
-			double m = g - d;
-			double n = (h - e) * 2.0;
-			double o = l - f;
-			double p;
-			if (m == 0.0) {
-				p = z - k;
-			}
-			else if (o == 0.0) {
-				p = x - i;
-			}
-			else {
-				double q = x - d;
-				double r = z - f;
-				p = (q * m + r * o) * 2.0;
-			}
+		BlockState blockState = getWorld().getBlockState(new BlockPos(blockX, blockY, blockZ));
 
-			x = d + m * p;
-			y = e + n * p;
-			z = f + o * p;
-			if (n < 0.0) {
-				y++;
-			}
-			else if (n > 0.0) {
-				y += 0.5;
-			}
-
-			return new Vec3d(x, y, z);
-		}
-		else {
+		if (!AbstractRailBlock.isRail(blockState)) {
 			return null;
 		}
+
+		RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
+		Pair<Vec3i, Vec3i> railEnds = AbstractMinecartEntity.getAdjacentRailPositionsByShape(railShape);
+		Vec3i endA = railEnds.getFirst();
+		Vec3i endB = railEnds.getSecond();
+
+		double endAX = blockX + 0.5 + endA.getX() * 0.5;
+		double endAY = blockY + RAIL_SURFACE_OFFSET + endA.getY() * 0.5;
+		double endAZ = blockZ + 0.5 + endA.getZ() * 0.5;
+		double endBX = blockX + 0.5 + endB.getX() * 0.5;
+		double endBY = blockY + RAIL_SURFACE_OFFSET + endB.getY() * 0.5;
+		double endBZ = blockZ + 0.5 + endB.getZ() * 0.5;
+
+		double axisX = endBX - endAX;
+		double axisYScaled = (endBY - endAY) * RAIL_AXIS_Y_SCALE;
+		double axisZ = endBZ - endAZ;
+
+		double interpolation;
+
+		if (axisX == 0.0) {
+			interpolation = z - blockZ;
+		} else if (axisZ == 0.0) {
+			interpolation = x - blockX;
+		} else {
+			double relX = x - endAX;
+			double relZ = z - endAZ;
+			interpolation = (relX * axisX + relZ * axisZ) * RAIL_AXIS_Y_SCALE;
+		}
+
+		x = endAX + axisX * interpolation;
+		y = endAY + axisYScaled * interpolation;
+		z = endAZ + axisZ * interpolation;
+
+		if (axisYScaled < 0.0) {
+			y++;
+		} else if (axisYScaled > 0.0) {
+			y += 0.5;
+		}
+
+		return new Vec3d(x, y, z);
 	}
 
 	@Override
@@ -417,33 +453,36 @@ public class DefaultMinecartController extends MinecartController {
 		return 0.0;
 	}
 
+	/**
+	 * Обрабатывает столкновения вагонетки с другими сущностями в радиусе {@code COLLISION_BOX_EXPAND}.
+	 * Быстрые вагонетки подбирают пассажиров или отталкивают сущности; медленные — только отталкивают другие вагонетки.
+	 */
 	@Override
 	public boolean handleCollision() {
-		Box box = this.minecart.getBoundingBox().expand(0.2F, 0.0, 0.2F);
-		if (this.minecart.isRideable() && this.getVelocity().horizontalLengthSquared() >= 0.01) {
-			List<Entity>
-					list =
-					this.getWorld().getOtherEntities(this.minecart, box, EntityPredicates.canBePushedBy(this.minecart));
-			if (!list.isEmpty()) {
-				for (Entity entity : list) {
-					if (!(entity instanceof PlayerEntity)
-							&& !(entity instanceof IronGolemEntity)
-							&& !(entity instanceof AbstractMinecartEntity)
-							&& !this.minecart.hasPassengers()
-							&& !entity.hasVehicle()) {
-						entity.startRiding(this.minecart);
-					}
-					else {
-						entity.pushAwayFrom(this.minecart);
-					}
+		Box box = minecart.getBoundingBox().expand(COLLISION_BOX_EXPAND, 0.0, COLLISION_BOX_EXPAND);
+
+		if (minecart.isRideable() && getVelocity().horizontalLengthSquared() >= MIN_VELOCITY_THRESHOLD) {
+			List<Entity> entities = getWorld().getOtherEntities(
+					minecart, box, EntityPredicates.canBePushedBy(minecart)
+			);
+
+			for (Entity entity : entities) {
+				if (entity instanceof PlayerEntity
+						|| entity instanceof IronGolemEntity
+						|| entity instanceof AbstractMinecartEntity
+						|| minecart.hasPassengers()
+						|| entity.hasVehicle()) {
+					entity.pushAwayFrom(minecart);
+				} else {
+					entity.startRiding(minecart);
 				}
 			}
-		}
-		else {
-			for (Entity entity2 : this.getWorld().getOtherEntities(this.minecart, box)) {
-				if (!this.minecart.hasPassenger(entity2) && entity2.isPushable()
-						&& entity2 instanceof AbstractMinecartEntity) {
-					entity2.pushAwayFrom(this.minecart);
+		} else {
+			for (Entity entity : getWorld().getOtherEntities(minecart, box)) {
+				if (!minecart.hasPassenger(entity)
+						&& entity.isPushable()
+						&& entity instanceof AbstractMinecartEntity) {
+					entity.pushAwayFrom(minecart);
 				}
 			}
 		}
@@ -451,27 +490,42 @@ public class DefaultMinecartController extends MinecartController {
 		return false;
 	}
 
+	/**
+	 * Возвращает горизонтальное направление движения вагонетки с учётом флага переворота оси.
+	 */
 	@Override
 	public Direction getHorizontalFacing() {
-		return this.minecart.isYawFlipped()
-		       ? this.minecart.getHorizontalFacing().getOpposite().rotateYClockwise()
-		       : this.minecart.getHorizontalFacing().rotateYClockwise();
+		return minecart.isYawFlipped()
+				? minecart.getHorizontalFacing().getOpposite().rotateYClockwise()
+				: minecart.getHorizontalFacing().rotateYClockwise();
 	}
 
+	/**
+	 * Ограничивает скорость вагонетки по горизонтальным осям до {@code MAX_SPEED_NORMAL}.
+	 * Защищает от NaN-значений, возвращая нулевой вектор при некорректных данных.
+	 */
 	@Override
 	public Vec3d limitSpeed(Vec3d velocity) {
-		return !Double.isNaN(velocity.x) && !Double.isNaN(velocity.y) && !Double.isNaN(velocity.z)
-		       ? new Vec3d(MathHelper.clamp(velocity.x, -0.4, 0.4), velocity.y, MathHelper.clamp(velocity.z, -0.4, 0.4))
-		       : Vec3d.ZERO;
+		if (Double.isNaN(velocity.x) || Double.isNaN(velocity.y) || Double.isNaN(velocity.z)) {
+			return Vec3d.ZERO;
+		}
+
+		return new Vec3d(
+				MathHelper.clamp(velocity.x, -MAX_SPEED_NORMAL, MAX_SPEED_NORMAL),
+				velocity.y,
+				MathHelper.clamp(velocity.z, -MAX_SPEED_NORMAL, MAX_SPEED_NORMAL)
+		);
 	}
 
+	/** Возвращает максимальную скорость: замедляет вагонетку вдвое при движении в воде. */
 	@Override
 	public double getMaxSpeed(ServerWorld world) {
-		return this.minecart.isTouchingWater() ? 0.2 : 0.4;
+		return minecart.isTouchingWater() ? MAX_SPEED_IN_WATER : MAX_SPEED_NORMAL;
 	}
 
+	/** Возвращает коэффициент сохранения скорости за тик: с пассажиром — 0.997, без — 0.96. */
 	@Override
 	public double getSpeedRetention() {
-		return this.minecart.hasPassengers() ? 0.997 : 0.96;
+		return minecart.hasPassengers() ? SPEED_RETENTION_WITH_PASSENGERS : SPEED_RETENTION_EMPTY;
 	}
 }

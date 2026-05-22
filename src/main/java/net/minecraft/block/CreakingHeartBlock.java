@@ -34,7 +34,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.BiConsumer;
 
 /**
- * {@code CreakingHeartBlock}.
+ * Сердце скрипуна — блок, который при наличии бледных дубовых брёвен с обеих сторон
+ * по своей оси активируется и порождает скрипуна-марионетку. Поддерживает компаратор
+ * и выдаёт опыт при разрушении в естественном состоянии.
  */
 public class CreakingHeartBlock extends BlockWithEntity {
 
@@ -50,11 +52,12 @@ public class CreakingHeartBlock extends BlockWithEntity {
 
 	public CreakingHeartBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this
-				.getDefaultState()
+		setDefaultState(
+			getDefaultState()
 				.with(AXIS, Direction.Axis.Y)
 				.with(ACTIVE, CreakingHeartState.UPROOTED)
-				.with(NATURAL, false));
+				.with(NATURAL, false)
+		);
 	}
 
 	@Override
@@ -71,13 +74,10 @@ public class CreakingHeartBlock extends BlockWithEntity {
 		if (world.isClient()) {
 			return null;
 		}
-		else {
-			return state.get(ACTIVE) != CreakingHeartState.UPROOTED ? validateTicker(
-					type,
-					BlockEntityType.CREAKING_HEART,
-					CreakingHeartBlockEntity::tick
-			) : null;
-		}
+
+		return state.get(ACTIVE) != CreakingHeartState.UPROOTED
+			? validateTicker(type, BlockEntityType.CREAKING_HEART, CreakingHeartBlockEntity::tick)
+			: null;
 	}
 
 	@Override
@@ -126,34 +126,30 @@ public class CreakingHeartBlock extends BlockWithEntity {
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockState blockState = enableIfValid(state, world, pos);
-		if (blockState != state) {
-			world.setBlockState(pos, blockState, 3);
+		BlockState newState = enableIfValid(state, world, pos);
+
+		if (newState != state) {
+			world.setBlockState(pos, newState, Block.NOTIFY_ALL);
 		}
 	}
 
 	private static BlockState enableIfValid(BlockState state, World world, BlockPos pos) {
-		boolean bl = shouldBeEnabled(state, world, pos);
-		boolean bl2 = state.get(ACTIVE) == CreakingHeartState.UPROOTED;
-		return bl && bl2
-		       ? state.with(
-				ACTIVE,
-				world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
-				? CreakingHeartState.AWAKE
-				: CreakingHeartState.DORMANT
-		)
-		       : state;
+		boolean shouldEnable = shouldBeEnabled(state, world, pos);
+		boolean isUprooted = state.get(ACTIVE) == CreakingHeartState.UPROOTED;
+
+		if (shouldEnable == false || isUprooted == false) {
+			return state;
+		}
+
+		boolean activeGameplay = world.getEnvironmentAttributes()
+			.getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos);
+
+		return state.with(
+			ACTIVE,
+			activeGameplay ? CreakingHeartState.AWAKE : CreakingHeartState.DORMANT
+		);
 	}
 
-	/**
-	 * Определяет, следует ли be enabled.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean shouldBeEnabled(BlockState state, WorldView world, BlockPos pos) {
 		Direction.Axis axis = state.get(AXIS);
 
@@ -169,9 +165,9 @@ public class CreakingHeartBlock extends BlockWithEntity {
 
 	private static boolean isSurroundedByPaleOakLogs(WorldAccess world, BlockPos pos) {
 		for (Direction direction : Direction.values()) {
-			BlockPos blockPos = pos.offset(direction);
-			BlockState blockState = world.getBlockState(blockPos);
-			if (!blockState.isIn(BlockTags.PALE_OAK_LOGS)) {
+			BlockState neighbor = world.getBlockState(pos.offset(direction));
+
+			if (neighbor.isIn(BlockTags.PALE_OAK_LOGS) == false) {
 				return false;
 			}
 		}
@@ -182,9 +178,9 @@ public class CreakingHeartBlock extends BlockWithEntity {
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
 		return enableIfValid(
-				this.getDefaultState().with(AXIS, ctx.getSide().getAxis()),
-				ctx.getWorld(),
-				ctx.getBlockPos()
+			getDefaultState().with(AXIS, ctx.getSide().getAxis()),
+			ctx.getWorld(),
+			ctx.getBlockPos()
 		);
 	}
 
@@ -215,10 +211,10 @@ public class CreakingHeartBlock extends BlockWithEntity {
 				&& explosion instanceof ExplosionImpl explosionImpl
 				&& explosion.getDestructionType().destroysBlocks()) {
 			creakingHeartBlockEntity.killPuppet(explosionImpl.getDamageSource());
-			if (explosion.getCausingEntity() instanceof PlayerEntity playerEntity && explosion
-					.getDestructionType()
-					.destroysBlocks()) {
-				this.dropExperienceOnBreak(playerEntity, state, world, pos);
+
+			if (explosion.getCausingEntity() instanceof PlayerEntity playerEntity
+					&& explosion.getDestructionType().destroysBlocks()) {
+				dropExperienceOnBreak(playerEntity, state, world, pos);
 			}
 		}
 
@@ -229,16 +225,19 @@ public class CreakingHeartBlock extends BlockWithEntity {
 	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
 		if (world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity) {
 			creakingHeartBlockEntity.killPuppet(player.getDamageSources().playerAttack(player));
-			this.dropExperienceOnBreak(player, state, world, pos);
+			dropExperienceOnBreak(player, state, world, pos);
 		}
 
 		return super.onBreak(world, pos, state, player);
 	}
 
 	private void dropExperienceOnBreak(PlayerEntity player, BlockState state, World world, BlockPos pos) {
-		if (!player.shouldSkipBlockDrops() && !player.isSpectator() && state.get(NATURAL)
-				&& world instanceof ServerWorld serverWorld) {
-			this.dropExperience(serverWorld, pos, world.random.nextBetween(20, 24));
+		if (player.shouldSkipBlockDrops() || player.isSpectator() || state.get(NATURAL) == false) {
+			return;
+		}
+
+		if (world instanceof ServerWorld serverWorld) {
+			dropExperience(serverWorld, pos, world.random.nextBetween(20, 24));
 		}
 	}
 
@@ -252,9 +251,9 @@ public class CreakingHeartBlock extends BlockWithEntity {
 		if (state.get(ACTIVE) == CreakingHeartState.UPROOTED) {
 			return 0;
 		}
-		else {
-			return world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
-			       ? creakingHeartBlockEntity.getComparatorOutput() : 0;
-		}
+
+		return world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
+			? creakingHeartBlockEntity.getComparatorOutput()
+			: 0;
 	}
 }

@@ -19,17 +19,22 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PassiveEntity}.
+ * Базовый класс для всех пассивных существ (животных, жителей и т.д.).
+ * Управляет системой возраста: детёныши имеют отрицательный {@code breedingAge},
+ * взрослые — положительный (кулдаун размножения) или нулевой (готовы к размножению).
  */
 public abstract class PassiveEntity extends PathAwareEntity {
 
-	private static final TrackedData<Boolean>
-			CHILD =
-			DataTracker.registerData(PassiveEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final TrackedData<Boolean> CHILD = DataTracker.registerData(
+		PassiveEntity.class,
+		TrackedDataHandlerRegistry.BOOLEAN
+	);
+
 	public static final int BABY_AGE = -24000;
 	private static final int HAPPY_TICKS = 40;
 	protected static final int DEFAULT_AGE = 0;
 	protected static final int DEFAULT_FORCED_AGE = 0;
+
 	protected int breedingAge = 0;
 	public int forcedAge = 0;
 	public int happyTicksRemaining;
@@ -40,19 +45,21 @@ public abstract class PassiveEntity extends PathAwareEntity {
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		if (entityData == null) {
-			entityData = new PassiveEntity.PassiveData(true);
+			entityData = new PassiveData(true);
 		}
 
-		PassiveEntity.PassiveData passiveData = (PassiveEntity.PassiveData) entityData;
-		if (passiveData.canSpawnBaby() && passiveData.getSpawnedCount() > 0
-				&& world.getRandom().nextFloat() <= passiveData.getBabyChance()) {
-			this.setBreedingAge(-24000);
+		PassiveData passiveData = (PassiveData) entityData;
+		if (passiveData.canSpawnBaby()
+			&& passiveData.getSpawnedCount() > 0
+			&& world.getRandom().nextFloat() <= passiveData.getBabyChance()
+		) {
+			setBreedingAge(BABY_AGE);
 		}
 
 		passiveData.countSpawned();
@@ -60,12 +67,11 @@ public abstract class PassiveEntity extends PathAwareEntity {
 	}
 
 	/**
-	 * Создаёт child.
+	 * Создаёт детёныша при размножении двух особей.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 *
-	 * @return @Nullable PassiveEntity — результат операции
+	 * @param world  серверный мир, в котором происходит размножение
+	 * @param entity второй родитель
+	 * @return новый детёныш, или {@code null} если создание невозможно
 	 */
 	public abstract @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity);
 
@@ -79,78 +85,79 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		return false;
 	}
 
+	/**
+	 * Возвращает текущий возраст существа.
+	 * На клиенте возвращает упрощённое значение: {@code -1} для детёнышей, {@code 1} для взрослых.
+	 * На сервере возвращает точное значение {@code breedingAge}.
+	 */
 	public int getBreedingAge() {
-		if (this.getEntityWorld().isClient()) {
-			return this.dataTracker.get(CHILD) ? -1 : 1;
-		}
-		else {
-			return this.breedingAge;
-		}
+		return getEntityWorld().isClient()
+			? (dataTracker.get(CHILD) ? -1 : 1)
+			: breedingAge;
 	}
 
 	/**
-	 * Grow up.
+	 * Ускоряет взросление существа на заданное количество тиков.
+	 * Если {@code overGrow = true}, избыток роста накапливается в {@code forcedAge}
+	 * и запускает анимацию счастья.
 	 *
-	 * @param age age
-	 * @param overGrow over grow
+	 * @param age      количество секунд роста (умножается на 20 тиков)
+	 * @param overGrow накапливать ли избыток в {@code forcedAge}
 	 */
 	public void growUp(int age, boolean overGrow) {
-		int i = this.getBreedingAge();
-		i += age * 20;
-		if (i > 0) {
-			i = 0;
-		}
+		int currentAge = getBreedingAge();
+		int targetAge = Math.min(currentAge + age * 20, 0);
+		int ageDelta = targetAge - currentAge;
 
-		int k = i - i;
-		this.setBreedingAge(i);
+		setBreedingAge(targetAge);
+
 		if (overGrow) {
-			this.forcedAge += k;
-			if (this.happyTicksRemaining == 0) {
-				this.happyTicksRemaining = 40;
+			forcedAge += ageDelta;
+			if (happyTicksRemaining == 0) {
+				happyTicksRemaining = HAPPY_TICKS;
 			}
 		}
 
-		if (this.getBreedingAge() == 0) {
-			this.setBreedingAge(this.forcedAge);
+		if (getBreedingAge() == 0) {
+			setBreedingAge(forcedAge);
 		}
 	}
 
-	/**
-	 * Grow up.
-	 *
-	 * @param age age
-	 */
 	public void growUp(int age) {
-		this.growUp(age, false);
+		growUp(age, false);
 	}
 
+	/**
+	 * Устанавливает возраст существа и синхронизирует флаг {@code CHILD}.
+	 * При пересечении нулевой границы вызывает {@link #onGrowUp()}.
+	 */
 	public void setBreedingAge(int age) {
-		int i = this.getBreedingAge();
-		this.breedingAge = age;
-		if (i < 0 && age >= 0 || i >= 0 && age < 0) {
-			this.dataTracker.set(CHILD, age < 0);
-			this.onGrowUp();
+		int previousAge = getBreedingAge();
+		breedingAge = age;
+		if (previousAge < 0 && age >= 0 || previousAge >= 0 && age < 0) {
+			dataTracker.set(CHILD, age < 0);
+			onGrowUp();
 		}
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Age", this.getBreedingAge());
-		view.putInt("ForcedAge", this.forcedAge);
+		view.putInt("Age", getBreedingAge());
+		view.putInt("ForcedAge", forcedAge);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setBreedingAge(view.getInt("Age", 0));
-		this.forcedAge = view.getInt("ForcedAge", 0);
+		setBreedingAge(view.getInt("Age", 0));
+		forcedAge = view.getInt("ForcedAge", 0);
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		if (CHILD.equals(data)) {
-			this.calculateDimensions();
+			calculateDimensions();
 		}
 
 		super.onTrackedDataSet(data);
@@ -159,63 +166,62 @@ public abstract class PassiveEntity extends PathAwareEntity {
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (this.getEntityWorld().isClient()) {
-			if (this.happyTicksRemaining > 0) {
-				if (this.happyTicksRemaining % 4 == 0) {
-					this.getEntityWorld()
-					    .addParticleClient(
-							    ParticleTypes.HAPPY_VILLAGER,
-							    this.getParticleX(1.0),
-							    this.getRandomBodyY() + 0.5,
-							    this.getParticleZ(1.0),
-							    0.0,
-							    0.0,
-							    0.0
-					    );
+		if (getEntityWorld().isClient()) {
+			if (happyTicksRemaining > 0) {
+				if (happyTicksRemaining % 4 == 0) {
+					getEntityWorld().addParticleClient(
+						ParticleTypes.HAPPY_VILLAGER,
+						getParticleX(1.0),
+						getRandomBodyY() + 0.5,
+						getParticleZ(1.0),
+						0.0,
+						0.0,
+						0.0
+					);
 				}
 
-				this.happyTicksRemaining--;
+				happyTicksRemaining--;
 			}
-		}
-		else if (this.isAlive()) {
-			int i = this.getBreedingAge();
-			if (i < 0) {
-				this.setBreedingAge(++i);
-			}
-			else if (i > 0) {
-				this.setBreedingAge(--i);
+		} else if (isAlive()) {
+			int currentAge = getBreedingAge();
+			if (currentAge < 0) {
+				setBreedingAge(currentAge + 1);
+			} else if (currentAge > 0) {
+				setBreedingAge(currentAge - 1);
 			}
 		}
 	}
 
 	/**
-	 * Обрабатывает событие grow up.
+	 * Вызывается при пересечении нулевой границы возраста (взросление или превращение в детёныша).
+	 * По умолчанию высаживает повзрослевшее существо из лодки, если оно туда не помещается.
 	 */
 	protected void onGrowUp() {
-		if (!this.isBaby()
-				&& this.hasVehicle()
-				&& this.getVehicle() instanceof AbstractBoatEntity abstractBoatEntity
-				&& !abstractBoatEntity.isSmallerThanBoat(this)) {
-			this.stopRiding();
+		if (isBaby() || !hasVehicle()) {
+			return;
+		}
+
+		if (getVehicle() instanceof AbstractBoatEntity boat && !boat.isSmallerThanBoat(this)) {
+			stopRiding();
 		}
 	}
 
 	@Override
 	public boolean isBaby() {
-		return this.getBreedingAge() < 0;
+		return getBreedingAge() < 0;
 	}
 
 	@Override
 	public void setBaby(boolean baby) {
-		this.setBreedingAge(baby ? -24000 : 0);
+		setBreedingAge(baby ? BABY_AGE : 0);
 	}
 
 	/**
-	 * To grow up age.
+	 * Конвертирует значение {@code breedingAge} в количество секунд роста для {@link #growUp}.
+	 * Используется при кормлении детёнышей для ускорения взросления.
 	 *
-	 * @param breedingAge breeding age
-	 *
-	 * @return int — результат операции
+	 * @param breedingAge текущий возраст детёныша (отрицательное число)
+	 * @return количество секунд, на которое нужно ускорить рост
 	 */
 	public static int toGrowUpAge(int breedingAge) {
 		return (int) (breedingAge / 20 * 0.1F);
@@ -223,18 +229,21 @@ public abstract class PassiveEntity extends PathAwareEntity {
 
 	@VisibleForTesting
 	public int getForcedAge() {
-		return this.forcedAge;
+		return forcedAge;
 	}
 
 	@VisibleForTesting
 	public int getHappyTicksRemaining() {
-		return this.happyTicksRemaining;
+		return happyTicksRemaining;
 	}
 
 	/**
-	 * {@code PassiveData}.
+	 * Данные спавна для пассивных существ.
+	 * Хранит счётчик заспавненных особей и вероятность появления детёныша.
 	 */
 	public static class PassiveData implements EntityData {
+
+		private static final float DEFAULT_BABY_CHANCE = 0.05F;
 
 		private int spawnCount;
 		private final boolean babyAllowed;
@@ -246,7 +255,7 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		}
 
 		public PassiveData(boolean babyAllowed) {
-			this(babyAllowed, 0.05F);
+			this(babyAllowed, DEFAULT_BABY_CHANCE);
 		}
 
 		public PassiveData(float babyChance) {
@@ -254,27 +263,19 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		}
 
 		public int getSpawnedCount() {
-			return this.spawnCount;
+			return spawnCount;
 		}
 
-		/**
-		 * Count spawned.
-		 */
 		public void countSpawned() {
-			this.spawnCount++;
+			spawnCount++;
 		}
 
-		/**
-		 * Проверяет возможность spawn baby.
-		 *
-		 * @return boolean — {@code true} если условие выполнено
-		 */
 		public boolean canSpawnBaby() {
-			return this.babyAllowed;
+			return babyAllowed;
 		}
 
 		public float getBabyChance() {
-			return this.babyChance;
+			return babyChance;
 		}
 	}
 }

@@ -35,7 +35,7 @@ public class FireflyBushBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (random.nextInt(30) == 0
+		if (random.nextInt(IDLE_SOUND_CHANCE) == 0
 				&& world
 				.getEnvironmentAttributes()
 				.getAttributeValue(EnvironmentAttributes.FIREFLY_BUSH_SOUNDS_AUDIO, pos)
@@ -50,7 +50,7 @@ public class FireflyBushBlock extends PlantBlock implements Fertilizable {
 			);
 		}
 
-		if (world.getLightLevel(pos) <= 13 && random.nextDouble() <= 0.7) {
+		if (world.getLightLevel(pos) <= LIGHT_LEVEL_THRESHOLD && random.nextDouble() <= FIREFLY_CHANCE) {
 			double d = pos.getX() + random.nextDouble() * 10.0 - 5.0;
 			double e = pos.getY() + random.nextDouble() * 5.0;
 			double f = pos.getZ() + random.nextDouble() * 10.0 - 5.0;

@@ -4,36 +4,34 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
-/**
- * {@code Vector2f}.
- */
 public record Vector2f(float x, float y) {
+
+	private static final long UINT_MASK = 4294967295L;
 
 	@Override
 	public String toString() {
-		return "(" + this.x + "," + this.y + ")";
+		return "(" + x + "," + y + ")";
 	}
 
 	/**
-	 * To long.
+	 * Упаковывает два float-значения в одно long-значение для эффективного хранения.
+	 * Старшие 32 бита — X, младшие 32 бита — Y.
 	 *
-	 * @param x x
-	 * @param y y
-	 *
-	 * @return long — результат операции
+	 * @param x компонента X
+	 * @param y компонента Y
+	 * @return упакованное long-значение
 	 */
 	public static long toLong(float x, float y) {
-		long l = Float.floatToIntBits(x) & 4294967295L;
-		long m = Float.floatToIntBits(y) & 4294967295L;
-		return l << 32 | m;
+		long packedX = Float.floatToIntBits(x) & UINT_MASK;
+		long packedY = Float.floatToIntBits(y) & UINT_MASK;
+		return packedX << 32 | packedY;
 	}
 
-	public static float getX(long x) {
-		int i = (int) (x >> 32);
-		return Float.intBitsToFloat(i);
+	public static float getX(long packed) {
+		return Float.intBitsToFloat((int) (packed >> 32));
 	}
 
-	public static float getY(long y) {
-		return Float.intBitsToFloat((int) y);
+	public static float getY(long packed) {
+		return Float.intBitsToFloat((int) packed);
 	}
 }

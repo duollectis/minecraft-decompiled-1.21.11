@@ -13,114 +13,126 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SittingFlamingPhase}.
+ * Фаза дыхания огнём. Дракон создаёт {@link AreaEffectCloudEntity} с эффектом мгновенного урона
+ * и испускает частицы дыхания. После {@code MAX_TIMES_RUN} повторений переходит в {@link TakeoffPhase}.
  */
 public class SittingFlamingPhase extends AbstractSittingPhase {
 
 	private static final int DURATION = 200;
 	private static final int MAX_TIMES_RUN = 4;
-	private static final int DRAGON_BREATH_MAX_TICK = 10;
+	private static final int BREATH_SPAWN_TICK = 10;
+	private static final int BREATH_PARTICLE_GROUPS = 8;
+	private static final int BREATH_PARTICLE_STREAMS = 6;
+	private static final float BREATH_SPREAD = 0.08F;
+	private static final float BREATH_VERTICAL = 0.6F;
+	private static final float BREATH_ROTATION_STEP = (float) (Math.PI / 16);
+	private static final float BREATH_INITIAL_ROTATION = (float) (-Math.PI / 4);
+	private static final float CLOUD_RADIUS = 5.0F;
+	private static final float CLOUD_POTION_SCALE = 0.25F;
+	private static final double CLOUD_FORWARD_OFFSET = 5.0;
+
 	private int ticks;
 	private int timesRun;
-	private @Nullable AreaEffectCloudEntity dragonBreathEntity;
+	private @Nullable AreaEffectCloudEntity dragonBreathCloud;
 
-	public SittingFlamingPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public SittingFlamingPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
 	public void clientTick() {
-		this.ticks++;
-		if (this.ticks % 2 == 0 && this.ticks < 10) {
-			Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F).normalize();
-			vec3d.rotateY((float) (-Math.PI / 4));
-			double d = this.dragon.head.getX();
-			double e = this.dragon.head.getBodyY(0.5);
-			double f = this.dragon.head.getZ();
+		ticks++;
 
-			for (int i = 0; i < 8; i++) {
-				double g = d + this.dragon.getRandom().nextGaussian() / 2.0;
-				double h = e + this.dragon.getRandom().nextGaussian() / 2.0;
-				double j = f + this.dragon.getRandom().nextGaussian() / 2.0;
+		if (ticks % 2 != 0 || ticks >= BREATH_SPAWN_TICK) {
+			return;
+		}
 
-				for (int k = 0; k < 6; k++) {
-					this.dragon
-							.getEntityWorld()
-							.addParticleClient(
-									DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F),
-									g,
-									h,
-									j,
-									-vec3d.x * 0.08F * k,
-									-vec3d.y * 0.6F,
-									-vec3d.z * 0.08F * k
-							);
-				}
+		Vec3d lookDir = dragon.getRotationVectorFromPhase(1.0F).normalize();
+		lookDir.rotateY(BREATH_INITIAL_ROTATION);
+		double headX = dragon.head.getX();
+		double headY = dragon.head.getBodyY(0.5);
+		double headZ = dragon.head.getZ();
 
-				vec3d.rotateY((float) (Math.PI / 16));
+		for (int groupIdx = 0; groupIdx < BREATH_PARTICLE_GROUPS; groupIdx++) {
+			double spawnX = headX + dragon.getRandom().nextGaussian() / 2.0;
+			double spawnY = headY + dragon.getRandom().nextGaussian() / 2.0;
+			double spawnZ = headZ + dragon.getRandom().nextGaussian() / 2.0;
+
+			for (int streamIdx = 0; streamIdx < BREATH_PARTICLE_STREAMS; streamIdx++) {
+				dragon.getEntityWorld().addParticleClient(
+						DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F),
+						spawnX, spawnY, spawnZ,
+						-lookDir.x * BREATH_SPREAD * streamIdx,
+						-lookDir.y * BREATH_VERTICAL,
+						-lookDir.z * BREATH_SPREAD * streamIdx
+				);
 			}
+
+			lookDir.rotateY(BREATH_ROTATION_STEP);
 		}
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		this.ticks++;
-		if (this.ticks >= 200) {
-			if (this.timesRun >= 4) {
-				this.dragon.getPhaseManager().setPhase(PhaseType.TAKEOFF);
-			}
-			else {
-				this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
-			}
+		ticks++;
+
+		if (ticks >= DURATION) {
+			dragon.getPhaseManager().setPhase(
+					timesRun >= MAX_TIMES_RUN ? PhaseType.TAKEOFF : PhaseType.SITTING_SCANNING
+			);
+			return;
 		}
-		else if (this.ticks == 10) {
-			Vec3d
-					vec3d =
-					new Vec3d(
-							this.dragon.head.getX() - this.dragon.getX(),
-							0.0,
-							this.dragon.head.getZ() - this.dragon.getZ()
-					).normalize();
-			float f = 5.0F;
-			double d = this.dragon.head.getX() + vec3d.x * 5.0 / 2.0;
-			double e = this.dragon.head.getZ() + vec3d.z * 5.0 / 2.0;
-			double g = this.dragon.head.getBodyY(0.5);
-			double h = g;
-			BlockPos.Mutable mutable = new BlockPos.Mutable(d, g, e);
 
-			while (world.isAir(mutable)) {
-				if (--h < 0.0) {
-					h = g;
-					break;
-				}
+		if (ticks != BREATH_SPAWN_TICK) {
+			return;
+		}
 
-				mutable.set(d, h, e);
+		Vec3d headDir = new Vec3d(
+				dragon.head.getX() - dragon.getX(),
+				0.0,
+				dragon.head.getZ() - dragon.getZ()
+		).normalize();
+
+		double cloudX = dragon.head.getX() + headDir.x * CLOUD_FORWARD_OFFSET / 2.0;
+		double cloudZ = dragon.head.getZ() + headDir.z * CLOUD_FORWARD_OFFSET / 2.0;
+		double headY = dragon.head.getBodyY(0.5);
+		double cloudY = headY;
+		BlockPos.Mutable scanPos = new BlockPos.Mutable(cloudX, headY, cloudZ);
+
+		while (world.isAir(scanPos)) {
+			if (--cloudY < 0.0) {
+				cloudY = headY;
+				break;
 			}
 
-			h = MathHelper.floor(h) + 1;
-			this.dragonBreathEntity = new AreaEffectCloudEntity(world, d, h, e);
-			this.dragonBreathEntity.setOwner(this.dragon);
-			this.dragonBreathEntity.setRadius(5.0F);
-			this.dragonBreathEntity.setDuration(200);
-			this.dragonBreathEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
-			this.dragonBreathEntity.setPotionDurationScale(0.25F);
-			this.dragonBreathEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE));
-			world.spawnEntity(this.dragonBreathEntity);
+			scanPos.set(cloudX, cloudY, cloudZ);
 		}
+
+		cloudY = MathHelper.floor(cloudY) + 1;
+		dragonBreathCloud = new AreaEffectCloudEntity(world, cloudX, cloudY, cloudZ);
+		dragonBreathCloud.setOwner(dragon);
+		dragonBreathCloud.setRadius(CLOUD_RADIUS);
+		dragonBreathCloud.setDuration(DURATION);
+		dragonBreathCloud.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
+		dragonBreathCloud.setPotionDurationScale(CLOUD_POTION_SCALE);
+		dragonBreathCloud.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE));
+		world.spawnEntity(dragonBreathCloud);
 	}
 
 	@Override
 	public void beginPhase() {
-		this.ticks = 0;
-		this.timesRun++;
+		ticks = 0;
+		timesRun++;
 	}
 
 	@Override
 	public void endPhase() {
-		if (this.dragonBreathEntity != null) {
-			this.dragonBreathEntity.discard();
-			this.dragonBreathEntity = null;
+		if (dragonBreathCloud == null) {
+			return;
 		}
+
+		dragonBreathCloud.discard();
+		dragonBreathCloud = null;
 	}
 
 	@Override
@@ -128,10 +140,7 @@ public class SittingFlamingPhase extends AbstractSittingPhase {
 		return PhaseType.SITTING_FLAMING;
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
-		this.timesRun = 0;
+		timesRun = 0;
 	}
 }

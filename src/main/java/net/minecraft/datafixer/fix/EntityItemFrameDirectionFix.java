@@ -7,19 +7,13 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code EntityItemFrameDirectionFix}.
+ * Конвертирует старый числовой формат направления рамки для предмета {@code Facing}
+ * из системы координат блоков (0–3) в систему направлений сущностей (2–5).
  */
 public class EntityItemFrameDirectionFix extends ChoiceFix {
 
-	public EntityItemFrameDirectionFix(Schema schema, boolean bl) {
-		super(schema, bl, "EntityItemFrameDirectionFix", TypeReferences.ENTITY, "minecraft:item_frame");
-	}
-
-	public Dynamic<?> fixDirection(Dynamic<?> itemFrameDynamic) {
-		return itemFrameDynamic.set(
-				"Facing",
-				itemFrameDynamic.createByte(updateDirection(itemFrameDynamic.get("Facing").asByte((byte) 0)))
-		);
+	public EntityItemFrameDirectionFix(Schema outputSchema, boolean changesType) {
+		super(outputSchema, changesType, "EntityItemFrameDirectionFix", TypeReferences.ENTITY, "minecraft:item_frame");
 	}
 
 	@Override
@@ -27,17 +21,19 @@ public class EntityItemFrameDirectionFix extends ChoiceFix {
 		return inputTyped.update(DSL.remainderFinder(), this::fixDirection);
 	}
 
-	private static byte updateDirection(byte oldDirection) {
-		switch (oldDirection) {
-			case 0:
-				return 3;
-			case 1:
-				return 4;
-			case 2:
-			default:
-				return 2;
-			case 3:
-				return 5;
-		}
+	private Dynamic<?> fixDirection(Dynamic<?> itemFrame) {
+		return itemFrame.set(
+				"Facing",
+				itemFrame.createByte(remapDirection(itemFrame.get("Facing").asByte((byte) 0)))
+		);
+	}
+
+	private static byte remapDirection(byte oldDirection) {
+		return switch (oldDirection) {
+			case 0 -> 3;
+			case 1 -> 4;
+			case 3 -> 5;
+			default -> 2;
+		};
 	}
 }

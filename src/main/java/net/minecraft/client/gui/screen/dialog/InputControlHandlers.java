@@ -22,10 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code InputControlHandlers}.
+ * Реестр обработчиков элементов управления диалоговых форм.
+ * Каждый обработчик создаёт виджет для конкретного типа {@link InputControl}.
  */
+@Environment(EnvType.CLIENT)
 public class InputControlHandlers {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -49,13 +50,14 @@ public class InputControlHandlers {
 			Screen screen,
 			InputControlHandler.Output output
 	) {
-		InputControlHandler<T> inputControlHandler = getHandler(inputControl);
-		if (inputControlHandler == null) {
+		InputControlHandler<T> handler = getHandler(inputControl);
+
+		if (handler == null) {
 			LOGGER.warn("Unrecognized input control {}", inputControl);
+			return;
 		}
-		else {
-			inputControlHandler.addControl(inputControl, screen, output);
-		}
+
+		handler.addControl(inputControl, screen, output);
 	}
 
 	/**
@@ -68,77 +70,57 @@ public class InputControlHandlers {
 		register(NumberRangeInputControl.CODEC, new InputControlHandlers.NumberRangeInputControlHandler());
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BooleanInputControlHandler}.
+	 * Обработчик булевого элемента управления (чекбокс).
 	 */
+	@Environment(EnvType.CLIENT)
 	static class BooleanInputControlHandler implements InputControlHandler<BooleanInputControl> {
 
-		public void addControl(
-				BooleanInputControl booleanInputControl,
-				Screen screen,
-				InputControlHandler.Output output
-		) {
-			TextRenderer textRenderer = screen.getTextRenderer();
-			final CheckboxWidget
-					checkboxWidget =
-					CheckboxWidget
-							.builder(booleanInputControl.label(), textRenderer)
-							.checked(booleanInputControl.initial())
-							.build();
-			output.accept(
-					checkboxWidget, new DialogAction.ValueGetter() {
-						@Override
-						public String get() {
-							return checkboxWidget.isChecked() ? booleanInputControl.onTrue()
-							                                  : booleanInputControl.onFalse();
-						}
+		public void addControl(BooleanInputControl control, Screen screen, InputControlHandler.Output output) {
+			CheckboxWidget checkbox = CheckboxWidget
+					.builder(control.label(), screen.getTextRenderer())
+					.checked(control.initial())
+					.build();
+			output.accept(checkbox, new DialogAction.ValueGetter() {
+				@Override
+				public String get() {
+					return checkbox.isChecked() ? control.onTrue() : control.onFalse();
+				}
 
-						@Override
-						public NbtElement getAsNbt() {
-							return NbtByte.of(checkboxWidget.isChecked());
-						}
-					}
-			);
+				@Override
+				public NbtElement getAsNbt() {
+					return NbtByte.of(checkbox.isChecked());
+				}
+			});
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code NumberRangeInputControlHandler}.
+	 * Обработчик числового диапазона (слайдер).
 	 */
+	@Environment(EnvType.CLIENT)
 	static class NumberRangeInputControlHandler implements InputControlHandler<NumberRangeInputControl> {
 
-		public void addControl(
-				NumberRangeInputControl numberRangeInputControl,
-				Screen screen,
-				InputControlHandler.Output output
-		) {
-			float f = numberRangeInputControl.rangeInfo().getInitialSliderProgress();
-			final InputControlHandlers.NumberRangeInputControlHandler.RangeSliderWidget
-					rangeSliderWidget =
-					new InputControlHandlers.NumberRangeInputControlHandler.RangeSliderWidget(
-							numberRangeInputControl, f
-					);
-			output.accept(
-					rangeSliderWidget, new DialogAction.ValueGetter() {
-						@Override
-						public String get() {
-							return rangeSliderWidget.getLabel();
-						}
+		public void addControl(NumberRangeInputControl control, Screen screen, InputControlHandler.Output output) {
+			float initialProgress = control.rangeInfo().getInitialSliderProgress();
+			RangeSliderWidget slider = new RangeSliderWidget(control, initialProgress);
+			output.accept(slider, new DialogAction.ValueGetter() {
+				@Override
+				public String get() {
+					return slider.getLabel();
+				}
 
-						@Override
-						public NbtElement getAsNbt() {
-							return NbtFloat.of(rangeSliderWidget.getActualValue());
-						}
-					}
-			);
+				@Override
+				public NbtElement getAsNbt() {
+					return NbtFloat.of(slider.getActualValue());
+				}
+			});
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code RangeSliderWidget}.
+		 * Слайдер для выбора числового значения из диапазона.
 		 */
+		@Environment(EnvType.CLIENT)
 		static class RangeSliderWidget extends SliderWidget {
 
 			private final NumberRangeInputControl inputControl;
@@ -150,7 +132,7 @@ public class InputControlHandlers {
 
 			@Override
 			protected void updateMessage() {
-				this.setMessage(getFormattedLabel(this.inputControl, this.value));
+				setMessage(getFormattedLabel(inputControl, value));
 			}
 
 			@Override
@@ -158,123 +140,97 @@ public class InputControlHandlers {
 			}
 
 			public String getLabel() {
-				return getLabel(this.inputControl, this.value);
+				return getLabel(inputControl, value);
 			}
 
 			public float getActualValue() {
-				return getActualValue(this.inputControl, this.value);
+				return getActualValue(inputControl, value);
 			}
 
-			private static float getActualValue(NumberRangeInputControl inputControl, double sliderProgress) {
-				return inputControl.rangeInfo().sliderProgressToValue((float) sliderProgress);
+			private static float getActualValue(NumberRangeInputControl control, double sliderProgress) {
+				return control.rangeInfo().sliderProgressToValue((float) sliderProgress);
 			}
 
-			private static String getLabel(NumberRangeInputControl inputControl, double sliderProgress) {
-				return valueToString(getActualValue(inputControl, sliderProgress));
+			private static String getLabel(NumberRangeInputControl control, double sliderProgress) {
+				return valueToString(getActualValue(control, sliderProgress));
 			}
 
-			private static Text getFormattedLabel(NumberRangeInputControl inputControl, double sliderProgress) {
-				return inputControl.getFormattedLabel(getLabel(inputControl, sliderProgress));
+			private static Text getFormattedLabel(NumberRangeInputControl control, double sliderProgress) {
+				return control.getFormattedLabel(getLabel(control, sliderProgress));
 			}
 
 			private static String valueToString(float value) {
-				int i = (int) value;
-				return i == value ? Integer.toString(i) : Float.toString(value);
+				int intValue = (int) value;
+				return intValue == value ? Integer.toString(intValue) : Float.toString(value);
 			}
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code SimpleOptionInputControlHandler}.
+	 * Обработчик элемента с единственным выбором из списка (выпадающий список).
 	 */
+	@Environment(EnvType.CLIENT)
 	static class SimpleOptionInputControlHandler implements InputControlHandler<SingleOptionInputControl> {
 
-		public void addControl(
-				SingleOptionInputControl singleOptionInputControl,
-				Screen screen,
-				InputControlHandler.Output output
-		) {
-			SingleOptionInputControl.Entry
-					entry =
-					singleOptionInputControl.getInitialEntry().orElse(singleOptionInputControl.entries().getFirst());
-			CyclingButtonWidget.Builder<SingleOptionInputControl.Entry>
-					builder =
-					CyclingButtonWidget.builder(SingleOptionInputControl.Entry::getDisplay, entry)
-					                   .values(singleOptionInputControl.entries())
-					                   .labelType(!singleOptionInputControl.labelVisible()
-					                              ? CyclingButtonWidget.LabelType.VALUE
-					                              : CyclingButtonWidget.LabelType.NAME_AND_VALUE);
-			CyclingButtonWidget<SingleOptionInputControl.Entry> cyclingButtonWidget = builder.build(
-					0, 0, singleOptionInputControl.width(), 20, singleOptionInputControl.label()
-			);
-			output.accept(cyclingButtonWidget, DialogAction.ValueGetter.of(() -> cyclingButtonWidget.getValue().id()));
+		public void addControl(SingleOptionInputControl control, Screen screen, InputControlHandler.Output output) {
+			SingleOptionInputControl.Entry initialEntry = control.getInitialEntry().orElse(control.entries().getFirst());
+			CyclingButtonWidget.LabelType labelType = control.labelVisible()
+					? CyclingButtonWidget.LabelType.NAME_AND_VALUE
+					: CyclingButtonWidget.LabelType.VALUE;
+			CyclingButtonWidget<SingleOptionInputControl.Entry> cyclingButton = CyclingButtonWidget
+					.builder(SingleOptionInputControl.Entry::getDisplay, initialEntry)
+					.values(control.entries())
+					.labelType(labelType)
+					.build(0, 0, control.width(), 20, control.label());
+			output.accept(cyclingButton, DialogAction.ValueGetter.of(() -> cyclingButton.getValue().id()));
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TextInputControlHandler}.
+	 * Обработчик текстового поля ввода (однострочного или многострочного).
 	 */
+	@Environment(EnvType.CLIENT)
 	static class TextInputControlHandler implements InputControlHandler<TextInputControl> {
 
-		/**
-		 * Добавляет control.
-		 *
-		 * @param textInputControl text input control
-		 * @param screen screen
-		 * @param output output
-		 */
-		public void addControl(TextInputControl textInputControl, Screen screen, InputControlHandler.Output output) {
+		public void addControl(TextInputControl control, Screen screen, InputControlHandler.Output output) {
 			TextRenderer textRenderer = screen.getTextRenderer();
-			Widget widget;
-			final Supplier<String> supplier;
-			if (textInputControl.multiline().isPresent()) {
-				TextInputControl.Multiline multiline = textInputControl.multiline().get();
-				int i = multiline.height().orElseGet(() -> {
-					int ix = multiline.maxLines().orElse(4);
-					return Math.min(9 * ix + 8, 512);
+			Widget inputWidget;
+			Supplier<String> valueSupplier;
+
+			if (control.multiline().isPresent()) {
+				TextInputControl.Multiline multiline = control.multiline().get();
+				int boxHeight = multiline.height().orElseGet(() -> {
+					int maxLines = multiline.maxLines().orElse(4);
+					return Math.min(9 * maxLines + 8, 512);
 				});
-				EditBoxWidget
-						editBoxWidget =
-						EditBoxWidget.builder().build(textRenderer, textInputControl.width(), i, ScreenTexts.EMPTY);
-				editBoxWidget.setMaxLength(textInputControl.maxLength());
-				multiline.maxLines().ifPresent(editBoxWidget::setMaxLines);
-				editBoxWidget.setText(textInputControl.initial());
-				widget = editBoxWidget;
-				supplier = editBoxWidget::getText;
-			}
-			else {
-				TextFieldWidget
-						textFieldWidget =
-						new TextFieldWidget(textRenderer, textInputControl.width(), 20, textInputControl.label());
-				textFieldWidget.setMaxLength(textInputControl.maxLength());
-				textFieldWidget.setText(textInputControl.initial());
-				widget = textFieldWidget;
-				supplier = textFieldWidget::getText;
+				EditBoxWidget editBox = EditBoxWidget.builder().build(textRenderer, control.width(), boxHeight, ScreenTexts.EMPTY);
+				editBox.setMaxLength(control.maxLength());
+				multiline.maxLines().ifPresent(editBox::setMaxLines);
+				editBox.setText(control.initial());
+				inputWidget = editBox;
+				valueSupplier = editBox::getText;
+			} else {
+				TextFieldWidget textField = new TextFieldWidget(textRenderer, control.width(), 20, control.label());
+				textField.setMaxLength(control.maxLength());
+				textField.setText(control.initial());
+				inputWidget = textField;
+				valueSupplier = textField::getText;
 			}
 
-			Widget
-					widget2 =
-					(Widget) (textInputControl.labelVisible() ? LayoutWidgets.createLabeledWidget(
-							textRenderer,
-							widget,
-							textInputControl.label()
-					) : widget
-					);
-			output.accept(
-					widget2, new DialogAction.ValueGetter() {
-						@Override
-						public String get() {
-							return NbtString.escapeUnquoted(supplier.get());
-						}
+			Widget labeledWidget = control.labelVisible()
+					? LayoutWidgets.createLabeledWidget(textRenderer, inputWidget, control.label())
+					: inputWidget;
+			output.accept(labeledWidget, new DialogAction.ValueGetter() {
+				@Override
+				public String get() {
+					return NbtString.escapeUnquoted(valueSupplier.get());
+				}
 
-						@Override
-						public NbtElement getAsNbt() {
-							return NbtString.of(supplier.get());
-						}
-					}
-			);
+				@Override
+				public NbtElement getAsNbt() {
+					return NbtString.of(valueSupplier.get());
+				}
+			});
 		}
 	}
 }

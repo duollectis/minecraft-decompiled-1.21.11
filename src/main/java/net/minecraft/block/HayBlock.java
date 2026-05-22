@@ -7,7 +7,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 /**
- * {@code HayBlock}.
+ * Блок сена. Снижает урон от падения до 20% от стандартного значения.
  */
 public class HayBlock extends PillarBlock {
 
@@ -20,7 +20,7 @@ public class HayBlock extends PillarBlock {
 
 	public HayBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(AXIS, Direction.Axis.Y));
+		setDefaultState(stateManager.getDefaultState().with(AXIS, Direction.Axis.Y));
 	}
 
 	@Override

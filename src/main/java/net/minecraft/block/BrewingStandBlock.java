@@ -27,17 +27,21 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BrewingStandBlock}.
+ * Блок стойки для зелий. Хранит до трёх бутылок и ингредиент для варки.
+ * Состояние каждого слота бутылки отражается через {@link #BOTTLE_PROPERTIES}.
  */
 public class BrewingStandBlock extends BlockWithEntity {
 
 	public static final MapCodec<BrewingStandBlock> CODEC = createCodec(BrewingStandBlock::new);
-	public static final BooleanProperty[]
-			BOTTLE_PROPERTIES =
-			new BooleanProperty[]{Properties.HAS_BOTTLE_0, Properties.HAS_BOTTLE_1, Properties.HAS_BOTTLE_2};
-	private static final VoxelShape
-			SHAPE =
-			VoxelShapes.union(Block.createColumnShape(2.0, 2.0, 14.0), Block.createColumnShape(14.0, 0.0, 2.0));
+	public static final BooleanProperty[] BOTTLE_PROPERTIES = new BooleanProperty[]{
+		Properties.HAS_BOTTLE_0,
+		Properties.HAS_BOTTLE_1,
+		Properties.HAS_BOTTLE_2
+	};
+	private static final VoxelShape SHAPE = VoxelShapes.union(
+		Block.createColumnShape(2.0, 2.0, 14.0),
+		Block.createColumnShape(14.0, 0.0, 2.0)
+	);
 
 	@Override
 	public MapCodec<BrewingStandBlock> getCodec() {
@@ -46,12 +50,12 @@ public class BrewingStandBlock extends BlockWithEntity {
 
 	public BrewingStandBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(
-				this.stateManager
-						.getDefaultState()
-						.with(BOTTLE_PROPERTIES[0], false)
-						.with(BOTTLE_PROPERTIES[1], false)
-						.with(BOTTLE_PROPERTIES[2], false)
+		setDefaultState(
+			stateManager
+				.getDefaultState()
+				.with(BOTTLE_PROPERTIES[0], false)
+				.with(BOTTLE_PROPERTIES[1], false)
+				.with(BOTTLE_PROPERTIES[2], false)
 		);
 	}
 
@@ -87,10 +91,10 @@ public class BrewingStandBlock extends BlockWithEntity {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		double d = pos.getX() + 0.4 + random.nextFloat() * 0.2;
-		double e = pos.getY() + 0.7 + random.nextFloat() * 0.3;
-		double f = pos.getZ() + 0.4 + random.nextFloat() * 0.2;
-		world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
+		double smokeX = pos.getX() + 0.4 + random.nextFloat() * 0.2;
+		double smokeY = pos.getY() + 0.7 + random.nextFloat() * 0.3;
+		double smokeZ = pos.getZ() + 0.4 + random.nextFloat() * 0.2;
+		world.addParticleClient(ParticleTypes.SMOKE, smokeX, smokeY, smokeZ, 0.0, 0.0, 0.0);
 	}
 
 	@Override

@@ -20,56 +20,47 @@ import net.minecraft.util.math.random.Random;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlockStateModel}.
+ * Запечённая модель состояния блока: предоставляет части для рендеринга
+ * и спрайт частиц при разрушении.
  */
+@Environment(EnvType.CLIENT)
 public interface BlockStateModel extends FabricBlockStateModel {
 
 	void addParts(Random random, List<BlockModelPart> parts);
 
 	default List<BlockModelPart> getParts(Random random) {
-		List<BlockModelPart> list = new ObjectArrayList();
-		this.addParts(random, list);
-		return list;
+		List<BlockModelPart> parts = new ObjectArrayList<>();
+		addParts(random, parts);
+		return parts;
 	}
 
 	Sprite particleSprite();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code CachedUnbaked}.
+	 * Незапечённая модель состояния блока с кэшированием результата запекания.
+	 * Гарантирует, что один и тот же {@link BlockStateModel.Unbaked} запекается
+	 * не более одного раза в рамках одного прохода через {@link Baker.ResolvableCacheKey}.
 	 */
-	public static class CachedUnbaked implements BlockStateModel.UnbakedGrouped {
+	@Environment(EnvType.CLIENT)
+	class CachedUnbaked implements BlockStateModel.UnbakedGrouped {
 
 		final BlockStateModel.Unbaked delegate;
-		private final Baker.ResolvableCacheKey<BlockStateModel>
-				cacheKey =
-				new Baker.ResolvableCacheKey<BlockStateModel>() {
-					/**
-					 * Compute.
-					 *
-					 * @param baker baker
-					 *
-					 * @return BlockStateModel — результат операции
-					 */
-					public BlockStateModel compute(Baker baker) {
-						return CachedUnbaked.this.delegate.bake(baker);
-					}
-				};
+		private final Baker.ResolvableCacheKey<BlockStateModel> cacheKey;
 
 		public CachedUnbaked(BlockStateModel.Unbaked delegate) {
 			this.delegate = delegate;
+			this.cacheKey = baker -> delegate.bake(baker);
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.delegate.resolve(resolver);
+			delegate.resolve(resolver);
 		}
 
 		@Override
 		public BlockStateModel bake(BlockState state, Baker baker) {
-			return baker.compute(this.cacheKey);
+			return baker.compute(cacheKey);
 		}
 
 		@Override
@@ -78,11 +69,13 @@ public interface BlockStateModel extends FabricBlockStateModel {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённая модель состояния блока.
+	 * Содержит кодеки для десериализации как одиночного варианта,
+	 * так и взвешенного списка вариантов из JSON blockstate-файлов.
 	 */
-	public interface Unbaked extends ResolvableModel {
+	@Environment(EnvType.CLIENT)
+	interface Unbaked extends ResolvableModel {
 
 		Codec<Weighted<ModelVariant>> WEIGHTED_VARIANT_CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
@@ -102,26 +95,24 @@ public interface BlockStateModel extends FabricBlockStateModel {
 						                                                              ))),
 				                                                              unbaked -> {
 					                                                              List<Weighted<BlockStateModel.Unbaked>>
-							                                                              list =
-							                                                              unbaked
-									                                                              .entries()
-									                                                              .getEntries();
+							                                                              entries =
+							                                                              unbaked.entries().getEntries();
 					                                                              List<Weighted<ModelVariant>>
-							                                                              list2 =
-							                                                              new ArrayList<>(list.size());
+							                                                              variants =
+							                                                              new ArrayList<>(entries.size());
 
-					                                                              for (Weighted<BlockStateModel.Unbaked> weighted : list) {
-						                                                              if (!(weighted.value() instanceof SimpleBlockStateModel.Unbaked unbaked2)) {
+					                                                              for (Weighted<BlockStateModel.Unbaked> weighted : entries) {
+						                                                              if (!(weighted.value() instanceof SimpleBlockStateModel.Unbaked simple)) {
 							                                                              return DataResult.error(() -> "Only single variants are supported");
 						                                                              }
 
-						                                                              list2.add(new Weighted<>(
-								                                                              unbaked2.variant(),
+						                                                              variants.add(new Weighted<>(
+								                                                              simple.variant(),
 								                                                              weighted.weight()
 						                                                              ));
 					                                                              }
 
-					                                                              return DataResult.success(list2);
+					                                                              return DataResult.success(variants);
 				                                                              }
 		                                                              );
 
@@ -130,15 +121,13 @@ public interface BlockStateModel extends FabricBlockStateModel {
 				                                            either -> (BlockStateModel.Unbaked) either.map(
 						                                            left -> left,
 						                                            right -> right
-				                                            ), variant -> {
-					                                            return switch (variant) {
-						                                            case SimpleBlockStateModel.Unbaked unbaked2 ->
-								                                            DataResult.success(Either.right(unbaked2));
-						                                            case WeightedBlockStateModel.Unbaked unbaked3 ->
-								                                            DataResult.success(Either.left(unbaked3));
-						                                            default ->
-								                                            DataResult.error(() -> "Only a single variant or a list of variants are supported");
-					                                            };
+				                                            ), variant -> switch (variant) {
+					                                            case SimpleBlockStateModel.Unbaked simple ->
+							                                            DataResult.success(Either.right(simple));
+					                                            case WeightedBlockStateModel.Unbaked weighted ->
+							                                            DataResult.success(Either.left(weighted));
+					                                            default ->
+							                                            DataResult.error(() -> "Only a single variant or a list of variants are supported");
 				                                            }
 		                                            );
 
@@ -149,11 +138,13 @@ public interface BlockStateModel extends FabricBlockStateModel {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code UnbakedGrouped}.
+	 * Незапечённая модель состояния блока с группировкой по равенству.
+	 * Позволяет системе группировки определять, какие состояния блока
+	 * используют одинаковую модель для оптимизации перерисовки.
 	 */
-	public interface UnbakedGrouped extends ResolvableModel {
+	@Environment(EnvType.CLIENT)
+	interface UnbakedGrouped extends ResolvableModel {
 
 		BlockStateModel bake(BlockState state, Baker baker);
 

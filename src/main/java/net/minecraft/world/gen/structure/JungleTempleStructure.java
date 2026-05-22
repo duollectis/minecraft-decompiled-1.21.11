@@ -4,14 +4,15 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.structure.JungleTempleGenerator;
 
 /**
- * {@code JungleTempleStructure}.
+ * Структура джунглевого храма — размещает один кусок {@link net.minecraft.structure.JungleTempleGenerator}
+ * на поверхности джунглевого биома.
  */
 public class JungleTempleStructure extends BasicTempleStructure {
 
 	public static final MapCodec<JungleTempleStructure> CODEC = createCodec(JungleTempleStructure::new);
 
 	public JungleTempleStructure(Structure.Config config) {
-		super(JungleTempleGenerator::new, 12, 15, config);
+		super(JungleTempleGenerator::new, JungleTempleGenerator.TEMPLE_SIZE, 15, config);
 	}
 
 	@Override

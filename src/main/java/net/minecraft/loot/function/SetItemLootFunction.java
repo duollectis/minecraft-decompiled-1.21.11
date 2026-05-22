@@ -11,15 +11,16 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.List;
 
 /**
- * {@code SetItemLootFunction}.
+ * Функция лута, заменяющая тип предмета в стаке, сохраняя все компоненты данных.
  */
 public class SetItemLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetItemLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(Item.ENTRY_CODEC.fieldOf("item").forGetter(lootFunction -> lootFunction.item))
-					.apply(instance, SetItemLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(Item.ENTRY_CODEC.fieldOf("item").forGetter(lootFunction -> lootFunction.item))
+			.apply(instance, SetItemLootFunction::new)
 	);
+
 	private final RegistryEntry<Item> item;
 
 	private SetItemLootFunction(List<LootCondition> conditions, RegistryEntry<Item> item) {
@@ -34,6 +35,6 @@ public class SetItemLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		return stack.withItem(this.item.value());
+		return stack.withItem(item.value());
 	}
 }

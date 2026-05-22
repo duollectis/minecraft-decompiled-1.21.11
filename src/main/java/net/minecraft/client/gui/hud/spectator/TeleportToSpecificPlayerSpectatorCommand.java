@@ -10,10 +10,8 @@ import net.minecraft.network.packet.c2s.play.SpectatorTeleportC2SPacket;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.ColorHelper;
 
+/** Команда телепорта к конкретному игроку по UUID его профиля. */
 @Environment(EnvType.CLIENT)
-/**
- * {@code TeleportToSpecificPlayerSpectatorCommand}.
- */
 public class TeleportToSpecificPlayerSpectatorCommand implements SpectatorMenuCommand {
 
 	private final PlayerListEntry player;
@@ -21,25 +19,24 @@ public class TeleportToSpecificPlayerSpectatorCommand implements SpectatorMenuCo
 
 	public TeleportToSpecificPlayerSpectatorCommand(PlayerListEntry player) {
 		this.player = player;
-		this.name = Text.literal(player.getProfile().name());
+		name = Text.literal(player.getProfile().name());
 	}
 
 	@Override
 	public void use(SpectatorMenu menu) {
-		MinecraftClient
-				.getInstance()
-				.getNetworkHandler()
-				.sendPacket(new SpectatorTeleportC2SPacket(this.player.getProfile().id()));
+		MinecraftClient.getInstance()
+			.getNetworkHandler()
+			.sendPacket(new SpectatorTeleportC2SPacket(player.getProfile().id()));
 	}
 
 	@Override
 	public Text getName() {
-		return this.name;
+		return name;
 	}
 
 	@Override
 	public void renderIcon(DrawContext context, float brightness, float alpha) {
-		PlayerSkinDrawer.draw(context, this.player.getSkinTextures(), 2, 2, 12, ColorHelper.getWhite(alpha));
+		PlayerSkinDrawer.draw(context, player.getSkinTextures(), 2, 2, 12, ColorHelper.getWhite(alpha));
 	}
 
 	@Override

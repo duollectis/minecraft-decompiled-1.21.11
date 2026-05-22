@@ -13,7 +13,9 @@ import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 
 /**
- * {@code MathHelper}.
+ * Утилитарный класс математических операций для игровой логики Minecraft.
+ * Содержит быстрые тригонометрические функции, интерполяцию, работу с углами,
+ * упаковку координат и другие вспомогательные вычисления.
  */
 public class MathHelper {
 
@@ -36,9 +38,9 @@ public class MathHelper {
 	private static final int COSINE_TABLE_OFFSET = 16384;
 	private static final double DEGREES_TO_SINE_TABLE_INDEX = 10430.378350470453;
 	private static final float[] SINE_TABLE = Util.make(
-			new float[65536], sineTable -> {
+			new float[SINE_TABLE_SIZE], sineTable -> {
 				for (int ix = 0; ix < sineTable.length; ix++) {
-					sineTable[ix] = (float) Math.sin(ix / 10430.378350470453);
+					sineTable[ix] = (float) Math.sin(ix / DEGREES_TO_SINE_TABLE_INDEX);
 				}
 			}
 	);
@@ -81,8 +83,8 @@ public class MathHelper {
 	private static final int ARCSINE_TABLE_BITS = 8;
 	private static final int ARCSINE_TABLE_LENGTH = 257;
 	private static final double ROUNDER_256THS = Double.longBitsToDouble(4805340802404319232L);
-	private static final double[] ARCSINE_TABLE = new double[257];
-	private static final double[] COSINE_OF_ARCSINE_TABLE = new double[257];
+	private static final double[] ARCSINE_TABLE = new double[ARCSINE_TABLE_LENGTH];
+	private static final double[] COSINE_OF_ARCSINE_TABLE = new double[ARCSINE_TABLE_LENGTH];
 
 	/**
 	 * Sin.
@@ -92,7 +94,7 @@ public class MathHelper {
 	 * @return float — результат операции
 	 */
 	public static float sin(double value) {
-		return SINE_TABLE[(int) ((long) (value * 10430.378350470453) & 65535L)];
+		return SINE_TABLE[(int) ((long) (value * DEGREES_TO_SINE_TABLE_INDEX) & SINE_TABLE_MASK)];
 	}
 
 	/**
@@ -103,7 +105,7 @@ public class MathHelper {
 	 * @return float — результат операции
 	 */
 	public static float cos(double value) {
-		return SINE_TABLE[(int) ((long) (value * 10430.378350470453 + 16384.0) & 65535L)];
+		return SINE_TABLE[(int) ((long) (value * DEGREES_TO_SINE_TABLE_INDEX + 16384.0) & SINE_TABLE_MASK)];
 	}
 
 	/**
@@ -409,7 +411,7 @@ public class MathHelper {
 	 * @return boolean — результат операции
 	 */
 	public static boolean approximatelyEquals(float a, float b) {
-		return Math.abs(b - a) < 1.0E-5F;
+		return Math.abs(b - a) < EPSILON;
 	}
 
 	/**
@@ -421,7 +423,7 @@ public class MathHelper {
 	 * @return boolean — результат операции
 	 */
 	public static boolean approximatelyEquals(double a, double b) {
-		return Math.abs(b - a) < 1.0E-5F;
+		return Math.abs(b - a) < EPSILON;
 	}
 
 	/**
@@ -763,7 +765,7 @@ public class MathHelper {
 	 * @return UUID — результат операции
 	 */
 	public static UUID randomUuid(Random random) {
-		long l = random.nextLong() & -61441L | 16384L;
+		long l = random.nextLong() & -61441L | HALF_PI_RADIANS_SINE_TABLE_INDEX;
 		long m = random.nextLong() & 4611686018427387903L | Long.MIN_VALUE;
 		return new UUID(l, m);
 	}
@@ -878,7 +880,7 @@ public class MathHelper {
 			double h = COSINE_OF_ARCSINE_TABLE[i];
 			double j = f - ROUNDER_256THS;
 			double k = y * h - x * j;
-			double l = (6.0 + k * k) * k * 0.16666666666666666;
+			double l = (6.0 + k * k) * k * ARCSINE_MACLAURIN_3;
 			double m = g + l;
 			if (bl3) {
 				m = (Math.PI / 2) - m;
@@ -1655,7 +1657,7 @@ public class MathHelper {
 	}
 
 	static {
-		for (int i = 0; i < 257; i++) {
+		for (int i = 0; i < ARCSINE_TABLE_LENGTH; i++) {
 			double d = i / 256.0;
 			double e = Math.asin(d);
 			COSINE_OF_ARCSINE_TABLE[i] = Math.cos(e);

@@ -5,7 +5,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectListIterator;
 import net.minecraft.block.enums.TrialSpawnerState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -36,7 +35,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
- * {@code TrialSpawnerData}.
+ * Изменяемое состояние спаунера испытаний: отслеживает живых мобов,
+ * игроков в зоне обнаружения, таймеры спауна и перезарядки,
+ * а также текущую запись данных спауна и отображаемую сущность.
  */
 public class TrialSpawnerData {
 
@@ -68,11 +69,6 @@ public class TrialSpawnerData {
 		);
 	}
 
-	/**
-	 * Unpack.
-	 *
-	 * @param packed packed
-	 */
 	public void unpack(TrialSpawnerData.Packed packed) {
 		this.players.clear();
 		this.players.addAll(packed.detectedPlayers);
@@ -85,18 +81,12 @@ public class TrialSpawnerData {
 		this.rewardLootTable = packed.ejectingLootTable;
 	}
 
-	/**
-	 * Reset.
-	 */
 	public void reset() {
 		this.spawnedMobsAlive.clear();
 		this.spawnData = Optional.empty();
 		this.deactivate();
 	}
 
-	/**
-	 * Deactivate.
-	 */
 	public void deactivate() {
 		this.players.clear();
 		this.totalSpawnedMobs = 0;
@@ -113,24 +103,10 @@ public class TrialSpawnerData {
 		return this.totalSpawnedMobs >= config.getTotalMobs(additionalPlayers);
 	}
 
-	/**
-	 * Are mobs dead.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean areMobsDead() {
 		return this.spawnedMobsAlive.isEmpty();
 	}
 
-	/**
-	 * Проверяет возможность spawn more.
-	 *
-	 * @param world world
-	 * @param config config
-	 * @param additionalPlayers additional players
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canSpawnMore(ServerWorld world, TrialSpawnerConfig config, int additionalPlayers) {
 		return world.getTime() >= this.nextMobSpawnsAt && this.spawnedMobsAlive.size() < config.getSimultaneousMobs(
 				additionalPlayers);
@@ -144,15 +120,8 @@ public class TrialSpawnerData {
 		return Math.max(0, this.players.size() - 1);
 	}
 
-	/**
-	 * Обновляет players.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param logic logic
-	 */
 	public void updatePlayers(ServerWorld world, BlockPos pos, TrialSpawnerLogic logic) {
-		boolean bl = (pos.asLong() + world.getTime()) % 20L != 0L;
+		boolean bl = (pos.asLong() + world.getTime()) % DISPLAY_ENTITY_ROTATION_SPEED != 0L;
 		if (!bl) {
 			if (!logic.getSpawnerState().equals(TrialSpawnerState.COOLDOWN) || !logic.isOminous()) {
 				List<UUID>
@@ -228,12 +197,6 @@ public class TrialSpawnerData {
 		return Optional.ofNullable(playerEntity).map(player -> Pair.of(player, StatusEffects.BAD_OMEN));
 	}
 
-	/**
-	 * Сбрасывает and clear mobs.
-	 *
-	 * @param logic logic
-	 * @param world world
-	 */
 	public void resetAndClearMobs(TrialSpawnerLogic logic, ServerWorld world) {
 		this.spawnedMobsAlive.stream().map(world::getEntity).forEach(entity -> {
 			if (entity != null) {
@@ -260,7 +223,7 @@ public class TrialSpawnerData {
 		StatusEffectInstance statusEffectInstance = player.getStatusEffect(StatusEffects.BAD_OMEN);
 		if (statusEffectInstance != null) {
 			int i = statusEffectInstance.getAmplifier() + 1;
-			int j = 18000 * i;
+			int j = COOLDOWN_TICKS * i;
 			player.removeStatusEffect(StatusEffects.BAD_OMEN);
 			player.addStatusEffect(new StatusEffectInstance(StatusEffects.TRIAL_OMEN, j, 0));
 		}
@@ -349,10 +312,8 @@ public class TrialSpawnerData {
 			}
 			else {
 				Pool.Builder<ItemStack> builder = Pool.builder();
-				ObjectListIterator var10 = objectArrayList.iterator();
-
-				while (var10.hasNext()) {
-					ItemStack itemStack = (ItemStack) var10.next();
+	
+				for (ItemStack itemStack : objectArrayList) {
 					builder.add(itemStack.copyWithCount(1), itemStack.getCount());
 				}
 
@@ -374,7 +335,8 @@ public class TrialSpawnerData {
 	}
 
 	/**
-	 * {@code Packed}.
+	 * Сериализуемый снимок состояния {@link TrialSpawnerData} для записи в NBT.
+	 * Содержит только те поля, которые должны сохраняться между сессиями.
 	 */
 	public record Packed(
 			Set<UUID> detectedPlayers,

@@ -16,55 +16,61 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Function;
 
 /**
- * {@code Dismounting}.
+ * Утилитарный класс для расчёта позиций высадки сущностей с транспортных средств.
+ * Содержит алгоритмы поиска безопасных позиций для спавна и высадки,
+ * а также проверки коллизий при размещении сущности в мире.
  */
 public class Dismounting {
 
+	/**
+	 * Возвращает массив смещений для поиска позиций высадки вокруг транспортного средства.
+	 * Смещения расположены по спирали: сначала по бокам, затем по диагоналям,
+	 * затем сзади и спереди — для нахождения ближайшей свободной позиции.
+	 *
+	 * @param movementDirection направление движения транспортного средства
+	 * @return массив пар [offsetX, offsetZ] для проверки позиций высадки
+	 */
 	public static int[][] getDismountOffsets(Direction movementDirection) {
-		Direction direction = movementDirection.rotateYClockwise();
-		Direction direction2 = direction.getOpposite();
-		Direction direction3 = movementDirection.getOpposite();
+		Direction right = movementDirection.rotateYClockwise();
+		Direction left = right.getOpposite();
+		Direction back = movementDirection.getOpposite();
+
 		return new int[][]{
-				{direction.getOffsetX(), direction.getOffsetZ()},
-				{direction2.getOffsetX(), direction2.getOffsetZ()},
-				{direction3.getOffsetX() + direction.getOffsetX(), direction3.getOffsetZ() + direction.getOffsetZ()},
-				{direction3.getOffsetX() + direction2.getOffsetX(), direction3.getOffsetZ() + direction2.getOffsetZ()},
-				{
-						movementDirection.getOffsetX() + direction.getOffsetX(),
-						movementDirection.getOffsetZ() + direction.getOffsetZ()
-				},
-				{
-						movementDirection.getOffsetX() + direction2.getOffsetX(),
-						movementDirection.getOffsetZ() + direction2.getOffsetZ()
-				},
-				{direction3.getOffsetX(), direction3.getOffsetZ()},
-				{movementDirection.getOffsetX(), movementDirection.getOffsetZ()}
+			{right.getOffsetX(), right.getOffsetZ()},
+			{left.getOffsetX(), left.getOffsetZ()},
+			{back.getOffsetX() + right.getOffsetX(), back.getOffsetZ() + right.getOffsetZ()},
+			{back.getOffsetX() + left.getOffsetX(), back.getOffsetZ() + left.getOffsetZ()},
+			{movementDirection.getOffsetX() + right.getOffsetX(), movementDirection.getOffsetZ() + right.getOffsetZ()},
+			{movementDirection.getOffsetX() + left.getOffsetX(), movementDirection.getOffsetZ() + left.getOffsetZ()},
+			{back.getOffsetX(), back.getOffsetZ()},
+			{movementDirection.getOffsetX(), movementDirection.getOffsetZ()}
 		};
 	}
 
 	/**
-	 * Проверяет возможность dismount in block.
+	 * Проверяет, можно ли высадить сущность на блоке с данной высотой поверхности.
+	 * Бесконечная высота означает отсутствие твёрдой поверхности (пропасть),
+	 * высота ≥ 1.0 означает, что блок слишком высокий для высадки.
 	 *
-	 * @param height height
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param height высота поверхности блока
+	 * @return {@code true} если высадка возможна
 	 */
 	public static boolean canDismountInBlock(double height) {
 		return !Double.isInfinite(height) && height < 1.0;
 	}
 
 	/**
-	 * Проверяет возможность place entity at.
+	 * Проверяет, можно ли разместить сущность в указанном ограничивающем прямоугольнике
+	 * без коллизий с блоками и за пределами границы мира.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param targetBox target box
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @param world     мир для проверки коллизий
+	 * @param entity    размещаемая сущность
+	 * @param targetBox целевой ограничивающий прямоугольник
+	 * @return {@code true} если размещение возможно
 	 */
 	public static boolean canPlaceEntityAt(CollisionView world, LivingEntity entity, Box targetBox) {
-		for (VoxelShape voxelShape : world.getBlockCollisions(entity, targetBox)) {
-			if (!voxelShape.isEmpty()) {
+		for (VoxelShape shape : world.getBlockCollisions(entity, targetBox)) {
+			if (!shape.isEmpty()) {
 				return false;
 			}
 		}
@@ -72,89 +78,106 @@ public class Dismounting {
 		return world.getWorldBorder().contains(targetBox);
 	}
 
-	/**
-	 * Проверяет возможность place entity at.
-	 *
-	 * @param world world
-	 * @param offset offset
-	 * @param entity entity
-	 * @param pose pose
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canPlaceEntityAt(CollisionView world, Vec3d offset, LivingEntity entity, EntityPose pose) {
 		return canPlaceEntityAt(world, entity, entity.getBoundingBox(pose).offset(offset));
 	}
 
+	/**
+	 * Возвращает форму коллизии блока для расчёта высадки.
+	 * Лестницы и открытые люки считаются пустыми — сущность может через них пройти.
+	 *
+	 * @param world мир
+	 * @param pos   позиция блока
+	 * @return форма коллизии или пустая форма для проходимых блоков
+	 */
 	public static VoxelShape getCollisionShape(BlockView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos);
-		return !blockState.isIn(BlockTags.CLIMBABLE) && (!(blockState.getBlock() instanceof TrapdoorBlock)
-				|| !blockState.get(TrapdoorBlock.OPEN)
-		)
-		       ? blockState.getCollisionShape(world, pos)
-		       : VoxelShapes.empty();
+		BlockState state = world.getBlockState(pos);
+		boolean isClimbable = state.isIn(BlockTags.CLIMBABLE);
+		boolean isOpenTrapdoor = state.getBlock() instanceof TrapdoorBlock && state.get(TrapdoorBlock.OPEN);
+
+		return isClimbable || isOpenTrapdoor
+			? VoxelShapes.empty()
+			: state.getCollisionShape(world, pos);
 	}
 
+	/**
+	 * Находит высоту потолка над заданной позицией, двигаясь вверх до {@code maxDistance} блоков.
+	 *
+	 * @param pos                  начальная позиция
+	 * @param maxDistance          максимальное расстояние поиска вверх
+	 * @param collisionShapeGetter функция получения формы коллизии по позиции
+	 * @return Y-координата нижней грани первого непустого блока, или {@link Double#POSITIVE_INFINITY}
+	 */
 	public static double getCeilingHeight(
-			BlockPos pos,
-			int maxDistance,
-			Function<BlockPos, VoxelShape> collisionShapeGetter
+		BlockPos pos,
+		int maxDistance,
+		Function<BlockPos, VoxelShape> collisionShapeGetter
 	) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
-		int i = 0;
 
-		while (i < maxDistance) {
-			VoxelShape voxelShape = collisionShapeGetter.apply(mutable);
-			if (!voxelShape.isEmpty()) {
-				return pos.getY() + i + voxelShape.getMin(Direction.Axis.Y);
+		for (int offset = 0; offset < maxDistance; offset++) {
+			VoxelShape shape = collisionShapeGetter.apply(mutable);
+			if (!shape.isEmpty()) {
+				return pos.getY() + offset + shape.getMin(Direction.Axis.Y);
 			}
 
-			i++;
 			mutable.move(Direction.UP);
 		}
 
 		return Double.POSITIVE_INFINITY;
 	}
 
+	/**
+	 * Ищет безопасную позицию для спавна/телепортации сущности на заданном блоке.
+	 * Учитывает коллизии, границу мира и запрещённые блоки для спавна игрока.
+	 *
+	 * @param entityType        тип сущности для проверки размеров и ограничений спавна
+	 * @param world             мир
+	 * @param pos               целевая позиция блока
+	 * @param ignoreInvalidPos  если {@code true}, проверяет запрещённые блоки спавна
+	 * @return позиция центра блока с учётом высоты поверхности, или {@code null} если позиция недоступна
+	 */
 	public static @Nullable Vec3d findRespawnPos(
-			EntityType<?> entityType,
-			CollisionView world,
-			BlockPos pos,
-			boolean ignoreInvalidPos
+		EntityType<?> entityType,
+		CollisionView world,
+		BlockPos pos,
+		boolean ignoreInvalidPos
 	) {
 		if (ignoreInvalidPos && entityType.isInvalidSpawn(world.getBlockState(pos))) {
 			return null;
 		}
-		else {
-			double
-					d =
-					world.getDismountHeight(getCollisionShape(world, pos), () -> getCollisionShape(world, pos.down()));
-			if (!canDismountInBlock(d)) {
-				return null;
-			}
-			else if (ignoreInvalidPos && d <= 0.0 && entityType.isInvalidSpawn(world.getBlockState(pos.down()))) {
-				return null;
-			}
-			else {
-				Vec3d vec3d = Vec3d.ofCenter(pos, d);
-				Box box = entityType.getDimensions().getBoxAt(vec3d);
 
-				for (VoxelShape voxelShape : world.getBlockCollisions(null, box)) {
-					if (!voxelShape.isEmpty()) {
-						return null;
-					}
-				}
+		double height = world.getDismountHeight(
+			getCollisionShape(world, pos),
+			() -> getCollisionShape(world, pos.down())
+		);
 
-				if (entityType != EntityType.PLAYER
-						|| !world.getBlockState(pos).isIn(BlockTags.INVALID_SPAWN_INSIDE) && !world
-						.getBlockState(pos.up())
-						.isIn(BlockTags.INVALID_SPAWN_INSIDE)) {
-					return !world.getWorldBorder().contains(box) ? null : vec3d;
-				}
-				else {
-					return null;
-				}
+		if (!canDismountInBlock(height)) {
+			return null;
+		}
+
+		if (ignoreInvalidPos && height <= 0.0 && entityType.isInvalidSpawn(world.getBlockState(pos.down()))) {
+			return null;
+		}
+
+		Vec3d center = Vec3d.ofCenter(pos, height);
+		Box box = entityType.getDimensions().getBoxAt(center);
+
+		for (VoxelShape shape : world.getBlockCollisions(null, box)) {
+			if (!shape.isEmpty()) {
+				return null;
 			}
 		}
+
+		if (entityType == EntityType.PLAYER) {
+			boolean currentInvalid = world.getBlockState(pos).isIn(BlockTags.INVALID_SPAWN_INSIDE);
+			boolean aboveInvalid = world.getBlockState(pos.up()).isIn(BlockTags.INVALID_SPAWN_INSIDE);
+
+			if (currentInvalid || aboveInvalid) {
+				return null;
+			}
+		}
+
+		return world.getWorldBorder().contains(box) ? center : null;
 	}
 }

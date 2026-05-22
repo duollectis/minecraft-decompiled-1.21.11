@@ -31,7 +31,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpiderEntity}.
+ * Паук — моб, умеющий карабкаться по стенам.
+ * Атакует только в темноте (яркость < 0.5). На Hard-сложности может спавниться с эффектом статуса.
+ * Иммунен к яду. Может спавниться с наездником-скелетом (1% шанс).
  */
 public class SpiderEntity extends HostileEntity {
 
@@ -46,26 +48,26 @@ public class SpiderEntity extends HostileEntity {
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(
-				2,
-				new FleeEntityGoal<>(
-						this,
-						ArmadilloEntity.class,
-						6.0F,
-						1.0,
-						1.2,
-						entity -> !((ArmadilloEntity) entity).isNotIdle()
-				)
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(
+			2,
+			new FleeEntityGoal<>(
+				this,
+				ArmadilloEntity.class,
+				6.0F,
+				1.0,
+				1.2,
+				entity -> !((ArmadilloEntity) entity).isNotIdle()
+			)
 		);
-		this.goalSelector.add(3, new PounceAtTargetGoal(this, 0.4F));
-		this.goalSelector.add(4, new SpiderEntity.AttackGoal(this));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(6, new LookAroundGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this));
-		this.targetSelector.add(2, new SpiderEntity.TargetGoal<>(this, PlayerEntity.class));
-		this.targetSelector.add(3, new SpiderEntity.TargetGoal<>(this, IronGolemEntity.class));
+		goalSelector.add(3, new PounceAtTargetGoal(this, 0.4F));
+		goalSelector.add(4, new SpiderEntity.AttackGoal(this));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(6, new LookAroundGoal(this));
+		targetSelector.add(1, new RevengeGoal(this));
+		targetSelector.add(2, new SpiderEntity.TargetGoal<>(this, PlayerEntity.class));
+		targetSelector.add(3, new SpiderEntity.TargetGoal<>(this, IronGolemEntity.class));
 	}
 
 	@Override
@@ -82,8 +84,9 @@ public class SpiderEntity extends HostileEntity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (!this.getEntityWorld().isClient()) {
-			this.setClimbingWall(this.horizontalCollision);
+
+		if (!getEntityWorld().isClient()) {
+			setClimbingWall(horizontalCollision);
 		}
 	}
 
@@ -111,12 +114,12 @@ public class SpiderEntity extends HostileEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_SPIDER_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_SPIDER_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	public boolean isClimbing() {
-		return this.isClimbingWall();
+		return isClimbingWall();
 	}
 
 	@Override
@@ -128,55 +131,57 @@ public class SpiderEntity extends HostileEntity {
 
 	@Override
 	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-		return effect.equals(StatusEffects.POISON) ? false : super.canHaveStatusEffect(effect);
+		return !effect.equals(StatusEffects.POISON) && super.canHaveStatusEffect(effect);
 	}
 
 	public boolean isClimbingWall() {
-		return (this.dataTracker.get(SPIDER_FLAGS) & 1) != 0;
+		return (dataTracker.get(SPIDER_FLAGS) & 1) != 0;
 	}
 
 	public void setClimbingWall(boolean climbing) {
-		byte b = this.dataTracker.get(SPIDER_FLAGS);
-		if (climbing) {
-			b = (byte) (b | 1);
-		}
-		else {
-			b = (byte) (b & -2);
-		}
+		byte flags = dataTracker.get(SPIDER_FLAGS);
+		flags = climbing
+			? (byte) (flags | 1)
+			: (byte) (flags & -2);
 
-		this.dataTracker.set(SPIDER_FLAGS, b);
+		dataTracker.set(SPIDER_FLAGS, flags);
 	}
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		entityData = super.initialize(world, difficulty, spawnReason, entityData);
 		Random random = world.getRandom();
+
 		if (random.nextInt(100) == 0) {
-			SkeletonEntity skeletonEntity = EntityType.SKELETON.create(this.getEntityWorld(), SpawnReason.JOCKEY);
-			if (skeletonEntity != null) {
-				skeletonEntity.refreshPositionAndAngles(this.getX(), this.getY(), this.getZ(), this.getYaw(), 0.0F);
-				skeletonEntity.initialize(world, difficulty, spawnReason, null);
-				skeletonEntity.startRiding(this, false, false);
+			SkeletonEntity skeleton = EntityType.SKELETON.create(getEntityWorld(), SpawnReason.JOCKEY);
+
+			if (skeleton != null) {
+				skeleton.refreshPositionAndAngles(getX(), getY(), getZ(), getYaw(), 0.0F);
+				skeleton.initialize(world, difficulty, spawnReason, null);
+				skeleton.startRiding(this, false, false);
 			}
 		}
 
 		if (entityData == null) {
 			entityData = new SpiderEntity.SpiderData();
+
 			if (world.getDifficulty() == Difficulty.HARD
-					&& random.nextFloat() < 0.1F * difficulty.getClampedLocalDifficulty()) {
+				&& random.nextFloat() < EFFECT_SPAWN_CHANCE_MULTIPLIER * difficulty.getClampedLocalDifficulty()
+			) {
 				((SpiderEntity.SpiderData) entityData).setEffect(random);
 			}
 		}
 
 		if (entityData instanceof SpiderEntity.SpiderData spiderData) {
-			RegistryEntry<StatusEffect> registryEntry = spiderData.effect;
-			if (registryEntry != null) {
-				this.addStatusEffect(new StatusEffectInstance(registryEntry, -1));
+			RegistryEntry<StatusEffect> effect = spiderData.effect;
+
+			if (effect != null) {
+				addStatusEffect(new StatusEffectInstance(effect, -1));
 			}
 		}
 
@@ -185,13 +190,11 @@ public class SpiderEntity extends HostileEntity {
 
 	@Override
 	public Vec3d getVehicleAttachmentPos(Entity vehicle) {
-		return vehicle.getWidth() <= this.getWidth() ? new Vec3d(0.0, 0.3125 * this.getScale(), 0.0)
-		                                             : super.getVehicleAttachmentPos(vehicle);
+		return vehicle.getWidth() <= getWidth()
+			? new Vec3d(0.0, 0.3125 * getScale(), 0.0)
+			: super.getVehicleAttachmentPos(vehicle);
 	}
 
-	/**
-	 * {@code AttackGoal}.
-	 */
 	static class AttackGoal extends MeleeAttackGoal {
 
 		public AttackGoal(SpiderEntity spider) {
@@ -200,49 +203,41 @@ public class SpiderEntity extends HostileEntity {
 
 		@Override
 		public boolean canStart() {
-			return super.canStart() && !this.mob.hasPassengers();
+			return super.canStart() && !mob.hasPassengers();
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			float f = this.mob.getBrightnessAtEyes();
-			if (f >= 0.5F && this.mob.getRandom().nextInt(100) == 0) {
-				this.mob.setTarget(null);
+			float brightness = mob.getBrightnessAtEyes();
+
+			if (brightness >= 0.5F && mob.getRandom().nextInt(100) == 0) {
+				mob.setTarget(null);
 				return false;
 			}
-			else {
-				return super.shouldContinue();
-			}
+
+			return super.shouldContinue();
 		}
 	}
 
-	/**
-	 * {@code SpiderData}.
-	 */
 	public static class SpiderData implements EntityData {
 
 		public @Nullable RegistryEntry<StatusEffect> effect;
 
 		public void setEffect(Random random) {
-			int i = random.nextInt(5);
-			if (i <= 1) {
-				this.effect = StatusEffects.SPEED;
-			}
-			else if (i <= 2) {
-				this.effect = StatusEffects.STRENGTH;
-			}
-			else if (i <= 3) {
-				this.effect = StatusEffects.REGENERATION;
-			}
-			else if (i <= 4) {
-				this.effect = StatusEffects.INVISIBILITY;
+			int roll = random.nextInt(5);
+
+			if (roll <= 1) {
+				effect = StatusEffects.SPEED;
+			} else if (roll <= 2) {
+				effect = StatusEffects.STRENGTH;
+			} else if (roll <= 3) {
+				effect = StatusEffects.REGENERATION;
+			} else if (roll <= 4) {
+				effect = StatusEffects.INVISIBILITY;
 			}
 		}
 	}
 
-	/**
-	 * {@code TargetGoal}.
-	 */
 	static class TargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
 
 		public TargetGoal(SpiderEntity spider, Class<T> targetEntityClass) {
@@ -251,8 +246,9 @@ public class SpiderEntity extends HostileEntity {
 
 		@Override
 		public boolean canStart() {
-			float f = this.mob.getBrightnessAtEyes();
-			return f >= 0.5F ? false : super.canStart();
+			float brightness = mob.getBrightnessAtEyes();
+
+			return brightness < 0.5F && super.canStart();
 		}
 	}
 }

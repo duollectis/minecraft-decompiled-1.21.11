@@ -7,17 +7,22 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code CatTypeFix}.
+ * Исправляет некорректный тип кота: {@code CatType = 9} (Siamese) был ошибочно
+ * назначен двум разным породам, поэтому Siamese переносится на индекс 10.
  */
 public class CatTypeFix extends ChoiceFix {
 
-	public CatTypeFix(Schema schema, boolean bl) {
-		super(schema, bl, "CatTypeFix", TypeReferences.ENTITY, "minecraft:cat");
+	public CatTypeFix(Schema schema, boolean changesType) {
+		super(schema, changesType, "CatTypeFix", TypeReferences.ENTITY, "minecraft:cat");
 	}
 
-	public Dynamic<?> fixCatTypeData(Dynamic<?> catDynamic) {
-		return catDynamic.get("CatType").asInt(0) == 9 ? catDynamic.set("CatType", catDynamic.createInt(10))
-		                                               : catDynamic;
+	private static final int SIAMESE_OLD_TYPE = 9;
+	private static final int SIAMESE_NEW_TYPE = 10;
+
+	private Dynamic<?> fixCatTypeData(Dynamic<?> catDynamic) {
+		return catDynamic.get("CatType").asInt(0) == SIAMESE_OLD_TYPE
+			? catDynamic.set("CatType", catDynamic.createInt(SIAMESE_NEW_TYPE))
+			: catDynamic;
 	}
 
 	@Override

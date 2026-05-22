@@ -15,15 +15,17 @@ import net.minecraft.text.Text;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SkinReportScreen}.
+ * Экран формы жалобы на скин игрока.
+ * Отображает превью скина, позволяет выбрать причину жалобы и добавить комментарий.
  */
+@Environment(EnvType.CLIENT)
 public class SkinReportScreen extends ReportScreen<SkinAbuseReport.Builder> {
 
 	private static final int SKIN_WIDGET_WIDTH = 85;
 	private static final int REASON_BUTTON_AND_COMMENTS_BOX_WIDTH = 178;
 	private static final Text TITLE_TEXT = Text.translatable("gui.abuseReport.skin.title");
+
 	private EditBoxWidget commentsBox;
 	private ButtonWidget selectReasonButton;
 
@@ -50,66 +52,54 @@ public class SkinReportScreen extends ReportScreen<SkinAbuseReport.Builder> {
 
 	@Override
 	protected void addContent() {
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.add(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget.getMainPositioner().alignVerticalCenter();
-		directionalLayoutWidget.add(new PlayerSkinWidget(
-				85,
-				120,
-				this.client.getLoadedEntityModels(),
-				this.reportBuilder.getReport().getSkinSupplier()
+		DirectionalLayoutWidget contentRow = layout.add(DirectionalLayoutWidget.horizontal().spacing(8));
+		contentRow.getMainPositioner().alignVerticalCenter();
+
+		contentRow.add(new PlayerSkinWidget(
+				SKIN_WIDGET_WIDTH,
+				COMMENT_BOX_HEIGHT,
+				client.getLoadedEntityModels(),
+				reportBuilder.getReport().getSkinSupplier()
 		));
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.vertical().spacing(8));
-		this.selectReasonButton = ButtonWidget.builder(
-				                                      SELECT_REASON_TEXT,
-				                                      button -> this.client.setScreen(new AbuseReportReasonScreen(
-						                                      this, this.reportBuilder.getReason(), AbuseReportType.SKIN, reason -> {
-					                                      this.reportBuilder.setReason(reason);
-					                                      this.onChange();
-				                                      }
-				                                      ))
-		                                      )
-		                                      .width(178)
-		                                      .build();
-		directionalLayoutWidget2.add(LayoutWidgets.createLabeledWidget(
-				this.textRenderer,
-				this.selectReasonButton,
-				OBSERVED_WHAT_TEXT
-		));
-		this.commentsBox = this.createCommentsBox(
-				178, 9 * 8, comments -> {
-					this.reportBuilder.setOpinionComments(comments);
-					this.onChange();
+
+		DirectionalLayoutWidget rightColumn = contentRow.add(DirectionalLayoutWidget.vertical().spacing(8));
+
+		selectReasonButton = ButtonWidget.builder(
+				SELECT_REASON_TEXT,
+				button -> client.setScreen(new AbuseReportReasonScreen(
+						this, reportBuilder.getReason(), AbuseReportType.SKIN, reason -> {
+							reportBuilder.setReason(reason);
+							onChange();
+						}
+				))
+		).width(REASON_BUTTON_AND_COMMENTS_BOX_WIDTH).build();
+
+		rightColumn.add(LayoutWidgets.createLabeledWidget(textRenderer, selectReasonButton, OBSERVED_WHAT_TEXT));
+
+		commentsBox = createCommentsBox(
+				REASON_BUTTON_AND_COMMENTS_BOX_WIDTH, 9 * 8, comments -> {
+					reportBuilder.setOpinionComments(comments);
+					onChange();
 				}
 		);
-		directionalLayoutWidget2.add(
-				LayoutWidgets.createLabeledWidget(
-						this.textRenderer,
-						this.commentsBox,
-						MORE_COMMENTS_TEXT,
-						positioner -> positioner.marginBottom(12)
-				)
-		);
+
+		rightColumn.add(LayoutWidgets.createLabeledWidget(
+				textRenderer,
+				commentsBox,
+				MORE_COMMENTS_TEXT,
+				positioner -> positioner.marginBottom(12)
+		));
 	}
 
 	@Override
 	protected void onChange() {
-		AbuseReportReason abuseReportReason = this.reportBuilder.getReason();
-		if (abuseReportReason != null) {
-			this.selectReasonButton.setMessage(abuseReportReason.getText());
-		}
-		else {
-			this.selectReasonButton.setMessage(SELECT_REASON_TEXT);
-		}
-
+		AbuseReportReason reason = reportBuilder.getReason();
+		selectReasonButton.setMessage(reason != null ? reason.getText() : SELECT_REASON_TEXT);
 		super.onChange();
 	}
 
 	@Override
 	public boolean mouseReleased(Click click) {
-		return super.mouseReleased(click) ? true : this.commentsBox.mouseReleased(click);
+		return super.mouseReleased(click) || commentsBox.mouseReleased(click);
 	}
 }

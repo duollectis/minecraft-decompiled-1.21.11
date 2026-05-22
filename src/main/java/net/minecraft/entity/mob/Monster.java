@@ -1,7 +1,7 @@
 package net.minecraft.entity.mob;
 
 /**
- * {@code Monster}.
+ * Маркерный интерфейс для враждебных мобов.
  */
 public interface Monster {
 

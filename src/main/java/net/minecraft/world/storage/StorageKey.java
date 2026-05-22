@@ -4,18 +4,12 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 /**
- * {@code StorageKey}.
+ * Составной ключ хранилища, однозначно идентифицирующий файл данных чанков.
+ * Комбинирует имя уровня, измерение и тип данных (например, "poi", "entities").
  */
 public record StorageKey(String level, RegistryKey<World> dimension, String type) {
 
-	/**
-	 * With suffix.
-	 *
-	 * @param suffix suffix
-	 *
-	 * @return StorageKey — результат операции
-	 */
 	public StorageKey withSuffix(String suffix) {
-		return new StorageKey(this.level, this.dimension, this.type + suffix);
+		return new StorageKey(level, dimension, type + suffix);
 	}
 }

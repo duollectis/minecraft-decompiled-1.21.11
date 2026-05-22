@@ -16,14 +16,20 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code JigsawReplacementStructureProcessor}.
+ * Процессор структур, заменяющий jigsaw-блоки на их финальные состояния.
+ * Читает поле {@code final_state} из NBT jigsaw-блока и устанавливает соответствующий блок.
+ * Если финальное состояние — {@link Blocks#STRUCTURE_VOID}, блок удаляется (возвращается {@code null}).
+ * <p>
+ * Если флаг {@link SharedConstants#KEEP_JIGSAW_BLOCKS_DURING_STRUCTURE_GEN} установлен,
+ * jigsaw-блоки сохраняются без замены (режим отладки).
  */
 public class JigsawReplacementStructureProcessor extends StructureProcessor {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final MapCodec<JigsawReplacementStructureProcessor>
-			CODEC =
-			MapCodec.unit(() -> JigsawReplacementStructureProcessor.INSTANCE);
+
+	public static final MapCodec<JigsawReplacementStructureProcessor> CODEC =
+		MapCodec.unit(() -> JigsawReplacementStructureProcessor.INSTANCE);
+
 	public static final JigsawReplacementStructureProcessor INSTANCE = new JigsawReplacementStructureProcessor();
 
 	private JigsawReplacementStructureProcessor() {
@@ -31,45 +37,47 @@ public class JigsawReplacementStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
 		BlockState blockState = currentBlockInfo.state();
+
 		if (!blockState.isOf(Blocks.JIGSAW) || SharedConstants.KEEP_JIGSAW_BLOCKS_DURING_STRUCTURE_GEN) {
 			return currentBlockInfo;
 		}
-		else if (currentBlockInfo.nbt() == null) {
+
+		if (currentBlockInfo.nbt() == null) {
 			LOGGER.warn("Jigsaw block at {} is missing nbt, will not replace", pos);
 			return currentBlockInfo;
 		}
-		else {
-			String string = currentBlockInfo.nbt().getString("final_state", "minecraft:air");
 
-			BlockState blockState2;
-			try {
-				BlockArgumentParser.BlockResult
-						blockResult =
-						BlockArgumentParser.block(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), string, true);
-				blockState2 = blockResult.blockState();
-			}
-			catch (CommandSyntaxException var11) {
-				LOGGER.error(
-						"Failed to parse jigsaw replacement state '{}' at {}: {}",
-						new Object[]{string, pos, var11.getMessage()}
-				);
-				return null;
-			}
+		String finalStateString = currentBlockInfo.nbt().getString("final_state", "minecraft:air");
 
-			return blockState2.isOf(Blocks.STRUCTURE_VOID) ? null : new StructureTemplate.StructureBlockInfo(
-					currentBlockInfo.pos(),
-					blockState2,
-					null
+		BlockState finalState;
+		try {
+			BlockArgumentParser.BlockResult blockResult = BlockArgumentParser.block(
+				world.createCommandRegistryWrapper(RegistryKeys.BLOCK),
+				finalStateString,
+				true
 			);
+			finalState = blockResult.blockState();
+		} catch (CommandSyntaxException exception) {
+			LOGGER.error(
+				"Failed to parse jigsaw replacement state '{}' at {}: {}",
+				finalStateString,
+				pos,
+				exception.getMessage()
+			);
+			return null;
 		}
+
+		return finalState.isOf(Blocks.STRUCTURE_VOID)
+			? null
+			: new StructureTemplate.StructureBlockInfo(currentBlockInfo.pos(), finalState, null);
 	}
 
 	@Override

@@ -33,10 +33,11 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GameMenuScreen}.
+ * Игровое меню паузы. В режиме показа меню отображает полный набор кнопок,
+ * в режиме паузы — только заголовок.
  */
+@Environment(EnvType.CLIENT)
 public class GameMenuScreen extends Screen {
 
 	private static final Identifier DRAFT_REPORT_ICON_TEXTURE = Identifier.ofVanilla("icon/draft_report");
@@ -65,105 +66,94 @@ public class GameMenuScreen extends Screen {
 		this.showMenu = showMenu;
 	}
 
-	/**
-	 * Определяет, следует ли show menu.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowMenu() {
-		return this.showMenu;
+		return showMenu;
 	}
 
 	@Override
 	protected void init() {
-		if (this.showMenu) {
-			this.initWidgets();
+		if (showMenu) {
+			initWidgets();
 		}
 
-		int i = this.textRenderer.getWidth(this.title);
-		this.addDrawableChild(new TextWidget(
-				this.width / 2 - i / 2,
-				this.showMenu ? 40 : 10,
-				i,
+		int titleWidth = textRenderer.getWidth(title);
+		addDrawableChild(new TextWidget(
+				width / 2 - titleWidth / 2,
+				showMenu ? 40 : 10,
+				titleWidth,
 				9,
-				this.title,
-				this.textRenderer
+				title,
+				textRenderer
 		));
 	}
 
 	private void initWidgets() {
 		GridWidget gridWidget = new GridWidget();
 		gridWidget.getMainPositioner().margin(4, 4, 4, 0);
-		GridWidget.Adder adder = gridWidget.createAdder(2);
+		GridWidget.Adder adder = gridWidget.createAdder(GRID_COLUMNS);
 		adder.add(
 				ButtonWidget.builder(
 						RETURN_TO_GAME_TEXT, button -> {
-							this.client.setScreen(null);
-							this.client.mouse.lockCursor();
+							client.setScreen(null);
+							client.mouse.lockCursor();
 						}
-				).width(204).build(), 2, gridWidget.copyPositioner().marginTop(50)
+				).width(WIDE_BUTTON_WIDTH).build(), 2, gridWidget.copyPositioner().marginTop(BUTTONS_TOP_MARGIN)
 		);
-		adder.add(this.createButton(
+		adder.add(createButton(
 				ADVANCEMENTS_TEXT,
-				() -> new AdvancementsScreen(this.client.player.networkHandler.getAdvancementHandler(), this)
+				() -> new AdvancementsScreen(client.player.networkHandler.getAdvancementHandler(), this)
 		));
-		adder.add(this.createButton(STATS_TEXT, () -> new StatsScreen(this, this.client.player.getStatHandler())));
-		Optional<? extends RegistryEntry<Dialog>> optional = this.getCustomOptionsDialog();
-		if (optional.isEmpty()) {
+		adder.add(createButton(STATS_TEXT, () -> new StatsScreen(this, client.player.getStatHandler())));
+
+		Optional<? extends RegistryEntry<Dialog>> customOptionsDialog = getCustomOptionsDialog();
+		if (customOptionsDialog.isEmpty()) {
 			addFeedbackAndBugsButtons(this, adder);
-		}
-		else {
-			this.addFeedbackAndCustomOptionsButtons(this.client, (RegistryEntry<Dialog>) optional.get(), adder);
-		}
-
-		adder.add(this.createButton(OPTIONS_TEXT, () -> new OptionsScreen(this, this.client.options)));
-		if (this.client.isIntegratedServerRunning() && !this.client.getServer().isRemote()) {
-			adder.add(this.createButton(SHARE_TO_LAN_TEXT, () -> new OpenToLanScreen(this)));
-		}
-		else {
-			adder.add(this.createButton(PLAYER_REPORTING_TEXT, () -> new SocialInteractionsScreen(this)));
+		} else {
+			addFeedbackAndCustomOptionsButtons(client, (RegistryEntry<Dialog>) customOptionsDialog.get(), adder);
 		}
 
-		this.exitButton = adder.add(
+		adder.add(createButton(OPTIONS_TEXT, () -> new OptionsScreen(this, client.options)));
+
+		if (client.isIntegratedServerRunning() && !client.getServer().isRemote()) {
+			adder.add(createButton(SHARE_TO_LAN_TEXT, () -> new OpenToLanScreen(this)));
+		} else {
+			adder.add(createButton(PLAYER_REPORTING_TEXT, () -> new SocialInteractionsScreen(this)));
+		}
+
+		exitButton = adder.add(
 				ButtonWidget.builder(
-						ScreenTexts.returnToMenuOrDisconnect(this.client.isInSingleplayer()), button -> {
+						ScreenTexts.returnToMenuOrDisconnect(client.isInSingleplayer()), button -> {
 							button.active = false;
-							this.client
-									.getAbuseReportContext()
-									.tryShowDraftScreen(
-											this.client,
-											this,
-											() -> this.client.disconnect(ClientWorld.QUITTING_MULTIPLAYER_TEXT),
-											true
-									);
+							client.getAbuseReportContext().tryShowDraftScreen(
+									client,
+									this,
+									() -> client.disconnect(ClientWorld.QUITTING_MULTIPLAYER_TEXT),
+									true
+							);
 						}
-				).width(204).build(), 2
+				).width(WIDE_BUTTON_WIDTH).build(), 2
 		);
 		gridWidget.refreshPositions();
-		SimplePositioningWidget.setPos(gridWidget, 0, 0, this.width, this.height, 0.5F, 0.25F);
+		SimplePositioningWidget.setPos(gridWidget, 0, 0, width, height, 0.5F, 0.25F);
 		gridWidget.forEachChild(this::addDrawableChild);
 	}
 
 	private Optional<? extends RegistryEntry<Dialog>> getCustomOptionsDialog() {
-		Registry<Dialog>
-				registry =
-				this.client.player.networkHandler.getRegistryManager().getOrThrow(RegistryKeys.DIALOG);
-		Optional<? extends RegistryEntryList<Dialog>>
-				optional =
-				registry.getOptional(DialogTags.PAUSE_SCREEN_ADDITIONS);
-		if (optional.isPresent()) {
-			RegistryEntryList<Dialog> registryEntryList = (RegistryEntryList<Dialog>) optional.get();
-			if (registryEntryList.size() > 0) {
-				if (registryEntryList.size() == 1) {
-					return Optional.of(registryEntryList.get(0));
-				}
+		Registry<Dialog> registry = client.player.networkHandler.getRegistryManager().getOrThrow(RegistryKeys.DIALOG);
+		Optional<? extends RegistryEntryList<Dialog>> optional = registry.getOptional(DialogTags.PAUSE_SCREEN_ADDITIONS);
 
-				return registry.getOptional(Dialogs.CUSTOM_OPTIONS);
+		if (optional.isPresent()) {
+			RegistryEntryList<Dialog> dialogList = (RegistryEntryList<Dialog>) optional.get();
+
+			if (dialogList.size() > 0) {
+				return dialogList.size() == 1
+						? Optional.of(dialogList.get(0))
+						: registry.getOptional(Dialogs.CUSTOM_OPTIONS);
 			}
 		}
 
-		ServerLinks serverLinks = this.client.player.networkHandler.getServerLinks();
-		return !serverLinks.isEmpty() ? registry.getOptional(Dialogs.SERVER_LINKS) : Optional.empty();
+		ServerLinks serverLinks = client.player.networkHandler.getServerLinks();
+		return serverLinks.isEmpty() ? Optional.empty() : registry.getOptional(Dialogs.SERVER_LINKS);
 	}
 
 	static void addFeedbackAndBugsButtons(Screen parentScreen, GridWidget.Adder gridAdder) {
@@ -173,9 +163,7 @@ public class GameMenuScreen extends Screen {
 				SharedConstants.getGameVersion().stable() ? Urls.JAVA_FEEDBACK : Urls.SNAPSHOT_FEEDBACK
 		));
 		gridAdder.add(createUrlButton(parentScreen, REPORT_BUGS_TEXT, Urls.SNAPSHOT_BUGS)).active =
-				!SharedConstants.getGameVersion()
-				                .dataVersion()
-				                .isNotMainSeries();
+				!SharedConstants.getGameVersion().dataVersion().isNotMainSeries();
 	}
 
 	private void addFeedbackAndCustomOptionsButtons(
@@ -183,22 +171,18 @@ public class GameMenuScreen extends Screen {
 			RegistryEntry<Dialog> dialog,
 			GridWidget.Adder gridAdder
 	) {
-		gridAdder.add(this.createButton(FEEDBACK_TEXT, () -> new GameMenuScreen.FeedbackScreen(this)));
+		gridAdder.add(createButton(FEEDBACK_TEXT, () -> new FeedbackScreen(this)));
 		gridAdder.add(
-				ButtonWidget
-						.builder(
-								dialog.value().common().getExternalTitle(),
-								button -> client.player.networkHandler.showDialog(dialog, this)
-						)
-						.width(98)
-						.tooltip(CUSTOM_OPTIONS_TOOLTIP)
-						.build()
+				ButtonWidget.builder(
+						dialog.value().common().getExternalTitle(),
+						button -> client.player.networkHandler.showDialog(dialog, this)
+				).width(NORMAL_BUTTON_WIDTH).tooltip(CUSTOM_OPTIONS_TOOLTIP).build()
 		);
 	}
 
 	@Override
 	public void tick() {
-		if (this.shouldShowNowPlayingToast()) {
+		if (shouldShowNowPlayingToast()) {
 			NowPlayingToast.tick();
 		}
 	}
@@ -206,16 +190,17 @@ public class GameMenuScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		if (this.shouldShowNowPlayingToast()) {
-			NowPlayingToast.draw(context, this.textRenderer);
+
+		if (shouldShowNowPlayingToast()) {
+			NowPlayingToast.draw(context, textRenderer);
 		}
 
-		if (this.showMenu && this.client.getAbuseReportContext().hasDraft() && this.exitButton != null) {
+		if (showMenu && client.getAbuseReportContext().hasDraft() && exitButton != null) {
 			context.drawGuiTexture(
 					RenderPipelines.GUI_TEXTURED,
 					DRAFT_REPORT_ICON_TEXTURE,
-					this.exitButton.getX() + this.exitButton.getWidth() - 17,
-					this.exitButton.getY() + 3,
+					exitButton.getX() + exitButton.getWidth() - 17,
+					exitButton.getY() + 3,
 					15,
 					15
 			);
@@ -224,34 +209,27 @@ public class GameMenuScreen extends Screen {
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (this.showMenu) {
+		if (showMenu) {
 			super.renderBackground(context, mouseX, mouseY, deltaTicks);
 		}
 	}
 
-	/**
-	 * Определяет, следует ли show now playing toast.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldShowNowPlayingToast() {
-		GameOptions gameOptions = this.client.options;
+		GameOptions gameOptions = client.options;
 		return gameOptions.getMusicToast().getValue().canShow()
-				&& gameOptions.getSoundVolume(SoundCategory.MUSIC) > 0.0F && this.showMenu;
+				&& gameOptions.getSoundVolume(SoundCategory.MUSIC) > 0.0F
+				&& showMenu;
 	}
 
 	private ButtonWidget createButton(Text text, Supplier<Screen> screenSupplier) {
-		return ButtonWidget.builder(text, button -> this.client.setScreen(screenSupplier.get())).width(98).build();
+		return ButtonWidget.builder(text, button -> client.setScreen(screenSupplier.get())).width(NORMAL_BUTTON_WIDTH).build();
 	}
 
 	private static ButtonWidget createUrlButton(Screen parent, Text text, URI uri) {
-		return ButtonWidget.builder(text, ConfirmLinkScreen.opening(parent, uri)).width(98).build();
+		return ButtonWidget.builder(text, ConfirmLinkScreen.opening(parent, uri)).width(NORMAL_BUTTON_WIDTH).build();
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FeedbackScreen}.
-	 */
 	static class FeedbackScreen extends Screen {
 
 		private static final Text TITLE = Text.translatable("menu.feedback.title");
@@ -265,27 +243,24 @@ public class GameMenuScreen extends Screen {
 
 		@Override
 		protected void init() {
-			this.layoutWidget.addHeader(TITLE, this.textRenderer);
-			GridWidget gridWidget = this.layoutWidget.addBody(new GridWidget());
+			layoutWidget.addHeader(TITLE, textRenderer);
+			GridWidget gridWidget = layoutWidget.addBody(new GridWidget());
 			gridWidget.getMainPositioner().margin(4, 4, 4, 0);
 			GridWidget.Adder adder = gridWidget.createAdder(2);
 			GameMenuScreen.addFeedbackAndBugsButtons(this, adder);
-			this.layoutWidget.addFooter(ButtonWidget
-					.builder(ScreenTexts.BACK, button -> this.close())
-					.width(200)
-					.build());
-			this.layoutWidget.forEachChild(this::addDrawableChild);
-			this.refreshWidgetPositions();
+			layoutWidget.addFooter(ButtonWidget.builder(ScreenTexts.BACK, button -> close()).width(200).build());
+			layoutWidget.forEachChild(this::addDrawableChild);
+			refreshWidgetPositions();
 		}
 
 		@Override
 		protected void refreshWidgetPositions() {
-			this.layoutWidget.refreshPositions();
+			layoutWidget.refreshPositions();
 		}
 
 		@Override
 		public void close() {
-			this.client.setScreen(this.parent);
+			client.setScreen(parent);
 		}
 	}
 }

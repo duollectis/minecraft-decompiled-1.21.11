@@ -10,33 +10,34 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LavaSubmergedBlockStructureProcessor}.
+ * Процессор структур, заменяющий блоки лавой, если они находятся в лаве.
+ * Если в мире на позиции блока уже стоит лава, и форма блока шаблона не является
+ * полным кубом (т.е. лава может «затопить» его), блок заменяется на лаву.
+ * Используется при генерации структур в Нижнем мире.
  */
 public class LavaSubmergedBlockStructureProcessor extends StructureProcessor {
 
-	public static final MapCodec<LavaSubmergedBlockStructureProcessor>
-			CODEC =
-			MapCodec.unit(() -> LavaSubmergedBlockStructureProcessor.INSTANCE);
+	public static final MapCodec<LavaSubmergedBlockStructureProcessor> CODEC =
+		MapCodec.unit(() -> LavaSubmergedBlockStructureProcessor.INSTANCE);
+
 	public static final LavaSubmergedBlockStructureProcessor INSTANCE = new LavaSubmergedBlockStructureProcessor();
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
 		BlockPos blockPos = currentBlockInfo.pos();
-		boolean bl = world.getBlockState(blockPos).isOf(Blocks.LAVA);
-		return bl && !Block.isShapeFullCube(currentBlockInfo.state().getOutlineShape(world, blockPos))
-		       ? new StructureTemplate.StructureBlockInfo(
-				blockPos,
-				Blocks.LAVA.getDefaultState(),
-				currentBlockInfo.nbt()
-		)
-		       : currentBlockInfo;
+		boolean isSubmergedInLava = world.getBlockState(blockPos).isOf(Blocks.LAVA);
+		boolean isNotFullCube = !Block.isShapeFullCube(currentBlockInfo.state().getOutlineShape(world, blockPos));
+
+		return isSubmergedInLava && isNotFullCube
+			? new StructureTemplate.StructureBlockInfo(blockPos, Blocks.LAVA.getDefaultState(), currentBlockInfo.nbt())
+			: currentBlockInfo;
 	}
 
 	@Override

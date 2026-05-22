@@ -26,7 +26,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code VaultBlock}.
+ * Блок хранилища (Vault) из подземелий. Содержит лут, который игрок может
+ * получить, вставив ключ. Поддерживает обычный и зловещий ({@code OMINOUS}) режимы.
+ * Состояние синхронизируется между сервером и клиентом через {@link VaultBlockEntity}.
  */
 public class VaultBlock extends BlockWithEntity {
 

@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.intprovider.IntProvider;
 
 /**
- * {@code WeatherCommand}.
+ * Команда {@code /weather}: изменение погоды в мире.
  */
 public class WeatherCommand {
 

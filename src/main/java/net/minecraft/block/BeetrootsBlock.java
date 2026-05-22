@@ -14,15 +14,17 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 /**
- * {@code BeetrootsBlock}.
+ * Блок свёклы. Культура с 4 стадиями роста (AGE 0–3). Растёт медленнее большинства
+ * культур: шанс роста при каждом случайном тике составляет 2/3 от базового, а прирост
+ * за одно применение костной муки — треть от стандартного.
  */
 public class BeetrootsBlock extends CropBlock {
 
 	public static final MapCodec<BeetrootsBlock> CODEC = createCodec(BeetrootsBlock::new);
 	public static final int BEETROOTS_MAX_AGE = 3;
 	public static final IntProperty AGE = Properties.AGE_3;
-	private static final VoxelShape[]
-			SHAPES_BY_AGE =
+	private static final int GROWTH_SKIP_CHANCE = 3;
+	private static final VoxelShape[] SHAPES_BY_AGE =
 			Block.createShapeArray(3, age -> Block.createColumnShape(16.0, 0.0, 2 + age * 2));
 
 	@Override
@@ -41,7 +43,7 @@ public class BeetrootsBlock extends CropBlock {
 
 	@Override
 	public int getMaxAge() {
-		return 3;
+		return BEETROOTS_MAX_AGE;
 	}
 
 	@Override
@@ -51,7 +53,7 @@ public class BeetrootsBlock extends CropBlock {
 
 	@Override
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (random.nextInt(3) != 0) {
+		if (random.nextInt(GROWTH_SKIP_CHANCE) != 0) {
 			super.randomTick(state, world, pos, random);
 		}
 	}
@@ -68,6 +70,6 @@ public class BeetrootsBlock extends CropBlock {
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return SHAPES_BY_AGE[this.getAge(state)];
+		return SHAPES_BY_AGE[getAge(state)];
 	}
 }

@@ -14,15 +14,24 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code ChunkSkyLightProvider}.
+ * Провайдер небесного освещения.
+ * <p>
+ * Реализует алгоритм BFS-распространения небесного света (солнечного/лунного).
+ * Небесный свет имеет уровень 15 во всех колонках выше поверхности ({@link ChunkSkyLight}).
+ * <p>
+ * Ключевые особенности по сравнению с блочным светом:
+ * <ul>
+ *   <li>При загрузке чанка инициализирует все секции выше поверхности уровнем 15</li>
+ *   <li>При изменении блока проверяет высоту поверхности и распространяет свет вниз</li>
+ *   <li>Учитывает «пустые» секции ниже текущей при распространении через границы чанков</li>
+ * </ul>
  */
 public final class ChunkSkyLightProvider extends ChunkLightProvider<SkyLightStorage.Data, SkyLightStorage> {
 
 	private static final long SKY_LIGHT_PACKED_ALL_DIRS = ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(15);
 	private static final long SKY_LIGHT_PACKED_NO_UP = ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(15, Direction.UP);
-	private static final long
-			SKY_LIGHT_PACKED_PROPAGATION =
-			ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(15, false, Direction.UP);
+	private static final long SKY_LIGHT_PACKED_PROPAGATION = ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(15, false, Direction.UP);
+
 	private final BlockPos.Mutable mutablePos = new BlockPos.Mutable();
 	private final ChunkSkyLight defaultSkyLight;
 
@@ -33,125 +42,151 @@ public final class ChunkSkyLightProvider extends ChunkLightProvider<SkyLightStor
 	@VisibleForTesting
 	protected ChunkSkyLightProvider(ChunkProvider chunkProvider, SkyLightStorage lightStorage) {
 		super(chunkProvider, lightStorage);
-		this.defaultSkyLight = new ChunkSkyLight(chunkProvider.getWorld());
+		defaultSkyLight = new ChunkSkyLight(chunkProvider.getWorld());
 	}
 
 	private static boolean isMaxLightLevel(int lightLevel) {
-		return lightLevel == 15;
+		return lightLevel == MAX_LIGHT_LEVEL;
 	}
 
 	private int getSkyLightOrDefault(int x, int z, int defaultValue) {
-		ChunkSkyLight
-				chunkSkyLight =
-				this.getSkyLight(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
-		return chunkSkyLight == null ? defaultValue : chunkSkyLight.get(
-				ChunkSectionPos.getLocalCoord(x),
-				ChunkSectionPos.getLocalCoord(z)
+		ChunkSkyLight skyLight = getSkyLight(
+			ChunkSectionPos.getSectionCoord(x),
+			ChunkSectionPos.getSectionCoord(z)
 		);
+
+		return skyLight == null
+			? defaultValue
+			: skyLight.get(ChunkSectionPos.getLocalCoord(x), ChunkSectionPos.getLocalCoord(z));
 	}
 
 	private @Nullable ChunkSkyLight getSkyLight(int chunkX, int chunkZ) {
-		LightSourceView lightSourceView = this.chunkProvider.getChunk(chunkX, chunkZ);
-		return lightSourceView != null ? lightSourceView.getChunkSkyLight() : null;
+		LightSourceView chunk = chunkProvider.getChunk(chunkX, chunkZ);
+
+		return chunk != null ? chunk.getChunkSkyLight() : null;
 	}
 
 	@Override
 	protected void checkForLightUpdate(long blockPos) {
-		int i = BlockPos.unpackLongX(blockPos);
-		int j = BlockPos.unpackLongY(blockPos);
-		int k = BlockPos.unpackLongZ(blockPos);
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		int
-				m =
-				this.lightStorage.isSectionInEnabledColumn(l) ? this.getSkyLightOrDefault(i, k, Integer.MAX_VALUE)
-				                                              : Integer.MAX_VALUE;
-		if (m != Integer.MAX_VALUE) {
-			this.checkColumnForSkyLight(i, k, m);
+		int x = BlockPos.unpackLongX(blockPos);
+		int y = BlockPos.unpackLongY(blockPos);
+		int z = BlockPos.unpackLongZ(blockPos);
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+
+		int surfaceY = lightStorage.isSectionInEnabledColumn(sectionPos)
+			? getSkyLightOrDefault(x, z, Integer.MAX_VALUE)
+			: Integer.MAX_VALUE;
+
+		if (surfaceY != Integer.MAX_VALUE) {
+			checkColumnForSkyLight(x, z, surfaceY);
 		}
 
-		if (this.lightStorage.hasSection(l)) {
-			boolean bl = j >= m;
-			if (bl) {
-				this.queueLightDecrease(blockPos, SKY_LIGHT_PACKED_NO_UP);
-				this.queueLightIncrease(blockPos, SKY_LIGHT_PACKED_PROPAGATION);
-			}
-			else {
-				int n = this.lightStorage.get(blockPos);
-				if (n > 0) {
-					this.lightStorage.set(blockPos, 0);
-					this.queueLightDecrease(blockPos, ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(n));
-				}
-				else {
-					this.queueLightDecrease(blockPos, INITIAL_PACKED_INFO);
-				}
-			}
+		if (!lightStorage.hasSection(sectionPos)) {
+			return;
 		}
-	}
 
-	private void checkColumnForSkyLight(int i, int j, int k) {
-		int l = ChunkSectionPos.getBlockCoord(this.lightStorage.getMinSectionY());
-		this.propagateSkyLightDecrease(i, j, k, l);
-		this.propagateSkyLightIncrease(i, j, k, l);
-	}
+		if (y >= surfaceY) {
+			queueLightDecrease(blockPos, SKY_LIGHT_PACKED_NO_UP);
+			queueLightIncrease(blockPos, SKY_LIGHT_PACKED_PROPAGATION);
+		} else {
+			int storedLevel = lightStorage.get(blockPos);
 
-	private void propagateSkyLightDecrease(int x, int z, int i, int j) {
-		if (i > j) {
-			int k = ChunkSectionPos.getSectionCoord(x);
-			int l = ChunkSectionPos.getSectionCoord(z);
-			int m = i - 1;
-
-			for (int n = ChunkSectionPos.getSectionCoord(m); this.lightStorage.isAboveMinHeight(n); n--) {
-				if (this.lightStorage.hasSection(ChunkSectionPos.asLong(k, n, l))) {
-					int o = ChunkSectionPos.getBlockCoord(n);
-					int p = o + 15;
-
-					for (int q = Math.min(p, m); q >= o; q--) {
-						long r = BlockPos.asLong(x, q, z);
-						if (!isMaxLightLevel(this.lightStorage.get(r))) {
-							return;
-						}
-
-						this.lightStorage.set(r, 0);
-						this.queueLightDecrease(r, q == i - 1 ? SKY_LIGHT_PACKED_ALL_DIRS : SKY_LIGHT_PACKED_NO_UP);
-					}
-				}
+			if (storedLevel > 0) {
+				lightStorage.set(blockPos, 0);
+				queueLightDecrease(blockPos, ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(storedLevel));
+			} else {
+				queueLightDecrease(blockPos, INITIAL_PACKED_INFO);
 			}
 		}
 	}
 
-	private void propagateSkyLightIncrease(int x, int z, int i, int j) {
-		int k = ChunkSectionPos.getSectionCoord(x);
-		int l = ChunkSectionPos.getSectionCoord(z);
-		int m = Math.max(
-				Math.max(
-						this.getSkyLightOrDefault(x - 1, z, Integer.MIN_VALUE),
-						this.getSkyLightOrDefault(x + 1, z, Integer.MIN_VALUE)
-				),
-				Math.max(
-						this.getSkyLightOrDefault(x, z - 1, Integer.MIN_VALUE),
-						this.getSkyLightOrDefault(x, z + 1, Integer.MIN_VALUE)
-				)
-		);
-		int n = Math.max(i, j);
+	private void checkColumnForSkyLight(int x, int z, int surfaceY) {
+		int minBlockY = ChunkSectionPos.getBlockCoord(lightStorage.getMinSectionY());
+		propagateSkyLightDecrease(x, z, surfaceY, minBlockY);
+		propagateSkyLightIncrease(x, z, surfaceY, minBlockY);
+	}
 
-		for (long o = ChunkSectionPos.asLong(k, ChunkSectionPos.getSectionCoord(n), l);
-		     !this.lightStorage.isAtOrAboveTopmostSection(o);
-		     o = ChunkSectionPos.offset(o, Direction.UP)
+	/**
+	 * Гасит небесный свет в колонке от {@code surfaceY} вниз до {@code minBlockY}.
+	 * Останавливается, если встречает блок с уровнем света меньше 15 (уже погашен).
+	 */
+	private void propagateSkyLightDecrease(int x, int z, int surfaceY, int minBlockY) {
+		if (surfaceY <= minBlockY) {
+			return;
+		}
+
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+		int startY = surfaceY - 1;
+
+		for (int sectionY = ChunkSectionPos.getSectionCoord(startY);
+			 lightStorage.isAboveMinHeight(sectionY);
+			 sectionY--
 		) {
-			if (this.lightStorage.hasSection(o)) {
-				int p = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(o));
-				int q = p + 15;
+			if (!lightStorage.hasSection(ChunkSectionPos.asLong(chunkX, sectionY, chunkZ))) {
+				continue;
+			}
 
-				for (int r = Math.max(p, n); r <= q; r++) {
-					long s = BlockPos.asLong(x, r, z);
-					if (isMaxLightLevel(this.lightStorage.get(s))) {
-						return;
-					}
+			int sectionMinY = ChunkSectionPos.getBlockCoord(sectionY);
+			int sectionMaxY = sectionMinY + 15;
 
-					this.lightStorage.set(s, 15);
-					if (r < m || r == i) {
-						this.queueLightIncrease(s, SKY_LIGHT_PACKED_PROPAGATION);
-					}
+			for (int blockY = Math.min(sectionMaxY, startY); blockY >= sectionMinY; blockY--) {
+				long pos = BlockPos.asLong(x, blockY, z);
+
+				if (!isMaxLightLevel(lightStorage.get(pos))) {
+					return;
+				}
+
+				lightStorage.set(pos, 0);
+				queueLightDecrease(pos, blockY == surfaceY - 1 ? SKY_LIGHT_PACKED_ALL_DIRS : SKY_LIGHT_PACKED_NO_UP);
+			}
+		}
+	}
+
+	/**
+	 * Восстанавливает небесный свет в колонке от {@code surfaceY} вниз.
+	 * Также проверяет соседние колонки: если их поверхность ниже, распространяет свет горизонтально.
+	 */
+	private void propagateSkyLightIncrease(int x, int z, int surfaceY, int minBlockY) {
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+
+		int maxNeighborSurface = Math.max(
+			Math.max(
+				getSkyLightOrDefault(x - 1, z, Integer.MIN_VALUE),
+				getSkyLightOrDefault(x + 1, z, Integer.MIN_VALUE)
+			),
+			Math.max(
+				getSkyLightOrDefault(x, z - 1, Integer.MIN_VALUE),
+				getSkyLightOrDefault(x, z + 1, Integer.MIN_VALUE)
+			)
+		);
+
+		int startY = Math.max(surfaceY, minBlockY);
+		long startSection = ChunkSectionPos.asLong(chunkX, ChunkSectionPos.getSectionCoord(startY), chunkZ);
+
+		for (long sectionPos = startSection;
+			 !lightStorage.isAtOrAboveTopmostSection(sectionPos);
+			 sectionPos = ChunkSectionPos.offset(sectionPos, Direction.UP)
+		) {
+			if (!lightStorage.hasSection(sectionPos)) {
+				continue;
+			}
+
+			int sectionMinY = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackY(sectionPos));
+			int sectionMaxY = sectionMinY + 15;
+
+			for (int blockY = Math.max(sectionMinY, startY); blockY <= sectionMaxY; blockY++) {
+				long pos = BlockPos.asLong(x, blockY, z);
+
+				if (isMaxLightLevel(lightStorage.get(pos))) {
+					return;
+				}
+
+				lightStorage.set(pos, MAX_LIGHT_LEVEL);
+
+				if (blockY < maxNeighborSurface || blockY == surfaceY) {
+					queueLightIncrease(pos, SKY_LIGHT_PACKED_PROPAGATION);
 				}
 			}
 		}
@@ -159,159 +194,195 @@ public final class ChunkSkyLightProvider extends ChunkLightProvider<SkyLightStor
 
 	@Override
 	protected void propagateLightIncrease(long blockPos, long packed, int lightLevel) {
-		BlockState blockState = null;
-		int i = this.getNumberOfSectionsBelowPos(blockPos);
+		BlockState sourceState = null;
+		int sectionsBelow = getNumberOfSectionsBelowPos(blockPos);
 
 		for (Direction direction : DIRECTIONS) {
-			if (ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
-				long l = BlockPos.offset(blockPos, direction);
-				if (this.lightStorage.hasSection(ChunkSectionPos.fromBlockPos(l))) {
-					int j = this.lightStorage.get(l);
-					int k = lightLevel - 1;
-					if (k > j) {
-						this.mutablePos.set(l);
-						BlockState blockState2 = this.getStateForLighting(this.mutablePos);
-						int m = lightLevel - this.getOpacity(blockState2);
-						if (m > j) {
-							if (blockState == null) {
-								blockState = ChunkLightProvider.PackedInfo.isTrivial(packed)
-								             ? Blocks.AIR.getDefaultState()
-								             : this.getStateForLighting(this.mutablePos.set(blockPos));
-							}
-
-							if (!this.shapesCoverFullCube(blockState, blockState2, direction)) {
-								this.lightStorage.set(l, m);
-								if (m > 1) {
-									this.queueLightIncrease(
-											l,
-											ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-													m,
-													isTrivialForLighting(blockState2),
-													direction.getOpposite()
-											)
-									);
-								}
-
-								this.propagateSkyLightToNeighbor(l, direction, m, true, i);
-							}
-						}
-					}
-				}
+			if (!ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
+				continue;
 			}
+
+			long neighborPos = BlockPos.offset(blockPos, direction);
+
+			if (!lightStorage.hasSection(ChunkSectionPos.fromBlockPos(neighborPos))) {
+				continue;
+			}
+
+			int neighborLevel = lightStorage.get(neighborPos);
+			int minRequired = lightLevel - 1;
+
+			if (minRequired <= neighborLevel) {
+				continue;
+			}
+
+			mutablePos.set(neighborPos);
+			BlockState neighborState = getStateForLighting(mutablePos);
+			int propagated = lightLevel - getOpacity(neighborState);
+
+			if (propagated <= neighborLevel) {
+				continue;
+			}
+
+			if (sourceState == null) {
+				sourceState = ChunkLightProvider.PackedInfo.isTrivial(packed)
+					? Blocks.AIR.getDefaultState()
+					: getStateForLighting(mutablePos.set(blockPos));
+			}
+
+			if (shapesCoverFullCube(sourceState, neighborState, direction)) {
+				continue;
+			}
+
+			lightStorage.set(neighborPos, propagated);
+
+			if (propagated > 1) {
+				queueLightIncrease(
+					neighborPos,
+					ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+						propagated,
+						isTrivialForLighting(neighborState),
+						direction.getOpposite()
+					)
+				);
+			}
+
+			propagateSkyLightToNeighbor(neighborPos, direction, propagated, true, sectionsBelow);
 		}
 	}
 
 	@Override
 	protected void propagateLightDecrease(long blockPos, long packed) {
-		int i = this.getNumberOfSectionsBelowPos(blockPos);
-		int j = ChunkLightProvider.PackedInfo.getLightLevel(packed);
+		int sectionsBelow = getNumberOfSectionsBelowPos(blockPos);
+		int packedLevel = ChunkLightProvider.PackedInfo.getLightLevel(packed);
 
 		for (Direction direction : DIRECTIONS) {
-			if (ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
-				long l = BlockPos.offset(blockPos, direction);
-				if (this.lightStorage.hasSection(ChunkSectionPos.fromBlockPos(l))) {
-					int k = this.lightStorage.get(l);
-					if (k != 0) {
-						if (k <= j - 1) {
-							this.lightStorage.set(l, 0);
-							this.queueLightDecrease(
-									l,
-									ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-											k,
-											direction.getOpposite()
-									)
-							);
-							this.propagateSkyLightToNeighbor(l, direction, k, false, i);
-						}
-						else {
-							this.queueLightIncrease(
-									l,
-									ChunkLightProvider.PackedInfo.packWithRepropagate(k, false, direction.getOpposite())
-							);
-						}
-					}
-				}
+			if (!ChunkLightProvider.PackedInfo.isDirectionBitSet(packed, direction)) {
+				continue;
+			}
+
+			long neighborPos = BlockPos.offset(blockPos, direction);
+
+			if (!lightStorage.hasSection(ChunkSectionPos.fromBlockPos(neighborPos))) {
+				continue;
+			}
+
+			int neighborLevel = lightStorage.get(neighborPos);
+
+			if (neighborLevel == 0) {
+				continue;
+			}
+
+			if (neighborLevel <= packedLevel - 1) {
+				lightStorage.set(neighborPos, 0);
+				queueLightDecrease(
+					neighborPos,
+					ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+						neighborLevel,
+						direction.getOpposite()
+					)
+				);
+				propagateSkyLightToNeighbor(neighborPos, direction, neighborLevel, false, sectionsBelow);
+			} else {
+				queueLightIncrease(
+					neighborPos,
+					ChunkLightProvider.PackedInfo.packWithRepropagate(neighborLevel, false, direction.getOpposite())
+				);
 			}
 		}
 	}
 
+	/**
+	 * Считает количество незагруженных секций ниже секции, содержащей данный блок.
+	 * Используется для распространения небесного света через границы чанков по вертикали.
+	 * Возвращает 0, если блок не находится на нижней границе секции или не на краю чанка по XZ.
+	 */
 	private int getNumberOfSectionsBelowPos(long blockPos) {
-		int i = BlockPos.unpackLongY(blockPos);
-		int j = ChunkSectionPos.getLocalCoord(i);
-		if (j != 0) {
+		int y = BlockPos.unpackLongY(blockPos);
+
+		if (ChunkSectionPos.getLocalCoord(y) != 0) {
 			return 0;
 		}
-		else {
-			int k = BlockPos.unpackLongX(blockPos);
-			int l = BlockPos.unpackLongZ(blockPos);
-			int m = ChunkSectionPos.getLocalCoord(k);
-			int n = ChunkSectionPos.getLocalCoord(l);
-			if (m != 0 && m != 15 && n != 0 && n != 15) {
-				return 0;
-			}
-			else {
-				int o = ChunkSectionPos.getSectionCoord(k);
-				int p = ChunkSectionPos.getSectionCoord(i);
-				int q = ChunkSectionPos.getSectionCoord(l);
-				int r = 0;
 
-				while (!this.lightStorage.hasSection(ChunkSectionPos.asLong(o, p - r - 1, q))
-						&& this.lightStorage.isAboveMinHeight(p - r - 1)) {
-					r++;
-				}
+		int x = BlockPos.unpackLongX(blockPos);
+		int z = BlockPos.unpackLongZ(blockPos);
+		int localX = ChunkSectionPos.getLocalCoord(x);
+		int localZ = ChunkSectionPos.getLocalCoord(z);
 
-				return r;
-			}
+		if (localX != 0 && localX != 15 && localZ != 0 && localZ != 15) {
+			return 0;
 		}
+
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int sectionY = ChunkSectionPos.getSectionCoord(y);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+		int gap = 0;
+
+		while (!lightStorage.hasSection(ChunkSectionPos.asLong(chunkX, sectionY - gap - 1, chunkZ))
+			&& lightStorage.isAboveMinHeight(sectionY - gap - 1)
+		) {
+			gap++;
+		}
+
+		return gap;
 	}
 
-	private void propagateSkyLightToNeighbor(long blockPos, Direction direction, int lightLevel, boolean bl, int i) {
-		if (i != 0) {
-			int j = BlockPos.unpackLongX(blockPos);
-			int k = BlockPos.unpackLongZ(blockPos);
-			if (exitsChunkXZ(direction, ChunkSectionPos.getLocalCoord(j), ChunkSectionPos.getLocalCoord(k))) {
-				int l = BlockPos.unpackLongY(blockPos);
-				int m = ChunkSectionPos.getSectionCoord(j);
-				int n = ChunkSectionPos.getSectionCoord(k);
-				int o = ChunkSectionPos.getSectionCoord(l) - 1;
-				int p = o - i + 1;
+	/**
+	 * Распространяет небесный свет в незагруженные секции соседнего чанка по вертикали.
+	 * Вызывается при пересечении горизонтальной границы чанка (XZ).
+	 *
+	 * @param increase {@code true} — увеличение света, {@code false} — уменьшение
+	 * @param sectionsBelow количество незагруженных секций ниже текущей
+	 */
+	private void propagateSkyLightToNeighbor(long blockPos, Direction direction, int lightLevel, boolean increase, int sectionsBelow) {
+		if (sectionsBelow == 0) {
+			return;
+		}
 
-				while (o >= p) {
-					if (!this.lightStorage.hasSection(ChunkSectionPos.asLong(m, o, n))) {
-						o--;
+		int x = BlockPos.unpackLongX(blockPos);
+		int z = BlockPos.unpackLongZ(blockPos);
+
+		if (!exitsChunkXZ(direction, ChunkSectionPos.getLocalCoord(x), ChunkSectionPos.getLocalCoord(z))) {
+			return;
+		}
+
+		int y = BlockPos.unpackLongY(blockPos);
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+		int topSection = ChunkSectionPos.getSectionCoord(y) - 1;
+		int bottomSection = topSection - sectionsBelow + 1;
+
+		for (int sectionY = topSection; sectionY >= bottomSection; sectionY--) {
+			if (!lightStorage.hasSection(ChunkSectionPos.asLong(chunkX, sectionY, chunkZ))) {
+				continue;
+			}
+
+			int sectionMinY = ChunkSectionPos.getBlockCoord(sectionY);
+
+			for (int localY = 15; localY >= 0; localY--) {
+				long pos = BlockPos.asLong(x, sectionMinY + localY, z);
+
+				if (increase) {
+					lightStorage.set(pos, lightLevel);
+
+					if (lightLevel > 1) {
+						queueLightIncrease(
+							pos,
+							ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+								lightLevel,
+								true,
+								direction.getOpposite()
+							)
+						);
 					}
-					else {
-						int q = ChunkSectionPos.getBlockCoord(o);
-
-						for (int r = 15; r >= 0; r--) {
-							long s = BlockPos.asLong(j, q + r, k);
-							if (bl) {
-								this.lightStorage.set(s, lightLevel);
-								if (lightLevel > 1) {
-									this.queueLightIncrease(
-											s,
-											ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-													lightLevel,
-													true,
-													direction.getOpposite()
-											)
-									);
-								}
-							}
-							else {
-								this.lightStorage.set(s, 0);
-								this.queueLightDecrease(
-										s,
-										ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
-												lightLevel,
-												direction.getOpposite()
-										)
-								);
-							}
-						}
-
-						o--;
-					}
+				} else {
+					lightStorage.set(pos, 0);
+					queueLightDecrease(
+						pos,
+						ChunkLightProvider.PackedInfo.packWithOneDirectionCleared(
+							lightLevel,
+							direction.getOpposite()
+						)
+					);
 				}
 			}
 		}
@@ -330,96 +401,103 @@ public final class ChunkSkyLightProvider extends ChunkLightProvider<SkyLightStor
 	@Override
 	public void setColumnEnabled(ChunkPos pos, boolean retainData) {
 		super.setColumnEnabled(pos, retainData);
-		if (retainData) {
-			ChunkSkyLight
-					chunkSkyLight =
-					Objects.requireNonNullElse(this.getSkyLight(pos.x, pos.z), this.defaultSkyLight);
-			int i = chunkSkyLight.getMaxSurfaceY() - 1;
-			int j = ChunkSectionPos.getSectionCoord(i) + 1;
-			long l = ChunkSectionPos.withZeroY(pos.x, pos.z);
-			int k = this.lightStorage.getTopSectionForColumn(l);
-			int m = Math.max(this.lightStorage.getMinSectionY(), j);
 
-			for (int n = k - 1; n >= m; n--) {
-				ChunkNibbleArray
-						chunkNibbleArray =
-						this.lightStorage.getOrCreateLightSection(ChunkSectionPos.asLong(pos.x, n, pos.z));
-				if (chunkNibbleArray != null && chunkNibbleArray.isUninitialized()) {
-					chunkNibbleArray.clear(15);
-				}
+		if (!retainData) {
+			return;
+		}
+
+		ChunkSkyLight skyLight = Objects.requireNonNullElse(getSkyLight(pos.x, pos.z), defaultSkyLight);
+		int surfaceY = skyLight.getMaxSurfaceY() - 1;
+		int topSection = ChunkSectionPos.getSectionCoord(surfaceY) + 1;
+		long columnPos = ChunkSectionPos.withZeroY(pos.x, pos.z);
+		int columnTop = lightStorage.getTopSectionForColumn(columnPos);
+		int startSection = Math.max(lightStorage.getMinSectionY(), topSection);
+
+		for (int sectionY = columnTop - 1; sectionY >= startSection; sectionY--) {
+			ChunkNibbleArray section = lightStorage.getOrCreateLightSection(
+				ChunkSectionPos.asLong(pos.x, sectionY, pos.z)
+			);
+
+			if (section != null && section.isUninitialized()) {
+				section.clear(MAX_LIGHT_LEVEL);
 			}
 		}
 	}
 
+	/**
+	 * Инициализирует небесное освещение для нового чанка.
+	 * <p>
+	 * Для каждой секции заполняет nibble-массив уровнями 15 сверху вниз до поверхности,
+	 * затем ставит в очередь распространение света на соседние чанки через горизонтальные границы.
+	 */
 	@Override
 	public void propagateLight(ChunkPos chunkPos) {
-		long l = ChunkSectionPos.withZeroY(chunkPos.x, chunkPos.z);
-		this.lightStorage.setColumnEnabled(l, true);
-		ChunkSkyLight
-				chunkSkyLight =
-				Objects.requireNonNullElse(this.getSkyLight(chunkPos.x, chunkPos.z), this.defaultSkyLight);
-		ChunkSkyLight
-				chunkSkyLight2 =
-				Objects.requireNonNullElse(this.getSkyLight(chunkPos.x, chunkPos.z - 1), this.defaultSkyLight);
-		ChunkSkyLight
-				chunkSkyLight3 =
-				Objects.requireNonNullElse(this.getSkyLight(chunkPos.x, chunkPos.z + 1), this.defaultSkyLight);
-		ChunkSkyLight
-				chunkSkyLight4 =
-				Objects.requireNonNullElse(this.getSkyLight(chunkPos.x - 1, chunkPos.z), this.defaultSkyLight);
-		ChunkSkyLight
-				chunkSkyLight5 =
-				Objects.requireNonNullElse(this.getSkyLight(chunkPos.x + 1, chunkPos.z), this.defaultSkyLight);
-		int i = this.lightStorage.getTopSectionForColumn(l);
-		int j = this.lightStorage.getMinSectionY();
-		int k = ChunkSectionPos.getBlockCoord(chunkPos.x);
-		int m = ChunkSectionPos.getBlockCoord(chunkPos.z);
+		long columnPos = ChunkSectionPos.withZeroY(chunkPos.x, chunkPos.z);
+		lightStorage.setColumnEnabled(columnPos, true);
 
-		for (int n = i - 1; n >= j; n--) {
-			long o = ChunkSectionPos.asLong(chunkPos.x, n, chunkPos.z);
-			ChunkNibbleArray chunkNibbleArray = this.lightStorage.getOrCreateLightSection(o);
-			if (chunkNibbleArray != null) {
-				int p = ChunkSectionPos.getBlockCoord(n);
-				int q = p + 15;
-				boolean bl = false;
+		ChunkSkyLight skyLight = Objects.requireNonNullElse(getSkyLight(chunkPos.x, chunkPos.z), defaultSkyLight);
+		ChunkSkyLight southSkyLight = Objects.requireNonNullElse(getSkyLight(chunkPos.x, chunkPos.z - 1), defaultSkyLight);
+		ChunkSkyLight northSkyLight = Objects.requireNonNullElse(getSkyLight(chunkPos.x, chunkPos.z + 1), defaultSkyLight);
+		ChunkSkyLight westSkyLight = Objects.requireNonNullElse(getSkyLight(chunkPos.x - 1, chunkPos.z), defaultSkyLight);
+		ChunkSkyLight eastSkyLight = Objects.requireNonNullElse(getSkyLight(chunkPos.x + 1, chunkPos.z), defaultSkyLight);
 
-				for (int r = 0; r < 16; r++) {
-					for (int s = 0; s < 16; s++) {
-						int t = chunkSkyLight.get(s, r);
-						if (t <= q) {
-							int u = r == 0 ? chunkSkyLight2.get(s, 15) : chunkSkyLight.get(s, r - 1);
-							int v = r == 15 ? chunkSkyLight3.get(s, 0) : chunkSkyLight.get(s, r + 1);
-							int w = s == 0 ? chunkSkyLight4.get(15, r) : chunkSkyLight.get(s - 1, r);
-							int x = s == 15 ? chunkSkyLight5.get(0, r) : chunkSkyLight.get(s + 1, r);
-							int y = Math.max(Math.max(u, v), Math.max(w, x));
+		int topSection = lightStorage.getTopSectionForColumn(columnPos);
+		int minSection = lightStorage.getMinSectionY();
+		int chunkBlockX = ChunkSectionPos.getBlockCoord(chunkPos.x);
+		int chunkBlockZ = ChunkSectionPos.getBlockCoord(chunkPos.z);
 
-							for (int z = q; z >= Math.max(p, t); z--) {
-								chunkNibbleArray.set(s, ChunkSectionPos.getLocalCoord(z), r, 15);
-								if (z == t || z < y) {
-									long aa = BlockPos.asLong(k + s, z, m + r);
-									this.queueLightIncrease(
-											aa,
-											ChunkLightProvider.PackedInfo.packSkyLightPropagation(
-													z == t,
-													z < u,
-													z < v,
-													z < w,
-													z < x
-											)
-									);
-								}
-							}
+		for (int sectionY = topSection - 1; sectionY >= minSection; sectionY--) {
+			long sectionPos = ChunkSectionPos.asLong(chunkPos.x, sectionY, chunkPos.z);
+			ChunkNibbleArray section = lightStorage.getOrCreateLightSection(sectionPos);
 
-							if (t < p) {
-								bl = true;
-							}
+			if (section == null) {
+				continue;
+			}
+
+			int sectionMinY = ChunkSectionPos.getBlockCoord(sectionY);
+			int sectionMaxY = sectionMinY + 15;
+			boolean hasBelowSurface = false;
+
+			for (int localZ = 0; localZ < 16; localZ++) {
+				for (int localX = 0; localX < 16; localX++) {
+					int surfaceY = skyLight.get(localX, localZ);
+
+					if (surfaceY > sectionMaxY) {
+						continue;
+					}
+
+					int southY = localZ == 0 ? southSkyLight.get(localX, 15) : skyLight.get(localX, localZ - 1);
+					int northY = localZ == 15 ? northSkyLight.get(localX, 0) : skyLight.get(localX, localZ + 1);
+					int westY = localX == 0 ? westSkyLight.get(15, localZ) : skyLight.get(localX - 1, localZ);
+					int eastY = localX == 15 ? eastSkyLight.get(0, localZ) : skyLight.get(localX + 1, localZ);
+					int maxNeighborY = Math.max(Math.max(southY, northY), Math.max(westY, eastY));
+
+					for (int blockY = sectionMaxY; blockY >= Math.max(sectionMinY, surfaceY); blockY--) {
+						section.set(localX, ChunkSectionPos.getLocalCoord(blockY), localZ, ChunkSectionPos.LOCAL_COORD_MASK);
+
+						if (blockY == surfaceY || blockY < maxNeighborY) {
+							long blockPos = BlockPos.asLong(chunkBlockX + localX, blockY, chunkBlockZ + localZ);
+							queueLightIncrease(
+								blockPos,
+								ChunkLightProvider.PackedInfo.packSkyLightPropagation(
+									blockY == surfaceY,
+									blockY < southY,
+									blockY < northY,
+									blockY < westY,
+									blockY < eastY
+								)
+							);
 						}
 					}
-				}
 
-				if (!bl) {
-					break;
+					if (surfaceY < sectionMinY) {
+						hasBelowSurface = true;
+					}
 				}
+			}
+
+			if (!hasBelowSurface) {
+				break;
 			}
 		}
 	}

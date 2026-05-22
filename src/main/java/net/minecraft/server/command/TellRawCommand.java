@@ -8,7 +8,7 @@ import net.minecraft.command.argument.TextArgumentType;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
- * {@code TellRawCommand}.
+ * Команда {@code /tellraw}: отправка форматированного JSON-текста игрокам.
  */
 public class TellRawCommand {
 

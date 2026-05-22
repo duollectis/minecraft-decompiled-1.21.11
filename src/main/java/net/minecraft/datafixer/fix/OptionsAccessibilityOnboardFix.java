@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsAccessibilityOnboardFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsAccessibilityOnboardFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class OptionsAccessibilityOnboardFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsAccessibilityOnboardFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						options -> options.set("onboardAccessibility", options.createString("false"))

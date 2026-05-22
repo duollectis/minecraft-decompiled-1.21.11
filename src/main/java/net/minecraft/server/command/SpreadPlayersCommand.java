@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code SpreadPlayersCommand}.
+ * Команда {@code /spreadplayers}: случайное рассеивание сущностей по области.
  */
 public class SpreadPlayersCommand {
 
@@ -263,7 +263,7 @@ public class SpreadPlayersCommand {
 		double d = Float.MAX_VALUE;
 
 		int i;
-		for (i = 0; i < 10000 && bl; i++) {
+		for (i = 0; i < MAX_ATTEMPTS && bl; i++) {
 			bl = false;
 			d = Float.MAX_VALUE;
 
@@ -319,7 +319,7 @@ public class SpreadPlayersCommand {
 			d = 0.0;
 		}
 
-		if (i >= 10000) {
+		if (i >= MAX_ATTEMPTS) {
 			if (respectTeams) {
 				throw FAILED_TEAMS_EXCEPTION.create(
 						piles.length,
@@ -408,9 +408,6 @@ public class SpreadPlayersCommand {
 		return piles;
 	}
 
-	/**
-	 * {@code Pile}.
-	 */
 	static class Pile {
 
 		double x;

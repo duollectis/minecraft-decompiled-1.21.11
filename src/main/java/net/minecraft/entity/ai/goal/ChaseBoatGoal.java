@@ -10,9 +10,18 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChaseBoatGoal}.
+ * Цель, заставляющая моба преследовать лодку с игроком: сначала подходит к лодке,
+ * затем движется в направлении её движения, имитируя сопровождение.
  */
 public class ChaseBoatGoal extends Goal {
+
+	private static final float APPROACH_SPEED = 0.015F;
+	private static final float FOLLOW_SPEED = 0.01F;
+	private static final float NEAR_BOAT_DISTANCE = 4.0F;
+	private static final float FAR_BOAT_DISTANCE = 12.0F;
+	private static final double BOAT_SEARCH_RADIUS = 5.0;
+	private static final int UPDATE_INTERVAL_TICKS = 10;
+	private static final int AHEAD_OFFSET = 10;
 
 	private int updateCountdownTicks;
 	private final PathAwareEntity mob;
@@ -25,21 +34,21 @@ public class ChaseBoatGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.passenger != null && this.passenger.getVehicle() instanceof AbstractBoatEntity) {
+		if (passenger != null && passenger.getVehicle() instanceof AbstractBoatEntity) {
 			return true;
 		}
-		else {
-			for (AbstractBoatEntity abstractBoatEntity : this.mob
-					.getEntityWorld()
-					.getNonSpectatingEntities(AbstractBoatEntity.class, this.mob.getBoundingBox().expand(5.0))) {
-				if (abstractBoatEntity.getControllingPassenger() instanceof PlayerEntity playerEntity
-						&& playerEntity.getVehicle() instanceof AbstractBoatEntity) {
-					return true;
-				}
-			}
 
-			return false;
+		for (AbstractBoatEntity boat : mob.getEntityWorld()
+			.getNonSpectatingEntities(AbstractBoatEntity.class, mob.getBoundingBox().expand(BOAT_SEARCH_RADIUS))
+		) {
+			if (boat.getControllingPassenger() instanceof PlayerEntity player
+				&& player.getVehicle() instanceof AbstractBoatEntity
+			) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	@Override
@@ -49,55 +58,61 @@ public class ChaseBoatGoal extends Goal {
 
 	@Override
 	public boolean shouldContinue() {
-		return this.passenger != null && this.passenger.hasVehicle() && this.passenger.getVehicle() instanceof AbstractBoatEntity;
+		return passenger != null
+			&& passenger.hasVehicle()
+			&& passenger.getVehicle() instanceof AbstractBoatEntity;
 	}
 
 	@Override
 	public void start() {
-		for (AbstractBoatEntity abstractBoatEntity : this.mob
-				.getEntityWorld()
-				.getNonSpectatingEntities(AbstractBoatEntity.class, this.mob.getBoundingBox().expand(5.0))) {
-			if (abstractBoatEntity.getControllingPassenger() instanceof PlayerEntity playerEntity) {
-				this.passenger = playerEntity;
+		for (AbstractBoatEntity boat : mob.getEntityWorld()
+			.getNonSpectatingEntities(AbstractBoatEntity.class, mob.getBoundingBox().expand(BOAT_SEARCH_RADIUS))
+		) {
+			if (boat.getControllingPassenger() instanceof PlayerEntity player) {
+				passenger = player;
 				break;
 			}
 		}
 
-		this.updateCountdownTicks = 0;
-		this.state = ChaseBoatState.GO_TO_BOAT;
+		updateCountdownTicks = 0;
+		state = ChaseBoatState.GO_TO_BOAT;
 	}
 
 	@Override
 	public void stop() {
-		this.passenger = null;
+		passenger = null;
 	}
 
 	@Override
 	public void tick() {
-		float f = this.state == ChaseBoatState.GO_IN_BOAT_DIRECTION ? 0.01F : 0.015F;
-		this.mob.updateVelocity(f, new Vec3d(this.mob.sidewaysSpeed, this.mob.upwardSpeed, this.mob.forwardSpeed));
-		this.mob.move(MovementType.SELF, this.mob.getVelocity());
-		if (--this.updateCountdownTicks <= 0) {
-			this.updateCountdownTicks = this.getTickCount(10);
-			if (this.state == ChaseBoatState.GO_TO_BOAT) {
-				BlockPos
-						blockPos =
-						this.passenger.getBlockPos().offset(this.passenger.getHorizontalFacing().getOpposite());
-				blockPos = blockPos.add(0, -1, 0);
-				this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0);
-				if (this.mob.distanceTo(this.passenger) < 4.0F) {
-					this.updateCountdownTicks = 0;
-					this.state = ChaseBoatState.GO_IN_BOAT_DIRECTION;
-				}
+		float speed = state == ChaseBoatState.GO_IN_BOAT_DIRECTION ? FOLLOW_SPEED : APPROACH_SPEED;
+		mob.updateVelocity(speed, new Vec3d(mob.sidewaysSpeed, mob.upwardSpeed, mob.forwardSpeed));
+		mob.move(MovementType.SELF, mob.getVelocity());
+
+		if (--updateCountdownTicks > 0) {
+			return;
+		}
+
+		updateCountdownTicks = getTickCount(UPDATE_INTERVAL_TICKS);
+
+		if (state == ChaseBoatState.GO_TO_BOAT) {
+			BlockPos target = passenger.getBlockPos()
+				.offset(passenger.getHorizontalFacing().getOpposite())
+				.add(0, -1, 0);
+			mob.getNavigation().startMovingTo(target.getX(), target.getY(), target.getZ(), 1.0);
+
+			if (mob.distanceTo(passenger) < NEAR_BOAT_DISTANCE) {
+				updateCountdownTicks = 0;
+				state = ChaseBoatState.GO_IN_BOAT_DIRECTION;
 			}
-			else if (this.state == ChaseBoatState.GO_IN_BOAT_DIRECTION) {
-				Direction direction = this.passenger.getMovementDirection();
-				BlockPos blockPos2 = this.passenger.getBlockPos().offset(direction, 10);
-				this.mob.getNavigation().startMovingTo(blockPos2.getX(), blockPos2.getY() - 1, blockPos2.getZ(), 1.0);
-				if (this.mob.distanceTo(this.passenger) > 12.0F) {
-					this.updateCountdownTicks = 0;
-					this.state = ChaseBoatState.GO_TO_BOAT;
-				}
+		} else if (state == ChaseBoatState.GO_IN_BOAT_DIRECTION) {
+			Direction direction = passenger.getMovementDirection();
+			BlockPos ahead = passenger.getBlockPos().offset(direction, AHEAD_OFFSET);
+			mob.getNavigation().startMovingTo(ahead.getX(), ahead.getY() - 1, ahead.getZ(), 1.0);
+
+			if (mob.distanceTo(passenger) > FAR_BOAT_DISTANCE) {
+				updateCountdownTicks = 0;
+				state = ChaseBoatState.GO_TO_BOAT;
 			}
 		}
 	}

@@ -8,7 +8,8 @@ import net.minecraft.network.packet.s2c.common.CookieRequestS2CPacket;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс cookie packets.
+ * Реестр типов пакетов механизма куки: сервер запрашивает значение куки
+ * ({@code COOKIE_REQUEST}), клиент отвечает ({@code COOKIE_RESPONSE}).
  */
 public class CookiePackets {
 

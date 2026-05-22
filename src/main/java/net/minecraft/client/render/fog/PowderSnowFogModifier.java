@@ -19,7 +19,7 @@ public class PowderSnowFogModifier extends FogModifier {
 
 	@Override
 	public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
-		return -6308916;
+		return FOG_COLOR;
 	}
 
 	@Override

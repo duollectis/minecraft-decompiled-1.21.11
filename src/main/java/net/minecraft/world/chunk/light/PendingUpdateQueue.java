@@ -3,7 +3,9 @@ package net.minecraft.world.chunk.light;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 
 /**
- * {@code PendingUpdateQueue}.
+ * Очередь ожидающих обновлений освещения, упорядоченная по уровням приоритета.
+ * Каждый уровень хранит набор идентификаторов блоков/секций, ожидающих обработки.
+ * Поддерживает быстрое извлечение элемента с минимальным уровнем.
  */
 public class PendingUpdateQueue {
 
@@ -15,13 +17,10 @@ public class PendingUpdateQueue {
 		this.levelCount = levelCount;
 		this.pendingIdUpdatesByLevel = new LongLinkedOpenHashSet[levelCount];
 
-		for (int i = 0; i < levelCount; i++) {
-			this.pendingIdUpdatesByLevel[i] = new LongLinkedOpenHashSet(expectedLevelSize, 0.5F) {
-				/**
-				 * Rehash.
-				 *
-				 * @param newN new n
-				 */
+		for (int level = 0; level < levelCount; level++) {
+			// Переопределяем rehash, чтобы не расширять хеш-таблицу сверх ожидаемого размера
+			this.pendingIdUpdatesByLevel[level] = new LongLinkedOpenHashSet(expectedLevelSize, 0.5F) {
+				@Override
 				protected void rehash(int newN) {
 					if (newN > expectedLevelSize) {
 						super.rehash(newN);
@@ -33,60 +32,45 @@ public class PendingUpdateQueue {
 		this.minPendingLevel = levelCount;
 	}
 
-	/**
-	 * Dequeue.
-	 *
-	 * @return long — результат операции
-	 */
 	public long dequeue() {
-		LongLinkedOpenHashSet longLinkedOpenHashSet = this.pendingIdUpdatesByLevel[this.minPendingLevel];
-		long l = longLinkedOpenHashSet.removeFirstLong();
-		if (longLinkedOpenHashSet.isEmpty()) {
-			this.increaseMinPendingLevel(this.levelCount);
+		LongLinkedOpenHashSet bucket = pendingIdUpdatesByLevel[minPendingLevel];
+		long id = bucket.removeFirstLong();
+
+		if (bucket.isEmpty()) {
+			increaseMinPendingLevel(levelCount);
 		}
 
-		return l;
+		return id;
 	}
 
 	public boolean isEmpty() {
-		return this.minPendingLevel >= this.levelCount;
+		return minPendingLevel >= levelCount;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param id id
-	 * @param level level
-	 * @param levelCount level count
-	 */
-	public void remove(long id, int level, int levelCount) {
-		LongLinkedOpenHashSet longLinkedOpenHashSet = this.pendingIdUpdatesByLevel[level];
-		longLinkedOpenHashSet.remove(id);
-		if (longLinkedOpenHashSet.isEmpty() && this.minPendingLevel == level) {
-			this.increaseMinPendingLevel(levelCount);
+	public void remove(long id, int level, int newLevelCount) {
+		LongLinkedOpenHashSet bucket = pendingIdUpdatesByLevel[level];
+		bucket.remove(id);
+
+		if (bucket.isEmpty() && minPendingLevel == level) {
+			increaseMinPendingLevel(newLevelCount);
 		}
 	}
 
-	/**
-	 * Enqueue.
-	 *
-	 * @param id id
-	 * @param level level
-	 */
 	public void enqueue(long id, int level) {
-		this.pendingIdUpdatesByLevel[level].add(id);
-		if (this.minPendingLevel > level) {
-			this.minPendingLevel = level;
+		pendingIdUpdatesByLevel[level].add(id);
+
+		if (minPendingLevel > level) {
+			minPendingLevel = level;
 		}
 	}
 
 	private void increaseMinPendingLevel(int maxLevel) {
-		int i = this.minPendingLevel;
-		this.minPendingLevel = maxLevel;
+		int previousMin = minPendingLevel;
+		minPendingLevel = maxLevel;
 
-		for (int j = i + 1; j < maxLevel; j++) {
-			if (!this.pendingIdUpdatesByLevel[j].isEmpty()) {
-				this.minPendingLevel = j;
+		for (int level = previousMin + 1; level < maxLevel; level++) {
+			if (!pendingIdUpdatesByLevel[level].isEmpty()) {
+				minPendingLevel = level;
 				break;
 			}
 		}

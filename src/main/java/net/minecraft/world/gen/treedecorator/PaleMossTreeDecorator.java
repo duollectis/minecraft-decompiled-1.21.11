@@ -18,7 +18,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * {@code PaleMossTreeDecorator}.
+ * Декоратор дерева, размещающий бледный мох (pale hanging moss) на бледном дубе.
+ * Мох может свисать с брёвен, листьев и расти на земле вокруг основания дерева.
+ * Для каждого источника применяется независимая вероятность размещения.
  */
 public class PaleMossTreeDecorator extends TreeDecorator {
 
@@ -57,48 +59,47 @@ public class PaleMossTreeDecorator extends TreeDecorator {
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
 		Random random = generator.getRandom();
-		StructureWorldAccess structureWorldAccess = (StructureWorldAccess) generator.getWorld();
-		List<BlockPos> list = Util.copyShuffled(generator.getLogPositions(), random);
-		if (!list.isEmpty()) {
-			BlockPos blockPos = Collections.min(list, Comparator.comparingInt(Vec3i::getY));
-			if (random.nextFloat() < this.groundProbability) {
-				structureWorldAccess.getRegistryManager()
-				                    .getOptional(RegistryKeys.CONFIGURED_FEATURE)
-				                    .flatMap(registry -> registry.getOptional(VegetationConfiguredFeatures.PALE_MOSS_PATCH))
-				                    .ifPresent(
-						                    entry -> entry.value()
-						                                  .generate(structureWorldAccess,
-								                                  structureWorldAccess
-										                                  .toServerWorld()
-										                                  .getChunkManager()
-										                                  .getChunkGenerator(),
-								                                  random,
-								                                  blockPos.up()
-						                                  )
-				                    );
-			}
+		StructureWorldAccess world = (StructureWorldAccess) generator.getWorld();
+		List<BlockPos> shuffledLogs = Util.copyShuffled(generator.getLogPositions(), random);
 
-			generator.getLogPositions().forEach(pos -> {
-				if (random.nextFloat() < this.trunkProbability) {
-					BlockPos blockPosx = pos.down();
-					if (generator.isAir(blockPosx)) {
-						decorate(blockPosx, generator);
-					}
-				}
-			});
-			generator.getLeavesPositions().forEach(pos -> {
-				if (random.nextFloat() < this.leavesProbability) {
-					BlockPos blockPosx = pos.down();
-					if (generator.isAir(blockPosx)) {
-						decorate(blockPosx, generator);
-					}
-				}
-			});
+		if (shuffledLogs.isEmpty()) {
+			return;
 		}
+
+		BlockPos lowestLog = Collections.min(shuffledLogs, Comparator.comparingInt(Vec3i::getY));
+
+		if (random.nextFloat() < groundProbability) {
+			world.getRegistryManager()
+			     .getOptional(RegistryKeys.CONFIGURED_FEATURE)
+			     .flatMap(registry -> registry.getOptional(VegetationConfiguredFeatures.PALE_MOSS_PATCH))
+			     .ifPresent(
+					     entry -> entry.value()
+					                   .generate(
+							                   world,
+							                   world.toServerWorld().getChunkManager().getChunkGenerator(),
+							                   random,
+							                   lowestLog.up()
+					                   )
+			     );
+		}
+
+		generator.getLogPositions().forEach(pos -> {
+			BlockPos below = pos.down();
+			if (random.nextFloat() < trunkProbability && generator.isAir(below)) {
+				decorate(below, generator);
+			}
+		});
+
+		generator.getLeavesPositions().forEach(pos -> {
+			BlockPos below = pos.down();
+			if (random.nextFloat() < leavesProbability && generator.isAir(below)) {
+				decorate(below, generator);
+			}
+		});
 	}
 
 	private static void decorate(BlockPos pos, TreeDecorator.Generator generator) {
-		while (generator.isAir(pos.down()) && !(generator.getRandom().nextFloat() < 0.5)) {
+		while (generator.isAir(pos.down()) && generator.getRandom().nextFloat() >= 0.5F) {
 			generator.replace(pos, Blocks.PALE_HANGING_MOSS.getDefaultState().with(HangingMossBlock.TIP, false));
 			pos = pos.down();
 		}

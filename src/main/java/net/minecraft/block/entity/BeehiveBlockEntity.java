@@ -45,7 +45,8 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * {@code BeehiveBlockEntity}.
+ * Блок-сущность улья/пчелиного гнезда. Управляет хранением пчёл внутри,
+ * их выходом по таймеру, сбором нектара и уровнем мёда.
  */
 public class BeehiveBlockEntity extends BlockEntity {
 
@@ -93,81 +94,72 @@ public class BeehiveBlockEntity extends BlockEntity {
 
 	@Override
 	public void markDirty() {
-		if (this.isNearFire()) {
-			this.angerBees(null, this.world.getBlockState(this.getPos()), BeehiveBlockEntity.BeeState.EMERGENCY);
+		if (isNearFire()) {
+			angerBees(null, world.getBlockState(getPos()), BeehiveBlockEntity.BeeState.EMERGENCY);
 		}
 
 		super.markDirty();
 	}
 
 	public boolean isNearFire() {
-		if (this.world == null) {
+		if (world == null) {
 			return false;
 		}
-		else {
-			for (BlockPos blockPos : BlockPos.iterate(this.pos.add(-1, -1, -1), this.pos.add(1, 1, 1))) {
-				if (this.world.getBlockState(blockPos).getBlock() instanceof FireBlock) {
-					return true;
-				}
-			}
 
-			return false;
+		for (BlockPos blockPos : BlockPos.iterate(pos.add(-1, -1, -1), pos.add(1, 1, 1))) {
+			if (world.getBlockState(blockPos).getBlock() instanceof FireBlock) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	public boolean hasNoBees() {
-		return this.bees.isEmpty();
+		return bees.isEmpty();
 	}
 
 	public boolean isFullOfBees() {
-		return this.bees.size() == 3;
+		return bees.size() == MAX_BEE_COUNT;
 	}
 
 	/**
-	 * Anger bees.
-	 *
-	 * @param player player
-	 * @param state state
-	 * @param beeState bee state
+	 * Выпускает всех пчёл из улья в агрессивном состоянии.
+	 * Если улей задымлён, пчёлы не атакуют игрока, но получают таймер невозможности войти обратно.
 	 */
 	public void angerBees(@Nullable PlayerEntity player, BlockState state, BeehiveBlockEntity.BeeState beeState) {
-		List<Entity> list = this.tryReleaseBee(state, beeState);
-		if (player != null) {
-			for (Entity entity : list) {
-				if (entity instanceof BeeEntity beeEntity
-						&& player.getEntityPos().squaredDistanceTo(entity.getEntityPos()) <= 16.0) {
-					if (!this.isSmoked()) {
-						beeEntity.setTarget(player);
-					}
-					else {
-						beeEntity.setCannotEnterHiveTicks(400);
-					}
+		List<Entity> released = tryReleaseBee(state, beeState);
+
+		if (player == null) {
+			return;
+		}
+
+		for (Entity entity : released) {
+			if (entity instanceof BeeEntity beeEntity
+					&& player.getEntityPos().squaredDistanceTo(entity.getEntityPos()) <= 16.0) {
+				if (isSmoked()) {
+					beeEntity.setCannotEnterHiveTicks(ANGERED_CANNOT_ENTER_HIVE_TICKS);
+				} else {
+					beeEntity.setTarget(player);
 				}
 			}
 		}
 	}
 
 	private List<Entity> tryReleaseBee(BlockState state, BeehiveBlockEntity.BeeState beeState) {
-		List<Entity> list = Lists.newArrayList();
-		this.bees.removeIf(bee -> releaseBee(
-				this.world,
-				this.pos,
-				state,
-				bee.createData(),
-				list,
-				beeState,
-				this.flowerPos
-		));
-		if (!list.isEmpty()) {
+		List<Entity> released = Lists.newArrayList();
+		bees.removeIf(bee -> releaseBee(world, pos, state, bee.createData(), released, beeState, flowerPos));
+
+		if (!released.isEmpty()) {
 			super.markDirty();
 		}
 
-		return list;
+		return released;
 	}
 
 	@Debug
 	public int getBeeCount() {
-		return this.bees.size();
+		return bees.size();
 	}
 
 	public static int getHoneyLevel(BlockState state) {
@@ -176,56 +168,48 @@ public class BeehiveBlockEntity extends BlockEntity {
 
 	@Debug
 	public boolean isSmoked() {
-		return CampfireBlock.isLitCampfireInRange(this.world, this.getPos());
+		return CampfireBlock.isLitCampfireInRange(world, getPos());
 	}
 
 	/**
-	 * Try enter hive.
-	 *
-	 * @param entity entity
+	 * Пытается поместить пчелу в улей, если есть свободное место.
+	 * Обновляет позицию цветка, воспроизводит звук и испускает игровое событие.
 	 */
 	public void tryEnterHive(BeeEntity entity) {
-		if (this.bees.size() < 3) {
-			entity.stopRiding();
-			entity.removeAllPassengers();
-			entity.detachLeash();
-			this.addBee(BeehiveBlockEntity.BeeData.of(entity));
-			if (this.world != null) {
-				if (entity.hasFlower() && (!this.hasFlowerPos() || this.world.random.nextBoolean())) {
-					this.flowerPos = entity.getFlowerPos();
-				}
+		if (bees.size() >= MAX_BEE_COUNT) {
+			return;
+		}
 
-				BlockPos blockPos = this.getPos();
-				this.world
-						.playSound(
-								null,
-								(double) blockPos.getX(),
-								(double) blockPos.getY(),
-								(double) blockPos.getZ(),
-								SoundEvents.BLOCK_BEEHIVE_ENTER,
-								SoundCategory.BLOCKS,
-								1.0F,
-								1.0F
-						);
-				this.world.emitGameEvent(
-						GameEvent.BLOCK_CHANGE,
-						blockPos,
-						GameEvent.Emitter.of(entity, this.getCachedState())
-				);
+		entity.stopRiding();
+		entity.removeAllPassengers();
+		entity.detachLeash();
+		addBee(BeehiveBlockEntity.BeeData.of(entity));
+
+		if (world != null) {
+			if (entity.hasFlower() && (!hasFlowerPos() || world.random.nextBoolean())) {
+				flowerPos = entity.getFlowerPos();
 			}
 
-			entity.discard();
-			super.markDirty();
+			BlockPos blockPos = getPos();
+			world.playSound(
+					null,
+					(double) blockPos.getX(),
+					(double) blockPos.getY(),
+					(double) blockPos.getZ(),
+					SoundEvents.BLOCK_BEEHIVE_ENTER,
+					SoundCategory.BLOCKS,
+					1.0F,
+					1.0F
+			);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, blockPos, GameEvent.Emitter.of(entity, getCachedState()));
 		}
+
+		entity.discard();
+		super.markDirty();
 	}
 
-	/**
-	 * Добавляет bee.
-	 *
-	 * @param bee bee
-	 */
 	public void addBee(BeehiveBlockEntity.BeeData bee) {
-		this.bees.add(new BeehiveBlockEntity.Bee(bee));
+		bees.add(new BeehiveBlockEntity.Bee(bee));
 	}
 
 	private static boolean releaseBee(
@@ -241,65 +225,61 @@ public class BeehiveBlockEntity extends BlockEntity {
 				&& beeState != BeehiveBlockEntity.BeeState.EMERGENCY) {
 			return false;
 		}
-		else {
-			Direction direction = state.get(BeehiveBlock.FACING);
-			BlockPos blockPos = pos.offset(direction);
-			boolean bl = !world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty();
-			if (bl && beeState != BeehiveBlockEntity.BeeState.EMERGENCY) {
-				return false;
-			}
-			else {
-				Entity entity = bee.loadEntity(world, pos);
-				if (entity != null) {
-					if (entity instanceof BeeEntity beeEntity) {
-						if (flowerPos != null && !beeEntity.hasFlower() && world.random.nextFloat() < 0.9F) {
-							beeEntity.setFlowerPos(flowerPos);
-						}
 
-						if (beeState == BeehiveBlockEntity.BeeState.HONEY_DELIVERED) {
-							beeEntity.onHoneyDelivered();
-							if (state.isIn(BlockTags.BEEHIVES, statex -> statex.contains(BeehiveBlock.HONEY_LEVEL))) {
-								int i = getHoneyLevel(state);
-								if (i < 5) {
-									int j = world.random.nextInt(100) == 0 ? 2 : 1;
-									if (i + j > 5) {
-										j--;
-									}
+		Direction direction = state.get(BeehiveBlock.FACING);
+		BlockPos exitPos = pos.offset(direction);
+		boolean exitBlocked = !world.getBlockState(exitPos).getCollisionShape(world, exitPos).isEmpty();
 
-									world.setBlockState(pos, state.with(BeehiveBlock.HONEY_LEVEL, i + j));
-								}
-							}
-						}
-
-						if (entities != null) {
-							entities.add(beeEntity);
-						}
-
-						float f = entity.getWidth();
-						double d = bl ? 0.0 : 0.55 + f / 2.0F;
-						double e = pos.getX() + 0.5 + d * direction.getOffsetX();
-						double g = pos.getY() + 0.5 - entity.getHeight() / 2.0F;
-						double h = pos.getZ() + 0.5 + d * direction.getOffsetZ();
-						entity.refreshPositionAndAngles(e, g, h, entity.getYaw(), entity.getPitch());
-					}
-
-					world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_EXIT, SoundCategory.BLOCKS, 1.0F, 1.0F);
-					world.emitGameEvent(
-							GameEvent.BLOCK_CHANGE,
-							pos,
-							GameEvent.Emitter.of(entity, world.getBlockState(pos))
-					);
-					return world.spawnEntity(entity);
-				}
-				else {
-					return false;
-				}
-			}
+		if (exitBlocked && beeState != BeehiveBlockEntity.BeeState.EMERGENCY) {
+			return false;
 		}
+
+		Entity entity = bee.loadEntity(world, pos);
+		if (entity == null) {
+			return false;
+		}
+
+		if (entity instanceof BeeEntity beeEntity) {
+			if (flowerPos != null && !beeEntity.hasFlower() && world.random.nextFloat() < 0.9F) {
+				beeEntity.setFlowerPos(flowerPos);
+			}
+
+			if (beeState == BeehiveBlockEntity.BeeState.HONEY_DELIVERED) {
+				beeEntity.onHoneyDelivered();
+
+				if (state.isIn(BlockTags.BEEHIVES, statex -> statex.contains(BeehiveBlock.HONEY_LEVEL))) {
+					int honeyLevel = getHoneyLevel(state);
+
+					if (honeyLevel < 5) {
+						int honeyIncrement = world.random.nextInt(100) == 0 ? 2 : 1;
+						if (honeyLevel + honeyIncrement > 5) {
+							honeyIncrement--;
+						}
+
+						world.setBlockState(pos, state.with(BeehiveBlock.HONEY_LEVEL, honeyLevel + honeyIncrement));
+					}
+				}
+			}
+
+			if (entities != null) {
+				entities.add(beeEntity);
+			}
+
+			float entityWidth = entity.getWidth();
+			double offset = exitBlocked ? 0.0 : 0.55 + entityWidth / 2.0F;
+			double spawnX = pos.getX() + 0.5 + offset * direction.getOffsetX();
+			double spawnY = pos.getY() + 0.5 - entity.getHeight() / 2.0F;
+			double spawnZ = pos.getZ() + 0.5 + offset * direction.getOffsetZ();
+			entity.refreshPositionAndAngles(spawnX, spawnY, spawnZ, entity.getYaw(), entity.getPitch());
+		}
+
+		world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_EXIT, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(entity, world.getBlockState(pos)));
+		return world.spawnEntity(entity);
 	}
 
 	private boolean hasFlowerPos() {
-		return this.flowerPos != null;
+		return flowerPos != null;
 	}
 
 	private static void tickBees(
@@ -309,88 +289,80 @@ public class BeehiveBlockEntity extends BlockEntity {
 			List<BeehiveBlockEntity.Bee> bees,
 			@Nullable BlockPos flowerPos
 	) {
-		boolean bl = false;
+		boolean anyReleased = false;
 		Iterator<BeehiveBlockEntity.Bee> iterator = bees.iterator();
 
 		while (iterator.hasNext()) {
 			BeehiveBlockEntity.Bee bee = iterator.next();
+
 			if (bee.canExitHive()) {
-				BeehiveBlockEntity.BeeState
-						beeState =
-						bee.hasNectar() ? BeehiveBlockEntity.BeeState.HONEY_DELIVERED
-						                : BeehiveBlockEntity.BeeState.BEE_RELEASED;
+				BeehiveBlockEntity.BeeState beeState = bee.hasNectar()
+						? BeehiveBlockEntity.BeeState.HONEY_DELIVERED
+						: BeehiveBlockEntity.BeeState.BEE_RELEASED;
+
 				if (releaseBee(world, pos, state, bee.createData(), null, beeState, flowerPos)) {
-					bl = true;
+					anyReleased = true;
 					iterator.remove();
 				}
 			}
 		}
 
-		if (bl) {
+		if (anyReleased) {
 			markDirty(world, pos, state);
 		}
 	}
 
-	/**
-	 * Server tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, BeehiveBlockEntity blockEntity) {
 		tickBees(world, pos, state, blockEntity.bees, blockEntity.flowerPos);
+
 		if (!blockEntity.bees.isEmpty() && world.getRandom().nextDouble() < 0.005) {
-			double d = pos.getX() + 0.5;
-			double e = pos.getY();
-			double f = pos.getZ() + 0.5;
-			world.playSound(null, d, e, f, SoundEvents.BLOCK_BEEHIVE_WORK, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			double centerX = pos.getX() + 0.5;
+			double centerY = pos.getY();
+			double centerZ = pos.getZ() + 0.5;
+			world.playSound(null, centerX, centerY, centerZ, SoundEvents.BLOCK_BEEHIVE_WORK, SoundCategory.BLOCKS, 1.0F, 1.0F);
 		}
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.bees.clear();
-		view
-				.<List<BeehiveBlockEntity.BeeData>>read("bees", BeehiveBlockEntity.BeeData.LIST_CODEC)
+		bees.clear();
+		view.<List<BeehiveBlockEntity.BeeData>>read(BEES_KEY, BeehiveBlockEntity.BeeData.LIST_CODEC)
 				.orElse(List.of())
 				.forEach(this::addBee);
-		this.flowerPos = view.<BlockPos>read("flower_pos", BlockPos.CODEC).orElse(null);
+		flowerPos = view.<BlockPos>read(FLOWER_POS_KEY, BlockPos.CODEC).orElse(null);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.put("bees", BeehiveBlockEntity.BeeData.LIST_CODEC, this.createBeesData());
-		view.putNullable("flower_pos", BlockPos.CODEC, this.flowerPos);
+		view.put(BEES_KEY, BeehiveBlockEntity.BeeData.LIST_CODEC, createBeesData());
+		view.putNullable(FLOWER_POS_KEY, BlockPos.CODEC, flowerPos);
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.bees.clear();
-		List<BeehiveBlockEntity.BeeData>
-				list =
-				components.getOrDefault(DataComponentTypes.BEES, BeesComponent.DEFAULT).bees();
-		list.forEach(this::addBee);
+		bees.clear();
+		components.getOrDefault(DataComponentTypes.BEES, BeesComponent.DEFAULT)
+				.bees()
+				.forEach(this::addBee);
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.BEES, new BeesComponent(this.createBeesData()));
+		builder.add(DataComponentTypes.BEES, new BeesComponent(createBeesData()));
 	}
 
 	@Override
 	public void removeFromCopiedStackData(WriteView view) {
 		super.removeFromCopiedStackData(view);
-		view.remove("bees");
+		view.remove(BEES_KEY);
 	}
 
 	private List<BeehiveBlockEntity.BeeData> createBeesData() {
-		return this.bees.stream().map(BeehiveBlockEntity.Bee::createData).toList();
+		return bees.stream().map(BeehiveBlockEntity.Bee::createData).toList();
 	}
 
 	@Override
@@ -398,9 +370,6 @@ public class BeehiveBlockEntity extends BlockEntity {
 		tracker.track(DebugSubscriptionTypes.BEE_HIVES, () -> BeeHiveDebugData.fromBeehive(this));
 	}
 
-	/**
-	 * {@code Bee}.
-	 */
 	static class Bee {
 
 		private final BeehiveBlockEntity.BeeData data;
@@ -408,29 +377,25 @@ public class BeehiveBlockEntity extends BlockEntity {
 
 		Bee(BeehiveBlockEntity.BeeData data) {
 			this.data = data;
-			this.ticksInHive = data.ticksInHive();
+			ticksInHive = data.ticksInHive();
 		}
 
-		/**
-		 * Проверяет возможность exit hive.
-		 *
-		 * @return boolean — {@code true} если условие выполнено
-		 */
 		public boolean canExitHive() {
-			return this.ticksInHive++ > this.data.minTicksInHive;
+			return ticksInHive++ > data.minTicksInHive;
 		}
 
 		public BeehiveBlockEntity.BeeData createData() {
-			return new BeehiveBlockEntity.BeeData(this.data.entityData, this.ticksInHive, this.data.minTicksInHive);
+			return new BeehiveBlockEntity.BeeData(data.entityData, ticksInHive, data.minTicksInHive);
 		}
 
 		public boolean hasNectar() {
-			return this.data.entityData.getNbtWithoutId().getBoolean("HasNectar", false);
+			return data.entityData.getNbtWithoutId().getBoolean("HasNectar", false);
 		}
 	}
 
 	/**
-	 * {@code BeeData}.
+	 * Сериализуемые данные пчелы, хранящейся в улье: NBT-данные сущности,
+	 * количество тиков внутри и минимальный порог для выхода.
 	 */
 	public record BeeData(TypedEntityData<EntityType<?>> entityData, int ticksInHive, int minTicksInHive) {
 
@@ -457,87 +422,75 @@ public class BeehiveBlockEntity extends BlockEntity {
 		);
 
 		public static BeehiveBlockEntity.BeeData of(Entity entity) {
-			BeehiveBlockEntity.BeeData var5;
+			BeehiveBlockEntity.BeeData result;
 			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
 					entity.getErrorReporterContext(),
 					BeehiveBlockEntity.LOGGER
-			)
-			) {
+			)) {
 				NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
 				entity.saveData(nbtWriteView);
 				BeehiveBlockEntity.IRRELEVANT_BEE_NBT_KEYS.forEach(nbtWriteView::remove);
 				NbtCompound nbtCompound = nbtWriteView.getNbt();
-				boolean bl = nbtCompound.getBoolean("HasNectar", false);
-				var5 =
-						new BeehiveBlockEntity.BeeData(
-								TypedEntityData.create(entity.getType(), nbtCompound),
-								0,
-								bl ? 2400 : 600
-						);
+				boolean hasNectar = nbtCompound.getBoolean("HasNectar", false);
+				result = new BeehiveBlockEntity.BeeData(
+						TypedEntityData.create(entity.getType(), nbtCompound),
+						0,
+						hasNectar ? MIN_OCCUPATION_TICKS_WITH_NECTAR : MIN_OCCUPATION_TICKS_WITHOUT_NECTAR
+				);
 			}
 
-			return var5;
+			return result;
 		}
 
 		public static BeehiveBlockEntity.BeeData create(int ticksInHive) {
 			return new BeehiveBlockEntity.BeeData(
 					TypedEntityData.create(EntityType.BEE, new NbtCompound()),
 					ticksInHive,
-					600
+					MIN_OCCUPATION_TICKS_WITHOUT_NECTAR
 			);
 		}
 
-		/**
-		 * Загружает entity.
-		 *
-		 * @param world world
-		 * @param pos pos
-		 *
-		 * @return @Nullable Entity — результат операции
-		 */
 		public @Nullable Entity loadEntity(World world, BlockPos pos) {
-			NbtCompound nbtCompound = this.entityData.copyNbtWithoutId();
+			NbtCompound nbtCompound = entityData.copyNbtWithoutId();
 			BeehiveBlockEntity.IRRELEVANT_BEE_NBT_KEYS.forEach(nbtCompound::remove);
-			Entity
-					entity =
-					EntityType.loadEntityWithPassengers(
-							this.entityData.getType(),
-							nbtCompound,
-							world,
-							SpawnReason.LOAD,
-							LoadedEntityProcessor.NOOP
-					);
-			if (entity != null && entity.getType().isIn(EntityTypeTags.BEEHIVE_INHABITORS)) {
-				entity.setNoGravity(true);
-				if (entity instanceof BeeEntity beeEntity) {
-					beeEntity.setHivePos(pos);
-					tickEntity(this.ticksInHive, beeEntity);
-				}
+			Entity entity = EntityType.loadEntityWithPassengers(
+					entityData.getType(),
+					nbtCompound,
+					world,
+					SpawnReason.LOAD,
+					LoadedEntityProcessor.NOOP
+			);
 
-				return entity;
-			}
-			else {
+			if (entity == null || !entity.getType().isIn(EntityTypeTags.BEEHIVE_INHABITORS)) {
 				return null;
 			}
+
+			entity.setNoGravity(true);
+
+			if (entity instanceof BeeEntity beeEntity) {
+				beeEntity.setHivePos(pos);
+				tickEntity(ticksInHive, beeEntity);
+			}
+
+			return entity;
 		}
 
 		private static void tickEntity(int ticksInHive, BeeEntity beeEntity) {
-			int i = beeEntity.getBreedingAge();
-			if (i < 0) {
-				beeEntity.setBreedingAge(Math.min(0, i + ticksInHive));
+			int breedingAge = beeEntity.getBreedingAge();
+
+			if (breedingAge < 0) {
+				beeEntity.setBreedingAge(Math.min(0, breedingAge + ticksInHive));
 			}
-			else if (i > 0) {
-				beeEntity.setBreedingAge(Math.max(0, i - ticksInHive));
+
+			if (breedingAge > 0) {
+				beeEntity.setBreedingAge(Math.max(0, breedingAge - ticksInHive));
 			}
 
 			beeEntity.setLoveTicks(Math.max(0, beeEntity.getLoveTicks() - ticksInHive));
 		}
 	}
 
-	/**
-	 * {@code BeeState}.
-	 */
-	public static enum BeeState {
+	public enum BeeState {
 		HONEY_DELIVERED,
 		BEE_RELEASED,
 		EMERGENCY;

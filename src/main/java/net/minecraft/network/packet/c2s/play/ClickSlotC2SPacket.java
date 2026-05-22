@@ -31,7 +31,7 @@ public record ClickSlotC2SPacket(
 			Int2ObjectOpenHashMap::new,
 			PacketCodecs.SHORT.xmap(Short::intValue, Integer::shortValue),
 			ItemStackHash.PACKET_CODEC,
-			128
+			MAX_MODIFIED_STACKS
 	);
 	public static final PacketCodec<RegistryByteBuf, ClickSlotC2SPacket> CODEC = PacketCodec.tuple(
 			PacketCodecs.SYNC_ID,

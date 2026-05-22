@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code DebugConfigCommand}.
+ * Команда {@code /debugconfig}: управление конфигурацией отладки (только dedicated).
  */
 public class DebugConfigCommand {
 

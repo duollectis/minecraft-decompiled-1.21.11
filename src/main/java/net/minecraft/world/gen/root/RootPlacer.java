@@ -21,13 +21,13 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
- * {@code RootPlacer}.
+ * Базовый класс размещателя корней дерева — генерирует корневую систему
+ * между основанием и стволом, опционально размещая блоки над корнями.
  */
 public abstract class RootPlacer {
 
-	public static final Codec<RootPlacer>
-			TYPE_CODEC =
-			Registries.ROOT_PLACER_TYPE.getCodec().dispatch(RootPlacer::getType, RootPlacerType::getCodec);
+	public static final Codec<RootPlacer> TYPE_CODEC =
+		Registries.ROOT_PLACER_TYPE.getCodec().dispatch(RootPlacer::getType, RootPlacerType::getCodec);
 	protected final IntProvider trunkOffsetY;
 	protected final BlockStateProvider rootProvider;
 	protected final Optional<AboveRootPlacement> aboveRootPlacement;
@@ -65,75 +65,50 @@ public abstract class RootPlacer {
 			TreeFeatureConfig config
 	);
 
-	/**
-	 * Проверяет возможность grow through.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canGrowThrough(TestableWorld world, BlockPos pos) {
 		return TreeFeature.canReplace(world, pos);
 	}
 
 	protected void placeRoots(
-			TestableWorld world,
-			BiConsumer<BlockPos, BlockState> replacer,
-			Random random,
-			BlockPos pos,
-			TreeFeatureConfig config
+		TestableWorld world,
+		BiConsumer<BlockPos, BlockState> replacer,
+		Random random,
+		BlockPos pos,
+		TreeFeatureConfig config
 	) {
-		if (this.canGrowThrough(world, pos)) {
-			replacer.accept(pos, this.applyWaterlogging(world, pos, this.rootProvider.get(random, pos)));
-			if (this.aboveRootPlacement.isPresent()) {
-				AboveRootPlacement aboveRootPlacement = this.aboveRootPlacement.get();
-				BlockPos blockPos = pos.up();
-				if (random.nextFloat() < aboveRootPlacement.aboveRootPlacementChance() && world.testBlockState(
-						blockPos,
-						AbstractBlock.AbstractBlockState::isAir
-				)) {
-					replacer.accept(
-							blockPos,
-							this.applyWaterlogging(
-									world,
-									blockPos,
-									aboveRootPlacement.aboveRootProvider().get(random, blockPos)
-							)
-					);
-				}
-			}
+		if (!canGrowThrough(world, pos)) {
+			return;
 		}
+
+		replacer.accept(pos, applyWaterlogging(world, pos, rootProvider.get(random, pos)));
+
+		aboveRootPlacement.ifPresent(above -> {
+			BlockPos abovePos = pos.up();
+			boolean isAir = world.testBlockState(abovePos, AbstractBlock.AbstractBlockState::isAir);
+
+			if (random.nextFloat() < above.aboveRootPlacementChance() && isAir) {
+				replacer.accept(
+					abovePos,
+					applyWaterlogging(world, abovePos, above.aboveRootProvider().get(random, abovePos))
+				);
+			}
+		});
 	}
 
 	/**
-	 * Применяет waterlogging.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return BlockState — результат операции
+	 * Применяет состояние waterlogged к блоку, если он поддерживает это свойство
+	 * и в данной позиции находится вода.
 	 */
 	protected BlockState applyWaterlogging(TestableWorld world, BlockPos pos, BlockState state) {
-		if (state.contains(Properties.WATERLOGGED)) {
-			boolean bl = world.testFluidState(pos, fluidState -> fluidState.isIn(FluidTags.WATER));
-			return state.with(Properties.WATERLOGGED, bl);
-		}
-		else {
+		if (!state.contains(Properties.WATERLOGGED)) {
 			return state;
 		}
+
+		boolean isWater = world.testFluidState(pos, fluidState -> fluidState.isIn(FluidTags.WATER));
+		return state.with(Properties.WATERLOGGED, isWater);
 	}
 
-	/**
-	 * Trunk offset.
-	 *
-	 * @param pos pos
-	 * @param random random
-	 *
-	 * @return BlockPos — результат операции
-	 */
 	public BlockPos trunkOffset(BlockPos pos, Random random) {
-		return pos.up(this.trunkOffsetY.get(random));
+		return pos.up(trunkOffsetY.get(random));
 	}
 }

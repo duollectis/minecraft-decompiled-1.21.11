@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import org.slf4j.Logger;
 
 /**
- * {@code PersistentStateUuidFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PersistentStateUuidFix extends AbstractUuidFix {
 
@@ -20,9 +20,9 @@ public class PersistentStateUuidFix extends AbstractUuidFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"SavedDataUUIDFix",
-				this.getInputSchema().getType(this.typeReference),
+				getInputSchema().getType(this.typeReference),
 				raidsDataTyped -> raidsDataTyped.update(
 						DSL.remainderFinder(),
 						raidsDataDynamic -> raidsDataDynamic.update(

@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code GiantTrunkPlacer}.
+ * Алгоритм размещения гигантского ствола дерева (гигантская ель/секвойя).
+ * Строит широкий ствол 2×2 блока, устанавливая все четыре колонны на каждом уровне высоты.
+ * На последнем уровне размещается только одна колонна (для формирования вершины).
  */
 public class GiantTrunkPlacer extends TrunkPlacer {
 
@@ -22,8 +24,8 @@ public class GiantTrunkPlacer extends TrunkPlacer {
 			instance -> fillTrunkPlacerFields(instance).apply(instance, GiantTrunkPlacer::new)
 	);
 
-	public GiantTrunkPlacer(int i, int j, int k) {
-		super(i, j, k);
+	public GiantTrunkPlacer(int baseHeight, int firstRandomHeight, int secondRandomHeight) {
+		super(baseHeight, firstRandomHeight, secondRandomHeight);
 	}
 
 	@Override
@@ -40,19 +42,20 @@ public class GiantTrunkPlacer extends TrunkPlacer {
 			BlockPos startPos,
 			TreeFeatureConfig config
 	) {
-		BlockPos blockPos = startPos.down();
-		setToDirt(world, replacer, random, blockPos, config);
-		setToDirt(world, replacer, random, blockPos.east(), config);
-		setToDirt(world, replacer, random, blockPos.south(), config);
-		setToDirt(world, replacer, random, blockPos.south().east(), config);
+		BlockPos below = startPos.down();
+		setToDirt(world, replacer, random, below, config);
+		setToDirt(world, replacer, random, below.east(), config);
+		setToDirt(world, replacer, random, below.south(), config);
+		setToDirt(world, replacer, random, below.south().east(), config);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int i = 0; i < height; i++) {
-			this.setLog(world, replacer, random, mutable, config, startPos, 0, i, 0);
-			if (i < height - 1) {
-				this.setLog(world, replacer, random, mutable, config, startPos, 1, i, 0);
-				this.setLog(world, replacer, random, mutable, config, startPos, 1, i, 1);
-				this.setLog(world, replacer, random, mutable, config, startPos, 0, i, 1);
+		for (int y = 0; y < height; y++) {
+			setLog(world, replacer, random, mutable, config, startPos, 0, y, 0);
+
+			if (y < height - 1) {
+				setLog(world, replacer, random, mutable, config, startPos, 1, y, 0);
+				setLog(world, replacer, random, mutable, config, startPos, 1, y, 1);
+				setLog(world, replacer, random, mutable, config, startPos, 0, y, 1);
 			}
 		}
 
@@ -71,6 +74,6 @@ public class GiantTrunkPlacer extends TrunkPlacer {
 			int dz
 	) {
 		tmpPos.set(startPos, dx, dy, dz);
-		this.trySetState(world, replacer, random, tmpPos, config);
+		trySetState(world, replacer, random, tmpPos, config);
 	}
 }

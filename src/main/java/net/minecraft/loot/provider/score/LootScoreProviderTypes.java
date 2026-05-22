@@ -8,7 +8,8 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code LootScoreProviderTypes}.
+ * Реестр всех типов провайдеров очков таблицы лута.
+ * Поддерживает инлайн-кодек для {@link ContextLootScoreProvider} (сокращённая запись в JSON).
  */
 public class LootScoreProviderTypes {
 
@@ -17,11 +18,12 @@ public class LootScoreProviderTypes {
 			.dispatch(LootScoreProvider::getType, LootScoreProviderType::codec);
 	public static final Codec<LootScoreProvider> CODEC = Codec.lazyInitialized(
 			() -> Codec.either(ContextLootScoreProvider.INLINE_CODEC, BASE_CODEC)
-			           .xmap(
-					           Either::unwrap,
-					           provider -> provider instanceof ContextLootScoreProvider contextLootScoreProvider
-					                       ? Either.left(contextLootScoreProvider) : Either.right(provider)
-			           )
+					.xmap(
+							Either::unwrap,
+							provider -> provider instanceof ContextLootScoreProvider contextProvider
+									? Either.left(contextProvider)
+									: Either.right(provider)
+					)
 	);
 	public static final LootScoreProviderType FIXED = register("fixed", FixedLootScoreProvider.CODEC);
 	public static final LootScoreProviderType CONTEXT = register("context", ContextLootScoreProvider.CODEC);

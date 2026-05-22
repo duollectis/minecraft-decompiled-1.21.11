@@ -15,13 +15,14 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code PlayerHurtEntityCriterion}.
+ * Критерий выполняется, когда игрок наносит урон сущности.
+ * Позволяет фильтровать по типу урона, параметрам урона и типу пострадавшей сущности.
  */
 public class PlayerHurtEntityCriterion extends AbstractCriterion<PlayerHurtEntityCriterion.Conditions> {
 
 	@Override
-	public Codec<PlayerHurtEntityCriterion.Conditions> getConditionsCodec() {
-		return PlayerHurtEntityCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(
@@ -32,111 +33,103 @@ public class PlayerHurtEntityCriterion extends AbstractCriterion<PlayerHurtEntit
 			float taken,
 			boolean blocked
 	) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
-		this.trigger(player, conditions -> conditions.matches(player, lootContext, damage, dealt, taken, blocked));
+		LootContext entityContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
+		trigger(player, conditions -> conditions.matches(player, entityContext, damage, dealt, taken, blocked));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<DamagePredicate> damage,
 			Optional<LootContextPredicate> entity
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<PlayerHurtEntityCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(PlayerHurtEntityCriterion.Conditions::player),
-						                    DamagePredicate.CODEC
-								                    .optionalFieldOf("damage")
-								                    .forGetter(PlayerHurtEntityCriterion.Conditions::damage),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("entity")
-								                    .forGetter(PlayerHurtEntityCriterion.Conditions::entity)
-				                    )
-				                    .apply(instance, PlayerHurtEntityCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						DamagePredicate.CODEC
+								.optionalFieldOf("damage")
+								.forGetter(Conditions::damage),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("entity")
+								.forGetter(Conditions::entity)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> create() {
-			return Criteria.PLAYER_HURT_ENTITY.create(new PlayerHurtEntityCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> create() {
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
 					Optional.empty(),
 					Optional.empty(),
 					Optional.empty()
 			));
 		}
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> createDamage(Optional<DamagePredicate> damage) {
-			return Criteria.PLAYER_HURT_ENTITY.create(new PlayerHurtEntityCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> createDamage(Optional<DamagePredicate> damage) {
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
 					Optional.empty(),
 					damage,
 					Optional.empty()
 			));
 		}
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> create(DamagePredicate.Builder damage) {
-			return Criteria.PLAYER_HURT_ENTITY.create(new PlayerHurtEntityCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> create(DamagePredicate.Builder damage) {
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
 					Optional.empty(),
 					Optional.of(damage.build()),
 					Optional.empty()
 			));
 		}
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> createEntity(Optional<EntityPredicate> entity) {
-			return Criteria.PLAYER_HURT_ENTITY
-					.create(new PlayerHurtEntityCriterion.Conditions(
-							Optional.empty(),
-							Optional.empty(),
-							EntityPredicate.contextPredicateFromEntityPredicate(entity)
-					));
+		public static AdvancementCriterion<Conditions> createEntity(Optional<EntityPredicate> entity) {
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
+					Optional.empty(),
+					Optional.empty(),
+					EntityPredicate.contextPredicateFromEntityPredicate(entity)
+			));
 		}
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				Optional<DamagePredicate> damage,
 				Optional<EntityPredicate> entity
 		) {
-			return Criteria.PLAYER_HURT_ENTITY
-					.create(new PlayerHurtEntityCriterion.Conditions(
-							Optional.empty(),
-							damage,
-							EntityPredicate.contextPredicateFromEntityPredicate(entity)
-					));
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
+					Optional.empty(),
+					damage,
+					EntityPredicate.contextPredicateFromEntityPredicate(entity)
+			));
 		}
 
-		public static AdvancementCriterion<PlayerHurtEntityCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				DamagePredicate.Builder damage,
 				Optional<EntityPredicate> entity
 		) {
-			return Criteria.PLAYER_HURT_ENTITY
-					.create(
-							new PlayerHurtEntityCriterion.Conditions(
-									Optional.empty(),
-									Optional.of(damage.build()),
-									EntityPredicate.contextPredicateFromEntityPredicate(entity)
-							)
-					);
+			return Criteria.PLAYER_HURT_ENTITY.create(new Conditions(
+					Optional.empty(),
+					Optional.of(damage.build()),
+					EntityPredicate.contextPredicateFromEntityPredicate(entity)
+			));
 		}
 
 		public boolean matches(
 				ServerPlayerEntity player,
-				LootContext entity,
+				LootContext entityContext,
 				DamageSource damageSource,
 				float dealt,
 				float taken,
 				boolean blocked
 		) {
-			return this.damage.isPresent() && !this.damage.get().test(player, damageSource, dealt, taken, blocked)
-			       ? false
-			       : !this.entity.isPresent() || this.entity.get().test(entity);
+			if (damage.isPresent() && !damage.get().test(player, damageSource, dealt, taken, blocked)) {
+				return false;
+			}
+
+			return entity.isEmpty() || entity.get().test(entityContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.entity, "entity");
+			validator.validateEntityPredicate(entity, "entity");
 		}
 	}
 }

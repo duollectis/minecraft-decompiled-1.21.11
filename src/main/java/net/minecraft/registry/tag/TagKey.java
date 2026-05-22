@@ -14,7 +14,13 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * {@code TagKey}.
+ * Типизированный ключ тега реестра. Интернируется через {@link Interner} для экономии памяти —
+ * два {@link TagKey} с одинаковыми {@code registryRef} и {@code id} гарантированно
+ * являются одним и тем же объектом после вызова {@link #of}.
+ *
+ * @param <T>         тип объектов реестра, которому принадлежит тег
+ * @param registryRef ключ реестра, к которому относится тег
+ * @param id          идентификатор тега
  */
 public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifier id) implements FabricTagKey {
 
@@ -27,52 +33,43 @@ public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifi
 	}
 
 	/**
-	 * Unprefixed codec.
+	 * Создаёт кодек для {@link TagKey} без префикса {@code #}.
+	 * Используется там, где тег уже известен как тег и префикс избыточен.
 	 *
-	 * @param registryRef registry ref
-	 *
-	 * @return Codec> — результат операции
+	 * @param registryRef ключ реестра для привязки тега
+	 * @return кодек, сериализующий тег как {@link Identifier}
 	 */
 	public static <T> Codec<TagKey<T>> unprefixedCodec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Identifier.CODEC.xmap(id -> of(registryRef, id), TagKey::id);
 	}
 
 	/**
-	 * Codec.
+	 * Создаёт кодек для {@link TagKey} с обязательным префиксом {@code #}.
+	 * Используется в JSON-файлах, где теги отличаются от прямых ссылок префиксом.
 	 *
-	 * @param registryRef registry ref
-	 *
-	 * @return Codec> — результат операции
+	 * @param registryRef ключ реестра для привязки тега
+	 * @return кодек, сериализующий тег как строку вида {@code "#namespace:id"}
 	 */
 	public static <T> Codec<TagKey<T>> codec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Codec.STRING
 				.comapFlatMap(
-						string -> string.startsWith("#") ? Identifier
-						                                   .validate(string.substring(1))
-						                                   .map(id -> of(registryRef, id))
-						                                 : DataResult.error(() -> "Not a tag id"),
+						string -> string.startsWith("#")
+								? Identifier.validate(string.substring(1)).map(id -> of(registryRef, id))
+								: DataResult.error(() -> "Not a tag id"),
 						string -> "#" + string.id
 				);
 	}
 
-	/**
-	 * Packet codec.
-	 *
-	 * @param registryRef registry ref
-	 *
-	 * @return PacketCodec> — результат операции
-	 */
 	public static <T> PacketCodec<ByteBuf, TagKey<T>> packetCodec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Identifier.PACKET_CODEC.xmap(id -> of(registryRef, id), TagKey::id);
 	}
 
 	/**
-	 * Of.
+	 * Создаёт или возвращает интернированный {@link TagKey} для заданного реестра и идентификатора.
 	 *
-	 * @param registryRef registry ref
-	 * @param id id
-	 *
-	 * @return TagKey — результат операции
+	 * @param registryRef ключ реестра
+	 * @param id          идентификатор тега
+	 * @return интернированный экземпляр {@link TagKey}
 	 */
 	public static <T> TagKey<T> of(RegistryKey<? extends Registry<T>> registryRef, Identifier id) {
 		return (TagKey<T>) INTERNER.intern(new TagKey<>(registryRef, id));
@@ -82,19 +79,12 @@ public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifi
 		return this.registryRef == registryRef;
 	}
 
-	/**
-	 * Try cast.
-	 *
-	 * @param registryRef registry ref
-	 *
-	 * @return Optional> — результат операции
-	 */
 	public <E> Optional<TagKey<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
-		return this.isOf(registryRef) ? Optional.of((TagKey<E>) this) : Optional.empty();
+		return isOf(registryRef) ? Optional.of((TagKey<E>) this) : Optional.empty();
 	}
 
 	@Override
 	public String toString() {
-		return "TagKey[" + this.registryRef.getValue() + " / " + this.id + "]";
+		return "TagKey[" + registryRef.getValue() + " / " + id + "]";
 	}
 }

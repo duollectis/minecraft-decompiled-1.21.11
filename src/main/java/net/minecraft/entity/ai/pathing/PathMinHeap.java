@@ -3,80 +3,68 @@ package net.minecraft.entity.ai.pathing;
 import java.util.Arrays;
 
 /**
- * {@code PathMinHeap}.
+ * Минимальная двоичная куча для узлов пути алгоритма A*.
+ * Обеспечивает O(log n) вставку и извлечение узла с минимальным весом.
  */
 public class PathMinHeap {
 
-	private PathNode[] pathNodes = new PathNode[128];
+	private static final int INITIAL_CAPACITY = 128;
+
+	private PathNode[] pathNodes = new PathNode[INITIAL_CAPACITY];
 	private int count;
 
 	/**
-	 * Push.
-	 *
-	 * @param node node
-	 *
-	 * @return PathNode — результат операции
+	 * Добавляет узел в кучу. Выбрасывает исключение, если узел уже находится в куче.
 	 */
 	public PathNode push(PathNode node) {
 		if (node.heapIndex >= 0) {
 			throw new IllegalStateException("OW KNOWS!");
 		}
-		else {
-			if (this.count == this.pathNodes.length) {
-				PathNode[] pathNodes = new PathNode[this.count << 1];
-				System.arraycopy(this.pathNodes, 0, pathNodes, 0, this.count);
-				this.pathNodes = pathNodes;
-			}
 
-			this.pathNodes[this.count] = node;
-			node.heapIndex = this.count;
-			this.shiftUp(this.count++);
-			return node;
+		if (count == pathNodes.length) {
+			PathNode[] expanded = new PathNode[count << 1];
+			System.arraycopy(pathNodes, 0, expanded, 0, count);
+			pathNodes = expanded;
 		}
+
+		pathNodes[count] = node;
+		node.heapIndex = count;
+		shiftUp(count++);
+		return node;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.count = 0;
+		count = 0;
 	}
 
 	public PathNode getStart() {
-		return this.pathNodes[0];
+		return pathNodes[0];
 	}
 
-	/**
-	 * Pop.
-	 *
-	 * @return PathNode — результат операции
-	 */
+	/** Извлекает и возвращает узел с минимальным весом. */
 	public PathNode pop() {
-		PathNode pathNode = this.pathNodes[0];
-		this.pathNodes[0] = this.pathNodes[--this.count];
-		this.pathNodes[this.count] = null;
-		if (this.count > 0) {
-			this.shiftDown(0);
+		PathNode root = pathNodes[0];
+		pathNodes[0] = pathNodes[--count];
+		pathNodes[count] = null;
+
+		if (count > 0) {
+			shiftDown(0);
 		}
 
-		pathNode.heapIndex = -1;
-		return pathNode;
+		root.heapIndex = -1;
+		return root;
 	}
 
-	/**
-	 * Pop node.
-	 *
-	 * @param node node
-	 */
+	/** Удаляет произвольный узел из кучи, восстанавливая свойство кучи. */
 	public void popNode(PathNode node) {
-		this.pathNodes[node.heapIndex] = this.pathNodes[--this.count];
-		this.pathNodes[this.count] = null;
-		if (this.count > node.heapIndex) {
-			if (this.pathNodes[node.heapIndex].heapWeight < node.heapWeight) {
-				this.shiftUp(node.heapIndex);
-			}
-			else {
-				this.shiftDown(node.heapIndex);
+		pathNodes[node.heapIndex] = pathNodes[--count];
+		pathNodes[count] = null;
+
+		if (count > node.heapIndex) {
+			if (pathNodes[node.heapIndex].heapWeight < node.heapWeight) {
+				shiftUp(node.heapIndex);
+			} else {
+				shiftDown(node.heapIndex);
 			}
 		}
 
@@ -84,93 +72,95 @@ public class PathMinHeap {
 	}
 
 	public void setNodeWeight(PathNode node, float weight) {
-		float f = node.heapWeight;
+		float oldWeight = node.heapWeight;
 		node.heapWeight = weight;
-		if (weight < f) {
-			this.shiftUp(node.heapIndex);
-		}
-		else {
-			this.shiftDown(node.heapIndex);
+
+		if (weight < oldWeight) {
+			shiftUp(node.heapIndex);
+		} else {
+			shiftDown(node.heapIndex);
 		}
 	}
 
 	public int getCount() {
-		return this.count;
+		return count;
 	}
 
 	private void shiftUp(int index) {
-		PathNode pathNode = this.pathNodes[index];
-		float f = pathNode.heapWeight;
+		PathNode node = pathNodes[index];
+		float weight = node.heapWeight;
 
 		while (index > 0) {
-			int i = index - 1 >> 1;
-			PathNode pathNode2 = this.pathNodes[i];
-			if (!(f < pathNode2.heapWeight)) {
+			int parentIndex = (index - 1) >> 1;
+			PathNode parent = pathNodes[parentIndex];
+
+			if (weight >= parent.heapWeight) {
 				break;
 			}
 
-			this.pathNodes[index] = pathNode2;
-			pathNode2.heapIndex = index;
-			index = i;
+			pathNodes[index] = parent;
+			parent.heapIndex = index;
+			index = parentIndex;
 		}
 
-		this.pathNodes[index] = pathNode;
-		pathNode.heapIndex = index;
+		pathNodes[index] = node;
+		node.heapIndex = index;
 	}
 
 	private void shiftDown(int index) {
-		PathNode pathNode = this.pathNodes[index];
-		float f = pathNode.heapWeight;
+		PathNode node = pathNodes[index];
+		float weight = node.heapWeight;
 
 		while (true) {
-			int i = 1 + (index << 1);
-			int j = i + 1;
-			if (i >= this.count) {
+			int leftChild = 1 + (index << 1);
+			int rightChild = leftChild + 1;
+
+			if (leftChild >= count) {
 				break;
 			}
 
-			PathNode pathNode2 = this.pathNodes[i];
-			float g = pathNode2.heapWeight;
-			PathNode pathNode3;
-			float h;
-			if (j >= this.count) {
-				pathNode3 = null;
-				h = Float.POSITIVE_INFINITY;
-			}
-			else {
-				pathNode3 = this.pathNodes[j];
-				h = pathNode3.heapWeight;
+			PathNode left = pathNodes[leftChild];
+			float leftWeight = left.heapWeight;
+
+			PathNode right;
+			float rightWeight;
+
+			if (rightChild >= count) {
+				right = null;
+				rightWeight = Float.POSITIVE_INFINITY;
+			} else {
+				right = pathNodes[rightChild];
+				rightWeight = right.heapWeight;
 			}
 
-			if (g < h) {
-				if (!(g < f)) {
+			if (leftWeight < rightWeight) {
+				if (leftWeight >= weight) {
 					break;
 				}
 
-				this.pathNodes[index] = pathNode2;
-				pathNode2.heapIndex = index;
-				index = i;
-			}
-			else {
-				if (!(h < f)) {
+				pathNodes[index] = left;
+				left.heapIndex = index;
+				index = leftChild;
+			} else {
+				if (rightWeight >= weight) {
 					break;
 				}
 
-				this.pathNodes[index] = pathNode3;
-				pathNode3.heapIndex = index;
-				index = j;
+				pathNodes[index] = right;
+				right.heapIndex = index;
+				index = rightChild;
 			}
 		}
 
-		this.pathNodes[index] = pathNode;
-		pathNode.heapIndex = index;
+		pathNodes[index] = node;
+		node.heapIndex = index;
 	}
 
 	public boolean isEmpty() {
-		return this.count == 0;
+		return count == 0;
 	}
 
 	public PathNode[] getNodes() {
-		return Arrays.copyOf(this.pathNodes, this.count);
+		return Arrays.copyOf(pathNodes, count);
 	}
 }

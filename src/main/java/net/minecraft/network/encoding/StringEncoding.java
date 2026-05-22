@@ -8,77 +8,81 @@ import io.netty.handler.codec.EncoderException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Класс string encoding.
+ * Утилитарный класс для кодирования и декодирования строк в сетевом протоколе Minecraft.
+ *
+ * <p>Строки передаются как VarInt-длина в байтах, за которой следуют UTF-8 байты.
+ * При декодировании проверяется как байтовая длина, так и символьная длина строки.</p>
  */
 public class StringEncoding {
 
 	/**
-	 * Decode.
+	 * Декодирует строку UTF-8 из буфера, проверяя, что её длина не превышает {@code maxLength} символов.
 	 *
-	 * @param buf buf
-	 * @param maxLength max length
-	 *
-	 * @return String — результат операции
+	 * @param buf       буфер для чтения
+	 * @param maxLength максимально допустимая длина строки в символах
+	 * @return декодированная строка
+	 * @throws DecoderException если длина буфера или строки превышает допустимый предел
 	 */
 	public static String decode(ByteBuf buf, int maxLength) {
-		int i = ByteBufUtil.utf8MaxBytes(maxLength);
-		int j = VarInts.read(buf);
-		if (j > i) {
+		int maxByteLength = ByteBufUtil.utf8MaxBytes(maxLength);
+		int byteLength = VarInts.read(buf);
+
+		if (byteLength > maxByteLength) {
 			throw new DecoderException(
-					"The received encoded string buffer length is longer than maximum allowed (" + j + " > " + i + ")");
+					"The received encoded string buffer length is longer than maximum allowed ("
+							+ byteLength + " > " + maxByteLength + ")");
 		}
-		else if (j < 0) {
+
+		if (byteLength < 0) {
 			throw new DecoderException("The received encoded string buffer length is less than zero! Weird string!");
 		}
-		else {
-			int k = buf.readableBytes();
-			if (j > k) {
-				throw new DecoderException("Not enough bytes in buffer, expected " + j + ", but got " + k);
-			}
-			else {
-				String string = buf.toString(buf.readerIndex(), j, StandardCharsets.UTF_8);
-				buf.readerIndex(buf.readerIndex() + j);
-				if (string.length() > maxLength) {
-					throw new DecoderException(
-							"The received string length is longer than maximum allowed (" + string.length() + " > "
-									+ maxLength + ")");
-				}
-				else {
-					return string;
-				}
-			}
+
+		int available = buf.readableBytes();
+		if (byteLength > available) {
+			throw new DecoderException("Not enough bytes in buffer, expected " + byteLength + ", but got " + available);
 		}
+
+		String result = buf.toString(buf.readerIndex(), byteLength, StandardCharsets.UTF_8);
+		buf.readerIndex(buf.readerIndex() + byteLength);
+
+		if (result.length() > maxLength) {
+			throw new DecoderException(
+					"The received string length is longer than maximum allowed ("
+							+ result.length() + " > " + maxLength + ")");
+		}
+
+		return result;
 	}
 
 	/**
-	 * Encode.
+	 * Кодирует строку UTF-8 в буфер, предваряя её VarInt-длиной в байтах.
 	 *
-	 * @param buf buf
-	 * @param string string
-	 * @param maxLength max length
+	 * @param buf       буфер для записи
+	 * @param string    строка для кодирования
+	 * @param maxLength максимально допустимая длина строки в символах
+	 * @throws EncoderException если строка превышает допустимый предел
 	 */
 	public static void encode(ByteBuf buf, CharSequence string, int maxLength) {
 		if (string.length() > maxLength) {
 			throw new EncoderException(
 					"String too big (was " + string.length() + " characters, max " + maxLength + ")");
 		}
-		else {
-			int i = ByteBufUtil.utf8MaxBytes(string);
-			ByteBuf byteBuf = buf.alloc().buffer(i);
 
-			try {
-				int j = ByteBufUtil.writeUtf8(byteBuf, string);
-				int k = ByteBufUtil.utf8MaxBytes(maxLength);
-				if (j > k) {
-					throw new EncoderException("String too big (was " + j + " bytes encoded, max " + k + ")");
-				}
+		int maxBytes = ByteBufUtil.utf8MaxBytes(string);
+		ByteBuf temp = buf.alloc().buffer(maxBytes);
 
-				VarInts.write(buf, j);
-				buf.writeBytes(byteBuf);
+		try {
+			int writtenBytes = ByteBufUtil.writeUtf8(temp, string);
+			int maxAllowedBytes = ByteBufUtil.utf8MaxBytes(maxLength);
+			if (writtenBytes > maxAllowedBytes) {
+				throw new EncoderException(
+						"String too big (was " + writtenBytes + " bytes encoded, max " + maxAllowedBytes + ")");
 			}
-			finally {
-				byteBuf.release();
-			}
+
+			VarInts.write(buf, writtenBytes);
+			buf.writeBytes(temp);
+		} finally {
+			temp.release();
 		}
 	}
 }

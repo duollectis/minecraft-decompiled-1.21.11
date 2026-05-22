@@ -14,18 +14,18 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code PathAwareEntity}.
+ * Базовый класс для мобов с поиском пути. Управляет навигацией и привязью.
  */
 public abstract class PathAwareEntity extends MobEntity {
 
-	protected static final float DEFAULT_PATHFINDING_FAVOR = 0.0F;
+	private static final float LEASH_FOLLOW_DISTANCE = 2.0F;
 
 	protected PathAwareEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
 		super(entityType, world);
 	}
 
 	public float getPathfindingFavor(BlockPos pos) {
-		return this.getPathfindingFavor(pos, this.getEntityWorld());
+		return getPathfindingFavor(pos, getEntityWorld());
 	}
 
 	public float getPathfindingFavor(BlockPos pos, WorldView world) {
@@ -34,33 +34,27 @@ public abstract class PathAwareEntity extends MobEntity {
 
 	@Override
 	public boolean canSpawn(WorldAccess world, SpawnReason spawnReason) {
-		return this.getPathfindingFavor(this.getBlockPos(), world) >= 0.0F;
+		return getPathfindingFavor(getBlockPos(), world) >= 0.0F;
 	}
 
 	public boolean isNavigating() {
-		return !this.getNavigation().isIdle();
+		return !getNavigation().isIdle();
 	}
 
 	public boolean isPanicking() {
-		if (this.brain.hasMemoryModule(MemoryModuleType.IS_PANICKING)) {
-			return this.brain.getOptionalRegisteredMemory(MemoryModuleType.IS_PANICKING).isPresent();
+		if (brain.hasMemoryModule(MemoryModuleType.IS_PANICKING)) {
+			return brain.getOptionalRegisteredMemory(MemoryModuleType.IS_PANICKING).isPresent();
 		}
-		else {
-			for (PrioritizedGoal prioritizedGoal : this.goalSelector.getGoals()) {
-				if (prioritizedGoal.isRunning() && prioritizedGoal.getGoal() instanceof EscapeDangerGoal) {
-					return true;
-				}
-			}
 
-			return false;
+		for (PrioritizedGoal goal : goalSelector.getGoals()) {
+			if (goal.isRunning() && goal.getGoal() instanceof EscapeDangerGoal) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
-	/**
-	 * Определяет, следует ли follow leash.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean shouldFollowLeash() {
 		return true;
 	}
@@ -68,29 +62,31 @@ public abstract class PathAwareEntity extends MobEntity {
 	@Override
 	public void onShortLeashTick(Entity entity) {
 		super.onShortLeashTick(entity);
-		if (this.shouldFollowLeash() && !this.isPanicking()) {
-			this.goalSelector.enableControl(Goal.Control.MOVE);
-			float f = 2.0F;
-			float g = this.distanceTo(entity);
-			Vec3d
-					vec3d =
-					new Vec3d(entity.getX() - this.getX(), entity.getY() - this.getY(), entity.getZ() - this.getZ())
-							.normalize()
-							.multiply(Math.max(g - 2.0F, 0.0F));
-			this
-					.getNavigation()
-					.startMovingTo(
-							this.getX() + vec3d.x,
-							this.getY() + vec3d.y,
-							this.getZ() + vec3d.z,
-							this.getFollowLeashSpeed()
-					);
+		if (!shouldFollowLeash() || isPanicking()) {
+			return;
 		}
+
+		goalSelector.enableControl(Goal.Control.MOVE);
+		float distanceToHolder = distanceTo(entity);
+		Vec3d direction = new Vec3d(
+				entity.getX() - getX(),
+				entity.getY() - getY(),
+				entity.getZ() - getZ()
+		)
+				.normalize()
+				.multiply(Math.max(distanceToHolder - LEASH_FOLLOW_DISTANCE, 0.0F));
+		getNavigation()
+				.startMovingTo(
+						getX() + direction.x,
+						getY() + direction.y,
+						getZ() + direction.z,
+						getFollowLeashSpeed()
+				);
 	}
 
 	@Override
 	public void beforeLeashTick(Entity leashHolder) {
-		this.setPositionTarget(leashHolder.getBlockPos(), (int) this.getElasticLeashDistance() - 1);
+		setPositionTarget(leashHolder.getBlockPos(), (int) getElasticLeashDistance() - 1);
 		super.beforeLeashTick(leashHolder);
 	}
 

@@ -10,65 +10,61 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.poi.PointOfInterestStorage;
 
 /**
- * {@code GoToCloserPointOfInterestTask}.
+ * Фабричный класс задачи мозга, направляющей жителя ближе к занятой точке интереса (POI).
+ * Использует несколько попыток нечёткого поиска для выбора оптимальной позиции.
  */
 public class GoToCloserPointOfInterestTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param speed speed
-	 * @param completionRange completion range
-	 *
-	 * @return Task — результат операции
-	 */
+	private static final int SEARCH_ATTEMPTS = 5;
+	private static final int HORIZONTAL_RANGE = 15;
+	private static final int VERTICAL_RANGE = 7;
+
 	public static Task<VillagerEntity> create(float speed, int completionRange) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET)).apply(
-						context, walkTarget -> (world, entity, time) -> {
+						context,
+						walkTarget -> (world, entity, time) -> {
 							if (world.isNearOccupiedPointOfInterest(entity.getBlockPos())) {
 								return false;
 							}
-							else {
-								PointOfInterestStorage pointOfInterestStorage = world.getPointOfInterestStorage();
-								int
-										j =
-										pointOfInterestStorage.getDistanceFromNearestOccupied(ChunkSectionPos.from(
-												entity.getBlockPos()));
-								Vec3d vec3d = null;
 
-								for (int k = 0; k < 5; k++) {
-									Vec3d
-											vec3d2 =
-											FuzzyTargeting.find(
-													entity,
-													15,
-													7,
-													pos -> -pointOfInterestStorage.getDistanceFromNearestOccupied(
-															ChunkSectionPos.from(pos))
-											);
-									if (vec3d2 != null) {
-										int
-												l =
-												pointOfInterestStorage.getDistanceFromNearestOccupied(ChunkSectionPos.from(
-														BlockPos.ofFloored(vec3d2)));
-										if (l < j) {
-											vec3d = vec3d2;
-											break;
-										}
+							PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
+							int currentDist = poiStorage.getDistanceFromNearestOccupied(
+									ChunkSectionPos.from(entity.getBlockPos())
+							);
+							Vec3d bestPos = null;
 
-										if (l == j) {
-											vec3d = vec3d2;
-										}
-									}
+							for (int attempt = 0; attempt < SEARCH_ATTEMPTS; attempt++) {
+								Vec3d candidate = FuzzyTargeting.find(
+										entity,
+										HORIZONTAL_RANGE,
+										VERTICAL_RANGE,
+										pos -> -poiStorage.getDistanceFromNearestOccupied(ChunkSectionPos.from(pos))
+								);
+
+								if (candidate == null) {
+									continue;
 								}
 
-								if (vec3d != null) {
-									walkTarget.remember(new WalkTarget(vec3d, speed, completionRange));
+								int candidateDist = poiStorage.getDistanceFromNearestOccupied(
+										ChunkSectionPos.from(BlockPos.ofFloored(candidate))
+								);
+
+								if (candidateDist < currentDist) {
+									bestPos = candidate;
+									break;
 								}
 
-								return true;
+								if (candidateDist == currentDist) {
+									bestPos = candidate;
+								}
 							}
+
+							if (bestPos != null) {
+								walkTarget.remember(new WalkTarget(bestPos, speed, completionRange));
+							}
+
+							return true;
 						}
 				)
 		);

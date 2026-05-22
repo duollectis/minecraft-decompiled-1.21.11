@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1451v3}.
+ * Схема версии 1451v3: регистрирует полный набор сущностей-снарядов и вагонеток
+ * с их NBT-полями (состояния блоков, инвентари, текстовые компоненты).
+ * Включает стрелы, зелья, эндер-жемчуг, огненные шары, снежки и все типы вагонеток.
  */
 public class Schema1451v3 extends IdentifierNormalizingSchema {
 
-	public Schema1451v3(int i, Schema schema) {
-		super(i, schema);
+	public Schema1451v3(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

@@ -30,8 +30,8 @@ public record WaypointStyleAsset(
 	private static final Codec<Integer> DISTANCE_CODEC = Codec.intRange(0, 60000000);
 	public static final Codec<WaypointStyleAsset> CODEC = RecordCodecBuilder.<WaypointStyleAsset>create(
 			                                                                        instance -> instance.<Integer, Integer, List<Identifier>>group(
-					                                                                                            DISTANCE_CODEC.optionalFieldOf("near_distance", 128).forGetter(WaypointStyleAsset::nearDistance),
-					                                                                                            DISTANCE_CODEC.optionalFieldOf("far_distance", 332).forGetter(WaypointStyleAsset::farDistance),
+					                                                                                            DISTANCE_CODEC.optionalFieldOf("near_distance", DEFAULT_NEAR_DISTANCE).forGetter(WaypointStyleAsset::nearDistance),
+					                                                                                            DISTANCE_CODEC.optionalFieldOf("far_distance", DEFAULT_FAR_DISTANCE).forGetter(WaypointStyleAsset::farDistance),
 					                                                                                            Codecs
 							                                                                                            .nonEmptyList(Identifier.CODEC.listOf())
 							                                                                                            .fieldOf("sprites")

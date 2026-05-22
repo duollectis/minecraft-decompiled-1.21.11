@@ -26,13 +26,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code EntityNavigation}.
+ * Базовый класс навигации существа: управляет поиском пути, следованием по нему
+ * и таймаутами при зависании.
  */
 public abstract class EntityNavigation {
 
 	private static final int RECALCULATE_COOLDOWN = 20;
 	private static final int PATH_TIMEOUT_TICKS = 100;
 	private static final float PATH_TIMEOUT_DISTANCE_FACTOR = 0.25F;
+
 	protected final MobEntity entity;
 	protected final World world;
 	protected @Nullable Path currentPath;
@@ -58,37 +60,34 @@ public abstract class EntityNavigation {
 	public EntityNavigation(MobEntity entity, World world) {
 		this.entity = entity;
 		this.world = world;
-		this.pathNodeNavigator =
-				this.createPathNodeNavigator(MathHelper.floor(
-						entity.getAttributeBaseValue(EntityAttributes.FOLLOW_RANGE) * 16.0));
+		pathNodeNavigator = createPathNodeNavigator(
+				MathHelper.floor(entity.getAttributeBaseValue(EntityAttributes.FOLLOW_RANGE) * 16.0)
+		);
+
 		if (world instanceof ServerWorld serverWorld) {
-			SubscriberTracker subscriberTracker = serverWorld.getServer().getSubscriberTracker();
-			this.pathNodeNavigator.setShouldSendDebugData(() -> subscriberTracker.hasSubscriber(DebugSubscriptionTypes.ENTITY_PATHS));
+			SubscriberTracker tracker = serverWorld.getServer().getSubscriberTracker();
+			pathNodeNavigator.setShouldSendDebugData(
+					() -> tracker.hasSubscriber(DebugSubscriptionTypes.ENTITY_PATHS)
+			);
 		}
 	}
 
-	/**
-	 * Обновляет range.
-	 */
 	public void updateRange() {
-		int i = MathHelper.floor(this.getMaxFollowRange() * 16.0F);
-		this.pathNodeNavigator.setRange(i);
+		int newRange = MathHelper.floor(getMaxFollowRange() * 16.0F);
+		pathNodeNavigator.setRange(newRange);
 	}
 
 	public void setMaxFollowRange(float maxFollowRange) {
 		this.maxFollowRange = maxFollowRange;
-		this.updateRange();
+		updateRange();
 	}
 
 	private float getMaxFollowRange() {
-		return Math.max((float) this.entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE), this.maxFollowRange);
+		return Math.max((float) entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE), maxFollowRange);
 	}
 
-	/**
-	 * Сбрасывает range multiplier.
-	 */
 	public void resetRangeMultiplier() {
-		this.rangeMultiplier = 1.0F;
+		rangeMultiplier = 1.0F;
 	}
 
 	public void setRangeMultiplier(float rangeMultiplier) {
@@ -96,16 +95,9 @@ public abstract class EntityNavigation {
 	}
 
 	public @Nullable BlockPos getTargetPos() {
-		return this.currentTarget;
+		return currentTarget;
 	}
 
-	/**
-	 * Создаёт path node navigator.
-	 *
-	 * @param range range
-	 *
-	 * @return PathNodeNavigator — результат операции
-	 */
 	protected abstract PathNodeNavigator createPathNodeNavigator(int range);
 
 	public void setSpeed(double speed) {
@@ -113,111 +105,61 @@ public abstract class EntityNavigation {
 	}
 
 	/**
-	 * Recalculate path.
+	 * Пересчитывает путь к текущей цели, если прошло достаточно времени с последнего пересчёта.
+	 * Устанавливает флаг {@code inRecalculationCooldown}, если кулдаун ещё не истёк.
 	 */
 	public void recalculatePath() {
-		if (this.world.getTime() - this.lastRecalculateTime > 20L) {
-			if (this.currentTarget != null) {
-				this.currentPath = null;
-				this.currentPath = this.findPathTo(this.currentTarget, this.currentDistance);
-				this.lastRecalculateTime = this.world.getTime();
-				this.inRecalculationCooldown = false;
+		if (world.getTime() - lastRecalculateTime > RECALCULATE_COOLDOWN) {
+			if (currentTarget != null) {
+				currentPath = null;
+				currentPath = findPathTo(currentTarget, currentDistance);
+				lastRecalculateTime = world.getTime();
+				inRecalculationCooldown = false;
 			}
-		}
-		else {
-			this.inRecalculationCooldown = true;
+		} else {
+			inRecalculationCooldown = true;
 		}
 	}
 
-	/**
-	 * Ищет path to.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to
-	 */
 	public final @Nullable Path findPathTo(double x, double y, double z, int distance) {
-		return this.findPathTo(BlockPos.ofFloored(x, y, z), distance);
+		return findPathTo(BlockPos.ofFloored(x, y, z), distance);
 	}
 
-	/**
-	 * Ищет path to any.
-	 *
-	 * @param positions positions
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to any
-	 */
 	public @Nullable Path findPathToAny(Stream<BlockPos> positions, int distance) {
-		return this.findPathTo(positions.collect(Collectors.toSet()), 8, false, distance);
+		return findPathTo(positions.collect(Collectors.toSet()), 8, false, distance);
 	}
 
-	/**
-	 * Ищет path to.
-	 *
-	 * @param positions positions
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to
-	 */
 	public @Nullable Path findPathTo(Set<BlockPos> positions, int distance) {
-		return this.findPathTo(positions, 8, false, distance);
+		return findPathTo(positions, 8, false, distance);
 	}
 
-	/**
-	 * Ищет path to.
-	 *
-	 * @param target target
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to
-	 */
 	public @Nullable Path findPathTo(BlockPos target, int distance) {
-		return this.findPathTo(ImmutableSet.of(target), 8, false, distance);
+		return findPathTo(ImmutableSet.of(target), 8, false, distance);
 	}
 
-	/**
-	 * Ищет path to.
-	 *
-	 * @param target target
-	 * @param minDistance min distance
-	 * @param maxDistance max distance
-	 *
-	 * @return @Nullable Path — path to
-	 */
 	public @Nullable Path findPathTo(BlockPos target, int minDistance, int maxDistance) {
-		return this.findPathToAny(ImmutableSet.of(target), 8, false, minDistance, maxDistance);
+		return findPathToAny(ImmutableSet.of(target), 8, false, minDistance, maxDistance);
 	}
 
-	/**
-	 * Ищет path to.
-	 *
-	 * @param entity entity
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to
-	 */
 	public @Nullable Path findPathTo(Entity entity, int distance) {
-		return this.findPathTo(ImmutableSet.of(entity.getBlockPos()), 16, true, distance);
+		return findPathTo(ImmutableSet.of(entity.getBlockPos()), 16, true, distance);
+	}
+
+	protected @Nullable Path findPathTo(Set<BlockPos> positions, int range, boolean useHeadPos, int distance) {
+		return findPathToAny(positions, range, useHeadPos, distance, getMaxFollowRange());
 	}
 
 	/**
-	 * Ищет path to.
+	 * Основной метод поиска пути к множеству позиций.
+	 * Создаёт кэш чанков вокруг существа и запускает алгоритм A*.
 	 *
-	 * @param positions positions
-	 * @param range range
-	 * @param useHeadPos use head pos
-	 * @param distance distance
-	 *
-	 * @return @Nullable Path — path to
+	 * @param positions целевые позиции
+	 * @param range дополнительный радиус кэша чанков
+	 * @param useHeadPos использовать позицию головы как старт (для существ, атакующих сверху)
+	 * @param distance допустимое расстояние до цели
+	 * @param followRange максимальная дальность следования
+	 * @return найденный путь или {@code null}
 	 */
-	protected @Nullable Path findPathTo(Set<BlockPos> positions, int range, boolean useHeadPos, int distance) {
-		return this.findPathToAny(positions, range, useHeadPos, distance, this.getMaxFollowRange());
-	}
-
 	protected @Nullable Path findPathToAny(
 			Set<BlockPos> positions,
 			int range,
@@ -228,293 +170,247 @@ public abstract class EntityNavigation {
 		if (positions.isEmpty()) {
 			return null;
 		}
-		else if (this.entity.getY() < this.world.getBottomY()) {
-			return null;
-		}
-		else if (!this.isAtValidPosition()) {
-			return null;
-		}
-		else if (this.currentPath != null && !this.currentPath.isFinished() && positions.contains(this.currentTarget)) {
-			return this.currentPath;
-		}
-		else {
-			Profiler profiler = Profilers.get();
-			profiler.push("pathfind");
-			BlockPos blockPos = useHeadPos ? this.entity.getBlockPos().up() : this.entity.getBlockPos();
-			int i = (int) (followRange + range);
-			ChunkCache chunkCache = new ChunkCache(this.world, blockPos.add(-i, -i, -i), blockPos.add(i, i, i));
-			Path
-					path =
-					this.pathNodeNavigator.findPathToAny(
-							chunkCache,
-							this.entity,
-							positions,
-							followRange,
-							distance,
-							this.rangeMultiplier
-					);
-			profiler.pop();
-			if (path != null && path.getTarget() != null) {
-				this.currentTarget = path.getTarget();
-				this.currentDistance = distance;
-				this.resetNode();
-			}
 
-			return path;
+		if (entity.getY() < world.getBottomY()) {
+			return null;
 		}
+
+		if (!isAtValidPosition()) {
+			return null;
+		}
+
+		if (currentPath != null && !currentPath.isFinished() && positions.contains(currentTarget)) {
+			return currentPath;
+		}
+
+		Profiler profiler = Profilers.get();
+		profiler.push("pathfind");
+		BlockPos startPos = useHeadPos ? entity.getBlockPos().up() : entity.getBlockPos();
+		int chunkRadius = (int) (followRange + range);
+		ChunkCache chunkCache = new ChunkCache(
+				world,
+				startPos.add(-chunkRadius, -chunkRadius, -chunkRadius),
+				startPos.add(chunkRadius, chunkRadius, chunkRadius)
+		);
+		Path path = pathNodeNavigator.findPathToAny(chunkCache, entity, positions, followRange, distance, rangeMultiplier);
+		profiler.pop();
+
+		if (path != null && path.getTarget() != null) {
+			currentTarget = path.getTarget();
+			currentDistance = distance;
+			resetNode();
+		}
+
+		return path;
 	}
 
-	/**
-	 * Запускает moving to.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param speed speed
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean startMovingTo(double x, double y, double z, double speed) {
-		return this.startMovingAlong(this.findPathTo(x, y, z, 1), speed);
+		return startMovingAlong(findPathTo(x, y, z, 1), speed);
 	}
 
-	/**
-	 * Запускает moving to.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param distance distance
-	 * @param speed speed
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean startMovingTo(double x, double y, double z, int distance, double speed) {
-		return this.startMovingAlong(this.findPathTo(x, y, z, distance), speed);
+		return startMovingAlong(findPathTo(x, y, z, distance), speed);
 	}
 
-	/**
-	 * Запускает moving to.
-	 *
-	 * @param entity entity
-	 * @param speed speed
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean startMovingTo(Entity entity, double speed) {
-		Path path = this.findPathTo(entity, 1);
-		return path != null && this.startMovingAlong(path, speed);
+		Path path = findPathTo(entity, 1);
+		return path != null && startMovingAlong(path, speed);
 	}
 
 	/**
-	 * Запускает moving along.
+	 * Начинает движение по заданному пути с указанной скоростью.
 	 *
-	 * @param path path
-	 * @param speed speed
-	 *
-	 * @return boolean — результат операции
+	 * @param path путь для следования (может быть {@code null})
+	 * @param speed скорость движения
+	 * @return {@code true} если движение успешно начато
 	 */
 	public boolean startMovingAlong(@Nullable Path path, double speed) {
 		if (path == null) {
-			this.currentPath = null;
+			currentPath = null;
 			return false;
 		}
-		else {
-			if (!path.equalsPath(this.currentPath)) {
-				this.currentPath = path;
-			}
 
-			if (this.isIdle()) {
-				return false;
-			}
-			else {
-				this.adjustPath();
-				if (this.currentPath.getLength() <= 0) {
-					return false;
-				}
-				else {
-					this.speed = speed;
-					Vec3d vec3d = this.getPos();
-					this.pathStartTime = this.tickCount;
-					this.pathStartPos = vec3d;
-					return true;
-				}
-			}
+		if (!path.equalsPath(currentPath)) {
+			currentPath = path;
 		}
+
+		if (isIdle()) {
+			return false;
+		}
+
+		adjustPath();
+
+		if (currentPath.getLength() <= 0) {
+			return false;
+		}
+
+		this.speed = speed;
+		Vec3d pos = getPos();
+		pathStartTime = tickCount;
+		pathStartPos = pos;
+		return true;
 	}
 
 	public @Nullable Path getCurrentPath() {
-		return this.currentPath;
+		return currentPath;
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет навигацию: продвигает по пути, проверяет таймауты, управляет движением.
 	 */
 	public void tick() {
-		this.tickCount++;
-		if (this.inRecalculationCooldown) {
-			this.recalculatePath();
+		tickCount++;
+
+		if (inRecalculationCooldown) {
+			recalculatePath();
 		}
 
-		if (!this.isIdle()) {
-			if (this.isAtValidPosition()) {
-				this.continueFollowingPath();
-			}
-			else if (this.currentPath != null && !this.currentPath.isFinished()) {
-				Vec3d vec3d = this.getPos();
-				Vec3d vec3d2 = this.currentPath.getNodePosition(this.entity);
-				if (vec3d.y > vec3d2.y
-						&& !this.entity.isOnGround()
-						&& MathHelper.floor(vec3d.x) == MathHelper.floor(vec3d2.x)
-						&& MathHelper.floor(vec3d.z) == MathHelper.floor(vec3d2.z)) {
-					this.currentPath.next();
-				}
-			}
+		if (isIdle()) {
+			return;
+		}
 
-			if (!this.isIdle()) {
-				Vec3d vec3d = this.currentPath.getNodePosition(this.entity);
-				this.entity.getMoveControl().moveTo(vec3d.x, this.adjustTargetY(vec3d), vec3d.z, this.speed);
+		if (isAtValidPosition()) {
+			continueFollowingPath();
+		} else if (currentPath != null && !currentPath.isFinished()) {
+			Vec3d pos = getPos();
+			Vec3d nodePos = currentPath.getNodePosition(entity);
+
+			if (pos.y > nodePos.y
+					&& !entity.isOnGround()
+					&& MathHelper.floor(pos.x) == MathHelper.floor(nodePos.x)
+					&& MathHelper.floor(pos.z) == MathHelper.floor(nodePos.z)) {
+				currentPath.next();
 			}
+		}
+
+		if (!isIdle()) {
+			Vec3d targetPos = currentPath.getNodePosition(entity);
+			entity.getMoveControl().moveTo(targetPos.x, adjustTargetY(targetPos), targetPos.z, speed);
 		}
 	}
 
-	/**
-	 * Adjust target y.
-	 *
-	 * @param pos pos
-	 *
-	 * @return double — результат операции
-	 */
 	protected double adjustTargetY(Vec3d pos) {
 		BlockPos blockPos = BlockPos.ofFloored(pos);
-		return this.world.getBlockState(blockPos.down()).isAir() ? pos.y
-		                                                         : LandPathNodeMaker.getFeetY(this.world, blockPos);
+		return world.getBlockState(blockPos.down()).isAir()
+				? pos.y
+				: LandPathNodeMaker.getFeetY(world, blockPos);
 	}
 
-	/**
-	 * Continue following path.
-	 */
 	protected void continueFollowingPath() {
-		Vec3d vec3d = this.getPos();
-		this.nodeReachProximity =
-				this.entity.getWidth() > 0.75F ? this.entity.getWidth() / 2.0F : 0.75F - this.entity.getWidth() / 2.0F;
-		Vec3i vec3i = this.currentPath.getCurrentNodePos();
-		double d = Math.abs(this.entity.getX() - (vec3i.getX() + 0.5));
-		double e = Math.abs(this.entity.getY() - vec3i.getY());
-		double f = Math.abs(this.entity.getZ() - (vec3i.getZ() + 0.5));
-		boolean bl = d < this.nodeReachProximity && f < this.nodeReachProximity && e < 1.0;
-		if (bl || this.canJumpToNext(this.currentPath.getCurrentNode().type) && this.shouldJumpToNextNode(vec3d)) {
-			this.currentPath.next();
+		Vec3d pos = getPos();
+		nodeReachProximity = entity.getWidth() > 0.75F
+				? entity.getWidth() / 2.0F
+				: 0.75F - entity.getWidth() / 2.0F;
+		Vec3i nodePos = currentPath.getCurrentNodePos();
+		double dx = Math.abs(entity.getX() - (nodePos.getX() + 0.5));
+		double dy = Math.abs(entity.getY() - nodePos.getY());
+		double dz = Math.abs(entity.getZ() - (nodePos.getZ() + 0.5));
+		boolean nodeReached = dx < nodeReachProximity && dz < nodeReachProximity && dy < 1.0;
+
+		if (nodeReached || canJumpToNext(currentPath.getCurrentNode().type) && shouldJumpToNextNode(pos)) {
+			currentPath.next();
 		}
 
-		this.checkTimeouts(vec3d);
+		checkTimeouts(pos);
 	}
 
 	private boolean shouldJumpToNextNode(Vec3d currentPos) {
-		if (this.currentPath.getCurrentNodeIndex() + 1 >= this.currentPath.getLength()) {
+		if (currentPath.getCurrentNodeIndex() + 1 >= currentPath.getLength()) {
 			return false;
 		}
-		else {
-			Vec3d vec3d = Vec3d.ofBottomCenter(this.currentPath.getCurrentNodePos());
-			if (!currentPos.isInRange(vec3d, 2.0)) {
-				return false;
-			}
-			else if (this.canPathDirectlyThrough(currentPos, this.currentPath.getNodePosition(this.entity))) {
-				return true;
-			}
-			else {
-				Vec3d
-						vec3d2 =
-						Vec3d.ofBottomCenter(this.currentPath.getNodePos(this.currentPath.getCurrentNodeIndex() + 1));
-				Vec3d vec3d3 = vec3d.subtract(currentPos);
-				Vec3d vec3d4 = vec3d2.subtract(currentPos);
-				double d = vec3d3.lengthSquared();
-				double e = vec3d4.lengthSquared();
-				boolean bl = e < d;
-				boolean bl2 = d < 0.5;
-				if (!bl && !bl2) {
-					return false;
-				}
-				else {
-					Vec3d vec3d5 = vec3d3.normalize();
-					Vec3d vec3d6 = vec3d4.normalize();
-					return vec3d6.dotProduct(vec3d5) < 0.0;
-				}
-			}
+
+		Vec3d currentNodeCenter = Vec3d.ofBottomCenter(currentPath.getCurrentNodePos());
+
+		if (!currentPos.isInRange(currentNodeCenter, 2.0)) {
+			return false;
 		}
+
+		if (canPathDirectlyThrough(currentPos, currentPath.getNodePosition(entity))) {
+			return true;
+		}
+
+		Vec3d nextNodeCenter = Vec3d.ofBottomCenter(
+				currentPath.getNodePos(currentPath.getCurrentNodeIndex() + 1)
+		);
+		Vec3d toCurrentNode = currentNodeCenter.subtract(currentPos);
+		Vec3d toNextNode = nextNodeCenter.subtract(currentPos);
+		double distToCurrentSq = toCurrentNode.lengthSquared();
+		double distToNextSq = toNextNode.lengthSquared();
+		boolean nextIsCloser = distToNextSq < distToCurrentSq;
+		boolean currentIsVeryClose = distToCurrentSq < 0.5;
+
+		if (!nextIsCloser && !currentIsVeryClose) {
+			return false;
+		}
+
+		return toNextNode.normalize().dotProduct(toCurrentNode.normalize()) < 0.0;
 	}
 
 	/**
-	 * Проверяет timeouts.
-	 *
-	 * @param currentPos current pos
+	 * Проверяет таймауты: останавливает существо, если оно застряло на месте.
+	 * Использует два механизма: общий таймаут пути и таймаут на одном узле.
 	 */
 	protected void checkTimeouts(Vec3d currentPos) {
-		if (this.tickCount - this.pathStartTime > 100) {
-			float
-					f =
-					this.entity.getMovementSpeed() >= 1.0F ? this.entity.getMovementSpeed()
-					                                       : this.entity.getMovementSpeed()
-					                                         * this.entity.getMovementSpeed();
-			float g = f * 100.0F * 0.25F;
-			if (currentPos.squaredDistanceTo(this.pathStartPos) < g * g) {
-				this.nearPathStartPos = true;
-				this.stop();
-			}
-			else {
-				this.nearPathStartPos = false;
+		if (tickCount - pathStartTime > PATH_TIMEOUT_TICKS) {
+			float movementSpeed = entity.getMovementSpeed();
+			float effectiveSpeed = movementSpeed >= 1.0F ? movementSpeed : movementSpeed * movementSpeed;
+			float timeoutRadius = effectiveSpeed * 100.0F * PATH_TIMEOUT_DISTANCE_FACTOR;
+
+			if (currentPos.squaredDistanceTo(pathStartPos) < timeoutRadius * timeoutRadius) {
+				nearPathStartPos = true;
+				stop();
+			} else {
+				nearPathStartPos = false;
 			}
 
-			this.pathStartTime = this.tickCount;
-			this.pathStartPos = currentPos;
+			pathStartTime = tickCount;
+			pathStartPos = currentPos;
 		}
 
-		if (this.currentPath != null && !this.currentPath.isFinished()) {
-			Vec3i vec3i = this.currentPath.getCurrentNodePos();
-			long l = this.world.getTime();
-			if (vec3i.equals(this.lastNodePosition)) {
-				this.currentNodeMs = this.currentNodeMs + (l - this.lastActiveTickMs);
-			}
-			else {
-				this.lastNodePosition = vec3i;
-				double d = currentPos.distanceTo(Vec3d.ofBottomCenter(this.lastNodePosition));
-				this.currentNodeTimeout =
-						this.entity.getMovementSpeed() > 0.0F ? d / this.entity.getMovementSpeed() * 20.0 : 0.0;
+		if (currentPath != null && !currentPath.isFinished()) {
+			Vec3i nodePos = currentPath.getCurrentNodePos();
+			long currentTime = world.getTime();
+
+			if (nodePos.equals(lastNodePosition)) {
+				currentNodeMs += currentTime - lastActiveTickMs;
+			} else {
+				lastNodePosition = nodePos;
+				double distToNode = currentPos.distanceTo(Vec3d.ofBottomCenter(lastNodePosition));
+				currentNodeTimeout = entity.getMovementSpeed() > 0.0F
+						? distToNode / entity.getMovementSpeed() * 20.0
+						: 0.0;
 			}
 
-			if (this.currentNodeTimeout > 0.0 && this.currentNodeMs > this.currentNodeTimeout * 3.0) {
-				this.resetNodeAndStop();
+			if (currentNodeTimeout > 0.0 && currentNodeMs > currentNodeTimeout * 3.0) {
+				resetNodeAndStop();
 			}
 
-			this.lastActiveTickMs = l;
+			lastActiveTickMs = currentTime;
 		}
 	}
 
 	private void resetNodeAndStop() {
-		this.resetNode();
-		this.stop();
+		resetNode();
+		stop();
 	}
 
 	private void resetNode() {
-		this.lastNodePosition = Vec3i.ZERO;
-		this.currentNodeMs = 0L;
-		this.currentNodeTimeout = 0.0;
-		this.nearPathStartPos = false;
+		lastNodePosition = Vec3i.ZERO;
+		currentNodeMs = 0L;
+		currentNodeTimeout = 0.0;
+		nearPathStartPos = false;
 	}
 
 	public boolean isIdle() {
-		return this.currentPath == null || this.currentPath.isFinished();
+		return currentPath == null || currentPath.isFinished();
 	}
 
 	public boolean isFollowingPath() {
-		return !this.isIdle();
+		return !isIdle();
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.currentPath = null;
+		currentPath = null;
 	}
 
 	protected abstract Vec3d getPos();
@@ -522,143 +418,111 @@ public abstract class EntityNavigation {
 	protected abstract boolean isAtValidPosition();
 
 	/**
-	 * Adjust path.
+	 * Корректирует путь: поднимает узлы внутри котлов на один блок вверх,
+	 * чтобы существо не застревало в них.
 	 */
 	protected void adjustPath() {
-		if (this.currentPath != null) {
-			for (int i = 0; i < this.currentPath.getLength(); i++) {
-				PathNode pathNode = this.currentPath.getNode(i);
-				PathNode pathNode2 = i + 1 < this.currentPath.getLength() ? this.currentPath.getNode(i + 1) : null;
-				BlockState blockState = this.world.getBlockState(new BlockPos(pathNode.x, pathNode.y, pathNode.z));
-				if (blockState.isIn(BlockTags.CAULDRONS)) {
-					this.currentPath.setNode(i, pathNode.copyWithNewPosition(pathNode.x, pathNode.y + 1, pathNode.z));
-					if (pathNode2 != null && pathNode.y >= pathNode2.y) {
-						this.currentPath.setNode(
-								i + 1,
-								pathNode.copyWithNewPosition(pathNode2.x, pathNode.y + 1, pathNode2.z)
-						);
-					}
+		if (currentPath == null) {
+			return;
+		}
+
+		for (int i = 0; i < currentPath.getLength(); i++) {
+			PathNode node = currentPath.getNode(i);
+			PathNode nextNode = i + 1 < currentPath.getLength() ? currentPath.getNode(i + 1) : null;
+			BlockState blockState = world.getBlockState(new BlockPos(node.x, node.y, node.z));
+
+			if (blockState.isIn(BlockTags.CAULDRONS)) {
+				currentPath.setNode(i, node.copyWithNewPosition(node.x, node.y + 1, node.z));
+
+				if (nextNode != null && node.y >= nextNode.y) {
+					currentPath.setNode(i + 1, node.copyWithNewPosition(nextNode.x, node.y + 1, nextNode.z));
 				}
 			}
 		}
 	}
 
-	/**
-	 * Проверяет возможность path directly through.
-	 *
-	 * @param origin origin
-	 * @param target target
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
 		return false;
 	}
 
-	/**
-	 * Проверяет возможность jump to next.
-	 *
-	 * @param nodeType node type
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canJumpToNext(PathNodeType nodeType) {
-		return nodeType != PathNodeType.DANGER_FIRE && nodeType != PathNodeType.DANGER_OTHER
+		return nodeType != PathNodeType.DANGER_FIRE
+				&& nodeType != PathNodeType.DANGER_OTHER
 				&& nodeType != PathNodeType.WALKABLE_DOOR;
 	}
 
 	/**
-	 * Does not collide.
+	 * Проверяет, не пересекает ли прямая линия между двумя точками твёрдые блоки.
 	 *
-	 * @param entity entity
-	 * @param startPos start pos
-	 * @param entityPos entity pos
-	 * @param includeFluids include fluids
-	 *
-	 * @return boolean — результат операции
+	 * @param entity существо для рейкаста
+	 * @param startPos начальная точка
+	 * @param entityPos конечная точка (позиция ног)
+	 * @param includeFluids учитывать ли жидкости как препятствия
+	 * @return {@code true} если путь свободен
 	 */
 	protected static boolean doesNotCollide(MobEntity entity, Vec3d startPos, Vec3d entityPos, boolean includeFluids) {
-		Vec3d vec3d = new Vec3d(entityPos.x, entityPos.y + entity.getHeight() * 0.5, entityPos.z);
+		Vec3d midPoint = new Vec3d(entityPos.x, entityPos.y + entity.getHeight() * 0.5, entityPos.z);
 		return entity.getEntityWorld()
-		             .raycast(
-				             new RaycastContext(
-						             startPos,
-						             vec3d,
-						             RaycastContext.ShapeType.COLLIDER,
-						             includeFluids ? RaycastContext.FluidHandling.ANY
-						                           : RaycastContext.FluidHandling.NONE,
-						             entity
-				             )
-		             )
-		             .getType()
-				== HitResult.Type.MISS;
+				.raycast(new RaycastContext(
+						startPos,
+						midPoint,
+						RaycastContext.ShapeType.COLLIDER,
+						includeFluids ? RaycastContext.FluidHandling.ANY : RaycastContext.FluidHandling.NONE,
+						entity
+				))
+				.getType() == HitResult.Type.MISS;
 	}
 
 	public boolean isValidPosition(BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		return this.world.getBlockState(blockPos).isOpaqueFullCube();
+		BlockPos below = pos.down();
+		return world.getBlockState(below).isOpaqueFullCube();
 	}
 
 	public PathNodeMaker getNodeMaker() {
-		return this.nodeMaker;
+		return nodeMaker;
 	}
 
 	public void setCanSwim(boolean canSwim) {
-		this.nodeMaker.setCanSwim(canSwim);
+		nodeMaker.setCanSwim(canSwim);
 	}
 
-	/**
-	 * Проверяет возможность swim.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canSwim() {
-		return this.nodeMaker.canSwim();
+		return nodeMaker.canSwim();
 	}
 
 	/**
-	 * Определяет, следует ли recalculate path.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
+	 * Определяет, нужно ли пересчитать путь при изменении блока в позиции {@code pos}.
+	 * Проверяет, находится ли позиция в пределах текущего пути.
 	 */
 	public boolean shouldRecalculatePath(BlockPos pos) {
-		if (this.inRecalculationCooldown) {
+		if (inRecalculationCooldown) {
 			return false;
 		}
-		else if (this.currentPath != null && !this.currentPath.isFinished() && this.currentPath.getLength() != 0) {
-			PathNode pathNode = this.currentPath.getEnd();
-			Vec3d
-					vec3d =
-					new Vec3d(
-							(pathNode.x + this.entity.getX()) / 2.0,
-							(pathNode.y + this.entity.getY()) / 2.0,
-							(pathNode.z + this.entity.getZ()) / 2.0
-					);
-			return pos.isWithinDistance(vec3d, this.currentPath.getLength() - this.currentPath.getCurrentNodeIndex());
-		}
-		else {
+
+		if (currentPath == null || currentPath.isFinished() || currentPath.getLength() == 0) {
 			return false;
 		}
+
+		PathNode endNode = currentPath.getEnd();
+		Vec3d midPoint = new Vec3d(
+				(endNode.x + entity.getX()) / 2.0,
+				(endNode.y + entity.getY()) / 2.0,
+				(endNode.z + entity.getZ()) / 2.0
+		);
+		return pos.isWithinDistance(midPoint, currentPath.getLength() - currentPath.getCurrentNodeIndex());
 	}
 
 	public float getNodeReachProximity() {
-		return this.nodeReachProximity;
+		return nodeReachProximity;
 	}
 
 	public boolean isNearPathStartPos() {
-		return this.nearPathStartPos;
+		return nearPathStartPos;
 	}
 
-	/**
-	 * Проверяет возможность control opening doors.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public abstract boolean canControlOpeningDoors();
 
 	public void setCanOpenDoors(boolean canOpenDoors) {
-		this.nodeMaker.setCanOpenDoors(canOpenDoors);
+		nodeMaker.setCanOpenDoors(canOpenDoors);
 	}
 }

@@ -11,10 +11,11 @@ import net.minecraft.client.util.math.MatrixStack;
 import java.util.*;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ModelPartCommandRenderer}.
+ * Рендерит команды рисования отдельных частей моделей ({@link OrderedRenderCommandQueueImpl.ModelPartCommand}).
+ * Поддерживает блеск (glint), контурную подсветку и оверлей разрушения блока.
  */
+@Environment(EnvType.CLIENT)
 public class ModelPartCommandRenderer {
 
 	private final MatrixStack matrices = new MatrixStack();
@@ -23,131 +24,82 @@ public class ModelPartCommandRenderer {
 			BatchingRenderCommandQueue queue,
 			VertexConsumerProvider.Immediate vertexConsumers,
 			OutlineVertexConsumerProvider outlineVertexConsumerProvider,
-			VertexConsumerProvider.Immediate immediate
+			VertexConsumerProvider.Immediate crumblingVertexConsumers
 	) {
 		ModelPartCommandRenderer.Commands commands = queue.getModelPartCommands();
 
 		for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>> entry : commands.modelPartCommands.entrySet()) {
 			RenderLayer renderLayer = entry.getKey();
-			List<OrderedRenderCommandQueueImpl.ModelPartCommand> list = entry.getValue();
-			VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
+			VertexConsumer layerConsumer = vertexConsumers.getBuffer(renderLayer);
 
-			for (OrderedRenderCommandQueueImpl.ModelPartCommand modelPartCommand : list) {
-				VertexConsumer vertexConsumer2;
-				if (modelPartCommand.sprite() != null) {
-					if (modelPartCommand.hasGlint()) {
-						vertexConsumer2 = modelPartCommand.sprite()
-						                                  .getTextureSpecificVertexConsumer(ItemRenderer.getItemGlintConsumer(
-								                                  vertexConsumers,
-								                                  renderLayer,
-								                                  modelPartCommand.sheeted(),
-								                                  true
-						                                  ));
-					}
-					else {
-						vertexConsumer2 = modelPartCommand.sprite().getTextureSpecificVertexConsumer(vertexConsumer);
-					}
-				}
-				else if (modelPartCommand.hasGlint()) {
-					vertexConsumer2 =
-							ItemRenderer.getItemGlintConsumer(
-									vertexConsumers,
-									renderLayer,
-									modelPartCommand.sheeted(),
-									true
-							);
-				}
-				else {
-					vertexConsumer2 = vertexConsumer;
+			for (OrderedRenderCommandQueueImpl.ModelPartCommand cmd : entry.getValue()) {
+				VertexConsumer mainConsumer = resolveMainConsumer(cmd, vertexConsumers, renderLayer, layerConsumer);
+				matrices.peek().copy(cmd.matricesEntry());
+				cmd.modelPart().render(matrices, mainConsumer, cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor());
+
+				if (cmd.outlineColor() != 0 && (renderLayer.getAffectedOutline().isPresent() || renderLayer.isOutline())) {
+					outlineVertexConsumerProvider.setColor(cmd.outlineColor());
+					VertexConsumer outlineConsumer = outlineVertexConsumerProvider.getBuffer(renderLayer);
+					cmd.modelPart().render(
+							matrices,
+							cmd.sprite() == null ? outlineConsumer : cmd.sprite().getTextureSpecificVertexConsumer(outlineConsumer),
+							cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor()
+					);
 				}
 
-				this.matrices.peek().copy(modelPartCommand.matricesEntry());
-				modelPartCommand.modelPart()
-				                .render(
-						                this.matrices,
-						                vertexConsumer2,
-						                modelPartCommand.lightCoords(),
-						                modelPartCommand.overlayCoords(),
-						                modelPartCommand.tintedColor()
-				                );
-				if (modelPartCommand.outlineColor() != 0 && (renderLayer.getAffectedOutline().isPresent()
-						|| renderLayer.isOutline()
-				)) {
-					outlineVertexConsumerProvider.setColor(modelPartCommand.outlineColor());
-					VertexConsumer vertexConsumer3 = outlineVertexConsumerProvider.getBuffer(renderLayer);
-					modelPartCommand.modelPart()
-					                .render(
-							                this.matrices,
-							                modelPartCommand.sprite() == null ? vertexConsumer3 : modelPartCommand
-							                                                                      .sprite()
-							                                                                      .getTextureSpecificVertexConsumer(
-									                                                                      vertexConsumer3),
-							                modelPartCommand.lightCoords(),
-							                modelPartCommand.overlayCoords(),
-							                modelPartCommand.tintedColor()
-					                );
-				}
-
-				if (modelPartCommand.crumblingOverlay() != null) {
-					VertexConsumer vertexConsumer3 = new OverlayVertexConsumer(
-							immediate.getBuffer(ModelBaker.BLOCK_DESTRUCTION_RENDER_LAYERS.get(modelPartCommand
-									.crumblingOverlay()
-									.progress())),
-							modelPartCommand.crumblingOverlay().cameraMatricesEntry(),
+				if (cmd.crumblingOverlay() != null) {
+					VertexConsumer crumblingConsumer = new OverlayVertexConsumer(
+							crumblingVertexConsumers.getBuffer(ModelBaker.BLOCK_DESTRUCTION_RENDER_LAYERS.get(cmd.crumblingOverlay().progress())),
+							cmd.crumblingOverlay().cameraMatricesEntry(),
 							1.0F
 					);
-					modelPartCommand.modelPart()
-					                .render(
-							                this.matrices,
-							                vertexConsumer3,
-							                modelPartCommand.lightCoords(),
-							                modelPartCommand.overlayCoords(),
-							                modelPartCommand.tintedColor()
-					                );
+					cmd.modelPart().render(matrices, crumblingConsumer, cmd.lightCoords(), cmd.overlayCoords(), cmd.tintedColor());
 				}
 			}
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Commands}.
-	 */
-	public static class Commands {
-
-		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>>
-				modelPartCommands =
-				new HashMap<>();
-		private final Set<RenderLayer> modelPartLayers = new ObjectOpenHashSet();
-
-		/**
-		 * Add.
-		 *
-		 * @param renderLayer render layer
-		 * @param command command
-		 */
-		public void add(RenderLayer renderLayer, OrderedRenderCommandQueueImpl.ModelPartCommand command) {
-			this.modelPartCommands.computeIfAbsent(renderLayer, renderLayerx -> new ArrayList<>()).add(command);
+	private static VertexConsumer resolveMainConsumer(
+			OrderedRenderCommandQueueImpl.ModelPartCommand cmd,
+			VertexConsumerProvider.Immediate vertexConsumers,
+			RenderLayer renderLayer,
+			VertexConsumer layerConsumer
+	) {
+		if (cmd.sprite() != null) {
+			return cmd.hasGlint()
+					? cmd.sprite().getTextureSpecificVertexConsumer(
+							ItemRenderer.getItemGlintConsumer(vertexConsumers, renderLayer, cmd.sheeted(), true))
+					: cmd.sprite().getTextureSpecificVertexConsumer(layerConsumer);
 		}
 
-		/**
-		 * Clear.
-		 */
+		return cmd.hasGlint()
+				? ItemRenderer.getItemGlintConsumer(vertexConsumers, renderLayer, cmd.sheeted(), true)
+				: layerConsumer;
+	}
+
+	/** Накопитель команд рисования частей моделей, сгруппированных по слоям рендеринга. */
+	@Environment(EnvType.CLIENT)
+	public static class Commands {
+
+		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>> modelPartCommands = new HashMap<>();
+		private final Set<RenderLayer> modelPartLayers = new ObjectOpenHashSet();
+
+		public void add(RenderLayer renderLayer, OrderedRenderCommandQueueImpl.ModelPartCommand command) {
+			modelPartCommands.computeIfAbsent(renderLayer, layer -> new ArrayList<>()).add(command);
+		}
+
 		public void clear() {
-			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>> entry : this.modelPartCommands.entrySet()) {
+			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>> entry : modelPartCommands.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
-					this.modelPartLayers.add(entry.getKey());
+					modelPartLayers.add(entry.getKey());
 					entry.getValue().clear();
 				}
 			}
 		}
 
-		/**
-		 * Next frame.
-		 */
 		public void nextFrame() {
-			this.modelPartCommands.keySet().removeIf(renderLayer -> !this.modelPartLayers.contains(renderLayer));
-			this.modelPartLayers.clear();
+			modelPartCommands.keySet().removeIf(layer -> !modelPartLayers.contains(layer));
+			modelPartLayers.clear();
 		}
 	}
 }

@@ -13,7 +13,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code FrogVariants}.
+ * Реестр вариантов лягушки.
  */
 public interface FrogVariants {
 

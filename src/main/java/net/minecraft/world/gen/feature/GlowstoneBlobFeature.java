@@ -10,9 +10,14 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code GlowstoneBlobFeature}.
+ * Генерирует каплю глоустоуна, свисающую с потолка Нижнего мира.
+ * Алгоритм: случайным образом выбирает 1500 позиций вокруг начальной точки
+ * и размещает глоустоун там, где ровно один соседний блок уже является глоустоуном,
+ * создавая органичную форму капли.
  */
 public class GlowstoneBlobFeature extends Feature<DefaultFeatureConfig> {
+
+	private static final int SPREAD_ATTEMPTS = 1500;
 
 	public GlowstoneBlobFeature(Codec<DefaultFeatureConfig> codec) {
 		super(codec);
@@ -20,52 +25,53 @@ public class GlowstoneBlobFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		if (!structureWorldAccess.isAir(blockPos)) {
+
+		if (world.isAir(origin) == false) {
 			return false;
 		}
-		else {
-			BlockState blockState = structureWorldAccess.getBlockState(blockPos.up());
-			if (!blockState.isOf(Blocks.NETHERRACK) && !blockState.isOf(Blocks.BASALT)
-					&& !blockState.isOf(Blocks.BLACKSTONE)) {
-				return false;
+
+		BlockState above = world.getBlockState(origin.up());
+
+		if (!above.isOf(Blocks.NETHERRACK)
+			&& !above.isOf(Blocks.BASALT)
+			&& !above.isOf(Blocks.BLACKSTONE)
+		) {
+			return false;
+		}
+
+		world.setBlockState(origin, Blocks.GLOWSTONE.getDefaultState(), 2);
+
+		for (int attempt = 0; attempt < SPREAD_ATTEMPTS; attempt++) {
+			BlockPos candidate = origin.add(
+				random.nextInt(8) - random.nextInt(8),
+				-random.nextInt(12),
+				random.nextInt(8) - random.nextInt(8)
+			);
+
+			if (world.getBlockState(candidate).isAir() == false) {
+				continue;
 			}
-			else {
-				structureWorldAccess.setBlockState(blockPos, Blocks.GLOWSTONE.getDefaultState(), 2);
 
-				for (int i = 0; i < 1500; i++) {
-					BlockPos
-							blockPos2 =
-							blockPos.add(
-									random.nextInt(8) - random.nextInt(8),
-									-random.nextInt(12),
-									random.nextInt(8) - random.nextInt(8)
-							);
-					if (structureWorldAccess.getBlockState(blockPos2).isAir()) {
-						int j = 0;
+			int glowstoneNeighbors = 0;
 
-						for (Direction direction : Direction.values()) {
-							if (structureWorldAccess
-									.getBlockState(blockPos2.offset(direction))
-									.isOf(Blocks.GLOWSTONE)) {
-								j++;
-							}
-
-							if (j > 1) {
-								break;
-							}
-						}
-
-						if (j == 1) {
-							structureWorldAccess.setBlockState(blockPos2, Blocks.GLOWSTONE.getDefaultState(), 2);
-						}
-					}
+			for (Direction direction : Direction.values()) {
+				if (world.getBlockState(candidate.offset(direction)).isOf(Blocks.GLOWSTONE)) {
+					glowstoneNeighbors++;
 				}
 
-				return true;
+				if (glowstoneNeighbors > 1) {
+					break;
+				}
+			}
+
+			if (glowstoneNeighbors == 1) {
+				world.setBlockState(candidate, Blocks.GLOWSTONE.getDefaultState(), 2);
 			}
 		}
+
+		return true;
 	}
 }

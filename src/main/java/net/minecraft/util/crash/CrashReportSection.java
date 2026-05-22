@@ -11,41 +11,28 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code CrashReportSection}.
+ * Именованная секция отчёта о сбое: содержит набор пар ключ-значение
+ * и фрагмент стека вызовов для локализации места ошибки.
  */
 public class CrashReportSection {
 
+	private static final int STACK_FRAME_OFFSET = 3;
+	private static final int BLOCK_COORD_MASK = 15;
+	private static final int REGION_SHIFT = 9;
+	private static final int CHUNK_SHIFT = 5;
+
 	private final String title;
-	private final List<CrashReportSection.Element> elements = Lists.newArrayList();
+	private final List<Element> elements = Lists.newArrayList();
 	private StackTraceElement[] stackTrace = new StackTraceElement[0];
 
 	public CrashReportSection(String title) {
 		this.title = title;
 	}
 
-	/**
-	 * Создаёт position string.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return String — результат операции
-	 */
 	public static String createPositionString(double x, double y, double z) {
 		return String.format(Locale.ROOT, "%.2f,%.2f,%.2f", x, y, z);
 	}
 
-	/**
-	 * Создаёт position string.
-	 *
-	 * @param world world
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return String — результат операции
-	 */
 	public static String createPositionString(HeightLimitView world, double x, double y, double z) {
 		return String.format(
 				Locale.ROOT,
@@ -57,283 +44,200 @@ public class CrashReportSection {
 		);
 	}
 
-	/**
-	 * Создаёт position string.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return String — результат операции
-	 */
 	public static String createPositionString(HeightLimitView world, BlockPos pos) {
 		return createPositionString(world, pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	/**
-	 * Создаёт position string.
+	 * Формирует строку с координатами блока в трёх масштабах: мировые, секционные и региональные.
+	 * Каждый блок оборачивается в try-catch для защиты от вторичных ошибок при формировании отчёта.
 	 *
-	 * @param world world
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return String — результат операции
+	 * @param world мир для получения границ высоты
+	 * @param x     координата X
+	 * @param y     координата Y
+	 * @param z     координата Z
+	 * @return строка с координатами в трёх масштабах
 	 */
 	public static String createPositionString(HeightLimitView world, int x, int y, int z) {
-		StringBuilder stringBuilder = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
 
 		try {
-			stringBuilder.append(String.format(Locale.ROOT, "World: (%d,%d,%d)", x, y, z));
+			builder.append(String.format(Locale.ROOT, "World: (%d,%d,%d)", x, y, z));
 		}
-		catch (Throwable var19) {
-			stringBuilder.append("(Error finding world loc)");
-		}
-
-		stringBuilder.append(", ");
-
-		try {
-			int i = ChunkSectionPos.getSectionCoord(x);
-			int j = ChunkSectionPos.getSectionCoord(y);
-			int k = ChunkSectionPos.getSectionCoord(z);
-			int l = x & 15;
-			int m = y & 15;
-			int n = z & 15;
-			int o = ChunkSectionPos.getBlockCoord(i);
-			int p = world.getBottomY();
-			int q = ChunkSectionPos.getBlockCoord(k);
-			int r = ChunkSectionPos.getBlockCoord(i + 1) - 1;
-			int s = world.getTopYInclusive();
-			int t = ChunkSectionPos.getBlockCoord(k + 1) - 1;
-			stringBuilder.append(
-					String.format(
-							Locale.ROOT,
-							"Section: (at %d,%d,%d in %d,%d,%d; chunk contains blocks %d,%d,%d to %d,%d,%d)",
-							l,
-							m,
-							n,
-							i,
-							j,
-							k,
-							o,
-							p,
-							q,
-							r,
-							s,
-							t
-					)
-			);
-		}
-		catch (Throwable var18) {
-			stringBuilder.append("(Error finding chunk loc)");
+		catch (Throwable ignored) {
+			builder.append("(Error finding world loc)");
 		}
 
-		stringBuilder.append(", ");
+		builder.append(", ");
 
 		try {
-			int i = x >> 9;
-			int j = z >> 9;
-			int k = i << 5;
-			int l = j << 5;
-			int m = (i + 1 << 5) - 1;
-			int n = (j + 1 << 5) - 1;
-			int o = i << 9;
-			int p = world.getBottomY();
-			int q = j << 9;
-			int r = (i + 1 << 9) - 1;
-			int s = world.getTopYInclusive();
-			int t = (j + 1 << 9) - 1;
-			stringBuilder.append(
-					String.format(
-							Locale.ROOT,
-							"Region: (%d,%d; contains chunks %d,%d to %d,%d, blocks %d,%d,%d to %d,%d,%d)",
-							i,
-							j,
-							k,
-							l,
-							m,
-							n,
-							o,
-							p,
-							q,
-							r,
-							s,
-							t
-					)
-			);
+			int chunkX = ChunkSectionPos.getSectionCoord(x);
+			int chunkY = ChunkSectionPos.getSectionCoord(y);
+			int chunkZ = ChunkSectionPos.getSectionCoord(z);
+			int localX = x & BLOCK_COORD_MASK;
+			int localY = y & BLOCK_COORD_MASK;
+			int localZ = z & BLOCK_COORD_MASK;
+			int chunkStartX = ChunkSectionPos.getBlockCoord(chunkX);
+			int worldBottom = world.getBottomY();
+			int chunkStartZ = ChunkSectionPos.getBlockCoord(chunkZ);
+			int chunkEndX = ChunkSectionPos.getBlockCoord(chunkX + 1) - 1;
+			int worldTop = world.getTopYInclusive();
+			int chunkEndZ = ChunkSectionPos.getBlockCoord(chunkZ + 1) - 1;
+			builder.append(String.format(
+					Locale.ROOT,
+					"Section: (at %d,%d,%d in %d,%d,%d; chunk contains blocks %d,%d,%d to %d,%d,%d)",
+					localX, localY, localZ,
+					chunkX, chunkY, chunkZ,
+					chunkStartX, worldBottom, chunkStartZ,
+					chunkEndX, worldTop, chunkEndZ
+			));
 		}
-		catch (Throwable var17) {
-			stringBuilder.append("(Error finding world loc)");
+		catch (Throwable ignored) {
+			builder.append("(Error finding chunk loc)");
 		}
 
-		return stringBuilder.toString();
+		builder.append(", ");
+
+		try {
+			int regionX = x >> REGION_SHIFT;
+			int regionZ = z >> REGION_SHIFT;
+			int regionChunkStartX = regionX << CHUNK_SHIFT;
+			int regionChunkStartZ = regionZ << CHUNK_SHIFT;
+			int regionChunkEndX = (regionX + 1 << CHUNK_SHIFT) - 1;
+			int regionChunkEndZ = (regionZ + 1 << CHUNK_SHIFT) - 1;
+			int regionBlockStartX = regionX << REGION_SHIFT;
+			int worldBottom = world.getBottomY();
+			int regionBlockStartZ = regionZ << REGION_SHIFT;
+			int regionBlockEndX = (regionX + 1 << REGION_SHIFT) - 1;
+			int worldTop = world.getTopYInclusive();
+			int regionBlockEndZ = (regionZ + 1 << REGION_SHIFT) - 1;
+			builder.append(String.format(
+					Locale.ROOT,
+					"Region: (%d,%d; contains chunks %d,%d to %d,%d, blocks %d,%d,%d to %d,%d,%d)",
+					regionX, regionZ,
+					regionChunkStartX, regionChunkStartZ,
+					regionChunkEndX, regionChunkEndZ,
+					regionBlockStartX, worldBottom, regionBlockStartZ,
+					regionBlockEndX, worldTop, regionBlockEndZ
+			));
+		}
+		catch (Throwable ignored) {
+			builder.append("(Error finding world loc)");
+		}
+
+		return builder.toString();
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param name name
-	 * @param callable callable
-	 *
-	 * @return CrashReportSection — результат операции
-	 */
 	public CrashReportSection add(String name, CrashCallable<String> callable) {
 		try {
-			this.add(name, callable.call());
+			add(name, callable.call());
 		}
-		catch (Throwable var4) {
-			this.add(name, var4);
+		catch (Throwable throwable) {
+			add(name, throwable);
 		}
 
 		return this;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param name name
-	 * @param detail detail
-	 *
-	 * @return CrashReportSection — результат операции
-	 */
 	public CrashReportSection add(String name, Object detail) {
-		this.elements.add(new CrashReportSection.Element(name, detail));
+		elements.add(new Element(name, detail));
 		return this;
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param name name
-	 * @param throwable throwable
-	 */
 	public void add(String name, Throwable throwable) {
-		this.add(name, (Object) throwable);
+		add(name, (Object) throwable);
 	}
 
 	/**
-	 * Инициализирует stack trace.
+	 * Захватывает текущий стек вызовов, пропуская {@code ignoredCallCount} верхних фреймов
+	 * плюс служебные фреймы самого метода.
 	 *
-	 * @param ignoredCallCount ignored call count
-	 *
-	 * @return int — результат операции
+	 * @param ignoredCallCount количество дополнительных фреймов для пропуска
+	 * @return длина захваченного стека
 	 */
 	public int initStackTrace(int ignoredCallCount) {
-		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-		if (stackTraceElements.length <= 0) {
+		StackTraceElement[] currentTrace = Thread.currentThread().getStackTrace();
+
+		if (currentTrace.length <= 0) {
 			return 0;
 		}
-		else {
-			this.stackTrace = new StackTraceElement[stackTraceElements.length - 3 - ignoredCallCount];
-			System.arraycopy(stackTraceElements, 3 + ignoredCallCount, this.stackTrace, 0, this.stackTrace.length);
-			return this.stackTrace.length;
-		}
+
+		stackTrace = new StackTraceElement[currentTrace.length - STACK_FRAME_OFFSET - ignoredCallCount];
+		System.arraycopy(currentTrace, STACK_FRAME_OFFSET + ignoredCallCount, stackTrace, 0, stackTrace.length);
+		return stackTrace.length;
 	}
 
 	/**
-	 * Определяет, следует ли generate stack trace.
+	 * Проверяет, совпадает ли верхний фрейм захваченного стека с ожидаемым фреймом из стека причины.
+	 * Используется для связывания секций отчёта с конкретными местами в стеке исключения.
 	 *
-	 * @param prev prev
-	 * @param next next
-	 *
-	 * @return boolean — результат операции
+	 * @param prev ожидаемый текущий фрейм
+	 * @param next ожидаемый следующий фрейм (или {@code null})
+	 * @return {@code true}, если стек совпадает и секция может быть связана
 	 */
 	public boolean shouldGenerateStackTrace(StackTraceElement prev, StackTraceElement next) {
-		if (this.stackTrace.length != 0 && prev != null) {
-			StackTraceElement stackTraceElement = this.stackTrace[0];
-			if (stackTraceElement.isNativeMethod() == prev.isNativeMethod()
-					&& stackTraceElement.getClassName().equals(prev.getClassName())
-					&& stackTraceElement.getFileName().equals(prev.getFileName())
-					&& stackTraceElement.getMethodName().equals(prev.getMethodName())) {
-				if (next != null != this.stackTrace.length > 1) {
-					return false;
-				}
-				else if (next != null && !this.stackTrace[1].equals(next)) {
-					return false;
-				}
-				else {
-					this.stackTrace[0] = prev;
-					return true;
-				}
-			}
-			else {
-				return false;
-			}
-		}
-		else {
+		if (stackTrace.length == 0 || prev == null) {
 			return false;
 		}
-	}
 
-	/**
-	 * Trim stack trace end.
-	 *
-	 * @param callCount call count
-	 */
-	public void trimStackTraceEnd(int callCount) {
-		StackTraceElement[] stackTraceElements = new StackTraceElement[this.stackTrace.length - callCount];
-		System.arraycopy(this.stackTrace, 0, stackTraceElements, 0, stackTraceElements.length);
-		this.stackTrace = stackTraceElements;
-	}
+		StackTraceElement top = stackTrace[0];
+		boolean topMatches = top.isNativeMethod() == prev.isNativeMethod()
+				&& top.getClassName().equals(prev.getClassName())
+				&& top.getFileName().equals(prev.getFileName())
+				&& top.getMethodName().equals(prev.getMethodName());
 
-	/**
-	 * Добавляет stack trace.
-	 *
-	 * @param crashReportBuilder crash report builder
-	 */
-	public void addStackTrace(StringBuilder crashReportBuilder) {
-		crashReportBuilder.append("-- ").append(this.title).append(" --\n");
-		crashReportBuilder.append("Details:");
-
-		for (CrashReportSection.Element element : this.elements) {
-			crashReportBuilder.append("\n\t");
-			crashReportBuilder.append(element.getName());
-			crashReportBuilder.append(": ");
-			crashReportBuilder.append(element.getDetail());
+		if (!topMatches) {
+			return false;
 		}
 
-		if (this.stackTrace != null && this.stackTrace.length > 0) {
-			crashReportBuilder.append("\nStacktrace:");
+		if (next != null != stackTrace.length > 1) {
+			return false;
+		}
 
-			for (StackTraceElement stackTraceElement : this.stackTrace) {
-				crashReportBuilder.append("\n\tat ");
-				crashReportBuilder.append(stackTraceElement);
+		if (next != null && !stackTrace[1].equals(next)) {
+			return false;
+		}
+
+		stackTrace[0] = prev;
+		return true;
+	}
+
+	public void trimStackTraceEnd(int callCount) {
+		StackTraceElement[] trimmed = new StackTraceElement[stackTrace.length - callCount];
+		System.arraycopy(stackTrace, 0, trimmed, 0, trimmed.length);
+		stackTrace = trimmed;
+	}
+
+	public void addStackTrace(StringBuilder builder) {
+		builder.append("-- ").append(title).append(" --\n");
+		builder.append("Details:");
+
+		for (Element element : elements) {
+			builder.append("\n\t").append(element.getName()).append(": ").append(element.getDetail());
+		}
+
+		if (stackTrace != null && stackTrace.length > 0) {
+			builder.append("\nStacktrace:");
+
+			for (StackTraceElement frame : stackTrace) {
+				builder.append("\n\tat ").append(frame);
 			}
 		}
 	}
 
 	public StackTraceElement[] getStackTrace() {
-		return this.stackTrace;
+		return stackTrace;
 	}
 
-	/**
-	 * Добавляет block info.
-	 *
-	 * @param element element
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 */
 	public static void addBlockInfo(CrashReportSection element, HeightLimitView world, BlockPos pos, BlockState state) {
 		element.add("Block", state::toString);
 		addBlockLocation(element, world, pos);
 	}
 
-	/**
-	 * Добавляет block location.
-	 *
-	 * @param element element
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return CrashReportSection — результат операции
-	 */
 	public static CrashReportSection addBlockLocation(CrashReportSection element, HeightLimitView world, BlockPos pos) {
 		return element.add("Block location", () -> createPositionString(world, pos));
 	}
 
-	/**
-	 * {@code Element}.
-	 */
 	static class Element {
 
 		private final String name;
@@ -341,6 +245,7 @@ public class CrashReportSection {
 
 		public Element(String name, @Nullable Object detail) {
 			this.name = name;
+
 			if (detail == null) {
 				this.detail = "~~NULL~~";
 			}
@@ -353,11 +258,11 @@ public class CrashReportSection {
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		public String getDetail() {
-			return this.detail;
+			return detail;
 		}
 	}
 }

@@ -39,7 +39,8 @@ import net.minecraft.world.biome.Biome;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HappyGhastEntity}.
+ * Счастливый гаст — прирученная версия гаста, способная летать
+ * с игроком на спине. Не атакует.
  */
 public class HappyGhastEntity extends AnimalEntity {
 
@@ -245,7 +246,7 @@ public class HappyGhastEntity extends AnimalEntity {
 
 	@Override
 	public float getScaleFactor() {
-		return this.isBaby() ? 0.2375F : 1.0F;
+		return this.isBaby() ? GHASTLING_SCALE : 1.0F;
 	}
 
 	@Override
@@ -314,8 +315,8 @@ public class HappyGhastEntity extends AnimalEntity {
 			if (!this.hasPlayerOnTop()) {
 				this.setStillTimeout(0);
 			}
-			else if (this.stillTimeout > 10) {
-				this.setStillTimeout(10);
+			else if (this.stillTimeout > STILL_TIMEOUT_ON_MOUNT) {
+				this.setStillTimeout(STILL_TIMEOUT_ON_MOUNT);
 			}
 		}
 	}
@@ -324,7 +325,7 @@ public class HappyGhastEntity extends AnimalEntity {
 	protected void removePassenger(Entity passenger) {
 		super.removePassenger(passenger);
 		if (!this.getEntityWorld().isClient()) {
-			this.setStillTimeout(10);
+			this.setStillTimeout(STILL_TIMEOUT_ON_MOUNT);
 		}
 
 		if (!this.hasPassengers()) {
@@ -433,7 +434,7 @@ public class HappyGhastEntity extends AnimalEntity {
 
 			this.setHasRopes(this.ropeRemovalTimer > 0);
 			if (this.stillTimeout > 0) {
-				if (this.age > 60) {
+				if (this.age > MIN_AGE_FOR_STILL_TIMEOUT_DECREASE) {
 					this.stillTimeout--;
 				}
 
@@ -441,7 +442,7 @@ public class HappyGhastEntity extends AnimalEntity {
 			}
 
 			if (this.hasPlayerOnTop()) {
-				this.setStillTimeout(10);
+				this.setStillTimeout(STILL_TIMEOUT_ON_MOUNT);
 			}
 		}
 	}
@@ -457,13 +458,13 @@ public class HappyGhastEntity extends AnimalEntity {
 	}
 
 	private int getUpdatedPositionTargetRange() {
-		return !this.isBaby() && this.getEquippedStack(EquipmentSlot.BODY).isEmpty() ? 64 : 32;
+		return !this.isBaby() && this.getEquippedStack(EquipmentSlot.BODY).isEmpty() ? POSITION_TARGET_RANGE_WITHOUT_ARMOR : POSITION_TARGET_RANGE_WITH_ARMOR;
 	}
 
 	private void updatePositionTarget() {
 		if (!this.isLeashed() && !this.hasPassengers()) {
 			int i = this.getUpdatedPositionTargetRange();
-			if (!this.hasPositionTarget() || !this.getPositionTarget().isWithinDistance(this.getBlockPos(), i + 16)
+			if (!this.hasPositionTarget() || !this.getPositionTarget().isWithinDistance(this.getBlockPos(), i + POSITION_TARGET_UPDATE_MARGIN)
 					|| i != this.getPositionTargetRange()) {
 				this.setPositionTarget(this.getBlockPos(), i);
 			}
@@ -477,7 +478,7 @@ public class HappyGhastEntity extends AnimalEntity {
 					bl =
 					this.isAtCloudHeight()
 							|| serverWorld.getPrecipitation(this.getBlockPos()) != Biome.Precipitation.NONE;
-			if (this.age % (bl ? 20 : 600) == 0) {
+			if (this.age % (bl ? STILL_TIMEOUT_ON_DISMOUNT : REGEN_INTERVAL_NORMAL) == 0) {
 				this.heal(1.0F);
 			}
 		}
@@ -617,8 +618,8 @@ public class HappyGhastEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code GhastlingNavigation}.
-	 */
+ * Задача счастливого гаста: парить на месте.
+ */
 	static class GhastlingNavigation extends BirdNavigation {
 
 		public GhastlingNavigation(HappyGhastEntity entity, World world) {
@@ -635,8 +636,8 @@ public class HappyGhastEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code HappyGhastBodyControl}.
-	 */
+ * Задача счастливого гаста: следовать за владельцем.
+ */
 	class HappyGhastBodyControl extends BodyControl {
 
 		public HappyGhastBodyControl() {
@@ -655,8 +656,8 @@ public class HappyGhastEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code HappyGhastLookControl}.
-	 */
+ * Задача счастливого гаста: блуждать в воздухе.
+ */
 	class HappyGhastLookControl extends LookControl {
 
 		HappyGhastLookControl() {
@@ -698,8 +699,8 @@ public class HappyGhastEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code HappyGhastSwimGoal}.
-	 */
+ * Данные счастливого гаста для сериализации.
+ */
 	class HappyGhastSwimGoal extends SwimGoal {
 
 		public HappyGhastSwimGoal() {

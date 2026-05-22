@@ -8,9 +8,7 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code ChorusPlantFeature}.
- */
+/** Генерирует растение хоруса на поверхности камня Края, если позиция свободна. */
 public class ChorusPlantFeature extends Feature<DefaultFeatureConfig> {
 
 	public ChorusPlantFeature(Codec<DefaultFeatureConfig> codec) {
@@ -19,17 +17,15 @@ public class ChorusPlantFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
 		Random random = context.getRandom();
-		if (structureWorldAccess.isAir(blockPos) && structureWorldAccess
-				.getBlockState(blockPos.down())
-				.isOf(Blocks.END_STONE)) {
-			ChorusFlowerBlock.generate(structureWorldAccess, blockPos, random, 8);
-			return true;
-		}
-		else {
+
+		if (!world.isAir(origin) || !world.getBlockState(origin.down()).isOf(Blocks.END_STONE)) {
 			return false;
 		}
+
+		ChorusFlowerBlock.generate(world, origin, random, 8);
+		return true;
 	}
 }

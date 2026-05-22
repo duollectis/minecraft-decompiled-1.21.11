@@ -5,7 +5,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code WalkTarget}.
+ * Цель перемещения для мозга сущности.
+ * Хранит {@link LookTarget} как точку назначения, скорость движения
+ * и допустимое расстояние до цели для считывания задачи выполненной.
  */
 public class WalkTarget {
 
@@ -32,14 +34,14 @@ public class WalkTarget {
 	}
 
 	public LookTarget getLookTarget() {
-		return this.lookTarget;
+		return lookTarget;
 	}
 
 	public float getSpeed() {
-		return this.speed;
+		return speed;
 	}
 
 	public int getCompletionRange() {
-		return this.completionRange;
+		return completionRange;
 	}
 }

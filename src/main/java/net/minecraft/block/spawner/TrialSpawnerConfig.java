@@ -16,7 +16,9 @@ import net.minecraft.util.collection.Pool;
 import java.util.Optional;
 
 /**
- * {@code TrialSpawnerConfig}.
+ * Конфигурация спаунера испытаний, определяющая параметры спауна мобов,
+ * количество одновременных и суммарных мобов, интервалы между спаунами,
+ * а также таблицы лута для обычного и зловещего режимов.
  */
 public record TrialSpawnerConfig(
 		int spawnRange,
@@ -29,6 +31,8 @@ public record TrialSpawnerConfig(
 		Pool<RegistryKey<LootTable>> lootTablesToEject,
 		RegistryKey<LootTable> itemsToDropWhenOminous
 ) {
+
+	private static final long COOLDOWN_LENGTH = 160L;
 
 	public static final TrialSpawnerConfig DEFAULT = builder().build();
 	public static final Codec<TrialSpawnerConfig> CODEC = RecordCodecBuilder.create(
@@ -78,20 +82,13 @@ public record TrialSpawnerConfig(
 	}
 
 	public long getCooldownLength() {
-		return 160L;
+		return COOLDOWN_LENGTH;
 	}
 
 	public static TrialSpawnerConfig.Builder builder() {
 		return new TrialSpawnerConfig.Builder();
 	}
 
-	/**
-	 * With spawn potential.
-	 *
-	 * @param entityType entity type
-	 *
-	 * @return TrialSpawnerConfig — результат операции
-	 */
 	public TrialSpawnerConfig withSpawnPotential(EntityType<?> entityType) {
 		NbtCompound nbtCompound = new NbtCompound();
 		nbtCompound.putString("id", Registries.ENTITY_TYPE.getId(entityType).toString());
@@ -110,7 +107,8 @@ public record TrialSpawnerConfig(
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель конфигурации спаунера испытаний с разумными значениями по умолчанию.
+	 * Позволяет гибко настраивать параметры спауна для конкретного испытания.
 	 */
 	public static class Builder {
 
@@ -174,11 +172,6 @@ public record TrialSpawnerConfig(
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return TrialSpawnerConfig — результат операции
-		 */
 		public TrialSpawnerConfig build() {
 			return new TrialSpawnerConfig(
 					this.spawnRange,

@@ -8,10 +8,10 @@ import net.minecraft.text.Text;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Tab}.
+ * Контракт вкладки экрана: заголовок, нарративная подсказка, дочерние виджеты и позиционирование.
  */
+@Environment(EnvType.CLIENT)
 public interface Tab {
 
 	Text getTitle();

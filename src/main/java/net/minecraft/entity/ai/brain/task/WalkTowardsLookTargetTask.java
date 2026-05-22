@@ -10,7 +10,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * {@code WalkTowardsLookTargetTask}.
+ * Фабричный класс задачи мозга, направляющей существо к цели взгляда, вычисленной функцией.
+ * Задача активируется только если предикат выполнен и цель находится дальше {@code searchRange} блоков.
  */
 public class WalkTowardsLookTargetTask {
 
@@ -29,22 +30,21 @@ public class WalkTowardsLookTargetTask {
 						)
 						.apply(
 								context, (lookTarget, walkTarget) -> (world, entity, time) -> {
-									Optional<LookTarget> optional = lookTargetFunction.apply(entity);
-									if (!optional.isEmpty() && predicate.test(entity)) {
-										LookTarget lookTargetx = optional.get();
-										if (entity.getEntityPos().isInRange(lookTargetx.getPos(), searchRange)) {
-											return false;
-										}
-										else {
-											LookTarget lookTarget2 = optional.get();
-											lookTarget.remember(lookTarget2);
-											walkTarget.remember(new WalkTarget(lookTarget2, speed, completionRange));
-											return true;
-										}
-									}
-									else {
+									Optional<LookTarget> lookTargetOpt = lookTargetFunction.apply(entity);
+
+									if (lookTargetOpt.isEmpty() || !predicate.test(entity)) {
 										return false;
 									}
+
+									LookTarget resolvedTarget = lookTargetOpt.get();
+
+									if (entity.getEntityPos().isInRange(resolvedTarget.getPos(), searchRange)) {
+										return false;
+									}
+
+									lookTarget.remember(resolvedTarget);
+									walkTarget.remember(new WalkTarget(resolvedTarget, speed, completionRange));
+									return true;
 								}
 						)
 		);

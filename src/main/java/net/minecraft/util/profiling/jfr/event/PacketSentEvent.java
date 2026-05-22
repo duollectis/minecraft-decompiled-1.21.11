@@ -7,12 +7,10 @@ import net.minecraft.obfuscate.DontObfuscate;
 
 import java.net.SocketAddress;
 
+/** JFR-событие отправки сетевого пакета: фиксирует тип, канал, адрес получателя и размер в байтах. */
 @Name("minecraft.PacketSent")
 @Label("Network Packet Sent")
 @DontObfuscate
-/**
- * {@code PacketSentEvent}.
- */
 public class PacketSentEvent extends PacketEvent {
 
 	public static final String NAME = "minecraft.PacketSent";

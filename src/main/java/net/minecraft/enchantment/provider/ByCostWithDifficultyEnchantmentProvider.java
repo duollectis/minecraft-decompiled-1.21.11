@@ -16,50 +16,44 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.LocalDifficulty;
 
 /**
- * {@code ByCostWithDifficultyEnchantmentProvider}.
+ * Провайдер зачарований, масштабирующий стоимость зачарования в зависимости от локальной сложности.
+ * Итоговая стоимость: {@code minCost + random(0, clampedDifficulty * maxCostSpan)}.
  */
 public record ByCostWithDifficultyEnchantmentProvider(
-		RegistryEntryList<Enchantment> enchantments,
-		int minCost,
-		int maxCostSpan
+	RegistryEntryList<Enchantment> enchantments,
+	int minCost,
+	int maxCostSpan
 ) implements EnchantmentProvider {
 
 	public static final int MAX_COST = 10000;
+
 	public static final MapCodec<ByCostWithDifficultyEnchantmentProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ENCHANTMENT)
-							                    .fieldOf("enchantments")
-							                    .forGetter(ByCostWithDifficultyEnchantmentProvider::enchantments),
-					                    Codecs
-							                    .rangedInt(1, 10000)
-							                    .fieldOf("min_cost")
-							                    .forGetter(ByCostWithDifficultyEnchantmentProvider::minCost),
-					                    Codecs
-							                    .rangedInt(0, 10000)
-							                    .fieldOf("max_cost_span")
-							                    .forGetter(ByCostWithDifficultyEnchantmentProvider::maxCostSpan)
-			                    )
-			                    .apply(instance, ByCostWithDifficultyEnchantmentProvider::new)
+		instance -> instance.group(
+			RegistryCodecs.entryList(RegistryKeys.ENCHANTMENT)
+				.fieldOf("enchantments")
+				.forGetter(ByCostWithDifficultyEnchantmentProvider::enchantments),
+			Codecs.rangedInt(1, MAX_COST)
+				.fieldOf("min_cost")
+				.forGetter(ByCostWithDifficultyEnchantmentProvider::minCost),
+			Codecs.rangedInt(0, MAX_COST)
+				.fieldOf("max_cost_span")
+				.forGetter(ByCostWithDifficultyEnchantmentProvider::maxCostSpan)
+		)
+		.apply(instance, ByCostWithDifficultyEnchantmentProvider::new)
 	);
 
 	@Override
 	public void provideEnchantments(
-			ItemStack stack,
-			ItemEnchantmentsComponent.Builder componentBuilder,
-			Random random,
-			LocalDifficulty localDifficulty
+		ItemStack stack,
+		ItemEnchantmentsComponent.Builder componentBuilder,
+		Random random,
+		LocalDifficulty localDifficulty
 	) {
-		float f = localDifficulty.getClampedLocalDifficulty();
-		int i = MathHelper.nextBetween(random, this.minCost, this.minCost + (int) (f * this.maxCostSpan));
+		float difficulty = localDifficulty.getClampedLocalDifficulty();
+		int rolledCost = MathHelper.nextBetween(random, minCost, minCost + (int) (difficulty * maxCostSpan));
 
-		for (EnchantmentLevelEntry enchantmentLevelEntry : EnchantmentHelper.generateEnchantments(
-				random,
-				stack,
-				i,
-				this.enchantments.stream()
-		)) {
-			componentBuilder.add(enchantmentLevelEntry.enchantment(), enchantmentLevelEntry.level());
+		for (EnchantmentLevelEntry entry : EnchantmentHelper.generateEnchantments(random, stack, rolledCost, enchantments.stream())) {
+			componentBuilder.add(entry.enchantment(), entry.level());
 		}
 	}
 
@@ -67,4 +61,5 @@ public record ByCostWithDifficultyEnchantmentProvider(
 	public MapCodec<ByCostWithDifficultyEnchantmentProvider> getCodec() {
 		return CODEC;
 	}
+
 }

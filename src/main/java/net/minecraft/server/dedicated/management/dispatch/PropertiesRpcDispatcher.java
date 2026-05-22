@@ -7,7 +7,7 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 
 /**
- * {@code PropertiesRpcDispatcher}.
+ * Класс Properties Rpc Dispatcher.
  */
 public class PropertiesRpcDispatcher {
 

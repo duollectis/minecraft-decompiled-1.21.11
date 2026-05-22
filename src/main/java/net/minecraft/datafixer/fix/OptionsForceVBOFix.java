@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionsForceVBOFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsForceVBOFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class OptionsForceVBOFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsForceVBOFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(),
 						optionsDynamic -> optionsDynamic.set("useVbo", optionsDynamic.createString("true"))

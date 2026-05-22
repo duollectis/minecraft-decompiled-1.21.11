@@ -6,12 +6,11 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code ComparatorBlockEntity}.
+ * Блок-сущность компаратора. Хранит последнее вычисленное выходное значение сигнала.
  */
 public class ComparatorBlockEntity extends BlockEntity {
 
-	private static final int DEFAULT_OUTPUT_SIGNAL = 0;
-	private int outputSignal = 0;
+	private int outputSignal;
 
 	public ComparatorBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.COMPARATOR, pos, state);
@@ -20,17 +19,17 @@ public class ComparatorBlockEntity extends BlockEntity {
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.putInt("OutputSignal", this.outputSignal);
+		view.putInt("OutputSignal", outputSignal);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.outputSignal = view.getInt("OutputSignal", 0);
+		outputSignal = view.getInt("OutputSignal", 0);
 	}
 
 	public int getOutputSignal() {
-		return this.outputSignal;
+		return outputSignal;
 	}
 
 	public void setOutputSignal(int outputSignal) {

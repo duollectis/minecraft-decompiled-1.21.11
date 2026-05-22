@@ -15,27 +15,25 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import java.util.Optional;
 
 /**
- * {@code PotionContentsPredicate}.
+ * Предикат для проверки содержимого зелья: входит ли зелье предмета в заданный список.
  */
 public record PotionContentsPredicate(RegistryEntryList<Potion> potions) implements ComponentSubPredicate<PotionContentsComponent> {
 
-	public static final Codec<PotionContentsPredicate> CODEC = RegistryCodecs.entryList(RegistryKeys.POTION)
-	                                                                         .xmap(
-			                                                                         PotionContentsPredicate::new,
-			                                                                         PotionContentsPredicate::potions
-	                                                                         );
+	public static final Codec<PotionContentsPredicate> CODEC = RegistryCodecs
+			.entryList(RegistryKeys.POTION)
+			.xmap(PotionContentsPredicate::new, PotionContentsPredicate::potions);
+
+	public static ComponentPredicate potionContents(RegistryEntryList<Potion> potions) {
+		return new PotionContentsPredicate(potions);
+	}
 
 	@Override
 	public ComponentType<PotionContentsComponent> getComponentType() {
 		return DataComponentTypes.POTION_CONTENTS;
 	}
 
-	public boolean test(PotionContentsComponent potionContentsComponent) {
-		Optional<RegistryEntry<Potion>> optional = potionContentsComponent.potion();
-		return !optional.isEmpty() && this.potions.contains(optional.get());
-	}
-
-	public static ComponentPredicate potionContents(RegistryEntryList<Potion> potions) {
-		return new PotionContentsPredicate(potions);
+	public boolean test(PotionContentsComponent component) {
+		Optional<RegistryEntry<Potion>> potion = component.potion();
+		return potion.isPresent() && potions.contains(potion.get());
 	}
 }

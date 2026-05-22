@@ -71,23 +71,23 @@ public class ShapelessRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 	}
 
 	public ShapelessRecipeJsonBuilder input(TagKey<Item> tag) {
-		return this.input(Ingredient.ofTag(this.registryLookup.getOrThrow(tag)));
+		return input(Ingredient.ofTag(this.registryLookup.getOrThrow(tag)));
 	}
 
 	public ShapelessRecipeJsonBuilder input(ItemConvertible item) {
-		return this.input(item, 1);
+		return input(item, 1);
 	}
 
 	public ShapelessRecipeJsonBuilder input(ItemConvertible item, int amount) {
 		for (int i = 0; i < amount; i++) {
-			this.input(Ingredient.ofItem(item));
+			input(Ingredient.ofItem(item));
 		}
 
 		return this;
 	}
 
 	public ShapelessRecipeJsonBuilder input(Ingredient ingredient) {
-		return this.input(ingredient, 1);
+		return input(ingredient, 1);
 	}
 
 	public ShapelessRecipeJsonBuilder input(Ingredient ingredient, int amount) {
@@ -115,7 +115,7 @@ public class ShapelessRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 
 	@Override
 	public void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey) {
-		this.validate(recipeKey);
+		validate(recipeKey);
 		Advancement.Builder builder = exporter.getAdvancementBuilder()
 		                                      .criterion("has_the_recipe", RecipeUnlockedCriterion.create(recipeKey))
 		                                      .rewards(AdvancementRewards.Builder.recipe(recipeKey))
@@ -130,7 +130,7 @@ public class ShapelessRecipeJsonBuilder implements CraftingRecipeJsonBuilder {
 		exporter.accept(
 				recipeKey,
 				shapelessRecipe,
-				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.getName() + "/"))
+				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.name().toLowerCase(java.util.Locale.ROOT) + "/"))
 		);
 	}
 

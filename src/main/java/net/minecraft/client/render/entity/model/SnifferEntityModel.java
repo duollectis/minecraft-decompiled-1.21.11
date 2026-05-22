@@ -136,7 +136,7 @@ public class SnifferEntityModel extends EntityModel<SnifferEntityRenderState> {
 					snifferEntityRenderState.limbSwingAnimationProgress,
 					snifferEntityRenderState.limbSwingAmplitude,
 					9.0F,
-					100.0F
+					LIMB_DISTANCE_SCALE
 			);
 		}
 		else {
@@ -144,7 +144,7 @@ public class SnifferEntityModel extends EntityModel<SnifferEntityRenderState> {
 					snifferEntityRenderState.limbSwingAnimationProgress,
 					snifferEntityRenderState.limbSwingAmplitude,
 					9.0F,
-					100.0F
+					LIMB_DISTANCE_SCALE
 			);
 		}
 

@@ -16,10 +16,13 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemPickupParticleRenderer}.
+ * Рендерер частиц подбора предметов. Вместо стандартного billboard-рендеринга
+ * использует полноценный рендер сущности предмета, интерполируя его позицию
+ * между текущим положением предмета и целевой точкой (игроком). Это создаёт
+ * плавную анимацию «притягивания» предмета к игроку при подборе.
  */
+@Environment(EnvType.CLIENT)
 public class ItemPickupParticleRenderer extends ParticleRenderer<ItemPickupParticle> {
 
 	public ItemPickupParticleRenderer(ParticleManager particleManager) {
@@ -28,63 +31,74 @@ public class ItemPickupParticleRenderer extends ParticleRenderer<ItemPickupParti
 
 	@Override
 	public Submittable render(Frustum frustum, Camera camera, float tickProgress) {
-		return new ItemPickupParticleRenderer.Result(
+		return new Result(
 				this.particles
 						.stream()
-						.map(particle -> ItemPickupParticleRenderer.Instance.create(particle, camera, tickProgress))
+						.map(particle -> Instance.create(particle, camera, tickProgress))
 						.toList()
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Instance}.
+	 * Снимок состояния одной частицы подбора для конкретного кадра рендеринга:
+	 * содержит состояние рендера предмета и его смещение относительно камеры.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Instance(EntityRenderState itemRenderState, double xOffset, double yOffset, double zOffset) {
 
-		public static ItemPickupParticleRenderer.Instance create(
-				ItemPickupParticle particle,
-				Camera camera,
-				float tickProgress
-		) {
-			float f = (particle.ticksExisted + tickProgress) / 3.0F;
-			f *= f;
-			double d = MathHelper.lerp((double) tickProgress, particle.lastTargetX, particle.targetX);
-			double e = MathHelper.lerp((double) tickProgress, particle.lastTargetY, particle.targetY);
-			double g = MathHelper.lerp((double) tickProgress, particle.lastTargetZ, particle.targetZ);
-			double h = MathHelper.lerp((double) f, particle.renderState.x, d);
-			double i = MathHelper.lerp((double) f, particle.renderState.y, e);
-			double j = MathHelper.lerp((double) f, particle.renderState.z, g);
-			Vec3d vec3d = camera.getCameraPos();
-			return new ItemPickupParticleRenderer.Instance(
+		/**
+		 * Вычисляет интерполированную позицию частицы подбора для текущего кадра.
+		 * Использует квадратичную интерполяцию: чем ближе к концу анимации, тем
+		 * быстрее предмет движется к цели.
+		 *
+		 * @param particle    частица подбора предмета
+		 * @param camera      текущая камера для вычисления смещения
+		 * @param tickProgress прогресс текущего тика (0.0–1.0)
+		 * @return снимок состояния для рендеринга
+		 */
+		public static Instance create(ItemPickupParticle particle, Camera camera, float tickProgress) {
+			float progress = (particle.ticksExisted + tickProgress) / 3.0F;
+			float progressSquared = progress * progress;
+
+			double targetX = MathHelper.lerp((double) tickProgress, particle.lastTargetX, particle.targetX);
+			double targetY = MathHelper.lerp((double) tickProgress, particle.lastTargetY, particle.targetY);
+			double targetZ = MathHelper.lerp((double) tickProgress, particle.lastTargetZ, particle.targetZ);
+
+			double renderX = MathHelper.lerp((double) progressSquared, particle.renderState.x, targetX);
+			double renderY = MathHelper.lerp((double) progressSquared, particle.renderState.y, targetY);
+			double renderZ = MathHelper.lerp((double) progressSquared, particle.renderState.z, targetZ);
+
+			Vec3d cameraPos = camera.getCameraPos();
+			return new Instance(
 					particle.renderState,
-					h - vec3d.getX(),
-					i - vec3d.getY(),
-					j - vec3d.getZ()
+					renderX - cameraPos.getX(),
+					renderY - cameraPos.getY(),
+					renderZ - cameraPos.getZ()
 			);
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Result}.
+	 * Результат рендеринга: список снимков состояний частиц подбора,
+	 * готовых к отправке в очередь рендер-команд.
 	 */
-	record Result(List<ItemPickupParticleRenderer.Instance> instances) implements Submittable {
+	@Environment(EnvType.CLIENT)
+	record Result(List<Instance> instances) implements Submittable {
 
 		@Override
-		public void submit(OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
+		public void submit(OrderedRenderCommandQueue renderQueue, CameraRenderState cameraRenderState) {
 			MatrixStack matrixStack = new MatrixStack();
 			EntityRenderManager entityRenderManager = MinecraftClient.getInstance().getEntityRenderDispatcher();
 
-			for (ItemPickupParticleRenderer.Instance instance : this.instances) {
+			for (Instance instance : this.instances) {
 				entityRenderManager.render(
-						instance.itemRenderState,
+						instance.itemRenderState(),
 						cameraRenderState,
-						instance.xOffset,
-						instance.yOffset,
-						instance.zOffset,
+						instance.xOffset(),
+						instance.yOffset(),
+						instance.zOffset(),
 						matrixStack,
-						orderedRenderCommandQueue
+						renderQueue
 				);
 			}
 		}

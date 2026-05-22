@@ -7,10 +7,11 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LogoDrawer}.
+ * Отрисовывает логотип Minecraft и надпись «Edition» на экране заставки.
+ * Поддерживает пасхалку «Minceraft» с вероятностью 1/10000.
  */
+@Environment(EnvType.CLIENT)
 public class LogoDrawer {
 
 	public static final Identifier LOGO_TEXTURE = Identifier.ofVanilla("textures/gui/title/minecraft.png");
@@ -33,53 +34,48 @@ public class LogoDrawer {
 		this.ignoreAlpha = ignoreAlpha;
 	}
 
-	/**
-	 * Draw.
-	 *
-	 * @param context context
-	 * @param screenWidth screen width
-	 * @param alpha alpha
-	 */
 	public void draw(DrawContext context, int screenWidth, float alpha) {
-		this.draw(context, screenWidth, alpha, 30);
+		draw(context, screenWidth, alpha, LOGO_BASE_Y);
 	}
 
-	/**
-	 * Draw.
-	 *
-	 * @param context context
-	 * @param screenWidth screen width
-	 * @param alpha alpha
-	 * @param y y
-	 */
 	public void draw(DrawContext context, int screenWidth, float alpha, int y) {
-		int i = screenWidth / 2 - 128;
-		float f = this.ignoreAlpha ? 1.0F : alpha;
-		int j = ColorHelper.getWhite(f);
+		int logoX = screenWidth / 2 - 128;
+		float effectiveAlpha = ignoreAlpha ? 1.0F : alpha;
+		int color = ColorHelper.getWhite(effectiveAlpha);
+
 		context.drawTexture(
-				RenderPipelines.GUI_TEXTURED,
-				this.minceraft ? MINCERAFT_TEXTURE : LOGO_TEXTURE,
-				i,
-				y,
-				0.0F,
-				0.0F,
-				256,
-				44,
-				256,
-				64,
-				j
+			RenderPipelines.GUI_TEXTURED,
+			minceraft ? MINCERAFT_TEXTURE : LOGO_TEXTURE,
+			logoX,
+			y,
+			0.0F,
+			0.0F,
+			LOGO_REGION_WIDTH,
+			LOGO_REGION_HEIGHT,
+			LOGO_REGION_WIDTH,
+			LOGO_TEXTURE_HEIGHT,
+			color
 		);
-		int k = screenWidth / 2 - 64;
-		int l = y + 44 - 7;
-		context.drawTexture(RenderPipelines.GUI_TEXTURED, EDITION_TEXTURE, k, l, 0.0F, 0.0F, 128, 14, 128, 16, j);
+
+		int editionX = screenWidth / 2 - LOGO_TEXTURE_HEIGHT;
+		int editionY = y + LOGO_REGION_HEIGHT - LOGO_AND_EDITION_OVERLAP;
+
+		context.drawTexture(
+			RenderPipelines.GUI_TEXTURED,
+			EDITION_TEXTURE,
+			editionX,
+			editionY,
+			0.0F,
+			0.0F,
+			EDITION_TEXTURE_WIDTH,
+			EDITION_REGION_HEIGHT,
+			EDITION_TEXTURE_WIDTH,
+			EDITION_TEXTURE_HEIGHT,
+			color
+		);
 	}
 
-	/**
-	 * Определяет, следует ли ignore alpha.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldIgnoreAlpha() {
-		return this.ignoreAlpha;
+		return ignoreAlpha;
 	}
 }

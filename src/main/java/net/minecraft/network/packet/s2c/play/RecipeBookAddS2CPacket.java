@@ -12,7 +12,8 @@ import net.minecraft.recipe.RecipeDisplayEntry;
 import java.util.List;
 
 /**
- * Запись recipe book add s2 c packet.
+ * Пакет сервер→клиент для добавления рецептов в книгу рецептов игрока.
+ * Флаг {@code replace} указывает, нужно ли заменить весь список рецептов или дополнить его.
  */
 public record RecipeBookAddS2CPacket(
 		List<RecipeBookAddS2CPacket.Entry> entries,
@@ -32,17 +33,14 @@ public record RecipeBookAddS2CPacket(
 		return PlayPackets.RECIPE_BOOK_ADD;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param clientPlayPacketListener client play packet listener
-	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onRecipeBookAdd(this);
 	}
 
 	/**
-	 * Запись entry.
+	 * Запись рецепта в книге рецептов с битовыми флагами отображения.
+	 * Флаг {@link #SHOW_NOTIFICATION} управляет всплывающим уведомлением,
+	 * {@link #HIGHLIGHTED} — подсветкой нового рецепта в интерфейсе.
 	 */
 	public record Entry(RecipeDisplayEntry contents, byte flags) {
 
@@ -57,20 +55,15 @@ public record RecipeBookAddS2CPacket(
 		);
 
 		public Entry(RecipeDisplayEntry display, boolean showNotification, boolean highlighted) {
-			this(display, (byte) ((showNotification ? 1 : 0) | (highlighted ? 2 : 0)));
+			this(display, (byte) ((showNotification ? SHOW_NOTIFICATION : 0) | (highlighted ? HIGHLIGHTED : 0)));
 		}
 
-		/**
-		 * Определяет, следует ли show notification.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean shouldShowNotification() {
-			return (this.flags & 1) != 0;
+			return (flags & SHOW_NOTIFICATION) != 0;
 		}
 
 		public boolean isHighlighted() {
-			return (this.flags & 2) != 0;
+			return (flags & HIGHLIGHTED) != 0;
 		}
 	}
 }

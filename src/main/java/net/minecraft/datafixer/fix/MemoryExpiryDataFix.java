@@ -9,7 +9,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code MemoryExpiryDataFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class MemoryExpiryDataFix extends ChoiceFix {
 

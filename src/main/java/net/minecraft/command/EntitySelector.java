@@ -106,37 +106,37 @@ public class EntitySelector {
 	}
 
 	private void checkSourcePermission(ServerCommandSource source) throws CommandSyntaxException {
-		if (this.usesAt && !source.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS)) {
+		if (usesAt && !source.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS)) {
 			throw EntityArgumentType.NOT_ALLOWED_EXCEPTION.create();
 		}
 	}
 
 	public Entity getEntity(ServerCommandSource source) throws CommandSyntaxException {
-		this.checkSourcePermission(source);
-		List<? extends Entity> list = this.getEntities(source);
-		if (list.isEmpty()) {
+		checkSourcePermission(source);
+		List<? extends Entity> entities = getEntities(source);
+		if (entities.isEmpty()) {
 			throw EntityArgumentType.ENTITY_NOT_FOUND_EXCEPTION.create();
 		}
-		else if (list.size() > 1) {
+		else if (entities.size() > 1) {
 			throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.create();
 		}
 		else {
-			return list.get(0);
+			return entities.get(0);
 		}
 	}
 
 	public List<? extends Entity> getEntities(ServerCommandSource source) throws CommandSyntaxException {
-		this.checkSourcePermission(source);
-		if (!this.includesNonPlayers) {
-			return this.getPlayers(source);
+		checkSourcePermission(source);
+		if (!includesNonPlayers) {
+			return getPlayers(source);
 		}
-		else if (this.playerName != null) {
-			ServerPlayerEntity serverPlayerEntity = source.getServer().getPlayerManager().getPlayer(this.playerName);
-			return serverPlayerEntity == null ? List.of() : List.of(serverPlayerEntity);
+		else if (playerName != null) {
+			ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(playerName);
+			return player == null ? List.of() : List.of(player);
 		}
-		else if (this.uuid != null) {
-			for (ServerWorld serverWorld : source.getServer().getWorlds()) {
-				Entity entity = serverWorld.getEntity(this.uuid);
+		else if (uuid != null) {
+			for (ServerWorld world : source.getServer().getWorlds()) {
+				Entity entity = world.getEntity(uuid);
 				if (entity != null) {
 					if (entity.getType().isEnabled(source.getEnabledFeatures())) {
 						return List.of(entity);
@@ -148,26 +148,27 @@ public class EntitySelector {
 			return List.of();
 		}
 		else {
-			Vec3d vec3d = this.positionOffset.apply(source.getPosition());
-			Box box = this.getOffsetBox(vec3d);
-			if (this.senderOnly) {
-				Predicate<Entity> predicate = this.getPositionPredicate(vec3d, box, null);
-				return source.getEntity() != null && predicate.test(source.getEntity()) ? List.of(source.getEntity())
-				                                                                        : List.of();
+			Vec3d pos = positionOffset.apply(source.getPosition());
+			Box offsetBox = getOffsetBox(pos);
+			if (senderOnly) {
+				Predicate<Entity> predicate = getPositionPredicate(pos, offsetBox, null);
+				return source.getEntity() != null && predicate.test(source.getEntity())
+						? List.of(source.getEntity())
+						: List.of();
 			}
 			else {
-				Predicate<Entity> predicate = this.getPositionPredicate(vec3d, box, source.getEnabledFeatures());
-				List<Entity> list = new ObjectArrayList();
-				if (this.isLocalWorldOnly()) {
-					this.appendEntitiesFromWorld(list, source.getWorld(), box, predicate);
+				Predicate<Entity> predicate = getPositionPredicate(pos, offsetBox, source.getEnabledFeatures());
+				List<Entity> result = new ObjectArrayList();
+				if (isLocalWorldOnly()) {
+					appendEntitiesFromWorld(result, source.getWorld(), offsetBox, predicate);
 				}
 				else {
-					for (ServerWorld serverWorld2 : source.getServer().getWorlds()) {
-						this.appendEntitiesFromWorld(list, serverWorld2, box, predicate);
+					for (ServerWorld world : source.getServer().getWorlds()) {
+						appendEntitiesFromWorld(result, world, offsetBox, predicate);
 					}
 				}
 
-				return this.getEntities(vec3d, list);
+				return getEntities(pos, result);
 			}
 		}
 	}
@@ -178,119 +179,111 @@ public class EntitySelector {
 			@Nullable Box box,
 			Predicate<Entity> predicate
 	) {
-		int i = this.getAppendLimit();
-		if (entities.size() < i) {
+		int appendLimit = getAppendLimit();
+		if (entities.size() < appendLimit) {
 			if (box != null) {
-				world.collectEntitiesByType(this.entityFilter, box, predicate, entities, i);
+				world.collectEntitiesByType(entityFilter, box, predicate, entities, appendLimit);
 			}
 			else {
-				world.collectEntitiesByType(this.entityFilter, predicate, entities, i);
+				world.collectEntitiesByType(entityFilter, predicate, entities, appendLimit);
 			}
 		}
 	}
 
 	private int getAppendLimit() {
-		return this.sorter == ARBITRARY ? this.limit : Integer.MAX_VALUE;
+		return sorter == ARBITRARY ? limit : Integer.MAX_VALUE;
 	}
 
 	public ServerPlayerEntity getPlayer(ServerCommandSource source) throws CommandSyntaxException {
-		this.checkSourcePermission(source);
-		List<ServerPlayerEntity> list = this.getPlayers(source);
-		if (list.size() != 1) {
+		checkSourcePermission(source);
+		List<ServerPlayerEntity> players = getPlayers(source);
+		if (players.size() != 1) {
 			throw EntityArgumentType.PLAYER_NOT_FOUND_EXCEPTION.create();
 		}
 		else {
-			return list.get(0);
+			return players.get(0);
 		}
 	}
 
 	public List<ServerPlayerEntity> getPlayers(ServerCommandSource source) throws CommandSyntaxException {
-		this.checkSourcePermission(source);
-		if (this.playerName != null) {
-			ServerPlayerEntity serverPlayerEntity = source.getServer().getPlayerManager().getPlayer(this.playerName);
-			return serverPlayerEntity == null ? List.of() : List.of(serverPlayerEntity);
+		checkSourcePermission(source);
+		if (playerName != null) {
+			ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(playerName);
+			return player == null ? List.of() : List.of(player);
 		}
-		else if (this.uuid != null) {
-			ServerPlayerEntity serverPlayerEntity = source.getServer().getPlayerManager().getPlayer(this.uuid);
-			return serverPlayerEntity == null ? List.of() : List.of(serverPlayerEntity);
+		else if (uuid != null) {
+			ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(uuid);
+			return player == null ? List.of() : List.of(player);
 		}
 		else {
-			Vec3d vec3d = this.positionOffset.apply(source.getPosition());
-			Box box = this.getOffsetBox(vec3d);
-			Predicate<Entity> predicate = this.getPositionPredicate(vec3d, box, null);
-			if (this.senderOnly) {
-				return source.getEntity() instanceof ServerPlayerEntity serverPlayerEntity2 && predicate.test(
-						serverPlayerEntity2)
-				       ? List.of(serverPlayerEntity2)
-				       : List.of();
+			Vec3d pos = positionOffset.apply(source.getPosition());
+			Box offsetBox = getOffsetBox(pos);
+			Predicate<Entity> predicate = getPositionPredicate(pos, offsetBox, null);
+			if (senderOnly) {
+				return source.getEntity() instanceof ServerPlayerEntity senderPlayer && predicate.test(senderPlayer)
+						? List.of(senderPlayer)
+						: List.of();
 			}
 			else {
-				int i = this.getAppendLimit();
-				List<ServerPlayerEntity> list;
-				if (this.isLocalWorldOnly()) {
-					list = source.getWorld().getPlayers(predicate, i);
+				int appendLimit = getAppendLimit();
+				List<ServerPlayerEntity> players;
+				if (isLocalWorldOnly()) {
+					players = source.getWorld().getPlayers(predicate, appendLimit);
 				}
 				else {
-					list = new ObjectArrayList();
+					players = new ObjectArrayList();
 
-					for (ServerPlayerEntity serverPlayerEntity3 : source
-							.getServer()
-							.getPlayerManager()
-							.getPlayerList()) {
-						if (predicate.test(serverPlayerEntity3)) {
-							list.add(serverPlayerEntity3);
-							if (list.size() >= i) {
-								return list;
+					for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+						if (predicate.test(player)) {
+							players.add(player);
+							if (players.size() >= appendLimit) {
+								return players;
 							}
 						}
 					}
 				}
 
-				return this.getEntities(vec3d, list);
+				return getEntities(pos, players);
 			}
 		}
 	}
 
 	private @Nullable Box getOffsetBox(Vec3d offset) {
-		return this.box != null ? this.box.offset(offset) : null;
+		return box != null ? box.offset(offset) : null;
 	}
 
 	private Predicate<Entity> getPositionPredicate(Vec3d pos, @Nullable Box box, @Nullable FeatureSet enabledFeatures) {
-		boolean bl = enabledFeatures != null;
-		boolean bl2 = box != null;
-		boolean bl3 = this.distance != null;
-		int i = (bl ? 1 : 0) + (bl2 ? 1 : 0) + (bl3 ? 1 : 0);
-		List<Predicate<Entity>> list;
-		if (i == 0) {
-			list = this.predicates;
-		}
-		else {
-			List<Predicate<Entity>> list2 = new ObjectArrayList(this.predicates.size() + i);
-			list2.addAll(this.predicates);
-			if (bl) {
-				list2.add(entity -> entity.getType().isEnabled(enabledFeatures));
-			}
-
-			if (bl2) {
-				list2.add(entity -> box.intersects(entity.getBoundingBox()));
-			}
-
-			if (bl3) {
-				list2.add(entity -> this.distance.testSqrt(entity.squaredDistanceTo(pos)));
-			}
-
-			list = list2;
+		boolean checkFeatures = enabledFeatures != null;
+		boolean checkBox = box != null;
+		boolean checkDistance = distance != null;
+		int extraCount = (checkFeatures ? 1 : 0) + (checkBox ? 1 : 0) + (checkDistance ? 1 : 0);
+		if (extraCount == 0) {
+			return Util.allOf(predicates);
 		}
 
-		return Util.allOf(list);
+		List<Predicate<Entity>> combined = new ObjectArrayList(predicates.size() + extraCount);
+		combined.addAll(predicates);
+		if (checkFeatures) {
+			combined.add(entity -> entity.getType().isEnabled(enabledFeatures));
+		}
+
+		if (checkBox) {
+			combined.add(entity -> box.intersects(entity.getBoundingBox()));
+		}
+
+		if (checkDistance) {
+			combined.add(entity -> distance.testSqrt(entity.squaredDistanceTo(pos)));
+		}
+
+		return Util.allOf(combined);
 	}
 
 	private <T extends Entity> List<T> getEntities(Vec3d pos, List<T> entities) {
 		if (entities.size() > 1) {
-			this.sorter.accept(pos, entities);
+			sorter.accept(pos, entities);
 		}
 
-		return entities.subList(0, Math.min(this.limit, entities.size()));
+		return entities.subList(0, Math.min(limit, entities.size()));
 	}
 
 	public static Text getNames(List<? extends Entity> entities) {

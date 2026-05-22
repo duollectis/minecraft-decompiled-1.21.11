@@ -30,7 +30,7 @@ public class RealmsParentalConsentScreen extends RealmsScreen {
 
 	@Override
 	public void init() {
-		this.layout.spacing(15).getMainPositioner().alignHorizontalCenter();
+		this.layout.spacing(CONTENT_WIDTH).getMainPositioner().alignHorizontalCenter();
 		this.privacyInfoWidget = new MultilineTextWidget(PRIVACY_INFO_TEXT, this.textRenderer).setCentered(true);
 		this.layout.add(this.privacyInfoWidget);
 		DirectionalLayoutWidget
@@ -53,7 +53,7 @@ public class RealmsParentalConsentScreen extends RealmsScreen {
 	@Override
 	protected void refreshWidgetPositions() {
 		if (this.privacyInfoWidget != null) {
-			this.privacyInfoWidget.setMaxWidth(this.width - 15);
+			this.privacyInfoWidget.setMaxWidth(this.width - CONTENT_WIDTH);
 		}
 
 		this.layout.refreshPositions();

@@ -12,15 +12,20 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.*;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EquipmentModel}.
+ * Описание модели снаряжения: набор слоёв текстур для каждого типа слота.
+ * <p>
+ * Загружается из JSON-ресурса и используется {@code EquipmentRenderer} для
+ * отрисовки брони, сёдел и другого снаряжения поверх модели сущности.
+ * Каждый {@link LayerType} может содержать несколько {@link Layer} с разными
+ * текстурами (например, основная + слой окраски кожи).
  */
+@Environment(EnvType.CLIENT)
 public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.Layer>> layers) {
 
-	private static final Codec<List<EquipmentModel.Layer>>
-			LAYER_LIST_CODEC =
+	private static final Codec<List<EquipmentModel.Layer>> LAYER_LIST_CODEC =
 			Codecs.nonEmptyList(EquipmentModel.Layer.CODEC.listOf());
+
 	public static final Codec<EquipmentModel> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
 					                    Codecs
@@ -36,69 +41,58 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 	}
 
 	public List<EquipmentModel.Layer> getLayers(EquipmentModel.LayerType layerType) {
-		return this.layers.getOrDefault(layerType, List.of());
+		return layers.getOrDefault(layerType, List.of());
 	}
 
+	/** Строитель для пошагового конструирования {@link EquipmentModel}. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final Map<EquipmentModel.LayerType, List<EquipmentModel.Layer>>
-				layers =
+		private final Map<EquipmentModel.LayerType, List<EquipmentModel.Layer>> layers =
 				new EnumMap<>(EquipmentModel.LayerType.class);
 
 		Builder() {
 		}
 
 		public EquipmentModel.Builder addHumanoidLayers(Identifier textureId) {
-			return this.addHumanoidLayers(textureId, false);
+			return addHumanoidLayers(textureId, false);
 		}
 
 		public EquipmentModel.Builder addHumanoidLayers(Identifier textureId, boolean dyeable) {
-			this.addLayers(
+			addLayers(
 					EquipmentModel.LayerType.HUMANOID_LEGGINGS,
 					EquipmentModel.Layer.createWithLeatherColor(textureId, dyeable)
 			);
-			this.addMainHumanoidLayer(textureId, dyeable);
+			addMainHumanoidLayer(textureId, dyeable);
 			return this;
 		}
 
 		public EquipmentModel.Builder addMainHumanoidLayer(Identifier textureId, boolean dyeable) {
-			return this.addLayers(
+			return addLayers(
 					EquipmentModel.LayerType.HUMANOID,
 					EquipmentModel.Layer.createWithLeatherColor(textureId, dyeable)
 			);
 		}
 
-		public EquipmentModel.Builder addLayers(EquipmentModel.LayerType layerType, EquipmentModel.Layer... layers) {
-			Collections.addAll(this.layers.computeIfAbsent(layerType, layerTypex -> new ArrayList<>()), layers);
+		public EquipmentModel.Builder addLayers(EquipmentModel.LayerType layerType, EquipmentModel.Layer... newLayers) {
+			Collections.addAll(layers.computeIfAbsent(layerType, key -> new ArrayList<>()), newLayers);
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return EquipmentModel — результат операции
-		 */
 		public EquipmentModel build() {
 			return new EquipmentModel(
-					this.layers
-							.entrySet()
-							.stream()
-							.collect(ImmutableMap.toImmutableMap(
-									Entry::getKey,
-									entry -> List.copyOf((Collection) entry.getValue())
-							))
+					layers.entrySet()
+					      .stream()
+					      .collect(ImmutableMap.toImmutableMap(
+							      Entry::getKey,
+							      entry -> List.copyOf((Collection) entry.getValue())
+					      ))
 			);
 		}
 	}
 
+	/** Параметры окрашиваемого слоя: цвет по умолчанию при отсутствии окраски. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Dyeable}.
-	 */
 	public record Dyeable(Optional<Integer> colorWhenUndyed) {
 
 		public static final Codec<EquipmentModel.Dyeable> CODEC = RecordCodecBuilder.create(
@@ -110,11 +104,16 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Layer}.
+	 * Один текстурный слой снаряжения.
+	 * <p>
+	 * Может быть окрашиваемым ({@code dyeable}) и/или использовать текстуру
+	 * скина игрока ({@code usePlayerTexture}).
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Layer(Identifier textureId, Optional<EquipmentModel.Dyeable> dyeable, boolean usePlayerTexture) {
+
+		private static final int LEATHER_DEFAULT_COLOR = -6265536;
 
 		public static final Codec<EquipmentModel.Layer> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
@@ -133,14 +132,18 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 			this(textureId, Optional.empty(), false);
 		}
 
+		/** Создаёт слой с цветом кожи по умолчанию (коричневый кожаный цвет). */
 		public static EquipmentModel.Layer createWithLeatherColor(Identifier textureId, boolean dyeable) {
 			return new EquipmentModel.Layer(
 					textureId,
-					dyeable ? Optional.of(new EquipmentModel.Dyeable(Optional.of(-6265536))) : Optional.empty(),
+					dyeable
+							? Optional.of(new EquipmentModel.Dyeable(Optional.of(LEATHER_DEFAULT_COLOR)))
+							: Optional.empty(),
 					false
 			);
 		}
 
+		/** Создаёт окрашиваемый слой без цвета по умолчанию. */
 		public static EquipmentModel.Layer create(Identifier textureId, boolean dyeable) {
 			return new EquipmentModel.Layer(
 					textureId,
@@ -150,16 +153,15 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 		}
 
 		public Identifier getFullTextureId(EquipmentModel.LayerType layerType) {
-			return this.textureId.withPath(textureName -> "textures/entity/equipment/" + layerType.asString() + "/"
-					+ textureName + ".png");
+			return textureId.withPath(
+					name -> "textures/entity/equipment/" + layerType.asString() + "/" + name + ".png"
+			);
 		}
 	}
 
+	/** Тип слота снаряжения, определяющий геометрию модели и директорию текстур. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LayerType}.
-	 */
-	public static enum LayerType implements StringIdentifiable {
+	public enum LayerType implements StringIdentifiable {
 		HUMANOID("humanoid"),
 		HUMANOID_LEGGINGS("humanoid_leggings"),
 		WINGS("wings"),
@@ -179,22 +181,22 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 		NAUTILUS_SADDLE("nautilus_saddle"),
 		NAUTILUS_BODY("nautilus_body");
 
-		public static final Codec<EquipmentModel.LayerType>
-				CODEC =
+		public static final Codec<EquipmentModel.LayerType> CODEC =
 				StringIdentifiable.createCodec(EquipmentModel.LayerType::values);
+
 		private final String name;
 
-		private LayerType(final String name) {
+		LayerType(final String name) {
 			this.name = name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
 		public String getTrimsDirectory() {
-			return "trims/entity/" + this.name;
+			return "trims/entity/" + name;
 		}
 	}
 }

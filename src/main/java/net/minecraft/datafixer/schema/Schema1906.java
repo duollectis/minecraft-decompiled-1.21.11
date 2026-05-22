@@ -9,26 +9,28 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1906}.
+ * Схема версии 1906: добавляет блок-сущности {@code minecraft:barrel},
+ * {@code minecraft:smoker}, {@code minecraft:blast_furnace} (с инвентарём
+ * и CustomName), {@code minecraft:lectern} (с полем Book) и {@code minecraft:bell}.
  */
 public class Schema1906 extends IdentifierNormalizingSchema {
 
-	public Schema1906(int i, Schema schema) {
-		super(i, schema);
+	public Schema1906(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
-		registerInventoryWithCustomName(schema, map, "minecraft:barrel");
-		registerInventoryWithCustomName(schema, map, "minecraft:smoker");
-		registerInventoryWithCustomName(schema, map, "minecraft:blast_furnace");
+		Map<String, Supplier<TypeTemplate>> blockEntityTypes = super.registerBlockEntities(schema);
+		registerInventoryWithCustomName(schema, blockEntityTypes, "minecraft:barrel");
+		registerInventoryWithCustomName(schema, blockEntityTypes, "minecraft:smoker");
+		registerInventoryWithCustomName(schema, blockEntityTypes, "minecraft:blast_furnace");
 		schema.register(
-				map,
+				blockEntityTypes,
 				"minecraft:lectern",
 				name -> DSL.optionalFields("Book", TypeReferences.ITEM_STACK.in(schema))
 		);
-		schema.registerSimple(map, "minecraft:bell");
-		return map;
+		schema.registerSimple(blockEntityTypes, "minecraft:bell");
+		return blockEntityTypes;
 	}
 
 	protected static void registerInventoryWithCustomName(Schema schema, Map<String, Supplier<TypeTemplate>> map, String name) {

@@ -6,11 +6,16 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SoulParticle}.
+ * Частица души: анимированная полупрозрачная частица, поднимающаяся вверх.
+ * Используется для эффектов душ на блоках из Нижнего мира (soul sand, soul soil).
+ * Вариант {@link SculkSoulFactory} создаёт частицу с полной яркостью (для скалка).
  */
+@Environment(EnvType.CLIENT)
 public class SoulParticle extends AbstractSlowingParticle {
+
+	private static final float INITIAL_SCALE = 1.5F;
+	private static final int FULL_BRIGHTNESS = 240;
 
 	private final SpriteProvider spriteProvider;
 	protected boolean sculk;
@@ -27,13 +32,13 @@ public class SoulParticle extends AbstractSlowingParticle {
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getFirst());
 		this.spriteProvider = spriteProvider;
-		this.scale(1.5F);
+		this.scale(INITIAL_SCALE);
 		this.updateSprite(spriteProvider);
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return this.sculk ? 240 : super.getBrightness(tint);
+		return this.sculk ? FULL_BRIGHTNESS : super.getBrightness(tint);
 	}
 
 	@Override
@@ -47,10 +52,8 @@ public class SoulParticle extends AbstractSlowingParticle {
 		this.updateSprite(this.spriteProvider);
 	}
 
+	/** Фабрика для обычной частицы души (зависит от освещения). */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -59,27 +62,26 @@ public class SoulParticle extends AbstractSlowingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-			soulParticle.setAlpha(1.0F);
-			return soulParticle;
+			SoulParticle particle = new SoulParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
+			particle.setAlpha(1.0F);
+			return particle;
 		}
 	}
 
+	/** Фабрика для частицы души скалка (всегда полная яркость). */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SculkSoulFactory}.
-	 */
 	public static class SculkSoulFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -88,21 +90,22 @@ public class SoulParticle extends AbstractSlowingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-			soulParticle.setAlpha(1.0F);
-			soulParticle.sculk = true;
-			return soulParticle;
+			SoulParticle particle = new SoulParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
+			particle.setAlpha(1.0F);
+			particle.sculk = true;
+			return particle;
 		}
 	}
 }

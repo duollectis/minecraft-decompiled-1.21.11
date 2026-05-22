@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code SilverfishEntity}.
+ * Чешуйница — маленький моб, прячущийся в камне.
  */
 public class SilverfishEntity extends HostileEntity {
 
@@ -39,14 +39,14 @@ public class SilverfishEntity extends HostileEntity {
 
 	@Override
 	protected void initGoals() {
-		this.callForHelpGoal = new SilverfishEntity.CallForHelpGoal(this);
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
-		this.goalSelector.add(3, this.callForHelpGoal);
-		this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
-		this.goalSelector.add(5, new SilverfishEntity.WanderAndInfestGoal(this));
-		this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		callForHelpGoal = new SilverfishEntity.CallForHelpGoal(this);
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(1, new PowderSnowJumpGoal(this, getEntityWorld()));
+		goalSelector.add(3, callForHelpGoal);
+		goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
+		goalSelector.add(5, new SilverfishEntity.WanderAndInfestGoal(this));
+		targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+		targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
 	}
 
 	public static DefaultAttributeContainer.Builder createSilverfishAttributes() {
@@ -78,40 +78,40 @@ public class SilverfishEntity extends HostileEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_SILVERFISH_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_SILVERFISH_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isInvulnerableTo(world, source)) {
+		if (isInvulnerableTo(world, source)) {
 			return false;
 		}
-		else {
-			if ((source.getAttacker() != null || source.isIn(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH))
-					&& this.callForHelpGoal != null) {
-				this.callForHelpGoal.onHurt();
-			}
 
-			return super.damage(world, source, amount);
+		if ((source.getAttacker() != null || source.isIn(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH))
+				&& callForHelpGoal != null) {
+			callForHelpGoal.onHurt();
 		}
+
+		return super.damage(world, source, amount);
 	}
 
 	@Override
 	public void tick() {
-		this.bodyYaw = this.getYaw();
+		bodyYaw = getYaw();
 		super.tick();
 	}
 
 	@Override
 	public void setBodyYaw(float bodyYaw) {
-		this.setYaw(bodyYaw);
+		setYaw(bodyYaw);
 		super.setBodyYaw(bodyYaw);
 	}
 
 	@Override
 	public float getPathfindingFavor(BlockPos pos, WorldView world) {
-		return InfestedBlock.isInfestable(world.getBlockState(pos.down())) ? 10.0F
-		                                                                   : super.getPathfindingFavor(pos, world);
+		return InfestedBlock.isInfestable(world.getBlockState(pos.down()))
+				? 10.0F
+				: super.getPathfindingFavor(pos, world);
 	}
 
 	public static boolean canSpawn(
@@ -124,20 +124,15 @@ public class SilverfishEntity extends HostileEntity {
 		if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
 			return false;
 		}
-		else if (SpawnReason.isAnySpawner(spawnReason)) {
+
+		if (SpawnReason.isAnySpawner(spawnReason)) {
 			return true;
 		}
-		else {
-			PlayerEntity
-					playerEntity =
-					world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
-			return playerEntity == null;
-		}
+
+		PlayerEntity nearestPlayer = world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
+		return nearestPlayer == null;
 	}
 
-	/**
-	 * {@code CallForHelpGoal}.
-	 */
 	static class CallForHelpGoal extends Goal {
 
 		private final SilverfishEntity silverfish;
@@ -147,49 +142,54 @@ public class SilverfishEntity extends HostileEntity {
 			this.silverfish = silverfish;
 		}
 
-		/**
-		 * Обрабатывает событие hurt.
-		 */
+		private static final int CALL_DELAY_TICKS = 20;
+		private static final int SEARCH_RADIUS_Y = 5;
+		private static final int SEARCH_RADIUS_XZ = 10;
+		private static final int BLOCK_UPDATE_FLAGS = 3;
+
 		public void onHurt() {
-			if (this.delay == 0) {
-				this.delay = this.getTickCount(20);
+			if (delay == 0) {
+				delay = getTickCount(CALL_DELAY_TICKS);
 			}
 		}
 
 		@Override
 		public boolean canStart() {
-			return this.delay > 0;
+			return delay > 0;
 		}
 
 		@Override
 		public void tick() {
-			this.delay--;
-			if (this.delay <= 0) {
-				World world = this.silverfish.getEntityWorld();
-				Random random = this.silverfish.getRandom();
-				BlockPos blockPos = this.silverfish.getBlockPos();
+			delay--;
+			if (delay > 0) {
+				return;
+			}
 
-				for (int i = 0; i <= 5 && i >= -5; i = (i <= 0 ? 1 : 0) - i) {
-					for (int j = 0; j <= 10 && j >= -10; j = (j <= 0 ? 1 : 0) - j) {
-						for (int k = 0; k <= 10 && k >= -10; k = (k <= 0 ? 1 : 0) - k) {
-							BlockPos blockPos2 = blockPos.add(j, i, k);
-							BlockState blockState = world.getBlockState(blockPos2);
-							Block block = blockState.getBlock();
-							if (block instanceof InfestedBlock) {
-								if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-									world.breakBlock(blockPos2, true, this.silverfish);
-								}
-								else {
-									world.setBlockState(
-											blockPos2,
-											((InfestedBlock) block).toRegularState(world.getBlockState(blockPos2)),
-											3
-									);
-								}
+			World world = silverfish.getEntityWorld();
+			Random random = silverfish.getRandom();
+			BlockPos origin = silverfish.getBlockPos();
 
-								if (random.nextBoolean()) {
-									return;
-								}
+			for (int dy = 0; dy <= SEARCH_RADIUS_Y && dy >= -SEARCH_RADIUS_Y; dy = (dy <= 0 ? 1 : 0) - dy) {
+				for (int dx = 0; dx <= SEARCH_RADIUS_XZ && dx >= -SEARCH_RADIUS_XZ; dx = (dx <= 0 ? 1 : 0) - dx) {
+					for (int dz = 0; dz <= SEARCH_RADIUS_XZ && dz >= -SEARCH_RADIUS_XZ; dz = (dz <= 0 ? 1 : 0) - dz) {
+						BlockPos candidate = origin.add(dx, dy, dz);
+						BlockState blockState = world.getBlockState(candidate);
+						Block block = blockState.getBlock();
+
+						if (block instanceof InfestedBlock infestedBlock) {
+							if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+								world.breakBlock(candidate, true, silverfish);
+							}
+							else {
+								world.setBlockState(
+										candidate,
+										infestedBlock.toRegularState(world.getBlockState(candidate)),
+										BLOCK_UPDATE_FLAGS
+								);
+							}
+
+							if (random.nextBoolean()) {
+								return;
 							}
 						}
 					}
@@ -198,9 +198,6 @@ public class SilverfishEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code WanderAndInfestGoal}.
-	 */
 	static class WanderAndInfestGoal extends WanderAroundGoal {
 
 		private @Nullable Direction direction;
@@ -208,62 +205,67 @@ public class SilverfishEntity extends HostileEntity {
 
 		public WanderAndInfestGoal(SilverfishEntity silverfish) {
 			super(silverfish, 1.0, 10);
-			this.setControls(EnumSet.of(Goal.Control.MOVE));
+			setControls(EnumSet.of(Goal.Control.MOVE));
 		}
+
+		private static final int INFEST_CHANCE_TICKS = 10;
+		private static final int BLOCK_UPDATE_FLAGS = 3;
 
 		@Override
 		public boolean canStart() {
-			if (this.mob.getTarget() != null) {
+			if (mob.getTarget() != null) {
 				return false;
 			}
-			else if (!this.mob.getNavigation().isIdle()) {
-				return false;
-			}
-			else {
-				Random random = this.mob.getRandom();
-				if (getServerWorld(this.mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-						&& random.nextInt(toGoalTicks(10)) == 0) {
-					this.direction = Direction.random(random);
-					BlockPos
-							blockPos =
-							BlockPos
-									.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ())
-									.offset(this.direction);
-					BlockState blockState = this.mob.getEntityWorld().getBlockState(blockPos);
-					if (InfestedBlock.isInfestable(blockState)) {
-						this.canInfest = true;
-						return true;
-					}
-				}
 
-				this.canInfest = false;
-				return super.canStart();
+			if (!mob.getNavigation().isIdle()) {
+				return false;
 			}
+
+			Random random = mob.getRandom();
+			if (getServerWorld(mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+					&& random.nextInt(toGoalTicks(INFEST_CHANCE_TICKS)) == 0) {
+				direction = Direction.random(random);
+				BlockPos target = BlockPos
+						.ofFloored(mob.getX(), mob.getY() + 0.5, mob.getZ())
+						.offset(direction);
+				BlockState blockState = mob.getEntityWorld().getBlockState(target);
+
+				if (InfestedBlock.isInfestable(blockState)) {
+					canInfest = true;
+					return true;
+				}
+			}
+
+			canInfest = false;
+			return super.canStart();
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			return this.canInfest ? false : super.shouldContinue();
+			if (canInfest) {
+				return false;
+			}
+
+			return super.shouldContinue();
 		}
 
 		@Override
 		public void start() {
-			if (!this.canInfest) {
+			if (!canInfest) {
 				super.start();
+				return;
 			}
-			else {
-				WorldAccess worldAccess = this.mob.getEntityWorld();
-				BlockPos
-						blockPos =
-						BlockPos
-								.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ())
-								.offset(this.direction);
-				BlockState blockState = worldAccess.getBlockState(blockPos);
-				if (InfestedBlock.isInfestable(blockState)) {
-					worldAccess.setBlockState(blockPos, InfestedBlock.fromRegularState(blockState), 3);
-					this.mob.playSpawnEffects();
-					this.mob.discard();
-				}
+
+			WorldAccess worldAccess = mob.getEntityWorld();
+			BlockPos target = BlockPos
+					.ofFloored(mob.getX(), mob.getY() + 0.5, mob.getZ())
+					.offset(direction);
+			BlockState blockState = worldAccess.getBlockState(target);
+
+			if (InfestedBlock.isInfestable(blockState)) {
+				worldAccess.setBlockState(target, InfestedBlock.fromRegularState(blockState), BLOCK_UPDATE_FLAGS);
+				mob.playSpawnEffects();
+				mob.discard();
 			}
 		}
 	}

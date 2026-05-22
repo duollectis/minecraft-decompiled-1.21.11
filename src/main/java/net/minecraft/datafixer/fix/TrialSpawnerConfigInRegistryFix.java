@@ -21,7 +21,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code TrialSpawnerConfigInRegistryFix}.
+ * Мигрирует конфигурацию блока {@code minecraft:trial_spawner} из встроенного NBT-формата
+ * в ссылки на реестровые идентификаторы.
+ * <p>
+ * Сравнивает поля {@code normal_config} и {@code ominous_config} с заранее известными
+ * конфигурациями из {@link Replacements#REPLACEMENTS} и заменяет их строковыми путями вида
+ * {@code <id>/normal} и {@code <id>/ominous}.
  */
 public class TrialSpawnerConfigInRegistryFix extends ChoiceFix {
 
@@ -38,31 +43,24 @@ public class TrialSpawnerConfigInRegistryFix extends ChoiceFix {
 	}
 
 	public Dynamic<?> fix(Dynamic<NbtElement> nbt) {
-		Optional<Dynamic<NbtElement>> optional = nbt.get("normal_config").result();
-		if (optional.isEmpty()) {
+		Optional<Dynamic<NbtElement>> normalConfig = nbt.get("normal_config").result();
+		if (normalConfig.isEmpty()) {
 			return nbt;
 		}
-		else {
-			Optional<Dynamic<NbtElement>> optional2 = nbt.get("ominous_config").result();
-			if (optional2.isEmpty()) {
-				return nbt;
-			}
-			else {
-				Identifier
-						identifier =
-						TrialSpawnerConfigInRegistryFix.Replacements.REPLACEMENTS.get(Pair.of(
-								optional.get(),
-								optional2.get()
-						));
-				return identifier == null
-				       ? nbt
-				       : nbt.set("normal_config", nbt.createString(identifier.withSuffixedPath("/normal").toString()))
-				            .set(
-						            "ominous_config",
-						            nbt.createString(identifier.withSuffixedPath("/ominous").toString())
-				            );
-			}
+
+		Optional<Dynamic<NbtElement>> ominousConfig = nbt.get("ominous_config").result();
+		if (ominousConfig.isEmpty()) {
+			return nbt;
 		}
+
+		Identifier replacement = Replacements.REPLACEMENTS.get(Pair.of(normalConfig.get(), ominousConfig.get()));
+		if (replacement == null) {
+			return nbt;
+		}
+
+		return nbt
+				.set("normal_config", nbt.createString(replacement.withSuffixedPath("/normal").toString()))
+				.set("ominous_config", nbt.createString(replacement.withSuffixedPath("/ominous").toString()));
 	}
 
 	@Override
@@ -77,7 +75,8 @@ public class TrialSpawnerConfigInRegistryFix extends ChoiceFix {
 	}
 
 	/**
-	 * {@code Replacements}.
+	 * Таблица соответствий: пара (normal_config, ominous_config) → реестровый идентификатор конфигурации.
+	 * Заполняется статически при загрузке класса через вызовы {@link #register}.
 	 */
 	static final class Replacements {
 
@@ -90,22 +89,22 @@ public class TrialSpawnerConfigInRegistryFix extends ChoiceFix {
 
 		private static void register(Identifier id, String normal, String ominous) {
 			try {
-				NbtCompound nbtCompound = parse(normal);
-				NbtCompound nbtCompound2 = parse(ominous);
-				NbtCompound nbtCompound3 = nbtCompound.copy().copyFrom(nbtCompound2);
-				NbtCompound nbtCompound4 = removeDefaults(nbtCompound3.copy());
-				Dynamic<NbtElement> dynamic = toDynamic(nbtCompound);
-				REPLACEMENTS.put(Pair.of(dynamic, toDynamic(nbtCompound2)), id);
-				REPLACEMENTS.put(Pair.of(dynamic, toDynamic(nbtCompound3)), id);
-				REPLACEMENTS.put(Pair.of(dynamic, toDynamic(nbtCompound4)), id);
+				NbtCompound normalNbt = parse(normal);
+				NbtCompound ominousNbt = parse(ominous);
+				NbtCompound mergedNbt = normalNbt.copy().copyFrom(ominousNbt);
+				NbtCompound mergedWithoutDefaults = removeDefaults(mergedNbt.copy());
+				Dynamic<NbtElement> normalDynamic = toDynamic(normalNbt);
+				REPLACEMENTS.put(Pair.of(normalDynamic, toDynamic(ominousNbt)), id);
+				REPLACEMENTS.put(Pair.of(normalDynamic, toDynamic(mergedNbt)), id);
+				REPLACEMENTS.put(Pair.of(normalDynamic, toDynamic(mergedWithoutDefaults)), id);
 			}
-			catch (RuntimeException var8) {
-				throw new IllegalStateException("Failed to parse NBT for " + id, var8);
+			catch (RuntimeException exception) {
+				throw new IllegalStateException("Failed to parse NBT for " + id, exception);
 			}
 		}
 
 		private static Dynamic<NbtElement> toDynamic(NbtCompound nbt) {
-			return new Dynamic(NbtOps.INSTANCE, nbt);
+			return new Dynamic<>(NbtOps.INSTANCE, nbt);
 		}
 
 		private static NbtCompound parse(String nbt) {

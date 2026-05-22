@@ -6,44 +6,42 @@ import net.minecraft.entity.vehicle.CommandBlockMinecartEntity;
 import net.minecraft.network.packet.c2s.play.UpdateCommandBlockMinecartC2SPacket;
 import net.minecraft.world.CommandBlockExecutor;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MinecartCommandBlockScreen}.
+ * Экран редактирования командного блока в вагонетке.
  */
+@Environment(EnvType.CLIENT)
 public class MinecartCommandBlockScreen extends AbstractCommandBlockScreen {
+
+	private static final int TRACK_OUTPUT_BUTTON_HEIGHT = 150;
 
 	private final CommandBlockMinecartEntity commandBlockMinecart;
 
 	public MinecartCommandBlockScreen(CommandBlockMinecartEntity commandBlockMinecartEntity) {
-		this.commandBlockMinecart = commandBlockMinecartEntity;
+		commandBlockMinecart = commandBlockMinecartEntity;
 	}
 
 	@Override
 	public CommandBlockExecutor getCommandExecutor() {
-		return this.commandBlockMinecart.getCommandExecutor();
+		return commandBlockMinecart.getCommandExecutor();
 	}
 
 	@Override
 	int getTrackOutputButtonHeight() {
-		return 150;
+		return TRACK_OUTPUT_BUTTON_HEIGHT;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.consoleCommandTextField.setText(this.getCommandExecutor().getCommand());
+		consoleCommandTextField.setText(getCommandExecutor().getCommand());
 	}
 
 	@Override
 	protected void syncSettingsToServer() {
-		this.client
-				.getNetworkHandler()
-				.sendPacket(
-						new UpdateCommandBlockMinecartC2SPacket(
-								this.commandBlockMinecart.getId(),
-								this.consoleCommandTextField.getText(),
-								this.commandBlockMinecart.getCommandExecutor().isTrackingOutput()
-						)
-				);
+		client.getNetworkHandler().sendPacket(new UpdateCommandBlockMinecartC2SPacket(
+			commandBlockMinecart.getId(),
+			consoleCommandTextField.getText(),
+			commandBlockMinecart.getCommandExecutor().isTrackingOutput()
+		));
 	}
 }

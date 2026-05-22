@@ -4,31 +4,17 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpriteMapper}.
+ * Маппер спрайтов: преобразует идентификатор в {@link SpriteIdentifier} с заданным атласом и префиксом пути.
  */
+@Environment(EnvType.CLIENT)
 public record SpriteMapper(Identifier sheet, String prefix) {
 
-	/**
-	 * Map.
-	 *
-	 * @param id id
-	 *
-	 * @return SpriteIdentifier — результат операции
-	 */
 	public SpriteIdentifier map(Identifier id) {
-		return new SpriteIdentifier(this.sheet, id.withPrefixedPath(this.prefix + "/"));
+		return new SpriteIdentifier(sheet, id.withPrefixedPath(prefix + "/"));
 	}
 
-	/**
-	 * Map vanilla.
-	 *
-	 * @param id id
-	 *
-	 * @return SpriteIdentifier — результат операции
-	 */
 	public SpriteIdentifier mapVanilla(String id) {
-		return this.map(Identifier.ofVanilla(id));
+		return map(Identifier.ofVanilla(id));
 	}
 }

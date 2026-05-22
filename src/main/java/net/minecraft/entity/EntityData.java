@@ -1,7 +1,9 @@
 package net.minecraft.entity;
 
 /**
- * {@code EntityData}.
+ * Маркерный интерфейс для данных инициализации сущности при спавне.
+ * Реализации передаются в {@code MobEntity#initialize} и позволяют
+ * передавать специфичные для типа данные без приведения типов в вызывающем коде.
  */
 public interface EntityData {
 }

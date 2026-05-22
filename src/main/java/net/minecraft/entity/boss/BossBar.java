@@ -8,20 +8,21 @@ import net.minecraft.util.StringIdentifiable;
 import java.util.UUID;
 
 /**
- * {@code BossBar}.
+ * Базовый класс полосы здоровья босса. Хранит визуальные параметры (цвет, стиль, флаги эффектов)
+ * и процент заполнения. Конкретные реализации ({@link ServerBossBar}) добавляют сетевую синхронизацию.
  */
 public abstract class BossBar {
 
 	private final UUID uuid;
 	protected Text name;
 	protected float percent;
-	protected BossBar.Color color;
-	protected BossBar.Style style;
+	protected Color color;
+	protected Style style;
 	protected boolean darkenSky;
 	protected boolean dragonMusic;
 	protected boolean thickenFog;
 
-	public BossBar(UUID uuid, Text name, BossBar.Color color, BossBar.Style style) {
+	public BossBar(UUID uuid, Text name, Color color, Style style) {
 		this.uuid = uuid;
 		this.name = name;
 		this.color = color;
@@ -30,11 +31,11 @@ public abstract class BossBar {
 	}
 
 	public UUID getUuid() {
-		return this.uuid;
+		return uuid;
 	}
 
 	public Text getName() {
-		return this.name;
+		return name;
 	}
 
 	public void setName(Text name) {
@@ -42,36 +43,31 @@ public abstract class BossBar {
 	}
 
 	public float getPercent() {
-		return this.percent;
+		return percent;
 	}
 
 	public void setPercent(float percent) {
 		this.percent = percent;
 	}
 
-	public BossBar.Color getColor() {
-		return this.color;
+	public Color getColor() {
+		return color;
 	}
 
-	public void setColor(BossBar.Color color) {
+	public void setColor(Color color) {
 		this.color = color;
 	}
 
-	public BossBar.Style getStyle() {
-		return this.style;
+	public Style getStyle() {
+		return style;
 	}
 
-	public void setStyle(BossBar.Style style) {
+	public void setStyle(Style style) {
 		this.style = style;
 	}
 
-	/**
-	 * Определяет, следует ли darken sky.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldDarkenSky() {
-		return this.darkenSky;
+		return darkenSky;
 	}
 
 	public BossBar setDarkenSky(boolean darkenSky) {
@@ -80,7 +76,7 @@ public abstract class BossBar {
 	}
 
 	public boolean hasDragonMusic() {
-		return this.dragonMusic;
+		return dragonMusic;
 	}
 
 	public BossBar setDragonMusic(boolean dragonMusic) {
@@ -93,19 +89,14 @@ public abstract class BossBar {
 		return this;
 	}
 
-	/**
-	 * Определяет, следует ли thicken fog.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldThickenFog() {
-		return this.thickenFog;
+		return thickenFog;
 	}
 
 	/**
-	 * {@code Color}.
+	 * Цвет полосы здоровья босса. Определяет форматирование текста в интерфейсе.
 	 */
-	public static enum Color implements StringIdentifiable {
+	public enum Color implements StringIdentifiable {
 		PINK("pink", Formatting.RED),
 		BLUE("blue", Formatting.BLUE),
 		RED("red", Formatting.DARK_RED),
@@ -114,53 +105,55 @@ public abstract class BossBar {
 		PURPLE("purple", Formatting.DARK_BLUE),
 		WHITE("white", Formatting.WHITE);
 
-		public static final Codec<BossBar.Color> CODEC = StringIdentifiable.createCodec(BossBar.Color::values);
+		public static final Codec<Color> CODEC = StringIdentifiable.createCodec(Color::values);
+
 		private final String name;
 		private final Formatting format;
 
-		private Color(final String name, final Formatting format) {
+		Color(String name, Formatting format) {
 			this.name = name;
 			this.format = format;
 		}
 
 		public Formatting getTextFormat() {
-			return this.format;
+			return format;
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 
 	/**
-	 * {@code Style}.
+	 * Стиль (разметка) полосы здоровья босса: сплошная или с насечками.
 	 */
-	public static enum Style implements StringIdentifiable {
+	public enum Style implements StringIdentifiable {
 		PROGRESS("progress"),
 		NOTCHED_6("notched_6"),
 		NOTCHED_10("notched_10"),
 		NOTCHED_12("notched_12"),
 		NOTCHED_20("notched_20");
 
-		public static final Codec<BossBar.Style> CODEC = StringIdentifiable.createCodec(BossBar.Style::values);
+		public static final Codec<Style> CODEC = StringIdentifiable.createCodec(Style::values);
+
 		private final String name;
 
-		private Style(final String name) {
+		Style(String name) {
 			this.name = name;
 		}
 
 		public String getName() {
-			return this.name;
+			return name;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

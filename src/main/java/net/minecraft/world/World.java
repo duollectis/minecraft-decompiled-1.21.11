@@ -78,36 +78,45 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code World}.
+ * Базовый абстрактный класс игрового мира Minecraft.
+ * Реализует общую логику для клиентского и серверного миров:
+ * управление блоками, сущностями, звуком, частицами, взрывами и тиками.
  */
 public abstract class World implements WorldAccess, AutoCloseable, AttachmentTarget {
 
 	public static final Codec<RegistryKey<World>> CODEC = RegistryKey.createCodec(RegistryKeys.WORLD);
-	public static final RegistryKey<World>
-			OVERWORLD =
-			RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("overworld"));
-	public static final RegistryKey<World>
-			NETHER =
-			RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("the_nether"));
-	public static final RegistryKey<World> END = RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("the_end"));
+
+	public static final RegistryKey<World> OVERWORLD =
+		RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("overworld"));
+	public static final RegistryKey<World> NETHER =
+		RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("the_nether"));
+	public static final RegistryKey<World> END =
+		RegistryKey.of(RegistryKeys.WORLD, Identifier.ofVanilla("the_end"));
+
 	public static final int HORIZONTAL_LIMIT = 30000000;
 	public static final int MAX_UPDATE_DEPTH = 512;
 	public static final int GENERATION_AREA_CHUNK_RADIUS = 32;
 	public static final int MAX_LIGHT_LEVEL = 15;
 	public static final int MAX_Y = 20000000;
 	public static final int MIN_Y = -20000000;
+
+	/** Маска для извлечения флагов обновления соседей (убирает биты NOTIFY и NO_RERENDER). */
+	private static final int NEIGHBOR_UPDATE_FLAGS_MASK = -34;
+
+	/** Порог яркости неба, ниже которого считается ночь. */
+	private static final int NIGHT_DARKNESS_THRESHOLD = 4;
+
+	/** Порог градиента грозы для определения активной грозы. */
+	private static final double THUNDER_ACTIVE_THRESHOLD = 0.9;
+
+	/** Порог градиента дождя для определения активного дождя. */
+	private static final double RAIN_ACTIVE_THRESHOLD = 0.2;
+
 	private static final Pool<BlockParticleEffect> EXPLOSION_BLOCK_PARTICLES = Pool.<BlockParticleEffect>builder()
-	                                                                               .add(new BlockParticleEffect(
-			                                                                               ParticleTypes.POOF,
-			                                                                               0.5F,
-			                                                                               1.0F
-	                                                                               ))
-	                                                                               .add(new BlockParticleEffect(
-			                                                                               ParticleTypes.SMOKE,
-			                                                                               1.0F,
-			                                                                               1.0F
-	                                                                               ))
-	                                                                               .build();
+		.add(new BlockParticleEffect(ParticleTypes.POOF, 0.5F, 1.0F))
+		.add(new BlockParticleEffect(ParticleTypes.SMOKE, 1.0F, 1.0F))
+		.build();
+
 	protected final List<BlockEntityTickInvoker> blockEntityTickers = Lists.newArrayList();
 	protected final ChainRestrictedNeighborUpdater neighborUpdater;
 	private final List<BlockEntityTickInvoker> pendingBlockEntityTickers = Lists.newArrayList();
@@ -135,14 +144,14 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	private long tickOrder;
 
 	protected World(
-			MutableWorldProperties properties,
-			RegistryKey<World> registryRef,
-			DynamicRegistryManager registryManager,
-			RegistryEntry<DimensionType> dimensionEntry,
-			boolean isClient,
-			boolean debugWorld,
-			long seed,
-			int maxChainedNeighborUpdates
+		MutableWorldProperties properties,
+		RegistryKey<World> registryRef,
+		DynamicRegistryManager registryManager,
+		RegistryEntry<DimensionType> dimensionEntry,
+		boolean isClient,
+		boolean debugWorld,
+		long seed,
+		int maxChainedNeighborUpdates
 	) {
 		this.properties = properties;
 		this.dimensionEntry = dimensionEntry;
@@ -159,7 +168,7 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	@Override
 	public boolean isClient() {
-		return this.isClient;
+		return isClient;
 	}
 
 	@Override
@@ -168,11 +177,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	}
 
 	public boolean isInBuildLimit(BlockPos pos) {
-		return !this.isOutOfHeightLimit(pos) && isValidHorizontally(pos);
+		return !isOutOfHeightLimit(pos) && isValidHorizontally(pos);
 	}
 
-	public boolean isInGenerationArea(BlockPos blockPos) {
-		return !this.isOutOfHeightLimit(blockPos) && isChunkPosInGenerationArea(blockPos);
+	public boolean isInGenerationArea(BlockPos pos) {
+		return !isOutOfHeightLimit(pos) && isChunkPosInGenerationArea(pos);
 	}
 
 	public static boolean isValid(BlockPos pos) {
@@ -180,1172 +189,1042 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	}
 
 	private static boolean isValidHorizontally(BlockPos pos) {
-		return pos.getX() >= -30000000 && pos.getZ() >= -30000000 && pos.getX() < 30000000 && pos.getZ() < 30000000;
+		return pos.getX() >= -HORIZONTAL_LIMIT
+			&& pos.getZ() >= -HORIZONTAL_LIMIT
+			&& pos.getX() < HORIZONTAL_LIMIT
+			&& pos.getZ() < HORIZONTAL_LIMIT;
 	}
 
-	private static boolean isChunkPosInGenerationArea(BlockPos blockPos) {
-		int i = ChunkSectionPos.getSectionCoord(blockPos.getX());
-		int j = ChunkSectionPos.getSectionCoord(blockPos.getZ());
-		return ChunkPos.isWithinGenerationArea(i, j);
+	private static boolean isChunkPosInGenerationArea(BlockPos pos) {
+		int chunkX = ChunkSectionPos.getSectionCoord(pos.getX());
+		int chunkZ = ChunkSectionPos.getSectionCoord(pos.getZ());
+		return ChunkPos.isWithinGenerationArea(chunkX, chunkZ);
 	}
 
 	private static boolean isInvalidVertically(int y) {
-		return y < -20000000 || y >= 20000000;
+		return y < -MAX_Y || y >= MAX_Y;
 	}
 
 	public WorldChunk getWorldChunk(BlockPos pos) {
-		return this.getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+		return getChunk(
+			ChunkSectionPos.getSectionCoord(pos.getX()),
+			ChunkSectionPos.getSectionCoord(pos.getZ())
+		);
 	}
 
-	public WorldChunk getChunk(int i, int j) {
-		return (WorldChunk) this.getChunk(i, j, ChunkStatus.FULL);
+	public WorldChunk getChunk(int chunkX, int chunkZ) {
+		return (WorldChunk) getChunk(chunkX, chunkZ, ChunkStatus.FULL);
 	}
 
 	@Override
 	public @Nullable Chunk getChunk(int chunkX, int chunkZ, ChunkStatus leastStatus, boolean create) {
-		Chunk chunk = this.getChunkManager().getChunk(chunkX, chunkZ, leastStatus, create);
+		Chunk chunk = getChunkManager().getChunk(chunkX, chunkZ, leastStatus, create);
 		if (chunk == null && create) {
 			throw new IllegalStateException("Should always be able to create a chunk!");
 		}
-		else {
-			return chunk;
-		}
+
+		return chunk;
 	}
 
 	@Override
 	public boolean setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-		return this.setBlockState(pos, state, flags, 512);
-	}
-
-	@Override
-	public boolean setBlockState(
-			BlockPos pos,
-			BlockState state,
-			@Block.SetBlockStateFlag int flags,
-			int maxUpdateDepth
-	) {
-		if (!this.isInGenerationArea(pos)) {
-			return false;
-		}
-		else if (!this.isClient() && this.isDebugWorld()) {
-			return false;
-		}
-		else {
-			WorldChunk worldChunk = this.getWorldChunk(pos);
-			Block block = state.getBlock();
-			BlockState blockState = worldChunk.setBlockState(pos, state, flags);
-			if (blockState == null) {
-				return false;
-			}
-			else {
-				BlockState blockState2 = this.getBlockState(pos);
-				if (blockState2 == state) {
-					if (blockState != blockState2) {
-						this.scheduleBlockRerenderIfNeeded(pos, blockState, blockState2);
-					}
-
-					if ((flags & 2) != 0
-							&& (!this.isClient() || (flags & 4) == 0)
-							&& (this.isClient() || worldChunk.getLevelType() != null && worldChunk
-							.getLevelType()
-							.isAfter(ChunkLevelType.BLOCK_TICKING)
-					)) {
-						this.updateListeners(pos, blockState, state, flags);
-					}
-
-					if ((flags & 1) != 0) {
-						this.updateNeighbors(pos, blockState.getBlock());
-						if (!this.isClient() && state.hasComparatorOutput()) {
-							this.updateComparators(pos, block);
-						}
-					}
-
-					if ((flags & 16) == 0 && maxUpdateDepth > 0) {
-						int i = flags & -34;
-						blockState.prepare(this, pos, i, maxUpdateDepth - 1);
-						state.updateNeighbors(this, pos, i, maxUpdateDepth - 1);
-						state.prepare(this, pos, i, maxUpdateDepth - 1);
-					}
-
-					this.onBlockStateChanged(pos, blockState, blockState2);
-				}
-
-				return true;
-			}
-		}
+		return setBlockState(pos, state, flags, MAX_UPDATE_DEPTH);
 	}
 
 	/**
-	 * Обрабатывает событие block state changed.
-	 *
-	 * @param pos pos
-	 * @param oldState old state
-	 * @param newState new state
+	 * Устанавливает состояние блока в мире с полным контролем над глубиной обновлений.
+	 * Обрабатывает уведомление слушателей, обновление соседей и подготовку состояния.
+	 * Флаги управляют поведением: бит 1 — обновить соседей, бит 2 — уведомить клиент,
+	 * бит 4 — не отправлять клиенту, бит 16 — не обновлять соседей рекурсивно.
 	 */
+	@Override
+	public boolean setBlockState(
+		BlockPos pos,
+		BlockState state,
+		@Block.SetBlockStateFlag int flags,
+		int maxUpdateDepth
+	) {
+		if (!isInGenerationArea(pos)) {
+			return false;
+		}
+
+		if (!isClient() && isDebugWorld()) {
+			return false;
+		}
+
+		WorldChunk worldChunk = getWorldChunk(pos);
+		Block block = state.getBlock();
+		BlockState previousState = worldChunk.setBlockState(pos, state, flags);
+		if (previousState == null) {
+			return false;
+		}
+
+		BlockState currentState = getBlockState(pos);
+		if (currentState == state) {
+			if (previousState != currentState) {
+				scheduleBlockRerenderIfNeeded(pos, previousState, currentState);
+			}
+
+			boolean shouldNotifyClient = (flags & 2) != 0
+				&& (!isClient() || (flags & 4) == 0)
+				&& (isClient() || worldChunk.getLevelType() != null
+					&& worldChunk.getLevelType().isAfter(ChunkLevelType.BLOCK_TICKING));
+
+			if (shouldNotifyClient) {
+				updateListeners(pos, previousState, state, flags);
+			}
+
+			if ((flags & 1) != 0) {
+				updateNeighbors(pos, previousState.getBlock());
+				if (!isClient() && state.hasComparatorOutput()) {
+					updateComparators(pos, block);
+				}
+			}
+
+			if ((flags & 16) == 0 && maxUpdateDepth > 0) {
+				int neighborFlags = flags & NEIGHBOR_UPDATE_FLAGS_MASK;
+				previousState.prepare(this, pos, neighborFlags, maxUpdateDepth - 1);
+				state.updateNeighbors(this, pos, neighborFlags, maxUpdateDepth - 1);
+				state.prepare(this, pos, neighborFlags, maxUpdateDepth - 1);
+			}
+
+			onBlockStateChanged(pos, previousState, currentState);
+		}
+
+		return true;
+	}
+
+	/** Вызывается после изменения состояния блока. Переопределяется в подклассах для реакции на изменения. */
 	public void onBlockStateChanged(BlockPos pos, BlockState oldState, BlockState newState) {
 	}
 
 	@Override
 	public boolean removeBlock(BlockPos pos, boolean move) {
-		FluidState fluidState = this.getFluidState(pos);
-		return this.setBlockState(pos, fluidState.getBlockState(), 3 | (move ? 64 : 0));
+		FluidState fluidState = getFluidState(pos);
+		return setBlockState(pos, fluidState.getBlockState(), 3 | (move ? Block.MOVED : 0));
 	}
 
 	@Override
 	public boolean breakBlock(BlockPos pos, boolean drop, @Nullable Entity breakingEntity, int maxUpdateDepth) {
-		BlockState blockState = this.getBlockState(pos);
+		BlockState blockState = getBlockState(pos);
 		if (blockState.isAir()) {
 			return false;
 		}
-		else {
-			FluidState fluidState = this.getFluidState(pos);
-			if (!(blockState.getBlock() instanceof AbstractFireBlock)) {
-				this.syncWorldEvent(2001, pos, Block.getRawIdFromState(blockState));
-			}
 
-			if (drop) {
-				BlockEntity blockEntity = blockState.hasBlockEntity() ? this.getBlockEntity(pos) : null;
-				Block.dropStacks(blockState, this, pos, blockEntity, breakingEntity, ItemStack.EMPTY);
-			}
-
-			boolean bl = this.setBlockState(pos, fluidState.getBlockState(), 3, maxUpdateDepth);
-			if (bl) {
-				this.emitGameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Emitter.of(breakingEntity, blockState));
-			}
-
-			return bl;
+		FluidState fluidState = getFluidState(pos);
+		if (!(blockState.getBlock() instanceof AbstractFireBlock)) {
+			syncWorldEvent(2001, pos, Block.getRawIdFromState(blockState));
 		}
+
+		if (drop) {
+			BlockEntity blockEntity = blockState.hasBlockEntity() ? getBlockEntity(pos) : null;
+			Block.dropStacks(blockState, this, pos, blockEntity, breakingEntity, ItemStack.EMPTY);
+		}
+
+		boolean broken = setBlockState(pos, fluidState.getBlockState(), 3, maxUpdateDepth);
+		if (broken) {
+			emitGameEvent(GameEvent.BLOCK_DESTROY, pos, GameEvent.Emitter.of(breakingEntity, blockState));
+		}
+
+		return broken;
 	}
 
-	/**
-	 * Добавляет block break particles.
-	 *
-	 * @param pos pos
-	 * @param state state
-	 */
+	/** Воспроизводит визуальные частицы разрушения блока. Реализуется на клиенте. */
 	public void addBlockBreakParticles(BlockPos pos, BlockState state) {
 	}
 
 	public boolean setBlockState(BlockPos pos, BlockState state) {
-		return this.setBlockState(pos, state, 3);
+		return setBlockState(pos, state, 3);
 	}
 
 	public abstract void updateListeners(
-			BlockPos pos,
-			BlockState oldState,
-			BlockState newState,
-			@Block.SetBlockStateFlag int flags
+		BlockPos pos,
+		BlockState oldState,
+		BlockState newState,
+		@Block.SetBlockStateFlag int flags
 	);
 
-	/**
-	 * Schedule block rerender if needed.
-	 *
-	 * @param pos pos
-	 * @param old old
-	 * @param updated updated
-	 */
+	/** Планирует перерендер блока, если визуальное состояние изменилось. Реализуется на клиенте. */
 	public void scheduleBlockRerenderIfNeeded(BlockPos pos, BlockState old, BlockState updated) {
 	}
 
-	/**
-	 * Обновляет neighbors always.
-	 *
-	 * @param pos pos
-	 * @param sourceBlock source block
-	 * @param orientation orientation
-	 */
+	/** Обновляет всех соседей блока без исключений. */
 	public void updateNeighborsAlways(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation) {
 	}
 
 	public void updateNeighborsExcept(
-			BlockPos pos,
-			Block sourceBlock,
-			Direction direction,
-			@Nullable WireOrientation orientation
+		BlockPos pos,
+		Block sourceBlock,
+		Direction direction,
+		@Nullable WireOrientation orientation
 	) {
 	}
 
-	/**
-	 * Обновляет neighbor.
-	 *
-	 * @param pos pos
-	 * @param sourceBlock source block
-	 * @param orientation orientation
-	 */
+	/** Уведомляет конкретного соседа об изменении блока. */
 	public void updateNeighbor(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation) {
 	}
 
 	public void updateNeighbor(
-			BlockState state,
-			BlockPos pos,
-			Block sourceBlock,
-			@Nullable WireOrientation orientation,
-			boolean notify
+		BlockState state,
+		BlockPos pos,
+		Block sourceBlock,
+		@Nullable WireOrientation orientation,
+		boolean notify
 	) {
 	}
 
 	@Override
 	public void replaceWithStateForNeighborUpdate(
-			Direction direction,
-			BlockPos pos,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			@Block.SetBlockStateFlag int flags,
-			int maxUpdateDepth
+		Direction direction,
+		BlockPos pos,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		@Block.SetBlockStateFlag int flags,
+		int maxUpdateDepth
 	) {
-		this.neighborUpdater.replaceWithStateForNeighborUpdate(
-				direction,
-				neighborState,
-				pos,
-				neighborPos,
-				flags,
-				maxUpdateDepth
+		neighborUpdater.replaceWithStateForNeighborUpdate(
+			direction,
+			neighborState,
+			pos,
+			neighborPos,
+			flags,
+			maxUpdateDepth
 		);
 	}
 
+	/**
+	 * Возвращает Y-координату верхнего блока по заданной карте высот.
+	 * Для координат вне горизонтального лимита возвращает уровень моря + 1.
+	 * Для незагруженных чанков возвращает нижнюю границу мира.
+	 */
 	@Override
 	public int getTopY(Heightmap.Type heightmap, int x, int z) {
-		int i;
-		if (x >= -30000000 && z >= -30000000 && x < 30000000 && z < 30000000) {
-			if (this.isChunkLoaded(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z))) {
-				i =
-						this
-								.getChunk(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z))
-								.sampleHeightmap(heightmap, x & 15, z & 15) + 1;
-			}
-			else {
-				i = this.getBottomY();
-			}
-		}
-		else {
-			i = this.getSeaLevel() + 1;
+		if (x < -HORIZONTAL_LIMIT || z < -HORIZONTAL_LIMIT || x >= HORIZONTAL_LIMIT || z >= HORIZONTAL_LIMIT) {
+			return getSeaLevel() + 1;
 		}
 
-		return i;
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+		if (!isChunkLoaded(chunkX, chunkZ)) {
+			return getBottomY();
+		}
+
+		return getChunk(chunkX, chunkZ)
+			.sampleHeightmap(heightmap, x & MAX_LIGHT_LEVEL, z & MAX_LIGHT_LEVEL) + 1;
 	}
 
 	@Override
 	public LightingProvider getLightingProvider() {
-		return this.getChunkManager().getLightingProvider();
+		return getChunkManager().getLightingProvider();
 	}
 
 	@Override
 	public BlockState getBlockState(BlockPos pos) {
-		if (!this.isInGenerationArea(pos)) {
+		if (!isInGenerationArea(pos)) {
 			return Blocks.VOID_AIR.getDefaultState();
 		}
-		else {
-			WorldChunk
-					worldChunk =
-					this.getChunk(
-							ChunkSectionPos.getSectionCoord(pos.getX()),
-							ChunkSectionPos.getSectionCoord(pos.getZ())
-					);
-			return worldChunk.getBlockState(pos);
-		}
+
+		WorldChunk worldChunk = getChunk(
+			ChunkSectionPos.getSectionCoord(pos.getX()),
+			ChunkSectionPos.getSectionCoord(pos.getZ())
+		);
+		return worldChunk.getBlockState(pos);
 	}
 
 	@Override
 	public FluidState getFluidState(BlockPos pos) {
-		if (!this.isInGenerationArea(pos)) {
+		if (!isInGenerationArea(pos)) {
 			return Fluids.EMPTY.getDefaultState();
 		}
-		else {
-			WorldChunk worldChunk = this.getWorldChunk(pos);
-			return worldChunk.getFluidState(pos);
-		}
+
+		return getWorldChunk(pos).getFluidState(pos);
 	}
 
 	public boolean isDay() {
-		return !this.getDimension().hasFixedTime() && this.ambientDarkness < 4;
+		return !getDimension().hasFixedTime() && ambientDarkness < NIGHT_DARKNESS_THRESHOLD;
 	}
 
 	public boolean isNight() {
-		return !this.getDimension().hasFixedTime() && !this.isDay();
+		return !getDimension().hasFixedTime() && !isDay();
 	}
 
 	@Override
 	public void playSound(
-			@Nullable Entity source,
-			BlockPos pos,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		@Nullable Entity source,
+		BlockPos pos,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	) {
-		this.playSound(source, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, sound, category, volume, pitch);
+		playSound(source, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, sound, category, volume, pitch);
 	}
 
 	public abstract void playSound(
-			@Nullable Entity source,
-			double x,
-			double y,
-			double z,
-			RegistryEntry<SoundEvent> sound,
-			SoundCategory category,
-			float volume,
-			float pitch,
-			long seed
+		@Nullable Entity source,
+		double x,
+		double y,
+		double z,
+		RegistryEntry<SoundEvent> sound,
+		SoundCategory category,
+		float volume,
+		float pitch,
+		long seed
 	);
 
 	public void playSound(
-			@Nullable Entity source,
-			double x,
-			double y,
-			double z,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch,
-			long seed
+		@Nullable Entity source,
+		double x,
+		double y,
+		double z,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch,
+		long seed
 	) {
-		this.playSound(source, x, y, z, Registries.SOUND_EVENT.getEntry(sound), category, volume, pitch, seed);
+		playSound(source, x, y, z, Registries.SOUND_EVENT.getEntry(sound), category, volume, pitch, seed);
 	}
 
 	public abstract void playSoundFromEntity(
-			@Nullable Entity source,
-			Entity entity,
-			RegistryEntry<SoundEvent> sound,
-			SoundCategory category,
-			float volume,
-			float pitch,
-			long seed
+		@Nullable Entity source,
+		Entity entity,
+		RegistryEntry<SoundEvent> sound,
+		SoundCategory category,
+		float volume,
+		float pitch,
+		long seed
 	);
 
 	public void playSound(
-			@Nullable Entity source,
-			double x,
-			double y,
-			double z,
-			SoundEvent sound,
-			SoundCategory category
+		@Nullable Entity source,
+		double x,
+		double y,
+		double z,
+		SoundEvent sound,
+		SoundCategory category
 	) {
-		this.playSound(source, x, y, z, sound, category, 1.0F, 1.0F);
+		playSound(source, x, y, z, sound, category, 1.0F, 1.0F);
 	}
 
 	public void playSound(
-			@Nullable Entity source,
-			double x,
-			double y,
-			double z,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		@Nullable Entity source,
+		double x,
+		double y,
+		double z,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	) {
-		this.playSound(source, x, y, z, sound, category, volume, pitch, this.threadSafeRandom.nextLong());
+		playSound(source, x, y, z, sound, category, volume, pitch, threadSafeRandom.nextLong());
 	}
 
 	public void playSound(
-			@Nullable Entity source,
-			double x,
-			double y,
-			double z,
-			RegistryEntry<SoundEvent> sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		@Nullable Entity source,
+		double x,
+		double y,
+		double z,
+		RegistryEntry<SoundEvent> sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	) {
-		this.playSound(source, x, y, z, sound, category, volume, pitch, this.threadSafeRandom.nextLong());
+		playSound(source, x, y, z, sound, category, volume, pitch, threadSafeRandom.nextLong());
 	}
 
 	public void playSoundFromEntity(
-			@Nullable Entity source,
-			Entity entity,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		@Nullable Entity source,
+		Entity entity,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	) {
-		this.playSoundFromEntity(
-				source,
-				entity,
-				Registries.SOUND_EVENT.getEntry(sound),
-				category,
-				volume,
-				pitch,
-				this.threadSafeRandom.nextLong()
+		playSoundFromEntity(
+			source,
+			entity,
+			Registries.SOUND_EVENT.getEntry(sound),
+			category,
+			volume,
+			pitch,
+			threadSafeRandom.nextLong()
 		);
 	}
 
 	public void playSoundAtBlockCenterClient(
-			BlockPos pos,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch,
-			boolean useDistance
+		BlockPos pos,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch,
+		boolean useDistance
 	) {
-		this.playSoundClient(
-				pos.getX() + 0.5,
-				pos.getY() + 0.5,
-				pos.getZ() + 0.5,
-				sound,
-				category,
-				volume,
-				pitch,
-				useDistance
+		playSoundClient(
+			pos.getX() + 0.5,
+			pos.getY() + 0.5,
+			pos.getZ() + 0.5,
+			sound,
+			category,
+			volume,
+			pitch,
+			useDistance
 		);
 	}
 
 	public void playSoundFromEntityClient(
-			Entity entity,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch
+		Entity entity,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch
 	) {
 	}
 
 	public void playSoundClient(
-			double x,
-			double y,
-			double z,
-			SoundEvent sound,
-			SoundCategory category,
-			float volume,
-			float pitch,
-			boolean useDistance
+		double x,
+		double y,
+		double z,
+		SoundEvent sound,
+		SoundCategory category,
+		float volume,
+		float pitch,
+		boolean useDistance
 	) {
 	}
 
-	/**
-	 * Play sound client.
-	 *
-	 * @param sound sound
-	 * @param category category
-	 * @param volume volume
-	 * @param pitch pitch
-	 */
 	public void playSoundClient(SoundEvent sound, SoundCategory category, float volume, float pitch) {
 	}
 
 	@Override
 	public void addParticleClient(
-			ParticleEffect parameters,
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ
+		ParticleEffect parameters,
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ
 	) {
 	}
 
 	public void addParticleClient(
-			ParticleEffect parameters,
-			boolean force,
-			boolean canSpawnOnMinimal,
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ
+		ParticleEffect parameters,
+		boolean force,
+		boolean canSpawnOnMinimal,
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ
 	) {
 	}
 
 	public void addImportantParticleClient(
-			ParticleEffect parameters,
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ
+		ParticleEffect parameters,
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ
 	) {
 	}
 
 	public void addImportantParticleClient(
-			ParticleEffect parameters,
-			boolean force,
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ
+		ParticleEffect parameters,
+		boolean force,
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ
 	) {
 	}
 
 	/**
-	 * Добавляет block entity ticker.
-	 *
-	 * @param ticker ticker
+	 * Добавляет тикер блок-сущности в очередь обработки.
+	 * Если в данный момент идёт итерация по тикерам — помещает в отложенную очередь.
 	 */
 	public void addBlockEntityTicker(BlockEntityTickInvoker ticker) {
-		(this.iteratingTickingBlockEntities ? this.pendingBlockEntityTickers : this.blockEntityTickers).add(ticker);
+		(iteratingTickingBlockEntities ? pendingBlockEntityTickers : blockEntityTickers).add(ticker);
 	}
 
 	/**
-	 * Выполняет тик обновления для block entities.
+	 * Выполняет тик всех зарегистрированных блок-сущностей.
+	 * Удаляет помеченные на удаление тикеры и переносит отложенные в основной список.
 	 */
 	public void tickBlockEntities() {
-		this.iteratingTickingBlockEntities = true;
-		if (!this.pendingBlockEntityTickers.isEmpty()) {
-			this.blockEntityTickers.addAll(this.pendingBlockEntityTickers);
-			this.pendingBlockEntityTickers.clear();
+		iteratingTickingBlockEntities = true;
+		if (!pendingBlockEntityTickers.isEmpty()) {
+			blockEntityTickers.addAll(pendingBlockEntityTickers);
+			pendingBlockEntityTickers.clear();
 		}
 
-		Iterator<BlockEntityTickInvoker> iterator = this.blockEntityTickers.iterator();
-		boolean bl = this.getTickManager().shouldTick();
+		boolean shouldTick = getTickManager().shouldTick();
+		Iterator<BlockEntityTickInvoker> iterator = blockEntityTickers.iterator();
 
 		while (iterator.hasNext()) {
-			BlockEntityTickInvoker blockEntityTickInvoker = iterator.next();
-			if (blockEntityTickInvoker.isRemoved()) {
+			BlockEntityTickInvoker ticker = iterator.next();
+			if (ticker.isRemoved()) {
 				iterator.remove();
-			}
-			else if (bl && this.shouldTickBlockPos(blockEntityTickInvoker.getPos())) {
-				blockEntityTickInvoker.tick();
+			} else if (shouldTick && shouldTickBlockPos(ticker.getPos())) {
+				ticker.tick();
 			}
 		}
 
-		this.iteratingTickingBlockEntities = false;
+		iteratingTickingBlockEntities = false;
 	}
 
 	/**
-	 * Выполняет тик обновления для entity.
-	 *
-	 * @param tickConsumer tick consumer
-	 * @param entity entity
-	 *
-	 * @return void — результат операции
+	 * Выполняет тик сущности через переданный consumer с перехватом ошибок.
+	 * При исключении формирует подробный CrashReport с данными сущности.
 	 */
 	public <T extends Entity> void tickEntity(Consumer<T> tickConsumer, T entity) {
 		try {
 			tickConsumer.accept(entity);
-		}
-		catch (Throwable var6) {
-			CrashReport crashReport = CrashReport.create(var6, "Ticking entity");
-			CrashReportSection crashReportSection = crashReport.addElement("Entity being ticked");
-			entity.populateCrashReport(crashReportSection);
+		} catch (Throwable throwable) {
+			CrashReport crashReport = CrashReport.create(throwable, "Ticking entity");
+			CrashReportSection section = crashReport.addElement("Entity being ticked");
+			entity.populateCrashReport(section);
 			throw new CrashException(crashReport);
 		}
 	}
 
-	/**
-	 * Определяет, следует ли update post death.
-	 *
-	 * @param entity entity
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Определяет, нужно ли обновлять сущность после её смерти. По умолчанию — да. */
 	public boolean shouldUpdatePostDeath(Entity entity) {
 		return true;
 	}
 
-	/**
-	 * Определяет, следует ли tick blocks in chunk.
-	 *
-	 * @param chunkPos chunk pos
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Определяет, нужно ли тикать блоки в чанке по его long-позиции. По умолчанию — да. */
 	public boolean shouldTickBlocksInChunk(long chunkPos) {
 		return true;
 	}
 
-	/**
-	 * Определяет, следует ли tick block pos.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldTickBlockPos(BlockPos pos) {
-		return this.shouldTickBlocksInChunk(ChunkPos.toLong(pos));
+		return shouldTickBlocksInChunk(ChunkPos.toLong(pos));
 	}
 
 	public void createExplosion(
-			@Nullable Entity entity,
-			double x,
-			double y,
-			double z,
-			float power,
-			World.ExplosionSourceType explosionSourceType
+		@Nullable Entity entity,
+		double x,
+		double y,
+		double z,
+		float power,
+		World.ExplosionSourceType explosionSourceType
 	) {
-		this.createExplosion(
-				entity,
-				Explosion.createDamageSource(this, entity),
-				null,
-				x,
-				y,
-				z,
-				power,
-				false,
-				explosionSourceType,
-				ParticleTypes.EXPLOSION,
-				ParticleTypes.EXPLOSION_EMITTER,
-				EXPLOSION_BLOCK_PARTICLES,
-				SoundEvents.ENTITY_GENERIC_EXPLODE
+		createExplosion(
+			entity,
+			Explosion.createDamageSource(this, entity),
+			null,
+			x, y, z,
+			power,
+			false,
+			explosionSourceType,
+			ParticleTypes.EXPLOSION,
+			ParticleTypes.EXPLOSION_EMITTER,
+			EXPLOSION_BLOCK_PARTICLES,
+			SoundEvents.ENTITY_GENERIC_EXPLODE
 		);
 	}
 
 	public void createExplosion(
-			@Nullable Entity entity,
-			double x,
-			double y,
-			double z,
-			float power,
-			boolean createFire,
-			World.ExplosionSourceType explosionSourceType
+		@Nullable Entity entity,
+		double x,
+		double y,
+		double z,
+		float power,
+		boolean createFire,
+		World.ExplosionSourceType explosionSourceType
 	) {
-		this.createExplosion(
-				entity,
-				Explosion.createDamageSource(this, entity),
-				null,
-				x,
-				y,
-				z,
-				power,
-				createFire,
-				explosionSourceType,
-				ParticleTypes.EXPLOSION,
-				ParticleTypes.EXPLOSION_EMITTER,
-				EXPLOSION_BLOCK_PARTICLES,
-				SoundEvents.ENTITY_GENERIC_EXPLODE
+		createExplosion(
+			entity,
+			Explosion.createDamageSource(this, entity),
+			null,
+			x, y, z,
+			power,
+			createFire,
+			explosionSourceType,
+			ParticleTypes.EXPLOSION,
+			ParticleTypes.EXPLOSION_EMITTER,
+			EXPLOSION_BLOCK_PARTICLES,
+			SoundEvents.ENTITY_GENERIC_EXPLODE
 		);
 	}
 
 	public void createExplosion(
-			@Nullable Entity entity,
-			@Nullable DamageSource damageSource,
-			@Nullable ExplosionBehavior behavior,
-			Vec3d pos,
-			float power,
-			boolean createFire,
-			World.ExplosionSourceType explosionSourceType
+		@Nullable Entity entity,
+		@Nullable DamageSource damageSource,
+		@Nullable ExplosionBehavior behavior,
+		Vec3d pos,
+		float power,
+		boolean createFire,
+		World.ExplosionSourceType explosionSourceType
 	) {
-		this.createExplosion(
-				entity,
-				damageSource,
-				behavior,
-				pos.getX(),
-				pos.getY(),
-				pos.getZ(),
-				power,
-				createFire,
-				explosionSourceType,
-				ParticleTypes.EXPLOSION,
-				ParticleTypes.EXPLOSION_EMITTER,
-				EXPLOSION_BLOCK_PARTICLES,
-				SoundEvents.ENTITY_GENERIC_EXPLODE
+		createExplosion(
+			entity,
+			damageSource,
+			behavior,
+			pos.getX(), pos.getY(), pos.getZ(),
+			power,
+			createFire,
+			explosionSourceType,
+			ParticleTypes.EXPLOSION,
+			ParticleTypes.EXPLOSION_EMITTER,
+			EXPLOSION_BLOCK_PARTICLES,
+			SoundEvents.ENTITY_GENERIC_EXPLODE
 		);
 	}
 
 	public void createExplosion(
-			@Nullable Entity entity,
-			@Nullable DamageSource damageSource,
-			@Nullable ExplosionBehavior behavior,
-			double x,
-			double y,
-			double z,
-			float power,
-			boolean createFire,
-			World.ExplosionSourceType explosionSourceType
+		@Nullable Entity entity,
+		@Nullable DamageSource damageSource,
+		@Nullable ExplosionBehavior behavior,
+		double x,
+		double y,
+		double z,
+		float power,
+		boolean createFire,
+		World.ExplosionSourceType explosionSourceType
 	) {
-		this.createExplosion(
-				entity,
-				damageSource,
-				behavior,
-				x,
-				y,
-				z,
-				power,
-				createFire,
-				explosionSourceType,
-				ParticleTypes.EXPLOSION,
-				ParticleTypes.EXPLOSION_EMITTER,
-				EXPLOSION_BLOCK_PARTICLES,
-				SoundEvents.ENTITY_GENERIC_EXPLODE
+		createExplosion(
+			entity,
+			damageSource,
+			behavior,
+			x, y, z,
+			power,
+			createFire,
+			explosionSourceType,
+			ParticleTypes.EXPLOSION,
+			ParticleTypes.EXPLOSION_EMITTER,
+			EXPLOSION_BLOCK_PARTICLES,
+			SoundEvents.ENTITY_GENERIC_EXPLODE
 		);
 	}
 
 	public abstract void createExplosion(
-			@Nullable Entity entity,
-			@Nullable DamageSource damageSource,
-			@Nullable ExplosionBehavior behavior,
-			double x,
-			double y,
-			double z,
-			float power,
-			boolean createFire,
-			World.ExplosionSourceType explosionSourceType,
-			ParticleEffect smallParticle,
-			ParticleEffect largeParticle,
-			Pool<BlockParticleEffect> blockParticles,
-			RegistryEntry<SoundEvent> soundEvent
+		@Nullable Entity entity,
+		@Nullable DamageSource damageSource,
+		@Nullable ExplosionBehavior behavior,
+		double x,
+		double y,
+		double z,
+		float power,
+		boolean createFire,
+		World.ExplosionSourceType explosionSourceType,
+		ParticleEffect smallParticle,
+		ParticleEffect largeParticle,
+		Pool<BlockParticleEffect> blockParticles,
+		RegistryEntry<SoundEvent> soundEvent
 	);
 
-	/**
-	 * As string.
-	 *
-	 * @return String — результат операции
-	 */
 	public abstract String asString();
 
 	@Override
 	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-		if (!this.isInGenerationArea(pos)) {
+		if (!isInGenerationArea(pos)) {
 			return null;
 		}
-		else {
-			return !this.isClient() && Thread.currentThread() != this.thread
-			       ? null
-			       : this.getWorldChunk(pos).getBlockEntity(pos, WorldChunk.CreationType.IMMEDIATE);
+
+		if (!isClient() && Thread.currentThread() != thread) {
+			return null;
 		}
+
+		return getWorldChunk(pos).getBlockEntity(pos, WorldChunk.CreationType.IMMEDIATE);
 	}
 
-	/**
-	 * Добавляет block entity.
-	 *
-	 * @param blockEntity block entity
-	 */
 	public void addBlockEntity(BlockEntity blockEntity) {
 		BlockPos blockPos = blockEntity.getPos();
-		if (this.isInGenerationArea(blockPos)) {
-			this.getWorldChunk(blockPos).addBlockEntity(blockEntity);
+		if (isInGenerationArea(blockPos)) {
+			getWorldChunk(blockPos).addBlockEntity(blockEntity);
 		}
 	}
 
-	/**
-	 * Удаляет block entity.
-	 *
-	 * @param pos pos
-	 */
 	public void removeBlockEntity(BlockPos pos) {
-		if (this.isInGenerationArea(pos)) {
-			this.getWorldChunk(pos).removeBlockEntity(pos);
+		if (isInGenerationArea(pos)) {
+			getWorldChunk(pos).removeBlockEntity(pos);
 		}
 	}
 
 	public boolean isPosLoaded(BlockPos pos) {
-		return !this.isInGenerationArea(pos)
-		       ? false
-		       : this
-		         .getChunkManager()
-		         .isChunkLoaded(
-				         ChunkSectionPos.getSectionCoord(pos.getX()),
-				         ChunkSectionPos.getSectionCoord(pos.getZ())
-		         );
+		return isInGenerationArea(pos)
+			&& getChunkManager().isChunkLoaded(
+				ChunkSectionPos.getSectionCoord(pos.getX()),
+				ChunkSectionPos.getSectionCoord(pos.getZ())
+			);
 	}
 
 	public boolean isDirectionSolid(BlockPos pos, Entity entity, Direction direction) {
-		if (!this.isInGenerationArea(pos)) {
+		if (!isInGenerationArea(pos)) {
 			return false;
 		}
-		else {
-			Chunk
-					chunk =
-					this.getChunk(
-							ChunkSectionPos.getSectionCoord(pos.getX()),
-							ChunkSectionPos.getSectionCoord(pos.getZ()),
-							ChunkStatus.FULL,
-							false
-					);
-			return chunk == null ? false : chunk.getBlockState(pos).isSolidSurface(this, pos, entity, direction);
-		}
+
+		Chunk chunk = getChunk(
+			ChunkSectionPos.getSectionCoord(pos.getX()),
+			ChunkSectionPos.getSectionCoord(pos.getZ()),
+			ChunkStatus.FULL,
+			false
+		);
+		return chunk != null && chunk.getBlockState(pos).isSolidSurface(this, pos, entity, direction);
 	}
 
 	public boolean isTopSolid(BlockPos pos, Entity entity) {
-		return this.isDirectionSolid(pos, entity, Direction.UP);
+		return isDirectionSolid(pos, entity, Direction.UP);
 	}
 
 	/**
-	 * Вычисляет ambient darkness.
+	 * Пересчитывает уровень окружающей темноты на основе атрибута освещённости неба.
+	 * Используется для определения дня/ночи и поведения мобов.
 	 */
 	public void calculateAmbientDarkness() {
-		this.ambientDarkness =
-				(int) (15.0F - this
-						.getEnvironmentAttributes()
-						.getAttributeValue(EnvironmentAttributes.SKY_LIGHT_LEVEL_GAMEPLAY)
-				);
+		ambientDarkness = (int) (15.0F - getEnvironmentAttributes()
+			.getAttributeValue(EnvironmentAttributes.SKY_LIGHT_LEVEL_GAMEPLAY));
 	}
 
 	public void setMobSpawnOptions(boolean spawnMonsters) {
-		this.getChunkManager().setMobSpawnOptions(spawnMonsters);
+		getChunkManager().setMobSpawnOptions(spawnMonsters);
 	}
 
 	public abstract void setSpawnPoint(WorldProperties.SpawnPoint spawnPoint);
 
 	public abstract WorldProperties.SpawnPoint getSpawnPoint();
 
+	/**
+	 * Гарантирует, что точка спавна находится внутри границы мира.
+	 * Если точка за границей — перемещает её к центру границы на поверхность.
+	 */
 	public WorldProperties.SpawnPoint ensureWithinBorder(WorldProperties.SpawnPoint spawnPoint) {
-		WorldBorder worldBorder = this.getWorldBorder();
-		if (!worldBorder.contains(spawnPoint.getPos())) {
-			BlockPos
-					blockPos =
-					this.getTopPosition(
-							Heightmap.Type.MOTION_BLOCKING,
-							BlockPos.ofFloored(worldBorder.getCenterX(), 0.0, worldBorder.getCenterZ())
-					);
-			return WorldProperties.SpawnPoint.create(
-					spawnPoint.getDimension(),
-					blockPos,
-					spawnPoint.yaw(),
-					spawnPoint.pitch()
-			);
-		}
-		else {
+		WorldBorder worldBorder = getWorldBorder();
+		if (worldBorder.contains(spawnPoint.getPos())) {
 			return spawnPoint;
 		}
+
+		BlockPos centerPos = getTopPosition(
+			Heightmap.Type.MOTION_BLOCKING,
+			BlockPos.ofFloored(worldBorder.getCenterX(), 0.0, worldBorder.getCenterZ())
+		);
+		return WorldProperties.SpawnPoint.create(
+			spawnPoint.getDimension(),
+			centerPos,
+			spawnPoint.yaw(),
+			spawnPoint.pitch()
+		);
 	}
 
-	/**
-	 * Инициализирует weather gradients.
-	 */
+	/** Инициализирует градиенты погоды при загрузке мира, если дождь/гроза уже активны. */
 	protected void initWeatherGradients() {
-		if (this.properties.isRaining()) {
-			this.rainGradient = 1.0F;
-			if (this.properties.isThundering()) {
-				this.thunderGradient = 1.0F;
+		if (properties.isRaining()) {
+			rainGradient = 1.0F;
+			if (properties.isThundering()) {
+				thunderGradient = 1.0F;
 			}
 		}
 	}
 
 	@Override
 	public void close() throws IOException {
-		this.getChunkManager().close();
+		getChunkManager().close();
 	}
 
 	@Override
 	public @Nullable BlockView getChunkAsView(int chunkX, int chunkZ) {
-		return this.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+		return getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
 	}
 
 	@Override
 	public List<Entity> getOtherEntities(@Nullable Entity except, Box box, Predicate<? super Entity> predicate) {
 		Profilers.get().visit("getEntities");
-		List<Entity> list = Lists.newArrayList();
-		this.getEntityLookup().forEachIntersects(
-				box, entity -> {
-					if (entity != except && predicate.test(entity)) {
-						list.add(entity);
-					}
+		List<Entity> result = Lists.newArrayList();
+		getEntityLookup().forEachIntersects(
+			box, entity -> {
+				if (entity != except && predicate.test(entity)) {
+					result.add(entity);
 				}
+			}
 		);
 
-		for (EnderDragonPart enderDragonPart : this.getEnderDragonParts()) {
-			if (enderDragonPart != except
-					&& enderDragonPart.owner != except
-					&& predicate.test(enderDragonPart)
-					&& box.intersects(enderDragonPart.getBoundingBox())) {
-				list.add(enderDragonPart);
+		for (EnderDragonPart part : getEnderDragonParts()) {
+			if (part != except
+				&& part.owner != except
+				&& predicate.test(part)
+				&& box.intersects(part.getBoundingBox())
+			) {
+				result.add(part);
 			}
 		}
 
-		return list;
+		return result;
 	}
 
 	@Override
 	public <T extends Entity> List<T> getEntitiesByType(
-			TypeFilter<Entity, T> filter,
-			Box box,
-			Predicate<? super T> predicate
+		TypeFilter<Entity, T> filter,
+		Box box,
+		Predicate<? super T> predicate
 	) {
-		List<T> list = Lists.newArrayList();
-		this.collectEntitiesByType(filter, box, predicate, list);
-		return list;
+		List<T> result = Lists.newArrayList();
+		collectEntitiesByType(filter, box, predicate, result);
+		return result;
 	}
 
 	public <T extends Entity> void collectEntitiesByType(
-			TypeFilter<Entity, T> filter,
-			Box box,
-			Predicate<? super T> predicate,
-			List<? super T> result
+		TypeFilter<Entity, T> filter,
+		Box box,
+		Predicate<? super T> predicate,
+		List<? super T> result
 	) {
-		this.collectEntitiesByType(filter, box, predicate, result, Integer.MAX_VALUE);
+		collectEntitiesByType(filter, box, predicate, result, Integer.MAX_VALUE);
 	}
 
 	public <T extends Entity> void collectEntitiesByType(
-			TypeFilter<Entity, T> filter, Box box, Predicate<? super T> predicate, List<? super T> result, int limit
+		TypeFilter<Entity, T> filter,
+		Box box,
+		Predicate<? super T> predicate,
+		List<? super T> result,
+		int limit
 	) {
 		Profilers.get().visit("getEntities");
-		this.getEntityLookup().forEachIntersects(
-				filter, box, entity -> {
-					if (predicate.test(entity)) {
-						result.add(entity);
-						if (result.size() >= limit) {
-							return LazyIterationConsumer.NextIteration.ABORT;
-						}
+		getEntityLookup().forEachIntersects(
+			filter, box, entity -> {
+				if (predicate.test(entity)) {
+					result.add(entity);
+					if (result.size() >= limit) {
+						return LazyIterationConsumer.NextIteration.ABORT;
 					}
+				}
 
-					if (entity instanceof EnderDragonEntity enderDragonEntity) {
-						for (EnderDragonPart enderDragonPart : enderDragonEntity.getBodyParts()) {
-							T entity2 = filter.downcast(enderDragonPart);
-							if (entity2 != null && predicate.test(entity2)) {
-								result.add(entity2);
-								if (result.size() >= limit) {
-									return LazyIterationConsumer.NextIteration.ABORT;
-								}
+				if (entity instanceof EnderDragonEntity dragon) {
+					for (EnderDragonPart part : dragon.getBodyParts()) {
+						T castPart = filter.downcast(part);
+						if (castPart != null && predicate.test(castPart)) {
+							result.add(castPart);
+							if (result.size() >= limit) {
+								return LazyIterationConsumer.NextIteration.ABORT;
 							}
 						}
 					}
-
-					return LazyIterationConsumer.NextIteration.CONTINUE;
 				}
+
+				return LazyIterationConsumer.NextIteration.CONTINUE;
+			}
 		);
 	}
 
 	public <T extends Entity> boolean hasEntities(
-			TypeFilter<Entity, T> filter,
-			Box box,
-			Predicate<? super T> predicate
+		TypeFilter<Entity, T> filter,
+		Box box,
+		Predicate<? super T> predicate
 	) {
 		Profilers.get().visit("hasEntities");
-		MutableBoolean mutableBoolean = new MutableBoolean();
-		this.getEntityLookup().forEachIntersects(
-				filter, box, entity -> {
-					if (predicate.test(entity)) {
-						mutableBoolean.setTrue();
-						return LazyIterationConsumer.NextIteration.ABORT;
-					}
-					else {
-						if (entity instanceof EnderDragonEntity enderDragonEntity) {
-							for (EnderDragonPart enderDragonPart : enderDragonEntity.getBodyParts()) {
-								T entity2 = filter.downcast(enderDragonPart);
-								if (entity2 != null && predicate.test(entity2)) {
-									mutableBoolean.setTrue();
-									return LazyIterationConsumer.NextIteration.ABORT;
-								}
-							}
-						}
+		MutableBoolean found = new MutableBoolean();
+		getEntityLookup().forEachIntersects(
+			filter, box, entity -> {
+				if (predicate.test(entity)) {
+					found.setTrue();
+					return LazyIterationConsumer.NextIteration.ABORT;
+				}
 
-						return LazyIterationConsumer.NextIteration.CONTINUE;
+				if (entity instanceof EnderDragonEntity dragon) {
+					for (EnderDragonPart part : dragon.getBodyParts()) {
+						T castPart = filter.downcast(part);
+						if (castPart != null && predicate.test(castPart)) {
+							found.setTrue();
+							return LazyIterationConsumer.NextIteration.ABORT;
+						}
 					}
 				}
+
+				return LazyIterationConsumer.NextIteration.CONTINUE;
+			}
 		);
-		return mutableBoolean.isTrue();
+		return found.isTrue();
 	}
 
 	public List<Entity> getCrammedEntities(Entity entity, Box box) {
-		return this.getOtherEntities(entity, box, EntityPredicates.canBePushedBy(entity));
+		return getOtherEntities(entity, box, EntityPredicates.canBePushedBy(entity));
 	}
 
 	public abstract @Nullable Entity getEntityById(int id);
 
 	public @Nullable Entity getEntity(UUID uuid) {
-		return this.getEntityLookup().get(uuid);
+		return getEntityLookup().get(uuid);
 	}
 
 	public @Nullable Entity getEntityAnyDimension(UUID uuid) {
-		return this.getEntity(uuid);
+		return getEntity(uuid);
 	}
 
 	public @Nullable PlayerEntity getPlayerAnyDimension(UUID uuid) {
-		return this.getPlayerByUuid(uuid);
+		return getPlayerByUuid(uuid);
 	}
 
 	public abstract Collection<EnderDragonPart> getEnderDragonParts();
 
-	/**
-	 * Mark dirty.
-	 *
-	 * @param pos pos
-	 */
 	public void markDirty(BlockPos pos) {
-		if (this.isChunkLoaded(pos)) {
-			this.getWorldChunk(pos).markNeedsSaving();
+		if (isChunkLoaded(pos)) {
+			getWorldChunk(pos).markNeedsSaving();
 		}
 	}
 
-	/**
-	 * Загружает block entity.
-	 *
-	 * @param blockEntity block entity
-	 */
+	/** Вызывается при загрузке блок-сущности из NBT. Переопределяется в подклассах при необходимости. */
 	public void loadBlockEntity(BlockEntity blockEntity) {
 	}
 
 	public long getTimeOfDay() {
-		return this.properties.getTimeOfDay();
+		return properties.getTimeOfDay();
 	}
 
-	/**
-	 * Проверяет возможность entity modify at.
-	 *
-	 * @param entity entity
-	 * @param pos pos
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** Проверяет, может ли сущность изменять блоки в данной позиции. По умолчанию — да. */
 	public boolean canEntityModifyAt(Entity entity, BlockPos pos) {
 		return true;
 	}
 
-	/**
-	 * Отправляет entity status.
-	 *
-	 * @param entity entity
-	 * @param status status
-	 */
+	/** Отправляет статусный байт сущности всем наблюдателям. Реализуется на сервере. */
 	public void sendEntityStatus(Entity entity, byte status) {
 	}
 
-	/**
-	 * Отправляет entity damage.
-	 *
-	 * @param entity entity
-	 * @param damageSource damage source
-	 */
+	/** Отправляет информацию об уроне сущности. Реализуется на сервере. */
 	public void sendEntityDamage(Entity entity, DamageSource damageSource) {
 	}
 
-	/**
-	 * Добавляет synced block event.
-	 *
-	 * @param pos pos
-	 * @param block block
-	 * @param type type
-	 * @param data data
-	 */
 	public void addSyncedBlockEvent(BlockPos pos, Block block, int type, int data) {
-		this.getBlockState(pos).onSyncedBlockEvent(this, pos, type, data);
+		getBlockState(pos).onSyncedBlockEvent(this, pos, type, data);
 	}
 
 	@Override
 	public WorldProperties getLevelProperties() {
-		return this.properties;
+		return properties;
 	}
 
 	public abstract TickManager getTickManager();
 
 	public float getThunderGradient(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastThunderGradient, this.thunderGradient) * this.getRainGradient(
-				tickProgress);
+		return MathHelper.lerp(tickProgress, lastThunderGradient, thunderGradient) * getRainGradient(tickProgress);
 	}
 
 	public void setThunderGradient(float thunderGradient) {
-		float f = MathHelper.clamp(thunderGradient, 0.0F, 1.0F);
-		this.lastThunderGradient = f;
-		this.thunderGradient = f;
+		float clamped = MathHelper.clamp(thunderGradient, 0.0F, 1.0F);
+		lastThunderGradient = clamped;
+		this.thunderGradient = clamped;
 	}
 
 	public float getRainGradient(float tickProgress) {
-		return MathHelper.lerp(tickProgress, this.lastRainGradient, this.rainGradient);
+		return MathHelper.lerp(tickProgress, lastRainGradient, rainGradient);
 	}
 
 	public void setRainGradient(float rainGradient) {
-		float f = MathHelper.clamp(rainGradient, 0.0F, 1.0F);
-		this.lastRainGradient = f;
-		this.rainGradient = f;
+		float clamped = MathHelper.clamp(rainGradient, 0.0F, 1.0F);
+		lastRainGradient = clamped;
+		this.rainGradient = clamped;
 	}
 
-	/**
-	 * Проверяет возможность have weather.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
+	/** Проверяет, может ли в данном измерении быть погода (дождь/гроза). */
 	public boolean canHaveWeather() {
-		return this.getDimension().hasSkyLight() && !this.getDimension().hasCeiling() && this.getRegistryKey() != END;
+		return getDimension().hasSkyLight() && !getDimension().hasCeiling() && getRegistryKey() != END;
 	}
 
 	public boolean isThundering() {
-		return this.canHaveWeather() && this.getThunderGradient(1.0F) > 0.9;
+		return canHaveWeather() && getThunderGradient(1.0F) > THUNDER_ACTIVE_THRESHOLD;
 	}
 
 	public boolean isRaining() {
-		return this.canHaveWeather() && this.getRainGradient(1.0F) > 0.2;
+		return canHaveWeather() && getRainGradient(1.0F) > RAIN_ACTIVE_THRESHOLD;
 	}
 
 	public boolean hasRain(BlockPos pos) {
-		return this.getPrecipitation(pos) == Biome.Precipitation.RAIN;
+		return getPrecipitation(pos) == Biome.Precipitation.RAIN;
 	}
 
+	/**
+	 * Определяет тип осадков в данной позиции с учётом погоды, видимости неба и биома.
+	 * Возвращает NONE если нет дождя, небо закрыто или блок выше перекрывает позицию.
+	 */
 	public Biome.Precipitation getPrecipitation(BlockPos pos) {
-		if (!this.isRaining()) {
+		if (!isRaining()) {
 			return Biome.Precipitation.NONE;
 		}
-		else if (!this.isSkyVisible(pos)) {
+
+		if (!isSkyVisible(pos)) {
 			return Biome.Precipitation.NONE;
 		}
-		else if (this.getTopPosition(Heightmap.Type.MOTION_BLOCKING, pos).getY() > pos.getY()) {
+
+		if (getTopPosition(Heightmap.Type.MOTION_BLOCKING, pos).getY() > pos.getY()) {
 			return Biome.Precipitation.NONE;
 		}
-		else {
-			Biome biome = this.getBiome(pos).value();
-			return biome.getPrecipitation(pos, this.getSeaLevel());
-		}
+
+		Biome biome = getBiome(pos).value();
+		return biome.getPrecipitation(pos, getSeaLevel());
 	}
 
 	public abstract @Nullable MapState getMapState(MapIdComponent id);
 
-	/**
-	 * Sync global event.
-	 *
-	 * @param eventId event id
-	 * @param pos pos
-	 * @param data data
-	 */
+	/** Синхронизирует глобальное игровое событие всем игрокам. Реализуется на сервере. */
 	public void syncGlobalEvent(int eventId, BlockPos pos, int data) {
 	}
 
 	/**
-	 * Добавляет details to crash report.
-	 *
-	 * @param report report
-	 *
-	 * @return CrashReportSection — результат операции
+	 * Добавляет подробную информацию о мире в отчёт об ошибке.
+	 * Включает список игроков, статистику чанков и данные измерения.
 	 */
 	public CrashReportSection addDetailsToCrashReport(CrashReport report) {
-		CrashReportSection crashReportSection = report.addElement("Affected level", 1);
-		crashReportSection.add(
-				"All players", () -> {
-					List<? extends PlayerEntity> list = this.getPlayers();
-					return list.size() + " total; " + list
-							.stream()
-							.map(PlayerEntity::asString)
-							.collect(Collectors.joining(", "));
-				}
+		CrashReportSection section = report.addElement("Affected level", 1);
+		section.add(
+			"All players", () -> {
+				List<? extends PlayerEntity> players = getPlayers();
+				return players.size() + " total; " + players
+					.stream()
+					.map(PlayerEntity::asString)
+					.collect(Collectors.joining(", "));
+			}
 		);
-		crashReportSection.add("Chunk stats", this.getChunkManager()::getDebugString);
-		crashReportSection.add("Level dimension", () -> this.getRegistryKey().getValue().toString());
+		section.add("Chunk stats", getChunkManager()::getDebugString);
+		section.add("Level dimension", () -> getRegistryKey().getValue().toString());
 
 		try {
-			this.properties.populateCrashReport(crashReportSection, this);
-		}
-		catch (Throwable var4) {
-			crashReportSection.add("Level Data Unobtainable", var4);
+			properties.populateCrashReport(section, this);
+		} catch (Throwable throwable) {
+			section.add("Level Data Unobtainable", throwable);
 		}
 
-		return crashReportSection;
+		return section;
 	}
 
 	public abstract void setBlockBreakingInfo(int entityId, BlockPos pos, int progress);
 
 	public void addFireworkParticle(
-			double x,
-			double y,
-			double z,
-			double velocityX,
-			double velocityY,
-			double velocityZ,
-			List<FireworkExplosionComponent> explosions
+		double x,
+		double y,
+		double z,
+		double velocityX,
+		double velocityY,
+		double velocityZ,
+		List<FireworkExplosionComponent> explosions
 	) {
 	}
 
 	public abstract Scoreboard getScoreboard();
 
 	/**
-	 * Обновляет comparators.
-	 *
-	 * @param pos pos
-	 * @param block block
+	 * Обновляет компараторы, соседствующие с данной позицией.
+	 * Проверяет как прямых соседей, так и соседей через сплошной блок.
 	 */
 	public void updateComparators(BlockPos pos, Block block) {
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockPos blockPos = pos.offset(direction);
-			if (this.isChunkLoaded(blockPos)) {
-				BlockState blockState = this.getBlockState(blockPos);
-				if (blockState.isOf(Blocks.COMPARATOR)) {
-					this.updateNeighbor(blockState, blockPos, block, null, false);
-				}
-				else if (blockState.isSolidBlock(this, blockPos)) {
-					blockPos = blockPos.offset(direction);
-					blockState = this.getBlockState(blockPos);
-					if (blockState.isOf(Blocks.COMPARATOR)) {
-						this.updateNeighbor(blockState, blockPos, block, null, false);
-					}
+			BlockPos neighborPos = pos.offset(direction);
+			if (!isChunkLoaded(neighborPos)) {
+				continue;
+			}
+
+			BlockState neighborState = getBlockState(neighborPos);
+			if (neighborState.isOf(Blocks.COMPARATOR)) {
+				updateNeighbor(neighborState, neighborPos, block, null, false);
+			} else if (neighborState.isSolidBlock(this, neighborPos)) {
+				BlockPos behindPos = neighborPos.offset(direction);
+				BlockState behindState = getBlockState(behindPos);
+				if (behindState.isOf(Blocks.COMPARATOR)) {
+					updateNeighbor(behindState, behindPos, block, null, false);
 				}
 			}
 		}
@@ -1353,55 +1232,58 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	@Override
 	public int getAmbientDarkness() {
-		return this.ambientDarkness;
+		return ambientDarkness;
 	}
 
 	public void setLightningTicksLeft(int lightningTicksLeft) {
 	}
 
-	/**
-	 * Отправляет packet.
-	 *
-	 * @param packet packet
-	 */
 	public void sendPacket(Packet<?> packet) {
 		throw new UnsupportedOperationException("Can't send packets to server unless you're on the client.");
 	}
 
 	@Override
 	public DimensionType getDimension() {
-		return this.dimensionEntry.value();
+		return dimensionEntry.value();
 	}
 
 	public RegistryEntry<DimensionType> getDimensionEntry() {
-		return this.dimensionEntry;
+		return dimensionEntry;
 	}
 
 	public RegistryKey<World> getRegistryKey() {
-		return this.registryKey;
+		return registryKey;
 	}
 
 	@Override
 	public Random getRandom() {
-		return this.random;
+		return random;
 	}
 
 	@Override
 	public boolean testBlockState(BlockPos pos, Predicate<BlockState> state) {
-		return state.test(this.getBlockState(pos));
+		return state.test(getBlockState(pos));
 	}
 
 	@Override
 	public boolean testFluidState(BlockPos pos, Predicate<FluidState> state) {
-		return state.test(this.getFluidState(pos));
+		return state.test(getFluidState(pos));
 	}
 
 	public abstract RecipeManager getRecipeManager();
 
+	/**
+	 * Возвращает случайную позицию внутри чанка с использованием LCG-генератора.
+	 * Используется для случайных тиков блоков.
+	 */
 	public BlockPos getRandomPosInChunk(int x, int y, int z, int yMask) {
-		this.lcgBlockSeed = this.lcgBlockSeed * 3 + 1013904223;
-		int i = this.lcgBlockSeed >> 2;
-		return new BlockPos(x + (i & 15), y + (i >> 16 & yMask), z + (i >> 8 & 15));
+		lcgBlockSeed = lcgBlockSeed * 3 + lcgBlockSeedIncrement;
+		int seed = lcgBlockSeed >> 2;
+		return new BlockPos(
+			x + (seed & MAX_LIGHT_LEVEL),
+			y + (seed >> 16 & yMask),
+			z + (seed >> 8 & MAX_LIGHT_LEVEL)
+		);
 	}
 
 	public boolean isSavingDisabled() {
@@ -1410,27 +1292,27 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	@Override
 	public BiomeAccess getBiomeAccess() {
-		return this.biomeAccess;
+		return biomeAccess;
 	}
 
 	public final boolean isDebugWorld() {
-		return this.debugWorld;
+		return debugWorld;
 	}
 
 	protected abstract EntityLookup<Entity> getEntityLookup();
 
 	@Override
 	public long getTickOrder() {
-		return this.tickOrder++;
+		return tickOrder++;
 	}
 
 	@Override
 	public DynamicRegistryManager getRegistryManager() {
-		return this.registryManager;
+		return registryManager;
 	}
 
 	public DamageSources getDamageSources() {
-		return this.damageSources;
+		return damageSources;
 	}
 
 	public abstract WorldEnvironmentAttributeAccess getEnvironmentAttributes();
@@ -1444,31 +1326,29 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	}
 
 	public PalettesFactory getPalettesFactory() {
-		return this.palettesFactory;
+		return palettesFactory;
 	}
 
-	/**
-	 * {@code ExplosionSourceType}.
-	 */
-	public static enum ExplosionSourceType implements StringIdentifiable {
+	/** Тип источника взрыва, определяющий поведение разрушения блоков и урона. */
+	public enum ExplosionSourceType implements StringIdentifiable {
 		NONE("none"),
 		BLOCK("block"),
 		MOB("mob"),
 		TNT("tnt"),
 		TRIGGER("trigger");
 
-		public static final Codec<World.ExplosionSourceType>
-				CODEC =
-				StringIdentifiable.createCodec(World.ExplosionSourceType::values);
+		public static final Codec<World.ExplosionSourceType> CODEC =
+			StringIdentifiable.createCodec(World.ExplosionSourceType::values);
+
 		private final String id;
 
-		private ExplosionSourceType(final String id) {
+		ExplosionSourceType(final String id) {
 			this.id = id;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 }

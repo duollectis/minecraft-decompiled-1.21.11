@@ -5,10 +5,11 @@ import net.minecraft.registry.RegistryKey;
 
 import java.util.function.BiConsumer;
 
-@FunctionalInterface
 /**
- * {@code LootTableGenerator}.
+ * Функциональный интерфейс генератора таблиц лута.
+ * Реализации принимают {@link BiConsumer}, которому передают пары ключ реестра → строитель таблицы.
  */
+@FunctionalInterface
 public interface LootTableGenerator {
 
 	void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer);

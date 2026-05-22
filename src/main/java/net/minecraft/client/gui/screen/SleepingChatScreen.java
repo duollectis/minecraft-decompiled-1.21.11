@@ -10,89 +10,89 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SleepingChatScreen}.
+ * Экран чата, отображаемый во время сна персонажа.
+ * Добавляет кнопку прерывания сна и ограничивает ввод при запрете чата.
  */
+@Environment(EnvType.CLIENT)
 public class SleepingChatScreen extends ChatScreen {
+
+	private static final int BUTTON_WIDTH = 200;
+	private static final int BUTTON_HEIGHT = 20;
+	private static final int BUTTON_Y_OFFSET = 40;
 
 	private ButtonWidget stopSleepingButton;
 
-	public SleepingChatScreen(String string, boolean bl) {
-		super(string, bl);
+	public SleepingChatScreen(String string, boolean draft) {
+		super(string, draft);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.stopSleepingButton =
-				ButtonWidget.builder(Text.translatable("multiplayer.stopSleeping"), button -> this.stopSleeping())
-				            .dimensions(this.width / 2 - 100, this.height - 40, 200, 20)
-				            .build();
-		this.addDrawableChild(this.stopSleepingButton);
+		stopSleepingButton = ButtonWidget.builder(Text.translatable("multiplayer.stopSleeping"), button -> stopSleeping())
+			.dimensions(width / 2 - BUTTON_WIDTH / 2, height - BUTTON_Y_OFFSET, BUTTON_WIDTH, BUTTON_HEIGHT)
+			.build();
+		addDrawableChild(stopSleepingButton);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		if (!this.client.getChatRestriction().allowsChat(this.client.isInSingleplayer())) {
-			this.stopSleepingButton.render(context, mouseX, mouseY, deltaTicks);
-		}
-		else {
+		if (client.getChatRestriction().allowsChat(client.isInSingleplayer())) {
 			super.render(context, mouseX, mouseY, deltaTicks);
+			return;
 		}
+
+		stopSleepingButton.render(context, mouseX, mouseY, deltaTicks);
 	}
 
 	@Override
 	public void close() {
-		this.stopSleeping();
+		stopSleeping();
 	}
 
 	@Override
 	public boolean charTyped(CharInput input) {
-		return !this.client.getChatRestriction().allowsChat(this.client.isInSingleplayer()) ? true
-		                                                                                    : super.charTyped(input);
+		return !client.getChatRestriction().allowsChat(client.isInSingleplayer()) || super.charTyped(input);
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
 		if (input.isEscape()) {
-			this.stopSleeping();
+			stopSleeping();
 		}
 
-		if (!this.client.getChatRestriction().allowsChat(this.client.isInSingleplayer())) {
+		if (!client.getChatRestriction().allowsChat(client.isInSingleplayer())) {
 			return true;
 		}
-		else if (input.isEnter()) {
-			this.sendMessage(this.chatField.getText(), true);
-			this.chatField.setText("");
-			this.client.inGameHud.getChatHud().resetScroll();
+
+		if (input.isEnter()) {
+			sendMessage(chatField.getText(), true);
+			chatField.setText("");
+			client.inGameHud.getChatHud().resetScroll();
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
 	private void stopSleeping() {
-		ClientPlayNetworkHandler clientPlayNetworkHandler = this.client.player.networkHandler;
-		clientPlayNetworkHandler.sendPacket(new ClientCommandC2SPacket(
-				this.client.player,
-				ClientCommandC2SPacket.Mode.STOP_SLEEPING
-		));
+		ClientPlayNetworkHandler networkHandler = client.player.networkHandler;
+		networkHandler.sendPacket(new ClientCommandC2SPacket(client.player, ClientCommandC2SPacket.Mode.STOP_SLEEPING));
 	}
 
 	/**
-	 * Закрывает chat if empty.
+	 * Закрывает чат, если поле ввода пустое, или переносит черновик в обычный экран чата.
 	 */
 	public void closeChatIfEmpty() {
-		String string = this.chatField.getText();
-		if (!this.draft && !string.isEmpty()) {
-			this.closeReason = ChatScreen.CloseReason.DONE;
-			this.client.setScreen(new ChatScreen(string, false));
-		}
-		else {
-			this.closeReason = ChatScreen.CloseReason.INTERRUPTED;
-			this.client.setScreen(null);
+		String text = chatField.getText();
+
+		if (!draft && !text.isEmpty()) {
+			closeReason = ChatScreen.CloseReason.DONE;
+			client.setScreen(new ChatScreen(text, false));
+		} else {
+			closeReason = ChatScreen.CloseReason.INTERRUPTED;
+			client.setScreen(null);
 		}
 	}
 }

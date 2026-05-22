@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code ItemRemoveBlockEntityTagFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class ItemRemoveBlockEntityTagFix extends DataFix {
 
@@ -24,22 +24,22 @@ public class ItemRemoveBlockEntityTagFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<?> opticFinder = type.findField("tag");
 		OpticFinder<?> opticFinder2 = opticFinder.type().findField("BlockEntityTag");
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.ENTITY);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.ENTITY);
 		OpticFinder<?> opticFinder3 = DSL.namedChoice(
 				"minecraft:falling_block",
-				this.getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:falling_block")
+				getInputSchema().getChoiceType(TypeReferences.ENTITY, "minecraft:falling_block")
 		);
 		OpticFinder<?> opticFinder4 = opticFinder3.type().findField("TileEntityData");
-		Type<?> type3 = this.getInputSchema().getType(TypeReferences.STRUCTURE);
+		Type<?> type3 = getInputSchema().getType(TypeReferences.STRUCTURE);
 		OpticFinder<?> opticFinder5 = type3.findField("blocks");
 		OpticFinder<?> opticFinder6 = DSL.typeFinder(((ListType) opticFinder5.type()).getElement());
 		OpticFinder<?> opticFinder7 = opticFinder6.type().findField("nbt");
 		OpticFinder<String> opticFinder8 = DSL.fieldFinder("id", IdentifierNormalizingSchema.getIdentifierType());
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"ItemRemoveBlockEntityTagFix",
 						type,
 						typed -> typed.updateTyped(
@@ -48,7 +48,7 @@ public class ItemRemoveBlockEntityTagFix extends DataFix {
 						)
 				),
 				new TypeRewriteRule[]{
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								"FallingBlockEntityRemoveBlockEntityTagFix",
 								type2,
 								typed -> typed.updateTyped(
@@ -61,7 +61,7 @@ public class ItemRemoveBlockEntityTagFix extends DataFix {
 										)
 								)
 						),
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								"StructureRemoveBlockEntityTagFix",
 								type3,
 								typed -> typed.updateTyped(
@@ -74,8 +74,8 @@ public class ItemRemoveBlockEntityTagFix extends DataFix {
 						),
 						this.convertUnchecked(
 								"ItemRemoveBlockEntityTagFix - update block entity type",
-								this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY),
-								this.getOutputSchema().getType(TypeReferences.BLOCK_ENTITY)
+								getInputSchema().getType(TypeReferences.BLOCK_ENTITY),
+								getOutputSchema().getType(TypeReferences.BLOCK_ENTITY)
 						)
 				}
 		);

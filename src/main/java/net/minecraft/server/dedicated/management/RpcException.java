@@ -1,7 +1,7 @@
 package net.minecraft.server.dedicated.management;
 
 /**
- * {@code RpcException}.
+ * Класс Rpc Exception.
  */
 public class RpcException extends RuntimeException {
 

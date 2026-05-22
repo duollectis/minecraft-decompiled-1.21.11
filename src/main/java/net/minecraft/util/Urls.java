@@ -7,7 +7,7 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
- * {@code Urls}.
+ * Константы и утилиты для URL-адресов, используемых в клиенте Minecraft.
  */
 public class Urls {
 
@@ -35,16 +35,32 @@ public class Urls {
 	public static final String INTENTIONAL_GAME_DESIGN_ISSUE_ID = "MCPE-28723";
 	public static final URI INTENTIONAL_GAME_DESIGN_ISSUE = URI.create("https://bugs.mojang.com/browse/MCPE-28723");
 
+	/**
+	 * Формирует URL для продления подписки Realms.
+	 * Если {@code subscriptionId} равен {@code null}, возвращает базовый URL без параметров.
+	 *
+	 * @param subscriptionId идентификатор подписки или {@code null}
+	 * @param uuid           UUID профиля игрока
+	 * @param trial          {@code true}, если подписка была пробной
+	 * @return URL для продления подписки
+	 */
 	public static String getExtendJavaRealmsUrl(@Nullable String subscriptionId, UUID uuid, boolean trial) {
 		return subscriptionId == null
-		       ? "https://aka.ms/ExtendJavaRealms"
-		       : getExtendJavaRealmsUrl(subscriptionId, uuid) + "&ref=" + (trial ? "expiredTrial" : "expiredRealm");
+				? EXTEND_JAVA_REALMS
+				: getExtendJavaRealmsUrl(subscriptionId, uuid) + "&ref=" + (trial ? "expiredTrial" : "expiredRealm");
 	}
 
+	/**
+	 * Формирует URL для продления подписки Realms с параметрами подписки и профиля.
+	 * Если {@code subscriptionId} равен {@code null}, возвращает базовый URL.
+	 *
+	 * @param subscriptionId идентификатор подписки или {@code null}
+	 * @param uuid           UUID профиля игрока
+	 * @return URL для продления подписки
+	 */
 	public static String getExtendJavaRealmsUrl(@Nullable String subscriptionId, UUID uuid) {
 		return subscriptionId == null
-		       ? "https://aka.ms/ExtendJavaRealms"
-		       : "https://aka.ms/ExtendJavaRealms?subscriptionId=" + subscriptionId + "&profileId="
-		         + UndashedUuid.toString(uuid);
+				? EXTEND_JAVA_REALMS
+				: EXTEND_JAVA_REALMS + "?subscriptionId=" + subscriptionId + "&profileId=" + UndashedUuid.toString(uuid);
 	}
 }

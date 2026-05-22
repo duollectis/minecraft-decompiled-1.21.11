@@ -3,10 +3,11 @@ package net.minecraft.client.util.math;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Rect2i}.
+ * Изменяемый прямоугольник в целочисленных координатах экрана.
+ * Поддерживает вычисление пересечения с другим прямоугольником на месте.
  */
+@Environment(EnvType.CLIENT)
 public class Rect2i {
 
 	private int x;
@@ -22,34 +23,29 @@ public class Rect2i {
 	}
 
 	/**
-	 * Intersection.
+	 * Вычисляет пересечение этого прямоугольника с другим, изменяя текущий объект.
 	 *
-	 * @param rect rect
-	 *
-	 * @return Rect2i — результат операции
+	 * @param rect прямоугольник для пересечения
+	 * @return {@code this} для цепочки вызовов
 	 */
 	public Rect2i intersection(Rect2i rect) {
-		int i = this.x;
-		int j = this.y;
-		int k = this.x + this.width;
-		int l = this.y + this.height;
-		int m = rect.getX();
-		int n = rect.getY();
-		int o = m + rect.getWidth();
-		int p = n + rect.getHeight();
-		this.x = Math.max(i, m);
-		this.y = Math.max(j, n);
-		this.width = Math.max(0, Math.min(k, o) - this.x);
-		this.height = Math.max(0, Math.min(l, p) - this.y);
+		int thisRight = x + width;
+		int thisBottom = y + height;
+		int otherRight = rect.getX() + rect.getWidth();
+		int otherBottom = rect.getY() + rect.getHeight();
+		x = Math.max(x, rect.getX());
+		y = Math.max(y, rect.getY());
+		width = Math.max(0, Math.min(thisRight, otherRight) - x);
+		height = Math.max(0, Math.min(thisBottom, otherBottom) - y);
 		return this;
 	}
 
 	public int getX() {
-		return this.x;
+		return x;
 	}
 
 	public int getY() {
-		return this.y;
+		return y;
 	}
 
 	public void setX(int x) {
@@ -61,11 +57,11 @@ public class Rect2i {
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	public void setWidth(int width) {
@@ -81,15 +77,7 @@ public class Rect2i {
 		this.y = y;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param x x
-	 * @param y y
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean contains(int x, int y) {
-		return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
+	public boolean contains(int pointX, int pointY) {
+		return pointX >= x && pointX <= x + width && pointY >= y && pointY <= y + height;
 	}
 }

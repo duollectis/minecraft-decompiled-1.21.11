@@ -29,10 +29,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AtlasDefinitionProvider}.
+ * Провайдер данных для генерации определений атласов текстур.
+ * Создаёт JSON-файлы атласов для всех категорий спрайтов: блоки, предметы,
+ * баннеры, щиты, броня с трим-паттернами и прочие.
  */
+@Environment(EnvType.CLIENT)
 public class AtlasDefinitionProvider implements DataProvider {
 
 	private static final Identifier TRIM_PALETTES_ID = Identifier.ofVanilla("trims/color_palettes/trim_palette");
@@ -163,32 +165,38 @@ public class AtlasDefinitionProvider implements DataProvider {
 		);
 	}
 
+	/**
+	 * Запускает генерацию всех атласов текстур ресурс-пака.
+	 *
+	 * @param writer писатель данных для сохранения результатов
+	 * @return будущее, завершающееся после записи всех атласов
+	 */
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
 		return CompletableFuture.allOf(
-				this.runForAtlas(writer, Atlases.ARMOR_TRIMS, createArmorTrimsAtlasSources()),
-				this.runForAtlas(writer, Atlases.BANNER_PATTERNS, createBannerPatternsAtlasSources()),
-				this.runForAtlas(writer, Atlases.BEDS, createAtlasSources(TexturedRenderLayers.BED_SPRITE_MAPPER)),
-				this.runForAtlas(writer, Atlases.BLOCKS, createBlocksAtlasSources()),
-				this.runForAtlas(writer, Atlases.ITEMS, createItemsAtlasSources()),
-				this.runForAtlas(writer, Atlases.CHESTS, createAtlasSources(TexturedRenderLayers.CHEST_SPRITE_MAPPER)),
-				this.runForAtlas(
+				runForAtlas(writer, Atlases.ARMOR_TRIMS, createArmorTrimsAtlasSources()),
+				runForAtlas(writer, Atlases.BANNER_PATTERNS, createBannerPatternsAtlasSources()),
+				runForAtlas(writer, Atlases.BEDS, createAtlasSources(TexturedRenderLayers.BED_SPRITE_MAPPER)),
+				runForAtlas(writer, Atlases.BLOCKS, createBlocksAtlasSources()),
+				runForAtlas(writer, Atlases.ITEMS, createItemsAtlasSources()),
+				runForAtlas(writer, Atlases.CHESTS, createAtlasSources(TexturedRenderLayers.CHEST_SPRITE_MAPPER)),
+				runForAtlas(
 						writer,
 						Atlases.DECORATED_POT,
 						createAtlasSources(TexturedRenderLayers.DECORATED_POT_SPRITE_MAPPER)
 				),
-				this.runForAtlas(writer, Atlases.GUI, createGuiAtlasSources()),
-				this.runForAtlas(writer, Atlases.MAP_DECORATIONS, createAtlasSources("map/decorations")),
-				this.runForAtlas(writer, Atlases.PAINTINGS, createAtlasSources("painting")),
-				this.runForAtlas(writer, Atlases.PARTICLES, createAtlasSources("particle")),
-				this.runForAtlas(writer, Atlases.SHIELD_PATTERNS, createShieldAtlasSources()),
-				this.runForAtlas(
+				runForAtlas(writer, Atlases.GUI, createGuiAtlasSources()),
+				runForAtlas(writer, Atlases.MAP_DECORATIONS, createAtlasSources("map/decorations")),
+				runForAtlas(writer, Atlases.PAINTINGS, createAtlasSources("painting")),
+				runForAtlas(writer, Atlases.PARTICLES, createAtlasSources("particle")),
+				runForAtlas(writer, Atlases.SHIELD_PATTERNS, createShieldAtlasSources()),
+				runForAtlas(
 						writer,
 						Atlases.SHULKER_BOXES,
 						createAtlasSources(TexturedRenderLayers.SHULKER_SPRITE_MAPPER)
 				),
-				this.runForAtlas(writer, Atlases.SIGNS, createAtlasSources(TexturedRenderLayers.SIGN_SPRITE_MAPPER)),
-				this.runForAtlas(writer, Atlases.CELESTIALS, createAtlasSources("environment/celestial"))
+				runForAtlas(writer, Atlases.SIGNS, createAtlasSources(TexturedRenderLayers.SIGN_SPRITE_MAPPER)),
+				runForAtlas(writer, Atlases.CELESTIALS, createAtlasSources("environment/celestial"))
 		);
 	}
 
@@ -197,7 +205,7 @@ public class AtlasDefinitionProvider implements DataProvider {
 				writer,
 				AtlasSourceManager.LIST_CODEC,
 				atlasSources,
-				this.pathResolver.resolveJson(atlasId)
+				pathResolver.resolveJson(atlasId)
 		);
 	}
 

@@ -8,41 +8,29 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code HasSturdyFacePredicate}.
+ * Предикат, проверяющий наличие прочной грани блока в заданном направлении.
  */
 public class HasSturdyFacePredicate implements BlockPredicate {
 
+	public static final MapCodec<HasSturdyFacePredicate> CODEC = RecordCodecBuilder.mapCodec(
+		instance -> instance.group(
+			Vec3i.createOffsetCodec(16).optionalFieldOf("offset", Vec3i.ZERO).forGetter(p -> p.offset),
+			Direction.CODEC.fieldOf("direction").forGetter(p -> p.face)
+		).apply(instance, HasSturdyFacePredicate::new)
+	);
+
 	private final Vec3i offset;
 	private final Direction face;
-	public static final MapCodec<HasSturdyFacePredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Vec3i
-							                    .createOffsetCodec(16)
-							                    .optionalFieldOf("offset", Vec3i.ZERO)
-							                    .forGetter(predicate -> predicate.offset),
-					                    Direction.CODEC.fieldOf("direction").forGetter(predicate -> predicate.face)
-			                    )
-			                    .apply(instance, HasSturdyFacePredicate::new)
-	);
 
 	public HasSturdyFacePredicate(Vec3i offset, Direction face) {
 		this.offset = offset;
 		this.face = face;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		BlockPos blockPos2 = blockPos.add(this.offset);
-		return structureWorldAccess
-				.getBlockState(blockPos2)
-				.isSideSolidFullSquare(structureWorldAccess, blockPos2, this.face);
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		BlockPos targetPos = pos.add(offset);
+		return world.getBlockState(targetPos).isSideSolidFullSquare(world, targetPos, face);
 	}
 
 	@Override

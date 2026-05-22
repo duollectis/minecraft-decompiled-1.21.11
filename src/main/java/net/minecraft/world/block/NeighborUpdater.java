@@ -73,7 +73,7 @@ public interface NeighborUpdater {
 			int maxUpdateDepth
 	) {
 		BlockState blockState = world.getBlockState(pos);
-		if ((flags & 128) == 0 || !blockState.isOf(Blocks.REDSTONE_WIRE)) {
+		if ((flags & Block.SKIP_REDSTONE_WIRE_STATE_REPLACEMENT) == 0 || !blockState.isOf(Blocks.REDSTONE_WIRE)) {
 			BlockState
 					blockState2 =
 					blockState.getStateForNeighborUpdate(

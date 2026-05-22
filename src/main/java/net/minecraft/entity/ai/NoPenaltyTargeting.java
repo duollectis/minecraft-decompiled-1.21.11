@@ -6,29 +6,33 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NoPenaltyTargeting}.
+ * Утилита поиска позиции без штрафов пути для наземной навигации.
+ * Проверяет высоту, зону цели, валидность навигации и отсутствие штрафов пути.
  */
 public class NoPenaltyTargeting {
 
-	/**
-	 * Find.
-	 *
-	 * @param entity entity
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 *
-	 * @return @Nullable Vec3d — 
-	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+
 		return FuzzyPositions.guessBestPathTarget(
-				entity, () -> {
-					BlockPos blockPos = FuzzyPositions.localFuzz(entity.getRandom(), horizontalRange, verticalRange);
-					return tryMake(entity, horizontalRange, bl, blockPos);
+				entity,
+				() -> {
+					BlockPos fuzzPos = FuzzyPositions.localFuzz(entity.getRandom(), horizontalRange, verticalRange);
+					return tryMake(entity, horizontalRange, posTargetInRange, fuzzPos);
 				}
 		);
 	}
 
+	/**
+	 * Ищет позицию в направлении заданной точки {@code end} без штрафов пути.
+	 *
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус поиска
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param end целевая точка направления
+	 * @param angleRange угол разброса в радианах
+	 * @return лучшая найденная позиция или {@code null}
+	 */
 	public static @Nullable Vec3d findTo(
 			PathAwareEntity entity,
 			int horizontalRange,
@@ -36,50 +40,59 @@ public class NoPenaltyTargeting {
 			Vec3d end,
 			double angleRange
 	) {
-		Vec3d vec3d = end.subtract(entity.getX(), entity.getY(), entity.getZ());
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		Vec3d direction = end.subtract(entity.getX(), entity.getY(), entity.getZ());
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+
 		return FuzzyPositions.guessBestPathTarget(
-				entity, () -> {
-					BlockPos
-							blockPos =
-							FuzzyPositions.localFuzz(
-									entity.getRandom(),
-									0.0,
-									horizontalRange,
-									verticalRange,
-									0,
-									vec3d.x,
-									vec3d.z,
-									angleRange
-							);
-					return blockPos == null ? null : tryMake(entity, horizontalRange, bl, blockPos);
+				entity,
+				() -> {
+					BlockPos fuzzPos = FuzzyPositions.localFuzz(
+							entity.getRandom(),
+							0.0,
+							horizontalRange,
+							verticalRange,
+							0,
+							direction.x,
+							direction.z,
+							angleRange
+					);
+					return fuzzPos == null ? null : tryMake(entity, horizontalRange, posTargetInRange, fuzzPos);
 				}
 		);
 	}
 
+	/**
+	 * Ищет позицию в направлении «от» заданной точки {@code start} без штрафов пути.
+	 *
+	 * @param entity существо-навигатор
+	 * @param horizontalRange горизонтальный радиус поиска
+	 * @param verticalRange вертикальный диапазон поиска
+	 * @param start точка, от которой убегает существо
+	 * @return лучшая найденная позиция или {@code null}
+	 */
 	public static @Nullable Vec3d findFrom(
 			PathAwareEntity entity,
 			int horizontalRange,
 			int verticalRange,
 			Vec3d start
 	) {
-		Vec3d vec3d = entity.getEntityPos().subtract(start);
-		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		Vec3d direction = entity.getEntityPos().subtract(start);
+		boolean posTargetInRange = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+
 		return FuzzyPositions.guessBestPathTarget(
-				entity, () -> {
-					BlockPos
-							blockPos =
-							FuzzyPositions.localFuzz(
-									entity.getRandom(),
-									0.0,
-									horizontalRange,
-									verticalRange,
-									0,
-									vec3d.x,
-									vec3d.z,
-									(float) (Math.PI / 2)
-							);
-					return blockPos == null ? null : tryMake(entity, horizontalRange, bl, blockPos);
+				entity,
+				() -> {
+					BlockPos fuzzPos = FuzzyPositions.localFuzz(
+							entity.getRandom(),
+							0.0,
+							horizontalRange,
+							verticalRange,
+							0,
+							direction.x,
+							direction.z,
+							(float) (Math.PI / 2)
+					);
+					return fuzzPos == null ? null : tryMake(entity, horizontalRange, posTargetInRange, fuzzPos);
 				}
 		);
 	}
@@ -90,12 +103,13 @@ public class NoPenaltyTargeting {
 			boolean posTargetInRange,
 			BlockPos fuzz
 	) {
-		BlockPos blockPos = FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), fuzz);
-		return !NavigationConditions.isHeightInvalid(blockPos, entity)
-				       && !NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, blockPos)
-				       && !NavigationConditions.isInvalidPosition(entity.getNavigation(), blockPos)
-				       && !NavigationConditions.hasPathfindingPenalty(entity, blockPos)
-		       ? blockPos
-		       : null;
+		BlockPos targetPos = FuzzyPositions.towardTarget(entity, horizontalRange, entity.getRandom(), fuzz);
+
+		return NavigationConditions.isHeightInvalid(targetPos, entity)
+				|| NavigationConditions.isPositionTargetOutOfWalkRange(posTargetInRange, entity, targetPos)
+				|| NavigationConditions.isInvalidPosition(entity.getNavigation(), targetPos)
+				|| NavigationConditions.hasPathfindingPenalty(entity, targetPos)
+				? null
+				: targetPos;
 	}
 }

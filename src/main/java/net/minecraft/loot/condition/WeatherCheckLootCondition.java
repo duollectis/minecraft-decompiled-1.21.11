@@ -8,20 +8,17 @@ import net.minecraft.server.world.ServerWorld;
 
 import java.util.Optional;
 
-/**
- * {@code WeatherCheckLootCondition}.
- */
+/** Условие лута: проверяет текущее состояние погоды в мире (дождь и/или гроза). */
 public record WeatherCheckLootCondition(
-		Optional<Boolean> raining,
-		Optional<Boolean> thundering
+	Optional<Boolean> raining,
+	Optional<Boolean> thundering
 ) implements LootCondition {
 
 	public static final MapCodec<WeatherCheckLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.BOOL.optionalFieldOf("raining").forGetter(WeatherCheckLootCondition::raining),
-					                    Codec.BOOL.optionalFieldOf("thundering").forGetter(WeatherCheckLootCondition::thundering)
-			                    )
-			                    .apply(instance, WeatherCheckLootCondition::new)
+		instance -> instance.group(
+			Codec.BOOL.optionalFieldOf("raining").forGetter(WeatherCheckLootCondition::raining),
+			Codec.BOOL.optionalFieldOf("thundering").forGetter(WeatherCheckLootCondition::thundering)
+		).apply(instance, WeatherCheckLootCondition::new)
 	);
 
 	@Override
@@ -29,27 +26,22 @@ public record WeatherCheckLootCondition(
 		return LootConditionTypes.WEATHER_CHECK;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		ServerWorld serverWorld = lootContext.getWorld();
-		return this.raining.isPresent() && this.raining.get() != serverWorld.isRaining()
-		       ? false
-		       : !this.thundering.isPresent() || this.thundering.get() == serverWorld.isThundering();
+		ServerWorld world = lootContext.getWorld();
+
+		if (raining.isPresent() && raining.get() != world.isRaining()) {
+			return false;
+		}
+
+		return thundering.isEmpty() || thundering.get() == world.isThundering();
 	}
 
 	public static WeatherCheckLootCondition.Builder create() {
 		return new WeatherCheckLootCondition.Builder();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель условия проверки погоды. */
 	public static class Builder implements LootCondition.Builder {
 
 		private Optional<Boolean> raining = Optional.empty();
@@ -65,13 +57,9 @@ public record WeatherCheckLootCondition(
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return WeatherCheckLootCondition — результат операции
-		 */
+		@Override
 		public WeatherCheckLootCondition build() {
-			return new WeatherCheckLootCondition(this.raining, this.thundering);
+			return new WeatherCheckLootCondition(raining, thundering);
 		}
 	}
 }

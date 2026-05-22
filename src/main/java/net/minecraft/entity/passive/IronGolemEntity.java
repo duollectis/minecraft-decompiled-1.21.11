@@ -38,7 +38,9 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code IronGolemEntity}.
+ * Железный голем — защитник деревни. Атакует враждебных мобов и игроков,
+ * набравших достаточно отрицательной репутации. Может быть создан игроком
+ * или заспавниться автоматически при достаточном количестве жителей.
  */
 public class IronGolemEntity extends GolemEntity implements Angerable {
 
@@ -142,9 +144,12 @@ public class IronGolemEntity extends GolemEntity implements Angerable {
 		if (this.isPlayerCreated() && type == EntityType.PLAYER) {
 			return false;
 		}
-		else {
-			return type == EntityType.CREEPER ? false : super.canTarget(type);
+
+		if (type == EntityType.CREEPER) {
+			return false;
 		}
+
+		return super.canTarget(type);
 	}
 
 	@Override
@@ -194,33 +199,34 @@ public class IronGolemEntity extends GolemEntity implements Angerable {
 	public boolean tryAttack(ServerWorld world, Entity target) {
 		this.attackTicksLeft = 10;
 		world.sendEntityStatus(this, (byte) 4);
-		float f = this.getAttackDamage();
-		float g = (int) f > 0 ? f / 2.0F + this.random.nextInt((int) f) : f;
+		float baseDamage = this.getAttackDamage();
+		float actualDamage = (int) baseDamage > 0
+				? baseDamage / 2.0F + this.random.nextInt((int) baseDamage)
+				: baseDamage;
 		DamageSource damageSource = this.getDamageSources().mobAttack(this);
-		boolean bl = target.damage(world, damageSource, g);
-		if (bl) {
-			double
-					d =
-					target instanceof LivingEntity livingEntity
-					? livingEntity.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE) : 0.0;
-			double e = Math.max(0.0, 1.0 - d);
-			target.setVelocity(target.getVelocity().add(0.0, 0.4F * e, 0.0));
+		boolean hit = target.damage(world, damageSource, actualDamage);
+		if (hit) {
+			double knockbackResistance = target instanceof LivingEntity livingEntity
+					? livingEntity.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE)
+					: 0.0;
+			double knockbackFactor = Math.max(0.0, 1.0 - knockbackResistance);
+			target.setVelocity(target.getVelocity().add(0.0, 0.4F * knockbackFactor, 0.0));
 			EnchantmentHelper.onTargetDamaged(world, target, damageSource);
 		}
 
 		this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
-		return bl;
+		return hit;
 	}
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
 		Cracks.CrackLevel crackLevel = this.getCrackLevel();
-		boolean bl = super.damage(world, source, amount);
-		if (bl && this.getCrackLevel() != crackLevel) {
+		boolean damaged = super.damage(world, source, amount);
+		if (damaged && this.getCrackLevel() != crackLevel) {
 			this.playSound(SoundEvents.ENTITY_IRON_GOLEM_DAMAGE, 1.0F, 1.0F);
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	public Cracks.CrackLevel getCrackLevel() {
@@ -275,19 +281,17 @@ public class IronGolemEntity extends GolemEntity implements Angerable {
 		if (!itemStack.isOf(Items.IRON_INGOT)) {
 			return ActionResult.PASS;
 		}
-		else {
-			float f = this.getHealth();
-			this.heal(25.0F);
-			if (this.getHealth() == f) {
-				return ActionResult.PASS;
-			}
-			else {
-				float g = 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F;
-				this.playSound(SoundEvents.ENTITY_IRON_GOLEM_REPAIR, 1.0F, g);
-				itemStack.decrementUnlessCreative(1, player);
-				return ActionResult.SUCCESS;
-			}
+
+		float healthBefore = this.getHealth();
+		this.heal(HEALTH_PER_INGOT);
+		if (this.getHealth() == healthBefore) {
+			return ActionResult.PASS;
 		}
+
+		float pitchVariation = 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F;
+		this.playSound(SoundEvents.ENTITY_IRON_GOLEM_REPAIR, 1.0F, pitchVariation);
+		itemStack.decrementUnlessCreative(1, player);
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -304,12 +308,12 @@ public class IronGolemEntity extends GolemEntity implements Angerable {
 	}
 
 	public void setPlayerCreated(boolean playerCreated) {
-		byte b = this.dataTracker.get(IRON_GOLEM_FLAGS);
+		byte flags = this.dataTracker.get(IRON_GOLEM_FLAGS);
 		if (playerCreated) {
-			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (b | 1));
+			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (flags | 1));
 		}
 		else {
-			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (b & -2));
+			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (flags & -2));
 		}
 	}
 
@@ -327,8 +331,8 @@ public class IronGolemEntity extends GolemEntity implements Angerable {
 			return false;
 		}
 		else {
-			for (int i = 1; i < 3; i++) {
-				BlockPos blockPos3 = blockPos.up(i);
+			for (int heightOffset = 1; heightOffset < 3; heightOffset++) {
+				BlockPos blockPos3 = blockPos.up(heightOffset);
 				BlockState blockState2 = world.getBlockState(blockPos3);
 				if (!SpawnHelper.isClearForSpawn(
 						world,

@@ -12,13 +12,14 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.chunk.ChunkCache;
 
 /**
- * {@code PathNodeMaker}.
+ * Базовый класс построителя узлов пути для алгоритма A*.
+ * Управляет кэшем узлов и параметрами навигации существа.
  */
 public abstract class PathNodeMaker {
 
 	protected PathContext context;
 	protected MobEntity entity;
-	protected final Int2ObjectMap<PathNode> pathNodeCache = new Int2ObjectOpenHashMap();
+	protected final Int2ObjectMap<PathNode> pathNodeCache = new Int2ObjectOpenHashMap<>();
 	protected int entityBlockXSize;
 	protected int entityBlockYSize;
 	protected int entityBlockZSize;
@@ -28,51 +29,37 @@ public abstract class PathNodeMaker {
 	protected boolean canWalkOverFences;
 
 	/**
-	 * Init.
-	 *
-	 * @param cachedWorld cached world
-	 * @param entity entity
+	 * Инициализирует построитель для конкретного существа и мира.
+	 * Вычисляет размеры существа в блоках для проверки проходимости.
 	 */
 	public void init(ChunkCache cachedWorld, MobEntity entity) {
-		this.context = new PathContext(cachedWorld, entity);
+		context = new PathContext(cachedWorld, entity);
 		this.entity = entity;
-		this.pathNodeCache.clear();
-		this.entityBlockXSize = MathHelper.floor(entity.getWidth() + 1.0F);
-		this.entityBlockYSize = MathHelper.floor(entity.getHeight() + 1.0F);
-		this.entityBlockZSize = MathHelper.floor(entity.getWidth() + 1.0F);
+		pathNodeCache.clear();
+		entityBlockXSize = MathHelper.floor(entity.getWidth() + 1.0F);
+		entityBlockYSize = MathHelper.floor(entity.getHeight() + 1.0F);
+		entityBlockZSize = MathHelper.floor(entity.getWidth() + 1.0F);
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.context = null;
-		this.entity = null;
+		context = null;
+		entity = null;
 	}
 
 	protected PathNode getNode(BlockPos pos) {
-		return this.getNode(pos.getX(), pos.getY(), pos.getZ());
+		return getNode(pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	protected PathNode getNode(int x, int y, int z) {
-		return (PathNode) this.pathNodeCache.computeIfAbsent(PathNode.hash(x, y, z), l -> new PathNode(x, y, z));
+		return pathNodeCache.computeIfAbsent(PathNode.hash(x, y, z), hash -> new PathNode(x, y, z));
 	}
 
 	public abstract PathNode getStart();
 
 	public abstract TargetPathNode getNode(double x, double y, double z);
 
-	/**
-	 * Создаёт node.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 *
-	 * @return TargetPathNode — результат операции
-	 */
 	protected TargetPathNode createNode(double x, double y, double z) {
-		return new TargetPathNode(this.getNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z)));
+		return new TargetPathNode(getNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z)));
 	}
 
 	public abstract int getSuccessors(PathNode[] successors, PathNode node);
@@ -82,7 +69,7 @@ public abstract class PathNodeMaker {
 	public abstract PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z);
 
 	public PathNodeType getDefaultNodeType(MobEntity entity, BlockPos pos) {
-		return this.getDefaultNodeType(
+		return getDefaultNodeType(
 				new PathContext(entity.getEntityWorld(), entity),
 				pos.getX(),
 				pos.getY(),
@@ -106,40 +93,20 @@ public abstract class PathNodeMaker {
 		this.canWalkOverFences = canWalkOverFences;
 	}
 
-	/**
-	 * Проверяет возможность enter open doors.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canEnterOpenDoors() {
-		return this.canEnterOpenDoors;
+		return canEnterOpenDoors;
 	}
 
-	/**
-	 * Проверяет возможность open doors.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canOpenDoors() {
-		return this.canOpenDoors;
+		return canOpenDoors;
 	}
 
-	/**
-	 * Проверяет возможность swim.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canSwim() {
-		return this.canSwim;
+		return canSwim;
 	}
 
-	/**
-	 * Проверяет возможность walk over fences.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canWalkOverFences() {
-		return this.canWalkOverFences;
+		return canWalkOverFences;
 	}
 
 	public static boolean isFireDamaging(BlockState state) {

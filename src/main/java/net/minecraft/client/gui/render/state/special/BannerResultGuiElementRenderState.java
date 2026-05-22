@@ -8,10 +8,12 @@ import net.minecraft.component.type.BannerPatternsComponent;
 import net.minecraft.util.DyeColor;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BannerResultGuiElementRenderState}.
+ * Состояние результата крафта баннера в GUI ткацкого станка.
+ * Хранит модель флага, базовый цвет и список паттернов для отрисовки итогового баннера.
+ * Масштаб фиксирован на 16 единиц — стандартный размер блока в GUI.
  */
+@Environment(EnvType.CLIENT)
 public record BannerResultGuiElementRenderState(
 		BannerFlagBlockModel flag,
 		DyeColor baseColor,

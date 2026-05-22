@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 public class RealmsPopups {
 
 	private static final int INFO_TEXT_COLOR = 8226750;
-	private static final Text INFO_TEXT = Text.translatable("mco.info").withColor(8226750);
+	private static final Text INFO_TEXT = Text.translatable("mco.info").withColor(INFO_TEXT_COLOR);
 	private static final Text WARNING_TEXT = Text.translatable("mco.warning").withColor(-65536);
 
 	public static PopupScreen createCustomPopup(

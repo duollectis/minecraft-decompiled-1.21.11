@@ -6,27 +6,23 @@ import com.mojang.datafixers.schemas.Schema;
 import java.util.Map;
 
 /**
- * {@code EntityCodSalmonFix}.
+ * Переименовывает устаревшие идентификаторы трески и лосося:
+ * {@code minecraft:cod_mob} → {@code minecraft:cod},
+ * {@code minecraft:salmon_mob} → {@code minecraft:salmon}.
  */
 public class EntityCodSalmonFix extends EntityRenameFix {
 
 	public static final Map<String, String> ENTITIES = ImmutableMap.<String, String>builder()
-	                                                               .put("minecraft:salmon_mob", "minecraft:salmon")
-	                                                               .put("minecraft:cod_mob", "minecraft:cod")
-	                                                               .build();
+			.put("minecraft:salmon_mob", "minecraft:salmon")
+			.put("minecraft:cod_mob", "minecraft:cod")
+			.build();
 	public static final Map<String, String> SPAWN_EGGS = ImmutableMap.<String, String>builder()
-	                                                                 .put(
-			                                                                 "minecraft:salmon_mob_spawn_egg",
-			                                                                 "minecraft:salmon_spawn_egg"
-	                                                                 )
-	                                                                 .put(
-			                                                                 "minecraft:cod_mob_spawn_egg",
-			                                                                 "minecraft:cod_spawn_egg"
-	                                                                 )
-	                                                                 .build();
+			.put("minecraft:salmon_mob_spawn_egg", "minecraft:salmon_spawn_egg")
+			.put("minecraft:cod_mob_spawn_egg", "minecraft:cod_spawn_egg")
+			.build();
 
-	public EntityCodSalmonFix(Schema schema, boolean bl) {
-		super("EntityCodSalmonFix", schema, bl);
+	public EntityCodSalmonFix(Schema schema, boolean changesType) {
+		super("EntityCodSalmonFix", schema, changesType);
 	}
 
 	@Override

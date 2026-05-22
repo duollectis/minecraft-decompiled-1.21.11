@@ -54,7 +54,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code TradeOffers}.
+ * Реестр фабрик торговых предложений для всех профессий жителей деревни.
+ * <p>
+ * Содержит статические карты {@link #PROFESSION_TO_LEVELED_TRADE} и
+ * {@link #REBALANCED_PROFESSION_TO_LEVELED_TRADE}, а также набор внутренних
+ * реализаций {@link Factory} для генерации конкретных предложений.
  */
 public class TradeOffers {
 
@@ -2807,7 +2811,8 @@ public class TradeOffers {
 	}
 
 	/**
-	 * {@code BuyItemFactory}.
+	 * Фабрика сделки «продать предмет жителю за изумруды».
+	 * Житель покупает у игрока указанный предмет.
 	 */
 	public static class BuyItemFactory implements TradeOffers.Factory {
 
@@ -2830,24 +2835,16 @@ public class TradeOffers {
 			this.maxUses = count;
 			this.experience = maxUses;
 			this.price = experience;
-			this.multiplier = 0.05F;
+			multiplier = 0.05F;
 		}
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			return new TradeOffer(
-					this.stack,
-					new ItemStack(Items.EMERALD, this.price),
-					this.maxUses,
-					this.experience,
-					this.multiplier
-			);
+			return new TradeOffer(stack, new ItemStack(Items.EMERALD, price), maxUses, experience, multiplier);
 		}
 	}
 
-	/**
-	 * {@code EmptyFactory}.
-	 */
+	/** Заглушка-фабрика, всегда возвращающая {@code null} (нет предложения). */
 	static class EmptyFactory implements TradeOffers.Factory {
 
 		private EmptyFactory() {
@@ -2860,7 +2857,10 @@ public class TradeOffers {
 	}
 
 	/**
-	 * {@code EnchantBookFactory}.
+	 * Фабрика сделки «купить зачарованную книгу».
+	 * Случайно выбирает зачарование из тега {@code possibleEnchantments} и уровень
+	 * в диапазоне [{@code minLevel}, {@code maxLevel}]. Цена зависит от уровня зачарования;
+	 * зачарования из тега {@link EnchantmentTags#DOUBLE_TRADE_PRICE} стоят вдвое дороже.
 	 */
 	public static class EnchantBookFactory implements TradeOffers.Factory {
 
@@ -2887,53 +2887,55 @@ public class TradeOffers {
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			Optional<RegistryEntry<Enchantment>> optional = world.getRegistryManager()
-			                                                     .getOrThrow(RegistryKeys.ENCHANTMENT)
-			                                                     .getRandomEntry(this.possibleEnchantments, random);
-			int l;
-			ItemStack itemStack;
-			if (!optional.isEmpty()) {
-				RegistryEntry<Enchantment> registryEntry = optional.get();
+			Optional<RegistryEntry<Enchantment>> enchantmentEntry = world.getRegistryManager()
+					.getOrThrow(RegistryKeys.ENCHANTMENT)
+					.getRandomEntry(possibleEnchantments, random);
+
+			int emeraldPrice;
+			ItemStack sellItem;
+
+			if (enchantmentEntry.isPresent()) {
+				RegistryEntry<Enchantment> registryEntry = enchantmentEntry.get();
 				Enchantment enchantment = registryEntry.value();
-				int i = Math.max(enchantment.getMinLevel(), this.minLevel);
-				int j = Math.min(enchantment.getMaxLevel(), this.maxLevel);
-				int k = MathHelper.nextInt(random, i, j);
-				itemStack = EnchantmentHelper.getEnchantedBookWith(new EnchantmentLevelEntry(registryEntry, k));
-				l = 2 + random.nextInt(5 + k * 10) + 3 * k;
+				int effectiveMinLevel = Math.max(enchantment.getMinLevel(), minLevel);
+				int effectiveMaxLevel = Math.min(enchantment.getMaxLevel(), maxLevel);
+				int chosenLevel = MathHelper.nextInt(random, effectiveMinLevel, effectiveMaxLevel);
+				sellItem = EnchantmentHelper.getEnchantedBookWith(new EnchantmentLevelEntry(registryEntry, chosenLevel));
+				emeraldPrice = 2 + random.nextInt(5 + chosenLevel * 10) + 3 * chosenLevel;
+
 				if (registryEntry.isIn(EnchantmentTags.DOUBLE_TRADE_PRICE)) {
-					l *= 2;
+					emeraldPrice *= 2;
 				}
 
-				if (l > 64) {
-					l = 64;
+				if (emeraldPrice > TradeOffer.MAX_EMERALD_PRICE) {
+					emeraldPrice = TradeOffer.MAX_EMERALD_PRICE;
 				}
-			}
-			else {
-				l = 1;
-				itemStack = new ItemStack(Items.BOOK);
+			} else {
+				emeraldPrice = 1;
+				sellItem = new ItemStack(Items.BOOK);
 			}
 
 			return new TradeOffer(
-					new TradedItem(Items.EMERALD, l),
+					new TradedItem(Items.EMERALD, emeraldPrice),
 					Optional.of(new TradedItem(Items.BOOK)),
-					itemStack,
-					12,
-					this.experience,
+					sellItem,
+					TradeOffer.DEFAULT_MAX_USES,
+					experience,
 					0.2F
 			);
 		}
 	}
 
-	/**
-	 * {@code Factory}.
-	 */
+	/** Контракт фабрики торгового предложения. */
 	public interface Factory {
 
 		@Nullable TradeOffer create(ServerWorld world, Entity entity, Random random);
 	}
 
 	/**
-	 * {@code ProcessItemFactory}.
+	 * Фабрика сделки «обработать предмет за изумруды».
+	 * Игрок платит изумрудами и сдаёт предмет ({@code toBeProcessed}), получая обработанный результат.
+	 * Опционально применяет провайдер зачарований к результату.
 	 */
 	public static class ProcessItemFactory implements TradeOffers.Factory {
 
@@ -3011,41 +3013,41 @@ public class TradeOffers {
 				Optional<RegistryKey<EnchantmentProvider>> enchantmentProviderKey
 		) {
 			this.toBeProcessed = toBeProcessed;
-			this.price = count;
+			price = count;
 			this.processed = processed;
 			this.maxUses = maxUses;
-			this.experience = processedCount;
+			experience = processedCount;
 			this.multiplier = multiplier;
 			this.enchantmentProviderKey = enchantmentProviderKey;
 		}
 
 		@Override
 		public @Nullable TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			ItemStack itemStack = this.processed.copy();
-			this.enchantmentProviderKey
-					.ifPresent(
-							key -> EnchantmentHelper.applyEnchantmentProvider(
-									itemStack,
-									world.getRegistryManager(),
-									(RegistryKey<EnchantmentProvider>) key,
-									world.getLocalDifficulty(entity.getBlockPos()),
-									random
-							)
-					);
+			ItemStack result = processed.copy();
+			enchantmentProviderKey.ifPresent(
+					key -> EnchantmentHelper.applyEnchantmentProvider(
+							result,
+							world.getRegistryManager(),
+							key,
+							world.getLocalDifficulty(entity.getBlockPos()),
+							random
+					)
+			);
 			return new TradeOffer(
-					new TradedItem(Items.EMERALD, this.price),
-					Optional.of(this.toBeProcessed),
-					itemStack,
+					new TradedItem(Items.EMERALD, price),
+					Optional.of(toBeProcessed),
+					result,
 					0,
-					this.maxUses,
-					this.experience,
-					this.multiplier
+					maxUses,
+					experience,
+					multiplier
 			);
 		}
 	}
 
 	/**
-	 * {@code SellDyedArmorFactory}.
+	 * Фабрика сделки «купить случайно покрашенную броню».
+	 * Применяет 1–3 случайных цвета краски к предмету брони.
 	 */
 	public static class SellDyedArmorFactory implements TradeOffers.Factory {
 
@@ -3059,7 +3061,7 @@ public class TradeOffers {
 		}
 
 		public SellDyedArmorFactory(Item item, int price, int maxUses, int experience) {
-			this.sell = item;
+			sell = item;
 			this.price = price;
 			this.maxUses = maxUses;
 			this.experience = experience;
@@ -3067,23 +3069,25 @@ public class TradeOffers {
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			TradedItem tradedItem = new TradedItem(Items.EMERALD, this.price);
-			ItemStack itemStack = new ItemStack(this.sell);
-			if (itemStack.isIn(ItemTags.DYEABLE)) {
-				List<DyeItem> list = Lists.newArrayList();
-				list.add(getDye(random));
+			TradedItem buyItem = new TradedItem(Items.EMERALD, price);
+			ItemStack armor = new ItemStack(sell);
+
+			if (armor.isIn(ItemTags.DYEABLE)) {
+				List<DyeItem> dyes = Lists.newArrayList();
+				dyes.add(getDye(random));
+
 				if (random.nextFloat() > 0.7F) {
-					list.add(getDye(random));
+					dyes.add(getDye(random));
 				}
 
 				if (random.nextFloat() > 0.8F) {
-					list.add(getDye(random));
+					dyes.add(getDye(random));
 				}
 
-				itemStack = DyedColorComponent.setColor(itemStack, list);
+				armor = DyedColorComponent.setColor(armor, dyes);
 			}
 
-			return new TradeOffer(tradedItem, itemStack, this.maxUses, this.experience, 0.2F);
+			return new TradeOffer(buyItem, armor, maxUses, experience, 0.2F);
 		}
 
 		private static DyeItem getDye(Random random) {
@@ -3092,7 +3096,9 @@ public class TradeOffers {
 	}
 
 	/**
-	 * {@code SellEnchantedToolFactory}.
+	 * Фабрика сделки «купить случайно зачарованный инструмент».
+	 * Уровень зачарования случаен (5–19), цена зависит от уровня, но не превышает
+	 * {@link TradeOffer#MAX_EMERALD_PRICE}.
 	 */
 	public static class SellEnchantedToolFactory implements TradeOffers.Factory {
 
@@ -3116,29 +3122,31 @@ public class TradeOffers {
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			int i = 5 + random.nextInt(15);
-			DynamicRegistryManager dynamicRegistryManager = world.getRegistryManager();
-			Optional<RegistryEntryList.Named<Enchantment>>
-					optional =
-					dynamicRegistryManager.getOrThrow(RegistryKeys.ENCHANTMENT)
-					                      .getOptional(EnchantmentTags.ON_TRADED_EQUIPMENT);
-			ItemStack
-					itemStack =
-					EnchantmentHelper.enchant(
-							random,
-							new ItemStack(this.tool.getItem()),
-							i,
-							dynamicRegistryManager,
-							optional
-					);
-			int j = Math.min(this.basePrice + i, 64);
-			TradedItem tradedItem = new TradedItem(Items.EMERALD, j);
-			return new TradeOffer(tradedItem, itemStack, this.maxUses, this.experience, this.multiplier);
+			int enchantLevel = 5 + random.nextInt(15);
+			DynamicRegistryManager registryManager = world.getRegistryManager();
+			Optional<RegistryEntryList.Named<Enchantment>> tradedEquipmentTag =
+					registryManager.getOrThrow(RegistryKeys.ENCHANTMENT).getOptional(EnchantmentTags.ON_TRADED_EQUIPMENT);
+			ItemStack enchantedTool = EnchantmentHelper.enchant(
+					random,
+					new ItemStack(tool.getItem()),
+					enchantLevel,
+					registryManager,
+					tradedEquipmentTag
+			);
+			int finalPrice = Math.min(basePrice + enchantLevel, TradeOffer.MAX_EMERALD_PRICE);
+			return new TradeOffer(
+					new TradedItem(Items.EMERALD, finalPrice),
+					enchantedTool,
+					maxUses,
+					experience,
+					multiplier
+			);
 		}
 	}
 
 	/**
-	 * {@code SellItemFactory}.
+	 * Фабрика сделки «купить предмет за изумруды».
+	 * Опционально применяет провайдер зачарований к продаваемому предмету.
 	 */
 	public static class SellItemFactory implements TradeOffers.Factory {
 
@@ -3213,29 +3221,24 @@ public class TradeOffers {
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			ItemStack itemStack = this.sell.copy();
-			this.enchantmentProviderKey
-					.ifPresent(
-							key -> EnchantmentHelper.applyEnchantmentProvider(
-									itemStack,
-									world.getRegistryManager(),
-									(RegistryKey<EnchantmentProvider>) key,
-									world.getLocalDifficulty(entity.getBlockPos()),
-									random
-							)
-					);
-			return new TradeOffer(
-					new TradedItem(Items.EMERALD, this.price),
-					itemStack,
-					this.maxUses,
-					this.experience,
-					this.multiplier
+			ItemStack result = sell.copy();
+			enchantmentProviderKey.ifPresent(
+					key -> EnchantmentHelper.applyEnchantmentProvider(
+							result,
+							world.getRegistryManager(),
+							key,
+							world.getLocalDifficulty(entity.getBlockPos()),
+							random
+					)
 			);
+			return new TradeOffer(new TradedItem(Items.EMERALD, price), result, maxUses, experience, multiplier);
 		}
 	}
 
 	/**
-	 * {@code SellMapFactory}.
+	 * Фабрика сделки «купить карту сокровищ».
+	 * Ищет ближайшую структуру из тега {@code structure} и создаёт карту к ней.
+	 * Возвращает {@code null}, если структура не найдена в радиусе 100 чанков.
 	 */
 	public static class SellMapFactory implements TradeOffers.Factory {
 
@@ -3264,31 +3267,31 @@ public class TradeOffers {
 
 		@Override
 		public @Nullable TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			BlockPos blockPos = world.locateStructure(this.structure, entity.getBlockPos(), 100, true);
-			if (blockPos != null) {
-				ItemStack
-						itemStack =
-						FilledMapItem.createMap(world, blockPos.getX(), blockPos.getZ(), (byte) 2, true, true);
-				FilledMapItem.fillExplorationMap(world, itemStack);
-				MapState.addDecorationsNbt(itemStack, blockPos, "+", this.decoration);
-				itemStack.set(DataComponentTypes.ITEM_NAME, Text.translatable(this.nameKey));
-				return new TradeOffer(
-						new TradedItem(Items.EMERALD, this.price),
-						Optional.of(new TradedItem(Items.COMPASS)),
-						itemStack,
-						this.maxUses,
-						this.experience,
-						0.2F
-				);
-			}
-			else {
+			BlockPos structurePos = world.locateStructure(structure, entity.getBlockPos(), 100, true);
+
+			if (structurePos == null) {
 				return null;
 			}
+
+			ItemStack map = FilledMapItem.createMap(world, structurePos.getX(), structurePos.getZ(), (byte) 2, true, true);
+			FilledMapItem.fillExplorationMap(world, map);
+			MapState.addDecorationsNbt(map, structurePos, "+", decoration);
+			map.set(DataComponentTypes.ITEM_NAME, Text.translatable(nameKey));
+
+			return new TradeOffer(
+					new TradedItem(Items.EMERALD, price),
+					Optional.of(new TradedItem(Items.COMPASS)),
+					map,
+					maxUses,
+					experience,
+					0.2F
+			);
 		}
 	}
 
 	/**
-	 * {@code SellPotionHoldingItemFactory}.
+	 * Фабрика сделки «купить зелье в стрелах».
+	 * Случайно выбирает варимое зелье и создаёт стрелы с этим зельем.
 	 */
 	public static class SellPotionHoldingItemFactory implements TradeOffers.Factory {
 
@@ -3310,42 +3313,39 @@ public class TradeOffers {
 				int maxUses,
 				int experience
 		) {
-			this.sell = new ItemStack(tippedArrow);
+			sell = new ItemStack(tippedArrow);
 			this.price = price;
 			this.maxUses = maxUses;
 			this.experience = experience;
-			this.secondBuy = arrow;
+			secondBuy = arrow;
 			this.secondCount = secondCount;
 			this.sellCount = sellCount;
-			this.priceMultiplier = 0.05F;
+			priceMultiplier = 0.05F;
 		}
 
 		@Override
 		public TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			TradedItem tradedItem = new TradedItem(Items.EMERALD, this.price);
-			List<RegistryEntry<Potion>> list = Registries.POTION
+			List<RegistryEntry<Potion>> brewablePotions = Registries.POTION
 					.streamEntries()
-					.filter(entry -> !entry.value().getEffects().isEmpty() && world
-							.getBrewingRecipeRegistry()
-							.isBrewable(entry))
+					.filter(entry -> !entry.value().getEffects().isEmpty()
+							&& world.getBrewingRecipeRegistry().isBrewable(entry))
 					.collect(Collectors.toList());
-			RegistryEntry<Potion> registryEntry = Util.getRandom(list, random);
-			ItemStack itemStack = new ItemStack(this.sell.getItem(), this.sellCount);
-			itemStack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(registryEntry));
+			RegistryEntry<Potion> chosenPotion = Util.getRandom(brewablePotions, random);
+			ItemStack tippedArrows = new ItemStack(sell.getItem(), sellCount);
+			tippedArrows.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(chosenPotion));
+
 			return new TradeOffer(
-					tradedItem,
-					Optional.of(new TradedItem(this.secondBuy, this.secondCount)),
-					itemStack,
-					this.maxUses,
-					this.experience,
-					this.priceMultiplier
+					new TradedItem(Items.EMERALD, price),
+					Optional.of(new TradedItem(secondBuy, secondCount)),
+					tippedArrows,
+					maxUses,
+					experience,
+					priceMultiplier
 			);
 		}
 	}
 
-	/**
-	 * {@code SellSuspiciousStewFactory}.
-	 */
+	/** Фабрика сделки «купить подозрительное рагу» с заданным эффектом. */
 	public static class SellSuspiciousStewFactory implements TradeOffers.Factory {
 
 		private final SuspiciousStewEffectsComponent stewEffects;
@@ -3354,10 +3354,11 @@ public class TradeOffers {
 
 		public SellSuspiciousStewFactory(RegistryEntry<StatusEffect> effect, int duration, int experience) {
 			this(
-					new SuspiciousStewEffectsComponent(List.of(new SuspiciousStewEffectsComponent.StewEffect(
-							effect,
-							duration
-					))), experience, 0.05F
+					new SuspiciousStewEffectsComponent(
+							List.of(new SuspiciousStewEffectsComponent.StewEffect(effect, duration))
+					),
+					experience,
+					0.05F
 			);
 		}
 
@@ -3369,14 +3370,16 @@ public class TradeOffers {
 
 		@Override
 		public @Nullable TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			ItemStack itemStack = new ItemStack(Items.SUSPICIOUS_STEW, 1);
-			itemStack.set(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, this.stewEffects);
-			return new TradeOffer(new TradedItem(Items.EMERALD), itemStack, 12, this.experience, this.multiplier);
+			ItemStack stew = new ItemStack(Items.SUSPICIOUS_STEW, 1);
+			stew.set(DataComponentTypes.SUSPICIOUS_STEW_EFFECTS, stewEffects);
+			return new TradeOffer(new TradedItem(Items.EMERALD), stew, 12, experience, multiplier);
 		}
 	}
 
 	/**
-	 * {@code TypeAwareBuyForOneEmeraldFactory}.
+	 * Фабрика сделки «продать предмет, зависящий от типа жителя, за один изумруд».
+	 * Каждый тип жителя продаёт свой уникальный предмет (например, разные виды рыбы).
+	 * При создании проверяет, что все типы жителей покрыты картой.
 	 */
 	public static class TypeAwareBuyForOneEmeraldFactory implements TradeOffers.Factory {
 
@@ -3407,62 +3410,58 @@ public class TradeOffers {
 
 		@Override
 		public @Nullable TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			if (entity instanceof VillagerDataContainer villagerDataContainer) {
-				RegistryKey<VillagerType>
-						registryKey =
-						villagerDataContainer.getVillagerData().type().getKey().orElse(null);
-				if (registryKey == null) {
-					return null;
-				}
-				else {
-					TradedItem tradedItem = new TradedItem(this.map.get(registryKey), this.count);
-					return new TradeOffer(
-							tradedItem,
-							new ItemStack(Items.EMERALD),
-							this.maxUses,
-							this.experience,
-							0.05F
-					);
-				}
-			}
-			else {
+			if (!(entity instanceof VillagerDataContainer villager)) {
 				return null;
 			}
+
+			RegistryKey<VillagerType> typeKey = villager.getVillagerData().type().getKey().orElse(null);
+
+			if (typeKey == null) {
+				return null;
+			}
+
+			return new TradeOffer(
+					new TradedItem(map.get(typeKey), count),
+					new ItemStack(Items.EMERALD),
+					maxUses,
+					experience,
+					0.05F
+			);
 		}
 	}
 
 	/**
-	 * {@code TypedWrapperFactory}.
+	 * Фабрика-обёртка, делегирующая создание предложения фабрике, соответствующей
+	 * типу жителя. Используется для предложений, различающихся по биому жителя.
 	 */
-	public record TypedWrapperFactory(Map<RegistryKey<VillagerType>, TradeOffers.Factory> typeToFactory) implements TradeOffers.Factory {
+	public record TypedWrapperFactory(
+			Map<RegistryKey<VillagerType>, TradeOffers.Factory> typeToFactory
+	) implements TradeOffers.Factory {
 
 		@SafeVarargs
 		public static TradeOffers.TypedWrapperFactory of(
 				TradeOffers.Factory factory,
 				RegistryKey<VillagerType>... types
 		) {
-			return new TradeOffers.TypedWrapperFactory(Arrays
-					.stream(types)
-					.collect(Collectors.toMap(registryKey -> registryKey, registryKey -> factory)));
+			return new TradeOffers.TypedWrapperFactory(
+					Arrays.stream(types).collect(Collectors.toMap(key -> key, key -> factory))
+			);
 		}
 
 		@Override
 		public @Nullable TradeOffer create(ServerWorld world, Entity entity, Random random) {
-			if (entity instanceof VillagerDataContainer villagerDataContainer) {
-				RegistryKey<VillagerType>
-						registryKey =
-						villagerDataContainer.getVillagerData().type().getKey().orElse(null);
-				if (registryKey == null) {
-					return null;
-				}
-				else {
-					TradeOffers.Factory factory = this.typeToFactory.get(registryKey);
-					return factory == null ? null : factory.create(world, entity, random);
-				}
-			}
-			else {
+			if (!(entity instanceof VillagerDataContainer villager)) {
 				return null;
 			}
+
+			RegistryKey<VillagerType> typeKey = villager.getVillagerData().type().getKey().orElse(null);
+
+			if (typeKey == null) {
+				return null;
+			}
+
+			TradeOffers.Factory factory = typeToFactory.get(typeKey);
+			return factory == null ? null : factory.create(world, entity, random);
 		}
 	}
 }

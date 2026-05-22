@@ -8,7 +8,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code GiantEntity}.
+ * Гигант — неиспользуемый гигантский зомби.
  */
 public class GiantEntity extends HostileEntity {
 

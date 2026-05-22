@@ -9,7 +9,8 @@ import org.joml.Vector3i;
 import java.util.Arrays;
 
 /**
- * {@code AxisTransformation}.
+ * Перестановка осей X, Y, Z без отражения.
+ * Имена констант кодируют маппинг: P123 = тождественная, P213 = X↔Y и т.д.
  */
 public enum AxisTransformation {
 	P123(0, 1, 2),
@@ -19,118 +20,82 @@ public enum AxisTransformation {
 	P231(1, 2, 0),
 	P321(2, 1, 0);
 
+	private static final AxisTransformation[][] COMBINATIONS = Util.make(() -> {
+		AxisTransformation[] all = values();
+		AxisTransformation[][] table = new AxisTransformation[all.length][all.length];
+
+		for (AxisTransformation a : all) {
+			for (AxisTransformation b : all) {
+				int x = a.map(b.xMapping);
+				int y = a.map(b.yMapping);
+				int z = a.map(b.zMapping);
+				table[a.ordinal()][b.ordinal()] = Arrays.stream(all)
+						.filter(t -> t.xMapping == x && t.yMapping == y && t.zMapping == z)
+						.findFirst()
+						.get();
+			}
+		}
+
+		return table;
+	});
+
+	private static final AxisTransformation[] INVERSE = Util.make(() ->
+			Arrays.stream(values())
+					.map(a -> Arrays.stream(values()).filter(b -> a.prepend(b) == P123).findAny().get())
+					.toArray(AxisTransformation[]::new)
+	);
+
 	private final int xMapping;
 	private final int yMapping;
 	private final int zMapping;
 	private final Matrix3fc matrix;
-	private static final AxisTransformation[][] COMBINATIONS = Util.make(
-			() -> {
-				AxisTransformation[] axisTransformations = values();
-				AxisTransformation[][]
-						axisTransformations2 =
-						new AxisTransformation[axisTransformations.length][axisTransformations.length];
 
-				for (AxisTransformation axisTransformation : axisTransformations) {
-					for (AxisTransformation axisTransformation2 : axisTransformations) {
-						int i = axisTransformation.map(axisTransformation2.xMapping);
-						int j = axisTransformation.map(axisTransformation2.yMapping);
-						int k = axisTransformation.map(axisTransformation2.zMapping);
-						AxisTransformation axisTransformation3 = Arrays.stream(axisTransformations)
-						                                               .filter(transformation ->
-								                                               transformation.xMapping == i
-										                                               && transformation.yMapping == j
-										                                               && transformation.zMapping == k)
-						                                               .findFirst()
-						                                               .get();
-						axisTransformations2[axisTransformation.ordinal()][axisTransformation2.ordinal()] =
-								axisTransformation3;
-					}
-				}
-
-				return axisTransformations2;
-			}
-	);
-	private static final AxisTransformation[] INVERSE = Util.make(
-			() -> {
-				AxisTransformation[] axisTransformations = values();
-				return Arrays.stream(axisTransformations)
-				             .map(a -> Arrays.stream(values()).filter(b -> a.prepend(b) == P123).findAny().get())
-				             .toArray(AxisTransformation[]::new);
-			}
-	);
-
-	private AxisTransformation(final int xMapping, final int yMapping, final int zMapping) {
+	AxisTransformation(int xMapping, int yMapping, int zMapping) {
 		this.xMapping = xMapping;
 		this.yMapping = yMapping;
 		this.zMapping = zMapping;
-		this.matrix =
-				new Matrix3f().zero().set(this.map(0), 0, 1.0F).set(this.map(1), 1, 1.0F).set(this.map(2), 2, 1.0F);
+		matrix = new Matrix3f().zero()
+				.set(map(0), 0, 1.0F)
+				.set(map(1), 1, 1.0F)
+				.set(map(2), 2, 1.0F);
 	}
 
-	/**
-	 * Prepend.
-	 *
-	 * @param transformation transformation
-	 *
-	 * @return AxisTransformation — результат операции
-	 */
 	public AxisTransformation prepend(AxisTransformation transformation) {
-		return COMBINATIONS[this.ordinal()][transformation.ordinal()];
+		return COMBINATIONS[ordinal()][transformation.ordinal()];
 	}
 
 	public AxisTransformation getInverse() {
-		return INVERSE[this.ordinal()];
+		return INVERSE[ordinal()];
 	}
 
-	/**
-	 * Map.
-	 *
-	 * @param axis axis
-	 *
-	 * @return int — результат операции
-	 */
 	public int map(int axis) {
 		return switch (axis) {
-			case 0 -> this.xMapping;
-			case 1 -> this.yMapping;
-			case 2 -> this.zMapping;
+			case 0 -> xMapping;
+			case 1 -> yMapping;
+			case 2 -> zMapping;
 			default -> throw new IllegalArgumentException("Must be 0, 1 or 2, but got " + axis);
 		};
 	}
 
 	public Direction.Axis map(Direction.Axis axis) {
-		return Direction.Axis.VALUES[this.map(axis.ordinal())];
+		return Direction.Axis.VALUES[map(axis.ordinal())];
 	}
 
-	/**
-	 * Map.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vector3f — результат операции
-	 */
 	public Vector3f map(Vector3f vec) {
-		float f = vec.get(this.xMapping);
-		float g = vec.get(this.yMapping);
-		float h = vec.get(this.zMapping);
-		return vec.set(f, g, h);
+		float x = vec.get(xMapping);
+		float y = vec.get(yMapping);
+		float z = vec.get(zMapping);
+		return vec.set(x, y, z);
 	}
 
-	/**
-	 * Map.
-	 *
-	 * @param vec vec
-	 *
-	 * @return Vector3i — результат операции
-	 */
 	public Vector3i map(Vector3i vec) {
-		int i = vec.get(this.xMapping);
-		int j = vec.get(this.yMapping);
-		int k = vec.get(this.zMapping);
-		return vec.set(i, j, k);
+		int x = vec.get(xMapping);
+		int y = vec.get(yMapping);
+		int z = vec.get(zMapping);
+		return vec.set(x, y, z);
 	}
 
 	public Matrix3fc getMatrix() {
-		return this.matrix;
+		return matrix;
 	}
 }

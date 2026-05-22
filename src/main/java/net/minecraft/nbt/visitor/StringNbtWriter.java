@@ -8,7 +8,11 @@ import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 /**
- * {@code StringNbtWriter}.
+ * Сериализует дерево NBT-элементов в компактную SNBT-строку (Stringified NBT).
+ * <p>
+ * Формат вывода соответствует спецификации SNBT: числа с суффиксами типов (b, s, L, f, d),
+ * массивы с префиксами ([B;, [I;, [L;), строки в кавычках при необходимости.
+ * Используется для отладки, сохранения в текстовом виде и передачи по сети.
  */
 public class StringNbtWriter implements NbtElementVisitor {
 
@@ -16,140 +20,145 @@ public class StringNbtWriter implements NbtElementVisitor {
 	private final StringBuilder result = new StringBuilder();
 
 	public String getString() {
-		return this.result.toString();
+		return result.toString();
 	}
 
 	@Override
 	public void visitString(NbtString element) {
-		this.result.append(NbtString.escape(element.value()));
+		result.append(NbtString.escape(element.value()));
 	}
 
 	@Override
 	public void visitByte(NbtByte element) {
-		this.result.append(element.value()).append('b');
+		result.append(element.value()).append('b');
 	}
 
 	@Override
 	public void visitShort(NbtShort element) {
-		this.result.append(element.value()).append('s');
+		result.append(element.value()).append('s');
 	}
 
 	@Override
 	public void visitInt(NbtInt element) {
-		this.result.append(element.value());
+		result.append(element.value());
 	}
 
 	@Override
 	public void visitLong(NbtLong element) {
-		this.result.append(element.value()).append('L');
+		result.append(element.value()).append('L');
 	}
 
 	@Override
 	public void visitFloat(NbtFloat element) {
-		this.result.append(element.value()).append('f');
+		result.append(element.value()).append('f');
 	}
 
 	@Override
 	public void visitDouble(NbtDouble element) {
-		this.result.append(element.value()).append('d');
+		result.append(element.value()).append('d');
 	}
 
 	@Override
 	public void visitByteArray(NbtByteArray element) {
-		this.result.append("[B;");
-		byte[] bs = element.getByteArray();
+		result.append("[B;");
+		byte[] bytes = element.getByteArray();
 
-		for (int i = 0; i < bs.length; i++) {
-			if (i != 0) {
-				this.result.append(',');
+		for (int index = 0; index < bytes.length; index++) {
+			if (index != 0) {
+				result.append(',');
 			}
 
-			this.result.append(bs[i]).append('B');
+			result.append(bytes[index]).append('B');
 		}
 
-		this.result.append(']');
+		result.append(']');
 	}
 
 	@Override
 	public void visitIntArray(NbtIntArray element) {
-		this.result.append("[I;");
-		int[] is = element.getIntArray();
+		result.append("[I;");
+		int[] ints = element.getIntArray();
 
-		for (int i = 0; i < is.length; i++) {
-			if (i != 0) {
-				this.result.append(',');
+		for (int index = 0; index < ints.length; index++) {
+			if (index != 0) {
+				result.append(',');
 			}
 
-			this.result.append(is[i]);
+			result.append(ints[index]);
 		}
 
-		this.result.append(']');
+		result.append(']');
 	}
 
 	@Override
 	public void visitLongArray(NbtLongArray element) {
-		this.result.append("[L;");
-		long[] ls = element.getLongArray();
+		result.append("[L;");
+		long[] longs = element.getLongArray();
 
-		for (int i = 0; i < ls.length; i++) {
-			if (i != 0) {
-				this.result.append(',');
+		for (int index = 0; index < longs.length; index++) {
+			if (index != 0) {
+				result.append(',');
 			}
 
-			this.result.append(ls[i]).append('L');
+			result.append(longs[index]).append('L');
 		}
 
-		this.result.append(']');
+		result.append(']');
 	}
 
 	@Override
 	public void visitList(NbtList element) {
-		this.result.append('[');
+		result.append('[');
 
-		for (int i = 0; i < element.size(); i++) {
-			if (i != 0) {
-				this.result.append(',');
+		for (int index = 0; index < element.size(); index++) {
+			if (index != 0) {
+				result.append(',');
 			}
 
-			element.get(i).accept(this);
+			element.get(index).accept(this);
 		}
 
-		this.result.append(']');
+		result.append(']');
 	}
 
 	@Override
 	public void visitCompound(NbtCompound compound) {
-		this.result.append('{');
-		List<Entry<String, NbtElement>> list = new ArrayList<>(compound.entrySet());
-		list.sort(Entry.comparingByKey());
+		result.append('{');
+		List<Entry<String, NbtElement>> entries = new ArrayList<>(compound.entrySet());
+		entries.sort(Entry.comparingByKey());
 
-		for (int i = 0; i < list.size(); i++) {
-			Entry<String, NbtElement> entry = list.get(i);
-			if (i != 0) {
-				this.result.append(',');
+		for (int index = 0; index < entries.size(); index++) {
+			Entry<String, NbtElement> entry = entries.get(index);
+			if (index != 0) {
+				result.append(',');
 			}
 
-			this.append(entry.getKey());
-			this.result.append(':');
+			appendKey(entry.getKey());
+			result.append(':');
 			entry.getValue().accept(this);
 		}
 
-		this.result.append('}');
+		result.append('}');
 	}
 
-	private void append(String string) {
-		if (!string.equalsIgnoreCase("true") && !string.equalsIgnoreCase("false") && QUOTATION_UNNECESSARY_PATTERN
-				.matcher(string)
-				.matches()) {
-			this.result.append(string);
+	/**
+	 * Добавляет ключ в результат, экранируя его при необходимости.
+	 * Ключи, совпадающие с булевыми литералами или содержащие спецсимволы, берутся в кавычки.
+	 */
+	private void appendKey(String key) {
+		if (!key.equalsIgnoreCase("true")
+			&& !key.equalsIgnoreCase("false")
+			&& QUOTATION_UNNECESSARY_PATTERN.matcher(key).matches()
+		) {
+			result.append(key);
 		}
 		else {
-			NbtString.appendEscaped(string, this.result);
+			NbtString.appendEscaped(key, result);
 		}
 	}
 
 	@Override
 	public void visitEnd(NbtEnd element) {
-		this.result.append("END");
+		result.append("END");
 	}
 }

@@ -12,11 +12,14 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TridentModelRenderer}.
+ * Рендерер трезубца как предмета инвентаря.
+ * Переворачивает модель по осям Y и Z для корректного отображения в руке.
  */
+@Environment(EnvType.CLIENT)
 public class TridentModelRenderer implements SimpleSpecialModelRenderer {
+
+	private static final int NO_TINT = -1;
 
 	private final TridentEntityModel model;
 
@@ -32,42 +35,41 @@ public class TridentModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
 		matrices.push();
 		matrices.scale(1.0F, -1.0F, -1.0F);
 		queue.submitModelPart(
-				this.model.getRootPart(),
+				model.getRootPart(),
 				matrices,
-				this.model.getLayer(TridentEntityModel.TEXTURE),
+				model.getLayer(TridentEntityModel.TEXTURE),
 				light,
 				overlay,
 				null,
 				false,
 				glint,
-				-1,
+				NO_TINT,
 				null,
-				i
+				seed
 		);
 		matrices.pop();
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		matrixStack.scale(1.0F, -1.0F, -1.0F);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		matrices.scale(1.0F, -1.0F, -1.0F);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованный дескриптор рендерера трезубца.
+	 * Не требует параметров — модель берётся из {@code EntityModelLayers.TRIDENT}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked() implements SpecialModelRenderer.Unbaked {
 
-		public static final MapCodec<TridentModelRenderer.Unbaked>
-				CODEC =
-				MapCodec.unit(new TridentModelRenderer.Unbaked());
+		public static final MapCodec<TridentModelRenderer.Unbaked> CODEC = MapCodec.unit(new TridentModelRenderer.Unbaked());
 
 		@Override
 		public MapCodec<TridentModelRenderer.Unbaked> getCodec() {
@@ -76,9 +78,9 @@ public class TridentModelRenderer implements SimpleSpecialModelRenderer {
 
 		@Override
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			return new TridentModelRenderer(new TridentEntityModel(context
-					.entityModelSet()
-					.getModelPart(EntityModelLayers.TRIDENT)));
+			return new TridentModelRenderer(
+					new TridentEntityModel(context.entityModelSet().getModelPart(EntityModelLayers.TRIDENT))
+			);
 		}
 	}
 }

@@ -4,10 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphProvider}.
+ * Провайдер запечённых глифов для рендеринга текста.
+ * Предоставляет глиф по кодовой точке и случайный глиф для обфускации.
  */
+@Environment(EnvType.CLIENT)
 public interface GlyphProvider {
 
 	BakedGlyph get(int codePoint);

@@ -22,7 +22,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code GlowSquidEntity}.
+ * Светящийся кальмар — подводная разновидность кальмара.
+ * При получении урона временно гаснет (тикает {@code DARK_TICKS_REMAINING}),
+ * испуская частицы чернил вместо обычных.
  */
 public class GlowSquidEntity extends SquidEntity {
 
@@ -86,9 +88,9 @@ public class GlowSquidEntity extends SquidEntity {
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		int i = this.getDarkTicksRemaining();
-		if (i > 0) {
-			this.setDarkTicksRemaining(i - 1);
+		int darkTicks = this.getDarkTicksRemaining();
+		if (darkTicks > 0) {
+			this.setDarkTicksRemaining(darkTicks - 1);
 		}
 
 		this
@@ -106,12 +108,12 @@ public class GlowSquidEntity extends SquidEntity {
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		boolean bl = super.damage(world, source, amount);
-		if (bl) {
+		boolean damaged = super.damage(world, source, amount);
+		if (damaged) {
 			this.setDarkTicksRemaining(100);
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	private void setDarkTicksRemaining(int ticks) {

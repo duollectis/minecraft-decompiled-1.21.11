@@ -22,69 +22,61 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code BiomeParametersProvider}.
+ * Провайдер данных для генерации отчётов о параметрах биомов.
+ * Создаёт JSON-файлы в {@code reports/biome_parameters/} для каждого пресета
+ * {@link MultiNoiseBiomeSourceParameterList}.
  */
 public class BiomeParametersProvider implements DataProvider {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private final Path path;
-	private final CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture;
-	private static final MapCodec<RegistryKey<Biome>>
-			BIOME_KEY_CODEC =
+
+	private static final MapCodec<RegistryKey<Biome>> BIOME_KEY_CODEC =
 			RegistryKey.createCodec(RegistryKeys.BIOME).fieldOf("biome");
-	private static final Codec<MultiNoiseUtil.Entries<RegistryKey<Biome>>>
-			BIOME_ENTRY_CODEC =
-			MultiNoiseUtil.Entries.createCodec(BIOME_KEY_CODEC)
-			                      .fieldOf("biomes")
-			                      .codec();
+
+	private static final Codec<MultiNoiseUtil.Entries<RegistryKey<Biome>>> BIOME_ENTRY_CODEC =
+			MultiNoiseUtil.Entries.createCodec(BIOME_KEY_CODEC).fieldOf("biomes").codec();
+
+	private final Path basePath;
+	private final CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture;
 
 	public BiomeParametersProvider(
 			DataOutput output,
 			CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture
 	) {
-		this.path = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("biome_parameters");
+		this.basePath = output.resolvePath(DataOutput.OutputType.REPORTS).resolve("biome_parameters");
 		this.registriesFuture = registriesFuture;
 	}
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		return this.registriesFuture
-				.thenCompose(
-						registries -> {
-							DynamicOps<JsonElement> dynamicOps = registries.getOps(JsonOps.INSTANCE);
-							List<CompletableFuture<?>> list = new ArrayList<>();
-							MultiNoiseBiomeSourceParameterList.getPresetToEntriesMap()
-							                                  .forEach((preset, entries) -> list.add(write(
-									                                  this.resolvePath(preset.id()),
-									                                  writer,
-									                                  dynamicOps,
-									                                  BIOME_ENTRY_CODEC,
-									                                  entries
-							                                  )));
-							return CompletableFuture.allOf(list.toArray(CompletableFuture[]::new));
-						}
-				);
+		return registriesFuture.thenCompose(registries -> {
+			DynamicOps<JsonElement> ops = registries.getOps(JsonOps.INSTANCE);
+			List<CompletableFuture<?>> futures = new ArrayList<>();
+
+			MultiNoiseBiomeSourceParameterList.getPresetToEntriesMap().forEach((preset, entries) ->
+					futures.add(writeEntries(resolvePath(preset.id()), writer, ops, BIOME_ENTRY_CODEC, entries))
+			);
+
+			return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+		});
 	}
 
-	private static <E> CompletableFuture<?> write(
+	private static <E> CompletableFuture<?> writeEntries(
 			Path path,
 			DataWriter writer,
 			DynamicOps<JsonElement> ops,
-			Encoder<E> codec,
-			E biomeSource
+			Encoder<E> encoder,
+			E value
 	) {
-		Optional<JsonElement> optional = codec.encodeStart(ops, biomeSource)
-		                                      .resultOrPartial(error -> LOGGER.error(
-				                                      "Couldn't serialize element {}: {}",
-				                                      path,
-				                                      error
-		                                      ));
-		return optional.isPresent() ? DataProvider.writeToPath(writer, optional.get(), path)
-		                            : CompletableFuture.completedFuture(null);
+		Optional<JsonElement> encoded = encoder.encodeStart(ops, value)
+				.resultOrPartial(error -> LOGGER.error("Couldn't serialize element {}: {}", path, error));
+		return encoded.isPresent()
+				? DataProvider.writeToPath(writer, encoded.get(), path)
+				: CompletableFuture.completedFuture(null);
 	}
 
 	private Path resolvePath(Identifier id) {
-		return this.path.resolve(id.getNamespace()).resolve(id.getPath() + ".json");
+		return basePath.resolve(id.getNamespace()).resolve(id.getPath() + ".json");
 	}
 
 	@Override

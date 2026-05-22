@@ -14,9 +14,16 @@ import java.util.EnumSet;
 import java.util.function.Predicate;
 
 /**
- * {@code FleeEntityGoal}.
+ * Цель побега от сущностей заданного класса.
+ * Ищет безопасную позицию подальше от угрозы и бежит к ней,
+ * ускоряясь при сближении с преследователем.
  */
 public class FleeEntityGoal<T extends LivingEntity> extends Goal {
+
+	private static final double FLEE_SEARCH_HEIGHT = 3.0;
+	private static final int FLEE_SEARCH_HORIZONTAL = 16;
+	private static final int FLEE_SEARCH_VERTICAL = 7;
+	private static final double FAST_SPEED_THRESHOLD_SQ = 49.0;
 
 	protected final PathAwareEntity mob;
 	private final double slowSpeed;
@@ -65,90 +72,75 @@ public class FleeEntityGoal<T extends LivingEntity> extends Goal {
 		this.fastSpeed = fastSpeed;
 		this.inclusionSelector = inclusionSelector;
 		this.fleeingEntityNavigation = mob.getNavigation();
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 		this.withinRangePredicate = TargetPredicate.createAttackable()
-		                                           .setBaseMaxDistance(distance)
-		                                           .setPredicate((entity, world) -> inclusionSelector.test(entity)
-				                                           && extraInclusionSelector.test(entity));
+				.setBaseMaxDistance(distance)
+				.setPredicate((entity, world) -> inclusionSelector.test(entity) && extraInclusionSelector.test(entity));
 	}
 
 	public FleeEntityGoal(
-			PathAwareEntity fleeingEntity,
+			PathAwareEntity mob,
 			Class<T> classToFleeFrom,
 			float fleeDistance,
-			double fleeSlowSpeed,
-			double fleeFastSpeed,
+			double slowSpeed,
+			double fastSpeed,
 			Predicate<? super LivingEntity> inclusionSelector
 	) {
-		this(
-				fleeingEntity,
-				classToFleeFrom,
-				entity -> true,
-				fleeDistance,
-				fleeSlowSpeed,
-				fleeFastSpeed,
-				inclusionSelector
-		);
+		this(mob, classToFleeFrom, entity -> true, fleeDistance, slowSpeed, fastSpeed, inclusionSelector);
 	}
 
 	@Override
 	public boolean canStart() {
-		this.targetEntity = getServerWorld(this.mob)
-				.getClosestEntity(
-						this.mob
-								.getEntityWorld()
-								.getEntitiesByClass(
-										this.classToFleeFrom,
-										this.mob.getBoundingBox().expand(this.fleeDistance, 3.0, this.fleeDistance),
-										livingEntity -> true
-								),
-						this.withinRangePredicate,
-						this.mob,
-						this.mob.getX(),
-						this.mob.getY(),
-						this.mob.getZ()
-				);
-		if (this.targetEntity == null) {
+		targetEntity = getServerWorld(mob).getClosestEntity(
+				mob.getEntityWorld().getEntitiesByClass(
+						classToFleeFrom,
+						mob.getBoundingBox().expand(fleeDistance, FLEE_SEARCH_HEIGHT, fleeDistance),
+						livingEntity -> true
+				),
+				withinRangePredicate,
+				mob,
+				mob.getX(),
+				mob.getY(),
+				mob.getZ()
+		);
+
+		if (targetEntity == null) {
 			return false;
 		}
-		else {
-			Vec3d vec3d = NoPenaltyTargeting.findFrom(this.mob, 16, 7, this.targetEntity.getEntityPos());
-			if (vec3d == null) {
-				return false;
-			}
-			else if (this.targetEntity.squaredDistanceTo(vec3d.x, vec3d.y, vec3d.z)
-					< this.targetEntity.squaredDistanceTo(this.mob)) {
-				return false;
-			}
-			else {
-				this.fleePath = this.fleeingEntityNavigation.findPathTo(vec3d.x, vec3d.y, vec3d.z, 0);
-				return this.fleePath != null;
-			}
+
+		Vec3d fleeTarget = NoPenaltyTargeting.findFrom(mob, FLEE_SEARCH_HORIZONTAL, FLEE_SEARCH_VERTICAL, targetEntity.getEntityPos());
+
+		if (fleeTarget == null) {
+			return false;
 		}
+
+		if (targetEntity.squaredDistanceTo(fleeTarget.x, fleeTarget.y, fleeTarget.z)
+				< targetEntity.squaredDistanceTo(mob)) {
+			return false;
+		}
+
+		fleePath = fleeingEntityNavigation.findPathTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, 0);
+		return fleePath != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.fleeingEntityNavigation.isIdle();
+		return !fleeingEntityNavigation.isIdle();
 	}
 
 	@Override
 	public void start() {
-		this.fleeingEntityNavigation.startMovingAlong(this.fleePath, this.slowSpeed);
+		fleeingEntityNavigation.startMovingAlong(fleePath, slowSpeed);
 	}
 
 	@Override
 	public void stop() {
-		this.targetEntity = null;
+		targetEntity = null;
 	}
 
 	@Override
 	public void tick() {
-		if (this.mob.squaredDistanceTo(this.targetEntity) < 49.0) {
-			this.mob.getNavigation().setSpeed(this.fastSpeed);
-		}
-		else {
-			this.mob.getNavigation().setSpeed(this.slowSpeed);
-		}
+		double speed = mob.squaredDistanceTo(targetEntity) < FAST_SPEED_THRESHOLD_SQ ? fastSpeed : slowSpeed;
+		mob.getNavigation().setSpeed(speed);
 	}
 }

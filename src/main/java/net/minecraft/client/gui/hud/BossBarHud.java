@@ -17,10 +17,10 @@ import net.minecraft.util.profiler.Profilers;
 import java.util.Map;
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BossBarHud}.
+ * HUD-компонент для отображения полосок здоровья боссов в верхней части экрана.
  */
+@Environment(EnvType.CLIENT)
 public class BossBarHud {
 
 	private static final int WIDTH = 182;
@@ -58,91 +58,98 @@ public class BossBarHud {
 	private final MinecraftClient client;
 	final Map<UUID, ClientBossBar> bossBars = Maps.newLinkedHashMap();
 
+	private static final int BAR_X_OFFSET = 91;
+	private static final int BAR_Y_START = 12;
+	private static final int BAR_Y_STEP = 19;
+	private static final int TEXT_HEIGHT = 9;
+	private static final int MAX_HEIGHT_DIVISOR = 3;
+	private static final int COLOR_WHITE = -1;
+
 	public BossBarHud(MinecraftClient client) {
 		this.client = client;
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param context context
-	 */
 	public void render(DrawContext context) {
-		if (!this.bossBars.isEmpty()) {
-			context.createNewRootLayer();
-			Profiler profiler = Profilers.get();
-			profiler.push("bossHealth");
-			int i = context.getScaledWindowWidth();
-			int j = 12;
-
-			for (ClientBossBar clientBossBar : this.bossBars.values()) {
-				int k = i / 2 - 91;
-				this.renderBossBar(context, k, j, clientBossBar);
-				Text text = clientBossBar.getName();
-				int m = this.client.textRenderer.getWidth(text);
-				int n = i / 2 - m / 2;
-				int o = j - 9;
-				context.drawTextWithShadow(this.client.textRenderer, text, n, o, -1);
-				j += 10 + 9;
-				if (j >= context.getScaledWindowHeight() / 3) {
-					break;
-				}
-			}
-
-			profiler.pop();
+		if (bossBars.isEmpty()) {
+			return;
 		}
+
+		context.createNewRootLayer();
+		Profiler profiler = Profilers.get();
+		profiler.push("bossHealth");
+
+		int screenWidth = context.getScaledWindowWidth();
+		int barY = BAR_Y_START;
+
+		for (ClientBossBar bossBar : bossBars.values()) {
+			int barX = screenWidth / 2 - BAR_X_OFFSET;
+			renderBossBar(context, barX, barY, bossBar);
+
+			Text name = bossBar.getName();
+			int nameWidth = client.textRenderer.getWidth(name);
+			int nameX = screenWidth / 2 - nameWidth / 2;
+			int nameY = barY - TEXT_HEIGHT;
+
+			context.drawTextWithShadow(client.textRenderer, name, nameX, nameY, COLOR_WHITE);
+
+			barY += BAR_Y_STEP;
+
+			if (barY >= context.getScaledWindowHeight() / MAX_HEIGHT_DIVISOR) {
+				break;
+			}
+		}
+
+		profiler.pop();
 	}
 
 	private void renderBossBar(DrawContext context, int x, int y, BossBar bossBar) {
-		this.renderBossBar(context, x, y, bossBar, 182, BACKGROUND_TEXTURES, NOTCHED_BACKGROUND_TEXTURES);
-		int i = MathHelper.lerpPositive(bossBar.getPercent(), 0, 182);
-		if (i > 0) {
-			this.renderBossBar(context, x, y, bossBar, i, PROGRESS_TEXTURES, NOTCHED_PROGRESS_TEXTURES);
+		renderBossBar(context, x, y, bossBar, WIDTH, BACKGROUND_TEXTURES, NOTCHED_BACKGROUND_TEXTURES);
+
+		int progressWidth = MathHelper.lerpPositive(bossBar.getPercent(), 0, WIDTH);
+
+		if (progressWidth > 0) {
+			renderBossBar(context, x, y, bossBar, progressWidth, PROGRESS_TEXTURES, NOTCHED_PROGRESS_TEXTURES);
 		}
 	}
 
 	private void renderBossBar(
-			DrawContext context,
-			int x,
-			int y,
-			BossBar bossBar,
-			int width,
-			Identifier[] textures,
-			Identifier[] notchedTextures
+		DrawContext context,
+		int x,
+		int y,
+		BossBar bossBar,
+		int width,
+		Identifier[] textures,
+		Identifier[] notchedTextures
 	) {
 		context.drawGuiTexture(
+			RenderPipelines.GUI_TEXTURED,
+			textures[bossBar.getColor().ordinal()],
+			WIDTH,
+			HEIGHT,
+			0,
+			0,
+			x,
+			y,
+			width,
+			HEIGHT
+		);
+
+		if (bossBar.getStyle() != BossBar.Style.PROGRESS) {
+			context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
-				textures[bossBar.getColor().ordinal()],
-				182,
-				5,
+				notchedTextures[bossBar.getStyle().ordinal() - 1],
+				WIDTH,
+				HEIGHT,
 				0,
 				0,
 				x,
 				y,
 				width,
-				5
-		);
-		if (bossBar.getStyle() != BossBar.Style.PROGRESS) {
-			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					notchedTextures[bossBar.getStyle().ordinal() - 1],
-					182,
-					5,
-					0,
-					0,
-					x,
-					y,
-					width,
-					5
+				HEIGHT
 			);
 		}
 	}
 
-	/**
-	 * Обрабатывает packet.
-	 *
-	 * @param packet packet
-	 */
 	public void handlePacket(BossBarS2CPacket packet) {
 		packet.accept(
 				new BossBarS2CPacket.Consumer() {

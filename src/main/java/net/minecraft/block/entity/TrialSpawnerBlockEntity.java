@@ -19,87 +19,89 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code TrialSpawnerBlockEntity}.
+ * Блок-сущность испытательного спаунера. Делегирует всю логику спауна в {@link TrialSpawnerLogic},
+ * управляет состоянием блока и синхронизацией с клиентом.
  */
 public class TrialSpawnerBlockEntity extends BlockEntity implements Spawner, TrialSpawnerLogic.TrialSpawner {
 
-	private final TrialSpawnerLogic logic = this.createDefaultLogic();
+	private final TrialSpawnerLogic logic = createDefaultLogic();
 
 	public TrialSpawnerBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.TRIAL_SPAWNER, pos, state);
 	}
 
 	private TrialSpawnerLogic createDefaultLogic() {
-		EntityDetector
-				entityDetector =
-				SharedConstants.TRIAL_SPAWNER_DETECTS_SHEEP_AS_PLAYERS ? EntityDetector.SHEEP
-				                                                       : EntityDetector.SURVIVAL_PLAYERS;
-		EntityDetector.Selector selector = EntityDetector.Selector.IN_WORLD;
-		return new TrialSpawnerLogic(TrialSpawnerLogic.FullConfig.DEFAULT, this, entityDetector, selector);
+		EntityDetector entityDetector = SharedConstants.TRIAL_SPAWNER_DETECTS_SHEEP_AS_PLAYERS
+				? EntityDetector.SHEEP
+				: EntityDetector.SURVIVAL_PLAYERS;
+
+		return new TrialSpawnerLogic(
+				TrialSpawnerLogic.FullConfig.DEFAULT,
+				this,
+				entityDetector,
+				EntityDetector.Selector.IN_WORLD
+		);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.logic.readData(view);
-		if (this.world != null) {
-			this.updateListeners();
+		logic.readData(view);
+
+		if (world != null) {
+			updateListeners();
 		}
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		this.logic.writeData(view);
+		logic.writeData(view);
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.logic.getData().getSpawnDataNbt(this.getCachedState().get(TrialSpawnerBlock.TRIAL_SPAWNER_STATE));
+		return logic.getData().getSpawnDataNbt(getCachedState().get(TrialSpawnerBlock.TRIAL_SPAWNER_STATE));
 	}
 
 	@Override
 	public void setEntityType(EntityType<?> type, Random random) {
-		if (this.world == null) {
+		if (world == null) {
 			Util.logErrorOrPause("Expected non-null level");
+			return;
 		}
-		else {
-			this.logic.setEntityType(type, this.world);
-			this.markDirty();
-		}
+
+		logic.setEntityType(type, world);
+		markDirty();
 	}
 
 	public TrialSpawnerLogic getSpawner() {
-		return this.logic;
+		return logic;
 	}
 
 	@Override
 	public TrialSpawnerState getSpawnerState() {
-		return !this.getCachedState().contains(Properties.TRIAL_SPAWNER_STATE)
-		       ? TrialSpawnerState.INACTIVE
-		       : this.getCachedState().get(Properties.TRIAL_SPAWNER_STATE);
+		return getCachedState().contains(Properties.TRIAL_SPAWNER_STATE)
+				? getCachedState().get(Properties.TRIAL_SPAWNER_STATE)
+				: TrialSpawnerState.INACTIVE;
 	}
 
 	@Override
 	public void setSpawnerState(World world, TrialSpawnerState spawnerState) {
-		this.markDirty();
-		world.setBlockState(this.pos, this.getCachedState().with(Properties.TRIAL_SPAWNER_STATE, spawnerState));
+		markDirty();
+		world.setBlockState(pos, getCachedState().with(Properties.TRIAL_SPAWNER_STATE, spawnerState));
 	}
 
 	@Override
 	public void updateListeners() {
-		this.markDirty();
-		if (this.world != null) {
-			this.world.updateListeners(this.pos, this.getCachedState(), this.getCachedState(), 3);
+		markDirty();
+		if (world != null) {
+			world.updateListeners(pos, getCachedState(), getCachedState(), 3);
 		}
 	}
 }

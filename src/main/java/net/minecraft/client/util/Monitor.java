@@ -11,11 +11,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Monitor}.
+ * Представляет физический монитор с набором поддерживаемых видеорежимов.
+ * Фильтрует режимы с глубиной цвета менее {@code MIN_COLOR_BITS} бит на канал.
  */
+@Environment(EnvType.CLIENT)
 public final class Monitor {
+
+	private static final int MIN_COLOR_BITS = 8;
 
 	private final long handle;
 	private final List<VideoMode> videoModes;
@@ -25,92 +28,88 @@ public final class Monitor {
 
 	public Monitor(long handle) {
 		this.handle = handle;
-		this.videoModes = Lists.newArrayList();
-		this.populateVideoModes();
+		videoModes = Lists.newArrayList();
+		populateVideoModes();
 	}
 
 	/**
-	 * Populate video modes.
+	 * Обновляет список доступных видеорежимов и текущую позицию монитора.
+	 * Фильтрует режимы с глубиной цвета менее 8 бит на канал.
 	 */
 	public void populateVideoModes() {
-		this.videoModes.clear();
-		Buffer buffer = GLFW.glfwGetVideoModes(this.handle);
+		videoModes.clear();
+		Buffer buffer = GLFW.glfwGetVideoModes(handle);
 
-		for (int i = buffer.limit() - 1; i >= 0; i--) {
-			buffer.position(i);
+		for (int index = buffer.limit() - 1; index >= 0; index--) {
+			buffer.position(index);
 			VideoMode videoMode = new VideoMode(buffer);
-			if (videoMode.getRedBits() >= 8 && videoMode.getGreenBits() >= 8 && videoMode.getBlueBits() >= 8) {
-				this.videoModes.add(videoMode);
+			if (videoMode.getRedBits() >= MIN_COLOR_BITS
+				&& videoMode.getGreenBits() >= MIN_COLOR_BITS
+				&& videoMode.getBlueBits() >= MIN_COLOR_BITS
+			) {
+				videoModes.add(videoMode);
 			}
 		}
 
-		int[] is = new int[1];
-		int[] js = new int[1];
-		GLFW.glfwGetMonitorPos(this.handle, is, js);
-		this.x = is[0];
-		this.y = js[0];
-		GLFWVidMode gLFWVidMode = GLFW.glfwGetVideoMode(this.handle);
-		this.currentVideoMode = new VideoMode(gLFWVidMode);
+		int[] xPos = new int[1];
+		int[] yPos = new int[1];
+		GLFW.glfwGetMonitorPos(handle, xPos, yPos);
+		x = xPos[0];
+		y = yPos[0];
+
+		GLFWVidMode currentMode = GLFW.glfwGetVideoMode(handle);
+		currentVideoMode = new VideoMode(currentMode);
 	}
 
 	/**
-	 * Ищет closest video mode.
+	 * Ищет видеорежим, совпадающий с запрошенным, или возвращает текущий режим монитора.
 	 *
-	 * @param videoMode video mode
-	 *
-	 * @return VideoMode — closest video mode
+	 * @param requested запрошенный видеорежим (может быть пустым)
+	 * @return найденный или текущий видеорежим
 	 */
-	public VideoMode findClosestVideoMode(Optional<VideoMode> videoMode) {
-		if (videoMode.isPresent()) {
-			VideoMode videoMode2 = videoMode.get();
-
-			for (VideoMode videoMode3 : this.videoModes) {
-				if (videoMode3.equals(videoMode2)) {
-					return videoMode3;
+	public VideoMode findClosestVideoMode(Optional<VideoMode> requested) {
+		if (requested.isPresent()) {
+			VideoMode target = requested.get();
+			for (VideoMode mode : videoModes) {
+				if (mode.equals(target)) {
+					return mode;
 				}
 			}
 		}
 
-		return this.getCurrentVideoMode();
+		return getCurrentVideoMode();
 	}
 
-	/**
-	 * Ищет closest video mode index.
-	 *
-	 * @param videoMode video mode
-	 *
-	 * @return int — closest video mode index
-	 */
 	public int findClosestVideoModeIndex(VideoMode videoMode) {
-		return this.videoModes.indexOf(videoMode);
+		return videoModes.indexOf(videoMode);
 	}
 
 	public VideoMode getCurrentVideoMode() {
-		return this.currentVideoMode;
+		return currentVideoMode;
 	}
 
 	public int getViewportX() {
-		return this.x;
+		return x;
 	}
 
 	public int getViewportY() {
-		return this.y;
+		return y;
 	}
 
 	public VideoMode getVideoMode(int index) {
-		return this.videoModes.get(index);
+		return videoModes.get(index);
 	}
 
 	public int getVideoModeCount() {
-		return this.videoModes.size();
+		return videoModes.size();
 	}
 
 	public long getHandle() {
-		return this.handle;
+		return handle;
 	}
 
 	@Override
 	public String toString() {
-		return String.format(Locale.ROOT, "Monitor[%s %sx%s %s]", this.handle, this.x, this.y, this.currentVideoMode);
+		return String.format(Locale.ROOT, "Monitor[%s %sx%s %s]", handle, x, y, currentVideoMode);
 	}
 }

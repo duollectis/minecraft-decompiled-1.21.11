@@ -7,6 +7,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.dialog.type.Dialog;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.StringIdentifiable;
@@ -18,121 +19,134 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * {@code ClickEvent}.
+ * Событие, срабатывающее при клике на текст в чате или интерфейсе.
+ * Каждая реализация соответствует конкретному типу действия (открыть URL, выполнить команду и т.д.).
  */
 public interface ClickEvent {
 
-	Codec<ClickEvent> CODEC = ClickEvent.Action.CODEC.dispatch("action", ClickEvent::getAction, action -> action.codec);
+	Codec<ClickEvent> CODEC = Action.CODEC.dispatch("action", ClickEvent::getAction, action -> action.codec);
 
-	ClickEvent.Action getAction();
+	Action getAction();
 
 	/**
-	 * {@code Action}.
+	 * Перечисление всех поддерживаемых типов кликовых событий.
+	 * Флаг {@code userDefinable} определяет, может ли действие быть задано игроком в чате.
 	 */
-	public static enum Action implements StringIdentifiable {
-		OPEN_URL("open_url", true, ClickEvent.OpenUrl.CODEC),
-		OPEN_FILE("open_file", false, ClickEvent.OpenFile.CODEC),
-		RUN_COMMAND("run_command", true, ClickEvent.RunCommand.CODEC),
-		SUGGEST_COMMAND("suggest_command", true, ClickEvent.SuggestCommand.CODEC),
-		SHOW_DIALOG("show_dialog", true, ClickEvent.ShowDialog.CODEC),
-		CHANGE_PAGE("change_page", true, ClickEvent.ChangePage.CODEC),
-		COPY_TO_CLIPBOARD("copy_to_clipboard", true, ClickEvent.CopyToClipboard.CODEC),
-		CUSTOM("custom", true, ClickEvent.Custom.CODEC);
+	enum Action implements StringIdentifiable {
+		OPEN_URL("open_url", true, OpenUrl.CODEC),
+		OPEN_FILE("open_file", false, OpenFile.CODEC),
+		RUN_COMMAND("run_command", true, RunCommand.CODEC),
+		SUGGEST_COMMAND("suggest_command", true, SuggestCommand.CODEC),
+		SHOW_DIALOG("show_dialog", true, ShowDialog.CODEC),
+		CHANGE_PAGE("change_page", true, ChangePage.CODEC),
+		COPY_TO_CLIPBOARD("copy_to_clipboard", true, CopyToClipboard.CODEC),
+		CUSTOM("custom", true, Custom.CODEC);
 
-		public static final Codec<ClickEvent.Action>
-				UNVALIDATED_CODEC =
-				StringIdentifiable.createCodec(ClickEvent.Action::values);
-		public static final Codec<ClickEvent.Action> CODEC = UNVALIDATED_CODEC.validate(ClickEvent.Action::validate);
-		private final boolean userDefinable;
+		public static final Codec<Action> UNVALIDATED_CODEC = StringIdentifiable.createCodec(Action::values);
+		public static final Codec<Action> CODEC = UNVALIDATED_CODEC.validate(Action::validate);
+
 		private final String name;
+		private final boolean userDefinable;
 		final MapCodec<? extends ClickEvent> codec;
 
-		private Action(final String name, final boolean userDefinable, final MapCodec<? extends ClickEvent> codec) {
+		Action(String name, boolean userDefinable, MapCodec<? extends ClickEvent> codec) {
 			this.name = name;
 			this.userDefinable = userDefinable;
 			this.codec = codec;
 		}
 
 		public boolean isUserDefinable() {
-			return this.userDefinable;
+			return userDefinable;
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 
 		public MapCodec<? extends ClickEvent> getCodec() {
-			return this.codec;
+			return codec;
 		}
 
-		public static DataResult<ClickEvent.Action> validate(ClickEvent.Action action) {
-			return !action.isUserDefinable() ? DataResult.error(() -> "Click event type not allowed: " + action)
-			                                 : DataResult.success(action, Lifecycle.stable());
+		/**
+		 * Проверяет, разрешено ли данное действие для использования игроком.
+		 * Действия с {@code userDefinable = false} (например, {@code OPEN_FILE}) запрещены в пользовательском вводе.
+		 */
+		public static DataResult<Action> validate(Action action) {
+			return action.isUserDefinable()
+				? DataResult.success(action, Lifecycle.stable())
+				: DataResult.error(() -> "Click event type not allowed: " + action);
 		}
 	}
 
 	/**
-	 * {@code ChangePage}.
+	 * Переключает страницу книги на указанный номер.
 	 */
-	public record ChangePage(int page) implements ClickEvent {
+	record ChangePage(int page) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.ChangePage> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Codecs.POSITIVE_INT.fieldOf("page").forGetter(ClickEvent.ChangePage::page))
-						.apply(instance, ClickEvent.ChangePage::new)
+		public static final MapCodec<ChangePage> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codecs.POSITIVE_INT.fieldOf("page").forGetter(ChangePage::page))
+				.apply(instance, ChangePage::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.CHANGE_PAGE;
+		public Action getAction() {
+			return Action.CHANGE_PAGE;
 		}
 	}
 
 	/**
-	 * {@code CopyToClipboard}.
+	 * Копирует строку в буфер обмена.
 	 */
-	public record CopyToClipboard(String value) implements ClickEvent {
+	record CopyToClipboard(String value) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.CopyToClipboard> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(Codec.STRING.fieldOf("value").forGetter(ClickEvent.CopyToClipboard::value))
-				                    .apply(instance, ClickEvent.CopyToClipboard::new)
+		public static final MapCodec<CopyToClipboard> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codec.STRING.fieldOf("value").forGetter(CopyToClipboard::value))
+				.apply(instance, CopyToClipboard::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.COPY_TO_CLIPBOARD;
+		public Action getAction() {
+			return Action.COPY_TO_CLIPBOARD;
 		}
 	}
 
 	/**
-	 * {@code Custom}.
+	 * Пользовательское кликовое событие с произвольным идентификатором и опциональной NBT-нагрузкой.
 	 */
-	public record Custom(Identifier id, Optional<NbtElement> payload) implements ClickEvent {
+	record Custom(Identifier id, Optional<NbtElement> payload) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.Custom> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("id").forGetter(ClickEvent.Custom::id),
-						                    Codecs.NBT_ELEMENT.optionalFieldOf("payload").forGetter(ClickEvent.Custom::payload)
-				                    )
-				                    .apply(instance, ClickEvent.Custom::new)
+		public static final MapCodec<Custom> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+				Identifier.CODEC.fieldOf("id").forGetter(Custom::id),
+				Codec.PASSTHROUGH
+					.<NbtElement>xmap(
+						dynamic -> (NbtElement) dynamic.convert(NbtOps.INSTANCE).getValue(),
+						element -> new com.mojang.serialization.Dynamic<>(NbtOps.INSTANCE, element)
+					)
+					.optionalFieldOf("payload")
+					.forGetter(Custom::payload)
+			).apply(instance, Custom::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.CUSTOM;
+		public Action getAction() {
+			return Action.CUSTOM;
 		}
 	}
 
 	/**
-	 * {@code OpenFile}.
+	 * Открывает локальный файл по указанному пути.
+	 * Доступно только клиентским модам — сервер не может задать это действие игроку.
 	 */
-	public record OpenFile(String path) implements ClickEvent {
+	record OpenFile(String path) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.OpenFile> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Codec.STRING.fieldOf("path").forGetter(ClickEvent.OpenFile::path))
-						.apply(instance, ClickEvent.OpenFile::new)
+		public static final MapCodec<OpenFile> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codec.STRING.fieldOf("path").forGetter(OpenFile::path))
+				.apply(instance, OpenFile::new)
 		);
 
 		public OpenFile(File file) {
@@ -143,86 +157,81 @@ public interface ClickEvent {
 			this(path.toFile());
 		}
 
-		/**
-		 * File.
-		 *
-		 * @return File — результат операции
-		 */
 		public File file() {
-			return new File(this.path);
+			return new File(path);
 		}
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.OPEN_FILE;
-		}
-	}
-
-	/**
-	 * {@code OpenUrl}.
-	 */
-	public record OpenUrl(URI uri) implements ClickEvent {
-
-		public static final MapCodec<ClickEvent.OpenUrl> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Codecs.URI.fieldOf("url").forGetter(ClickEvent.OpenUrl::uri))
-						.apply(instance, ClickEvent.OpenUrl::new)
-		);
-
-		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.OPEN_URL;
+		public Action getAction() {
+			return Action.OPEN_FILE;
 		}
 	}
 
 	/**
-	 * {@code RunCommand}.
+	 * Открывает URL в браузере по умолчанию.
 	 */
-	public record RunCommand(String command) implements ClickEvent {
+	record OpenUrl(URI uri) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.RunCommand> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Codecs.CHAT_TEXT.fieldOf("command").forGetter(ClickEvent.RunCommand::command))
-						.apply(instance, ClickEvent.RunCommand::new)
+		public static final MapCodec<OpenUrl> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codecs.URI.fieldOf("url").forGetter(OpenUrl::uri))
+				.apply(instance, OpenUrl::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.RUN_COMMAND;
+		public Action getAction() {
+			return Action.OPEN_URL;
 		}
 	}
 
 	/**
-	 * {@code ShowDialog}.
+	 * Выполняет команду от имени игрока, кликнувшего на текст.
 	 */
-	public record ShowDialog(RegistryEntry<Dialog> dialog) implements ClickEvent {
+	record RunCommand(String command) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.ShowDialog> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Dialog.ENTRY_CODEC.fieldOf("dialog").forGetter(ClickEvent.ShowDialog::dialog))
-						.apply(instance, ClickEvent.ShowDialog::new)
+		public static final MapCodec<RunCommand> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codecs.CHAT_TEXT.fieldOf("command").forGetter(RunCommand::command))
+				.apply(instance, RunCommand::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.SHOW_DIALOG;
+		public Action getAction() {
+			return Action.RUN_COMMAND;
 		}
 	}
 
 	/**
-	 * {@code SuggestCommand}.
+	 * Открывает диалоговое окно, связанное с указанной записью реестра диалогов.
 	 */
-	public record SuggestCommand(String command) implements ClickEvent {
+	record ShowDialog(RegistryEntry<Dialog> dialog) implements ClickEvent {
 
-		public static final MapCodec<ClickEvent.SuggestCommand> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(Codecs.CHAT_TEXT.fieldOf("command").forGetter(ClickEvent.SuggestCommand::command))
-						.apply(instance, ClickEvent.SuggestCommand::new)
+		public static final MapCodec<ShowDialog> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Dialog.ENTRY_CODEC.fieldOf("dialog").forGetter(ShowDialog::dialog))
+				.apply(instance, ShowDialog::new)
 		);
 
 		@Override
-		public ClickEvent.Action getAction() {
-			return ClickEvent.Action.SUGGEST_COMMAND;
+		public Action getAction() {
+			return Action.SHOW_DIALOG;
+		}
+	}
+
+	/**
+	 * Вставляет команду в строку ввода чата без немедленного выполнения.
+	 */
+	record SuggestCommand(String command) implements ClickEvent {
+
+		public static final MapCodec<SuggestCommand> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+				.group(Codecs.CHAT_TEXT.fieldOf("command").forGetter(SuggestCommand::command))
+				.apply(instance, SuggestCommand::new)
+		);
+
+		@Override
+		public Action getAction() {
+			return Action.SUGGEST_COMMAND;
 		}
 	}
 }

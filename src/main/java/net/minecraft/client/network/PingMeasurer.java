@@ -7,33 +7,40 @@ import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 import net.minecraft.util.Util;
 import net.minecraft.util.profiler.MultiValueDebugSampleLogImpl;
 
-@Environment(EnvType.CLIENT)
 /**
- * Класс ping measurer.
+ * Измеряет задержку соединения с сервером (пинг).
+ * <p>Отправляет пакет {@link QueryPingC2SPacket} с текущим временем и вычисляет
+ * RTT при получении ответа {@link PingResultS2CPacket}. Результаты записываются
+ * в {@link MultiValueDebugSampleLogImpl} для отображения в отладочном HUD.
  */
+@Environment(EnvType.CLIENT)
 public class PingMeasurer {
 
 	private final ClientPlayNetworkHandler handler;
 	private final MultiValueDebugSampleLogImpl log;
 
+	/**
+	 * @param handler сетевой обработчик для отправки пакетов
+	 * @param log     журнал для записи измерений пинга
+	 */
 	public PingMeasurer(ClientPlayNetworkHandler handler, MultiValueDebugSampleLogImpl log) {
 		this.handler = handler;
 		this.log = log;
 	}
 
 	/**
-	 * Ping.
+	 * Отправляет пинг-запрос серверу с текущей меткой времени.
 	 */
 	public void ping() {
-		this.handler.sendPacket(new QueryPingC2SPacket(Util.getMeasuringTimeMs()));
+		handler.sendPacket(new QueryPingC2SPacket(Util.getMeasuringTimeMs()));
 	}
 
 	/**
-	 * Обрабатывает событие ping result.
+	 * Обрабатывает ответ сервера и записывает RTT в журнал.
 	 *
-	 * @param packet packet
+	 * @param packet пакет с временной меткой отправки
 	 */
 	public void onPingResult(PingResultS2CPacket packet) {
-		this.log.push(Util.getMeasuringTimeMs() - packet.startTime());
+		log.push(Util.getMeasuringTimeMs() - packet.startTime());
 	}
 }

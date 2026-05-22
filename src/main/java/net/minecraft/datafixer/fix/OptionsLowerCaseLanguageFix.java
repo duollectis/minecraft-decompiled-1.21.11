@@ -10,7 +10,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * {@code OptionsLowerCaseLanguageFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionsLowerCaseLanguageFix extends DataFix {
 
@@ -19,9 +19,9 @@ public class OptionsLowerCaseLanguageFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"OptionsLowerCaseLanguageFix",
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(), optionsDynamic -> {
 							Optional<String> optional = optionsDynamic.get("lang").asString().result();

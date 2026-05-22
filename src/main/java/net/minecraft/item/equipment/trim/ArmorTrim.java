@@ -20,7 +20,8 @@ import net.minecraft.util.Util;
 import java.util.function.Consumer;
 
 /**
- * {@code ArmorTrim}.
+ * Иммутабельная запись, описывающая украшение брони (trim): материал и паттерн.
+ * Реализует {@link TooltipAppender} для отображения информации в подсказке предмета.
  */
 public record ArmorTrim(
 		RegistryEntry<ArmorTrimMaterial> material,
@@ -58,6 +59,14 @@ public record ArmorTrim(
 		textConsumer.accept(ScreenTexts.space().append(this.material.value().description()));
 	}
 
+	/**
+	 * Строит идентификатор текстуры трима для конкретного слота экипировки.
+	 * Путь формируется как {@code trimsDirectory/patternId_materialSuffix}.
+	 *
+	 * @param trimsDirectory базовая директория текстур трима (например, {@code "trims/models/armor"})
+	 * @param equipmentAsset ключ ассета экипировки для выбора правильного суффикса материала
+	 * @return идентификатор текстуры трима
+	 */
 	public Identifier getTextureId(String trimsDirectory, RegistryKey<EquipmentAsset> equipmentAsset) {
 		ArmorTrimAssets.AssetId assetId = this.material().value().assets().getAssetId(equipmentAsset);
 		return this

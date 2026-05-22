@@ -110,7 +110,7 @@ public class FluidRenderer {
 		boolean
 				bl3 =
 				shouldRenderSide(fluidState, blockState, Direction.DOWN, fluidState2)
-						&& !shouldSkipRendering(Direction.DOWN, 0.8888889F, blockState2);
+						&& !shouldSkipRendering(Direction.DOWN, FLUID_HEIGHT, blockState2);
 		boolean bl4 = shouldRenderSide(fluidState, blockState, Direction.NORTH, fluidState4);
 		boolean bl5 = shouldRenderSide(fluidState, blockState, Direction.SOUTH, fluidState5);
 		boolean bl6 = shouldRenderSide(fluidState, blockState, Direction.WEST, fluidState6);

@@ -17,9 +17,16 @@ import net.minecraft.world.World;
 import net.minecraft.world.rule.GameRules;
 
 /**
- * {@code SmallFireballEntity}.
+ * Маленький огненный шар, выпускаемый блейзами.
+ * <p>
+ * При попадании в сущность поджигает её и наносит 5 единиц урона.
+ * При попадании в блок — поджигает соседний воздушный блок (если разрешено правилами).
+ * После любого столкновения удаляется.
  */
 public class SmallFireballEntity extends AbstractFireballEntity {
+
+	private static final float ENTITY_HIT_DAMAGE = 5.0F;
+	private static final float FIRE_DURATION = 5.0F;
 
 	public SmallFireballEntity(EntityType<? extends SmallFireballEntity> entityType, World world) {
 		super(entityType, world);
@@ -36,42 +43,47 @@ public class SmallFireballEntity extends AbstractFireballEntity {
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Entity var7 = entityHitResult.getEntity();
-			Entity entity2 = this.getOwner();
-			int i = var7.getFireTicks();
-			var7.setOnFireFor(5.0F);
-			DamageSource damageSource = this.getDamageSources().fireball(this, entity2);
-			if (!var7.damage(serverWorld, damageSource, 5.0F)) {
-				var7.setFireTicks(i);
-			}
-			else {
-				EnchantmentHelper.onTargetDamaged(serverWorld, var7, damageSource);
-			}
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		Entity target = entityHitResult.getEntity();
+		Entity ownerEntity = getOwner();
+		int prevFireTicks = target.getFireTicks();
+		target.setOnFireFor(FIRE_DURATION);
+		DamageSource damageSource = getDamageSources().fireball(this, ownerEntity);
+		if (!target.damage(serverWorld, damageSource, ENTITY_HIT_DAMAGE)) {
+			target.setFireTicks(prevFireTicks);
+		} else {
+			EnchantmentHelper.onTargetDamaged(serverWorld, target, damageSource);
 		}
 	}
 
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		super.onBlockHit(blockHitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Entity entity = this.getOwner();
-			if (!(entity instanceof MobEntity) || serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-				BlockPos blockPos = blockHitResult.getBlockPos().offset(blockHitResult.getSide());
-				if (this.getEntityWorld().isAir(blockPos)) {
-					this
-							.getEntityWorld()
-							.setBlockState(blockPos, AbstractFireBlock.getState(this.getEntityWorld(), blockPos));
-				}
-			}
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		Entity ownerEntity = getOwner();
+		boolean canGrief = !(ownerEntity instanceof MobEntity)
+			|| serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING);
+		if (!canGrief) {
+			return;
+		}
+
+		BlockPos firePos = blockHitResult.getBlockPos().offset(blockHitResult.getSide());
+		if (getEntityWorld().isAir(firePos)) {
+			getEntityWorld().setBlockState(firePos, AbstractFireBlock.getState(getEntityWorld(), firePos));
 		}
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (!this.getEntityWorld().isClient()) {
-			this.discard();
+		if (!getEntityWorld().isClient()) {
+			discard();
 		}
 	}
 }

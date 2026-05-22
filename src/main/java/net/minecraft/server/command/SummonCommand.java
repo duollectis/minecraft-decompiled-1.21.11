@@ -25,7 +25,7 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.World;
 
 /**
- * {@code SummonCommand}.
+ * Команда {@code /summon}: создание сущности в указанной позиции.
  */
 public class SummonCommand {
 

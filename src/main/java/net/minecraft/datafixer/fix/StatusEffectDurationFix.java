@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code StatusEffectDurationFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StatusEffectDurationFix extends DataFix {
 
@@ -25,25 +25,25 @@ public class StatusEffectDurationFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Schema schema = this.getInputSchema();
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Schema schema = getInputSchema();
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
 		OpticFinder<?> opticFinder2 = type.findField("tag");
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"EffectDurationEntity",
 						schema.getType(TypeReferences.ENTITY),
 						entityTyped -> entityTyped.update(DSL.remainderFinder(), this::fixEntityStatusEffects)
 				),
 				new TypeRewriteRule[]{
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								"EffectDurationPlayer",
 								schema.getType(TypeReferences.PLAYER),
 								playerTyped -> playerTyped.update(DSL.remainderFinder(), this::fixEntityStatusEffects)
 						),
-						this.fixTypeEverywhereTyped(
+						fixTypeEverywhereTyped(
 								"EffectDurationItem", type, itemStackTyped -> {
 									if (itemStackTyped
 											.getOptional(opticFinder)

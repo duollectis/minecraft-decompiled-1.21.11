@@ -27,12 +27,11 @@ import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
 
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
- * {@code TypedEntityData}.
+ * Типизированные данные сущности: хранит тип (например, {@link EntityType}) и произвольный NBT-блок.
+ * Используется для сериализации данных спавн-яиц и применения NBT к существующим сущностям/блок-сущностям.
  */
 public final class TypedEntityData<IdType> implements TooltipAppender {
 
@@ -42,81 +41,57 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 	final NbtCompound nbt;
 
 	/**
-	 * Создаёт codec.
-	 *
-	 * @param typeCodec type codec
-	 *
-	 * @return Codec> — результат операции
+	 * Создаёт {@link Codec} для сериализации {@code TypedEntityData}.
+	 * При декодировании извлекает поле {@code "id"} из NBT-объекта и парсит его через {@code typeCodec}.
+	 * При кодировании добавляет поле {@code "id"} обратно в NBT.
 	 */
 	public static <T> Codec<TypedEntityData<T>> createCodec(Codec<T> typeCodec) {
 		return new Codec<TypedEntityData<T>>() {
-			/**
-			 * Decode.
-			 *
-			 * @param ops ops
-			 * @param value value
-			 *
-			 * @return DataResult, V>> — результат операции
-			 */
 			public <V> DataResult<Pair<TypedEntityData<T>, V>> decode(DynamicOps<V> ops, V value) {
 				return NbtComponent.COMPOUND_CODEC
 						.decode(ops, value)
-						.flatMap(
-								pair -> {
-									NbtCompound nbtCompound = ((NbtCompound) pair.getFirst()).copy();
-									NbtElement nbtElement = nbtCompound.remove("id");
-									return nbtElement == null
-									       ? DataResult.error(() -> "Expected 'id' field in " + value)
-									       : typeCodec.parse(toNbtOps((DynamicOps<T>) ops), nbtElement)
-									                  .map(objectx -> Pair.of(
-											                  new TypedEntityData<>(
-													                  objectx,
-													                  nbtCompound
-											                  ), pair.getSecond()
-									                  ));
-								}
-						);
+						.flatMap(pair -> {
+							NbtCompound compound = pair.getFirst().copy();
+							NbtElement idElement = compound.remove(ID_KEY);
+
+							return idElement == null
+									? DataResult.error(() -> "Expected 'id' field in " + value)
+									: typeCodec
+											.parse(toNbtOps(ops), idElement)
+											.map(parsed -> Pair.of(
+													new TypedEntityData<>(parsed, compound),
+													pair.getSecond()
+											));
+						});
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param typedEntityData typed entity data
-			 * @param dynamicOps dynamic ops
-			 * @param object object
-			 *
-			 * @return DataResult — результат операции
-			 */
-			public <V> DataResult<V> encode(TypedEntityData<T> typedEntityData, DynamicOps<V> dynamicOps, V object) {
-				return typeCodec.encodeStart(toNbtOps((DynamicOps<T>) dynamicOps), typedEntityData.type).flatMap(id -> {
-					NbtCompound nbtCompound = typedEntityData.nbt.copy();
-					nbtCompound.put("id", id);
-					return NbtComponent.COMPOUND_CODEC.encode(nbtCompound, dynamicOps, object);
+			public <V> DataResult<V> encode(TypedEntityData<T> data, DynamicOps<V> ops, V object) {
+				return typeCodec.encodeStart(toNbtOps(ops), data.type).flatMap(id -> {
+					NbtCompound compound = data.nbt.copy();
+					compound.put(ID_KEY, id);
+					return NbtComponent.COMPOUND_CODEC.encode(compound, ops, object);
 				});
 			}
 
-			private static <T> DynamicOps<NbtElement> toNbtOps(DynamicOps<T> ops) {
-				return (DynamicOps<NbtElement>) (ops instanceof RegistryOps<T> registryOps ? registryOps.withDelegate(
-						NbtOps.INSTANCE) : NbtOps.INSTANCE
-				);
+			@SuppressWarnings("unchecked")
+			private <V> DynamicOps<NbtElement> toNbtOps(DynamicOps<V> ops) {
+				return ops instanceof RegistryOps<V> registryOps
+						? (DynamicOps<NbtElement>) registryOps.withDelegate(NbtOps.INSTANCE)
+						: NbtOps.INSTANCE;
 			}
 		};
 	}
 
 	/**
-	 * Создаёт packet codec.
-	 *
-	 * @param typePacketCodec type packet codec
-	 *
-	 * @return PacketCodec> — результат операции
+	 * Создаёт {@link PacketCodec} для передачи {@code TypedEntityData} по сети.
 	 */
 	public static <B extends ByteBuf, T> PacketCodec<B, TypedEntityData<T>> createPacketCodec(PacketCodec<B, T> typePacketCodec) {
 		return PacketCodec.tuple(
 				typePacketCodec,
-				(Function<TypedEntityData<T>, T>) (TypedEntityData::getType),
+				TypedEntityData::getType,
 				PacketCodecs.NBT_COMPOUND,
 				TypedEntityData::getNbtWithoutIdInternal,
-				(BiFunction<T, NbtCompound, TypedEntityData<T>>) (TypedEntityData::new)
+				TypedEntityData::new
 		);
 	}
 
@@ -125,42 +100,26 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		this.nbt = stripId(nbt);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param type type
-	 * @param nbt nbt
-	 *
-	 * @return TypedEntityData — результат операции
-	 */
 	public static <T> TypedEntityData<T> create(T type, NbtCompound nbt) {
 		return new TypedEntityData<>(type, nbt);
 	}
 
 	private static NbtCompound stripId(NbtCompound nbt) {
-		if (nbt.contains("id")) {
-			NbtCompound nbtCompound = nbt.copy();
-			nbtCompound.remove("id");
-			return nbtCompound;
-		}
-		else {
+		if (!nbt.contains("id")) {
 			return nbt;
 		}
+
+		NbtCompound copy = nbt.copy();
+		copy.remove("id");
+		return copy;
 	}
 
 	public IdType getType() {
-		return this.type;
+		return type;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param key key
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(String key) {
-		return this.nbt.contains(key);
+		return nbt.contains(key);
 	}
 
 	@Override
@@ -168,99 +127,89 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		if (other == this) {
 			return true;
 		}
-		else {
-			return !(other instanceof TypedEntityData<?> typedEntityData) ? false : this.type == typedEntityData.type
-			                                                                        && this.nbt.equals(typedEntityData.nbt);
-		}
+
+		return other instanceof TypedEntityData<?> typed
+				&& type == typed.type
+				&& nbt.equals(typed.nbt);
 	}
 
 	@Override
 	public int hashCode() {
-		return 31 * this.type.hashCode() + this.nbt.hashCode();
+		return 31 * type.hashCode() + nbt.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.type + " " + this.nbt;
+		return type + " " + nbt;
 	}
 
 	/**
-	 * Применяет to entity.
-	 *
-	 * @param entity entity
+	 * Применяет хранимый NBT к существующей сущности, сохраняя её UUID.
+	 * Сначала читает текущие данные сущности, затем перезаписывает их данными из этого объекта.
 	 */
 	public void applyToEntity(Entity entity) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
-			NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
-			entity.writeData(nbtWriteView);
-			NbtCompound nbtCompound = nbtWriteView.getNbt();
-			UUID uUID = entity.getUuid();
-			nbtCompound.copyFrom(this.getNbtWithoutId());
+			NbtWriteView writeView = NbtWriteView.create(logging, entity.getRegistryManager());
+			entity.writeData(writeView);
+			NbtCompound nbtCompound = writeView.getNbt();
+			UUID savedUuid = entity.getUuid();
+			nbtCompound.copyFrom(getNbtWithoutId());
 			entity.readData(NbtReadView.create(logging, entity.getRegistryManager(), nbtCompound));
-			entity.setUuid(uUID);
+			entity.setUuid(savedUuid);
 		}
 	}
 
 	/**
-	 * Применяет to block entity.
-	 *
-	 * @param blockEntity block entity
-	 * @param registryLookup registry lookup
-	 *
-	 * @return boolean — результат операции
+	 * Применяет хранимый NBT к блок-сущности с откатом при ошибке.
+	 * Возвращает {@code true}, если данные были успешно применены и блок-сущность изменилась.
 	 */
 	public boolean applyToBlockEntity(BlockEntity blockEntity, RegistryWrapper.WrapperLookup registryLookup) {
-		boolean exception;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
-			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registryLookup);
-			blockEntity.writeComponentlessData(nbtWriteView);
-			NbtCompound nbtCompound = nbtWriteView.getNbt();
-			NbtCompound nbtCompound2 = nbtCompound.copy();
-			nbtCompound.copyFrom(this.getNbtWithoutId());
-			if (!nbtCompound.equals(nbtCompound2)) {
-				try {
-					blockEntity.readComponentlessData(NbtReadView.create(logging, registryLookup, nbtCompound));
-					blockEntity.markDirty();
-					return true;
-				}
-				catch (Exception var11) {
-					LOGGER.warn("Failed to apply custom data to block entity at {}", blockEntity.getPos(), var11);
+			NbtWriteView writeView = NbtWriteView.create(logging, registryLookup);
+			blockEntity.writeComponentlessData(writeView);
+			NbtCompound current = writeView.getNbt();
+			NbtCompound original = current.copy();
+			current.copyFrom(getNbtWithoutId());
 
-					try {
-						blockEntity.readComponentlessData(NbtReadView.create(
-								logging.makeChild(() -> "(rollback)"),
-								registryLookup,
-								nbtCompound2
-						));
-					}
-					catch (Exception var10) {
-						LOGGER.warn("Failed to rollback block entity at {} after failure", blockEntity.getPos(), var10);
-					}
-				}
+			if (current.equals(original)) {
+				return false;
 			}
 
-			exception = false;
-		}
+			try {
+				blockEntity.readComponentlessData(NbtReadView.create(logging, registryLookup, current));
+				blockEntity.markDirty();
+				return true;
+			}
+			catch (Exception applyException) {
+				LOGGER.warn("Failed to apply custom data to block entity at {}", blockEntity.getPos(), applyException);
 
-		return exception;
+				try {
+					blockEntity.readComponentlessData(NbtReadView.create(
+							logging.makeChild(() -> "(rollback)"),
+							registryLookup,
+							original
+					));
+				}
+				catch (Exception rollbackException) {
+					LOGGER.warn("Failed to rollback block entity at {} after failure", blockEntity.getPos(), rollbackException);
+				}
+
+				return false;
+			}
+		}
 	}
 
 	private NbtCompound getNbtWithoutIdInternal() {
-		return this.nbt;
+		return nbt;
 	}
 
 	@Deprecated
 	public NbtCompound getNbtWithoutId() {
-		return this.nbt;
+		return nbt;
 	}
 
-	/**
-	 * Создаёт копию nbt without id.
-	 *
-	 * @return NbtCompound — результат операции
-	 */
 	public NbtCompound copyNbtWithoutId() {
-		return this.nbt.copy();
+		return nbt.copy();
 	}
 
 	@Override
@@ -270,8 +219,8 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 			TooltipType type,
 			ComponentsAccess components
 	) {
-		if (this.type.getClass() == EntityType.class) {
-			EntityType<?> entityType = (EntityType<?>) this.type;
+		if (type instanceof EntityType<?> entityType) {
+
 			if (context.isDifficultyPeaceful() && !entityType.isAllowedInPeaceful()) {
 				textConsumer.accept(Text.translatable("item.spawn_egg.peaceful").formatted(Formatting.RED));
 			}

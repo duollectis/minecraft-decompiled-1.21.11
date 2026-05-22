@@ -22,7 +22,14 @@ import java.util.*;
 import java.util.function.Supplier;
 
 /**
- * {@code ScoreHolderArgumentType}.
+ * Тип аргумента команды Brigadier для выбора держателей очков (score holders).
+ * <p>
+ * Поддерживает три формата ввода:
+ * <ul>
+ *   <li>Селектор сущностей ({@code @a}, {@code @e}, {@code @p} и т.д.)</li>
+ *   <li>Символ {@code *} — все известные держатели очков из скорборда</li>
+ *   <li>Имя игрока или произвольная строка (включая UUID)</li>
+ * </ul>
  */
 public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgumentType.ScoreHolders> {
 
@@ -124,81 +131,81 @@ public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgument
 		if (reader.canRead() && reader.peek() == '@') {
 			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, allowAtSelectors);
 			EntitySelector entitySelector = entitySelectorReader.read();
-			if (!this.multiple && entitySelector.getLimit() > 1) {
+
+			if (!multiple && entitySelector.getLimit() > 1) {
 				throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.createWithContext(reader);
 			}
-			else {
-				return new ScoreHolderArgumentType.SelectorScoreHolders(entitySelector);
-			}
+
+			return new ScoreHolderArgumentType.SelectorScoreHolders(entitySelector);
 		}
-		else {
-			int i = reader.getCursor();
 
-			while (reader.canRead() && reader.peek() != ' ') {
-				reader.skip();
-			}
+		int startCursor = reader.getCursor();
 
-			String string = reader.getString().substring(i, reader.getCursor());
-			if (string.equals("*")) {
-				return (source, players) -> {
-					Collection<ScoreHolder> collection = players.get();
-					if (collection.isEmpty()) {
-						throw EMPTY_SCORE_HOLDER_EXCEPTION.create();
+		while (reader.canRead() && reader.peek() != ' ') {
+			reader.skip();
+		}
+
+		String rawInput = reader.getString().substring(startCursor, reader.getCursor());
+
+		if (rawInput.equals("*")) {
+			return (source, players) -> {
+				Collection<ScoreHolder> allHolders = players.get();
+
+				if (allHolders.isEmpty()) {
+					throw EMPTY_SCORE_HOLDER_EXCEPTION.create();
+				}
+
+				return allHolders;
+			};
+		}
+
+		List<ScoreHolder> singleHolder = List.of(ScoreHolder.fromName(rawInput));
+
+		if (rawInput.startsWith("#")) {
+			return (source, players) -> singleHolder;
+		}
+
+		try {
+			UUID uuid = UUID.fromString(rawInput);
+
+			return (source, holders) -> {
+				MinecraftServer server = source.getServer();
+				ScoreHolder firstFound = null;
+				List<ScoreHolder> multipleFound = null;
+
+				for (ServerWorld world : server.getWorlds()) {
+					Entity entity = world.getEntity(uuid);
+
+					if (entity == null) {
+						continue;
+					}
+
+					if (firstFound == null) {
+						firstFound = entity;
 					}
 					else {
-						return collection;
-					}
-				};
-			}
-			else {
-				List<ScoreHolder> list = List.of(ScoreHolder.fromName(string));
-				if (string.startsWith("#")) {
-					return (source, players) -> list;
-				}
-				else {
-					try {
-						UUID uUID = UUID.fromString(string);
-						return (source, holders) -> {
-							MinecraftServer minecraftServer = source.getServer();
-							ScoreHolder scoreHolder = null;
-							List<ScoreHolder> list2 = null;
+						if (multipleFound == null) {
+							multipleFound = new ArrayList<>();
+							multipleFound.add(firstFound);
+						}
 
-							for (ServerWorld serverWorld : minecraftServer.getWorlds()) {
-								Entity entity = serverWorld.getEntity(uUID);
-								if (entity != null) {
-									if (scoreHolder == null) {
-										scoreHolder = entity;
-									}
-									else {
-										if (list2 == null) {
-											list2 = new ArrayList<>();
-											list2.add(scoreHolder);
-										}
-
-										list2.add(entity);
-									}
-								}
-							}
-
-							if (list2 != null) {
-								return list2;
-							}
-							else {
-								return scoreHolder != null ? List.of(scoreHolder) : list;
-							}
-						};
-					}
-					catch (IllegalArgumentException var7) {
-						return (source, holders) -> {
-							MinecraftServer minecraftServer = source.getServer();
-							ServerPlayerEntity
-									serverPlayerEntity =
-									minecraftServer.getPlayerManager().getPlayer(string);
-							return serverPlayerEntity != null ? List.of(serverPlayerEntity) : list;
-						};
+						multipleFound.add(entity);
 					}
 				}
-			}
+
+				if (multipleFound != null) {
+					return multipleFound;
+				}
+
+				return firstFound != null ? List.of(firstFound) : singleHolder;
+			};
+		}
+		catch (IllegalArgumentException ignored) {
+			return (source, holders) -> {
+				ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(rawInput);
+
+				return player != null ? List.of(player) : singleHolder;
+			};
 		}
 	}
 
@@ -206,10 +213,11 @@ public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgument
 		return EXAMPLES;
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code ScoreHolders}.
+	 * Функциональный интерфейс, представляющий результат парсинга аргумента.
+	 * Разрешает список держателей очков в момент выполнения команды, а не в момент парсинга.
 	 */
+	@FunctionalInterface
 	public interface ScoreHolders {
 
 		Collection<ScoreHolder> getNames(ServerCommandSource source, Supplier<Collection<ScoreHolder>> holders)
@@ -217,7 +225,7 @@ public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgument
 	}
 
 	/**
-	 * {@code SelectorScoreHolders}.
+	 * Реализация {@link ScoreHolders} на основе селектора сущностей ({@code @a}, {@code @e} и т.д.).
 	 */
 	public static class SelectorScoreHolders implements ScoreHolderArgumentType.ScoreHolders {
 
@@ -243,25 +251,28 @@ public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgument
 	}
 
 	/**
-	 * {@code Serializer}.
+	 * Сериализатор аргумента для передачи по сети и записи в JSON.
+	 * Передаёт флаг режима: одиночный или множественный выбор.
 	 */
 	public static class Serializer implements ArgumentSerializer<ScoreHolderArgumentType, ScoreHolderArgumentType.Serializer.Properties> {
 
 		private static final byte MULTIPLE_FLAG = 1;
 
 		public void writePacket(ScoreHolderArgumentType.Serializer.Properties properties, PacketByteBuf packetByteBuf) {
-			int i = 0;
+			int flags = 0;
+
 			if (properties.multiple) {
-				i |= 1;
+				flags |= MULTIPLE_FLAG;
 			}
 
-			packetByteBuf.writeByte(i);
+			packetByteBuf.writeByte(flags);
 		}
 
 		public ScoreHolderArgumentType.Serializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-			byte b = packetByteBuf.readByte();
-			boolean bl = (b & 1) != 0;
-			return new ScoreHolderArgumentType.Serializer.Properties(bl);
+			byte flags = packetByteBuf.readByte();
+			boolean isMultiple = (flags & MULTIPLE_FLAG) != 0;
+
+			return new ScoreHolderArgumentType.Serializer.Properties(isMultiple);
 		}
 
 		public void writeJson(ScoreHolderArgumentType.Serializer.Properties properties, JsonObject jsonObject) {
@@ -273,7 +284,7 @@ public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgument
 		}
 
 		/**
-		 * {@code Properties}.
+		 * Свойства сериализатора: хранит флаг режима выбора (одиночный/множественный).
 		 */
 		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<ScoreHolderArgumentType> {
 

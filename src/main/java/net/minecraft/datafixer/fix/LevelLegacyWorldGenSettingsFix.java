@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code LevelLegacyWorldGenSettingsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LevelLegacyWorldGenSettingsFix extends DataFix {
 
@@ -31,9 +31,9 @@ public class LevelLegacyWorldGenSettingsFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"LevelLegacyWorldGenSettingsFix",
-				this.getInputSchema().getType(TypeReferences.LEVEL),
+				getInputSchema().getType(TypeReferences.LEVEL),
 				typed -> typed.update(
 						DSL.remainderFinder(), data -> {
 							Dynamic<?> dynamic = data.get("WorldGenSettings").orElseEmptyMap();

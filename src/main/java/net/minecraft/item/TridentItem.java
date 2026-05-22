@@ -31,7 +31,8 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code TridentItem}.
+ * Предмет трезубца. Поддерживает бросок как снаряда и атаку вихрем (Riptide)
+ * при наличии соответствующего зачарования и контакта с водой/дождём.
  */
 public class TridentItem extends Item implements ProjectileItem {
 
@@ -39,43 +40,40 @@ public class TridentItem extends Item implements ProjectileItem {
 	public static final float ATTACK_DAMAGE = 8.0F;
 	public static final float THROW_SPEED = 2.5F;
 
+	private static final float ATTACK_SPEED_MODIFIER = -2.9F;
+	private static final float RIPTIDE_JUMP_HEIGHT = 1.1999999F;
+	private static final int RIPTIDE_SPIN_TICKS = 20;
+	private static final float RIPTIDE_SPIN_DAMAGE = 8.0F;
+	/** Максимальное время использования — фактически бесконечное удержание. */
+	private static final int MAX_USE_TICKS = 72000;
+
 	public TridentItem(Item.Settings settings) {
 		super(settings);
 	}
 
-	/**
-	 * Создаёт attribute modifiers.
-	 *
-	 * @return AttributeModifiersComponent — результат операции
-	 */
 	public static AttributeModifiersComponent createAttributeModifiers() {
 		return AttributeModifiersComponent.builder()
-		                                  .add(
-				                                  EntityAttributes.ATTACK_DAMAGE,
-				                                  new EntityAttributeModifier(
-						                                  BASE_ATTACK_DAMAGE_MODIFIER_ID,
-						                                  8.0,
-						                                  EntityAttributeModifier.Operation.ADD_VALUE
-				                                  ),
-				                                  AttributeModifierSlot.MAINHAND
-		                                  )
-		                                  .add(
-				                                  EntityAttributes.ATTACK_SPEED,
-				                                  new EntityAttributeModifier(
-						                                  BASE_ATTACK_SPEED_MODIFIER_ID,
-						                                  -2.9F,
-						                                  EntityAttributeModifier.Operation.ADD_VALUE
-				                                  ),
-				                                  AttributeModifierSlot.MAINHAND
-		                                  )
-		                                  .build();
+			.add(
+				EntityAttributes.ATTACK_DAMAGE,
+				new EntityAttributeModifier(
+					BASE_ATTACK_DAMAGE_MODIFIER_ID,
+					ATTACK_DAMAGE,
+					EntityAttributeModifier.Operation.ADD_VALUE
+				),
+				AttributeModifierSlot.MAINHAND
+			)
+			.add(
+				EntityAttributes.ATTACK_SPEED,
+				new EntityAttributeModifier(
+					BASE_ATTACK_SPEED_MODIFIER_ID,
+					ATTACK_SPEED_MODIFIER,
+					EntityAttributeModifier.Operation.ADD_VALUE
+				),
+				AttributeModifierSlot.MAINHAND
+			)
+			.build();
 	}
 
-	/**
-	 * Создаёт tool component.
-	 *
-	 * @return ToolComponent — результат операции
-	 */
 	public static ToolComponent createToolComponent() {
 		return new ToolComponent(List.of(), 1.0F, 2, false);
 	}
@@ -87,119 +85,102 @@ public class TridentItem extends Item implements ProjectileItem {
 
 	@Override
 	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-		return 72000;
+		return MAX_USE_TICKS;
 	}
 
+	/**
+	 * Обрабатывает отпускание трезубца: либо бросает его как снаряд,
+	 * либо активирует атаку вихрем (Riptide) при наличии зачарования.
+	 */
 	@Override
 	public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
-		if (user instanceof PlayerEntity playerEntity) {
-			int i = this.getMaxUseTime(stack, user) - remainingUseTicks;
-			if (i < 10) {
-				return false;
-			}
-			else {
-				float f = EnchantmentHelper.getTridentSpinAttackStrength(stack, playerEntity);
-				if (f > 0.0F && !playerEntity.isTouchingWaterOrRain()) {
-					return false;
-				}
-				else if (stack.willBreakNextUse()) {
-					return false;
-				}
-				else {
-					RegistryEntry<SoundEvent>
-							registryEntry =
-							EnchantmentHelper.getEffect(stack, EnchantmentEffectComponentTypes.TRIDENT_SOUND)
-							                 .orElse(SoundEvents.ITEM_TRIDENT_THROW);
-					playerEntity.incrementStat(Stats.USED.getOrCreateStat(this));
-					if (world instanceof ServerWorld serverWorld) {
-						stack.damage(1, playerEntity);
-						if (f == 0.0F) {
-							ItemStack itemStack = stack.splitUnlessCreative(1, playerEntity);
-							TridentEntity tridentEntity = ProjectileEntity.spawnWithVelocity(
-									TridentEntity::new, serverWorld, itemStack, playerEntity, 0.0F, 2.5F, 1.0F
-							);
-							if (playerEntity.isInCreativeMode()) {
-								tridentEntity.pickupType = PersistentProjectileEntity.PickupPermission.CREATIVE_ONLY;
-							}
-
-							world.playSoundFromEntity(
-									null,
-									tridentEntity,
-									registryEntry.value(),
-									SoundCategory.PLAYERS,
-									1.0F,
-									1.0F
-							);
-							return true;
-						}
-					}
-
-					if (f > 0.0F) {
-						float g = playerEntity.getYaw();
-						float h = playerEntity.getPitch();
-						float
-								j =
-								-MathHelper.sin(g * (float) (Math.PI / 180.0)) * MathHelper.cos(
-										h * (float) (Math.PI / 180.0));
-						float k = -MathHelper.sin(h * (float) (Math.PI / 180.0));
-						float
-								l =
-								MathHelper.cos(g * (float) (Math.PI / 180.0)) * MathHelper.cos(
-										h * (float) (Math.PI / 180.0));
-						float m = MathHelper.sqrt(j * j + k * k + l * l);
-						j *= f / m;
-						k *= f / m;
-						l *= f / m;
-						playerEntity.addVelocity(j, k, l);
-						playerEntity.useRiptide(20, 8.0F, stack);
-						if (playerEntity.isOnGround()) {
-							float n = 1.1999999F;
-							playerEntity.move(MovementType.SELF, new Vec3d(0.0, 1.1999999F, 0.0));
-						}
-
-						world.playSoundFromEntity(
-								null,
-								playerEntity,
-								registryEntry.value(),
-								SoundCategory.PLAYERS,
-								1.0F,
-								1.0F
-						);
-						return true;
-					}
-					else {
-						return false;
-					}
-				}
-			}
-		}
-		else {
+		if (!(user instanceof PlayerEntity player)) {
 			return false;
 		}
+
+		int usedTicks = getMaxUseTime(stack, user) - remainingUseTicks;
+
+		if (usedTicks < MIN_DRAW_DURATION) {
+			return false;
+		}
+
+		float riptideStrength = EnchantmentHelper.getTridentSpinAttackStrength(stack, player);
+
+		if (riptideStrength > 0.0F && !player.isTouchingWaterOrRain()) {
+			return false;
+		}
+
+		if (stack.willBreakNextUse()) {
+			return false;
+		}
+
+		RegistryEntry<SoundEvent> throwSound = EnchantmentHelper
+			.getEffect(stack, EnchantmentEffectComponentTypes.TRIDENT_SOUND)
+			.orElse(SoundEvents.ITEM_TRIDENT_THROW);
+
+		player.incrementStat(Stats.USED.getOrCreateStat(this));
+
+		if (world instanceof ServerWorld serverWorld && riptideStrength == 0.0F) {
+			stack.damage(1, player);
+			ItemStack thrownStack = stack.splitUnlessCreative(1, player);
+			TridentEntity trident = ProjectileEntity.spawnWithVelocity(
+				TridentEntity::new, serverWorld, thrownStack, player, 0.0F, THROW_SPEED, 1.0F
+			);
+
+			if (player.isInCreativeMode()) {
+				trident.pickupType = PersistentProjectileEntity.PickupPermission.CREATIVE_ONLY;
+			}
+
+			world.playSoundFromEntity(null, trident, throwSound.value(), SoundCategory.PLAYERS, 1.0F, 1.0F);
+			return true;
+		}
+
+		if (riptideStrength > 0.0F) {
+			float yaw = player.getYaw();
+			float pitch = player.getPitch();
+			float velX = -MathHelper.sin(yaw * (float) (Math.PI / 180.0)) * MathHelper.cos(pitch * (float) (Math.PI / 180.0));
+			float velY = -MathHelper.sin(pitch * (float) (Math.PI / 180.0));
+			float velZ = MathHelper.cos(yaw * (float) (Math.PI / 180.0)) * MathHelper.cos(pitch * (float) (Math.PI / 180.0));
+			float magnitude = MathHelper.sqrt(velX * velX + velY * velY + velZ * velZ);
+
+			velX *= riptideStrength / magnitude;
+			velY *= riptideStrength / magnitude;
+			velZ *= riptideStrength / magnitude;
+
+			player.addVelocity(velX, velY, velZ);
+			player.useRiptide(RIPTIDE_SPIN_TICKS, RIPTIDE_SPIN_DAMAGE, stack);
+
+			if (player.isOnGround()) {
+				player.move(MovementType.SELF, new Vec3d(0.0, RIPTIDE_JUMP_HEIGHT, 0.0));
+			}
+
+			world.playSoundFromEntity(null, player, throwSound.value(), SoundCategory.PLAYERS, 1.0F, 1.0F);
+			return true;
+		}
+
+		return false;
 	}
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		if (itemStack.willBreakNextUse()) {
+		ItemStack stack = user.getStackInHand(hand);
+
+		if (stack.willBreakNextUse()) {
 			return ActionResult.FAIL;
 		}
-		else if (EnchantmentHelper.getTridentSpinAttackStrength(itemStack, user) > 0.0F
-				&& !user.isTouchingWaterOrRain()) {
+
+		if (EnchantmentHelper.getTridentSpinAttackStrength(stack, user) > 0.0F && !user.isTouchingWaterOrRain()) {
 			return ActionResult.FAIL;
 		}
-		else {
-			user.setCurrentHand(hand);
-			return ActionResult.CONSUME;
-		}
+
+		user.setCurrentHand(hand);
+		return ActionResult.CONSUME;
 	}
 
 	@Override
 	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-		TridentEntity
-				tridentEntity =
-				new TridentEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(1));
-		tridentEntity.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
-		return tridentEntity;
+		TridentEntity trident = new TridentEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(1));
+		trident.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
+		return trident;
 	}
 }

@@ -9,7 +9,8 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@code LoggerPrintStream}.
+ * {@link PrintStream}, перенаправляющий вывод в SLF4J-логгер.
+ * Используется для перехвата вывода сторонних библиотек, пишущих в stdout/stderr.
  */
 public class LoggerPrintStream extends PrintStream {
 
@@ -23,20 +24,15 @@ public class LoggerPrintStream extends PrintStream {
 
 	@Override
 	public void println(@Nullable String message) {
-		this.log(message);
+		log(message);
 	}
 
 	@Override
 	public void println(@Nullable Object object) {
-		this.log(String.valueOf(object));
+		log(String.valueOf(object));
 	}
 
-	/**
-	 * Log.
-	 *
-	 * @param message message
-	 */
 	protected void log(@Nullable String message) {
-		LOGGER.info("[{}]: {}", this.name, message);
+		LOGGER.info("[{}]: {}", name, message);
 	}
 }

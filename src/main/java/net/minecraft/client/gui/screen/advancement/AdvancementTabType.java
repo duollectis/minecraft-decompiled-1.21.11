@@ -7,84 +7,87 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AdvancementTabType}.
+ * Тип вкладки достижений — определяет расположение (сверху, снизу, слева, справа),
+ * размеры, количество вкладок и смещения иконок для каждой стороны экрана достижений.
  */
+@Environment(EnvType.CLIENT)
 enum AdvancementTabType {
 	ABOVE(
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_above_left_selected"),
-					Identifier.ofVanilla("advancements/tab_above_middle_selected"),
-					Identifier.ofVanilla("advancements/tab_above_right_selected")
-			),
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_above_left"),
-					Identifier.ofVanilla("advancements/tab_above_middle"),
-					Identifier.ofVanilla("advancements/tab_above_right")
-			),
-			28,
-			32,
-			8
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_above_left_selected"),
+			Identifier.ofVanilla("advancements/tab_above_middle_selected"),
+			Identifier.ofVanilla("advancements/tab_above_right_selected")
+		),
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_above_left"),
+			Identifier.ofVanilla("advancements/tab_above_middle"),
+			Identifier.ofVanilla("advancements/tab_above_right")
+		),
+		28,
+		32,
+		8
 	),
 	BELOW(
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_below_left_selected"),
-					Identifier.ofVanilla("advancements/tab_below_middle_selected"),
-					Identifier.ofVanilla("advancements/tab_below_right_selected")
-			),
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_below_left"),
-					Identifier.ofVanilla("advancements/tab_below_middle"),
-					Identifier.ofVanilla("advancements/tab_below_right")
-			),
-			28,
-			32,
-			8
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_below_left_selected"),
+			Identifier.ofVanilla("advancements/tab_below_middle_selected"),
+			Identifier.ofVanilla("advancements/tab_below_right_selected")
+		),
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_below_left"),
+			Identifier.ofVanilla("advancements/tab_below_middle"),
+			Identifier.ofVanilla("advancements/tab_below_right")
+		),
+		28,
+		32,
+		8
 	),
 	LEFT(
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_left_top_selected"),
-					Identifier.ofVanilla("advancements/tab_left_middle_selected"),
-					Identifier.ofVanilla("advancements/tab_left_bottom_selected")
-			),
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_left_top"),
-					Identifier.ofVanilla("advancements/tab_left_middle"),
-					Identifier.ofVanilla("advancements/tab_left_bottom")
-			),
-			32,
-			28,
-			5
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_left_top_selected"),
+			Identifier.ofVanilla("advancements/tab_left_middle_selected"),
+			Identifier.ofVanilla("advancements/tab_left_bottom_selected")
+		),
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_left_top"),
+			Identifier.ofVanilla("advancements/tab_left_middle"),
+			Identifier.ofVanilla("advancements/tab_left_bottom")
+		),
+		32,
+		28,
+		5
 	),
 	RIGHT(
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_right_top_selected"),
-					Identifier.ofVanilla("advancements/tab_right_middle_selected"),
-					Identifier.ofVanilla("advancements/tab_right_bottom_selected")
-			),
-			new AdvancementTabType.Textures(
-					Identifier.ofVanilla("advancements/tab_right_top"),
-					Identifier.ofVanilla("advancements/tab_right_middle"),
-					Identifier.ofVanilla("advancements/tab_right_bottom")
-			),
-			32,
-			28,
-			5
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_right_top_selected"),
+			Identifier.ofVanilla("advancements/tab_right_middle_selected"),
+			Identifier.ofVanilla("advancements/tab_right_bottom_selected")
+		),
+		new Textures(
+			Identifier.ofVanilla("advancements/tab_right_top"),
+			Identifier.ofVanilla("advancements/tab_right_middle"),
+			Identifier.ofVanilla("advancements/tab_right_bottom")
+		),
+		32,
+		28,
+		5
 	);
 
-	private final AdvancementTabType.Textures selectedTextures;
-	private final AdvancementTabType.Textures unselectedTextures;
+	private static final int RIGHT_SIDE_X = 248;
+
+	private final Textures selectedTextures;
+	private final Textures unselectedTextures;
 	private final int width;
 	private final int height;
 	private final int tabCount;
 
-	private AdvancementTabType(
-			final AdvancementTabType.Textures selectedTextures,
-			final AdvancementTabType.Textures unselectedTextures,
-			final int width,
-			final int height,
-			final int tabCount
+	AdvancementTabType(
+		final Textures selectedTextures,
+		final Textures unselectedTextures,
+		final int width,
+		final int height,
+		final int tabCount
 	) {
 		this.selectedTextures = selectedTextures;
 		this.unselectedTextures = unselectedTextures;
@@ -94,115 +97,85 @@ enum AdvancementTabType {
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	public int getTabCount() {
-		return this.tabCount;
+		return tabCount;
 	}
 
 	/**
-	 * Draw background.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param selected selected
-	 * @param index index
+	 * Рисует фоновую текстуру вкладки. Выбирает текстуру (первая/средняя/последняя)
+	 * в зависимости от индекса вкладки в ряду.
 	 */
 	public void drawBackground(DrawContext context, int x, int y, boolean selected, int index) {
-		AdvancementTabType.Textures textures = selected ? this.selectedTextures : this.unselectedTextures;
-		Identifier identifier;
+		Textures textures = selected ? selectedTextures : unselectedTextures;
+		Identifier texture;
 		if (index == 0) {
-			identifier = textures.first();
+			texture = textures.first();
 		}
-		else if (index == this.tabCount - 1) {
-			identifier = textures.last();
+		else if (index == tabCount - 1) {
+			texture = textures.last();
 		}
 		else {
-			identifier = textures.middle();
+			texture = textures.middle();
 		}
 
-		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, x, y, this.width, this.height);
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, width, height);
 	}
 
-	/**
-	 * Draw icon.
-	 *
-	 * @param context context
-	 * @param x x
-	 * @param y y
-	 * @param index index
-	 * @param stack stack
-	 */
 	public void drawIcon(DrawContext context, int x, int y, int index, ItemStack stack) {
-		int i = x + this.getTabX(index);
-		int j = y + this.getTabY(index);
+		int iconX = x + getTabX(index);
+		int iconY = y + getTabY(index);
 		switch (this) {
-			case ABOVE:
-				i += 6;
-				j += 9;
-				break;
-			case BELOW:
-				i += 6;
-				j += 6;
-				break;
-			case LEFT:
-				i += 10;
-				j += 5;
-				break;
-			case RIGHT:
-				i += 6;
-				j += 5;
+			case ABOVE -> {
+				iconX += 6;
+				iconY += 9;
+			}
+			case BELOW -> {
+				iconX += 6;
+				iconY += 6;
+			}
+			case LEFT -> {
+				iconX += 10;
+				iconY += 5;
+			}
+			case RIGHT -> {
+				iconX += 6;
+				iconY += 5;
+			}
 		}
 
-		context.drawItemWithoutEntity(stack, i, j);
+		context.drawItemWithoutEntity(stack, iconX, iconY);
 	}
 
 	public int getTabX(int index) {
-		switch (this) {
-			case ABOVE:
-				return (this.width + 4) * index;
-			case BELOW:
-				return (this.width + 4) * index;
-			case LEFT:
-				return -this.width + 4;
-			case RIGHT:
-				return 248;
-			default:
-				throw new UnsupportedOperationException("Don't know what this tab type is!" + this);
-		}
+		return switch (this) {
+			case ABOVE, BELOW -> (width + 4) * index;
+			case LEFT -> -width + 4;
+			case RIGHT -> RIGHT_SIDE_X;
+		};
 	}
 
 	public int getTabY(int index) {
-		switch (this) {
-			case ABOVE:
-				return -this.height + 4;
-			case BELOW:
-				return 136;
-			case LEFT:
-				return this.height * index;
-			case RIGHT:
-				return this.height * index;
-			default:
-				throw new UnsupportedOperationException("Don't know what this tab type is!" + this);
-		}
+		return switch (this) {
+			case ABOVE -> -height + 4;
+			case BELOW -> 136;
+			case LEFT, RIGHT -> height * index;
+		};
 	}
 
 	public boolean isClickOnTab(int screenX, int screenY, int index, double mouseX, double mouseY) {
-		int i = screenX + this.getTabX(index);
-		int j = screenY + this.getTabY(index);
-		return mouseX > i && mouseX < i + this.width && mouseY > j && mouseY < j + this.height;
+		int tabX = screenX + getTabX(index);
+		int tabY = screenY + getTabY(index);
+		return mouseX > tabX && mouseX < tabX + width && mouseY > tabY && mouseY < tabY + height;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Textures}.
-	 */
 	record Textures(Identifier first, Identifier middle, Identifier last) {
 	}
 }

@@ -11,17 +11,19 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.Optional;
 
 /**
- * {@code BreedTask}.
+ * Задача мозга, управляющая процессом размножения животных.
+ * Ищет партнёра того же типа в памяти {@code VISIBLE_MOBS} и сближает пару до начала разведения.
  */
 public class BreedTask extends MultiTickTask<AnimalEntity> {
 
 	private static final int MAX_RANGE = 3;
 	private static final int MIN_BREED_TIME = 60;
+	private static final int MAX_BREED_DELAY_EXTRA = 50;
 	private static final int RUN_TIME = 110;
+	private static final int DEFAULT_APPROACH_DISTANCE = 2;
 	private final EntityType<? extends AnimalEntity> targetType;
 	private final float speed;
 	private final int approachDistance;
-	private static final int DEFAULT_APPROACH_DISTANCE = 2;
 	private long breedTime;
 
 	public BreedTask(EntityType<? extends AnimalEntity> targetType) {
@@ -42,96 +44,60 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 						MemoryModuleType.IS_PANICKING,
 						MemoryModuleState.VALUE_ABSENT
 				),
-				110
+				RUN_TIME
 		);
 		this.targetType = targetType;
 		this.speed = speed;
 		this.approachDistance = approachDistance;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, AnimalEntity animalEntity) {
-		return animalEntity.isInLove() && this.findBreedTarget(animalEntity).isPresent();
+	@Override
+	protected boolean shouldRun(ServerWorld world, AnimalEntity entity) {
+		return entity.isInLove() && findBreedTarget(entity).isPresent();
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		AnimalEntity animalEntity2 = this.findBreedTarget(animalEntity).get();
-		animalEntity.getBrain().remember(MemoryModuleType.BREED_TARGET, animalEntity2);
-		animalEntity2.getBrain().remember(MemoryModuleType.BREED_TARGET, animalEntity);
-		TargetUtil.lookAtAndWalkTowardsEachOther(animalEntity, animalEntity2, this.speed, this.approachDistance);
-		int i = 60 + animalEntity.getRandom().nextInt(50);
-		this.breedTime = l + i;
+	@Override
+	protected void run(ServerWorld world, AnimalEntity entity, long time) {
+		AnimalEntity partner = findBreedTarget(entity).get();
+		entity.getBrain().remember(MemoryModuleType.BREED_TARGET, partner);
+		partner.getBrain().remember(MemoryModuleType.BREED_TARGET, entity);
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, speed, approachDistance);
+		int delay = MIN_BREED_TIME + entity.getRandom().nextInt(MAX_BREED_DELAY_EXTRA);
+		breedTime = time + delay;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		if (!this.hasBreedTarget(animalEntity)) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, AnimalEntity entity, long time) {
+		if (!hasBreedTarget(entity)) {
 			return false;
 		}
-		else {
-			AnimalEntity animalEntity2 = this.getBreedTarget(animalEntity);
-			return animalEntity2.isAlive()
-					&& animalEntity.canBreedWith(animalEntity2)
-					&& TargetUtil.canSee(animalEntity.getBrain(), animalEntity2)
-					&& l <= this.breedTime
-					&& !animalEntity.isPanicking()
-					&& !animalEntity2.isPanicking();
+
+		AnimalEntity partner = getBreedTarget(entity);
+		return partner.isAlive()
+				&& entity.canBreedWith(partner)
+				&& TargetUtil.canSee(entity.getBrain(), partner)
+				&& time <= breedTime
+				&& !entity.isPanicking()
+				&& !partner.isPanicking();
+	}
+
+	@Override
+	protected void keepRunning(ServerWorld world, AnimalEntity entity, long time) {
+		AnimalEntity partner = getBreedTarget(entity);
+		TargetUtil.lookAtAndWalkTowardsEachOther(entity, partner, speed, approachDistance);
+		if (entity.isInRange(partner, MAX_RANGE) && time >= breedTime) {
+			entity.breed(world, partner);
+			entity.getBrain().forget(MemoryModuleType.BREED_TARGET);
+			partner.getBrain().forget(MemoryModuleType.BREED_TARGET);
 		}
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		AnimalEntity animalEntity2 = this.getBreedTarget(animalEntity);
-		TargetUtil.lookAtAndWalkTowardsEachOther(animalEntity, animalEntity2, this.speed, this.approachDistance);
-		if (animalEntity.isInRange(animalEntity2, 3.0)) {
-			if (l >= this.breedTime) {
-				animalEntity.breed(serverWorld, animalEntity2);
-				animalEntity.getBrain().forget(MemoryModuleType.BREED_TARGET);
-				animalEntity2.getBrain().forget(MemoryModuleType.BREED_TARGET);
-			}
-		}
-	}
-
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param animalEntity animal entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
-		animalEntity.getBrain().forget(MemoryModuleType.BREED_TARGET);
-		animalEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
-		animalEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
-		this.breedTime = 0L;
+	@Override
+	protected void finishRunning(ServerWorld world, AnimalEntity entity, long time) {
+		entity.getBrain().forget(MemoryModuleType.BREED_TARGET);
+		entity.getBrain().forget(MemoryModuleType.WALK_TARGET);
+		entity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
+		breedTime = 0L;
 	}
 
 	private AnimalEntity getBreedTarget(AnimalEntity animal) {
@@ -141,19 +107,19 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 	private boolean hasBreedTarget(AnimalEntity animal) {
 		Brain<?> brain = animal.getBrain();
 		return brain.hasMemoryModule(MemoryModuleType.BREED_TARGET)
-				&& brain.getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET).get().getType() == this.targetType;
+				&& brain.getOptionalRegisteredMemory(MemoryModuleType.BREED_TARGET).get().getType() == targetType;
 	}
 
 	private Optional<? extends AnimalEntity> findBreedTarget(AnimalEntity animal) {
 		return animal.getBrain()
-		             .getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
-		             .get()
-		             .findFirst(
-				             entity -> entity.getType() == this.targetType
-						             && entity instanceof AnimalEntity animalEntity2
-						             && animal.canBreedWith(animalEntity2)
-						             && !animalEntity2.isPanicking()
-		             )
-		             .map(AnimalEntity.class::cast);
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
+				.get()
+				.findFirst(
+						entity -> entity.getType() == targetType
+								&& entity instanceof AnimalEntity candidate
+								&& animal.canBreedWith(candidate)
+								&& !candidate.isPanicking()
+				)
+				.map(AnimalEntity.class::cast);
 	}
 }

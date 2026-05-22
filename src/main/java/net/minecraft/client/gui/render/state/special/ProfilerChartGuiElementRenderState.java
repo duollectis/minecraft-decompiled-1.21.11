@@ -8,10 +8,13 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ProfilerChartGuiElementRenderState}.
+ * Состояние круговой диаграммы профайлера в GUI.
+ * Хранит список временных замеров для построения диаграммы.
+ * Масштаб фиксирован на 1.0 — диаграмма рендерится в натуральном размере
+ * без дополнительного масштабирования.
  */
+@Environment(EnvType.CLIENT)
 public record ProfilerChartGuiElementRenderState(
 		List<ProfilerTiming> chartData,
 		int x1,

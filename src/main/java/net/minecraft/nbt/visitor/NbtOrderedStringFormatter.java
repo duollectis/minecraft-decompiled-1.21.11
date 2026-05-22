@@ -11,41 +11,47 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * {@code NbtOrderedStringFormatter}.
+ * Форматирует дерево NBT в читаемую многострочную SNBT-строку с отступами и упорядоченными ключами.
+ * <p>
+ * В отличие от {@link StringNbtWriter}, этот форматтер:
+ * <ul>
+ *   <li>Добавляет отступы и переносы строк для вложенных структур.</li>
+ *   <li>Сортирует ключи {@link NbtCompound} в алфавитном порядке, с возможностью
+ *       переопределения порядка через {@link #ENTRY_ORDER_OVERRIDES} для известных структур.</li>
+ *   <li>Пропускает форматирование для путей из {@link #IGNORED_PATHS}, выводя их компактно.</li>
+ * </ul>
+ * Используется для отладочного вывода и инструментов разработчика.
  */
 public class NbtOrderedStringFormatter implements NbtElementVisitor {
 
 	private static final Map<String, List<String>> ENTRY_ORDER_OVERRIDES = Util.make(
-			Maps.newHashMap(), map -> {
-				map.put(
-						"{}",
-						Lists.newArrayList(new String[]{
-								"DataVersion",
-								"author",
-								"size",
-								"data",
-								"entities",
-								"palette",
-								"palettes"
-						})
-				);
-				map.put("{}.data.[].{}", Lists.newArrayList(new String[]{"pos", "state", "nbt"}));
-				map.put("{}.entities.[].{}", Lists.newArrayList(new String[]{"blockPos", "pos"}));
-			}
+		Maps.newHashMap(), map -> {
+			map.put(
+				"{}",
+				Lists.newArrayList(
+					"DataVersion",
+					"author",
+					"size",
+					"data",
+					"entities",
+					"palette",
+					"palettes"
+				)
+			);
+			map.put("{}.data.[].{}", Lists.newArrayList("pos", "state", "nbt"));
+			map.put("{}.entities.[].{}", Lists.newArrayList("blockPos", "pos"));
+		}
 	);
-	private static final Set<String>
-			IGNORED_PATHS =
-			Sets.newHashSet(new String[]{"{}.size.[]", "{}.data.[].{}", "{}.palette.[].{}", "{}.entities.[].{}"});
+	private static final Set<String> IGNORED_PATHS = Sets.newHashSet(
+		"{}.size.[]",
+		"{}.data.[].{}",
+		"{}.palette.[].{}",
+		"{}.entities.[].{}"
+	);
 	private static final Pattern SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+");
 	private static final String KEY_VALUE_SEPARATOR = String.valueOf(':');
 	private static final String ENTRY_SEPARATOR = String.valueOf(',');
-	private static final String SQUARE_OPEN_BRACKET = "[";
-	private static final String SQUARE_CLOSE_BRACKET = "]";
-	private static final String SEMICOLON = ";";
-	private static final String SPACE = " ";
-	private static final String CURLY_OPEN_BRACKET = "{";
-	private static final String CURLY_CLOSE_BRACKET = "}";
-	private static final String NEW_LINE = "\n";
+
 	private final String prefix;
 	private final int indentationLevel;
 	private final List<String> pathParts;
@@ -62,227 +68,236 @@ public class NbtOrderedStringFormatter implements NbtElementVisitor {
 	}
 
 	/**
-	 * Apply.
+	 * Применяет форматтер к NBT-элементу и возвращает отформатированную строку.
 	 *
-	 * @param element element
-	 *
-	 * @return String — результат операции
+	 * @param element корневой элемент для форматирования
+	 * @return отформатированная SNBT-строка с отступами
 	 */
 	public String apply(NbtElement element) {
 		element.accept(this);
-		return this.result;
+		return result;
 	}
 
 	@Override
 	public void visitString(NbtString element) {
-		this.result = NbtString.escape(element.value());
+		result = NbtString.escape(element.value());
 	}
 
 	@Override
 	public void visitByte(NbtByte element) {
-		this.result = element.value() + "b";
+		result = element.value() + "b";
 	}
 
 	@Override
 	public void visitShort(NbtShort element) {
-		this.result = element.value() + "s";
+		result = element.value() + "s";
 	}
 
 	@Override
 	public void visitInt(NbtInt element) {
-		this.result = String.valueOf(element.value());
+		result = String.valueOf(element.value());
 	}
 
 	@Override
 	public void visitLong(NbtLong element) {
-		this.result = element.value() + "L";
+		result = element.value() + "L";
 	}
 
 	@Override
 	public void visitFloat(NbtFloat element) {
-		this.result = element.value() + "f";
+		result = element.value() + "f";
 	}
 
 	@Override
 	public void visitDouble(NbtDouble element) {
-		this.result = element.value() + "d";
+		result = element.value() + "d";
 	}
 
 	@Override
 	public void visitByteArray(NbtByteArray element) {
-		StringBuilder stringBuilder = new StringBuilder("[").append("B").append(";");
-		byte[] bs = element.getByteArray();
+		StringBuilder builder = new StringBuilder("[B;");
+		byte[] bytes = element.getByteArray();
 
-		for (int i = 0; i < bs.length; i++) {
-			stringBuilder.append(" ").append(bs[i]).append("B");
-			if (i != bs.length - 1) {
-				stringBuilder.append(ENTRY_SEPARATOR);
+		for (int index = 0; index < bytes.length; index++) {
+			builder.append(' ').append(bytes[index]).append('B');
+			if (index != bytes.length - 1) {
+				builder.append(ENTRY_SEPARATOR);
 			}
 		}
 
-		stringBuilder.append("]");
-		this.result = stringBuilder.toString();
+		builder.append(']');
+		result = builder.toString();
 	}
 
 	@Override
 	public void visitIntArray(NbtIntArray element) {
-		StringBuilder stringBuilder = new StringBuilder("[").append("I").append(";");
-		int[] is = element.getIntArray();
+		StringBuilder builder = new StringBuilder("[I;");
+		int[] ints = element.getIntArray();
 
-		for (int i = 0; i < is.length; i++) {
-			stringBuilder.append(" ").append(is[i]);
-			if (i != is.length - 1) {
-				stringBuilder.append(ENTRY_SEPARATOR);
+		for (int index = 0; index < ints.length; index++) {
+			builder.append(' ').append(ints[index]);
+			if (index != ints.length - 1) {
+				builder.append(ENTRY_SEPARATOR);
 			}
 		}
 
-		stringBuilder.append("]");
-		this.result = stringBuilder.toString();
+		builder.append(']');
+		result = builder.toString();
 	}
 
 	@Override
 	public void visitLongArray(NbtLongArray element) {
-		String string = "L";
-		StringBuilder stringBuilder = new StringBuilder("[").append("L").append(";");
-		long[] ls = element.getLongArray();
+		StringBuilder builder = new StringBuilder("[L;");
+		long[] longs = element.getLongArray();
 
-		for (int i = 0; i < ls.length; i++) {
-			stringBuilder.append(" ").append(ls[i]).append("L");
-			if (i != ls.length - 1) {
-				stringBuilder.append(ENTRY_SEPARATOR);
+		for (int index = 0; index < longs.length; index++) {
+			builder.append(' ').append(longs[index]).append('L');
+			if (index != longs.length - 1) {
+				builder.append(ENTRY_SEPARATOR);
 			}
 		}
 
-		stringBuilder.append("]");
-		this.result = stringBuilder.toString();
+		builder.append(']');
+		result = builder.toString();
 	}
 
 	@Override
 	public void visitList(NbtList element) {
 		if (element.isEmpty()) {
-			this.result = "[]";
+			result = "[]";
+			return;
 		}
-		else {
-			StringBuilder stringBuilder = new StringBuilder("[");
-			this.pushPathPart("[]");
-			String string = IGNORED_PATHS.contains(this.joinPath()) ? "" : this.prefix;
-			if (!string.isEmpty()) {
-				stringBuilder.append("\n");
-			}
 
-			for (int i = 0; i < element.size(); i++) {
-				stringBuilder.append(Strings.repeat(string, this.indentationLevel + 1));
-				stringBuilder.append(new NbtOrderedStringFormatter(
-						string,
-						this.indentationLevel + 1,
-						this.pathParts
-				).apply(element.get(i)));
-				if (i != element.size() - 1) {
-					stringBuilder.append(ENTRY_SEPARATOR).append(string.isEmpty() ? " " : "\n");
-				}
-			}
+		StringBuilder builder = new StringBuilder("[");
+		pushPathPart("[]");
+		String indent = IGNORED_PATHS.contains(joinPath()) ? "" : prefix;
 
-			if (!string.isEmpty()) {
-				stringBuilder.append("\n").append(Strings.repeat(string, this.indentationLevel));
-			}
-
-			stringBuilder.append("]");
-			this.result = stringBuilder.toString();
-			this.popPathPart();
+		if (!indent.isEmpty()) {
+			builder.append('\n');
 		}
+
+		for (int index = 0; index < element.size(); index++) {
+			builder.append(Strings.repeat(indent, indentationLevel + 1));
+			builder.append(
+				new NbtOrderedStringFormatter(indent, indentationLevel + 1, pathParts)
+					.apply(element.get(index))
+			);
+
+			if (index != element.size() - 1) {
+				builder.append(ENTRY_SEPARATOR).append(indent.isEmpty() ? " " : "\n");
+			}
+		}
+
+		if (!indent.isEmpty()) {
+			builder.append('\n').append(Strings.repeat(indent, indentationLevel));
+		}
+
+		builder.append(']');
+		result = builder.toString();
+		popPathPart();
 	}
 
 	@Override
 	public void visitCompound(NbtCompound compound) {
 		if (compound.isEmpty()) {
-			this.result = "{}";
+			result = "{}";
+			return;
 		}
-		else {
-			StringBuilder stringBuilder = new StringBuilder("{");
-			this.pushPathPart("{}");
-			String string = IGNORED_PATHS.contains(this.joinPath()) ? "" : this.prefix;
-			if (!string.isEmpty()) {
-				stringBuilder.append("\n");
-			}
 
-			Collection<String> collection = this.getSortedNames(compound);
-			Iterator<String> iterator = collection.iterator();
+		StringBuilder builder = new StringBuilder("{");
+		pushPathPart("{}");
+		String indent = IGNORED_PATHS.contains(joinPath()) ? "" : prefix;
 
-			while (iterator.hasNext()) {
-				String string2 = iterator.next();
-				NbtElement nbtElement = compound.get(string2);
-				this.pushPathPart(string2);
-				stringBuilder.append(Strings.repeat(string, this.indentationLevel + 1))
-				             .append(escapeName(string2))
-				             .append(KEY_VALUE_SEPARATOR)
-				             .append(" ")
-				             .append(new NbtOrderedStringFormatter(
-						             string,
-						             this.indentationLevel + 1,
-						             this.pathParts
-				             ).apply(nbtElement));
-				this.popPathPart();
-				if (iterator.hasNext()) {
-					stringBuilder.append(ENTRY_SEPARATOR).append(string.isEmpty() ? " " : "\n");
-				}
-			}
-
-			if (!string.isEmpty()) {
-				stringBuilder.append("\n").append(Strings.repeat(string, this.indentationLevel));
-			}
-
-			stringBuilder.append("}");
-			this.result = stringBuilder.toString();
-			this.popPathPart();
+		if (!indent.isEmpty()) {
+			builder.append('\n');
 		}
+
+		Collection<String> sortedNames = getSortedNames(compound);
+		Iterator<String> iterator = sortedNames.iterator();
+
+		while (iterator.hasNext()) {
+			String key = iterator.next();
+			NbtElement value = compound.get(key);
+			pushPathPart(key);
+			builder.append(Strings.repeat(indent, indentationLevel + 1))
+			       .append(escapeName(key))
+			       .append(KEY_VALUE_SEPARATOR)
+			       .append(' ')
+			       .append(new NbtOrderedStringFormatter(indent, indentationLevel + 1, pathParts).apply(value));
+			popPathPart();
+
+			if (iterator.hasNext()) {
+				builder.append(ENTRY_SEPARATOR).append(indent.isEmpty() ? " " : "\n");
+			}
+		}
+
+		if (!indent.isEmpty()) {
+			builder.append('\n').append(Strings.repeat(indent, indentationLevel));
+		}
+
+		builder.append('}');
+		result = builder.toString();
+		popPathPart();
 	}
 
 	private void popPathPart() {
-		this.pathParts.remove(this.pathParts.size() - 1);
+		pathParts.remove(pathParts.size() - 1);
 	}
 
 	private void pushPathPart(String part) {
-		this.pathParts.add(part);
+		pathParts.add(part);
 	}
 
+	/**
+	 * Возвращает список ключей {@link NbtCompound} в нужном порядке.
+	 * <p>
+	 * Если для текущего пути задан порядок в {@link #ENTRY_ORDER_OVERRIDES},
+	 * приоритетные ключи идут первыми, остальные — в алфавитном порядке.
+	 * Иначе все ключи сортируются алфавитно.
+	 *
+	 * @param compound исходный compound-тег
+	 * @return упорядоченный список ключей
+	 */
 	protected List<String> getSortedNames(NbtCompound compound) {
-		Set<String> set = Sets.newHashSet(compound.getKeys());
-		List<String> list = Lists.newArrayList();
-		List<String> list2 = ENTRY_ORDER_OVERRIDES.get(this.joinPath());
-		if (list2 != null) {
-			for (String string : list2) {
-				if (set.remove(string)) {
-					list.add(string);
+		Set<String> remaining = Sets.newHashSet(compound.getKeys());
+		List<String> ordered = Lists.newArrayList();
+		List<String> priorityOrder = ENTRY_ORDER_OVERRIDES.get(joinPath());
+
+		if (priorityOrder != null) {
+			for (String key : priorityOrder) {
+				if (remaining.remove(key)) {
+					ordered.add(key);
 				}
 			}
 
-			if (!set.isEmpty()) {
-				set.stream().sorted().forEach(list::add);
+			if (!remaining.isEmpty()) {
+				remaining.stream().sorted().forEach(ordered::add);
 			}
 		}
 		else {
-			list.addAll(set);
-			Collections.sort(list);
+			ordered.addAll(remaining);
+			Collections.sort(ordered);
 		}
 
-		return list;
+		return ordered;
 	}
 
 	/**
-	 * Join path.
+	 * Возвращает текущий путь в дереве NBT в виде строки, разделённой точками.
+	 * Используется для поиска в {@link #ENTRY_ORDER_OVERRIDES} и {@link #IGNORED_PATHS}.
 	 *
-	 * @return String — результат операции
+	 * @return строковое представление текущего пути, например {@code "{}.data.[].{}"}
 	 */
 	public String joinPath() {
-		return String.join(".", this.pathParts);
+		return String.join(".", pathParts);
 	}
 
 	/**
-	 * Escape name.
+	 * Экранирует имя ключа NBT, если оно содержит спецсимволы.
+	 * Простые алфавитно-цифровые имена возвращаются без изменений.
 	 *
-	 * @param name name
-	 *
-	 * @return String — результат операции
+	 * @param name имя ключа
+	 * @return экранированное или исходное имя
 	 */
 	protected static String escapeName(String name) {
 		return SIMPLE_NAME.matcher(name).matches() ? name : NbtString.escape(name);

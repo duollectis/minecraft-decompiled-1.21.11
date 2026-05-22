@@ -24,12 +24,12 @@ public class VanillaTimelineTagProvider extends SimpleTagProvider<Timeline> {
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(TimelineTags.UNIVERSAL).add(Timelines.VILLAGER_SCHEDULE);
+		builder(TimelineTags.UNIVERSAL).add(Timelines.VILLAGER_SCHEDULE);
 		this
 				.builder(TimelineTags.IN_OVERWORLD)
 				.addTag(TimelineTags.UNIVERSAL)
 				.add(Timelines.DAY, Timelines.MOON, Timelines.EARLY_GAME);
-		this.builder(TimelineTags.IN_NETHER).addTag(TimelineTags.UNIVERSAL);
-		this.builder(TimelineTags.IN_END).addTag(TimelineTags.UNIVERSAL);
+		builder(TimelineTags.IN_NETHER).addTag(TimelineTags.UNIVERSAL);
+		builder(TimelineTags.IN_END).addTag(TimelineTags.UNIVERSAL);
 	}
 }

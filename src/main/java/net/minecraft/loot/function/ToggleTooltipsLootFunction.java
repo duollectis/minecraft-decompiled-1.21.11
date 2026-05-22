@@ -15,18 +15,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code ToggleTooltipsLootFunction}.
+ * Функция лута, переключающая видимость подсказок (tooltip) компонентов предмета.
+ * Значение {@code true} в карте означает, что подсказка должна быть скрыта.
  */
 public class ToggleTooltipsLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<ToggleTooltipsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(Codec
-							.unboundedMap(ComponentType.CODEC, Codec.BOOL)
-							.fieldOf("toggles")
-							.forGetter(lootFunction -> lootFunction.toggles))
-					.apply(instance, ToggleTooltipsLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(Codec
+				.unboundedMap(ComponentType.CODEC, Codec.BOOL)
+				.fieldOf("toggles")
+				.forGetter(lootFunction -> lootFunction.toggles))
+			.apply(instance, ToggleTooltipsLootFunction::new)
 	);
+
 	private final Map<ComponentType<?>, Boolean> toggles;
 
 	private ToggleTooltipsLootFunction(List<LootCondition> conditions, Map<ComponentType<?>, Boolean> toggles) {
@@ -37,14 +39,16 @@ public class ToggleTooltipsLootFunction extends ConditionalLootFunction {
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
 		stack.apply(
-				DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplayComponent.DEFAULT, tooltipDisplayComponent -> {
-					for (Entry<ComponentType<?>, Boolean> entry : this.toggles.entrySet()) {
-						boolean bl = entry.getValue();
-						tooltipDisplayComponent = tooltipDisplayComponent.with(entry.getKey(), !bl);
-					}
-
-					return tooltipDisplayComponent;
+			DataComponentTypes.TOOLTIP_DISPLAY,
+			TooltipDisplayComponent.DEFAULT,
+			current -> {
+				TooltipDisplayComponent result = current;
+				for (Entry<ComponentType<?>, Boolean> entry : toggles.entrySet()) {
+					boolean hidden = entry.getValue();
+					result = result.with(entry.getKey(), !hidden);
 				}
+				return result;
+			}
 		);
 		return stack;
 	}

@@ -10,7 +10,7 @@ import net.minecraft.world.rule.GameRules;
 import java.util.stream.Stream;
 
 /**
- * {@code GameRuleManagementHandlerImpl}.
+ * Класс Game Rule Management Handler Impl.
  */
 public class GameRuleManagementHandlerImpl implements GameRuleManagementHandler {
 

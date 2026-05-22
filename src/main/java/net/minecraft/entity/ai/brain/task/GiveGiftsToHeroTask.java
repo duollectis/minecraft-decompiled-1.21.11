@@ -18,36 +18,34 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code GiveGiftsToHeroTask}.
+ * Задача мозга жителя, дарящего подарки игроку с эффектом «Герой деревни».
+ * Выбирает таблицу лута по профессии жителя и бросает предметы в сторону героя.
  */
 public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 
 	private static final int MAX_DISTANCE = 5;
 	private static final int DEFAULT_DURATION = 600;
-	private static final int MAX_NEXT_GIFT_DELAY = 6600;
+	private static final int MAX_EXTRA_GIFT_DELAY = 6001;
 	private static final int RUN_TIME = 20;
-	private static final Map<RegistryKey<VillagerProfession>, RegistryKey<LootTable>>
-			GIFTS =
-			ImmutableMap.<RegistryKey<VillagerProfession>, RegistryKey<LootTable>>builder()
-			            .put(VillagerProfession.ARMORER, LootTables.HERO_OF_THE_VILLAGE_ARMORER_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.BUTCHER, LootTables.HERO_OF_THE_VILLAGE_BUTCHER_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.CARTOGRAPHER, LootTables.HERO_OF_THE_VILLAGE_CARTOGRAPHER_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.CLERIC, LootTables.HERO_OF_THE_VILLAGE_CLERIC_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.FARMER, LootTables.HERO_OF_THE_VILLAGE_FARMER_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.FISHERMAN, LootTables.HERO_OF_THE_VILLAGE_FISHERMAN_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.FLETCHER, LootTables.HERO_OF_THE_VILLAGE_FLETCHER_GIFT_GAMEPLAY)
-			            .put(
-					            VillagerProfession.LEATHERWORKER,
-					            LootTables.HERO_OF_THE_VILLAGE_LEATHERWORKER_GIFT_GAMEPLAY
-			            )
-			            .put(VillagerProfession.LIBRARIAN, LootTables.HERO_OF_THE_VILLAGE_LIBRARIAN_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.MASON, LootTables.HERO_OF_THE_VILLAGE_MASON_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.SHEPHERD, LootTables.HERO_OF_THE_VILLAGE_SHEPHERD_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.TOOLSMITH, LootTables.HERO_OF_THE_VILLAGE_TOOLSMITH_GIFT_GAMEPLAY)
-			            .put(VillagerProfession.WEAPONSMITH, LootTables.HERO_OF_THE_VILLAGE_WEAPONSMITH_GIFT_GAMEPLAY)
-			            .build();
 	private static final float WALK_SPEED = 0.5F;
-	private int ticksLeft = 600;
+	private static final Map<RegistryKey<VillagerProfession>, RegistryKey<LootTable>> GIFTS =
+			ImmutableMap.<RegistryKey<VillagerProfession>, RegistryKey<LootTable>>builder()
+					.put(VillagerProfession.ARMORER, LootTables.HERO_OF_THE_VILLAGE_ARMORER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.BUTCHER, LootTables.HERO_OF_THE_VILLAGE_BUTCHER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.CARTOGRAPHER, LootTables.HERO_OF_THE_VILLAGE_CARTOGRAPHER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.CLERIC, LootTables.HERO_OF_THE_VILLAGE_CLERIC_GIFT_GAMEPLAY)
+					.put(VillagerProfession.FARMER, LootTables.HERO_OF_THE_VILLAGE_FARMER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.FISHERMAN, LootTables.HERO_OF_THE_VILLAGE_FISHERMAN_GIFT_GAMEPLAY)
+					.put(VillagerProfession.FLETCHER, LootTables.HERO_OF_THE_VILLAGE_FLETCHER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.LEATHERWORKER, LootTables.HERO_OF_THE_VILLAGE_LEATHERWORKER_GIFT_GAMEPLAY)
+					.put(VillagerProfession.LIBRARIAN, LootTables.HERO_OF_THE_VILLAGE_LIBRARIAN_GIFT_GAMEPLAY)
+					.put(VillagerProfession.MASON, LootTables.HERO_OF_THE_VILLAGE_MASON_GIFT_GAMEPLAY)
+					.put(VillagerProfession.SHEPHERD, LootTables.HERO_OF_THE_VILLAGE_SHEPHERD_GIFT_GAMEPLAY)
+					.put(VillagerProfession.TOOLSMITH, LootTables.HERO_OF_THE_VILLAGE_TOOLSMITH_GIFT_GAMEPLAY)
+					.put(VillagerProfession.WEAPONSMITH, LootTables.HERO_OF_THE_VILLAGE_WEAPONSMITH_GIFT_GAMEPLAY)
+					.build();
+
+	private int ticksLeft = DEFAULT_DURATION;
 	private boolean done;
 	private long startTime;
 
@@ -67,95 +65,62 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		if (!this.isNearestPlayerHero(villagerEntity)) {
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		if (!isNearestPlayerHero(entity)) {
 			return false;
 		}
-		else if (this.ticksLeft > 0) {
-			this.ticksLeft--;
+
+		if (ticksLeft > 0) {
+			ticksLeft--;
 			return false;
 		}
-		else {
-			return true;
-		}
+
+		return true;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.done = false;
-		this.startTime = l;
-		PlayerEntity playerEntity = this.getNearestPlayerIfHero(villagerEntity).get();
-		villagerEntity.getBrain().remember(MemoryModuleType.INTERACTION_TARGET, playerEntity);
-		TargetUtil.lookAt(villagerEntity, playerEntity);
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		done = false;
+		startTime = time;
+		PlayerEntity hero = getNearestPlayerIfHero(entity).get();
+		entity.getBrain().remember(MemoryModuleType.INTERACTION_TARGET, hero);
+		TargetUtil.lookAt(entity, hero);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return this.isNearestPlayerHero(villagerEntity) && !this.done;
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return isNearestPlayerHero(entity) && !done;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		PlayerEntity playerEntity = this.getNearestPlayerIfHero(villagerEntity).get();
-		TargetUtil.lookAt(villagerEntity, playerEntity);
-		if (this.isCloseEnough(villagerEntity, playerEntity)) {
-			if (l - this.startTime > 20L) {
-				this.giveGifts(serverWorld, villagerEntity, playerEntity);
-				this.done = true;
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		PlayerEntity hero = getNearestPlayerIfHero(entity).get();
+		TargetUtil.lookAt(entity, hero);
+
+		if (isCloseEnough(entity, hero)) {
+			if (time - startTime > RUN_TIME) {
+				giveGifts(world, entity, hero);
+				done = true;
 			}
-		}
-		else {
-			TargetUtil.walkTowards(villagerEntity, playerEntity, 0.5F, 5);
+		} else {
+			TargetUtil.walkTowards(entity, hero, WALK_SPEED, MAX_DISTANCE);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.ticksLeft = getNextGiftDelay(serverWorld);
-		villagerEntity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);
-		villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
-		villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		ticksLeft = getNextGiftDelay(world);
+		entity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);
+		entity.getBrain().forget(MemoryModuleType.WALK_TARGET);
+		entity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
 	}
 
 	private void giveGifts(ServerWorld world, VillagerEntity villager, LivingEntity recipient) {
 		villager.forEachGiftedItem(
 				world,
 				getGiftLootTable(villager),
-				(worldx, stack) -> TargetUtil.give(villager, stack, recipient.getEntityPos())
+				(w, stack) -> TargetUtil.give(villager, stack, recipient.getEntityPos())
 		);
 	}
 
@@ -163,21 +128,19 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		if (villager.isBaby()) {
 			return LootTables.HERO_OF_THE_VILLAGE_BABY_GIFT_GAMEPLAY;
 		}
-		else {
-			Optional<RegistryKey<VillagerProfession>> optional = villager.getVillagerData().profession().getKey();
-			return optional.isEmpty()
-			       ? LootTables.HERO_OF_THE_VILLAGE_UNEMPLOYED_GIFT_GAMEPLAY
-			       : GIFTS.getOrDefault(optional.get(), LootTables.HERO_OF_THE_VILLAGE_UNEMPLOYED_GIFT_GAMEPLAY);
-		}
+
+		Optional<RegistryKey<VillagerProfession>> profession = villager.getVillagerData().profession().getKey();
+		return profession.isEmpty()
+				? LootTables.HERO_OF_THE_VILLAGE_UNEMPLOYED_GIFT_GAMEPLAY
+				: GIFTS.getOrDefault(profession.get(), LootTables.HERO_OF_THE_VILLAGE_UNEMPLOYED_GIFT_GAMEPLAY);
 	}
 
 	private boolean isNearestPlayerHero(VillagerEntity villager) {
-		return this.getNearestPlayerIfHero(villager).isPresent();
+		return getNearestPlayerIfHero(villager).isPresent();
 	}
 
 	private Optional<PlayerEntity> getNearestPlayerIfHero(VillagerEntity villager) {
-		return villager
-				.getBrain()
+		return villager.getBrain()
 				.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_VISIBLE_PLAYER)
 				.filter(this::isHero);
 	}
@@ -187,12 +150,10 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 	}
 
 	private boolean isCloseEnough(VillagerEntity villager, PlayerEntity player) {
-		BlockPos blockPos = player.getBlockPos();
-		BlockPos blockPos2 = villager.getBlockPos();
-		return blockPos2.isWithinDistance(blockPos, 5.0);
+		return villager.getBlockPos().isWithinDistance(player.getBlockPos(), MAX_DISTANCE);
 	}
 
 	private static int getNextGiftDelay(ServerWorld world) {
-		return 600 + world.random.nextInt(6001);
+		return DEFAULT_DURATION + world.random.nextInt(MAX_EXTRA_GIFT_DELAY);
 	}
 }

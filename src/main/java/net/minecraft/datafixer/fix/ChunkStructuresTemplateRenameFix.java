@@ -11,7 +11,8 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code ChunkStructuresTemplateRenameFix}.
+ * Переименовывает шаблоны структур чанков (EndCity, Mansion, Igloo, Ocean_Ruin)
+ * из устаревших имён файлов в новые согласно таблице {@link #STRUCTURES}.
  */
 public class ChunkStructuresTemplateRenameFix extends DataFix {
 
@@ -319,49 +320,45 @@ public class ChunkStructuresTemplateRenameFix extends DataFix {
 			            )
 			            .build();
 
-	public ChunkStructuresTemplateRenameFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public ChunkStructuresTemplateRenameFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
+	@Override
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
-		return this.fixTypeEverywhereTyped(
+		Type<?> structureFeatureType = getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
+
+		return fixTypeEverywhereTyped(
 				"ChunkStructuresTemplateRenameFix",
-				type,
+				structureFeatureType,
 				structureFeatureTyped -> structureFeatureTyped.update(DSL.remainderFinder(), this::fixChildren)
 		);
 	}
 
-	private Dynamic<?> fixChildren(Dynamic<?> structureFeatureDynamic) {
-		return structureFeatureDynamic.update(
+	private Dynamic<?> fixChildren(Dynamic<?> structureFeature) {
+		return structureFeature.update(
 				"Children",
-				childrenDynamic -> structureFeatureDynamic.createList(
-						childrenDynamic
-								.asStream()
-								.map(childDynamic -> this.fix(structureFeatureDynamic, (Dynamic<?>) childDynamic))
+				children -> structureFeature.createList(
+						children.asStream().map(child -> fixChild(structureFeature, (Dynamic<?>) child))
 				)
 		);
 	}
 
-	private Dynamic<?> fix(Dynamic<?> structureFeatureDynamic, Dynamic<?> childDynamic) {
-		String string = structureFeatureDynamic.get("id").asString("");
-		if (STRUCTURES.containsKey(string)) {
-			Pair<String, ImmutableMap<String, String>>
-					pair =
-					(Pair<String, ImmutableMap<String, String>>) STRUCTURES.get(string);
-			if (((String) pair.getFirst()).equals(childDynamic.get("id").asString(""))) {
-				String string2 = childDynamic.get("Template").asString("");
-				childDynamic =
-						childDynamic.set(
-								"Template",
-								childDynamic.createString((String) ((ImmutableMap) pair.getSecond()).getOrDefault(
-										string2,
-										string2
-								))
-						);
-			}
+	private Dynamic<?> fixChild(Dynamic<?> structureFeature, Dynamic<?> child) {
+		String structureId = structureFeature.get("id").asString("");
+		Pair<String, ImmutableMap<String, String>> entry = STRUCTURES.get(structureId);
+
+		if (entry == null) {
+			return child;
 		}
 
-		return childDynamic;
+		if (!entry.getFirst().equals(child.get("id").asString(""))) {
+			return child;
+		}
+
+		String oldTemplate = child.get("Template").asString("");
+		String newTemplate = entry.getSecond().getOrDefault(oldTemplate, oldTemplate);
+
+		return child.set("Template", child.createString(newTemplate));
 	}
 }

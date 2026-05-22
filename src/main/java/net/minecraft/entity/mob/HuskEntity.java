@@ -17,7 +17,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code HuskEntity}.
+ * Хаск — пустынный вариант зомби. Не горит на солнце. При ударе без оружия накладывает
+ * эффект голода на цель. В воде превращается в обычного зомби. Может ехать верхом на верблюде-хаске.
  */
 public class HuskEntity extends ZombieEntity {
 
@@ -52,16 +53,17 @@ public class HuskEntity extends ZombieEntity {
 
 	@Override
 	public boolean tryAttack(ServerWorld world, Entity target) {
-		boolean bl = super.tryAttack(world, target);
-		if (bl && this.getMainHandStack().isEmpty() && target instanceof LivingEntity) {
-			float f = world.getLocalDifficulty(this.getBlockPos()).getLocalDifficulty();
-			((LivingEntity) target).addStatusEffect(
-					new StatusEffectInstance(StatusEffects.HUNGER, 140 * (int) f),
+		boolean attacked = super.tryAttack(world, target);
+
+		if (attacked && getMainHandStack().isEmpty() && target instanceof LivingEntity livingTarget) {
+			float localDifficulty = world.getLocalDifficulty(getBlockPos()).getLocalDifficulty();
+			livingTarget.addStatusEffect(
+					new StatusEffectInstance(StatusEffects.HUNGER, 140 * (int) localDifficulty),
 					this
 			);
 		}
 
-		return bl;
+		return attacked;
 	}
 
 	@Override
@@ -71,12 +73,16 @@ public class HuskEntity extends ZombieEntity {
 
 	@Override
 	protected void convertInWater(ServerWorld world) {
-		this.convertTo(world, EntityType.ZOMBIE);
-		if (!this.isSilent()) {
-			world.syncWorldEvent(null, 1041, this.getBlockPos(), 0);
+		convertTo(world, EntityType.ZOMBIE);
+		if (!isSilent()) {
+			world.syncWorldEvent(null, 1041, getBlockPos(), 0);
 		}
 	}
 
+	/**
+	 * При естественном спавне с вероятностью 10% создаёт верблюда-хаска и сажает хаска верхом.
+	 * Также спавнит иссохшего (Parched) как второго пассажира верблюда.
+	 */
 	@Override
 	public @Nullable EntityData initialize(
 			ServerWorldAccess world,
@@ -86,48 +92,40 @@ public class HuskEntity extends ZombieEntity {
 	) {
 		Random random = world.getRandom();
 		entityData = super.initialize(world, difficulty, spawnReason, entityData);
-		float f = difficulty.getClampedLocalDifficulty();
+		float clampedDifficulty = difficulty.getClampedLocalDifficulty();
+
 		if (spawnReason != SpawnReason.CONVERSION) {
-			this.setCanPickUpLoot(random.nextFloat() < 0.55F * f);
+			setCanPickUpLoot(random.nextFloat() < 0.55F * clampedDifficulty);
 		}
 
 		if (entityData != null) {
-			entityData = new HuskEntity.HuskData((ZombieEntity.ZombieData) entityData);
-			((HuskEntity.HuskData) entityData).unnatural = spawnReason != SpawnReason.NATURAL;
+			entityData = new HuskData((ZombieEntity.ZombieData) entityData);
+			((HuskData) entityData).unnatural = spawnReason != SpawnReason.NATURAL;
 		}
 
-		if (entityData instanceof HuskEntity.HuskData huskData && !huskData.unnatural) {
-			BlockPos blockPos = this.getBlockPos();
-			if (world.isSpaceEmpty(EntityType.CAMEL_HUSK.getSpawnBox(
-					blockPos.getX() + 0.5,
-					blockPos.getY(),
-					blockPos.getZ() + 0.5
-			))) {
+		if (entityData instanceof HuskData huskData && !huskData.unnatural) {
+			BlockPos pos = getBlockPos();
+
+			if (world.isSpaceEmpty(EntityType.CAMEL_HUSK.getSpawnBox(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5))) {
 				huskData.unnatural = true;
+
 				if (random.nextFloat() < 0.1F) {
-					this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
-					CamelHuskEntity
-							camelHuskEntity =
-							EntityType.CAMEL_HUSK.create(this.getEntityWorld(), SpawnReason.NATURAL);
-					if (camelHuskEntity != null) {
-						camelHuskEntity.setPosition(this.getX(), this.getY(), this.getZ());
-						camelHuskEntity.initialize(world, difficulty, spawnReason, null);
-						this.startRiding(camelHuskEntity, true, true);
-						world.spawnEntity(camelHuskEntity);
-						ParchedEntity
-								parchedEntity =
-								EntityType.PARCHED.create(this.getEntityWorld(), SpawnReason.NATURAL);
-						if (parchedEntity != null) {
-							parchedEntity.refreshPositionAndAngles(
-									this.getX(),
-									this.getY(),
-									this.getZ(),
-									this.getYaw(),
-									0.0F
-							);
-							parchedEntity.initialize(world, difficulty, spawnReason, null);
-							parchedEntity.startRiding(camelHuskEntity, false, false);
-							world.spawnEntityAndPassengers(parchedEntity);
+					equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
+					CamelHuskEntity camelHusk = EntityType.CAMEL_HUSK.create(getEntityWorld(), SpawnReason.NATURAL);
+
+					if (camelHusk != null) {
+						camelHusk.setPosition(getX(), getY(), getZ());
+						camelHusk.initialize(world, difficulty, spawnReason, null);
+						startRiding(camelHusk, true, true);
+						world.spawnEntity(camelHusk);
+
+						ParchedEntity parched = EntityType.PARCHED.create(getEntityWorld(), SpawnReason.NATURAL);
+
+						if (parched != null) {
+							parched.refreshPositionAndAngles(getX(), getY(), getZ(), getYaw(), 0.0F);
+							parched.initialize(world, difficulty, spawnReason, null);
+							parched.startRiding(camelHusk, false, false);
+							world.spawnEntityAndPassengers(parched);
 						}
 					}
 				}
@@ -137,9 +135,6 @@ public class HuskEntity extends ZombieEntity {
 		return entityData;
 	}
 
-	/**
-	 * {@code HuskData}.
-	 */
 	public static class HuskData extends ZombieEntity.ZombieData {
 
 		public boolean unnatural = false;

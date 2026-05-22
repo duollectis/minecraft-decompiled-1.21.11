@@ -11,11 +11,16 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code PistonHandler}.
+ * Вычисляет, какие блоки должны быть перемещены или уничтожены при срабатывании поршня.
+ * <p>
+ * Алгоритм обходит цепочку слипающихся блоков (слизь, мёд) рекурсивно через
+ * {@link #tryMove} и {@link #tryMoveAdjacentBlock}, накапливая результаты
+ * в {@link #movedBlocks} и {@link #brokenBlocks}.
  */
 public class PistonHandler {
 
 	public static final int MAX_MOVABLE_BLOCKS = 12;
+
 	private final World world;
 	private final BlockPos posFrom;
 	private final boolean retracted;
@@ -30,198 +35,49 @@ public class PistonHandler {
 		this.posFrom = pos;
 		this.pistonDirection = dir;
 		this.retracted = retracted;
+
 		if (retracted) {
 			this.motionDirection = dir;
 			this.posTo = pos.offset(dir);
-		}
-		else {
+		} else {
 			this.motionDirection = dir.getOpposite();
 			this.posTo = pos.offset(dir, 2);
 		}
 	}
 
 	/**
-	 * Вычисляет push.
+	 * Вычисляет список блоков для перемещения и уничтожения при выдвижении/втягивании поршня.
+	 * <p>
+	 * Сначала проверяет целевой блок на перемещаемость, затем рекурсивно обходит
+	 * все слипающиеся соседние блоки. Возвращает {@code false}, если движение невозможно
+	 * (например, блок заблокирован или превышен лимит {@link #MAX_MOVABLE_BLOCKS}).
 	 *
-	 * @return boolean — результат операции
+	 * @return {@code true} если движение поршня возможно
 	 */
 	public boolean calculatePush() {
-		this.movedBlocks.clear();
-		this.brokenBlocks.clear();
-		BlockState blockState = this.world.getBlockState(this.posTo);
-		if (!PistonBlock.isMovable(
-				blockState,
-				this.world,
-				this.posTo,
-				this.motionDirection,
-				false,
-				this.pistonDirection
-		)) {
-			if (this.retracted && blockState.getPistonBehavior() == PistonBehavior.DESTROY) {
-				this.brokenBlocks.add(this.posTo);
+		movedBlocks.clear();
+		brokenBlocks.clear();
+
+		BlockState targetState = world.getBlockState(posTo);
+
+		if (PistonBlock.isMovable(targetState, world, posTo, motionDirection, false, pistonDirection) == false) {
+			if (retracted && targetState.getPistonBehavior() == PistonBehavior.DESTROY) {
+				brokenBlocks.add(posTo);
 				return true;
 			}
-			else {
-				return false;
-			}
-		}
-		else if (!this.tryMove(this.posTo, this.motionDirection)) {
+
 			return false;
 		}
-		else {
-			for (int i = 0; i < this.movedBlocks.size(); i++) {
-				BlockPos blockPos = this.movedBlocks.get(i);
-				if (isBlockSticky(this.world.getBlockState(blockPos)) && !this.tryMoveAdjacentBlock(blockPos)) {
-					return false;
-				}
-			}
 
-			return true;
-		}
-	}
-
-	private static boolean isBlockSticky(BlockState state) {
-		return state.isOf(Blocks.SLIME_BLOCK) || state.isOf(Blocks.HONEY_BLOCK);
-	}
-
-	private static boolean isAdjacentBlockStuck(BlockState state, BlockState adjacentState) {
-		if (state.isOf(Blocks.HONEY_BLOCK) && adjacentState.isOf(Blocks.SLIME_BLOCK)) {
+		if (tryMove(posTo, motionDirection) == false) {
 			return false;
 		}
-		else {
-			return state.isOf(Blocks.SLIME_BLOCK) && adjacentState.isOf(Blocks.HONEY_BLOCK) ? false
-			                                                                                : isBlockSticky(state)
-			                                                                                  || isBlockSticky(
-					                                                                                adjacentState);
-		}
-	}
 
-	private boolean tryMove(BlockPos pos, Direction dir) {
-		BlockState blockState = this.world.getBlockState(pos);
-		if (blockState.isAir()) {
-			return true;
-		}
-		else if (!PistonBlock.isMovable(blockState, this.world, pos, this.motionDirection, false, dir)) {
-			return true;
-		}
-		else if (pos.equals(this.posFrom)) {
-			return true;
-		}
-		else if (this.movedBlocks.contains(pos)) {
-			return true;
-		}
-		else {
-			int i = 1;
-			if (i + this.movedBlocks.size() > 12) {
+		for (int index = 0; index < movedBlocks.size(); index++) {
+			BlockPos movedPos = movedBlocks.get(index);
+
+			if (isBlockSticky(world.getBlockState(movedPos)) && tryMoveAdjacentBlock(movedPos) == false) {
 				return false;
-			}
-			else {
-				while (isBlockSticky(blockState)) {
-					BlockPos blockPos = pos.offset(this.motionDirection.getOpposite(), i);
-					BlockState blockState2 = blockState;
-					blockState = this.world.getBlockState(blockPos);
-					if (blockState.isAir()
-							|| !isAdjacentBlockStuck(blockState2, blockState)
-							|| !PistonBlock.isMovable(
-							blockState,
-							this.world,
-							blockPos,
-							this.motionDirection,
-							false,
-							this.motionDirection.getOpposite()
-					)
-							|| blockPos.equals(this.posFrom)) {
-						break;
-					}
-
-					if (++i + this.movedBlocks.size() > 12) {
-						return false;
-					}
-				}
-
-				int j = 0;
-
-				for (int k = i - 1; k >= 0; k--) {
-					this.movedBlocks.add(pos.offset(this.motionDirection.getOpposite(), k));
-					j++;
-				}
-
-				int k = 1;
-
-				while (true) {
-					BlockPos blockPos2 = pos.offset(this.motionDirection, k);
-					int l = this.movedBlocks.indexOf(blockPos2);
-					if (l > -1) {
-						this.setMovedBlocks(j, l);
-
-						for (int m = 0; m <= l + j; m++) {
-							BlockPos blockPos3 = this.movedBlocks.get(m);
-							if (isBlockSticky(this.world.getBlockState(blockPos3)) && !this.tryMoveAdjacentBlock(
-									blockPos3)) {
-								return false;
-							}
-						}
-
-						return true;
-					}
-
-					blockState = this.world.getBlockState(blockPos2);
-					if (blockState.isAir()) {
-						return true;
-					}
-
-					if (!PistonBlock.isMovable(
-							blockState,
-							this.world,
-							blockPos2,
-							this.motionDirection,
-							true,
-							this.motionDirection
-					)
-							|| blockPos2.equals(this.posFrom)) {
-						return false;
-					}
-
-					if (blockState.getPistonBehavior() == PistonBehavior.DESTROY) {
-						this.brokenBlocks.add(blockPos2);
-						return true;
-					}
-
-					if (this.movedBlocks.size() >= 12) {
-						return false;
-					}
-
-					this.movedBlocks.add(blockPos2);
-					j++;
-					k++;
-				}
-			}
-		}
-	}
-
-	private void setMovedBlocks(int from, int to) {
-		List<BlockPos> list = Lists.newArrayList();
-		List<BlockPos> list2 = Lists.newArrayList();
-		List<BlockPos> list3 = Lists.newArrayList();
-		list.addAll(this.movedBlocks.subList(0, to));
-		list2.addAll(this.movedBlocks.subList(this.movedBlocks.size() - from, this.movedBlocks.size()));
-		list3.addAll(this.movedBlocks.subList(to, this.movedBlocks.size() - from));
-		this.movedBlocks.clear();
-		this.movedBlocks.addAll(list);
-		this.movedBlocks.addAll(list2);
-		this.movedBlocks.addAll(list3);
-	}
-
-	private boolean tryMoveAdjacentBlock(BlockPos pos) {
-		BlockState blockState = this.world.getBlockState(pos);
-
-		for (Direction direction : Direction.values()) {
-			if (direction.getAxis() != this.motionDirection.getAxis()) {
-				BlockPos blockPos = pos.offset(direction);
-				BlockState blockState2 = this.world.getBlockState(blockPos);
-				if (isAdjacentBlockStuck(blockState2, blockState) && !this.tryMove(blockPos, direction)) {
-					return false;
-				}
 			}
 		}
 
@@ -229,14 +85,183 @@ public class PistonHandler {
 	}
 
 	public Direction getMotionDirection() {
-		return this.motionDirection;
+		return motionDirection;
 	}
 
 	public List<BlockPos> getMovedBlocks() {
-		return this.movedBlocks;
+		return movedBlocks;
 	}
 
 	public List<BlockPos> getBrokenBlocks() {
-		return this.brokenBlocks;
+		return brokenBlocks;
+	}
+
+	private static boolean isBlockSticky(BlockState state) {
+		return state.isOf(Blocks.SLIME_BLOCK) || state.isOf(Blocks.HONEY_BLOCK);
+	}
+
+	/**
+	 * Проверяет, должны ли два соседних блока «слипаться» при движении поршня.
+	 * <p>
+	 * Слизь и мёд не слипаются друг с другом — это намеренное игровое правило,
+	 * позволяющее строить механизмы с раздельным движением.
+	 */
+	private static boolean isAdjacentBlockStuck(BlockState state, BlockState adjacentState) {
+		if (state.isOf(Blocks.HONEY_BLOCK) && adjacentState.isOf(Blocks.SLIME_BLOCK)) {
+			return false;
+		}
+
+		if (state.isOf(Blocks.SLIME_BLOCK) && adjacentState.isOf(Blocks.HONEY_BLOCK)) {
+			return false;
+		}
+
+		return isBlockSticky(state) || isBlockSticky(adjacentState);
+	}
+
+	/**
+	 * Рекурсивно пытается включить блок по позиции {@code pos} в список перемещаемых.
+	 * <p>
+	 * Обходит цепочку слипающихся блоков в направлении, противоположном движению,
+	 * затем проверяет блоки по направлению движения до первого воздуха или разрушаемого блока.
+	 *
+	 * @param pos позиция блока для проверки
+	 * @param dir направление, из которого пришёл запрос на перемещение
+	 * @return {@code true} если блок и вся его цепочка могут быть перемещены
+	 */
+	private boolean tryMove(BlockPos pos, Direction dir) {
+		BlockState blockState = world.getBlockState(pos);
+
+		if (blockState.isAir()) {
+			return true;
+		}
+
+		if (PistonBlock.isMovable(blockState, world, pos, motionDirection, false, dir) == false) {
+			return true;
+		}
+
+		if (pos.equals(posFrom)) {
+			return true;
+		}
+
+		if (movedBlocks.contains(pos)) {
+			return true;
+		}
+
+		int chainLength = 1;
+
+		if (chainLength + movedBlocks.size() > MAX_MOVABLE_BLOCKS) {
+			return false;
+		}
+
+		// Обходим цепочку слипающихся блоков в направлении, противоположном движению
+		while (isBlockSticky(blockState)) {
+			BlockPos behindPos = pos.offset(motionDirection.getOpposite(), chainLength);
+			BlockState prevState = blockState;
+			blockState = world.getBlockState(behindPos);
+
+			if (blockState.isAir()
+				|| isAdjacentBlockStuck(prevState, blockState) == false
+				|| PistonBlock.isMovable(blockState, world, behindPos, motionDirection, false, motionDirection.getOpposite()) == false
+				|| behindPos.equals(posFrom)
+			) {
+				break;
+			}
+
+			if (++chainLength + movedBlocks.size() > MAX_MOVABLE_BLOCKS) {
+				return false;
+			}
+		}
+
+		int addedCount = 0;
+
+		for (int offset = chainLength - 1; offset >= 0; offset--) {
+			movedBlocks.add(pos.offset(motionDirection.getOpposite(), offset));
+			addedCount++;
+		}
+
+		int forwardStep = 1;
+
+		while (true) {
+			BlockPos forwardPos = pos.offset(motionDirection, forwardStep);
+			int existingIndex = movedBlocks.indexOf(forwardPos);
+
+			if (existingIndex > -1) {
+				setMovedBlocks(addedCount, existingIndex);
+
+				for (int checkIndex = 0; checkIndex <= existingIndex + addedCount; checkIndex++) {
+					BlockPos checkPos = movedBlocks.get(checkIndex);
+
+					if (isBlockSticky(world.getBlockState(checkPos)) && tryMoveAdjacentBlock(checkPos) == false) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			blockState = world.getBlockState(forwardPos);
+
+			if (blockState.isAir()) {
+				return true;
+			}
+
+			if (PistonBlock.isMovable(blockState, world, forwardPos, motionDirection, true, motionDirection) == false
+				|| forwardPos.equals(posFrom)
+			) {
+				return false;
+			}
+
+			if (blockState.getPistonBehavior() == PistonBehavior.DESTROY) {
+				brokenBlocks.add(forwardPos);
+				return true;
+			}
+
+			if (movedBlocks.size() >= MAX_MOVABLE_BLOCKS) {
+				return false;
+			}
+
+			movedBlocks.add(forwardPos);
+			addedCount++;
+			forwardStep++;
+		}
+	}
+
+	/**
+	 * Переупорядочивает список {@link #movedBlocks} при обнаружении пересечения цепочек.
+	 * <p>
+	 * Разбивает текущий список на три части и собирает их в правильном порядке:
+	 * сначала блоки до точки пересечения, затем хвост новой цепочки, затем середина.
+	 *
+	 * @param tailSize  количество блоков в хвосте новой цепочки
+	 * @param splitPoint индекс точки пересечения в текущем списке
+	 */
+	private void setMovedBlocks(int tailSize, int splitPoint) {
+		List<BlockPos> head = Lists.newArrayList(movedBlocks.subList(0, splitPoint));
+		List<BlockPos> tail = Lists.newArrayList(movedBlocks.subList(movedBlocks.size() - tailSize, movedBlocks.size()));
+		List<BlockPos> middle = Lists.newArrayList(movedBlocks.subList(splitPoint, movedBlocks.size() - tailSize));
+
+		movedBlocks.clear();
+		movedBlocks.addAll(head);
+		movedBlocks.addAll(tail);
+		movedBlocks.addAll(middle);
+	}
+
+	private boolean tryMoveAdjacentBlock(BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+
+		for (Direction direction : Direction.values()) {
+			if (direction.getAxis() == motionDirection.getAxis()) {
+				continue;
+			}
+
+			BlockPos adjacentPos = pos.offset(direction);
+			BlockState adjacentState = world.getBlockState(adjacentPos);
+
+			if (isAdjacentBlockStuck(adjacentState, blockState) && tryMove(adjacentPos, direction) == false) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

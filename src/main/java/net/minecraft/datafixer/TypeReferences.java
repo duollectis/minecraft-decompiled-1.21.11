@@ -3,7 +3,7 @@ package net.minecraft.datafixer;
 import com.mojang.datafixers.DSL.TypeReference;
 
 /**
- * {@code TypeReferences}.
+ * Класс TypeReferences.
  */
 public class TypeReferences {
 

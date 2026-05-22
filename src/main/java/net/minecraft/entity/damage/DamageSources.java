@@ -16,11 +16,14 @@ import net.minecraft.world.explosion.Explosion;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DamageSources}.
+ * Фабрика источников урона для конкретного мира. Кэширует часто используемые
+ * безатрибутные источники (огонь, утопление, голод и т.д.) как поля,
+ * а для источников с атакующей сущностью создаёт новые объекты при каждом вызове.
  */
 public class DamageSources {
 
 	public final Registry<DamageType> registry;
+
 	private final DamageSource inFire;
 	private final DamageSource campfire;
 	private final DamageSource lightningBolt;
@@ -48,562 +51,208 @@ public class DamageSources {
 	private final DamageSource genericKill;
 
 	public DamageSources(DynamicRegistryManager registryManager) {
-		this.registry = registryManager.getOrThrow(RegistryKeys.DAMAGE_TYPE);
-		this.inFire = this.create(DamageTypes.IN_FIRE);
-		this.campfire = this.create(DamageTypes.CAMPFIRE);
-		this.lightningBolt = this.create(DamageTypes.LIGHTNING_BOLT);
-		this.onFire = this.create(DamageTypes.ON_FIRE);
-		this.lava = this.create(DamageTypes.LAVA);
-		this.hotFloor = this.create(DamageTypes.HOT_FLOOR);
-		this.inWall = this.create(DamageTypes.IN_WALL);
-		this.cramming = this.create(DamageTypes.CRAMMING);
-		this.drown = this.create(DamageTypes.DROWN);
-		this.starve = this.create(DamageTypes.STARVE);
-		this.cactus = this.create(DamageTypes.CACTUS);
-		this.fall = this.create(DamageTypes.FALL);
-		this.enderPearl = this.create(DamageTypes.ENDER_PEARL);
-		this.flyIntoWall = this.create(DamageTypes.FLY_INTO_WALL);
-		this.outOfWorld = this.create(DamageTypes.OUT_OF_WORLD);
-		this.generic = this.create(DamageTypes.GENERIC);
-		this.magic = this.create(DamageTypes.MAGIC);
-		this.wither = this.create(DamageTypes.WITHER);
-		this.dragonBreath = this.create(DamageTypes.DRAGON_BREATH);
-		this.dryOut = this.create(DamageTypes.DRY_OUT);
-		this.sweetBerryBush = this.create(DamageTypes.SWEET_BERRY_BUSH);
-		this.freeze = this.create(DamageTypes.FREEZE);
-		this.stalagmite = this.create(DamageTypes.STALAGMITE);
-		this.outsideBorder = this.create(DamageTypes.OUTSIDE_BORDER);
-		this.genericKill = this.create(DamageTypes.GENERIC_KILL);
+		registry = registryManager.getOrThrow(RegistryKeys.DAMAGE_TYPE);
+		inFire = create(DamageTypes.IN_FIRE);
+		campfire = create(DamageTypes.CAMPFIRE);
+		lightningBolt = create(DamageTypes.LIGHTNING_BOLT);
+		onFire = create(DamageTypes.ON_FIRE);
+		lava = create(DamageTypes.LAVA);
+		hotFloor = create(DamageTypes.HOT_FLOOR);
+		inWall = create(DamageTypes.IN_WALL);
+		cramming = create(DamageTypes.CRAMMING);
+		drown = create(DamageTypes.DROWN);
+		starve = create(DamageTypes.STARVE);
+		cactus = create(DamageTypes.CACTUS);
+		fall = create(DamageTypes.FALL);
+		enderPearl = create(DamageTypes.ENDER_PEARL);
+		flyIntoWall = create(DamageTypes.FLY_INTO_WALL);
+		outOfWorld = create(DamageTypes.OUT_OF_WORLD);
+		generic = create(DamageTypes.GENERIC);
+		magic = create(DamageTypes.MAGIC);
+		wither = create(DamageTypes.WITHER);
+		dragonBreath = create(DamageTypes.DRAGON_BREATH);
+		dryOut = create(DamageTypes.DRY_OUT);
+		sweetBerryBush = create(DamageTypes.SWEET_BERRY_BUSH);
+		freeze = create(DamageTypes.FREEZE);
+		stalagmite = create(DamageTypes.STALAGMITE);
+		outsideBorder = create(DamageTypes.OUTSIDE_BORDER);
+		genericKill = create(DamageTypes.GENERIC_KILL);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param key key
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public final DamageSource create(RegistryKey<DamageType> key) {
-		return new DamageSource(this.registry.getOrThrow(key));
+		return new DamageSource(registry.getOrThrow(key));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param key key
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public final DamageSource create(RegistryKey<DamageType> key, @Nullable Entity attacker) {
-		return new DamageSource(this.registry.getOrThrow(key), attacker);
+		return new DamageSource(registry.getOrThrow(key), attacker);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param key key
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public final DamageSource create(RegistryKey<DamageType> key, @Nullable Entity source, @Nullable Entity attacker) {
-		return new DamageSource(this.registry.getOrThrow(key), source, attacker);
+		return new DamageSource(registry.getOrThrow(key), source, attacker);
 	}
 
-	/**
-	 * In fire.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource inFire() {
-		return this.inFire;
-	}
+	public DamageSource inFire() { return inFire; }
 
-	/**
-	 * Campfire.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource campfire() {
-		return this.campfire;
-	}
+	public DamageSource campfire() { return campfire; }
 
-	/**
-	 * Lightning bolt.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource lightningBolt() {
-		return this.lightningBolt;
-	}
+	public DamageSource lightningBolt() { return lightningBolt; }
 
-	/**
-	 * Обрабатывает событие fire.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource onFire() {
-		return this.onFire;
-	}
+	public DamageSource onFire() { return onFire; }
 
-	/**
-	 * Lava.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource lava() {
-		return this.lava;
-	}
+	public DamageSource lava() { return lava; }
 
-	/**
-	 * Hot floor.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource hotFloor() {
-		return this.hotFloor;
-	}
+	public DamageSource hotFloor() { return hotFloor; }
 
-	/**
-	 * In wall.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource inWall() {
-		return this.inWall;
-	}
+	public DamageSource inWall() { return inWall; }
 
-	/**
-	 * Cramming.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource cramming() {
-		return this.cramming;
-	}
+	public DamageSource cramming() { return cramming; }
 
-	/**
-	 * Drown.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource drown() {
-		return this.drown;
-	}
+	public DamageSource drown() { return drown; }
 
-	/**
-	 * Starve.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource starve() {
-		return this.starve;
-	}
+	public DamageSource starve() { return starve; }
 
-	/**
-	 * Cactus.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource cactus() {
-		return this.cactus;
-	}
+	public DamageSource cactus() { return cactus; }
 
-	/**
-	 * Fall.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource fall() {
-		return this.fall;
-	}
+	public DamageSource fall() { return fall; }
 
-	/**
-	 * Ender pearl.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource enderPearl() {
-		return this.enderPearl;
-	}
+	public DamageSource enderPearl() { return enderPearl; }
 
-	/**
-	 * Fly into wall.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource flyIntoWall() {
-		return this.flyIntoWall;
-	}
+	public DamageSource flyIntoWall() { return flyIntoWall; }
 
-	/**
-	 * Out of world.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource outOfWorld() {
-		return this.outOfWorld;
-	}
+	public DamageSource outOfWorld() { return outOfWorld; }
 
-	/**
-	 * Generic.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource generic() {
-		return this.generic;
-	}
+	public DamageSource generic() { return generic; }
 
-	/**
-	 * Magic.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource magic() {
-		return this.magic;
-	}
+	public DamageSource magic() { return magic; }
 
-	/**
-	 * Wither.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource wither() {
-		return this.wither;
-	}
+	public DamageSource wither() { return wither; }
 
-	/**
-	 * Dragon breath.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource dragonBreath() {
-		return this.dragonBreath;
-	}
+	public DamageSource dragonBreath() { return dragonBreath; }
 
-	/**
-	 * Dry out.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource dryOut() {
-		return this.dryOut;
-	}
+	public DamageSource dryOut() { return dryOut; }
 
-	/**
-	 * Sweet berry bush.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource sweetBerryBush() {
-		return this.sweetBerryBush;
-	}
+	public DamageSource sweetBerryBush() { return sweetBerryBush; }
 
-	/**
-	 * Freeze.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource freeze() {
-		return this.freeze;
-	}
+	public DamageSource freeze() { return freeze; }
 
-	/**
-	 * Stalagmite.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource stalagmite() {
-		return this.stalagmite;
-	}
+	public DamageSource stalagmite() { return stalagmite; }
 
-	/**
-	 * Falling block.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
+	public DamageSource outsideBorder() { return outsideBorder; }
+
+	public DamageSource genericKill() { return genericKill; }
+
 	public DamageSource fallingBlock(Entity attacker) {
-		return this.create(DamageTypes.FALLING_BLOCK, attacker);
+		return create(DamageTypes.FALLING_BLOCK, attacker);
 	}
 
-	/**
-	 * Falling anvil.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource fallingAnvil(Entity attacker) {
-		return this.create(DamageTypes.FALLING_ANVIL, attacker);
+		return create(DamageTypes.FALLING_ANVIL, attacker);
 	}
 
-	/**
-	 * Falling stalactite.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource fallingStalactite(Entity attacker) {
-		return this.create(DamageTypes.FALLING_STALACTITE, attacker);
+		return create(DamageTypes.FALLING_STALACTITE, attacker);
 	}
 
-	/**
-	 * Sting.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource sting(LivingEntity attacker) {
-		return this.create(DamageTypes.STING, attacker);
+		return create(DamageTypes.STING, attacker);
 	}
 
-	/**
-	 * Mob attack.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource mobAttack(LivingEntity attacker) {
-		return this.create(DamageTypes.MOB_ATTACK, attacker);
+		return create(DamageTypes.MOB_ATTACK, attacker);
 	}
 
-	/**
-	 * Mob attack no aggro.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource mobAttackNoAggro(LivingEntity attacker) {
-		return this.create(DamageTypes.MOB_ATTACK_NO_AGGRO, attacker);
+		return create(DamageTypes.MOB_ATTACK_NO_AGGRO, attacker);
 	}
 
-	/**
-	 * Player attack.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource playerAttack(PlayerEntity attacker) {
-		return this.create(DamageTypes.PLAYER_ATTACK, attacker);
+		return create(DamageTypes.PLAYER_ATTACK, attacker);
 	}
 
-	/**
-	 * Arrow.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource arrow(PersistentProjectileEntity source, @Nullable Entity attacker) {
-		return this.create(DamageTypes.ARROW, source, attacker);
+		return create(DamageTypes.ARROW, source, attacker);
 	}
 
-	/**
-	 * Trident.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource trident(Entity source, @Nullable Entity attacker) {
-		return this.create(DamageTypes.TRIDENT, source, attacker);
+		return create(DamageTypes.TRIDENT, source, attacker);
 	}
 
-	/**
-	 * Mob projectile.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource mobProjectile(Entity source, @Nullable LivingEntity attacker) {
-		return this.create(DamageTypes.MOB_PROJECTILE, source, attacker);
+		return create(DamageTypes.MOB_PROJECTILE, source, attacker);
 	}
 
-	/**
-	 * Spit.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource spit(Entity source, @Nullable LivingEntity attacker) {
-		return this.create(DamageTypes.SPIT, source, attacker);
+		return create(DamageTypes.SPIT, source, attacker);
 	}
 
-	/**
-	 * Wind charge.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource windCharge(Entity source, @Nullable LivingEntity attacker) {
-		return this.create(DamageTypes.WIND_CHARGE, source, attacker);
+		return create(DamageTypes.WIND_CHARGE, source, attacker);
 	}
 
-	/**
-	 * Fireworks.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource fireworks(FireworkRocketEntity source, @Nullable Entity attacker) {
-		return this.create(DamageTypes.FIREWORKS, source, attacker);
+		return create(DamageTypes.FIREWORKS, source, attacker);
 	}
 
 	/**
-	 * Fireball.
+	 * Создаёт источник урона от огненного шара. Если атакующий не задан,
+	 * используется тип {@code UNATTRIBUTED_FIREBALL} (без атрибуции к игроку).
 	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
+	 * @param source снаряд-огненный шар
+	 * @param attacker атакующая сущность или {@code null}
+	 * @return источник урона
 	 */
 	public DamageSource fireball(AbstractFireballEntity source, @Nullable Entity attacker) {
-		return attacker == null ? this.create(DamageTypes.UNATTRIBUTED_FIREBALL, source)
-		                        : this.create(DamageTypes.FIREBALL, source, attacker);
+		return attacker == null
+			? create(DamageTypes.UNATTRIBUTED_FIREBALL, source)
+			: create(DamageTypes.FIREBALL, source, attacker);
 	}
 
-	/**
-	 * Wither skull.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource witherSkull(WitherSkullEntity source, Entity attacker) {
-		return this.create(DamageTypes.WITHER_SKULL, source, attacker);
+		return create(DamageTypes.WITHER_SKULL, source, attacker);
 	}
 
-	/**
-	 * Thrown.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource thrown(Entity source, @Nullable Entity attacker) {
-		return this.create(DamageTypes.THROWN, source, attacker);
+		return create(DamageTypes.THROWN, source, attacker);
 	}
 
-	/**
-	 * Indirect magic.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource indirectMagic(Entity source, @Nullable Entity attacker) {
-		return this.create(DamageTypes.INDIRECT_MAGIC, source, attacker);
+		return create(DamageTypes.INDIRECT_MAGIC, source, attacker);
 	}
 
-	/**
-	 * Thorns.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource thorns(Entity attacker) {
-		return this.create(DamageTypes.THORNS, attacker);
+		return create(DamageTypes.THORNS, attacker);
 	}
 
 	/**
-	 * Explosion.
+	 * Создаёт источник урона от взрыва. Если взрыв вызван игроком,
+	 * используется тип {@code PLAYER_EXPLOSION}, иначе — {@code EXPLOSION}.
 	 *
-	 * @param explosion explosion
-	 *
-	 * @return DamageSource — результат операции
+	 * @param explosion объект взрыва или {@code null}
+	 * @return источник урона
 	 */
 	public DamageSource explosion(@Nullable Explosion explosion) {
-		return explosion != null ? this.explosion(explosion.getEntity(), explosion.getCausingEntity())
-		                         : this.explosion(null, null);
+		return explosion != null
+			? explosion(explosion.getEntity(), explosion.getCausingEntity())
+			: explosion(null, null);
 	}
 
-	/**
-	 * Explosion.
-	 *
-	 * @param source source
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource explosion(@Nullable Entity source, @Nullable Entity attacker) {
-		return this.create(
-				attacker != null && source != null ? DamageTypes.PLAYER_EXPLOSION : DamageTypes.EXPLOSION,
-				source,
-				attacker
+		return create(
+			attacker != null && source != null ? DamageTypes.PLAYER_EXPLOSION : DamageTypes.EXPLOSION,
+			source,
+			attacker
 		);
 	}
 
-	/**
-	 * Sonic boom.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource sonicBoom(Entity attacker) {
-		return this.create(DamageTypes.SONIC_BOOM, attacker);
+		return create(DamageTypes.SONIC_BOOM, attacker);
 	}
 
-	/**
-	 * Bad respawn point.
-	 *
-	 * @param position position
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource badRespawnPoint(Vec3d position) {
-		return new DamageSource(this.registry.getOrThrow(DamageTypes.BAD_RESPAWN_POINT), position);
+		return new DamageSource(registry.getOrThrow(DamageTypes.BAD_RESPAWN_POINT), position);
 	}
 
-	/**
-	 * Outside border.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource outsideBorder() {
-		return this.outsideBorder;
-	}
-
-	/**
-	 * Generic kill.
-	 *
-	 * @return DamageSource — результат операции
-	 */
-	public DamageSource genericKill() {
-		return this.genericKill;
-	}
-
-	/**
-	 * Mace smash.
-	 *
-	 * @param attacker attacker
-	 *
-	 * @return DamageSource — результат операции
-	 */
 	public DamageSource maceSmash(Entity attacker) {
-		return this.create(DamageTypes.MACE_SMASH, attacker);
+		return create(DamageTypes.MACE_SMASH, attacker);
 	}
 }

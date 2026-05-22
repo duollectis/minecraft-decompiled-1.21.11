@@ -11,31 +11,45 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code DynamicRegistryManager}.
+ * Менеджер динамических реестров — объединяет несколько реестров в единый
+ * контекст поиска. Реализует {@link RegistryWrapper.WrapperLookup}, предоставляя
+ * доступ только для чтения ко всем зарегистрированным реестрам.
+ *
+ * <p>Динамические реестры загружаются из датапаков и могут меняться между
+ * сессиями, в отличие от статических реестров {@link Registries}.</p>
  */
 public interface DynamicRegistryManager extends RegistryWrapper.WrapperLookup {
 
 	Logger LOGGER = LogUtils.getLogger();
 
+	/** Пустой иммутабельный менеджер без каких-либо реестров. */
 	DynamicRegistryManager.Immutable EMPTY = new DynamicRegistryManager.ImmutableImpl(Map.of()).toImmutable();
 
 	@Override
 	<E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef);
 
 	default <E> Registry<E> getOrThrow(RegistryKey<? extends Registry<? extends E>> key) {
-		return this.getOptional(key).orElseThrow(() -> new IllegalStateException("Missing registry: " + key));
+		return getOptional(key).orElseThrow(() -> new IllegalStateException("Missing registry: " + key));
 	}
 
 	Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries();
 
 	@Override
 	default Stream<RegistryKey<? extends Registry<?>>> streamAllRegistryKeys() {
-		return this.streamAllRegistries().map(registry -> registry.key);
+		return streamAllRegistries().map(entry -> entry.key);
 	}
 
+	/**
+	 * Создаёт иммутабельный менеджер из реестра реестров (meta-registry).
+	 * Используется для оборачивания статических реестров {@link Registries#REGISTRIES}.
+	 *
+	 * @param registries реестр, содержащий другие реестры
+	 * @return иммутабельный менеджер, делегирующий поиск в переданный реестр
+	 */
 	static DynamicRegistryManager.Immutable of(Registry<? extends Registry<?>> registries) {
 		return new DynamicRegistryManager.Immutable() {
 			@Override
+			@SuppressWarnings("unchecked")
 			public <T> Optional<Registry<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef) {
 				Registry<Registry<T>> registry = (Registry<Registry<T>>) registries;
 				return registry.getOptionalValue((RegistryKey<Registry<T>>) registryRef);
@@ -53,29 +67,39 @@ public interface DynamicRegistryManager extends RegistryWrapper.WrapperLookup {
 		};
 	}
 
+	/**
+	 * Создаёт иммутабельный снимок текущего состояния менеджера.
+	 * Все реестры замораживаются через {@link Registry#freeze()}.
+	 *
+	 * @return иммутабельная копия данного менеджера
+	 */
 	default DynamicRegistryManager.Immutable toImmutable() {
-		/**
-		 * {@code Immutablized}.
-		 */
 		class Immutablized extends DynamicRegistryManager.ImmutableImpl implements DynamicRegistryManager.Immutable {
 
-			protected Immutablized(final Stream<DynamicRegistryManager.Entry<?>> entryStream) {
+			protected Immutablized(Stream<DynamicRegistryManager.Entry<?>> entryStream) {
 				super(entryStream);
 			}
 		}
 
-		return new Immutablized(this.streamAllRegistries().map(DynamicRegistryManager.Entry::freeze));
+		return new Immutablized(streamAllRegistries().map(DynamicRegistryManager.Entry::freeze));
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Типизированная пара «ключ реестра — реестр».
+	 * Используется при итерации по всем реестрам менеджера.
+	 *
+	 * @param <T> тип элементов реестра
 	 */
-	public record Entry<T>(RegistryKey<? extends Registry<T>> key, Registry<T> value) {
+	record Entry<T>(RegistryKey<? extends Registry<T>> key, Registry<T> value) {
 
-		private static <T, R extends Registry<? extends T>> DynamicRegistryManager.Entry<T> of(Map.Entry<? extends RegistryKey<? extends Registry<?>>, R> entry) {
+		@SuppressWarnings("unchecked")
+		private static <T, R extends Registry<? extends T>> DynamicRegistryManager.Entry<T> of(
+				Map.Entry<? extends RegistryKey<? extends Registry<?>>, R> entry
+		) {
 			return of((RegistryKey<? extends Registry<?>>) entry.getKey(), entry.getValue());
 		}
 
+		@SuppressWarnings("unchecked")
 		private static <T> DynamicRegistryManager.Entry<T> of(
 				RegistryKey<? extends Registry<?>> key,
 				Registry<?> value
@@ -84,26 +108,26 @@ public interface DynamicRegistryManager extends RegistryWrapper.WrapperLookup {
 		}
 
 		private DynamicRegistryManager.Entry<T> freeze() {
-			return new DynamicRegistryManager.Entry<>(this.key, this.value.freeze());
+			return new DynamicRegistryManager.Entry<>(key, value.freeze());
 		}
 	}
 
-	/**
-	 * {@code Immutable}.
-	 */
-	public interface Immutable extends DynamicRegistryManager {
+	/** Маркерный интерфейс для иммутабельных менеджеров реестров. */
+	interface Immutable extends DynamicRegistryManager {
 	}
 
 	/**
-	 * {@code ImmutableImpl}.
+	 * Базовая реализация иммутабельного менеджера реестров на основе {@link Map}.
+	 * Поддерживает три способа конструирования: из списка реестров, из готовой карты
+	 * и из потока {@link Entry}.
 	 */
-	public static class ImmutableImpl implements DynamicRegistryManager {
+	class ImmutableImpl implements DynamicRegistryManager {
 
 		private final Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries;
 
 		public ImmutableImpl(List<? extends Registry<?>> registries) {
-			this.registries =
-					registries.stream().collect(Collectors.toUnmodifiableMap(Registry::getKey, registry -> registry));
+			this.registries = registries.stream()
+					.collect(Collectors.toUnmodifiableMap(Registry::getKey, registry -> registry));
 		}
 
 		public ImmutableImpl(Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries) {
@@ -111,21 +135,21 @@ public interface DynamicRegistryManager extends RegistryWrapper.WrapperLookup {
 		}
 
 		public ImmutableImpl(Stream<DynamicRegistryManager.Entry<?>> entryStream) {
-			this.registries =
-					entryStream.collect(ImmutableMap.toImmutableMap(
-							DynamicRegistryManager.Entry::key,
-							DynamicRegistryManager.Entry::value
-					));
+			this.registries = entryStream.collect(ImmutableMap.toImmutableMap(
+					DynamicRegistryManager.Entry::key,
+					DynamicRegistryManager.Entry::value
+			));
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public <E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef) {
-			return Optional.ofNullable(this.registries.get(registryRef)).map(registry -> (Registry<E>) registry);
+			return Optional.ofNullable(registries.get(registryRef)).map(registry -> (Registry<E>) registry);
 		}
 
 		@Override
 		public Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries() {
-			return this.registries.entrySet().stream().map(DynamicRegistryManager.Entry::of);
+			return registries.entrySet().stream().map(DynamicRegistryManager.Entry::of);
 		}
 	}
 }

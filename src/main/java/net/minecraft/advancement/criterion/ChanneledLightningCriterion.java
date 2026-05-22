@@ -16,66 +16,63 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@code ChanneledLightningCriterion}.
+ * Критерий, срабатывающий при поражении молнией через трезубец нескольких существ.
  */
 public class ChanneledLightningCriterion extends AbstractCriterion<ChanneledLightningCriterion.Conditions> {
 
 	@Override
 	public Codec<ChanneledLightningCriterion.Conditions> getConditionsCodec() {
-		return ChanneledLightningCriterion.Conditions.CODEC;
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Collection<? extends Entity> victims) {
-		List<LootContext>
-				list =
-				victims
-						.stream()
-						.map(entity -> EntityPredicate.createAdvancementEntityLootContext(player, entity))
-						.collect(Collectors.toList());
-		this.trigger(player, conditions -> conditions.matches(list));
+		List<LootContext> victimContexts = victims
+				.stream()
+				.map(entity -> EntityPredicate.createAdvancementEntityLootContext(player, entity))
+				.toList();
+		trigger(player, conditions -> conditions.matches(victimContexts));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			List<LootContextPredicate> victims
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<ChanneledLightningCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(ChanneledLightningCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .listOf()
-								                    .optionalFieldOf("victims", List.of())
-								                    .forGetter(ChanneledLightningCriterion.Conditions::victims)
-				                    )
-				                    .apply(instance, ChanneledLightningCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.listOf()
+								.optionalFieldOf("victims", List.of())
+								.forGetter(Conditions::victims)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<ChanneledLightningCriterion.Conditions> create(EntityPredicate.Builder... victims) {
-			return Criteria.CHANNELED_LIGHTNING
-					.create(new ChanneledLightningCriterion.Conditions(
-							Optional.empty(),
-							EntityPredicate.contextPredicateFromEntityPredicates(victims)
-					));
+		public static AdvancementCriterion<Conditions> create(EntityPredicate.Builder... victims) {
+			return Criteria.CHANNELED_LIGHTNING.create(new Conditions(
+					Optional.empty(),
+					EntityPredicate.contextPredicateFromEntityPredicates(victims)
+			));
 		}
 
+		/**
+		 * Проверяет, что каждый предикат жертвы соответствует хотя бы одному существу из списка.
+		 * Реализует логику «все условия должны быть выполнены».
+		 */
 		public boolean matches(Collection<? extends LootContext> victims) {
-			for (LootContextPredicate lootContextPredicate : this.victims) {
-				boolean bl = false;
+			for (LootContextPredicate predicate : this.victims) {
+				boolean matched = false;
 
-				for (LootContext lootContext : victims) {
-					if (lootContextPredicate.test(lootContext)) {
-						bl = true;
+				for (LootContext victimContext : victims) {
+					if (predicate.test(victimContext)) {
+						matched = true;
 						break;
 					}
 				}
 
-				if (!bl) {
+				if (!matched) {
 					return false;
 				}
 			}
@@ -86,7 +83,7 @@ public class ChanneledLightningCriterion extends AbstractCriterion<ChanneledLigh
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicates(this.victims, "victims");
+			validator.validateEntityPredicates(victims, "victims");
 		}
 	}
 }

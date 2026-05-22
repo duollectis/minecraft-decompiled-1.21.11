@@ -13,87 +13,81 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code ArmorDyeRecipe}.
+ * Рецепт покраски брони красителями.
+ * <p>
+ * Принимает ровно один предмет с тегом {@code dyeable} и один или несколько
+ * {@link DyeItem}. Цвета красителей смешиваются через {@link DyedColorComponent#setColor}.
  */
 public class ArmorDyeRecipe extends SpecialCraftingRecipe {
 
-	public ArmorDyeRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	public ArmorDyeRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() < 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getStackCount() < 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (itemStack.isIn(ItemTags.DYEABLE)) {
-						if (bl) {
-							return false;
-						}
+		boolean hasDyeable = false;
+		boolean hasDye = false;
 
-						bl = true;
-					}
-					else {
-						if (!(itemStack.getItem() instanceof DyeItem)) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-						bl2 = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl2 && bl;
+			if (stack.isIn(ItemTags.DYEABLE)) {
+				if (hasDyeable) {
+					return false;
+				}
+
+				hasDyeable = true;
+			} else {
+				if (!(stack.getItem() instanceof DyeItem)) {
+					return false;
+				}
+
+				hasDye = true;
+			}
 		}
+
+		return hasDyeable && hasDye;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		List<DyeItem> list = new ArrayList<>();
-		ItemStack itemStack = ItemStack.EMPTY;
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup registries) {
+		List<DyeItem> dyes = new ArrayList<>();
+		ItemStack dyeable = ItemStack.EMPTY;
 
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(i);
-			if (!itemStack2.isEmpty()) {
-				if (itemStack2.isIn(ItemTags.DYEABLE)) {
-					if (!itemStack.isEmpty()) {
-						return ItemStack.EMPTY;
-					}
+		for (int slotIndex = 0; slotIndex < input.size(); slotIndex++) {
+			ItemStack stack = input.getStackInSlot(slotIndex);
 
-					itemStack = itemStack2.copy();
+			if (stack.isEmpty()) {
+				continue;
+			}
+
+			if (stack.isIn(ItemTags.DYEABLE)) {
+				if (!dyeable.isEmpty()) {
+					return ItemStack.EMPTY;
 				}
-				else {
-					if (!(itemStack2.getItem() instanceof DyeItem dyeItem)) {
-						return ItemStack.EMPTY;
-					}
 
-					list.add(dyeItem);
+				dyeable = stack.copy();
+			} else {
+				if (!(stack.getItem() instanceof DyeItem dyeItem)) {
+					return ItemStack.EMPTY;
 				}
+
+				dyes.add(dyeItem);
 			}
 		}
 
-		return !itemStack.isEmpty() && !list.isEmpty() ? DyedColorComponent.setColor(itemStack, list) : ItemStack.EMPTY;
+		return !dyeable.isEmpty() && !dyes.isEmpty()
+			? DyedColorComponent.setColor(dyeable, dyes)
+			: ItemStack.EMPTY;
 	}
 
 	@Override

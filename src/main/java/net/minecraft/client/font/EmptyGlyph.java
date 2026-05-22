@@ -5,21 +5,23 @@ import net.fabricmc.api.Environment;
 import net.minecraft.text.Style;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EmptyGlyph}.
+ * Невидимый глиф с заданным горизонтальным отступом (advance).
+ * Используется для пробелов и символов без визуального представления
+ * (например, в {@link SpaceFont}).
  */
+@Environment(EnvType.CLIENT)
 public class EmptyGlyph implements Glyph {
 
 	final GlyphMetrics glyph;
 
 	public EmptyGlyph(float advance) {
-		this.glyph = GlyphMetrics.empty(advance);
+		glyph = GlyphMetrics.empty(advance);
 	}
 
 	@Override
 	public GlyphMetrics getMetrics() {
-		return this.glyph;
+		return glyph;
 	}
 
 	@Override

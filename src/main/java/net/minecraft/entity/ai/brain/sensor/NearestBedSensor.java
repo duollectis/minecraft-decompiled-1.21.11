@@ -21,19 +21,23 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code NearestBedSensor}.
+ * Сенсор поиска ближайшей кровати для детёнышей мобов.
+ * Использует POI-хранилище и кэш недоступных позиций, чтобы не проверять одни и те же блоки повторно.
+ * Запускается каждые {@code MAX_EXPIRY_TIME} тиков.
  */
 public class NearestBedSensor extends Sensor<MobEntity> {
 
 	private static final int REMEMBER_TIME = 40;
 	private static final int MAX_TRIES = 5;
 	private static final int MAX_EXPIRY_TIME = 20;
+	private static final int BED_SEARCH_RADIUS = 48;
+
 	private final Long2LongMap positionToExpiryTime = new Long2LongOpenHashMap();
 	private int tries;
 	private long expiryTime;
 
 	public NearestBedSensor() {
-		super(20);
+		super(MAX_EXPIRY_TIME);
 	}
 
 	@Override
@@ -41,49 +45,52 @@ public class NearestBedSensor extends Sensor<MobEntity> {
 		return ImmutableSet.of(MemoryModuleType.NEAREST_BED);
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 */
-	protected void sense(ServerWorld serverWorld, MobEntity mobEntity) {
-		if (mobEntity.isBaby()) {
-			this.tries = 0;
-			this.expiryTime = serverWorld.getTime() + serverWorld.getRandom().nextInt(20);
-			PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
-			Predicate<BlockPos> predicate = pos -> {
-				long l = pos.asLong();
-				if (this.positionToExpiryTime.containsKey(l)) {
-					return false;
-				}
-				else if (++this.tries >= 5) {
-					return false;
-				}
-				else {
-					this.positionToExpiryTime.put(l, this.expiryTime + 40L);
-					return true;
-				}
-			};
-			Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>> set = pointOfInterestStorage.getTypesAndPositions(
-					                                                                                    registryEntry -> registryEntry.matchesKey(PointOfInterestTypes.HOME),
-					                                                                                    predicate,
-					                                                                                    mobEntity.getBlockPos(),
-					                                                                                    48,
-					                                                                                    PointOfInterestStorage.OccupationStatus.ANY
-			                                                                                    )
-			                                                                                    .collect(Collectors.toSet());
-			Path path = FindPointOfInterestTask.findPathToPoi(mobEntity, set);
-			if (path != null && path.reachesTarget()) {
-				BlockPos blockPos = path.getTarget();
-				Optional<RegistryEntry<PointOfInterestType>> optional = pointOfInterestStorage.getType(blockPos);
-				if (optional.isPresent()) {
-					mobEntity.getBrain().remember(MemoryModuleType.NEAREST_BED, blockPos);
-				}
+	@Override
+	protected void sense(ServerWorld world, MobEntity entity) {
+		if (!entity.isBaby()) {
+			return;
+		}
+
+		tries = 0;
+		expiryTime = world.getTime() + world.getRandom().nextInt(MAX_EXPIRY_TIME);
+		PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
+
+		Predicate<BlockPos> bedFilter = pos -> {
+			long posKey = pos.asLong();
+
+			if (positionToExpiryTime.containsKey(posKey)) {
+				return false;
 			}
-			else if (this.tries < 5) {
-				this.positionToExpiryTime.long2LongEntrySet().removeIf(entry -> entry.getLongValue() < this.expiryTime);
+
+			if (++tries >= MAX_TRIES) {
+				return false;
 			}
+
+			positionToExpiryTime.put(posKey, expiryTime + REMEMBER_TIME);
+			return true;
+		};
+
+		Set<Pair<RegistryEntry<PointOfInterestType>, BlockPos>> candidates = poiStorage
+				.getTypesAndPositions(
+						registryEntry -> registryEntry.matchesKey(PointOfInterestTypes.HOME),
+						bedFilter,
+						entity.getBlockPos(),
+						BED_SEARCH_RADIUS,
+						PointOfInterestStorage.OccupationStatus.ANY
+				)
+				.collect(Collectors.toSet());
+
+		Path path = FindPointOfInterestTask.findPathToPoi(entity, candidates);
+
+		if (path != null && path.reachesTarget()) {
+			BlockPos target = path.getTarget();
+			Optional<RegistryEntry<PointOfInterestType>> poiType = poiStorage.getType(target);
+
+			if (poiType.isPresent()) {
+				entity.getBrain().remember(MemoryModuleType.NEAREST_BED, target);
+			}
+		} else if (tries < MAX_TRIES) {
+			positionToExpiryTime.long2LongEntrySet().removeIf(entry -> entry.getLongValue() < expiryTime);
 		}
 	}
 }

@@ -12,11 +12,16 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VideoMode}.
+ * Описывает видеорежим монитора: разрешение, глубину цвета и частоту обновления.
+ * Поддерживает парсинг из строки вида {@code "1920x1080@60:24"}.
  */
+@Environment(EnvType.CLIENT)
 public final class VideoMode {
+
+	private static final Pattern PATTERN = Pattern.compile("(\\d+)x(\\d+)(?:@(\\d+)(?::(\\d+))?)?");
+	private static final int DEFAULT_REFRESH_RATE = 60;
+	private static final int DEFAULT_BIT_DEPTH = 24;
 
 	private final int width;
 	private final int height;
@@ -24,7 +29,6 @@ public final class VideoMode {
 	private final int greenBits;
 	private final int blueBits;
 	private final int refreshRate;
-	private static final Pattern PATTERN = Pattern.compile("(\\d+)x(\\d+)(?:@(\\d+)(?::(\\d+))?)?");
 
 	public VideoMode(int width, int height, int redBits, int greenBits, int blueBits, int refreshRate) {
 		this.width = width;
@@ -36,45 +40,45 @@ public final class VideoMode {
 	}
 
 	public VideoMode(Buffer buffer) {
-		this.width = buffer.width();
-		this.height = buffer.height();
-		this.redBits = buffer.redBits();
-		this.greenBits = buffer.greenBits();
-		this.blueBits = buffer.blueBits();
-		this.refreshRate = buffer.refreshRate();
+		width = buffer.width();
+		height = buffer.height();
+		redBits = buffer.redBits();
+		greenBits = buffer.greenBits();
+		blueBits = buffer.blueBits();
+		refreshRate = buffer.refreshRate();
 	}
 
 	public VideoMode(GLFWVidMode vidMode) {
-		this.width = vidMode.width();
-		this.height = vidMode.height();
-		this.redBits = vidMode.redBits();
-		this.greenBits = vidMode.greenBits();
-		this.blueBits = vidMode.blueBits();
-		this.refreshRate = vidMode.refreshRate();
+		width = vidMode.width();
+		height = vidMode.height();
+		redBits = vidMode.redBits();
+		greenBits = vidMode.greenBits();
+		blueBits = vidMode.blueBits();
+		refreshRate = vidMode.refreshRate();
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	public int getRedBits() {
-		return this.redBits;
+		return redBits;
 	}
 
 	public int getGreenBits() {
-		return this.greenBits;
+		return greenBits;
 	}
 
 	public int getBlueBits() {
-		return this.blueBits;
+		return blueBits;
 	}
 
 	public int getRefreshRate() {
-		return this.refreshRate;
+		return refreshRate;
 	}
 
 	@Override
@@ -82,96 +86,62 @@ public final class VideoMode {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			VideoMode videoMode = (VideoMode) o;
-			return this.width == videoMode.width
-					&& this.height == videoMode.height
-					&& this.redBits == videoMode.redBits
-					&& this.greenBits == videoMode.greenBits
-					&& this.blueBits == videoMode.blueBits
-					&& this.refreshRate == videoMode.refreshRate;
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		VideoMode other = (VideoMode) o;
+		return width == other.width
+			&& height == other.height
+			&& redBits == other.redBits
+			&& greenBits == other.greenBits
+			&& blueBits == other.blueBits
+			&& refreshRate == other.refreshRate;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.width, this.height, this.redBits, this.greenBits, this.blueBits, this.refreshRate);
+		return Objects.hash(width, height, redBits, greenBits, blueBits, refreshRate);
 	}
 
 	@Override
 	public String toString() {
-		return String.format(
-				Locale.ROOT,
-				"%sx%s@%s (%sbit)",
-				this.width,
-				this.height,
-				this.refreshRate,
-				this.redBits + this.greenBits + this.blueBits
-		);
+		return String.format(Locale.ROOT, "%sx%s@%s (%sbit)", width, height, refreshRate, redBits + greenBits + blueBits);
 	}
 
 	/**
-	 * From string.
+	 * Разбирает строку вида {@code "1920x1080@60:24"} в {@link VideoMode}.
+	 * Частота обновления по умолчанию — 60 Гц, глубина цвета — 24 бит.
 	 *
-	 * @param string string
-	 *
-	 * @return Optional — результат операции
+	 * @param string строка с параметрами видеорежима или {@code null}
+	 * @return распознанный видеорежим или пустой {@link Optional}
 	 */
 	public static Optional<VideoMode> fromString(@Nullable String string) {
 		if (string == null) {
 			return Optional.empty();
 		}
-		else {
-			try {
-				Matcher matcher = PATTERN.matcher(string);
-				if (matcher.matches()) {
-					int i = Integer.parseInt(matcher.group(1));
-					int j = Integer.parseInt(matcher.group(2));
-					String string2 = matcher.group(3);
-					int k;
-					if (string2 == null) {
-						k = 60;
-					}
-					else {
-						k = Integer.parseInt(string2);
-					}
 
-					String string3 = matcher.group(4);
-					int l;
-					if (string3 == null) {
-						l = 24;
-					}
-					else {
-						l = Integer.parseInt(string3);
-					}
-
-					int m = l / 3;
-					return Optional.of(new VideoMode(i, j, m, m, m, k));
-				}
-			}
-			catch (Exception var9) {
+		try {
+			Matcher matcher = PATTERN.matcher(string);
+			if (!matcher.matches()) {
+				return Optional.empty();
 			}
 
+			int parsedWidth = Integer.parseInt(matcher.group(1));
+			int parsedHeight = Integer.parseInt(matcher.group(2));
+			String refreshGroup = matcher.group(3);
+			int parsedRefreshRate = refreshGroup == null ? DEFAULT_REFRESH_RATE : Integer.parseInt(refreshGroup);
+			String bitDepthGroup = matcher.group(4);
+			int bitDepth = bitDepthGroup == null ? DEFAULT_BIT_DEPTH : Integer.parseInt(bitDepthGroup);
+			int bitsPerChannel = bitDepth / 3;
+			return Optional.of(new VideoMode(parsedWidth, parsedHeight, bitsPerChannel, bitsPerChannel, bitsPerChannel, parsedRefreshRate));
+		} catch (Exception ignored) {
 			return Optional.empty();
 		}
 	}
 
-	/**
-	 * As string.
-	 *
-	 * @return String — результат операции
-	 */
 	public String asString() {
-		return String.format(
-				Locale.ROOT,
-				"%sx%s@%s:%s",
-				this.width,
-				this.height,
-				this.refreshRate,
-				this.redBits + this.greenBits + this.blueBits
-		);
+		return String.format(Locale.ROOT, "%sx%s@%s:%s", width, height, refreshRate, redBits + greenBits + blueBits);
 	}
 }

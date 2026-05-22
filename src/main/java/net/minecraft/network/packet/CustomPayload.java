@@ -12,7 +12,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Интерфейс custom payload.
+ * Произвольная полезная нагрузка пакета с идентификатором канала.
+ * Используется для расширяемых каналов данных (плагин-каналы, Fabric API и т.д.).
  */
 public interface CustomPayload {
 
@@ -29,71 +30,69 @@ public interface CustomPayload {
 		return new CustomPayload.Id<>(Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Создаёт диспетчерный кодек, маршрутизирующий по идентификатору канала.
+	 * Неизвестные идентификаторы делегируются в {@code unknownCodecFactory}.
+	 *
+	 * @param unknownCodecFactory фабрика кодеков для неизвестных идентификаторов
+	 * @param types               список зарегистрированных типов полезной нагрузки
+	 * @return кодек, умеющий кодировать и декодировать любой зарегистрированный тип
+	 */
 	static <B extends PacketByteBuf> PacketCodec<B, CustomPayload> createCodec(
-			CustomPayload.CodecFactory<B> unknownCodecFactory, List<CustomPayload.Type<? super B, ?>> types
+			CustomPayload.CodecFactory<B> unknownCodecFactory,
+			List<CustomPayload.Type<? super B, ?>> types
 	) {
-		final Map<Identifier, PacketCodec<? super B, ? extends CustomPayload>> map = types.stream()
-		                                                                                  .collect(Collectors.toUnmodifiableMap(
-				                                                                                  type -> type
-						                                                                                  .id()
-						                                                                                  .id(),
-				                                                                                  CustomPayload.Type::codec
-		                                                                                  ));
+		final Map<Identifier, PacketCodec<? super B, ? extends CustomPayload>> codecByChannel = types
+				.stream()
+				.collect(Collectors.toUnmodifiableMap(
+						type -> type.id().id(),
+						CustomPayload.Type::codec
+				));
+
 		return new PacketCodec<B, CustomPayload>() {
-			private PacketCodec<? super B, ? extends CustomPayload> getCodec(Identifier id) {
-				PacketCodec<? super B, ? extends CustomPayload> packetCodec = map.get(id);
-				return packetCodec != null ? packetCodec : unknownCodecFactory.create(id);
+			private PacketCodec<? super B, ? extends CustomPayload> getCodec(Identifier channelId) {
+				PacketCodec<? super B, ? extends CustomPayload> codec = codecByChannel.get(channelId);
+				return codec != null ? codec : unknownCodecFactory.create(channelId);
 			}
 
 			@SuppressWarnings("unchecked")
-			private <T extends CustomPayload> void encode(B value, CustomPayload.Id<T> id, CustomPayload payload) {
-				value.writeIdentifier(id.id());
-				PacketCodec<B, T> packetCodec = (PacketCodec<B, T>) this.getCodec(id.id);
-				packetCodec.encode(value, (T) payload);
+			private <T extends CustomPayload> void encode(B buf, CustomPayload.Id<T> payloadId, CustomPayload payload) {
+				buf.writeIdentifier(payloadId.id());
+				PacketCodec<B, T> codec = (PacketCodec<B, T>) getCodec(payloadId.id);
+				codec.encode(buf, (T) payload);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param packetByteBuf packet byte buf
-			 * @param customPayload custom payload
-			 */
-			public void encode(B packetByteBuf, CustomPayload customPayload) {
-				this.encode(packetByteBuf, customPayload.getId(), customPayload);
+			@Override
+			public void encode(B buf, CustomPayload payload) {
+				encode(buf, payload.getId(), payload);
 			}
 
-			/**
-			 * Decode.
-			 *
-			 * @param packetByteBuf packet byte buf
-			 *
-			 * @return CustomPayload — результат операции
-			 */
-			public CustomPayload decode(B packetByteBuf) {
-				Identifier identifier = packetByteBuf.readIdentifier();
-				return (CustomPayload) this.getCodec(identifier).decode(packetByteBuf);
+			@Override
+			public CustomPayload decode(B buf) {
+				Identifier channelId = buf.readIdentifier();
+				return (CustomPayload) getCodec(channelId).decode(buf);
 			}
 		};
 	}
 
 	/**
-	 * Интерфейс codec factory.
+	 * Фабрика кодеков для неизвестных идентификаторов каналов.
 	 */
-	public interface CodecFactory<B extends PacketByteBuf> {
+	interface CodecFactory<B extends PacketByteBuf> {
 
 		PacketCodec<B, ? extends CustomPayload> create(Identifier id);
 	}
 
 	/**
-	 * Запись id.
+	 * Типизированный идентификатор канала полезной нагрузки.
 	 */
-	public record Id<T extends CustomPayload>(Identifier id) {
+	record Id<T extends CustomPayload>(Identifier id) {
 	}
 
 	/**
-	 * Запись type.
+	 * Пара идентификатор + кодек для конкретного типа полезной нагрузки.
 	 */
-	public record Type<B extends PacketByteBuf, T extends CustomPayload>(
+	record Type<B extends PacketByteBuf, T extends CustomPayload>(
 			CustomPayload.Id<T> id,
 			PacketCodec<B, T> codec
 	) {

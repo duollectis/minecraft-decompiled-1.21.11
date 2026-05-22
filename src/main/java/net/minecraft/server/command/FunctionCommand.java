@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code FunctionCommand}.
+ * Команда {@code /function}: выполнение mcfunction-файла.
  */
 public class FunctionCommand {
 
@@ -347,9 +347,6 @@ public class FunctionCommand {
 		}
 	}
 
-	/**
-	 * {@code Command}.
-	 */
 	abstract static class Command extends ControlFlowAware.Helper<ServerCommandSource> implements ControlFlowAware.Command<ServerCommandSource> {
 
 		protected abstract @Nullable NbtCompound getArguments(CommandContext<ServerCommandSource> context)
@@ -409,9 +406,6 @@ public class FunctionCommand {
 		}
 	}
 
-	/**
-	 * {@code ResultConsumer}.
-	 */
 	public interface ResultConsumer<T> {
 
 		void accept(T source, Identifier id, int result);

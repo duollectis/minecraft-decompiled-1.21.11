@@ -3,7 +3,10 @@ package net.minecraft.network.encoding;
 import io.netty.buffer.ByteBuf;
 
 /**
- * Класс var longs.
+ * Утилитарный класс для кодирования длинных целых чисел в формате VarLong.
+ *
+ * <p>VarLong использует от 1 до {@value #MAX_BYTES} байт: каждый байт содержит 7 бит данных
+ * и 1 бит-флаг продолжения (старший бит). Аналог {@link VarInts}, но для типа {@code long}.</p>
  */
 public class VarLongs {
 
@@ -12,66 +15,54 @@ public class VarLongs {
 	private static final int MORE_BITS_MASK = 128;
 	private static final int DATA_BITS_PER_BYTE = 7;
 
-	public static int getSizeInBytes(long l) {
-		for (int i = 1; i < 10; i++) {
-			if ((l & -1L << i * 7) == 0L) {
-				return i;
+	/**
+	 * Вычисляет количество байт, необходимых для кодирования значения в формате VarLong.
+	 */
+	public static int getSizeInBytes(long value) {
+		for (int byteCount = 1; byteCount < MAX_BYTES; byteCount++) {
+			if ((value & -1L << byteCount * DATA_BITS_PER_BYTE) == 0L) {
+				return byteCount;
 			}
 		}
 
-		return 10;
+		return MAX_BYTES;
 	}
 
-	/**
-	 * Определяет, следует ли continue read.
-	 *
-	 * @param b b
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean shouldContinueRead(byte b) {
-		return (b & 128) == 128;
+		return (b & MORE_BITS_MASK) == MORE_BITS_MASK;
 	}
 
 	/**
-	 * Read.
+	 * Читает VarLong из буфера.
 	 *
-	 * @param buf buf
-	 *
-	 * @return long — результат операции
+	 * @throws RuntimeException если VarLong занимает более {@value #MAX_BYTES} байт
 	 */
 	public static long read(ByteBuf buf) {
-		long l = 0L;
-		int i = 0;
+		long result = 0L;
+		int byteIndex = 0;
 
-		byte b;
+		byte current;
 		do {
-			b = buf.readByte();
-			l |= (long) (b & 127) << i++ * 7;
-			if (i > 10) {
+			current = buf.readByte();
+			result |= (long) (current & DATA_BITS_MASK) << byteIndex++ * DATA_BITS_PER_BYTE;
+			if (byteIndex > MAX_BYTES) {
 				throw new RuntimeException("VarLong too big");
 			}
-		}
-		while (shouldContinueRead(b));
+		} while (shouldContinueRead(current));
 
-		return l;
+		return result;
 	}
 
 	/**
-	 * Write.
-	 *
-	 * @param buf buf
-	 * @param l l
-	 *
-	 * @return ByteBuf — результат операции
+	 * Записывает значение в буфер в формате VarLong.
 	 */
-	public static ByteBuf write(ByteBuf buf, long l) {
-		while ((l & -128L) != 0L) {
-			buf.writeByte((int) (l & 127L) | 128);
-			l >>>= 7;
+	public static ByteBuf write(ByteBuf buf, long value) {
+		while ((value & -MORE_BITS_MASK) != 0L) {
+			buf.writeByte((int) (value & DATA_BITS_MASK) | MORE_BITS_MASK);
+			value >>>= DATA_BITS_PER_BYTE;
 		}
 
-		buf.writeByte((int) l);
+		buf.writeByte((int) value);
 		return buf;
 	}
 }

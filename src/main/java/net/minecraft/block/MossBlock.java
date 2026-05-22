@@ -12,7 +12,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 
 /**
- * {@code MossBlock}.
+ * Блок мха. Поддерживает удобрение костяной мукой — генерирует настроенный биомный
+ * фичер (мох, азалии и т.п.) над собой через реестр {@code ConfiguredFeature}.
  */
 public class MossBlock extends Block implements Fertilizable {
 

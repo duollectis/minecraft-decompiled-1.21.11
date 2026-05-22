@@ -11,16 +11,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * {@code PlayerConfigEntry}.
+ * Минимальная идентификационная запись игрока: UUID и имя.
+ * Используется в списках банов, операторов и белого списка.
  */
 public record PlayerConfigEntry(UUID id, String name) {
 
 	public static final Codec<PlayerConfigEntry> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Uuids.STRING_CODEC.fieldOf("id").forGetter(PlayerConfigEntry::id),
-					                    Codec.STRING.fieldOf("name").forGetter(PlayerConfigEntry::name)
-			                    )
-			                    .apply(instance, PlayerConfigEntry::new)
+		instance -> instance.group(
+			Uuids.STRING_CODEC.fieldOf("id").forGetter(PlayerConfigEntry::id),
+			Codec.STRING.fieldOf("name").forGetter(PlayerConfigEntry::name)
+		).apply(instance, PlayerConfigEntry::new)
 	);
 
 	public PlayerConfigEntry(GameProfile profile) {
@@ -32,50 +32,36 @@ public record PlayerConfigEntry(UUID id, String name) {
 	}
 
 	/**
-	 * Read.
+	 * Десериализует запись из JSON-объекта с полями {@code uuid} и {@code name}.
 	 *
-	 * @param object object
-	 *
-	 * @return @Nullable PlayerConfigEntry — результат операции
+	 * @return запись или {@code null}, если поля отсутствуют или UUID некорректен
 	 */
 	public static @Nullable PlayerConfigEntry read(JsonObject object) {
-		if (object.has("uuid") && object.has("name")) {
-			String string = object.get("uuid").getAsString();
-
-			UUID uUID;
-			try {
-				uUID = UUID.fromString(string);
-			}
-			catch (Throwable var4) {
-				return null;
-			}
-
-			return new PlayerConfigEntry(uUID, object.get("name").getAsString());
-		}
-		else {
+		if (!object.has("uuid") || !object.has("name")) {
 			return null;
 		}
+
+		String uuidString = object.get("uuid").getAsString();
+
+		UUID uuid;
+		try {
+			uuid = UUID.fromString(uuidString);
+		} catch (Throwable e) {
+			return null;
+		}
+
+		return new PlayerConfigEntry(uuid, object.get("name").getAsString());
 	}
 
-	/**
-	 * Write.
-	 *
-	 * @param object object
-	 */
+	/** Сериализует запись в JSON-объект с полями {@code uuid} и {@code name}. */
 	public void write(JsonObject object) {
-		object.addProperty("uuid", this.id().toString());
-		object.addProperty("name", this.name());
+		object.addProperty("uuid", id().toString());
+		object.addProperty("name", name());
 	}
 
-	/**
-	 * From nickname.
-	 *
-	 * @param nickname nickname
-	 *
-	 * @return PlayerConfigEntry — результат операции
-	 */
+	/** Создаёт запись для офлайн-игрока по нику, генерируя детерминированный UUID. */
 	public static PlayerConfigEntry fromNickname(String nickname) {
-		UUID uUID = Uuids.getOfflinePlayerUuid(nickname);
-		return new PlayerConfigEntry(uUID, nickname);
+		UUID uuid = Uuids.getOfflinePlayerUuid(nickname);
+		return new PlayerConfigEntry(uuid, nickname);
 	}
 }

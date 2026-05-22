@@ -10,23 +10,22 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtFloat}.
+ * NBT-элемент, хранящий значение типа {@code float}.
+ *
+ * <p>Нулевое значение кэшируется в {@link #ZERO}. Используйте фабричный метод
+ * {@link #of(float)} вместо конструктора record.</p>
  */
 public record NbtFloat(float value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 4 байта данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 12;
+
 	public static final NbtFloat ZERO = new NbtFloat(0.0F);
-	public static final NbtType<NbtFloat> TYPE = new NbtType.OfFixedSize<NbtFloat>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtFloat — результат операции
-		 */
-		public NbtFloat read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtFloat.of(readFloat(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtFloat> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtFloat read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtFloat.of(readFloat(input, tracker));
 		}
 
 		@Override
@@ -36,7 +35,7 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 		}
 
 		private static float readFloat(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(12L);
+			tracker.add(SIZE);
 			return input.readFloat();
 		}
 
@@ -62,11 +61,10 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает {@link #ZERO} для нулевого значения, иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtFloat — результат операции
+	 * @param value значение float
+	 * @return {@link NbtFloat} для заданного значения
 	 */
 	public static NbtFloat of(float value) {
 		return value == 0.0F ? ZERO : new NbtFloat(value);
@@ -74,17 +72,17 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeFloat(this.value);
+		output.writeFloat(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 12;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 5;
+		return FLOAT_TYPE;
 	}
 
 	@Override
@@ -92,11 +90,7 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtFloat — результат операции
-	 */
+	@Override
 	public NbtFloat copy() {
 		return this;
 	}
@@ -108,48 +102,52 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 
 	@Override
 	public long longValue() {
-		return (long) this.value;
+		return (long) value;
 	}
 
+	/**
+	 * Возвращает целую часть float через {@link MathHelper#floor} для корректной обработки
+	 * отрицательных значений (в отличие от простого приведения типа).
+	 */
 	@Override
 	public int intValue() {
-		return MathHelper.floor(this.value);
+		return MathHelper.floor(value);
 	}
 
 	@Override
 	public short shortValue() {
-		return (short) (MathHelper.floor(this.value) & 65535);
+		return (short) (MathHelper.floor(value) & 0xFFFF);
 	}
 
 	@Override
 	public byte byteValue() {
-		return (byte) (MathHelper.floor(this.value) & 0xFF);
+		return (byte) (MathHelper.floor(value) & 0xFF);
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitFloat(this.value);
+		return visitor.visitFloat(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitFloat(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitFloat(this);
+		return writer.getString();
 	}
 }

@@ -11,7 +11,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code ApplyExhaustionEnchantmentEffect}.
+ * Эффект зачарования, добавляющий усталость игроку.
+ * Применяется только к {@link PlayerEntity}; другие сущности игнорируются.
  */
 public record ApplyExhaustionEnchantmentEffect(EnchantmentLevelBasedValue amount) implements EnchantmentEntityEffect {
 
@@ -25,8 +26,8 @@ public record ApplyExhaustionEnchantmentEffect(EnchantmentLevelBasedValue amount
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		if (user instanceof PlayerEntity playerEntity) {
-			playerEntity.addExhaustion(this.amount.getValue(level));
+		if (user instanceof PlayerEntity player) {
+			player.addExhaustion(amount.getValue(level));
 		}
 	}
 

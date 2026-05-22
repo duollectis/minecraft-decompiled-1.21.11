@@ -9,37 +9,33 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FrameGraphBuilder}.
+ * Строитель графа кадра (Frame Graph) — декларативной системы управления проходами рендеринга.
+ * Позволяет описать зависимости между проходами и ресурсами, после чего автоматически
+ * определяет топологический порядок выполнения, управляет временем жизни GPU-ресурсов
+ * (acquire/release) и исключает неиспользуемые проходы из выполнения.
  */
+@Environment(EnvType.CLIENT)
 public class FrameGraphBuilder {
 
 	private final List<FrameGraphBuilder.ResourceNode<?>> resourceNodes = new ArrayList<>();
 	private final List<FrameGraphBuilder.ObjectNode<?>> objectNodes = new ArrayList<>();
 	private final List<FrameGraphBuilder.FramePassImpl> passes = new ArrayList<>();
 
-	/**
-	 * Создаёт pass.
-	 *
-	 * @param name name
-	 *
-	 * @return FramePass — результат операции
-	 */
 	public FramePass createPass(String name) {
-		FrameGraphBuilder.FramePassImpl framePassImpl = new FrameGraphBuilder.FramePassImpl(this.passes.size(), name);
-		this.passes.add(framePassImpl);
-		return framePassImpl;
+		FrameGraphBuilder.FramePassImpl pass = new FrameGraphBuilder.FramePassImpl(passes.size(), name);
+		passes.add(pass);
+		return pass;
 	}
 
 	public <T> net.minecraft.client.util.Handle<T> createObjectNode(String name, T object) {
 		FrameGraphBuilder.ObjectNode<T> objectNode = new FrameGraphBuilder.ObjectNode<>(name, null, object);
-		this.objectNodes.add(objectNode);
+		objectNodes.add(objectNode);
 		return objectNode.handle;
 	}
 
 	public <T> net.minecraft.client.util.Handle<T> createResourceHandle(String name, ClosableFactory<T> factory) {
-		return this.createResourceNode(name, factory, null).handle;
+		return createResourceNode(name, factory, null).handle;
 	}
 
 	<T> FrameGraphBuilder.ResourceNode<T> createResourceNode(
@@ -47,101 +43,103 @@ public class FrameGraphBuilder {
 			ClosableFactory<T> factory,
 			FrameGraphBuilder.@Nullable FramePassImpl stageNode
 	) {
-		int i = this.resourceNodes.size();
-		FrameGraphBuilder.ResourceNode<T>
-				resourceNode =
-				new FrameGraphBuilder.ResourceNode<>(i, name, stageNode, factory);
-		this.resourceNodes.add(resourceNode);
+		int nodeId = resourceNodes.size();
+		FrameGraphBuilder.ResourceNode<T> resourceNode = new FrameGraphBuilder.ResourceNode<>(nodeId, name, stageNode, factory);
+		resourceNodes.add(resourceNode);
 		return resourceNode;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param allocator allocator
-	 */
 	public void run(ObjectAllocator allocator) {
-		this.run(allocator, FrameGraphBuilder.Profiler.NONE);
+		run(allocator, FrameGraphBuilder.Profiler.NONE);
 	}
 
 	/**
-	 * Run.
+	 * Выполняет граф кадра: определяет топологический порядок проходов, управляет
+	 * временем жизни ресурсов и вызывает рендерер каждого прохода.
 	 *
-	 * @param allocator allocator
-	 * @param profiler profiler
+	 * @param allocator аллокатор GPU-ресурсов
+	 * @param profiler  профилировщик для замера времени acquire/release/render
 	 */
 	public void run(ObjectAllocator allocator, FrameGraphBuilder.Profiler profiler) {
-		BitSet bitSet = this.collectPassesToVisit();
-		List<FrameGraphBuilder.FramePassImpl> list = new ArrayList<>(bitSet.cardinality());
-		BitSet bitSet2 = new BitSet(this.passes.size());
+		BitSet passesToVisit = collectPassesToVisit();
+		List<FrameGraphBuilder.FramePassImpl> orderedPasses = new ArrayList<>(passesToVisit.cardinality());
+		BitSet visiting = new BitSet(passes.size());
 
-		for (FrameGraphBuilder.FramePassImpl framePassImpl : this.passes) {
-			this.visit(framePassImpl, bitSet, bitSet2, list);
+		for (FrameGraphBuilder.FramePassImpl pass : passes) {
+			visit(pass, passesToVisit, visiting, orderedPasses);
 		}
 
-		this.checkResources(list);
+		checkResources(orderedPasses);
 
-		for (FrameGraphBuilder.FramePassImpl framePassImpl : list) {
-			for (FrameGraphBuilder.ResourceNode<?> resourceNode : framePassImpl.resourcesToAcquire) {
-				profiler.acquire(resourceNode.name);
-				resourceNode.acquire(allocator);
+		for (FrameGraphBuilder.FramePassImpl pass : orderedPasses) {
+			for (FrameGraphBuilder.ResourceNode<?> resource : pass.resourcesToAcquire) {
+				profiler.acquire(resource.name);
+				resource.acquire(allocator);
 			}
 
-			profiler.push(framePassImpl.name);
-			framePassImpl.renderer.run();
-			profiler.pop(framePassImpl.name);
+			profiler.push(pass.name);
+			pass.renderer.run();
+			profiler.pop(pass.name);
 
-			for (int i = framePassImpl.resourcesToRelease.nextSetBit(0);
-			     i >= 0;
-			     i = framePassImpl.resourcesToRelease.nextSetBit(i + 1)) {
-				FrameGraphBuilder.ResourceNode<?> resourceNode = this.resourceNodes.get(i);
-				profiler.release(resourceNode.name);
-				resourceNode.release(allocator);
+			for (int resourceId = pass.resourcesToRelease.nextSetBit(0);
+					resourceId >= 0;
+					resourceId = pass.resourcesToRelease.nextSetBit(resourceId + 1)
+			) {
+				FrameGraphBuilder.ResourceNode<?> resource = resourceNodes.get(resourceId);
+				profiler.release(resource.name);
+				resource.release(allocator);
 			}
 		}
 	}
 
 	private BitSet collectPassesToVisit() {
-		Deque<FrameGraphBuilder.FramePassImpl> deque = new ArrayDeque<>(this.passes.size());
-		BitSet bitSet = new BitSet(this.passes.size());
+		Deque<FrameGraphBuilder.FramePassImpl> queue = new ArrayDeque<>(passes.size());
+		BitSet result = new BitSet(passes.size());
 
-		for (FrameGraphBuilder.Node<?> node : this.objectNodes) {
-			FrameGraphBuilder.FramePassImpl framePassImpl = node.handle.from;
-			if (framePassImpl != null) {
-				this.markForVisit(framePassImpl, bitSet, deque);
+		for (FrameGraphBuilder.Node<?> node : objectNodes) {
+			FrameGraphBuilder.FramePassImpl producer = node.handle.from;
+			if (producer != null) {
+				markForVisit(producer, result, queue);
 			}
 		}
 
-		for (FrameGraphBuilder.FramePassImpl framePassImpl2 : this.passes) {
-			if (framePassImpl2.toBeVisited) {
-				this.markForVisit(framePassImpl2, bitSet, deque);
+		for (FrameGraphBuilder.FramePassImpl pass : passes) {
+			if (pass.toBeVisited) {
+				markForVisit(pass, result, queue);
 			}
 		}
 
-		return bitSet;
+		return result;
 	}
 
 	private void markForVisit(
 			FrameGraphBuilder.FramePassImpl pass,
 			BitSet result,
-			Deque<FrameGraphBuilder.FramePassImpl> deque
+			Deque<FrameGraphBuilder.FramePassImpl> queue
 	) {
-		deque.add(pass);
+		queue.add(pass);
 
-		while (!deque.isEmpty()) {
-			FrameGraphBuilder.FramePassImpl framePassImpl = deque.poll();
-			if (!result.get(framePassImpl.id)) {
-				result.set(framePassImpl.id);
+		while (!queue.isEmpty()) {
+			FrameGraphBuilder.FramePassImpl current = queue.poll();
+			if (result.get(current.id)) {
+				continue;
+			}
 
-				for (int i = framePassImpl.requiredPassIds.nextSetBit(0);
-				     i >= 0;
-				     i = framePassImpl.requiredPassIds.nextSetBit(i + 1)) {
-					deque.add(this.passes.get(i));
-				}
+			result.set(current.id);
+
+			for (int requiredId = current.requiredPassIds.nextSetBit(0);
+					requiredId >= 0;
+					requiredId = current.requiredPassIds.nextSetBit(requiredId + 1)
+			) {
+				queue.add(passes.get(requiredId));
 			}
 		}
 	}
 
+	/**
+	 * Выполняет топологическую сортировку графа проходов с обнаружением циклов.
+	 * Результат записывается в {@code topologicalOrderOut} в порядке выполнения.
+	 */
 	private void visit(
 			FrameGraphBuilder.FramePassImpl node,
 			BitSet unvisited,
@@ -149,60 +147,71 @@ public class FrameGraphBuilder {
 			List<FrameGraphBuilder.FramePassImpl> topologicalOrderOut
 	) {
 		if (visiting.get(node.id)) {
-			String
-					string =
-					visiting.stream().mapToObj(id -> this.passes.get(id).name).collect(Collectors.joining(", "));
-			throw new IllegalStateException("Frame graph cycle detected between " + string);
+			String cycle = visiting.stream()
+					.mapToObj(id -> passes.get(id).name)
+					.collect(Collectors.joining(", "));
+			throw new IllegalStateException("Frame graph cycle detected between " + cycle);
 		}
-		else if (unvisited.get(node.id)) {
-			visiting.set(node.id);
-			unvisited.clear(node.id);
 
-			for (int i = node.requiredPassIds.nextSetBit(0); i >= 0; i = node.requiredPassIds.nextSetBit(i + 1)) {
-				this.visit(this.passes.get(i), unvisited, visiting, topologicalOrderOut);
-			}
+		if (!unvisited.get(node.id)) {
+			return;
+		}
 
-			for (FrameGraphBuilder.Handle<?> handle : node.transferredHandles) {
-				for (int j = handle.dependents.nextSetBit(0); j >= 0; j = handle.dependents.nextSetBit(j + 1)) {
-					if (j != node.id) {
-						this.visit(this.passes.get(j), unvisited, visiting, topologicalOrderOut);
-					}
+		visiting.set(node.id);
+		unvisited.clear(node.id);
+
+		for (int requiredId = node.requiredPassIds.nextSetBit(0);
+				requiredId >= 0;
+				requiredId = node.requiredPassIds.nextSetBit(requiredId + 1)
+		) {
+			visit(passes.get(requiredId), unvisited, visiting, topologicalOrderOut);
+		}
+
+		for (FrameGraphBuilder.Handle<?> handle : node.transferredHandles) {
+			for (int dependentId = handle.dependents.nextSetBit(0);
+					dependentId >= 0;
+					dependentId = handle.dependents.nextSetBit(dependentId + 1)
+			) {
+				if (dependentId != node.id) {
+					visit(passes.get(dependentId), unvisited, visiting, topologicalOrderOut);
 				}
 			}
-
-			topologicalOrderOut.add(node);
-			visiting.clear(node.id);
 		}
+
+		topologicalOrderOut.add(node);
+		visiting.clear(node.id);
 	}
 
-	private void checkResources(Collection<FrameGraphBuilder.FramePassImpl> passes) {
-		FrameGraphBuilder.FramePassImpl[]
-				framePassImpls =
-				new FrameGraphBuilder.FramePassImpl[this.resourceNodes.size()];
+	/**
+	 * Определяет, в каком проходе каждый ресурс должен быть захвачен и освобождён,
+	 * минимизируя время жизни ресурсов в памяти GPU.
+	 */
+	private void checkResources(Collection<FrameGraphBuilder.FramePassImpl> orderedPasses) {
+		FrameGraphBuilder.FramePassImpl[] lastUsers = new FrameGraphBuilder.FramePassImpl[resourceNodes.size()];
 
-		for (FrameGraphBuilder.FramePassImpl framePassImpl : passes) {
-			for (int i = framePassImpl.requiredResourceIds.nextSetBit(0);
-			     i >= 0;
-			     i = framePassImpl.requiredResourceIds.nextSetBit(i + 1)) {
-				FrameGraphBuilder.ResourceNode<?> resourceNode = this.resourceNodes.get(i);
-				FrameGraphBuilder.FramePassImpl framePassImpl2 = framePassImpls[i];
-				framePassImpls[i] = framePassImpl;
-				if (framePassImpl2 == null) {
-					framePassImpl.resourcesToAcquire.add(resourceNode);
+		for (FrameGraphBuilder.FramePassImpl pass : orderedPasses) {
+			for (int resourceId = pass.requiredResourceIds.nextSetBit(0);
+					resourceId >= 0;
+					resourceId = pass.requiredResourceIds.nextSetBit(resourceId + 1)
+			) {
+				FrameGraphBuilder.ResourceNode<?> resource = resourceNodes.get(resourceId);
+				FrameGraphBuilder.FramePassImpl previousUser = lastUsers[resourceId];
+				lastUsers[resourceId] = pass;
+
+				if (previousUser == null) {
+					pass.resourcesToAcquire.add(resource);
 				}
 				else {
-					framePassImpl2.resourcesToRelease.clear(i);
+					previousUser.resourcesToRelease.clear(resourceId);
 				}
 
-				framePassImpl.resourcesToRelease.set(i);
+				pass.resourcesToRelease.set(resourceId);
 			}
 		}
 	}
 
+	/** Реализация прохода рендеринга, хранящая зависимости и список ресурсов. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FramePassImpl}.
-	 */
 	class FramePassImpl implements FramePass {
 
 		final int id;
@@ -222,55 +231,53 @@ public class FrameGraphBuilder {
 
 		private <T> void addRequired(FrameGraphBuilder.Handle<T> handle) {
 			if (handle.parent instanceof FrameGraphBuilder.ResourceNode<?> resourceNode) {
-				this.requiredResourceIds.set(resourceNode.id);
+				requiredResourceIds.set(resourceNode.id);
 			}
 		}
 
 		private void addRequired(FrameGraphBuilder.FramePassImpl child) {
-			this.requiredPassIds.set(child.id);
+			requiredPassIds.set(child.id);
 		}
 
 		@Override
 		public <T> net.minecraft.client.util.Handle<T> addRequiredResource(String name, ClosableFactory<T> factory) {
-			FrameGraphBuilder.ResourceNode<T>
-					resourceNode =
-					FrameGraphBuilder.this.createResourceNode(name, factory, this);
-			this.requiredResourceIds.set(resourceNode.id);
+			FrameGraphBuilder.ResourceNode<T> resourceNode = FrameGraphBuilder.this.createResourceNode(name, factory, this);
+			requiredResourceIds.set(resourceNode.id);
 			return resourceNode.handle;
 		}
 
 		@Override
 		public <T> void dependsOn(net.minecraft.client.util.Handle<T> handle) {
-			this.dependsOn((FrameGraphBuilder.Handle<T>) handle);
+			dependsOn((FrameGraphBuilder.Handle<T>) handle);
 		}
 
 		private <T> void dependsOn(FrameGraphBuilder.Handle<T> handle) {
-			this.addRequired(handle);
+			addRequired(handle);
 			if (handle.from != null) {
-				this.addRequired(handle.from);
+				addRequired(handle.from);
 			}
 
-			handle.dependents.set(this.id);
+			handle.dependents.set(id);
 		}
 
 		@Override
 		public <T> net.minecraft.client.util.Handle<T> transfer(net.minecraft.client.util.Handle<T> handle) {
-			return this.transfer((FrameGraphBuilder.Handle<T>) handle);
+			return transfer((FrameGraphBuilder.Handle<T>) handle);
 		}
 
 		@Override
 		public void addRequired(FramePass pass) {
-			this.requiredPassIds.set(((FrameGraphBuilder.FramePassImpl) pass).id);
+			requiredPassIds.set(((FrameGraphBuilder.FramePassImpl) pass).id);
 		}
 
 		@Override
 		public void markToBeVisited() {
-			this.toBeVisited = true;
+			toBeVisited = true;
 		}
 
 		private <T> FrameGraphBuilder.Handle<T> transfer(FrameGraphBuilder.Handle<T> handle) {
-			this.transferredHandles.add(handle);
-			this.dependsOn(handle);
+			transferredHandles.add(handle);
+			dependsOn(handle);
 			return handle.moveTo(this);
 		}
 
@@ -281,14 +288,12 @@ public class FrameGraphBuilder {
 
 		@Override
 		public String toString() {
-			return this.name;
+			return name;
 		}
 	}
 
+	/** Дескриптор ресурса или объекта в графе кадра, отслеживающий владельца и зависимых. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Handle}.
-	 */
 	static class Handle<T> implements net.minecraft.client.util.Handle<T> {
 
 		final FrameGraphBuilder.Node<T> parent;
@@ -305,33 +310,31 @@ public class FrameGraphBuilder {
 
 		@Override
 		public T get() {
-			return this.parent.get();
+			return parent.get();
 		}
 
 		FrameGraphBuilder.Handle<T> moveTo(FrameGraphBuilder.FramePassImpl pass) {
-			if (this.parent.handle != this) {
+			if (parent.handle != this) {
 				throw new IllegalStateException(
-						"Handle " + this + " is no longer valid, as its contents were moved into " + this.movedTo);
+						"Handle " + this + " is no longer valid, as its contents were moved into " + movedTo);
 			}
-			else {
-				FrameGraphBuilder.Handle<T> handle = new FrameGraphBuilder.Handle<>(this.parent, this.id + 1, pass);
-				this.parent.handle = handle;
-				this.movedTo = handle;
-				return handle;
-			}
+
+			FrameGraphBuilder.Handle<T> newHandle = new FrameGraphBuilder.Handle<>(parent, id + 1, pass);
+			parent.handle = newHandle;
+			movedTo = newHandle;
+			return newHandle;
 		}
 
 		@Override
 		public String toString() {
-			return this.from != null ? this.parent + "#" + this.id + " (from " + this.from + ")"
-			                         : this.parent + "#" + this.id;
+			return from != null
+					? parent + "#" + id + " (from " + from + ")"
+					: parent + "#" + id;
 		}
 	}
 
+	/** Базовый узел графа, хранящий имя и текущий активный дескриптор. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Node}.
-	 */
 	abstract static class Node<T> {
 
 		public final String name;
@@ -339,26 +342,19 @@ public class FrameGraphBuilder {
 
 		public Node(String name, FrameGraphBuilder.@Nullable FramePassImpl from) {
 			this.name = name;
-			this.handle = new FrameGraphBuilder.Handle<>(this, 0, from);
+			handle = new FrameGraphBuilder.Handle<>(this, 0, from);
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @return T — 
-		 */
 		public abstract T get();
 
 		@Override
 		public String toString() {
-			return this.name;
+			return name;
 		}
 	}
 
+	/** Узел, хранящий готовый объект (не управляемый аллокатором). */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ObjectNode}.
-	 */
 	static class ObjectNode<T> extends FrameGraphBuilder.Node<T> {
 
 		private final T value;
@@ -370,17 +366,18 @@ public class FrameGraphBuilder {
 
 		@Override
 		public T get() {
-			return this.value;
+			return value;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Profiler}.
+	 * Профилировщик событий графа кадра: захват/освобождение ресурсов и выполнение проходов.
+	 * Реализация по умолчанию {@link #NONE} — пустые методы без накладных расходов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Profiler {
 
-		FrameGraphBuilder.Profiler NONE = new FrameGraphBuilder.Profiler() {};
+		Profiler NONE = new Profiler() {};
 
 		default void acquire(String name) {
 		}
@@ -395,10 +392,8 @@ public class FrameGraphBuilder {
 		}
 	}
 
+	/** Узел управляемого ресурса, захватываемого и освобождаемого через {@link ObjectAllocator}. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ResourceNode}.
-	 */
 	static class ResourceNode<T> extends FrameGraphBuilder.Node<T> {
 
 		final int id;
@@ -418,36 +413,24 @@ public class FrameGraphBuilder {
 
 		@Override
 		public T get() {
-			return Objects.requireNonNull(this.resource, "Resource is not currently available");
+			return Objects.requireNonNull(resource, "Resource is not currently available");
 		}
 
-		/**
-		 * Acquire.
-		 *
-		 * @param allocator allocator
-		 */
 		public void acquire(ObjectAllocator allocator) {
-			if (this.resource != null) {
+			if (resource != null) {
 				throw new IllegalStateException("Tried to acquire physical resource, but it was already assigned");
 			}
-			else {
-				this.resource = allocator.acquire(this.factory);
-			}
+
+			resource = allocator.acquire(factory);
 		}
 
-		/**
-		 * Release.
-		 *
-		 * @param allocator allocator
-		 */
 		public void release(ObjectAllocator allocator) {
-			if (this.resource == null) {
+			if (resource == null) {
 				throw new IllegalStateException("Tried to release physical resource that was not allocated");
 			}
-			else {
-				allocator.release(this.factory, this.resource);
-				this.resource = null;
-			}
+
+			allocator.release(factory, resource);
+			resource = null;
 		}
 	}
 }

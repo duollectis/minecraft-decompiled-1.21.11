@@ -17,23 +17,27 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code SetDamageLootFunction}.
+ * Функция лута, устанавливающая урон (износ) предмета.
+ * Значение задаётся как доля от максимального урона в диапазоне [0.0, 1.0].
+ * Если {@code add = true}, значение прибавляется к текущей прочности.
  */
 public class SetDamageLootFunction extends ConditionalLootFunction {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<SetDamageLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									LootNumberProviderTypes.CODEC
-											.fieldOf("damage")
-											.forGetter(function -> function.durabilityRange),
-									Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
-							)
-					)
-					.apply(instance, SetDamageLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					LootNumberProviderTypes.CODEC
+						.fieldOf("damage")
+						.forGetter(function -> function.durabilityRange),
+					Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
+				)
+			)
+			.apply(instance, SetDamageLootFunction::new)
 	);
+
 	private final LootNumberProvider durabilityRange;
 	private final boolean add;
 
@@ -50,21 +54,24 @@ public class SetDamageLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.durabilityRange.getAllowedParameters();
+		return durabilityRange.getAllowedParameters();
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		if (stack.isDamageable()) {
-			int i = stack.getMaxDamage();
-			float f = this.add ? 1.0F - (float) stack.getDamage() / i : 0.0F;
-			float g = 1.0F - MathHelper.clamp(this.durabilityRange.nextFloat(context) + f, 0.0F, 1.0F);
-			stack.setDamage(MathHelper.floor(g * i));
-		}
-		else {
+		if (!stack.isDamageable()) {
 			LOGGER.warn("Couldn't set damage of loot item {}", stack);
+			return stack;
 		}
 
+		int maxDamage = stack.getMaxDamage();
+		float currentDurabilityFraction = add ? 1.0F - (float) stack.getDamage() / maxDamage : 0.0F;
+		float newDamageFraction = 1.0F - MathHelper.clamp(
+			durabilityRange.nextFloat(context) + currentDurabilityFraction,
+			0.0F,
+			1.0F
+		);
+		stack.setDamage(MathHelper.floor(newDamageFraction * maxDamage));
 		return stack;
 	}
 

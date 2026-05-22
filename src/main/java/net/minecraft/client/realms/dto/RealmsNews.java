@@ -9,32 +9,31 @@ import net.minecraft.util.LenientJsonParser;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsNews}.
+ * DTO новостной ссылки Realms.
+ * Содержит опциональный URL на страницу новостей, отображаемую в клиенте.
  */
+@Environment(EnvType.CLIENT)
 public record RealmsNews(@Nullable String newsLink) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
 	/**
-	 * Parse.
+	 * Парсит новостную ссылку из JSON-строки ответа сервера Realms.
 	 *
-	 * @param json json
-	 *
-	 * @return RealmsNews — результат операции
+	 * @param json JSON-строка с опциональным полем {@code newsLink}
+	 * @return объект с ссылкой или {@code null}-ссылкой при ошибке
 	 */
 	public static RealmsNews parse(String json) {
-		String string = null;
+		String newsLink = null;
 
 		try {
 			JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
-			string = JsonUtils.getNullableStringOr("newsLink", jsonObject, null);
-		}
-		catch (Exception var3) {
-			LOGGER.error("Could not parse RealmsNews", var3);
+			newsLink = JsonUtils.getNullableStringOr("newsLink", jsonObject, null);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse RealmsNews", ex);
 		}
 
-		return new RealmsNews(string);
+		return new RealmsNews(newsLink);
 	}
 }

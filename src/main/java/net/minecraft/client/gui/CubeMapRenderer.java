@@ -30,10 +30,11 @@ import org.joml.Vector4f;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CubeMapRenderer}.
+ * Рендерит кубическую карту (skybox) для фона главного меню.
+ * Использует 6 граней куба с перспективной проекцией 85°.
  */
+@Environment(EnvType.CLIENT)
 public class CubeMapRenderer implements AutoCloseable {
 
 	private static final int FACES_COUNT = 6;
@@ -43,20 +44,20 @@ public class CubeMapRenderer implements AutoCloseable {
 
 	public CubeMapRenderer(Identifier id) {
 		this.id = id;
-		this.projectionMatrix = new ProjectionMatrix3("cubemap", 0.05F, 10.0F);
-		this.buffer = upload();
+		projectionMatrix = new ProjectionMatrix3("cubemap", 0.05F, 10.0F);
+		buffer = upload();
 	}
 
 	/**
-	 * Draw.
+	 * Отрисовывает кубическую карту с заданными углами поворота.
 	 *
-	 * @param client client
-	 * @param x x
-	 * @param y y
+	 * @param client клиент Minecraft для доступа к окну и текстурам
+	 * @param x угол наклона по оси X (pitch) в градусах
+	 * @param y угол поворота по оси Y (yaw) в градусах
 	 */
 	public void draw(MinecraftClient client, float x, float y) {
 		RenderSystem.setProjectionMatrix(
-				this.projectionMatrix.set(
+				projectionMatrix.set(
 						client.getWindow().getFramebufferWidth(),
 						client.getWindow().getFramebufferHeight(),
 						85.0F
@@ -64,53 +65,54 @@ public class CubeMapRenderer implements AutoCloseable {
 		);
 		RenderPipeline renderPipeline = RenderPipelines.POSITION_TEX_PANORAMA;
 		Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
-		GpuTextureView gpuTextureView = framebuffer.getColorAttachmentView();
-		GpuTextureView gpuTextureView2 = framebuffer.getDepthAttachmentView();
+		GpuTextureView colorView = framebuffer.getColorAttachmentView();
+		GpuTextureView depthView = framebuffer.getDepthAttachmentView();
 		RenderSystem.ShapeIndexBuffer shapeIndexBuffer = RenderSystem.getSequentialBuffer(VertexFormat.DrawMode.QUADS);
-		GpuBuffer gpuBuffer = shapeIndexBuffer.getIndexBuffer(36);
-		Matrix4fStack matrix4fStack = RenderSystem.getModelViewStack();
-		matrix4fStack.pushMatrix();
-		matrix4fStack.rotationX((float) Math.PI);
-		matrix4fStack.rotateX(x * (float) (Math.PI / 180.0));
-		matrix4fStack.rotateY(y * (float) (Math.PI / 180.0));
-		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
-		                                            .write(
-				                                            new Matrix4f(matrix4fStack),
-				                                            new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
-				                                            new Vector3f(),
-				                                            new Matrix4f()
-		                                            );
-		matrix4fStack.popMatrix();
+		GpuBuffer indexBuffer = shapeIndexBuffer.getIndexBuffer(36);
+		Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+		modelViewStack.pushMatrix();
+		modelViewStack.rotationX((float) Math.PI);
+		modelViewStack.rotateX(x * (float) (Math.PI / 180.0));
+		modelViewStack.rotateY(y * (float) (Math.PI / 180.0));
+		GpuBufferSlice dynamicUniforms = RenderSystem.getDynamicUniforms()
+		                                             .write(
+				                                             new Matrix4f(modelViewStack),
+				                                             new Vector4f(1.0F, 1.0F, 1.0F, 1.0F),
+				                                             new Vector3f(),
+				                                             new Matrix4f()
+		                                             );
+		modelViewStack.popMatrix();
 
 		try (RenderPass renderPass = RenderSystem.getDevice()
 		                                         .createCommandEncoder()
 		                                         .createRenderPass(
 				                                         () -> "Cubemap",
-				                                         gpuTextureView,
+				                                         colorView,
 				                                         OptionalInt.empty(),
-				                                         gpuTextureView2,
+				                                         depthView,
 				                                         OptionalDouble.empty()
 		                                         )
 		) {
 			renderPass.setPipeline(renderPipeline);
 			RenderSystem.bindDefaultUniforms(renderPass);
-			renderPass.setVertexBuffer(0, this.buffer);
-			renderPass.setIndexBuffer(gpuBuffer, shapeIndexBuffer.getIndexType());
-			renderPass.setUniform("DynamicTransforms", gpuBufferSlice);
-			AbstractTexture abstractTexture = client.getTextureManager().getTexture(this.id);
-			renderPass.bindTexture("Sampler0", abstractTexture.getGlTextureView(), abstractTexture.getSampler());
+			renderPass.setVertexBuffer(0, buffer);
+			renderPass.setIndexBuffer(indexBuffer, shapeIndexBuffer.getIndexType());
+			renderPass.setUniform("DynamicTransforms", dynamicUniforms);
+			AbstractTexture cubeTexture = client.getTextureManager().getTexture(id);
+			renderPass.bindTexture("Sampler0", cubeTexture.getGlTextureView(), cubeTexture.getSampler());
 			renderPass.drawIndexed(0, 0, 36, 1);
 		}
 	}
 
 	private static GpuBuffer upload() {
-		GpuBuffer var3;
 		try (BufferAllocator bufferAllocator = BufferAllocator.fixedSized(
-				VertexFormats.POSITION.getVertexSize() * 4 * 6)
+				VertexFormats.POSITION.getVertexSize() * 4 * FACES_COUNT)
 		) {
-			BufferBuilder
-					bufferBuilder =
-					new BufferBuilder(bufferAllocator, VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
+			BufferBuilder bufferBuilder = new BufferBuilder(
+					bufferAllocator,
+					VertexFormat.DrawMode.QUADS,
+					VertexFormats.POSITION
+			);
 			bufferBuilder.vertex(-1.0F, -1.0F, 1.0F);
 			bufferBuilder.vertex(-1.0F, 1.0F, 1.0F);
 			bufferBuilder.vertex(1.0F, 1.0F, 1.0F);
@@ -137,28 +139,20 @@ public class CubeMapRenderer implements AutoCloseable {
 			bufferBuilder.vertex(1.0F, 1.0F, 1.0F);
 
 			try (BuiltBuffer builtBuffer = bufferBuilder.end()) {
-				var3 =
-						RenderSystem
-								.getDevice()
-								.createBuffer(() -> "Cube map vertex buffer", 32, builtBuffer.getBuffer());
+				return RenderSystem
+						.getDevice()
+						.createBuffer(() -> "Cube map vertex buffer", 32, builtBuffer.getBuffer());
 			}
 		}
-
-		return var3;
 	}
 
-	/**
-	 * Регистрирует textures.
-	 *
-	 * @param textureManager texture manager
-	 */
 	public void registerTextures(TextureManager textureManager) {
-		textureManager.registerTexture(this.id, (AbstractTexture) (new CubemapTexture(this.id)));
+		textureManager.registerTexture(id, new CubemapTexture(id));
 	}
 
 	@Override
 	public void close() {
-		this.buffer.close();
-		this.projectionMatrix.close();
+		buffer.close();
+		projectionMatrix.close();
 	}
 }

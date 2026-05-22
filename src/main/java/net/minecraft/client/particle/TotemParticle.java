@@ -6,11 +6,20 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TotemParticle}.
+ * Частица эффекта тотема бессмертия (Totem of Undying).
+ * Анимированная частица с зелёно-жёлтой цветовой гаммой, с редкими золотистыми вспышками.
  */
+@Environment(EnvType.CLIENT)
 public class TotemParticle extends AnimatedParticle {
+
+	private static final int BASE_LIFETIME = 60;
+	private static final int LIFETIME_VARIANCE = 12;
+	private static final float VELOCITY_MULTIPLIER = 0.6F;
+	private static final float SCALE_FACTOR = 0.75F;
+	private static final float ANIMATION_SPEED = 1.25F;
+	// Вероятность 1/4 для золотистого оттенка вместо зелёного
+	private static final int GOLD_CHANCE = 4;
 
 	TotemParticle(
 			ClientWorld world,
@@ -22,34 +31,31 @@ public class TotemParticle extends AnimatedParticle {
 			double velocityZ,
 			SpriteProvider spriteProvider
 	) {
-		super(world, x, y, z, spriteProvider, 1.25F);
-		this.velocityMultiplier = 0.6F;
+		super(world, x, y, z, spriteProvider, ANIMATION_SPEED);
+		this.velocityMultiplier = VELOCITY_MULTIPLIER;
 		this.velocityX = velocityX;
 		this.velocityY = velocityY;
 		this.velocityZ = velocityZ;
-		this.scale *= 0.75F;
-		this.maxAge = 60 + this.random.nextInt(12);
+		this.scale *= SCALE_FACTOR;
+		this.maxAge = BASE_LIFETIME + random.nextInt(LIFETIME_VARIANCE);
 		this.updateSprite(spriteProvider);
-		if (this.random.nextInt(4) == 0) {
+
+		if (random.nextInt(GOLD_CHANCE) == 0) {
 			this.setColor(
-					0.6F + this.random.nextFloat() * 0.2F,
-					0.6F + this.random.nextFloat() * 0.3F,
-					this.random.nextFloat() * 0.2F
+					0.6F + random.nextFloat() * 0.2F,
+					0.6F + random.nextFloat() * 0.3F,
+					random.nextFloat() * 0.2F
 			);
-		}
-		else {
+		} else {
 			this.setColor(
-					0.1F + this.random.nextFloat() * 0.2F,
-					0.4F + this.random.nextFloat() * 0.3F,
-					this.random.nextFloat() * 0.2F
+					0.1F + random.nextFloat() * 0.2F,
+					0.4F + random.nextFloat() * 0.3F,
+					random.nextFloat() * 0.2F
 			);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -58,18 +64,19 @@ public class TotemParticle extends AnimatedParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new TotemParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			return new TotemParticle(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider);
 		}
 	}
 }

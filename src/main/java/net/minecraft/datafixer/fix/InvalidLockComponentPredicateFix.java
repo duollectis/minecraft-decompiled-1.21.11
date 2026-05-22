@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code InvalidLockComponentPredicateFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class InvalidLockComponentPredicateFix extends ComponentFix {
 

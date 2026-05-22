@@ -5,7 +5,7 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * {@code HorseMarking}.
+ * Маркировка лошади (узор на шкуре). Упакована в старший байт варианта лошади (биты 8–15).
  */
 public enum HorseMarking {
 	NONE(0),
@@ -15,25 +15,21 @@ public enum HorseMarking {
 	BLACK_DOTS(4);
 
 	private static final IntFunction<HorseMarking> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
-			HorseMarking::getIndex, values(), ValueLists.OutOfBoundsHandling.WRAP
+		HorseMarking::getIndex,
+		values(),
+		ValueLists.OutOfBoundsHandling.WRAP
 	);
+
 	private final int index;
 
-	private HorseMarking(final int index) {
+	HorseMarking(int index) {
 		this.index = index;
 	}
 
 	public int getIndex() {
-		return this.index;
+		return index;
 	}
 
-	/**
-	 * By index.
-	 *
-	 * @param index index
-	 *
-	 * @return HorseMarking — результат операции
-	 */
 	public static HorseMarking byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}

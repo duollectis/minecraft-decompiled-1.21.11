@@ -54,7 +54,7 @@ public class BoatEntityModel extends AbstractBoatEntityModel {
 				ModelPartBuilder.create().uv(0, 43).cuboid(-14.0F, -7.0F, -1.0F, 28.0F, 6.0F, 2.0F),
 				ModelTransform.origin(0.0F, 4.0F, 9.0F)
 		);
-		int l = 20;
+		int l = PADDLE_LENGTH;
 		int m = 7;
 		int n = 6;
 		float f = -5.0F;
@@ -71,7 +71,7 @@ public class BoatEntityModel extends AbstractBoatEntityModel {
 				"right_paddle",
 				ModelPartBuilder
 						.create()
-						.uv(62, 20)
+						.uv(62, PADDLE_LENGTH)
 						.cuboid(-1.0F, 0.0F, -5.0F, 2.0F, 2.0F, 18.0F)
 						.cuboid(0.001F, -3.0F, 8.0F, 1.0F, 6.0F, 7.0F),
 				ModelTransform.of(3.0F, -5.0F, -9.0F, 0.0F, (float) Math.PI, (float) (Math.PI / 16))

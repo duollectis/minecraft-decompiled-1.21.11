@@ -3,7 +3,8 @@ package net.minecraft.entity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code Ownable}.
+ * Маркерный интерфейс для сущностей, имеющих владельца (другую сущность).
+ * Используется для определения принадлежности снарядов, питомцев и т.д.
  */
 public interface Ownable {
 

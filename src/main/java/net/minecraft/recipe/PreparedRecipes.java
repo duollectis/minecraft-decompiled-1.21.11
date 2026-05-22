@@ -2,7 +2,6 @@ package net.minecraft.recipe;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.ImmutableMultimap.Builder;
 import com.google.common.collect.Multimap;
 import net.minecraft.recipe.input.RecipeInput;
 import net.minecraft.registry.RegistryKey;
@@ -14,74 +13,56 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * {@code PreparedRecipes}.
+ * Иммутабельный снимок загруженных рецептов, индексированных по типу и ключу реестра.
+ * Создаётся при загрузке ресурсов и передаётся в {@link ServerRecipeManager}.
  */
 public class PreparedRecipes {
 
 	public static final PreparedRecipes EMPTY = new PreparedRecipes(ImmutableMultimap.of(), Map.of());
+
 	private final Multimap<RecipeType<?>, RecipeEntry<?>> byType;
 	private final Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey;
 
 	private PreparedRecipes(
-			Multimap<RecipeType<?>, RecipeEntry<?>> byType,
-			Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey
+		Multimap<RecipeType<?>, RecipeEntry<?>> byType,
+		Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey
 	) {
 		this.byType = byType;
 		this.byKey = byKey;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param recipes recipes
-	 *
-	 * @return PreparedRecipes — результат операции
-	 */
 	public static PreparedRecipes of(Iterable<RecipeEntry<?>> recipes) {
-		Builder<RecipeType<?>, RecipeEntry<?>> builder = ImmutableMultimap.builder();
-		com.google.common.collect.ImmutableMap.Builder<RegistryKey<Recipe<?>>, RecipeEntry<?>>
-				builder2 =
-				ImmutableMap.builder();
+		ImmutableMultimap.Builder<RecipeType<?>, RecipeEntry<?>> byTypeBuilder = ImmutableMultimap.builder();
+		ImmutableMap.Builder<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKeyBuilder = ImmutableMap.builder();
 
-		for (RecipeEntry<?> recipeEntry : recipes) {
-			builder.put(recipeEntry.value().getType(), recipeEntry);
-			builder2.put(recipeEntry.id(), recipeEntry);
+		for (RecipeEntry<?> entry : recipes) {
+			byTypeBuilder.put(entry.value().getType(), entry);
+			byKeyBuilder.put(entry.id(), entry);
 		}
 
-		return new PreparedRecipes(builder.build(), builder2.build());
+		return new PreparedRecipes(byTypeBuilder.build(), byKeyBuilder.build());
 	}
 
 	@SuppressWarnings("unchecked")
 	public <I extends RecipeInput, T extends Recipe<I>> Collection<RecipeEntry<T>> getAll(RecipeType<T> type) {
-		return (Collection<RecipeEntry<T>>) (Collection<?>) this.byType.get(type);
+		return (Collection<RecipeEntry<T>>) (Collection<?>) byType.get(type);
 	}
 
-	/**
-	 * Recipes.
-	 *
-	 * @return Collection> — результат операции
-	 */
 	public Collection<RecipeEntry<?>> recipes() {
-		return this.byKey.values();
+		return byKey.values();
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param key key
-	 *
-	 * @return @Nullable RecipeEntry — 
-	 */
 	public @Nullable RecipeEntry<?> get(RegistryKey<Recipe<?>> key) {
-		return this.byKey.get(key);
+		return byKey.get(key);
 	}
 
 	public <I extends RecipeInput, T extends Recipe<I>> Stream<RecipeEntry<T>> find(
-			RecipeType<T> type,
-			I input,
-			World world
+		RecipeType<T> type,
+		I input,
+		World world
 	) {
-		return input.isEmpty() ? Stream.empty()
-		                       : this.getAll(type).stream().filter(entry -> entry.value().matches(input, world));
+		return input.isEmpty()
+			? Stream.empty()
+			: getAll(type).stream().filter(entry -> entry.value().matches(input, world));
 	}
 }

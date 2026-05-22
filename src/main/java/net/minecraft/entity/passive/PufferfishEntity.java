@@ -29,7 +29,9 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code PufferfishEntity}.
+ * Рыба-шар — защищается надуванием при приближении угрозы.
+ * Имеет три состояния: {@code NOT_PUFFED}, {@code SEMI_PUFFED}, {@code FULLY_PUFFED}.
+ * В надутом состоянии наносит урон и накладывает эффект отравления.
  */
 public class PufferfishEntity extends FishEntity {
 
@@ -38,12 +40,9 @@ public class PufferfishEntity extends FishEntity {
 			DataTracker.registerData(PufferfishEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	int inflateTicks;
 	int deflateTicks;
-	private static final TargetPredicate.EntityPredicate
-			BLOW_UP_FILTER =
-			(entity, world) -> entity instanceof PlayerEntity playerEntity
-					                   && playerEntity.isCreative()
-			                   ? false
-			                   : !entity.getType().isIn(EntityTypeTags.NOT_SCARY_FOR_PUFFERFISH);
+	private static final TargetPredicate.EntityPredicate BLOW_UP_FILTER =
+			(entity, world) -> !(entity instanceof PlayerEntity playerEntity && playerEntity.isCreative())
+					&& !entity.getType().isIn(EntityTypeTags.NOT_SCARY_FOR_PUFFERFISH);
 	static final TargetPredicate BLOW_UP_TARGET_PREDICATE = TargetPredicate.createNonAttackable()
 	                                                                       .ignoreDistanceScalingFactor()
 	                                                                       .ignoreVisibility()
@@ -158,19 +157,19 @@ public class PufferfishEntity extends FishEntity {
 	}
 
 	private void sting(ServerWorld world, MobEntity target) {
-		int i = this.getPuffState();
-		if (target.damage(world, this.getDamageSources().mobAttack(this), 1 + i)) {
-			target.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60 * i, 0), this);
+		int puffState = this.getPuffState();
+		if (target.damage(world, this.getDamageSources().mobAttack(this), 1 + puffState)) {
+			target.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60 * puffState, 0), this);
 			this.playSound(SoundEvents.ENTITY_PUFFER_FISH_STING, 1.0F, 1.0F);
 		}
 	}
 
 	@Override
 	public void onPlayerCollision(PlayerEntity player) {
-		int i = this.getPuffState();
+		int puffState = this.getPuffState();
 		if (player instanceof ServerPlayerEntity serverPlayerEntity
-				&& i > 0
-				&& player.damage(serverPlayerEntity.getEntityWorld(), this.getDamageSources().mobAttack(this), 1 + i)) {
+				&& puffState > 0
+				&& player.damage(serverPlayerEntity.getEntityWorld(), this.getDamageSources().mobAttack(this), 1 + puffState)) {
 			if (!this.isSilent()) {
 				serverPlayerEntity.networkHandler.sendPacket(new GameStateChangeS2CPacket(
 						GameStateChangeS2CPacket.PUFFERFISH_STING,
@@ -178,7 +177,7 @@ public class PufferfishEntity extends FishEntity {
 				));
 			}
 
-			player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60 * i, 0), this);
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60 * puffState, 0), this);
 		}
 	}
 
@@ -214,8 +213,8 @@ public class PufferfishEntity extends FishEntity {
 	}
 
 	/**
-	 * {@code InflateGoal}.
-	 */
+ * Задача рыбы-шара: надуваться при приближении угрозы.
+ */
 	static class InflateGoal extends Goal {
 
 		private final PufferfishEntity pufferfish;

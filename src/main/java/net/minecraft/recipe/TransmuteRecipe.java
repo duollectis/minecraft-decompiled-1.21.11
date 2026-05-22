@@ -20,7 +20,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code TransmuteRecipe}.
+ * Рецепт трансмутации: преобразует предмет типа {@code input} в другой тип,
+ * сохраняя компоненты оригинала. Требует ровно 2 предмета в сетке:
+ * один — исходный предмет (input), второй — материал-катализатор (material).
+ * Результат не должен совпадать с исходным предметом (защита от бесполезного крафта).
  */
 public class TransmuteRecipe implements CraftingRecipe {
 
@@ -32,11 +35,11 @@ public class TransmuteRecipe implements CraftingRecipe {
 	private @Nullable IngredientPlacement ingredientPlacement;
 
 	public TransmuteRecipe(
-			String group,
-			CraftingRecipeCategory category,
-			Ingredient input,
-			Ingredient material,
-			TransmuteRecipeResult result
+		String group,
+		CraftingRecipeCategory category,
+		Ingredient input,
+		Ingredient material,
+		TransmuteRecipeResult result
 	) {
 		this.group = group;
 		this.category = category;
@@ -46,58 +49,50 @@ public class TransmuteRecipe implements CraftingRecipe {
 	}
 
 	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет совпадение: ровно 2 предмета, один соответствует {@code input},
+	 * второй — {@code material}. Результат не должен быть идентичен исходному предмету.
 	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getStackCount() != 2) {
+	@Override
+	public boolean matches(CraftingRecipeInput craftingInput, World world) {
+		if (craftingInput.getStackCount() != 2) {
 			return false;
 		}
-		else {
-			boolean bl = false;
-			boolean bl2 = false;
 
-			for (int i = 0; i < craftingRecipeInput.size(); i++) {
-				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-				if (!itemStack.isEmpty()) {
-					if (!bl && this.input.test(itemStack)) {
-						if (this.result.isEqualToResult(itemStack)) {
-							return false;
-						}
+		boolean hasInput = false;
+		boolean hasMaterial = false;
 
-						bl = true;
-					}
-					else {
-						if (bl2 || !this.material.test(itemStack)) {
-							return false;
-						}
+		for (int slotIndex = 0; slotIndex < craftingInput.size(); slotIndex++) {
+			ItemStack stack = craftingInput.getStackInSlot(slotIndex);
 
-						bl2 = true;
-					}
-				}
+			if (stack.isEmpty()) {
+				continue;
 			}
 
-			return bl && bl2;
+			if (!hasInput && input.test(stack)) {
+				if (result.isEqualToResult(stack)) {
+					return false;
+				}
+
+				hasInput = true;
+			} else {
+				if (hasMaterial || !material.test(stack)) {
+					return false;
+				}
+
+				hasMaterial = true;
+			}
 		}
+
+		return hasInput && hasMaterial;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		for (int i = 0; i < craftingRecipeInput.size(); i++) {
-			ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-			if (!itemStack.isEmpty() && this.input.test(itemStack)) {
-				return this.result.apply(itemStack);
+	@Override
+	public ItemStack craft(CraftingRecipeInput craftingInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		for (int slotIndex = 0; slotIndex < craftingInput.size(); slotIndex++) {
+			ItemStack stack = craftingInput.getStackInSlot(slotIndex);
+
+			if (!stack.isEmpty() && input.test(stack)) {
+				return result.apply(stack);
 			}
 		}
 
@@ -107,11 +102,11 @@ public class TransmuteRecipe implements CraftingRecipe {
 	@Override
 	public List<RecipeDisplay> getDisplays() {
 		return List.of(
-				new ShapelessCraftingRecipeDisplay(
-						List.of(this.input.toDisplay(), this.material.toDisplay()),
-						this.result.createSlotDisplay(),
-						new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
-				)
+			new ShapelessCraftingRecipeDisplay(
+				List.of(input.toDisplay(), material.toDisplay()),
+				result.createSlotDisplay(),
+				new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
+			)
 		);
 	}
 
@@ -122,53 +117,50 @@ public class TransmuteRecipe implements CraftingRecipe {
 
 	@Override
 	public String getGroup() {
-		return this.group;
+		return group;
 	}
 
 	@Override
 	public IngredientPlacement getIngredientPlacement() {
-		if (this.ingredientPlacement == null) {
-			this.ingredientPlacement = IngredientPlacement.forShapeless(List.of(this.input, this.material));
+		if (ingredientPlacement == null) {
+			ingredientPlacement = IngredientPlacement.forShapeless(List.of(input, material));
 		}
 
-		return this.ingredientPlacement;
+		return ingredientPlacement;
 	}
 
 	@Override
 	public CraftingRecipeCategory getCategory() {
-		return this.category;
+		return category;
 	}
 
-	/**
-	 * {@code Serializer}.
-	 */
 	public static class Serializer implements RecipeSerializer<TransmuteRecipe> {
 
 		private static final MapCodec<TransmuteRecipe> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
-						                    CraftingRecipeCategory.CODEC
-								                    .fieldOf("category")
-								                    .orElse(CraftingRecipeCategory.MISC)
-								                    .forGetter(recipe -> recipe.category),
-						                    Ingredient.CODEC.fieldOf("input").forGetter(recipe -> recipe.input),
-						                    Ingredient.CODEC.fieldOf("material").forGetter(recipe -> recipe.material),
-						                    TransmuteRecipeResult.CODEC.fieldOf("result").forGetter(recipe -> recipe.result)
-				                    )
-				                    .apply(instance, TransmuteRecipe::new)
+			instance -> instance.group(
+				Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
+				CraftingRecipeCategory.CODEC
+					.fieldOf("category")
+					.orElse(CraftingRecipeCategory.MISC)
+					.forGetter(recipe -> recipe.category),
+				Ingredient.CODEC.fieldOf("input").forGetter(recipe -> recipe.input),
+				Ingredient.CODEC.fieldOf("material").forGetter(recipe -> recipe.material),
+				TransmuteRecipeResult.CODEC.fieldOf("result").forGetter(recipe -> recipe.result)
+			).apply(instance, TransmuteRecipe::new)
 		);
+
 		public static final PacketCodec<RegistryByteBuf, TransmuteRecipe> PACKET_CODEC = PacketCodec.tuple(
-				PacketCodecs.STRING,
-				recipe -> recipe.group,
-				CraftingRecipeCategory.PACKET_CODEC,
-				recipe -> recipe.category,
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.input,
-				Ingredient.PACKET_CODEC,
-				recipe -> recipe.material,
-				TransmuteRecipeResult.PACKET_CODEC,
-				recipe -> recipe.result,
-				TransmuteRecipe::new
+			PacketCodecs.STRING,
+			recipe -> recipe.group,
+			CraftingRecipeCategory.PACKET_CODEC,
+			recipe -> recipe.category,
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.input,
+			Ingredient.PACKET_CODEC,
+			recipe -> recipe.material,
+			TransmuteRecipeResult.PACKET_CODEC,
+			recipe -> recipe.result,
+			TransmuteRecipe::new
 		);
 
 		@Override

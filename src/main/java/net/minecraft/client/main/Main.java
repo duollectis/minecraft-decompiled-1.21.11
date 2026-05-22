@@ -53,18 +53,16 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Main}.
+ * Точка входа клиента Minecraft. Парсит аргументы командной строки через jopt-simple,
+ * инициализирует сессию игрока, настраивает прокси-аутентификацию и запускает
+ * {@link MinecraftClient} в рендер-потоке. При любой критической ошибке генерирует
+ * crash-report и завершает работу без исключения.
  */
+@Environment(EnvType.CLIENT)
 public class Main {
 
 	@DontObfuscate
-	/**
-	 * Main.
-	 *
-	 * @param args args
-	 */
 	public static void main(String[] args) {
 		OptionParser optionParser = new OptionParser();
 		optionParser.allowsUnrecognizedOptions();
@@ -129,9 +127,9 @@ public class Main {
 				optionParser.accepts("versionType").withRequiredArg().defaultsTo("release", new String[0]);
 		OptionSpec<String> optionSpec29 = optionParser.nonOptions();
 		OptionSet optionSet = optionParser.parse(args);
-		File file = getOption(optionSet, optionSpec9);
-		String string = getOption(optionSet, optionSpec22);
-		String string2 = "Pre-bootstrap";
+		File gameDir = getOption(optionSet, optionSpec9);
+		String gameVersion = getOption(optionSet, optionSpec22);
+		String bootstrapPhase = "Pre-bootstrap";
 
 		Logger logger;
 		RunArgs runArgs;
@@ -150,89 +148,103 @@ public class Main {
 			GameLoadTimeEvent.INSTANCE.addTimer(TelemetryEventProperty.LOAD_TIME_PRE_WINDOW_MS, stopwatch2);
 			SharedConstants.createGameVersion();
 			TracyClient.reportAppInfo("Minecraft Java Edition " + SharedConstants.getGameVersion().name());
-			CompletableFuture<?> completableFuture = Schemas.optimize(DataFixTypes.REQUIRED_TYPES);
+			CompletableFuture<?> dataFixerFuture = Schemas.optimize(DataFixTypes.REQUIRED_TYPES);
 			CrashReport.initCrashReport();
 			logger = LogUtils.getLogger();
-			string2 = "Bootstrap";
+			bootstrapPhase = "Bootstrap";
 			Bootstrap.initialize();
 			ClientBootstrap.initialize();
 			GameLoadTimeEvent.INSTANCE.setBootstrapTime(Bootstrap.LOAD_TIME.get());
 			Bootstrap.logMissing();
-			string2 = "Argument parsing";
-			List<String> list = optionSet.valuesOf(optionSpec29);
-			if (!list.isEmpty()) {
-				logger.info("Completely ignored arguments: {}", list);
+			bootstrapPhase = "Argument parsing";
+			List<String> ignoredArgs = optionSet.valuesOf(optionSpec29);
+
+			if (!ignoredArgs.isEmpty()) {
+				logger.info("Completely ignored arguments: {}", ignoredArgs);
 			}
 
-			String string3 = getOption(optionSet, optionSpec12);
+			String proxyHost = getOption(optionSet, optionSpec12);
 			Proxy proxy = Proxy.NO_PROXY;
-			if (string3 != null) {
+
+			if (proxyHost != null) {
 				try {
-					proxy = new Proxy(Type.SOCKS, new InetSocketAddress(string3, getOption(optionSet, optionSpec13)));
+					proxy = new Proxy(Type.SOCKS, new InetSocketAddress(proxyHost, getOption(optionSet, optionSpec13)));
 				}
-				catch (Exception var74) {
+				catch (Exception ignored) {
 				}
 			}
 
-			final String string4 = getOption(optionSet, optionSpec14);
-			final String string5 = getOption(optionSet, optionSpec15);
-			if (!proxy.equals(Proxy.NO_PROXY) && isNotNullOrEmpty(string4) && isNotNullOrEmpty(string5)) {
+			final String proxyUser = getOption(optionSet, optionSpec14);
+			final String proxyPass = getOption(optionSet, optionSpec15);
+
+			if (!proxy.equals(Proxy.NO_PROXY) && isNotNullOrEmpty(proxyUser) && isNotNullOrEmpty(proxyPass)) {
 				Authenticator.setDefault(new Authenticator() {
 					@Override
 					protected PasswordAuthentication getPasswordAuthentication() {
-						return new PasswordAuthentication(string4, string5.toCharArray());
+						return new PasswordAuthentication(proxyUser, proxyPass.toCharArray());
 					}
 				});
 			}
 
-			int i = getOption(optionSet, optionSpec23);
-			int j = getOption(optionSet, optionSpec24);
-			OptionalInt optionalInt = toOptional(getOption(optionSet, optionSpec25));
-			OptionalInt optionalInt2 = toOptional(getOption(optionSet, optionSpec26));
-			boolean bl = optionSet.has("fullscreen");
-			boolean bl2 = optionSet.has("demo");
-			boolean bl3 = optionSet.has("disableMultiplayer");
-			boolean bl4 = optionSet.has("disableChat");
-			boolean bl5 = !optionSet.has(optionSpec4);
-			boolean bl6 = optionSet.has(optionSpec);
-			String string6 = getOption(optionSet, optionSpec28);
-			File file2 = optionSet.has(optionSpec10) ? getOption(optionSet, optionSpec10) : new File(file, "assets/");
+			int windowWidth = getOption(optionSet, optionSpec23);
+			int windowHeight = getOption(optionSet, optionSpec24);
+			OptionalInt fullscreenWidth = toOptional(getOption(optionSet, optionSpec25));
+			OptionalInt fullscreenHeight = toOptional(getOption(optionSet, optionSpec26));
+			boolean fullscreen = optionSet.has("fullscreen");
+			boolean demo = optionSet.has("demo");
+			boolean disableMultiplayer = optionSet.has("disableMultiplayer");
+			boolean disableChat = optionSet.has("disableChat");
+			boolean allowTracyImages = !optionSet.has(optionSpec4);
+			boolean renderDebugLabels = optionSet.has(optionSpec);
+			String versionType = getOption(optionSet, optionSpec28);
 			File
-					file3 =
-					optionSet.has(optionSpec11) ? getOption(optionSet, optionSpec11) : new File(file, "resourcepacks/");
-			UUID uUID = isUuidSetAndValid(optionSpec18, optionSet, logger)
-			            ? UndashedUuid.fromStringLenient((String) optionSpec18.value(optionSet))
-			            : Uuids.getOfflinePlayerUuid((String) optionSpec16.value(optionSet));
-			String string7 = optionSet.has(optionSpec27) ? (String) optionSpec27.value(optionSet) : null;
-			String string8 = (String) optionSet.valueOf(optionSpec19);
-			String string9 = (String) optionSet.valueOf(optionSpec20);
-			String string10 = getOption(optionSet, optionSpec5);
+					assetsDir =
+					optionSet.has(optionSpec10) ? getOption(optionSet, optionSpec10) : new File(gameDir, "assets/");
+			File resourcePackDir = optionSet.has(optionSpec11)
+			                       ? getOption(optionSet, optionSpec11)
+			                       : new File(gameDir, "resourcepacks/");
+			UUID playerUuid = isUuidSetAndValid(optionSpec18, optionSet, logger)
+			                  ? UndashedUuid.fromStringLenient((String) optionSpec18.value(optionSet))
+			                  : Uuids.getOfflinePlayerUuid((String) optionSpec16.value(optionSet));
+			String assetIndex = optionSet.has(optionSpec27) ? (String) optionSpec27.value(optionSet) : null;
+			String xuid = (String) optionSet.valueOf(optionSpec19);
+			String clientId = (String) optionSet.valueOf(optionSpec20);
+			String quickPlayPath = getOption(optionSet, optionSpec5);
 			RunArgs.QuickPlayVariant
 					quickPlayVariant =
 					getQuickPlayVariant(optionSet, optionSpec6, optionSpec7, optionSpec8);
 			Session session = new Session(
 					(String) optionSpec16.value(optionSet),
-					uUID,
+					playerUuid,
 					(String) optionSpec21.value(optionSet),
-					toOptional(string8),
-					toOptional(string9)
+					toOptional(xuid),
+					toOptional(clientId)
 			);
 			runArgs = new RunArgs(
 					new RunArgs.Network(session, proxy),
-					new WindowSettings(i, j, optionalInt, optionalInt2, bl),
-					new RunArgs.Directories(file, file3, file2, string7),
-					new RunArgs.Game(bl2, string, string6, bl3, bl4, bl5, bl6, optionSet.has(optionSpec17)),
-					new RunArgs.QuickPlay(string10, quickPlayVariant)
+					new WindowSettings(windowWidth, windowHeight, fullscreenWidth, fullscreenHeight, fullscreen),
+					new RunArgs.Directories(gameDir, resourcePackDir, assetsDir, assetIndex),
+					new RunArgs.Game(
+							demo,
+							gameVersion,
+							versionType,
+							disableMultiplayer,
+							disableChat,
+							allowTracyImages,
+							renderDebugLabels,
+							optionSet.has(optionSpec17)
+					),
+					new RunArgs.QuickPlay(quickPlayPath, quickPlayVariant)
 			);
 			Util.startTimerHack();
-			completableFuture.join();
+			dataFixerFuture.join();
 		}
 		catch (Throwable var75) {
-			CrashReport crashReport = CrashReport.create(var75, string2);
+			CrashReport crashReport = CrashReport.create(var75, bootstrapPhase);
 			CrashReportSection crashReportSection = crashReport.addElement("Initialization");
 			WinNativeModuleUtil.addDetailTo(crashReportSection);
-			MinecraftClient.addSystemDetailsToCrashReport(null, null, string, null, crashReport);
-			MinecraftClient.printCrashReport(null, file, crashReport);
+			MinecraftClient.addSystemDetailsToCrashReport(null, null, gameVersion, null, crashReport);
+			MinecraftClient.printCrashReport(null, gameDir, crashReport);
 			return;
 		}
 
@@ -330,19 +342,29 @@ public class Main {
 		return i != null ? OptionalInt.of(i) : OptionalInt.empty();
 	}
 
+	/**
+	 * Безопасно извлекает значение опции из набора аргументов. При ошибке парсинга
+	 * возвращает первое значение по умолчанию, если оно задано, иначе пробрасывает исключение.
+	 *
+	 * @param <T>        тип значения опции
+	 * @param optionSet  набор распарсенных аргументов
+	 * @param optionSpec спецификация опции
+	 * @return значение опции или {@code null}
+	 */
 	private static <T> @Nullable T getOption(OptionSet optionSet, OptionSpec<T> optionSpec) {
 		try {
 			return (T) optionSet.valueOf(optionSpec);
 		}
-		catch (Throwable var5) {
-			if (optionSpec instanceof ArgumentAcceptingOptionSpec<T> argumentAcceptingOptionSpec) {
-				List<T> list = argumentAcceptingOptionSpec.defaultValues();
-				if (!list.isEmpty()) {
-					return list.get(0);
+		catch (Throwable error) {
+			if (optionSpec instanceof ArgumentAcceptingOptionSpec<T> accepting) {
+				List<T> defaults = accepting.defaultValues();
+
+				if (!defaults.isEmpty()) {
+					return defaults.get(0);
 				}
 			}
 
-			throw var5;
+			throw error;
 		}
 	}
 
@@ -359,13 +381,9 @@ public class Main {
 			UndashedUuid.fromStringLenient((String) uuidOption.value(optionSet));
 			return true;
 		}
-		catch (IllegalArgumentException var4) {
+		catch (IllegalArgumentException error) {
 			logger.warn("Invalid UUID: '{}", uuidOption.value(optionSet));
 			return false;
 		}
-	}
-
-	static {
-		System.setProperty("java.awt.headless", "true");
 	}
 }

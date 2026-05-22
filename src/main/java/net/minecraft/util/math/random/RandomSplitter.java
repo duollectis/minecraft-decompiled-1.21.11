@@ -5,16 +5,18 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code RandomSplitter}.
+ * Фабрика дочерних генераторов случайных чисел, порождаемых из одного родительского сида.
+ * Позволяет детерминированно создавать независимые генераторы для разных контекстов
+ * (позиция блока, строковый ключ, числовой сид) без взаимного влияния последовательностей.
  */
 public interface RandomSplitter {
 
 	default Random split(BlockPos pos) {
-		return this.split(pos.getX(), pos.getY(), pos.getZ());
+		return split(pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	default Random split(Identifier seed) {
-		return this.split(seed.toString());
+		return split(seed.toString());
 	}
 
 	Random split(String seed);

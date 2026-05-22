@@ -9,7 +9,9 @@ import net.minecraft.datafixer.FixUtil;
 import net.minecraft.util.Util;
 
 /**
- * {@code ChoiceWriteReadFix}.
+ * Абстрактный фикс для преобразования данных конкретного именованного варианта (choice)
+ * с полным циклом write-read: данные читаются через входную схему, трансформируются
+ * и записываются в выходную схему.
  */
 public abstract class ChoiceWriteReadFix extends DataFix {
 
@@ -17,38 +19,37 @@ public abstract class ChoiceWriteReadFix extends DataFix {
 	private final String choiceName;
 	private final TypeReference type;
 
-	public ChoiceWriteReadFix(Schema schema, boolean bl, String string, TypeReference typeReference, String string2) {
-		super(schema, bl);
-		this.name = string;
+	public ChoiceWriteReadFix(Schema schema, boolean changesType, String name, TypeReference typeReference, String choiceName) {
+		super(schema, changesType);
+		this.name = name;
 		this.type = typeReference;
-		this.choiceName = string2;
+		this.choiceName = choiceName;
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(this.type);
-		Type<?> type2 = this.getInputSchema().getChoiceType(this.type, this.choiceName);
-		Type<?> type3 = this.getOutputSchema().getType(this.type);
-		OpticFinder<?> opticFinder = DSL.namedChoice(this.choiceName, type2);
-		Type<?> type4 = FixUtil.withTypeChanged(type, type, type3);
-		return this.makeRule(type, type3, type4, opticFinder);
+		Type<?> inputType = getInputSchema().getType(type);
+		Type<?> inputChoiceType = getInputSchema().getChoiceType(type, choiceName);
+		Type<?> outputType = getOutputSchema().getType(type);
+		OpticFinder<?> choiceFinder = DSL.namedChoice(choiceName, inputChoiceType);
+		Type<?> transitionalType = FixUtil.withTypeChanged(inputType, inputType, outputType);
+		return buildRule(inputType, outputType, transitionalType, choiceFinder);
 	}
 
-	private <S, T, A> TypeRewriteRule makeRule(
-			Type<S> type,
-			Type<T> outputType,
-			Type<?> type2,
-			OpticFinder<A> opticFinder
+	private <S, T, A> TypeRewriteRule buildRule(
+		Type<S> inputType,
+		Type<T> outputType,
+		Type<?> transitionalType,
+		OpticFinder<A> choiceFinder
 	) {
-		return this.fixTypeEverywhereTyped(
-				this.name, type, outputType, typed -> {
-					if (typed.getOptional(opticFinder).isEmpty()) {
-						return FixUtil.withType(outputType, typed);
-					}
-					else {
-						Typed<?> typed2 = FixUtil.withType(type2, typed);
-						return Util.apply((Typed<A>) typed2, outputType, this::transform);
-					}
+		return fixTypeEverywhereTyped(
+			name, inputType, outputType, typed -> {
+				if (typed.getOptional(choiceFinder).isEmpty()) {
+					return FixUtil.withType(outputType, typed);
 				}
+
+				Typed<?> transitional = FixUtil.withType(transitionalType, typed);
+				return Util.apply((Typed<A>) transitional, outputType, this::transform);
+			}
 		);
 	}
 

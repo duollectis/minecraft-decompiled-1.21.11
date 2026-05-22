@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code TooltipDisplayComponentFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TooltipDisplayComponentFix extends DataFix {
 
@@ -44,13 +44,13 @@ public class TooltipDisplayComponentFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.DATA_COMPONENTS);
+		Type<?> type = getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
+		Type<?> type2 = getOutputSchema().getType(TypeReferences.DATA_COMPONENTS);
 		OpticFinder<?> opticFinder = type.findField("minecraft:can_place_on");
 		OpticFinder<?> opticFinder2 = type.findField("minecraft:can_break");
 		Type<?> type3 = type2.findFieldType("minecraft:can_place_on");
 		Type<?> type4 = type2.findFieldType("minecraft:can_break");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"TooltipDisplayComponentFix",
 				type,
 				type2,

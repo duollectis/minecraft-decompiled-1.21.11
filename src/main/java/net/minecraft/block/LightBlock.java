@@ -27,7 +27,9 @@ import net.minecraft.world.tick.ScheduledTickView;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code LightBlock}.
+ * Невидимый блок-источник света с настраиваемым уровнем яркости (1–15).
+ * Виден только игрокам в режиме Creative, держащим предмет {@code light} в руке.
+ * Поддерживает заполнение водой (Waterloggable).
  */
 public class LightBlock extends Block implements Waterloggable {
 
@@ -44,7 +46,7 @@ public class LightBlock extends Block implements Waterloggable {
 
 	public LightBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL_15, 15).with(WATERLOGGED, false));
+		this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL_15, MAX_LEVEL).with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -120,14 +122,6 @@ public class LightBlock extends Block implements Waterloggable {
 		return addNbtForLevel(super.getPickStack(world, pos, state, includeData), state.get(LEVEL_15));
 	}
 
-	/**
-	 * Добавляет nbt for level.
-	 *
-	 * @param stack stack
-	 * @param level level
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public static ItemStack addNbtForLevel(ItemStack stack, int level) {
 		stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(LEVEL_15, level));
 		return stack;

@@ -15,12 +15,14 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * {@code DataCommandStorage}.
+ * Хранилище NBT-данных для команды {@code /data storage}.
+ * Данные персистентны — сохраняются на диск через {@link PersistentStateManager}.
  */
 public class DataCommandStorage {
 
 	private static final String COMMAND_STORAGE_PREFIX = "command_storage_";
-	private final Map<String, DataCommandStorage.PersistentState> storages = new HashMap<>();
+
+	private final Map<String, PersistentState> storages = new HashMap<>();
 	private final PersistentStateManager stateManager;
 
 	public DataCommandStorage(PersistentStateManager stateManager) {
@@ -28,66 +30,58 @@ public class DataCommandStorage {
 	}
 
 	public NbtCompound get(Identifier id) {
-		DataCommandStorage.PersistentState persistentState = this.getStorage(id.getNamespace());
-		return persistentState != null ? persistentState.get(id.getPath()) : new NbtCompound();
+		PersistentState state = getStorage(id.getNamespace());
+		return state != null ? state.get(id.getPath()) : new NbtCompound();
 	}
 
-	private DataCommandStorage.@Nullable PersistentState getStorage(String namespace) {
-		DataCommandStorage.PersistentState persistentState = this.storages.get(namespace);
-		if (persistentState != null) {
-			return persistentState;
+	private @Nullable PersistentState getStorage(String namespace) {
+		PersistentState cached = storages.get(namespace);
+		if (cached != null) {
+			return cached;
 		}
-		else {
-			DataCommandStorage.PersistentState
-					persistentState2 =
-					this.stateManager.get(DataCommandStorage.PersistentState.createStateType(namespace));
-			if (persistentState2 != null) {
-				this.storages.put(namespace, persistentState2);
-			}
 
-			return persistentState2;
+		PersistentState loaded = stateManager.get(PersistentState.createStateType(namespace));
+		if (loaded != null) {
+			storages.put(namespace, loaded);
 		}
+
+		return loaded;
 	}
 
-	private DataCommandStorage.PersistentState getOrCreateStorage(String namespace) {
-		DataCommandStorage.PersistentState persistentState = this.storages.get(namespace);
-		if (persistentState != null) {
-			return persistentState;
+	private PersistentState getOrCreateStorage(String namespace) {
+		PersistentState cached = storages.get(namespace);
+		if (cached != null) {
+			return cached;
 		}
-		else {
-			DataCommandStorage.PersistentState
-					persistentState2 =
-					this.stateManager.getOrCreate(DataCommandStorage.PersistentState.createStateType(namespace));
-			this.storages.put(namespace, persistentState2);
-			return persistentState2;
-		}
+
+		PersistentState created = stateManager.getOrCreate(PersistentState.createStateType(namespace));
+		storages.put(namespace, created);
+		return created;
 	}
 
 	public void set(Identifier id, NbtCompound nbt) {
-		this.getOrCreateStorage(id.getNamespace()).set(id.getPath(), nbt);
+		getOrCreateStorage(id.getNamespace()).set(id.getPath(), nbt);
 	}
 
 	public Stream<Identifier> getIds() {
-		return this.storages.entrySet().stream().flatMap(entry -> entry.getValue().getIds(entry.getKey()));
+		return storages.entrySet().stream().flatMap(entry -> entry.getValue().getIds(entry.getKey()));
 	}
 
 	static String getSaveKey(String namespace) {
-		return "command_storage_" + namespace;
+		return COMMAND_STORAGE_PREFIX + namespace;
 	}
 
-	/**
-	 * {@code PersistentState}.
-	 */
 	static class PersistentState extends net.minecraft.world.PersistentState {
 
-		public static final Codec<DataCommandStorage.PersistentState> CODEC = RecordCodecBuilder.create(
+		public static final Codec<PersistentState> CODEC = RecordCodecBuilder.create(
 				instance -> instance
 						.group(Codec
 								.unboundedMap(Codecs.IDENTIFIER_PATH, NbtCompound.CODEC)
 								.fieldOf("contents")
 								.forGetter(state -> state.map))
-						.apply(instance, DataCommandStorage.PersistentState::new)
+						.apply(instance, PersistentState::new)
 		);
+
 		private final Map<String, NbtCompound> map;
 
 		private PersistentState(Map<String, NbtCompound> map) {
@@ -98,33 +92,32 @@ public class DataCommandStorage {
 			this(new HashMap<>());
 		}
 
-		public static PersistentStateType<DataCommandStorage.PersistentState> createStateType(String id) {
+		public static PersistentStateType<PersistentState> createStateType(String id) {
 			return new PersistentStateType<>(
 					DataCommandStorage.getSaveKey(id),
-					DataCommandStorage.PersistentState::new,
+					PersistentState::new,
 					CODEC,
 					DataFixTypes.SAVED_DATA_COMMAND_STORAGE
 			);
 		}
 
 		public NbtCompound get(String name) {
-			NbtCompound nbtCompound = this.map.get(name);
-			return nbtCompound != null ? nbtCompound : new NbtCompound();
+			NbtCompound nbt = map.get(name);
+			return nbt != null ? nbt : new NbtCompound();
 		}
 
 		public void set(String name, NbtCompound nbt) {
 			if (nbt.isEmpty()) {
-				this.map.remove(name);
-			}
-			else {
-				this.map.put(name, nbt);
+				map.remove(name);
+			} else {
+				map.put(name, nbt);
 			}
 
-			this.markDirty();
+			markDirty();
 		}
 
 		public Stream<Identifier> getIds(String namespace) {
-			return this.map.keySet().stream().map(key -> Identifier.of(namespace, key));
+			return map.keySet().stream().map(key -> Identifier.of(namespace, key));
 		}
 	}
 }

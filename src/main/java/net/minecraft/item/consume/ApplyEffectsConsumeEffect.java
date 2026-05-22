@@ -14,7 +14,8 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * {@code ApplyEffectsConsumeEffect}.
+ * Эффект потребления, накладывающий список статус-эффектов на сущность с заданной вероятностью.
+ * Если {@code probability} меньше 1.0, эффекты применяются не всегда.
  */
 public record ApplyEffectsConsumeEffect(
 		List<StatusEffectInstance> effects,
@@ -61,19 +62,18 @@ public record ApplyEffectsConsumeEffect(
 
 	@Override
 	public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
-		if (user.getRandom().nextFloat() >= this.probability) {
+		if (user.getRandom().nextFloat() >= probability) {
 			return false;
 		}
-		else {
-			boolean bl = false;
 
-			for (StatusEffectInstance statusEffectInstance : this.effects) {
-				if (user.addStatusEffect(new StatusEffectInstance(statusEffectInstance))) {
-					bl = true;
-				}
+		boolean anyApplied = false;
+
+		for (StatusEffectInstance effect : effects) {
+			if (user.addStatusEffect(new StatusEffectInstance(effect))) {
+				anyApplied = true;
 			}
-
-			return bl;
 		}
+
+		return anyApplied;
 	}
 }

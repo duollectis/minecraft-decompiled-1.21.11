@@ -11,7 +11,8 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code BannerPattern}.
+ * Запись, описывающая один узор баннера: идентификатор текстуры и ключ локализации.
+ * Регистрируется в {@link net.minecraft.registry.RegistryKeys#BANNER_PATTERN}.
  */
 public record BannerPattern(Identifier assetId, String translationKey) {
 

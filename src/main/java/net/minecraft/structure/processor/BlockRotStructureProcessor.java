@@ -17,20 +17,22 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code BlockRotStructureProcessor}.
+ * Процессор структур, случайно удаляющий блоки для имитации разрушения.
+ * Блок удаляется (возвращается {@code null}), если случайное число превышает {@code integrity}.
+ * Если задан список {@code rottableBlocks}, удалению подлежат только блоки из этого списка;
+ * остальные блоки всегда сохраняются.
  */
 public class BlockRotStructureProcessor extends StructureProcessor {
 
 	public static final MapCodec<BlockRotStructureProcessor> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.BLOCK)
-							                    .optionalFieldOf("rottable_blocks")
-							                    .forGetter(processor -> processor.rottableBlocks),
-					                    Codec.floatRange(0.0F, 1.0F).fieldOf("integrity").forGetter(processor -> processor.integrity)
-			                    )
-			                    .apply(instance, BlockRotStructureProcessor::new)
+		instance -> instance.group(
+			RegistryCodecs.entryList(RegistryKeys.BLOCK)
+				.optionalFieldOf("rottable_blocks")
+				.forGetter(processor -> processor.rottableBlocks),
+			Codec.floatRange(0.0F, 1.0F).fieldOf("integrity").forGetter(processor -> processor.integrity)
+		).apply(instance, BlockRotStructureProcessor::new)
 	);
+
 	private final Optional<RegistryEntryList<Block>> rottableBlocks;
 	private final float integrity;
 
@@ -49,19 +51,17 @@ public class BlockRotStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
 		Random random = data.getRandom(currentBlockInfo.pos());
-		return (!this.rottableBlocks.isPresent() || originalBlockInfo.state().isIn(this.rottableBlocks.get())) && !(
-				random.nextFloat() <= this.integrity
-		)
-		       ? null
-		       : currentBlockInfo;
+		boolean isRottable = rottableBlocks.isEmpty() || originalBlockInfo.state().isIn(rottableBlocks.get());
+
+		return isRottable && random.nextFloat() > integrity ? null : currentBlockInfo;
 	}
 
 	@Override

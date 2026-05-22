@@ -6,7 +6,9 @@ import net.minecraft.util.math.Vec3d;
 import java.util.function.Predicate;
 
 /**
- * {@code BlockStateRaycastContext}.
+ * Контекст для рейкаста по состояниям блоков.
+ * Содержит начальную и конечную точки луча, а также предикат,
+ * определяющий, какие состояния блоков считаются «непрозрачными» для луча.
  */
 public class BlockStateRaycastContext {
 
@@ -20,15 +22,15 @@ public class BlockStateRaycastContext {
 		this.statePredicate = statePredicate;
 	}
 
-	public Vec3d getEnd() {
-		return this.end;
+	public Vec3d getStart() {
+		return start;
 	}
 
-	public Vec3d getStart() {
-		return this.start;
+	public Vec3d getEnd() {
+		return end;
 	}
 
 	public Predicate<BlockState> getStatePredicate() {
-		return this.statePredicate;
+		return statePredicate;
 	}
 }

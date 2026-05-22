@@ -7,17 +7,18 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1904}.
+ * Схема версии 1904: регистрирует сущность {@code minecraft:cat} —
+ * кошка была выделена в отдельный тип из {@code minecraft:ocelot}.
  */
 public class Schema1904 extends IdentifierNormalizingSchema {
 
-	public Schema1904(int i, Schema schema) {
-		super(i, schema);
+	public Schema1904(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-		schema.registerSimple(map, "minecraft:cat");
-		return map;
+		Map<String, Supplier<TypeTemplate>> entityTypes = super.registerEntities(schema);
+		schema.registerSimple(entityTypes, "minecraft:cat");
+		return entityTypes;
 	}
 }

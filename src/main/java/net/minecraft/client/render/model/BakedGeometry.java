@@ -11,15 +11,17 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BakedGeometry}.
+ * Запечённая геометрия блочной модели: набор {@link BakedQuad} сгруппированных по стороне.
+ * Используется рендерером блоков для эффективной выборки квадов по направлению.
  */
+@Environment(EnvType.CLIENT)
 public class BakedGeometry {
 
-	public static final BakedGeometry
-			EMPTY =
-			new BakedGeometry(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+	public static final BakedGeometry EMPTY = new BakedGeometry(
+			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+	);
+
 	private final List<BakedQuad> allQuads;
 	private final List<BakedQuad> sidelessQuads;
 	private final List<BakedQuad> northQuads;
@@ -51,41 +53,43 @@ public class BakedGeometry {
 
 	public List<BakedQuad> getQuads(@Nullable Direction side) {
 		return switch (side) {
-			case null -> this.sidelessQuads;
-			case NORTH -> this.northQuads;
-			case SOUTH -> this.southQuads;
-			case EAST -> this.eastQuads;
-			case WEST -> this.westQuads;
-			case UP -> this.upQuads;
-			case DOWN -> this.downQuads;
+			case null -> sidelessQuads;
+			case NORTH -> northQuads;
+			case SOUTH -> southQuads;
+			case EAST -> eastQuads;
+			case WEST -> westQuads;
+			case UP -> upQuads;
+			case DOWN -> downQuads;
 		};
 	}
 
 	public List<BakedQuad> getAllQuads() {
-		return this.allQuads;
+		return allQuads;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошагового накопления квадов по направлениям с последующей сборкой в {@link BakedGeometry}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<BakedQuad>
-				sidelessQuads =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<BakedQuad> sidelessQuads = ImmutableList.builder();
 		private final Multimap<Direction, BakedQuad> sidedQuads = ArrayListMultimap.create();
 
 		public BakedGeometry.Builder add(Direction side, BakedQuad quad) {
-			this.sidedQuads.put(side, quad);
+			sidedQuads.put(side, quad);
 			return this;
 		}
 
 		public BakedGeometry.Builder add(BakedQuad quad) {
-			this.sidelessQuads.add(quad);
+			sidelessQuads.add(quad);
 			return this;
 		}
 
+		/**
+		 * Нарезает единый плоский список квадов на подсписки по направлениям через смещение.
+		 * Порядок секций: sideless → north → south → east → west → up → down.
+		 */
 		private static BakedGeometry buildFromList(
 				List<BakedQuad> quads,
 				int sidelessCount,
@@ -96,67 +100,63 @@ public class BakedGeometry {
 				int upCount,
 				int downCount
 		) {
-			int i = 0;
-			int var16;
-			List<BakedQuad> list = quads.subList(i, var16 = i + sidelessCount);
-			List<BakedQuad> list2 = quads.subList(var16, i = var16 + northCount);
-			int var18;
-			List<BakedQuad> list3 = quads.subList(i, var18 = i + southCount);
-			List<BakedQuad> list4 = quads.subList(var18, i = var18 + eastCount);
-			int var20;
-			List<BakedQuad> list5 = quads.subList(i, var20 = i + westCount);
-			List<BakedQuad> list6 = quads.subList(var20, i = var20 + upCount);
-			List<BakedQuad> list7 = quads.subList(i, i + downCount);
-			return new BakedGeometry(quads, list, list2, list3, list4, list5, list6, list7);
+			int offset = 0;
+			List<BakedQuad> sideless = quads.subList(offset, offset += sidelessCount);
+			List<BakedQuad> north = quads.subList(offset, offset += northCount);
+			List<BakedQuad> south = quads.subList(offset, offset += southCount);
+			List<BakedQuad> east = quads.subList(offset, offset += eastCount);
+			List<BakedQuad> west = quads.subList(offset, offset += westCount);
+			List<BakedQuad> up = quads.subList(offset, offset += upCount);
+			List<BakedQuad> down = quads.subList(offset, offset + downCount);
+
+			return new BakedGeometry(quads, sideless, north, south, east, west, up, down);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return BakedGeometry — результат операции
-		 */
 		public BakedGeometry build() {
-			ImmutableList<BakedQuad> immutableList = this.sidelessQuads.build();
-			if (this.sidedQuads.isEmpty()) {
-				return immutableList.isEmpty()
-				       ? BakedGeometry.EMPTY
-				       : new BakedGeometry(
-						       immutableList,
-						       immutableList,
-						       List.of(),
-						       List.of(),
-						       List.of(),
-						       List.of(),
-						       List.of(),
-						       List.of()
-				       );
+			ImmutableList<BakedQuad> builtSideless = sidelessQuads.build();
+
+			if (sidedQuads.isEmpty()) {
+				return builtSideless.isEmpty()
+						? BakedGeometry.EMPTY
+						: new BakedGeometry(
+								builtSideless,
+								builtSideless,
+								List.of(),
+								List.of(),
+								List.of(),
+								List.of(),
+								List.of(),
+								List.of()
+						);
 			}
-			else {
-				com.google.common.collect.ImmutableList.Builder<BakedQuad> builder = ImmutableList.builder();
-				builder.addAll(immutableList);
-				Collection<BakedQuad> collection = this.sidedQuads.get(Direction.NORTH);
-				builder.addAll(collection);
-				Collection<BakedQuad> collection2 = this.sidedQuads.get(Direction.SOUTH);
-				builder.addAll(collection2);
-				Collection<BakedQuad> collection3 = this.sidedQuads.get(Direction.EAST);
-				builder.addAll(collection3);
-				Collection<BakedQuad> collection4 = this.sidedQuads.get(Direction.WEST);
-				builder.addAll(collection4);
-				Collection<BakedQuad> collection5 = this.sidedQuads.get(Direction.UP);
-				builder.addAll(collection5);
-				Collection<BakedQuad> collection6 = this.sidedQuads.get(Direction.DOWN);
-				builder.addAll(collection6);
-				return buildFromList(
-						builder.build(),
-						immutableList.size(),
-						collection.size(),
-						collection2.size(),
-						collection3.size(),
-						collection4.size(),
-						collection5.size(),
-						collection6.size()
-				);
-			}
+
+			Collection<BakedQuad> north = sidedQuads.get(Direction.NORTH);
+			Collection<BakedQuad> south = sidedQuads.get(Direction.SOUTH);
+			Collection<BakedQuad> east = sidedQuads.get(Direction.EAST);
+			Collection<BakedQuad> west = sidedQuads.get(Direction.WEST);
+			Collection<BakedQuad> up = sidedQuads.get(Direction.UP);
+			Collection<BakedQuad> down = sidedQuads.get(Direction.DOWN);
+
+			ImmutableList<BakedQuad> all = ImmutableList.<BakedQuad>builder()
+					.addAll(builtSideless)
+					.addAll(north)
+					.addAll(south)
+					.addAll(east)
+					.addAll(west)
+					.addAll(up)
+					.addAll(down)
+					.build();
+
+			return buildFromList(
+					all,
+					builtSideless.size(),
+					north.size(),
+					south.size(),
+					east.size(),
+					west.size(),
+					up.size(),
+					down.size()
+			);
 		}
 	}
 }

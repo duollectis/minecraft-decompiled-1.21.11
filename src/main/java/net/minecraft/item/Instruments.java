@@ -12,7 +12,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
 /**
- * {@code Instruments}.
+ * Реестр всех музыкальных инструментов козьего рога.
+ * Все варианты имеют одинаковую длительность использования и радиус слышимости.
  */
 public interface Instruments {
 
@@ -41,62 +42,14 @@ public interface Instruments {
 	}
 
 	static void bootstrap(Registerable<Instrument> registry) {
-		register(
-				registry,
-				PONDER_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(0),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				SING_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(1),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				SEEK_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(2),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				FEEL_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(3),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				ADMIRE_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(4),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				CALL_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(5),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				YEARN_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(6),
-				7.0F,
-				256.0F
-		);
-		register(
-				registry,
-				DREAM_GOAT_HORN,
-				(RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(7),
-				7.0F,
-				256.0F
-		);
+		register(registry, PONDER_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(0), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, SING_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(1), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, SEEK_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(2), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, FEEL_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(3), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, ADMIRE_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(4), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, CALL_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(5), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, YEARN_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(6), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
+		register(registry, DREAM_GOAT_HORN, (RegistryEntry<SoundEvent>) SoundEvents.GOAT_HORN_SOUNDS.get(7), GOAT_HORN_USE_DURATION, GOAT_HORN_RANGE);
 	}
 
 	static void register(

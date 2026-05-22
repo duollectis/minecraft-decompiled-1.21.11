@@ -11,7 +11,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * {@code FindEntityTask}.
+ * Фабричный класс задачи мозга, ищущей ближайшую сущность заданного типа в кэше видимых мобов
+ * и устанавливающей её как цель взгляда и ходьбы.
  */
 public class FindEntityTask {
 
@@ -34,43 +35,36 @@ public class FindEntityTask {
 			float speed,
 			int completionRange
 	) {
-		int i = maxDistance * maxDistance;
-		Predicate<LivingEntity> predicate = entity -> type.equals(entity.getType()) && targetPredicate.test((T) entity);
+		int maxDistanceSq = maxDistance * maxDistance;
+		Predicate<LivingEntity> typedPredicate = e -> type.equals(e.getType()) && targetPredicate.test((T) e);
+
 		return TaskTriggerer.task(
 				context -> context.group(
-						                  context.queryMemoryOptional(targetModule),
-						                  context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET),
-						                  context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
-						                  context.queryMemoryValue(MemoryModuleType.VISIBLE_MOBS)
-				                  )
-				                  .apply(
-						                  context,
-						                  (targetValue, lookTarget, walkTarget, visibleMobs) -> (world, entity, time) -> {
-							                  LivingTargetCache livingTargetCache = context.getValue(visibleMobs);
-							                  if (entityPredicate.test((E) entity) && livingTargetCache.anyMatch(
-									                  predicate)) {
-								                  Optional<LivingEntity>
-										                  optional =
-										                  livingTargetCache.findFirst(target ->
-												                  target.squaredDistanceTo(entity) <= i
-														                  && predicate.test(target));
-								                  optional.ifPresent(target -> {
-									                  targetValue.remember((T) target);
-									                  lookTarget.remember(new EntityLookTarget(target, true));
-									                  walkTarget.remember(new WalkTarget(
-											                  new EntityLookTarget(
-													                  target,
-													                  false
-											                  ), speed, completionRange
-									                  ));
-								                  });
-								                  return true;
-							                  }
-							                  else {
-								                  return false;
-							                  }
-						                  }
-				                  )
+						context.queryMemoryOptional(targetModule),
+						context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET),
+						context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
+						context.queryMemoryValue(MemoryModuleType.VISIBLE_MOBS)
+				).apply(
+						context,
+						(targetValue, lookTarget, walkTarget, visibleMobs) -> (world, entity, time) -> {
+							LivingTargetCache cache = context.getValue(visibleMobs);
+
+							if (!entityPredicate.test((E) entity) || !cache.anyMatch(typedPredicate)) {
+								return false;
+							}
+
+							cache.findFirst(
+									target -> target.squaredDistanceTo(entity) <= maxDistanceSq
+											&& typedPredicate.test(target)
+							).ifPresent(target -> {
+								targetValue.remember((T) target);
+								lookTarget.remember(new EntityLookTarget(target, true));
+								walkTarget.remember(new WalkTarget(new EntityLookTarget(target, false), speed, completionRange));
+							});
+
+							return true;
+						}
+				)
 		);
 	}
 }

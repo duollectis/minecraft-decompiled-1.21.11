@@ -15,98 +15,93 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code PlayerInteractedWithEntityCriterion}.
+ * Критерий выполняется, когда игрок взаимодействует с сущностью (правый клик).
+ * Используется также для стрижки снаряжения с сущностей.
  */
 public class PlayerInteractedWithEntityCriterion extends AbstractCriterion<PlayerInteractedWithEntityCriterion.Conditions> {
 
 	@Override
-	public Codec<PlayerInteractedWithEntityCriterion.Conditions> getConditionsCodec() {
-		return PlayerInteractedWithEntityCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, ItemStack stack, Entity entity) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
-		this.trigger(player, conditions -> conditions.test(stack, lootContext));
+		LootContext entityContext = EntityPredicate.createAdvancementEntityLootContext(player, entity);
+		trigger(player, conditions -> conditions.test(stack, entityContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<ItemPredicate> item,
 			Optional<LootContextPredicate> entity
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<PlayerInteractedWithEntityCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(PlayerInteractedWithEntityCriterion.Conditions::player),
-						                    ItemPredicate.CODEC
-								                    .optionalFieldOf("item")
-								                    .forGetter(PlayerInteractedWithEntityCriterion.Conditions::item),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("entity")
-								                    .forGetter(PlayerInteractedWithEntityCriterion.Conditions::entity)
-				                    )
-				                    .apply(instance, PlayerInteractedWithEntityCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						ItemPredicate.CODEC
+								.optionalFieldOf("item")
+								.forGetter(Conditions::item),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("entity")
+								.forGetter(Conditions::entity)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<PlayerInteractedWithEntityCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				Optional<LootContextPredicate> playerPredicate,
 				ItemPredicate.Builder item,
 				Optional<LootContextPredicate> entity
 		) {
-			return Criteria.PLAYER_INTERACTED_WITH_ENTITY
-					.create(new PlayerInteractedWithEntityCriterion.Conditions(
-							playerPredicate,
-							Optional.of(item.build()),
-							entity
-					));
+			return Criteria.PLAYER_INTERACTED_WITH_ENTITY.create(new Conditions(
+					playerPredicate,
+					Optional.of(item.build()),
+					entity
+			));
 		}
 
-		public static AdvancementCriterion<PlayerInteractedWithEntityCriterion.Conditions> createPlayerShearedEquipment(
+		public static AdvancementCriterion<Conditions> createPlayerShearedEquipment(
 				Optional<LootContextPredicate> playerPredicate,
 				ItemPredicate.Builder item,
 				Optional<LootContextPredicate> entity
 		) {
-			return Criteria.PLAYER_SHEARED_EQUIPMENT
-					.create(new PlayerInteractedWithEntityCriterion.Conditions(
-							playerPredicate,
-							Optional.of(item.build()),
-							entity
-					));
+			return Criteria.PLAYER_SHEARED_EQUIPMENT.create(new Conditions(
+					playerPredicate,
+					Optional.of(item.build()),
+					entity
+			));
 		}
 
-		public static AdvancementCriterion<PlayerInteractedWithEntityCriterion.Conditions> createPlayerShearedEquipment(
+		public static AdvancementCriterion<Conditions> createPlayerShearedEquipment(
 				ItemPredicate.Builder item, Optional<LootContextPredicate> entity
 		) {
-			return Criteria.PLAYER_SHEARED_EQUIPMENT
-					.create(new PlayerInteractedWithEntityCriterion.Conditions(
-							Optional.empty(),
-							Optional.of(item.build()),
-							entity
-					));
+			return Criteria.PLAYER_SHEARED_EQUIPMENT.create(new Conditions(
+					Optional.empty(),
+					Optional.of(item.build()),
+					entity
+			));
 		}
 
-		public static AdvancementCriterion<PlayerInteractedWithEntityCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				ItemPredicate.Builder item, Optional<LootContextPredicate> entity
 		) {
 			return create(Optional.empty(), item, entity);
 		}
 
-		public boolean test(ItemStack stack, LootContext entity) {
-			return this.item.isPresent() && !this.item.get().test(stack) ? false : this.entity.isEmpty() || this.entity
-			                                                                                                .get()
-			                                                                                                .test(entity);
+		public boolean test(ItemStack stack, LootContext entityContext) {
+			if (item.isPresent() && !item.get().test(stack)) {
+				return false;
+			}
+
+			return entity.isEmpty() || entity.get().test(entityContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.entity, "entity");
+			validator.validateEntityPredicate(entity, "entity");
 		}
 	}
 }

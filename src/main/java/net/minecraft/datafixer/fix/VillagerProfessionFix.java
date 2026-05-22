@@ -11,7 +11,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Map;
 
 /**
- * {@code VillagerProfessionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class VillagerProfessionFix extends ChoiceFix {
 

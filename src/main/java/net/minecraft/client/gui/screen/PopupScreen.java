@@ -15,10 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PopupScreen}.
+ * Всплывающий экран поверх фонового экрана с заголовком, сообщением и кнопками выбора.
+ * Фоновый экран продолжает рендериться позади попапа.
  */
+@Environment(EnvType.CLIENT)
 public class PopupScreen extends Screen {
 
 	private static final Identifier BACKGROUND_TEXTURE = Identifier.ofVanilla("popup/background");
@@ -28,6 +29,7 @@ public class PopupScreen extends Screen {
 	private static final int IMAGE_WIDTH = 130;
 	private static final int IMAGE_HEIGHT = 64;
 	private static final int DEFAULT_WIDTH = 250;
+	private static final int MAX_BUTTON_WIDTH = 150;
 	private final Screen backgroundScreen;
 	private final @Nullable Identifier image;
 	private final Text message;
@@ -51,100 +53,103 @@ public class PopupScreen extends Screen {
 		this.message = message;
 		this.buttons = buttons;
 		this.onClosed = onClosed;
-		this.innerWidth = width - 36;
+		innerWidth = width - 36;
 	}
 
 	@Override
 	public void onDisplayed() {
 		super.onDisplayed();
-		this.backgroundScreen.blur();
+		backgroundScreen.blur();
 	}
 
 	@Override
 	protected void init() {
-		this.backgroundScreen.init(this.width, this.height);
-		this.layout.spacing(12).getMainPositioner().alignHorizontalCenter();
-		this.layout.add(new MultilineTextWidget(this.title.copy().formatted(Formatting.BOLD), this.textRenderer)
-				.setMaxWidth(this.innerWidth)
-				.setCentered(true));
-		if (this.image != null) {
-			this.layout.add(IconWidget.create(130, 64, this.image, 130, 64));
+		backgroundScreen.init(width, height);
+		layout.spacing(VERTICAL_SPACING).getMainPositioner().alignHorizontalCenter();
+		layout.add(
+				new MultilineTextWidget(title.copy().formatted(Formatting.BOLD), textRenderer)
+						.setMaxWidth(innerWidth)
+						.setCentered(true)
+		);
+
+		if (image != null) {
+			layout.add(IconWidget.create(IMAGE_WIDTH, IMAGE_HEIGHT, image, IMAGE_WIDTH, IMAGE_HEIGHT));
 		}
 
-		this.layout.add(new MultilineTextWidget(this.message, this.textRenderer)
-				.setMaxWidth(this.innerWidth)
-				.setCentered(true));
-		this.layout.add(this.createButtonLayout());
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		layout.add(
+				new MultilineTextWidget(message, textRenderer)
+						.setMaxWidth(innerWidth)
+						.setCentered(true)
+		);
+		layout.add(createButtonLayout());
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	private DirectionalLayoutWidget createButtonLayout() {
-		int i = 6 * (this.buttons.size() - 1);
-		int j = Math.min((this.innerWidth - i) / this.buttons.size(), 150);
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal();
-		directionalLayoutWidget.spacing(6);
+		int totalSpacing = BUTTON_HORIZONTAL_SPACING * (buttons.size() - 1);
+		int buttonWidth = Math.min((innerWidth - totalSpacing) / buttons.size(), MAX_BUTTON_WIDTH);
+		DirectionalLayoutWidget buttonRow = DirectionalLayoutWidget.horizontal();
+		buttonRow.spacing(BUTTON_HORIZONTAL_SPACING);
 
-		for (PopupScreen.Button button : this.buttons) {
-			directionalLayoutWidget.add(ButtonWidget
-					.builder(button.message(), buttonx -> button.action().accept(this))
-					.width(j)
+		for (PopupScreen.Button button : buttons) {
+			buttonRow.add(ButtonWidget
+					.builder(button.message(), pressed -> button.action().accept(this))
+					.width(buttonWidth)
 					.build());
 		}
 
-		return directionalLayoutWidget;
+		return buttonRow;
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.backgroundScreen.resize(this.width, this.height);
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
+		backgroundScreen.resize(width, height);
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, getNavigationFocus());
 	}
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		this.backgroundScreen.renderBackground(context, mouseX, mouseY, deltaTicks);
+		backgroundScreen.renderBackground(context, mouseX, mouseY, deltaTicks);
 		context.createNewRootLayer();
-		this.backgroundScreen.render(context, -1, -1, deltaTicks);
+		backgroundScreen.render(context, -1, -1, deltaTicks);
 		context.createNewRootLayer();
-		this.renderInGameBackground(context);
+		renderInGameBackground(context);
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
 				BACKGROUND_TEXTURE,
-				this.layout.getX() - 18,
-				this.layout.getY() - 18,
-				this.layout.getWidth() + 36,
-				this.layout.getHeight() + 36
+				layout.getX() - MARGIN_WIDTH,
+				layout.getY() - MARGIN_WIDTH,
+				layout.getWidth() + 36,
+				layout.getHeight() + 36
 		);
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(this.title, this.message);
+		return ScreenTexts.joinSentences(title, message);
 	}
 
 	@Override
 	public void close() {
-		if (this.onClosed != null) {
-			this.onClosed.run();
+		if (onClosed != null) {
+			onClosed.run();
 		}
 
-		this.client.setScreen(this.backgroundScreen);
+		client.setScreen(backgroundScreen);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель всплывающего экрана. Требует хотя бы одну кнопку перед вызовом {@link Builder#build()}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final Screen backgroundScreen;
 		private final Text title;
 		private Text message = ScreenTexts.EMPTY;
-		private int width = 250;
+		private int width = DEFAULT_WIDTH;
 		private @Nullable Identifier image;
 		private final List<PopupScreen.Button> buttons = new ArrayList<>();
 		private @Nullable Runnable onClosed = null;
@@ -170,7 +175,7 @@ public class PopupScreen extends Screen {
 		}
 
 		public PopupScreen.Builder button(Text message, Consumer<PopupScreen> action) {
-			this.buttons.add(new PopupScreen.Button(message, action));
+			buttons.add(new PopupScreen.Button(message, action));
 			return this;
 		}
 
@@ -179,33 +184,15 @@ public class PopupScreen extends Screen {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return PopupScreen — результат операции
-		 */
 		public PopupScreen build() {
-			if (this.buttons.isEmpty()) {
+			if (buttons.isEmpty()) {
 				throw new IllegalStateException("Popup must have at least one button");
 			}
-			else {
-				return new PopupScreen(
-						this.backgroundScreen,
-						this.width,
-						this.image,
-						this.title,
-						this.message,
-						List.copyOf(this.buttons),
-						this.onClosed
-				);
-			}
+
+			return new PopupScreen(backgroundScreen, width, image, title, message, List.copyOf(buttons), onClosed);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Button}.
-	 */
-	record Button(Text message, Consumer<PopupScreen> action) {
-	}
+	record Button(Text message, Consumer<PopupScreen> action) {}
 }

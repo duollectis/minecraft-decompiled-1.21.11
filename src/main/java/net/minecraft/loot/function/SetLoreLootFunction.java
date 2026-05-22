@@ -20,35 +20,37 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code SetLoreLootFunction}.
+ * Функция лута, устанавливающая или изменяющая описание (lore) предмета.
+ * Поддерживает разрешение текстовых компонентов через источник-сущность.
  */
 public class SetLoreLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetLoreLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									TextCodecs.CODEC
-											.sizeLimitedListOf(256)
-											.fieldOf("lore")
-											.forGetter(function -> function.lore),
-									ListOperation.createCodec(256).forGetter(function -> function.operation),
-									LootContext.EntityReference.CODEC
-											.optionalFieldOf("entity")
-											.forGetter(function -> function.entity)
-							)
-					)
-					.apply(instance, SetLoreLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					TextCodecs.CODEC
+						.sizeLimitedListOf(256)
+						.fieldOf("lore")
+						.forGetter(function -> function.lore),
+					ListOperation.createCodec(256).forGetter(function -> function.operation),
+					LootContext.EntityReference.CODEC
+						.optionalFieldOf("entity")
+						.forGetter(function -> function.entity)
+				)
+			)
+			.apply(instance, SetLoreLootFunction::new)
 	);
+
 	private final List<Text> lore;
 	private final ListOperation operation;
 	private final Optional<LootContext.EntityReference> entity;
 
 	public SetLoreLootFunction(
-			List<LootCondition> conditions,
-			List<Text> lore,
-			ListOperation operation,
-			Optional<LootContext.EntityReference> entity
+		List<LootCondition> conditions,
+		List<Text> lore,
+		ListOperation operation,
+		Optional<LootContext.EntityReference> entity
 	) {
 		super(conditions);
 		this.lore = List.copyOf(lore);
@@ -63,43 +65,38 @@ public class SetLoreLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.entity.<Set<ContextParameter<?>>>map(entity -> Set.of(entity.contextParam())).orElseGet(Set::of);
+		return entity.<Set<ContextParameter<?>>>map(ref -> Set.of(ref.contextParam())).orElseGet(Set::of);
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
 		stack.apply(
-				DataComponentTypes.LORE,
-				LoreComponent.DEFAULT,
-				component -> new LoreComponent(this.getNewLoreTexts(component, context))
+			DataComponentTypes.LORE,
+			LoreComponent.DEFAULT,
+			component -> new LoreComponent(buildNewLore(component, context))
 		);
 		return stack;
 	}
 
-	private List<Text> getNewLoreTexts(@Nullable LoreComponent current, LootContext context) {
-		if (current == null && this.lore.isEmpty()) {
+	private List<Text> buildNewLore(@Nullable LoreComponent current, LootContext context) {
+		if (current == null && lore.isEmpty()) {
 			return List.of();
 		}
-		else {
-			UnaryOperator<Text>
-					unaryOperator =
-					SetNameLootFunction.applySourceEntity(context, this.entity.orElse(null));
-			List<Text> list = this.lore.stream().map(unaryOperator).toList();
-			return this.operation.apply(current.lines(), list, 256);
-		}
+
+		UnaryOperator<Text> textResolver = SetNameLootFunction.applySourceEntity(context, entity.orElse(null));
+		List<Text> resolvedLore = lore.stream().map(textResolver).toList();
+		return operation.apply(current.lines(), resolvedLore, 256);
 	}
 
 	public static SetLoreLootFunction.Builder builder() {
 		return new SetLoreLootFunction.Builder();
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель функции установки описания предмета. */
 	public static class Builder extends ConditionalLootFunction.Builder<SetLoreLootFunction.Builder> {
 
 		private Optional<LootContext.EntityReference> target = Optional.empty();
-		private final com.google.common.collect.ImmutableList.Builder<Text> lore = ImmutableList.builder();
+		private final ImmutableList.Builder<Text> lore = ImmutableList.builder();
 		private ListOperation operation = ListOperation.Append.INSTANCE;
 
 		public SetLoreLootFunction.Builder operation(ListOperation operation) {
@@ -112,18 +109,19 @@ public class SetLoreLootFunction extends ConditionalLootFunction {
 			return this;
 		}
 
-		public SetLoreLootFunction.Builder lore(Text lore) {
-			this.lore.add(lore);
+		public SetLoreLootFunction.Builder lore(Text loreText) {
+			lore.add(loreText);
 			return this;
 		}
 
+		@Override
 		protected SetLoreLootFunction.Builder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new SetLoreLootFunction(this.getConditions(), this.lore.build(), this.operation, this.target);
+			return new SetLoreLootFunction(getConditions(), lore.build(), operation, target);
 		}
 	}
 }

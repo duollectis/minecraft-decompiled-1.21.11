@@ -25,7 +25,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.stream.Stream;
 
 /**
- * {@code WorldView}.
+ * Интерфейс представления мира, объединяющий рендер-вид блоков, коллизии,
+ * редстоун-логику и хранилище биомов. Предоставляет методы для работы
+ * с чанками, высотами, биомами, освещением и погодными условиями.
  */
 public interface WorldView extends BlockRenderView, CollisionView, RedstoneView, BiomeAccess.Storage {
 
@@ -37,7 +39,7 @@ public interface WorldView extends BlockRenderView, CollisionView, RedstoneView,
 	int getTopY(Heightmap.Type heightmap, int x, int z);
 
 	default int getTopY(Heightmap.Type heightmap, BlockPos pos) {
-		return this.getTopY(heightmap, pos.getX(), pos.getZ());
+		return getTopY(heightmap, pos.getX(), pos.getZ());
 	}
 
 	int getAmbientDarkness();
@@ -45,31 +47,32 @@ public interface WorldView extends BlockRenderView, CollisionView, RedstoneView,
 	BiomeAccess getBiomeAccess();
 
 	default RegistryEntry<Biome> getBiome(BlockPos pos) {
-		return this.getBiomeAccess().getBiome(pos);
+		return getBiomeAccess().getBiome(pos);
 	}
 
 	default Stream<BlockState> getStatesInBoxIfLoaded(Box box) {
-		int i = MathHelper.floor(box.minX);
-		int j = MathHelper.floor(box.maxX);
-		int k = MathHelper.floor(box.minY);
-		int l = MathHelper.floor(box.maxY);
-		int m = MathHelper.floor(box.minZ);
-		int n = MathHelper.floor(box.maxZ);
-		return this.isRegionLoaded(i, k, m, j, l, n) ? this.getStatesInBox(box) : Stream.empty();
+		int minX = MathHelper.floor(box.minX);
+		int maxX = MathHelper.floor(box.maxX);
+		int minY = MathHelper.floor(box.minY);
+		int maxY = MathHelper.floor(box.maxY);
+		int minZ = MathHelper.floor(box.minZ);
+		int maxZ = MathHelper.floor(box.maxZ);
+		return isRegionLoaded(minX, minY, minZ, maxX, maxY, maxZ)
+			? getStatesInBox(box)
+			: Stream.empty();
 	}
 
 	@Override
 	default int getColor(BlockPos pos, ColorResolver colorResolver) {
-		return colorResolver.getColor(this.getBiome(pos).value(), pos.getX(), pos.getZ());
+		return colorResolver.getColor(getBiome(pos).value(), pos.getX(), pos.getZ());
 	}
 
 	@Override
 	default RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-		Chunk
-				chunk =
-				this.getChunk(BiomeCoords.toChunk(biomeX), BiomeCoords.toChunk(biomeZ), ChunkStatus.BIOMES, false);
-		return chunk != null ? chunk.getBiomeForNoiseGen(biomeX, biomeY, biomeZ)
-		                     : this.getGeneratorStoredBiome(biomeX, biomeY, biomeZ);
+		Chunk chunk = getChunk(BiomeCoords.toChunk(biomeX), BiomeCoords.toChunk(biomeZ), ChunkStatus.BIOMES, false);
+		return chunk != null
+			? chunk.getBiomeForNoiseGen(biomeX, biomeY, biomeZ)
+			: getGeneratorStoredBiome(biomeX, biomeY, biomeZ);
 	}
 
 	RegistryEntry<Biome> getGeneratorStoredBiome(int biomeX, int biomeY, int biomeZ);
@@ -82,89 +85,98 @@ public interface WorldView extends BlockRenderView, CollisionView, RedstoneView,
 
 	@Override
 	default int getBottomY() {
-		return this.getDimension().minY();
+		return getDimension().minY();
 	}
 
 	@Override
 	default int getHeight() {
-		return this.getDimension().height();
+		return getDimension().height();
 	}
 
 	default BlockPos getTopPosition(Heightmap.Type heightmap, BlockPos pos) {
-		return new BlockPos(pos.getX(), this.getTopY(heightmap, pos.getX(), pos.getZ()), pos.getZ());
+		return new BlockPos(pos.getX(), getTopY(heightmap, pos.getX(), pos.getZ()), pos.getZ());
 	}
 
 	default boolean isAir(BlockPos pos) {
-		return this.getBlockState(pos).isAir();
+		return getBlockState(pos).isAir();
 	}
 
+	/**
+	 * Проверяет видимость неба с учётом уровня моря: если позиция ниже уровня моря,
+	 * проверяет, нет ли непрозрачных нежидких блоков между позицией и уровнем моря.
+	 */
 	default boolean isSkyVisibleAllowingSea(BlockPos pos) {
-		if (pos.getY() >= this.getSeaLevel()) {
-			return this.isSkyVisible(pos);
+		if (pos.getY() >= getSeaLevel()) {
+			return isSkyVisible(pos);
 		}
-		else {
-			BlockPos blockPos = new BlockPos(pos.getX(), this.getSeaLevel(), pos.getZ());
-			if (!this.isSkyVisible(blockPos)) {
+
+		BlockPos seaPos = new BlockPos(pos.getX(), getSeaLevel(), pos.getZ());
+		if (!isSkyVisible(seaPos)) {
+			return false;
+		}
+
+		for (BlockPos current = seaPos.down(); current.getY() > pos.getY(); current = current.down()) {
+			BlockState blockState = getBlockState(current);
+			if (blockState.getOpacity() > 0 && !blockState.isLiquid()) {
 				return false;
 			}
-			else {
-				for (BlockPos var4 = blockPos.down(); var4.getY() > pos.getY(); var4 = var4.down()) {
-					BlockState blockState = this.getBlockState(var4);
-					if (blockState.getOpacity() > 0 && !blockState.isLiquid()) {
-						return false;
-					}
-				}
-
-				return true;
-			}
 		}
+
+		return true;
 	}
 
 	default float getPhototaxisFavor(BlockPos pos) {
-		return this.getBrightness(pos) - 0.5F;
+		return getBrightness(pos) - 0.5F;
 	}
 
+	/**
+	 * Возвращает нормализованную яркость блока с учётом ambient-освещения измерения.
+	 * Формула: lerp(ambientLight, lightLevel / (4 - 3 * lightLevel), 1.0).
+	 */
 	@Deprecated
 	default float getBrightness(BlockPos pos) {
-		float f = this.getLightLevel(pos) / 15.0F;
-		float g = f / (4.0F - 3.0F * f);
-		return MathHelper.lerp(this.getDimension().ambientLight(), g, 1.0F);
+		float lightFraction = getLightLevel(pos) / 15.0F;
+		float adjusted = lightFraction / (4.0F - 3.0F * lightFraction);
+		return MathHelper.lerp(getDimension().ambientLight(), adjusted, 1.0F);
 	}
 
 	default Chunk getChunk(BlockPos pos) {
-		return this.getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+		return getChunk(
+			ChunkSectionPos.getSectionCoord(pos.getX()),
+			ChunkSectionPos.getSectionCoord(pos.getZ())
+		);
 	}
 
 	default Chunk getChunk(int chunkX, int chunkZ) {
-		return this.getChunk(chunkX, chunkZ, ChunkStatus.FULL, true);
+		return getChunk(chunkX, chunkZ, ChunkStatus.FULL, true);
 	}
 
 	default Chunk getChunk(int chunkX, int chunkZ, ChunkStatus status) {
-		return this.getChunk(chunkX, chunkZ, status, true);
+		return getChunk(chunkX, chunkZ, status, true);
 	}
 
 	@Override
 	default @Nullable BlockView getChunkAsView(int chunkX, int chunkZ) {
-		return this.getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
+		return getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
 	}
 
 	default boolean isWater(BlockPos pos) {
-		return this.getFluidState(pos).isIn(FluidTags.WATER);
+		return getFluidState(pos).isIn(FluidTags.WATER);
 	}
 
 	default boolean containsFluid(Box box) {
-		int i = MathHelper.floor(box.minX);
-		int j = MathHelper.ceil(box.maxX);
-		int k = MathHelper.floor(box.minY);
-		int l = MathHelper.ceil(box.maxY);
-		int m = MathHelper.floor(box.minZ);
-		int n = MathHelper.ceil(box.maxZ);
+		int minX = MathHelper.floor(box.minX);
+		int maxX = MathHelper.ceil(box.maxX);
+		int minY = MathHelper.floor(box.minY);
+		int maxY = MathHelper.ceil(box.maxY);
+		int minZ = MathHelper.floor(box.minZ);
+		int maxZ = MathHelper.ceil(box.maxZ);
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int o = i; o < j; o++) {
-			for (int p = k; p < l; p++) {
-				for (int q = m; q < n; q++) {
-					BlockState blockState = this.getBlockState(mutable.set(o, p, q));
+		for (int x = minX; x < maxX; x++) {
+			for (int y = minY; y < maxY; y++) {
+				for (int z = minZ; z < maxZ; z++) {
+					BlockState blockState = getBlockState(mutable.set(x, y, z));
 					if (!blockState.getFluidState().isEmpty()) {
 						return true;
 					}
@@ -176,50 +188,50 @@ public interface WorldView extends BlockRenderView, CollisionView, RedstoneView,
 	}
 
 	default int getLightLevel(BlockPos pos) {
-		return this.getLightLevel(pos, this.getAmbientDarkness());
+		return getLightLevel(pos, getAmbientDarkness());
 	}
 
 	default int getLightLevel(BlockPos pos, int ambientDarkness) {
-		return pos.getX() >= -30000000 && pos.getZ() >= -30000000 && pos.getX() < 30000000 && pos.getZ() < 30000000
-		       ? this.getBaseLightLevel(pos, ambientDarkness)
-		       : 15;
+		return pos.getX() >= -World.HORIZONTAL_LIMIT
+			&& pos.getZ() >= -World.HORIZONTAL_LIMIT
+			&& pos.getX() < World.HORIZONTAL_LIMIT
+			&& pos.getZ() < World.HORIZONTAL_LIMIT
+			? getBaseLightLevel(pos, ambientDarkness)
+			: World.MAX_LIGHT_LEVEL;
 	}
 
 	@Deprecated
 	default boolean isPosLoaded(int x, int z) {
-		return this.isChunkLoaded(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
+		return isChunkLoaded(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
 	}
 
 	@Deprecated
 	default boolean isChunkLoaded(BlockPos pos) {
-		return this.isPosLoaded(pos.getX(), pos.getZ());
+		return isPosLoaded(pos.getX(), pos.getZ());
 	}
 
 	@Deprecated
 	default boolean isRegionLoaded(BlockPos min, BlockPos max) {
-		return this.isRegionLoaded(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
+		return isRegionLoaded(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
 	}
 
 	@Deprecated
 	default boolean isRegionLoaded(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
-		return maxY >= this.getBottomY() && minY <= this.getTopYInclusive() ? this.isRegionLoaded(
-				minX,
-				minZ,
-				maxX,
-				maxZ
-		) : false;
+		return maxY >= getBottomY() && minY <= getTopYInclusive()
+			? isRegionLoaded(minX, minZ, maxX, maxZ)
+			: false;
 	}
 
 	@Deprecated
 	default boolean isRegionLoaded(int minX, int minZ, int maxX, int maxZ) {
-		int i = ChunkSectionPos.getSectionCoord(minX);
-		int j = ChunkSectionPos.getSectionCoord(maxX);
-		int k = ChunkSectionPos.getSectionCoord(minZ);
-		int l = ChunkSectionPos.getSectionCoord(maxZ);
+		int startChunkX = ChunkSectionPos.getSectionCoord(minX);
+		int endChunkX = ChunkSectionPos.getSectionCoord(maxX);
+		int startChunkZ = ChunkSectionPos.getSectionCoord(minZ);
+		int endChunkZ = ChunkSectionPos.getSectionCoord(maxZ);
 
-		for (int m = i; m <= j; m++) {
-			for (int n = k; n <= l; n++) {
-				if (!this.isChunkLoaded(m, n)) {
+		for (int chunkX = startChunkX; chunkX <= endChunkX; chunkX++) {
+			for (int chunkZ = startChunkZ; chunkZ <= endChunkZ; chunkZ++) {
+				if (!isChunkLoaded(chunkX, chunkZ)) {
 					return false;
 				}
 			}
@@ -233,8 +245,8 @@ public interface WorldView extends BlockRenderView, CollisionView, RedstoneView,
 	FeatureSet getEnabledFeatures();
 
 	default <T> RegistryWrapper<T> createCommandRegistryWrapper(RegistryKey<? extends Registry<? extends T>> registryRef) {
-		Registry<T> registry = this.getRegistryManager().getOrThrow(registryRef);
-		return registry.withFeatureFilter(this.getEnabledFeatures());
+		Registry<T> registry = getRegistryManager().getOrThrow(registryRef);
+		return registry.withFeatureFilter(getEnabledFeatures());
 	}
 
 	EnvironmentAttributeAccess getEnvironmentAttributes();

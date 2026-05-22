@@ -3,7 +3,8 @@ package net.minecraft.recipe.input;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code RecipeInput}.
+ * Базовый интерфейс входных данных рецепта. Предоставляет доступ к стекам предметов
+ * по индексу слота и позволяет проверить, пуст ли весь ввод.
  */
 public interface RecipeInput {
 
@@ -12,8 +13,8 @@ public interface RecipeInput {
 	int size();
 
 	default boolean isEmpty() {
-		for (int i = 0; i < this.size(); i++) {
-			if (!this.getStackInSlot(i).isEmpty()) {
+		for (int slot = 0; slot < size(); slot++) {
+			if (!getStackInSlot(slot).isEmpty()) {
 				return false;
 			}
 		}

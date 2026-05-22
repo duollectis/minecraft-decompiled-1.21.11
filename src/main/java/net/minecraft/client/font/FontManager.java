@@ -39,10 +39,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FontManager}.
+ * Центральный менеджер шрифтов клиента. Управляет загрузкой, перезагрузкой и хранением
+ * всех {@link FontStorage} по идентификаторам, а также предоставляет {@link TextRenderer}.
  */
+@Environment(EnvType.CLIENT)
 public class FontManager implements ResourceReloader, AutoCloseable {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -50,6 +51,7 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	public static final Identifier MISSING_STORAGE_ID = Identifier.ofVanilla("missing");
 	private static final ResourceFinder FINDER = ResourceFinder.json("font");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+
 	final FontStorage missingStorage;
 	private final List<Font> fonts = new ArrayList<>();
 	private final Map<Identifier, FontStorage> fontStorages = new HashMap<>();
@@ -63,8 +65,8 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	public FontManager(TextureManager textureManager, AtlasManager atlasManager, PlayerSkinCache playerSkinCache) {
 		this.textureManager = textureManager;
 		this.atlasManager = atlasManager;
-		this.missingStorage = this.createFontStorage(MISSING_STORAGE_ID, List.of(createEmptyFont()), Set.of());
-		this.playerHeadGlyphs = new PlayerHeadGlyphs(playerSkinCache);
+		missingStorage = createFontStorage(MISSING_STORAGE_ID, List.of(createEmptyFont()), Set.of());
+		playerHeadGlyphs = new PlayerHeadGlyphs(playerSkinCache);
 	}
 
 	private FontStorage createFontStorage(
@@ -72,7 +74,7 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			List<Font.FontFilterPair> allFonts,
 			Set<FontFilterType> filters
 	) {
-		GlyphBaker glyphBaker = new GlyphBaker(this.textureManager, fontId);
+		GlyphBaker glyphBaker = new GlyphBaker(textureManager, fontId);
 		FontStorage fontStorage = new FontStorage(glyphBaker);
 		fontStorage.setFonts(allFonts, filters);
 		return fontStorage;
@@ -89,32 +91,37 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			ResourceReloader.Synchronizer synchronizer,
 			Executor executor2
 	) {
-		return this.loadIndex(store.getResourceManager(), executor)
-		           .thenCompose(synchronizer::whenPrepared)
-		           .thenAcceptAsync(index -> this.reload(index, Profilers.get()), executor2);
+		return loadIndex(store.getResourceManager(), executor)
+				.thenCompose(synchronizer::whenPrepared)
+				.thenAcceptAsync(index -> reload(index, Profilers.get()), executor2);
 	}
 
+	/**
+	 * Асинхронно загружает индекс всех провайдеров шрифтов из ресурсов.
+	 * Для каждого {@code fonts.json} создаёт {@link FontEntry}, разрешает зависимости
+	 * между шрифтами через {@link DependencyTracker} и собирает итоговый {@link ProviderIndex}.
+	 */
 	private CompletableFuture<FontManager.ProviderIndex> loadIndex(ResourceManager resourceManager, Executor executor) {
-		List<CompletableFuture<FontManager.FontEntry>> list = new ArrayList<>();
+		List<CompletableFuture<FontManager.FontEntry>> futures = new ArrayList<>();
 
 		for (Entry<Identifier, List<Resource>> entry : FINDER.findAllResources(resourceManager).entrySet()) {
-			Identifier identifier = FINDER.toResourceId(entry.getKey());
-			list.add(CompletableFuture.supplyAsync(
+			Identifier fontId = FINDER.toResourceId(entry.getKey());
+			futures.add(CompletableFuture.supplyAsync(
 					() -> {
-						List<Pair<FontManager.FontKey, FontLoader.Provider>>
-								listx =
-								loadFontProviders(entry.getValue(), identifier);
-						FontManager.FontEntry fontEntry = new FontManager.FontEntry(identifier);
+						List<Pair<FontManager.FontKey, FontLoader.Provider>> providers =
+								loadFontProviders(entry.getValue(), fontId);
+						FontManager.FontEntry fontEntry = new FontManager.FontEntry(fontId);
 
-						for (Pair<FontManager.FontKey, FontLoader.Provider> pair : listx) {
-							FontManager.FontKey fontKey = (FontManager.FontKey) pair.getFirst();
-							FontFilterType.FilterMap filterMap = ((FontLoader.Provider) pair.getSecond()).filter();
-							((FontLoader.Provider) pair.getSecond()).definition().build().ifLeft(loadable -> {
-								CompletableFuture<Optional<Font>>
-										completableFuture =
-										this.load(fontKey, loadable, resourceManager, executor);
-								fontEntry.addBuilder(fontKey, filterMap, completableFuture);
-							}).ifRight(reference -> fontEntry.addReferenceBuilder(fontKey, filterMap, reference));
+						for (Pair<FontManager.FontKey, FontLoader.Provider> pair : providers) {
+							FontManager.FontKey fontKey = pair.getFirst();
+							FontFilterType.FilterMap filterMap = pair.getSecond().filter();
+							pair.getSecond().definition().build()
+									.ifLeft(loadable -> {
+										CompletableFuture<Optional<Font>> fontFuture =
+												load(fontKey, loadable, resourceManager, executor);
+										fontEntry.addBuilder(fontKey, filterMap, fontFuture);
+									})
+									.ifRight(reference -> fontEntry.addReferenceBuilder(fontKey, filterMap, reference));
 						}
 
 						return fontEntry;
@@ -122,46 +129,35 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			));
 		}
 
-		return Util.combineSafe(list)
-		           .thenCompose(
-				           entries -> {
-					           List<CompletableFuture<Optional<Font>>> listx = entries.stream()
-					                                                                  .flatMap(FontManager.FontEntry::getImmediateProviders)
-					                                                                  .collect(Util.toArrayList());
-					           Font.FontFilterPair fontFilterPair = createEmptyFont();
-					           listx.add(CompletableFuture.completedFuture(Optional.of(fontFilterPair.provider())));
-					           return Util.combineSafe(listx)
-					                      .thenCompose(
-							                      providers -> {
-								                      Map<Identifier, List<Font.FontFilterPair>>
-										                      map =
-										                      this.getRequiredFontProviders(entries);
-								                      CompletableFuture<?>[] completableFutures = map.values()
-								                                                                     .stream()
-								                                                                     .map(dest -> CompletableFuture.runAsync(
-										                                                                     () -> this.insertFont(
-												                                                                     dest,
-												                                                                     fontFilterPair
-										                                                                     ),
-										                                                                     executor
-								                                                                     ))
-								                                                                     .toArray(
-										                                                                     CompletableFuture[]::new);
-								                      return CompletableFuture
-										                      .allOf(completableFutures)
-										                      .thenApply(ignored -> {
-											                      List<Font>
-													                      list2 =
-													                      providers
-															                      .stream()
-															                      .flatMap(Optional::stream)
-															                      .toList();
-											                      return new FontManager.ProviderIndex(map, list2);
-										                      });
-							                      }
-					                      );
-				           }
-		           );
+		return Util.combineSafe(futures)
+				.thenCompose(entries -> {
+					List<CompletableFuture<Optional<Font>>> immediateFutures = entries.stream()
+							.flatMap(FontManager.FontEntry::getImmediateProviders)
+							.collect(Util.toArrayList());
+					Font.FontFilterPair emptyFont = createEmptyFont();
+					immediateFutures.add(CompletableFuture.completedFuture(Optional.of(emptyFont.provider())));
+
+					return Util.combineSafe(immediateFutures)
+							.thenCompose(resolvedFonts -> {
+								Map<Identifier, List<Font.FontFilterPair>> fontSets =
+										getRequiredFontProviders(entries);
+								CompletableFuture<?>[] insertionTasks = fontSets.values()
+										.stream()
+										.map(dest -> CompletableFuture.runAsync(
+												() -> insertFont(dest, emptyFont),
+												executor
+										))
+										.toArray(CompletableFuture[]::new);
+
+								return CompletableFuture.allOf(insertionTasks)
+										.thenApply(ignored -> {
+											List<Font> allFonts = resolvedFonts.stream()
+													.flatMap(Optional::stream)
+													.toList();
+											return new FontManager.ProviderIndex(fontSets, allFonts);
+										});
+							});
+				});
 	}
 
 	private CompletableFuture<Optional<Font>> load(
@@ -174,9 +170,8 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 				() -> {
 					try {
 						return Optional.of(loadable.load(resourceManager));
-					}
-					catch (Exception var4) {
-						LOGGER.warn("Failed to load builder {}, rejecting", key, var4);
+					} catch (Exception exception) {
+						LOGGER.warn("Failed to load builder {}, rejecting", key, exception);
 						return Optional.empty();
 					}
 				}, executor
@@ -184,29 +179,29 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	}
 
 	private Map<Identifier, List<Font.FontFilterPair>> getRequiredFontProviders(List<FontManager.FontEntry> entries) {
-		Map<Identifier, List<Font.FontFilterPair>> map = new HashMap<>();
+		Map<Identifier, List<Font.FontFilterPair>> fontSets = new HashMap<>();
 		DependencyTracker<Identifier, FontManager.FontEntry> dependencyTracker = new DependencyTracker<>();
 		entries.forEach(entry -> dependencyTracker.add(entry.fontId, entry));
 		dependencyTracker.traverse(
 				(dependent, fontEntry) -> fontEntry
-						.getRequiredFontProviders(map::get)
-						.ifPresent(fonts -> map.put(dependent, (List<Font.FontFilterPair>) fonts))
+						.getRequiredFontProviders(fontSets::get)
+						.ifPresent(resolved -> fontSets.put(dependent, resolved))
 		);
-		return map;
+		return fontSets;
 	}
 
 	private void insertFont(List<Font.FontFilterPair> fonts, Font.FontFilterPair font) {
 		fonts.add(0, font);
-		IntSet intSet = new IntOpenHashSet();
+		IntSet codePoints = new IntOpenHashSet();
 
-		for (Font.FontFilterPair fontFilterPair : fonts) {
-			intSet.addAll(fontFilterPair.provider().getProvidedGlyphs());
+		for (Font.FontFilterPair pair : fonts) {
+			codePoints.addAll(pair.provider().getProvidedGlyphs());
 		}
 
-		intSet.forEach(codePoint -> {
+		codePoints.forEach(codePoint -> {
 			if (codePoint != 32) {
-				for (Font.FontFilterPair fontFilterPairx : Lists.reverse(fonts)) {
-					if (fontFilterPairx.provider().getGlyph(codePoint) != null) {
+				for (Font.FontFilterPair pair : Lists.reverse(fonts)) {
+					if (pair.provider().getGlyph(codePoint) != null) {
 						break;
 					}
 				}
@@ -215,53 +210,53 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	}
 
 	private static Set<FontFilterType> getActiveFilters(GameOptions options) {
-		Set<FontFilterType> set = EnumSet.noneOf(FontFilterType.class);
+		Set<FontFilterType> activeFilters = EnumSet.noneOf(FontFilterType.class);
+
 		if (options.getForceUnicodeFont().getValue()) {
-			set.add(FontFilterType.UNIFORM);
+			activeFilters.add(FontFilterType.UNIFORM);
 		}
 
 		if (options.getJapaneseGlyphVariants().getValue()) {
-			set.add(FontFilterType.JAPANESE_VARIANTS);
+			activeFilters.add(FontFilterType.JAPANESE_VARIANTS);
 		}
 
-		return set;
+		return activeFilters;
 	}
 
 	private void reload(FontManager.ProviderIndex index, Profiler profiler) {
 		profiler.push("closing");
-		this.anyFonts.clear();
-		this.advanceValidatedFonts.clear();
-		this.fontStorages.values().forEach(FontStorage::close);
-		this.fontStorages.clear();
-		this.fonts.forEach(Font::close);
-		this.fonts.clear();
-		Set<FontFilterType> set = getActiveFilters(MinecraftClient.getInstance().options);
+		anyFonts.clear();
+		advanceValidatedFonts.clear();
+		fontStorages.values().forEach(FontStorage::close);
+		fontStorages.clear();
+		fonts.forEach(Font::close);
+		fonts.clear();
+
+		Set<FontFilterType> activeFilters = getActiveFilters(MinecraftClient.getInstance().options);
 		profiler.swap("reloading");
-		index
-				.fontSets()
-				.forEach((id, fonts) -> this.fontStorages.put(
-						id,
-						this.createFontStorage(id, Lists.reverse(fonts), set)
-				));
-		this.fonts.addAll(index.allProviders);
+		index.fontSets().forEach((id, fontList) -> fontStorages.put(
+				id,
+				createFontStorage(id, Lists.reverse(fontList), activeFilters)
+		));
+		fonts.addAll(index.allProviders);
 		profiler.pop();
-		if (!this.fontStorages.containsKey(MinecraftClient.DEFAULT_FONT_ID)) {
+
+		if (!fontStorages.containsKey(MinecraftClient.DEFAULT_FONT_ID)) {
 			throw new IllegalStateException("Default font failed to load");
 		}
-		else {
-			this.spriteGlyphs.clear();
-			this.atlasManager.acceptAtlasTextures((definitionId, atlasTexture) -> this.spriteGlyphs.put(
-					definitionId,
-					new SpriteAtlasGlyphs(atlasTexture)
-			));
-		}
+
+		spriteGlyphs.clear();
+		atlasManager.acceptAtlasTextures((definitionId, atlasTexture) -> spriteGlyphs.put(
+				definitionId,
+				new SpriteAtlasGlyphs(atlasTexture)
+		));
 	}
 
 	public void setActiveFilters(GameOptions options) {
-		Set<FontFilterType> set = getActiveFilters(options);
+		Set<FontFilterType> activeFilters = getActiveFilters(options);
 
-		for (FontStorage fontStorage : this.fontStorages.values()) {
-			fontStorage.setActiveFilters(set);
+		for (FontStorage fontStorage : fontStorages.values()) {
+			fontStorage.setActiveFilters(activeFilters);
 		}
 	}
 
@@ -269,73 +264,64 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			List<Resource> fontResources,
 			Identifier id
 	) {
-		List<Pair<FontManager.FontKey, FontLoader.Provider>> list = new ArrayList<>();
+		List<Pair<FontManager.FontKey, FontLoader.Provider>> result = new ArrayList<>();
 
 		for (Resource resource : fontResources) {
 			try (Reader reader = resource.getReader()) {
-				JsonElement jsonElement = (JsonElement) GSON.fromJson(reader, JsonElement.class);
-				FontManager.Providers providers = (FontManager.Providers) FontManager.Providers.CODEC
+				JsonElement jsonElement = GSON.fromJson(reader, JsonElement.class);
+				FontManager.Providers providers = FontManager.Providers.CODEC
 						.parse(JsonOps.INSTANCE, jsonElement)
 						.getOrThrow(JsonParseException::new);
-				List<FontLoader.Provider> list2 = providers.providers;
+				List<FontLoader.Provider> providerList = providers.providers;
 
-				for (int i = list2.size() - 1; i >= 0; i--) {
-					FontManager.FontKey fontKey = new FontManager.FontKey(id, resource.getPackId(), i);
-					list.add(Pair.of(fontKey, list2.get(i)));
+				for (int index = providerList.size() - 1; index >= 0; index--) {
+					FontManager.FontKey fontKey = new FontManager.FontKey(id, resource.getPackId(), index);
+					result.add(Pair.of(fontKey, providerList.get(index)));
 				}
-			}
-			catch (Exception var13) {
+			} catch (Exception exception) {
 				LOGGER.warn(
 						"Unable to load font '{}' in {} in resourcepack: '{}'",
-						new Object[]{id, "fonts.json", resource.getPackId(), var13}
+						id, FONTS_JSON, resource.getPackId(), exception
 				);
 			}
 		}
 
-		return list;
+		return result;
 	}
 
-	/**
-	 * Создаёт text renderer.
-	 *
-	 * @return TextRenderer — результат операции
-	 */
 	public TextRenderer createTextRenderer() {
-		return new TextRenderer(this.anyFonts);
+		return new TextRenderer(anyFonts);
 	}
 
-	/**
-	 * Создаёт advance validating text renderer.
-	 *
-	 * @return TextRenderer — результат операции
-	 */
 	public TextRenderer createAdvanceValidatingTextRenderer() {
-		return new TextRenderer(this.advanceValidatedFonts);
+		return new TextRenderer(advanceValidatedFonts);
 	}
 
 	FontStorage getStorageInternal(Identifier id) {
-		return this.fontStorages.getOrDefault(id, this.missingStorage);
+		return fontStorages.getOrDefault(id, missingStorage);
 	}
 
 	GlyphProvider getSpriteGlyphs(StyleSpriteSource.Sprite description) {
-		SpriteAtlasGlyphs spriteAtlasGlyphs = this.spriteGlyphs.get(description.atlasId());
-		return spriteAtlasGlyphs == null ? this.missingStorage.getGlyphs(false)
-		                                 : spriteAtlasGlyphs.getGlyphProvider(description.spriteId());
+		SpriteAtlasGlyphs atlasGlyphs = spriteGlyphs.get(description.atlasId());
+		return atlasGlyphs == null
+				? missingStorage.getGlyphs(false)
+				: atlasGlyphs.getGlyphProvider(description.spriteId());
 	}
 
 	@Override
 	public void close() {
-		this.anyFonts.close();
-		this.advanceValidatedFonts.close();
-		this.fontStorages.values().forEach(FontStorage::close);
-		this.fonts.forEach(Font::close);
-		this.missingStorage.close();
+		anyFonts.close();
+		advanceValidatedFonts.close();
+		fontStorages.values().forEach(FontStorage::close);
+		fonts.forEach(Font::close);
+		missingStorage.close();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель списка провайдеров для одного шрифта. Хранит либо уже загружаемый
+	 * {@link CompletableFuture}, либо ссылку на другой шрифт по идентификатору.
 	 */
+	@Environment(EnvType.CLIENT)
 	record Builder(
 			FontManager.FontKey id,
 			FontFilterType.FilterMap filter,
@@ -343,39 +329,34 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	) {
 
 		public Optional<List<Font.FontFilterPair>> build(Function<Identifier, @Nullable List<Font.FontFilterPair>> fontRetriever) {
-			return (Optional<List<Font.FontFilterPair>>) this.result
-					.map(
-							future -> ((Optional<Font>) future.join()).map(font -> List.of(new Font.FontFilterPair(
-									font,
-									this.filter
-							))),
-							referee -> {
-								List<Font.FontFilterPair> list = fontRetriever.apply(referee);
-								if (list == null) {
-									FontManager.LOGGER
-											.warn(
-													"Can't find font {} referenced by builder {}, either because it's missing, failed to load or is part of loading cycle",
-													referee,
-													this.id
-											);
-									return Optional.empty();
-								}
-								else {
-									return Optional.of(list.stream().map(this::applyFilter).toList());
-								}
-							}
-					);
+			return result.map(
+					future -> future.join().map(font -> List.of(new Font.FontFilterPair(font, filter))),
+					referee -> {
+						List<Font.FontFilterPair> resolved = fontRetriever.apply(referee);
+						if (resolved == null) {
+							FontManager.LOGGER.warn(
+									"Can't find font {} referenced by builder {}, either because it's missing, failed to load or is part of loading cycle",
+									referee,
+									id
+							);
+							return Optional.empty();
+						}
+
+						return Optional.of(resolved.stream().map(this::applyFilter).toList());
+					}
+			);
 		}
 
 		private Font.FontFilterPair applyFilter(Font.FontFilterPair font) {
-			return new Font.FontFilterPair(font.provider(), this.filter.apply(font.filter()));
+			return new Font.FontFilterPair(font.provider(), filter.apply(font.filter()));
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code FontEntry}.
+	 * Запись, описывающая один шрифт и все его строители (провайдеры).
+	 * Реализует {@link DependencyTracker.Dependencies} для разрешения ссылочных зависимостей между шрифтами.
 	 */
+	@Environment(EnvType.CLIENT)
 	record FontEntry(
 			Identifier fontId,
 			List<FontManager.Builder> builders,
@@ -391,8 +372,8 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 				FontFilterType.FilterMap filters,
 				FontLoader.Reference reference
 		) {
-			this.builders.add(new FontManager.Builder(key, filters, Either.right(reference.id())));
-			this.dependencies.add(reference.id());
+			builders.add(new FontManager.Builder(key, filters, Either.right(reference.id())));
+			dependencies.add(reference.id());
 		}
 
 		public void addBuilder(
@@ -400,31 +381,31 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 				FontFilterType.FilterMap filters,
 				CompletableFuture<Optional<Font>> fontFuture
 		) {
-			this.builders.add(new FontManager.Builder(key, filters, Either.left(fontFuture)));
+			builders.add(new FontManager.Builder(key, filters, Either.left(fontFuture)));
 		}
 
 		private Stream<CompletableFuture<Optional<Font>>> getImmediateProviders() {
-			return this.builders.stream().flatMap(builder -> builder.result.left().stream());
+			return builders.stream().flatMap(builder -> builder.result.left().stream());
 		}
 
 		public Optional<List<Font.FontFilterPair>> getRequiredFontProviders(Function<Identifier, List<Font.FontFilterPair>> fontRetriever) {
-			List<Font.FontFilterPair> list = new ArrayList<>();
+			List<Font.FontFilterPair> collected = new ArrayList<>();
 
-			for (FontManager.Builder builder : this.builders) {
-				Optional<List<Font.FontFilterPair>> optional = builder.build(fontRetriever);
-				if (!optional.isPresent()) {
+			for (FontManager.Builder builder : builders) {
+				Optional<List<Font.FontFilterPair>> resolved = builder.build(fontRetriever);
+				if (resolved.isEmpty()) {
 					return Optional.empty();
 				}
 
-				list.addAll(optional.get());
+				collected.addAll(resolved.get());
 			}
 
-			return Optional.of(list);
+			return Optional.of(collected);
 		}
 
 		@Override
 		public void forDependencies(Consumer<Identifier> callback) {
-			this.dependencies.forEach(callback);
+			dependencies.forEach(callback);
 		}
 
 		@Override
@@ -433,21 +414,15 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code FontKey}.
-	 */
 	record FontKey(Identifier fontId, String pack, int index) {
 
 		@Override
 		public String toString() {
-			return "(" + this.fontId + ": builder #" + this.index + " from pack " + this.pack + ")";
+			return "(" + fontId + ": builder #" + index + " from pack " + pack + ")";
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Fonts}.
-	 */
 	class Fonts implements TextRenderer.GlyphsProvider, AutoCloseable {
 
 		private final boolean advanceValidating;
@@ -458,73 +433,59 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			this.advanceValidating = advanceValidating;
 		}
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			this.cached = null;
-			this.rectangle = null;
+			cached = null;
+			rectangle = null;
 		}
 
 		@Override
 		public void close() {
-			this.clear();
+			clear();
 		}
 
 		private GlyphProvider getGlyphsImpl(StyleSpriteSource source) {
 			return switch (source) {
 				case StyleSpriteSource.Font font ->
-						FontManager.this.getStorageInternal(font.id()).getGlyphs(this.advanceValidating);
+						FontManager.this.getStorageInternal(font.id()).getGlyphs(advanceValidating);
 				case StyleSpriteSource.Sprite sprite -> FontManager.this.getSpriteGlyphs(sprite);
 				case StyleSpriteSource.Player player -> FontManager.this.playerHeadGlyphs.get(player);
-				default -> FontManager.this.missingStorage.getGlyphs(this.advanceValidating);
+				default -> FontManager.this.missingStorage.getGlyphs(advanceValidating);
 			};
 		}
 
 		@Override
 		public GlyphProvider getGlyphs(StyleSpriteSource source) {
-			FontManager.Fonts.Cached cached = this.cached;
-			if (cached != null && source.equals(cached.source)) {
-				return cached.glyphs;
+			FontManager.Fonts.Cached snapshot = cached;
+			if (snapshot != null && source.equals(snapshot.source)) {
+				return snapshot.glyphs;
 			}
-			else {
-				GlyphProvider glyphProvider = this.getGlyphsImpl(source);
-				this.cached = new FontManager.Fonts.Cached(source, glyphProvider);
-				return glyphProvider;
-			}
+
+			GlyphProvider glyphProvider = getGlyphsImpl(source);
+			cached = new FontManager.Fonts.Cached(source, glyphProvider);
+			return glyphProvider;
 		}
 
 		@Override
 		public EffectGlyph getRectangleGlyph() {
-			EffectGlyph effectGlyph = this.rectangle;
+			EffectGlyph effectGlyph = rectangle;
 			if (effectGlyph == null) {
-				effectGlyph =
-						FontManager.this.getStorageInternal(StyleSpriteSource.DEFAULT.id()).getRectangleBakedGlyph();
-				this.rectangle = effectGlyph;
+				effectGlyph = FontManager.this.getStorageInternal(StyleSpriteSource.DEFAULT.id()).getRectangleBakedGlyph();
+				rectangle = effectGlyph;
 			}
 
 			return effectGlyph;
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code Cached}.
-		 */
 		record Cached(StyleSpriteSource source, GlyphProvider glyphs) {
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ProviderIndex}.
-	 */
 	record ProviderIndex(Map<Identifier, List<Font.FontFilterPair>> fontSets, List<Font> allProviders) {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Providers}.
-	 */
 	record Providers(List<FontLoader.Provider> providers) {
 
 		public static final Codec<FontManager.Providers> CODEC = RecordCodecBuilder.create(

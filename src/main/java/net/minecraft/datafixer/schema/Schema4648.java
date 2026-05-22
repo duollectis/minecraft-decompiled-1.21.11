@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4648}.
+ * Схема DataFixer версии 4648, регистрирующая новые морские сущности:
+ * {@code minecraft:nautilus} и {@code minecraft:zombie_nautilus}.
  */
 public class Schema4648 extends IdentifierNormalizingSchema {
 
-	public Schema4648(int i, Schema schema) {
-		super(i, schema);
+	public Schema4648(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

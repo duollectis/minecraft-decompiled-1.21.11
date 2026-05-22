@@ -15,49 +15,61 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ResourceFileSystem}.
+ * Виртуальная файловая система только для чтения, построенная поверх индекса ресурсов.
+ *
+ * <p>Используется для предоставления доступа к ресурсам пакетов через стандартный
+ * Java NIO {@link FileSystem} API. Дерево путей строится один раз при создании
+ * и остаётся иммутабельным на протяжении всего жизненного цикла.</p>
+ *
+ * <p>Создаётся через {@link Builder}: {@code ResourceFileSystem.builder().withFile(...).build(name)}.</p>
  */
 public class ResourceFileSystem extends FileSystem {
 
 	private static final Set<String> SUPPORTED_FILE_ATTRIBUTE_VIEWS = Set.of("basic");
-	public static final String SEPARATOR = "/";
 	private static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
+
+	/** Разделитель путей в этой файловой системе. */
+	public static final String SEPARATOR = "/";
+
 	private final FileStore store;
 	private final FileSystemProvider fileSystemProvider = new ResourceFileSystemProvider();
 	private final ResourcePath root;
 
-	ResourceFileSystem(String name, ResourceFileSystem.Directory root) {
+	ResourceFileSystem(String name, Directory root) {
 		this.store = new ResourceFileStore(name);
 		this.root = toResourcePath(root, this, "", null);
 	}
 
+	/**
+	 * Рекурсивно строит дерево {@link ResourcePath} из структуры {@link Directory}.
+	 *
+	 * <p>Использует {@link Object2ObjectOpenHashMap} для минимизации потребления памяти
+	 * (вызов {@code trim()} после заполнения убирает лишние слоты хэш-таблицы).</p>
+	 */
 	private static ResourcePath toResourcePath(
-			ResourceFileSystem.Directory root,
+			Directory root,
 			ResourceFileSystem fileSystem,
 			String name,
 			@Nullable ResourcePath parent
 	) {
-		Object2ObjectOpenHashMap<String, ResourcePath> object2ObjectOpenHashMap = new Object2ObjectOpenHashMap();
-		ResourcePath
-				resourcePath =
-				new ResourcePath(fileSystem, name, parent, new ResourceFile.Directory(object2ObjectOpenHashMap));
-		root.files
-				.forEach((fileName, path) -> object2ObjectOpenHashMap.put(
-						fileName,
-						new ResourcePath(fileSystem, fileName, resourcePath, new ResourceFile.File(path))
-				));
-		root.children
-				.forEach((directoryName, directory) -> object2ObjectOpenHashMap.put(
-						directoryName,
-						toResourcePath(directory, fileSystem, directoryName, resourcePath)
-				));
-		object2ObjectOpenHashMap.trim();
+		Object2ObjectOpenHashMap<String, ResourcePath> children = new Object2ObjectOpenHashMap<>();
+		ResourcePath resourcePath = new ResourcePath(fileSystem, name, parent, new ResourceFile.Directory(children));
+
+		root.files.forEach((fileName, path) ->
+				children.put(fileName, new ResourcePath(fileSystem, fileName, resourcePath, new ResourceFile.File(path)))
+		);
+
+		root.children.forEach((directoryName, directory) ->
+				children.put(directoryName, toResourcePath(directory, fileSystem, directoryName, resourcePath))
+		);
+
+		children.trim();
 		return resourcePath;
 	}
 
 	@Override
 	public FileSystemProvider provider() {
-		return this.fileSystemProvider;
+		return fileSystemProvider;
 	}
 
 	@Override
@@ -76,17 +88,17 @@ public class ResourceFileSystem extends FileSystem {
 
 	@Override
 	public String getSeparator() {
-		return "/";
+		return SEPARATOR;
 	}
 
 	@Override
 	public Iterable<Path> getRootDirectories() {
-		return List.of(this.root);
+		return List.of(root);
 	}
 
 	@Override
 	public Iterable<FileStore> getFileStores() {
-		return List.of(this.store);
+		return List.of(store);
 	}
 
 	@Override
@@ -94,48 +106,57 @@ public class ResourceFileSystem extends FileSystem {
 		return SUPPORTED_FILE_ATTRIBUTE_VIEWS;
 	}
 
+	/**
+	 * Разрешает путь по строковым компонентам.
+	 *
+	 * <p>Абсолютные пути (начинающиеся с {@code /}) разрешаются от корня файловой системы.
+	 * Относительные пути создают цепочку {@link ResourcePath} с маркером {@link ResourceFile#RELATIVE}.</p>
+	 *
+	 * @throws IllegalArgumentException если путь содержит пустые сегменты
+	 */
 	@Override
 	public Path getPath(String first, String... more) {
-		Stream<String> stream = Stream.of(first);
+		Stream<String> parts = Stream.of(first);
+
 		if (more.length > 0) {
-			stream = Stream.concat(stream, Stream.of(more));
+			parts = Stream.concat(parts, Stream.of(more));
 		}
 
-		String string = stream.collect(Collectors.joining("/"));
-		if (string.equals("/")) {
-			return this.root;
-		}
-		else if (string.startsWith("/")) {
-			ResourcePath resourcePath = this.root;
+		String fullPath = parts.collect(Collectors.joining(SEPARATOR));
 
-			for (String string2 : SEPARATOR_SPLITTER.split(string.substring(1))) {
-				if (string2.isEmpty()) {
+		if (fullPath.equals(SEPARATOR)) {
+			return root;
+		}
+
+		if (fullPath.startsWith(SEPARATOR)) {
+			ResourcePath current = root;
+
+			for (String segment : SEPARATOR_SPLITTER.split(fullPath.substring(1))) {
+				if (segment.isEmpty()) {
 					throw new IllegalArgumentException("Empty paths not allowed");
 				}
 
-				resourcePath = resourcePath.get(string2);
+				current = current.get(segment);
 			}
 
-			return resourcePath;
+			return current;
 		}
-		else {
-			ResourcePath resourcePath = null;
 
-			for (String string2 : SEPARATOR_SPLITTER.split(string)) {
-				if (string2.isEmpty()) {
-					throw new IllegalArgumentException("Empty paths not allowed");
-				}
+		ResourcePath current = null;
 
-				resourcePath = new ResourcePath(this, string2, resourcePath, ResourceFile.RELATIVE);
-			}
-
-			if (resourcePath == null) {
+		for (String segment : SEPARATOR_SPLITTER.split(fullPath)) {
+			if (segment.isEmpty()) {
 				throw new IllegalArgumentException("Empty paths not allowed");
 			}
-			else {
-				return resourcePath;
-			}
+
+			current = new ResourcePath(this, segment, current, ResourceFile.RELATIVE);
 		}
+
+		if (current == null) {
+			throw new IllegalArgumentException("Empty paths not allowed");
+		}
+
+		return current;
 	}
 
 	@Override
@@ -154,55 +175,73 @@ public class ResourceFileSystem extends FileSystem {
 	}
 
 	public FileStore getStore() {
-		return this.store;
+		return store;
 	}
 
 	public ResourcePath getRoot() {
-		return this.root;
+		return root;
 	}
 
-	public static ResourceFileSystem.Builder builder() {
-		return new ResourceFileSystem.Builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель виртуальной файловой системы.
+	 *
+	 * <p>Позволяет добавлять файлы по пути из списка директорий и имени файла.
+	 * После вызова {@link #build(String)} дерево фиксируется и становится иммутабельным.</p>
 	 */
 	public static class Builder {
 
-		private final ResourceFileSystem.Directory root = new ResourceFileSystem.Directory();
+		private final Directory root = new Directory();
 
-		public ResourceFileSystem.Builder withFile(List<String> directories, String name, Path path) {
-			ResourceFileSystem.Directory directory = this.root;
+		/**
+		 * Добавляет файл по явно указанному пути директорий и имени.
+		 *
+		 * @param directories список сегментов пути директорий
+		 * @param name имя файла
+		 * @param path физический путь к содержимому
+		 */
+		public Builder withFile(List<String> directories, String name, Path path) {
+			Directory directory = root;
 
-			for (String string : directories) {
-				directory =
-						directory.children.computeIfAbsent(string, directoryx -> new ResourceFileSystem.Directory());
+			for (String segment : directories) {
+				directory = directory.children.computeIfAbsent(segment, key -> new Directory());
 			}
 
 			directory.files.put(name, path);
 			return this;
 		}
 
-		public ResourceFileSystem.Builder withFile(List<String> directories, Path path) {
+		/**
+		 * Добавляет файл, используя последний элемент списка как имя файла.
+		 *
+		 * @param directories список сегментов пути (последний — имя файла)
+		 * @param path физический путь к содержимому
+		 * @throws IllegalArgumentException если список пуст
+		 */
+		public Builder withFile(List<String> directories, Path path) {
 			if (directories.isEmpty()) {
 				throw new IllegalArgumentException("Path can't be empty");
 			}
-			else {
-				int i = directories.size() - 1;
-				return this.withFile(directories.subList(0, i), directories.get(i), path);
-			}
+
+			int lastIndex = directories.size() - 1;
+			return withFile(directories.subList(0, lastIndex), directories.get(lastIndex), path);
 		}
 
 		public FileSystem build(String name) {
-			return new ResourceFileSystem(name, this.root);
+			return new ResourceFileSystem(name, root);
 		}
 	}
 
 	/**
-	 * {@code Directory}.
+	 * Узел директории в дереве виртуальной файловой системы.
+	 *
+	 * @param children вложенные директории, индексированные по имени
+	 * @param files файлы в этой директории, индексированные по имени
 	 */
-	record Directory(Map<String, ResourceFileSystem.Directory> children, Map<String, Path> files) {
+	record Directory(Map<String, Directory> children, Map<String, Path> files) {
 
 		public Directory() {
 			this(new HashMap<>(), new HashMap<>());

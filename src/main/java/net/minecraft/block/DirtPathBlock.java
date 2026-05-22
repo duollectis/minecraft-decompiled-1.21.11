@@ -13,7 +13,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code DirtPathBlock}.
+ * Утоптанная грунтовая тропа — блок на 1 пиксель ниже стандартного, превращается
+ * в обычный грунт при размещении сверху твёрдого блока.
  */
 public class DirtPathBlock extends Block {
 
@@ -36,14 +37,14 @@ public class DirtPathBlock extends Block {
 
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
-		return !this.getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos())
-		       ? Block.pushEntitiesUpBeforeBlockChange(
-				this.getDefaultState(),
+		return getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos())
+			? super.getPlacementState(ctx)
+			: Block.pushEntitiesUpBeforeBlockChange(
+				getDefaultState(),
 				Blocks.DIRT.getDefaultState(),
 				ctx.getWorld(),
 				ctx.getBlockPos()
-		)
-		       : super.getPlacementState(ctx);
+			);
 	}
 
 	@Override
@@ -57,7 +58,7 @@ public class DirtPathBlock extends Block {
 			BlockState neighborState,
 			Random random
 	) {
-		if (direction == Direction.UP && !state.canPlaceAt(world, pos)) {
+		if (direction == Direction.UP && state.canPlaceAt(world, pos) == false) {
 			tickView.scheduleBlockTick(pos, this, 1);
 		}
 
@@ -80,8 +81,9 @@ public class DirtPathBlock extends Block {
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockState blockState = world.getBlockState(pos.up());
-		return !blockState.isSolid() || blockState.getBlock() instanceof FenceGateBlock;
+		BlockState above = world.getBlockState(pos.up());
+
+		return above.isSolid() == false || above.getBlock() instanceof FenceGateBlock;
 	}
 
 	@Override

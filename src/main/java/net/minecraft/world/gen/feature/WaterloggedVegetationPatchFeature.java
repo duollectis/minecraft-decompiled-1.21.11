@@ -15,7 +15,9 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * {@code WaterloggedVegetationPatchFeature}.
+ * Расширение {@link VegetationPatchFeature} для подводных патчей.
+ * После размещения грунта заполняет позиции без твёрдых соседей водой,
+ * а растительность помечает как waterlogged.
  */
 public class WaterloggedVegetationPatchFeature extends VegetationPatchFeature {
 
@@ -25,72 +27,72 @@ public class WaterloggedVegetationPatchFeature extends VegetationPatchFeature {
 
 	@Override
 	protected Set<BlockPos> placeGroundAndGetPositions(
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			Random random,
-			BlockPos pos,
-			Predicate<BlockState> replaceable,
-			int radiusX,
-			int radiusZ
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		Random random,
+		BlockPos pos,
+		Predicate<BlockState> replaceable,
+		int radiusX,
+		int radiusZ
 	) {
-		Set<BlockPos> set = super.placeGroundAndGetPositions(world, config, random, pos, replaceable, radiusX, radiusZ);
-		Set<BlockPos> set2 = new HashSet<>();
+		Set<BlockPos> groundPositions = super.placeGroundAndGetPositions(world, config, random, pos, replaceable, radiusX, radiusZ);
+		Set<BlockPos> waterPositions = new HashSet<>();
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (BlockPos blockPos : set) {
-			if (!isSolidBlockAroundPos(world, set, blockPos, mutable)) {
-				set2.add(blockPos);
+		for (BlockPos groundPos : groundPositions) {
+			if (!isSolidBlockAroundPos(world, groundPositions, groundPos, mutable)) {
+				waterPositions.add(groundPos);
 			}
 		}
 
-		for (BlockPos blockPosx : set2) {
-			world.setBlockState(blockPosx, Blocks.WATER.getDefaultState(), 2);
+		for (BlockPos waterPos : waterPositions) {
+			world.setBlockState(waterPos, Blocks.WATER.getDefaultState(), 2);
 		}
 
-		return set2;
+		return waterPositions;
 	}
 
 	private static boolean isSolidBlockAroundPos(
-			StructureWorldAccess world,
-			Set<BlockPos> positions,
-			BlockPos pos,
-			BlockPos.Mutable mutablePos
+		StructureWorldAccess world,
+		Set<BlockPos> positions,
+		BlockPos pos,
+		BlockPos.Mutable mutable
 	) {
-		return isSolidBlockSide(world, pos, mutablePos, Direction.NORTH)
-				|| isSolidBlockSide(world, pos, mutablePos, Direction.EAST)
-				|| isSolidBlockSide(world, pos, mutablePos, Direction.SOUTH)
-				|| isSolidBlockSide(world, pos, mutablePos, Direction.WEST)
-				|| isSolidBlockSide(world, pos, mutablePos, Direction.DOWN);
+		return isSolidBlockSide(world, pos, mutable, Direction.NORTH)
+			|| isSolidBlockSide(world, pos, mutable, Direction.EAST)
+			|| isSolidBlockSide(world, pos, mutable, Direction.SOUTH)
+			|| isSolidBlockSide(world, pos, mutable, Direction.WEST)
+			|| isSolidBlockSide(world, pos, mutable, Direction.DOWN);
 	}
 
 	private static boolean isSolidBlockSide(
-			StructureWorldAccess world,
-			BlockPos pos,
-			BlockPos.Mutable mutablePos,
-			Direction direction
+		StructureWorldAccess world,
+		BlockPos pos,
+		BlockPos.Mutable mutable,
+		Direction direction
 	) {
-		mutablePos.set(pos, direction);
-		return !world.getBlockState(mutablePos).isSideSolidFullSquare(world, mutablePos, direction.getOpposite());
+		mutable.set(pos, direction);
+		return !world.getBlockState(mutable).isSideSolidFullSquare(world, mutable, direction.getOpposite());
 	}
 
 	@Override
 	protected boolean generateVegetationFeature(
-			StructureWorldAccess world,
-			VegetationPatchFeatureConfig config,
-			ChunkGenerator generator,
-			Random random,
-			BlockPos pos
+		StructureWorldAccess world,
+		VegetationPatchFeatureConfig config,
+		ChunkGenerator generator,
+		Random random,
+		BlockPos pos
 	) {
-		if (super.generateVegetationFeature(world, config, generator, random, pos.down())) {
-			BlockState blockState = world.getBlockState(pos);
-			if (blockState.contains(Properties.WATERLOGGED) && !blockState.get(Properties.WATERLOGGED)) {
-				world.setBlockState(pos, blockState.with(Properties.WATERLOGGED, true), 2);
-			}
-
-			return true;
-		}
-		else {
+		if (!super.generateVegetationFeature(world, config, generator, random, pos.down())) {
 			return false;
 		}
+
+		BlockState placed = world.getBlockState(pos);
+
+		if (placed.contains(Properties.WATERLOGGED) && !placed.get(Properties.WATERLOGGED)) {
+			world.setBlockState(pos, placed.with(Properties.WATERLOGGED, true), 2);
+		}
+
+		return true;
 	}
 }

@@ -6,10 +6,11 @@ import net.minecraft.util.Identifier;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Baker}.
+ * Контекст запекания модели: предоставляет доступ к уже запечённым простым моделям,
+ * спрайтам, интернеру вершин и кэшу вычислений для избежания повторного запекания.
  */
+@Environment(EnvType.CLIENT)
 public interface Baker {
 
 	BakedSimpleModel getModel(Identifier id);
@@ -22,26 +23,28 @@ public interface Baker {
 
 	<T> T compute(Baker.ResolvableCacheKey<T> key);
 
+	/**
+	 * Ключ кэша для вычислений, зависящих от {@link Baker}.
+	 * Позволяет избежать повторного запекания одной и той же модели в рамках одного прохода.
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ResolvableCacheKey}.
-	 */
-	public interface ResolvableCacheKey<T> {
+	interface ResolvableCacheKey<T> {
 
 		T compute(Baker baker);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code VertexInterner}.
+	 * Интернер вершин: дедуплицирует {@link Vector3fc} объекты для экономии памяти
+	 * при запекании геометрии с повторяющимися позициями вершин.
 	 */
-	public interface VertexInterner {
+	@Environment(EnvType.CLIENT)
+	interface VertexInterner {
 
-		default Vector3fc intern(float f, float g, float h) {
-			return this.internVector(new Vector3f(f, g, h));
+		default Vector3fc intern(float x, float y, float z) {
+			return internVector(new Vector3f(x, y, z));
 		}
 
-		Vector3fc internVector(Vector3fc vector3fc);
+		Vector3fc internVector(Vector3fc vector);
 	}
 }

@@ -12,20 +12,19 @@ import net.minecraft.util.Util;
 
 import java.net.URI;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SymlinkWarningScreen}.
+ * Экран предупреждения о символических ссылках в директории мира или пакета ресурсов.
+ * Информирует пользователя о потенциальных рисках безопасности и предлагает ссылку на документацию.
  */
+@Environment(EnvType.CLIENT)
 public class SymlinkWarningScreen extends Screen {
 
+	private static final int BUTTON_WIDTH = 120;
 	private static final Text WORLD_TITLE = Text.translatable("symlink_warning.title.world").formatted(Formatting.BOLD);
-	private static final Text
-			WORLD_MESSAGE =
-			Text.translatable("symlink_warning.message.world", Text.of(Urls.MINECRAFT_SYMLINKS));
+	private static final Text WORLD_MESSAGE = Text.translatable("symlink_warning.message.world", Text.of(Urls.MINECRAFT_SYMLINKS));
 	private static final Text PACK_TITLE = Text.translatable("symlink_warning.title.pack").formatted(Formatting.BOLD);
-	private static final Text
-			PACK_MESSAGE =
-			Text.translatable("symlink_warning.message.pack", Text.of(Urls.MINECRAFT_SYMLINKS));
+	private static final Text PACK_MESSAGE = Text.translatable("symlink_warning.message.pack", Text.of(Urls.MINECRAFT_SYMLINKS));
+
 	private final Text message;
 	private final URI link;
 	private final Runnable onClose;
@@ -38,24 +37,10 @@ public class SymlinkWarningScreen extends Screen {
 		this.onClose = onClose;
 	}
 
-	/**
-	 * World.
-	 *
-	 * @param onClose on close
-	 *
-	 * @return Screen — результат операции
-	 */
 	public static Screen world(Runnable onClose) {
 		return new SymlinkWarningScreen(WORLD_TITLE, WORLD_MESSAGE, Urls.MINECRAFT_SYMLINKS, onClose);
 	}
 
-	/**
-	 * Pack.
-	 *
-	 * @param onClose on close
-	 *
-	 * @return Screen — результат операции
-	 */
 	public static Screen pack(Runnable onClose) {
 		return new SymlinkWarningScreen(PACK_TITLE, PACK_MESSAGE, Urls.MINECRAFT_SYMLINKS, onClose);
 	}
@@ -63,47 +48,49 @@ public class SymlinkWarningScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		this.grid.getMainPositioner().alignHorizontalCenter();
-		GridWidget.Adder adder = this.grid.createAdder(1);
-		adder.add(new TextWidget(this.title, this.textRenderer));
-		adder.add(new MultilineTextWidget(this.message, this.textRenderer)
-				.setMaxWidth(this.width - 50)
+		grid.getMainPositioner().alignHorizontalCenter();
+
+		GridWidget.Adder adder = grid.createAdder(1);
+		adder.add(new TextWidget(title, textRenderer));
+		adder.add(new MultilineTextWidget(message, textRenderer)
+				.setMaxWidth(width - 50)
 				.setCentered(true));
-		int i = 120;
-		GridWidget gridWidget = new GridWidget().setColumnSpacing(5);
-		GridWidget.Adder adder2 = gridWidget.createAdder(3);
-		adder2.add(ButtonWidget
-				.builder(ScreenTexts.OPEN_LINK, button -> Util.getOperatingSystem().open(this.link))
-				.size(120, 20)
+
+		GridWidget buttonGrid = new GridWidget().setColumnSpacing(5);
+		GridWidget.Adder buttonAdder = buttonGrid.createAdder(3);
+		buttonAdder.add(ButtonWidget
+				.builder(ScreenTexts.OPEN_LINK, button -> Util.getOperatingSystem().open(link))
+				.size(BUTTON_WIDTH, 20)
 				.build());
-		adder2.add(
+		buttonAdder.add(
 				ButtonWidget
 						.builder(
 								ScreenTexts.COPY_LINK_TO_CLIPBOARD,
-								button -> this.client.keyboard.setClipboard(this.link.toString())
+								button -> client.keyboard.setClipboard(link.toString())
 						)
-						.size(120, 20)
+						.size(BUTTON_WIDTH, 20)
 						.build()
 		);
-		adder2.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).size(120, 20).build());
-		adder.add(gridWidget);
-		this.refreshWidgetPositions();
-		this.grid.forEachChild(this::addDrawableChild);
+		buttonAdder.add(ButtonWidget.builder(ScreenTexts.BACK, button -> close()).size(BUTTON_WIDTH, 20).build());
+		adder.add(buttonGrid);
+
+		refreshWidgetPositions();
+		grid.forEachChild(this::addDrawableChild);
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.grid.refreshPositions();
-		SimplePositioningWidget.setPos(this.grid, this.getNavigationFocus());
+		grid.refreshPositions();
+		SimplePositioningWidget.setPos(grid, getNavigationFocus());
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return ScreenTexts.joinSentences(super.getNarratedTitle(), this.message);
+		return ScreenTexts.joinSentences(super.getNarratedTitle(), message);
 	}
 
 	@Override
 	public void close() {
-		this.onClose.run();
+		onClose.run();
 	}
 }

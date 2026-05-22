@@ -20,11 +20,20 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * {@code BoneMealTask}.
+ * Задача мозга жителя-фермера, применяющая костную муку к незрелым посевам в радиусе 1 блока.
+ * Выполняется не чаще одного раза в {@code BONE_MEAL_INTERVAL} тиков и с кулдауном {@code COOLDOWN_TICKS}.
  */
 public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 
 	private static final int MAX_DURATION = 80;
+	private static final long COOLDOWN_TICKS = 160L;
+	private static final int BONE_MEAL_INTERVAL = 10;
+	private static final int BONE_MEAL_WALK_SPEED_FACTOR = 1;
+	private static final float BONE_MEAL_WALK_SPEED = 0.5F;
+	private static final int BONE_MEAL_NEXT_TICK_DELAY = 40;
+	private static final int WORLD_EVENT_BONE_MEAL = 1505;
+	private static final int BONE_MEAL_PARTICLE_COUNT = 15;
+	private static final double BONE_MEAL_REACH_DISTANCE = 1.0;
 	private long startTime;
 	private long lastEndEntityAge;
 	private int duration;
@@ -39,135 +48,103 @@ public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 		));
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		if (villagerEntity.age % 10 == 0 && (this.lastEndEntityAge == 0L
-				|| this.lastEndEntityAge + 160L <= villagerEntity.age
-		)) {
-			if (villagerEntity.getInventory().count(Items.BONE_MEAL) <= 0) {
-				return false;
-			}
-			else {
-				this.pos = this.findBoneMealPos(serverWorld, villagerEntity);
-				return this.pos.isPresent();
-			}
-		}
-		else {
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		if (entity.age % BONE_MEAL_INTERVAL != 0) {
 			return false;
 		}
+
+		if (lastEndEntityAge != 0L && lastEndEntityAge + COOLDOWN_TICKS > entity.age) {
+			return false;
+		}
+
+		if (entity.getInventory().count(Items.BONE_MEAL) <= 0) {
+			return false;
+		}
+
+		pos = findBoneMealPos(world, entity);
+		return pos.isPresent();
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return this.duration < 80 && this.pos.isPresent();
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return duration < MAX_DURATION && pos.isPresent();
 	}
 
 	private Optional<BlockPos> findBoneMealPos(ServerWorld world, VillagerEntity entity) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
-		Optional<BlockPos> optional = Optional.empty();
-		int i = 0;
+		Optional<BlockPos> result = Optional.empty();
+		int count = 0;
 
-		for (int j = -1; j <= 1; j++) {
-			for (int k = -1; k <= 1; k++) {
-				for (int l = -1; l <= 1; l++) {
-					mutable.set(entity.getBlockPos(), j, k, l);
-					if (this.canBoneMeal(mutable, world)) {
-						if (world.random.nextInt(++i) == 0) {
-							optional = Optional.of(mutable.toImmutable());
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					mutable.set(entity.getBlockPos(), dx, dy, dz);
+					if (canBoneMeal(mutable, world)) {
+						if (world.random.nextInt(++count) == 0) {
+							result = Optional.of(mutable.toImmutable());
 						}
 					}
 				}
 			}
 		}
 
-		return optional;
+		return result;
 	}
 
 	private boolean canBoneMeal(BlockPos pos, ServerWorld world) {
 		BlockState blockState = world.getBlockState(pos);
 		Block block = blockState.getBlock();
-		return block instanceof CropBlock && !((CropBlock) block).isMature(blockState);
+		return block instanceof CropBlock cropBlock && !cropBlock.isMature(blockState);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.addLookWalkTargets(villagerEntity);
-		villagerEntity.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BONE_MEAL));
-		this.startTime = l;
-		this.duration = 0;
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		addLookWalkTargets(entity);
+		entity.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BONE_MEAL));
+		startTime = time;
+		duration = 0;
 	}
 
 	private void addLookWalkTargets(VillagerEntity villager) {
-		this.pos.ifPresent(pos -> {
-			BlockPosLookTarget blockPosLookTarget = new BlockPosLookTarget(pos);
-			villager.getBrain().remember(MemoryModuleType.LOOK_TARGET, blockPosLookTarget);
-			villager.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(blockPosLookTarget, 0.5F, 1));
+		pos.ifPresent(targetPos -> {
+			BlockPosLookTarget lookTarget = new BlockPosLookTarget(targetPos);
+			villager.getBrain().remember(MemoryModuleType.LOOK_TARGET, lookTarget);
+			villager.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(lookTarget, BONE_MEAL_WALK_SPEED, BONE_MEAL_WALK_SPEED_FACTOR));
 		});
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		villagerEntity.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-		this.lastEndEntityAge = villagerEntity.age;
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		entity.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		lastEndEntityAge = entity.age;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		BlockPos blockPos = this.pos.get();
-		if (l >= this.startTime && blockPos.isWithinDistance(villagerEntity.getEntityPos(), 1.0)) {
-			ItemStack itemStack = ItemStack.EMPTY;
-			SimpleInventory simpleInventory = villagerEntity.getInventory();
-			int i = simpleInventory.size();
-
-			for (int j = 0; j < i; j++) {
-				ItemStack itemStack2 = simpleInventory.getStack(j);
-				if (itemStack2.isOf(Items.BONE_MEAL)) {
-					itemStack = itemStack2;
-					break;
-				}
-			}
-
-			if (!itemStack.isEmpty() && BoneMealItem.useOnFertilizable(itemStack, serverWorld, blockPos)) {
-				serverWorld.syncWorldEvent(1505, blockPos, 15);
-				this.pos = this.findBoneMealPos(serverWorld, villagerEntity);
-				this.addLookWalkTargets(villagerEntity);
-				this.startTime = l + 40L;
-			}
-
-			this.duration++;
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		BlockPos targetPos = pos.get();
+		if (time < startTime || !targetPos.isWithinDistance(entity.getEntityPos(), BONE_MEAL_REACH_DISTANCE)) {
+			return;
 		}
+
+		ItemStack boneMeal = ItemStack.EMPTY;
+		SimpleInventory inventory = entity.getInventory();
+
+		for (int slot = 0; slot < inventory.size(); slot++) {
+			ItemStack stack = inventory.getStack(slot);
+			if (stack.isOf(Items.BONE_MEAL)) {
+				boneMeal = stack;
+				break;
+			}
+		}
+
+		if (!boneMeal.isEmpty() && BoneMealItem.useOnFertilizable(boneMeal, world, targetPos)) {
+			world.syncWorldEvent(WORLD_EVENT_BONE_MEAL, targetPos, BONE_MEAL_PARTICLE_COUNT);
+			pos = findBoneMealPos(world, entity);
+			addLookWalkTargets(entity);
+			startTime = time + BONE_MEAL_NEXT_TICK_DELAY;
+		}
+
+		duration++;
 	}
 }

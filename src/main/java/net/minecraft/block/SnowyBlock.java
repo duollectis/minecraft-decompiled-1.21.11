@@ -13,7 +13,9 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code SnowyBlock}.
+ * Базовый блок, реагирующий на наличие снега сверху: хранит булево состояние
+ * {@code SNOWY}, которое обновляется при изменении соседнего блока над ним.
+ * Используется для травяных блоков и мицелия, меняющих текстуру под снегом.
  */
 public class SnowyBlock extends Block {
 

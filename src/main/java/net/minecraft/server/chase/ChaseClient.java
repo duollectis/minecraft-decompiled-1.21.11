@@ -26,12 +26,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * {@code ChaseClient}.
+ * Клиент системы Chase — подключается к {@link ChaseServer} и непрерывно выполняет
+ * команды телепортации, транслируемые сервером. Используется для синхронизации позиции
+ * игрока между несколькими серверами в режиме разработки.
  */
 public class ChaseClient {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int CONNECTION_RETRY_INTERVAL = 5;
+	private static final int RETRY_INTERVAL_MS = 5000;
+	private static final int RETRY_INTERVAL_SECONDS = 5;
+
 	private final String ip;
 	private final int port;
 	private final MinecraftServer minecraftServer;
@@ -45,71 +49,54 @@ public class ChaseClient {
 		this.minecraftServer = minecraftServer;
 	}
 
-	/**
-	 * Start.
-	 */
 	public void start() {
-		if (this.thread != null && this.thread.isAlive()) {
+		if (thread != null && thread.isAlive()) {
 			LOGGER.warn("Remote control client was asked to start, but it is already running. Will ignore.");
 		}
 
-		this.running = true;
-		this.thread = new Thread(this::run, "chase-client");
-		this.thread.setDaemon(true);
-		this.thread.start();
+		running = true;
+		thread = new Thread(this::run, "chase-client");
+		thread.setDaemon(true);
+		thread.start();
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
-		this.running = false;
-		IOUtils.closeQuietly(this.socket);
-		this.socket = null;
-		this.thread = null;
+		running = false;
+		IOUtils.closeQuietly(socket);
+		socket = null;
+		thread = null;
 	}
 
-	/**
-	 * Run.
-	 */
 	public void run() {
-		String string = this.ip + ":" + this.port;
+		String address = ip + ":" + port;
 
-		while (this.running) {
+		while (running) {
 			try {
-				LOGGER.info("Connecting to remote control server {}", string);
-				this.socket = new Socket(this.ip, this.port);
-				LOGGER.info(
-						"Connected to remote control server! Will continuously execute the command broadcasted by that server.");
+				LOGGER.info("Connecting to remote control server {}", address);
+				socket = new Socket(ip, port);
+				LOGGER.info("Connected to remote control server! Will continuously execute the command broadcasted by that server.");
 
-				try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
-						this.socket.getInputStream(),
-						StandardCharsets.US_ASCII
-				))
-				) {
-					while (this.running) {
-						String string2 = bufferedReader.readLine();
-						if (string2 == null) {
-							LOGGER.warn("Lost connection to remote control server {}. Will retry in {}s.", string, 5);
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII))) {
+					while (running) {
+						String line = reader.readLine();
+						if (line == null) {
+							LOGGER.warn("Lost connection to remote control server {}. Will retry in {}s.", address, RETRY_INTERVAL_SECONDS);
 							break;
 						}
 
-						this.parseMessage(string2);
+						parseMessage(line);
 					}
+				} catch (IOException exception) {
+					LOGGER.warn("Lost connection to remote control server {}. Will retry in {}s.", address, RETRY_INTERVAL_SECONDS);
 				}
-				catch (IOException var8) {
-					LOGGER.warn("Lost connection to remote control server {}. Will retry in {}s.", string, 5);
-				}
-			}
-			catch (IOException var9) {
-				LOGGER.warn("Failed to connect to remote control server {}. Will retry in {}s.", string, 5);
+			} catch (IOException exception) {
+				LOGGER.warn("Failed to connect to remote control server {}. Will retry in {}s.", address, RETRY_INTERVAL_SECONDS);
 			}
 
-			if (this.running) {
+			if (running) {
 				try {
-					Thread.sleep(5000L);
-				}
-				catch (InterruptedException var5) {
+					Thread.sleep(RETRY_INTERVAL_MS);
+				} catch (InterruptedException ignored) {
 				}
 			}
 		}
@@ -118,81 +105,71 @@ public class ChaseClient {
 	private void parseMessage(String message) {
 		try (Scanner scanner = new Scanner(new StringReader(message))) {
 			scanner.useLocale(Locale.ROOT);
-			String string = scanner.next();
-			if ("t".equals(string)) {
-				this.executeTeleportCommand(scanner);
+			String type = scanner.next();
+			if ("t".equals(type)) {
+				executeTeleportCommand(scanner);
+			} else {
+				LOGGER.warn("Unknown message type '{}'", type);
 			}
-			else {
-				LOGGER.warn("Unknown message type '{}'", string);
-			}
-		}
-		catch (NoSuchElementException var7) {
+		} catch (NoSuchElementException exception) {
 			LOGGER.warn("Could not parse message '{}', ignoring", message);
 		}
 	}
 
 	private void executeTeleportCommand(Scanner scanner) {
-		this.getTeleportPos(scanner)
-		    .ifPresent(
-				    pos -> this.executeCommand(
-						    String.format(
-								    Locale.ROOT,
-								    "execute in %s run tp @s %.3f %.3f %.3f %.3f %.3f",
-								    pos.dimension.getValue(),
-								    pos.pos.x,
-								    pos.pos.y,
-								    pos.pos.z,
-								    pos.rot.y,
-								    pos.rot.x
-						    )
-				    )
-		    );
+		getTeleportPos(scanner).ifPresent(pos -> executeCommand(
+				String.format(
+						Locale.ROOT,
+						"execute in %s run tp @s %.3f %.3f %.3f %.3f %.3f",
+						pos.dimension.getValue(),
+						pos.pos.x,
+						pos.pos.y,
+						pos.pos.z,
+						pos.rot.y,
+						pos.rot.x
+				)
+		));
 	}
 
-	private Optional<ChaseClient.TeleportPos> getTeleportPos(Scanner scanner) {
-		RegistryKey<World> registryKey = (RegistryKey<World>) ChaseCommand.DIMENSIONS.get(scanner.next());
-		if (registryKey == null) {
+	@SuppressWarnings("unchecked")
+	private Optional<TeleportPos> getTeleportPos(Scanner scanner) {
+		RegistryKey<World> dimension = (RegistryKey<World>) ChaseCommand.DIMENSIONS.get(scanner.next());
+		if (dimension == null) {
 			return Optional.empty();
 		}
-		else {
-			float f = scanner.nextFloat();
-			float g = scanner.nextFloat();
-			float h = scanner.nextFloat();
-			float i = scanner.nextFloat();
-			float j = scanner.nextFloat();
-			return Optional.of(new ChaseClient.TeleportPos(registryKey, new Vec3d(f, g, h), new Vec2f(j, i)));
-		}
+
+		float x = scanner.nextFloat();
+		float y = scanner.nextFloat();
+		float z = scanner.nextFloat();
+		float yaw = scanner.nextFloat();
+		float pitch = scanner.nextFloat();
+		return Optional.of(new TeleportPos(dimension, new Vec3d(x, y, z), new Vec2f(pitch, yaw)));
 	}
 
 	private void executeCommand(String command) {
-		this.minecraftServer
-				.execute(
-						() -> {
-							List<ServerPlayerEntity> list = this.minecraftServer.getPlayerManager().getPlayerList();
-							if (!list.isEmpty()) {
-								ServerPlayerEntity serverPlayerEntity = list.get(0);
-								ServerWorld serverWorld = this.minecraftServer.getOverworld();
-								ServerCommandSource serverCommandSource = new ServerCommandSource(
-										serverPlayerEntity.getCommandOutput(),
-										Vec3d.of(serverWorld.getSpawnPoint().getPos()),
-										Vec2f.ZERO,
-										serverWorld,
-										LeveledPermissionPredicate.OWNERS,
-										"",
-										ScreenTexts.EMPTY,
-										this.minecraftServer,
-										serverPlayerEntity
-								);
-								CommandManager commandManager = this.minecraftServer.getCommandManager();
-								commandManager.parseAndExecute(serverCommandSource, command);
-							}
-						}
-				);
+		minecraftServer.execute(() -> {
+			List<ServerPlayerEntity> players = minecraftServer.getPlayerManager().getPlayerList();
+			if (players.isEmpty()) {
+				return;
+			}
+
+			ServerPlayerEntity player = players.get(0);
+			ServerWorld world = minecraftServer.getOverworld();
+			ServerCommandSource source = new ServerCommandSource(
+					player.getCommandOutput(),
+					Vec3d.of(world.getSpawnPoint().getPos()),
+					Vec2f.ZERO,
+					world,
+					LeveledPermissionPredicate.OWNERS,
+					"",
+					ScreenTexts.EMPTY,
+					minecraftServer,
+					player
+			);
+			minecraftServer.getCommandManager().parseAndExecute(source, command);
+		});
 	}
 
-	/**
-	 * {@code TeleportPos}.
-	 */
 	record TeleportPos(RegistryKey<World> dimension, Vec3d pos, Vec2f rot) {
 	}
 }

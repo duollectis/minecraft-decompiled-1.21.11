@@ -13,40 +13,41 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.Objects;
 
 /**
- * {@code BlockNameFlatteningFix}.
+ * Конвертирует имена блоков из устаревшего формата (числовой ID или строка без namespace)
+ * в новый формат с полным namespace-идентификатором через {@link BlockStateFlattening}.
  */
 public class BlockNameFlatteningFix extends DataFix {
 
-	public BlockNameFlatteningFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public BlockNameFlatteningFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_NAME);
-		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.BLOCK_NAME);
-		Type<Pair<String, Either<Integer, String>>> type3 = DSL.named(
+		Type<?> inputType = getInputSchema().getType(TypeReferences.BLOCK_NAME);
+		Type<?> outputType = getOutputSchema().getType(TypeReferences.BLOCK_NAME);
+		Type<Pair<String, Either<Integer, String>>> legacyType = DSL.named(
 				TypeReferences.BLOCK_NAME.typeName(),
 				DSL.or(DSL.intType(), IdentifierNormalizingSchema.getIdentifierType())
 		);
-		Type<Pair<String, String>>
-				type4 =
+		Type<Pair<String, String>> modernType =
 				DSL.named(TypeReferences.BLOCK_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-		if (Objects.equals(type, type3) && Objects.equals(type2, type4)) {
-			return this.fixTypeEverywhere(
+
+		if (Objects.equals(inputType, legacyType) && Objects.equals(outputType, modernType)) {
+			return fixTypeEverywhere(
 					"BlockNameFlatteningFix",
-					type3,
-					type4,
+					legacyType,
+					modernType,
 					dynamicOps -> pair -> pair.mapSecond(
 							either -> (String) either.map(
 									BlockStateFlattening::lookupStateBlock,
-									string -> BlockStateFlattening.lookupBlock(IdentifierNormalizingSchema.normalize(
-											string))
+									string -> BlockStateFlattening.lookupBlock(
+											IdentifierNormalizingSchema.normalize(string)
+									)
 							)
 					)
 			);
 		}
-		else {
-			throw new IllegalStateException("Expected and actual types don't match.");
-		}
+
+		throw new IllegalStateException("Expected and actual types don't match.");
 	}
 }

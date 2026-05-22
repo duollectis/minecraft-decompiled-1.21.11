@@ -1,6 +1,5 @@
 package net.minecraft.block;
 
-import com.google.common.collect.UnmodifiableIterator;
 import net.minecraft.block.cauldron.CauldronBehavior;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
@@ -38,7 +37,9 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * {@code Blocks}.
+ * Реестр всех блоков игры.
+ * Каждое поле — статическая ссылка на зарегистрированный экземпляр {@link Block},
+ * инициализируемый при загрузке класса через {@link Registry}.
  */
 public class Blocks {
 
@@ -47,9 +48,8 @@ public class Blocks {
 			(state, world, pos) -> world.getBlockEntity(pos) instanceof ShulkerBoxBlockEntity shulkerBoxBlockEntity
 			                       ? shulkerBoxBlockEntity.suffocates()
 			                       : true;
-	private static final AbstractBlock.ContextPredicate
-			PISTON_SUFFOCATES_PREDICATE =
-			(state, world, pos) -> !state.get(PistonBlock.EXTENDED);
+	private static final AbstractBlock.ContextPredicate PISTON_SUFFOCATES_PREDICATE =
+			(state, world, pos) -> state.get(PistonBlock.EXTENDED) == false;
 	public static final Block
 			AIR =
 			register(
@@ -9559,14 +9559,6 @@ public class Blocks {
 		return Registry.register(Registries.BLOCK, key, block);
 	}
 
-	/**
-	 * Register.
-	 *
-	 * @param key key
-	 * @param settings settings
-	 *
-	 * @return Block — результат операции
-	 */
 	public static Block register(RegistryKey<Block> key, AbstractBlock.Settings settings) {
 		return register(key, Block::new, settings);
 	}
@@ -9589,10 +9581,7 @@ public class Blocks {
 
 	static {
 		for (Block block : Registries.BLOCK) {
-			UnmodifiableIterator var2 = block.getStateManager().getStates().iterator();
-
-			while (var2.hasNext()) {
-				BlockState blockState = (BlockState) var2.next();
+			for (BlockState blockState : block.getStateManager().getStates()) {
 				Block.STATE_IDS.add(blockState);
 				blockState.initShapeCache();
 			}

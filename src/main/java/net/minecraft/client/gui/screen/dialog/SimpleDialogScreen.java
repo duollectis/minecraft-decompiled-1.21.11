@@ -9,10 +9,10 @@ import net.minecraft.dialog.DialogActionButtonData;
 import net.minecraft.dialog.type.SimpleDialog;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SimpleDialogScreen}.
+ * Экран простого диалога с горизонтальным рядом кнопок действий в подвале.
  */
+@Environment(EnvType.CLIENT)
 public class SimpleDialogScreen<T extends SimpleDialog> extends DialogScreen<T> {
 
 	public SimpleDialogScreen(@Nullable Screen parent, T dialog, DialogNetworkAccess networkAccess) {

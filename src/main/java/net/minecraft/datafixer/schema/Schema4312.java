@@ -10,12 +10,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4312}.
+ * Схема DataFixer версии 4312, обновляющая тип {@code PLAYER}: теперь данные игрока
+ * объединяют {@code ENTITY_EQUIPMENT} и расширенный набор опциональных полей,
+ * включая {@code ender_pearls}, рецептурную книгу и слоты инвентаря.
  */
 public class Schema4312 extends IdentifierNormalizingSchema {
 
-	public Schema4312(int i, Schema schema) {
-		super(i, schema);
+	public Schema4312(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(

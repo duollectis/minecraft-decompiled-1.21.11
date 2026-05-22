@@ -16,7 +16,7 @@ import net.minecraft.util.math.GlobalPos;
 import java.util.Optional;
 
 /**
- * {@code PiglinBruteBrain}.
+ * Мозг (Brain) для пиглина-бруты. Управляет агрессивным поведением.
  */
 public class PiglinBruteBrain {
 
@@ -30,14 +30,6 @@ public class PiglinBruteBrain {
 	private static final int ANGER_TICKS = 100;
 	private static final int ATTACK_COOLDOWN_TICKS = 5;
 
-	/**
-	 * Create.
-	 *
-	 * @param piglinBrute piglin brute
-	 * @param brain brain
-	 *
-	 * @return Brain — результат операции
-	 */
 	protected static Brain<?> create(PiglinBruteEntity piglinBrute, Brain<PiglinBruteEntity> brain) {
 		addCoreActivities(piglinBrute, brain);
 		addIdleActivities(piglinBrute, brain);
@@ -88,7 +80,7 @@ public class PiglinBruteBrain {
 				ImmutableList.of(
 						ForgetAttackTargetTask.create((world, target) -> !isTarget(world, piglinBrute, target)),
 						RangedApproachTask.create(1.0F),
-						MeleeAttackTask.create(20)
+						MeleeAttackTask.create(MELEE_ATTACK_COOLDOWN)
 				),
 				MemoryModuleType.ATTACK_TARGET
 		);
@@ -109,13 +101,13 @@ public class PiglinBruteBrain {
 	private static RandomTask<PiglinBruteEntity> getIdleTasks() {
 		return new RandomTask<>(
 				ImmutableList.of(
-						Pair.of(StrollTask.create(0.6F), 2),
+						Pair.of(StrollTask.create(WALK_SPEED), 2),
 						Pair.of(
 								FindEntityTask.create(
 										EntityType.PIGLIN,
 										8,
 										MemoryModuleType.INTERACTION_TARGET,
-										0.6F,
+										WALK_SPEED,
 										2
 								), 2
 						),
@@ -124,22 +116,17 @@ public class PiglinBruteBrain {
 										EntityType.PIGLIN_BRUTE,
 										8,
 										MemoryModuleType.INTERACTION_TARGET,
-										0.6F,
+										WALK_SPEED,
 										2
 								), 2
 						),
-						Pair.of(GoToPosTask.create(MemoryModuleType.HOME, 0.6F, 2, 100), 2),
-						Pair.of(GoAroundTask.create(MemoryModuleType.HOME, 0.6F, 5), 2),
+						Pair.of(GoToPosTask.create(MemoryModuleType.HOME, WALK_SPEED, 2, ANGER_TICKS), 2),
+						Pair.of(GoAroundTask.create(MemoryModuleType.HOME, WALK_SPEED, 5), 2),
 						Pair.of(new WaitTask(30, 60), 1)
 				)
 		);
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param piglinBrute piglin brute
-	 */
 	protected static void tick(PiglinBruteEntity piglinBrute) {
 		Brain<PiglinBruteEntity> brain = piglinBrute.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);
@@ -175,13 +162,6 @@ public class PiglinBruteBrain {
 		}
 	}
 
-	/**
-	 * Try revenge.
-	 *
-	 * @param world world
-	 * @param piglinBrute piglin brute
-	 * @param target target
-	 */
 	protected static void tryRevenge(ServerWorld world, PiglinBruteEntity piglinBrute, LivingEntity target) {
 		if (!(target instanceof AbstractPiglinEntity)) {
 			PiglinBrain.tryRevenge(world, piglinBrute, target);
@@ -190,16 +170,11 @@ public class PiglinBruteBrain {
 
 	protected static void setTarget(PiglinBruteEntity piglinBrute, LivingEntity target) {
 		piglinBrute.getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
-		piglinBrute.getBrain().remember(MemoryModuleType.ANGRY_AT, target.getUuid(), 600L);
+		piglinBrute.getBrain().remember(MemoryModuleType.ANGRY_AT, target.getUuid(), ANGRY_AT_EXPIRY);
 	}
 
-	/**
-	 * Play sound randomly.
-	 *
-	 * @param piglinBrute piglin brute
-	 */
 	protected static void playSoundRandomly(PiglinBruteEntity piglinBrute) {
-		if (piglinBrute.getEntityWorld().random.nextFloat() < 0.0125) {
+		if (piglinBrute.getEntityWorld().random.nextFloat() < PATROL_SPEED) {
 			playSoundIfAngry(piglinBrute);
 		}
 	}

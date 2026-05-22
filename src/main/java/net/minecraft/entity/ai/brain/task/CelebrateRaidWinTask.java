@@ -21,9 +21,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code CelebrateRaidWinTask}.
+ * Задача мозга жителя, запускающая празднование победы в рейде:
+ * периодически воспроизводит звук и запускает фейерверки случайного цвета.
  */
 public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
+
+	private static final int CELEBRATE_SOUND_CHANCE = 100;
+	private static final int FIREWORK_CHANCE = 200;
+	private static final int MAX_FIREWORK_FLIGHT = 3;
 
 	private @Nullable Raid raid;
 
@@ -31,87 +36,46 @@ public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
 		super(ImmutableMap.of(), minRunTime, maxRunTime);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		BlockPos blockPos = villagerEntity.getBlockPos();
-		this.raid = serverWorld.getRaidAt(blockPos);
-		return this.raid != null && this.raid.hasWon() && SeekSkyTask.isSkyVisible(
-				serverWorld,
-				villagerEntity,
-				blockPos
-		);
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		BlockPos pos = entity.getBlockPos();
+		raid = world.getRaidAt(pos);
+		return raid != null && raid.hasWon() && SeekSkyTask.isSkyVisible(world, entity, pos);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		return this.raid != null && !this.raid.hasStopped();
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		return raid != null && !raid.hasStopped();
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		this.raid = null;
-		villagerEntity
-				.getBrain()
-				.refreshActivities(
-						serverWorld.getEnvironmentAttributes(),
-						serverWorld.getTime(),
-						villagerEntity.getEntityPos()
-				);
+	@Override
+	protected void finishRunning(ServerWorld world, VillagerEntity entity, long time) {
+		raid = null;
+		entity.getBrain().refreshActivities(world.getEnvironmentAttributes(), world.getTime(), entity.getEntityPos());
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		Random random = villagerEntity.getRandom();
-		if (random.nextInt(100) == 0) {
-			villagerEntity.playCelebrateSound();
+	@Override
+	protected void keepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		Random random = entity.getRandom();
+		if (random.nextInt(CELEBRATE_SOUND_CHANCE) == 0) {
+			entity.playCelebrateSound();
 		}
 
-		if (random.nextInt(200) == 0 && SeekSkyTask.isSkyVisible(
-				serverWorld,
-				villagerEntity,
-				villagerEntity.getBlockPos()
-		)) {
-			DyeColor dyeColor = Util.getRandom(DyeColor.values(), random);
-			int i = random.nextInt(3);
-			ItemStack itemStack = this.createFirework(dyeColor, i);
+		if (random.nextInt(FIREWORK_CHANCE) == 0 && SeekSkyTask.isSkyVisible(world, entity, entity.getBlockPos())) {
+			DyeColor color = Util.getRandom(DyeColor.values(), random);
+			int flight = random.nextInt(MAX_FIREWORK_FLIGHT);
+			ItemStack firework = createFirework(color, flight);
 			ProjectileEntity.spawn(
 					new FireworkRocketEntity(
-							villagerEntity.getEntityWorld(),
-							villagerEntity,
-							villagerEntity.getX(),
-							villagerEntity.getEyeY(),
-							villagerEntity.getZ(),
-							itemStack
+							entity.getEntityWorld(),
+							entity,
+							entity.getX(),
+							entity.getEyeY(),
+							entity.getZ(),
+							firework
 					),
-					serverWorld,
-					itemStack
+					world,
+					firework
 			);
 		}
 	}

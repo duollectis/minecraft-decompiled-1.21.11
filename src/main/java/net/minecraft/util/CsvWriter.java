@@ -11,69 +11,75 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code CsvWriter}.
+ * Утилита для записи данных в формате CSV.
+ * <p>
+ * Создаётся через {@link Header#startBody(Writer)} после объявления заголовков столбцов.
+ * Все значения автоматически экранируются по правилам CSV.
  */
 public class CsvWriter {
 
 	private static final String CRLF = "\r\n";
 	private static final String COMMA = ",";
+
 	private final Writer writer;
-	private final int column;
+	private final int columnCount;
 
 	CsvWriter(Writer writer, List<String> columns) throws IOException {
 		this.writer = writer;
-		this.column = columns.size();
-		this.printRow(columns.stream());
+		this.columnCount = columns.size();
+		printRow(columns.stream());
 	}
 
+	/** @return построитель заголовка CSV-файла */
 	public static CsvWriter.Header makeHeader() {
 		return new CsvWriter.Header();
 	}
 
 	/**
-	 * Выводит row.
+	 * Записывает строку данных в CSV-файл.
 	 *
-	 * @param columns columns
+	 * @param columns значения столбцов; количество должно совпадать с числом объявленных заголовков
+	 * @throws IllegalArgumentException если количество значений не совпадает с числом столбцов
 	 */
 	public void printRow(@Nullable Object... columns) throws IOException {
-		if (columns.length != this.column) {
+		if (columns.length != columnCount) {
 			throw new IllegalArgumentException(
-					"Invalid number of columns, expected " + this.column + ", but got " + columns.length);
+				"Invalid number of columns, expected " + columnCount + ", but got " + columns.length
+			);
 		}
-		else {
-			this.printRow(Stream.of(columns));
-		}
+
+		printRow(Stream.of(columns));
 	}
 
 	private void printRow(Stream<? extends @Nullable Object> columns) throws IOException {
-		this.writer.write(columns.map(CsvWriter::escape).collect(Collectors.joining(",")) + "\r\n");
+		writer.write(columns.map(CsvWriter::escape).collect(Collectors.joining(COMMA)) + CRLF);
 	}
 
-	private static String escape(@Nullable Object o) {
-		return StringEscapeUtils.escapeCsv(o != null ? o.toString() : "[null]");
+	private static String escape(@Nullable Object value) {
+		return StringEscapeUtils.escapeCsv(value != null ? value.toString() : "[null]");
 	}
 
 	/**
-	 * {@code Header}.
+	 * Построитель заголовка CSV-файла.
+	 * Позволяет объявить столбцы перед началом записи данных.
 	 */
 	public static class Header {
 
 		private final List<String> columns = Lists.newArrayList();
 
 		public CsvWriter.Header addColumn(String name) {
-			this.columns.add(name);
+			columns.add(name);
 			return this;
 		}
 
 		/**
-		 * Запускает body.
+		 * Записывает строку заголовков и возвращает {@link CsvWriter} для записи данных.
 		 *
-		 * @param writer writer
-		 *
-		 * @return CsvWriter — результат операции
+		 * @param writer целевой поток записи
+		 * @return готовый к использованию {@link CsvWriter}
 		 */
 		public CsvWriter startBody(Writer writer) throws IOException {
-			return new CsvWriter(writer, this.columns);
+			return new CsvWriter(writer, columns);
 		}
 	}
 }

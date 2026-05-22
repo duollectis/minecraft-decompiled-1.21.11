@@ -7,7 +7,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code ColoredFallingBlock}.
+ * Падающий блок с заданным цветом частиц пыли при падении.
+ * Используется для цветного песка, бетонного порошка и аналогичных блоков.
  */
 public class ColoredFallingBlock extends FallingBlock {
 

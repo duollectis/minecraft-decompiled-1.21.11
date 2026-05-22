@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code LockComponentPredicateFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class LockComponentPredicateFix extends ComponentFix {
 

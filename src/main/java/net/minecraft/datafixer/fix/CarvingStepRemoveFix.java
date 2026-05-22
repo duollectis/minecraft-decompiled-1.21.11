@@ -11,7 +11,9 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code CarvingStepRemoveFix}.
+ * Удаляет устаревший тег {@code CarvingMasks} из чанков, перенося маску воздуха
+ * в новое поле {@code carving_mask}. Тег {@code AIR} внутри {@code CarvingMasks}
+ * соответствует маске для воздушного прохода пещерного генератора.
  */
 public class CarvingStepRemoveFix extends DataFix {
 
@@ -20,9 +22,9 @@ public class CarvingStepRemoveFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"CarvingStepRemoveFix",
-				this.getInputSchema().getType(TypeReferences.CHUNK),
+				getInputSchema().getType(TypeReferences.CHUNK),
 				CarvingStepRemoveFix::removeCarvingMasks
 		);
 	}
@@ -30,16 +32,18 @@ public class CarvingStepRemoveFix extends DataFix {
 	private static Typed<?> removeCarvingMasks(Typed<?> typed) {
 		return typed.update(
 				DSL.remainderFinder(), dynamic -> {
-					Dynamic<?> dynamic2 = dynamic;
-					Optional<? extends Dynamic<?>> optional = dynamic.get("CarvingMasks").result();
-					if (optional.isPresent()) {
-						Optional<? extends Dynamic<?>> optional2 = optional.get().get("AIR").result();
-						if (optional2.isPresent()) {
-							dynamic2 = dynamic.set("carving_mask", optional2.get());
+					Dynamic<?> result = dynamic;
+					Optional<? extends Dynamic<?>> carvingMasks = dynamic.get("CarvingMasks").result();
+
+					if (carvingMasks.isPresent()) {
+						Optional<? extends Dynamic<?>> airMask = carvingMasks.get().get("AIR").result();
+
+						if (airMask.isPresent()) {
+							result = dynamic.set("carving_mask", airMask.get());
 						}
 					}
 
-					return dynamic2.remove("CarvingMasks");
+					return result.remove("CarvingMasks");
 				}
 		);
 	}

@@ -48,7 +48,9 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerCommandSource}.
+ * Источник выполнения серверной команды: инкапсулирует контекст (позиция, мир, права,
+ * сущность-исполнитель) и предоставляет методы отправки обратной связи игроку и операторам.
+ * Все {@code with*}-методы возвращают новый иммутабельный экземпляр с изменённым полем.
  */
 public class ServerCommandSource implements AbstractServerCommandSource<ServerCommandSource>, CommandSource {
 
@@ -134,13 +136,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		this.messageChainTaskQueue = messageChainTaskQueue;
 	}
 
-	/**
-	 * With output.
-	 *
-	 * @param output output
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withOutput(CommandOutput output) {
 		return this.output == output
 		       ? this
@@ -162,13 +157,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With entity.
-	 *
-	 * @param entity entity
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withEntity(Entity entity) {
 		return this.entity == entity
 		       ? this
@@ -190,13 +178,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With position.
-	 *
-	 * @param position position
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withPosition(Vec3d position) {
 		return this.position.equals(position)
 		       ? this
@@ -218,13 +199,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With rotation.
-	 *
-	 * @param rotation rotation
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withRotation(Vec2f rotation) {
 		return this.rotation.equals(rotation)
 		       ? this
@@ -246,13 +220,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With return value consumer.
-	 *
-	 * @param returnValueConsumer return value consumer
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withReturnValueConsumer(ReturnValueConsumer returnValueConsumer) {
 		return Objects.equals(this.returnValueConsumer, returnValueConsumer)
 		       ? this
@@ -278,15 +245,10 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 			ReturnValueConsumer returnValueConsumer,
 			BinaryOperator<ReturnValueConsumer> merger
 	) {
-		ReturnValueConsumer returnValueConsumer2 = merger.apply(this.returnValueConsumer, returnValueConsumer);
-		return this.withReturnValueConsumer(returnValueConsumer2);
+		ReturnValueConsumer merged = merger.apply(this.returnValueConsumer, returnValueConsumer);
+		return withReturnValueConsumer(merged);
 	}
 
-	/**
-	 * With silent.
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withSilent() {
 		return !this.silent && !this.output.cannotBeSilenced()
 		       ? new ServerCommandSource(
@@ -308,13 +270,6 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       : this;
 	}
 
-	/**
-	 * With permissions.
-	 *
-	 * @param permissions permissions
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withPermissions(PermissionPredicate permissions) {
 		return permissions == this.permissions
 		       ? this
@@ -336,24 +291,10 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With additional permissions.
-	 *
-	 * @param permissions permissions
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withAdditionalPermissions(PermissionPredicate permissions) {
 		return this.withPermissions(this.permissions.or(permissions));
 	}
 
-	/**
-	 * With entity anchor.
-	 *
-	 * @param anchor anchor
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withEntityAnchor(EntityAnchorArgumentType.EntityAnchor anchor) {
 		return anchor == this.entityAnchor
 		       ? this
@@ -375,67 +316,48 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
-	/**
-	 * With world.
-	 *
-	 * @param world world
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withWorld(ServerWorld world) {
 		if (world == this.world) {
 			return this;
 		}
-		else {
-			double d = DimensionType.getCoordinateScaleFactor(this.world.getDimension(), world.getDimension());
-			Vec3d vec3d = new Vec3d(this.position.x * d, this.position.y, this.position.z * d);
-			return new ServerCommandSource(
-					this.output,
-					vec3d,
-					this.rotation,
-					world,
-					this.permissions,
-					this.name,
-					this.displayName,
-					this.server,
-					this.entity,
-					this.silent,
-					this.returnValueConsumer,
-					this.entityAnchor,
-					this.signedArguments,
-					this.messageChainTaskQueue
-			);
-		}
+
+		double scale = DimensionType.getCoordinateScaleFactor(this.world.getDimension(), world.getDimension());
+		Vec3d scaledPos = new Vec3d(position.x * scale, position.y, position.z * scale);
+		return new ServerCommandSource(
+				output,
+				scaledPos,
+				rotation,
+				world,
+				permissions,
+				name,
+				displayName,
+				server,
+				entity,
+				silent,
+				returnValueConsumer,
+				entityAnchor,
+				signedArguments,
+				messageChainTaskQueue
+		);
 	}
 
-	/**
-	 * With looking at.
-	 *
-	 * @param entity entity
-	 * @param anchor anchor
-	 *
-	 * @return ServerCommandSource — результат операции
-	 */
 	public ServerCommandSource withLookingAt(Entity entity, EntityAnchorArgumentType.EntityAnchor anchor) {
-		return this.withLookingAt(anchor.positionAt(entity));
+		return withLookingAt(anchor.positionAt(entity));
 	}
 
 	/**
-	 * With looking at.
-	 *
-	 * @param position position
-	 *
-	 * @return ServerCommandSource — результат операции
+	 * Вычисляет углы поворота (pitch/yaw) для взгляда в заданную точку пространства
+	 * относительно якоря сущности (ноги или глаза) и возвращает новый источник с этим поворотом.
 	 */
 	public ServerCommandSource withLookingAt(Vec3d position) {
-		Vec3d vec3d = this.entityAnchor.positionAt(this);
-		double d = position.x - vec3d.x;
-		double e = position.y - vec3d.y;
-		double f = position.z - vec3d.z;
-		double g = Math.sqrt(d * d + f * f);
-		float h = MathHelper.wrapDegrees((float) (-(MathHelper.atan2(e, g) * 180.0F / (float) Math.PI)));
-		float i = MathHelper.wrapDegrees((float) (MathHelper.atan2(f, d) * 180.0F / (float) Math.PI) - 90.0F);
-		return this.withRotation(new Vec2f(h, i));
+		Vec3d anchorPos = entityAnchor.positionAt(this);
+		double dx = position.x - anchorPos.x;
+		double dy = position.y - anchorPos.y;
+		double dz = position.z - anchorPos.z;
+		double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+		float pitch = MathHelper.wrapDegrees((float) (-(MathHelper.atan2(dy, horizontalDist) * 180.0F / (float) Math.PI)));
+		float yaw = MathHelper.wrapDegrees((float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F);
+		return withRotation(new Vec2f(pitch, yaw));
 	}
 
 	public ServerCommandSource withSignedArguments(
@@ -488,21 +410,19 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 	}
 
 	public Entity getEntityOrThrow() throws CommandSyntaxException {
-		if (this.entity == null) {
+		if (entity == null) {
 			throw REQUIRES_ENTITY_EXCEPTION.create();
 		}
-		else {
-			return this.entity;
-		}
+
+		return entity;
 	}
 
 	public ServerPlayerEntity getPlayerOrThrow() throws CommandSyntaxException {
-		if (this.entity instanceof ServerPlayerEntity serverPlayerEntity) {
-			return serverPlayerEntity;
+		if (entity instanceof ServerPlayerEntity player) {
+			return player;
 		}
-		else {
-			throw REQUIRES_PLAYER_EXCEPTION.create();
-		}
+
+		throw REQUIRES_PLAYER_EXCEPTION.create();
 	}
 
 	public @Nullable ServerPlayerEntity getPlayer() {
@@ -533,123 +453,97 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		return this.messageChainTaskQueue;
 	}
 
-	/**
-	 * Определяет, следует ли filter text.
-	 *
-	 * @param recipient recipient
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldFilterText(ServerPlayerEntity recipient) {
-		ServerPlayerEntity serverPlayerEntity = this.getPlayer();
-		return recipient == serverPlayerEntity ? false
-		                                       : serverPlayerEntity != null && serverPlayerEntity.shouldFilterText()
-		                                         || recipient.shouldFilterText();
+		ServerPlayerEntity player = getPlayer();
+		if (recipient == player) {
+			return false;
+		}
+
+		return (player != null && player.shouldFilterText()) || recipient.shouldFilterText();
 	}
 
-	/**
-	 * Отправляет chat message.
-	 *
-	 * @param message message
-	 * @param filterMaskEnabled filter mask enabled
-	 * @param params params
-	 */
 	public void sendChatMessage(SentMessage message, boolean filterMaskEnabled, MessageType.Parameters params) {
-		if (!this.silent) {
-			ServerPlayerEntity serverPlayerEntity = this.getPlayer();
-			if (serverPlayerEntity != null) {
-				serverPlayerEntity.sendChatMessage(message, filterMaskEnabled, params);
-			}
-			else {
-				this.output.sendMessage(params.applyChatDecoration(message.content()));
-			}
+		if (silent) {
+			return;
+		}
+
+		ServerPlayerEntity player = getPlayer();
+		if (player != null) {
+			player.sendChatMessage(message, filterMaskEnabled, params);
+		}
+		else {
+			output.sendMessage(params.applyChatDecoration(message.content()));
 		}
 	}
 
-	/**
-	 * Отправляет message.
-	 *
-	 * @param message message
-	 */
 	public void sendMessage(Text message) {
-		if (!this.silent) {
-			ServerPlayerEntity serverPlayerEntity = this.getPlayer();
-			if (serverPlayerEntity != null) {
-				serverPlayerEntity.sendMessage(message);
-			}
-			else {
-				this.output.sendMessage(message);
-			}
+		if (silent) {
+			return;
+		}
+
+		ServerPlayerEntity player = getPlayer();
+		if (player != null) {
+			player.sendMessage(message);
+		}
+		else {
+			output.sendMessage(message);
 		}
 	}
 
-	/**
-	 * Отправляет feedback.
-	 *
-	 * @param feedbackSupplier feedback supplier
-	 * @param broadcastToOps broadcast to ops
-	 */
 	public void sendFeedback(Supplier<Text> feedbackSupplier, boolean broadcastToOps) {
-		boolean bl = this.output.shouldReceiveFeedback() && !this.silent;
-		boolean bl2 = broadcastToOps && this.output.shouldBroadcastConsoleToOps() && !this.silent;
-		if (bl || bl2) {
+		boolean shouldSendToOutput = output.shouldReceiveFeedback() && !silent;
+		boolean shouldBroadcast = broadcastToOps && output.shouldBroadcastConsoleToOps() && !silent;
+
+		if (shouldSendToOutput || shouldBroadcast) {
 			Text text = feedbackSupplier.get();
-			if (bl) {
-				this.output.sendMessage(text);
+
+			if (shouldSendToOutput) {
+				output.sendMessage(text);
 			}
 
-			if (bl2) {
-				this.sendToOps(text);
+			if (shouldBroadcast) {
+				sendToOps(text);
 			}
 		}
 	}
 
 	private void sendToOps(Text message) {
-		Text
-				text =
-				Text
-						.translatable("chat.type.admin", this.getDisplayName(), message)
-						.formatted(Formatting.GRAY, Formatting.ITALIC);
-		GameRules gameRules = this.world.getGameRules();
+		Text adminText = Text.translatable("chat.type.admin", getDisplayName(), message)
+		                     .formatted(Formatting.GRAY, Formatting.ITALIC);
+		GameRules gameRules = world.getGameRules();
+
 		if (gameRules.getValue(GameRules.SEND_COMMAND_FEEDBACK)) {
-			for (ServerPlayerEntity serverPlayerEntity : this.server.getPlayerManager().getPlayerList()) {
-				if (serverPlayerEntity.getCommandOutput() != this.output && this.server
-						.getPlayerManager()
-						.isOperator(serverPlayerEntity.getPlayerConfigEntry())) {
-					serverPlayerEntity.sendMessage(text);
+			for (ServerPlayerEntity op : server.getPlayerManager().getPlayerList()) {
+				if (op.getCommandOutput() != output && server.getPlayerManager().isOperator(op.getPlayerConfigEntry())) {
+					op.sendMessage(adminText);
 				}
 			}
 		}
 
-		if (this.output != this.server && gameRules.getValue(GameRules.LOG_ADMIN_COMMANDS)) {
-			this.server.sendMessage(text);
+		if (output != server && gameRules.getValue(GameRules.LOG_ADMIN_COMMANDS)) {
+			server.sendMessage(adminText);
 		}
 	}
 
-	/**
-	 * Отправляет error.
-	 *
-	 * @param message message
-	 */
 	public void sendError(Text message) {
-		if (this.output.shouldTrackOutput() && !this.silent) {
-			this.output.sendMessage(Text.empty().append(message).formatted(Formatting.RED));
+		if (output.shouldTrackOutput() && !silent) {
+			output.sendMessage(Text.empty().append(message).formatted(Formatting.RED));
 		}
 	}
 
 	@Override
 	public ReturnValueConsumer getReturnValueConsumer() {
-		return this.returnValueConsumer;
+		return returnValueConsumer;
 	}
 
 	@Override
 	public Collection<String> getPlayerNames() {
-		return Lists.newArrayList(this.server.getPlayerNames());
+		return Lists.newArrayList(server.getPlayerNames());
 	}
 
 	@Override
 	public Collection<String> getTeamNames() {
-		return this.server.getScoreboard().getTeamNames();
+		return server.getScoreboard().getTeamNames();
 	}
 
 	@Override
@@ -671,51 +565,47 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 	) {
 		if (registryRef == RegistryKeys.RECIPE) {
 			return CommandSource.suggestIdentifiers(
-					this.server
-							.getRecipeManager()
-							.values()
-							.stream()
-							.map(recipe -> recipe.id().getValue()), builder
+					server.getRecipeManager().values().stream().map(recipe -> recipe.id().getValue()),
+					builder
 			);
 		}
-		else if (registryRef == RegistryKeys.ADVANCEMENT) {
-			Collection<AdvancementEntry> collection = this.server.getAdvancementLoader().getAdvancements();
-			return CommandSource.suggestIdentifiers(collection.stream().map(AdvancementEntry::id), builder);
+
+		if (registryRef == RegistryKeys.ADVANCEMENT) {
+			Collection<AdvancementEntry> advancements = server.getAdvancementLoader().getAdvancements();
+			return CommandSource.suggestIdentifiers(advancements.stream().map(AdvancementEntry::id), builder);
 		}
-		else {
-			return this.getRegistry(registryRef).map(registry -> {
-				this.suggestIdentifiers((RegistryWrapper<?>) registry, suggestedIdType, builder);
-				return builder.buildFuture();
-			}).orElseGet(Suggestions::empty);
-		}
+
+		return getRegistry(registryRef).map(registry -> {
+			suggestIdentifiers((RegistryWrapper<?>) registry, suggestedIdType, builder);
+			return builder.buildFuture();
+		}).orElseGet(Suggestions::empty);
 	}
 
 	private Optional<? extends RegistryWrapper<?>> getRegistry(RegistryKey<? extends Registry<?>> registryRef) {
-		Optional<? extends Registry<?>> optional = this.getRegistryManager().getOptional(registryRef);
-		return optional.isPresent() ? optional : this.server
-		                                         .getReloadableRegistries()
-		                                         .createRegistryLookup()
-		                                         .getOptional(registryRef);
+		Optional<? extends Registry<?>> staticRegistry = getRegistryManager().getOptional(registryRef);
+		return staticRegistry.isPresent()
+				? staticRegistry
+				: server.getReloadableRegistries().createRegistryLookup().getOptional(registryRef);
 	}
 
 	@Override
 	public Set<RegistryKey<World>> getWorldKeys() {
-		return this.server.getWorldRegistryKeys();
+		return server.getWorldRegistryKeys();
 	}
 
 	@Override
 	public DynamicRegistryManager getRegistryManager() {
-		return this.server.getRegistryManager();
+		return server.getRegistryManager();
 	}
 
 	@Override
 	public FeatureSet getEnabledFeatures() {
-		return this.world.getEnabledFeatures();
+		return world.getEnabledFeatures();
 	}
 
 	@Override
 	public CommandDispatcher<ServerCommandSource> getDispatcher() {
-		return this.getServer().getCommandFunctionManager().getDispatcher();
+		return getServer().getCommandFunctionManager().getDispatcher();
 	}
 
 	@Override
@@ -725,12 +615,12 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		}
 
 		if (!silent) {
-			this.sendError(Texts.toText(message));
+			sendError(Texts.toText(message));
 		}
 	}
 
 	@Override
 	public boolean isSilent() {
-		return this.silent;
+		return silent;
 	}
 }

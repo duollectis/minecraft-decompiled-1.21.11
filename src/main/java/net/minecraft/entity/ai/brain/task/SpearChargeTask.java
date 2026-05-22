@@ -19,23 +19,25 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code SpearChargeTask}.
+ * Задача мозга, реализующая фазу зарядки и броска копья.
+ * Управляет позицией отскока для создания дистанции перед броском; переходит в состояние {@code RETREAT} по завершении.
  */
 public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 
 	public static final int MIN_CHARGE_DISTANCE = 6;
 	public static final int MAX_CHARGE_DISTANCE = 7;
-	double chargeStartSpeed;
-	double chargeSpeed;
-	float squaredMaxDistance;
-	float squaredChargeRange;
 
-	public SpearChargeTask(double chargeStartSpeed, double chargeSpeed, float f, float chargeRange) {
+	private final double chargeStartSpeed;
+	private final double chargeSpeed;
+	private final float squaredMaxDistance;
+	private final float squaredChargeRange;
+
+	public SpearChargeTask(double chargeStartSpeed, double chargeSpeed, float maxDistance, float chargeRange) {
 		super(Map.of(MemoryModuleType.SPEAR_STATUS, MemoryModuleState.VALUE_PRESENT));
 		this.chargeStartSpeed = chargeStartSpeed;
 		this.chargeSpeed = chargeSpeed;
-		this.squaredMaxDistance = f * f;
-		this.squaredChargeRange = chargeRange * chargeRange;
+		squaredMaxDistance = maxDistance * maxDistance;
+		squaredChargeRange = chargeRange * chargeRange;
 	}
 
 	private @Nullable LivingEntity getTarget(PathAwareEntity entity) {
@@ -43,125 +45,92 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	private boolean shouldAttack(PathAwareEntity entity) {
-		return this.getTarget(entity) != null && entity.getMainHandStack().contains(DataComponentTypes.KINETIC_WEAPON);
+		return getTarget(entity) != null
+				&& entity.getMainHandStack().contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
 	private int getSpearUseTicks(PathAwareEntity entity) {
-		return Optional
-				.ofNullable(entity.getMainHandStack().get(DataComponentTypes.KINETIC_WEAPON))
-				.map(KineticWeaponComponent::getUseTicks)
-				.orElse(0);
+		return Optional.ofNullable(entity.getMainHandStack().get(DataComponentTypes.KINETIC_WEAPON))
+		               .map(KineticWeaponComponent::getUseTicks)
+		               .orElse(0);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
-		return pathAwareEntity
-				.getBrain()
-				.getOptionalRegisteredMemory(MemoryModuleType.SPEAR_STATUS)
-				.orElse(SpearChargeTask.AdvanceState.APPROACH)
-				== SpearChargeTask.AdvanceState.CHARGING
-				&& this.shouldAttack(pathAwareEntity)
-				&& !pathAwareEntity.isUsingItem();
+	@Override
+	protected boolean shouldRun(ServerWorld world, PathAwareEntity entity) {
+		return entity.getBrain()
+		             .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_STATUS)
+		             .orElse(AdvanceState.APPROACH) == AdvanceState.CHARGING
+				&& shouldAttack(entity)
+				&& !entity.isUsingItem();
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.setAttacking(true);
-		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_ENGAGE_TIME, this.getSpearUseTicks(pathAwareEntity));
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
-		pathAwareEntity.setCurrentHand(Hand.MAIN_HAND);
-		super.run(serverWorld, pathAwareEntity, l);
+	@Override
+	protected void run(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.setAttacking(true);
+		entity.getBrain().remember(MemoryModuleType.SPEAR_ENGAGE_TIME, getSpearUseTicks(entity));
+		entity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
+		entity.setCurrentHand(Hand.MAIN_HAND);
+		super.run(world, entity, time);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return pathAwareEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_ENGAGE_TIME).orElse(0) > 0
-				&& this.shouldAttack(pathAwareEntity);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_ENGAGE_TIME).orElse(0) > 0
+				&& shouldAttack(entity);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		LivingEntity livingEntity = this.getTarget(pathAwareEntity);
-		double d = pathAwareEntity.squaredDistanceTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
-		Entity entity = pathAwareEntity.getRootVehicle();
-		float f = 1.0F;
-		if (entity instanceof MobEntity mobEntity) {
-			f = mobEntity.getRiderChargingSpeedMultiplier();
-		}
+	@Override
+	protected void keepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		LivingEntity target = getTarget(entity);
+		double distSq = entity.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		Entity rootVehicle = entity.getRootVehicle();
+		float speedMultiplier = rootVehicle instanceof MobEntity mobEntity
+				? mobEntity.getRiderChargingSpeedMultiplier()
+				: 1.0F;
+		int vehicleBonus = entity.hasVehicle() ? 2 : 0;
 
-		int i = pathAwareEntity.hasVehicle() ? 2 : 0;
-		pathAwareEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(livingEntity, true));
-		pathAwareEntity.getBrain()
-		               .remember(MemoryModuleType.SPEAR_ENGAGE_TIME,
-				               pathAwareEntity
-						               .getBrain()
-						               .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_ENGAGE_TIME)
-						               .orElse(0) - 1
-		               );
-		Vec3d
-				vec3d =
-				pathAwareEntity
-						.getBrain()
-						.getOptionalRegisteredMemory(MemoryModuleType.SPEAR_CHARGE_POSITION)
-						.orElse(null);
-		if (vec3d != null) {
-			pathAwareEntity.getNavigation().startMovingTo(vec3d.x, vec3d.y, vec3d.z, f * this.chargeSpeed);
-			if (pathAwareEntity.getNavigation().isIdle()) {
-				pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
+		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(target, true));
+		entity.getBrain().remember(
+				MemoryModuleType.SPEAR_ENGAGE_TIME,
+				entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_ENGAGE_TIME).orElse(0) - 1
+		);
+
+		Vec3d chargePos = entity.getBrain()
+		                        .getOptionalRegisteredMemory(MemoryModuleType.SPEAR_CHARGE_POSITION)
+		                        .orElse(null);
+
+		if (chargePos != null) {
+			entity.getNavigation().startMovingTo(chargePos.x, chargePos.y, chargePos.z, speedMultiplier * chargeSpeed);
+
+			if (entity.getNavigation().isIdle()) {
+				entity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
 			}
+
+			return;
 		}
-		else {
-			pathAwareEntity.getNavigation().startMovingTo(livingEntity, f * this.chargeStartSpeed);
-			if (d < this.squaredChargeRange || pathAwareEntity.getNavigation().isIdle()) {
-				double e = Math.sqrt(d);
-				Vec3d
-						vec3d2 =
-						FuzzyTargeting.findFrom(pathAwareEntity, 6 + i - e, 7 + i - e, 7, livingEntity.getEntityPos());
-				pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_CHARGE_POSITION, vec3d2);
-			}
+
+		entity.getNavigation().startMovingTo(target, speedMultiplier * chargeStartSpeed);
+
+		if (distSq < squaredChargeRange || entity.getNavigation().isIdle()) {
+			double dist = Math.sqrt(distSq);
+			Vec3d newChargePos = FuzzyTargeting.findFrom(
+					entity,
+					MIN_CHARGE_DISTANCE + vehicleBonus - dist,
+					MAX_CHARGE_DISTANCE + vehicleBonus - dist,
+					MAX_CHARGE_DISTANCE,
+					target.getEntityPos()
+			);
+			entity.getBrain().remember(MemoryModuleType.SPEAR_CHARGE_POSITION, newChargePos);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		pathAwareEntity.getNavigation().stop();
-		pathAwareEntity.clearActiveItem();
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
-		pathAwareEntity.getBrain().forget(MemoryModuleType.SPEAR_ENGAGE_TIME);
-		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, SpearChargeTask.AdvanceState.RETREAT);
+	@Override
+	protected void finishRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		entity.getNavigation().stop();
+		entity.clearActiveItem();
+		entity.getBrain().forget(MemoryModuleType.SPEAR_CHARGE_POSITION);
+		entity.getBrain().forget(MemoryModuleType.SPEAR_ENGAGE_TIME);
+		entity.getBrain().remember(MemoryModuleType.SPEAR_STATUS, AdvanceState.RETREAT);
 	}
 
 	@Override
@@ -169,12 +138,9 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 		return false;
 	}
 
-	/**
-	 * {@code AdvanceState}.
-	 */
-	public static enum AdvanceState {
+	public enum AdvanceState {
 		APPROACH,
 		CHARGING,
-		RETREAT;
+		RETREAT
 	}
 }

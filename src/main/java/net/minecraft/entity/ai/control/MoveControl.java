@@ -13,12 +13,16 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.shape.VoxelShape;
 
 /**
- * {@code MoveControl}.
+ * Базовый контроллер движения наземных мобов.
+ * Обрабатывает состояния STRAFE, MOVE_TO и JUMPING,
+ * включая автоматический прыжок через препятствия.
  */
 public class MoveControl implements Control {
 
 	public static final float MIN_SPEED_THRESHOLD = 5.0E-4F;
 	public static final float REACHED_DESTINATION_DISTANCE_SQUARED = 2.5000003E-7F;
+	private static final double STRAFE_SPEED = 0.25;
+
 	protected static final int MAX_TURN_DEGREES = 90;
 	protected final MobEntity entity;
 	protected double targetX;
@@ -34,183 +38,175 @@ public class MoveControl implements Control {
 	}
 
 	public boolean isMoving() {
-		return this.state == MoveControl.State.MOVE_TO;
+		return state == MoveControl.State.MOVE_TO;
 	}
 
 	public double getSpeed() {
-		return this.speed;
+		return speed;
 	}
 
-	/**
-	 * Перемещает to.
-	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
-	 * @param speed speed
-	 */
 	public void moveTo(double x, double y, double z, double speed) {
-		this.targetX = x;
-		this.targetY = y;
-		this.targetZ = z;
+		targetX = x;
+		targetY = y;
+		targetZ = z;
 		this.speed = speed;
-		if (this.state != MoveControl.State.JUMPING) {
-			this.state = MoveControl.State.MOVE_TO;
+
+		if (state != MoveControl.State.JUMPING) {
+			state = MoveControl.State.MOVE_TO;
 		}
 	}
 
-	/**
-	 * Strafe to.
-	 *
-	 * @param forward forward
-	 * @param sideways sideways
-	 */
 	public void strafeTo(float forward, float sideways) {
-		this.state = MoveControl.State.STRAFE;
-		this.forwardMovement = forward;
-		this.sidewaysMovement = sideways;
-		this.speed = 0.25;
+		state = MoveControl.State.STRAFE;
+		forwardMovement = forward;
+		sidewaysMovement = sideways;
+		speed = STRAFE_SPEED;
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
-		if (this.state == MoveControl.State.STRAFE) {
-			float f = (float) this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
-			float g = (float) this.speed * f;
-			float h = this.forwardMovement;
-			float i = this.sidewaysMovement;
-			float j = MathHelper.sqrt(h * h + i * i);
-			if (j < 1.0F) {
-				j = 1.0F;
-			}
-
-			j = g / j;
-			h *= j;
-			i *= j;
-			float k = MathHelper.sin(this.entity.getYaw() * (float) (Math.PI / 180.0));
-			float l = MathHelper.cos(this.entity.getYaw() * (float) (Math.PI / 180.0));
-			float m = h * l - i * k;
-			float n = i * l + h * k;
-			if (!this.isPosWalkable(m, n)) {
-				this.forwardMovement = 1.0F;
-				this.sidewaysMovement = 0.0F;
-			}
-
-			this.entity.setMovementSpeed(g);
-			this.entity.setForwardSpeed(this.forwardMovement);
-			this.entity.setSidewaysSpeed(this.sidewaysMovement);
-			this.state = MoveControl.State.WAIT;
+		if (state == MoveControl.State.STRAFE) {
+			tickStrafe();
 		}
-		else if (this.state == MoveControl.State.MOVE_TO) {
-			this.state = MoveControl.State.WAIT;
-			double d = this.targetX - this.entity.getX();
-			double e = this.targetZ - this.entity.getZ();
-			double o = this.targetY - this.entity.getY();
-			double p = d * d + o * o + e * e;
-			if (p < 2.5000003E-7F) {
-				this.entity.setForwardSpeed(0.0F);
-				return;
-			}
-
-			float n = (float) (MathHelper.atan2(e, d) * 180.0F / (float) Math.PI) - 90.0F;
-			this.entity.setYaw(this.wrapDegrees(this.entity.getYaw(), n, 90.0F));
-			this.entity.setMovementSpeed((float) (this.speed
-					* this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
-			));
-			BlockPos blockPos = this.entity.getBlockPos();
-			BlockState blockState = this.entity.getEntityWorld().getBlockState(blockPos);
-			VoxelShape voxelShape = blockState.getCollisionShape(this.entity.getEntityWorld(), blockPos);
-			if (o > this.entity.getStepHeight() && d * d + e * e < Math.max(1.0F, this.entity.getWidth())
-					|| !voxelShape.isEmpty()
-					&& this.entity.getY() < voxelShape.getMax(Direction.Axis.Y) + blockPos.getY()
-					&& !blockState.isIn(BlockTags.DOORS)
-					&& !blockState.isIn(BlockTags.FENCES)) {
-				this.entity.getJumpControl().setActive();
-				this.state = MoveControl.State.JUMPING;
-			}
+		else if (state == MoveControl.State.MOVE_TO) {
+			tickMoveTo();
 		}
-		else if (this.state == MoveControl.State.JUMPING) {
-			this.entity.setMovementSpeed((float) (this.speed
-					* this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
-			));
-			if (this.entity.isOnGround() || this.entity.isInFluid() && this.entity.shouldSwimInFluids()) {
-				this.state = MoveControl.State.WAIT;
-			}
+		else if (state == MoveControl.State.JUMPING) {
+			tickJumping();
 		}
 		else {
-			this.entity.setForwardSpeed(0.0F);
+			entity.setForwardSpeed(0.0F);
+		}
+	}
+
+	private void tickStrafe() {
+		float baseSpeed = (float) entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
+		float scaledSpeed = (float) speed * baseSpeed;
+		float fwd = forwardMovement;
+		float side = sidewaysMovement;
+
+		float magnitude = MathHelper.sqrt(fwd * fwd + side * side);
+
+		if (magnitude < 1.0F) {
+			magnitude = 1.0F;
+		}
+
+		magnitude = scaledSpeed / magnitude;
+		fwd *= magnitude;
+		side *= magnitude;
+
+		float sinYaw = MathHelper.sin(entity.getYaw() * (float) (Math.PI / 180.0));
+		float cosYaw = MathHelper.cos(entity.getYaw() * (float) (Math.PI / 180.0));
+		float worldX = fwd * cosYaw - side * sinYaw;
+		float worldZ = side * cosYaw + fwd * sinYaw;
+
+		if (!isPosWalkable(worldX, worldZ)) {
+			forwardMovement = 1.0F;
+			sidewaysMovement = 0.0F;
+		}
+
+		entity.setMovementSpeed(scaledSpeed);
+		entity.setForwardSpeed(forwardMovement);
+		entity.setSidewaysSpeed(sidewaysMovement);
+		state = MoveControl.State.WAIT;
+	}
+
+	private void tickMoveTo() {
+		state = MoveControl.State.WAIT;
+
+		double dx = targetX - entity.getX();
+		double dz = targetZ - entity.getZ();
+		double dy = targetY - entity.getY();
+		double distSq = dx * dx + dy * dy + dz * dz;
+
+		if (distSq < REACHED_DESTINATION_DISTANCE_SQUARED) {
+			entity.setForwardSpeed(0.0F);
+			return;
+		}
+
+		float targetYaw = (float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F;
+		entity.setYaw(wrapDegrees(entity.getYaw(), targetYaw, MAX_TURN_DEGREES));
+		entity.setMovementSpeed((float) (speed * entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)));
+
+		BlockPos blockPos = entity.getBlockPos();
+		BlockState blockState = entity.getEntityWorld().getBlockState(blockPos);
+		VoxelShape collisionShape = blockState.getCollisionShape(entity.getEntityWorld(), blockPos);
+
+		boolean shouldJump = (dy > entity.getStepHeight() && dx * dx + dz * dz < Math.max(1.0F, entity.getWidth()))
+				|| (collisionShape.isEmpty() == false
+				&& entity.getY() < collisionShape.getMax(Direction.Axis.Y) + blockPos.getY()
+				&& blockState.isIn(BlockTags.DOORS) == false
+				&& blockState.isIn(BlockTags.FENCES) == false);
+
+		if (shouldJump) {
+			entity.getJumpControl().setActive();
+			state = MoveControl.State.JUMPING;
+		}
+	}
+
+	private void tickJumping() {
+		entity.setMovementSpeed((float) (speed * entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)));
+
+		if (entity.isOnGround() || (entity.isInFluid() && entity.shouldSwimInFluids())) {
+			state = MoveControl.State.WAIT;
 		}
 	}
 
 	private boolean isPosWalkable(float x, float z) {
-		EntityNavigation entityNavigation = this.entity.getNavigation();
-		if (entityNavigation != null) {
-			PathNodeMaker pathNodeMaker = entityNavigation.getNodeMaker();
-			if (pathNodeMaker != null
-					&& pathNodeMaker.getDefaultNodeType(
-					this.entity,
-					BlockPos.ofFloored(this.entity.getX() + x, this.entity.getBlockY(), this.entity.getZ() + z)
-			)
-					!= PathNodeType.WALKABLE) {
-				return false;
-			}
+		EntityNavigation navigation = entity.getNavigation();
+
+		if (navigation == null) {
+			return true;
 		}
 
-		return true;
+		PathNodeMaker nodeMaker = navigation.getNodeMaker();
+
+		if (nodeMaker == null) {
+			return true;
+		}
+
+		return nodeMaker.getDefaultNodeType(
+				entity,
+				BlockPos.ofFloored(entity.getX() + x, entity.getBlockY(), entity.getZ() + z)
+		) == PathNodeType.WALKABLE;
 	}
 
 	/**
-	 * Wrap degrees.
-	 *
-	 * @param from from
-	 * @param to to
-	 * @param max max
-	 *
-	 * @return float — результат операции
+	 * Поворачивает угол {@code from} в сторону {@code to} не более чем на {@code max} градусов,
+	 * нормализуя результат в диапазон [0, 360].
 	 */
 	protected float wrapDegrees(float from, float to, float max) {
-		float f = MathHelper.wrapDegrees(to - from);
-		if (f > max) {
-			f = max;
+		float delta = MathHelper.wrapDegrees(to - from);
+		delta = MathHelper.clamp(delta, -max, max);
+
+		float result = from + delta;
+
+		if (result < 0.0F) {
+			result += 360.0F;
+		}
+		else if (result > 360.0F) {
+			result -= 360.0F;
 		}
 
-		if (f < -max) {
-			f = -max;
-		}
-
-		float g = from + f;
-		if (g < 0.0F) {
-			g += 360.0F;
-		}
-		else if (g > 360.0F) {
-			g -= 360.0F;
-		}
-
-		return g;
+		return result;
 	}
 
 	public double getTargetX() {
-		return this.targetX;
+		return targetX;
 	}
 
 	public double getTargetY() {
-		return this.targetY;
+		return targetY;
 	}
 
 	public double getTargetZ() {
-		return this.targetZ;
+		return targetZ;
 	}
 
 	public void setWaiting() {
-		this.state = MoveControl.State.WAIT;
+		state = MoveControl.State.WAIT;
 	}
 
-	/**
-	 * {@code State}.
-	 */
-	protected static enum State {
+	protected enum State {
 		WAIT,
 		MOVE_TO,
 		STRAFE,

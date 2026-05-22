@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * Класс packet codec dispatcher.
+ * Диспетчер пакетных кодеков: кодирует/декодирует пакеты по VarInt-идентификатору типа.
+ * Строится через {@link Builder} и является иммутабельным после создания.
  */
 public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCodec<B, V> {
 
@@ -32,67 +33,54 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 		this.typeToIndex = typeToIndex;
 	}
 
-	/**
-	 * Decode.
-	 *
-	 * @param byteBuf byte buf
-	 *
-	 * @return V — результат операции
-	 */
-	public V decode(B byteBuf) {
-		int i = VarInts.read(byteBuf);
-		if (i >= 0 && i < this.packetTypes.size()) {
-			PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
-
-			try {
-				return (V) packetType.codec.decode(byteBuf);
-			}
-			catch (Exception var5) {
-				if (var5 instanceof PacketCodecDispatcher.UndecoratedException) {
-					throw var5;
-				}
-				else {
-					throw new DecoderException("Failed to decode packet '" + packetType.id + "'", var5);
-				}
-			}
+	@Override
+	public V decode(B buf) {
+		int index = VarInts.read(buf);
+		if (index < 0 || index >= packetTypes.size()) {
+			throw new DecoderException("Received unknown packet id " + index);
 		}
-		else {
-			throw new DecoderException("Received unknown packet id " + i);
+
+		PacketCodecDispatcher.PacketType<B, V, T> packetType = packetTypes.get(index);
+
+		try {
+			return (V) packetType.codec.decode(buf);
+		} catch (Exception e) {
+			if (e instanceof PacketCodecDispatcher.UndecoratedException) {
+				throw e;
+			}
+
+			throw new DecoderException("Failed to decode packet '" + packetType.id + "'", e);
 		}
 	}
 
-	/**
-	 * Encode.
-	 *
-	 * @param byteBuf byte buf
-	 * @param object object
-	 */
-	public void encode(B byteBuf, V object) {
-		T object2 = (T) this.packetIdGetter.apply(object);
-		int i = this.typeToIndex.getOrDefault(object2, -1);
-		if (i == -1) {
-			throw new EncoderException("Sending unknown packet '" + object2 + "'");
-		}
-		else {
-			VarInts.write(byteBuf, i);
-			PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
+	@Override
+	public void encode(B buf, V value) {
+		T typeId = packetIdGetter.apply(value);
+		int index = typeToIndex.getOrDefault(typeId, UNKNOWN_PACKET_INDEX);
 
-			try {
-				PacketCodec<? super B, V> packetCodec = (PacketCodec<? super B, V>) packetType.codec;
-				packetCodec.encode(byteBuf, object);
+		if (index == UNKNOWN_PACKET_INDEX) {
+			throw new EncoderException("Sending unknown packet '" + typeId + "'");
+		}
+
+		VarInts.write(buf, index);
+		PacketCodecDispatcher.PacketType<B, V, T> packetType = packetTypes.get(index);
+
+		try {
+			@SuppressWarnings("unchecked")
+			PacketCodec<? super B, V> codec = (PacketCodec<? super B, V>) packetType.codec;
+			codec.encode(buf, value);
+		} catch (Exception e) {
+			if (e instanceof PacketCodecDispatcher.UndecoratedException) {
+				throw e;
 			}
-			catch (Exception var7) {
-				if (var7 instanceof PacketCodecDispatcher.UndecoratedException) {
-					throw var7;
-				}
-				else {
-					throw new EncoderException("Failed to encode packet '" + object2 + "'", var7);
-				}
-			}
+
+			throw new EncoderException("Failed to encode packet '" + typeId + "'", e);
 		}
 	}
 
-	public static <B extends ByteBuf, V, T> PacketCodecDispatcher.Builder<B, V, T> builder(Function<V, ? extends T> packetIdGetter) {
+	public static <B extends ByteBuf, V, T> PacketCodecDispatcher.Builder<B, V, T> builder(
+			Function<V, ? extends T> packetIdGetter
+	) {
 		return new PacketCodecDispatcher.Builder<>(packetIdGetter);
 	}
 
@@ -106,41 +94,35 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 		}
 
 		public PacketCodecDispatcher.Builder<B, V, T> add(T id, PacketCodec<? super B, ? extends V> codec) {
-			this.packetTypes.add(new PacketCodecDispatcher.PacketType<>(codec, id));
+			packetTypes.add(new PacketCodecDispatcher.PacketType<>(codec, id));
 			return this;
 		}
 
 		/**
-		 * Build.
-		 *
-		 * @return PacketCodecDispatcher — результат операции
+		 * Собирает иммутабельный диспетчер. Выбрасывает {@link IllegalStateException},
+		 * если один и тот же идентификатор типа зарегистрирован дважды.
 		 */
 		public PacketCodecDispatcher<B, V, T> build() {
-			Object2IntOpenHashMap<T> object2IntOpenHashMap = new Object2IntOpenHashMap();
-			object2IntOpenHashMap.defaultReturnValue(-2);
+			Object2IntOpenHashMap<T> indexMap = new Object2IntOpenHashMap<>();
+			indexMap.defaultReturnValue(UNKNOWN_PACKET_INDEX - 1);
 
-			for (PacketCodecDispatcher.PacketType<B, V, T> packetType : this.packetTypes) {
-				int i = object2IntOpenHashMap.size();
-				int j = object2IntOpenHashMap.putIfAbsent(packetType.id, i);
-				if (j != -2) {
+			for (PacketCodecDispatcher.PacketType<B, V, T> packetType : packetTypes) {
+				int index = indexMap.size();
+				int existing = indexMap.putIfAbsent(packetType.id, index);
+
+				if (existing != UNKNOWN_PACKET_INDEX - 1) {
 					throw new IllegalStateException("Duplicate registration for type " + packetType.id);
 				}
 			}
 
-			return new PacketCodecDispatcher<>(
-					this.packetIdGetter,
-					List.copyOf(this.packetTypes),
-					object2IntOpenHashMap
-			);
+			return new PacketCodecDispatcher<>(packetIdGetter, List.copyOf(packetTypes), indexMap);
 		}
 	}
 
-	record PacketType<B, V, T>(PacketCodec<? super B, ? extends V> codec, T id) {
-	}
+	record PacketType<B, V, T>(PacketCodec<? super B, ? extends V> codec, T id) {}
 
 	/**
-	 * Интерфейс undecorated exception.
+	 * Маркерный интерфейс для исключений, которые не нужно оборачивать дополнительным контекстом.
 	 */
-	public interface UndecoratedException {
-	}
+	interface UndecoratedException {}
 }

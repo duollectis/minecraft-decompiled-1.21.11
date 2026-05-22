@@ -60,7 +60,7 @@ public class ChickenEntityModel extends EntityModel<ChickenEntityRenderState> {
 		modelPartData.addChild(
 				"body",
 				ModelPartBuilder.create().uv(0, 9).cuboid(-3.0F, -4.0F, -3.0F, 6.0F, 8.0F, 6.0F),
-				ModelTransform.of(0.0F, 16.0F, 0.0F, (float) (Math.PI / 2), 0.0F, 0.0F)
+				ModelTransform.of(0.0F, TEXTURE_SIZE, 0.0F, (float) (Math.PI / 2), 0.0F, 0.0F)
 		);
 		ModelPartBuilder
 				modelPartBuilder =

@@ -12,7 +12,8 @@ import net.minecraft.world.gen.YOffset;
 import org.slf4j.Logger;
 
 /**
- * {@code UniformHeightProvider}.
+ * Провайдер высоты с равномерным распределением в диапазоне [min, max].
+ * Логирует предупреждение при пустом диапазоне (не более одного раза на пару min/max).
  */
 public class UniformHeightProvider extends HeightProvider {
 
@@ -33,32 +34,24 @@ public class UniformHeightProvider extends HeightProvider {
 		this.maxOffset = maxOffset;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 *
-	 * @return UniformHeightProvider — результат операции
-	 */
 	public static UniformHeightProvider create(YOffset minOffset, YOffset maxOffset) {
 		return new UniformHeightProvider(minOffset, maxOffset);
 	}
 
 	@Override
 	public int get(Random random, HeightContext context) {
-		int i = this.minOffset.getY(context);
-		int j = this.maxOffset.getY(context);
-		if (i > j) {
-			if (this.warnedEmptyHeightRanges.add((long) i << 32 | j)) {
+		int minY = minOffset.getY(context);
+		int maxY = maxOffset.getY(context);
+
+		if (minY > maxY) {
+			if (warnedEmptyHeightRanges.add((long) minY << 32 | maxY)) {
 				LOGGER.warn("Empty height range: {}", this);
 			}
 
-			return i;
+			return minY;
 		}
-		else {
-			return MathHelper.nextBetween(random, i, j);
-		}
+
+		return MathHelper.nextBetween(random, minY, maxY);
 	}
 
 	@Override
@@ -68,6 +61,6 @@ public class UniformHeightProvider extends HeightProvider {
 
 	@Override
 	public String toString() {
-		return "[" + this.minOffset + "-" + this.maxOffset + "]";
+		return "[" + minOffset + "-" + maxOffset + "]";
 	}
 }

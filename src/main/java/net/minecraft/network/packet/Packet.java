@@ -7,7 +7,10 @@ import net.minecraft.network.codec.ValueFirstEncoder;
 import net.minecraft.network.listener.PacketListener;
 
 /**
- * Интерфейс packet.
+ * Базовый интерфейс сетевого пакета Minecraft.
+ * Каждый пакет знает свой тип ({@link PacketType}) и умеет применять себя к слушателю.
+ *
+ * @param <T> тип слушателя, которому адресован пакет
  */
 public interface Packet<T extends PacketListener> {
 

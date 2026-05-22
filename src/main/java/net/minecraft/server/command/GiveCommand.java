@@ -19,7 +19,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code GiveCommand}.
+ * Команда {@code /give}: выдача предметов игрокам.
  */
 public class GiveCommand {
 
@@ -95,7 +95,7 @@ public class GiveCommand {
 	) throws CommandSyntaxException {
 		ItemStack itemStack = item.createStack(1, false);
 		int i = itemStack.getMaxCount();
-		int j = i * 100;
+		int j = i * MAX_STACKS;
 		if (count > j) {
 			source.sendError(Text.translatable("commands.give.failed.toomanyitems", j, itemStack.toHoverableText()));
 			return 0;

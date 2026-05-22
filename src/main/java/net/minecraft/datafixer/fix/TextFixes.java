@@ -12,19 +12,19 @@ import net.minecraft.util.StrictJsonParser;
 import java.util.Optional;
 
 /**
- * {@code TextFixes}.
+ * Утилитарный класс для создания и разбора текстовых компонентов Minecraft в формате JSON.
+ * Используется в фиксах миграции данных для конвертации строк в компоненты текста.
  */
 public class TextFixes {
 
 	private static final String EMPTY_TEXT = text("");
 
 	public static <T> Dynamic<T> text(DynamicOps<T> ops, String string) {
-		String string2 = text(string);
-		return new Dynamic(ops, ops.createString(string2));
+		return new Dynamic<>(ops, ops.createString(text(string)));
 	}
 
 	public static <T> Dynamic<T> empty(DynamicOps<T> ops) {
-		return new Dynamic(ops, ops.createString(EMPTY_TEXT));
+		return new Dynamic<>(ops, ops.createString(EMPTY_TEXT));
 	}
 
 	public static String text(String string) {
@@ -40,58 +40,73 @@ public class TextFixes {
 	}
 
 	public static <T> Dynamic<T> translate(DynamicOps<T> ops, String key) {
-		String string = translate(key);
-		return new Dynamic(ops, ops.createString(string));
+		return new Dynamic<>(ops, ops.createString(translate(key)));
 	}
 
+	/**
+	 * Разбирает строку как нестрогий JSON и конвертирует в текстовый компонент.
+	 * Если строка является примитивом — оборачивает в {@code {"text":"..."}}.
+	 * Если строка не является JSON-структурой — также оборачивает как текст.
+	 */
 	public static String parseLenientJson(String json) {
-		if (!json.isEmpty() && !json.equals("null")) {
-			char c = json.charAt(0);
-			char d = json.charAt(json.length() - 1);
-			if (c == '"' && d == '"' || c == '{' && d == '}' || c == '[' && d == ']') {
-				try {
-					JsonElement jsonElement = LenientJsonParser.parse(json);
-					if (jsonElement.isJsonPrimitive()) {
-						return text(jsonElement.getAsString());
-					}
-
-					return JsonHelper.toSortedString(jsonElement);
-				}
-				catch (JsonParseException var4) {
-				}
-			}
-
-			return text(json);
-		}
-		else {
+		if (json.isEmpty() || json.equals("null")) {
 			return EMPTY_TEXT;
 		}
+
+		char firstChar = json.charAt(0);
+		char lastChar = json.charAt(json.length() - 1);
+		boolean looksLikeJson = firstChar == '"' && lastChar == '"'
+			|| firstChar == '{' && lastChar == '}'
+			|| firstChar == '[' && lastChar == ']';
+
+		if (looksLikeJson) {
+			try {
+				JsonElement parsed = LenientJsonParser.parse(json);
+				return parsed.isJsonPrimitive()
+					? text(parsed.getAsString())
+					: JsonHelper.toSortedString(parsed);
+			} catch (JsonParseException ignored) {
+				// Невалидный JSON — обрабатываем как обычную строку ниже
+			}
+		}
+
+		return text(json);
 	}
 
+	/**
+	 * Проверяет, является ли значение Dynamic корректным строгим JSON-компонентом текста.
+	 */
 	public static boolean isValidStrictJson(Dynamic<?> dynamic) {
 		return dynamic.asString().result().filter(string -> {
 			try {
 				StrictJsonParser.parse(string);
 				return true;
-			}
-			catch (JsonParseException var2) {
+			} catch (JsonParseException ignored) {
 				return false;
 			}
 		}).isPresent();
 	}
 
+	/**
+	 * Извлекает значение поля {@code translate} из JSON-строки текстового компонента.
+	 *
+	 * @param json строка с JSON-компонентом текста
+	 * @return ключ перевода, если поле присутствует
+	 */
 	public static Optional<String> getTranslate(String json) {
 		try {
-			JsonElement jsonElement = LenientJsonParser.parse(json);
-			if (jsonElement.isJsonObject()) {
-				JsonObject jsonObject = jsonElement.getAsJsonObject();
-				JsonElement jsonElement2 = jsonObject.get("translate");
-				if (jsonElement2 != null && jsonElement2.isJsonPrimitive()) {
-					return Optional.of(jsonElement2.getAsString());
+			JsonElement parsed = LenientJsonParser.parse(json);
+
+			if (parsed.isJsonObject()) {
+				JsonObject jsonObject = parsed.getAsJsonObject();
+				JsonElement translateField = jsonObject.get("translate");
+
+				if (translateField != null && translateField.isJsonPrimitive()) {
+					return Optional.of(translateField.getAsString());
 				}
 			}
-		}
-		catch (JsonParseException var4) {
+		} catch (JsonParseException ignored) {
+			// Невалидный JSON — возвращаем пустой Optional
 		}
 
 		return Optional.empty();

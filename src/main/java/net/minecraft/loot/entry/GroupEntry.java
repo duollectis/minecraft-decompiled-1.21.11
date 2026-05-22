@@ -7,14 +7,15 @@ import net.minecraft.loot.condition.LootCondition;
 import java.util.List;
 
 /**
- * {@code GroupEntry}.
+ * Запись пула лута, выполняющая все дочерние записи безусловно.
+ * Аналог логического AND без короткого замыкания: все дочерние записи всегда раскрываются.
  */
 public class GroupEntry extends CombinedEntry {
 
 	public static final MapCodec<GroupEntry> CODEC = createCodec(GroupEntry::new);
 
-	GroupEntry(List<LootPoolEntry> list, List<LootCondition> list2) {
-		super(list, list2);
+	GroupEntry(List<LootPoolEntry> children, List<LootCondition> conditions) {
+		super(children, conditions);
 	}
 
 	@Override
@@ -28,17 +29,17 @@ public class GroupEntry extends CombinedEntry {
 			case 0 -> ALWAYS_TRUE;
 			case 1 -> (EntryCombiner) terms.get(0);
 			case 2 -> {
-				EntryCombiner entryCombiner = terms.get(0);
-				EntryCombiner entryCombiner2 = terms.get(1);
+				EntryCombiner first = terms.get(0);
+				EntryCombiner second = terms.get(1);
 				yield (context, choiceConsumer) -> {
-					entryCombiner.expand(context, choiceConsumer);
-					entryCombiner2.expand(context, choiceConsumer);
+					first.expand(context, choiceConsumer);
+					second.expand(context, choiceConsumer);
 					return true;
 				};
 			}
-			default -> (context, lootChoiceExpander) -> {
-				for (EntryCombiner entryCombinerx : terms) {
-					entryCombinerx.expand(context, lootChoiceExpander);
+			default -> (context, choiceConsumer) -> {
+				for (EntryCombiner combiner : terms) {
+					combiner.expand(context, choiceConsumer);
 				}
 
 				return true;
@@ -50,12 +51,10 @@ public class GroupEntry extends CombinedEntry {
 		return new GroupEntry.Builder(entries);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель групповой записи пула лута. */
 	public static class Builder extends LootPoolEntry.Builder<GroupEntry.Builder> {
 
-		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+		private final ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
 
 		public Builder(LootPoolEntry.Builder<?>... entries) {
 			for (LootPoolEntry.Builder<?> builder : entries) {
@@ -63,19 +62,20 @@ public class GroupEntry extends CombinedEntry {
 			}
 		}
 
+		@Override
 		protected GroupEntry.Builder getThisBuilder() {
 			return this;
 		}
 
 		@Override
 		public GroupEntry.Builder groupEntry(LootPoolEntry.Builder<?> entry) {
-			this.entries.add(entry.build());
+			entries.add(entry.build());
 			return this;
 		}
 
 		@Override
 		public LootPoolEntry build() {
-			return new GroupEntry(this.entries.build(), this.getConditions());
+			return new GroupEntry(entries.build(), getConditions());
 		}
 	}
 }

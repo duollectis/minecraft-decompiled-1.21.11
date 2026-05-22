@@ -9,17 +9,14 @@ import net.minecraft.registry.tag.EntityTypeTags;
 import net.minecraft.world.World;
 
 /**
- * {@code IllagerEntity}.
+ * Базовый класс всех иллагеров. Определяет общую логику:
+ * иллагеры не атакуют детей-торговцев, считаются союзниками
+ * всех существ из тега {@code illager_friends} при отсутствии команды.
  */
 public abstract class IllagerEntity extends RaiderEntity {
 
 	protected IllagerEntity(EntityType<? extends IllagerEntity> entityType, World world) {
 		super(entityType, world);
-	}
-
-	@Override
-	protected void initGoals() {
-		super.initGoals();
 	}
 
 	public IllagerEntity.State getState() {
@@ -28,7 +25,11 @@ public abstract class IllagerEntity extends RaiderEntity {
 
 	@Override
 	public boolean canTarget(LivingEntity target) {
-		return target instanceof MerchantEntity && target.isBaby() ? false : super.canTarget(target);
+		if (target instanceof MerchantEntity && target.isBaby()) {
+			return false;
+		}
+
+		return super.canTarget(target);
 	}
 
 	@Override
@@ -36,15 +37,14 @@ public abstract class IllagerEntity extends RaiderEntity {
 		if (super.isInSameTeam(other)) {
 			return true;
 		}
-		else {
-			return !other.getType().isIn(EntityTypeTags.ILLAGER_FRIENDS) ? false : this.getScoreboardTeam() == null
-			                                                                       && other.getScoreboardTeam() == null;
+
+		if (!other.getType().isIn(EntityTypeTags.ILLAGER_FRIENDS)) {
+			return false;
 		}
+
+		return getScoreboardTeam() == null && other.getScoreboardTeam() == null;
 	}
 
-	/**
-	 * {@code LongDoorInteractGoal}.
-	 */
 	protected class LongDoorInteractGoal extends net.minecraft.entity.ai.goal.LongDoorInteractGoal {
 
 		public LongDoorInteractGoal(final RaiderEntity raider) {
@@ -57,10 +57,7 @@ public abstract class IllagerEntity extends RaiderEntity {
 		}
 	}
 
-	/**
-	 * {@code State}.
-	 */
-	public static enum State {
+	public enum State {
 		CROSSED,
 		ATTACKING,
 		SPELLCASTING,

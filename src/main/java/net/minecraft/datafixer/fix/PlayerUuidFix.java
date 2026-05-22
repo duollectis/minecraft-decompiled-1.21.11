@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code PlayerUuidFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class PlayerUuidFix extends AbstractUuidFix {
 
@@ -16,9 +16,9 @@ public class PlayerUuidFix extends AbstractUuidFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"PlayerUUIDFix",
-				this.getInputSchema().getType(this.typeReference),
+				getInputSchema().getType(this.typeReference),
 				playerTyped -> {
 					OpticFinder<?> opticFinder = playerTyped.getType().findField("RootVehicle");
 					return playerTyped.updateTyped(

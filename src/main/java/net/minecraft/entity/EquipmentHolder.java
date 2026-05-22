@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code EquipmentHolder}.
+ * Контракт для сущностей, способных носить снаряжение в слотах.
+ * Предоставляет логику экипировки предметов из лут-таблиц с учётом шансов выпадения.
  */
 public interface EquipmentHolder {
 
@@ -24,61 +25,79 @@ public interface EquipmentHolder {
 	void setEquipmentDropChance(EquipmentSlot slot, float dropChance);
 
 	default void setEquipmentFromTable(EquipmentTable equipmentTable, LootWorldContext parameters) {
-		this.setEquipmentFromTable(equipmentTable.lootTable(), parameters, equipmentTable.slotDropChances());
+		setEquipmentFromTable(equipmentTable.lootTable(), parameters, equipmentTable.slotDropChances());
 	}
 
 	default void setEquipmentFromTable(
-			RegistryKey<LootTable> lootTable,
-			LootWorldContext parameters,
-			Map<EquipmentSlot, Float> slotDropChances
+		RegistryKey<LootTable> lootTable,
+		LootWorldContext parameters,
+		Map<EquipmentSlot, Float> slotDropChances
 	) {
-		this.setEquipmentFromTable(lootTable, parameters, 0L, slotDropChances);
+		setEquipmentFromTable(lootTable, parameters, 0L, slotDropChances);
 	}
 
+	/**
+	 * Экипирует сущность предметами из лут-таблицы с заданным сидом и шансами выпадения.
+	 * Каждый слот может быть занят только одним предметом — повторные попытки занять уже
+	 * занятый слот игнорируются через список {@code occupiedSlots}.
+	 *
+	 * @param lootTable      ключ лут-таблицы для генерации предметов
+	 * @param parameters     контекст мира для генерации лута
+	 * @param seed           сид для воспроизводимой генерации (0 = случайный)
+	 * @param slotDropChances шансы выпадения по слотам, переопределяющие дефолтные
+	 */
 	default void setEquipmentFromTable(
-			RegistryKey<LootTable> lootTable,
-			LootWorldContext parameters,
-			long seed,
-			Map<EquipmentSlot, Float> slotDropChances
+		RegistryKey<LootTable> lootTable,
+		LootWorldContext parameters,
+		long seed,
+		Map<EquipmentSlot, Float> slotDropChances
 	) {
-		LootTable lootTable2 = parameters.getWorld().getServer().getReloadableRegistries().getLootTable(lootTable);
-		if (lootTable2 != LootTable.EMPTY) {
-			List<ItemStack> list = lootTable2.generateLoot(parameters, seed);
-			List<EquipmentSlot> list2 = new ArrayList<>();
+		LootTable resolvedTable = parameters.getWorld().getServer().getReloadableRegistries().getLootTable(lootTable);
+		if (resolvedTable == LootTable.EMPTY) {
+			return;
+		}
 
-			for (ItemStack itemStack : list) {
-				EquipmentSlot equipmentSlot = this.getSlotForStack(itemStack, list2);
-				if (equipmentSlot != null) {
-					ItemStack itemStack2 = equipmentSlot.split(itemStack);
-					this.equipStack(equipmentSlot, itemStack2);
-					Float float_ = slotDropChances.get(equipmentSlot);
-					if (float_ != null) {
-						this.setEquipmentDropChance(equipmentSlot, float_);
-					}
+		List<ItemStack> generatedItems = resolvedTable.generateLoot(parameters, seed);
+		List<EquipmentSlot> occupiedSlots = new ArrayList<>();
 
-					list2.add(equipmentSlot);
-				}
+		for (ItemStack itemStack : generatedItems) {
+			EquipmentSlot targetSlot = getSlotForStack(itemStack, occupiedSlots);
+			if (targetSlot == null) {
+				continue;
 			}
+
+			ItemStack slicedStack = targetSlot.split(itemStack);
+			equipStack(targetSlot, slicedStack);
+
+			Float dropChance = slotDropChances.get(targetSlot);
+			if (dropChance != null) {
+				setEquipmentDropChance(targetSlot, dropChance);
+			}
+
+			occupiedSlots.add(targetSlot);
 		}
 	}
 
+	/**
+	 * Определяет подходящий слот для предмета, исключая уже занятые слоты.
+	 * Если предмет имеет компонент {@link EquippableComponent}, используется его слот.
+	 * Иначе предмет помещается в {@link EquipmentSlot#MAINHAND}, если он свободен.
+	 *
+	 * @param stack         предмет для размещения
+	 * @param slotBlacklist список уже занятых слотов
+	 * @return подходящий слот или {@code null}, если подходящего нет
+	 */
 	default @Nullable EquipmentSlot getSlotForStack(ItemStack stack, List<EquipmentSlot> slotBlacklist) {
 		if (stack.isEmpty()) {
 			return null;
 		}
-		else {
-			EquippableComponent equippableComponent = stack.get(DataComponentTypes.EQUIPPABLE);
-			if (equippableComponent != null) {
-				EquipmentSlot equipmentSlot = equippableComponent.slot();
-				if (!slotBlacklist.contains(equipmentSlot)) {
-					return equipmentSlot;
-				}
-			}
-			else if (!slotBlacklist.contains(EquipmentSlot.MAINHAND)) {
-				return EquipmentSlot.MAINHAND;
-			}
 
-			return null;
+		EquippableComponent equippable = stack.get(DataComponentTypes.EQUIPPABLE);
+		if (equippable != null) {
+			EquipmentSlot slot = equippable.slot();
+			return slotBlacklist.contains(slot) ? null : slot;
 		}
+
+		return slotBlacklist.contains(EquipmentSlot.MAINHAND) ? null : EquipmentSlot.MAINHAND;
 	}
 }

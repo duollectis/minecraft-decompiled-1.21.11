@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code TreeFeatureConfig}.
+ * Конфигурация фичи генерации дерева. Объединяет провайдеры блоков ствола,
+ * листвы и земли, алгоритмы размещения ствола и листвы, опциональный корневой
+ * плейсер, декораторы и флаги поведения. Строится через {@link Builder}.
  */
 public class TreeFeatureConfig implements FeatureConfig {
 
@@ -71,9 +73,7 @@ public class TreeFeatureConfig implements FeatureConfig {
 		this.forceDirt = forceDirt;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель полной конфигурации дерева с провайдерами блоков, плейсерами и декораторами. */
 	public static class Builder {
 
 		public final BlockStateProvider trunkProvider;
@@ -134,11 +134,6 @@ public class TreeFeatureConfig implements FeatureConfig {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return TreeFeatureConfig — результат операции
-		 */
 		public TreeFeatureConfig build() {
 			return new TreeFeatureConfig(
 					this.trunkProvider,

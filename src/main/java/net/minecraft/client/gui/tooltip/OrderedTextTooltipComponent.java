@@ -6,11 +6,16 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OrderedTextTooltipComponent}.
+ * Компонент тултипа для одной строки текста в виде {@link OrderedText}.
+ * Используется для отображения стандартных текстовых строк в тултипах предметов.
  */
+@Environment(EnvType.CLIENT)
 public class OrderedTextTooltipComponent implements TooltipComponent {
+
+	private static final int LINE_HEIGHT = 10;
+	/** Цвет текста тултипа (белый с тенью). */
+	private static final int TEXT_COLOR = -1;
 
 	private final OrderedText text;
 
@@ -20,16 +25,16 @@ public class OrderedTextTooltipComponent implements TooltipComponent {
 
 	@Override
 	public int getWidth(TextRenderer textRenderer) {
-		return textRenderer.getWidth(this.text);
+		return textRenderer.getWidth(text);
 	}
 
 	@Override
 	public int getHeight(TextRenderer textRenderer) {
-		return 10;
+		return LINE_HEIGHT;
 	}
 
 	@Override
 	public void drawText(DrawContext context, TextRenderer textRenderer, int x, int y) {
-		context.drawText(textRenderer, this.text, x, y, -1, true);
+		context.drawText(textRenderer, text, x, y, TEXT_COLOR, true);
 	}
 }

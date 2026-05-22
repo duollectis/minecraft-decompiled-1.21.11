@@ -8,7 +8,9 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code TaskQueue}.
+ * Интерфейс очереди задач для {@link ConsecutiveExecutor}.
+ * Предоставляет две реализации: {@link Simple} (FIFO без приоритетов)
+ * и {@link Prioritized} (несколько очередей с числовым приоритетом).
  */
 public interface TaskQueue<T extends Runnable> {
 
@@ -21,27 +23,29 @@ public interface TaskQueue<T extends Runnable> {
 	int getSize();
 
 	/**
-	 * {@code Prioritized}.
+	 * Приоритетная очередь задач. Хранит {@code priorityCount} отдельных очередей;
+	 * задачи с меньшим индексом приоритета извлекаются первыми.
 	 */
-	public static final class Prioritized implements TaskQueue<TaskQueue.PrioritizedTask> {
+	final class Prioritized implements TaskQueue<TaskQueue.PrioritizedTask> {
 
 		private final Queue<Runnable>[] queue;
 		private final AtomicInteger queueSize = new AtomicInteger();
 
 		public Prioritized(int priorityCount) {
-			this.queue = new Queue[priorityCount];
+			queue = new Queue[priorityCount];
 
 			for (int i = 0; i < priorityCount; i++) {
-				this.queue[i] = Queues.newConcurrentLinkedQueue();
+				queue[i] = Queues.newConcurrentLinkedQueue();
 			}
 		}
 
 		@Override
 		public @Nullable Runnable poll() {
-			for (Queue<Runnable> queue : this.queue) {
-				Runnable runnable = queue.poll();
+			for (Queue<Runnable> bucket : queue) {
+				Runnable runnable = bucket.poll();
+
 				if (runnable != null) {
-					this.queueSize.decrementAndGet();
+					queueSize.decrementAndGet();
 					return runnable;
 				}
 			}
@@ -49,56 +53,51 @@ public interface TaskQueue<T extends Runnable> {
 			return null;
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param prioritizedTask prioritized task
-		 *
-		 * @return boolean — результат операции
-		 */
-		public boolean add(TaskQueue.PrioritizedTask prioritizedTask) {
-			int i = prioritizedTask.priority;
-			if (i < this.queue.length && i >= 0) {
-				this.queue[i].add(prioritizedTask);
-				this.queueSize.incrementAndGet();
-				return true;
-			}
-			else {
+		@Override
+		public boolean add(PrioritizedTask prioritizedTask) {
+			int priority = prioritizedTask.priority();
+
+			if (priority < 0 || priority >= queue.length) {
 				throw new IndexOutOfBoundsException(String.format(
-						Locale.ROOT,
-						"Priority %d not supported. Expected range [0-%d]",
-						i,
-						this.queue.length - 1
+					Locale.ROOT,
+					"Priority %d not supported. Expected range [0-%d]",
+					priority,
+					queue.length - 1
 				));
 			}
+
+			queue[priority].add(prioritizedTask);
+			queueSize.incrementAndGet();
+			return true;
 		}
 
 		@Override
 		public boolean isEmpty() {
-			return this.queueSize.get() == 0;
+			return queueSize.get() == 0;
 		}
 
 		@Override
 		public int getSize() {
-			return this.queueSize.get();
+			return queueSize.get();
 		}
 	}
 
 	/**
-	 * {@code PrioritizedTask}.
+	 * Задача с числовым приоритетом для использования в {@link Prioritized}.
+	 * Меньшее значение {@code priority} означает более высокий приоритет.
 	 */
-	public record PrioritizedTask(int priority, Runnable runnable) implements Runnable {
+	record PrioritizedTask(int priority, Runnable runnable) implements Runnable {
 
 		@Override
 		public void run() {
-			this.runnable.run();
+			runnable.run();
 		}
 	}
 
 	/**
-	 * {@code Simple}.
+	 * Простая FIFO-очередь без приоритетов, делегирующая к произвольной {@link Queue}.
 	 */
-	public static final class Simple implements TaskQueue<Runnable> {
+	final class Simple implements TaskQueue<Runnable> {
 
 		private final Queue<Runnable> queue;
 
@@ -108,22 +107,22 @@ public interface TaskQueue<T extends Runnable> {
 
 		@Override
 		public @Nullable Runnable poll() {
-			return this.queue.poll();
+			return queue.poll();
 		}
 
 		@Override
 		public boolean add(Runnable runnable) {
-			return this.queue.add(runnable);
+			return queue.add(runnable);
 		}
 
 		@Override
 		public boolean isEmpty() {
-			return this.queue.isEmpty();
+			return queue.isEmpty();
 		}
 
 		@Override
 		public int getSize() {
-			return this.queue.size();
+			return queue.size();
 		}
 	}
 }

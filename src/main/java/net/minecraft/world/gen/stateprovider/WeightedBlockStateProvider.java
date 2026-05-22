@@ -8,21 +8,23 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code WeightedBlockStateProvider}.
+ * Поставщик состояний блоков с взвешенным случайным выбором.
+ * Каждый блок в пуле {@link Pool} имеет вес, определяющий вероятность его выбора.
  */
 public class WeightedBlockStateProvider extends BlockStateProvider {
 
 	public static final MapCodec<WeightedBlockStateProvider> CODEC = Pool.createNonEmptyCodec(BlockState.CODEC)
-	                                                                     .comapFlatMap(
-			                                                                     WeightedBlockStateProvider::wrap,
-			                                                                     weightedBlockStateProvider -> weightedBlockStateProvider.states
-	                                                                     )
-	                                                                     .fieldOf("entries");
+			.comapFlatMap(
+					WeightedBlockStateProvider::wrap,
+					provider -> provider.states
+			)
+			.fieldOf("entries");
 	private final Pool<BlockState> states;
 
 	private static DataResult<WeightedBlockStateProvider> wrap(Pool<BlockState> states) {
-		return states.isEmpty() ? DataResult.error(() -> "WeightedStateProvider with no states")
-		                        : DataResult.success(new WeightedBlockStateProvider(states));
+		return states.isEmpty()
+				? DataResult.error(() -> "WeightedStateProvider with no states")
+				: DataResult.success(new WeightedBlockStateProvider(states));
 	}
 
 	public WeightedBlockStateProvider(Pool<BlockState> states) {
@@ -40,6 +42,6 @@ public class WeightedBlockStateProvider extends BlockStateProvider {
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		return this.states.get(random);
+		return states.get(random);
 	}
 }

@@ -14,71 +14,73 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TpsDebugHudEntry}.
+ * Запись отладочного HUD: TPS сервера, задержка тика, трафик пакетов.
+ * Для интегрированного сервера показывает среднее время тика и режим спринта.
  */
+@Environment(EnvType.CLIENT)
 public class TpsDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		IntegratedServer integratedServer = minecraftClient.getServer();
-		ClientPlayNetworkHandler clientPlayNetworkHandler = minecraftClient.getNetworkHandler();
-		if (clientPlayNetworkHandler != null && world != null) {
-			ClientConnection clientConnection = clientPlayNetworkHandler.getConnection();
-			float f = clientConnection.getAveragePacketsSent();
-			float g = clientConnection.getAveragePacketsReceived();
-			TickManager tickManager = world.getTickManager();
-			String string;
-			if (tickManager.isStepping()) {
-				string = " (frozen - stepping)";
-			}
-			else if (tickManager.isFrozen()) {
-				string = " (frozen)";
-			}
-			else {
-				string = "";
-			}
+		MinecraftClient client = MinecraftClient.getInstance();
+		ClientPlayNetworkHandler networkHandler = client.getNetworkHandler();
 
-			String string3;
-			if (integratedServer != null) {
-				ServerTickManager serverTickManager = integratedServer.getTickManager();
-				boolean bl = serverTickManager.isSprinting();
-				if (bl) {
-					string = " (sprinting)";
-				}
-
-				String string2 = bl ? "-" : String.format(Locale.ROOT, "%.1f", tickManager.getMillisPerTick());
-				string3 = String.format(
-						Locale.ROOT,
-						"Integrated server @ %.1f/%s ms%s, %.0f tx, %.0f rx",
-						integratedServer.getAverageTickTime(),
-						string2,
-						string,
-						f,
-						g
-				);
-			}
-			else {
-				string3 =
-						String.format(
-								Locale.ROOT,
-								"\"%s\" server%s, %.0f tx, %.0f rx",
-								clientPlayNetworkHandler.getBrand(),
-								string,
-								f,
-								g
-						);
-			}
-
-			lines.addLine(string3);
+		if (networkHandler == null || world == null) {
+			return;
 		}
+
+		ClientConnection connection = networkHandler.getConnection();
+		float packetsSent = connection.getAveragePacketsSent();
+		float packetsReceived = connection.getAveragePacketsReceived();
+		TickManager tickManager = world.getTickManager();
+		IntegratedServer integratedServer = client.getServer();
+
+		String tickStateLabel;
+		if (tickManager.isStepping()) {
+			tickStateLabel = " (frozen - stepping)";
+		} else if (tickManager.isFrozen()) {
+			tickStateLabel = " (frozen)";
+		} else {
+			tickStateLabel = "";
+		}
+
+		String serverLine;
+		if (integratedServer != null) {
+			ServerTickManager serverTickManager = integratedServer.getTickManager();
+			boolean isSprinting = serverTickManager.isSprinting();
+
+			if (isSprinting) {
+				tickStateLabel = " (sprinting)";
+			}
+
+			String msPerTick = isSprinting ? "-" : String.format(Locale.ROOT, "%.1f", tickManager.getMillisPerTick());
+			serverLine = String.format(
+				Locale.ROOT,
+				"Integrated server @ %.1f/%s ms%s, %.0f tx, %.0f rx",
+				integratedServer.getAverageTickTime(),
+				msPerTick,
+				tickStateLabel,
+				packetsSent,
+				packetsReceived
+			);
+		} else {
+			serverLine = String.format(
+				Locale.ROOT,
+				"\"%s\" server%s, %.0f tx, %.0f rx",
+				networkHandler.getBrand(),
+				tickStateLabel,
+				packetsSent,
+				packetsReceived
+			);
+		}
+
+		lines.addLine(serverLine);
 	}
 
 	@Override

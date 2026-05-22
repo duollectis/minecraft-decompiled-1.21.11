@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code RandomCommand}.
+ * Команда {@code /random}: генерация случайных чисел и управление последовательностями.
  */
 public class RandomCommand {
 

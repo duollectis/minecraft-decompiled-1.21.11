@@ -16,10 +16,11 @@ import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FontStorage}.
+ * Хранилище запечённых глифов для одного шрифта. Управляет кешем {@link BakedGlyph},
+ * применяет фильтры шрифтов и предоставляет провайдеры глифов для рендеринга текста.
  */
+@Environment(EnvType.CLIENT)
 public class FontStorage implements AutoCloseable {
 
 	private static final float MAX_ADVANCE = 32.0F;
@@ -42,6 +43,7 @@ public class FontStorage implements AutoCloseable {
 			return null;
 		}
 	};
+
 	final GlyphBaker glyphBaker;
 	final Glyph.AbstractGlyphBaker abstractBaker = new Glyph.AbstractGlyphBaker() {
 		@Override
@@ -57,154 +59,152 @@ public class FontStorage implements AutoCloseable {
 			return FontStorage.this.blankBakedGlyph;
 		}
 	};
+
 	private List<Font.FontFilterPair> allFonts = List.of();
 	private List<Font> availableFonts = List.of();
 	private final Int2ObjectMap<IntList> charactersByWidth = new Int2ObjectOpenHashMap();
-	private final GlyphContainer<FontStorage.GlyphPair>
-			bakedGlyphCache =
+	private final GlyphContainer<FontStorage.GlyphPair> bakedGlyphCache =
 			new GlyphContainer<>(FontStorage.GlyphPair[]::new, FontStorage.GlyphPair[][]::new);
 	private final IntFunction<FontStorage.GlyphPair> findGlyph = this::findGlyph;
 	BakedGlyph blankBakedGlyph = MISSING_GLYPH;
-	private final Supplier<BakedGlyph> blankGlyphSupplier = () -> this.blankBakedGlyph;
-	private final FontStorage.GlyphPair
-			blankBakedGlyphPair =
-			new FontStorage.GlyphPair(this.blankGlyphSupplier, this.blankGlyphSupplier);
+	private final Supplier<BakedGlyph> blankGlyphSupplier = () -> blankBakedGlyph;
+	private final FontStorage.GlyphPair blankBakedGlyphPair =
+			new FontStorage.GlyphPair(blankGlyphSupplier, blankGlyphSupplier);
 	private @Nullable EffectGlyph whiteRectangleBakedGlyph;
 	private final GlyphProvider anyGlyphs = new FontStorage.Glyphs(false);
 	private final GlyphProvider advanceValidatingGlyphs = new FontStorage.Glyphs(true);
 
 	public FontStorage(GlyphBaker baker) {
-		this.glyphBaker = baker;
+		glyphBaker = baker;
 	}
 
 	public void setFonts(List<Font.FontFilterPair> allFonts, Set<FontFilterType> activeFilters) {
 		this.allFonts = allFonts;
-		this.setActiveFilters(activeFilters);
+		setActiveFilters(activeFilters);
 	}
 
 	public void setActiveFilters(Set<FontFilterType> activeFilters) {
-		this.availableFonts = List.of();
-		this.clear();
-		this.availableFonts = this.applyFilters(this.allFonts, activeFilters);
+		availableFonts = List.of();
+		clear();
+		availableFonts = applyFilters(allFonts, activeFilters);
 	}
 
 	private void clear() {
-		this.glyphBaker.clear();
-		this.bakedGlyphCache.clear();
-		this.charactersByWidth.clear();
-		this.blankBakedGlyph = Objects.requireNonNull(BuiltinEmptyGlyph.MISSING.bake(this.glyphBaker));
-		this.whiteRectangleBakedGlyph = BuiltinEmptyGlyph.WHITE.bake(this.glyphBaker);
+		glyphBaker.clear();
+		bakedGlyphCache.clear();
+		charactersByWidth.clear();
+		blankBakedGlyph = Objects.requireNonNull(BuiltinEmptyGlyph.MISSING.bake(glyphBaker));
+		whiteRectangleBakedGlyph = BuiltinEmptyGlyph.WHITE.bake(glyphBaker);
 	}
 
 	private List<Font> applyFilters(List<Font.FontFilterPair> allFonts, Set<FontFilterType> activeFilters) {
-		IntSet intSet = new IntOpenHashSet();
-		List<Font> list = new ArrayList<>();
+		IntSet codePoints = new IntOpenHashSet();
+		List<Font> allowed = new ArrayList<>();
 
-		for (Font.FontFilterPair fontFilterPair : allFonts) {
-			if (fontFilterPair.filter().isAllowed(activeFilters)) {
-				list.add(fontFilterPair.provider());
-				intSet.addAll(fontFilterPair.provider().getProvidedGlyphs());
+		for (Font.FontFilterPair pair : allFonts) {
+			if (pair.filter().isAllowed(activeFilters)) {
+				allowed.add(pair.provider());
+				codePoints.addAll(pair.provider().getProvidedGlyphs());
 			}
 		}
 
-		Set<Font> set = Sets.newHashSet();
-		intSet.forEach(
-				codePoint -> {
-					for (Font font : list) {
-						Glyph glyph = font.getGlyph(codePoint);
-						if (glyph != null) {
-							set.add(font);
-							if (glyph.getMetrics() != BuiltinEmptyGlyph.MISSING) {
-								((IntList) this.charactersByWidth.computeIfAbsent(
-										MathHelper.ceil(glyph
-												.getMetrics()
-												.getAdvance(false)), i -> new IntArrayList()
-								)
-								)
-										.add(codePoint);
-							}
-							break;
-						}
-					}
+		Set<Font> usedFonts = Sets.newHashSet();
+		codePoints.forEach(codePoint -> {
+			for (Font font : allowed) {
+				Glyph glyph = font.getGlyph(codePoint);
+				if (glyph == null) {
+					continue;
 				}
-		);
-		return list.stream().filter(set::contains).toList();
+
+				usedFonts.add(font);
+				if (glyph.getMetrics() != BuiltinEmptyGlyph.MISSING) {
+					charactersByWidth.computeIfAbsent(
+							MathHelper.ceil(glyph.getMetrics().getAdvance(false)),
+							width -> new IntArrayList()
+					).add(codePoint);
+				}
+
+				break;
+			}
+		});
+
+		return allowed.stream().filter(usedFonts::contains).toList();
 	}
 
 	@Override
 	public void close() {
-		this.glyphBaker.close();
+		glyphBaker.close();
 	}
 
 	private static boolean isAdvanceInvalid(GlyphMetrics glyph) {
-		float f = glyph.getAdvance(false);
-		if (!(f < 0.0F) && !(f > 32.0F)) {
-			float g = glyph.getAdvance(true);
-			return g < 0.0F || g > 32.0F;
-		}
-		else {
+		float advance = glyph.getAdvance(false);
+		if (advance < 0.0F || advance > MAX_ADVANCE) {
 			return true;
 		}
+
+		float boldAdvance = glyph.getAdvance(true);
+		return boldAdvance < 0.0F || boldAdvance > MAX_ADVANCE;
 	}
 
 	private FontStorage.GlyphPair findGlyph(int codePoint) {
-		FontStorage.LazyBakedGlyph lazyBakedGlyph = null;
+		FontStorage.LazyBakedGlyph firstFound = null;
 
-		for (Font font : this.availableFonts) {
+		for (Font font : availableFonts) {
 			Glyph glyph = font.getGlyph(codePoint);
-			if (glyph != null) {
-				if (lazyBakedGlyph == null) {
-					lazyBakedGlyph = new FontStorage.LazyBakedGlyph(glyph);
-				}
-
-				if (!isAdvanceInvalid(glyph.getMetrics())) {
-					if (lazyBakedGlyph.glyph == glyph) {
-						return new FontStorage.GlyphPair(lazyBakedGlyph, lazyBakedGlyph);
-					}
-
-					return new FontStorage.GlyphPair(lazyBakedGlyph, new FontStorage.LazyBakedGlyph(glyph));
-				}
+			if (glyph == null) {
+				continue;
 			}
+
+			if (firstFound == null) {
+				firstFound = new FontStorage.LazyBakedGlyph(glyph);
+			}
+
+			if (isAdvanceInvalid(glyph.getMetrics())) {
+				continue;
+			}
+
+			return firstFound.glyph == glyph
+					? new FontStorage.GlyphPair(firstFound, firstFound)
+					: new FontStorage.GlyphPair(firstFound, new FontStorage.LazyBakedGlyph(glyph));
 		}
 
-		return lazyBakedGlyph != null ? new FontStorage.GlyphPair(lazyBakedGlyph, this.blankGlyphSupplier)
-		                              : this.blankBakedGlyphPair;
+		return firstFound != null
+				? new FontStorage.GlyphPair(firstFound, blankGlyphSupplier)
+				: blankBakedGlyphPair;
 	}
 
 	FontStorage.GlyphPair getBaked(int codePoint) {
-		return this.bakedGlyphCache.computeIfAbsent(codePoint, this.findGlyph);
+		return bakedGlyphCache.computeIfAbsent(codePoint, findGlyph);
 	}
 
 	public BakedGlyph getObfuscatedBakedGlyph(Random random, int width) {
-		IntList intList = (IntList) this.charactersByWidth.get(width);
-		return intList != null && !intList.isEmpty()
-		       ? this.getBaked(intList.getInt(random.nextInt(intList.size()))).advanceValidating().get()
-		       : this.blankBakedGlyph;
+		IntList candidates = charactersByWidth.get(width);
+		return candidates != null && !candidates.isEmpty()
+				? getBaked(candidates.getInt(random.nextInt(candidates.size()))).advanceValidating().get()
+				: blankBakedGlyph;
 	}
 
 	public EffectGlyph getRectangleBakedGlyph() {
-		return Objects.requireNonNull(this.whiteRectangleBakedGlyph);
+		return Objects.requireNonNull(whiteRectangleBakedGlyph);
 	}
 
 	public GlyphProvider getGlyphs(boolean advanceValidating) {
-		return advanceValidating ? this.advanceValidatingGlyphs : this.anyGlyphs;
+		return advanceValidating ? advanceValidatingGlyphs : anyGlyphs;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code GlyphPair}.
+	 * Пара запечённых глифов: один без ограничения advance, второй — с валидацией advance.
+	 * Используется для поддержки режима обфускации текста.
 	 */
+	@Environment(EnvType.CLIENT)
 	record GlyphPair(Supplier<BakedGlyph> any, Supplier<BakedGlyph> advanceValidating) {
 
 		Supplier<BakedGlyph> get(boolean advanceValidating) {
-			return advanceValidating ? this.advanceValidating : this.any;
+			return advanceValidating ? this.advanceValidating : any;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Glyphs}.
-	 */
 	public class Glyphs implements GlyphProvider {
 
 		private final boolean advanceValidating;
@@ -215,7 +215,7 @@ public class FontStorage implements AutoCloseable {
 
 		@Override
 		public BakedGlyph get(int codePoint) {
-			return FontStorage.this.getBaked(codePoint).get(this.advanceValidating).get();
+			return FontStorage.this.getBaked(codePoint).get(advanceValidating).get();
 		}
 
 		@Override
@@ -224,10 +224,10 @@ public class FontStorage implements AutoCloseable {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code LazyBakedGlyph}.
+	 * Ленивый поставщик запечённого глифа — откладывает вызов {@link Glyph#bake} до первого обращения.
 	 */
+	@Environment(EnvType.CLIENT)
 	class LazyBakedGlyph implements Supplier<BakedGlyph> {
 
 		final Glyph glyph;
@@ -237,17 +237,12 @@ public class FontStorage implements AutoCloseable {
 			this.glyph = glyph;
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @return BakedGlyph — 
-		 */
 		public BakedGlyph get() {
-			if (this.baked == null) {
-				this.baked = this.glyph.bake(FontStorage.this.abstractBaker);
+			if (baked == null) {
+				baked = glyph.bake(FontStorage.this.abstractBaker);
 			}
 
-			return this.baked;
+			return baked;
 		}
 	}
 }

@@ -1,7 +1,7 @@
 package net.minecraft.entity;
 
 /**
- * {@code InteractionObserver}.
+ * Интерфейс для сущностей, способных наблюдать за взаимодействиями с другими сущностями.
  */
 public interface InteractionObserver {
 

@@ -34,7 +34,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code FishEntity}.
+ * Базовый класс для всех рыб. Управляет логикой плавания, вылавливания в ведро
+ * и побега от опасности. Рыбы, пойманные в ведро, сохраняют флаг {@code fromBucket}.
  */
 public abstract class FishEntity extends WaterCreatureEntity implements Bucketable {
 
@@ -175,8 +176,8 @@ public abstract class FishEntity extends WaterCreatureEntity implements Bucketab
 	}
 
 	/**
-	 * {@code FishMoveControl}.
-	 */
+ * Управление движением рыбы: плавание в воде и прыжки на суше.
+ */
 	static class FishMoveControl extends MoveControl {
 
 		private final FishEntity fish;
@@ -193,23 +194,23 @@ public abstract class FishEntity extends WaterCreatureEntity implements Bucketab
 			}
 
 			if (this.state == MoveControl.State.MOVE_TO && !this.fish.getNavigation().isIdle()) {
-				float f = (float) (this.speed * this.fish.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
-				this.fish.setMovementSpeed(MathHelper.lerp(0.125F, this.fish.getMovementSpeed(), f));
-				double d = this.targetX - this.fish.getX();
-				double e = this.targetY - this.fish.getY();
-				double g = this.targetZ - this.fish.getZ();
-				if (e != 0.0) {
-					double h = Math.sqrt(d * d + e * e + g * g);
-					this.fish.setVelocity(this.fish
-							.getVelocity()
-							.add(0.0, this.fish.getMovementSpeed() * (e / h) * 0.1, 0.0));
-				}
-
-				if (d != 0.0 || g != 0.0) {
-					float i = (float) (MathHelper.atan2(g, d) * 180.0F / (float) Math.PI) - 90.0F;
-					this.fish.setYaw(this.wrapDegrees(this.fish.getYaw(), i, 90.0F));
-					this.fish.bodyYaw = this.fish.getYaw();
-				}
+				float targetSpeed = (float) (this.speed * this.fish.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
+					this.fish.setMovementSpeed(MathHelper.lerp(0.125F, this.fish.getMovementSpeed(), targetSpeed));
+					double dx = this.targetX - this.fish.getX();
+					double dy = this.targetY - this.fish.getY();
+					double dz = this.targetZ - this.fish.getZ();
+					if (dy != 0.0) {
+						double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+						this.fish.setVelocity(this.fish
+								.getVelocity()
+								.add(0.0, this.fish.getMovementSpeed() * (dy / distance) * 0.1, 0.0));
+					}
+	
+					if (dx != 0.0 || dz != 0.0) {
+						float targetYaw = (float) (MathHelper.atan2(dz, dx) * 180.0F / (float) Math.PI) - 90.0F;
+						this.fish.setYaw(this.wrapDegrees(this.fish.getYaw(), targetYaw, 90.0F));
+						this.fish.bodyYaw = this.fish.getYaw();
+					}
 			}
 			else {
 				this.fish.setMovementSpeed(0.0F);
@@ -218,8 +219,8 @@ public abstract class FishEntity extends WaterCreatureEntity implements Bucketab
 	}
 
 	/**
-	 * {@code SwimToRandomPlaceGoal}.
-	 */
+ * Цель рыбы: случайное плавание в воде.
+ */
 	static class SwimToRandomPlaceGoal extends SwimAroundGoal {
 
 		private final FishEntity fish;

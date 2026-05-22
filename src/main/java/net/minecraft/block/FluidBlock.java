@@ -2,7 +2,6 @@ package net.minecraft.block;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.UnmodifiableIterator;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
@@ -38,7 +37,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code FluidBlock}.
+ * Блок, представляющий жидкость (воду или лаву) в мире.
+ * <p>Хранит список состояний жидкости по уровням (0–8) и делегирует
+ * физику течения соответствующему {@link FlowableFluid}.
+ * При контакте лавы с водой или синим льдом на душевом грунте
+ * происходит затвердевание в обсидиан, булыжник или базальт.</p>
  */
 public class FluidBlock extends Block implements FluidDrainable {
 
@@ -193,20 +196,19 @@ public class FluidBlock extends Block implements FluidDrainable {
 
 	private boolean receiveNeighborFluids(World world, BlockPos pos, BlockState state) {
 		if (this.fluid.isIn(FluidTags.LAVA)) {
-			boolean bl = world.getBlockState(pos.down()).isOf(Blocks.SOUL_SOIL);
-			UnmodifiableIterator var5 = FLOW_DIRECTIONS.iterator();
+			boolean onSoulSoil = world.getBlockState(pos.down()).isOf(Blocks.SOUL_SOIL);
 
-			while (var5.hasNext()) {
-				Direction direction = (Direction) var5.next();
-				BlockPos blockPos = pos.offset(direction.getOpposite());
-				if (world.getFluidState(blockPos).isIn(FluidTags.WATER)) {
-					Block block = world.getFluidState(pos).isStill() ? Blocks.OBSIDIAN : Blocks.COBBLESTONE;
-					world.setBlockState(pos, block.getDefaultState());
+			for (Direction direction : FLOW_DIRECTIONS) {
+				BlockPos neighborPos = pos.offset(direction.getOpposite());
+
+				if (world.getFluidState(neighborPos).isIn(FluidTags.WATER)) {
+					Block solidified = world.getFluidState(pos).isStill() ? Blocks.OBSIDIAN : Blocks.COBBLESTONE;
+					world.setBlockState(pos, solidified.getDefaultState());
 					this.playExtinguishSound(world, pos);
 					return false;
 				}
 
-				if (bl && world.getBlockState(blockPos).isOf(Blocks.BLUE_ICE)) {
+				if (onSoulSoil && world.getBlockState(neighborPos).isOf(Blocks.BLUE_ICE)) {
 					world.setBlockState(pos, Blocks.BASALT.getDefaultState());
 					this.playExtinguishSound(world, pos);
 					return false;

@@ -81,7 +81,7 @@ public class StonecuttingRecipeJsonBuilder implements CraftingRecipeJsonBuilder 
 
 	@Override
 	public void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey) {
-		this.validate(recipeKey);
+		validate(recipeKey);
 		Advancement.Builder builder = exporter.getAdvancementBuilder()
 		                                      .criterion("has_the_recipe", RecipeUnlockedCriterion.create(recipeKey))
 		                                      .rewards(AdvancementRewards.Builder.recipe(recipeKey))
@@ -92,7 +92,7 @@ public class StonecuttingRecipeJsonBuilder implements CraftingRecipeJsonBuilder 
 		exporter.accept(
 				recipeKey,
 				singleStackRecipe,
-				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.getName() + "/"))
+				builder.build(recipeKey.getValue().withPrefixedPath("recipes/" + this.category.name().toLowerCase(java.util.Locale.ROOT) + "/"))
 		);
 	}
 

@@ -13,11 +13,32 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code ThrownEntity}.
+ * Базовый класс для всех бросаемых снарядов (яйца, зелья, жемчуг и т.д.).
+ * <p>
+ * Реализует общую физику: гравитацию, замедление (drag) с пузырьками в воде,
+ * обработку столкновений и начальное взаимодействие с пузырьковыми столбами.
  */
 public abstract class ThrownEntity extends ProjectileEntity {
 
 	private static final float MIN_RENDER_DISTANCE_SQUARED = 12.25F;
+
+	/** Коэффициент замедления в воде. */
+	private static final float DRAG_IN_WATER = 0.8F;
+
+	/** Коэффициент замедления в воздухе. */
+	private static final float DRAG_IN_AIR = 0.99F;
+
+	/** Смещение частицы пузырька относительно текущей позиции (доля от скорости). */
+	private static final float BUBBLE_PARTICLE_OFFSET = 0.25F;
+
+	/** Количество пузырьков при движении в воде. */
+	private static final int BUBBLE_PARTICLE_COUNT = 4;
+
+	/** Базовый размер для расчёта дистанции рендера. */
+	private static final double RENDER_DISTANCE_BASE = 4.0;
+
+	/** Множитель дистанции рендера. */
+	private static final double RENDER_DISTANCE_MULTIPLIER = 64.0;
 
 	protected ThrownEntity(EntityType<? extends ThrownEntity> entityType, World world) {
 		super(entityType, world);
@@ -25,23 +46,22 @@ public abstract class ThrownEntity extends ProjectileEntity {
 
 	protected ThrownEntity(EntityType<? extends ThrownEntity> type, double x, double y, double z, World world) {
 		this(type, world);
-		this.setPosition(x, y, z);
+		setPosition(x, y, z);
 	}
 
 	@Override
 	public boolean shouldRender(double distance) {
-		if (this.age < 2 && distance < 12.25) {
+		if (age < 2 && distance < MIN_RENDER_DISTANCE_SQUARED) {
 			return false;
 		}
-		else {
-			double d = this.getBoundingBox().getAverageSideLength() * 4.0;
-			if (Double.isNaN(d)) {
-				d = 4.0;
-			}
 
-			d *= 64.0;
-			return distance < d * d;
+		double sideLength = getBoundingBox().getAverageSideLength() * RENDER_DISTANCE_BASE;
+		if (Double.isNaN(sideLength)) {
+			sideLength = RENDER_DISTANCE_BASE;
 		}
+
+		sideLength *= RENDER_DISTANCE_MULTIPLIER;
+		return distance < sideLength * sideLength;
 	}
 
 	@Override
@@ -51,68 +71,66 @@ public abstract class ThrownEntity extends ProjectileEntity {
 
 	@Override
 	public void tick() {
-		this.tickInitialBubbleColumnCollision();
-		this.applyGravity();
-		this.applyDrag();
-		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
-		Vec3d vec3d;
-		if (hitResult.getType() != HitResult.Type.MISS) {
-			vec3d = hitResult.getPos();
-		}
-		else {
-			vec3d = this.getEntityPos().add(this.getVelocity());
-		}
+		tickInitialBubbleColumnCollision();
+		applyGravity();
+		applyDrag();
 
-		this.setPosition(vec3d);
-		this.updateRotation();
-		this.tickBlockCollision();
+		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
+		Vec3d nextPos = hitResult.getType() != HitResult.Type.MISS
+				? hitResult.getPos()
+				: getEntityPos().add(getVelocity());
+
+		setPosition(nextPos);
+		updateRotation();
+		tickBlockCollision();
 		super.tick();
-		if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
-			this.hitOrDeflect(hitResult);
+
+		if (hitResult.getType() != HitResult.Type.MISS && isAlive()) {
+			hitOrDeflect(hitResult);
 		}
 	}
 
 	private void applyDrag() {
-		Vec3d vec3d = this.getVelocity();
-		Vec3d vec3d2 = this.getEntityPos();
-		float g;
-		if (this.isTouchingWater()) {
-			for (int i = 0; i < 4; i++) {
-				float f = 0.25F;
-				this.getEntityWorld()
-				    .addParticleClient(
-						    ParticleTypes.BUBBLE,
-						    vec3d2.x - vec3d.x * 0.25,
-						    vec3d2.y - vec3d.y * 0.25,
-						    vec3d2.z - vec3d.z * 0.25,
-						    vec3d.x,
-						    vec3d.y,
-						    vec3d.z
-				    );
+		Vec3d velocity = getVelocity();
+		Vec3d pos = getEntityPos();
+		float drag;
+
+		if (isTouchingWater()) {
+			for (int index = 0; index < BUBBLE_PARTICLE_COUNT; index++) {
+				getEntityWorld().addParticleClient(
+						ParticleTypes.BUBBLE,
+						pos.x - velocity.x * BUBBLE_PARTICLE_OFFSET,
+						pos.y - velocity.y * BUBBLE_PARTICLE_OFFSET,
+						pos.z - velocity.z * BUBBLE_PARTICLE_OFFSET,
+						velocity.x,
+						velocity.y,
+						velocity.z
+				);
 			}
 
-			g = 0.8F;
-		}
-		else {
-			g = 0.99F;
+			drag = DRAG_IN_WATER;
+		} else {
+			drag = DRAG_IN_AIR;
 		}
 
-		this.setVelocity(vec3d.multiply(g));
+		setVelocity(velocity.multiply(drag));
 	}
 
 	private void tickInitialBubbleColumnCollision() {
-		if (this.firstUpdate) {
-			for (BlockPos blockPos : BlockPos.iterate(this.getBoundingBox())) {
-				BlockState blockState = this.getEntityWorld().getBlockState(blockPos);
-				if (blockState.isOf(Blocks.BUBBLE_COLUMN)) {
-					blockState.onEntityCollision(
-							this.getEntityWorld(),
-							blockPos,
-							this,
-							EntityCollisionHandler.DUMMY,
-							true
-					);
-				}
+		if (!firstUpdate) {
+			return;
+		}
+
+		for (BlockPos blockPos : BlockPos.iterate(getBoundingBox())) {
+			BlockState blockState = getEntityWorld().getBlockState(blockPos);
+			if (blockState.isOf(Blocks.BUBBLE_COLUMN)) {
+				blockState.onEntityCollision(
+						getEntityWorld(),
+						blockPos,
+						this,
+						EntityCollisionHandler.DUMMY,
+						true
+				);
 			}
 		}
 	}

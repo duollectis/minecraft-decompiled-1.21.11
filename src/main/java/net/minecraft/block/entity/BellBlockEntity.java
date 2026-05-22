@@ -20,7 +20,8 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import java.util.List;
 
 /**
- * {@code BellBlockEntity}.
+ * Блок-сущность колокола. Управляет анимацией звона, резонансом и применением
+ * эффекта свечения к рейдерам в радиусе слышимости.
  */
 public class BellBlockEntity extends BlockEntity {
 
@@ -44,19 +45,20 @@ public class BellBlockEntity extends BlockEntity {
 		super(BlockEntityType.BELL, pos, state);
 	}
 
+	private static final int RING_EVENT_ID = 1;
+
 	@Override
 	public boolean onSyncedBlockEvent(int type, int data) {
-		if (type == 1) {
-			this.notifyMemoriesOfBell();
-			this.resonateTime = 0;
-			this.lastSideHit = Direction.byIndex(data);
-			this.ringTicks = 0;
-			this.ringing = true;
+		if (type == RING_EVENT_ID) {
+			notifyMemoriesOfBell();
+			resonateTime = 0;
+			lastSideHit = Direction.byIndex(data);
+			ringTicks = 0;
+			ringing = true;
 			return true;
 		}
-		else {
-			return super.onSyncedBlockEvent(type, data);
-		}
+
+		return super.onSyncedBlockEvent(type, data);
 	}
 
 	private static void tick(
@@ -70,86 +72,60 @@ public class BellBlockEntity extends BlockEntity {
 			blockEntity.ringTicks++;
 		}
 
-		if (blockEntity.ringTicks >= 50) {
+		if (blockEntity.ringTicks >= MAX_RINGING_TICKS) {
 			blockEntity.ringing = false;
 			blockEntity.ringTicks = 0;
 		}
 
-		if (blockEntity.ringTicks >= 5 && blockEntity.resonateTime == 0 && raidersHearBell(
-				pos,
-				blockEntity.hearingEntities
-		)) {
+		if (blockEntity.ringTicks >= RESONANCE_START_TICK
+				&& blockEntity.resonateTime == 0
+				&& raidersHearBell(pos, blockEntity.hearingEntities)
+		) {
 			blockEntity.resonating = true;
 			world.playSound(null, pos, SoundEvents.BLOCK_BELL_RESONATE, SoundCategory.BLOCKS, 1.0F, 1.0F);
 		}
 
 		if (blockEntity.resonating) {
-			if (blockEntity.resonateTime < 40) {
+			if (blockEntity.resonateTime < MAX_RESONATING_TICKS) {
 				blockEntity.resonateTime++;
-			}
-			else {
+			} else {
 				bellEffect.run(world, pos, blockEntity.hearingEntities);
 				blockEntity.resonating = false;
 			}
 		}
 	}
 
-	/**
-	 * Client tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, BellBlockEntity blockEntity) {
 		tick(world, pos, state, blockEntity, BellBlockEntity::applyParticlesToRaiders);
 	}
 
-	/**
-	 * Server tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, BellBlockEntity blockEntity) {
 		tick(world, pos, state, blockEntity, BellBlockEntity::applyGlowToRaiders);
 	}
 
-	/**
-	 * Activate.
-	 *
-	 * @param direction direction
-	 */
 	public void activate(Direction direction) {
-		BlockPos blockPos = this.getPos();
-		this.lastSideHit = direction;
-		if (this.ringing) {
-			this.ringTicks = 0;
-		}
-		else {
-			this.ringing = true;
-		}
-
-		this.world.addSyncedBlockEvent(blockPos, this.getCachedState().getBlock(), 1, direction.getIndex());
+		BlockPos blockPos = getPos();
+		lastSideHit = direction;
+		ringing = ringing ? (ringTicks = 0) == 0 : true;
+		world.addSyncedBlockEvent(blockPos, getCachedState().getBlock(), RING_EVENT_ID, direction.getIndex());
 	}
 
 	private void notifyMemoriesOfBell() {
-		BlockPos blockPos = this.getPos();
-		if (this.world.getTime() > this.lastRingTime + 60L || this.hearingEntities == null) {
-			this.lastRingTime = this.world.getTime();
-			Box box = new Box(blockPos).expand(48.0);
-			this.hearingEntities = this.world.getNonSpectatingEntities(LivingEntity.class, box);
+		BlockPos blockPos = getPos();
+
+		if (world.getTime() > lastRingTime + HEARING_CACHE_COOLDOWN_TICKS || hearingEntities == null) {
+			lastRingTime = world.getTime();
+			hearingEntities = world.getNonSpectatingEntities(LivingEntity.class, new Box(blockPos).expand(HEARING_RANGE));
 		}
 
-		if (!this.world.isClient()) {
-			for (LivingEntity livingEntity : this.hearingEntities) {
-				if (livingEntity.isAlive() && !livingEntity.isRemoved()
-						&& blockPos.isWithinDistance(livingEntity.getEntityPos(), 32.0)) {
-					livingEntity.getBrain().remember(MemoryModuleType.HEARD_BELL_TIME, this.world.getTime());
-				}
+		if (world.isClient()) {
+			return;
+		}
+
+		for (LivingEntity entity : hearingEntities) {
+			if (entity.isAlive() && !entity.isRemoved()
+					&& blockPos.isWithinDistance(entity.getEntityPos(), MAX_BELL_HEARING_DISTANCE)) {
+				entity.getBrain().remember(MemoryModuleType.HEARD_BELL_TIME, world.getTime());
 			}
 		}
 	}
@@ -175,30 +151,27 @@ public class BellBlockEntity extends BlockEntity {
 	}
 
 	private static void applyParticlesToRaiders(World world, BlockPos pos, List<LivingEntity> hearingEntities) {
-		MutableInt mutableInt = new MutableInt(16700985);
-		int
-				i =
-				(int) hearingEntities
-						.stream()
-						.filter(entity -> pos.isWithinDistance(entity.getEntityPos(), 48.0))
-						.count();
-		hearingEntities.stream().filter(entity -> isRaiderEntity(pos, entity)).forEach(entity -> {
-			float f = 1.0F;
-			double
-					d =
-					Math.sqrt((entity.getX() - pos.getX()) * (entity.getX() - pos.getX())
-							+ (entity.getZ() - pos.getZ()) * (entity.getZ() - pos.getZ()));
-			double e = pos.getX() + 0.5F + 1.0 / d * (entity.getX() - pos.getX());
-			double g = pos.getZ() + 0.5F + 1.0 / d * (entity.getZ() - pos.getZ());
-			int j = MathHelper.clamp((i - 21) / -2, 3, 15);
+		MutableInt colorCounter = new MutableInt(16700985);
+		int nearbyCount = (int) hearingEntities.stream()
+				.filter(entity -> pos.isWithinDistance(entity.getEntityPos(), PARTICLE_RANGE))
+				.count();
 
-			for (int k = 0; k < j; k++) {
-				int l = mutableInt.addAndGet(5);
+		hearingEntities.stream().filter(entity -> isRaiderEntity(pos, entity)).forEach(entity -> {
+			double dist = Math.sqrt(
+					(entity.getX() - pos.getX()) * (entity.getX() - pos.getX())
+					+ (entity.getZ() - pos.getZ()) * (entity.getZ() - pos.getZ())
+			);
+			double particleX = pos.getX() + 0.5F + 1.0 / dist * (entity.getX() - pos.getX());
+			double particleZ = pos.getZ() + 0.5F + 1.0 / dist * (entity.getZ() - pos.getZ());
+			int particleCount = MathHelper.clamp((nearbyCount - 21) / -2, 3, 15);
+
+			for (int step = 0; step < particleCount; step++) {
+				int color = colorCounter.addAndGet(5);
 				world.addParticleClient(
-						TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, l),
-						e,
+						TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, color),
+						particleX,
 						pos.getY() + 0.5F,
-						g,
+						particleZ,
 						0.0,
 						0.0,
 						0.0
@@ -214,13 +187,10 @@ public class BellBlockEntity extends BlockEntity {
 	}
 
 	private static void applyGlowToEntity(LivingEntity entity) {
-		entity.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 60));
+		entity.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, HEARING_CACHE_COOLDOWN_TICKS));
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code Effect}.
-	 */
 	interface Effect {
 
 		void run(World world, BlockPos pos, List<LivingEntity> hearingEntities);

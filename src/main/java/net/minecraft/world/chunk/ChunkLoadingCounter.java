@@ -10,46 +10,49 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code ChunkLoadingCounter}.
+ * Отслеживает количество чанков, добавленных в мир после вызова {@link #load}.
+ * Разделяет чанки на «полностью загруженные» (достигшие {@link ChunkStatus#FULL})
+ * и «ещё загружающиеся».
  */
 public class ChunkLoadingCounter {
 
-	private final List<ChunkHolder> nonFullChunks = new ArrayList<>();
+	private final List<ChunkHolder> pendingChunks = new ArrayList<>();
 	private int totalChunks;
 
 	/**
-	 * Load.
-	 *
-	 * @param world world
-	 * @param runnable runnable
+	 * Запускает {@code runnable}, затем фиксирует все новые чанки, появившиеся
+	 * в менеджере после его выполнения, для последующего отслеживания прогресса.
 	 */
 	public void load(ServerWorld world, Runnable runnable) {
-		ServerChunkManager serverChunkManager = world.getChunkManager();
-		LongSet longSet = new LongOpenHashSet();
-		serverChunkManager.updateChunks();
-		serverChunkManager.chunkLoadingManager
+		ServerChunkManager chunkManager = world.getChunkManager();
+		LongSet existingFullChunks = new LongOpenHashSet();
+
+		chunkManager.updateChunks();
+		chunkManager.chunkLoadingManager
 				.getChunkHolders(ChunkStatus.FULL)
-				.forEach(holder -> longSet.add(holder.getPos().toLong()));
+				.forEach(holder -> existingFullChunks.add(holder.getPos().toLong()));
+
 		runnable.run();
-		serverChunkManager.updateChunks();
-		serverChunkManager.chunkLoadingManager.getChunkHolders(ChunkStatus.FULL).forEach(holder -> {
-			if (!longSet.contains(holder.getPos().toLong())) {
-				this.nonFullChunks.add(holder);
-				this.totalChunks++;
+
+		chunkManager.updateChunks();
+		chunkManager.chunkLoadingManager.getChunkHolders(ChunkStatus.FULL).forEach(holder -> {
+			if (!existingFullChunks.contains(holder.getPos().toLong())) {
+				pendingChunks.add(holder);
+				totalChunks++;
 			}
 		});
 	}
 
 	public int getFullChunks() {
-		return this.totalChunks - this.getNonFullChunks();
+		return totalChunks - getNonFullChunks();
 	}
 
 	public int getNonFullChunks() {
-		this.nonFullChunks.removeIf(holder -> holder.getLatestStatus() == ChunkStatus.FULL);
-		return this.nonFullChunks.size();
+		pendingChunks.removeIf(holder -> holder.getLatestStatus() == ChunkStatus.FULL);
+		return pendingChunks.size();
 	}
 
 	public int getTotalChunks() {
-		return this.totalChunks;
+		return totalChunks;
 	}
 }

@@ -14,18 +14,24 @@ import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code LandingApproachPhase}.
+ * Фаза захода на посадку. Дракон летит к порталу, учитывая позицию ближайшего игрока
+ * для выбора оптимального узла подлёта, затем переходит в {@link LandingPhase}.
  */
 public class LandingApproachPhase extends AbstractPhase {
 
-	private static final TargetPredicate
-			PLAYERS_IN_RANGE_PREDICATE =
+	private static final TargetPredicate PLAYERS_IN_RANGE_PREDICATE =
 			TargetPredicate.createAttackable().ignoreVisibility();
+	private static final double MIN_PATH_DIST_SQ = 100.0;
+	private static final double MAX_PATH_DIST_SQ = 22500.0;
+	private static final double APPROACH_RADIUS = 40.0;
+	private static final double APPROACH_HEIGHT = 105.0;
+	private static final float PATH_Y_RANDOM_RANGE = 20.0F;
+
 	private @Nullable Path path;
 	private @Nullable Vec3d pathTarget;
 
-	public LandingApproachPhase(EnderDragonEntity enderDragonEntity) {
-		super(enderDragonEntity);
+	public LandingApproachPhase(EnderDragonEntity dragon) {
+		super(dragon);
 	}
 
 	@Override
@@ -35,83 +41,76 @@ public class LandingApproachPhase extends AbstractPhase {
 
 	@Override
 	public void beginPhase() {
-		this.path = null;
-		this.pathTarget = null;
+		path = null;
+		pathTarget = null;
 	}
 
 	@Override
 	public void serverTick(ServerWorld world) {
-		double
-				d =
-				this.pathTarget == null ? 0.0 : this.pathTarget.squaredDistanceTo(
-						this.dragon.getX(),
-						this.dragon.getY(),
-						this.dragon.getZ()
-				);
-		if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
-			this.updatePath(world);
+		double distSq = pathTarget == null
+				? 0.0
+				: pathTarget.squaredDistanceTo(dragon.getX(), dragon.getY(), dragon.getZ());
+
+		if (distSq < MIN_PATH_DIST_SQ
+				|| distSq > MAX_PATH_DIST_SQ
+				|| dragon.horizontalCollision
+				|| dragon.verticalCollision) {
+			updatePath(world);
 		}
 	}
 
 	@Override
 	public @Nullable Vec3d getPathTarget() {
-		return this.pathTarget;
+		return pathTarget;
 	}
 
 	private void updatePath(ServerWorld world) {
-		if (this.path == null || this.path.isFinished()) {
-			int i = this.dragon.getNearestPathNodeIndex();
-			BlockPos
-					blockPos =
-					world.getTopPosition(
-							Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
-					);
-			PlayerEntity
-					playerEntity =
-					world.getClosestPlayer(
-							PLAYERS_IN_RANGE_PREDICATE,
-							this.dragon,
-							blockPos.getX(),
-							blockPos.getY(),
-							blockPos.getZ()
-					);
-			int j;
-			if (playerEntity != null) {
-				Vec3d vec3d = new Vec3d(playerEntity.getX(), 0.0, playerEntity.getZ()).normalize();
-				j = this.dragon.getNearestPathNodeIndex(-vec3d.x * 40.0, 105.0, -vec3d.z * 40.0);
-			}
-			else {
-				j = this.dragon.getNearestPathNodeIndex(40.0, blockPos.getY(), 0.0);
+		if (path == null || path.isFinished()) {
+			int nearestNode = dragon.getNearestPathNodeIndex();
+			BlockPos portalTop = world.getTopPosition(
+					Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+					EndPortalFeature.offsetOrigin(dragon.getFightOrigin())
+			);
+			PlayerEntity nearestPlayer = world.getClosestPlayer(
+					PLAYERS_IN_RANGE_PREDICATE, dragon, portalTop.getX(), portalTop.getY(), portalTop.getZ()
+			);
+
+			int approachNode;
+			if (nearestPlayer != null) {
+				Vec3d playerDir = new Vec3d(nearestPlayer.getX(), 0.0, nearestPlayer.getZ()).normalize();
+				approachNode = dragon.getNearestPathNodeIndex(-playerDir.x * APPROACH_RADIUS, APPROACH_HEIGHT, -playerDir.z * APPROACH_RADIUS);
+			} else {
+				approachNode = dragon.getNearestPathNodeIndex(APPROACH_RADIUS, portalTop.getY(), 0.0);
 			}
 
-			PathNode pathNode = new PathNode(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-			this.path = this.dragon.findPath(i, j, pathNode);
-			if (this.path != null) {
-				this.path.next();
+			PathNode landingNode = new PathNode(portalTop.getX(), portalTop.getY(), portalTop.getZ());
+			path = dragon.findPath(nearestNode, approachNode, landingNode);
+
+			if (path != null) {
+				path.next();
 			}
 		}
 
-		this.followPath();
-		if (this.path != null && this.path.isFinished()) {
-			this.dragon.getPhaseManager().setPhase(PhaseType.LANDING);
+		followPath();
+
+		if (path != null && path.isFinished()) {
+			dragon.getPhaseManager().setPhase(PhaseType.LANDING);
 		}
 	}
 
 	private void followPath() {
-		if (this.path != null && !this.path.isFinished()) {
-			Vec3i vec3i = this.path.getCurrentNodePos();
-			this.path.next();
-			double d = vec3i.getX();
-			double e = vec3i.getZ();
-
-			double f;
-			do {
-				f = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
-			}
-			while (f < vec3i.getY());
-
-			this.pathTarget = new Vec3d(d, f, e);
+		if (path == null || path.isFinished()) {
+			return;
 		}
+
+		Vec3i nodePos = path.getCurrentNodePos();
+		path.next();
+
+		double targetY;
+		do {
+			targetY = nodePos.getY() + dragon.getRandom().nextFloat() * PATH_Y_RANDOM_RANGE;
+		} while (targetY < nodePos.getY());
+
+		pathTarget = new Vec3d(nodePos.getX(), targetY, nodePos.getZ());
 	}
 }

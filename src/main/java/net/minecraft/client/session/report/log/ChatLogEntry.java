@@ -8,43 +8,44 @@ import net.minecraft.util.StringIdentifiable;
 
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatLogEntry}.
+ * Запись в логе чата. Может представлять сообщение игрока или системное сообщение.
+ * Тип записи определяет codec для сериализации конкретной реализации.
  */
+@Environment(EnvType.CLIENT)
 public interface ChatLogEntry {
 
-	Codec<ChatLogEntry>
-			CODEC =
-			StringIdentifiable
-					.createCodec(ChatLogEntry.Type::values)
-					.dispatch(ChatLogEntry::getType, ChatLogEntry.Type::getCodec);
+	Codec<ChatLogEntry> CODEC = StringIdentifiable
+		.createCodec(ChatLogEntry.Type::values)
+		.dispatch(ChatLogEntry::getType, ChatLogEntry.Type::getCodec);
 
 	ChatLogEntry.Type getType();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Type}.
+	 * Тип записи лога чата, определяющий codec для десериализации.
+	 * {@link #PLAYER} — сообщение от игрока с подписью,
+	 * {@link #SYSTEM} — системное сообщение без подписи.
 	 */
-	public static enum Type implements StringIdentifiable {
+	@Environment(EnvType.CLIENT)
+	enum Type implements StringIdentifiable {
 		PLAYER("player", () -> ReceivedMessage.ChatMessage.CHAT_MESSAGE_CODEC),
 		SYSTEM("system", () -> ReceivedMessage.GameMessage.GAME_MESSAGE_CODEC);
 
 		private final String id;
 		private final Supplier<MapCodec<? extends ChatLogEntry>> codecSupplier;
 
-		private Type(final String id, final Supplier<MapCodec<? extends ChatLogEntry>> codecSupplier) {
+		Type(String id, Supplier<MapCodec<? extends ChatLogEntry>> codecSupplier) {
 			this.id = id;
 			this.codecSupplier = codecSupplier;
 		}
 
 		private MapCodec<? extends ChatLogEntry> getCodec() {
-			return this.codecSupplier.get();
+			return codecSupplier.get();
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 }

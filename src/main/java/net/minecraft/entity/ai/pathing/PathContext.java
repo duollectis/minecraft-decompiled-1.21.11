@@ -8,7 +8,8 @@ import net.minecraft.world.CollisionView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PathContext}.
+ * Контекст поиска пути: предоставляет доступ к миру и кэшу типов узлов.
+ * На сервере использует {@link PathNodeTypeCache} для ускорения повторных запросов.
  */
 public class PathContext {
 
@@ -19,31 +20,28 @@ public class PathContext {
 
 	public PathContext(CollisionView world, MobEntity entity) {
 		this.world = world;
-		if (entity.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.nodeTypeCache = serverWorld.getPathNodeTypeCache();
-		}
-		else {
-			this.nodeTypeCache = null;
-		}
-
-		this.entityPos = entity.getBlockPos();
+		nodeTypeCache = entity.getEntityWorld() instanceof ServerWorld serverWorld
+				? serverWorld.getPathNodeTypeCache()
+				: null;
+		entityPos = entity.getBlockPos();
 	}
 
 	public PathNodeType getNodeType(int x, int y, int z) {
-		BlockPos blockPos = this.lastNodePos.set(x, y, z);
-		return this.nodeTypeCache == null ? LandPathNodeMaker.getCommonNodeType(this.world, blockPos)
-		                                  : this.nodeTypeCache.add(this.world, blockPos);
+		BlockPos pos = lastNodePos.set(x, y, z);
+		return nodeTypeCache == null
+				? LandPathNodeMaker.getCommonNodeType(world, pos)
+				: nodeTypeCache.add(world, pos);
 	}
 
 	public BlockState getBlockState(BlockPos pos) {
-		return this.world.getBlockState(pos);
+		return world.getBlockState(pos);
 	}
 
 	public CollisionView getWorld() {
-		return this.world;
+		return world;
 	}
 
 	public BlockPos getEntityPos() {
-		return this.entityPos;
+		return entityPos;
 	}
 }

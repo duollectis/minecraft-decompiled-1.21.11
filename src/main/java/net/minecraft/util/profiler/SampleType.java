@@ -1,7 +1,7 @@
 package net.minecraft.util.profiler;
 
 /**
- * {@code SampleType}.
+ * Категория сэмплируемой метрики, определяющая группировку данных в CSV-дампе.
  */
 public enum SampleType {
 	PATH_FINDING("pathfinding"),
@@ -16,11 +16,11 @@ public enum SampleType {
 
 	private final String name;
 
-	private SampleType(final String name) {
+	SampleType(String name) {
 		this.name = name;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 }

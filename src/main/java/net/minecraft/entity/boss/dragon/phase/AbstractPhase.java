@@ -10,7 +10,8 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractPhase}.
+ * Базовая реализация {@link Phase} с разумными значениями по умолчанию.
+ * Все методы-заглушки переопределяются конкретными фазами по необходимости.
  */
 public abstract class AbstractPhase implements Phase {
 
@@ -67,8 +68,8 @@ public abstract class AbstractPhase implements Phase {
 
 	@Override
 	public float getYawAcceleration() {
-		float f = (float) this.dragon.getVelocity().horizontalLength() + 1.0F;
-		float g = Math.min(f, 40.0F);
-		return 0.7F / g / f;
+		float speed = (float) dragon.getVelocity().horizontalLength() + 1.0F;
+		float capped = Math.min(speed, 40.0F);
+		return 0.7F / capped / speed;
 	}
 }

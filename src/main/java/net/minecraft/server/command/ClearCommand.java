@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.function.Predicate;
 
 /**
- * {@code ClearCommand}.
+ * Команда {@code /clear}: очистка инвентаря игроков.
  */
 public class ClearCommand {
 

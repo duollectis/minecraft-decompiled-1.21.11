@@ -14,37 +14,39 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SystemSpecsDebugHudEntry}.
+ * Запись отладочного HUD: характеристики системы (Java, CPU, GPU, разрешение).
  */
+@Environment(EnvType.CLIENT)
 public class SystemSpecsDebugHudEntry implements DebugHudEntry {
 
 	private static final Identifier SECTION_ID = Identifier.ofVanilla("system");
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
 		GpuDevice gpuDevice = RenderSystem.getDevice();
+		MinecraftClient client = MinecraftClient.getInstance();
+
 		lines.addLinesToSection(
-				SECTION_ID,
-				List.of(
-						String.format(Locale.ROOT, "Java: %s", System.getProperty("java.version")),
-						String.format(Locale.ROOT, "CPU: %s", GLX._getCpuInfo()),
-						String.format(
-								Locale.ROOT,
-								"Display: %dx%d (%s)",
-								MinecraftClient.getInstance().getWindow().getFramebufferWidth(),
-								MinecraftClient.getInstance().getWindow().getFramebufferHeight(),
-								gpuDevice.getVendor()
-						),
-						gpuDevice.getRenderer(),
-						String.format(Locale.ROOT, "%s %s", gpuDevice.getBackendName(), gpuDevice.getVersion())
-				)
+			SECTION_ID,
+			List.of(
+				String.format(Locale.ROOT, "Java: %s", System.getProperty("java.version")),
+				String.format(Locale.ROOT, "CPU: %s", GLX._getCpuInfo()),
+				String.format(
+					Locale.ROOT,
+					"Display: %dx%d (%s)",
+					client.getWindow().getFramebufferWidth(),
+					client.getWindow().getFramebufferHeight(),
+					gpuDevice.getVendor()
+				),
+				gpuDevice.getRenderer(),
+				String.format(Locale.ROOT, "%s %s", gpuDevice.getBackendName(), gpuDevice.getVersion())
+			)
 		);
 	}
 

@@ -8,8 +8,9 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code EnchantableComponent}.
- */
+	 * Компонент зачаровываемости предмета. Чем выше {@code value}, тем лучше
+	 * зачарования может получить предмет на столе зачарований.
+	 */
 public record EnchantableComponent(int value) {
 
 	public static final Codec<EnchantableComponent> CODEC = RecordCodecBuilder.create(
@@ -25,8 +26,7 @@ public record EnchantableComponent(int value) {
 		if (value <= 0) {
 			throw new IllegalArgumentException("Enchantment value must be positive, but was " + value);
 		}
-		else {
-			this.value = value;
-		}
+
+		this.value = value;
 	}
 }

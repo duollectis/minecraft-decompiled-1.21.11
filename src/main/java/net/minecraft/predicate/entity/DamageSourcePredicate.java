@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code DamageSourcePredicate}.
+ * Предикат источника урона. Проверяет теги типа урона, прямую и косвенную сущности-источники,
+ * а также признак прямого урона.
  */
 public record DamageSourcePredicate(
 		List<TagPredicate<DamageType>> tags,
@@ -26,53 +27,48 @@ public record DamageSourcePredicate(
 
 	public static final Codec<DamageSourcePredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    TagPredicate
-							                    .createCodec(RegistryKeys.DAMAGE_TYPE)
-							                    .listOf()
-							                    .optionalFieldOf("tags", List.of())
-							                    .forGetter(DamageSourcePredicate::tags),
-					                    EntityPredicate.CODEC
-							                    .optionalFieldOf("direct_entity")
-							                    .forGetter(DamageSourcePredicate::directEntity),
-					                    EntityPredicate.CODEC
-							                    .optionalFieldOf("source_entity")
-							                    .forGetter(DamageSourcePredicate::sourceEntity),
-					                    Codec.BOOL.optionalFieldOf("is_direct").forGetter(DamageSourcePredicate::isDirect)
-			                    )
-			                    .apply(instance, DamageSourcePredicate::new)
+					TagPredicate.createCodec(RegistryKeys.DAMAGE_TYPE)
+							.listOf()
+							.optionalFieldOf("tags", List.of())
+							.forGetter(DamageSourcePredicate::tags),
+					EntityPredicate.CODEC
+							.optionalFieldOf("direct_entity")
+							.forGetter(DamageSourcePredicate::directEntity),
+					EntityPredicate.CODEC
+							.optionalFieldOf("source_entity")
+							.forGetter(DamageSourcePredicate::sourceEntity),
+					Codec.BOOL.optionalFieldOf("is_direct").forGetter(DamageSourcePredicate::isDirect)
+			).apply(instance, DamageSourcePredicate::new)
 	);
 
 	public boolean test(ServerPlayerEntity player, DamageSource damageSource) {
-		return this.test(player.getEntityWorld(), player.getEntityPos(), damageSource);
+		return test(player.getEntityWorld(), player.getEntityPos(), damageSource);
 	}
 
 	public boolean test(ServerWorld world, Vec3d pos, DamageSource damageSource) {
-		for (TagPredicate<DamageType> tagPredicate : this.tags) {
+		for (TagPredicate<DamageType> tagPredicate : tags) {
 			if (!tagPredicate.test(damageSource.getTypeRegistryEntry())) {
 				return false;
 			}
 		}
 
-		if (this.directEntity.isPresent() && !this.directEntity.get().test(world, pos, damageSource.getSource())) {
+		if (directEntity.isPresent() && !directEntity.get().test(world, pos, damageSource.getSource())) {
 			return false;
 		}
-		else {
-			return this.sourceEntity.isPresent() && !this.sourceEntity
-					.get()
-					.test(world, pos, damageSource.getAttacker())
-			       ? false
-			       : !this.isDirect.isPresent() || this.isDirect.get() == damageSource.isDirect();
+
+		if (sourceEntity.isPresent() && !sourceEntity.get().test(world, pos, damageSource.getAttacker())) {
+			return false;
 		}
+
+		return isDirect.isEmpty() || isDirect.get() == damageSource.isDirect();
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link DamageSourcePredicate} с фильтрами по тегам, прямой и косвенной сущности.
 	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableList.Builder<TagPredicate<DamageType>>
-				tagPredicates =
-				ImmutableList.builder();
+		private final ImmutableList.Builder<TagPredicate<DamageType>> tagPredicates = ImmutableList.builder();
 		private Optional<EntityPredicate> directEntity = Optional.empty();
 		private Optional<EntityPredicate> sourceEntity = Optional.empty();
 		private Optional<Boolean> isDirect = Optional.empty();
@@ -82,32 +78,27 @@ public record DamageSourcePredicate(
 		}
 
 		public DamageSourcePredicate.Builder tag(TagPredicate<DamageType> tagPredicate) {
-			this.tagPredicates.add(tagPredicate);
+			tagPredicates.add(tagPredicate);
 			return this;
 		}
 
 		public DamageSourcePredicate.Builder directEntity(EntityPredicate.Builder entity) {
-			this.directEntity = Optional.of(entity.build());
+			directEntity = Optional.of(entity.build());
 			return this;
 		}
 
 		public DamageSourcePredicate.Builder sourceEntity(EntityPredicate.Builder entity) {
-			this.sourceEntity = Optional.of(entity.build());
+			sourceEntity = Optional.of(entity.build());
 			return this;
 		}
 
 		public DamageSourcePredicate.Builder isDirect(boolean direct) {
-			this.isDirect = Optional.of(direct);
+			isDirect = Optional.of(direct);
 			return this;
 		}
 
 		public DamageSourcePredicate build() {
-			return new DamageSourcePredicate(
-					this.tagPredicates.build(),
-					this.directEntity,
-					this.sourceEntity,
-					this.isDirect
-			);
+			return new DamageSourcePredicate(tagPredicates.build(), directEntity, sourceEntity, isDirect);
 		}
 	}
 }

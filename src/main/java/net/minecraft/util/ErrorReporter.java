@@ -6,231 +6,263 @@ import net.minecraft.registry.RegistryKey;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
- * {@code ErrorReporter}.
+ * Иерархический коллектор ошибок сериализации/десериализации.
+ * <p>
+ * Позволяет накапливать ошибки с контекстом (путём в структуре данных)
+ * и выводить их в виде читаемого дерева. Поддерживает создание дочерних
+ * репортеров для вложенных контекстов через {@link #makeChild(Context)}.
  */
 public interface ErrorReporter {
 
 	ErrorReporter EMPTY = new ErrorReporter() {
 		@Override
-		public ErrorReporter makeChild(ErrorReporter.Context context) {
+		public ErrorReporter makeChild(Context context) {
 			return this;
 		}
 
 		@Override
-		public void report(ErrorReporter.Error error) {
+		public void report(Error error) {
 		}
 	};
 
-	ErrorReporter makeChild(ErrorReporter.Context context);
-
-	void report(ErrorReporter.Error error);
-
-	@FunctionalInterface
 	/**
-	 * {@code Context}.
+	 * Создаёт дочерний репортер с указанным контекстом.
+	 * Ошибки дочернего репортера будут включать путь к данному контексту.
+	 *
+	 * @param context контекст вложенного уровня (имя поля, индекс элемента и т.д.)
+	 * @return дочерний репортер
 	 */
-	public interface Context {
+	ErrorReporter makeChild(Context context);
+
+	void report(Error error);
+
+	/**
+	 * Контекст одного уровня иерархии ошибок.
+	 * Предоставляет строковое имя для построения пути к ошибке.
+	 */
+	@FunctionalInterface
+	interface Context {
 
 		String getName();
 	}
 
 	/**
-	 * {@code CriterionContext}.
+	 * Контекст критерия достижения.
+	 *
+	 * @param name имя критерия
 	 */
-	public record CriterionContext(String name) implements ErrorReporter.Context {
+	record CriterionContext(String name) implements Context {
 
 		@Override
 		public String getName() {
-			return this.name;
+			return name;
 		}
 	}
 
-	/**
-	 * {@code Error}.
-	 */
-	public interface Error {
+	/** Описание одной ошибки с текстовым сообщением. */
+	interface Error {
 
 		String getMessage();
 	}
 
 	/**
-	 * {@code Impl}.
+	 * Базовая реализация {@link ErrorReporter} с накоплением ошибок в общем хранилище.
+	 * Все дочерние репортеры разделяют одно и то же множество ошибок с корневым репортером.
 	 */
-	public static class Impl implements ErrorReporter {
+	class Impl implements ErrorReporter {
 
-		public static final ErrorReporter.Context CONTEXT = () -> "";
-		private final ErrorReporter.@Nullable Impl parent;
-		private final ErrorReporter.Context context;
-		private final Set<ErrorReporter.Impl.ErrorEntry> errors;
+		public static final Context CONTEXT = () -> "";
+
+		private final @Nullable Impl parent;
+		private final Context context;
+		private final Set<ErrorEntry> errors;
 
 		public Impl() {
 			this(CONTEXT);
 		}
 
-		public Impl(ErrorReporter.Context context) {
+		public Impl(Context context) {
 			this.parent = null;
 			this.errors = new LinkedHashSet<>();
 			this.context = context;
 		}
 
-		private Impl(ErrorReporter.Impl parent, ErrorReporter.Context context) {
+		private Impl(Impl parent, Context context) {
 			this.errors = parent.errors;
 			this.parent = parent;
 			this.context = context;
 		}
 
 		@Override
-		public ErrorReporter makeChild(ErrorReporter.Context context) {
-			return new ErrorReporter.Impl(this, context);
+		public ErrorReporter makeChild(Context context) {
+			return new Impl(this, context);
 		}
 
 		@Override
-		public void report(ErrorReporter.Error error) {
-			this.errors.add(new ErrorReporter.Impl.ErrorEntry(this, error));
+		public void report(Error error) {
+			errors.add(new ErrorEntry(this, error));
 		}
 
 		public boolean isEmpty() {
-			return this.errors.isEmpty();
+			return errors.isEmpty();
 		}
 
 		/**
-		 * Apply.
+		 * Передаёт все накопленные ошибки в указанный потребитель.
+		 * Каждая ошибка передаётся вместе с полным путём контекста в виде строки.
 		 *
-		 * @param consumer consumer
+		 * @param consumer потребитель пар (путь, ошибка)
 		 */
-		public void apply(BiConsumer<String, ErrorReporter.Error> consumer) {
-			List<ErrorReporter.Context> list = new ArrayList<>();
-			StringBuilder stringBuilder = new StringBuilder();
+		public void apply(BiConsumer<String, Error> consumer) {
+			List<Context> contextPath = new ArrayList<>();
+			StringBuilder pathBuilder = new StringBuilder();
 
-			for (ErrorReporter.Impl.ErrorEntry errorEntry : this.errors) {
-				for (ErrorReporter.Impl impl = errorEntry.source; impl != null; impl = impl.parent) {
-					list.add(impl.context);
+			for (ErrorEntry entry : errors) {
+				for (Impl current = entry.source(); current != null; current = current.parent) {
+					contextPath.add(current.context);
 				}
 
-				for (int i = list.size() - 1; i >= 0; i--) {
-					stringBuilder.append(list.get(i).getName());
+				for (int i = contextPath.size() - 1; i >= 0; i--) {
+					pathBuilder.append(contextPath.get(i).getName());
 				}
 
-				consumer.accept(stringBuilder.toString(), errorEntry.error());
-				stringBuilder.setLength(0);
-				list.clear();
+				consumer.accept(pathBuilder.toString(), entry.error());
+				pathBuilder.setLength(0);
+				contextPath.clear();
 			}
 		}
 
+		/**
+		 * Возвращает все ошибки в виде компактной строки, сгруппированной по пути.
+		 *
+		 * @return многострочная строка с ошибками
+		 */
 		public String getErrorsAsString() {
-			Multimap<String, ErrorReporter.Error> multimap = HashMultimap.create();
-			this.apply(multimap::put);
-			return multimap.asMap()
-			               .entrySet()
-			               .stream()
-			               .map(
-					               entry -> " at "
-							               + (String) entry.getKey()
-							               + ": "
-							               + ((Collection<ErrorReporter.Error>) entry.getValue())
-							               .stream()
-							               .map(e -> e.getMessage())
-							               .collect(Collectors.joining("; "))
-			               )
-			               .collect(Collectors.joining("\n"));
+			Multimap<String, Error> grouped = HashMultimap.create();
+			apply(grouped::put);
+
+			return grouped.asMap()
+				.entrySet()
+				.stream()
+				.map(entry -> " at " + entry.getKey() + ": "
+					+ ((Collection<Error>) entry.getValue()).stream()
+					.map(Error::getMessage)
+					.collect(Collectors.joining("; "))
+				)
+				.collect(Collectors.joining("\n"));
 		}
 
+		/**
+		 * Возвращает все ошибки в виде подробного дерева с отступами.
+		 *
+		 * @return многострочная строка с иерархическим деревом ошибок
+		 */
 		public String getErrorsAsLongString() {
-			List<ErrorReporter.Context> list = new ArrayList<>();
-			ErrorReporter.Impl.ErrorList errorList = new ErrorReporter.Impl.ErrorList(this.context);
+			List<Context> contextPath = new ArrayList<>();
+			ErrorList rootList = new ErrorList(context);
 
-			for (ErrorReporter.Impl.ErrorEntry errorEntry : this.errors) {
-				for (ErrorReporter.Impl impl = errorEntry.source; impl != this; impl = impl.parent) {
-					list.add(impl.context);
+			for (ErrorEntry entry : errors) {
+				for (Impl current = entry.source(); current != this; current = current.parent) {
+					contextPath.add(current.context);
 				}
 
-				ErrorReporter.Impl.ErrorList errorList2 = errorList;
+				ErrorList currentList = rootList;
 
-				for (int i = list.size() - 1; i >= 0; i--) {
-					errorList2 = errorList2.get(list.get(i));
+				for (int i = contextPath.size() - 1; i >= 0; i--) {
+					currentList = currentList.get(contextPath.get(i));
 				}
 
-				list.clear();
-				errorList2.errors.add(errorEntry.error);
+				contextPath.clear();
+				currentList.errors.add(entry.error());
 			}
 
-			return String.join("\n", errorList.getMessages());
+			return String.join("\n", rootList.getMessages());
 		}
 
-		/**
-		 * {@code ErrorEntry}.
-		 */
-		record ErrorEntry(ErrorReporter.Impl source, ErrorReporter.Error error) {
+		record ErrorEntry(Impl source, Error error) {
 		}
 
-		/**
-		 * {@code ErrorList}.
-		 */
 		record ErrorList(
-				ErrorReporter.Context element,
-				List<ErrorReporter.Error> errors,
-				Map<ErrorReporter.Context, ErrorReporter.Impl.ErrorList> children
+			Context element,
+			List<Error> errors,
+			Map<Context, ErrorList> children
 		) {
 
-			public ErrorList(ErrorReporter.Context context) {
+			public ErrorList(Context context) {
 				this(context, new ArrayList<>(), new LinkedHashMap<>());
 			}
 
-			public ErrorReporter.Impl.ErrorList get(ErrorReporter.Context context) {
-				return this.children.computeIfAbsent(context, ErrorReporter.Impl.ErrorList::new);
+			public ErrorList get(Context context) {
+				return children.computeIfAbsent(context, ErrorList::new);
 			}
 
+			/**
+			 * Рекурсивно строит список строк для отображения дерева ошибок.
+			 * Применяет компактный вывод для одиночных ошибок и развёрнутый — для множественных.
+			 *
+			 * @return список строк для данного узла дерева
+			 */
 			public List<String> getMessages() {
-				int i = this.errors.size();
-				int j = this.children.size();
-				if (i == 0 && j == 0) {
+				int errorCount = errors.size();
+				int childCount = children.size();
+
+				if (errorCount == 0 && childCount == 0) {
 					return List.of();
 				}
-				else if (i == 0 && j == 1) {
-					List<String> list = new ArrayList<>();
-					this.children.forEach((context, errors) -> list.addAll(errors.getMessages()));
-					list.set(0, this.element.getName() + list.get(0));
-					return list;
-				}
-				else if (i == 1 && j == 0) {
-					return List.of(this.element.getName() + ": " + this.errors.getFirst().getMessage());
-				}
-				else {
-					List<String> list = new ArrayList<>();
-					this.children.forEach((context, errors) -> list.addAll(errors.getMessages()));
-					list.replaceAll(message -> "  " + message);
 
-					for (ErrorReporter.Error error : this.errors) {
-						list.add("  " + error.getMessage());
-					}
-
-					list.addFirst(this.element.getName() + ":");
-					return list;
+				if (errorCount == 0 && childCount == 1) {
+					List<String> messages = new ArrayList<>();
+					children.forEach((ctx, child) -> messages.addAll(child.getMessages()));
+					messages.set(0, element.getName() + messages.get(0));
+					return messages;
 				}
+
+				if (errorCount == 1 && childCount == 0) {
+					return List.of(element.getName() + ": " + errors.getFirst().getMessage());
+				}
+
+				List<String> messages = new ArrayList<>();
+				children.forEach((ctx, child) -> messages.addAll(child.getMessages()));
+				messages.replaceAll(message -> "  " + message);
+
+				for (Error error : errors) {
+					messages.add("  " + error.getMessage());
+				}
+
+				messages.addFirst(element.getName() + ":");
+				return messages;
 			}
 		}
 	}
 
 	/**
-	 * {@code ListElementContext}.
+	 * Контекст элемента списка по индексу.
+	 *
+	 * @param index индекс элемента в списке
 	 */
-	public record ListElementContext(int index) implements ErrorReporter.Context {
+	record ListElementContext(int index) implements Context {
 
 		@Override
 		public String getName() {
-			return "[" + this.index + "]";
+			return "[" + index + "]";
 		}
 	}
 
 	/**
-	 * {@code Logging}.
+	 * Реализация {@link Impl} с автоматическим логированием накопленных ошибок при закрытии.
 	 */
-	public static class Logging extends ErrorReporter.Impl implements AutoCloseable {
+	class Logging extends Impl implements AutoCloseable {
 
 		private final Logger logger;
 
@@ -238,60 +270,69 @@ public interface ErrorReporter {
 			this.logger = logger;
 		}
 
-		public Logging(ErrorReporter.Context context, Logger logger) {
+		public Logging(Context context, Logger logger) {
 			super(context);
 			this.logger = logger;
 		}
 
 		@Override
 		public void close() {
-			if (!this.isEmpty()) {
-				this.logger.warn("[{}] Serialization errors:\n{}", this.logger.getName(), this.getErrorsAsLongString());
+			if (!isEmpty()) {
+				logger.warn("[{}] Serialization errors:\n{}", logger.getName(), getErrorsAsLongString());
 			}
 		}
 	}
 
 	/**
-	 * {@code LootTableContext}.
+	 * Контекст таблицы лута по ключу реестра.
+	 *
+	 * @param id ключ реестра таблицы лута
 	 */
-	public record LootTableContext(RegistryKey<?> id) implements ErrorReporter.Context {
+	record LootTableContext(RegistryKey<?> id) implements Context {
 
 		@Override
 		public String getName() {
-			return "{" + this.id.getValue() + "@" + this.id.getRegistry() + "}";
+			return "{" + id.getValue() + "@" + id.getRegistry() + "}";
 		}
 	}
 
 	/**
-	 * {@code MapElementContext}.
+	 * Контекст поля карты по строковому ключу.
+	 *
+	 * @param key ключ поля
 	 */
-	public record MapElementContext(String key) implements ErrorReporter.Context {
+	record MapElementContext(String key) implements Context {
 
 		@Override
 		public String getName() {
-			return "." + this.key;
+			return "." + key;
 		}
 	}
 
 	/**
-	 * {@code NamedListElementContext}.
+	 * Контекст именованного элемента списка (поле + индекс).
+	 *
+	 * @param key   имя поля
+	 * @param index индекс элемента
 	 */
-	public record NamedListElementContext(String key, int index) implements ErrorReporter.Context {
+	record NamedListElementContext(String key, int index) implements Context {
 
 		@Override
 		public String getName() {
-			return "." + this.key + "[" + this.index + "]";
+			return "." + key + "[" + index + "]";
 		}
 	}
 
 	/**
-	 * {@code ReferenceLootTableContext}.
+	 * Контекст ссылки на таблицу лута.
+	 *
+	 * @param id ключ реестра таблицы лута
 	 */
-	public record ReferenceLootTableContext(RegistryKey<?> id) implements ErrorReporter.Context {
+	record ReferenceLootTableContext(RegistryKey<?> id) implements Context {
 
 		@Override
 		public String getName() {
-			return "->{" + this.id.getValue() + "@" + this.id.getRegistry() + "}";
+			return "->{" + id.getValue() + "@" + id.getRegistry() + "}";
 		}
 	}
 }

@@ -24,7 +24,8 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import java.util.Map;
 
 /**
- * {@code ShipwreckGenerator}.
+ * Генератор кораблекрушения. Выбирает случайный NBT-шаблон из набора
+ * прибрежных или обычных вариантов и размещает его с случайным поворотом.
  */
 public class ShipwreckGenerator {
 
@@ -90,9 +91,7 @@ public class ShipwreckGenerator {
 		return piece;
 	}
 
-	/**
-	 * {@code Piece}.
-	 */
+	/** Единственный кусок кораблекрушения — загружает и размещает NBT-шаблон корабля. */
 	public static class Piece extends SimpleStructurePiece {
 
 		private final boolean grounded;
@@ -198,7 +197,7 @@ public class ShipwreckGenerator {
 
 		public boolean isTooLargeForNormalGeneration() {
 			Vec3i vec3i = this.template.getSize();
-			return vec3i.getX() > 32 || vec3i.getY() > 32;
+			return vec3i.getX() > LARGE_SIZE_LIMIT || vec3i.getY() > LARGE_SIZE_LIMIT;
 		}
 
 		public int findGroundedY(int y, Random random) {

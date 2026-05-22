@@ -12,14 +12,17 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsText}.
+ * Локализуемый текст Realms, хранящий ключ перевода и опциональные аргументы.
+ * Если перевод для ключа отсутствует в текущей локали, {@link #toText()} возвращает {@code null},
+ * что позволяет вызывающему коду использовать запасной текст через {@link #toText(Text)}.
  */
+@Environment(EnvType.CLIENT)
 public class RealmsText {
 
 	private static final String TRANSLATION_KEY_KEY = "translationKey";
 	private static final String ARGS_KEY = "args";
+
 	private final String translationKey;
 	private final String @Nullable [] args;
 
@@ -29,59 +32,55 @@ public class RealmsText {
 	}
 
 	/**
-	 * To text.
+	 * Возвращает переведённый текст или {@code fallback}, если перевод недоступен.
 	 *
-	 * @param fallback fallback
-	 *
-	 * @return Text — результат операции
+	 * @param fallback запасной текст при отсутствии перевода
+	 * @return переведённый текст или fallback
 	 */
 	public Text toText(Text fallback) {
-		return Objects.requireNonNullElse(this.toText(), fallback);
+		return Objects.requireNonNullElse(toText(), fallback);
 	}
 
 	/**
-	 * To text.
+	 * Возвращает переведённый текст или {@code null}, если ключ перевода отсутствует в текущей локали.
 	 *
-	 * @return @Nullable Text — результат операции
+	 * @return переведённый текст или {@code null}
 	 */
 	public @Nullable Text toText() {
-		if (!I18n.hasTranslation(this.translationKey)) {
+		if (!I18n.hasTranslation(translationKey)) {
 			return null;
 		}
-		else {
-			return this.args == null ? Text.translatable(this.translationKey)
-			                         : Text.translatable(this.translationKey, this.args);
-		}
+
+		return args == null
+				? Text.translatable(translationKey)
+				: Text.translatable(translationKey, (Object[]) args);
 	}
 
 	/**
-	 * From json.
+	 * Парсит объект {@code RealmsText} из JSON с полями {@code translationKey} и опциональным {@code args}.
 	 *
-	 * @param json json
-	 *
-	 * @return RealmsText — результат операции
+	 * @param json JSON-объект с данными текста
+	 * @return распарсенный объект
 	 */
 	public static RealmsText fromJson(JsonObject json) {
-		String string = JsonUtils.getString("translationKey", json);
-		JsonElement jsonElement = json.get("args");
-		String[] strings;
-		if (jsonElement != null && !jsonElement.isJsonNull()) {
-			JsonArray jsonArray = jsonElement.getAsJsonArray();
-			strings = new String[jsonArray.size()];
+		String key = JsonUtils.getString(TRANSLATION_KEY_KEY, json);
+		JsonElement argsElement = json.get(ARGS_KEY);
+		String[] args = null;
 
-			for (int i = 0; i < jsonArray.size(); i++) {
-				strings[i] = jsonArray.get(i).getAsString();
+		if (argsElement != null && !argsElement.isJsonNull()) {
+			JsonArray argsArray = argsElement.getAsJsonArray();
+			args = new String[argsArray.size()];
+
+			for (int index = 0; index < argsArray.size(); index++) {
+				args[index] = argsArray.get(index).getAsString();
 			}
 		}
-		else {
-			strings = null;
-		}
 
-		return new RealmsText(string, strings);
+		return new RealmsText(key, args);
 	}
 
 	@Override
 	public String toString() {
-		return this.translationKey;
+		return translationKey;
 	}
 }

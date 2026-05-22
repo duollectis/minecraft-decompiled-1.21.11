@@ -15,93 +15,95 @@ import org.jspecify.annotations.Nullable;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphAtlasTexture}.
+ * Атлас текстур для запечённых глифов. Использует алгоритм бинарного разбиения
+ * ({@link Slot}) для упаковки глифов в единую текстуру размером {@value ATLAS_SIZE}×{@value ATLAS_SIZE}.
  */
+@Environment(EnvType.CLIENT)
 public class GlyphAtlasTexture extends AbstractTexture implements DynamicTexture {
 
-	private static final int SLOT_LENGTH = 256;
+	private static final int ATLAS_SIZE = 256;
+	private static final float ATLAS_SIZE_F = 256.0F;
+	private static final float UV_PADDING = 0.01F;
+
 	private final TextRenderLayerSet textRenderLayers;
 	private final boolean hasColor;
 	private final GlyphAtlasTexture.Slot rootSlot;
 
 	public GlyphAtlasTexture(Supplier<String> nameSupplier, TextRenderLayerSet textRenderLayers, boolean hasColor) {
 		this.hasColor = hasColor;
-		this.rootSlot = new GlyphAtlasTexture.Slot(0, 0, 256, 256);
+		rootSlot = new GlyphAtlasTexture.Slot(0, 0, ATLAS_SIZE, ATLAS_SIZE);
 		GpuDevice gpuDevice = RenderSystem.getDevice();
-		this.glTexture =
-				gpuDevice.createTexture(
-						nameSupplier,
-						7,
-						hasColor ? TextureFormat.RGBA8 : TextureFormat.RED8,
-						256,
-						256,
-						1,
-						1
-				);
-		this.sampler = RenderSystem.getSamplerCache().getRepeated(FilterMode.NEAREST);
-		this.glTextureView = gpuDevice.createTextureView(this.glTexture);
+		glTexture = gpuDevice.createTexture(
+				nameSupplier,
+				7,
+				hasColor ? TextureFormat.RGBA8 : TextureFormat.RED8,
+				ATLAS_SIZE,
+				ATLAS_SIZE,
+				1,
+				1
+		);
+		sampler = RenderSystem.getSamplerCache().getRepeated(FilterMode.NEAREST);
+		glTextureView = gpuDevice.createTextureView(glTexture);
 		this.textRenderLayers = textRenderLayers;
 	}
 
 	/**
-	 * Bake.
+	 * Запекает глиф в атлас текстур, находя свободный слот и загружая пиксели.
+	 * Возвращает {@code null}, если цветовой формат глифа не совпадает с форматом атласа
+	 * или в атласе нет свободного места.
 	 *
-	 * @param metrics metrics
-	 * @param glyph glyph
-	 *
-	 * @return @Nullable BakedGlyphImpl — результат операции
+	 * @param metrics метрики глифа (размеры, отступы)
+	 * @param glyph загружаемый глиф с пиксельными данными
+	 * @return запечённый глиф с UV-координатами, или {@code null} при неудаче
 	 */
 	public @Nullable BakedGlyphImpl bake(GlyphMetrics metrics, UploadableGlyph glyph) {
-		if (glyph.hasColor() != this.hasColor) {
+		if (glyph.hasColor() != hasColor) {
 			return null;
 		}
-		else {
-			GlyphAtlasTexture.Slot slot = this.rootSlot.findSlotFor(glyph);
-			if (slot != null) {
-				glyph.upload(slot.x, slot.y, this.getGlTexture());
-				float f = 256.0F;
-				float g = 256.0F;
-				float h = 0.01F;
-				return new BakedGlyphImpl(
-						metrics,
-						this.textRenderLayers,
-						this.getGlTextureView(),
-						(slot.x + 0.01F) / 256.0F,
-						(slot.x - 0.01F + glyph.getWidth()) / 256.0F,
-						(slot.y + 0.01F) / 256.0F,
-						(slot.y - 0.01F + glyph.getHeight()) / 256.0F,
-						glyph.getXMin(),
-						glyph.getXMax(),
-						glyph.getYMin(),
-						glyph.getYMax()
-				);
-			}
-			else {
-				return null;
-			}
+
+		GlyphAtlasTexture.Slot slot = rootSlot.findSlotFor(glyph);
+		if (slot == null) {
+			return null;
 		}
+
+		glyph.upload(slot.x, slot.y, getGlTexture());
+		return new BakedGlyphImpl(
+				metrics,
+				textRenderLayers,
+				getGlTextureView(),
+				(slot.x + UV_PADDING) / ATLAS_SIZE_F,
+				(slot.x - UV_PADDING + glyph.getWidth()) / ATLAS_SIZE_F,
+				(slot.y + UV_PADDING) / ATLAS_SIZE_F,
+				(slot.y - UV_PADDING + glyph.getHeight()) / ATLAS_SIZE_F,
+				glyph.getXMin(),
+				glyph.getXMax(),
+				glyph.getYMin(),
+				glyph.getYMax()
+		);
 	}
 
 	@Override
 	public void save(Identifier id, Path path) {
-		if (this.glTexture != null) {
-			String string = id.toUnderscoreSeparatedString();
-			TextureUtil.writeAsPNG(
-					path,
-					string,
-					this.glTexture,
-					0,
-					color -> (color & 0xFF000000) == 0 ? -16777216 : color
-			);
+		if (glTexture == null) {
+			return;
 		}
+
+		String name = id.toUnderscoreSeparatedString();
+		TextureUtil.writeAsPNG(
+				path,
+				name,
+				glTexture,
+				0,
+				color -> (color & 0xFF000000) == 0 ? -16777216 : color
+		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Slot}.
+	 * Узел бинарного дерева разбиения атласа. Рекурсивно делит свободное пространство
+	 * на два подслота при размещении глифа, минимизируя фрагментацию.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class Slot {
 
 		final int x;
@@ -120,44 +122,40 @@ public class GlyphAtlasTexture extends AbstractTexture implements DynamicTexture
 		}
 
 		GlyphAtlasTexture.@Nullable Slot findSlotFor(UploadableGlyph glyph) {
-			if (this.subSlot1 != null && this.subSlot2 != null) {
-				GlyphAtlasTexture.Slot slot = this.subSlot1.findSlotFor(glyph);
-				if (slot == null) {
-					slot = this.subSlot2.findSlotFor(glyph);
-				}
-
-				return slot;
+			if (subSlot1 != null && subSlot2 != null) {
+				GlyphAtlasTexture.Slot found = subSlot1.findSlotFor(glyph);
+				return found != null ? found : subSlot2.findSlotFor(glyph);
 			}
-			else if (this.occupied) {
+
+			if (occupied) {
 				return null;
 			}
-			else {
-				int i = glyph.getWidth();
-				int j = glyph.getHeight();
-				if (i > this.width || j > this.height) {
-					return null;
-				}
-				else if (i == this.width && j == this.height) {
-					this.occupied = true;
-					return this;
-				}
-				else {
-					int k = this.width - i;
-					int l = this.height - j;
-					if (k > l) {
-						this.subSlot1 = new GlyphAtlasTexture.Slot(this.x, this.y, i, this.height);
-						this.subSlot2 =
-								new GlyphAtlasTexture.Slot(this.x + i + 1, this.y, this.width - i - 1, this.height);
-					}
-					else {
-						this.subSlot1 = new GlyphAtlasTexture.Slot(this.x, this.y, this.width, j);
-						this.subSlot2 =
-								new GlyphAtlasTexture.Slot(this.x, this.y + j + 1, this.width, this.height - j - 1);
-					}
 
-					return this.subSlot1.findSlotFor(glyph);
-				}
+			int glyphWidth = glyph.getWidth();
+			int glyphHeight = glyph.getHeight();
+
+			if (glyphWidth > width || glyphHeight > height) {
+				return null;
 			}
+
+			if (glyphWidth == width && glyphHeight == height) {
+				occupied = true;
+				return this;
+			}
+
+			int remainingWidth = width - glyphWidth;
+			int remainingHeight = height - glyphHeight;
+
+			// Разбиваем по более широкой оси, чтобы минимизировать фрагментацию
+			if (remainingWidth > remainingHeight) {
+				subSlot1 = new GlyphAtlasTexture.Slot(x, y, glyphWidth, height);
+				subSlot2 = new GlyphAtlasTexture.Slot(x + glyphWidth + 1, y, width - glyphWidth - 1, height);
+			} else {
+				subSlot1 = new GlyphAtlasTexture.Slot(x, y, width, glyphHeight);
+				subSlot2 = new GlyphAtlasTexture.Slot(x, y + glyphHeight + 1, width, height - glyphHeight - 1);
+			}
+
+			return subSlot1.findSlotFor(glyph);
 		}
 	}
 }

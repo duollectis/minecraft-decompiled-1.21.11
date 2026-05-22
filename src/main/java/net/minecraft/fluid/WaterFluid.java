@@ -31,9 +31,31 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code WaterFluid}.
+ * Реализация воды как текучей жидкости.
+ *
+ * <p>Вода течёт быстрее лавы: тик каждые 5 игровых тиков, расстояние растекания — 4 блока.
+ * При разрушении блока водой выпадают его дропы. Вода тушит горящие сущности при контакте.
+ * Может создавать бесконечные источники при включённом правиле {@code waterSourceConversion}.</p>
  */
 public abstract class WaterFluid extends FlowableFluid {
+
+	/** Вероятность 1/64 воспроизведения фонового звука текущей воды. */
+	private static final int FLOWING_SOUND_CHANCE = 64;
+
+	/** Вероятность 1/10 появления подводной частицы. */
+	private static final int UNDERWATER_PARTICLE_CHANCE = 10;
+
+	/** Фиксированный уровень стоячей воды. */
+	private static final int STILL_LEVEL = 8;
+
+	/** Уменьшение уровня воды на 1 за каждый горизонтальный блок. */
+	private static final int LEVEL_DECREASE = 1;
+
+	/** Скорость тика воды в игровых тиках. */
+	private static final int TICK_RATE = 5;
+
+	/** Максимальное расстояние горизонтального растекания воды. */
+	private static final int MAX_FLOW_DISTANCE = 4;
 
 	@Override
 	public Fluid getFlowing() {
@@ -50,31 +72,35 @@ public abstract class WaterFluid extends FlowableFluid {
 		return Items.WATER_BUCKET;
 	}
 
+	/**
+	 * Воспроизводит звуковые и визуальные эффекты воды на клиенте.
+	 * Текущая вода (не стоячая и не падающая) издаёт звук с вероятностью 1/64.
+	 * Стоячая или падающая вода показывает подводные частицы с вероятностью 1/10.
+	 */
 	@Override
 	public void randomDisplayTick(World world, BlockPos pos, FluidState state, Random random) {
 		if (!state.isStill() && !state.get(FALLING)) {
-			if (random.nextInt(64) == 0) {
+			if (random.nextInt(FLOWING_SOUND_CHANCE) == 0) {
 				world.playSoundClient(
-						pos.getX() + 0.5,
-						pos.getY() + 0.5,
-						pos.getZ() + 0.5,
-						SoundEvents.BLOCK_WATER_AMBIENT,
-						SoundCategory.AMBIENT,
-						random.nextFloat() * 0.25F + 0.75F,
-						random.nextFloat() + 0.5F,
-						false
+					pos.getX() + 0.5,
+					pos.getY() + 0.5,
+					pos.getZ() + 0.5,
+					SoundEvents.BLOCK_WATER_AMBIENT,
+					SoundCategory.AMBIENT,
+					random.nextFloat() * 0.25F + 0.75F,
+					random.nextFloat() + 0.5F,
+					false
 				);
 			}
-		}
-		else if (random.nextInt(10) == 0) {
+		} else if (random.nextInt(UNDERWATER_PARTICLE_CHANCE) == 0) {
 			world.addParticleClient(
-					ParticleTypes.UNDERWATER,
-					pos.getX() + random.nextDouble(),
-					pos.getY() + random.nextDouble(),
-					pos.getZ() + random.nextDouble(),
-					0.0,
-					0.0,
-					0.0
+				ParticleTypes.UNDERWATER,
+				pos.getX() + random.nextDouble(),
+				pos.getY() + random.nextDouble(),
+				pos.getZ() + random.nextDouble(),
+				0.0,
+				0.0,
+				0.0
 			);
 		}
 	}
@@ -89,6 +115,10 @@ public abstract class WaterFluid extends FlowableFluid {
 		return world.getGameRules().getValue(GameRules.WATER_SOURCE_CONVERSION);
 	}
 
+	/**
+	 * Перед разрушением блока водой выбрасывает его дропы.
+	 * Если блок имеет блок-сущность, она передаётся в {@link Block#dropStacks}.
+	 */
 	@Override
 	protected void beforeBreakingBlock(WorldAccess world, BlockPos pos, BlockState state) {
 		BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
@@ -102,7 +132,7 @@ public abstract class WaterFluid extends FlowableFluid {
 
 	@Override
 	public int getMaxFlowDistance(WorldView world) {
-		return 4;
+		return MAX_FLOW_DISTANCE;
 	}
 
 	@Override
@@ -117,21 +147,25 @@ public abstract class WaterFluid extends FlowableFluid {
 
 	@Override
 	public int getLevelDecreasePerBlock(WorldView world) {
-		return 1;
+		return LEVEL_DECREASE;
 	}
 
 	@Override
 	public int getTickRate(WorldView world) {
-		return 5;
+		return TICK_RATE;
 	}
 
+	/**
+	 * Вода может быть вытеснена другой жидкостью только снизу и только если
+	 * вытесняющая жидкость не является водой (например, лава).
+	 */
 	@Override
 	public boolean canBeReplacedWith(
-			FluidState state,
-			BlockView world,
-			BlockPos pos,
-			Fluid fluid,
-			Direction direction
+		FluidState state,
+		BlockView world,
+		BlockPos pos,
+		Fluid fluid,
+		Direction direction
 	) {
 		return direction == Direction.DOWN && !fluid.isIn(FluidTags.WATER);
 	}
@@ -146,9 +180,11 @@ public abstract class WaterFluid extends FlowableFluid {
 		return Optional.of(SoundEvents.ITEM_BUCKET_FILL);
 	}
 
-	/**
-	 * {@code Flowing}.
-	 */
+	// -------------------------------------------------------------------------
+	// Вложенные классы
+	// -------------------------------------------------------------------------
+
+	/** Текущая (flowing) вода с изменяемым уровнем 1–8. */
 	public static class Flowing extends WaterFluid {
 
 		@Override
@@ -168,14 +204,12 @@ public abstract class WaterFluid extends FlowableFluid {
 		}
 	}
 
-	/**
-	 * {@code Still}.
-	 */
+	/** Стоячая (still/source) вода с фиксированным уровнем 8. */
 	public static class Still extends WaterFluid {
 
 		@Override
 		public int getLevel(FluidState state) {
-			return 8;
+			return STILL_LEVEL;
 		}
 
 		@Override

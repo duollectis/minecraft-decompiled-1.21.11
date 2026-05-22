@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
- * {@code ServerPropertiesHandler}.
+ * Обработчик server.properties: типизированный доступ ко всем настройкам выделенного сервера.
  */
 public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPropertiesHandler> {
 
@@ -367,9 +367,6 @@ public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPro
 		return this.worldGenProperties.createDimensionsRegistryHolder(registries);
 	}
 
-	/**
-	 * {@code WorldGenProperties}.
-	 */
 	record WorldGenProperties(JsonObject generatorSettings, String levelType) {
 
 		private static final Map<String, RegistryKey<WorldPreset>> LEVEL_TYPE_TO_PRESET_KEY = Map.of(

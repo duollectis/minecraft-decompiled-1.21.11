@@ -9,33 +9,37 @@ import org.slf4j.Logger;
 import java.util.Collection;
 
 /**
- * {@code TestManager}.
+ * Глобальный менеджер активных тестов. Тикает все запущенные тесты каждый игровой тик.
+ * Поддерживает безопасную остановку через {@link State#HALTING}: если {@link #clear()} вызван
+ * во время тика, очистка откладывается до его завершения.
  */
 public class TestManager {
 
 	public static final TestManager INSTANCE = new TestManager();
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final Collection<GameTestState> tests = Lists.newCopyOnWriteArrayList();
 	private @Nullable TestRunContext runContext;
-	private TestManager.State state = TestManager.State.IDLE;
+	private State state = State.IDLE;
 
 	private TestManager() {
 	}
 
 	public void start(GameTestState test) {
-		this.tests.add(test);
+		tests.add(test);
 	}
 
 	public void clear() {
-		if (this.state != TestManager.State.IDLE) {
-			this.state = TestManager.State.HALTING;
+		if (state != State.IDLE) {
+			state = State.HALTING;
+			return;
 		}
-		else {
-			this.tests.clear();
-			if (this.runContext != null) {
-				this.runContext.clear();
-				this.runContext = null;
-			}
+
+		tests.clear();
+
+		if (runContext != null) {
+			runContext.clear();
+			runContext = null;
 		}
 	}
 
@@ -48,24 +52,25 @@ public class TestManager {
 	}
 
 	public void tick() {
-		if (this.runContext != null) {
-			this.state = TestManager.State.RUNNING;
-			this.tests.forEach(test -> test.tick(this.runContext));
-			this.tests.removeIf(GameTestState::isCompleted);
-			TestManager.State state = this.state;
-			this.state = TestManager.State.IDLE;
-			if (state == TestManager.State.HALTING) {
-				this.clear();
-			}
+		if (runContext == null) {
+			return;
+		}
+
+		state = State.RUNNING;
+		tests.forEach(test -> test.tick(runContext));
+		tests.removeIf(GameTestState::isCompleted);
+
+		State previousState = state;
+		state = State.IDLE;
+
+		if (previousState == State.HALTING) {
+			clear();
 		}
 	}
 
-	/**
-	 * {@code State}.
-	 */
-	static enum State {
+	enum State {
 		IDLE,
 		RUNNING,
-		HALTING;
+		HALTING
 	}
 }

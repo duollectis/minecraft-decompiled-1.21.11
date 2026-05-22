@@ -35,7 +35,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 /**
- * {@code ItemCommand}.
+ * Команда {@code /item}: управление предметами в слотах инвентаря и контейнеров.
  */
 public class ItemCommand {
 

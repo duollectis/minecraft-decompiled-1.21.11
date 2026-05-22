@@ -10,15 +10,17 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SlimePredicate}.
+ * Предикат для проверки размера слизня.
  */
 public record SlimePredicate(NumberRange.IntRange size) implements EntitySubPredicate {
 
 	public static final MapCodec<SlimePredicate> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
-					.group(NumberRange.IntRange.CODEC
-							.optionalFieldOf("size", NumberRange.IntRange.ANY)
-							.forGetter(SlimePredicate::size))
+					.group(
+							NumberRange.IntRange.CODEC
+									.optionalFieldOf("size", NumberRange.IntRange.ANY)
+									.forGetter(SlimePredicate::size)
+					)
 					.apply(instance, SlimePredicate::new)
 	);
 
@@ -27,12 +29,16 @@ public record SlimePredicate(NumberRange.IntRange size) implements EntitySubPred
 	}
 
 	@Override
-	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-		return entity instanceof SlimeEntity slimeEntity ? this.size.test(slimeEntity.getSize()) : false;
+	public MapCodec<SlimePredicate> getCodec() {
+		return EntitySubPredicateTypes.SLIME;
 	}
 
 	@Override
-	public MapCodec<SlimePredicate> getCodec() {
-		return EntitySubPredicateTypes.SLIME;
+	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
+		if (!(entity instanceof SlimeEntity slime)) {
+			return false;
+		}
+
+		return size.test(slime.getSize());
 	}
 }

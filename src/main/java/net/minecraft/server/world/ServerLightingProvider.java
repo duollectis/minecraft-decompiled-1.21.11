@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
 /**
- * {@code ServerLightingProvider}.
+ * Класс Server Lighting Provider.
  */
 public class ServerLightingProvider extends LightingProvider implements AutoCloseable {
 
@@ -35,7 +35,7 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 	private final ObjectList<Pair<ServerLightingProvider.Stage, Runnable>> pendingTasks = new ObjectArrayList();
 	private final ServerChunkLoadingManager chunkLoadingManager;
 	private final ChunkTaskScheduler executor;
-	private final int taskBatchSize = 1000;
+	private final int taskBatchSize = MAX_QUEUED_TASKS;
 	private final AtomicBoolean ticking = new AtomicBoolean();
 
 	public ServerLightingProvider(
@@ -161,7 +161,7 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		this.executor.add(
 				() -> {
 					this.pendingTasks.add(Pair.of(stage, task));
-					if (this.pendingTasks.size() >= 1000) {
+					if (this.pendingTasks.size() >= MAX_QUEUED_TASKS) {
 						this.runTasks();
 					}
 				}, ChunkPos.toLong(x, z), completedLevelSupplier
@@ -245,9 +245,6 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		if ((!this.pendingTasks.isEmpty() || super.hasUpdates()) && this.ticking.compareAndSet(false, true)) {
 			this.processor.send(() -> {
@@ -258,7 +255,7 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 	}
 
 	private void runTasks() {
-		int i = Math.min(this.pendingTasks.size(), 1000);
+		int i = Math.min(this.pendingTasks.size(), MAX_QUEUED_TASKS);
 		ObjectListIterator<Pair<ServerLightingProvider.Stage, Runnable>>
 				objectListIterator =
 				this.pendingTasks.iterator();
@@ -303,9 +300,6 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
-	/**
-	 * {@code Stage}.
-	 */
 	static enum Stage {
 		PRE_UPDATE,
 		POST_UPDATE;

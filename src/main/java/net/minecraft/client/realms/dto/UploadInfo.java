@@ -15,91 +15,108 @@ import java.net.URISyntaxException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UploadInfo}.
+ * Содержит параметры загрузки мира на сервер Realms: адрес конечной точки,
+ * токен авторизации и флаг закрытия мира на время загрузки.
+ * <p>
+ * Парсится из JSON-ответа Realms API. Если в ответе отсутствует явный порт,
+ * используется порт из URL или дефолтный {@code 8080}.
  */
+@Environment(EnvType.CLIENT)
 public record UploadInfo(boolean worldClosed, @Nullable String token, URI uploadEndpoint) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final String HTTP_PROTOCOL = "http://";
-	private static final int PORT = 8080;
+	private static final int DEFAULT_PORT = 8080;
+	private static final int NO_PORT = -1;
 	private static final Pattern PROTOCOL_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]+:");
 
-	/**
-	 * Parse.
-	 *
-	 * @param json json
-	 *
-	 * @return @Nullable UploadInfo — результат операции
-	 */
 	public static @Nullable UploadInfo parse(String json) {
 		try {
 			JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
-			String string = JsonUtils.getNullableStringOr("uploadEndpoint", jsonObject, null);
-			if (string != null) {
-				int i = JsonUtils.getIntOr("port", jsonObject, -1);
-				URI uRI = getUrl(string, i);
-				if (uRI != null) {
-					boolean bl = JsonUtils.getBooleanOr("worldClosed", jsonObject, false);
-					String string2 = JsonUtils.getNullableStringOr("token", jsonObject, null);
-					return new UploadInfo(bl, string2, uRI);
-				}
+			String endpoint = JsonUtils.getNullableStringOr("uploadEndpoint", jsonObject, null);
+
+			if (endpoint == null) {
+				return null;
 			}
-		}
-		catch (Exception var7) {
-			LOGGER.error("Could not parse UploadInfo", var7);
+
+			int port = JsonUtils.getIntOr("port", jsonObject, NO_PORT);
+			URI uri = getUrl(endpoint, port);
+
+			if (uri == null) {
+				return null;
+			}
+
+			boolean worldClosed = JsonUtils.getBooleanOr("worldClosed", jsonObject, false);
+			String token = JsonUtils.getNullableStringOr("token", jsonObject, null);
+
+			return new UploadInfo(worldClosed, token, uri);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse UploadInfo", ex);
 		}
 
 		return null;
 	}
 
+	/**
+	 * Строит {@link URI} из строки адреса и явного порта.
+	 * <p>
+	 * Если строка не содержит схему протокола, автоматически добавляется {@code http://}.
+	 * Если явный порт задан (не {@code -1}), он заменяет порт из URL.
+	 * Если ни явный порт, ни порт из URL не заданы, используется {@link #DEFAULT_PORT}.
+	 *
+	 * @param url  строка адреса, возможно без схемы протокола
+	 * @param port явный порт из JSON или {@code -1}, если не задан
+	 * @return готовый {@link URI} или {@code null} при ошибке синтаксиса
+	 */
 	@VisibleForTesting
 	public static @Nullable URI getUrl(String url, int port) {
 		Matcher matcher = PROTOCOL_PATTERN.matcher(url);
-		String string = getUrlWithProtocol(url, matcher);
+		String urlWithProtocol = getUrlWithProtocol(url, matcher);
 
 		try {
-			URI uRI = new URI(string);
-			int i = getPort(port, uRI.getPort());
-			return i != uRI.getPort() ? new URI(
-					uRI.getScheme(),
-					uRI.getUserInfo(),
-					uRI.getHost(),
-					i,
-					uRI.getPath(),
-					uRI.getQuery(),
-					uRI.getFragment()
-			) : uRI;
-		}
-		catch (URISyntaxException var6) {
-			LOGGER.warn("Failed to parse URI {}", string, var6);
+			URI uri = new URI(urlWithProtocol);
+			int resolvedPort = getPort(port, uri.getPort());
+
+			return resolvedPort != uri.getPort()
+				? new URI(
+					uri.getScheme(),
+					uri.getUserInfo(),
+					uri.getHost(),
+					resolvedPort,
+					uri.getPath(),
+					uri.getQuery(),
+					uri.getFragment()
+				)
+				: uri;
+		} catch (URISyntaxException ex) {
+			LOGGER.warn("Failed to parse URI {}", urlWithProtocol, ex);
 			return null;
 		}
 	}
 
-	private static int getPort(int port, int urlPort) {
-		if (port != -1) {
-			return port;
+	private static int getPort(int explicitPort, int urlPort) {
+		if (explicitPort != NO_PORT) {
+			return explicitPort;
 		}
-		else {
-			return urlPort != -1 ? urlPort : 8080;
-		}
+
+		return urlPort != NO_PORT ? urlPort : DEFAULT_PORT;
 	}
 
 	private static String getUrlWithProtocol(String url, Matcher matcher) {
-		return matcher.find() ? url : "http://" + url;
+		return matcher.find() ? url : HTTP_PROTOCOL + url;
 	}
 
 	/**
-	 * Создаёт request content.
+	 * Формирует тело HTTP-запроса для инициализации загрузки.
+	 * Если токен задан, он включается в JSON-объект.
 	 *
-	 * @param token token
-	 *
-	 * @return String — результат операции
+	 * @param token токен авторизации или {@code null}
+	 * @return JSON-строка с токеном или пустой объект {@code {}}
 	 */
 	public static String createRequestContent(@Nullable String token) {
 		JsonObject jsonObject = new JsonObject();
+
 		if (token != null) {
 			jsonObject.addProperty("token", token);
 		}

@@ -32,17 +32,28 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * {@code LevelProperties}.
+ * Главный контейнер всех свойств сохранённого мира (level.dat).
+ * Реализует {@link ServerWorldProperties} и {@link SaveProperties}, объединяя
+ * базовые настройки уровня ({@link LevelInfo}), параметры генерации мира,
+ * состояние погоды, таймер событий и прочие серверные данные.
+ *
+ * <p>Экземпляр создаётся либо через публичный конструктор (новый мир),
+ * либо через {@link #readProperties} при загрузке существующего сохранения.
  */
 public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final String LEVEL_NAME_KEY = "LevelName";
 	protected static final String PLAYER_KEY = "Player";
 	protected static final String WORLD_GEN_SETTINGS_KEY = "WorldGenSettings";
+
+	/** Версия формата Anvil, используемая при записи level.dat. */
+	private static final int ANVIL_FORMAT_VERSION = 19133;
+
 	private LevelInfo levelInfo;
 	private final GeneratorOptions generatorOptions;
-	private final LevelProperties.SpecialProperty specialProperty;
+	private final SpecialProperty specialProperty;
 	private final Lifecycle lifecycle;
 	private WorldProperties.SpawnPoint spawnPoint;
 	private long time;
@@ -69,32 +80,32 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 	private final Timer<MinecraftServer> scheduledEvents;
 
 	private LevelProperties(
-			@Nullable NbtCompound playerData,
-			boolean modded,
-			WorldProperties.SpawnPoint spawnPoint,
-			long time,
-			long timeOfDay,
-			int version,
-			int clearWeatherTime,
-			int rainTime,
-			boolean raining,
-			int thunderTime,
-			boolean thundering,
-			boolean initialized,
-			boolean difficultyLocked,
-			Optional<WorldBorder.Properties> worldBorder,
-			int wanderingTraderSpawnDelay,
-			int wanderingTraderSpawnChance,
-			@Nullable UUID wanderingTraderId,
-			Set<String> serverBrands,
-			Set<String> removedFeatures,
-			Timer<MinecraftServer> scheduledEvents,
-			@Nullable NbtCompound customBossEvents,
-			EnderDragonFight.Data dragonFight,
-			LevelInfo levelInfo,
-			GeneratorOptions generatorOptions,
-			LevelProperties.SpecialProperty specialProperty,
-			Lifecycle lifecycle
+		@Nullable NbtCompound playerData,
+		boolean modded,
+		WorldProperties.SpawnPoint spawnPoint,
+		long time,
+		long timeOfDay,
+		int version,
+		int clearWeatherTime,
+		int rainTime,
+		boolean raining,
+		int thunderTime,
+		boolean thundering,
+		boolean initialized,
+		boolean difficultyLocked,
+		Optional<WorldBorder.Properties> worldBorder,
+		int wanderingTraderSpawnDelay,
+		int wanderingTraderSpawnChance,
+		@Nullable UUID wanderingTraderId,
+		Set<String> serverBrands,
+		Set<String> removedFeatures,
+		Timer<MinecraftServer> scheduledEvents,
+		@Nullable NbtCompound customBossEvents,
+		EnderDragonFight.Data dragonFight,
+		LevelInfo levelInfo,
+		GeneratorOptions generatorOptions,
+		SpecialProperty specialProperty,
+		Lifecycle lifecycle
 	) {
 		this.modded = modded;
 		this.spawnPoint = spawnPoint;
@@ -124,191 +135,209 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 		this.lifecycle = lifecycle;
 	}
 
+	/** Создаёт свойства нового мира с дефолтными значениями всех полей. */
 	public LevelProperties(
-			LevelInfo levelInfo,
-			GeneratorOptions generatorOptions,
-			LevelProperties.SpecialProperty specialProperty,
-			Lifecycle lifecycle
+		LevelInfo levelInfo,
+		GeneratorOptions generatorOptions,
+		SpecialProperty specialProperty,
+		Lifecycle lifecycle
 	) {
 		this(
-				null,
-				false,
-				WorldProperties.SpawnPoint.DEFAULT,
-				0L,
-				0L,
-				19133,
-				0,
-				0,
-				false,
-				0,
-				false,
-				false,
-				false,
-				Optional.empty(),
-				0,
-				0,
-				null,
-				Sets.newLinkedHashSet(),
-				new HashSet<>(),
-				new Timer<>(TimerCallbackSerializer.INSTANCE),
-				null,
-				EnderDragonFight.Data.DEFAULT,
-				levelInfo.withCopiedGameRules(),
-				generatorOptions,
-				specialProperty,
-				lifecycle
+			null,
+			false,
+			WorldProperties.SpawnPoint.DEFAULT,
+			0L,
+			0L,
+			ANVIL_FORMAT_VERSION,
+			0,
+			0,
+			false,
+			0,
+			false,
+			false,
+			false,
+			Optional.empty(),
+			0,
+			0,
+			null,
+			Sets.newLinkedHashSet(),
+			new HashSet<>(),
+			new Timer<>(TimerCallbackSerializer.INSTANCE),
+			null,
+			EnderDragonFight.Data.DEFAULT,
+			levelInfo.withCopiedGameRules(),
+			generatorOptions,
+			specialProperty,
+			lifecycle
 		);
 	}
 
+	/**
+	 * Десериализует полные свойства мира из NBT-совместимого {@link Dynamic}.
+	 * Применяется при загрузке существующего сохранения после прохождения DataFixer.
+	 *
+	 * @param dynamic           обновлённое динамическое представление данных уровня
+	 * @param info              базовые настройки уровня (имя, режим, сложность и т.д.)
+	 * @param specialProperty   тип особого мира (обычный, плоский, отладочный)
+	 * @param generatorOptions  параметры генератора мира
+	 * @param lifecycle         жизненный цикл (stable/experimental) для регистров
+	 * @return полностью заполненный экземпляр {@code LevelProperties}
+	 */
 	public static <T> LevelProperties readProperties(
-			Dynamic<T> dynamic,
-			LevelInfo info,
-			LevelProperties.SpecialProperty specialProperty,
-			GeneratorOptions generatorOptions,
-			Lifecycle lifecycle
+		Dynamic<T> dynamic,
+		LevelInfo info,
+		SpecialProperty specialProperty,
+		GeneratorOptions generatorOptions,
+		Lifecycle lifecycle
 	) {
-		long l = dynamic.get("Time").asLong(0L);
+		long time = dynamic.get("Time").asLong(0L);
+
 		return new LevelProperties(
-				(NbtCompound) dynamic.get("Player").flatMap(NbtCompound.CODEC::parse).result().orElse(null),
-				dynamic.get("WasModded").asBoolean(false),
-				dynamic
-						.get("spawn")
-						.read(WorldProperties.SpawnPoint.CODEC)
-						.result()
-						.orElse(WorldProperties.SpawnPoint.DEFAULT),
-				l,
-				dynamic.get("DayTime").asLong(l),
-				SaveVersionInfo.fromDynamic(dynamic).getLevelFormatVersion(),
-				dynamic.get("clearWeatherTime").asInt(0),
-				dynamic.get("rainTime").asInt(0),
-				dynamic.get("raining").asBoolean(false),
-				dynamic.get("thunderTime").asInt(0),
-				dynamic.get("thundering").asBoolean(false),
-				dynamic.get("initialized").asBoolean(true),
-				dynamic.get("DifficultyLocked").asBoolean(false),
-				WorldBorder.Properties.CODEC.parse(dynamic.get("world_border").orElseEmptyMap()).result(),
-				dynamic.get("WanderingTraderSpawnDelay").asInt(0),
-				dynamic.get("WanderingTraderSpawnChance").asInt(0),
-				(UUID) dynamic.get("WanderingTraderId").read(Uuids.INT_STREAM_CODEC).result().orElse(null),
-				dynamic.get("ServerBrands")
-				       .asStream()
-				       .flatMap(serverBrands -> serverBrands.asString().result().stream())
-				       .collect(Collectors.toCollection(Sets::newLinkedHashSet)),
-				dynamic
-						.get("removed_features")
-						.asStream()
-						.flatMap(removedFeatures -> removedFeatures.asString().result().stream())
-						.collect(Collectors.toSet()),
-				new Timer<>(TimerCallbackSerializer.INSTANCE, dynamic.get("ScheduledEvents").asStream()),
-				(NbtCompound) dynamic.get("CustomBossEvents").orElseEmptyMap().getValue(),
-				dynamic
-						.get("DragonFight")
-						.read(EnderDragonFight.Data.CODEC)
-						.resultOrPartial(LOGGER::error)
-						.orElse(EnderDragonFight.Data.DEFAULT),
-				info,
-				generatorOptions,
-				specialProperty,
-				lifecycle
+			dynamic.get("Player").flatMap(NbtCompound.CODEC::parse).result().orElse(null),
+			dynamic.get("WasModded").asBoolean(false),
+			dynamic.get("spawn")
+				.read(WorldProperties.SpawnPoint.CODEC)
+				.result()
+				.orElse(WorldProperties.SpawnPoint.DEFAULT),
+			time,
+			dynamic.get("DayTime").asLong(time),
+			SaveVersionInfo.fromDynamic(dynamic).getLevelFormatVersion(),
+			dynamic.get("clearWeatherTime").asInt(0),
+			dynamic.get("rainTime").asInt(0),
+			dynamic.get("raining").asBoolean(false),
+			dynamic.get("thunderTime").asInt(0),
+			dynamic.get("thundering").asBoolean(false),
+			dynamic.get("initialized").asBoolean(true),
+			dynamic.get("DifficultyLocked").asBoolean(false),
+			WorldBorder.Properties.CODEC.parse(dynamic.get("world_border").orElseEmptyMap()).result(),
+			dynamic.get("WanderingTraderSpawnDelay").asInt(0),
+			dynamic.get("WanderingTraderSpawnChance").asInt(0),
+			dynamic.get("WanderingTraderId").read(Uuids.INT_STREAM_CODEC).result().orElse(null),
+			dynamic.get("ServerBrands")
+				.asStream()
+				.flatMap(brand -> brand.asString().result().stream())
+				.collect(Collectors.toCollection(Sets::newLinkedHashSet)),
+			dynamic.get("removed_features")
+				.asStream()
+				.flatMap(feature -> feature.asString().result().stream())
+				.collect(Collectors.toSet()),
+			new Timer<>(TimerCallbackSerializer.INSTANCE, dynamic.get("ScheduledEvents").asStream()),
+			(NbtCompound) dynamic.get("CustomBossEvents").orElseEmptyMap().getValue(),
+			dynamic.get("DragonFight")
+				.read(EnderDragonFight.Data.CODEC)
+				.resultOrPartial(LOGGER::error)
+				.orElse(EnderDragonFight.Data.DEFAULT),
+			info,
+			generatorOptions,
+			specialProperty,
+			lifecycle
 		);
 	}
 
 	@Override
 	public NbtCompound cloneWorldNbt(DynamicRegistryManager registryManager, @Nullable NbtCompound playerNbt) {
-		if (playerNbt == null) {
-			playerNbt = this.playerData;
-		}
+		NbtCompound effectivePlayerNbt = playerNbt == null ? playerData : playerNbt;
 
-		NbtCompound nbtCompound = new NbtCompound();
-		this.updateProperties(registryManager, nbtCompound, playerNbt);
-		return nbtCompound;
+		NbtCompound root = new NbtCompound();
+		updateProperties(registryManager, root, effectivePlayerNbt);
+
+		return root;
 	}
 
+	/**
+	 * Сериализует все свойства мира в переданный NBT-компаунд.
+	 * Метод записывает версию игры, настройки генерации, погоду, правила игры
+	 * и все прочие поля level.dat.
+	 */
 	private void updateProperties(
-			DynamicRegistryManager registryManager,
-			NbtCompound levelNbt,
-			@Nullable NbtCompound playerNbt
+		DynamicRegistryManager registryManager,
+		NbtCompound levelNbt,
+		@Nullable NbtCompound playerNbt
 	) {
-		levelNbt.put("ServerBrands", createStringList(this.serverBrands));
-		levelNbt.putBoolean("WasModded", this.modded);
-		if (!this.removedFeatures.isEmpty()) {
-			levelNbt.put("removed_features", createStringList(this.removedFeatures));
+		levelNbt.put("ServerBrands", createStringList(serverBrands));
+		levelNbt.putBoolean("WasModded", modded);
+
+		if (!removedFeatures.isEmpty()) {
+			levelNbt.put("removed_features", createStringList(removedFeatures));
 		}
 
-		NbtCompound nbtCompound = new NbtCompound();
-		nbtCompound.putString("Name", SharedConstants.getGameVersion().name());
-		nbtCompound.putInt("Id", SharedConstants.getGameVersion().dataVersion().id());
-		nbtCompound.putBoolean("Snapshot", !SharedConstants.getGameVersion().stable());
-		nbtCompound.putString("Series", SharedConstants.getGameVersion().dataVersion().series());
-		levelNbt.put("Version", nbtCompound);
+		NbtCompound versionNbt = new NbtCompound();
+		versionNbt.putString("Name", SharedConstants.getGameVersion().name());
+		versionNbt.putInt("Id", SharedConstants.getGameVersion().dataVersion().id());
+		versionNbt.putBoolean("Snapshot", !SharedConstants.getGameVersion().stable());
+		versionNbt.putString("Series", SharedConstants.getGameVersion().dataVersion().series());
+		levelNbt.put("Version", versionNbt);
+
 		NbtHelper.putDataVersion(levelNbt);
+
 		DynamicOps<NbtElement> dynamicOps = registryManager.getOps(NbtOps.INSTANCE);
-		WorldGenSettings.encode(dynamicOps, this.generatorOptions, registryManager)
-		                .resultOrPartial(Util.addPrefix("WorldGenSettings: ", LOGGER::error))
-		                .ifPresent(worldGenSettings -> levelNbt.put("WorldGenSettings", worldGenSettings));
-		levelNbt.putInt("GameType", this.levelInfo.getGameMode().getIndex());
-		levelNbt.put("spawn", WorldProperties.SpawnPoint.CODEC, this.spawnPoint);
-		levelNbt.putLong("Time", this.time);
-		levelNbt.putLong("DayTime", this.timeOfDay);
+		WorldGenSettings.encode(dynamicOps, generatorOptions, registryManager)
+			.resultOrPartial(Util.addPrefix("WorldGenSettings: ", LOGGER::error))
+			.ifPresent(worldGenSettings -> levelNbt.put("WorldGenSettings", worldGenSettings));
+
+		levelNbt.putInt("GameType", levelInfo.getGameMode().getIndex());
+		levelNbt.put("spawn", WorldProperties.SpawnPoint.CODEC, spawnPoint);
+		levelNbt.putLong("Time", time);
+		levelNbt.putLong("DayTime", timeOfDay);
 		levelNbt.putLong("LastPlayed", Util.getEpochTimeMs());
-		levelNbt.putString("LevelName", this.levelInfo.getLevelName());
-		levelNbt.putInt("version", 19133);
-		levelNbt.putInt("clearWeatherTime", this.clearWeatherTime);
-		levelNbt.putInt("rainTime", this.rainTime);
-		levelNbt.putBoolean("raining", this.raining);
-		levelNbt.putInt("thunderTime", this.thunderTime);
-		levelNbt.putBoolean("thundering", this.thundering);
-		levelNbt.putBoolean("hardcore", this.levelInfo.isHardcore());
-		levelNbt.putBoolean("allowCommands", this.levelInfo.areCommandsAllowed());
-		levelNbt.putBoolean("initialized", this.initialized);
-		this.worldBorder.ifPresent(worldBorder -> levelNbt.put(
-				"world_border",
-				WorldBorder.Properties.CODEC,
-				worldBorder
-		));
-		levelNbt.putByte("Difficulty", (byte) this.levelInfo.getDifficulty().getId());
-		levelNbt.putBoolean("DifficultyLocked", this.difficultyLocked);
-		levelNbt.put("game_rules", GameRules.createCodec(this.getEnabledFeatures()), this.levelInfo.getGameRules());
-		levelNbt.put("DragonFight", EnderDragonFight.Data.CODEC, this.dragonFight);
+		levelNbt.putString("LevelName", levelInfo.getLevelName());
+		levelNbt.putInt("version", ANVIL_FORMAT_VERSION);
+		levelNbt.putInt("clearWeatherTime", clearWeatherTime);
+		levelNbt.putInt("rainTime", rainTime);
+		levelNbt.putBoolean("raining", raining);
+		levelNbt.putInt("thunderTime", thunderTime);
+		levelNbt.putBoolean("thundering", thundering);
+		levelNbt.putBoolean("hardcore", levelInfo.isHardcore());
+		levelNbt.putBoolean("allowCommands", levelInfo.areCommandsAllowed());
+		levelNbt.putBoolean("initialized", initialized);
+
+		worldBorder.ifPresent(border -> levelNbt.put("world_border", WorldBorder.Properties.CODEC, border));
+
+		levelNbt.putByte("Difficulty", (byte) levelInfo.getDifficulty().getId());
+		levelNbt.putBoolean("DifficultyLocked", difficultyLocked);
+		levelNbt.put("game_rules", GameRules.createCodec(getEnabledFeatures()), levelInfo.getGameRules());
+		levelNbt.put("DragonFight", EnderDragonFight.Data.CODEC, dragonFight);
+
 		if (playerNbt != null) {
 			levelNbt.put("Player", playerNbt);
 		}
 
-		levelNbt.copyFromCodec(DataConfiguration.MAP_CODEC, this.levelInfo.getDataConfiguration());
-		if (this.customBossEvents != null) {
-			levelNbt.put("CustomBossEvents", this.customBossEvents);
+		levelNbt.copyFromCodec(DataConfiguration.MAP_CODEC, levelInfo.getDataConfiguration());
+
+		if (customBossEvents != null) {
+			levelNbt.put("CustomBossEvents", customBossEvents);
 		}
 
-		levelNbt.put("ScheduledEvents", this.scheduledEvents.toNbt());
-		levelNbt.putInt("WanderingTraderSpawnDelay", this.wanderingTraderSpawnDelay);
-		levelNbt.putInt("WanderingTraderSpawnChance", this.wanderingTraderSpawnChance);
-		levelNbt.putNullable("WanderingTraderId", Uuids.INT_STREAM_CODEC, this.wanderingTraderId);
+		levelNbt.put("ScheduledEvents", scheduledEvents.toNbt());
+		levelNbt.putInt("WanderingTraderSpawnDelay", wanderingTraderSpawnDelay);
+		levelNbt.putInt("WanderingTraderSpawnChance", wanderingTraderSpawnChance);
+		levelNbt.putNullable("WanderingTraderId", Uuids.INT_STREAM_CODEC, wanderingTraderId);
 	}
 
 	private static NbtList createStringList(Set<String> strings) {
-		NbtList nbtList = new NbtList();
-		strings.stream().map(NbtString::of).forEach(nbtList::add);
-		return nbtList;
+		NbtList list = new NbtList();
+		strings.stream().map(NbtString::of).forEach(list::add);
+		return list;
 	}
 
 	@Override
 	public WorldProperties.SpawnPoint getSpawnPoint() {
-		return this.spawnPoint;
+		return spawnPoint;
 	}
 
 	@Override
 	public long getTime() {
-		return this.time;
+		return time;
 	}
 
 	@Override
 	public long getTimeOfDay() {
-		return this.timeOfDay;
+		return timeOfDay;
 	}
 
 	@Override
 	public @Nullable NbtCompound getPlayerData() {
-		return this.playerData;
+		return playerData;
 	}
 
 	@Override
@@ -328,17 +357,17 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public String getLevelName() {
-		return this.levelInfo.getLevelName();
+		return levelInfo.getLevelName();
 	}
 
 	@Override
 	public int getVersion() {
-		return this.version;
+		return version;
 	}
 
 	@Override
 	public int getClearWeatherTime() {
-		return this.clearWeatherTime;
+		return clearWeatherTime;
 	}
 
 	@Override
@@ -348,7 +377,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public boolean isThundering() {
-		return this.thundering;
+		return thundering;
 	}
 
 	@Override
@@ -358,7 +387,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public int getThunderTime() {
-		return this.thunderTime;
+		return thunderTime;
 	}
 
 	@Override
@@ -368,7 +397,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public boolean isRaining() {
-		return this.raining;
+		return raining;
 	}
 
 	@Override
@@ -378,7 +407,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public int getRainTime() {
-		return this.rainTime;
+		return rainTime;
 	}
 
 	@Override
@@ -388,27 +417,27 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public GameMode getGameMode() {
-		return this.levelInfo.getGameMode();
+		return levelInfo.getGameMode();
 	}
 
 	@Override
 	public void setGameMode(GameMode gameMode) {
-		this.levelInfo = this.levelInfo.withGameMode(gameMode);
+		levelInfo = levelInfo.withGameMode(gameMode);
 	}
 
 	@Override
 	public boolean isHardcore() {
-		return this.levelInfo.isHardcore();
+		return levelInfo.isHardcore();
 	}
 
 	@Override
 	public boolean areCommandsAllowed() {
-		return this.levelInfo.areCommandsAllowed();
+		return levelInfo.areCommandsAllowed();
 	}
 
 	@Override
 	public boolean isInitialized() {
-		return this.initialized;
+		return initialized;
 	}
 
 	@Override
@@ -418,12 +447,12 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public GameRules getGameRules() {
-		return this.levelInfo.getGameRules();
+		return levelInfo.getGameRules();
 	}
 
 	@Override
 	public Optional<WorldBorder.Properties> getWorldBorder() {
-		return this.worldBorder;
+		return worldBorder;
 	}
 
 	@Override
@@ -433,17 +462,17 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public Difficulty getDifficulty() {
-		return this.levelInfo.getDifficulty();
+		return levelInfo.getDifficulty();
 	}
 
 	@Override
 	public void setDifficulty(Difficulty difficulty) {
-		this.levelInfo = this.levelInfo.withDifficulty(difficulty);
+		levelInfo = levelInfo.withDifficulty(difficulty);
 	}
 
 	@Override
 	public boolean isDifficultyLocked() {
-		return this.difficultyLocked;
+		return difficultyLocked;
 	}
 
 	@Override
@@ -453,7 +482,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public Timer<MinecraftServer> getScheduledEvents() {
-		return this.scheduledEvents;
+		return scheduledEvents;
 	}
 
 	@Override
@@ -464,27 +493,27 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public GeneratorOptions getGeneratorOptions() {
-		return this.generatorOptions;
+		return generatorOptions;
 	}
 
 	@Override
 	public boolean isFlatWorld() {
-		return this.specialProperty == LevelProperties.SpecialProperty.FLAT;
+		return specialProperty == SpecialProperty.FLAT;
 	}
 
 	@Override
 	public boolean isDebugWorld() {
-		return this.specialProperty == LevelProperties.SpecialProperty.DEBUG;
+		return specialProperty == SpecialProperty.DEBUG;
 	}
 
 	@Override
 	public Lifecycle getLifecycle() {
-		return this.lifecycle;
+		return lifecycle;
 	}
 
 	@Override
 	public EnderDragonFight.Data getDragonFight() {
-		return this.dragonFight;
+		return dragonFight;
 	}
 
 	@Override
@@ -494,17 +523,17 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public DataConfiguration getDataConfiguration() {
-		return this.levelInfo.getDataConfiguration();
+		return levelInfo.getDataConfiguration();
 	}
 
 	@Override
 	public void updateLevelInfo(DataConfiguration dataConfiguration) {
-		this.levelInfo = this.levelInfo.withDataConfiguration(dataConfiguration);
+		levelInfo = levelInfo.withDataConfiguration(dataConfiguration);
 	}
 
 	@Override
 	public @Nullable NbtCompound getCustomBossEvents() {
-		return this.customBossEvents;
+		return customBossEvents;
 	}
 
 	@Override
@@ -514,7 +543,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public int getWanderingTraderSpawnDelay() {
-		return this.wanderingTraderSpawnDelay;
+		return wanderingTraderSpawnDelay;
 	}
 
 	@Override
@@ -524,7 +553,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public int getWanderingTraderSpawnChance() {
-		return this.wanderingTraderSpawnChance;
+		return wanderingTraderSpawnChance;
 	}
 
 	@Override
@@ -534,7 +563,7 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public @Nullable UUID getWanderingTraderId() {
-		return this.wanderingTraderId;
+		return wanderingTraderId;
 	}
 
 	@Override
@@ -543,24 +572,24 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 	}
 
 	@Override
-	public void addServerBrand(String brand, boolean modded) {
-		this.serverBrands.add(brand);
-		this.modded |= modded;
+	public void addServerBrand(String brand, boolean isModded) {
+		serverBrands.add(brand);
+		modded |= isModded;
 	}
 
 	@Override
 	public boolean isModded() {
-		return this.modded;
+		return modded;
 	}
 
 	@Override
 	public Set<String> getServerBrands() {
-		return ImmutableSet.copyOf(this.serverBrands);
+		return ImmutableSet.copyOf(serverBrands);
 	}
 
 	@Override
 	public Set<String> getRemovedFeatures() {
-		return Set.copyOf(this.removedFeatures);
+		return Set.copyOf(removedFeatures);
 	}
 
 	@Override
@@ -570,16 +599,16 @@ public class LevelProperties implements ServerWorldProperties, SaveProperties {
 
 	@Override
 	public LevelInfo getLevelInfo() {
-		return this.levelInfo.withCopiedGameRules();
+		return levelInfo.withCopiedGameRules();
 	}
 
-	@Deprecated
 	/**
-	 * {@code SpecialProperty}.
+	 * Тип особого мира, влияющий на логику генерации и отображение в интерфейсе.
+	 * {@code NONE} — обычный мир, {@code FLAT} — суперплоский, {@code DEBUG} — отладочный.
 	 */
-	public static enum SpecialProperty {
+	public enum SpecialProperty {
 		NONE,
 		FLAT,
-		DEBUG;
+		DEBUG
 	}
 }

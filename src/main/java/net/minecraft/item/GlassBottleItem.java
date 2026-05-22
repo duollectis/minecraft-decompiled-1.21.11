@@ -23,25 +23,39 @@ import net.minecraft.world.event.GameEvent;
 import java.util.List;
 
 /**
- * {@code GlassBottleItem}.
+ * Предмет «Стеклянная бутылка». Позволяет набирать воду из источников
+ * и собирать дыхание дракона из облаков эффектов {@link AreaEffectCloudEntity}.
  */
 public class GlassBottleItem extends Item {
+
+	/** Радиус поиска облаков дыхания дракона вокруг игрока. */
+	private static final double DRAGON_BREATH_SEARCH_RADIUS = 2.0;
+
+	/** Уменьшение радиуса облака дыхания дракона при сборе. */
+	private static final float DRAGON_BREATH_RADIUS_REDUCTION = 0.5F;
 
 	public GlassBottleItem(Item.Settings settings) {
 		super(settings);
 	}
 
+	/**
+	 * Наполняет бутылку. Приоритет: дыхание дракона > вода из источника.
+	 * При сборе дыхания дракона уменьшает радиус облака.
+	 */
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		List<AreaEffectCloudEntity> list = world.getEntitiesByClass(
+		ItemStack stack = user.getStackInHand(hand);
+
+		List<AreaEffectCloudEntity> dragonBreathClouds = world.getEntitiesByClass(
 				AreaEffectCloudEntity.class,
-				user.getBoundingBox().expand(2.0),
+				user.getBoundingBox().expand(DRAGON_BREATH_SEARCH_RADIUS),
 				entity -> entity.isAlive() && entity.getOwner() instanceof EnderDragonEntity
 		);
-		ItemStack itemStack = user.getStackInHand(hand);
-		if (!list.isEmpty()) {
-			AreaEffectCloudEntity areaEffectCloudEntity = list.get(0);
-			areaEffectCloudEntity.setRadius(areaEffectCloudEntity.getRadius() - 0.5F);
+
+		if (!dragonBreathClouds.isEmpty()) {
+			AreaEffectCloudEntity cloud = dragonBreathClouds.get(0);
+			cloud.setRadius(cloud.getRadius() - DRAGON_BREATH_RADIUS_REDUCTION);
+
 			world.playSound(
 					null,
 					user.getX(),
@@ -53,61 +67,59 @@ public class GlassBottleItem extends Item {
 					1.0F
 			);
 			world.emitGameEvent(user, GameEvent.FLUID_PICKUP, user.getEntityPos());
-			if (user instanceof ServerPlayerEntity serverPlayerEntity) {
-				Criteria.PLAYER_INTERACTED_WITH_ENTITY.trigger(serverPlayerEntity, itemStack, areaEffectCloudEntity);
+
+			if (user instanceof ServerPlayerEntity serverPlayer) {
+				Criteria.PLAYER_INTERACTED_WITH_ENTITY.trigger(serverPlayer, stack, cloud);
 			}
 
-			return ActionResult.SUCCESS.withNewHandStack(this.fill(
-					itemStack,
-					user,
-					new ItemStack(Items.DRAGON_BREATH)
-			));
+			return ActionResult.SUCCESS.withNewHandStack(fill(stack, user, new ItemStack(Items.DRAGON_BREATH)));
 		}
-		else {
-			BlockHitResult blockHitResult = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
-			if (blockHitResult.getType() == HitResult.Type.MISS) {
-				return ActionResult.PASS;
-			}
-			else {
-				if (blockHitResult.getType() == HitResult.Type.BLOCK) {
-					BlockPos blockPos = blockHitResult.getBlockPos();
-					if (!world.canEntityModifyAt(user, blockPos)) {
-						return ActionResult.PASS;
-					}
 
-					if (world.getFluidState(blockPos).isIn(FluidTags.WATER)) {
-						world.playSound(
-								user,
-								user.getX(),
-								user.getY(),
-								user.getZ(),
-								SoundEvents.ITEM_BOTTLE_FILL,
-								SoundCategory.NEUTRAL,
-								1.0F,
-								1.0F
-						);
-						world.emitGameEvent(user, GameEvent.FLUID_PICKUP, blockPos);
-						return ActionResult.SUCCESS.withNewHandStack(this.fill(
-								itemStack,
-								user,
-								PotionContentsComponent.createStack(Items.POTION, Potions.WATER)
-						));
-					}
-				}
+		BlockHitResult hitResult = raycast(world, user, RaycastContext.FluidHandling.SOURCE_ONLY);
 
-				return ActionResult.PASS;
-			}
+		if (hitResult.getType() == HitResult.Type.MISS) {
+			return ActionResult.PASS;
 		}
+
+		if (hitResult.getType() != HitResult.Type.BLOCK) {
+			return ActionResult.PASS;
+		}
+
+		BlockPos hitPos = hitResult.getBlockPos();
+
+		if (!world.canEntityModifyAt(user, hitPos)) {
+			return ActionResult.PASS;
+		}
+
+		if (!world.getFluidState(hitPos).isIn(FluidTags.WATER)) {
+			return ActionResult.PASS;
+		}
+
+		world.playSound(
+				user,
+				user.getX(),
+				user.getY(),
+				user.getZ(),
+				SoundEvents.ITEM_BOTTLE_FILL,
+				SoundCategory.NEUTRAL,
+				1.0F,
+				1.0F
+		);
+		world.emitGameEvent(user, GameEvent.FLUID_PICKUP, hitPos);
+
+		return ActionResult.SUCCESS.withNewHandStack(
+				fill(stack, user, PotionContentsComponent.createStack(Items.POTION, Potions.WATER))
+		);
 	}
 
 	/**
-	 * Fill.
+	 * Заменяет бутылку в руке игрока на заполненный стек.
+	 * Если стек больше 1 — добавляет в инвентарь или выбрасывает.
 	 *
-	 * @param stack stack
-	 * @param player player
-	 * @param outputStack output stack
-	 *
-	 * @return ItemStack — результат операции
+	 * @param stack       исходный стек бутылки
+	 * @param player      игрок
+	 * @param outputStack результирующий стек (зелье или дыхание дракона)
+	 * @return новый стек для руки
 	 */
 	protected ItemStack fill(ItemStack stack, PlayerEntity player, ItemStack outputStack) {
 		player.incrementStat(Stats.USED.getOrCreateStat(this));

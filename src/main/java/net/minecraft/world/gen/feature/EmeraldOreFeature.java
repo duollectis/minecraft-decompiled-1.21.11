@@ -5,9 +5,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code EmeraldOreFeature}.
- */
+/** Генерирует одиночный блок изумрудной руды, заменяя первый подходящий целевой блок в точке происхождения. */
 public class EmeraldOreFeature extends Feature<EmeraldOreFeatureConfig> {
 
 	public EmeraldOreFeature(Codec<EmeraldOreFeatureConfig> codec) {
@@ -16,13 +14,13 @@ public class EmeraldOreFeature extends Feature<EmeraldOreFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<EmeraldOreFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		EmeraldOreFeatureConfig emeraldOreFeatureConfig = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		EmeraldOreFeatureConfig config = context.getConfig();
 
-		for (OreFeatureConfig.Target target : emeraldOreFeatureConfig.targets) {
-			if (target.target.test(structureWorldAccess.getBlockState(blockPos), context.getRandom())) {
-				structureWorldAccess.setBlockState(blockPos, target.state, 2);
+		for (OreFeatureConfig.Target target : config.targets) {
+			if (target.target.test(world.getBlockState(origin), context.getRandom())) {
+				world.setBlockState(origin, target.state, 2);
 				break;
 			}
 		}

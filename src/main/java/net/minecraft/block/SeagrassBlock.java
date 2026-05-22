@@ -21,7 +21,8 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SeagrassBlock}.
+ * Морская трава — подводное растение, которое всегда находится в воде.
+ * При бонмилинге превращается в высокую морскую траву ({@link TallSeagrassBlock}).
  */
 public class SeagrassBlock extends PlantBlock implements Fertilizable, FluidFillable {
 

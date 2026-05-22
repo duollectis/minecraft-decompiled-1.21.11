@@ -14,7 +14,8 @@ import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BulbBlock}.
+ * Медный лампочный блок, который переключает свечение при получении
+ * редстоун-сигнала. Каждый новый импульс инвертирует состояние {@link #LIT}.
  */
 public class BulbBlock extends Block {
 
@@ -29,54 +30,54 @@ public class BulbBlock extends Block {
 
 	public BulbBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.getDefaultState().with(LIT, false).with(POWERED, false));
+		setDefaultState(getDefaultState().with(LIT, false).with(POWERED, false));
 	}
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
 		if (oldState.getBlock() != state.getBlock() && world instanceof ServerWorld serverWorld) {
-			this.update(state, serverWorld, pos);
+			update(state, serverWorld, pos);
 		}
 	}
 
 	@Override
 	protected void neighborUpdate(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Block sourceBlock,
-			@Nullable WireOrientation wireOrientation,
-			boolean notify
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Block sourceBlock,
+		@Nullable WireOrientation wireOrientation,
+		boolean notify
 	) {
 		if (world instanceof ServerWorld serverWorld) {
-			this.update(state, serverWorld, pos);
+			update(state, serverWorld, pos);
 		}
 	}
 
 	/**
-	 * Update.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
+	 * Обновляет состояние лампочки при изменении редстоун-сигнала.
+	 * Инвертирует {@link #LIT} только на переднем фронте сигнала (выкл → вкл).
 	 */
 	public void update(BlockState state, ServerWorld world, BlockPos pos) {
-		boolean bl = world.isReceivingRedstonePower(pos);
-		if (bl != state.get(POWERED)) {
-			BlockState blockState = state;
-			if (!state.get(POWERED)) {
-				blockState = state.cycle(LIT);
-				world.playSound(
-						null,
-						pos,
-						blockState.get(LIT) ? SoundEvents.BLOCK_COPPER_BULB_TURN_ON
-						                    : SoundEvents.BLOCK_COPPER_BULB_TURN_OFF,
-						SoundCategory.BLOCKS
-				);
-			}
+		boolean isPowered = world.isReceivingRedstonePower(pos);
 
-			world.setBlockState(pos, blockState.with(POWERED, bl), 3);
+		if (isPowered == state.get(POWERED)) {
+			return;
 		}
+
+		BlockState newState = state;
+
+		if (state.get(POWERED) == false) {
+			newState = state.cycle(LIT);
+			world.playSound(
+				null,
+				pos,
+				newState.get(LIT) ? SoundEvents.BLOCK_COPPER_BULB_TURN_ON : SoundEvents.BLOCK_COPPER_BULB_TURN_OFF,
+				SoundCategory.BLOCKS
+			);
+		}
+
+		world.setBlockState(pos, newState.with(POWERED, isPowered), 3);
 	}
 
 	@Override
@@ -91,6 +92,6 @@ public class BulbBlock extends Block {
 
 	@Override
 	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-		return world.getBlockState(pos).get(LIT) ? 15 : 0;
+		return state.get(LIT) ? 15 : 0;
 	}
 }

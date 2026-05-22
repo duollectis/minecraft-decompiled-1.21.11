@@ -16,7 +16,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code RecipeCommand}.
+ * Команда {@code /recipe}: выдача и отзыв рецептов крафта у игроков.
  */
 public class RecipeCommand {
 

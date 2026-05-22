@@ -7,12 +7,16 @@ import net.minecraft.world.Difficulty;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TargetPredicate}.
+ * Предикат для проверки допустимости цели атаки или взаимодействия.
+ * Поддерживает настройку максимальной дистанции, видимости и пользовательских условий.
+ * Используется в целевых AI-задачах для фильтрации кандидатов.
  */
 public class TargetPredicate {
 
 	public static final TargetPredicate DEFAULT = createAttackable();
+
 	private static final double MIN_DISTANCE = 2.0;
+
 	private final boolean attackable;
 	private double baseMaxDistance = -1.0;
 	private boolean respectsVisibility = true;
@@ -23,36 +27,25 @@ public class TargetPredicate {
 		this.attackable = attackable;
 	}
 
-	/**
-	 * Создаёт attackable.
-	 *
-	 * @return TargetPredicate — результат операции
-	 */
 	public static TargetPredicate createAttackable() {
 		return new TargetPredicate(true);
 	}
 
-	/**
-	 * Создаёт non attackable.
-	 *
-	 * @return TargetPredicate — результат операции
-	 */
 	public static TargetPredicate createNonAttackable() {
 		return new TargetPredicate(false);
 	}
 
 	/**
-	 * Copy.
-	 *
-	 * @return TargetPredicate — результат операции
+	 * Создаёт независимую копию предиката с теми же настройками.
+	 * Используется для создания модифицированных вариантов без изменения оригинала.
 	 */
 	public TargetPredicate copy() {
-		TargetPredicate targetPredicate = this.attackable ? createAttackable() : createNonAttackable();
-		targetPredicate.baseMaxDistance = this.baseMaxDistance;
-		targetPredicate.respectsVisibility = this.respectsVisibility;
-		targetPredicate.useDistanceScalingFactor = this.useDistanceScalingFactor;
-		targetPredicate.predicate = this.predicate;
-		return targetPredicate;
+		TargetPredicate copy = attackable ? createAttackable() : createNonAttackable();
+		copy.baseMaxDistance = baseMaxDistance;
+		copy.respectsVisibility = respectsVisibility;
+		copy.useDistanceScalingFactor = useDistanceScalingFactor;
+		copy.predicate = predicate;
+		return copy;
 	}
 
 	public TargetPredicate setBaseMaxDistance(double baseMaxDistance) {
@@ -60,23 +53,13 @@ public class TargetPredicate {
 		return this;
 	}
 
-	/**
-	 * Ignore visibility.
-	 *
-	 * @return TargetPredicate — результат операции
-	 */
 	public TargetPredicate ignoreVisibility() {
-		this.respectsVisibility = false;
+		respectsVisibility = false;
 		return this;
 	}
 
-	/**
-	 * Ignore distance scaling factor.
-	 *
-	 * @return TargetPredicate — результат операции
-	 */
 	public TargetPredicate ignoreDistanceScalingFactor() {
-		this.useDistanceScalingFactor = false;
+		useDistanceScalingFactor = false;
 		return this;
 	}
 
@@ -86,61 +69,58 @@ public class TargetPredicate {
 	}
 
 	/**
-	 * Test.
+	 * Проверяет, является ли {@code target} допустимой целью для {@code tester}.
+	 * Последовательно применяет: проверку участия в игре, пользовательский предикат,
+	 * атакуемость, дистанцию и видимость.
 	 *
-	 * @param world world
-	 * @param tester tester
-	 * @param target target
-	 *
-	 * @return boolean — результат операции
+	 * @param world мир, в котором происходит проверка
+	 * @param tester существо, выбирающее цель (может быть {@code null} для безличных проверок)
+	 * @param target кандидат на роль цели
+	 * @return {@code true} если цель допустима
 	 */
 	public boolean test(ServerWorld world, @Nullable LivingEntity tester, LivingEntity target) {
 		if (tester == target) {
 			return false;
 		}
-		else if (!target.isPartOfGame()) {
+
+		if (!target.isPartOfGame()) {
 			return false;
 		}
-		else if (this.predicate != null && !this.predicate.test(target, world)) {
+
+		if (predicate != null && !predicate.test(target, world)) {
 			return false;
 		}
-		else {
-			if (tester == null) {
-				if (this.attackable && (!target.canTakeDamage() || world.getDifficulty() == Difficulty.PEACEFUL)) {
-					return false;
-				}
-			}
-			else {
-				if (this.attackable && (!tester.canTarget(target) || !tester.canTarget(target.getType())
-						|| tester.isTeammate(target)
-				)) {
-					return false;
-				}
 
-				if (this.baseMaxDistance > 0.0) {
-					double d = this.useDistanceScalingFactor ? target.getAttackDistanceScalingFactor(tester) : 1.0;
-					double e = Math.max(this.baseMaxDistance * d, 2.0);
-					double f = tester.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
-					if (f > e * e) {
-						return false;
-					}
-				}
-
-				if (this.respectsVisibility && tester instanceof MobEntity mobEntity && !mobEntity
-						.getVisibilityCache()
-						.canSee(target)) {
-					return false;
-				}
-			}
-
-			return true;
+		if (tester == null) {
+			return !attackable || (target.canTakeDamage() && world.getDifficulty() != Difficulty.PEACEFUL);
 		}
+
+		if (attackable) {
+			if (!tester.canTarget(target) || !tester.canTarget(target.getType()) || tester.isTeammate(target)) {
+				return false;
+			}
+		}
+
+		if (baseMaxDistance > 0.0) {
+			double scalingFactor = useDistanceScalingFactor ? target.getAttackDistanceScalingFactor(tester) : 1.0;
+			double effectiveDistance = Math.max(baseMaxDistance * scalingFactor, MIN_DISTANCE);
+			double distanceSq = tester.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+
+			if (distanceSq > effectiveDistance * effectiveDistance) {
+				return false;
+			}
+		}
+
+		if (respectsVisibility && tester instanceof MobEntity mobEntity
+				&& !mobEntity.getVisibilityCache().canSee(target)) {
+			return false;
+		}
+
+		return true;
 	}
 
+	/** Пользовательский предикат для дополнительной фильтрации целей. */
 	@FunctionalInterface
-	/**
-	 * {@code EntityPredicate}.
-	 */
 	public interface EntityPredicate {
 
 		boolean test(LivingEntity target, ServerWorld world);

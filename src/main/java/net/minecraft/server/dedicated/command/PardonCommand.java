@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code PardonCommand}.
+ * Команда {@code /pardon}: снятие блокировки с игрока (только dedicated).
  */
 public class PardonCommand {
 

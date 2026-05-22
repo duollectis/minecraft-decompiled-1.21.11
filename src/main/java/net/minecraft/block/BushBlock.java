@@ -10,7 +10,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code BushBlock}.
+ * Блок куста — небольшое растение, которое можно удобрять костной мукой
+ * для распространения на соседние блоки.
  */
 public class BushBlock extends PlantBlock implements Fertilizable {
 
@@ -44,7 +45,7 @@ public class BushBlock extends PlantBlock implements Fertilizable {
 	@Override
 	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
 		Fertilizable
-				.findPosToSpreadTo(world, pos, state)
-				.ifPresent(posx -> world.setBlockState(posx, this.getDefaultState()));
+			.findPosToSpreadTo(world, pos, state)
+			.ifPresent(spreadPos -> world.setBlockState(spreadPos, getDefaultState()));
 	}
 }

@@ -8,27 +8,21 @@ import java.security.PrivateKey;
 import java.time.Instant;
 
 /**
- * Запись player key pair.
+ * Пара ключей игрока: приватный ключ RSA, публичный ключ с подписью и время обновления.
  */
 public record PlayerKeyPair(PrivateKey privateKey, PlayerPublicKey publicKey, Instant refreshedAfter) {
 
 	public static final Codec<PlayerKeyPair> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    NetworkEncryptionUtils.RSA_PRIVATE_KEY_CODEC
-							                    .fieldOf("private_key")
-							                    .forGetter(PlayerKeyPair::privateKey),
-					                    PlayerPublicKey.CODEC.fieldOf("public_key").forGetter(PlayerKeyPair::publicKey),
-					                    Codecs.INSTANT.fieldOf("refreshed_after").forGetter(PlayerKeyPair::refreshedAfter)
-			                    )
-			                    .apply(instance, PlayerKeyPair::new)
+					NetworkEncryptionUtils.RSA_PRIVATE_KEY_CODEC
+							.fieldOf("private_key")
+							.forGetter(PlayerKeyPair::privateKey),
+					PlayerPublicKey.CODEC.fieldOf("public_key").forGetter(PlayerKeyPair::publicKey),
+					Codecs.INSTANT.fieldOf("refreshed_after").forGetter(PlayerKeyPair::refreshedAfter)
+			).apply(instance, PlayerKeyPair::new)
 	);
 
-	/**
-	 * Needs refreshing.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean needsRefreshing() {
-		return this.refreshedAfter.isBefore(Instant.now());
+		return refreshedAfter.isBefore(Instant.now());
 	}
 }

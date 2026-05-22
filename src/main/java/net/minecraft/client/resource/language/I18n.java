@@ -7,10 +7,12 @@ import net.minecraft.util.Language;
 import java.util.IllegalFormatException;
 import java.util.Locale;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code I18n}.
+ * Утилитарный класс для локализации строк на стороне клиента.
+ * Делегирует поиск переводов текущему экземпляру {@link Language},
+ * который обновляется при смене языка через {@link #setLanguage}.
  */
+@Environment(EnvType.CLIENT)
 public class I18n {
 
 	private static volatile Language language = Language.getInstance();
@@ -23,21 +25,22 @@ public class I18n {
 	}
 
 	/**
-	 * Translate.
+	 * Переводит ключ локализации с подстановкой аргументов через {@link String#format}.
+	 * При ошибке форматирования возвращает строку с префиксом {@code "Format error: "},
+	 * чтобы не скрывать проблемы с шаблонами переводов.
 	 *
-	 * @param key key
-	 * @param args args
-	 *
-	 * @return String — результат операции
+	 * @param key  ключ перевода
+	 * @param args аргументы для подстановки в шаблон
+	 * @return отформатированная строка перевода
 	 */
 	public static String translate(String key, Object... args) {
-		String string = language.get(key);
+		String template = language.get(key);
 
 		try {
-			return String.format(Locale.ROOT, string, args);
+			return String.format(Locale.ROOT, template, args);
 		}
-		catch (IllegalFormatException var4) {
-			return "Format error: " + string;
+		catch (IllegalFormatException exception) {
+			return "Format error: " + template;
 		}
 	}
 

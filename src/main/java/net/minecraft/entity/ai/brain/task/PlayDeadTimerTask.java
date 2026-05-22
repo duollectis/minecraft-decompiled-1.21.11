@@ -4,15 +4,11 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 
 /**
- * {@code PlayDeadTimerTask}.
+ * Фабричный класс задачи мозга, отсчитывающей таймер притворства мёртвым.
+ * По истечении таймера сбрасывает память {@code PLAY_DEAD_TICKS} и восстанавливает активности.
  */
 public class PlayDeadTimerTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context
@@ -22,15 +18,16 @@ public class PlayDeadTimerTask {
 						)
 						.apply(
 								context, (playDeadTicks, hurtByEntity) -> (world, entity, time) -> {
-									int i = context.<Integer>getValue(playDeadTicks);
-									if (i <= 0) {
-										playDeadTicks.forget();
-										hurtByEntity.forget();
-										entity.getBrain().resetPossibleActivities();
+									int ticks = context.<Integer>getValue(playDeadTicks);
+	
+									if (ticks > 0) {
+										playDeadTicks.remember(ticks - 1);
+										return true;
 									}
-									else {
-										playDeadTicks.remember(i - 1);
-									}
+	
+									playDeadTicks.forget();
+									hurtByEntity.forget();
+									entity.getBrain().resetPossibleActivities();
 
 									return true;
 								}

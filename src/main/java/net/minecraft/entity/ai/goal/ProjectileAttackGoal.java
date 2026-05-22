@@ -9,14 +9,20 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code ProjectileAttackGoal}.
+ * Цель дальнобойной атаки снарядами: сближается с целью пока не войдёт в зону стрельбы,
+ * затем стреляет с интервалом, масштабируемым по дистанции.
  */
 public class ProjectileAttackGoal extends Goal {
+
+	private static final int COOLDOWN_UNSET = -1;
+	private static final int MIN_SEEN_TICKS = 5;
+	private static final float LOOK_ANGLE = 30.0F;
+	private static final float MIN_POWER = 0.1F;
 
 	private final MobEntity mob;
 	private final RangedAttackMob owner;
 	private @Nullable LivingEntity target;
-	private int updateCountdownTicks = -1;
+	private int updateCountdownTicks = COOLDOWN_UNSET;
 	private final double mobSpeed;
 	private int seenTargetTicks;
 	private final int minIntervalTicks;
@@ -38,40 +44,38 @@ public class ProjectileAttackGoal extends Goal {
 		if (!(mob instanceof LivingEntity)) {
 			throw new IllegalArgumentException("ArrowAttackGoal requires Mob implements RangedAttackMob");
 		}
-		else {
-			this.owner = mob;
-			this.mob = (MobEntity) mob;
-			this.mobSpeed = mobSpeed;
-			this.minIntervalTicks = minIntervalTicks;
-			this.maxIntervalTicks = maxIntervalTicks;
-			this.maxShootRange = maxShootRange;
-			this.squaredMaxShootRange = maxShootRange * maxShootRange;
-			this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-		}
+
+		this.owner = mob;
+		this.mob = (MobEntity) mob;
+		this.mobSpeed = mobSpeed;
+		this.minIntervalTicks = minIntervalTicks;
+		this.maxIntervalTicks = maxIntervalTicks;
+		this.maxShootRange = maxShootRange;
+		this.squaredMaxShootRange = maxShootRange * maxShootRange;
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 	}
 
 	@Override
 	public boolean canStart() {
-		LivingEntity livingEntity = this.mob.getTarget();
-		if (livingEntity != null && livingEntity.isAlive()) {
-			this.target = livingEntity;
-			return true;
-		}
-		else {
+		LivingEntity currentTarget = mob.getTarget();
+		if (currentTarget == null || !currentTarget.isAlive()) {
 			return false;
 		}
+
+		target = currentTarget;
+		return true;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.canStart() || this.target.isAlive() && !this.mob.getNavigation().isIdle();
+		return canStart() || target.isAlive() && !mob.getNavigation().isIdle();
 	}
 
 	@Override
 	public void stop() {
-		this.target = null;
-		this.seenTargetTicks = 0;
-		this.updateCountdownTicks = -1;
+		target = null;
+		seenTargetTicks = 0;
+		updateCountdownTicks = COOLDOWN_UNSET;
 	}
 
 	@Override
@@ -81,41 +85,34 @@ public class ProjectileAttackGoal extends Goal {
 
 	@Override
 	public void tick() {
-		double d = this.mob.squaredDistanceTo(this.target.getX(), this.target.getY(), this.target.getZ());
-		boolean bl = this.mob.getVisibilityCache().canSee(this.target);
-		if (bl) {
-			this.seenTargetTicks++;
+		double distSq = mob.squaredDistanceTo(target.getX(), target.getY(), target.getZ());
+		boolean canSee = mob.getVisibilityCache().canSee(target);
+		seenTargetTicks = canSee ? seenTargetTicks + 1 : 0;
+
+		if (distSq <= squaredMaxShootRange && seenTargetTicks >= MIN_SEEN_TICKS) {
+			mob.getNavigation().stop();
 		}
 		else {
-			this.seenTargetTicks = 0;
+			mob.getNavigation().startMovingTo(target, mobSpeed);
 		}
 
-		if (!(d > this.squaredMaxShootRange) && this.seenTargetTicks >= 5) {
-			this.mob.getNavigation().stop();
-		}
-		else {
-			this.mob.getNavigation().startMovingTo(this.target, this.mobSpeed);
-		}
+		mob.getLookControl().lookAt(target, LOOK_ANGLE, LOOK_ANGLE);
 
-		this.mob.getLookControl().lookAt(this.target, 30.0F, 30.0F);
-		if (--this.updateCountdownTicks == 0) {
-			if (!bl) {
+		if (--updateCountdownTicks == 0) {
+			if (!canSee) {
 				return;
 			}
 
-			float f = (float) Math.sqrt(d) / this.maxShootRange;
-			float g = MathHelper.clamp(f, 0.1F, 1.0F);
-			this.owner.shootAt(this.target, g);
-			this.updateCountdownTicks =
-					MathHelper.floor(f * (this.maxIntervalTicks - this.minIntervalTicks) + this.minIntervalTicks);
+			float distanceFactor = (float) Math.sqrt(distSq) / maxShootRange;
+			float power = MathHelper.clamp(distanceFactor, MIN_POWER, 1.0F);
+			owner.shootAt(target, power);
+			updateCountdownTicks = MathHelper.floor(
+					distanceFactor * (maxIntervalTicks - minIntervalTicks) + minIntervalTicks
+			);
 		}
-		else if (this.updateCountdownTicks < 0) {
-			this.updateCountdownTicks = MathHelper.floor(
-					MathHelper.lerp(
-							Math.sqrt(d) / this.maxShootRange,
-							(double) this.minIntervalTicks,
-							(double) this.maxIntervalTicks
-					)
+		else if (updateCountdownTicks < 0) {
+			updateCountdownTicks = MathHelper.floor(
+					MathHelper.lerp(Math.sqrt(distSq) / maxShootRange, minIntervalTicks, maxIntervalTicks)
 			);
 		}
 	}

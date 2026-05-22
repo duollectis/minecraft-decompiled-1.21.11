@@ -7,13 +7,13 @@ import net.minecraft.client.realms.RealmsSerializable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PingResult}.
+ * DTO результата пинга регионов Realms.
+ * Содержит список результатов по регионам и идентификаторы миров для маршрутизации.
  */
+@Environment(EnvType.CLIENT)
 public record PingResult(
 		@SerializedName("pingResults") List<RegionPingResult> pingResults,
 		@SerializedName("worldIds") List<Long> worldIds
-)
-		implements RealmsSerializable {
+) implements RealmsSerializable {
 }

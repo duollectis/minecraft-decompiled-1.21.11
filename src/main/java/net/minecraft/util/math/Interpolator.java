@@ -1,7 +1,8 @@
 package net.minecraft.util.math;
 
 /**
- * {@code Interpolator}.
+ * Функциональный интерфейс для интерполяции между двумя значениями типа {@code T}
+ * по параметру {@code t} в диапазоне [0, 1].
  */
 public interface Interpolator<T> {
 
@@ -11,8 +12,8 @@ public interface Interpolator<T> {
 
 	static Interpolator<Float> angle(float maxDeviation) {
 		return (t, a, b) -> {
-			float g = MathHelper.wrapDegrees(b - a);
-			return Math.abs(g) >= maxDeviation ? b : a + t * g;
+			float delta = MathHelper.wrapDegrees(b - a);
+			return Math.abs(delta) >= maxDeviation ? b : a + t * delta;
 		};
 	}
 

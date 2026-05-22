@@ -13,159 +13,154 @@ import net.minecraft.world.gen.feature.Feature;
 import java.util.List;
 
 /**
- * {@code EnderDragonSpawnState}.
+ * Конечный автомат процесса призыва Эндер-дракона.
+ * Каждое состояние реализует один шаг анимации: от начального луча кристаллов
+ * до финального взрыва и появления дракона.
  */
 public enum EnderDragonSpawnState {
+
 	START {
 		@Override
-		public void run(
-				ServerWorld world,
-				EnderDragonFight fight,
-				List<EndCrystalEntity> crystals,
-				int tick,
-				BlockPos pos
-		) {
-			BlockPos blockPos = new BlockPos(0, 128, 0);
-
-			for (EndCrystalEntity endCrystalEntity : crystals) {
-				endCrystalEntity.setBeamTarget(blockPos);
+		public void run(ServerWorld world, EnderDragonFight fight, List<EndCrystalEntity> crystals, int tick, BlockPos pos) {
+			BlockPos beamTarget = new BlockPos(0, BEAM_TARGET_Y, 0);
+			for (EndCrystalEntity crystal : crystals) {
+				crystal.setBeamTarget(beamTarget);
 			}
 
 			fight.setSpawnState(PREPARING_TO_SUMMON_PILLARS);
 		}
 	},
+
 	PREPARING_TO_SUMMON_PILLARS {
 		@Override
-		public void run(
-				ServerWorld world,
-				EnderDragonFight fight,
-				List<EndCrystalEntity> crystals,
-				int tick,
-				BlockPos pos
-		) {
-			if (tick < 100) {
-				if (tick == 0 || tick == 50 || tick == 51 || tick == 52 || tick >= 95) {
-					world.syncWorldEvent(3001, new BlockPos(0, 128, 0), 0);
-				}
-			}
-			else {
+		public void run(ServerWorld world, EnderDragonFight fight, List<EndCrystalEntity> crystals, int tick, BlockPos pos) {
+			if (tick >= PREPARING_DURATION) {
 				fight.setSpawnState(SUMMONING_PILLARS);
+				return;
+			}
+
+			if (tick == 0 || tick == 50 || tick == 51 || tick == 52 || tick >= 95) {
+				world.syncWorldEvent(WORLD_EVENT_BEAM, new BlockPos(0, BEAM_TARGET_Y, 0), 0);
 			}
 		}
 	},
+
 	SUMMONING_PILLARS {
 		@Override
-		public void run(
-				ServerWorld world,
-				EnderDragonFight fight,
-				List<EndCrystalEntity> crystals,
-				int tick,
-				BlockPos pos
-		) {
-			int i = 40;
-			boolean bl = tick % 40 == 0;
-			boolean bl2 = tick % 40 == 39;
-			if (bl || bl2) {
-				List<EndSpikeFeature.Spike> list = EndSpikeFeature.getSpikes(world);
-				int j = tick / 40;
-				if (j < list.size()) {
-					EndSpikeFeature.Spike spike = list.get(j);
-					if (bl) {
-						for (EndCrystalEntity endCrystalEntity : crystals) {
-							endCrystalEntity.setBeamTarget(new BlockPos(
-									spike.getCenterX(),
-									spike.getHeight() + 1,
-									spike.getCenterZ()
-							));
-						}
-					}
-					else {
-						int k = 10;
+		public void run(ServerWorld world, EnderDragonFight fight, List<EndCrystalEntity> crystals, int tick, BlockPos pos) {
+			boolean isStartOfPillar = tick % TICKS_PER_PILLAR == 0;
+			boolean isEndOfPillar = tick % TICKS_PER_PILLAR == TICKS_PER_PILLAR - 1;
 
-						for (BlockPos blockPos : BlockPos.iterate(
-								new BlockPos(spike.getCenterX() - 10, spike.getHeight() - 10, spike.getCenterZ() - 10),
-								new BlockPos(spike.getCenterX() + 10, spike.getHeight() + 10, spike.getCenterZ() + 10)
-						)) {
-							world.removeBlock(blockPos, false);
-						}
+			if (!isStartOfPillar && !isEndOfPillar) {
+				return;
+			}
 
-						world.createExplosion(
-								null,
-								spike.getCenterX() + 0.5F,
-								spike.getHeight(),
-								spike.getCenterZ() + 0.5F,
-								5.0F,
-								World.ExplosionSourceType.BLOCK
-						);
-						EndSpikeFeatureConfig
-								endSpikeFeatureConfig =
-								new EndSpikeFeatureConfig(true, ImmutableList.of(spike), new BlockPos(0, 128, 0));
-						Feature.END_SPIKE
-								.generateIfValid(
-										endSpikeFeatureConfig,
-										world,
-										world.getChunkManager().getChunkGenerator(),
-										Random.create(),
-										new BlockPos(spike.getCenterX(), 45, spike.getCenterZ())
-								);
+			List<EndSpikeFeature.Spike> spikes = EndSpikeFeature.getSpikes(world);
+			int pillarIndex = tick / TICKS_PER_PILLAR;
+
+			if (pillarIndex < spikes.size()) {
+				EndSpikeFeature.Spike spike = spikes.get(pillarIndex);
+				if (isStartOfPillar) {
+					BlockPos beamTarget = new BlockPos(spike.getCenterX(), spike.getHeight() + 1, spike.getCenterZ());
+					for (EndCrystalEntity crystal : crystals) {
+						crystal.setBeamTarget(beamTarget);
 					}
+				} else {
+					clearAndRegeneratePillar(world, spike);
 				}
-				else if (bl) {
-					fight.setSpawnState(SUMMONING_DRAGON);
-				}
+			} else if (isStartOfPillar) {
+				fight.setSpawnState(SUMMONING_DRAGON);
 			}
 		}
+
+		/**
+		 * Очищает область вокруг шипа и регенерирует его структуру через генератор фич.
+		 */
+		private void clearAndRegeneratePillar(ServerWorld world, EndSpikeFeature.Spike spike) {
+			BlockPos minPos = new BlockPos(
+					spike.getCenterX() - PILLAR_CLEAR_RADIUS,
+					spike.getHeight() - PILLAR_CLEAR_RADIUS,
+					spike.getCenterZ() - PILLAR_CLEAR_RADIUS
+			);
+			BlockPos maxPos = new BlockPos(
+					spike.getCenterX() + PILLAR_CLEAR_RADIUS,
+					spike.getHeight() + PILLAR_CLEAR_RADIUS,
+					spike.getCenterZ() + PILLAR_CLEAR_RADIUS
+			);
+			for (BlockPos blockPos : BlockPos.iterate(minPos, maxPos)) {
+				world.removeBlock(blockPos, false);
+			}
+
+			world.createExplosion(
+					null,
+					spike.getCenterX() + 0.5F,
+					spike.getHeight(),
+					spike.getCenterZ() + 0.5F,
+					PILLAR_EXPLOSION_RADIUS,
+					World.ExplosionSourceType.BLOCK
+			);
+
+			EndSpikeFeatureConfig config = new EndSpikeFeatureConfig(
+					true,
+					ImmutableList.of(spike),
+					new BlockPos(0, BEAM_TARGET_Y, 0)
+			);
+			Feature.END_SPIKE.generateIfValid(
+					config,
+					world,
+					world.getChunkManager().getChunkGenerator(),
+					Random.create(),
+					new BlockPos(spike.getCenterX(), PILLAR_GENERATE_Y, spike.getCenterZ())
+			);
+		}
 	},
+
 	SUMMONING_DRAGON {
 		@Override
-		public void run(
-				ServerWorld world,
-				EnderDragonFight fight,
-				List<EndCrystalEntity> crystals,
-				int tick,
-				BlockPos pos
-		) {
-			if (tick >= 100) {
+		public void run(ServerWorld world, EnderDragonFight fight, List<EndCrystalEntity> crystals, int tick, BlockPos pos) {
+			if (tick >= DRAGON_SUMMON_DURATION) {
 				fight.setSpawnState(END);
 				fight.resetEndCrystals();
-
-				for (EndCrystalEntity endCrystalEntity : crystals) {
-					endCrystalEntity.setBeamTarget(null);
+				for (EndCrystalEntity crystal : crystals) {
+					crystal.setBeamTarget(null);
 					world.createExplosion(
-							endCrystalEntity,
-							endCrystalEntity.getX(),
-							endCrystalEntity.getY(),
-							endCrystalEntity.getZ(),
-							6.0F,
+							crystal,
+							crystal.getX(), crystal.getY(), crystal.getZ(),
+							CRYSTAL_EXPLOSION_RADIUS,
 							World.ExplosionSourceType.NONE
 					);
-					endCrystalEntity.discard();
+					crystal.discard();
 				}
-			}
-			else if (tick >= 80) {
-				world.syncWorldEvent(3001, new BlockPos(0, 128, 0), 0);
-			}
-			else if (tick == 0) {
-				for (EndCrystalEntity endCrystalEntity : crystals) {
-					endCrystalEntity.setBeamTarget(new BlockPos(0, 128, 0));
+			} else if (tick >= DRAGON_BEAM_START_TICK) {
+				world.syncWorldEvent(WORLD_EVENT_BEAM, new BlockPos(0, BEAM_TARGET_Y, 0), 0);
+			} else if (tick == 0) {
+				BlockPos beamTarget = new BlockPos(0, BEAM_TARGET_Y, 0);
+				for (EndCrystalEntity crystal : crystals) {
+					crystal.setBeamTarget(beamTarget);
 				}
-			}
-			else if (tick < 5) {
-				world.syncWorldEvent(3001, new BlockPos(0, 128, 0), 0);
+			} else if (tick < DRAGON_EARLY_BEAM_END_TICK) {
+				world.syncWorldEvent(WORLD_EVENT_BEAM, new BlockPos(0, BEAM_TARGET_Y, 0), 0);
 			}
 		}
 	},
+
 	END {
 		@Override
-		public void run(
-				ServerWorld world,
-				EnderDragonFight fight,
-				List<EndCrystalEntity> crystals,
-				int tick,
-				BlockPos pos
-		) {
+		public void run(ServerWorld world, EnderDragonFight fight, List<EndCrystalEntity> crystals, int tick, BlockPos pos) {
 		}
 	};
+
+	private static final int BEAM_TARGET_Y = 128;
+	private static final int WORLD_EVENT_BEAM = 3001;
+	private static final int PREPARING_DURATION = 100;
+	private static final int TICKS_PER_PILLAR = 40;
+	private static final int PILLAR_CLEAR_RADIUS = 10;
+	private static final float PILLAR_EXPLOSION_RADIUS = 5.0F;
+	private static final int PILLAR_GENERATE_Y = 45;
+	private static final int DRAGON_SUMMON_DURATION = 100;
+	private static final int DRAGON_BEAM_START_TICK = 80;
+	private static final int DRAGON_EARLY_BEAM_END_TICK = 5;
+	private static final float CRYSTAL_EXPLOSION_RADIUS = 6.0F;
 
 	public abstract void run(
 			ServerWorld world,

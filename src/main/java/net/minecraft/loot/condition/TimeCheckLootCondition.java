@@ -11,17 +11,14 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * {@code TimeCheckLootCondition}.
- */
+/** Условие лута: проверяет текущее игровое время суток, опционально применяя модуль периода. */
 public record TimeCheckLootCondition(Optional<Long> period, BoundedIntUnaryOperator value) implements LootCondition {
 
 	public static final MapCodec<TimeCheckLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.LONG.optionalFieldOf("period").forGetter(TimeCheckLootCondition::period),
-					                    BoundedIntUnaryOperator.CODEC.fieldOf("value").forGetter(TimeCheckLootCondition::value)
-			                    )
-			                    .apply(instance, TimeCheckLootCondition::new)
+		instance -> instance.group(
+			Codec.LONG.optionalFieldOf("period").forGetter(TimeCheckLootCondition::period),
+			BoundedIntUnaryOperator.CODEC.fieldOf("value").forGetter(TimeCheckLootCondition::value)
+		).apply(instance, TimeCheckLootCondition::new)
 	);
 
 	@Override
@@ -31,33 +28,26 @@ public record TimeCheckLootCondition(Optional<Long> period, BoundedIntUnaryOpera
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.value.getRequiredParameters();
+		return value.getRequiredParameters();
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		ServerWorld serverWorld = lootContext.getWorld();
-		long l = serverWorld.getTimeOfDay();
-		if (this.period.isPresent()) {
-			l %= this.period.get();
+		ServerWorld world = lootContext.getWorld();
+		long timeOfDay = world.getTimeOfDay();
+
+		if (period.isPresent()) {
+			timeOfDay %= period.get();
 		}
 
-		return this.value.test(lootContext, (int) l);
+		return value.test(lootContext, (int) timeOfDay);
 	}
 
 	public static TimeCheckLootCondition.Builder create(BoundedIntUnaryOperator value) {
 		return new TimeCheckLootCondition.Builder(value);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
+	/** Строитель условия проверки времени суток. */
 	public static class Builder implements LootCondition.Builder {
 
 		private Optional<Long> period = Optional.empty();
@@ -72,13 +62,9 @@ public record TimeCheckLootCondition(Optional<Long> period, BoundedIntUnaryOpera
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return TimeCheckLootCondition — результат операции
-		 */
+		@Override
 		public TimeCheckLootCondition build() {
-			return new TimeCheckLootCondition(this.period, this.value);
+			return new TimeCheckLootCondition(period, value);
 		}
 	}
 }

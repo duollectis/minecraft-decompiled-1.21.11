@@ -14,22 +14,24 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code SetCountLootFunction}.
+ * Функция лута, устанавливающая количество предметов в стаке.
+ * Если {@code add = true}, новое значение прибавляется к текущему количеству.
  */
 public class SetCountLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetCountLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									LootNumberProviderTypes.CODEC
-											.fieldOf("count")
-											.forGetter(function -> function.countRange),
-									Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
-							)
-					)
-					.apply(instance, SetCountLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					LootNumberProviderTypes.CODEC
+						.fieldOf("count")
+						.forGetter(function -> function.countRange),
+					Codec.BOOL.fieldOf("add").orElse(false).forGetter(function -> function.add)
+				)
+			)
+			.apply(instance, SetCountLootFunction::new)
 	);
+
 	private final LootNumberProvider countRange;
 	private final boolean add;
 
@@ -46,13 +48,13 @@ public class SetCountLootFunction extends ConditionalLootFunction {
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.countRange.getAllowedParameters();
+		return countRange.getAllowedParameters();
 	}
 
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		int i = this.add ? stack.getCount() : 0;
-		stack.setCount(i + this.countRange.nextInt(context));
+		int baseCount = add ? stack.getCount() : 0;
+		stack.setCount(baseCount + countRange.nextInt(context));
 		return stack;
 	}
 

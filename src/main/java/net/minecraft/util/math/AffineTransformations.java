@@ -9,68 +9,48 @@ import org.joml.Vector3f;
 import java.util.Map;
 
 /**
- * {@code AffineTransformations}.
+ * Утилитарный класс для работы с аффинными преобразованиями блоков:
+ * UV-блокировка, трансформация блока и поворот по направлению.
  */
 public class AffineTransformations {
 
 	private static final Map<Direction, AffineTransformation> DIRECTION_ROTATIONS = Maps.newEnumMap(
 			Map.of(
-					Direction.SOUTH,
-					AffineTransformation.identity(),
-					Direction.EAST,
-					new AffineTransformation(null, new Quaternionf().rotateY((float) (Math.PI / 2)), null, null),
-					Direction.WEST,
-					new AffineTransformation(null, new Quaternionf().rotateY((float) (-Math.PI / 2)), null, null),
-					Direction.NORTH,
-					new AffineTransformation(null, new Quaternionf().rotateY((float) Math.PI), null, null),
-					Direction.UP,
-					new AffineTransformation(null, new Quaternionf().rotateX((float) (-Math.PI / 2)), null, null),
-					Direction.DOWN,
-					new AffineTransformation(null, new Quaternionf().rotateX((float) (Math.PI / 2)), null, null)
+					Direction.SOUTH, AffineTransformation.identity(),
+					Direction.EAST, new AffineTransformation(null, new Quaternionf().rotateY((float) (Math.PI / 2)), null, null),
+					Direction.WEST, new AffineTransformation(null, new Quaternionf().rotateY((float) (-Math.PI / 2)), null, null),
+					Direction.NORTH, new AffineTransformation(null, new Quaternionf().rotateY((float) Math.PI), null, null),
+					Direction.UP, new AffineTransformation(null, new Quaternionf().rotateX((float) (-Math.PI / 2)), null, null),
+					Direction.DOWN, new AffineTransformation(null, new Quaternionf().rotateX((float) (Math.PI / 2)), null, null)
 			)
 	);
+
 	private static final Map<Direction, AffineTransformation> INVERTED_DIRECTION_ROTATIONS = Maps.newEnumMap(
 			Util.transformMapValues(DIRECTION_ROTATIONS, AffineTransformation::invert)
 	);
 
-	/**
-	 * Устанавливает up uv lock.
-	 *
-	 * @param transformation transformation
-	 *
-	 * @return AffineTransformation — результат операции
-	 */
 	public static AffineTransformation setupUvLock(AffineTransformation transformation) {
-		Matrix4f matrix4f = new Matrix4f().translation(0.5F, 0.5F, 0.5F);
-		matrix4f.mul(transformation.getMatrix());
-		matrix4f.translate(-0.5F, -0.5F, -0.5F);
-		return new AffineTransformation(matrix4f);
+		Matrix4f matrix = new Matrix4f().translation(0.5F, 0.5F, 0.5F);
+		matrix.mul(transformation.getMatrix());
+		matrix.translate(-0.5F, -0.5F, -0.5F);
+		return new AffineTransformation(matrix);
 	}
 
-	/**
-	 * Устанавливает up block transform.
-	 *
-	 * @param transformation transformation
-	 *
-	 * @return AffineTransformation — результат операции
-	 */
 	public static AffineTransformation setupBlockTransform(AffineTransformation transformation) {
-		Matrix4f matrix4f = new Matrix4f().translation(-0.5F, -0.5F, -0.5F);
-		matrix4f.mul(transformation.getMatrix());
-		matrix4f.translate(0.5F, 0.5F, 0.5F);
-		return new AffineTransformation(matrix4f);
+		Matrix4f matrix = new Matrix4f().translation(-0.5F, -0.5F, -0.5F);
+		matrix.mul(transformation.getMatrix());
+		matrix.translate(0.5F, 0.5F, 0.5F);
+		return new AffineTransformation(matrix);
 	}
 
 	public static AffineTransformation getTransformed(AffineTransformation affineTransformation, Direction direction) {
 		if (MatrixUtil.isIdentity(affineTransformation.getMatrix())) {
 			return affineTransformation;
 		}
-		else {
-			AffineTransformation affineTransformation2 = DIRECTION_ROTATIONS.get(direction);
-			affineTransformation2 = affineTransformation.multiply(affineTransformation2);
-			Vector3f vector3f = affineTransformation2.getMatrix().transformDirection(new Vector3f(0.0F, 0.0F, 1.0F));
-			Direction direction2 = Direction.getFacing(vector3f.x, vector3f.y, vector3f.z);
-			return INVERTED_DIRECTION_ROTATIONS.get(direction2).multiply(affineTransformation2);
-		}
+
+		AffineTransformation rotated = affineTransformation.multiply(DIRECTION_ROTATIONS.get(direction));
+		Vector3f forward = rotated.getMatrix().transformDirection(new Vector3f(0.0F, 0.0F, 1.0F));
+		Direction facing = Direction.getFacing(forward.x, forward.y, forward.z);
+		return INVERTED_DIRECTION_ROTATIONS.get(facing).multiply(rotated);
 	}
 }

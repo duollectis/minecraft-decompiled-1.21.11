@@ -15,11 +15,15 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ConduitModelRenderer}.
+ * Специализированный рендерер кондуита как предмета.
+ * Рендерит только внешнюю оболочку кондуита (shell), центрируя её
+ * в точке (0.5, 0.5, 0.5) для корректного отображения в инвентаре.
  */
+@Environment(EnvType.CLIENT)
 public class ConduitModelRenderer implements SimpleSpecialModelRenderer {
+
+	private static final float CENTER_OFFSET = 0.5F;
 
 	private final SpriteHolder spriteHolder;
 	private final ModelPart shell;
@@ -37,41 +41,43 @@ public class ConduitModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
 		matrices.push();
-		matrices.translate(0.5F, 0.5F, 0.5F);
+		matrices.translate(CENTER_OFFSET, CENTER_OFFSET, CENTER_OFFSET);
+
 		queue.submitModelPart(
-				this.shell,
+				shell,
 				matrices,
 				ConduitBlockEntityRenderer.BASE_TEXTURE.getRenderLayer(RenderLayers::entitySolid),
 				light,
 				overlay,
-				this.spriteHolder.getSprite(ConduitBlockEntityRenderer.BASE_TEXTURE),
+				spriteHolder.getSprite(ConduitBlockEntityRenderer.BASE_TEXTURE),
 				false,
 				false,
 				-1,
 				null,
-				i
+				seed
 		);
+
 		matrices.pop();
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		matrixStack.translate(0.5F, 0.5F, 0.5F);
-		this.shell.collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		matrices.translate(CENTER_OFFSET, CENTER_OFFSET, CENTER_OFFSET);
+		shell.collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера кондуита.
+	 * Не требует параметров — всегда использует стандартную модель оболочки.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked() implements SpecialModelRenderer.Unbaked {
 
-		public static final MapCodec<ConduitModelRenderer.Unbaked>
-				CODEC =
+		public static final MapCodec<ConduitModelRenderer.Unbaked> CODEC =
 				MapCodec.unit(new ConduitModelRenderer.Unbaked());
 
 		@Override

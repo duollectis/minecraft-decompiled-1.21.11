@@ -5,9 +5,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code PlayerModelPart}.
+ * Перечисление видимых частей модели игрока (плащ, рукава, штаны, шляпа).
+ * Каждая часть имеет битовый флаг для компактного хранения в одном байте.
  */
 public enum PlayerModelPart implements StringIdentifiable {
+
 	CAPE(0, "cape"),
 	JACKET(1, "jacket"),
 	LEFT_SLEEVE(2, "left_sleeve"),
@@ -17,12 +19,13 @@ public enum PlayerModelPart implements StringIdentifiable {
 	HAT(6, "hat");
 
 	public static final Codec<PlayerModelPart> CODEC = StringIdentifiable.createCodec(PlayerModelPart::values);
+
 	private final int id;
 	private final int bitFlag;
 	private final String name;
 	private final Text optionName;
 
-	private PlayerModelPart(final int id, final String name) {
+	PlayerModelPart(int id, String name) {
 		this.id = id;
 		this.bitFlag = 1 << id;
 		this.name = name;
@@ -30,23 +33,23 @@ public enum PlayerModelPart implements StringIdentifiable {
 	}
 
 	public int getBitFlag() {
-		return this.bitFlag;
+		return bitFlag;
 	}
 
 	public int getId() {
-		return this.id;
+		return id;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public Text getOptionName() {
-		return this.optionName;
+		return optionName;
 	}
 
 	@Override
 	public String asString() {
-		return this.name;
+		return name;
 	}
 }

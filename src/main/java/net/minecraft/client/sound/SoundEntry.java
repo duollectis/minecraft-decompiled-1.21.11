@@ -6,10 +6,12 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SoundEntry}.
+ * Запись звукового события из {@code sounds.json}.
+ * Содержит список вариантов звука, флаг замены предыдущих определений
+ * и опциональный ключ субтитра для отображения в интерфейсе.
  */
+@Environment(EnvType.CLIENT)
 public class SoundEntry {
 
 	private final List<Sound> sounds;
@@ -23,19 +25,14 @@ public class SoundEntry {
 	}
 
 	public List<Sound> getSounds() {
-		return this.sounds;
+		return sounds;
 	}
 
-	/**
-	 * Проверяет возможность replace.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canReplace() {
-		return this.replace;
+		return replace;
 	}
 
 	public @Nullable String getSubtitle() {
-		return this.subtitle;
+		return subtitle;
 	}
 }

@@ -13,10 +13,11 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.MoonPhase;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TimeProperty}.
+ * Числовое свойство времени для системы предметных моделей (часы).
+ * Вычисляет угол стрелки на основе источника времени: случайного, игрового или фазы луны.
  */
+@Environment(EnvType.CLIENT)
 public class TimeProperty extends NeedleAngleState implements NumericProperty {
 
 	public static final MapCodec<TimeProperty> CODEC = RecordCodecBuilder.mapCodec(
@@ -33,18 +34,18 @@ public class TimeProperty extends NeedleAngleState implements NumericProperty {
 	public TimeProperty(boolean wobble, TimeProperty.Source source) {
 		super(wobble);
 		this.source = source;
-		this.angler = this.createAngler(0.9F);
+		angler = createAngler(0.9F);
 	}
 
 	@Override
 	protected float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context) {
-		float f = this.source.getAngle(world, stack, context, this.random);
-		long l = world.getTime();
-		if (this.angler.shouldUpdate(l)) {
-			this.angler.update(l, f);
+		float targetAngle = source.getAngle(world, stack, context, random);
+		long time = world.getTime();
+		if (angler.shouldUpdate(time)) {
+			angler.update(time, targetAngle);
 		}
 
-		return this.angler.getAngle();
+		return angler.getAngle();
 	}
 
 	@Override
@@ -52,11 +53,11 @@ public class TimeProperty extends NeedleAngleState implements NumericProperty {
 		return CODEC;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Source}.
+	 * Источник времени для вычисления угла стрелки часов.
 	 */
-	public static enum Source implements StringIdentifiable {
+	@Environment(EnvType.CLIENT)
+	public enum Source implements StringIdentifiable {
 		RANDOM("random") {
 			@Override
 			public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {

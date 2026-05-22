@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code RandomSequenceSettingsFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RandomSequenceSettingsFix extends DataFix {
 
@@ -16,9 +16,9 @@ public class RandomSequenceSettingsFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"RandomSequenceSettingsFix",
-				this.getInputSchema().getType(TypeReferences.SAVED_DATA_RANDOM_SEQUENCES),
+				getInputSchema().getType(TypeReferences.SAVED_DATA_RANDOM_SEQUENCES),
 				typed -> typed.update(DSL.remainderFinder(),
 						randomSequencesData -> randomSequencesData.update(
 								"data",

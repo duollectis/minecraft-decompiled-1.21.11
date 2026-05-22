@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code LightningBoltPredicate}.
+ * Предикат молнии. Проверяет количество поджжённых блоков и поражённые сущности.
  */
 public record LightningBoltPredicate(
 		NumberRange.IntRange blocksSetOnFire,
@@ -21,14 +21,13 @@ public record LightningBoltPredicate(
 
 	public static final MapCodec<LightningBoltPredicate> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    NumberRange.IntRange.CODEC
-							                    .optionalFieldOf("blocks_set_on_fire", NumberRange.IntRange.ANY)
-							                    .forGetter(LightningBoltPredicate::blocksSetOnFire),
-					                    EntityPredicate.CODEC
-							                    .optionalFieldOf("entity_struck")
-							                    .forGetter(LightningBoltPredicate::entityStruck)
-			                    )
-			                    .apply(instance, LightningBoltPredicate::new)
+					NumberRange.IntRange.CODEC
+							.optionalFieldOf("blocks_set_on_fire", NumberRange.IntRange.ANY)
+							.forGetter(LightningBoltPredicate::blocksSetOnFire),
+					EntityPredicate.CODEC
+							.optionalFieldOf("entity_struck")
+							.forGetter(LightningBoltPredicate::entityStruck)
+			).apply(instance, LightningBoltPredicate::new)
 	);
 
 	public static LightningBoltPredicate of(NumberRange.IntRange blocksSetOnFire) {
@@ -42,14 +41,15 @@ public record LightningBoltPredicate(
 
 	@Override
 	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-		return !(entity instanceof LightningEntity lightningEntity)
-		       ? false
-		       : this.blocksSetOnFire.test(lightningEntity.getBlocksSetOnFire())
-		         && (
-				       this.entityStruck.isEmpty()
-				       || lightningEntity
-				          .getStruckEntities()
-				          .anyMatch(struckEntity -> this.entityStruck.get().test(world, pos, struckEntity))
-		       );
+		if (!(entity instanceof LightningEntity lightning)) {
+			return false;
+		}
+
+		if (!blocksSetOnFire.test(lightning.getBlocksSetOnFire())) {
+			return false;
+		}
+
+		return entityStruck.isEmpty()
+				|| lightning.getStruckEntities().anyMatch(struck -> entityStruck.get().test(world, pos, struck));
 	}
 }

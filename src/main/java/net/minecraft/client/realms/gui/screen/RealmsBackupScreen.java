@@ -189,7 +189,7 @@ public class RealmsBackupScreen extends RealmsScreen {
 					RealmsBackupScreen.this.width,
 					RealmsBackupScreen.this.layout.getContentHeight(),
 					RealmsBackupScreen.this.layout.getHeaderHeight(),
-					36
+					ENTRY_HEIGHT
 			);
 		}
 

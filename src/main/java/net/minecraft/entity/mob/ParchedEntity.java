@@ -15,7 +15,7 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ParchedEntity}.
+ * Иссохший моб — вариант, связанный с засушливыми биомами.
  */
 public class ParchedEntity extends AbstractSkeletonEntity {
 
@@ -29,14 +29,13 @@ public class ParchedEntity extends AbstractSkeletonEntity {
 			float damageModifier,
 			@Nullable ItemStack shotFrom
 	) {
-		PersistentProjectileEntity
-				persistentProjectileEntity =
-				super.createArrowProjectile(arrow, damageModifier, shotFrom);
-		if (persistentProjectileEntity instanceof ArrowEntity) {
-			((ArrowEntity) persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 600));
+		PersistentProjectileEntity projectile = super.createArrowProjectile(arrow, damageModifier, shotFrom);
+
+		if (projectile instanceof ArrowEntity arrowEntity) {
+			arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 600));
 		}
 
-		return persistentProjectileEntity;
+		return projectile;
 	}
 
 	public static DefaultAttributeContainer.Builder createParchedAttributes() {
@@ -75,6 +74,6 @@ public class ParchedEntity extends AbstractSkeletonEntity {
 
 	@Override
 	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-		return effect.getEffectType() == StatusEffects.WEAKNESS ? false : super.canHaveStatusEffect(effect);
+		return effect.getEffectType() != StatusEffects.WEAKNESS && super.canHaveStatusEffect(effect);
 	}
 }

@@ -10,11 +10,18 @@ import net.minecraft.text.Text;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GridScreenTab}.
+ * Реализация вкладки экрана на основе {@link GridWidget}.
+ * Позиционирует содержимое по центру горизонтально и на 1/6 высоты вертикально,
+ * что соответствует стандартному расположению элементов настроек в Minecraft.
  */
+@Environment(EnvType.CLIENT)
 public class GridScreenTab implements Tab {
+
+	/** Вертикальное смещение сетки относительно области вкладки (1/6 высоты). */
+	private static final float VERTICAL_ALIGNMENT = 1.0F / 6.0F;
+	/** Горизонтальное смещение сетки — по центру. */
+	private static final float HORIZONTAL_ALIGNMENT = 0.5F;
 
 	private final Text title;
 	protected final GridWidget grid = new GridWidget();
@@ -25,7 +32,7 @@ public class GridScreenTab implements Tab {
 
 	@Override
 	public Text getTitle() {
-		return this.title;
+		return title;
 	}
 
 	@Override
@@ -35,12 +42,12 @@ public class GridScreenTab implements Tab {
 
 	@Override
 	public void forEachChild(Consumer<ClickableWidget> consumer) {
-		this.grid.forEachChild(consumer);
+		grid.forEachChild(consumer);
 	}
 
 	@Override
 	public void refreshGrid(ScreenRect tabArea) {
-		this.grid.refreshPositions();
-		SimplePositioningWidget.setPos(this.grid, tabArea, 0.5F, 0.16666667F);
+		grid.refreshPositions();
+		SimplePositioningWidget.setPos(grid, tabArea, HORIZONTAL_ALIGNMENT, VERTICAL_ALIGNMENT);
 	}
 }

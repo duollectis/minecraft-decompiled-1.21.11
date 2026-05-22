@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code Tameable}.
+ * Интерфейс для прирученных сущностей, имеющих владельца.
  */
 public interface Tameable {
 
@@ -16,25 +16,29 @@ public interface Tameable {
 	World getEntityWorld();
 
 	default @Nullable LivingEntity getOwner() {
-		return LazyEntityReference.getLivingEntity(this.getOwnerReference(), this.getEntityWorld());
+		return LazyEntityReference.getLivingEntity(getOwnerReference(), getEntityWorld());
 	}
 
+	/**
+	 * Возвращает самого верхнего владельца в цепочке приручения.
+	 * Защищает от циклических ссылок: если цепочка зацикливается — возвращает {@code null}.
+	 */
 	default @Nullable LivingEntity getTopLevelOwner() {
-		Set<Object> set = new ObjectArraySet();
-		LivingEntity livingEntity = this.getOwner();
-		set.add(this);
+		Set<Object> visited = new ObjectArraySet<>();
+		LivingEntity owner = getOwner();
+		visited.add(this);
 
-		while (livingEntity instanceof Tameable) {
-			Tameable tameable = (Tameable) livingEntity;
-			LivingEntity livingEntity2 = tameable.getOwner();
-			if (set.contains(livingEntity2)) {
+		while (owner instanceof Tameable tameable) {
+			LivingEntity nextOwner = tameable.getOwner();
+
+			if (visited.contains(nextOwner)) {
 				return null;
 			}
 
-			set.add(livingEntity);
-			livingEntity = tameable.getOwner();
+			visited.add(owner);
+			owner = nextOwner;
 		}
 
-		return livingEntity;
+		return owner;
 	}
 }

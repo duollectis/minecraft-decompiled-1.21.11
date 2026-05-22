@@ -6,31 +6,25 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code NotBlockPredicate}.
+ * Предикат-инвертор: возвращает {@code true} если вложенный предикат возвращает {@code false}.
  */
 class NotBlockPredicate implements BlockPredicate {
 
 	public static final MapCodec<NotBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(BlockPredicate.BASE_CODEC.fieldOf("predicate").forGetter(predicate -> predicate.predicate))
-					.apply(instance, NotBlockPredicate::new)
+		instance -> instance
+			.group(BlockPredicate.BASE_CODEC.fieldOf("predicate").forGetter(p -> p.predicate))
+			.apply(instance, NotBlockPredicate::new)
 	);
+
 	private final BlockPredicate predicate;
 
 	public NotBlockPredicate(BlockPredicate predicate) {
 		this.predicate = predicate;
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		return !this.predicate.test(structureWorldAccess, blockPos);
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		return !predicate.test(world, pos);
 	}
 
 	@Override

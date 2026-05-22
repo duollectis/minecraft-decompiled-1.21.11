@@ -12,16 +12,25 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * {@code ZipResourcePack}.
+ * Реализация {@link ResourcePack}, загружающая ресурсы из zip-архива.
+ * Поддерживает оверлеи через префикс пути внутри архива.
  */
 public class ZipResourcePack extends AbstractFileResourcePack {
 
 	static final Logger LOGGER = LogUtils.getLogger();
+
+	/** Символ-разделитель пути внутри zip-архива. */
+	private static final char ZIP_PATH_SEPARATOR = '/';
+
 	private final ZipResourcePack.ZipFileWrapper zipFile;
 	private final String overlay;
 
@@ -37,113 +46,126 @@ public class ZipResourcePack extends AbstractFileResourcePack {
 
 	@Override
 	public @Nullable InputSupplier<InputStream> openRoot(String... segments) {
-		return this.openFile(String.join("/", segments));
+		return openFile(String.join("/", segments));
 	}
 
 	@Override
 	public InputSupplier<InputStream> open(ResourceType type, Identifier id) {
-		return this.openFile(toPath(type, id));
+		return openFile(toPath(type, id));
 	}
 
 	private String appendOverlayPrefix(String path) {
-		return this.overlay.isEmpty() ? path : this.overlay + "/" + path;
+		return overlay.isEmpty() ? path : overlay + "/" + path;
 	}
 
 	private @Nullable InputSupplier<InputStream> openFile(String path) {
-		ZipFile zipFile = this.zipFile.open();
-		if (zipFile == null) {
+		ZipFile zip = zipFile.open();
+		if (zip == null) {
 			return null;
 		}
-		else {
-			ZipEntry zipEntry = zipFile.getEntry(this.appendOverlayPrefix(path));
-			return zipEntry == null ? null : InputSupplier.create(zipFile, zipEntry);
-		}
+
+		ZipEntry entry = zip.getEntry(appendOverlayPrefix(path));
+		return entry == null ? null : InputSupplier.create(zip, entry);
 	}
 
 	@Override
 	public Set<String> getNamespaces(ResourceType type) {
-		ZipFile zipFile = this.zipFile.open();
-		if (zipFile == null) {
+		ZipFile zip = zipFile.open();
+		if (zip == null) {
 			return Set.of();
 		}
-		else {
-			Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
-			Set<String> set = Sets.newHashSet();
-			String string = this.appendOverlayPrefix(type.getDirectory() + "/");
 
-			while (enumeration.hasMoreElements()) {
-				ZipEntry zipEntry = enumeration.nextElement();
-				String string2 = zipEntry.getName();
-				String string3 = getNamespace(string, string2);
-				if (!string3.isEmpty()) {
-					if (Identifier.isNamespaceValid(string3)) {
-						set.add(string3);
-					}
-					else {
-						LOGGER.warn(
-								"Non [a-z0-9_.-] character in namespace {} in pack {}, ignoring",
-								string3,
-								this.zipFile.file
-						);
-					}
-				}
+		Enumeration<? extends ZipEntry> entries = zip.entries();
+		Set<String> namespaces = Sets.newHashSet();
+		String prefix = appendOverlayPrefix(type.getDirectory() + "/");
+
+		while (entries.hasMoreElements()) {
+			ZipEntry entry = entries.nextElement();
+			String namespace = getNamespace(prefix, entry.getName());
+			if (namespace.isEmpty()) {
+				continue;
 			}
 
-			return set;
+			if (Identifier.isNamespaceValid(namespace)) {
+				namespaces.add(namespace);
+			} else {
+				LOGGER.warn(
+					"Non [a-z0-9_.-] character in namespace {} in pack {}, ignoring",
+					namespace,
+					zipFile.file
+				);
+			}
 		}
+
+		return namespaces;
 	}
 
+	/**
+	 * Извлекает пространство имён из имени записи zip-архива по заданному префиксу.
+	 * Возвращает пустую строку, если запись не соответствует префиксу.
+	 *
+	 * @param prefix    ожидаемый префикс (например, {@code "assets/"})
+	 * @param entryName имя записи в архиве
+	 * @return пространство имён или пустая строка
+	 */
 	@VisibleForTesting
 	public static String getNamespace(String prefix, String entryName) {
 		if (!entryName.startsWith(prefix)) {
 			return "";
 		}
-		else {
-			int i = prefix.length();
-			int j = entryName.indexOf(47, i);
-			return j == -1 ? entryName.substring(i) : entryName.substring(i, j);
-		}
+
+		int start = prefix.length();
+		int separatorIndex = entryName.indexOf(ZIP_PATH_SEPARATOR, start);
+		return separatorIndex == -1
+			? entryName.substring(start)
+			: entryName.substring(start, separatorIndex);
 	}
 
 	@Override
 	public void close() {
-		this.zipFile.close();
+		zipFile.close();
 	}
 
 	@Override
 	public void findResources(
-			ResourceType type,
-			String namespace,
-			String prefix,
-			ResourcePack.ResultConsumer consumer
+		ResourceType type,
+		String namespace,
+		String prefix,
+		ResourcePack.ResultConsumer consumer
 	) {
-		ZipFile zipFile = this.zipFile.open();
-		if (zipFile != null) {
-			Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
-			String string = this.appendOverlayPrefix(type.getDirectory() + "/" + namespace + "/");
-			String string2 = string + prefix + "/";
+		ZipFile zip = zipFile.open();
+		if (zip == null) {
+			return;
+		}
 
-			while (enumeration.hasMoreElements()) {
-				ZipEntry zipEntry = enumeration.nextElement();
-				if (!zipEntry.isDirectory()) {
-					String string3 = zipEntry.getName();
-					if (string3.startsWith(string2)) {
-						String string4 = string3.substring(string.length());
-						Identifier identifier = Identifier.tryParse(namespace, string4);
-						if (identifier != null) {
-							consumer.accept(identifier, InputSupplier.create(zipFile, zipEntry));
-						}
-						else {
-							LOGGER.warn("Invalid path in datapack: {}:{}, ignoring", namespace, string4);
-						}
-					}
-				}
+		Enumeration<? extends ZipEntry> entries = zip.entries();
+		String namespacePath = appendOverlayPrefix(type.getDirectory() + "/" + namespace + "/");
+		String searchPrefix = namespacePath + prefix + "/";
+
+		while (entries.hasMoreElements()) {
+			ZipEntry entry = entries.nextElement();
+			if (entry.isDirectory()) {
+				continue;
+			}
+
+			String entryName = entry.getName();
+			if (!entryName.startsWith(searchPrefix)) {
+				continue;
+			}
+
+			String relativePath = entryName.substring(namespacePath.length());
+			Identifier identifier = Identifier.tryParse(namespace, relativePath);
+			if (identifier != null) {
+				consumer.accept(identifier, InputSupplier.create(zip, entry));
+			} else {
+				LOGGER.warn("Invalid path in datapack: {}:{}, ignoring", namespace, relativePath);
 			}
 		}
 	}
 
 	/**
-	 * {@code ZipBackedFactory}.
+	 * Фабрика паков на основе zip-архива.
+	 * Поддерживает создание паков с оверлеями.
 	 */
 	public static class ZipBackedFactory implements ResourcePackProfile.PackFactory {
 
@@ -159,32 +181,29 @@ public class ZipResourcePack extends AbstractFileResourcePack {
 
 		@Override
 		public ResourcePack open(ResourcePackInfo info) {
-			ZipResourcePack.ZipFileWrapper zipFileWrapper = new ZipResourcePack.ZipFileWrapper(this.file);
-			return new ZipResourcePack(info, zipFileWrapper, "");
+			return new ZipResourcePack(info, new ZipResourcePack.ZipFileWrapper(file), "");
 		}
 
 		@Override
 		public ResourcePack openWithOverlays(ResourcePackInfo info, ResourcePackProfile.Metadata metadata) {
-			ZipResourcePack.ZipFileWrapper zipFileWrapper = new ZipResourcePack.ZipFileWrapper(this.file);
-			ResourcePack resourcePack = new ZipResourcePack(info, zipFileWrapper, "");
-			List<String> list = metadata.overlays();
-			if (list.isEmpty()) {
-				return resourcePack;
+			ZipResourcePack.ZipFileWrapper wrapper = new ZipResourcePack.ZipFileWrapper(file);
+			ResourcePack base = new ZipResourcePack(info, wrapper, "");
+			List<String> overlays = metadata.overlays();
+			if (overlays.isEmpty()) {
+				return base;
 			}
-			else {
-				List<ResourcePack> list2 = new ArrayList<>(list.size());
 
-				for (String string : list) {
-					list2.add(new ZipResourcePack(info, zipFileWrapper, string));
-				}
-
-				return new OverlayResourcePack(resourcePack, list2);
+			List<ResourcePack> overlayPacks = new ArrayList<>(overlays.size());
+			for (String overlay : overlays) {
+				overlayPacks.add(new ZipResourcePack(info, wrapper, overlay));
 			}
+
+			return new OverlayResourcePack(base, overlayPacks);
 		}
 	}
 
 	/**
-	 * {@code ZipFileWrapper}.
+	 * Обёртка над {@link ZipFile} с ленивым открытием и защитой от повторного открытия после закрытия.
 	 */
 	static class ZipFileWrapper implements AutoCloseable {
 
@@ -197,36 +216,34 @@ public class ZipResourcePack extends AbstractFileResourcePack {
 		}
 
 		@Nullable ZipFile open() {
-			if (this.closed) {
+			if (closed) {
 				return null;
 			}
-			else {
-				if (this.zip == null) {
-					try {
-						this.zip = new ZipFile(this.file);
-					}
-					catch (IOException var2) {
-						ZipResourcePack.LOGGER.error("Failed to open pack {}", this.file, var2);
-						this.closed = true;
-						return null;
-					}
-				}
 
-				return this.zip;
+			if (zip == null) {
+				try {
+					zip = new ZipFile(file);
+				} catch (IOException exception) {
+					LOGGER.error("Failed to open pack {}", file, exception);
+					closed = true;
+					return null;
+				}
 			}
+
+			return zip;
 		}
 
 		@Override
 		public void close() {
-			if (this.zip != null) {
-				IOUtils.closeQuietly(this.zip);
-				this.zip = null;
+			if (zip != null) {
+				IOUtils.closeQuietly(zip);
+				zip = null;
 			}
 		}
 
 		@Override
 		protected void finalize() throws Throwable {
-			this.close();
+			close();
 			super.finalize();
 		}
 	}

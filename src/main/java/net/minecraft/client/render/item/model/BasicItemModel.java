@@ -33,10 +33,14 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BasicItemModel}.
+ * Базовая реализация {@link ItemModel} для стандартных предметов на основе запечённой геометрии
+ * ({@link BakedQuad}). Поддерживает тинты, блеск (glint) и анимированные текстуры.
+ * <p>
+ * Вершины кэшируются через {@link com.google.common.base.Suppliers#memoize} для избежания
+ * повторного обхода квадов при каждом кадре.
  */
+@Environment(EnvType.CLIENT)
 public class BasicItemModel implements ItemModel {
 
 	private static final Function<ItemStack, RenderLayer>
@@ -63,42 +67,43 @@ public class BasicItemModel implements ItemModel {
 			List<TintSource> tints,
 			List<BakedQuad> quads,
 			ModelSettings settings,
-			Function<ItemStack, RenderLayer> function
+			Function<ItemStack, RenderLayer> renderLayerFunction
 	) {
 		this.tints = tints;
 		this.quads = quads;
 		this.settings = settings;
-		this.renderLayerFunction = function;
+		this.renderLayerFunction = renderLayerFunction;
 		this.vector = Suppliers.memoize(() -> bakeQuads(this.quads));
-		boolean bl = false;
 
-		for (BakedQuad bakedQuad : quads) {
-			if (bakedQuad.sprite().getContents().isAnimated()) {
-				bl = true;
+		boolean hasAnimation = false;
+
+		for (BakedQuad quad : quads) {
+			if (quad.sprite().getContents().isAnimated()) {
+				hasAnimation = true;
 				break;
 			}
 		}
 
-		this.animated = bl;
+		this.animated = hasAnimation;
 	}
 
 	/**
-	 * Bake quads.
+	 * Собирает уникальные позиции вершин из всех квадов модели.
+	 * Используется для построения AABB предмета без дублирования точек.
 	 *
-	 * @param quads quads
-	 *
-	 * @return Vector3fc[] — результат операции
+	 * @param quads список запечённых квадов модели
+	 * @return массив уникальных позиций вершин
 	 */
 	public static Vector3fc[] bakeQuads(List<BakedQuad> quads) {
-		Set<Vector3fc> set = new HashSet<>();
+		Set<Vector3fc> positions = new HashSet<>();
 
-		for (BakedQuad bakedQuad : quads) {
-			for (int i = 0; i < 4; i++) {
-				set.add(bakedQuad.getPosition(i));
+		for (BakedQuad quad : quads) {
+			for (int corner = 0; corner < 4; corner++) {
+				positions.add(quad.getPosition(corner));
 			}
 		}
 
-		return set.toArray(Vector3fc[]::new);
+		return positions.toArray(Vector3fc[]::new);
 	}
 
 	@Override
@@ -112,64 +117,75 @@ public class BasicItemModel implements ItemModel {
 			int seed
 	) {
 		state.addModelKey(this);
-		ItemRenderState.LayerRenderState layerRenderState = state.newLayer();
+		ItemRenderState.LayerRenderState layer = state.newLayer();
+
 		if (stack.hasGlint()) {
-			ItemRenderState.Glint
-					glint =
-					shouldUseSpecialGlint(stack) ? ItemRenderState.Glint.SPECIAL : ItemRenderState.Glint.STANDARD;
-			layerRenderState.setGlint(glint);
+			ItemRenderState.Glint glint = shouldUseSpecialGlint(stack)
+					? ItemRenderState.Glint.SPECIAL
+					: ItemRenderState.Glint.STANDARD;
+			layer.setGlint(glint);
 			state.markAnimated();
 			state.addModelKey(glint);
 		}
 
-		int i = this.tints.size();
-		int[] is = layerRenderState.initTints(i);
+		int tintCount = tints.size();
+		int[] tintValues = layer.initTints(tintCount);
 
-		for (int j = 0; j < i; j++) {
-			int
-					k =
-					this.tints
-							.get(j)
-							.getTint(stack, world, heldItemContext == null ? null : heldItemContext.getEntity());
-			is[j] = k;
-			state.addModelKey(k);
+		for (int tintIdx = 0; tintIdx < tintCount; tintIdx++) {
+			int tint = tints
+					.get(tintIdx)
+					.getTint(stack, world, heldItemContext == null ? null : heldItemContext.getEntity());
+			tintValues[tintIdx] = tint;
+			state.addModelKey(tint);
 		}
 
-		layerRenderState.setVertices(this.vector);
-		layerRenderState.setRenderLayer(this.renderLayerFunction.apply(stack));
-		this.settings.addSettings(layerRenderState, displayContext);
-		layerRenderState.getQuads().addAll(this.quads);
-		if (this.animated) {
+		layer.setVertices(vector);
+		layer.setRenderLayer(renderLayerFunction.apply(stack));
+		settings.addSettings(layer, displayContext);
+		layer.getQuads().addAll(quads);
+
+		if (animated) {
 			state.markAnimated();
 		}
 	}
 
-	static Function<ItemStack, RenderLayer> resolveRenderLayerFunction(List<BakedQuad> list) {
-		Iterator<BakedQuad> iterator = list.iterator();
+	/**
+	 * Определяет функцию выбора {@link RenderLayer} на основе атласа текстур квадов.
+	 * Все квады обязаны принадлежать одному атласу — иначе выбрасывается исключение.
+	 *
+	 * @param quads список квадов модели
+	 * @return функция, возвращающая нужный {@link RenderLayer} для данного {@link ItemStack}
+	 * @throws IllegalStateException если квады принадлежат разным атласам
+	 * @throws IllegalArgumentException если атлас не поддерживается для предметов
+	 */
+	static Function<ItemStack, RenderLayer> resolveRenderLayerFunction(List<BakedQuad> quads) {
+		Iterator<BakedQuad> iterator = quads.iterator();
+
 		if (!iterator.hasNext()) {
 			return ITEMS_RENDER_LAYER_FUNCTION;
 		}
+
+		Identifier atlasId = iterator.next().sprite().getAtlasId();
+
+		while (iterator.hasNext()) {
+			Identifier nextAtlasId = iterator.next().sprite().getAtlasId();
+
+			if (!nextAtlasId.equals(atlasId)) {
+				throw new IllegalStateException(
+						"Multiple atlases used in model, expected " + atlasId + ", but also got " + nextAtlasId
+				);
+			}
+		}
+
+		if (atlasId.equals(SpriteAtlasTexture.ITEMS_ATLAS_TEXTURE)) {
+			return ITEMS_RENDER_LAYER_FUNCTION;
+		}
+		else if (atlasId.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
+			return BLOCK_RENDER_LAYER_FUNCTION;
+		}
 		else {
-			Identifier identifier = iterator.next().sprite().getAtlasId();
-
-			while (iterator.hasNext()) {
-				BakedQuad bakedQuad = iterator.next();
-				Identifier identifier2 = bakedQuad.sprite().getAtlasId();
-				if (!identifier2.equals(identifier)) {
-					throw new IllegalStateException(
-							"Multiple atlases used in model, expected " + identifier + ", but also got " + identifier2);
-				}
-			}
-
-			if (identifier.equals(SpriteAtlasTexture.ITEMS_ATLAS_TEXTURE)) {
-				return ITEMS_RENDER_LAYER_FUNCTION;
-			}
-			else if (identifier.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
-				return BLOCK_RENDER_LAYER_FUNCTION;
-			}
-			else {
-				throw new IllegalArgumentException("Atlas " + identifier + " can't be usef for item models");
-			}
+			// Атлас не поддерживается для предметных моделей
+			throw new IllegalArgumentException("Atlas " + atlasId + " can't be used for item models");
 		}
 	}
 
@@ -177,10 +193,11 @@ public class BasicItemModel implements ItemModel {
 		return stack.isIn(ItemTags.COMPASSES) || stack.isOf(Items.CLOCK);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённое описание базовой модели предмета: идентификатор блок-модели и список тинтов.
+	 * При запекании разрешает геометрию через {@link Baker} и создаёт {@link BasicItemModel}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(Identifier model, List<TintSource> tints) implements ItemModel.Unbaked {
 
 		public static final MapCodec<BasicItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(

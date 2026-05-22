@@ -616,7 +616,7 @@ public class MineshaftGenerator {
 							return;
 						}
 
-						bl = j <= 20 && bl3 && mutable.getY() > world.getBottomY() + 1;
+						bl = j <= MAX_CHAIN_DEPTH && bl3 && mutable.getY() > world.getBottomY() + 1;
 					}
 
 					if (bl2) {
@@ -629,7 +629,7 @@ public class MineshaftGenerator {
 							return;
 						}
 
-						bl2 = j <= 50 && bl3 && mutable.getY() < world.getTopYInclusive();
+						bl2 = j <= MAX_PIECE_COUNT && bl3 && mutable.getY() < world.getTopYInclusive();
 					}
 				}
 			}

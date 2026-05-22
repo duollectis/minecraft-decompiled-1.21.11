@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * {@code DedicatedServerGui}.
+ * Класс Dedicated Server Gui.
  */
 public class DedicatedServerGui extends JComponent {
 
@@ -144,16 +144,10 @@ public class DedicatedServerGui extends JComponent {
 		return jPanel;
 	}
 
-	/**
-	 * Start.
-	 */
 	public void start() {
 		this.consoleUpdateThread.start();
 	}
 
-	/**
-	 * Stop.
-	 */
 	public void stop() {
 		if (!this.stopped.getAndSet(true)) {
 			this.runStopTasks();

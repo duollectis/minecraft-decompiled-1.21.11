@@ -15,43 +15,32 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@code RegistryOps}.
+ * Расширение {@link DynamicOps}, несущее контекст реестров для сериализации.
+ * Позволяет кодекам получать доступ к реестрам во время encode/decode операций.
+ *
+ * @param <T> тип сериализованного представления
  */
 public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 
 	private final RegistryOps.RegistryInfoGetter registryInfoGetter;
 
 	/**
-	 * Of.
+	 * Создаёт {@link RegistryOps} с кешированием информации о реестрах из {@link RegistryWrapper.WrapperLookup}.
 	 *
-	 * @param delegate delegate
-	 * @param registries registries
-	 *
-	 * @return RegistryOps — результат операции
+	 * @param delegate   базовые ops для сериализации
+	 * @param registries источник реестров
 	 */
 	public static <T> RegistryOps<T> of(DynamicOps<T> delegate, RegistryWrapper.WrapperLookup registries) {
 		return of(delegate, new RegistryOps.CachedRegistryInfoGetter(registries));
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param delegate delegate
-	 * @param registryInfoGetter registry info getter
-	 *
-	 * @return RegistryOps — результат операции
-	 */
 	public static <T> RegistryOps<T> of(DynamicOps<T> delegate, RegistryOps.RegistryInfoGetter registryInfoGetter) {
 		return new RegistryOps<>(delegate, registryInfoGetter);
 	}
 
 	/**
-	 * With registry.
-	 *
-	 * @param dynamic dynamic
-	 * @param registries registries
-	 *
-	 * @return Dynamic — результат операции
+	 * Оборачивает {@link Dynamic} в {@link RegistryOps} с указанным контекстом реестров.
+	 * Используется для передачи контекста при рекурсивной сериализации.
 	 */
 	public static <T> Dynamic<T> withRegistry(Dynamic<T> dynamic, RegistryWrapper.WrapperLookup registries) {
 		return new Dynamic(registries.getOps(dynamic.getOps()), dynamic.getValue());
@@ -63,26 +52,21 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 	}
 
 	/**
-	 * With delegate.
-	 *
-	 * @param delegate delegate
-	 *
-	 * @return RegistryOps — результат операции
+	 * Создаёт новый {@link RegistryOps} с другим делегатом, но тем же контекстом реестров.
+	 * Используется при смене формата сериализации (например, JSON → NBT).
 	 */
 	public <U> RegistryOps<U> withDelegate(DynamicOps<U> delegate) {
-		return (RegistryOps<U>) (delegate == this.delegate ? this : new RegistryOps(
-				(DynamicOps<T>) delegate,
-				this.registryInfoGetter
-		)
-		);
+		return (RegistryOps<U>) (delegate == this.delegate
+				? this
+				: new RegistryOps<>((DynamicOps<T>) delegate, registryInfoGetter));
 	}
 
 	public <E> Optional<RegistryEntryOwner<E>> getOwner(RegistryKey<? extends Registry<? extends E>> registryRef) {
-		return this.registryInfoGetter.getRegistryInfo(registryRef).map(RegistryOps.RegistryInfo::owner);
+		return registryInfoGetter.getRegistryInfo(registryRef).map(RegistryOps.RegistryInfo::owner);
 	}
 
 	public <E> Optional<RegistryEntryLookup<E>> getEntryLookup(RegistryKey<? extends Registry<? extends E>> registryRef) {
-		return this.registryInfoGetter.getRegistryInfo(registryRef).map(RegistryOps.RegistryInfo::entryLookup);
+		return registryInfoGetter.getRegistryInfo(registryRef).map(RegistryOps.RegistryInfo::entryLookup);
 	}
 
 	@Override
@@ -90,55 +74,66 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			RegistryOps<?> registryOps = (RegistryOps<?>) o;
-			return this.delegate.equals(registryOps.delegate)
-					&& this.registryInfoGetter.equals(registryOps.registryInfoGetter);
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		RegistryOps<?> registryOps = (RegistryOps<?>) o;
+		return delegate.equals(registryOps.delegate) && registryInfoGetter.equals(registryOps.registryInfoGetter);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.delegate.hashCode() * 31 + this.registryInfoGetter.hashCode();
-	}
-
-	public static <E, O> RecordCodecBuilder<O, RegistryEntryLookup<E>> getEntryLookupCodec(RegistryKey<? extends Registry<? extends E>> registryRef) {
-		return Codecs.createContextRetrievalCodec(
-				             ops -> ops instanceof RegistryOps<?> registryOps
-				                    ? registryOps.registryInfoGetter
-				                      .getRegistryInfo(registryRef)
-				                      .map(info -> DataResult.success(info.entryLookup(), info.elementsLifecycle()))
-				                      .orElseGet(() -> DataResult.error(() -> "Unknown registry: " + registryRef))
-				                    : DataResult.error(() -> "Not a registry ops")
-		             )
-		             .forGetter(object -> null);
-	}
-
-	public static <E, O> RecordCodecBuilder<O, RegistryEntry.Reference<E>> getEntryCodec(RegistryKey<E> key) {
-		RegistryKey<? extends Registry<E>> registryKey = RegistryKey.ofRegistry(key.getRegistry());
-		return Codecs.<RegistryEntry.Reference<E>>createContextRetrievalCodec(
-				             ops -> ops instanceof RegistryOps<?> registryOps
-				                    ? registryOps.registryInfoGetter
-				                      .getRegistryInfo(registryKey)
-				                      .flatMap(info -> info.entryLookup().getOptional(key))
-				                      .<DataResult<RegistryEntry.Reference<E>>>map(DataResult::success)
-				                      .orElseGet(() -> DataResult.error(() -> "Can't find value: " + key))
-				                    : DataResult.error(() -> "Not a registry ops")
-		             )
-		             .forGetter(object -> null);
+		return delegate.hashCode() * 31 + registryInfoGetter.hashCode();
 	}
 
 	/**
-	 * {@code CachedRegistryInfoGetter}.
+	 * Создаёт {@link RecordCodecBuilder}, извлекающий {@link RegistryEntryLookup} из контекста ops.
+	 * Используется в кодеках, которым нужен доступ к реестру при декодировании.
+	 *
+	 * @param registryRef ключ реестра, lookup которого нужно получить
+	 */
+	public static <E, O> RecordCodecBuilder<O, RegistryEntryLookup<E>> getEntryLookupCodec(
+			RegistryKey<? extends Registry<? extends E>> registryRef
+	) {
+		return Codecs.createContextRetrievalCodec(
+				ops -> ops instanceof RegistryOps<?> registryOps
+						? registryOps.registryInfoGetter
+								.getRegistryInfo(registryRef)
+								.map(info -> DataResult.success(info.entryLookup(), info.elementsLifecycle()))
+								.orElseGet(() -> DataResult.error(() -> "Unknown registry: " + registryRef))
+						: DataResult.error(() -> "Not a registry ops")
+		).forGetter(object -> null);
+	}
+
+	/**
+	 * Создаёт {@link RecordCodecBuilder}, извлекающий конкретную {@link RegistryEntry.Reference} из контекста ops.
+	 * Используется для инжекции ссылок на конкретные элементы реестра в кодеки.
+	 *
+	 * @param key ключ конкретного элемента реестра
+	 */
+	public static <E, O> RecordCodecBuilder<O, RegistryEntry.Reference<E>> getEntryCodec(RegistryKey<E> key) {
+		RegistryKey<? extends Registry<E>> registryKey = RegistryKey.ofRegistry(key.getRegistry());
+		return Codecs.<RegistryEntry.Reference<E>>createContextRetrievalCodec(
+				ops -> ops instanceof RegistryOps<?> registryOps
+						? registryOps.registryInfoGetter
+								.getRegistryInfo(registryKey)
+								.flatMap(info -> info.entryLookup().getOptional(key))
+								.<DataResult<RegistryEntry.Reference<E>>>map(DataResult::success)
+								.orElseGet(() -> DataResult.error(() -> "Can't find value: " + key))
+						: DataResult.error(() -> "Not a registry ops")
+		).forGetter(object -> null);
+	}
+
+	/**
+	 * Кешированная реализация {@link RegistryInfoGetter}, хранящая результаты запросов
+	 * к {@link RegistryWrapper.WrapperLookup} в потокобезопасном кеше.
 	 */
 	static final class CachedRegistryInfoGetter implements RegistryOps.RegistryInfoGetter {
 
 		private final RegistryWrapper.WrapperLookup registries;
-		private final Map<RegistryKey<? extends Registry<?>>, Optional<? extends RegistryOps.RegistryInfo<?>>>
-				cache =
+		private final Map<RegistryKey<? extends Registry<?>>, Optional<? extends RegistryOps.RegistryInfo<?>>> cache =
 				new ConcurrentHashMap<>();
 
 		public CachedRegistryInfoGetter(RegistryWrapper.WrapperLookup registries) {
@@ -146,30 +141,34 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 		}
 
 		@Override
-		public <E> Optional<RegistryOps.RegistryInfo<E>> getRegistryInfo(RegistryKey<? extends Registry<? extends E>> registryRef) {
-			return (Optional<RegistryOps.RegistryInfo<E>>) this.cache.computeIfAbsent(registryRef, this::compute);
+		public <E> Optional<RegistryOps.RegistryInfo<E>> getRegistryInfo(
+				RegistryKey<? extends Registry<? extends E>> registryRef
+		) {
+			return (Optional<RegistryOps.RegistryInfo<E>>) cache.computeIfAbsent(registryRef, this::compute);
 		}
 
 		private Optional<RegistryOps.RegistryInfo<Object>> compute(RegistryKey<? extends Registry<?>> registryRef) {
-			return this.registries.getOptional(registryRef).map(RegistryOps.RegistryInfo::fromWrapper);
+			return registries.getOptional(registryRef).map(RegistryOps.RegistryInfo::fromWrapper);
 		}
 
 		@Override
 		public boolean equals(Object o) {
-			return this == o
-			       ? true
-			       : o instanceof RegistryOps.CachedRegistryInfoGetter cachedRegistryInfoGetter
-			         && this.registries.equals(cachedRegistryInfoGetter.registries);
+			if (this == o) {
+				return true;
+			}
+
+			return o instanceof RegistryOps.CachedRegistryInfoGetter other && registries.equals(other.registries);
 		}
 
 		@Override
 		public int hashCode() {
-			return this.registries.hashCode();
+			return registries.hashCode();
 		}
 	}
 
 	/**
-	 * {@code RegistryInfo}.
+	 * Метаданные реестра, используемые в контексте сериализации:
+	 * владелец записей, lookup для поиска и lifecycle элементов.
 	 */
 	public record RegistryInfo<T>(
 			RegistryEntryOwner<T> owner,
@@ -183,10 +182,12 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 	}
 
 	/**
-	 * {@code RegistryInfoGetter}.
+	 * Источник информации о реестрах для {@link RegistryOps}.
 	 */
 	public interface RegistryInfoGetter {
 
-		<T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(RegistryKey<? extends Registry<? extends T>> registryRef);
+		<T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(
+				RegistryKey<? extends Registry<? extends T>> registryRef
+		);
 	}
 }

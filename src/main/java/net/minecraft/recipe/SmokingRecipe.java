@@ -8,19 +8,20 @@ import net.minecraft.recipe.book.RecipeBookCategories;
 import net.minecraft.recipe.book.RecipeBookCategory;
 
 /**
- * {@code SmokingRecipe}.
+ * Рецепт готовки в коптильне. Работает вдвое быстрее обычной печи,
+ * но принимает только еду.
  */
 public class SmokingRecipe extends AbstractCookingRecipe {
 
 	public SmokingRecipe(
-			String string,
-			CookingRecipeCategory cookingRecipeCategory,
-			Ingredient ingredient,
-			ItemStack itemStack,
-			float f,
-			int i
+		String group,
+		CookingRecipeCategory category,
+		Ingredient ingredient,
+		ItemStack result,
+		float experience,
+		int cookingTime
 	) {
-		super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
+		super(group, category, ingredient, result, experience, cookingTime);
 	}
 
 	@Override

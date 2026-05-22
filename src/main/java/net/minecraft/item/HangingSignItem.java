@@ -8,7 +8,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code HangingSignItem}.
+ * Предмет «Подвесная табличка». Размещается снизу блоков.
+ * Дополнительно проверяет, может ли настенная подвесная табличка крепиться к поверхности.
  */
 public class HangingSignItem extends SignItem {
 
@@ -18,9 +19,12 @@ public class HangingSignItem extends SignItem {
 
 	@Override
 	protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
-		return state.getBlock() instanceof WallHangingSignBlock wallHangingSignBlock
-				       && !wallHangingSignBlock.canAttachAt(state, world, pos)
-		       ? false
-		       : super.canPlaceAt(world, state, pos);
+		if (state.getBlock() instanceof WallHangingSignBlock wallHangingSign
+				&& !wallHangingSign.canAttachAt(state, world, pos)
+		) {
+			return false;
+		}
+
+		return super.canPlaceAt(world, state, pos);
 	}
 }

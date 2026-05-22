@@ -46,7 +46,9 @@ import org.slf4j.Logger;
 import java.util.function.Predicate;
 
 /**
- * {@code FallingBlockEntity}.
+ * Сущность падающего блока. Создаётся при обрушении гравитационных блоков (песок, гравий, наковальня).
+ * При приземлении пытается разместить блок обратно в мире; если не удаётся — выпадает предметом.
+ * Поддерживает урон существам при падении ({@code hurtEntities}) и сохранение данных блочной сущности.
  */
 public class FallingBlockEntity extends Entity {
 
@@ -62,7 +64,7 @@ public class FallingBlockEntity extends Entity {
 	public boolean dropItem = true;
 	private boolean destroyedOnLanding = false;
 	private boolean hurtEntities;
-	private int fallHurtMax = 40;
+	private int fallHurtMax = DEFAULT_FALL_HURT_MAX;
 	private float fallHurtAmount = 0.0F;
 	public @Nullable NbtCompound blockEntityData;
 	public boolean shouldDupe;
@@ -77,23 +79,23 @@ public class FallingBlockEntity extends Entity {
 	private FallingBlockEntity(World world, double x, double y, double z, BlockState blockState) {
 		this(EntityType.FALLING_BLOCK, world);
 		this.blockState = blockState;
-		this.intersectionChecked = true;
-		this.setPosition(x, y, z);
-		this.setVelocity(Vec3d.ZERO);
-		this.lastX = x;
-		this.lastY = y;
-		this.lastZ = z;
-		this.setFallingBlockPos(this.getBlockPos());
+		intersectionChecked = true;
+		setPosition(x, y, z);
+		setVelocity(Vec3d.ZERO);
+		lastX = x;
+		lastY = y;
+		lastZ = z;
+		setFallingBlockPos(getBlockPos());
 	}
 
 	/**
-	 * Создаёт (спавнит) from block.
+	 * Создаёт падающий блок из блока в мире: удаляет блок из мира (заменяя его состоянием жидкости),
+	 * спавнит сущность по центру блока и возвращает её.
 	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 *
-	 * @return FallingBlockEntity — результат операции
+	 * @param world мир, в котором происходит спавн
+	 * @param pos позиция блока, который начинает падать
+	 * @param state состояние блока (WATERLOGGED сбрасывается)
+	 * @return созданная и заспавненная сущность падающего блока
 	 */
 	public static FallingBlockEntity spawnFromBlock(World world, BlockPos pos, BlockState state) {
 		FallingBlockEntity fallingBlockEntity = new FallingBlockEntity(
@@ -123,11 +125,11 @@ public class FallingBlockEntity extends Entity {
 	}
 
 	public void setFallingBlockPos(BlockPos pos) {
-		this.dataTracker.set(BLOCK_POS, pos);
+		dataTracker.set(BLOCK_POS, pos);
 	}
 
 	public BlockPos getFallingBlockPos() {
-		return this.dataTracker.get(BLOCK_POS);
+		return dataTracker.get(BLOCK_POS);
 	}
 
 	@Override
@@ -152,247 +154,224 @@ public class FallingBlockEntity extends Entity {
 
 	@Override
 	public void tick() {
-		if (this.blockState.isAir()) {
-			this.discard();
+		if (blockState.isAir()) {
+			discard();
+			return;
 		}
-		else {
-			Block block = this.blockState.getBlock();
-			this.timeFalling++;
-			this.applyGravity();
-			this.move(MovementType.SELF, this.getVelocity());
-			this.tickBlockCollision();
-			this.tickPortalTeleportation();
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld && (this.isAlive() || this.shouldDupe)) {
-				BlockPos blockPos = this.getBlockPos();
-				boolean bl = this.blockState.getBlock() instanceof ConcretePowderBlock;
-				boolean bl2 = bl && this.getEntityWorld().getFluidState(blockPos).isIn(FluidTags.WATER);
-				double d = this.getVelocity().lengthSquared();
-				if (bl && d > 1.0) {
-					BlockHitResult blockHitResult = this.getEntityWorld()
-					                                    .raycast(
-							                                    new RaycastContext(
-									                                    new Vec3d(this.lastX, this.lastY, this.lastZ),
-									                                    this.getEntityPos(),
-									                                    RaycastContext.ShapeType.COLLIDER,
-									                                    RaycastContext.FluidHandling.SOURCE_ONLY,
-									                                    this
-							                                    )
-					                                    );
-					if (blockHitResult.getType() != HitResult.Type.MISS && this
-							.getEntityWorld()
-							.getFluidState(blockHitResult.getBlockPos())
-							.isIn(FluidTags.WATER)) {
-						blockPos = blockHitResult.getBlockPos();
-						bl2 = true;
-					}
+
+		Block block = blockState.getBlock();
+		timeFalling++;
+		applyGravity();
+		move(MovementType.SELF, getVelocity());
+		tickBlockCollision();
+		tickPortalTeleportation();
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld && (isAlive() || shouldDupe)) {
+			serverTick(serverWorld, block);
+		}
+
+		setVelocity(getVelocity().multiply(0.98));
+	}
+
+	private void serverTick(ServerWorld serverWorld, Block block) {
+		BlockPos landingPos = getBlockPos();
+		boolean isConcretePowder = blockState.getBlock() instanceof ConcretePowderBlock;
+		boolean touchesWater = isConcretePowder && getEntityWorld().getFluidState(landingPos).isIn(FluidTags.WATER);
+
+		if (isConcretePowder && getVelocity().lengthSquared() > 1.0) {
+			BlockHitResult waterHit = getEntityWorld().raycast(new RaycastContext(
+				new Vec3d(lastX, lastY, lastZ),
+				getEntityPos(),
+				RaycastContext.ShapeType.COLLIDER,
+				RaycastContext.FluidHandling.SOURCE_ONLY,
+				this
+			));
+			if (waterHit.getType() != HitResult.Type.MISS
+				&& getEntityWorld().getFluidState(waterHit.getBlockPos()).isIn(FluidTags.WATER)
+			) {
+				landingPos = waterHit.getBlockPos();
+				touchesWater = true;
+			}
+		}
+
+		if (!isOnGround() && !touchesWater) {
+			boolean outOfBounds = landingPos.getY() <= getEntityWorld().getBottomY()
+				|| landingPos.getY() > getEntityWorld().getTopYInclusive();
+			if ((timeFalling > 100 && outOfBounds) || timeFalling > 600) {
+				if (dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
+					dropItem(serverWorld, block);
 				}
 
-				if (!this.isOnGround() && !bl2) {
-					if (this.timeFalling > 100
-							&& (blockPos.getY() <= this.getEntityWorld().getBottomY() || blockPos.getY() > this
-							.getEntityWorld()
-							.getTopYInclusive()
-					)
-							|| this.timeFalling > 600) {
-						if (this.dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-							this.dropItem(serverWorld, block);
-						}
-
-						this.discard();
-					}
-				}
-				else {
-					BlockState blockState = this.getEntityWorld().getBlockState(blockPos);
-					this.setVelocity(this.getVelocity().multiply(0.7, -0.5, 0.7));
-					if (!blockState.isOf(Blocks.MOVING_PISTON)) {
-						if (!this.destroyedOnLanding) {
-							boolean bl3 = blockState.canReplace(
-									new AutomaticItemPlacementContext(
-											this.getEntityWorld(),
-											blockPos,
-											Direction.DOWN,
-											ItemStack.EMPTY,
-											Direction.UP
-									)
-							);
-							boolean
-									bl4 =
-									FallingBlock.canFallThrough(this.getEntityWorld().getBlockState(blockPos.down()))
-											&& (!bl || !bl2);
-							boolean bl5 = this.blockState.canPlaceAt(this.getEntityWorld(), blockPos) && !bl4;
-							if (bl3 && bl5) {
-								if (this.blockState.contains(Properties.WATERLOGGED)
-										&& this.getEntityWorld().getFluidState(blockPos).getFluid() == Fluids.WATER) {
-									this.blockState = this.blockState.with(Properties.WATERLOGGED, true);
-								}
-
-								if (this.getEntityWorld().setBlockState(blockPos, this.blockState, 3)) {
-									serverWorld.getChunkManager()
-											.chunkLoadingManager
-											.sendToOtherNearbyPlayers(
-													this,
-													new BlockUpdateS2CPacket(
-															blockPos,
-															this.getEntityWorld().getBlockState(blockPos)
-													)
-											);
-									this.discard();
-									if (block instanceof Falling falling) {
-										falling.onLanding(
-												this.getEntityWorld(),
-												blockPos,
-												this.blockState,
-												blockState,
-												this
-										);
-									}
-
-									if (this.blockEntityData != null && this.blockState.hasBlockEntity()) {
-										BlockEntity blockEntity = this.getEntityWorld().getBlockEntity(blockPos);
-										if (blockEntity != null) {
-											try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
-													blockEntity.getReporterContext(),
-													LOGGER
-											)
-											) {
-												DynamicRegistryManager
-														dynamicRegistryManager =
-														this.getEntityWorld().getRegistryManager();
-												NbtWriteView
-														nbtWriteView =
-														NbtWriteView.create(logging, dynamicRegistryManager);
-												blockEntity.writeDataWithoutId(nbtWriteView);
-												NbtCompound nbtCompound = nbtWriteView.getNbt();
-												this.blockEntityData.forEach((string, nbtElement) -> nbtCompound.put(
-														string,
-														nbtElement.copy()
-												));
-												blockEntity.read(NbtReadView.create(
-														logging,
-														dynamicRegistryManager,
-														nbtCompound
-												));
-											}
-											catch (Exception var19) {
-												LOGGER.error("Failed to load block entity from falling block", var19);
-											}
-
-											blockEntity.markDirty();
-										}
-									}
-								}
-								else if (this.dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-									this.discard();
-									this.onDestroyedOnLanding(block, blockPos);
-									this.dropItem(serverWorld, block);
-								}
-							}
-							else {
-								this.discard();
-								if (this.dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
-									this.onDestroyedOnLanding(block, blockPos);
-									this.dropItem(serverWorld, block);
-								}
-							}
-						}
-						else {
-							this.discard();
-							this.onDestroyedOnLanding(block, blockPos);
-						}
-					}
-				}
+				discard();
 			}
 
-			this.setVelocity(this.getVelocity().multiply(0.98));
+			return;
+		}
+
+		BlockState landedOnState = getEntityWorld().getBlockState(landingPos);
+		setVelocity(getVelocity().multiply(0.7, -0.5, 0.7));
+
+		if (landedOnState.isOf(Blocks.MOVING_PISTON)) {
+			return;
+		}
+
+		if (destroyedOnLanding) {
+			discard();
+			onDestroyedOnLanding(block, landingPos);
+			return;
+		}
+
+		boolean canReplace = landedOnState.canReplace(new AutomaticItemPlacementContext(
+			getEntityWorld(), landingPos, Direction.DOWN, ItemStack.EMPTY, Direction.UP
+		));
+		boolean fallsThrough = FallingBlock.canFallThrough(getEntityWorld().getBlockState(landingPos.down()))
+			&& (!isConcretePowder || !touchesWater);
+		boolean canPlace = blockState.canPlaceAt(getEntityWorld(), landingPos) && !fallsThrough;
+
+		if (canReplace && canPlace) {
+			placeBlock(serverWorld, block, landingPos, landedOnState);
+		}
+		else {
+			discard();
+			if (dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
+				onDestroyedOnLanding(block, landingPos);
+				dropItem(serverWorld, block);
+			}
 		}
 	}
 
 	/**
-	 * Обрабатывает событие destroyed on landing.
-	 *
-	 * @param block block
-	 * @param pos pos
+	 * Размещает блок в мире после приземления, синхронизирует состояние с клиентами
+	 * и восстанавливает данные блочной сущности из сохранённого NBT.
 	 */
+	private void placeBlock(ServerWorld serverWorld, Block block, BlockPos pos, BlockState landedOnState) {
+		if (blockState.contains(Properties.WATERLOGGED)
+			&& getEntityWorld().getFluidState(pos).getFluid() == Fluids.WATER
+		) {
+			blockState = blockState.with(Properties.WATERLOGGED, true);
+		}
+
+		if (!getEntityWorld().setBlockState(pos, blockState, 3)) {
+			if (dropItem && serverWorld.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
+				discard();
+				onDestroyedOnLanding(block, pos);
+				dropItem(serverWorld, block);
+			}
+
+			return;
+		}
+
+		serverWorld.getChunkManager().chunkLoadingManager.sendToOtherNearbyPlayers(
+			this, new BlockUpdateS2CPacket(pos, getEntityWorld().getBlockState(pos))
+		);
+		discard();
+
+		if (block instanceof Falling falling) {
+			falling.onLanding(getEntityWorld(), pos, blockState, landedOnState, this);
+		}
+
+		if (blockEntityData != null && blockState.hasBlockEntity()) {
+			restoreBlockEntityData(serverWorld, pos);
+		}
+	}
+
+	private void restoreBlockEntityData(ServerWorld serverWorld, BlockPos pos) {
+		BlockEntity blockEntity = getEntityWorld().getBlockEntity(pos);
+		if (blockEntity == null) {
+			return;
+		}
+
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
+			DynamicRegistryManager registryManager = getEntityWorld().getRegistryManager();
+			NbtWriteView writeView = NbtWriteView.create(logging, registryManager);
+			blockEntity.writeDataWithoutId(writeView);
+			NbtCompound merged = writeView.getNbt();
+			blockEntityData.forEach((key, value) -> merged.put(key, value.copy()));
+			blockEntity.read(NbtReadView.create(logging, registryManager, merged));
+		}
+		catch (Exception error) {
+			LOGGER.error("Failed to load block entity from falling block", error);
+		}
+
+		blockEntity.markDirty();
+	}
+
 	public void onDestroyedOnLanding(Block block, BlockPos pos) {
-		if (block instanceof Falling) {
-			((Falling) block).onDestroyedOnLanding(this.getEntityWorld(), pos, this);
+		if (block instanceof Falling falling) {
+			falling.onDestroyedOnLanding(getEntityWorld(), pos, this);
 		}
 	}
 
 	@Override
 	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
-		if (!this.hurtEntities) {
+		if (!hurtEntities) {
 			return false;
 		}
-		else {
-			int i = MathHelper.ceil(fallDistance - 1.0);
-			if (i < 0) {
-				return false;
+
+		int fallTicks = MathHelper.ceil(fallDistance - 1.0);
+		if (fallTicks < 0) {
+			return false;
+		}
+
+		Predicate<Entity> predicate = EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.and(EntityPredicates.VALID_LIVING_ENTITY);
+		DamageSource blockDamageSource = blockState.getBlock() instanceof Falling falling
+			? falling.getDamageSource(this)
+			: getDamageSources().fallingBlock(this);
+		float damage = Math.min(MathHelper.floor(fallTicks * fallHurtAmount), fallHurtMax);
+		getEntityWorld()
+			.getOtherEntities(this, getBoundingBox(), predicate)
+			.forEach(entity -> entity.serverDamage(blockDamageSource, damage));
+
+		boolean isAnvil = blockState.isIn(BlockTags.ANVIL);
+		if (isAnvil && damage > 0.0F && random.nextFloat() < 0.05F + fallTicks * 0.05F) {
+			BlockState landingState = AnvilBlock.getLandingState(blockState);
+			if (landingState == null) {
+				destroyedOnLanding = true;
 			}
 			else {
-				Predicate<Entity>
-						predicate =
-						EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.and(EntityPredicates.VALID_LIVING_ENTITY);
-				DamageSource damageSource2 = this.blockState.getBlock() instanceof Falling falling
-				                             ? falling.getDamageSource(this)
-				                             : this.getDamageSources().fallingBlock(this);
-				float f = Math.min(MathHelper.floor(i * this.fallHurtAmount), this.fallHurtMax);
-				this
-						.getEntityWorld()
-						.getOtherEntities(this, this.getBoundingBox(), predicate)
-						.forEach(entity -> entity.serverDamage(damageSource2, f));
-				boolean bl = this.blockState.isIn(BlockTags.ANVIL);
-				if (bl && f > 0.0F && this.random.nextFloat() < 0.05F + i * 0.05F) {
-					BlockState blockState = AnvilBlock.getLandingState(this.blockState);
-					if (blockState == null) {
-						this.destroyedOnLanding = true;
-					}
-					else {
-						this.blockState = blockState;
-					}
-				}
-
-				return false;
+				blockState = landingState;
 			}
 		}
+
+		return false;
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
-		view.put("BlockState", BlockState.CODEC, this.blockState);
-		view.putInt("Time", this.timeFalling);
-		view.putBoolean("DropItem", this.dropItem);
-		view.putBoolean("HurtEntities", this.hurtEntities);
-		view.putFloat("FallHurtAmount", this.fallHurtAmount);
-		view.putInt("FallHurtMax", this.fallHurtMax);
-		if (this.blockEntityData != null) {
-			view.put("TileEntityData", NbtCompound.CODEC, this.blockEntityData);
+		view.put("BlockState", BlockState.CODEC, blockState);
+		view.putInt("Time", timeFalling);
+		view.putBoolean("DropItem", dropItem);
+		view.putBoolean("HurtEntities", hurtEntities);
+		view.putFloat("FallHurtAmount", fallHurtAmount);
+		view.putInt("FallHurtMax", fallHurtMax);
+		if (blockEntityData != null) {
+			view.put("TileEntityData", NbtCompound.CODEC, blockEntityData);
 		}
 
-		view.putBoolean("CancelDrop", this.destroyedOnLanding);
+		view.putBoolean("CancelDrop", destroyedOnLanding);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
-		this.blockState = view.<BlockState>read("BlockState", BlockState.CODEC).orElse(DEFAULT_BLOCK_STATE);
-		this.timeFalling = view.getInt("Time", 0);
-		boolean bl = this.blockState.isIn(BlockTags.ANVIL);
-		this.hurtEntities = view.getBoolean("HurtEntities", bl);
-		this.fallHurtAmount = view.getFloat("FallHurtAmount", 0.0F);
-		this.fallHurtMax = view.getInt("FallHurtMax", 40);
-		this.dropItem = view.getBoolean("DropItem", true);
-		this.blockEntityData = view.<NbtCompound>read("TileEntityData", NbtCompound.CODEC).orElse(null);
-		this.destroyedOnLanding = view.getBoolean("CancelDrop", false);
+		blockState = view.<BlockState>read("BlockState", BlockState.CODEC).orElse(DEFAULT_BLOCK_STATE);
+		timeFalling = view.getInt("Time", DEFAULT_TIME);
+		boolean isAnvil = blockState.isIn(BlockTags.ANVIL);
+		hurtEntities = view.getBoolean("HurtEntities", isAnvil);
+		fallHurtAmount = view.getFloat("FallHurtAmount", DEFAULT_FALL_HURT_AMOUNT);
+		fallHurtMax = view.getInt("FallHurtMax", DEFAULT_FALL_HURT_MAX);
+		dropItem = view.getBoolean("DropItem", DEFAULT_DROP_ITEM);
+		blockEntityData = view.<NbtCompound>read("TileEntityData", NbtCompound.CODEC).orElse(null);
+		destroyedOnLanding = view.getBoolean("CancelDrop", DEFAULT_DESTROYED_ON_LANDING);
 	}
 
 	public void setHurtEntities(float fallHurtAmount, int fallHurtMax) {
-		this.hurtEntities = true;
+		hurtEntities = true;
 		this.fallHurtAmount = fallHurtAmount;
 		this.fallHurtMax = fallHurtMax;
 	}
 
 	public void setDestroyedOnLanding() {
-		this.destroyedOnLanding = true;
+		destroyedOnLanding = true;
 	}
 
 	@Override
@@ -403,42 +382,40 @@ public class FallingBlockEntity extends Entity {
 	@Override
 	public void populateCrashReport(CrashReportSection section) {
 		super.populateCrashReport(section);
-		section.add("Immitating BlockState", this.blockState.toString());
+		section.add("Immitating BlockState", blockState.toString());
 	}
 
 	public BlockState getBlockState() {
-		return this.blockState;
+		return blockState;
 	}
 
 	@Override
 	protected Text getDefaultName() {
-		return Text.translatable("entity.minecraft.falling_block_type", this.blockState.getBlock().getName());
+		return Text.translatable("entity.minecraft.falling_block_type", blockState.getBlock().getName());
 	}
 
 	@Override
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-		return new EntitySpawnS2CPacket(this, entityTrackerEntry, Block.getRawIdFromState(this.getBlockState()));
+		return new EntitySpawnS2CPacket(this, entityTrackerEntry, Block.getRawIdFromState(getBlockState()));
 	}
 
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
-		this.blockState = Block.getStateFromRawId(packet.getEntityData());
-		this.intersectionChecked = true;
-		double d = packet.getX();
-		double e = packet.getY();
-		double f = packet.getZ();
-		this.setPosition(d, e, f);
-		this.setFallingBlockPos(this.getBlockPos());
+		blockState = Block.getStateFromRawId(packet.getEntityData());
+		intersectionChecked = true;
+		setPosition(packet.getX(), packet.getY(), packet.getZ());
+		setFallingBlockPos(getBlockPos());
 	}
 
 	@Override
 	public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
-		RegistryKey<World> registryKey = teleportTarget.world().getRegistryKey();
-		RegistryKey<World> registryKey2 = this.getEntityWorld().getRegistryKey();
-		boolean bl = (registryKey2 == World.END || registryKey == World.END) && registryKey2 != registryKey;
-		Entity entity = super.teleportTo(teleportTarget);
-		this.shouldDupe = entity != null && bl;
-		return entity;
+		RegistryKey<World> targetWorld = teleportTarget.world().getRegistryKey();
+		RegistryKey<World> currentWorld = getEntityWorld().getRegistryKey();
+		boolean crossesEndBoundary = (currentWorld == World.END || targetWorld == World.END)
+			&& currentWorld != targetWorld;
+		Entity teleported = super.teleportTo(teleportTarget);
+		shouldDupe = teleported != null && crossesEndBoundary;
+		return teleported;
 	}
 }

@@ -26,20 +26,22 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code AmethystClusterBlock}.
+ * Кластер аметиста — растёт на поверхности блоков в любом направлении,
+ * поддерживает водозаполнение и имеет форму, зависящую от направления.
  */
 public class AmethystClusterBlock extends AmethystBlock implements Waterloggable {
 
 	public static final MapCodec<AmethystClusterBlock> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.FLOAT.fieldOf("height").forGetter(block -> block.height),
-					                    Codec.FLOAT.fieldOf("width").forGetter(block -> block.width),
-					                    createSettingsCodec()
-			                    )
-			                    .apply(instance, AmethystClusterBlock::new)
+		instance -> instance.group(
+			Codec.FLOAT.fieldOf("height").forGetter(block -> block.height),
+			Codec.FLOAT.fieldOf("width").forGetter(block -> block.width),
+			createSettingsCodec()
+		).apply(instance, AmethystClusterBlock::new)
 	);
+
 	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 	public static final EnumProperty<Direction> FACING = Properties.FACING;
+
 	private final float height;
 	private final float width;
 	private final Map<Direction, VoxelShape> shapesByDirection;
@@ -51,62 +53,62 @@ public class AmethystClusterBlock extends AmethystBlock implements Waterloggable
 
 	public AmethystClusterBlock(float height, float width, AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.getDefaultState().with(WATERLOGGED, false).with(FACING, Direction.UP));
-		this.shapesByDirection =
-				VoxelShapes.createFacingShapeMap(Block.createCuboidZShape(width, 16.0F - height, 16.0));
 		this.height = height;
 		this.width = width;
+		this.shapesByDirection = VoxelShapes.createFacingShapeMap(Block.createCuboidZShape(width, 16.0F - height, 16.0));
+		setDefaultState(getDefaultState().with(WATERLOGGED, false).with(FACING, Direction.UP));
 	}
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.shapesByDirection.get(state.get(FACING));
+		return shapesByDirection.get(state.get(FACING));
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		Direction direction = state.get(FACING);
-		BlockPos blockPos = pos.offset(direction.getOpposite());
-		return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, direction);
+		Direction facing = state.get(FACING);
+		BlockPos attachPos = pos.offset(facing.getOpposite());
+		return world.getBlockState(attachPos).isSideSolidFullSquare(world, attachPos, facing);
 	}
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		if (state.get(WATERLOGGED)) {
 			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
 
 		return direction == state.get(FACING).getOpposite() && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+			? Blocks.AIR.getDefaultState()
+			: super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			);
 	}
 
 	@Override
 	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-		WorldAccess worldAccess = ctx.getWorld();
-		BlockPos blockPos = ctx.getBlockPos();
-		return this
-				.getDefaultState()
-				.with(WATERLOGGED, worldAccess.getFluidState(blockPos).getFluid() == Fluids.WATER)
-				.with(FACING, ctx.getSide());
+		WorldAccess world = ctx.getWorld();
+		BlockPos pos = ctx.getBlockPos();
+		boolean waterlogged = world.getFluidState(pos).getFluid() == Fluids.WATER;
+
+		return getDefaultState()
+			.with(WATERLOGGED, waterlogged)
+			.with(FACING, ctx.getSide());
 	}
 
 	@Override

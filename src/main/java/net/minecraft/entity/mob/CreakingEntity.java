@@ -48,10 +48,24 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CreakingEntity}.
+ * Крикун — моб из бледного сада, неуязвимый без наблюдателя.
  */
 public class CreakingEntity extends HostileEntity {
 
+	private static final int ATTACK_ANIMATION_DURATION = 15;
+	private static final int INVULNERABLE_TIMER_RESET = 8;
+	private static final int PLAYER_INTERSECTION_THRESHOLD = 4;
+	private static final float ATTACK_DAMAGE = 3.0F;
+	private static final float FOLLOW_RANGE = 32.0F;
+	private static final float ACTIVATION_RANGE_SQUARED = 144.0F;
+	private static final float MOVEMENT_SPEED = 0.4F;
+	private static final int STATUS_INVULNERABLE = 66;
+	private static final int STATUS_ATTACK = 4;
+	public static final int CRUMBLING_DEATH_TICKS = 40;
+	public static final int CRUMBLING_FINISH_TICKS = 45;
+	public static final float LIMB_ANIMATION_SPEED = 0.3F;
+	public static final int EYE_GLOW_COLOR = 16545810;
+	public static final int EYE_INACTIVE_COLOR = 6250335;
 	private static final TrackedData<Boolean>
 			UNROOTED =
 			DataTracker.registerData(CreakingEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
@@ -64,19 +78,6 @@ public class CreakingEntity extends HostileEntity {
 	private static final TrackedData<Optional<BlockPos>>
 			HOME_POS =
 			DataTracker.registerData(CreakingEntity.class, TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS);
-	private static final int ATTACK_ANIMATION_DURATION = 15;
-	private static final int INVULNERABLE_ANIMATION_DURATION = 1;
-	private static final float ATTACK_DAMAGE = 3.0F;
-	private static final float FOLLOW_RANGE = 32.0F;
-	private static final float ACTIVATION_RANGE_SQUARED = 144.0F;
-	public static final int CRUMBLING_DEATH_TICKS = 40;
-	private static final float MOVEMENT_SPEED = 0.4F;
-	public static final float LIMB_ANIMATION_SPEED = 0.3F;
-	public static final int EYE_GLOW_COLOR = 16545810;
-	public static final int EYE_INACTIVE_COLOR = 6250335;
-	public static final int INVULNERABLE_TIMER_RESET = 8;
-	public static final int CRUMBLING_FINISH_TICKS = 45;
-	private static final int PLAYER_INTERSECTION_THRESHOLD = 4;
 	private int attackAnimationTimer;
 	public final AnimationState attackAnimationState = new AnimationState();
 	public final AnimationState invulnerableAnimationState = new AnimationState();
@@ -88,30 +89,29 @@ public class CreakingEntity extends HostileEntity {
 
 	public CreakingEntity(EntityType<? extends CreakingEntity> entityType, World world) {
 		super(entityType, world);
-		this.lookControl = new CreakingEntity.CreakingLookControl(this);
-		this.moveControl = new CreakingEntity.CreakingMoveControl(this);
-		this.jumpControl = new CreakingEntity.CreakingJumpControl(this);
-		MobNavigation mobNavigation = (MobNavigation) this.getNavigation();
+		lookControl = new CreakingEntity.CreakingLookControl(this);
+		moveControl = new CreakingEntity.CreakingMoveControl(this);
+		jumpControl = new CreakingEntity.CreakingJumpControl(this);
+		MobNavigation mobNavigation = (MobNavigation) getNavigation();
 		mobNavigation.setCanSwim(true);
-		this.experiencePoints = 0;
+		experiencePoints = 0;
 	}
 
 	/**
-	 * Инициализирует home pos.
-	 *
-	 * @param homePos home pos
+	 * Привязывает Creaking к Creaking Heart по позиции блока,
+	 * настраивая штрафы пути для опасных блоков.
 	 */
 	public void initHomePos(BlockPos homePos) {
-		this.setHomePos(homePos);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.POWDER_SNOW, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, 0.0F);
-		this.setPathfindingPenalty(PathNodeType.DANGER_FIRE, 0.0F);
+		setHomePos(homePos);
+		setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, 8.0F);
+		setPathfindingPenalty(PathNodeType.POWDER_SNOW, 8.0F);
+		setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, 0.0F);
+		setPathfindingPenalty(PathNodeType.DANGER_FIRE, 0.0F);
 	}
 
 	public boolean isTransient() {
-		return this.getHomePos() != null;
+		return getHomePos() != null;
 	}
 
 	@Override
@@ -126,7 +126,7 @@ public class CreakingEntity extends HostileEntity {
 
 	@Override
 	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-		return CreakingBrain.create(this, this.createBrainProfile().deserialize(dynamic));
+		return CreakingBrain.create(this, createBrainProfile().deserialize(dynamic));
 	}
 
 	@Override
@@ -141,14 +141,14 @@ public class CreakingEntity extends HostileEntity {
 	public static DefaultAttributeContainer.Builder createCreakingAttributes() {
 		return HostileEntity.createHostileAttributes()
 		                    .add(EntityAttributes.MAX_HEALTH, 1.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.4F)
-		                    .add(EntityAttributes.ATTACK_DAMAGE, 3.0)
-		                    .add(EntityAttributes.FOLLOW_RANGE, 32.0)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, MOVEMENT_SPEED)
+		                    .add(EntityAttributes.ATTACK_DAMAGE, ATTACK_DAMAGE)
+		                    .add(EntityAttributes.FOLLOW_RANGE, FOLLOW_RANGE)
 		                    .add(EntityAttributes.STEP_HEIGHT, 1.0625);
 	}
 
 	public boolean isUnrooted() {
-		return this.dataTracker.get(UNROOTED);
+		return dataTracker.get(UNROOTED);
 	}
 
 	@Override
@@ -156,68 +156,64 @@ public class CreakingEntity extends HostileEntity {
 		if (!(target instanceof LivingEntity)) {
 			return false;
 		}
-		else {
-			this.attackAnimationTimer = 15;
-			this.getEntityWorld().sendEntityStatus(this, (byte) 4);
-			return super.tryAttack(world, target);
-		}
-	}
 
-	@Override
-	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		BlockPos blockPos = this.getHomePos();
-		if (blockPos == null || source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-			return super.damage(world, source, amount);
-		}
-		else if (!this.isInvulnerableTo(world, source) && this.invulnerableAnimationTimer <= 0 && !this.isDead()) {
-			PlayerEntity playerEntity = this.becomeAngryAndGetPlayer(source);
-			Entity entity = source.getSource();
-			if (!(entity instanceof LivingEntity) && !(entity instanceof ProjectileEntity) && playerEntity == null) {
-				return false;
-			}
-			else {
-				this.invulnerableAnimationTimer = 8;
-				this.getEntityWorld().sendEntityStatus(this, (byte) 66);
-				this.emitGameEvent(GameEvent.ENTITY_ACTION);
-				if (this
-						.getEntityWorld()
-						.getBlockEntity(blockPos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
-						&& creakingHeartBlockEntity.isPuppet(this)) {
-					if (playerEntity != null) {
-						creakingHeartBlockEntity.onPuppetDamage();
-					}
-
-					this.playHurtSound(source);
-				}
-
-				return true;
-			}
-		}
-		else {
-			return false;
-		}
+		attackAnimationTimer = ATTACK_ANIMATION_DURATION;
+		getEntityWorld().sendEntityStatus(this, (byte) STATUS_ATTACK);
+		return super.tryAttack(world, target);
 	}
 
 	/**
-	 * Become angry and get player.
-	 *
-	 * @param damageSource damage source
-	 *
-	 * @return PlayerEntity — результат операции
+	 * Обрабатывает урон с учётом привязки к Creaking Heart:
+	 * если сущность привязана к сердцу, урон не наносится напрямую —
+	 * вместо этого сердце получает уведомление и воспроизводится анимация неуязвимости.
 	 */
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		BlockPos homePos = getHomePos();
+		if (homePos == null || source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+			return super.damage(world, source, amount);
+		}
+
+		if (isInvulnerableTo(world, source) || invulnerableAnimationTimer > 0 || isDead()) {
+			return false;
+		}
+
+		PlayerEntity attacker = becomeAngryAndGetPlayer(source);
+		Entity sourceEntity = source.getSource();
+		if (!(sourceEntity instanceof LivingEntity)
+				&& !(sourceEntity instanceof ProjectileEntity)
+				&& attacker == null) {
+			return false;
+		}
+
+		invulnerableAnimationTimer = INVULNERABLE_TIMER_RESET;
+		getEntityWorld().sendEntityStatus(this, (byte) STATUS_INVULNERABLE);
+		emitGameEvent(GameEvent.ENTITY_ACTION);
+		if (getEntityWorld().getBlockEntity(homePos) instanceof CreakingHeartBlockEntity heart
+				&& heart.isPuppet(this)) {
+			if (attacker != null) {
+				heart.onPuppetDamage();
+			}
+
+			playHurtSound(source);
+		}
+
+		return true;
+	}
+
 	public PlayerEntity becomeAngryAndGetPlayer(DamageSource damageSource) {
-		this.becomeAngry(damageSource);
-		return this.setAttackingPlayer(damageSource);
+		becomeAngry(damageSource);
+		return setAttackingPlayer(damageSource);
 	}
 
 	@Override
 	public boolean isPushable() {
-		return super.isPushable() && this.isUnrooted();
+		return super.isPushable() && isUnrooted();
 	}
 
 	@Override
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
-		if (this.isUnrooted()) {
+		if (isUnrooted()) {
 			super.addVelocity(deltaX, deltaY, deltaZ);
 		}
 	}
@@ -231,36 +227,36 @@ public class CreakingEntity extends HostileEntity {
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("creakingBrain");
-		this.getBrain().tick((ServerWorld) this.getEntityWorld(), this);
+		getBrain().tick((ServerWorld) getEntityWorld(), this);
 		profiler.pop();
 		CreakingBrain.updateActivities(this);
 	}
 
 	@Override
 	public void tickMovement() {
-		if (this.invulnerableAnimationTimer > 0) {
-			this.invulnerableAnimationTimer--;
+		if (invulnerableAnimationTimer > 0) {
+			invulnerableAnimationTimer--;
 		}
 
-		if (this.attackAnimationTimer > 0) {
-			this.attackAnimationTimer--;
+		if (attackAnimationTimer > 0) {
+			attackAnimationTimer--;
 		}
 
-		if (!this.getEntityWorld().isClient()) {
-			boolean bl = this.dataTracker.get(UNROOTED);
-			boolean bl2 = this.shouldBeUnrooted();
-			if (bl2 != bl) {
-				this.emitGameEvent(GameEvent.ENTITY_ACTION);
-				if (bl2) {
-					this.playSound(SoundEvents.ENTITY_CREAKING_UNFREEZE);
+		if (!getEntityWorld().isClient()) {
+			boolean wasUnrooted = dataTracker.get(UNROOTED);
+			boolean shouldUnroot = shouldBeUnrooted();
+			if (shouldUnroot != wasUnrooted) {
+				emitGameEvent(GameEvent.ENTITY_ACTION);
+				if (shouldUnroot) {
+					playSound(SoundEvents.ENTITY_CREAKING_UNFREEZE);
 				}
 				else {
-					this.stopMovement();
-					this.playSound(SoundEvents.ENTITY_CREAKING_FREEZE);
+					stopMovement();
+					playSound(SoundEvents.ENTITY_CREAKING_FREEZE);
 				}
 			}
 
-			this.dataTracker.set(UNROOTED, bl2);
+			dataTracker.set(UNROOTED, shouldUnroot);
 		}
 
 		super.tickMovement();
@@ -268,34 +264,31 @@ public class CreakingEntity extends HostileEntity {
 
 	@Override
 	public void tick() {
-		if (!this.getEntityWorld().isClient()) {
-			BlockPos blockPos = this.getHomePos();
-			if (blockPos != null) {
-				boolean
-						bl =
-						this
-								.getEntityWorld()
-								.getBlockEntity(blockPos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
-								&& creakingHeartBlockEntity.isPuppet(this);
-				if (!bl) {
-					this.setHealth(0.0F);
+		if (!getEntityWorld().isClient()) {
+			BlockPos homePos = getHomePos();
+			if (homePos != null) {
+				boolean isPuppet = getEntityWorld()
+						.getBlockEntity(homePos) instanceof CreakingHeartBlockEntity heart
+						&& heart.isPuppet(this);
+				if (!isPuppet) {
+					setHealth(0.0F);
 				}
 			}
 		}
 
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			this.tickAttackAnimation();
-			this.updateCrumblingEyeFlicker();
+		if (getEntityWorld().isClient()) {
+			tickAttackAnimation();
+			updateCrumblingEyeFlicker();
 		}
 	}
 
 	@Override
 	protected void updatePostDeath() {
-		if (this.isTransient() && this.isCrumbling()) {
-			this.deathTime++;
-			if (!this.getEntityWorld().isClient() && this.deathTime > 45 && !this.isRemoved()) {
-				this.finishCrumbling();
+		if (isTransient() && isCrumbling()) {
+			deathTime++;
+			if (!getEntityWorld().isClient() && deathTime > CRUMBLING_FINISH_TICKS && !isRemoved()) {
+				finishCrumbling();
 			}
 		}
 		else {
@@ -305,35 +298,36 @@ public class CreakingEntity extends HostileEntity {
 
 	@Override
 	protected void updateLimbs(float posDelta) {
-		float f = Math.min(posDelta * 25.0F, 3.0F);
-		this.limbAnimator.updateLimbs(f, 0.4F, 1.0F);
+		float clamped = Math.min(posDelta * 25.0F, 3.0F);
+		limbAnimator.updateLimbs(clamped, MOVEMENT_SPEED, 1.0F);
 	}
 
 	private void tickAttackAnimation() {
-		this.attackAnimationState.setRunning(this.attackAnimationTimer > 0, this.age);
-		this.invulnerableAnimationState.setRunning(this.invulnerableAnimationTimer > 0, this.age);
-		this.crumblingAnimationState.setRunning(this.isCrumbling(), this.age);
+		attackAnimationState.setRunning(attackAnimationTimer > 0, age);
+		invulnerableAnimationState.setRunning(invulnerableAnimationTimer > 0, age);
+		crumblingAnimationState.setRunning(isCrumbling(), age);
 	}
 
 	/**
-	 * Finish crumbling.
+	 * Завершает анимацию рассыпания: спавнит частицы блоков и удаляет сущность.
+	 * Вызывается только на сервере после истечения {@link #CRUMBLING_FINISH_TICKS}.
 	 */
 	public void finishCrumbling() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Box box = this.getBoundingBox();
-			Vec3d vec3d = box.getCenter();
-			double d = box.getLengthX() * 0.3;
-			double e = box.getLengthY() * 0.3;
-			double f = box.getLengthZ() * 0.3;
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			Box box = getBoundingBox();
+			Vec3d center = box.getCenter();
+			double spreadX = box.getLengthX() * 0.3;
+			double spreadY = box.getLengthY() * 0.3;
+			double spreadZ = box.getLengthZ() * 0.3;
 			serverWorld.spawnParticles(
 					new BlockStateParticleEffect(ParticleTypes.BLOCK_CRUMBLE, Blocks.PALE_OAK_WOOD.getDefaultState()),
-					vec3d.x,
-					vec3d.y,
-					vec3d.z,
+					center.x,
+					center.y,
+					center.z,
 					100,
-					d,
-					e,
-					f,
+					spreadX,
+					spreadY,
+					spreadZ,
 					0.0
 			);
 			serverWorld.spawnParticles(
@@ -343,41 +337,36 @@ public class CreakingEntity extends HostileEntity {
 									.getDefaultState()
 									.with(CreakingHeartBlock.ACTIVE, CreakingHeartState.AWAKE)
 					),
-					vec3d.x,
-					vec3d.y,
-					vec3d.z,
+					center.x,
+					center.y,
+					center.z,
 					10,
-					d,
-					e,
-					f,
+					spreadX,
+					spreadY,
+					spreadZ,
 					0.0
 			);
 		}
 
-		this.playSound(this.getDeathSound());
-		this.remove(Entity.RemovalReason.DISCARDED);
+		playSound(getDeathSound());
+		remove(Entity.RemovalReason.DISCARDED);
 	}
 
-	/**
-	 * Уничтожает from heart.
-	 *
-	 * @param damageSource damage source
-	 */
 	public void killFromHeart(DamageSource damageSource) {
-		this.becomeAngryAndGetPlayer(damageSource);
-		this.onDeath(damageSource);
-		this.playSound(SoundEvents.ENTITY_CREAKING_TWITCH);
+		becomeAngryAndGetPlayer(damageSource);
+		onDeath(damageSource);
+		playSound(SoundEvents.ENTITY_CREAKING_TWITCH);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 66) {
-			this.invulnerableAnimationTimer = 8;
-			this.playHurtSound(this.getDamageSources().generic());
+		if (status == STATUS_INVULNERABLE) {
+			invulnerableAnimationTimer = INVULNERABLE_TIMER_RESET;
+			playHurtSound(getDamageSources().generic());
 		}
-		else if (status == 4) {
-			this.attackAnimationTimer = 15;
-			this.playAttackSound();
+		else if (status == STATUS_ATTACK) {
+			attackAnimationTimer = ATTACK_ANIMATION_DURATION;
+			playAttackSound();
 		}
 		else {
 			super.handleStatus(status);
@@ -386,12 +375,12 @@ public class CreakingEntity extends HostileEntity {
 
 	@Override
 	public boolean isFireImmune() {
-		return this.isTransient() || super.isFireImmune();
+		return isTransient() || super.isFireImmune();
 	}
 
 	@Override
 	public boolean canUsePortals(boolean allowVehicles) {
-		return !this.isTransient() && super.canUsePortals(allowVehicles);
+		return !isTransient() && super.canUsePortals(allowVehicles);
 	}
 
 	@Override
@@ -400,26 +389,24 @@ public class CreakingEntity extends HostileEntity {
 	}
 
 	public boolean isStuckWithPlayer() {
-		List<PlayerEntity>
-				list =
-				this.brain.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_PLAYERS).orElse(List.of());
-		if (list.isEmpty()) {
-			this.playerIntersectionTimer = 0;
+		List<PlayerEntity> nearestPlayers = brain
+				.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_PLAYERS)
+				.orElse(List.of());
+		if (nearestPlayers.isEmpty()) {
+			playerIntersectionTimer = 0;
 			return false;
 		}
-		else {
-			Box box = this.getBoundingBox();
 
-			for (PlayerEntity playerEntity : list) {
-				if (box.contains(playerEntity.getEyePos())) {
-					this.playerIntersectionTimer++;
-					return this.playerIntersectionTimer > 4;
-				}
+		Box box = getBoundingBox();
+		for (PlayerEntity player : nearestPlayers) {
+			if (box.contains(player.getEyePos())) {
+				playerIntersectionTimer++;
+				return playerIntersectionTimer > PLAYER_INTERSECTION_THRESHOLD;
 			}
-
-			this.playerIntersectionTimer = 0;
-			return false;
 		}
+
+		playerIntersectionTimer = 0;
+		return false;
 	}
 
 	@Override
@@ -431,58 +418,57 @@ public class CreakingEntity extends HostileEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putNullable("home_pos", BlockPos.CODEC, this.getHomePos());
+		view.putNullable("home_pos", BlockPos.CODEC, getHomePos());
 	}
 
 	public void setHomePos(BlockPos pos) {
-		this.dataTracker.set(HOME_POS, Optional.of(pos));
+		dataTracker.set(HOME_POS, Optional.of(pos));
 	}
 
 	public @Nullable BlockPos getHomePos() {
-		return this.dataTracker.get(HOME_POS).orElse(null);
+		return dataTracker.get(HOME_POS).orElse(null);
 	}
 
 	public void setCrumbling() {
-		this.dataTracker.set(CRUMBLING, true);
+		dataTracker.set(CRUMBLING, true);
 	}
 
 	public boolean isCrumbling() {
-		return this.dataTracker.get(CRUMBLING);
+		return dataTracker.get(CRUMBLING);
 	}
 
 	public boolean hasGlowingEyesWhileCrumbling() {
-		return this.glowingEyesWhileCrumbling;
+		return glowingEyesWhileCrumbling;
 	}
 
 	/**
-	 * Обновляет crumbling eye flicker.
+	 * Мерцание глаз во время анимации рассыпания: переключает состояние свечения
+	 * с нарастающей частотой по мере увеличения {@code deathTime}.
 	 */
 	public void updateCrumblingEyeFlicker() {
-		if (this.deathTime > this.nextEyeFlickerTime) {
-			this.nextEyeFlickerTime = this.deathTime
-					+ this
-					.getRandom()
-					.nextBetween(
-							this.glowingEyesWhileCrumbling ? 2 : this.deathTime / 4,
-							this.glowingEyesWhileCrumbling ? 8 : this.deathTime / 2
-					);
-			this.glowingEyesWhileCrumbling = !this.glowingEyesWhileCrumbling;
+		if (deathTime <= nextEyeFlickerTime) {
+			return;
 		}
+
+		int minInterval = glowingEyesWhileCrumbling ? 2 : deathTime / 4;
+		int maxInterval = glowingEyesWhileCrumbling ? 8 : deathTime / 2;
+		nextEyeFlickerTime = deathTime + getRandom().nextBetween(minInterval, maxInterval);
+		glowingEyesWhileCrumbling = !glowingEyesWhileCrumbling;
 	}
 
 	@Override
 	public void playAttackSound() {
-		this.playSound(SoundEvents.ENTITY_CREAKING_ATTACK);
+		playSound(SoundEvents.ENTITY_CREAKING_ATTACK);
 	}
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isActive() ? null : SoundEvents.ENTITY_CREAKING_AMBIENT;
+		return isActive() ? null : SoundEvents.ENTITY_CREAKING_AMBIENT;
 	}
 
 	@Override
 	protected SoundEvent getHurtSound(DamageSource source) {
-		return this.isTransient() ? SoundEvents.ENTITY_CREAKING_SWAY : super.getHurtSound(source);
+		return isTransient() ? SoundEvents.ENTITY_CREAKING_SWAY : super.getHurtSound(source);
 	}
 
 	@Override
@@ -492,102 +478,96 @@ public class CreakingEntity extends HostileEntity {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_CREAKING_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_CREAKING_STEP, 0.15F, 1.0F);
 	}
 
 	@Override
 	public @Nullable LivingEntity getTarget() {
-		return this.getTargetInBrain();
+		return getTargetInBrain();
 	}
 
 	@Override
 	public void takeKnockback(double strength, double x, double z) {
-		if (this.isUnrooted()) {
+		if (isUnrooted()) {
 			super.takeKnockback(strength, x, z);
 		}
 	}
 
 	/**
-	 * Определяет, следует ли be unrooted.
-	 *
-	 * @return boolean — результат операции
+	 * Определяет, должна ли сущность быть разморожена (unrooted).
+	 * Если игрок смотрит на Creaking — он замораживается или активируется.
+	 * Если ни один подходящий игрок не найден — деактивируется.
 	 */
 	public boolean shouldBeUnrooted() {
-		List<PlayerEntity>
-				list =
-				this.brain.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_PLAYERS).orElse(List.of());
-		boolean bl = this.isActive();
-		if (list.isEmpty()) {
-			if (bl) {
-				this.deactivate();
+		List<PlayerEntity> nearestPlayers = brain
+				.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_PLAYERS)
+				.orElse(List.of());
+		boolean active = isActive();
+		if (nearestPlayers.isEmpty()) {
+			if (active) {
+				deactivate();
 			}
 
 			return true;
 		}
-		else {
-			boolean bl2 = false;
 
-			for (PlayerEntity playerEntity : list) {
-				if (this.canTarget(playerEntity) && !this.isTeammate(playerEntity)) {
-					bl2 = true;
-					if ((!bl || LivingEntity.NOT_WEARING_GAZE_DISGUISE_PREDICATE.test(playerEntity))
-							&& this.isEntityLookingAtMe(
-							playerEntity,
+		boolean hasValidTarget = false;
+		for (PlayerEntity player : nearestPlayers) {
+			if (!canTarget(player) || isTeammate(player)) {
+				continue;
+			}
+
+			hasValidTarget = true;
+			boolean canSeeWithoutDisguise = !active
+					|| LivingEntity.NOT_WEARING_GAZE_DISGUISE_PREDICATE.test(player);
+			if (canSeeWithoutDisguise
+					&& isEntityLookingAtMe(
+							player,
 							0.5,
 							false,
 							true,
-							this.getEyeY(),
-							this.getY() + 0.5 * this.getScale(),
-							(this.getEyeY() + this.getY()) / 2.0
+							getEyeY(),
+							getY() + 0.5 * getScale(),
+							(getEyeY() + getY()) / 2.0
 					)) {
-						if (bl) {
-							return false;
-						}
+				if (active) {
+					return false;
+				}
 
-						if (playerEntity.squaredDistanceTo(this) < 144.0) {
-							this.activate(playerEntity);
-							return false;
-						}
-					}
+				if (player.squaredDistanceTo(this) < ACTIVATION_RANGE_SQUARED) {
+					activate(player);
+					return false;
 				}
 			}
-
-			if (!bl2 && bl) {
-				this.deactivate();
-			}
-
-			return true;
 		}
+
+		if (!hasValidTarget && active) {
+			deactivate();
+		}
+
+		return true;
 	}
 
-	/**
-	 * Activate.
-	 *
-	 * @param player player
-	 */
 	public void activate(PlayerEntity player) {
-		this.getBrain().remember(MemoryModuleType.ATTACK_TARGET, player);
-		this.emitGameEvent(GameEvent.ENTITY_ACTION);
-		this.playSound(SoundEvents.ENTITY_CREAKING_ACTIVATE);
-		this.setActive(true);
+		getBrain().remember(MemoryModuleType.ATTACK_TARGET, player);
+		emitGameEvent(GameEvent.ENTITY_ACTION);
+		playSound(SoundEvents.ENTITY_CREAKING_ACTIVATE);
+		setActive(true);
 	}
 
-	/**
-	 * Deactivate.
-	 */
 	public void deactivate() {
-		this.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
-		this.emitGameEvent(GameEvent.ENTITY_ACTION);
-		this.playSound(SoundEvents.ENTITY_CREAKING_DEACTIVATE);
-		this.setActive(false);
+		getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+		emitGameEvent(GameEvent.ENTITY_ACTION);
+		playSound(SoundEvents.ENTITY_CREAKING_DEACTIVATE);
+		setActive(false);
 	}
 
 	public void setActive(boolean active) {
-		this.dataTracker.set(ACTIVE, active);
+		dataTracker.set(ACTIVE, active);
 	}
 
 	public boolean isActive() {
-		return this.dataTracker.get(ACTIVE);
+		return dataTracker.get(ACTIVE);
 	}
 
 	@Override
@@ -595,9 +575,7 @@ public class CreakingEntity extends HostileEntity {
 		return 0.0F;
 	}
 
-	/**
-	 * {@code CreakingBodyControl}.
-	 */
+	/** Контроллер тела скрипуна — блокирует вращение корпуса, пока моб укоренён. */
 	class CreakingBodyControl extends BodyControl {
 
 		public CreakingBodyControl(final CreakingEntity creaking) {
@@ -612,9 +590,7 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code CreakingJumpControl}.
-	 */
+	/** Контроллер прыжка скрипуна — запрещает прыжки в укоренённом состоянии. */
 	class CreakingJumpControl extends JumpControl {
 
 		public CreakingJumpControl(final CreakingEntity creaking) {
@@ -632,35 +608,27 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code CreakingLandPathNodeMaker}.
-	 */
 	class CreakingLandPathNodeMaker extends LandPathNodeMaker {
 
 		private static final int MAX_PATHFINDING_DISTANCE_SQUARED = 1024;
 
 		@Override
 		public PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z) {
-			BlockPos blockPos = CreakingEntity.this.getHomePos();
-			if (blockPos == null) {
+			BlockPos homePos = CreakingEntity.this.getHomePos();
+			if (homePos == null) {
 				return super.getDefaultNodeType(context, x, y, z);
 			}
-			else {
-				double d = blockPos.getSquaredDistance(new Vec3i(x, y, z));
-				return d > 1024.0 && d >= blockPos.getSquaredDistance(context.getEntityPos()) ? PathNodeType.BLOCKED
-				                                                                              : super.getDefaultNodeType(
-						                                                                              context,
-						                                                                              x,
-						                                                                              y,
-						                                                                              z
-				                                                                              );
-			}
+
+			double distToNode = homePos.getSquaredDistance(new Vec3i(x, y, z));
+			boolean tooFarAndFarther = distToNode > MAX_PATHFINDING_DISTANCE_SQUARED
+					&& distToNode >= homePos.getSquaredDistance(context.getEntityPos());
+			return tooFarAndFarther
+					? PathNodeType.BLOCKED
+					: super.getDefaultNodeType(context, x, y, z);
 		}
 	}
 
-	/**
-	 * {@code CreakingLookControl}.
-	 */
+	/** Контроллер взгляда скрипуна — блокирует поворот головы, пока моб укоренён. */
 	class CreakingLookControl extends LookControl {
 
 		public CreakingLookControl(final CreakingEntity creaking) {
@@ -675,9 +643,7 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code CreakingMoveControl}.
-	 */
+	/** Контроллер движения скрипуна — блокирует перемещение в укоренённом состоянии. */
 	class CreakingMoveControl extends MoveControl {
 
 		public CreakingMoveControl(final CreakingEntity creaking) {
@@ -692,9 +658,7 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
-	/**
-	 * {@code CreakingNavigation}.
-	 */
+	/** Навигация скрипуна — ограничивает поиск пути радиусом от домашней позиции. */
 	class CreakingNavigation extends MobNavigation {
 
 		CreakingNavigation(final CreakingEntity creaking, final World world) {

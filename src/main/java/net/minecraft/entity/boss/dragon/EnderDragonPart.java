@@ -15,7 +15,8 @@ import net.minecraft.storage.WriteView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code EnderDragonPart}.
+ * Отдельная хитбокс-часть тела Эндер-дракона (голова, шея, крылья и т.д.).
+ * Не сохраняется и не спавнится самостоятельно — весь урон перенаправляется владельцу {@link EnderDragonEntity}.
  */
 public class EnderDragonPart extends Entity {
 
@@ -25,8 +26,8 @@ public class EnderDragonPart extends Entity {
 
 	public EnderDragonPart(EnderDragonEntity owner, String name, float width, float height) {
 		super(owner.getType(), owner.getEntityWorld());
-		this.partDimensions = EntityDimensions.changing(width, height);
-		this.calculateDimensions();
+		partDimensions = EntityDimensions.changing(width, height);
+		calculateDimensions();
 		this.owner = owner;
 		this.name = name;
 	}
@@ -50,17 +51,21 @@ public class EnderDragonPart extends Entity {
 
 	@Override
 	public @Nullable ItemStack getPickBlockStack() {
-		return this.owner.getPickBlockStack();
+		return owner.getPickBlockStack();
 	}
 
 	@Override
 	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-		return this.isAlwaysInvulnerableTo(source) ? false : this.owner.damagePart(world, this, source, amount);
+		if (isAlwaysInvulnerableTo(source)) {
+			return false;
+		}
+
+		return owner.damagePart(world, this, source, amount);
 	}
 
 	@Override
 	public boolean isPartOf(Entity entity) {
-		return this == entity || this.owner == entity;
+		return this == entity || owner == entity;
 	}
 
 	@Override
@@ -70,7 +75,7 @@ public class EnderDragonPart extends Entity {
 
 	@Override
 	public EntityDimensions getDimensions(EntityPose pose) {
-		return this.partDimensions;
+		return partDimensions;
 	}
 
 	@Override

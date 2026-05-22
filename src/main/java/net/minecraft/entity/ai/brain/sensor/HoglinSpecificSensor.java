@@ -1,7 +1,6 @@
 package net.minecraft.entity.ai.brain.sensor;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.brain.LivingTargetCache;
@@ -12,14 +11,20 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code HoglinSpecificSensor}.
+ * Сенсор специфической логики хоглина.
+ * Ищет ближайший отпугиватель (искажённый гриб), ближайшего взрослого пиглина
+ * и считает количество видимых взрослых пиглинов и хоглинов.
  */
 public class HoglinSpecificSensor extends Sensor<HoglinEntity> {
+
+	private static final int REPELLENT_SEARCH_RADIUS_XZ = 8;
+	private static final int REPELLENT_SEARCH_RADIUS_Y = 4;
 
 	@Override
 	public Set<MemoryModuleType<?>> getOutputMemoryModules() {
@@ -29,55 +34,49 @@ public class HoglinSpecificSensor extends Sensor<HoglinEntity> {
 				MemoryModuleType.NEAREST_VISIBLE_ADULT_PIGLIN,
 				MemoryModuleType.NEAREST_VISIBLE_ADULT_HOGLINS,
 				MemoryModuleType.VISIBLE_ADULT_PIGLIN_COUNT,
-				MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT,
-				new MemoryModuleType[0]
+				MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT
 		);
 	}
 
-	/**
-	 * Sense.
-	 *
-	 * @param serverWorld server world
-	 * @param hoglinEntity hoglin entity
-	 */
-	protected void sense(ServerWorld serverWorld, HoglinEntity hoglinEntity) {
-		Brain<?> brain = hoglinEntity.getBrain();
-		brain.remember(MemoryModuleType.NEAREST_REPELLENT, this.findNearestWarpedFungus(serverWorld, hoglinEntity));
-		Optional<PiglinEntity> optional = Optional.empty();
-		int i = 0;
-		List<HoglinEntity> list = Lists.newArrayList();
-		LivingTargetCache
-				livingTargetCache =
-				brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS).orElse(LivingTargetCache.empty());
+	@Override
+	protected void sense(ServerWorld world, HoglinEntity entity) {
+		Brain<?> brain = entity.getBrain();
+		brain.remember(MemoryModuleType.NEAREST_REPELLENT, findNearestWarpedFungus(world, entity));
 
-		for (LivingEntity livingEntity : livingTargetCache.iterate(
-				livingEntityx -> !livingEntityx.isBaby() && (livingEntityx instanceof PiglinEntity
-						|| livingEntityx instanceof HoglinEntity
-				)
+		Optional<PiglinEntity> nearestPiglin = Optional.empty();
+		int piglinCount = 0;
+		List<HoglinEntity> adultHoglins = new ArrayList<>();
+		LivingTargetCache visibleMobs = brain
+				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
+				.orElse(LivingTargetCache.empty());
+
+		for (LivingEntity mob : visibleMobs.iterate(
+				m -> !m.isBaby() && (m instanceof PiglinEntity || m instanceof HoglinEntity)
 		)) {
-			if (livingEntity instanceof PiglinEntity piglinEntity) {
-				i++;
-				if (optional.isEmpty()) {
-					optional = Optional.of(piglinEntity);
+			if (mob instanceof PiglinEntity piglin) {
+				piglinCount++;
+
+				if (nearestPiglin.isEmpty()) {
+					nearestPiglin = Optional.of(piglin);
 				}
 			}
 
-			if (livingEntity instanceof HoglinEntity hoglinEntity2) {
-				list.add(hoglinEntity2);
+			if (mob instanceof HoglinEntity hoglin) {
+				adultHoglins.add(hoglin);
 			}
 		}
 
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_ADULT_PIGLIN, optional);
-		brain.remember(MemoryModuleType.NEAREST_VISIBLE_ADULT_HOGLINS, list);
-		brain.remember(MemoryModuleType.VISIBLE_ADULT_PIGLIN_COUNT, i);
-		brain.remember(MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT, list.size());
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_ADULT_PIGLIN, nearestPiglin);
+		brain.remember(MemoryModuleType.NEAREST_VISIBLE_ADULT_HOGLINS, adultHoglins);
+		brain.remember(MemoryModuleType.VISIBLE_ADULT_PIGLIN_COUNT, piglinCount);
+		brain.remember(MemoryModuleType.VISIBLE_ADULT_HOGLIN_COUNT, adultHoglins.size());
 	}
 
 	private Optional<BlockPos> findNearestWarpedFungus(ServerWorld world, HoglinEntity hoglin) {
 		return BlockPos.findClosest(
 				hoglin.getBlockPos(),
-				8,
-				4,
+				REPELLENT_SEARCH_RADIUS_XZ,
+				REPELLENT_SEARCH_RADIUS_Y,
 				pos -> world.getBlockState(pos).isIn(BlockTags.HOGLIN_REPELLENTS)
 		);
 	}

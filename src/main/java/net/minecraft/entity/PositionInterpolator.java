@@ -9,20 +9,22 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * {@code PositionInterpolator}.
+ * Управляет плавной интерполяцией позиции и углов поворота сущности на клиенте.
+ * Получает целевую позицию с сервера и за {@code lerpDuration} тиков плавно
+ * перемещает сущность к ней, учитывая смещение от движения самой сущности.
  */
 public class PositionInterpolator {
 
 	public static final int DEFAULT_INTERPOLATION_DURATION = 3;
 	private final Entity entity;
 	private int lerpDuration;
-	private final PositionInterpolator.Data data = new PositionInterpolator.Data(0, Vec3d.ZERO, 0.0F, 0.0F);
+	private final Data data = new Data(0, Vec3d.ZERO, 0.0F, 0.0F);
 	private @Nullable Vec3d lastPos;
 	private @Nullable Vec2f lastRotation;
 	private final @Nullable Consumer<PositionInterpolator> callback;
 
 	public PositionInterpolator(Entity entity) {
-		this(entity, 3, null);
+		this(entity, DEFAULT_INTERPOLATION_DURATION, null);
 	}
 
 	public PositionInterpolator(Entity entity, int lerpDuration) {
@@ -30,7 +32,7 @@ public class PositionInterpolator {
 	}
 
 	public PositionInterpolator(Entity entity, @Nullable Consumer<PositionInterpolator> callback) {
-		this(entity, 3, callback);
+		this(entity, DEFAULT_INTERPOLATION_DURATION, callback);
 	}
 
 	public PositionInterpolator(Entity entity, int lerpDuration, @Nullable Consumer<PositionInterpolator> callback) {
@@ -40,47 +42,50 @@ public class PositionInterpolator {
 	}
 
 	public Vec3d getLerpedPos() {
-		return this.data.step > 0 ? this.data.pos : this.entity.getEntityPos();
+		return data.step > 0 ? data.pos : entity.getEntityPos();
 	}
 
 	public float getLerpedYaw() {
-		return this.data.step > 0 ? this.data.yaw : this.entity.getYaw();
+		return data.step > 0 ? data.yaw : entity.getYaw();
 	}
 
 	public float getLerpedPitch() {
-		return this.data.step > 0 ? this.data.pitch : this.entity.getPitch();
+		return data.step > 0 ? data.pitch : entity.getPitch();
 	}
 
 	/**
-	 * Refresh position and angles.
-	 *
-	 * @param pow pow
-	 * @param yaw yaw
-	 * @param pitch pitch
+	 * Устанавливает новую целевую позицию и углы для интерполяции.
+	 * Если интерполяция уже идёт к тем же значениям — вызов игнорируется.
+	 * При нулевой длительности интерполяции позиция применяется мгновенно.
 	 */
-	public void refreshPositionAndAngles(Vec3d pow, float yaw, float pitch) {
-		if (this.lerpDuration == 0) {
-			this.entity.refreshPositionAndAngles(pow, yaw, pitch);
-			this.clear();
+	public void refreshPositionAndAngles(Vec3d targetPos, float yaw, float pitch) {
+		if (lerpDuration == 0) {
+			entity.refreshPositionAndAngles(targetPos, yaw, pitch);
+			clear();
+			return;
 		}
-		else if (!this.isInterpolating()
-				|| !Objects.equals(this.getLerpedYaw(), yaw)
-				|| !Objects.equals(this.getLerpedPitch(), pitch)
-				|| !Objects.equals(this.getLerpedPos(), pow)) {
-			this.data.step = this.lerpDuration;
-			this.data.pos = pow;
-			this.data.yaw = yaw;
-			this.data.pitch = pitch;
-			this.lastPos = this.entity.getEntityPos();
-			this.lastRotation = new Vec2f(this.entity.getPitch(), this.entity.getYaw());
-			if (this.callback != null) {
-				this.callback.accept(this);
-			}
+
+		if (isInterpolating()
+				&& Objects.equals(getLerpedYaw(), yaw)
+				&& Objects.equals(getLerpedPitch(), pitch)
+				&& Objects.equals(getLerpedPos(), targetPos)) {
+			return;
+		}
+
+		data.step = lerpDuration;
+		data.pos = targetPos;
+		data.yaw = yaw;
+		data.pitch = pitch;
+		lastPos = entity.getEntityPos();
+		lastRotation = new Vec2f(entity.getPitch(), entity.getYaw());
+
+		if (callback != null) {
+			callback.accept(this);
 		}
 	}
 
 	public boolean isInterpolating() {
-		return this.data.step > 0;
+		return data.step > 0;
 	}
 
 	public void setLerpDuration(int lerpDuration) {
@@ -88,54 +93,55 @@ public class PositionInterpolator {
 	}
 
 	/**
-	 * Tick.
+	 * Выполняет один шаг интерполяции: сдвигает сущность на 1/{@code step} расстояния
+	 * к целевой позиции, учитывая смещение от собственного движения сущности.
 	 */
 	public void tick() {
-		if (!this.isInterpolating()) {
-			this.clear();
+		if (!isInterpolating()) {
+			clear();
+			return;
 		}
-		else {
-			double d = 1.0 / this.data.step;
-			if (this.lastPos != null) {
-				Vec3d vec3d = this.entity.getEntityPos().subtract(this.lastPos);
-				if (this.entity
-						.getEntityWorld()
-						.isSpaceEmpty(this.entity, this.entity.calculateDefaultBoundingBox(this.data.pos.add(vec3d)))) {
-					this.data.addPos(vec3d);
-				}
-			}
 
-			if (this.lastRotation != null) {
-				float f = this.entity.getYaw() - this.lastRotation.y;
-				float g = this.entity.getPitch() - this.lastRotation.x;
-				this.data.addRotation(f, g);
-			}
+		double lerpFactor = 1.0 / data.step;
 
-			double e = MathHelper.lerp(d, this.entity.getX(), this.data.pos.x);
-			double h = MathHelper.lerp(d, this.entity.getY(), this.data.pos.y);
-			double i = MathHelper.lerp(d, this.entity.getZ(), this.data.pos.z);
-			Vec3d vec3d2 = new Vec3d(e, h, i);
-			float j = (float) MathHelper.lerpAngleDegrees(d, (double) this.entity.getYaw(), (double) this.data.yaw);
-			float k = (float) MathHelper.lerp(d, (double) this.entity.getPitch(), (double) this.data.pitch);
-			this.entity.setPosition(vec3d2);
-			this.entity.setRotation(j, k);
-			this.data.tick();
-			this.lastPos = vec3d2;
-			this.lastRotation = new Vec2f(this.entity.getPitch(), this.entity.getYaw());
+		if (lastPos != null) {
+			Vec3d entityMovement = entity.getEntityPos().subtract(lastPos);
+			if (entity.getEntityWorld().isSpaceEmpty(
+					entity,
+					entity.calculateDefaultBoundingBox(data.pos.add(entityMovement))
+			)) {
+				data.addPos(entityMovement);
+			}
 		}
+
+		if (lastRotation != null) {
+			float yawDelta = entity.getYaw() - lastRotation.y;
+			float pitchDelta = entity.getPitch() - lastRotation.x;
+			data.addRotation(yawDelta, pitchDelta);
+		}
+
+		double lerpedX = MathHelper.lerp(lerpFactor, entity.getX(), data.pos.x);
+		double lerpedY = MathHelper.lerp(lerpFactor, entity.getY(), data.pos.y);
+		double lerpedZ = MathHelper.lerp(lerpFactor, entity.getZ(), data.pos.z);
+		Vec3d lerpedPos = new Vec3d(lerpedX, lerpedY, lerpedZ);
+		float lerpedYaw = (float) MathHelper.lerpAngleDegrees(lerpFactor, entity.getYaw(), data.yaw);
+		float lerpedPitch = (float) MathHelper.lerp(lerpFactor, entity.getPitch(), data.pitch);
+
+		entity.setPosition(lerpedPos);
+		entity.setRotation(lerpedYaw, lerpedPitch);
+		data.tick();
+		lastPos = lerpedPos;
+		lastRotation = new Vec2f(entity.getPitch(), entity.getYaw());
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.data.step = 0;
-		this.lastPos = null;
-		this.lastRotation = null;
+		data.step = 0;
+		lastPos = null;
+		lastRotation = null;
 	}
 
 	/**
-	 * {@code Data}.
+	 * Внутреннее состояние интерполяции: целевая позиция, углы и оставшееся число шагов.
 	 */
 	static class Data {
 
@@ -151,31 +157,17 @@ public class PositionInterpolator {
 			this.pitch = pitch;
 		}
 
-		/**
-		 * Tick.
-		 */
 		public void tick() {
-			this.step--;
+			step--;
 		}
 
-		/**
-		 * Добавляет pos.
-		 *
-		 * @param pos pos
-		 */
-		public void addPos(Vec3d pos) {
-			this.pos = this.pos.add(pos);
+		public void addPos(Vec3d delta) {
+			pos = pos.add(delta);
 		}
 
-		/**
-		 * Добавляет rotation.
-		 *
-		 * @param yaw yaw
-		 * @param pitch pitch
-		 */
-		public void addRotation(float yaw, float pitch) {
-			this.yaw += yaw;
-			this.pitch += pitch;
+		public void addRotation(float yawDelta, float pitchDelta) {
+			yaw += yawDelta;
+			pitch += pitchDelta;
 		}
 	}
 }

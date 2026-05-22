@@ -8,13 +8,16 @@ import net.minecraft.util.math.floatprovider.FloatSupplier;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Sound}.
+ * Описание конкретного звукового файла или ссылки на событие звука.
+ * Хранит параметры воспроизведения: громкость, высоту, вес для случайного выбора,
+ * режим потоковой передачи и расстояние затухания.
  */
+@Environment(EnvType.CLIENT)
 public class Sound implements SoundContainer<Sound> {
 
 	public static final ResourceFinder FINDER = new ResourceFinder("sounds", ".ogg");
+
 	private final Identifier id;
 	private final FloatSupplier volume;
 	private final FloatSupplier pitch;
@@ -25,14 +28,14 @@ public class Sound implements SoundContainer<Sound> {
 	private final int attenuation;
 
 	public Sound(
-			Identifier id,
-			FloatSupplier volume,
-			FloatSupplier pitch,
-			int weight,
-			Sound.RegistrationType registrationType,
-			boolean stream,
-			boolean preload,
-			int attenuation
+		Identifier id,
+		FloatSupplier volume,
+		FloatSupplier pitch,
+		int weight,
+		Sound.RegistrationType registrationType,
+		boolean stream,
+		boolean preload,
+		int attenuation
 	) {
 		this.id = id;
 		this.volume = volume;
@@ -45,76 +48,77 @@ public class Sound implements SoundContainer<Sound> {
 	}
 
 	public Identifier getIdentifier() {
-		return this.id;
+		return id;
 	}
 
 	public Identifier getLocation() {
-		return FINDER.toResourcePath(this.id);
+		return FINDER.toResourcePath(id);
 	}
 
 	public FloatSupplier getVolume() {
-		return this.volume;
+		return volume;
 	}
 
 	public FloatSupplier getPitch() {
-		return this.pitch;
+		return pitch;
 	}
 
 	@Override
 	public int getWeight() {
-		return this.weight;
+		return weight;
 	}
 
+	@Override
 	public Sound getSound(Random random) {
 		return this;
 	}
 
 	@Override
 	public void preload(SoundSystem soundSystem) {
-		if (this.preload) {
+		if (preload) {
 			soundSystem.addPreloadedSound(this);
 		}
 	}
 
 	public Sound.RegistrationType getRegistrationType() {
-		return this.registrationType;
+		return registrationType;
 	}
 
 	public boolean isStreamed() {
-		return this.stream;
+		return stream;
 	}
 
 	public boolean isPreloaded() {
-		return this.preload;
+		return preload;
 	}
 
 	public int getAttenuation() {
-		return this.attenuation;
+		return attenuation;
 	}
 
 	@Override
 	public String toString() {
-		return "Sound[" + this.id + "]";
+		return "Sound[" + id + "]";
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code RegistrationType}.
+	 * Способ регистрации звука: прямой файл или ссылка на другое звуковое событие.
 	 */
-	public static enum RegistrationType {
+	@Environment(EnvType.CLIENT)
+	public enum RegistrationType {
 		FILE("file"),
 		SOUND_EVENT("event");
 
 		private final String name;
 
-		private RegistrationType(final String name) {
+		RegistrationType(String name) {
 			this.name = name;
 		}
 
 		public static Sound.@Nullable RegistrationType getByName(String name) {
-			for (Sound.RegistrationType registrationType : values()) {
-				if (registrationType.name.equals(name)) {
-					return registrationType;
+			for (Sound.RegistrationType type : values()) {
+				if (type.name.equals(name)) {
+					return type;
 				}
 			}
 

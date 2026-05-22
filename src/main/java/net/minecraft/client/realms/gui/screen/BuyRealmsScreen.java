@@ -169,14 +169,14 @@ public class BuyRealmsScreen extends RealmsScreen {
 			context.drawTexture(
 					RenderPipelines.GUI_TEXTURED,
 					realmsImages.get(this.realmsImageIndex),
-					this.getLeft() + 10,
-					this.getTop() + 10,
+					this.getLeft() + BUTTON_MARGIN,
+					this.getTop() + BUTTON_MARGIN,
 					0.0F,
 					0.0F,
-					195,
-					152,
-					195,
-					152
+					IMAGE_WIDTH,
+					IMAGE_HEIGHT,
+					IMAGE_WIDTH,
+					IMAGE_HEIGHT
 			);
 		}
 	}

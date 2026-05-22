@@ -8,44 +8,34 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code ClampedNormalIntProvider}.
+ * Поставщик целых чисел с нормальным (гауссовым) распределением,
+ * зажатым в диапазон {@code [min, max]}. Значения генерируются вокруг
+ * среднего {@code mean} с отклонением {@code deviation}, затем обрезаются.
  */
 public class ClampedNormalIntProvider extends IntProvider {
 
-	public static final MapCodec<ClampedNormalIntProvider>
-			CODEC =
-			RecordCodecBuilder.<ClampedNormalIntProvider>mapCodec(
-					                  instance -> instance.group(
-							                                      Codec.FLOAT.fieldOf("mean").forGetter(provider -> provider.mean),
-							                                      Codec.FLOAT.fieldOf("deviation").forGetter(provider -> provider.deviation),
-							                                      Codec.INT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
-							                                      Codec.INT.fieldOf("max_inclusive").forGetter(provider -> provider.max)
-					                                      )
-					                                      .apply(instance, ClampedNormalIntProvider::new)
-			                  )
-			                  .validate(
-					                  (ClampedNormalIntProvider provider) -> provider.max < provider.min
-					                                                         ? DataResult.error(() ->
-					                                                                            "Max must be larger than min: ["
-					                                                                            + provider.min + ", "
-					                                                                            + provider.max + "]")
-					                                                         : DataResult.success(provider)
-			                  );
+	public static final MapCodec<ClampedNormalIntProvider> CODEC = RecordCodecBuilder
+		.<ClampedNormalIntProvider>mapCodec(
+			instance -> instance.group(
+				Codec.FLOAT.fieldOf("mean").forGetter(provider -> provider.mean),
+				Codec.FLOAT.fieldOf("deviation").forGetter(provider -> provider.deviation),
+				Codec.INT.fieldOf("min_inclusive").forGetter(provider -> provider.min),
+				Codec.INT.fieldOf("max_inclusive").forGetter(provider -> provider.max)
+			).apply(instance, ClampedNormalIntProvider::new)
+		)
+		.validate(
+			provider -> provider.max < provider.min
+				? DataResult.error(
+					() -> "Max must be larger than min: [" + provider.min + ", " + provider.max + "]"
+				)
+				: DataResult.success(provider)
+		);
+
 	private final float mean;
 	private final float deviation;
 	private final int min;
 	private final int max;
 
-	/**
-	 * Of.
-	 *
-	 * @param mean mean
-	 * @param deviation deviation
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return ClampedNormalIntProvider — результат операции
-	 */
 	public static ClampedNormalIntProvider of(float mean, float deviation, int min, int max) {
 		return new ClampedNormalIntProvider(mean, deviation, min, max);
 	}
@@ -59,32 +49,21 @@ public class ClampedNormalIntProvider extends IntProvider {
 
 	@Override
 	public int get(Random random) {
-		return next(random, this.mean, this.deviation, this.min, this.max);
+		return next(random, mean, deviation, min, max);
 	}
 
-	/**
-	 * Next.
-	 *
-	 * @param random random
-	 * @param mean mean
-	 * @param deviation deviation
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return int — результат операции
-	 */
 	public static int next(Random random, float mean, float deviation, float min, float max) {
 		return (int) MathHelper.clamp(MathHelper.nextGaussian(random, mean, deviation), min, max);
 	}
 
 	@Override
 	public int getMin() {
-		return this.min;
+		return min;
 	}
 
 	@Override
 	public int getMax() {
-		return this.max;
+		return max;
 	}
 
 	@Override
@@ -94,6 +73,6 @@ public class ClampedNormalIntProvider extends IntProvider {
 
 	@Override
 	public String toString() {
-		return "normal(" + this.mean + ", " + this.deviation + ") in [" + this.min + "-" + this.max + "]";
+		return "normal(" + mean + ", " + deviation + ") in [" + min + "-" + max + "]";
 	}
 }

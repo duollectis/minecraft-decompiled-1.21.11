@@ -5,7 +5,8 @@ import net.minecraft.block.AbstractFireBlock;
 import java.util.function.Consumer;
 
 /**
- * {@code CollisionEvent}.
+ * Перечисление событий столкновения сущности с блоком окружающей среды.
+ * Каждое событие несёт в себе действие, применяемое к сущности при срабатывании.
  */
 public enum CollisionEvent {
 	FREEZE(entity -> {
@@ -21,11 +22,11 @@ public enum CollisionEvent {
 
 	private final Consumer<Entity> action;
 
-	private CollisionEvent(final Consumer<Entity> action) {
+	CollisionEvent(Consumer<Entity> action) {
 		this.action = action;
 	}
 
 	public Consumer<Entity> getAction() {
-		return this.action;
+		return action;
 	}
 }

@@ -18,17 +18,15 @@ import java.util.Locale;
 import java.util.function.Function;
 
 /**
- * {@code StorageDataObject}.
+ * Реализация {@link DataCommandObject} для именованного хранилища команд.
+ * Данные хранятся в {@link DataCommandStorage} и персистентны между сессиями.
  */
 public class StorageDataObject implements DataCommandObject {
 
-	static final SuggestionProvider<ServerCommandSource>
-			SUGGESTION_PROVIDER =
-			(context, builder) -> CommandSource.suggestIdentifiers(
-					of(context).getIds(), builder
-			);
-	public static final Function<String, DataCommand.ObjectType>
-			TYPE_FACTORY =
+	static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER =
+			(context, builder) -> CommandSource.suggestIdentifiers(of(context).getIds(), builder);
+
+	public static final Function<String, DataCommand.ObjectType> TYPE_FACTORY =
 			argumentName -> new DataCommand.ObjectType() {
 				@Override
 				public DataCommandObject getObject(CommandContext<ServerCommandSource> context) {
@@ -45,24 +43,20 @@ public class StorageDataObject implements DataCommandObject {
 				) {
 					return argument.then(
 							CommandManager.literal("storage")
-							              .then(
-									              argumentAdder.apply(
-											              CommandManager
-													              .argument(
-															              argumentName,
-															              IdentifierArgumentType.identifier()
-													              )
-													              .suggests(StorageDataObject.SUGGESTION_PROVIDER)
-									              )
-							              )
+							              .then(argumentAdder.apply(
+									              CommandManager
+											              .argument(argumentName, IdentifierArgumentType.identifier())
+											              .suggests(StorageDataObject.SUGGESTION_PROVIDER)
+							              ))
 					);
 				}
 			};
+
 	private final DataCommandStorage storage;
 	private final Identifier id;
 
 	static DataCommandStorage of(CommandContext<ServerCommandSource> context) {
-		return ((ServerCommandSource) context.getSource()).getServer().getDataCommandStorage();
+		return context.getSource().getServer().getDataCommandStorage();
 	}
 
 	StorageDataObject(DataCommandStorage storage, Identifier id) {
@@ -72,24 +66,24 @@ public class StorageDataObject implements DataCommandObject {
 
 	@Override
 	public void setNbt(NbtCompound nbt) {
-		this.storage.set(this.id, nbt);
+		storage.set(id, nbt);
 	}
 
 	@Override
 	public NbtCompound getNbt() {
-		return this.storage.get(this.id);
+		return storage.get(id);
 	}
 
 	@Override
 	public Text feedbackModify() {
-		return Text.translatable("commands.data.storage.modified", Text.of(this.id));
+		return Text.translatable("commands.data.storage.modified", Text.of(id));
 	}
 
 	@Override
 	public Text feedbackQuery(NbtElement element) {
 		return Text.translatable(
 				"commands.data.storage.query",
-				Text.of(this.id),
+				Text.of(id),
 				NbtHelper.toPrettyPrintedText(element)
 		);
 	}
@@ -99,7 +93,7 @@ public class StorageDataObject implements DataCommandObject {
 		return Text.translatable(
 				"commands.data.storage.get",
 				path.getString(),
-				Text.of(this.id),
+				Text.of(id),
 				String.format(Locale.ROOT, "%.2f", scale),
 				result
 		);

@@ -45,7 +45,8 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CamelEntity}.
+ * Верблюд — верховое животное пустыни, способное нести двух игроков.
+ * Умеет делать рывок и садиться.
  */
 public class CamelEntity extends AbstractHorseEntity {
 
@@ -74,7 +75,7 @@ public class CamelEntity extends AbstractHorseEntity {
 	public final AnimationState dashingAnimationState = new AnimationState();
 	private static final EntityDimensions
 			SITTING_DIMENSIONS =
-			EntityDimensions.changing(EntityType.CAMEL.getWidth(), EntityType.CAMEL.getHeight() - 1.43F)
+			EntityDimensions.changing(EntityType.CAMEL.getWidth(), EntityType.CAMEL.getHeight() - SITTING_HEIGHT_REDUCTION)
 			                .withEyeHeight(0.845F);
 	private int dashCooldown = 0;
 	private int idleAnimationCooldown = 0;
@@ -217,7 +218,7 @@ public class CamelEntity extends AbstractHorseEntity {
 
 	private void updateAnimations() {
 		if (this.idleAnimationCooldown <= 0) {
-			this.idleAnimationCooldown = this.random.nextInt(40) + 80;
+			this.idleAnimationCooldown = this.random.nextInt(SITTING_POSE_CHANGE_TICKS) + IDLE_ANIMATION_COOLDOWN_MIN;
 			this.idlingAnimationState.start(this.age);
 		}
 		else {
@@ -323,11 +324,11 @@ public class CamelEntity extends AbstractHorseEntity {
 				this.getRotationVector()
 				    .multiply(1.0, 0.0, 1.0)
 				    .normalize()
-				    .multiply(22.2222F * strength * this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
+				    .multiply(DASH_HORIZONTAL_SPEED_FACTOR * strength * this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
 						    * this.getVelocityMultiplier())
-				    .add(0.0, 1.4285F * strength * d, 0.0)
+				    .add(0.0, DASH_VERTICAL_SPEED_FACTOR * strength * d, 0.0)
 		);
-		this.dashCooldown = 55;
+		this.dashCooldown = DASH_COOLDOWN_TICKS;
 		this.setDashing(true);
 		this.velocityDirty = true;
 	}
@@ -555,7 +556,7 @@ public class CamelEntity extends AbstractHorseEntity {
 
 	@Override
 	public float getScaleFactor() {
-		return this.isBaby() ? 0.45F : 1.0F;
+		return this.isBaby() ? BABY_SCALE : 1.0F;
 	}
 
 	private double getPassengerAttachmentY(
@@ -565,18 +566,18 @@ public class CamelEntity extends AbstractHorseEntity {
 			float scaleFactor
 	) {
 		double d = dimensions.height() - 0.375F * scaleFactor;
-		float f = scaleFactor * 1.43F;
+		float f = scaleFactor * SITTING_HEIGHT_REDUCTION;
 		float g = f - scaleFactor * 0.2F;
 		float h = f - g;
 		boolean bl = this.isChangingPose();
 		boolean bl2 = this.isSitting();
 		if (bl) {
-			int i = bl2 ? 40 : 52;
+			int i = bl2 ? SITTING_POSE_CHANGE_TICKS : STANDING_POSE_CHANGE_TICKS;
 			int j;
 			float k;
 			if (bl2) {
 				j = 28;
-				k = primaryPassenger ? 0.5F : 0.1F;
+				k = primaryPassenger ? 0.5F : SPRINT_SPEED_BONUS;
 			}
 			else {
 				j = primaryPassenger ? 24 : 32;
@@ -612,7 +613,7 @@ public class CamelEntity extends AbstractHorseEntity {
 
 	@Override
 	public int getMaxHeadRotation() {
-		return 30;
+		return MAX_HEAD_ROTATION;
 	}
 
 	@Override
@@ -635,11 +636,11 @@ public class CamelEntity extends AbstractHorseEntity {
 
 	public boolean isChangingPose() {
 		long l = this.getTimeSinceLastPoseTick();
-		return l < (this.isSitting() ? 40 : 52);
+		return l < (this.isSitting() ? SITTING_POSE_CHANGE_TICKS : STANDING_POSE_CHANGE_TICKS);
 	}
 
 	private boolean shouldPlaySittingTransitionAnimation() {
-		return this.isSitting() && this.getTimeSinceLastPoseTick() < 40L && this.getTimeSinceLastPoseTick() >= 0L;
+		return this.isSitting() && this.getTimeSinceLastPoseTick() < SITTING_POSE_CHANGE_TICKS && this.getTimeSinceLastPoseTick() >= 0L;
 	}
 
 	/**
@@ -686,7 +687,7 @@ public class CamelEntity extends AbstractHorseEntity {
 	}
 
 	private void initLastPoseTick(long time) {
-		this.setLastPoseTick(Math.max(0L, time - 52L - 1L));
+		this.setLastPoseTick(Math.max(0L, time - STANDING_POSE_CHANGE_TICKS - 1L));
 	}
 
 	public long getTimeSinceLastPoseTick() {
@@ -714,7 +715,7 @@ public class CamelEntity extends AbstractHorseEntity {
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		if (!this.firstUpdate && DASHING.equals(data)) {
-			this.dashCooldown = this.dashCooldown == 0 ? 55 : this.dashCooldown;
+			this.dashCooldown = this.dashCooldown == 0 ? DASH_COOLDOWN_TICKS : this.dashCooldown;
 		}
 
 		super.onTrackedDataSet(data);
@@ -738,8 +739,8 @@ public class CamelEntity extends AbstractHorseEntity {
 	}
 
 	/**
-	 * {@code CamelBodyControl}.
-	 */
+ * Анимационное состояние верблюда.
+ */
 	class CamelBodyControl extends BodyControl {
 
 		public CamelBodyControl(final CamelEntity camel) {
@@ -755,8 +756,8 @@ public class CamelEntity extends AbstractHorseEntity {
 	}
 
 	/**
-	 * {@code CamelLookControl}.
-	 */
+ * Данные верблюда для сериализации.
+ */
 	class CamelLookControl extends LookControl {
 
 		CamelLookControl() {
@@ -772,8 +773,8 @@ public class CamelEntity extends AbstractHorseEntity {
 	}
 
 	/**
-	 * {@code CamelMoveControl}.
-	 */
+ * Поза верблюда: стоит или сидит.
+ */
 	class CamelMoveControl extends MoveControl {
 
 		public CamelMoveControl() {

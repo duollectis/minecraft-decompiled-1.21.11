@@ -11,7 +11,7 @@ import net.minecraft.datafixer.TypeReferences;
 import org.slf4j.Logger;
 
 /**
- * {@code WorldUuidFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class WorldUuidFix extends AbstractUuidFix {
 
@@ -23,17 +23,17 @@ public class WorldUuidFix extends AbstractUuidFix {
 
 	@SuppressWarnings("unchecked")
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(this.typeReference);
+		Type<?> type = getInputSchema().getType(this.typeReference);
 		OpticFinder<?> opticFinder = type.findField("CustomBossEvents");
 		OpticFinder<?> opticFinder2 = DSL.typeFinder(
 				DSL.and(
 						DSL.optional(DSL.field(
 								"Name",
-								this.getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT)
+								getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT)
 						)), DSL.remainderType()
 				)
 		);
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"LevelUUIDFix", type, typed -> typed
 						.update(
 								DSL.remainderFinder(), dynamic -> {

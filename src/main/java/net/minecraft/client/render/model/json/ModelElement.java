@@ -174,12 +174,12 @@ public record ModelElement(
 
 		private static Vector3f deserializeAndValidateVec3f(JsonObject jsonObject, String string) {
 			Vector3f vector3f = deserializeVec3f(jsonObject, string);
-			if (!(vector3f.x() < -16.0F)
-					&& !(vector3f.y() < -16.0F)
-					&& !(vector3f.z() < -16.0F)
-					&& !(vector3f.x() > 32.0F)
-					&& !(vector3f.y() > 32.0F)
-					&& !(vector3f.z() > 32.0F)) {
+			if (!(vector3f.x() < MIN_COORD)
+					&& !(vector3f.y() < MIN_COORD)
+					&& !(vector3f.z() < MIN_COORD)
+					&& !(vector3f.x() > MAX_COORD)
+					&& !(vector3f.y() > MAX_COORD)
+					&& !(vector3f.z() > MAX_COORD)) {
 				return vector3f;
 			}
 			else {

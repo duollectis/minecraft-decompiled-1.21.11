@@ -9,29 +9,42 @@ import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WaterBubbleParticle}.
+ * Частица пузырька воды, поднимающегося в жидкости.
+ * Умирает немедленно, если покидает блок воды.
  */
+@Environment(EnvType.CLIENT)
 public class WaterBubbleParticle extends BillboardParticle {
 
+	private static final float BOUNDING_BOX_SPACING = 0.02F;
+	private static final float SCALE_BASE = 0.2F;
+	private static final float SCALE_VARIANCE = 0.6F;
+	private static final float VELOCITY_SCALE = 0.2F;
+	private static final float VELOCITY_JITTER = 0.02F;
+	private static final float VELOCITY_JITTER_RANGE = 2.0F;
+	private static final double BUOYANCY = 0.002;
+	private static final float DRAG = 0.85F;
+	private static final float BASE_LIFETIME = 8.0F;
+	private static final float LIFETIME_VARIANCE = 0.8F;
+	private static final float LIFETIME_BASE = 0.2F;
+
 	WaterBubbleParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
 			Sprite sprite
 	) {
-		super(clientWorld, d, e, f, sprite);
-		this.setBoundingBoxSpacing(0.02F, 0.02F);
-		this.scale = this.scale * (this.random.nextFloat() * 0.6F + 0.2F);
-		this.velocityX = g * 0.2F + (this.random.nextFloat() * 2.0F - 1.0F) * 0.02F;
-		this.velocityY = h * 0.2F + (this.random.nextFloat() * 2.0F - 1.0F) * 0.02F;
-		this.velocityZ = i * 0.2F + (this.random.nextFloat() * 2.0F - 1.0F) * 0.02F;
-		this.maxAge = (int) (8.0 / (this.random.nextFloat() * 0.8 + 0.2));
+		super(world, x, y, z, sprite);
+		this.setBoundingBoxSpacing(BOUNDING_BOX_SPACING, BOUNDING_BOX_SPACING);
+		this.scale *= random.nextFloat() * SCALE_VARIANCE + SCALE_BASE;
+		this.velocityX = velocityX * VELOCITY_SCALE + (random.nextFloat() * VELOCITY_JITTER_RANGE - 1.0F) * VELOCITY_JITTER;
+		this.velocityY = velocityY * VELOCITY_SCALE + (random.nextFloat() * VELOCITY_JITTER_RANGE - 1.0F) * VELOCITY_JITTER;
+		this.velocityZ = velocityZ * VELOCITY_SCALE + (random.nextFloat() * VELOCITY_JITTER_RANGE - 1.0F) * VELOCITY_JITTER;
+		this.maxAge = (int) (BASE_LIFETIME / (random.nextFloat() * LIFETIME_VARIANCE + LIFETIME_BASE));
 	}
 
 	@Override
@@ -39,18 +52,20 @@ public class WaterBubbleParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
-		if (this.maxAge-- <= 0) {
+
+		if (maxAge-- <= 0) {
 			this.markDead();
+			return;
 		}
-		else {
-			this.velocityY += 0.002;
-			this.move(this.velocityX, this.velocityY, this.velocityZ);
-			this.velocityX *= 0.85F;
-			this.velocityY *= 0.85F;
-			this.velocityZ *= 0.85F;
-			if (!this.world.getFluidState(BlockPos.ofFloored(this.x, this.y, this.z)).isIn(FluidTags.WATER)) {
-				this.markDead();
-			}
+
+		this.velocityY += BUOYANCY;
+		this.move(velocityX, velocityY, velocityZ);
+		this.velocityX *= DRAG;
+		this.velocityY *= DRAG;
+		this.velocityZ *= DRAG;
+
+		if (!world.getFluidState(BlockPos.ofFloored(this.x, this.y, this.z)).isIn(FluidTags.WATER)) {
+			this.markDead();
 		}
 	}
 
@@ -60,9 +75,6 @@ public class WaterBubbleParticle extends BillboardParticle {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -71,18 +83,19 @@ public class WaterBubbleParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new WaterBubbleParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new WaterBubbleParticle(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getSprite(random));
 		}
 	}
 }

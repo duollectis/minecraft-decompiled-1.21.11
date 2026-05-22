@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * {@code SymlinkValidationException}.
+ * Исключение, выбрасываемое при обнаружении запрещённых символьных ссылок
+ * в директории ресурс-пака. Содержит список всех нарушений для диагностики.
  */
 public class SymlinkValidationException extends Exception {
 
@@ -19,16 +20,15 @@ public class SymlinkValidationException extends Exception {
 
 	@Override
 	public String getMessage() {
-		return getMessage(this.path, this.symlinks);
+		return getMessage(path, symlinks);
 	}
 
 	public static String getMessage(Path path, List<SymlinkEntry> symlinks) {
 		return "Failed to validate '"
 				+ path
 				+ "'. Found forbidden symlinks: "
-				+ symlinks
-				.stream()
-				.map(symlink -> symlink.link() + "->" + symlink.target())
-				.collect(Collectors.joining(", "));
+				+ symlinks.stream()
+						.map(symlink -> symlink.link() + "->" + symlink.target())
+						.collect(Collectors.joining(", "));
 	}
 }

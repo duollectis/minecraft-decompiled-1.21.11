@@ -20,9 +20,15 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * {@code BundleContentsComponent}.
- */
+	 * Компонент содержимого сумки (bundle). Хранит список стеков предметов и их суммарную занятость.
+	 * Занятость 1/1 означает полную сумку; вложенные сумки занимают 1/16 плюс их собственная занятость.
+	 */
 public final class BundleContentsComponent implements TooltipData {
+
+	private static final Fraction NESTED_BUNDLE_OCCUPANCY = Fraction.getFraction(1, 16);
+
+	/** Индекс, означающий отсутствие выбранного слота или необходимость создать новый. */
+	public static final int NO_SELECTED_SLOT = -1;
 
 	public static final BundleContentsComponent DEFAULT = new BundleContentsComponent(List.of());
 	public static final Codec<BundleContentsComponent> CODEC = ItemStack.CODEC
@@ -31,9 +37,6 @@ public final class BundleContentsComponent implements TooltipData {
 	public static final PacketCodec<RegistryByteBuf, BundleContentsComponent> PACKET_CODEC = ItemStack.PACKET_CODEC
 			.collect(PacketCodecs.toList())
 			.xmap(BundleContentsComponent::new, component -> component.stacks);
-	private static final Fraction NESTED_BUNDLE_OCCUPANCY = Fraction.getFraction(1, 16);
-	private static final int ADD_TO_NEW_SLOT = -1;
-	public static final int EMPTY_SLOT = -1;
 	final List<ItemStack> stacks;
 	final Fraction occupancy;
 	final int selectedStackIndex;
@@ -47,15 +50,14 @@ public final class BundleContentsComponent implements TooltipData {
 	private static DataResult<BundleContentsComponent> validateOccupancy(List<ItemStack> stacks) {
 		try {
 			Fraction fraction = calculateOccupancy(stacks);
-			return DataResult.success(new BundleContentsComponent(stacks, fraction, -1));
-		}
-		catch (ArithmeticException var2) {
+			return DataResult.success(new BundleContentsComponent(stacks, fraction, NO_SELECTED_SLOT));
+		} catch (ArithmeticException e) {
 			return DataResult.error(() -> "Excessive total bundle weight");
 		}
 	}
 
 	public BundleContentsComponent(List<ItemStack> stacks) {
-		this(stacks, calculateOccupancy(stacks), -1);
+		this(stacks, calculateOccupancy(stacks), NO_SELECTED_SLOT);
 	}
 
 	private static Fraction calculateOccupancy(List<ItemStack> stacks) {
@@ -81,116 +83,73 @@ public final class BundleContentsComponent implements TooltipData {
 		}
 	}
 
-	/**
-	 * Проверяет возможность be bundled.
-	 *
-	 * @param stack stack
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public static boolean canBeBundled(ItemStack stack) {
 		return !stack.isEmpty() && stack.getItem().canBeNested();
 	}
 
 	public int getNumberOfStacksShown() {
-		int i = this.size();
-		int j = i > 12 ? 11 : 12;
-		int k = i % 4;
-		int l = k == 0 ? 0 : 4 - k;
-		return Math.min(i, j - l);
+		int total = size();
+		int maxVisible = total > 12 ? 11 : 12;
+		int remainder = total % 4;
+		int padding = remainder == 0 ? 0 : 4 - remainder;
+		return Math.min(total, maxVisible - padding);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param index index
-	 *
-	 * @return ItemStack — 
-	 */
 	public ItemStack get(int index) {
-		return this.stacks.get(index);
+		return stacks.get(index);
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public Stream<ItemStack> stream() {
-		return this.stacks.stream().map(ItemStack::copy);
+		return stacks.stream().map(ItemStack::copy);
 	}
 
-	/**
-	 * Iterate.
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public Iterable<ItemStack> iterate() {
-		return this.stacks;
+		return stacks;
 	}
 
-	/**
-	 * Iterate copy.
-	 *
-	 * @return Iterable — результат операции
-	 */
 	public Iterable<ItemStack> iterateCopy() {
-		return Lists.transform(this.stacks, ItemStack::copy);
+		return Lists.transform(stacks, ItemStack::copy);
 	}
 
-	/**
-	 * Size.
-	 *
-	 * @return int — результат операции
-	 */
 	public int size() {
-		return this.stacks.size();
+		return stacks.size();
 	}
 
 	public Fraction getOccupancy() {
-		return this.occupancy;
+		return occupancy;
 	}
 
 	public boolean isEmpty() {
-		return this.stacks.isEmpty();
+		return stacks.isEmpty();
 	}
 
 	public int getSelectedStackIndex() {
-		return this.selectedStackIndex;
+		return selectedStackIndex;
 	}
 
 	public boolean hasSelectedStack() {
-		return this.selectedStackIndex != -1;
+		return selectedStackIndex != NO_SELECTED_SLOT;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else {
-			return !(o instanceof BundleContentsComponent bundleContentsComponent)
-			       ? false
-			       : this.occupancy.equals(bundleContentsComponent.occupancy) && ItemStack.stacksEqual(
-					       this.stacks,
-					       bundleContentsComponent.stacks
-			       );
-		}
+		return this == o
+			? true
+			: o instanceof BundleContentsComponent other
+				&& occupancy.equals(other.occupancy)
+				&& ItemStack.stacksEqual(stacks, other.stacks);
 	}
 
 	@Override
 	public int hashCode() {
-		return ItemStack.listHashCode(this.stacks);
+		return ItemStack.listHashCode(stacks);
 	}
 
 	@Override
 	public String toString() {
-		return "BundleContents" + this.stacks;
+		return "BundleContents" + stacks;
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final List<ItemStack> stacks;
@@ -198,135 +157,100 @@ public final class BundleContentsComponent implements TooltipData {
 		private int selectedStackIndex;
 
 		public Builder(BundleContentsComponent base) {
-			this.stacks = new ArrayList<>(base.stacks);
-			this.occupancy = base.occupancy;
-			this.selectedStackIndex = base.selectedStackIndex;
+			stacks = new ArrayList<>(base.stacks);
+			occupancy = base.occupancy;
+			selectedStackIndex = base.selectedStackIndex;
 		}
 
 		public BundleContentsComponent.Builder clear() {
-			this.stacks.clear();
-			this.occupancy = Fraction.ZERO;
-			this.selectedStackIndex = -1;
+			stacks.clear();
+			occupancy = Fraction.ZERO;
+			selectedStackIndex = NO_SELECTED_SLOT;
 			return this;
 		}
 
 		private int getInsertionIndex(ItemStack stack) {
 			if (!stack.isStackable()) {
-				return -1;
+				return NO_SELECTED_SLOT;
 			}
-			else {
-				for (int i = 0; i < this.stacks.size(); i++) {
-					if (ItemStack.areItemsAndComponentsEqual(this.stacks.get(i), stack)) {
-						return i;
-					}
-				}
 
-				return -1;
+			for (int i = 0; i < stacks.size(); i++) {
+				if (ItemStack.areItemsAndComponentsEqual(stacks.get(i), stack)) {
+					return i;
+				}
 			}
+
+			return NO_SELECTED_SLOT;
 		}
 
 		private int getMaxAllowed(ItemStack stack) {
-			Fraction fraction = Fraction.ONE.subtract(this.occupancy);
-			return Math.max(fraction.divideBy(BundleContentsComponent.getOccupancy(stack)).intValue(), 0);
+			Fraction remaining = Fraction.ONE.subtract(occupancy);
+			return Math.max(remaining.divideBy(BundleContentsComponent.getOccupancy(stack)).intValue(), 0);
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param stack stack
-		 *
-		 * @return int — результат операции
-		 */
 		public int add(ItemStack stack) {
 			if (!BundleContentsComponent.canBeBundled(stack)) {
 				return 0;
 			}
-			else {
-				int i = Math.min(stack.getCount(), this.getMaxAllowed(stack));
-				if (i == 0) {
-					return 0;
-				}
-				else {
-					this.occupancy =
-							this.occupancy.add(BundleContentsComponent
-									.getOccupancy(stack)
-									.multiplyBy(Fraction.getFraction(i, 1)));
-					int j = this.getInsertionIndex(stack);
-					if (j != -1) {
-						ItemStack itemStack = this.stacks.remove(j);
-						ItemStack itemStack2 = itemStack.copyWithCount(itemStack.getCount() + i);
-						stack.decrement(i);
-						this.stacks.add(0, itemStack2);
-					}
-					else {
-						this.stacks.add(0, stack.split(i));
-					}
 
-					return i;
-				}
+			int toAdd = Math.min(stack.getCount(), getMaxAllowed(stack));
+			if (toAdd == 0) {
+				return 0;
 			}
+
+			occupancy = occupancy.add(BundleContentsComponent.getOccupancy(stack).multiplyBy(Fraction.getFraction(toAdd, 1)));
+			int insertionIndex = getInsertionIndex(stack);
+
+			if (insertionIndex != NO_SELECTED_SLOT) {
+				ItemStack existing = stacks.remove(insertionIndex);
+				ItemStack merged = existing.copyWithCount(existing.getCount() + toAdd);
+				stack.decrement(toAdd);
+				stacks.add(0, merged);
+			} else {
+				stacks.add(0, stack.split(toAdd));
+			}
+
+			return toAdd;
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param slot slot
-		 * @param player player
-		 *
-		 * @return int — результат операции
-		 */
 		public int add(Slot slot, PlayerEntity player) {
-			ItemStack itemStack = slot.getStack();
-			int i = this.getMaxAllowed(itemStack);
-			return BundleContentsComponent.canBeBundled(itemStack) ? this.add(slot.takeStackRange(
-					itemStack.getCount(),
-					i,
-					player
-			)) : 0;
+			ItemStack slotStack = slot.getStack();
+			int maxAllowed = getMaxAllowed(slotStack);
+			return BundleContentsComponent.canBeBundled(slotStack)
+				? add(slot.takeStackRange(slotStack.getCount(), maxAllowed, player))
+				: 0;
 		}
 
-		public void setSelectedStackIndex(int selectedStackIndex) {
-			this.selectedStackIndex =
-					this.selectedStackIndex != selectedStackIndex && !this.isOutOfBounds(selectedStackIndex)
-					? selectedStackIndex : -1;
+		public void setSelectedStackIndex(int index) {
+			selectedStackIndex = selectedStackIndex != index && !isOutOfBounds(index)
+				? index
+				: NO_SELECTED_SLOT;
 		}
 
 		private boolean isOutOfBounds(int index) {
-			return index < 0 || index >= this.stacks.size();
+			return index < 0 || index >= stacks.size();
 		}
 
-		/**
-		 * Удаляет selected.
-		 *
-		 * @return @Nullable ItemStack — результат операции
-		 */
 		public @Nullable ItemStack removeSelected() {
-			if (this.stacks.isEmpty()) {
+			if (stacks.isEmpty()) {
 				return null;
 			}
-			else {
-				int i = this.isOutOfBounds(this.selectedStackIndex) ? 0 : this.selectedStackIndex;
-				ItemStack itemStack = this.stacks.remove(i).copy();
-				this.occupancy =
-						this.occupancy.subtract(BundleContentsComponent
-								.getOccupancy(itemStack)
-								.multiplyBy(Fraction.getFraction(itemStack.getCount(), 1)));
-				this.setSelectedStackIndex(-1);
-				return itemStack;
-			}
+
+			int removeIndex = isOutOfBounds(selectedStackIndex) ? 0 : selectedStackIndex;
+			ItemStack removed = stacks.remove(removeIndex).copy();
+			occupancy = occupancy.subtract(
+					BundleContentsComponent.getOccupancy(removed).multiplyBy(Fraction.getFraction(removed.getCount(), 1))
+			);
+			setSelectedStackIndex(NO_SELECTED_SLOT);
+			return removed;
 		}
 
 		public Fraction getOccupancy() {
-			return this.occupancy;
+			return occupancy;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return BundleContentsComponent — результат операции
-		 */
 		public BundleContentsComponent build() {
-			return new BundleContentsComponent(List.copyOf(this.stacks), this.occupancy, this.selectedStackIndex);
+			return new BundleContentsComponent(List.copyOf(stacks), occupancy, selectedStackIndex);
 		}
 	}
 }

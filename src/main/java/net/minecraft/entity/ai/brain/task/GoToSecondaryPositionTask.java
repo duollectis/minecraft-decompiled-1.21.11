@@ -9,9 +9,12 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import java.util.List;
 
 /**
- * {@code GoToSecondaryPositionTask}.
+ * Фабричный класс задачи мозга, направляющей жителя к одной из вторичных точек интереса.
+ * Активируется только когда житель находится рядом с основной позицией.
  */
 public class GoToSecondaryPositionTask {
+
+	private static final long UPDATE_INTERVAL = 100L;
 
 	public static Task<VillagerEntity> create(
 			MemoryModuleType<List<GlobalPos>> secondaryPositions,
@@ -20,7 +23,7 @@ public class GoToSecondaryPositionTask {
 			int primaryPositionActivationDistance,
 			MemoryModuleType<GlobalPos> primaryPosition
 	) {
-		MutableLong mutableLong = new MutableLong(0L);
+		MutableLong nextUpdateTime = new MutableLong(0L);
 		return TaskTriggerer.task(
 				context -> context.group(
 						                  context.queryMemoryOptional(MemoryModuleType.WALK_TARGET),
@@ -30,38 +33,34 @@ public class GoToSecondaryPositionTask {
 				                  .apply(
 						                  context,
 						                  (walkTarget, secondary, primary) -> (world, entity, time) -> {
-							                  List<GlobalPos> list = context.getValue(secondary);
-							                  GlobalPos globalPos = context.getValue(primary);
-							                  if (list.isEmpty()) {
+							                  List<GlobalPos> positions = context.getValue(secondary);
+							                  GlobalPos primaryPos = context.getValue(primary);
+
+							                  if (positions.isEmpty()) {
 								                  return false;
 							                  }
-							                  else {
-								                  GlobalPos
-										                  globalPos2 =
-										                  list.get(world.getRandom().nextInt(list.size()));
-								                  if (globalPos2 != null
-										                  && world.getRegistryKey() == globalPos2.dimension()
-										                  && globalPos
-										                  .pos()
-										                  .isWithinDistance(
-												                  entity.getEntityPos(),
-												                  primaryPositionActivationDistance
-										                  )) {
-									                  if (time > mutableLong.longValue()) {
-										                  walkTarget.remember(new WalkTarget(
-												                  globalPos2.pos(),
-												                  speed,
-												                  completionRange
-										                  ));
-										                  mutableLong.setValue(time + 100L);
-									                  }
 
-									                  return true;
-								                  }
-								                  else {
-									                  return false;
-								                  }
+							                  GlobalPos secondaryPos = positions.get(world.getRandom().nextInt(positions.size()));
+
+							                  if (secondaryPos == null
+									                  || world.getRegistryKey() != secondaryPos.dimension()
+									                  || !primaryPos.pos().isWithinDistance(
+									                  entity.getEntityPos(),
+									                  primaryPositionActivationDistance
+							                  )) {
+								                  return false;
 							                  }
+
+							                  if (time > nextUpdateTime.longValue()) {
+								                  walkTarget.remember(new WalkTarget(
+										                  secondaryPos.pos(),
+										                  speed,
+										                  completionRange
+								                  ));
+								                  nextUpdateTime.setValue(time + UPDATE_INTERVAL);
+							                  }
+
+							                  return true;
 						                  }
 				                  )
 		);

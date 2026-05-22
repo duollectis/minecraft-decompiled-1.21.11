@@ -10,13 +10,18 @@ import net.minecraft.client.sound.SoundManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.ColorHelper;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code NarratedMultilineTextWidget}.
+ * Многострочный текстовый виджет с нарративным описанием, опциональным фоном и рамкой.
+ * Поддерживает три режима отрисовки фона через {@link BackgroundRendering}.
  */
+@Environment(EnvType.CLIENT)
 public class NarratedMultilineTextWidget extends MultilineTextWidget {
 
+	private static final int LINE_HEIGHT = 9;
+	private static final int NO_CUSTOM_WIDTH = -1;
+
 	public static final int DEFAULT_MARGIN = 4;
+
 	private final int margin;
 	private final int customWidth;
 	private final boolean alwaysShowBorders;
@@ -31,52 +36,39 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 			boolean alwaysShowBorders
 	) {
 		super(text, textRenderer);
-		this.active = true;
+		active = true;
 		this.margin = margin;
 		this.customWidth = customWidth;
 		this.alwaysShowBorders = alwaysShowBorders;
 		this.backgroundRendering = backgroundRendering;
-		this.updateWidth();
-		this.updateHeight();
-		this.setCentered(true);
+		updateWidth();
+		updateHeight();
+		setCentered(true);
 	}
 
 	@Override
 	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, this.getMessage());
+		builder.put(NarrationPart.TITLE, getMessage());
 	}
 
 	@Override
 	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		int
-				i =
-				this.alwaysShowBorders && !this.isFocused() ? ColorHelper.withAlpha(this.alpha, -6250336)
-				                                            : ColorHelper.getWhite(this.alpha);
-		switch (this.backgroundRendering) {
-			case ALWAYS:
-				context.fill(
-						this.getX() + 1,
-						this.getY(),
-						this.getRight(),
-						this.getBottom(),
-						ColorHelper.toAlpha(this.alpha)
-				);
-				break;
-			case ON_FOCUS:
-				if (this.isFocused()) {
-					context.fill(
-							this.getX() + 1,
-							this.getY(),
-							this.getRight(),
-							this.getBottom(),
-							ColorHelper.toAlpha(this.alpha)
-					);
+		int borderColor = alwaysShowBorders && !isFocused()
+				? ColorHelper.withAlpha(alpha, -6250336)
+				: ColorHelper.getWhite(alpha);
+
+		switch (backgroundRendering) {
+			case ALWAYS -> context.fill(getX() + 1, getY(), getRight(), getBottom(), ColorHelper.toAlpha(alpha));
+			case ON_FOCUS -> {
+				if (isFocused()) {
+					context.fill(getX() + 1, getY(), getRight(), getBottom(), ColorHelper.toAlpha(alpha));
 				}
-			case NEVER:
+			}
+			case NEVER -> {}
 		}
 
-		if (this.isFocused() || this.alwaysShowBorders) {
-			context.drawStrokedRectangle(this.getX(), this.getY(), this.getWidth(), this.getHeight(), i);
+		if (isFocused() || alwaysShowBorders) {
+			context.drawStrokedRectangle(getX(), getY(), getWidth(), getHeight(), borderColor);
 		}
 
 		super.renderWidget(context, mouseX, mouseY, deltaTicks);
@@ -84,67 +76,56 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 
 	@Override
 	protected int getTextX() {
-		return this.getX() + this.margin;
+		return getX() + margin;
 	}
 
 	@Override
 	protected int getTextY() {
-		return super.getTextY() + this.margin;
+		return super.getTextY() + margin;
 	}
 
 	@Override
 	public MultilineTextWidget setMaxWidth(int maxWidth) {
-		return super.setMaxWidth(maxWidth - this.margin * 2);
+		return super.setMaxWidth(maxWidth - margin * 2);
 	}
 
 	@Override
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	@Override
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
-	public int getMArgin() {
-		return this.margin;
+	public int getMargin() {
+		return margin;
 	}
 
-	/**
-	 * Обновляет width.
-	 */
 	public void updateWidth() {
-		if (this.customWidth != -1) {
-			this.setWidth(this.customWidth);
-			this.setMaxWidth(this.customWidth);
+		if (customWidth != NO_CUSTOM_WIDTH) {
+			setWidth(customWidth);
+			setMaxWidth(customWidth);
 		}
 		else {
-			this.setWidth(this.getTextRenderer().getWidth(this.getMessage()) + this.margin * 2);
+			setWidth(getTextRenderer().getWidth(getMessage()) + margin * 2);
 		}
 	}
 
-	/**
-	 * Обновляет height.
-	 */
 	public void updateHeight() {
-		int i = 9 * this.getTextRenderer().wrapLines(this.getMessage(), super.getWidth()).size();
-		this.setHeight(i + this.margin * 2);
+		int textHeight = LINE_HEIGHT * getTextRenderer().wrapLines(getMessage(), super.getWidth()).size();
+		setHeight(textHeight + margin * 2);
 	}
 
 	@Override
 	public void setMessage(Text message) {
 		this.message = message;
-		int i;
-		if (this.customWidth != -1) {
-			i = this.customWidth;
-		}
-		else {
-			i = this.getTextRenderer().getWidth(message) + this.margin * 2;
-		}
-
-		this.setWidth(i);
-		this.updateHeight();
+		int newWidth = customWidth != NO_CUSTOM_WIDTH
+				? customWidth
+				: getTextRenderer().getWidth(message) + margin * 2;
+		setWidth(newWidth);
+		updateHeight();
 	}
 
 	@Override
@@ -160,32 +141,27 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code BackgroundRendering}.
-	 */
-	public static enum BackgroundRendering {
+	public enum BackgroundRendering {
 		ALWAYS,
 		ON_FOCUS,
-		NEVER;
+		NEVER
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link NarratedMultilineTextWidget}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder {
 
 		private final Text text;
 		private final TextRenderer textRenderer;
 		private final int margin;
-		private int customWidth = -1;
+		private int customWidth = NO_CUSTOM_WIDTH;
 		private boolean alwaysShowBorders = true;
-		private NarratedMultilineTextWidget.BackgroundRendering
-				backgroundRendering =
-				NarratedMultilineTextWidget.BackgroundRendering.ALWAYS;
+		private NarratedMultilineTextWidget.BackgroundRendering backgroundRendering = BackgroundRendering.ALWAYS;
 
 		Builder(Text text, TextRenderer textRenderer) {
-			this(text, textRenderer, 4);
+			this(text, textRenderer, DEFAULT_MARGIN);
 		}
 
 		Builder(Text text, TextRenderer textRenderer, int margin) {
@@ -195,12 +171,12 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 		}
 
 		public NarratedMultilineTextWidget.Builder width(int width) {
-			this.customWidth = width;
+			customWidth = width;
 			return this;
 		}
 
 		public NarratedMultilineTextWidget.Builder innerWidth(int width) {
-			this.customWidth = width + this.margin * 2;
+			customWidth = width + margin * 2;
 			return this;
 		}
 
@@ -214,19 +190,14 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return NarratedMultilineTextWidget — результат операции
-		 */
 		public NarratedMultilineTextWidget build() {
 			return new NarratedMultilineTextWidget(
-					this.text,
-					this.textRenderer,
-					this.margin,
-					this.customWidth,
-					this.backgroundRendering,
-					this.alwaysShowBorders
+					text,
+					textRenderer,
+					margin,
+					customWidth,
+					backgroundRendering,
+					alwaysShowBorders
 			);
 		}
 	}

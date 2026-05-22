@@ -8,18 +8,19 @@ import javax.crypto.Cipher;
 import java.util.List;
 
 /**
- * Класс packet decryptor.
+ * Netty-обработчик входящего трафика: дешифрует каждый входящий {@link ByteBuf}
+ * с помощью {@link PacketEncryptionManager}.
  */
 public class PacketDecryptor extends MessageToMessageDecoder<ByteBuf> {
 
 	private final PacketEncryptionManager manager;
 
 	public PacketDecryptor(Cipher cipher) {
-		this.manager = new PacketEncryptionManager(cipher);
+		manager = new PacketEncryptionManager(cipher);
 	}
 
-	protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, List<Object> list)
-	throws Exception {
-		list.add(this.manager.decrypt(channelHandlerContext, byteBuf));
+	@Override
+	protected void decode(ChannelHandlerContext context, ByteBuf buf, List<Object> out) throws Exception {
+		out.add(manager.decrypt(context, buf));
 	}
 }

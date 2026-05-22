@@ -22,73 +22,75 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 /**
- * {@code SnbtProvider}.
+ * Провайдер данных для конвертации SNBT-файлов в сжатые NBT-файлы.
+ * Рекурсивно обходит входные директории, находит файлы {@code *.snbt},
+ * применяет зарегистрированные {@link Tweaker}-ы и записывает результат как {@code *.nbt}.
  */
 public class SnbtProvider implements DataProvider {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final DataOutput output;
 	private final Iterable<Path> paths;
-	private final List<SnbtProvider.Tweaker> write = Lists.newArrayList();
+	private final List<Tweaker> tweakers = Lists.newArrayList();
 
 	public SnbtProvider(DataOutput output, Iterable<Path> paths) {
 		this.output = output;
 		this.paths = paths;
 	}
 
-	public SnbtProvider addWriter(SnbtProvider.Tweaker tweaker) {
-		this.write.add(tweaker);
+	public SnbtProvider addWriter(Tweaker tweaker) {
+		tweakers.add(tweaker);
 		return this;
 	}
 
-	private NbtCompound write(String key, NbtCompound compound) {
-		NbtCompound nbtCompound = compound;
+	private NbtCompound applyTweakers(String key, NbtCompound compound) {
+		NbtCompound result = compound;
 
-		for (SnbtProvider.Tweaker tweaker : this.write) {
-			nbtCompound = tweaker.write(key, nbtCompound);
+		for (Tweaker tweaker : tweakers) {
+			result = tweaker.write(key, result);
 		}
 
-		return nbtCompound;
+		return result;
 	}
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		Path path = this.output.getPath();
-		List<CompletableFuture<?>> list = Lists.newArrayList();
+		Path outputPath = output.getPath();
+		List<CompletableFuture<?>> futures = Lists.newArrayList();
 
-		for (Path path2 : this.paths) {
-			list.add(CompletableFuture.<CompletableFuture>supplyAsync(
-					() -> {
-						try {
-							CompletableFuture var5x;
-							try (Stream<Path> stream = Files.walk(path2)) {
-								var5x =
-										CompletableFuture.allOf(stream
-												.filter(pathxx -> pathxx.toString().endsWith(".snbt"))
-												.map(pathxx -> CompletableFuture.runAsync(
-														() -> {
-															SnbtProvider.CompressedData
-																	compressedData =
-																	this.toCompressedNbt(
-																			pathxx,
-																			this.getFileName(path2, pathxx)
-																	);
-															this.write(writer, compressedData, path);
-														}, Util.getMainWorkerExecutor().named("SnbtToNbt")
-												))
-												.toArray(CompletableFuture[]::new));
-							}
-
-							return var5x;
-						}
-						catch (Exception var9) {
-							throw new RuntimeException("Failed to read structure input directory, aborting", var9);
-						}
-					}, Util.getMainWorkerExecutor().named("SnbtToNbt")
-			).thenCompose(future -> future));
+		for (Path inputPath : paths) {
+			futures.add(
+					CompletableFuture.<CompletableFuture<?>>supplyAsync(
+							() -> {
+								try (Stream<Path> stream = Files.walk(inputPath)) {
+									return CompletableFuture.allOf(
+											stream
+													.filter(file -> file.toString().endsWith(".snbt"))
+													.map(file -> CompletableFuture.runAsync(
+															() -> {
+																CompressedData compressedData = toCompressedNbt(
+																		file,
+																		getFileName(inputPath, file)
+																);
+																writeNbt(writer, compressedData, outputPath);
+															},
+															Util.getMainWorkerExecutor().named("SnbtToNbt")
+													))
+													.toArray(CompletableFuture[]::new)
+									);
+								} catch (Exception exception) {
+									throw new RuntimeException(
+											"Failed to read structure input directory, aborting", exception
+									);
+								}
+							},
+							Util.getMainWorkerExecutor().named("SnbtToNbt")
+					).thenCompose(future -> future)
+			);
 		}
 
-		return Util.combine(list);
+		return Util.combine(futures);
 	}
 
 	@Override
@@ -97,53 +99,38 @@ public class SnbtProvider implements DataProvider {
 	}
 
 	private String getFileName(Path root, Path file) {
-		String string = root.relativize(file).toString().replaceAll("\\\\", "/");
-		return string.substring(0, string.length() - ".snbt".length());
+		String relativePath = root.relativize(file).toString().replaceAll("\\\\", "/");
+		return relativePath.substring(0, relativePath.length() - ".snbt".length());
 	}
 
-	private SnbtProvider.CompressedData toCompressedNbt(Path path, String name) {
-		try {
-			SnbtProvider.CompressedData var10;
-			try (BufferedReader bufferedReader = Files.newBufferedReader(path)) {
-				String string = IOUtils.toString(bufferedReader);
-				NbtCompound nbtCompound = this.write(name, NbtHelper.fromNbtProviderString(string));
-				ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-				HashingOutputStream
-						hashingOutputStream =
-						new HashingOutputStream(Hashing.sha1(), byteArrayOutputStream);
-				NbtIo.writeCompressed(nbtCompound, hashingOutputStream);
-				byte[] bs = byteArrayOutputStream.toByteArray();
-				HashCode hashCode = hashingOutputStream.hash();
-				var10 = new SnbtProvider.CompressedData(name, bs, hashCode);
-			}
-
-			return var10;
-		}
-		catch (Throwable var13) {
-			throw new SnbtProvider.CompressionException(path, var13);
+	private CompressedData toCompressedNbt(Path path, String name) {
+		try (BufferedReader reader = Files.newBufferedReader(path)) {
+			String snbtContent = IOUtils.toString(reader);
+			NbtCompound nbtCompound = applyTweakers(name, NbtHelper.fromNbtProviderString(snbtContent));
+			ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+			HashingOutputStream hashingOutput = new HashingOutputStream(Hashing.sha1(), byteOutput);
+			NbtIo.writeCompressed(nbtCompound, hashingOutput);
+			byte[] bytes = byteOutput.toByteArray();
+			HashCode hashCode = hashingOutput.hash();
+			return new CompressedData(name, bytes, hashCode);
+		} catch (Throwable throwable) {
+			throw new CompressionException(path, throwable);
 		}
 	}
 
-	private void write(DataWriter cache, SnbtProvider.CompressedData data, Path root) {
-		Path path = root.resolve(data.name + ".nbt");
+	private void writeNbt(DataWriter writer, CompressedData data, Path root) {
+		Path outputPath = root.resolve(data.name + ".nbt");
 
 		try {
-			cache.write(path, data.bytes, data.sha1);
-		}
-		catch (IOException var6) {
-			LOGGER.error("Couldn't write structure {} at {}", new Object[]{data.name, path, var6});
+			writer.write(outputPath, data.bytes, data.sha1);
+		} catch (IOException exception) {
+			LOGGER.error("Couldn't write structure {} at {}", data.name, outputPath, exception);
 		}
 	}
 
-	/**
-	 * {@code CompressedData}.
-	 */
 	record CompressedData(String name, byte[] bytes, HashCode sha1) {
 	}
 
-	/**
-	 * {@code CompressionException}.
-	 */
 	static class CompressionException extends RuntimeException {
 
 		public CompressionException(Path path, Throwable cause) {
@@ -151,10 +138,11 @@ public class SnbtProvider implements DataProvider {
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code Tweaker}.
+	 * Функциональный интерфейс для постобработки NBT-данных перед записью.
+	 * Позволяет модифицировать или валидировать структуры (например, обновлять DataVersion).
 	 */
+	@FunctionalInterface
 	public interface Tweaker {
 
 		NbtCompound write(String name, NbtCompound nbt);

@@ -7,7 +7,7 @@ import net.minecraft.network.message.MessageType;
 import net.minecraft.server.PlayerManager;
 
 /**
- * {@code SayCommand}.
+ * Команда {@code /say}: отправка сообщения всем игрокам от имени сервера.
  */
 public class SayCommand {
 

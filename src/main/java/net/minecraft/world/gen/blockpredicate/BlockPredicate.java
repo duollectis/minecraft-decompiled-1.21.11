@@ -18,16 +18,15 @@ import java.util.List;
 import java.util.function.BiPredicate;
 
 /**
- * {@code BlockPredicate}.
+ * Предикат блока для генерации мира.
+ * Используется в условиях размещения фич и структур для проверки состояния блоков в мире.
  */
 public interface BlockPredicate extends BiPredicate<StructureWorldAccess, BlockPos> {
 
-	Codec<BlockPredicate>
-			BASE_CODEC =
-			Registries.BLOCK_PREDICATE_TYPE.getCodec().dispatch(BlockPredicate::getType, BlockPredicateType::codec);
+	Codec<BlockPredicate> BASE_CODEC =
+		Registries.BLOCK_PREDICATE_TYPE.getCodec().dispatch(BlockPredicate::getType, BlockPredicateType::codec);
 
 	BlockPredicate IS_AIR = matchingBlocks(Blocks.AIR);
-
 	BlockPredicate IS_AIR_OR_WATER = matchingBlocks(Blocks.AIR, Blocks.WATER);
 
 	BlockPredicateType<?> getType();
@@ -76,8 +75,8 @@ public interface BlockPredicate extends BiPredicate<StructureWorldAccess, BlockP
 		return new MatchingBlockTagPredicate(offset, tag);
 	}
 
-	static BlockPredicate matchingBlockTag(TagKey<Block> offset) {
-		return matchingBlockTag(Vec3i.ZERO, offset);
+	static BlockPredicate matchingBlockTag(TagKey<Block> tag) {
+		return matchingBlockTag(Vec3i.ZERO, tag);
 	}
 
 	static BlockPredicate matchingFluids(Vec3i offset, List<Fluid> fluids) {

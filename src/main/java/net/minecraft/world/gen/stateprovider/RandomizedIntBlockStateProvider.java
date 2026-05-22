@@ -15,23 +15,25 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@code RandomizedIntBlockStateProvider}.
+ * Поставщик состояний блоков, случайно изменяющий целочисленное свойство блока.
+ * Делегирует выбор базового блока {@code source}, затем применяет случайное значение
+ * из диапазона {@code values} к свойству с именем {@code propertyName}.
  */
 public class RandomizedIntBlockStateProvider extends BlockStateProvider {
 
 	public static final MapCodec<RandomizedIntBlockStateProvider> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    BlockStateProvider.TYPE_CODEC
-							                    .fieldOf("source")
-							                    .forGetter(randomizedIntBlockStateProvider -> randomizedIntBlockStateProvider.source),
-					                    Codec.STRING
-							                    .fieldOf("property")
-							                    .forGetter(randomizedIntBlockStateProvider -> randomizedIntBlockStateProvider.propertyName),
-					                    IntProvider.VALUE_CODEC
-							                    .fieldOf("values")
-							                    .forGetter(randomizedIntBlockStateProvider -> randomizedIntBlockStateProvider.values)
-			                    )
-			                    .apply(instance, RandomizedIntBlockStateProvider::new)
+					BlockStateProvider.TYPE_CODEC
+							.fieldOf("source")
+							.forGetter(provider -> provider.source),
+					Codec.STRING
+							.fieldOf("property")
+							.forGetter(provider -> provider.propertyName),
+					IntProvider.VALUE_CODEC
+							.fieldOf("values")
+							.forGetter(provider -> provider.values)
+			)
+			.apply(instance, RandomizedIntBlockStateProvider::new)
 	);
 	private final BlockStateProvider source;
 	private final String propertyName;
@@ -43,11 +45,11 @@ public class RandomizedIntBlockStateProvider extends BlockStateProvider {
 		this.property = property;
 		this.propertyName = property.getName();
 		this.values = values;
-		Collection<Integer> collection = property.getValues();
+		Collection<Integer> validValues = property.getValues();
 
-		for (int i = values.getMin(); i <= values.getMax(); i++) {
-			if (!collection.contains(i)) {
-				throw new IllegalArgumentException("Property value out of range: " + property.getName() + ": " + i);
+		for (int value = values.getMin(); value <= values.getMax(); value++) {
+			if (!validValues.contains(value)) {
+				throw new IllegalArgumentException("Property value out of range: " + property.getName() + ": " + value);
 			}
 		}
 	}
@@ -65,26 +67,32 @@ public class RandomizedIntBlockStateProvider extends BlockStateProvider {
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		BlockState blockState = this.source.get(random, pos);
-		if (this.property == null || !blockState.contains(this.property)) {
-			IntProperty intProperty = getIntPropertyByName(blockState, this.propertyName);
-			if (intProperty == null) {
+		BlockState blockState = source.get(random, pos);
+
+		if (property == null || !blockState.contains(property)) {
+			IntProperty resolved = getIntPropertyByName(blockState, propertyName);
+
+			if (resolved == null) {
 				return blockState;
 			}
 
-			this.property = intProperty;
+			property = resolved;
 		}
 
-		return blockState.with(this.property, this.values.get(random));
+		return blockState.with(property, values.get(random));
 	}
 
+	/**
+	 * Ищет свойство типа {@link IntProperty} по имени среди свойств данного состояния блока.
+	 * Используется для ленивой инициализации поля {@code property} при первом вызове {@code get}.
+	 */
 	private static @Nullable IntProperty getIntPropertyByName(BlockState state, String propertyName) {
-		Collection<Property<?>> collection = state.getProperties();
-		Optional<IntProperty> optional = collection.stream()
-		                                           .filter(property -> property.getName().equals(propertyName))
-		                                           .filter(property -> property instanceof IntProperty)
-		                                           .map(property -> (IntProperty) property)
-		                                           .findAny();
-		return optional.orElse(null);
+		return state.getProperties()
+				.stream()
+				.filter(property -> property.getName().equals(propertyName))
+				.filter(property -> property instanceof IntProperty)
+				.map(property -> (IntProperty) property)
+				.findAny()
+				.orElse(null);
 	}
 }

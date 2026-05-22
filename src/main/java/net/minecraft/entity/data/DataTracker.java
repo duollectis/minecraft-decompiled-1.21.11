@@ -15,13 +15,16 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * {@code DataTracker}.
+ * Хранилище синхронизируемых данных сущности.
+ * Каждое поле регистрируется через {@link #registerData} и получает уникальный числовой id.
+ * Изменения помечаются как «грязные» и отправляются клиенту при следующей синхронизации.
  */
 public class DataTracker {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int MAX_DATA_VALUE_ID = 254;
 	static final Class2IntMap CLASS_TO_LAST_ID = new Class2IntMap();
+
 	private final DataTracked trackedEntity;
 	private final DataTracker.Entry<?>[] entries;
 	private boolean dirty;
@@ -31,131 +34,122 @@ public class DataTracker {
 		this.entries = entries;
 	}
 
+	/**
+	 * Регистрирует новое отслеживаемое поле для указанного класса сущности.
+	 * Метод должен вызываться строго из статического инициализатора того же класса,
+	 * что передаётся в {@code entityClass}, иначе в debug-режиме будет залогировано предупреждение.
+	 *
+	 * @param entityClass класс сущности, которому принадлежит поле
+	 * @param dataHandler обработчик сериализации типа поля
+	 * @return дескриптор зарегистрированного поля
+	 * @throws IllegalArgumentException если превышен лимит {@value MAX_DATA_VALUE_ID} полей
+	 */
 	public static <T> TrackedData<T> registerData(
 			Class<? extends DataTracked> entityClass,
 			TrackedDataHandler<T> dataHandler
 	) {
 		if (LOGGER.isDebugEnabled()) {
 			try {
-				Class<?> class_ = Class.forName(Thread.currentThread().getStackTrace()[2].getClassName());
-				if (!class_.equals(entityClass)) {
+				Class<?> callerClass = Class.forName(Thread.currentThread().getStackTrace()[2].getClassName());
+				if (!callerClass.equals(entityClass)) {
 					LOGGER.debug(
 							"defineId called for: {} from {}",
-							new Object[]{entityClass, class_, new RuntimeException()}
+							new Object[]{entityClass, callerClass, new RuntimeException()}
 					);
 				}
-			}
-			catch (ClassNotFoundException var3) {
+			} catch (ClassNotFoundException ignored) {
 			}
 		}
 
-		int i = CLASS_TO_LAST_ID.put(entityClass);
-		if (i > 254) {
-			throw new IllegalArgumentException("Data value id is too big with " + i + "! (Max is 254)");
+		int nextId = CLASS_TO_LAST_ID.put(entityClass);
+		if (nextId > MAX_DATA_VALUE_ID) {
+			throw new IllegalArgumentException("Data value id is too big with " + nextId + "! (Max is 254)");
 		}
-		else {
-			return dataHandler.create(i);
-		}
+
+		return dataHandler.create(nextId);
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> DataTracker.Entry<T> getEntry(TrackedData<T> key) {
-		return (DataTracker.Entry<T>) this.entries[key.id()];
+		return (DataTracker.Entry<T>) entries[key.id()];
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param data data
-	 *
-	 * @return T — 
-	 */
 	public <T> T get(TrackedData<T> data) {
-		return this.getEntry(data).get();
+		return getEntry(data).get();
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param key key
-	 * @param value value
-	 *
-	 * @return void — результат операции
-	 */
 	public <T> void set(TrackedData<T> key, T value) {
-		this.set(key, value, false);
+		set(key, value, false);
 	}
 
 	/**
-	 * Set.
-	 *
-	 * @param key key
-	 * @param value value
-	 * @param force force
-	 *
-	 * @return void — результат операции
+	 * Устанавливает значение отслеживаемого поля.
+	 * Если {@code force} равен {@code false}, обновление происходит только при изменении значения.
 	 */
 	public <T> void set(TrackedData<T> key, T value, boolean force) {
-		DataTracker.Entry<T> entry = this.getEntry(key);
+		DataTracker.Entry<T> entry = getEntry(key);
 		if (force || ObjectUtils.notEqual(value, entry.get())) {
 			entry.set(value);
-			this.trackedEntity.onTrackedDataSet(key);
+			trackedEntity.onTrackedDataSet(key);
 			entry.setDirty(true);
-			this.dirty = true;
+			dirty = true;
 		}
 	}
 
 	public boolean isDirty() {
-		return this.dirty;
-	}
-
-	public @Nullable List<DataTracker.SerializedEntry<?>> getDirtyEntries() {
-		if (!this.dirty) {
-			return null;
-		}
-		else {
-			this.dirty = false;
-			List<DataTracker.SerializedEntry<?>> list = new ArrayList<>();
-
-			for (DataTracker.Entry<?> entry : this.entries) {
-				if (entry.isDirty()) {
-					entry.setDirty(false);
-					list.add(entry.toSerialized());
-				}
-			}
-
-			return list;
-		}
-	}
-
-	public @Nullable List<DataTracker.SerializedEntry<?>> getChangedEntries() {
-		List<DataTracker.SerializedEntry<?>> list = null;
-
-		for (DataTracker.Entry<?> entry : this.entries) {
-			if (!entry.isUnchanged()) {
-				if (list == null) {
-					list = new ArrayList<>();
-				}
-
-				list.add(entry.toSerialized());
-			}
-		}
-
-		return list;
+		return dirty;
 	}
 
 	/**
-	 * Записывает updated entries.
-	 *
-	 * @param entries entries
+	 * Возвращает список изменённых с последней синхронизации записей и сбрасывает флаги dirty.
+	 * Возвращает {@code null}, если изменений не было.
 	 */
+	public @Nullable List<DataTracker.SerializedEntry<?>> getDirtyEntries() {
+		if (!dirty) {
+			return null;
+		}
+
+		dirty = false;
+		List<DataTracker.SerializedEntry<?>> changed = new ArrayList<>();
+
+		for (DataTracker.Entry<?> entry : entries) {
+			if (entry.isDirty()) {
+				entry.setDirty(false);
+				changed.add(entry.toSerialized());
+			}
+		}
+
+		return changed;
+	}
+
+	/**
+	 * Возвращает список всех записей, значение которых отличается от начального.
+	 * Используется при первоначальной отправке данных новому клиенту.
+	 */
+	public @Nullable List<DataTracker.SerializedEntry<?>> getChangedEntries() {
+		List<DataTracker.SerializedEntry<?>> changed = null;
+
+		for (DataTracker.Entry<?> entry : entries) {
+			if (!entry.isUnchanged()) {
+				if (changed == null) {
+					changed = new ArrayList<>();
+				}
+
+				changed.add(entry.toSerialized());
+			}
+		}
+
+		return changed;
+	}
+
 	public void writeUpdatedEntries(List<DataTracker.SerializedEntry<?>> entries) {
 		for (DataTracker.SerializedEntry<?> serializedEntry : entries) {
 			DataTracker.Entry<?> entry = this.entries[serializedEntry.id];
-			this.copyToFrom(entry, serializedEntry);
-			this.trackedEntity.onTrackedDataSet(entry.getData());
+			copyToFrom(entry, serializedEntry);
+			trackedEntity.onTrackedDataSet(entry.getData());
 		}
 
-		this.trackedEntity.onDataTrackerUpdate(entries);
+		trackedEntity.onDataTrackerUpdate(entries);
 	}
 
 	private <T> void copyToFrom(DataTracker.Entry<T> to, DataTracker.SerializedEntry<?> from) {
@@ -165,7 +159,7 @@ public class DataTracker {
 							Locale.ROOT,
 							"Invalid entity data item type for field %d on entity %s: old=%s(%s), new=%s(%s)",
 							to.data.id(),
-							this.trackedEntity,
+							trackedEntity,
 							to.value,
 							to.value.getClass(),
 							from.value,
@@ -173,13 +167,14 @@ public class DataTracker {
 					)
 			);
 		}
-		else {
-			to.set((T) from.value);
-		}
+
+		to.set((T) from.value);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель {@link DataTracker}.
+	 * Все поля, зарегистрированные через {@link DataTracker#registerData}, должны быть добавлены
+	 * через {@link #add} до вызова {@link #build}.
 	 */
 	public static class Builder {
 
@@ -188,46 +183,43 @@ public class DataTracker {
 
 		public Builder(DataTracked entity) {
 			this.entity = entity;
-			this.entries = new DataTracker.Entry[DataTracker.CLASS_TO_LAST_ID.getNext(entity.getClass())];
+			entries = new DataTracker.Entry[DataTracker.CLASS_TO_LAST_ID.getNext(entity.getClass())];
 		}
 
 		public <T> DataTracker.Builder add(TrackedData<T> data, T value) {
-			int i = data.id();
-			if (i > this.entries.length) {
+			int dataId = data.id();
+			if (dataId > entries.length) {
 				throw new IllegalArgumentException(
-						"Data value id is too big with " + i + "! (Max is " + this.entries.length + ")");
+						"Data value id is too big with " + dataId + "! (Max is " + entries.length + ")");
 			}
-			else if (this.entries[i] != null) {
-				throw new IllegalArgumentException("Duplicate id value for " + i + "!");
+
+			if (entries[dataId] != null) {
+				throw new IllegalArgumentException("Duplicate id value for " + dataId + "!");
 			}
-			else if (TrackedDataHandlerRegistry.getId(data.dataType()) < 0) {
-				throw new IllegalArgumentException("Unregistered serializer " + data.dataType() + " for " + i + "!");
+
+			if (TrackedDataHandlerRegistry.getId(data.dataType()) < 0) {
+				throw new IllegalArgumentException(
+						"Unregistered serializer " + data.dataType() + " for " + dataId + "!");
 			}
-			else {
-				this.entries[data.id()] = new DataTracker.Entry<>(data, value);
-				return this;
-			}
+
+			entries[data.id()] = new DataTracker.Entry<>(data, value);
+			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return DataTracker — результат операции
-		 */
 		public DataTracker build() {
-			for (int i = 0; i < this.entries.length; i++) {
-				if (this.entries[i] == null) {
+			for (int index = 0; index < entries.length; index++) {
+				if (entries[index] == null) {
 					throw new IllegalStateException(
-							"Entity " + this.entity.getClass() + " has not defined synched data value " + i);
+							"Entity " + entity.getClass() + " has not defined synched data value " + index);
 				}
 			}
 
-			return new DataTracker(this.entity, this.entries);
+			return new DataTracker(entity, entries);
 		}
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Запись об одном отслеживаемом поле сущности.
 	 */
 	public static class Entry<T> {
 
@@ -238,34 +230,24 @@ public class DataTracker {
 
 		public Entry(TrackedData<T> data, T value) {
 			this.data = data;
-			this.initialValue = value;
+			initialValue = value;
 			this.value = value;
 		}
 
 		public TrackedData<T> getData() {
-			return this.data;
+			return data;
 		}
 
-		/**
-		 * Set.
-		 *
-		 * @param value value
-		 */
 		public void set(T value) {
 			this.value = value;
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @return T — 
-		 */
 		public T get() {
-			return this.value;
+			return value;
 		}
 
 		public boolean isDirty() {
-			return this.dirty;
+			return dirty;
 		}
 
 		public void setDirty(boolean dirty) {
@@ -273,50 +255,47 @@ public class DataTracker {
 		}
 
 		public boolean isUnchanged() {
-			return this.initialValue.equals(this.value);
+			return initialValue.equals(value);
 		}
 
 		public DataTracker.SerializedEntry<T> toSerialized() {
-			return DataTracker.SerializedEntry.of(this.data, this.value);
+			return DataTracker.SerializedEntry.of(data, value);
 		}
 	}
 
 	/**
-	 * {@code SerializedEntry}.
+	 * Сериализованное представление одной записи для передачи по сети.
 	 */
 	public record SerializedEntry<T>(int id, TrackedDataHandler<T> handler, T value) {
 
 		public static <T> DataTracker.SerializedEntry<T> of(TrackedData<T> data, T value) {
-			TrackedDataHandler<T> trackedDataHandler = data.dataType();
-			return new DataTracker.SerializedEntry<>(data.id(), trackedDataHandler, trackedDataHandler.copy(value));
+			TrackedDataHandler<T> handler = data.dataType();
+			return new DataTracker.SerializedEntry<>(data.id(), handler, handler.copy(value));
 		}
 
 		/**
-		 * Write.
-		 *
-		 * @param buf buf
+		 * Записывает запись в буфер пакета.
+		 * Формат: byte(id) + varint(handler_id) + encoded_value.
 		 */
 		public void write(RegistryByteBuf buf) {
-			int i = TrackedDataHandlerRegistry.getId(this.handler);
-			if (i < 0) {
-				throw new EncoderException("Unknown serializer type " + this.handler);
+			int handlerId = TrackedDataHandlerRegistry.getId(handler);
+			if (handlerId < 0) {
+				throw new EncoderException("Unknown serializer type " + handler);
 			}
-			else {
-				buf.writeByte(this.id);
-				buf.writeVarInt(i);
-				this.handler.codec().encode(buf, this.value);
-			}
+
+			buf.writeByte(id);
+			buf.writeVarInt(handlerId);
+			handler.codec().encode(buf, value);
 		}
 
 		public static DataTracker.SerializedEntry<?> fromBuf(RegistryByteBuf buf, int id) {
-			int i = buf.readVarInt();
-			TrackedDataHandler<?> trackedDataHandler = TrackedDataHandlerRegistry.get(i);
-			if (trackedDataHandler == null) {
-				throw new DecoderException("Unknown serializer type " + i);
+			int handlerId = buf.readVarInt();
+			TrackedDataHandler<?> handler = TrackedDataHandlerRegistry.get(handlerId);
+			if (handler == null) {
+				throw new DecoderException("Unknown serializer type " + handlerId);
 			}
-			else {
-				return fromBuf(buf, id, trackedDataHandler);
-			}
+
+			return fromBuf(buf, id, handler);
 		}
 
 		private static <T> DataTracker.SerializedEntry<T> fromBuf(

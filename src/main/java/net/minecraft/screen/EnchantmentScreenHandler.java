@@ -32,11 +32,33 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code EnchantmentScreenHandler}.
+ * Обработчик экрана стола зачарований.
+ * <p>
+ * Управляет двумя слотами (предмет + лазурит), вычисляет доступные уровни
+ * зачарований в зависимости от количества книжных полок вокруг стола
+ * и применяет выбранное зачарование при нажатии кнопки.
  */
 public class EnchantmentScreenHandler extends ScreenHandler {
 
+	private static final int ITEM_SLOT_INDEX = 0;
+	private static final int LAPIS_SLOT_INDEX = 1;
+	private static final int PLAYER_SLOTS_START = 2;
+	private static final int PLAYER_SLOTS_END = 38;
+	private static final int ENCHANTMENT_SLOT_COUNT = 3;
+	private static final int PROP_POWER_0 = 0;
+	private static final int PROP_POWER_1 = 1;
+	private static final int PROP_POWER_2 = 2;
+	private static final int PROP_SEED = 3;
+	private static final int PROP_ID_0 = 4;
+	private static final int PROP_ID_1 = 5;
+	private static final int PROP_ID_2 = 6;
+	private static final int PROP_LEVEL_0 = 7;
+	private static final int PROP_LEVEL_1 = 8;
+	private static final int PROP_LEVEL_2 = 9;
+	private static final int NO_ENCHANTMENT = -1;
+
 	static final Identifier EMPTY_LAPIS_LAZULI_SLOT_TEXTURE = Identifier.ofVanilla("container/slot/lapis_lazuli");
+
 	private final Inventory inventory = new SimpleInventory(2) {
 		@Override
 		public void markDirty() {
@@ -47,9 +69,9 @@ public class EnchantmentScreenHandler extends ScreenHandler {
 	private final ScreenHandlerContext context;
 	private final Random random = Random.create();
 	private final Property seed = Property.create();
-	public final int[] enchantmentPower = new int[3];
-	public final int[] enchantmentId = new int[]{-1, -1, -1};
-	public final int[] enchantmentLevel = new int[]{-1, -1, -1};
+	public final int[] enchantmentPower = new int[ENCHANTMENT_SLOT_COUNT];
+	public final int[] enchantmentId = new int[]{NO_ENCHANTMENT, NO_ENCHANTMENT, NO_ENCHANTMENT};
+	public final int[] enchantmentLevel = new int[]{NO_ENCHANTMENT, NO_ENCHANTMENT, NO_ENCHANTMENT};
 
 	public EnchantmentScreenHandler(int syncId, PlayerInventory playerInventory) {
 		this(syncId, playerInventory, ScreenHandlerContext.EMPTY);
@@ -58,13 +80,13 @@ public class EnchantmentScreenHandler extends ScreenHandler {
 	public EnchantmentScreenHandler(int syncId, PlayerInventory playerInventory, ScreenHandlerContext context) {
 		super(ScreenHandlerType.ENCHANTMENT, syncId);
 		this.context = context;
-		this.addSlot(new Slot(this.inventory, 0, 15, 47) {
+		addSlot(new Slot(inventory, ITEM_SLOT_INDEX, 15, 47) {
 			@Override
 			public int getMaxItemCount() {
 				return 1;
 			}
 		});
-		this.addSlot(new Slot(this.inventory, 1, 35, 47) {
+		addSlot(new Slot(inventory, LAPIS_SLOT_INDEX, 35, 47) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return stack.isOf(Items.LAPIS_LAZULI);
@@ -75,254 +97,276 @@ public class EnchantmentScreenHandler extends ScreenHandler {
 				return EnchantmentScreenHandler.EMPTY_LAPIS_LAZULI_SLOT_TEXTURE;
 			}
 		});
-		this.addPlayerSlots(playerInventory, 8, 84);
-		this.addProperty(Property.create(this.enchantmentPower, 0));
-		this.addProperty(Property.create(this.enchantmentPower, 1));
-		this.addProperty(Property.create(this.enchantmentPower, 2));
-		this.addProperty(this.seed).set(playerInventory.player.getEnchantingTableSeed());
-		this.addProperty(Property.create(this.enchantmentId, 0));
-		this.addProperty(Property.create(this.enchantmentId, 1));
-		this.addProperty(Property.create(this.enchantmentId, 2));
-		this.addProperty(Property.create(this.enchantmentLevel, 0));
-		this.addProperty(Property.create(this.enchantmentLevel, 1));
-		this.addProperty(Property.create(this.enchantmentLevel, 2));
+		addPlayerSlots(playerInventory, 8, 84);
+		addProperty(Property.create(enchantmentPower, 0));
+		addProperty(Property.create(enchantmentPower, 1));
+		addProperty(Property.create(enchantmentPower, 2));
+		addProperty(seed).set(playerInventory.player.getEnchantingTableSeed());
+		addProperty(Property.create(enchantmentId, 0));
+		addProperty(Property.create(enchantmentId, 1));
+		addProperty(Property.create(enchantmentId, 2));
+		addProperty(Property.create(enchantmentLevel, 0));
+		addProperty(Property.create(enchantmentLevel, 1));
+		addProperty(Property.create(enchantmentLevel, 2));
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
-		if (inventory == this.inventory) {
-			ItemStack itemStack = inventory.getStack(0);
-			if (!itemStack.isEmpty() && itemStack.isEnchantable()) {
-				this.context
-						.run(
-								(world, pos) -> {
-									IndexedIterable<RegistryEntry<Enchantment>>
-											indexedIterable =
-											world.getRegistryManager()
-											     .getOrThrow(RegistryKeys.ENCHANTMENT)
-											     .getIndexedEntries();
-									int ix = 0;
+		if (inventory != this.inventory) {
+			return;
+		}
 
-									for (BlockPos blockPos : EnchantingTableBlock.POWER_PROVIDER_OFFSETS) {
-										if (EnchantingTableBlock.canAccessPowerProvider(world, pos, blockPos)) {
-											ix++;
-										}
-									}
+		ItemStack itemStack = inventory.getStack(ITEM_SLOT_INDEX);
 
-									this.random.setSeed(this.seed.get());
-
-									for (int j = 0; j < 3; j++) {
-										this.enchantmentPower[j] =
-												EnchantmentHelper.calculateRequiredExperienceLevel(
-														this.random,
-														j,
-														ix,
-														itemStack
-												);
-										this.enchantmentId[j] = -1;
-										this.enchantmentLevel[j] = -1;
-										if (this.enchantmentPower[j] < j + 1) {
-											this.enchantmentPower[j] = 0;
-										}
-									}
-
-									for (int jx = 0; jx < 3; jx++) {
-										if (this.enchantmentPower[jx] > 0) {
-											List<EnchantmentLevelEntry>
-													list =
-													this.generateEnchantments(
-															world.getRegistryManager(),
-															itemStack,
-															jx,
-															this.enchantmentPower[jx]
-													);
-											if (!list.isEmpty()) {
-												EnchantmentLevelEntry
-														enchantmentLevelEntry =
-														list.get(this.random.nextInt(list.size()));
-												this.enchantmentId[jx] =
-														indexedIterable.getRawId(enchantmentLevelEntry.enchantment());
-												this.enchantmentLevel[jx] = enchantmentLevelEntry.level();
-											}
-										}
-									}
-
-									this.sendContentUpdates();
-								}
-						);
+		if (itemStack.isEmpty() || !itemStack.isEnchantable()) {
+			for (int slot = 0; slot < ENCHANTMENT_SLOT_COUNT; slot++) {
+				enchantmentPower[slot] = 0;
+				enchantmentId[slot] = NO_ENCHANTMENT;
+				enchantmentLevel[slot] = NO_ENCHANTMENT;
 			}
-			else {
-				for (int i = 0; i < 3; i++) {
-					this.enchantmentPower[i] = 0;
-					this.enchantmentId[i] = -1;
-					this.enchantmentLevel[i] = -1;
+
+			return;
+		}
+
+		context.run((world, pos) -> {
+			IndexedIterable<RegistryEntry<Enchantment>> indexedEntries = world.getRegistryManager()
+					.getOrThrow(RegistryKeys.ENCHANTMENT)
+					.getIndexedEntries();
+
+			int bookshelfCount = 0;
+
+			for (BlockPos offset : EnchantingTableBlock.POWER_PROVIDER_OFFSETS) {
+				if (EnchantingTableBlock.canAccessPowerProvider(world, pos, offset)) {
+					bookshelfCount++;
 				}
 			}
-		}
+
+			random.setSeed(seed.get());
+
+			for (int slot = 0; slot < ENCHANTMENT_SLOT_COUNT; slot++) {
+				enchantmentPower[slot] = EnchantmentHelper.calculateRequiredExperienceLevel(
+						random,
+						slot,
+						bookshelfCount,
+						itemStack
+				);
+				enchantmentId[slot] = NO_ENCHANTMENT;
+				enchantmentLevel[slot] = NO_ENCHANTMENT;
+
+				if (enchantmentPower[slot] < slot + 1) {
+					enchantmentPower[slot] = 0;
+				}
+			}
+
+			for (int slot = 0; slot < ENCHANTMENT_SLOT_COUNT; slot++) {
+				if (enchantmentPower[slot] == 0) {
+					continue;
+				}
+
+				List<EnchantmentLevelEntry> candidates = generateEnchantments(
+						world.getRegistryManager(),
+						itemStack,
+						slot,
+						enchantmentPower[slot]
+				);
+
+				if (candidates.isEmpty()) {
+					continue;
+				}
+
+				EnchantmentLevelEntry chosen = candidates.get(random.nextInt(candidates.size()));
+				enchantmentId[slot] = indexedEntries.getRawId(chosen.enchantment());
+				enchantmentLevel[slot] = chosen.level();
+			}
+
+			sendContentUpdates();
+		});
 	}
 
+	/**
+	 * Применяет выбранное зачарование (кнопка 0–2) к предмету в слоте.
+	 * <p>
+	 * Проверяет наличие лазурита, достаточный уровень опыта и корректность
+	 * индекса кнопки. При успехе списывает лазурит и уровни опыта.
+	 */
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
-		if (id >= 0 && id < this.enchantmentPower.length) {
-			ItemStack itemStack = this.inventory.getStack(0);
-			ItemStack itemStack2 = this.inventory.getStack(1);
-			int i = id + 1;
-			if ((itemStack2.isEmpty() || itemStack2.getCount() < i) && !player.isInCreativeMode()) {
-				return false;
-			}
-			else if (this.enchantmentPower[id] <= 0
-					|| itemStack.isEmpty()
-					|| (player.experienceLevel < i || player.experienceLevel < this.enchantmentPower[id])
-					&& !player.isInCreativeMode()) {
-				return false;
-			}
-			else {
-				this.context.run((world, pos) -> {
-					ItemStack itemStack3 = itemStack;
-					List<EnchantmentLevelEntry>
-							list =
-							this.generateEnchantments(
-									world.getRegistryManager(),
-									itemStack,
-									id,
-									this.enchantmentPower[id]
-							);
-					if (!list.isEmpty()) {
-						player.applyEnchantmentCosts(itemStack, i);
-						if (itemStack.isOf(Items.BOOK)) {
-							itemStack3 = itemStack.withItem(Items.ENCHANTED_BOOK);
-							this.inventory.setStack(0, itemStack3);
-						}
-
-						for (EnchantmentLevelEntry enchantmentLevelEntry : list) {
-							itemStack3.addEnchantment(
-									enchantmentLevelEntry.enchantment(),
-									enchantmentLevelEntry.level()
-							);
-						}
-
-						itemStack2.decrementUnlessCreative(i, player);
-						if (itemStack2.isEmpty()) {
-							this.inventory.setStack(1, ItemStack.EMPTY);
-						}
-
-						player.incrementStat(Stats.ENCHANT_ITEM);
-						if (player instanceof ServerPlayerEntity) {
-							Criteria.ENCHANTED_ITEM.trigger((ServerPlayerEntity) player, itemStack3, i);
-						}
-
-						this.inventory.markDirty();
-						this.seed.set(player.getEnchantingTableSeed());
-						this.onContentChanged(this.inventory);
-						world.playSound(
-								null,
-								pos,
-								SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
-								SoundCategory.BLOCKS,
-								1.0F,
-								world.random.nextFloat() * 0.1F + 0.9F
-						);
-					}
-				});
-				return true;
-			}
-		}
-		else {
+		if (id < 0 || id >= enchantmentPower.length) {
 			Util.logErrorOrPause(player.getStringifiedName() + " pressed invalid button id: " + id);
 			return false;
 		}
+
+		ItemStack itemStack = inventory.getStack(ITEM_SLOT_INDEX);
+		ItemStack lapisStack = inventory.getStack(LAPIS_SLOT_INDEX);
+		int requiredLapis = id + 1;
+
+		if ((lapisStack.isEmpty() || lapisStack.getCount() < requiredLapis) && !player.isInCreativeMode()) {
+			return false;
+		}
+
+		if (enchantmentPower[id] <= 0 || itemStack.isEmpty()) {
+			return false;
+		}
+
+		boolean notEnoughLevels = player.experienceLevel < requiredLapis
+				|| player.experienceLevel < enchantmentPower[id];
+
+		if (notEnoughLevels && !player.isInCreativeMode()) {
+			return false;
+		}
+
+		context.run((world, pos) -> {
+			ItemStack enchantTarget = itemStack;
+			List<EnchantmentLevelEntry> enchantments = generateEnchantments(
+					world.getRegistryManager(),
+					itemStack,
+					id,
+					enchantmentPower[id]
+			);
+
+			if (enchantments.isEmpty()) {
+				return;
+			}
+
+			player.applyEnchantmentCosts(itemStack, requiredLapis);
+
+			if (itemStack.isOf(Items.BOOK)) {
+				enchantTarget = itemStack.withItem(Items.ENCHANTED_BOOK);
+				inventory.setStack(ITEM_SLOT_INDEX, enchantTarget);
+			}
+
+			for (EnchantmentLevelEntry entry : enchantments) {
+				enchantTarget.addEnchantment(entry.enchantment(), entry.level());
+			}
+
+			lapisStack.decrementUnlessCreative(requiredLapis, player);
+
+			if (lapisStack.isEmpty()) {
+				inventory.setStack(LAPIS_SLOT_INDEX, ItemStack.EMPTY);
+			}
+
+			player.incrementStat(Stats.ENCHANT_ITEM);
+
+			if (player instanceof ServerPlayerEntity serverPlayer) {
+				Criteria.ENCHANTED_ITEM.trigger(serverPlayer, enchantTarget, requiredLapis);
+			}
+
+			inventory.markDirty();
+			seed.set(player.getEnchantingTableSeed());
+			onContentChanged(inventory);
+			world.playSound(
+					null,
+					pos,
+					SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
+					SoundCategory.BLOCKS,
+					1.0F,
+					world.random.nextFloat() * 0.1F + 0.9F
+			);
+		});
+
+		return true;
 	}
 
+	/**
+	 * Генерирует список возможных зачарований для заданного слота и уровня мощности.
+	 * Для книг список обрезается до одного случайного зачарования.
+	 */
 	private List<EnchantmentLevelEntry> generateEnchantments(
 			DynamicRegistryManager registryManager,
 			ItemStack stack,
 			int slot,
 			int level
 	) {
-		this.random.setSeed(this.seed.get() + slot);
-		Optional<RegistryEntryList.Named<Enchantment>> optional = registryManager.getOrThrow(RegistryKeys.ENCHANTMENT)
-		                                                                         .getOptional(EnchantmentTags.IN_ENCHANTING_TABLE);
-		if (optional.isEmpty()) {
+		random.setSeed(seed.get() + slot);
+
+		Optional<RegistryEntryList.Named<Enchantment>> enchantingTableTag = registryManager
+				.getOrThrow(RegistryKeys.ENCHANTMENT)
+				.getOptional(EnchantmentTags.IN_ENCHANTING_TABLE);
+
+		if (enchantingTableTag.isEmpty()) {
 			return List.of();
 		}
-		else {
-			List<EnchantmentLevelEntry>
-					list =
-					EnchantmentHelper.generateEnchantments(this.random, stack, level, optional.get().stream());
-			if (stack.isOf(Items.BOOK) && list.size() > 1) {
-				list.remove(this.random.nextInt(list.size()));
-			}
 
-			return list;
+		List<EnchantmentLevelEntry> list = EnchantmentHelper.generateEnchantments(
+				random,
+				stack,
+				level,
+				enchantingTableTag.get().stream()
+		);
+
+		if (stack.isOf(Items.BOOK) && list.size() > 1) {
+			list.remove(random.nextInt(list.size()));
 		}
+
+		return list;
 	}
 
 	public int getLapisCount() {
-		ItemStack itemStack = this.inventory.getStack(1);
-		return itemStack.isEmpty() ? 0 : itemStack.getCount();
+		ItemStack lapisStack = inventory.getStack(LAPIS_SLOT_INDEX);
+		return lapisStack.isEmpty() ? 0 : lapisStack.getCount();
 	}
 
 	public int getSeed() {
-		return this.seed.get();
+		return seed.get();
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.context.run((world, pos) -> this.dropInventory(player, this.inventory));
+		context.run((world, pos) -> dropInventory(player, inventory));
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return canUse(this.context, player, Blocks.ENCHANTING_TABLE);
+		return canUse(context, player, Blocks.ENCHANTING_TABLE);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot == 0) {
-				if (!this.insertItem(itemStack2, 2, 38, true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (slot == 1) {
-				if (!this.insertItem(itemStack2, 2, 38, true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (itemStack2.isOf(Items.LAPIS_LAZULI)) {
-				if (!this.insertItem(itemStack2, 1, 2, true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else {
-				if (this.slots.get(0).hasStack() || !this.slots.get(0).canInsert(itemStack2)) {
-					return ItemStack.EMPTY;
-				}
+		Slot sourceSlot = slots.get(slot);
 
-				ItemStack itemStack3 = itemStack2.copyWithCount(1);
-				itemStack2.decrement(1);
-				this.slots.get(0).setStack(itemStack3);
-			}
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
+		}
 
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
 
-			if (itemStack2.getCount() == itemStack.getCount()) {
+		if (slot == ITEM_SLOT_INDEX || slot == LAPIS_SLOT_INDEX) {
+			if (!insertItem(slotStack, PLAYER_SLOTS_START, PLAYER_SLOTS_END, true)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (slotStack.isOf(Items.LAPIS_LAZULI)) {
+			if (!insertItem(slotStack, LAPIS_SLOT_INDEX, LAPIS_SLOT_INDEX + 1, true)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else {
+			Slot itemSlot = slots.get(ITEM_SLOT_INDEX);
+
+			if (itemSlot.hasStack() || !itemSlot.canInsert(slotStack)) {
 				return ItemStack.EMPTY;
 			}
 
-			slot2.onTakeItem(player, itemStack2);
+			ItemStack singleItem = slotStack.copyWithCount(1);
+			slotStack.decrement(1);
+			itemSlot.setStack(singleItem);
 		}
 
-		return itemStack;
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+		else {
+			sourceSlot.markDirty();
+		}
+
+		if (slotStack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, slotStack);
+
+		return original;
 	}
 }

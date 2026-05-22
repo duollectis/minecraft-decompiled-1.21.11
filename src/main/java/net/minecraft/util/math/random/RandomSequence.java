@@ -7,7 +7,9 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 
 /**
- * {@code RandomSequence}.
+ * Именованная случайная последовательность, привязанная к конкретному идентификатору.
+ * Позволяет воспроизводимо генерировать случайные числа для одного и того же
+ * контекста (например, для конкретной структуры или биома) независимо от порядка вызовов.
  */
 public class RandomSequence {
 
@@ -16,6 +18,7 @@ public class RandomSequence {
 					.group(Xoroshiro128PlusPlusRandom.CODEC.fieldOf("source").forGetter(sequence -> sequence.source))
 					.apply(instance, RandomSequence::new)
 	);
+
 	private final Xoroshiro128PlusPlusRandom source;
 
 	public RandomSequence(Xoroshiro128PlusPlusRandom source) {
@@ -32,6 +35,7 @@ public class RandomSequence {
 
 	private static Xoroshiro128PlusPlusRandom createSource(long seed, Optional<Identifier> id) {
 		RandomSeed.XoroshiroSeed xoroshiroSeed = RandomSeed.createUnmixedXoroshiroSeed(seed);
+
 		if (id.isPresent()) {
 			xoroshiroSeed = xoroshiroSeed.split(createSeed(id.get()));
 		}
@@ -44,6 +48,6 @@ public class RandomSequence {
 	}
 
 	public Random getSource() {
-		return this.source;
+		return source;
 	}
 }

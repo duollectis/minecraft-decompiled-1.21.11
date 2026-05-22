@@ -14,23 +14,20 @@ import net.minecraft.util.DyeColor;
 
 import java.util.List;
 
-/**
- * {@code SetBannerPatternLootFunction}.
- */
+/** Функция лута, устанавливающая или добавляющая узоры баннера к предмету. */
 public class SetBannerPatternLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetBannerPatternLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									BannerPatternsComponent.CODEC
-											.fieldOf("patterns")
-											.forGetter(function -> function.patterns),
-									Codec.BOOL.fieldOf("append").forGetter(function -> function.append)
-							)
-					)
-					.apply(instance, SetBannerPatternLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(instance.group(
+				BannerPatternsComponent.CODEC
+					.fieldOf("patterns")
+					.forGetter(function -> function.patterns),
+				Codec.BOOL.fieldOf("append").forGetter(function -> function.append)
+			))
+			.apply(instance, SetBannerPatternLootFunction::new)
 	);
+
 	private final BannerPatternsComponent patterns;
 	private final boolean append;
 
@@ -42,19 +39,18 @@ public class SetBannerPatternLootFunction extends ConditionalLootFunction {
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		if (this.append) {
+		if (append) {
 			stack.apply(
-					DataComponentTypes.BANNER_PATTERNS,
-					BannerPatternsComponent.DEFAULT,
-					this.patterns,
-					(current, newPatterns) -> new BannerPatternsComponent.Builder()
-							.addAll(current)
-							.addAll(newPatterns)
-							.build()
+				DataComponentTypes.BANNER_PATTERNS,
+				BannerPatternsComponent.DEFAULT,
+				patterns,
+				(current, newPatterns) -> new BannerPatternsComponent.Builder()
+					.addAll(current)
+					.addAll(newPatterns)
+					.build()
 			);
-		}
-		else {
-			stack.set(DataComponentTypes.BANNER_PATTERNS, this.patterns);
+		} else {
+			stack.set(DataComponentTypes.BANNER_PATTERNS, patterns);
 		}
 
 		return stack;
@@ -65,14 +61,12 @@ public class SetBannerPatternLootFunction extends ConditionalLootFunction {
 		return LootFunctionTypes.SET_BANNER_PATTERN;
 	}
 
-	public static SetBannerPatternLootFunction.Builder builder(boolean append) {
-		return new SetBannerPatternLootFunction.Builder(append);
+	public static Builder builder(boolean append) {
+		return new Builder(append);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
-	public static class Builder extends ConditionalLootFunction.Builder<SetBannerPatternLootFunction.Builder> {
+	/** Строитель функции установки узоров баннера. */
+	public static class Builder extends ConditionalLootFunction.Builder<Builder> {
 
 		private final BannerPatternsComponent.Builder patterns = new BannerPatternsComponent.Builder();
 		private final boolean append;
@@ -81,18 +75,19 @@ public class SetBannerPatternLootFunction extends ConditionalLootFunction {
 			this.append = append;
 		}
 
-		protected SetBannerPatternLootFunction.Builder getThisBuilder() {
+		@Override
+		protected Builder getThisBuilder() {
+			return this;
+		}
+
+		public Builder pattern(RegistryEntry<BannerPattern> pattern, DyeColor color) {
+			patterns.add(pattern, color);
 			return this;
 		}
 
 		@Override
 		public LootFunction build() {
-			return new SetBannerPatternLootFunction(this.getConditions(), this.patterns.build(), this.append);
-		}
-
-		public SetBannerPatternLootFunction.Builder pattern(RegistryEntry<BannerPattern> pattern, DyeColor color) {
-			this.patterns.add(pattern, color);
-			return this;
+			return new SetBannerPatternLootFunction(getConditions(), patterns.build(), append);
 		}
 	}
 }

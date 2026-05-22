@@ -1,7 +1,6 @@
 package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.ai.brain.BlockPosLookTarget;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
@@ -23,6 +22,7 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +31,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * {@code LongJumpTask}.
+ * Задача мозга, реализующая дальний прыжок моба к случайной цели в заданном радиусе.
+ * Перебирает кандидатов по весу, проверяет проходимость и вычисляет вектор прыжка через {@link LongJumpUtil}.
  */
 public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 
@@ -39,12 +40,13 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 	private static final int JUMP_WINDUP_TIME = 40;
 	protected static final int PATHING_DISTANCE = 8;
 	private static final int RUN_TIME = 200;
-	private static final List<Integer> RAM_RANGES = Lists.newArrayList(new Integer[]{65, 70, 75, 80});
+	private static final List<Integer> JUMP_ANGLES = new ArrayList<>(List.of(65, 70, 75, 80));
+
 	private final UniformIntProvider cooldownRange;
 	protected final int verticalRange;
 	protected final int horizontalRange;
 	protected final float maxRange;
-	protected List<LongJumpTask.Target> potentialTargets = Lists.newArrayList();
+	protected List<LongJumpTask.Target> potentialTargets = new ArrayList<>();
 	protected Optional<Vec3d> startPos = Optional.empty();
 	protected @Nullable Vec3d currentTarget;
 	protected int targetSearchTime;
@@ -60,21 +62,6 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 			Function<E, SoundEvent> entityToSound
 	) {
 		this(cooldownRange, verticalRange, horizontalRange, maxRange, entityToSound, LongJumpTask::shouldJumpTo);
-	}
-
-	/**
-	 * Определяет, следует ли jump to.
-	 *
-	 * @param entity entity
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public static <E extends MobEntity> boolean shouldJumpTo(E entity, BlockPos pos) {
-		World world = entity.getEntityWorld();
-		BlockPos blockPos = pos.down();
-		return world.getBlockState(blockPos).isOpaqueFullCube()
-				&& entity.getPathfindingPenalty(LandPathNodeMaker.getLandNodeType(entity, pos)) == 0.0F;
 	}
 
 	public LongJumpTask(
@@ -94,7 +81,7 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 						MemoryModuleType.LONG_JUMP_MID_JUMP,
 						MemoryModuleState.VALUE_ABSENT
 				),
-				200
+				RUN_TIME
 		);
 		this.cooldownRange = cooldownRange;
 		this.verticalRange = verticalRange;
@@ -104,180 +91,145 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		this.jumpToPredicate = jumpToPredicate;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
-		boolean bl = mobEntity.isOnGround()
-				&& !mobEntity.isTouchingWater()
-				&& !mobEntity.isInLava()
-				&& !serverWorld.getBlockState(mobEntity.getBlockPos()).isOf(Blocks.HONEY_BLOCK);
-		if (!bl) {
-			mobEntity
-					.getBrain()
-					.remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, this.cooldownRange.get(serverWorld.random) / 2);
+	public static <E extends MobEntity> boolean shouldJumpTo(E entity, BlockPos pos) {
+		World world = entity.getEntityWorld();
+		return world.getBlockState(pos.down()).isOpaqueFullCube()
+				&& entity.getPathfindingPenalty(LandPathNodeMaker.getLandNodeType(entity, pos)) == 0.0F;
+	}
+
+	@Override
+	protected boolean shouldRun(ServerWorld world, MobEntity entity) {
+		boolean canJump = entity.isOnGround()
+				&& !entity.isTouchingWater()
+				&& !entity.isInLava()
+				&& !world.getBlockState(entity.getBlockPos()).isOf(Blocks.HONEY_BLOCK);
+
+		if (!canJump) {
+			entity.getBrain().remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, cooldownRange.get(world.random) / 2);
 		}
 
-		return bl;
+		return canJump;
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
-		boolean bl = this.startPos.isPresent()
-				&& this.startPos.get().equals(mobEntity.getEntityPos())
-				&& this.targetSearchTime > 0
-				&& !mobEntity.isTouchingWater()
-				&& (this.currentTarget != null || !this.potentialTargets.isEmpty());
-		if (!bl && mobEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.LONG_JUMP_MID_JUMP).isEmpty()) {
-			mobEntity
-					.getBrain()
-					.remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, this.cooldownRange.get(serverWorld.random) / 2);
-			mobEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, MobEntity entity, long time) {
+		boolean stillSearching = startPos.isPresent()
+				&& startPos.get().equals(entity.getEntityPos())
+				&& targetSearchTime > 0
+				&& !entity.isTouchingWater()
+				&& (currentTarget != null || !potentialTargets.isEmpty());
+
+		if (!stillSearching && entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.LONG_JUMP_MID_JUMP).isEmpty()) {
+			entity.getBrain().remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, cooldownRange.get(world.random) / 2);
+			entity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
 		}
 
-		return bl;
+		return stillSearching;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, E mobEntity, long l) {
-		this.currentTarget = null;
-		this.targetSearchTime = 20;
-		this.startPos = Optional.of(mobEntity.getEntityPos());
-		BlockPos blockPos = mobEntity.getBlockPos();
-		int i = blockPos.getX();
-		int j = blockPos.getY();
-		int k = blockPos.getZ();
-		this.potentialTargets = BlockPos.stream(
-				                                i - this.horizontalRange,
-				                                j - this.verticalRange,
-				                                k - this.horizontalRange,
-				                                i + this.horizontalRange,
-				                                j + this.verticalRange,
-				                                k + this.horizontalRange
-		                                )
-		                                .filter(pos -> !pos.equals(blockPos))
-		                                .map(pos -> new LongJumpTask.Target(
-				                                pos.toImmutable(),
-				                                MathHelper.ceil(blockPos.getSquaredDistance(pos))
-		                                ))
-		                                .collect(Collectors.toCollection(Lists::newArrayList));
+	@Override
+	protected void run(ServerWorld world, E entity, long time) {
+		currentTarget = null;
+		targetSearchTime = MAX_TARGET_SEARCH_TIME;
+		startPos = Optional.of(entity.getEntityPos());
+		BlockPos origin = entity.getBlockPos();
+		int x = origin.getX();
+		int y = origin.getY();
+		int z = origin.getZ();
+		potentialTargets = BlockPos.stream(
+				                          x - horizontalRange,
+				                          y - verticalRange,
+				                          z - horizontalRange,
+				                          x + horizontalRange,
+				                          y + verticalRange,
+				                          z + horizontalRange
+		                          )
+		                          .filter(pos -> !pos.equals(origin))
+		                          .map(pos -> new LongJumpTask.Target(
+				                          pos.toImmutable(),
+				                          MathHelper.ceil(origin.getSquaredDistance(pos))
+		                          ))
+		                          .collect(Collectors.toCollection(ArrayList::new));
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param mobEntity mob entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, E mobEntity, long l) {
-		if (this.currentTarget != null) {
-			if (l - this.targetPickedTime >= 40L) {
-				mobEntity.setYaw(mobEntity.bodyYaw);
-				mobEntity.setNoDrag(true);
-				double d = this.currentTarget.length();
-				double e = d + mobEntity.getJumpBoostVelocityModifier();
-				mobEntity.setVelocity(this.currentTarget.multiply(e / d));
-				mobEntity.getBrain().remember(MemoryModuleType.LONG_JUMP_MID_JUMP, true);
-				serverWorld.playSoundFromEntity(
-						null,
-						mobEntity,
-						this.entityToSound.apply(mobEntity),
-						SoundCategory.NEUTRAL,
-						1.0F,
-						1.0F
-				);
+	@Override
+	protected void keepRunning(ServerWorld world, E entity, long time) {
+		if (currentTarget != null) {
+			if (time - targetPickedTime >= JUMP_WINDUP_TIME) {
+				entity.setYaw(entity.bodyYaw);
+				entity.setNoDrag(true);
+				double length = currentTarget.length();
+				double boostedLength = length + entity.getJumpBoostVelocityModifier();
+				entity.setVelocity(currentTarget.multiply(boostedLength / length));
+				entity.getBrain().remember(MemoryModuleType.LONG_JUMP_MID_JUMP, true);
+				world.playSoundFromEntity(null, entity, entityToSound.apply(entity), SoundCategory.NEUTRAL, 1.0F, 1.0F);
 			}
-		}
-		else {
-			this.targetSearchTime--;
-			this.pickTarget(serverWorld, mobEntity, l);
+		} else {
+			targetSearchTime--;
+			pickTarget(world, entity, time);
 		}
 	}
 
-	/**
-	 * Подбирает target.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param time time
-	 */
 	protected void pickTarget(ServerWorld world, E entity, long time) {
-		while (!this.potentialTargets.isEmpty()) {
-			Optional<LongJumpTask.Target> optional = this.removeRandomTarget(world);
-			if (!optional.isEmpty()) {
-				LongJumpTask.Target target = optional.get();
-				BlockPos blockPos = target.pos();
-				if (this.canJumpTo(world, entity, blockPos)) {
-					Vec3d vec3d = Vec3d.ofCenter(blockPos);
-					Vec3d vec3d2 = this.getJumpingVelocity(entity, vec3d);
-					if (vec3d2 != null) {
-						entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(blockPos));
-						EntityNavigation entityNavigation = entity.getNavigation();
-						Path path = entityNavigation.findPathTo(blockPos, 0, 8);
-						if (path == null || !path.reachesTarget()) {
-							this.currentTarget = vec3d2;
-							this.targetPickedTime = time;
-							return;
-						}
-					}
-				}
+		while (!potentialTargets.isEmpty()) {
+			Optional<LongJumpTask.Target> candidate = removeRandomTarget(world);
+
+			if (candidate.isEmpty()) {
+				continue;
+			}
+
+			BlockPos targetPos = candidate.get().pos();
+
+			if (!canJumpTo(world, entity, targetPos)) {
+				continue;
+			}
+
+			Vec3d targetCenter = Vec3d.ofCenter(targetPos);
+			Vec3d jumpVelocity = getJumpingVelocity(entity, targetCenter);
+
+			if (jumpVelocity == null) {
+				continue;
+			}
+
+			entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(targetPos));
+			Path path = entity.getNavigation().findPathTo(targetPos, 0, PATHING_DISTANCE);
+
+			if (path == null || !path.reachesTarget()) {
+				currentTarget = jumpVelocity;
+				targetPickedTime = time;
+				return;
 			}
 		}
 	}
 
 	protected Optional<LongJumpTask.Target> removeRandomTarget(ServerWorld world) {
-		Optional<LongJumpTask.Target>
-				optional =
-				Weighting.getRandom(world.random, this.potentialTargets, LongJumpTask.Target::weight);
-		optional.ifPresent(this.potentialTargets::remove);
-		return optional;
+		Optional<LongJumpTask.Target> candidate = Weighting.getRandom(world.random, potentialTargets, LongJumpTask.Target::weight);
+		candidate.ifPresent(potentialTargets::remove);
+		return candidate;
 	}
 
 	private boolean canJumpTo(ServerWorld world, E entity, BlockPos pos) {
-		BlockPos blockPos = entity.getBlockPos();
-		int i = blockPos.getX();
-		int j = blockPos.getZ();
-		return i == pos.getX() && j == pos.getZ() ? false : this.jumpToPredicate.test(entity, pos);
+		BlockPos origin = entity.getBlockPos();
+		return (origin.getX() != pos.getX() || origin.getZ() != pos.getZ())
+				&& jumpToPredicate.test(entity, pos);
 	}
 
 	protected @Nullable Vec3d getJumpingVelocity(MobEntity entity, Vec3d targetPos) {
-		List<Integer> list = Lists.newArrayList(RAM_RANGES);
-		Collections.shuffle(list);
-		float f = (float) (entity.getAttributeValue(EntityAttributes.JUMP_STRENGTH) * this.maxRange);
+		List<Integer> angles = new ArrayList<>(JUMP_ANGLES);
+		Collections.shuffle(angles);
+		float jumpStrength = (float) (entity.getAttributeValue(EntityAttributes.JUMP_STRENGTH) * maxRange);
 
-		for (int i : list) {
-			Optional<Vec3d> optional = LongJumpUtil.getJumpingVelocity(entity, targetPos, f, i, true);
-			if (optional.isPresent()) {
-				return optional.get();
+		for (int angle : angles) {
+			Optional<Vec3d> velocity = LongJumpUtil.getJumpingVelocity(entity, targetPos, jumpStrength, angle, true);
+
+			if (velocity.isPresent()) {
+				return velocity.get();
 			}
 		}
 
 		return null;
 	}
 
-	/**
-	 * {@code Target}.
-	 */
 	public record Target(BlockPos pos, int weight) {
 	}
 }

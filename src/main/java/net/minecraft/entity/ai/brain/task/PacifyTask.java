@@ -4,18 +4,11 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 
 /**
- * {@code PacifyTask}.
+ * Фабричный класс задачи мозга, переводящей сущность в пассивное состояние при наличии указанной памяти.
+ * Устанавливает память {@code PACIFIED} и сбрасывает цель атаки.
  */
 public class PacifyTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param requiredMemory required memory
-	 * @param duration duration
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(MemoryModuleType<?> requiredMemory, int duration) {
 		return TaskTriggerer.task(
 				context -> context.group(

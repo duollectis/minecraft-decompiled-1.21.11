@@ -3,7 +3,8 @@ package net.minecraft.server.function;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code Tracer}.
+ * Трассировщик выполнения функций: получает события о начале/конце команд,
+ * ошибках и вызовах вложенных функций для отладки и логирования.
  */
 public interface Tracer extends AutoCloseable {
 

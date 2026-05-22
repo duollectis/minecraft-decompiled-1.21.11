@@ -14,12 +14,17 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code Team}.
+ * Конкретная реализация команды скорборда.
+ * <p>
+ * Хранит список участников, настройки отображения (префикс, суффикс, цвет),
+ * правила видимости и столкновений. При изменении любого параметра
+ * уведомляет {@link Scoreboard} для синхронизации с клиентами.
  */
 public class Team extends AbstractTeam {
 
-	private static final int FRIENDLY_FIRE_DISABLED = 0;
-	private static final int FRIENDLY_FIRE_ENABLED = 1;
+	private static final int FRIENDLY_FIRE_FLAG = 1;
+	private static final int SHOW_INVISIBLES_FLAG = 2;
+
 	private final Scoreboard scoreboard;
 	private final String name;
 	private final Set<String> playerList = Sets.newHashSet();
@@ -28,186 +33,206 @@ public class Team extends AbstractTeam {
 	private Text suffix = ScreenTexts.EMPTY;
 	private boolean friendlyFire = true;
 	private boolean showFriendlyInvisibles = true;
-	private AbstractTeam.VisibilityRule nameTagVisibilityRule = AbstractTeam.VisibilityRule.ALWAYS;
-	private AbstractTeam.VisibilityRule deathMessageVisibilityRule = AbstractTeam.VisibilityRule.ALWAYS;
+	private VisibilityRule nameTagVisibilityRule = VisibilityRule.ALWAYS;
+	private VisibilityRule deathMessageVisibilityRule = VisibilityRule.ALWAYS;
 	private Formatting color = Formatting.RESET;
-	private AbstractTeam.CollisionRule collisionRule = AbstractTeam.CollisionRule.ALWAYS;
+	private CollisionRule collisionRule = CollisionRule.ALWAYS;
 	private final Style nameStyle;
 
 	public Team(Scoreboard scoreboard, String name) {
 		this.scoreboard = scoreboard;
 		this.name = name;
 		this.displayName = Text.literal(name);
-		this.nameStyle = Style.EMPTY.withInsertion(name).withHoverEvent(new HoverEvent.ShowText(Text.literal(name)));
+		this.nameStyle = Style.EMPTY
+				.withInsertion(name)
+				.withHoverEvent(new HoverEvent.ShowText(Text.literal(name)));
 	}
 
-	public Team.Packed pack() {
-		return new Team.Packed(
-				this.name,
-				Optional.of(this.displayName),
-				this.color != Formatting.RESET ? Optional.of(this.color) : Optional.empty(),
-				this.friendlyFire,
-				this.showFriendlyInvisibles,
-				this.prefix,
-				this.suffix,
-				this.nameTagVisibilityRule,
-				this.deathMessageVisibilityRule,
-				this.collisionRule,
-				List.copyOf(this.playerList)
+	public Packed pack() {
+		return new Packed(
+				name,
+				Optional.of(displayName),
+				color != Formatting.RESET ? Optional.of(color) : Optional.empty(),
+				friendlyFire,
+				showFriendlyInvisibles,
+				prefix,
+				suffix,
+				nameTagVisibilityRule,
+				deathMessageVisibilityRule,
+				collisionRule,
+				List.copyOf(playerList)
 		);
 	}
 
 	public Scoreboard getScoreboard() {
-		return this.scoreboard;
+		return scoreboard;
 	}
 
 	@Override
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public Text getDisplayName() {
-		return this.displayName;
+		return displayName;
 	}
 
+	/**
+	 * Возвращает отображаемое имя команды в квадратных скобках с цветом команды.
+	 * Используется в командах и сообщениях чата для идентификации команды.
+	 */
 	public MutableText getFormattedName() {
-		MutableText mutableText = Texts.bracketed(this.displayName.copy().fillStyle(this.nameStyle));
-		Formatting formatting = this.getColor();
-		if (formatting != Formatting.RESET) {
-			mutableText.formatted(formatting);
+		MutableText formatted = Texts.bracketed(displayName.copy().fillStyle(nameStyle));
+		Formatting teamColor = getColor();
+		if (teamColor != Formatting.RESET) {
+			formatted.formatted(teamColor);
 		}
 
-		return mutableText;
+		return formatted;
 	}
 
 	public void setDisplayName(Text displayName) {
 		if (displayName == null) {
 			throw new IllegalArgumentException("Name cannot be null");
 		}
-		else {
-			this.displayName = displayName;
-			this.scoreboard.updateScoreboardTeam(this);
-		}
+
+		this.displayName = displayName;
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	public void setPrefix(@Nullable Text prefix) {
 		this.prefix = prefix == null ? ScreenTexts.EMPTY : prefix;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	public Text getPrefix() {
-		return this.prefix;
+		return prefix;
 	}
 
 	public void setSuffix(@Nullable Text suffix) {
 		this.suffix = suffix == null ? ScreenTexts.EMPTY : suffix;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	public Text getSuffix() {
-		return this.suffix;
+		return suffix;
 	}
 
 	@Override
 	public Collection<String> getPlayerList() {
-		return this.playerList;
+		return playerList;
 	}
 
+	/**
+	 * Оборачивает имя участника в префикс и суффикс команды с цветом.
+	 * Используется при отображении имён игроков в чате и над головой.
+	 */
 	@Override
 	public MutableText decorateName(Text name) {
-		MutableText mutableText = Text.empty().append(this.prefix).append(name).append(this.suffix);
-		Formatting formatting = this.getColor();
-		if (formatting != Formatting.RESET) {
-			mutableText.formatted(formatting);
+		MutableText decorated = Text.empty().append(prefix).append(name).append(suffix);
+		Formatting teamColor = getColor();
+		if (teamColor != Formatting.RESET) {
+			decorated.formatted(teamColor);
 		}
 
-		return mutableText;
+		return decorated;
 	}
 
+	/**
+	 * Статический вариант декорирования имени: если команда равна {@code null},
+	 * возвращает копию исходного имени без изменений.
+	 */
 	public static MutableText decorateName(@Nullable AbstractTeam team, Text name) {
 		return team == null ? name.copy() : team.decorateName(name);
 	}
 
 	@Override
 	public boolean isFriendlyFireAllowed() {
-		return this.friendlyFire;
+		return friendlyFire;
 	}
 
 	public void setFriendlyFireAllowed(boolean friendlyFire) {
 		this.friendlyFire = friendlyFire;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	@Override
 	public boolean shouldShowFriendlyInvisibles() {
-		return this.showFriendlyInvisibles;
+		return showFriendlyInvisibles;
 	}
 
-	public void setShowFriendlyInvisibles(boolean showFriendlyInvisible) {
-		this.showFriendlyInvisibles = showFriendlyInvisible;
-		this.scoreboard.updateScoreboardTeam(this);
-	}
-
-	@Override
-	public AbstractTeam.VisibilityRule getNameTagVisibilityRule() {
-		return this.nameTagVisibilityRule;
+	public void setShowFriendlyInvisibles(boolean showFriendlyInvisibles) {
+		this.showFriendlyInvisibles = showFriendlyInvisibles;
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	@Override
-	public AbstractTeam.VisibilityRule getDeathMessageVisibilityRule() {
-		return this.deathMessageVisibilityRule;
+	public VisibilityRule getNameTagVisibilityRule() {
+		return nameTagVisibilityRule;
 	}
 
-	public void setNameTagVisibilityRule(AbstractTeam.VisibilityRule nameTagVisibilityRule) {
+	@Override
+	public VisibilityRule getDeathMessageVisibilityRule() {
+		return deathMessageVisibilityRule;
+	}
+
+	public void setNameTagVisibilityRule(VisibilityRule nameTagVisibilityRule) {
 		this.nameTagVisibilityRule = nameTagVisibilityRule;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
-	public void setDeathMessageVisibilityRule(AbstractTeam.VisibilityRule deathMessageVisibilityRule) {
+	public void setDeathMessageVisibilityRule(VisibilityRule deathMessageVisibilityRule) {
 		this.deathMessageVisibilityRule = deathMessageVisibilityRule;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	@Override
-	public AbstractTeam.CollisionRule getCollisionRule() {
-		return this.collisionRule;
+	public CollisionRule getCollisionRule() {
+		return collisionRule;
 	}
 
-	public void setCollisionRule(AbstractTeam.CollisionRule collisionRule) {
+	public void setCollisionRule(CollisionRule collisionRule) {
 		this.collisionRule = collisionRule;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
+	/**
+	 * Возвращает битовую маску флагов команды для сетевой передачи.
+	 * Бит 0 — дружественный огонь, бит 1 — видимость невидимых союзников.
+	 */
 	public int getFriendlyFlagsBitwise() {
-		int i = 0;
-		if (this.isFriendlyFireAllowed()) {
-			i |= 1;
+		int flags = 0;
+		if (isFriendlyFireAllowed()) {
+			flags |= FRIENDLY_FIRE_FLAG;
 		}
 
-		if (this.shouldShowFriendlyInvisibles()) {
-			i |= 2;
+		if (shouldShowFriendlyInvisibles()) {
+			flags |= SHOW_INVISIBLES_FLAG;
 		}
 
-		return i;
+		return flags;
 	}
 
+	/**
+	 * Устанавливает флаги команды из битовой маски, полученной по сети.
+	 */
 	public void setFriendlyFlagsBitwise(int flags) {
-		this.setFriendlyFireAllowed((flags & 1) > 0);
-		this.setShowFriendlyInvisibles((flags & 2) > 0);
+		setFriendlyFireAllowed((flags & FRIENDLY_FIRE_FLAG) > 0);
+		setShowFriendlyInvisibles((flags & SHOW_INVISIBLES_FLAG) > 0);
 	}
 
 	public void setColor(Formatting color) {
 		this.color = color;
-		this.scoreboard.updateScoreboardTeam(this);
+		scoreboard.updateScoreboardTeam(this);
 	}
 
 	@Override
 	public Formatting getColor() {
-		return this.color;
+		return color;
 	}
 
 	/**
-	 * {@code Packed}.
+	 * Упакованное представление команды для сериализации в NBT/JSON и сетевой передачи.
 	 */
 	public record Packed(
 			String name,
@@ -217,39 +242,36 @@ public class Team extends AbstractTeam {
 			boolean seeFriendlyInvisibles,
 			Text memberNamePrefix,
 			Text memberNameSuffix,
-			AbstractTeam.VisibilityRule nameTagVisibility,
-			AbstractTeam.VisibilityRule deathMessageVisibility,
-			AbstractTeam.CollisionRule collisionRule,
+			VisibilityRule nameTagVisibility,
+			VisibilityRule deathMessageVisibility,
+			CollisionRule collisionRule,
 			List<String> players
 	) {
 
-		public static final Codec<Team.Packed> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Packed> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    Codec.STRING.fieldOf("Name").forGetter(Team.Packed::name),
-						                    TextCodecs.CODEC.optionalFieldOf("DisplayName").forGetter(Team.Packed::displayName),
-						                    Formatting.COLOR_CODEC.optionalFieldOf("TeamColor").forGetter(Team.Packed::color),
-						                    Codec.BOOL.optionalFieldOf("AllowFriendlyFire", true).forGetter(Team.Packed::allowFriendlyFire),
-						                    Codec.BOOL
-								                    .optionalFieldOf("SeeFriendlyInvisibles", true)
-								                    .forGetter(Team.Packed::seeFriendlyInvisibles),
-						                    TextCodecs.CODEC
-								                    .optionalFieldOf("MemberNamePrefix", ScreenTexts.EMPTY)
-								                    .forGetter(Team.Packed::memberNamePrefix),
-						                    TextCodecs.CODEC
-								                    .optionalFieldOf("MemberNameSuffix", ScreenTexts.EMPTY)
-								                    .forGetter(Team.Packed::memberNameSuffix),
-						                    AbstractTeam.VisibilityRule.CODEC
-								                    .optionalFieldOf("NameTagVisibility", AbstractTeam.VisibilityRule.ALWAYS)
-								                    .forGetter(Team.Packed::nameTagVisibility),
-						                    AbstractTeam.VisibilityRule.CODEC
-								                    .optionalFieldOf("DeathMessageVisibility", AbstractTeam.VisibilityRule.ALWAYS)
-								                    .forGetter(Team.Packed::deathMessageVisibility),
-						                    AbstractTeam.CollisionRule.CODEC
-								                    .optionalFieldOf("CollisionRule", AbstractTeam.CollisionRule.ALWAYS)
-								                    .forGetter(Team.Packed::collisionRule),
-						                    Codec.STRING.listOf().optionalFieldOf("Players", List.of()).forGetter(Team.Packed::players)
-				                    )
-				                    .apply(instance, Team.Packed::new)
+						Codec.STRING.fieldOf("Name").forGetter(Packed::name),
+						TextCodecs.CODEC.optionalFieldOf("DisplayName").forGetter(Packed::displayName),
+						Formatting.COLOR_CODEC.optionalFieldOf("TeamColor").forGetter(Packed::color),
+						Codec.BOOL.optionalFieldOf("AllowFriendlyFire", true).forGetter(Packed::allowFriendlyFire),
+						Codec.BOOL.optionalFieldOf("SeeFriendlyInvisibles", true).forGetter(Packed::seeFriendlyInvisibles),
+						TextCodecs.CODEC
+								.optionalFieldOf("MemberNamePrefix", ScreenTexts.EMPTY)
+								.forGetter(Packed::memberNamePrefix),
+						TextCodecs.CODEC
+								.optionalFieldOf("MemberNameSuffix", ScreenTexts.EMPTY)
+								.forGetter(Packed::memberNameSuffix),
+						VisibilityRule.CODEC
+								.optionalFieldOf("NameTagVisibility", VisibilityRule.ALWAYS)
+								.forGetter(Packed::nameTagVisibility),
+						VisibilityRule.CODEC
+								.optionalFieldOf("DeathMessageVisibility", VisibilityRule.ALWAYS)
+								.forGetter(Packed::deathMessageVisibility),
+						CollisionRule.CODEC
+								.optionalFieldOf("CollisionRule", CollisionRule.ALWAYS)
+								.forGetter(Packed::collisionRule),
+						Codec.STRING.listOf().optionalFieldOf("Players", List.of()).forGetter(Packed::players)
+				).apply(instance, Packed::new)
 		);
 	}
 }

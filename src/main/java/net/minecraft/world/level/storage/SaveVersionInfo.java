@@ -6,7 +6,9 @@ import net.minecraft.SaveVersion;
 import net.minecraft.SharedConstants;
 
 /**
- * {@code SaveVersionInfo}.
+ * Метаданные версии сохранения: формат уровня, время последней игры,
+ * имя версии игры и идентификатор датаверсии. Используется для определения
+ * необходимости конвертации мира и отображения информации в списке миров.
  */
 public class SaveVersionInfo {
 
@@ -17,12 +19,12 @@ public class SaveVersionInfo {
 	private final boolean stable;
 
 	private SaveVersionInfo(
-			int levelFormatVersion,
-			long lastPlayed,
-			String versionName,
-			int versionId,
-			String series,
-			boolean stable
+		int levelFormatVersion,
+		long lastPlayed,
+		String versionName,
+		int versionId,
+		String series,
+		boolean stable
 	) {
 		this.levelFormatVersion = levelFormatVersion;
 		this.lastPlayed = lastPlayed;
@@ -32,45 +34,47 @@ public class SaveVersionInfo {
 	}
 
 	/**
-	 * From dynamic.
+	 * Десериализует метаданные версии из NBT-совместимого {@link Dynamic}.
+	 * Если блок {@code Version} отсутствует (очень старые сохранения),
+	 * возвращает экземпляр с нулевым идентификатором версии и пустым именем.
 	 *
-	 * @param dynamic dynamic
-	 *
-	 * @return SaveVersionInfo — результат операции
+	 * @param dynamic динамическое представление данных уровня
+	 * @return десериализованный экземпляр {@code SaveVersionInfo}
 	 */
 	public static SaveVersionInfo fromDynamic(Dynamic<?> dynamic) {
-		int i = dynamic.get("version").asInt(0);
-		long l = dynamic.get("LastPlayed").asLong(0L);
-		OptionalDynamic<?> optionalDynamic = dynamic.get("Version");
-		return optionalDynamic.result().isPresent()
-		       ? new SaveVersionInfo(
-				i,
-				l,
-				optionalDynamic.get("Name").asString(SharedConstants.getGameVersion().name()),
-				optionalDynamic.get("Id").asInt(SharedConstants.getGameVersion().dataVersion().id()),
-				optionalDynamic.get("Series").asString("main"),
-				optionalDynamic.get("Snapshot").asBoolean(!SharedConstants.getGameVersion().stable())
-		)
-		       : new SaveVersionInfo(i, l, "", 0, "main", false);
+		int levelFormatVersion = dynamic.get("version").asInt(0);
+		long lastPlayed = dynamic.get("LastPlayed").asLong(0L);
+		OptionalDynamic<?> versionDynamic = dynamic.get("Version");
+
+		return versionDynamic.result().isPresent()
+			? new SaveVersionInfo(
+				levelFormatVersion,
+				lastPlayed,
+				versionDynamic.get("Name").asString(SharedConstants.getGameVersion().name()),
+				versionDynamic.get("Id").asInt(SharedConstants.getGameVersion().dataVersion().id()),
+				versionDynamic.get("Series").asString("main"),
+				versionDynamic.get("Snapshot").asBoolean(!SharedConstants.getGameVersion().stable())
+			)
+			: new SaveVersionInfo(levelFormatVersion, lastPlayed, "", 0, "main", false);
 	}
 
 	public int getLevelFormatVersion() {
-		return this.levelFormatVersion;
+		return levelFormatVersion;
 	}
 
 	public long getLastPlayed() {
-		return this.lastPlayed;
+		return lastPlayed;
 	}
 
 	public String getVersionName() {
-		return this.versionName;
+		return versionName;
 	}
 
 	public SaveVersion getVersion() {
-		return this.version;
+		return version;
 	}
 
 	public boolean isStable() {
-		return this.stable;
+		return stable;
 	}
 }

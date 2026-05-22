@@ -9,7 +9,10 @@ import net.minecraft.world.BlockView;
 import java.util.Optional;
 
 /**
- * {@code EntityExplosionBehavior}.
+ * Поведение взрыва, привязанное к конкретной сущности-источнику.
+ * Делегирует расчёт сопротивления блоков и разрешение разрушения
+ * непосредственно сущности, позволяя ей применять собственные модификаторы
+ * (например, зачарования или атрибуты).
  */
 public class EntityExplosionBehavior extends ExplosionBehavior {
 
@@ -19,6 +22,11 @@ public class EntityExplosionBehavior extends ExplosionBehavior {
 		this.entity = entity;
 	}
 
+	/**
+	 * Вычисляет сопротивление блока взрыву с учётом модификаторов сущности-источника.
+	 * Базовое сопротивление передаётся в {@link Entity#getEffectiveExplosionResistance},
+	 * которая может его скорректировать (например, через зачарования брони).
+	 */
 	@Override
 	public Optional<Float> getBlastResistance(
 			Explosion explosion,
@@ -28,18 +36,18 @@ public class EntityExplosionBehavior extends ExplosionBehavior {
 			FluidState fluidState
 	) {
 		return super.getBlastResistance(explosion, world, pos, blockState, fluidState)
-		            .map(max -> this.entity.getEffectiveExplosionResistance(
-				            explosion,
-				            world,
-				            pos,
-				            blockState,
-				            fluidState,
-				            max
-		            ));
+			.map(resistance -> entity.getEffectiveExplosionResistance(
+				explosion,
+				world,
+				pos,
+				blockState,
+				fluidState,
+				resistance
+			));
 	}
 
 	@Override
 	public boolean canDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float power) {
-		return this.entity.canExplosionDestroyBlock(explosion, world, pos, state, power);
+		return entity.canExplosionDestroyBlock(explosion, world, pos, state, power);
 	}
 }

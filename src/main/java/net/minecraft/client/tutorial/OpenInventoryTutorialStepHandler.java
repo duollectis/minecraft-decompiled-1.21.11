@@ -33,7 +33,7 @@ public class OpenInventoryTutorialStepHandler implements TutorialStepHandler {
 			this.manager.setStep(TutorialStep.NONE);
 		}
 		else {
-			if (this.ticks >= 600 && this.toast == null) {
+			if (this.ticks >= DELAY && this.toast == null) {
 				MinecraftClient minecraftClient = this.manager.getClient();
 				this.toast =
 						new TutorialToast(

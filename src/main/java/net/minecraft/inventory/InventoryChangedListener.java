@@ -1,7 +1,8 @@
 package net.minecraft.inventory;
 
 /**
- * {@code InventoryChangedListener}.
+ * Слушатель изменений инвентаря. Реализуется объектами, которым необходимо
+ * реагировать на любое изменение содержимого {@link SimpleInventory}.
  */
 public interface InventoryChangedListener {
 

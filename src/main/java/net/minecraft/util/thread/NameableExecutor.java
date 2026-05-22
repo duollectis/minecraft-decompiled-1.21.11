@@ -9,132 +9,73 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@code NameableExecutor}.
+ * Обёртка над {@link ExecutorService}, добавляющая поддержку именованных Tracy-зон
+ * и переименования потока на время выполнения задачи (только в режиме разработки).
  */
 public record NameableExecutor(ExecutorService service) implements Executor {
 
 	/**
-	 * Named.
-	 *
-	 * @param name name
-	 *
-	 * @return Executor — результат операции
+	 * Возвращает {@link Executor}, оборачивающий каждую задачу в Tracy-зону с именем {@code name}.
+	 * В режиме разработки дополнительно переименовывает поток на время выполнения.
+	 * Если Tracy недоступен и не режим разработки — возвращает сам {@link #service} напрямую.
 	 */
 	public Executor named(String name) {
 		if (SharedConstants.isDevelopment) {
-			return runnable -> this.service.execute(() -> {
+			return runnable -> service.execute(() -> {
 				Thread thread = Thread.currentThread();
-				String string2 = thread.getName();
+				String previousName = thread.getName();
 				thread.setName(name);
 
-				try {
-					Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
-
-					try {
-						runnable.run();
-					}
-					catch (Throwable var12) {
-						if (zone != null) {
-							try {
-								zone.close();
-							}
-							catch (Throwable var11) {
-								var12.addSuppressed(var11);
-							}
-						}
-
-						throw var12;
-					}
-
-					if (zone != null) {
-						zone.close();
-					}
+				try (Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment)) {
+					runnable.run();
 				}
 				finally {
-					thread.setName(string2);
+					thread.setName(previousName);
 				}
 			});
 		}
-		else {
-			if (TracyClient.isAvailable()) {
-				return runnable -> this.service.execute(() -> {
-					Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
 
-					try {
-						runnable.run();
-					}
-					catch (Throwable var6) {
-						if (zone != null) {
-							try {
-								zone.close();
-							}
-							catch (Throwable var5) {
-								var6.addSuppressed(var5);
-							}
-						}
-
-						throw var6;
-					}
-
-					if (zone != null) {
-						zone.close();
-					}
-				});
-			}
-
-			return this.service;
+		if (TracyClient.isAvailable()) {
+			return runnable -> service.execute(() -> {
+				try (Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment)) {
+					runnable.run();
+				}
+			});
 		}
+
+		return service;
 	}
 
 	@Override
 	public void execute(Runnable runnable) {
-		this.service.execute(wrapForTracy(runnable));
+		service.execute(wrapForTracy(runnable));
 	}
 
-	/**
-	 * Shutdown.
-	 *
-	 * @param time time
-	 * @param unit unit
-	 */
 	public void shutdown(long time, TimeUnit unit) {
-		this.service.shutdown();
+		service.shutdown();
 
-		boolean bl;
+		boolean terminated;
+
 		try {
-			bl = this.service.awaitTermination(time, unit);
+			terminated = service.awaitTermination(time, unit);
 		}
-		catch (InterruptedException var6) {
-			bl = false;
+		catch (InterruptedException interrupted) {
+			terminated = false;
 		}
 
-		if (!bl) {
-			this.service.shutdownNow();
+		if (!terminated) {
+			service.shutdownNow();
 		}
 	}
 
 	private static Runnable wrapForTracy(Runnable runnable) {
-		return !TracyClient.isAvailable() ? runnable : () -> {
-			Zone zone = TracyClient.beginZone("task", SharedConstants.isDevelopment);
+		if (!TracyClient.isAvailable()) {
+			return runnable;
+		}
 
-			try {
+		return () -> {
+			try (Zone zone = TracyClient.beginZone("task", SharedConstants.isDevelopment)) {
 				runnable.run();
-			}
-			catch (Throwable var5) {
-				if (zone != null) {
-					try {
-						zone.close();
-					}
-					catch (Throwable var4) {
-						var5.addSuppressed(var4);
-					}
-				}
-
-				throw var5;
-			}
-
-			if (zone != null) {
-				zone.close();
 			}
 		};
 	}

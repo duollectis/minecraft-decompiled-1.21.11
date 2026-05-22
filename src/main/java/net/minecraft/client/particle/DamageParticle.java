@@ -8,27 +8,42 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DamageParticle}.
+ * Частица урона — белая/серая искра, появляющаяся при получении урона.
+ * Быстро желтеет и краснеет (зелёный и синий каналы затухают), имитируя
+ * вспышку удара. Не сталкивается с миром.
  */
+@Environment(EnvType.CLIENT)
 public class DamageParticle extends BillboardParticle {
 
-	DamageParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
-		super(clientWorld, d, e, f, 0.0, 0.0, 0.0, sprite);
+	private static final float VELOCITY_SCALE = 0.1F;
+	private static final float IMPULSE_SCALE = 0.4F;
+	private static final float SCALE_FACTOR = 0.75F;
+	private static final float GREEN_DECAY = 0.96F;
+	private static final float BLUE_DECAY = 0.9F;
+	private static final float SIZE_RAMP_FACTOR = 32.0F;
+
+	DamageParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double impulseX,
+			double impulseY,
+			double impulseZ,
+			Sprite sprite
+	) {
+		super(world, x, y, z, 0.0, 0.0, 0.0, sprite);
 		this.velocityMultiplier = 0.7F;
 		this.gravityStrength = 0.5F;
-		this.velocityX *= 0.1F;
-		this.velocityY *= 0.1F;
-		this.velocityZ *= 0.1F;
-		this.velocityX += g * 0.4;
-		this.velocityY += h * 0.4;
-		this.velocityZ += i * 0.4;
-		float j = this.random.nextFloat() * 0.3F + 0.6F;
-		this.red = j;
-		this.green = j;
-		this.blue = j;
-		this.scale *= 0.75F;
+		this.velocityX = this.velocityX * VELOCITY_SCALE + impulseX * IMPULSE_SCALE;
+		this.velocityY = this.velocityY * VELOCITY_SCALE + impulseY * IMPULSE_SCALE;
+		this.velocityZ = this.velocityZ * VELOCITY_SCALE + impulseZ * IMPULSE_SCALE;
+		float grayTone = this.random.nextFloat() * 0.3F + 0.6F;
+		this.red = grayTone;
+		this.green = grayTone;
+		this.blue = grayTone;
+		this.scale *= SCALE_FACTOR;
 		this.maxAge = Math.max((int) (6.0 / (this.random.nextFloat() * 0.8 + 0.6)), 1);
 		this.collidesWithWorld = false;
 		this.tick();
@@ -36,14 +51,14 @@ public class DamageParticle extends BillboardParticle {
 
 	@Override
 	public float getSize(float tickProgress) {
-		return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * 32.0F, 0.0F, 1.0F);
+		return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * SIZE_RAMP_FACTOR, 0.0F, 1.0F);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		this.green *= 0.96F;
-		this.blue *= 0.9F;
+		this.green *= GREEN_DECAY;
+		this.blue *= BLUE_DECAY;
 	}
 
 	@Override
@@ -51,10 +66,11 @@ public class DamageParticle extends BillboardParticle {
 		return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DefaultFactory}.
+	 * Фабрика для стандартных частиц урона с увеличенным временем жизни (20 тиков)
+	 * и небольшим вертикальным импульсом вверх.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class DefaultFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -63,29 +79,38 @@ public class DamageParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			DamageParticle
-					damageParticle =
-					new DamageParticle(clientWorld, d, e, f, g, h + 1.0, i, this.spriteProvider.getSprite(random));
-			damageParticle.setMaxAge(20);
-			return damageParticle;
+			DamageParticle particle = new DamageParticle(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY + 1.0,
+					velocityZ,
+					this.spriteProvider.getSprite(random)
+			);
+			particle.setMaxAge(20);
+			return particle;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code EnchantedHitFactory}.
+	 * Фабрика для частиц зачарованного удара — синеватый оттенок
+	 * (красный ослаблен до 30%, зелёный до 80%).
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class EnchantedHitFactory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -94,30 +119,38 @@ public class DamageParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			DamageParticle
-					damageParticle =
-					new DamageParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-			damageParticle.red *= 0.3F;
-			damageParticle.green *= 0.8F;
-			return damageParticle;
+			DamageParticle particle = new DamageParticle(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ,
+					this.spriteProvider.getSprite(random)
+			);
+			particle.red *= 0.3F;
+			particle.green *= 0.8F;
+			return particle;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Базовая фабрика для частиц урона без модификаций.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -126,18 +159,19 @@ public class DamageParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new DamageParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			return new DamageParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider.getSprite(random));
 		}
 	}
 }

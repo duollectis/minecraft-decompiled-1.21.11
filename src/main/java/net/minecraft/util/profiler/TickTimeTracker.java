@@ -5,7 +5,8 @@ import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 
 /**
- * {@code TickTimeTracker}.
+ * Управляет жизненным циклом {@link ProfilerSystem}: включает и выключает профилирование,
+ * предоставляя доступ к текущему профайлеру и результатам.
  */
 public class TickTimeTracker {
 
@@ -21,28 +22,22 @@ public class TickTimeTracker {
 	}
 
 	public boolean isActive() {
-		return this.profiler != DummyProfiler.INSTANCE;
+		return profiler != DummyProfiler.INSTANCE;
 	}
 
-	/**
-	 * Disable.
-	 */
 	public void disable() {
-		this.profiler = DummyProfiler.INSTANCE;
+		profiler = DummyProfiler.INSTANCE;
 	}
 
-	/**
-	 * Enable.
-	 */
 	public void enable() {
-		this.profiler = new ProfilerSystem(this.timeGetter, this.tickGetter, this.timeoutDisabled);
+		profiler = new ProfilerSystem(timeGetter, tickGetter, timeoutDisabled);
 	}
 
 	public Profiler getProfiler() {
-		return this.profiler;
+		return profiler;
 	}
 
 	public ProfileResult getResult() {
-		return this.profiler.getResult();
+		return profiler.getResult();
 	}
 }

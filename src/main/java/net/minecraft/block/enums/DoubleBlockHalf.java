@@ -4,25 +4,28 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.Direction;
 
 /**
- * {@code DoubleBlockHalf}.
+ * Половина двухблочной структуры (двери, большого папоротника и т.п.).
+ * Каждая половина хранит направление к своей паре для быстрого поиска соседнего блока.
  */
 public enum DoubleBlockHalf implements StringIdentifiable {
+	/** Верхняя половина; направление к паре — вниз. */
 	UPPER(Direction.DOWN),
+	/** Нижняя половина; направление к паре — вверх. */
 	LOWER(Direction.UP);
 
 	private final Direction oppositeDirection;
 
-	private DoubleBlockHalf(final Direction oppositeDirection) {
+	DoubleBlockHalf(final Direction oppositeDirection) {
 		this.oppositeDirection = oppositeDirection;
 	}
 
 	public Direction getOppositeDirection() {
-		return this.oppositeDirection;
+		return oppositeDirection;
 	}
 
 	@Override
 	public String toString() {
-		return this.asString();
+		return asString();
 	}
 
 	@Override

@@ -8,13 +8,16 @@ import net.minecraft.util.dynamic.Codecs;
 import java.util.List;
 
 /**
- * {@code DialogBody}.
+ * Элемент тела диалога, отображаемый между заголовком и кнопками.
+ * <p>
+ * Диспетчеризация типов происходит через реестр {@code DIALOG_BODY_TYPE}.
+ * Поддерживается как одиночный элемент, так и список через {@link #LIST_CODEC}.
  */
 public interface DialogBody {
 
-	Codec<DialogBody>
-			CODEC =
-			Registries.DIALOG_BODY_TYPE.getCodec().dispatch(DialogBody::getTypeCodec, mapCodec -> mapCodec);
+	Codec<DialogBody> CODEC = Registries.DIALOG_BODY_TYPE
+		.getCodec()
+		.dispatch(DialogBody::getTypeCodec, mapCodec -> mapCodec);
 
 	Codec<List<DialogBody>> LIST_CODEC = Codecs.listOrSingle(CODEC);
 

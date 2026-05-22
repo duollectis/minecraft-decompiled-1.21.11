@@ -3,7 +3,9 @@ package net.minecraft.util.math.random;
 import io.netty.util.internal.ThreadLocalRandom;
 
 /**
- * {@code Random}.
+ * Интерфейс генератора псевдослучайных чисел. Является центральной абстракцией
+ * системы случайности Minecraft, поддерживающей как детерминированные (seeded),
+ * так и потокобезопасные реализации.
  */
 public interface Random {
 
@@ -38,7 +40,7 @@ public interface Random {
 	int nextInt(int bound);
 
 	default int nextBetween(int min, int max) {
-		return this.nextInt(max - min + 1) + min;
+		return nextInt(max - min + 1) + min;
 	}
 
 	long nextLong();
@@ -52,16 +54,16 @@ public interface Random {
 	double nextGaussian();
 
 	default double nextTriangular(double mode, double deviation) {
-		return mode + deviation * (this.nextDouble() - this.nextDouble());
+		return mode + deviation * (nextDouble() - nextDouble());
 	}
 
 	default float nextTriangular(float mode, float deviation) {
-		return mode + deviation * (this.nextFloat() - this.nextFloat());
+		return mode + deviation * (nextFloat() - nextFloat());
 	}
 
 	default void skip(int count) {
 		for (int i = 0; i < count; i++) {
-			this.nextInt();
+			nextInt();
 		}
 	}
 
@@ -69,8 +71,7 @@ public interface Random {
 		if (min >= max) {
 			throw new IllegalArgumentException("bound - origin is non positive");
 		}
-		else {
-			return min + this.nextInt(max - min);
-		}
+
+		return min + nextInt(max - min);
 	}
 }

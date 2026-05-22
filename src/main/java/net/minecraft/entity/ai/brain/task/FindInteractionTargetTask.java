@@ -9,45 +9,38 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import java.util.Optional;
 
 /**
- * {@code FindInteractionTargetTask}.
+ * Фабричный класс задачи мозга, ищущей ближайшую сущность заданного типа для взаимодействия.
+ * Устанавливает найденную сущность как цель взгляда и цель взаимодействия.
  */
 public class FindInteractionTargetTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param type type
-	 * @param maxDistance max distance
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create(EntityType<?> type, int maxDistance) {
-		int i = maxDistance * maxDistance;
+		int maxDistanceSq = maxDistance * maxDistance;
+
 		return TaskTriggerer.task(
 				context -> context.group(
-						                  context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET),
-						                  context.queryMemoryAbsent(MemoryModuleType.INTERACTION_TARGET),
-						                  context.queryMemoryValue(MemoryModuleType.VISIBLE_MOBS)
-				                  )
-				                  .apply(
-						                  context,
-						                  (lookTarget, interactionTarget, visibleMobs) -> (world, entity, time) -> {
-							                  Optional<LivingEntity>
-									                  optional =
-									                  context.<LivingTargetCache>getValue(visibleMobs)
-									                         .findFirst(target -> target.squaredDistanceTo(entity) <= i
-											                         && type.equals(target.getType()));
-							                  if (optional.isEmpty()) {
-								                  return false;
-							                  }
-							                  else {
-								                  LivingEntity livingEntity = optional.get();
-								                  interactionTarget.remember(livingEntity);
-								                  lookTarget.remember(new EntityLookTarget(livingEntity, true));
-								                  return true;
-							                  }
-						                  }
-				                  )
+						context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET),
+						context.queryMemoryAbsent(MemoryModuleType.INTERACTION_TARGET),
+						context.queryMemoryValue(MemoryModuleType.VISIBLE_MOBS)
+				).apply(
+						context,
+						(lookTarget, interactionTarget, visibleMobs) -> (world, entity, time) -> {
+							Optional<LivingEntity> found = context.<LivingTargetCache>getValue(visibleMobs)
+									.findFirst(
+											target -> target.squaredDistanceTo(entity) <= maxDistanceSq
+													&& type.equals(target.getType())
+									);
+
+							if (found.isEmpty()) {
+								return false;
+							}
+
+							LivingEntity target = found.get();
+							interactionTarget.remember(target);
+							lookTarget.remember(new EntityLookTarget(target, true));
+							return true;
+						}
+				)
 		);
 	}
 }

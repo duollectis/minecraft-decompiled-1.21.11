@@ -6,10 +6,10 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.ParentElement;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GuiNavigationPath}.
+ * Путь навигации по дереву GUI-элементов от корня до конечного фокусируемого элемента.
  */
+@Environment(EnvType.CLIENT)
 public interface GuiNavigationPath {
 
 	static GuiNavigationPath of(Element leaf) {
@@ -21,13 +21,13 @@ public interface GuiNavigationPath {
 	}
 
 	static GuiNavigationPath of(Element leaf, ParentElement... elements) {
-		GuiNavigationPath guiNavigationPath = of(leaf);
+		GuiNavigationPath path = of(leaf);
 
 		for (ParentElement parentElement : elements) {
-			guiNavigationPath = of(parentElement, guiNavigationPath);
+			path = of(parentElement, path);
 		}
 
-		return guiNavigationPath;
+		return path;
 	}
 
 	Element component();
@@ -35,33 +35,26 @@ public interface GuiNavigationPath {
 	void setFocused(boolean focused);
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IntermediaryNode}.
-	 */
 	public record IntermediaryNode(ParentElement component, GuiNavigationPath childPath) implements GuiNavigationPath {
 
 		@Override
 		public void setFocused(boolean focused) {
-			if (!focused) {
-				this.component.setFocused(null);
-			}
-			else {
-				this.component.setFocused(this.childPath.component());
+			if (focused) {
+				component.setFocused(childPath.component());
+			} else {
+				component.setFocused(null);
 			}
 
-			this.childPath.setFocused(focused);
+			childPath.setFocused(focused);
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Leaf}.
-	 */
 	public record Leaf(Element component) implements GuiNavigationPath {
 
 		@Override
 		public void setFocused(boolean focused) {
-			this.component.setFocused(focused);
+			component.setFocused(focused);
 		}
 	}
 }

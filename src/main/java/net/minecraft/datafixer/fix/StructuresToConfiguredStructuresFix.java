@@ -2,7 +2,6 @@ package net.minecraft.datafixer.fix;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DataFix;
 import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
@@ -18,9 +17,10 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.LongStream;
+import java.util.HashMap;
 
 /**
- * {@code StructuresToConfiguredStructuresFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StructuresToConfiguredStructuresFix extends DataFix {
 
@@ -161,9 +161,9 @@ public class StructuresToConfiguredStructuresFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = this.getInputSchema().getType(TypeReferences.CHUNK);
-		return this.writeFixAndRead("StucturesToConfiguredStructures", type, type2, this::fixChunk);
+		Type<?> type = getInputSchema().getType(TypeReferences.CHUNK);
+		Type<?> type2 = getInputSchema().getType(TypeReferences.CHUNK);
+		return writeFixAndRead("StucturesToConfiguredStructures", type, type2, this::fixChunk);
 	}
 
 	private Dynamic<?> fixChunk(Dynamic<?> chunkDynamic) {
@@ -180,7 +180,7 @@ public class StructuresToConfiguredStructuresFix extends DataFix {
 
 	private Dynamic<?> fixStructureStarts(Dynamic<?> startsDynamic, Dynamic<?> chunkDynamic) {
 		Map<? extends Dynamic<?>, ? extends Dynamic<?>> map = startsDynamic.getMapValues().result().orElse(Map.of());
-		HashMap<Dynamic<?>, Dynamic<?>> hashMap = Maps.newHashMap();
+		HashMap<Dynamic<?>, Dynamic<?>> hashMap = new HashMap<>();
 		map.forEach((structureId, startDynamic) -> {
 			if (!startDynamic.get("id").asString("INVALID").equals("INVALID")) {
 				Dynamic<?> dynamic2 = this.mapStructureToConfiguredStructure((Dynamic<?>) structureId, chunkDynamic);
@@ -202,7 +202,7 @@ public class StructuresToConfiguredStructuresFix extends DataFix {
 		Map<? extends Dynamic<?>, ? extends Dynamic<?>>
 				map =
 				referencesDynamic.getMapValues().result().orElse(Map.of());
-		HashMap<Dynamic<?>, Dynamic<?>> hashMap = Maps.newHashMap();
+		HashMap<Dynamic<?>, Dynamic<?>> hashMap = new HashMap<>();
 		map.forEach(
 				(structureId, referenceDynamic) -> {
 					if (referenceDynamic.asLongStream().count() != 0L) {
@@ -281,8 +281,8 @@ public class StructuresToConfiguredStructuresFix extends DataFix {
 	}
 
 	/**
-	 * {@code Mapping}.
-	 */
+ * Содержит маппинги для преобразования данных.
+ */
 	record Mapping(Map<String, String> biomeMapping, String fallback) {
 
 		public static StructuresToConfiguredStructuresFix.Mapping create(String mapping) {

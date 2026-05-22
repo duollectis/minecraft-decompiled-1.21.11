@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code StraightTrunkPlacer}.
+ * Простейший алгоритм размещения ствола: строит прямой вертикальный ствол заданной высоты
+ * и возвращает единственный узел кроны на вершине.
  */
 public class StraightTrunkPlacer extends TrunkPlacer {
 
@@ -22,8 +23,8 @@ public class StraightTrunkPlacer extends TrunkPlacer {
 			instance -> fillTrunkPlacerFields(instance).apply(instance, StraightTrunkPlacer::new)
 	);
 
-	public StraightTrunkPlacer(int i, int j, int k) {
-		super(i, j, k);
+	public StraightTrunkPlacer(int baseHeight, int firstRandomHeight, int secondRandomHeight) {
+		super(baseHeight, firstRandomHeight, secondRandomHeight);
 	}
 
 	@Override
@@ -42,8 +43,8 @@ public class StraightTrunkPlacer extends TrunkPlacer {
 	) {
 		setToDirt(world, replacer, random, startPos.down(), config);
 
-		for (int i = 0; i < height; i++) {
-			this.getAndSetState(world, replacer, random, startPos.up(i), config);
+		for (int y = 0; y < height; y++) {
+			getAndSetState(world, replacer, random, startPos.up(y), config);
 		}
 
 		return ImmutableList.of(new FoliagePlacer.TreeNode(startPos.up(height), 0, false));

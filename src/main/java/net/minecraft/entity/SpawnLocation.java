@@ -5,7 +5,9 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SpawnLocation}.
+ * Стратегия проверки допустимости позиции спауна для сущности.
+ * Используется в {@link SpawnRestriction} для определения, может ли моб заспауниться
+ * в конкретной позиции мира.
  */
 public interface SpawnLocation {
 

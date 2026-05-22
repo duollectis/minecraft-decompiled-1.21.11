@@ -19,13 +19,19 @@ import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AbstractPressurePlateBlock}.
+ * Базовый класс для всех типов нажимных плит.
+ * Управляет логикой активации/деактивации редстоун-сигнала,
+ * звуковыми эффектами и планированием тиков сброса.
  */
 public abstract class AbstractPressurePlateBlock extends Block {
 
 	private static final VoxelShape PRESSED_SHAPE = Block.createColumnShape(14.0, 0.0, 0.5);
 	private static final VoxelShape DEFAULT_SHAPE = Block.createColumnShape(14.0, 0.0, 1.0);
 	protected static final Box BOX = Block.createColumnShape(14.0, 0.0, 4.0).getBoundingBoxes().getFirst();
+
+	/** Флаг обновления блока: уведомить соседей + отправить клиентам. */
+	private static final int BLOCK_UPDATE_FLAGS = 2;
+
 	protected final BlockSetType blockSetType;
 
 	protected AbstractPressurePlateBlock(AbstractBlock.Settings settings, BlockSetType blockSetType) {
@@ -38,7 +44,7 @@ public abstract class AbstractPressurePlateBlock extends Block {
 
 	@Override
 	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		return this.getRedstoneOutput(state) > 0 ? PRESSED_SHAPE : DEFAULT_SHAPE;
+		return getRedstoneOutput(state) > 0 ? PRESSED_SHAPE : DEFAULT_SHAPE;
 	}
 
 	protected int getTickRate() {
@@ -52,98 +58,100 @@ public abstract class AbstractPressurePlateBlock extends Block {
 
 	@Override
 	protected BlockState getStateForNeighborUpdate(
-			BlockState state,
-			WorldView world,
-			ScheduledTickView tickView,
-			BlockPos pos,
-			Direction direction,
-			BlockPos neighborPos,
-			BlockState neighborState,
-			Random random
+		BlockState state,
+		WorldView world,
+		ScheduledTickView tickView,
+		BlockPos pos,
+		Direction direction,
+		BlockPos neighborPos,
+		BlockState neighborState,
+		Random random
 	) {
 		return direction == Direction.DOWN && !state.canPlaceAt(world, pos)
-		       ? Blocks.AIR.getDefaultState()
-		       : super.getStateForNeighborUpdate(
-				       state,
-				       world,
-				       tickView,
-				       pos,
-				       direction,
-				       neighborPos,
-				       neighborState,
-				       random
-		       );
+			? Blocks.AIR.getDefaultState()
+			: super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+			);
 	}
 
 	@Override
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-		BlockPos blockPos = pos.down();
-		return hasTopRim(world, blockPos) || sideCoversSmallSquare(world, blockPos, Direction.UP);
+		BlockPos below = pos.down();
+		return hasTopRim(world, below) || sideCoversSmallSquare(world, below, Direction.UP);
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		int i = this.getRedstoneOutput(state);
-		if (i > 0) {
-			this.updatePlateState(null, world, pos, state, i);
+		int currentOutput = getRedstoneOutput(state);
+
+		if (currentOutput > 0) {
+			updatePlateState(null, world, pos, state, currentOutput);
 		}
 	}
 
 	@Override
 	protected void onEntityCollision(
-			BlockState state,
-			World world,
-			BlockPos pos,
-			Entity entity,
-			EntityCollisionHandler handler,
-			boolean bl
+		BlockState state,
+		World world,
+		BlockPos pos,
+		Entity entity,
+		EntityCollisionHandler handler,
+		boolean firstCollision
 	) {
-		if (!world.isClient()) {
-			int i = this.getRedstoneOutput(state);
-			if (i == 0) {
-				this.updatePlateState(entity, world, pos, state, i);
-			}
+		if (world.isClient()) {
+			return;
+		}
+
+		int currentOutput = getRedstoneOutput(state);
+
+		if (currentOutput == 0) {
+			updatePlateState(entity, world, pos, state, currentOutput);
 		}
 	}
 
-	private void updatePlateState(@Nullable Entity entity, World world, BlockPos pos, BlockState state, int output) {
-		int i = this.getRedstoneOutput(world, pos);
-		boolean bl = output > 0;
-		boolean bl2 = i > 0;
-		if (output != i) {
-			BlockState blockState = this.setRedstoneOutput(state, i);
-			world.setBlockState(pos, blockState, 2);
-			this.updateNeighbors(world, pos);
-			world.scheduleBlockRerenderIfNeeded(pos, state, blockState);
+	/**
+	 * Обновляет состояние плиты: изменяет редстоун-выход, воспроизводит звук
+	 * и планирует тик сброса при активации.
+	 */
+	private void updatePlateState(@Nullable Entity entity, World world, BlockPos pos, BlockState state, int prevOutput) {
+		int newOutput = getRedstoneOutput(world, pos);
+		boolean wasActive = prevOutput > 0;
+		boolean isActive = newOutput > 0;
+
+		if (prevOutput != newOutput) {
+			BlockState newState = setRedstoneOutput(state, newOutput);
+			world.setBlockState(pos, newState, BLOCK_UPDATE_FLAGS);
+			updateNeighbors(world, pos);
+			world.scheduleBlockRerenderIfNeeded(pos, state, newState);
 		}
 
-		if (!bl2 && bl) {
-			world.playSound(null, pos, this.blockSetType.pressurePlateClickOff(), SoundCategory.BLOCKS);
+		if (!isActive && wasActive) {
+			world.playSound(null, pos, blockSetType.pressurePlateClickOff(), SoundCategory.BLOCKS);
 			world.emitGameEvent(entity, GameEvent.BLOCK_DEACTIVATE, pos);
-		}
-		else if (bl2 && !bl) {
-			world.playSound(null, pos, this.blockSetType.pressurePlateClickOn(), SoundCategory.BLOCKS);
+		} else if (isActive && !wasActive) {
+			world.playSound(null, pos, blockSetType.pressurePlateClickOn(), SoundCategory.BLOCKS);
 			world.emitGameEvent(entity, GameEvent.BLOCK_ACTIVATE, pos);
 		}
 
-		if (bl2) {
-			world.scheduleBlockTick(new BlockPos(pos), this, this.getTickRate());
+		if (isActive) {
+			world.scheduleBlockTick(new BlockPos(pos), this, getTickRate());
 		}
 	}
 
 	@Override
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-		if (!moved && this.getRedstoneOutput(state) > 0) {
-			this.updateNeighbors(world, pos);
+		if (!moved && getRedstoneOutput(state) > 0) {
+			updateNeighbors(world, pos);
 		}
 	}
 
-	/**
-	 * Обновляет neighbors.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 */
 	protected void updateNeighbors(World world, BlockPos pos) {
 		world.updateNeighbors(pos, this);
 		world.updateNeighbors(pos.down(), this);
@@ -151,12 +159,12 @@ public abstract class AbstractPressurePlateBlock extends Block {
 
 	@Override
 	protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-		return this.getRedstoneOutput(state);
+		return getRedstoneOutput(state);
 	}
 
 	@Override
 	protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-		return direction == Direction.UP ? this.getRedstoneOutput(state) : 0;
+		return direction == Direction.UP ? getRedstoneOutput(state) : 0;
 	}
 
 	@Override
@@ -166,17 +174,17 @@ public abstract class AbstractPressurePlateBlock extends Block {
 
 	protected static int getEntityCount(World world, Box box, Class<? extends Entity> entityClass) {
 		return world
-				.getEntitiesByClass(
-						entityClass,
-						box,
-						EntityPredicates.EXCEPT_SPECTATOR.and(entity -> !entity.canAvoidTraps())
-				)
-				.size();
+			.getEntitiesByClass(
+				entityClass,
+				box,
+				EntityPredicates.EXCEPT_SPECTATOR.and(entity -> !entity.canAvoidTraps())
+			)
+			.size();
 	}
 
 	protected abstract int getRedstoneOutput(World world, BlockPos pos);
 
 	protected abstract int getRedstoneOutput(BlockState state);
 
-	protected abstract BlockState setRedstoneOutput(BlockState state, int rsOut);
+	protected abstract BlockState setRedstoneOutput(BlockState state, int output);
 }

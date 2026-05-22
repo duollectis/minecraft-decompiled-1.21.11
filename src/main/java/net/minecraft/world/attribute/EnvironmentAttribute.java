@@ -8,7 +8,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code EnvironmentAttribute}.
+ * Описывает один атрибут окружения: его тип, значение по умолчанию,
+ * правила валидации и флаги поведения (синхронизация, позиционность, интерполяция).
+ * <p>
+ * Атрибуты регистрируются в {@link net.minecraft.registry.Registries#ENVIRONMENTAL_ATTRIBUTE}
+ * и используются для управления визуальными и игровыми параметрами биомов/измерений.
+ *
+ * @param <Value> тип значения атрибута
  */
 public class EnvironmentAttribute<Value> {
 
@@ -20,12 +26,12 @@ public class EnvironmentAttribute<Value> {
 	private final boolean interpolated;
 
 	EnvironmentAttribute(
-			EnvironmentAttributeType<Value> type,
-			Value defaultValue,
-			AttributeValidator<Value> validator,
-			boolean synced,
-			boolean positional,
-			boolean interpolated
+		EnvironmentAttributeType<Value> type,
+		Value defaultValue,
+		AttributeValidator<Value> validator,
+		boolean synced,
+		boolean positional,
+		boolean interpolated
 	) {
 		this.type = type;
 		this.defaultValue = defaultValue;
@@ -35,43 +41,53 @@ public class EnvironmentAttribute<Value> {
 		this.interpolated = interpolated;
 	}
 
-	public static <Value> EnvironmentAttribute.Builder<Value> builder(EnvironmentAttributeType<Value> type) {
-		return new EnvironmentAttribute.Builder<>(type);
+	/** Создаёт билдер для атрибута заданного типа. */
+	public static <Value> Builder<Value> builder(EnvironmentAttributeType<Value> type) {
+		return new Builder<>(type);
 	}
 
 	public EnvironmentAttributeType<Value> getType() {
-		return this.type;
+		return type;
 	}
 
 	public Value getDefaultValue() {
-		return this.defaultValue;
-	}
-
-	public Codec<Value> getCodec() {
-		return this.type.valueCodec().validate(this.validator::validate);
+		return defaultValue;
 	}
 
 	/**
-	 * Clamp.
+	 * Возвращает codec для значений этого атрибута с встроенной валидацией.
+	 * Codec отклонит значения, не прошедшие {@link AttributeValidator#validate}.
+	 */
+	public Codec<Value> getCodec() {
+		return type.valueCodec().validate(validator::validate);
+	}
+
+	/**
+	 * Зажимает значение в допустимый диапазон согласно валидатору атрибута.
 	 *
-	 * @param value value
-	 *
-	 * @return Value — результат операции
+	 * @param value исходное значение
+	 * @return значение в допустимом диапазоне
 	 */
 	public Value clamp(Value value) {
-		return this.validator.clamp(value);
+		return validator.clamp(value);
 	}
 
+	/** Синхронизируется ли атрибут с клиентом по сети. */
 	public boolean isSynced() {
-		return this.synced;
+		return synced;
 	}
 
+	/**
+	 * Является ли атрибут позиционным — зависящим от координат в мире.
+	 * Позиционные атрибуты требуют передачи позиции при запросе значения.
+	 */
 	public boolean isPositional() {
-		return this.positional;
+		return positional;
 	}
 
+	/** Интерполируется ли атрибут между биомами при смешивании. */
 	public boolean isInterpolated() {
-		return this.interpolated;
+		return interpolated;
 	}
 
 	@Override
@@ -80,7 +96,10 @@ public class EnvironmentAttribute<Value> {
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Билдер для создания {@link EnvironmentAttribute}.
+	 * По умолчанию: без синхронизации, позиционный, без интерполяции.
+	 *
+	 * @param <Value> тип значения атрибута
 	 */
 	public static class Builder<Value> {
 
@@ -95,44 +114,46 @@ public class EnvironmentAttribute<Value> {
 			this.type = type;
 		}
 
-		public EnvironmentAttribute.Builder<Value> defaultValue(Value defaultValue) {
+		public Builder<Value> defaultValue(Value defaultValue) {
 			this.defaultValue = defaultValue;
 			return this;
 		}
 
-		public EnvironmentAttribute.Builder<Value> validator(AttributeValidator<Value> validator) {
+		public Builder<Value> validator(AttributeValidator<Value> validator) {
 			this.validator = validator;
 			return this;
 		}
 
-		public EnvironmentAttribute.Builder<Value> synced() {
+		/** Помечает атрибут как синхронизируемый с клиентом. */
+		public Builder<Value> synced() {
 			this.synced = true;
 			return this;
 		}
 
-		public EnvironmentAttribute.Builder<Value> global() {
+		/** Помечает атрибут как глобальный (не зависящий от позиции). */
+		public Builder<Value> global() {
 			this.positional = false;
 			return this;
 		}
 
-		public EnvironmentAttribute.Builder<Value> interpolated() {
+		/** Включает интерполяцию значения между соседними биомами. */
+		public Builder<Value> interpolated() {
 			this.interpolated = true;
 			return this;
 		}
 
 		/**
-		 * Build.
-		 *
-		 * @return EnvironmentAttribute — результат операции
+		 * Собирает атрибут. Бросает {@link NullPointerException} если
+		 * значение по умолчанию не было задано через {@link #defaultValue}.
 		 */
 		public EnvironmentAttribute<Value> build() {
 			return new EnvironmentAttribute<>(
-					this.type,
-					Objects.requireNonNull(this.defaultValue, "Missing default value"),
-					this.validator,
-					this.synced,
-					this.positional,
-					this.interpolated
+				type,
+				Objects.requireNonNull(defaultValue, "Missing default value"),
+				validator,
+				synced,
+				positional,
+				interpolated
 			);
 		}
 	}

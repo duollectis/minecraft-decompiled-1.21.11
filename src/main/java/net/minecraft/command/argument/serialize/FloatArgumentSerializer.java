@@ -7,28 +7,32 @@ import net.minecraft.command.argument.ArgumentHelper;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code FloatArgumentSerializer}.
+ * Сериализатор аргумента {@link FloatArgumentType} для передачи по сети и записи в JSON.
+ * Передаёт минимальное и максимальное допустимые значения через битовый флаг присутствия.
  */
 public class FloatArgumentSerializer implements ArgumentSerializer<FloatArgumentType, FloatArgumentSerializer.Properties> {
 
 	public void writePacket(FloatArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
-		boolean bl = properties.min != -Float.MAX_VALUE;
-		boolean bl2 = properties.max != Float.MAX_VALUE;
-		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(bl, bl2));
-		if (bl) {
+		boolean hasMin = properties.min != -Float.MAX_VALUE;
+		boolean hasMax = properties.max != Float.MAX_VALUE;
+
+		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(hasMin, hasMax));
+
+		if (hasMin) {
 			packetByteBuf.writeFloat(properties.min);
 		}
 
-		if (bl2) {
+		if (hasMax) {
 			packetByteBuf.writeFloat(properties.max);
 		}
 	}
 
 	public FloatArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-		byte b = packetByteBuf.readByte();
-		float f = ArgumentHelper.hasMinFlag(b) ? packetByteBuf.readFloat() : -Float.MAX_VALUE;
-		float g = ArgumentHelper.hasMaxFlag(b) ? packetByteBuf.readFloat() : Float.MAX_VALUE;
-		return new FloatArgumentSerializer.Properties(f, g);
+		byte flags = packetByteBuf.readByte();
+		float min = ArgumentHelper.hasMinFlag(flags) ? packetByteBuf.readFloat() : -Float.MAX_VALUE;
+		float max = ArgumentHelper.hasMaxFlag(flags) ? packetByteBuf.readFloat() : Float.MAX_VALUE;
+
+		return new FloatArgumentSerializer.Properties(min, max);
 	}
 
 	public void writeJson(FloatArgumentSerializer.Properties properties, JsonObject jsonObject) {
@@ -46,7 +50,7 @@ public class FloatArgumentSerializer implements ArgumentSerializer<FloatArgument
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит диапазон допустимых значений.
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<FloatArgumentType> {
 

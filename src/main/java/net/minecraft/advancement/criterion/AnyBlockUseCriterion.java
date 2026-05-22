@@ -18,57 +18,54 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * {@code AnyBlockUseCriterion}.
+ * Критерий, срабатывающий при использовании игроком любого блока.
+ * Проверяет местоположение и инструмент взаимодействия.
  */
 public class AnyBlockUseCriterion extends AbstractCriterion<AnyBlockUseCriterion.Conditions> {
 
 	@Override
 	public Codec<AnyBlockUseCriterion.Conditions> getConditionsCodec() {
-		return AnyBlockUseCriterion.Conditions.CODEC;
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, BlockPos pos, ItemStack stack) {
-		ServerWorld serverWorld = player.getEntityWorld();
-		BlockState blockState = serverWorld.getBlockState(pos);
-		LootWorldContext lootWorldContext = new LootWorldContext.Builder(serverWorld)
+		ServerWorld world = player.getEntityWorld();
+		BlockState blockState = world.getBlockState(pos);
+		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.ORIGIN, pos.toCenterPos())
 				.add(LootContextParameters.THIS_ENTITY, player)
 				.add(LootContextParameters.BLOCK_STATE, blockState)
 				.add(LootContextParameters.TOOL, stack)
 				.build(LootContextTypes.ADVANCEMENT_LOCATION);
 		LootContext lootContext = new LootContext.Builder(lootWorldContext).build(Optional.empty());
-		this.trigger(player, conditions -> conditions.test(lootContext));
+		trigger(player, conditions -> conditions.test(lootContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> location
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<AnyBlockUseCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(AnyBlockUseCriterion.Conditions::player),
-						                    LootContextPredicate.CODEC
-								                    .optionalFieldOf("location")
-								                    .forGetter(AnyBlockUseCriterion.Conditions::location)
-				                    )
-				                    .apply(instance, AnyBlockUseCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						LootContextPredicate.CODEC
+								.optionalFieldOf("location")
+								.forGetter(Conditions::location)
+				).apply(instance, Conditions::new)
 		);
 
-		public boolean test(LootContext location) {
-			return this.location.isEmpty() || this.location.get().test(location);
+		public boolean test(LootContext locationContext) {
+			return location.isEmpty() || location.get().test(locationContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			this.location.ifPresent(location -> validator.validate(
-					location,
+			location.ifPresent(loc -> validator.validate(
+					loc,
 					LootContextTypes.ADVANCEMENT_LOCATION,
 					"location"
 			));

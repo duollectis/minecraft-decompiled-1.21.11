@@ -20,55 +20,62 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
-/**
- * {@code AbstractCauldronBlock}.
- */
 public abstract class AbstractCauldronBlock extends Block {
 
 	protected static final int WALL_HEIGHT = 4;
-	private static final VoxelShape RAYCAST_SHAPE = Block.createColumnShape(12.0, 4.0, 16.0);
-	protected static final VoxelShape OUTLINE_SHAPE = Util.make(
-			() -> {
-				int i = 4;
-				int j = 3;
-				int k = 2;
-				return VoxelShapes.combineAndSimplify(
-						VoxelShapes.fullCube(),
-						VoxelShapes.union(
-								Block.createColumnShape(16.0, 8.0, 0.0, 3.0),
-								Block.createColumnShape(8.0, 16.0, 0.0, 3.0),
-								Block.createColumnShape(12.0, 0.0, 3.0),
-								RAYCAST_SHAPE
-						),
-						BooleanBiFunction.ONLY_FIRST
-				);
-			}
-	);
-	protected final CauldronBehavior.CauldronBehaviorMap behaviorMap;
 
-	@Override
-	protected abstract MapCodec<? extends AbstractCauldronBlock> getCodec();
+	private static final VoxelShape RAYCAST_SHAPE = Block.createColumnShape(12.0, 4.0, 16.0);
+
+	protected static final VoxelShape OUTLINE_SHAPE = Util.make(
+		() -> VoxelShapes.combineAndSimplify(
+			VoxelShapes.fullCube(),
+			VoxelShapes.union(
+				Block.createColumnShape(16.0, 8.0, 0.0, 3.0),
+				Block.createColumnShape(8.0, 16.0, 0.0, 3.0),
+				Block.createColumnShape(12.0, 0.0, 3.0),
+				RAYCAST_SHAPE
+			),
+			BooleanBiFunction.ONLY_FIRST
+		)
+	);
+
+	protected final CauldronBehavior.CauldronBehaviorMap behaviorMap;
 
 	public AbstractCauldronBlock(AbstractBlock.Settings settings, CauldronBehavior.CauldronBehaviorMap behaviorMap) {
 		super(settings);
 		this.behaviorMap = behaviorMap;
 	}
 
+	@Override
+	protected abstract MapCodec<? extends AbstractCauldronBlock> getCodec();
+
+	/**
+	 * Возвращает высоту поверхности жидкости внутри котла в мировых координатах
+	 * (относительно нижней грани блока). Переопределяется подклассами для
+	 * отображения корректного уровня воды/лавы в зависимости от заполненности.
+	 */
 	protected double getFluidHeight(BlockState state) {
 		return 0.0;
 	}
 
+	/**
+	 * Возвращает {@code true}, если котёл полностью заполнен жидкостью.
+	 * Используется, в частности, для определения возможности наполнения
+	 * из дрипстоуна и для компараторного сигнала.
+	 */
+	public abstract boolean isFull(BlockState state);
+
 	@Override
 	protected ActionResult onUseWithItem(
-			ItemStack stack,
-			BlockState state,
-			World world,
-			BlockPos pos,
-			PlayerEntity player,
-			Hand hand,
-			BlockHitResult hit
+		ItemStack stack,
+		BlockState state,
+		World world,
+		BlockPos pos,
+		PlayerEntity player,
+		Hand hand,
+		BlockHitResult hit
 	) {
-		CauldronBehavior cauldronBehavior = this.behaviorMap.map().get(stack.getItem());
+		CauldronBehavior cauldronBehavior = behaviorMap.map().get(stack.getItem());
 		return cauldronBehavior.interact(state, world, pos, player, hand, stack);
 	}
 
@@ -92,37 +99,37 @@ public abstract class AbstractCauldronBlock extends Block {
 		return false;
 	}
 
-	public abstract boolean isFull(BlockState state);
-
+	/**
+	 * Обрабатывает наполнение котла каплями из сталактита (pointed dripstone).
+	 * Ищет ближайший дрипстоун над котлом, определяет тип капающей жидкости
+	 * и вызывает {@link #fillFromDripstone}, если жидкость допустима для данного котла.
+	 */
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		BlockPos blockPos = PointedDripstoneBlock.getDripPos(world, pos);
-		if (blockPos != null) {
-			Fluid fluid = PointedDripstoneBlock.getDripFluid(world, blockPos);
-			if (fluid != Fluids.EMPTY && this.canBeFilledByDripstone(fluid)) {
-				this.fillFromDripstone(state, world, pos, fluid);
-			}
+		BlockPos dripPos = PointedDripstoneBlock.getDripPos(world, pos);
+		if (dripPos == null) {
+			return;
+		}
+
+		Fluid drippingFluid = PointedDripstoneBlock.getDripFluid(world, dripPos);
+		if (drippingFluid != Fluids.EMPTY && canBeFilledByDripstone(drippingFluid)) {
+			fillFromDripstone(state, world, pos, drippingFluid);
 		}
 	}
 
 	/**
-	 * Проверяет возможность be filled by dripstone.
-	 *
-	 * @param fluid fluid
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Хук-предикат: определяет, может ли данный тип котла наполняться
+	 * каплями указанной жидкости из сталактита. По умолчанию запрещено;
+	 * переопределяется, например, в водяном и лавовом котлах.
 	 */
 	protected boolean canBeFilledByDripstone(Fluid fluid) {
 		return false;
 	}
 
 	/**
-	 * Fill from dripstone.
-	 *
-	 * @param state state
-	 * @param world world
-	 * @param pos pos
-	 * @param fluid fluid
+	 * Хук-действие: выполняет фактическое наполнение котла жидкостью из сталактита.
+	 * Вызывается только если {@link #canBeFilledByDripstone} вернул {@code true}.
+	 * Подклассы обязаны переопределить этот метод вместе с {@link #canBeFilledByDripstone}.
 	 */
 	protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
 	}

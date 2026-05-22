@@ -24,10 +24,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DialogScreen}.
+ * Базовый экран диалога, отображающий тело, входные поля и кнопки действий из {@link Dialog}.
+ * Содержит кнопку предупреждения о кастомных экранах сервера.
  */
+@Environment(EnvType.CLIENT)
 public abstract class DialogScreen<T extends Dialog> extends Screen {
 
 	public static final Text
@@ -57,37 +58,36 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 	@Override
 	protected final void init() {
 		super.init();
-		this.warningButton = this.createWarningButton();
-		this.warningButton.setNavigationOrder(-10);
+		warningButton = createWarningButton();
+		warningButton.setNavigationOrder(-10);
 		DialogControls dialogControls = new DialogControls(this);
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.vertical().spacing(10);
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		this.layout.addHeader(this.createHeader());
+		DirectionalLayoutWidget bodyLayout = DirectionalLayoutWidget.vertical().spacing(10);
+		bodyLayout.getMainPositioner().alignHorizontalCenter();
+		layout.addHeader(createHeader());
 
-		for (DialogBody dialogBody : this.dialog.common().body()) {
+		for (DialogBody dialogBody : dialog.common().body()) {
 			Widget widget = DialogBodyHandlers.createWidget(this, dialogBody);
 			if (widget != null) {
-				directionalLayoutWidget.add(widget);
+				bodyLayout.add(widget);
 			}
 		}
 
-		for (DialogInput dialogInput : this.dialog.common().inputs()) {
-			dialogControls.addInput(dialogInput, directionalLayoutWidget::add);
+		for (DialogInput dialogInput : dialog.common().inputs()) {
+			dialogControls.addInput(dialogInput, bodyLayout::add);
 		}
 
-		this.initBody(directionalLayoutWidget, dialogControls, this.dialog, this.networkAccess);
-		this.contents =
-				new ScrollableLayoutWidget(this.client, directionalLayoutWidget, this.layout.getContentHeight());
-		this.layout.addBody(this.contents);
-		this.initHeaderAndFooter(this.layout, dialogControls, this.dialog, this.networkAccess);
-		this.cancelAction = dialogControls.createClickEvent(this.dialog.getCancelAction());
-		this.layout.forEachChild(child -> {
-			if (child != this.warningButton) {
-				this.addDrawableChild(child);
+		initBody(bodyLayout, dialogControls, dialog, networkAccess);
+		contents = new ScrollableLayoutWidget(client, bodyLayout, layout.getContentHeight());
+		layout.addBody(contents);
+		initHeaderAndFooter(layout, dialogControls, dialog, networkAccess);
+		cancelAction = dialogControls.createClickEvent(dialog.getCancelAction());
+		layout.forEachChild(child -> {
+			if (child != warningButton) {
+				addDrawableChild(child);
 			}
 		});
-		this.addDrawableChild(this.warningButton);
-		this.refreshWidgetPositions();
+		addDrawableChild(warningButton);
+		refreshWidgetPositions();
 	}
 
 	protected void initBody(
@@ -108,182 +108,169 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.contents.setHeight(this.layout.getContentHeight());
-		this.layout.refreshPositions();
-		this.resetWarningButtonPosition();
+		contents.setHeight(layout.getContentHeight());
+		layout.refreshPositions();
+		resetWarningButtonPosition();
 	}
 
-	/**
-	 * Создаёт header.
-	 *
-	 * @return Widget — результат операции
-	 */
 	protected Widget createHeader() {
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(10);
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter().alignVerticalCenter();
-		directionalLayoutWidget.add(new TextWidget(this.title, this.textRenderer));
-		directionalLayoutWidget.add(this.warningButton);
-		return directionalLayoutWidget;
+		DirectionalLayoutWidget headerRow = DirectionalLayoutWidget.horizontal().spacing(10);
+		headerRow.getMainPositioner().alignHorizontalCenter().alignVerticalCenter();
+		headerRow.add(new TextWidget(title, textRenderer));
+		headerRow.add(warningButton);
+		return headerRow;
 	}
 
 	/**
-	 * Сбрасывает warning button position.
+	 * Сбрасывает позицию кнопки предупреждения, если она вышла за пределы экрана.
 	 */
 	protected void resetWarningButtonPosition() {
-		int i = this.warningButton.getX();
-		int j = this.warningButton.getY();
-		if (i < 0 || j < 0 || i > this.width - 20 || j > this.height - 20) {
-			this.warningButton.setX(Math.max(0, this.width - 40));
-			this.warningButton.setY(Math.min(5, this.height));
+		int buttonX = warningButton.getX();
+		int buttonY = warningButton.getY();
+
+		if (buttonX < 0 || buttonY < 0 || buttonX > width - BUTTON_MARGIN || buttonY > height - BUTTON_MARGIN) {
+			warningButton.setX(Math.max(0, width - 40));
+			warningButton.setY(Math.min(5, height));
 		}
 	}
 
 	private ButtonWidget createWarningButton() {
-		TexturedButtonWidget texturedButtonWidget = new TexturedButtonWidget(
+		TexturedButtonWidget button = new TexturedButtonWidget(
 				0,
 				0,
-				20,
-				20,
+				BUTTON_MARGIN,
+				BUTTON_MARGIN,
 				WARNING_BUTTON_TEXTURES,
-				button -> this.client.setScreen(DialogScreen.WarningScreen.create(
-						this.client,
-						this.networkAccess,
-						this
-				)),
+				pressed -> client.setScreen(DialogScreen.WarningScreen.create(client, networkAccess, this)),
 				Text.translatable("menu.custom_screen_info.button_narration")
 		);
-		texturedButtonWidget.setTooltip(Tooltip.of(Text.translatable("menu.custom_screen_info.tooltip")));
-		return texturedButtonWidget;
+		button.setTooltip(Tooltip.of(Text.translatable("menu.custom_screen_info.tooltip")));
+		return button;
 	}
 
 	@Override
 	public boolean shouldPause() {
-		return this.dialog.common().pause();
+		return dialog.common().pause();
 	}
 
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return this.dialog.common().canCloseWithEscape();
+		return dialog.common().canCloseWithEscape();
 	}
 
 	@Override
 	public void close() {
-		this.runAction(this.cancelAction.get(), AfterAction.CLOSE);
+		runAction(cancelAction.get(), AfterAction.CLOSE);
 	}
 
-	/**
-	 * Run action.
-	 *
-	 * @param clickEvent click event
-	 */
 	public void runAction(Optional<ClickEvent> clickEvent) {
-		this.runAction(clickEvent, this.dialog.common().afterAction());
+		runAction(clickEvent, dialog.common().afterAction());
 	}
 
 	/**
-	 * Run action.
+	 * Выполняет действие диалога и переключает экран согласно {@link AfterAction}.
 	 *
-	 * @param clickEvent click event
-	 * @param afterAction after action
+	 * @param clickEvent событие клика, которое нужно обработать
+	 * @param afterAction поведение после выполнения действия
 	 */
 	public void runAction(Optional<ClickEvent> clickEvent, AfterAction afterAction) {
-		Screen screen = (Screen) (switch (afterAction) {
+		Screen nextScreen = switch (afterAction) {
 			case NONE -> this;
-			case CLOSE -> this.parent;
-			case WAIT_FOR_RESPONSE -> new WaitingForResponseScreen(this.parent);
-		}
-		);
+			case CLOSE -> parent;
+			case WAIT_FOR_RESPONSE -> new WaitingForResponseScreen(parent);
+		};
+
 		if (clickEvent.isPresent()) {
-			this.handleClickEvent(clickEvent.get(), screen);
-		}
-		else {
-			this.client.setScreen(screen);
+			handleClickEvent(clickEvent.get(), nextScreen);
+		} else {
+			client.setScreen(nextScreen);
 		}
 	}
 
 	private void handleClickEvent(ClickEvent clickEvent, @Nullable Screen afterActionScreen) {
 		switch (clickEvent) {
-			case ClickEvent.RunCommand(String var10):
-				this.networkAccess.runClickEventCommand(CommandManager.stripLeadingSlash(var10), afterActionScreen);
+			case ClickEvent.RunCommand(String command):
+				networkAccess.runClickEventCommand(CommandManager.stripLeadingSlash(command), afterActionScreen);
 				break;
 			case ClickEvent.ShowDialog showDialog:
-				this.networkAccess.showDialog(showDialog.dialog(), afterActionScreen);
+				networkAccess.showDialog(showDialog.dialog(), afterActionScreen);
 				break;
 			case ClickEvent.Custom custom:
-				this.networkAccess.sendCustomClickActionPacket(custom.id(), custom.payload());
-				this.client.setScreen(afterActionScreen);
+				networkAccess.sendCustomClickActionPacket(custom.id(), custom.payload());
+				client.setScreen(afterActionScreen);
 				break;
 			default:
-				handleBasicClickEvent(clickEvent, this.client, afterActionScreen);
+				handleBasicClickEvent(clickEvent, client, afterActionScreen);
 		}
 	}
 
 	public @Nullable Screen getParentScreen() {
-		return this.parent;
+		return parent;
 	}
 
 	/**
-	 * Создаёт grid widget.
+	 * Размещает виджеты в сетку с заданным числом колонок.
+	 * Остаток виджетов, не заполняющих полную строку, центрируется в отдельной строке.
 	 *
-	 * @param widgets widgets
-	 * @param columns columns
-	 *
-	 * @return Widget — результат операции
+	 * @param widgets список виджетов для размещения
+	 * @param columns количество колонок в сетке
+	 * @return виджет-сетка с размещёнными элементами
 	 */
 	protected static Widget createGridWidget(List<? extends Widget> widgets, int columns) {
 		GridWidget gridWidget = new GridWidget();
 		gridWidget.getMainPositioner().alignHorizontalCenter();
 		gridWidget.setColumnSpacing(2).setRowSpacing(2);
-		int i = widgets.size();
-		int j = i / columns;
-		int k = j * columns;
 
-		for (int l = 0; l < k; l++) {
-			gridWidget.add(widgets.get(l), l / columns, l % columns);
+		int totalCount = widgets.size();
+		int fullRows = totalCount / columns;
+		int fullRowsEnd = fullRows * columns;
+
+		for (int index = 0; index < fullRowsEnd; index++) {
+			gridWidget.add(widgets.get(index), index / columns, index % columns);
 		}
 
-		if (i != k) {
-			DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(2);
-			directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
+		if (totalCount != fullRowsEnd) {
+			DirectionalLayoutWidget remainderRow = DirectionalLayoutWidget.horizontal().spacing(2);
+			remainderRow.getMainPositioner().alignHorizontalCenter();
 
-			for (int m = k; m < i; m++) {
-				directionalLayoutWidget.add(widgets.get(m));
+			for (int index = fullRowsEnd; index < totalCount; index++) {
+				remainderRow.add(widgets.get(index));
 			}
 
-			gridWidget.add(directionalLayoutWidget, j, 0, 1, columns);
+			gridWidget.add(remainderRow, fullRows, 0, 1, columns);
 		}
 
 		return gridWidget;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code WarningScreen}.
+	 * Экран предупреждения о кастомном диалоге сервера.
+	 * Позволяет отключиться или вернуться к диалогу.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class WarningScreen extends ConfirmScreen {
 
 		private final MutableObject<@Nullable Screen> dialogScreen;
 
 		public static Screen create(
 				MinecraftClient client,
-				DialogNetworkAccess dialogNetworkAccess,
+				DialogNetworkAccess networkAccess,
 				Screen dialogScreen
 		) {
-			return new DialogScreen.WarningScreen(client, dialogNetworkAccess, new MutableObject(dialogScreen));
+			return new DialogScreen.WarningScreen(client, networkAccess, new MutableObject<>(dialogScreen));
 		}
 
 		private WarningScreen(
 				MinecraftClient client,
-				DialogNetworkAccess dialogNetworkAccess,
+				DialogNetworkAccess networkAccess,
 				MutableObject<Screen> dialogScreen
 		) {
 			super(
 					disconnect -> {
 						if (disconnect) {
-							dialogNetworkAccess.disconnect(DialogScreen.CUSTOM_SCREEN_REJECTED_DISCONNECT_TEXT);
-						}
-						else {
-							client.setScreen((Screen) dialogScreen.get());
+							networkAccess.disconnect(DialogScreen.CUSTOM_SCREEN_REJECTED_DISCONNECT_TEXT);
+						} else {
+							client.setScreen(dialogScreen.get());
 						}
 					},
 					Text.translatable("menu.custom_screen_info.title"),
@@ -295,11 +282,11 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 		}
 
 		public @Nullable Screen getDialogScreen() {
-			return (Screen) this.dialogScreen.get();
+			return dialogScreen.get();
 		}
 
 		public void setDialogScreen(@Nullable Screen screen) {
-			this.dialogScreen.setValue(screen);
+			dialogScreen.setValue(screen);
 		}
 	}
 }

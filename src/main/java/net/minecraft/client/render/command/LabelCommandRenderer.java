@@ -17,10 +17,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LabelCommandRenderer}.
+ * Рендерит текстовые метки над сущностями (имена игроков, кастомные имена).
+ * Метки делятся на два типа: обычные (перекрываются геометрией) и сквозные (видны сквозь блоки).
+ * Сквозные метки сортируются по убыванию расстояния до камеры для корректного альфа-блендинга.
  */
+@Environment(EnvType.CLIENT)
 public class LabelCommandRenderer {
 
 	public void render(
@@ -64,11 +66,18 @@ public class LabelCommandRenderer {
 		}
 	}
 
+	/** Накопитель команд рисования меток, разделённых на обычные и сквозные. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Commands}.
-	 */
 	public static class Commands {
+
+		// 0x7F000000 — полупрозрачный чёрный фон для сквозных меток (alpha=127)
+		private static final int SEETHROUGH_COLOR = -2130706433;
+		// Масштаб текста в мировом пространстве (1/40 блока)
+		private static final float LABEL_SCALE = 0.025F;
+		// Смещение метки по Y над позицией сущности
+		private static final double LABEL_Y_OFFSET = 0.5;
+		// Уровень эмиссии для нормальных меток (не крадущихся)
+		private static final int NORMAL_LABEL_EMISSION = 2;
 
 		final List<OrderedRenderCommandQueueImpl.LabelCommand> seethroughLabels = new ArrayList<>();
 		final List<OrderedRenderCommandQueueImpl.LabelCommand> normalLabels = new ArrayList<>();
@@ -83,63 +92,43 @@ public class LabelCommandRenderer {
 				double squaredDistanceToCamera,
 				CameraRenderState cameraState
 		) {
-			if (pos != null) {
-				MinecraftClient minecraftClient = MinecraftClient.getInstance();
-				matrices.push();
-				matrices.translate(pos.x, pos.y + 0.5, pos.z);
-				matrices.multiply(cameraState.orientation);
-				matrices.scale(0.025F, -0.025F, 0.025F);
-				Matrix4f matrix4f = new Matrix4f(matrices.peek().getPositionMatrix());
-				float f = -minecraftClient.textRenderer.getWidth(label) / 2.0F;
-				int i = (int) (minecraftClient.options.getTextBackgroundOpacity(0.25F) * 255.0F) << 24;
-				if (notSneaking) {
-					this.normalLabels
-							.add(
-									new OrderedRenderCommandQueueImpl.LabelCommand(
-											matrix4f,
-											f,
-											y,
-											label,
-											LightmapTextureManager.applyEmission(light, 2),
-											-1,
-											0,
-											squaredDistanceToCamera
-									)
-							);
-					this.seethroughLabels.add(new OrderedRenderCommandQueueImpl.LabelCommand(
-							matrix4f,
-							f,
-							y,
-							label,
-							light,
-							-2130706433,
-							i,
-							squaredDistanceToCamera
-					));
-				}
-				else {
-					this.normalLabels.add(new OrderedRenderCommandQueueImpl.LabelCommand(
-							matrix4f,
-							f,
-							y,
-							label,
-							light,
-							-2130706433,
-							i,
-							squaredDistanceToCamera
-					));
-				}
-
-				matrices.pop();
+			if (pos == null) {
+				return;
 			}
+
+			MinecraftClient client = MinecraftClient.getInstance();
+			matrices.push();
+			matrices.translate(pos.x, pos.y + LABEL_Y_OFFSET, pos.z);
+			matrices.multiply(cameraState.orientation);
+			matrices.scale(LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE);
+			Matrix4f posMatrix = new Matrix4f(matrices.peek().getPositionMatrix());
+			float textX = -client.textRenderer.getWidth(label) / 2.0F;
+			int bgColor = (int) (client.options.getTextBackgroundOpacity(0.25F) * 255.0F) << 24;
+
+			if (notSneaking) {
+				normalLabels.add(new OrderedRenderCommandQueueImpl.LabelCommand(
+						posMatrix, textX, y, label,
+						LightmapTextureManager.applyEmission(light, NORMAL_LABEL_EMISSION),
+						-1, 0, squaredDistanceToCamera
+				));
+				seethroughLabels.add(new OrderedRenderCommandQueueImpl.LabelCommand(
+						posMatrix, textX, y, label,
+						light, SEETHROUGH_COLOR, bgColor, squaredDistanceToCamera
+				));
+			}
+			else {
+				normalLabels.add(new OrderedRenderCommandQueueImpl.LabelCommand(
+						posMatrix, textX, y, label,
+						light, SEETHROUGH_COLOR, bgColor, squaredDistanceToCamera
+				));
+			}
+
+			matrices.pop();
 		}
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			this.normalLabels.clear();
-			this.seethroughLabels.clear();
+			normalLabels.clear();
+			seethroughLabels.clear();
 		}
 	}
 }

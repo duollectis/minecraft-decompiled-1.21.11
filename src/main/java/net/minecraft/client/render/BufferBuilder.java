@@ -112,7 +112,7 @@ public class BufferBuilder implements VertexConsumer {
 	private long beginVertex() {
 		this.ensureBuilding();
 		this.endVertex();
-		if (this.vertexCount >= 16777215) {
+		if (this.vertexCount >= MAX_COLOR_VALUE) {
 			throw new IllegalStateException("Trying to write too many vertices (>16777215) into BufferBuilder");
 		}
 		else {

@@ -7,7 +7,7 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code BedBlockEntity}.
+ * Блок-сущность кровати. Хранит цвет кровати для корректной отрисовки.
  */
 public class BedBlockEntity extends BlockEntity {
 
@@ -22,16 +22,12 @@ public class BedBlockEntity extends BlockEntity {
 		this.color = color;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	public DyeColor getColor() {
-		return this.color;
+		return color;
 	}
 }

@@ -19,7 +19,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * {@code NumberRange}.
+ * Интерфейс числового диапазона с опциональными границами min/max.
+ * Используется в предикатах для проверки числовых значений (расстояние, уровень, здоровье и т.д.).
+ * Конкретные реализации: {@link AngleRange}, {@link DoubleRange}, {@link IntRange}.
  */
 public interface NumberRange<T extends Number & Comparable<T>> {
 
@@ -45,9 +47,6 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 		return this.bounds().isAny();
 	}
 
-	/**
-	 * {@code AngleRange}.
-	 */
 	public record AngleRange(NumberRange.Bounds<Float> bounds) implements NumberRange<Float> {
 
 		public static final NumberRange.AngleRange ANY = new NumberRange.AngleRange(NumberRange.Bounds.any());
@@ -74,7 +73,8 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 	}
 
 	/**
-	 * {@code Bounds}.
+	 * Иммутабельные границы числового диапазона.
+	 * Оба поля опциональны: отсутствие min означает «без нижней границы», max — «без верхней».
 	 */
 	public record Bounds<T extends Number & Comparable<T>>(Optional<T> min, Optional<T> max) {
 
@@ -168,6 +168,16 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 			};
 		}
 
+		/**
+		 * Парсит диапазон из строки вида {@code "min..max"}, {@code "..max"}, {@code "min.."} или {@code "value"}.
+		 * При ошибке парсинга курсор читателя откатывается к позиции начала чтения.
+		 *
+		 * @param reader строковый читатель Brigadier
+		 * @param parsingFunction функция преобразования строки в число
+		 * @param exceptionSupplier поставщик типа исключения для невалидного числа
+		 * @return распарсенные границы диапазона
+		 * @throws CommandSyntaxException если строка пуста или содержит невалидное число
+		 */
 		public static <T extends Number & Comparable<T>> NumberRange.Bounds<T> parse(
 				StringReader reader,
 				Function<String, T> parsingFunction,
@@ -176,32 +186,34 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 			if (!reader.canRead()) {
 				throw NumberRange.EXCEPTION_EMPTY.createWithContext(reader);
 			}
-			else {
-				int i = reader.getCursor();
 
-				try {
-					Optional<T> optional = parseNumber(reader, parsingFunction, exceptionSupplier);
-					Optional<T> optional2;
-					if (reader.canRead(2) && reader.peek() == '.' && reader.peek(1) == '.') {
-						reader.skip();
-						reader.skip();
-						optional2 = parseNumber(reader, parsingFunction, exceptionSupplier);
-					}
-					else {
-						optional2 = optional;
-					}
+			int startCursor = reader.getCursor();
 
-					if (optional.isEmpty() && optional2.isEmpty()) {
-						throw NumberRange.EXCEPTION_EMPTY.createWithContext(reader);
-					}
-					else {
-						return new NumberRange.Bounds<>(optional, optional2);
-					}
+			try {
+				Optional<T> optional = parseNumber(reader, parsingFunction, exceptionSupplier);
+				Optional<T> optional2;
+
+				if (reader.canRead(2) && reader.peek() == '.' && reader.peek(1) == '.') {
+					reader.skip();
+					reader.skip();
+					optional2 = parseNumber(reader, parsingFunction, exceptionSupplier);
+				} else {
+					optional2 = optional;
 				}
-				catch (CommandSyntaxException var6) {
-					reader.setCursor(i);
-					throw new CommandSyntaxException(var6.getType(), var6.getRawMessage(), var6.getInput(), i);
+
+				if (optional.isEmpty() && optional2.isEmpty()) {
+					throw NumberRange.EXCEPTION_EMPTY.createWithContext(reader);
 				}
+
+				return new NumberRange.Bounds<>(optional, optional2);
+			} catch (CommandSyntaxException exception) {
+				reader.setCursor(startCursor);
+				throw new CommandSyntaxException(
+						exception.getType(),
+						exception.getRawMessage(),
+						exception.getInput(),
+						startCursor
+				);
 			}
 		}
 
@@ -210,13 +222,13 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 				Function<String, T> parsingFunction,
 				Supplier<DynamicCommandExceptionType> exceptionSupplier
 		) throws CommandSyntaxException {
-			int i = reader.getCursor();
+			int startCursor = reader.getCursor();
 
 			while (reader.canRead() && shouldSkip(reader)) {
 				reader.skip();
 			}
 
-			String string = reader.getString().substring(i, reader.getCursor());
+			String string = reader.getString().substring(startCursor, reader.getCursor());
 			if (string.isEmpty()) {
 				return Optional.empty();
 			}
@@ -242,7 +254,8 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 	}
 
 	/**
-	 * {@code DoubleRange}.
+	 * Диапазон вещественных чисел с предварительно вычисленными квадратами границ.
+	 * Квадраты хранятся в {@code boundsSqr} для эффективного сравнения расстояний без {@code sqrt}.
 	 */
 	public record DoubleRange(
 			NumberRange.Bounds<Double> bounds,
@@ -295,23 +308,24 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 		}
 
 		public static NumberRange.DoubleRange parse(StringReader reader) throws CommandSyntaxException {
-			int i = reader.getCursor();
+			int startCursor = reader.getCursor();
 			NumberRange.Bounds<Double> bounds = NumberRange.Bounds.parse(
 					reader, Double::parseDouble, CommandSyntaxException.BUILT_IN_EXCEPTIONS::readerInvalidDouble
 			);
+
 			if (bounds.isSwapped()) {
-				reader.setCursor(i);
+				reader.setCursor(startCursor);
 				throw EXCEPTION_SWAPPED.createWithContext(reader);
 			}
-			else {
-				return new NumberRange.DoubleRange(bounds);
-			}
+
+			return new NumberRange.DoubleRange(bounds);
 		}
 	}
 
 	/**
-	 * {@code IntRange}.
-	 */
+		* Диапазон целых чисел с предварительно вычисленными квадратами границ (тип {@code long}).
+		* Квадраты хранятся в {@code boundsSqr} для эффективного сравнения расстояний без {@code sqrt}.
+		*/
 	public record IntRange(
 			NumberRange.Bounds<Integer> bounds,
 			NumberRange.Bounds<Long> boundsSqr
@@ -363,21 +377,19 @@ public interface NumberRange<T extends Number & Comparable<T>> {
 		}
 
 		public static NumberRange.IntRange parse(StringReader reader) throws CommandSyntaxException {
-			int i = reader.getCursor();
-			NumberRange.Bounds<Integer>
-					bounds =
-					NumberRange.Bounds.parse(
-							reader,
-							Integer::parseInt,
-							CommandSyntaxException.BUILT_IN_EXCEPTIONS::readerInvalidInt
-					);
+			int startCursor = reader.getCursor();
+			NumberRange.Bounds<Integer> bounds = NumberRange.Bounds.parse(
+					reader,
+					Integer::parseInt,
+					CommandSyntaxException.BUILT_IN_EXCEPTIONS::readerInvalidInt
+			);
+
 			if (bounds.isSwapped()) {
-				reader.setCursor(i);
+				reader.setCursor(startCursor);
 				throw EXCEPTION_SWAPPED.createWithContext(reader);
 			}
-			else {
-				return new NumberRange.IntRange(bounds);
-			}
+
+			return new NumberRange.IntRange(bounds);
 		}
 	}
 }

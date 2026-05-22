@@ -11,20 +11,17 @@ import net.minecraft.util.context.ContextParameter;
 
 import java.util.Set;
 
-/**
- * {@code ValueCheckLootCondition}.
- */
+/** Условие лута: проверяет, попадает ли вычисленное числовое значение в заданный диапазон. */
 public record ValueCheckLootCondition(
-		LootNumberProvider value,
-		BoundedIntUnaryOperator range
+	LootNumberProvider value,
+	BoundedIntUnaryOperator range
 ) implements LootCondition {
 
 	public static final MapCodec<ValueCheckLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    LootNumberProviderTypes.CODEC.fieldOf("value").forGetter(ValueCheckLootCondition::value),
-					                    BoundedIntUnaryOperator.CODEC.fieldOf("range").forGetter(ValueCheckLootCondition::range)
-			                    )
-			                    .apply(instance, ValueCheckLootCondition::new)
+		instance -> instance.group(
+			LootNumberProviderTypes.CODEC.fieldOf("value").forGetter(ValueCheckLootCondition::value),
+			BoundedIntUnaryOperator.CODEC.fieldOf("range").forGetter(ValueCheckLootCondition::range)
+		).apply(instance, ValueCheckLootCondition::new)
 	);
 
 	@Override
@@ -34,18 +31,12 @@ public record ValueCheckLootCondition(
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Sets.union(this.value.getAllowedParameters(), this.range.getRequiredParameters());
+		return Sets.union(value.getAllowedParameters(), range.getRequiredParameters());
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param lootContext loot context
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean test(LootContext lootContext) {
-		return this.range.test(lootContext, this.value.nextInt(lootContext));
+		return range.test(lootContext, value.nextInt(lootContext));
 	}
 
 	public static LootCondition.Builder builder(LootNumberProvider value, BoundedIntUnaryOperator range) {

@@ -5,38 +5,47 @@ import com.mojang.blaze3d.opengl.GlStateManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlGpuFence}.
+ * Реализация GPU-барьера синхронизации через OpenGL fence sync (GL_SYNC_GPU_COMMANDS_COMPLETE).
+ * Используется для ожидания завершения GPU-операций перед чтением результатов на CPU.
  */
+@Environment(EnvType.CLIENT)
 public class GlGpuFence implements GpuFence {
 
-	private long handle = GlStateManager._glFenceSync(37143, 0);
+	// GL_SYNC_GPU_COMMANDS_COMPLETE = 37143
+	private static final int GL_SYNC_GPU_COMMANDS_COMPLETE = 37143;
+	// GL_TIMEOUT_EXPIRED = 37147, GL_WAIT_FAILED = 37149
+	private static final int GL_TIMEOUT_EXPIRED = 37147;
+	private static final int GL_WAIT_FAILED = 37149;
+
+	private long handle = GlStateManager._glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
 	@Override
 	public void close() {
-		if (this.handle != 0L) {
-			GlStateManager._glDeleteSync(this.handle);
-			this.handle = 0L;
+		if (handle == 0L) {
+			return;
 		}
+
+		GlStateManager._glDeleteSync(handle);
+		handle = 0L;
 	}
 
 	@Override
-	public boolean awaitCompletion(long l) {
-		if (this.handle == 0L) {
+	public boolean awaitCompletion(long timeoutNanos) {
+		if (handle == 0L) {
 			return true;
 		}
-		else {
-			int i = GlStateManager._glClientWaitSync(this.handle, 0, l);
-			if (i == 37147) {
-				return false;
-			}
-			else if (i == 37149) {
-				throw new IllegalStateException("Failed to complete GPU fence: " + GlStateManager._getError());
-			}
-			else {
-				return true;
-			}
+
+		int result = GlStateManager._glClientWaitSync(handle, 0, timeoutNanos);
+
+		if (result == GL_TIMEOUT_EXPIRED) {
+			return false;
 		}
+
+		if (result == GL_WAIT_FAILED) {
+			throw new IllegalStateException("Failed to complete GPU fence: " + GlStateManager._getError());
+		}
+
+		return true;
 	}
 }

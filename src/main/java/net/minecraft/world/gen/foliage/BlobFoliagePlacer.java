@@ -12,7 +12,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code BlobFoliagePlacer}.
+ * Размещает листву в форме сферического блоба.
+ * Радиус каждого слоя уменьшается по мере удаления от центра по вертикали.
  */
 public class BlobFoliagePlacer extends FoliagePlacer {
 
@@ -21,13 +22,6 @@ public class BlobFoliagePlacer extends FoliagePlacer {
 	);
 	protected final int height;
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @param builder builder
-	 *
-	 * @return P3, IntProvider, IntProvider, Integer> — результат операции
-	 */
 	protected static <P extends BlobFoliagePlacer> P3<Mu<P>, IntProvider, IntProvider, Integer> createCodec(Instance<P> builder) {
 		return fillFoliagePlacerFields(builder).and(Codec
 				.intRange(0, 16)
@@ -57,9 +51,9 @@ public class BlobFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		for (int i = offset; i >= offset - foliageHeight; i--) {
-			int j = Math.max(radius + treeNode.getFoliageRadius() - 1 - i / 2, 0);
-			this.generateSquare(world, placer, random, config, treeNode.getCenter(), j, i, treeNode.isGiantTrunk());
+		for (int dy = offset; dy >= offset - foliageHeight; dy--) {
+			int layerRadius = Math.max(radius + treeNode.getFoliageRadius() - 1 - dy / 2, 0);
+			generateSquare(world, placer, random, config, treeNode.getCenter(), layerRadius, dy, treeNode.isGiantTrunk());
 		}
 	}
 

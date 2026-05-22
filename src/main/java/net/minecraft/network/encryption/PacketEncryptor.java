@@ -7,18 +7,19 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import javax.crypto.Cipher;
 
 /**
- * Класс packet encryptor.
+ * Netty-обработчик исходящего трафика: шифрует каждый исходящий {@link ByteBuf}
+ * с помощью {@link PacketEncryptionManager}.
  */
 public class PacketEncryptor extends MessageToByteEncoder<ByteBuf> {
 
 	private final PacketEncryptionManager manager;
 
 	public PacketEncryptor(Cipher cipher) {
-		this.manager = new PacketEncryptionManager(cipher);
+		manager = new PacketEncryptionManager(cipher);
 	}
 
-	protected void encode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2)
-	throws Exception {
-		this.manager.encrypt(byteBuf, byteBuf2);
+	@Override
+	protected void encode(ChannelHandlerContext context, ByteBuf input, ByteBuf output) throws Exception {
+		manager.encrypt(input, output);
 	}
 }

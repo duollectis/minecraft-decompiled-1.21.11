@@ -11,33 +11,17 @@ import net.minecraft.util.math.random.Random;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-@Deprecated
 /**
- * {@code LookAtMobWithIntervalTask}.
+ * Устаревший фабричный класс задачи мозга, периодически направляющей взгляд на ближайшего видимого моба.
+ * Используйте {@link LookAtMobTask} вместо этого класса.
  */
+@Deprecated
 public class LookAtMobWithIntervalTask {
 
-	/**
-	 * Follow.
-	 *
-	 * @param maxDistance max distance
-	 * @param interval interval
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> follow(float maxDistance, UniformIntProvider interval) {
 		return follow(maxDistance, interval, entity -> true);
 	}
 
-	/**
-	 * Follow.
-	 *
-	 * @param type type
-	 * @param maxDistance max distance
-	 * @param interval interval
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> follow(EntityType<?> type, float maxDistance, UniformIntProvider interval) {
 		return follow(maxDistance, interval, entity -> type.equals(entity.getType()));
 	}
@@ -47,8 +31,8 @@ public class LookAtMobWithIntervalTask {
 			UniformIntProvider interval,
 			Predicate<LivingEntity> predicate
 	) {
-		float f = maxDistance * maxDistance;
-		LookAtMobWithIntervalTask.Interval interval2 = new LookAtMobWithIntervalTask.Interval(interval);
+		float maxDistanceSq = maxDistance * maxDistance;
+		Interval intervalTracker = new Interval(interval);
 		return TaskTriggerer.task(
 				context -> context
 						.group(
@@ -58,28 +42,26 @@ public class LookAtMobWithIntervalTask {
 						.apply(
 								context,
 								(lookTarget, visibleMobs) -> (world, entity, time) -> {
-									Optional<LivingEntity> optional = context.<LivingTargetCache>getValue(visibleMobs)
-									                                         .findFirst(predicate.and(other ->
-											                                         other.squaredDistanceTo(entity)
-													                                         <= f));
-									if (optional.isEmpty()) {
+									Optional<LivingEntity> found = context.<LivingTargetCache>getValue(visibleMobs)
+									                                      .findFirst(predicate.and(
+											                                      other -> other.squaredDistanceTo(entity) <= maxDistanceSq
+									                                      ));
+
+									if (found.isEmpty()) {
 										return false;
 									}
-									else if (!interval2.shouldRun(world.random)) {
+
+									if (!intervalTracker.shouldRun(world.random)) {
 										return false;
 									}
-									else {
-										lookTarget.remember(new EntityLookTarget(optional.get(), true));
-										return true;
-									}
+
+									lookTarget.remember(new EntityLookTarget(found.get(), true));
+									return true;
 								}
 						)
 		);
 	}
 
-	/**
-	 * {@code Interval}.
-	 */
 	public static final class Interval {
 
 		private final UniformIntProvider interval;
@@ -89,26 +71,17 @@ public class LookAtMobWithIntervalTask {
 			if (interval.getMin() <= 1) {
 				throw new IllegalArgumentException();
 			}
-			else {
-				this.interval = interval;
-			}
+
+			this.interval = interval;
 		}
 
-		/**
-		 * Определяет, следует ли run.
-		 *
-		 * @param random random
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean shouldRun(Random random) {
-			if (this.remainingTicks == 0) {
-				this.remainingTicks = this.interval.get(random) - 1;
+			if (remainingTicks == 0) {
+				remainingTicks = interval.get(random) - 1;
 				return false;
 			}
-			else {
-				return --this.remainingTicks == 0;
-			}
+
+			return --remainingTicks == 0;
 		}
 	}
 }

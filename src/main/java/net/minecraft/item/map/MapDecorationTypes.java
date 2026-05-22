@@ -106,7 +106,7 @@ public class MapDecorationTypes {
 			register("swamp_hut", "swamp_hut", true, MapColor.LIGHT_GRAY.color, false, true);
 	public static final RegistryEntry<MapDecorationType>
 			TRIAL_CHAMBERS =
-			register("trial_chambers", "trial_chambers", true, 12741452, false, true);
+			register("trial_chambers", "trial_chambers", true, TRIAL_CHAMBERS_MAP_COLOR, false, true);
 
 	public static RegistryEntry<MapDecorationType> getDefault(Registry<MapDecorationType> registry) {
 		return PLAYER;

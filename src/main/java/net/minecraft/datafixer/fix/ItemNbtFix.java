@@ -12,7 +12,8 @@ import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code ItemNbtFix}.
+ * Абстрактный фикс для модификации NBT-тегов предметов по их идентификатору.
+ * Подклассы реализуют {@link #fix(Typed)} для конкретного преобразования данных.
  */
 public abstract class ItemNbtFix extends DataFix {
 
@@ -25,9 +26,10 @@ public abstract class ItemNbtFix extends DataFix {
 		this.itemIdPredicate = itemIdPredicate;
 	}
 
+	@Override
 	public final TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
-		return this.fixTypeEverywhereTyped(this.name, type, fixNbt(type, this.itemIdPredicate, this::fix));
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
+		return fixTypeEverywhereTyped(name, type, fixNbt(type, itemIdPredicate, this::fix));
 	}
 
 	public static UnaryOperator<Typed<?>> fixNbt(

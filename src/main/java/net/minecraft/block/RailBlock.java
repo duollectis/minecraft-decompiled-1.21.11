@@ -12,7 +12,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code RailBlock}.
+ * Обычный рельс. Единственный рельс, поддерживающий все 10 форм {@code RailShape},
+ * включая повороты. При наличии трёх соседей и редстоун-сигнала обновляет форму.
  */
 public class RailBlock extends AbstractRailBlock {
 

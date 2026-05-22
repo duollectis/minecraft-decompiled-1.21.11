@@ -18,31 +18,25 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code LazyEntityReference}.
+ * Ленивая ссылка на сущность, хранящая либо UUID (до разрешения), либо прямую ссылку на объект.
+ * При первом обращении через {@link #resolve} UUID заменяется на живой объект.
+ * Если сущность удалена из мира, ссылка автоматически деградирует обратно до UUID.
+ *
+ * @param <StoredEntityType> тип хранимой сущности
  */
 public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifiable> {
 
-	private static final Codec<? extends LazyEntityReference<?>>
-			CODEC =
-			Uuids.INT_STREAM_CODEC.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
-	private static final PacketCodec<ByteBuf, ? extends LazyEntityReference<?>> PACKET_CODEC = Uuids.PACKET_CODEC
-			.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
+	private static final Codec<? extends LazyEntityReference<?>> CODEC =
+		Uuids.INT_STREAM_CODEC.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
+	private static final PacketCodec<ByteBuf, ? extends LazyEntityReference<?>> PACKET_CODEC =
+		Uuids.PACKET_CODEC.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
+
 	private Either<UUID, StoredEntityType> value;
 
-	/**
-	 * Создаёт codec.
-	 *
-	 * @return Codec> — результат операции
-	 */
 	public static <Type extends UniquelyIdentifiable> Codec<LazyEntityReference<Type>> createCodec() {
 		return (Codec<LazyEntityReference<Type>>) CODEC;
 	}
 
-	/**
-	 * Создаёт packet codec.
-	 *
-	 * @return PacketCodec> — результат операции
-	 */
 	public static <Type extends UniquelyIdentifiable> PacketCodec<ByteBuf, LazyEntityReference<Type>> createPacketCodec() {
 		return (PacketCodec<ByteBuf, LazyEntityReference<Type>>) PACKET_CODEC;
 	}
@@ -56,51 +50,57 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 	}
 
 	/**
-	 * Of.
+	 * Создаёт ссылку на объект или возвращает {@code null}, если объект равен {@code null}.
 	 *
-	 * @param object object
-	 *
-	 * @return @Nullable LazyEntityReference — результат операции
+	 * @param object объект для оборачивания
+	 * @return ссылка или {@code null}
 	 */
 	public static <T extends UniquelyIdentifiable> @Nullable LazyEntityReference<T> of(@Nullable T object) {
 		return object != null ? new LazyEntityReference<>(object) : null;
 	}
 
 	/**
-	 * Of u u i d.
+	 * Создаёт ссылку по UUID без немедленного поиска сущности в мире.
 	 *
-	 * @param uuid uuid
-	 *
-	 * @return LazyEntityReference — результат операции
+	 * @param uuid UUID сущности
+	 * @return ленивая ссылка
 	 */
 	public static <T extends UniquelyIdentifiable> LazyEntityReference<T> ofUUID(UUID uuid) {
 		return new LazyEntityReference<>(uuid);
 	}
 
 	public UUID getUuid() {
-		return (UUID) this.value.map(uuid -> uuid, UniquelyIdentifiable::getUuid);
+		return (UUID) value.map(uuid -> uuid, UniquelyIdentifiable::getUuid);
 	}
 
+	/**
+	 * Разрешает ссылку в живой объект через запрос к миру.
+	 * Если кэшированный объект удалён, деградирует до UUID и выполняет поиск заново.
+	 *
+	 * @param world источник сущностей
+	 * @param type  ожидаемый класс сущности
+	 * @return живой объект или {@code null} если не найден
+	 */
 	public @Nullable StoredEntityType resolve(
-			EntityQueriable<? extends UniquelyIdentifiable> world,
-			Class<StoredEntityType> type
+		EntityQueriable<? extends UniquelyIdentifiable> world,
+		Class<StoredEntityType> type
 	) {
-		Optional<StoredEntityType> optional = this.value.right();
-		if (optional.isPresent()) {
-			StoredEntityType uniquelyIdentifiable = optional.get();
-			if (!uniquelyIdentifiable.isRemoved()) {
-				return uniquelyIdentifiable;
+		Optional<StoredEntityType> cached = value.right();
+		if (cached.isPresent()) {
+			StoredEntityType entity = cached.get();
+			if (!entity.isRemoved()) {
+				return entity;
 			}
 
-			this.value = Either.left(uniquelyIdentifiable.getUuid());
+			value = Either.left(entity.getUuid());
 		}
 
-		Optional<UUID> optional2 = this.value.left();
-		if (optional2.isPresent()) {
-			StoredEntityType uniquelyIdentifiable2 = this.cast(world.lookup(optional2.get()), type);
-			if (uniquelyIdentifiable2 != null && !uniquelyIdentifiable2.isRemoved()) {
-				this.value = Either.right(uniquelyIdentifiable2);
-				return uniquelyIdentifiable2;
+		Optional<UUID> uuidOpt = value.left();
+		if (uuidOpt.isPresent()) {
+			StoredEntityType found = cast(world.lookup(uuidOpt.get()), type);
+			if (found != null && !found.isRemoved()) {
+				value = Either.right(found);
+				return found;
 			}
 		}
 
@@ -108,42 +108,23 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 	}
 
 	public @Nullable StoredEntityType getEntityByClass(World world, Class<StoredEntityType> clazz) {
-		return PlayerEntity.class.isAssignableFrom(clazz) ? this.resolve(world::getPlayerAnyDimension, clazz)
-		                                                  : this.resolve(world::getEntityAnyDimension, clazz);
+		return PlayerEntity.class.isAssignableFrom(clazz)
+			? resolve(world::getPlayerAnyDimension, clazz)
+			: resolve(world::getEntityAnyDimension, clazz);
 	}
 
 	private @Nullable StoredEntityType cast(@Nullable UniquelyIdentifiable entity, Class<StoredEntityType> clazz) {
 		return entity != null && clazz.isAssignableFrom(entity.getClass()) ? clazz.cast(entity) : null;
 	}
 
-	/**
-	 * Uuid equals.
-	 *
-	 * @param o o
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean uuidEquals(StoredEntityType o) {
-		return this.getUuid().equals(o.getUuid());
+	public boolean uuidEquals(StoredEntityType other) {
+		return getUuid().equals(other.getUuid());
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param view view
-	 * @param key key
-	 */
 	public void writeData(WriteView view, String key) {
-		view.put(key, Uuids.INT_STREAM_CODEC, this.getUuid());
+		view.put(key, Uuids.INT_STREAM_CODEC, getUuid());
 	}
 
-	/**
-	 * Записывает data.
-	 *
-	 * @param entityRef entity ref
-	 * @param view view
-	 * @param key key
-	 */
 	public static void writeData(@Nullable LazyEntityReference<?> entityRef, WriteView view, String key) {
 		if (entityRef != null) {
 			entityRef.writeData(view, key);
@@ -151,7 +132,7 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 	}
 
 	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable StoredEntityType resolve(
-			@Nullable LazyEntityReference<StoredEntityType> entity, World world, Class<StoredEntityType> type
+		@Nullable LazyEntityReference<StoredEntityType> entity, World world, Class<StoredEntityType> type
 	) {
 		return entity != null ? entity.getEntityByClass(world, type) : null;
 	}
@@ -161,47 +142,55 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 	}
 
 	public static @Nullable LivingEntity getLivingEntity(
-			@Nullable LazyEntityReference<LivingEntity> livingReference,
-			World world
+		@Nullable LazyEntityReference<LivingEntity> livingReference,
+		World world
 	) {
 		return resolve(livingReference, world, LivingEntity.class);
 	}
 
 	public static @Nullable PlayerEntity getPlayerEntity(
-			@Nullable LazyEntityReference<PlayerEntity> playerReference,
-			World world
+		@Nullable LazyEntityReference<PlayerEntity> playerReference,
+		World world
 	) {
 		return resolve(playerReference, world, PlayerEntity.class);
 	}
 
 	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromData(
-			ReadView view,
-			String key
+		ReadView view,
+		String key
 	) {
 		return view.<LazyEntityReference<StoredEntityType>>read(key, createCodec()).orElse(null);
 	}
 
+	/**
+	 * Читает ссылку из NBT: сначала пробует UUID, затем строковое имя игрока.
+	 * Используется для обратной совместимости со старыми форматами данных.
+	 *
+	 * @param view  источник данных
+	 * @param key   ключ поля
+	 * @param world мир для поиска игрока по имени
+	 * @return ссылка или {@code null}
+	 */
 	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromDataOrPlayerName(
-			ReadView view, String key, World world
+		ReadView view, String key, World world
 	) {
-		Optional<UUID> optional = view.read(key, Uuids.INT_STREAM_CODEC);
-		return optional.isPresent()
-		       ? ofUUID(optional.get())
-		       : view.getOptionalString(key)
-		             .map(name -> ServerConfigHandler.getPlayerUuidByName(world.getServer(), name))
-		             .<LazyEntityReference<StoredEntityType>>map(LazyEntityReference::new)
-		             .orElse(null);
+		Optional<UUID> uuidOpt = view.read(key, Uuids.INT_STREAM_CODEC);
+		return uuidOpt.isPresent()
+			? ofUUID(uuidOpt.get())
+			: view.getOptionalString(key)
+				.map(name -> ServerConfigHandler.getPlayerUuidByName(world.getServer(), name))
+				.<LazyEntityReference<StoredEntityType>>map(LazyEntityReference::new)
+				.orElse(null);
 	}
 
 	@Override
 	public boolean equals(Object object) {
-		return object == this ? true : object instanceof LazyEntityReference<?> lazyEntityReference && this
-		                                                                                               .getUuid()
-		                                                                                               .equals(lazyEntityReference.getUuid());
+		return object == this
+			|| object instanceof LazyEntityReference<?> other && getUuid().equals(other.getUuid());
 	}
 
 	@Override
 	public int hashCode() {
-		return this.getUuid().hashCode();
+		return getUuid().hashCode();
 	}
 }

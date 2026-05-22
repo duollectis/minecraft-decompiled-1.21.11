@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code LootContextPredicateValidator}.
+ * Утилита для валидации {@link LootContextPredicate} в контексте системы достижений.
+ * Оборачивает {@link ErrorReporter} и реестр условий для удобного создания репортеров.
  */
 public class LootContextPredicateValidator {
 
@@ -26,31 +27,30 @@ public class LootContextPredicateValidator {
 	}
 
 	public void validateEntityPredicate(Optional<LootContextPredicate> predicate, String path) {
-		predicate.ifPresent(p -> this.validateEntityPredicate(p, path));
+		predicate.ifPresent(p -> validateEntityPredicate(p, path));
 	}
 
 	public void validateEntityPredicates(List<LootContextPredicate> predicates, String path) {
-		this.validate(predicates, LootContextTypes.ADVANCEMENT_ENTITY, path);
+		validate(predicates, LootContextTypes.ADVANCEMENT_ENTITY, path);
 	}
 
 	public void validateEntityPredicate(LootContextPredicate predicate, String path) {
-		this.validate(predicate, LootContextTypes.ADVANCEMENT_ENTITY, path);
+		validate(predicate, LootContextTypes.ADVANCEMENT_ENTITY, path);
 	}
 
 	public void validate(LootContextPredicate predicate, ContextType type, String path) {
-		predicate.validateConditions(new LootTableReporter(
-				this.errorReporter.makeChild(new ErrorReporter.MapElementContext(path)), type, this.conditionsLookup));
+		predicate.validateConditions(
+				new LootTableReporter(errorReporter.makeChild(new ErrorReporter.MapElementContext(path)), type, conditionsLookup)
+		);
 	}
 
 	public void validate(List<LootContextPredicate> predicates, ContextType type, String path) {
-		for (int i = 0; i < predicates.size(); i++) {
-			LootContextPredicate lootContextPredicate = predicates.get(i);
-			lootContextPredicate.validateConditions(
+		for (int index = 0; index < predicates.size(); index++) {
+			predicates.get(index).validateConditions(
 					new LootTableReporter(
-							this.errorReporter.makeChild(new ErrorReporter.NamedListElementContext(
-									path,
-									i
-							)), type, this.conditionsLookup
+							errorReporter.makeChild(new ErrorReporter.NamedListElementContext(path, index)),
+							type,
+							conditionsLookup
 					)
 			);
 		}

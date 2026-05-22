@@ -3,7 +3,8 @@ package net.minecraft.server;
 import com.google.gson.JsonObject;
 
 /**
- * {@code WhitelistEntry}.
+ * Запись белого списка игроков сервера.
+ * Хранит профиль игрока ({@link PlayerConfigEntry}) и сериализует его в JSON.
  */
 public class WhitelistEntry extends ServerConfigEntry<PlayerConfigEntry> {
 
@@ -17,8 +18,10 @@ public class WhitelistEntry extends ServerConfigEntry<PlayerConfigEntry> {
 
 	@Override
 	protected void write(JsonObject json) {
-		if (this.getKey() != null) {
-			this.getKey().write(json);
+		PlayerConfigEntry key = getKey();
+
+		if (key != null) {
+			key.write(json);
 		}
 	}
 }

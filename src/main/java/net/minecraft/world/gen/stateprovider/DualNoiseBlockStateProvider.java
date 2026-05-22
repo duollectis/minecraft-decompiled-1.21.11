@@ -17,25 +17,27 @@ import net.minecraft.util.math.random.Random;
 import java.util.List;
 
 /**
- * {@code DualNoiseBlockStateProvider}.
+ * Поставщик состояний блоков с двойным шумом Перлина.
+ * Медленный шум определяет количество вариантов блоков (variety), быстрый — выбирает конкретный вариант.
+ * Это создаёт плавные переходы между разными блоками в биомах.
  */
 public class DualNoiseBlockStateProvider extends NoiseBlockStateProvider {
 
 	public static final MapCodec<DualNoiseBlockStateProvider> DUAL_CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Range
-							                    .createRangedCodec(Codec.INT, 1, 64)
-							                    .fieldOf("variety")
-							                    .forGetter(dualNoiseBlockStateProvider -> dualNoiseBlockStateProvider.variety),
-					                    DoublePerlinNoiseSampler.NoiseParameters.CODEC
-							                    .fieldOf("slow_noise")
-							                    .forGetter(dualNoiseBlockStateProvider -> dualNoiseBlockStateProvider.slowNoiseParameters),
-					                    Codecs.POSITIVE_FLOAT
-							                    .fieldOf("slow_scale")
-							                    .forGetter(dualNoiseBlockStateProvider -> dualNoiseBlockStateProvider.slowScale)
-			                    )
-			                    .and(fillNoiseCodecFields(instance))
-			                    .apply(instance, DualNoiseBlockStateProvider::new)
+					Range
+							.createRangedCodec(Codec.INT, 1, 64)
+							.fieldOf("variety")
+							.forGetter(provider -> provider.variety),
+					DoublePerlinNoiseSampler.NoiseParameters.CODEC
+							.fieldOf("slow_noise")
+							.forGetter(provider -> provider.slowNoiseParameters),
+					Codecs.POSITIVE_FLOAT
+							.fieldOf("slow_scale")
+							.forGetter(provider -> provider.slowScale)
+			)
+			.and(fillNoiseCodecFields(instance))
+			.apply(instance, DualNoiseBlockStateProvider::new)
 	);
 	private final Range<Integer> variety;
 	private final DoublePerlinNoiseSampler.NoiseParameters slowNoiseParameters;
@@ -55,8 +57,7 @@ public class DualNoiseBlockStateProvider extends NoiseBlockStateProvider {
 		this.variety = variety;
 		this.slowNoiseParameters = slowNoiseParameters;
 		this.slowScale = slowScale;
-		this.slowNoiseSampler =
-				DoublePerlinNoiseSampler.create(new ChunkRandom(new CheckedRandom(seed)), slowNoiseParameters);
+		this.slowNoiseSampler = DoublePerlinNoiseSampler.create(new ChunkRandom(new CheckedRandom(seed)), slowNoiseParameters);
 	}
 
 	@Override
@@ -66,30 +67,28 @@ public class DualNoiseBlockStateProvider extends NoiseBlockStateProvider {
 
 	@Override
 	public BlockState get(Random random, BlockPos pos) {
-		double d = this.getSlowNoiseValue(pos);
-		int
-				i =
-				(int) MathHelper.clampedMap(
-						d,
-						-1.0,
-						1.0,
-						(double) this.variety.minInclusive().intValue(),
-						(double) (this.variety.maxInclusive() + 1)
-				);
-		List<BlockState> list = Lists.newArrayListWithCapacity(i);
+		double slowNoise = getSlowNoiseValue(pos);
+		int variantCount = (int) MathHelper.clampedMap(
+				slowNoise,
+				-1.0,
+				1.0,
+				variety.minInclusive().intValue(),
+				variety.maxInclusive() + 1
+		);
+		List<BlockState> variants = Lists.newArrayListWithCapacity(variantCount);
 
-		for (int j = 0; j < i; j++) {
-			list.add(this.getStateAtValue(this.states, this.getSlowNoiseValue(pos.add(j * 54545, 0, j * 34234))));
+		for (int index = 0; index < variantCount; index++) {
+			variants.add(getStateAtValue(states, getSlowNoiseValue(pos.add(index * 54545, 0, index * 34234))));
 		}
 
-		return this.getStateFromList(list, pos, this.scale);
+		return getStateFromList(variants, pos, scale);
 	}
 
 	protected double getSlowNoiseValue(BlockPos pos) {
-		return this.slowNoiseSampler.sample(
-				pos.getX() * this.slowScale,
-				pos.getY() * this.slowScale,
-				pos.getZ() * this.slowScale
+		return slowNoiseSampler.sample(
+				pos.getX() * slowScale,
+				pos.getY() * slowScale,
+				pos.getZ() * slowScale
 		);
 	}
 }

@@ -13,9 +13,13 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code TwistingVinesFeature}.
+ * Генерирует колонны закрученных лоз (twisting vines) в Нижнем мире.
+ * Лозы растут снизу вверх от блоков нетеррака, искажённого нилиума или блоков бородавок.
  */
 public class TwistingVinesFeature extends Feature<TwistingVinesFeatureConfig> {
+
+	private static final int VINE_AGE_MIN = 17;
+	private static final int VINE_AGE_MAX = 25;
 
 	public TwistingVinesFeature(Codec<TwistingVinesFeatureConfig> codec) {
 		super(codec);
@@ -23,84 +27,95 @@ public class TwistingVinesFeature extends Feature<TwistingVinesFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<TwistingVinesFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		if (isNotSuitable(structureWorldAccess, blockPos)) {
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+
+		if (isNotSuitable(world, origin)) {
 			return false;
 		}
-		else {
-			Random random = context.getRandom();
-			TwistingVinesFeatureConfig twistingVinesFeatureConfig = context.getConfig();
-			int i = twistingVinesFeatureConfig.spreadWidth();
-			int j = twistingVinesFeatureConfig.spreadHeight();
-			int k = twistingVinesFeatureConfig.maxHeight();
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			for (int l = 0; l < i * i; l++) {
-				mutable
-						.set(blockPos)
-						.move(
-								MathHelper.nextInt(random, -i, i),
-								MathHelper.nextInt(random, -j, j),
-								MathHelper.nextInt(random, -i, i)
-						);
-				if (canGenerate(structureWorldAccess, mutable) && !isNotSuitable(structureWorldAccess, mutable)) {
-					int m = MathHelper.nextInt(random, 1, k);
-					if (random.nextInt(6) == 0) {
-						m *= 2;
-					}
+		Random random = context.getRandom();
+		TwistingVinesFeatureConfig config = context.getConfig();
+		int spreadWidth = config.spreadWidth();
+		int spreadHeight = config.spreadHeight();
+		int maxHeight = config.maxHeight();
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-					if (random.nextInt(5) == 0) {
-						m = 1;
-					}
+		for (int attempt = 0; attempt < spreadWidth * spreadWidth; attempt++) {
+			mutable
+				.set(origin)
+				.move(
+					MathHelper.nextInt(random, -spreadWidth, spreadWidth),
+					MathHelper.nextInt(random, -spreadHeight, spreadHeight),
+					MathHelper.nextInt(random, -spreadWidth, spreadWidth)
+				);
 
-					int n = 17;
-					int o = 25;
-					generateVineColumn(structureWorldAccess, random, mutable, m, 17, 25);
-				}
+			if (!canGenerate(world, mutable) || isNotSuitable(world, mutable)) {
+				continue;
 			}
 
-			return true;
+			int height = MathHelper.nextInt(random, 1, maxHeight);
+
+			if (random.nextInt(6) == 0) {
+				height *= 2;
+			}
+
+			if (random.nextInt(5) == 0) {
+				height = 1;
+			}
+
+			generateVineColumn(world, random, mutable, height, VINE_AGE_MIN, VINE_AGE_MAX);
 		}
+
+		return true;
 	}
 
+	/**
+	 * Опускает позицию вниз до первого не-воздушного блока, затем поднимает на 1.
+	 * Возвращает {@code false}, если достигнут предел высоты мира.
+	 */
 	private static boolean canGenerate(WorldAccess world, BlockPos.Mutable pos) {
 		do {
 			pos.move(0, -1, 0);
+
 			if (world.isOutOfHeightLimit(pos)) {
 				return false;
 			}
-		}
-		while (world.getBlockState(pos).isAir());
+		} while (world.getBlockState(pos).isAir());
 
 		pos.move(0, 1, 0);
 		return true;
 	}
 
+	/**
+	 * Генерирует вертикальную колонну закрученных лоз заданной длины.
+	 * Последний блок колонны получает случайный возраст из диапазона [{@code minAge}, {@code maxAge}].
+	 */
 	public static void generateVineColumn(
-			WorldAccess world,
-			Random random,
-			BlockPos.Mutable pos,
-			int maxLength,
-			int minAge,
-			int maxAge
+		WorldAccess world,
+		Random random,
+		BlockPos.Mutable pos,
+		int maxLength,
+		int minAge,
+		int maxAge
 	) {
-		for (int i = 1; i <= maxLength; i++) {
-			if (world.isAir(pos)) {
-				if (i == maxLength || !world.isAir(pos.up())) {
-					world.setBlockState(
-							pos,
-							Blocks.TWISTING_VINES
-									.getDefaultState()
-									.with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)),
-							2
-					);
-					break;
-				}
-
-				world.setBlockState(pos, Blocks.TWISTING_VINES_PLANT.getDefaultState(), 2);
+		for (int step = 1; step <= maxLength; step++) {
+			if (!world.isAir(pos)) {
+				break;
 			}
 
+			if (step == maxLength || !world.isAir(pos.up())) {
+				world.setBlockState(
+					pos,
+					Blocks.TWISTING_VINES
+						.getDefaultState()
+						.with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)),
+					2
+				);
+				break;
+			}
+
+			world.setBlockState(pos, Blocks.TWISTING_VINES_PLANT.getDefaultState(), 2);
 			pos.move(Direction.UP);
 		}
 	}
@@ -109,10 +124,10 @@ public class TwistingVinesFeature extends Feature<TwistingVinesFeatureConfig> {
 		if (!world.isAir(pos)) {
 			return true;
 		}
-		else {
-			BlockState blockState = world.getBlockState(pos.down());
-			return !blockState.isOf(Blocks.NETHERRACK) && !blockState.isOf(Blocks.WARPED_NYLIUM) && !blockState.isOf(
-					Blocks.WARPED_WART_BLOCK);
-		}
+
+		BlockState below = world.getBlockState(pos.down());
+		return !below.isOf(Blocks.NETHERRACK)
+			&& !below.isOf(Blocks.WARPED_NYLIUM)
+			&& !below.isOf(Blocks.WARPED_WART_BLOCK);
 	}
 }

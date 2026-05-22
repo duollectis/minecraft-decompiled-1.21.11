@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.function.Function;
 
 /**
- * {@code IncomingRpcMethod}.
+ * Класс Incoming Rpc Method.
  */
 public interface IncomingRpcMethod<Params, Result> {
 
@@ -40,15 +40,9 @@ public interface IncomingRpcMethod<Params, Result> {
 		return new IncomingRpcMethod.Builder<>(handler);
 	}
 
-	/**
-	 * {@code Attributes}.
-	 */
 	public record Attributes(boolean runOnMainThread, boolean discoverable) {
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder<Params, Result> {
 
 		private String description = "";
@@ -145,9 +139,6 @@ public interface IncomingRpcMethod<Params, Result> {
 		}
 	}
 
-	/**
-	 * {@code Parameterized}.
-	 */
 	public record Parameterized<Params, Result>(
 			RpcMethodInfo<Params, Result> info,
 			IncomingRpcMethod.Attributes attributes,
@@ -219,17 +210,11 @@ public interface IncomingRpcMethod<Params, Result> {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ParameterizedHandler}.
-	 */
 	public interface ParameterizedHandler<Params, Result> {
 
 		Result apply(ManagementHandlerDispatcher dispatcher, Params params, ManagementConnectionId remote);
 	}
 
-	/**
-	 * {@code Parameterless}.
-	 */
 	public record Parameterless<Params, Result>(
 			RpcMethodInfo<Params, Result> info,
 			IncomingRpcMethod.Attributes attributes,
@@ -269,9 +254,6 @@ public interface IncomingRpcMethod<Params, Result> {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ParameterlessHandler}.
-	 */
 	public interface ParameterlessHandler<Result> {
 
 		Result apply(ManagementHandlerDispatcher dispatcher, ManagementConnectionId remote);

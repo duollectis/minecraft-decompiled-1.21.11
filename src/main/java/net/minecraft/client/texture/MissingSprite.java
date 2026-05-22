@@ -21,7 +21,7 @@ public final class MissingSprite {
 	 * @return NativeImage — результат операции
 	 */
 	public static NativeImage createImage() {
-		return createImage(16, 16);
+		return createImage(WIDTH, HEIGHT);
 	}
 
 	/**
@@ -56,8 +56,8 @@ public final class MissingSprite {
 	 * @return SpriteContents — результат операции
 	 */
 	public static SpriteContents createSpriteContents() {
-		NativeImage nativeImage = createImage(16, 16);
-		return new SpriteContents(MISSINGNO, new SpriteDimensions(16, 16), nativeImage);
+		NativeImage nativeImage = createImage(WIDTH, HEIGHT);
+		return new SpriteContents(MISSINGNO, new SpriteDimensions(WIDTH, HEIGHT), nativeImage);
 	}
 
 	public static Identifier getMissingSpriteId() {

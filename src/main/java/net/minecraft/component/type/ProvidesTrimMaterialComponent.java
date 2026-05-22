@@ -13,26 +13,17 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.Optional;
 
 /**
- * {@code ProvidesTrimMaterialComponent}.
- */
+	 * Компонент материала отделки брони. Указывает, что предмет может использоваться
+	 * как материал для нанесения отделки ({@link ArmorTrimMaterial}) на кузнечном столе.
+	 */
 public record ProvidesTrimMaterialComponent(LazyRegistryEntryReference<ArmorTrimMaterial> material) {
 
-	public static final Codec<ProvidesTrimMaterialComponent> CODEC = LazyRegistryEntryReference.createCodec(
-			                                                                                           RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.ENTRY_CODEC
-	                                                                                           )
-	                                                                                           .xmap(
-			                                                                                           ProvidesTrimMaterialComponent::new,
-			                                                                                           ProvidesTrimMaterialComponent::material
-	                                                                                           );
-	public static final PacketCodec<RegistryByteBuf, ProvidesTrimMaterialComponent>
-			PACKET_CODEC =
-			LazyRegistryEntryReference.createPacketCodec(
-					                          RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.ENTRY_PACKET_CODEC
-			                          )
-			                          .xmap(
-					                          ProvidesTrimMaterialComponent::new,
-					                          ProvidesTrimMaterialComponent::material
-			                          );
+	public static final Codec<ProvidesTrimMaterialComponent> CODEC = LazyRegistryEntryReference
+			.createCodec(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.ENTRY_CODEC)
+			.xmap(ProvidesTrimMaterialComponent::new, ProvidesTrimMaterialComponent::material);
+	public static final PacketCodec<RegistryByteBuf, ProvidesTrimMaterialComponent> PACKET_CODEC = LazyRegistryEntryReference
+			.createPacketCodec(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.ENTRY_PACKET_CODEC)
+			.xmap(ProvidesTrimMaterialComponent::new, ProvidesTrimMaterialComponent::material);
 
 	public ProvidesTrimMaterialComponent(RegistryEntry<ArmorTrimMaterial> material) {
 		this(new LazyRegistryEntryReference<>(material));
@@ -44,6 +35,6 @@ public record ProvidesTrimMaterialComponent(LazyRegistryEntryReference<ArmorTrim
 	}
 
 	public Optional<RegistryEntry<ArmorTrimMaterial>> getMaterial(RegistryWrapper.WrapperLookup registries) {
-		return this.material.resolveEntry(registries);
+		return material.resolveEntry(registries);
 	}
 }

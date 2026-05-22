@@ -9,12 +9,15 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4292}.
+ * Схема DataFixer версии 4292, переводящая формат {@code TEXT_COMPONENT} на новый
+ * синтаксис {@code hover_event} (snake_case вместо camelCase). Поле {@code show_item}
+ * теперь напрямую ссылается на {@code ITEM_STACK}, а {@code show_entity} использует
+ * поле {@code id} вместо {@code type}.
  */
 public class Schema4292 extends IdentifierNormalizingSchema {
 
-	public Schema4292(int i, Schema schema) {
-		super(i, schema);
+	public Schema4292(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(

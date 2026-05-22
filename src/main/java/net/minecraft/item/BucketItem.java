@@ -31,9 +31,15 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code BucketItem}.
+ * Предмет ведра. Поддерживает набор жидкости из мира (пустое ведро)
+ * и выливание жидкости в мир (ведро с жидкостью).
  */
 public class BucketItem extends Item implements FluidModificationItem {
+
+	/** Количество частиц дыма при испарении воды в горячем биоме. */
+	private static final int EVAPORATION_SMOKE_PARTICLES = 8;
+	/** Флаги обновления блока при установке жидкости. */
+	private static final int FLUID_PLACE_FLAGS = 11;
 
 	private final Fluid fluid;
 
@@ -44,66 +50,83 @@ public class BucketItem extends Item implements FluidModificationItem {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		BlockHitResult blockHitResult = raycast(
-				world,
-				user,
-				this.fluid == Fluids.EMPTY ? RaycastContext.FluidHandling.SOURCE_ONLY
-				                           : RaycastContext.FluidHandling.NONE
-		);
-		if (blockHitResult.getType() == HitResult.Type.MISS) {
+		ItemStack stack = user.getStackInHand(hand);
+		RaycastContext.FluidHandling fluidHandling = fluid == Fluids.EMPTY
+			? RaycastContext.FluidHandling.SOURCE_ONLY
+			: RaycastContext.FluidHandling.NONE;
+		BlockHitResult hitResult = raycast(world, user, fluidHandling);
+
+		if (hitResult.getType() == HitResult.Type.MISS || hitResult.getType() != HitResult.Type.BLOCK) {
 			return ActionResult.PASS;
 		}
-		else if (blockHitResult.getType() != HitResult.Type.BLOCK) {
-			return ActionResult.PASS;
+
+		BlockPos hitPos = hitResult.getBlockPos();
+		Direction side = hitResult.getSide();
+		BlockPos adjacentPos = hitPos.offset(side);
+
+		if (!world.canEntityModifyAt(user, hitPos) || !user.canPlaceOn(adjacentPos, side, stack)) {
+			return ActionResult.FAIL;
 		}
-		else {
-			BlockPos blockPos = blockHitResult.getBlockPos();
-			Direction direction = blockHitResult.getSide();
-			BlockPos blockPos2 = blockPos.offset(direction);
-			if (!world.canEntityModifyAt(user, blockPos) || !user.canPlaceOn(blockPos2, direction, itemStack)) {
-				return ActionResult.FAIL;
-			}
-			else if (this.fluid == Fluids.EMPTY) {
-				BlockState blockState = world.getBlockState(blockPos);
-				if (blockState.getBlock() instanceof FluidDrainable fluidDrainable) {
-					ItemStack itemStack2 = fluidDrainable.tryDrainFluid(user, world, blockPos, blockState);
-					if (!itemStack2.isEmpty()) {
-						user.incrementStat(Stats.USED.getOrCreateStat(this));
-						fluidDrainable.getBucketFillSound().ifPresent(sound -> user.playSound(sound, 1.0F, 1.0F));
-						world.emitGameEvent(user, GameEvent.FLUID_PICKUP, blockPos);
-						ItemStack itemStack3 = ItemUsage.exchangeStack(itemStack, user, itemStack2);
-						if (!world.isClient()) {
-							Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity) user, itemStack2);
-						}
 
-						return ActionResult.SUCCESS.withNewHandStack(itemStack3);
-					}
-				}
-
-				return ActionResult.FAIL;
-			}
-			else {
-				BlockState blockState = world.getBlockState(blockPos);
-				BlockPos
-						blockPos3 =
-						blockState.getBlock() instanceof FluidFillable && this.fluid == Fluids.WATER ? blockPos
-						                                                                             : blockPos2;
-				if (this.placeFluid(user, world, blockPos3, blockHitResult)) {
-					this.onEmptied(user, world, itemStack, blockPos3);
-					if (user instanceof ServerPlayerEntity) {
-						Criteria.PLACED_BLOCK.trigger((ServerPlayerEntity) user, blockPos3, itemStack);
-					}
-
-					user.incrementStat(Stats.USED.getOrCreateStat(this));
-					ItemStack itemStack2 = ItemUsage.exchangeStack(itemStack, user, getEmptiedStack(itemStack, user));
-					return ActionResult.SUCCESS.withNewHandStack(itemStack2);
-				}
-				else {
-					return ActionResult.FAIL;
-				}
-			}
+		if (fluid == Fluids.EMPTY) {
+			return tryPickupFluid(world, user, stack, hitPos);
 		}
+
+		return tryPlaceFluid(world, user, stack, hitPos, adjacentPos, hitResult);
+	}
+
+	private ActionResult tryPickupFluid(World world, PlayerEntity user, ItemStack stack, BlockPos hitPos) {
+		BlockState blockState = world.getBlockState(hitPos);
+
+		if (!(blockState.getBlock() instanceof FluidDrainable drainable)) {
+			return ActionResult.FAIL;
+		}
+
+		ItemStack filledStack = drainable.tryDrainFluid(user, world, hitPos, blockState);
+
+		if (filledStack.isEmpty()) {
+			return ActionResult.FAIL;
+		}
+
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		drainable.getBucketFillSound().ifPresent(sound -> user.playSound(sound, 1.0F, 1.0F));
+		world.emitGameEvent(user, GameEvent.FLUID_PICKUP, hitPos);
+		ItemStack resultStack = ItemUsage.exchangeStack(stack, user, filledStack);
+
+		if (!world.isClient()) {
+			Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity) user, filledStack);
+		}
+
+		return ActionResult.SUCCESS.withNewHandStack(resultStack);
+	}
+
+	private ActionResult tryPlaceFluid(
+		World world,
+		PlayerEntity user,
+		ItemStack stack,
+		BlockPos hitPos,
+		BlockPos adjacentPos,
+		BlockHitResult hitResult
+	) {
+		BlockState blockState = world.getBlockState(hitPos);
+		// Вода может заполнять FluidFillable блоки напрямую, остальные жидкости — только соседний блок
+		BlockPos targetPos = blockState.getBlock() instanceof FluidFillable && fluid == Fluids.WATER
+			? hitPos
+			: adjacentPos;
+
+		if (!placeFluid(user, world, targetPos, hitResult)) {
+			return ActionResult.FAIL;
+		}
+
+		onEmptied(user, world, stack, targetPos);
+
+		if (user instanceof ServerPlayerEntity serverPlayer) {
+			Criteria.PLACED_BLOCK.trigger(serverPlayer, targetPos, stack);
+		}
+
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		ItemStack emptiedStack = ItemUsage.exchangeStack(stack, user, getEmptiedStack(stack, user));
+		return ActionResult.SUCCESS.withNewHandStack(emptiedStack);
 	}
 
 	public static ItemStack getEmptiedStack(ItemStack stack, PlayerEntity player) {
@@ -114,108 +137,95 @@ public class BucketItem extends Item implements FluidModificationItem {
 	public void onEmptied(@Nullable LivingEntity user, World world, ItemStack stack, BlockPos pos) {
 	}
 
+	/**
+	 * Размещает жидкость из ведра в мире. Обрабатывает испарение воды в горячих биомах,
+	 * заполнение {@link FluidFillable} блоков и стандартную установку блока жидкости.
+	 */
 	@Override
 	public boolean placeFluid(
-			@Nullable LivingEntity user,
-			World world,
-			BlockPos pos,
-			@Nullable BlockHitResult hitResult
+		@Nullable LivingEntity user,
+		World world,
+		BlockPos pos,
+		@Nullable BlockHitResult hitResult
 	) {
-		if (!(this.fluid instanceof FlowableFluid flowableFluid)) {
+		if (!(fluid instanceof FlowableFluid flowableFluid)) {
 			return false;
 		}
-		else {
-			BlockState blockState = world.getBlockState(pos);
-			Block block = blockState.getBlock();
-			boolean bl = blockState.canBucketPlace(this.fluid);
-			boolean bl2 = user != null && user.isSneaking();
-			boolean
-					bl3 =
-					bl || block instanceof FluidFillable fluidFillable && fluidFillable.canFillWithFluid(
-							user,
-							world,
-							pos,
-							blockState,
-							this.fluid
-					);
-			boolean bl4 = blockState.isAir() || bl3 && (!bl2 || hitResult == null);
-			if (!bl4) {
-				return hitResult != null && this.placeFluid(
-						user,
-						world,
-						hitResult.getBlockPos().offset(hitResult.getSide()),
-						null
-				);
-			}
-			else if (world
-					.getEnvironmentAttributes()
-					.getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)
-					&& this.fluid.isIn(FluidTags.WATER)) {
-				int i = pos.getX();
-				int j = pos.getY();
-				int k = pos.getZ();
-				world.playSound(
-						user,
-						pos,
-						SoundEvents.BLOCK_FIRE_EXTINGUISH,
-						SoundCategory.BLOCKS,
-						0.5F,
-						2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F
-				);
 
-				for (int l = 0; l < 8; l++) {
-					world.addParticleClient(
-							ParticleTypes.LARGE_SMOKE,
-							i + world.random.nextFloat(),
-							j + world.random.nextFloat(),
-							k + world.random.nextFloat(),
-							0.0,
-							0.0,
-							0.0
-					);
-				}
+		BlockState blockState = world.getBlockState(pos);
+		Block block = blockState.getBlock();
+		boolean canBucketPlace = blockState.canBucketPlace(fluid);
+		boolean isSneaking = user != null && user.isSneaking();
+		boolean canFillable = canBucketPlace || block instanceof FluidFillable fillable
+			&& fillable.canFillWithFluid(user, world, pos, blockState, fluid);
+		boolean canPlace = blockState.isAir() || canFillable && (!isSneaking || hitResult == null);
 
-				return true;
-			}
-			else if (block instanceof FluidFillable fluidFillable2 && this.fluid == Fluids.WATER) {
-				fluidFillable2.tryFillWithFluid(world, pos, blockState, flowableFluid.getStill(false));
-				this.playEmptyingSound(user, world, pos);
-				return true;
-			}
-			else {
-				if (!world.isClient() && bl && !blockState.isLiquid()) {
-					world.breakBlock(pos, true);
-				}
-
-				if (!world.setBlockState(pos, this.fluid.getDefaultState().getBlockState(), 11) && !blockState
-						.getFluidState()
-						.isStill()) {
-					return false;
-				}
-				else {
-					this.playEmptyingSound(user, world, pos);
-					return true;
-				}
-			}
+		if (!canPlace) {
+			return hitResult != null && placeFluid(
+				user,
+				world,
+				hitResult.getBlockPos().offset(hitResult.getSide()),
+				null
+			);
 		}
+
+		if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)
+			&& fluid.isIn(FluidTags.WATER)
+		) {
+			int x = pos.getX();
+			int y = pos.getY();
+			int z = pos.getZ();
+			world.playSound(
+				user,
+				pos,
+				SoundEvents.BLOCK_FIRE_EXTINGUISH,
+				SoundCategory.BLOCKS,
+				0.5F,
+				2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F
+			);
+
+			for (int index = 0; index < EVAPORATION_SMOKE_PARTICLES; index++) {
+				world.addParticleClient(
+					ParticleTypes.LARGE_SMOKE,
+					x + world.random.nextFloat(),
+					y + world.random.nextFloat(),
+					z + world.random.nextFloat(),
+					0.0, 0.0, 0.0
+				);
+			}
+
+			return true;
+		}
+
+		if (block instanceof FluidFillable fillable && fluid == Fluids.WATER) {
+			fillable.tryFillWithFluid(world, pos, blockState, flowableFluid.getStill(false));
+			playEmptyingSound(user, world, pos);
+			return true;
+		}
+
+		if (!world.isClient() && canBucketPlace && !blockState.isLiquid()) {
+			world.breakBlock(pos, true);
+		}
+
+		if (!world.setBlockState(pos, fluid.getDefaultState().getBlockState(), FLUID_PLACE_FLAGS)
+			&& !blockState.getFluidState().isStill()
+		) {
+			return false;
+		}
+
+		playEmptyingSound(user, world, pos);
+		return true;
 	}
 
-	/**
-	 * Play emptying sound.
-	 *
-	 * @param user user
-	 * @param world world
-	 * @param pos pos
-	 */
 	protected void playEmptyingSound(@Nullable LivingEntity user, WorldAccess world, BlockPos pos) {
-		SoundEvent
-				soundEvent =
-				this.fluid.isIn(FluidTags.LAVA) ? SoundEvents.ITEM_BUCKET_EMPTY_LAVA : SoundEvents.ITEM_BUCKET_EMPTY;
-		world.playSound(user, pos, soundEvent, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		SoundEvent sound = fluid.isIn(FluidTags.LAVA)
+			? SoundEvents.ITEM_BUCKET_EMPTY_LAVA
+			: SoundEvents.ITEM_BUCKET_EMPTY;
+		world.playSound(user, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
 		world.emitGameEvent(user, GameEvent.FLUID_PLACE, pos);
 	}
 
 	public Fluid getFluid() {
-		return this.fluid;
+		return fluid;
 	}
 }

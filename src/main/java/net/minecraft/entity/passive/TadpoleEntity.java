@@ -39,7 +39,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TadpoleEntity}.
+ * Головастик — детёныш лягушки. Плавает в воде, при взрослении
+ * превращается в лягушку соответствующего биомного варианта.
  */
 public class TadpoleEntity extends FishEntity {
 

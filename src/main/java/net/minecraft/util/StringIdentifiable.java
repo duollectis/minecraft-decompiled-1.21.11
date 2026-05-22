@@ -17,157 +17,148 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code StringIdentifiable}.
+ * Интерфейс для объектов, имеющих строковый идентификатор для сериализации.
+ * Реализуется перечислениями, которые нужно сериализовать в JSON или по сети.
+ * При количестве значений больше {@value CACHED_MAP_THRESHOLD} используется HashMap для O(1) поиска.
  */
 public interface StringIdentifiable {
 
+	/** Порог количества значений, при превышении которого создаётся кэш-карта для поиска. */
 	int CACHED_MAP_THRESHOLD = 16;
 
 	String asString();
 
-	static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(Supplier<E[]> enumValues) {
+	static <E extends Enum<E> & StringIdentifiable> EnumCodec<E> createCodec(Supplier<E[]> enumValues) {
 		return createCodec(enumValues, id -> id);
 	}
 
-	static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(
-			Supplier<E[]> enumValues, Function<String, String> valueNameTransformer
+	/**
+	 * Создаёт {@link EnumCodec} с опциональным преобразованием имён значений.
+	 *
+	 * @param enumValues поставщик массива значений перечисления
+	 * @param valueNameTransformer функция преобразования строкового идентификатора
+	 * @return кодек для перечисления
+	 */
+	static <E extends Enum<E> & StringIdentifiable> EnumCodec<E> createCodec(
+		Supplier<E[]> enumValues,
+		Function<String, String> valueNameTransformer
 	) {
-		E[] enums = (E[]) enumValues.get();
-		Function<String, E> function = createMapper(enums, enum_ -> valueNameTransformer.apply(enum_.asString()));
-		return new StringIdentifiable.EnumCodec<>(enums, function);
+		E[] enums = enumValues.get();
+		Function<String, E> mapper = createMapper(enums, e -> valueNameTransformer.apply(e.asString()));
+		return new EnumCodec<>(enums, mapper);
 	}
 
+	/**
+	 * Создаёт базовый {@link Codec} для не-enum типов, реализующих {@link StringIdentifiable}.
+	 * Поддерживает как строковую, так и числовую (сжатую) сериализацию.
+	 *
+	 * @param values поставщик массива всех значений
+	 * @return кодек для типа
+	 */
 	static <T extends StringIdentifiable> Codec<T> createBasicCodec(Supplier<T[]> values) {
-		T[] stringIdentifiables = (T[]) values.get();
-		Function<String, T> function = createMapper(stringIdentifiables);
-		ToIntFunction<T> toIntFunction = Util.lastIndexGetter(Arrays.asList(stringIdentifiables));
-		return new StringIdentifiable.BasicCodec<>(stringIdentifiables, function, toIntFunction);
+		T[] array = values.get();
+		Function<String, T> mapper = createMapper(array);
+		ToIntFunction<T> ordinalGetter = Util.lastIndexGetter(Arrays.asList(array));
+		return new BasicCodec<>(array, mapper, ordinalGetter);
 	}
 
 	static <T extends StringIdentifiable> Function<String, @Nullable T> createMapper(T[] values) {
 		return createMapper(values, StringIdentifiable::asString);
 	}
 
+	/**
+	 * Создаёт функцию поиска значения по строковому идентификатору.
+	 * При количестве значений больше {@value CACHED_MAP_THRESHOLD} использует HashMap.
+	 *
+	 * @param values массив значений
+	 * @param valueNameTransformer функция получения строкового ключа из значения
+	 * @return функция поиска значения по ключу
+	 */
 	static <T> Function<String, @Nullable T> createMapper(T[] values, Function<T, String> valueNameTransformer) {
-		if (values.length > 16) {
-			Map<String, T>
-					map =
-					Arrays.<T>stream(values).collect(Collectors.toMap(valueNameTransformer, object -> (T) object));
-			return map::get;
+		if (values.length > CACHED_MAP_THRESHOLD) {
+			Map<String, T> cache = Arrays.stream(values)
+				.collect(Collectors.toMap(valueNameTransformer, value -> value));
+			return cache::get;
 		}
-		else {
-			return name -> {
-				for (T object : values) {
-					if (valueNameTransformer.apply(object).equals(name)) {
-						return object;
-					}
-				}
 
-				return null;
-			};
-		}
+		return name -> {
+			for (T value : values) {
+				if (valueNameTransformer.apply(value).equals(name)) {
+					return value;
+				}
+			}
+			return null;
+		};
 	}
 
 	static Keyable toKeyable(StringIdentifiable[] values) {
 		return new Keyable() {
-			/**
-			 * Keys.
-			 *
-			 * @param ops ops
-			 *
-			 * @return Stream — результат операции
-			 */
+			@Override
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
-				return Arrays.stream(values).map(StringIdentifiable::asString).map(ops::createString);
+				return Arrays.stream(values)
+					.map(StringIdentifiable::asString)
+					.map(ops::createString);
 			}
 		};
 	}
 
 	/**
-	 * {@code BasicCodec}.
+	 * Базовый кодек для типов, реализующих {@link StringIdentifiable}.
+	 * Поддерживает сжатую (числовую) сериализацию через {@link Codecs#orCompressed}.
 	 */
-	public static class BasicCodec<S extends StringIdentifiable> implements Codec<S> {
+	class BasicCodec<S extends StringIdentifiable> implements Codec<S> {
 
 		private final Codec<S> codec;
 
 		public BasicCodec(
-				S[] values,
-				Function<String, @Nullable S> idToIdentifiable,
-				ToIntFunction<S> identifiableToOrdinal
+			S[] values,
+			Function<String, @Nullable S> idToIdentifiable,
+			ToIntFunction<S> identifiableToOrdinal
 		) {
-			this.codec = Codecs.orCompressed(
-					Codec.stringResolver(StringIdentifiable::asString, idToIdentifiable),
-					Codecs.rawIdChecked(
-							identifiableToOrdinal,
-							ordinal -> ordinal >= 0 && ordinal < values.length ? values[ordinal] : null,
-							-1
-					)
+			codec = Codecs.orCompressed(
+				Codec.stringResolver(StringIdentifiable::asString, idToIdentifiable),
+				Codecs.rawIdChecked(
+					identifiableToOrdinal,
+					ordinal -> ordinal >= 0 && ordinal < values.length ? values[ordinal] : null,
+					-1
+				)
 			);
 		}
 
+		@Override
 		public <T> DataResult<com.mojang.datafixers.util.Pair<S, T>> decode(DynamicOps<T> ops, T input) {
-			return this.codec.decode(ops, input);
+			return codec.decode(ops, input);
 		}
 
-		/**
-		 * Encode.
-		 *
-		 * @param stringIdentifiable string identifiable
-		 * @param dynamicOps dynamic ops
-		 * @param object object
-		 *
-		 * @return DataResult — результат операции
-		 */
-		public <T> DataResult<T> encode(S stringIdentifiable, DynamicOps<T> dynamicOps, T object) {
-			return this.codec.encode(stringIdentifiable, dynamicOps, object);
+		@Override
+		public <T> DataResult<T> encode(S value, DynamicOps<T> ops, T prefix) {
+			return codec.encode(value, ops, prefix);
 		}
 	}
 
 	/**
-	 * {@code EnumCodec}.
+	 * Кодек для перечислений, реализующих {@link StringIdentifiable}.
+	 * Дополнительно предоставляет метод {@link #byId(String)} для прямого поиска по идентификатору.
 	 */
-	public static class EnumCodec<E extends Enum<E> & StringIdentifiable> extends StringIdentifiable.BasicCodec<E> {
+	class EnumCodec<E extends Enum<E> & StringIdentifiable> extends BasicCodec<E> {
 
 		private final Function<String, @Nullable E> idToIdentifiable;
 
 		public EnumCodec(E[] values, Function<String, E> idToIdentifiable) {
-			super(values, idToIdentifiable, enum_ -> enum_.ordinal());
+			super(values, idToIdentifiable, Enum::ordinal);
 			this.idToIdentifiable = idToIdentifiable;
 		}
 
-		/**
-		 * By id.
-		 *
-		 * @param id id
-		 *
-		 * @return @Nullable E — результат операции
-		 */
 		public @Nullable E byId(String id) {
-			return this.idToIdentifiable.apply(id);
+			return idToIdentifiable.apply(id);
 		}
 
-		/**
-		 * By id.
-		 *
-		 * @param id id
-		 * @param fallback fallback
-		 *
-		 * @return E — результат операции
-		 */
 		public E byId(String id, E fallback) {
-			return Objects.requireNonNullElse(this.byId(id), fallback);
+			return Objects.requireNonNullElse(byId(id), fallback);
 		}
 
-		/**
-		 * By id.
-		 *
-		 * @param id id
-		 * @param fallbackSupplier fallback supplier
-		 *
-		 * @return E — результат операции
-		 */
 		public E byId(String id, Supplier<? extends E> fallbackSupplier) {
-			return Objects.requireNonNullElseGet(this.byId(id), fallbackSupplier);
+			return Objects.requireNonNullElseGet(byId(id), fallbackSupplier);
 		}
 	}
 }

@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code DeOpCommand}.
+ * Команда {@code /deop}: снятие прав оператора с игрока (только dedicated).
  */
 public class DeOpCommand {
 

@@ -37,16 +37,33 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SheepEntity}.
+ * Овца — животное, которое можно стричь для получения шерсти.
+ * Цвет шерсти зависит от биома при спавне и смешивается при размножении.
+ * Флаги цвета и состояния стрижки упакованы в один байт трекера {@code COLOR}.
  */
 public class SheepEntity extends AnimalEntity implements Shearable {
 
 	private static final int MAX_GRASS_TIMER = 40;
-	private static final TrackedData<Byte>
-			COLOR =
-			DataTracker.registerData(SheepEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final int EAT_GRASS_STATUS_ID = 10;
+	private static final int GRASS_EATING_START_TICK = 4;
+	private static final int GRASS_EATING_END_TICK = 36;
+	private static final int GRASS_EATING_GROW_TICKS = 60;
+
+	/** Маска для извлечения индекса цвета из байта трекера (биты 0–3). */
+	private static final int COLOR_INDEX_MASK = 0x0F;
+	/** Маска для извлечения флага «острижена» из байта трекера (бит 4). */
+	private static final int SHEARED_FLAG_MASK = 0x10;
+	/** Инвертированная маска для сброса флага «острижена». */
+	private static final int SHEARED_FLAG_CLEAR_MASK = ~SHEARED_FLAG_MASK;
+	/** Маска для сохранения старших битов при установке цвета. */
+	private static final int COLOR_UPPER_BITS_MASK = 0xF0;
+
+	private static final TrackedData<Byte> COLOR = DataTracker.registerData(
+		SheepEntity.class,
+		TrackedDataHandlerRegistry.BYTE
+	);
 	private static final DyeColor DEFAULT_COLOR = DyeColor.WHITE;
-	private static final boolean DEFAULT_SHEARED = false;
+
 	private int eatGrassTimer;
 	private EatGrassGoal eatGrassGoal;
 
@@ -56,16 +73,16 @@ public class SheepEntity extends AnimalEntity implements Shearable {
 
 	@Override
 	protected void initGoals() {
-		this.eatGrassGoal = new EatGrassGoal(this);
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new EscapeDangerGoal(this, 1.25));
-		this.goalSelector.add(2, new AnimalMateGoal(this, 1.0));
-		this.goalSelector.add(3, new TemptGoal(this, 1.1, stack -> stack.isIn(ItemTags.SHEEP_FOOD), false));
-		this.goalSelector.add(4, new FollowParentGoal(this, 1.1));
-		this.goalSelector.add(5, this.eatGrassGoal);
-		this.goalSelector.add(6, new WanderAroundFarGoal(this, 1.0));
-		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-		this.goalSelector.add(8, new LookAroundGoal(this));
+		eatGrassGoal = new EatGrassGoal(this);
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new EscapeDangerGoal(this, 1.25));
+		goalSelector.add(2, new AnimalMateGoal(this, 1.0));
+		goalSelector.add(3, new TemptGoal(this, 1.1, stack -> stack.isIn(ItemTags.SHEEP_FOOD), false));
+		goalSelector.add(4, new FollowParentGoal(this, 1.1));
+		goalSelector.add(5, eatGrassGoal);
+		goalSelector.add(6, new WanderAroundFarGoal(this, 1.0));
+		goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		goalSelector.add(8, new LookAroundGoal(this));
 	}
 
 	@Override
@@ -75,24 +92,23 @@ public class SheepEntity extends AnimalEntity implements Shearable {
 
 	@Override
 	protected void mobTick(ServerWorld world) {
-		this.eatGrassTimer = this.eatGrassGoal.getTimer();
+		eatGrassTimer = eatGrassGoal.getTimer();
 		super.mobTick(world);
 	}
 
 	@Override
 	public void tickMovement() {
-		if (this.getEntityWorld().isClient()) {
-			this.eatGrassTimer = Math.max(0, this.eatGrassTimer - 1);
+		if (getEntityWorld().isClient()) {
+			eatGrassTimer = Math.max(0, eatGrassTimer - 1);
 		}
 
 		super.tickMovement();
 	}
 
 	public static DefaultAttributeContainer.Builder createSheepAttributes() {
-		return AnimalEntity
-				.createAnimalAttributes()
-				.add(EntityAttributes.MAX_HEALTH, 8.0)
-				.add(EntityAttributes.MOVEMENT_SPEED, 0.23F);
+		return AnimalEntity.createAnimalAttributes()
+			.add(EntityAttributes.MAX_HEALTH, 8.0)
+			.add(EntityAttributes.MOVEMENT_SPEED, 0.23F);
 	}
 
 	@Override
@@ -103,100 +119,98 @@ public class SheepEntity extends AnimalEntity implements Shearable {
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 10) {
-			this.eatGrassTimer = 40;
-		}
-		else {
+		if (status == EAT_GRASS_STATUS_ID) {
+			eatGrassTimer = MAX_GRASS_TIMER;
+		} else {
 			super.handleStatus(status);
 		}
 	}
 
+	/**
+	 * Возвращает угол наклона шеи для анимации поедания травы.
+	 * Плавно опускается в начале и поднимается в конце анимации.
+	 */
 	public float getNeckAngle(float tickProgress) {
-		if (this.eatGrassTimer <= 0) {
+		if (eatGrassTimer <= 0) {
 			return 0.0F;
 		}
-		else if (this.eatGrassTimer >= 4 && this.eatGrassTimer <= 36) {
+
+		if (eatGrassTimer >= GRASS_EATING_START_TICK && eatGrassTimer <= GRASS_EATING_END_TICK) {
 			return 1.0F;
 		}
-		else {
-			return this.eatGrassTimer < 4 ? (this.eatGrassTimer - tickProgress) / 4.0F
-			                              : -(this.eatGrassTimer - 40 - tickProgress) / 4.0F;
-		}
+
+		return eatGrassTimer < GRASS_EATING_START_TICK
+			? (eatGrassTimer - tickProgress) / GRASS_EATING_START_TICK
+			: -(eatGrassTimer - MAX_GRASS_TIMER - tickProgress) / GRASS_EATING_START_TICK;
 	}
 
+	/**
+	 * Возвращает угол наклона головы для анимации поедания травы.
+	 * Использует синусоиду для плавного покачивания в середине анимации.
+	 */
 	public float getHeadAngle(float tickProgress) {
-		if (this.eatGrassTimer > 4 && this.eatGrassTimer <= 36) {
-			float f = (this.eatGrassTimer - 4 - tickProgress) / 32.0F;
-			return (float) (Math.PI / 5) + 0.21991149F * MathHelper.sin(f * 28.7F);
+		if (eatGrassTimer > GRASS_EATING_START_TICK && eatGrassTimer <= GRASS_EATING_END_TICK) {
+			float progress = (eatGrassTimer - GRASS_EATING_START_TICK - tickProgress) / 32.0F;
+			return (float) (Math.PI / 5) + 0.21991149F * MathHelper.sin(progress * 28.7F);
 		}
-		else {
-			return this.eatGrassTimer > 0 ? (float) (Math.PI / 5)
-			                              : this.getLerpedPitch(tickProgress) * (float) (Math.PI / 180.0);
-		}
+
+		return eatGrassTimer > 0
+			? (float) (Math.PI / 5)
+			: getLerpedPitch(tickProgress) * (float) (Math.PI / 180.0);
 	}
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isOf(Items.SHEARS)) {
-			if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.isShearable()) {
-				this.sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
-				this.emitGameEvent(GameEvent.SHEAR, player);
-				itemStack.damage(1, player, hand.getEquipmentSlot());
+		ItemStack heldStack = player.getStackInHand(hand);
+		if (heldStack.isOf(Items.SHEARS)) {
+			if (getEntityWorld() instanceof ServerWorld serverWorld && isShearable()) {
+				sheared(serverWorld, SoundCategory.PLAYERS, heldStack);
+				emitGameEvent(GameEvent.SHEAR, player);
+				heldStack.damage(1, player, hand.getEquipmentSlot());
 				return ActionResult.SUCCESS_SERVER;
 			}
-			else {
-				return ActionResult.CONSUME;
-			}
+
+			return ActionResult.CONSUME;
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
 	@Override
 	public void sheared(ServerWorld world, SoundCategory shearedSoundCategory, ItemStack shears) {
 		world.playSoundFromEntity(null, this, SoundEvents.ENTITY_SHEEP_SHEAR, shearedSoundCategory, 1.0F, 1.0F);
-		this.forEachShearedItem(
-				world,
-				LootTables.SHEEP_SHEARING,
-				shears,
-				(worldx, stack) -> {
-					for (int i = 0; i < stack.getCount(); i++) {
-						ItemEntity itemEntity = this.dropStack(worldx, stack.copyWithCount(1), 1.0F);
-						if (itemEntity != null) {
-							itemEntity.setVelocity(
-									itemEntity.getVelocity()
-									          .add(
-											          (this.random.nextFloat() - this.random.nextFloat()) * 0.1F,
-											          this.random.nextFloat() * 0.05F,
-											          (this.random.nextFloat() - this.random.nextFloat()) * 0.1F
-									          )
-							);
-						}
-					}
+		forEachShearedItem(world, LootTables.SHEEP_SHEARING, shears, (dropWorld, stack) -> {
+			for (int count = 0; count < stack.getCount(); count++) {
+				ItemEntity dropped = dropStack(dropWorld, stack.copyWithCount(1), 1.0F);
+				if (dropped != null) {
+					dropped.setVelocity(dropped.getVelocity().add(
+						(random.nextFloat() - random.nextFloat()) * 0.1F,
+						random.nextFloat() * 0.05F,
+						(random.nextFloat() - random.nextFloat()) * 0.1F
+					));
 				}
-		);
-		this.setSheared(true);
+			}
+		});
+		setSheared(true);
 	}
 
 	@Override
 	public boolean isShearable() {
-		return this.isAlive() && !this.isSheared() && !this.isBaby();
+		return isAlive() && !isSheared() && !isBaby();
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("Sheared", this.isSheared());
-		view.put("Color", DyeColor.INDEX_CODEC, this.getColor());
+		view.putBoolean("Sheared", isSheared());
+		view.put("Color", DyeColor.INDEX_CODEC, getColor());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setSheared(view.getBoolean("Sheared", false));
-		this.setColor(view.<DyeColor>read("Color", DyeColor.INDEX_CODEC).orElse(DEFAULT_COLOR));
+		setSheared(view.getBoolean("Sheared", false));
+		setColor(view.<DyeColor>read("Color", DyeColor.INDEX_CODEC).orElse(DEFAULT_COLOR));
 	}
 
 	@Override
@@ -216,104 +230,90 @@ public class SheepEntity extends AnimalEntity implements Shearable {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_SHEEP_STEP, 0.15F, 1.0F);
+		playSound(SoundEvents.ENTITY_SHEEP_STEP, 0.15F, 1.0F);
 	}
 
 	public DyeColor getColor() {
-		return DyeColor.byIndex(this.dataTracker.get(COLOR) & 15);
+		return DyeColor.byIndex(dataTracker.get(COLOR) & COLOR_INDEX_MASK);
 	}
 
 	public void setColor(DyeColor color) {
-		byte b = this.dataTracker.get(COLOR);
-		this.dataTracker.set(COLOR, (byte) (b & 240 | color.getIndex() & 15));
+		byte colorFlags = dataTracker.get(COLOR);
+		dataTracker.set(COLOR, (byte) (colorFlags & COLOR_UPPER_BITS_MASK | color.getIndex() & COLOR_INDEX_MASK));
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.SHEEP_COLOR ? castComponentValue((ComponentType<T>) type, this.getColor())
-		                                              : super.get(type);
+		return type == DataComponentTypes.SHEEP_COLOR
+			? castComponentValue((ComponentType<T>) type, getColor())
+			: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.SHEEP_COLOR);
+		copyComponentFrom(from, DataComponentTypes.SHEEP_COLOR);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.SHEEP_COLOR) {
-			this.setColor(castComponentValue(DataComponentTypes.SHEEP_COLOR, value));
+			setColor(castComponentValue(DataComponentTypes.SHEEP_COLOR, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
 	public boolean isSheared() {
-		return (this.dataTracker.get(COLOR) & 16) != 0;
+		return (dataTracker.get(COLOR) & SHEARED_FLAG_MASK) != 0;
 	}
 
 	public void setSheared(boolean sheared) {
-		byte b = this.dataTracker.get(COLOR);
-		if (sheared) {
-			this.dataTracker.set(COLOR, (byte) (b | 16));
-		}
-		else {
-			this.dataTracker.set(COLOR, (byte) (b & -17));
-		}
+		byte colorFlags = dataTracker.get(COLOR);
+		dataTracker.set(COLOR, sheared
+			? (byte) (colorFlags | SHEARED_FLAG_MASK)
+			: (byte) (colorFlags & SHEARED_FLAG_CLEAR_MASK)
+		);
 	}
 
-	/**
-	 * Select spawn color.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 *
-	 * @return DyeColor — результат операции
-	 */
 	public static DyeColor selectSpawnColor(ServerWorldAccess world, BlockPos pos) {
-		RegistryEntry<Biome> registryEntry = world.getBiome(pos);
-		return SheepColors.select(registryEntry, world.getRandom());
+		RegistryEntry<Biome> biome = world.getBiome(pos);
+		return SheepColors.select(biome, world.getRandom());
 	}
 
 	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable SheepEntity — результат операции
+	 * Создаёт детёныша при размножении. Цвет шерсти смешивается из цветов обоих родителей.
 	 */
+	@Override
 	public @Nullable SheepEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-		SheepEntity sheepEntity = EntityType.SHEEP.create(serverWorld, SpawnReason.BREEDING);
-		if (sheepEntity != null) {
-			DyeColor dyeColor = this.getColor();
-			DyeColor dyeColor2 = ((SheepEntity) passiveEntity).getColor();
-			sheepEntity.setColor(DyeColor.mixColors(serverWorld, dyeColor, dyeColor2));
+		SheepEntity baby = EntityType.SHEEP.create(serverWorld, SpawnReason.BREEDING);
+		if (baby != null) {
+			DyeColor myColor = getColor();
+			DyeColor otherColor = ((SheepEntity) passiveEntity).getColor();
+			baby.setColor(DyeColor.mixColors(serverWorld, myColor, otherColor));
 		}
 
-		return sheepEntity;
+		return baby;
 	}
 
 	@Override
 	public void onEatingGrass() {
 		super.onEatingGrass();
-		this.setSheared(false);
-		if (this.isBaby()) {
-			this.growUp(60);
+		setSheared(false);
+		if (isBaby()) {
+			growUp(GRASS_EATING_GROW_TICKS);
 		}
 	}
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
-		this.setColor(selectSpawnColor(world, this.getBlockPos()));
+		setColor(selectSpawnColor(world, getBlockPos()));
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 }

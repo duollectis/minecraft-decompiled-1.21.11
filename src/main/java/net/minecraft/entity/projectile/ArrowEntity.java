@@ -17,16 +17,22 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ArrowEntity}.
+ * Стрела с поддержкой зелий-эффектов.
+ * <p>
+ * Хранит цвет частиц в синхронизированном поле {@code COLOR}.
+ * При попадании применяет все эффекты зелья к цели с учётом масштаба длительности.
+ * Если стрела застряла в блоке дольше {@value #MAX_POTION_DURATION_TICKS} тиков —
+ * эффекты зелья испаряются и стрела превращается в обычную.
  */
 public class ArrowEntity extends PersistentProjectileEntity {
 
 	private static final int MAX_POTION_DURATION_TICKS = 600;
 	private static final int NO_POTION_COLOR = -1;
-	private static final TrackedData<Integer>
-			COLOR =
-			DataTracker.registerData(ArrowEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final byte PARTICLE_EFFECT_STATUS = 0;
+	private static final byte STATUS_CLEAR_POTION = 0;
+	private static final int PARTICLE_SPAWN_INTERVAL = 5;
+
+	private static final TrackedData<Integer> COLOR =
+		DataTracker.registerData(ArrowEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
 	public ArrowEntity(EntityType<? extends ArrowEntity> entityType, World world) {
 		super(entityType, world);
@@ -34,106 +40,110 @@ public class ArrowEntity extends PersistentProjectileEntity {
 
 	public ArrowEntity(World world, double x, double y, double z, ItemStack stack, @Nullable ItemStack shotFrom) {
 		super(EntityType.ARROW, x, y, z, world, stack, shotFrom);
-		this.initColor();
+		initColor();
 	}
 
 	public ArrowEntity(World world, LivingEntity owner, ItemStack stack, @Nullable ItemStack shotFrom) {
 		super(EntityType.ARROW, owner, world, stack, shotFrom);
-		this.initColor();
+		initColor();
 	}
 
 	private PotionContentsComponent getPotionContents() {
-		return this.getItemStack().getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
+		return getItemStack().getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
 	}
 
 	private float getPotionDurationScale() {
-		return this.getItemStack().getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F);
+		return getItemStack().getOrDefault(DataComponentTypes.POTION_DURATION_SCALE, 1.0F);
 	}
 
-	private void setPotionContents(PotionContentsComponent potionContentsComponent) {
-		this.getItemStack().set(DataComponentTypes.POTION_CONTENTS, potionContentsComponent);
-		this.initColor();
+	private void setPotionContents(PotionContentsComponent contents) {
+		getItemStack().set(DataComponentTypes.POTION_CONTENTS, contents);
+		initColor();
 	}
 
 	@Override
 	protected void setStack(ItemStack stack) {
 		super.setStack(stack);
-		this.initColor();
+		initColor();
 	}
 
+	/**
+	 * Обновляет синхронизированный цвет частиц на основе текущего содержимого зелья.
+	 * Если зелье отсутствует — устанавливает {@value #NO_POTION_COLOR}.
+	 */
 	private void initColor() {
-		PotionContentsComponent potionContentsComponent = this.getPotionContents();
-		this.dataTracker.set(COLOR,
-				potionContentsComponent.equals(PotionContentsComponent.DEFAULT) ? -1
-				                                                                : potionContentsComponent.getColor()
+		PotionContentsComponent contents = getPotionContents();
+		dataTracker.set(
+			COLOR,
+			contents.equals(PotionContentsComponent.DEFAULT) ? NO_POTION_COLOR : contents.getColor()
 		);
 	}
 
 	/**
-	 * Добавляет effect.
+	 * Добавляет эффект зелья к стреле.
 	 *
-	 * @param effect effect
+	 * @param effect добавляемый эффект
 	 */
 	public void addEffect(StatusEffectInstance effect) {
-		this.setPotionContents(this.getPotionContents().with(effect));
+		setPotionContents(getPotionContents().with(effect));
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(COLOR, -1);
+		builder.add(COLOR, NO_POTION_COLOR);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			if (this.isInGround()) {
-				if (this.inGroundTime % 5 == 0) {
-					this.spawnParticles(1);
+		if (getEntityWorld().isClient()) {
+			if (isInGround()) {
+				if (inGroundTime % PARTICLE_SPAWN_INTERVAL == 0) {
+					spawnPotionParticles(1);
 				}
+			} else {
+				spawnPotionParticles(2);
 			}
-			else {
-				this.spawnParticles(2);
-			}
-		}
-		else if (this.isInGround() && this.inGroundTime != 0 && !this
-				.getPotionContents()
-				.equals(PotionContentsComponent.DEFAULT) && this.inGroundTime >= 600) {
-			this.getEntityWorld().sendEntityStatus(this, (byte) 0);
-			this.setStack(new ItemStack(Items.ARROW));
+		} else if (isInGround()
+			&& inGroundTime != 0
+			&& !getPotionContents().equals(PotionContentsComponent.DEFAULT)
+			&& inGroundTime >= MAX_POTION_DURATION_TICKS
+		) {
+			getEntityWorld().sendEntityStatus(this, STATUS_CLEAR_POTION);
+			setStack(new ItemStack(Items.ARROW));
 		}
 	}
 
-	private void spawnParticles(int amount) {
-		int i = this.getColor();
-		if (i != -1 && amount > 0) {
-			for (int j = 0; j < amount; j++) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, i),
-						    this.getParticleX(0.5),
-						    this.getRandomBodyY(),
-						    this.getParticleZ(0.5),
-						    0.0,
-						    0.0,
-						    0.0
-				    );
-			}
+	private void spawnPotionParticles(int amount) {
+		int color = getColor();
+		if (color == NO_POTION_COLOR || amount <= 0) {
+			return;
+		}
+
+		for (int i = 0; i < amount; i++) {
+			getEntityWorld().addParticleClient(
+				TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, color),
+				getParticleX(0.5),
+				getRandomBodyY(),
+				getParticleZ(0.5),
+				0.0,
+				0.0,
+				0.0
+			);
 		}
 	}
 
 	public int getColor() {
-		return this.dataTracker.get(COLOR);
+		return dataTracker.get(COLOR);
 	}
 
 	@Override
 	protected void onHit(LivingEntity target) {
 		super.onHit(target);
-		Entity entity = this.getEffectCause();
-		PotionContentsComponent potionContentsComponent = this.getPotionContents();
-		float f = this.getPotionDurationScale();
-		potionContentsComponent.forEachEffect(effect -> target.addStatusEffect(effect, entity), f);
+		Entity effectCause = getEffectCause();
+		float durationScale = getPotionDurationScale();
+		getPotionContents().forEachEffect(effect -> target.addStatusEffect(effect, effectCause), durationScale);
 	}
 
 	@Override
@@ -143,28 +153,28 @@ public class ArrowEntity extends PersistentProjectileEntity {
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 0) {
-			int i = this.getColor();
-			if (i != -1) {
-				float f = (i >> 16 & 0xFF) / 255.0F;
-				float g = (i >> 8 & 0xFF) / 255.0F;
-				float h = (i >> 0 & 0xFF) / 255.0F;
-
-				for (int j = 0; j < 20; j++) {
-					this.getEntityWorld()
-					    .addParticleClient(
-							    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h),
-							    this.getParticleX(0.5),
-							    this.getRandomBodyY(),
-							    this.getParticleZ(0.5),
-							    0.0,
-							    0.0,
-							    0.0
-					    );
-				}
+		if (status == STATUS_CLEAR_POTION) {
+			int color = getColor();
+			if (color == NO_POTION_COLOR) {
+				return;
 			}
-		}
-		else {
+
+			float red = (color >> 16 & 0xFF) / 255.0F;
+			float green = (color >> 8 & 0xFF) / 255.0F;
+			float blue = (color & 0xFF) / 255.0F;
+
+			for (int i = 0; i < 20; i++) {
+				getEntityWorld().addParticleClient(
+					TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, red, green, blue),
+					getParticleX(0.5),
+					getRandomBodyY(),
+					getParticleZ(0.5),
+					0.0,
+					0.0,
+					0.0
+				);
+			}
+		} else {
 			super.handleStatus(status);
 		}
 	}

@@ -3,7 +3,8 @@ package net.minecraft.world.gen.chunk;
 import net.minecraft.block.BlockState;
 
 /**
- * {@code BlockColumn}.
+ * Абстракция вертикального столбца блоков в чанке.
+ * Используется при генерации поверхности и применении правил материалов.
  */
 public interface BlockColumn {
 

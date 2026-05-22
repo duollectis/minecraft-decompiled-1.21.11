@@ -13,16 +13,17 @@ import net.minecraft.world.gen.heightprovider.UniformHeightProvider;
 import java.util.stream.Stream;
 
 /**
- * {@code HeightRangePlacementModifier}.
+ * Модификатор размещения, заменяющий Y-координату позиции значением,
+ * полученным от {@link HeightProvider}.
  */
 public class HeightRangePlacementModifier extends PlacementModifier {
 
 	public static final MapCodec<HeightRangePlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(HeightProvider.CODEC
-							.fieldOf("height")
-							.forGetter(placementModifier -> placementModifier.height))
-					.apply(instance, HeightRangePlacementModifier::new)
+		instance -> instance
+			.group(HeightProvider.CODEC
+				.fieldOf("height")
+				.forGetter(modifier -> modifier.height))
+			.apply(instance, HeightRangePlacementModifier::new)
 	);
 	private final HeightProvider height;
 
@@ -30,44 +31,21 @@ public class HeightRangePlacementModifier extends PlacementModifier {
 		this.height = height;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param height height
-	 *
-	 * @return HeightRangePlacementModifier — результат операции
-	 */
 	public static HeightRangePlacementModifier of(HeightProvider height) {
 		return new HeightRangePlacementModifier(height);
 	}
 
-	/**
-	 * Uniform.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 *
-	 * @return HeightRangePlacementModifier — результат операции
-	 */
 	public static HeightRangePlacementModifier uniform(YOffset minOffset, YOffset maxOffset) {
 		return of(UniformHeightProvider.create(minOffset, maxOffset));
 	}
 
-	/**
-	 * Trapezoid.
-	 *
-	 * @param minOffset min offset
-	 * @param maxOffset max offset
-	 *
-	 * @return HeightRangePlacementModifier — результат операции
-	 */
 	public static HeightRangePlacementModifier trapezoid(YOffset minOffset, YOffset maxOffset) {
 		return of(TrapezoidHeightProvider.create(minOffset, maxOffset));
 	}
 
 	@Override
 	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-		return Stream.of(pos.withY(this.height.get(random, context)));
+		return Stream.of(pos.withY(height.get(random, context)));
 	}
 
 	@Override

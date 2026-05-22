@@ -31,22 +31,71 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * {@code FireworkRocketEntity}.
+ * Ракета фейерверка — снаряд, который либо летит самостоятельно, либо
+ * прикреплён к планирующей сущности (режим {@code wasShotByEntity}).
+ * <p>
+ * В режиме планирования ракета толкает владельца вперёд по вектору взгляда.
+ * По истечении {@link #lifeTime} тиков или при столкновении с блоком/сущностью
+ * происходит взрыв, наносящий урон в радиусе {@link #EXPLOSION_RADIUS} блоков.
  */
 public class FireworkRocketEntity extends ProjectileEntity implements FlyingItemEntity {
 
-	private static final TrackedData<ItemStack>
-			ITEM =
+	private static final TrackedData<ItemStack> ITEM =
 			DataTracker.registerData(FireworkRocketEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
-	private static final TrackedData<OptionalInt> SHOOTER_ENTITY_ID = DataTracker.registerData(
-			FireworkRocketEntity.class, TrackedDataHandlerRegistry.OPTIONAL_INT
-	);
-	private static final TrackedData<Boolean>
-			SHOT_AT_ANGLE =
+	private static final TrackedData<OptionalInt> SHOOTER_ENTITY_ID =
+			DataTracker.registerData(FireworkRocketEntity.class, TrackedDataHandlerRegistry.OPTIONAL_INT);
+	private static final TrackedData<Boolean> SHOT_AT_ANGLE =
 			DataTracker.registerData(FireworkRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final int DEFAULT_LIFE = 0;
-	private static final int DEFAULT_LIFE_TIME = 0;
-	private static final boolean DEFAULT_SHOT_AT_ANGLE = false;
+
+	/** Статус-байт, отправляемый клиенту для воспроизведения анимации взрыва. */
+	private static final byte EXPLODE_STATUS = 17;
+
+	/** Статус-байт, отправляемый клиенту для воспроизведения анимации подтягивания. */
+	private static final byte PULL_STATUS = 31;
+
+	/** Базовое время жизни на один уровень полёта (в тиках). */
+	private static final int LIFE_PER_FLIGHT_LEVEL = 10;
+
+	/** Случайный разброс времени жизни (в тиках). */
+	private static final int LIFE_RANDOM_RANGE_A = 6;
+	private static final int LIFE_RANDOM_RANGE_B = 7;
+
+	/** Ускорение по горизонтали при полёте без угла. */
+	private static final double HORIZONTAL_ACCELERATION = 1.15;
+
+	/** Вертикальное ускорение при полёте без угла. */
+	private static final double VERTICAL_ACCELERATION = 0.04;
+
+	/** Начальный разброс скорости при спавне. */
+	private static final double INITIAL_VELOCITY_SPREAD = 0.002297;
+
+	/** Начальная вертикальная скорость при спавне. */
+	private static final double INITIAL_VERTICAL_VELOCITY = 0.05;
+
+	/** Радиус взрыва (в блоках). */
+	private static final double EXPLOSION_RADIUS = 5.0;
+
+	/** Квадрат радиуса взрыва. */
+	private static final double EXPLOSION_RADIUS_SQUARED = EXPLOSION_RADIUS * EXPLOSION_RADIUS;
+
+	/** Базовый урон от взрыва. */
+	private static final float BASE_EXPLOSION_DAMAGE = 5.0F;
+
+	/** Дополнительный урон за каждый эффект взрыва. */
+	private static final float DAMAGE_PER_EXPLOSION = 2.0F;
+
+	/** Коэффициент ускорения планирующей сущности. */
+	private static final double GLIDE_BOOST_FACTOR = 0.1;
+
+	/** Целевая скорость планирующей сущности. */
+	private static final double GLIDE_TARGET_SPEED = 1.5;
+
+	/** Коэффициент интерполяции скорости планирования. */
+	private static final double GLIDE_LERP_FACTOR = 0.5;
+
+	/** Максимальная дистанция рендера (квадрат). */
+	private static final double MAX_RENDER_DISTANCE_SQUARED = 4096.0;
+
 	private int life = 0;
 	private int lifeTime = 0;
 	private @Nullable LivingEntity shooter;
@@ -57,33 +106,39 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 
 	public FireworkRocketEntity(World world, double x, double y, double z, ItemStack stack) {
 		super(EntityType.FIREWORK_ROCKET, world);
-		this.life = 0;
-		this.setPosition(x, y, z);
-		this.dataTracker.set(ITEM, stack.copy());
-		int i = 1;
+		setPosition(x, y, z);
+		dataTracker.set(ITEM, stack.copy());
+
+		int flightDuration = 1;
 		FireworksComponent fireworksComponent = stack.get(DataComponentTypes.FIREWORKS);
 		if (fireworksComponent != null) {
-			i += fireworksComponent.flightDuration();
+			flightDuration += fireworksComponent.flightDuration();
 		}
 
-		this.setVelocity(this.random.nextTriangular(0.0, 0.002297), 0.05, this.random.nextTriangular(0.0, 0.002297));
-		this.lifeTime = 10 * i + this.random.nextInt(6) + this.random.nextInt(7);
+		setVelocity(
+				random.nextTriangular(0.0, INITIAL_VELOCITY_SPREAD),
+				INITIAL_VERTICAL_VELOCITY,
+				random.nextTriangular(0.0, INITIAL_VELOCITY_SPREAD)
+		);
+		lifeTime = LIFE_PER_FLIGHT_LEVEL * flightDuration
+				+ random.nextInt(LIFE_RANDOM_RANGE_A)
+				+ random.nextInt(LIFE_RANDOM_RANGE_B);
 	}
 
 	public FireworkRocketEntity(World world, @Nullable Entity entity, double x, double y, double z, ItemStack stack) {
 		this(world, x, y, z, stack);
-		this.setOwner(entity);
+		setOwner(entity);
 	}
 
 	public FireworkRocketEntity(World world, ItemStack stack, LivingEntity shooter) {
 		this(world, shooter, shooter.getX(), shooter.getY(), shooter.getZ(), stack);
-		this.dataTracker.set(SHOOTER_ENTITY_ID, OptionalInt.of(shooter.getId()));
+		dataTracker.set(SHOOTER_ENTITY_ID, OptionalInt.of(shooter.getId()));
 		this.shooter = shooter;
 	}
 
 	public FireworkRocketEntity(World world, ItemStack stack, double x, double y, double z, boolean shotAtAngle) {
 		this(world, x, y, z, stack);
-		this.dataTracker.set(SHOT_AT_ANGLE, shotAtAngle);
+		dataTracker.set(SHOT_AT_ANGLE, shotAtAngle);
 	}
 
 	public FireworkRocketEntity(
@@ -96,7 +151,7 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 			boolean shotAtAngle
 	) {
 		this(world, stack, x, y, z, shotAtAngle);
-		this.setOwner(entity);
+		setOwner(entity);
 	}
 
 	@Override
@@ -108,224 +163,230 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 
 	@Override
 	public boolean shouldRender(double distance) {
-		return distance < 4096.0 && !this.wasShotByEntity();
+		return distance < MAX_RENDER_DISTANCE_SQUARED && !wasShotByEntity();
 	}
 
 	@Override
 	public boolean shouldRender(double cameraX, double cameraY, double cameraZ) {
-		return super.shouldRender(cameraX, cameraY, cameraZ) && !this.wasShotByEntity();
+		return super.shouldRender(cameraX, cameraY, cameraZ) && !wasShotByEntity();
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
 		HitResult hitResult;
-		if (this.wasShotByEntity()) {
-			if (this.shooter == null) {
-				this.dataTracker.get(SHOOTER_ENTITY_ID).ifPresent(id -> {
-					Entity entity = this.getEntityWorld().getEntityById(id);
-					if (entity instanceof LivingEntity) {
-						this.shooter = (LivingEntity) entity;
-					}
-				});
-			}
 
-			if (this.shooter != null) {
-				Vec3d vec3d3;
-				if (this.shooter.isGliding()) {
-					Vec3d vec3d = this.shooter.getRotationVector();
-					double d = 1.5;
-					double e = 0.1;
-					Vec3d vec3d2 = this.shooter.getVelocity();
-					this.shooter
-							.setVelocity(
-									vec3d2.add(
-											vec3d.x * 0.1 + (vec3d.x * 1.5 - vec3d2.x) * 0.5,
-											vec3d.y * 0.1 + (vec3d.y * 1.5 - vec3d2.y) * 0.5,
-											vec3d.z * 0.1 + (vec3d.z * 1.5 - vec3d2.z) * 0.5
-									)
-							);
-					vec3d3 = this.shooter.getHandPosOffset(Items.FIREWORK_ROCKET);
+		if (wasShotByEntity()) {
+			hitResult = tickGlidingMode();
+		} else {
+			hitResult = tickFreeFlightMode();
+		}
+
+		if (!noClip && isAlive() && hitResult.getType() != HitResult.Type.MISS) {
+			hitOrDeflect(hitResult);
+			velocityDirty = true;
+		}
+
+		updateRotation();
+		playLaunchSoundOnFirstTick();
+		life++;
+		spawnTrailParticles();
+
+		if (life > lifeTime && getEntityWorld() instanceof ServerWorld serverWorld) {
+			explodeAndRemove(serverWorld);
+		}
+	}
+
+	private HitResult tickGlidingMode() {
+		if (shooter == null) {
+			dataTracker.get(SHOOTER_ENTITY_ID).ifPresent(id -> {
+				Entity entity = getEntityWorld().getEntityById(id);
+				if (entity instanceof LivingEntity living) {
+					shooter = living;
 				}
-				else {
-					vec3d3 = Vec3d.ZERO;
-				}
+			});
+		}
 
-				this.setPosition(
-						this.shooter.getX() + vec3d3.x,
-						this.shooter.getY() + vec3d3.y,
-						this.shooter.getZ() + vec3d3.z
-				);
-				this.setVelocity(this.shooter.getVelocity());
+		if (shooter != null) {
+			Vec3d handOffset;
+
+			if (shooter.isGliding()) {
+				Vec3d lookVec = shooter.getRotationVector();
+				Vec3d shooterVelocity = shooter.getVelocity();
+				shooter.setVelocity(shooterVelocity.add(
+						lookVec.x * GLIDE_BOOST_FACTOR + (lookVec.x * GLIDE_TARGET_SPEED - shooterVelocity.x) * GLIDE_LERP_FACTOR,
+						lookVec.y * GLIDE_BOOST_FACTOR + (lookVec.y * GLIDE_TARGET_SPEED - shooterVelocity.y) * GLIDE_LERP_FACTOR,
+						lookVec.z * GLIDE_BOOST_FACTOR + (lookVec.z * GLIDE_TARGET_SPEED - shooterVelocity.z) * GLIDE_LERP_FACTOR
+				));
+				handOffset = shooter.getHandPosOffset(Items.FIREWORK_ROCKET);
+			} else {
+				handOffset = Vec3d.ZERO;
 			}
 
-			hitResult = ProjectileUtil.getCollision(this, this::canHit);
-		}
-		else {
-			if (!this.wasShotAtAngle()) {
-				double f = this.horizontalCollision ? 1.0 : 1.15;
-				this.setVelocity(this.getVelocity().multiply(f, 1.0, f).add(0.0, 0.04, 0.0));
-			}
-
-			Vec3d vec3d3 = this.getVelocity();
-			hitResult = ProjectileUtil.getCollision(this, this::canHit);
-			this.move(MovementType.SELF, vec3d3);
-			this.tickBlockCollision();
-			this.setVelocity(vec3d3);
+			setPosition(
+					shooter.getX() + handOffset.x,
+					shooter.getY() + handOffset.y,
+					shooter.getZ() + handOffset.z
+			);
+			setVelocity(shooter.getVelocity());
 		}
 
-		if (!this.noClip && this.isAlive() && hitResult.getType() != HitResult.Type.MISS) {
-			this.hitOrDeflect(hitResult);
-			this.velocityDirty = true;
+		return ProjectileUtil.getCollision(this, this::canHit);
+	}
+
+	private HitResult tickFreeFlightMode() {
+		if (!wasShotAtAngle()) {
+			double horizontalFactor = horizontalCollision ? 1.0 : HORIZONTAL_ACCELERATION;
+			setVelocity(getVelocity().multiply(horizontalFactor, 1.0, horizontalFactor).add(0.0, VERTICAL_ACCELERATION, 0.0));
 		}
 
-		this.updateRotation();
-		if (this.life == 0 && !this.isSilent()) {
-			this.getEntityWorld()
-			    .playSound(
-					    null,
-					    this.getX(),
-					    this.getY(),
-					    this.getZ(),
-					    SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH,
-					    SoundCategory.AMBIENT,
-					    3.0F,
-					    1.0F
-			    );
-		}
+		Vec3d velocity = getVelocity();
+		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
+		move(MovementType.SELF, velocity);
+		tickBlockCollision();
+		setVelocity(velocity);
+		return hitResult;
+	}
 
-		this.life++;
-		if (this.getEntityWorld().isClient() && this.life % 2 < 2) {
-			this.getEntityWorld()
-			    .addParticleClient(
-					    ParticleTypes.FIREWORK,
-					    this.getX(),
-					    this.getY(),
-					    this.getZ(),
-					    this.random.nextGaussian() * 0.05,
-					    -this.getVelocity().y * 0.5,
-					    this.random.nextGaussian() * 0.05
-			    );
+	private void playLaunchSoundOnFirstTick() {
+		if (life == 0 && !isSilent()) {
+			getEntityWorld().playSound(
+					null,
+					getX(),
+					getY(),
+					getZ(),
+					SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH,
+					SoundCategory.AMBIENT,
+					3.0F,
+					1.0F
+			);
 		}
+	}
 
-		if (this.life > this.lifeTime && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.explodeAndRemove(serverWorld);
+	private void spawnTrailParticles() {
+		if (getEntityWorld().isClient() && life % 2 < 2) {
+			getEntityWorld().addParticleClient(
+					ParticleTypes.FIREWORK,
+					getX(),
+					getY(),
+					getZ(),
+					random.nextGaussian() * 0.05,
+					-getVelocity().y * 0.5,
+					random.nextGaussian() * 0.05
+			);
 		}
 	}
 
 	private void explodeAndRemove(ServerWorld world) {
-		world.sendEntityStatus(this, (byte) 17);
-		this.emitGameEvent(GameEvent.EXPLODE, this.getOwner());
-		this.explode(world);
-		this.discard();
+		world.sendEntityStatus(this, EXPLODE_STATUS);
+		emitGameEvent(GameEvent.EXPLODE, getOwner());
+		explode(world);
+		discard();
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.explodeAndRemove(serverWorld);
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			explodeAndRemove(serverWorld);
 		}
 	}
 
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		BlockPos blockPos = new BlockPos(blockHitResult.getBlockPos());
-		this
-				.getEntityWorld()
+		getEntityWorld()
 				.getBlockState(blockPos)
-				.onEntityCollision(this.getEntityWorld(), blockPos, this, EntityCollisionHandler.DUMMY, true);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.hasExplosionEffects()) {
-			this.explodeAndRemove(serverWorld);
+				.onEntityCollision(getEntityWorld(), blockPos, this, EntityCollisionHandler.DUMMY, true);
+
+		if (getEntityWorld() instanceof ServerWorld serverWorld && hasExplosionEffects()) {
+			explodeAndRemove(serverWorld);
 		}
 
 		super.onBlockHit(blockHitResult);
 	}
 
 	private boolean hasExplosionEffects() {
-		return !this.getExplosions().isEmpty();
+		return !getExplosions().isEmpty();
 	}
 
+	/**
+	 * Наносит урон всем живым сущностям в радиусе взрыва, у которых есть прямая
+	 * видимость до ракеты (проверяется через рейкаст по двум точкам тела).
+	 * Урон масштабируется по расстоянию и количеству эффектов взрыва.
+	 *
+	 * @param world серверный мир, в котором происходит взрыв
+	 */
 	private void explode(ServerWorld world) {
-		float f = 0.0F;
-		List<FireworkExplosionComponent> list = this.getExplosions();
-		if (!list.isEmpty()) {
-			f = 5.0F + list.size() * 2;
+		List<FireworkExplosionComponent> explosions = getExplosions();
+		if (explosions.isEmpty()) {
+			return;
 		}
 
-		if (f > 0.0F) {
-			if (this.shooter != null) {
-				this.shooter.damage(
-						world,
-						this.getDamageSources().fireworks(this, this.getOwner()),
-						5.0F + list.size() * 2
-				);
+		float totalDamage = BASE_EXPLOSION_DAMAGE + explosions.size() * DAMAGE_PER_EXPLOSION;
+
+		if (shooter != null) {
+			shooter.damage(world, getDamageSources().fireworks(this, getOwner()), totalDamage);
+		}
+
+		Vec3d origin = getEntityPos();
+
+		for (LivingEntity nearby : getEntityWorld().getNonSpectatingEntities(
+				LivingEntity.class,
+				getBoundingBox().expand(EXPLOSION_RADIUS)
+		)) {
+			if (nearby == shooter || squaredDistanceTo(nearby) > EXPLOSION_RADIUS_SQUARED) {
+				continue;
 			}
 
-			double d = 5.0;
-			Vec3d vec3d = this.getEntityPos();
+			boolean hasLineOfSight = false;
 
-			for (LivingEntity livingEntity : this
-					.getEntityWorld()
-					.getNonSpectatingEntities(LivingEntity.class, this.getBoundingBox().expand(5.0))) {
-				if (livingEntity != this.shooter && !(this.squaredDistanceTo(livingEntity) > 25.0)) {
-					boolean bl = false;
+			for (int check = 0; check < 2; check++) {
+				Vec3d checkPos = new Vec3d(nearby.getX(), nearby.getBodyY(0.5 * check), nearby.getZ());
+				HitResult raycast = getEntityWorld().raycast(new RaycastContext(
+						origin,
+						checkPos,
+						RaycastContext.ShapeType.COLLIDER,
+						RaycastContext.FluidHandling.NONE,
+						this
+				));
 
-					for (int i = 0; i < 2; i++) {
-						Vec3d
-								vec3d2 =
-								new Vec3d(livingEntity.getX(), livingEntity.getBodyY(0.5 * i), livingEntity.getZ());
-						HitResult hitResult = this.getEntityWorld()
-						                          .raycast(new RaycastContext(
-								                          vec3d,
-								                          vec3d2,
-								                          RaycastContext.ShapeType.COLLIDER,
-								                          RaycastContext.FluidHandling.NONE,
-								                          this
-						                          ));
-						if (hitResult.getType() == HitResult.Type.MISS) {
-							bl = true;
-							break;
-						}
-					}
-
-					if (bl) {
-						float g = f * (float) Math.sqrt((5.0 - this.distanceTo(livingEntity)) / 5.0);
-						livingEntity.damage(world, this.getDamageSources().fireworks(this, this.getOwner()), g);
-					}
+				if (raycast.getType() == HitResult.Type.MISS) {
+					hasLineOfSight = true;
+					break;
 				}
+			}
+
+			if (hasLineOfSight) {
+				float scaledDamage = totalDamage * (float) Math.sqrt(
+						(EXPLOSION_RADIUS - distanceTo(nearby)) / EXPLOSION_RADIUS
+				);
+				nearby.damage(world, getDamageSources().fireworks(this, getOwner()), scaledDamage);
 			}
 		}
 	}
 
 	private boolean wasShotByEntity() {
-		return this.dataTracker.get(SHOOTER_ENTITY_ID).isPresent();
+		return dataTracker.get(SHOOTER_ENTITY_ID).isPresent();
 	}
 
-	/**
-	 * Was shot at angle.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean wasShotAtAngle() {
-		return this.dataTracker.get(SHOT_AT_ANGLE);
+		return dataTracker.get(SHOT_AT_ANGLE);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 17 && this.getEntityWorld().isClient()) {
-			Vec3d vec3d = this.getVelocity();
-			this
-					.getEntityWorld()
-					.addFireworkParticle(
-							this.getX(),
-							this.getY(),
-							this.getZ(),
-							vec3d.x,
-							vec3d.y,
-							vec3d.z,
-							this.getExplosions()
-					);
+		if (status == EXPLODE_STATUS && getEntityWorld().isClient()) {
+			Vec3d velocity = getVelocity();
+			getEntityWorld().addFireworkParticle(
+					getX(),
+					getY(),
+					getZ(),
+					velocity.x,
+					velocity.y,
+					velocity.z,
+					getExplosions()
+			);
 		}
 
 		super.handleStatus(status);
@@ -334,30 +395,30 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("Life", this.life);
-		view.putInt("LifeTime", this.lifeTime);
-		view.put("FireworksItem", ItemStack.CODEC, this.getStack());
-		view.putBoolean("ShotAtAngle", this.dataTracker.get(SHOT_AT_ANGLE));
+		view.putInt("Life", life);
+		view.putInt("LifeTime", lifeTime);
+		view.put("FireworksItem", ItemStack.CODEC, getStack());
+		view.putBoolean("ShotAtAngle", dataTracker.get(SHOT_AT_ANGLE));
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.life = view.getInt("Life", 0);
-		this.lifeTime = view.getInt("LifeTime", 0);
-		this.dataTracker.set(ITEM, view.<ItemStack>read("FireworksItem", ItemStack.CODEC).orElse(getDefaultStack()));
-		this.dataTracker.set(SHOT_AT_ANGLE, view.getBoolean("ShotAtAngle", false));
+		life = view.getInt("Life", 0);
+		lifeTime = view.getInt("LifeTime", 0);
+		dataTracker.set(ITEM, view.<ItemStack>read("FireworksItem", ItemStack.CODEC).orElse(getDefaultStack()));
+		dataTracker.set(SHOT_AT_ANGLE, view.getBoolean("ShotAtAngle", false));
 	}
 
 	private List<FireworkExplosionComponent> getExplosions() {
-		ItemStack itemStack = this.dataTracker.get(ITEM);
+		ItemStack itemStack = dataTracker.get(ITEM);
 		FireworksComponent fireworksComponent = itemStack.get(DataComponentTypes.FIREWORKS);
 		return fireworksComponent != null ? fireworksComponent.explosions() : List.of();
 	}
 
 	@Override
 	public ItemStack getStack() {
-		return this.dataTracker.get(ITEM);
+		return dataTracker.get(ITEM);
 	}
 
 	@Override
@@ -371,8 +432,8 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 
 	@Override
 	public DoubleDoubleImmutablePair getKnockback(LivingEntity target, DamageSource source) {
-		double d = target.getEntityPos().x - this.getEntityPos().x;
-		double e = target.getEntityPos().z - this.getEntityPos().z;
-		return DoubleDoubleImmutablePair.of(d, e);
+		double deltaX = target.getEntityPos().x - getEntityPos().x;
+		double deltaZ = target.getEntityPos().z - getEntityPos().z;
+		return DoubleDoubleImmutablePair.of(deltaX, deltaZ);
 	}
 }

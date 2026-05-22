@@ -9,10 +9,12 @@ import org.joml.Matrix3x2fc;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ScreenRect}.
+ * Прямоугольная область на экране, задаваемая позицией левого верхнего угла,
+ * шириной и высотой. Используется для навигации, проверки пересечений и
+ * трансформаций GUI-элементов.
  */
+@Environment(EnvType.CLIENT)
 public record ScreenRect(ScreenPos position, int width, int height) {
 
 	private static final ScreenRect EMPTY = new ScreenRect(0, 0, 0, 0);
@@ -21,11 +23,6 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		this(new ScreenPos(sameAxis, otherAxis), width, height);
 	}
 
-	/**
-	 * Empty.
-	 *
-	 * @return ScreenRect — результат операции
-	 */
 	public static ScreenRect empty() {
 		return EMPTY;
 	}
@@ -43,13 +40,6 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		};
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param direction direction
-	 *
-	 * @return ScreenRect — результат операции
-	 */
 	public ScreenRect add(NavigationDirection direction) {
 		return new ScreenRect(this.position.add(direction), this.width, this.height);
 	}
@@ -76,25 +66,10 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		return of(direction.getAxis(), i, j, 1, k).add(direction);
 	}
 
-	/**
-	 * Overlaps.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean overlaps(ScreenRect other) {
 		return this.overlaps(other, NavigationAxis.HORIZONTAL) && this.overlaps(other, NavigationAxis.VERTICAL);
 	}
 
-	/**
-	 * Overlaps.
-	 *
-	 * @param other other
-	 * @param axis axis
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean overlaps(ScreenRect other, NavigationAxis axis) {
 		int i = this.getBoundingCoordinate(axis.getNegativeDirection());
 		int j = other.getBoundingCoordinate(axis.getNegativeDirection());
@@ -109,13 +84,6 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		) / 2;
 	}
 
-	/**
-	 * Intersection.
-	 *
-	 * @param other other
-	 *
-	 * @return @Nullable ScreenRect — результат операции
-	 */
 	public @Nullable ScreenRect intersection(ScreenRect other) {
 		int i = Math.max(this.getLeft(), other.getLeft());
 		int j = Math.max(this.getTop(), other.getTop());
@@ -124,25 +92,11 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		return i < k && j < l ? new ScreenRect(i, j, k - i, l - j) : null;
 	}
 
-	/**
-	 * Intersects.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean intersects(ScreenRect other) {
 		return this.getLeft() < other.getRight() && this.getRight() > other.getLeft()
 				&& this.getTop() < other.getBottom() && this.getBottom() > other.getTop();
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param other other
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(ScreenRect other) {
 		return other.getLeft() >= this.getLeft()
 				&& other.getTop() >= this.getTop()
@@ -166,25 +120,10 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		return this.position.x() + this.width;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param x x
-	 * @param y y
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(int x, int y) {
 		return x >= this.getLeft() && x < this.getRight() && y >= this.getTop() && y < this.getBottom();
 	}
 
-	/**
-	 * Transform.
-	 *
-	 * @param matrix matrix
-	 *
-	 * @return ScreenRect — результат операции
-	 */
 	public ScreenRect transform(Matrix3x2fc matrix) {
 		Vector2f vector2f = matrix.transformPosition(this.getLeft(), this.getTop(), new Vector2f());
 		Vector2f vector2f2 = matrix.transformPosition(this.getRight(), this.getBottom(), new Vector2f());
@@ -196,13 +135,6 @@ public record ScreenRect(ScreenPos position, int width, int height) {
 		);
 	}
 
-	/**
-	 * Трансформирует each vertex.
-	 *
-	 * @param matrix matrix
-	 *
-	 * @return ScreenRect — результат операции
-	 */
 	public ScreenRect transformEachVertex(Matrix3x2fc matrix) {
 		Vector2f vector2f = matrix.transformPosition(this.getLeft(), this.getTop(), new Vector2f());
 		Vector2f vector2f2 = matrix.transformPosition(this.getRight(), this.getTop(), new Vector2f());

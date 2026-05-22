@@ -19,12 +19,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code TraderLlamaEntity}.
+ * Лама торговца — особая разновидность ламы, привязанная к странствующему торговцу.
+ * Автоматически исчезает через {@code despawnDelay} тиков, если не приручена,
+ * не привязана игроком и не несёт пассажира. Таймер синхронизируется с таймером
+ * торговца, пока лама находится на его поводке.
  */
 public class TraderLlamaEntity extends LlamaEntity {
 
 	private static final int DEFAULT_DESPAWN_DELAY = 47999;
-	private int despawnDelay = 47999;
+
+	private int despawnDelay = DEFAULT_DESPAWN_DELAY;
 
 	public TraderLlamaEntity(EntityType<? extends TraderLlamaEntity> entityType, World world) {
 		super(entityType, world);
@@ -37,37 +41,36 @@ public class TraderLlamaEntity extends LlamaEntity {
 
 	@Override
 	protected @Nullable LlamaEntity createChild() {
-		return EntityType.TRADER_LLAMA.create(this.getEntityWorld(), SpawnReason.BREEDING);
+		return EntityType.TRADER_LLAMA.create(getEntityWorld(), SpawnReason.BREEDING);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putInt("DespawnDelay", this.despawnDelay);
+		view.putInt("DespawnDelay", despawnDelay);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.despawnDelay = view.getInt("DespawnDelay", 47999);
+		despawnDelay = view.getInt("DespawnDelay", DEFAULT_DESPAWN_DELAY);
 	}
 
 	@Override
 	protected void initGoals() {
 		super.initGoals();
-		this.goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
-		this.targetSelector.add(1, new TraderLlamaEntity.DefendTraderGoal(this));
-		this.targetSelector
-				.add(
-						2,
-						new ActiveTargetGoal<>(
-								this,
-								ZombieEntity.class,
-								true,
-								(entity, serverWorld) -> entity.getType() != EntityType.ZOMBIFIED_PIGLIN
-						)
-				);
-		this.targetSelector.add(2, new ActiveTargetGoal<>(this, IllagerEntity.class, true));
+		goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
+		targetSelector.add(1, new DefendTraderGoal(this));
+		targetSelector.add(
+			2,
+			new ActiveTargetGoal<>(
+				this,
+				ZombieEntity.class,
+				true,
+				(entity, serverWorld) -> entity.getType() != EntityType.ZOMBIFIED_PIGLIN
+			)
+		);
+		targetSelector.add(2, new ActiveTargetGoal<>(this, IllagerEntity.class, true));
 	}
 
 	public void setDespawnDelay(int despawnDelay) {
@@ -76,53 +79,61 @@ public class TraderLlamaEntity extends LlamaEntity {
 
 	@Override
 	protected void putPlayerOnBack(PlayerEntity player) {
-		Entity entity = this.getLeashHolder();
-		if (!(entity instanceof WanderingTraderEntity)) {
-			super.putPlayerOnBack(player);
+		if (getLeashHolder() instanceof WanderingTraderEntity) {
+			return;
 		}
+
+		super.putPlayerOnBack(player);
 	}
 
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (!this.getEntityWorld().isClient()) {
-			this.tryDespawn();
+		if (!getEntityWorld().isClient()) {
+			tryDespawn();
 		}
 	}
 
+	/**
+	 * Уменьшает таймер исчезновения. Если лама на поводке у торговца —
+	 * синхронизирует таймер с торговцем. При достижении нуля — удаляет ламу.
+	 */
 	private void tryDespawn() {
-		if (this.canDespawn()) {
-			this.despawnDelay =
-					this.heldByTrader() ? ((WanderingTraderEntity) this.getLeashHolder()).getDespawnDelay() - 1
-					                    : this.despawnDelay - 1;
-			if (this.despawnDelay <= 0) {
-				this.detachLeashWithoutDrop();
-				this.discard();
-			}
+		if (!canDespawn()) {
+			return;
+		}
+
+		despawnDelay = heldByTrader()
+			? ((WanderingTraderEntity) getLeashHolder()).getDespawnDelay() - 1
+			: despawnDelay - 1;
+
+		if (despawnDelay <= 0) {
+			detachLeashWithoutDrop();
+			discard();
 		}
 	}
 
 	private boolean canDespawn() {
-		return !this.isTame() && !this.leashedByPlayer() && !this.hasPlayerRider();
+		return !isTame() && !leashedByPlayer() && !hasPlayerRider();
 	}
 
 	private boolean heldByTrader() {
-		return this.getLeashHolder() instanceof WanderingTraderEntity;
+		return getLeashHolder() instanceof WanderingTraderEntity;
 	}
 
 	private boolean leashedByPlayer() {
-		return this.isLeashed() && !this.heldByTrader();
+		return isLeashed() && !heldByTrader();
 	}
 
 	@Override
 	public @Nullable EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
 		if (spawnReason == SpawnReason.EVENT) {
-			this.setBreedingAge(0);
+			setBreedingAge(0);
 		}
 
 		if (entityData == null) {
@@ -133,7 +144,7 @@ public class TraderLlamaEntity extends LlamaEntity {
 	}
 
 	/**
-	 * {@code DefendTraderGoal}.
+	 * Цель защиты торговца: лама атакует того, кто ударил привязанного торговца.
 	 */
 	protected static class DefendTraderGoal extends TrackTargetGoal {
 
@@ -144,30 +155,29 @@ public class TraderLlamaEntity extends LlamaEntity {
 		public DefendTraderGoal(LlamaEntity llama) {
 			super(llama, false);
 			this.llama = llama;
-			this.setControls(EnumSet.of(Goal.Control.TARGET));
+			setControls(EnumSet.of(Goal.Control.TARGET));
 		}
 
 		@Override
 		public boolean canStart() {
-			if (!this.llama.isLeashed()) {
+			if (!llama.isLeashed()) {
 				return false;
 			}
-			else if (!(this.llama.getLeashHolder() instanceof WanderingTraderEntity wanderingTraderEntity)) {
+
+			if (!(llama.getLeashHolder() instanceof WanderingTraderEntity trader)) {
 				return false;
 			}
-			else {
-				this.offender = wanderingTraderEntity.getAttacker();
-				int i = wanderingTraderEntity.getLastAttackedTime();
-				return i != this.traderLastAttackedTime && this.canTrack(this.offender, TargetPredicate.DEFAULT);
-			}
+
+			offender = trader.getAttacker();
+			int lastAttackedTime = trader.getLastAttackedTime();
+			return lastAttackedTime != traderLastAttackedTime && canTrack(offender, TargetPredicate.DEFAULT);
 		}
 
 		@Override
 		public void start() {
-			this.mob.setTarget(this.offender);
-			Entity entity = this.llama.getLeashHolder();
-			if (entity instanceof WanderingTraderEntity) {
-				this.traderLastAttackedTime = ((WanderingTraderEntity) entity).getLastAttackedTime();
+			mob.setTarget(offender);
+			if (llama.getLeashHolder() instanceof WanderingTraderEntity trader) {
+				traderLastAttackedTime = trader.getLastAttackedTime();
 			}
 
 			super.start();

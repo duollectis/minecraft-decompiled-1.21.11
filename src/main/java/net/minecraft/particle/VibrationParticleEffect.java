@@ -11,30 +11,36 @@ import net.minecraft.world.event.EntityPositionSource;
 import net.minecraft.world.event.PositionSource;
 
 /**
- * {@code VibrationParticleEffect}.
+ * Эффект частицы вибрации, движущейся к заданному источнику позиции.
+ * Источники позиции на основе сущностей ({@link EntityPositionSource}) запрещены
+ * для сериализации через codec — они не стабильны между сессиями.
  */
 public class VibrationParticleEffect implements ParticleEffect {
 
+	/**
+	 * Codec для источника позиции с запретом на {@link EntityPositionSource}.
+	 * Позиции сущностей не сериализуются в NBT, поэтому они недопустимы.
+	 */
 	private static final Codec<PositionSource> POSITION_SOURCE_CODEC = PositionSource.CODEC
 			.validate(
 					positionSource -> positionSource instanceof EntityPositionSource
-					                  ? DataResult.error(() -> "Entity position sources are not allowed")
-					                  : DataResult.success(positionSource)
+							? DataResult.error(() -> "Entity position sources are not allowed")
+							: DataResult.success(positionSource)
 			);
+
 	public static final MapCodec<VibrationParticleEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    POSITION_SOURCE_CODEC.fieldOf("destination").forGetter(VibrationParticleEffect::getVibration),
-					                    Codec.INT.fieldOf("arrival_in_ticks").forGetter(VibrationParticleEffect::getArrivalInTicks)
-			                    )
-			                    .apply(instance, VibrationParticleEffect::new)
+					POSITION_SOURCE_CODEC.fieldOf("destination").forGetter(VibrationParticleEffect::getVibration),
+					Codec.INT.fieldOf("arrival_in_ticks").forGetter(VibrationParticleEffect::getArrivalInTicks)
+			)
+			.apply(instance, VibrationParticleEffect::new)
 	);
 	public static final PacketCodec<RegistryByteBuf, VibrationParticleEffect> PACKET_CODEC = PacketCodec.tuple(
-			PositionSource.PACKET_CODEC,
-			VibrationParticleEffect::getVibration,
-			PacketCodecs.VAR_INT,
-			VibrationParticleEffect::getArrivalInTicks,
+			PositionSource.PACKET_CODEC, VibrationParticleEffect::getVibration,
+			PacketCodecs.VAR_INT, VibrationParticleEffect::getArrivalInTicks,
 			VibrationParticleEffect::new
 	);
+
 	private final PositionSource destination;
 	private final int arrivalInTicks;
 
@@ -49,10 +55,10 @@ public class VibrationParticleEffect implements ParticleEffect {
 	}
 
 	public PositionSource getVibration() {
-		return this.destination;
+		return destination;
 	}
 
 	public int getArrivalInTicks() {
-		return this.arrivalInTicks;
+		return arrivalInTicks;
 	}
 }

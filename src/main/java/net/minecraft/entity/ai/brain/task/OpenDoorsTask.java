@@ -1,6 +1,5 @@
 package net.minecraft.entity.ai.brain.task;
 
-import com.google.common.collect.Sets;
 import com.mojang.datafixers.kinds.OptionalBox.Mu;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
@@ -19,9 +18,11 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.HashSet;
 
 /**
- * {@code OpenDoorsTask}.
+ * Фабричный класс задачи мозга, открывающей двери на пути сущности и закрывающей их после прохода.
+ * Отслеживает двери, которые нужно закрыть, через память {@code DOORS_TO_CLOSE}.
  */
 public class OpenDoorsTask {
 
@@ -29,14 +30,10 @@ public class OpenDoorsTask {
 	private static final double PATHING_DISTANCE = 3.0;
 	private static final double REACH_DISTANCE = 2.0;
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create() {
-		MutableObject<PathNode> mutableObject = new MutableObject();
-		MutableInt mutableInt = new MutableInt(0);
+		MutableObject<PathNode> lastPathNode = new MutableObject<>();
+		MutableInt countdown = new MutableInt(0);
+
 		return TaskTriggerer.task(
 				context -> context.group(
 						                  context.queryMemoryValue(MemoryModuleType.PATH),
@@ -45,67 +42,64 @@ public class OpenDoorsTask {
 				                  )
 				                  .apply(
 						                  context, (path, doorsToClose, mobs) -> (world, entity, time) -> {
-							                  Path pathx = context.getValue(path);
-							                  Optional<Set<GlobalPos>>
-									                  optional =
-									                  context.getOptionalValue(doorsToClose);
-							                  if (!pathx.isStart() && !pathx.isFinished()) {
-								                  if (Objects.equals(mutableObject.get(), pathx.getCurrentNode())) {
-									                  mutableInt.setValue(20);
-								                  }
-								                  else if (mutableInt.decrementAndGet() > 0) {
-									                  return false;
-								                  }
+							                  Path currentPath = context.getValue(path);
+							                  Optional<Set<GlobalPos>> doorsSet = context.getOptionalValue(doorsToClose);
 
-								                  mutableObject.setValue(pathx.getCurrentNode());
-								                  PathNode pathNode = pathx.getLastNode();
-								                  PathNode pathNode2 = pathx.getCurrentNode();
-								                  BlockPos blockPos = pathNode.getBlockPos();
-								                  BlockState blockState = world.getBlockState(blockPos);
-								                  if (blockState.isIn(
-										                  BlockTags.MOB_INTERACTABLE_DOORS,
-										                  state -> state.getBlock() instanceof DoorBlock
-								                  )) {
-									                  DoorBlock doorBlock = (DoorBlock) blockState.getBlock();
-									                  if (!doorBlock.isOpen(blockState)) {
-										                  doorBlock.setOpen(entity, world, blockState, blockPos, true);
-									                  }
-
-									                  optional = storePos(doorsToClose, optional, world, blockPos);
-								                  }
-
-								                  BlockPos blockPos2 = pathNode2.getBlockPos();
-								                  BlockState blockState2 = world.getBlockState(blockPos2);
-								                  if (blockState2.isIn(
-										                  BlockTags.MOB_INTERACTABLE_DOORS,
-										                  state -> state.getBlock() instanceof DoorBlock
-								                  )) {
-									                  DoorBlock doorBlock2 = (DoorBlock) blockState2.getBlock();
-									                  if (!doorBlock2.isOpen(blockState2)) {
-										                  doorBlock2.setOpen(
-												                  entity,
-												                  world,
-												                  blockState2,
-												                  blockPos2,
-												                  true
-										                  );
-										                  optional = storePos(doorsToClose, optional, world, blockPos2);
-									                  }
-								                  }
-
-								                  optional.ifPresent(doors -> pathToDoor(
-										                  world,
-										                  entity,
-										                  pathNode,
-										                  pathNode2,
-										                  (Set<GlobalPos>) doors,
-										                  context.getOptionalValue(mobs)
-								                  ));
-								                  return true;
-							                  }
-							                  else {
+							                  if (currentPath.isStart() || currentPath.isFinished()) {
 								                  return false;
 							                  }
+
+							                  if (Objects.equals(lastPathNode.get(), currentPath.getCurrentNode())) {
+								                  countdown.setValue(RUN_TIME);
+							                  } else if (countdown.decrementAndGet() > 0) {
+								                  return false;
+							                  }
+
+							                  lastPathNode.setValue(currentPath.getCurrentNode());
+							                  PathNode lastNode = currentPath.getLastNode();
+							                  PathNode currentNode = currentPath.getCurrentNode();
+
+							                  BlockPos lastPos = lastNode.getBlockPos();
+							                  BlockState lastState = world.getBlockState(lastPos);
+
+							                  if (lastState.isIn(
+									                  BlockTags.MOB_INTERACTABLE_DOORS,
+									                  state -> state.getBlock() instanceof DoorBlock
+							                  )) {
+								                  DoorBlock lastDoor = (DoorBlock) lastState.getBlock();
+
+								                  if (!lastDoor.isOpen(lastState)) {
+									                  lastDoor.setOpen(entity, world, lastState, lastPos, true);
+								                  }
+
+								                  doorsSet = storePos(doorsToClose, doorsSet, world, lastPos);
+							                  }
+
+							                  BlockPos currentPos = currentNode.getBlockPos();
+							                  BlockState currentState = world.getBlockState(currentPos);
+
+							                  if (currentState.isIn(
+									                  BlockTags.MOB_INTERACTABLE_DOORS,
+									                  state -> state.getBlock() instanceof DoorBlock
+							                  )) {
+								                  DoorBlock currentDoor = (DoorBlock) currentState.getBlock();
+
+								                  if (!currentDoor.isOpen(currentState)) {
+									                  currentDoor.setOpen(entity, world, currentState, currentPos, true);
+									                  doorsSet = storePos(doorsToClose, doorsSet, world, currentPos);
+								                  }
+							                  }
+
+							                  doorsSet.ifPresent(doors -> pathToDoor(
+									                  world,
+									                  entity,
+									                  lastNode,
+									                  currentNode,
+									                  (Set<GlobalPos>) doors,
+									                  context.getOptionalValue(mobs)
+							                  ));
+
+							                  return true;
 						                  }
 				                  )
 		);
@@ -123,37 +117,41 @@ public class OpenDoorsTask {
 
 		while (iterator.hasNext()) {
 			GlobalPos globalPos = iterator.next();
-			BlockPos blockPos = globalPos.pos();
-			if ((lastNode == null || !lastNode.getBlockPos().equals(blockPos)) && (currentNode == null || !currentNode
-					.getBlockPos()
-					.equals(blockPos)
-			)) {
-				if (cannotReachDoor(world, entity, globalPos)) {
-					iterator.remove();
-				}
-				else {
-					BlockState blockState = world.getBlockState(blockPos);
-					if (!blockState.isIn(
-							BlockTags.MOB_INTERACTABLE_DOORS,
-							state -> state.getBlock() instanceof DoorBlock
-					)) {
-						iterator.remove();
-					}
-					else {
-						DoorBlock doorBlock = (DoorBlock) blockState.getBlock();
-						if (!doorBlock.isOpen(blockState)) {
-							iterator.remove();
-						}
-						else if (hasOtherMobReachedDoor(entity, blockPos, otherMobs)) {
-							iterator.remove();
-						}
-						else {
-							doorBlock.setOpen(entity, world, blockState, blockPos, false);
-							iterator.remove();
-						}
-					}
-				}
+			BlockPos pos = globalPos.pos();
+
+			boolean isLastNode = lastNode != null && lastNode.getBlockPos().equals(pos);
+			boolean isCurrentNode = currentNode != null && currentNode.getBlockPos().equals(pos);
+
+			if (isLastNode || isCurrentNode) {
+				continue;
 			}
+
+			if (cannotReachDoor(world, entity, globalPos)) {
+				iterator.remove();
+				continue;
+			}
+
+			BlockState blockState = world.getBlockState(pos);
+
+			if (!blockState.isIn(BlockTags.MOB_INTERACTABLE_DOORS, state -> state.getBlock() instanceof DoorBlock)) {
+				iterator.remove();
+				continue;
+			}
+
+			DoorBlock doorBlock = (DoorBlock) blockState.getBlock();
+
+			if (!doorBlock.isOpen(blockState)) {
+				iterator.remove();
+				continue;
+			}
+
+			if (hasOtherMobReachedDoor(entity, pos, otherMobs)) {
+				iterator.remove();
+				continue;
+			}
+
+			doorBlock.setOpen(entity, world, blockState, pos, false);
+			iterator.remove();
 		}
 	}
 
@@ -162,41 +160,41 @@ public class OpenDoorsTask {
 			BlockPos pos,
 			Optional<List<LivingEntity>> otherMobs
 	) {
-		return otherMobs.isEmpty()
-		       ? false
-		       : otherMobs.get()
-		                  .stream()
-		                  .filter(mob -> mob.getType() == entity.getType())
-		                  .filter(mob -> pos.isWithinDistance(mob.getEntityPos(), 2.0))
-		                  .anyMatch(mob -> hasReached(mob.getBrain(), pos));
+		if (otherMobs.isEmpty()) {
+			return false;
+		}
+
+		return otherMobs.get()
+		                .stream()
+		                .filter(mob -> mob.getType() == entity.getType())
+		                .filter(mob -> pos.isWithinDistance(mob.getEntityPos(), REACH_DISTANCE))
+		                .anyMatch(mob -> hasReached(mob.getBrain(), pos));
 	}
 
 	private static boolean hasReached(Brain<?> brain, BlockPos pos) {
 		if (!brain.hasMemoryModule(MemoryModuleType.PATH)) {
 			return false;
 		}
-		else {
-			Path path = brain.getOptionalRegisteredMemory(MemoryModuleType.PATH).get();
-			if (path.isFinished()) {
-				return false;
-			}
-			else {
-				PathNode pathNode = path.getLastNode();
-				if (pathNode == null) {
-					return false;
-				}
-				else {
-					PathNode pathNode2 = path.getCurrentNode();
-					return pos.equals(pathNode.getBlockPos()) || pos.equals(pathNode2.getBlockPos());
-				}
-			}
+
+		Path path = brain.getOptionalRegisteredMemory(MemoryModuleType.PATH).get();
+
+		if (path.isFinished()) {
+			return false;
 		}
+
+		PathNode lastNode = path.getLastNode();
+
+		if (lastNode == null) {
+			return false;
+		}
+
+		PathNode currentNode = path.getCurrentNode();
+		return pos.equals(lastNode.getBlockPos()) || pos.equals(currentNode.getBlockPos());
 	}
 
 	private static boolean cannotReachDoor(ServerWorld world, LivingEntity entity, GlobalPos doorPos) {
-		return doorPos.dimension() != world.getRegistryKey() || !doorPos
-				.pos()
-				.isWithinDistance(entity.getEntityPos(), 3.0);
+		return doorPos.dimension() != world.getRegistryKey()
+				|| !doorPos.pos().isWithinDistance(entity.getEntityPos(), PATHING_DISTANCE);
 	}
 
 	private static Optional<Set<GlobalPos>> storePos(
@@ -206,13 +204,14 @@ public class OpenDoorsTask {
 			BlockPos pos
 	) {
 		GlobalPos globalPos = GlobalPos.create(world.getRegistryKey(), pos);
+
 		return Optional.of(doors.<Set<GlobalPos>>map(doorSet -> {
 			doorSet.add(globalPos);
 			return doorSet;
 		}).orElseGet(() -> {
-			Set<GlobalPos> set = Sets.newHashSet(new GlobalPos[]{globalPos});
-			queryResult.remember(set);
-			return set;
+			Set<GlobalPos> newSet = new HashSet<>(List.of(globalPos));
+			queryResult.remember(newSet);
+			return newSet;
 		}));
 	}
 }

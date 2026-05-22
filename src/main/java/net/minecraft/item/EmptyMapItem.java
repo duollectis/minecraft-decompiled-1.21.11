@@ -9,7 +9,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
 /**
- * {@code EmptyMapItem}.
+ * Предмет «Пустая карта». При использовании создаёт заполненную карту
+ * масштаба 0 с центром в текущей позиции игрока.
  */
 public class EmptyMapItem extends Item {
 
@@ -19,9 +20,10 @@ public class EmptyMapItem extends Item {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
+		ItemStack stack = user.getStackInHand(hand);
+
 		if (world instanceof ServerWorld serverWorld) {
-			itemStack.decrementUnlessCreative(1, user);
+			stack.decrementUnlessCreative(1, user);
 			user.incrementStat(Stats.USED.getOrCreateStat(this));
 			serverWorld.playSoundFromEntity(
 					null,
@@ -31,22 +33,20 @@ public class EmptyMapItem extends Item {
 					1.0F,
 					1.0F
 			);
-			ItemStack
-					itemStack2 =
-					FilledMapItem.createMap(serverWorld, user.getBlockX(), user.getBlockZ(), (byte) 0, true, false);
-			if (itemStack.isEmpty()) {
-				return ActionResult.SUCCESS.withNewHandStack(itemStack2);
-			}
-			else {
-				if (!user.getInventory().insertStack(itemStack2.copy())) {
-					user.dropItem(itemStack2, false);
-				}
 
-				return ActionResult.SUCCESS;
+			ItemStack filledMap = FilledMapItem.createMap(serverWorld, user.getBlockX(), user.getBlockZ(), (byte) 0, true, false);
+
+			if (stack.isEmpty()) {
+				return ActionResult.SUCCESS.withNewHandStack(filledMap);
 			}
-		}
-		else {
+
+			if (!user.getInventory().insertStack(filledMap.copy())) {
+				user.dropItem(filledMap, false);
+			}
+
 			return ActionResult.SUCCESS;
 		}
+
+		return ActionResult.SUCCESS;
 	}
 }

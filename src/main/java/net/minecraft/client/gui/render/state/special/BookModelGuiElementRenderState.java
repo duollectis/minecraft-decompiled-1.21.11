@@ -7,10 +7,12 @@ import net.minecraft.client.render.entity.model.BookModel;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BookModelGuiElementRenderState}.
+ * Состояние 3D-модели книги в GUI.
+ * Хранит прогресс анимации открытия ({@code open}) и перелистывания ({@code flip}),
+ * а также ссылку на модель и текстуру для рендеринга.
  */
+@Environment(EnvType.CLIENT)
 public record BookModelGuiElementRenderState(
 		BookModel bookModel,
 		Identifier texture,

@@ -8,84 +8,94 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.Optional;
 
 /**
- * {@code VibrationSelector}.
+ * Выбирает наиболее приоритетную вибрацию из нескольких, поступивших за один тик.
+ * <p>
+ * Приоритет определяется по следующим правилам (в порядке убывания важности):
+ * <ol>
+ *   <li>Вибрация должна быть из того же тика, что и текущая.</li>
+ *   <li>Меньшее расстояние до слушателя имеет приоритет.</li>
+ *   <li>При равном расстоянии — большая частота события имеет приоритет.</li>
+ * </ol>
  */
 public class VibrationSelector {
 
 	public static final Codec<VibrationSelector> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Vibration.CODEC
-							                    .lenientOptionalFieldOf("event")
-							                    .forGetter(vibrationSelector -> vibrationSelector.current.map(Pair::getLeft)),
-					                    Codec.LONG
-							                    .fieldOf("tick")
-							                    .forGetter(vibrationSelector -> vibrationSelector.current
-									                    .<Long>map(Pair::getRight)
-									                    .orElse(-1L))
-			                    )
-			                    .apply(instance, VibrationSelector::new)
+		instance -> instance.group(
+			Vibration.CODEC
+				.lenientOptionalFieldOf("event")
+				.forGetter(selector -> selector.current.map(Pair::getLeft)),
+			Codec.LONG
+				.fieldOf("tick")
+				.forGetter(selector -> selector.current.<Long>map(Pair::getRight).orElse(-1L))
+		).apply(instance, VibrationSelector::new)
 	);
+
 	private Optional<Pair<Vibration, Long>> current;
 
 	public VibrationSelector(Optional<Vibration> vibration, long tick) {
-		this.current = vibration.map(vibration2 -> Pair.of(vibration2, tick));
+		current = vibration.map(v -> Pair.of(v, tick));
 	}
 
 	public VibrationSelector() {
-		this.current = Optional.empty();
+		current = Optional.empty();
 	}
 
 	/**
-	 * Try accept.
+	 * Пытается принять новую вибрацию, если она приоритетнее текущей.
 	 *
-	 * @param vibration vibration
-	 * @param tick tick
+	 * @param vibration кандидат на принятие
+	 * @param tick      игровой тик, в котором произошла вибрация
 	 */
 	public void tryAccept(Vibration vibration, long tick) {
-		if (this.shouldSelect(vibration, tick)) {
-			this.current = Optional.of(Pair.of(vibration, tick));
-		}
-	}
-
-	private boolean shouldSelect(Vibration vibration, long tick) {
-		if (this.current.isEmpty()) {
-			return true;
-		}
-		else {
-			Pair<Vibration, Long> pair = this.current.get();
-			long l = (Long) pair.getRight();
-			if (tick != l) {
-				return false;
-			}
-			else {
-				Vibration vibration2 = (Vibration) pair.getLeft();
-				if (vibration.distance() < vibration2.distance()) {
-					return true;
-				}
-				else {
-					return vibration.distance() > vibration2.distance()
-					       ? false
-					       : Vibrations.getFrequency(vibration.gameEvent())
-					         > Vibrations.getFrequency(vibration2.gameEvent());
-				}
-			}
-		}
-	}
-
-	public Optional<Vibration> getVibrationToTick(long currentTick) {
-		if (this.current.isEmpty()) {
-			return Optional.empty();
-		}
-		else {
-			return this.current.get().getRight() < currentTick ? Optional.of((Vibration) this.current.get().getLeft())
-			                                                   : Optional.empty();
+		if (shouldSelect(vibration, tick)) {
+			current = Optional.of(Pair.of(vibration, tick));
 		}
 	}
 
 	/**
-	 * Clear.
+	 * Возвращает накопленную вибрацию, если она готова к обработке
+	 * (т.е. тик её регистрации уже прошёл).
+	 *
+	 * @param currentTick текущий игровой тик
 	 */
+	public Optional<Vibration> getVibrationToTick(long currentTick) {
+		if (current.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return current.get().getRight() < currentTick
+			? Optional.of(current.get().getLeft())
+			: Optional.empty();
+	}
+
 	public void clear() {
-		this.current = Optional.empty();
+		current = Optional.empty();
+	}
+
+	/**
+	 * Определяет, должна ли новая вибрация заменить текущую.
+	 * Вибрации из разных тиков не конкурируют — принимается только из текущего тика.
+	 */
+	private boolean shouldSelect(Vibration candidate, long tick) {
+		if (current.isEmpty()) {
+			return true;
+		}
+
+		Pair<Vibration, Long> existing = current.get();
+		long existingTick = existing.getRight();
+		if (tick != existingTick) {
+			return false;
+		}
+
+		Vibration existingVibration = existing.getLeft();
+		if (candidate.distance() < existingVibration.distance()) {
+			return true;
+		}
+
+		if (candidate.distance() > existingVibration.distance()) {
+			return false;
+		}
+
+		return Vibrations.getFrequency(candidate.gameEvent()) > Vibrations.getFrequency(existingVibration.gameEvent());
 	}
 }

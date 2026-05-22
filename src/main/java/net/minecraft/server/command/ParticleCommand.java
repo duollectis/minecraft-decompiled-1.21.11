@@ -20,7 +20,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Collection;
 
 /**
- * {@code ParticleCommand}.
+ * Команда {@code /particle}: создание визуальных эффектов частиц.
  */
 public class ParticleCommand {
 

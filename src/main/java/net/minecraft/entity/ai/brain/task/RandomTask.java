@@ -11,7 +11,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code RandomTask}.
+ * Составная задача, случайно выбирающая одну из подзадач для выполнения.
+ * Является удобной обёрткой над {@link CompositeTask} с режимами {@code SHUFFLED} и {@code RUN_ONE}.
+ *
+ * @param <E> тип сущности
  */
 public class RandomTask<E extends LivingEntity> extends CompositeTask<E> {
 

@@ -7,28 +7,32 @@ import net.minecraft.command.argument.ArgumentHelper;
 import net.minecraft.network.PacketByteBuf;
 
 /**
- * {@code DoubleArgumentSerializer}.
+ * Сериализатор аргумента {@link DoubleArgumentType} для передачи по сети и записи в JSON.
+ * Передаёт минимальное и максимальное допустимые значения через битовый флаг присутствия.
  */
 public class DoubleArgumentSerializer implements ArgumentSerializer<DoubleArgumentType, DoubleArgumentSerializer.Properties> {
 
 	public void writePacket(DoubleArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
-		boolean bl = properties.min != -Double.MAX_VALUE;
-		boolean bl2 = properties.max != Double.MAX_VALUE;
-		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(bl, bl2));
-		if (bl) {
+		boolean hasMin = properties.min != -Double.MAX_VALUE;
+		boolean hasMax = properties.max != Double.MAX_VALUE;
+
+		packetByteBuf.writeByte(ArgumentHelper.getMinMaxFlag(hasMin, hasMax));
+
+		if (hasMin) {
 			packetByteBuf.writeDouble(properties.min);
 		}
 
-		if (bl2) {
+		if (hasMax) {
 			packetByteBuf.writeDouble(properties.max);
 		}
 	}
 
 	public DoubleArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-		byte b = packetByteBuf.readByte();
-		double d = ArgumentHelper.hasMinFlag(b) ? packetByteBuf.readDouble() : -Double.MAX_VALUE;
-		double e = ArgumentHelper.hasMaxFlag(b) ? packetByteBuf.readDouble() : Double.MAX_VALUE;
-		return new DoubleArgumentSerializer.Properties(d, e);
+		byte flags = packetByteBuf.readByte();
+		double min = ArgumentHelper.hasMinFlag(flags) ? packetByteBuf.readDouble() : -Double.MAX_VALUE;
+		double max = ArgumentHelper.hasMaxFlag(flags) ? packetByteBuf.readDouble() : Double.MAX_VALUE;
+
+		return new DoubleArgumentSerializer.Properties(min, max);
 	}
 
 	public void writeJson(DoubleArgumentSerializer.Properties properties, JsonObject jsonObject) {
@@ -49,7 +53,7 @@ public class DoubleArgumentSerializer implements ArgumentSerializer<DoubleArgume
 	}
 
 	/**
-	 * {@code Properties}.
+	 * Свойства сериализатора: хранит диапазон допустимых значений.
 	 */
 	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<DoubleArgumentType> {
 

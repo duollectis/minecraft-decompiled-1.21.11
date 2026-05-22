@@ -3,52 +3,45 @@ package net.minecraft.world.entity;
 import net.minecraft.server.world.ChunkLevelType;
 
 /**
- * {@code EntityTrackingStatus}.
+ * Статус отслеживания секции сущностей.
+ * Определяет, должны ли сущности в данной секции тикаться и/или отслеживаться клиентом.
  */
 public enum EntityTrackingStatus {
+	/** Секция не загружена — сущности не тикаются и не отслеживаются. */
 	HIDDEN(false, false),
+	/** Секция загружена, но не тикается — сущности отслеживаются, но не обновляются. */
 	TRACKED(true, false),
+	/** Секция полностью активна — сущности и отслеживаются, и тикаются. */
 	TICKING(true, true);
 
 	private final boolean tracked;
 	private final boolean tick;
 
-	private EntityTrackingStatus(final boolean tracked, final boolean tick) {
+	EntityTrackingStatus(boolean tracked, boolean tick) {
 		this.tracked = tracked;
 		this.tick = tick;
 	}
 
-	/**
-	 * Определяет, следует ли tick.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldTick() {
-		return this.tick;
+		return tick;
 	}
 
-	/**
-	 * Определяет, следует ли track.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldTrack() {
-		return this.tracked;
+		return tracked;
 	}
 
 	/**
-	 * From level type.
+	 * Преобразует тип уровня чанка в соответствующий статус отслеживания сущностей.
+	 * ENTITY_TICKING → TICKING, FULL → TRACKED, остальные → HIDDEN.
 	 *
-	 * @param levelType level type
-	 *
-	 * @return EntityTrackingStatus — результат операции
+	 * @param levelType тип уровня загрузки чанка
+	 * @return соответствующий статус отслеживания
 	 */
 	public static EntityTrackingStatus fromLevelType(ChunkLevelType levelType) {
 		if (levelType.isAfter(ChunkLevelType.ENTITY_TICKING)) {
 			return TICKING;
 		}
-		else {
-			return levelType.isAfter(ChunkLevelType.FULL) ? TRACKED : HIDDEN;
-		}
+
+		return levelType.isAfter(ChunkLevelType.FULL) ? TRACKED : HIDDEN;
 	}
 }

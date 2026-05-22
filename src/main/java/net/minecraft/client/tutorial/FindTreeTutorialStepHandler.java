@@ -54,7 +54,7 @@ public class FindTreeTutorialStepHandler implements TutorialStepHandler {
 				}
 			}
 
-			if (this.ticks >= 6000 && this.toast == null) {
+			if (this.ticks >= DELAY && this.toast == null) {
 				this.toast =
 						new TutorialToast(
 								minecraftClient.textRenderer,

@@ -33,44 +33,45 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Predicate;
 
 /**
- * {@code OcelotEntity}.
+ * Оцелот — дикое животное джунглей, которое можно приручить угощением рыбой.
+ * В отличие от кошки, оцелот не становится ручным питомцем, а лишь начинает доверять игроку.
  */
 public class OcelotEntity extends AnimalEntity {
 
 	public static final double CROUCHING_SPEED = 0.6;
 	public static final double NORMAL_SPEED = 0.8;
 	public static final double SPRINTING_SPEED = 1.33;
-	private static final TrackedData<Boolean>
-			TRUSTING =
-			DataTracker.registerData(OcelotEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-	private static final boolean DEFAULT_TRUSTING = false;
+	private static final TrackedData<Boolean> TRUSTING = DataTracker.registerData(
+			OcelotEntity.class,
+			TrackedDataHandlerRegistry.BOOLEAN
+	);
 	private OcelotEntity.@Nullable FleeGoal<PlayerEntity> fleeGoal;
 	private OcelotEntity.@Nullable OcelotTemptGoal temptGoal;
 
 	public OcelotEntity(EntityType<? extends OcelotEntity> entityType, World world) {
 		super(entityType, world);
-		this.updateFleeing();
+		updateFleeing();
 	}
 
 	boolean isTrusting() {
-		return this.dataTracker.get(TRUSTING);
+		return dataTracker.get(TRUSTING);
 	}
 
 	private void setTrusting(boolean trusting) {
-		this.dataTracker.set(TRUSTING, trusting);
-		this.updateFleeing();
+		dataTracker.set(TRUSTING, trusting);
+		updateFleeing();
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("Trusting", this.isTrusting());
+		view.putBoolean("Trusting", isTrusting());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setTrusting(view.getBoolean("Trusting", false));
+		setTrusting(view.getBoolean("Trusting", false));
 	}
 
 	@Override
@@ -81,16 +82,16 @@ public class OcelotEntity extends AnimalEntity {
 
 	@Override
 	protected void initGoals() {
-		this.temptGoal = new OcelotEntity.OcelotTemptGoal(this, 0.6, stack -> stack.isIn(ItemTags.OCELOT_FOOD), true);
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(3, this.temptGoal);
-		this.goalSelector.add(7, new PounceAtTargetGoal(this, 0.3F));
-		this.goalSelector.add(8, new AttackGoal(this));
-		this.goalSelector.add(9, new AnimalMateGoal(this, 0.8));
-		this.goalSelector.add(10, new WanderAroundFarGoal(this, 0.8, 1.0000001E-5F));
-		this.goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
-		this.targetSelector.add(1, new ActiveTargetGoal<>(this, ChickenEntity.class, false));
-		this.targetSelector.add(
+		temptGoal = new OcelotEntity.OcelotTemptGoal(this, CROUCHING_SPEED, stack -> stack.isIn(ItemTags.OCELOT_FOOD), true);
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(3, temptGoal);
+		goalSelector.add(7, new PounceAtTargetGoal(this, 0.3F));
+		goalSelector.add(8, new AttackGoal(this));
+		goalSelector.add(9, new AnimalMateGoal(this, NORMAL_SPEED));
+		goalSelector.add(10, new WanderAroundFarGoal(this, NORMAL_SPEED, 1.0000001E-5F));
+		goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
+		targetSelector.add(1, new ActiveTargetGoal<>(this, ChickenEntity.class, false));
+		targetSelector.add(
 				1,
 				new ActiveTargetGoal<>(
 						this,
@@ -105,37 +106,35 @@ public class OcelotEntity extends AnimalEntity {
 
 	@Override
 	public void mobTick(ServerWorld world) {
-		if (this.getMoveControl().isMoving()) {
-			double d = this.getMoveControl().getSpeed();
-			if (d == 0.6) {
-				this.setPose(EntityPose.CROUCHING);
-				this.setSprinting(false);
+		double speed = getMoveControl().getSpeed();
+
+		if (getMoveControl().isMoving()) {
+			if (speed == CROUCHING_SPEED) {
+				setPose(EntityPose.CROUCHING);
+				setSprinting(false);
+			} else if (speed == SPRINTING_SPEED) {
+				setPose(EntityPose.STANDING);
+				setSprinting(true);
+			} else {
+				setPose(EntityPose.STANDING);
+				setSprinting(false);
 			}
-			else if (d == 1.33) {
-				this.setPose(EntityPose.STANDING);
-				this.setSprinting(true);
-			}
-			else {
-				this.setPose(EntityPose.STANDING);
-				this.setSprinting(false);
-			}
-		}
-		else {
-			this.setPose(EntityPose.STANDING);
-			this.setSprinting(false);
+		} else {
+			setPose(EntityPose.STANDING);
+			setSprinting(false);
 		}
 	}
 
 	@Override
 	public boolean canImmediatelyDespawn(double distanceSquared) {
-		return !this.isTrusting() && this.age > 2400;
+		return !isTrusting() && age > 2400;
 	}
 
 	public static DefaultAttributeContainer.Builder createOcelotAttributes() {
 		return AnimalEntity.createAnimalAttributes()
-		                   .add(EntityAttributes.MAX_HEALTH, 10.0)
-		                   .add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
-		                   .add(EntityAttributes.ATTACK_DAMAGE, 3.0);
+				.add(EntityAttributes.MAX_HEALTH, 10.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
+				.add(EntityAttributes.ATTACK_DAMAGE, 3.0);
 	}
 
 	@Override
@@ -161,88 +160,82 @@ public class OcelotEntity extends AnimalEntity {
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
 		ItemStack itemStack = player.getStackInHand(hand);
-		if ((this.temptGoal == null || this.temptGoal.isActive()) && !this.isTrusting()
-				&& this.isBreedingItem(itemStack) && player.squaredDistanceTo(this) < 9.0
+
+		if ((temptGoal == null || temptGoal.isActive())
+				&& !isTrusting()
+				&& isBreedingItem(itemStack)
+				&& player.squaredDistanceTo(this) < 9.0
 		) {
-			this.eat(player, hand, itemStack);
-			if (!this.getEntityWorld().isClient()) {
-				if (this.random.nextInt(3) == 0) {
-					this.setTrusting(true);
-					this.showEmoteParticle(true);
-					this.getEntityWorld().sendEntityStatus(this, (byte) 41);
-				}
-				else {
-					this.showEmoteParticle(false);
-					this.getEntityWorld().sendEntityStatus(this, (byte) 40);
+			eat(player, hand, itemStack);
+
+			if (!getEntityWorld().isClient()) {
+				if (random.nextInt(3) == 0) {
+					setTrusting(true);
+					showEmoteParticle(true);
+					getEntityWorld().sendEntityStatus(this, (byte) 41);
+				} else {
+					showEmoteParticle(false);
+					getEntityWorld().sendEntityStatus(this, (byte) 40);
 				}
 			}
 
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
 		if (status == 41) {
-			this.showEmoteParticle(true);
+			showEmoteParticle(true);
+			return;
 		}
-		else if (status == 40) {
-			this.showEmoteParticle(false);
+
+		if (status == 40) {
+			showEmoteParticle(false);
+			return;
 		}
-		else {
-			super.handleStatus(status);
-		}
+
+		super.handleStatus(status);
 	}
 
 	private void showEmoteParticle(boolean positive) {
-		ParticleEffect particleEffect = ParticleTypes.HEART;
-		if (!positive) {
-			particleEffect = ParticleTypes.SMOKE;
-		}
+		ParticleEffect particleEffect = positive ? ParticleTypes.HEART : ParticleTypes.SMOKE;
 
-		for (int i = 0; i < 7; i++) {
-			double d = this.random.nextGaussian() * 0.02;
-			double e = this.random.nextGaussian() * 0.02;
-			double f = this.random.nextGaussian() * 0.02;
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							particleEffect,
-							this.getParticleX(1.0),
-							this.getRandomBodyY() + 0.5,
-							this.getParticleZ(1.0),
-							d,
-							e,
-							f
-					);
+		for (int count = 0; count < 7; count++) {
+			double vx = random.nextGaussian() * 0.02;
+			double vy = random.nextGaussian() * 0.02;
+			double vz = random.nextGaussian() * 0.02;
+			getEntityWorld().addParticleClient(
+					particleEffect,
+					getParticleX(1.0),
+					getRandomBodyY() + 0.5,
+					getParticleZ(1.0),
+					vx,
+					vy,
+					vz
+			);
 		}
 	}
 
 	/**
-	 * Обновляет fleeing.
+	 * Обновляет цель побега: добавляет её в селектор, если оцелот не доверяет игроку,
+	 * и удаляет, если доверие уже установлено.
 	 */
 	protected void updateFleeing() {
-		if (this.fleeGoal == null) {
-			this.fleeGoal = new OcelotEntity.FleeGoal<>(this, PlayerEntity.class, 16.0F, 0.8, 1.33);
+		if (fleeGoal == null) {
+			fleeGoal = new OcelotEntity.FleeGoal<>(this, PlayerEntity.class, 16.0F, NORMAL_SPEED, SPRINTING_SPEED);
 		}
 
-		this.goalSelector.remove(this.fleeGoal);
-		if (!this.isTrusting()) {
-			this.goalSelector.add(4, this.fleeGoal);
+		goalSelector.remove(fleeGoal);
+
+		if (!isTrusting()) {
+			goalSelector.add(4, fleeGoal);
 		}
 	}
 
-	/**
-	 * Создаёт child.
-	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable OcelotEntity — результат операции
-	 */
+	@Override
 	public @Nullable OcelotEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.OCELOT.create(serverWorld, SpawnReason.BREEDING);
 	}
@@ -264,19 +257,19 @@ public class OcelotEntity extends AnimalEntity {
 
 	@Override
 	public boolean canSpawn(WorldView world) {
-		if (world.doesNotIntersectEntities(this) && !world.containsFluid(this.getBoundingBox())) {
-			BlockPos blockPos = this.getBlockPos();
-			if (blockPos.getY() < world.getSeaLevel()) {
-				return false;
-			}
-
-			BlockState blockState = world.getBlockState(blockPos.down());
-			if (blockState.isOf(Blocks.GRASS_BLOCK) || blockState.isIn(BlockTags.LEAVES)) {
-				return true;
-			}
+		if (!world.doesNotIntersectEntities(this) || world.containsFluid(getBoundingBox())) {
+			return false;
 		}
 
-		return false;
+		BlockPos blockPos = getBlockPos();
+
+		if (blockPos.getY() < world.getSeaLevel()) {
+			return false;
+		}
+
+		BlockState blockState = world.getBlockState(blockPos.down());
+
+		return blockState.isOf(Blocks.GRASS_BLOCK) || blockState.isIn(BlockTags.LEAVES);
 	}
 
 	@Override
@@ -295,17 +288,14 @@ public class OcelotEntity extends AnimalEntity {
 
 	@Override
 	public Vec3d getLeashOffset() {
-		return new Vec3d(0.0, 0.5F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
+		return new Vec3d(0.0, 0.5F * getStandingEyeHeight(), getWidth() * 0.4F);
 	}
 
 	@Override
 	public boolean bypassesSteppingEffects() {
-		return this.isInSneakingPose() || super.bypassesSteppingEffects();
+		return isInSneakingPose() || super.bypassesSteppingEffects();
 	}
 
-	/**
-	 * {@code FleeGoal}.
-	 */
 	static class FleeGoal<T extends LivingEntity> extends FleeEntityGoal<T> {
 
 		private final OcelotEntity ocelot;
@@ -323,18 +313,15 @@ public class OcelotEntity extends AnimalEntity {
 
 		@Override
 		public boolean canStart() {
-			return !this.ocelot.isTrusting() && super.canStart();
+			return !ocelot.isTrusting() && super.canStart();
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			return !this.ocelot.isTrusting() && super.shouldContinue();
+			return !ocelot.isTrusting() && super.shouldContinue();
 		}
 	}
 
-	/**
-	 * {@code OcelotTemptGoal}.
-	 */
 	static class OcelotTemptGoal extends TemptGoal {
 
 		private final OcelotEntity ocelot;
@@ -351,7 +338,7 @@ public class OcelotEntity extends AnimalEntity {
 
 		@Override
 		protected boolean canBeScared() {
-			return super.canBeScared() && !this.ocelot.isTrusting();
+			return super.canBeScared() && !ocelot.isTrusting();
 		}
 	}
 }

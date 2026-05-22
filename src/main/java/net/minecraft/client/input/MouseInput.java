@@ -8,10 +8,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MouseInput}.
+ * Событие нажатия/отпускания кнопки мыши.
+ * Содержит GLFW-код кнопки и битовую маску модификаторов клавиатуры.
  */
+@Environment(EnvType.CLIENT)
 public record MouseInput(
 		@MouseInput.ButtonCode int button,
 		@AbstractInput.Modifier int modifiers
@@ -20,9 +21,10 @@ public record MouseInput(
 	@MouseInput.ButtonCode
 	@Override
 	public int getKeycode() {
-		return this.button;
+		return button;
 	}
 
+	/** Аннотация-маркер для GLFW-кодов кнопок мыши (GLFW_MOUSE_BUTTON_*). */
 	@Retention(RetentionPolicy.CLASS)
 	@Target(
 			{
@@ -34,12 +36,10 @@ public record MouseInput(
 			}
 	)
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ButtonCode}.
-	 */
 	public @interface ButtonCode {
 	}
 
+	/** Аннотация-маркер для значений действия кнопки мыши (нажата/отпущена). */
 	@Retention(RetentionPolicy.CLASS)
 	@Target(
 			{
@@ -51,9 +51,6 @@ public record MouseInput(
 			}
 	)
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code MouseAction}.
-	 */
 	public @interface MouseAction {
 	}
 }

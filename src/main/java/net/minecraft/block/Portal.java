@@ -7,7 +7,9 @@ import net.minecraft.world.TeleportTarget;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code Portal}.
+ * Контракт для блоков-порталов, способных телепортировать сущности.
+ * Реализуется блоками, которые создают цель телепортации и могут применять
+ * визуальные эффекты (например, дезориентацию при прохождении через Нижний мир).
  */
 public interface Portal {
 
@@ -21,10 +23,7 @@ public interface Portal {
 		return Portal.Effect.NONE;
 	}
 
-	/**
-	 * {@code Effect}.
-	 */
-	public static enum Effect {
+	enum Effect {
 		CONFUSION,
 		NONE;
 	}

@@ -1,13 +1,21 @@
 package net.minecraft.util.path;
 
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code SymlinkFinder}.
+ * Обходит файловое дерево и собирает символьные ссылки, цели которых
+ * не разрешены заданным {@link PathMatcher}. Используется для защиты
+ * от path-traversal атак через симлинки в ресурс-паках.
  */
 public class SymlinkFinder {
 
@@ -17,96 +25,72 @@ public class SymlinkFinder {
 		this.matcher = matcher;
 	}
 
-	/**
-	 * Validate.
-	 *
-	 * @param path path
-	 * @param results results
-	 */
 	public void validate(Path path, List<SymlinkEntry> results) throws IOException {
-		Path path2 = Files.readSymbolicLink(path);
-		if (!this.matcher.matches(path2)) {
-			results.add(new SymlinkEntry(path, path2));
+		Path target = Files.readSymbolicLink(path);
+
+		if (!matcher.matches(target)) {
+			results.add(new SymlinkEntry(path, target));
 		}
 	}
 
-	/**
-	 * Validate.
-	 *
-	 * @param path path
-	 *
-	 * @return List — результат операции
-	 */
 	public List<SymlinkEntry> validate(Path path) throws IOException {
-		List<SymlinkEntry> list = new ArrayList<>();
-		this.validate(path, list);
-		return list;
+		List<SymlinkEntry> results = new ArrayList<>();
+		validate(path, results);
+		return results;
 	}
 
 	/**
-	 * Collect.
-	 *
-	 * @param path path
-	 * @param resolveSymlink resolve symlink
-	 *
-	 * @return List — результат операции
+	 * Собирает все запрещённые симлинки в дереве по заданному пути.
+	 * Если {@code resolveSymlink=true} и сам корневой путь является симлинком,
+	 * он разыменовывается перед рекурсивным обходом.
 	 */
 	public List<SymlinkEntry> collect(Path path, boolean resolveSymlink) throws IOException {
-		List<SymlinkEntry> list = new ArrayList<>();
+		List<SymlinkEntry> results = new ArrayList<>();
 
-		BasicFileAttributes basicFileAttributes;
+		BasicFileAttributes attrs;
+
 		try {
-			basicFileAttributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-		}
-		catch (NoSuchFileException var6) {
-			return list;
+			attrs = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+		} catch (NoSuchFileException ex) {
+			return results;
 		}
 
-		if (basicFileAttributes.isRegularFile()) {
+		if (attrs.isRegularFile()) {
 			throw new IOException("Path " + path + " is not a directory");
 		}
-		else {
-			if (basicFileAttributes.isSymbolicLink()) {
-				if (!resolveSymlink) {
-					this.validate(path, list);
-					return list;
-				}
 
-				path = Files.readSymbolicLink(path);
+		if (attrs.isSymbolicLink()) {
+			if (!resolveSymlink) {
+				validate(path, results);
+				return results;
 			}
 
-			this.validateRecursively(path, list);
-			return list;
+			path = Files.readSymbolicLink(path);
 		}
+
+		validateRecursively(path, results);
+		return results;
 	}
 
-	/**
-	 * Валидирует recursively.
-	 *
-	 * @param path path
-	 * @param results results
-	 */
 	public void validateRecursively(Path path, List<SymlinkEntry> results) throws IOException {
-		Files.walkFileTree(
-				path, new SimpleFileVisitor<Path>() {
-					private void validate(Path path, BasicFileAttributes attributes) throws IOException {
-						if (attributes.isSymbolicLink()) {
-							SymlinkFinder.this.validate(path, results);
-						}
-					}
-
-					public FileVisitResult preVisitDirectory(Path path, BasicFileAttributes basicFileAttributes)
-					throws IOException {
-						this.validate(path, basicFileAttributes);
-						return super.preVisitDirectory(path, basicFileAttributes);
-					}
-
-					public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes)
-					throws IOException {
-						this.validate(path, basicFileAttributes);
-						return super.visitFile(path, basicFileAttributes);
-					}
+		Files.walkFileTree(path, new SimpleFileVisitor<>() {
+			private void checkSymlink(Path entry, BasicFileAttributes attrs) throws IOException {
+				if (attrs.isSymbolicLink()) {
+					validate(entry, results);
 				}
-		);
+			}
+
+			@Override
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+				checkSymlink(dir, attrs);
+				return super.preVisitDirectory(dir, attrs);
+			}
+
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				checkSymlink(file, attrs);
+				return super.visitFile(file, attrs);
+			}
+		});
 	}
 }

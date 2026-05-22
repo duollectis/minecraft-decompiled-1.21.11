@@ -1,6 +1,5 @@
 package net.minecraft.datafixer.schema;
 
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.templates.Hook.HookFunction;
@@ -10,14 +9,17 @@ import net.minecraft.datafixer.TypeReferences;
 
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.HashMap;
 
 /**
- * {@code Schema1460}.
+ * Схема версии 1460: полная регистрация всех типов игры — сущностей, блок-сущностей,
+ * игрока, чанка, предметов, статистики, достижений, торговли жителей и прочих
+ * сохраняемых данных. Является базовой схемой для версий 1.13+.
  */
 public class Schema1460 extends IdentifierNormalizingSchema {
 
-	public Schema1460(int i, Schema schema) {
-		super(i, schema);
+	public Schema1460(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	protected static void targetEntityItems(Schema schema, Map<String, Supplier<TypeTemplate>> map, String entityId) {
@@ -29,7 +31,7 @@ public class Schema1460 extends IdentifierNormalizingSchema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		schema.register(
 				map,
 				"minecraft:area_effect_cloud",
@@ -267,7 +269,7 @@ public class Schema1460 extends IdentifierNormalizingSchema {
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		registerInventory(schema, map, "minecraft:furnace");
 		registerInventory(schema, map, "minecraft:chest");
 		registerInventory(schema, map, "minecraft:trapped_chest");

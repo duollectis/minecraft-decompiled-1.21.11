@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@code ManagementConnectionHandler}.
+ * Класс Management Connection Handler.
  */
 public class ManagementConnectionHandler extends SimpleChannelInboundHandler<JsonElement> {
 

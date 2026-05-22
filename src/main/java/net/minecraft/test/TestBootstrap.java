@@ -24,7 +24,10 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * {@code TestBootstrap}.
+ * Точка входа для запуска игровых тестов в режиме выделенного сервера.
+ * <p>
+ * Парсит аргументы командной строки, инициализирует Bootstrap, создаёт
+ * временную директорию мира и запускает {@link TestServer}.
  */
 public class TestBootstrap {
 
@@ -32,114 +35,121 @@ public class TestBootstrap {
 	private static final String DEFAULT_UNIVERSE = "gametestserver";
 	private static final String DEFAULT_WORLD = "gametestworld";
 	private static final OptionParser PARSER = new OptionParser();
-	private static final OptionSpec<String> UNIVERSE = PARSER.accepts(
-			                                                         "universe", "The path to where the test server world will be created. Any existing folder will be replaced."
-	                                                         )
-	                                                         .withRequiredArg()
-	                                                         .defaultsTo("gametestserver", new String[0]);
-	private static final OptionSpec<File>
-			REPORT =
-			PARSER.accepts("report", "Exports results in a junit-like XML report at the given path.")
-			      .withRequiredArg()
-			      .ofType(File.class);
-	private static final OptionSpec<String> TESTS = PARSER.accepts(
-			                                                      "tests", "Which test(s) to run (namespaced ID selector using wildcards). Empty means run all."
-	                                                      )
-	                                                      .withRequiredArg();
-	private static final OptionSpec<Boolean> VERIFY = PARSER.accepts(
-			                                                        "verify",
-			                                                        "Runs the tests specified with `test` or `testNamespace` 100 times for each 90 degree rotation step"
-	                                                        )
-	                                                        .withRequiredArg()
-	                                                        .ofType(Boolean.class)
-	                                                        .defaultsTo(false, new Boolean[0]);
-	private static final OptionSpec<String>
-			PACKS =
-			PARSER.accepts("packs", "A folder of datapacks to include in the world").withRequiredArg();
+	private static final OptionSpec<String> UNIVERSE = PARSER
+			.accepts("universe", "The path to where the test server world will be created. Any existing folder will be replaced.")
+			.withRequiredArg()
+			.defaultsTo(DEFAULT_UNIVERSE, new String[0]);
+	private static final OptionSpec<File> REPORT = PARSER
+			.accepts("report", "Exports results in a junit-like XML report at the given path.")
+			.withRequiredArg()
+			.ofType(File.class);
+	private static final OptionSpec<String> TESTS = PARSER
+			.accepts("tests", "Which test(s) to run (namespaced ID selector using wildcards). Empty means run all.")
+			.withRequiredArg();
+	private static final OptionSpec<Boolean> VERIFY = PARSER
+			.accepts("verify", "Runs the tests specified with `test` or `testNamespace` 100 times for each 90 degree rotation step")
+			.withRequiredArg()
+			.ofType(Boolean.class)
+			.defaultsTo(false, new Boolean[0]);
+	private static final OptionSpec<String> PACKS = PARSER
+			.accepts("packs", "A folder of datapacks to include in the world")
+			.withRequiredArg();
 	private static final OptionSpec<Void> HELP = PARSER.accepts("help").forHelp();
 
+	/**
+	 * Запускает тестовый сервер с параметрами из командной строки.
+	 *
+	 * @param args             аргументы командной строки
+	 * @param universeCallback колбэк, получающий путь к директории мира после её создания
+	 */
 	@SuppressLinter(reason = "Using System.err due to no bootstrap")
 	public static void run(String[] args, Consumer<String> universeCallback) throws Exception {
 		PARSER.allowsUnrecognizedOptions();
-		OptionSet optionSet = PARSER.parse(args);
-		if (optionSet.has(HELP)) {
+		OptionSet options = PARSER.parse(args);
+
+		if (options.has(HELP)) {
 			PARSER.printHelpOn(System.err);
+			return;
 		}
-		else {
-			if ((Boolean) optionSet.valueOf(VERIFY) && !optionSet.has(TESTS)) {
-				LOGGER.error(
-						"Please specify a test selection to run the verify option. For example: --verify --tests example:test_something_*");
-				System.exit(-1);
-			}
 
-			LOGGER.info(
-					"Running GameTestMain with cwd '{}', universe path '{}'",
-					System.getProperty("user.dir"),
-					optionSet.valueOf(UNIVERSE)
+		if ((Boolean) options.valueOf(VERIFY) && !options.has(TESTS)) {
+			LOGGER.error(
+					"Please specify a test selection to run the verify option. For example: --verify --tests example:test_something_*");
+			System.exit(-1);
+		}
+
+		LOGGER.info(
+				"Running GameTestMain with cwd '{}', universe path '{}'",
+				System.getProperty("user.dir"),
+				options.valueOf(UNIVERSE)
+		);
+
+		if (options.has(REPORT)) {
+			TestFailureLogger.setCompletionListener(
+					new XmlReportingTestCompletionListener(REPORT.value(options))
 			);
-			if (optionSet.has(REPORT)) {
-				TestFailureLogger.setCompletionListener(new XmlReportingTestCompletionListener((File) REPORT.value(
-						optionSet)));
-			}
-
-			Bootstrap.initialize();
-			Util.startTimerHack();
-			String string = (String) optionSet.valueOf(UNIVERSE);
-			empty(string);
-			universeCallback.accept(string);
-			if (optionSet.has(PACKS)) {
-				String string2 = (String) optionSet.valueOf(PACKS);
-				copyPacks(string, string2);
-			}
-
-			LevelStorage.Session
-					session =
-					LevelStorage.create(Paths.get(string)).createSessionWithoutSymlinkCheck("gametestworld");
-			ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(session);
-			MinecraftServer.startServer(thread -> TestServer.create(
-					thread,
-					session,
-					resourcePackManager,
-					get(optionSet, TESTS),
-					optionSet.has(VERIFY)
-			));
 		}
+
+		Bootstrap.initialize();
+		Util.startTimerHack();
+
+		String universePath = (String) options.valueOf(UNIVERSE);
+		empty(universePath);
+		universeCallback.accept(universePath);
+
+		if (options.has(PACKS)) {
+			copyPacks(universePath, (String) options.valueOf(PACKS));
+		}
+
+		LevelStorage.Session session = LevelStorage.create(Paths.get(universePath))
+				.createSessionWithoutSymlinkCheck(DEFAULT_WORLD);
+		ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(session);
+		MinecraftServer.startServer(thread -> TestServer.create(
+				thread,
+				session,
+				resourcePackManager,
+				getOption(options, TESTS),
+				options.has(VERIFY)
+		));
 	}
 
-	private static Optional<String> get(OptionSet options, OptionSpec<String> option) {
-		return options.has(option) ? Optional.of((String) options.valueOf(option)) : Optional.empty();
+	private static Optional<String> getOption(OptionSet options, OptionSpec<String> option) {
+		return options.has(option)
+				? Optional.of((String) options.valueOf(option))
+				: Optional.empty();
 	}
 
 	private static void empty(String path) throws IOException {
-		Path path2 = Paths.get(path);
-		if (Files.exists(path2)) {
-			FileUtils.deleteDirectory(path2.toFile());
+		Path dir = Paths.get(path);
+		if (Files.exists(dir)) {
+			FileUtils.deleteDirectory(dir.toFile());
 		}
 
-		Files.createDirectories(path2);
+		Files.createDirectories(dir);
 	}
 
 	private static void copyPacks(String universe, String packDir) throws IOException {
-		Path path = Paths.get(universe).resolve("gametestworld").resolve("datapacks");
-		if (!Files.exists(path)) {
-			Files.createDirectories(path);
+		Path datapacks = Paths.get(universe).resolve(DEFAULT_WORLD).resolve("datapacks");
+		if (!Files.exists(datapacks)) {
+			Files.createDirectories(datapacks);
 		}
 
-		Path path2 = Paths.get(packDir);
-		if (Files.exists(path2)) {
-			try (Stream<Path> stream = Files.list(path2)) {
-				for (Path path3 : stream.toList()) {
-					Path path4 = path.resolve(path3.getFileName());
-					if (Files.isDirectory(path3)) {
-						if (Files.isRegularFile(path3.resolve("pack.mcmeta"))) {
-							FileUtils.copyDirectory(path3.toFile(), path4.toFile());
-							LOGGER.info("Included folder pack {}", path3.getFileName());
-						}
+		Path sourceDir = Paths.get(packDir);
+		if (!Files.exists(sourceDir)) {
+			return;
+		}
+
+		try (Stream<Path> entries = Files.list(sourceDir)) {
+			for (Path entry : entries.toList()) {
+				Path destination = datapacks.resolve(entry.getFileName());
+				if (Files.isDirectory(entry)) {
+					if (Files.isRegularFile(entry.resolve("pack.mcmeta"))) {
+						FileUtils.copyDirectory(entry.toFile(), destination.toFile());
+						LOGGER.info("Included folder pack {}", entry.getFileName());
 					}
-					else if (path3.toString().endsWith(".zip")) {
-						Files.copy(path3, path4);
-						LOGGER.info("Included zip pack {}", path3.getFileName());
-					}
+				} else if (entry.toString().endsWith(".zip")) {
+					Files.copy(entry, destination);
+					LOGGER.info("Included zip pack {}", entry.getFileName());
 				}
 			}
 		}

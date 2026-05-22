@@ -13,53 +13,50 @@ import java.util.*;
 import java.util.stream.Stream;
 
 /**
- * {@code NbtList}.
+ * NBT-тег, хранящий гетерогенный список элементов ({@code TAG_List}).
+ * <p>
+ * В отличие от {@link NbtByteArray}/{@link NbtIntArray}/{@link NbtLongArray},
+ * этот список может содержать элементы любого типа, включая вложенные {@link NbtCompound}.
+ * При сериализации все элементы приводятся к единому типу: если типы расходятся,
+ * каждый элемент оборачивается в {@link NbtCompound} с ключом {@code ""}.
  */
 public final class NbtList extends AbstractList<NbtElement> implements AbstractNbtList {
 
 	private static final String HOMOGENIZED_ENTRY_KEY = "";
 	private static final int SIZE = 36;
-	public static final NbtType<NbtList> TYPE = new NbtType.OfVariableSize<NbtList>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtList — результат операции
-		 */
-		public NbtList read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			nbtSizeTracker.pushStack();
+	private static final int BYTES_PER_ENTRY_HEADER = 4;
 
-			NbtList var3;
+	public static final NbtType<NbtList> TYPE = new NbtType.OfVariableSize<NbtList>() {
+		@Override
+		public NbtList read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			tracker.pushStack();
+
 			try {
-				var3 = readList(dataInput, nbtSizeTracker);
+				return readList(input, tracker);
 			}
 			finally {
-				nbtSizeTracker.popStack();
+				tracker.popStack();
 			}
-
-			return var3;
 		}
 
 		private static NbtList readList(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(36L);
-			byte b = input.readByte();
-			int i = readListLength(input);
-			if (b == 0 && i > 0) {
+			tracker.add(SIZE);
+			byte typeId = input.readByte();
+			int length = readListLength(input);
+
+			if (typeId == END_TYPE && length > 0) {
 				throw new InvalidNbtException("Missing type on ListTag");
 			}
-			else {
-				tracker.add(4L, i);
-				NbtType<?> nbtType = NbtTypes.byId(b);
-				NbtList nbtList = new NbtList(new ArrayList<>(i));
 
-				for (int j = 0; j < i; j++) {
-					nbtList.unwrapAndAdd(nbtType.read(input, tracker));
-				}
+			tracker.add(BYTES_PER_ENTRY_HEADER, length);
+			NbtType<?> nbtType = NbtTypes.byId(typeId);
+			NbtList list = new NbtList(new ArrayList<>(length));
 
-				return nbtList;
+			for (int index = 0; index < length; index++) {
+				list.unwrapAndAdd(nbtType.read(input, tracker));
 			}
+
+			return list;
 		}
 
 		@Override
@@ -67,78 +64,85 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		throws IOException {
 			tracker.pushStack();
 
-			NbtScanner.Result var4;
 			try {
-				var4 = scanList(input, visitor, tracker);
+				return scanList(input, visitor, tracker);
 			}
 			finally {
 				tracker.popStack();
 			}
-
-			return var4;
 		}
 
-		private static NbtScanner.Result scanList(DataInput input, NbtScanner visitor, NbtSizeTracker tracker)
-		throws IOException {
-			tracker.add(36L);
+		/**
+		 * Сканирует список без полной десериализации — позволяет выборочно читать элементы.
+		 * Использует метки {@link NbtScanner.Result} для управления обходом:
+		 * HALT прерывает весь обход, BREAK пропускает оставшиеся элементы.
+		 */
+		private static NbtScanner.Result scanList(
+			DataInput input,
+			NbtScanner visitor,
+			NbtSizeTracker tracker
+		) throws IOException {
+			tracker.add(SIZE);
 			NbtType<?> nbtType = NbtTypes.byId(input.readByte());
-			int i = readListLength(input);
-			switch (visitor.visitListMeta(nbtType, i)) {
+			int length = readListLength(input);
+
+			switch (visitor.visitListMeta(nbtType, length)) {
 				case HALT:
 					return NbtScanner.Result.HALT;
 				case BREAK:
-					nbtType.skip(input, i, tracker);
+					nbtType.skip(input, length, tracker);
 					return visitor.endNested();
 				default:
-					tracker.add(4L, i);
-					int j = 0;
-
-					while (true) {
-						label41:
-						{
-							if (j < i) {
-								switch (visitor.startListItem(nbtType, j)) {
-									case HALT:
-										return NbtScanner.Result.HALT;
-									case BREAK:
-										nbtType.skip(input, tracker);
-										break;
-									case SKIP:
-										nbtType.skip(input, tracker);
-										break label41;
-									default:
-										switch (nbtType.doAccept(input, visitor, tracker)) {
-											case HALT:
-												return NbtScanner.Result.HALT;
-											case BREAK:
-												break;
-											default:
-												break label41;
-										}
-								}
-							}
-
-							int k = i - 1 - j;
-							if (k > 0) {
-								nbtType.skip(input, k, tracker);
-							}
-
-							return visitor.endNested();
-						}
-
-						j++;
-					}
+					break;
 			}
+
+			tracker.add(BYTES_PER_ENTRY_HEADER, length);
+			int index = 0;
+
+			while (index < length) {
+				switch (visitor.startListItem(nbtType, index)) {
+					case HALT:
+						return NbtScanner.Result.HALT;
+					case BREAK:
+						nbtType.skip(input, tracker);
+						int remaining = length - 1 - index;
+						if (remaining > 0) {
+							nbtType.skip(input, remaining, tracker);
+						}
+						return visitor.endNested();
+					case SKIP:
+						nbtType.skip(input, tracker);
+						index++;
+						continue;
+					default:
+						break;
+				}
+
+				switch (nbtType.doAccept(input, visitor, tracker)) {
+					case HALT:
+						return NbtScanner.Result.HALT;
+					case BREAK:
+						int remaining = length - 1 - index;
+						if (remaining > 0) {
+							nbtType.skip(input, remaining, tracker);
+						}
+						return visitor.endNested();
+					default:
+						break;
+				}
+
+				index++;
+			}
+
+			return visitor.endNested();
 		}
 
 		private static int readListLength(DataInput input) throws IOException {
-			int i = input.readInt();
-			if (i < 0) {
-				throw new InvalidNbtException("ListTag length cannot be negative: " + i);
+			int length = input.readInt();
+			if (length < 0) {
+				throw new InvalidNbtException("ListTag length cannot be negative: " + length);
 			}
-			else {
-				return i;
-			}
+			return length;
 		}
 
 		@Override
@@ -147,8 +151,8 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 
 			try {
 				NbtType<?> nbtType = NbtTypes.byId(input.readByte());
-				int i = input.readInt();
-				nbtType.skip(input, i, tracker);
+				int length = input.readInt();
+				nbtType.skip(input, length, tracker);
 			}
 			finally {
 				tracker.popStack();
@@ -165,6 +169,7 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 			return "TAG_List";
 		}
 	};
+
 	private final List<NbtElement> value;
 
 	public NbtList() {
@@ -175,11 +180,16 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		this.value = value;
 	}
 
+	/**
+	 * Разворачивает обёртку-компаунд, созданную при гомогенизации списка.
+	 * Если {@link NbtCompound} содержит ровно один элемент с ключом {@code ""},
+	 * возвращает этот элемент напрямую.
+	 */
 	private static NbtElement unwrap(NbtCompound nbt) {
 		if (nbt.getSize() == 1) {
-			NbtElement nbtElement = nbt.get("");
-			if (nbtElement != null) {
-				return nbtElement;
+			NbtElement element = nbt.get(HOMOGENIZED_ENTRY_KEY);
+			if (element != null) {
+				return element;
 			}
 		}
 
@@ -187,80 +197,91 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 	}
 
 	private static boolean isConvertedEntry(NbtCompound nbt) {
-		return nbt.getSize() == 1 && nbt.contains("");
+		return nbt.getSize() == 1 && nbt.contains(HOMOGENIZED_ENTRY_KEY);
 	}
 
-	private static NbtElement wrapIfNeeded(byte type, NbtElement value) {
-		if (type != 10) {
-			return value;
+	/**
+	 * Оборачивает элемент в {@link NbtCompound} с ключом {@code ""}, если список
+	 * хранит тип {@code TAG_Compound} (id=10) и элемент не является уже обёрнутым.
+	 * Это необходимо для гомогенизации гетерогенных списков при сериализации.
+	 */
+	private static NbtElement wrapIfNeeded(byte type, NbtElement element) {
+		if (type != COMPOUND_TYPE) {
+			return element;
 		}
-		else {
-			return value instanceof NbtCompound nbtCompound && !isConvertedEntry(nbtCompound) ? nbtCompound
-			                                                                                  : convertToCompound(value);
-		}
+
+		return element instanceof NbtCompound compound && !isConvertedEntry(compound)
+			? compound
+			: convertToCompound(element);
 	}
 
 	private static NbtCompound convertToCompound(NbtElement nbt) {
-		return new NbtCompound(Map.of("", nbt));
+		return new NbtCompound(Map.of(HOMOGENIZED_ENTRY_KEY, nbt));
 	}
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		byte b = this.getValueType();
-		output.writeByte(b);
-		output.writeInt(this.value.size());
+		byte typeId = getValueType();
+		output.writeByte(typeId);
+		output.writeInt(value.size());
 
-		for (NbtElement nbtElement : this.value) {
-			wrapIfNeeded(b, nbtElement).write(output);
+		for (NbtElement element : value) {
+			wrapIfNeeded(typeId, element).write(output);
 		}
-	}
-
-	@VisibleForTesting
-	byte getValueType() {
-		byte b = 0;
-
-		for (NbtElement nbtElement : this.value) {
-			byte c = nbtElement.getType();
-			if (b == 0) {
-				b = c;
-			}
-			else if (b != c) {
-				return 10;
-			}
-		}
-
-		return b;
 	}
 
 	/**
-	 * Unwrap and add.
+	 * Определяет общий тип всех элементов списка для сериализации.
+	 * Если все элементы одного типа — возвращает этот тип.
+	 * Если типы расходятся — возвращает {@code TAG_Compound} (id=10) как универсальный контейнер.
+	 */
+	@VisibleForTesting
+	byte getValueType() {
+		byte detectedType = END_TYPE;
+
+		for (NbtElement element : value) {
+			byte elementType = element.getType();
+			if (detectedType == END_TYPE) {
+				detectedType = elementType;
+			}
+			else if (detectedType != elementType) {
+				return COMPOUND_TYPE;
+			}
+		}
+
+		return detectedType;
+	}
+
+	/**
+	 * Добавляет элемент в список, предварительно разворачивая обёртку-компаунд
+	 * если элемент является конвертированной записью (содержит только ключ {@code ""}).
 	 *
-	 * @param nbt nbt
+	 * @param nbt элемент для добавления
 	 */
 	public void unwrapAndAdd(NbtElement nbt) {
-		if (nbt instanceof NbtCompound nbtCompound) {
-			this.add(unwrap(nbtCompound));
+		if (nbt instanceof NbtCompound compound) {
+			add(unwrap(compound));
 		}
 		else {
-			this.add(nbt);
+			add(nbt);
 		}
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		int i = 36;
-		i += 4 * this.value.size();
+		int total = SIZE;
+		total += BYTES_PER_ENTRY_HEADER * value.size();
 
-		for (NbtElement nbtElement : this.value) {
-			i += nbtElement.getSizeInBytes();
+		for (NbtElement element : value) {
+			total += element.getSizeInBytes();
 		}
 
-		return i;
+		return total;
 	}
 
 	@Override
 	public byte getType() {
-		return 9;
+		return LIST_TYPE;
 	}
 
 	@Override
@@ -270,156 +291,154 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitList(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitList(this);
+		return writer.getString();
 	}
 
 	@Override
 	public NbtElement get(int index) {
-		return this.value.get(index);
+		return value.get(index);
 	}
 
 	@Override
-	public NbtElement remove(int i) {
-		return this.value.remove(i);
+	public NbtElement remove(int index) {
+		return value.remove(index);
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.value.isEmpty();
+		return value.isEmpty();
 	}
 
 	public Optional<NbtCompound> getCompound(int index) {
-		return this.getNullable(index) instanceof NbtCompound nbtCompound ? Optional.of(nbtCompound) : Optional.empty();
+		return getNullable(index) instanceof NbtCompound compound
+			? Optional.of(compound)
+			: Optional.empty();
 	}
 
 	public NbtCompound getCompoundOrEmpty(int index) {
-		return this.getCompound(index).orElseGet(NbtCompound::new);
+		return getCompound(index).orElseGet(NbtCompound::new);
 	}
 
 	public Optional<NbtList> getList(int index) {
-		return this.getNullable(index) instanceof NbtList nbtList ? Optional.of(nbtList) : Optional.empty();
+		return getNullable(index) instanceof NbtList list
+			? Optional.of(list)
+			: Optional.empty();
 	}
 
 	public NbtList getListOrEmpty(int index) {
-		return this.getList(index).orElseGet(NbtList::new);
+		return getList(index).orElseGet(NbtList::new);
 	}
 
 	public Optional<Short> getShort(int index) {
-		return this.getOptional(index).flatMap(NbtElement::asShort);
+		return getOptional(index).flatMap(NbtElement::asShort);
 	}
 
 	public short getShort(int index, short fallback) {
-		return this.getNullable(index) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.shortValue()
-		                                                                              : fallback;
+		return getNullable(index) instanceof AbstractNbtNumber number
+			? number.shortValue()
+			: fallback;
 	}
 
 	public Optional<Integer> getInt(int index) {
-		return this.getOptional(index).flatMap(NbtElement::asInt);
+		return getOptional(index).flatMap(NbtElement::asInt);
 	}
 
 	public int getInt(int index, int fallback) {
-		return this.getNullable(index) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.intValue()
-		                                                                              : fallback;
+		return getNullable(index) instanceof AbstractNbtNumber number
+			? number.intValue()
+			: fallback;
 	}
 
 	public Optional<int[]> getIntArray(int index) {
-		return this.getNullable(index) instanceof NbtIntArray nbtIntArray ? Optional.of(nbtIntArray.getIntArray())
-		                                                                  : Optional.empty();
+		return getNullable(index) instanceof NbtIntArray array
+			? Optional.of(array.getIntArray())
+			: Optional.empty();
 	}
 
 	public Optional<long[]> getLongArray(int index) {
-		return this.getNullable(index) instanceof NbtLongArray nbtLongArray ? Optional.of(nbtLongArray.getLongArray())
-		                                                                    : Optional.empty();
+		return getNullable(index) instanceof NbtLongArray array
+			? Optional.of(array.getLongArray())
+			: Optional.empty();
 	}
 
 	public Optional<Double> getDouble(int index) {
-		return this.getOptional(index).flatMap(NbtElement::asDouble);
+		return getOptional(index).flatMap(NbtElement::asDouble);
 	}
 
 	public double getDouble(int index, double fallback) {
-		return this.getNullable(index) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.doubleValue()
-		                                                                              : fallback;
+		return getNullable(index) instanceof AbstractNbtNumber number
+			? number.doubleValue()
+			: fallback;
 	}
 
 	public Optional<Float> getFloat(int index) {
-		return this.getOptional(index).flatMap(NbtElement::asFloat);
+		return getOptional(index).flatMap(NbtElement::asFloat);
 	}
 
 	public float getFloat(int index, float fallback) {
-		return this.getNullable(index) instanceof AbstractNbtNumber abstractNbtNumber ? abstractNbtNumber.floatValue()
-		                                                                              : fallback;
+		return getNullable(index) instanceof AbstractNbtNumber number
+			? number.floatValue()
+			: fallback;
 	}
 
 	public Optional<String> getString(int index) {
-		return this.getOptional(index).flatMap(NbtElement::asString);
+		return getOptional(index).flatMap(NbtElement::asString);
 	}
 
 	public String getString(int index, String fallback) {
-		return this.getNullable(index) instanceof NbtString(String var8) ? var8 : fallback;
+		return getNullable(index) instanceof NbtString(String str) ? str : fallback;
 	}
 
 	private @Nullable NbtElement getNullable(int index) {
-		return index >= 0 && index < this.value.size() ? this.value.get(index) : null;
+		return index >= 0 && index < value.size() ? value.get(index) : null;
 	}
 
 	private Optional<NbtElement> getOptional(int index) {
-		return Optional.ofNullable(this.getNullable(index));
+		return Optional.ofNullable(getNullable(index));
 	}
 
 	@Override
 	public int size() {
-		return this.value.size();
+		return value.size();
 	}
 
-	/**
-	 * Set.
-	 *
-	 * @param i i
-	 * @param nbtElement nbt element
-	 *
-	 * @return NbtElement — результат операции
-	 */
-	public NbtElement set(int i, NbtElement nbtElement) {
-		return this.value.set(i, nbtElement);
+	@Override
+	public NbtElement set(int index, NbtElement element) {
+		return value.set(index, element);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param i i
-	 * @param nbtElement nbt element
-	 */
-	public void add(int i, NbtElement nbtElement) {
-		this.value.add(i, nbtElement);
+	@Override
+	public void add(int index, NbtElement element) {
+		value.add(index, element);
 	}
 
 	@Override
 	public boolean setElement(int index, NbtElement element) {
-		this.value.set(index, element);
+		value.set(index, element);
 		return true;
 	}
 
 	@Override
 	public boolean addElement(int index, NbtElement element) {
-		this.value.add(index, element);
+		value.add(index, element);
 		return true;
 	}
 
 	/**
-	 * Copy.
+	 * Создаёт глубокую копию списка, рекурсивно копируя каждый элемент.
 	 *
-	 * @return NbtList — результат операции
+	 * @return новый {@link NbtList} с независимыми копиями всех элементов
 	 */
 	public NbtList copy() {
-		List<NbtElement> list = new ArrayList<>(this.value.size());
+		List<NbtElement> copy = new ArrayList<>(value.size());
 
-		for (NbtElement nbtElement : this.value) {
-			list.add(nbtElement.copy());
+		for (NbtElement element : value) {
+			copy.add(element.copy());
 		}
 
-		return new NbtList(list);
+		return new NbtList(copy);
 	}
 
 	@Override
@@ -428,13 +447,15 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof NbtList && Objects.equals(this.value, ((NbtList) o).value);
+	public boolean equals(Object other) {
+		return this == other
+			? true
+			: other instanceof NbtList list && Objects.equals(value, list.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.value.hashCode();
+		return value.hashCode();
 	}
 
 	@Override
@@ -443,14 +464,15 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 	}
 
 	/**
-	 * Stream compounds.
+	 * Возвращает поток только тех элементов, которые являются {@link NbtCompound}.
+	 * Остальные элементы молча пропускаются.
 	 *
-	 * @return Stream — результат операции
+	 * @return поток {@link NbtCompound}-элементов
 	 */
 	public Stream<NbtCompound> streamCompounds() {
-		return this.stream().mapMulti((nbt, callback) -> {
-			if (nbt instanceof NbtCompound nbtCompound) {
-				callback.accept(nbtCompound);
+		return stream().mapMulti((nbt, callback) -> {
+			if (nbt instanceof NbtCompound compound) {
+				callback.accept(compound);
 			}
 		});
 	}
@@ -462,40 +484,51 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 
 	@Override
 	public void clear() {
-		this.value.clear();
+		value.clear();
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		byte b = this.getValueType();
-		switch (visitor.visitListMeta(NbtTypes.byId(b), this.value.size())) {
+		byte typeId = getValueType();
+
+		switch (visitor.visitListMeta(NbtTypes.byId(typeId), value.size())) {
 			case HALT:
 				return NbtScanner.Result.HALT;
 			case BREAK:
 				return visitor.endNested();
 			default:
-				int i = 0;
-
-				while (i < this.value.size()) {
-					NbtElement nbtElement = wrapIfNeeded(b, this.value.get(i));
-					switch (visitor.startListItem(nbtElement.getNbtType(), i)) {
-						case HALT:
-							return NbtScanner.Result.HALT;
-						case BREAK:
-							return visitor.endNested();
-						default:
-							switch (nbtElement.doAccept(visitor)) {
-								case HALT:
-									return NbtScanner.Result.HALT;
-								case BREAK:
-									return visitor.endNested();
-							}
-						case SKIP:
-							i++;
-					}
-				}
-
-				return visitor.endNested();
+				break;
 		}
+
+		int index = 0;
+
+		while (index < value.size()) {
+			NbtElement element = wrapIfNeeded(typeId, value.get(index));
+
+			switch (visitor.startListItem(element.getNbtType(), index)) {
+				case HALT:
+					return NbtScanner.Result.HALT;
+				case BREAK:
+					return visitor.endNested();
+				case SKIP:
+					index++;
+					continue;
+				default:
+					break;
+			}
+
+			switch (element.doAccept(visitor)) {
+				case HALT:
+					return NbtScanner.Result.HALT;
+				case BREAK:
+					return visitor.endNested();
+				default:
+					break;
+			}
+
+			index++;
+		}
+
+		return visitor.endNested();
 	}
 }

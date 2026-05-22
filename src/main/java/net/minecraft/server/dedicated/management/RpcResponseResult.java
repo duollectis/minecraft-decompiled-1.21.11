@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 
 /**
- * {@code RpcResponseResult}.
+ * Класс Rpc Response Result.
  */
 public record RpcResponseResult<Result>(String name, RpcSchema<Result> schema) {
 

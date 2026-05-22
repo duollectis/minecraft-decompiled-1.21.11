@@ -8,9 +8,13 @@ import net.minecraft.world.TeleportTarget;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code PortalManager}.
+ * Отслеживает состояние сущности внутри портала: накапливает тики пребывания
+ * и инициирует телепортацию по достижении задержки портала.
+ * Каждый тик без контакта с порталом уменьшает счётчик на 4.
  */
 public class PortalManager {
+
+	private static final int DECAY_PER_TICK = 4;
 
 	private final Portal portal;
 	private BlockPos pos;
@@ -24,51 +28,46 @@ public class PortalManager {
 	}
 
 	/**
-	 * Tick.
+	 * Обновляет состояние портала за один тик.
+	 * Если сущность не находится в портале — уменьшает счётчик тиков.
+	 * Если находится — увеличивает счётчик и проверяет готовность к телепортации.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param canUsePortals can use portals
-	 *
-	 * @return boolean — результат операции
+	 * @param world         серверный мир
+	 * @param entity        сущность в портале
+	 * @param canUsePortals разрешено ли использование порталов для данной сущности
+	 * @return true, если сущность готова к телепортации (накоплено достаточно тиков)
 	 */
 	public boolean tick(ServerWorld world, Entity entity, boolean canUsePortals) {
-		if (!this.inPortal) {
-			this.decayTicksInPortal();
+		if (!inPortal) {
+			decayTicksInPortal();
 			return false;
 		}
-		else {
-			this.inPortal = false;
-			return canUsePortals && this.ticksInPortal++ >= this.portal.getPortalDelay(world, entity);
-		}
+
+		inPortal = false;
+		return canUsePortals && ticksInPortal++ >= portal.getPortalDelay(world, entity);
 	}
 
 	/**
-	 * Создаёт teleport target.
+	 * Создаёт цель телепортации для данного портала и сущности.
 	 *
-	 * @param world world
-	 * @param entity entity
-	 *
-	 * @return @Nullable TeleportTarget — результат операции
+	 * @param world  серверный мир
+	 * @param entity телепортируемая сущность
+	 * @return цель телепортации или null, если портал не может создать цель
 	 */
 	public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity) {
-		return this.portal.createTeleportTarget(world, entity, this.pos);
+		return portal.createTeleportTarget(world, entity, pos);
 	}
 
 	public Portal.Effect getEffect() {
-		return this.portal.getPortalEffect();
-	}
-
-	private void decayTicksInPortal() {
-		this.ticksInPortal = Math.max(this.ticksInPortal - 4, 0);
+		return portal.getPortalEffect();
 	}
 
 	public boolean hasExpired() {
-		return this.ticksInPortal <= 0;
+		return ticksInPortal <= 0;
 	}
 
 	public BlockPos getPortalPos() {
-		return this.pos;
+		return pos;
 	}
 
 	public void setPortalPos(BlockPos pos) {
@@ -76,25 +75,22 @@ public class PortalManager {
 	}
 
 	public int getTicksInPortal() {
-		return this.ticksInPortal;
+		return ticksInPortal;
 	}
 
 	public boolean isInPortal() {
-		return this.inPortal;
+		return inPortal;
 	}
 
 	public void setInPortal(boolean inPortal) {
 		this.inPortal = inPortal;
 	}
 
-	/**
-	 * Portal matches.
-	 *
-	 * @param portal portal
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean portalMatches(Portal portal) {
 		return this.portal == portal;
+	}
+
+	private void decayTicksInPortal() {
+		ticksInPortal = Math.max(ticksInPortal - DECAY_PER_TICK, 0);
 	}
 }

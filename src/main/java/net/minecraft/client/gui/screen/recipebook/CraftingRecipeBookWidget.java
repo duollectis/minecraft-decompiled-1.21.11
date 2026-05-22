@@ -19,10 +19,11 @@ import net.minecraft.util.context.ContextParameterMap;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CraftingRecipeBookWidget}.
+ * Виджет книги рецептов для верстаков и инвентарного крафта.
+ * Поддерживает как фигурные, так и бесформенные рецепты крафта.
  */
+@Environment(EnvType.CLIENT)
 public class CraftingRecipeBookWidget extends RecipeBookWidget<AbstractCraftingScreenHandler> {
 
 	private static final ButtonTextures FILTER_BUTTON_TEXTURES = new ButtonTextures(
@@ -31,7 +32,8 @@ public class CraftingRecipeBookWidget extends RecipeBookWidget<AbstractCraftingS
 			Identifier.ofVanilla("recipe_book/filter_enabled_highlighted"),
 			Identifier.ofVanilla("recipe_book/filter_disabled_highlighted")
 	);
-	private static final Text TOGGLE_CRAFTABLE_TEXT = Text.translatable("gui.recipebook.toggleRecipes.craftable");
+	private static final Text TOGGLE_CRAFTABLE_TEXT =
+			Text.translatable("gui.recipebook.toggleRecipes.craftable");
 	private static final List<RecipeBookWidget.Tab> TABS = List.of(
 			new RecipeBookWidget.Tab(RecipeBookType.CRAFTING),
 			new RecipeBookWidget.Tab(Items.IRON_AXE, Items.GOLDEN_SWORD, RecipeBookCategories.CRAFTING_EQUIPMENT),
@@ -46,57 +48,54 @@ public class CraftingRecipeBookWidget extends RecipeBookWidget<AbstractCraftingS
 
 	@Override
 	protected boolean isCraftingSlot(Slot slot) {
-		return this.craftingScreenHandler.getOutputSlot() == slot || this.craftingScreenHandler
-				.getInputSlots()
-				.contains(slot);
+		return craftingScreenHandler.getOutputSlot() == slot
+				|| craftingScreenHandler.getInputSlots().contains(slot);
 	}
 
 	private boolean canDisplay(RecipeDisplay display) {
-		int i = this.craftingScreenHandler.getWidth();
-		int j = this.craftingScreenHandler.getHeight();
+		int gridWidth = craftingScreenHandler.getWidth();
+		int gridHeight = craftingScreenHandler.getHeight();
 
 		return switch (display) {
-			case ShapedCraftingRecipeDisplay shapedCraftingRecipeDisplay ->
-					i >= shapedCraftingRecipeDisplay.width() && j >= shapedCraftingRecipeDisplay.height();
-			case ShapelessCraftingRecipeDisplay shapelessCraftingRecipeDisplay ->
-					i * j >= shapelessCraftingRecipeDisplay.ingredients().size();
+			case ShapedCraftingRecipeDisplay shaped ->
+					gridWidth >= shaped.width() && gridHeight >= shaped.height();
+			case ShapelessCraftingRecipeDisplay shapeless ->
+					gridWidth * gridHeight >= shapeless.ingredients().size();
 			default -> false;
 		};
 	}
 
 	@Override
 	protected void showGhostRecipe(GhostRecipe ghostRecipe, RecipeDisplay display, ContextParameterMap context) {
-		ghostRecipe.addResults(this.craftingScreenHandler.getOutputSlot(), context, display.result());
+		ghostRecipe.addResults(craftingScreenHandler.getOutputSlot(), context, display.result());
+
 		switch (display) {
-			case ShapedCraftingRecipeDisplay shapedCraftingRecipeDisplay:
-				List<Slot> list = this.craftingScreenHandler.getInputSlots();
+			case ShapedCraftingRecipeDisplay shaped: {
+				List<Slot> inputSlots = craftingScreenHandler.getInputSlots();
 				RecipeGridAligner.alignRecipeToGrid(
-						this.craftingScreenHandler.getWidth(),
-						this.craftingScreenHandler.getHeight(),
-						shapedCraftingRecipeDisplay.width(),
-						shapedCraftingRecipeDisplay.height(),
-						shapedCraftingRecipeDisplay.ingredients(),
-						(slot, index, x, y) -> {
-							Slot slot2 = list.get(index);
-							ghostRecipe.addInputs(slot2, context, slot);
-						}
+						craftingScreenHandler.getWidth(),
+						craftingScreenHandler.getHeight(),
+						shaped.width(),
+						shaped.height(),
+						shaped.ingredients(),
+						(slotDisplay, index, x, y) -> ghostRecipe.addInputs(inputSlots.get(index), context, slotDisplay)
 				);
 				break;
-			case ShapelessCraftingRecipeDisplay shapelessCraftingRecipeDisplay:
-				label15:
-				{
-					List<Slot> list2 = this.craftingScreenHandler.getInputSlots();
-					int i = Math.min(shapelessCraftingRecipeDisplay.ingredients().size(), list2.size());
+			}
+			case ShapelessCraftingRecipeDisplay shapeless: {
+				List<Slot> inputSlots = craftingScreenHandler.getInputSlots();
+				int count = Math.min(shapeless.ingredients().size(), inputSlots.size());
 
-					for (int j = 0; j < i; j++) {
-						ghostRecipe.addInputs(
-								list2.get(j),
-								context,
-								shapelessCraftingRecipeDisplay.ingredients().get(j)
-						);
-					}
-					break label15;
+				for (int index = 0; index < count; index++) {
+					ghostRecipe.addInputs(
+							inputSlots.get(index),
+							context,
+							shapeless.ingredients().get(index)
+					);
 				}
+
+				break;
+			}
 			default:
 		}
 	}

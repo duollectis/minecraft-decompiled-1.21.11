@@ -85,13 +85,13 @@ public class WitherEntityModel extends EntityModel<WitherEntityRenderState> {
 		rotateHead(witherEntityRenderState, this.rightHead, 0);
 		rotateHead(witherEntityRenderState, this.leftHead, 1);
 		float f = MathHelper.cos(witherEntityRenderState.age * 0.1F);
-		this.ribcage.pitch = (0.065F + 0.05F * f) * (float) Math.PI;
+		this.ribcage.pitch = (RIBCAGE_PITCH_OFFSET + 0.05F * f) * (float) Math.PI;
 		this.tail.setOrigin(
 				-2.0F,
 				6.9F + MathHelper.cos(this.ribcage.pitch) * 10.0F,
 				-0.5F + MathHelper.sin(this.ribcage.pitch) * 10.0F
 		);
-		this.tail.pitch = (0.265F + 0.1F * f) * (float) Math.PI;
+		this.tail.pitch = (TAIL_PITCH_OFFSET + 0.1F * f) * (float) Math.PI;
 		this.centerHead.yaw = witherEntityRenderState.relativeHeadYaw * (float) (Math.PI / 180.0);
 		this.centerHead.pitch = witherEntityRenderState.pitch * (float) (Math.PI / 180.0);
 	}

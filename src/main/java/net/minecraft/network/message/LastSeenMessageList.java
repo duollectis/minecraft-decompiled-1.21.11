@@ -12,88 +12,91 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Запись last seen message list.
+ * Список подписей последних просмотренных сообщений, используемый для цепочки подписей чата.
+ * Передаётся в теле каждого подписанного сообщения для верификации порядка сообщений.
  */
 public record LastSeenMessageList(List<MessageSignatureData> entries) {
 
-	public static final Codec<LastSeenMessageList>
-			CODEC =
-			MessageSignatureData.CODEC.listOf().xmap(LastSeenMessageList::new, LastSeenMessageList::entries);
+	public static final Codec<LastSeenMessageList> CODEC = MessageSignatureData.CODEC
+			.listOf()
+			.xmap(LastSeenMessageList::new, LastSeenMessageList::entries);
+
 	public static LastSeenMessageList EMPTY = new LastSeenMessageList(List.of());
 	public static final int MAX_ENTRIES = 20;
 
 	/**
-	 * Обновляет signatures.
+	 * Добавляет подписи всех записей в обновляемый объект подписи.
+	 * Сначала записывается размер списка, затем байты каждой подписи.
 	 *
-	 * @param updater updater
+	 * @param updater объект для накопления данных подписи
+	 * @throws SignatureException при ошибке криптографической операции
 	 */
 	public void updateSignatures(SignatureUpdatable.SignatureUpdater updater) throws SignatureException {
-		updater.update(Ints.toByteArray(this.entries.size()));
+		updater.update(Ints.toByteArray(entries.size()));
 
-		for (MessageSignatureData messageSignatureData : this.entries) {
-			updater.update(messageSignatureData.data());
+		for (MessageSignatureData signature : entries) {
+			updater.update(signature.data());
 		}
 	}
 
 	public LastSeenMessageList.Indexed pack(MessageSignatureStorage storage) {
-		return new LastSeenMessageList.Indexed(this.entries
-				.stream()
-				.map(signature -> signature.pack(storage))
-				.toList());
+		return new LastSeenMessageList.Indexed(
+				entries.stream()
+						.map(signature -> signature.pack(storage))
+						.toList()
+		);
 	}
 
 	/**
-	 * Вычисляет checksum.
+	 * Вычисляет однобайтовую контрольную сумму списка для быстрой проверки синхронизации.
+	 * Никогда не возвращает {@code 0} — заменяет его на {@code 1}, чтобы отличить от «нет суммы».
 	 *
-	 * @return byte — результат операции
+	 * @return ненулевой байт контрольной суммы
 	 */
 	public byte calculateChecksum() {
-		int i = 1;
+		int hash = 1;
 
-		for (MessageSignatureData messageSignatureData : this.entries) {
-			i = 31 * i + messageSignatureData.calculateChecksum();
+		for (MessageSignatureData signature : entries) {
+			hash = 31 * hash + signature.calculateChecksum();
 		}
 
-		byte b = (byte) i;
-		return b == 0 ? 1 : b;
+		byte checksum = (byte) hash;
+		return checksum == 0 ? 1 : checksum;
 	}
 
 	/**
-	 * Запись acknowledgment.
+	 * Пакет подтверждения от клиента: смещение окна, битовая маска подтверждённых сообщений
+	 * и контрольная сумма для проверки синхронизации.
 	 */
 	public record Acknowledgment(int offset, BitSet acknowledged, byte checksum) {
 
 		public static final byte NO_CHECKSUM = 0;
 
 		public Acknowledgment(PacketByteBuf buf) {
-			this(buf.readVarInt(), buf.readBitSet(20), buf.readByte());
+			this(buf.readVarInt(), buf.readBitSet(MAX_ENTRIES), buf.readByte());
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
-			buf.writeVarInt(this.offset);
-			buf.writeBitSet(this.acknowledged, 20);
-			buf.writeByte(this.checksum);
+			buf.writeVarInt(offset);
+			buf.writeBitSet(acknowledged, MAX_ENTRIES);
+			buf.writeByte(checksum);
 		}
 
 		/**
-		 * Проверяет sum equals.
+		 * Проверяет контрольную сумму. Значение {@link #NO_CHECKSUM} ({@code 0}) трактуется
+		 * как «проверка отключена» и всегда считается корректным.
 		 *
-		 * @param lastSeenMessages last seen messages
-		 *
-		 * @return boolean — результат операции
+		 * @param lastSeenMessages список сообщений для сравнения
+		 * @return {@code true} если сумма совпадает или равна {@link #NO_CHECKSUM}
 		 */
 		public boolean checksumEquals(LastSeenMessageList lastSeenMessages) {
-			return this.checksum == 0 || this.checksum == lastSeenMessages.calculateChecksum();
+			return checksum == NO_CHECKSUM || checksum == lastSeenMessages.calculateChecksum();
 		}
 	}
 
 	/**
-	 * Запись indexed.
+	 * Компактное представление списка, где уже известные серверу подписи заменены индексами
+	 * в хранилище {@link MessageSignatureStorage}.
 	 */
 	public record Indexed(List<MessageSignatureData.Indexed> buf) {
 
@@ -101,40 +104,35 @@ public record LastSeenMessageList(List<MessageSignatureData> entries) {
 
 		public Indexed(PacketByteBuf buf) {
 			this(buf.<MessageSignatureData.Indexed, ArrayList<MessageSignatureData.Indexed>>readCollection(
-					PacketByteBuf.getMaxValidator(ArrayList::new, 20),
+					PacketByteBuf.getMaxValidator(ArrayList::new, MAX_ENTRIES),
 					MessageSignatureData.Indexed::fromBuf
 			));
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeCollection(this.buf, MessageSignatureData.Indexed::write);
 		}
 
 		/**
-		 * Unpack.
+		 * Разворачивает компактный список обратно в полные подписи, используя хранилище.
 		 *
-		 * @param storage storage
-		 *
-		 * @return Optional — результат операции
+		 * @param storage хранилище известных подписей
+		 * @return полный список подписей, или {@link Optional#empty()} если хотя бы одна подпись не найдена
 		 */
 		public Optional<LastSeenMessageList> unpack(MessageSignatureStorage storage) {
-			List<MessageSignatureData> list = new ArrayList<>(this.buf.size());
+			List<MessageSignatureData> signatures = new ArrayList<>(this.buf.size());
 
 			for (MessageSignatureData.Indexed indexed : this.buf) {
-				Optional<MessageSignatureData> optional = indexed.getSignature(storage);
-				if (optional.isEmpty()) {
+				Optional<MessageSignatureData> signature = indexed.getSignature(storage);
+
+				if (signature.isEmpty()) {
 					return Optional.empty();
 				}
 
-				list.add(optional.get());
+				signatures.add(signature.get());
 			}
 
-			return Optional.of(new LastSeenMessageList(list));
+			return Optional.of(new LastSeenMessageList(signatures));
 		}
 	}
 }

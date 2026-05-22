@@ -127,7 +127,7 @@ public class RealmsPendingInvitesScreen extends RealmsScreen {
 					RealmsPendingInvitesScreen.this.width,
 					RealmsPendingInvitesScreen.this.layout.getContentHeight(),
 					RealmsPendingInvitesScreen.this.layout.getHeaderHeight(),
-					36
+					ENTRY_HEIGHT
 			);
 		}
 
@@ -198,14 +198,14 @@ public class RealmsPendingInvitesScreen extends RealmsScreen {
 					.setMaxWidth(i);
 			ButtonWidget.NarrationSupplier narrationSupplier = this.getNarration(pendingInvite);
 			this.acceptButton = TextIconButtonWidget.builder(ACCEPT_TEXT, button -> this.handle(true), false)
-			                                        .texture(ACCEPT_TEXTURE, 18, 18)
-			                                        .dimension(21, 21)
+			                                        .texture(ACCEPT_TEXTURE, BUTTON_SIZE, BUTTON_SIZE)
+			                                        .dimension(BUTTON_OFFSET, BUTTON_OFFSET)
 			                                        .narration(narrationSupplier)
 			                                        .useTextAsTooltip()
 			                                        .build();
 			this.rejectButton = TextIconButtonWidget.builder(REJECT_TEXT, button -> this.handle(false), false)
-			                                        .texture(REJECT_TEXTURE, 18, 18)
-			                                        .dimension(21, 21)
+			                                        .texture(REJECT_TEXTURE, BUTTON_SIZE, BUTTON_SIZE)
+			                                        .dimension(BUTTON_OFFSET, BUTTON_OFFSET)
 			                                        .narration(narrationSupplier)
 			                                        .useTextAsTooltip()
 			                                        .build();
@@ -238,7 +238,7 @@ public class RealmsPendingInvitesScreen extends RealmsScreen {
 		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
 			int i = this.getContentX();
 			int j = this.getContentY();
-			int k = i + 38;
+			int k = i + ENTRY_PADDING;
 			RealmsUtil.drawPlayerHead(context, i, j, 32, this.pendingInvite.worldOwnerUuid());
 			this.worldNameText.setPosition(k, j + 1);
 			this.worldNameText.renderWidget(context, mouseX, mouseY, i);
@@ -249,7 +249,7 @@ public class RealmsPendingInvitesScreen extends RealmsScreen {
 			int l = j + this.getContentHeight() / 2 - 10;
 			this.acceptButton.setPosition(i + this.getContentWidth() - 16 - 42, l);
 			this.acceptButton.render(context, mouseX, mouseY, deltaTicks);
-			this.rejectButton.setPosition(i + this.getContentWidth() - 8 - 21, l);
+			this.rejectButton.setPosition(i + this.getContentWidth() - 8 - BUTTON_OFFSET, l);
 			this.rejectButton.render(context, mouseX, mouseY, deltaTicks);
 		}
 

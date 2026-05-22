@@ -11,18 +11,14 @@ import net.minecraft.client.util.math.MatrixStack;
 import java.util.*;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CustomCommandRenderer}.
+ * Рендерит пользовательские команды рисования ({@link OrderedRenderCommandQueue.Custom}),
+ * сгруппированные по слоям рендеринга. Используется для произвольной геометрии,
+ * которую нельзя выразить стандартными командами модели или метки.
  */
+@Environment(EnvType.CLIENT)
 public class CustomCommandRenderer {
 
-	/**
-	 * Render.
-	 *
-	 * @param queue queue
-	 * @param vertexConsumers vertex consumers
-	 */
 	public void render(BatchingRenderCommandQueue queue, VertexConsumerProvider.Immediate vertexConsumers) {
 		CustomCommandRenderer.Commands commands = queue.getCustomCommands();
 
@@ -35,47 +31,31 @@ public class CustomCommandRenderer {
 		}
 	}
 
+	/** Накопитель пользовательских команд рисования, сгруппированных по слоям рендеринга. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Commands}.
-	 */
 	public static class Commands {
 
 		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> customCommands = new HashMap<>();
 		private final Set<RenderLayer> customRenderLayers = new ObjectOpenHashSet();
 
-		/**
-		 * Add.
-		 *
-		 * @param matrices matrices
-		 * @param renderLayer render layer
-		 * @param custom custom
-		 */
 		public void add(MatrixStack matrices, RenderLayer renderLayer, OrderedRenderCommandQueue.Custom custom) {
-			List<OrderedRenderCommandQueueImpl.CustomCommand>
-					list =
-					this.customCommands.computeIfAbsent(renderLayer, renderLayerx -> new ArrayList<>());
-			list.add(new OrderedRenderCommandQueueImpl.CustomCommand(matrices.peek().copy(), custom));
+			customCommands
+					.computeIfAbsent(renderLayer, layer -> new ArrayList<>())
+					.add(new OrderedRenderCommandQueueImpl.CustomCommand(matrices.peek().copy(), custom));
 		}
 
-		/**
-		 * Clear.
-		 */
 		public void clear() {
-			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> entry : this.customCommands.entrySet()) {
+			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> entry : customCommands.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
-					this.customRenderLayers.add(entry.getKey());
+					customRenderLayers.add(entry.getKey());
 					entry.getValue().clear();
 				}
 			}
 		}
 
-		/**
-		 * Next frame.
-		 */
 		public void nextFrame() {
-			this.customCommands.keySet().removeIf(renderLayer -> !this.customRenderLayers.contains(renderLayer));
-			this.customRenderLayers.clear();
+			customCommands.keySet().removeIf(layer -> !customRenderLayers.contains(layer));
+			customRenderLayers.clear();
 		}
 	}
 }

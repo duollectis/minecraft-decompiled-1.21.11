@@ -18,29 +18,39 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * {@code VanillaDataPackProvider}.
+ * Провайдер ванильных датапаков.
+ * Регистрирует встроенный ванильный датапак и сканирует дополнительные паки
+ * из директории {@code datapacks} в classpath.
  */
 public class VanillaDataPackProvider extends VanillaResourcePackProvider {
 
 	private static final PackResourceMetadata METADATA = new PackResourceMetadata(
-			Text.translatable("dataPack.vanilla.description"),
-			SharedConstants.getGameVersion().packVersion(ResourceType.SERVER_DATA).majorRange()
+		Text.translatable("dataPack.vanilla.description"),
+		SharedConstants.getGameVersion().packVersion(ResourceType.SERVER_DATA).majorRange()
 	);
-	private static final PackFeatureSetMetadata
-			FEATURE_FLAGS =
-			new PackFeatureSetMetadata(FeatureFlags.DEFAULT_ENABLED_FEATURES);
+	private static final PackFeatureSetMetadata FEATURE_FLAGS = new PackFeatureSetMetadata(
+		FeatureFlags.DEFAULT_ENABLED_FEATURES
+	);
 	private static final ResourceMetadataMap METADATA_MAP = ResourceMetadataMap.of(
-			PackResourceMetadata.SERVER_DATA_SERIALIZER, METADATA, PackFeatureSetMetadata.SERIALIZER, FEATURE_FLAGS
+		PackResourceMetadata.SERVER_DATA_SERIALIZER, METADATA,
+		PackFeatureSetMetadata.SERIALIZER, FEATURE_FLAGS
 	);
 	private static final ResourcePackInfo INFO = new ResourcePackInfo(
-			"vanilla", Text.translatable("dataPack.vanilla.name"), ResourcePackSource.BUILTIN, Optional.of(VANILLA_ID)
+		"vanilla",
+		Text.translatable("dataPack.vanilla.name"),
+		ResourcePackSource.BUILTIN,
+		Optional.of(VANILLA_ID)
 	);
-	private static final ResourcePackPosition
-			BOTTOM_POSITION =
-			new ResourcePackPosition(false, ResourcePackProfile.InsertionPosition.BOTTOM, false);
-	private static final ResourcePackPosition
-			TOP_POSITION =
-			new ResourcePackPosition(false, ResourcePackProfile.InsertionPosition.TOP, false);
+	private static final ResourcePackPosition BOTTOM_POSITION = new ResourcePackPosition(
+		false,
+		ResourcePackProfile.InsertionPosition.BOTTOM,
+		false
+	);
+	private static final ResourcePackPosition TOP_POSITION = new ResourcePackPosition(
+		false,
+		ResourcePackProfile.InsertionPosition.TOP,
+		false
+	);
 	private static final Identifier ID = Identifier.ofVanilla("datapacks");
 
 	public VanillaDataPackProvider(SymlinkFinder symlinkFinder) {
@@ -49,21 +59,21 @@ public class VanillaDataPackProvider extends VanillaResourcePackProvider {
 
 	private static ResourcePackInfo createInfo(String id, Text title) {
 		return new ResourcePackInfo(
-				id,
-				title,
-				ResourcePackSource.FEATURE,
-				Optional.of(VersionedIdentifier.createVanilla(id))
+			id,
+			title,
+			ResourcePackSource.FEATURE,
+			Optional.of(VersionedIdentifier.createVanilla(id))
 		);
 	}
 
 	@VisibleForTesting
 	public static DefaultResourcePack createDefaultPack() {
 		return new DefaultResourcePackBuilder()
-				.withMetadataMap(METADATA_MAP)
-				.withNamespaces("minecraft")
-				.runCallback()
-				.withDefaultPaths()
-				.build(INFO);
+			.withMetadataMap(METADATA_MAP)
+			.withNamespaces("minecraft")
+			.runCallback()
+			.withDefaultPaths()
+			.build(INFO);
 	}
 
 	@Override
@@ -78,38 +88,56 @@ public class VanillaDataPackProvider extends VanillaResourcePackProvider {
 
 	@Override
 	protected @Nullable ResourcePackProfile create(
-			String fileName,
-			ResourcePackProfile.PackFactory packFactory,
-			Text displayName
+		String fileName,
+		ResourcePackProfile.PackFactory packFactory,
+		Text displayName
 	) {
 		return ResourcePackProfile.create(
-				createInfo(fileName, displayName),
-				packFactory,
-				ResourceType.SERVER_DATA,
-				TOP_POSITION
+			createInfo(fileName, displayName),
+			packFactory,
+			ResourceType.SERVER_DATA,
+			TOP_POSITION
 		);
 	}
 
+	/**
+	 * Создаёт менеджер паков для директории датапаков указанной сессии.
+	 *
+	 * @param dataPacksPath путь к директории датапаков
+	 * @param symlinkFinder валидатор символических ссылок
+	 * @return менеджер паков
+	 */
 	public static ResourcePackManager createManager(Path dataPacksPath, SymlinkFinder symlinkFinder) {
 		return new ResourcePackManager(
-				new VanillaDataPackProvider(symlinkFinder),
-				new FileResourcePackProvider(
-						dataPacksPath,
-						ResourceType.SERVER_DATA,
-						ResourcePackSource.WORLD,
-						symlinkFinder
-				)
+			new VanillaDataPackProvider(symlinkFinder),
+			new FileResourcePackProvider(
+				dataPacksPath,
+				ResourceType.SERVER_DATA,
+				ResourcePackSource.WORLD,
+				symlinkFinder
+			)
 		);
 	}
 
+	/**
+	 * Создаёт менеджер паков только с ванильным датапаком (для клиентского использования).
+	 *
+	 * @return менеджер паков
+	 */
 	public static ResourcePackManager createClientManager() {
 		return new ResourcePackManager(new VanillaDataPackProvider(new SymlinkFinder(path -> true)));
 	}
 
+	/**
+	 * Создаёт менеджер паков для директории датапаков из сессии уровня.
+	 *
+	 * @param session сессия хранилища уровня
+	 * @return менеджер паков
+	 */
 	public static ResourcePackManager createManager(LevelStorage.Session session) {
 		return createManager(
-				session.getDirectory(WorldSavePath.DATAPACKS),
-				session.getLevelStorage().getSymlinkFinder()
+			session.getDirectory(WorldSavePath.DATAPACKS),
+			session.getLevelStorage().getSymlinkFinder()
 		);
 	}
 }

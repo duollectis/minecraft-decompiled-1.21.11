@@ -1,8 +1,9 @@
 package net.minecraft.component.type;
 
 /**
- * {@code FoodComponents}.
- */
+	 * Реестр предустановленных компонентов еды для всех съедобных предметов игры.
+	 * Каждая константа описывает питательность, насыщение и особые флаги конкретного продукта.
+	 */
 public class FoodComponents {
 
 	public static final FoodComponent APPLE = new FoodComponent.Builder().nutrition(4).saturationModifier(0.3F).build();

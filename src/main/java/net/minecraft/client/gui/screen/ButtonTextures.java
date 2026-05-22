@@ -4,10 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ButtonTextures}.
+ * Набор текстур для кнопки в зависимости от её состояния (активна/неактивна, в фокусе/нет).
  */
+@Environment(EnvType.CLIENT)
 public record ButtonTextures(
 		Identifier enabled,
 		Identifier disabled,
@@ -27,20 +27,11 @@ public record ButtonTextures(
 		this(enabled, disabled, focused, disabled);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param enabled enabled
-	 * @param focused focused
-	 *
-	 * @return Identifier — 
-	 */
 	public Identifier get(boolean enabled, boolean focused) {
 		if (enabled) {
-			return focused ? this.enabledFocused : this.enabled;
-		}
-		else {
-			return focused ? this.disabledFocused : this.disabled;
+			return focused ? enabledFocused : enabled();
+		} else {
+			return focused ? disabledFocused : disabled();
 		}
 	}
 }

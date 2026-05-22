@@ -21,11 +21,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code HopperMinecartEntity}.
+ * Вагонетка с воронкой. Автоматически всасывает предметы с земли и из контейнеров сверху.
+ * Может быть отключена активированным рельсом-активатором.
  */
 public class HopperMinecartEntity extends StorageMinecartEntity implements Hopper {
 
-	private static final boolean DEFAULT_ENABLED = true;
+	private static final int INVENTORY_SIZE = 5;
+	private static final int DEFAULT_BLOCK_OFFSET = 1;
+	private static final double HOPPER_Y_OFFSET = 0.5;
+	private static final double ITEM_PICKUP_EXPAND = 0.25;
+
 	private boolean enabled = true;
 	private boolean hopperTicked = false;
 
@@ -40,24 +45,29 @@ public class HopperMinecartEntity extends StorageMinecartEntity implements Hoppe
 
 	@Override
 	public int getDefaultBlockOffset() {
-		return 1;
+		return DEFAULT_BLOCK_OFFSET;
 	}
 
 	@Override
 	public int size() {
-		return 5;
+		return INVENTORY_SIZE;
 	}
 
+	/**
+	 * Включает или отключает воронку в зависимости от сигнала активатора.
+	 * Активированный рельс (powered=true) отключает воронку.
+	 */
 	@Override
-	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-		boolean bl2 = !bl;
-		if (bl2 != this.isEnabled()) {
-			this.setEnabled(bl2);
+	public void onActivatorRail(ServerWorld serverWorld, int x, int y, int z, boolean powered) {
+		boolean shouldBeEnabled = !powered;
+
+		if (shouldBeEnabled != enabled) {
+			setEnabled(shouldBeEnabled);
 		}
 	}
 
 	public boolean isEnabled() {
-		return this.enabled;
+		return enabled;
 	}
 
 	public void setEnabled(boolean enabled) {
@@ -66,17 +76,17 @@ public class HopperMinecartEntity extends StorageMinecartEntity implements Hoppe
 
 	@Override
 	public double getHopperX() {
-		return this.getX();
+		return getX();
 	}
 
 	@Override
 	public double getHopperY() {
-		return this.getY() + 0.5;
+		return getY() + HOPPER_Y_OFFSET;
 	}
 
 	@Override
 	public double getHopperZ() {
-		return this.getZ();
+		return getZ();
 	}
 
 	@Override
@@ -86,49 +96,50 @@ public class HopperMinecartEntity extends StorageMinecartEntity implements Hoppe
 
 	@Override
 	public void tick() {
-		this.hopperTicked = false;
+		hopperTicked = false;
 		super.tick();
-		this.tickHopper();
+		tickHopper();
 	}
 
 	@Override
 	protected double moveAlongTrack(BlockPos pos, RailShape shape, double remainingMovement) {
-		double d = super.moveAlongTrack(pos, shape, remainingMovement);
-		this.tickHopper();
-		return d;
+		double remaining = super.moveAlongTrack(pos, shape, remainingMovement);
+		tickHopper();
+		return remaining;
 	}
 
 	private void tickHopper() {
-		if (!this.getEntityWorld().isClient() && this.isAlive() && this.isEnabled() && !this.hopperTicked
-				&& this.canOperate()) {
-			this.hopperTicked = true;
-			this.markDirty();
+		if (getEntityWorld().isClient() || !isAlive() || !enabled || hopperTicked) {
+			return;
+		}
+
+		if (canOperate()) {
+			hopperTicked = true;
+			markDirty();
 		}
 	}
 
 	/**
-	 * Проверяет возможность operate.
+	 * Пытается извлечь предметы из контейнера сверху или подобрать предметы с земли.
 	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @return {@code true} если хотя бы один предмет был перемещён
 	 */
 	public boolean canOperate() {
-		if (HopperBlockEntity.extract(this.getEntityWorld(), this)) {
+		if (HopperBlockEntity.extract(getEntityWorld(), this)) {
 			return true;
 		}
-		else {
-			for (ItemEntity itemEntity : this.getEntityWorld()
-			                                 .getEntitiesByClass(
-					                                 ItemEntity.class,
-					                                 this.getBoundingBox().expand(0.25, 0.0, 0.25),
-					                                 EntityPredicates.VALID_ENTITY
-			                                 )) {
-				if (HopperBlockEntity.extract(this, itemEntity)) {
-					return true;
-				}
-			}
 
-			return false;
+		for (ItemEntity itemEntity : getEntityWorld().getEntitiesByClass(
+				ItemEntity.class,
+				getBoundingBox().expand(ITEM_PICKUP_EXPAND, 0.0, ITEM_PICKUP_EXPAND),
+				EntityPredicates.VALID_ENTITY
+		)) {
+			if (HopperBlockEntity.extract(this, itemEntity)) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	@Override
@@ -144,13 +155,13 @@ public class HopperMinecartEntity extends StorageMinecartEntity implements Hoppe
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("Enabled", this.enabled);
+		view.putBoolean("Enabled", enabled);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.enabled = view.getBoolean("Enabled", true);
+		enabled = view.getBoolean("Enabled", true);
 	}
 
 	@Override

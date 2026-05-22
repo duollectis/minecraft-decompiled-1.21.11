@@ -6,7 +6,8 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code EntitySalmonSizeFix}.
+ * Нормализует поле {@code type} лосося: допустимо только значение {@code large} или {@code medium}.
+ * Все нераспознанные значения заменяются на {@code medium}.
  */
 public class EntitySalmonSizeFix extends ChoiceFix {
 
@@ -16,11 +17,12 @@ public class EntitySalmonSizeFix extends ChoiceFix {
 
 	@Override
 	protected Typed<?> transform(Typed<?> inputTyped) {
-		return inputTyped.update(
-				DSL.remainderFinder(), dynamic -> {
-					String string = dynamic.get("type").asString("medium");
-					return string.equals("large") ? dynamic : dynamic.set("type", dynamic.createString("medium"));
-				}
-		);
+		return inputTyped.update(DSL.remainderFinder(), dynamic -> {
+			String sizeType = dynamic.get("type").asString("medium");
+
+			return sizeType.equals("large")
+					? dynamic
+					: dynamic.set("type", dynamic.createString("medium"));
+		});
 	}
 }

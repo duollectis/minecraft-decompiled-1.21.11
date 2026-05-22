@@ -4,7 +4,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code RecipeBookCategories}.
+ * Реестр стандартных категорий книги рецептов.
+ * Каждая константа соответствует отдельной вкладке в UI книги рецептов.
  */
 public class RecipeBookCategories {
 
@@ -26,13 +27,6 @@ public class RecipeBookCategories {
 		return Registry.register(Registries.RECIPE_BOOK_CATEGORY, id, new RecipeBookCategory());
 	}
 
-	/**
-	 * Регистрирует and get default.
-	 *
-	 * @param registry registry
-	 *
-	 * @return RecipeBookCategory — результат операции
-	 */
 	public static RecipeBookCategory registerAndGetDefault(Registry<RecipeBookCategory> registry) {
 		return CAMPFIRE;
 	}

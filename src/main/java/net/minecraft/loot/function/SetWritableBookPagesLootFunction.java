@@ -13,29 +13,31 @@ import net.minecraft.util.collection.ListOperation;
 import java.util.List;
 
 /**
- * {@code SetWritableBookPagesLootFunction}.
+ * Функция лута, устанавливающая или изменяющая страницы записной книжки.
+ * Максимальное количество страниц ограничено 100.
  */
 public class SetWritableBookPagesLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<SetWritableBookPagesLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(
-							instance.group(
-									WritableBookContentComponent.PAGES_CODEC
-											.fieldOf("pages")
-											.forGetter(function -> function.pages),
-									ListOperation.createCodec(100).forGetter(function -> function.operation)
-							)
-					)
-					.apply(instance, SetWritableBookPagesLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(
+				instance.group(
+					WritableBookContentComponent.PAGES_CODEC
+						.fieldOf("pages")
+						.forGetter(function -> function.pages),
+					ListOperation.createCodec(100).forGetter(function -> function.operation)
+				)
+			)
+			.apply(instance, SetWritableBookPagesLootFunction::new)
 	);
+
 	private final List<RawFilteredPair<String>> pages;
 	private final ListOperation operation;
 
 	protected SetWritableBookPagesLootFunction(
-			List<LootCondition> conditions,
-			List<RawFilteredPair<String>> pages,
-			ListOperation operation
+		List<LootCondition> conditions,
+		List<RawFilteredPair<String>> pages,
+		ListOperation operation
 	) {
 		super(conditions);
 		this.pages = pages;
@@ -44,20 +46,13 @@ public class SetWritableBookPagesLootFunction extends ConditionalLootFunction {
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		stack.apply(DataComponentTypes.WRITABLE_BOOK_CONTENT, WritableBookContentComponent.DEFAULT, this::apply);
+		stack.apply(DataComponentTypes.WRITABLE_BOOK_CONTENT, WritableBookContentComponent.DEFAULT, this::applyToBook);
 		return stack;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param current current
-	 *
-	 * @return WritableBookContentComponent — результат операции
-	 */
-	public WritableBookContentComponent apply(WritableBookContentComponent current) {
-		List<RawFilteredPair<String>> list = this.operation.apply(current.pages(), this.pages, 100);
-		return current.withPages(list);
+	public WritableBookContentComponent applyToBook(WritableBookContentComponent current) {
+		List<RawFilteredPair<String>> newPages = operation.apply(current.pages(), pages, 100);
+		return current.withPages(newPages);
 	}
 
 	@Override

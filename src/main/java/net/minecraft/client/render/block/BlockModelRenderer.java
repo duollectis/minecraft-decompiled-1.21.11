@@ -714,7 +714,7 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 
 		private boolean enabled;
 		private final Long2IntLinkedOpenHashMap intCache = Util.make(() -> {
-			Long2IntLinkedOpenHashMap long2IntLinkedOpenHashMap = new Long2IntLinkedOpenHashMap(100, 0.25F) {
+			Long2IntLinkedOpenHashMap long2IntLinkedOpenHashMap = new Long2IntLinkedOpenHashMap(BRIGHTNESS_CACHE_MAX_SIZE, 0.25F) {
 				/**
 				 * Rehash.
 				 *
@@ -727,7 +727,7 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 			return long2IntLinkedOpenHashMap;
 		});
 		private final Long2FloatLinkedOpenHashMap floatCache = Util.make(() -> {
-			Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(100, 0.25F) {
+			Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(BRIGHTNESS_CACHE_MAX_SIZE, 0.25F) {
 				/**
 				 * Rehash.
 				 *
@@ -747,7 +747,7 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 			}
 			else {
 				int j = WorldRenderer.BrightnessGetter.DEFAULT.packedBrightness(world, pos);
-				if (this.intCache.size() == 100) {
+				if (this.intCache.size() == BRIGHTNESS_CACHE_MAX_SIZE) {
 					this.intCache.removeFirstInt();
 				}
 
@@ -795,7 +795,7 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 
 			float f = state.getAmbientOcclusionLightLevel(blockView, pos);
 			if (this.enabled) {
-				if (this.floatCache.size() == 100) {
+				if (this.floatCache.size() == BRIGHTNESS_CACHE_MAX_SIZE) {
 					this.floatCache.removeFirstFloat();
 				}
 

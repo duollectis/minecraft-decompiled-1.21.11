@@ -32,7 +32,9 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * {@code CommandBlock}.
+ * Блок команды — выполняет команды при получении сигнала редстоуна или в автоматическом режиме.
+ * Поддерживает три типа: обычный (REDSTONE), цепочечный (SEQUENCE) и автоматический (AUTO).
+ * Доступен только операторам (OperatorBlock).
  */
 public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 
@@ -53,18 +55,20 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 
 	public CommandBlock(boolean auto, AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
-				.getDefaultState()
-				.with(FACING, Direction.NORTH)
-				.with(CONDITIONAL, false));
+		setDefaultState(
+				stateManager
+						.getDefaultState()
+						.with(FACING, Direction.NORTH)
+						.with(CONDITIONAL, false)
+		);
 		this.auto = auto;
 	}
 
 	@Override
 	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-		CommandBlockBlockEntity commandBlockBlockEntity = new CommandBlockBlockEntity(pos, state);
-		commandBlockBlockEntity.setAuto(this.auto);
-		return commandBlockBlockEntity;
+		CommandBlockBlockEntity blockEntity = new CommandBlockBlockEntity(pos, state);
+		blockEntity.setAuto(auto);
+		return blockEntity;
 	}
 
 	@Override
@@ -76,60 +80,69 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 			@Nullable WireOrientation wireOrientation,
 			boolean notify
 	) {
-		if (!world.isClient()) {
-			if (world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlockBlockEntity) {
-				this.update(world, pos, commandBlockBlockEntity, world.isReceivingRedstonePower(pos));
-			}
+		if (world.isClient()) {
+			return;
+		}
+
+		if (world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlock) {
+			update(world, pos, commandBlock, world.isReceivingRedstonePower(pos));
 		}
 	}
 
+	/**
+	 * Обновляет состояние питания блока команды и при необходимости планирует выполнение.
+	 * Цепочечные и автоматические блоки не реагируют на фронт сигнала — они управляются иначе.
+	 */
 	private void update(World world, BlockPos pos, CommandBlockBlockEntity blockEntity, boolean powered) {
-		boolean bl = blockEntity.isPowered();
-		if (powered != bl) {
-			blockEntity.setPowered(powered);
-			if (powered) {
-				if (blockEntity.isAuto()
-						|| blockEntity.getCommandBlockType() == CommandBlockBlockEntity.Type.SEQUENCE) {
-					return;
-				}
+		boolean wasPowered = blockEntity.isPowered();
 
-				blockEntity.updateConditionMet();
-				world.scheduleBlockTick(pos, this, 1);
-			}
+		if (powered == wasPowered) {
+			return;
+		}
+
+		blockEntity.setPowered(powered);
+
+		if (powered
+				&& !blockEntity.isAuto()
+				&& blockEntity.getCommandBlockType() != CommandBlockBlockEntity.Type.SEQUENCE
+		) {
+			blockEntity.updateConditionMet();
+			world.scheduleBlockTick(pos, this, 1);
 		}
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-		if (world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlockBlockEntity) {
-			CommandBlockExecutor commandBlockExecutor = commandBlockBlockEntity.getCommandExecutor();
-			boolean bl = !StringHelper.isEmpty(commandBlockExecutor.getCommand());
-			CommandBlockBlockEntity.Type type = commandBlockBlockEntity.getCommandBlockType();
-			boolean bl2 = commandBlockBlockEntity.isConditionMet();
-			if (type == CommandBlockBlockEntity.Type.AUTO) {
-				commandBlockBlockEntity.updateConditionMet();
-				if (bl2) {
-					this.execute(state, world, pos, commandBlockExecutor, bl);
-				}
-				else if (commandBlockBlockEntity.isConditionalCommandBlock()) {
-					commandBlockExecutor.setSuccessCount(0);
-				}
-
-				if (commandBlockBlockEntity.isPowered() || commandBlockBlockEntity.isAuto()) {
-					world.scheduleBlockTick(pos, this, 1);
-				}
-			}
-			else if (type == CommandBlockBlockEntity.Type.REDSTONE) {
-				if (bl2) {
-					this.execute(state, world, pos, commandBlockExecutor, bl);
-				}
-				else if (commandBlockBlockEntity.isConditionalCommandBlock()) {
-					commandBlockExecutor.setSuccessCount(0);
-				}
-			}
-
-			world.updateComparators(pos, this);
+		if (!(world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlock)) {
+			return;
 		}
+
+		CommandBlockExecutor executor = commandBlock.getCommandExecutor();
+		boolean hasCommand = !StringHelper.isEmpty(executor.getCommand());
+		CommandBlockBlockEntity.Type type = commandBlock.getCommandBlockType();
+		boolean conditionMet = commandBlock.isConditionMet();
+
+		if (type == CommandBlockBlockEntity.Type.AUTO) {
+			commandBlock.updateConditionMet();
+
+			if (conditionMet) {
+				execute(state, world, pos, executor, hasCommand);
+			} else if (commandBlock.isConditionalCommandBlock()) {
+				executor.setSuccessCount(0);
+			}
+
+			if (commandBlock.isPowered() || commandBlock.isAuto()) {
+				world.scheduleBlockTick(pos, this, 1);
+			}
+		} else if (type == CommandBlockBlockEntity.Type.REDSTONE) {
+			if (conditionMet) {
+				execute(state, world, pos, executor, hasCommand);
+			} else if (commandBlock.isConditionalCommandBlock()) {
+				executor.setSuccessCount(0);
+			}
+		}
+
+		world.updateComparators(pos, this);
 	}
 
 	private void execute(
@@ -141,8 +154,7 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 	) {
 		if (hasCommand) {
 			executor.execute(world);
-		}
-		else {
+		} else {
 			executor.setSuccessCount(0);
 		}
 
@@ -151,14 +163,15 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof CommandBlockBlockEntity && player.isCreativeLevelTwoOp()) {
-			player.openCommandBlockScreen((CommandBlockBlockEntity) blockEntity);
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (!(world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlock)
+				|| !player.isCreativeLevelTwoOp()
+		) {
 			return ActionResult.PASS;
 		}
+
+		player.openCommandBlockScreen(commandBlock);
+
+		return ActionResult.SUCCESS;
 	}
 
 	@Override
@@ -168,10 +181,9 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 
 	@Override
 	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		return blockEntity instanceof CommandBlockBlockEntity ? ((CommandBlockBlockEntity) blockEntity)
-		                                                        .getCommandExecutor()
-		                                                        .getSuccessCount() : 0;
+		return world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlock
+				? commandBlock.getCommandExecutor().getSuccessCount()
+				: 0;
 	}
 
 	@Override
@@ -182,19 +194,21 @@ public class CommandBlock extends BlockWithEntity implements OperatorBlock {
 			@Nullable LivingEntity placer,
 			ItemStack itemStack
 	) {
-		if (world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlockBlockEntity) {
-			CommandBlockExecutor commandBlockExecutor = commandBlockBlockEntity.getCommandExecutor();
-			if (world instanceof ServerWorld serverWorld) {
-				if (!itemStack.contains(DataComponentTypes.BLOCK_ENTITY_DATA)) {
-					commandBlockExecutor.setTrackOutput(serverWorld
-							.getGameRules()
-							.getValue(GameRules.SEND_COMMAND_FEEDBACK));
-					commandBlockBlockEntity.setAuto(this.auto);
-				}
+		if (!(world.getBlockEntity(pos) instanceof CommandBlockBlockEntity commandBlock)) {
+			return;
+		}
 
-				boolean bl = world.isReceivingRedstonePower(pos);
-				this.update(world, pos, commandBlockBlockEntity, bl);
+		CommandBlockExecutor executor = commandBlock.getCommandExecutor();
+
+		if (world instanceof ServerWorld serverWorld) {
+			if (!itemStack.contains(DataComponentTypes.BLOCK_ENTITY_DATA)) {
+				executor.setTrackOutput(
+						serverWorld.getGameRules().getValue(GameRules.SEND_COMMAND_FEEDBACK)
+				);
+				commandBlock.setAuto(auto);
 			}
+
+			update(world, pos, commandBlock, world.isReceivingRedstonePower(pos));
 		}
 	}
 

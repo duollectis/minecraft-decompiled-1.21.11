@@ -9,10 +9,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FireflyParticle}.
+ * Частица светлячка — медленно парящая светящаяся точка, появляющаяся
+ * в мангровых болотах. Плавно появляется и исчезает (fade in/out),
+ * меняет направление движения каждые ~20 тиков. Живёт 200–300 тиков.
  */
+@Environment(EnvType.CLIENT)
 public class FireflyParticle extends BillboardParticle {
 
 	private static final float FADE_OUT_THRESHOLD = 0.3F;
@@ -21,18 +23,21 @@ public class FireflyParticle extends BillboardParticle {
 	private static final float MIN_ALPHA = 0.3F;
 	private static final int MIN_MAX_AGE = 200;
 	private static final int MAX_MAX_AGE = 300;
+	private static final float VELOCITY_CHANGE_CHANCE = 0.95F;
+	private static final float VELOCITY_RANGE = 0.1F;
+	private static final float VELOCITY_HALF = VELOCITY_RANGE / 2.0F;
 
 	FireflyParticle(
-			ClientWorld clientWorld,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i,
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
 			Sprite sprite
 	) {
-		super(clientWorld, d, e, f, g, h, i, sprite);
+		super(world, x, y, z, velocityX, velocityY, velocityZ, sprite);
 		this.ascending = true;
 		this.velocityMultiplier = 0.96F;
 		this.scale *= 0.75F;
@@ -48,44 +53,52 @@ public class FireflyParticle extends BillboardParticle {
 
 	@Override
 	public int getBrightness(float tint) {
-		return (int) (255.0F * computeFadeAlpha(this.normalizeAge(this.age + tint), 0.1F, 0.3F));
+		return (int) (255.0F * computeFadeAlpha(normalizeAge(this.age + tint), FADE_IN_THRESHOLD, FADE_OUT_THRESHOLD));
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
+
 		if (!this.world.getBlockState(BlockPos.ofFloored(this.x, this.y, this.z)).isAir()) {
 			this.markDead();
+			return;
 		}
-		else {
-			this.setAlpha(computeFadeAlpha(this.normalizeAge(this.age), 0.3F, 0.5F));
-			if (this.random.nextFloat() > 0.95F || this.age == 1) {
-				this.setVelocity(
-						-0.05F + 0.1F * this.random.nextFloat(),
-						-0.05F + 0.1F * this.random.nextFloat(),
-						-0.05F + 0.1F * this.random.nextFloat()
-				);
-			}
+
+		this.setAlpha(computeFadeAlpha(normalizeAge(this.age), FADE_OUT_THRESHOLD, MAX_ALPHA));
+
+		if (this.random.nextFloat() > VELOCITY_CHANGE_CHANCE || this.age == 1) {
+			this.setVelocity(
+					-VELOCITY_HALF + FADE_IN_THRESHOLD * this.random.nextFloat(),
+					-VELOCITY_HALF + FADE_IN_THRESHOLD * this.random.nextFloat(),
+					-VELOCITY_HALF + FADE_IN_THRESHOLD * this.random.nextFloat()
+			);
 		}
 	}
 
-	private float normalizeAge(float f) {
-		return MathHelper.clamp(f / this.maxAge, 0.0F, 1.0F);
+	private float normalizeAge(float age) {
+		return MathHelper.clamp(age / this.maxAge, 0.0F, 1.0F);
 	}
 
-	private static float computeFadeAlpha(float f, float g, float h) {
-		if (f >= 1.0F - g) {
-			return (1.0F - f) / g;
-		}
-		else {
-			return f <= h ? f / h : 1.0F;
-		}
-	}
-
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Вычисляет коэффициент прозрачности с плавным появлением и исчезновением.
+	 *
+	 * @param normalizedAge нормализованный возраст [0..1]
+	 * @param fadeInEnd     порог окончания появления
+	 * @param fadeOutStart  порог начала исчезновения (от конца жизни)
 	 */
+	private static float computeFadeAlpha(float normalizedAge, float fadeInEnd, float fadeOutStart) {
+		if (normalizedAge >= 1.0F - fadeOutStart) {
+			return (1.0F - normalizedAge) / fadeOutStart;
+		}
+
+		return normalizedAge <= fadeInEnd ? normalizedAge / fadeInEnd : 1.0F;
+	}
+
+	/**
+	 * Фабрика для создания частиц светлячков со случайным направлением движения.
+	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -94,31 +107,32 @@ public class FireflyParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			FireflyParticle fireflyParticle = new FireflyParticle(
-					clientWorld,
-					d,
-					e,
-					f,
+			FireflyParticle particle = new FireflyParticle(
+					world,
+					x,
+					y,
+					z,
 					0.5 - random.nextDouble(),
-					random.nextBoolean() ? h : -h,
+					random.nextBoolean() ? velocityY : -velocityY,
 					0.5 - random.nextDouble(),
 					this.spriteProvider.getSprite(random)
 			);
-			fireflyParticle.setMaxAge(random.nextBetween(200, 300));
-			fireflyParticle.scale(1.5F);
-			fireflyParticle.setAlpha(0.0F);
-			return fireflyParticle;
+			particle.setMaxAge(random.nextBetween(MIN_MAX_AGE, MAX_MAX_AGE));
+			particle.scale(1.5F);
+			particle.setAlpha(0.0F);
+			return particle;
 		}
 	}
 }

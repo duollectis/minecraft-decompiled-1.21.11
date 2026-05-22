@@ -12,10 +12,11 @@ import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SkinOptionsScreen}.
+ * Экран настроек скина — управляет видимостью частей модели игрока
+ * (плащ, шляпа, рукава и т.д.) и выбором основной руки.
  */
+@Environment(EnvType.CLIENT)
 public class SkinOptionsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE_TEXT = Text.translatable("options.skinCustomisation.title");
@@ -26,21 +27,19 @@ public class SkinOptionsScreen extends GameOptionsScreen {
 
 	@Override
 	protected void addOptions() {
-		List<ClickableWidget> list = new ArrayList<>();
+		List<ClickableWidget> widgets = new ArrayList<>();
 
-		for (PlayerModelPart playerModelPart : PlayerModelPart.values()) {
-			list.add(
-					CyclingButtonWidget.onOffBuilder(this.gameOptions.isPlayerModelPartEnabled(playerModelPart))
-					                   .build(playerModelPart.getOptionName(),
-							                   (button, enabled) -> this.gameOptions.setPlayerModelPart(
-									                   playerModelPart,
-									                   enabled
-							                   )
-					                   )
+		for (PlayerModelPart part : PlayerModelPart.values()) {
+			widgets.add(
+					CyclingButtonWidget.onOffBuilder(gameOptions.isPlayerModelPartEnabled(part))
+							.build(
+									part.getOptionName(),
+									(button, enabled) -> gameOptions.setPlayerModelPart(part, enabled)
+							)
 			);
 		}
 
-		list.add(this.gameOptions.getMainArm().createWidget(this.gameOptions));
-		this.body.addAll(list);
+		widgets.add(gameOptions.getMainArm().createWidget(gameOptions));
+		body.addAll(widgets);
 	}
 }

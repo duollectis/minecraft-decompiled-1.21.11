@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code KnowledgeBookItem}.
+ * Предмет «Книга знаний». При использовании разблокирует игроку список рецептов,
+ * хранящихся в компоненте {@link DataComponentTypes#RECIPES}. Предмет расходуется
+ * при активации.
  */
 public class KnowledgeBookItem extends Item {
 
@@ -28,34 +30,43 @@ public class KnowledgeBookItem extends Item {
 		super(settings);
 	}
 
+	/**
+	 * Разблокирует все рецепты из компонента {@link DataComponentTypes#RECIPES}.
+	 * Если хотя бы один ключ рецепта не найден в менеджере рецептов — логирует ошибку
+	 * и возвращает {@link ActionResult#FAIL}, не разблокируя ничего.
+	 */
 	@Override
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
-		ItemStack itemStack = user.getStackInHand(hand);
-		List<RegistryKey<Recipe<?>>> list = itemStack.getOrDefault(DataComponentTypes.RECIPES, List.of());
-		itemStack.decrementUnlessCreative(1, user);
-		if (list.isEmpty()) {
+		ItemStack stack = user.getStackInHand(hand);
+		List<RegistryKey<Recipe<?>>> recipeKeys = stack.getOrDefault(DataComponentTypes.RECIPES, List.of());
+
+		stack.decrementUnlessCreative(1, user);
+
+		if (recipeKeys.isEmpty()) {
 			return ActionResult.FAIL;
 		}
-		else {
-			if (!world.isClient()) {
-				ServerRecipeManager serverRecipeManager = world.getServer().getRecipeManager();
-				List<RecipeEntry<?>> list2 = new ArrayList<>(list.size());
 
-				for (RegistryKey<Recipe<?>> registryKey : list) {
-					Optional<RecipeEntry<?>> optional = serverRecipeManager.get(registryKey);
-					if (!optional.isPresent()) {
-						LOGGER.error("Invalid recipe: {}", registryKey);
-						return ActionResult.FAIL;
-					}
-
-					list2.add(optional.get());
-				}
-
-				user.unlockRecipes(list2);
-				user.incrementStat(Stats.USED.getOrCreateStat(this));
-			}
-
+		if (world.isClient()) {
 			return ActionResult.SUCCESS;
 		}
+
+		ServerRecipeManager recipeManager = world.getServer().getRecipeManager();
+		List<RecipeEntry<?>> recipes = new ArrayList<>(recipeKeys.size());
+
+		for (RegistryKey<Recipe<?>> recipeKey : recipeKeys) {
+			Optional<RecipeEntry<?>> recipeEntry = recipeManager.get(recipeKey);
+
+			if (recipeEntry.isEmpty()) {
+				LOGGER.error("Invalid recipe: {}", recipeKey);
+				return ActionResult.FAIL;
+			}
+
+			recipes.add(recipeEntry.get());
+		}
+
+		user.unlockRecipes(recipes);
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+
+		return ActionResult.SUCCESS;
 	}
 }

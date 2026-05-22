@@ -19,12 +19,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
+/**
+ * Описание формата вершинного буфера: набор атрибутов, их типы, смещения и общий размер вершины.
+ *
+ * <p>Создаётся через {@link Builder}. После построения является иммутабельным.
+ * Хранит кэшированные GPU-буферы для немедленной отрисовки ({@code immediateDrawVertexBuffer}
+ * и {@code immediateDrawIndexBuffer}), которые переиспользуются между кадрами.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code VertexFormat}.
- */
 public class VertexFormat {
+
+	// USAGE_COPY_DST | USAGE_VERTEX = 8 | 32 = 40
+	private static final int IMMEDIATE_VERTEX_BUFFER_USAGE = GpuBuffer.USAGE_COPY_DST | GpuBuffer.USAGE_VERTEX;
+	// USAGE_COPY_DST | USAGE_INDEX = 8 | 64 = 72
+	private static final int IMMEDIATE_INDEX_BUFFER_USAGE = GpuBuffer.USAGE_COPY_DST | GpuBuffer.USAGE_INDEX;
 
 	public static final int UNKNOWN_ELEMENT = -1;
 	private final List<VertexFormatElement> elements;
@@ -39,12 +48,12 @@ public class VertexFormat {
 		this.elements = elements;
 		this.names = names;
 		this.vertexSize = vertexSize;
-		this.elementsMask = elements.stream().mapToInt(VertexFormatElement::mask).reduce(0, (a, b) -> a | b);
+		elementsMask = elements.stream().mapToInt(VertexFormatElement::mask).reduce(0, (a, b) -> a | b);
 
-		for (int i = 0; i < this.offsetsByElement.length; i++) {
-			VertexFormatElement vertexFormatElement = VertexFormatElement.byId(i);
-			int j = vertexFormatElement != null ? elements.indexOf(vertexFormatElement) : -1;
-			this.offsetsByElement[i] = j != -1 ? offsets.getInt(j) : -1;
+		for (int slot = 0; slot < offsetsByElement.length; slot++) {
+			VertexFormatElement element = VertexFormatElement.byId(slot);
+			int elementIndex = element != null ? elements.indexOf(element) : -1;
+			offsetsByElement[slot] = elementIndex != -1 ? offsets.getInt(elementIndex) : -1;
 		}
 	}
 
@@ -54,63 +63,74 @@ public class VertexFormat {
 
 	@Override
 	public String toString() {
-		return "VertexFormat" + this.names;
+		return "VertexFormat" + names;
 	}
 
 	public int getVertexSize() {
-		return this.vertexSize;
+		return vertexSize;
 	}
 
 	public List<VertexFormatElement> getElements() {
-		return this.elements;
+		return elements;
 	}
 
 	public List<String> getElementAttributeNames() {
-		return this.names;
+		return names;
 	}
 
 	public int[] getOffsetsByElement() {
-		return this.offsetsByElement;
+		return offsetsByElement;
 	}
 
 	public int getOffset(VertexFormatElement element) {
-		return this.offsetsByElement[element.id()];
+		return offsetsByElement[element.id()];
 	}
 
 	public boolean contains(VertexFormatElement element) {
-		return (this.elementsMask & element.mask()) != 0;
+		return (elementsMask & element.mask()) != 0;
 	}
 
 	public int getElementsMask() {
-		return this.elementsMask;
+		return elementsMask;
 	}
 
 	public String getElementName(VertexFormatElement element) {
-		int i = this.elements.indexOf(element);
-		if (i == -1) {
+		int index = elements.indexOf(element);
+		if (index == -1) {
 			throw new IllegalArgumentException(element + " is not contained in format");
 		}
-		else {
-			return this.names.get(i);
-		}
+
+		return names.get(index);
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return this == o
-		       ? true
-		       : o instanceof VertexFormat vertexFormat
-		         && this.elementsMask == vertexFormat.elementsMask
-		         && this.vertexSize == vertexFormat.vertexSize
-		         && this.names.equals(vertexFormat.names)
-		         && Arrays.equals(this.offsetsByElement, vertexFormat.offsetsByElement);
+		if (this == o) {
+			return true;
+		}
+
+		return o instanceof VertexFormat other
+			&& elementsMask == other.elementsMask
+			&& vertexSize == other.vertexSize
+			&& names.equals(other.names)
+			&& Arrays.equals(offsetsByElement, other.offsetsByElement);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.elementsMask * 31 + Arrays.hashCode(this.offsetsByElement);
+		return elementsMask * 31 + Arrays.hashCode(offsetsByElement);
 	}
 
+	/**
+	 * Загружает данные в GPU-буфер, переиспользуя существующий если возможно.
+	 * На устройствах, требующих пересоздания буфера при загрузке, всегда создаёт новый.
+	 *
+	 * @param gpuBuffer существующий буфер для переиспользования или {@code null}
+	 * @param data      данные для загрузки
+	 * @param usage     флаги использования буфера
+	 * @param labelGetter поставщик отладочного имени буфера
+	 * @return актуальный GPU-буфер с загруженными данными
+	 */
 	private static GpuBuffer uploadToBuffer(
 			@Nullable GpuBuffer gpuBuffer,
 			ByteBuffer data,
@@ -118,6 +138,7 @@ public class VertexFormat {
 			Supplier<String> labelGetter
 	) {
 		GpuDevice gpuDevice = RenderSystem.getDevice();
+
 		if (GpuDeviceInfo.get(gpuDevice).requiresRecreateOnUploadToBuffer()) {
 			if (gpuBuffer != null) {
 				gpuBuffer.close();
@@ -125,47 +146,47 @@ public class VertexFormat {
 
 			return gpuDevice.createBuffer(labelGetter, usage, data);
 		}
-		else {
-			if (gpuBuffer == null) {
-				gpuBuffer = gpuDevice.createBuffer(labelGetter, usage, data);
-			}
-			else {
-				CommandEncoder commandEncoder = gpuDevice.createCommandEncoder();
-				if (gpuBuffer.size() < data.remaining()) {
-					gpuBuffer.close();
-					gpuBuffer = gpuDevice.createBuffer(labelGetter, usage, data);
-				}
-				else {
-					commandEncoder.writeToBuffer(gpuBuffer.slice(), data);
-				}
-			}
 
-			return gpuBuffer;
+		if (gpuBuffer == null) {
+			return gpuDevice.createBuffer(labelGetter, usage, data);
 		}
+
+		if (gpuBuffer.size() < data.remaining()) {
+			gpuBuffer.close();
+			return gpuDevice.createBuffer(labelGetter, usage, data);
+		}
+
+		CommandEncoder commandEncoder = gpuDevice.createCommandEncoder();
+		commandEncoder.writeToBuffer(gpuBuffer.slice(), data);
+		return gpuBuffer;
 	}
 
 	public GpuBuffer uploadImmediateVertexBuffer(ByteBuffer data) {
-		this.immediateDrawVertexBuffer =
-				uploadToBuffer(this.immediateDrawVertexBuffer, data, 40, () -> "Immediate vertex buffer for " + this);
-		return this.immediateDrawVertexBuffer;
+		immediateDrawVertexBuffer = uploadToBuffer(
+			immediateDrawVertexBuffer,
+			data,
+			IMMEDIATE_VERTEX_BUFFER_USAGE,
+			() -> "Immediate vertex buffer for " + this
+		);
+		return immediateDrawVertexBuffer;
 	}
 
 	public GpuBuffer uploadImmediateIndexBuffer(ByteBuffer data) {
-		this.immediateDrawIndexBuffer =
-				uploadToBuffer(this.immediateDrawIndexBuffer, data, 72, () -> "Immediate index buffer for " + this);
-		return this.immediateDrawIndexBuffer;
+		immediateDrawIndexBuffer = uploadToBuffer(
+			immediateDrawIndexBuffer,
+			data,
+			IMMEDIATE_INDEX_BUFFER_USAGE,
+			() -> "Immediate index buffer for " + this
+		);
+		return immediateDrawIndexBuffer;
 	}
 
+	/** Строитель формата вершин. Элементы добавляются в порядке вызовов {@link #add}. */
 	@Environment(EnvType.CLIENT)
 	@DeobfuscateClass
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableMap.Builder<String, VertexFormatElement>
-				elements =
-				ImmutableMap.builder();
+		private final ImmutableMap.Builder<String, VertexFormatElement> elements = ImmutableMap.builder();
 		private final IntList offsets = new IntArrayList();
 		private int offset;
 
@@ -173,30 +194,28 @@ public class VertexFormat {
 		}
 
 		public VertexFormat.Builder add(String name, VertexFormatElement element) {
-			this.elements.put(name, element);
-			this.offsets.add(this.offset);
-			this.offset = this.offset + element.byteSize();
+			elements.put(name, element);
+			offsets.add(offset);
+			offset = offset + element.byteSize();
 			return this;
 		}
 
 		public VertexFormat.Builder padding(int padding) {
-			this.offset += padding;
+			offset += padding;
 			return this;
 		}
 
 		public VertexFormat build() {
-			ImmutableMap<String, VertexFormatElement> immutableMap = this.elements.buildOrThrow();
-			ImmutableList<VertexFormatElement> immutableList = immutableMap.values().asList();
-			ImmutableList<String> immutableList2 = immutableMap.keySet().asList();
-			return new VertexFormat(immutableList, immutableList2, this.offsets, this.offset);
+			ImmutableMap<String, VertexFormatElement> elementMap = elements.buildOrThrow();
+			ImmutableList<VertexFormatElement> elementList = elementMap.values().asList();
+			ImmutableList<String> nameList = elementMap.keySet().asList();
+			return new VertexFormat(elementList, nameList, offsets, offset);
 		}
 	}
 
+	/** Режим отрисовки примитивов: определяет топологию и количество индексов на вершину. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code DrawMode}.
-	 */
-	public static enum DrawMode {
+	public enum DrawMode {
 		LINES(2, 2, false),
 		DEBUG_LINES(2, 2, false),
 		DEBUG_LINE_STRIP(2, 1, true),
@@ -210,7 +229,7 @@ public class VertexFormat {
 		public final int additionalVertexCount;
 		public final boolean shareVertices;
 
-		private DrawMode(final int firstVertexCount, final int additionalVertexCount, final boolean shareVertices) {
+		DrawMode(int firstVertexCount, int additionalVertexCount, boolean shareVertices) {
 			this.firstVertexCount = firstVertexCount;
 			this.additionalVertexCount = additionalVertexCount;
 			this.shareVertices = shareVertices;
@@ -225,22 +244,25 @@ public class VertexFormat {
 		}
 	}
 
+	/** Тип индексного буфера: SHORT (2 байта, до 65535 вершин) или INT (4 байта). */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IndexType}.
-	 */
-	public static enum IndexType {
+	public enum IndexType {
 		SHORT(2),
 		INT(4);
 
 		public final int size;
 
-		private IndexType(final int size) {
+		IndexType(int size) {
 			this.size = size;
 		}
 
-		public static VertexFormat.IndexType smallestFor(int i) {
-			return (i & -65536) != 0 ? INT : SHORT;
+		/**
+		 * Возвращает минимальный тип индекса, достаточный для адресации {@code vertexCount} вершин.
+		 * Использует SHORT если количество вершин помещается в 16 бит (< 65536).
+		 */
+		public static VertexFormat.IndexType smallestFor(int vertexCount) {
+			// Маска 0xFFFF0000 проверяет, есть ли биты выше 16-го
+			return (vertexCount & -65536) != 0 ? INT : SHORT;
 		}
 	}
 }

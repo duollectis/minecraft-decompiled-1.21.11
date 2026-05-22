@@ -11,42 +11,42 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Icons}.
+ * Перечисление наборов иконок приложения для релизной и снапшот-версий игры.
+ * Предоставляет доступ к иконкам разных размеров из ресурс-пака.
  */
+@Environment(EnvType.CLIENT)
 public enum Icons {
 	RELEASE("icons"),
 	SNAPSHOT("icons", "snapshot");
 
 	private final String[] path;
 
-	private Icons(final String... path) {
+	Icons(String... path) {
 		this.path = path;
 	}
 
 	public List<InputSupplier<InputStream>> getIcons(ResourcePack resourcePack) throws IOException {
 		return List.of(
-				this.getIcon(resourcePack, "icon_16x16.png"),
-				this.getIcon(resourcePack, "icon_32x32.png"),
-				this.getIcon(resourcePack, "icon_48x48.png"),
-				this.getIcon(resourcePack, "icon_128x128.png"),
-				this.getIcon(resourcePack, "icon_256x256.png")
+			getIcon(resourcePack, "icon_16x16.png"),
+			getIcon(resourcePack, "icon_32x32.png"),
+			getIcon(resourcePack, "icon_48x48.png"),
+			getIcon(resourcePack, "icon_128x128.png"),
+			getIcon(resourcePack, "icon_256x256.png")
 		);
 	}
 
 	public InputSupplier<InputStream> getMacIcon(ResourcePack resourcePack) throws IOException {
-		return this.getIcon(resourcePack, "minecraft.icns");
+		return getIcon(resourcePack, "minecraft.icns");
 	}
 
 	private InputSupplier<InputStream> getIcon(ResourcePack resourcePack, String fileName) throws IOException {
-		String[] strings = (String[]) ArrayUtils.add(this.path, fileName);
-		InputSupplier<InputStream> inputSupplier = resourcePack.openRoot(strings);
-		if (inputSupplier == null) {
-			throw new FileNotFoundException(String.join("/", strings));
+		String[] fullPath = (String[]) ArrayUtils.add(path, fileName);
+		InputSupplier<InputStream> supplier = resourcePack.openRoot(fullPath);
+		if (supplier == null) {
+			throw new FileNotFoundException(String.join("/", fullPath));
 		}
-		else {
-			return inputSupplier;
-		}
+
+		return supplier;
 	}
 }

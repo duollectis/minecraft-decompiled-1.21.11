@@ -5,7 +5,9 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ScoreAccess}.
+ * Интерфейс полного доступа к очку скорборда — чтение и запись.
+ * Предоставляет атомарные операции изменения значения, блокировки
+ * и настройки отображения конкретного очка держателя по цели.
  */
 public interface ScoreAccess {
 
@@ -13,18 +15,24 @@ public interface ScoreAccess {
 
 	void setScore(int score);
 
+	/**
+	 * Увеличивает текущее значение очка на заданную величину.
+	 *
+	 * @param amount величина прибавки (может быть отрицательной)
+	 * @return новое значение очка после увеличения
+	 */
 	default int incrementScore(int amount) {
-		int i = this.getScore() + amount;
-		this.setScore(i);
-		return i;
+		int newScore = getScore() + amount;
+		setScore(newScore);
+		return newScore;
 	}
 
 	default int incrementScore() {
-		return this.incrementScore(1);
+		return incrementScore(1);
 	}
 
 	default void resetScore() {
-		this.setScore(0);
+		setScore(0);
 	}
 
 	boolean isLocked();

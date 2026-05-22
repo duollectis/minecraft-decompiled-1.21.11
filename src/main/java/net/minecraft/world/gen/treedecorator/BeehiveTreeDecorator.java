@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code BeehiveTreeDecorator}.
+ * Декоратор дерева: с заданной вероятностью размещает улей на боковой стороне ствола
+ * и заселяет его пчёлами. Используется для дубов и берёз.
  */
 public class BeehiveTreeDecorator extends TreeDecorator {
 
@@ -45,44 +46,50 @@ public class BeehiveTreeDecorator extends TreeDecorator {
 
 	@Override
 	public void generate(TreeDecorator.Generator generator) {
-		List<BlockPos> list = generator.getLeavesPositions();
-		List<BlockPos> list2 = generator.getLogPositions();
-		if (!list2.isEmpty()) {
-			Random random = generator.getRandom();
-			if (!(random.nextFloat() >= this.probability)) {
-				int i = !list.isEmpty()
-				        ? Math.max(list.getFirst().getY() - 1, list2.getFirst().getY() + 1)
-				        : Math.min(list2.getFirst().getY() + 1 + random.nextInt(3), list2.getLast().getY());
-				List<BlockPos> list3 = list2.stream()
-				                            .filter(pos -> pos.getY() == i)
-				                            .flatMap(pos -> Stream.of(GENERATE_DIRECTIONS).map(pos::offset))
-				                            .collect(Collectors.toList());
-				if (!list3.isEmpty()) {
-					Util.shuffle(list3, random);
-					Optional<BlockPos>
-							optional =
-							list3
-									.stream()
-									.filter(pos -> generator.isAir(pos) && generator.isAir(pos.offset(BEE_NEST_FACE)))
-									.findFirst();
-					if (!optional.isEmpty()) {
-						generator.replace(
-								optional.get(),
-								Blocks.BEE_NEST.getDefaultState().with(BeehiveBlock.FACING, BEE_NEST_FACE)
-						);
-						generator
-								.getWorld()
-								.getBlockEntity(optional.get(), BlockEntityType.BEEHIVE)
-								.ifPresent(blockEntity -> {
-									int ix = 2 + random.nextInt(2);
+		List<BlockPos> leavesPositions = generator.getLeavesPositions();
+		List<BlockPos> logPositions = generator.getLogPositions();
 
-									for (int j = 0; j < ix; j++) {
-										blockEntity.addBee(BeehiveBlockEntity.BeeData.create(random.nextInt(599)));
-									}
-								});
-					}
-				}
-			}
+		if (logPositions.isEmpty()) {
+			return;
 		}
+
+		Random random = generator.getRandom();
+
+		if (random.nextFloat() >= probability) {
+			return;
+		}
+
+		int nestY = leavesPositions.isEmpty()
+				? Math.min(logPositions.getFirst().getY() + 1 + random.nextInt(3), logPositions.getLast().getY())
+				: Math.max(leavesPositions.getFirst().getY() - 1, logPositions.getFirst().getY() + 1);
+
+		List<BlockPos> candidatePositions = logPositions.stream()
+				.filter(pos -> pos.getY() == nestY)
+				.flatMap(pos -> Stream.of(GENERATE_DIRECTIONS).map(pos::offset))
+				.collect(Collectors.toList());
+
+		if (candidatePositions.isEmpty()) {
+			return;
+		}
+
+		Util.shuffle(candidatePositions, random);
+		Optional<BlockPos> nestPos = candidatePositions.stream()
+				.filter(pos -> generator.isAir(pos) && generator.isAir(pos.offset(BEE_NEST_FACE)))
+				.findFirst();
+
+		if (nestPos.isEmpty()) {
+			return;
+		}
+
+		generator.replace(nestPos.get(), Blocks.BEE_NEST.getDefaultState().with(BeehiveBlock.FACING, BEE_NEST_FACE));
+		generator.getWorld()
+				.getBlockEntity(nestPos.get(), BlockEntityType.BEEHIVE)
+				.ifPresent(blockEntity -> {
+					int beeCount = 2 + random.nextInt(2);
+
+					for (int bee = 0; bee < beeCount; bee++) {
+						blockEntity.addBee(BeehiveBlockEntity.BeeData.create(random.nextInt(599)));
+					}
+				});
 	}
 }

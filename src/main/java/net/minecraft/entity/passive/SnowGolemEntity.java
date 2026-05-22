@@ -39,7 +39,9 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SnowGolemEntity}.
+ * Снежный голем — дружественный голем, оставляющий снежный след и атакующий
+ * враждебных мобов снежками. Может быть острижен игроком для снятия тыквы.
+ * Получает урон от дождя и воды.
  */
 public class SnowGolemEntity extends GolemEntity implements Shearable, RangedAttackMob {
 
@@ -82,7 +84,7 @@ public class SnowGolemEntity extends GolemEntity implements Shearable, RangedAtt
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(SNOW_GOLEM_FLAGS, (byte) 16);
+		builder.add(SNOW_GOLEM_FLAGS, (byte) HAS_PUMPKIN_FLAG);
 	}
 
 	@Override
@@ -188,13 +190,13 @@ public class SnowGolemEntity extends GolemEntity implements Shearable, RangedAtt
 	}
 
 	public boolean hasPumpkin() {
-		return (this.dataTracker.get(SNOW_GOLEM_FLAGS) & 16) != 0;
+		return (this.dataTracker.get(SNOW_GOLEM_FLAGS) & HAS_PUMPKIN_FLAG) != 0;
 	}
 
 	public void setHasPumpkin(boolean hasPumpkin) {
 		byte b = this.dataTracker.get(SNOW_GOLEM_FLAGS);
 		if (hasPumpkin) {
-			this.dataTracker.set(SNOW_GOLEM_FLAGS, (byte) (b | 16));
+			this.dataTracker.set(SNOW_GOLEM_FLAGS, (byte) (b | HAS_PUMPKIN_FLAG));
 		}
 		else {
 			this.dataTracker.set(SNOW_GOLEM_FLAGS, (byte) (b & -17));

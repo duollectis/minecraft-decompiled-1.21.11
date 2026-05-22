@@ -9,7 +9,8 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
 /**
- * {@code AcaciaFoliagePlacer}.
+ * Размещает листву акации: три слоя с разными радиусами,
+ * создавая характерную плоскую крону.
  */
 public class AcaciaFoliagePlacer extends FoliagePlacer {
 
@@ -17,8 +18,8 @@ public class AcaciaFoliagePlacer extends FoliagePlacer {
 			instance -> fillFoliagePlacerFields(instance).apply(instance, AcaciaFoliagePlacer::new)
 	);
 
-	public AcaciaFoliagePlacer(IntProvider intProvider, IntProvider intProvider2) {
-		super(intProvider, intProvider2);
+	public AcaciaFoliagePlacer(IntProvider radius, IntProvider offset) {
+		super(radius, offset);
 	}
 
 	@Override
@@ -38,20 +39,21 @@ public class AcaciaFoliagePlacer extends FoliagePlacer {
 			int radius,
 			int offset
 	) {
-		boolean bl = treeNode.isGiantTrunk();
-		BlockPos blockPos = treeNode.getCenter().up(offset);
-		this.generateSquare(
+		boolean isGiantTrunk = treeNode.isGiantTrunk();
+		BlockPos center = treeNode.getCenter().up(offset);
+
+		generateSquare(
 				world,
 				placer,
 				random,
 				config,
-				blockPos,
+				center,
 				radius + treeNode.getFoliageRadius(),
 				-1 - foliageHeight,
-				bl
+				isGiantTrunk
 		);
-		this.generateSquare(world, placer, random, config, blockPos, radius - 1, -foliageHeight, bl);
-		this.generateSquare(world, placer, random, config, blockPos, radius + treeNode.getFoliageRadius() - 1, 0, bl);
+		generateSquare(world, placer, random, config, center, radius - 1, -foliageHeight, isGiantTrunk);
+		generateSquare(world, placer, random, config, center, radius + treeNode.getFoliageRadius() - 1, 0, isGiantTrunk);
 	}
 
 	@Override

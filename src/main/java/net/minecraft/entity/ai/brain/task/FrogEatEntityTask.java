@@ -19,22 +19,27 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * {@code FrogEatEntityTask}.
+ * Задача мозга лягушки, реализующая многофазный процесс поедания добычи:
+ * движение к цели → анимация захвата языком → анимация поедания.
  */
 public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 
 	public static final int RUN_TIME = 100;
 	public static final int CATCH_DURATION = 6;
 	public static final int EAT_DURATION = 10;
-	private static final float MAX_DISTANCE = 1.75F;
-	private static final float VELOCITY_MULTIPLIER = 0.75F;
 	public static final int UNREACHABLE_TONGUE_TARGETS_START_TIME = 100;
 	public static final int MAX_UNREACHABLE_TONGUE_TARGETS = 5;
+	private static final float MAX_TONGUE_DISTANCE = 1.75F;
+	private static final float PULL_VELOCITY_MULTIPLIER = 0.75F;
+	private static final float APPROACH_SPEED = 2.0F;
+	private static final float SOUND_VOLUME = 2.0F;
+	private static final float SOUND_PITCH = 1.0F;
+
 	private int eatTick;
 	private int moveToTargetTick;
 	private final SoundEvent tongueSound;
 	private final SoundEvent eatSound;
-	private FrogEatEntityTask.Phase phase = FrogEatEntityTask.Phase.DONE;
+	private Phase phase = Phase.DONE;
 
 	public FrogEatEntityTask(SoundEvent tongueSound, SoundEvent eatSound) {
 		super(
@@ -48,188 +53,133 @@ public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 						MemoryModuleType.IS_PANICKING,
 						MemoryModuleState.VALUE_ABSENT
 				),
-				100
+				RUN_TIME
 		);
 		this.tongueSound = tongueSound;
 		this.eatSound = eatSound;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, FrogEntity frogEntity) {
-		LivingEntity
-				livingEntity =
-				frogEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
-		boolean bl = this.isTargetReachable(frogEntity, livingEntity);
-		if (!bl) {
-			frogEntity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
-			this.markTargetAsUnreachable(frogEntity, livingEntity);
+	@Override
+	protected boolean shouldRun(ServerWorld world, FrogEntity entity) {
+		LivingEntity prey = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
+		boolean reachable = isTargetReachable(entity, prey);
+
+		if (!reachable) {
+			entity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+			markTargetAsUnreachable(entity, prey);
 		}
 
-		return bl && frogEntity.getPose() != EntityPose.CROAKING && FrogEntity.isValidFrogFood(livingEntity);
+		return reachable && entity.getPose() != EntityPose.CROAKING && FrogEntity.isValidFrogFood(prey);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		return frogEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET)
-				&& this.phase != FrogEatEntityTask.Phase.DONE
-				&& !frogEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, FrogEntity entity, long time) {
+		return entity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET)
+				&& phase != Phase.DONE
+				&& !entity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		LivingEntity
-				livingEntity =
-				frogEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
-		TargetUtil.lookAt(frogEntity, livingEntity);
-		frogEntity.setFrogTarget(livingEntity);
-		frogEntity
-				.getBrain()
-				.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(livingEntity.getEntityPos(), 2.0F, 0));
-		this.moveToTargetTick = 10;
-		this.phase = FrogEatEntityTask.Phase.MOVE_TO_TARGET;
+	@Override
+	protected void run(ServerWorld world, FrogEntity entity, long time) {
+		LivingEntity prey = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
+		TargetUtil.lookAt(entity, prey);
+		entity.setFrogTarget(prey);
+		entity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(prey.getEntityPos(), APPROACH_SPEED, 0));
+		moveToTargetTick = EAT_DURATION;
+		phase = Phase.MOVE_TO_TARGET;
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		frogEntity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
-		frogEntity.clearFrogTarget();
-		frogEntity.setPose(EntityPose.STANDING);
+	@Override
+	protected void finishRunning(ServerWorld world, FrogEntity entity, long time) {
+		entity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+		entity.clearFrogTarget();
+		entity.setPose(EntityPose.STANDING);
+	}
+
+	@Override
+	protected void keepRunning(ServerWorld world, FrogEntity entity, long time) {
+		LivingEntity prey = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
+		entity.setFrogTarget(prey);
+
+		switch (phase) {
+			case MOVE_TO_TARGET -> {
+				if (prey.distanceTo(entity) < MAX_TONGUE_DISTANCE) {
+					world.playSoundFromEntity(null, entity, tongueSound, SoundCategory.NEUTRAL, SOUND_VOLUME, SOUND_PITCH);
+					entity.setPose(EntityPose.USING_TONGUE);
+					prey.setVelocity(
+							prey.getEntityPos()
+									.relativize(entity.getEntityPos())
+									.normalize()
+									.multiply(PULL_VELOCITY_MULTIPLIER)
+					);
+					eatTick = 0;
+					phase = Phase.CATCH_ANIMATION;
+				} else if (moveToTargetTick <= 0) {
+					entity.getBrain().remember(
+							MemoryModuleType.WALK_TARGET,
+							new WalkTarget(prey.getEntityPos(), APPROACH_SPEED, 0)
+					);
+					moveToTargetTick = EAT_DURATION;
+				} else {
+					moveToTargetTick--;
+				}
+			}
+			case CATCH_ANIMATION -> {
+				if (eatTick++ >= CATCH_DURATION) {
+					phase = Phase.EAT_ANIMATION;
+					eat(world, entity);
+				}
+			}
+			case EAT_ANIMATION -> {
+				if (eatTick >= EAT_DURATION) {
+					phase = Phase.DONE;
+				} else {
+					eatTick++;
+				}
+			}
+			case DONE -> {}
+		}
 	}
 
 	private void eat(ServerWorld world, FrogEntity frog) {
-		world.playSoundFromEntity(null, frog, this.eatSound, SoundCategory.NEUTRAL, 2.0F, 1.0F);
-		Optional<Entity> optional = frog.getFrogTarget();
-		if (optional.isPresent()) {
-			Entity entity = optional.get();
-			if (entity.isAlive()) {
-				frog.tryAttack(world, entity);
-				if (!entity.isAlive()) {
-					entity.remove(Entity.RemovalReason.KILLED);
+		world.playSoundFromEntity(null, frog, eatSound, SoundCategory.NEUTRAL, SOUND_VOLUME, SOUND_PITCH);
+		frog.getFrogTarget().ifPresent(prey -> {
+			if (prey.isAlive()) {
+				frog.tryAttack(world, prey);
+
+				if (!prey.isAlive()) {
+					prey.remove(Entity.RemovalReason.KILLED);
 				}
 			}
-		}
-	}
-
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param frogEntity frog entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
-		LivingEntity
-				livingEntity =
-				frogEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get();
-		frogEntity.setFrogTarget(livingEntity);
-		switch (this.phase) {
-			case MOVE_TO_TARGET:
-				if (livingEntity.distanceTo(frogEntity) < 1.75F) {
-					serverWorld.playSoundFromEntity(
-							null,
-							frogEntity,
-							this.tongueSound,
-							SoundCategory.NEUTRAL,
-							2.0F,
-							1.0F
-					);
-					frogEntity.setPose(EntityPose.USING_TONGUE);
-					livingEntity.setVelocity(livingEntity
-							.getEntityPos()
-							.relativize(frogEntity.getEntityPos())
-							.normalize()
-							.multiply(0.75));
-					this.eatTick = 0;
-					this.phase = FrogEatEntityTask.Phase.CATCH_ANIMATION;
-				}
-				else if (this.moveToTargetTick <= 0) {
-					frogEntity
-							.getBrain()
-							.remember(
-									MemoryModuleType.WALK_TARGET,
-									new WalkTarget(livingEntity.getEntityPos(), 2.0F, 0)
-							);
-					this.moveToTargetTick = 10;
-				}
-				else {
-					this.moveToTargetTick--;
-				}
-				break;
-			case CATCH_ANIMATION:
-				if (this.eatTick++ >= 6) {
-					this.phase = FrogEatEntityTask.Phase.EAT_ANIMATION;
-					this.eat(serverWorld, frogEntity);
-				}
-				break;
-			case EAT_ANIMATION:
-				if (this.eatTick >= 10) {
-					this.phase = FrogEatEntityTask.Phase.DONE;
-				}
-				else {
-					this.eatTick++;
-				}
-			case DONE:
-		}
+		});
 	}
 
 	private boolean isTargetReachable(FrogEntity entity, LivingEntity target) {
 		Path path = entity.getNavigation().findPathTo(target, 0);
-		return path != null && path.getManhattanDistanceFromTarget() < 1.75F;
+		return path != null && path.getManhattanDistanceFromTarget() < MAX_TONGUE_DISTANCE;
 	}
 
 	private void markTargetAsUnreachable(FrogEntity entity, LivingEntity target) {
-		List<UUID>
-				list =
-				entity
-						.getBrain()
-						.getOptionalRegisteredMemory(MemoryModuleType.UNREACHABLE_TONGUE_TARGETS)
-						.orElseGet(ArrayList::new);
-		boolean bl = !list.contains(target.getUuid());
-		if (list.size() == 5 && bl) {
-			list.remove(0);
+		List<UUID> unreachable = entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.UNREACHABLE_TONGUE_TARGETS)
+				.orElseGet(ArrayList::new);
+		boolean notYetMarked = !unreachable.contains(target.getUuid());
+
+		if (unreachable.size() == MAX_UNREACHABLE_TONGUE_TARGETS && notYetMarked) {
+			unreachable.remove(0);
 		}
 
-		if (bl) {
-			list.add(target.getUuid());
+		if (notYetMarked) {
+			unreachable.add(target.getUuid());
 		}
 
-		entity.getBrain().remember(MemoryModuleType.UNREACHABLE_TONGUE_TARGETS, list, 100L);
+		entity.getBrain().remember(MemoryModuleType.UNREACHABLE_TONGUE_TARGETS, unreachable, UNREACHABLE_TONGUE_TARGETS_START_TIME);
 	}
 
-	/**
-	 * {@code Phase}.
-	 */
-	static enum Phase {
+	enum Phase {
 		MOVE_TO_TARGET,
 		CATCH_ANIMATION,
 		EAT_ANIMATION,
-		DONE;
+		DONE
 	}
 }

@@ -18,20 +18,31 @@ import net.minecraft.util.math.MathHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatScreen}.
+ * Экран чата. Обрабатывает ввод сообщений, историю чата, автодополнение команд и черновики.
  */
+@Environment(EnvType.CLIENT)
 public class ChatScreen extends Screen {
 
 	public static final double SHIFT_SCROLL_AMOUNT = 7.0;
+	private static final int KEY_BACKSPACE = 259;
+	private static final int KEY_DOWN = 264;
+	private static final int KEY_UP = 265;
+	private static final int KEY_PAGE_UP = 266;
+	private static final int KEY_PAGE_DOWN = 267;
+	private static final int CHAT_FIELD_HEIGHT = 12;
+	private static final int CHAT_FIELD_MARGIN = 4;
+	private static final int CHAT_FIELD_BOTTOM_OFFSET = 12;
+	private static final int SUGGESTION_LINES = 10;
+	private static final int SUGGESTION_BACKGROUND_COLOR = -805306368;
 	private static final Text USAGE_TEXT = Text.translatable("chat_screen.usage");
+
 	private String chatLastMessage = "";
 	private int messageHistoryIndex = -1;
 	protected TextFieldWidget chatField;
 	protected String originalChatText;
 	protected boolean draft;
-	protected ChatScreen.CloseReason closeReason = ChatScreen.CloseReason.INTERRUPTED;
+	protected CloseReason closeReason = CloseReason.INTERRUPTED;
 	ChatInputSuggestor chatInputSuggestor;
 
 	public ChatScreen(String text, boolean draft) {
@@ -42,266 +53,233 @@ public class ChatScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.messageHistoryIndex = this.client.inGameHud.getChatHud().getMessageHistory().size();
-		this.chatField = new TextFieldWidget(
-				this.client.advanceValidatingTextRenderer,
-				4,
-				this.height - 12,
-				this.width - 4,
-				12,
-				Text.translatable("chat.editBox")
+		messageHistoryIndex = client.inGameHud.getChatHud().getMessageHistory().size();
+		chatField = new TextFieldWidget(
+			client.advanceValidatingTextRenderer,
+			CHAT_FIELD_MARGIN,
+			height - CHAT_FIELD_BOTTOM_OFFSET,
+			width - CHAT_FIELD_MARGIN,
+			CHAT_FIELD_HEIGHT,
+			Text.translatable("chat.editBox")
 		) {
 			@Override
 			protected MutableText getNarrationMessage() {
-				return super.getNarrationMessage().append(ChatScreen.this.chatInputSuggestor.getNarration());
+				return super.getNarrationMessage().append(chatInputSuggestor.getNarration());
 			}
 		};
-		this.chatField.setMaxLength(256);
-		this.chatField.setDrawsBackground(false);
-		this.chatField.setText(this.originalChatText);
-		this.chatField.setChangedListener(this::onChatFieldUpdate);
-		this.chatField.addFormatter(this::format);
-		this.chatField.setFocusUnlocked(false);
-		this.addDrawableChild(this.chatField);
-		this.chatInputSuggestor =
-				new ChatInputSuggestor(
-						this.client,
-						this,
-						this.chatField,
-						this.textRenderer,
-						false,
-						false,
-						1,
-						10,
-						true,
-						-805306368
-				);
-		this.chatInputSuggestor.setCanLeave(false);
-		this.chatInputSuggestor.setWindowActive(false);
-		this.chatInputSuggestor.refresh();
+		chatField.setMaxLength(256);
+		chatField.setDrawsBackground(false);
+		chatField.setText(originalChatText);
+		chatField.setChangedListener(this::onChatFieldUpdate);
+		chatField.addFormatter(this::format);
+		chatField.setFocusUnlocked(false);
+		addDrawableChild(chatField);
+		chatInputSuggestor = new ChatInputSuggestor(
+			client,
+			this,
+			chatField,
+			textRenderer,
+			false,
+			false,
+			1,
+			SUGGESTION_LINES,
+			true,
+			SUGGESTION_BACKGROUND_COLOR
+		);
+		chatInputSuggestor.setCanLeave(false);
+		chatInputSuggestor.setWindowActive(false);
+		chatInputSuggestor.refresh();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.chatField);
+		setInitialFocus(chatField);
 	}
 
 	@Override
 	public void resize(int width, int height) {
-		this.originalChatText = this.chatField.getText();
-		this.init(width, height);
+		originalChatText = chatField.getText();
+		init(width, height);
 	}
 
 	@Override
 	public void close() {
-		this.closeReason = ChatScreen.CloseReason.INTENTIONAL;
+		closeReason = CloseReason.INTENTIONAL;
 		super.close();
 	}
 
 	@Override
 	public void removed() {
-		this.client.inGameHud.getChatHud().resetScroll();
-		this.originalChatText = this.chatField.getText();
-		if (this.shouldNotSaveDraft() || StringUtils.isBlank(this.originalChatText)) {
-			this.client.inGameHud.getChatHud().discardDraft();
-		}
-		else if (!this.draft) {
-			this.client.inGameHud.getChatHud().saveDraft(this.originalChatText);
+		client.inGameHud.getChatHud().resetScroll();
+		originalChatText = chatField.getText();
+		if (shouldNotSaveDraft() || StringUtils.isBlank(originalChatText)) {
+			client.inGameHud.getChatHud().discardDraft();
+		} else if (!draft) {
+			client.inGameHud.getChatHud().saveDraft(originalChatText);
 		}
 	}
 
-	/**
-	 * Определяет, следует ли not save draft.
-	 *
-	 * @return boolean — результат операции
-	 */
 	protected boolean shouldNotSaveDraft() {
-		return this.closeReason != ChatScreen.CloseReason.INTERRUPTED
-				&& (this.closeReason != ChatScreen.CloseReason.INTENTIONAL || !this.client.options
-				.getChatDrafts()
-				.getValue()
-		);
+		return closeReason != CloseReason.INTERRUPTED
+			&& (closeReason != CloseReason.INTENTIONAL || !client.options.getChatDrafts().getValue());
 	}
 
 	private void onChatFieldUpdate(String chatText) {
-		this.chatInputSuggestor.setWindowActive(true);
-		this.chatInputSuggestor.refresh();
-		this.draft = false;
+		chatInputSuggestor.setWindowActive(true);
+		chatInputSuggestor.refresh();
+		draft = false;
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.chatInputSuggestor.keyPressed(input)) {
+		if (chatInputSuggestor.keyPressed(input)) {
 			return true;
 		}
-		else if (this.draft && input.key() == 259) {
-			this.chatField.setText("");
-			this.draft = false;
-			return true;
-		}
-		else if (super.keyPressed(input)) {
-			return true;
-		}
-		else if (input.isEnter()) {
-			this.sendMessage(this.chatField.getText(), true);
-			this.closeReason = ChatScreen.CloseReason.DONE;
-			this.client.setScreen(null);
-			return true;
-		}
-		else {
-			switch (input.key()) {
-				case 264:
-					this.setChatFromHistory(1);
-					break;
-				case 265:
-					this.setChatFromHistory(-1);
-					break;
-				case 266:
-					this.client.inGameHud
-							.getChatHud()
-							.scroll(this.client.inGameHud.getChatHud().getVisibleLineCount() - 1);
-					break;
-				case 267:
-					this.client.inGameHud
-							.getChatHud()
-							.scroll(-this.client.inGameHud.getChatHud().getVisibleLineCount() + 1);
-					break;
-				default:
-					return false;
-			}
 
+		if (draft && input.key() == KEY_BACKSPACE) {
+			chatField.setText("");
+			draft = false;
 			return true;
 		}
+
+		if (super.keyPressed(input)) {
+			return true;
+		}
+
+		if (input.isEnter()) {
+			sendMessage(chatField.getText(), true);
+			closeReason = CloseReason.DONE;
+			client.setScreen(null);
+			return true;
+		}
+
+		ChatHud chatHud = client.inGameHud.getChatHud();
+		switch (input.key()) {
+			case KEY_DOWN -> setChatFromHistory(1);
+			case KEY_UP -> setChatFromHistory(-1);
+			case KEY_PAGE_UP -> chatHud.scroll(chatHud.getVisibleLineCount() - 1);
+			case KEY_PAGE_DOWN -> chatHud.scroll(-chatHud.getVisibleLineCount() + 1);
+			default -> { return false; }
+		}
+
+		return true;
 	}
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
 		verticalAmount = MathHelper.clamp(verticalAmount, -1.0, 1.0);
-		if (this.chatInputSuggestor.mouseScrolled(verticalAmount)) {
+		if (chatInputSuggestor.mouseScrolled(verticalAmount)) {
 			return true;
 		}
-		else {
-			if (!this.client.isShiftPressed()) {
-				verticalAmount *= 7.0;
-			}
 
-			this.client.inGameHud.getChatHud().scroll((int) verticalAmount);
-			return true;
+		if (!client.isShiftPressed()) {
+			verticalAmount *= SHIFT_SCROLL_AMOUNT;
 		}
+
+		client.inGameHud.getChatHud().scroll((int) verticalAmount);
+		return true;
 	}
 
 	@Override
 	public boolean mouseClicked(Click click, boolean doubled) {
-		if (this.chatInputSuggestor.mouseClicked(click)) {
+		if (chatInputSuggestor.mouseClicked(click)) {
 			return true;
 		}
-		else {
-			if (click.button() == 0) {
-				int i = this.client.getWindow().getScaledHeight();
-				DrawnTextConsumer.ClickHandler
-						clickHandler =
-						new DrawnTextConsumer.ClickHandler(this.getTextRenderer(), (int) click.x(), (int) click.y())
-								.insert(this.shouldInsert());
-				this.client.inGameHud.getChatHud().render(clickHandler, i, this.client.inGameHud.getTicks(), true);
-				Style style = clickHandler.getStyle();
-				if (style != null && this.handleClickEvent(style, this.shouldInsert())) {
-					this.originalChatText = this.chatField.getText();
-					return true;
-				}
-			}
 
-			return super.mouseClicked(click, doubled);
+		if (click.button() == 0) {
+			int scaledHeight = client.getWindow().getScaledHeight();
+			boolean inserting = shouldInsert();
+			DrawnTextConsumer.ClickHandler clickHandler =
+				new DrawnTextConsumer.ClickHandler(getTextRenderer(), (int) click.x(), (int) click.y())
+					.insert(inserting);
+			client.inGameHud.getChatHud().render(clickHandler, scaledHeight, client.inGameHud.getTicks(), true);
+			Style style = clickHandler.getStyle();
+			if (style != null && handleClickEvent(style, inserting)) {
+				originalChatText = chatField.getText();
+				return true;
+			}
 		}
+
+		return super.mouseClicked(click, doubled);
 	}
 
 	private boolean shouldInsert() {
-		return this.client.isShiftPressed();
+		return client.isShiftPressed();
 	}
 
 	private boolean handleClickEvent(Style style, boolean insert) {
 		ClickEvent clickEvent = style.getClickEvent();
 		if (insert) {
 			if (style.getInsertion() != null) {
-				this.insertText(style.getInsertion(), false);
-			}
-		}
-		else if (clickEvent != null) {
-			if (clickEvent instanceof ClickEvent.Custom custom && custom.id().equals(ChatHud.EXPAND_CHAT_QUEUE_ID)) {
-				MessageHandler messageHandler = this.client.getMessageHandler();
-				if (messageHandler.getUnprocessedMessageCount() != 0L) {
-					messageHandler.process();
-				}
-			}
-			else {
-				handleClickEvent(clickEvent, this.client, this);
+				insertText(style.getInsertion(), false);
 			}
 
-			return true;
+			return false;
 		}
 
-		return false;
+		if (clickEvent == null) {
+			return false;
+		}
+
+		if (clickEvent instanceof ClickEvent.Custom custom && custom.id().equals(ChatHud.EXPAND_CHAT_QUEUE_ID)) {
+			MessageHandler messageHandler = client.getMessageHandler();
+			if (messageHandler.getUnprocessedMessageCount() != 0L) {
+				messageHandler.process();
+			}
+		} else {
+			handleClickEvent(clickEvent, client, this);
+		}
+
+		return true;
 	}
 
 	@Override
 	public void insertText(String text, boolean override) {
 		if (override) {
-			this.chatField.setText(text);
-		}
-		else {
-			this.chatField.write(text);
+			chatField.setText(text);
+		} else {
+			chatField.write(text);
 		}
 	}
 
 	public void setChatFromHistory(int offset) {
-		int i = this.messageHistoryIndex + offset;
-		int j = this.client.inGameHud.getChatHud().getMessageHistory().size();
-		i = MathHelper.clamp(i, 0, j);
-		if (i != this.messageHistoryIndex) {
-			if (i == j) {
-				this.messageHistoryIndex = j;
-				this.chatField.setText(this.chatLastMessage);
-			}
-			else {
-				if (this.messageHistoryIndex == j) {
-					this.chatLastMessage = this.chatField.getText();
-				}
+		int newIndex = messageHistoryIndex + offset;
+		int historySize = client.inGameHud.getChatHud().getMessageHistory().size();
+		newIndex = MathHelper.clamp(newIndex, 0, historySize);
 
-				this.chatField.setText(this.client.inGameHud.getChatHud().getMessageHistory().get(i));
-				this.chatInputSuggestor.setWindowActive(false);
-				this.messageHistoryIndex = i;
-			}
+		if (newIndex == messageHistoryIndex) {
+			return;
 		}
+
+		if (newIndex == historySize) {
+			messageHistoryIndex = historySize;
+			chatField.setText(chatLastMessage);
+			return;
+		}
+
+		if (messageHistoryIndex == historySize) {
+			chatLastMessage = chatField.getText();
+		}
+
+		chatField.setText(client.inGameHud.getChatHud().getMessageHistory().get(newIndex));
+		chatInputSuggestor.setWindowActive(false);
+		messageHistoryIndex = newIndex;
 	}
 
-	private @Nullable OrderedText format(String string, int firstCharacterIndex) {
-		return this.draft ? OrderedText.styledForwardsVisitedString(
-				string,
-				Style.EMPTY.withColor(Formatting.GRAY).withItalic(true)
-		) : null;
+	private @Nullable OrderedText format(String text, int firstCharacterIndex) {
+		return draft
+			? OrderedText.styledForwardsVisitedString(text, Style.EMPTY.withColor(Formatting.GRAY).withItalic(true))
+			: null;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		context.fill(
-				2,
-				this.height - 14,
-				this.width - 2,
-				this.height - 2,
-				this.client.options.getTextBackgroundColor(Integer.MIN_VALUE)
-		);
-		this.client.inGameHud
-				.getChatHud()
-				.render(
-						context,
-						this.textRenderer,
-						this.client.inGameHud.getTicks(),
-						mouseX,
-						mouseY,
-						true,
-						this.shouldInsert()
-				);
+		context.fill(2, height - 14, width - 2, height - 2, client.options.getTextBackgroundColor(Integer.MIN_VALUE));
+		client.inGameHud
+			.getChatHud()
+			.render(context, textRenderer, client.inGameHud.getTicks(), mouseX, mouseY, true, shouldInsert());
 		super.render(context, mouseX, mouseY, deltaTicks);
-		this.chatInputSuggestor.render(context, mouseX, mouseY);
+		chatInputSuggestor.render(context, mouseX, mouseY);
 	}
 
 	@Override
@@ -320,52 +298,37 @@ public class ChatScreen extends Screen {
 
 	@Override
 	protected void addScreenNarrations(NarrationMessageBuilder messageBuilder) {
-		messageBuilder.put(NarrationPart.TITLE, this.getTitle());
+		messageBuilder.put(NarrationPart.TITLE, getTitle());
 		messageBuilder.put(NarrationPart.USAGE, USAGE_TEXT);
-		String string = this.chatField.getText();
-		if (!string.isEmpty()) {
-			messageBuilder.nextMessage().put(NarrationPart.TITLE, Text.translatable("chat_screen.message", string));
+		String text = chatField.getText();
+		if (!text.isEmpty()) {
+			messageBuilder.nextMessage().put(NarrationPart.TITLE, Text.translatable("chat_screen.message", text));
 		}
 	}
 
-	/**
-	 * Отправляет message.
-	 *
-	 * @param chatText chat text
-	 * @param addToHistory add to history
-	 */
 	public void sendMessage(String chatText, boolean addToHistory) {
-		chatText = this.normalize(chatText);
-		if (!chatText.isEmpty()) {
-			if (addToHistory) {
-				this.client.inGameHud.getChatHud().addToMessageHistory(chatText);
-			}
+		chatText = normalize(chatText);
+		if (chatText.isEmpty()) {
+			return;
+		}
 
-			if (chatText.startsWith("/")) {
-				this.client.player.networkHandler.sendChatCommand(chatText.substring(1));
-			}
-			else {
-				this.client.player.networkHandler.sendChatMessage(chatText);
-			}
+		if (addToHistory) {
+			client.inGameHud.getChatHud().addToMessageHistory(chatText);
+		}
+
+		if (chatText.startsWith("/")) {
+			client.player.networkHandler.sendChatCommand(chatText.substring(1));
+		} else {
+			client.player.networkHandler.sendChatMessage(chatText);
 		}
 	}
 
-	/**
-	 * Normalize.
-	 *
-	 * @param chatText chat text
-	 *
-	 * @return String — результат операции
-	 */
 	public String normalize(String chatText) {
 		return StringHelper.truncateChat(StringUtils.normalizeSpace(chatText.trim()));
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CloseReason}.
-	 */
-	protected static enum CloseReason {
+	protected enum CloseReason {
 		INTENTIONAL,
 		INTERRUPTED,
 		DONE;
@@ -373,9 +336,6 @@ public class ChatScreen extends Screen {
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public interface Factory<T extends ChatScreen> {
 
 		T create(String string, boolean draft);

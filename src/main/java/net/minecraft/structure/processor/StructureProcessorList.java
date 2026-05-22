@@ -3,7 +3,9 @@ package net.minecraft.structure.processor;
 import java.util.List;
 
 /**
- * {@code StructureProcessorList}.
+ * Именованный список процессоров структур, хранящийся в реестре {@code processor_list}.
+ * Используется как ссылка на набор процессоров в элементах пула структур
+ * (например, в {@link net.minecraft.structure.pool.SinglePoolElement}).
  */
 public class StructureProcessorList {
 
@@ -14,11 +16,11 @@ public class StructureProcessorList {
 	}
 
 	public List<StructureProcessor> getList() {
-		return this.list;
+		return list;
 	}
 
 	@Override
 	public String toString() {
-		return "ProcessorList[" + this.list + "]";
+		return "ProcessorList[" + list + "]";
 	}
 }

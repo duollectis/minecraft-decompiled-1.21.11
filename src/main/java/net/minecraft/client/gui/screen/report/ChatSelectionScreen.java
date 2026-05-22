@@ -39,15 +39,19 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatSelectionScreen}.
+ * Экран выбора сообщений чата для включения в жалобу на игрока.
+ * Отображает историю чата с возможностью отметить конкретные сообщения нарушителя.
+ * Поддерживает подгрузку более старых сообщений при прокрутке вверх.
  */
+@Environment(EnvType.CLIENT)
 public class ChatSelectionScreen extends Screen {
 
 	static final Identifier CHECKMARK_ICON_TEXTURE = Identifier.ofVanilla("icon/checkmark");
 	private static final Text TITLE_TEXT = Text.translatable("gui.chatSelection.title");
 	private static final Text CONTEXT_TEXT = Text.translatable("gui.chatSelection.context");
+	private static final int ENTRY_HEIGHT = 16;
+
 	private final @Nullable Screen parent;
 	private final AbuseReportContext reporter;
 	private ButtonWidget doneButton;
@@ -72,62 +76,66 @@ public class ChatSelectionScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.listAdder = new MessagesListAdder(this.reporter, this::isSentByReportedPlayer);
-		this.contextMessage = MultilineText.create(this.textRenderer, CONTEXT_TEXT, this.width - 16);
-		this.selectionList =
-				this.addDrawableChild(new ChatSelectionScreen.SelectionListWidget(
-						this.client,
-						(this.contextMessage.getLineCount() + 1) * 9
-				));
-		this.addDrawableChild(ButtonWidget
-				.builder(ScreenTexts.BACK, button -> this.close())
-				.dimensions(this.width / 2 - 155, this.height - 32, 150, 20)
+		listAdder = new MessagesListAdder(reporter, this::isSentByReportedPlayer);
+		contextMessage = MultilineText.create(textRenderer, CONTEXT_TEXT, width - ENTRY_HEIGHT);
+
+		int contextHeight = (contextMessage.getLineCount() + 1) * 9;
+		selectionList = addDrawableChild(new SelectionListWidget(client, contextHeight));
+
+		addDrawableChild(ButtonWidget
+				.builder(ScreenTexts.BACK, button -> close())
+				.dimensions(width / 2 - 155, height - 32, 150, 20)
 				.build());
-		this.doneButton = this.addDrawableChild(ButtonWidget.builder(
+
+		doneButton = addDrawableChild(ButtonWidget.builder(
 				ScreenTexts.DONE, button -> {
-					this.newReportConsumer.accept(this.report);
-					this.close();
+					newReportConsumer.accept(report);
+					close();
 				}
-		).dimensions(this.width / 2 - 155 + 160, this.height - 32, 150, 20).build());
-		this.setDoneButtonActivation();
-		this.addMessages();
-		this.selectionList.setScrollY(this.selectionList.getMaxScrollY());
+		).dimensions(width / 2 - 155 + 160, height - 32, 150, 20).build());
+
+		setDoneButtonActivation();
+		addMessages();
+		selectionList.setScrollY(selectionList.getMaxScrollY());
 	}
 
 	private boolean isSentByReportedPlayer(ReceivedMessage message) {
-		return message.isSentFrom(this.report.getReportedPlayerUuid());
+		return message.isSentFrom(report.getReportedPlayerUuid());
 	}
 
 	private void addMessages() {
-		int i = this.selectionList.getDisplayedItemCount();
-		this.listAdder.add(i, this.selectionList);
+		int displayCount = selectionList.getDisplayedItemCount();
+		listAdder.add(displayCount, selectionList);
 	}
 
 	void addMoreMessages() {
-		this.addMessages();
+		addMessages();
 	}
 
 	void setDoneButtonActivation() {
-		this.doneButton.active = !this.report.getSelectedMessages().isEmpty();
+		doneButton.active = !report.getSelectedMessages().isEmpty();
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, -1);
-		AbuseReportLimits abuseReportLimits = this.reporter.getSender().getLimits();
-		int i = this.report.getSelectedMessages().size();
-		int j = abuseReportLimits.maxReportedMessageCount();
-		Text text = Text.translatable("gui.chatSelection.selected", i, j);
-		context.drawCenteredTextWithShadow(this.textRenderer, text, this.width / 2, 26, -1);
-		int k = this.selectionList.getContextMessageY();
-		this.contextMessage.draw(Alignment.CENTER, this.width / 2, k, 9, drawnTextConsumer);
+
+		DrawnTextConsumer textConsumer = context.getTextConsumer();
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, -1);
+
+		AbuseReportLimits limits = reporter.getSender().getLimits();
+		int selectedCount = report.getSelectedMessages().size();
+		int maxCount = limits.maxReportedMessageCount();
+		Text selectionText = Text.translatable("gui.chatSelection.selected", selectedCount, maxCount);
+		context.drawCenteredTextWithShadow(textRenderer, selectionText, width / 2, 26, -1);
+
+		int contextY = selectionList.getContextMessageY();
+		contextMessage.draw(Alignment.CENTER, width / 2, contextY, 9, textConsumer);
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	@Override
@@ -135,15 +143,17 @@ public class ChatSelectionScreen extends Screen {
 		return ScreenTexts.joinSentences(super.getNarratedTitle(), CONTEXT_TEXT);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * Класс selection list widget.
+	 * Виджет списка сообщений чата с поддержкой выбора и подгрузки истории.
+	 * При прокрутке к началу автоматически запрашивает более старые сообщения.
 	 */
+	@Environment(EnvType.CLIENT)
 	public class SelectionListWidget
 			extends AlwaysSelectedEntryListWidget<ChatSelectionScreen.SelectionListWidget.Entry>
 			implements MessagesListAdder.MessagesList {
 
 		public static final int ENTRY_HEIGHT = 16;
+
 		private ChatSelectionScreen.SelectionListWidget.@Nullable SenderEntryPair lastSenderEntryPair;
 
 		public SelectionListWidget(final MinecraftClient client, final int contextMessagesHeight) {
@@ -152,126 +162,123 @@ public class ChatSelectionScreen extends Screen {
 					ChatSelectionScreen.this.width,
 					ChatSelectionScreen.this.height - contextMessagesHeight - 80,
 					40,
-					16
+					ENTRY_HEIGHT
 			);
 		}
 
 		@Override
 		public void setScrollY(double scrollY) {
-			double d = this.getScrollY();
+			double previousScrollY = getScrollY();
 			super.setScrollY(scrollY);
-			if (this.getMaxScrollY() > 1.0E-5F && scrollY <= 1.0E-5F && !MathHelper.approximatelyEquals(scrollY, d)) {
+
+			if (getMaxScrollY() > 1.0E-5F
+					&& scrollY <= 1.0E-5F
+					&& !MathHelper.approximatelyEquals(scrollY, previousScrollY)
+			) {
 				ChatSelectionScreen.this.addMoreMessages();
 			}
 		}
 
 		@Override
 		public void addMessage(int index, ReceivedMessage.ChatMessage message) {
-			boolean bl = message.isSentFrom(ChatSelectionScreen.this.report.getReportedPlayerUuid());
-			MessageTrustStatus messageTrustStatus = message.trustStatus();
-			MessageIndicator messageIndicator = messageTrustStatus.createIndicator(message.message());
-			ChatSelectionScreen.SelectionListWidget.Entry
-					entry =
-					new ChatSelectionScreen.SelectionListWidget.MessageEntry(
-							index, message.getContent(), message.getNarration(), messageIndicator, bl, true
-					);
-			this.addEntryToTop(entry);
-			this.addSenderEntry(message, bl);
+			boolean fromReportedPlayer = message.isSentFrom(ChatSelectionScreen.this.report.getReportedPlayerUuid());
+			MessageTrustStatus trustStatus = message.trustStatus();
+			MessageIndicator indicator = trustStatus.createIndicator(message.message());
+
+			Entry entry = new MessageEntry(
+					index, message.getContent(), message.getNarration(), indicator, fromReportedPlayer, true
+			);
+			addEntryToTop(entry);
+			addSenderEntry(message, fromReportedPlayer);
 		}
 
 		private void addSenderEntry(ReceivedMessage.ChatMessage message, boolean fromReportedPlayer) {
-			ChatSelectionScreen.SelectionListWidget.Entry
-					entry =
-					new ChatSelectionScreen.SelectionListWidget.SenderEntry(
-							message.profile(), message.getHeadingText(), fromReportedPlayer
-					);
-			this.addEntryToTop(entry);
-			ChatSelectionScreen.SelectionListWidget.SenderEntryPair
-					senderEntryPair =
-					new ChatSelectionScreen.SelectionListWidget.SenderEntryPair(
-							message.getSenderUuid(), entry
-					);
-			if (this.lastSenderEntryPair != null && this.lastSenderEntryPair.senderEquals(senderEntryPair)) {
-				this.removeEntryWithoutScrolling(this.lastSenderEntryPair.entry());
+			Entry senderEntry = new SenderEntry(
+					message.profile(), message.getHeadingText(), fromReportedPlayer
+			);
+			addEntryToTop(senderEntry);
+
+			SenderEntryPair newPair = new SenderEntryPair(message.getSenderUuid(), senderEntry);
+			if (lastSenderEntryPair != null && lastSenderEntryPair.senderEquals(newPair)) {
+				removeEntryWithoutScrolling(lastSenderEntryPair.entry());
 			}
 
-			this.lastSenderEntryPair = senderEntryPair;
+			lastSenderEntryPair = newPair;
 		}
 
 		@Override
 		public void addText(Text text) {
-			this.addEntryToTop(new ChatSelectionScreen.SelectionListWidget.SeparatorEntry());
-			this.addEntryToTop(new ChatSelectionScreen.SelectionListWidget.TextEntry(text));
-			this.addEntryToTop(new ChatSelectionScreen.SelectionListWidget.SeparatorEntry());
-			this.lastSenderEntryPair = null;
+			addEntryToTop(new SeparatorEntry());
+			addEntryToTop(new TextEntry(text));
+			addEntryToTop(new SeparatorEntry());
+			lastSenderEntryPair = null;
 		}
 
 		@Override
 		public int getRowWidth() {
-			return Math.min(350, this.width - 50);
+			return Math.min(350, width - 50);
 		}
 
 		public int getDisplayedItemCount() {
-			return MathHelper.ceilDiv(this.height, 16);
+			return MathHelper.ceilDiv(height, ENTRY_HEIGHT);
 		}
 
 		protected void renderEntry(
 				DrawContext drawContext,
-				int i,
-				int j,
-				float f,
-				ChatSelectionScreen.SelectionListWidget.Entry entry
+				int mouseX,
+				int mouseY,
+				float deltaTicks,
+				Entry entry
 		) {
-			if (this.shouldHighlight(entry)) {
-				boolean bl = this.getSelectedOrNull() == entry;
-				int k = this.isFocused() && bl ? -1 : -8355712;
-				this.drawSelectionHighlight(drawContext, entry, k);
+			if (shouldHighlight(entry)) {
+				boolean isSelected = getSelectedOrNull() == entry;
+				int highlightColor = isFocused() && isSelected ? -1 : -8355712;
+				drawSelectionHighlight(drawContext, entry, highlightColor);
 			}
 
-			entry.render(drawContext, i, j, this.getHoveredEntry() == entry, f);
+			entry.render(drawContext, mouseX, mouseY, getHoveredEntry() == entry, deltaTicks);
 		}
 
-		private boolean shouldHighlight(ChatSelectionScreen.SelectionListWidget.Entry entry) {
-			if (entry.canSelect()) {
-				boolean bl = this.getSelectedOrNull() == entry;
-				boolean bl2 = this.getSelectedOrNull() == null;
-				boolean bl3 = this.getHoveredEntry() == entry;
-				return bl || bl2 && bl3 && entry.isHighlightedOnHover();
-			}
-			else {
+		private boolean shouldHighlight(Entry entry) {
+			if (!entry.canSelect()) {
 				return false;
 			}
+
+			boolean isSelected = getSelectedOrNull() == entry;
+			boolean nothingSelected = getSelectedOrNull() == null;
+			boolean isHovered = getHoveredEntry() == entry;
+
+			return isSelected || (nothingSelected && isHovered && entry.isHighlightedOnHover());
 		}
 
-		protected ChatSelectionScreen.SelectionListWidget.@Nullable Entry getNeighboringEntry(NavigationDirection navigationDirection) {
-			return this.getNeighboringEntry(
-					navigationDirection,
-					ChatSelectionScreen.SelectionListWidget.Entry::canSelect
-			);
+		protected ChatSelectionScreen.SelectionListWidget.@Nullable Entry getNeighboringEntry(
+				NavigationDirection navigationDirection
+		) {
+			return getNeighboringEntry(navigationDirection, Entry::canSelect);
 		}
 
 		public void setSelected(ChatSelectionScreen.SelectionListWidget.@Nullable Entry entry) {
 			super.setSelected(entry);
-			ChatSelectionScreen.SelectionListWidget.Entry entry2 = this.getNeighboringEntry(NavigationDirection.UP);
-			if (entry2 == null) {
+			Entry upperNeighbor = getNeighboringEntry(NavigationDirection.UP);
+			if (upperNeighbor == null) {
 				ChatSelectionScreen.this.addMoreMessages();
 			}
 		}
 
 		@Override
 		public boolean keyPressed(KeyInput input) {
-			ChatSelectionScreen.SelectionListWidget.Entry entry = this.getSelectedOrNull();
-			return entry != null && entry.keyPressed(input) ? true : super.keyPressed(input);
+			Entry selected = getSelectedOrNull();
+			return selected != null && selected.keyPressed(input) ? true : super.keyPressed(input);
 		}
 
 		public int getContextMessageY() {
-			return this.getBottom() + 9;
+			return getBottom() + 9;
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code Entry}.
+		 * Базовый класс записи в списке выбора сообщений.
 		 */
+		@Environment(EnvType.CLIENT)
 		public abstract static class Entry extends AlwaysSelectedEntryListWidget.Entry<ChatSelectionScreen.SelectionListWidget.Entry> {
 
 			@Override
@@ -283,35 +290,31 @@ public class ChatSelectionScreen extends Screen {
 				return false;
 			}
 
-			/**
-			 * Проверяет возможность select.
-			 *
-			 * @return boolean — {@code true} если условие выполнено
-			 */
 			public boolean canSelect() {
 				return false;
 			}
 
 			public boolean isHighlightedOnHover() {
-				return this.canSelect();
+				return canSelect();
 			}
 
 			@Override
 			public boolean mouseClicked(Click click, boolean doubled) {
-				return this.canSelect();
+				return canSelect();
 			}
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code MessageEntry}.
+		 * Запись сообщения чата с поддержкой выбора, отображением галочки и индикатора доверия.
 		 */
+		@Environment(EnvType.CLIENT)
 		public class MessageEntry extends ChatSelectionScreen.SelectionListWidget.Entry {
 
 			private static final int CHECKMARK_WIDTH = 9;
 			private static final int CHECKMARK_HEIGHT = 8;
 			private static final int CHAT_MESSAGE_LEFT_MARGIN = 11;
 			private static final int INDICATOR_LEFT_MARGIN = 4;
+
 			private final int index;
 			private final StringVisitable truncatedContent;
 			private final Text narration;
@@ -332,26 +335,24 @@ public class ChatSelectionScreen extends Screen {
 				this.index = index;
 				this.indicatorIcon = Nullables.map(indicator, MessageIndicator::icon);
 				this.originalContent = indicator != null && indicator.text() != null
-				                       ? ChatSelectionScreen.this.textRenderer.wrapLines(
-						indicator.text(),
-						SelectionListWidget.this.getRowWidth()
-				)
-				                       : null;
+						? ChatSelectionScreen.this.textRenderer.wrapLines(
+								indicator.text(),
+								SelectionListWidget.this.getRowWidth()
+						)
+						: null;
 				this.fromReportedPlayer = fromReportedPlayer;
 				this.isChatMessage = isChatMessage;
-				StringVisitable stringVisitable = ChatSelectionScreen.this.textRenderer
-						.trimToWidth(
-								message,
-								this.getTextWidth()
-										- ChatSelectionScreen.this.textRenderer.getWidth(ScreenTexts.ELLIPSIS)
-						);
-				if (message != stringVisitable) {
-					this.truncatedContent = StringVisitable.concat(stringVisitable, ScreenTexts.ELLIPSIS);
-					this.fullContent =
-							ChatSelectionScreen.this.textRenderer.wrapLines(
-									message,
-									SelectionListWidget.this.getRowWidth()
-							);
+
+				int availableWidth = getTextWidth()
+						- ChatSelectionScreen.this.textRenderer.getWidth(ScreenTexts.ELLIPSIS);
+				StringVisitable trimmed = ChatSelectionScreen.this.textRenderer.trimToWidth(message, availableWidth);
+
+				if (message != trimmed) {
+					this.truncatedContent = StringVisitable.concat(trimmed, ScreenTexts.ELLIPSIS);
+					this.fullContent = ChatSelectionScreen.this.textRenderer.wrapLines(
+							message,
+							SelectionListWidget.this.getRowWidth()
+					);
 				}
 				else {
 					this.truncatedContent = message;
@@ -363,83 +364,88 @@ public class ChatSelectionScreen extends Screen {
 
 			@Override
 			public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-				if (this.isSelected() && this.fromReportedPlayer) {
-					this.drawCheckmark(context, this.getContentY(), this.getContentX(), this.getContentHeight());
+				if (isSelected() && fromReportedPlayer) {
+					drawCheckmark(context, getContentY(), getContentX(), getContentHeight());
 				}
 
-				int i = this.getContentX() + this.getIndent();
-				int j = this.getContentY() + 1 + (this.getContentHeight() - 9) / 2;
+				int textX = getContentX() + getIndent();
+				int textY = getContentY() + 1 + (getContentHeight() - 9) / 2;
 				context.drawTextWithShadow(
 						ChatSelectionScreen.this.textRenderer,
-						Language.getInstance().reorder(this.truncatedContent),
-						i,
-						j,
-						this.fromReportedPlayer ? -1 : -1593835521
+						Language.getInstance().reorder(truncatedContent),
+						textX,
+						textY,
+						fromReportedPlayer ? -1 : -1593835521
 				);
-				if (this.fullContent != null && hovered) {
-					context.drawTooltip(this.fullContent, mouseX, mouseY);
+
+				if (fullContent != null && hovered) {
+					context.drawTooltip(fullContent, mouseX, mouseY);
 				}
 
-				int k = ChatSelectionScreen.this.textRenderer.getWidth(this.truncatedContent);
-				this.renderIndicator(context, i + k + 4, this.getContentY(), this.getContentHeight(), mouseX, mouseY);
+				int textWidth = ChatSelectionScreen.this.textRenderer.getWidth(truncatedContent);
+				renderIndicator(context, textX + textWidth + INDICATOR_LEFT_MARGIN, getContentY(), getContentHeight(), mouseX, mouseY);
 			}
 
 			private void renderIndicator(DrawContext context, int x, int y, int entryHeight, int mouseX, int mouseY) {
-				if (this.indicatorIcon != null) {
-					int i = y + (entryHeight - this.indicatorIcon.height) / 2;
-					this.indicatorIcon.draw(context, x, i);
-					if (this.originalContent != null
-							&& mouseX >= x
-							&& mouseX <= x + this.indicatorIcon.width
-							&& mouseY >= i
-							&& mouseY <= i + this.indicatorIcon.height) {
-						context.drawTooltip(this.originalContent, mouseX, mouseY);
-					}
+				if (indicatorIcon == null) {
+					return;
+				}
+
+				int iconY = y + (entryHeight - indicatorIcon.height) / 2;
+				indicatorIcon.draw(context, x, iconY);
+
+				if (originalContent != null
+						&& mouseX >= x
+						&& mouseX <= x + indicatorIcon.width
+						&& mouseY >= iconY
+						&& mouseY <= iconY + indicatorIcon.height
+				) {
+					context.drawTooltip(originalContent, mouseX, mouseY);
 				}
 			}
 
 			private void drawCheckmark(DrawContext context, int y, int x, int entryHeight) {
-				int j = y + (entryHeight - 8) / 2;
+				int checkY = y + (entryHeight - CHECKMARK_HEIGHT) / 2;
 				context.drawGuiTexture(
 						RenderPipelines.GUI_TEXTURED,
 						ChatSelectionScreen.CHECKMARK_ICON_TEXTURE,
 						x,
-						j,
-						9,
-						8
+						checkY,
+						CHECKMARK_WIDTH,
+						CHECKMARK_HEIGHT
 				);
 			}
 
 			private int getTextWidth() {
-				int i = this.indicatorIcon != null ? this.indicatorIcon.width + 4 : 0;
-				return SelectionListWidget.this.getRowWidth() - this.getIndent() - 4 - i;
+				int indicatorWidth = indicatorIcon != null ? indicatorIcon.width + INDICATOR_LEFT_MARGIN : 0;
+				return SelectionListWidget.this.getRowWidth() - getIndent() - INDICATOR_LEFT_MARGIN - indicatorWidth;
 			}
 
 			private int getIndent() {
-				return this.isChatMessage ? 11 : 0;
+				return isChatMessage ? CHAT_MESSAGE_LEFT_MARGIN : 0;
 			}
 
 			@Override
 			public Text getNarration() {
-				return (Text) (this.isSelected() ? Text.translatable("narrator.select", this.narration)
-				                                 : this.narration
-				);
+				return isSelected()
+						? Text.translatable("narrator.select", narration)
+						: narration;
 			}
 
 			@Override
 			public boolean mouseClicked(Click click, boolean doubled) {
 				SelectionListWidget.this.setSelected(null);
-				return this.toggle();
+				return toggle();
 			}
 
 			@Override
 			public boolean keyPressed(KeyInput input) {
-				return input.isEnterOrSpace() ? this.toggle() : false;
+				return input.isEnterOrSpace() ? toggle() : false;
 			}
 
 			@Override
 			public boolean isSelected() {
-				return ChatSelectionScreen.this.report.isMessageSelected(this.index);
+				return ChatSelectionScreen.this.report.isMessageSelected(index);
 			}
 
 			@Override
@@ -449,29 +455,29 @@ public class ChatSelectionScreen extends Screen {
 
 			@Override
 			public boolean isHighlightedOnHover() {
-				return this.fromReportedPlayer;
+				return fromReportedPlayer;
 			}
 
 			private boolean toggle() {
-				if (this.fromReportedPlayer) {
-					ChatSelectionScreen.this.report.toggleMessageSelection(this.index);
-					ChatSelectionScreen.this.setDoneButtonActivation();
-					return true;
-				}
-				else {
+				if (!fromReportedPlayer) {
 					return false;
 				}
+
+				ChatSelectionScreen.this.report.toggleMessageSelection(index);
+				ChatSelectionScreen.this.setDoneButtonActivation();
+				return true;
 			}
 		}
 
-		@Environment(EnvType.CLIENT)
 		/**
-		 * {@code SenderEntry}.
+		 * Запись отправителя сообщения с аватаром скина и именем.
 		 */
+		@Environment(EnvType.CLIENT)
 		public class SenderEntry extends ChatSelectionScreen.SelectionListWidget.Entry {
 
 			private static final int PLAYER_SKIN_SIZE = 12;
 			private static final int ICON_PADDING = 4;
+
 			private final Text headingText;
 			private final Supplier<SkinTextures> skinTexturesSupplier;
 			private final boolean fromReportedPlayer;
@@ -489,42 +495,30 @@ public class ChatSelectionScreen extends Screen {
 
 			@Override
 			public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-				int i = this.getContentX() - 12 + 4;
-				int j = this.getContentY() + (this.getContentHeight() - 12) / 2;
-				PlayerSkinDrawer.draw(context, this.skinTexturesSupplier.get(), i, j, 12);
-				int k = this.getContentY() + 1 + (this.getContentHeight() - 9) / 2;
+				int skinX = getContentX() - PLAYER_SKIN_SIZE + ICON_PADDING;
+				int skinY = getContentY() + (getContentHeight() - PLAYER_SKIN_SIZE) / 2;
+				PlayerSkinDrawer.draw(context, skinTexturesSupplier.get(), skinX, skinY, PLAYER_SKIN_SIZE);
+
+				int textY = getContentY() + 1 + (getContentHeight() - 9) / 2;
 				context.drawTextWithShadow(
 						ChatSelectionScreen.this.textRenderer,
-						this.headingText,
-						i + 12 + 4,
-						k,
-						this.fromReportedPlayer ? -1 : -1593835521
+						headingText,
+						skinX + PLAYER_SKIN_SIZE + ICON_PADDING,
+						textY,
+						fromReportedPlayer ? -1 : -1593835521
 				);
 			}
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code SenderEntryPair}.
-		 */
 		record SenderEntryPair(UUID sender, ChatSelectionScreen.SelectionListWidget.Entry entry) {
 
-			/**
-			 * Отправляет er equals.
-			 *
-			 * @param pair pair
-			 *
-			 * @return boolean — результат операции
-			 */
 			public boolean senderEquals(ChatSelectionScreen.SelectionListWidget.SenderEntryPair pair) {
-				return pair.sender.equals(this.sender);
+				return pair.sender.equals(sender);
 			}
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code SeparatorEntry}.
-		 */
 		public static class SeparatorEntry extends ChatSelectionScreen.SelectionListWidget.Entry {
 
 			@Override
@@ -533,9 +527,6 @@ public class ChatSelectionScreen extends Screen {
 		}
 
 		@Environment(EnvType.CLIENT)
-		/**
-		 * {@code TextEntry}.
-		 */
 		public class TextEntry extends ChatSelectionScreen.SelectionListWidget.Entry {
 
 			private final Text text;
@@ -546,17 +537,17 @@ public class ChatSelectionScreen extends Screen {
 
 			@Override
 			public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-				int i = this.getContentMiddleY();
-				int j = this.getContentRightEnd() - 8;
-				int k = ChatSelectionScreen.this.textRenderer.getWidth(this.text);
-				int l = (this.getContentX() + j - k) / 2;
-				int m = i - 9 / 2;
-				context.drawTextWithShadow(ChatSelectionScreen.this.textRenderer, this.text, l, m, -6250336);
+				int centerY = getContentMiddleY();
+				int rightBound = getContentRightEnd() - 8;
+				int textWidth = ChatSelectionScreen.this.textRenderer.getWidth(text);
+				int textX = (getContentX() + rightBound - textWidth) / 2;
+				int textY = centerY - 9 / 2;
+				context.drawTextWithShadow(ChatSelectionScreen.this.textRenderer, text, textX, textY, -6250336);
 			}
 
 			@Override
 			public Text getNarration() {
-				return this.text;
+				return text;
 			}
 		}
 	}

@@ -10,7 +10,8 @@ import net.minecraft.network.packet.s2c.config.*;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс config packets.
+ * Реестр типов пакетов фазы {@code CONFIGURATION}: обмен известными паками,
+ * динамические реестры, включённые фичи, кодекс поведения и завершение конфигурации.
  */
 public class ConfigPackets {
 

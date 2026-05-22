@@ -12,11 +12,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code FishingHookPredicate}.
+ * Предикат поплавка удочки. Проверяет, находится ли поплавок в открытой воде.
  */
 public record FishingHookPredicate(Optional<Boolean> inOpenWater) implements EntitySubPredicate {
 
 	public static final FishingHookPredicate ALL = new FishingHookPredicate(Optional.empty());
+
 	public static final MapCodec<FishingHookPredicate> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance
 					.group(Codec.BOOL.optionalFieldOf("in_open_water").forGetter(FishingHookPredicate::inOpenWater))
@@ -34,13 +35,10 @@ public record FishingHookPredicate(Optional<Boolean> inOpenWater) implements Ent
 
 	@Override
 	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-		if (this.inOpenWater.isEmpty()) {
+		if (inOpenWater.isEmpty()) {
 			return true;
 		}
-		else {
-			return entity instanceof FishingBobberEntity fishingBobberEntity ? this.inOpenWater.get()
-			                                                                   == fishingBobberEntity.isInOpenWater()
-			                                                                 : false;
-		}
+
+		return entity instanceof FishingBobberEntity bobber && inOpenWater.get() == bobber.isInOpenWater();
 	}
 }

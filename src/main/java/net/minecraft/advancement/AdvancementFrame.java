@@ -8,7 +8,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code AdvancementFrame}.
+ * Тип рамки достижения, определяющий его визуальный стиль и цвет заголовка.
  */
 public enum AdvancementFrame implements StringIdentifiable {
 	TASK("task", Formatting.GREEN),
@@ -16,34 +16,35 @@ public enum AdvancementFrame implements StringIdentifiable {
 	GOAL("goal", Formatting.GREEN);
 
 	public static final Codec<AdvancementFrame> CODEC = StringIdentifiable.createCodec(AdvancementFrame::values);
+
 	private final String id;
 	private final Formatting titleFormat;
 	private final Text toastText;
 
-	private AdvancementFrame(final String id, final Formatting titleFormat) {
+	AdvancementFrame(final String id, final Formatting titleFormat) {
 		this.id = id;
 		this.titleFormat = titleFormat;
-		this.toastText = Text.translatable("advancements.toast." + id);
+		toastText = Text.translatable("advancements.toast." + id);
 	}
 
 	public Formatting getTitleFormat() {
-		return this.titleFormat;
+		return titleFormat;
 	}
 
 	public Text getToastText() {
-		return this.toastText;
+		return toastText;
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 
 	public MutableText getChatAnnouncementText(AdvancementEntry advancementEntry, ServerPlayerEntity player) {
 		return Text.translatable(
-				"chat.type.advancement." + this.id,
-				player.getDisplayName(),
-				Advancement.getNameFromIdentity(advancementEntry)
+			"chat.type.advancement." + id,
+			player.getDisplayName(),
+			Advancement.getNameFromIdentity(advancementEntry)
 		);
 	}
 }

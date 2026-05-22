@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code VillagerBabiesSensor}.
+ * Сенсор обнаружения видимых детёнышей жителей деревни.
+ * Фильтрует кэш видимых мобов по типу {@code VILLAGER} и признаку {@code isBaby}.
  */
 public class VillagerBabiesSensor extends Sensor<LivingEntity> {
 
@@ -23,11 +24,11 @@ public class VillagerBabiesSensor extends Sensor<LivingEntity> {
 
 	@Override
 	protected void sense(ServerWorld world, LivingEntity entity) {
-		entity.getBrain().remember(MemoryModuleType.VISIBLE_VILLAGER_BABIES, this.getVisibleVillagerBabies(entity));
+		entity.getBrain().remember(MemoryModuleType.VISIBLE_VILLAGER_BABIES, getVisibleVillagerBabies(entity));
 	}
 
-	private List<LivingEntity> getVisibleVillagerBabies(LivingEntity entities) {
-		return ImmutableList.copyOf(this.getVisibleMobs(entities).iterate(this::isVillagerBaby));
+	private List<LivingEntity> getVisibleVillagerBabies(LivingEntity entity) {
+		return ImmutableList.copyOf(getVisibleMobs(entity).iterate(this::isVillagerBaby));
 	}
 
 	private boolean isVillagerBaby(LivingEntity entity) {
@@ -35,8 +36,7 @@ public class VillagerBabiesSensor extends Sensor<LivingEntity> {
 	}
 
 	private LivingTargetCache getVisibleMobs(LivingEntity entity) {
-		return entity
-				.getBrain()
+		return entity.getBrain()
 				.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
 				.orElse(LivingTargetCache.empty());
 	}

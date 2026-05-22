@@ -21,15 +21,23 @@ import org.slf4j.Logger;
 import java.util.List;
 
 /**
- * {@code StructureStart}.
+ * Представляет стартовую точку сгенерированной структуры в мире.
+ * Хранит список кусков {@link StructurePiece}, позицию чанка и счётчик ссылок.
+ * Ссылки используются для предотвращения повторной генерации структуры.
  */
 public final class StructureStart {
 
 	public static final String INVALID = "INVALID";
-	public static final StructureStart
-			DEFAULT =
-			new StructureStart(null, new ChunkPos(0, 0), 0, new StructurePiecesList(List.of()));
+	public static final StructureStart DEFAULT = new StructureStart(
+		null,
+		new ChunkPos(0, 0),
+		0,
+		new StructurePiecesList(List.of())
+	);
+
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int MIN_REFERENCES = 1;
+
 	private final Structure structure;
 	private final StructurePiecesList children;
 	private final ChunkPos pos;
@@ -43,138 +51,135 @@ public final class StructureStart {
 		this.children = children;
 	}
 
+	/**
+	 * Десериализует старт структуры из NBT.
+	 * Возвращает {@link #DEFAULT} для невалидных структур, {@code null} при ошибке.
+	 */
 	public static @Nullable StructureStart fromNbt(StructureContext context, NbtCompound nbt, long seed) {
-		String string = nbt.getString("id", "");
-		if ("INVALID".equals(string)) {
+		String id = nbt.getString("id", "");
+		if (INVALID.equals(id)) {
 			return DEFAULT;
 		}
-		else {
-			Registry<Structure> registry = context.registryManager().getOrThrow(RegistryKeys.STRUCTURE);
-			Structure structure = registry.get(Identifier.of(string));
-			if (structure == null) {
-				LOGGER.error("Unknown stucture id: {}", string);
-				return null;
-			}
-			else {
-				ChunkPos chunkPos = new ChunkPos(nbt.getInt("ChunkX", 0), nbt.getInt("ChunkZ", 0));
-				int i = nbt.getInt("references", 0);
-				NbtList nbtList = nbt.getListOrEmpty("Children");
 
-				try {
-					StructurePiecesList structurePiecesList = StructurePiecesList.fromNbt(nbtList, context);
-					if (structure instanceof OceanMonumentStructure) {
-						structurePiecesList =
-								OceanMonumentStructure.modifyPiecesOnRead(chunkPos, seed, structurePiecesList);
-					}
+		Registry<Structure> registry = context.registryManager().getOrThrow(RegistryKeys.STRUCTURE);
+		Structure structure = registry.get(Identifier.of(id));
+		if (structure == null) {
+			LOGGER.error("Unknown stucture id: {}", id);
+			return null;
+		}
 
-					return new StructureStart(structure, chunkPos, i, structurePiecesList);
-				}
-				catch (Exception var11) {
-					LOGGER.error("Failed Start with id {}", string, var11);
-					return null;
-				}
+		ChunkPos chunkPos = new ChunkPos(nbt.getInt("ChunkX", 0), nbt.getInt("ChunkZ", 0));
+		int refCount = nbt.getInt("references", 0);
+		NbtList childrenNbt = nbt.getListOrEmpty("Children");
+
+		try {
+			StructurePiecesList pieces = StructurePiecesList.fromNbt(childrenNbt, context);
+			if (structure instanceof OceanMonumentStructure) {
+				pieces = OceanMonumentStructure.modifyPiecesOnRead(chunkPos, seed, pieces);
 			}
+
+			return new StructureStart(structure, chunkPos, refCount, pieces);
+		} catch (Exception exception) {
+			LOGGER.error("Failed Start with id {}", id, exception);
+			return null;
 		}
 	}
 
+	/**
+	 * Возвращает ограничивающий блок старта, вычисляя его лениво при первом обращении.
+	 * Результат кешируется для последующих вызовов.
+	 */
 	public BlockBox getBoundingBox() {
-		BlockBox blockBox = this.boundingBox;
-		if (blockBox == null) {
-			blockBox = this.structure.expandBoxIfShouldAdaptNoise(this.children.getBoundingBox());
-			this.boundingBox = blockBox;
+		BlockBox cached = boundingBox;
+		if (cached == null) {
+			cached = structure.expandBoxIfShouldAdaptNoise(children.getBoundingBox());
+			boundingBox = cached;
 		}
 
-		return blockBox;
+		return cached;
 	}
 
+	/**
+	 * Размещает все куски структуры в мире для заданного чанка.
+	 * Передаёт нижнюю центральную точку первого куска как опорную для генерации.
+	 */
 	public void place(
-			StructureWorldAccess world,
-			StructureAccessor structureAccessor,
-			ChunkGenerator chunkGenerator,
-			Random random,
-			BlockBox chunkBox,
-			ChunkPos chunkPos
+		StructureWorldAccess world,
+		StructureAccessor structureAccessor,
+		ChunkGenerator chunkGenerator,
+		Random random,
+		BlockBox chunkBox,
+		ChunkPos chunkPos
 	) {
-		List<StructurePiece> list = this.children.pieces();
-		if (!list.isEmpty()) {
-			BlockBox blockBox = list.get(0).boundingBox;
-			BlockPos blockPos = blockBox.getCenter();
-			BlockPos blockPos2 = new BlockPos(blockPos.getX(), blockBox.getMinY(), blockPos.getZ());
-
-			for (StructurePiece structurePiece : list) {
-				if (structurePiece.getBoundingBox().intersects(chunkBox)) {
-					structurePiece.generate(
-							world,
-							structureAccessor,
-							chunkGenerator,
-							random,
-							chunkBox,
-							chunkPos,
-							blockPos2
-					);
-				}
-			}
-
-			this.structure.postPlace(
-					world,
-					structureAccessor,
-					chunkGenerator,
-					random,
-					chunkBox,
-					chunkPos,
-					this.children
-			);
+		List<StructurePiece> pieces = children.pieces();
+		if (pieces.isEmpty()) {
+			return;
 		}
+
+		BlockBox firstBox = pieces.get(0).boundingBox;
+		BlockPos center = firstBox.getCenter();
+		BlockPos pivot = new BlockPos(center.getX(), firstBox.getMinY(), center.getZ());
+
+		for (StructurePiece piece : pieces) {
+			if (piece.getBoundingBox().intersects(chunkBox)) {
+				piece.generate(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
+			}
+		}
+
+		structure.postPlace(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, children);
 	}
 
+	/**
+	 * Сериализует старт структуры в NBT.
+	 * Если кусков нет — записывает маркер {@link #INVALID}.
+	 */
 	public NbtCompound toNbt(StructureContext context, ChunkPos chunkPos) {
-		NbtCompound nbtCompound = new NbtCompound();
-		if (this.hasChildren()) {
-			nbtCompound.putString(
-					"id",
-					context.registryManager().getOrThrow(RegistryKeys.STRUCTURE).getId(this.structure).toString()
-			);
-			nbtCompound.putInt("ChunkX", chunkPos.x);
-			nbtCompound.putInt("ChunkZ", chunkPos.z);
-			nbtCompound.putInt("references", this.references);
-			nbtCompound.put("Children", this.children.toNbt(context));
-			return nbtCompound;
+		NbtCompound nbt = new NbtCompound();
+		if (!hasChildren()) {
+			nbt.putString("id", INVALID);
+			return nbt;
 		}
-		else {
-			nbtCompound.putString("id", "INVALID");
-			return nbtCompound;
-		}
+
+		nbt.putString(
+			"id",
+			context.registryManager().getOrThrow(RegistryKeys.STRUCTURE).getId(structure).toString()
+		);
+		nbt.putInt("ChunkX", chunkPos.x);
+		nbt.putInt("ChunkZ", chunkPos.z);
+		nbt.putInt("references", references);
+		nbt.put("Children", children.toNbt(context));
+		return nbt;
 	}
 
 	public boolean hasChildren() {
-		return !this.children.isEmpty();
+		return !children.isEmpty();
 	}
 
 	public ChunkPos getPos() {
-		return this.pos;
+		return pos;
 	}
 
+	/**
+	 * Возвращает {@code true}, если структура ещё не была достаточно обработана.
+	 * Используется для предотвращения повторной генерации.
+	 */
 	public boolean isNeverReferenced() {
-		return this.references < this.getMinReferencedStructureReferenceCount();
+		return references < MIN_REFERENCES;
 	}
 
 	public void incrementReferences() {
-		this.references++;
+		references++;
 	}
 
 	public int getReferences() {
-		return this.references;
-	}
-
-	protected int getMinReferencedStructureReferenceCount() {
-		return 1;
+		return references;
 	}
 
 	public Structure getStructure() {
-		return this.structure;
+		return structure;
 	}
 
 	public List<StructurePiece> getChildren() {
-		return this.children.pieces();
+		return children.pieces();
 	}
 }

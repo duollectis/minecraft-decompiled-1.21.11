@@ -7,10 +7,21 @@ import net.minecraft.registry.entry.RegistryEntryListCodec;
 import net.minecraft.registry.entry.RegistryFixedCodec;
 
 /**
- * {@code RegistryCodecs}.
+ * Фабрика кодеков для списков записей реестра ({@link RegistryEntryList}).
+ * Предоставляет удобные методы для создания кодеков, поддерживающих
+ * как ссылки по тегу, так и прямые списки элементов.
  */
 public class RegistryCodecs {
 
+	/**
+	 * Создаёт кодек для списка записей реестра с поддержкой инлайн-определений элементов.
+	 * Список всегда сериализуется как массив (не как одиночный элемент).
+	 *
+	 * @param registryRef  ключ реестра
+	 * @param elementCodec кодек для инлайн-сериализации элементов
+	 * @param <E>          тип элементов
+	 * @return кодек для {@link RegistryEntryList}
+	 */
 	public static <E> Codec<RegistryEntryList<E>> entryList(
 			RegistryKey<? extends Registry<E>> registryRef,
 			Codec<E> elementCodec
@@ -18,6 +29,15 @@ public class RegistryCodecs {
 		return entryList(registryRef, elementCodec, false);
 	}
 
+	/**
+	 * Создаёт кодек для списка записей реестра с поддержкой инлайн-определений элементов.
+	 *
+	 * @param registryRef          ключ реестра
+	 * @param elementCodec         кодек для инлайн-сериализации элементов
+	 * @param alwaysSerializeAsList если {@code true}, одиночный элемент тоже сериализуется как массив
+	 * @param <E>                  тип элементов
+	 * @return кодек для {@link RegistryEntryList}
+	 */
 	public static <E> Codec<RegistryEntryList<E>> entryList(
 			RegistryKey<? extends Registry<E>> registryRef,
 			Codec<E> elementCodec,
@@ -31,16 +51,25 @@ public class RegistryCodecs {
 	}
 
 	/**
-	 * Entry list.
+	 * Создаёт кодек для списка записей реестра без поддержки инлайн-определений.
+	 * Элементы сериализуются только по идентификатору (ключу реестра).
 	 *
-	 * @param registryRef registry ref
-	 *
-	 * @return Codec> — результат операции
+	 * @param registryRef ключ реестра
+	 * @param <E>         тип элементов
+	 * @return кодек для {@link RegistryEntryList}
 	 */
 	public static <E> Codec<RegistryEntryList<E>> entryList(RegistryKey<? extends Registry<E>> registryRef) {
 		return entryList(registryRef, false);
 	}
 
+	/**
+	 * Создаёт кодек для списка записей реестра без поддержки инлайн-определений.
+	 *
+	 * @param registryRef          ключ реестра
+	 * @param alwaysSerializeAsList если {@code true}, одиночный элемент тоже сериализуется как массив
+	 * @param <E>                  тип элементов
+	 * @return кодек для {@link RegistryEntryList}
+	 */
 	public static <E> Codec<RegistryEntryList<E>> entryList(
 			RegistryKey<? extends Registry<E>> registryRef,
 			boolean alwaysSerializeAsList

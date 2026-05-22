@@ -10,10 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GridWidget}.
+ * Виджет-контейнер, выравнивающий дочерние элементы по сетке строк и столбцов.
+ * Поддерживает объединение ячеек (span), настраиваемые отступы между строками и столбцами,
+ * а также удобный {@link Adder} для последовательного добавления элементов по строкам.
  */
+@Environment(EnvType.CLIENT)
 public class GridWidget extends WrapperWidget {
 
 	private final List<Widget> children = new ArrayList<>();
@@ -33,126 +35,92 @@ public class GridWidget extends WrapperWidget {
 	@Override
 	public void refreshPositions() {
 		super.refreshPositions();
-		int i = 0;
-		int j = 0;
+		int maxRow = 0;
+		int maxColumn = 0;
 
-		for (GridWidget.Element element : this.grids) {
-			i = Math.max(element.getRowEnd(), i);
-			j = Math.max(element.getColumnEnd(), j);
+		for (GridWidget.Element element : grids) {
+			maxRow = Math.max(element.getRowEnd(), maxRow);
+			maxColumn = Math.max(element.getColumnEnd(), maxColumn);
 		}
 
-		int[] is = new int[j + 1];
-		int[] js = new int[i + 1];
+		int[] columnWidths = new int[maxColumn + 1];
+		int[] rowHeights = new int[maxRow + 1];
 
-		for (GridWidget.Element element2 : this.grids) {
-			int k = element2.getHeight() - (element2.occupiedRows - 1) * this.rowSpacing;
-			Divider divider = new Divider(k, element2.occupiedRows);
-
-			for (int l = element2.row; l <= element2.getRowEnd(); l++) {
-				js[l] = Math.max(js[l], divider.nextInt());
+		for (GridWidget.Element element : grids) {
+			int cellHeight = element.getHeight() - (element.occupiedRows - 1) * rowSpacing;
+			Divider rowDivider = new Divider(cellHeight, element.occupiedRows);
+			for (int row = element.row; row <= element.getRowEnd(); row++) {
+				rowHeights[row] = Math.max(rowHeights[row], rowDivider.nextInt());
 			}
 
-			int l = element2.getWidth() - (element2.occupiedColumns - 1) * this.columnSpacing;
-			Divider divider2 = new Divider(l, element2.occupiedColumns);
-
-			for (int m = element2.column; m <= element2.getColumnEnd(); m++) {
-				is[m] = Math.max(is[m], divider2.nextInt());
+			int cellWidth = element.getWidth() - (element.occupiedColumns - 1) * columnSpacing;
+			Divider colDivider = new Divider(cellWidth, element.occupiedColumns);
+			for (int col = element.column; col <= element.getColumnEnd(); col++) {
+				columnWidths[col] = Math.max(columnWidths[col], colDivider.nextInt());
 			}
 		}
 
-		int[] ks = new int[j + 1];
-		int[] ls = new int[i + 1];
-		ks[0] = 0;
-
-		for (int k = 1; k <= j; k++) {
-			ks[k] = ks[k - 1] + is[k - 1] + this.columnSpacing;
+		int[] columnOffsets = new int[maxColumn + 1];
+		int[] rowOffsets = new int[maxRow + 1];
+		columnOffsets[0] = 0;
+		for (int col = 1; col <= maxColumn; col++) {
+			columnOffsets[col] = columnOffsets[col - 1] + columnWidths[col - 1] + columnSpacing;
 		}
 
-		ls[0] = 0;
-
-		for (int k = 1; k <= i; k++) {
-			ls[k] = ls[k - 1] + js[k - 1] + this.rowSpacing;
+		rowOffsets[0] = 0;
+		for (int row = 1; row <= maxRow; row++) {
+			rowOffsets[row] = rowOffsets[row - 1] + rowHeights[row - 1] + rowSpacing;
 		}
 
-		for (GridWidget.Element element3 : this.grids) {
-			int l = 0;
-
-			for (int n = element3.column; n <= element3.getColumnEnd(); n++) {
-				l += is[n];
+		for (GridWidget.Element element : grids) {
+			int totalWidth = 0;
+			for (int col = element.column; col <= element.getColumnEnd(); col++) {
+				totalWidth += columnWidths[col];
 			}
 
-			l += this.columnSpacing * (element3.occupiedColumns - 1);
-			element3.setX(this.getX() + ks[element3.column], l);
-			int n = 0;
+			totalWidth += columnSpacing * (element.occupiedColumns - 1);
+			element.setX(getX() + columnOffsets[element.column], totalWidth);
 
-			for (int m = element3.row; m <= element3.getRowEnd(); m++) {
-				n += js[m];
+			int totalHeight = 0;
+			for (int row = element.row; row <= element.getRowEnd(); row++) {
+				totalHeight += rowHeights[row];
 			}
 
-			n += this.rowSpacing * (element3.occupiedRows - 1);
-			element3.setY(this.getY() + ls[element3.row], n);
+			totalHeight += rowSpacing * (element.occupiedRows - 1);
+			element.setY(getY() + rowOffsets[element.row], totalHeight);
 		}
 
-		this.width = ks[j] + is[j];
-		this.height = ls[i] + js[i];
+		this.width = columnOffsets[maxColumn] + columnWidths[maxColumn];
+		this.height = rowOffsets[maxRow] + rowHeights[maxRow];
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param row row
-	 * @param column column
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, int row, int column) {
-		return this.add(widget, row, column, this.copyPositioner());
+		return add(widget, row, column, copyPositioner());
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param row row
-	 * @param column column
-	 * @param positioner positioner
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, int row, int column, Positioner positioner) {
-		return this.add(widget, row, column, 1, 1, positioner);
+		return add(widget, row, column, 1, 1, positioner);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param widget widget
-	 * @param row row
-	 * @param column column
-	 * @param callback callback
-	 *
-	 * @return T — результат операции
-	 */
 	public <T extends Widget> T add(T widget, int row, int column, Consumer<Positioner> callback) {
-		return this.add(widget, row, column, 1, 1, Util.make(this.copyPositioner(), callback));
+		return add(widget, row, column, 1, 1, Util.make(copyPositioner(), callback));
+	}
+
+	public <T extends Widget> T add(T widget, int row, int column, int occupiedRows, int occupiedColumns) {
+		return add(widget, row, column, occupiedRows, occupiedColumns, copyPositioner());
 	}
 
 	/**
-	 * Add.
+	 * Добавляет виджет в ячейку сетки с заданным span-ом по строкам и столбцам.
 	 *
-	 * @param widget widget
-	 * @param row row
-	 * @param column column
-	 * @param occupiedRows occupied rows
-	 * @param occupiedColumns occupied columns
-	 *
-	 * @return T — результат операции
+	 * @param widget виджет для добавления
+	 * @param row начальная строка (0-based)
+	 * @param column начальный столбец (0-based)
+	 * @param occupiedRows количество занимаемых строк (минимум 1)
+	 * @param occupiedColumns количество занимаемых столбцов (минимум 1)
+	 * @param positioner позиционер для выравнивания внутри ячейки
+	 * @return переданный виджет (для fluent-цепочек)
 	 */
-	public <T extends Widget> T add(T widget, int row, int column, int occupiedRows, int occupiedColumns) {
-		return this.add(widget, row, column, occupiedRows, occupiedColumns, this.copyPositioner());
-	}
-
 	public <T extends Widget> T add(
 			T widget,
 			int row,
@@ -164,14 +132,14 @@ public class GridWidget extends WrapperWidget {
 		if (occupiedRows < 1) {
 			throw new IllegalArgumentException("Occupied rows must be at least 1");
 		}
-		else if (occupiedColumns < 1) {
+
+		if (occupiedColumns < 1) {
 			throw new IllegalArgumentException("Occupied columns must be at least 1");
 		}
-		else {
-			this.grids.add(new GridWidget.Element(widget, row, column, occupiedRows, occupiedColumns, positioner));
-			this.children.add(widget);
-			return widget;
-		}
+
+		grids.add(new GridWidget.Element(widget, row, column, occupiedRows, occupiedColumns, positioner));
+		children.add(widget);
+		return widget;
 	}
 
 	public <T extends Widget> T add(
@@ -182,7 +150,7 @@ public class GridWidget extends WrapperWidget {
 			int occupiedColumns,
 			Consumer<Positioner> callback
 	) {
-		return this.add(widget, row, column, occupiedRows, occupiedColumns, Util.make(this.copyPositioner(), callback));
+		return add(widget, row, column, occupiedRows, occupiedColumns, Util.make(copyPositioner(), callback));
 	}
 
 	public GridWidget setColumnSpacing(int columnSpacing) {
@@ -196,110 +164,69 @@ public class GridWidget extends WrapperWidget {
 	}
 
 	public GridWidget setSpacing(int spacing) {
-		return this.setColumnSpacing(spacing).setRowSpacing(spacing);
+		return setColumnSpacing(spacing).setRowSpacing(spacing);
 	}
 
 	@Override
 	public void forEachElement(Consumer<Widget> consumer) {
-		this.children.forEach(consumer);
+		children.forEach(consumer);
 	}
 
-	/**
-	 * Создаёт копию positioner.
-	 *
-	 * @return Positioner — результат операции
-	 */
 	public Positioner copyPositioner() {
-		return this.mainPositioner.copy();
+		return mainPositioner.copy();
 	}
 
 	public Positioner getMainPositioner() {
-		return this.mainPositioner;
+		return mainPositioner;
 	}
 
 	public GridWidget.Adder createAdder(int columns) {
 		return new GridWidget.Adder(columns);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Adder}.
+	 * Вспомогательный класс для последовательного добавления виджетов в сетку по строкам.
+	 * Автоматически переносит на следующую строку при превышении числа столбцов.
 	 */
+	@Environment(EnvType.CLIENT)
 	public final class Adder {
 
 		private final int columns;
 		private int totalOccupiedColumns;
 
-		Adder(final int columns) {
+		Adder(int columns) {
 			this.columns = columns;
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param widget widget
-		 *
-		 * @return T — результат операции
-		 */
 		public <T extends Widget> T add(T widget) {
-			return this.add(widget, 1);
+			return add(widget, 1);
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param widget widget
-		 * @param occupiedColumns occupied columns
-		 *
-		 * @return T — результат операции
-		 */
 		public <T extends Widget> T add(T widget, int occupiedColumns) {
-			return this.add(widget, occupiedColumns, this.getMainPositioner());
+			return add(widget, occupiedColumns, getMainPositioner());
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param widget widget
-		 * @param positioner positioner
-		 *
-		 * @return T — результат операции
-		 */
 		public <T extends Widget> T add(T widget, Positioner positioner) {
-			return this.add(widget, 1, positioner);
+			return add(widget, 1, positioner);
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param widget widget
-		 * @param occupiedColumns occupied columns
-		 * @param positioner positioner
-		 *
-		 * @return T — результат операции
-		 */
 		public <T extends Widget> T add(T widget, int occupiedColumns, Positioner positioner) {
-			int i = this.totalOccupiedColumns / this.columns;
-			int j = this.totalOccupiedColumns % this.columns;
-			if (j + occupiedColumns > this.columns) {
-				i++;
-				j = 0;
-				this.totalOccupiedColumns = MathHelper.roundUpToMultiple(this.totalOccupiedColumns, this.columns);
+			int row = totalOccupiedColumns / columns;
+			int col = totalOccupiedColumns % columns;
+			if (col + occupiedColumns > columns) {
+				row++;
+				col = 0;
+				totalOccupiedColumns = MathHelper.roundUpToMultiple(totalOccupiedColumns, columns);
 			}
 
-			this.totalOccupiedColumns += occupiedColumns;
-			return GridWidget.this.add(widget, i, j, 1, occupiedColumns, positioner);
+			totalOccupiedColumns += occupiedColumns;
+			return GridWidget.this.add(widget, row, col, 1, occupiedColumns, positioner);
 		}
 
 		public GridWidget getGridWidget() {
 			return GridWidget.this;
 		}
 
-		/**
-		 * Создаёт копию positioner.
-		 *
-		 * @return Positioner — результат операции
-		 */
 		public Positioner copyPositioner() {
 			return GridWidget.this.copyPositioner();
 		}
@@ -310,9 +237,6 @@ public class GridWidget extends WrapperWidget {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Element}.
-	 */
 	static class Element extends WrapperWidget.WrappedElement {
 
 		final int row;
@@ -329,11 +253,11 @@ public class GridWidget extends WrapperWidget {
 		}
 
 		public int getRowEnd() {
-			return this.row + this.occupiedRows - 1;
+			return row + occupiedRows - 1;
 		}
 
 		public int getColumnEnd() {
-			return this.column + this.occupiedColumns - 1;
+			return column + occupiedColumns - 1;
 		}
 	}
 }

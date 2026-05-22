@@ -9,7 +9,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code SplitGraphicsModeFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class SplitGraphicsModeFix extends DataFix {
 
@@ -33,9 +33,9 @@ public class SplitGraphicsModeFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"graphicsMode split to " + this.optionName,
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						options -> (Dynamic) DataFixUtils.orElseGet(

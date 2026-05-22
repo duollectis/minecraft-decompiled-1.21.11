@@ -13,63 +13,70 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code HorseChestIndexingFix}.
+ * Исправляет индексацию слотов инвентаря у лошадей с сундуком (лама, мул, осёл):
+ * слоты начинались с индекса 2 вместо 0, поэтому здесь вычитается 2 из каждого
+ * значения поля {@code Slot}.
  */
 public class HorseChestIndexingFix extends DataFix {
+
+	private static final int SLOT_INDEX_OFFSET = 2;
 
 	public HorseChestIndexingFix(Schema outputSchema) {
 		super(outputSchema, false);
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	protected TypeRewriteRule makeRule() {
 		OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>>
-				opticFinder =
-				(OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>>) DSL.typeFinder(
-						this.getInputSchema().getType(TypeReferences.ITEM_STACK)
-				);
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
+			itemStackFinder =
+			(OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>>) DSL.typeFinder(
+				getInputSchema().getType(TypeReferences.ITEM_STACK)
+			);
+
+		Type<?> entityType = getInputSchema().getType(TypeReferences.ENTITY);
+
 		return TypeRewriteRule.seq(
-				this.fixIndexing(opticFinder, type, "minecraft:llama"),
-				new TypeRewriteRule[]{
-						this.fixIndexing(opticFinder, type, "minecraft:trader_llama"),
-						this.fixIndexing(opticFinder, type, "minecraft:mule"),
-						this.fixIndexing(opticFinder, type, "minecraft:donkey")
-				}
+			fixIndexing(itemStackFinder, entityType, "minecraft:llama"),
+			new TypeRewriteRule[]{
+				fixIndexing(itemStackFinder, entityType, "minecraft:trader_llama"),
+				fixIndexing(itemStackFinder, entityType, "minecraft:mule"),
+				fixIndexing(itemStackFinder, entityType, "minecraft:donkey")
+			}
 		);
 	}
 
 	private TypeRewriteRule fixIndexing(
-			OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>> itemStackOpticFinder,
-			Type<?> entityType,
-			String entityId
+		OpticFinder<Pair<String, Pair<Either<Pair<String, String>, Unit>, Pair<Either<?, Unit>, Dynamic<?>>>>> itemStackFinder,
+		Type<?> entityType,
+		String entityId
 	) {
-		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
-		OpticFinder<?> opticFinder = DSL.namedChoice(entityId, type);
-		OpticFinder<?> opticFinder2 = type.findField("Items");
-		return this.fixTypeEverywhereTyped(
-				"Fix non-zero indexing in chest horse type " + entityId,
-				entityType,
-				entityTyped -> entityTyped.updateTyped(
-						opticFinder,
-						specificEntityTyped -> specificEntityTyped.updateTyped(
-								opticFinder2,
-								entityItemsTyped -> entityItemsTyped.update(
-										itemStackOpticFinder,
-										itemStackEntry -> itemStackEntry.mapSecond(
-												pair -> pair.mapSecond(
-														pairx -> pairx.mapSecond(
-																itemStackDynamic -> itemStackDynamic.update("Slot",
-																		slotDynamic -> slotDynamic.createByte((byte) (
-																				slotDynamic.asInt(2) - 2
-																		))
-																)
-														)
-												)
-										)
+		Type<?> specificEntityType = getInputSchema().getChoiceType(TypeReferences.ENTITY, entityId);
+		OpticFinder<?> entityFinder = DSL.namedChoice(entityId, specificEntityType);
+		OpticFinder<?> itemsFinder = specificEntityType.findField("Items");
+
+		return fixTypeEverywhereTyped(
+			"Fix non-zero indexing in chest horse type " + entityId,
+			entityType,
+			entity -> entity.updateTyped(
+				entityFinder,
+				specificEntity -> specificEntity.updateTyped(
+					itemsFinder,
+					items -> items.update(
+						itemStackFinder,
+						itemStack -> itemStack.mapSecond(
+							outer -> outer.mapSecond(
+								inner -> inner.mapSecond(
+									itemData -> itemData.update(
+										"Slot",
+										slot -> slot.createByte((byte) (slot.asInt(SLOT_INDEX_OFFSET) - SLOT_INDEX_OFFSET))
+									)
 								)
+							)
 						)
+					)
 				)
+			)
 		);
 	}
 }

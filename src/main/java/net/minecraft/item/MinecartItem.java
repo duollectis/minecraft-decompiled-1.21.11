@@ -16,9 +16,15 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
 /**
- * {@code MinecartItem}.
+ * Предмет «Вагонетка». При использовании на рельсах размещает соответствующую
+ * сущность вагонетки. Если включены улучшения вагонеток, запрещает размещение
+ * поверх уже существующей вагонетки.
  */
 public class MinecartItem extends Item {
+
+	private static final double RAIL_VERTICAL_OFFSET = 0.0625;
+	private static final double ASCENDING_RAIL_OFFSET = 0.5;
+	private static final double RAIL_CENTER_OFFSET = 0.5;
 
 	private final EntityType<? extends AbstractMinecartEntity> type;
 
@@ -30,49 +36,52 @@ public class MinecartItem extends Item {
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
+
 		if (!blockState.isIn(BlockTags.RAILS)) {
 			return ActionResult.FAIL;
 		}
-		else {
-			ItemStack itemStack = context.getStack();
-			RailShape railShape = blockState.getBlock() instanceof AbstractRailBlock
-			                      ? blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty())
-			                      : RailShape.NORTH_SOUTH;
-			double d = 0.0;
-			if (railShape.isAscending()) {
-				d = 0.5;
-			}
 
-			Vec3d vec3d = new Vec3d(blockPos.getX() + 0.5, blockPos.getY() + 0.0625 + d, blockPos.getZ() + 0.5);
-			AbstractMinecartEntity abstractMinecartEntity = AbstractMinecartEntity.create(
-					world, vec3d.x, vec3d.y, vec3d.z, this.type, SpawnReason.DISPENSER, itemStack, context.getPlayer()
-			);
-			if (abstractMinecartEntity == null) {
-				return ActionResult.FAIL;
-			}
-			else {
-				if (AbstractMinecartEntity.areMinecartImprovementsEnabled(world)) {
-					for (Entity entity : world.getOtherEntities(null, abstractMinecartEntity.getBoundingBox())) {
-						if (entity instanceof AbstractMinecartEntity) {
-							return ActionResult.FAIL;
-						}
-					}
+		ItemStack stack = context.getStack();
+		RailShape railShape = blockState.getBlock() instanceof AbstractRailBlock railBlock
+			? blockState.get(railBlock.getShapeProperty())
+			: RailShape.NORTH_SOUTH;
+
+		double verticalOffset = railShape.isAscending() ? ASCENDING_RAIL_OFFSET : 0.0;
+		Vec3d spawnPos = new Vec3d(
+			pos.getX() + RAIL_CENTER_OFFSET,
+			pos.getY() + RAIL_VERTICAL_OFFSET + verticalOffset,
+			pos.getZ() + RAIL_CENTER_OFFSET
+		);
+
+		AbstractMinecartEntity minecart = AbstractMinecartEntity.create(
+			world, spawnPos.x, spawnPos.y, spawnPos.z, type, SpawnReason.DISPENSER, stack, context.getPlayer()
+		);
+
+		if (minecart == null) {
+			return ActionResult.FAIL;
+		}
+
+		if (AbstractMinecartEntity.areMinecartImprovementsEnabled(world)) {
+			for (Entity entity : world.getOtherEntities(null, minecart.getBoundingBox())) {
+				if (entity instanceof AbstractMinecartEntity) {
+					return ActionResult.FAIL;
 				}
-
-				if (world instanceof ServerWorld serverWorld) {
-					serverWorld.spawnEntity(abstractMinecartEntity);
-					serverWorld.emitGameEvent(
-							GameEvent.ENTITY_PLACE,
-							blockPos,
-							GameEvent.Emitter.of(context.getPlayer(), serverWorld.getBlockState(blockPos.down()))
-					);
-				}
-
-				itemStack.decrement(1);
-				return ActionResult.SUCCESS;
 			}
 		}
+
+		if (world instanceof ServerWorld serverWorld) {
+			serverWorld.spawnEntity(minecart);
+			serverWorld.emitGameEvent(
+				GameEvent.ENTITY_PLACE,
+				pos,
+				GameEvent.Emitter.of(context.getPlayer(), serverWorld.getBlockState(pos.down()))
+			);
+		}
+
+		stack.decrement(1);
+
+		return ActionResult.SUCCESS;
 	}
 }

@@ -5,7 +5,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.dynamic.Codecs;
 
 /**
- * {@code Brightness}.
+ * Явно заданный уровень освещённости для Display-сущностей.
+ * Упаковывается в одно int-значение: биты 4–19 — блочный свет, биты 20–35 — небесный свет.
  */
 public record Brightness(int block, int sky) {
 
@@ -20,56 +21,23 @@ public record Brightness(int block, int sky) {
 	);
 	public static final Brightness FULL = new Brightness(15, 15);
 
-	/**
-	 * Pack.
-	 *
-	 * @param block block
-	 * @param sky sky
-	 *
-	 * @return int — результат операции
-	 */
+	/** Упаковывает уровни блочного и небесного света в одно int-значение. */
 	public static int pack(int block, int sky) {
 		return block << 4 | sky << 20;
 	}
 
-	/**
-	 * Pack.
-	 *
-	 * @return int — результат операции
-	 */
 	public int pack() {
-		return pack(this.block, this.sky);
+		return pack(block, sky);
 	}
 
-	/**
-	 * Unpack block.
-	 *
-	 * @param packed packed
-	 *
-	 * @return int — результат операции
-	 */
 	public static int unpackBlock(int packed) {
 		return packed >> 4 & 65535;
 	}
 
-	/**
-	 * Unpack sky.
-	 *
-	 * @param packed packed
-	 *
-	 * @return int — результат операции
-	 */
 	public static int unpackSky(int packed) {
 		return packed >> 20 & 65535;
 	}
 
-	/**
-	 * Unpack.
-	 *
-	 * @param packed packed
-	 *
-	 * @return Brightness — результат операции
-	 */
 	public static Brightness unpack(int packed) {
 		return new Brightness(unpackBlock(packed), unpackSky(packed));
 	}

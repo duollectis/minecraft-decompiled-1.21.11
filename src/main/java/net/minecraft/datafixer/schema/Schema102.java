@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema102}.
+ * Схема версии 102: переопределяет тип {@code ITEM_STACK} с хуком
+ * {@code BLOCK_ENTITY_TAG_HOOK}, обеспечивающим корректную миграцию
+ * данных блок-сущностей, хранящихся внутри предметов.
  */
 public class Schema102 extends Schema {
 

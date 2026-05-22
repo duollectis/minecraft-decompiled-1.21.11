@@ -1,11 +1,13 @@
 package net.minecraft.command;
 
 /**
- * {@code CommandQueueEntry}.
+ * Запись в очереди команд: связывает фрейм выполнения с конкретным действием.
+ *
+ * @param <T> тип источника команды
  */
 public record CommandQueueEntry<T>(Frame frame, CommandAction<T> action) {
 
 	public void execute(CommandExecutionContext<T> context) {
-		this.action.execute(context, this.frame);
+		action.execute(context, frame);
 	}
 }

@@ -7,7 +7,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.storage.StorageKey;
 
 /**
- * {@code ChunkErrorHandler}.
+ * Класс Chunk Error Handler.
  */
 public interface ChunkErrorHandler {
 

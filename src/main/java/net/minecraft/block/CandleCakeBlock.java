@@ -29,7 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code CandleCakeBlock}.
+ * Торт со свечой. Объединяет механику торта (поедание) и свечи (поджигание/тушение).
+ * Реестр соответствий {@code CandleBlock → CandleCakeBlock} используется при установке свечи на торт.
  */
 public class CandleCakeBlock extends AbstractCandleBlock {
 
@@ -42,11 +43,13 @@ public class CandleCakeBlock extends AbstractCandleBlock {
 					.apply(instance, CandleCakeBlock::new)
 	);
 	public static final BooleanProperty LIT = AbstractCandleBlock.LIT;
-	private static final VoxelShape
-			SHAPE =
-			VoxelShapes.union(Block.createColumnShape(2.0, 8.0, 14.0), Block.createColumnShape(14.0, 0.0, 8.0));
+	private static final float PIXEL = 0.0625F;
+	private static final VoxelShape SHAPE = VoxelShapes.union(
+			Block.createColumnShape(2.0, 8.0, 14.0),
+			Block.createColumnShape(14.0, 0.0, 8.0)
+	);
 	private static final Map<CandleBlock, CandleCakeBlock> CANDLES_TO_CANDLE_CAKES = Maps.newHashMap();
-	private static final Iterable<Vec3d> PARTICLE_OFFSETS = List.of(new Vec3d(8.0, 16.0, 8.0).multiply(0.0625));
+	private static final Iterable<Vec3d> PARTICLE_OFFSETS = List.of(new Vec3d(8.0, 16.0, 8.0).multiply(PIXEL));
 	private final CandleBlock candle;
 
 	@Override
@@ -56,12 +59,11 @@ public class CandleCakeBlock extends AbstractCandleBlock {
 
 	public CandleCakeBlock(Block candle, AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(LIT, false));
+		setDefaultState(stateManager.getDefaultState().with(LIT, false));
 		if (candle instanceof CandleBlock candleBlock) {
 			CANDLES_TO_CANDLE_CAKES.put(candleBlock, this);
 			this.candle = candleBlock;
-		}
-		else {
+		} else {
 			throw new IllegalArgumentException(
 					"Expected block to be of " + CandleBlock.class + " was " + candle.getClass());
 		}
@@ -90,13 +92,13 @@ public class CandleCakeBlock extends AbstractCandleBlock {
 		if (stack.isOf(Items.FLINT_AND_STEEL) || stack.isOf(Items.FIRE_CHARGE)) {
 			return ActionResult.PASS;
 		}
-		else if (isHittingCandle(hit) && stack.isEmpty() && state.get(LIT)) {
+
+		if (isHittingCandle(hit) && stack.isEmpty() && state.get(LIT)) {
 			extinguish(player, state, world, pos);
 			return ActionResult.SUCCESS;
 		}
-		else {
-			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
-		}
+
+		return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
 	}
 
 	@Override
@@ -173,13 +175,10 @@ public class CandleCakeBlock extends AbstractCandleBlock {
 	}
 
 	/**
-	 * Проверяет возможность be lit.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * Возвращает {@code true}, если торт со свечой можно поджечь: он принадлежит тегу
+	 * {@code CANDLE_CAKES}, содержит свойство {@code LIT} и при этом свеча не горит.
 	 */
 	public static boolean canBeLit(BlockState state) {
-		return state.isIn(BlockTags.CANDLE_CAKES, statex -> statex.contains(LIT) && !state.get(LIT));
+		return state.isIn(BlockTags.CANDLE_CAKES, s -> s.contains(LIT)) && state.get(LIT) == false;
 	}
 }

@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@code RemoveFeatureTogglesFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RemoveFeatureTogglesFix extends DataFix {
 
@@ -29,9 +29,9 @@ public class RemoveFeatureTogglesFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
-				this.getInputSchema().getType(TypeReferences.LIGHTWEIGHT_LEVEL),
+				getInputSchema().getType(TypeReferences.LIGHTWEIGHT_LEVEL),
 				levelTyped -> levelTyped.update(DSL.remainderFinder(), this::removeFeatureToggles)
 		);
 	}

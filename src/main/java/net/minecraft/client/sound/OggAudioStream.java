@@ -83,9 +83,9 @@ public class OggAudioStream implements BufferedAudioStream {
 	}
 
 	private boolean read() throws IOException {
-		int i = this.syncState.buffer(8192);
+		int i = this.syncState.buffer(OGG_BUFFER_SIZE);
 		byte[] bs = this.syncState.data;
-		int j = this.inputStream.read(bs, i, 8192);
+		int j = this.inputStream.read(bs, i, OGG_BUFFER_SIZE);
 		if (j == -1) {
 			return false;
 		}

@@ -9,18 +9,17 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.gen.chunk.FlatChunkGeneratorConfig;
 
 /**
- * {@code FlatLevelGeneratorPreset}.
+ * Пресет плоского мира с иконкой для отображения в интерфейсе выбора мира.
  */
 public record FlatLevelGeneratorPreset(RegistryEntry<Item> displayItem, FlatChunkGeneratorConfig settings) {
 
 	public static final Codec<FlatLevelGeneratorPreset> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    Item.ENTRY_CODEC.fieldOf("display").forGetter(preset -> preset.displayItem),
-					                    FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(preset -> preset.settings)
-			                    )
-			                    .apply(instance, FlatLevelGeneratorPreset::new)
+		instance -> instance.group(
+			Item.ENTRY_CODEC.fieldOf("display").forGetter(FlatLevelGeneratorPreset::displayItem),
+			FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(FlatLevelGeneratorPreset::settings)
+		).apply(instance, FlatLevelGeneratorPreset::new)
 	);
-	public static final Codec<RegistryEntry<FlatLevelGeneratorPreset>>
-			ENTRY_CODEC =
-			RegistryElementCodec.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, CODEC);
+
+	public static final Codec<RegistryEntry<FlatLevelGeneratorPreset>> ENTRY_CODEC =
+		RegistryElementCodec.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, CODEC);
 }

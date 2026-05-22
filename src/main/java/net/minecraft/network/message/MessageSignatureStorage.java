@@ -9,85 +9,78 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Класс message signature storage.
+ * Кольцевое хранилище последних известных подписей сообщений.
+ * Позволяет передавать подписи по сети в компактном виде (индекс вместо 256 байт).
+ * Максимальный размер — {@value #MAX_ENTRIES} записей.
  */
 public class MessageSignatureStorage {
 
 	public static final int MISSING = -1;
 	private static final int MAX_ENTRIES = 128;
+
 	private final @Nullable MessageSignatureData[] signatures;
 
 	public MessageSignatureStorage(int maxEntries) {
-		this.signatures = new MessageSignatureData[maxEntries];
+		signatures = new MessageSignatureData[maxEntries];
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @return MessageSignatureStorage — результат операции
-	 */
 	public static MessageSignatureStorage create() {
-		return new MessageSignatureStorage(128);
+		return new MessageSignatureStorage(MAX_ENTRIES);
 	}
 
-	/**
-	 * Index of.
-	 *
-	 * @param signature signature
-	 *
-	 * @return int — результат операции
-	 */
 	public int indexOf(MessageSignatureData signature) {
-		for (int i = 0; i < this.signatures.length; i++) {
-			if (signature.equals(this.signatures[i])) {
-				return i;
+		for (int index = 0; index < signatures.length; index++) {
+			if (signature.equals(signatures[index])) {
+				return index;
 			}
 		}
 
-		return -1;
+		return MISSING;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param index index
-	 *
-	 * @return @Nullable MessageSignatureData — 
-	 */
 	public @Nullable MessageSignatureData get(int index) {
-		return this.signatures[index];
+		return signatures[index];
 	}
 
 	/**
-	 * Add.
+	 * Добавляет подписи из тела сообщения и саму подпись сообщения в хранилище.
+	 * Подписи из {@code lastSeenMessages} добавляются первыми, затем подпись самого сообщения.
 	 *
-	 * @param body body
-	 * @param signature signature
+	 * @param body      тело сообщения с последними просмотренными подписями
+	 * @param signature подпись самого сообщения, или {@code null} для неподписанных
 	 */
 	public void add(MessageBody body, @Nullable MessageSignatureData signature) {
-		List<MessageSignatureData> list = body.lastSeenMessages().entries();
-		ArrayDeque<MessageSignatureData> arrayDeque = new ArrayDeque<>(list.size() + 1);
-		arrayDeque.addAll(list);
+		List<MessageSignatureData> lastSeen = body.lastSeenMessages().entries();
+		ArrayDeque<MessageSignatureData> deque = new ArrayDeque<>(lastSeen.size() + 1);
+		deque.addAll(lastSeen);
+
 		if (signature != null) {
-			arrayDeque.add(signature);
+			deque.add(signature);
 		}
 
-		this.addFrom(arrayDeque);
+		addFrom(deque);
 	}
 
 	@VisibleForTesting
-	void addFrom(List<MessageSignatureData> signatures) {
-		this.addFrom(new ArrayDeque<>(signatures));
+	void addFrom(List<MessageSignatureData> newSignatures) {
+		addFrom(new ArrayDeque<>(newSignatures));
 	}
 
+	/**
+	 * Заполняет хранилище из очереди, вытесняя старые записи.
+	 * Уже присутствующие в очереди подписи не дублируются — они перемещаются в начало.
+	 *
+	 * @param deque очередь новых подписей (последние добавленные — в конце)
+	 */
 	private void addFrom(ArrayDeque<MessageSignatureData> deque) {
-		Set<MessageSignatureData> set = new ObjectOpenHashSet(deque);
+		Set<MessageSignatureData> inQueue = new ObjectOpenHashSet(deque);
 
-		for (int i = 0; !deque.isEmpty() && i < this.signatures.length; i++) {
-			MessageSignatureData messageSignatureData = this.signatures[i];
-			this.signatures[i] = deque.removeLast();
-			if (messageSignatureData != null && !set.contains(messageSignatureData)) {
-				deque.addFirst(messageSignatureData);
+		for (int index = 0; !deque.isEmpty() && index < signatures.length; index++) {
+			MessageSignatureData displaced = signatures[index];
+			signatures[index] = deque.removeLast();
+
+			if (displaced != null && !inQueue.contains(displaced)) {
+				deque.addFirst(displaced);
 			}
 		}
 	}

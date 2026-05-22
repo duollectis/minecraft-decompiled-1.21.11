@@ -14,21 +14,33 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code ResourcePackProfile}.
+ * Профиль ресурс-пака: объединяет метаданные, фабрику и позицию пака в списке.
+ * Создаётся через {@link #create} с автоматическим чтением метаданных из {@code pack.mcmeta}.
  */
 public class ResourcePackProfile {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	private final ResourcePackInfo info;
 	private final ResourcePackProfile.PackFactory packFactory;
 	private final ResourcePackProfile.Metadata metaData;
 	private final ResourcePackPosition position;
 
+	/**
+	 * Создаёт профиль пака, читая метаданные через фабрику.
+	 * Возвращает {@code null}, если метаданные не удалось прочитать.
+	 *
+	 * @param info        информация о паке
+	 * @param packFactory фабрика для открытия пака
+	 * @param type        тип ресурса
+	 * @param position    позиция пака в списке
+	 * @return профиль пака или {@code null}
+	 */
 	public static @Nullable ResourcePackProfile create(
-			ResourcePackInfo info,
-			ResourcePackProfile.PackFactory packFactory,
-			ResourceType type,
-			ResourcePackPosition position
+		ResourcePackInfo info,
+		ResourcePackProfile.PackFactory packFactory,
+		ResourceType type,
+		ResourcePackPosition position
 	) {
 		PackVersion packVersion = SharedConstants.getGameVersion().packVersion(type);
 		ResourcePackProfile.Metadata metadata = loadMetadata(info, packFactory, packVersion, type);
@@ -36,10 +48,10 @@ public class ResourcePackProfile {
 	}
 
 	public ResourcePackProfile(
-			ResourcePackInfo info,
-			ResourcePackProfile.PackFactory packFactory,
-			ResourcePackProfile.Metadata metaData,
-			ResourcePackPosition position
+		ResourcePackInfo info,
+		ResourcePackProfile.PackFactory packFactory,
+		ResourcePackProfile.Metadata metaData,
+		ResourcePackPosition position
 	) {
 		this.info = info;
 		this.packFactory = packFactory;
@@ -47,106 +59,104 @@ public class ResourcePackProfile {
 		this.position = position;
 	}
 
+	/**
+	 * Загружает метаданные пака из {@code pack.mcmeta} через фабрику.
+	 * Пробует сначала типизированный сериализатор, затем универсальный (только описание).
+	 *
+	 * @param info        информация о паке
+	 * @param packFactory фабрика для открытия пака
+	 * @param version     текущая версия пака игры
+	 * @param type        тип ресурса
+	 * @return метаданные или {@code null} при ошибке
+	 */
 	public static ResourcePackProfile.@Nullable Metadata loadMetadata(
-			ResourcePackInfo info, ResourcePackProfile.PackFactory packFactory, PackVersion version, ResourceType type
+		ResourcePackInfo info,
+		ResourcePackProfile.PackFactory packFactory,
+		PackVersion version,
+		ResourceType type
 	) {
-		try {
-			ResourcePackProfile.Metadata var11;
-			try (ResourcePack resourcePack = packFactory.open(info)) {
-				PackResourceMetadata
-						packResourceMetadata =
-						resourcePack.parseMetadata(PackResourceMetadata.getSerializerFor(type));
-				if (packResourceMetadata == null) {
-					packResourceMetadata = resourcePack.parseMetadata(PackResourceMetadata.DESCRIPTION_SERIALIZER);
-				}
-
-				if (packResourceMetadata == null) {
-					LOGGER.warn("Missing metadata in pack {}", info.id());
-					return null;
-				}
-
-				PackFeatureSetMetadata
-						packFeatureSetMetadata =
-						resourcePack.parseMetadata(PackFeatureSetMetadata.SERIALIZER);
-				FeatureSet
-						featureSet =
-						packFeatureSetMetadata != null ? packFeatureSetMetadata.flags() : FeatureSet.empty();
-				ResourcePackCompatibility
-						resourcePackCompatibility =
-						ResourcePackCompatibility.from(packResourceMetadata.supportedFormats(), version);
-				PackOverlaysMetadata
-						packOverlaysMetadata =
-						resourcePack.parseMetadata(PackOverlaysMetadata.getSerializerFor(type));
-				List<String>
-						list =
-						packOverlaysMetadata != null ? packOverlaysMetadata.getAppliedOverlays(version) : List.of();
-				var11 =
-						new ResourcePackProfile.Metadata(
-								packResourceMetadata.description(),
-								resourcePackCompatibility,
-								featureSet,
-								list
-						);
+		try (ResourcePack resourcePack = packFactory.open(info)) {
+			PackResourceMetadata packMeta = resourcePack.parseMetadata(PackResourceMetadata.getSerializerFor(type));
+			if (packMeta == null) {
+				packMeta = resourcePack.parseMetadata(PackResourceMetadata.DESCRIPTION_SERIALIZER);
 			}
 
-			return var11;
-		}
-		catch (Exception var14) {
-			LOGGER.warn("Failed to read pack {} metadata", info.id(), var14);
+			if (packMeta == null) {
+				LOGGER.warn("Missing metadata in pack {}", info.id());
+				return null;
+			}
+
+			PackFeatureSetMetadata featureSetMeta = resourcePack.parseMetadata(PackFeatureSetMetadata.SERIALIZER);
+			FeatureSet featureSet = featureSetMeta != null ? featureSetMeta.flags() : FeatureSet.empty();
+			ResourcePackCompatibility compatibility = ResourcePackCompatibility.from(
+				packMeta.supportedFormats(),
+				version
+			);
+			PackOverlaysMetadata overlaysMeta = resourcePack.parseMetadata(PackOverlaysMetadata.getSerializerFor(type));
+			List<String> overlays = overlaysMeta != null ? overlaysMeta.getAppliedOverlays(version) : List.of();
+
+			return new ResourcePackProfile.Metadata(
+				packMeta.description(),
+				compatibility,
+				featureSet,
+				overlays
+			);
+		} catch (Exception exception) {
+			LOGGER.warn("Failed to read pack {} metadata", info.id(), exception);
 			return null;
 		}
 	}
 
 	public ResourcePackInfo getInfo() {
-		return this.info;
+		return info;
 	}
 
 	public Text getDisplayName() {
-		return this.info.title();
+		return info.title();
 	}
 
 	public Text getDescription() {
-		return this.metaData.description();
+		return metaData.description();
 	}
 
 	public Text getInformationText(boolean enabled) {
-		return this.info.getInformationText(enabled, this.metaData.description);
+		return info.getInformationText(enabled, metaData.description);
 	}
 
 	public ResourcePackCompatibility getCompatibility() {
-		return this.metaData.compatibility();
+		return metaData.compatibility();
 	}
 
 	public FeatureSet getRequestedFeatures() {
-		return this.metaData.requestedFeatures();
+		return metaData.requestedFeatures();
 	}
 
 	public ResourcePack createResourcePack() {
-		return this.packFactory.openWithOverlays(this.info, this.metaData);
+		return packFactory.openWithOverlays(info, metaData);
 	}
 
 	public String getId() {
-		return this.info.id();
+		return info.id();
 	}
 
 	public ResourcePackPosition getPosition() {
-		return this.position;
+		return position;
 	}
 
 	public boolean isRequired() {
-		return this.position.required();
+		return position.required();
 	}
 
 	public boolean isPinned() {
-		return this.position.fixedPosition();
+		return position.fixedPosition();
 	}
 
 	public ResourcePackProfile.InsertionPosition getInitialPosition() {
-		return this.position.defaultPosition();
+		return position.defaultPosition();
 	}
 
 	public ResourcePackSource getSource() {
-		return this.info.source();
+		return info.source();
 	}
 
 	@Override
@@ -154,75 +164,80 @@ public class ResourcePackProfile {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return !(o instanceof ResourcePackProfile resourcePackProfile) ? false
-			                                                               : this.info.equals(resourcePackProfile.info);
-		}
+
+		return o instanceof ResourcePackProfile other && info.equals(other.info);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.info.hashCode();
+		return info.hashCode();
 	}
 
 	/**
-	 * {@code InsertionPosition}.
+	 * Позиция вставки пака в список: сверху или снизу.
+	 * Учитывает закреплённые паки при определении индекса вставки.
 	 */
-	public static enum InsertionPosition {
+	public enum InsertionPosition {
 		TOP,
 		BOTTOM;
 
+		/**
+		 * Вставляет элемент в список с учётом закреплённых паков и возможной инверсии.
+		 *
+		 * @param items          список паков
+		 * @param item           вставляемый элемент
+		 * @param profileGetter  функция получения позиции из элемента
+		 * @param listInverted   инвертировать ли позицию вставки
+		 * @return индекс вставки
+		 */
 		public <T> int insert(
-				List<T> items,
-				T item,
-				Function<T, ResourcePackPosition> profileGetter,
-				boolean listInverted
+			List<T> items,
+			T item,
+			Function<T, ResourcePackPosition> profileGetter,
+			boolean listInverted
 		) {
-			ResourcePackProfile.InsertionPosition insertionPosition = listInverted ? this.inverse() : this;
-			if (insertionPosition == BOTTOM) {
-				int i;
-				for (i = 0; i < items.size(); i++) {
-					ResourcePackPosition resourcePackPosition = profileGetter.apply(items.get(i));
-					if (!resourcePackPosition.fixedPosition() || resourcePackPosition.defaultPosition() != this) {
+			InsertionPosition effectivePosition = listInverted ? inverse() : this;
+			int insertIndex;
+
+			if (effectivePosition == BOTTOM) {
+				for (insertIndex = 0; insertIndex < items.size(); insertIndex++) {
+					ResourcePackPosition pos = profileGetter.apply(items.get(insertIndex));
+					if (!pos.fixedPosition() || pos.defaultPosition() != this) {
+						break;
+					}
+				}
+			} else {
+				for (insertIndex = items.size() - 1; insertIndex >= 0; insertIndex--) {
+					ResourcePackPosition pos = profileGetter.apply(items.get(insertIndex));
+					if (!pos.fixedPosition() || pos.defaultPosition() != this) {
 						break;
 					}
 				}
 
-				items.add(i, item);
-				return i;
+				insertIndex++;
 			}
-			else {
-				int i;
-				for (i = items.size() - 1; i >= 0; i--) {
-					ResourcePackPosition resourcePackPosition = profileGetter.apply(items.get(i));
-					if (!resourcePackPosition.fixedPosition() || resourcePackPosition.defaultPosition() != this) {
-						break;
-					}
-				}
 
-				items.add(i + 1, item);
-				return i + 1;
-			}
+			items.add(insertIndex, item);
+			return insertIndex;
 		}
 
-		public ResourcePackProfile.InsertionPosition inverse() {
+		public InsertionPosition inverse() {
 			return this == TOP ? BOTTOM : TOP;
 		}
 	}
 
 	/**
-	 * {@code Metadata}.
+	 * Метаданные профиля пака: описание, совместимость, фичи и список оверлеев.
 	 */
 	public record Metadata(
-			Text description,
-			ResourcePackCompatibility compatibility,
-			FeatureSet requestedFeatures,
-			List<String> overlays
-	) {
-	}
+		Text description,
+		ResourcePackCompatibility compatibility,
+		FeatureSet requestedFeatures,
+		List<String> overlays
+	) {}
 
 	/**
-	 * {@code PackFactory}.
+	 * Фабрика для открытия ресурс-пака с поддержкой оверлеев.
 	 */
 	public interface PackFactory {
 

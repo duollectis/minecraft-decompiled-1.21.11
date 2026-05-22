@@ -29,7 +29,7 @@ import net.minecraft.world.World;
 import java.util.function.Predicate;
 
 /**
- * {@code FrogBrain}.
+ * Мозг лягушки: регистрирует сенсоры и задачи поведения.
  */
 public class FrogBrain {
 
@@ -100,7 +100,7 @@ public class FrogBrain {
 								)
 						),
 						Pair.of(0, new BreedTask(EntityType.FROG)),
-						Pair.of(1, new TemptTask(frog -> 1.25F)),
+						Pair.of(1, new TemptTask(frog -> TEMPT_SPEED)),
 						Pair.of(
 								2,
 								UpdateAttackTargetTask.create(
@@ -143,7 +143,7 @@ public class FrogBrain {
 										UniformIntProvider.create(30, 60)
 								)
 						),
-						Pair.of(1, new TemptTask(frog -> 1.25F)),
+						Pair.of(1, new TemptTask(frog -> TEMPT_SPEED)),
 						Pair.of(
 								2,
 								UpdateAttackTargetTask.create(
@@ -162,7 +162,7 @@ public class FrogBrain {
 										CompositeTask.Order.ORDERED,
 										CompositeTask.RunMode.TRY_ALL,
 										ImmutableList.of(
-												Pair.of(StrollTask.createDynamicRadius(0.75F), 1),
+												Pair.of(StrollTask.createDynamicRadius(JUMP_SPEED), 1),
 												Pair.of(StrollTask.create(1.0F, true), 1),
 												Pair.of(GoToLookTargetTask.create(1.0F, 3), 1),
 												Pair.of(TaskTriggerer.predicate(Entity::isTouchingWater), 5)
@@ -230,7 +230,7 @@ public class FrogBrain {
 										LONG_JUMP_COOLDOWN_RANGE,
 										2,
 										4,
-										3.5714288F,
+										TONGUE_SPEED,
 										frog -> SoundEvents.ENTITY_FROG_LONG_JUMP,
 										BlockTags.FROG_PREFER_JUMP_TO,
 										0.5F,

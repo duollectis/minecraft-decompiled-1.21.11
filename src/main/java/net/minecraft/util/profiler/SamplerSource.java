@@ -4,7 +4,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * {@code SamplerSource}.
+ * Источник набора {@link Sampler}-ов для конкретного контекста записи.
+ * Позволяет динамически формировать список сэмплеров на основе текущего профайлера.
  */
 public interface SamplerSource {
 

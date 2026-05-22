@@ -11,8 +11,9 @@ import net.minecraft.util.Util;
 import java.util.Map;
 
 /**
- * {@code DebugStickStateComponent}.
- */
+	 * Компонент отладочной палки. Хранит карту «блок → выбранное свойство блока»,
+	 * позволяя палке запоминать последнее выбранное свойство для каждого типа блока.
+	 */
 public record DebugStickStateComponent(Map<RegistryEntry<Block>, Property<?>> properties) {
 
 	public static final DebugStickStateComponent DEFAULT = new DebugStickStateComponent(Map.of());
@@ -24,9 +25,9 @@ public record DebugStickStateComponent(Map<RegistryEntry<Block>, Property<?>> pr
 							property -> {
 								Property<?> property2 = ((Block) block.value()).getStateManager().getProperty(property);
 								return property2 != null
-								       ? DataResult.success(property2)
-								       : DataResult.error(() -> "No property on " + block.getIdAsString()
-								                                + " with name: " + property);
+										? DataResult.success(property2)
+										: DataResult.error(() -> "No property on " + block.getIdAsString()
+																+ " with name: " + property);
 							},
 							Property::getName
 					)
@@ -38,15 +39,15 @@ public record DebugStickStateComponent(Map<RegistryEntry<Block>, Property<?>> pr
 			);
 
 	/**
-	 * With.
-	 *
-	 * @param block block
-	 * @param property property
-	 *
-	 * @return DebugStickStateComponent — результат операции
-	 */
+		 * Возвращает новый компонент с добавленной или обновлённой записью
+		 * «блок → свойство», не изменяя текущий экземпляр (иммутабельный стиль).
+		 *
+		 * @param block    запись реестра блока
+		 * @param property выбранное свойство блока
+		 * @return новый компонент с обновлённой картой свойств
+		 */
 	public DebugStickStateComponent with(RegistryEntry<Block> block, Property<?> property) {
-		return new DebugStickStateComponent(Util.mapWith(this.properties, block, property));
+		return new DebugStickStateComponent(Util.mapWith(properties, block, property));
 	}
 
 	@SuppressWarnings("unchecked")

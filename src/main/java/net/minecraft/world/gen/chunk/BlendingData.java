@@ -26,7 +26,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
- * {@code BlendingData}.
+ * Данные смешивания (blending) для плавного перехода между старыми и новыми чанками.
+ * Хранит высоты поверхности, плотности столкновений и биомы вдоль границ чанка.
+ * Используется {@link Blender} для интерполяции рельефа на границах версий мира.
  */
 public class BlendingData {
 
@@ -94,32 +96,32 @@ public class BlendingData {
 	}
 
 	public BlendingData.Serialized toSerialized() {
-		boolean bl = false;
+		boolean hasHeights = false;
 
-		for (double d : this.surfaceHeights) {
-			if (d != Double.MAX_VALUE) {
-				bl = true;
+		for (double height : surfaceHeights) {
+			if (height != Double.MAX_VALUE) {
+				hasHeights = true;
 				break;
 			}
 		}
 
 		return new BlendingData.Serialized(
-				this.oldHeightLimit.getBottomSectionCoord(),
-				this.oldHeightLimit.getTopSectionCoord() + 1,
-				bl ? Optional.of(DoubleArrays.copy(this.surfaceHeights)) : Optional.empty()
+				oldHeightLimit.getBottomSectionCoord(),
+				oldHeightLimit.getTopSectionCoord() + 1,
+				hasHeights ? Optional.of(DoubleArrays.copy(surfaceHeights)) : Optional.empty()
 		);
 	}
 
 	public static @Nullable BlendingData getBlendingData(ChunkRegion chunkRegion, int chunkX, int chunkZ) {
 		Chunk chunk = chunkRegion.getChunk(chunkX, chunkZ);
 		BlendingData blendingData = chunk.getBlendingData();
-		if (blendingData != null && !chunk.getMaxStatus().isEarlierThan(ChunkStatus.BIOMES)) {
-			blendingData.initChunkBlendingData(chunk, getAdjacentChunksWithNoise(chunkRegion, chunkX, chunkZ, false));
-			return blendingData;
-		}
-		else {
+
+		if (blendingData == null || chunk.getMaxStatus().isEarlierThan(ChunkStatus.BIOMES)) {
 			return null;
 		}
+
+		blendingData.initChunkBlendingData(chunk, getAdjacentChunksWithNoise(chunkRegion, chunkX, chunkZ, false));
+		return blendingData;
 	}
 
 	public static Set<EightWayDirection> getAdjacentChunksWithNoise(
@@ -289,20 +291,20 @@ public class BlendingData {
 
 	private static boolean isCollidableAndNotTreeAt(Chunk chunk, BlockPos pos) {
 		BlockState blockState = chunk.getBlockState(pos);
+
 		if (blockState.isAir()) {
 			return false;
 		}
-		else if (blockState.isIn(BlockTags.LEAVES)) {
+
+		if (blockState.isIn(BlockTags.LEAVES) || blockState.isIn(BlockTags.LOGS)) {
 			return false;
 		}
-		else if (blockState.isIn(BlockTags.LOGS)) {
+
+		if (blockState.isOf(Blocks.BROWN_MUSHROOM_BLOCK) || blockState.isOf(Blocks.RED_MUSHROOM_BLOCK)) {
 			return false;
 		}
-		else {
-			return blockState.isOf(Blocks.BROWN_MUSHROOM_BLOCK) || blockState.isOf(Blocks.RED_MUSHROOM_BLOCK)
-			       ? false
-			       : !blockState.getCollisionShape(chunk, pos).isEmpty();
-		}
+
+		return !blockState.getCollisionShape(chunk, pos).isEmpty();
 	}
 
 	protected double getHeight(int biomeX, int biomeY, int biomeZ) {
@@ -321,14 +323,14 @@ public class BlendingData {
 		}
 		else {
 			int i = this.getHalfSectionHeight(halfSectionY);
-			return i >= 0 && i < collidableBlockDensityColumn.length ? collidableBlockDensityColumn[i] * 0.1
+			return i >= 0 && i < collidableBlockDensityColumn.length ? collidableBlockDensityColumn[i] * COLLIDABLE_BLOCK_DENSITY_THRESHOLD
 			                                                         : Double.MAX_VALUE;
 		}
 	}
 
 	protected double getCollidableBlockDensity(int chunkBiomeX, int halfSectionY, int chunkBiomeZ) {
 		if (halfSectionY == this.getBottomHalfSectionY()) {
-			return 0.1;
+			return COLLIDABLE_BLOCK_DENSITY_THRESHOLD;
 		}
 		else if (chunkBiomeX == CHUNK_BIOME_END_INDEX || chunkBiomeZ == CHUNK_BIOME_END_INDEX) {
 			return this.getCollidableBlockDensity(
@@ -409,7 +411,7 @@ public class BlendingData {
 				int n = biomeZ + getZ(l);
 
 				for (int o = j; o < k; o++) {
-					consumer.consume(m, o + i, n, ds[o] * 0.1);
+					consumer.consume(m, o + i, n, ds[o] * COLLIDABLE_BLOCK_DENSITY_THRESHOLD);
 				}
 			}
 		}
@@ -496,28 +498,26 @@ public class BlendingData {
 	}
 
 	/**
-	 * {@code Serialized}.
+	 * Сериализованное представление данных смешивания для хранения в NBT чанка.
 	 */
 	public record Serialized(int minSection, int maxSection, Optional<double[]> heights) {
 
-		private static final Codec<double[]>
-				DOUBLE_ARRAY_CODEC =
+		private static final Codec<double[]> DOUBLE_ARRAY_CODEC =
 				Codec.DOUBLE.listOf().xmap(Doubles::toArray, Doubles::asList);
+
 		public static final Codec<BlendingData.Serialized> CODEC = RecordCodecBuilder.<BlendingData.Serialized>create(
-				                                                                             instance -> instance.group(
-						                                                                                                 Codec.INT.fieldOf("min_section").forGetter(BlendingData.Serialized::minSection),
-						                                                                                                 Codec.INT.fieldOf("max_section").forGetter(BlendingData.Serialized::maxSection),
-						                                                                                                 DOUBLE_ARRAY_CODEC.lenientOptionalFieldOf("heights").forGetter(BlendingData.Serialized::heights)
-				                                                                                                 )
-				                                                                                                 .apply(instance, BlendingData.Serialized::new)
-		                                                                             )
-		                                                                             .validate(BlendingData.Serialized::validate);
+				instance -> instance.group(
+						Codec.INT.fieldOf("min_section").forGetter(BlendingData.Serialized::minSection),
+						Codec.INT.fieldOf("max_section").forGetter(BlendingData.Serialized::maxSection),
+						DOUBLE_ARRAY_CODEC.lenientOptionalFieldOf("heights").forGetter(BlendingData.Serialized::heights)
+				).apply(instance, BlendingData.Serialized::new)
+		).validate(BlendingData.Serialized::validate);
 
 		private static DataResult<BlendingData.Serialized> validate(BlendingData.Serialized serialized) {
 			return serialized.heights.isPresent()
-					       && ((double[]) serialized.heights.get()).length != BlendingData.HORIZONTAL_BIOME_COUNT
-			       ? DataResult.error(() -> "heights has to be of length " + BlendingData.HORIZONTAL_BIOME_COUNT)
-			       : DataResult.success(serialized);
+					&& serialized.heights.get().length != BlendingData.HORIZONTAL_BIOME_COUNT
+					? DataResult.error(() -> "heights has to be of length " + BlendingData.HORIZONTAL_BIOME_COUNT)
+					: DataResult.success(serialized);
 		}
 	}
 }

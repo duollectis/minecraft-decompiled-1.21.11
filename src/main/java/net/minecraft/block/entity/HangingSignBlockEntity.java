@@ -24,7 +24,7 @@ public class HangingSignBlockEntity extends SignBlockEntity {
 
 	@Override
 	public int getMaxTextWidth() {
-		return 60;
+		return MAX_TEXT_WIDTH;
 	}
 
 	@Override

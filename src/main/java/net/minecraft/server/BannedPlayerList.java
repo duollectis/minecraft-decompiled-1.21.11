@@ -7,7 +7,8 @@ import java.io.File;
 import java.util.Objects;
 
 /**
- * {@code BannedPlayerList}.
+ * Список забаненных игроков.
+ * При добавлении и удалении записей уведомляет {@link ManagementListener}.
  */
 public class BannedPlayerList extends ServerConfigList<PlayerConfigEntry, BannedPlayerEntry> {
 
@@ -20,84 +21,57 @@ public class BannedPlayerList extends ServerConfigList<PlayerConfigEntry, Banned
 		return new BannedPlayerEntry(json);
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param player player
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
 	public boolean contains(PlayerConfigEntry player) {
 		return super.contains(player);
 	}
 
 	@Override
 	public String[] getNames() {
-		return this
-				.values()
-				.stream()
-				.map(ServerConfigEntry::getKey)
-				.filter(Objects::nonNull)
-				.map(PlayerConfigEntry::name)
-				.toArray(String[]::new);
+		return values()
+			.stream()
+			.map(ServerConfigEntry::getKey)
+			.filter(Objects::nonNull)
+			.map(PlayerConfigEntry::name)
+			.toArray(String[]::new);
 	}
 
-	/**
-	 * To string.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return String — результат операции
-	 */
-	protected String toString(PlayerConfigEntry playerConfigEntry) {
-		return playerConfigEntry.id().toString();
-	}
-
-	/**
-	 * Add.
-	 *
-	 * @param bannedPlayerEntry banned player entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean add(BannedPlayerEntry bannedPlayerEntry) {
-		if (super.add(bannedPlayerEntry)) {
-			if (bannedPlayerEntry.getKey() != null) {
-				this.managementListener.onBanAdded(bannedPlayerEntry);
-			}
-
-			return true;
-		}
-		else {
+	@Override
+	public boolean add(BannedPlayerEntry entry) {
+		if (!super.add(entry)) {
 			return false;
 		}
+
+		if (entry.getKey() != null) {
+			managementListener.onBanAdded(entry);
+		}
+
+		return true;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean remove(PlayerConfigEntry playerConfigEntry) {
-		if (super.remove(playerConfigEntry)) {
-			this.managementListener.onBanRemoved(playerConfigEntry);
-			return true;
-		}
-		else {
+	@Override
+	public boolean remove(PlayerConfigEntry player) {
+		if (!super.remove(player)) {
 			return false;
 		}
+
+		managementListener.onBanRemoved(player);
+		return true;
 	}
 
 	@Override
 	public void clear() {
-		for (BannedPlayerEntry bannedPlayerEntry : this.values()) {
-			if (bannedPlayerEntry.getKey() != null) {
-				this.managementListener.onBanRemoved(bannedPlayerEntry.getKey());
+		for (BannedPlayerEntry entry : values()) {
+			if (entry.getKey() != null) {
+				managementListener.onBanRemoved(entry.getKey());
 			}
 		}
 
 		super.clear();
+	}
+
+	@Override
+	protected String toString(PlayerConfigEntry player) {
+		return player.id().toString();
 	}
 }

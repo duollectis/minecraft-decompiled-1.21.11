@@ -16,16 +16,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TeleportSpectatorMenu}.
+ * Меню телепорта к конкретному игроку. Фильтрует спектаторов
+ * и сортирует список по UUID профиля.
  */
+@Environment(EnvType.CLIENT)
 public class TeleportSpectatorMenu implements SpectatorMenuCommandGroup, SpectatorMenuCommand {
 
 	private static final Identifier TELEPORT_TO_PLAYER_TEXTURE = Identifier.ofVanilla("spectator/teleport_to_player");
-	private static final Comparator<PlayerListEntry> ORDERING = Comparator.comparing(a -> a.getProfile().id());
+	private static final Comparator<PlayerListEntry> ORDERING = Comparator.comparing(entry -> entry.getProfile().id());
 	private static final Text TELEPORT_TEXT = Text.translatable("spectatorMenu.teleport");
 	private static final Text PROMPT_TEXT = Text.translatable("spectatorMenu.teleport.prompt");
+
 	private final List<SpectatorMenuCommand> elements;
 
 	public TeleportSpectatorMenu() {
@@ -33,16 +35,16 @@ public class TeleportSpectatorMenu implements SpectatorMenuCommandGroup, Spectat
 	}
 
 	public TeleportSpectatorMenu(Collection<PlayerListEntry> entries) {
-		this.elements = entries.stream()
-		                       .filter(entry -> entry.getGameMode() != GameMode.SPECTATOR)
-		                       .sorted(ORDERING)
-		                       .map(TeleportToSpecificPlayerSpectatorCommand::new)
-		                       .collect(Collectors.toUnmodifiableList());
+		elements = entries.stream()
+			.filter(entry -> entry.getGameMode() != GameMode.SPECTATOR)
+			.sorted(ORDERING)
+			.map(TeleportToSpecificPlayerSpectatorCommand::new)
+			.collect(Collectors.toUnmodifiableList());
 	}
 
 	@Override
 	public List<SpectatorMenuCommand> getCommands() {
-		return this.elements;
+		return elements;
 	}
 
 	@Override
@@ -63,18 +65,18 @@ public class TeleportSpectatorMenu implements SpectatorMenuCommandGroup, Spectat
 	@Override
 	public void renderIcon(DrawContext context, float brightness, float alpha) {
 		context.drawGuiTexture(
-				RenderPipelines.GUI_TEXTURED,
-				TELEPORT_TO_PLAYER_TEXTURE,
-				0,
-				0,
-				16,
-				16,
-				ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
+			RenderPipelines.GUI_TEXTURED,
+			TELEPORT_TO_PLAYER_TEXTURE,
+			0,
+			0,
+			16,
+			16,
+			ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
 		);
 	}
 
 	@Override
 	public boolean isEnabled() {
-		return !this.elements.isEmpty();
+		return !elements.isEmpty();
 	}
 }

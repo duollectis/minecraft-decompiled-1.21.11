@@ -5,23 +5,17 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code ConstantFloatProvider}.
+ * Провайдер, всегда возвращающий одно и то же константное значение.
  */
 public class ConstantFloatProvider extends FloatProvider {
 
 	public static final ConstantFloatProvider ZERO = new ConstantFloatProvider(0.0F);
 	public static final MapCodec<ConstantFloatProvider> CODEC = Codec.FLOAT
-			.fieldOf("value")
-			.xmap(ConstantFloatProvider::create, ConstantFloatProvider::getValue);
+		.fieldOf("value")
+		.xmap(ConstantFloatProvider::create, ConstantFloatProvider::getValue);
+
 	private final float value;
 
-	/**
-	 * Create.
-	 *
-	 * @param value value
-	 *
-	 * @return ConstantFloatProvider — результат операции
-	 */
 	public static ConstantFloatProvider create(float value) {
 		return value == 0.0F ? ZERO : new ConstantFloatProvider(value);
 	}
@@ -31,22 +25,22 @@ public class ConstantFloatProvider extends FloatProvider {
 	}
 
 	public float getValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float get(Random random) {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float getMin() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float getMax() {
-		return this.value;
+		return value;
 	}
 
 	@Override
@@ -56,6 +50,6 @@ public class ConstantFloatProvider extends FloatProvider {
 
 	@Override
 	public String toString() {
-		return Float.toString(this.value);
+		return Float.toString(value);
 	}
 }

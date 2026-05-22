@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code RpcSchema}.
+ * Класс Rpc Schema.
  */
 public record RpcSchema<T>(
 		Optional<URI> reference,

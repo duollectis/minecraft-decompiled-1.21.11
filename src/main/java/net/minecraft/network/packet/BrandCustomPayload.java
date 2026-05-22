@@ -4,7 +4,8 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
 /**
- * Запись brand custom payload.
+ * Пакет плагинового канала {@code minecraft:brand} — передаёт строку с именем
+ * серверного бренда (например, {@code "vanilla"} или название мода-ядра).
  */
 public record BrandCustomPayload(String brand) implements CustomPayload {
 
@@ -18,7 +19,7 @@ public record BrandCustomPayload(String brand) implements CustomPayload {
 	}
 
 	private void write(PacketByteBuf buf) {
-		buf.writeString(this.brand);
+		buf.writeString(brand);
 	}
 
 	@Override

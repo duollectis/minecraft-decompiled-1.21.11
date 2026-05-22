@@ -6,7 +6,8 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 
 /**
- * {@code CriterionProgress}.
+ * Хранит прогресс выполнения одного критерия достижения для конкретного игрока.
+ * Критерий считается выполненным, если {@code obtainedTime} не равен {@code null}.
  */
 public class CriterionProgress {
 
@@ -20,33 +21,33 @@ public class CriterionProgress {
 	}
 
 	public boolean isObtained() {
-		return this.obtainedTime != null;
+		return obtainedTime != null;
 	}
 
 	public void obtain() {
-		this.obtainedTime = Instant.now();
+		obtainedTime = Instant.now();
 	}
 
 	public void reset() {
-		this.obtainedTime = null;
+		obtainedTime = null;
 	}
 
 	public @Nullable Instant getObtainedTime() {
-		return this.obtainedTime;
+		return obtainedTime;
 	}
 
 	@Override
 	public String toString() {
-		return "CriterionProgress{obtained=" + (this.obtainedTime == null ? "false" : this.obtainedTime) + "}";
+		return "CriterionProgress{obtained=" + (obtainedTime == null ? "false" : obtainedTime) + "}";
 	}
 
 	public void toPacket(PacketByteBuf buf) {
-		buf.writeNullable(this.obtainedTime, PacketByteBuf::writeInstant);
+		buf.writeNullable(obtainedTime, PacketByteBuf::writeInstant);
 	}
 
 	public static CriterionProgress fromPacket(PacketByteBuf buf) {
-		CriterionProgress criterionProgress = new CriterionProgress();
-		criterionProgress.obtainedTime = buf.readNullable(PacketByteBuf::readInstant);
-		return criterionProgress;
+		CriterionProgress progress = new CriterionProgress();
+		progress.obtainedTime = buf.readNullable(PacketByteBuf::readInstant);
+		return progress;
 	}
 }

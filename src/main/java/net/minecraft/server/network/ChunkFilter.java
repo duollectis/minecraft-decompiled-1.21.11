@@ -6,7 +6,7 @@ import net.minecraft.util.math.ChunkPos;
 import java.util.function.Consumer;
 
 /**
- * {@code ChunkFilter}.
+ * Класс Chunk Filter.
  */
 public interface ChunkFilter {
 
@@ -91,9 +91,6 @@ public interface ChunkFilter {
 		return n < j;
 	}
 
-	/**
-	 * {@code Cylindrical}.
-	 */
 	public record Cylindrical(ChunkPos center, int viewDistance) implements ChunkFilter {
 
 		int getLeft() {

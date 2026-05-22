@@ -14,7 +14,7 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import java.util.Set;
 
 /**
- * {@code HappyGhastBrain}.
+ * Мозг счастливого гаста: регистрирует сенсоры и задачи поведения.
  */
 public class HappyGhastBrain {
 
@@ -92,12 +92,12 @@ public class HappyGhastBrain {
 		brain.setTaskList(
 				Activity.IDLE,
 				ImmutableList.of(
-						Pair.of(1, new TemptTask(entity -> 1.25F, entity -> TEMPT_DISTANCE, true)),
+						Pair.of(1, new TemptTask(entity -> TEMPT_SPEED, entity -> TEMPT_DISTANCE, true)),
 						Pair.of(
 								2,
 								WalkTowardsEntityTask.create(
 										MOVE_TOWARDS_FRIENDLY_ENTITY_RANGE,
-										player -> 1.1F,
+										player -> MOVE_TOWARDS_FRIENDLY_ENTITY_SPEED,
 										MemoryModuleType.NEAREST_VISIBLE_PLAYER,
 										true
 								)
@@ -106,7 +106,7 @@ public class HappyGhastBrain {
 								3,
 								WalkTowardsEntityTask.create(
 										MOVE_TOWARDS_FRIENDLY_ENTITY_RANGE,
-										adult -> 1.1F,
+										adult -> MOVE_TOWARDS_FRIENDLY_ENTITY_SPEED,
 										MemoryModuleType.NEAREST_VISIBLE_ADULT,
 										true
 								)

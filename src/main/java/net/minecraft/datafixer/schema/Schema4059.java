@@ -10,12 +10,15 @@ import java.util.SequencedMap;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4059}.
+ * Схема DataFixer версии 4059, вводящая компонент {@code minecraft:use_remainder}
+ * (предмет, остающийся в руке после использования) и компонент {@code minecraft:equippable}
+ * с поддержкой фильтрации разрешённых сущностей. Также удаляет устаревший компонент
+ * {@code minecraft:food}, перенесённый в другую структуру данных.
  */
 public class Schema4059 extends IdentifierNormalizingSchema {
 
-	public Schema4059(int i, Schema schema) {
-		super(i, schema);
+	public Schema4059(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public static SequencedMap<String, Supplier<TypeTemplate>> createDataComponentsMap(Schema schema) {

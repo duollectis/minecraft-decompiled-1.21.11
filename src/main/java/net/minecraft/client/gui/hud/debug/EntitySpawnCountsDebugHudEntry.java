@@ -16,38 +16,40 @@ import org.jspecify.annotations.Nullable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EntitySpawnCountsDebugHudEntry}.
+ * Запись отладочного HUD: количество заспавненных сущностей по группам.
  */
+@Environment(EnvType.CLIENT)
 public class EntitySpawnCountsDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		Entity entity = minecraftClient.getCameraEntity();
-		ServerWorld serverWorld = world instanceof ServerWorld ? (ServerWorld) world : null;
-		if (entity != null && serverWorld != null) {
-			ServerChunkManager serverChunkManager = serverWorld.getChunkManager();
-			SpawnHelper.Info info = serverChunkManager.getSpawnInfo();
-			if (info != null) {
-				Object2IntMap<SpawnGroup> object2IntMap = info.getGroupToCount();
-				int i = info.getSpawningChunkCount();
-				lines.addLine(
-						"SC: "
-								+ i
-								+ ", "
-								+ Stream.of(SpawnGroup.values())
-								        .map(spawnGroup -> Character.toUpperCase(spawnGroup.getName().charAt(0)) + ": "
-										        + object2IntMap.getInt(spawnGroup))
-								        .collect(Collectors.joining(", "))
-				);
-			}
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
+		ServerWorld serverWorld = world instanceof ServerWorld sw ? sw : null;
+
+		if (cameraEntity == null || serverWorld == null) {
+			return;
 		}
+
+		ServerChunkManager chunkManager = serverWorld.getChunkManager();
+		SpawnHelper.Info spawnInfo = chunkManager.getSpawnInfo();
+
+		if (spawnInfo == null) {
+			return;
+		}
+
+		Object2IntMap<SpawnGroup> groupCounts = spawnInfo.getGroupToCount();
+		int spawningChunks = spawnInfo.getSpawningChunkCount();
+		String groupSummary = Stream.of(SpawnGroup.values())
+			.map(group -> Character.toUpperCase(group.getName().charAt(0)) + ": " + groupCounts.getInt(group))
+			.collect(Collectors.joining(", "));
+
+		lines.addLine("SC: " + spawningChunks + ", " + groupSummary);
 	}
 }

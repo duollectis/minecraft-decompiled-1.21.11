@@ -21,9 +21,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code DebugStickItem}.
+ * Отладочная палка оператора. Позволяет циклически переключать свойства блоков:
+ * ПКМ — изменить значение выбранного свойства, ЛКМ — выбрать следующее свойство.
+ * Доступна только игрокам с уровнем оператора 2.
  */
 public class DebugStickItem extends Item {
+
+	/** Флаги обновления блока при изменении свойства отладочной палкой. */
+	private static final int BLOCK_UPDATE_FLAGS = 18;
 
 	public DebugStickItem(Item.Settings settings) {
 		super(settings);
@@ -31,8 +36,8 @@ public class DebugStickItem extends Item {
 
 	@Override
 	public boolean canMine(ItemStack stack, BlockState state, World world, BlockPos pos, LivingEntity user) {
-		if (!world.isClient() && user instanceof PlayerEntity playerEntity) {
-			this.use(playerEntity, state, world, pos, false, stack);
+		if (!world.isClient() && user instanceof PlayerEntity player) {
+			applyDebugAction(player, state, world, pos, false, stack);
 		}
 
 		return false;
@@ -40,11 +45,13 @@ public class DebugStickItem extends Item {
 
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
-		PlayerEntity playerEntity = context.getPlayer();
+		PlayerEntity player = context.getPlayer();
 		World world = context.getWorld();
-		if (!world.isClient() && playerEntity != null) {
+
+		if (!world.isClient() && player != null) {
 			BlockPos blockPos = context.getBlockPos();
-			if (!this.use(playerEntity, world.getBlockState(blockPos), world, blockPos, true, context.getStack())) {
+
+			if (!applyDebugAction(player, world.getBlockState(blockPos), world, blockPos, true, context.getStack())) {
 				return ActionResult.FAIL;
 			}
 		}
@@ -52,68 +59,67 @@ public class DebugStickItem extends Item {
 		return ActionResult.SUCCESS;
 	}
 
-	private boolean use(
-			PlayerEntity player,
-			BlockState state,
-			WorldAccess world,
-			BlockPos pos,
-			boolean update,
-			ItemStack stack
+	/**
+	 * Применяет действие отладочной палки: выбор свойства или изменение его значения.
+	 *
+	 * @param player  игрок-оператор
+	 * @param state   текущее состояние блока
+	 * @param world   мир
+	 * @param pos     позиция блока
+	 * @param update  {@code true} — изменить значение свойства, {@code false} — выбрать следующее свойство
+	 * @param stack   стек отладочной палки
+	 * @return {@code true}, если действие выполнено успешно
+	 */
+	private boolean applyDebugAction(
+		PlayerEntity player,
+		BlockState state,
+		WorldAccess world,
+		BlockPos pos,
+		boolean update,
+		ItemStack stack
 	) {
 		if (!player.isCreativeLevelTwoOp()) {
 			return false;
 		}
-		else {
-			RegistryEntry<Block> registryEntry = state.getRegistryEntry();
-			StateManager<Block, BlockState> stateManager = registryEntry.value().getStateManager();
-			Collection<Property<?>> collection = stateManager.getProperties();
-			if (collection.isEmpty()) {
-				sendMessage(player, Text.translatable(this.translationKey + ".empty", registryEntry.getIdAsString()));
-				return false;
-			}
-			else {
-				DebugStickStateComponent debugStickStateComponent = stack.get(DataComponentTypes.DEBUG_STICK_STATE);
-				if (debugStickStateComponent == null) {
-					return false;
-				}
-				else {
-					Property<?> property = debugStickStateComponent.properties().get(registryEntry);
-					if (update) {
-						if (property == null) {
-							property = collection.iterator().next();
-						}
 
-						BlockState blockState = cycle(state, property, player.shouldCancelInteraction());
-						world.setBlockState(pos, blockState, 18);
-						sendMessage(
-								player,
-								Text.translatable(
-										this.translationKey + ".update",
-										property.getName(),
-										getValueString(blockState, property)
-								)
-						);
-					}
-					else {
-						property = cycle(collection, property, player.shouldCancelInteraction());
-						stack.set(
-								DataComponentTypes.DEBUG_STICK_STATE,
-								debugStickStateComponent.with(registryEntry, property)
-						);
-						sendMessage(
-								player,
-								Text.translatable(
-										this.translationKey + ".select",
-										property.getName(),
-										getValueString(state, property)
-								)
-						);
-					}
+		RegistryEntry<Block> blockEntry = state.getRegistryEntry();
+		StateManager<Block, BlockState> stateManager = blockEntry.value().getStateManager();
+		Collection<Property<?>> properties = stateManager.getProperties();
 
-					return true;
-				}
-			}
+		if (properties.isEmpty()) {
+			sendMessage(player, Text.translatable(translationKey + ".empty", blockEntry.getIdAsString()));
+			return false;
 		}
+
+		DebugStickStateComponent debugState = stack.get(DataComponentTypes.DEBUG_STICK_STATE);
+
+		if (debugState == null) {
+			return false;
+		}
+
+		Property<?> property = debugState.properties().get(blockEntry);
+
+		if (update) {
+			if (property == null) {
+				property = properties.iterator().next();
+			}
+
+			BlockState updatedState = cycle(state, property, player.shouldCancelInteraction());
+			world.setBlockState(pos, updatedState, BLOCK_UPDATE_FLAGS);
+			sendMessage(
+				player,
+				Text.translatable(translationKey + ".update", property.getName(), getValueString(updatedState, property))
+			);
+		} else {
+			property = cycle(properties, property, player.shouldCancelInteraction());
+			stack.set(DataComponentTypes.DEBUG_STICK_STATE, debugState.with(blockEntry, property));
+			sendMessage(
+				player,
+				Text.translatable(translationKey + ".select", property.getName(), getValueString(state, property))
+			);
+		}
+
+		return true;
 	}
 
 	private static <T extends Comparable<T>> BlockState cycle(BlockState state, Property<T> property, boolean inverse) {

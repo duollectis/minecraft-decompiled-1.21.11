@@ -17,96 +17,111 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code CommandFunction}.
+ * Представляет функцию (mcfunction-файл) — именованную последовательность команд,
+ * которая может содержать макро-переменные (строки, начинающиеся с {@code $}).
  */
 public interface CommandFunction<T> {
+
+	int MAX_COMMAND_LENGTH = 2000000;
+	int MAX_COMMAND_PREVIEW_LENGTH = 512;
 
 	Identifier id();
 
 	Procedure<T> withMacroReplaced(@Nullable NbtCompound arguments, CommandDispatcher<T> dispatcher)
 	throws MacroException;
 
-	private static boolean continuesToNextLine(CharSequence string) {
-		int i = string.length();
-		return i > 0 && string.charAt(i - 1) == '\\';
+	private static boolean continuesToNextLine(CharSequence line) {
+		int length = line.length();
+		return length > 0 && line.charAt(length - 1) == '\\';
 	}
 
+	/**
+	 * Парсит список строк mcfunction-файла и создаёт {@link CommandFunction}.
+	 * Поддерживает перенос строк через {@code \}, комментарии {@code #} и макро-команды {@code $}.
+	 */
 	static <T extends AbstractServerCommandSource<T>> CommandFunction<T> create(
 			Identifier id,
 			CommandDispatcher<T> dispatcher,
 			T source,
 			List<String> lines
 	) {
-		FunctionBuilder<T> functionBuilder = new FunctionBuilder<>();
+		FunctionBuilder<T> builder = new FunctionBuilder<>();
 
-		for (int i = 0; i < lines.size(); i++) {
-			int j = i + 1;
-			String string = lines.get(i).trim();
-			String string3;
-			if (continuesToNextLine(string)) {
-				StringBuilder stringBuilder = new StringBuilder(string);
+		for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+			int lineNumber = lineIndex + 1;
+			String trimmedLine = lines.get(lineIndex).trim();
+			String fullLine;
+
+			if (continuesToNextLine(trimmedLine)) {
+				StringBuilder lineBuilder = new StringBuilder(trimmedLine);
 
 				do {
-					if (++i == lines.size()) {
+					if (++lineIndex == lines.size()) {
 						throw new IllegalArgumentException("Line continuation at end of file");
 					}
 
-					stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-					String string2 = lines.get(i).trim();
-					stringBuilder.append(string2);
-					validateCommandLength(stringBuilder);
+					lineBuilder.deleteCharAt(lineBuilder.length() - 1);
+					String continuedLine = lines.get(lineIndex).trim();
+					lineBuilder.append(continuedLine);
+					validateCommandLength(lineBuilder);
 				}
-				while (continuesToNextLine(stringBuilder));
+				while (continuesToNextLine(lineBuilder));
 
-				string3 = stringBuilder.toString();
+				fullLine = lineBuilder.toString();
 			}
 			else {
-				string3 = string;
+				fullLine = trimmedLine;
 			}
 
-			validateCommandLength(string3);
-			StringReader stringReader = new StringReader(string3);
-			if (stringReader.canRead() && stringReader.peek() != '#') {
-				if (stringReader.peek() == '/') {
-					stringReader.skip();
-					if (stringReader.peek() == '/') {
+			validateCommandLength(fullLine);
+			StringReader reader = new StringReader(fullLine);
+
+			if (reader.canRead() && reader.peek() != '#') {
+				if (reader.peek() == '/') {
+					reader.skip();
+
+					if (reader.peek() == '/') {
 						throw new IllegalArgumentException(
-								"Unknown or invalid command '" + string3 + "' on line " + j
+								"Unknown or invalid command '" + fullLine + "' on line " + lineNumber
 										+ " (if you intended to make a comment, use '#' not '//')"
 						);
 					}
 
-					String string2 = stringReader.readUnquotedString();
+					String commandName = reader.readUnquotedString();
 					throw new IllegalArgumentException(
-							"Unknown or invalid command '" + string3 + "' on line " + j + " (did you mean '" + string2
-									+ "'? Do not use a preceding forwards slash.)"
+							"Unknown or invalid command '" + fullLine + "' on line " + lineNumber
+									+ " (did you mean '" + commandName + "'? Do not use a preceding forwards slash.)"
 					);
 				}
 
-				if (stringReader.peek() == '$') {
-					functionBuilder.addMacroCommand(string3.substring(1), j, source);
+				if (reader.peek() == '$') {
+					builder.addMacroCommand(fullLine.substring(1), lineNumber, source);
 				}
 				else {
 					try {
-						functionBuilder.addAction(parse(dispatcher, source, stringReader));
+						builder.addAction(parse(dispatcher, source, reader));
 					}
-					catch (CommandSyntaxException var11) {
+					catch (CommandSyntaxException exception) {
 						throw new IllegalArgumentException(
-								"Whilst parsing command on line " + j + ": " + var11.getMessage());
+								"Whilst parsing command on line " + lineNumber + ": " + exception.getMessage()
+						);
 					}
 				}
 			}
 		}
 
-		return functionBuilder.toCommandFunction(id);
+		return builder.toCommandFunction(id);
 	}
 
 	static void validateCommandLength(CharSequence command) {
-		if (command.length() > 2000000) {
-			CharSequence charSequence = command.subSequence(0, Math.min(512, 2000000));
-			throw new IllegalStateException(
-					"Command too long: " + command.length() + " characters, contents: " + charSequence + "...");
+		if (command.length() <= MAX_COMMAND_LENGTH) {
+			return;
 		}
+
+		CharSequence preview = command.subSequence(0, Math.min(MAX_COMMAND_PREVIEW_LENGTH, MAX_COMMAND_LENGTH));
+		throw new IllegalStateException(
+				"Command too long: " + command.length() + " characters, contents: " + preview + "..."
+		);
 	}
 
 	static <T extends AbstractServerCommandSource<T>> SourcedCommandAction<T> parse(
@@ -116,16 +131,16 @@ public interface CommandFunction<T> {
 	) throws CommandSyntaxException {
 		ParseResults<T> parseResults = dispatcher.parse(reader, source);
 		CommandManager.throwException(parseResults);
-		Optional<ContextChain<T>>
-				optional =
-				ContextChain.tryFlatten(parseResults.getContext().build(reader.getString()));
-		if (optional.isEmpty()) {
+		Optional<ContextChain<T>> contextChain = ContextChain.tryFlatten(
+				parseResults.getContext().build(reader.getString())
+		);
+
+		if (contextChain.isEmpty()) {
 			throw CommandSyntaxException.BUILT_IN_EXCEPTIONS
 					.dispatcherUnknownCommand()
 					.createWithContext(parseResults.getReader());
 		}
-		else {
-			return new SingleCommandAction.Sourced<>(reader.getString(), optional.get());
-		}
+
+		return new SingleCommandAction.Sourced<>(reader.getString(), contextChain.get());
 	}
 }

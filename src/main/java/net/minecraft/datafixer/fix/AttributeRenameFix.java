@@ -9,7 +9,8 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code AttributeRenameFix}.
+ * Базовый класс для переименования атрибутов в компонентах предметов и данных сущностей.
+ * Применяет функцию {@code renamer} к полю {@code type} (в компонентах) и {@code id} (у сущностей).
  */
 public class AttributeRenameFix extends DataFix {
 
@@ -22,68 +23,69 @@ public class AttributeRenameFix extends DataFix {
 		this.renamer = renamer;
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
 		return TypeRewriteRule.seq(
-				this.fixTypeEverywhereTyped(
-						this.name + " (Components)",
-						this.getInputSchema().getType(TypeReferences.DATA_COMPONENTS),
-						this::applyToComponents
+			fixTypeEverywhereTyped(
+				name + " (Components)",
+				getInputSchema().getType(TypeReferences.DATA_COMPONENTS),
+				this::applyToComponents
+			),
+			new TypeRewriteRule[]{
+				fixTypeEverywhereTyped(
+					name + " (Entity)",
+					getInputSchema().getType(TypeReferences.ENTITY),
+					this::applyToEntity
 				),
-				new TypeRewriteRule[]{
-						this.fixTypeEverywhereTyped(
-								this.name + " (Entity)",
-								this.getInputSchema().getType(TypeReferences.ENTITY),
-								this::applyToEntity
-						),
-						this.fixTypeEverywhereTyped(
-								this.name + " (Player)",
-								this.getInputSchema().getType(TypeReferences.PLAYER),
-								this::applyToEntity
-						)
-				}
+				fixTypeEverywhereTyped(
+					name + " (Player)",
+					getInputSchema().getType(TypeReferences.PLAYER),
+					this::applyToEntity
+				)
+			}
 		);
 	}
 
 	private Typed<?> applyToComponents(Typed<?> typed) {
 		return typed.update(
-				DSL.remainderFinder(),
-				dynamic -> dynamic.update(
-						"minecraft:attribute_modifiers",
-						dynamicx -> dynamicx.update(
-								"modifiers",
-								dynamicxx -> (Dynamic) DataFixUtils.orElse(
-										dynamicxx
-												.asStreamOpt()
-												.result()
-												.map(stream -> stream.map(this::applyToTypeField))
-												.map(dynamicxx::createList), dynamicxx
-								)
-						)
+			DSL.remainderFinder(),
+			dynamic -> dynamic.update(
+				"minecraft:attribute_modifiers",
+				modifiers -> modifiers.update(
+					"modifiers",
+					list -> (Dynamic<?>) DataFixUtils.orElse(
+						list.asStreamOpt()
+							.result()
+							.map(stream -> stream.map(this::applyToTypeField))
+							.map(list::createList),
+						list
+					)
 				)
+			)
 		);
 	}
 
 	private Typed<?> applyToEntity(Typed<?> typed) {
 		return typed.update(
-				DSL.remainderFinder(),
-				dynamic -> dynamic.update(
-						"attributes",
-						dynamicx -> (Dynamic) DataFixUtils.orElse(
-								dynamicx
-										.asStreamOpt()
-										.result()
-										.map(stream -> stream.map(this::applyToIdField))
-										.map(dynamicx::createList), dynamicx
-						)
+			DSL.remainderFinder(),
+			dynamic -> dynamic.update(
+				"attributes",
+				attributes -> (Dynamic<?>) DataFixUtils.orElse(
+					attributes.asStreamOpt()
+						.result()
+						.map(stream -> stream.map(this::applyToIdField))
+						.map(attributes::createList),
+					attributes
 				)
+			)
 		);
 	}
 
 	private Dynamic<?> applyToIdField(Dynamic<?> dynamic) {
-		return FixUtil.apply(dynamic, "id", this.renamer);
+		return FixUtil.apply(dynamic, "id", renamer);
 	}
 
 	private Dynamic<?> applyToTypeField(Dynamic<?> dynamic) {
-		return FixUtil.apply(dynamic, "type", this.renamer);
+		return FixUtil.apply(dynamic, "type", renamer);
 	}
 }

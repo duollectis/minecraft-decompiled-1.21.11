@@ -8,18 +8,11 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code LookTowardsAttackTargetTask}.
+ * Фабричный класс задачи мозга, направляющей взгляд моба на цель атаки и выполняющей страфинг назад.
+ * Активируется только если цель видима и находится в пределах заданного расстояния.
  */
 public class LookTowardsAttackTargetTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param distance distance
-	 * @param forwardMovement forward movement
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<MobEntity> create(int distance, float forwardMovement) {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -31,22 +24,18 @@ public class LookTowardsAttackTargetTask {
 				                  .apply(
 						                  context,
 						                  (walkTarget, lookTarget, attackTarget, visibleMobs) -> (world, entity, time) -> {
-							                  LivingEntity livingEntity = context.getValue(attackTarget);
-							                  if (livingEntity.isInRange(entity, distance) && context
-									                  .<LivingTargetCache>getValue(visibleMobs)
-									                  .contains(livingEntity)) {
-								                  lookTarget.remember(new EntityLookTarget(livingEntity, true));
-								                  entity.getMoveControl().strafeTo(-forwardMovement, 0.0F);
-								                  entity.setYaw(MathHelper.clampAngle(
-										                  entity.getYaw(),
-										                  entity.headYaw,
-										                  0.0F
-								                  ));
-								                  return true;
-							                  }
-							                  else {
+							                  LivingEntity target = context.getValue(attackTarget);
+							                  boolean inRangeAndVisible = target.isInRange(entity, distance)
+									                  && context.<LivingTargetCache>getValue(visibleMobs).contains(target);
+
+							                  if (!inRangeAndVisible) {
 								                  return false;
 							                  }
+
+							                  lookTarget.remember(new EntityLookTarget(target, true));
+							                  entity.getMoveControl().strafeTo(-forwardMovement, 0.0F);
+							                  entity.setYaw(MathHelper.clampAngle(entity.getYaw(), entity.headYaw, 0.0F));
+							                  return true;
 						                  }
 				                  )
 		);

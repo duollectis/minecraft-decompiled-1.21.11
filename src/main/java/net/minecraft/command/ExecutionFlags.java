@@ -1,7 +1,8 @@
 package net.minecraft.command;
 
 /**
- * {@code ExecutionFlags}.
+ * Битовые флаги, управляющие поведением выполнения команды.
+ * Хранятся в одном байте для минимального расхода памяти.
  */
 public record ExecutionFlags(byte flags) {
 
@@ -10,23 +11,23 @@ public record ExecutionFlags(byte flags) {
 	private static final byte INSIDE_RETURN_RUN = 2;
 
 	private ExecutionFlags set(byte flag) {
-		int i = this.flags | flag;
-		return i != this.flags ? new ExecutionFlags((byte) i) : this;
+		int merged = flags | flag;
+		return merged != flags ? new ExecutionFlags((byte) merged) : this;
 	}
 
 	public boolean isSilent() {
-		return (this.flags & 1) != 0;
+		return (flags & SILENT) != 0;
 	}
 
 	public ExecutionFlags setSilent() {
-		return this.set((byte) 1);
+		return set(SILENT);
 	}
 
 	public boolean isInsideReturnRun() {
-		return (this.flags & 2) != 0;
+		return (flags & INSIDE_RETURN_RUN) != 0;
 	}
 
 	public ExecutionFlags setInsideReturnRun() {
-		return this.set((byte) 2);
+		return set(INSIDE_RETURN_RUN);
 	}
 }

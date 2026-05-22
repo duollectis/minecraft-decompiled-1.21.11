@@ -1,7 +1,6 @@
 package net.minecraft.world.dimension;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
@@ -22,106 +21,138 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code DimensionOptionsRegistryHolder}.
+ * Хранилище реестра параметров измерений.
+ * Управляет набором всех зарегистрированных измерений мира, включая ванильные
+ * (Overworld, Nether, End) и пользовательские. Обеспечивает валидацию наличия
+ * обязательного измерения Overworld и определение жизненного цикла реестра.
  */
 public record DimensionOptionsRegistryHolder(Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensions) {
 
 	public static final MapCodec<DimensionOptionsRegistryHolder> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.unboundedMap(RegistryKey.createCodec(RegistryKeys.DIMENSION), DimensionOptions.CODEC)
-					                         .fieldOf("dimensions")
-					                         .forGetter(DimensionOptionsRegistryHolder::dimensions)
-			                    )
-			                    .apply(instance, instance.stable(DimensionOptionsRegistryHolder::new))
+		instance -> instance.group(
+			Codec.unboundedMap(RegistryKey.createCodec(RegistryKeys.DIMENSION), DimensionOptions.CODEC)
+				.fieldOf("dimensions")
+				.forGetter(DimensionOptionsRegistryHolder::dimensions)
+		).apply(instance, instance.stable(DimensionOptionsRegistryHolder::new))
 	);
+
 	private static final Set<RegistryKey<DimensionOptions>> VANILLA_KEYS = ImmutableSet.of(
-			DimensionOptions.OVERWORLD, DimensionOptions.NETHER, DimensionOptions.END
+		DimensionOptions.OVERWORLD, DimensionOptions.NETHER, DimensionOptions.END
 	);
 	private static final int VANILLA_KEY_COUNT = VANILLA_KEYS.size();
 
 	public DimensionOptionsRegistryHolder(Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensions) {
-		DimensionOptions dimensionOptions = dimensions.get(DimensionOptions.OVERWORLD);
-		if (dimensionOptions == null) {
+		if (dimensions.get(DimensionOptions.OVERWORLD) == null) {
 			throw new IllegalStateException("Overworld settings missing");
 		}
-		else {
-			this.dimensions = dimensions;
-		}
+
+		this.dimensions = dimensions;
 	}
 
 	public DimensionOptionsRegistryHolder(Registry<DimensionOptions> dimensionOptionsRegistry) {
 		this(dimensionOptionsRegistry
-				.streamEntries()
-				.collect(Collectors.toMap(RegistryEntry.Reference::registryKey, RegistryEntry.Reference::value)));
+			.streamEntries()
+			.collect(Collectors.toMap(RegistryEntry.Reference::registryKey, RegistryEntry.Reference::value)));
 	}
 
 	/**
-	 * Stream all.
+	 * Создаёт поток всех ключей измерений, гарантируя, что ванильные ключи идут первыми,
+	 * а дополнительные — без дублирования ванильных.
 	 *
-	 * @param otherKeys other keys
-	 *
-	 * @return Stream> — результат операции
+	 * @param otherKeys поток дополнительных ключей измерений
+	 * @return объединённый поток: сначала ванильные ключи, затем уникальные дополнительные
 	 */
 	public static Stream<RegistryKey<DimensionOptions>> streamAll(Stream<RegistryKey<DimensionOptions>> otherKeys) {
 		return Stream.concat(VANILLA_KEYS.stream(), otherKeys.filter(key -> !VANILLA_KEYS.contains(key)));
 	}
 
+	/**
+	 * Создаёт новый экземпляр с заменённым генератором чанков для Overworld,
+	 * сохраняя тип измерения из текущих настроек (или дефолтный, если Overworld отсутствует).
+	 *
+	 * @param registries    реестры для получения типа измерения Overworld
+	 * @param chunkGenerator новый генератор чанков для Overworld
+	 * @return новый холдер с обновлённым Overworld
+	 */
 	public DimensionOptionsRegistryHolder with(
-			RegistryWrapper.WrapperLookup registries,
-			ChunkGenerator chunkGenerator
+		RegistryWrapper.WrapperLookup registries,
+		ChunkGenerator chunkGenerator
 	) {
-		RegistryWrapper<DimensionType> registryWrapper = registries.getOrThrow(RegistryKeys.DIMENSION_TYPE);
-		Map<RegistryKey<DimensionOptions>, DimensionOptions>
-				map =
-				createRegistry(registryWrapper, this.dimensions, chunkGenerator);
-		return new DimensionOptionsRegistryHolder(map);
+		RegistryWrapper<DimensionType> dimensionTypeRegistry = registries.getOrThrow(RegistryKeys.DIMENSION_TYPE);
+		Map<RegistryKey<DimensionOptions>, DimensionOptions> updated =
+			createRegistry(dimensionTypeRegistry, dimensions, chunkGenerator);
+
+		return new DimensionOptionsRegistryHolder(updated);
 	}
 
+	/**
+	 * Создаёт карту измерений с заменённым генератором чанков для Overworld.
+	 * Тип измерения берётся из существующих настроек Overworld или из реестра по умолчанию.
+	 *
+	 * @param dimensionTypeRegistry реестр типов измерений
+	 * @param dimensionOptions      текущая карта параметров измерений
+	 * @param chunkGenerator        новый генератор чанков для Overworld
+	 * @return обновлённая карта параметров измерений
+	 */
 	public static Map<RegistryKey<DimensionOptions>, DimensionOptions> createRegistry(
-			RegistryWrapper<DimensionType> dimensionTypeRegistry,
-			Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensionOptions,
-			ChunkGenerator chunkGenerator
+		RegistryWrapper<DimensionType> dimensionTypeRegistry,
+		Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensionOptions,
+		ChunkGenerator chunkGenerator
 	) {
-		DimensionOptions dimensionOptions2 = dimensionOptions.get(DimensionOptions.OVERWORLD);
-		RegistryEntry<DimensionType> registryEntry = (RegistryEntry<DimensionType>) (dimensionOptions2 == null
-		                                                                             ? dimensionTypeRegistry.getOrThrow(
-				DimensionTypes.OVERWORLD)
-		                                                                             : dimensionOptions2.dimensionTypeEntry()
-		);
-		return createRegistry(dimensionOptions, registryEntry, chunkGenerator);
+		DimensionOptions overworldOptions = dimensionOptions.get(DimensionOptions.OVERWORLD);
+		RegistryEntry<DimensionType> overworldType = overworldOptions == null
+			? dimensionTypeRegistry.getOrThrow(DimensionTypes.OVERWORLD)
+			: overworldOptions.dimensionTypeEntry();
+
+		return createRegistry(dimensionOptions, overworldType, chunkGenerator);
 	}
 
+	/**
+	 * Создаёт карту измерений, заменяя Overworld на новые параметры с указанным типом и генератором.
+	 *
+	 * @param dimensionOptions текущая карта параметров измерений
+	 * @param overworld        запись типа измерения для Overworld
+	 * @param chunkGenerator   новый генератор чанков для Overworld
+	 * @return обновлённая карта с новым Overworld (последнее значение побеждает при дублировании)
+	 */
 	public static Map<RegistryKey<DimensionOptions>, DimensionOptions> createRegistry(
-			Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensionOptions,
-			RegistryEntry<DimensionType> overworld,
-			ChunkGenerator chunkGenerator
+		Map<RegistryKey<DimensionOptions>, DimensionOptions> dimensionOptions,
+		RegistryEntry<DimensionType> overworld,
+		ChunkGenerator chunkGenerator
 	) {
-		Builder<RegistryKey<DimensionOptions>, DimensionOptions> builder = ImmutableMap.builder();
-		builder.putAll(dimensionOptions);
-		builder.put(DimensionOptions.OVERWORLD, new DimensionOptions(overworld, chunkGenerator));
-		return builder.buildKeepingLast();
+		return ImmutableMap.<RegistryKey<DimensionOptions>, DimensionOptions>builder()
+			.putAll(dimensionOptions)
+			.put(DimensionOptions.OVERWORLD, new DimensionOptions(overworld, chunkGenerator))
+			.buildKeepingLast();
 	}
 
+	/**
+	 * Возвращает генератор чанков для измерения Overworld.
+	 *
+	 * @return генератор чанков Overworld
+	 * @throws IllegalStateException если настройки Overworld отсутствуют
+	 */
 	public ChunkGenerator getChunkGenerator() {
-		DimensionOptions dimensionOptions = this.dimensions.get(DimensionOptions.OVERWORLD);
-		if (dimensionOptions == null) {
+		DimensionOptions overworldOptions = dimensions.get(DimensionOptions.OVERWORLD);
+		if (overworldOptions == null) {
 			throw new IllegalStateException("Overworld settings missing");
 		}
-		else {
-			return dimensionOptions.chunkGenerator();
-		}
+
+		return overworldOptions.chunkGenerator();
 	}
 
 	public Optional<DimensionOptions> getOrEmpty(RegistryKey<DimensionOptions> key) {
-		return Optional.ofNullable(this.dimensions.get(key));
+		return Optional.ofNullable(dimensions.get(key));
 	}
 
 	public ImmutableSet<RegistryKey<World>> getWorldKeys() {
-		return this.dimensions().keySet().stream().map(RegistryKeys::toWorldKey).collect(ImmutableSet.toImmutableSet());
+		return dimensions().keySet().stream()
+			.map(RegistryKeys::toWorldKey)
+			.collect(ImmutableSet.toImmutableSet());
 	}
 
 	public boolean isDebug() {
-		return this.getChunkGenerator() instanceof DebugChunkGenerator;
+		return getChunkGenerator() instanceof DebugChunkGenerator;
 	}
 
 	private static LevelProperties.SpecialProperty getSpecialProperty(Registry<DimensionOptions> dimensionOptionsRegistry) {
@@ -130,10 +161,10 @@ public record DimensionOptionsRegistryHolder(Map<RegistryKey<DimensionOptions>, 
 			if (chunkGenerator instanceof DebugChunkGenerator) {
 				return LevelProperties.SpecialProperty.DEBUG;
 			}
-			else {
-				return chunkGenerator instanceof FlatChunkGenerator ? LevelProperties.SpecialProperty.FLAT
-				                                                    : LevelProperties.SpecialProperty.NONE;
-			}
+
+			return chunkGenerator instanceof FlatChunkGenerator
+				? LevelProperties.SpecialProperty.FLAT
+				: LevelProperties.SpecialProperty.NONE;
 		}).orElse(LevelProperties.SpecialProperty.NONE);
 	}
 
@@ -145,92 +176,95 @@ public record DimensionOptionsRegistryHolder(Map<RegistryKey<DimensionOptions>, 
 		if (key == DimensionOptions.OVERWORLD) {
 			return isOverworldVanilla(dimensionOptions);
 		}
-		else if (key == DimensionOptions.NETHER) {
+
+		if (key == DimensionOptions.NETHER) {
 			return isNetherVanilla(dimensionOptions);
 		}
-		else {
-			return key == DimensionOptions.END ? isTheEndVanilla(dimensionOptions) : false;
-		}
+
+		return key == DimensionOptions.END && isTheEndVanilla(dimensionOptions);
 	}
 
 	private static boolean isOverworldVanilla(DimensionOptions dimensionOptions) {
-		RegistryEntry<DimensionType> registryEntry = dimensionOptions.dimensionTypeEntry();
-		return !registryEntry.matchesKey(DimensionTypes.OVERWORLD)
-				       && !registryEntry.matchesKey(DimensionTypes.OVERWORLD_CAVES)
-		       ? false
-		       : !(
-				       dimensionOptions
-				       .chunkGenerator()
-				       .getBiomeSource() instanceof MultiNoiseBiomeSource multiNoiseBiomeSource
-				       && !multiNoiseBiomeSource.matchesInstance(MultiNoiseBiomeSourceParameterLists.OVERWORLD)
-		       );
+		RegistryEntry<DimensionType> typeEntry = dimensionOptions.dimensionTypeEntry();
+		if (!typeEntry.matchesKey(DimensionTypes.OVERWORLD) && !typeEntry.matchesKey(DimensionTypes.OVERWORLD_CAVES)) {
+			return false;
+		}
+
+		if (dimensionOptions.chunkGenerator().getBiomeSource() instanceof MultiNoiseBiomeSource multiNoiseBiomeSource) {
+			return multiNoiseBiomeSource.matchesInstance(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
+		}
+
+		return true;
 	}
 
 	private static boolean isNetherVanilla(DimensionOptions dimensionOptions) {
 		return dimensionOptions.dimensionTypeEntry().matchesKey(DimensionTypes.THE_NETHER)
-				&& dimensionOptions.chunkGenerator() instanceof NoiseChunkGenerator noiseChunkGenerator
-				&& noiseChunkGenerator.matchesSettings(ChunkGeneratorSettings.NETHER)
-				&& noiseChunkGenerator.getBiomeSource() instanceof MultiNoiseBiomeSource multiNoiseBiomeSource
-				&& multiNoiseBiomeSource.matchesInstance(MultiNoiseBiomeSourceParameterLists.NETHER);
+			&& dimensionOptions.chunkGenerator() instanceof NoiseChunkGenerator noiseChunkGenerator
+			&& noiseChunkGenerator.matchesSettings(ChunkGeneratorSettings.NETHER)
+			&& noiseChunkGenerator.getBiomeSource() instanceof MultiNoiseBiomeSource multiNoiseBiomeSource
+			&& multiNoiseBiomeSource.matchesInstance(MultiNoiseBiomeSourceParameterLists.NETHER);
 	}
 
 	private static boolean isTheEndVanilla(DimensionOptions dimensionOptions) {
 		return dimensionOptions.dimensionTypeEntry().matchesKey(DimensionTypes.THE_END)
-				&& dimensionOptions.chunkGenerator() instanceof NoiseChunkGenerator noiseChunkGenerator
-				&& noiseChunkGenerator.matchesSettings(ChunkGeneratorSettings.END)
-				&& noiseChunkGenerator.getBiomeSource() instanceof TheEndBiomeSource;
+			&& dimensionOptions.chunkGenerator() instanceof NoiseChunkGenerator noiseChunkGenerator
+			&& noiseChunkGenerator.matchesSettings(ChunkGeneratorSettings.END)
+			&& noiseChunkGenerator.getBiomeSource() instanceof TheEndBiomeSource;
 	}
 
-	public DimensionOptionsRegistryHolder.DimensionsConfig toConfig(Registry<DimensionOptions> existingRegistry) {
-		Stream<RegistryKey<DimensionOptions>>
-				stream =
-				Stream.concat(existingRegistry.getKeys().stream(), this.dimensions.keySet().stream()).distinct();
+	/**
+	 * Преобразует текущий холдер в финальную конфигурацию измерений, объединяя
+	 * существующий реестр с текущими настройками. Ванильные ключи идут первыми,
+	 * жизненный цикл реестра определяется наличием нестандартных измерений.
+	 *
+	 * @param existingRegistry существующий реестр параметров измерений
+	 * @return финальная конфигурация с замороженным реестром и типом мира
+	 */
+	public DimensionsConfig toConfig(Registry<DimensionOptions> existingRegistry) {
+		Stream<RegistryKey<DimensionOptions>> allKeys =
+			Stream.concat(existingRegistry.getKeys().stream(), dimensions.keySet().stream()).distinct();
 
-		/**
-		 * {@code Entry}.
-		 */
 		record Entry(RegistryKey<DimensionOptions> key, DimensionOptions value) {
 
 			RegistryEntryInfo toEntryInfo() {
 				return new RegistryEntryInfo(
-						Optional.empty(),
-						DimensionOptionsRegistryHolder.getLifecycle(this.key, this.value)
+					Optional.empty(),
+					DimensionOptionsRegistryHolder.getLifecycle(key, value)
 				);
 			}
 		}
 
-		List<Entry> list = new ArrayList<>();
-		streamAll(stream)
-				.forEach(
-						key -> existingRegistry.getOptionalValue((RegistryKey<DimensionOptions>) key)
-						                       .or(() -> Optional.ofNullable(this.dimensions.get(key)))
-						                       .ifPresent(dimensionOptions -> list.add(new Entry(
-								                       key,
-								                       dimensionOptions
-						                       )))
-				);
-		Lifecycle lifecycle = list.size() == VANILLA_KEY_COUNT ? Lifecycle.stable() : Lifecycle.experimental();
+		List<Entry> entries = new ArrayList<>();
+		streamAll(allKeys).forEach(key ->
+			existingRegistry.getOptionalValue(key)
+				.or(() -> Optional.ofNullable(dimensions.get(key)))
+				.ifPresent(opts -> entries.add(new Entry(key, opts)))
+		);
+
+		Lifecycle lifecycle = entries.size() == VANILLA_KEY_COUNT ? Lifecycle.stable() : Lifecycle.experimental();
 		MutableRegistry<DimensionOptions> mutableRegistry = new SimpleRegistry<>(RegistryKeys.DIMENSION, lifecycle);
-		list.forEach(entry -> mutableRegistry.add(entry.key, entry.value, entry.toEntryInfo()));
-		Registry<DimensionOptions> registry = mutableRegistry.freeze();
-		LevelProperties.SpecialProperty specialProperty = getSpecialProperty(registry);
-		return new DimensionOptionsRegistryHolder.DimensionsConfig(registry.freeze(), specialProperty);
+		entries.forEach(entry -> mutableRegistry.add(entry.key(), entry.value(), entry.toEntryInfo()));
+
+		Registry<DimensionOptions> frozenRegistry = mutableRegistry.freeze();
+		LevelProperties.SpecialProperty specialProperty = getSpecialProperty(frozenRegistry);
+
+		return new DimensionsConfig(frozenRegistry.freeze(), specialProperty);
 	}
 
 	/**
-	 * {@code DimensionsConfig}.
+	 * Финальная конфигурация измерений с замороженным реестром и типом мира.
 	 */
 	public record DimensionsConfig(
-			Registry<DimensionOptions> dimensions,
-			LevelProperties.SpecialProperty specialWorldProperty
+		Registry<DimensionOptions> dimensions,
+		LevelProperties.SpecialProperty specialWorldProperty
 	) {
 
 		public Lifecycle getLifecycle() {
-			return this.dimensions.getLifecycle();
+			return dimensions.getLifecycle();
 		}
 
 		public DynamicRegistryManager.Immutable toDynamicRegistryManager() {
-			return new DynamicRegistryManager.ImmutableImpl(List.of(this.dimensions)).toImmutable();
+			return new DynamicRegistryManager.ImmutableImpl(List.of(dimensions)).toImmutable();
 		}
 	}
 }

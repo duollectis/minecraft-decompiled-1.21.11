@@ -21,7 +21,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * {@code TextComponentHoverAndClickEventFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TextComponentHoverAndClickEventFix extends DataFix {
 
@@ -38,8 +38,8 @@ public class TextComponentHoverAndClickEventFix extends DataFix {
 						.getType(TypeReferences.TEXT_COMPONENT)
 						.findFieldType("hoverEvent");
 		return this.buildRewriteRule(
-				this.getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT),
-				this.getOutputSchema().getType(TypeReferences.TEXT_COMPONENT),
+				getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT),
+				getOutputSchema().getType(TypeReferences.TEXT_COMPONENT),
 				type
 		);
 	}
@@ -63,7 +63,7 @@ public class TextComponentHoverAndClickEventFix extends DataFix {
 								)
 						)
 				);
-		if (!type4.equals(this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
+		if (!type4.equals(getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
 			throw new IllegalStateException(
 					"Text component type did not match, expected " + type4 + " but got " + this
 							.getInputSchema()
@@ -80,7 +80,7 @@ public class TextComponentHoverAndClickEventFix extends DataFix {
 
 	@SuppressWarnings("unchecked")
 	private <A, B> TypeRewriteRule buildTextComponentRule(Type<A> inputType, Type<B> outputType, Type<B> mappedType) {
-		return this.fixTypeEverywhere(
+		return fixTypeEverywhere(
 				"TextComponentHoverAndClickEventFix", inputType, outputType, dynamicOps -> pair -> {
 					boolean bl = (Boolean) ((Either) ((Pair<?, ?>) pair).getSecond()).map(
 							either -> false, pairx -> {

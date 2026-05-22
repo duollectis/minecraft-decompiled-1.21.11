@@ -28,29 +28,39 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code FlowableFluid}.
+ * Базовый класс для всех текучих жидкостей (вода, лава).
+ *
+ * <p>Реализует полную физику растекания: вычисление вектора скорости потока,
+ * алгоритм поиска кратчайшего пути вниз ({@link #getMinFlowDownDistance}),
+ * распространение по горизонтали ({@link #flowToSides}) и вниз ({@link #tryFlow}).
+ * Кэширует результаты проверки проходимости граней в потокобезопасном
+ * {@link ThreadLocal}-кэше {@link #FLOW_CACHE} для оптимизации.</p>
  */
 public abstract class FlowableFluid extends Fluid {
 
 	public static final BooleanProperty FALLING = Properties.FALLING;
 	public static final IntProperty LEVEL = Properties.LEVEL_1_8;
-	private static final int CACHE_SIZE = 200;
-	private static final ThreadLocal<Object2ByteLinkedOpenHashMap<FlowableFluid.NeighborGroup>>
-			FLOW_CACHE =
-			ThreadLocal.withInitial(
-					() -> {
-						Object2ByteLinkedOpenHashMap<FlowableFluid.NeighborGroup>
-								object2ByteLinkedOpenHashMap =
-								new Object2ByteLinkedOpenHashMap<FlowableFluid.NeighborGroup>(
-										200
-								) {
-									protected void rehash(int i) {
-									}
-								};
-						object2ByteLinkedOpenHashMap.defaultReturnValue((byte) 127);
-						return object2ByteLinkedOpenHashMap;
+
+	/** Максимальный размер кэша проходимости граней на поток. */
+	private static final int FLOW_CACHE_SIZE = 200;
+
+	/**
+	 * Потокобезопасный кэш результатов {@link #receivesFlow}.
+	 * Ключ — группа соседних состояний блоков и направление, значение — байт (0/1/127=miss).
+	 * Ограничен {@link #FLOW_CACHE_SIZE} записями с вытеснением по LRU.
+	 */
+	private static final ThreadLocal<Object2ByteLinkedOpenHashMap<NeighborGroup>> FLOW_CACHE =
+		ThreadLocal.withInitial(() -> {
+			Object2ByteLinkedOpenHashMap<NeighborGroup> cache =
+				new Object2ByteLinkedOpenHashMap<>(FLOW_CACHE_SIZE) {
+					@Override
+					protected void rehash(int newSize) {
 					}
-			);
+				};
+			cache.defaultReturnValue((byte) 127);
+			return cache;
+		});
+
 	private final Map<FluidState, VoxelShape> shapeCache = Maps.newIdentityHashMap();
 
 	@Override
@@ -58,458 +68,514 @@ public abstract class FlowableFluid extends Fluid {
 		builder.add(FALLING);
 	}
 
+	/**
+	 * Вычисляет вектор скорости потока жидкости в позиции {@code pos}.
+	 *
+	 * <p>Алгоритм суммирует горизонтальные составляющие разницы высот со всеми
+	 * соседними блоками жидкости того же типа. Если жидкость падает и поток
+	 * заблокирован с боков, добавляется сильная нисходящая составляющая (-6 по Y),
+	 * имитирующая «прилипание» к стене водопада.</p>
+	 */
 	@Override
 	public Vec3d getVelocity(BlockView world, BlockPos pos, FluidState state) {
-		double d = 0.0;
-		double e = 0.0;
+		double velocityX = 0.0;
+		double velocityZ = 0.0;
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
 			mutable.set(pos, direction);
-			FluidState fluidState = world.getFluidState(mutable);
-			if (this.isEmptyOrThis(fluidState)) {
-				float f = fluidState.getHeight();
-				float g = 0.0F;
-				if (f == 0.0F) {
-					if (!world.getBlockState(mutable).blocksMovement()) {
-						BlockPos blockPos = mutable.down();
-						FluidState fluidState2 = world.getFluidState(blockPos);
-						if (this.isEmptyOrThis(fluidState2)) {
-							f = fluidState2.getHeight();
-							if (f > 0.0F) {
-								g = state.getHeight() - (f - 0.8888889F);
-							}
+			FluidState neighborFluid = world.getFluidState(mutable);
+
+			if (!isEmptyOrThis(neighborFluid)) {
+				continue;
+			}
+
+			float neighborHeight = neighborFluid.getHeight();
+			float heightDiff = 0.0F;
+
+			if (neighborHeight == 0.0F) {
+				if (!world.getBlockState(mutable).blocksMovement()) {
+					BlockPos below = mutable.down();
+					FluidState belowFluid = world.getFluidState(below);
+					if (isEmptyOrThis(belowFluid)) {
+						neighborHeight = belowFluid.getHeight();
+						if (neighborHeight > 0.0F) {
+							// Жидкость падает вниз — учитываем разницу с «дном» водопада
+							heightDiff = state.getHeight() - (neighborHeight - 0.8888889F);
 						}
 					}
 				}
-				else if (f > 0.0F) {
-					g = state.getHeight() - f;
-				}
+			} else if (neighborHeight > 0.0F) {
+				heightDiff = state.getHeight() - neighborHeight;
+			}
 
-				if (g != 0.0F) {
-					d += direction.getOffsetX() * g;
-					e += direction.getOffsetZ() * g;
-				}
+			if (heightDiff != 0.0F) {
+				velocityX += direction.getOffsetX() * heightDiff;
+				velocityZ += direction.getOffsetZ() * heightDiff;
 			}
 		}
 
-		Vec3d vec3d = new Vec3d(d, 0.0, e);
+		Vec3d velocity = new Vec3d(velocityX, 0.0, velocityZ);
+
 		if (state.get(FALLING)) {
-			for (Direction direction2 : Direction.Type.HORIZONTAL) {
-				mutable.set(pos, direction2);
-				if (this.isFlowBlocked(world, mutable, direction2) || this.isFlowBlocked(
-						world,
-						mutable.up(),
-						direction2
-				)) {
-					vec3d = vec3d.normalize().add(0.0, -6.0, 0.0);
+			for (Direction direction : Direction.Type.HORIZONTAL) {
+				mutable.set(pos, direction);
+				if (isFlowBlocked(world, mutable, direction) || isFlowBlocked(world, mutable.up(), direction)) {
+					velocity = velocity.normalize().add(0.0, -6.0, 0.0);
 					break;
 				}
 			}
 		}
 
-		return vec3d.normalize();
+		return velocity.normalize();
 	}
 
 	private boolean isEmptyOrThis(FluidState state) {
 		return state.isEmpty() || state.getFluid().matchesType(this);
 	}
 
+	/**
+	 * Проверяет, заблокирован ли поток жидкости через грань {@code direction} в позиции {@code pos}.
+	 * Лёд не блокирует поток, несмотря на то что является твёрдым блоком.
+	 */
 	protected boolean isFlowBlocked(BlockView world, BlockPos pos, Direction direction) {
 		BlockState blockState = world.getBlockState(pos);
 		FluidState fluidState = world.getFluidState(pos);
+
 		if (fluidState.getFluid().matchesType(this)) {
 			return false;
 		}
-		else if (direction == Direction.UP) {
+
+		if (direction == Direction.UP) {
 			return true;
 		}
-		else {
-			return blockState.getBlock() instanceof IceBlock ? false
-			                                                 : blockState.isSideSolidFullSquare(world, pos, direction);
-		}
+
+		return blockState.getBlock() instanceof IceBlock
+			? false
+			: blockState.isSideSolidFullSquare(world, pos, direction);
 	}
 
+	/**
+	 * Пытается распространить жидкость вниз, а при невозможности — по горизонтали.
+	 *
+	 * <p>Если ниже есть свободное место и жидкость может туда вытечь, она течёт вниз.
+	 * При наличии ≥3 соседних источников дополнительно вызывается {@link #flowToSides}.
+	 * Если вниз течь нельзя, жидкость распространяется только по горизонтали.</p>
+	 */
 	protected void tryFlow(ServerWorld world, BlockPos fluidPos, BlockState blockState, FluidState fluidState) {
-		if (!fluidState.isEmpty()) {
-			BlockPos blockPos = fluidPos.down();
-			BlockState blockState2 = world.getBlockState(blockPos);
-			FluidState fluidState2 = blockState2.getFluidState();
-			if (this.canFlowThrough(world, fluidPos, blockState, Direction.DOWN, blockPos, blockState2, fluidState2)) {
-				FluidState fluidState3 = this.getUpdatedState(world, blockPos, blockState2);
-				Fluid fluid = fluidState3.getFluid();
-				if (fluidState2.canBeReplacedWith(world, blockPos, fluid, Direction.DOWN) && canFillWithFluid(
-						world,
-						blockPos,
-						blockState2,
-						fluid
-				)) {
-					this.flow(world, blockPos, blockState2, Direction.DOWN, fluidState3);
-					if (this.countNeighboringSources(world, fluidPos) >= 3) {
-						this.flowToSides(world, fluidPos, fluidState, blockState);
-					}
+		if (fluidState.isEmpty()) {
+			return;
+		}
 
-					return;
-				}
+		BlockPos below = fluidPos.down();
+		BlockState belowBlock = world.getBlockState(below);
+		FluidState belowFluid = belowBlock.getFluidState();
+
+		if (!canFlowThrough(world, fluidPos, blockState, Direction.DOWN, below, belowBlock, belowFluid)) {
+			if (fluidState.isStill() || !canFlowDownTo(world, fluidPos, blockState, below, belowBlock)) {
+				flowToSides(world, fluidPos, fluidState, blockState);
 			}
 
-			if (fluidState.isStill() || !this.canFlowDownTo(world, fluidPos, blockState, blockPos, blockState2)) {
-				this.flowToSides(world, fluidPos, fluidState, blockState);
+			return;
+		}
+
+		FluidState updatedBelow = getUpdatedState(world, below, belowBlock);
+		Fluid updatedFluid = updatedBelow.getFluid();
+
+		if (belowFluid.canBeReplacedWith(world, below, updatedFluid, Direction.DOWN)
+			&& canFillWithFluid(world, below, belowBlock, updatedFluid)
+		) {
+			flow(world, below, belowBlock, Direction.DOWN, updatedBelow);
+
+			if (countNeighboringSources(world, fluidPos) >= 3) {
+				flowToSides(world, fluidPos, fluidState, blockState);
 			}
+
+			return;
+		}
+
+		if (fluidState.isStill() || !canFlowDownTo(world, fluidPos, blockState, below, belowBlock)) {
+			flowToSides(world, fluidPos, fluidState, blockState);
 		}
 	}
 
+	/**
+	 * Распространяет жидкость по горизонтальным направлениям.
+	 * Уровень уменьшается на {@link #getLevelDecreasePerBlock} за каждый блок.
+	 * Если жидкость падает, горизонтальный уровень принудительно равен 7.
+	 */
 	private void flowToSides(ServerWorld world, BlockPos pos, FluidState fluidState, BlockState blockState) {
-		int i = fluidState.getLevel() - this.getLevelDecreasePerBlock(world);
-		if (fluidState.get(FALLING)) {
-			i = 7;
+		int spreadLevel = fluidState.get(FALLING) ? 7 : fluidState.getLevel() - getLevelDecreasePerBlock(world);
+
+		if (spreadLevel <= 0) {
+			return;
 		}
 
-		if (i > 0) {
-			Map<Direction, FluidState> map = this.getSpread(world, pos, blockState);
+		Map<Direction, FluidState> spread = getSpread(world, pos, blockState);
 
-			for (Entry<Direction, FluidState> entry : map.entrySet()) {
-				Direction direction = entry.getKey();
-				FluidState fluidState2 = entry.getValue();
-				BlockPos blockPos = pos.offset(direction);
-				this.flow(world, blockPos, world.getBlockState(blockPos), direction, fluidState2);
-			}
+		for (Entry<Direction, FluidState> entry : spread.entrySet()) {
+			Direction direction = entry.getKey();
+			FluidState spreadState = entry.getValue();
+			BlockPos target = pos.offset(direction);
+			flow(world, target, world.getBlockState(target), direction, spreadState);
 		}
 	}
 
+	/**
+	 * Вычисляет обновлённое состояние жидкости для позиции {@code pos} на основе соседей.
+	 *
+	 * <p>Логика:
+	 * <ol>
+	 *   <li>Если сверху течёт та же жидкость — возвращает падающее состояние уровня 8.</li>
+	 *   <li>Если ≥2 соседних источника и мир бесконечный — создаёт новый источник.</li>
+	 *   <li>Иначе — уменьшает максимальный уровень соседей на {@link #getLevelDecreasePerBlock}.</li>
+	 * </ol>
+	 * </p>
+	 */
 	protected FluidState getUpdatedState(ServerWorld world, BlockPos pos, BlockState state) {
-		int i = 0;
-		int j = 0;
+		int maxNeighborLevel = 0;
+		int stillNeighborCount = 0;
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockPos blockPos = mutable.set(pos, direction);
-			BlockState blockState = world.getBlockState(blockPos);
-			FluidState fluidState = blockState.getFluidState();
-			if (fluidState.getFluid().matchesType(this) && receivesFlow(
-					direction,
-					world,
-					pos,
-					state,
-					blockPos,
-					blockState
-			)) {
-				if (fluidState.isStill()) {
-					j++;
-				}
+			BlockPos neighborPos = mutable.set(pos, direction);
+			BlockState neighborBlock = world.getBlockState(neighborPos);
+			FluidState neighborFluid = neighborBlock.getFluidState();
 
-				i = Math.max(i, fluidState.getLevel());
+			if (!neighborFluid.getFluid().matchesType(this)) {
+				continue;
+			}
+
+			if (!receivesFlow(direction, world, pos, state, neighborPos, neighborBlock)) {
+				continue;
+			}
+
+			if (neighborFluid.isStill()) {
+				stillNeighborCount++;
+			}
+
+			maxNeighborLevel = Math.max(maxNeighborLevel, neighborFluid.getLevel());
+		}
+
+		if (stillNeighborCount >= 2 && isInfinite(world)) {
+			BlockState belowBlock = world.getBlockState(mutable.set(pos, Direction.DOWN));
+			FluidState belowFluid = belowBlock.getFluidState();
+
+			if (belowBlock.isSolid() || isMatchingAndStill(belowFluid)) {
+				return getStill(false);
 			}
 		}
 
-		if (j >= 2 && this.isInfinite(world)) {
-			BlockState blockState2 = world.getBlockState(mutable.set(pos, Direction.DOWN));
-			FluidState fluidState2 = blockState2.getFluidState();
-			if (blockState2.isSolid() || this.isMatchingAndStill(fluidState2)) {
-				return this.getStill(false);
-			}
+		BlockPos above = mutable.set(pos, Direction.UP);
+		BlockState aboveBlock = world.getBlockState(above);
+		FluidState aboveFluid = aboveBlock.getFluidState();
+
+		if (!aboveFluid.isEmpty()
+			&& aboveFluid.getFluid().matchesType(this)
+			&& receivesFlow(Direction.UP, world, pos, state, above, aboveBlock)
+		) {
+			return getFlowing(8, true);
 		}
 
-		BlockPos blockPos2 = mutable.set(pos, Direction.UP);
-		BlockState blockState3 = world.getBlockState(blockPos2);
-		FluidState fluidState3 = blockState3.getFluidState();
-		if (!fluidState3.isEmpty() && fluidState3.getFluid().matchesType(this) && receivesFlow(
-				Direction.UP,
-				world,
-				pos,
-				state,
-				blockPos2,
-				blockState3
-		)) {
-			return this.getFlowing(8, true);
-		}
-		else {
-			int k = i - this.getLevelDecreasePerBlock(world);
-			return k <= 0 ? Fluids.EMPTY.getDefaultState() : this.getFlowing(k, false);
-		}
+		int resultLevel = maxNeighborLevel - getLevelDecreasePerBlock(world);
+		return resultLevel <= 0 ? Fluids.EMPTY.getDefaultState() : getFlowing(resultLevel, false);
 	}
 
+	/**
+	 * Проверяет, может ли жидкость перетечь из {@code fromPos} в {@code pos} через грань {@code face}.
+	 *
+	 * <p>Использует потокобезопасный LRU-кэш {@link #FLOW_CACHE} для блоков без динамических границ.
+	 * Кэш не применяется для блоков с {@code hasDynamicBounds() == true}, так как их форма
+	 * может меняться в зависимости от контекста.</p>
+	 */
 	private static boolean receivesFlow(
-			Direction face,
-			BlockView world,
-			BlockPos pos,
-			BlockState state,
-			BlockPos fromPos,
-			BlockState fromState
+		Direction face,
+		BlockView world,
+		BlockPos pos,
+		BlockState state,
+		BlockPos fromPos,
+		BlockState fromState
 	) {
-		if (!SharedConstants.DISABLE_LIQUID_SPREADING && (!SharedConstants.ONLY_GENERATE_HALF_THE_WORLD
-				|| fromPos.getZ() >= 0
-		)) {
-			VoxelShape voxelShape = fromState.getCollisionShape(world, fromPos);
-			if (voxelShape == VoxelShapes.fullCube()) {
-				return false;
-			}
-			else {
-				VoxelShape voxelShape2 = state.getCollisionShape(world, pos);
-				if (voxelShape2 == VoxelShapes.fullCube()) {
-					return false;
-				}
-				else if (voxelShape2 == VoxelShapes.empty() && voxelShape == VoxelShapes.empty()) {
-					return true;
-				}
-				else {
-					Object2ByteLinkedOpenHashMap<FlowableFluid.NeighborGroup> object2ByteLinkedOpenHashMap;
-					if (!state.getBlock().hasDynamicBounds() && !fromState.getBlock().hasDynamicBounds()) {
-						object2ByteLinkedOpenHashMap = FLOW_CACHE.get();
-					}
-					else {
-						object2ByteLinkedOpenHashMap = null;
-					}
-
-					FlowableFluid.NeighborGroup neighborGroup;
-					if (object2ByteLinkedOpenHashMap != null) {
-						neighborGroup = new FlowableFluid.NeighborGroup(state, fromState, face);
-						byte b = object2ByteLinkedOpenHashMap.getAndMoveToFirst(neighborGroup);
-						if (b != 127) {
-							return b != 0;
-						}
-					}
-					else {
-						neighborGroup = null;
-					}
-
-					boolean bl = !VoxelShapes.adjacentSidesCoverSquare(voxelShape2, voxelShape, face);
-					if (object2ByteLinkedOpenHashMap != null) {
-						if (object2ByteLinkedOpenHashMap.size() == 200) {
-							object2ByteLinkedOpenHashMap.removeLastByte();
-						}
-
-						object2ByteLinkedOpenHashMap.putAndMoveToFirst(neighborGroup, (byte) (bl ? 1 : 0));
-					}
-
-					return bl;
-				}
-			}
-		}
-		else {
+		if (SharedConstants.DISABLE_LIQUID_SPREADING) {
 			return false;
 		}
+
+		if (SharedConstants.ONLY_GENERATE_HALF_THE_WORLD && fromPos.getZ() < 0) {
+			return false;
+		}
+
+		VoxelShape fromShape = fromState.getCollisionShape(world, fromPos);
+		if (fromShape == VoxelShapes.fullCube()) {
+			return false;
+		}
+
+		VoxelShape selfShape = state.getCollisionShape(world, pos);
+		if (selfShape == VoxelShapes.fullCube()) {
+			return false;
+		}
+
+		if (selfShape == VoxelShapes.empty() && fromShape == VoxelShapes.empty()) {
+			return true;
+		}
+
+		// Кэш применяется только для блоков со статическими границами
+		Object2ByteLinkedOpenHashMap<NeighborGroup> cache =
+			(!state.getBlock().hasDynamicBounds() && !fromState.getBlock().hasDynamicBounds())
+				? FLOW_CACHE.get()
+				: null;
+
+		NeighborGroup key = null;
+
+		if (cache != null) {
+			key = new NeighborGroup(state, fromState, face);
+			byte cached = cache.getAndMoveToFirst(key);
+			if (cached != 127) {
+				return cached != 0;
+			}
+		}
+
+		boolean canFlow = !VoxelShapes.adjacentSidesCoverSquare(selfShape, fromShape, face);
+
+		if (cache != null) {
+			if (cache.size() == FLOW_CACHE_SIZE) {
+				cache.removeLastByte();
+			}
+
+			cache.putAndMoveToFirst(key, (byte) (canFlow ? 1 : 0));
+		}
+
+		return canFlow;
 	}
 
+	/** @return жидкость в текущем (flowing) состоянии. */
 	public abstract Fluid getFlowing();
 
+	/** @return состояние текущей жидкости с заданным уровнем и флагом падения. */
 	public FluidState getFlowing(int level, boolean falling) {
-		return this.getFlowing().getDefaultState().with(LEVEL, level).with(FALLING, falling);
+		return getFlowing().getDefaultState().with(LEVEL, level).with(FALLING, falling);
 	}
 
+	/** @return жидкость в стоячем (still/source) состоянии. */
 	public abstract Fluid getStill();
 
+	/** @return состояние стоячей жидкости с заданным флагом падения. */
 	public FluidState getStill(boolean falling) {
-		return this.getStill().getDefaultState().with(FALLING, falling);
+		return getStill().getDefaultState().with(FALLING, falling);
 	}
 
+	/**
+	 * @return {@code true}, если данная жидкость может создавать бесконечные источники
+	 *         (например, вода при включённом правиле {@code waterSourceConversion}).
+	 */
 	protected abstract boolean isInfinite(ServerWorld world);
 
+	/**
+	 * Выполняет фактическое размещение жидкости в позиции {@code pos}.
+	 * Если блок реализует {@link FluidFillable}, делегирует заполнение ему.
+	 * Иначе разрушает существующий блок и ставит блок жидкости.
+	 */
 	protected void flow(WorldAccess world, BlockPos pos, BlockState state, Direction direction, FluidState fluidState) {
 		if (state.getBlock() instanceof FluidFillable fluidFillable) {
 			fluidFillable.tryFillWithFluid(world, pos, state, fluidState);
+			return;
 		}
-		else {
-			if (!state.isAir()) {
-				this.beforeBreakingBlock(world, pos, state);
-			}
 
-			world.setBlockState(pos, fluidState.getBlockState(), 3);
+		if (!state.isAir()) {
+			beforeBreakingBlock(world, pos, state);
 		}
+
+		// Флаг 3 = BLOCK_UPDATE | SEND_TO_CLIENTS
+		world.setBlockState(pos, fluidState.getBlockState(), 3);
 	}
 
+	/** Вызывается перед разрушением блока при вытеснении его жидкостью. */
 	protected abstract void beforeBreakingBlock(WorldAccess world, BlockPos pos, BlockState state);
 
+	/**
+	 * Рекурсивно ищет минимальное расстояние до ближайшего «провала» вниз
+	 * при горизонтальном распространении жидкости.
+	 *
+	 * <p>Используется в {@link #getSpread} для выбора направлений с наименьшим
+	 * расстоянием до падения — жидкость предпочитает течь туда, где быстрее упадёт вниз.</p>
+	 *
+	 * @param depth текущая глубина рекурсии (начинается с 1)
+	 * @param excludeDirection направление, откуда пришли (исключается из обхода)
+	 * @return минимальное расстояние до провала или 1000, если провала нет в радиусе
+	 */
 	protected int getMinFlowDownDistance(
-			WorldView world,
-			BlockPos pos,
-			int i,
-			Direction direction,
-			BlockState state,
-			FlowableFluid.SpreadCache spreadCache
+		WorldView world,
+		BlockPos pos,
+		int depth,
+		Direction excludeDirection,
+		BlockState state,
+		SpreadCache spreadCache
 	) {
-		int j = 1000;
+		int minDistance = 1000;
 
-		for (Direction direction2 : Direction.Type.HORIZONTAL) {
-			if (direction2 != direction) {
-				BlockPos blockPos = pos.offset(direction2);
-				BlockState blockState = spreadCache.getBlockState(blockPos);
-				FluidState fluidState = blockState.getFluidState();
-				if (this.canFlowThrough(
-						world,
-						this.getFlowing(),
-						pos,
-						state,
-						direction2,
-						blockPos,
-						blockState,
-						fluidState
-				)) {
-					if (spreadCache.canFlowDownTo(blockPos)) {
-						return i;
-					}
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			if (direction == excludeDirection) {
+				continue;
+			}
 
-					if (i < this.getMaxFlowDistance(world)) {
-						int
-								k =
-								this.getMinFlowDownDistance(
-										world,
-										blockPos,
-										i + 1,
-										direction2.getOpposite(),
-										blockState,
-										spreadCache
-								);
-						if (k < j) {
-							j = k;
-						}
-					}
+			BlockPos neighbor = pos.offset(direction);
+			BlockState neighborBlock = spreadCache.getBlockState(neighbor);
+			FluidState neighborFluid = neighborBlock.getFluidState();
+
+			if (!canFlowThrough(world, getFlowing(), pos, state, direction, neighbor, neighborBlock, neighborFluid)) {
+				continue;
+			}
+
+			if (spreadCache.canFlowDownTo(neighbor)) {
+				return depth;
+			}
+
+			if (depth < getMaxFlowDistance(world)) {
+				int subDistance = getMinFlowDownDistance(
+					world, neighbor, depth + 1, direction.getOpposite(), neighborBlock, spreadCache
+				);
+				if (subDistance < minDistance) {
+					minDistance = subDistance;
 				}
 			}
 		}
 
-		return j;
+		return minDistance;
 	}
 
 	boolean canFlowDownTo(BlockView world, BlockPos pos, BlockState state, BlockPos fromPos, BlockState fromState) {
 		if (!receivesFlow(Direction.DOWN, world, pos, state, fromPos, fromState)) {
 			return false;
 		}
-		else {
-			return fromState.getFluidState().getFluid().matchesType(this) ? true : canFill(
-					world,
-					fromPos,
-					fromState,
-					this.getFlowing()
-			);
-		}
+
+		return fromState.getFluidState().getFluid().matchesType(this)
+			|| canFill(world, fromPos, fromState, getFlowing());
 	}
 
 	private boolean canFlowThrough(
-			BlockView world,
-			Fluid fluid,
-			BlockPos pos,
-			BlockState state,
-			Direction face,
-			BlockPos fromPos,
-			BlockState fromState,
-			FluidState fluidState
+		BlockView world,
+		Fluid fluid,
+		BlockPos pos,
+		BlockState state,
+		Direction face,
+		BlockPos fromPos,
+		BlockState fromState,
+		FluidState fluidState
 	) {
-		return this.canFlowThrough(world, pos, state, face, fromPos, fromState, fluidState) && canFillWithFluid(
-				world,
-				fromPos,
-				fromState,
-				fluid
-		);
+		return canFlowThrough(world, pos, state, face, fromPos, fromState, fluidState)
+			&& canFillWithFluid(world, fromPos, fromState, fluid);
 	}
 
 	private boolean canFlowThrough(
-			BlockView world,
-			BlockPos pos,
-			BlockState state,
-			Direction face,
-			BlockPos fromPos,
-			BlockState fromState,
-			FluidState fluidState
+		BlockView world,
+		BlockPos pos,
+		BlockState state,
+		Direction face,
+		BlockPos fromPos,
+		BlockState fromState,
+		FluidState fluidState
 	) {
-		return !this.isMatchingAndStill(fluidState) && canFill(fromState) && receivesFlow(
-				face,
-				world,
-				pos,
-				state,
-				fromPos,
-				fromState
-		);
+		return !isMatchingAndStill(fluidState)
+			&& canFill(fromState)
+			&& receivesFlow(face, world, pos, state, fromPos, fromState);
 	}
 
 	private boolean isMatchingAndStill(FluidState state) {
 		return state.getFluid().matchesType(this) && state.isStill();
 	}
 
+	/** @return максимальное расстояние горизонтального распространения жидкости в блоках. */
 	protected abstract int getMaxFlowDistance(WorldView world);
 
+	/** @return количество соседних стоячих источников той же жидкости по горизонтали. */
 	private int countNeighboringSources(WorldView world, BlockPos pos) {
-		int i = 0;
+		int count = 0;
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockPos blockPos = pos.offset(direction);
-			FluidState fluidState = world.getFluidState(blockPos);
-			if (this.isMatchingAndStill(fluidState)) {
-				i++;
+			BlockPos neighbor = pos.offset(direction);
+			FluidState neighborFluid = world.getFluidState(neighbor);
+
+			if (isMatchingAndStill(neighborFluid)) {
+				count++;
 			}
 		}
 
-		return i;
+		return count;
 	}
 
+	/**
+	 * Вычисляет карту направлений, в которые жидкость должна растечься.
+	 *
+	 * <p>Для каждого горизонтального направления определяет минимальное расстояние
+	 * до «провала» вниз. Жидкость течёт только в направления с минимальным расстоянием,
+	 * имитируя поведение реальной воды, которая ищет кратчайший путь вниз.</p>
+	 */
 	protected Map<Direction, FluidState> getSpread(ServerWorld world, BlockPos pos, BlockState state) {
-		int i = 1000;
-		Map<Direction, FluidState> map = Maps.newEnumMap(Direction.class);
-		FlowableFluid.SpreadCache spreadCache = null;
+		int minDownDistance = 1000;
+		Map<Direction, FluidState> result = Maps.newEnumMap(Direction.class);
+		SpreadCache spreadCache = null;
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			BlockPos blockPos = pos.offset(direction);
-			BlockState blockState = world.getBlockState(blockPos);
-			FluidState fluidState = blockState.getFluidState();
-			if (this.canFlowThrough(world, pos, state, direction, blockPos, blockState, fluidState)) {
-				FluidState fluidState2 = this.getUpdatedState(world, blockPos, blockState);
-				if (canFillWithFluid(world, blockPos, blockState, fluidState2.getFluid())) {
-					if (spreadCache == null) {
-						spreadCache = new FlowableFluid.SpreadCache(world, pos);
-					}
+			BlockPos neighbor = pos.offset(direction);
+			BlockState neighborBlock = world.getBlockState(neighbor);
+			FluidState neighborFluid = neighborBlock.getFluidState();
 
-					int j;
-					if (spreadCache.canFlowDownTo(blockPos)) {
-						j = 0;
-					}
-					else {
-						j =
-								this.getMinFlowDownDistance(
-										world,
-										blockPos,
-										1,
-										direction.getOpposite(),
-										blockState,
-										spreadCache
-								);
-					}
+			if (!canFlowThrough(world, pos, state, direction, neighbor, neighborBlock, neighborFluid)) {
+				continue;
+			}
 
-					if (j < i) {
-						map.clear();
-					}
+			FluidState updatedState = getUpdatedState(world, neighbor, neighborBlock);
 
-					if (j <= i) {
-						if (fluidState.canBeReplacedWith(world, blockPos, fluidState2.getFluid(), direction)) {
-							map.put(direction, fluidState2);
-						}
+			if (!canFillWithFluid(world, neighbor, neighborBlock, updatedState.getFluid())) {
+				continue;
+			}
 
-						i = j;
-					}
-				}
+			if (spreadCache == null) {
+				spreadCache = new SpreadCache(world, pos);
+			}
+
+			int downDistance = spreadCache.canFlowDownTo(neighbor)
+				? 0
+				: getMinFlowDownDistance(world, neighbor, 1, direction.getOpposite(), neighborBlock, spreadCache);
+
+			if (downDistance < minDownDistance) {
+				result.clear();
+				minDownDistance = downDistance;
+			}
+
+			if (downDistance <= minDownDistance
+				&& neighborFluid.canBeReplacedWith(world, neighbor, updatedState.getFluid(), direction)
+			) {
+				result.put(direction, updatedState);
 			}
 		}
 
-		return map;
+		return result;
 	}
 
+	/**
+	 * Проверяет, может ли блок быть заполнен жидкостью (без учёта конкретного типа жидкости).
+	 * Исключает двери, знаки, лестницы, сахарный тростник, порталы и т.д.
+	 */
 	private static boolean canFill(BlockState state) {
 		Block block = state.getBlock();
+
 		if (block instanceof FluidFillable) {
 			return true;
 		}
-		else {
-			return state.blocksMovement()
-			       ? false
-			       : !(block instanceof DoorBlock)
-			         && !state.isIn(BlockTags.SIGNS)
-			         && !state.isOf(Blocks.LADDER)
-			         && !state.isOf(Blocks.SUGAR_CANE)
-			         && !state.isOf(Blocks.BUBBLE_COLUMN)
-			         && !state.isOf(Blocks.NETHER_PORTAL)
-			         && !state.isOf(Blocks.END_PORTAL)
-			         && !state.isOf(Blocks.END_GATEWAY)
-			         && !state.isOf(Blocks.STRUCTURE_VOID);
+
+		if (state.blocksMovement()) {
+			return false;
 		}
+
+		return !(block instanceof DoorBlock)
+			&& !state.isIn(BlockTags.SIGNS)
+			&& !state.isOf(Blocks.LADDER)
+			&& !state.isOf(Blocks.SUGAR_CANE)
+			&& !state.isOf(Blocks.BUBBLE_COLUMN)
+			&& !state.isOf(Blocks.NETHER_PORTAL)
+			&& !state.isOf(Blocks.END_PORTAL)
+			&& !state.isOf(Blocks.END_GATEWAY)
+			&& !state.isOf(Blocks.STRUCTURE_VOID);
 	}
 
 	private static boolean canFill(BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
@@ -517,44 +583,57 @@ public abstract class FlowableFluid extends Fluid {
 	}
 
 	private static boolean canFillWithFluid(BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
-		return state.getBlock() instanceof FluidFillable fluidFillable ? fluidFillable.canFillWithFluid(
-				null,
-				world,
-				pos,
-				state,
-				fluid
-		) : true;
+		return state.getBlock() instanceof FluidFillable fluidFillable
+			? fluidFillable.canFillWithFluid(null, world, pos, state, fluid)
+			: true;
 	}
 
+	/** @return на сколько единиц уменьшается уровень жидкости за каждый горизонтальный блок. */
 	protected abstract int getLevelDecreasePerBlock(WorldView world);
 
+	/**
+	 * @return задержка следующего тика жидкости в игровых тиках.
+	 *         По умолчанию равна {@link #getTickRate}. Лава переопределяет для замедления при подъёме.
+	 */
 	protected int getNextTickDelay(World world, BlockPos pos, FluidState oldState, FluidState newState) {
-		return this.getTickRate(world);
+		return getTickRate(world);
 	}
 
+	/**
+	 * Обрабатывает запланированный тик жидкости.
+	 *
+	 * <p>Пересчитывает состояние жидкости. Если оно изменилось — обновляет блок и планирует
+	 * следующий тик. Затем вызывает {@link #tryFlow} для распространения.</p>
+	 */
 	@Override
 	public void onScheduledTick(ServerWorld world, BlockPos pos, BlockState blockState, FluidState fluidState) {
 		if (!fluidState.isStill()) {
-			FluidState fluidState2 = this.getUpdatedState(world, pos, world.getBlockState(pos));
-			int i = this.getNextTickDelay(world, pos, fluidState, fluidState2);
-			if (fluidState2.isEmpty()) {
-				fluidState = fluidState2;
+			FluidState updatedFluid = getUpdatedState(world, pos, world.getBlockState(pos));
+			int tickDelay = getNextTickDelay(world, pos, fluidState, updatedFluid);
+
+			if (updatedFluid.isEmpty()) {
+				fluidState = updatedFluid;
 				blockState = Blocks.AIR.getDefaultState();
 				world.setBlockState(pos, blockState, 3);
-			}
-			else if (fluidState2 != fluidState) {
-				fluidState = fluidState2;
-				blockState = fluidState2.getBlockState();
+			} else if (updatedFluid != fluidState) {
+				fluidState = updatedFluid;
+				blockState = updatedFluid.getBlockState();
 				world.setBlockState(pos, blockState, 3);
-				world.scheduleFluidTick(pos, fluidState2.getFluid(), i);
+				world.scheduleFluidTick(pos, updatedFluid.getFluid(), tickDelay);
 			}
 		}
 
-		this.tryFlow(world, pos, blockState, fluidState);
+		tryFlow(world, pos, blockState, fluidState);
 	}
 
+	/**
+	 * Конвертирует уровень жидкости в числовое значение для {@link FluidBlock#LEVEL}.
+	 * Стоячая жидкость → 0, текущая → (8 - level), падающая → (8 - level) + 8.
+	 */
 	protected static int getBlockStateLevel(FluidState state) {
-		return state.isStill() ? 0 : 8 - Math.min(state.getLevel(), 8) + (state.get(FALLING) ? 8 : 0);
+		return state.isStill()
+			? 0
+			: 8 - Math.min(state.getLevel(), 8) + (state.get(FALLING) ? 8 : 0);
 	}
 
 	private static boolean isFluidAboveEqual(FluidState state, BlockView world, BlockPos pos) {
@@ -574,75 +653,90 @@ public abstract class FlowableFluid extends Fluid {
 	@Override
 	public abstract int getLevel(FluidState state);
 
+	/**
+	 * Возвращает форму жидкости для рендеринга и коллизий.
+	 * Если над блоком та же жидкость и уровень максимальный — возвращает полный куб.
+	 * Иначе — вычисляет форму по высоте и кэширует результат.
+	 */
 	@Override
 	public VoxelShape getShape(FluidState state, BlockView world, BlockPos pos) {
-		return state.getLevel() == 9 && isFluidAboveEqual(state, world, pos)
-		       ? VoxelShapes.fullCube()
-		       : this.shapeCache.computeIfAbsent(
-				       state,
-				       state2 -> VoxelShapes.cuboid(0.0, 0.0, 0.0, 1.0, state2.getHeight(world, pos), 1.0)
-		       );
+		return state.getLevel() == FluidState.MAX_AMOUNT && isFluidAboveEqual(state, world, pos)
+			? VoxelShapes.fullCube()
+			: shapeCache.computeIfAbsent(
+				state,
+				s -> VoxelShapes.cuboid(0.0, 0.0, 0.0, 1.0, s.getHeight(world, pos), 1.0)
+			);
 	}
 
+	// -------------------------------------------------------------------------
+	// Вложенные классы
+	// -------------------------------------------------------------------------
+
 	/**
-	 * {@code NeighborGroup}.
+	 * Ключ кэша {@link #FLOW_CACHE}: тройка (состояние блока, состояние соседа, направление).
+	 * Использует идентичность объектов (==) вместо equals для максимальной скорости.
 	 */
 	record NeighborGroup(BlockState self, BlockState other, Direction facing) {
 
 		@Override
-		public boolean equals(Object o) {
-			return o instanceof FlowableFluid.NeighborGroup neighborGroup
-					&& this.self == neighborGroup.self
-					&& this.other == neighborGroup.other
-					&& this.facing == neighborGroup.facing;
+		public boolean equals(Object obj) {
+			return obj instanceof NeighborGroup other
+				&& self == other.self
+				&& this.other == other.other
+				&& facing == other.facing;
 		}
 
 		@Override
 		public int hashCode() {
-			int i = System.identityHashCode(this.self);
-			i = 31 * i + System.identityHashCode(this.other);
-			return 31 * i + this.facing.hashCode();
+			int hash = System.identityHashCode(self);
+			hash = 31 * hash + System.identityHashCode(other);
+			return 31 * hash + facing.hashCode();
 		}
 	}
 
 	/**
-	 * {@code SpreadCache}.
-	 */
+		* Кэш состояний блоков и возможности стекания вниз для одного цикла распространения жидкости.
+		*
+		* <p>Позиции кодируются в {@code short} относительно стартовой позиции,
+		* что позволяет избежать создания лишних объектов {@link BlockPos} при обходе соседей.</p>
+		*/
 	protected class SpreadCache {
 
 		private final BlockView world;
 		private final BlockPos startPos;
-		private final Short2ObjectMap<BlockState> stateCache = new Short2ObjectOpenHashMap();
+		private final Short2ObjectMap<BlockState> stateCache = new Short2ObjectOpenHashMap<>();
 		private final Short2BooleanMap flowDownCache = new Short2BooleanOpenHashMap();
 
-		SpreadCache(final BlockView world, final BlockPos startPos) {
+		SpreadCache(BlockView world, BlockPos startPos) {
 			this.world = world;
 			this.startPos = startPos;
 		}
 
 		public BlockState getBlockState(BlockPos pos) {
-			return this.getBlockState(pos, this.pack(pos));
+			return getBlockState(pos, pack(pos));
 		}
 
 		private BlockState getBlockState(BlockPos pos, short packed) {
-			return (BlockState) this.stateCache.computeIfAbsent(packed, packedPos -> this.world.getBlockState(pos));
+			return stateCache.computeIfAbsent(packed, key -> world.getBlockState(pos));
 		}
 
 		public boolean canFlowDownTo(BlockPos pos) {
-			return this.flowDownCache.computeIfAbsent(
-					this.pack(pos), packed -> {
-						BlockState blockState = this.getBlockState(pos, packed);
-						BlockPos blockPos2 = pos.down();
-						BlockState blockState2 = this.world.getBlockState(blockPos2);
-						return FlowableFluid.this.canFlowDownTo(this.world, pos, blockState, blockPos2, blockState2);
-					}
-			);
+			return flowDownCache.computeIfAbsent(pack(pos), packed -> {
+				BlockState blockState = getBlockState(pos, packed);
+				BlockPos below = pos.down();
+				BlockState belowState = world.getBlockState(below);
+				return FlowableFluid.this.canFlowDownTo(world, pos, blockState, below, belowState);
+			});
 		}
 
+		/**
+		 * Упаковывает смещение позиции относительно стартовой в {@code short}.
+		 * Диапазон смещений: [-128, 127] по X и Z.
+		 */
 		private short pack(BlockPos pos) {
-			int i = pos.getX() - this.startPos.getX();
-			int j = pos.getZ() - this.startPos.getZ();
-			return (short) ((i + 128 & 0xFF) << 8 | j + 128 & 0xFF);
+			int dx = pos.getX() - startPos.getX();
+			int dz = pos.getZ() - startPos.getZ();
+			return (short) ((dx + 128 & 0xFF) << 8 | dz + 128 & 0xFF);
 		}
 	}
 }

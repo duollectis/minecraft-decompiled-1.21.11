@@ -50,7 +50,7 @@ public class SkyLightDebugRenderer implements DebugRenderer.Renderer {
 		BlockPos blockPos = BlockPos.ofFloored(cameraX, cameraY, cameraZ);
 		LongSet longSet = new LongOpenHashSet();
 
-		for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-10, -10, -10), blockPos.add(10, 10, 10))) {
+		for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-RANGE, -RANGE, -RANGE), blockPos.add(RANGE, RANGE, RANGE))) {
 			int i = world.getLightLevel(LightType.SKY, blockPos2);
 			long l = ChunkSectionPos.fromBlockPos(blockPos2.asLong());
 			if (longSet.add(l)) {

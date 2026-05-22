@@ -6,10 +6,18 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DataCache}.
+ * Однозначный кэш вычисленного значения, привязанный к конкретному контексту.
+ *
+ * <p>Хранит последний вычисленный результат {@code data} вместе с контекстом {@code context},
+ * для которого он был получен. При повторном вызове {@link #compute} с тем же контекстом
+ * возвращает кэшированное значение без повторного вычисления.
+ * При смене контекста или вызове {@link #clean} кэш сбрасывается.
+ *
+ * @param <C> тип контекста, реализующий {@link CacheContext}
+ * @param <D> тип кэшируемых данных
  */
+@Environment(EnvType.CLIENT)
 public class DataCache<C extends DataCache.CacheContext<C>, D> {
 
 	private final Function<C, D> dataFunction;
@@ -21,39 +29,29 @@ public class DataCache<C extends DataCache.CacheContext<C>, D> {
 	}
 
 	/**
-	 * Compute.
-	 *
-	 * @param context context
-	 *
-	 * @return D — результат операции
+	 * Возвращает кэшированное значение для {@code context}, либо вычисляет новое.
+	 * При вычислении регистрирует себя в контексте для последующей очистки.
 	 */
 	public D compute(C context) {
-		if (context == this.context && this.data != null) {
-			return this.data;
+		if (context == this.context && data != null) {
+			return data;
 		}
-		else {
-			D object = this.dataFunction.apply(context);
-			this.data = object;
-			this.context = context;
-			context.registerForCleaning(this);
-			return object;
-		}
+
+		D computed = dataFunction.apply(context);
+		data = computed;
+		this.context = context;
+		context.registerForCleaning(this);
+		return computed;
 	}
 
-	/**
-	 * Clean.
-	 */
 	public void clean() {
-		this.data = null;
-		this.context = null;
+		data = null;
+		context = null;
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CacheContext}.
-	 */
-	public interface CacheContext<C extends DataCache.CacheContext<C>> {
+	public interface CacheContext<C extends CacheContext<C>> {
 
 		void registerForCleaning(DataCache<C, ?> dataCache);
 	}

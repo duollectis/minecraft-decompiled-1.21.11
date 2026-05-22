@@ -7,11 +7,13 @@ import net.minecraft.util.math.AxisRotation;
 
 import java.util.function.UnaryOperator;
 
+/**
+ * Функциональный интерфейс для применения трансформации к {@link ModelVariant}.
+ * Предоставляет готовые экземпляры {@link Settings} для каждого параметра варианта:
+ * вращение по осям X/Y/Z, идентификатор модели и UV-lock.
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
-/**
- * {@code ModelVariantOperator}.
- */
 public interface ModelVariantOperator extends UnaryOperator<ModelVariant> {
 
 	ModelVariantOperator.Settings<AxisRotation> ROTATION_X = ModelVariant::withRotationX;
@@ -28,12 +30,15 @@ public interface ModelVariantOperator extends UnaryOperator<ModelVariant> {
 		return variantx -> variant.apply(this.apply(variantx));
 	}
 
+	/**
+	 * Параметризованная настройка варианта модели: связывает конкретное значение типа {@code T}
+	 * с соответствующим полем {@link ModelVariant} через метод {@link #withValue}.
+	 *
+	 * @param <T> тип значения настройки (AxisRotation, Identifier, Boolean)
+	 */
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Settings}.
-	 */
-	public interface Settings<T> {
+	interface Settings<T> {
 
 		ModelVariant apply(ModelVariant variant, T value);
 

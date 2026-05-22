@@ -341,52 +341,23 @@ public class ClientDebugSubscriptionManager {
 
 		private final Map<K, ClientDebugSubscriptionManager.ValueWithExpiry<V>> trackableValues = new HashMap<>();
 
-		/**
-		 * Удаляет all.
-		 *
-		 * @param predicate predicate
-		 */
 		public void removeAll(Predicate<ClientDebugSubscriptionManager.ValueWithExpiry<V>> predicate) {
 			trackableValues.values().removeIf(predicate);
 		}
 
-		/**
-		 * Удаляет u u i d.
-		 *
-		 * @param object object
-		 */
 		public void removeUUID(K object) {
 			trackableValues.remove(object);
 		}
 
-		/**
-		 * Удаляет keys.
-		 *
-		 * @param predicate predicate
-		 */
 		public void removeKeys(Predicate<K> predicate) {
 			trackableValues.keySet().removeIf(predicate);
 		}
 
-		/**
-		 * Get.
-		 *
-		 * @param object object
-		 *
-		 * @return @Nullable V — 
-		 */
 		public @Nullable V get(K object) {
 			ClientDebugSubscriptionManager.ValueWithExpiry<V> entry = trackableValues.get(object);
 			return entry != null ? entry.value() : null;
 		}
 
-		/**
-		 * Apply.
-		 *
-		 * @param lifetime lifetime
-		 * @param object object
-		 * @param value value
-		 */
 		public void apply(long lifetime, K object, DebugSubscriptionType.OptionalValue<V> value) {
 			if (value.value().isPresent()) {
 				trackableValues.put(
@@ -401,11 +372,6 @@ public class ClientDebugSubscriptionManager {
 			}
 		}
 
-		/**
-		 * For each.
-		 *
-		 * @param consumer consumer
-		 */
 		public void forEach(BiConsumer<K, V> consumer) {
 			trackableValues.forEach((key, entry) -> consumer.accept(key, entry.value()));
 		}

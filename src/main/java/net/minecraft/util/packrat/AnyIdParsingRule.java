@@ -6,7 +6,8 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AnyIdParsingRule}.
+ * Правило разбора, которое считывает любой валидный {@link Identifier} из входного потока.
+ * Является синглтоном — используйте {@link #INSTANCE} вместо создания новых экземпляров.
  */
 public class AnyIdParsingRule implements ParsingRule<StringReader, Identifier> {
 
@@ -15,20 +16,13 @@ public class AnyIdParsingRule implements ParsingRule<StringReader, Identifier> {
 	private AnyIdParsingRule() {
 	}
 
-	/**
-	 * Parse.
-	 *
-	 * @param parsingState parsing state
-	 *
-	 * @return @Nullable Identifier — результат операции
-	 */
-	public @Nullable Identifier parse(ParsingState<StringReader> parsingState) {
-		parsingState.getReader().skipWhitespace();
+	@Override
+	public @Nullable Identifier parse(ParsingState<StringReader> state) {
+		state.getReader().skipWhitespace();
 
 		try {
-			return Identifier.fromCommandInputNonEmpty(parsingState.getReader());
-		}
-		catch (CommandSyntaxException var3) {
+			return Identifier.fromCommandInputNonEmpty(state.getReader());
+		} catch (CommandSyntaxException e) {
 			return null;
 		}
 	}

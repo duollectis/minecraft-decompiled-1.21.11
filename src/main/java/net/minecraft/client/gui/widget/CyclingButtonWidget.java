@@ -24,10 +24,11 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CyclingButtonWidget}.
+ * Кнопка с циклическим переключением значений из списка {@link Values}.
+ * Поддерживает альтернативные списки значений (при зажатом Alt), тултипы и иконки.
  */
+@Environment(EnvType.CLIENT)
 public class CyclingButtonWidget<T> extends PressableWidget implements Updatable {
 
 	public static final BooleanSupplier HAS_ALT_DOWN = () -> MinecraftClient.getInstance().isAltPressed();
@@ -74,130 +75,124 @@ public class CyclingButtonWidget<T> extends PressableWidget implements Updatable
 		this.labelType = labelType;
 		this.tooltipFactory = tooltipFactory;
 		this.icon = icon;
-		this.refreshTooltip();
+		refreshTooltip();
 	}
 
 	@Override
 	protected void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		Identifier identifier = this.icon.apply(this, this.getValue());
-		if (identifier != null) {
+		Identifier iconTexture = icon.apply(this, getValue());
+		if (iconTexture != null) {
 			context.drawGuiTexture(
 					RenderPipelines.GUI_TEXTURED,
-					identifier,
-					this.getX(),
-					this.getY(),
-					this.getWidth(),
-					this.getHeight()
+					iconTexture,
+					getX(),
+					getY(),
+					getWidth(),
+					getHeight()
 			);
 		}
 		else {
-			this.drawButton(context);
+			drawButton(context);
 		}
 
-		if (this.labelType != CyclingButtonWidget.LabelType.HIDE) {
-			this.drawLabel(context.getHoverListener(this, DrawContext.HoverType.NONE));
+		if (labelType != CyclingButtonWidget.LabelType.HIDE) {
+			drawLabel(context.getHoverListener(this, DrawContext.HoverType.NONE));
 		}
 	}
 
 	private void refreshTooltip() {
-		this.setTooltip(this.tooltipFactory.apply(this.value));
+		setTooltip(tooltipFactory.apply(value));
 	}
 
 	@Override
 	public void onPress(AbstractInput input) {
-		if (input.hasShift()) {
-			this.cycle(-1);
-		}
-		else {
-			this.cycle(1);
-		}
+		cycle(input.hasShift() ? -1 : 1);
 	}
 
 	private void cycle(int amount) {
-		List<T> list = this.values.getCurrent();
-		this.index = MathHelper.floorMod(this.index + amount, list.size());
-		T object = list.get(this.index);
-		this.internalSetValue(object);
-		this.callback.onValueChange(this, object);
+		List<T> current = values.getCurrent();
+		index = MathHelper.floorMod(index + amount, current.size());
+		T next = current.get(index);
+		internalSetValue(next);
+		callback.onValueChange(this, next);
 	}
 
 	private T getValue(int offset) {
-		List<T> list = this.values.getCurrent();
-		return list.get(MathHelper.floorMod(this.index + offset, list.size()));
+		List<T> current = values.getCurrent();
+		return current.get(MathHelper.floorMod(index + offset, current.size()));
 	}
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
 		if (verticalAmount > 0.0) {
-			this.cycle(-1);
+			cycle(-1);
 		}
 		else if (verticalAmount < 0.0) {
-			this.cycle(1);
+			cycle(1);
 		}
 
 		return true;
 	}
 
 	public void setValue(T value) {
-		List<T> list = this.values.getCurrent();
-		int i = list.indexOf(value);
-		if (i != -1) {
-			this.index = i;
+		List<T> current = values.getCurrent();
+		int foundIndex = current.indexOf(value);
+		if (foundIndex != -1) {
+			index = foundIndex;
 		}
 
-		this.internalSetValue(value);
+		internalSetValue(value);
 	}
 
 	@Override
 	public void update() {
-		this.setValue(this.valueSupplier.get());
+		setValue(valueSupplier.get());
 	}
 
 	private void internalSetValue(T value) {
-		Text text = this.composeText(value);
-		this.setMessage(text);
+		setMessage(composeText(value));
 		this.value = value;
-		this.refreshTooltip();
+		refreshTooltip();
 	}
 
 	private Text composeText(T value) {
-		return (Text) (this.labelType == CyclingButtonWidget.LabelType.VALUE ? this.valueToText.apply(value)
-		                                                                     : this.composeGenericOptionText(value)
-		);
+		return labelType == CyclingButtonWidget.LabelType.VALUE
+				? valueToText.apply(value)
+				: composeGenericOptionText(value);
 	}
 
 	private MutableText composeGenericOptionText(T value) {
-		return ScreenTexts.composeGenericOptionText(this.optionText, this.valueToText.apply(value));
+		return ScreenTexts.composeGenericOptionText(optionText, valueToText.apply(value));
 	}
 
 	public T getValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	protected MutableText getNarrationMessage() {
-		return this.narrationMessageFactory.apply(this);
+		return narrationMessageFactory.apply(this);
 	}
 
 	@Override
 	public void appendClickableNarrations(NarrationMessageBuilder builder) {
-		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
-		if (this.active) {
-			T object = this.getValue(1);
-			Text text = this.composeText(object);
-			if (this.isFocused()) {
-				builder.put(NarrationPart.USAGE, Text.translatable("narration.cycle_button.usage.focused", text));
-			}
-			else {
-				builder.put(NarrationPart.USAGE, Text.translatable("narration.cycle_button.usage.hovered", text));
-			}
+		builder.put(NarrationPart.TITLE, getNarrationMessage());
+
+		if (active) {
+			Text nextValueText = composeText(getValue(1));
+			String usageKey = isFocused()
+					? "narration.cycle_button.usage.focused"
+					: "narration.cycle_button.usage.hovered";
+			builder.put(NarrationPart.USAGE, Text.translatable(usageKey, nextValueText));
 		}
 	}
 
 	public MutableText getGenericNarrationMessage() {
-		return getNarrationMessage((Text) (this.labelType == CyclingButtonWidget.LabelType.VALUE
-		                                   ? this.composeGenericOptionText(this.value) : this.getMessage()
-		));
+		return getNarrationMessage(
+				labelType == CyclingButtonWidget.LabelType.VALUE
+				? composeGenericOptionText(value)
+				: getMessage()
+		);
 	}
 
 	public static <T> CyclingButtonWidget.Builder<T> builder(Function<T, Text> valueToText, Supplier<T> valueSupplier) {
@@ -220,10 +215,10 @@ public class CyclingButtonWidget<T> extends PressableWidget implements Updatable
 		).values(BOOLEAN_VALUES);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Builder}.
+	 * Строитель для создания экземпляров {@link CyclingButtonWidget}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Builder<T> {
 
 		private final Supplier<T> valueSupplier;
@@ -291,31 +286,12 @@ public class CyclingButtonWidget<T> extends PressableWidget implements Updatable
 			return this.labelType(CyclingButtonWidget.LabelType.VALUE);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param optionText option text
-		 * @param callback callback
-		 *
-		 * @return CyclingButtonWidget — результат операции
-		 */
 		public CyclingButtonWidget<T> build(Text optionText, CyclingButtonWidget.UpdateCallback<T> callback) {
-			return this.build(0, 0, 150, 20, optionText, callback);
+			return build(0, 0, 150, 20, optionText, callback);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param x x
-		 * @param y y
-		 * @param width width
-		 * @param height height
-		 * @param optionText option text
-		 *
-		 * @return CyclingButtonWidget — результат операции
-		 */
 		public CyclingButtonWidget<T> build(int x, int y, int width, int height, Text optionText) {
-			return this.build(x, y, width, height, optionText, (button, value) -> {});
+			return build(x, y, width, height, optionText, (button, value) -> {});
 		}
 
 		public CyclingButtonWidget<T> build(
@@ -326,78 +302,61 @@ public class CyclingButtonWidget<T> extends PressableWidget implements Updatable
 				Text optionText,
 				CyclingButtonWidget.UpdateCallback<T> callback
 		) {
-			List<T> list = this.values.getDefaults();
-			if (list.isEmpty()) {
+			List<T> defaults = values.getDefaults();
+			if (defaults.isEmpty()) {
 				throw new IllegalStateException("No values for cycle button");
 			}
-			else {
-				T object = this.valueSupplier.get();
-				int i = list.indexOf(object);
-				Text text = this.valueToText.apply(object);
-				Text
-						text2 =
-						(Text) (this.labelType == CyclingButtonWidget.LabelType.VALUE ? text
-						                                                              : ScreenTexts.composeGenericOptionText(
-								                                                              optionText,
-								                                                              text
-						                                                              )
-						);
-				return new CyclingButtonWidget<>(
-						x,
-						y,
-						width,
-						height,
-						text2,
-						optionText,
-						i,
-						object,
-						this.valueSupplier,
-						this.values,
-						this.valueToText,
-						this.narrationMessageFactory,
-						callback,
-						this.tooltipFactory,
-						this.labelType,
-						this.icon
-				);
-			}
+
+			T currentValue = valueSupplier.get();
+			int currentIndex = defaults.indexOf(currentValue);
+			Text valueText = valueToText.apply(currentValue);
+			Text displayText = labelType == CyclingButtonWidget.LabelType.VALUE
+					? valueText
+					: ScreenTexts.composeGenericOptionText(optionText, valueText);
+
+			return new CyclingButtonWidget<>(
+					x,
+					y,
+					width,
+					height,
+					displayText,
+					optionText,
+					currentIndex,
+					currentValue,
+					valueSupplier,
+					values,
+					valueToText,
+					narrationMessageFactory,
+					callback,
+					tooltipFactory,
+					labelType,
+					icon
+			);
 		}
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code IconGetter}.
-	 */
 	public interface IconGetter<T> {
 
 		@Nullable Identifier apply(CyclingButtonWidget<T> button, T value);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LabelType}.
-	 */
-	public static enum LabelType {
+	public enum LabelType {
 		NAME_AND_VALUE,
 		VALUE,
-		HIDE;
+		HIDE
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code UpdateCallback}.
-	 */
 	public interface UpdateCallback<T> {
 
 		void onValueChange(CyclingButtonWidget<T> button, T value);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Values}.
-	 */
 	public interface Values<T> {
 
 		List<T> getCurrent();

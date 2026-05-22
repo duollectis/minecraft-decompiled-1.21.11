@@ -25,32 +25,43 @@ import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
 /**
- * {@code Language}.
+ * Абстрактный провайдер локализации, управляющий переводами строк интерфейса.
+ * По умолчанию загружает английский язык ({@code en_us}) из ресурсов.
+ * Поддерживает замену устаревших ключей через {@link DeprecatedLanguageData}.
  */
 public abstract class Language {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Gson GSON = new Gson();
+
+	/**
+	 * Паттерн для замены числовых форматных спецификаторов (%d, %f) на строковые (%s).
+	 * Это необходимо, так как Java-форматирование строк использует %s для всех типов в переводах.
+	 */
 	private static final Pattern TOKEN_PATTERN = Pattern.compile("%(\\d+\\$)?[\\d.]*[df]");
+
 	public static final String DEFAULT_LANGUAGE = "en_us";
+
 	private static volatile Language instance = create();
 
 	private static Language create() {
 		DeprecatedLanguageData deprecatedLanguageData = DeprecatedLanguageData.create();
-		Map<String, String> map = new HashMap<>();
-		BiConsumer<String, String> biConsumer = map::put;
-		load(biConsumer, "/assets/minecraft/lang/en_us.json");
-		deprecatedLanguageData.apply(map);
-		final Map<String, String> map2 = Map.copyOf(map);
+		Map<String, String> translations = new HashMap<>();
+
+		load(translations::put, "/assets/minecraft/lang/en_us.json");
+		deprecatedLanguageData.apply(translations);
+
+		final Map<String, String> immutableTranslations = Map.copyOf(translations);
+
 		return new Language() {
 			@Override
 			public String get(String key, String fallback) {
-				return map2.getOrDefault(key, fallback);
+				return immutableTranslations.getOrDefault(key, fallback);
 			}
 
 			@Override
 			public boolean hasTranslation(String key) {
-				return map2.containsKey(key);
+				return immutableTranslations.containsKey(key);
 			}
 
 			@Override
@@ -61,11 +72,11 @@ public abstract class Language {
 			@Override
 			public OrderedText reorder(StringVisitable text) {
 				return visitor -> text.visit(
-						                      (style, string) -> TextVisitFactory.visitFormatted(string, style, visitor) ? Optional.empty()
-						                                                                                                 : StringVisitable.TERMINATE_VISIT,
-						                      Style.EMPTY
-				                      )
-				                      .isPresent();
+					(style, string) -> TextVisitFactory.visitFormatted(string, style, visitor)
+						? Optional.empty()
+						: StringVisitable.TERMINATE_VISIT,
+					Style.EMPTY
+				).isPresent();
 			}
 		};
 	}
@@ -73,31 +84,30 @@ public abstract class Language {
 	private static void load(BiConsumer<String, String> entryConsumer, String path) {
 		try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
 			load(inputStream, entryConsumer);
-		}
-		catch (JsonParseException | IOException var7) {
-			LOGGER.error("Couldn't read strings from {}", path, var7);
+		} catch (JsonParseException | IOException exception) {
+			LOGGER.error("Couldn't read strings from {}", path, exception);
 		}
 	}
 
 	/**
-	 * Load.
+	 * Загружает переводы из JSON-потока, заменяя числовые форматные спецификаторы на строковые.
+	 * Формат файла: плоский JSON-объект с ключами перевода и строковыми значениями.
 	 *
-	 * @param inputStream input stream
-	 * @param entryConsumer entry consumer
+	 * @param inputStream поток с JSON-данными переводов
+	 * @param entryConsumer получатель пар ключ-значение переводов
 	 */
 	public static void load(InputStream inputStream, BiConsumer<String, String> entryConsumer) {
-		JsonObject
-				jsonObject =
-				(JsonObject) GSON.fromJson(
-						new InputStreamReader(inputStream, StandardCharsets.UTF_8),
-						JsonObject.class
-				);
+		JsonObject jsonObject = GSON.fromJson(
+			new InputStreamReader(inputStream, StandardCharsets.UTF_8),
+			JsonObject.class
+		);
 
 		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-			String
-					string =
-					TOKEN_PATTERN.matcher(JsonHelper.asString(entry.getValue(), entry.getKey())).replaceAll("%$1s");
-			entryConsumer.accept(entry.getKey(), string);
+			String normalized = TOKEN_PATTERN
+				.matcher(JsonHelper.asString(entry.getValue(), entry.getKey()))
+				.replaceAll("%$1s");
+
+			entryConsumer.accept(entry.getKey(), normalized);
 		}
 	}
 
@@ -110,23 +120,21 @@ public abstract class Language {
 	}
 
 	/**
-	 * Get.
+	 * Возвращает перевод по ключу, используя сам ключ как запасное значение.
 	 *
-	 * @param key key
-	 *
-	 * @return String — 
+	 * @param key ключ перевода
+	 * @return переведённая строка или ключ, если перевод не найден
 	 */
 	public String get(String key) {
-		return this.get(key, key);
+		return get(key, key);
 	}
 
 	/**
-	 * Get.
+	 * Возвращает перевод по ключу с явным запасным значением.
 	 *
-	 * @param key key
-	 * @param fallback fallback
-	 *
-	 * @return String — 
+	 * @param key ключ перевода
+	 * @param fallback значение, возвращаемое если перевод не найден
+	 * @return переведённая строка или {@code fallback}
 	 */
 	public abstract String get(String key, String fallback);
 
@@ -135,22 +143,16 @@ public abstract class Language {
 	public abstract boolean isRightToLeft();
 
 	/**
-	 * Reorder.
+	 * Преобразует {@link StringVisitable} в {@link OrderedText} с учётом направления текста.
 	 *
-	 * @param text text
-	 *
-	 * @return OrderedText — результат операции
+	 * @param text текст для преобразования
+	 * @return упорядоченный текст для рендеринга
 	 */
 	public abstract OrderedText reorder(StringVisitable text);
 
-	/**
-	 * Reorder.
-	 *
-	 * @param texts texts
-	 *
-	 * @return List — результат операции
-	 */
 	public List<OrderedText> reorder(List<StringVisitable> texts) {
-		return texts.stream().map(this::reorder).collect(ImmutableList.toImmutableList());
+		return texts.stream()
+			.map(this::reorder)
+			.collect(ImmutableList.toImmutableList());
 	}
 }

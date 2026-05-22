@@ -8,7 +8,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * {@code DummyProfiler}.
+ * Заглушка профайлера — все операции игнорируются, результаты пусты.
+ * Используется как нейтральный элемент в {@link Profiler#union(Profiler, Profiler)}.
  */
 public class DummyProfiler implements ReadableProfiler {
 

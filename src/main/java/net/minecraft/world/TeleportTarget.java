@@ -11,54 +11,150 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Set;
 
 /**
- * {@code TeleportTarget}.
+ * Описывает цель телепортации сущности: мир назначения, позицию, скорость,
+ * углы поворота, флаги относительного позиционирования и пост-переходный обработчик.
+ * Используется при переходе между измерениями и при телепортации через порталы.
  */
 public record TeleportTarget(
+	ServerWorld world,
+	Vec3d position,
+	Vec3d velocity,
+	float yaw,
+	float pitch,
+	boolean missingRespawnBlock,
+	boolean asPassenger,
+	Set<PositionFlag> relatives,
+	PostDimensionTransition postTeleportTransition
+) {
+
+	/** Пустой пост-переходный обработчик — ничего не делает. */
+	public static final PostDimensionTransition NO_OP = entity -> {};
+
+	/** Отправляет клиенту пакет о прохождении через портал ({@link WorldEvents#TRAVEL_THROUGH_PORTAL}). */
+	public static final PostDimensionTransition SEND_TRAVEL_THROUGH_PORTAL_PACKET = TeleportTarget::sendTravelThroughPortalPacket;
+
+	/** Добавляет тикет чанка у портала, чтобы чанк оставался загруженным после перехода. */
+	public static final PostDimensionTransition ADD_PORTAL_CHUNK_TICKET = TeleportTarget::addPortalChunkTicket;
+
+	public TeleportTarget(
 		ServerWorld world,
-		Vec3d position,
+		Vec3d pos,
 		Vec3d velocity,
 		float yaw,
 		float pitch,
-		boolean missingRespawnBlock,
-		boolean asPassenger,
-		Set<PositionFlag> relatives,
-		TeleportTarget.PostDimensionTransition postTeleportTransition
-) {
-
-	public static final TeleportTarget.PostDimensionTransition NO_OP = entity -> {};
-	public static final TeleportTarget.PostDimensionTransition
-			SEND_TRAVEL_THROUGH_PORTAL_PACKET =
-			TeleportTarget::sendTravelThroughPortalPacket;
-	public static final TeleportTarget.PostDimensionTransition
-			ADD_PORTAL_CHUNK_TICKET =
-			TeleportTarget::addPortalChunkTicket;
-
-	public TeleportTarget(
-			ServerWorld world,
-			Vec3d pos,
-			Vec3d velocity,
-			float yaw,
-			float pitch,
-			TeleportTarget.PostDimensionTransition postDimensionTransition
+		PostDimensionTransition postDimensionTransition
 	) {
 		this(world, pos, velocity, yaw, pitch, Set.of(), postDimensionTransition);
 	}
 
 	public TeleportTarget(
-			ServerWorld world,
-			Vec3d pos,
-			Vec3d velocity,
-			float yaw,
-			float pitch,
-			Set<PositionFlag> flags,
-			TeleportTarget.PostDimensionTransition postDimensionTransition
+		ServerWorld world,
+		Vec3d pos,
+		Vec3d velocity,
+		float yaw,
+		float pitch,
+		Set<PositionFlag> flags,
+		PostDimensionTransition postDimensionTransition
 	) {
 		this(world, pos, velocity, yaw, pitch, false, false, flags, postDimensionTransition);
 	}
 
+	/**
+	 * Создаёт цель телепортации к точке спавна мира, когда у игрока не задана
+	 * точка возрождения (кровать/якорь отсутствует или не установлена).
+	 */
+	public static TeleportTarget noRespawnPointSet(
+		ServerPlayerEntity player,
+		PostDimensionTransition postDimensionTransition
+	) {
+		ServerWorld spawnWorld = player.getEntityWorld().getServer().getSpawnWorld();
+		WorldProperties.SpawnPoint spawnPoint = spawnWorld.getSpawnPoint();
+		return new TeleportTarget(
+			spawnWorld,
+			getWorldSpawnPos(spawnWorld, player),
+			Vec3d.ZERO,
+			spawnPoint.yaw(),
+			spawnPoint.pitch(),
+			false,
+			false,
+			Set.of(),
+			postDimensionTransition
+		);
+	}
+
+	/**
+	 * Создаёт цель телепортации к точке спавна мира, когда блок возрождения игрока
+	 * был уничтожен или заблокирован (флаг {@code missingRespawnBlock = true}).
+	 */
+	public static TeleportTarget missingSpawnBlock(
+		ServerPlayerEntity player,
+		PostDimensionTransition postDimensionTransition
+	) {
+		ServerWorld spawnWorld = player.getEntityWorld().getServer().getSpawnWorld();
+		WorldProperties.SpawnPoint spawnPoint = spawnWorld.getSpawnPoint();
+		return new TeleportTarget(
+			spawnWorld,
+			getWorldSpawnPos(spawnWorld, player),
+			Vec3d.ZERO,
+			spawnPoint.yaw(),
+			spawnPoint.pitch(),
+			true,
+			false,
+			Set.of(),
+			postDimensionTransition
+		);
+	}
+
+	/** Возвращает копию цели с изменёнными углами поворота. */
+	public TeleportTarget withRotation(float yaw, float pitch) {
+		return new TeleportTarget(
+			world(),
+			position(),
+			velocity(),
+			yaw,
+			pitch,
+			missingRespawnBlock(),
+			asPassenger(),
+			relatives(),
+			postTeleportTransition()
+		);
+	}
+
+	/** Возвращает копию цели с изменённой позицией. */
+	public TeleportTarget withPosition(Vec3d position) {
+		return new TeleportTarget(
+			world(),
+			position,
+			velocity(),
+			yaw(),
+			pitch(),
+			missingRespawnBlock(),
+			asPassenger(),
+			relatives(),
+			postTeleportTransition()
+		);
+	}
+
+	/** Возвращает копию цели с флагом {@code asPassenger = true}. */
+	public TeleportTarget withAsPassenger() {
+		return new TeleportTarget(
+			world(),
+			position(),
+			velocity(),
+			yaw(),
+			pitch(),
+			missingRespawnBlock(),
+			true,
+			relatives(),
+			postTeleportTransition()
+		);
+	}
+
 	private static void sendTravelThroughPortalPacket(Entity entity) {
-		if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
-			serverPlayerEntity.networkHandler.sendPacket(new WorldEventS2CPacket(1032, BlockPos.ORIGIN, 0, false));
+		if (entity instanceof ServerPlayerEntity serverPlayer) {
+			serverPlayer.networkHandler.sendPacket(
+				new WorldEventS2CPacket(WorldEvents.TRAVEL_THROUGH_PORTAL, BlockPos.ORIGIN, 0, false)
+			);
 		}
 	}
 
@@ -66,121 +162,25 @@ public record TeleportTarget(
 		entity.addPortalChunkTicketAt(BlockPos.ofFloored(entity.getEntityPos()));
 	}
 
-	public static TeleportTarget noRespawnPointSet(
-			ServerPlayerEntity player,
-			TeleportTarget.PostDimensionTransition postDimensionTransition
-	) {
-		ServerWorld serverWorld = player.getEntityWorld().getServer().getSpawnWorld();
-		WorldProperties.SpawnPoint spawnPoint = serverWorld.getSpawnPoint();
-		return new TeleportTarget(
-				serverWorld,
-				getWorldSpawnPos(serverWorld, player),
-				Vec3d.ZERO,
-				spawnPoint.yaw(),
-				spawnPoint.pitch(),
-				false,
-				false,
-				Set.of(),
-				postDimensionTransition
-		);
-	}
-
-	public static TeleportTarget missingSpawnBlock(
-			ServerPlayerEntity player,
-			TeleportTarget.PostDimensionTransition postDimensionTransition
-	) {
-		ServerWorld serverWorld = player.getEntityWorld().getServer().getSpawnWorld();
-		WorldProperties.SpawnPoint spawnPoint = serverWorld.getSpawnPoint();
-		return new TeleportTarget(
-				serverWorld,
-				getWorldSpawnPos(serverWorld, player),
-				Vec3d.ZERO,
-				spawnPoint.yaw(),
-				spawnPoint.pitch(),
-				true,
-				false,
-				Set.of(),
-				postDimensionTransition
-		);
-	}
-
 	private static Vec3d getWorldSpawnPos(ServerWorld world, Entity entity) {
 		return entity.getWorldSpawnPos(world, world.getSpawnPoint().getPos()).toBottomCenterPos();
 	}
 
 	/**
-	 * With rotation.
-	 *
-	 * @param yaw yaw
-	 * @param pitch pitch
-	 *
-	 * @return TeleportTarget — результат операции
+	 * Функциональный интерфейс для выполнения действий после перехода сущности
+	 * между измерениями или после телепортации через портал.
 	 */
-	public TeleportTarget withRotation(float yaw, float pitch) {
-		return new TeleportTarget(
-				this.world(),
-				this.position(),
-				this.velocity(),
-				yaw,
-				pitch,
-				this.missingRespawnBlock(),
-				this.asPassenger(),
-				this.relatives(),
-				this.postTeleportTransition()
-		);
-	}
-
-	/**
-	 * With position.
-	 *
-	 * @param position position
-	 *
-	 * @return TeleportTarget — результат операции
-	 */
-	public TeleportTarget withPosition(Vec3d position) {
-		return new TeleportTarget(
-				this.world(),
-				position,
-				this.velocity(),
-				this.yaw(),
-				this.pitch(),
-				this.missingRespawnBlock(),
-				this.asPassenger(),
-				this.relatives(),
-				this.postTeleportTransition()
-		);
-	}
-
-	/**
-	 * With as passenger.
-	 *
-	 * @return TeleportTarget — результат операции
-	 */
-	public TeleportTarget withAsPassenger() {
-		return new TeleportTarget(
-				this.world(),
-				this.position(),
-				this.velocity(),
-				this.yaw(),
-				this.pitch(),
-				this.missingRespawnBlock(),
-				true,
-				this.relatives(),
-				this.postTeleportTransition()
-		);
-	}
-
 	@FunctionalInterface
-	/**
-	 * {@code PostDimensionTransition}.
-	 */
 	public interface PostDimensionTransition {
 
 		void onTransition(Entity entity);
 
-		default TeleportTarget.PostDimensionTransition then(TeleportTarget.PostDimensionTransition next) {
+		/**
+		 * Создаёт составной обработчик: сначала выполняется {@code this}, затем {@code next}.
+		 */
+		default PostDimensionTransition then(PostDimensionTransition next) {
 			return entity -> {
-				this.onTransition(entity);
+				onTransition(entity);
 				next.onTransition(entity);
 			};
 		}

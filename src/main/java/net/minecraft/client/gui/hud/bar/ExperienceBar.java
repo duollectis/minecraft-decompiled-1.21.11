@@ -9,14 +9,19 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ExperienceBar}.
+ * Полоса опыта игрока. Отображает прогресс до следующего уровня
+ * и рисует числовой уровень через {@link Bar#drawExperienceLevel}.
  */
+@Environment(EnvType.CLIENT)
 public class ExperienceBar implements Bar {
 
 	private static final Identifier BACKGROUND = Identifier.ofVanilla("hud/experience_bar_background");
 	private static final Identifier PROGRESS = Identifier.ofVanilla("hud/experience_bar_progress");
+
+	/** Максимальная ширина заполненной полосы в пикселях (на 1 больше WIDTH для корректного масштабирования). */
+	private static final int PROGRESS_MAX_WIDTH = 183;
+
 	private final MinecraftClient client;
 
 	public ExperienceBar(MinecraftClient client) {
@@ -25,16 +30,21 @@ public class ExperienceBar implements Bar {
 
 	@Override
 	public void renderBar(DrawContext context, RenderTickCounter tickCounter) {
-		ClientPlayerEntity clientPlayerEntity = this.client.player;
-		int i = this.getCenterX(this.client.getWindow());
-		int j = this.getCenterY(this.client.getWindow());
-		int k = clientPlayerEntity.getNextLevelExperience();
-		if (k > 0) {
-			int l = (int) (clientPlayerEntity.experienceProgress * 183.0F);
-			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, BACKGROUND, i, j, 182, 5);
-			if (l > 0) {
-				context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PROGRESS, 182, 5, 0, 0, i, j, l, 5);
-			}
+		ClientPlayerEntity player = client.player;
+		int barX = getCenterX(client.getWindow());
+		int barY = getCenterY(client.getWindow());
+		int nextLevelXp = player.getNextLevelExperience();
+
+		if (nextLevelXp <= 0) {
+			return;
+		}
+
+		int progressWidth = (int) (player.experienceProgress * PROGRESS_MAX_WIDTH);
+
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, BACKGROUND, barX, barY, WIDTH, HEIGHT);
+
+		if (progressWidth > 0) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, PROGRESS, WIDTH, HEIGHT, 0, 0, barX, barY, progressWidth, HEIGHT);
 		}
 	}
 

@@ -31,7 +31,7 @@ public class SalmonEntityModel extends EntityModel<SalmonEntityRenderState> {
 		ModelPartData modelPartData2 = modelPartData.addChild(
 				"body_front",
 				ModelPartBuilder.create().uv(0, 0).cuboid(-1.5F, -2.5F, 0.0F, 3.0F, 5.0F, 8.0F),
-				ModelTransform.origin(0.0F, 20.0F, -7.2F)
+				ModelTransform.origin(0.0F, 20.0F, BODY_Y_OFFSET)
 		);
 		ModelPartData modelPartData3 = modelPartData.addChild(
 				"body_back",
@@ -41,7 +41,7 @@ public class SalmonEntityModel extends EntityModel<SalmonEntityRenderState> {
 		modelPartData.addChild(
 				"head",
 				ModelPartBuilder.create().uv(22, 0).cuboid(-1.0F, -2.0F, -3.0F, 2.0F, 4.0F, 3.0F),
-				ModelTransform.origin(0.0F, 20.0F, -7.2F)
+				ModelTransform.origin(0.0F, 20.0F, BODY_Y_OFFSET)
 		);
 		modelPartData3.addChild(
 				"back_fin",
@@ -61,12 +61,12 @@ public class SalmonEntityModel extends EntityModel<SalmonEntityRenderState> {
 		modelPartData.addChild(
 				"right_fin",
 				ModelPartBuilder.create().uv(-4, 0).cuboid(-2.0F, 0.0F, 0.0F, 2.0F, 0.0F, 2.0F),
-				ModelTransform.of(-1.5F, 21.5F, -7.2F, 0.0F, 0.0F, (float) (-Math.PI / 4))
+				ModelTransform.of(-1.5F, 21.5F, BODY_Y_OFFSET, 0.0F, 0.0F, (float) (-Math.PI / 4))
 		);
 		modelPartData.addChild(
 				"left_fin",
 				ModelPartBuilder.create().uv(0, 0).cuboid(0.0F, 0.0F, 0.0F, 2.0F, 0.0F, 2.0F),
-				ModelTransform.of(1.5F, 21.5F, -7.2F, 0.0F, 0.0F, (float) (Math.PI / 4))
+				ModelTransform.of(1.5F, 21.5F, BODY_Y_OFFSET, 0.0F, 0.0F, (float) (Math.PI / 4))
 		);
 		return TexturedModelData.of(modelData, 32, 32);
 	}

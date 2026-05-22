@@ -217,7 +217,7 @@ public class ServerResourcePackLoader implements AutoCloseable {
 				downloader.downloadAsync(
 						          new Downloader.Config(
 								          SHA1,
-								          262144000,
+								          MAX_BYTES,
 								          this.getHeaders(),
 								          proxy,
 								          ServerResourcePackLoader.this.createListener(entries.size())

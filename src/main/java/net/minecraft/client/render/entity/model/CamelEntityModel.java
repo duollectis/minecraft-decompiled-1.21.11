@@ -67,37 +67,37 @@ public class CamelEntityModel extends EntityModel<CamelEntityRenderState> {
 				                .uv(21, 0)
 				                .cuboid(-3.5F, -21.0F, -15.0F, 7.0F, 14.0F, 7.0F)
 				                .uv(50, 0)
-				                .cuboid(-2.5F, -21.0F, -21.0F, 5.0F, 5.0F, 6.0F),
+				                .cuboid(-LIMB_DISTANCE_SCALE, -21.0F, -21.0F, 5.0F, 5.0F, 6.0F),
 				ModelTransform.origin(0.0F, -3.0F, -19.5F)
 		);
 		modelPartData3.addChild(
 				"left_ear",
 				ModelPartBuilder.create().uv(45, 0).cuboid(-0.5F, 0.5F, -1.0F, 3.0F, 1.0F, 2.0F),
-				ModelTransform.origin(2.5F, -21.0F, -9.5F)
+				ModelTransform.origin(LIMB_DISTANCE_SCALE, -21.0F, -9.5F)
 		);
 		modelPartData3.addChild(
 				"right_ear",
-				ModelPartBuilder.create().uv(67, 0).cuboid(-2.5F, 0.5F, -1.0F, 3.0F, 1.0F, 2.0F),
-				ModelTransform.origin(-2.5F, -21.0F, -9.5F)
+				ModelPartBuilder.create().uv(67, 0).cuboid(-LIMB_DISTANCE_SCALE, 0.5F, -1.0F, 3.0F, 1.0F, 2.0F),
+				ModelTransform.origin(-LIMB_DISTANCE_SCALE, -21.0F, -9.5F)
 		);
 		modelPartData.addChild(
 				"left_hind_leg",
-				ModelPartBuilder.create().uv(58, 16).cuboid(-2.5F, 2.0F, -2.5F, 5.0F, 21.0F, 5.0F),
+				ModelPartBuilder.create().uv(58, 16).cuboid(-LIMB_DISTANCE_SCALE, 2.0F, -LIMB_DISTANCE_SCALE, 5.0F, 21.0F, 5.0F),
 				ModelTransform.origin(4.9F, 1.0F, 9.5F)
 		);
 		modelPartData.addChild(
 				"right_hind_leg",
-				ModelPartBuilder.create().uv(94, 16).cuboid(-2.5F, 2.0F, -2.5F, 5.0F, 21.0F, 5.0F),
+				ModelPartBuilder.create().uv(94, 16).cuboid(-LIMB_DISTANCE_SCALE, 2.0F, -LIMB_DISTANCE_SCALE, 5.0F, 21.0F, 5.0F),
 				ModelTransform.origin(-4.9F, 1.0F, 9.5F)
 		);
 		modelPartData.addChild(
 				"left_front_leg",
-				ModelPartBuilder.create().uv(0, 0).cuboid(-2.5F, 2.0F, -2.5F, 5.0F, 21.0F, 5.0F),
+				ModelPartBuilder.create().uv(0, 0).cuboid(-LIMB_DISTANCE_SCALE, 2.0F, -LIMB_DISTANCE_SCALE, 5.0F, 21.0F, 5.0F),
 				ModelTransform.origin(4.9F, 1.0F, -10.5F)
 		);
 		modelPartData.addChild(
 				"right_front_leg",
-				ModelPartBuilder.create().uv(0, 26).cuboid(-2.5F, 2.0F, -2.5F, 5.0F, 21.0F, 5.0F),
+				ModelPartBuilder.create().uv(0, 26).cuboid(-LIMB_DISTANCE_SCALE, 2.0F, -LIMB_DISTANCE_SCALE, 5.0F, 21.0F, 5.0F),
 				ModelTransform.origin(-4.9F, 1.0F, -10.5F)
 		);
 		return modelData;
@@ -114,7 +114,7 @@ public class CamelEntityModel extends EntityModel<CamelEntityRenderState> {
 				camelEntityRenderState.limbSwingAnimationProgress,
 				camelEntityRenderState.limbSwingAmplitude,
 				2.0F,
-				2.5F
+				LIMB_DISTANCE_SCALE
 		);
 		this.sittingTransitionAnimation.apply(
 				camelEntityRenderState.sittingTransitionAnimationState,

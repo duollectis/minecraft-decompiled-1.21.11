@@ -13,9 +13,25 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code ExperienceBottleEntity}.
+ * Бутылка опыта — бросаемый снаряд, при столкновении спавнящий
+ * случайное количество опыта (от 3 до 11 единиц).
+ * <p>
+ * Имеет повышенную гравитацию ({@link #getGravity()}) по сравнению с другими
+ * бросаемыми предметами, что даёт характерную крутую траекторию.
  */
 public class ExperienceBottleEntity extends ThrownItemEntity {
+
+	/** Минимальное количество опыта при разбивании. */
+	private static final int MIN_EXPERIENCE = 3;
+
+	/** Случайный диапазон дополнительного опыта (два броска). */
+	private static final int EXPERIENCE_RANDOM_RANGE = 5;
+
+	/** Код мирового события для воспроизведения эффекта разбивания зелья опыта. */
+	private static final int BREAK_WORLD_EVENT = 2002;
+
+	/** Цвет частиц опыта (зелёный). */
+	private static final int EXPERIENCE_PARTICLE_COLOR = -13083194;
 
 	public ExperienceBottleEntity(EntityType<? extends ExperienceBottleEntity> entityType, World world) {
 		super(entityType, world);
@@ -42,18 +58,21 @@ public class ExperienceBottleEntity extends ThrownItemEntity {
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			serverWorld.syncWorldEvent(2002, this.getBlockPos(), -13083194);
-			int i = 3 + serverWorld.random.nextInt(5) + serverWorld.random.nextInt(5);
-			if (hitResult instanceof BlockHitResult blockHitResult) {
-				Vec3d vec3d = blockHitResult.getSide().getDoubleVector();
-				ExperienceOrbEntity.spawn(serverWorld, hitResult.getPos(), vec3d, i);
-			}
-			else {
-				ExperienceOrbEntity.spawn(serverWorld, hitResult.getPos(), this.getVelocity().multiply(-1.0), i);
-			}
-
-			this.discard();
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		serverWorld.syncWorldEvent(BREAK_WORLD_EVENT, getBlockPos(), EXPERIENCE_PARTICLE_COLOR);
+
+		int experienceAmount = MIN_EXPERIENCE
+				+ serverWorld.random.nextInt(EXPERIENCE_RANDOM_RANGE)
+				+ serverWorld.random.nextInt(EXPERIENCE_RANDOM_RANGE);
+
+		Vec3d spawnDirection = hitResult instanceof BlockHitResult blockHit
+				? blockHit.getSide().getDoubleVector()
+				: getVelocity().multiply(-1.0);
+
+		ExperienceOrbEntity.spawn(serverWorld, hitResult.getPos(), spawnDirection, experienceAmount);
+		discard();
 	}
 }

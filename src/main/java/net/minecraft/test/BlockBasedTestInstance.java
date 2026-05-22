@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code BlockBasedTestInstance}.
+ * Реализация тестового инстанса, управляемая блоками {@code TEST_BLOCK} в структуре.
+ * <p>
+ * Логика теста определяется расстановкой блоков с режимами {@link TestBlockMode}:
+ * {@code START} — запускает тест, {@code ACCEPT} — фиксирует успех, {@code FAIL} — фиксирует провал.
  */
 public class BlockBasedTestInstance extends TestInstance {
 
@@ -31,78 +34,40 @@ public class BlockBasedTestInstance extends TestInstance {
 		super(testData);
 	}
 
+	/**
+	 * Запускает тест: активирует стартовый блок и на каждом тике проверяет
+	 * состояние блоков ACCEPT/FAIL.
+	 */
 	@Override
 	public void start(TestContext context) {
-		BlockPos blockPos = this.findStartBlockPos(context);
-		TestBlockEntity testBlockEntity = context.getBlockEntity(blockPos, TestBlockEntity.class);
-		testBlockEntity.trigger();
+		BlockPos startPos = findStartBlockPos(context);
+		TestBlockEntity startBlock = context.getBlockEntity(startPos, TestBlockEntity.class);
+		startBlock.trigger();
+
 		context.forEachRemainingTick(() -> {
-			List<BlockPos> list = this.findTestBlocks(context, TestBlockMode.ACCEPT);
-			if (list.isEmpty()) {
+			List<BlockPos> acceptBlocks = findTestBlocks(context, TestBlockMode.ACCEPT);
+			if (acceptBlocks.isEmpty()) {
 				context.throwGameTestException(Text.translatable(
 						"test_block.error.missing",
 						TestBlockMode.ACCEPT.getName()
 				));
 			}
 
-			boolean
-					bl =
-					list
-							.stream()
-							.map(pos -> context.getBlockEntity(pos, TestBlockEntity.class))
-							.anyMatch(TestBlockEntity::hasTriggered);
-			if (bl) {
+			boolean anyAccepted = acceptBlocks.stream()
+					.map(pos -> context.getBlockEntity(pos, TestBlockEntity.class))
+					.anyMatch(TestBlockEntity::hasTriggered);
+
+			if (anyAccepted) {
 				context.complete();
-			}
-			else {
-				this.handleTrigger(
+			} else {
+				handleTrigger(
 						context,
 						TestBlockMode.FAIL,
-						testBlockEntityx -> context.throwGameTestException(Text.literal(testBlockEntityx.getMessage()))
+						entity -> context.throwGameTestException(Text.literal(entity.getMessage()))
 				);
-				this.handleTrigger(context, TestBlockMode.LOG, TestBlockEntity::trigger);
+				handleTrigger(context, TestBlockMode.LOG, TestBlockEntity::trigger);
 			}
 		});
-	}
-
-	private void handleTrigger(TestContext context, TestBlockMode mode, Consumer<TestBlockEntity> callback) {
-		for (BlockPos blockPos : this.findTestBlocks(context, mode)) {
-			TestBlockEntity testBlockEntity = context.getBlockEntity(blockPos, TestBlockEntity.class);
-			if (testBlockEntity.hasTriggered()) {
-				callback.accept(testBlockEntity);
-				testBlockEntity.reset();
-			}
-		}
-	}
-
-	private BlockPos findStartBlockPos(TestContext context) {
-		List<BlockPos> list = this.findTestBlocks(context, TestBlockMode.START);
-		if (list.isEmpty()) {
-			context.throwGameTestException(Text.translatable(
-					"test_block.error.missing",
-					TestBlockMode.START.getName()
-			));
-		}
-
-		if (list.size() != 1) {
-			context.throwGameTestException(Text.translatable(
-					"test_block.error.too_many",
-					TestBlockMode.START.getName()
-			));
-		}
-
-		return list.getFirst();
-	}
-
-	private List<BlockPos> findTestBlocks(TestContext context, TestBlockMode mode) {
-		List<BlockPos> list = new ArrayList<>();
-		context.forEachRelativePos(pos -> {
-			BlockState blockState = context.getBlockState(pos);
-			if (blockState.isOf(Blocks.TEST_BLOCK) && blockState.get(TestBlock.MODE) == mode) {
-				list.add(pos.toImmutable());
-			}
-		});
-		return list;
 	}
 
 	@Override
@@ -113,5 +78,45 @@ public class BlockBasedTestInstance extends TestInstance {
 	@Override
 	protected MutableText getTypeDescription() {
 		return Text.translatable("test_instance.type.block_based");
+	}
+
+	private void handleTrigger(TestContext context, TestBlockMode mode, Consumer<TestBlockEntity> callback) {
+		for (BlockPos pos : findTestBlocks(context, mode)) {
+			TestBlockEntity entity = context.getBlockEntity(pos, TestBlockEntity.class);
+			if (entity.hasTriggered()) {
+				callback.accept(entity);
+				entity.reset();
+			}
+		}
+	}
+
+	private BlockPos findStartBlockPos(TestContext context) {
+		List<BlockPos> startBlocks = findTestBlocks(context, TestBlockMode.START);
+		if (startBlocks.isEmpty()) {
+			context.throwGameTestException(Text.translatable(
+					"test_block.error.missing",
+					TestBlockMode.START.getName()
+			));
+		}
+
+		if (startBlocks.size() != 1) {
+			context.throwGameTestException(Text.translatable(
+					"test_block.error.too_many",
+					TestBlockMode.START.getName()
+			));
+		}
+
+		return startBlocks.getFirst();
+	}
+
+	private List<BlockPos> findTestBlocks(TestContext context, TestBlockMode mode) {
+		List<BlockPos> result = new ArrayList<>();
+		context.forEachRelativePos(pos -> {
+			BlockState state = context.getBlockState(pos);
+			if (state.isOf(Blocks.TEST_BLOCK) && state.get(TestBlock.MODE) == mode) {
+				result.add(pos.toImmutable());
+			}
+		});
+		return result;
 	}
 }

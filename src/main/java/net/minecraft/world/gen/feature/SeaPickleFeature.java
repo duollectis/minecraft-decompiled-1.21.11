@@ -12,7 +12,8 @@ import net.minecraft.world.gen.CountConfig;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code SeaPickleFeature}.
+ * Генерирует кластеры морских огурцов на дне океана.
+ * Количество попыток размещения задаётся через {@link CountConfig}.
  */
 public class SeaPickleFeature extends Feature<CountConfig> {
 
@@ -22,29 +23,26 @@ public class SeaPickleFeature extends Feature<CountConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<CountConfig> context) {
-		int i = 0;
 		Random random = context.getRandom();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		int j = context.getConfig().getCount().get(random);
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		int count = context.getConfig().getCount().get(random);
+		int placed = 0;
 
-		for (int k = 0; k < j; k++) {
-			int l = random.nextInt(8) - random.nextInt(8);
-			int m = random.nextInt(8) - random.nextInt(8);
-			int n = structureWorldAccess.getTopY(Heightmap.Type.OCEAN_FLOOR, blockPos.getX() + l, blockPos.getZ() + m);
-			BlockPos blockPos2 = new BlockPos(blockPos.getX() + l, n, blockPos.getZ() + m);
-			BlockState
-					blockState =
-					Blocks.SEA_PICKLE.getDefaultState().with(SeaPickleBlock.PICKLES, random.nextInt(4) + 1);
-			if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER) && blockState.canPlaceAt(
-					structureWorldAccess,
-					blockPos2
-			)) {
-				structureWorldAccess.setBlockState(blockPos2, blockState, 2);
-				i++;
+		for (int attempt = 0; attempt < count; attempt++) {
+			int dx = random.nextInt(8) - random.nextInt(8);
+			int dz = random.nextInt(8) - random.nextInt(8);
+			int floorY = world.getTopY(Heightmap.Type.OCEAN_FLOOR, origin.getX() + dx, origin.getZ() + dz);
+			BlockPos pos = new BlockPos(origin.getX() + dx, floorY, origin.getZ() + dz);
+			BlockState pickleState = Blocks.SEA_PICKLE.getDefaultState()
+				.with(SeaPickleBlock.PICKLES, random.nextInt(4) + 1);
+
+			if (world.getBlockState(pos).isOf(Blocks.WATER) && pickleState.canPlaceAt(world, pos)) {
+				world.setBlockState(pos, pickleState, 2);
+				placed++;
 			}
 		}
 
-		return i > 0;
+		return placed > 0;
 	}
 }

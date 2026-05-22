@@ -50,10 +50,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DebugHud}.
+ * HUD отладочного экрана (F3): отображает системную информацию, профилировщик и диагностические графики.
  */
+@Environment(EnvType.CLIENT)
 public class DebugHud {
 
 	private static final float DEBUG_CROSSHAIR_SCALE = 0.01F;
@@ -551,13 +551,13 @@ public class DebugHud {
 		matrix4fStack.translate(0.0F, 0.0F, -1.0F);
 		matrix4fStack.rotateX(camera.getPitch() * (float) (Math.PI / 180.0));
 		matrix4fStack.rotateY(camera.getYaw() * (float) (Math.PI / 180.0));
-		float f = 0.01F * this.client.getWindow().getScaleFactor();
+		float f = DEBUG_CROSSHAIR_SCALE * this.client.getWindow().getScaleFactor();
 		matrix4fStack.scale(-f, f, -f);
 		RenderPipeline renderPipeline = RenderPipelines.LINES;
 		Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
 		GpuTextureView gpuTextureView = framebuffer.getColorAttachmentView();
 		GpuTextureView gpuTextureView2 = framebuffer.getDepthAttachmentView();
-		GpuBuffer gpuBuffer = this.debugCrosshairIndexBuffer.getIndexBuffer(36);
+		GpuBuffer gpuBuffer = this.debugCrosshairIndexBuffer.getIndexBuffer(DEBUG_CROSSHAIR_INDEX_COUNT);
 		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
 		                                            .write(
 				                                            matrix4fStack,
@@ -581,7 +581,7 @@ public class DebugHud {
 			renderPass.setVertexBuffer(0, this.debugCrosshairBuffer);
 			renderPass.setIndexBuffer(gpuBuffer, this.debugCrosshairIndexBuffer.getIndexType());
 			renderPass.setUniform("DynamicTransforms", gpuBufferSlice);
-			renderPass.drawIndexed(0, 0, 36, 1);
+			renderPass.drawIndexed(0, 0, DEBUG_CROSSHAIR_INDEX_COUNT, 1);
 		}
 
 		matrix4fStack.popMatrix();

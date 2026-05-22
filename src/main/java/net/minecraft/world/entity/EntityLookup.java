@@ -9,7 +9,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * {@code EntityLookup}.
+ * Интерфейс поиска сущностей по идентификатору, UUID, пространственному пересечению
+ * и типовому фильтру. Является основным API для запросов к системе сущностей.
+ *
+ * @param <T> базовый тип сущностей в данном lookup
  */
 public interface EntityLookup<T extends EntityLike> {
 

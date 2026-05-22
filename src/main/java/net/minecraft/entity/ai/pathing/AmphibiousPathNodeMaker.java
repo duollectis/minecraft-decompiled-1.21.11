@@ -8,9 +8,14 @@ import net.minecraft.world.chunk.ChunkCache;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code AmphibiousPathNodeMaker}.
+ * Построитель узлов пути для земноводных существ (черепахи, лягушки и т.д.).
+ * Временно изменяет штрафы пути для воды и суши, восстанавливая их при очистке.
+ * Поддерживает вертикальное движение в воде.
  */
 public class AmphibiousPathNodeMaker extends LandPathNodeMaker {
+
+	private static final float WALKABLE_PENALTY_IN_WATER = 6.0F;
+	private static final float WATER_BORDER_PENALTY = 4.0F;
 
 	private final boolean penalizeDeepWater;
 	private float oldWalkablePenalty;
@@ -20,80 +25,84 @@ public class AmphibiousPathNodeMaker extends LandPathNodeMaker {
 		this.penalizeDeepWater = penalizeDeepWater;
 	}
 
+	/**
+	 * Временно повышает штраф за ходьбу по суше, чтобы существо предпочитало воду.
+	 */
 	@Override
 	public void init(ChunkCache cachedWorld, MobEntity entity) {
 		super.init(cachedWorld, entity);
 		entity.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
-		this.oldWalkablePenalty = entity.getPathfindingPenalty(PathNodeType.WALKABLE);
-		entity.setPathfindingPenalty(PathNodeType.WALKABLE, 6.0F);
-		this.oldWaterBorderPenalty = entity.getPathfindingPenalty(PathNodeType.WATER_BORDER);
-		entity.setPathfindingPenalty(PathNodeType.WATER_BORDER, 4.0F);
+		oldWalkablePenalty = entity.getPathfindingPenalty(PathNodeType.WALKABLE);
+		entity.setPathfindingPenalty(PathNodeType.WALKABLE, WALKABLE_PENALTY_IN_WATER);
+		oldWaterBorderPenalty = entity.getPathfindingPenalty(PathNodeType.WATER_BORDER);
+		entity.setPathfindingPenalty(PathNodeType.WATER_BORDER, WATER_BORDER_PENALTY);
 	}
 
 	@Override
 	public void clear() {
-		this.entity.setPathfindingPenalty(PathNodeType.WALKABLE, this.oldWalkablePenalty);
-		this.entity.setPathfindingPenalty(PathNodeType.WATER_BORDER, this.oldWaterBorderPenalty);
+		entity.setPathfindingPenalty(PathNodeType.WALKABLE, oldWalkablePenalty);
+		entity.setPathfindingPenalty(PathNodeType.WATER_BORDER, oldWaterBorderPenalty);
 		super.clear();
 	}
 
 	@Override
 	public PathNode getStart() {
-		return !this.entity.isTouchingWater()
-		       ? super.getStart()
-		       : this.getStart(
-				       new BlockPos(
-						       MathHelper.floor(this.entity.getBoundingBox().minX),
-						       MathHelper.floor(this.entity.getBoundingBox().minY + 0.5),
-						       MathHelper.floor(this.entity.getBoundingBox().minZ)
-				       )
-		       );
+		if (!entity.isTouchingWater()) {
+			return super.getStart();
+		}
+
+		return getStart(new BlockPos(
+				MathHelper.floor(entity.getBoundingBox().minX),
+				MathHelper.floor(entity.getBoundingBox().minY + 0.5),
+				MathHelper.floor(entity.getBoundingBox().minZ)
+		));
 	}
 
 	@Override
 	public TargetPathNode getNode(double x, double y, double z) {
-		return this.createNode(x, y + 0.5, z);
+		return createNode(x, y + 0.5, z);
 	}
 
+	/**
+	 * Добавляет вертикальные узлы (вверх/вниз) к стандартным горизонтальным.
+	 * Для глубокой воды (ниже уровня моря - 10) добавляет штраф, если включён {@code penalizeDeepWater}.
+	 */
 	@Override
 	public int getSuccessors(PathNode[] successors, PathNode node) {
-		int i = super.getSuccessors(successors, node);
-		PathNodeType pathNodeType = this.getNodeType(node.x, node.y + 1, node.z);
-		PathNodeType pathNodeType2 = this.getNodeType(node.x, node.y, node.z);
-		int j;
-		if (this.entity.getPathfindingPenalty(pathNodeType) >= 0.0F && pathNodeType2 != PathNodeType.STICKY_HONEY) {
-			j = MathHelper.floor(Math.max(1.0F, this.entity.getStepHeight()));
-		}
-		else {
-			j = 0;
+		int count = super.getSuccessors(successors, node);
+		PathNodeType aboveType = getNodeType(node.x, node.y + 1, node.z);
+		PathNodeType currentType = getNodeType(node.x, node.y, node.z);
+		int maxYStep = entity.getPathfindingPenalty(aboveType) >= 0.0F && currentType != PathNodeType.STICKY_HONEY
+				? MathHelper.floor(Math.max(1.0F, entity.getStepHeight()))
+				: 0;
+
+		double feetY = getFeetY(new BlockPos(node.x, node.y, node.z));
+		PathNode upNode = getPathNode(node.x, node.y + 1, node.z, Math.max(0, maxYStep - 1), feetY, Direction.UP, currentType);
+		PathNode downNode = getPathNode(node.x, node.y - 1, node.z, maxYStep, feetY, Direction.DOWN, currentType);
+
+		if (isValidAquaticAdjacentSuccessor(upNode, node)) {
+			successors[count++] = upNode;
 		}
 
-		double d = this.getFeetY(new BlockPos(node.x, node.y, node.z));
-		PathNode
-				pathNode =
-				this.getPathNode(node.x, node.y + 1, node.z, Math.max(0, j - 1), d, Direction.UP, pathNodeType2);
-		PathNode pathNode2 = this.getPathNode(node.x, node.y - 1, node.z, j, d, Direction.DOWN, pathNodeType2);
-		if (this.isValidAquaticAdjacentSuccessor(pathNode, node)) {
-			successors[i++] = pathNode;
+		if (isValidAquaticAdjacentSuccessor(downNode, node) && currentType != PathNodeType.TRAPDOOR) {
+			successors[count++] = downNode;
 		}
 
-		if (this.isValidAquaticAdjacentSuccessor(pathNode2, node) && pathNodeType2 != PathNodeType.TRAPDOOR) {
-			successors[i++] = pathNode2;
-		}
+		for (int idx = 0; idx < count; idx++) {
+			PathNode successor = successors[idx];
 
-		for (int k = 0; k < i; k++) {
-			PathNode pathNode3 = successors[k];
-			if (pathNode3.type == PathNodeType.WATER && this.penalizeDeepWater
-					&& pathNode3.y < this.entity.getEntityWorld().getSeaLevel() - 10) {
-				pathNode3.penalty++;
+			if (successor.type == PathNodeType.WATER
+					&& penalizeDeepWater
+					&& successor.y < entity.getEntityWorld().getSeaLevel() - 10) {
+				successor.penalty++;
 			}
 		}
 
-		return i;
+		return count;
 	}
 
 	private boolean isValidAquaticAdjacentSuccessor(@Nullable PathNode node, PathNode successor) {
-		return this.isValidAdjacentSuccessor(node, successor) && node.type == PathNodeType.WATER;
+		return isValidAdjacentSuccessor(node, successor) && node.type == PathNodeType.WATER;
 	}
 
 	@Override
@@ -101,24 +110,28 @@ public class AmphibiousPathNodeMaker extends LandPathNodeMaker {
 		return true;
 	}
 
+	/**
+	 * Для водных блоков проверяет соседей: если рядом есть непроходимый блок — это граница воды.
+	 */
 	@Override
 	public PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z) {
-		PathNodeType pathNodeType = context.getNodeType(x, y, z);
-		if (pathNodeType == PathNodeType.WATER) {
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
+		PathNodeType nodeType = context.getNodeType(x, y, z);
 
-			for (Direction direction : Direction.values()) {
-				mutable.set(x, y, z).move(direction);
-				PathNodeType pathNodeType2 = context.getNodeType(mutable.getX(), mutable.getY(), mutable.getZ());
-				if (pathNodeType2 == PathNodeType.BLOCKED) {
-					return PathNodeType.WATER_BORDER;
-				}
-			}
-
-			return PathNodeType.WATER;
-		}
-		else {
+		if (nodeType != PathNodeType.WATER) {
 			return super.getDefaultNodeType(context, x, y, z);
 		}
+
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+		for (Direction direction : Direction.values()) {
+			mutable.set(x, y, z).move(direction);
+			PathNodeType neighborType = context.getNodeType(mutable.getX(), mutable.getY(), mutable.getZ());
+
+			if (neighborType == PathNodeType.BLOCKED) {
+				return PathNodeType.WATER_BORDER;
+			}
+		}
+
+		return PathNodeType.WATER;
 	}
 }

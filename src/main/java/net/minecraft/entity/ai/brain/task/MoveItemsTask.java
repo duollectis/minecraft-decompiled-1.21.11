@@ -32,7 +32,8 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code MoveItemsTask}.
+ * Задача мозга, реализующая перенос предметов между сундуками в заданном радиусе.
+ * Управляет тремя фазами: движение к хранилищу, ожидание в очереди, взаимодействие с инвентарём.
  */
 public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 
@@ -93,47 +94,23 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		this.navigationState = MoveItemsTask.NavigationState.TRAVELLING;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		if (pathAwareEntity.getNavigation() instanceof MobNavigation mobNavigation) {
+	@Override
+	protected void run(ServerWorld world, PathAwareEntity entity, long time) {
+		if (entity.getNavigation() instanceof MobNavigation mobNavigation) {
 			mobNavigation.setSkipRetarget(true);
 		}
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
-		return !pathAwareEntity.isLeashed();
+	@Override
+	protected boolean shouldRun(ServerWorld world, PathAwareEntity entity) {
+		return !entity.isLeashed();
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		return pathAwareEntity
-				.getBrain()
-				.getOptionalRegisteredMemory(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS)
-				.isEmpty()
-				&& !pathAwareEntity.isPanicking()
-				&& !pathAwareEntity.isLeashed();
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS).isEmpty()
+				&& !entity.isPanicking()
+				&& !entity.isLeashed();
 	}
 
 	@Override
@@ -141,51 +118,49 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return false;
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		boolean bl = this.tick(serverWorld, pathAwareEntity);
-		if (this.targetStorage == null) {
-			this.finishRunning(serverWorld, pathAwareEntity, l);
+	@Override
+	protected void keepRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		boolean storageRefreshed = tick(world, entity);
+
+		if (targetStorage == null) {
+			finishRunning(world, entity, time);
+			return;
 		}
-		else if (!bl) {
-			if (this.navigationState.equals(MoveItemsTask.NavigationState.QUEUING)) {
-				this.tickQueuing(this.targetStorage, serverWorld, pathAwareEntity);
-			}
 
-			if (this.navigationState.equals(MoveItemsTask.NavigationState.TRAVELLING)) {
-				this.tickTravelling(this.targetStorage, serverWorld, pathAwareEntity);
-			}
+		if (storageRefreshed) {
+			return;
+		}
 
-			if (this.navigationState.equals(MoveItemsTask.NavigationState.INTERACTING)) {
-				this.tickInteracting(this.targetStorage, serverWorld, pathAwareEntity);
-			}
+		if (navigationState.equals(NavigationState.QUEUING)) {
+			tickQueuing(targetStorage, world, entity);
+		}
+
+		if (navigationState.equals(NavigationState.TRAVELLING)) {
+			tickTravelling(targetStorage, world, entity);
+		}
+
+		if (navigationState.equals(NavigationState.INTERACTING)) {
+			tickInteracting(targetStorage, world, entity);
 		}
 	}
 
 	private boolean tick(ServerWorld world, PathAwareEntity entity) {
-		if (!this.hasValidTargetStorage(world, entity)) {
-			this.invalidateTargetStorage(entity);
-			Optional<MoveItemsTask.Storage> optional = this.findStorage(world, entity);
-			if (optional.isPresent()) {
-				this.targetStorage = optional.get();
-				this.transitionToTravelling(entity);
-				this.markVisited(entity, world, this.targetStorage.pos);
-				return true;
-			}
-			else {
-				this.cooldown(entity);
-				return true;
-			}
-		}
-		else {
+		if (hasValidTargetStorage(world, entity)) {
 			return false;
 		}
+
+		invalidateTargetStorage(entity);
+		Optional<Storage> found = findStorage(world, entity);
+
+		if (found.isPresent()) {
+			targetStorage = found.get();
+			transitionToTravelling(entity);
+			markVisited(entity, world, targetStorage.pos);
+		} else {
+			cooldown(entity);
+		}
+
+		return true;
 	}
 
 	private void tickQueuing(MoveItemsTask.Storage storage, World world, PathAwareEntity entity) {
@@ -194,25 +169,15 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
-	/**
-	 * Выполняет тик обновления для travelling.
-	 *
-	 * @param storage storage
-	 * @param world world
-	 * @param entity entity
-	 */
-	protected void tickTravelling(MoveItemsTask.Storage storage, World world, PathAwareEntity entity) {
-		if (this.isWithinRange(3.0, storage, world, entity, this.atCenterY(entity)) && this.matchesStoragePredicate(
-				storage,
-				world
-		)) {
-			this.transitionToQueuing(entity);
-		}
-		else if (this.isWithinRange(getSightRange(entity), storage, world, entity, this.atCenterY(entity))) {
-			this.transitionToInteracting(storage, entity);
-		}
-		else {
-			this.walkTowardsTargetStorage(entity);
+	protected void tickTravelling(Storage storage, World world, PathAwareEntity entity) {
+		Vec3d centerY = atCenterY(entity);
+
+		if (isWithinRange(QUEUING_RANGE, storage, world, entity, centerY) && matchesStoragePredicate(storage, world)) {
+			transitionToQueuing(entity);
+		} else if (isWithinRange(getSightRange(entity), storage, world, entity, centerY)) {
+			transitionToInteracting(storage, entity);
+		} else {
+			walkTowardsTargetStorage(entity);
 		}
 	}
 
@@ -220,31 +185,25 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return this.atCenterY(entity, entity.getEntityPos());
 	}
 
-	/**
-	 * Выполняет тик обновления для interacting.
-	 *
-	 * @param storage storage
-	 * @param world world
-	 * @param entity entity
-	 */
-	protected void tickInteracting(MoveItemsTask.Storage storage, World world, PathAwareEntity entity) {
-		if (!this.isWithinRange(2.0, storage, world, entity, this.atCenterY(entity))) {
-			this.transitionToTravelling(entity);
+	protected void tickInteracting(Storage storage, World world, PathAwareEntity entity) {
+		if (!isWithinRange(INTERACTION_SIGHT_RANGE, storage, world, entity, atCenterY(entity))) {
+			transitionToTravelling(entity);
+			return;
 		}
-		else {
-			this.interactionTicks++;
-			this.setLookTarget(storage, entity);
-			if (this.interactionTicks >= 60) {
-				this.selectInteractionState(
-						entity,
-						storage.inventory,
-						this::takeStack,
-						(entityxx, inventory) -> this.invalidateTargetStorage(entity),
-						this::placeStack,
-						(entityxx, inventory) -> this.invalidateTargetStorage(entity)
-				);
-				this.transitionToTravelling(entity);
-			}
+
+		interactionTicks++;
+		setLookTarget(storage, entity);
+
+		if (interactionTicks >= INTERACTION_TICKS) {
+			selectInteractionState(
+					entity,
+					storage.inventory,
+					this::takeStack,
+					(e, inv) -> invalidateTargetStorage(entity),
+					this::placeStack,
+					(e, inv) -> invalidateTargetStorage(entity)
+			);
+			transitionToTravelling(entity);
 		}
 	}
 
@@ -259,48 +218,49 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	private void walkTowardsTargetStorage(PathAwareEntity entity) {
-		if (this.targetStorage != null) {
-			TargetUtil.walkTowards(entity, this.targetStorage.pos, this.speed, 0);
+		if (targetStorage != null) {
+			TargetUtil.walkTowards(entity, targetStorage.pos, speed, 0);
 		}
 	}
 
-	private void transitionToInteracting(MoveItemsTask.Storage storage, PathAwareEntity entity) {
-		this.selectInteractionState(
+	private void transitionToInteracting(Storage storage, PathAwareEntity entity) {
+		selectInteractionState(
 				entity,
 				storage.inventory,
-				this.createSetInteractionStateCallback(MoveItemsTask.InteractionState.PICKUP_ITEM),
-				this.createSetInteractionStateCallback(MoveItemsTask.InteractionState.PICKUP_NO_ITEM),
-				this.createSetInteractionStateCallback(MoveItemsTask.InteractionState.PLACE_ITEM),
-				this.createSetInteractionStateCallback(MoveItemsTask.InteractionState.PLACE_NO_ITEM)
+				createSetInteractionStateCallback(InteractionState.PICKUP_ITEM),
+				createSetInteractionStateCallback(InteractionState.PICKUP_NO_ITEM),
+				createSetInteractionStateCallback(InteractionState.PLACE_ITEM),
+				createSetInteractionStateCallback(InteractionState.PLACE_NO_ITEM)
 		);
-		this.setNavigationState(MoveItemsTask.NavigationState.INTERACTING);
+		setNavigationState(NavigationState.INTERACTING);
 	}
 
 	private void transitionToTravelling(PathAwareEntity entity) {
-		this.travellingCallback.accept(entity);
-		this.setNavigationState(MoveItemsTask.NavigationState.TRAVELLING);
-		this.interactionState = null;
-		this.interactionTicks = 0;
+		travellingCallback.accept(entity);
+		setNavigationState(NavigationState.TRAVELLING);
+		interactionState = null;
+		interactionTicks = 0;
 	}
 
-	private BiConsumer<PathAwareEntity, Inventory> createSetInteractionStateCallback(MoveItemsTask.InteractionState state) {
-		return (entity, inventory) -> this.setInteractionState(state);
+	private BiConsumer<PathAwareEntity, Inventory> createSetInteractionStateCallback(InteractionState state) {
+		return (entity, inventory) -> setInteractionState(state);
 	}
 
-	private void setNavigationState(MoveItemsTask.NavigationState state) {
-		this.navigationState = state;
+	private void setNavigationState(NavigationState state) {
+		navigationState = state;
 	}
 
-	private void setInteractionState(MoveItemsTask.InteractionState state) {
-		this.interactionState = state;
+	private void setInteractionState(InteractionState state) {
+		interactionState = state;
 	}
 
-	private void setLookTarget(MoveItemsTask.Storage storage, PathAwareEntity entity) {
+	private void setLookTarget(Storage storage, PathAwareEntity entity) {
 		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(storage.pos));
-		this.resetNavigation(entity);
-		if (this.interactionState != null) {
-			Optional.ofNullable(this.interactionCallbacks.get(this.interactionState))
-			        .ifPresent(consumer -> consumer.accept(entity, storage, this.interactionTicks));
+		resetNavigation(entity);
+
+		if (interactionState != null) {
+			Optional.ofNullable(interactionCallbacks.get(interactionState))
+			        .ifPresent(consumer -> consumer.accept(entity, storage, interactionTicks));
 		}
 	}
 
@@ -328,45 +288,49 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
-	private Optional<MoveItemsTask.Storage> findStorage(ServerWorld world, PathAwareEntity entity) {
-		Box box = this.getSearchBoundingBox(entity);
-		Set<GlobalPos> set = getVisitedPositions(entity);
-		Set<GlobalPos> set2 = getUnreachablePositions(entity);
-		List<ChunkPos>
-				list =
-				ChunkPos
-						.stream(
-								new ChunkPos(entity.getBlockPos()),
-								Math.floorDiv(this.getHorizontalRange(entity), 16) + 1
-						)
-						.toList();
-		MoveItemsTask.Storage storage = null;
-		double d = Float.MAX_VALUE;
+	private Optional<Storage> findStorage(ServerWorld world, PathAwareEntity entity) {
+		Box searchBox = getSearchBoundingBox(entity);
+		Set<GlobalPos> visited = getVisitedPositions(entity);
+		Set<GlobalPos> unreachable = getUnreachablePositions(entity);
+		List<ChunkPos> chunks = ChunkPos.stream(
+				new ChunkPos(entity.getBlockPos()),
+				Math.floorDiv(getHorizontalRange(entity), MAX_STACK_SIZE_AT_ONCE) + 1
+		).toList();
 
-		for (ChunkPos chunkPos : list) {
-			WorldChunk worldChunk = world.getChunkManager().getWorldChunk(chunkPos.x, chunkPos.z);
-			if (worldChunk != null) {
-				for (BlockEntity blockEntity : worldChunk.getBlockEntities().values()) {
-					if (blockEntity instanceof ChestBlockEntity chestBlockEntity) {
-						double e = chestBlockEntity.getPos().getSquaredDistance(entity.getEntityPos());
-						if (e < d) {
-							MoveItemsTask.Storage
-									storage2 =
-									this.getStorageFor(entity, world, chestBlockEntity, set, set2, box);
-							if (storage2 != null) {
-								storage = storage2;
-								d = e;
-							}
-						}
-					}
+		Storage nearest = null;
+		double nearestDistSq = Float.MAX_VALUE;
+
+		for (ChunkPos chunkPos : chunks) {
+			WorldChunk chunk = world.getChunkManager().getWorldChunk(chunkPos.x, chunkPos.z);
+
+			if (chunk == null) {
+				continue;
+			}
+
+			for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+				if (!(blockEntity instanceof ChestBlockEntity)) {
+					continue;
+				}
+
+				double distSq = blockEntity.getPos().getSquaredDistance(entity.getEntityPos());
+
+				if (distSq >= nearestDistSq) {
+					continue;
+				}
+
+				Storage candidate = getStorageFor(entity, world, blockEntity, visited, unreachable, searchBox);
+
+				if (candidate != null) {
+					nearest = candidate;
+					nearestDistSq = distSq;
 				}
 			}
 		}
 
-		return storage == null ? Optional.empty() : Optional.of(storage);
+		return nearest == null ? Optional.empty() : Optional.of(nearest);
 	}
 
-	private MoveItemsTask.@Nullable Storage getStorageFor(
+	private @Nullable Storage getStorageFor(
 			PathAwareEntity entity,
 			World world,
 			BlockEntity blockEntity,
@@ -374,67 +338,64 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 			Set<GlobalPos> unreachablePositions,
 			Box box
 	) {
-		BlockPos blockPos = blockEntity.getPos();
-		boolean bl = box.contains(blockPos.getX(), blockPos.getY(), blockPos.getZ());
-		if (!bl) {
+		BlockPos pos = blockEntity.getPos();
+
+		if (!box.contains(pos.getX(), pos.getY(), pos.getZ())) {
 			return null;
 		}
-		else {
-			MoveItemsTask.Storage storage = MoveItemsTask.Storage.forContainer(blockEntity, world);
-			if (storage == null) {
-				return null;
-			}
-			else {
-				boolean bl2 = this.testContainer(entity, storage.state)
-						&& !this.hasVisited(visitedPositions, unreachablePositions, storage, world)
-						&& !this.isLocked(storage);
-				return bl2 ? storage : null;
-			}
+
+		Storage storage = Storage.forContainer(blockEntity, world);
+
+		if (storage == null) {
+			return null;
 		}
+
+		boolean usable = testContainer(entity, storage.state)
+				&& !hasVisited(visitedPositions, unreachablePositions, storage, world)
+				&& !isLocked(storage);
+
+		return usable ? storage : null;
 	}
 
-	private boolean isLocked(MoveItemsTask.Storage storage) {
-		return storage.blockEntity instanceof LockableContainerBlockEntity lockableContainerBlockEntity
-				&& lockableContainerBlockEntity.isLocked();
+	private boolean isLocked(Storage storage) {
+		return storage.blockEntity instanceof LockableContainerBlockEntity lockable && lockable.isLocked();
 	}
 
 	private boolean hasValidTargetStorage(World world, PathAwareEntity entity) {
-		boolean
-				bl =
-				this.targetStorage != null && this.testContainer(entity, this.targetStorage.state) && this.isUnchanged(
-						world,
-						this.targetStorage
-				);
-		if (bl && !this.isChestBlocked(world, this.targetStorage)) {
-			if (!this.navigationState.equals(MoveItemsTask.NavigationState.TRAVELLING)) {
-				return true;
-			}
+		boolean valid = targetStorage != null
+				&& testContainer(entity, targetStorage.state)
+				&& isUnchanged(world, targetStorage);
 
-			if (this.canNavigateTo(world, this.targetStorage, entity)) {
-				return true;
-			}
-
-			this.markUnreachable(entity, world, this.targetStorage.pos);
+		if (!valid || isChestBlocked(world, targetStorage)) {
+			return false;
 		}
 
+		if (!navigationState.equals(NavigationState.TRAVELLING)) {
+			return true;
+		}
+
+		if (canNavigateTo(world, targetStorage, entity)) {
+			return true;
+		}
+
+		markUnreachable(entity, world, targetStorage.pos);
 		return false;
 	}
 
-	private boolean canNavigateTo(World world, MoveItemsTask.Storage storage, PathAwareEntity entity) {
-		Path
-				path =
-				entity.getNavigation().getCurrentPath() == null ? entity.getNavigation().findPathTo(storage.pos, 0)
-				                                                : entity.getNavigation().getCurrentPath();
-		Vec3d vec3d = this.getTargetPos(path, entity);
-		boolean bl = this.isWithinRange(getSightRange(entity), storage, world, entity, vec3d);
-		boolean bl2 = path == null && !bl;
-		return bl2 || this.isVisible(world, bl, vec3d, storage, entity);
+	private boolean canNavigateTo(World world, Storage storage, PathAwareEntity entity) {
+		Path path = entity.getNavigation().getCurrentPath() == null
+				? entity.getNavigation().findPathTo(storage.pos, 0)
+				: entity.getNavigation().getCurrentPath();
+		Vec3d targetPos = getTargetPos(path, entity);
+		boolean withinSight = isWithinRange(getSightRange(entity), storage, world, entity, targetPos);
+		boolean noPathAndNotVisible = path == null && !withinSight;
+		return noPathAndNotVisible || isVisible(world, withinSight, targetPos, storage, entity);
 	}
 
 	private Vec3d getTargetPos(@Nullable Path path, PathAwareEntity entity) {
-		boolean bl = path == null || path.getEnd() == null;
-		Vec3d vec3d = bl ? entity.getEntityPos() : path.getEnd().getBlockPos().toBottomCenterPos();
-		return this.atCenterY(entity, vec3d);
+		boolean noPath = path == null || path.getEnd() == null;
+		Vec3d pos = noPath ? entity.getEntityPos() : path.getEnd().getBlockPos().toBottomCenterPos();
+		return atCenterY(entity, pos);
 	}
 
 	private Vec3d atCenterY(PathAwareEntity entity, Vec3d pos) {
@@ -449,16 +410,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return storage.blockEntity.equals(world.getBlockEntity(storage.pos));
 	}
 
-	private Stream<MoveItemsTask.Storage> getContainerStorages(MoveItemsTask.Storage storage, World world) {
-		if (storage.state.get(ChestBlock.CHEST_TYPE, ChestType.SINGLE) != ChestType.SINGLE) {
-			MoveItemsTask.Storage
-					storage2 =
-					MoveItemsTask.Storage.forContainer(ChestBlock.getPosInFrontOf(storage.pos, storage.state), world);
-			return storage2 != null ? Stream.of(storage, storage2) : Stream.of(storage);
-		}
-		else {
+	private Stream<Storage> getContainerStorages(Storage storage, World world) {
+		if (storage.state.get(ChestBlock.CHEST_TYPE, ChestType.SINGLE) == ChestType.SINGLE) {
 			return Stream.of(storage);
 		}
+
+		Storage adjacent = Storage.forContainer(ChestBlock.getPosInFrontOf(storage.pos, storage.state), world);
+		return adjacent != null ? Stream.of(storage, adjacent) : Stream.of(storage);
 	}
 
 	private Box getSearchBoundingBox(PathAwareEntity entity) {
@@ -500,42 +458,29 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return entity.getNavigation().getCurrentPath() != null && entity.getNavigation().getCurrentPath().isFinished();
 	}
 
-	/**
-	 * Mark visited.
-	 *
-	 * @param entity entity
-	 * @param world world
-	 * @param pos pos
-	 */
 	protected void markVisited(PathAwareEntity entity, World world, BlockPos pos) {
-		Set<GlobalPos> set = new HashSet<>(getVisitedPositions(entity));
-		set.add(new GlobalPos(world.getRegistryKey(), pos));
-		if (set.size() > 10) {
-			this.cooldown(entity);
-		}
-		else {
-			entity.getBrain().remember(MemoryModuleType.VISITED_BLOCK_POSITIONS, set, 6000L);
+		Set<GlobalPos> visited = new HashSet<>(getVisitedPositions(entity));
+		visited.add(new GlobalPos(world.getRegistryKey(), pos));
+
+		if (visited.size() > VISITS_UNTIL_COOLDOWN) {
+			cooldown(entity);
+		} else {
+			entity.getBrain().remember(MemoryModuleType.VISITED_BLOCK_POSITIONS, visited, VISITED_POSITION_EXPIRY);
 		}
 	}
 
-	/**
-	 * Mark unreachable.
-	 *
-	 * @param entity entity
-	 * @param world world
-	 * @param blockPos block pos
-	 */
-	protected void markUnreachable(PathAwareEntity entity, World world, BlockPos blockPos) {
-		Set<GlobalPos> set = new HashSet<>(getVisitedPositions(entity));
-		set.remove(new GlobalPos(world.getRegistryKey(), blockPos));
-		Set<GlobalPos> set2 = new HashSet<>(getUnreachablePositions(entity));
-		set2.add(new GlobalPos(world.getRegistryKey(), blockPos));
-		if (set2.size() > 50) {
-			this.cooldown(entity);
-		}
-		else {
-			entity.getBrain().remember(MemoryModuleType.VISITED_BLOCK_POSITIONS, set, 6000L);
-			entity.getBrain().remember(MemoryModuleType.UNREACHABLE_TRANSPORT_BLOCK_POSITIONS, set2, 6000L);
+	protected void markUnreachable(PathAwareEntity entity, World world, BlockPos pos) {
+		GlobalPos globalPos = new GlobalPos(world.getRegistryKey(), pos);
+		Set<GlobalPos> visited = new HashSet<>(getVisitedPositions(entity));
+		visited.remove(globalPos);
+		Set<GlobalPos> unreachable = new HashSet<>(getUnreachablePositions(entity));
+		unreachable.add(globalPos);
+
+		if (unreachable.size() > MAX_UNREACHABLE_POSITIONS) {
+			cooldown(entity);
+		} else {
+			entity.getBrain().remember(MemoryModuleType.VISITED_BLOCK_POSITIONS, visited, VISITED_POSITION_EXPIRY);
+			entity.getBrain().remember(MemoryModuleType.UNREACHABLE_TRANSPORT_BLOCK_POSITIONS, unreachable, VISITED_POSITION_EXPIRY);
 		}
 	}
 
@@ -643,88 +588,73 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	private static ItemStack extractStack(Inventory inventory) {
-		int i = 0;
+		int slot = 0;
 
-		for (ItemStack itemStack : inventory) {
-			if (!itemStack.isEmpty()) {
-				int j = Math.min(itemStack.getCount(), 16);
-				return inventory.removeStack(i, j);
+		for (ItemStack stack : inventory) {
+			if (!stack.isEmpty()) {
+				int amount = Math.min(stack.getCount(), MAX_STACK_SIZE_AT_ONCE);
+				return inventory.removeStack(slot, amount);
 			}
 
-			i++;
+			slot++;
 		}
 
 		return ItemStack.EMPTY;
 	}
 
 	private static ItemStack insertStack(PathAwareEntity entity, Inventory inventory) {
-		int i = 0;
-		ItemStack itemStack = entity.getMainHandStack();
+		int slot = 0;
+		ItemStack held = entity.getMainHandStack();
 
-		for (ItemStack itemStack2 : inventory) {
-			if (itemStack2.isEmpty()) {
-				inventory.setStack(i, itemStack);
+		for (ItemStack existing : inventory) {
+			if (existing.isEmpty()) {
+				inventory.setStack(slot, held);
 				return ItemStack.EMPTY;
 			}
 
-			if (ItemStack.areItemsAndComponentsEqual(itemStack2, itemStack)
-					&& itemStack2.getCount() < itemStack2.getMaxCount()) {
-				int j = itemStack2.getMaxCount() - itemStack2.getCount();
-				int k = Math.min(j, itemStack.getCount());
-				itemStack2.setCount(itemStack2.getCount() + k);
-				itemStack.setCount(itemStack.getCount() - j);
-				inventory.setStack(i, itemStack2);
-				if (itemStack.isEmpty()) {
+			if (ItemStack.areItemsAndComponentsEqual(existing, held) && existing.getCount() < existing.getMaxCount()) {
+				int space = existing.getMaxCount() - existing.getCount();
+				int toInsert = Math.min(space, held.getCount());
+				existing.setCount(existing.getCount() + toInsert);
+				held.setCount(held.getCount() - space);
+				inventory.setStack(slot, existing);
+
+				if (held.isEmpty()) {
 					return ItemStack.EMPTY;
 				}
 			}
 
-			i++;
+			slot++;
 		}
 
-		return itemStack;
+		return held;
 	}
 
-	/**
-	 * Invalidate target storage.
-	 *
-	 * @param entity entity
-	 */
 	protected void invalidateTargetStorage(PathAwareEntity entity) {
-		this.interactionTicks = 0;
-		this.targetStorage = null;
+		interactionTicks = 0;
+		targetStorage = null;
 		entity.getNavigation().stop();
 		entity.getBrain().forget(MemoryModuleType.WALK_TARGET);
 	}
 
-	/**
-	 * Сбрасывает visited positions.
-	 *
-	 * @param entity entity
-	 */
 	protected void resetVisitedPositions(PathAwareEntity entity) {
-		this.invalidateTargetStorage(entity);
+		invalidateTargetStorage(entity);
 		entity.getBrain().forget(MemoryModuleType.VISITED_BLOCK_POSITIONS);
 		entity.getBrain().forget(MemoryModuleType.UNREACHABLE_TRANSPORT_BLOCK_POSITIONS);
 	}
 
 	private void cooldown(PathAwareEntity entity) {
-		this.invalidateTargetStorage(entity);
-		entity.getBrain().remember(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS, 140);
+		invalidateTargetStorage(entity);
+		entity.getBrain().remember(MemoryModuleType.TRANSPORT_ITEMS_COOLDOWN_TICKS, COOLDOWN_EXPIRY);
 		entity.getBrain().forget(MemoryModuleType.VISITED_BLOCK_POSITIONS);
 		entity.getBrain().forget(MemoryModuleType.UNREACHABLE_TRANSPORT_BLOCK_POSITIONS);
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
-		this.transitionToTravelling(pathAwareEntity);
-		if (pathAwareEntity.getNavigation() instanceof MobNavigation mobNavigation) {
+	@Override
+	protected void finishRunning(ServerWorld world, PathAwareEntity entity, long time) {
+		transitionToTravelling(entity);
+
+		if (entity.getNavigation() instanceof MobNavigation mobNavigation) {
 			mobNavigation.setSkipRetarget(false);
 		}
 	}
@@ -738,41 +668,29 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code InteractionCallback}.
-	 */
 	public interface InteractionCallback extends TriConsumer<PathAwareEntity, MoveItemsTask.Storage, Integer> {
 	}
 
-	/**
-	 * {@code InteractionState}.
-	 */
-	public static enum InteractionState {
+	public enum InteractionState {
 		PICKUP_ITEM,
 		PICKUP_NO_ITEM,
 		PLACE_ITEM,
-		PLACE_NO_ITEM;
+		PLACE_NO_ITEM
 	}
 
-	/**
-	 * {@code NavigationState}.
-	 */
-	public static enum NavigationState {
+	public enum NavigationState {
 		TRAVELLING,
 		QUEUING,
-		INTERACTING;
+		INTERACTING
 	}
 
-	/**
-	 * {@code Storage}.
-	 */
 	public record Storage(BlockPos pos, Inventory inventory, BlockEntity blockEntity, BlockState state) {
 
 		public static MoveItemsTask.@Nullable Storage forContainer(BlockEntity blockEntity, World world) {
 			BlockPos blockPos = blockEntity.getPos();
 			BlockState blockState = blockEntity.getCachedState();
-			Inventory inventory = getInventory(blockEntity, blockState, world, blockPos);
-			return inventory != null ? new MoveItemsTask.Storage(blockPos, inventory, blockEntity, blockState) : null;
+			Inventory inv = getInventory(blockEntity, blockState, world, blockPos);
+			return inv != null ? new MoveItemsTask.Storage(blockPos, inv, blockEntity, blockState) : null;
 		}
 
 		public static MoveItemsTask.@Nullable Storage forContainer(BlockPos pos, World world) {
@@ -789,9 +707,8 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 			if (state.getBlock() instanceof ChestBlock chestBlock) {
 				return ChestBlock.getInventory(chestBlock, state, world, pos, false);
 			}
-			else {
-				return blockEntity instanceof Inventory inventory ? inventory : null;
-			}
+
+			return blockEntity instanceof Inventory inventory ? inventory : null;
 		}
 	}
 }

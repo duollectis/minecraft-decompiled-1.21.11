@@ -13,10 +13,18 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code AllOfEnchantmentEffects}.
+ * Составной эффект зачарования, последовательно применяющий список дочерних эффектов.
+ * Реализует паттерн «Composite» для всех трёх типов эффектов зачарования.
  */
 public interface AllOfEnchantmentEffects {
 
+	/**
+	 * Строит {@link MapCodec} для составного эффекта на основе кодека базового типа.
+	 *
+	 * @param baseCodec кодек базового типа эффекта
+	 * @param fromList  фабрика составного эффекта из списка
+	 * @param toList    геттер списка дочерних эффектов
+	 */
 	static <T, A extends T> MapCodec<A> buildCodec(
 			Codec<T> baseCodec,
 			Function<List<T>, A> fromList,
@@ -27,54 +35,53 @@ public interface AllOfEnchantmentEffects {
 				.apply(instance, fromList));
 	}
 
-	static AllOfEnchantmentEffects.EntityEffects allOf(EnchantmentEntityEffect... entityEffects) {
-		return new AllOfEnchantmentEffects.EntityEffects(List.of(entityEffects));
+	static EntityEffects allOf(EnchantmentEntityEffect... entityEffects) {
+		return new EntityEffects(List.of(entityEffects));
 	}
 
-	static AllOfEnchantmentEffects.LocationBasedEffects allOf(EnchantmentLocationBasedEffect... locationBasedEffects) {
-		return new AllOfEnchantmentEffects.LocationBasedEffects(List.of(locationBasedEffects));
+	static LocationBasedEffects allOf(EnchantmentLocationBasedEffect... locationBasedEffects) {
+		return new LocationBasedEffects(List.of(locationBasedEffects));
 	}
 
-	static AllOfEnchantmentEffects.ValueEffects allOf(EnchantmentValueEffect... valueEffects) {
-		return new AllOfEnchantmentEffects.ValueEffects(List.of(valueEffects));
+	static ValueEffects allOf(EnchantmentValueEffect... valueEffects) {
+		return new ValueEffects(List.of(valueEffects));
 	}
 
 	/**
-	 * {@code EntityEffects}.
+	 * Составной эффект для сущностей: последовательно применяет все дочерние {@link EnchantmentEntityEffect}.
 	 */
-	public record EntityEffects(List<EnchantmentEntityEffect> effects) implements EnchantmentEntityEffect {
+	record EntityEffects(List<EnchantmentEntityEffect> effects) implements EnchantmentEntityEffect {
 
-		public static final MapCodec<AllOfEnchantmentEffects.EntityEffects> CODEC = AllOfEnchantmentEffects.buildCodec(
+		public static final MapCodec<EntityEffects> CODEC = AllOfEnchantmentEffects.buildCodec(
 				EnchantmentEntityEffect.CODEC,
-				AllOfEnchantmentEffects.EntityEffects::new,
-				AllOfEnchantmentEffects.EntityEffects::effects
+				EntityEffects::new,
+				EntityEffects::effects
 		);
 
 		@Override
 		public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-			for (EnchantmentEntityEffect enchantmentEntityEffect : this.effects) {
-				enchantmentEntityEffect.apply(world, level, context, user, pos);
+			for (EnchantmentEntityEffect effect : effects) {
+				effect.apply(world, level, context, user, pos);
 			}
 		}
 
 		@Override
-		public MapCodec<AllOfEnchantmentEffects.EntityEffects> getCodec() {
+		public MapCodec<EntityEffects> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code LocationBasedEffects}.
+	 * Составной эффект, привязанный к местоположению: последовательно применяет все дочерние
+	 * {@link EnchantmentLocationBasedEffect}, включая вызовы {@code remove}.
 	 */
-	public record LocationBasedEffects(List<EnchantmentLocationBasedEffect> effects) implements EnchantmentLocationBasedEffect {
+	record LocationBasedEffects(List<EnchantmentLocationBasedEffect> effects) implements EnchantmentLocationBasedEffect {
 
-		public static final MapCodec<AllOfEnchantmentEffects.LocationBasedEffects>
-				CODEC =
-				AllOfEnchantmentEffects.buildCodec(
-						EnchantmentLocationBasedEffect.CODEC,
-						AllOfEnchantmentEffects.LocationBasedEffects::new,
-						AllOfEnchantmentEffects.LocationBasedEffects::effects
-				);
+		public static final MapCodec<LocationBasedEffects> CODEC = AllOfEnchantmentEffects.buildCodec(
+				EnchantmentLocationBasedEffect.CODEC,
+				LocationBasedEffects::new,
+				LocationBasedEffects::effects
+		);
 
 		@Override
 		public void apply(
@@ -85,46 +92,49 @@ public interface AllOfEnchantmentEffects {
 				Vec3d pos,
 				boolean newlyApplied
 		) {
-			for (EnchantmentLocationBasedEffect enchantmentLocationBasedEffect : this.effects) {
-				enchantmentLocationBasedEffect.apply(world, level, context, user, pos, newlyApplied);
+			for (EnchantmentLocationBasedEffect effect : effects) {
+				effect.apply(world, level, context, user, pos, newlyApplied);
 			}
 		}
 
 		@Override
 		public void remove(EnchantmentEffectContext context, Entity user, Vec3d pos, int level) {
-			for (EnchantmentLocationBasedEffect enchantmentLocationBasedEffect : this.effects) {
-				enchantmentLocationBasedEffect.remove(context, user, pos, level);
+			for (EnchantmentLocationBasedEffect effect : effects) {
+				effect.remove(context, user, pos, level);
 			}
 		}
 
 		@Override
-		public MapCodec<AllOfEnchantmentEffects.LocationBasedEffects> getCodec() {
+		public MapCodec<LocationBasedEffects> getCodec() {
 			return CODEC;
 		}
 	}
 
 	/**
-	 * {@code ValueEffects}.
+	 * Составной числовой эффект: последовательно применяет все дочерние {@link EnchantmentValueEffect},
+	 * передавая результат каждого следующему (цепочка трансформаций).
 	 */
-	public record ValueEffects(List<EnchantmentValueEffect> effects) implements EnchantmentValueEffect {
+	record ValueEffects(List<EnchantmentValueEffect> effects) implements EnchantmentValueEffect {
 
-		public static final MapCodec<AllOfEnchantmentEffects.ValueEffects> CODEC = AllOfEnchantmentEffects.buildCodec(
+		public static final MapCodec<ValueEffects> CODEC = AllOfEnchantmentEffects.buildCodec(
 				EnchantmentValueEffect.CODEC,
-				AllOfEnchantmentEffects.ValueEffects::new,
-				AllOfEnchantmentEffects.ValueEffects::effects
+				ValueEffects::new,
+				ValueEffects::effects
 		);
 
 		@Override
 		public float apply(int level, Random random, float inputValue) {
-			for (EnchantmentValueEffect enchantmentValueEffect : this.effects) {
-				inputValue = enchantmentValueEffect.apply(level, random, inputValue);
+			float result = inputValue;
+
+			for (EnchantmentValueEffect effect : effects) {
+				result = effect.apply(level, random, result);
 			}
 
-			return inputValue;
+			return result;
 		}
 
 		@Override
-		public MapCodec<AllOfEnchantmentEffects.ValueEffects> getCodec() {
+		public MapCodec<ValueEffects> getCodec() {
 			return CODEC;
 		}
 	}

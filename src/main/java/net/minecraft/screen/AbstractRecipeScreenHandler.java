@@ -7,32 +7,45 @@ import net.minecraft.recipe.book.RecipeBookType;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code AbstractRecipeScreenHandler}.
+ * Базовый класс для обработчиков экранов, поддерживающих рецепты (крафт, плавка).
+ * <p>
+ * Предоставляет контракт для заполнения слотов ввода по рецепту и интеграции
+ * с книгой рецептов. Конкретные реализации — {@link AbstractCraftingScreenHandler}
+ * и {@link AbstractFurnaceScreenHandler}.
  */
 public abstract class AbstractRecipeScreenHandler extends ScreenHandler {
 
-	public AbstractRecipeScreenHandler(ScreenHandlerType<?> screenHandlerType, int i) {
-		super(screenHandlerType, i);
+	public AbstractRecipeScreenHandler(ScreenHandlerType<?> type, int syncId) {
+		super(type, syncId);
 	}
 
-	public abstract AbstractRecipeScreenHandler.PostFillAction fillInputSlots(
-			boolean craftAll, boolean creative, RecipeEntry<?> recipe, ServerWorld world, PlayerInventory inventory
+	/**
+	 * Заполняет слоты ввода ингредиентами из указанного рецепта.
+	 *
+	 * @param craftAll    если {@code true} — заполнить максимально возможное количество
+	 * @param creative    режим творчества (не расходует предметы из инвентаря)
+	 * @param recipe      рецепт для заполнения
+	 * @param world       серверный мир
+	 * @param inventory   инвентарь игрока как источник ингредиентов
+	 * @return действие после заполнения (ничего или показать призрачный рецепт)
+	 */
+	public abstract PostFillAction fillInputSlots(
+			boolean craftAll,
+			boolean creative,
+			RecipeEntry<?> recipe,
+			ServerWorld world,
+			PlayerInventory inventory
 	);
 
-	/**
-	 * Populate recipe finder.
-	 *
-	 * @param finder finder
-	 */
 	public abstract void populateRecipeFinder(RecipeFinder finder);
 
 	public abstract RecipeBookType getCategory();
 
 	/**
-	 * {@code PostFillAction}.
+	 * Действие, выполняемое после заполнения слотов ввода рецептом.
 	 */
-	public static enum PostFillAction {
+	public enum PostFillAction {
 		NOTHING,
-		PLACE_GHOST_RECIPE;
+		PLACE_GHOST_RECIPE
 	}
 }

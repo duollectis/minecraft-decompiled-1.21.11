@@ -8,17 +8,20 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code NoiseThresholdCountPlacementModifier}.
+ * Модификатор размещения, выбирающий количество попыток в зависимости от того,
+ * превышает ли значение шума листвы заданный порог.
  */
 public class NoiseThresholdCountPlacementModifier extends AbstractCountPlacementModifier {
 
+	private static final double NOISE_SCALE = 200.0;
+
 	public static final MapCodec<NoiseThresholdCountPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    Codec.DOUBLE.fieldOf("noise_level").forGetter(placementModifier -> placementModifier.noiseLevel),
-					                    Codec.INT.fieldOf("below_noise").forGetter(placementModifier -> placementModifier.belowNoise),
-					                    Codec.INT.fieldOf("above_noise").forGetter(placementModifier -> placementModifier.aboveNoise)
-			                    )
-			                    .apply(instance, NoiseThresholdCountPlacementModifier::new)
+		instance -> instance.group(
+			Codec.DOUBLE.fieldOf("noise_level").forGetter(modifier -> modifier.noiseLevel),
+			Codec.INT.fieldOf("below_noise").forGetter(modifier -> modifier.belowNoise),
+			Codec.INT.fieldOf("above_noise").forGetter(modifier -> modifier.aboveNoise)
+		)
+		.apply(instance, NoiseThresholdCountPlacementModifier::new)
 	);
 	private final double noiseLevel;
 	private final int belowNoise;
@@ -30,23 +33,14 @@ public class NoiseThresholdCountPlacementModifier extends AbstractCountPlacement
 		this.aboveNoise = aboveNoise;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param noiseLevel noise level
-	 * @param belowNoise below noise
-	 * @param aboveNoise above noise
-	 *
-	 * @return NoiseThresholdCountPlacementModifier — результат операции
-	 */
 	public static NoiseThresholdCountPlacementModifier of(double noiseLevel, int belowNoise, int aboveNoise) {
 		return new NoiseThresholdCountPlacementModifier(noiseLevel, belowNoise, aboveNoise);
 	}
 
 	@Override
 	protected int getCount(Random random, BlockPos pos) {
-		double d = Biome.FOLIAGE_NOISE.sample(pos.getX() / 200.0, pos.getZ() / 200.0, false);
-		return d < this.noiseLevel ? this.belowNoise : this.aboveNoise;
+		double noiseValue = Biome.FOLIAGE_NOISE.sample(pos.getX() / NOISE_SCALE, pos.getZ() / NOISE_SCALE, false);
+		return noiseValue < noiseLevel ? belowNoise : aboveNoise;
 	}
 
 	@Override

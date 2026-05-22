@@ -11,7 +11,7 @@ import com.mojang.datafixers.util.Pair;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code DisplayNameFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class DisplayNameFix extends DataFix {
 
@@ -26,14 +26,14 @@ public class DisplayNameFix extends DataFix {
 
 	@SuppressWarnings("unchecked")
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(this.typeReference);
+		Type<?> type = getInputSchema().getType(this.typeReference);
 		OpticFinder<?> opticFinder = type.findField("DisplayName");
 		OpticFinder<Pair<String, String>>
 				opticFinder2 =
 				(OpticFinder<Pair<String, String>>) DSL.typeFinder(this
 						.getInputSchema()
 						.getType(TypeReferences.TEXT_COMPONENT));
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
 				type,
 				typed -> typed.updateTyped(

@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code RenameChunkStatusFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameChunkStatusFix extends DataFix {
 
@@ -27,9 +27,9 @@ public class RenameChunkStatusFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
-				this.getInputSchema().getType(TypeReferences.CHUNK),
+				getInputSchema().getType(TypeReferences.CHUNK),
 				typed -> typed.update(
 						DSL.remainderFinder(),
 						chunk -> chunk

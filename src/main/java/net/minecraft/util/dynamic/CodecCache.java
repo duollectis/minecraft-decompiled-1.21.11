@@ -10,82 +10,55 @@ import com.mojang.serialization.DynamicOps;
 import net.minecraft.nbt.NbtElement;
 
 /**
- * {@code CodecCache}.
+ * Кэш результатов кодирования кодеков.
+ * Позволяет избежать повторного кодирования одних и тех же значений,
+ * используя слабые ссылки для автоматической очистки при нехватке памяти.
  */
 public class CodecCache {
 
-	final LoadingCache<CodecCache.Key<?, ?>, DataResult<?>> cache;
+	final LoadingCache<Key<?, ?>, DataResult<?>> cache;
 
 	public CodecCache(int size) {
-		this.cache =
-				CacheBuilder
-						.newBuilder()
-						.maximumSize(size)
-						.concurrencyLevel(1)
-						.softValues()
-						.build(new CacheLoader<CodecCache.Key<?, ?>, DataResult<?>>() {
-							/**
-							 * Load.
-							 *
-							 * @param key key
-							 *
-							 * @return DataResult — результат операции
-							 */
-							public DataResult<?> load(CodecCache.Key<?, ?> key) {
-								return key.encode();
-							}
-						});
+		cache = CacheBuilder
+				.newBuilder()
+				.maximumSize(size)
+				.concurrencyLevel(1)
+				.softValues()
+				.build(CacheLoader.from(Key::encode));
 	}
 
 	/**
-	 * Wrap.
+	 * Оборачивает кодек в кэширующую обёртку.
+	 * Декодирование делегируется напрямую, кодирование — через кэш.
+	 * Для {@link NbtElement} результат копируется, чтобы избежать мутации кэшированного значения.
 	 *
-	 * @param codec codec
-	 *
-	 * @return Codec — результат операции
+	 * @param codec исходный кодек
+	 * @return кодек с кэшированием операции encode
 	 */
 	public <A> Codec<A> wrap(Codec<A> codec) {
-		return new Codec<A>() {
-			/**
-			 * Decode.
-			 *
-			 * @param ops ops
-			 * @param input input
-			 *
-			 * @return DataResult> — результат операции
-			 */
+		return new Codec<>() {
+			@Override
 			public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
 				return codec.decode(ops, input);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param value value
-			 * @param ops ops
-			 * @param prefix prefix
-			 *
-			 * @return DataResult — результат операции
-			 */
+			@SuppressWarnings("unchecked")
+			@Override
 			public <T> DataResult<T> encode(A value, DynamicOps<T> ops, T prefix) {
-				return ((DataResult) CodecCache.this.cache.getUnchecked(new CodecCache.Key(codec, value, ops)))
-						.map(object -> object instanceof NbtElement nbtElement ? nbtElement.copy() : object);
+				return ((DataResult<T>) cache.getUnchecked(new Key<>(codec, value, ops)))
+						.map(object -> object instanceof NbtElement nbt ? (T) nbt.copy() : object);
 			}
 		};
 	}
 
 	/**
-	 * {@code Key}.
+	 * Ключ кэша, идентифицирующий уникальную операцию кодирования.
+	 * Использует идентичность кодека (по ссылке) и равенство значения и ops.
 	 */
 	record Key<A, T>(Codec<A> codec, A value, DynamicOps<T> ops) {
 
-		/**
-		 * Encode.
-		 *
-		 * @return DataResult — результат операции
-		 */
-		public DataResult<T> encode() {
-			return this.codec.encodeStart(this.ops, this.value);
+		DataResult<T> encode() {
+			return codec.encodeStart(ops, value);
 		}
 
 		@Override
@@ -93,17 +66,18 @@ public class CodecCache {
 			if (this == o) {
 				return true;
 			}
-			else {
-				return !(o instanceof CodecCache.Key<?, ?> key) ? false : this.codec == key.codec && this.value.equals(
-						key.value) && this.ops.equals(key.ops);
-			}
+
+			return o instanceof Key<?, ?> key
+				&& codec == key.codec
+				&& value.equals(key.value)
+				&& ops.equals(key.ops);
 		}
 
 		@Override
 		public int hashCode() {
-			int i = System.identityHashCode(this.codec);
-			i = 31 * i + this.value.hashCode();
-			return 31 * i + this.ops.hashCode();
+			int hash = System.identityHashCode(codec);
+			hash = 31 * hash + value.hashCode();
+			return 31 * hash + ops.hashCode();
 		}
 	}
 }

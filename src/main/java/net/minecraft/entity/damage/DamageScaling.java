@@ -4,7 +4,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.util.StringIdentifiable;
 
 /**
- * {@code DamageScaling}.
+ * Определяет, масштабируется ли урон в зависимости от уровня сложности игры.
  */
 public enum DamageScaling implements StringIdentifiable {
 	NEVER("never"),
@@ -12,14 +12,15 @@ public enum DamageScaling implements StringIdentifiable {
 	ALWAYS("always");
 
 	public static final Codec<DamageScaling> CODEC = StringIdentifiable.createCodec(DamageScaling::values);
+
 	private final String id;
 
-	private DamageScaling(final String id) {
+	DamageScaling(String id) {
 		this.id = id;
 	}
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 }

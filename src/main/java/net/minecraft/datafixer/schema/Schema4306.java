@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4306}.
+ * Схема DataFixer версии 4306, разделяющая единый тип снаряда {@code minecraft:potion}
+ * на два отдельных: {@code minecraft:splash_potion} и {@code minecraft:lingering_potion},
+ * каждый из которых несёт поле {@code Item} типа {@code ITEM_STACK}.
  */
 public class Schema4306 extends IdentifierNormalizingSchema {
 
-	public Schema4306(int i, Schema schema) {
-		super(i, schema);
+	public Schema4306(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

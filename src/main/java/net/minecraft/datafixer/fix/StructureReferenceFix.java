@@ -9,7 +9,7 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code StructureReferenceFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StructureReferenceFix extends DataFix {
 
@@ -18,8 +18,8 @@ public class StructureReferenceFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
+		return fixTypeEverywhereTyped(
 				"Structure Reference Fix",
 				type,
 				structureFeatureTyped -> structureFeatureTyped.update(

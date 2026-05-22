@@ -8,27 +8,28 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code Permission}.
+ * Базовый интерфейс разрешений команд.
+ * Поддерживает два варианта: атомарное разрешение по {@link Identifier} ({@link Atom})
+ * и разрешение по уровню оператора ({@link Level}).
+ * Кодек {@link #CODEC} поддерживает сокращённую форму — просто {@link Identifier} вместо объекта.
  */
 public interface Permission {
 
-	Codec<Permission>
-			UNABBREVIATED_CODEC =
-			Registries.PERMISSION_TYPE.getCodec().dispatch(Permission::getCodec, codec -> codec);
+	Codec<Permission> UNABBREVIATED_CODEC = Registries.PERMISSION_TYPE
+			.getCodec()
+			.dispatch(Permission::getCodec, codec -> codec);
 
 	Codec<Permission> CODEC = Codec.either(UNABBREVIATED_CODEC, Identifier.CODEC)
-	                               .xmap(
-			                               either -> (Permission) either.map(perm -> perm, Permission.Atom::of),
-			                               perm -> perm instanceof Permission.Atom atom ? Either.right(atom.id())
-			                                                                            : Either.left(perm)
-	                               );
+			.xmap(
+					either -> (Permission) either.map(perm -> perm, Permission.Atom::of),
+					perm -> perm instanceof Permission.Atom atom
+							? Either.right(atom.id())
+							: Either.left(perm)
+			);
 
 	MapCodec<? extends Permission> getCodec();
 
-	/**
-	 * {@code Atom}.
-	 */
-	public record Atom(Identifier id) implements Permission {
+	record Atom(Identifier id) implements Permission {
 
 		public static final MapCodec<Permission.Atom> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance
@@ -50,10 +51,7 @@ public interface Permission {
 		}
 	}
 
-	/**
-	 * {@code Level}.
-	 */
-	public record Level(PermissionLevel level) implements Permission {
+	record Level(PermissionLevel level) implements Permission {
 
 		public static final MapCodec<Permission.Level> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance

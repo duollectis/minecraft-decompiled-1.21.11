@@ -9,7 +9,8 @@ import net.minecraft.structure.rule.RuleTest;
 import java.util.List;
 
 /**
- * {@code OreFeatureConfig}.
+ * Конфигурация фичи генерации руды. Содержит список целевых блоков с правилами
+ * замены, размер жилы и вероятность отброса при контакте с воздухом.
  */
 public class OreFeatureConfig implements FeatureConfig {
 
@@ -50,9 +51,7 @@ public class OreFeatureConfig implements FeatureConfig {
 		return new OreFeatureConfig.Target(test, state);
 	}
 
-	/**
-	 * {@code Target}.
-	 */
+	/** Пара «правило замены + целевой блок», описывающая один вариант руды в жиле. */
 	public static class Target {
 
 		public static final Codec<OreFeatureConfig.Target> CODEC = RecordCodecBuilder.create(

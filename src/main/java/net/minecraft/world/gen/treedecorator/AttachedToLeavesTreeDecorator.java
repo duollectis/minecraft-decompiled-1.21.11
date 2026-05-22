@@ -15,7 +15,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code AttachedToLeavesTreeDecorator}.
+ * Декоратор дерева, размещающий блоки, прикреплённые к листьям.
+ * Для каждого листового блока случайно выбирается направление из разрешённого списка,
+ * и если в этом направлении достаточно свободного пространства, размещается блок.
+ * Вокруг размещённого блока создаётся зона исключения, предотвращающая скопление декораций.
  */
 public class AttachedToLeavesTreeDecorator extends TreeDecorator {
 
@@ -75,34 +78,28 @@ public class AttachedToLeavesTreeDecorator extends TreeDecorator {
 		Set<BlockPos> set = new HashSet<>();
 		Random random = generator.getRandom();
 
-		for (BlockPos blockPos : Util.copyShuffled(generator.getLeavesPositions(), random)) {
-			Direction direction = Util.getRandom(this.directions, random);
-			BlockPos blockPos2 = blockPos.offset(direction);
-			if (!set.contains(blockPos2) && random.nextFloat() < this.probability && this.meetsRequiredEmptyBlocks(
-					generator,
-					blockPos,
-					direction
-			)) {
-				BlockPos
-						blockPos3 =
-						blockPos2.add(-this.exclusionRadiusXZ, -this.exclusionRadiusY, -this.exclusionRadiusXZ);
-				BlockPos
-						blockPos4 =
-						blockPos2.add(this.exclusionRadiusXZ, this.exclusionRadiusY, this.exclusionRadiusXZ);
+		for (BlockPos leafPos : Util.copyShuffled(generator.getLeavesPositions(), random)) {
+			Direction direction = Util.getRandom(directions, random);
+			BlockPos offsetPos = leafPos.offset(direction);
 
-				for (BlockPos blockPos5 : BlockPos.iterate(blockPos3, blockPos4)) {
-					set.add(blockPos5.toImmutable());
-				}
-
-				generator.replace(blockPos2, this.blockProvider.get(random, blockPos2));
+			if (set.contains(offsetPos) || random.nextFloat() >= probability || !meetsRequiredEmptyBlocks(generator, leafPos, direction)) {
+				continue;
 			}
+
+			BlockPos exclusionMin = offsetPos.add(-exclusionRadiusXZ, -exclusionRadiusY, -exclusionRadiusXZ);
+			BlockPos exclusionMax = offsetPos.add(exclusionRadiusXZ, exclusionRadiusY, exclusionRadiusXZ);
+
+			for (BlockPos exclusionPos : BlockPos.iterate(exclusionMin, exclusionMax)) {
+				set.add(exclusionPos.toImmutable());
+			}
+
+			generator.replace(offsetPos, blockProvider.get(random, offsetPos));
 		}
 	}
 
 	private boolean meetsRequiredEmptyBlocks(TreeDecorator.Generator generator, BlockPos pos, Direction direction) {
-		for (int i = 1; i <= this.requiredEmptyBlocks; i++) {
-			BlockPos blockPos = pos.offset(direction, i);
-			if (!generator.isAir(blockPos)) {
+		for (int step = 1; step <= requiredEmptyBlocks; step++) {
+			if (!generator.isAir(pos.offset(direction, step))) {
 				return false;
 			}
 		}

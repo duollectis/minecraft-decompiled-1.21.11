@@ -13,34 +13,32 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BlastFurnaceScreen}.
+ * Экран доменной печи. Наследует логику плавки из {@link AbstractFurnaceScreen}.
  */
+@Environment(EnvType.CLIENT)
 public class BlastFurnaceScreen extends AbstractFurnaceScreen<BlastFurnaceScreenHandler> {
 
 	private static final Identifier LIT_PROGRESS_TEXTURE = Identifier.ofVanilla("container/blast_furnace/lit_progress");
-	private static final Identifier
-			BURN_PROGRESS_TEXTURE =
-			Identifier.ofVanilla("container/blast_furnace/burn_progress");
+	private static final Identifier BURN_PROGRESS_TEXTURE = Identifier.ofVanilla("container/blast_furnace/burn_progress");
 	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/blast_furnace.png");
 	private static final Text TOGGLE_BLASTABLE_TEXT = Text.translatable("gui.recipebook.toggleRecipes.blastable");
 	private static final List<RecipeBookWidget.Tab> TABS = List.of(
-			new RecipeBookWidget.Tab(RecipeBookType.BLAST_FURNACE),
-			new RecipeBookWidget.Tab(Items.REDSTONE_ORE, RecipeBookCategories.BLAST_FURNACE_BLOCKS),
-			new RecipeBookWidget.Tab(Items.IRON_SHOVEL, Items.GOLDEN_LEGGINGS, RecipeBookCategories.BLAST_FURNACE_MISC)
+		new RecipeBookWidget.Tab(RecipeBookType.BLAST_FURNACE),
+		new RecipeBookWidget.Tab(Items.REDSTONE_ORE, RecipeBookCategories.BLAST_FURNACE_BLOCKS),
+		new RecipeBookWidget.Tab(Items.IRON_SHOVEL, Items.GOLDEN_LEGGINGS, RecipeBookCategories.BLAST_FURNACE_MISC)
 	);
 
 	public BlastFurnaceScreen(BlastFurnaceScreenHandler container, PlayerInventory inventory, Text title) {
 		super(
-				container,
-				inventory,
-				title,
-				TOGGLE_BLASTABLE_TEXT,
-				TEXTURE,
-				LIT_PROGRESS_TEXTURE,
-				BURN_PROGRESS_TEXTURE,
-				TABS
+			container,
+			inventory,
+			title,
+			TOGGLE_BLASTABLE_TEXT,
+			TEXTURE,
+			LIT_PROGRESS_TEXTURE,
+			BURN_PROGRESS_TEXTURE,
+			TABS
 		);
 	}
 }

@@ -5,16 +5,23 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.render.state.special.SignGuiElementRenderState;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.render.*;
+import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.texture.SpriteHolder;
 import net.minecraft.client.util.SpriteIdentifier;
 import net.minecraft.client.util.math.MatrixStack;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SignGuiElementRenderer}.
+ * Рендерер модели таблички в GUI (например, в интерфейсе редактирования таблички).
+ * Использует спрайт-атлас блоков для получения текстуры по типу древесины.
  */
+@Environment(EnvType.CLIENT)
 public class SignGuiElementRenderer extends SpecialGuiElementRenderer<SignGuiElementRenderState> {
+
+	private static final float SIGN_Y_OFFSET = -0.75F;
 
 	private final SpriteHolder sprite;
 
@@ -28,23 +35,19 @@ public class SignGuiElementRenderer extends SpecialGuiElementRenderer<SignGuiEle
 		return SignGuiElementRenderState.class;
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param signGuiElementRenderState sign gui element render state
-	 * @param matrixStack matrix stack
-	 */
-	protected void render(SignGuiElementRenderState signGuiElementRenderState, MatrixStack matrixStack) {
+	@Override
+	protected void render(SignGuiElementRenderState state, MatrixStack matrices) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()
 				.setShaderLights(DiffuseLighting.Type.ITEMS_FLAT);
-		matrixStack.translate(0.0F, -0.75F, 0.0F);
-		SpriteIdentifier spriteIdentifier = TexturedRenderLayers.getSignTextureId(signGuiElementRenderState.woodType());
-		Model.SinglePartModel singlePartModel = signGuiElementRenderState.signModel();
-		VertexConsumer
-				vertexConsumer =
-				spriteIdentifier.getVertexConsumer(this.sprite, this.vertexConsumers, singlePartModel::getLayer);
-		singlePartModel.render(matrixStack, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
+
+		matrices.translate(0.0F, SIGN_Y_OFFSET, 0.0F);
+
+		SpriteIdentifier spriteIdentifier = TexturedRenderLayers.getSignTextureId(state.woodType());
+		Model.SinglePartModel signModel = state.signModel();
+		VertexConsumer vertexConsumer = spriteIdentifier.getVertexConsumer(sprite, vertexConsumers, signModel::getLayer);
+
+		signModel.render(matrices, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
 	}
 
 	@Override

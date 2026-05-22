@@ -12,78 +12,52 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code GoToPointOfInterestTask}.
+ * Фабричный класс задачи мозга, направляющей сущность к ближайшей занятой точке интереса (POI).
+ * Если сущность уже рядом с POI — использует случайное блуждание, иначе — целенаправленное движение.
  */
 public class GoToPointOfInterestTask {
 
 	private static final int DEFAULT_HORIZONTAL_RANGE = 10;
 	private static final int DEFAULT_VERTICAL_RANGE = 7;
+	private static final int POI_SEARCH_RADIUS = 2;
+	private static final float HALF_PI = (float) (Math.PI / 2);
 
-	/**
-	 * Create.
-	 *
-	 * @param walkSpeed walk speed
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<PathAwareEntity> create(float walkSpeed) {
-		return create(walkSpeed, 10, 7);
+		return create(walkSpeed, DEFAULT_HORIZONTAL_RANGE, DEFAULT_VERTICAL_RANGE);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param walkSpeed walk speed
-	 * @param horizontalRange horizontal range
-	 * @param verticalRange vertical range
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<PathAwareEntity> create(float walkSpeed, int horizontalRange, int verticalRange) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET))
-				                  .apply(
-						                  context,
-						                  walkTarget -> (world, entity, time) -> {
-							                  BlockPos blockPos = entity.getBlockPos();
-							                  Vec3d vec3d;
-							                  if (world.isNearOccupiedPointOfInterest(blockPos)) {
-								                  vec3d = FuzzyTargeting.find(entity, horizontalRange, verticalRange);
-							                  }
-							                  else {
-								                  ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(blockPos);
-								                  ChunkSectionPos
-										                  chunkSectionPos2 =
-										                  TargetUtil.getPosClosestToOccupiedPointOfInterest(
-												                  world,
-												                  chunkSectionPos,
-												                  2
-										                  );
-								                  if (chunkSectionPos2 != chunkSectionPos) {
-									                  vec3d = NoPenaltyTargeting.findTo(
-											                  entity,
-											                  horizontalRange,
-											                  verticalRange,
-											                  Vec3d.ofBottomCenter(chunkSectionPos2.getCenterPos()),
-											                  (float) (Math.PI / 2)
-									                  );
-								                  }
-								                  else {
-									                  vec3d =
-											                  FuzzyTargeting.find(
-													                  entity,
-													                  horizontalRange,
-													                  verticalRange
-											                  );
-								                  }
-							                  }
+						.apply(
+								context,
+								walkTarget -> (world, entity, time) -> {
+									BlockPos pos = entity.getBlockPos();
+									Vec3d target;
 
-							                  walkTarget.remember(Optional
-									                  .ofNullable(vec3d)
-									                  .map(pos -> new WalkTarget(pos, walkSpeed, 0)));
-							                  return true;
-						                  }
-				                  )
+									if (world.isNearOccupiedPointOfInterest(pos)) {
+										target = FuzzyTargeting.find(entity, horizontalRange, verticalRange);
+									} else {
+										ChunkSectionPos section = ChunkSectionPos.from(pos);
+										ChunkSectionPos closerSection = TargetUtil.getPosClosestToOccupiedPointOfInterest(
+												world, section, POI_SEARCH_RADIUS
+										);
+
+										target = closerSection != section
+																? NoPenaltyTargeting.findTo(
+																		entity,
+																		horizontalRange,
+																		verticalRange,
+																		Vec3d.ofBottomCenter(closerSection.getCenterPos()),
+																		HALF_PI
+																)
+												: FuzzyTargeting.find(entity, horizontalRange, verticalRange);
+									}
+
+									walkTarget.remember(Optional.ofNullable(target).map(p -> new WalkTarget(p, walkSpeed, 0)));
+									return true;
+								}
+						)
 		);
 	}
 }

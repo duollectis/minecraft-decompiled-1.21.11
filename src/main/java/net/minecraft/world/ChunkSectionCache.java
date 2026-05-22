@@ -2,7 +2,6 @@ package net.minecraft.world;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -12,67 +11,72 @@ import net.minecraft.world.chunk.ChunkSection;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ChunkSectionCache}.
+ * Кэш секций чанков с блокировкой для безопасного многопоточного доступа.
+ * <p>
+ * При первом обращении к секции она загружается из мира, блокируется
+ * и помещается в кэш. При закрытии все заблокированные секции разблокируются.
+ * Используется в алгоритмах, требующих быстрого доступа к блокам
+ * без повторной загрузки чанков.
  */
 public class ChunkSectionCache implements AutoCloseable {
 
 	private final WorldAccess world;
-	private final Long2ObjectMap<ChunkSection> cache = new Long2ObjectOpenHashMap();
+	private final Long2ObjectMap<ChunkSection> cache = new Long2ObjectOpenHashMap<>();
 	private @Nullable ChunkSection cachedSection;
-	private long sectionPos;
+	private long cachedSectionPos;
 
 	public ChunkSectionCache(WorldAccess world) {
 		this.world = world;
 	}
 
+	/**
+	 * Возвращает секцию чанка, содержащую указанную позицию блока.
+	 * <p>
+	 * Результат кэшируется по позиции секции. Секция блокируется при первой загрузке.
+	 *
+	 * @param pos позиция блока
+	 * @return секция чанка или {@code null} если позиция вне вертикальных границ мира
+	 */
 	public @Nullable ChunkSection getSection(BlockPos pos) {
-		int i = this.world.getSectionIndex(pos.getY());
-		if (i >= 0 && i < this.world.countVerticalSections()) {
-			long l = ChunkSectionPos.toLong(pos);
-			if (this.cachedSection == null || this.sectionPos != l) {
-				this.cachedSection = (ChunkSection) this.cache.computeIfAbsent(
-						l, lx -> {
-							Chunk
-									chunk =
-									this.world.getChunk(
-											ChunkSectionPos.getSectionCoord(pos.getX()),
-											ChunkSectionPos.getSectionCoord(pos.getZ())
-									);
-							ChunkSection chunkSection = chunk.getSection(i);
-							chunkSection.lock();
-							return chunkSection;
-						}
-				);
-				this.sectionPos = l;
-			}
-
-			return this.cachedSection;
-		}
-		else {
+		int sectionIndex = world.getSectionIndex(pos.getY());
+		if (sectionIndex < 0 || sectionIndex >= world.countVerticalSections()) {
 			return null;
 		}
+
+		long sectionLong = ChunkSectionPos.toLong(pos);
+		if (cachedSection != null && cachedSectionPos == sectionLong) {
+			return cachedSection;
+		}
+
+		cachedSection = cache.computeIfAbsent(sectionLong, key -> {
+			Chunk chunk = world.getChunk(
+				ChunkSectionPos.getSectionCoord(pos.getX()),
+				ChunkSectionPos.getSectionCoord(pos.getZ())
+			);
+			ChunkSection section = chunk.getSection(sectionIndex);
+			section.lock();
+			return section;
+		});
+		cachedSectionPos = sectionLong;
+		return cachedSection;
 	}
 
 	public BlockState getBlockState(BlockPos pos) {
-		ChunkSection chunkSection = this.getSection(pos);
-		if (chunkSection == null) {
+		ChunkSection section = getSection(pos);
+		if (section == null) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			int i = ChunkSectionPos.getLocalCoord(pos.getX());
-			int j = ChunkSectionPos.getLocalCoord(pos.getY());
-			int k = ChunkSectionPos.getLocalCoord(pos.getZ());
-			return chunkSection.getBlockState(i, j, k);
-		}
+
+		int localX = ChunkSectionPos.getLocalCoord(pos.getX());
+		int localY = ChunkSectionPos.getLocalCoord(pos.getY());
+		int localZ = ChunkSectionPos.getLocalCoord(pos.getZ());
+		return section.getBlockState(localX, localY, localZ);
 	}
 
 	@Override
 	public void close() {
-		ObjectIterator var1 = this.cache.values().iterator();
-
-		while (var1.hasNext()) {
-			ChunkSection chunkSection = (ChunkSection) var1.next();
-			chunkSection.unlock();
+		for (ChunkSection section : cache.values()) {
+			section.unlock();
 		}
 	}
 }

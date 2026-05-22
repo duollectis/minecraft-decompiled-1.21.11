@@ -9,22 +9,20 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * {@code NbtInt}.
+ * NBT-элемент, хранящий значение типа {@code int}.
+ *
+ * <p>Значения в диапазоне [{@link Cache#MIN}, {@link Cache#MAX}] кэшируются.
+ * Используйте фабричный метод {@link #of(int)} вместо конструктора record.</p>
  */
 public record NbtInt(int value) implements AbstractNbtNumber {
 
+	/** Размер тега в байтах: 4 байта данных + 8 байт заголовка объекта. */
 	private static final int SIZE = 12;
-	public static final NbtType<NbtInt> TYPE = new NbtType.OfFixedSize<NbtInt>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtInt — результат операции
-		 */
-		public NbtInt read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return NbtInt.of(readInt(dataInput, nbtSizeTracker));
+
+	public static final NbtType<NbtInt> TYPE = new NbtType.OfFixedSize<>() {
+		@Override
+		public NbtInt read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return NbtInt.of(readInt(input, tracker));
 		}
 
 		@Override
@@ -34,7 +32,7 @@ public record NbtInt(int value) implements AbstractNbtNumber {
 		}
 
 		private static int readInt(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(12L);
+			tracker.add(SIZE);
 			return input.readInt();
 		}
 
@@ -60,29 +58,31 @@ public record NbtInt(int value) implements AbstractNbtNumber {
 	}
 
 	/**
-	 * Of.
+	 * Возвращает кэшированный экземпляр для значений в диапазоне кэша,
+	 * иначе создаёт новый объект.
 	 *
-	 * @param value value
-	 *
-	 * @return NbtInt — результат операции
+	 * @param value значение int
+	 * @return {@link NbtInt} для заданного значения
 	 */
 	public static NbtInt of(int value) {
-		return value >= -128 && value <= 1024 ? NbtInt.Cache.VALUES[value - -128] : new NbtInt(value);
+		return value >= Cache.MIN && value <= Cache.MAX
+				? Cache.VALUES[value - Cache.MIN]
+				: new NbtInt(value);
 	}
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeInt(this.value);
+		output.writeInt(value);
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 12;
+		return SIZE;
 	}
 
 	@Override
 	public byte getType() {
-		return 3;
+		return INT_TYPE;
 	}
 
 	@Override
@@ -90,11 +90,7 @@ public record NbtInt(int value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
-	/**
-	 * Copy.
-	 *
-	 * @return NbtInt — результат операции
-	 */
+	@Override
 	public NbtInt copy() {
 		return this;
 	}
@@ -106,66 +102,64 @@ public record NbtInt(int value) implements AbstractNbtNumber {
 
 	@Override
 	public long longValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int intValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public short shortValue() {
-		return (short) (this.value & 65535);
+		return (short) (value & 0xFFFF);
 	}
 
 	@Override
 	public byte byteValue() {
-		return (byte) (this.value & 0xFF);
+		return (byte) (value & 0xFF);
 	}
 
 	@Override
 	public double doubleValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public float floatValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public Number numberValue() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitInt(this.value);
+		return visitor.visitInt(value);
 	}
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitInt(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitInt(this);
+		return writer.getString();
 	}
 
-	/**
-	 * {@code Cache}.
-	 */
+	/** Кэш часто используемых значений int. */
 	static class Cache {
 
-		private static final int MAX = 1024;
-		private static final int MIN = -128;
-		static final NbtInt[] VALUES = new NbtInt[1153];
+		static final int MIN = -128;
+		static final int MAX = 1024;
+		static final NbtInt[] VALUES = new NbtInt[MAX - MIN + 1];
 
 		private Cache() {
 		}
 
 		static {
-			for (int i = 0; i < VALUES.length; i++) {
-				VALUES[i] = new NbtInt(-128 + i);
+			for (int index = 0; index < VALUES.length; index++) {
+				VALUES[index] = new NbtInt(MIN + index);
 			}
 		}
 	}

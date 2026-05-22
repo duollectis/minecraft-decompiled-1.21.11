@@ -16,7 +16,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code PaneBlock}.
+ * Блок стеклянной панели (и железных прутьев). Соединяется с соседними блоками
+ * по горизонтали, если те являются сплошными или тоже панелями/стенами.
  */
 public class PaneBlock extends HorizontalConnectingBlock {
 
@@ -148,14 +149,6 @@ public class PaneBlock extends HorizontalConnectingBlock {
 		return super.isSideInvisible(state, stateFrom, direction);
 	}
 
-	/**
-	 * Connects to.
-	 *
-	 * @param state state
-	 * @param sideSolidFullSquare side solid full square
-	 *
-	 * @return boolean — результат операции
-	 */
 	public final boolean connectsTo(BlockState state, boolean sideSolidFullSquare) {
 		return !cannotConnect(state) && sideSolidFullSquare || state.getBlock() instanceof PaneBlock || state.isIn(
 				BlockTags.WALLS);

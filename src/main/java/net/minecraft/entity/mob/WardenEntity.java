@@ -61,7 +61,9 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
- * {@code WardenEntity}.
+ * Страж (Warden) — слепой подземный босс, реагирующий на вибрации и звуки.
+ * Управляет системой гнева через {@link WardenAngerManager}, слушает игровые события
+ * через {@link Vibrations.VibrationListener} и применяет эффект темноты к ближайшим игрокам.
  */
 public class WardenEntity extends HostileEntity implements Vibrations {
 
@@ -107,29 +109,29 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	public WardenEntity(EntityType<? extends HostileEntity> entityType, World world) {
 		super(entityType, world);
-		this.vibrationCallback = new WardenEntity.VibrationCallback();
-		this.vibrationListenerData = new Vibrations.ListenerData();
-		this.gameEventHandler = new EntityGameEventHandler<>(new Vibrations.VibrationListener(this));
-		this.experiencePoints = 5;
-		this.getNavigation().setCanSwim(true);
-		this.setPathfindingPenalty(PathNodeType.UNPASSABLE_RAIL, 0.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.POWDER_SNOW, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, 0.0F);
-		this.setPathfindingPenalty(PathNodeType.DANGER_FIRE, 0.0F);
+		vibrationCallback = new WardenEntity.VibrationCallback();
+		vibrationListenerData = new Vibrations.ListenerData();
+		gameEventHandler = new EntityGameEventHandler<>(new Vibrations.VibrationListener(this));
+		experiencePoints = 5;
+		getNavigation().setCanSwim(true);
+		setPathfindingPenalty(PathNodeType.UNPASSABLE_RAIL, 0.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, 8.0F);
+		setPathfindingPenalty(PathNodeType.POWDER_SNOW, 8.0F);
+		setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_FIRE, 0.0F);
+		setPathfindingPenalty(PathNodeType.DANGER_FIRE, 0.0F);
 	}
 
 	@Override
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-		return new EntitySpawnS2CPacket(this, entityTrackerEntry, this.isInPose(EntityPose.EMERGING) ? 1 : 0);
+		return new EntitySpawnS2CPacket(this, entityTrackerEntry, isInPose(EntityPose.EMERGING) ? 1 : 0);
 	}
 
 	@Override
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		super.onSpawnPacket(packet);
 		if (packet.getEntityData() == 1) {
-			this.setPose(EntityPose.EMERGING);
+			setPose(EntityPose.EMERGING);
 		}
 	}
 
@@ -137,7 +139,7 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 	public boolean canSpawn(WorldView world) {
 		return super.canSpawn(world) && world.isSpaceEmpty(
 				this,
-				this.getType().getDimensions().getBoxAt(this.getEntityPos())
+				getType().getDimensions().getBoxAt(getEntityPos())
 		);
 	}
 
@@ -148,15 +150,19 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public boolean isInvulnerableTo(ServerWorld world, DamageSource source) {
-		return this.isDiggingOrEmerging() && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY) ? true
-		                                                                                           : super.isInvulnerableTo(
-				                                                                                           world,
-				                                                                                           source
-		                                                                                           );
+		if (isDiggingOrEmerging() && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+			return true;
+		}
+
+		return super.isInvulnerableTo(world, source);
 	}
 
+	/**
+	 * Проверяет, находится ли страж в процессе закапывания или появления из земли.
+	 * В этих позах страж неуязвим к большинству источников урона.
+	 */
 	boolean isDiggingOrEmerging() {
-		return this.isInPose(EntityPose.DIGGING) || this.isInPose(EntityPose.EMERGING);
+		return isInPose(EntityPose.DIGGING) || isInPose(EntityPose.EMERGING);
 	}
 
 	@Override
@@ -171,17 +177,17 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	protected float calculateNextStepSoundDistance() {
-		return this.distanceTraveled + 0.55F;
+		return distanceTraveled + 0.55F;
 	}
 
 	public static DefaultAttributeContainer.Builder addAttributes() {
 		return HostileEntity.createHostileAttributes()
-		                    .add(EntityAttributes.MAX_HEALTH, 500.0)
-		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
-		                    .add(EntityAttributes.KNOCKBACK_RESISTANCE, 1.0)
-		                    .add(EntityAttributes.ATTACK_KNOCKBACK, 1.5)
-		                    .add(EntityAttributes.ATTACK_DAMAGE, 30.0)
-		                    .add(EntityAttributes.FOLLOW_RANGE, 24.0);
+		                    .add(EntityAttributes.MAX_HEALTH, MAX_HEALTH)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, MOVEMENT_SPEED)
+		                    .add(EntityAttributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE)
+		                    .add(EntityAttributes.ATTACK_KNOCKBACK, ATTACK_KNOCKBACK)
+		                    .add(EntityAttributes.ATTACK_DAMAGE, ATTACK_DAMAGE)
+		                    .add(EntityAttributes.FOLLOW_RANGE, FOLLOW_RANGE);
 	}
 
 	@Override
@@ -194,10 +200,17 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 		return 4.0F;
 	}
 
+	private static final int ATTACK_STATUS = 4;
+	private static final int TENDRIL_VIBRATION_STATUS = 61;
+	private static final int SONIC_BOOM_CHARGE_STATUS = 62;
+
 	@Override
 	protected @Nullable SoundEvent getAmbientSound() {
-		return !this.isInPose(EntityPose.ROARING) && !this.isDiggingOrEmerging() ? this.getAngriness().getSound()
-		                                                                         : null;
+		if (isInPose(EntityPose.ROARING) || isDiggingOrEmerging()) {
+			return null;
+		}
+
+		return getAngriness().getSound();
 	}
 
 	@Override
@@ -212,14 +225,14 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	protected void playStepSound(BlockPos pos, BlockState state) {
-		this.playSound(SoundEvents.ENTITY_WARDEN_STEP, 10.0F, 1.0F);
+		playSound(SoundEvents.ENTITY_WARDEN_STEP, 10.0F, 1.0F);
 	}
 
 	@Override
 	public boolean tryAttack(ServerWorld world, Entity target) {
-		world.sendEntityStatus(this, (byte) 4);
-		this.playSound(SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, 10.0F, this.getSoundPitch());
-		SonicBoomTask.cooldown(this, 40);
+		world.sendEntityStatus(this, (byte) ATTACK_STATUS);
+		playSound(SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, 10.0F, getSoundPitch());
+		SonicBoomTask.cooldown(this, VIBRATION_COOLDOWN_TICKS);
 		return super.tryAttack(world, target);
 	}
 
@@ -230,58 +243,57 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 	}
 
 	public int getAnger() {
-		return this.dataTracker.get(ANGER);
+		return dataTracker.get(ANGER);
 	}
 
 	private void updateAnger() {
-		this.dataTracker.set(ANGER, this.getAngerAtTarget());
+		dataTracker.set(ANGER, getAngerAtTarget());
 	}
 
 	@Override
 	public void tick() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			Vibrations.Ticker.tick(serverWorld, this.vibrationListenerData, this.vibrationCallback);
-			if (this.isPersistent() || this.cannotDespawn()) {
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			Vibrations.Ticker.tick(serverWorld, vibrationListenerData, vibrationCallback);
+			if (isPersistent() || cannotDespawn()) {
 				WardenBrain.resetDigCooldown(this);
 			}
 		}
 
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			if (this.age % this.getHeartRate() == 0) {
-				this.heartbeatCooldown = 10;
-				if (!this.isSilent()) {
-					this.getEntityWorld()
-					    .playSoundClient(
-							    this.getX(),
-							    this.getY(),
-							    this.getZ(),
-							    SoundEvents.ENTITY_WARDEN_HEARTBEAT,
-							    this.getSoundCategory(),
-							    5.0F,
-							    this.getSoundPitch(),
-							    false
-					    );
-				}
-			}
+		if (!getEntityWorld().isClient()) {
+			return;
+		}
 
-			this.lastTendrilAlpha = this.tendrilAlpha;
-			if (this.tendrilAlpha > 0) {
-				this.tendrilAlpha--;
+		if (age % getHeartRate() == 0) {
+			heartbeatCooldown = PROJECTILE_ANGER_AMOUNT;
+			if (!isSilent()) {
+				getEntityWorld().playSoundClient(
+						getX(),
+						getY(),
+						getZ(),
+						SoundEvents.ENTITY_WARDEN_HEARTBEAT,
+						getSoundCategory(),
+						5.0F,
+						getSoundPitch(),
+						false
+				);
 			}
+		}
 
-			this.lastHeartbeatCooldown = this.heartbeatCooldown;
-			if (this.heartbeatCooldown > 0) {
-				this.heartbeatCooldown--;
-			}
+		lastTendrilAlpha = tendrilAlpha;
+		if (tendrilAlpha > 0) {
+			tendrilAlpha--;
+		}
 
-			switch (this.getPose()) {
-				case EMERGING:
-					this.addDigParticles(this.emergingAnimationState);
-					break;
-				case DIGGING:
-					this.addDigParticles(this.diggingAnimationState);
-			}
+		lastHeartbeatCooldown = heartbeatCooldown;
+		if (heartbeatCooldown > 0) {
+			heartbeatCooldown--;
+		}
+
+		switch (getPose()) {
+			case EMERGING -> addDigParticles(emergingAnimationState);
+			case DIGGING -> addDigParticles(diggingAnimationState);
+			default -> {}
 		}
 	}
 
@@ -289,16 +301,16 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 	protected void mobTick(ServerWorld world) {
 		Profiler profiler = Profilers.get();
 		profiler.push("wardenBrain");
-		this.getBrain().tick(world, this);
+		getBrain().tick(world, this);
 		profiler.pop();
 		super.mobTick(world);
-		if ((this.age + this.getId()) % 120 == 0) {
-			addDarknessToClosePlayers(world, this.getEntityPos(), this, 20);
+		if ((age + getId()) % DARKNESS_APPLY_INTERVAL_TICKS == 0) {
+			addDarknessToClosePlayers(world, getEntityPos(), this, DARKNESS_EFFECT_RANGE);
 		}
 
-		if (this.age % 20 == 0) {
-			this.angerManager.tick(world, this::isValidTarget);
-			this.updateAnger();
+		if (age % ANGER_UPDATE_INTERVAL_TICKS == 0) {
+			angerManager.tick(world, this::isValidTarget);
+			updateAnger();
 		}
 
 		WardenBrain.updateActivities(this);
@@ -306,75 +318,84 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 4) {
-			this.roaringAnimationState.stop();
-			this.attackingAnimationState.start(this.age);
-		}
-		else if (status == 61) {
-			this.tendrilAlpha = 10;
-		}
-		else if (status == 62) {
-			this.chargingSonicBoomAnimationState.start(this.age);
-		}
-		else {
+		if (status == ATTACK_STATUS) {
+			roaringAnimationState.stop();
+			attackingAnimationState.start(age);
+		} else if (status == TENDRIL_VIBRATION_STATUS) {
+			tendrilAlpha = PROJECTILE_ANGER_AMOUNT;
+		} else if (status == SONIC_BOOM_CHARGE_STATUS) {
+			chargingSonicBoomAnimationState.start(age);
+		} else {
 			super.handleStatus(status);
 		}
 	}
 
+	/**
+	 * Вычисляет интервал сердцебиения в тиках: чем выше гнев, тем быстрее бьётся сердце.
+	 * Диапазон: от {@code VIBRATION_COOLDOWN_TICKS} (спокойный) до {@code VIBRATION_COOLDOWN_TICKS - 30} (злой).
+	 */
 	private int getHeartRate() {
-		float f = (float) this.getAnger() / Angriness.ANGRY.getThreshold();
-		return 40 - MathHelper.floor(MathHelper.clamp(f, 0.0F, 1.0F) * 30.0F);
+		float angerRatio = (float) getAnger() / Angriness.ANGRY.getThreshold();
+		return VIBRATION_COOLDOWN_TICKS - MathHelper.floor(MathHelper.clamp(angerRatio, 0.0F, 1.0F) * 30.0F);
 	}
 
+	/**
+	 * Возвращает интерполированную прозрачность щупалец для текущего кадра рендера.
+	 * Значение нормализовано в диапазон [0.0, 1.0] делением на 10.
+	 */
 	public float getTendrilAlpha(float tickProgress) {
-		return MathHelper.lerp(tickProgress, (float) this.lastTendrilAlpha, (float) this.tendrilAlpha) / 10.0F;
+		return MathHelper.lerp(tickProgress, (float) lastTendrilAlpha, (float) tendrilAlpha) / 10.0F;
 	}
 
+	/**
+	 * Возвращает интерполированную яркость свечения сердца для текущего кадра рендера.
+	 * Значение нормализовано в диапазон [0.0, 1.0] делением на 10.
+	 */
 	public float getHeartAlpha(float tickProgress) {
-		return MathHelper.lerp(tickProgress, (float) this.lastHeartbeatCooldown, (float) this.heartbeatCooldown)
-				/ 10.0F;
+		return MathHelper.lerp(tickProgress, (float) lastHeartbeatCooldown, (float) heartbeatCooldown) / 10.0F;
 	}
 
+	/**
+	 * Спавнит частицы блока под стражем во время анимации закапывания/появления.
+	 * Частицы генерируются только в первые {@code DIG_PARTICLE_DURATION_SECONDS} секунды анимации.
+	 */
 	private void addDigParticles(AnimationState animationState) {
-		if ((float) animationState.getTimeInMilliseconds(this.age) < 4500.0F) {
-			Random random = this.getRandom();
-			BlockState blockState = this.getSteppingBlockState();
-			if (blockState.getRenderType() != BlockRenderType.INVISIBLE) {
-				for (int i = 0; i < 30; i++) {
-					double d = this.getX() + MathHelper.nextBetween(random, -0.7F, 0.7F);
-					double e = this.getY();
-					double f = this.getZ() + MathHelper.nextBetween(random, -0.7F, 0.7F);
-					this
-							.getEntityWorld()
-							.addParticleClient(
-									new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
-									d,
-									e,
-									f,
-									0.0,
-									0.0,
-									0.0
-							);
-				}
-			}
+		float animationMillis = (float) animationState.getTimeInMilliseconds(age);
+		if (animationMillis >= DIG_PARTICLE_DURATION_SECONDS * 1000.0F) {
+			return;
+		}
+
+		Random random = getRandom();
+		BlockState blockState = getSteppingBlockState();
+		if (blockState.getRenderType() == BlockRenderType.INVISIBLE) {
+			return;
+		}
+
+		for (int particleIndex = 0; particleIndex < 30; particleIndex++) {
+			double particleX = getX() + MathHelper.nextBetween(random, -DIG_PARTICLE_SPREAD, DIG_PARTICLE_SPREAD);
+			double particleY = getY();
+			double particleZ = getZ() + MathHelper.nextBetween(random, -DIG_PARTICLE_SPREAD, DIG_PARTICLE_SPREAD);
+			getEntityWorld().addParticleClient(
+					new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
+					particleX,
+					particleY,
+					particleZ,
+					0.0,
+					0.0,
+					0.0
+			);
 		}
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		if (POSE.equals(data)) {
-			switch (this.getPose()) {
-				case EMERGING:
-					this.emergingAnimationState.start(this.age);
-					break;
-				case DIGGING:
-					this.diggingAnimationState.start(this.age);
-					break;
-				case ROARING:
-					this.roaringAnimationState.start(this.age);
-					break;
-				case SNIFFING:
-					this.sniffingAnimationState.start(this.age);
+			switch (getPose()) {
+				case EMERGING -> emergingAnimationState.start(age);
+				case DIGGING -> diggingAnimationState.start(age);
+				case ROARING -> roaringAnimationState.start(age);
+				case SNIFFING -> sniffingAnimationState.start(age);
+				default -> {}
 			}
 		}
 
@@ -383,7 +404,7 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public boolean isImmuneToExplosion(Explosion explosion) {
-		return this.isDiggingOrEmerging();
+		return isDiggingOrEmerging();
 	}
 
 	@Override
@@ -398,120 +419,133 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public void updateEventHandler(BiConsumer<EntityGameEventHandler<?>, ServerWorld> callback) {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			callback.accept(this.gameEventHandler, serverWorld);
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			callback.accept(gameEventHandler, serverWorld);
 		}
 	}
 
+	/**
+	 * Проверяет, является ли сущность допустимой целью для гнева стража.
+	 * Исключает творческих/наблюдателей, союзников, стойки для брони, других стражей и неуязвимых.
+	 */
 	@Contract("null->false")
 	public boolean isValidTarget(@Nullable Entity entity) {
 		return entity instanceof LivingEntity livingEntity
-				&& this.getEntityWorld() == entity.getEntityWorld()
+				&& getEntityWorld() == entity.getEntityWorld()
 				&& EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
-				&& !this.isTeammate(entity)
+				&& !isTeammate(entity)
 				&& livingEntity.getType() != EntityType.ARMOR_STAND
 				&& livingEntity.getType() != EntityType.WARDEN
 				&& !livingEntity.isInvulnerable()
 				&& !livingEntity.isDead()
-				&& this.getEntityWorld().getWorldBorder().contains(livingEntity.getBoundingBox());
+				&& getEntityWorld().getWorldBorder().contains(livingEntity.getBoundingBox());
 	}
 
 	/**
-	 * Добавляет darkness to close players.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param entity entity
-	 * @param range range
+	 * Применяет эффект темноты ко всем игрокам в радиусе {@code range} блоков от позиции.
+	 * Используется как периодическая аура стража и при появлении из земли.
 	 */
 	public static void addDarknessToClosePlayers(ServerWorld world, Vec3d pos, @Nullable Entity entity, int range) {
-		StatusEffectInstance
-				statusEffectInstance =
-				new StatusEffectInstance(StatusEffects.DARKNESS, 260, 0, false, false);
-		StatusEffectUtil.addEffectToPlayersWithinDistance(world, entity, pos, range, statusEffectInstance, 200);
+		StatusEffectInstance darknessEffect = new StatusEffectInstance(
+				StatusEffects.DARKNESS,
+				DARKNESS_EFFECT_DURATION,
+				0,
+				false,
+				false
+		);
+		StatusEffectUtil.addEffectToPlayersWithinDistance(world, entity, pos, range, darknessEffect, DARKNESS_EFFECT_MIN_MULTIPLIER);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("anger", WardenAngerManager.createCodec(this::isValidTarget), this.angerManager);
-		view.put("listener", Vibrations.ListenerData.CODEC, this.vibrationListenerData);
+		view.put("anger", WardenAngerManager.createCodec(this::isValidTarget), angerManager);
+		view.put("listener", Vibrations.ListenerData.CODEC, vibrationListenerData);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.angerManager = view.<WardenAngerManager>read("anger", WardenAngerManager.createCodec(this::isValidTarget))
-		                        .orElseGet(() -> new WardenAngerManager(this::isValidTarget, Collections.emptyList()));
-		this.updateAnger();
-		this.vibrationListenerData =
-				view
-						.<Vibrations.ListenerData>read("listener", Vibrations.ListenerData.CODEC)
-						.orElseGet(Vibrations.ListenerData::new);
+		angerManager = view.<WardenAngerManager>read("anger", WardenAngerManager.createCodec(this::isValidTarget))
+		                   .orElseGet(() -> new WardenAngerManager(this::isValidTarget, Collections.emptyList()));
+		updateAnger();
+		vibrationListenerData = view
+				.<Vibrations.ListenerData>read("listener", Vibrations.ListenerData.CODEC)
+				.orElseGet(Vibrations.ListenerData::new);
 	}
 
+	/**
+	 * Воспроизводит звук реакции на вибрацию в зависимости от текущего уровня гнева.
+	 * Не воспроизводится, если страж уже рычит.
+	 */
 	private void playListeningSound() {
-		if (!this.isInPose(EntityPose.ROARING)) {
-			this.playSound(this.getAngriness().getListeningSound(), 10.0F, this.getSoundPitch());
+		if (isInPose(EntityPose.ROARING)) {
+			return;
 		}
+
+		playSound(getAngriness().getListeningSound(), 10.0F, getSoundPitch());
 	}
 
+	/**
+	 * Возвращает текущий уровень ярости стража относительно его основной цели.
+	 */
 	public Angriness getAngriness() {
-		return Angriness.getForAnger(this.getAngerAtTarget());
+		return Angriness.getForAnger(getAngerAtTarget());
 	}
 
 	private int getAngerAtTarget() {
-		return this.angerManager.getAngerFor(this.getTarget());
+		return angerManager.getAngerFor(getTarget());
 	}
 
 	/**
-	 * Удаляет suspect.
-	 *
-	 * @param entity entity
+	 * Удаляет сущность из списка подозреваемых менеджера гнева.
 	 */
 	public void removeSuspect(Entity entity) {
-		this.angerManager.removeSuspect(entity);
+		angerManager.removeSuspect(entity);
 	}
 
 	/**
-	 * Increase anger at.
-	 *
-	 * @param entity entity
+	 * Увеличивает гнев стража к сущности на стандартное значение {@code ANGRINESS_AMOUNT} с воспроизведением звука.
 	 */
 	public void increaseAngerAt(@Nullable Entity entity) {
-		this.increaseAngerAt(entity, 35, true);
+		increaseAngerAt(entity, ANGRINESS_AMOUNT, true);
 	}
 
-	@VisibleForTesting
 	/**
-	 * Increase anger at.
+	 * Увеличивает гнев стража к сущности на заданное значение.
+	 * Если цель сменилась с не-игрока на игрока и достигнут порог ярости — сбрасывает цель атаки из памяти мозга.
 	 *
-	 * @param entity entity
-	 * @param amount amount
-	 * @param listening listening
+	 * @param listening воспроизводить ли звук реакции на вибрацию
 	 */
+	@VisibleForTesting
 	public void increaseAngerAt(@Nullable Entity entity, int amount, boolean listening) {
-		if (!this.isAiDisabled() && this.isValidTarget(entity)) {
-			WardenBrain.resetDigCooldown(this);
-			boolean bl = !(this.getTarget() instanceof PlayerEntity);
-			int i = this.angerManager.increaseAngerAt(entity, amount);
-			if (entity instanceof PlayerEntity && bl && Angriness.getForAnger(i).isAngry()) {
-				this.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
-			}
+		if (isAiDisabled() || !isValidTarget(entity)) {
+			return;
+		}
 
-			if (listening) {
-				this.playListeningSound();
-			}
+		WardenBrain.resetDigCooldown(this);
+		boolean hadNonPlayerTarget = !(getTarget() instanceof PlayerEntity);
+		int newAnger = angerManager.increaseAngerAt(entity, amount);
+
+		if (entity instanceof PlayerEntity && hadNonPlayerTarget && Angriness.getForAnger(newAnger).isAngry()) {
+			getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+		}
+
+		if (listening) {
+			playListeningSound();
 		}
 	}
 
+	/**
+	 * Возвращает главного подозреваемого, если страж достиг уровня ярости {@link Angriness#isAngry()}.
+	 */
 	public Optional<LivingEntity> getPrimeSuspect() {
-		return this.getAngriness().isAngry() ? this.angerManager.getPrimeSuspect() : Optional.empty();
+		return getAngriness().isAngry() ? angerManager.getPrimeSuspect() : Optional.empty();
 	}
 
 	@Override
 	public @Nullable LivingEntity getTarget() {
-		return this.getTargetInBrain();
+		return getTargetInBrain();
 	}
 
 	@Override
@@ -526,11 +560,11 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		this.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 1200L);
+		getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 1200L);
 		if (spawnReason == SpawnReason.TRIGGERED) {
-			this.setPose(EntityPose.EMERGING);
-			this.getBrain().remember(MemoryModuleType.IS_EMERGING, Unit.INSTANCE, WardenBrain.EMERGE_DURATION);
-			this.playSound(SoundEvents.ENTITY_WARDEN_AGITATED, 5.0F, 1.0F);
+			setPose(EntityPose.EMERGING);
+			getBrain().remember(MemoryModuleType.IS_EMERGING, Unit.INSTANCE, WardenBrain.EMERGE_DURATION);
+			playSound(SoundEvents.ENTITY_WARDEN_AGITATED, 5.0F, 1.0F);
 		}
 
 		return super.initialize(world, difficulty, spawnReason, entityData);
@@ -538,57 +572,59 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		boolean bl = super.damage(world, source, amount);
-		if (!this.isAiDisabled() && !this.isDiggingOrEmerging()) {
-			Entity entity = source.getAttacker();
-			this.increaseAngerAt(entity, Angriness.ANGRY.getThreshold() + 20, false);
-			if (this.brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).isEmpty()
-					&& entity instanceof LivingEntity livingEntity
-					&& (source.isDirect() || this.isInRange(livingEntity, 5.0))) {
-				this.updateAttackTarget(livingEntity);
+		boolean damaged = super.damage(world, source, amount);
+		if (!isAiDisabled() && !isDiggingOrEmerging()) {
+			Entity attacker = source.getAttacker();
+			increaseAngerAt(attacker, Angriness.ANGRY.getThreshold() + ANGER_UPDATE_INTERVAL_TICKS, false);
+			if (brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).isEmpty()
+					&& attacker instanceof LivingEntity livingAttacker
+					&& (source.isDirect() || isInRange(livingAttacker, 5.0))) {
+				updateAttackTarget(livingAttacker);
 			}
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	/**
-	 * Обновляет attack target.
-	 *
-	 * @param target target
+	 * Устанавливает новую цель атаки в памяти мозга, сбрасывая цель рёва и кулдаун Sonic Boom.
 	 */
 	public void updateAttackTarget(LivingEntity target) {
-		this.getBrain().forget(MemoryModuleType.ROAR_TARGET);
-		this.getBrain().remember(MemoryModuleType.ATTACK_TARGET, target);
-		this.getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
-		SonicBoomTask.cooldown(this, 200);
+		getBrain().forget(MemoryModuleType.ROAR_TARGET);
+		getBrain().remember(MemoryModuleType.ATTACK_TARGET, target);
+		getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
+		SonicBoomTask.cooldown(this, SONIC_BOOM_COOLDOWN_TICKS);
 	}
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
 		EntityDimensions entityDimensions = super.getBaseDimensions(pose);
-		return this.isDiggingOrEmerging() ? EntityDimensions.fixed(entityDimensions.width(), 1.0F) : entityDimensions;
+		return isDiggingOrEmerging()
+				? EntityDimensions.fixed(entityDimensions.width(), 1.0F)
+				: entityDimensions;
 	}
 
 	@Override
 	public boolean isPushable() {
-		return !this.isDiggingOrEmerging() && super.isPushable();
+		return !isDiggingOrEmerging() && super.isPushable();
 	}
 
 	@Override
 	protected void pushAway(Entity entity) {
-		if (!this.isAiDisabled() && !this.getBrain().hasMemoryModule(MemoryModuleType.TOUCH_COOLDOWN)) {
-			this.getBrain().remember(MemoryModuleType.TOUCH_COOLDOWN, Unit.INSTANCE, 20L);
-			this.increaseAngerAt(entity);
-			WardenBrain.lookAtDisturbance(this, entity.getBlockPos());
+		if (isAiDisabled() || getBrain().hasMemoryModule(MemoryModuleType.TOUCH_COOLDOWN)) {
+			super.pushAway(entity);
+			return;
 		}
 
+		getBrain().remember(MemoryModuleType.TOUCH_COOLDOWN, Unit.INSTANCE, TOUCH_COOLDOWN_TICKS);
+		increaseAngerAt(entity);
+		WardenBrain.lookAtDisturbance(this, entity.getBlockPos());
 		super.pushAway(entity);
 	}
 
 	@VisibleForTesting
 	public WardenAngerManager getAngerManager() {
-		return this.angerManager;
+		return angerManager;
 	}
 
 	@Override
@@ -609,17 +645,14 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 	@Override
 	public Vibrations.ListenerData getVibrationListenerData() {
-		return this.vibrationListenerData;
+		return vibrationListenerData;
 	}
 
 	@Override
 	public Vibrations.Callback getVibrationCallback() {
-		return this.vibrationCallback;
+		return vibrationCallback;
 	}
 
-	/**
-	 * {@code VibrationCallback}.
-	 */
 	class VibrationCallback implements Vibrations.Callback {
 
 		private static final int RANGE = 16;
@@ -629,7 +662,7 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 
 		@Override
 		public int getRange() {
-			return 16;
+			return RANGE;
 		}
 
 		@Override
@@ -647,6 +680,10 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 			return true;
 		}
 
+		/**
+		 * Проверяет, должен ли страж реагировать на вибрацию: игнорирует события во время закапывания,
+		 * при активном кулдауне вибрации, а также вибрации от невалидных целей.
+		 */
 		@Override
 		public boolean accepts(
 				ServerWorld world,
@@ -654,17 +691,28 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 				RegistryEntry<GameEvent> event,
 				GameEvent.Emitter emitter
 		) {
-			return !WardenEntity.this.isAiDisabled()
-					       && !WardenEntity.this.isDead()
-					       && !WardenEntity.this.getBrain().hasMemoryModule(MemoryModuleType.VIBRATION_COOLDOWN)
-					       && !WardenEntity.this.isDiggingOrEmerging()
-					       && world.getWorldBorder().contains(pos)
-			       ? !(emitter.sourceEntity() instanceof LivingEntity livingEntity && !WardenEntity.this.isValidTarget(
-					livingEntity)
-			)
-			       : false;
+			if (WardenEntity.this.isAiDisabled()
+					|| WardenEntity.this.isDead()
+					|| WardenEntity.this.getBrain().hasMemoryModule(MemoryModuleType.VIBRATION_COOLDOWN)
+					|| WardenEntity.this.isDiggingOrEmerging()
+					|| !world.getWorldBorder().contains(pos)
+			) {
+				return false;
+			}
+
+			if (emitter.sourceEntity() instanceof LivingEntity livingEntity
+					&& !WardenEntity.this.isValidTarget(livingEntity)) {
+				return false;
+			}
+
+			return true;
 		}
 
+		/**
+		 * Обрабатывает принятую вибрацию: увеличивает гнев к источнику, воспроизводит звук щупалец
+		 * и направляет взгляд стража к точке возмущения. Снаряды обрабатываются с пониженным гневом,
+		 * если нет памяти о недавнем снаряде.
+		 */
 		@Override
 		public void accept(
 				ServerWorld world,
@@ -674,41 +722,44 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 				@Nullable Entity entity,
 				float distance
 		) {
-			if (!WardenEntity.this.isDead()) {
-				WardenEntity.this.brain.remember(MemoryModuleType.VIBRATION_COOLDOWN, Unit.INSTANCE, 40L);
-				world.sendEntityStatus(WardenEntity.this, (byte) 61);
-				WardenEntity.this.playSound(
-						SoundEvents.ENTITY_WARDEN_TENDRIL_CLICKS,
-						5.0F,
-						WardenEntity.this.getSoundPitch()
-				);
-				BlockPos blockPos = pos;
-				if (entity != null) {
-					if (WardenEntity.this.isInRange(entity, 30.0)) {
-						if (WardenEntity.this.getBrain().hasMemoryModule(MemoryModuleType.RECENT_PROJECTILE)) {
-							if (WardenEntity.this.isValidTarget(entity)) {
-								blockPos = entity.getBlockPos();
-							}
+			if (WardenEntity.this.isDead()) {
+				return;
+			}
 
-							WardenEntity.this.increaseAngerAt(entity);
+			WardenEntity.this.brain.remember(MemoryModuleType.VIBRATION_COOLDOWN, Unit.INSTANCE, VIBRATION_COOLDOWN_TICKS);
+			world.sendEntityStatus(WardenEntity.this, (byte) TENDRIL_VIBRATION_STATUS);
+			WardenEntity.this.playSound(
+					SoundEvents.ENTITY_WARDEN_TENDRIL_CLICKS,
+					5.0F,
+					WardenEntity.this.getSoundPitch()
+			);
+			BlockPos disturbancePos = pos;
+
+			if (entity != null) {
+				if (WardenEntity.this.isInRange(entity, VIBRATION_ENTITY_DETECT_RANGE)) {
+					if (WardenEntity.this.getBrain().hasMemoryModule(MemoryModuleType.RECENT_PROJECTILE)) {
+						if (WardenEntity.this.isValidTarget(entity)) {
+							disturbancePos = entity.getBlockPos();
 						}
-						else {
-							WardenEntity.this.increaseAngerAt(entity, 10, true);
-						}
-					}
 
-					WardenEntity.this.getBrain().remember(MemoryModuleType.RECENT_PROJECTILE, Unit.INSTANCE, 100L);
-				}
-				else {
-					WardenEntity.this.increaseAngerAt(sourceEntity);
-				}
-
-				if (!WardenEntity.this.getAngriness().isAngry()) {
-					Optional<LivingEntity> optional = WardenEntity.this.angerManager.getPrimeSuspect();
-					if (entity != null || optional.isEmpty() || optional.get() == sourceEntity) {
-						WardenBrain.lookAtDisturbance(WardenEntity.this, blockPos);
+						WardenEntity.this.increaseAngerAt(entity);
+					} else {
+						WardenEntity.this.increaseAngerAt(entity, PROJECTILE_ANGER_AMOUNT, true);
 					}
 				}
+
+				WardenEntity.this.getBrain().remember(MemoryModuleType.RECENT_PROJECTILE, Unit.INSTANCE, RECENT_PROJECTILE_MEMORY_TICKS);
+			} else {
+				WardenEntity.this.increaseAngerAt(sourceEntity);
+			}
+
+			if (WardenEntity.this.getAngriness().isAngry()) {
+				return;
+			}
+
+			Optional<LivingEntity> primeSuspect = WardenEntity.this.angerManager.getPrimeSuspect();
+			if (entity != null || primeSuspect.isEmpty() || primeSuspect.get() == sourceEntity) {
+				WardenBrain.lookAtDisturbance(WardenEntity.this, disturbancePos);
 			}
 		}
 	}

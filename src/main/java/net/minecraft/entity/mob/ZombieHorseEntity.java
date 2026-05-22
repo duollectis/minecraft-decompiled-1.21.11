@@ -28,7 +28,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.DoubleSupplier;
 
 /**
- * {@code ZombieHorseEntity}.
+ * Лошадь-зомби — нежить, которую можно приручить. При естественном спавне
+ * автоматически получает всадника-зомби с железным копьём. Не размножается
+ * и не ест. Может быть привязана на поводок только если приручена или
+ * не управляется мобом.
  */
 public class ZombieHorseEntity extends AbstractHorseEntity {
 
@@ -46,8 +49,8 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	public ZombieHorseEntity(EntityType<? extends ZombieHorseEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.DANGER_OTHER, -1.0F);
-		this.setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, -1.0F);
+		setPathfindingPenalty(PathNodeType.DANGER_OTHER, -1.0F);
+		setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, -1.0F);
 	}
 
 	public static DefaultAttributeContainer.Builder createZombieHorseAttributes() {
@@ -56,7 +59,7 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public ActionResult interact(PlayerEntity player, Hand hand) {
-		this.setPersistent();
+		setPersistent();
 		return super.interact(player, hand);
 	}
 
@@ -67,28 +70,28 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public boolean isControlledByMob() {
-		return this.getFirstPassenger() instanceof MobEntity;
+		return getFirstPassenger() instanceof MobEntity;
 	}
 
 	@Override
 	protected void initAttributes(Random random) {
-		this.getAttributeInstance(EntityAttributes.JUMP_STRENGTH).setBaseValue(getBaseJumpStrength(random::nextDouble));
-		this
-				.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED)
-				.setBaseValue(getBaseMovementSpeed(random::nextDouble));
+		getAttributeInstance(EntityAttributes.JUMP_STRENGTH).setBaseValue(getBaseJumpStrength(random::nextDouble));
+		getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(getBaseMovementSpeed(random::nextDouble));
 	}
 
 	private static double getBaseJumpStrength(DoubleSupplier randomSupplier) {
 		return 0.5
-				+ randomSupplier.getAsDouble() * 0.06666666666666667
-				+ randomSupplier.getAsDouble() * 0.06666666666666667
-				+ randomSupplier.getAsDouble() * 0.06666666666666667;
+				+ randomSupplier.getAsDouble() * JUMP_STRENGTH_VARIANCE
+				+ randomSupplier.getAsDouble() * JUMP_STRENGTH_VARIANCE
+				+ randomSupplier.getAsDouble() * JUMP_STRENGTH_VARIANCE;
 	}
 
 	private static double getBaseMovementSpeed(DoubleSupplier randomSupplier) {
-		return (9.0 + randomSupplier.getAsDouble() * 1.0 + randomSupplier.getAsDouble() * 1.0
-				+ randomSupplier.getAsDouble() * 1.0
-		) / 42.16F;
+		return (BASE_SPEED_NUMERATOR
+				+ randomSupplier.getAsDouble() * SPEED_VARIANCE
+				+ randomSupplier.getAsDouble() * SPEED_VARIANCE
+				+ randomSupplier.getAsDouble() * SPEED_VARIANCE
+		) / SPEED_DIVISOR;
 	}
 
 	@Override
@@ -128,8 +131,8 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	protected void initCustomGoals() {
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(3, new TemptGoal(this, 1.25, stack -> stack.isIn(ItemTags.ZOMBIE_HORSE_FOOD), false));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(3, new TemptGoal(this, 1.25, stack -> stack.isIn(ItemTags.ZOMBIE_HORSE_FOOD), false));
 	}
 
 	@Override
@@ -140,12 +143,13 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 			@Nullable EntityData entityData
 	) {
 		if (spawnReason == SpawnReason.NATURAL) {
-			ZombieEntity zombieEntity = EntityType.ZOMBIE.create(this.getEntityWorld(), SpawnReason.JOCKEY);
-			if (zombieEntity != null) {
-				zombieEntity.refreshPositionAndAngles(this.getX(), this.getY(), this.getZ(), this.getYaw(), 0.0F);
-				zombieEntity.initialize(world, difficulty, spawnReason, null);
-				zombieEntity.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
-				zombieEntity.startRiding(this, false, false);
+			ZombieEntity zombie = EntityType.ZOMBIE.create(getEntityWorld(), SpawnReason.JOCKEY);
+
+			if (zombie != null) {
+				zombie.refreshPositionAndAngles(getX(), getY(), getZ(), getYaw(), 0.0F);
+				zombie.initialize(world, difficulty, spawnReason, null);
+				zombie.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
+				zombie.startRiding(this, false, false);
 			}
 		}
 
@@ -154,25 +158,24 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		boolean bl = !this.isBaby() && this.isTame() && player.shouldCancelInteraction();
-		if (!this.hasPassengers() && !bl) {
-			ItemStack itemStack = player.getStackInHand(hand);
-			if (!itemStack.isEmpty()) {
-				if (this.isBreedingItem(itemStack)) {
-					return this.interactHorse(player, itemStack);
-				}
+		boolean shouldOpenInventory = !isBaby() && isTame() && player.shouldCancelInteraction();
+		if (hasPassengers() || shouldOpenInventory) {
+			return super.interactMob(player, hand);
+		}
 
-				if (!this.isTame()) {
-					this.playAngrySound();
-					return ActionResult.SUCCESS;
-				}
+		ItemStack heldStack = player.getStackInHand(hand);
+		if (!heldStack.isEmpty()) {
+			if (isBreedingItem(heldStack)) {
+				return interactHorse(player, heldStack);
 			}
 
-			return super.interactMob(player, hand);
+			if (!isTame()) {
+				playAngrySound();
+				return ActionResult.SUCCESS;
+			}
 		}
-		else {
-			return super.interactMob(player, hand);
-		}
+
+		return super.interactMob(player, hand);
 	}
 
 	@Override
@@ -182,7 +185,7 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public boolean canBeLeashed() {
-		return this.isTame() || !this.isControlledByMob();
+		return isTame() || !isControlledByMob();
 	}
 
 	@Override
@@ -202,7 +205,7 @@ public class ZombieHorseEntity extends AbstractHorseEntity {
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+		return isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
 	}
 
 	@Override

@@ -21,11 +21,15 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 
+/**
+ * Описание конвейера рендеринга: шейдеры, формат вершин, состояния смешивания,
+ * глубины, отсечения и прочие параметры GPU-пайплайна.
+ *
+ * <p>Создаётся через {@link Builder} и является иммутабельным после построения.
+ * Для создания переиспользуемых фрагментов конфигурации используйте {@link Snippet}.
+ */
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
-/**
- * {@code RenderPipeline}.
- */
 public class RenderPipeline implements FabricRenderPipeline {
 
 	private final Identifier location;
@@ -91,8 +95,15 @@ public class RenderPipeline implements FabricRenderPipeline {
 		this.sortKey = sortKey;
 	}
 
+	/**
+	 * Возвращает ключ сортировки пайплайна.
+	 * В режиме отладки {@link SharedConstants#SHUFFLE_UI_RENDERING_ORDER} ключ
+	 * рандомизируется при каждом кадре для выявления зависимостей от порядка рендеринга.
+	 */
 	public int getSortKey() {
-		return SharedConstants.SHUFFLE_UI_RENDERING_ORDER ? super.hashCode() * (sortKeySeed + 1) : this.sortKey;
+		return SharedConstants.SHUFFLE_UI_RENDERING_ORDER
+			? super.hashCode() * (sortKeySeed + 1)
+			: sortKey;
 	}
 
 	public static void updateSortKeySeed() {
@@ -101,88 +112,93 @@ public class RenderPipeline implements FabricRenderPipeline {
 
 	@Override
 	public String toString() {
-		return this.location.toString();
+		return location.toString();
 	}
 
 	public DepthTestFunction getDepthTestFunction() {
-		return this.depthTestFunction;
+		return depthTestFunction;
 	}
 
 	public PolygonMode getPolygonMode() {
-		return this.polygonMode;
+		return polygonMode;
 	}
 
 	public boolean isCull() {
-		return this.cull;
+		return cull;
 	}
 
 	public LogicOp getColorLogic() {
-		return this.colorLogic;
+		return colorLogic;
 	}
 
 	public Optional<BlendFunction> getBlendFunction() {
-		return this.blendFunction;
+		return blendFunction;
 	}
 
 	public boolean isWriteColor() {
-		return this.writeColor;
+		return writeColor;
 	}
 
 	public boolean isWriteAlpha() {
-		return this.writeAlpha;
+		return writeAlpha;
 	}
 
 	public boolean isWriteDepth() {
-		return this.writeDepth;
+		return writeDepth;
 	}
 
 	public float getDepthBiasScaleFactor() {
-		return this.depthBiasScaleFactor;
+		return depthBiasScaleFactor;
 	}
 
 	public float getDepthBiasConstant() {
-		return this.depthBiasConstant;
+		return depthBiasConstant;
 	}
 
 	public Identifier getLocation() {
-		return this.location;
+		return location;
 	}
 
 	public VertexFormat getVertexFormat() {
-		return this.vertexFormat;
+		return vertexFormat;
 	}
 
 	public VertexFormat.DrawMode getVertexFormatMode() {
-		return this.vertexFormatMode;
+		return vertexFormatMode;
 	}
 
 	public Identifier getVertexShader() {
-		return this.vertexShader;
+		return vertexShader;
 	}
 
 	public Identifier getFragmentShader() {
-		return this.fragmentShader;
+		return fragmentShader;
 	}
 
 	public Defines getShaderDefines() {
-		return this.shaderDefines;
+		return shaderDefines;
 	}
 
 	public List<String> getSamplers() {
-		return this.samplers;
+		return samplers;
 	}
 
 	public List<RenderPipeline.UniformDescription> getUniforms() {
-		return this.uniforms;
+		return uniforms;
 	}
 
 	public boolean wantsDepthTexture() {
-		return this.depthTestFunction != DepthTestFunction.NO_DEPTH_TEST
-				|| this.depthBiasConstant != 0.0F
-				|| this.depthBiasScaleFactor != 0.0F
-				|| this.writeDepth;
+		return depthTestFunction != DepthTestFunction.NO_DEPTH_TEST
+			|| depthBiasConstant != 0.0F
+			|| depthBiasScaleFactor != 0.0F
+			|| writeDepth;
 	}
 
+	/**
+	 * Создаёт новый {@link Builder}, предварительно применив все переданные сниппеты.
+	 *
+	 * @param snippets фрагменты конфигурации для предзаполнения билдера
+	 */
 	public static RenderPipeline.Builder builder(RenderPipeline.Snippet... snippets) {
 		RenderPipeline.Builder builder = new RenderPipeline.Builder();
 
@@ -193,11 +209,16 @@ public class RenderPipeline implements FabricRenderPipeline {
 		return builder;
 	}
 
+	/**
+	 * Строитель конвейера рендеринга.
+	 *
+	 * <p>Все параметры опциональны — при отсутствии используются значения по умолчанию
+	 * (LEQUAL depth test, FILL polygon mode, culling включён, запись цвета/глубины включена).
+	 * Обязательны: {@code location}, {@code vertexShader}, {@code fragmentShader},
+	 * {@code vertexFormat} и {@code vertexFormatMode}.
+	 */
 	@Environment(EnvType.CLIENT)
 	@DeobfuscateClass
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder implements net.fabricmc.fabric.api.client.rendering.v1.FabricRenderPipeline.Builder {
 
 		private static int nextPipelineSortKey;
@@ -243,8 +264,8 @@ public class RenderPipeline implements FabricRenderPipeline {
 			return this;
 		}
 
-		public RenderPipeline.Builder withVertexShader(String string) {
-			this.vertexShader = Optional.of(Identifier.ofVanilla(string));
+		public RenderPipeline.Builder withVertexShader(String vertexShader) {
+			this.vertexShader = Optional.of(Identifier.ofVanilla(vertexShader));
 			return this;
 		}
 
@@ -254,67 +275,65 @@ public class RenderPipeline implements FabricRenderPipeline {
 		}
 
 		public RenderPipeline.Builder withShaderDefine(String flag) {
-			if (this.definesBuilder.isEmpty()) {
-				this.definesBuilder = Optional.of(Defines.builder());
+			if (definesBuilder.isEmpty()) {
+				definesBuilder = Optional.of(Defines.builder());
 			}
 
-			this.definesBuilder.get().flag(flag);
+			definesBuilder.get().flag(flag);
 			return this;
 		}
 
 		public RenderPipeline.Builder withShaderDefine(String name, int value) {
-			if (this.definesBuilder.isEmpty()) {
-				this.definesBuilder = Optional.of(Defines.builder());
+			if (definesBuilder.isEmpty()) {
+				definesBuilder = Optional.of(Defines.builder());
 			}
 
-			this.definesBuilder.get().define(name, value);
+			definesBuilder.get().define(name, value);
 			return this;
 		}
 
 		public RenderPipeline.Builder withShaderDefine(String name, float value) {
-			if (this.definesBuilder.isEmpty()) {
-				this.definesBuilder = Optional.of(Defines.builder());
+			if (definesBuilder.isEmpty()) {
+				definesBuilder = Optional.of(Defines.builder());
 			}
 
-			this.definesBuilder.get().define(name, value);
+			definesBuilder.get().define(name, value);
 			return this;
 		}
 
 		public RenderPipeline.Builder withSampler(String sampler) {
-			if (this.samplers.isEmpty()) {
-				this.samplers = Optional.of(new ArrayList<>());
+			if (samplers.isEmpty()) {
+				samplers = Optional.of(new ArrayList<>());
 			}
 
-			this.samplers.get().add(sampler);
+			samplers.get().add(sampler);
 			return this;
 		}
 
 		public RenderPipeline.Builder withUniform(String name, UniformType type) {
-			if (this.uniforms.isEmpty()) {
-				this.uniforms = Optional.of(new ArrayList<>());
+			if (uniforms.isEmpty()) {
+				uniforms = Optional.of(new ArrayList<>());
 			}
 
 			if (type == UniformType.TEXEL_BUFFER) {
 				throw new IllegalArgumentException("Cannot use texel buffer without specifying texture format");
 			}
-			else {
-				this.uniforms.get().add(new RenderPipeline.UniformDescription(name, type));
-				return this;
-			}
+
+			uniforms.get().add(new RenderPipeline.UniformDescription(name, type));
+			return this;
 		}
 
 		public RenderPipeline.Builder withUniform(String name, UniformType type, TextureFormat format) {
-			if (this.uniforms.isEmpty()) {
-				this.uniforms = Optional.of(new ArrayList<>());
+			if (uniforms.isEmpty()) {
+				uniforms = Optional.of(new ArrayList<>());
 			}
 
 			if (type != UniformType.TEXEL_BUFFER) {
 				throw new IllegalArgumentException("Only texel buffer can specify texture format");
 			}
-			else {
-				this.uniforms.get().add(new RenderPipeline.UniformDescription(name, format));
-				return this;
-			}
+
+			uniforms.get().add(new RenderPipeline.UniformDescription(name, format));
+			return this;
 		}
 
 		public RenderPipeline.Builder withDepthTestFunction(DepthTestFunction depthTestFunction) {
@@ -338,13 +357,13 @@ public class RenderPipeline implements FabricRenderPipeline {
 		}
 
 		public RenderPipeline.Builder withoutBlend() {
-			this.blendFunction = Optional.empty();
+			blendFunction = Optional.empty();
 			return this;
 		}
 
 		public RenderPipeline.Builder withColorWrite(boolean writeColor) {
 			this.writeColor = Optional.of(writeColor);
-			this.writeAlpha = Optional.of(writeColor);
+			writeAlpha = Optional.of(writeColor);
 			return this;
 		}
 
@@ -381,150 +400,158 @@ public class RenderPipeline implements FabricRenderPipeline {
 		}
 
 		void withSnippet(RenderPipeline.Snippet snippet) {
-			if (snippet.vertexShader.isPresent()) {
-				this.vertexShader = snippet.vertexShader;
+			if (snippet.vertexShader().isPresent()) {
+				vertexShader = snippet.vertexShader();
 			}
 
-			if (snippet.fragmentShader.isPresent()) {
-				this.fragmentShader = snippet.fragmentShader;
+			if (snippet.fragmentShader().isPresent()) {
+				fragmentShader = snippet.fragmentShader();
 			}
 
-			if (snippet.shaderDefines.isPresent()) {
-				if (this.definesBuilder.isEmpty()) {
-					this.definesBuilder = Optional.of(Defines.builder());
+			if (snippet.shaderDefines().isPresent()) {
+				if (definesBuilder.isEmpty()) {
+					definesBuilder = Optional.of(Defines.builder());
 				}
 
-				Defines defines = snippet.shaderDefines.get();
+				Defines defines = snippet.shaderDefines().get();
 
 				for (Entry<String, String> entry : defines.values().entrySet()) {
-					this.definesBuilder.get().define(entry.getKey(), entry.getValue());
+					definesBuilder.get().define(entry.getKey(), entry.getValue());
 				}
 
-				for (String string : defines.flags()) {
-					this.definesBuilder.get().flag(string);
+				for (String flag : defines.flags()) {
+					definesBuilder.get().flag(flag);
 				}
 			}
 
-			snippet.samplers.ifPresent(samplers -> {
-				if (this.samplers.isPresent()) {
-					this.samplers.get().addAll(samplers);
-				}
-				else {
-					this.samplers = Optional.of(new ArrayList<>(samplers));
-				}
-			});
-			snippet.uniforms.ifPresent(uniforms -> {
-				if (this.uniforms.isPresent()) {
-					this.uniforms.get().addAll(uniforms);
+			snippet.samplers().ifPresent(snippetSamplers -> {
+				if (samplers.isPresent()) {
+					samplers.get().addAll(snippetSamplers);
 				}
 				else {
-					this.uniforms = Optional.of(new ArrayList<>(uniforms));
+					samplers = Optional.of(new ArrayList<>(snippetSamplers));
 				}
 			});
-			if (snippet.depthTestFunction.isPresent()) {
-				this.depthTestFunction = snippet.depthTestFunction;
+
+			snippet.uniforms().ifPresent(snippetUniforms -> {
+				if (uniforms.isPresent()) {
+					uniforms.get().addAll(snippetUniforms);
+				}
+				else {
+					uniforms = Optional.of(new ArrayList<>(snippetUniforms));
+				}
+			});
+
+			if (snippet.depthTestFunction().isPresent()) {
+				depthTestFunction = snippet.depthTestFunction();
 			}
 
-			if (snippet.cull.isPresent()) {
-				this.cull = snippet.cull;
+			if (snippet.cull().isPresent()) {
+				cull = snippet.cull();
 			}
 
-			if (snippet.writeColor.isPresent()) {
-				this.writeColor = snippet.writeColor;
+			if (snippet.writeColor().isPresent()) {
+				writeColor = snippet.writeColor();
 			}
 
-			if (snippet.writeAlpha.isPresent()) {
-				this.writeAlpha = snippet.writeAlpha;
+			if (snippet.writeAlpha().isPresent()) {
+				writeAlpha = snippet.writeAlpha();
 			}
 
-			if (snippet.writeDepth.isPresent()) {
-				this.writeDepth = snippet.writeDepth;
+			if (snippet.writeDepth().isPresent()) {
+				writeDepth = snippet.writeDepth();
 			}
 
-			if (snippet.colorLogic.isPresent()) {
-				this.colorLogic = snippet.colorLogic;
+			if (snippet.colorLogic().isPresent()) {
+				colorLogic = snippet.colorLogic();
 			}
 
-			if (snippet.blendFunction.isPresent()) {
-				this.blendFunction = snippet.blendFunction;
+			if (snippet.blendFunction().isPresent()) {
+				blendFunction = snippet.blendFunction();
 			}
 
-			if (snippet.vertexFormat.isPresent()) {
-				this.vertexFormat = snippet.vertexFormat;
+			if (snippet.vertexFormat().isPresent()) {
+				vertexFormat = snippet.vertexFormat();
 			}
 
-			if (snippet.vertexFormatMode.isPresent()) {
-				this.vertexFormatMode = snippet.vertexFormatMode;
+			if (snippet.vertexFormatMode().isPresent()) {
+				vertexFormatMode = snippet.vertexFormatMode();
 			}
 		}
 
 		public RenderPipeline.Snippet buildSnippet() {
 			return new RenderPipeline.Snippet(
-					this.vertexShader,
-					this.fragmentShader,
-					this.definesBuilder.map(Defines.Builder::build),
-					this.samplers.map(Collections::unmodifiableList),
-					this.uniforms.map(Collections::unmodifiableList),
-					this.blendFunction,
-					this.depthTestFunction,
-					this.polygonMode,
-					this.cull,
-					this.writeColor,
-					this.writeAlpha,
-					this.writeDepth,
-					this.colorLogic,
-					this.vertexFormat,
-					this.vertexFormatMode
+				vertexShader,
+				fragmentShader,
+				definesBuilder.map(Defines.Builder::build),
+				samplers.map(Collections::unmodifiableList),
+				uniforms.map(Collections::unmodifiableList),
+				blendFunction,
+				depthTestFunction,
+				polygonMode,
+				cull,
+				writeColor,
+				writeAlpha,
+				writeDepth,
+				colorLogic,
+				vertexFormat,
+				vertexFormatMode
 			);
 		}
 
+		/**
+		 * Строит финальный {@link RenderPipeline}.
+		 *
+		 * @throws IllegalStateException если не заданы обязательные параметры
+		 */
 		public RenderPipeline build() {
-			if (this.location.isEmpty()) {
+			if (location.isEmpty()) {
 				throw new IllegalStateException("Missing location");
 			}
-			else if (this.vertexShader.isEmpty()) {
+
+			if (vertexShader.isEmpty()) {
 				throw new IllegalStateException("Missing vertex shader");
 			}
-			else if (this.fragmentShader.isEmpty()) {
+
+			if (fragmentShader.isEmpty()) {
 				throw new IllegalStateException("Missing fragment shader");
 			}
-			else if (this.vertexFormat.isEmpty()) {
+
+			if (vertexFormat.isEmpty()) {
 				throw new IllegalStateException("Missing vertex buffer format");
 			}
-			else if (this.vertexFormatMode.isEmpty()) {
+
+			if (vertexFormatMode.isEmpty()) {
 				throw new IllegalStateException("Missing vertex mode");
 			}
-			else {
-				return new RenderPipeline(
-						this.location.get(),
-						this.vertexShader.get(),
-						this.fragmentShader.get(),
-						this.definesBuilder.orElse(Defines.builder()).build(),
-						List.copyOf(this.samplers.orElse(new ArrayList<>())),
-						this.uniforms.orElse(Collections.emptyList()),
-						this.blendFunction,
-						this.depthTestFunction.orElse(DepthTestFunction.LEQUAL_DEPTH_TEST),
-						this.polygonMode.orElse(PolygonMode.FILL),
-						this.cull.orElse(true),
-						this.writeColor.orElse(true),
-						this.writeAlpha.orElse(true),
-						this.writeDepth.orElse(true),
-						this.colorLogic.orElse(LogicOp.NONE),
-						this.vertexFormat.get(),
-						this.vertexFormatMode.get(),
-						this.depthBiasScaleFactor,
-						this.depthBiasConstant,
-						nextPipelineSortKey++
-				);
-			}
+
+			return new RenderPipeline(
+				location.get(),
+				vertexShader.get(),
+				fragmentShader.get(),
+				definesBuilder.orElse(Defines.builder()).build(),
+				List.copyOf(samplers.orElse(new ArrayList<>())),
+				uniforms.orElse(Collections.emptyList()),
+				blendFunction,
+				depthTestFunction.orElse(DepthTestFunction.LEQUAL_DEPTH_TEST),
+				polygonMode.orElse(PolygonMode.FILL),
+				cull.orElse(true),
+				writeColor.orElse(true),
+				writeAlpha.orElse(true),
+				writeDepth.orElse(true),
+				colorLogic.orElse(LogicOp.NONE),
+				vertexFormat.get(),
+				vertexFormatMode.get(),
+				depthBiasScaleFactor,
+				depthBiasConstant,
+				nextPipelineSortKey++
+			);
 		}
 	}
 
+	/** Переиспользуемый фрагмент конфигурации пайплайна для применения через {@link Builder#withSnippet}. */
 	@Environment(EnvType.CLIENT)
 	@DeobfuscateClass
-	/**
-	 * {@code Snippet}.
-	 */
 	public record Snippet(
 			Optional<Identifier> vertexShader,
 			Optional<Identifier> fragmentShader,
@@ -544,11 +571,9 @@ public class RenderPipeline implements FabricRenderPipeline {
 	) implements net.fabricmc.fabric.api.client.rendering.v1.FabricRenderPipeline.Snippet {
 	}
 
+	/** Описание uniform-переменной шейдера: имя, тип и опциональный формат текстуры для texel-буферов. */
 	@Environment(EnvType.CLIENT)
 	@DeobfuscateClass
-	/**
-	 * {@code UniformDescription}.
-	 */
 	public record UniformDescription(String name, UniformType type, @Nullable TextureFormat textureFormat) {
 
 		public UniformDescription(String name, UniformType type) {

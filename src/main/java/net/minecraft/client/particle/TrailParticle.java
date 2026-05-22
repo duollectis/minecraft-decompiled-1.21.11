@@ -10,11 +10,18 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TrailParticle}.
+ * Частица следа (trail), движущаяся к целевой точке по линейной интерполяции.
+ * На каждом тике оставшееся расстояние делится на количество оставшихся тиков,
+ * что обеспечивает равномерное прибытие к цели точно в момент смерти частицы.
  */
+@Environment(EnvType.CLIENT)
 public class TrailParticle extends BillboardParticle {
+
+	private static final float PARTICLE_SCALE = 0.26F;
+	private static final int FULL_BRIGHTNESS = 15728880;
+	private static final float COLOR_JITTER_BASE = 0.875F;
+	private static final float COLOR_JITTER_RANGE = 0.25F;
 
 	private final Vec3d target;
 
@@ -31,16 +38,16 @@ public class TrailParticle extends BillboardParticle {
 			Sprite sprite
 	) {
 		super(world, x, y, z, velocityX, velocityY, velocityZ, sprite);
-		color = ColorHelper.scaleRgb(
+		int jitteredColor = ColorHelper.scaleRgb(
 				color,
-				0.875F + this.random.nextFloat() * 0.25F,
-				0.875F + this.random.nextFloat() * 0.25F,
-				0.875F + this.random.nextFloat() * 0.25F
+				COLOR_JITTER_BASE + random.nextFloat() * COLOR_JITTER_RANGE,
+				COLOR_JITTER_BASE + random.nextFloat() * COLOR_JITTER_RANGE,
+				COLOR_JITTER_BASE + random.nextFloat() * COLOR_JITTER_RANGE
 		);
-		this.red = ColorHelper.getRed(color) / 255.0F;
-		this.green = ColorHelper.getGreen(color) / 255.0F;
-		this.blue = ColorHelper.getBlue(color) / 255.0F;
-		this.scale = 0.26F;
+		this.red = ColorHelper.getRed(jitteredColor) / 255.0F;
+		this.green = ColorHelper.getGreen(jitteredColor) / 255.0F;
+		this.blue = ColorHelper.getBlue(jitteredColor) / 255.0F;
+		this.scale = PARTICLE_SCALE;
 		this.target = target;
 	}
 
@@ -54,27 +61,25 @@ public class TrailParticle extends BillboardParticle {
 		this.lastX = this.x;
 		this.lastY = this.y;
 		this.lastZ = this.z;
-		if (this.age++ >= this.maxAge) {
+
+		if (age++ >= maxAge) {
 			this.markDead();
+			return;
 		}
-		else {
-			int i = this.maxAge - this.age;
-			double d = 1.0 / i;
-			this.x = MathHelper.lerp(d, this.x, this.target.getX());
-			this.y = MathHelper.lerp(d, this.y, this.target.getY());
-			this.z = MathHelper.lerp(d, this.z, this.target.getZ());
-		}
+
+		int remaining = maxAge - age;
+		double lerpFactor = 1.0 / remaining;
+		this.x = MathHelper.lerp(lerpFactor, this.x, target.getX());
+		this.y = MathHelper.lerp(lerpFactor, this.y, target.getY());
+		this.z = MathHelper.lerp(lerpFactor, this.z, target.getZ());
 	}
 
 	@Override
 	public int getBrightness(float tint) {
-		return 15728880;
+		return FULL_BRIGHTNESS;
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Factory}.
-	 */
 	public static class Factory implements ParticleFactory<TrailParticleEffect> {
 
 		private final SpriteProvider spriteProvider;
@@ -83,31 +88,32 @@ public class TrailParticle extends BillboardParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				TrailParticleEffect trailParticleEffect,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				TrailParticleEffect effect,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			TrailParticle trailParticle = new TrailParticle(
-					clientWorld,
-					d,
-					e,
-					f,
-					g,
-					h,
-					i,
-					trailParticleEffect.target(),
-					trailParticleEffect.color(),
-					this.spriteProvider.getSprite(random)
+			TrailParticle particle = new TrailParticle(
+					world,
+					x,
+					y,
+					z,
+					velocityX,
+					velocityY,
+					velocityZ,
+					effect.target(),
+					effect.color(),
+					spriteProvider.getSprite(random)
 			);
-			trailParticle.setMaxAge(trailParticleEffect.duration());
-			return trailParticle;
+			particle.setMaxAge(effect.duration());
+			return particle;
 		}
 	}
 }

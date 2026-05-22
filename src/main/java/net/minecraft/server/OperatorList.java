@@ -7,7 +7,8 @@ import java.io.File;
 import java.util.Objects;
 
 /**
- * {@code OperatorList}.
+ * Список операторов сервера.
+ * При добавлении и удалении записей уведомляет {@link ManagementListener}.
  */
 public class OperatorList extends ServerConfigList<PlayerConfigEntry, OperatorEntry> {
 
@@ -22,87 +23,60 @@ public class OperatorList extends ServerConfigList<PlayerConfigEntry, OperatorEn
 
 	@Override
 	public String[] getNames() {
-		return this
-				.values()
-				.stream()
-				.map(ServerConfigEntry::getKey)
-				.filter(Objects::nonNull)
-				.map(PlayerConfigEntry::name)
-				.toArray(String[]::new);
+		return values()
+			.stream()
+			.map(ServerConfigEntry::getKey)
+			.filter(Objects::nonNull)
+			.map(PlayerConfigEntry::name)
+			.toArray(String[]::new);
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param operatorEntry operator entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean add(OperatorEntry operatorEntry) {
-		if (super.add(operatorEntry)) {
-			if (operatorEntry.getKey() != null) {
-				this.managementListener.onOperatorAdded(operatorEntry);
-			}
-
-			return true;
-		}
-		else {
+	@Override
+	public boolean add(OperatorEntry entry) {
+		if (!super.add(entry)) {
 			return false;
 		}
+
+		if (entry.getKey() != null) {
+			managementListener.onOperatorAdded(entry);
+		}
+
+		return true;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean remove(PlayerConfigEntry playerConfigEntry) {
-		OperatorEntry operatorEntry = this.get(playerConfigEntry);
-		if (super.remove(playerConfigEntry)) {
-			if (operatorEntry != null) {
-				this.managementListener.onOperatorRemoved(operatorEntry);
-			}
+	@Override
+	public boolean remove(PlayerConfigEntry player) {
+		OperatorEntry entry = get(player);
 
-			return true;
-		}
-		else {
+		if (!super.remove(player)) {
 			return false;
 		}
+
+		if (entry != null) {
+			managementListener.onOperatorRemoved(entry);
+		}
+
+		return true;
 	}
 
 	@Override
 	public void clear() {
-		for (OperatorEntry operatorEntry : this.values()) {
-			if (operatorEntry.getKey() != null) {
-				this.managementListener.onOperatorRemoved(operatorEntry);
+		for (OperatorEntry entry : values()) {
+			if (entry.getKey() != null) {
+				managementListener.onOperatorRemoved(entry);
 			}
 		}
 
 		super.clear();
 	}
 
-	/**
-	 * Проверяет возможность bypass player limit.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
-	public boolean canBypassPlayerLimit(PlayerConfigEntry playerConfigEntry) {
-		OperatorEntry operatorEntry = this.get(playerConfigEntry);
-		return operatorEntry != null ? operatorEntry.canBypassPlayerLimit() : false;
+	public boolean canBypassPlayerLimit(PlayerConfigEntry player) {
+		OperatorEntry entry = get(player);
+		return entry != null && entry.canBypassPlayerLimit();
 	}
 
-	/**
-	 * To string.
-	 *
-	 * @param playerConfigEntry player config entry
-	 *
-	 * @return String — результат операции
-	 */
-	protected String toString(PlayerConfigEntry playerConfigEntry) {
-		return playerConfigEntry.id().toString();
+	@Override
+	protected String toString(PlayerConfigEntry player) {
+		return player.id().toString();
 	}
 }

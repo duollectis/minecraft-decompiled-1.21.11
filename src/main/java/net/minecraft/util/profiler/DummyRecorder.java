@@ -1,7 +1,8 @@
 package net.minecraft.util.profiler;
 
 /**
- * {@code DummyRecorder}.
+ * Заглушка {@link Recorder}, которая не выполняет никаких действий.
+ * Используется как нейтральный объект по умолчанию, когда запись профиля не активна.
  */
 public class DummyRecorder implements Recorder {
 

@@ -14,15 +14,17 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Backup}.
+ * DTO резервной копии мира Realms.
+ * Содержит идентификатор, дату последнего изменения, размер и произвольные метаданные.
+ * Поле {@link #changeList} заполняется отдельно после парсинга.
  */
+@Environment(EnvType.CLIENT)
 public class Backup extends ValueObject {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public final String backupId;
 	public final Instant lastModifiedDate;
 	public final long size;
@@ -38,38 +40,38 @@ public class Backup extends ValueObject {
 	}
 
 	public ZonedDateTime getLastModifiedTime() {
-		return ZonedDateTime.ofInstant(this.lastModifiedDate, ZoneId.systemDefault());
+		return ZonedDateTime.ofInstant(lastModifiedDate, ZoneId.systemDefault());
 	}
 
 	/**
-	 * Parse.
+	 * Парсит резервную копию из JSON-элемента ответа сервера Realms.
+	 * Метаданные с null-значениями пропускаются.
 	 *
-	 * @param node node
-	 *
-	 * @return @Nullable Backup — результат операции
+	 * @param node JSON-элемент с данными резервной копии
+	 * @return распарсенный объект или {@code null} при ошибке
 	 */
 	public static @Nullable Backup parse(JsonElement node) {
-		JsonObject jsonObject = node.getAsJsonObject();
+		JsonObject json = node.getAsJsonObject();
 
 		try {
-			String string = JsonUtils.getNullableStringOr("backupId", jsonObject, "");
-			Instant instant = JsonUtils.getInstantOr("lastModifiedDate", jsonObject);
-			long l = JsonUtils.getLongOr("size", jsonObject, 0L);
-			Map<String, String> map = new HashMap<>();
-			if (jsonObject.has("metadata")) {
-				JsonObject jsonObject2 = jsonObject.getAsJsonObject("metadata");
+			String backupId = JsonUtils.getNullableStringOr("backupId", json, "");
+			Instant lastModified = JsonUtils.getInstantOr("lastModifiedDate", json);
+			long size = JsonUtils.getLongOr("size", json, 0L);
+			Map<String, String> metadata = new HashMap<>();
 
-				for (Entry<String, JsonElement> entry : jsonObject2.entrySet()) {
+			if (json.has("metadata")) {
+				JsonObject metaJson = json.getAsJsonObject("metadata");
+
+				for (Map.Entry<String, JsonElement> entry : metaJson.entrySet()) {
 					if (!entry.getValue().isJsonNull()) {
-						map.put(entry.getKey(), entry.getValue().getAsString());
+						metadata.put(entry.getKey(), entry.getValue().getAsString());
 					}
 				}
 			}
 
-			return new Backup(string, instant, l, map);
-		}
-		catch (Exception var11) {
-			LOGGER.error("Could not parse Backup", var11);
+			return new Backup(backupId, lastModified, size, metadata);
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse Backup", ex);
 			return null;
 		}
 	}

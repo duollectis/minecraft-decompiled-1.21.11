@@ -1,7 +1,6 @@
 package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -32,7 +31,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code BreezeJumpTask}.
+ * Задача мозга бриза, управляющая прыжком к позиции за спиной цели.
+ * Проходит фазы: вдох (INHALING) → прыжок (LONG_JUMPING) → приземление (STANDING).
+ * После приземления активирует кулдаун прыжка и разрешает стрельбу.
  */
 public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 
@@ -43,9 +44,12 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 	private static final float MAX_JUMP_RANGE = 24.0F;
 	private static final float MAX_JUMP_VELOCITY = 1.4F;
 	private static final float FOLLOW_RANGE_MULTIPLIER_FOR_VELOCITY = 0.058333334F;
-	private static final ObjectArrayList<Integer>
-			POSSIBLE_JUMP_ANGLES =
-			new ObjectArrayList(Lists.newArrayList(new Integer[]{40, 55, 60, 75, 80}));
+	private static final long SHOOT_AFTER_JUMP_EXPIRY = 100L;
+	private static final double RAYCAST_VERTICAL_REACH = 10.0;
+	private static final float MIN_ATTACK_DISTANCE = 4.0F;
+	private static final int MAX_RUN_TIME = 200;
+	private static final ObjectArrayList<Integer> POSSIBLE_JUMP_ANGLES =
+			new ObjectArrayList<>(new Integer[]{40, 55, 60, 75, 80});
 
 	@VisibleForTesting
 	public BreezeJumpTask() {
@@ -66,199 +70,135 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 						MemoryModuleType.BREEZE_LEAVING_WATER,
 						MemoryModuleState.REGISTERED
 				),
-				200
+				MAX_RUN_TIME
 		);
 	}
 
-	/**
-	 * Определяет, следует ли jump.
-	 *
-	 * @param world world
-	 * @param breeze breeze
-	 *
-	 * @return boolean — результат операции
-	 */
 	public static boolean shouldJump(ServerWorld world, BreezeEntity breeze) {
 		if (!breeze.isOnGround() && !breeze.isTouchingWater()) {
 			return false;
 		}
-		else if (StayAboveWaterTask.isUnderwater(breeze)) {
+
+		if (StayAboveWaterTask.isUnderwater(breeze)) {
 			return false;
 		}
-		else if (breeze
-				.getBrain()
-				.isMemoryInState(MemoryModuleType.BREEZE_JUMP_TARGET, MemoryModuleState.VALUE_PRESENT)) {
+
+		if (breeze.getBrain().isMemoryInState(MemoryModuleType.BREEZE_JUMP_TARGET, MemoryModuleState.VALUE_PRESENT)) {
 			return true;
 		}
-		else {
-			LivingEntity
-					livingEntity =
-					breeze.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
-			if (livingEntity == null) {
-				return false;
-			}
-			else if (isTargetOutOfRange(breeze, livingEntity)) {
-				breeze.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
-				return false;
-			}
-			else if (isTargetTooClose(breeze, livingEntity)) {
-				return false;
-			}
-			else if (!hasRoomToJump(world, breeze)) {
-				return false;
-			}
-			else {
-				BlockPos
-						blockPos =
-						getPosToJumpTo(
-								breeze,
-								BreezeMovementUtil.getRandomPosBehindTarget(livingEntity, breeze.getRandom())
-						);
-				if (blockPos == null) {
-					return false;
-				}
-				else {
-					BlockState blockState = world.getBlockState(blockPos.down());
-					if (breeze.getType().isInvalidSpawn(blockState)) {
-						return false;
-					}
-					else if (!BreezeMovementUtil.canMoveTo(breeze, blockPos.toCenterPos())
-							&& !BreezeMovementUtil.canMoveTo(breeze, blockPos.up(4).toCenterPos())) {
-						return false;
-					}
-					else {
-						breeze.getBrain().remember(MemoryModuleType.BREEZE_JUMP_TARGET, blockPos);
-						return true;
-					}
-				}
-			}
-		}
-	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
-		return shouldJump(serverWorld, breezeEntity);
-	}
-
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		return breezeEntity.getPose() != EntityPose.STANDING && !breezeEntity
-				.getBrain()
-				.hasMemoryModule(MemoryModuleType.BREEZE_JUMP_COOLDOWN);
-	}
-
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		if (breezeEntity
-				.getBrain()
-				.isMemoryInState(MemoryModuleType.BREEZE_JUMP_INHALING, MemoryModuleState.VALUE_ABSENT)) {
-			breezeEntity
-					.getBrain()
-					.remember(MemoryModuleType.BREEZE_JUMP_INHALING, Unit.INSTANCE, JUMP_INHALING_EXPIRY);
+		LivingEntity target = breeze.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
+		if (target == null) {
+			return false;
 		}
 
-		breezeEntity.setPose(EntityPose.INHALING);
-		serverWorld.playSoundFromEntity(
-				null,
-				breezeEntity,
-				SoundEvents.ENTITY_BREEZE_CHARGE,
-				SoundCategory.HOSTILE,
-				1.0F,
-				1.0F
-		);
-		breezeEntity.getBrain()
-		            .getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
-		            .ifPresent(jumpTarget -> breezeEntity.lookAt(
-				            EntityAnchorArgumentType.EntityAnchor.EYES,
-				            jumpTarget.toCenterPos()
-		            ));
-	}
-
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		boolean bl = breezeEntity.isTouchingWater();
-		if (!bl && breezeEntity
-				.getBrain()
-				.isMemoryInState(MemoryModuleType.BREEZE_LEAVING_WATER, MemoryModuleState.VALUE_PRESENT)) {
-			breezeEntity.getBrain().forget(MemoryModuleType.BREEZE_LEAVING_WATER);
+		if (isTargetOutOfRange(breeze, target)) {
+			breeze.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
+			return false;
 		}
 
-		if (shouldStopInhalingPose(breezeEntity)) {
-			Vec3d vec3d = breezeEntity.getBrain()
-			                          .getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
-			                          .flatMap(jumpTarget -> getJumpingVelocity(
-					                          breezeEntity,
-					                          breezeEntity.getRandom(),
-					                          Vec3d.ofBottomCenter(jumpTarget)
-			                          ))
-			                          .orElse(null);
-			if (vec3d == null) {
-				breezeEntity.setPose(EntityPose.STANDING);
+		if (isTargetTooClose(breeze, target)) {
+			return false;
+		}
+
+		if (!hasRoomToJump(world, breeze)) {
+			return false;
+		}
+
+		BlockPos jumpPos = getPosToJumpTo(breeze, BreezeMovementUtil.getRandomPosBehindTarget(target, breeze.getRandom()));
+		if (jumpPos == null) {
+			return false;
+		}
+
+		BlockState groundState = world.getBlockState(jumpPos.down());
+		if (breeze.getType().isInvalidSpawn(groundState)) {
+			return false;
+		}
+
+		if (!BreezeMovementUtil.canMoveTo(breeze, jumpPos.toCenterPos())
+				&& !BreezeMovementUtil.canMoveTo(breeze, jumpPos.up(4).toCenterPos())) {
+			return false;
+		}
+
+		breeze.getBrain().remember(MemoryModuleType.BREEZE_JUMP_TARGET, jumpPos);
+		return true;
+	}
+
+	@Override
+	protected boolean shouldRun(ServerWorld world, BreezeEntity entity) {
+		return shouldJump(world, entity);
+	}
+
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, BreezeEntity entity, long time) {
+		return entity.getPose() != EntityPose.STANDING
+				&& !entity.getBrain().hasMemoryModule(MemoryModuleType.BREEZE_JUMP_COOLDOWN);
+	}
+
+	@Override
+	protected void run(ServerWorld world, BreezeEntity entity, long time) {
+		if (entity.getBrain().isMemoryInState(MemoryModuleType.BREEZE_JUMP_INHALING, MemoryModuleState.VALUE_ABSENT)) {
+			entity.getBrain().remember(MemoryModuleType.BREEZE_JUMP_INHALING, Unit.INSTANCE, JUMP_INHALING_EXPIRY);
+		}
+
+		entity.setPose(EntityPose.INHALING);
+		world.playSoundFromEntity(null, entity, SoundEvents.ENTITY_BREEZE_CHARGE, SoundCategory.HOSTILE, 1.0F, 1.0F);
+		entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
+				.ifPresent(jumpTarget -> entity.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, jumpTarget.toCenterPos()));
+	}
+
+	@Override
+	protected void keepRunning(ServerWorld world, BreezeEntity entity, long time) {
+		boolean touchingWater = entity.isTouchingWater();
+		if (!touchingWater
+				&& entity.getBrain().isMemoryInState(MemoryModuleType.BREEZE_LEAVING_WATER, MemoryModuleState.VALUE_PRESENT)) {
+			entity.getBrain().forget(MemoryModuleType.BREEZE_LEAVING_WATER);
+		}
+
+		if (shouldStopInhalingPose(entity)) {
+			Vec3d velocity = entity.getBrain()
+					.getOptionalRegisteredMemory(MemoryModuleType.BREEZE_JUMP_TARGET)
+					.flatMap(jumpTarget -> getJumpingVelocity(entity, entity.getRandom(), Vec3d.ofBottomCenter(jumpTarget)))
+					.orElse(null);
+			if (velocity == null) {
+				entity.setPose(EntityPose.STANDING);
 				return;
 			}
 
-			if (bl) {
-				breezeEntity.getBrain().remember(MemoryModuleType.BREEZE_LEAVING_WATER, Unit.INSTANCE);
+			if (touchingWater) {
+				entity.getBrain().remember(MemoryModuleType.BREEZE_LEAVING_WATER, Unit.INSTANCE);
 			}
 
-			breezeEntity.playSound(SoundEvents.ENTITY_BREEZE_JUMP, 1.0F, 1.0F);
-			breezeEntity.setPose(EntityPose.LONG_JUMPING);
-			breezeEntity.setYaw(breezeEntity.bodyYaw);
-			breezeEntity.setNoDrag(true);
-			breezeEntity.setVelocity(vec3d);
-		}
-		else if (shouldStopLongJumpingPose(breezeEntity)) {
-			breezeEntity.playSound(SoundEvents.ENTITY_BREEZE_LAND, 1.0F, 1.0F);
-			breezeEntity.setPose(EntityPose.STANDING);
-			breezeEntity.setNoDrag(false);
-			boolean bl2 = breezeEntity.getBrain().hasMemoryModule(MemoryModuleType.HURT_BY);
-			breezeEntity.getBrain().remember(MemoryModuleType.BREEZE_JUMP_COOLDOWN, Unit.INSTANCE, bl2 ? 2L : 10L);
-			breezeEntity.getBrain().remember(MemoryModuleType.BREEZE_SHOOT, Unit.INSTANCE, 100L);
+			entity.playSound(SoundEvents.ENTITY_BREEZE_JUMP, 1.0F, 1.0F);
+			entity.setPose(EntityPose.LONG_JUMPING);
+			entity.setYaw(entity.bodyYaw);
+			entity.setNoDrag(true);
+			entity.setVelocity(velocity);
+		} else if (shouldStopLongJumpingPose(entity)) {
+			entity.playSound(SoundEvents.ENTITY_BREEZE_LAND, 1.0F, 1.0F);
+			entity.setPose(EntityPose.STANDING);
+			entity.setNoDrag(false);
+			boolean wasHurt = entity.getBrain().hasMemoryModule(MemoryModuleType.HURT_BY);
+			entity.getBrain().remember(
+				MemoryModuleType.BREEZE_JUMP_COOLDOWN,
+				Unit.INSTANCE,
+				wasHurt ? JUMP_COOLDOWN_EXPIRY_WHEN_HURT : JUMP_COOLDOWN_EXPIRY
+			);
+			entity.getBrain().remember(MemoryModuleType.BREEZE_SHOOT, Unit.INSTANCE, SHOOT_AFTER_JUMP_EXPIRY);
 		}
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param breezeEntity breeze entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
-		if (breezeEntity.getPose() == EntityPose.LONG_JUMPING || breezeEntity.getPose() == EntityPose.INHALING) {
-			breezeEntity.setPose(EntityPose.STANDING);
+	@Override
+	protected void finishRunning(ServerWorld world, BreezeEntity entity, long time) {
+		EntityPose pose = entity.getPose();
+		if (pose == EntityPose.LONG_JUMPING || pose == EntityPose.INHALING) {
+			entity.setPose(EntityPose.STANDING);
 		}
 
-		breezeEntity.getBrain().forget(MemoryModuleType.BREEZE_JUMP_TARGET);
-		breezeEntity.getBrain().forget(MemoryModuleType.BREEZE_JUMP_INHALING);
-		breezeEntity.getBrain().forget(MemoryModuleType.BREEZE_LEAVING_WATER);
+		entity.getBrain().forget(MemoryModuleType.BREEZE_JUMP_TARGET);
+		entity.getBrain().forget(MemoryModuleType.BREEZE_JUMP_INHALING);
+		entity.getBrain().forget(MemoryModuleType.BREEZE_LEAVING_WATER);
 	}
 
 	private static boolean shouldStopInhalingPose(BreezeEntity breeze) {
@@ -267,39 +207,37 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 	}
 
 	private static boolean shouldStopLongJumpingPose(BreezeEntity breeze) {
-		boolean bl = breeze.getPose() == EntityPose.LONG_JUMPING;
-		boolean bl2 = breeze.isOnGround();
-		boolean
-				bl3 =
-				breeze.isTouchingWater() && breeze
-						.getBrain()
-						.isMemoryInState(MemoryModuleType.BREEZE_LEAVING_WATER, MemoryModuleState.VALUE_ABSENT);
-		return bl && (bl2 || bl3);
+		boolean isLongJumping = breeze.getPose() == EntityPose.LONG_JUMPING;
+		boolean onGround = breeze.isOnGround();
+		boolean exitingWater = breeze.isTouchingWater()
+				&& breeze.getBrain().isMemoryInState(MemoryModuleType.BREEZE_LEAVING_WATER, MemoryModuleState.VALUE_ABSENT);
+		return isLongJumping && (onGround || exitingWater);
 	}
 
 	private static @Nullable BlockPos getPosToJumpTo(LivingEntity breeze, Vec3d pos) {
-		RaycastContext raycastContext = new RaycastContext(
+		RaycastContext downContext = new RaycastContext(
 				pos,
-				pos.offset(Direction.DOWN, 10.0),
+				pos.offset(Direction.DOWN, RAYCAST_VERTICAL_REACH),
 				RaycastContext.ShapeType.COLLIDER,
 				RaycastContext.FluidHandling.NONE,
 				breeze
 		);
-		HitResult hitResult = breeze.getEntityWorld().raycast(raycastContext);
-		if (hitResult.getType() == HitResult.Type.BLOCK) {
-			return BlockPos.ofFloored(hitResult.getPos()).up();
+		HitResult downHit = breeze.getEntityWorld().raycast(downContext);
+
+		if (downHit.getType() == HitResult.Type.BLOCK) {
+			return BlockPos.ofFloored(downHit.getPos()).up();
 		}
-		else {
-			RaycastContext raycastContext2 = new RaycastContext(
-					pos,
-					pos.offset(Direction.UP, 10.0),
-					RaycastContext.ShapeType.COLLIDER,
-					RaycastContext.FluidHandling.NONE,
-					breeze
-			);
-			HitResult hitResult2 = breeze.getEntityWorld().raycast(raycastContext2);
-			return hitResult2.getType() == HitResult.Type.BLOCK ? BlockPos.ofFloored(hitResult2.getPos()).up() : null;
-		}
+
+		RaycastContext upContext = new RaycastContext(
+				pos,
+				pos.offset(Direction.UP, RAYCAST_VERTICAL_REACH),
+				RaycastContext.ShapeType.COLLIDER,
+				RaycastContext.FluidHandling.NONE,
+				breeze
+		);
+		HitResult upHit = breeze.getEntityWorld().raycast(upContext);
+
+		return upHit.getType() == HitResult.Type.BLOCK ? BlockPos.ofFloored(upHit.getPos()).up() : null;
 	}
 
 	private static boolean isTargetOutOfRange(BreezeEntity breeze, LivingEntity target) {
@@ -307,37 +245,36 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 	}
 
 	private static boolean isTargetTooClose(BreezeEntity breeze, LivingEntity target) {
-		return target.distanceTo(breeze) - 4.0F <= 0.0F;
+		return target.distanceTo(breeze) - MIN_ATTACK_DISTANCE <= 0.0F;
 	}
 
 	private static boolean hasRoomToJump(ServerWorld world, BreezeEntity breeze) {
-		BlockPos blockPos = breeze.getBlockPos();
-		if (world.getBlockState(blockPos).isOf(Blocks.HONEY_BLOCK)) {
+		BlockPos pos = breeze.getBlockPos();
+		if (world.getBlockState(pos).isOf(Blocks.HONEY_BLOCK)) {
 			return false;
 		}
-		else {
-			for (int i = 1; i <= 4; i++) {
-				BlockPos blockPos2 = blockPos.offset(Direction.UP, i);
-				if (!world.getBlockState(blockPos2).isAir() && !world.getFluidState(blockPos2).isIn(FluidTags.WATER)) {
-					return false;
-				}
-			}
 
-			return true;
+		for (int height = 1; height <= REQUIRED_SPACE_ABOVE; height++) {
+			BlockPos above = pos.offset(Direction.UP, height);
+			if (!world.getBlockState(above).isAir() && !world.getFluidState(above).isIn(FluidTags.WATER)) {
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	private static Optional<Vec3d> getJumpingVelocity(BreezeEntity breeze, Random random, Vec3d jumpTarget) {
-		for (int i : Util.copyShuffled(POSSIBLE_JUMP_ANGLES, random)) {
-			float f = 0.058333334F * (float) breeze.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-			Optional<Vec3d> optional = LongJumpUtil.getJumpingVelocity(breeze, jumpTarget, f, i, false);
-			if (optional.isPresent()) {
+		for (int angle : Util.copyShuffled(POSSIBLE_JUMP_ANGLES, random)) {
+			float maxVelocity = FOLLOW_RANGE_MULTIPLIER_FOR_VELOCITY * (float) breeze.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+			Optional<Vec3d> velocity = LongJumpUtil.getJumpingVelocity(breeze, jumpTarget, maxVelocity, angle, false);
+			if (velocity.isPresent()) {
 				if (breeze.hasStatusEffect(StatusEffects.JUMP_BOOST)) {
-					double d = optional.get().normalize().y * breeze.getJumpBoostVelocityModifier();
-					return optional.map(vec3d -> vec3d.add(0.0, d, 0.0));
+					double boostY = velocity.get().normalize().y * breeze.getJumpBoostVelocityModifier();
+					return velocity.map(vec -> vec.add(0.0, boostY, 0.0));
 				}
 
-				return optional;
+				return velocity;
 			}
 		}
 

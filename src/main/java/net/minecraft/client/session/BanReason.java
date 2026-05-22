@@ -5,10 +5,11 @@ import net.fabricmc.api.Environment;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BanReason}.
+ * Причина блокировки аккаунта, полученная от серверов Mojang.
+ * Числовые идентификаторы соответствуют внутренней классификации системы модерации Java Edition.
  */
+@Environment(EnvType.CLIENT)
 public enum BanReason {
 	GENERIC_VIOLATION("generic_violation"),
 	FALSE_REPORTING("false_reporting"),
@@ -31,15 +32,15 @@ public enum BanReason {
 	}
 
 	public Text getDescription() {
-		return this.description;
+		return description;
 	}
 
 	/**
-	 * By id.
+	 * Возвращает причину блокировки по числовому идентификатору Mojang.
+	 * Неизвестные идентификаторы возвращают {@code null}.
 	 *
-	 * @param id id
-	 *
-	 * @return @Nullable BanReason — результат операции
+	 * @param id числовой код причины из ответа сервера авторизации
+	 * @return соответствующая причина или {@code null}, если код не распознан
 	 */
 	public static @Nullable BanReason byId(int id) {
 		return switch (id) {

@@ -1,7 +1,6 @@
 package net.minecraft.structure.processor;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.UnmodifiableIterator;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.block.BlockState;
 import net.minecraft.structure.StructurePlacementData;
@@ -15,14 +14,17 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code RuleStructureProcessor}.
+ * Процессор структур, применяющий набор правил замены блоков.
+ * Для каждого блока шаблона последовательно проверяются все правила {@link StructureProcessorRule};
+ * первое совпавшее правило определяет итоговый блок и его NBT-данные.
  */
 public class RuleStructureProcessor extends StructureProcessor {
 
 	public static final MapCodec<RuleStructureProcessor> CODEC = StructureProcessorRule.CODEC
-			.listOf()
-			.fieldOf("rules")
-			.xmap(RuleStructureProcessor::new, processor -> processor.rules);
+		.listOf()
+		.fieldOf("rules")
+		.xmap(RuleStructureProcessor::new, processor -> processor.rules);
+
 	private final ImmutableList<StructureProcessorRule> rules;
 
 	public RuleStructureProcessor(List<? extends StructureProcessorRule> rules) {
@@ -31,31 +33,22 @@ public class RuleStructureProcessor extends StructureProcessor {
 
 	@Override
 	public StructureTemplate.@Nullable StructureBlockInfo process(
-			WorldView world,
-			BlockPos pos,
-			BlockPos pivot,
-			StructureTemplate.StructureBlockInfo originalBlockInfo,
-			StructureTemplate.StructureBlockInfo currentBlockInfo,
-			StructurePlacementData data
+		WorldView world,
+		BlockPos pos,
+		BlockPos pivot,
+		StructureTemplate.StructureBlockInfo originalBlockInfo,
+		StructureTemplate.StructureBlockInfo currentBlockInfo,
+		StructurePlacementData data
 	) {
 		Random random = Random.create(MathHelper.hashCode(currentBlockInfo.pos()));
-		BlockState blockState = world.getBlockState(currentBlockInfo.pos());
-		UnmodifiableIterator var9 = this.rules.iterator();
+		BlockState worldState = world.getBlockState(currentBlockInfo.pos());
 
-		while (var9.hasNext()) {
-			StructureProcessorRule structureProcessorRule = (StructureProcessorRule) var9.next();
-			if (structureProcessorRule.test(
-					currentBlockInfo.state(),
-					blockState,
-					originalBlockInfo.pos(),
-					currentBlockInfo.pos(),
-					pivot,
-					random
-			)) {
+		for (StructureProcessorRule rule : rules) {
+			if (rule.test(currentBlockInfo.state(), worldState, originalBlockInfo.pos(), currentBlockInfo.pos(), pivot, random)) {
 				return new StructureTemplate.StructureBlockInfo(
-						currentBlockInfo.pos(),
-						structureProcessorRule.getOutputState(),
-						structureProcessorRule.getOutputNbt(random, currentBlockInfo.nbt())
+					currentBlockInfo.pos(),
+					rule.getOutputState(),
+					rule.getOutputNbt(random, currentBlockInfo.nbt())
 				);
 			}
 		}

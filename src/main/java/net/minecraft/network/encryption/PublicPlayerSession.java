@@ -9,38 +9,36 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Запись public player session.
+ * Публичная сессия игрока: идентификатор сессии и публичный ключ для верификации сообщений чата.
  */
 public record PublicPlayerSession(UUID sessionId, PlayerPublicKey publicKeyData) {
 
 	/**
-	 * Создаёт verifier.
+	 * Создаёт {@link MessageVerifier} для проверки подписей входящих сообщений чата.
 	 *
-	 * @param gracePeriod grace period
-	 *
-	 * @return MessageVerifier — результат операции
+	 * @param gracePeriod период отсрочки после истечения ключа, в течение которого он ещё принимается
 	 */
 	public MessageVerifier createVerifier(Duration gracePeriod) {
 		return new MessageVerifier.Impl(
-				this.publicKeyData.createSignatureInstance(),
-				() -> this.publicKeyData.data().isExpired(gracePeriod)
+				publicKeyData.createSignatureInstance(),
+				() -> publicKeyData.data().isExpired(gracePeriod)
 		);
 	}
 
 	public MessageChain.Unpacker createUnpacker(UUID sender) {
-		return new MessageChain(sender, this.sessionId).getUnpacker(this.publicKeyData);
+		return new MessageChain(sender, sessionId).getUnpacker(publicKeyData);
 	}
 
 	public PublicPlayerSession.Serialized toSerialized() {
-		return new PublicPlayerSession.Serialized(this.sessionId, this.publicKeyData.data());
+		return new PublicPlayerSession.Serialized(sessionId, publicKeyData.data());
 	}
 
 	public boolean isKeyExpired() {
-		return this.publicKeyData.data().isExpired();
+		return publicKeyData.data().isExpired();
 	}
 
 	/**
-	 * Запись serialized.
+	 * Сериализованное представление сессии для передачи по сети.
 	 */
 	public record Serialized(UUID sessionId, PlayerPublicKey.PublicKeyData publicKeyData) {
 
@@ -48,12 +46,6 @@ public record PublicPlayerSession(UUID sessionId, PlayerPublicKey publicKeyData)
 			return new PublicPlayerSession.Serialized(buf.readUuid(), new PlayerPublicKey.PublicKeyData(buf));
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param buf buf
-		 * @param serialized serialized
-		 */
 		public static void write(PacketByteBuf buf, PublicPlayerSession.Serialized serialized) {
 			buf.writeUuid(serialized.sessionId);
 			serialized.publicKeyData.write(buf);
@@ -62,8 +54,8 @@ public record PublicPlayerSession(UUID sessionId, PlayerPublicKey publicKeyData)
 		public PublicPlayerSession toSession(GameProfile gameProfile, SignatureVerifier servicesSignatureVerifier)
 		throws PlayerPublicKey.PublicKeyException {
 			return new PublicPlayerSession(
-					this.sessionId,
-					PlayerPublicKey.verifyAndDecode(servicesSignatureVerifier, gameProfile.id(), this.publicKeyData)
+					sessionId,
+					PlayerPublicKey.verifyAndDecode(servicesSignatureVerifier, gameProfile.id(), publicKeyData)
 			);
 		}
 	}

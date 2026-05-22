@@ -123,8 +123,8 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 		map.forEach((flowerPos, set) -> {
 			Set<String> set2 = set.stream().map(NameGenerator::name).collect(Collectors.toSet());
 			int i = 1;
-			GizmoDrawing.blockLabel(set2.toString(), flowerPos, i++, -256, 0.32F);
-			GizmoDrawing.blockLabel("Flower", flowerPos, i++, -1, 0.32F);
+			GizmoDrawing.blockLabel(set2.toString(), flowerPos, i++, -256, DEFAULT_DRAWN_STRING_SIZE);
+			GizmoDrawing.blockLabel("Flower", flowerPos, i++, -1, DEFAULT_DRAWN_STRING_SIZE);
 			GizmoDrawing.box(flowerPos, 0.05F, DrawStyle.filled(ColorHelper.fromFloats(0.3F, 0.8F, 0.8F, 0.0F)));
 		});
 	}
@@ -147,8 +147,8 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 	private void drawHiveBees(BlockPos hivePos, List<String> names) {
 		float f = 0.05F;
 		GizmoDrawing.box(hivePos, 0.05F, DrawStyle.filled(ColorHelper.fromFloats(0.3F, 0.2F, 0.2F, 1.0F)));
-		GizmoDrawing.blockLabel(names.toString(), hivePos, 0, -256, 0.32F);
-		GizmoDrawing.blockLabel("Ghost Hive", hivePos, 1, -65536, 0.32F);
+		GizmoDrawing.blockLabel(names.toString(), hivePos, 0, -256, DEFAULT_DRAWN_STRING_SIZE);
+		GizmoDrawing.blockLabel("Ghost Hive", hivePos, 1, -65536, DEFAULT_DRAWN_STRING_SIZE);
 	}
 
 	private void drawHiveInfo(
@@ -162,7 +162,7 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 			drawString("Blacklisted by " + toString(blacklist), blockPos, i++, -65536);
 		}
 
-		drawString("Out: " + toString(this.getBeesForHive(blockPos, store)), blockPos, i++, -3355444);
+		drawString("Out: " + toString(this.getBeesForHive(blockPos, store)), blockPos, i++, GRAY);
 		if (debugData.occupantCount() == 0) {
 			drawString("In: -", blockPos, i++, -256);
 		}
@@ -173,7 +173,7 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 			drawString("In: " + debugData.occupantCount() + " bees", blockPos, i++, -256);
 		}
 
-		drawString("Honey: " + debugData.honeyLevel(), blockPos, i++, -23296);
+		drawString("Honey: " + debugData.honeyLevel(), blockPos, i++, ORANGE);
 		drawString(
 				debugData.type().getName().getString() + (debugData.sedated() ? " (sedated)" : ""),
 				blockPos,
@@ -187,7 +187,7 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 		int i = 0;
 		GizmoDrawing.entityLabel(bee, i++, debugData.toString(), -1, 0.48F);
 		if (debugData.hivePos().isEmpty()) {
-			GizmoDrawing.entityLabel(bee, i++, "No hive", -98404, 0.32F);
+			GizmoDrawing.entityLabel(bee, i++, "No hive", PINK, DEFAULT_DRAWN_STRING_SIZE);
 		}
 		else {
 			GizmoDrawing.entityLabel(
@@ -195,12 +195,12 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 					i++,
 					"Hive: " + this.getPositionString(bee, debugData.hivePos().get()),
 					-256,
-					0.32F
+					DEFAULT_DRAWN_STRING_SIZE
 			);
 		}
 
 		if (debugData.flowerPos().isEmpty()) {
-			GizmoDrawing.entityLabel(bee, i++, "No flower", -98404, 0.32F);
+			GizmoDrawing.entityLabel(bee, i++, "No flower", PINK, DEFAULT_DRAWN_STRING_SIZE);
 		}
 		else {
 			GizmoDrawing.entityLabel(
@@ -208,26 +208,26 @@ public class BeeDebugRenderer implements DebugRenderer.Renderer {
 					i++,
 					"Flower: " + this.getPositionString(bee, debugData.flowerPos().get()),
 					-256,
-					0.32F
+					DEFAULT_DRAWN_STRING_SIZE
 			);
 		}
 
 		if (goalSelectorDebugData != null) {
 			for (GoalSelectorDebugData.Goal goal : goalSelectorDebugData.goals()) {
 				if (goal.isRunning()) {
-					GizmoDrawing.entityLabel(bee, i++, goal.name(), -16711936, 0.32F);
+					GizmoDrawing.entityLabel(bee, i++, goal.name(), -16711936, DEFAULT_DRAWN_STRING_SIZE);
 				}
 			}
 		}
 
 		if (debugData.travelTicks() > 0) {
 			int j = debugData.travelTicks() < 2400 ? -3355444 : -23296;
-			GizmoDrawing.entityLabel(bee, i++, "Travelling: " + debugData.travelTicks() + " ticks", j, 0.32F);
+			GizmoDrawing.entityLabel(bee, i++, "Travelling: " + debugData.travelTicks() + " ticks", j, DEFAULT_DRAWN_STRING_SIZE);
 		}
 	}
 
 	private static void drawString(String string, BlockPos blockPos, int yOffset, int color) {
-		GizmoDrawing.blockLabel(string, blockPos, yOffset, color, 0.32F);
+		GizmoDrawing.blockLabel(string, blockPos, yOffset, color, DEFAULT_DRAWN_STRING_SIZE);
 	}
 
 	private Camera getCameraPos() {

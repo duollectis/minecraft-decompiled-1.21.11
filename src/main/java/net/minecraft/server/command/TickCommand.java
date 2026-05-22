@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * {@code TickCommand}.
+ * Команда {@code /tick}: управление скоростью тиков сервера.
  */
 public class TickCommand {
 
@@ -44,7 +44,7 @@ public class TickCommand {
 										              CommandManager
 												              .argument(
 														              "rate",
-														              FloatArgumentType.floatArg(1.0F, 10000.0F)
+														              FloatArgumentType.floatArg(1.0F, MAX_TICK_RATE)
 												              )
 												              .suggests(
 														              (context, suggestionsBuilder) -> CommandSource.suggestMatching(

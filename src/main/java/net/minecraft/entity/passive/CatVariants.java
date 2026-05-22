@@ -17,38 +17,25 @@ import net.minecraft.world.gen.structure.Structure;
 import java.util.List;
 
 /**
- * {@code CatVariants}.
+ * Реестр вариантов кошки. Большинство пород спавнятся случайно (fallback),
+ * кроме {@link #ALL_BLACK} — она спавнится в деревнях или при полной луне.
  */
 public interface CatVariants {
 
 	RegistryKey<CatVariant> TABBY = of("tabby");
-
 	RegistryKey<CatVariant> BLACK = of("black");
-
 	RegistryKey<CatVariant> RED = of("red");
-
 	RegistryKey<CatVariant> SIAMESE = of("siamese");
-
 	RegistryKey<CatVariant> BRITISH_SHORTHAIR = of("british_shorthair");
-
 	RegistryKey<CatVariant> CALICO = of("calico");
-
 	RegistryKey<CatVariant> PERSIAN = of("persian");
-
 	RegistryKey<CatVariant> RAGDOLL = of("ragdoll");
-
 	RegistryKey<CatVariant> WHITE = of("white");
-
 	RegistryKey<CatVariant> JELLIE = of("jellie");
-
 	RegistryKey<CatVariant> ALL_BLACK = of("all_black");
 
-	private static RegistryKey<CatVariant> of(String id) {
-		return RegistryKey.of(RegistryKeys.CAT_VARIANT, Identifier.ofVanilla(id));
-	}
-
 	static void bootstrap(Registerable<CatVariant> registry) {
-		RegistryEntryLookup<Structure> registryEntryLookup = registry.getRegistryLookup(RegistryKeys.STRUCTURE);
+		RegistryEntryLookup<Structure> structureLookup = registry.getRegistryLookup(RegistryKeys.STRUCTURE);
 		register(registry, TABBY, "entity/cat/tabby");
 		register(registry, BLACK, "entity/cat/black");
 		register(registry, RED, "entity/cat/red");
@@ -60,19 +47,21 @@ public interface CatVariants {
 		register(registry, WHITE, "entity/cat/white");
 		register(registry, JELLIE, "entity/cat/jellie");
 		register(
-				registry,
-				ALL_BLACK,
-				"entity/cat/all_black",
-				new SpawnConditionSelectors(
-						List.of(
-								new VariantSelectorProvider.Selector<>(
-										new StructureSpawnCondition(registryEntryLookup.getOrThrow(StructureTags.CATS_SPAWN_AS_BLACK)),
-										1
-								),
-								new VariantSelectorProvider.Selector<>(
-										new MoonBrightnessSpawnCondition(NumberRange.DoubleRange.atLeast(0.9)), 0)
-						)
+			registry,
+			ALL_BLACK,
+			"entity/cat/all_black",
+			new SpawnConditionSelectors(
+				List.of(
+					new VariantSelectorProvider.Selector<>(
+						new StructureSpawnCondition(structureLookup.getOrThrow(StructureTags.CATS_SPAWN_AS_BLACK)),
+						1
+					),
+					new VariantSelectorProvider.Selector<>(
+						new MoonBrightnessSpawnCondition(NumberRange.DoubleRange.atLeast(0.9)),
+						0
+					)
 				)
+			)
 		);
 	}
 
@@ -81,14 +70,18 @@ public interface CatVariants {
 	}
 
 	private static void register(
-			Registerable<CatVariant> registry,
-			RegistryKey<CatVariant> key,
-			String assetId,
-			SpawnConditionSelectors spawnConditions
+		Registerable<CatVariant> registry,
+		RegistryKey<CatVariant> key,
+		String assetId,
+		SpawnConditionSelectors spawnConditions
 	) {
 		registry.register(
-				key,
-				new CatVariant(new AssetInfo.TextureAssetInfo(Identifier.ofVanilla(assetId)), spawnConditions)
+			key,
+			new CatVariant(new AssetInfo.TextureAssetInfo(Identifier.ofVanilla(assetId)), spawnConditions)
 		);
+	}
+
+	private static RegistryKey<CatVariant> of(String id) {
+		return RegistryKey.of(RegistryKeys.CAT_VARIANT, Identifier.ofVanilla(id));
 	}
 }

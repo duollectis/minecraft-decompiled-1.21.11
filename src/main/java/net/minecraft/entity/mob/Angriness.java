@@ -7,7 +7,7 @@ import net.minecraft.util.Util;
 import java.util.Arrays;
 
 /**
- * {@code Angriness}.
+ * Перечисление уровней злости моба.
  */
 public enum Angriness {
 	CALM(0, SoundEvents.ENTITY_WARDEN_AMBIENT, SoundEvents.ENTITY_WARDEN_LISTENING),
@@ -28,15 +28,15 @@ public enum Angriness {
 	}
 
 	public int getThreshold() {
-		return this.threshold;
+		return threshold;
 	}
 
 	public SoundEvent getSound() {
-		return this.sound;
+		return sound;
 	}
 
 	public SoundEvent getListeningSound() {
-		return this.listeningSound;
+		return listeningSound;
 	}
 
 	public static Angriness getForAnger(int anger) {

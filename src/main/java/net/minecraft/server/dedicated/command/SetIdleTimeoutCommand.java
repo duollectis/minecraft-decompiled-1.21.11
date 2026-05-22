@@ -8,7 +8,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 /**
- * {@code SetIdleTimeoutCommand}.
+ * Команда {@code /setidletimeout}: установка таймаута бездействия игрока (только dedicated).
  */
 public class SetIdleTimeoutCommand {
 

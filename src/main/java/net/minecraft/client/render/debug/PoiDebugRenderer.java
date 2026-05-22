@@ -66,8 +66,8 @@ public class PoiDebugRenderer implements DebugRenderer.Renderer {
 	private void drawGhostPoi(BlockPos blockPos, List<String> list) {
 		float f = 0.05F;
 		GizmoDrawing.box(blockPos, 0.05F, DrawStyle.filled(ColorHelper.fromFloats(0.3F, 0.2F, 0.2F, 1.0F)));
-		GizmoDrawing.blockLabel(list.toString(), blockPos, 0, -256, 0.32F);
-		GizmoDrawing.blockLabel("Ghost POI", blockPos, 1, -65536, 0.32F);
+		GizmoDrawing.blockLabel(list.toString(), blockPos, 0, -256, TEXT_SCALE);
+		GizmoDrawing.blockLabel("Ghost POI", blockPos, 1, -65536, TEXT_SCALE);
 	}
 
 	private void drawPoiInfo(PoiDebugData poiDebugData, DebugDataStore debugDataStore) {
@@ -84,10 +84,10 @@ public class PoiDebugRenderer implements DebugRenderer.Renderer {
 			i++;
 			List<String> list2 = this.getTicketHolders(poiDebugData, true, debugDataStore);
 			if (list2.size() < 4) {
-				drawTextOverPoi("Candidates: " + list2, poiDebugData, i, -23296);
+				drawTextOverPoi("Candidates: " + list2, poiDebugData, i, ORANGE_COLOR);
 			}
 			else {
-				drawTextOverPoi(list2.size() + " potential owners", poiDebugData, i, -23296);
+				drawTextOverPoi(list2.size() + " potential owners", poiDebugData, i, ORANGE_COLOR);
 			}
 
 			i++;
@@ -98,7 +98,7 @@ public class PoiDebugRenderer implements DebugRenderer.Renderer {
 	}
 
 	private static void drawTextOverPoi(String string, PoiDebugData poiDebugData, int i, int j) {
-		GizmoDrawing.blockLabel(string, poiDebugData.pos(), i, j, 0.32F);
+		GizmoDrawing.blockLabel(string, poiDebugData.pos(), i, j, TEXT_SCALE);
 	}
 
 	private List<String> getTicketHolders(PoiDebugData poiData, boolean potential, DebugDataStore store) {

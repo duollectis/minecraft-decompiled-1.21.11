@@ -7,6 +7,8 @@
 /logs/
 /scripts/
 
+java_pid*.hprof
+
 ### IntelliJ IDEA ###
 /.idea/
 *.iws
@@ -19,3 +21,6 @@
 
 ### Mac OS ###
 .DS_Store
+.venv/
+/reports
+/DO_NOT_READ

@@ -12,10 +12,11 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Urls;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CreditsAndAttributionScreen}.
+ * Экран «Авторы и атрибуция» — предоставляет доступ к титрам, странице атрибуции
+ * и лицензиям через внешние ссылки.
  */
+@Environment(EnvType.CLIENT)
 public class CreditsAndAttributionScreen extends Screen {
 
 	private static final int SPACING = 8;
@@ -24,6 +25,7 @@ public class CreditsAndAttributionScreen extends Screen {
 	private static final Text CREDITS_TEXT = Text.translatable("credits_and_attribution.button.credits");
 	private static final Text ATTRIBUTION_TEXT = Text.translatable("credits_and_attribution.button.attribution");
 	private static final Text LICENSE_TEXT = Text.translatable("credits_and_attribution.button.licenses");
+
 	private final Screen parent;
 	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
@@ -34,39 +36,28 @@ public class CreditsAndAttributionScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.layout.addHeader(TITLE, this.textRenderer);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addBody(DirectionalLayoutWidget.vertical()).spacing(8);
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(CREDITS_TEXT, button -> this.openCredits())
-				.width(210)
-				.build());
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(ATTRIBUTION_TEXT, ConfirmLinkScreen.opening(this, Urls.JAVA_ATTRIBUTION))
-				.width(210)
-				.build());
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(LICENSE_TEXT, ConfirmLinkScreen.opening(this, Urls.JAVA_LICENSES))
-				.width(210)
-				.build());
-		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).width(200).build());
-		this.layout.refreshPositions();
-		this.layout.forEachChild(this::addDrawableChild);
+		layout.addHeader(TITLE, textRenderer);
+		DirectionalLayoutWidget bodyLayout = layout.addBody(DirectionalLayoutWidget.vertical()).spacing(SPACING);
+		bodyLayout.getMainPositioner().alignHorizontalCenter();
+		bodyLayout.add(ButtonWidget.builder(CREDITS_TEXT, button -> openCredits()).width(BUTTON_WIDTH).build());
+		bodyLayout.add(ButtonWidget.builder(ATTRIBUTION_TEXT, ConfirmLinkScreen.opening(this, Urls.JAVA_ATTRIBUTION)).width(BUTTON_WIDTH).build());
+		bodyLayout.add(ButtonWidget.builder(LICENSE_TEXT, ConfirmLinkScreen.opening(this, Urls.JAVA_LICENSES)).width(BUTTON_WIDTH).build());
+		layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> close()).width(200).build());
+		layout.refreshPositions();
+		layout.forEachChild(this::addDrawableChild);
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	private void openCredits() {
-		this.client.setScreen(new CreditsScreen(false, () -> this.client.setScreen(this)));
+		client.setScreen(new CreditsScreen(false, () -> client.setScreen(this)));
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 }

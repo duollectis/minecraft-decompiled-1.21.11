@@ -6,10 +6,12 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code FireSmokeParticle}.
+ * Частица дыма от огня — тёмный поднимающийся клуб дыма,
+ * испускаемый горящими блоками и кострами. Наследует логику
+ * подъёма и затухания от {@link AscendingParticle}.
  */
+@Environment(EnvType.CLIENT)
 public class FireSmokeParticle extends AscendingParticle {
 
 	protected FireSmokeParticle(
@@ -43,10 +45,10 @@ public class FireSmokeParticle extends AscendingParticle {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Factory}.
+	 * Фабрика для создания частиц дыма от огня с масштабом 1.0.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
 		private final SpriteProvider spriteProvider;
@@ -55,18 +57,19 @@ public class FireSmokeParticle extends AscendingParticle {
 			this.spriteProvider = spriteProvider;
 		}
 
+		@Override
 		public Particle createParticle(
-				SimpleParticleType simpleParticleType,
-				ClientWorld clientWorld,
-				double d,
-				double e,
-				double f,
-				double g,
-				double h,
-				double i,
+				SimpleParticleType type,
+				ClientWorld world,
+				double x,
+				double y,
+				double z,
+				double velocityX,
+				double velocityY,
+				double velocityZ,
 				Random random
 		) {
-			return new FireSmokeParticle(clientWorld, d, e, f, g, h, i, 1.0F, this.spriteProvider);
+			return new FireSmokeParticle(world, x, y, z, velocityX, velocityY, velocityZ, 1.0F, this.spriteProvider);
 		}
 	}
 }

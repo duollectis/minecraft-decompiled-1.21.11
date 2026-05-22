@@ -16,7 +16,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Класс decoder handler.
+ * Netty-обработчик входящего трафика: декодирует {@link ByteBuf} в {@link Packet}
+ * согласно текущему {@link NetworkState}.
  */
 public class DecoderHandler<T extends PacketListener> extends ByteToMessageDecoder implements NetworkStateTransitionHandler {
 
@@ -27,34 +28,28 @@ public class DecoderHandler<T extends PacketListener> extends ByteToMessageDecod
 		this.state = state;
 	}
 
-	/**
-	 * Decode.
-	 *
-	 * @param context context
-	 * @param buf buf
-	 * @param objects objects
-	 */
-	protected void decode(ChannelHandlerContext context, ByteBuf buf, List<Object> objects) throws Exception {
-		int i = buf.readableBytes();
+	@Override
+	protected void decode(ChannelHandlerContext context, ByteBuf buf, List<Object> out) throws Exception {
+		int packetSize = buf.readableBytes();
 
 		Packet<? super T> packet;
 		try {
-			packet = this.state.codec().decode(buf);
-		}
-		catch (Exception var7) {
-			if (var7 instanceof PacketException) {
+			packet = state.codec().decode(buf);
+		} catch (Exception e) {
+			if (e instanceof PacketException) {
 				buf.skipBytes(buf.readableBytes());
 			}
 
-			throw var7;
+			throw e;
 		}
 
 		PacketType<? extends Packet<? super T>> packetType = packet.getPacketType();
-		FlightProfiler.INSTANCE.onPacketReceived(this.state.id(), packetType, context.channel().remoteAddress(), i);
+		FlightProfiler.INSTANCE.onPacketReceived(state.id(), packetType, context.channel().remoteAddress(), packetSize);
+
 		if (buf.readableBytes() > 0) {
 			throw new IOException(
 					"Packet "
-							+ this.state.id().getId()
+							+ state.id().getId()
 							+ "/"
 							+ packetType
 							+ " ("
@@ -65,17 +60,17 @@ public class DecoderHandler<T extends PacketListener> extends ByteToMessageDecod
 							+ packetType
 			);
 		}
-		else {
-			objects.add(packet);
-			if (LOGGER.isDebugEnabled()) {
-				LOGGER.debug(
-						ClientConnection.PACKET_RECEIVED_MARKER,
-						" IN: [{}:{}] {} -> {} bytes",
-						new Object[]{this.state.id().getId(), packetType, packet.getClass().getName(), i}
-				);
-			}
 
-			NetworkStateTransitionHandler.onDecoded(context, packet);
+		out.add(packet);
+
+		if (LOGGER.isDebugEnabled()) {
+			LOGGER.debug(
+					ClientConnection.PACKET_RECEIVED_MARKER,
+					" IN: [{}:{}] {} -> {} bytes",
+					new Object[]{state.id().getId(), packetType, packet.getClass().getName(), packetSize}
+			);
 		}
+
+		NetworkStateTransitionHandler.onDecoded(context, packet);
 	}
 }

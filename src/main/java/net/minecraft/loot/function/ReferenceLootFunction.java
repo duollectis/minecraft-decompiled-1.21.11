@@ -15,20 +15,20 @@ import org.slf4j.Logger;
 
 import java.util.List;
 
-/**
- * {@code ReferenceLootFunction}.
- */
+/** Функция лута, делегирующая обработку предмета именованной функции из реестра модификаторов предметов. */
 public class ReferenceLootFunction extends ConditionalLootFunction {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+
 	public static final MapCodec<ReferenceLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> addConditionsField(instance)
-					.and(RegistryKey
-							.createCodec(RegistryKeys.ITEM_MODIFIER)
-							.fieldOf("name")
-							.forGetter(function -> function.name))
-					.apply(instance, ReferenceLootFunction::new)
+		instance -> addConditionsField(instance)
+			.and(RegistryKey
+				.createCodec(RegistryKeys.ITEM_MODIFIER)
+				.fieldOf("name")
+				.forGetter(function -> function.name))
+			.apply(instance, ReferenceLootFunction::new)
 	);
+
 	private final RegistryKey<LootFunction> name;
 
 	private ReferenceLootFunction(List<LootCondition> conditions, RegistryKey<LootFunction> name) {
@@ -44,53 +44,49 @@ public class ReferenceLootFunction extends ConditionalLootFunction {
 	@Override
 	public void validate(LootTableReporter reporter) {
 		if (!reporter.canUseReferences()) {
-			reporter.report(new LootTableReporter.ReferenceNotAllowedError(this.name));
+			reporter.report(new LootTableReporter.ReferenceNotAllowedError(name));
+			return;
 		}
-		else if (reporter.isInStack(this.name)) {
-			reporter.report(new LootTableReporter.RecursionError(this.name));
+
+		if (reporter.isInStack(name)) {
+			reporter.report(new LootTableReporter.RecursionError(name));
+			return;
 		}
-		else {
-			super.validate(reporter);
-			reporter.getDataLookup()
-			        .getOptionalEntry(this.name)
-			        .ifPresentOrElse(
-					        reference -> reference
-							        .value()
-							        .validate(reporter.makeChild(
-									        new ErrorReporter.ReferenceLootTableContext(this.name),
-									        this.name
-							        )),
-					        () -> reporter.report(new LootTableReporter.MissingElementError(this.name))
-			        );
-		}
+
+		super.validate(reporter);
+		reporter.getDataLookup()
+			.getOptionalEntry(name)
+			.ifPresentOrElse(
+				reference -> reference
+					.value()
+					.validate(reporter.makeChild(new ErrorReporter.ReferenceLootTableContext(name), name)),
+				() -> reporter.report(new LootTableReporter.MissingElementError(name))
+			);
 	}
 
 	@Override
 	protected ItemStack process(ItemStack stack, LootContext context) {
-		LootFunction
-				lootFunction =
-				context.getLookup().getOptionalEntry(this.name).map(RegistryEntry::value).orElse(null);
+		LootFunction lootFunction = context.getLookup()
+			.getOptionalEntry(name)
+			.map(RegistryEntry::value)
+			.orElse(null);
+
 		if (lootFunction == null) {
-			LOGGER.warn("Unknown function: {}", this.name.getValue());
+			LOGGER.warn("Unknown function: {}", name.getValue());
 			return stack;
 		}
-		else {
-			LootContext.Entry<?> entry = LootContext.itemModifier(lootFunction);
-			if (context.markActive(entry)) {
-				ItemStack var5;
-				try {
-					var5 = lootFunction.apply(stack, context);
-				}
-				finally {
-					context.markInactive(entry);
-				}
 
-				return var5;
-			}
-			else {
-				LOGGER.warn("Detected infinite loop in loot tables");
-				return stack;
-			}
+		LootContext.Entry<?> entry = LootContext.itemModifier(lootFunction);
+
+		if (!context.markActive(entry)) {
+			LOGGER.warn("Detected infinite loop in loot tables");
+			return stack;
+		}
+
+		try {
+			return lootFunction.apply(stack, context);
+		} finally {
+			context.markInactive(entry);
 		}
 	}
 

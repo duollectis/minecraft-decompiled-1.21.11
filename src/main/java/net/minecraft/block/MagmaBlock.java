@@ -12,7 +12,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code MagmaBlock}.
+ * Блок магмы. Наносит урон живым существам при наступании (если не имеют иммунитета).
+ * При появлении воды сверху планирует обновление пузырькового столба.
  */
 public class MagmaBlock extends Block {
 
@@ -54,7 +55,7 @@ public class MagmaBlock extends Block {
 			Random random
 	) {
 		if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
-			tickView.scheduleBlockTick(pos, this, 20);
+			tickView.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 		}
 
 		return super.getStateForNeighborUpdate(
@@ -71,6 +72,6 @@ public class MagmaBlock extends Block {
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		world.scheduleBlockTick(pos, this, 20);
+		world.scheduleBlockTick(pos, this, SCHEDULED_TICK_DELAY);
 	}
 }

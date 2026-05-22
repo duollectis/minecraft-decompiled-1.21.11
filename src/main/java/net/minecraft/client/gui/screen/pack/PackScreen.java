@@ -35,18 +35,18 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PackScreen}.
+ * Экран управления пакетами ресурсов: позволяет включать, отключать и перетаскивать паки.
+ * Отслеживает изменения в директории паков через {@link DirectoryWatcher}.
  */
+@Environment(EnvType.CLIENT)
 public class PackScreen extends Screen {
 
 	static final Logger LOGGER = LogUtils.getLogger();
 	private static final Text AVAILABLE_TITLE = Text.translatable("pack.available.title");
 	private static final Text SELECTED_TITLE = Text.translatable("pack.selected.title");
 	private static final Text OPEN_FOLDER = Text.translatable("pack.openFolder");
-	private static final Text
-			SEARCH_BOX_PLACEHOLDER =
+	private static final Text SEARCH_BOX_PLACEHOLDER =
 			Text.translatable("gui.packSelection.search").fillStyle(TextFieldWidget.SEARCH_STYLE);
 	private static final int PACK_LIST_WIDTH = 200;
 	private static final int HEADER_SPACING = 4;
@@ -91,57 +91,48 @@ public class PackScreen extends Screen {
 	}
 
 	private void closeDirectoryWatcher() {
-		if (this.directoryWatcher != null) {
-			try {
-				this.directoryWatcher.close();
-				this.directoryWatcher = null;
-			}
-			catch (Exception var2) {
-			}
+		if (directoryWatcher == null) {
+			return;
+		}
+
+		try {
+			directoryWatcher.close();
+			directoryWatcher = null;
+		} catch (Exception ignored) {
+			// AutoCloseable.close() не должен бросать, но API это допускает
 		}
 	}
 
 	@Override
 	protected void init() {
-		this.layout.setHeaderHeight(4 + 9 + 4 + 9 + 4 + 15 + 4);
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addHeader(DirectionalLayoutWidget.vertical().spacing(4));
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		directionalLayoutWidget.add(new TextWidget(this.getTitle(), this.textRenderer));
-		directionalLayoutWidget.add(new TextWidget(DROP_INFO, this.textRenderer));
-		this.searchBox =
-				directionalLayoutWidget.add(new TextFieldWidget(this.textRenderer, 0, 0, 200, 15, Text.empty()));
-		this.searchBox.setPlaceholder(SEARCH_BOX_PLACEHOLDER);
-		this.searchBox.setChangedListener(this::setSearch);
-		this.availablePackList =
-				this.layout.addBody(new PackListWidget(this.client, this, 200, this.height - 66, AVAILABLE_TITLE));
-		this.selectedPackList =
-				this.layout.addBody(new PackListWidget(this.client, this, 200, this.height - 66, SELECTED_TITLE));
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget2.add(
+		layout.setHeaderHeight(4 + 9 + 4 + 9 + 4 + SEARCH_BOX_HEIGHT + 4);
+		DirectionalLayoutWidget headerLayout = layout.addHeader(DirectionalLayoutWidget.vertical().spacing(4));
+		headerLayout.getMainPositioner().alignHorizontalCenter();
+		headerLayout.add(new TextWidget(getTitle(), textRenderer));
+		headerLayout.add(new TextWidget(DROP_INFO, textRenderer));
+		searchBox = headerLayout.add(new TextFieldWidget(textRenderer, 0, 0, PACK_LIST_WIDTH, SEARCH_BOX_HEIGHT, Text.empty()));
+		searchBox.setPlaceholder(SEARCH_BOX_PLACEHOLDER);
+		searchBox.setChangedListener(this::setSearch);
+		availablePackList = layout.addBody(new PackListWidget(client, this, PACK_LIST_WIDTH, height - 66, AVAILABLE_TITLE));
+		selectedPackList = layout.addBody(new PackListWidget(client, this, PACK_LIST_WIDTH, height - 66, SELECTED_TITLE));
+		DirectionalLayoutWidget footerLayout = layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		footerLayout.add(
 				ButtonWidget
-						.builder(OPEN_FOLDER, button -> Util.getOperatingSystem().open(this.file))
+						.builder(OPEN_FOLDER, button -> Util.getOperatingSystem().open(file))
 						.tooltip(Tooltip.of(FOLDER_INFO))
 						.build()
 		);
-		this.doneButton =
-				directionalLayoutWidget2.add(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).build());
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
-		this.refresh();
+		doneButton = footerLayout.add(ButtonWidget.builder(ScreenTexts.DONE, button -> close()).build());
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
+		refresh();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		if (this.searchBox != null) {
-			this.setInitialFocus(this.searchBox);
-		}
-		else {
+		if (searchBox != null) {
+			setInitialFocus(searchBox);
+		} else {
 			super.setInitialFocus();
 		}
 	}
@@ -169,18 +160,18 @@ public class PackScreen extends Screen {
 		this.layout.refreshPositions();
 		if (this.availablePackList != null) {
 			this.availablePackList.position(
-					200,
+					PACK_LIST_WIDTH,
 					this.layout.getContentHeight(),
-					this.width / 2 - 15 - 200,
+					this.width / 2 - SEARCH_BOX_HEIGHT - PACK_LIST_WIDTH,
 					this.layout.getHeaderHeight()
 			);
 		}
 
 		if (this.selectedPackList != null) {
 			this.selectedPackList.position(
-					200,
+					PACK_LIST_WIDTH,
 					this.layout.getContentHeight(),
-					this.width / 2 + 15,
+					this.width / 2 + SEARCH_BOX_HEIGHT,
 					this.layout.getHeaderHeight()
 			);
 		}
@@ -230,127 +221,90 @@ public class PackScreen extends Screen {
 		this.iconTextures.clear();
 	}
 
-	/**
-	 * Создаёт копию packs.
-	 *
-	 * @param client client
-	 * @param srcPaths src paths
-	 * @param destPath dest path
-	 */
 	protected static void copyPacks(MinecraftClient client, List<Path> srcPaths, Path destPath) {
-		MutableBoolean mutableBoolean = new MutableBoolean();
+		MutableBoolean hasError = new MutableBoolean();
 		srcPaths.forEach(src -> {
 			try (Stream<Path> stream = Files.walk(src)) {
 				stream.forEach(toCopy -> {
 					try {
 						Util.relativeCopy(src.getParent(), destPath, toCopy);
-					}
-					catch (IOException var5) {
-						LOGGER.warn(
-								"Failed to copy datapack file  from {} to {}",
-								new Object[]{toCopy, destPath, var5}
-						);
-						mutableBoolean.setTrue();
+					} catch (IOException copyError) {
+						LOGGER.warn("Failed to copy datapack file from {} to {}", toCopy, destPath, copyError);
+						hasError.setTrue();
 					}
 				});
-			}
-			catch (IOException var8) {
+			} catch (IOException error) {
 				LOGGER.warn("Failed to copy datapack file from {} to {}", src, destPath);
-				mutableBoolean.setTrue();
+				hasError.setTrue();
 			}
 		});
-		if (mutableBoolean.isTrue()) {
+
+		if (hasError.isTrue()) {
 			SystemToast.addPackCopyFailure(client, destPath.toString());
 		}
 	}
 
 	@Override
 	public void onFilesDropped(List<Path> paths) {
-		String string = streamFileNames(paths).collect(Collectors.joining(", "));
-		this.client
-				.setScreen(
-						new ConfirmScreen(
-								confirmed -> {
-									if (confirmed) {
-										List<Path> list2 = new ArrayList<>(paths.size());
-										Set<Path> set = new HashSet<>(paths);
-										ResourcePackOpener<Path>
-												resourcePackOpener =
-												new ResourcePackOpener<Path>(this.client.getSymlinkFinder()) {
-													/**
-													 * Открывает zip.
-													 *
-													 * @param path path
-													 *
-													 * @return Path — результат операции
-													 */
-													protected Path openZip(Path path) {
-														return path;
-													}
+		String fileNames = streamFileNames(paths).collect(Collectors.joining(", "));
+		client.setScreen(new ConfirmScreen(
+				confirmed -> {
+					if (confirmed) {
+						List<Path> validPaths = new ArrayList<>(paths.size());
+						Set<Path> remainingPaths = new HashSet<>(paths);
+						ResourcePackOpener<Path> opener = new ResourcePackOpener<Path>(client.getSymlinkFinder()) {
+							@Override
+							protected Path openZip(Path path) {
+								return path;
+							}
 
-													/**
-													 * Открывает directory.
-													 *
-													 * @param path path
-													 *
-													 * @return Path — результат операции
-													 */
-													protected Path openDirectory(Path path) {
-														return path;
-													}
-												};
-										List<SymlinkEntry> list3 = new ArrayList<>();
+							@Override
+							protected Path openDirectory(Path path) {
+								return path;
+							}
+						};
+						List<SymlinkEntry> symlinkEntries = new ArrayList<>();
 
-										for (Path path : paths) {
-											try {
-												Path path2 = resourcePackOpener.open(path, list3);
-												if (path2 == null) {
-													LOGGER.warn("Path {} does not seem like pack", path);
-												}
-												else {
-													list2.add(path2);
-													set.remove(path2);
-												}
-											}
-											catch (IOException var10) {
-												LOGGER.warn("Failed to check {} for packs", path, var10);
-											}
-										}
+						for (Path path : paths) {
+							try {
+								Path resolved = opener.open(path, symlinkEntries);
+								if (resolved == null) {
+									LOGGER.warn("Path {} does not seem like pack", path);
+								} else {
+									validPaths.add(resolved);
+									remainingPaths.remove(resolved);
+								}
+							} catch (IOException error) {
+								LOGGER.warn("Failed to check {} for packs", path, error);
+							}
+						}
 
-										if (!list3.isEmpty()) {
-											this.client.setScreen(SymlinkWarningScreen.pack(() -> this.client.setScreen(
-													this)));
-											return;
-										}
+						if (!symlinkEntries.isEmpty()) {
+							client.setScreen(SymlinkWarningScreen.pack(() -> client.setScreen(this)));
+							return;
+						}
 
-										if (!list2.isEmpty()) {
-											copyPacks(this.client, list2, this.file);
-											this.refresh();
-										}
+						if (!validPaths.isEmpty()) {
+							copyPacks(client, validPaths, file);
+							refresh();
+						}
 
-										if (!set.isEmpty()) {
-											String stringx = streamFileNames(set).collect(Collectors.joining(", "));
-											this.client
-													.setScreen(
-															new NoticeScreen(
-																	() -> this.client.setScreen(this),
-																	Text.translatable("pack.dropRejected.title"),
-																	Text.translatable(
-																			"pack.dropRejected.message",
-																			stringx
-																	)
-															)
-													);
-											return;
-										}
-									}
+						if (!remainingPaths.isEmpty()) {
+							String rejected = streamFileNames(remainingPaths).collect(Collectors.joining(", "));
+							client.setScreen(new NoticeScreen(
+									() -> client.setScreen(this),
+									Text.translatable("pack.dropRejected.title"),
+									Text.translatable("pack.dropRejected.message", rejected)
+							));
+							return;
+						}
+					}
 
-									this.client.setScreen(this);
-								},
-								Text.translatable("pack.dropConfirm"),
-								Text.literal(string)
-						)
-				);
+					client.setScreen(this);
+				},
+				Text.translatable("pack.dropConfirm"),
+				Text.literal(fileNames)
+		));
 	}
 
 	private static Stream<String> streamFileNames(Collection<Path> paths) {
@@ -358,35 +312,25 @@ public class PackScreen extends Screen {
 	}
 
 	private Identifier loadPackIcon(TextureManager textureManager, ResourcePackProfile resourcePackProfile) {
-		try {
-			Identifier var9;
-			try (ResourcePack resourcePack = resourcePackProfile.createResourcePack()) {
-				InputSupplier<InputStream> inputSupplier = resourcePack.openRoot("pack.png");
-				if (inputSupplier == null) {
-					return UNKNOWN_PACK;
-				}
-
-				String string = resourcePackProfile.getId();
-				Identifier identifier = Identifier.ofVanilla(
-						"pack/" + Util.replaceInvalidChars(string, Identifier::isPathCharacterValid) + "/" + Hashing
-								.sha1()
-								.hashUnencodedChars(string) + "/icon"
-				);
-
-				try (InputStream inputStream = inputSupplier.get()) {
-					NativeImage nativeImage = NativeImage.read(inputStream);
-					textureManager.registerTexture(
-							identifier,
-							new NativeImageBackedTexture(identifier::toString, nativeImage)
-					);
-					var9 = identifier;
-				}
+		try (ResourcePack resourcePack = resourcePackProfile.createResourcePack()) {
+			InputSupplier<InputStream> inputSupplier = resourcePack.openRoot("pack.png");
+			if (inputSupplier == null) {
+				return UNKNOWN_PACK;
 			}
 
-			return var9;
-		}
-		catch (Exception var14) {
-			LOGGER.warn("Failed to load icon from pack {}", resourcePackProfile.getId(), var14);
+			String packId = resourcePackProfile.getId();
+			Identifier iconId = Identifier.ofVanilla(
+					"pack/" + Util.replaceInvalidChars(packId, Identifier::isPathCharacterValid)
+							+ "/" + Hashing.sha1().hashUnencodedChars(packId) + "/icon"
+			);
+
+			try (InputStream inputStream = inputSupplier.get()) {
+				NativeImage nativeImage = NativeImage.read(inputStream);
+				textureManager.registerTexture(iconId, new NativeImageBackedTexture(iconId::toString, nativeImage));
+				return iconId;
+			}
+		} catch (Exception error) {
+			LOGGER.warn("Failed to load icon from pack {}", resourcePackProfile.getId(), error);
 			return UNKNOWN_PACK;
 		}
 	}
@@ -399,10 +343,10 @@ public class PackScreen extends Screen {
 				);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code DirectoryWatcher}.
+	 * Отслеживает изменения файловой системы в директории паков через {@link WatchService}.
 	 */
+	@Environment(EnvType.CLIENT)
 	static class DirectoryWatcher implements AutoCloseable {
 
 		private final WatchService watchService;
@@ -432,9 +376,8 @@ public class PackScreen extends Screen {
 		public static PackScreen.@Nullable DirectoryWatcher create(Path path) {
 			try {
 				return new PackScreen.DirectoryWatcher(path);
-			}
-			catch (IOException var2) {
-				PackScreen.LOGGER.warn("Failed to initialize pack directory {} monitoring", path, var2);
+			} catch (IOException error) {
+				PackScreen.LOGGER.warn("Failed to initialize pack directory {} monitoring", path, error);
 				return null;
 			}
 		}
@@ -448,23 +391,17 @@ public class PackScreen extends Screen {
 			);
 		}
 
-		/**
-		 * Poll for change.
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean pollForChange() throws IOException {
-			boolean bl = false;
+			boolean hasChanges = false;
 
 			WatchKey watchKey;
-			while ((watchKey = this.watchService.poll()) != null) {
+			while ((watchKey = watchService.poll()) != null) {
 				for (WatchEvent<?> watchEvent : watchKey.pollEvents()) {
-					bl = true;
-					if (watchKey.watchable() == this.path
-							&& watchEvent.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
-						Path path = this.path.resolve((Path) watchEvent.context());
-						if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-							this.watchDirectory(path);
+					hasChanges = true;
+					if (watchKey.watchable() == path && watchEvent.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+						Path created = path.resolve((Path) watchEvent.context());
+						if (Files.isDirectory(created, LinkOption.NOFOLLOW_LINKS)) {
+							watchDirectory(created);
 						}
 					}
 				}
@@ -472,7 +409,7 @@ public class PackScreen extends Screen {
 				watchKey.reset();
 			}
 
-			return bl;
+			return hasChanges;
 		}
 
 		@Override

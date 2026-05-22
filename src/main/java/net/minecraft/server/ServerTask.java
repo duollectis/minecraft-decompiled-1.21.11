@@ -1,7 +1,8 @@
 package net.minecraft.server;
 
 /**
- * {@code ServerTask}.
+ * Задача, поставленная в очередь выполнения сервера.
+ * Хранит тик создания для отладки и диагностики зависших задач.
  */
 public class ServerTask implements Runnable {
 
@@ -14,11 +15,11 @@ public class ServerTask implements Runnable {
 	}
 
 	public int getCreationTicks() {
-		return this.creationTicks;
+		return creationTicks;
 	}
 
 	@Override
 	public void run() {
-		this.runnable.run();
+		runnable.run();
 	}
 }

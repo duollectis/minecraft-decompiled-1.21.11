@@ -6,7 +6,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 
 /**
- * {@code ResourceFileAttributes}.
+ * Базовая реализация {@link BasicFileAttributes} для виртуальной файловой системы ресурсов.
+ *
+ * <p>Все временны́е метки возвращают эпоху (0 мс), размер — 0, символические ссылки
+ * и «другие» типы не поддерживаются. Подклассы обязаны реализовать
+ * {@link #isRegularFile()} и {@link #isDirectory()}.</p>
  */
 abstract class ResourceFileAttributes implements BasicFileAttributes {
 

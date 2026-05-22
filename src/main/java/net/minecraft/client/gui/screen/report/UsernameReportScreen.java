@@ -15,14 +15,16 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code UsernameReportScreen}.
+ * Экран формы жалобы на никнейм игрока.
+ * Отображает имя нарушителя и позволяет добавить комментарий к жалобе.
  */
+@Environment(EnvType.CLIENT)
 public class UsernameReportScreen extends ReportScreen<UsernameAbuseReport.Builder> {
 
 	private static final Text TITLE_TEXT = Text.translatable("gui.abuseReport.name.title");
 	private static final Text COMMENT_BOX_LABEL = Text.translatable("gui.abuseReport.name.comment_box_label");
+
 	private @Nullable EditBoxWidget commentsBox;
 
 	private UsernameReportScreen(Screen parent, AbuseReportContext context, UsernameAbuseReport.Builder reportBuilder) {
@@ -43,21 +45,22 @@ public class UsernameReportScreen extends ReportScreen<UsernameAbuseReport.Build
 
 	@Override
 	protected void addContent() {
-		Text text = Text.literal(this.reportBuilder.getReport().getUsername()).formatted(Formatting.YELLOW);
-		this.layout
-				.add(
-						new TextWidget(Text.translatable("gui.abuseReport.name.reporting", text), this.textRenderer),
-						positioner -> positioner.alignHorizontalCenter().margin(0, 8)
-				);
-		this.commentsBox = this.createCommentsBox(
-				280, 9 * 8, comments -> {
-					this.reportBuilder.setOpinionComments(comments);
-					this.onChange();
+		Text usernameText = Text.literal(reportBuilder.getReport().getUsername()).formatted(Formatting.YELLOW);
+		layout.add(
+				new TextWidget(Text.translatable("gui.abuseReport.name.reporting", usernameText), textRenderer),
+				positioner -> positioner.alignHorizontalCenter().margin(0, 8)
+		);
+
+		commentsBox = createCommentsBox(
+				CONTENT_WIDTH, 9 * 8, comments -> {
+					reportBuilder.setOpinionComments(comments);
+					onChange();
 				}
 		);
-		this.layout.add(LayoutWidgets.createLabeledWidget(
-				this.textRenderer,
-				this.commentsBox,
+
+		layout.add(LayoutWidgets.createLabeledWidget(
+				textRenderer,
+				commentsBox,
 				COMMENT_BOX_LABEL,
 				positioner -> positioner.marginBottom(12)
 		));
@@ -65,11 +68,7 @@ public class UsernameReportScreen extends ReportScreen<UsernameAbuseReport.Build
 
 	@Override
 	public boolean mouseReleased(Click click) {
-		if (super.mouseReleased(click)) {
-			return true;
-		}
-		else {
-			return this.commentsBox != null ? this.commentsBox.mouseReleased(click) : false;
-		}
+		return super.mouseReleased(click)
+				|| (commentsBox != null && commentsBox.mouseReleased(click));
 	}
 }

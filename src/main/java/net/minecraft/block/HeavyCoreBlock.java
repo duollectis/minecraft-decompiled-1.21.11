@@ -17,7 +17,7 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code HeavyCoreBlock}.
+ * Блок тяжёлого ядра — компонент для крафта булавы. Поддерживает заполнение водой.
  */
 public class HeavyCoreBlock extends Block implements Waterloggable {
 
@@ -27,7 +27,7 @@ public class HeavyCoreBlock extends Block implements Waterloggable {
 
 	public HeavyCoreBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
+		setDefaultState(stateManager.getDefaultState().with(WATERLOGGED, false));
 	}
 
 	@Override
@@ -75,7 +75,7 @@ public class HeavyCoreBlock extends Block implements Waterloggable {
 	@Override
 	public BlockState getPlacementState(ItemPlacementContext ctx) {
 		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-		return this.getDefaultState().with(WATERLOGGED, fluidState.isOf(Fluids.WATER));
+		return getDefaultState().with(WATERLOGGED, fluidState.isOf(Fluids.WATER));
 	}
 
 	@Override

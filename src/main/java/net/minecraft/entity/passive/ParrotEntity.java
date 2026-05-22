@@ -58,7 +58,9 @@ import java.util.function.IntFunction;
 import java.util.function.Predicate;
 
 /**
- * {@code ParrotEntity}.
+ * Попугай — прирученная летающая птица с 5 цветовыми вариантами.
+ * Садится на плечо владельца, имитирует звуки ближайших враждебных мобов.
+ * Умирает от семян печенья (содержат какао).
  */
 public class ParrotEntity extends TameableShoulderEntity implements Flutterer {
 
@@ -508,8 +510,8 @@ public class ParrotEntity extends TameableShoulderEntity implements Flutterer {
 	}
 
 	/**
-	 * {@code FlyOntoTreeGoal}.
-	 */
+ * Задача попугая: имитировать звуки ближайших мобов.
+ */
 	static class FlyOntoTreeGoal extends FlyGoal {
 
 		public FlyOntoTreeGoal(PathAwareEntity pathAwareEntity, double d) {
@@ -561,8 +563,8 @@ public class ParrotEntity extends TameableShoulderEntity implements Flutterer {
 	}
 
 	/**
-	 * {@code Variant}.
-	 */
+ * Задача попугая: следовать за владельцем в полёте.
+ */
 	public static enum Variant implements StringIdentifiable {
 		RED_BLUE(0, "red_blue"),
 		BLUE(1, "blue"),

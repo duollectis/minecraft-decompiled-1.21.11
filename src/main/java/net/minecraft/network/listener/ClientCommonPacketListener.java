@@ -3,7 +3,8 @@ package net.minecraft.network.listener;
 import net.minecraft.network.packet.s2c.common.*;
 
 /**
- * Интерфейс client common packet listener.
+ * Слушатель клиентских пакетов, общих для фаз {@code CONFIGURATION} и {@code PLAY}:
+ * keep-alive, ping, кастомные payload, отключение, ресурс-паки, теги, куки и диалоги.
  */
 public interface ClientCommonPacketListener extends ClientCookieRequestPacketListener {
 

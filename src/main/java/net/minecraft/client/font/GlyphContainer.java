@@ -9,10 +9,12 @@ import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 import java.util.function.IntFunction;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlyphContainer}.
+ * Двухуровневый массив для хранения глифов по кодовым точкам Unicode.
+ * Кодовая точка разбивается на старший байт (индекс строки) и младший байт (индекс в строке),
+ * что обеспечивает O(1) доступ без хеширования и экономит память за счёт разделяемой пустой строки.
  */
+@Environment(EnvType.CLIENT)
 public class GlyphContainer<T> {
 
 	private static final int ROW_SHIFT = 8;
@@ -20,142 +22,112 @@ public class GlyphContainer<T> {
 	private static final int LAST_ENTRY_NUM_IN_ROW = 255;
 	private static final int LAST_ROW_NUM = 4351;
 	private static final int NUM_ROWS = 4352;
+
 	private final T[] defaultRow;
 	private final @Nullable T[][] rows;
 	private final IntFunction<T[]> makeRow;
 
 	public GlyphContainer(IntFunction<T[]> makeRow, IntFunction<T[][]> makeScroll) {
-		this.defaultRow = (T[]) ((Object[]) makeRow.apply(256));
-		this.rows = (T[][]) ((Object[][]) makeScroll.apply(4352));
-		Arrays.fill(this.rows, this.defaultRow);
+		defaultRow = (T[]) ((Object[]) makeRow.apply(ENTRIES_PER_ROW));
+		rows = (T[][]) ((Object[][]) makeScroll.apply(NUM_ROWS));
+		Arrays.fill(rows, defaultRow);
 		this.makeRow = makeRow;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		Arrays.fill(this.rows, this.defaultRow);
+		Arrays.fill(rows, defaultRow);
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param codePoint code point
-	 *
-	 * @return @Nullable T — 
-	 */
 	public @Nullable T get(int codePoint) {
-		int i = codePoint >> 8;
-		int j = codePoint & 0xFF;
-		return this.rows[i][j];
+		int rowIndex = codePoint >> ROW_SHIFT;
+		int colIndex = codePoint & LAST_ENTRY_NUM_IN_ROW;
+		return rows[rowIndex][colIndex];
 	}
 
-	/**
-	 * Put.
-	 *
-	 * @param codePoint code point
-	 * @param glyph glyph
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public @Nullable T put(int codePoint, T glyph) {
-		int i = codePoint >> 8;
-		int j = codePoint & 0xFF;
-		T[] objects = this.rows[i];
-		if (objects == this.defaultRow) {
-			objects = (T[]) ((Object[]) this.makeRow.apply(256));
-			this.rows[i] = objects;
-			objects[j] = glyph;
+		int rowIndex = codePoint >> ROW_SHIFT;
+		int colIndex = codePoint & LAST_ENTRY_NUM_IN_ROW;
+		T[] row = rows[rowIndex];
+
+		if (row == defaultRow) {
+			row = (T[]) ((Object[]) makeRow.apply(ENTRIES_PER_ROW));
+			rows[rowIndex] = row;
+			row[colIndex] = glyph;
 			return null;
 		}
-		else {
-			T object = objects[j];
-			objects[j] = glyph;
-			return object;
-		}
+
+		T previous = row[colIndex];
+		row[colIndex] = glyph;
+		return previous;
 	}
 
 	/**
-	 * Вычисляет if absent.
+	 * Возвращает существующее значение для кодовой точки, либо вычисляет и сохраняет новое.
+	 * Ленивая инициализация строки происходит только при первой записи в неё.
 	 *
-	 * @param codePoint code point
-	 * @param ifAbsent if absent
-	 *
-	 * @return T — результат операции
+	 * @param codePoint кодовая точка Unicode
+	 * @param ifAbsent функция для вычисления значения при его отсутствии
+	 * @return существующее или только что вычисленное значение
 	 */
 	public T computeIfAbsent(int codePoint, IntFunction<T> ifAbsent) {
-		int i = codePoint >> 8;
-		int j = codePoint & 0xFF;
-		T[] objects = this.rows[i];
-		T object = objects[j];
-		if (object != null) {
-			return object;
-		}
-		else {
-			if (objects == this.defaultRow) {
-				objects = (T[]) ((Object[]) this.makeRow.apply(256));
-				this.rows[i] = objects;
-			}
+		int rowIndex = codePoint >> ROW_SHIFT;
+		int colIndex = codePoint & LAST_ENTRY_NUM_IN_ROW;
+		T[] row = rows[rowIndex];
+		T existing = row[colIndex];
 
-			T object2 = ifAbsent.apply(codePoint);
-			objects[j] = object2;
-			return object2;
+		if (existing != null) {
+			return existing;
 		}
+
+		if (row == defaultRow) {
+			row = (T[]) ((Object[]) makeRow.apply(ENTRIES_PER_ROW));
+			rows[rowIndex] = row;
+		}
+
+		T computed = ifAbsent.apply(codePoint);
+		row[colIndex] = computed;
+		return computed;
 	}
 
-	/**
-	 * Remove.
-	 *
-	 * @param codePoint code point
-	 *
-	 * @return @Nullable T — результат операции
-	 */
 	public @Nullable T remove(int codePoint) {
-		int i = codePoint >> 8;
-		int j = codePoint & 0xFF;
-		T[] objects = this.rows[i];
-		if (objects == this.defaultRow) {
+		int rowIndex = codePoint >> ROW_SHIFT;
+		int colIndex = codePoint & LAST_ENTRY_NUM_IN_ROW;
+		T[] row = rows[rowIndex];
+
+		if (row == defaultRow) {
 			return null;
 		}
-		else {
-			T object = objects[j];
-			objects[j] = null;
-			return object;
-		}
+
+		T removed = row[colIndex];
+		row[colIndex] = null;
+		return removed;
 	}
 
-	/**
-	 * For each glyph.
-	 *
-	 * @param glyphConsumer glyph consumer
-	 */
 	public void forEachGlyph(GlyphContainer.GlyphConsumer<T> glyphConsumer) {
-		for (int i = 0; i < this.rows.length; i++) {
-			T[] objects = this.rows[i];
-			if (objects != this.defaultRow) {
-				for (int j = 0; j < objects.length; j++) {
-					T object = objects[j];
-					if (object != null) {
-						int k = i << 8 | j;
-						glyphConsumer.accept(k, object);
-					}
+		for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+			T[] row = rows[rowIndex];
+			if (row == defaultRow) {
+				continue;
+			}
+
+			for (int colIndex = 0; colIndex < row.length; colIndex++) {
+				T glyph = row[colIndex];
+				if (glyph != null) {
+					int codePoint = rowIndex << ROW_SHIFT | colIndex;
+					glyphConsumer.accept(codePoint, glyph);
 				}
 			}
 		}
 	}
 
 	public IntSet getProvidedGlyphs() {
-		IntOpenHashSet intOpenHashSet = new IntOpenHashSet();
-		this.forEachGlyph((codePoint, glyph) -> intOpenHashSet.add(codePoint));
-		return intOpenHashSet;
+		IntOpenHashSet result = new IntOpenHashSet();
+		forEachGlyph((codePoint, glyph) -> result.add(codePoint));
+		return result;
 	}
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code GlyphConsumer}.
-	 */
 	public interface GlyphConsumer<T> {
 
 		void accept(int codePoint, T glyph);

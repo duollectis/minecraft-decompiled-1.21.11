@@ -11,7 +11,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * {@code EnderChestBlockEntity}.
+ * Блок-сущность эндер-сундука. Управляет анимацией крышки и счётчиком зрителей,
+ * синхронизируя состояние открытия/закрытия между клиентом и сервером.
  */
 public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 
@@ -81,69 +82,47 @@ public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 	@Override
 	public boolean onSyncedBlockEvent(int type, int data) {
 		if (type == 1) {
-			this.lidAnimator.setOpen(data > 0);
+			lidAnimator.setOpen(data > 0);
 			return true;
 		}
-		else {
-			return super.onSyncedBlockEvent(type, data);
-		}
+
+		return super.onSyncedBlockEvent(type, data);
 	}
 
-	/**
-	 * Обрабатывает событие open.
-	 *
-	 * @param user user
-	 */
 	public void onOpen(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.openContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState(),
-					user.getContainerInteractionRange()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.openContainer(
+				user.asLivingEntity(),
+				getWorld(),
+				getPos(),
+				getCachedState(),
+				user.getContainerInteractionRange()
+		);
 	}
 
-	/**
-	 * Обрабатывает событие close.
-	 *
-	 * @param user user
-	 */
 	public void onClose(ContainerUser user) {
-		if (!this.removed && !user.asLivingEntity().isSpectator()) {
-			this.stateManager.closeContainer(
-					user.asLivingEntity(),
-					this.getWorld(),
-					this.getPos(),
-					this.getCachedState()
-			);
+		if (removed || user.asLivingEntity().isSpectator()) {
+			return;
 		}
+
+		stateManager.closeContainer(user.asLivingEntity(), getWorld(), getPos(), getCachedState());
 	}
 
-	/**
-	 * Проверяет возможность player use.
-	 *
-	 * @param player player
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canPlayerUse(PlayerEntity player) {
 		return Inventory.canPlayerUse(this, player);
 	}
 
-	/**
-	 * Обрабатывает событие scheduled tick.
-	 */
 	public void onScheduledTick() {
-		if (!this.removed) {
-			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());
+		if (!removed) {
+			stateManager.updateViewerCount(getWorld(), getPos(), getCachedState());
 		}
 	}
 
 	@Override
 	public float getAnimationProgress(float tickProgress) {
-		return this.lidAnimator.getProgress(tickProgress);
+		return lidAnimator.getProgress(tickProgress);
 	}
 }

@@ -4,13 +4,18 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * {@code YawAdjustingLookControl}.
+ * Расширение {@link LookControl} для существ, у которых тело поворачивается
+ * вслед за головой (например, эндермен). Добавляет смещение тангажа и рыскания
+ * при взгляде на цель, а также плавно подтягивает тело при превышении порога.
  */
 public class YawAdjustingLookControl extends LookControl {
 
-	private final int yawAdjustThreshold;
 	private static final int ADDED_PITCH = 10;
 	private static final int ADDED_YAW = 20;
+	private static final float BODY_ADJUST_SPEED = 4.0F;
+	private static final float IDLE_PITCH_RETURN_SPEED = 5.0F;
+
+	private final int yawAdjustThreshold;
 
 	public YawAdjustingLookControl(MobEntity entity, int yawAdjustThreshold) {
 		super(entity);
@@ -19,35 +24,28 @@ public class YawAdjustingLookControl extends LookControl {
 
 	@Override
 	public void tick() {
-		if (this.lookAtTimer > 0) {
-			this.lookAtTimer--;
-			this
-					.getTargetYaw()
-					.ifPresent(yaw ->
-							this.entity.headYaw =
-									this.changeAngle(this.entity.headYaw, yaw + 20.0F, this.maxYawChange));
-			this
-					.getTargetPitch()
-					.ifPresent(pitch -> this.entity.setPitch(this.changeAngle(
-							this.entity.getPitch(),
-							pitch + 10.0F,
-							this.maxPitchChange
-					)));
+		if (lookAtTimer > 0) {
+			lookAtTimer--;
+			getTargetYaw().ifPresent(yaw ->
+					entity.headYaw = changeAngle(entity.headYaw, yaw + ADDED_YAW, maxYawChange));
+			getTargetPitch().ifPresent(pitch ->
+					entity.setPitch(changeAngle(entity.getPitch(), pitch + ADDED_PITCH, maxPitchChange)));
 		}
 		else {
-			if (this.entity.getNavigation().isIdle()) {
-				this.entity.setPitch(this.changeAngle(this.entity.getPitch(), 0.0F, 5.0F));
+			if (entity.getNavigation().isIdle()) {
+				entity.setPitch(changeAngle(entity.getPitch(), 0.0F, IDLE_PITCH_RETURN_SPEED));
 			}
 
-			this.entity.headYaw = this.changeAngle(this.entity.headYaw, this.entity.bodyYaw, this.maxYawChange);
+			entity.headYaw = changeAngle(entity.headYaw, entity.bodyYaw, maxYawChange);
 		}
 
-		float f = MathHelper.wrapDegrees(this.entity.headYaw - this.entity.bodyYaw);
-		if (f < -this.yawAdjustThreshold) {
-			this.entity.bodyYaw -= 4.0F;
+		float headBodyDiff = MathHelper.wrapDegrees(entity.headYaw - entity.bodyYaw);
+
+		if (headBodyDiff < -yawAdjustThreshold) {
+			entity.bodyYaw -= BODY_ADJUST_SPEED;
 		}
-		else if (f > this.yawAdjustThreshold) {
-			this.entity.bodyYaw += 4.0F;
+		else if (headBodyDiff > yawAdjustThreshold) {
+			entity.bodyYaw += BODY_ADJUST_SPEED;
 		}
 	}
 }

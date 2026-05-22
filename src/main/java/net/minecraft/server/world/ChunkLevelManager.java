@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code ChunkLevelManager}.
+ * Класс Chunk Level Manager.
  */
 public abstract class ChunkLevelManager {
 
@@ -277,9 +277,6 @@ public abstract class ChunkLevelManager {
 		return this.ticketManager.hasTickets();
 	}
 
-	/**
-	 * {@code DistanceFromNearestPlayerTracker}.
-	 */
 	class DistanceFromNearestPlayerTracker extends ChunkPosDistanceLevelPropagator {
 
 		protected final Long2ByteMap distanceFromNearestPlayer = new Long2ByteOpenHashMap();
@@ -339,9 +336,6 @@ public abstract class ChunkLevelManager {
 		}
 	}
 
-	/**
-	 * {@code NearbyChunkTicketUpdater}.
-	 */
 	class NearbyChunkTicketUpdater extends ChunkLevelManager.DistanceFromNearestPlayerTracker {
 
 		private int watchDistance;

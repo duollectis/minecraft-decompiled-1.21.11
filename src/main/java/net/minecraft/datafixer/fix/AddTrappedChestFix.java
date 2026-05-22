@@ -18,126 +18,119 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code AddTrappedChestFix}.
+ * Исправление DataFixer, которое разделяет обычные сундуки ({@code minecraft:chest})
+ * и ловушечные сундуки ({@code minecraft:trapped_chest}).
+ * <p>
+ * До версии 1.8 оба типа сундуков хранились под одним идентификатором блока.
+ * Это исправление сканирует секции чанка, находит блоки с ID ловушечного сундука
+ * и обновляет соответствующие блочные сущности, меняя их тип на {@code minecraft:trapped_chest}.
  */
 public class AddTrappedChestFix extends DataFix {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int CHUNK_SECTION_SIZE = 4096;
-	private static final short TRAPPED_CHEST_ID = 12;
+	/** Количество бит для кодирования локальной Y-координаты секции в упакованном индексе блока. */
+	private static final int SECTION_Y_BIT_SHIFT = 12;
 
 	public AddTrappedChestFix(Schema schema, boolean bl) {
 		super(schema, bl);
 	}
 
 	public TypeRewriteRule makeRule() {
-		Type<?> type = this.getOutputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = type.findFieldType("Level");
-		if (!(type2.findFieldType("TileEntities") instanceof ListType<?> listType)) {
+		Type<?> chunkOutputType = getOutputSchema().getType(TypeReferences.CHUNK);
+		Type<?> levelType = chunkOutputType.findFieldType("Level");
+
+		if (!(levelType.findFieldType("TileEntities") instanceof ListType<?> tileEntityListType)) {
 			throw new IllegalStateException("Tile entity type is not a list type.");
 		}
-		else {
-			OpticFinder<? extends List<?>> opticFinder = DSL.fieldFinder("TileEntities", listType);
-			Type<?> type4 = this.getInputSchema().getType(TypeReferences.CHUNK);
-			OpticFinder<?> opticFinder2 = type4.findField("Level");
-			OpticFinder<?> opticFinder3 = opticFinder2.type().findField("Sections");
-			Type<?> type5 = opticFinder3.type();
-			if (!(type5 instanceof ListType)) {
-				throw new IllegalStateException("Expecting sections to be a list.");
-			}
-			else {
-				Type<?> type6 = ((ListType) type5).getElement();
-				OpticFinder<?> opticFinder4 = DSL.typeFinder(type6);
-				return TypeRewriteRule.seq(
-						new ChoiceTypesFix(
-								this.getOutputSchema(),
-								"AddTrappedChestFix",
-								TypeReferences.BLOCK_ENTITY
-						).makeRule(),
-						this.fixTypeEverywhereTyped(
-								"Trapped Chest fix", type4, typed -> typed.updateTyped(
-										opticFinder2, typedx -> {
-											Optional<? extends Typed<?>>
-													optional =
-													typedx.getOptionalTyped(opticFinder3);
-											if (optional.isEmpty()) {
-												return typedx;
-											}
-											else {
-												List<? extends Typed<?>>
-														list =
-														optional.get().getAllTyped(opticFinder4);
-												IntSet intSet = new IntOpenHashSet();
 
-												for (Typed<?> typed2 : list) {
-													AddTrappedChestFix.ListFixer
-															listFixer =
-															new AddTrappedChestFix.ListFixer(
-																	typed2,
-																	this.getInputSchema()
-															);
-													if (!listFixer.isFixed()) {
-														for (int i = 0; i < 4096; i++) {
-															int j = listFixer.blockStateAt(i);
-															if (listFixer.isTarget(j)) {
-																intSet.add(listFixer.getY() << 12 | i);
-															}
-														}
-													}
+		OpticFinder<? extends List<?>> tileEntitiesFinder = DSL.fieldFinder("TileEntities", tileEntityListType);
+		Type<?> chunkInputType = getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> levelFinder = chunkInputType.findField("Level");
+		OpticFinder<?> sectionsFinder = levelFinder.type().findField("Sections");
+		Type<?> sectionsType = sectionsFinder.type();
+
+		if (!(sectionsType instanceof ListType)) {
+			throw new IllegalStateException("Expecting sections to be a list.");
+		}
+
+		Type<?> sectionElementType = ((ListType) sectionsType).getElement();
+		OpticFinder<?> sectionFinder = DSL.typeFinder(sectionElementType);
+
+		return TypeRewriteRule.seq(
+				new ChoiceTypesFix(getOutputSchema(), "AddTrappedChestFix", TypeReferences.BLOCK_ENTITY).makeRule(),
+				fixTypeEverywhereTyped(
+						"Trapped Chest fix", chunkInputType, typed -> typed.updateTyped(
+								levelFinder, levelTyped -> {
+									Optional<? extends Typed<?>> sectionsOpt = levelTyped.getOptionalTyped(sectionsFinder);
+
+									if (sectionsOpt.isEmpty()) {
+										return levelTyped;
+									}
+
+									List<? extends Typed<?>> sections = sectionsOpt.get().getAllTyped(sectionFinder);
+									IntSet trappedChestPositions = new IntOpenHashSet();
+
+									for (Typed<?> sectionTyped : sections) {
+										AddTrappedChestFix.ListFixer fixer = new AddTrappedChestFix.ListFixer(
+												sectionTyped, getInputSchema()
+										);
+
+										if (!fixer.isFixed()) {
+											for (int blockIndex = 0; blockIndex < CHUNK_SECTION_SIZE; blockIndex++) {
+												int blockState = fixer.blockStateAt(blockIndex);
+
+												if (fixer.isTarget(blockState)) {
+													trappedChestPositions.add(fixer.getY() << SECTION_Y_BIT_SHIFT | blockIndex);
 												}
-
-												Dynamic<?> dynamic = (Dynamic<?>) typedx.get(DSL.remainderFinder());
-												int k = dynamic.get("xPos").asInt(0);
-												int l = dynamic.get("zPos").asInt(0);
-												@SuppressWarnings("unchecked")
-												TaggedChoiceType<String>
-														taggedChoiceType =
-														(TaggedChoiceType<String>) this
-																.getInputSchema()
-																.findChoiceType(TypeReferences.BLOCK_ENTITY);
-												return typedx.updateTyped(
-														opticFinder, typedxx -> typedxx.updateTyped(
-																taggedChoiceType.finder(), typedxxx -> {
-																	Dynamic<?>
-																			dynamicx =
-																			(Dynamic<?>) typedxxx.getOrCreate(DSL.remainderFinder());
-																	int kx = dynamicx.get("x").asInt(0) - (k << 4);
-																	int lx = dynamicx.get("y").asInt(0);
-																	int m = dynamicx.get("z").asInt(0) - (l << 4);
-																	return intSet.contains(LeavesFix.packLocalPos(
-																			kx,
-																			lx,
-																			m
-																	))
-																	       ? typedxxx.update(
-																			taggedChoiceType.finder(),
-																			pair -> pair.mapFirst(string -> {
-																				if (!Objects.equals(
-																						string,
-																						"minecraft:chest"
-																				)) {
-																					LOGGER.warn(
-																							"Block Entity was expected to be a chest");
-																				}
-
-																				return "minecraft:trapped_chest";
-																			})
-																	)
-																	       : typedxxx;
-																}
-														)
-												);
 											}
 										}
-								)
+									}
+
+									Dynamic<?> levelDynamic = (Dynamic<?>) levelTyped.get(DSL.remainderFinder());
+									int chunkX = levelDynamic.get("xPos").asInt(0);
+									int chunkZ = levelDynamic.get("zPos").asInt(0);
+
+									@SuppressWarnings("unchecked")
+									TaggedChoiceType<String> blockEntityChoiceType = (TaggedChoiceType<String>) getInputSchema()
+											.findChoiceType(TypeReferences.BLOCK_ENTITY);
+
+									return levelTyped.updateTyped(
+											tileEntitiesFinder, tileEntitiesTyped -> tileEntitiesTyped.updateTyped(
+													blockEntityChoiceType.finder(), blockEntityTyped -> {
+														Dynamic<?> entityDynamic = (Dynamic<?>) blockEntityTyped.getOrCreate(
+																DSL.remainderFinder()
+														);
+														int localX = entityDynamic.get("x").asInt(0) - (chunkX << 4);
+														int localY = entityDynamic.get("y").asInt(0);
+														int localZ = entityDynamic.get("z").asInt(0) - (chunkZ << 4);
+
+														if (!trappedChestPositions.contains(LeavesFix.packLocalPos(localX, localY, localZ))) {
+															return blockEntityTyped;
+														}
+
+														return blockEntityTyped.update(
+																blockEntityChoiceType.finder(),
+																pair -> pair.mapFirst(entityId -> {
+																	if (!Objects.equals(entityId, "minecraft:chest")) {
+																		LOGGER.warn("Block Entity was expected to be a chest");
+																	}
+
+																	return "minecraft:trapped_chest";
+																})
+														);
+													}
+											)
+									);
+								}
 						)
-				);
-			}
-		}
+				)
+		);
 	}
 
 	/**
-	 * {@code ListFixer}.
+	 * Вспомогательный класс для сканирования секции чанка на наличие ловушечных сундуков.
+	 * Собирает индексы блоков с именем {@code minecraft:trapped_chest} в палитре.
 	 */
 	public static final class ListFixer extends LeavesFix.ListFixer {
 
@@ -149,21 +142,22 @@ public class AddTrappedChestFix extends DataFix {
 
 		@Override
 		protected boolean computeIsFixed() {
-			this.targets = new IntOpenHashSet();
+			targets = new IntOpenHashSet();
 
-			for (int i = 0; i < this.properties.size(); i++) {
-				Dynamic<?> dynamic = this.properties.get(i);
-				String string = dynamic.get("Name").asString("");
-				if (Objects.equals(string, "minecraft:trapped_chest")) {
-					this.targets.add(i);
+			for (int paletteIndex = 0; paletteIndex < properties.size(); paletteIndex++) {
+				Dynamic<?> blockState = properties.get(paletteIndex);
+				String blockName = blockState.get("Name").asString("");
+
+				if (Objects.equals(blockName, "minecraft:trapped_chest")) {
+					targets.add(paletteIndex);
 				}
 			}
 
-			return this.targets.isEmpty();
+			return targets.isEmpty();
 		}
 
 		public boolean isTarget(int index) {
-			return this.targets.contains(index);
+			return targets.contains(index);
 		}
 	}
 }

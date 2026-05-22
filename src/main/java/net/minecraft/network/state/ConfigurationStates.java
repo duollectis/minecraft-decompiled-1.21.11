@@ -15,7 +15,9 @@ import net.minecraft.network.packet.s2c.common.*;
 import net.minecraft.network.packet.s2c.config.*;
 
 /**
- * Класс configuration states.
+ * Состояния протокола для фазы {@link net.minecraft.network.NetworkPhase#CONFIGURATION}.
+ * Регистрирует все пакеты клиент→сервер ({@link #C2S}) и сервер→клиент ({@link #S2C})
+ * для фазы настройки соединения после логина.
  */
 public class ConfigurationStates {
 

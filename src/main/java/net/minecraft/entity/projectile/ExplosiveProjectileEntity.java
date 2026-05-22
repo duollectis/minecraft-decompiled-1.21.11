@@ -17,52 +17,61 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ExplosiveProjectileEntity}.
+ * Базовый класс для взрывных снарядов (огненные шары, черепа иссушителя, заряды ветра).
+ * <p>
+ * Движется с постоянным ускорением {@code accelerationPower} в направлении скорости.
+ * Применяет сопротивление воздуха или воды на каждом тике.
+ * Подклассы определяют поведение при столкновении через {@link #onCollision}.
  */
 public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
 
 	public static final double DEFAULT_ACCELERATION_POWER = 0.1;
+	/** Множитель ускорения при отклонении от атаки (не от блока). */
 	public static final double DEFLECTION_POWER_FACTOR = 0.5;
-	public double accelerationPower = 0.1;
+
+	private static final float BUBBLE_PARTICLE_OFFSET = 0.25F;
+	private static final int BUBBLE_PARTICLE_COUNT = 4;
+
+	public double accelerationPower = DEFAULT_ACCELERATION_POWER;
 
 	protected ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> entityType, World world) {
 		super(entityType, world);
 	}
 
 	protected ExplosiveProjectileEntity(
-			EntityType<? extends ExplosiveProjectileEntity> type,
-			double x,
-			double y,
-			double z,
-			World world
+		EntityType<? extends ExplosiveProjectileEntity> type,
+		double x,
+		double y,
+		double z,
+		World world
 	) {
 		this(type, world);
-		this.setPosition(x, y, z);
+		setPosition(x, y, z);
 	}
 
 	public ExplosiveProjectileEntity(
-			EntityType<? extends ExplosiveProjectileEntity> type,
-			double x,
-			double y,
-			double z,
-			Vec3d velocity,
-			World world
+		EntityType<? extends ExplosiveProjectileEntity> type,
+		double x,
+		double y,
+		double z,
+		Vec3d velocity,
+		World world
 	) {
 		this(type, world);
-		this.refreshPositionAndAngles(x, y, z, this.getYaw(), this.getPitch());
-		this.refreshPosition();
-		this.setVelocityWithAcceleration(velocity, this.accelerationPower);
+		refreshPositionAndAngles(x, y, z, getYaw(), getPitch());
+		refreshPosition();
+		setVelocityWithAcceleration(velocity, accelerationPower);
 	}
 
 	public ExplosiveProjectileEntity(
-			EntityType<? extends ExplosiveProjectileEntity> type,
-			LivingEntity owner,
-			Vec3d velocity,
-			World world
+		EntityType<? extends ExplosiveProjectileEntity> type,
+		LivingEntity owner,
+		Vec3d velocity,
+		World world
 	) {
 		this(type, owner.getX(), owner.getY(), owner.getZ(), velocity, world);
-		this.setOwner(owner);
-		this.setRotation(owner.getYaw(), owner.getPitch());
+		setOwner(owner);
+		setRotation(owner.getYaw(), owner.getPitch());
 	}
 
 	@Override
@@ -71,13 +80,13 @@ public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
 
 	@Override
 	public boolean shouldRender(double distance) {
-		double d = this.getBoundingBox().getAverageSideLength() * 4.0;
-		if (Double.isNaN(d)) {
-			d = 4.0;
+		double sideLen = getBoundingBox().getAverageSideLength() * 4.0;
+		if (Double.isNaN(sideLen)) {
+			sideLen = 4.0;
 		}
 
-		d *= 64.0;
-		return distance < d * d;
+		sideLen *= 64.0;
+		return distance < sideLen * sideLen;
 	}
 
 	protected RaycastContext.ShapeType getRaycastShapeType() {
@@ -86,73 +95,75 @@ public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
 
 	@Override
 	public void tick() {
-		Entity entity = this.getOwner();
-		this.applyDrag();
-		if (this.getEntityWorld().isClient() || (entity == null || !entity.isRemoved()) && this
-				.getEntityWorld()
-				.isChunkLoaded(this.getBlockPos())) {
-			HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit, this.getRaycastShapeType());
-			Vec3d vec3d;
-			if (hitResult.getType() != HitResult.Type.MISS) {
-				vec3d = hitResult.getPos();
-			}
-			else {
-				vec3d = this.getEntityPos().add(this.getVelocity());
-			}
+		Entity ownerEntity = getOwner();
+		boolean ownerValid = ownerEntity == null || !ownerEntity.isRemoved();
+		boolean chunkLoaded = getEntityWorld().isChunkLoaded(getBlockPos());
 
-			ProjectileUtil.setRotationFromVelocity(this, 0.2F);
-			this.setPosition(vec3d);
-			this.tickBlockCollision();
-			super.tick();
-			if (this.isBurning()) {
-				this.setOnFireFor(1.0F);
-			}
-
-			if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
-				this.hitOrDeflect(hitResult);
-			}
-
-			this.addParticles();
+		if (!getEntityWorld().isClient() && !ownerValid && !chunkLoaded) {
+			discard();
+			return;
 		}
-		else {
-			this.discard();
+
+		applyDrag();
+		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit, getRaycastShapeType());
+		Vec3d nextPos = hitResult.getType() != HitResult.Type.MISS
+			? hitResult.getPos()
+			: getEntityPos().add(getVelocity());
+
+		ProjectileUtil.setRotationFromVelocity(this, 0.2F);
+		setPosition(nextPos);
+		tickBlockCollision();
+		super.tick();
+
+		if (isBurning()) {
+			setOnFireFor(1.0F);
 		}
+
+		if (hitResult.getType() != HitResult.Type.MISS && isAlive()) {
+			hitOrDeflect(hitResult);
+		}
+
+		addParticles();
 	}
 
+	/**
+	 * Применяет сопротивление среды и ускорение снаряда.
+	 * В воде — спавнит пузырьки и применяет водное сопротивление.
+	 */
 	private void applyDrag() {
-		Vec3d vec3d = this.getVelocity();
-		Vec3d vec3d2 = this.getEntityPos();
-		float g;
-		if (this.isTouchingWater()) {
-			for (int i = 0; i < 4; i++) {
-				float f = 0.25F;
-				this.getEntityWorld()
-				    .addParticleClient(
-						    ParticleTypes.BUBBLE,
-						    vec3d2.x - vec3d.x * 0.25,
-						    vec3d2.y - vec3d.y * 0.25,
-						    vec3d2.z - vec3d.z * 0.25,
-						    vec3d.x,
-						    vec3d.y,
-						    vec3d.z
-				    );
+		Vec3d velocity = getVelocity();
+		Vec3d pos = getEntityPos();
+		float drag;
+
+		if (isTouchingWater()) {
+			for (int i = 0; i < BUBBLE_PARTICLE_COUNT; i++) {
+				getEntityWorld().addParticleClient(
+					ParticleTypes.BUBBLE,
+					pos.x - velocity.x * BUBBLE_PARTICLE_OFFSET,
+					pos.y - velocity.y * BUBBLE_PARTICLE_OFFSET,
+					pos.z - velocity.z * BUBBLE_PARTICLE_OFFSET,
+					velocity.x,
+					velocity.y,
+					velocity.z
+				);
 			}
 
-			g = this.getDragInWater();
-		}
-		else {
-			g = this.getDrag();
+			drag = getDragInWater();
+		} else {
+			drag = getDrag();
 		}
 
-		this.setVelocity(vec3d.add(vec3d.normalize().multiply(this.accelerationPower)).multiply(g));
+		setVelocity(velocity.add(velocity.normalize().multiply(accelerationPower)).multiply(drag));
 	}
 
 	private void addParticles() {
-		ParticleEffect particleEffect = this.getParticleType();
-		Vec3d vec3d = this.getEntityPos();
-		if (particleEffect != null) {
-			this.getEntityWorld().addParticleClient(particleEffect, vec3d.x, vec3d.y + 0.5, vec3d.z, 0.0, 0.0, 0.0);
+		ParticleEffect particleType = getParticleType();
+		if (particleType == null) {
+			return;
 		}
+
+		Vec3d pos = getEntityPos();
+		getEntityWorld().addParticleClient(particleType, pos.x, pos.y + 0.5, pos.z, 0.0, 0.0, 0.0);
 	}
 
 	@Override
@@ -184,13 +195,13 @@ public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putDouble("acceleration_power", this.accelerationPower);
+		view.putDouble("acceleration_power", accelerationPower);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.accelerationPower = view.getDouble("acceleration_power", 0.1);
+		accelerationPower = view.getDouble("acceleration_power", DEFAULT_ACCELERATION_POWER);
 	}
 
 	@Override
@@ -198,19 +209,28 @@ public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
 		return 1.0F;
 	}
 
+	/**
+	 * Задаёт начальную скорость снаряда, нормализуя вектор и умножая на ускорение.
+	 *
+	 * @param velocity         вектор направления
+	 * @param accelerationPower начальное ускорение
+	 */
 	private void setVelocityWithAcceleration(Vec3d velocity, double accelerationPower) {
-		this.setVelocity(velocity.normalize().multiply(accelerationPower));
-		this.velocityDirty = true;
+		setVelocity(velocity.normalize().multiply(accelerationPower));
+		velocityDirty = true;
 	}
 
+	/**
+	 * При отклонении от атаки восстанавливает стандартное ускорение.
+	 * При пассивном отклонении (блок, щит) — уменьшает ускорение вдвое.
+	 */
 	@Override
-	protected void onDeflected(boolean bl) {
-		super.onDeflected(bl);
-		if (bl) {
-			this.accelerationPower = 0.1;
-		}
-		else {
-			this.accelerationPower *= DEFLECTION_POWER_FACTOR;
+	protected void onDeflected(boolean fromAttack) {
+		super.onDeflected(fromAttack);
+		if (fromAttack) {
+			accelerationPower = DEFAULT_ACCELERATION_POWER;
+		} else {
+			accelerationPower *= DEFLECTION_POWER_FACTOR;
 		}
 	}
 }

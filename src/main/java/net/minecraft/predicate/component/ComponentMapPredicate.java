@@ -14,26 +14,31 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code ComponentMapPredicate}.
+ * Предикат, проверяющий точное совпадение значений заданного набора компонентов.
+ * Используется как часть {@link ComponentsPredicate} для проверки «exact match».
  */
 public final class ComponentMapPredicate implements Predicate<ComponentsAccess> {
 
 	public static final Codec<ComponentMapPredicate> CODEC = ComponentType.TYPE_TO_VALUE_MAP_CODEC
 			.xmap(
-					map -> new ComponentMapPredicate(map
-							.entrySet()
-							.stream()
-							.<Component<?>>map(entry -> Component.of(entry.getKey(), entry.getValue()))
-							.collect(Collectors.toList())),
+					map -> new ComponentMapPredicate(
+							map.entrySet()
+									.stream()
+									.<Component<?>>map(entry -> Component.of(entry.getKey(), entry.getValue()))
+									.collect(Collectors.toList())
+					),
 					predicate -> predicate.components
 							.stream()
-							.filter(component -> component.type().shouldSkipSerialization() == false)
+							.filter(component -> !component.type().shouldSkipSerialization())
 							.collect(Collectors.toMap(Component::type, Component::value))
 			);
+
 	public static final PacketCodec<RegistryByteBuf, ComponentMapPredicate> PACKET_CODEC = Component.PACKET_CODEC
 			.collect(PacketCodecs.toList())
 			.xmap(ComponentMapPredicate::new, predicate -> predicate.components);
+
 	public static final ComponentMapPredicate EMPTY = new ComponentMapPredicate(List.of());
+
 	private final List<Component<?>> components;
 
 	ComponentMapPredicate(List<Component<?>> components) {
@@ -57,6 +62,7 @@ public final class ComponentMapPredicate implements Predicate<ComponentsAccess> 
 
 		for (ComponentType<?> componentType : types) {
 			Component<?> component = components.getTyped(componentType);
+
 			if (component != null) {
 				builder.add(component);
 			}
@@ -66,29 +72,30 @@ public final class ComponentMapPredicate implements Predicate<ComponentsAccess> 
 	}
 
 	public boolean isEmpty() {
-		return this.components.isEmpty();
+		return components.isEmpty();
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		return o instanceof ComponentMapPredicate componentMapPredicate
-				&& this.components.equals(componentMapPredicate.components);
+		return o instanceof ComponentMapPredicate other && components.equals(other.components);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.components.hashCode();
+		return components.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return this.components.toString();
+		return components.toString();
 	}
 
+	@Override
 	public boolean test(ComponentsAccess componentsAccess) {
-		for (Component<?> component : this.components) {
-			Object object = componentsAccess.get(component.type());
-			if (!Objects.equals(component.value(), object)) {
+		for (Component<?> component : components) {
+			Object actual = componentsAccess.get(component.type());
+
+			if (!Objects.equals(component.value(), actual)) {
 				return false;
 			}
 		}
@@ -96,14 +103,10 @@ public final class ComponentMapPredicate implements Predicate<ComponentsAccess> 
 		return true;
 	}
 
-	public boolean isPredicateEmpty() {
-		return this.components.isEmpty();
-	}
-
 	public ComponentChanges toChanges() {
 		ComponentChanges.Builder builder = ComponentChanges.builder();
 
-		for (Component<?> component : this.components) {
+		for (Component<?> component : components) {
 			builder.add(component);
 		}
 
@@ -111,7 +114,7 @@ public final class ComponentMapPredicate implements Predicate<ComponentsAccess> 
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для пошаговой сборки {@link ComponentMapPredicate} путём добавления компонентов по одному.
 	 */
 	public static class Builder {
 
@@ -121,22 +124,22 @@ public final class ComponentMapPredicate implements Predicate<ComponentsAccess> 
 		}
 
 		public <T> ComponentMapPredicate.Builder add(Component<T> component) {
-			return this.add(component.type(), component.value());
+			return add(component.type(), component.value());
 		}
 
 		public <T> ComponentMapPredicate.Builder add(ComponentType<? super T> type, T value) {
-			for (Component<?> component : this.components) {
-				if (component.type() == type) {
+			for (Component<?> existing : components) {
+				if (existing.type() == type) {
 					throw new IllegalArgumentException("Predicate already has component of type: '" + type + "'");
 				}
 			}
 
-			this.components.add(new Component<>(type, value));
+			components.add(new Component<>(type, value));
 			return this;
 		}
 
 		public ComponentMapPredicate build() {
-			return new ComponentMapPredicate(List.copyOf(this.components));
+			return new ComponentMapPredicate(List.copyOf(components));
 		}
 	}
 }

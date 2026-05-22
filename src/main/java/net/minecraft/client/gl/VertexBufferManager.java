@@ -15,134 +15,214 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VertexBufferManager}.
+ * Управляет VAO (Vertex Array Objects) и привязкой вершинных буферов.
+ * Выбирает между ARB-расширением (прямая привязка буферов) и стандартным
+ * подходом через {@code glVertexAttribPointer} в зависимости от возможностей GPU.
  */
+@Environment(EnvType.CLIENT)
 public abstract class VertexBufferManager {
 
+	private static final int GL_ARRAY_BUFFER = 34962;
+	private static final int GL_VENDOR = 7936;
+	private static final int GL_VERSION = 7938;
+
 	public static VertexBufferManager create(
-			GLCapabilities capabilities,
-			DebugLabelManager labeler,
-			Set<String> usedCapabilities
+		GLCapabilities capabilities,
+		DebugLabelManager labeler,
+		Set<String> usedCapabilities
 	) {
 		if (capabilities.GL_ARB_vertex_attrib_binding && GlBackend.allowGlArbVABinding) {
 			usedCapabilities.add("GL_ARB_vertex_attrib_binding");
-			return new VertexBufferManager.ARBVertexBufferManager(labeler);
-		}
-		else {
-			return new VertexBufferManager.DefaultVertexBufferManager(labeler);
+			return new ARBVertexBufferManager(labeler);
+		} else {
+			return new DefaultVertexBufferManager(labeler);
 		}
 	}
 
 	/**
-	 * Устанавливает up buffer.
+	 * Настраивает VAO для указанного формата вершин и привязывает к нему буфер.
 	 *
-	 * @param format format
-	 * @param into into
+	 * @param format формат вершин, описывающий атрибуты
+	 * @param into   GPU-буфер с вершинными данными, или {@code null} для создания пустого VAO
 	 */
 	public abstract void setupBuffer(VertexFormat format, @Nullable GlGpuBuffer into);
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ARBVertexBufferManager}.
-	 */
 	static class ARBVertexBufferManager extends VertexBufferManager {
 
-		private final Map<VertexFormat, VertexBufferManager.AllocatedBuffer> cache = new HashMap<>();
+		private final Map<VertexFormat, AllocatedBuffer> cache = new HashMap<>();
 		private final DebugLabelManager labeler;
 		private final boolean applyMesaWorkaround;
 
-		public ARBVertexBufferManager(DebugLabelManager labeler) {
+		ARBVertexBufferManager(DebugLabelManager labeler) {
 			this.labeler = labeler;
-			if ("Mesa".equals(GlStateManager._getString(7936))) {
-				String string = GlStateManager._getString(7938);
-				this.applyMesaWorkaround =
-						string.contains("25.0.0") || string.contains("25.0.1") || string.contains("25.0.2");
-			}
-			else {
-				this.applyMesaWorkaround = false;
+
+			String vendor = GlStateManager._getString(GL_VENDOR);
+			if ("Mesa".equals(vendor)) {
+				String version = GlStateManager._getString(GL_VERSION);
+				applyMesaWorkaround = version.contains("25.0.0")
+					|| version.contains("25.0.1")
+					|| version.contains("25.0.2");
+			} else {
+				applyMesaWorkaround = false;
 			}
 		}
 
 		@Override
 		public void setupBuffer(VertexFormat format, @Nullable GlGpuBuffer into) {
-			VertexBufferManager.AllocatedBuffer allocatedBuffer = this.cache.get(format);
-			if (allocatedBuffer != null) {
-				GlStateManager._glBindVertexArray(allocatedBuffer.glId);
-				if (into != null && allocatedBuffer.buffer != into) {
-					if (this.applyMesaWorkaround && allocatedBuffer.buffer != null
-							&& allocatedBuffer.buffer.id == into.id) {
+			AllocatedBuffer allocated = cache.get(format);
+
+			if (allocated != null) {
+				GlStateManager._glBindVertexArray(allocated.glId);
+
+				if (into != null && allocated.buffer != into) {
+					if (applyMesaWorkaround && allocated.buffer != null && allocated.buffer.id == into.id) {
 						ARBVertexAttribBinding.glBindVertexBuffer(0, 0, 0L, 0);
 					}
 
 					ARBVertexAttribBinding.glBindVertexBuffer(0, into.id, 0L, format.getVertexSize());
-					allocatedBuffer.buffer = into;
+					allocated.buffer = into;
 				}
+
+				return;
 			}
-			else {
-				int i = GlStateManager._glGenVertexArrays();
-				GlStateManager._glBindVertexArray(i);
-				if (into != null) {
-					List<VertexFormatElement> list = format.getElements();
 
-					for (int j = 0; j < list.size(); j++) {
-						VertexFormatElement vertexFormatElement = list.get(j);
-						GlStateManager._enableVertexAttribArray(j);
-						switch (vertexFormatElement.usage()) {
-							case POSITION:
-							case GENERIC:
-							case UV:
-								if (vertexFormatElement.type() == VertexFormatElement.Type.FLOAT) {
-									ARBVertexAttribBinding.glVertexAttribFormat(
-											j,
-											vertexFormatElement.count(),
-											GlConst.toGl(vertexFormatElement.type()),
-											false,
-											format.getOffset(vertexFormatElement)
-									);
-								}
-								else {
-									ARBVertexAttribBinding.glVertexAttribIFormat(
-											j,
-											vertexFormatElement.count(),
-											GlConst.toGl(vertexFormatElement.type()),
-											format.getOffset(vertexFormatElement)
-									);
-								}
-								break;
-							case NORMAL:
-							case COLOR:
+			int vaoId = GlStateManager._glGenVertexArrays();
+			GlStateManager._glBindVertexArray(vaoId);
+
+			if (into != null) {
+				List<VertexFormatElement> elements = format.getElements();
+
+				for (int elementIndex = 0; elementIndex < elements.size(); elementIndex++) {
+					VertexFormatElement element = elements.get(elementIndex);
+					GlStateManager._enableVertexAttribArray(elementIndex);
+
+					switch (element.usage()) {
+						case POSITION, GENERIC, UV -> {
+							if (element.type() == VertexFormatElement.Type.FLOAT) {
 								ARBVertexAttribBinding.glVertexAttribFormat(
-										j,
-										vertexFormatElement.count(),
-										GlConst.toGl(vertexFormatElement.type()),
-										true,
-										format.getOffset(vertexFormatElement)
+									elementIndex,
+									element.count(),
+									GlConst.toGl(element.type()),
+									false,
+									format.getOffset(element)
 								);
+							} else {
+								ARBVertexAttribBinding.glVertexAttribIFormat(
+									elementIndex,
+									element.count(),
+									GlConst.toGl(element.type()),
+									format.getOffset(element)
+								);
+							}
 						}
-
-						ARBVertexAttribBinding.glVertexAttribBinding(j, 0);
+						case NORMAL, COLOR -> ARBVertexAttribBinding.glVertexAttribFormat(
+							elementIndex,
+							element.count(),
+							GlConst.toGl(element.type()),
+							true,
+							format.getOffset(element)
+						);
 					}
+
+					ARBVertexAttribBinding.glVertexAttribBinding(elementIndex, 0);
 				}
+
+				ARBVertexAttribBinding.glBindVertexBuffer(0, into.id, 0L, format.getVertexSize());
+			}
+
+			AllocatedBuffer newAllocated = new AllocatedBuffer(vaoId, format, into);
+			labeler.labelAllocatedBuffer(newAllocated);
+			cache.put(format, newAllocated);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	static class DefaultVertexBufferManager extends VertexBufferManager {
+
+		private final Map<VertexFormat, AllocatedBuffer> cache = new HashMap<>();
+		private final DebugLabelManager labeler;
+
+		DefaultVertexBufferManager(DebugLabelManager labeler) {
+			this.labeler = labeler;
+		}
+
+		@Override
+		public void setupBuffer(VertexFormat format, @Nullable GlGpuBuffer into) {
+			AllocatedBuffer allocated = cache.get(format);
+
+			if (allocated == null) {
+				int vaoId = GlStateManager._glGenVertexArrays();
+				GlStateManager._glBindVertexArray(vaoId);
 
 				if (into != null) {
-					ARBVertexAttribBinding.glBindVertexBuffer(0, into.id, 0L, format.getVertexSize());
+					GlStateManager._glBindBuffer(GL_ARRAY_BUFFER, into.id);
+					setupAttributes(format, true);
 				}
 
-				VertexBufferManager.AllocatedBuffer
-						allocatedBuffer2 =
-						new VertexBufferManager.AllocatedBuffer(i, format, into);
-				this.labeler.labelAllocatedBuffer(allocatedBuffer2);
-				this.cache.put(format, allocatedBuffer2);
+				AllocatedBuffer newAllocated = new AllocatedBuffer(vaoId, format, into);
+				labeler.labelAllocatedBuffer(newAllocated);
+				cache.put(format, newAllocated);
+
+				return;
+			}
+
+			GlStateManager._glBindVertexArray(allocated.glId);
+
+			if (into != null && allocated.buffer != into) {
+				GlStateManager._glBindBuffer(GL_ARRAY_BUFFER, into.id);
+				allocated.buffer = into;
+				setupAttributes(format, false);
+			}
+		}
+
+		private static void setupAttributes(VertexFormat format, boolean vaoIsNew) {
+			int vertexSize = format.getVertexSize();
+			List<VertexFormatElement> elements = format.getElements();
+
+			for (int elementIndex = 0; elementIndex < elements.size(); elementIndex++) {
+				VertexFormatElement element = elements.get(elementIndex);
+
+				if (vaoIsNew) {
+					GlStateManager._enableVertexAttribArray(elementIndex);
+				}
+
+				switch (element.usage()) {
+					case POSITION, GENERIC, UV -> {
+						if (element.type() == VertexFormatElement.Type.FLOAT) {
+							GlStateManager._vertexAttribPointer(
+								elementIndex,
+								element.count(),
+								GlConst.toGl(element.type()),
+								false,
+								vertexSize,
+								format.getOffset(element)
+							);
+						} else {
+							GlStateManager._vertexAttribIPointer(
+								elementIndex,
+								element.count(),
+								GlConst.toGl(element.type()),
+								vertexSize,
+								format.getOffset(element)
+							);
+						}
+					}
+					case NORMAL, COLOR -> GlStateManager._vertexAttribPointer(
+						elementIndex,
+						element.count(),
+						GlConst.toGl(element.type()),
+						true,
+						vertexSize,
+						format.getOffset(element)
+					);
+				}
 			}
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code AllocatedBuffer}.
-	 */
 	public static class AllocatedBuffer {
 
 		final int glId;
@@ -153,95 +233,6 @@ public abstract class VertexBufferManager {
 			this.glId = glId;
 			this.vertexFormat = vertexFormat;
 			this.buffer = buffer;
-		}
-	}
-
-	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code DefaultVertexBufferManager}.
-	 */
-	static class DefaultVertexBufferManager extends VertexBufferManager {
-
-		private final Map<VertexFormat, VertexBufferManager.AllocatedBuffer> cache = new HashMap<>();
-		private final DebugLabelManager labeler;
-
-		public DefaultVertexBufferManager(DebugLabelManager labeler) {
-			this.labeler = labeler;
-		}
-
-		@Override
-		public void setupBuffer(VertexFormat format, @Nullable GlGpuBuffer into) {
-			VertexBufferManager.AllocatedBuffer allocatedBuffer = this.cache.get(format);
-			if (allocatedBuffer == null) {
-				int i = GlStateManager._glGenVertexArrays();
-				GlStateManager._glBindVertexArray(i);
-				if (into != null) {
-					GlStateManager._glBindBuffer(34962, into.id);
-					setupBuffer(format, true);
-				}
-
-				VertexBufferManager.AllocatedBuffer
-						allocatedBuffer2 =
-						new VertexBufferManager.AllocatedBuffer(i, format, into);
-				this.labeler.labelAllocatedBuffer(allocatedBuffer2);
-				this.cache.put(format, allocatedBuffer2);
-			}
-			else {
-				GlStateManager._glBindVertexArray(allocatedBuffer.glId);
-				if (into != null && allocatedBuffer.buffer != into) {
-					GlStateManager._glBindBuffer(34962, into.id);
-					allocatedBuffer.buffer = into;
-					setupBuffer(format, false);
-				}
-			}
-		}
-
-		private static void setupBuffer(VertexFormat format, boolean vbaIsNew) {
-			int i = format.getVertexSize();
-			List<VertexFormatElement> list = format.getElements();
-
-			for (int j = 0; j < list.size(); j++) {
-				VertexFormatElement vertexFormatElement = list.get(j);
-				if (vbaIsNew) {
-					GlStateManager._enableVertexAttribArray(j);
-				}
-
-				switch (vertexFormatElement.usage()) {
-					case POSITION:
-					case GENERIC:
-					case UV:
-						if (vertexFormatElement.type() == VertexFormatElement.Type.FLOAT) {
-							GlStateManager._vertexAttribPointer(
-									j,
-									vertexFormatElement.count(),
-									GlConst.toGl(vertexFormatElement.type()),
-									false,
-									i,
-									format.getOffset(vertexFormatElement)
-							);
-						}
-						else {
-							GlStateManager._vertexAttribIPointer(
-									j,
-									vertexFormatElement.count(),
-									GlConst.toGl(vertexFormatElement.type()),
-									i,
-									format.getOffset(vertexFormatElement)
-							);
-						}
-						break;
-					case NORMAL:
-					case COLOR:
-						GlStateManager._vertexAttribPointer(
-								j,
-								vertexFormatElement.count(),
-								GlConst.toGl(vertexFormatElement.type()),
-								true,
-								i,
-								format.getOffset(vertexFormatElement)
-						);
-				}
-			}
 		}
 	}
 }

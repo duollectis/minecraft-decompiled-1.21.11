@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code CombinedBlockPredicate}.
+ * Базовый класс для предикатов, объединяющих список дочерних предикатов.
  */
 abstract class CombinedBlockPredicate implements BlockPredicate {
 
@@ -18,20 +18,15 @@ abstract class CombinedBlockPredicate implements BlockPredicate {
 	}
 
 	/**
-	 * Строит codec.
+	 * Строит MapCodec для подкласса, принимающего список предикатов.
 	 *
-	 * @param combiner combiner
-	 *
-	 * @return MapCodec — результат операции
+	 * @param combiner фабрика подкласса из списка предикатов
 	 */
 	public static <T extends CombinedBlockPredicate> MapCodec<T> buildCodec(Function<List<BlockPredicate>, T> combiner) {
 		return RecordCodecBuilder.mapCodec(
-				instance -> instance
-						.group(BlockPredicate.BASE_CODEC
-								.listOf()
-								.fieldOf("predicates")
-								.forGetter(predicate -> predicate.predicates))
-						.apply(instance, combiner)
+			instance -> instance
+				.group(BlockPredicate.BASE_CODEC.listOf().fieldOf("predicates").forGetter(p -> p.predicates))
+				.apply(instance, combiner)
 		);
 	}
 }

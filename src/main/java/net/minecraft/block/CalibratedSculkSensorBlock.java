@@ -19,7 +19,9 @@ import net.minecraft.world.event.Vibrations;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CalibratedSculkSensorBlock}.
+ * Калиброванный датчик вибраций. Расширяет {@link SculkSensorBlock}, добавляя
+ * направленный вход: сигнал на стороне {@link #FACING} игнорируется, что позволяет
+ * фильтровать вибрации по частоте через редстоун-вход.
  */
 public class CalibratedSculkSensorBlock extends SculkSensorBlock {
 
@@ -33,7 +35,7 @@ public class CalibratedSculkSensorBlock extends SculkSensorBlock {
 
 	public CalibratedSculkSensorBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.getDefaultState().with(FACING, Direction.NORTH));
+		setDefaultState(getDefaultState().with(FACING, Direction.NORTH));
 	}
 
 	@Override
@@ -43,21 +45,21 @@ public class CalibratedSculkSensorBlock extends SculkSensorBlock {
 
 	@Override
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
-			World world,
-			BlockState state,
-			BlockEntityType<T> type
+		World world,
+		BlockState state,
+		BlockEntityType<T> type
 	) {
-		return !world.isClient()
-		       ? validateTicker(
+		return world.isClient()
+			? null
+			: validateTicker(
 				type,
 				BlockEntityType.CALIBRATED_SCULK_SENSOR,
-				(worldx, pos, statex, blockEntity) -> Vibrations.Ticker.tick(
-						worldx,
-						blockEntity.getVibrationListenerData(),
-						blockEntity.getVibrationCallback()
+				(tickWorld, pos, tickState, blockEntity) -> Vibrations.Ticker.tick(
+					tickWorld,
+					blockEntity.getVibrationListenerData(),
+					blockEntity.getVibrationCallback()
 				)
-		)
-		       : null;
+			);
 	}
 
 	@Override

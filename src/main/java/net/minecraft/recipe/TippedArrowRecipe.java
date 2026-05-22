@@ -9,68 +9,59 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
 /**
- * {@code TippedArrowRecipe}.
+ * Рецепт создания стрел с зельем: заполненная сетка 3×3, где центр — задерживающееся зелье,
+ * а все 8 окружающих слотов — обычные стрелы. Результат — 8 стрел с эффектом зелья.
  */
 public class TippedArrowRecipe extends SpecialCraftingRecipe {
 
-	public TippedArrowRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-		super(craftingRecipeCategory);
+	private static final int FULL_GRID_SIZE = 9;
+	private static final int TIPPED_ARROW_OUTPUT_COUNT = 8;
+	private static final int CENTER_COL = 1;
+	private static final int CENTER_ROW = 1;
+
+	public TippedArrowRecipe(CraftingRecipeCategory category) {
+		super(category);
 	}
 
-	/**
-	 * Matches.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param world world
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-		if (craftingRecipeInput.getWidth() == 3 && craftingRecipeInput.getHeight() == 3
-				&& craftingRecipeInput.getStackCount() == 9) {
-			for (int i = 0; i < craftingRecipeInput.getHeight(); i++) {
-				for (int j = 0; j < craftingRecipeInput.getWidth(); j++) {
-					ItemStack itemStack = craftingRecipeInput.getStackInSlot(j, i);
-					if (itemStack.isEmpty()) {
-						return false;
-					}
-
-					if (j == 1 && i == 1) {
-						if (!itemStack.isOf(Items.LINGERING_POTION)) {
-							return false;
-						}
-					}
-					else if (!itemStack.isOf(Items.ARROW)) {
-						return false;
-					}
-				}
-			}
-
-			return true;
-		}
-		else {
+	@Override
+	public boolean matches(CraftingRecipeInput input, World world) {
+		if (input.getWidth() != 3 || input.getHeight() != 3 || input.getStackCount() != FULL_GRID_SIZE) {
 			return false;
 		}
+
+		for (int row = 0; row < input.getHeight(); row++) {
+			for (int col = 0; col < input.getWidth(); col++) {
+				ItemStack stack = input.getStackInSlot(col, row);
+
+				if (stack.isEmpty()) {
+					return false;
+				}
+
+				if (col == CENTER_COL && row == CENTER_ROW) {
+					if (!stack.isOf(Items.LINGERING_POTION)) {
+						return false;
+					}
+				} else if (!stack.isOf(Items.ARROW)) {
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
-	/**
-	 * Craft.
-	 *
-	 * @param craftingRecipeInput crafting recipe input
-	 * @param wrapperLookup wrapper lookup
-	 *
-	 * @return ItemStack — результат операции
-	 */
-	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		ItemStack itemStack = craftingRecipeInput.getStackInSlot(1, 1);
-		if (!itemStack.isOf(Items.LINGERING_POTION)) {
+	@Override
+	public ItemStack craft(CraftingRecipeInput input, RegistryWrapper.WrapperLookup wrapperLookup) {
+		ItemStack potion = input.getStackInSlot(CENTER_COL, CENTER_ROW);
+
+		if (!potion.isOf(Items.LINGERING_POTION)) {
 			return ItemStack.EMPTY;
 		}
-		else {
-			ItemStack itemStack2 = new ItemStack(Items.TIPPED_ARROW, 8);
-			itemStack2.set(DataComponentTypes.POTION_CONTENTS, itemStack.get(DataComponentTypes.POTION_CONTENTS));
-			return itemStack2;
-		}
+
+		ItemStack result = new ItemStack(Items.TIPPED_ARROW, TIPPED_ARROW_OUTPUT_COUNT);
+		result.set(DataComponentTypes.POTION_CONTENTS, potion.get(DataComponentTypes.POTION_CONTENTS));
+
+		return result;
 	}
 
 	@Override

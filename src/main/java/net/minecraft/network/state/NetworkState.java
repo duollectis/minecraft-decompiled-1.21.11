@@ -12,7 +12,10 @@ import net.minecraft.util.annotation.Debug;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Интерфейс network state.
+ * Привязанное состояние сетевого протокола для конкретного слушателя.
+ * Содержит кодек для сериализации/десериализации пакетов и опциональный обработчик bundle-пакетов.
+ *
+ * @param <T> тип слушателя пакетов
  */
 public interface NetworkState<T extends PacketListener> {
 
@@ -25,17 +28,18 @@ public interface NetworkState<T extends PacketListener> {
 	@Nullable PacketBundleHandler bundleHandler();
 
 	/**
-	 * Интерфейс factory.
+	 * Фабрика для создания {@link NetworkState} с привязкой к реестру.
 	 */
-	public interface Factory {
+	interface Factory {
 
 		NetworkState.Unbound buildUnbound();
 	}
 
 	/**
-	 * Интерфейс unbound.
+	 * Непривязанное состояние протокола — описание без конкретного реестра.
+	 * Используется для регистрации типов пакетов до инициализации реестров.
 	 */
-	public interface Unbound {
+	interface Unbound {
 
 		NetworkPhase phase();
 
@@ -44,11 +48,11 @@ public interface NetworkState<T extends PacketListener> {
 		@Debug
 		void forEachPacketType(NetworkState.Unbound.PacketTypeConsumer callback);
 
-		@FunctionalInterface
 		/**
-		 * Интерфейс packet type consumer.
+		 * Потребитель типов пакетов с их протокольными идентификаторами.
 		 */
-		public interface PacketTypeConsumer {
+		@FunctionalInterface
+		interface PacketTypeConsumer {
 
 			void accept(PacketType<?> type, int protocolId);
 		}

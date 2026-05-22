@@ -3,11 +3,14 @@ package net.minecraft.util.math;
 import org.apache.commons.lang3.Validate;
 
 /**
- * {@code WordPackedArray}.
+ * Массив целых чисел с упаковкой нескольких значений в одно 64-битное слово.
+ * Каждый элемент занимает ровно {@code unitSize} бит; элементы могут пересекать границы слов.
+ * Используется для компактного хранения данных с ограниченным диапазоном значений.
  */
 public class WordPackedArray {
 
 	private static final int BIT_TO_LONG_INDEX_SHIFT = 6;
+
 	private final long[] array;
 	private final int unitSize;
 	private final long maxValue;
@@ -23,61 +26,64 @@ public class WordPackedArray {
 		this.unitSize = unitSize;
 		this.array = array;
 		this.maxValue = (1L << unitSize) - 1L;
-		int i = MathHelper.roundUpToMultiple(length * unitSize, 64) / 64;
-		if (array.length != i) {
+		int expectedWords = MathHelper.roundUpToMultiple(length * unitSize, 64) / 64;
+
+		if (array.length != expectedWords) {
 			throw new IllegalArgumentException(
-					"Invalid length given for storage, got: " + array.length + " but expected: " + i);
+				"Invalid length given for storage, got: " + array.length + " but expected: " + expectedWords
+			);
 		}
 	}
 
 	/**
-	 * Set.
+	 * Записывает значение по индексу. Поддерживает запись через границу 64-битного слова.
 	 *
-	 * @param index index
-	 * @param value value
+	 * @param index индекс элемента (0..length-1)
+	 * @param value значение (0..maxValue)
 	 */
 	public void set(int index, int value) {
-		Validate.inclusiveBetween(0L, this.length - 1, index);
-		Validate.inclusiveBetween(0L, this.maxValue, value);
-		int i = index * this.unitSize;
-		int j = i >> 6;
-		int k = (index + 1) * this.unitSize - 1 >> 6;
-		int l = i ^ j << 6;
-		this.array[j] = this.array[j] & ~(this.maxValue << l) | (value & this.maxValue) << l;
-		if (j != k) {
-			int m = 64 - l;
-			int n = this.unitSize - m;
-			this.array[k] = this.array[k] >>> n << n | (value & this.maxValue) >> m;
+		Validate.inclusiveBetween(0L, length - 1, index);
+		Validate.inclusiveBetween(0L, maxValue, value);
+		int bitOffset = index * unitSize;
+		int wordIndex = bitOffset >> BIT_TO_LONG_INDEX_SHIFT;
+		int lastWordIndex = (index + 1) * unitSize - 1 >> BIT_TO_LONG_INDEX_SHIFT;
+		int bitInWord = bitOffset ^ wordIndex << BIT_TO_LONG_INDEX_SHIFT;
+		array[wordIndex] = array[wordIndex] & ~(maxValue << bitInWord) | (value & maxValue) << bitInWord;
+
+		if (wordIndex != lastWordIndex) {
+			int bitsInFirstWord = 64 - bitInWord;
+			int bitsInSecondWord = unitSize - bitsInFirstWord;
+			array[lastWordIndex] = array[lastWordIndex] >>> bitsInSecondWord << bitsInSecondWord
+				| (value & maxValue) >> bitsInFirstWord;
 		}
 	}
 
 	/**
-	 * Get.
+	 * Читает значение по индексу. Поддерживает чтение через границу 64-битного слова.
 	 *
-	 * @param index index
-	 *
-	 * @return int — 
+	 * @param index индекс элемента (0..length-1)
+	 * @return значение элемента (0..maxValue)
 	 */
 	public int get(int index) {
-		Validate.inclusiveBetween(0L, this.length - 1, index);
-		int i = index * this.unitSize;
-		int j = i >> 6;
-		int k = (index + 1) * this.unitSize - 1 >> 6;
-		int l = i ^ j << 6;
-		if (j == k) {
-			return (int) (this.array[j] >>> l & this.maxValue);
+		Validate.inclusiveBetween(0L, length - 1, index);
+		int bitOffset = index * unitSize;
+		int wordIndex = bitOffset >> BIT_TO_LONG_INDEX_SHIFT;
+		int lastWordIndex = (index + 1) * unitSize - 1 >> BIT_TO_LONG_INDEX_SHIFT;
+		int bitInWord = bitOffset ^ wordIndex << BIT_TO_LONG_INDEX_SHIFT;
+
+		if (wordIndex == lastWordIndex) {
+			return (int) (array[wordIndex] >>> bitInWord & maxValue);
 		}
-		else {
-			int m = 64 - l;
-			return (int) ((this.array[j] >>> l | this.array[k] << m) & this.maxValue);
-		}
+
+		int bitsInFirstWord = 64 - bitInWord;
+		return (int) ((array[wordIndex] >>> bitInWord | array[lastWordIndex] << bitsInFirstWord) & maxValue);
 	}
 
 	public long[] getAlignedArray() {
-		return this.array;
+		return array;
 	}
 
 	public int getUnitSize() {
-		return this.unitSize;
+		return unitSize;
 	}
 }

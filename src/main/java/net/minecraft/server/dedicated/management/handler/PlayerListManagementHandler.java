@@ -12,7 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code PlayerListManagementHandler}.
+ * Класс Player List Management Handler.
  */
 public interface PlayerListManagementHandler {
 

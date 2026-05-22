@@ -6,19 +6,21 @@ import net.minecraft.entity.raid.RaiderEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DisableableFollowTargetGoal}.
+ * Расширение {@link ActiveTargetGoal} с возможностью программного отключения
+ * через {@link #setEnabled(boolean)}. Используется в рейдах для временной
+ * приостановки преследования цели.
  */
 public class DisableableFollowTargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
 
 	private boolean enabled = true;
 
 	public DisableableFollowTargetGoal(
-			RaiderEntity actor,
-			Class<T> targetEntityClass,
-			int reciprocalChance,
-			boolean checkVisibility,
-			boolean checkCanNavigate,
-			TargetPredicate.@Nullable EntityPredicate targetPredicate
+		RaiderEntity actor,
+		Class<T> targetEntityClass,
+		int reciprocalChance,
+		boolean checkVisibility,
+		boolean checkCanNavigate,
+		TargetPredicate.@Nullable EntityPredicate targetPredicate
 	) {
 		super(actor, targetEntityClass, reciprocalChance, checkVisibility, checkCanNavigate, targetPredicate);
 	}
@@ -29,6 +31,6 @@ public class DisableableFollowTargetGoal<T extends LivingEntity> extends ActiveT
 
 	@Override
 	public boolean canStart() {
-		return this.enabled && super.canStart();
+		return enabled && super.canStart();
 	}
 }

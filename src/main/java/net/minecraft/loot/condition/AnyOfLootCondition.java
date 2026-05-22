@@ -6,7 +6,7 @@ import net.minecraft.util.Util;
 import java.util.List;
 
 /**
- * {@code AnyOfLootCondition}.
+ * Составное условие «ИЛИ» — выполняется, если хотя бы одно дочернее условие истинно.
  */
 public class AnyOfLootCondition extends AlternativeLootCondition {
 
@@ -25,9 +25,6 @@ public class AnyOfLootCondition extends AlternativeLootCondition {
 		return new AnyOfLootCondition.Builder(terms);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder extends AlternativeLootCondition.Builder {
 
 		public Builder(LootCondition.Builder... builders) {
@@ -36,7 +33,7 @@ public class AnyOfLootCondition extends AlternativeLootCondition {
 
 		@Override
 		public AnyOfLootCondition.Builder or(LootCondition.Builder builder) {
-			this.add(builder);
+			add(builder);
 			return this;
 		}
 

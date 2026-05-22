@@ -11,7 +11,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code SignItem}.
+ * Предмет «Табличка». После размещения автоматически открывает экран редактирования
+ * текста для игрока, если блок не был заменён (например, при размещении поверх другого блока).
  */
 public class SignItem extends VerticallyAttachableBlockItem {
 
@@ -20,31 +21,33 @@ public class SignItem extends VerticallyAttachableBlockItem {
 	}
 
 	public SignItem(
-			Item.Settings settings,
-			Block standingBlock,
-			Block wallBlock,
-			Direction verticalAttachmentDirection
+		Item.Settings settings,
+		Block standingBlock,
+		Block wallBlock,
+		Direction verticalAttachmentDirection
 	) {
 		super(standingBlock, wallBlock, verticalAttachmentDirection, settings);
 	}
 
 	@Override
 	protected boolean postPlacement(
-			BlockPos pos,
-			World world,
-			@Nullable PlayerEntity player,
-			ItemStack stack,
-			BlockState state
+		BlockPos pos,
+		World world,
+		@Nullable PlayerEntity player,
+		ItemStack stack,
+		BlockState state
 	) {
-		boolean bl = super.postPlacement(pos, world, player, stack, state);
+		boolean replaced = super.postPlacement(pos, world, player, stack, state);
+
 		if (!world.isClient()
-				&& !bl
-				&& player != null
-				&& world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
-				&& world.getBlockState(pos).getBlock() instanceof AbstractSignBlock abstractSignBlock) {
-			abstractSignBlock.openEditScreen(player, signBlockEntity, true);
+			&& !replaced
+			&& player != null
+			&& world.getBlockEntity(pos) instanceof SignBlockEntity sign
+			&& world.getBlockState(pos).getBlock() instanceof AbstractSignBlock signBlock
+		) {
+			signBlock.openEditScreen(player, sign, true);
 		}
 
-		return bl;
+		return replaced;
 	}
 }

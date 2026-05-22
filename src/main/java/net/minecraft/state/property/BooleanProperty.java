@@ -4,7 +4,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code BooleanProperty}.
+ * Свойство с булевым значением ({@code true} / {@code false}).
+ *
+ * <p>Порядок значений фиксирован: {@code true} имеет порядковый номер {@value TRUE_ORDINAL},
+ * {@code false} — {@value FALSE_ORDINAL}. Это соответствует порядку в {@link #VALUES}
+ * и используется для O(1)-индексации в кэше переходов состояний.
  */
 public final class BooleanProperty extends Property<Boolean> {
 
@@ -16,13 +20,13 @@ public final class BooleanProperty extends Property<Boolean> {
 		super(name, Boolean.class);
 	}
 
+	public static BooleanProperty of(String name) {
+		return new BooleanProperty(name);
+	}
+
 	@Override
 	public List<Boolean> getValues() {
 		return VALUES;
-	}
-
-	public static BooleanProperty of(String name) {
-		return new BooleanProperty(name);
 	}
 
 	@Override
@@ -34,11 +38,13 @@ public final class BooleanProperty extends Property<Boolean> {
 		};
 	}
 
-	public String name(Boolean boolean_) {
-		return boolean_.toString();
+	@Override
+	public String name(Boolean value) {
+		return value.toString();
 	}
 
-	public int ordinal(Boolean boolean_) {
-		return boolean_ ? 0 : 1;
+	@Override
+	public int ordinal(Boolean value) {
+		return value ? TRUE_ORDINAL : FALSE_ORDINAL;
 	}
 }

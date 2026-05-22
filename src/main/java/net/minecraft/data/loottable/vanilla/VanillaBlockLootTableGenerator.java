@@ -44,33 +44,33 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 			JUNGLE_SAPLING_DROP_CHANCE =
 			new float[]{0.025F, 0.027777778F, 0.03125F, 0.041666668F, 0.1F};
 	private static final Set<Item> EXPLOSION_IMMUNE = Stream.of(
-			                                                        Blocks.DRAGON_EGG,
-			                                                        Blocks.BEACON,
-			                                                        Blocks.CONDUIT,
-			                                                        Blocks.SKELETON_SKULL,
-			                                                        Blocks.WITHER_SKELETON_SKULL,
-			                                                        Blocks.PLAYER_HEAD,
-			                                                        Blocks.ZOMBIE_HEAD,
-			                                                        Blocks.CREEPER_HEAD,
-			                                                        Blocks.DRAGON_HEAD,
-			                                                        Blocks.PIGLIN_HEAD,
-			                                                        Blocks.SHULKER_BOX,
-			                                                        Blocks.BLACK_SHULKER_BOX,
-			                                                        Blocks.BLUE_SHULKER_BOX,
-			                                                        Blocks.BROWN_SHULKER_BOX,
-			                                                        Blocks.CYAN_SHULKER_BOX,
-			                                                        Blocks.GRAY_SHULKER_BOX,
-			                                                        Blocks.GREEN_SHULKER_BOX,
-			                                                        Blocks.LIGHT_BLUE_SHULKER_BOX,
-			                                                        Blocks.LIGHT_GRAY_SHULKER_BOX,
-			                                                        Blocks.LIME_SHULKER_BOX,
-			                                                        Blocks.MAGENTA_SHULKER_BOX,
-			                                                        Blocks.ORANGE_SHULKER_BOX,
-			                                                        Blocks.PINK_SHULKER_BOX,
-			                                                        Blocks.PURPLE_SHULKER_BOX,
-			                                                        Blocks.RED_SHULKER_BOX,
-			                                                        Blocks.WHITE_SHULKER_BOX,
-			                                                        Blocks.YELLOW_SHULKER_BOX
+			Blocks.DRAGON_EGG,
+			Blocks.BEACON,
+			Blocks.CONDUIT,
+			Blocks.SKELETON_SKULL,
+			Blocks.WITHER_SKELETON_SKULL,
+			Blocks.PLAYER_HEAD,
+			Blocks.ZOMBIE_HEAD,
+			Blocks.CREEPER_HEAD,
+			Blocks.DRAGON_HEAD,
+			Blocks.PIGLIN_HEAD,
+			Blocks.SHULKER_BOX,
+			Blocks.BLACK_SHULKER_BOX,
+			Blocks.BLUE_SHULKER_BOX,
+			Blocks.BROWN_SHULKER_BOX,
+			Blocks.CYAN_SHULKER_BOX,
+			Blocks.GRAY_SHULKER_BOX,
+			Blocks.GREEN_SHULKER_BOX,
+			Blocks.LIGHT_BLUE_SHULKER_BOX,
+			Blocks.LIGHT_GRAY_SHULKER_BOX,
+			Blocks.LIME_SHULKER_BOX,
+			Blocks.MAGENTA_SHULKER_BOX,
+			Blocks.ORANGE_SHULKER_BOX,
+			Blocks.PINK_SHULKER_BOX,
+			Blocks.PURPLE_SHULKER_BOX,
+			Blocks.RED_SHULKER_BOX,
+			Blocks.WHITE_SHULKER_BOX,
+			Blocks.YELLOW_SHULKER_BOX
 	                                                        )
 	                                                        .map(ItemConvertible::asItem)
 	                                                        .collect(Collectors.toSet());
@@ -81,803 +81,803 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 
 	@Override
 	public void generate() {
-		RegistryWrapper.Impl<Enchantment> impl = this.registries.getOrThrow(RegistryKeys.ENCHANTMENT);
-		RegistryWrapper.Impl<Item> impl2 = this.registries.getOrThrow(RegistryKeys.ITEM);
-		this.addDrop(Blocks.GRANITE);
-		this.addDrop(Blocks.POLISHED_GRANITE);
-		this.addDrop(Blocks.DIORITE);
-		this.addDrop(Blocks.POLISHED_DIORITE);
-		this.addDrop(Blocks.ANDESITE);
-		this.addDrop(Blocks.POLISHED_ANDESITE);
-		this.addDrop(Blocks.DIRT);
-		this.addDrop(Blocks.COARSE_DIRT);
-		this.addDrop(Blocks.COBBLESTONE);
-		this.addDrop(Blocks.OAK_PLANKS);
-		this.addDrop(Blocks.SPRUCE_PLANKS);
-		this.addDrop(Blocks.BIRCH_PLANKS);
-		this.addDrop(Blocks.JUNGLE_PLANKS);
-		this.addDrop(Blocks.ACACIA_PLANKS);
-		this.addDrop(Blocks.DARK_OAK_PLANKS);
-		this.addDrop(Blocks.PALE_OAK_PLANKS);
-		this.addDrop(Blocks.MANGROVE_PLANKS);
-		this.addDrop(Blocks.CHERRY_PLANKS);
-		this.addDrop(Blocks.BAMBOO_PLANKS);
-		this.addDrop(Blocks.BAMBOO_MOSAIC);
-		this.addDrop(Blocks.DECORATED_POT, this::decoratedPotDrops);
-		this.addDrop(Blocks.OAK_SAPLING);
-		this.addDrop(Blocks.SPRUCE_SAPLING);
-		this.addDrop(Blocks.BIRCH_SAPLING);
-		this.addDrop(Blocks.JUNGLE_SAPLING);
-		this.addDrop(Blocks.ACACIA_SAPLING);
-		this.addDrop(Blocks.DARK_OAK_SAPLING);
-		this.addDrop(Blocks.PALE_OAK_SAPLING);
-		this.addDrop(Blocks.CHERRY_SAPLING);
-		this.addDrop(Blocks.SAND);
-		this.addDrop(Blocks.SUSPICIOUS_SAND, dropsNothing());
-		this.addDrop(Blocks.SUSPICIOUS_GRAVEL, dropsNothing());
-		this.addDrop(Blocks.RED_SAND);
-		this.addDrop(Blocks.OAK_LOG);
-		this.addDrop(Blocks.SPRUCE_LOG);
-		this.addDrop(Blocks.BIRCH_LOG);
-		this.addDrop(Blocks.JUNGLE_LOG);
-		this.addDrop(Blocks.ACACIA_LOG);
-		this.addDrop(Blocks.DARK_OAK_LOG);
-		this.addDrop(Blocks.PALE_OAK_LOG);
-		this.addDrop(Blocks.CHERRY_LOG);
-		this.addDrop(Blocks.BAMBOO_BLOCK);
-		this.addDrop(Blocks.STRIPPED_OAK_LOG);
-		this.addDrop(Blocks.STRIPPED_SPRUCE_LOG);
-		this.addDrop(Blocks.STRIPPED_BIRCH_LOG);
-		this.addDrop(Blocks.STRIPPED_JUNGLE_LOG);
-		this.addDrop(Blocks.STRIPPED_ACACIA_LOG);
-		this.addDrop(Blocks.STRIPPED_DARK_OAK_LOG);
-		this.addDrop(Blocks.STRIPPED_PALE_OAK_LOG);
-		this.addDrop(Blocks.STRIPPED_MANGROVE_LOG);
-		this.addDrop(Blocks.STRIPPED_CHERRY_LOG);
-		this.addDrop(Blocks.STRIPPED_BAMBOO_BLOCK);
-		this.addDrop(Blocks.STRIPPED_WARPED_STEM);
-		this.addDrop(Blocks.STRIPPED_CRIMSON_STEM);
-		this.addDrop(Blocks.OAK_WOOD);
-		this.addDrop(Blocks.SPRUCE_WOOD);
-		this.addDrop(Blocks.BIRCH_WOOD);
-		this.addDrop(Blocks.JUNGLE_WOOD);
-		this.addDrop(Blocks.ACACIA_WOOD);
-		this.addDrop(Blocks.DARK_OAK_WOOD);
-		this.addDrop(Blocks.PALE_OAK_WOOD);
-		this.addDrop(Blocks.MANGROVE_WOOD);
-		this.addDrop(Blocks.CHERRY_WOOD);
-		this.addDrop(Blocks.STRIPPED_OAK_WOOD);
-		this.addDrop(Blocks.STRIPPED_SPRUCE_WOOD);
-		this.addDrop(Blocks.STRIPPED_BIRCH_WOOD);
-		this.addDrop(Blocks.STRIPPED_JUNGLE_WOOD);
-		this.addDrop(Blocks.STRIPPED_ACACIA_WOOD);
-		this.addDrop(Blocks.STRIPPED_DARK_OAK_WOOD);
-		this.addDrop(Blocks.STRIPPED_PALE_OAK_WOOD);
-		this.addDrop(Blocks.STRIPPED_MANGROVE_WOOD);
-		this.addDrop(Blocks.STRIPPED_CHERRY_WOOD);
-		this.addDrop(Blocks.STRIPPED_CRIMSON_HYPHAE);
-		this.addDrop(Blocks.STRIPPED_WARPED_HYPHAE);
-		this.addDrop(Blocks.SPONGE);
-		this.addDrop(Blocks.WET_SPONGE);
-		this.addDrop(Blocks.LAPIS_BLOCK);
-		this.addDrop(Blocks.RESIN_BLOCK);
-		this.addDrop(Blocks.SANDSTONE);
-		this.addDrop(Blocks.CHISELED_SANDSTONE);
-		this.addDrop(Blocks.CUT_SANDSTONE);
-		this.addDrop(Blocks.NOTE_BLOCK);
-		this.addDrop(Blocks.POWERED_RAIL);
-		this.addDrop(Blocks.DETECTOR_RAIL);
-		this.addDrop(Blocks.STICKY_PISTON);
-		this.addDrop(Blocks.PISTON);
-		this.addDrop(Blocks.WHITE_WOOL);
-		this.addDrop(Blocks.ORANGE_WOOL);
-		this.addDrop(Blocks.MAGENTA_WOOL);
-		this.addDrop(Blocks.LIGHT_BLUE_WOOL);
-		this.addDrop(Blocks.YELLOW_WOOL);
-		this.addDrop(Blocks.LIME_WOOL);
-		this.addDrop(Blocks.PINK_WOOL);
-		this.addDrop(Blocks.GRAY_WOOL);
-		this.addDrop(Blocks.LIGHT_GRAY_WOOL);
-		this.addDrop(Blocks.CYAN_WOOL);
-		this.addDrop(Blocks.PURPLE_WOOL);
-		this.addDrop(Blocks.BLUE_WOOL);
-		this.addDrop(Blocks.BROWN_WOOL);
-		this.addDrop(Blocks.GREEN_WOOL);
-		this.addDrop(Blocks.RED_WOOL);
-		this.addDrop(Blocks.BLACK_WOOL);
-		this.addDrop(Blocks.DANDELION);
-		this.addDrop(Blocks.OPEN_EYEBLOSSOM);
-		this.addDrop(Blocks.CLOSED_EYEBLOSSOM);
-		this.addDrop(Blocks.POPPY);
-		this.addDrop(Blocks.TORCHFLOWER);
-		this.addDrop(Blocks.BLUE_ORCHID);
-		this.addDrop(Blocks.ALLIUM);
-		this.addDrop(Blocks.AZURE_BLUET);
-		this.addDrop(Blocks.RED_TULIP);
-		this.addDrop(Blocks.ORANGE_TULIP);
-		this.addDrop(Blocks.WHITE_TULIP);
-		this.addDrop(Blocks.PINK_TULIP);
-		this.addDrop(Blocks.OXEYE_DAISY);
-		this.addDrop(Blocks.CORNFLOWER);
-		this.addDrop(Blocks.WITHER_ROSE);
-		this.addDrop(Blocks.LILY_OF_THE_VALLEY);
-		this.addDrop(Blocks.BROWN_MUSHROOM);
-		this.addDrop(Blocks.RED_MUSHROOM);
-		this.addDrop(Blocks.GOLD_BLOCK);
-		this.addDrop(Blocks.IRON_BLOCK);
-		this.addDrop(Blocks.BRICKS);
-		this.addDrop(Blocks.MOSSY_COBBLESTONE);
-		this.addDrop(Blocks.OBSIDIAN);
-		this.addDrop(Blocks.CRYING_OBSIDIAN);
-		this.addDrop(Blocks.TORCH);
-		this.addDrop(Blocks.OAK_STAIRS);
-		this.addDrop(Blocks.MANGROVE_STAIRS);
-		this.addDrop(Blocks.BAMBOO_STAIRS);
-		this.addDrop(Blocks.BAMBOO_MOSAIC_STAIRS);
-		this.addDrop(Blocks.REDSTONE_WIRE);
-		this.addDrop(Blocks.DIAMOND_BLOCK);
-		this.addDrop(Blocks.CRAFTING_TABLE);
-		this.addDrop(Blocks.OAK_SIGN);
-		this.addDrop(Blocks.SPRUCE_SIGN);
-		this.addDrop(Blocks.BIRCH_SIGN);
-		this.addDrop(Blocks.ACACIA_SIGN);
-		this.addDrop(Blocks.JUNGLE_SIGN);
-		this.addDrop(Blocks.DARK_OAK_SIGN);
-		this.addDrop(Blocks.PALE_OAK_SIGN);
-		this.addDrop(Blocks.MANGROVE_SIGN);
-		this.addDrop(Blocks.CHERRY_SIGN);
-		this.addDrop(Blocks.BAMBOO_SIGN);
-		this.addDrop(Blocks.OAK_HANGING_SIGN);
-		this.addDrop(Blocks.SPRUCE_HANGING_SIGN);
-		this.addDrop(Blocks.BIRCH_HANGING_SIGN);
-		this.addDrop(Blocks.ACACIA_HANGING_SIGN);
-		this.addDrop(Blocks.CHERRY_HANGING_SIGN);
-		this.addDrop(Blocks.JUNGLE_HANGING_SIGN);
-		this.addDrop(Blocks.DARK_OAK_HANGING_SIGN);
-		this.addDrop(Blocks.PALE_OAK_HANGING_SIGN);
-		this.addDrop(Blocks.MANGROVE_HANGING_SIGN);
-		this.addDrop(Blocks.CRIMSON_HANGING_SIGN);
-		this.addDrop(Blocks.WARPED_HANGING_SIGN);
-		this.addDrop(Blocks.BAMBOO_HANGING_SIGN);
-		this.addDrop(Blocks.LADDER);
-		this.addDrop(Blocks.RAIL);
-		this.addDrop(Blocks.COBBLESTONE_STAIRS);
-		this.addDrop(Blocks.LEVER);
-		this.addDrop(Blocks.STONE_PRESSURE_PLATE);
-		this.addDrop(Blocks.OAK_PRESSURE_PLATE);
-		this.addDrop(Blocks.SPRUCE_PRESSURE_PLATE);
-		this.addDrop(Blocks.BIRCH_PRESSURE_PLATE);
-		this.addDrop(Blocks.JUNGLE_PRESSURE_PLATE);
-		this.addDrop(Blocks.ACACIA_PRESSURE_PLATE);
-		this.addDrop(Blocks.DARK_OAK_PRESSURE_PLATE);
-		this.addDrop(Blocks.PALE_OAK_PRESSURE_PLATE);
-		this.addDrop(Blocks.MANGROVE_PRESSURE_PLATE);
-		this.addDrop(Blocks.CHERRY_PRESSURE_PLATE);
-		this.addDrop(Blocks.BAMBOO_PRESSURE_PLATE);
-		this.addDrop(Blocks.REDSTONE_TORCH);
-		this.addDrop(Blocks.STONE_BUTTON);
-		this.addDrop(Blocks.CACTUS);
-		this.addDrop(Blocks.SUGAR_CANE);
-		this.addDrop(Blocks.JUKEBOX);
-		this.addDrop(Blocks.OAK_FENCE);
-		this.addDrop(Blocks.MANGROVE_FENCE);
-		this.addDrop(Blocks.BAMBOO_FENCE);
-		this.addDrop(Blocks.PUMPKIN);
-		this.addDrop(Blocks.NETHERRACK);
-		this.addDrop(Blocks.SOUL_SAND);
-		this.addDrop(Blocks.SOUL_SOIL);
-		this.addDrop(Blocks.BASALT);
-		this.addDrop(Blocks.POLISHED_BASALT);
-		this.addDrop(Blocks.SMOOTH_BASALT);
-		this.addDrop(Blocks.SOUL_TORCH);
-		this.addDrop(Blocks.COPPER_TORCH);
-		this.addDrop(Blocks.CARVED_PUMPKIN);
-		this.addDrop(Blocks.JACK_O_LANTERN);
-		this.addDrop(Blocks.REPEATER);
-		this.addDrop(Blocks.OAK_TRAPDOOR);
-		this.addDrop(Blocks.SPRUCE_TRAPDOOR);
-		this.addDrop(Blocks.BIRCH_TRAPDOOR);
-		this.addDrop(Blocks.JUNGLE_TRAPDOOR);
-		this.addDrop(Blocks.ACACIA_TRAPDOOR);
-		this.addDrop(Blocks.DARK_OAK_TRAPDOOR);
-		this.addDrop(Blocks.PALE_OAK_TRAPDOOR);
-		this.addDrop(Blocks.MANGROVE_TRAPDOOR);
-		this.addDrop(Blocks.CHERRY_TRAPDOOR);
-		this.addDrop(Blocks.BAMBOO_TRAPDOOR);
-		this.addDrop(Blocks.COPPER_TRAPDOOR);
-		this.addDrop(Blocks.EXPOSED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.WEATHERED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.OXIDIZED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.WAXED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_TRAPDOOR);
-		this.addDrop(Blocks.STONE_BRICKS);
-		this.addDrop(Blocks.MOSSY_STONE_BRICKS);
-		this.addDrop(Blocks.CRACKED_STONE_BRICKS);
-		this.addDrop(Blocks.CHISELED_STONE_BRICKS);
-		this.addDrop(Blocks.IRON_BARS);
-		Blocks.COPPER_BARS.forEach(block -> this.addDrop(block));
-		this.addDrop(Blocks.OAK_FENCE_GATE);
-		this.addDrop(Blocks.MANGROVE_FENCE_GATE);
-		this.addDrop(Blocks.BAMBOO_FENCE_GATE);
-		this.addDrop(Blocks.BRICK_STAIRS);
-		this.addDrop(Blocks.STONE_BRICK_STAIRS);
-		this.addDrop(Blocks.LILY_PAD);
-		this.addDrop(Blocks.RESIN_BRICKS);
-		this.addDrop(Blocks.RESIN_BRICK_WALL);
-		this.addDrop(Blocks.RESIN_BRICK_STAIRS);
-		this.addDrop(Blocks.CHISELED_RESIN_BRICKS);
-		this.addDrop(Blocks.NETHER_BRICKS);
-		this.addDrop(Blocks.NETHER_BRICK_FENCE);
-		this.addDrop(Blocks.NETHER_BRICK_STAIRS);
-		this.addDrop(Blocks.CAULDRON);
-		this.addDrop(Blocks.END_STONE);
-		this.addDrop(Blocks.REDSTONE_LAMP);
-		this.addDrop(Blocks.SANDSTONE_STAIRS);
-		this.addDrop(Blocks.TRIPWIRE_HOOK);
-		this.addDrop(Blocks.EMERALD_BLOCK);
-		this.addDrop(Blocks.SPRUCE_STAIRS);
-		this.addDrop(Blocks.BIRCH_STAIRS);
-		this.addDrop(Blocks.JUNGLE_STAIRS);
-		this.addDrop(Blocks.COBBLESTONE_WALL);
-		this.addDrop(Blocks.MOSSY_COBBLESTONE_WALL);
-		this.addDrop(Blocks.FLOWER_POT);
-		this.addDrop(Blocks.OAK_BUTTON);
-		this.addDrop(Blocks.SPRUCE_BUTTON);
-		this.addDrop(Blocks.BIRCH_BUTTON);
-		this.addDrop(Blocks.JUNGLE_BUTTON);
-		this.addDrop(Blocks.ACACIA_BUTTON);
-		this.addDrop(Blocks.DARK_OAK_BUTTON);
-		this.addDrop(Blocks.PALE_OAK_BUTTON);
-		this.addDrop(Blocks.MANGROVE_BUTTON);
-		this.addDrop(Blocks.CHERRY_BUTTON);
-		this.addDrop(Blocks.BAMBOO_BUTTON);
-		this.addDrop(Blocks.ANVIL);
-		this.addDrop(Blocks.CHIPPED_ANVIL);
-		this.addDrop(Blocks.DAMAGED_ANVIL);
-		this.addDrop(Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE);
-		this.addDrop(Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE);
-		this.addDrop(Blocks.COMPARATOR);
-		this.addDrop(Blocks.DAYLIGHT_DETECTOR);
-		this.addDrop(Blocks.REDSTONE_BLOCK);
-		this.addDrop(Blocks.QUARTZ_BLOCK);
-		this.addDrop(Blocks.CHISELED_QUARTZ_BLOCK);
-		this.addDrop(Blocks.QUARTZ_PILLAR);
-		this.addDrop(Blocks.QUARTZ_STAIRS);
-		this.addDrop(Blocks.ACTIVATOR_RAIL);
-		this.addDrop(Blocks.WHITE_TERRACOTTA);
-		this.addDrop(Blocks.ORANGE_TERRACOTTA);
-		this.addDrop(Blocks.MAGENTA_TERRACOTTA);
-		this.addDrop(Blocks.LIGHT_BLUE_TERRACOTTA);
-		this.addDrop(Blocks.YELLOW_TERRACOTTA);
-		this.addDrop(Blocks.LIME_TERRACOTTA);
-		this.addDrop(Blocks.PINK_TERRACOTTA);
-		this.addDrop(Blocks.GRAY_TERRACOTTA);
-		this.addDrop(Blocks.LIGHT_GRAY_TERRACOTTA);
-		this.addDrop(Blocks.CYAN_TERRACOTTA);
-		this.addDrop(Blocks.PURPLE_TERRACOTTA);
-		this.addDrop(Blocks.BLUE_TERRACOTTA);
-		this.addDrop(Blocks.BROWN_TERRACOTTA);
-		this.addDrop(Blocks.GREEN_TERRACOTTA);
-		this.addDrop(Blocks.RED_TERRACOTTA);
-		this.addDrop(Blocks.BLACK_TERRACOTTA);
-		this.addDrop(Blocks.ACACIA_STAIRS);
-		this.addDrop(Blocks.DARK_OAK_STAIRS);
-		this.addDrop(Blocks.PALE_OAK_STAIRS);
-		this.addDrop(Blocks.CHERRY_STAIRS);
-		this.addDrop(Blocks.SLIME_BLOCK);
-		this.addDrop(Blocks.IRON_TRAPDOOR);
-		this.addDrop(Blocks.PRISMARINE);
-		this.addDrop(Blocks.PRISMARINE_BRICKS);
-		this.addDrop(Blocks.DARK_PRISMARINE);
-		this.addDrop(Blocks.PRISMARINE_STAIRS);
-		this.addDrop(Blocks.PRISMARINE_BRICK_STAIRS);
-		this.addDrop(Blocks.DARK_PRISMARINE_STAIRS);
-		this.addDrop(Blocks.HAY_BLOCK);
-		this.addDrop(Blocks.WHITE_CARPET);
-		this.addDrop(Blocks.ORANGE_CARPET);
-		this.addDrop(Blocks.MAGENTA_CARPET);
-		this.addDrop(Blocks.LIGHT_BLUE_CARPET);
-		this.addDrop(Blocks.YELLOW_CARPET);
-		this.addDrop(Blocks.LIME_CARPET);
-		this.addDrop(Blocks.PINK_CARPET);
-		this.addDrop(Blocks.GRAY_CARPET);
-		this.addDrop(Blocks.LIGHT_GRAY_CARPET);
-		this.addDrop(Blocks.CYAN_CARPET);
-		this.addDrop(Blocks.PURPLE_CARPET);
-		this.addDrop(Blocks.BLUE_CARPET);
-		this.addDrop(Blocks.BROWN_CARPET);
-		this.addDrop(Blocks.GREEN_CARPET);
-		this.addDrop(Blocks.RED_CARPET);
-		this.addDrop(Blocks.BLACK_CARPET);
-		this.addDrop(Blocks.TERRACOTTA);
-		this.addDrop(Blocks.COAL_BLOCK);
-		this.addDrop(Blocks.RED_SANDSTONE);
-		this.addDrop(Blocks.CHISELED_RED_SANDSTONE);
-		this.addDrop(Blocks.CUT_RED_SANDSTONE);
-		this.addDrop(Blocks.RED_SANDSTONE_STAIRS);
-		this.addDrop(Blocks.SMOOTH_STONE);
-		this.addDrop(Blocks.SMOOTH_SANDSTONE);
-		this.addDrop(Blocks.SMOOTH_QUARTZ);
-		this.addDrop(Blocks.SMOOTH_RED_SANDSTONE);
-		this.addDrop(Blocks.SPRUCE_FENCE_GATE);
-		this.addDrop(Blocks.BIRCH_FENCE_GATE);
-		this.addDrop(Blocks.JUNGLE_FENCE_GATE);
-		this.addDrop(Blocks.ACACIA_FENCE_GATE);
-		this.addDrop(Blocks.DARK_OAK_FENCE_GATE);
-		this.addDrop(Blocks.PALE_OAK_FENCE_GATE);
-		this.addDrop(Blocks.CHERRY_FENCE_GATE);
-		this.addDrop(Blocks.SPRUCE_FENCE);
-		this.addDrop(Blocks.BIRCH_FENCE);
-		this.addDrop(Blocks.JUNGLE_FENCE);
-		this.addDrop(Blocks.ACACIA_FENCE);
-		this.addDrop(Blocks.DARK_OAK_FENCE);
-		this.addDrop(Blocks.PALE_OAK_FENCE);
-		this.addDrop(Blocks.CHERRY_FENCE);
-		this.addDrop(Blocks.END_ROD);
-		this.addDrop(Blocks.PURPUR_BLOCK);
-		this.addDrop(Blocks.PURPUR_PILLAR);
-		this.addDrop(Blocks.PURPUR_STAIRS);
-		this.addDrop(Blocks.END_STONE_BRICKS);
-		this.addDrop(Blocks.MAGMA_BLOCK);
-		this.addDrop(Blocks.NETHER_WART_BLOCK);
-		this.addDrop(Blocks.RED_NETHER_BRICKS);
-		this.addDrop(Blocks.BONE_BLOCK);
-		this.addDrop(Blocks.OBSERVER);
-		this.addDrop(Blocks.TARGET);
-		this.addDrop(Blocks.WHITE_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.ORANGE_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.MAGENTA_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.YELLOW_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.LIME_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.PINK_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.GRAY_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.CYAN_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.PURPLE_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.BLUE_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.BROWN_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.GREEN_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.RED_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.BLACK_GLAZED_TERRACOTTA);
-		this.addDrop(Blocks.WHITE_CONCRETE);
-		this.addDrop(Blocks.ORANGE_CONCRETE);
-		this.addDrop(Blocks.MAGENTA_CONCRETE);
-		this.addDrop(Blocks.LIGHT_BLUE_CONCRETE);
-		this.addDrop(Blocks.YELLOW_CONCRETE);
-		this.addDrop(Blocks.LIME_CONCRETE);
-		this.addDrop(Blocks.PINK_CONCRETE);
-		this.addDrop(Blocks.GRAY_CONCRETE);
-		this.addDrop(Blocks.LIGHT_GRAY_CONCRETE);
-		this.addDrop(Blocks.CYAN_CONCRETE);
-		this.addDrop(Blocks.PURPLE_CONCRETE);
-		this.addDrop(Blocks.BLUE_CONCRETE);
-		this.addDrop(Blocks.BROWN_CONCRETE);
-		this.addDrop(Blocks.GREEN_CONCRETE);
-		this.addDrop(Blocks.RED_CONCRETE);
-		this.addDrop(Blocks.BLACK_CONCRETE);
-		this.addDrop(Blocks.WHITE_CONCRETE_POWDER);
-		this.addDrop(Blocks.ORANGE_CONCRETE_POWDER);
-		this.addDrop(Blocks.MAGENTA_CONCRETE_POWDER);
-		this.addDrop(Blocks.LIGHT_BLUE_CONCRETE_POWDER);
-		this.addDrop(Blocks.YELLOW_CONCRETE_POWDER);
-		this.addDrop(Blocks.LIME_CONCRETE_POWDER);
-		this.addDrop(Blocks.PINK_CONCRETE_POWDER);
-		this.addDrop(Blocks.GRAY_CONCRETE_POWDER);
-		this.addDrop(Blocks.LIGHT_GRAY_CONCRETE_POWDER);
-		this.addDrop(Blocks.CYAN_CONCRETE_POWDER);
-		this.addDrop(Blocks.PURPLE_CONCRETE_POWDER);
-		this.addDrop(Blocks.BLUE_CONCRETE_POWDER);
-		this.addDrop(Blocks.BROWN_CONCRETE_POWDER);
-		this.addDrop(Blocks.GREEN_CONCRETE_POWDER);
-		this.addDrop(Blocks.RED_CONCRETE_POWDER);
-		this.addDrop(Blocks.BLACK_CONCRETE_POWDER);
-		this.addDrop(Blocks.KELP);
-		this.addDrop(Blocks.DRIED_KELP_BLOCK);
-		this.addDrop(Blocks.DEAD_TUBE_CORAL_BLOCK);
-		this.addDrop(Blocks.DEAD_BRAIN_CORAL_BLOCK);
-		this.addDrop(Blocks.DEAD_BUBBLE_CORAL_BLOCK);
-		this.addDrop(Blocks.DEAD_FIRE_CORAL_BLOCK);
-		this.addDrop(Blocks.DEAD_HORN_CORAL_BLOCK);
-		this.addDrop(Blocks.CONDUIT);
-		this.addDrop(Blocks.DRAGON_EGG);
-		this.addDrop(Blocks.BAMBOO);
-		this.addDrop(Blocks.POLISHED_GRANITE_STAIRS);
-		this.addDrop(Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
-		this.addDrop(Blocks.MOSSY_STONE_BRICK_STAIRS);
-		this.addDrop(Blocks.POLISHED_DIORITE_STAIRS);
-		this.addDrop(Blocks.MOSSY_COBBLESTONE_STAIRS);
-		this.addDrop(Blocks.END_STONE_BRICK_STAIRS);
-		this.addDrop(Blocks.STONE_STAIRS);
-		this.addDrop(Blocks.SMOOTH_SANDSTONE_STAIRS);
-		this.addDrop(Blocks.SMOOTH_QUARTZ_STAIRS);
-		this.addDrop(Blocks.GRANITE_STAIRS);
-		this.addDrop(Blocks.ANDESITE_STAIRS);
-		this.addDrop(Blocks.RED_NETHER_BRICK_STAIRS);
-		this.addDrop(Blocks.POLISHED_ANDESITE_STAIRS);
-		this.addDrop(Blocks.DIORITE_STAIRS);
-		this.addDrop(Blocks.BRICK_WALL);
-		this.addDrop(Blocks.PRISMARINE_WALL);
-		this.addDrop(Blocks.RED_SANDSTONE_WALL);
-		this.addDrop(Blocks.MOSSY_STONE_BRICK_WALL);
-		this.addDrop(Blocks.GRANITE_WALL);
-		this.addDrop(Blocks.STONE_BRICK_WALL);
-		this.addDrop(Blocks.NETHER_BRICK_WALL);
-		this.addDrop(Blocks.ANDESITE_WALL);
-		this.addDrop(Blocks.RED_NETHER_BRICK_WALL);
-		this.addDrop(Blocks.SANDSTONE_WALL);
-		this.addDrop(Blocks.END_STONE_BRICK_WALL);
-		this.addDrop(Blocks.DIORITE_WALL);
-		this.addDrop(Blocks.MUD_BRICK_WALL);
-		this.addDrop(Blocks.LOOM);
-		this.addDrop(Blocks.SCAFFOLDING);
-		this.addDrop(Blocks.HONEY_BLOCK);
-		this.addDrop(Blocks.HONEYCOMB_BLOCK);
-		this.addDrop(Blocks.RESPAWN_ANCHOR);
-		this.addDrop(Blocks.LODESTONE);
-		this.addDrop(Blocks.WARPED_STEM);
-		this.addDrop(Blocks.WARPED_HYPHAE);
-		this.addDrop(Blocks.WARPED_FUNGUS);
-		this.addDrop(Blocks.WARPED_WART_BLOCK);
-		this.addDrop(Blocks.CRIMSON_STEM);
-		this.addDrop(Blocks.CRIMSON_HYPHAE);
-		this.addDrop(Blocks.CRIMSON_FUNGUS);
-		this.addDrop(Blocks.SHROOMLIGHT);
-		this.addDrop(Blocks.CRIMSON_PLANKS);
-		this.addDrop(Blocks.WARPED_PLANKS);
-		this.addDrop(Blocks.WARPED_PRESSURE_PLATE);
-		this.addDrop(Blocks.WARPED_FENCE);
-		this.addDrop(Blocks.WARPED_TRAPDOOR);
-		this.addDrop(Blocks.WARPED_FENCE_GATE);
-		this.addDrop(Blocks.WARPED_STAIRS);
-		this.addDrop(Blocks.WARPED_BUTTON);
-		this.addDrop(Blocks.WARPED_SIGN);
-		this.addDrop(Blocks.CRIMSON_PRESSURE_PLATE);
-		this.addDrop(Blocks.CRIMSON_FENCE);
-		this.addDrop(Blocks.CRIMSON_TRAPDOOR);
-		this.addDrop(Blocks.CRIMSON_FENCE_GATE);
-		this.addDrop(Blocks.CRIMSON_STAIRS);
-		this.addDrop(Blocks.CRIMSON_BUTTON);
-		this.addDrop(Blocks.CRIMSON_SIGN);
-		this.addDrop(Blocks.NETHERITE_BLOCK);
-		this.addDrop(Blocks.ANCIENT_DEBRIS);
-		this.addDrop(Blocks.BLACKSTONE);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_BRICKS);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
-		this.addDrop(Blocks.BLACKSTONE_STAIRS);
-		this.addDrop(Blocks.BLACKSTONE_WALL);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
-		this.addDrop(Blocks.CHISELED_POLISHED_BLACKSTONE);
-		this.addDrop(Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_STAIRS);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_PRESSURE_PLATE);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_BUTTON);
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_WALL);
-		this.addDrop(Blocks.CHISELED_NETHER_BRICKS);
-		this.addDrop(Blocks.CRACKED_NETHER_BRICKS);
-		this.addDrop(Blocks.QUARTZ_BRICKS);
-		this.addDrop(Blocks.IRON_CHAIN);
-		Blocks.COPPER_CHAINS.forEach(block -> this.addDrop(block));
-		this.addDrop(Blocks.WARPED_ROOTS);
-		this.addDrop(Blocks.CRIMSON_ROOTS);
-		this.addDrop(Blocks.MUD_BRICKS);
-		this.addDrop(Blocks.MUDDY_MANGROVE_ROOTS);
-		this.addDrop(Blocks.MUD_BRICK_STAIRS);
-		this.addDrop(Blocks.AMETHYST_BLOCK);
-		this.addDrop(Blocks.CALCITE);
-		this.addDrop(Blocks.TUFF);
-		this.addDrop(Blocks.TINTED_GLASS);
-		this.addDropWithSilkTouch(Blocks.SCULK_SENSOR);
-		this.addDropWithSilkTouch(Blocks.CALIBRATED_SCULK_SENSOR);
-		this.addDropWithSilkTouch(Blocks.SCULK);
-		this.addDropWithSilkTouch(Blocks.SCULK_CATALYST);
-		this.addDrop(Blocks.SCULK_VEIN, block -> this.multifaceGrowthDrops(block, this.createSilkTouchCondition()));
-		this.addDropWithSilkTouch(Blocks.SCULK_SHRIEKER);
-		this.addDropWithSilkTouch(Blocks.CHISELED_BOOKSHELF);
-		this.addDrop(Blocks.COPPER_BLOCK);
-		this.addDrop(Blocks.EXPOSED_COPPER);
-		this.addDrop(Blocks.WEATHERED_COPPER);
-		this.addDrop(Blocks.OXIDIZED_COPPER);
-		this.addDrop(Blocks.CUT_COPPER);
-		this.addDrop(Blocks.EXPOSED_CUT_COPPER);
-		this.addDrop(Blocks.WEATHERED_CUT_COPPER);
-		this.addDrop(Blocks.OXIDIZED_CUT_COPPER);
-		this.addDrop(Blocks.WAXED_COPPER_BLOCK);
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER);
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER);
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER);
-		this.addDrop(Blocks.WAXED_CUT_COPPER);
-		this.addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER);
-		this.addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER);
-		this.addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER);
-		this.addDrop(Blocks.WAXED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.EXPOSED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.WEATHERED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.OXIDIZED_CUT_COPPER_STAIRS);
-		this.addDrop(Blocks.LIGHTNING_ROD);
-		this.addDrop(Blocks.EXPOSED_LIGHTNING_ROD);
-		this.addDrop(Blocks.WEATHERED_LIGHTNING_ROD);
-		this.addDrop(Blocks.OXIDIZED_LIGHTNING_ROD);
-		this.addDrop(Blocks.WAXED_LIGHTNING_ROD);
-		this.addDrop(Blocks.WAXED_EXPOSED_LIGHTNING_ROD);
-		this.addDrop(Blocks.WAXED_WEATHERED_LIGHTNING_ROD);
-		this.addDrop(Blocks.WAXED_OXIDIZED_LIGHTNING_ROD);
-		this.addDrop(Blocks.POINTED_DRIPSTONE);
-		this.addDrop(Blocks.DRIPSTONE_BLOCK);
-		this.addDrop(Blocks.SPORE_BLOSSOM);
-		this.addDrop(Blocks.FLOWERING_AZALEA);
-		this.addDrop(Blocks.AZALEA);
-		this.addDrop(Blocks.MOSS_CARPET);
-		this.addDrop(Blocks.PINK_PETALS, this.segmentedDrops(Blocks.PINK_PETALS));
-		this.addDrop(Blocks.WILDFLOWERS, this.segmentedDrops(Blocks.WILDFLOWERS));
-		this.addDrop(Blocks.LEAF_LITTER, this.segmentedDrops(Blocks.LEAF_LITTER));
-		this.addDrop(Blocks.BIG_DRIPLEAF);
-		this.addDrop(Blocks.MOSS_BLOCK);
-		this.addDrop(Blocks.PALE_MOSS_CARPET, block -> this.paleMossCarpetDrops(block));
-		this.addDrop(Blocks.PALE_HANGING_MOSS, block -> this.dropsWithSilkTouchOrShears(block));
-		this.addDrop(Blocks.PALE_MOSS_BLOCK);
-		this.addDrop(Blocks.ROOTED_DIRT);
-		this.addDrop(Blocks.COBBLED_DEEPSLATE);
-		this.addDrop(Blocks.COBBLED_DEEPSLATE_STAIRS);
-		this.addDrop(Blocks.COBBLED_DEEPSLATE_WALL);
-		this.addDrop(Blocks.POLISHED_DEEPSLATE);
-		this.addDrop(Blocks.POLISHED_DEEPSLATE_STAIRS);
-		this.addDrop(Blocks.POLISHED_DEEPSLATE_WALL);
-		this.addDrop(Blocks.DEEPSLATE_TILES);
-		this.addDrop(Blocks.DEEPSLATE_TILE_STAIRS);
-		this.addDrop(Blocks.DEEPSLATE_TILE_WALL);
-		this.addDrop(Blocks.DEEPSLATE_BRICKS);
-		this.addDrop(Blocks.DEEPSLATE_BRICK_STAIRS);
-		this.addDrop(Blocks.DEEPSLATE_BRICK_WALL);
-		this.addDrop(Blocks.CHISELED_DEEPSLATE);
-		this.addDrop(Blocks.CRACKED_DEEPSLATE_BRICKS);
-		this.addDrop(Blocks.CRACKED_DEEPSLATE_TILES);
-		this.addDrop(Blocks.RAW_IRON_BLOCK);
-		this.addDrop(Blocks.RAW_COPPER_BLOCK);
-		this.addDrop(Blocks.RAW_GOLD_BLOCK);
-		this.addDrop(Blocks.OCHRE_FROGLIGHT);
-		this.addDrop(Blocks.VERDANT_FROGLIGHT);
-		this.addDrop(Blocks.PEARLESCENT_FROGLIGHT);
-		this.addDrop(Blocks.MANGROVE_ROOTS);
-		this.addDrop(Blocks.MANGROVE_LOG);
-		this.addDrop(Blocks.MUD);
-		this.addDrop(Blocks.PACKED_MUD);
-		this.addDrop(Blocks.CRAFTER);
-		this.addDrop(Blocks.CHISELED_TUFF);
-		this.addDrop(Blocks.TUFF_STAIRS);
-		this.addDrop(Blocks.TUFF_WALL);
-		this.addDrop(Blocks.POLISHED_TUFF);
-		this.addDrop(Blocks.POLISHED_TUFF_STAIRS);
-		this.addDrop(Blocks.POLISHED_TUFF_WALL);
-		this.addDrop(Blocks.TUFF_BRICKS);
-		this.addDrop(Blocks.TUFF_BRICK_STAIRS);
-		this.addDrop(Blocks.TUFF_BRICK_WALL);
-		this.addDrop(Blocks.CHISELED_TUFF_BRICKS);
-		this.addDrop(Blocks.TUFF_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.TUFF_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_TUFF_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CHISELED_COPPER);
-		this.addDrop(Blocks.EXPOSED_CHISELED_COPPER);
-		this.addDrop(Blocks.WEATHERED_CHISELED_COPPER);
-		this.addDrop(Blocks.OXIDIZED_CHISELED_COPPER);
-		this.addDrop(Blocks.WAXED_CHISELED_COPPER);
-		this.addDrop(Blocks.WAXED_EXPOSED_CHISELED_COPPER);
-		this.addDrop(Blocks.WAXED_WEATHERED_CHISELED_COPPER);
-		this.addDrop(Blocks.WAXED_OXIDIZED_CHISELED_COPPER);
-		this.addDrop(Blocks.COPPER_GRATE);
-		this.addDrop(Blocks.EXPOSED_COPPER_GRATE);
-		this.addDrop(Blocks.WEATHERED_COPPER_GRATE);
-		this.addDrop(Blocks.OXIDIZED_COPPER_GRATE);
-		this.addDrop(Blocks.WAXED_COPPER_GRATE);
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_GRATE);
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_GRATE);
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_GRATE);
-		this.addDrop(Blocks.COPPER_BULB);
-		this.addDrop(Blocks.EXPOSED_COPPER_BULB);
-		this.addDrop(Blocks.WEATHERED_COPPER_BULB);
-		this.addDrop(Blocks.OXIDIZED_COPPER_BULB);
-		this.addDrop(Blocks.WAXED_COPPER_BULB);
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_BULB);
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_BULB);
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_BULB);
-		this.addDrop(Blocks.COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.EXPOSED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.WEATHERED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.OXIDIZED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.WAXED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_GOLEM_STATUE, block -> this.copperGolemStatueDrops(block));
-		this.addDrop(Blocks.HEAVY_CORE);
-		this.addDrop(Blocks.FIREFLY_BUSH);
-		this.addDrop(Blocks.CACTUS_FLOWER);
-		this.addDrop(Blocks.FARMLAND, Blocks.DIRT);
-		this.addDrop(Blocks.TRIPWIRE, Items.STRING);
-		this.addDrop(Blocks.DIRT_PATH, Blocks.DIRT);
-		this.addDrop(Blocks.KELP_PLANT, Blocks.KELP);
-		this.addDrop(Blocks.BAMBOO_SAPLING, Blocks.BAMBOO);
-		this.addDrop(Blocks.WATER_CAULDRON, Blocks.CAULDRON);
-		this.addDrop(Blocks.LAVA_CAULDRON, Blocks.CAULDRON);
-		this.addDrop(Blocks.POWDER_SNOW_CAULDRON, Blocks.CAULDRON);
-		this.addDrop(Blocks.BIG_DRIPLEAF_STEM, Blocks.BIG_DRIPLEAF);
-		this.addDrop(Blocks.STONE, block -> this.drops(block, Blocks.COBBLESTONE));
-		this.addDrop(Blocks.DEEPSLATE, block -> this.drops(block, Blocks.COBBLED_DEEPSLATE));
-		this.addDrop(Blocks.GRASS_BLOCK, block -> this.drops(block, Blocks.DIRT));
-		this.addDrop(Blocks.PODZOL, block -> this.drops(block, Blocks.DIRT));
-		this.addDrop(Blocks.MYCELIUM, block -> this.drops(block, Blocks.DIRT));
-		this.addDrop(Blocks.TUBE_CORAL_BLOCK, block -> this.drops(block, Blocks.DEAD_TUBE_CORAL_BLOCK));
-		this.addDrop(Blocks.BRAIN_CORAL_BLOCK, block -> this.drops(block, Blocks.DEAD_BRAIN_CORAL_BLOCK));
-		this.addDrop(Blocks.BUBBLE_CORAL_BLOCK, block -> this.drops(block, Blocks.DEAD_BUBBLE_CORAL_BLOCK));
-		this.addDrop(Blocks.FIRE_CORAL_BLOCK, block -> this.drops(block, Blocks.DEAD_FIRE_CORAL_BLOCK));
-		this.addDrop(Blocks.HORN_CORAL_BLOCK, block -> this.drops(block, Blocks.DEAD_HORN_CORAL_BLOCK));
-		this.addDrop(Blocks.CRIMSON_NYLIUM, block -> this.drops(block, Blocks.NETHERRACK));
-		this.addDrop(Blocks.WARPED_NYLIUM, block -> this.drops(block, Blocks.NETHERRACK));
-		this.addDrop(Blocks.BOOKSHELF, block -> this.drops(block, Items.BOOK, ConstantLootNumberProvider.create(3.0F)));
-		this.addDrop(Blocks.CLAY, block -> this.drops(block, Items.CLAY_BALL, ConstantLootNumberProvider.create(4.0F)));
-		this.addDrop(
+		RegistryWrapper.Impl<Enchantment> impl = registries.getOrThrow(RegistryKeys.ENCHANTMENT);
+		RegistryWrapper.Impl<Item> impl2 = registries.getOrThrow(RegistryKeys.ITEM);
+		addDrop(Blocks.GRANITE);
+		addDrop(Blocks.POLISHED_GRANITE);
+		addDrop(Blocks.DIORITE);
+		addDrop(Blocks.POLISHED_DIORITE);
+		addDrop(Blocks.ANDESITE);
+		addDrop(Blocks.POLISHED_ANDESITE);
+		addDrop(Blocks.DIRT);
+		addDrop(Blocks.COARSE_DIRT);
+		addDrop(Blocks.COBBLESTONE);
+		addDrop(Blocks.OAK_PLANKS);
+		addDrop(Blocks.SPRUCE_PLANKS);
+		addDrop(Blocks.BIRCH_PLANKS);
+		addDrop(Blocks.JUNGLE_PLANKS);
+		addDrop(Blocks.ACACIA_PLANKS);
+		addDrop(Blocks.DARK_OAK_PLANKS);
+		addDrop(Blocks.PALE_OAK_PLANKS);
+		addDrop(Blocks.MANGROVE_PLANKS);
+		addDrop(Blocks.CHERRY_PLANKS);
+		addDrop(Blocks.BAMBOO_PLANKS);
+		addDrop(Blocks.BAMBOO_MOSAIC);
+		addDrop(Blocks.DECORATED_POT, this::decoratedPotDrops);
+		addDrop(Blocks.OAK_SAPLING);
+		addDrop(Blocks.SPRUCE_SAPLING);
+		addDrop(Blocks.BIRCH_SAPLING);
+		addDrop(Blocks.JUNGLE_SAPLING);
+		addDrop(Blocks.ACACIA_SAPLING);
+		addDrop(Blocks.DARK_OAK_SAPLING);
+		addDrop(Blocks.PALE_OAK_SAPLING);
+		addDrop(Blocks.CHERRY_SAPLING);
+		addDrop(Blocks.SAND);
+		addDrop(Blocks.SUSPICIOUS_SAND, dropsNothing());
+		addDrop(Blocks.SUSPICIOUS_GRAVEL, dropsNothing());
+		addDrop(Blocks.RED_SAND);
+		addDrop(Blocks.OAK_LOG);
+		addDrop(Blocks.SPRUCE_LOG);
+		addDrop(Blocks.BIRCH_LOG);
+		addDrop(Blocks.JUNGLE_LOG);
+		addDrop(Blocks.ACACIA_LOG);
+		addDrop(Blocks.DARK_OAK_LOG);
+		addDrop(Blocks.PALE_OAK_LOG);
+		addDrop(Blocks.CHERRY_LOG);
+		addDrop(Blocks.BAMBOO_BLOCK);
+		addDrop(Blocks.STRIPPED_OAK_LOG);
+		addDrop(Blocks.STRIPPED_SPRUCE_LOG);
+		addDrop(Blocks.STRIPPED_BIRCH_LOG);
+		addDrop(Blocks.STRIPPED_JUNGLE_LOG);
+		addDrop(Blocks.STRIPPED_ACACIA_LOG);
+		addDrop(Blocks.STRIPPED_DARK_OAK_LOG);
+		addDrop(Blocks.STRIPPED_PALE_OAK_LOG);
+		addDrop(Blocks.STRIPPED_MANGROVE_LOG);
+		addDrop(Blocks.STRIPPED_CHERRY_LOG);
+		addDrop(Blocks.STRIPPED_BAMBOO_BLOCK);
+		addDrop(Blocks.STRIPPED_WARPED_STEM);
+		addDrop(Blocks.STRIPPED_CRIMSON_STEM);
+		addDrop(Blocks.OAK_WOOD);
+		addDrop(Blocks.SPRUCE_WOOD);
+		addDrop(Blocks.BIRCH_WOOD);
+		addDrop(Blocks.JUNGLE_WOOD);
+		addDrop(Blocks.ACACIA_WOOD);
+		addDrop(Blocks.DARK_OAK_WOOD);
+		addDrop(Blocks.PALE_OAK_WOOD);
+		addDrop(Blocks.MANGROVE_WOOD);
+		addDrop(Blocks.CHERRY_WOOD);
+		addDrop(Blocks.STRIPPED_OAK_WOOD);
+		addDrop(Blocks.STRIPPED_SPRUCE_WOOD);
+		addDrop(Blocks.STRIPPED_BIRCH_WOOD);
+		addDrop(Blocks.STRIPPED_JUNGLE_WOOD);
+		addDrop(Blocks.STRIPPED_ACACIA_WOOD);
+		addDrop(Blocks.STRIPPED_DARK_OAK_WOOD);
+		addDrop(Blocks.STRIPPED_PALE_OAK_WOOD);
+		addDrop(Blocks.STRIPPED_MANGROVE_WOOD);
+		addDrop(Blocks.STRIPPED_CHERRY_WOOD);
+		addDrop(Blocks.STRIPPED_CRIMSON_HYPHAE);
+		addDrop(Blocks.STRIPPED_WARPED_HYPHAE);
+		addDrop(Blocks.SPONGE);
+		addDrop(Blocks.WET_SPONGE);
+		addDrop(Blocks.LAPIS_BLOCK);
+		addDrop(Blocks.RESIN_BLOCK);
+		addDrop(Blocks.SANDSTONE);
+		addDrop(Blocks.CHISELED_SANDSTONE);
+		addDrop(Blocks.CUT_SANDSTONE);
+		addDrop(Blocks.NOTE_BLOCK);
+		addDrop(Blocks.POWERED_RAIL);
+		addDrop(Blocks.DETECTOR_RAIL);
+		addDrop(Blocks.STICKY_PISTON);
+		addDrop(Blocks.PISTON);
+		addDrop(Blocks.WHITE_WOOL);
+		addDrop(Blocks.ORANGE_WOOL);
+		addDrop(Blocks.MAGENTA_WOOL);
+		addDrop(Blocks.LIGHT_BLUE_WOOL);
+		addDrop(Blocks.YELLOW_WOOL);
+		addDrop(Blocks.LIME_WOOL);
+		addDrop(Blocks.PINK_WOOL);
+		addDrop(Blocks.GRAY_WOOL);
+		addDrop(Blocks.LIGHT_GRAY_WOOL);
+		addDrop(Blocks.CYAN_WOOL);
+		addDrop(Blocks.PURPLE_WOOL);
+		addDrop(Blocks.BLUE_WOOL);
+		addDrop(Blocks.BROWN_WOOL);
+		addDrop(Blocks.GREEN_WOOL);
+		addDrop(Blocks.RED_WOOL);
+		addDrop(Blocks.BLACK_WOOL);
+		addDrop(Blocks.DANDELION);
+		addDrop(Blocks.OPEN_EYEBLOSSOM);
+		addDrop(Blocks.CLOSED_EYEBLOSSOM);
+		addDrop(Blocks.POPPY);
+		addDrop(Blocks.TORCHFLOWER);
+		addDrop(Blocks.BLUE_ORCHID);
+		addDrop(Blocks.ALLIUM);
+		addDrop(Blocks.AZURE_BLUET);
+		addDrop(Blocks.RED_TULIP);
+		addDrop(Blocks.ORANGE_TULIP);
+		addDrop(Blocks.WHITE_TULIP);
+		addDrop(Blocks.PINK_TULIP);
+		addDrop(Blocks.OXEYE_DAISY);
+		addDrop(Blocks.CORNFLOWER);
+		addDrop(Blocks.WITHER_ROSE);
+		addDrop(Blocks.LILY_OF_THE_VALLEY);
+		addDrop(Blocks.BROWN_MUSHROOM);
+		addDrop(Blocks.RED_MUSHROOM);
+		addDrop(Blocks.GOLD_BLOCK);
+		addDrop(Blocks.IRON_BLOCK);
+		addDrop(Blocks.BRICKS);
+		addDrop(Blocks.MOSSY_COBBLESTONE);
+		addDrop(Blocks.OBSIDIAN);
+		addDrop(Blocks.CRYING_OBSIDIAN);
+		addDrop(Blocks.TORCH);
+		addDrop(Blocks.OAK_STAIRS);
+		addDrop(Blocks.MANGROVE_STAIRS);
+		addDrop(Blocks.BAMBOO_STAIRS);
+		addDrop(Blocks.BAMBOO_MOSAIC_STAIRS);
+		addDrop(Blocks.REDSTONE_WIRE);
+		addDrop(Blocks.DIAMOND_BLOCK);
+		addDrop(Blocks.CRAFTING_TABLE);
+		addDrop(Blocks.OAK_SIGN);
+		addDrop(Blocks.SPRUCE_SIGN);
+		addDrop(Blocks.BIRCH_SIGN);
+		addDrop(Blocks.ACACIA_SIGN);
+		addDrop(Blocks.JUNGLE_SIGN);
+		addDrop(Blocks.DARK_OAK_SIGN);
+		addDrop(Blocks.PALE_OAK_SIGN);
+		addDrop(Blocks.MANGROVE_SIGN);
+		addDrop(Blocks.CHERRY_SIGN);
+		addDrop(Blocks.BAMBOO_SIGN);
+		addDrop(Blocks.OAK_HANGING_SIGN);
+		addDrop(Blocks.SPRUCE_HANGING_SIGN);
+		addDrop(Blocks.BIRCH_HANGING_SIGN);
+		addDrop(Blocks.ACACIA_HANGING_SIGN);
+		addDrop(Blocks.CHERRY_HANGING_SIGN);
+		addDrop(Blocks.JUNGLE_HANGING_SIGN);
+		addDrop(Blocks.DARK_OAK_HANGING_SIGN);
+		addDrop(Blocks.PALE_OAK_HANGING_SIGN);
+		addDrop(Blocks.MANGROVE_HANGING_SIGN);
+		addDrop(Blocks.CRIMSON_HANGING_SIGN);
+		addDrop(Blocks.WARPED_HANGING_SIGN);
+		addDrop(Blocks.BAMBOO_HANGING_SIGN);
+		addDrop(Blocks.LADDER);
+		addDrop(Blocks.RAIL);
+		addDrop(Blocks.COBBLESTONE_STAIRS);
+		addDrop(Blocks.LEVER);
+		addDrop(Blocks.STONE_PRESSURE_PLATE);
+		addDrop(Blocks.OAK_PRESSURE_PLATE);
+		addDrop(Blocks.SPRUCE_PRESSURE_PLATE);
+		addDrop(Blocks.BIRCH_PRESSURE_PLATE);
+		addDrop(Blocks.JUNGLE_PRESSURE_PLATE);
+		addDrop(Blocks.ACACIA_PRESSURE_PLATE);
+		addDrop(Blocks.DARK_OAK_PRESSURE_PLATE);
+		addDrop(Blocks.PALE_OAK_PRESSURE_PLATE);
+		addDrop(Blocks.MANGROVE_PRESSURE_PLATE);
+		addDrop(Blocks.CHERRY_PRESSURE_PLATE);
+		addDrop(Blocks.BAMBOO_PRESSURE_PLATE);
+		addDrop(Blocks.REDSTONE_TORCH);
+		addDrop(Blocks.STONE_BUTTON);
+		addDrop(Blocks.CACTUS);
+		addDrop(Blocks.SUGAR_CANE);
+		addDrop(Blocks.JUKEBOX);
+		addDrop(Blocks.OAK_FENCE);
+		addDrop(Blocks.MANGROVE_FENCE);
+		addDrop(Blocks.BAMBOO_FENCE);
+		addDrop(Blocks.PUMPKIN);
+		addDrop(Blocks.NETHERRACK);
+		addDrop(Blocks.SOUL_SAND);
+		addDrop(Blocks.SOUL_SOIL);
+		addDrop(Blocks.BASALT);
+		addDrop(Blocks.POLISHED_BASALT);
+		addDrop(Blocks.SMOOTH_BASALT);
+		addDrop(Blocks.SOUL_TORCH);
+		addDrop(Blocks.COPPER_TORCH);
+		addDrop(Blocks.CARVED_PUMPKIN);
+		addDrop(Blocks.JACK_O_LANTERN);
+		addDrop(Blocks.REPEATER);
+		addDrop(Blocks.OAK_TRAPDOOR);
+		addDrop(Blocks.SPRUCE_TRAPDOOR);
+		addDrop(Blocks.BIRCH_TRAPDOOR);
+		addDrop(Blocks.JUNGLE_TRAPDOOR);
+		addDrop(Blocks.ACACIA_TRAPDOOR);
+		addDrop(Blocks.DARK_OAK_TRAPDOOR);
+		addDrop(Blocks.PALE_OAK_TRAPDOOR);
+		addDrop(Blocks.MANGROVE_TRAPDOOR);
+		addDrop(Blocks.CHERRY_TRAPDOOR);
+		addDrop(Blocks.BAMBOO_TRAPDOOR);
+		addDrop(Blocks.COPPER_TRAPDOOR);
+		addDrop(Blocks.EXPOSED_COPPER_TRAPDOOR);
+		addDrop(Blocks.WEATHERED_COPPER_TRAPDOOR);
+		addDrop(Blocks.OXIDIZED_COPPER_TRAPDOOR);
+		addDrop(Blocks.WAXED_COPPER_TRAPDOOR);
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_TRAPDOOR);
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_TRAPDOOR);
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_TRAPDOOR);
+		addDrop(Blocks.STONE_BRICKS);
+		addDrop(Blocks.MOSSY_STONE_BRICKS);
+		addDrop(Blocks.CRACKED_STONE_BRICKS);
+		addDrop(Blocks.CHISELED_STONE_BRICKS);
+		addDrop(Blocks.IRON_BARS);
+		Blocks.COPPER_BARS.forEach(block -> addDrop(block));
+		addDrop(Blocks.OAK_FENCE_GATE);
+		addDrop(Blocks.MANGROVE_FENCE_GATE);
+		addDrop(Blocks.BAMBOO_FENCE_GATE);
+		addDrop(Blocks.BRICK_STAIRS);
+		addDrop(Blocks.STONE_BRICK_STAIRS);
+		addDrop(Blocks.LILY_PAD);
+		addDrop(Blocks.RESIN_BRICKS);
+		addDrop(Blocks.RESIN_BRICK_WALL);
+		addDrop(Blocks.RESIN_BRICK_STAIRS);
+		addDrop(Blocks.CHISELED_RESIN_BRICKS);
+		addDrop(Blocks.NETHER_BRICKS);
+		addDrop(Blocks.NETHER_BRICK_FENCE);
+		addDrop(Blocks.NETHER_BRICK_STAIRS);
+		addDrop(Blocks.CAULDRON);
+		addDrop(Blocks.END_STONE);
+		addDrop(Blocks.REDSTONE_LAMP);
+		addDrop(Blocks.SANDSTONE_STAIRS);
+		addDrop(Blocks.TRIPWIRE_HOOK);
+		addDrop(Blocks.EMERALD_BLOCK);
+		addDrop(Blocks.SPRUCE_STAIRS);
+		addDrop(Blocks.BIRCH_STAIRS);
+		addDrop(Blocks.JUNGLE_STAIRS);
+		addDrop(Blocks.COBBLESTONE_WALL);
+		addDrop(Blocks.MOSSY_COBBLESTONE_WALL);
+		addDrop(Blocks.FLOWER_POT);
+		addDrop(Blocks.OAK_BUTTON);
+		addDrop(Blocks.SPRUCE_BUTTON);
+		addDrop(Blocks.BIRCH_BUTTON);
+		addDrop(Blocks.JUNGLE_BUTTON);
+		addDrop(Blocks.ACACIA_BUTTON);
+		addDrop(Blocks.DARK_OAK_BUTTON);
+		addDrop(Blocks.PALE_OAK_BUTTON);
+		addDrop(Blocks.MANGROVE_BUTTON);
+		addDrop(Blocks.CHERRY_BUTTON);
+		addDrop(Blocks.BAMBOO_BUTTON);
+		addDrop(Blocks.ANVIL);
+		addDrop(Blocks.CHIPPED_ANVIL);
+		addDrop(Blocks.DAMAGED_ANVIL);
+		addDrop(Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE);
+		addDrop(Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE);
+		addDrop(Blocks.COMPARATOR);
+		addDrop(Blocks.DAYLIGHT_DETECTOR);
+		addDrop(Blocks.REDSTONE_BLOCK);
+		addDrop(Blocks.QUARTZ_BLOCK);
+		addDrop(Blocks.CHISELED_QUARTZ_BLOCK);
+		addDrop(Blocks.QUARTZ_PILLAR);
+		addDrop(Blocks.QUARTZ_STAIRS);
+		addDrop(Blocks.ACTIVATOR_RAIL);
+		addDrop(Blocks.WHITE_TERRACOTTA);
+		addDrop(Blocks.ORANGE_TERRACOTTA);
+		addDrop(Blocks.MAGENTA_TERRACOTTA);
+		addDrop(Blocks.LIGHT_BLUE_TERRACOTTA);
+		addDrop(Blocks.YELLOW_TERRACOTTA);
+		addDrop(Blocks.LIME_TERRACOTTA);
+		addDrop(Blocks.PINK_TERRACOTTA);
+		addDrop(Blocks.GRAY_TERRACOTTA);
+		addDrop(Blocks.LIGHT_GRAY_TERRACOTTA);
+		addDrop(Blocks.CYAN_TERRACOTTA);
+		addDrop(Blocks.PURPLE_TERRACOTTA);
+		addDrop(Blocks.BLUE_TERRACOTTA);
+		addDrop(Blocks.BROWN_TERRACOTTA);
+		addDrop(Blocks.GREEN_TERRACOTTA);
+		addDrop(Blocks.RED_TERRACOTTA);
+		addDrop(Blocks.BLACK_TERRACOTTA);
+		addDrop(Blocks.ACACIA_STAIRS);
+		addDrop(Blocks.DARK_OAK_STAIRS);
+		addDrop(Blocks.PALE_OAK_STAIRS);
+		addDrop(Blocks.CHERRY_STAIRS);
+		addDrop(Blocks.SLIME_BLOCK);
+		addDrop(Blocks.IRON_TRAPDOOR);
+		addDrop(Blocks.PRISMARINE);
+		addDrop(Blocks.PRISMARINE_BRICKS);
+		addDrop(Blocks.DARK_PRISMARINE);
+		addDrop(Blocks.PRISMARINE_STAIRS);
+		addDrop(Blocks.PRISMARINE_BRICK_STAIRS);
+		addDrop(Blocks.DARK_PRISMARINE_STAIRS);
+		addDrop(Blocks.HAY_BLOCK);
+		addDrop(Blocks.WHITE_CARPET);
+		addDrop(Blocks.ORANGE_CARPET);
+		addDrop(Blocks.MAGENTA_CARPET);
+		addDrop(Blocks.LIGHT_BLUE_CARPET);
+		addDrop(Blocks.YELLOW_CARPET);
+		addDrop(Blocks.LIME_CARPET);
+		addDrop(Blocks.PINK_CARPET);
+		addDrop(Blocks.GRAY_CARPET);
+		addDrop(Blocks.LIGHT_GRAY_CARPET);
+		addDrop(Blocks.CYAN_CARPET);
+		addDrop(Blocks.PURPLE_CARPET);
+		addDrop(Blocks.BLUE_CARPET);
+		addDrop(Blocks.BROWN_CARPET);
+		addDrop(Blocks.GREEN_CARPET);
+		addDrop(Blocks.RED_CARPET);
+		addDrop(Blocks.BLACK_CARPET);
+		addDrop(Blocks.TERRACOTTA);
+		addDrop(Blocks.COAL_BLOCK);
+		addDrop(Blocks.RED_SANDSTONE);
+		addDrop(Blocks.CHISELED_RED_SANDSTONE);
+		addDrop(Blocks.CUT_RED_SANDSTONE);
+		addDrop(Blocks.RED_SANDSTONE_STAIRS);
+		addDrop(Blocks.SMOOTH_STONE);
+		addDrop(Blocks.SMOOTH_SANDSTONE);
+		addDrop(Blocks.SMOOTH_QUARTZ);
+		addDrop(Blocks.SMOOTH_RED_SANDSTONE);
+		addDrop(Blocks.SPRUCE_FENCE_GATE);
+		addDrop(Blocks.BIRCH_FENCE_GATE);
+		addDrop(Blocks.JUNGLE_FENCE_GATE);
+		addDrop(Blocks.ACACIA_FENCE_GATE);
+		addDrop(Blocks.DARK_OAK_FENCE_GATE);
+		addDrop(Blocks.PALE_OAK_FENCE_GATE);
+		addDrop(Blocks.CHERRY_FENCE_GATE);
+		addDrop(Blocks.SPRUCE_FENCE);
+		addDrop(Blocks.BIRCH_FENCE);
+		addDrop(Blocks.JUNGLE_FENCE);
+		addDrop(Blocks.ACACIA_FENCE);
+		addDrop(Blocks.DARK_OAK_FENCE);
+		addDrop(Blocks.PALE_OAK_FENCE);
+		addDrop(Blocks.CHERRY_FENCE);
+		addDrop(Blocks.END_ROD);
+		addDrop(Blocks.PURPUR_BLOCK);
+		addDrop(Blocks.PURPUR_PILLAR);
+		addDrop(Blocks.PURPUR_STAIRS);
+		addDrop(Blocks.END_STONE_BRICKS);
+		addDrop(Blocks.MAGMA_BLOCK);
+		addDrop(Blocks.NETHER_WART_BLOCK);
+		addDrop(Blocks.RED_NETHER_BRICKS);
+		addDrop(Blocks.BONE_BLOCK);
+		addDrop(Blocks.OBSERVER);
+		addDrop(Blocks.TARGET);
+		addDrop(Blocks.WHITE_GLAZED_TERRACOTTA);
+		addDrop(Blocks.ORANGE_GLAZED_TERRACOTTA);
+		addDrop(Blocks.MAGENTA_GLAZED_TERRACOTTA);
+		addDrop(Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA);
+		addDrop(Blocks.YELLOW_GLAZED_TERRACOTTA);
+		addDrop(Blocks.LIME_GLAZED_TERRACOTTA);
+		addDrop(Blocks.PINK_GLAZED_TERRACOTTA);
+		addDrop(Blocks.GRAY_GLAZED_TERRACOTTA);
+		addDrop(Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA);
+		addDrop(Blocks.CYAN_GLAZED_TERRACOTTA);
+		addDrop(Blocks.PURPLE_GLAZED_TERRACOTTA);
+		addDrop(Blocks.BLUE_GLAZED_TERRACOTTA);
+		addDrop(Blocks.BROWN_GLAZED_TERRACOTTA);
+		addDrop(Blocks.GREEN_GLAZED_TERRACOTTA);
+		addDrop(Blocks.RED_GLAZED_TERRACOTTA);
+		addDrop(Blocks.BLACK_GLAZED_TERRACOTTA);
+		addDrop(Blocks.WHITE_CONCRETE);
+		addDrop(Blocks.ORANGE_CONCRETE);
+		addDrop(Blocks.MAGENTA_CONCRETE);
+		addDrop(Blocks.LIGHT_BLUE_CONCRETE);
+		addDrop(Blocks.YELLOW_CONCRETE);
+		addDrop(Blocks.LIME_CONCRETE);
+		addDrop(Blocks.PINK_CONCRETE);
+		addDrop(Blocks.GRAY_CONCRETE);
+		addDrop(Blocks.LIGHT_GRAY_CONCRETE);
+		addDrop(Blocks.CYAN_CONCRETE);
+		addDrop(Blocks.PURPLE_CONCRETE);
+		addDrop(Blocks.BLUE_CONCRETE);
+		addDrop(Blocks.BROWN_CONCRETE);
+		addDrop(Blocks.GREEN_CONCRETE);
+		addDrop(Blocks.RED_CONCRETE);
+		addDrop(Blocks.BLACK_CONCRETE);
+		addDrop(Blocks.WHITE_CONCRETE_POWDER);
+		addDrop(Blocks.ORANGE_CONCRETE_POWDER);
+		addDrop(Blocks.MAGENTA_CONCRETE_POWDER);
+		addDrop(Blocks.LIGHT_BLUE_CONCRETE_POWDER);
+		addDrop(Blocks.YELLOW_CONCRETE_POWDER);
+		addDrop(Blocks.LIME_CONCRETE_POWDER);
+		addDrop(Blocks.PINK_CONCRETE_POWDER);
+		addDrop(Blocks.GRAY_CONCRETE_POWDER);
+		addDrop(Blocks.LIGHT_GRAY_CONCRETE_POWDER);
+		addDrop(Blocks.CYAN_CONCRETE_POWDER);
+		addDrop(Blocks.PURPLE_CONCRETE_POWDER);
+		addDrop(Blocks.BLUE_CONCRETE_POWDER);
+		addDrop(Blocks.BROWN_CONCRETE_POWDER);
+		addDrop(Blocks.GREEN_CONCRETE_POWDER);
+		addDrop(Blocks.RED_CONCRETE_POWDER);
+		addDrop(Blocks.BLACK_CONCRETE_POWDER);
+		addDrop(Blocks.KELP);
+		addDrop(Blocks.DRIED_KELP_BLOCK);
+		addDrop(Blocks.DEAD_TUBE_CORAL_BLOCK);
+		addDrop(Blocks.DEAD_BRAIN_CORAL_BLOCK);
+		addDrop(Blocks.DEAD_BUBBLE_CORAL_BLOCK);
+		addDrop(Blocks.DEAD_FIRE_CORAL_BLOCK);
+		addDrop(Blocks.DEAD_HORN_CORAL_BLOCK);
+		addDrop(Blocks.CONDUIT);
+		addDrop(Blocks.DRAGON_EGG);
+		addDrop(Blocks.BAMBOO);
+		addDrop(Blocks.POLISHED_GRANITE_STAIRS);
+		addDrop(Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
+		addDrop(Blocks.MOSSY_STONE_BRICK_STAIRS);
+		addDrop(Blocks.POLISHED_DIORITE_STAIRS);
+		addDrop(Blocks.MOSSY_COBBLESTONE_STAIRS);
+		addDrop(Blocks.END_STONE_BRICK_STAIRS);
+		addDrop(Blocks.STONE_STAIRS);
+		addDrop(Blocks.SMOOTH_SANDSTONE_STAIRS);
+		addDrop(Blocks.SMOOTH_QUARTZ_STAIRS);
+		addDrop(Blocks.GRANITE_STAIRS);
+		addDrop(Blocks.ANDESITE_STAIRS);
+		addDrop(Blocks.RED_NETHER_BRICK_STAIRS);
+		addDrop(Blocks.POLISHED_ANDESITE_STAIRS);
+		addDrop(Blocks.DIORITE_STAIRS);
+		addDrop(Blocks.BRICK_WALL);
+		addDrop(Blocks.PRISMARINE_WALL);
+		addDrop(Blocks.RED_SANDSTONE_WALL);
+		addDrop(Blocks.MOSSY_STONE_BRICK_WALL);
+		addDrop(Blocks.GRANITE_WALL);
+		addDrop(Blocks.STONE_BRICK_WALL);
+		addDrop(Blocks.NETHER_BRICK_WALL);
+		addDrop(Blocks.ANDESITE_WALL);
+		addDrop(Blocks.RED_NETHER_BRICK_WALL);
+		addDrop(Blocks.SANDSTONE_WALL);
+		addDrop(Blocks.END_STONE_BRICK_WALL);
+		addDrop(Blocks.DIORITE_WALL);
+		addDrop(Blocks.MUD_BRICK_WALL);
+		addDrop(Blocks.LOOM);
+		addDrop(Blocks.SCAFFOLDING);
+		addDrop(Blocks.HONEY_BLOCK);
+		addDrop(Blocks.HONEYCOMB_BLOCK);
+		addDrop(Blocks.RESPAWN_ANCHOR);
+		addDrop(Blocks.LODESTONE);
+		addDrop(Blocks.WARPED_STEM);
+		addDrop(Blocks.WARPED_HYPHAE);
+		addDrop(Blocks.WARPED_FUNGUS);
+		addDrop(Blocks.WARPED_WART_BLOCK);
+		addDrop(Blocks.CRIMSON_STEM);
+		addDrop(Blocks.CRIMSON_HYPHAE);
+		addDrop(Blocks.CRIMSON_FUNGUS);
+		addDrop(Blocks.SHROOMLIGHT);
+		addDrop(Blocks.CRIMSON_PLANKS);
+		addDrop(Blocks.WARPED_PLANKS);
+		addDrop(Blocks.WARPED_PRESSURE_PLATE);
+		addDrop(Blocks.WARPED_FENCE);
+		addDrop(Blocks.WARPED_TRAPDOOR);
+		addDrop(Blocks.WARPED_FENCE_GATE);
+		addDrop(Blocks.WARPED_STAIRS);
+		addDrop(Blocks.WARPED_BUTTON);
+		addDrop(Blocks.WARPED_SIGN);
+		addDrop(Blocks.CRIMSON_PRESSURE_PLATE);
+		addDrop(Blocks.CRIMSON_FENCE);
+		addDrop(Blocks.CRIMSON_TRAPDOOR);
+		addDrop(Blocks.CRIMSON_FENCE_GATE);
+		addDrop(Blocks.CRIMSON_STAIRS);
+		addDrop(Blocks.CRIMSON_BUTTON);
+		addDrop(Blocks.CRIMSON_SIGN);
+		addDrop(Blocks.NETHERITE_BLOCK);
+		addDrop(Blocks.ANCIENT_DEBRIS);
+		addDrop(Blocks.BLACKSTONE);
+		addDrop(Blocks.POLISHED_BLACKSTONE_BRICKS);
+		addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS);
+		addDrop(Blocks.BLACKSTONE_STAIRS);
+		addDrop(Blocks.BLACKSTONE_WALL);
+		addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_WALL);
+		addDrop(Blocks.CHISELED_POLISHED_BLACKSTONE);
+		addDrop(Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS);
+		addDrop(Blocks.POLISHED_BLACKSTONE);
+		addDrop(Blocks.POLISHED_BLACKSTONE_STAIRS);
+		addDrop(Blocks.POLISHED_BLACKSTONE_PRESSURE_PLATE);
+		addDrop(Blocks.POLISHED_BLACKSTONE_BUTTON);
+		addDrop(Blocks.POLISHED_BLACKSTONE_WALL);
+		addDrop(Blocks.CHISELED_NETHER_BRICKS);
+		addDrop(Blocks.CRACKED_NETHER_BRICKS);
+		addDrop(Blocks.QUARTZ_BRICKS);
+		addDrop(Blocks.IRON_CHAIN);
+		Blocks.COPPER_CHAINS.forEach(block -> addDrop(block));
+		addDrop(Blocks.WARPED_ROOTS);
+		addDrop(Blocks.CRIMSON_ROOTS);
+		addDrop(Blocks.MUD_BRICKS);
+		addDrop(Blocks.MUDDY_MANGROVE_ROOTS);
+		addDrop(Blocks.MUD_BRICK_STAIRS);
+		addDrop(Blocks.AMETHYST_BLOCK);
+		addDrop(Blocks.CALCITE);
+		addDrop(Blocks.TUFF);
+		addDrop(Blocks.TINTED_GLASS);
+		addDropWithSilkTouch(Blocks.SCULK_SENSOR);
+		addDropWithSilkTouch(Blocks.CALIBRATED_SCULK_SENSOR);
+		addDropWithSilkTouch(Blocks.SCULK);
+		addDropWithSilkTouch(Blocks.SCULK_CATALYST);
+		addDrop(Blocks.SCULK_VEIN, block -> multifaceGrowthDrops(block, createSilkTouchCondition()));
+		addDropWithSilkTouch(Blocks.SCULK_SHRIEKER);
+		addDropWithSilkTouch(Blocks.CHISELED_BOOKSHELF);
+		addDrop(Blocks.COPPER_BLOCK);
+		addDrop(Blocks.EXPOSED_COPPER);
+		addDrop(Blocks.WEATHERED_COPPER);
+		addDrop(Blocks.OXIDIZED_COPPER);
+		addDrop(Blocks.CUT_COPPER);
+		addDrop(Blocks.EXPOSED_CUT_COPPER);
+		addDrop(Blocks.WEATHERED_CUT_COPPER);
+		addDrop(Blocks.OXIDIZED_CUT_COPPER);
+		addDrop(Blocks.WAXED_COPPER_BLOCK);
+		addDrop(Blocks.WAXED_WEATHERED_COPPER);
+		addDrop(Blocks.WAXED_EXPOSED_COPPER);
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER);
+		addDrop(Blocks.WAXED_CUT_COPPER);
+		addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER);
+		addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER);
+		addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER);
+		addDrop(Blocks.WAXED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.CUT_COPPER_STAIRS);
+		addDrop(Blocks.EXPOSED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.WEATHERED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.OXIDIZED_CUT_COPPER_STAIRS);
+		addDrop(Blocks.LIGHTNING_ROD);
+		addDrop(Blocks.EXPOSED_LIGHTNING_ROD);
+		addDrop(Blocks.WEATHERED_LIGHTNING_ROD);
+		addDrop(Blocks.OXIDIZED_LIGHTNING_ROD);
+		addDrop(Blocks.WAXED_LIGHTNING_ROD);
+		addDrop(Blocks.WAXED_EXPOSED_LIGHTNING_ROD);
+		addDrop(Blocks.WAXED_WEATHERED_LIGHTNING_ROD);
+		addDrop(Blocks.WAXED_OXIDIZED_LIGHTNING_ROD);
+		addDrop(Blocks.POINTED_DRIPSTONE);
+		addDrop(Blocks.DRIPSTONE_BLOCK);
+		addDrop(Blocks.SPORE_BLOSSOM);
+		addDrop(Blocks.FLOWERING_AZALEA);
+		addDrop(Blocks.AZALEA);
+		addDrop(Blocks.MOSS_CARPET);
+		addDrop(Blocks.PINK_PETALS, segmentedDrops(Blocks.PINK_PETALS));
+		addDrop(Blocks.WILDFLOWERS, segmentedDrops(Blocks.WILDFLOWERS));
+		addDrop(Blocks.LEAF_LITTER, segmentedDrops(Blocks.LEAF_LITTER));
+		addDrop(Blocks.BIG_DRIPLEAF);
+		addDrop(Blocks.MOSS_BLOCK);
+		addDrop(Blocks.PALE_MOSS_CARPET, block -> paleMossCarpetDrops(block));
+		addDrop(Blocks.PALE_HANGING_MOSS, block -> dropsWithSilkTouchOrShears(block));
+		addDrop(Blocks.PALE_MOSS_BLOCK);
+		addDrop(Blocks.ROOTED_DIRT);
+		addDrop(Blocks.COBBLED_DEEPSLATE);
+		addDrop(Blocks.COBBLED_DEEPSLATE_STAIRS);
+		addDrop(Blocks.COBBLED_DEEPSLATE_WALL);
+		addDrop(Blocks.POLISHED_DEEPSLATE);
+		addDrop(Blocks.POLISHED_DEEPSLATE_STAIRS);
+		addDrop(Blocks.POLISHED_DEEPSLATE_WALL);
+		addDrop(Blocks.DEEPSLATE_TILES);
+		addDrop(Blocks.DEEPSLATE_TILE_STAIRS);
+		addDrop(Blocks.DEEPSLATE_TILE_WALL);
+		addDrop(Blocks.DEEPSLATE_BRICKS);
+		addDrop(Blocks.DEEPSLATE_BRICK_STAIRS);
+		addDrop(Blocks.DEEPSLATE_BRICK_WALL);
+		addDrop(Blocks.CHISELED_DEEPSLATE);
+		addDrop(Blocks.CRACKED_DEEPSLATE_BRICKS);
+		addDrop(Blocks.CRACKED_DEEPSLATE_TILES);
+		addDrop(Blocks.RAW_IRON_BLOCK);
+		addDrop(Blocks.RAW_COPPER_BLOCK);
+		addDrop(Blocks.RAW_GOLD_BLOCK);
+		addDrop(Blocks.OCHRE_FROGLIGHT);
+		addDrop(Blocks.VERDANT_FROGLIGHT);
+		addDrop(Blocks.PEARLESCENT_FROGLIGHT);
+		addDrop(Blocks.MANGROVE_ROOTS);
+		addDrop(Blocks.MANGROVE_LOG);
+		addDrop(Blocks.MUD);
+		addDrop(Blocks.PACKED_MUD);
+		addDrop(Blocks.CRAFTER);
+		addDrop(Blocks.CHISELED_TUFF);
+		addDrop(Blocks.TUFF_STAIRS);
+		addDrop(Blocks.TUFF_WALL);
+		addDrop(Blocks.POLISHED_TUFF);
+		addDrop(Blocks.POLISHED_TUFF_STAIRS);
+		addDrop(Blocks.POLISHED_TUFF_WALL);
+		addDrop(Blocks.TUFF_BRICKS);
+		addDrop(Blocks.TUFF_BRICK_STAIRS);
+		addDrop(Blocks.TUFF_BRICK_WALL);
+		addDrop(Blocks.CHISELED_TUFF_BRICKS);
+		addDrop(Blocks.TUFF_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.TUFF_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_TUFF_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CHISELED_COPPER);
+		addDrop(Blocks.EXPOSED_CHISELED_COPPER);
+		addDrop(Blocks.WEATHERED_CHISELED_COPPER);
+		addDrop(Blocks.OXIDIZED_CHISELED_COPPER);
+		addDrop(Blocks.WAXED_CHISELED_COPPER);
+		addDrop(Blocks.WAXED_EXPOSED_CHISELED_COPPER);
+		addDrop(Blocks.WAXED_WEATHERED_CHISELED_COPPER);
+		addDrop(Blocks.WAXED_OXIDIZED_CHISELED_COPPER);
+		addDrop(Blocks.COPPER_GRATE);
+		addDrop(Blocks.EXPOSED_COPPER_GRATE);
+		addDrop(Blocks.WEATHERED_COPPER_GRATE);
+		addDrop(Blocks.OXIDIZED_COPPER_GRATE);
+		addDrop(Blocks.WAXED_COPPER_GRATE);
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_GRATE);
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_GRATE);
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_GRATE);
+		addDrop(Blocks.COPPER_BULB);
+		addDrop(Blocks.EXPOSED_COPPER_BULB);
+		addDrop(Blocks.WEATHERED_COPPER_BULB);
+		addDrop(Blocks.OXIDIZED_COPPER_BULB);
+		addDrop(Blocks.WAXED_COPPER_BULB);
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_BULB);
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_BULB);
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_BULB);
+		addDrop(Blocks.COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.EXPOSED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.WEATHERED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.OXIDIZED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.WAXED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_GOLEM_STATUE, block -> copperGolemStatueDrops(block));
+		addDrop(Blocks.HEAVY_CORE);
+		addDrop(Blocks.FIREFLY_BUSH);
+		addDrop(Blocks.CACTUS_FLOWER);
+		addDrop(Blocks.FARMLAND, Blocks.DIRT);
+		addDrop(Blocks.TRIPWIRE, Items.STRING);
+		addDrop(Blocks.DIRT_PATH, Blocks.DIRT);
+		addDrop(Blocks.KELP_PLANT, Blocks.KELP);
+		addDrop(Blocks.BAMBOO_SAPLING, Blocks.BAMBOO);
+		addDrop(Blocks.WATER_CAULDRON, Blocks.CAULDRON);
+		addDrop(Blocks.LAVA_CAULDRON, Blocks.CAULDRON);
+		addDrop(Blocks.POWDER_SNOW_CAULDRON, Blocks.CAULDRON);
+		addDrop(Blocks.BIG_DRIPLEAF_STEM, Blocks.BIG_DRIPLEAF);
+		addDrop(Blocks.STONE, block -> drops(block, Blocks.COBBLESTONE));
+		addDrop(Blocks.DEEPSLATE, block -> drops(block, Blocks.COBBLED_DEEPSLATE));
+		addDrop(Blocks.GRASS_BLOCK, block -> drops(block, Blocks.DIRT));
+		addDrop(Blocks.PODZOL, block -> drops(block, Blocks.DIRT));
+		addDrop(Blocks.MYCELIUM, block -> drops(block, Blocks.DIRT));
+		addDrop(Blocks.TUBE_CORAL_BLOCK, block -> drops(block, Blocks.DEAD_TUBE_CORAL_BLOCK));
+		addDrop(Blocks.BRAIN_CORAL_BLOCK, block -> drops(block, Blocks.DEAD_BRAIN_CORAL_BLOCK));
+		addDrop(Blocks.BUBBLE_CORAL_BLOCK, block -> drops(block, Blocks.DEAD_BUBBLE_CORAL_BLOCK));
+		addDrop(Blocks.FIRE_CORAL_BLOCK, block -> drops(block, Blocks.DEAD_FIRE_CORAL_BLOCK));
+		addDrop(Blocks.HORN_CORAL_BLOCK, block -> drops(block, Blocks.DEAD_HORN_CORAL_BLOCK));
+		addDrop(Blocks.CRIMSON_NYLIUM, block -> drops(block, Blocks.NETHERRACK));
+		addDrop(Blocks.WARPED_NYLIUM, block -> drops(block, Blocks.NETHERRACK));
+		addDrop(Blocks.BOOKSHELF, block -> drops(block, Items.BOOK, ConstantLootNumberProvider.create(3.0F)));
+		addDrop(Blocks.CLAY, block -> drops(block, Items.CLAY_BALL, ConstantLootNumberProvider.create(4.0F)));
+		addDrop(
 				Blocks.ENDER_CHEST,
-				block -> this.drops(block, Blocks.OBSIDIAN, ConstantLootNumberProvider.create(8.0F))
+				block -> drops(block, Blocks.OBSIDIAN, ConstantLootNumberProvider.create(8.0F))
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.SNOW_BLOCK,
-				block -> this.drops(block, Items.SNOWBALL, ConstantLootNumberProvider.create(4.0F))
+				block -> drops(block, Items.SNOWBALL, ConstantLootNumberProvider.create(4.0F))
 		);
-		this.addDrop(Blocks.CHORUS_PLANT, this.drops(Items.CHORUS_FRUIT, UniformLootNumberProvider.create(0.0F, 1.0F)));
-		this.addPottedPlantDrops(Blocks.POTTED_OAK_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_SPRUCE_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_BIRCH_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_JUNGLE_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_ACACIA_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_DARK_OAK_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_PALE_OAK_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_MANGROVE_PROPAGULE);
-		this.addPottedPlantDrops(Blocks.POTTED_CHERRY_SAPLING);
-		this.addPottedPlantDrops(Blocks.POTTED_FERN);
-		this.addPottedPlantDrops(Blocks.POTTED_DANDELION);
-		this.addPottedPlantDrops(Blocks.POTTED_POPPY);
-		this.addPottedPlantDrops(Blocks.POTTED_OPEN_EYEBLOSSOM);
-		this.addPottedPlantDrops(Blocks.POTTED_CLOSED_EYEBLOSSOM);
-		this.addPottedPlantDrops(Blocks.POTTED_BLUE_ORCHID);
-		this.addPottedPlantDrops(Blocks.POTTED_ALLIUM);
-		this.addPottedPlantDrops(Blocks.POTTED_AZURE_BLUET);
-		this.addPottedPlantDrops(Blocks.POTTED_RED_TULIP);
-		this.addPottedPlantDrops(Blocks.POTTED_ORANGE_TULIP);
-		this.addPottedPlantDrops(Blocks.POTTED_WHITE_TULIP);
-		this.addPottedPlantDrops(Blocks.POTTED_PINK_TULIP);
-		this.addPottedPlantDrops(Blocks.POTTED_OXEYE_DAISY);
-		this.addPottedPlantDrops(Blocks.POTTED_CORNFLOWER);
-		this.addPottedPlantDrops(Blocks.POTTED_LILY_OF_THE_VALLEY);
-		this.addPottedPlantDrops(Blocks.POTTED_WITHER_ROSE);
-		this.addPottedPlantDrops(Blocks.POTTED_RED_MUSHROOM);
-		this.addPottedPlantDrops(Blocks.POTTED_BROWN_MUSHROOM);
-		this.addPottedPlantDrops(Blocks.POTTED_DEAD_BUSH);
-		this.addPottedPlantDrops(Blocks.POTTED_CACTUS);
-		this.addPottedPlantDrops(Blocks.POTTED_BAMBOO);
-		this.addPottedPlantDrops(Blocks.POTTED_CRIMSON_FUNGUS);
-		this.addPottedPlantDrops(Blocks.POTTED_WARPED_FUNGUS);
-		this.addPottedPlantDrops(Blocks.POTTED_CRIMSON_ROOTS);
-		this.addPottedPlantDrops(Blocks.POTTED_WARPED_ROOTS);
-		this.addPottedPlantDrops(Blocks.POTTED_AZALEA_BUSH);
-		this.addPottedPlantDrops(Blocks.POTTED_FLOWERING_AZALEA_BUSH);
-		this.addPottedPlantDrops(Blocks.POTTED_TORCHFLOWER);
-		this.addDrop(Blocks.OAK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.PETRIFIED_OAK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SPRUCE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.BIRCH_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.JUNGLE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.ACACIA_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.DARK_OAK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.PALE_OAK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.MANGROVE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CHERRY_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.BAMBOO_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.BAMBOO_MOSAIC_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.COBBLESTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.DARK_PRISMARINE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.NETHER_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.PRISMARINE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.PRISMARINE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.PURPUR_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.QUARTZ_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.RED_SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CUT_RED_SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CUT_SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.STONE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.STONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SMOOTH_STONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_GRANITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SMOOTH_RED_SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.MOSSY_STONE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_DIORITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.MOSSY_COBBLESTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.END_STONE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SMOOTH_SANDSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.SMOOTH_QUARTZ_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.GRANITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.ANDESITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.RED_NETHER_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_ANDESITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.DIORITE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CRIMSON_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WARPED_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.BLACKSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_BLACKSTONE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.OXIDIZED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WEATHERED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.EXPOSED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.WAXED_CUT_COPPER_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.COBBLED_DEEPSLATE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.POLISHED_DEEPSLATE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.DEEPSLATE_TILE_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.DEEPSLATE_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.MUD_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.RESIN_BRICK_SLAB, block -> this.slabDrops(block));
-		this.addDrop(Blocks.OAK_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.SPRUCE_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.BIRCH_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.JUNGLE_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.ACACIA_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.DARK_OAK_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.PALE_OAK_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.MANGROVE_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.CHERRY_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.BAMBOO_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WARPED_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.CRIMSON_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.IRON_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.EXPOSED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WEATHERED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.OXIDIZED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WAXED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_DOOR, block -> this.doorDrops(block));
-		this.addDrop(Blocks.BLACK_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.BLUE_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.BROWN_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.CYAN_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.GRAY_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.GREEN_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.LIGHT_BLUE_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.LIGHT_GRAY_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.LIME_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.MAGENTA_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.PURPLE_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.ORANGE_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.PINK_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.RED_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.WHITE_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.YELLOW_BED, block -> this.dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
-		this.addDrop(Blocks.LILAC, block -> this.dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER));
-		this.addDrop(
+		addDrop(Blocks.CHORUS_PLANT, drops(Items.CHORUS_FRUIT, UniformLootNumberProvider.create(0.0F, 1.0F)));
+		addPottedPlantDrops(Blocks.POTTED_OAK_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_SPRUCE_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_BIRCH_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_JUNGLE_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_ACACIA_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_DARK_OAK_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_PALE_OAK_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_MANGROVE_PROPAGULE);
+		addPottedPlantDrops(Blocks.POTTED_CHERRY_SAPLING);
+		addPottedPlantDrops(Blocks.POTTED_FERN);
+		addPottedPlantDrops(Blocks.POTTED_DANDELION);
+		addPottedPlantDrops(Blocks.POTTED_POPPY);
+		addPottedPlantDrops(Blocks.POTTED_OPEN_EYEBLOSSOM);
+		addPottedPlantDrops(Blocks.POTTED_CLOSED_EYEBLOSSOM);
+		addPottedPlantDrops(Blocks.POTTED_BLUE_ORCHID);
+		addPottedPlantDrops(Blocks.POTTED_ALLIUM);
+		addPottedPlantDrops(Blocks.POTTED_AZURE_BLUET);
+		addPottedPlantDrops(Blocks.POTTED_RED_TULIP);
+		addPottedPlantDrops(Blocks.POTTED_ORANGE_TULIP);
+		addPottedPlantDrops(Blocks.POTTED_WHITE_TULIP);
+		addPottedPlantDrops(Blocks.POTTED_PINK_TULIP);
+		addPottedPlantDrops(Blocks.POTTED_OXEYE_DAISY);
+		addPottedPlantDrops(Blocks.POTTED_CORNFLOWER);
+		addPottedPlantDrops(Blocks.POTTED_LILY_OF_THE_VALLEY);
+		addPottedPlantDrops(Blocks.POTTED_WITHER_ROSE);
+		addPottedPlantDrops(Blocks.POTTED_RED_MUSHROOM);
+		addPottedPlantDrops(Blocks.POTTED_BROWN_MUSHROOM);
+		addPottedPlantDrops(Blocks.POTTED_DEAD_BUSH);
+		addPottedPlantDrops(Blocks.POTTED_CACTUS);
+		addPottedPlantDrops(Blocks.POTTED_BAMBOO);
+		addPottedPlantDrops(Blocks.POTTED_CRIMSON_FUNGUS);
+		addPottedPlantDrops(Blocks.POTTED_WARPED_FUNGUS);
+		addPottedPlantDrops(Blocks.POTTED_CRIMSON_ROOTS);
+		addPottedPlantDrops(Blocks.POTTED_WARPED_ROOTS);
+		addPottedPlantDrops(Blocks.POTTED_AZALEA_BUSH);
+		addPottedPlantDrops(Blocks.POTTED_FLOWERING_AZALEA_BUSH);
+		addPottedPlantDrops(Blocks.POTTED_TORCHFLOWER);
+		addDrop(Blocks.OAK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.PETRIFIED_OAK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SPRUCE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.BIRCH_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.JUNGLE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.ACACIA_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.DARK_OAK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.PALE_OAK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.MANGROVE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CHERRY_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.BAMBOO_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.BAMBOO_MOSAIC_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.COBBLESTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.DARK_PRISMARINE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.NETHER_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.PRISMARINE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.PRISMARINE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.PURPUR_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.QUARTZ_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.RED_SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CUT_RED_SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CUT_SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.STONE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.STONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SMOOTH_STONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_GRANITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SMOOTH_RED_SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.MOSSY_STONE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_DIORITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.MOSSY_COBBLESTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.END_STONE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SMOOTH_SANDSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.SMOOTH_QUARTZ_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.GRANITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.ANDESITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.RED_NETHER_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_ANDESITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.DIORITE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CRIMSON_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WARPED_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.BLACKSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_BLACKSTONE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_BLACKSTONE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.OXIDIZED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WEATHERED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.EXPOSED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WAXED_OXIDIZED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WAXED_WEATHERED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WAXED_EXPOSED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.WAXED_CUT_COPPER_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.COBBLED_DEEPSLATE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.POLISHED_DEEPSLATE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.DEEPSLATE_TILE_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.DEEPSLATE_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.MUD_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.RESIN_BRICK_SLAB, block -> slabDrops(block));
+		addDrop(Blocks.OAK_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.SPRUCE_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.BIRCH_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.JUNGLE_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.ACACIA_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.DARK_OAK_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.PALE_OAK_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.MANGROVE_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.CHERRY_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.BAMBOO_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WARPED_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.CRIMSON_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.IRON_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.EXPOSED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WEATHERED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.OXIDIZED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WAXED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_DOOR, block -> doorDrops(block));
+		addDrop(Blocks.BLACK_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.BLUE_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.BROWN_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.CYAN_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.GRAY_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.GREEN_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.LIGHT_BLUE_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.LIGHT_GRAY_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.LIME_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.MAGENTA_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.PURPLE_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.ORANGE_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.PINK_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.RED_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.WHITE_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.YELLOW_BED, block -> dropsWithProperty(block, BedBlock.PART, BedPart.HEAD));
+		addDrop(Blocks.LILAC, block -> dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER));
+		addDrop(
 				Blocks.SUNFLOWER,
-				block -> this.dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER)
+				block -> dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER)
 		);
-		this.addDrop(Blocks.PEONY, block -> this.dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER));
-		this.addDrop(
+		addDrop(Blocks.PEONY, block -> dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER));
+		addDrop(
 				Blocks.ROSE_BUSH,
-				block -> this.dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER)
+				block -> dropsWithProperty(block, TallPlantBlock.HALF, DoubleBlockHalf.LOWER)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.TNT,
 				LootTable.builder()
 				         .pool(
-						         this.addSurvivesExplosionCondition(
+						         addSurvivesExplosionCondition(
 								         Blocks.TNT,
 								         LootPool.builder()
 								                 .rolls(ConstantLootNumberProvider.create(1.0F))
@@ -897,14 +897,14 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						         )
 				         )
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.COCOA,
 				block -> LootTable.builder()
 				                  .pool(
 						                  LootPool.builder()
 						                          .rolls(ConstantLootNumberProvider.create(1.0F))
 						                          .with(
-								                          (LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+								                          (LootPoolEntry.Builder<?>) applyExplosionDecay(
 										                          block,
 										                          ItemEntry.builder(Items.COCOA_BEANS)
 										                                   .apply(
@@ -929,14 +929,14 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                          )
 				                  )
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.SEA_PICKLE,
 				block -> LootTable.builder()
 				                  .pool(
 						                  LootPool.builder()
 						                          .rolls(ConstantLootNumberProvider.create(1.0F))
 						                          .with(
-								                          (LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+								                          (LootPoolEntry.Builder<?>) applyExplosionDecay(
 										                          Blocks.SEA_PICKLE,
 										                          ItemEntry.builder(block)
 										                                   .apply(
@@ -962,12 +962,12 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                          )
 				                  )
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.COMPOSTER,
 				block -> LootTable.builder()
 				                  .pool(LootPool
 						                  .builder()
-						                  .with((LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						                  .with((LootPoolEntry.Builder<?>) applyExplosionDecay(
 								                  block,
 								                  ItemEntry.builder(Items.COMPOSTER)
 						                  )))
@@ -981,105 +981,105 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 										                          .exactMatch(ComposterBlock.LEVEL, 8)))
 				                  )
 		);
-		this.addDrop(Blocks.CAVE_VINES, block -> this.glowBerryDrops(block));
-		this.addDrop(Blocks.CAVE_VINES_PLANT, block -> this.glowBerryDrops(block));
-		this.addDrop(Blocks.CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.WHITE_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.ORANGE_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.MAGENTA_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.LIGHT_BLUE_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.YELLOW_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.LIME_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.PINK_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.GRAY_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.LIGHT_GRAY_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.CYAN_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.PURPLE_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.BLUE_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.BROWN_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.GREEN_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.RED_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.BLACK_CANDLE, block -> this.candleDrops(block));
-		this.addDrop(Blocks.BEACON, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.BREWING_STAND, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.EXPOSED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.WEATHERED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.OXIDIZED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.WAXED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.WAXED_EXPOSED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.WAXED_WEATHERED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.WAXED_OXIDIZED_COPPER_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.DISPENSER, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.DROPPER, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.ENCHANTING_TABLE, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.FURNACE, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.HOPPER, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.TRAPPED_CHEST, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.SMOKER, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.BLAST_FURNACE, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.BARREL, block -> this.nameableContainerDrops(block));
-		this.addDrop(Blocks.CARTOGRAPHY_TABLE);
-		this.addDrop(Blocks.FLETCHING_TABLE);
-		this.addDrop(Blocks.GRINDSTONE);
-		this.addDrop(Blocks.LECTERN);
-		this.addDrop(Blocks.SMITHING_TABLE);
-		this.addDrop(Blocks.STONECUTTER);
-		this.addDrop(Blocks.ACACIA_SHELF);
-		this.addDrop(Blocks.BAMBOO_SHELF);
-		this.addDrop(Blocks.BIRCH_SHELF);
-		this.addDrop(Blocks.CHERRY_SHELF);
-		this.addDrop(Blocks.CRIMSON_SHELF);
-		this.addDrop(Blocks.DARK_OAK_SHELF);
-		this.addDrop(Blocks.JUNGLE_SHELF);
-		this.addDrop(Blocks.MANGROVE_SHELF);
-		this.addDrop(Blocks.OAK_SHELF);
-		this.addDrop(Blocks.PALE_OAK_SHELF);
-		this.addDrop(Blocks.SPRUCE_SHELF);
-		this.addDrop(Blocks.WARPED_SHELF);
-		this.addDrop(Blocks.BELL, this::drops);
-		this.addDrop(Blocks.LANTERN, this::drops);
-		this.addDrop(Blocks.SOUL_LANTERN, this::drops);
-		Blocks.COPPER_LANTERNS.forEach(block -> this.addDrop(block, this::drops));
-		this.addDrop(Blocks.SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.BLACK_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.BLUE_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.BROWN_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.CYAN_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.GRAY_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.GREEN_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.LIGHT_BLUE_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.LIGHT_GRAY_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.LIME_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.MAGENTA_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.ORANGE_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.PINK_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.PURPLE_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.RED_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.WHITE_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.YELLOW_SHULKER_BOX, block -> this.shulkerBoxDrops(block));
-		this.addDrop(Blocks.BLACK_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.BLUE_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.BROWN_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.CYAN_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.GRAY_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.GREEN_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.LIGHT_BLUE_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.LIGHT_GRAY_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.LIME_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.MAGENTA_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.ORANGE_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.PINK_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.PURPLE_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.RED_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.WHITE_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(Blocks.YELLOW_BANNER, block -> this.bannerDrops(block));
-		this.addDrop(
+		addDrop(Blocks.CAVE_VINES, block -> glowBerryDrops(block));
+		addDrop(Blocks.CAVE_VINES_PLANT, block -> glowBerryDrops(block));
+		addDrop(Blocks.CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.WHITE_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.ORANGE_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.MAGENTA_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.LIGHT_BLUE_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.YELLOW_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.LIME_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.PINK_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.GRAY_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.LIGHT_GRAY_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.CYAN_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.PURPLE_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.BLUE_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.BROWN_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.GREEN_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.RED_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.BLACK_CANDLE, block -> candleDrops(block));
+		addDrop(Blocks.BEACON, block -> nameableContainerDrops(block));
+		addDrop(Blocks.BREWING_STAND, block -> nameableContainerDrops(block));
+		addDrop(Blocks.CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.EXPOSED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.WEATHERED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.OXIDIZED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.WAXED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.WAXED_EXPOSED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.WAXED_WEATHERED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.WAXED_OXIDIZED_COPPER_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.DISPENSER, block -> nameableContainerDrops(block));
+		addDrop(Blocks.DROPPER, block -> nameableContainerDrops(block));
+		addDrop(Blocks.ENCHANTING_TABLE, block -> nameableContainerDrops(block));
+		addDrop(Blocks.FURNACE, block -> nameableContainerDrops(block));
+		addDrop(Blocks.HOPPER, block -> nameableContainerDrops(block));
+		addDrop(Blocks.TRAPPED_CHEST, block -> nameableContainerDrops(block));
+		addDrop(Blocks.SMOKER, block -> nameableContainerDrops(block));
+		addDrop(Blocks.BLAST_FURNACE, block -> nameableContainerDrops(block));
+		addDrop(Blocks.BARREL, block -> nameableContainerDrops(block));
+		addDrop(Blocks.CARTOGRAPHY_TABLE);
+		addDrop(Blocks.FLETCHING_TABLE);
+		addDrop(Blocks.GRINDSTONE);
+		addDrop(Blocks.LECTERN);
+		addDrop(Blocks.SMITHING_TABLE);
+		addDrop(Blocks.STONECUTTER);
+		addDrop(Blocks.ACACIA_SHELF);
+		addDrop(Blocks.BAMBOO_SHELF);
+		addDrop(Blocks.BIRCH_SHELF);
+		addDrop(Blocks.CHERRY_SHELF);
+		addDrop(Blocks.CRIMSON_SHELF);
+		addDrop(Blocks.DARK_OAK_SHELF);
+		addDrop(Blocks.JUNGLE_SHELF);
+		addDrop(Blocks.MANGROVE_SHELF);
+		addDrop(Blocks.OAK_SHELF);
+		addDrop(Blocks.PALE_OAK_SHELF);
+		addDrop(Blocks.SPRUCE_SHELF);
+		addDrop(Blocks.WARPED_SHELF);
+		addDrop(Blocks.BELL, this::drops);
+		addDrop(Blocks.LANTERN, this::drops);
+		addDrop(Blocks.SOUL_LANTERN, this::drops);
+		Blocks.COPPER_LANTERNS.forEach(block -> addDrop(block, this::drops));
+		addDrop(Blocks.SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.BLACK_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.BLUE_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.BROWN_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.CYAN_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.GRAY_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.GREEN_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.LIGHT_BLUE_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.LIGHT_GRAY_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.LIME_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.MAGENTA_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.ORANGE_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.PINK_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.PURPLE_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.RED_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.WHITE_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.YELLOW_SHULKER_BOX, block -> shulkerBoxDrops(block));
+		addDrop(Blocks.BLACK_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.BLUE_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.BROWN_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.CYAN_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.GRAY_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.GREEN_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.LIGHT_BLUE_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.LIGHT_GRAY_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.LIME_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.MAGENTA_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.ORANGE_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.PINK_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.PURPLE_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.RED_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.WHITE_BANNER, block -> bannerDrops(block));
+		addDrop(Blocks.YELLOW_BANNER, block -> bannerDrops(block));
+		addDrop(
 				Blocks.PLAYER_HEAD,
 				block -> LootTable.builder()
 				                  .pool(
-						                  this.addSurvivesExplosionCondition(
+						                  addSurvivesExplosionCondition(
 								                  block,
 								                  LootPool.builder()
 								                          .rolls(ConstantLootNumberProvider.create(1.0F))
@@ -1097,55 +1097,55 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                  )
 				                  )
 		);
-		this.addDrop(Blocks.SKELETON_SKULL, this::skullDrops);
-		this.addDrop(Blocks.WITHER_SKELETON_SKULL, this::skullDrops);
-		this.addDrop(Blocks.ZOMBIE_HEAD, this::skullDrops);
-		this.addDrop(Blocks.CREEPER_HEAD, this::skullDrops);
-		this.addDrop(Blocks.PIGLIN_HEAD, this::skullDrops);
-		this.addDrop(Blocks.DRAGON_HEAD, this::skullDrops);
-		this.addDrop(Blocks.BEE_NEST, block -> this.beeNestDrops(block));
-		this.addDrop(Blocks.BEEHIVE, block -> this.beehiveDrops(block));
-		this.addDrop(Blocks.OAK_LEAVES, block -> this.oakLeavesDrops(block, Blocks.OAK_SAPLING, SAPLING_DROP_CHANCE));
-		this.addDrop(
+		addDrop(Blocks.SKELETON_SKULL, this::skullDrops);
+		addDrop(Blocks.WITHER_SKELETON_SKULL, this::skullDrops);
+		addDrop(Blocks.ZOMBIE_HEAD, this::skullDrops);
+		addDrop(Blocks.CREEPER_HEAD, this::skullDrops);
+		addDrop(Blocks.PIGLIN_HEAD, this::skullDrops);
+		addDrop(Blocks.DRAGON_HEAD, this::skullDrops);
+		addDrop(Blocks.BEE_NEST, block -> beeNestDrops(block));
+		addDrop(Blocks.BEEHIVE, block -> beehiveDrops(block));
+		addDrop(Blocks.OAK_LEAVES, block -> oakLeavesDrops(block, Blocks.OAK_SAPLING, SAPLING_DROP_CHANCE));
+		addDrop(
 				Blocks.SPRUCE_LEAVES,
-				block -> this.leavesDrops(block, Blocks.SPRUCE_SAPLING, SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.SPRUCE_SAPLING, SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(Blocks.BIRCH_LEAVES, block -> this.leavesDrops(block, Blocks.BIRCH_SAPLING, SAPLING_DROP_CHANCE));
-		this.addDrop(
+		addDrop(Blocks.BIRCH_LEAVES, block -> leavesDrops(block, Blocks.BIRCH_SAPLING, SAPLING_DROP_CHANCE));
+		addDrop(
 				Blocks.JUNGLE_LEAVES,
-				block -> this.leavesDrops(block, Blocks.JUNGLE_SAPLING, JUNGLE_SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.JUNGLE_SAPLING, JUNGLE_SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.ACACIA_LEAVES,
-				block -> this.leavesDrops(block, Blocks.ACACIA_SAPLING, SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.ACACIA_SAPLING, SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.DARK_OAK_LEAVES,
-				block -> this.oakLeavesDrops(block, Blocks.DARK_OAK_SAPLING, SAPLING_DROP_CHANCE)
+				block -> oakLeavesDrops(block, Blocks.DARK_OAK_SAPLING, SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.PALE_OAK_LEAVES,
-				block -> this.leavesDrops(block, Blocks.PALE_OAK_SAPLING, SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.PALE_OAK_SAPLING, SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.CHERRY_LEAVES,
-				block -> this.leavesDrops(block, Blocks.CHERRY_SAPLING, SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.CHERRY_SAPLING, SAPLING_DROP_CHANCE)
 		);
-		this.addDrop(Blocks.AZALEA_LEAVES, block -> this.leavesDrops(block, Blocks.AZALEA, SAPLING_DROP_CHANCE));
-		this.addDrop(
+		addDrop(Blocks.AZALEA_LEAVES, block -> leavesDrops(block, Blocks.AZALEA, SAPLING_DROP_CHANCE));
+		addDrop(
 				Blocks.FLOWERING_AZALEA_LEAVES,
-				block -> this.leavesDrops(block, Blocks.FLOWERING_AZALEA, SAPLING_DROP_CHANCE)
+				block -> leavesDrops(block, Blocks.FLOWERING_AZALEA, SAPLING_DROP_CHANCE)
 		);
 		LootCondition.Builder builder = BlockStatePropertyLootCondition.builder(Blocks.BEETROOTS)
 		                                                               .properties(StatePredicate.Builder
 				                                                               .create()
 				                                                               .exactMatch(BeetrootsBlock.AGE, 3));
-		this.addDrop(Blocks.BEETROOTS, this.cropDrops(Blocks.BEETROOTS, Items.BEETROOT, Items.BEETROOT_SEEDS, builder));
+		addDrop(Blocks.BEETROOTS, cropDrops(Blocks.BEETROOTS, Items.BEETROOT, Items.BEETROOT_SEEDS, builder));
 		LootCondition.Builder builder2 = BlockStatePropertyLootCondition.builder(Blocks.WHEAT)
 		                                                                .properties(StatePredicate.Builder
 				                                                                .create()
 				                                                                .exactMatch(CropBlock.AGE, 7));
-		this.addDrop(Blocks.WHEAT, this.cropDrops(Blocks.WHEAT, Items.WHEAT, Items.WHEAT_SEEDS, builder2));
+		addDrop(Blocks.WHEAT, cropDrops(Blocks.WHEAT, Items.WHEAT, Items.WHEAT_SEEDS, builder2));
 		LootCondition.Builder builder3 = BlockStatePropertyLootCondition.builder(Blocks.CARROTS)
 		                                                                .properties(StatePredicate.Builder
 				                                                                .create()
@@ -1154,9 +1154,9 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 		                                                                .properties(StatePredicate.Builder
 				                                                                .create()
 				                                                                .exactMatch(PropaguleBlock.AGE, 4));
-		this.addDrop(
+		addDrop(
 				Blocks.MANGROVE_PROPAGULE,
-				this.applyExplosionDecay(
+				applyExplosionDecay(
 						Blocks.MANGROVE_PROPAGULE,
 						LootTable
 								.builder()
@@ -1166,20 +1166,20 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 										.with(ItemEntry.builder(Items.MANGROVE_PROPAGULE)))
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.TORCHFLOWER_CROP,
-				this.applyExplosionDecay(
+				applyExplosionDecay(
 						Blocks.TORCHFLOWER_CROP,
 						LootTable.builder().pool(LootPool.builder().with(ItemEntry.builder(Items.TORCHFLOWER_SEEDS)))
 				)
 		);
-		this.addDrop(Blocks.SNIFFER_EGG);
-		this.addDrop(Blocks.DRIED_GHAST);
-		this.addDrop(Blocks.PITCHER_CROP, block -> this.pitcherCropDrops());
-		this.addDrop(Blocks.PITCHER_PLANT);
-		this.addDrop(
+		addDrop(Blocks.SNIFFER_EGG);
+		addDrop(Blocks.DRIED_GHAST);
+		addDrop(Blocks.PITCHER_CROP, block -> this.pitcherCropDrops());
+		addDrop(Blocks.PITCHER_PLANT);
+		addDrop(
 				Blocks.PITCHER_PLANT,
-				this.applyExplosionDecay(
+				applyExplosionDecay(
 						Blocks.PITCHER_PLANT,
 						LootTable.builder()
 						         .pool(
@@ -1200,9 +1200,9 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						         )
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.CARROTS,
-				this.applyExplosionDecay(
+				applyExplosionDecay(
 						Blocks.CARROTS,
 						LootTable.builder()
 						         .pool(LootPool.builder().with(ItemEntry.builder(Items.CARROT)))
@@ -1224,9 +1224,9 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 		                                                                .properties(StatePredicate.Builder
 				                                                                .create()
 				                                                                .exactMatch(PotatoesBlock.AGE, 7));
-		this.addDrop(
+		addDrop(
 				Blocks.POTATOES,
-				this.applyExplosionDecay(
+				applyExplosionDecay(
 						Blocks.POTATOES,
 						LootTable.builder()
 						         .pool(LootPool.builder().with(ItemEntry.builder(Items.POTATO)))
@@ -1251,9 +1251,9 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						         )
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.SWEET_BERRY_BUSH,
-				block -> this.applyExplosionDecay(
+				block -> applyExplosionDecay(
 						block,
 						LootTable.builder()
 						         .pool(
@@ -1292,26 +1292,26 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						         )
 				)
 		);
-		this.addDrop(Blocks.BROWN_MUSHROOM_BLOCK, block -> this.mushroomBlockDrops(block, Blocks.BROWN_MUSHROOM));
-		this.addDrop(Blocks.RED_MUSHROOM_BLOCK, block -> this.mushroomBlockDrops(block, Blocks.RED_MUSHROOM));
-		this.addDrop(Blocks.COAL_ORE, block -> this.oreDrops(block, Items.COAL));
-		this.addDrop(Blocks.DEEPSLATE_COAL_ORE, block -> this.oreDrops(block, Items.COAL));
-		this.addDrop(Blocks.EMERALD_ORE, block -> this.oreDrops(block, Items.EMERALD));
-		this.addDrop(Blocks.DEEPSLATE_EMERALD_ORE, block -> this.oreDrops(block, Items.EMERALD));
-		this.addDrop(Blocks.NETHER_QUARTZ_ORE, block -> this.oreDrops(block, Items.QUARTZ));
-		this.addDrop(Blocks.DIAMOND_ORE, block -> this.oreDrops(block, Items.DIAMOND));
-		this.addDrop(Blocks.DEEPSLATE_DIAMOND_ORE, block -> this.oreDrops(block, Items.DIAMOND));
-		this.addDrop(Blocks.COPPER_ORE, block -> this.copperOreDrops(block));
-		this.addDrop(Blocks.DEEPSLATE_COPPER_ORE, block -> this.copperOreDrops(block));
-		this.addDrop(Blocks.IRON_ORE, block -> this.oreDrops(block, Items.RAW_IRON));
-		this.addDrop(Blocks.DEEPSLATE_IRON_ORE, block -> this.oreDrops(block, Items.RAW_IRON));
-		this.addDrop(Blocks.GOLD_ORE, block -> this.oreDrops(block, Items.RAW_GOLD));
-		this.addDrop(Blocks.DEEPSLATE_GOLD_ORE, block -> this.oreDrops(block, Items.RAW_GOLD));
-		this.addDrop(
+		addDrop(Blocks.BROWN_MUSHROOM_BLOCK, block -> mushroomBlockDrops(block, Blocks.BROWN_MUSHROOM));
+		addDrop(Blocks.RED_MUSHROOM_BLOCK, block -> mushroomBlockDrops(block, Blocks.RED_MUSHROOM));
+		addDrop(Blocks.COAL_ORE, block -> oreDrops(block, Items.COAL));
+		addDrop(Blocks.DEEPSLATE_COAL_ORE, block -> oreDrops(block, Items.COAL));
+		addDrop(Blocks.EMERALD_ORE, block -> oreDrops(block, Items.EMERALD));
+		addDrop(Blocks.DEEPSLATE_EMERALD_ORE, block -> oreDrops(block, Items.EMERALD));
+		addDrop(Blocks.NETHER_QUARTZ_ORE, block -> oreDrops(block, Items.QUARTZ));
+		addDrop(Blocks.DIAMOND_ORE, block -> oreDrops(block, Items.DIAMOND));
+		addDrop(Blocks.DEEPSLATE_DIAMOND_ORE, block -> oreDrops(block, Items.DIAMOND));
+		addDrop(Blocks.COPPER_ORE, block -> copperOreDrops(block));
+		addDrop(Blocks.DEEPSLATE_COPPER_ORE, block -> copperOreDrops(block));
+		addDrop(Blocks.IRON_ORE, block -> oreDrops(block, Items.RAW_IRON));
+		addDrop(Blocks.DEEPSLATE_IRON_ORE, block -> oreDrops(block, Items.RAW_IRON));
+		addDrop(Blocks.GOLD_ORE, block -> oreDrops(block, Items.RAW_GOLD));
+		addDrop(Blocks.DEEPSLATE_GOLD_ORE, block -> oreDrops(block, Items.RAW_GOLD));
+		addDrop(
 				Blocks.NETHER_GOLD_ORE,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry.builder(Items.GOLD_NUGGET)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1322,23 +1322,23 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(Blocks.LAPIS_ORE, block -> this.lapisOreDrops(block));
-		this.addDrop(Blocks.DEEPSLATE_LAPIS_ORE, block -> this.lapisOreDrops(block));
-		this.addDrop(
+		addDrop(Blocks.LAPIS_ORE, block -> lapisOreDrops(block));
+		addDrop(Blocks.DEEPSLATE_LAPIS_ORE, block -> lapisOreDrops(block));
+		addDrop(
 				Blocks.COBWEB,
-				block -> this.dropsWithSilkTouchOrShears(
+				block -> dropsWithSilkTouchOrShears(
 						block,
-						(LootPoolEntry.Builder<?>) this.addSurvivesExplosionCondition(
+						(LootPoolEntry.Builder<?>) addSurvivesExplosionCondition(
 								block,
 								ItemEntry.builder(Items.STRING)
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.DEAD_BUSH,
-				block -> this.dropsWithShears(
+				block -> dropsWithShears(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry
 										.builder(Items.STICK)
@@ -1349,32 +1349,32 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(Blocks.SHORT_DRY_GRASS, block -> this.dropsWithSilkTouchOrShears(block));
-		this.addDrop(Blocks.TALL_DRY_GRASS, block -> this.dropsWithSilkTouchOrShears(block));
-		this.addDrop(Blocks.BUSH, block -> this.dropsWithSilkTouchOrShears(block));
-		this.addDrop(Blocks.NETHER_SPROUTS, block -> this.dropsWithShears(block));
-		this.addDrop(Blocks.SEAGRASS, block -> this.dropsWithShears(block));
-		this.addDrop(Blocks.VINE, block -> this.dropsWithShears(block));
-		this.addDrop(Blocks.GLOW_LICHEN, block -> this.multifaceGrowthDrops(block, this.createWithShearsCondition()));
-		this.addDrop(Blocks.RESIN_CLUMP, block -> this.multifaceGrowthDrops(block));
-		this.addDrop(Blocks.HANGING_ROOTS, block -> this.dropsWithShears(block));
-		this.addDrop(Blocks.SMALL_DRIPLEAF, block -> this.dropsWithShears(block));
-		this.addDrop(Blocks.MANGROVE_LEAVES, block -> this.mangroveLeavesDrops(block));
-		this.addDrop(Blocks.TALL_SEAGRASS, this.seagrassDrops(Blocks.SEAGRASS));
-		this.addDrop(Blocks.LARGE_FERN, block -> this.tallPlantDrops(block, Blocks.FERN));
-		this.addDrop(Blocks.TALL_GRASS, block -> this.tallPlantDrops(block, Blocks.SHORT_GRASS));
-		this.addDrop(Blocks.MELON_STEM, block -> this.cropStemDrops(block, Items.MELON_SEEDS));
-		this.addDrop(Blocks.ATTACHED_MELON_STEM, block -> this.attachedCropStemDrops(block, Items.MELON_SEEDS));
-		this.addDrop(Blocks.PUMPKIN_STEM, block -> this.cropStemDrops(block, Items.PUMPKIN_SEEDS));
-		this.addDrop(Blocks.ATTACHED_PUMPKIN_STEM, block -> this.attachedCropStemDrops(block, Items.PUMPKIN_SEEDS));
-		this.addDrop(
+		addDrop(Blocks.SHORT_DRY_GRASS, block -> dropsWithSilkTouchOrShears(block));
+		addDrop(Blocks.TALL_DRY_GRASS, block -> dropsWithSilkTouchOrShears(block));
+		addDrop(Blocks.BUSH, block -> dropsWithSilkTouchOrShears(block));
+		addDrop(Blocks.NETHER_SPROUTS, block -> dropsWithShears(block));
+		addDrop(Blocks.SEAGRASS, block -> dropsWithShears(block));
+		addDrop(Blocks.VINE, block -> dropsWithShears(block));
+		addDrop(Blocks.GLOW_LICHEN, block -> multifaceGrowthDrops(block, createWithShearsCondition()));
+		addDrop(Blocks.RESIN_CLUMP, block -> multifaceGrowthDrops(block));
+		addDrop(Blocks.HANGING_ROOTS, block -> dropsWithShears(block));
+		addDrop(Blocks.SMALL_DRIPLEAF, block -> dropsWithShears(block));
+		addDrop(Blocks.MANGROVE_LEAVES, block -> mangroveLeavesDrops(block));
+		addDrop(Blocks.TALL_SEAGRASS, seagrassDrops(Blocks.SEAGRASS));
+		addDrop(Blocks.LARGE_FERN, block -> tallPlantDrops(block, Blocks.FERN));
+		addDrop(Blocks.TALL_GRASS, block -> tallPlantDrops(block, Blocks.SHORT_GRASS));
+		addDrop(Blocks.MELON_STEM, block -> cropStemDrops(block, Items.MELON_SEEDS));
+		addDrop(Blocks.ATTACHED_MELON_STEM, block -> attachedCropStemDrops(block, Items.MELON_SEEDS));
+		addDrop(Blocks.PUMPKIN_STEM, block -> cropStemDrops(block, Items.PUMPKIN_SEEDS));
+		addDrop(Blocks.ATTACHED_PUMPKIN_STEM, block -> attachedCropStemDrops(block, Items.PUMPKIN_SEEDS));
+		addDrop(
 				Blocks.CHORUS_FLOWER,
 				block -> LootTable.builder()
 				                  .pool(
 						                  LootPool.builder()
 						                          .rolls(ConstantLootNumberProvider.create(1.0F))
 						                          .with(
-								                          ((LeafEntry.Builder) this.addSurvivesExplosionCondition(
+								                          ((LeafEntry.Builder) addSurvivesExplosionCondition(
 										                          block,
 										                          ItemEntry.builder(block)
 								                          )
@@ -1384,13 +1384,13 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                          )
 				                  )
 		);
-		this.addDrop(Blocks.FERN, block -> this.shortPlantDrops(block));
-		this.addDrop(Blocks.SHORT_GRASS, block -> this.shortPlantDrops(block));
-		this.addDrop(
+		addDrop(Blocks.FERN, block -> shortPlantDrops(block));
+		addDrop(Blocks.SHORT_GRASS, block -> shortPlantDrops(block));
+		addDrop(
 				Blocks.GLOWSTONE,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry.builder(Items.GLOWSTONE_DUST)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1402,11 +1402,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.MELON,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry.builder(Items.MELON_SLICE)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1418,13 +1418,13 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(Blocks.REDSTONE_ORE, block -> this.redstoneOreDrops(block));
-		this.addDrop(Blocks.DEEPSLATE_REDSTONE_ORE, block -> this.redstoneOreDrops(block));
-		this.addDrop(
+		addDrop(Blocks.REDSTONE_ORE, block -> redstoneOreDrops(block));
+		addDrop(Blocks.DEEPSLATE_REDSTONE_ORE, block -> redstoneOreDrops(block));
+		addDrop(
 				Blocks.SEA_LANTERN,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry.builder(Items.PRISMARINE_CRYSTALS)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1436,11 +1436,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.CREAKING_HEART,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+						(LootPoolEntry.Builder<?>) applyExplosionDecay(
 								block,
 								ItemEntry.builder(Items.RESIN_CLUMP)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1452,11 +1452,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.NETHER_WART,
 				block -> LootTable.builder()
 				                  .pool(
-						                  this.applyExplosionDecay(
+						                  applyExplosionDecay(
 								                  block,
 								                  LootPool.builder()
 								                          .rolls(ConstantLootNumberProvider.create(1.0F))
@@ -1503,7 +1503,7 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                  )
 				                  )
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.SNOW,
 				block -> LootTable.builder()
 				                  .pool(
@@ -1530,7 +1530,7 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 														                                                             ConstantLootNumberProvider.create(
 																                                                             layers.intValue())))
 										                                          )
-										                                          .conditionally(this.createWithoutSilkTouchCondition()),
+										                                          .conditionally(createWithoutSilkTouchCondition()),
 										                          AlternativeEntry.builder(
 												                          SnowBlock.LAYERS.getValues(),
 												                          layers -> layers == 8
@@ -1555,11 +1555,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						                          )
 				                  )
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.GRAVEL,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						this.addSurvivesExplosionCondition(
+						addSurvivesExplosionCondition(
 								block,
 								ItemEntry.builder(Items.FLINT)
 								         .conditionally(TableBonusLootCondition.builder(
@@ -1573,11 +1573,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.CAMPFIRE,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.addSurvivesExplosionCondition(
+						(LootPoolEntry.Builder<?>) addSurvivesExplosionCondition(
 								block,
 								ItemEntry
 										.builder(Items.CHARCOAL)
@@ -1585,11 +1585,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.GILDED_BLACKSTONE,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						this.addSurvivesExplosionCondition(
+						addSurvivesExplosionCondition(
 								block,
 								ItemEntry.builder(Items.GOLD_NUGGET)
 								         .apply(SetCountLootFunction.builder(UniformLootNumberProvider.create(
@@ -1607,11 +1607,11 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.SOUL_CAMPFIRE,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
-						(LootPoolEntry.Builder<?>) this.addSurvivesExplosionCondition(
+						(LootPoolEntry.Builder<?>) addSurvivesExplosionCondition(
 								block,
 								ItemEntry
 										.builder(Items.SOUL_SOIL)
@@ -1619,9 +1619,9 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						)
 				)
 		);
-		this.addDrop(
+		addDrop(
 				Blocks.AMETHYST_CLUSTER,
-				block -> this.dropsWithSilkTouch(
+				block -> dropsWithSilkTouch(
 						block,
 						ItemEntry.builder(Items.AMETHYST_SHARD)
 						         .apply(SetCountLootFunction.builder(ConstantLootNumberProvider.create(4.0F)))
@@ -1630,7 +1630,7 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 								         .create()
 								         .tag(impl2, ItemTags.CLUSTER_MAX_HARVESTABLES)))
 						         .alternatively(
-								         (LootPoolEntry.Builder<?>) this.applyExplosionDecay(
+								         (LootPoolEntry.Builder<?>) applyExplosionDecay(
 										         block,
 										         ItemEntry
 												         .builder(Items.AMETHYST_SHARD)
@@ -1640,108 +1640,108 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 						         )
 				)
 		);
-		this.addDropWithSilkTouch(Blocks.SMALL_AMETHYST_BUD);
-		this.addDropWithSilkTouch(Blocks.MEDIUM_AMETHYST_BUD);
-		this.addDropWithSilkTouch(Blocks.LARGE_AMETHYST_BUD);
-		this.addDropWithSilkTouch(Blocks.GLASS);
-		this.addDropWithSilkTouch(Blocks.WHITE_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.ORANGE_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.MAGENTA_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.LIGHT_BLUE_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.YELLOW_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.LIME_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.PINK_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.GRAY_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.LIGHT_GRAY_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.CYAN_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.PURPLE_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.BLUE_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.BROWN_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.GREEN_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.RED_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.BLACK_STAINED_GLASS);
-		this.addDropWithSilkTouch(Blocks.GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.WHITE_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.ORANGE_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.MAGENTA_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.LIGHT_BLUE_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.YELLOW_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.LIME_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.PINK_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.GRAY_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.LIGHT_GRAY_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.CYAN_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.PURPLE_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.BLUE_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.BROWN_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.GREEN_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.RED_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.BLACK_STAINED_GLASS_PANE);
-		this.addDropWithSilkTouch(Blocks.ICE);
-		this.addDropWithSilkTouch(Blocks.PACKED_ICE);
-		this.addDropWithSilkTouch(Blocks.BLUE_ICE);
-		this.addDropWithSilkTouch(Blocks.TURTLE_EGG);
-		this.addDropWithSilkTouch(Blocks.MUSHROOM_STEM);
-		this.addDropWithSilkTouch(Blocks.DEAD_TUBE_CORAL);
-		this.addDropWithSilkTouch(Blocks.DEAD_BRAIN_CORAL);
-		this.addDropWithSilkTouch(Blocks.DEAD_BUBBLE_CORAL);
-		this.addDropWithSilkTouch(Blocks.DEAD_FIRE_CORAL);
-		this.addDropWithSilkTouch(Blocks.DEAD_HORN_CORAL);
-		this.addDropWithSilkTouch(Blocks.TUBE_CORAL);
-		this.addDropWithSilkTouch(Blocks.BRAIN_CORAL);
-		this.addDropWithSilkTouch(Blocks.BUBBLE_CORAL);
-		this.addDropWithSilkTouch(Blocks.FIRE_CORAL);
-		this.addDropWithSilkTouch(Blocks.HORN_CORAL);
-		this.addDropWithSilkTouch(Blocks.DEAD_TUBE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.DEAD_BRAIN_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.DEAD_BUBBLE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.DEAD_FIRE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.DEAD_HORN_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.TUBE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.BRAIN_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.BUBBLE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.FIRE_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.HORN_CORAL_FAN);
-		this.addDropWithSilkTouch(Blocks.INFESTED_STONE, Blocks.STONE);
-		this.addDropWithSilkTouch(Blocks.INFESTED_COBBLESTONE, Blocks.COBBLESTONE);
-		this.addDropWithSilkTouch(Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS);
-		this.addDropWithSilkTouch(Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS);
-		this.addDropWithSilkTouch(Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS);
-		this.addDropWithSilkTouch(Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS);
-		this.addDropWithSilkTouch(Blocks.INFESTED_DEEPSLATE, Blocks.DEEPSLATE);
-		this.addVinePlantDrop(Blocks.WEEPING_VINES, Blocks.WEEPING_VINES_PLANT);
-		this.addVinePlantDrop(Blocks.TWISTING_VINES, Blocks.TWISTING_VINES_PLANT);
-		this.addDrop(Blocks.CAKE, dropsNothing());
-		this.addDrop(Blocks.CANDLE_CAKE, candleCakeDrops(Blocks.CANDLE));
-		this.addDrop(Blocks.WHITE_CANDLE_CAKE, candleCakeDrops(Blocks.WHITE_CANDLE));
-		this.addDrop(Blocks.ORANGE_CANDLE_CAKE, candleCakeDrops(Blocks.ORANGE_CANDLE));
-		this.addDrop(Blocks.MAGENTA_CANDLE_CAKE, candleCakeDrops(Blocks.MAGENTA_CANDLE));
-		this.addDrop(Blocks.LIGHT_BLUE_CANDLE_CAKE, candleCakeDrops(Blocks.LIGHT_BLUE_CANDLE));
-		this.addDrop(Blocks.YELLOW_CANDLE_CAKE, candleCakeDrops(Blocks.YELLOW_CANDLE));
-		this.addDrop(Blocks.LIME_CANDLE_CAKE, candleCakeDrops(Blocks.LIME_CANDLE));
-		this.addDrop(Blocks.PINK_CANDLE_CAKE, candleCakeDrops(Blocks.PINK_CANDLE));
-		this.addDrop(Blocks.GRAY_CANDLE_CAKE, candleCakeDrops(Blocks.GRAY_CANDLE));
-		this.addDrop(Blocks.LIGHT_GRAY_CANDLE_CAKE, candleCakeDrops(Blocks.LIGHT_GRAY_CANDLE));
-		this.addDrop(Blocks.CYAN_CANDLE_CAKE, candleCakeDrops(Blocks.CYAN_CANDLE));
-		this.addDrop(Blocks.PURPLE_CANDLE_CAKE, candleCakeDrops(Blocks.PURPLE_CANDLE));
-		this.addDrop(Blocks.BLUE_CANDLE_CAKE, candleCakeDrops(Blocks.BLUE_CANDLE));
-		this.addDrop(Blocks.BROWN_CANDLE_CAKE, candleCakeDrops(Blocks.BROWN_CANDLE));
-		this.addDrop(Blocks.GREEN_CANDLE_CAKE, candleCakeDrops(Blocks.GREEN_CANDLE));
-		this.addDrop(Blocks.RED_CANDLE_CAKE, candleCakeDrops(Blocks.RED_CANDLE));
-		this.addDrop(Blocks.BLACK_CANDLE_CAKE, candleCakeDrops(Blocks.BLACK_CANDLE));
-		this.addDrop(Blocks.FROSTED_ICE, dropsNothing());
-		this.addDrop(Blocks.SPAWNER, dropsNothing());
-		this.addDrop(Blocks.TRIAL_SPAWNER, dropsNothing());
-		this.addDrop(Blocks.VAULT, dropsNothing());
-		this.addDrop(Blocks.FIRE, dropsNothing());
-		this.addDrop(Blocks.SOUL_FIRE, dropsNothing());
-		this.addDrop(Blocks.NETHER_PORTAL, dropsNothing());
-		this.addDrop(Blocks.BUDDING_AMETHYST, dropsNothing());
-		this.addDrop(Blocks.POWDER_SNOW, dropsNothing());
-		this.addDrop(Blocks.FROGSPAWN, dropsNothing());
-		this.addDrop(Blocks.REINFORCED_DEEPSLATE, dropsNothing());
-		this.addDrop(Blocks.SUSPICIOUS_SAND, dropsNothing());
-		this.addDrop(Blocks.SUSPICIOUS_GRAVEL, dropsNothing());
+		addDropWithSilkTouch(Blocks.SMALL_AMETHYST_BUD);
+		addDropWithSilkTouch(Blocks.MEDIUM_AMETHYST_BUD);
+		addDropWithSilkTouch(Blocks.LARGE_AMETHYST_BUD);
+		addDropWithSilkTouch(Blocks.GLASS);
+		addDropWithSilkTouch(Blocks.WHITE_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.ORANGE_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.MAGENTA_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.LIGHT_BLUE_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.YELLOW_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.LIME_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.PINK_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.GRAY_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.LIGHT_GRAY_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.CYAN_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.PURPLE_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.BLUE_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.BROWN_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.GREEN_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.RED_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.BLACK_STAINED_GLASS);
+		addDropWithSilkTouch(Blocks.GLASS_PANE);
+		addDropWithSilkTouch(Blocks.WHITE_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.ORANGE_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.MAGENTA_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.LIGHT_BLUE_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.YELLOW_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.LIME_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.PINK_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.GRAY_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.LIGHT_GRAY_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.CYAN_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.PURPLE_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.BLUE_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.BROWN_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.GREEN_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.RED_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.BLACK_STAINED_GLASS_PANE);
+		addDropWithSilkTouch(Blocks.ICE);
+		addDropWithSilkTouch(Blocks.PACKED_ICE);
+		addDropWithSilkTouch(Blocks.BLUE_ICE);
+		addDropWithSilkTouch(Blocks.TURTLE_EGG);
+		addDropWithSilkTouch(Blocks.MUSHROOM_STEM);
+		addDropWithSilkTouch(Blocks.DEAD_TUBE_CORAL);
+		addDropWithSilkTouch(Blocks.DEAD_BRAIN_CORAL);
+		addDropWithSilkTouch(Blocks.DEAD_BUBBLE_CORAL);
+		addDropWithSilkTouch(Blocks.DEAD_FIRE_CORAL);
+		addDropWithSilkTouch(Blocks.DEAD_HORN_CORAL);
+		addDropWithSilkTouch(Blocks.TUBE_CORAL);
+		addDropWithSilkTouch(Blocks.BRAIN_CORAL);
+		addDropWithSilkTouch(Blocks.BUBBLE_CORAL);
+		addDropWithSilkTouch(Blocks.FIRE_CORAL);
+		addDropWithSilkTouch(Blocks.HORN_CORAL);
+		addDropWithSilkTouch(Blocks.DEAD_TUBE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.DEAD_BRAIN_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.DEAD_BUBBLE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.DEAD_FIRE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.DEAD_HORN_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.TUBE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.BRAIN_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.BUBBLE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.FIRE_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.HORN_CORAL_FAN);
+		addDropWithSilkTouch(Blocks.INFESTED_STONE, Blocks.STONE);
+		addDropWithSilkTouch(Blocks.INFESTED_COBBLESTONE, Blocks.COBBLESTONE);
+		addDropWithSilkTouch(Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS);
+		addDropWithSilkTouch(Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS);
+		addDropWithSilkTouch(Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS);
+		addDropWithSilkTouch(Blocks.INFESTED_CHISELED_STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS);
+		addDropWithSilkTouch(Blocks.INFESTED_DEEPSLATE, Blocks.DEEPSLATE);
+		addVinePlantDrop(Blocks.WEEPING_VINES, Blocks.WEEPING_VINES_PLANT);
+		addVinePlantDrop(Blocks.TWISTING_VINES, Blocks.TWISTING_VINES_PLANT);
+		addDrop(Blocks.CAKE, dropsNothing());
+		addDrop(Blocks.CANDLE_CAKE, candleCakeDrops(Blocks.CANDLE));
+		addDrop(Blocks.WHITE_CANDLE_CAKE, candleCakeDrops(Blocks.WHITE_CANDLE));
+		addDrop(Blocks.ORANGE_CANDLE_CAKE, candleCakeDrops(Blocks.ORANGE_CANDLE));
+		addDrop(Blocks.MAGENTA_CANDLE_CAKE, candleCakeDrops(Blocks.MAGENTA_CANDLE));
+		addDrop(Blocks.LIGHT_BLUE_CANDLE_CAKE, candleCakeDrops(Blocks.LIGHT_BLUE_CANDLE));
+		addDrop(Blocks.YELLOW_CANDLE_CAKE, candleCakeDrops(Blocks.YELLOW_CANDLE));
+		addDrop(Blocks.LIME_CANDLE_CAKE, candleCakeDrops(Blocks.LIME_CANDLE));
+		addDrop(Blocks.PINK_CANDLE_CAKE, candleCakeDrops(Blocks.PINK_CANDLE));
+		addDrop(Blocks.GRAY_CANDLE_CAKE, candleCakeDrops(Blocks.GRAY_CANDLE));
+		addDrop(Blocks.LIGHT_GRAY_CANDLE_CAKE, candleCakeDrops(Blocks.LIGHT_GRAY_CANDLE));
+		addDrop(Blocks.CYAN_CANDLE_CAKE, candleCakeDrops(Blocks.CYAN_CANDLE));
+		addDrop(Blocks.PURPLE_CANDLE_CAKE, candleCakeDrops(Blocks.PURPLE_CANDLE));
+		addDrop(Blocks.BLUE_CANDLE_CAKE, candleCakeDrops(Blocks.BLUE_CANDLE));
+		addDrop(Blocks.BROWN_CANDLE_CAKE, candleCakeDrops(Blocks.BROWN_CANDLE));
+		addDrop(Blocks.GREEN_CANDLE_CAKE, candleCakeDrops(Blocks.GREEN_CANDLE));
+		addDrop(Blocks.RED_CANDLE_CAKE, candleCakeDrops(Blocks.RED_CANDLE));
+		addDrop(Blocks.BLACK_CANDLE_CAKE, candleCakeDrops(Blocks.BLACK_CANDLE));
+		addDrop(Blocks.FROSTED_ICE, dropsNothing());
+		addDrop(Blocks.SPAWNER, dropsNothing());
+		addDrop(Blocks.TRIAL_SPAWNER, dropsNothing());
+		addDrop(Blocks.VAULT, dropsNothing());
+		addDrop(Blocks.FIRE, dropsNothing());
+		addDrop(Blocks.SOUL_FIRE, dropsNothing());
+		addDrop(Blocks.NETHER_PORTAL, dropsNothing());
+		addDrop(Blocks.BUDDING_AMETHYST, dropsNothing());
+		addDrop(Blocks.POWDER_SNOW, dropsNothing());
+		addDrop(Blocks.FROGSPAWN, dropsNothing());
+		addDrop(Blocks.REINFORCED_DEEPSLATE, dropsNothing());
+		addDrop(Blocks.SUSPICIOUS_SAND, dropsNothing());
+		addDrop(Blocks.SUSPICIOUS_GRAVEL, dropsNothing());
 	}
 
 	private LootTable.Builder decoratedPotDrops(Block block) {
@@ -1772,7 +1772,7 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 	}
 
 	private LootTable.Builder pitcherCropDrops() {
-		return this.applyExplosionDecay(
+		return applyExplosionDecay(
 				Blocks.PITCHER_CROP,
 				LootTable.builder()
 				         .pool(
@@ -1824,7 +1824,7 @@ public class VanillaBlockLootTableGenerator extends BlockLootTableGenerator {
 	private LootTable.Builder skullDrops(Block skull) {
 		return LootTable.builder()
 		                .pool(
-				                this.addSurvivesExplosionCondition(
+				                addSurvivesExplosionCondition(
 						                skull,
 						                LootPool.builder()
 						                        .rolls(ConstantLootNumberProvider.create(1.0F))

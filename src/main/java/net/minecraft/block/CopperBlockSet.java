@@ -9,7 +9,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * {@code CopperBlockSet}.
+ * Набор из восьми медных блоков одного типа: четыре степени окисления (без окисления, подвергшийся,
+ * выветренный, окисленный) и их вощёные аналоги. Предоставляет карты для логики окисления и вощения.
  */
 public record CopperBlockSet(
 		Block unaffected,
@@ -122,11 +123,6 @@ public record CopperBlockSet(
 		);
 	}
 
-	/**
-	 * For each.
-	 *
-	 * @param consumer consumer
-	 */
 	public void forEach(Consumer<Block> consumer) {
 		consumer.accept(this.unaffected);
 		consumer.accept(this.exposed);

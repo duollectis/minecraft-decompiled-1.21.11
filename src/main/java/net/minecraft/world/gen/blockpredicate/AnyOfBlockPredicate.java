@@ -7,27 +7,20 @@ import net.minecraft.world.StructureWorldAccess;
 import java.util.List;
 
 /**
- * {@code AnyOfBlockPredicate}.
+ * Предикат, возвращающий {@code true} если хотя бы один дочерний предикат истинен (логическое ИЛИ).
  */
 class AnyOfBlockPredicate extends CombinedBlockPredicate {
 
 	public static final MapCodec<AnyOfBlockPredicate> CODEC = buildCodec(AnyOfBlockPredicate::new);
 
-	public AnyOfBlockPredicate(List<BlockPredicate> list) {
-		super(list);
+	public AnyOfBlockPredicate(List<BlockPredicate> predicates) {
+		super(predicates);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		for (BlockPredicate blockPredicate : this.predicates) {
-			if (blockPredicate.test(structureWorldAccess, blockPos)) {
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
+		for (BlockPredicate predicate : predicates) {
+			if (predicate.test(world, pos)) {
 				return true;
 			}
 		}

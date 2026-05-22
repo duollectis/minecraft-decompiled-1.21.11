@@ -9,15 +9,17 @@ import net.minecraft.client.gui.widget.ThreePartsLayoutWidget;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OutOfMemoryScreen}.
+ * Экран, отображаемый при нехватке памяти (OutOfMemoryError).
+ * Предлагает вернуться на главный экран или выйти из игры.
  */
+@Environment(EnvType.CLIENT)
 public class OutOfMemoryScreen extends Screen {
 
 	private static final Text TITLE = Text.translatable("outOfMemory.title");
 	private static final Text MESSAGE = Text.translatable("outOfMemory.message");
 	private static final int MAX_TEXT_WIDTH = 300;
+
 	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
 	public OutOfMemoryScreen() {
@@ -26,24 +28,20 @@ public class OutOfMemoryScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.layout.addHeader(TITLE, this.textRenderer);
-		this.layout.addBody(NarratedMultilineTextWidget.builder(MESSAGE, this.textRenderer).width(300).build());
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(ScreenTexts.TO_TITLE, button -> this.client.setScreen(new TitleScreen()))
-				.build());
-		directionalLayoutWidget.add(ButtonWidget
-				.builder(Text.translatable("menu.quit"), button -> this.client.scheduleStop())
-				.build());
-		this.layout.forEachChild(this::addDrawableChild);
-		this.refreshWidgetPositions();
+		layout.addHeader(TITLE, textRenderer);
+		layout.addBody(NarratedMultilineTextWidget.builder(MESSAGE, textRenderer).width(MAX_TEXT_WIDTH).build());
+
+		DirectionalLayoutWidget buttonRow = layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		buttonRow.add(ButtonWidget.builder(ScreenTexts.TO_TITLE, button -> client.setScreen(new TitleScreen())).build());
+		buttonRow.add(ButtonWidget.builder(Text.translatable("menu.quit"), button -> client.scheduleStop()).build());
+
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	@Override

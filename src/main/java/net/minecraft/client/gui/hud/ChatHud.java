@@ -33,10 +33,10 @@ import java.util.ListIterator;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatHud}.
+ * HUD-компонент чата: отображает историю сообщений, управляет прокруткой и индикаторами.
  */
+@Environment(EnvType.CLIENT)
 public class ChatHud {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -54,7 +54,7 @@ public class ChatHud {
 			.withClickEvent(new ClickEvent.Custom(EXPAND_CHAT_QUEUE_ID, Optional.empty()))
 			.withHoverEvent(new HoverEvent.ShowText(Text.translatable("chat.queue.tooltip")));
 	final MinecraftClient client;
-	private final ArrayListDeque<String> messageHistory = new ArrayListDeque<>(100);
+	private final ArrayListDeque<String> messageHistory = new ArrayListDeque<>(MAX_MESSAGES);
 	private final List<ChatHudLine> messages = Lists.newArrayList();
 	private final List<ChatHudLine.Visible> visibleMessages = Lists.newArrayList();
 	private int scrolledLines;
@@ -135,7 +135,7 @@ public class ChatHud {
 				profiler.push("chat");
 				float f = (float) this.getChatScale();
 				int j = MathHelper.ceil(this.getWidth() / f);
-				final int k = MathHelper.floor((windowHeight - 40) / f);
+				final int k = MathHelper.floor((windowHeight - OFFSET_FROM_BOTTOM) / f);
 				final float g = this.client.options.getChatOpacity().getValue().floatValue() * 0.9F + 0.1F;
 				float h = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
 				final int l = 9;
@@ -295,7 +295,7 @@ public class ChatHud {
 			));
 		}
 
-		while (this.visibleMessages.size() > 100) {
+		while (this.visibleMessages.size() > MAX_MESSAGES) {
 			this.visibleMessages.removeLast();
 		}
 	}
@@ -303,7 +303,7 @@ public class ChatHud {
 	private void addMessage(ChatHudLine message) {
 		this.messages.addFirst(message);
 
-		while (this.messages.size() > 100) {
+		while (this.messages.size() > MAX_MESSAGES) {
 			this.messages.removeLast();
 		}
 	}
@@ -333,7 +333,7 @@ public class ChatHud {
 		while (listIterator.hasNext()) {
 			ChatHudLine chatHudLine = listIterator.next();
 			if (signature.equals(chatHudLine.signature())) {
-				int j = chatHudLine.creationTick() + 60;
+				int j = chatHudLine.creationTick() + REMOVAL_QUEUE_TICKS;
 				if (i >= j) {
 					listIterator.set(this.createRemovalMarker(chatHudLine));
 					this.refresh();
@@ -378,7 +378,7 @@ public class ChatHud {
 	 */
 	public void addToMessageHistory(String message) {
 		if (!message.equals(this.messageHistory.peekLast())) {
-			if (this.messageHistory.size() >= 100) {
+			if (this.messageHistory.size() >= MAX_MESSAGES) {
 				this.messageHistory.removeFirst();
 			}
 
@@ -435,7 +435,7 @@ public class ChatHud {
 
 	public static int getWidth(double widthOption) {
 		int i = 320;
-		int j = 40;
+		int j = OFFSET_FROM_BOTTOM;
 		return MathHelper.floor(widthOption * 280.0 + 40.0);
 	}
 
@@ -538,10 +538,11 @@ public class ChatHud {
 		this.refresh();
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Backend}.
+	 * Низкоуровневый бэкенд отрисовки чата: абстрагирует рендеринг текста,
+	 * заливок и индикаторов от конкретной реализации (HUD, форвардер, интерактивный режим).
 	 */
+	@Environment(EnvType.CLIENT)
 	public interface Backend {
 
 		void updatePose(Consumer<Matrix3x2f> transformer);
@@ -561,11 +562,12 @@ public class ChatHud {
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ChatMethod}.
+	 * Метод ввода в чат: обычное сообщение или команда (начинается с {@code /}).
+	 * Определяет, нужно ли сохранять черновик при переключении режима.
 	 */
-	public static enum ChatMethod {
+	@Environment(EnvType.CLIENT)
+	public enum ChatMethod {
 		MESSAGE("") {
 			@Override
 			public boolean shouldKeepDraft(ChatHud.Draft draft) {
@@ -589,20 +591,14 @@ public class ChatHud {
 			return this.replacement;
 		}
 
-		/**
-		 * Определяет, следует ли keep draft.
-		 *
-		 * @param draft draft
-		 *
-		 * @return boolean — результат операции
-		 */
 		public abstract boolean shouldKeepDraft(ChatHud.Draft draft);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ChatState}.
+	 * Снимок состояния чата для сохранения и восстановления истории сообщений
+	 * при переходе между экранами (например, при открытии/закрытии ChatScreen).
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class ChatState {
 
 		final List<ChatHudLine> messages;
@@ -620,17 +616,14 @@ public class ChatHud {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Draft}.
+	 * Черновик сообщения чата: текст и метод ввода, сохраняемые при временном закрытии экрана.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Draft(String text, ChatHud.ChatMethod chatMethod) {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Forwarder}.
-	 */
 	static class Forwarder implements ChatHud.Backend {
 
 		private final DrawnTextConsumer drawer;
@@ -673,9 +666,6 @@ public class ChatHud {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Hud}.
-	 */
 	static class Hud implements ChatHud.Backend {
 
 		private final DrawContext context;
@@ -723,9 +713,6 @@ public class ChatHud {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Interactable}.
-	 */
 	static class Interactable implements ChatHud.Backend, Consumer<Style> {
 
 		private final DrawContext context;
@@ -768,11 +755,6 @@ public class ChatHud {
 			this.context.fill(x1, y1, x2, y2, color);
 		}
 
-		/**
-		 * Accept.
-		 *
-		 * @param style style
-		 */
 		public void accept(Style style) {
 			this.style = style;
 		}
@@ -832,7 +814,7 @@ public class ChatHud {
 			if (indicator.text() != null) {
 				this.context.drawOrderedTooltip(
 						this.textRenderer,
-						this.textRenderer.wrapLines(indicator.text(), 210),
+						this.textRenderer.wrapLines(indicator.text(), MAX_WIDTH),
 						this.mouseX,
 						this.mouseY
 				);
@@ -842,9 +824,6 @@ public class ChatHud {
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code LineConsumer}.
-	 */
 	interface LineConsumer {
 
 		void accept(ChatHudLine.Visible line, int y1, float opacity);
@@ -852,9 +831,6 @@ public class ChatHud {
 
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code OpacityRule}.
-	 */
 	interface OpacityRule {
 
 		ChatHud.OpacityRule CONSTANT = line -> 1.0F;
@@ -875,9 +851,6 @@ public class ChatHud {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code RemovalQueuedMessage}.
-	 */
 	record RemovalQueuedMessage(MessageSignatureData signature, int deletableAfter) {
 	}
 }

@@ -24,7 +24,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code DecoratedPotBlockEntity}.
+ * Блок-сущность декорированного горшка. Хранит черепки на четырёх гранях и один предмет внутри.
+ * Поддерживает лут-таблицы и анимацию покачивания при взаимодействии.
  */
 public class DecoratedPotBlockEntity extends BlockEntity implements LootableInventory, SingleStackInventory.SingleStackBlockEntityInventory {
 
@@ -40,53 +41,48 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 
 	public DecoratedPotBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.DECORATED_POT, pos, state);
-		this.sherds = Sherds.DEFAULT;
+		sherds = Sherds.DEFAULT;
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		if (!this.sherds.equals(Sherds.DEFAULT)) {
-			view.put("sherds", Sherds.CODEC, this.sherds);
+		if (!sherds.equals(Sherds.DEFAULT)) {
+			view.put("sherds", Sherds.CODEC, sherds);
 		}
 
-		if (!this.writeLootTable(view) && !this.stack.isEmpty()) {
-			view.put("item", ItemStack.CODEC, this.stack);
+		if (!writeLootTable(view) && !stack.isEmpty()) {
+			view.put("item", ItemStack.CODEC, stack);
 		}
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.sherds = view.<Sherds>read("sherds", Sherds.CODEC).orElse(Sherds.DEFAULT);
-		if (!this.readLootTable(view)) {
-			this.stack = view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
-		}
-		else {
-			this.stack = ItemStack.EMPTY;
+		sherds = view.<Sherds>read("sherds", Sherds.CODEC).orElse(Sherds.DEFAULT);
+		if (readLootTable(view)) {
+			stack = ItemStack.EMPTY;
+		} else {
+			stack = view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
 		}
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
 	@Override
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-		return this.createComponentlessNbt(registries);
+		return createComponentlessNbt(registries);
 	}
 
 	public Direction getHorizontalFacing() {
-		return this.getCachedState().get(Properties.HORIZONTAL_FACING);
+		return getCachedState().get(Properties.HORIZONTAL_FACING);
 	}
 
 	public Sherds getSherds() {
-		return this.sherds;
+		return sherds;
 	}
 
 	public static ItemStack getStackWith(Sherds sherds) {
@@ -97,36 +93,36 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 
 	@Override
 	public @Nullable RegistryKey<LootTable> getLootTable() {
-		return this.lootTableId;
+		return lootTableId;
 	}
 
 	@Override
 	public void setLootTable(@Nullable RegistryKey<LootTable> lootTable) {
-		this.lootTableId = lootTable;
+		lootTableId = lootTable;
 	}
 
 	@Override
 	public long getLootTableSeed() {
-		return this.lootTableSeed;
+		return lootTableSeed;
 	}
 
 	@Override
-	public void setLootTableSeed(long lootTableSeed) {
-		this.lootTableSeed = lootTableSeed;
+	public void setLootTableSeed(long seed) {
+		lootTableSeed = seed;
 	}
 
 	@Override
 	protected void addComponents(ComponentMap.Builder builder) {
 		super.addComponents(builder);
-		builder.add(DataComponentTypes.POT_DECORATIONS, this.sherds);
-		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(List.of(this.stack)));
+		builder.add(DataComponentTypes.POT_DECORATIONS, sherds);
+		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(List.of(stack)));
 	}
 
 	@Override
 	protected void readComponents(ComponentsAccess components) {
 		super.readComponents(components);
-		this.sherds = components.getOrDefault(DataComponentTypes.POT_DECORATIONS, Sherds.DEFAULT);
-		this.stack = components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyFirstStack();
+		sherds = components.getOrDefault(DataComponentTypes.POT_DECORATIONS, Sherds.DEFAULT);
+		stack = components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyFirstStack();
 	}
 
 	@Override
@@ -138,24 +134,24 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 
 	@Override
 	public ItemStack getStack() {
-		this.generateLoot(null);
-		return this.stack;
+		generateLoot(null);
+		return stack;
 	}
 
 	@Override
 	public ItemStack decreaseStack(int count) {
-		this.generateLoot(null);
-		ItemStack itemStack = this.stack.split(count);
-		if (this.stack.isEmpty()) {
-			this.stack = ItemStack.EMPTY;
+		generateLoot(null);
+		ItemStack split = stack.split(count);
+		if (stack.isEmpty()) {
+			stack = ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		return split;
 	}
 
 	@Override
 	public void setStack(ItemStack stack) {
-		this.generateLoot(null);
+		generateLoot(null);
 		this.stack = stack;
 	}
 
@@ -164,33 +160,28 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 		return this;
 	}
 
-	/**
-	 * Wobble.
-	 *
-	 * @param wobbleType wobble type
-	 */
+	/** Запускает анимацию покачивания горшка на клиенте через синхронизированное событие блока. */
 	public void wobble(DecoratedPotBlockEntity.WobbleType wobbleType) {
-		if (this.world != null && !this.world.isClient()) {
-			this.world.addSyncedBlockEvent(this.getPos(), this.getCachedState().getBlock(), 1, wobbleType.ordinal());
+		if (world == null || world.isClient()) {
+			return;
 		}
+
+		world.addSyncedBlockEvent(getPos(), getCachedState().getBlock(), 1, wobbleType.ordinal());
 	}
 
 	@Override
 	public boolean onSyncedBlockEvent(int type, int data) {
-		if (this.world != null && type == 1 && data >= 0 && data < DecoratedPotBlockEntity.WobbleType.values().length) {
-			this.lastWobbleTime = this.world.getTime();
-			this.lastWobbleType = DecoratedPotBlockEntity.WobbleType.values()[data];
-			return true;
-		}
-		else {
+		if (world == null || type != 1 || data < 0 || data >= WobbleType.values().length) {
 			return super.onSyncedBlockEvent(type, data);
 		}
+
+		lastWobbleTime = world.getTime();
+		lastWobbleType = WobbleType.values()[data];
+		return true;
 	}
 
-	/**
-	 * {@code WobbleType}.
-	 */
-	public static enum WobbleType {
+	/** Тип анимации покачивания горшка: позитивный (короткий) или негативный (длинный). */
+	public enum WobbleType {
 		POSITIVE(7),
 		NEGATIVE(10);
 

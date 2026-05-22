@@ -8,14 +8,17 @@ import net.minecraft.village.MerchantInventory;
 import net.minecraft.village.TradeOffer;
 
 /**
- * {@code TradeOutputSlot}.
+ * Слот результата торговли с торговцем (жителем, странствующим торговцем и т.д.).
+ * <p>
+ * При взятии предмета автоматически расходует входные предметы из инвентаря торговца,
+ * начисляет опыт торговцу и увеличивает счётчик статистики игрока.
  */
 public class TradeOutputSlot extends Slot {
 
 	private final MerchantInventory merchantInventory;
 	private final PlayerEntity player;
-	private int amount;
 	private final Merchant merchant;
+	private int amount;
 
 	public TradeOutputSlot(
 			PlayerEntity player,
@@ -38,8 +41,8 @@ public class TradeOutputSlot extends Slot {
 
 	@Override
 	public ItemStack takeStack(int amount) {
-		if (this.hasStack()) {
-			this.amount = this.amount + Math.min(amount, this.getStack().getCount());
+		if (hasStack()) {
+			this.amount += Math.min(amount, getStack().getCount());
 		}
 
 		return super.takeStack(amount);
@@ -48,33 +51,39 @@ public class TradeOutputSlot extends Slot {
 	@Override
 	protected void onCrafted(ItemStack stack, int amount) {
 		this.amount += amount;
-		this.onCrafted(stack);
+		onCrafted(stack);
 	}
 
 	@Override
 	protected void onCrafted(ItemStack stack) {
-		stack.onCraftByPlayer(this.player, this.amount);
-		this.amount = 0;
+		stack.onCraftByPlayer(player, amount);
+		amount = 0;
 	}
 
+	/**
+	 * Вызывается при взятии предмета из слота результата.
+	 * Расходует входные предметы торговли и начисляет опыт торговцу.
+	 */
 	@Override
 	public void onTakeItem(PlayerEntity player, ItemStack stack) {
-		this.onCrafted(stack);
-		TradeOffer tradeOffer = this.merchantInventory.getTradeOffer();
-		if (tradeOffer != null) {
-			ItemStack itemStack = this.merchantInventory.getStack(0);
-			ItemStack itemStack2 = this.merchantInventory.getStack(1);
-			if (tradeOffer.depleteBuyItems(itemStack, itemStack2) || tradeOffer.depleteBuyItems(
-					itemStack2,
-					itemStack
-			)) {
-				this.merchant.trade(tradeOffer);
-				player.incrementStat(Stats.TRADED_WITH_VILLAGER);
-				this.merchantInventory.setStack(0, itemStack);
-				this.merchantInventory.setStack(1, itemStack2);
-			}
+		onCrafted(stack);
 
-			this.merchant.setExperienceFromServer(this.merchant.getExperience() + tradeOffer.getMerchantExperience());
+		TradeOffer offer = merchantInventory.getTradeOffer();
+		if (offer == null) {
+			return;
 		}
+
+		ItemStack firstInput = merchantInventory.getStack(0);
+		ItemStack secondInput = merchantInventory.getStack(1);
+
+		if (offer.depleteBuyItems(firstInput, secondInput)
+				|| offer.depleteBuyItems(secondInput, firstInput)) {
+			merchant.trade(offer);
+			player.incrementStat(Stats.TRADED_WITH_VILLAGER);
+			merchantInventory.setStack(0, firstInput);
+			merchantInventory.setStack(1, secondInput);
+		}
+
+		merchant.setExperienceFromServer(merchant.getExperience() + offer.getMerchantExperience());
 	}
 }

@@ -4,12 +4,12 @@ import net.minecraft.component.ComponentType;
 import net.minecraft.component.ComponentsAccess;
 
 /**
- * {@code ComponentExistencePredicate}.
+ * Предикат, проверяющий наличие компонента заданного типа в наборе компонентов.
  */
 public record ComponentExistencePredicate(ComponentType<?> type) implements ComponentPredicate {
 
 	@Override
 	public boolean test(ComponentsAccess components) {
-		return components.get(this.type) != null;
+		return components.get(type) != null;
 	}
 }

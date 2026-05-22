@@ -5,7 +5,9 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code BiomeTags}.
+ * Статические ключи тегов биомов Minecraft.
+ * Теги используются для группировки биомов по характеристикам (тип измерения, наличие структур,
+ * поведение мобов и т.д.) и проверяются через {@link net.minecraft.registry.tag.TagKey}.
  */
 public class BiomeTags {
 

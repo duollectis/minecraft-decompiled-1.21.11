@@ -1,7 +1,5 @@
 package net.minecraft.advancement.criterion;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.advancement.AdvancementCriterion;
@@ -23,13 +21,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
- * {@code KilledByArrowCriterion}.
+ * Критерий: игрок убит стрелой (или несколько сущностей пробиты одной стрелой).
+ * Проверяет список жертв, количество уникальных типов сущностей и оружие.
  */
 public class KilledByArrowCriterion extends AbstractCriterion<KilledByArrowCriterion.Conditions> {
 
 	@Override
-	public Codec<KilledByArrowCriterion.Conditions> getConditionsCodec() {
-		return KilledByArrowCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(
@@ -37,20 +36,17 @@ public class KilledByArrowCriterion extends AbstractCriterion<KilledByArrowCrite
 			Collection<Entity> piercingKilledEntities,
 			@Nullable ItemStack weapon
 	) {
-		List<LootContext> list = Lists.newArrayList();
-		Set<EntityType<?>> set = Sets.newHashSet();
+		List<LootContext> victimContexts = new ArrayList<>();
+		Set<EntityType<?>> uniqueTypes = new HashSet<>();
 
 		for (Entity entity : piercingKilledEntities) {
-			set.add(entity.getType());
-			list.add(EntityPredicate.createAdvancementEntityLootContext(player, entity));
+			uniqueTypes.add(entity.getType());
+			victimContexts.add(EntityPredicate.createAdvancementEntityLootContext(player, entity));
 		}
 
-		this.trigger(player, conditions -> conditions.matches(list, set.size(), weapon));
+		trigger(player, conditions -> conditions.matches(victimContexts, uniqueTypes.size(), weapon));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			List<LootContextPredicate> victims,
@@ -58,98 +54,87 @@ public class KilledByArrowCriterion extends AbstractCriterion<KilledByArrowCrite
 			Optional<ItemPredicate> firedFromWeapon
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<KilledByArrowCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(KilledByArrowCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .listOf()
-								                    .optionalFieldOf("victims", List.of())
-								                    .forGetter(KilledByArrowCriterion.Conditions::victims),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("unique_entity_types", NumberRange.IntRange.ANY)
-								                    .forGetter(KilledByArrowCriterion.Conditions::uniqueEntityTypes),
-						                    ItemPredicate.CODEC
-								                    .optionalFieldOf("fired_from_weapon")
-								                    .forGetter(KilledByArrowCriterion.Conditions::firedFromWeapon)
-				                    )
-				                    .apply(instance, KilledByArrowCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.listOf()
+								.optionalFieldOf("victims", List.of())
+								.forGetter(Conditions::victims),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("unique_entity_types", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::uniqueEntityTypes),
+						ItemPredicate.CODEC
+								.optionalFieldOf("fired_from_weapon")
+								.forGetter(Conditions::firedFromWeapon)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<KilledByArrowCriterion.Conditions> createCrossbow(
+		public static AdvancementCriterion<Conditions> createCrossbow(
 				RegistryEntryLookup<Item> itemRegistry, EntityPredicate.Builder... victims
 		) {
-			return Criteria.KILLED_BY_ARROW
-					.create(
-							new KilledByArrowCriterion.Conditions(
-									Optional.empty(),
-									EntityPredicate.contextPredicateFromEntityPredicates(victims),
-									NumberRange.IntRange.ANY,
-									Optional.of(ItemPredicate.Builder
-											.create()
-											.items(itemRegistry, Items.CROSSBOW)
-											.build())
-							)
-					);
+			return Criteria.KILLED_BY_ARROW.create(new Conditions(
+					Optional.empty(),
+					EntityPredicate.contextPredicateFromEntityPredicates(victims),
+					NumberRange.IntRange.ANY,
+					Optional.of(ItemPredicate.Builder.create().items(itemRegistry, Items.CROSSBOW).build())
+			));
 		}
 
-		public static AdvancementCriterion<KilledByArrowCriterion.Conditions> createCrossbow(
+		public static AdvancementCriterion<Conditions> createCrossbow(
 				RegistryEntryLookup<Item> itemRegistry, NumberRange.IntRange uniqueEntityTypeCount
 		) {
-			return Criteria.KILLED_BY_ARROW
-					.create(
-							new KilledByArrowCriterion.Conditions(
-									Optional.empty(),
-									List.of(),
-									uniqueEntityTypeCount,
-									Optional.of(ItemPredicate.Builder
-											.create()
-											.items(itemRegistry, Items.CROSSBOW)
-											.build())
-							)
-					);
+			return Criteria.KILLED_BY_ARROW.create(new Conditions(
+					Optional.empty(),
+					List.of(),
+					uniqueEntityTypeCount,
+					Optional.of(ItemPredicate.Builder.create().items(itemRegistry, Items.CROSSBOW).build())
+			));
 		}
 
+		/**
+		 * Проверяет оружие, список жертв и количество уникальных типов сущностей.
+		 * Для каждого предиката жертвы ищет первое совпадение в списке контекстов и удаляет его.
+		 */
 		public boolean matches(
 				Collection<LootContext> victimContexts,
 				int uniqueEntityTypeCount,
 				@Nullable ItemStack weapon
 		) {
-			if (!this.firedFromWeapon.isPresent() || weapon != null && this.firedFromWeapon.get().test(weapon)) {
-				if (!this.victims.isEmpty()) {
-					List<LootContext> list = Lists.newArrayList(victimContexts);
-
-					for (LootContextPredicate lootContextPredicate : this.victims) {
-						boolean bl = false;
-						Iterator<LootContext> iterator = list.iterator();
-
-						while (iterator.hasNext()) {
-							LootContext lootContext = iterator.next();
-							if (lootContextPredicate.test(lootContext)) {
-								iterator.remove();
-								bl = true;
-								break;
-							}
-						}
-
-						if (!bl) {
-							return false;
-						}
-					}
-				}
-
-				return this.uniqueEntityTypes.test(uniqueEntityTypeCount);
-			}
-			else {
+			if (firedFromWeapon.isPresent() && (weapon == null || !firedFromWeapon.get().test(weapon))) {
 				return false;
 			}
+
+			if (!victims.isEmpty()) {
+				List<LootContext> remaining = new ArrayList<>(victimContexts);
+
+				for (LootContextPredicate victimPredicate : victims) {
+					boolean matched = false;
+					Iterator<LootContext> iterator = remaining.iterator();
+
+					while (iterator.hasNext()) {
+						if (victimPredicate.test(iterator.next())) {
+							iterator.remove();
+							matched = true;
+							break;
+						}
+					}
+
+					if (!matched) {
+						return false;
+					}
+				}
+			}
+
+			return uniqueEntityTypes.test(uniqueEntityTypeCount);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicates(this.victims, "victims");
+			validator.validateEntityPredicates(victims, "victims");
 		}
 	}
 }

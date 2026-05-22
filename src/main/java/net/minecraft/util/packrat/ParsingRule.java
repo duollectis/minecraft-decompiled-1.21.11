@@ -3,66 +3,64 @@ package net.minecraft.util.packrat;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ParsingRule}.
+ * Правило разбора, которое принимает состояние парсера и возвращает
+ * типизированный результат или {@code null} при неудаче.
  */
 public interface ParsingRule<S, T> {
 
 	@Nullable T parse(ParsingState<S> state);
 
-	static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.RuleAction<S, T> action) {
-		return new ParsingRule.SimpleRule<>(action, term);
+	static <S, T> ParsingRule<S, T> of(Term<S> term, RuleAction<S, T> action) {
+		return new SimpleRule<>(action, term);
 	}
 
-	static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.StatelessAction<S, T> action) {
-		return new ParsingRule.SimpleRule<>(action, term);
+	static <S, T> ParsingRule<S, T> of(Term<S> term, StatelessAction<S, T> action) {
+		return new SimpleRule<>(action, term);
 	}
 
+	/**
+	 * Действие правила, имеющее доступ к полному состоянию парсера.
+	 */
 	@FunctionalInterface
-	/**
-	 * {@code RuleAction}.
-	 */
-	public interface RuleAction<S, T> {
+	interface RuleAction<S, T> {
 
-		@Nullable T run(ParsingState<S> parsingState);
+		@Nullable T run(ParsingState<S> state);
 	}
 
 	/**
-	 * {@code SimpleRule}.
+	 * Правило, объединяющее терминальный символ и действие.
+	 * Управляет фреймом результатов: открывает перед проверкой и закрывает после.
 	 */
-	public record SimpleRule<S, T>(ParsingRule.RuleAction<S, T> action, Term<S> child) implements ParsingRule<S, T> {
+	record SimpleRule<S, T>(RuleAction<S, T> action, Term<S> child) implements ParsingRule<S, T> {
 
 		@Override
 		public @Nullable T parse(ParsingState<S> state) {
-			ParseResults parseResults = state.getResults();
-			parseResults.pushFrame();
+			ParseResults results = state.getResults();
+			results.pushFrame();
 
-			Object var3;
 			try {
-				if (!this.child.matches(state, parseResults, Cut.NOOP)) {
+				if (!child.matches(state, results, Cut.NOOP)) {
 					return null;
 				}
 
-				var3 = this.action.run(state);
+				return action.run(state);
+			} finally {
+				results.popFrame();
 			}
-			finally {
-				parseResults.popFrame();
-			}
-
-			return (T) var3;
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code StatelessAction}.
+	 * Действие правила, работающее только с результатами разбора без доступа к состоянию.
 	 */
-	public interface StatelessAction<S, T> extends ParsingRule.RuleAction<S, T> {
+	@FunctionalInterface
+	interface StatelessAction<S, T> extends RuleAction<S, T> {
 
-		T run(ParseResults parseResults);
+		T run(ParseResults results);
 
 		@Override
-		default T run(ParsingState<S> parsingState) {
-			return this.run(parsingState.getResults());
+		default T run(ParsingState<S> state) {
+			return run(state.getResults());
 		}
 	}
 }

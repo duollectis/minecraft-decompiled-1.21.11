@@ -3,7 +3,8 @@ package net.minecraft.world.chunk;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code BlockEntityTickInvoker}.
+ * Обёртка над тикающим блок-энтити, позволяющая безопасно вызывать тик
+ * и проверять актуальность блок-энтити без прямой ссылки на него.
  */
 public interface BlockEntityTickInvoker {
 

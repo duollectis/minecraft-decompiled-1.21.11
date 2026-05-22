@@ -18,82 +18,105 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code FarmerWorkTask}.
+ * Расширение рабочей задачи жителя-фермера: компостирует излишки семян и выпекает хлеб из пшеницы.
+ * Выполняется при наличии компостера на рабочем месте.
  */
 public class FarmerWorkTask extends VillagerWorkTask {
 
 	private static final List<Item> COMPOSTABLES = ImmutableList.of(Items.WHEAT_SEEDS, Items.BEETROOT_SEEDS);
+	private static final int COMPOSTER_FULL_LEVEL = 8;
+	private static final int COMPOSTER_ALMOST_FULL_LEVEL = 7;
+	private static final int MAX_COMPOST_ATTEMPTS = 20;
+	private static final int MIN_SEED_SURPLUS = 10;
+	private static final int MAX_BREAD_IN_INVENTORY = 36;
+	private static final int WHEAT_PER_BREAD = 3;
+	private static final int WORLD_EVENT_COMPOSTER = 1500;
+	private static final float DROP_OFFSET_Y = 0.5F;
 
 	@Override
 	protected void performAdditionalWork(ServerWorld world, VillagerEntity entity) {
-		Optional<GlobalPos> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
-		if (!optional.isEmpty()) {
-			GlobalPos globalPos = optional.get();
-			BlockState blockState = world.getBlockState(globalPos.pos());
-			if (blockState.isOf(Blocks.COMPOSTER)) {
-				this.craftAndDropBread(world, entity);
-				this.compostSeeds(world, entity, globalPos, blockState);
-			}
+		Optional<GlobalPos> jobSite = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
+
+		if (jobSite.isEmpty()) {
+			return;
+		}
+
+		GlobalPos globalPos = jobSite.get();
+		BlockState blockState = world.getBlockState(globalPos.pos());
+
+		if (blockState.isOf(Blocks.COMPOSTER)) {
+			craftAndDropBread(world, entity);
+			compostSeeds(world, entity, globalPos, blockState);
 		}
 	}
 
 	private void compostSeeds(ServerWorld world, VillagerEntity entity, GlobalPos pos, BlockState composterState) {
 		BlockPos blockPos = pos.pos();
-		if (composterState.get(ComposterBlock.LEVEL) == 8) {
+
+		if (composterState.get(ComposterBlock.LEVEL) == COMPOSTER_FULL_LEVEL) {
 			composterState = ComposterBlock.emptyFullComposter(entity, composterState, world, blockPos);
 		}
 
-		int i = 20;
-		int j = 10;
-		int[] is = new int[COMPOSTABLES.size()];
-		SimpleInventory simpleInventory = entity.getInventory();
-		int k = simpleInventory.size();
-		BlockState blockState = composterState;
+		int remaining = MAX_COMPOST_ATTEMPTS;
+		int[] seedCounts = new int[COMPOSTABLES.size()];
+		SimpleInventory inventory = entity.getInventory();
+		BlockState currentState = composterState;
 
-		for (int l = k - 1; l >= 0 && i > 0; l--) {
-			ItemStack itemStack = simpleInventory.getStack(l);
-			int m = COMPOSTABLES.indexOf(itemStack.getItem());
-			if (m != -1) {
-				int n = itemStack.getCount();
-				int o = is[m] + n;
-				is[m] = o;
-				int p = Math.min(Math.min(o - 10, i), n);
-				if (p > 0) {
-					i -= p;
+		for (int slot = inventory.size() - 1; slot >= 0 && remaining > 0; slot--) {
+			ItemStack stack = inventory.getStack(slot);
+			int seedIndex = COMPOSTABLES.indexOf(stack.getItem());
 
-					for (int q = 0; q < p; q++) {
-						blockState = ComposterBlock.compost(entity, blockState, world, itemStack, blockPos);
-						if (blockState.get(ComposterBlock.LEVEL) == 7) {
-							this.syncComposterEvent(world, composterState, blockPos, blockState);
-							return;
-						}
-					}
+			if (seedIndex == -1) {
+				continue;
+			}
+
+			int count = stack.getCount();
+			int total = seedCounts[seedIndex] + count;
+			seedCounts[seedIndex] = total;
+			int toCompost = Math.min(Math.min(total - MIN_SEED_SURPLUS, remaining), count);
+
+			if (toCompost <= 0) {
+				continue;
+			}
+
+			remaining -= toCompost;
+
+			for (int i = 0; i < toCompost; i++) {
+				currentState = ComposterBlock.compost(entity, currentState, world, stack, blockPos);
+
+				if (currentState.get(ComposterBlock.LEVEL) == COMPOSTER_ALMOST_FULL_LEVEL) {
+					syncComposterEvent(world, composterState, blockPos, currentState);
+					return;
 				}
 			}
 		}
 
-		this.syncComposterEvent(world, composterState, blockPos, blockState);
+		syncComposterEvent(world, composterState, blockPos, currentState);
 	}
 
 	private void syncComposterEvent(ServerWorld world, BlockState oldState, BlockPos pos, BlockState newState) {
-		world.syncWorldEvent(1500, pos, newState != oldState ? 1 : 0);
+		world.syncWorldEvent(WORLD_EVENT_COMPOSTER, pos, newState != oldState ? 1 : 0);
 	}
 
 	private void craftAndDropBread(ServerWorld world, VillagerEntity villager) {
-		SimpleInventory simpleInventory = villager.getInventory();
-		if (simpleInventory.count(Items.BREAD) <= 36) {
-			int i = simpleInventory.count(Items.WHEAT);
-			int j = 3;
-			int k = 3;
-			int l = Math.min(3, i / 3);
-			if (l != 0) {
-				int m = l * 3;
-				simpleInventory.removeItem(Items.WHEAT, m);
-				ItemStack itemStack = simpleInventory.addStack(new ItemStack(Items.BREAD, l));
-				if (!itemStack.isEmpty()) {
-					villager.dropStack(world, itemStack, 0.5F);
-				}
-			}
+		SimpleInventory inventory = villager.getInventory();
+
+		if (inventory.count(Items.BREAD) > MAX_BREAD_IN_INVENTORY) {
+			return;
+		}
+
+		int wheatCount = inventory.count(Items.WHEAT);
+		int loaves = Math.min(WHEAT_PER_BREAD, wheatCount / WHEAT_PER_BREAD);
+
+		if (loaves == 0) {
+			return;
+		}
+
+		inventory.removeItem(Items.WHEAT, loaves * WHEAT_PER_BREAD);
+		ItemStack leftover = inventory.addStack(new ItemStack(Items.BREAD, loaves));
+
+		if (!leftover.isEmpty()) {
+			villager.dropStack(world, leftover, DROP_OFFSET_Y);
 		}
 	}
 }

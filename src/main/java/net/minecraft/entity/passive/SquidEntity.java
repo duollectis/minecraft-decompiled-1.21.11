@@ -26,7 +26,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * {@code SquidEntity}.
+ * Кальмар — водное пассивное существо. Передвигается реактивными толчками,
+ * при получении урона выпускает чернильное облако и убегает.
  */
 public class SquidEntity extends WaterAnimalEntity {
 
@@ -259,8 +260,8 @@ public class SquidEntity extends WaterAnimalEntity {
 	}
 
 	/**
-	 * {@code EscapeAttackerGoal}.
-	 */
+ * Задача кальмара: случайное плавание.
+ */
 	class EscapeAttackerGoal extends Goal {
 
 		private static final float ESCAPE_SPEED = 3.0F;
@@ -345,8 +346,8 @@ public class SquidEntity extends WaterAnimalEntity {
 	}
 
 	/**
-	 * {@code SwimGoal}.
-	 */
+ * Задача кальмара: убегать от угрозы.
+ */
 	static class SwimGoal extends Goal {
 
 		private final SquidEntity squid;

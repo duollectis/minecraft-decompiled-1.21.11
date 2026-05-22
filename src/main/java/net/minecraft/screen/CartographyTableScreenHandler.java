@@ -17,19 +17,25 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 
 /**
- * {@code CartographyTableScreenHandler}.
+ * Обработчик экрана стола картографа.
+ * <p>
+ * Управляет двумя входными слотами (карта и материал) и одним слотом результата.
+ * Поддерживает операции: масштабирование карты (бумага), блокировка (стекло), копирование (пустая карта).
  */
 public class CartographyTableScreenHandler extends ScreenHandler {
 
 	public static final int MAP_SLOT_INDEX = 0;
 	public static final int MATERIAL_SLOT_INDEX = 1;
 	public static final int RESULT_SLOT_INDEX = 2;
+
 	private static final int INVENTORY_START = 3;
 	private static final int INVENTORY_END = 30;
 	private static final int HOTBAR_START = 30;
 	private static final int HOTBAR_END = 39;
+
 	private final ScreenHandlerContext context;
 	long lastTakeResultTime;
+
 	public final Inventory inventory = new SimpleInventory(2) {
 		@Override
 		public void markDirty() {
@@ -37,6 +43,7 @@ public class CartographyTableScreenHandler extends ScreenHandler {
 			super.markDirty();
 		}
 	};
+
 	private final CraftingResultInventory resultInventory = new CraftingResultInventory() {
 		@Override
 		public void markDirty() {
@@ -52,19 +59,19 @@ public class CartographyTableScreenHandler extends ScreenHandler {
 	public CartographyTableScreenHandler(int syncId, PlayerInventory inventory, ScreenHandlerContext context) {
 		super(ScreenHandlerType.CARTOGRAPHY_TABLE, syncId);
 		this.context = context;
-		this.addSlot(new Slot(this.inventory, 0, 15, 15) {
+		addSlot(new Slot(this.inventory, MAP_SLOT_INDEX, 15, 15) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return stack.contains(DataComponentTypes.MAP_ID);
 			}
 		});
-		this.addSlot(new Slot(this.inventory, 1, 15, 52) {
+		addSlot(new Slot(this.inventory, MATERIAL_SLOT_INDEX, 15, 52) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return stack.isOf(Items.PAPER) || stack.isOf(Items.MAP) || stack.isOf(Items.GLASS_PANE);
 			}
 		});
-		this.addSlot(new Slot(this.resultInventory, 2, 145, 39) {
+		addSlot(new Slot(resultInventory, RESULT_SLOT_INDEX, 145, HOTBAR_END) {
 			@Override
 			public boolean canInsert(ItemStack stack) {
 				return false;
@@ -72,12 +79,12 @@ public class CartographyTableScreenHandler extends ScreenHandler {
 
 			@Override
 			public void onTakeItem(PlayerEntity player, ItemStack stack) {
-				CartographyTableScreenHandler.this.slots.get(0).takeStack(1);
-				CartographyTableScreenHandler.this.slots.get(1).takeStack(1);
+				CartographyTableScreenHandler.this.slots.get(MAP_SLOT_INDEX).takeStack(1);
+				CartographyTableScreenHandler.this.slots.get(MATERIAL_SLOT_INDEX).takeStack(1);
 				stack.getItem().onCraftByPlayer(stack, player);
 				context.run((world, pos) -> {
-					long l = world.getTime();
-					if (CartographyTableScreenHandler.this.lastTakeResultTime != l) {
+					long currentTime = world.getTime();
+					if (CartographyTableScreenHandler.this.lastTakeResultTime != currentTime) {
 						world.playSound(
 								null,
 								pos,
@@ -86,134 +93,137 @@ public class CartographyTableScreenHandler extends ScreenHandler {
 								1.0F,
 								1.0F
 						);
-						CartographyTableScreenHandler.this.lastTakeResultTime = l;
+						CartographyTableScreenHandler.this.lastTakeResultTime = currentTime;
 					}
 				});
 				super.onTakeItem(player, stack);
 			}
 		});
-		this.addPlayerSlots(inventory, 8, 84);
+		addPlayerSlots(inventory, 8, 84);
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return canUse(this.context, player, Blocks.CARTOGRAPHY_TABLE);
+		return canUse(context, player, Blocks.CARTOGRAPHY_TABLE);
 	}
 
 	@Override
 	public void onContentChanged(Inventory inventory) {
-		ItemStack itemStack = this.inventory.getStack(0);
-		ItemStack itemStack2 = this.inventory.getStack(1);
-		ItemStack itemStack3 = this.resultInventory.getStack(2);
-		if (itemStack3.isEmpty() || !itemStack.isEmpty() && !itemStack2.isEmpty()) {
-			if (!itemStack.isEmpty() && !itemStack2.isEmpty()) {
-				this.updateResult(itemStack, itemStack2, itemStack3);
-			}
+		ItemStack map = this.inventory.getStack(MAP_SLOT_INDEX);
+		ItemStack material = this.inventory.getStack(MATERIAL_SLOT_INDEX);
+		ItemStack currentResult = resultInventory.getStack(RESULT_SLOT_INDEX);
+
+		if (currentResult.isEmpty() || map.isEmpty() || material.isEmpty()) {
+			resultInventory.removeStack(RESULT_SLOT_INDEX);
+			return;
 		}
-		else {
-			this.resultInventory.removeStack(2);
-		}
+
+		updateResult(map, material, currentResult);
 	}
 
-	private void updateResult(ItemStack map, ItemStack item, ItemStack oldResult) {
-		this.context.run((world, pos) -> {
+	/**
+	 * Вычисляет результат операции картографа в зависимости от типа материала:
+	 * бумага — масштабирование, стекло — блокировка, пустая карта — копирование.
+	 */
+	private void updateResult(ItemStack map, ItemStack material, ItemStack oldResult) {
+		context.run((world, pos) -> {
 			MapState mapState = FilledMapItem.getMapState(map, world);
-			if (mapState != null) {
-				ItemStack itemStack4;
-				if (item.isOf(Items.PAPER) && !mapState.locked && mapState.scale < 4) {
-					itemStack4 = map.copyWithCount(1);
-					itemStack4.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.SCALE);
-					this.sendContentUpdates();
-				}
-				else if (item.isOf(Items.GLASS_PANE) && !mapState.locked) {
-					itemStack4 = map.copyWithCount(1);
-					itemStack4.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.LOCK);
-					this.sendContentUpdates();
-				}
-				else {
-					if (!item.isOf(Items.MAP)) {
-						this.resultInventory.removeStack(2);
-						this.sendContentUpdates();
-						return;
-					}
+			if (mapState == null) {
+				return;
+			}
 
-					itemStack4 = map.copyWithCount(2);
-					this.sendContentUpdates();
-				}
+			ItemStack result;
+			if (material.isOf(Items.PAPER) && !mapState.locked && mapState.scale < 4) {
+				result = map.copyWithCount(1);
+				result.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.SCALE);
+				sendContentUpdates();
+			} else if (material.isOf(Items.GLASS_PANE) && !mapState.locked) {
+				result = map.copyWithCount(1);
+				result.set(DataComponentTypes.MAP_POST_PROCESSING, MapPostProcessingComponent.LOCK);
+				sendContentUpdates();
+			} else if (material.isOf(Items.MAP)) {
+				result = map.copyWithCount(2);
+				sendContentUpdates();
+			} else {
+				resultInventory.removeStack(RESULT_SLOT_INDEX);
+				sendContentUpdates();
+				return;
+			}
 
-				if (!ItemStack.areEqual(itemStack4, oldResult)) {
-					this.resultInventory.setStack(2, itemStack4);
-					this.sendContentUpdates();
-				}
+			if (!ItemStack.areEqual(result, oldResult)) {
+				resultInventory.setStack(RESULT_SLOT_INDEX, result);
+				sendContentUpdates();
 			}
 		});
 	}
 
 	@Override
 	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-		return slot.inventory != this.resultInventory && super.canInsertIntoSlot(stack, slot);
+		return slot.inventory != resultInventory && super.canInsertIntoSlot(stack, slot);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot == 2) {
-				itemStack2.getItem().onCraftByPlayer(itemStack2, player);
-				if (!this.insertItem(itemStack2, 3, 39, true)) {
-					return ItemStack.EMPTY;
-				}
+		ItemStack original = ItemStack.EMPTY;
+		Slot sourceSlot = slots.get(slot);
 
-				slot2.onQuickTransfer(itemStack2, itemStack);
-			}
-			else if (slot != 1 && slot != 0) {
-				if (itemStack2.contains(DataComponentTypes.MAP_ID)) {
-					if (!this.insertItem(itemStack2, 0, 1, false)) {
-						return ItemStack.EMPTY;
-					}
-				}
-				else if (!itemStack2.isOf(Items.PAPER) && !itemStack2.isOf(Items.MAP)
-						&& !itemStack2.isOf(Items.GLASS_PANE)) {
-					if (slot >= 3 && slot < 30) {
-						if (!this.insertItem(itemStack2, 30, 39, false)) {
-							return ItemStack.EMPTY;
-						}
-					}
-					else if (slot >= 30 && slot < 39 && !this.insertItem(itemStack2, 3, 30, false)) {
-						return ItemStack.EMPTY;
-					}
-				}
-				else if (!this.insertItem(itemStack2, 1, 2, false)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 3, 39, false)) {
-				return ItemStack.EMPTY;
-			}
-
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-
-			slot2.markDirty();
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
-			this.sendContentUpdates();
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack stack = sourceSlot.getStack();
+		original = stack.copy();
+
+		if (slot == RESULT_SLOT_INDEX) {
+			stack.getItem().onCraftByPlayer(stack, player);
+			if (!insertItem(stack, INVENTORY_START, HOTBAR_END, true)) {
+				return ItemStack.EMPTY;
+			}
+
+			sourceSlot.onQuickTransfer(stack, original);
+		} else if (slot == MAP_SLOT_INDEX || slot == MATERIAL_SLOT_INDEX) {
+			if (!insertItem(stack, INVENTORY_START, HOTBAR_END, false)) {
+				return ItemStack.EMPTY;
+			}
+		} else {
+			if (stack.contains(DataComponentTypes.MAP_ID)) {
+				if (!insertItem(stack, MAP_SLOT_INDEX, MAP_SLOT_INDEX + 1, false)) {
+					return ItemStack.EMPTY;
+				}
+			} else if (stack.isOf(Items.PAPER) || stack.isOf(Items.MAP) || stack.isOf(Items.GLASS_PANE)) {
+				if (!insertItem(stack, MATERIAL_SLOT_INDEX, MATERIAL_SLOT_INDEX + 1, false)) {
+					return ItemStack.EMPTY;
+				}
+			} else if (slot >= INVENTORY_START && slot < INVENTORY_END) {
+				if (!insertItem(stack, HOTBAR_START, HOTBAR_END, false)) {
+					return ItemStack.EMPTY;
+				}
+			} else if (slot >= HOTBAR_START && slot < HOTBAR_END) {
+				if (!insertItem(stack, INVENTORY_START, INVENTORY_END, false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+		}
+
+		if (stack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+
+		sourceSlot.markDirty();
+
+		if (stack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, stack);
+		sendContentUpdates();
+		return original;
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.resultInventory.removeStack(2);
-		this.context.run((world, pos) -> this.dropInventory(player, this.inventory));
+		resultInventory.removeStack(RESULT_SLOT_INDEX);
+		context.run((world, pos) -> dropInventory(player, inventory));
 	}
 }

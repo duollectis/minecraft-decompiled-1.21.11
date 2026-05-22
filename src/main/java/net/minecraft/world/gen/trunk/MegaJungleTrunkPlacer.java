@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * {@code MegaJungleTrunkPlacer}.
+ * Алгоритм размещения ствола гигантского джунглевого дерева.
+ * Расширяет {@link GiantTrunkPlacer}, добавляя горизонтальные ветви-выступы,
+ * которые спирально расходятся от ствола на разных высотах.
  */
 public class MegaJungleTrunkPlacer extends GiantTrunkPlacer {
 
@@ -23,8 +25,8 @@ public class MegaJungleTrunkPlacer extends GiantTrunkPlacer {
 			instance -> fillTrunkPlacerFields(instance).apply(instance, MegaJungleTrunkPlacer::new)
 	);
 
-	public MegaJungleTrunkPlacer(int i, int j, int k) {
-		super(i, j, k);
+	public MegaJungleTrunkPlacer(int baseHeight, int firstRandomHeight, int secondRandomHeight) {
+		super(baseHeight, firstRandomHeight, secondRandomHeight);
 	}
 
 	@Override
@@ -41,24 +43,23 @@ public class MegaJungleTrunkPlacer extends GiantTrunkPlacer {
 			BlockPos startPos,
 			TreeFeatureConfig config
 	) {
-		List<FoliagePlacer.TreeNode> list = Lists.newArrayList();
-		list.addAll(super.generate(world, replacer, random, height, startPos, config));
+		List<FoliagePlacer.TreeNode> nodes = Lists.newArrayList();
+		nodes.addAll(super.generate(world, replacer, random, height, startPos, config));
 
-		for (int i = height - 2 - random.nextInt(4); i > height / 2; i -= 2 + random.nextInt(4)) {
-			float f = random.nextFloat() * (float) (Math.PI * 2);
-			int j = 0;
-			int k = 0;
+		for (int branchY = height - 2 - random.nextInt(4); branchY > height / 2; branchY -= 2 + random.nextInt(4)) {
+			float angle = random.nextFloat() * (float) (Math.PI * 2);
+			int endX = 0;
+			int endZ = 0;
 
-			for (int l = 0; l < 5; l++) {
-				j = (int) (1.5F + MathHelper.cos(f) * l);
-				k = (int) (1.5F + MathHelper.sin(f) * l);
-				BlockPos blockPos = startPos.add(j, i - 3 + l / 2, k);
-				this.getAndSetState(world, replacer, random, blockPos, config);
+			for (int step = 0; step < 5; step++) {
+				endX = (int) (1.5F + MathHelper.cos(angle) * step);
+				endZ = (int) (1.5F + MathHelper.sin(angle) * step);
+				getAndSetState(world, replacer, random, startPos.add(endX, branchY - 3 + step / 2, endZ), config);
 			}
 
-			list.add(new FoliagePlacer.TreeNode(startPos.add(j, i, k), -2, false));
+			nodes.add(new FoliagePlacer.TreeNode(startPos.add(endX, branchY, endZ), -2, false));
 		}
 
-		return list;
+		return nodes;
 	}
 }

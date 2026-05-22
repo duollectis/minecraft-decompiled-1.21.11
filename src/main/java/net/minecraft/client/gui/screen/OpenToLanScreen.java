@@ -15,139 +15,145 @@ import net.minecraft.util.NetworkUtils;
 import net.minecraft.world.GameMode;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OpenToLanScreen}.
+ * Экран открытия одиночной игры для локальной сети (LAN).
+ * Позволяет выбрать режим игры, разрешить команды и задать порт.
  */
+@Environment(EnvType.CLIENT)
 public class OpenToLanScreen extends Screen {
 
 	private static final int MIN_PORT = 1024;
 	private static final int MAX_PORT = 65535;
+	private static final int BUTTON_WIDTH = 150;
+	private static final int BUTTON_HEIGHT = 20;
+	private static final int GAME_MODE_BUTTON_X_OFFSET = -155;
+	private static final int COMMANDS_BUTTON_X_OFFSET = 5;
+	private static final int GAME_MODE_BUTTON_Y = 100;
+	private static final int PORT_FIELD_Y = 160;
+	private static final int BOTTOM_BUTTON_Y_OFFSET = 28;
+	private static final int TITLE_Y = 50;
+	private static final int OTHER_PLAYERS_Y = 82;
+	private static final int PORT_LABEL_Y = 142;
+	private static final int PORT_FIELD_WIDTH = 150;
+	private static final int PORT_FIELD_X_OFFSET = 75;
+	private static final int COLOR_VALID = -2039584;
+	private static final int COLOR_INVALID = -2142128;
+
 	private static final Text ALLOW_COMMANDS_TEXT = Text.translatable("selectWorld.allowCommands");
 	private static final Text GAME_MODE_TEXT = Text.translatable("selectWorld.gameMode");
 	private static final Text OTHER_PLAYERS_TEXT = Text.translatable("lanServer.otherPlayers");
 	private static final Text PORT_TEXT = Text.translatable("lanServer.port");
-	private static final Text UNAVAILABLE_PORT_TEXT = Text.translatable("lanServer.port.unavailable", 1024, 65535);
-	private static final Text INVALID_PORT_TEXT = Text.translatable("lanServer.port.invalid", 1024, 65535);
+	private static final Text UNAVAILABLE_PORT_TEXT = Text.translatable("lanServer.port.unavailable", MIN_PORT, MAX_PORT);
+	private static final Text INVALID_PORT_TEXT = Text.translatable("lanServer.port.invalid", MIN_PORT, MAX_PORT);
+
 	private final Screen parent;
 	private GameMode gameMode = GameMode.SURVIVAL;
 	private boolean allowCommands;
 	private int port = NetworkUtils.findLocalPort();
 	private @Nullable TextFieldWidget portField;
 
-	public OpenToLanScreen(Screen screen) {
+	public OpenToLanScreen(Screen parent) {
 		super(Text.translatable("lanServer.title"));
-		this.parent = screen;
+		this.parent = parent;
 	}
 
 	@Override
 	protected void init() {
-		IntegratedServer integratedServer = this.client.getServer();
-		this.gameMode = integratedServer.getDefaultGameMode();
-		this.allowCommands = integratedServer.getSaveProperties().areCommandsAllowed();
-		this.addDrawableChild(
-				CyclingButtonWidget.builder(GameMode::getSimpleTranslatableName, this.gameMode)
-				                   .values(GameMode.SURVIVAL, GameMode.SPECTATOR, GameMode.CREATIVE, GameMode.ADVENTURE)
-				                   .build(
-						                   this.width / 2 - 155,
-						                   100,
-						                   150,
-						                   20,
-						                   GAME_MODE_TEXT,
-						                   (button, gameMode) -> this.gameMode = gameMode
-				                   )
-		);
-		this.addDrawableChild(
-				CyclingButtonWidget.onOffBuilder(this.allowCommands)
-				                   .build(
-						                   this.width / 2 + 5,
-						                   100,
-						                   150,
-						                   20,
-						                   ALLOW_COMMANDS_TEXT,
-						                   (button, allowCommands) -> this.allowCommands = allowCommands
-				                   )
-		);
-		ButtonWidget buttonWidget = ButtonWidget.builder(
-				Text.translatable("lanServer.start"), button -> {
-					this.client.setScreen(null);
-					Text text;
-					if (integratedServer.openToLan(this.gameMode, this.allowCommands, this.port)) {
-						text = PublishCommand.getStartedText(this.port);
-					}
-					else {
-						text = Text.translatable("commands.publish.failed");
-					}
+		IntegratedServer server = client.getServer();
+		gameMode = server.getDefaultGameMode();
+		allowCommands = server.getSaveProperties().areCommandsAllowed();
 
-					this.client.inGameHud.getChatHud().addMessage(text);
-					this.client.getNarratorManager().narrateSystemMessage(text);
-					this.client.updateWindowTitle();
-				}
-		).dimensions(this.width / 2 - 155, this.height - 28, 150, 20).build();
-		this.portField =
-				new TextFieldWidget(
-						this.textRenderer,
-						this.width / 2 - 75,
-						160,
-						150,
-						20,
-						Text.translatable("lanServer.port")
-				);
-		this.portField.setChangedListener(portText -> {
-			Text text = this.updatePort(portText);
-			this.portField.setPlaceholder(Text.literal(this.port + ""));
-			if (text == null) {
-				this.portField.setEditableColor(-2039584);
-				this.portField.setTooltip(null);
-				buttonWidget.active = true;
+		addDrawableChild(
+			CyclingButtonWidget.builder(GameMode::getSimpleTranslatableName, gameMode)
+				.values(GameMode.SURVIVAL, GameMode.SPECTATOR, GameMode.CREATIVE, GameMode.ADVENTURE)
+				.build(
+					width / 2 + GAME_MODE_BUTTON_X_OFFSET, GAME_MODE_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT,
+					GAME_MODE_TEXT, (button, mode) -> gameMode = mode
+				)
+		);
+		addDrawableChild(
+			CyclingButtonWidget.onOffBuilder(allowCommands)
+				.build(
+					width / 2 + COMMANDS_BUTTON_X_OFFSET, GAME_MODE_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT,
+					ALLOW_COMMANDS_TEXT, (button, commands) -> allowCommands = commands
+				)
+		);
+
+		ButtonWidget startButton = ButtonWidget.builder(
+			Text.translatable("lanServer.start"), button -> {
+				client.setScreen(null);
+				Text result = server.openToLan(gameMode, allowCommands, port)
+					? PublishCommand.getStartedText(port)
+					: Text.translatable("commands.publish.failed");
+				client.inGameHud.getChatHud().addMessage(result);
+				client.getNarratorManager().narrateSystemMessage(result);
+				client.updateWindowTitle();
 			}
-			else {
-				this.portField.setEditableColor(-2142128);
-				this.portField.setTooltip(Tooltip.of(text));
-				buttonWidget.active = false;
+		).dimensions(width / 2 + GAME_MODE_BUTTON_X_OFFSET, height - BOTTOM_BUTTON_Y_OFFSET, BUTTON_WIDTH, BUTTON_HEIGHT).build();
+
+		portField = new TextFieldWidget(
+			textRenderer,
+			width / 2 - PORT_FIELD_X_OFFSET,
+			PORT_FIELD_Y,
+			PORT_FIELD_WIDTH,
+			BUTTON_HEIGHT,
+			Text.translatable("lanServer.port")
+		);
+		portField.setChangedListener(portText -> {
+			Text error = updatePort(portText);
+			portField.setPlaceholder(Text.literal(port + ""));
+
+			if (error == null) {
+				portField.setEditableColor(COLOR_VALID);
+				portField.setTooltip(null);
+				startButton.active = true;
+			} else {
+				portField.setEditableColor(COLOR_INVALID);
+				portField.setTooltip(Tooltip.of(error));
+				startButton.active = false;
 			}
 		});
-		this.portField.setPlaceholder(Text.literal(this.port + ""));
-		this.addDrawableChild(this.portField);
-		this.addDrawableChild(buttonWidget);
-		this.addDrawableChild(ButtonWidget
-				.builder(ScreenTexts.CANCEL, button -> this.close())
-				.dimensions(this.width / 2 + 5, this.height - 28, 150, 20)
-				.build());
+		portField.setPlaceholder(Text.literal(port + ""));
+
+		addDrawableChild(portField);
+		addDrawableChild(startButton);
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.CANCEL, button -> close())
+				.dimensions(width / 2 + COMMANDS_BUTTON_X_OFFSET, height - BOTTOM_BUTTON_Y_OFFSET, BUTTON_WIDTH, BUTTON_HEIGHT)
+				.build()
+		);
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	private @Nullable Text updatePort(String portText) {
 		if (portText.isBlank()) {
-			this.port = NetworkUtils.findLocalPort();
+			port = NetworkUtils.findLocalPort();
 			return null;
 		}
-		else {
-			try {
-				this.port = Integer.parseInt(portText);
-				if (this.port < 1024 || this.port > 65535) {
-					return INVALID_PORT_TEXT;
-				}
-				else {
-					return !NetworkUtils.isPortAvailable(this.port) ? UNAVAILABLE_PORT_TEXT : null;
-				}
-			}
-			catch (NumberFormatException var3) {
-				this.port = NetworkUtils.findLocalPort();
+
+		try {
+			port = Integer.parseInt(portText);
+
+			if (port < MIN_PORT || port > MAX_PORT) {
 				return INVALID_PORT_TEXT;
 			}
+
+			return !NetworkUtils.isPortAvailable(port) ? UNAVAILABLE_PORT_TEXT : null;
+		} catch (NumberFormatException ignored) {
+			port = NetworkUtils.findLocalPort();
+			return INVALID_PORT_TEXT;
 		}
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 50, -1);
-		context.drawCenteredTextWithShadow(this.textRenderer, OTHER_PLAYERS_TEXT, this.width / 2, 82, -1);
-		context.drawCenteredTextWithShadow(this.textRenderer, PORT_TEXT, this.width / 2, 142, -1);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
+		context.drawCenteredTextWithShadow(textRenderer, OTHER_PLAYERS_TEXT, width / 2, OTHER_PLAYERS_Y, -1);
+		context.drawCenteredTextWithShadow(textRenderer, PORT_TEXT, width / 2, PORT_LABEL_Y, -1);
 	}
 }

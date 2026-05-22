@@ -7,12 +7,14 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code PositionSourceType}.
+ * Тип источника позиции — реестровый объект, связывающий конкретную реализацию
+ * {@link PositionSource} с её кодеком для сериализации и пакетным кодеком для сети.
+ *
+ * @param <T> конкретный тип источника позиции
  */
 public interface PositionSourceType<T extends PositionSource> {
 
 	PositionSourceType<BlockPositionSource> BLOCK = register("block", new BlockPositionSource.Type());
-
 	PositionSourceType<EntityPositionSource> ENTITY = register("entity", new EntityPositionSource.Type());
 
 	MapCodec<T> getCodec();

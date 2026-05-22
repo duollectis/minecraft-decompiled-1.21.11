@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * {@code BlockSetType}.
+ * Описывает набор звуков и поведенческих флагов для группы блоков одного материала
+ * (двери, люки, кнопки, плиты давления). Каждый тип регистрируется по имени
+ * и доступен через {@link #CODEC} для сериализации.
  */
 public record BlockSetType(
 		String name,
@@ -226,19 +228,15 @@ public record BlockSetType(
 		return blockSetType;
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public static Stream<BlockSetType> stream() {
 		return VALUES.values().stream();
 	}
 
 	/**
-	 * {@code ActivationRule}.
+	 * Правило активации плиты давления: {@link #EVERYTHING} — любой объект,
+	 * {@link #MOBS} — только живые существа.
 	 */
-	public static enum ActivationRule {
+	public enum ActivationRule {
 		EVERYTHING,
 		MOBS;
 	}

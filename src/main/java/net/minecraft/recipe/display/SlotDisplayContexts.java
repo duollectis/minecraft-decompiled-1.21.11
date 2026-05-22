@@ -8,23 +8,18 @@ import net.minecraft.util.context.ContextType;
 import net.minecraft.world.World;
 
 /**
- * {@code SlotDisplayContexts}.
+ * Параметры контекста для вычисления отображаемых предметов в {@link SlotDisplay}.
+ * Предоставляет реестр топлива и реестр объектов игры.
  */
 public class SlotDisplayContexts {
 
 	public static final ContextParameter<FuelRegistry> FUEL_REGISTRY = ContextParameter.of("fuel_values");
 	public static final ContextParameter<RegistryWrapper.WrapperLookup> REGISTRIES = ContextParameter.of("registries");
-	public static final ContextType
-			CONTEXT_TYPE =
-			new ContextType.Builder().allow(FUEL_REGISTRY).allow(REGISTRIES).build();
+	public static final ContextType CONTEXT_TYPE = new ContextType.Builder()
+			.allow(FUEL_REGISTRY)
+			.allow(REGISTRIES)
+			.build();
 
-	/**
-	 * Создаёт parameters.
-	 *
-	 * @param world world
-	 *
-	 * @return ContextParameterMap — результат операции
-	 */
 	public static ContextParameterMap createParameters(World world) {
 		return new ContextParameterMap.Builder()
 				.add(FUEL_REGISTRY, world.getFuelRegistry())

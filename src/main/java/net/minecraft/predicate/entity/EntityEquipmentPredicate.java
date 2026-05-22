@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code EntityEquipmentPredicate}.
+ * Предикат снаряжения сущности. Проверяет предметы в каждом слоте экипировки.
  */
 public record EntityEquipmentPredicate(
 		Optional<ItemPredicate> head,
@@ -33,85 +33,76 @@ public record EntityEquipmentPredicate(
 
 	public static final Codec<EntityEquipmentPredicate> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    ItemPredicate.CODEC.optionalFieldOf("head").forGetter(EntityEquipmentPredicate::head),
-					                    ItemPredicate.CODEC.optionalFieldOf("chest").forGetter(EntityEquipmentPredicate::chest),
-					                    ItemPredicate.CODEC.optionalFieldOf("legs").forGetter(EntityEquipmentPredicate::legs),
-					                    ItemPredicate.CODEC.optionalFieldOf("feet").forGetter(EntityEquipmentPredicate::feet),
-					                    ItemPredicate.CODEC.optionalFieldOf("body").forGetter(EntityEquipmentPredicate::body),
-					                    ItemPredicate.CODEC.optionalFieldOf("mainhand").forGetter(EntityEquipmentPredicate::mainhand),
-					                    ItemPredicate.CODEC.optionalFieldOf("offhand").forGetter(EntityEquipmentPredicate::offhand)
-			                    )
-			                    .apply(instance, EntityEquipmentPredicate::new)
+					ItemPredicate.CODEC.optionalFieldOf("head").forGetter(EntityEquipmentPredicate::head),
+					ItemPredicate.CODEC.optionalFieldOf("chest").forGetter(EntityEquipmentPredicate::chest),
+					ItemPredicate.CODEC.optionalFieldOf("legs").forGetter(EntityEquipmentPredicate::legs),
+					ItemPredicate.CODEC.optionalFieldOf("feet").forGetter(EntityEquipmentPredicate::feet),
+					ItemPredicate.CODEC.optionalFieldOf("body").forGetter(EntityEquipmentPredicate::body),
+					ItemPredicate.CODEC.optionalFieldOf("mainhand").forGetter(EntityEquipmentPredicate::mainhand),
+					ItemPredicate.CODEC.optionalFieldOf("offhand").forGetter(EntityEquipmentPredicate::offhand)
+			).apply(instance, EntityEquipmentPredicate::new)
 	);
 
+	/**
+	 * Создаёт предикат, проверяющий наличие зловещего знамени рейда в слоте головы.
+	 */
 	public static EntityEquipmentPredicate ominousBannerOnHead(
 			RegistryEntryLookup<Item> itemLookup,
 			RegistryEntryLookup<BannerPattern> bannerPatternLookup
 	) {
 		return EntityEquipmentPredicate.Builder.create()
-		                                       .head(
-				                                       ItemPredicate.Builder.create()
-				                                                            .items(itemLookup, Items.WHITE_BANNER)
-				                                                            .components(
-						                                                            ComponentsPredicate.Builder.create()
-						                                                                                       .exact(
-								                                                                                       ComponentMapPredicate.ofFiltered(
-										                                                                                       Raid
-												                                                                                       .createOminousBanner(
-														                                                                                       bannerPatternLookup)
-												                                                                                       .getComponents(),
-										                                                                                       DataComponentTypes.BANNER_PATTERNS,
-										                                                                                       DataComponentTypes.ITEM_NAME
-								                                                                                       )
-						                                                                                       )
-						                                                                                       .build()
-				                                                            )
-		                                       )
-		                                       .build();
+				.head(
+						ItemPredicate.Builder.create()
+								.items(itemLookup, Items.WHITE_BANNER)
+								.components(
+										ComponentsPredicate.Builder.create()
+												.exact(
+														ComponentMapPredicate.ofFiltered(
+																Raid.createOminousBanner(bannerPatternLookup).getComponents(),
+																DataComponentTypes.BANNER_PATTERNS,
+																DataComponentTypes.ITEM_NAME
+														)
+												)
+												.build()
+								)
+				)
+				.build();
 	}
 
 	public boolean test(@Nullable Entity entity) {
-		if (entity instanceof LivingEntity livingEntity) {
-			if (this.head.isPresent() && !this.head.get().test(livingEntity.getEquippedStack(EquipmentSlot.HEAD))) {
-				return false;
-			}
-			else if (this.chest.isPresent() && !this.chest
-					.get()
-					.test(livingEntity.getEquippedStack(EquipmentSlot.CHEST))) {
-				return false;
-			}
-			else if (this.legs.isPresent() && !this.legs
-					.get()
-					.test(livingEntity.getEquippedStack(EquipmentSlot.LEGS))) {
-				return false;
-			}
-			else if (this.feet.isPresent() && !this.feet
-					.get()
-					.test(livingEntity.getEquippedStack(EquipmentSlot.FEET))) {
-				return false;
-			}
-			else if (this.body.isPresent() && !this.body
-					.get()
-					.test(livingEntity.getEquippedStack(EquipmentSlot.BODY))) {
-				return false;
-			}
-			else {
-				return this.mainhand.isPresent() && !this.mainhand
-						.get()
-						.test(livingEntity.getEquippedStack(EquipmentSlot.MAINHAND))
-				       ? false
-				       : !this.offhand.isPresent() || this.offhand
-				                                      .get()
-				                                      .test(livingEntity.getEquippedStack(EquipmentSlot.OFFHAND));
-			}
-		}
-		else {
+		if (!(entity instanceof LivingEntity livingEntity)) {
 			return false;
 		}
+
+		if (head.isPresent() && !head.get().test(livingEntity.getEquippedStack(EquipmentSlot.HEAD))) {
+			return false;
+		}
+
+		if (chest.isPresent() && !chest.get().test(livingEntity.getEquippedStack(EquipmentSlot.CHEST))) {
+			return false;
+		}
+
+		if (legs.isPresent() && !legs.get().test(livingEntity.getEquippedStack(EquipmentSlot.LEGS))) {
+			return false;
+		}
+
+		if (feet.isPresent() && !feet.get().test(livingEntity.getEquippedStack(EquipmentSlot.FEET))) {
+			return false;
+		}
+
+		if (body.isPresent() && !body.get().test(livingEntity.getEquippedStack(EquipmentSlot.BODY))) {
+			return false;
+		}
+
+		if (mainhand.isPresent() && !mainhand.get().test(livingEntity.getEquippedStack(EquipmentSlot.MAINHAND))) {
+			return false;
+		}
+
+		return offhand.isEmpty() || offhand.get().test(livingEntity.getEquippedStack(EquipmentSlot.OFFHAND));
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link EntityEquipmentPredicate} с проверками по каждому слоту снаряжения.
 	 */
 	public static class Builder {
 
@@ -128,50 +119,42 @@ public record EntityEquipmentPredicate(
 		}
 
 		public EntityEquipmentPredicate.Builder head(ItemPredicate.Builder item) {
-			this.head = Optional.of(item.build());
+			head = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder chest(ItemPredicate.Builder item) {
-			this.chest = Optional.of(item.build());
+			chest = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder legs(ItemPredicate.Builder item) {
-			this.legs = Optional.of(item.build());
+			legs = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder feet(ItemPredicate.Builder item) {
-			this.feet = Optional.of(item.build());
+			feet = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder body(ItemPredicate.Builder item) {
-			this.body = Optional.of(item.build());
+			body = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder mainhand(ItemPredicate.Builder item) {
-			this.mainhand = Optional.of(item.build());
+			mainhand = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate.Builder offhand(ItemPredicate.Builder item) {
-			this.offhand = Optional.of(item.build());
+			offhand = Optional.of(item.build());
 			return this;
 		}
 
 		public EntityEquipmentPredicate build() {
-			return new EntityEquipmentPredicate(
-					this.head,
-					this.chest,
-					this.legs,
-					this.feet,
-					this.body,
-					this.mainhand,
-					this.offhand
-			);
+			return new EntityEquipmentPredicate(head, chest, legs, feet, body, mainhand, offhand);
 		}
 	}
 }

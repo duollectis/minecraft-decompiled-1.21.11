@@ -16,21 +16,22 @@ import net.minecraft.util.context.ContextParameter;
 import java.util.Set;
 
 /**
- * {@code ScoreLootNumberProvider}.
+ * Провайдер числа, читающий значение очков таблицы результатов для указанной сущности.
+ * Результат умножается на коэффициент масштабирования {@code scale}.
  */
 public record ScoreLootNumberProvider(
-		LootScoreProvider target,
-		String score,
-		float scale
+	LootScoreProvider target,
+	String score,
+	float scale
 ) implements LootNumberProvider {
 
 	public static final MapCodec<ScoreLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    LootScoreProviderTypes.CODEC.fieldOf("target").forGetter(ScoreLootNumberProvider::target),
-					                    Codec.STRING.fieldOf("score").forGetter(ScoreLootNumberProvider::score),
-					                    Codec.FLOAT.fieldOf("scale").orElse(1.0F).forGetter(ScoreLootNumberProvider::scale)
-			                    )
-			                    .apply(instance, ScoreLootNumberProvider::new)
+		instance -> instance.group(
+			LootScoreProviderTypes.CODEC.fieldOf("target").forGetter(ScoreLootNumberProvider::target),
+			Codec.STRING.fieldOf("score").forGetter(ScoreLootNumberProvider::score),
+			Codec.FLOAT.fieldOf("scale").orElse(1.0F).forGetter(ScoreLootNumberProvider::scale)
+		)
+		.apply(instance, ScoreLootNumberProvider::new)
 	);
 
 	@Override
@@ -40,50 +41,31 @@ public record ScoreLootNumberProvider(
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return this.target.getRequiredParameters();
+		return target.getRequiredParameters();
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param target target
-	 * @param score score
-	 *
-	 * @return ScoreLootNumberProvider — результат операции
-	 */
 	public static ScoreLootNumberProvider create(LootContext.EntityReference target, String score) {
 		return create(target, score, 1.0F);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param target target
-	 * @param score score
-	 * @param scale scale
-	 *
-	 * @return ScoreLootNumberProvider — результат операции
-	 */
 	public static ScoreLootNumberProvider create(LootContext.EntityReference target, String score, float scale) {
 		return new ScoreLootNumberProvider(ContextLootScoreProvider.create(target), score, scale);
 	}
 
 	@Override
 	public float nextFloat(LootContext context) {
-		ScoreHolder scoreHolder = this.target.getScoreHolder(context);
+		ScoreHolder scoreHolder = target.getScoreHolder(context);
 		if (scoreHolder == null) {
 			return 0.0F;
 		}
-		else {
-			Scoreboard scoreboard = context.getWorld().getScoreboard();
-			ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(this.score);
-			if (scoreboardObjective == null) {
-				return 0.0F;
-			}
-			else {
-				ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(scoreHolder, scoreboardObjective);
-				return readableScoreboardScore == null ? 0.0F : readableScoreboardScore.getScore() * this.scale;
-			}
+
+		Scoreboard scoreboard = context.getWorld().getScoreboard();
+		ScoreboardObjective objective = scoreboard.getNullableObjective(score);
+		if (objective == null) {
+			return 0.0F;
 		}
+
+		ReadableScoreboardScore scoreEntry = scoreboard.getScore(scoreHolder, objective);
+		return scoreEntry == null ? 0.0F : scoreEntry.getScore() * scale;
 	}
 }

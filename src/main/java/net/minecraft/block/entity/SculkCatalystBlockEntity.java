@@ -26,7 +26,8 @@ import net.minecraft.world.event.PositionSource;
 import net.minecraft.world.event.listener.GameEventListener;
 
 /**
- * {@code SculkCatalystBlockEntity}.
+ * Блок-сущность катализатора скалька. Слушает событие гибели живых существ в радиусе 8 блоков
+ * и запускает распространение скалька через {@link SculkSpreadManager}.
  */
 public class SculkCatalystBlockEntity extends BlockEntity implements GameEventListener.Holder<SculkCatalystBlockEntity.Listener> {
 
@@ -34,17 +35,9 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi
 
 	public SculkCatalystBlockEntity(BlockPos pos, BlockState state) {
 		super(BlockEntityType.SCULK_CATALYST, pos, state);
-		this.eventListener = new SculkCatalystBlockEntity.Listener(state, new BlockPositionSource(pos));
+		eventListener = new SculkCatalystBlockEntity.Listener(state, new BlockPositionSource(pos));
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SculkCatalystBlockEntity blockEntity) {
 		blockEntity.eventListener.getSpreadManager().tick(world, pos, world.getRandom(), true);
 	}
@@ -52,25 +45,27 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.eventListener.spreadManager.readData(view);
+		eventListener.spreadManager.readData(view);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
-		this.eventListener.spreadManager.writeData(view);
+		eventListener.spreadManager.writeData(view);
 		super.writeData(view);
 	}
 
 	public SculkCatalystBlockEntity.Listener getEventListener() {
-		return this.eventListener;
+		return eventListener;
 	}
 
 	/**
-	 * {@code Listener}.
+	 * Слушатель игровых событий катализатора скалька. Обрабатывает гибель существ,
+	 * конвертируя их опыт в заряд распространения скалька.
 	 */
 	public static class Listener implements GameEventListener {
 
 		public static final int RANGE = 8;
+
 		final SculkSpreadManager spreadManager;
 		private final BlockState state;
 		private final PositionSource positionSource;
@@ -78,17 +73,17 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi
 		public Listener(BlockState state, PositionSource positionSource) {
 			this.state = state;
 			this.positionSource = positionSource;
-			this.spreadManager = SculkSpreadManager.create();
+			spreadManager = SculkSpreadManager.create();
 		}
 
 		@Override
 		public PositionSource getPositionSource() {
-			return this.positionSource;
+			return positionSource;
 		}
 
 		@Override
 		public int getRange() {
-			return 8;
+			return RANGE;
 		}
 
 		@Override
@@ -98,79 +93,74 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi
 
 		@Override
 		public boolean listen(
-				ServerWorld world,
-				RegistryEntry<GameEvent> event,
-				GameEvent.Emitter emitter,
-				Vec3d emitterPos
+			ServerWorld world,
+			RegistryEntry<GameEvent> event,
+			GameEvent.Emitter emitter,
+			Vec3d emitterPos
 		) {
-			if (event.matches(GameEvent.ENTITY_DIE) && emitter.sourceEntity() instanceof LivingEntity livingEntity) {
-				if (!livingEntity.isExperienceDroppingDisabled()) {
-					DamageSource damageSource = livingEntity.getRecentDamageSource();
-					int
-							i =
-							livingEntity.getExperienceToDrop(
-									world,
-									Nullables.map(damageSource, DamageSource::getAttacker)
-							);
-					if (livingEntity.shouldDropExperience() && i > 0) {
-						this.spreadManager.spread(BlockPos.ofFloored(emitterPos.offset(Direction.UP, 0.5)), i);
-						this.triggerCriteria(world, livingEntity);
-					}
-
-					livingEntity.disableExperienceDropping();
-					this.positionSource
-							.getPos(world)
-							.ifPresent(pos -> this.bloom(
-									world,
-									BlockPos.ofFloored(pos),
-									this.state,
-									world.getRandom()
-							));
-				}
-
-				return true;
-			}
-			else {
+			if (!event.matches(GameEvent.ENTITY_DIE) || !(emitter.sourceEntity() instanceof LivingEntity livingEntity)) {
 				return false;
 			}
+
+			if (livingEntity.isExperienceDroppingDisabled()) {
+				return true;
+			}
+
+			DamageSource damageSource = livingEntity.getRecentDamageSource();
+			int xp = livingEntity.getExperienceToDrop(world, Nullables.map(damageSource, DamageSource::getAttacker));
+
+			if (livingEntity.shouldDropExperience() && xp > 0) {
+				spreadManager.spread(BlockPos.ofFloored(emitterPos.offset(Direction.UP, 0.5)), xp);
+				triggerCriteria(world, livingEntity);
+			}
+
+			livingEntity.disableExperienceDropping();
+			positionSource
+				.getPos(world)
+				.ifPresent(pos -> bloom(world, BlockPos.ofFloored(pos), state, world.getRandom()));
+
+			return true;
 		}
 
 		@VisibleForTesting
 		public SculkSpreadManager getSpreadManager() {
-			return this.spreadManager;
+			return spreadManager;
 		}
 
 		private void bloom(ServerWorld world, BlockPos pos, BlockState state, Random random) {
 			world.setBlockState(pos, state.with(SculkCatalystBlock.BLOOM, true), 3);
 			world.scheduleBlockTick(pos, state.getBlock(), 8);
 			world.spawnParticles(
-					ParticleTypes.SCULK_SOUL,
-					pos.getX() + 0.5,
-					pos.getY() + 1.15,
-					pos.getZ() + 0.5,
-					2,
-					0.2,
-					0.0,
-					0.2,
-					0.0
+				ParticleTypes.SCULK_SOUL,
+				pos.getX() + 0.5,
+				pos.getY() + 1.15,
+				pos.getZ() + 0.5,
+				2,
+				0.2,
+				0.0,
+				0.2,
+				0.0
 			);
 			world.playSound(
-					null,
-					pos,
-					SoundEvents.BLOCK_SCULK_CATALYST_BLOOM,
-					SoundCategory.BLOCKS,
-					2.0F,
-					0.6F + random.nextFloat() * 0.4F
+				null,
+				pos,
+				SoundEvents.BLOCK_SCULK_CATALYST_BLOOM,
+				SoundCategory.BLOCKS,
+				2.0F,
+				0.6F + random.nextFloat() * 0.4F
 			);
 		}
 
 		private void triggerCriteria(World world, LivingEntity deadEntity) {
-			if (deadEntity.getAttacker() instanceof ServerPlayerEntity serverPlayerEntity) {
-				DamageSource damageSource = deadEntity.getRecentDamageSource() == null
-				                            ? world.getDamageSources().playerAttack(serverPlayerEntity)
-				                            : deadEntity.getRecentDamageSource();
-				Criteria.KILL_MOB_NEAR_SCULK_CATALYST.trigger(serverPlayerEntity, deadEntity, damageSource);
+			if (!(deadEntity.getAttacker() instanceof ServerPlayerEntity attacker)) {
+				return;
 			}
+
+			DamageSource damageSource = deadEntity.getRecentDamageSource() == null
+				? world.getDamageSources().playerAttack(attacker)
+				: deadEntity.getRecentDamageSource();
+
+			Criteria.KILL_MOB_NEAR_SCULK_CATALYST.trigger(attacker, deadEntity, damageSource);
 		}
 	}
 }

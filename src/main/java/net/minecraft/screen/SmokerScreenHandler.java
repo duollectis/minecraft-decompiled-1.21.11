@@ -7,7 +7,8 @@ import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.book.RecipeBookType;
 
 /**
- * {@code SmokerScreenHandler}.
+ * Обработчик экрана коптильни.
+ * Принимает только еду, готовит её быстрее обычной печи.
  */
 public class SmokerScreenHandler extends AbstractFurnaceScreenHandler {
 

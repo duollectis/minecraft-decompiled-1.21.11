@@ -5,7 +5,8 @@ import net.minecraft.util.Util;
 import org.slf4j.Logger;
 
 /**
- * {@code FailureLoggingTestCompletionListener}.
+ * Слушатель завершения тестов, логирующий провалы через SLF4J.
+ * Обязательные тесты логируются как {@code ERROR}, опциональные — как {@code WARN}.
  */
 public class FailureLoggingTestCompletionListener implements TestCompletionListener {
 
@@ -13,18 +14,13 @@ public class FailureLoggingTestCompletionListener implements TestCompletionListe
 
 	@Override
 	public void onTestFailed(GameTestState test) {
-		String string = test.getPos().toShortString();
+		String position = test.getPos().toShortString();
+		String message = Util.getInnermostMessage(test.getThrowable());
+
 		if (test.isRequired()) {
-			LOGGER.error(
-					"{} failed at {}! {}",
-					new Object[]{test.getId(), string, Util.getInnermostMessage(test.getThrowable())}
-			);
-		}
-		else {
-			LOGGER.warn(
-					"(optional) {} failed at {}. {}",
-					new Object[]{test.getId(), string, Util.getInnermostMessage(test.getThrowable())}
-			);
+			LOGGER.error("{} failed at {}! {}", test.getId(), position, message);
+		} else {
+			LOGGER.warn("(optional) {} failed at {}. {}", test.getId(), position, message);
 		}
 	}
 

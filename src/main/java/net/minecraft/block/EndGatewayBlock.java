@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.EndGatewayBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCollisionHandler;
@@ -24,7 +25,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * {@code EndGatewayBlock}.
+ * Блок портала края (End Gateway). Телепортирует сущности и жемчуг эндера
+ * к выходному порталу, хранящемуся в {@link EndGatewayBlockEntity}.
  */
 public class EndGatewayBlock extends BlockWithEntity implements Portal {
 
@@ -59,28 +61,27 @@ public class EndGatewayBlock extends BlockWithEntity implements Portal {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		BlockEntity blockEntity = world.getBlockEntity(pos);
-		if (blockEntity instanceof EndGatewayBlockEntity) {
-			int i = ((EndGatewayBlockEntity) blockEntity).getDrawnSidesCount();
+		if (world.getBlockEntity(pos) instanceof EndGatewayBlockEntity gateway) {
+			int sideCount = gateway.getDrawnSidesCount();
 
-			for (int j = 0; j < i; j++) {
-				double d = pos.getX() + random.nextDouble();
-				double e = pos.getY() + random.nextDouble();
-				double f = pos.getZ() + random.nextDouble();
-				double g = (random.nextDouble() - 0.5) * 0.5;
-				double h = (random.nextDouble() - 0.5) * 0.5;
-				double k = (random.nextDouble() - 0.5) * 0.5;
-				int l = random.nextInt(2) * 2 - 1;
+			for (int i = 0; i < sideCount; i++) {
+				double x = pos.getX() + random.nextDouble();
+				double y = pos.getY() + random.nextDouble();
+				double z = pos.getZ() + random.nextDouble();
+				double velX = (random.nextDouble() - 0.5) * 0.5;
+				double velY = (random.nextDouble() - 0.5) * 0.5;
+				double velZ = (random.nextDouble() - 0.5) * 0.5;
+				int side = random.nextInt(2) * 2 - 1;
+
 				if (random.nextBoolean()) {
-					f = pos.getZ() + 0.5 + 0.25 * l;
-					k = random.nextFloat() * 2.0F * l;
-				}
-				else {
-					d = pos.getX() + 0.5 + 0.25 * l;
-					g = random.nextFloat() * 2.0F * l;
+					z = pos.getZ() + 0.5 + 0.25 * side;
+					velZ = random.nextFloat() * 2.0F * side;
+				} else {
+					x = pos.getX() + 0.5 + 0.25 * side;
+					velX = random.nextFloat() * 2.0F * side;
 				}
 
-				world.addParticleClient(ParticleTypes.PORTAL, d, e, f, g, h, k);
+				world.addParticleClient(ParticleTypes.PORTAL, x, y, z, velX, velY, velZ);
 			}
 		}
 	}
@@ -104,47 +105,51 @@ public class EndGatewayBlock extends BlockWithEntity implements Portal {
 			EntityCollisionHandler handler,
 			boolean bl
 	) {
-		if (entity.canUsePortals(false)
-				&& !world.isClient()
-				&& world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity
-				&& !endGatewayBlockEntity.needsCooldownBeforeTeleporting()) {
+		if (entity.canUsePortals(false) == false || world.isClient()) {
+			return;
+		}
+
+		if (world.getBlockEntity(pos) instanceof EndGatewayBlockEntity gateway
+				&& gateway.needsCooldownBeforeTeleporting() == false
+		) {
 			entity.tryUsePortal(this, pos);
-			EndGatewayBlockEntity.startTeleportCooldown(world, pos, state, endGatewayBlockEntity);
+			EndGatewayBlockEntity.startTeleportCooldown(world, pos, state, gateway);
 		}
 	}
 
 	@Override
 	public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos) {
-		if (world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity) {
-			Vec3d vec3d = endGatewayBlockEntity.getOrCreateExitPortalPos(world, pos);
-			if (vec3d == null) {
-				return null;
-			}
-			else {
-				return entity instanceof EnderPearlEntity
-				       ? new TeleportTarget(
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+
+		if (!(blockEntity instanceof EndGatewayBlockEntity gateway)) {
+			return null;
+		}
+
+		Vec3d exitPos = gateway.getOrCreateExitPortalPos(world, pos);
+
+		if (exitPos == null) {
+			return null;
+		}
+
+		return entity instanceof EnderPearlEntity
+				? new TeleportTarget(
 						world,
-						vec3d,
+						exitPos,
 						Vec3d.ZERO,
 						0.0F,
 						0.0F,
 						Set.of(),
 						TeleportTarget.ADD_PORTAL_CHUNK_TICKET
 				)
-				       : new TeleportTarget(
-						       world,
-						       vec3d,
-						       Vec3d.ZERO,
-						       0.0F,
-						       0.0F,
-						       PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT),
-						       TeleportTarget.ADD_PORTAL_CHUNK_TICKET
-				       );
-			}
-		}
-		else {
-			return null;
-		}
+				: new TeleportTarget(
+						world,
+						exitPos,
+						Vec3d.ZERO,
+						0.0F,
+						0.0F,
+						PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT),
+						TeleportTarget.ADD_PORTAL_CHUNK_TICKET
+				);
 	}
 
 	@Override

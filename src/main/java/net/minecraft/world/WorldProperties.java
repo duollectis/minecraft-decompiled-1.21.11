@@ -15,7 +15,9 @@ import net.minecraft.util.math.MathHelper;
 import java.util.Locale;
 
 /**
- * {@code WorldProperties}.
+ * Свойства мира: точка спавна, время, погода, сложность.
+ * Реализуется классами уровня (LevelProperties) и предоставляет
+ * базовый контракт для доступа к метаданным мира из любого контекста.
  */
 public interface WorldProperties {
 
@@ -49,7 +51,8 @@ public interface WorldProperties {
 	}
 
 	/**
-	 * {@code SpawnPoint}.
+	 * Точка спавна игрока: глобальная позиция (измерение + координаты),
+	 * угол поворота по горизонтали и вертикали. Нормализует углы при создании.
 	 */
 	public record SpawnPoint(GlobalPos globalPos, float yaw, float pitch) {
 

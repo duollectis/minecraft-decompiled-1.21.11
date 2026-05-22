@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerMBean}.
+ * JMX MBean-интерфейс для мониторинга и управления сервером через JMX.
  */
 public final class ServerMBean implements DynamicMBean {
 
@@ -115,9 +115,6 @@ public final class ServerMBean implements DynamicMBean {
 		return this.mBeanInfo;
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	static final class Entry {
 
 		final String name;

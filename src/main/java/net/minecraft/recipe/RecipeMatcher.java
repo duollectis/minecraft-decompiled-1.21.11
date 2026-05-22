@@ -15,77 +15,72 @@ import java.util.BitSet;
 import java.util.List;
 
 /**
- * {@code RecipeMatcher}.
+ * Реализует двудольное сопоставление (bipartite matching) между доступными предметами
+ * и ингредиентами рецепта. Используется для проверки возможности крафта и подсчёта
+ * максимального количества крафтов с учётом имеющихся ресурсов.
  */
 public class RecipeMatcher<T> {
 
 	public final Reference2IntOpenHashMap<T> available = new Reference2IntOpenHashMap();
 
 	boolean hasAtLeast(T input, int minimum) {
-		return this.available.getInt(input) >= minimum;
+		return available.getInt(input) >= minimum;
 	}
 
 	void consume(T input, int count) {
-		int i = this.available.addTo(input, -count);
-		if (i < count) {
-			throw new IllegalStateException("Took " + count + " items, but only had " + i);
+		int previous = available.addTo(input, -count);
+
+		if (previous < count) {
+			throw new IllegalStateException("Took " + count + " items, but only had " + previous);
 		}
 	}
 
 	void addInput(T input, int count) {
-		this.available.addTo(input, count);
+		available.addTo(input, count);
 	}
 
 	public boolean match(
-			List<? extends RecipeMatcher.RawIngredient<T>> ingredients,
-			int quantity,
-			RecipeMatcher.@Nullable ItemCallback<T> itemCallback
+		List<? extends RecipeMatcher.RawIngredient<T>> ingredients,
+		int quantity,
+		RecipeMatcher.@Nullable ItemCallback<T> itemCallback
 	) {
-		return new RecipeMatcher.Matcher(ingredients).match(quantity, itemCallback);
+		return new Matcher(ingredients).match(quantity, itemCallback);
 	}
 
 	public int countCrafts(
-			List<? extends RecipeMatcher.RawIngredient<T>> ingredients,
-			int max,
-			RecipeMatcher.@Nullable ItemCallback<T> itemCallback
+		List<? extends RecipeMatcher.RawIngredient<T>> ingredients,
+		int max,
+		RecipeMatcher.@Nullable ItemCallback<T> itemCallback
 	) {
-		return new RecipeMatcher.Matcher(ingredients).countCrafts(max, itemCallback);
+		return new Matcher(ingredients).countCrafts(max, itemCallback);
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.available.clear();
+		available.clear();
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param input input
-	 * @param count count
-	 */
 	public void add(T input, int count) {
-		this.addInput(input, count);
+		addInput(input, count);
 	}
 
 	List<T> createItemRequirementList(Iterable<? extends RecipeMatcher.RawIngredient<T>> ingredients) {
-		List<T> list = new ArrayList<>();
-		ObjectIterator var3 = Reference2IntMaps.fastIterable(this.available).iterator();
+		List<T> result = new ArrayList<>();
+		ObjectIterator<Entry<T>> iterator = Reference2IntMaps.fastIterable(available).iterator();
 
-		while (var3.hasNext()) {
-			Entry<T> entry = (Entry<T>) var3.next();
-			if (entry.getIntValue() > 0 && anyAccept(ingredients, (T) entry.getKey())) {
-				list.add((T) entry.getKey());
+		while (iterator.hasNext()) {
+			Entry<T> entry = iterator.next();
+
+			if (entry.getIntValue() > 0 && anyAccept(ingredients, entry.getKey())) {
+				result.add(entry.getKey());
 			}
 		}
 
-		return list;
+		return result;
 	}
 
 	private static <T> boolean anyAccept(Iterable<? extends RecipeMatcher.RawIngredient<T>> ingredients, T item) {
-		for (RecipeMatcher.RawIngredient<T> rawIngredient : ingredients) {
-			if (rawIngredient.acceptsItem(item)) {
+		for (RecipeMatcher.RawIngredient<T> ingredient : ingredients) {
+			if (ingredient.acceptsItem(item)) {
 				return true;
 			}
 		}
@@ -93,50 +88,60 @@ public class RecipeMatcher<T> {
 		return false;
 	}
 
+	/**
+	 * Вычисляет верхнюю оценку максимального числа крафтов без учёта двудольного сопоставления:
+	 * для каждого ингредиента берётся максимальное количество подходящего предмета.
+	 * Реальный максимум может быть меньше из-за конкуренции ингредиентов за одни предметы.
+	 */
 	@VisibleForTesting
 	public int getMaximumCrafts(List<? extends RecipeMatcher.RawIngredient<T>> ingredients) {
-		int i = Integer.MAX_VALUE;
-		ObjectIterable<Entry<T>> objectIterable = Reference2IntMaps.fastIterable(this.available);
+		int minimum = Integer.MAX_VALUE;
+		ObjectIterable<Entry<T>> entries = Reference2IntMaps.fastIterable(available);
 
-		label31:
-		for (RecipeMatcher.RawIngredient<T> rawIngredient : ingredients) {
-			int j = 0;
-			ObjectIterator var7 = objectIterable.iterator();
+		outer:
+		for (RecipeMatcher.RawIngredient<T> ingredient : ingredients) {
+			int bestCount = 0;
+			ObjectIterator<Entry<T>> iterator = entries.iterator();
 
-			while (var7.hasNext()) {
-				Entry<T> entry = (Entry<T>) var7.next();
-				int k = entry.getIntValue();
-				if (k > j) {
-					if (rawIngredient.acceptsItem((T) entry.getKey())) {
-						j = k;
-					}
+			while (iterator.hasNext()) {
+				Entry<T> entry = iterator.next();
+				int count = entry.getIntValue();
 
-					if (j >= i) {
-						continue label31;
+				if (count > bestCount && ingredient.acceptsItem(entry.getKey())) {
+					bestCount = count;
+
+					if (bestCount >= minimum) {
+						continue outer;
 					}
 				}
 			}
 
-			i = j;
-			if (j == 0) {
+			minimum = bestCount;
+
+			if (bestCount == 0) {
 				break;
 			}
 		}
 
-		return i;
+		return minimum;
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code ItemCallback}.
-	 */
 	public interface ItemCallback<T> {
 
 		void accept(T item);
 	}
 
+	@FunctionalInterface
+	public interface RawIngredient<T> {
+
+		boolean acceptsItem(T entry);
+	}
+
 	/**
-	 * {@code Matcher}.
+	 * Реализует алгоритм поиска увеличивающего пути (augmenting path) в двудольном графе
+	 * для сопоставления ингредиентов рецепта с доступными предметами.
+	 * Состояние хранится компактно в одном {@link BitSet} для минимизации аллокаций.
 	 */
 	class Matcher {
 
@@ -149,94 +154,89 @@ public class RecipeMatcher<T> {
 
 		public Matcher(final List<? extends RecipeMatcher.RawIngredient<T>> ingredients) {
 			this.ingredients = ingredients;
-			this.totalIngredients = ingredients.size();
-			this.requiredItems = RecipeMatcher.this.createItemRequirementList(ingredients);
-			this.totalRequiredItems = this.requiredItems.size();
-			this.bits = new BitSet(
-					this.getVisitedIngredientIndexCount()
-							+ this.getVisitedItemIndexCount()
-							+ this.getRequirementIndexCount()
-							+ this.getItemMatchIndexCount()
-							+ this.getMissingIndexCount()
+			totalIngredients = ingredients.size();
+			requiredItems = RecipeMatcher.this.createItemRequirementList(ingredients);
+			totalRequiredItems = requiredItems.size();
+			bits = new BitSet(
+				getVisitedIngredientIndexCount()
+					+ getVisitedItemIndexCount()
+					+ getRequirementIndexCount()
+					+ getItemMatchIndexCount()
+					+ getMissingIndexCount()
 			);
-			this.initItemMatch();
+			initItemMatch();
 		}
 
 		private void initItemMatch() {
-			for (int i = 0; i < this.totalIngredients; i++) {
-				RecipeMatcher.RawIngredient<T> rawIngredient = (RecipeMatcher.RawIngredient<T>) this.ingredients.get(i);
+			for (int ingredientIndex = 0; ingredientIndex < totalIngredients; ingredientIndex++) {
+				RecipeMatcher.RawIngredient<T> ingredient = ingredients.get(ingredientIndex);
 
-				for (int j = 0; j < this.totalRequiredItems; j++) {
-					if (rawIngredient.acceptsItem(this.requiredItems.get(j))) {
-						this.setMatch(j, i);
+				for (int itemIndex = 0; itemIndex < totalRequiredItems; itemIndex++) {
+					if (ingredient.acceptsItem(requiredItems.get(itemIndex))) {
+						setMatch(itemIndex, ingredientIndex);
 					}
 				}
 			}
 		}
 
 		/**
-		 * Match.
-		 *
-		 * @param quantity quantity
-		 * @param itemCallback item callback
-		 *
-		 * @return boolean — результат операции
+		 * Выполняет двудольное сопоставление для {@code quantity} крафтов.
+		 * Использует алгоритм Хопкрофта-Карпа (поиск увеличивающих путей).
+		 * Возвращает {@code true}, если все ингредиенты удалось сопоставить.
 		 */
 		public boolean match(int quantity, RecipeMatcher.@Nullable ItemCallback<T> itemCallback) {
 			if (quantity <= 0) {
 				return true;
 			}
-			else {
-				int i = 0;
 
-				while (true) {
-					IntList intList = this.tryFindIngredientItemLookup(quantity);
-					if (intList == null) {
-						boolean bl = i == this.totalIngredients;
-						boolean bl2 = bl && itemCallback != null;
-						this.clearVisited();
-						this.clearRequirements();
+			int matchedCount = 0;
 
-						for (int k = 0; k < this.totalIngredients; k++) {
-							for (int l = 0; l < this.totalRequiredItems; l++) {
-								if (this.isMissing(l, k)) {
-									this.markNotMissing(l, k);
-									RecipeMatcher.this.addInput(this.requiredItems.get(l), quantity);
-									if (bl2) {
-										itemCallback.accept(this.requiredItems.get(l));
-									}
-									break;
+			while (true) {
+				IntList path = tryFindIngredientItemLookup(quantity);
+
+				if (path == null) {
+					boolean allMatched = matchedCount == totalIngredients;
+					boolean shouldCallback = allMatched && itemCallback != null;
+					clearVisited();
+					clearRequirements();
+
+					for (int ingredientIndex = 0; ingredientIndex < totalIngredients; ingredientIndex++) {
+						for (int itemIndex = 0; itemIndex < totalRequiredItems; itemIndex++) {
+							if (isMissing(itemIndex, ingredientIndex)) {
+								markNotMissing(itemIndex, ingredientIndex);
+								RecipeMatcher.this.addInput(requiredItems.get(itemIndex), quantity);
+
+								if (shouldCallback) {
+									itemCallback.accept(requiredItems.get(itemIndex));
 								}
+
+								break;
 							}
 						}
-
-						assert this.bits
-								.get(
-										this.getMissingIndexOffset(),
-										this.getMissingIndexOffset() + this.getMissingIndexCount()
-								)
-								.isEmpty();
-
-						return bl;
 					}
 
-					int j = intList.getInt(0);
-					RecipeMatcher.this.consume(this.requiredItems.get(j), quantity);
-					int k = intList.size() - 1;
-					this.unfulfillRequirement(intList.getInt(k));
-					i++;
+					assert bits
+						.get(getMissingIndexOffset(), getMissingIndexOffset() + getMissingIndexCount())
+						.isEmpty();
 
-					for (int lx = 0; lx < intList.size() - 1; lx++) {
-						if (isItem(lx)) {
-							int m = intList.getInt(lx);
-							int n = intList.getInt(lx + 1);
-							this.markMissing(m, n);
-						}
-						else {
-							int m = intList.getInt(lx + 1);
-							int n = intList.getInt(lx);
-							this.markNotMissing(m, n);
-						}
+					return allMatched;
+				}
+
+				int itemIndex = path.getInt(0);
+				RecipeMatcher.this.consume(requiredItems.get(itemIndex), quantity);
+				int lastIndex = path.size() - 1;
+				unfulfillRequirement(path.getInt(lastIndex));
+				matchedCount++;
+
+				for (int pathIndex = 0; pathIndex < path.size() - 1; pathIndex++) {
+					if (isItem(pathIndex)) {
+						int item = path.getInt(pathIndex);
+						int ingredient = path.getInt(pathIndex + 1);
+						markMissing(item, ingredient);
+					} else {
+						int item = path.getInt(pathIndex + 1);
+						int ingredient = path.getInt(pathIndex);
+						markNotMissing(item, ingredient);
 					}
 				}
 			}
@@ -247,13 +247,14 @@ public class RecipeMatcher<T> {
 		}
 
 		private @Nullable IntList tryFindIngredientItemLookup(int min) {
-			this.clearVisited();
+			clearVisited();
 
-			for (int i = 0; i < this.totalRequiredItems; i++) {
-				if (RecipeMatcher.this.hasAtLeast(this.requiredItems.get(i), min)) {
-					IntList intList = this.findIngredientItemLookup(i);
-					if (intList != null) {
-						return intList;
+			for (int itemIndex = 0; itemIndex < totalRequiredItems; itemIndex++) {
+				if (RecipeMatcher.this.hasAtLeast(requiredItems.get(itemIndex), min)) {
+					IntList path = findIngredientItemLookup(itemIndex);
+
+					if (path != null) {
+						return path;
 					}
 				}
 			}
@@ -262,43 +263,48 @@ public class RecipeMatcher<T> {
 		}
 
 		private @Nullable IntList findIngredientItemLookup(int itemIndex) {
-			this.ingredientItemLookup.clear();
-			this.markItemVisited(itemIndex);
-			this.ingredientItemLookup.add(itemIndex);
+			ingredientItemLookup.clear();
+			markItemVisited(itemIndex);
+			ingredientItemLookup.add(itemIndex);
 
-			while (!this.ingredientItemLookup.isEmpty()) {
-				int i = this.ingredientItemLookup.size();
-				if (isItem(i - 1)) {
-					int j = this.ingredientItemLookup.getInt(i - 1);
+			while (!ingredientItemLookup.isEmpty()) {
+				int size = ingredientItemLookup.size();
 
-					for (int k = 0; k < this.totalIngredients; k++) {
-						if (!this.hasVisitedIngredient(k) && this.matches(j, k) && !this.isMissing(j, k)) {
-							this.markIngredientVisited(k);
-							this.ingredientItemLookup.add(k);
+				if (isItem(size - 1)) {
+					int item = ingredientItemLookup.getInt(size - 1);
+
+					for (int ingredientIndex = 0; ingredientIndex < totalIngredients; ingredientIndex++) {
+						if (!hasVisitedIngredient(ingredientIndex)
+							&& matches(item, ingredientIndex)
+							&& !isMissing(item, ingredientIndex)
+						) {
+							markIngredientVisited(ingredientIndex);
+							ingredientItemLookup.add(ingredientIndex);
+							break;
+						}
+					}
+				} else {
+					int ingredientIndex = ingredientItemLookup.getInt(size - 1);
+
+					if (!getRequirement(ingredientIndex)) {
+						return ingredientItemLookup;
+					}
+
+					for (int itemIdx = 0; itemIdx < totalRequiredItems; itemIdx++) {
+						if (!isRequirementUnfulfilled(itemIdx) && isMissing(itemIdx, ingredientIndex)) {
+							assert matches(itemIdx, ingredientIndex);
+
+							markItemVisited(itemIdx);
+							ingredientItemLookup.add(itemIdx);
 							break;
 						}
 					}
 				}
-				else {
-					int j = this.ingredientItemLookup.getInt(i - 1);
-					if (!this.getRequirement(j)) {
-						return this.ingredientItemLookup;
-					}
 
-					for (int kx = 0; kx < this.totalRequiredItems; kx++) {
-						if (!this.isRequirementUnfulfilled(kx) && this.isMissing(kx, j)) {
-							assert this.matches(kx, j);
+				int newSize = ingredientItemLookup.size();
 
-							this.markItemVisited(kx);
-							this.ingredientItemLookup.add(kx);
-							break;
-						}
-					}
-				}
-
-				int j = this.ingredientItemLookup.size();
-				if (j == i) {
-					this.ingredientItemLookup.removeInt(j - 1);
+				if (newSize == size) {
+					ingredientItemLookup.removeInt(newSize - 1);
 				}
 			}
 
@@ -310,178 +316,164 @@ public class RecipeMatcher<T> {
 		}
 
 		private int getVisitedIngredientIndexCount() {
-			return this.totalIngredients;
+			return totalIngredients;
 		}
 
 		private int getVisitedItemIndexOffset() {
-			return this.getVisitedIngredientIndexOffset() + this.getVisitedIngredientIndexCount();
+			return getVisitedIngredientIndexOffset() + getVisitedIngredientIndexCount();
 		}
 
 		private int getVisitedItemIndexCount() {
-			return this.totalRequiredItems;
+			return totalRequiredItems;
 		}
 
 		private int getRequirementIndexOffset() {
-			return this.getVisitedItemIndexOffset() + this.getVisitedItemIndexCount();
+			return getVisitedItemIndexOffset() + getVisitedItemIndexCount();
 		}
 
 		private int getRequirementIndexCount() {
-			return this.totalIngredients;
+			return totalIngredients;
 		}
 
 		private int getItemMatchIndexOffset() {
-			return this.getRequirementIndexOffset() + this.getRequirementIndexCount();
+			return getRequirementIndexOffset() + getRequirementIndexCount();
 		}
 
 		private int getItemMatchIndexCount() {
-			return this.totalIngredients * this.totalRequiredItems;
+			return totalIngredients * totalRequiredItems;
 		}
 
 		private int getMissingIndexOffset() {
-			return this.getItemMatchIndexOffset() + this.getItemMatchIndexCount();
+			return getItemMatchIndexOffset() + getItemMatchIndexCount();
 		}
 
 		private int getMissingIndexCount() {
-			return this.totalIngredients * this.totalRequiredItems;
+			return totalIngredients * totalRequiredItems;
 		}
 
-		private boolean getRequirement(int itemId) {
-			return this.bits.get(this.getRequirementIndex(itemId));
+		private boolean getRequirement(int ingredientId) {
+			return bits.get(getRequirementIndex(ingredientId));
 		}
 
-		private void unfulfillRequirement(int itemId) {
-			this.bits.set(this.getRequirementIndex(itemId));
+		private void unfulfillRequirement(int ingredientId) {
+			bits.set(getRequirementIndex(ingredientId));
 		}
 
-		private int getRequirementIndex(int itemId) {
-			assert itemId >= 0 && itemId < this.totalIngredients;
+		private int getRequirementIndex(int ingredientId) {
+			assert ingredientId >= 0 && ingredientId < totalIngredients;
 
-			return this.getRequirementIndexOffset() + itemId;
+			return getRequirementIndexOffset() + ingredientId;
 		}
 
 		private void clearRequirements() {
-			this.clear(this.getRequirementIndexOffset(), this.getRequirementIndexCount());
+			clear(getRequirementIndexOffset(), getRequirementIndexCount());
 		}
 
 		private void setMatch(int itemIndex, int ingredientIndex) {
-			this.bits.set(this.getMatchIndex(itemIndex, ingredientIndex));
+			bits.set(getMatchIndex(itemIndex, ingredientIndex));
 		}
 
 		private boolean matches(int itemIndex, int ingredientIndex) {
-			return this.bits.get(this.getMatchIndex(itemIndex, ingredientIndex));
+			return bits.get(getMatchIndex(itemIndex, ingredientIndex));
 		}
 
 		private int getMatchIndex(int itemIndex, int ingredientIndex) {
-			assert itemIndex >= 0 && itemIndex < this.totalRequiredItems;
+			assert itemIndex >= 0 && itemIndex < totalRequiredItems;
+			assert ingredientIndex >= 0 && ingredientIndex < totalIngredients;
 
-			assert ingredientIndex >= 0 && ingredientIndex < this.totalIngredients;
-
-			return this.getItemMatchIndexOffset() + itemIndex * this.totalIngredients + ingredientIndex;
+			return getItemMatchIndexOffset() + itemIndex * totalIngredients + ingredientIndex;
 		}
 
 		private boolean isMissing(int itemIndex, int ingredientIndex) {
-			return this.bits.get(this.getMissingIndex(itemIndex, ingredientIndex));
+			return bits.get(getMissingIndex(itemIndex, ingredientIndex));
 		}
 
 		private void markMissing(int itemIndex, int ingredientIndex) {
-			int i = this.getMissingIndex(itemIndex, ingredientIndex);
+			int index = getMissingIndex(itemIndex, ingredientIndex);
 
-			assert !this.bits.get(i);
+			assert !bits.get(index);
 
-			this.bits.set(i);
+			bits.set(index);
 		}
 
 		private void markNotMissing(int itemIndex, int ingredientIndex) {
-			int i = this.getMissingIndex(itemIndex, ingredientIndex);
+			int index = getMissingIndex(itemIndex, ingredientIndex);
 
-			assert this.bits.get(i);
+			assert bits.get(index);
 
-			this.bits.clear(i);
+			bits.clear(index);
 		}
 
 		private int getMissingIndex(int itemIndex, int ingredientIndex) {
-			assert itemIndex >= 0 && itemIndex < this.totalRequiredItems;
+			assert itemIndex >= 0 && itemIndex < totalRequiredItems;
+			assert ingredientIndex >= 0 && ingredientIndex < totalIngredients;
 
-			assert ingredientIndex >= 0 && ingredientIndex < this.totalIngredients;
-
-			return this.getMissingIndexOffset() + itemIndex * this.totalIngredients + ingredientIndex;
+			return getMissingIndexOffset() + itemIndex * totalIngredients + ingredientIndex;
 		}
 
 		private void markIngredientVisited(int index) {
-			this.bits.set(this.getVisitedIngredientIndex(index));
+			bits.set(getVisitedIngredientIndex(index));
 		}
 
 		private boolean hasVisitedIngredient(int index) {
-			return this.bits.get(this.getVisitedIngredientIndex(index));
+			return bits.get(getVisitedIngredientIndex(index));
 		}
 
 		private int getVisitedIngredientIndex(int index) {
-			assert index >= 0 && index < this.totalIngredients;
+			assert index >= 0 && index < totalIngredients;
 
-			return this.getVisitedIngredientIndexOffset() + index;
+			return getVisitedIngredientIndexOffset() + index;
 		}
 
 		private void markItemVisited(int index) {
-			this.bits.set(this.getVisitedItemIndex(index));
+			bits.set(getVisitedItemIndex(index));
 		}
 
 		private boolean isRequirementUnfulfilled(int index) {
-			return this.bits.get(this.getVisitedItemIndex(index));
+			return bits.get(getVisitedItemIndex(index));
 		}
 
 		private int getVisitedItemIndex(int index) {
-			assert index >= 0 && index < this.totalRequiredItems;
+			assert index >= 0 && index < totalRequiredItems;
 
-			return this.getVisitedItemIndexOffset() + index;
+			return getVisitedItemIndexOffset() + index;
 		}
 
 		private void clearVisited() {
-			this.clear(this.getVisitedIngredientIndexOffset(), this.getVisitedIngredientIndexCount());
-			this.clear(this.getVisitedItemIndexOffset(), this.getVisitedItemIndexCount());
+			clear(getVisitedIngredientIndexOffset(), getVisitedIngredientIndexCount());
+			clear(getVisitedItemIndexOffset(), getVisitedItemIndexCount());
 		}
 
-		private void clear(int start, int offset) {
-			this.bits.clear(start, start + offset);
+		private void clear(int start, int count) {
+			bits.clear(start, start + count);
 		}
 
 		/**
-		 * Count crafts.
-		 *
-		 * @param max max
-		 * @param itemCallback item callback
-		 *
-		 * @return int — результат операции
+		 * Бинарным поиском находит максимальное количество крафтов в диапазоне [0, max].
+		 * После нахождения максимума вызывает {@code match} с колбэком для уведомления
+		 * о потреблённых предметах.
 		 */
 		public int countCrafts(int max, RecipeMatcher.@Nullable ItemCallback<T> itemCallback) {
-			int i = 0;
-			int j = Math.min(max, RecipeMatcher.this.getMaximumCrafts(this.ingredients)) + 1;
+			int low = 0;
+			int high = Math.min(max, RecipeMatcher.this.getMaximumCrafts(ingredients)) + 1;
 
 			while (true) {
-				int k = (i + j) / 2;
-				if (this.match(k, null)) {
-					if (j - i <= 1) {
-						if (k > 0) {
-							this.match(k, itemCallback);
+				int mid = (low + high) / 2;
+
+				if (match(mid, null)) {
+					if (high - low <= 1) {
+						if (mid > 0) {
+							match(mid, itemCallback);
 						}
 
-						return k;
+						return mid;
 					}
 
-					i = k;
-				}
-				else {
-					j = k;
+					low = mid;
+				} else {
+					high = mid;
 				}
 			}
 		}
-	}
-
-	@FunctionalInterface
-	/**
-	 * {@code RawIngredient}.
-	 */
-	public interface RawIngredient<T> {
-
-		boolean acceptsItem(T entry);
 	}
 }

@@ -16,7 +16,9 @@ import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code KelpBlock}.
+ * Стебель ламинарии (kelp), растущий вверх в воде.
+ * <p>Является стеблевой частью растения: при росте порождает новый стебель выше,
+ * а верхушка превращается в {@link Blocks#KELP_PLANT}. Не может расти на магме.</p>
  */
 public class KelpBlock extends AbstractPlantStemBlock implements FluidFillable {
 
@@ -30,7 +32,7 @@ public class KelpBlock extends AbstractPlantStemBlock implements FluidFillable {
 	}
 
 	public KelpBlock(AbstractBlock.Settings settings) {
-		super(settings, Direction.UP, SHAPE, true, 0.14);
+		super(settings, Direction.UP, SHAPE, true, GROWTH_CHANCE);
 	}
 
 	@Override

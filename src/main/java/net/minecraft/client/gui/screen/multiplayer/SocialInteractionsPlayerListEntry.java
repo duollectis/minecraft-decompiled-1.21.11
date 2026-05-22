@@ -34,27 +34,50 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SocialInteractionsPlayerListEntry}.
+ * Запись игрока в списке социальных взаимодействий — отображает аватар, имя, статус
+ * и кнопки скрытия/показа/жалобы. Поддерживает оффлайн-режим и черновики жалоб.
  */
+@Environment(EnvType.CLIENT)
 public class SocialInteractionsPlayerListEntry extends ElementListWidget.Entry<SocialInteractionsPlayerListEntry> {
 
 	private static final Identifier DRAFT_REPORT_ICON_TEXTURE = Identifier.ofVanilla("icon/draft_report");
 	private static final Duration TOOLTIP_DELAY = Duration.ofMillis(500L);
 	private static final ButtonTextures REPORT_BUTTON_TEXTURES = new ButtonTextures(
-			Identifier.ofVanilla("social_interactions/report_button"),
-			Identifier.ofVanilla("social_interactions/report_button_disabled"),
-			Identifier.ofVanilla("social_interactions/report_button_highlighted")
+		Identifier.ofVanilla("social_interactions/report_button"),
+		Identifier.ofVanilla("social_interactions/report_button_disabled"),
+		Identifier.ofVanilla("social_interactions/report_button_highlighted")
 	);
 	private static final ButtonTextures MUTE_BUTTON_TEXTURES = new ButtonTextures(
-			Identifier.ofVanilla("social_interactions/mute_button"),
-			Identifier.ofVanilla("social_interactions/mute_button_highlighted")
+		Identifier.ofVanilla("social_interactions/mute_button"),
+		Identifier.ofVanilla("social_interactions/mute_button_highlighted")
 	);
 	private static final ButtonTextures UNMUTE_BUTTON_TEXTURES = new ButtonTextures(
-			Identifier.ofVanilla("social_interactions/unmute_button"),
-			Identifier.ofVanilla("social_interactions/unmute_button_highlighted")
+		Identifier.ofVanilla("social_interactions/unmute_button"),
+		Identifier.ofVanilla("social_interactions/unmute_button_highlighted")
 	);
+
+	private static final Text HIDDEN_TEXT = Text.translatable("gui.socialInteractions.status_hidden").formatted(Formatting.ITALIC);
+	private static final Text BLOCKED_TEXT = Text.translatable("gui.socialInteractions.status_blocked").formatted(Formatting.ITALIC);
+	private static final Text OFFLINE_TEXT = Text.translatable("gui.socialInteractions.status_offline").formatted(Formatting.ITALIC);
+	private static final Text HIDDEN_OFFLINE_TEXT = Text.translatable("gui.socialInteractions.status_hidden_offline").formatted(Formatting.ITALIC);
+	private static final Text BLOCKED_OFFLINE_TEXT = Text.translatable("gui.socialInteractions.status_blocked_offline").formatted(Formatting.ITALIC);
+	private static final Text REPORT_DISABLED_TEXT = Text.translatable("gui.socialInteractions.tooltip.report.disabled");
+	private static final Text HIDE_TEXT = Text.translatable("gui.socialInteractions.tooltip.hide");
+	private static final Text SHOW_TEXT = Text.translatable("gui.socialInteractions.tooltip.show");
+	private static final Text REPORT_TEXT = Text.translatable("gui.socialInteractions.tooltip.report");
+
+	private static final int ENTRY_HEIGHT = 24;
+	private static final int ICON_PADDING = 4;
+	private static final int BUTTON_SIZE = 20;
+	private static final int DOUBLE_LINE_HEIGHT = 9 + 9;
+
+	public static final int BLACK_COLOR = ColorHelper.getArgb(190, 0, 0, 0);
+	public static final int GRAY_COLOR = ColorHelper.getArgb(255, 74, 74, 74);
+	public static final int DARK_GRAY_COLOR = ColorHelper.getArgb(255, 48, 48, 48);
+	public static final int WHITE_COLOR = ColorHelper.getArgb(255, 255, 255, 255);
+	public static final int LIGHT_GRAY_COLOR = ColorHelper.getArgb(140, 255, 255, 255);
+
 	private final MinecraftClient client;
 	private final List<ClickableWidget> buttons;
 	private final UUID uuid;
@@ -69,216 +92,171 @@ public class SocialInteractionsPlayerListEntry extends ElementListWidget.Entry<S
 	private @Nullable ButtonWidget showButton;
 	private @Nullable ButtonWidget reportButton;
 	private float timeCounter;
-	private static final Text
-			HIDDEN_TEXT =
-			Text.translatable("gui.socialInteractions.status_hidden").formatted(Formatting.ITALIC);
-	private static final Text
-			BLOCKED_TEXT =
-			Text.translatable("gui.socialInteractions.status_blocked").formatted(Formatting.ITALIC);
-	private static final Text
-			OFFLINE_TEXT =
-			Text.translatable("gui.socialInteractions.status_offline").formatted(Formatting.ITALIC);
-	private static final Text
-			HIDDEN_OFFLINE_TEXT =
-			Text.translatable("gui.socialInteractions.status_hidden_offline").formatted(Formatting.ITALIC);
-	private static final Text
-			BLOCKED_OFFLINE_TEXT =
-			Text.translatable("gui.socialInteractions.status_blocked_offline").formatted(Formatting.ITALIC);
-	private static final Text
-			REPORT_DISABLED_TEXT =
-			Text.translatable("gui.socialInteractions.tooltip.report.disabled");
-	private static final Text HIDE_TEXT = Text.translatable("gui.socialInteractions.tooltip.hide");
-	private static final Text SHOW_TEXT = Text.translatable("gui.socialInteractions.tooltip.show");
-	private static final Text REPORT_TEXT = Text.translatable("gui.socialInteractions.tooltip.report");
-	private static final int ENTRY_HEIGHT = 24;
-	private static final int ICON_PADDING = 4;
-	public static final int BLACK_COLOR = ColorHelper.getArgb(190, 0, 0, 0);
-	private static final int BUTTON_SIZE = 20;
-	public static final int GRAY_COLOR = ColorHelper.getArgb(255, 74, 74, 74);
-	public static final int DARK_GRAY_COLOR = ColorHelper.getArgb(255, 48, 48, 48);
-	public static final int WHITE_COLOR = ColorHelper.getArgb(255, 255, 255, 255);
-	public static final int LIGHT_GRAY_COLOR = ColorHelper.getArgb(140, 255, 255, 255);
 
 	public SocialInteractionsPlayerListEntry(
-			MinecraftClient client,
-			SocialInteractionsScreen parent,
-			UUID uuid,
-			String name,
-			Supplier<SkinTextures> skinTexture,
-			boolean reportable
+		MinecraftClient client,
+		SocialInteractionsScreen parent,
+		UUID uuid,
+		String name,
+		Supplier<SkinTextures> skinTexture,
+		boolean reportable
 	) {
 		this.client = client;
 		this.uuid = uuid;
 		this.name = name;
-		this.skinSupplier = skinTexture;
+		skinSupplier = skinTexture;
 		AbuseReportContext abuseReportContext = client.getAbuseReportContext();
-		this.canSendReports = abuseReportContext.getSender().canSendReports();
+		canSendReports = abuseReportContext.getSender().canSendReports();
 		this.reportable = reportable;
-		this.updateHasDraftReport(abuseReportContext);
-		Text text = Text.translatable("gui.socialInteractions.narration.hide", name);
-		Text text2 = Text.translatable("gui.socialInteractions.narration.show", name);
-		SocialInteractionsManager socialInteractionsManager = client.getSocialInteractionsManager();
-		boolean bl = client.getChatRestriction().allowsChat(client.isInSingleplayer());
-		boolean bl2 = !client.player.getUuid().equals(uuid);
-		if (!SharedConstants.SOCIAL_INTERACTIONS && (!bl2 || !bl || socialInteractionsManager.isPlayerBlocked(uuid))) {
-			this.buttons = ImmutableList.of();
+		updateHasDraftReport(abuseReportContext);
+		Text hideNarration = Text.translatable("gui.socialInteractions.narration.hide", name);
+		Text showNarration = Text.translatable("gui.socialInteractions.narration.show", name);
+		SocialInteractionsManager socialManager = client.getSocialInteractionsManager();
+		boolean chatAllowed = client.getChatRestriction().allowsChat(client.isInSingleplayer());
+		boolean isOtherPlayer = !client.player.getUuid().equals(uuid);
+		if (!SharedConstants.SOCIAL_INTERACTIONS && (!isOtherPlayer || !chatAllowed || socialManager.isPlayerBlocked(uuid))) {
+			buttons = ImmutableList.of();
+			return;
 		}
-		else {
-			this.reportButton = new TexturedButtonWidget(
-					0,
-					0,
-					20,
-					20,
-					REPORT_BUTTON_TEXTURES,
-					button -> abuseReportContext.tryShowDraftScreen(
-							client,
-							parent,
-							() -> client.setScreen(new AbuseReportTypeScreen(parent, abuseReportContext, this)),
-							false
-					),
-					Text.translatable("gui.socialInteractions.report")
-			) {
-				@Override
-				protected MutableText getNarrationMessage() {
-					return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
-				}
-			};
-			this.reportButton.active = this.canSendReports;
-			this.reportButton.setTooltip(this.getReportButtonTooltip());
-			this.reportButton.setTooltipDelay(TOOLTIP_DELAY);
-			this.hideButton = new TexturedButtonWidget(
-					0, 0, 20, 20, MUTE_BUTTON_TEXTURES, button -> {
-				socialInteractionsManager.hidePlayer(uuid);
-				this.onButtonClick(true, Text.translatable("gui.socialInteractions.hidden_in_chat", name));
-			}, Text.translatable("gui.socialInteractions.hide")
-			) {
-				@Override
-				protected MutableText getNarrationMessage() {
-					return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
-				}
-			};
-			this.hideButton.setTooltip(Tooltip.of(HIDE_TEXT, text));
-			this.hideButton.setTooltipDelay(TOOLTIP_DELAY);
-			this.showButton = new TexturedButtonWidget(
-					0, 0, 20, 20, UNMUTE_BUTTON_TEXTURES, button -> {
-				socialInteractionsManager.showPlayer(uuid);
-				this.onButtonClick(false, Text.translatable("gui.socialInteractions.shown_in_chat", name));
-			}, Text.translatable("gui.socialInteractions.show")
-			) {
-				@Override
-				protected MutableText getNarrationMessage() {
-					return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
-				}
-			};
-			this.showButton.setTooltip(Tooltip.of(SHOW_TEXT, text2));
-			this.showButton.setTooltipDelay(TOOLTIP_DELAY);
-			this.buttons = new ArrayList<>();
-			this.buttons.add(this.hideButton);
-			this.buttons.add(this.reportButton);
-			this.setShowButtonVisible(socialInteractionsManager.isPlayerHidden(this.uuid));
-		}
+
+		reportButton = new TexturedButtonWidget(
+			0, 0, BUTTON_SIZE, BUTTON_SIZE,
+			REPORT_BUTTON_TEXTURES,
+			button -> abuseReportContext.tryShowDraftScreen(
+				client,
+				parent,
+				() -> client.setScreen(new AbuseReportTypeScreen(parent, abuseReportContext, this)),
+				false
+			),
+			Text.translatable("gui.socialInteractions.report")
+		) {
+			@Override
+			protected MutableText getNarrationMessage() {
+				return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
+			}
+		};
+		reportButton.active = canSendReports;
+		reportButton.setTooltip(getReportButtonTooltip());
+		reportButton.setTooltipDelay(TOOLTIP_DELAY);
+		hideButton = new TexturedButtonWidget(
+			0, 0, BUTTON_SIZE, BUTTON_SIZE,
+			MUTE_BUTTON_TEXTURES,
+			button -> {
+				socialManager.hidePlayer(uuid);
+				onButtonClick(true, Text.translatable("gui.socialInteractions.hidden_in_chat", name));
+			},
+			Text.translatable("gui.socialInteractions.hide")
+		) {
+			@Override
+			protected MutableText getNarrationMessage() {
+				return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
+			}
+		};
+		hideButton.setTooltip(Tooltip.of(HIDE_TEXT, hideNarration));
+		hideButton.setTooltipDelay(TOOLTIP_DELAY);
+		showButton = new TexturedButtonWidget(
+			0, 0, BUTTON_SIZE, BUTTON_SIZE,
+			UNMUTE_BUTTON_TEXTURES,
+			button -> {
+				socialManager.showPlayer(uuid);
+				onButtonClick(false, Text.translatable("gui.socialInteractions.shown_in_chat", name));
+			},
+			Text.translatable("gui.socialInteractions.show")
+		) {
+			@Override
+			protected MutableText getNarrationMessage() {
+				return SocialInteractionsPlayerListEntry.this.getNarrationMessage(super.getNarrationMessage());
+			}
+		};
+		showButton.setTooltip(Tooltip.of(SHOW_TEXT, showNarration));
+		showButton.setTooltipDelay(TOOLTIP_DELAY);
+		buttons = new ArrayList<>();
+		buttons.add(hideButton);
+		buttons.add(reportButton);
+		setShowButtonVisible(socialManager.isPlayerHidden(uuid));
 	}
 
-	/**
-	 * Обновляет has draft report.
-	 *
-	 * @param context context
-	 */
 	public void updateHasDraftReport(AbuseReportContext context) {
-		this.hasDraftReport = context.draftPlayerUuidEquals(this.uuid);
+		hasDraftReport = context.draftPlayerUuidEquals(uuid);
 	}
 
 	private Tooltip getReportButtonTooltip() {
-		return !this.canSendReports
-		       ? Tooltip.of(REPORT_DISABLED_TEXT)
-		       : Tooltip.of(REPORT_TEXT, Text.translatable("gui.socialInteractions.narration.report", this.name));
+		return !canSendReports
+			? Tooltip.of(REPORT_DISABLED_TEXT)
+			: Tooltip.of(REPORT_TEXT, Text.translatable("gui.socialInteractions.narration.report", name));
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
-		int i = this.getContentX() + 4;
-		int j = this.getContentY() + (this.getContentHeight() - 24) / 2;
-		int k = i + 24 + 4;
-		Text text = this.getStatusText();
-		int l;
-		if (text == ScreenTexts.EMPTY) {
-			context.fill(
-					this.getContentX(),
-					this.getContentY(),
-					this.getContentRightEnd(),
-					this.getContentBottomEnd(),
-					GRAY_COLOR
-			);
-			l = this.getContentY() + (this.getContentHeight() - 9) / 2;
+		int iconX = getContentX() + ICON_PADDING;
+		int iconY = getContentY() + (getContentHeight() - ENTRY_HEIGHT) / 2;
+		int textX = iconX + ENTRY_HEIGHT + ICON_PADDING;
+		Text statusText = getStatusText();
+		int textY;
+		if (statusText == ScreenTexts.EMPTY) {
+			context.fill(getContentX(), getContentY(), getContentRightEnd(), getContentBottomEnd(), GRAY_COLOR);
+			textY = getContentY() + (getContentHeight() - 9) / 2;
 		}
 		else {
-			context.fill(
-					this.getContentX(),
-					this.getContentY(),
-					this.getContentRightEnd(),
-					this.getContentBottomEnd(),
-					DARK_GRAY_COLOR
-			);
-			l = this.getContentY() + (this.getContentHeight() - (9 + 9)) / 2;
-			context.drawTextWithShadow(this.client.textRenderer, text, k, l + 12, LIGHT_GRAY_COLOR);
+			context.fill(getContentX(), getContentY(), getContentRightEnd(), getContentBottomEnd(), DARK_GRAY_COLOR);
+			textY = getContentY() + (getContentHeight() - DOUBLE_LINE_HEIGHT) / 2;
+			context.drawTextWithShadow(client.textRenderer, statusText, textX, textY + 12, LIGHT_GRAY_COLOR);
 		}
 
-		PlayerSkinDrawer.draw(context, this.skinSupplier.get(), i, j, 24);
-		context.drawTextWithShadow(this.client.textRenderer, this.name, k, l, WHITE_COLOR);
-		if (this.offline) {
-			context.fill(i, j, i + 24, j + 24, BLACK_COLOR);
+		PlayerSkinDrawer.draw(context, skinSupplier.get(), iconX, iconY, ENTRY_HEIGHT);
+		context.drawTextWithShadow(client.textRenderer, name, textX, textY, WHITE_COLOR);
+		if (offline) {
+			context.fill(iconX, iconY, iconX + ENTRY_HEIGHT, iconY + ENTRY_HEIGHT, BLACK_COLOR);
 		}
 
-		if (this.hideButton != null && this.showButton != null && this.reportButton != null) {
-			float f = this.timeCounter;
-			this.hideButton.setX(
-					this.getContentX() + (this.getContentWidth() - this.hideButton.getWidth() - 4) - 20 - 4);
-			this.hideButton.setY(this.getContentY() + (this.getContentHeight() - this.hideButton.getHeight()) / 2);
-			this.hideButton.render(context, mouseX, mouseY, deltaTicks);
-			this.showButton.setX(
-					this.getContentX() + (this.getContentWidth() - this.showButton.getWidth() - 4) - 20 - 4);
-			this.showButton.setY(this.getContentY() + (this.getContentHeight() - this.showButton.getHeight()) / 2);
-			this.showButton.render(context, mouseX, mouseY, deltaTicks);
-			this.reportButton.setX(this.getContentX() + (this.getContentWidth() - this.showButton.getWidth() - 4));
-			this.reportButton.setY(this.getContentY() + (this.getContentHeight() - this.showButton.getHeight()) / 2);
-			this.reportButton.render(context, mouseX, mouseY, deltaTicks);
-			if (f == this.timeCounter) {
-				this.timeCounter = 0.0F;
+		if (hideButton != null && showButton != null && reportButton != null) {
+			float savedTimeCounter = timeCounter;
+			hideButton.setX(getContentX() + (getContentWidth() - hideButton.getWidth() - ICON_PADDING) - BUTTON_SIZE - ICON_PADDING);
+			hideButton.setY(getContentY() + (getContentHeight() - hideButton.getHeight()) / 2);
+			hideButton.render(context, mouseX, mouseY, deltaTicks);
+			showButton.setX(getContentX() + (getContentWidth() - showButton.getWidth() - ICON_PADDING) - BUTTON_SIZE - ICON_PADDING);
+			showButton.setY(getContentY() + (getContentHeight() - showButton.getHeight()) / 2);
+			showButton.render(context, mouseX, mouseY, deltaTicks);
+			reportButton.setX(getContentX() + (getContentWidth() - showButton.getWidth() - ICON_PADDING));
+			reportButton.setY(getContentY() + (getContentHeight() - showButton.getHeight()) / 2);
+			reportButton.render(context, mouseX, mouseY, deltaTicks);
+			if (savedTimeCounter == timeCounter) {
+				timeCounter = 0.0F;
 			}
 		}
 
-		if (this.hasDraftReport && this.reportButton != null) {
+		if (hasDraftReport && reportButton != null) {
 			context.drawGuiTexture(
-					RenderPipelines.GUI_TEXTURED,
-					DRAFT_REPORT_ICON_TEXTURE,
-					this.reportButton.getX() + 5,
-					this.reportButton.getY() + 1,
-					15,
-					15
+				RenderPipelines.GUI_TEXTURED,
+				DRAFT_REPORT_ICON_TEXTURE,
+				reportButton.getX() + 5,
+				reportButton.getY() + 1,
+				15,
+				15
 			);
 		}
 	}
 
 	@Override
 	public List<? extends Element> children() {
-		return this.buttons;
+		return buttons;
 	}
 
 	@Override
 	public List<? extends Selectable> selectableChildren() {
-		return this.buttons;
+		return buttons;
 	}
 
 	public String getName() {
-		return this.name;
+		return name;
 	}
 
 	public UUID getUuid() {
-		return this.uuid;
+		return uuid;
 	}
 
 	public Supplier<SkinTextures> getSkinSupplier() {
-		return this.skinSupplier;
+		return skinSupplier;
 	}
 
 	public void setOffline(boolean offline) {
@@ -286,7 +264,7 @@ public class SocialInteractionsPlayerListEntry extends ElementListWidget.Entry<S
 	}
 
 	public boolean isOffline() {
-		return this.offline;
+		return offline;
 	}
 
 	public void setSentMessage(boolean sentMessage) {
@@ -294,49 +272,48 @@ public class SocialInteractionsPlayerListEntry extends ElementListWidget.Entry<S
 	}
 
 	public boolean hasSentMessage() {
-		return this.sentMessage;
+		return sentMessage;
 	}
 
 	public boolean isReportable() {
-		return this.reportable;
+		return reportable;
 	}
 
 	private void onButtonClick(boolean showButtonVisible, Text chatMessage) {
-		this.setShowButtonVisible(showButtonVisible);
-		this.client.inGameHud.getChatHud().addMessage(chatMessage);
-		this.client.getNarratorManager().narrateSystemImmediately(chatMessage);
+		setShowButtonVisible(showButtonVisible);
+		client.inGameHud.getChatHud().addMessage(chatMessage);
+		client.getNarratorManager().narrateSystemImmediately(chatMessage);
 	}
 
 	private void setShowButtonVisible(boolean showButtonVisible) {
-		this.showButton.visible = showButtonVisible;
-		this.hideButton.visible = !showButtonVisible;
-		this.buttons.set(0, showButtonVisible ? this.showButton : this.hideButton);
+		showButton.visible = showButtonVisible;
+		hideButton.visible = !showButtonVisible;
+		buttons.set(0, showButtonVisible ? showButton : hideButton);
 	}
 
 	MutableText getNarrationMessage(MutableText text) {
-		Text text2 = this.getStatusText();
-		return text2 == ScreenTexts.EMPTY
-		       ? Text.literal(this.name).append(", ").append(text)
-		       : Text.literal(this.name).append(", ").append(text2).append(", ").append(text);
+		Text statusText = getStatusText();
+		return statusText == ScreenTexts.EMPTY
+			? Text.literal(name).append(", ").append(text)
+			: Text.literal(name).append(", ").append(statusText).append(", ").append(text);
 	}
 
 	private Text getStatusText() {
-		boolean bl = this.client.getSocialInteractionsManager().isPlayerHidden(this.uuid);
-		boolean bl2 = this.client.getSocialInteractionsManager().isPlayerBlocked(this.uuid);
-		if (bl2 && this.offline) {
+		boolean isHidden = client.getSocialInteractionsManager().isPlayerHidden(uuid);
+		boolean isBlocked = client.getSocialInteractionsManager().isPlayerBlocked(uuid);
+		if (isBlocked && offline) {
 			return BLOCKED_OFFLINE_TEXT;
 		}
-		else if (bl && this.offline) {
+		else if (isHidden && offline) {
 			return HIDDEN_OFFLINE_TEXT;
 		}
-		else if (bl2) {
+		else if (isBlocked) {
 			return BLOCKED_TEXT;
 		}
-		else if (bl) {
+		else if (isHidden) {
 			return HIDDEN_TEXT;
 		}
-		else {
-			return this.offline ? OFFLINE_TEXT : ScreenTexts.EMPTY;
-		}
+
+		return offline ? OFFLINE_TEXT : ScreenTexts.EMPTY;
 	}
 }

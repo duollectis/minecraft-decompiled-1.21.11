@@ -15,12 +15,20 @@ import java.util.Collection;
 import java.util.function.IntFunction;
 
 /**
- * {@code AbstractTeam}.
+ * Абстрактное представление команды в системе скорборда.
+ * Определяет базовый контракт для всех реализаций команд,
+ * включая правила видимости, столкновений и оформления имён участников.
  */
 public abstract class AbstractTeam {
 
+	/**
+	 * Проверяет, является ли переданная команда той же самой командой по ссылке.
+	 *
+	 * @param team команда для сравнения, может быть {@code null}
+	 * @return {@code true}, если {@code team} — это та же самая команда
+	 */
 	public boolean isEqual(@Nullable AbstractTeam team) {
-		return team == null ? false : this == team;
+		return team != null && this == team;
 	}
 
 	public abstract String getName();
@@ -31,89 +39,91 @@ public abstract class AbstractTeam {
 
 	public abstract boolean isFriendlyFireAllowed();
 
-	public abstract AbstractTeam.VisibilityRule getNameTagVisibilityRule();
+	public abstract VisibilityRule getNameTagVisibilityRule();
 
 	public abstract Formatting getColor();
 
 	public abstract Collection<String> getPlayerList();
 
-	public abstract AbstractTeam.VisibilityRule getDeathMessageVisibilityRule();
+	public abstract VisibilityRule getDeathMessageVisibilityRule();
 
-	public abstract AbstractTeam.CollisionRule getCollisionRule();
+	public abstract CollisionRule getCollisionRule();
 
 	/**
-	 * {@code CollisionRule}.
+	 * Правило физического столкновения между участниками команд.
+	 * Определяет, могут ли игроки физически проходить сквозь друг друга.
 	 */
-	public static enum CollisionRule implements StringIdentifiable {
+	public enum CollisionRule implements StringIdentifiable {
 		ALWAYS("always", 0),
 		NEVER("never", 1),
 		PUSH_OTHER_TEAMS("pushOtherTeams", 2),
 		PUSH_OWN_TEAM("pushOwnTeam", 3);
 
-		public static final Codec<AbstractTeam.CollisionRule>
-				CODEC =
-				StringIdentifiable.createCodec(AbstractTeam.CollisionRule::values);
-		private static final IntFunction<AbstractTeam.CollisionRule>
-				INDEX_MAPPER =
-				ValueLists.<AbstractTeam.CollisionRule>createIndexToValueFunction(
-						collisionRule -> collisionRule.index, values(), ValueLists.OutOfBoundsHandling.ZERO
-				);
-		public static final PacketCodec<ByteBuf, AbstractTeam.CollisionRule> PACKET_CODEC = PacketCodecs.indexed(
-				INDEX_MAPPER, collisionRule -> collisionRule.index
+		public static final Codec<CollisionRule> CODEC = StringIdentifiable.createCodec(CollisionRule::values);
+		private static final IntFunction<CollisionRule> INDEX_MAPPER = ValueLists.<CollisionRule>createIndexToValueFunction(
+				rule -> rule.index,
+				values(),
+				ValueLists.OutOfBoundsHandling.ZERO
 		);
+		public static final PacketCodec<ByteBuf, CollisionRule> PACKET_CODEC = PacketCodecs.indexed(
+				INDEX_MAPPER,
+				rule -> rule.index
+		);
+
 		public final String name;
 		public final int index;
 
-		private CollisionRule(final String name, final int index) {
+		CollisionRule(String name, int index) {
 			this.name = name;
 			this.index = index;
 		}
 
 		public Text getDisplayName() {
-			return Text.translatable("team.collision." + this.name);
+			return Text.translatable("team.collision." + name);
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 
 	/**
-	 * {@code VisibilityRule}.
+	 * Правило видимости имён/сообщений о смерти участников команды.
+	 * Управляет тем, кто может видеть теги имён или сообщения о гибели.
 	 */
-	public static enum VisibilityRule implements StringIdentifiable {
+	public enum VisibilityRule implements StringIdentifiable {
 		ALWAYS("always", 0),
 		NEVER("never", 1),
 		HIDE_FOR_OTHER_TEAMS("hideForOtherTeams", 2),
 		HIDE_FOR_OWN_TEAM("hideForOwnTeam", 3);
 
-		public static final Codec<AbstractTeam.VisibilityRule>
-				CODEC =
-				StringIdentifiable.createCodec(AbstractTeam.VisibilityRule::values);
-		private static final IntFunction<AbstractTeam.VisibilityRule>
-				INDEX_MAPPER =
-				ValueLists.<AbstractTeam.VisibilityRule>createIndexToValueFunction(
-						visibilityRule -> visibilityRule.index, values(), ValueLists.OutOfBoundsHandling.ZERO
-				);
-		public static final PacketCodec<ByteBuf, AbstractTeam.VisibilityRule> PACKET_CODEC = PacketCodecs.indexed(
-				INDEX_MAPPER, visibilityRule -> visibilityRule.index
+		public static final Codec<VisibilityRule> CODEC = StringIdentifiable.createCodec(VisibilityRule::values);
+		private static final IntFunction<VisibilityRule> INDEX_MAPPER = ValueLists.<VisibilityRule>createIndexToValueFunction(
+				rule -> rule.index,
+				values(),
+				ValueLists.OutOfBoundsHandling.ZERO
 		);
+		public static final PacketCodec<ByteBuf, VisibilityRule> PACKET_CODEC = PacketCodecs.indexed(
+				INDEX_MAPPER,
+				rule -> rule.index
+		);
+
 		public final String name;
 		public final int index;
 
-		private VisibilityRule(final String name, final int index) {
+		VisibilityRule(String name, int index) {
 			this.name = name;
 			this.index = index;
 		}
 
 		public Text getDisplayName() {
-			return Text.translatable("team.visibility." + this.name);
+			return Text.translatable("team.visibility." + name);
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 }

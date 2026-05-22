@@ -13,7 +13,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code Track}.
+ * Анимационный трек — упорядоченный список {@link Keyframe ключевых кадров} с заданным
+ * типом плавности ({@link EasingType}).
+ *
+ * <p>Трек должен содержать хотя бы один кадр. Кадры обязаны быть отсортированы по полю
+ * {@code ticks} в порядке возрастания. На одном тике допускается не более двух кадров
+ * (для задания мгновенного перехода без интерполяции).
+ *
+ * @param <T> тип значения ключевых кадров
  */
 public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 
@@ -21,74 +28,88 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 		if (keyframes.isEmpty()) {
 			throw new IllegalArgumentException("Track has no keyframes");
 		}
-		else {
-			this.keyframes = keyframes;
-			this.easingType = easingType;
-		}
+
+		this.keyframes = keyframes;
+		this.easingType = easingType;
 	}
 
 	/**
-	 * Создаёт codec.
+	 * Создаёт MapCodec для трека с произвольным типом значения.
+	 * Список кадров проходит валидацию {@link #validateKeyframes} при десериализации.
 	 *
-	 * @param valueCodec value codec
-	 *
-	 * @return MapCodec> — результат операции
+	 * @param <T>        тип значения кадров
+	 * @param valueCodec codec для сериализации значений кадров
+	 * @return MapCodec, кодирующий трек как объект с полями {@code keyframes} и {@code ease}
 	 */
 	public static <T> MapCodec<Track<T>> createCodec(Codec<T> valueCodec) {
-		Codec<List<Keyframe<T>>> codec = Keyframe.createCodec(valueCodec).listOf().validate(Track::validateKeyframes);
+		Codec<List<Keyframe<T>>> keyframesCodec = Keyframe.createCodec(valueCodec)
+				.listOf()
+				.validate(Track::validateKeyframes);
+
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    codec.fieldOf("keyframes").forGetter(Track::keyframes),
-						                    EasingType.CODEC.optionalFieldOf("ease", EasingType.LINEAR).forGetter(Track::easingType)
-				                    )
-				                    .apply(instance, Track::new)
+						keyframesCodec.fieldOf("keyframes").forGetter(Track::keyframes),
+						EasingType.CODEC.optionalFieldOf("ease", EasingType.LINEAR).forGetter(Track::easingType)
+				).apply(instance, Track::new)
 		);
 	}
 
+	/**
+	 * Проверяет корректность списка ключевых кадров:
+	 * <ul>
+	 *   <li>список не пуст;</li>
+	 *   <li>кадры отсортированы по возрастанию тиков;</li>
+	 *   <li>на одном тике не более двух кадров.</li>
+	 * </ul>
+	 *
+	 * @param <T>       тип значения кадров
+	 * @param keyframes список кадров для проверки
+	 * @return {@code DataResult.success} при успехе, иначе — ошибка с описанием нарушения
+	 */
 	static <T> DataResult<List<Keyframe<T>>> validateKeyframes(List<Keyframe<T>> keyframes) {
 		if (keyframes.isEmpty()) {
 			return DataResult.error(() -> "Keyframes must not be empty");
 		}
-		else if (!Comparators.isInOrder(keyframes, Comparator.comparingInt(Keyframe::ticks))) {
+
+		if (!Comparators.isInOrder(keyframes, Comparator.comparingInt(Keyframe::ticks))) {
 			return DataResult.error(() -> "Keyframes must be ordered by ticks field");
 		}
-		else {
-			if (keyframes.size() > 1) {
-				int i = 0;
-				int j = keyframes.getLast().ticks();
 
-				for (Keyframe<T> keyframe : keyframes) {
-					if (keyframe.ticks() == j) {
-						if (++i > 2) {
-							return DataResult.error(() -> "More than 2 keyframes on same tick: " + keyframe.ticks());
-						}
-					}
-					else {
-						i = 0;
-					}
+		if (keyframes.size() > 1) {
+			int duplicateCount = 0;
+			int lastTick = keyframes.getLast().ticks();
 
-					j = keyframe.ticks();
+			for (Keyframe<T> keyframe : keyframes) {
+				if (keyframe.ticks() == lastTick) {
+					if (++duplicateCount > 2) {
+						return DataResult.error(() -> "More than 2 keyframes on same tick: " + keyframe.ticks());
+					}
+				} else {
+					duplicateCount = 0;
 				}
-			}
 
-			return DataResult.success(keyframes);
+				lastTick = keyframe.ticks();
+			}
 		}
+
+		return DataResult.success(keyframes);
 	}
 
 	/**
-	 * Валидирует keyframes in period.
+	 * Проверяет, что все ключевые кадры трека укладываются в диапазон {@code [0; period]}.
 	 *
-	 * @param track track
-	 * @param period period
-	 *
-	 * @return DataResult> — результат операции
+	 * @param track  трек для проверки
+	 * @param period длина периода в тиках
+	 * @return {@code DataResult.success(track)} если все кадры в диапазоне, иначе — ошибка
 	 */
 	public static DataResult<Track<?>> validateKeyframesInPeriod(Track<?> track, int period) {
 		for (Keyframe<?> keyframe : track.keyframes()) {
-			int i = keyframe.ticks();
-			if (i < 0 || i > period) {
-				return DataResult.error(() -> "Keyframe at tick " + keyframe.ticks() + " must be in range [0; " + period
-						+ "]");
+			int tick = keyframe.ticks();
+
+			if (tick < 0 || tick > period) {
+				return DataResult.error(
+						() -> "Keyframe at tick " + keyframe.ticks() + " must be in range [0; " + period + "]"
+				);
 			}
 		}
 
@@ -96,27 +117,29 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 	}
 
 	/**
-	 * Создаёт evaluator.
+	 * Создаёт {@link TrackEvaluator} для вычисления значений трека в произвольный момент времени.
 	 *
-	 * @param period period
-	 * @param interpolator interpolator
-	 *
-	 * @return TrackEvaluator — результат операции
+	 * @param period       период шкалы (если задан, время берётся по модулю)
+	 * @param interpolator функция интерполяции между значениями кадров
+	 * @return готовый к использованию evaluator
 	 */
 	public TrackEvaluator<T> createEvaluator(Optional<Integer> period, Interpolator<T> interpolator) {
 		return new TrackEvaluator<>(this, period, interpolator);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель {@link Track}.
+	 * Позволяет декларативно добавлять ключевые кадры и задавать тип плавности.
+	 *
+	 * @param <T> тип значения кадров
 	 */
 	public static class Builder<T> {
 
-		private final com.google.common.collect.ImmutableList.Builder<Keyframe<T>> keyframes = ImmutableList.builder();
+		private final ImmutableList.Builder<Keyframe<T>> keyframes = ImmutableList.builder();
 		private EasingType easingType = EasingType.LINEAR;
 
 		public Track.Builder<T> keyframe(int ticks, T value) {
-			this.keyframes.add(new Keyframe(ticks, value));
+			keyframes.add(new Keyframe<>(ticks, value));
 			return this;
 		}
 
@@ -125,14 +148,10 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return Track — результат операции
-		 */
+		@SuppressWarnings("unchecked")
 		public Track<T> build() {
-			List<Keyframe<T>> list = (List<Keyframe<T>>) Track.validateKeyframes(this.keyframes.build()).getOrThrow();
-			return new Track<>(list, this.easingType);
+			List<Keyframe<T>> validated = (List<Keyframe<T>>) Track.validateKeyframes(keyframes.build()).getOrThrow();
+			return new Track<>(validated, easingType);
 		}
 	}
 }

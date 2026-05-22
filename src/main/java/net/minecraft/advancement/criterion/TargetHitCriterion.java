@@ -15,66 +15,64 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code TargetHitCriterion}.
+ * Критерий выполняется, когда игрок попадает снарядом в мишень (блок Target).
+ * Позволяет фильтровать по силе сигнала редстоуна и типу снаряда.
  */
 public class TargetHitCriterion extends AbstractCriterion<TargetHitCriterion.Conditions> {
 
 	@Override
-	public Codec<TargetHitCriterion.Conditions> getConditionsCodec() {
-		return TargetHitCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, Entity projectile, Vec3d hitPos, int signalStrength) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, projectile);
-		this.trigger(player, conditions -> conditions.test(lootContext, hitPos, signalStrength));
+		LootContext projectileContext = EntityPredicate.createAdvancementEntityLootContext(player, projectile);
+		trigger(player, conditions -> conditions.test(projectileContext, hitPos, signalStrength));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			NumberRange.IntRange signalStrength,
 			Optional<LootContextPredicate> projectile
-	)
-			implements AbstractCriterion.Conditions {
+	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<TargetHitCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(TargetHitCriterion.Conditions::player),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("signal_strength", NumberRange.IntRange.ANY)
-								                    .forGetter(TargetHitCriterion.Conditions::signalStrength),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("projectile")
-								                    .forGetter(TargetHitCriterion.Conditions::projectile)
-				                    )
-				                    .apply(instance, TargetHitCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("signal_strength", NumberRange.IntRange.ANY)
+								.forGetter(Conditions::signalStrength),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("projectile")
+								.forGetter(Conditions::projectile)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<TargetHitCriterion.Conditions> create(
+		public static AdvancementCriterion<Conditions> create(
 				NumberRange.IntRange signalStrength,
 				Optional<LootContextPredicate> projectile
 		) {
-			return Criteria.TARGET_HIT.create(new TargetHitCriterion.Conditions(
+			return Criteria.TARGET_HIT.create(new Conditions(
 					Optional.empty(),
 					signalStrength,
 					projectile
 			));
 		}
 
-		public boolean test(LootContext projectile, Vec3d hitPos, int signalStrength) {
-			return !this.signalStrength.test(signalStrength) ? false : !this.projectile.isPresent() || this.projectile
-			                                                                                           .get()
-			                                                                                           .test(projectile);
+		public boolean test(LootContext projectileContext, Vec3d hitPos, int signalStrength) {
+			if (!this.signalStrength.test(signalStrength)) {
+				return false;
+			}
+
+			return projectile.isEmpty() || projectile.get().test(projectileContext);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.projectile, "projectile");
+			validator.validateEntityPredicate(projectile, "projectile");
 		}
 	}
 }

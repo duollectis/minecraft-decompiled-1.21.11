@@ -32,7 +32,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code CreeperEntity}.
+ * Крипер — взрывоопасный моб, поджигающий фитиль при приближении к цели.
+ * Заряженный крипер (после удара молнии) создаёт взрыв двойной силы
+ * и при убийстве другого моба дропает его голову.
  */
 public class CreeperEntity extends HostileEntity {
 
@@ -51,8 +53,8 @@ public class CreeperEntity extends HostileEntity {
 	private static final byte DEFAULT_EXPLOSION_RADIUS = 3;
 	private int lastFuseTime;
 	private int currentFuseTime;
-	private int fuseTime = 30;
-	private int explosionRadius = 3;
+	private int fuseTime = DEFAULT_FUSE;
+	private int explosionRadius = DEFAULT_EXPLOSION_RADIUS;
 	private boolean headsDropped;
 
 	public CreeperEntity(EntityType<? extends CreeperEntity> entityType, World world) {
@@ -61,16 +63,16 @@ public class CreeperEntity extends HostileEntity {
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(2, new CreeperIgniteGoal(this));
-		this.goalSelector.add(3, new FleeEntityGoal<>(this, OcelotEntity.class, 6.0F, 1.0, 1.2));
-		this.goalSelector.add(3, new FleeEntityGoal<>(this, CatEntity.class, 6.0F, 1.0, 1.2));
-		this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
-		this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
-		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(6, new LookAroundGoal(this));
-		this.targetSelector.add(1, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-		this.targetSelector.add(2, new RevengeGoal(this));
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(2, new CreeperIgniteGoal(this));
+		goalSelector.add(3, new FleeEntityGoal<>(this, OcelotEntity.class, 6.0F, 1.0, 1.2));
+		goalSelector.add(3, new FleeEntityGoal<>(this, CatEntity.class, 6.0F, 1.0, 1.2));
+		goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
+		goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
+		goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(6, new LookAroundGoal(this));
+		targetSelector.add(1, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		targetSelector.add(2, new RevengeGoal(this));
 	}
 
 	public static DefaultAttributeContainer.Builder createCreeperAttributes() {
@@ -79,19 +81,21 @@ public class CreeperEntity extends HostileEntity {
 
 	@Override
 	public int getSafeFallDistance() {
-		return this.getTarget() == null ? this.getSafeFallDistance(0.0F)
-		                                : this.getSafeFallDistance(this.getHealth() - 1.0F);
+		return getTarget() == null
+				? getSafeFallDistance(0.0F)
+				: getSafeFallDistance(getHealth() - 1.0F);
 	}
 
 	@Override
 	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
-		boolean bl = super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
-		this.currentFuseTime += (int) (fallDistance * 1.5);
-		if (this.currentFuseTime > this.fuseTime - 5) {
-			this.currentFuseTime = this.fuseTime - 5;
+		boolean damaged = super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
+		currentFuseTime += (int) (fallDistance * 1.5);
+
+		if (currentFuseTime > fuseTime - 5) {
+			currentFuseTime = fuseTime - 5;
 		}
 
-		return bl;
+		return damaged;
 	}
 
 	@Override
@@ -105,45 +109,49 @@ public class CreeperEntity extends HostileEntity {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putBoolean("powered", this.isCharged());
-		view.putShort("Fuse", (short) this.fuseTime);
-		view.putByte("ExplosionRadius", (byte) this.explosionRadius);
-		view.putBoolean("ignited", this.isIgnited());
+		view.putBoolean("powered", isCharged());
+		view.putShort("Fuse", (short) fuseTime);
+		view.putByte("ExplosionRadius", (byte) explosionRadius);
+		view.putBoolean("ignited", isIgnited());
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.dataTracker.set(CHARGED, view.getBoolean("powered", false));
-		this.fuseTime = view.getShort("Fuse", (short) 30);
-		this.explosionRadius = view.getByte("ExplosionRadius", (byte) 3);
+		dataTracker.set(CHARGED, view.getBoolean("powered", false));
+		fuseTime = view.getShort("Fuse", (short) DEFAULT_FUSE);
+		explosionRadius = view.getByte("ExplosionRadius", (byte) 3);
+
 		if (view.getBoolean("ignited", false)) {
-			this.ignite();
+			ignite();
 		}
 	}
 
 	@Override
 	public void tick() {
-		if (this.isAlive()) {
-			this.lastFuseTime = this.currentFuseTime;
-			if (this.isIgnited()) {
-				this.setFuseSpeed(1);
+		if (isAlive()) {
+			lastFuseTime = currentFuseTime;
+
+			if (isIgnited()) {
+				setFuseSpeed(1);
 			}
 
-			int i = this.getFuseSpeed();
-			if (i > 0 && this.currentFuseTime == 0) {
-				this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 1.0F, 0.5F);
-				this.emitGameEvent(GameEvent.PRIME_FUSE);
+			int fuseSpeed = getFuseSpeed();
+
+			if (fuseSpeed > 0 && currentFuseTime == 0) {
+				playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 1.0F, 0.5F);
+				emitGameEvent(GameEvent.PRIME_FUSE);
 			}
 
-			this.currentFuseTime += i;
-			if (this.currentFuseTime < 0) {
-				this.currentFuseTime = 0;
+			currentFuseTime += fuseSpeed;
+
+			if (currentFuseTime < 0) {
+				currentFuseTime = 0;
 			}
 
-			if (this.currentFuseTime >= this.fuseTime) {
-				this.currentFuseTime = this.fuseTime;
-				this.explode();
+			if (currentFuseTime >= fuseTime) {
+				currentFuseTime = fuseTime;
+				explode();
 			}
 		}
 
@@ -152,9 +160,11 @@ public class CreeperEntity extends HostileEntity {
 
 	@Override
 	public void setTarget(@Nullable LivingEntity target) {
-		if (!(target instanceof GoatEntity)) {
-			super.setTarget(target);
+		if (target instanceof GoatEntity) {
+			return;
 		}
+
+		super.setTarget(target);
 	}
 
 	@Override
@@ -169,11 +179,11 @@ public class CreeperEntity extends HostileEntity {
 
 	@Override
 	public boolean onKilledOther(ServerWorld world, LivingEntity other, DamageSource damageSource) {
-		if (this.shouldDropLoot(world) && this.isCharged() && !this.headsDropped) {
+		if (shouldDropLoot(world) && isCharged() && !headsDropped) {
 			other.generateLoot(
 					world, damageSource, false, LootTables.ROOT_CHARGED_CREEPER, stack -> {
 						other.dropStack(world, stack);
-						this.headsDropped = true;
+						headsDropped = true;
 					}
 			);
 		}
@@ -187,113 +197,98 @@ public class CreeperEntity extends HostileEntity {
 	}
 
 	public boolean isCharged() {
-		return this.dataTracker.get(CHARGED);
+		return dataTracker.get(CHARGED);
 	}
 
 	public float getLerpedFuseTime(float tickProgress) {
-		return MathHelper.lerp(tickProgress, (float) this.lastFuseTime, (float) this.currentFuseTime) / (this.fuseTime
-				- 2
-		);
+		return MathHelper.lerp(tickProgress, (float) lastFuseTime, (float) currentFuseTime) / (fuseTime - 2);
 	}
 
 	public int getFuseSpeed() {
-		return this.dataTracker.get(FUSE_SPEED);
+		return dataTracker.get(FUSE_SPEED);
 	}
 
 	public void setFuseSpeed(int fuseSpeed) {
-		this.dataTracker.set(FUSE_SPEED, fuseSpeed);
+		dataTracker.set(FUSE_SPEED, fuseSpeed);
 	}
 
 	@Override
 	public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
 		super.onStruckByLightning(world, lightning);
-		this.dataTracker.set(CHARGED, true);
+		dataTracker.set(CHARGED, true);
 	}
 
 	@Override
 	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
 		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isIn(ItemTags.CREEPER_IGNITERS)) {
-			SoundEvent
-					soundEvent =
-					itemStack.isOf(Items.FIRE_CHARGE) ? SoundEvents.ITEM_FIRECHARGE_USE
-					                                  : SoundEvents.ITEM_FLINTANDSTEEL_USE;
-			this.getEntityWorld()
-			    .playSound(
-					    player,
-					    this.getX(),
-					    this.getY(),
-					    this.getZ(),
-					    soundEvent,
-					    this.getSoundCategory(),
-					    1.0F,
-					    this.random.nextFloat() * 0.4F + 0.8F
-			    );
-			if (!this.getEntityWorld().isClient()) {
-				this.ignite();
-				if (!itemStack.isDamageable()) {
-					itemStack.decrement(1);
-				}
-				else {
-					itemStack.damage(1, player, hand.getEquipmentSlot());
-				}
-			}
 
-			return ActionResult.SUCCESS;
-		}
-		else {
+		if (!itemStack.isIn(ItemTags.CREEPER_IGNITERS)) {
 			return super.interactMob(player, hand);
 		}
-	}
 
-	private void explode() {
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			float f = this.isCharged() ? 2.0F : 1.0F;
-			this.dead = true;
-			serverWorld.createExplosion(
-					this,
-					this.getX(),
-					this.getY(),
-					this.getZ(),
-					this.explosionRadius * f,
-					World.ExplosionSourceType.MOB
-			);
-			this.spawnEffectsCloud();
-			this.onRemoval(serverWorld, Entity.RemovalReason.KILLED);
-			this.discard();
-		}
-	}
+		SoundEvent igniteSound = itemStack.isOf(Items.FIRE_CHARGE)
+				? SoundEvents.ITEM_FIRECHARGE_USE
+				: SoundEvents.ITEM_FLINTANDSTEEL_USE;
+		getEntityWorld().playSound(player, getX(), getY(), getZ(), igniteSound, getSoundCategory(), 1.0F, random.nextFloat() * 0.4F + 0.8F);
 
-	private void spawnEffectsCloud() {
-		Collection<StatusEffectInstance> collection = this.getStatusEffects();
-		if (!collection.isEmpty()) {
-			AreaEffectCloudEntity
-					areaEffectCloudEntity =
-					new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
-			areaEffectCloudEntity.setRadius(2.5F);
-			areaEffectCloudEntity.setRadiusOnUse(-0.5F);
-			areaEffectCloudEntity.setWaitTime(10);
-			areaEffectCloudEntity.setDuration(300);
-			areaEffectCloudEntity.setPotionDurationScale(0.25F);
-			areaEffectCloudEntity.setRadiusGrowth(
-					-areaEffectCloudEntity.getRadius() / areaEffectCloudEntity.getDuration());
+		if (!getEntityWorld().isClient()) {
+			ignite();
 
-			for (StatusEffectInstance statusEffectInstance : collection) {
-				areaEffectCloudEntity.addEffect(new StatusEffectInstance(statusEffectInstance));
+			if (!itemStack.isDamageable()) {
+				itemStack.decrement(1);
 			}
-
-			this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
+			else {
+				itemStack.damage(1, player, hand.getEquipmentSlot());
+			}
 		}
-	}
 
-	public boolean isIgnited() {
-		return this.dataTracker.get(IGNITED);
+		return ActionResult.SUCCESS;
 	}
 
 	/**
-	 * Ignite.
+	 * Создаёт взрыв и облако эффектов, затем удаляет крипера из мира.
+	 * Радиус взрыва удваивается для заряженного крипера.
 	 */
+	private void explode() {
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		float radiusMultiplier = isCharged() ? 2.0F : 1.0F;
+		dead = true;
+		serverWorld.createExplosion(this, getX(), getY(), getZ(), explosionRadius * radiusMultiplier, World.ExplosionSourceType.MOB);
+		spawnEffectsCloud();
+		onRemoval(serverWorld, Entity.RemovalReason.KILLED);
+		discard();
+	}
+
+	private void spawnEffectsCloud() {
+		Collection<StatusEffectInstance> effects = getStatusEffects();
+
+		if (effects.isEmpty()) {
+			return;
+		}
+
+		AreaEffectCloudEntity cloud = new AreaEffectCloudEntity(getEntityWorld(), getX(), getY(), getZ());
+		cloud.setRadius(2.5F);
+		cloud.setRadiusOnUse(-0.5F);
+		cloud.setWaitTime(10);
+		cloud.setDuration(300);
+		cloud.setPotionDurationScale(0.25F);
+		cloud.setRadiusGrowth(-cloud.getRadius() / cloud.getDuration());
+
+		for (StatusEffectInstance effect : effects) {
+			cloud.addEffect(new StatusEffectInstance(effect));
+		}
+
+		getEntityWorld().spawnEntity(cloud);
+	}
+
+	public boolean isIgnited() {
+		return dataTracker.get(IGNITED);
+	}
+
 	public void ignite() {
-		this.dataTracker.set(IGNITED, true);
+		dataTracker.set(IGNITED, true);
 	}
 }

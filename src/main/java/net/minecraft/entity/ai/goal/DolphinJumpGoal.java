@@ -10,11 +10,19 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code DolphinJumpGoal}.
+ * Цель прыжка дельфина: проверяет наличие непрерывного водного коридора
+ * с воздухом сверху по направлению движения, затем выполняет прыжок с разворотом.
  */
 public class DolphinJumpGoal extends DiveJumpingGoal {
 
 	private static final int[] OFFSET_MULTIPLIERS = new int[]{0, 1, 4, 5, 6, 7};
+	private static final float JUMP_HORIZONTAL_IMPULSE = 0.6F;
+	private static final float JUMP_VERTICAL_IMPULSE = 0.7F;
+	private static final float PITCH_LERP_SPEED = 0.2F;
+	private static final float MIN_VELOCITY_SQ = 0.03F;
+	private static final float PITCH_LEVEL_THRESHOLD = 10.0F;
+	private static final double MIN_SPEED = 1.0E-5;
+
 	private final DolphinEntity dolphin;
 	private final int chance;
 	private boolean inWater;
@@ -26,49 +34,48 @@ public class DolphinJumpGoal extends DiveJumpingGoal {
 
 	@Override
 	public boolean canStart() {
-		if (this.dolphin.getRandom().nextInt(this.chance) != 0) {
+		if (dolphin.getRandom().nextInt(chance) != 0) {
 			return false;
 		}
-		else {
-			Direction direction = this.dolphin.getMovementDirection();
-			int i = direction.getOffsetX();
-			int j = direction.getOffsetZ();
-			BlockPos blockPos = this.dolphin.getBlockPos();
 
-			for (int k : OFFSET_MULTIPLIERS) {
-				if (!this.isWater(blockPos, i, j, k) || !this.isAirAbove(blockPos, i, j, k)) {
-					return false;
-				}
+		Direction direction = dolphin.getMovementDirection();
+		int offsetX = direction.getOffsetX();
+		int offsetZ = direction.getOffsetZ();
+		BlockPos pos = dolphin.getBlockPos();
+
+		for (int multiplier : OFFSET_MULTIPLIERS) {
+			if (!isWater(pos, offsetX, offsetZ, multiplier) || !isAirAbove(pos, offsetX, offsetZ, multiplier)) {
+				return false;
 			}
-
-			return true;
 		}
+
+		return true;
 	}
 
 	private boolean isWater(BlockPos pos, int offsetX, int offsetZ, int multiplier) {
-		BlockPos blockPos = pos.add(offsetX * multiplier, 0, offsetZ * multiplier);
-		return this.dolphin.getEntityWorld().getFluidState(blockPos).isIn(FluidTags.WATER)
-				&& !this.dolphin.getEntityWorld().getBlockState(blockPos).blocksMovement();
+		BlockPos target = pos.add(offsetX * multiplier, 0, offsetZ * multiplier);
+		return dolphin.getEntityWorld().getFluidState(target).isIn(FluidTags.WATER)
+			&& !dolphin.getEntityWorld().getBlockState(target).blocksMovement();
 	}
 
 	private boolean isAirAbove(BlockPos pos, int offsetX, int offsetZ, int multiplier) {
-		return this.dolphin
-				.getEntityWorld()
-				.getBlockState(pos.add(offsetX * multiplier, 1, offsetZ * multiplier))
-				.isAir()
-				&& this.dolphin
-				.getEntityWorld()
-				.getBlockState(pos.add(offsetX * multiplier, 2, offsetZ * multiplier))
-				.isAir();
+		return dolphin.getEntityWorld()
+			.getBlockState(pos.add(offsetX * multiplier, 1, offsetZ * multiplier))
+			.isAir()
+			&& dolphin.getEntityWorld()
+			.getBlockState(pos.add(offsetX * multiplier, 2, offsetZ * multiplier))
+			.isAir();
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		double d = this.dolphin.getVelocity().y;
-		return (!(d * d < 0.03F) || this.dolphin.getPitch() == 0.0F || !(Math.abs(this.dolphin.getPitch()) < 10.0F)
-				|| !this.dolphin.isTouchingWater()
-		)
-				&& !this.dolphin.isOnGround();
+		double velocityY = dolphin.getVelocity().y;
+		boolean slowingDown = velocityY * velocityY < MIN_VELOCITY_SQ
+			&& dolphin.getPitch() != 0.0F
+			&& Math.abs(dolphin.getPitch()) < PITCH_LEVEL_THRESHOLD
+			&& dolphin.isTouchingWater();
+
+		return !slowingDown && !dolphin.isOnGround();
 	}
 
 	@Override
@@ -78,38 +85,43 @@ public class DolphinJumpGoal extends DiveJumpingGoal {
 
 	@Override
 	public void start() {
-		Direction direction = this.dolphin.getMovementDirection();
-		this.dolphin.setVelocity(this.dolphin
-				.getVelocity()
-				.add(direction.getOffsetX() * 0.6, 0.7, direction.getOffsetZ() * 0.6));
-		this.dolphin.getNavigation().stop();
+		Direction direction = dolphin.getMovementDirection();
+		dolphin.setVelocity(
+			dolphin.getVelocity().add(
+				direction.getOffsetX() * JUMP_HORIZONTAL_IMPULSE,
+				JUMP_VERTICAL_IMPULSE,
+				direction.getOffsetZ() * JUMP_HORIZONTAL_IMPULSE
+			)
+		);
+		dolphin.getNavigation().stop();
 	}
 
 	@Override
 	public void stop() {
-		this.dolphin.setPitch(0.0F);
+		dolphin.setPitch(0.0F);
 	}
 
 	@Override
 	public void tick() {
-		boolean bl = this.inWater;
-		if (!bl) {
-			FluidState fluidState = this.dolphin.getEntityWorld().getFluidState(this.dolphin.getBlockPos());
-			this.inWater = fluidState.isIn(FluidTags.WATER);
+		boolean wasInWater = inWater;
+
+		if (!wasInWater) {
+			FluidState fluidState = dolphin.getEntityWorld().getFluidState(dolphin.getBlockPos());
+			inWater = fluidState.isIn(FluidTags.WATER);
 		}
 
-		if (this.inWater && !bl) {
-			this.dolphin.playSound(SoundEvents.ENTITY_DOLPHIN_JUMP, 1.0F, 1.0F);
+		if (inWater && !wasInWater) {
+			dolphin.playSound(SoundEvents.ENTITY_DOLPHIN_JUMP, 1.0F, 1.0F);
 		}
 
-		Vec3d vec3d = this.dolphin.getVelocity();
-		if (vec3d.y * vec3d.y < 0.03F && this.dolphin.getPitch() != 0.0F) {
-			this.dolphin.setPitch(MathHelper.lerpAngleDegrees(0.2F, this.dolphin.getPitch(), 0.0F));
-		}
-		else if (vec3d.length() > 1.0E-5F) {
-			double d = vec3d.horizontalLength();
-			double e = Math.atan2(-vec3d.y, d) * 180.0F / (float) Math.PI;
-			this.dolphin.setPitch((float) e);
+		Vec3d velocity = dolphin.getVelocity();
+
+		if (velocity.y * velocity.y < MIN_VELOCITY_SQ && dolphin.getPitch() != 0.0F) {
+			dolphin.setPitch(MathHelper.lerpAngleDegrees(PITCH_LERP_SPEED, dolphin.getPitch(), 0.0F));
+		} else if (velocity.length() > MIN_SPEED) {
+			double horizontalLen = velocity.horizontalLength();
+			double pitchAngle = Math.atan2(-velocity.y, horizontalLen) * 180.0F / (float) Math.PI;
+			dolphin.setPitch((float) pitchAngle);
 		}
 	}
 }

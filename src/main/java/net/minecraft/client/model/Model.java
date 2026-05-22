@@ -12,10 +12,14 @@ import net.minecraft.util.Unit;
 import java.util.List;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Model}.
+ * Базовый класс клиентской модели сущности или блока.
+ * Хранит корневую часть {@link ModelPart} и фабрику слоёв рендера.
+ * Подклассы переопределяют {@link #setAngles(Object)} для анимации.
+ *
+ * @param <S> тип состояния анимации (например, {@link Unit} для статичных моделей)
  */
+@Environment(EnvType.CLIENT)
 public abstract class Model<S> implements FabricModel<S> {
 
 	protected final ModelPart root;
@@ -29,65 +33,45 @@ public abstract class Model<S> implements FabricModel<S> {
 	}
 
 	public final RenderLayer getLayer(Identifier texture) {
-		return this.layerFactory.apply(texture);
+		return layerFactory.apply(texture);
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param matrices matrices
-	 * @param vertices vertices
-	 * @param light light
-	 * @param overlay overlay
-	 * @param color color
-	 */
 	public final void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
-		this.getRootPart().render(matrices, vertices, light, overlay, color);
+		getRootPart().render(matrices, vertices, light, overlay, color);
 	}
 
-	/**
-	 * Render.
-	 *
-	 * @param matrices matrices
-	 * @param vertices vertices
-	 * @param light light
-	 * @param overlay overlay
-	 */
 	public final void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay) {
-		this.render(matrices, vertices, light, overlay, -1);
+		render(matrices, vertices, light, overlay, -1);
 	}
 
 	public final ModelPart getRootPart() {
-		return this.root;
+		return root;
 	}
 
 	public final List<ModelPart> getParts() {
-		return this.parts;
+		return parts;
 	}
 
 	public void setAngles(S state) {
-		this.resetTransforms();
+		resetTransforms();
 	}
 
-	/**
-	 * Сбрасывает transforms.
-	 */
+	/** Сбрасывает трансформации всех частей модели к значениям по умолчанию. */
 	public final void resetTransforms() {
-		for (ModelPart modelPart : this.parts) {
-			modelPart.resetTransform();
+		for (ModelPart part : parts) {
+			part.resetTransform();
 		}
 	}
 
+	/** Статичная модель без анимации, принимающая {@link Unit} как состояние. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code SinglePartModel}.
-	 */
 	public static class SinglePartModel extends Model<Unit> {
 
 		public SinglePartModel(ModelPart part, Function<Identifier, RenderLayer> layerFactory) {
 			super(part, layerFactory);
 		}
 
+		@Override
 		public void setAngles(Unit unit) {
 		}
 	}

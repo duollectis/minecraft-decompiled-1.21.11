@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * {@code WoodType}.
+ * Тип древесины: объединяет звуковую группу, тип набора блоков и звуки калитки.
+ * Используется при создании знаков, заборов и калиток для конкретного вида дерева.
  */
 public record WoodType(
 		String name,
@@ -88,11 +89,6 @@ public record WoodType(
 		return type;
 	}
 
-	/**
-	 * Stream.
-	 *
-	 * @return Stream — результат операции
-	 */
 	public static Stream<WoodType> stream() {
 		return VALUES.values().stream();
 	}

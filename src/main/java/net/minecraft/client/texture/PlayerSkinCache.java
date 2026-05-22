@@ -21,102 +21,112 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code PlayerSkinCache}.
+ * Двухуровневый кэш скинов игроков.
+ *
+ * <p>{@code fetchingCache} асинхронно загружает скин с серверов Mojang и хранит
+ * {@link CompletableFuture}, пока загрузка не завершена. {@code immediateCache}
+ * немедленно возвращает скин по умолчанию, пока идёт асинхронная загрузка.
+ * Оба кэша имеют TTL {@link #TIME_TO_LIVE}.
  */
+@Environment(EnvType.CLIENT)
 public class PlayerSkinCache {
 
 	public static final RenderLayer DEFAULT_RENDER_LAYER = getRenderLayer(DefaultSkinHelper.getSteve());
 	public static final Duration TIME_TO_LIVE = Duration.ofMinutes(5L);
-	private final LoadingCache<ProfileComponent, CompletableFuture<Optional<PlayerSkinCache.Entry>>>
-			fetchingCache =
-			CacheBuilder.newBuilder()
-			            .expireAfterAccess(TIME_TO_LIVE)
-			            .build(
-					            new CacheLoader<ProfileComponent, CompletableFuture<Optional<PlayerSkinCache.Entry>>>() {
-						            public CompletableFuture<Optional<PlayerSkinCache.Entry>> load(ProfileComponent profileComponent) {
-							            return profileComponent.resolve(PlayerSkinCache.this.gameProfileResolver)
-							                                   .thenCompose(
-									                                   gameProfile -> PlayerSkinCache.this.playerSkinProvider
-											                                   .fetchSkinTextures(gameProfile)
-											                                   .thenApply(
-													                                   optional -> optional.map(
-															                                   skinTextures -> PlayerSkinCache.this.new Entry(
-																	                                   gameProfile,
-																	                                   skinTextures,
-																	                                   profileComponent.getOverride()
-															                                   ))
-											                                   )
-							                                   );
-						            }
-					            }
-			            );
-	private final LoadingCache<ProfileComponent, PlayerSkinCache.Entry> immediateCache = CacheBuilder.newBuilder()
-	                                                                                                 .expireAfterAccess(
-			                                                                                                 TIME_TO_LIVE)
-	                                                                                                 .build(new CacheLoader<ProfileComponent, PlayerSkinCache.Entry>() {
-		                                                                                                 public PlayerSkinCache.Entry load(
-				                                                                                                 ProfileComponent profileComponent
-		                                                                                                 ) {
-			                                                                                                 GameProfile
-					                                                                                                 gameProfile =
-					                                                                                                 profileComponent.getGameProfile();
-			                                                                                                 return PlayerSkinCache.this.new Entry(
-					                                                                                                 gameProfile,
-					                                                                                                 DefaultSkinHelper.getSkinTextures(
-							                                                                                                 gameProfile),
-					                                                                                                 profileComponent.getOverride()
-			                                                                                                 );
-		                                                                                                 }
-	                                                                                                 });
+
+	private final LoadingCache<ProfileComponent, CompletableFuture<Optional<Entry>>> fetchingCache =
+		CacheBuilder.newBuilder()
+			.expireAfterAccess(TIME_TO_LIVE)
+			.build(new CacheLoader<>() {
+				@Override
+				public CompletableFuture<Optional<Entry>> load(ProfileComponent profileComponent) {
+					return profileComponent.resolve(gameProfileResolver)
+						.thenCompose(
+							gameProfile -> playerSkinProvider
+								.fetchSkinTextures(gameProfile)
+								.thenApply(
+									optional -> optional.map(
+										skinTextures -> new Entry(
+											gameProfile,
+											skinTextures,
+											profileComponent.getOverride()
+										)
+									)
+								)
+						);
+				}
+			});
+
+	private final LoadingCache<ProfileComponent, Entry> immediateCache =
+		CacheBuilder.newBuilder()
+			.expireAfterAccess(TIME_TO_LIVE)
+			.build(new CacheLoader<>() {
+				@Override
+				public Entry load(ProfileComponent profileComponent) {
+					GameProfile gameProfile = profileComponent.getGameProfile();
+					return new Entry(
+						gameProfile,
+						DefaultSkinHelper.getSkinTextures(gameProfile),
+						profileComponent.getOverride()
+					);
+				}
+			});
+
 	final TextureManager textureManager;
 	final PlayerSkinProvider playerSkinProvider;
 	final GameProfileResolver gameProfileResolver;
 
 	public PlayerSkinCache(
-			TextureManager textureManager,
-			PlayerSkinProvider playerSkinProvider,
-			GameProfileResolver gameProfileResolver
+		TextureManager textureManager,
+		PlayerSkinProvider playerSkinProvider,
+		GameProfileResolver gameProfileResolver
 	) {
 		this.textureManager = textureManager;
 		this.playerSkinProvider = playerSkinProvider;
 		this.gameProfileResolver = gameProfileResolver;
 	}
 
-	public PlayerSkinCache.Entry get(ProfileComponent profile) {
-		PlayerSkinCache.Entry entry = this.getFuture(profile).getNow(Optional.empty()).orElse(null);
-		return entry != null ? entry : (PlayerSkinCache.Entry) this.immediateCache.getUnchecked(profile);
+	/**
+	 * Возвращает запись кэша немедленно: если асинхронная загрузка уже завершена —
+	 * возвращает реальный скин, иначе — скин по умолчанию из {@code immediateCache}.
+	 */
+	public Entry get(ProfileComponent profile) {
+		Entry loaded = getFuture(profile).getNow(Optional.empty()).orElse(null);
+		return loaded != null ? loaded : immediateCache.getUnchecked(profile);
 	}
 
-	public Supplier<PlayerSkinCache.Entry> getSupplier(ProfileComponent profile) {
-		PlayerSkinCache.Entry entry = (PlayerSkinCache.Entry) this.immediateCache.getUnchecked(profile);
-		CompletableFuture<Optional<PlayerSkinCache.Entry>>
-				completableFuture =
-				(CompletableFuture<Optional<PlayerSkinCache.Entry>>) this.fetchingCache
-						.getUnchecked(profile);
-		Optional<PlayerSkinCache.Entry> optional = completableFuture.getNow(null);
-		if (optional != null) {
-			PlayerSkinCache.Entry entry2 = optional.orElse(entry);
-			return () -> entry2;
+	/**
+	 * Возвращает {@link Supplier}, который при каждом вызове отдаёт актуальную запись:
+	 * если загрузка завершена — реальный скин, иначе — скин по умолчанию.
+	 */
+	public Supplier<Entry> getSupplier(ProfileComponent profile) {
+		Entry fallback = immediateCache.getUnchecked(profile);
+		CompletableFuture<Optional<Entry>> future = fetchingCache.getUnchecked(profile);
+		Optional<Entry> resolved = future.getNow(null);
+
+		if (resolved != null) {
+			Entry resolved2 = resolved.orElse(fallback);
+			return () -> resolved2;
 		}
-		else {
-			return () -> completableFuture.getNow(Optional.empty()).orElse(entry);
-		}
+
+		return () -> future.getNow(Optional.empty()).orElse(fallback);
 	}
 
-	public CompletableFuture<Optional<PlayerSkinCache.Entry>> getFuture(ProfileComponent profile) {
-		return (CompletableFuture<Optional<PlayerSkinCache.Entry>>) this.fetchingCache.getUnchecked(profile);
+	public CompletableFuture<Optional<Entry>> getFuture(ProfileComponent profile) {
+		return fetchingCache.getUnchecked(profile);
 	}
 
 	static RenderLayer getRenderLayer(SkinTextures skinTextures) {
 		return SkullBlockEntityRenderer.getTranslucentRenderLayer(skinTextures.body().texturePath());
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Entry}.
+	 * Запись кэша, хранящая профиль игрока и его текстуры скина.
+	 * Лениво инициализирует {@link RenderLayer}, {@link GpuTextureView}
+	 * и {@link TextRenderLayerSet} при первом обращении.
 	 */
+	@Environment(EnvType.CLIENT)
 	public final class Entry {
 
 		private final GameProfile profile;
@@ -126,60 +136,61 @@ public class PlayerSkinCache {
 		private @Nullable TextRenderLayerSet textRenderLayers;
 
 		public Entry(
-				final GameProfile profile,
-				final SkinTextures textures,
-				final SkinTextures.SkinOverride skinOverride
+			final GameProfile profile,
+			final SkinTextures textures,
+			final SkinTextures.SkinOverride skinOverride
 		) {
 			this.profile = profile;
 			this.textures = textures.withOverride(skinOverride);
 		}
 
 		public GameProfile getProfile() {
-			return this.profile;
+			return profile;
 		}
 
 		public SkinTextures getTextures() {
-			return this.textures;
+			return textures;
 		}
 
 		public RenderLayer getRenderLayer() {
-			if (this.renderLayer == null) {
-				this.renderLayer = PlayerSkinCache.getRenderLayer(this.textures);
+			if (renderLayer == null) {
+				renderLayer = PlayerSkinCache.getRenderLayer(textures);
 			}
 
-			return this.renderLayer;
+			return renderLayer;
 		}
 
 		public GpuTextureView getTextureView() {
-			if (this.textureView == null) {
-				this.textureView =
-						PlayerSkinCache.this.textureManager
-								.getTexture(this.textures.body().texturePath())
-								.getGlTextureView();
+			if (textureView == null) {
+				textureView = textureManager
+					.getTexture(textures.body().texturePath())
+					.getGlTextureView();
 			}
 
-			return this.textureView;
+			return textureView;
 		}
 
 		public TextRenderLayerSet getTextRenderLayers() {
-			if (this.textRenderLayers == null) {
-				this.textRenderLayers = TextRenderLayerSet.of(this.textures.body().texturePath());
+			if (textRenderLayers == null) {
+				textRenderLayers = TextRenderLayerSet.of(textures.body().texturePath());
 			}
 
-			return this.textRenderLayers;
+			return textRenderLayers;
 		}
 
 		@Override
 		public boolean equals(Object o) {
-			return this == o || o instanceof PlayerSkinCache.Entry entry && this.profile.equals(entry.profile)
-					&& this.textures.equals(entry.textures);
+			return this == o
+				|| o instanceof Entry entry
+				&& profile.equals(entry.profile)
+				&& textures.equals(entry.textures);
 		}
 
 		@Override
 		public int hashCode() {
-			int i = 1;
-			i = 31 * i + this.profile.hashCode();
-			return 31 * i + this.textures.hashCode();
+			int hash = 1;
+			hash = 31 * hash + profile.hashCode();
+			return 31 * hash + textures.hashCode();
 		}
 	}
 }

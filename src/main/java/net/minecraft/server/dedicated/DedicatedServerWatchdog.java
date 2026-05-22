@@ -21,7 +21,7 @@ import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 /**
- * {@code DedicatedServerWatchdog}.
+ * Сторожевой поток выделенного сервера: обнаружение зависания главного потока и аварийное завершение.
  */
 public class DedicatedServerWatchdog implements Runnable {
 
@@ -133,7 +133,7 @@ public class DedicatedServerWatchdog implements Runnable {
 						public void run() {
 							Runtime.getRuntime().halt(1);
 						}
-					}, 10000L
+					}, WATCHDOG_INTERVAL_MS
 			);
 			System.exit(1);
 		}

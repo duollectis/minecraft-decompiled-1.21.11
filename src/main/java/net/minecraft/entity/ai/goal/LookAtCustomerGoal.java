@@ -4,7 +4,7 @@ import net.minecraft.entity.passive.MerchantEntity;
 import net.minecraft.entity.player.PlayerEntity;
 
 /**
- * {@code LookAtCustomerGoal}.
+ * Цель торговца: смотреть на текущего покупателя, пока идёт торговля.
  */
 public class LookAtCustomerGoal extends LookAtEntityGoal {
 
@@ -17,12 +17,11 @@ public class LookAtCustomerGoal extends LookAtEntityGoal {
 
 	@Override
 	public boolean canStart() {
-		if (this.merchant.hasCustomer()) {
-			this.target = this.merchant.getCustomer();
-			return true;
-		}
-		else {
+		if (!merchant.hasCustomer()) {
 			return false;
 		}
+
+		target = merchant.getCustomer();
+		return true;
 	}
 }

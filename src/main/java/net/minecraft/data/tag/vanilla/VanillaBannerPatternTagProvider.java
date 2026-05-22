@@ -24,7 +24,7 @@ public class VanillaBannerPatternTagProvider extends SimpleTagProvider<BannerPat
 
 	@Override
 	protected void configure(RegistryWrapper.WrapperLookup registries) {
-		this.builder(BannerPatternTags.NO_ITEM_REQUIRED)
+		builder(BannerPatternTags.NO_ITEM_REQUIRED)
 		    .add(
 				    BannerPatterns.SQUARE_BOTTOM_LEFT,
 				    BannerPatterns.SQUARE_BOTTOM_RIGHT,
@@ -59,15 +59,15 @@ public class VanillaBannerPatternTagProvider extends SimpleTagProvider<BannerPat
 				    BannerPatterns.GRADIENT,
 				    BannerPatterns.GRADIENT_UP
 		    );
-		this.builder(BannerPatternTags.FLOWER_PATTERN_ITEM).add(BannerPatterns.FLOWER);
-		this.builder(BannerPatternTags.CREEPER_PATTERN_ITEM).add(BannerPatterns.CREEPER);
-		this.builder(BannerPatternTags.SKULL_PATTERN_ITEM).add(BannerPatterns.SKULL);
-		this.builder(BannerPatternTags.MOJANG_PATTERN_ITEM).add(BannerPatterns.MOJANG);
-		this.builder(BannerPatternTags.GLOBE_PATTERN_ITEM).add(BannerPatterns.GLOBE);
-		this.builder(BannerPatternTags.PIGLIN_PATTERN_ITEM).add(BannerPatterns.PIGLIN);
-		this.builder(BannerPatternTags.FLOW_PATTERN_ITEM).add(BannerPatterns.FLOW);
-		this.builder(BannerPatternTags.GUSTER_PATTERN_ITEM).add(BannerPatterns.GUSTER);
-		this.builder(BannerPatternTags.FIELD_MASONED_PATTERN_ITEM).add(BannerPatterns.BRICKS);
-		this.builder(BannerPatternTags.BORDURE_INDENTED_PATTERN_ITEM).add(BannerPatterns.CURLY_BORDER);
+		builder(BannerPatternTags.FLOWER_PATTERN_ITEM).add(BannerPatterns.FLOWER);
+		builder(BannerPatternTags.CREEPER_PATTERN_ITEM).add(BannerPatterns.CREEPER);
+		builder(BannerPatternTags.SKULL_PATTERN_ITEM).add(BannerPatterns.SKULL);
+		builder(BannerPatternTags.MOJANG_PATTERN_ITEM).add(BannerPatterns.MOJANG);
+		builder(BannerPatternTags.GLOBE_PATTERN_ITEM).add(BannerPatterns.GLOBE);
+		builder(BannerPatternTags.PIGLIN_PATTERN_ITEM).add(BannerPatterns.PIGLIN);
+		builder(BannerPatternTags.FLOW_PATTERN_ITEM).add(BannerPatterns.FLOW);
+		builder(BannerPatternTags.GUSTER_PATTERN_ITEM).add(BannerPatterns.GUSTER);
+		builder(BannerPatternTags.FIELD_MASONED_PATTERN_ITEM).add(BannerPatterns.BRICKS);
+		builder(BannerPatternTags.BORDURE_INDENTED_PATTERN_ITEM).add(BannerPatterns.CURLY_BORDER);
 	}
 }

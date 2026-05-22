@@ -5,7 +5,9 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 
 /**
- * {@code LightingView}.
+ * Базовый интерфейс системы освещения.
+ * Определяет контракт для проверки блоков, обновления уровней света
+ * и управления состоянием секций и колонок чанков.
  */
 public interface LightingView {
 
@@ -16,7 +18,7 @@ public interface LightingView {
 	int doLightUpdates();
 
 	default void setSectionStatus(BlockPos pos, boolean notReady) {
-		this.setSectionStatus(ChunkSectionPos.from(pos), notReady);
+		setSectionStatus(ChunkSectionPos.from(pos), notReady);
 	}
 
 	void setSectionStatus(ChunkSectionPos pos, boolean notReady);

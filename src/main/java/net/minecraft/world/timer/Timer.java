@@ -11,124 +11,158 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtOps;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * {@code Timer}.
+ * Таймер игровых событий, срабатывающих в заданный игровой тик.
+ * Хранит очередь событий, отсортированных по времени срабатывания.
+ * Каждое событие идентифицируется именем и временем — это позволяет
+ * избежать дублирования через {@link #setEventIfAbsent}.
+ *
+ * @param <T> тип сервера, передаваемого в callback при срабатывании
  */
 public class Timer<T> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final String CALLBACK_KEY = "Callback";
-	private static final String NAME_KEY = "Name";
-	private static final String TRIGGER_TIME_KEY = "TriggerTime";
-	private final TimerCallbackSerializer<T> callback;
+	private static final String KEY_CALLBACK = "Callback";
+	private static final String KEY_NAME = "Name";
+	private static final String KEY_TRIGGER_TIME = "TriggerTime";
+
+	private final TimerCallbackSerializer<T> callbackSerializer;
 	private final Queue<Timer.Event<T>> events = new PriorityQueue<>(createEventComparator());
 	private UnsignedLong eventCounter = UnsignedLong.ZERO;
 	private final Table<String, Long, Timer.Event<T>> eventsByName = HashBasedTable.create();
 
 	private static <T> Comparator<Timer.Event<T>> createEventComparator() {
-		return Comparator.<Timer.Event<T>>comparingLong(event -> event.triggerTime).thenComparing(event -> event.id);
+		return Comparator.<Timer.Event<T>>comparingLong(event -> event.triggerTime)
+			.thenComparing(event -> event.id);
 	}
 
-	public Timer(TimerCallbackSerializer<T> timerCallbackSerializer, Stream<? extends Dynamic<?>> nbts) {
-		this(timerCallbackSerializer);
-		this.events.clear();
-		this.eventsByName.clear();
-		this.eventCounter = UnsignedLong.ZERO;
-		nbts.forEach(nbt -> {
-			NbtElement nbtElement = (NbtElement) nbt.convert(NbtOps.INSTANCE).getValue();
-			if (nbtElement instanceof NbtCompound nbtCompound) {
-				this.addEvent(nbtCompound);
-			}
-			else {
-				LOGGER.warn("Invalid format of events: {}", nbtElement);
+	/**
+	 * Создаёт таймер и загружает события из NBT-потока.
+	 *
+	 * @param callbackSerializer сериализатор callback-ов
+	 * @param nbtStream          поток NBT-элементов из сохранения
+	 */
+	public Timer(TimerCallbackSerializer<T> callbackSerializer, Stream<? extends Dynamic<?>> nbtStream) {
+		this(callbackSerializer);
+		events.clear();
+		eventsByName.clear();
+		eventCounter = UnsignedLong.ZERO;
+
+		nbtStream.forEach(dynamic -> {
+			NbtElement element = (NbtElement) dynamic.convert(NbtOps.INSTANCE).getValue();
+
+			if (element instanceof NbtCompound compound) {
+				addEvent(compound);
+			} else {
+				LOGGER.warn("Invalid format of events: {}", element);
 			}
 		});
 	}
 
-	public Timer(TimerCallbackSerializer<T> timerCallbackSerializer) {
-		this.callback = timerCallbackSerializer;
+	public Timer(TimerCallbackSerializer<T> callbackSerializer) {
+		this.callbackSerializer = callbackSerializer;
 	}
 
 	/**
-	 * Обрабатывает events.
+	 * Обрабатывает все события, время срабатывания которых не превышает {@code time}.
+	 * Вызывается каждый серверный тик.
 	 *
-	 * @param server server
-	 * @param time time
+	 * @param server объект сервера, передаваемый в callback
+	 * @param time   текущее игровое время в тиках
 	 */
 	public void processEvents(T server, long time) {
 		while (true) {
-			Timer.Event<T> event = this.events.peek();
+			Timer.Event<T> event = events.peek();
+
 			if (event == null || event.triggerTime > time) {
 				return;
 			}
 
-			this.events.remove();
-			this.eventsByName.remove(event.name, time);
+			events.remove();
+			eventsByName.remove(event.name, time);
 			event.callback.call(server, this, time);
 		}
 	}
 
+	/**
+	 * Добавляет событие, только если событие с таким именем и временем ещё не существует.
+	 * Гарантирует уникальность пары (имя, время срабатывания).
+	 *
+	 * @param name        уникальное имя события
+	 * @param triggerTime игровой тик срабатывания
+	 * @param callback    действие при срабатывании
+	 */
 	public void setEventIfAbsent(String name, long triggerTime, TimerCallback<T> callback) {
-		if (!this.eventsByName.contains(name, triggerTime)) {
-			this.eventCounter = this.eventCounter.plus(UnsignedLong.ONE);
-			Timer.Event<T> event = new Timer.Event<>(triggerTime, this.eventCounter, name, callback);
-			this.eventsByName.put(name, triggerTime, event);
-			this.events.add(event);
+		if (eventsByName.contains(name, triggerTime)) {
+			return;
 		}
+
+		eventCounter = eventCounter.plus(UnsignedLong.ONE);
+		Timer.Event<T> event = new Timer.Event<>(triggerTime, eventCounter, name, callback);
+		eventsByName.put(name, triggerTime, event);
+		events.add(event);
 	}
 
 	/**
-	 * Remove.
+	 * Удаляет все события с заданным именем.
 	 *
-	 * @param name name
-	 *
-	 * @return int — результат операции
+	 * @param name имя событий для удаления
+	 * @return количество удалённых событий
 	 */
 	public int remove(String name) {
-		Collection<Timer.Event<T>> collection = this.eventsByName.row(name).values();
-		collection.forEach(this.events::remove);
-		int i = collection.size();
-		collection.clear();
-		return i;
+		Collection<Timer.Event<T>> namedEvents = eventsByName.row(name).values();
+		namedEvents.forEach(events::remove);
+		int count = namedEvents.size();
+		namedEvents.clear();
+		return count;
 	}
 
 	public Set<String> getEventNames() {
-		return Collections.unmodifiableSet(this.eventsByName.rowKeySet());
+		return Collections.unmodifiableSet(eventsByName.rowKeySet());
 	}
 
 	private void addEvent(NbtCompound nbt) {
-		TimerCallback<T> timerCallback = nbt.<TimerCallback<T>>get("Callback", this.callback.getCodec()).orElse(null);
-		if (timerCallback != null) {
-			String string = nbt.getString("Name", "");
-			long l = nbt.getLong("TriggerTime", 0L);
-			this.setEventIfAbsent(string, l, timerCallback);
+		TimerCallback<T> callback = nbt.<TimerCallback<T>>get(KEY_CALLBACK, callbackSerializer.getCodec()).orElse(null);
+
+		if (callback == null) {
+			return;
 		}
+
+		String name = nbt.getString(KEY_NAME, "");
+		long triggerTime = nbt.getLong(KEY_TRIGGER_TIME, 0L);
+		setEventIfAbsent(name, triggerTime, callback);
 	}
 
 	private NbtCompound serialize(Timer.Event<T> event) {
-		NbtCompound nbtCompound = new NbtCompound();
-		nbtCompound.putString("Name", event.name);
-		nbtCompound.putLong("TriggerTime", event.triggerTime);
-		nbtCompound.put("Callback", this.callback.getCodec(), event.callback);
-		return nbtCompound;
+		NbtCompound nbt = new NbtCompound();
+		nbt.putString(KEY_NAME, event.name);
+		nbt.putLong(KEY_TRIGGER_TIME, event.triggerTime);
+		nbt.put(KEY_CALLBACK, callbackSerializer.getCodec(), event.callback);
+		return nbt;
 	}
 
 	/**
-	 * To nbt.
-	 *
-	 * @return NbtList — результат операции
+	 * Сериализует все события в {@link NbtList} для сохранения в файл мира.
+	 * События сортируются по времени срабатывания для детерминированного порядка.
 	 */
 	public NbtList toNbt() {
-		NbtList nbtList = new NbtList();
-		this.events.stream().sorted(createEventComparator()).map(this::serialize).forEach(nbtList::add);
-		return nbtList;
+		NbtList list = new NbtList();
+		events.stream().sorted(createEventComparator()).map(this::serialize).forEach(list::add);
+		return list;
 	}
 
 	/**
-	 * {@code Event}.
+	 * Запланированное событие таймера.
+	 *
+	 * @param <T> тип сервера
 	 */
 	public static class Event<T> {
 

@@ -13,13 +13,23 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DirectConnectScreen}.
+ * Экран прямого подключения к серверу по IP-адресу.
  */
+@Environment(EnvType.CLIENT)
 public class DirectConnectScreen extends Screen {
 
 	private static final Text ENTER_IP_TEXT = Text.translatable("manageServer.enterIp");
+	private static final int FIELD_WIDTH = 200;
+	private static final int FIELD_HEIGHT = 20;
+	private static final int ADDRESS_MAX_LENGTH = 128;
+	private static final int TITLE_Y = 20;
+	private static final int LABEL_Y = 100;
+	private static final int FIELD_Y = 116;
+	private static final int CONNECT_BUTTON_Y_OFFSET = 96 + 12;
+	private static final int CANCEL_BUTTON_Y_OFFSET = 120 + 12;
+	private static final int TEXT_COLOR_LABEL = -6250336;
+
 	private ButtonWidget selectServerButton;
 	private final ServerInfo serverEntry;
 	private TextFieldWidget addressField;
@@ -29,78 +39,77 @@ public class DirectConnectScreen extends Screen {
 	public DirectConnectScreen(Screen parent, BooleanConsumer callback, ServerInfo server) {
 		super(Text.translatable("selectServer.direct"));
 		this.parent = parent;
-		this.serverEntry = server;
+		serverEntry = server;
 		this.callback = callback;
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.selectServerButton.active && this.getFocused() == this.addressField && input.isEnter()) {
-			this.saveAndClose();
+		if (selectServerButton.active && getFocused() == addressField && input.isEnter()) {
+			saveAndClose();
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
 	@Override
 	protected void init() {
-		this.addressField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, 116, 200, 20, ENTER_IP_TEXT);
-		this.addressField.setMaxLength(128);
-		this.addressField.setText(this.client.options.lastServer);
-		this.addressField.setChangedListener(text -> this.onAddressFieldChanged());
-		this.addSelectableChild(this.addressField);
-		this.selectServerButton = this.addDrawableChild(
-				ButtonWidget.builder(Text.translatable("selectServer.select"), button -> this.saveAndClose())
-				            .dimensions(this.width / 2 - 100, this.height / 4 + 96 + 12, 200, 20)
-				            .build()
+		addressField = new TextFieldWidget(textRenderer, width / 2 - 100, FIELD_Y, FIELD_WIDTH, FIELD_HEIGHT, ENTER_IP_TEXT);
+		addressField.setMaxLength(ADDRESS_MAX_LENGTH);
+		addressField.setText(client.options.lastServer);
+		addressField.setChangedListener(text -> onAddressFieldChanged());
+		addSelectableChild(addressField);
+		selectServerButton = addDrawableChild(
+			ButtonWidget.builder(Text.translatable("selectServer.select"), button -> saveAndClose())
+				.dimensions(width / 2 - 100, height / 4 + CONNECT_BUTTON_Y_OFFSET, FIELD_WIDTH, FIELD_HEIGHT)
+				.build()
 		);
-		this.addDrawableChild(
-				ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.callback.accept(false))
-				            .dimensions(this.width / 2 - 100, this.height / 4 + 120 + 12, 200, 20)
-				            .build()
+		addDrawableChild(
+			ButtonWidget.builder(ScreenTexts.CANCEL, button -> callback.accept(false))
+				.dimensions(width / 2 - 100, height / 4 + CANCEL_BUTTON_Y_OFFSET, FIELD_WIDTH, FIELD_HEIGHT)
+				.build()
 		);
-		this.onAddressFieldChanged();
+		onAddressFieldChanged();
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.addressField);
+		setInitialFocus(addressField);
 	}
 
 	@Override
 	public void resize(int width, int height) {
-		String string = this.addressField.getText();
-		this.init(width, height);
-		this.addressField.setText(string);
+		String savedAddress = addressField.getText();
+		init(width, height);
+		addressField.setText(savedAddress);
 	}
 
 	private void saveAndClose() {
-		this.serverEntry.address = this.addressField.getText();
-		this.callback.accept(true);
+		serverEntry.address = addressField.getText();
+		callback.accept(true);
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	@Override
 	public void removed() {
-		this.client.options.lastServer = this.addressField.getText();
-		this.client.options.write();
+		client.options.lastServer = addressField.getText();
+		client.options.write();
 	}
 
 	private void onAddressFieldChanged() {
-		this.selectServerButton.active = ServerAddress.isValid(this.addressField.getText());
+		selectServerButton.active = ServerAddress.isValid(addressField.getText());
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
-		context.drawTextWithShadow(this.textRenderer, ENTER_IP_TEXT, this.width / 2 - 100 + 1, 100, -6250336);
-		this.addressField.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
+		context.drawTextWithShadow(textRenderer, ENTER_IP_TEXT, width / 2 - 100 + 1, LABEL_Y, TEXT_COLOR_LABEL);
+		addressField.render(context, mouseX, mouseY, deltaTicks);
 	}
 }

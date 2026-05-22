@@ -15,9 +15,15 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code VaultState}.
+ * Состояние блока хранилища (Vault).
+ * Управляет жизненным циклом хранилища: от ожидания игроков до выброса наград.
  */
 public enum VaultState implements StringIdentifiable {
+
+	/**
+	 * Хранилище неактивно — поблизости нет подходящих игроков.
+	 * Очищает отображаемый предмет и посылает событие деактивации (3016).
+	 */
 	INACTIVE("inactive", VaultState.Light.HALF_LIT) {
 		@Override
 		protected void onChangedTo(
@@ -31,6 +37,11 @@ public enum VaultState implements StringIdentifiable {
 			world.syncWorldEvent(3016, pos, ominous ? 1 : 0);
 		}
 	},
+
+	/**
+	 * Хранилище активно — рядом есть игрок, который ещё не получал награду.
+	 * Обновляет отображаемый предмет и посылает событие активации (3015).
+	 */
 	ACTIVE("active", VaultState.Light.LIT) {
 		@Override
 		protected void onChangedTo(
@@ -40,13 +51,18 @@ public enum VaultState implements StringIdentifiable {
 				VaultSharedData sharedData,
 				boolean ominous
 		) {
-			if (!sharedData.hasDisplayItem()) {
+			if (sharedData.hasDisplayItem() == false) {
 				VaultBlockEntity.Server.updateDisplayItem(world, this, config, sharedData, pos);
 			}
 
 			world.syncWorldEvent(3015, pos, ominous ? 1 : 0);
 		}
 	},
+
+	/**
+	 * Хранилище разблокируется — игрок вставил ключ.
+	 * Воспроизводит звук вставки предмета.
+	 */
 	UNLOCKING("unlocking", VaultState.Light.LIT) {
 		@Override
 		protected void onChangedTo(
@@ -59,6 +75,11 @@ public enum VaultState implements StringIdentifiable {
 			world.playSound(null, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM, SoundCategory.BLOCKS);
 		}
 	},
+
+	/**
+	 * Хранилище выбрасывает награды.
+	 * При входе в состояние открывает заслонку, при выходе — закрывает.
+	 */
 	EJECTING("ejecting", VaultState.Light.LIT) {
 		@Override
 		protected void onChangedTo(
@@ -81,6 +102,7 @@ public enum VaultState implements StringIdentifiable {
 	private static final int EJECTING_ITEM_DELAY = 20;
 	private static final int ACTIVE_STATE_UPDATE_DELAY = 20;
 	private static final int INACTIVE_STATE_UPDATE_DELAY = 20;
+
 	private final String id;
 	private final VaultState.Light light;
 
@@ -91,13 +113,24 @@ public enum VaultState implements StringIdentifiable {
 
 	@Override
 	public String asString() {
-		return this.id;
+		return id;
 	}
 
 	public int getLuminance() {
-		return this.light.luminance;
+		return light.luminance;
 	}
 
+	/**
+	 * Вычисляет следующее состояние хранилища на основе текущего и данных сервера.
+	 * Управляет полным циклом: активация → разблокировка → выброс наград → деактивация.
+	 *
+	 * @param world      серверный мир
+	 * @param pos        позиция блока хранилища
+	 * @param config     конфигурация хранилища (радиусы, лут-таблицы)
+	 * @param serverData серверные данные (очередь предметов, таймеры)
+	 * @param sharedData общие данные (отображаемый предмет, список игроков)
+	 * @return следующее состояние хранилища
+	 */
 	public VaultState update(
 			ServerWorld world,
 			BlockPos pos,
@@ -109,7 +142,7 @@ public enum VaultState implements StringIdentifiable {
 			case INACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.activationRange());
 			case ACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
 			case UNLOCKING -> {
-				serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
+				serverData.setStateUpdatingResumeTime(world.getTime() + UNLOCKING_TO_EJECTING_DELAY);
 				yield EJECTING;
 			}
 			case EJECTING -> {
@@ -117,15 +150,14 @@ public enum VaultState implements StringIdentifiable {
 					serverData.finishEjecting();
 					yield updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
 				}
-				else {
-					float f = serverData.getEjectSoundPitchModifier();
-					this.ejectItem(world, pos, serverData.getItemToEject(), f);
-					sharedData.setDisplayItem(serverData.getItemToDisplay());
-					boolean bl = serverData.getItemsToEject().isEmpty();
-					int i = bl ? 20 : 20;
-					serverData.setStateUpdatingResumeTime(world.getTime() + i);
-					yield EJECTING;
-				}
+
+				float pitchModifier = serverData.getEjectSoundPitchModifier();
+				ejectItem(world, pos, serverData.getItemToEject(), pitchModifier);
+				sharedData.setDisplayItem(serverData.getItemToDisplay());
+
+				// Задержка одинакова для последнего и промежуточных предметов — намеренное поведение ванилы
+				serverData.setStateUpdatingResumeTime(world.getTime() + EJECTING_ITEM_DELAY);
+				yield EJECTING;
 			}
 		};
 	}
@@ -139,10 +171,21 @@ public enum VaultState implements StringIdentifiable {
 			double radius
 	) {
 		sharedData.updateConnectedPlayers(world, pos, serverData, config, radius);
-		serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
+		serverData.setStateUpdatingResumeTime(world.getTime() + ACTIVE_STATE_UPDATE_DELAY);
 		return sharedData.hasConnectedPlayers() ? ACTIVE : INACTIVE;
 	}
 
+	/**
+	 * Уведомляет текущее и новое состояния о переходе между ними.
+	 * Вызывает {@link #onChangedFrom} у текущего и {@link #onChangedTo} у нового состояния.
+	 *
+	 * @param world     серверный мир
+	 * @param pos       позиция блока
+	 * @param newState  новое состояние, в которое переходит хранилище
+	 * @param config    конфигурация хранилища
+	 * @param sharedData общие данные хранилища
+	 * @param ominous   является ли хранилище зловещим (ominous vault)
+	 */
 	public void onStateChange(
 			ServerWorld world,
 			BlockPos pos,
@@ -151,7 +194,7 @@ public enum VaultState implements StringIdentifiable {
 			VaultSharedData sharedData,
 			boolean ominous
 	) {
-		this.onChangedFrom(world, pos, config, sharedData);
+		onChangedFrom(world, pos, config, sharedData);
 		newState.onChangedTo(world, pos, config, sharedData, ominous);
 	}
 
@@ -164,14 +207,6 @@ public enum VaultState implements StringIdentifiable {
 	) {
 	}
 
-	/**
-	 * Обрабатывает событие changed from.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param config config
-	 * @param sharedData shared data
-	 */
 	protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
 	}
 
@@ -194,16 +229,16 @@ public enum VaultState implements StringIdentifiable {
 		);
 	}
 
-	/**
-	 * {@code Light}.
-	 */
-	static enum Light {
+	/** Уровень освещённости блока хранилища в зависимости от состояния. */
+	enum Light {
+		/** Половинная яркость — хранилище неактивно. */
 		HALF_LIT(6),
+		/** Полная яркость — хранилище активно или выбрасывает предметы. */
 		LIT(12);
 
 		final int luminance;
 
-		private Light(final int luminance) {
+		Light(final int luminance) {
 			this.luminance = luminance;
 		}
 	}

@@ -16,7 +16,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * {@code CompositeTask}.
+ * Составная задача мозга, объединяющая несколько подзадач.
+ * Поддерживает упорядоченный или перемешанный порядок запуска ({@link Order})
+ * и режимы выполнения одной или всех подзадач ({@link RunMode}).
+ *
+ * @param <E> тип сущности
  */
 public class CompositeTask<E extends LivingEntity> implements Task<E> {
 
@@ -43,14 +47,12 @@ public class CompositeTask<E extends LivingEntity> implements Task<E> {
 
 	@Override
 	public MultiTickTask.Status getStatus() {
-		return this.status;
+		return status;
 	}
 
 	private boolean shouldStart(E entity) {
-		for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : this.requiredMemoryState.entrySet()) {
-			MemoryModuleType<?> memoryModuleType = entry.getKey();
-			MemoryModuleState memoryModuleState = entry.getValue();
-			if (!entity.getBrain().isMemoryInState(memoryModuleType, memoryModuleState)) {
+		for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : requiredMemoryState.entrySet()) {
+			if (!entity.getBrain().isMemoryInState(entry.getKey(), entry.getValue())) {
 				return false;
 			}
 		}
@@ -60,58 +62,50 @@ public class CompositeTask<E extends LivingEntity> implements Task<E> {
 
 	@Override
 	public final boolean tryStarting(ServerWorld world, E entity, long time) {
-		if (this.shouldStart(entity)) {
-			this.status = MultiTickTask.Status.RUNNING;
-			this.order.apply(this.tasks);
-			this.runMode.run(this.tasks.stream(), world, entity, time);
-			return true;
-		}
-		else {
+		if (!shouldStart(entity)) {
 			return false;
 		}
+
+		status = MultiTickTask.Status.RUNNING;
+		order.apply(tasks);
+		runMode.run(tasks.stream(), world, entity, time);
+		return true;
 	}
 
 	@Override
 	public final void tick(ServerWorld world, E entity, long time) {
-		this.tasks
-				.stream()
+		tasks.stream()
 				.filter(task -> task.getStatus() == MultiTickTask.Status.RUNNING)
 				.forEach(task -> task.tick(world, entity, time));
-		if (this.tasks.stream().noneMatch(task -> task.getStatus() == MultiTickTask.Status.RUNNING)) {
-			this.stop(world, entity, time);
+
+		if (tasks.stream().noneMatch(task -> task.getStatus() == MultiTickTask.Status.RUNNING)) {
+			stop(world, entity, time);
 		}
 	}
 
 	@Override
 	public final void stop(ServerWorld world, E entity, long time) {
-		this.status = MultiTickTask.Status.STOPPED;
-		this.tasks
-				.stream()
+		status = MultiTickTask.Status.STOPPED;
+		tasks.stream()
 				.filter(task -> task.getStatus() == MultiTickTask.Status.RUNNING)
 				.forEach(task -> task.stop(world, entity, time));
-		this.memoriesToForgetWhenStopped.forEach(entity.getBrain()::forget);
+		memoriesToForgetWhenStopped.forEach(entity.getBrain()::forget);
 	}
 
 	@Override
 	public String getName() {
-		return this.getClass().getSimpleName();
+		return getClass().getSimpleName();
 	}
 
 	@Override
 	public String toString() {
-		Set<? extends Task<? super E>>
-				set =
-				this.tasks
-						.stream()
-						.filter(task -> task.getStatus() == MultiTickTask.Status.RUNNING)
-						.collect(Collectors.toSet());
-		return "(" + this.getClass().getSimpleName() + "): " + set;
+		Set<? extends Task<? super E>> running = tasks.stream()
+				.filter(task -> task.getStatus() == MultiTickTask.Status.RUNNING)
+				.collect(Collectors.toSet());
+		return "(" + getClass().getSimpleName() + "): " + running;
 	}
 
-	/**
-	 * {@code Order}.
-	 */
-	public static enum Order {
+	public enum Order {
 		ORDERED(list -> {}),
 		SHUFFLED(WeightedList::shuffle);
 
@@ -121,20 +115,12 @@ public class CompositeTask<E extends LivingEntity> implements Task<E> {
 			this.listModifier = listModifier;
 		}
 
-		/**
-		 * Apply.
-		 *
-		 * @param list list
-		 */
 		public void apply(WeightedList<?> list) {
-			this.listModifier.accept(list);
+			listModifier.accept(list);
 		}
 	}
 
-	/**
-	 * {@code RunMode}.
-	 */
-	public static enum RunMode {
+	public enum RunMode {
 		RUN_ONE {
 			@Override
 			public <E extends LivingEntity> void run(

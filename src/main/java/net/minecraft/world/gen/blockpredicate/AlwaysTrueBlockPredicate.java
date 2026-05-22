@@ -5,25 +5,18 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code AlwaysTrueBlockPredicate}.
+ * Предикат-синглтон, всегда возвращающий {@code true}.
  */
 class AlwaysTrueBlockPredicate implements BlockPredicate {
 
-	public static AlwaysTrueBlockPredicate instance = new AlwaysTrueBlockPredicate();
+	public static final AlwaysTrueBlockPredicate instance = new AlwaysTrueBlockPredicate();
 	public static final MapCodec<AlwaysTrueBlockPredicate> CODEC = MapCodec.unit(() -> instance);
 
 	private AlwaysTrueBlockPredicate() {
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
+	@Override
+	public boolean test(StructureWorldAccess world, BlockPos pos) {
 		return true;
 	}
 

@@ -9,7 +9,8 @@ import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code EquippableAssetRenameFix}.
+ * Переименовывает поле {@code model} в {@code asset_id} внутри компонента
+ * {@code minecraft:equippable}, приводя его к новому соглашению об именовании.
  */
 public class EquippableAssetRenameFix extends DataFix {
 
@@ -17,18 +18,21 @@ public class EquippableAssetRenameFix extends DataFix {
 		super(outputSchema, true);
 	}
 
+	@Override
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
-		OpticFinder<?> opticFinder = type.findField("minecraft:equippable");
-		return this.fixTypeEverywhereTyped(
-				"equippable asset rename fix",
-				type,
-				typed -> typed.updateTyped(opticFinder,
-						typedx -> typedx.update(
-								DSL.remainderFinder(),
-								dynamic -> dynamic.renameField("model", "asset_id")
-						)
+		Type<?> dataComponentsType = getInputSchema().getType(TypeReferences.DATA_COMPONENTS);
+		OpticFinder<?> equippableFinder = dataComponentsType.findField("minecraft:equippable");
+
+		return fixTypeEverywhereTyped(
+			"equippable asset rename fix",
+			dataComponentsType,
+			typed -> typed.updateTyped(
+				equippableFinder,
+				equippable -> equippable.update(
+					DSL.remainderFinder(),
+					dynamic -> dynamic.renameField("model", "asset_id")
 				)
+			)
 		);
 	}
 }

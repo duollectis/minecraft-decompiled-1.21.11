@@ -13,7 +13,8 @@ import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
 
 /**
- * Класс query states.
+ * Состояния протокола для фазы {@link net.minecraft.network.NetworkPhase#STATUS}.
+ * Регистрирует пакеты запроса статуса сервера (MOTD, версия, количество игроков) и пинга.
  */
 public class QueryStates {
 

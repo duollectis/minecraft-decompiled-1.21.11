@@ -12,9 +12,14 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code GoToRememberedPositionTask}.
+ * Фабричный класс задачи мозга, направляющей сущность прочь от запомненной позиции или сущности.
+ * Использует нечёткий поиск для выбора позиции в заданном радиусе от цели.
  */
 public class GoToRememberedPositionTask {
+
+	private static final int SEARCH_ATTEMPTS = 10;
+	private static final int HORIZONTAL_RANGE = 16;
+	private static final int VERTICAL_RANGE = 7;
 
 	public static Task<PathAwareEntity> createPosBased(
 			MemoryModuleType<BlockPos> posModule,
@@ -26,7 +31,10 @@ public class GoToRememberedPositionTask {
 	}
 
 	public static SingleTickTask<PathAwareEntity> createEntityBased(
-			MemoryModuleType<? extends Entity> entityModule, float speed, int range, boolean requiresWalkTarget
+			MemoryModuleType<? extends Entity> entityModule,
+			float speed,
+			int range,
+			boolean requiresWalkTarget
 	) {
 		return create(entityModule, speed, range, requiresWalkTarget, Entity::getEntityPos);
 	}
@@ -39,45 +47,46 @@ public class GoToRememberedPositionTask {
 			Function<T, Vec3d> posGetter
 	) {
 		return TaskTriggerer.task(
-				context -> context
-						.group(
-								context.queryMemoryOptional(MemoryModuleType.WALK_TARGET),
-								context.queryMemoryValue(posSource)
-						)
-						.apply(
-								context, (walkTarget, posSourcex) -> (world, entity, time) -> {
-									Optional<WalkTarget> optional = context.getOptionalValue(walkTarget);
-									if (optional.isPresent() && !requiresWalkTarget) {
-										return false;
-									}
-									else {
-										Vec3d vec3d = entity.getEntityPos();
-										Vec3d vec3d2 = posGetter.apply(context.getValue(posSourcex));
-										if (!vec3d.isInRange(vec3d2, range)) {
-											return false;
-										}
-										else {
-											if (optional.isPresent() && optional.get().getSpeed() == speed) {
-												Vec3d vec3d3 = optional.get().getLookTarget().getPos().subtract(vec3d);
-												Vec3d vec3d4 = vec3d2.subtract(vec3d);
-												if (vec3d3.dotProduct(vec3d4) < 0.0) {
-													return false;
-												}
-											}
+				context -> context.group(
+						context.queryMemoryOptional(MemoryModuleType.WALK_TARGET),
+						context.queryMemoryValue(posSource)
+				).apply(
+						context,
+						(walkTarget, posSourceValue) -> (world, entity, time) -> {
+							Optional<WalkTarget> currentWalkTarget = context.getOptionalValue(walkTarget);
 
-											for (int j = 0; j < 10; j++) {
-												Vec3d vec3d4 = FuzzyTargeting.findFrom(entity, 16, 7, vec3d2);
-												if (vec3d4 != null) {
-													walkTarget.remember(new WalkTarget(vec3d4, speed, 0));
-													break;
-												}
-											}
+							if (currentWalkTarget.isPresent() && !requiresWalkTarget) {
+								return false;
+							}
 
-											return true;
-										}
-									}
+							Vec3d entityPos = entity.getEntityPos();
+							Vec3d targetPos = posGetter.apply(context.getValue(posSourceValue));
+
+							if (!entityPos.isInRange(targetPos, range)) {
+								return false;
+							}
+
+							if (currentWalkTarget.isPresent() && currentWalkTarget.get().getSpeed() == speed) {
+								Vec3d currentDir = currentWalkTarget.get().getLookTarget().getPos().subtract(entityPos);
+								Vec3d targetDir = targetPos.subtract(entityPos);
+
+								if (currentDir.dotProduct(targetDir) < 0.0) {
+									return false;
 								}
-						)
+							}
+
+							for (int attempt = 0; attempt < SEARCH_ATTEMPTS; attempt++) {
+								Vec3d wanderPos = FuzzyTargeting.findFrom(entity, HORIZONTAL_RANGE, VERTICAL_RANGE, targetPos);
+
+								if (wanderPos != null) {
+									walkTarget.remember(new WalkTarget(wanderPos, speed, 0));
+									break;
+								}
+							}
+
+							return true;
+						}
+				)
 		);
 	}
 }

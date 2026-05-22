@@ -26,21 +26,40 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * {@code AbstractWindChargeEntity}.
+ * Базовый класс для всех снарядов типа «заряд ветра».
+ * <p>
+ * Реализует общую логику: столкновение с блоком (с небольшим смещением взрыва),
+ * столкновение с сущностью (урон + вызов взрыва), отсутствие горения,
+ * нулевое ускорение и автоматическое уничтожение при выходе за верхнюю границу мира.
  */
 public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity implements FlyingItemEntity {
 
+	/**
+	 * Поведение взрыва по умолчанию: разрушает блоки, не помеченные тегом
+	 * {@link BlockTags#BLOCKS_WIND_CHARGE_EXPLOSIONS}, без урона от давления.
+	 */
 	public static final ExplosionBehavior EXPLOSION_BEHAVIOR = new AdvancedExplosionBehavior(
 			true,
 			false,
 			Optional.empty(),
 			Registries.BLOCK.getOptional(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).map(Function.identity())
 	);
+
+	/** Смещение точки взрыва от поверхности блока при попадании. */
 	public static final double BLOCK_HIT_EXPLOSION_OFFSET = 0.25;
+
+	/** Запас высоты над верхней границей мира, после которого снаряд взрывается и исчезает. */
+	private static final int ABOVE_WORLD_EXPLODE_MARGIN = 30;
+
+	/** Урон, наносимый сущности при прямом попадании. */
+	private static final float ENTITY_HIT_DAMAGE = 1.0F;
+
+	/** Смещение нижней границы хитбокса вниз для корректного визуального позиционирования. */
+	private static final float BOUNDING_BOX_Y_OFFSET = 0.15F;
 
 	public AbstractWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
 		super(entityType, world);
-		this.accelerationPower = 0.0;
+		accelerationPower = 0.0;
 	}
 
 	public AbstractWindChargeEntity(
@@ -52,33 +71,41 @@ public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity
 			double z
 	) {
 		super(type, x, y, z, world);
-		this.setOwner(owner);
-		this.accelerationPower = 0.0;
+		setOwner(owner);
+		accelerationPower = 0.0;
 	}
 
 	AbstractWindChargeEntity(
 			EntityType<? extends AbstractWindChargeEntity> entityType,
-			double d,
-			double e,
-			double f,
-			Vec3d vec3d,
+			double x,
+			double y,
+			double z,
+			Vec3d velocity,
 			World world
 	) {
-		super(entityType, d, e, f, vec3d, world);
-		this.accelerationPower = 0.0;
+		super(entityType, x, y, z, velocity, world);
+		accelerationPower = 0.0;
 	}
 
 	@Override
 	protected Box calculateDefaultBoundingBox(Vec3d pos) {
-		float f = this.getType().getDimensions().width() / 2.0F;
-		float g = this.getType().getDimensions().height();
-		float h = 0.15F;
-		return new Box(pos.x - f, pos.y - 0.15F, pos.z - f, pos.x + f, pos.y - 0.15F + g, pos.z + f);
+		float halfWidth = getType().getDimensions().width() / 2.0F;
+		float height = getType().getDimensions().height();
+		return new Box(
+				pos.x - halfWidth,
+				pos.y - BOUNDING_BOX_Y_OFFSET,
+				pos.z - halfWidth,
+				pos.x + halfWidth,
+				pos.y - BOUNDING_BOX_Y_OFFSET + height,
+				pos.z + halfWidth
+		);
 	}
 
 	@Override
 	public boolean collidesWith(Entity other) {
-		return other instanceof AbstractWindChargeEntity ? false : super.collidesWith(other);
+		return other instanceof AbstractWindChargeEntity
+				? false
+				: super.collidesWith(other);
 	}
 
 	@Override
@@ -86,58 +113,70 @@ public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity
 		if (entity instanceof AbstractWindChargeEntity) {
 			return false;
 		}
-		else {
-			return entity.getType() == EntityType.END_CRYSTAL ? false : super.canHit(entity);
-		}
+
+		return entity.getType() == EntityType.END_CRYSTAL
+				? false
+				: super.canHit(entity);
 	}
 
 	@Override
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 		super.onEntityHit(entityHitResult);
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			LivingEntity livingEntity2 = this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null;
-			Entity entity = entityHitResult.getEntity();
-			if (livingEntity2 != null) {
-				livingEntity2.onAttacking(entity);
-			}
-
-			DamageSource damageSource = this.getDamageSources().windCharge(this, livingEntity2);
-			if (entity.damage(serverWorld, damageSource, 1.0F) && entity instanceof LivingEntity livingEntity3) {
-				EnchantmentHelper.onTargetDamaged(serverWorld, livingEntity3, damageSource);
-			}
-
-			this.createExplosion(this.getEntityPos());
+		if (!(getEntityWorld() instanceof ServerWorld serverWorld)) {
+			return;
 		}
+
+		LivingEntity livingOwner = getOwner() instanceof LivingEntity living ? living : null;
+		Entity target = entityHitResult.getEntity();
+
+		if (livingOwner != null) {
+			livingOwner.onAttacking(target);
+		}
+
+		DamageSource damageSource = getDamageSources().windCharge(this, livingOwner);
+
+		if (target.damage(serverWorld, damageSource, ENTITY_HIT_DAMAGE)
+				&& target instanceof LivingEntity livingTarget) {
+			EnchantmentHelper.onTargetDamaged(serverWorld, livingTarget, damageSource);
+		}
+
+		createExplosion(getEntityPos());
 	}
 
 	@Override
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
+		// Заряды ветра не получают внешних импульсов — намеренно пусто.
 	}
 
 	/**
-	 * Создаёт explosion.
+	 * Создаёт взрыв ветра в указанной точке мира.
+	 * Реализация определяет мощность, частицы и звук конкретного типа заряда.
 	 *
-	 * @param pos pos
+	 * @param pos точка взрыва в мировых координатах
 	 */
 	protected abstract void createExplosion(Vec3d pos);
 
 	@Override
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		super.onBlockHit(blockHitResult);
-		if (!this.getEntityWorld().isClient()) {
-			Vec3i vec3i = blockHitResult.getSide().getVector();
-			Vec3d vec3d = Vec3d.of(vec3i).multiply(BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET);
-			Vec3d vec3d2 = blockHitResult.getPos().add(vec3d);
-			this.createExplosion(vec3d2);
-			this.discard();
+		if (getEntityWorld().isClient()) {
+			return;
 		}
+
+		Vec3i sideVector = blockHitResult.getSide().getVector();
+		Vec3d offset = Vec3d.of(sideVector)
+				.multiply(BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET);
+		Vec3d explosionPos = blockHitResult.getPos().add(offset);
+
+		createExplosion(explosionPos);
+		discard();
 	}
 
 	@Override
 	protected void onCollision(HitResult hitResult) {
 		super.onCollision(hitResult);
-		if (!this.getEntityWorld().isClient()) {
-			this.discard();
+		if (!getEntityWorld().isClient()) {
+			discard();
 		}
 	}
 
@@ -158,7 +197,7 @@ public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity
 
 	@Override
 	protected float getDragInWater() {
-		return this.getDrag();
+		return getDrag();
 	}
 
 	@Override
@@ -168,12 +207,13 @@ public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity
 
 	@Override
 	public void tick() {
-		if (!this.getEntityWorld().isClient() && this.getBlockY() > this.getEntityWorld().getTopYInclusive() + 30) {
-			this.createExplosion(this.getEntityPos());
-			this.discard();
+		if (!getEntityWorld().isClient()
+				&& getBlockY() > getEntityWorld().getTopYInclusive() + ABOVE_WORLD_EXPLODE_MARGIN) {
+			createExplosion(getEntityPos());
+			discard();
+			return;
 		}
-		else {
-			super.tick();
-		}
+
+		super.tick();
 	}
 }

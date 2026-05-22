@@ -8,7 +8,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 /**
- * {@code SaveOffCommand}.
+ * Команда {@code /save-off}: отключение автосохранения (только dedicated).
  */
 public class SaveOffCommand {
 

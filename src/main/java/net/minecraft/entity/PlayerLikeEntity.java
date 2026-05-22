@@ -12,7 +12,9 @@ import net.minecraft.world.World;
 import java.util.Map;
 
 /**
- * {@code PlayerLikeEntity}.
+ * Базовый класс для сущностей, похожих на игрока: имеют позу, размеры хитбокса
+ * в зависимости от позы, основную руку и настройки модели (видимость частей тела).
+ * Используется как основа для {@code PlayerEntity} и {@code FakePlayerEntity}.
  */
 public class PlayerLikeEntity extends LivingEntity {
 
@@ -23,59 +25,52 @@ public class PlayerLikeEntity extends LivingEntity {
 	private static final float CROUCH_BOX_HEIGHT = 1.5F;
 	private static final float SWIMMING_BOX_WIDTH = 0.6F;
 	public static final float SWIMMING_BOX_HEIGHT = 0.6F;
-	protected static final EntityDimensions STANDING_DIMENSIONS = EntityDimensions.changing(0.6F, 1.8F)
-	                                                                              .withEyeHeight(1.62F)
-	                                                                              .withAttachments(EntityAttachments
-			                                                                              .builder()
-			                                                                              .add(
-					                                                                              EntityAttachmentType.VEHICLE,
-					                                                                              VEHICLE_ATTACHMENT
-			                                                                              ));
+
+	protected static final EntityDimensions STANDING_DIMENSIONS = EntityDimensions
+		.changing(SWIMMING_BOX_WIDTH, 1.8F)
+		.withEyeHeight(EYE_HEIGHT)
+		.withAttachments(
+			EntityAttachments.builder()
+				.add(EntityAttachmentType.VEHICLE, VEHICLE_ATTACHMENT)
+		);
+
 	@SuppressWarnings("unchecked")
-	protected static final Map<EntityPose, EntityDimensions>
-			POSE_DIMENSIONS =
-			(Map<EntityPose, EntityDimensions>) (Map<?, ?>) ImmutableMap.builder()
-			                                                            .put(EntityPose.STANDING, STANDING_DIMENSIONS)
-			                                                            .put(EntityPose.SLEEPING, SLEEPING_DIMENSIONS)
-			                                                            .put(EntityPose.GLIDING,
-					                                                            EntityDimensions
-							                                                            .changing(0.6F, 0.6F)
-							                                                            .withEyeHeight(0.4F)
-			                                                            )
-			                                                            .put(EntityPose.SWIMMING,
-					                                                            EntityDimensions
-							                                                            .changing(0.6F, 0.6F)
-							                                                            .withEyeHeight(0.4F)
-			                                                            )
-			                                                            .put(EntityPose.SPIN_ATTACK,
-					                                                            EntityDimensions
-							                                                            .changing(0.6F, 0.6F)
-							                                                            .withEyeHeight(0.4F)
-			                                                            )
-			                                                            .put(
-					                                                            EntityPose.CROUCHING,
-					                                                            EntityDimensions.changing(0.6F, 1.5F)
-					                                                                            .withEyeHeight(1.27F)
-					                                                                            .withAttachments(
-							                                                                            EntityAttachments
-									                                                                            .builder()
-									                                                                            .add(
-											                                                                            EntityAttachmentType.VEHICLE,
-											                                                                            VEHICLE_ATTACHMENT
-									                                                                            ))
-			                                                            )
-			                                                            .put(EntityPose.DYING,
-					                                                            EntityDimensions
-							                                                            .fixed(0.2F, 0.2F)
-							                                                            .withEyeHeight(1.62F)
-			                                                            )
-			                                                            .build();
-	protected static final TrackedData<Arm>
-			MAIN_ARM_ID =
-			DataTracker.registerData(PlayerLikeEntity.class, TrackedDataHandlerRegistry.ARM);
-	protected static final TrackedData<Byte>
-			PLAYER_MODE_CUSTOMIZATION_ID =
-			DataTracker.registerData(PlayerLikeEntity.class, TrackedDataHandlerRegistry.BYTE);
+	protected static final Map<EntityPose, EntityDimensions> POSE_DIMENSIONS =
+		(Map<EntityPose, EntityDimensions>) (Map<?, ?>) ImmutableMap.builder()
+			.put(EntityPose.STANDING, STANDING_DIMENSIONS)
+			.put(EntityPose.SLEEPING, SLEEPING_DIMENSIONS)
+			.put(
+				EntityPose.GLIDING,
+				EntityDimensions.changing(SWIMMING_BOX_WIDTH, 0.6F).withEyeHeight(0.4F)
+			)
+			.put(
+				EntityPose.SWIMMING,
+				EntityDimensions.changing(SWIMMING_BOX_WIDTH, 0.6F).withEyeHeight(0.4F)
+			)
+			.put(
+				EntityPose.SPIN_ATTACK,
+				EntityDimensions.changing(SWIMMING_BOX_WIDTH, 0.6F).withEyeHeight(0.4F)
+			)
+			.put(
+				EntityPose.CROUCHING,
+				EntityDimensions.changing(SWIMMING_BOX_WIDTH, CROUCH_BOX_HEIGHT)
+					.withEyeHeight(1.27F)
+					.withAttachments(
+						EntityAttachments.builder()
+							.add(EntityAttachmentType.VEHICLE, VEHICLE_ATTACHMENT)
+					)
+			)
+			.put(
+				EntityPose.DYING,
+				EntityDimensions.fixed(0.2F, 0.2F).withEyeHeight(EYE_HEIGHT)
+			)
+			.build();
+
+	protected static final TrackedData<Arm> MAIN_ARM_ID =
+		DataTracker.registerData(PlayerLikeEntity.class, TrackedDataHandlerRegistry.ARM);
+
+	protected static final TrackedData<Byte> PLAYER_MODE_CUSTOMIZATION_ID =
+		DataTracker.registerData(PlayerLikeEntity.class, TrackedDataHandlerRegistry.BYTE);
 
 	protected PlayerLikeEntity(EntityType<? extends LivingEntity> entityType, World world) {
 		super(entityType, world);
@@ -90,15 +85,15 @@ public class PlayerLikeEntity extends LivingEntity {
 
 	@Override
 	public Arm getMainArm() {
-		return this.dataTracker.get(MAIN_ARM_ID);
+		return dataTracker.get(MAIN_ARM_ID);
 	}
 
 	public void setMainArm(Arm arm) {
-		this.dataTracker.set(MAIN_ARM_ID, arm);
+		dataTracker.set(MAIN_ARM_ID, arm);
 	}
 
 	public boolean isModelPartVisible(PlayerModelPart part) {
-		return (this.getDataTracker().get(PLAYER_MODE_CUSTOMIZATION_ID) & part.getBitFlag()) == part.getBitFlag();
+		return (dataTracker.get(PLAYER_MODE_CUSTOMIZATION_ID) & part.getBitFlag()) == part.getBitFlag();
 	}
 
 	@Override

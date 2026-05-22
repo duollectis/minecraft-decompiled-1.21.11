@@ -31,22 +31,29 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * {@code BlockArgumentParser}.
+ * Парсер строкового представления блока или тега блоков для команд.
+ *
+ * <p>Формат: {@code namespace:block_id[property=value]{nbt_data}}.
+ * Поддерживает теги ({@code #minecraft:logs}), свойства состояния блока и SNBT-данные блок-энтити.
+ * Используется как в режиме разбора, так и в режиме автодополнения.
  */
 public class BlockArgumentParser {
 
-	public static final SimpleCommandExceptionType
-			DISALLOWED_TAG_EXCEPTION =
+	public static final SimpleCommandExceptionType DISALLOWED_TAG_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("argument.block.tag.disallowed"));
+
 	public static final DynamicCommandExceptionType INVALID_BLOCK_ID_EXCEPTION = new DynamicCommandExceptionType(
 			block -> Text.stringifiedTranslatable("argument.block.id.invalid", block)
 	);
+
 	public static final Dynamic2CommandExceptionType UNKNOWN_PROPERTY_EXCEPTION = new Dynamic2CommandExceptionType(
 			(block, property) -> Text.stringifiedTranslatable("argument.block.property.unknown", block, property)
 	);
+
 	public static final Dynamic2CommandExceptionType DUPLICATE_PROPERTY_EXCEPTION = new Dynamic2CommandExceptionType(
 			(block, property) -> Text.stringifiedTranslatable("argument.block.property.duplicate", property, block)
 	);
+
 	public static final Dynamic3CommandExceptionType INVALID_PROPERTY_EXCEPTION = new Dynamic3CommandExceptionType(
 			(block, property, value) -> Text.stringifiedTranslatable(
 					"argument.block.property.invalid",
@@ -55,24 +62,28 @@ public class BlockArgumentParser {
 					property
 			)
 	);
+
 	public static final Dynamic2CommandExceptionType EMPTY_PROPERTY_EXCEPTION = new Dynamic2CommandExceptionType(
-			(object, object2) -> Text.stringifiedTranslatable("argument.block.property.novalue", object2, object)
+			(block, property) -> Text.stringifiedTranslatable("argument.block.property.novalue", property, block)
 	);
-	public static final SimpleCommandExceptionType UNCLOSED_PROPERTIES_EXCEPTION = new SimpleCommandExceptionType(
-			Text.translatable("argument.block.property.unclosed")
-	);
+
+	public static final SimpleCommandExceptionType UNCLOSED_PROPERTIES_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("argument.block.property.unclosed"));
+
 	public static final DynamicCommandExceptionType UNKNOWN_BLOCK_TAG_EXCEPTION = new DynamicCommandExceptionType(
 			tag -> Text.stringifiedTranslatable("arguments.block.tag.unknown", tag)
 	);
+
 	private static final char PROPERTIES_OPENING = '[';
 	private static final char NBT_OPENING = '{';
 	private static final char PROPERTIES_CLOSING = ']';
 	private static final char PROPERTY_DEFINER = '=';
 	private static final char PROPERTY_SEPARATOR = ',';
 	private static final char TAG_PREFIX = '#';
-	private static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>>
-			SUGGEST_DEFAULT =
+
+	private static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>> SUGGEST_DEFAULT =
 			SuggestionsBuilder::buildFuture;
+
 	private final RegistryWrapper<Block> registryWrapper;
 	private final StringReader reader;
 	private final boolean allowTag;
@@ -111,177 +122,183 @@ public class BlockArgumentParser {
 			StringReader reader,
 			boolean allowSnbt
 	) throws CommandSyntaxException {
-		int i = reader.getCursor();
+		int savedCursor = reader.getCursor();
 
 		try {
-			BlockArgumentParser
-					blockArgumentParser =
-					new BlockArgumentParser(registryWrapper, reader, false, allowSnbt);
-			blockArgumentParser.parse();
-			return new BlockArgumentParser.BlockResult(
-					blockArgumentParser.blockState,
-					blockArgumentParser.blockProperties,
-					blockArgumentParser.data
-			);
+			BlockArgumentParser parser = new BlockArgumentParser(registryWrapper, reader, false, allowSnbt);
+			parser.parse();
+			return new BlockArgumentParser.BlockResult(parser.blockState, parser.blockProperties, parser.data);
 		}
-		catch (CommandSyntaxException var5) {
-			reader.setCursor(i);
-			throw var5;
+		catch (CommandSyntaxException ex) {
+			reader.setCursor(savedCursor);
+			throw ex;
 		}
 	}
 
 	public static Either<BlockArgumentParser.BlockResult, BlockArgumentParser.TagResult> blockOrTag(
-			RegistryWrapper<Block> registryWrapper, String string, boolean allowSnbt
+			RegistryWrapper<Block> registryWrapper,
+			String string,
+			boolean allowSnbt
 	) throws CommandSyntaxException {
 		return blockOrTag(registryWrapper, new StringReader(string), allowSnbt);
 	}
 
 	public static Either<BlockArgumentParser.BlockResult, BlockArgumentParser.TagResult> blockOrTag(
-			RegistryWrapper<Block> registryWrapper, StringReader reader, boolean allowSnbt
+			RegistryWrapper<Block> registryWrapper,
+			StringReader reader,
+			boolean allowSnbt
 	) throws CommandSyntaxException {
-		int i = reader.getCursor();
+		int savedCursor = reader.getCursor();
 
 		try {
-			BlockArgumentParser blockArgumentParser = new BlockArgumentParser(registryWrapper, reader, true, allowSnbt);
-			blockArgumentParser.parse();
-			return blockArgumentParser.tagId != null
-			       ? Either.right(new BlockArgumentParser.TagResult(
-					blockArgumentParser.tagId,
-					blockArgumentParser.tagProperties,
-					blockArgumentParser.data
-			))
-			       : Either.left(new BlockArgumentParser.BlockResult(
-					       blockArgumentParser.blockState,
-					       blockArgumentParser.blockProperties,
-					       blockArgumentParser.data
-			       ));
+			BlockArgumentParser parser = new BlockArgumentParser(registryWrapper, reader, true, allowSnbt);
+			parser.parse();
+
+			return parser.tagId != null
+					? Either.right(new BlockArgumentParser.TagResult(
+							parser.tagId,
+							parser.tagProperties,
+							parser.data
+					))
+					: Either.left(new BlockArgumentParser.BlockResult(
+							parser.blockState,
+							parser.blockProperties,
+							parser.data
+					));
 		}
-		catch (CommandSyntaxException var5) {
-			reader.setCursor(i);
-			throw var5;
+		catch (CommandSyntaxException ex) {
+			reader.setCursor(savedCursor);
+			throw ex;
 		}
 	}
 
 	public static CompletableFuture<Suggestions> getSuggestions(
-			RegistryWrapper<Block> registryWrapper, SuggestionsBuilder builder, boolean allowTag, boolean allowSnbt
+			RegistryWrapper<Block> registryWrapper,
+			SuggestionsBuilder builder,
+			boolean allowTag,
+			boolean allowSnbt
 	) {
-		StringReader stringReader = new StringReader(builder.getInput());
-		stringReader.setCursor(builder.getStart());
-		BlockArgumentParser
-				blockArgumentParser =
-				new BlockArgumentParser(registryWrapper, stringReader, allowTag, allowSnbt);
+		StringReader reader = new StringReader(builder.getInput());
+		reader.setCursor(builder.getStart());
+		BlockArgumentParser parser = new BlockArgumentParser(registryWrapper, reader, allowTag, allowSnbt);
 
 		try {
-			blockArgumentParser.parse();
+			parser.parse();
 		}
-		catch (CommandSyntaxException var7) {
+		catch (CommandSyntaxException ignored) {
 		}
 
-		return blockArgumentParser.suggestions.apply(builder.createOffset(stringReader.getCursor()));
+		return parser.suggestions.apply(builder.createOffset(reader.getCursor()));
 	}
 
 	private void parse() throws CommandSyntaxException {
-		if (this.allowTag) {
-			this.suggestions = this::suggestBlockOrTagId;
+		suggestions = allowTag ? this::suggestBlockOrTagId : this::suggestBlockId;
+
+		if (reader.canRead() && reader.peek() == TAG_PREFIX) {
+			parseTagId();
+			suggestions = this::suggestSnbtOrTagProperties;
+
+			if (reader.canRead() && reader.peek() == PROPERTIES_OPENING) {
+				parseTagProperties();
+				suggestions = this::suggestSnbt;
+			}
+
 		}
 		else {
-			this.suggestions = this::suggestBlockId;
+			parseBlockId();
+			suggestions = this::suggestSnbtOrBlockProperties;
+
+			if (reader.canRead() && reader.peek() == PROPERTIES_OPENING) {
+				parseBlockProperties();
+				suggestions = this::suggestSnbt;
+			}
+
 		}
 
-		if (this.reader.canRead() && this.reader.peek() == '#') {
-			this.parseTagId();
-			this.suggestions = this::suggestSnbtOrTagProperties;
-			if (this.reader.canRead() && this.reader.peek() == '[') {
-				this.parseTagProperties();
-				this.suggestions = this::suggestSnbt;
-			}
-		}
-		else {
-			this.parseBlockId();
-			this.suggestions = this::suggestSnbtOrBlockProperties;
-			if (this.reader.canRead() && this.reader.peek() == '[') {
-				this.parseBlockProperties();
-				this.suggestions = this::suggestSnbt;
-			}
+		if (allowSnbt && reader.canRead() && reader.peek() == NBT_OPENING) {
+			suggestions = SUGGEST_DEFAULT;
+			parseSnbt();
 		}
 
-		if (this.allowSnbt && this.reader.canRead() && this.reader.peek() == '{') {
-			this.suggestions = SUGGEST_DEFAULT;
-			this.parseSnbt();
-		}
 	}
 
 	private CompletableFuture<Suggestions> suggestBlockPropertiesOrEnd(SuggestionsBuilder builder) {
 		if (builder.getRemaining().isEmpty()) {
-			builder.suggest(String.valueOf(']'));
+			builder.suggest(String.valueOf(PROPERTIES_CLOSING));
 		}
 
-		return this.suggestBlockProperties(builder);
+		return suggestBlockProperties(builder);
 	}
 
 	private CompletableFuture<Suggestions> suggestTagPropertiesOrEnd(SuggestionsBuilder builder) {
 		if (builder.getRemaining().isEmpty()) {
-			builder.suggest(String.valueOf(']'));
+			builder.suggest(String.valueOf(PROPERTIES_CLOSING));
 		}
 
-		return this.suggestTagProperties(builder);
+		return suggestTagProperties(builder);
 	}
 
 	private CompletableFuture<Suggestions> suggestBlockProperties(SuggestionsBuilder builder) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-		for (Property<?> property : this.blockState.getProperties()) {
-			if (!this.blockProperties.containsKey(property) && property.getName().startsWith(string)) {
-				builder.suggest(property.getName() + "=");
+		for (Property<?> property : blockState.getProperties()) {
+			if (!blockProperties.containsKey(property) && property.getName().startsWith(remaining)) {
+				builder.suggest(property.getName() + PROPERTY_DEFINER);
 			}
+
 		}
 
 		return builder.buildFuture();
 	}
 
 	private CompletableFuture<Suggestions> suggestTagProperties(SuggestionsBuilder builder) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
-		if (this.tagId != null) {
-			for (RegistryEntry<Block> registryEntry : this.tagId) {
-				for (Property<?> property : registryEntry.value().getStateManager().getProperties()) {
-					if (!this.tagProperties.containsKey(property.getName()) && property.getName().startsWith(string)) {
-						builder.suggest(property.getName() + "=");
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+
+		if (tagId != null) {
+			for (RegistryEntry<Block> entry : tagId) {
+				for (Property<?> property : entry.value().getStateManager().getProperties()) {
+					if (!tagProperties.containsKey(property.getName()) && property.getName().startsWith(remaining)) {
+						builder.suggest(property.getName() + PROPERTY_DEFINER);
 					}
+
 				}
+
 			}
+
 		}
 
 		return builder.buildFuture();
 	}
 
 	private CompletableFuture<Suggestions> suggestSnbt(SuggestionsBuilder builder) {
-		if (builder.getRemaining().isEmpty() && this.hasBlockEntity()) {
-			builder.suggest(String.valueOf('{'));
+		if (builder.getRemaining().isEmpty() && hasBlockEntity()) {
+			builder.suggest(String.valueOf(NBT_OPENING));
 		}
 
 		return builder.buildFuture();
 	}
 
 	private boolean hasBlockEntity() {
-		if (this.blockState != null) {
-			return this.blockState.hasBlockEntity();
+		if (blockState != null) {
+			return blockState.hasBlockEntity();
 		}
-		else {
-			if (this.tagId != null) {
-				for (RegistryEntry<Block> registryEntry : this.tagId) {
-					if (registryEntry.value().getDefaultState().hasBlockEntity()) {
-						return true;
-					}
+
+		if (tagId != null) {
+			for (RegistryEntry<Block> entry : tagId) {
+				if (entry.value().getDefaultState().hasBlockEntity()) {
+					return true;
 				}
+
 			}
 
-			return false;
 		}
+
+		return false;
 	}
 
 	private CompletableFuture<Suggestions> suggestEqualsCharacter(SuggestionsBuilder builder) {
 		if (builder.getRemaining().isEmpty()) {
-			builder.suggest(String.valueOf('='));
+			builder.suggest(String.valueOf(PROPERTY_DEFINER));
 		}
 
 		return builder.buildFuture();
@@ -289,11 +306,11 @@ public class BlockArgumentParser {
 
 	private CompletableFuture<Suggestions> suggestCommaOrEnd(SuggestionsBuilder builder) {
 		if (builder.getRemaining().isEmpty()) {
-			builder.suggest(String.valueOf(']'));
+			builder.suggest(String.valueOf(PROPERTIES_CLOSING));
 		}
 
-		if (builder.getRemaining().isEmpty() && this.blockProperties.size() < this.blockState.getProperties().size()) {
-			builder.suggest(String.valueOf(','));
+		if (builder.getRemaining().isEmpty() && blockProperties.size() < blockState.getProperties().size()) {
+			builder.suggest(String.valueOf(PROPERTY_SEPARATOR));
 		}
 
 		return builder.buildFuture();
@@ -303,68 +320,78 @@ public class BlockArgumentParser {
 			SuggestionsBuilder builder,
 			Property<T> property
 	) {
-		for (T comparable : property.getValues()) {
-			if (comparable instanceof Integer integer) {
+		for (T value : property.getValues()) {
+			if (value instanceof Integer integer) {
 				builder.suggest(integer);
 			}
 			else {
-				builder.suggest(property.name(comparable));
+				builder.suggest(property.name(value));
 			}
+
 		}
 
 		return builder;
 	}
 
 	private CompletableFuture<Suggestions> suggestTagPropertyValues(SuggestionsBuilder builder, String name) {
-		boolean bl = false;
-		if (this.tagId != null) {
-			for (RegistryEntry<Block> registryEntry : this.tagId) {
-				Block block = registryEntry.value();
+		boolean hasMoreProperties = false;
+
+		if (tagId != null) {
+			for (RegistryEntry<Block> entry : tagId) {
+				Block block = entry.value();
 				Property<?> property = block.getStateManager().getProperty(name);
+
 				if (property != null) {
 					suggestPropertyValues(builder, property);
 				}
 
-				if (!bl) {
-					for (Property<?> property2 : block.getStateManager().getProperties()) {
-						if (!this.tagProperties.containsKey(property2.getName())) {
-							bl = true;
+				if (!hasMoreProperties) {
+					for (Property<?> prop : block.getStateManager().getProperties()) {
+						if (!tagProperties.containsKey(prop.getName())) {
+							hasMoreProperties = true;
 							break;
 						}
+
 					}
+
 				}
+
 			}
+
 		}
 
-		if (bl) {
-			builder.suggest(String.valueOf(','));
+		if (hasMoreProperties) {
+			builder.suggest(String.valueOf(PROPERTY_SEPARATOR));
 		}
 
-		builder.suggest(String.valueOf(']'));
+		builder.suggest(String.valueOf(PROPERTIES_CLOSING));
 		return builder.buildFuture();
 	}
 
 	private CompletableFuture<Suggestions> suggestSnbtOrTagProperties(SuggestionsBuilder builder) {
-		if (builder.getRemaining().isEmpty() && this.tagId != null) {
-			boolean bl = false;
-			boolean bl2 = false;
+		if (builder.getRemaining().isEmpty() && tagId != null) {
+			boolean hasProperties = false;
+			boolean hasBlockEntity = false;
 
-			for (RegistryEntry<Block> registryEntry : this.tagId) {
-				Block block = registryEntry.value();
-				bl |= !block.getStateManager().getProperties().isEmpty();
-				bl2 |= block.getDefaultState().hasBlockEntity();
-				if (bl && bl2) {
+			for (RegistryEntry<Block> entry : tagId) {
+				Block block = entry.value();
+				hasProperties |= !block.getStateManager().getProperties().isEmpty();
+				hasBlockEntity |= block.getDefaultState().hasBlockEntity();
+
+				if (hasProperties && hasBlockEntity) {
 					break;
 				}
+
 			}
 
-			if (bl) {
-				builder.suggest(String.valueOf('['));
+			if (hasProperties) {
+				builder.suggest(String.valueOf(PROPERTIES_OPENING));
 			}
 
-			if (bl2) {
-				builder.suggest(String.valueOf('{'));
+			if (hasBlockEntity) {
+				builder.suggest(String.valueOf(NBT_OPENING));
 			}
+
 		}
 
 		return builder.buildFuture();
@@ -372,13 +399,14 @@ public class BlockArgumentParser {
 
 	private CompletableFuture<Suggestions> suggestSnbtOrBlockProperties(SuggestionsBuilder builder) {
 		if (builder.getRemaining().isEmpty()) {
-			if (!this.stateFactory.getProperties().isEmpty()) {
-				builder.suggest(String.valueOf('['));
+			if (!stateFactory.getProperties().isEmpty()) {
+				builder.suggest(String.valueOf(PROPERTIES_OPENING));
 			}
 
-			if (this.blockState.hasBlockEntity()) {
-				builder.suggest(String.valueOf('{'));
+			if (blockState.hasBlockEntity()) {
+				builder.suggest(String.valueOf(NBT_OPENING));
 			}
+
 		}
 
 		return builder.buildFuture();
@@ -386,206 +414,233 @@ public class BlockArgumentParser {
 
 	private CompletableFuture<Suggestions> suggestIdentifiers(SuggestionsBuilder builder) {
 		return CommandSource.suggestIdentifiers(
-				this.registryWrapper.streamTagKeys().map(TagKey::id),
+				registryWrapper.streamTagKeys().map(TagKey::id),
 				builder,
-				String.valueOf('#')
+				String.valueOf(TAG_PREFIX)
 		);
 	}
 
 	private CompletableFuture<Suggestions> suggestBlockId(SuggestionsBuilder builder) {
-		return CommandSource.suggestIdentifiers(this.registryWrapper.streamKeys().map(RegistryKey::getValue), builder);
+		return CommandSource.suggestIdentifiers(
+				registryWrapper.streamKeys().map(RegistryKey::getValue),
+				builder
+		);
 	}
 
 	private CompletableFuture<Suggestions> suggestBlockOrTagId(SuggestionsBuilder builder) {
-		this.suggestIdentifiers(builder);
-		this.suggestBlockId(builder);
+		suggestIdentifiers(builder);
+		suggestBlockId(builder);
 		return builder.buildFuture();
 	}
 
 	private void parseBlockId() throws CommandSyntaxException {
-		int i = this.reader.getCursor();
-		this.blockId = Identifier.fromCommandInput(this.reader);
-		Block
-				block =
-				this.registryWrapper.getOptional(RegistryKey.of(RegistryKeys.BLOCK, this.blockId)).orElseThrow(() -> {
-					this.reader.setCursor(i);
-					return INVALID_BLOCK_ID_EXCEPTION.createWithContext(this.reader, this.blockId.toString());
-				}).value();
-		this.stateFactory = block.getStateManager();
-		this.blockState = block.getDefaultState();
+		int savedCursor = reader.getCursor();
+		blockId = Identifier.fromCommandInput(reader);
+		Block block = registryWrapper
+				.getOptional(RegistryKey.of(RegistryKeys.BLOCK, blockId))
+				.orElseThrow(() -> {
+					reader.setCursor(savedCursor);
+					return INVALID_BLOCK_ID_EXCEPTION.createWithContext(reader, blockId.toString());
+				})
+				.value();
+		stateFactory = block.getStateManager();
+		blockState = block.getDefaultState();
 	}
 
 	private void parseTagId() throws CommandSyntaxException {
-		if (!this.allowTag) {
-			throw DISALLOWED_TAG_EXCEPTION.createWithContext(this.reader);
+		if (!allowTag) {
+			throw DISALLOWED_TAG_EXCEPTION.createWithContext(reader);
 		}
-		else {
-			int i = this.reader.getCursor();
-			this.reader.expect('#');
-			this.suggestions = this::suggestIdentifiers;
-			Identifier identifier = Identifier.fromCommandInput(this.reader);
-			this.tagId = this.registryWrapper.getOptional(TagKey.of(RegistryKeys.BLOCK, identifier)).orElseThrow(() -> {
-				this.reader.setCursor(i);
-				return UNKNOWN_BLOCK_TAG_EXCEPTION.createWithContext(this.reader, identifier.toString());
-			});
-		}
+
+		int savedCursor = reader.getCursor();
+		reader.expect(TAG_PREFIX);
+		suggestions = this::suggestIdentifiers;
+		Identifier identifier = Identifier.fromCommandInput(reader);
+		tagId = registryWrapper
+				.getOptional(TagKey.of(RegistryKeys.BLOCK, identifier))
+				.orElseThrow(() -> {
+					reader.setCursor(savedCursor);
+					return UNKNOWN_BLOCK_TAG_EXCEPTION.createWithContext(reader, identifier.toString());
+				});
 	}
 
 	private void parseBlockProperties() throws CommandSyntaxException {
-		this.reader.skip();
-		this.suggestions = this::suggestBlockPropertiesOrEnd;
-		this.reader.skipWhitespace();
+		reader.skip();
+		suggestions = this::suggestBlockPropertiesOrEnd;
+		reader.skipWhitespace();
 
-		while (this.reader.canRead() && this.reader.peek() != ']') {
-			this.reader.skipWhitespace();
-			int i = this.reader.getCursor();
-			String string = this.reader.readString();
-			Property<?> property = this.stateFactory.getProperty(string);
+		while (reader.canRead() && reader.peek() != PROPERTIES_CLOSING) {
+			reader.skipWhitespace();
+			int propCursor = reader.getCursor();
+			String propName = reader.readString();
+			Property<?> property = stateFactory.getProperty(propName);
+
 			if (property == null) {
-				this.reader.setCursor(i);
-				throw UNKNOWN_PROPERTY_EXCEPTION.createWithContext(this.reader, this.blockId.toString(), string);
+				reader.setCursor(propCursor);
+				throw UNKNOWN_PROPERTY_EXCEPTION.createWithContext(reader, blockId.toString(), propName);
 			}
 
-			if (this.blockProperties.containsKey(property)) {
-				this.reader.setCursor(i);
-				throw DUPLICATE_PROPERTY_EXCEPTION.createWithContext(this.reader, this.blockId.toString(), string);
+			if (blockProperties.containsKey(property)) {
+				reader.setCursor(propCursor);
+				throw DUPLICATE_PROPERTY_EXCEPTION.createWithContext(reader, blockId.toString(), propName);
 			}
 
-			this.reader.skipWhitespace();
-			this.suggestions = this::suggestEqualsCharacter;
-			if (!this.reader.canRead() || this.reader.peek() != '=') {
-				throw EMPTY_PROPERTY_EXCEPTION.createWithContext(this.reader, this.blockId.toString(), string);
+			reader.skipWhitespace();
+			suggestions = this::suggestEqualsCharacter;
+
+			if (!reader.canRead() || reader.peek() != PROPERTY_DEFINER) {
+				throw EMPTY_PROPERTY_EXCEPTION.createWithContext(reader, blockId.toString(), propName);
 			}
 
-			this.reader.skip();
-			this.reader.skipWhitespace();
-			this.suggestions = builder -> suggestPropertyValues(builder, property).buildFuture();
-			int j = this.reader.getCursor();
-			this.parsePropertyValue(property, this.reader.readString(), j);
-			this.suggestions = this::suggestCommaOrEnd;
-			this.reader.skipWhitespace();
-			if (this.reader.canRead()) {
-				if (this.reader.peek() != ',') {
-					if (this.reader.peek() != ']') {
-						throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(this.reader);
-					}
-					break;
-				}
+			reader.skip();
+			reader.skipWhitespace();
+			suggestions = innerBuilder -> suggestPropertyValues(innerBuilder, property).buildFuture();
+			int valueCursor = reader.getCursor();
+			parsePropertyValue(property, reader.readString(), valueCursor);
+			suggestions = this::suggestCommaOrEnd;
+			reader.skipWhitespace();
 
-				this.reader.skip();
-				this.suggestions = this::suggestBlockProperties;
+			if (!reader.canRead()) {
+				break;
 			}
+
+			if (reader.peek() == PROPERTY_SEPARATOR) {
+				reader.skip();
+				suggestions = this::suggestBlockProperties;
+				continue;
+			}
+
+			if (reader.peek() != PROPERTIES_CLOSING) {
+				throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(reader);
+			}
+
+			break;
 		}
 
-		if (this.reader.canRead()) {
-			this.reader.skip();
+		if (reader.canRead()) {
+			reader.skip();
 		}
 		else {
-			throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(this.reader);
+			throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(reader);
 		}
+
 	}
 
 	private void parseTagProperties() throws CommandSyntaxException {
-		this.reader.skip();
-		this.suggestions = this::suggestTagPropertiesOrEnd;
-		int i = -1;
-		this.reader.skipWhitespace();
+		reader.skip();
+		suggestions = this::suggestTagPropertiesOrEnd;
+		int lastValueCursor = -1;
+		reader.skipWhitespace();
 
-		while (this.reader.canRead() && this.reader.peek() != ']') {
-			this.reader.skipWhitespace();
-			int j = this.reader.getCursor();
-			String string = this.reader.readString();
-			if (this.tagProperties.containsKey(string)) {
-				this.reader.setCursor(j);
-				throw DUPLICATE_PROPERTY_EXCEPTION.createWithContext(this.reader, this.blockId.toString(), string);
+		while (reader.canRead() && reader.peek() != PROPERTIES_CLOSING) {
+			reader.skipWhitespace();
+			int propCursor = reader.getCursor();
+			String propName = reader.readString();
+
+			if (tagProperties.containsKey(propName)) {
+				reader.setCursor(propCursor);
+				throw DUPLICATE_PROPERTY_EXCEPTION.createWithContext(reader, blockId.toString(), propName);
 			}
 
-			this.reader.skipWhitespace();
-			if (!this.reader.canRead() || this.reader.peek() != '=') {
-				this.reader.setCursor(j);
-				throw EMPTY_PROPERTY_EXCEPTION.createWithContext(this.reader, this.blockId.toString(), string);
+			reader.skipWhitespace();
+
+			if (!reader.canRead() || reader.peek() != PROPERTY_DEFINER) {
+				reader.setCursor(propCursor);
+				throw EMPTY_PROPERTY_EXCEPTION.createWithContext(reader, blockId.toString(), propName);
 			}
 
-			this.reader.skip();
-			this.reader.skipWhitespace();
-			this.suggestions = builder -> this.suggestTagPropertyValues(builder, string);
-			i = this.reader.getCursor();
-			String string2 = this.reader.readString();
-			this.tagProperties.put(string, string2);
-			this.reader.skipWhitespace();
-			if (this.reader.canRead()) {
-				i = -1;
-				if (this.reader.peek() != ',') {
-					if (this.reader.peek() != ']') {
-						throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(this.reader);
-					}
-					break;
-				}
+			reader.skip();
+			reader.skipWhitespace();
+			suggestions = innerBuilder -> suggestTagPropertyValues(innerBuilder, propName);
+			lastValueCursor = reader.getCursor();
+			String propValue = reader.readString();
+			tagProperties.put(propName, propValue);
+			reader.skipWhitespace();
 
-				this.reader.skip();
-				this.suggestions = this::suggestTagProperties;
+			if (!reader.canRead()) {
+				break;
 			}
+
+			lastValueCursor = -1;
+
+			if (reader.peek() == PROPERTY_SEPARATOR) {
+				reader.skip();
+				suggestions = this::suggestTagProperties;
+				continue;
+			}
+
+			if (reader.peek() != PROPERTIES_CLOSING) {
+				throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(reader);
+			}
+
+			break;
 		}
 
-		if (this.reader.canRead()) {
-			this.reader.skip();
+		if (reader.canRead()) {
+			reader.skip();
 		}
 		else {
-			if (i >= 0) {
-				this.reader.setCursor(i);
+			if (lastValueCursor >= 0) {
+				reader.setCursor(lastValueCursor);
 			}
 
-			throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(this.reader);
+			throw UNCLOSED_PROPERTIES_EXCEPTION.createWithContext(reader);
 		}
+
 	}
 
 	private void parseSnbt() throws CommandSyntaxException {
-		this.data = StringNbtReader.readCompoundAsArgument(this.reader);
+		data = StringNbtReader.readCompoundAsArgument(reader);
 	}
 
-	private <T extends Comparable<T>> void parsePropertyValue(Property<T> property, String value, int cursor)
-	throws CommandSyntaxException {
-		Optional<T> optional = property.parse(value);
-		if (optional.isPresent()) {
-			this.blockState = this.blockState.with(property, optional.get());
-			this.blockProperties.put(property, optional.get());
+	private <T extends Comparable<T>> void parsePropertyValue(
+			Property<T> property,
+			String value,
+			int cursor
+	) throws CommandSyntaxException {
+		Optional<T> parsed = property.parse(value);
+
+		if (parsed.isPresent()) {
+			blockState = blockState.with(property, parsed.get());
+			blockProperties.put(property, parsed.get());
 		}
 		else {
-			this.reader.setCursor(cursor);
+			reader.setCursor(cursor);
 			throw INVALID_PROPERTY_EXCEPTION.createWithContext(
-					this.reader,
-					this.blockId.toString(),
+					reader,
+					blockId.toString(),
 					property.getName(),
 					value
 			);
 		}
+
 	}
 
 	public static String stringifyBlockState(BlockState state) {
-		StringBuilder
-				stringBuilder =
-				new StringBuilder(state
-						.getRegistryEntry()
+		StringBuilder builder = new StringBuilder(
+				state.getRegistryEntry()
 						.getKey()
 						.map(key -> key.getValue().toString())
-						.orElse("air"));
+						.orElse("air")
+		);
+
 		if (!state.getProperties().isEmpty()) {
-			stringBuilder.append('[');
-			boolean bl = false;
+			builder.append(PROPERTIES_OPENING);
+			boolean first = false;
 
 			for (Entry<Property<?>, Comparable<?>> entry : state.getEntries().entrySet()) {
-				if (bl) {
-					stringBuilder.append(',');
+				if (first) {
+					builder.append(PROPERTY_SEPARATOR);
 				}
 
-				stringifyProperty(stringBuilder, entry.getKey(), entry.getValue());
-				bl = true;
+				stringifyProperty(builder, entry.getKey(), entry.getValue());
+				first = true;
 			}
 
-			stringBuilder.append(']');
+			builder.append(PROPERTIES_CLOSING);
 		}
 
-		return stringBuilder.toString();
+		return builder.toString();
 	}
 
 	private static <T extends Comparable<T>> void stringifyProperty(
@@ -594,12 +649,12 @@ public class BlockArgumentParser {
 			Comparable<?> value
 	) {
 		builder.append(property.getName());
-		builder.append('=');
+		builder.append(PROPERTY_DEFINER);
 		builder.append(property.name((T) value));
 	}
 
 	/**
-	 * {@code BlockResult}.
+	 * Результат разбора конкретного блока: состояние, свойства и опциональные NBT-данные.
 	 */
 	public record BlockResult(
 			BlockState blockState,
@@ -609,7 +664,7 @@ public class BlockArgumentParser {
 	}
 
 	/**
-	 * {@code TagResult}.
+	 * Результат разбора тега блоков: список записей, строковые свойства и опциональные NBT-данные.
 	 */
 	public record TagResult(
 			RegistryEntryList<Block> tag,
@@ -617,4 +672,5 @@ public class BlockArgumentParser {
 			@Nullable NbtCompound nbt
 	) {
 	}
+
 }

@@ -13,10 +13,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AbstractTextWidget}.
+ * Базовый абстрактный виджет текста с поддержкой кликабельных стилей (ссылок).
+ * Подклассы реализуют метод {@link #draw} для конкретного способа отрисовки текста.
  */
+@Environment(EnvType.CLIENT)
 public abstract class AbstractTextWidget extends ClickableWidget {
 
 	private @Nullable Consumer<Style> clickedStyleConsumer = null;
@@ -27,43 +28,41 @@ public abstract class AbstractTextWidget extends ClickableWidget {
 		this.textRenderer = textRenderer;
 	}
 
-	/**
-	 * Draw.
-	 *
-	 * @param textConsumer text consumer
-	 */
 	public abstract void draw(DrawnTextConsumer textConsumer);
 
 	@Override
 	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		DrawContext.HoverType hoverType;
-		if (this.isHovered()) {
-			if (this.clickedStyleConsumer != null) {
-				hoverType = DrawContext.HoverType.TOOLTIP_AND_CURSOR;
-			}
-			else {
-				hoverType = DrawContext.HoverType.TOOLTIP_ONLY;
-			}
+		if (isHovered()) {
+			hoverType = clickedStyleConsumer != null
+					? DrawContext.HoverType.TOOLTIP_AND_CURSOR
+					: DrawContext.HoverType.TOOLTIP_ONLY;
 		}
 		else {
 			hoverType = DrawContext.HoverType.NONE;
 		}
 
-		this.draw(context.getHoverListener(this, hoverType));
+		draw(context.getHoverListener(this, hoverType));
 	}
 
 	@Override
 	public void onClick(Click click, boolean doubled) {
-		if (this.clickedStyleConsumer != null) {
-			DrawnTextConsumer.ClickHandler
-					clickHandler =
-					new DrawnTextConsumer.ClickHandler(this.getTextRenderer(), (int) click.x(), (int) click.y());
-			this.draw(clickHandler);
-			Style style = clickHandler.getStyle();
-			if (style != null) {
-				this.clickedStyleConsumer.accept(style);
-				return;
-			}
+		if (clickedStyleConsumer == null) {
+			super.onClick(click, doubled);
+			return;
+		}
+
+		DrawnTextConsumer.ClickHandler clickHandler = new DrawnTextConsumer.ClickHandler(
+				getTextRenderer(),
+				(int) click.x(),
+				(int) click.y()
+		);
+		draw(clickHandler);
+
+		Style style = clickHandler.getStyle();
+		if (style != null) {
+			clickedStyleConsumer.accept(style);
+			return;
 		}
 
 		super.onClick(click, doubled);
@@ -74,22 +73,15 @@ public abstract class AbstractTextWidget extends ClickableWidget {
 	}
 
 	protected final TextRenderer getTextRenderer() {
-		return this.textRenderer;
+		return textRenderer;
 	}
 
 	@Override
 	public void setMessage(Text message) {
 		super.setMessage(message);
-		this.setWidth(this.getTextRenderer().getWidth(message.asOrderedText()));
+		setWidth(getTextRenderer().getWidth(message.asOrderedText()));
 	}
 
-	/**
-	 * Обрабатывает событие click.
-	 *
-	 * @param clickedStyleConsumer clicked style consumer
-	 *
-	 * @return AbstractTextWidget — результат операции
-	 */
 	public AbstractTextWidget onClick(@Nullable Consumer<Style> clickedStyleConsumer) {
 		this.clickedStyleConsumer = clickedStyleConsumer;
 		return this;

@@ -11,10 +11,14 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code StructurePlacementData}.
+ * Конфигурация размещения структурного шаблона в мире.
+ * Задаёт зеркалирование, поворот, позицию, список процессоров блоков,
+ * настройки жидкостей и прочие параметры, влияющие на то, как
+ * {@link StructureTemplate} будет вставлен в чанк.
  */
 public class StructurePlacementData {
 
@@ -30,20 +34,24 @@ public class StructurePlacementData {
 	private boolean updateNeighbors;
 	private boolean initializeMobs;
 
+	/**
+	 * Создаёт полную независимую копию этого объекта конфигурации,
+	 * включая список процессоров (shallow copy элементов).
+	 */
 	public StructurePlacementData copy() {
-		StructurePlacementData structurePlacementData = new StructurePlacementData();
-		structurePlacementData.mirror = this.mirror;
-		structurePlacementData.rotation = this.rotation;
-		structurePlacementData.position = this.position;
-		structurePlacementData.ignoreEntities = this.ignoreEntities;
-		structurePlacementData.boundingBox = this.boundingBox;
-		structurePlacementData.liquidSettings = this.liquidSettings;
-		structurePlacementData.random = this.random;
-		structurePlacementData.boundingBoxMode = this.boundingBoxMode;
-		structurePlacementData.processors.addAll(this.processors);
-		structurePlacementData.updateNeighbors = this.updateNeighbors;
-		structurePlacementData.initializeMobs = this.initializeMobs;
-		return structurePlacementData;
+		StructurePlacementData copy = new StructurePlacementData();
+		copy.mirror = mirror;
+		copy.rotation = rotation;
+		copy.position = position;
+		copy.ignoreEntities = ignoreEntities;
+		copy.boundingBox = boundingBox;
+		copy.liquidSettings = liquidSettings;
+		copy.random = random;
+		copy.boundingBoxMode = boundingBoxMode;
+		copy.processors.addAll(processors);
+		copy.updateNeighbors = updateNeighbors;
+		copy.initializeMobs = initializeMobs;
+		return copy;
 	}
 
 	public StructurePlacementData setMirror(BlockMirror mirror) {
@@ -87,72 +95,89 @@ public class StructurePlacementData {
 	}
 
 	public StructurePlacementData clearProcessors() {
-		this.processors.clear();
+		processors.clear();
 		return this;
 	}
 
 	public StructurePlacementData addProcessor(StructureProcessor processor) {
-		this.processors.add(processor);
+		processors.add(processor);
 		return this;
 	}
 
 	public StructurePlacementData removeProcessor(StructureProcessor processor) {
-		this.processors.remove(processor);
+		processors.remove(processor);
 		return this;
 	}
 
 	public BlockMirror getMirror() {
-		return this.mirror;
+		return mirror;
 	}
 
 	public BlockRotation getRotation() {
-		return this.rotation;
+		return rotation;
 	}
 
 	public BlockPos getPosition() {
-		return this.position;
+		return position;
 	}
 
+	/**
+	 * Возвращает генератор случайных чисел для данного размещения.
+	 * Если явный {@code random} не задан, создаёт детерминированный генератор
+	 * на основе хэша позиции блока, либо на основе текущего времени, если позиция не указана.
+	 *
+	 * @param pos позиция блока для детерминированного сида, может быть {@code null}
+	 * @return генератор случайных чисел
+	 */
 	public Random getRandom(@Nullable BlockPos pos) {
-		if (this.random != null) {
-			return this.random;
+		if (random != null) {
+			return random;
 		}
-		else {
-			return pos == null ? Random.create(Util.getMeasuringTimeMs()) : Random.create(MathHelper.hashCode(pos));
-		}
+
+		return pos == null
+			? Random.create(Util.getMeasuringTimeMs())
+			: Random.create(MathHelper.hashCode(pos));
 	}
 
 	public boolean shouldIgnoreEntities() {
-		return this.ignoreEntities;
+		return ignoreEntities;
 	}
 
 	public @Nullable BlockBox getBoundingBox() {
-		return this.boundingBox;
+		return boundingBox;
 	}
 
 	public boolean shouldUpdateNeighbors() {
-		return this.updateNeighbors;
+		return updateNeighbors;
 	}
 
 	public List<StructureProcessor> getProcessors() {
-		return this.processors;
+		return Collections.unmodifiableList(processors);
 	}
 
 	public boolean shouldApplyWaterlogging() {
-		return this.liquidSettings == StructureLiquidSettings.APPLY_WATERLOGGING;
+		return liquidSettings == StructureLiquidSettings.APPLY_WATERLOGGING;
 	}
 
+	/**
+	 * Выбирает случайный список информации о блоках из нескольких палитр.
+	 * Используется для вариативности внешнего вида структур с несколькими палитрами.
+	 *
+	 * @param infoLists список доступных палитр блоков
+	 * @param pos позиция для детерминированного выбора палитры
+	 * @return случайно выбранная палитра
+	 * @throws IllegalStateException если список палитр пуст
+	 */
 	public StructureTemplate.PalettedBlockInfoList getRandomBlockInfos(
-			List<StructureTemplate.PalettedBlockInfoList> infoLists,
-			@Nullable BlockPos pos
+		List<StructureTemplate.PalettedBlockInfoList> infoLists,
+		@Nullable BlockPos pos
 	) {
-		int i = infoLists.size();
-		if (i == 0) {
+		int count = infoLists.size();
+		if (count == 0) {
 			throw new IllegalStateException("No palettes");
 		}
-		else {
-			return infoLists.get(this.getRandom(pos).nextInt(i));
-		}
+
+		return infoLists.get(getRandom(pos).nextInt(count));
 	}
 
 	public StructurePlacementData setInitializeMobs(boolean initializeMobs) {
@@ -161,6 +186,6 @@ public class StructurePlacementData {
 	}
 
 	public boolean shouldInitializeMobs() {
-		return this.initializeMobs;
+		return initializeMobs;
 	}
 }

@@ -18,7 +18,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 
 /**
- * {@code WhitelistCommand}.
+ * Команда {@code /whitelist}: управление белым списком игроков (только dedicated).
  */
 public class WhitelistCommand {
 

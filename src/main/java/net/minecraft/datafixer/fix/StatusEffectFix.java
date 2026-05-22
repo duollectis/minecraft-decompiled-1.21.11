@@ -10,7 +10,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
-import net.minecraft.util.Util;
 
 import java.util.Optional;
 import java.util.Set;
@@ -18,47 +17,11 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * {@code StatusEffectFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class StatusEffectFix extends DataFix {
 
-	private static final Int2ObjectMap<String> OLD_TO_NEW_IDS = Util.make(
-			new Int2ObjectOpenHashMap(), idMap -> {
-				idMap.put(1, "minecraft:speed");
-				idMap.put(2, "minecraft:slowness");
-				idMap.put(3, "minecraft:haste");
-				idMap.put(4, "minecraft:mining_fatigue");
-				idMap.put(5, "minecraft:strength");
-				idMap.put(6, "minecraft:instant_health");
-				idMap.put(7, "minecraft:instant_damage");
-				idMap.put(8, "minecraft:jump_boost");
-				idMap.put(9, "minecraft:nausea");
-				idMap.put(10, "minecraft:regeneration");
-				idMap.put(11, "minecraft:resistance");
-				idMap.put(12, "minecraft:fire_resistance");
-				idMap.put(13, "minecraft:water_breathing");
-				idMap.put(14, "minecraft:invisibility");
-				idMap.put(15, "minecraft:blindness");
-				idMap.put(16, "minecraft:night_vision");
-				idMap.put(17, "minecraft:hunger");
-				idMap.put(18, "minecraft:weakness");
-				idMap.put(19, "minecraft:poison");
-				idMap.put(20, "minecraft:wither");
-				idMap.put(21, "minecraft:health_boost");
-				idMap.put(22, "minecraft:absorption");
-				idMap.put(23, "minecraft:saturation");
-				idMap.put(24, "minecraft:glowing");
-				idMap.put(25, "minecraft:levitation");
-				idMap.put(26, "minecraft:luck");
-				idMap.put(27, "minecraft:unluck");
-				idMap.put(28, "minecraft:slow_falling");
-				idMap.put(29, "minecraft:conduit_power");
-				idMap.put(30, "minecraft:dolphins_grace");
-				idMap.put(31, "minecraft:bad_omen");
-				idMap.put(32, "minecraft:hero_of_the_village");
-				idMap.put(33, "minecraft:darkness");
-			}
-	);
+	private static final Int2ObjectMap<String> OLD_TO_NEW_IDS = buildOldToNewIdsMap();
 	private static final Set<String> POTION_ITEM_IDS = Set.of(
 			"minecraft:potion", "minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:tipped_arrow"
 	);
@@ -125,8 +88,8 @@ public class StatusEffectFix extends DataFix {
 			String entityId,
 			Function<Dynamic<?>, Dynamic<?>> effectsFixer
 	) {
-		Type<?> type = this.getInputSchema().getChoiceType(entityTypeReference, entityId);
-		Type<?> type2 = this.getOutputSchema().getChoiceType(entityTypeReference, entityId);
+		Type<?> type = getInputSchema().getChoiceType(entityTypeReference, entityId);
+		Type<?> type2 = getOutputSchema().getChoiceType(entityTypeReference, entityId);
 		return entityTyped.updateTyped(
 				DSL.namedChoice(entityId, type),
 				type2,
@@ -135,8 +98,8 @@ public class StatusEffectFix extends DataFix {
 	}
 
 	private TypeRewriteRule makeBlockEntitiesRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.BLOCK_ENTITY);
+		return fixTypeEverywhereTyped(
 				"BlockEntityMobEffectIdFix", type, typed -> this.fixEntityEffects(
 						typed, TypeReferences.BLOCK_ENTITY, "minecraft:beacon", dynamic -> {
 							dynamic = renameKeyAndUpdateId(dynamic, "Primary", "primary_effect");
@@ -169,8 +132,8 @@ public class StatusEffectFix extends DataFix {
 	}
 
 	private TypeRewriteRule makeEntitiesRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ENTITY);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.ENTITY);
+		return fixTypeEverywhereTyped(
 				"EntityMobEffectIdFix", type, entityTyped -> {
 					entityTyped =
 							this.fixEntityEffects(
@@ -199,8 +162,8 @@ public class StatusEffectFix extends DataFix {
 	}
 
 	private TypeRewriteRule makePlayersRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.PLAYER);
-		return this.fixTypeEverywhereTyped(
+		Type<?> type = getInputSchema().getType(TypeReferences.PLAYER);
+		return fixTypeEverywhereTyped(
 				"PlayerMobEffectIdFix",
 				type,
 				typed -> typed.update(DSL.remainderFinder(), StatusEffectFix::fixActiveEffectsKey)
@@ -219,9 +182,9 @@ public class StatusEffectFix extends DataFix {
 		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
 				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
 		);
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
+		Type<?> type = getInputSchema().getType(TypeReferences.ITEM_STACK);
 		OpticFinder<?> opticFinder2 = type.findField("tag");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"ItemStackMobEffectIdFix",
 				type,
 				itemStackTyped -> {
@@ -263,5 +226,43 @@ public class StatusEffectFix extends DataFix {
 				this.makeBlockEntitiesRule(),
 				new TypeRewriteRule[]{this.makeEntitiesRule(), this.makePlayersRule(), this.makeItemStacksRule()}
 		);
+	}
+
+	private static Int2ObjectMap<String> buildOldToNewIdsMap() {
+		Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>();
+		map.put(1, "minecraft:speed");
+		map.put(2, "minecraft:slowness");
+		map.put(3, "minecraft:haste");
+		map.put(4, "minecraft:mining_fatigue");
+		map.put(5, "minecraft:strength");
+		map.put(6, "minecraft:instant_health");
+		map.put(7, "minecraft:instant_damage");
+		map.put(8, "minecraft:jump_boost");
+		map.put(9, "minecraft:nausea");
+		map.put(10, "minecraft:regeneration");
+		map.put(11, "minecraft:resistance");
+		map.put(12, "minecraft:fire_resistance");
+		map.put(13, "minecraft:water_breathing");
+		map.put(14, "minecraft:invisibility");
+		map.put(15, "minecraft:blindness");
+		map.put(16, "minecraft:night_vision");
+		map.put(17, "minecraft:hunger");
+		map.put(18, "minecraft:weakness");
+		map.put(19, "minecraft:poison");
+		map.put(20, "minecraft:wither");
+		map.put(21, "minecraft:health_boost");
+		map.put(22, "minecraft:absorption");
+		map.put(23, "minecraft:saturation");
+		map.put(24, "minecraft:glowing");
+		map.put(25, "minecraft:levitation");
+		map.put(26, "minecraft:luck");
+		map.put(27, "minecraft:unluck");
+		map.put(28, "minecraft:slow_falling");
+		map.put(29, "minecraft:conduit_power");
+		map.put(30, "minecraft:dolphins_grace");
+		map.put(31, "minecraft:bad_omen");
+		map.put(32, "minecraft:hero_of_the_village");
+		map.put(33, "minecraft:darkness");
+		return map;
 	}
 }

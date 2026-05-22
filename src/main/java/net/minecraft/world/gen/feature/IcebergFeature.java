@@ -12,7 +12,9 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code IcebergFeature}.
+ * Генерирует айсберг на уровне моря. Айсберг состоит из надводной части (лёд/снег)
+ * и подводной части. Форма определяется эллипсоидными функциями расстояния.
+ * Опционально внутри вырезается полая сердцевина.
  */
 public class IcebergFeature extends Feature<SingleStateFeatureConfig> {
 
@@ -20,160 +22,188 @@ public class IcebergFeature extends Feature<SingleStateFeatureConfig> {
 		super(codec);
 	}
 
+	/**
+	 * Генерирует айсберг в точке уровня моря. Форма айсберга определяется случайными
+	 * параметрами: высота, радиус, угол поворота, наличие полой сердцевины.
+	 */
 	@Override
 	public boolean generate(FeatureContext<SingleStateFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		blockPos = new BlockPos(blockPos.getX(), context.getGenerator().getSeaLevel(), blockPos.getZ());
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
+		origin = new BlockPos(origin.getX(), context.getGenerator().getSeaLevel(), origin.getZ());
 		Random random = context.getRandom();
-		boolean bl = random.nextDouble() > 0.7;
-		BlockState blockState = context.getConfig().state;
-		double d = random.nextDouble() * 2.0 * Math.PI;
-		int i = 11 - random.nextInt(5);
-		int j = 3 + random.nextInt(3);
-		boolean bl2 = random.nextDouble() > 0.7;
-		int k = 11;
-		int l = bl2 ? random.nextInt(6) + 6 : random.nextInt(15) + 3;
-		if (!bl2 && random.nextDouble() > 0.9) {
-			l += random.nextInt(19) + 7;
+
+		boolean placeSnow = random.nextDouble() > 0.7;
+		BlockState iceState = context.getConfig().state;
+		double rotationAngle = random.nextDouble() * 2.0 * Math.PI;
+		int snowLayerThickness = 3 + random.nextInt(3);
+		boolean isSmall = random.nextDouble() > 0.7;
+		int maxRadius = 11;
+		int aboveWaterHeight = isSmall ? random.nextInt(6) + 6 : random.nextInt(15) + 3;
+
+		if (!isSmall && random.nextDouble() > 0.9) {
+			aboveWaterHeight += random.nextInt(19) + 7;
 		}
 
-		int m = Math.min(l + random.nextInt(11), 18);
-		int n = Math.min(l + random.nextInt(7) - random.nextInt(5), 11);
-		int o = bl2 ? i : 11;
+		int belowWaterHeight = Math.min(aboveWaterHeight + random.nextInt(11), 18);
+		int aboveWaterFactor = Math.min(aboveWaterHeight + random.nextInt(7) - random.nextInt(5), 11);
+		int scanRadius = isSmall ? maxRadius - (11 - random.nextInt(5)) : maxRadius;
 
-		for (int p = -o; p < o; p++) {
-			for (int q = -o; q < o; q++) {
-				for (int r = 0; r < l; r++) {
-					int s = bl2 ? this.calcAboveWaterRadius(r, l, n) : this.calcAboveWaterRadiusRandom(random, r, l, n);
-					if (bl2 || p < s) {
-						this.placeAt(
-								structureWorldAccess,
-								random,
-								blockPos,
-								l,
-								p,
-								r,
-								q,
-								s,
-								o,
-								bl2,
-								j,
-								d,
-								bl,
-								blockState
+		// Надводная часть айсберга
+		for (int dx = -scanRadius; dx < scanRadius; dx++) {
+			for (int dz = -scanRadius; dz < scanRadius; dz++) {
+				for (int dy = 0; dy < aboveWaterHeight; dy++) {
+					int radius = isSmall
+						? calcAboveWaterRadius(dy, aboveWaterHeight, aboveWaterFactor)
+						: calcAboveWaterRadiusRandom(random, dy, aboveWaterHeight, aboveWaterFactor);
+
+					if (isSmall || dx < radius) {
+						placeAt(
+							world,
+							random,
+							origin,
+							aboveWaterHeight,
+							dx,
+							dy,
+							dz,
+							radius,
+							scanRadius,
+							isSmall,
+							snowLayerThickness,
+							rotationAngle,
+							placeSnow,
+							iceState
 						);
 					}
 				}
 			}
 		}
 
-		this.removeFloatingBlocks(structureWorldAccess, blockPos, n, l, bl2, i);
+		removeFloatingBlocks(world, origin, aboveWaterFactor, aboveWaterHeight, isSmall, maxRadius - (11 - random.nextInt(5)));
 
-		for (int p = -o; p < o; p++) {
-			for (int q = -o; q < o; q++) {
-				for (int rx = -1; rx > -m; rx--) {
-					int s = bl2 ? MathHelper.ceil(o * (1.0F - (float) Math.pow(rx, 2.0) / (m * 8.0F))) : o;
-					int t = this.calcBelowWaterRadius(random, -rx, m, n);
-					if (p < t) {
-						this.placeAt(
-								structureWorldAccess,
-								random,
-								blockPos,
-								m,
-								p,
-								rx,
-								q,
-								t,
-								s,
-								bl2,
-								j,
-								d,
-								bl,
-								blockState
+		// Подводная часть айсберга
+		for (int dx = -scanRadius; dx < scanRadius; dx++) {
+			for (int dz = -scanRadius; dz < scanRadius; dz++) {
+				for (int dy = -1; dy > -belowWaterHeight; dy--) {
+					int underwaterScanRadius = isSmall
+						? MathHelper.ceil(scanRadius * (1.0F - (float) Math.pow(dy, 2.0) / (belowWaterHeight * 8.0F)))
+						: scanRadius;
+					int radius = calcBelowWaterRadius(random, -dy, belowWaterHeight, aboveWaterFactor);
+
+					if (dx < radius) {
+						placeAt(
+							world,
+							random,
+							origin,
+							belowWaterHeight,
+							dx,
+							dy,
+							dz,
+							radius,
+							underwaterScanRadius,
+							isSmall,
+							snowLayerThickness,
+							rotationAngle,
+							placeSnow,
+							iceState
 						);
 					}
 				}
 			}
 		}
 
-		boolean bl3 = bl2 ? random.nextDouble() > 0.1 : random.nextDouble() > 0.7;
-		if (bl3) {
-			this.generateHollowCore(random, structureWorldAccess, n, l, blockPos, bl2, i, d, j);
+		boolean generateCore = isSmall ? random.nextDouble() > 0.1 : random.nextDouble() > 0.7;
+
+		if (generateCore) {
+			generateHollowCore(random, world, aboveWaterFactor, aboveWaterHeight, origin, isSmall, scanRadius, rotationAngle, snowLayerThickness);
 		}
 
 		return true;
 	}
 
+	/**
+	 * Вырезает полую сердцевину внутри айсберга, заменяя лёд воздухом (или водой под водой).
+	 * Смещение сердцевины от центра задаётся случайно.
+	 */
 	private void generateHollowCore(
-			Random random,
-			WorldAccess world,
-			int i,
-			int j,
-			BlockPos pos,
-			boolean bl,
-			int k,
-			double d,
-			int l
+		Random random,
+		WorldAccess world,
+		int aboveWaterFactor,
+		int aboveWaterHeight,
+		BlockPos pos,
+		boolean isSmall,
+		int scanRadius,
+		double rotationAngle,
+		int snowLayerThickness
 	) {
-		int m = random.nextBoolean() ? -1 : 1;
-		int n = random.nextBoolean() ? -1 : 1;
-		int o = random.nextInt(Math.max(i / 2 - 2, 1));
+		int signX = random.nextBoolean() ? -1 : 1;
+		int signZ = random.nextBoolean() ? -1 : 1;
+		int offsetX = random.nextInt(Math.max(aboveWaterFactor / 2 - 2, 1));
+
 		if (random.nextBoolean()) {
-			o = i / 2 + 1 - random.nextInt(Math.max(i - i / 2 - 1, 1));
+			offsetX = aboveWaterFactor / 2 + 1 - random.nextInt(Math.max(aboveWaterFactor - aboveWaterFactor / 2 - 1, 1));
 		}
 
-		int p = random.nextInt(Math.max(i / 2 - 2, 1));
+		int offsetZ = random.nextInt(Math.max(aboveWaterFactor / 2 - 2, 1));
+
 		if (random.nextBoolean()) {
-			p = i / 2 + 1 - random.nextInt(Math.max(i - i / 2 - 1, 1));
+			offsetZ = aboveWaterFactor / 2 + 1 - random.nextInt(Math.max(aboveWaterFactor - aboveWaterFactor / 2 - 1, 1));
 		}
 
-		if (bl) {
-			o = p = random.nextInt(Math.max(k - 5, 1));
+		if (isSmall) {
+			offsetX = random.nextInt(Math.max(scanRadius - 5, 1));
+			offsetZ = offsetX;
 		}
 
-		BlockPos blockPos = new BlockPos(m * o, 0, n * p);
-		double e = bl ? d + (Math.PI / 2) : random.nextDouble() * 2.0 * Math.PI;
+		BlockPos coreOffset = new BlockPos(signX * offsetX, 0, signZ * offsetZ);
+		double coreAngle = isSmall ? rotationAngle + (Math.PI / 2) : random.nextDouble() * 2.0 * Math.PI;
 
-		for (int q = 0; q < j - 3; q++) {
-			int r = this.calcAboveWaterRadiusRandom(random, q, j, i);
-			this.carveHollowSection(r, q, pos, world, false, e, blockPos, k, l);
+		for (int dy = 0; dy < aboveWaterHeight - 3; dy++) {
+			int radius = calcAboveWaterRadiusRandom(random, dy, aboveWaterHeight, aboveWaterFactor);
+			carveHollowSection(radius, dy, pos, world, false, coreAngle, coreOffset, scanRadius, snowLayerThickness);
 		}
 
-		for (int q = -1; q > -j + random.nextInt(5); q--) {
-			int r = this.calcBelowWaterRadius(random, -q, j, i);
-			this.carveHollowSection(r, q, pos, world, true, e, blockPos, k, l);
+		for (int dy = -1; dy > -aboveWaterHeight + random.nextInt(5); dy--) {
+			int radius = calcBelowWaterRadius(random, -dy, aboveWaterHeight, aboveWaterFactor);
+			carveHollowSection(radius, dy, pos, world, true, coreAngle, coreOffset, scanRadius, snowLayerThickness);
 		}
 	}
 
+	/**
+	 * Вырезает один горизонтальный слой полой сердцевины на высоте {@code y}.
+	 * Форма сечения — эллипс, повёрнутый на угол {@code angle}.
+	 */
 	private void carveHollowSection(
-			int i,
-			int y,
-			BlockPos pos,
-			WorldAccess world,
-			boolean placeWater,
-			double d,
-			BlockPos blockPos,
-			int j,
-			int k
+		int radius,
+		int y,
+		BlockPos pos,
+		WorldAccess world,
+		boolean placeWater,
+		double angle,
+		BlockPos coreOffset,
+		int scanRadius,
+		int snowLayerThickness
 	) {
-		int l = i + 1 + j / 3;
-		int m = Math.min(i - 3, 3) + k / 2 - 1;
+		int outerRadius = radius + 1 + scanRadius / 3;
+		int innerRadius = Math.min(radius - 3, 3) + snowLayerThickness / 2 - 1;
 
-		for (int n = -l; n < l; n++) {
-			for (int o = -l; o < l; o++) {
-				double e = this.getDistance(n, o, blockPos, l, m, d);
-				if (e < 0.0) {
-					BlockPos blockPos2 = pos.add(n, y, o);
-					BlockState blockState = world.getBlockState(blockPos2);
-					if (isSnowOrIce(blockState) || blockState.isOf(Blocks.SNOW_BLOCK)) {
-						if (placeWater) {
-							this.setBlockState(world, blockPos2, Blocks.WATER.getDefaultState());
-						}
-						else {
-							this.setBlockState(world, blockPos2, Blocks.AIR.getDefaultState());
-							this.clearSnowAbove(world, blockPos2);
-						}
+		for (int dx = -outerRadius; dx < outerRadius; dx++) {
+			for (int dz = -outerRadius; dz < outerRadius; dz++) {
+				double dist = getDistance(dx, dz, coreOffset, outerRadius, innerRadius, angle);
+
+				if (dist >= 0.0) {
+					continue;
+				}
+
+				BlockPos candidate = pos.add(dx, y, dz);
+				BlockState state = world.getBlockState(candidate);
+
+				if (isSnowOrIce(state) || state.isOf(Blocks.SNOW_BLOCK)) {
+					if (placeWater) {
+						setBlockState(world, candidate, Blocks.WATER.getDefaultState());
+					} else {
+						setBlockState(world, candidate, Blocks.AIR.getDefaultState());
+						clearSnowAbove(world, candidate);
 					}
 				}
 			}
@@ -182,119 +212,152 @@ public class IcebergFeature extends Feature<SingleStateFeatureConfig> {
 
 	private void clearSnowAbove(WorldAccess world, BlockPos pos) {
 		if (world.getBlockState(pos.up()).isOf(Blocks.SNOW)) {
-			this.setBlockState(world, pos.up(), Blocks.AIR.getDefaultState());
+			setBlockState(world, pos.up(), Blocks.AIR.getDefaultState());
 		}
 	}
 
+	/**
+	 * Размещает один блок айсберга в позиции {@code (pos + offsetX, offsetY, offsetZ)}.
+	 * Выбирает между льдом и снегом в зависимости от высоты и случайности.
+	 */
 	private void placeAt(
-			WorldAccess world,
-			Random random,
-			BlockPos pos,
-			int height,
-			int offsetX,
-			int offsetY,
-			int offsetZ,
-			int i,
-			int j,
-			boolean bl,
-			int k,
-			double randomSine,
-			boolean placeSnow,
-			BlockState state
+		WorldAccess world,
+		Random random,
+		BlockPos pos,
+		int height,
+		int offsetX,
+		int offsetY,
+		int offsetZ,
+		int radius,
+		int scanRadius,
+		boolean isSmall,
+		int snowLayerThickness,
+		double rotationAngle,
+		boolean placeSnow,
+		BlockState iceState
 	) {
-		double d = bl
-		           ? this.getDistance(
+		double dist = isSmall
+			? getDistance(
 				offsetX,
 				offsetZ,
 				BlockPos.ORIGIN,
-				j,
-				this.decreaseValueNearTop(offsetY, height, k),
-				randomSine
-		)
-		           : this.calcUnderwaterDistance(offsetX, offsetZ, BlockPos.ORIGIN, i, random);
-		if (d < 0.0) {
-			BlockPos blockPos = pos.add(offsetX, offsetY, offsetZ);
-			double e = bl ? -0.5 : -6 - random.nextInt(3);
-			if (d > e && random.nextDouble() > 0.9) {
-				return;
-			}
+				scanRadius,
+				decreaseValueNearTop(offsetY, height, snowLayerThickness),
+				rotationAngle
+			)
+			: calcUnderwaterDistance(offsetX, offsetZ, BlockPos.ORIGIN, radius, random);
 
-			this.placeBlockOrSnow(blockPos, world, random, height - offsetY, height, bl, placeSnow, state);
+		if (dist >= 0.0) {
+			return;
 		}
+
+		BlockPos target = pos.add(offsetX, offsetY, offsetZ);
+		double innerThreshold = isSmall ? -0.5 : -6 - random.nextInt(3);
+
+		if (dist > innerThreshold && random.nextDouble() > 0.9) {
+			return;
+		}
+
+		placeBlockOrSnow(target, world, random, height - offsetY, height, isSmall, placeSnow, iceState);
 	}
 
 	private void placeBlockOrSnow(
-			BlockPos pos,
-			WorldAccess world,
-			Random random,
-			int heightRemaining,
-			int height,
-			boolean lessSnow,
-			boolean placeSnow,
-			BlockState state
+		BlockPos pos,
+		WorldAccess world,
+		Random random,
+		int heightRemaining,
+		int height,
+		boolean lessSnow,
+		boolean placeSnow,
+		BlockState iceState
 	) {
-		BlockState blockState = world.getBlockState(pos);
-		if (blockState.isAir() || blockState.isOf(Blocks.SNOW_BLOCK) || blockState.isOf(Blocks.ICE) || blockState.isOf(
-				Blocks.WATER)) {
-			boolean bl = !lessSnow || random.nextDouble() > 0.05;
-			int i = lessSnow ? 3 : 2;
-			if (placeSnow && !blockState.isOf(Blocks.WATER)
-					&& heightRemaining <= random.nextInt(Math.max(1, height / i)) + height * 0.6 && bl) {
-				this.setBlockState(world, pos, Blocks.SNOW_BLOCK.getDefaultState());
-			}
-			else {
-				this.setBlockState(world, pos, state);
+		BlockState existing = world.getBlockState(pos);
+
+		if (existing.isAir()
+			|| existing.isOf(Blocks.SNOW_BLOCK)
+			|| existing.isOf(Blocks.ICE)
+			|| existing.isOf(Blocks.WATER)
+		) {
+			boolean allowSnow = !lessSnow || random.nextDouble() > 0.05;
+			int snowDivisor = lessSnow ? 3 : 2;
+
+			if (placeSnow
+				&& !existing.isOf(Blocks.WATER)
+				&& heightRemaining <= random.nextInt(Math.max(1, height / snowDivisor)) + height * 0.6
+				&& allowSnow
+			) {
+				setBlockState(world, pos, Blocks.SNOW_BLOCK.getDefaultState());
+			} else {
+				setBlockState(world, pos, iceState);
 			}
 		}
 	}
 
+	/**
+	 * Уменьшает значение {@code value} вблизи вершины айсберга (последние 3 слоя),
+	 * чтобы сузить форму к верхушке.
+	 */
 	private int decreaseValueNearTop(int y, int height, int value) {
-		int i = value;
 		if (y > 0 && height - y <= 3) {
-			i = value - (4 - (height - y));
+			return value - (4 - (height - y));
 		}
 
-		return i;
+		return value;
 	}
 
-	private double calcUnderwaterDistance(int x, int z, BlockPos pos, int i, Random random) {
-		float f = 10.0F * MathHelper.clamp(random.nextFloat(), 0.2F, 0.8F) / i;
-		return f + Math.pow(x - pos.getX(), 2.0) + Math.pow(z - pos.getZ(), 2.0) - Math.pow(i, 2.0);
+	/**
+	 * Вычисляет расстояние для подводной части: эллипс с небольшим случайным смещением.
+	 */
+	private double calcUnderwaterDistance(int x, int z, BlockPos pos, int radius, Random random) {
+		float scale = 10.0F * MathHelper.clamp(random.nextFloat(), 0.2F, 0.8F) / radius;
+		return scale
+			+ Math.pow(x - pos.getX(), 2.0)
+			+ Math.pow(z - pos.getZ(), 2.0)
+			- Math.pow(radius, 2.0);
 	}
 
-	private double getDistance(int x, int z, BlockPos pos, int divisor1, int divisor2, double randomSine) {
-		return Math.pow(
-				((x - pos.getX()) * Math.cos(randomSine) - (z - pos.getZ()) * Math.sin(randomSine)) / divisor1,
-				2.0
-		)
-				+ Math.pow(
-				((x - pos.getX()) * Math.sin(randomSine) + (z - pos.getZ()) * Math.cos(randomSine)) / divisor2,
-				2.0
-		)
-				- 1.0;
+	/**
+	 * Вычисляет расстояние до границы повёрнутого эллипса.
+	 * Возвращает отрицательное значение, если точка находится внутри эллипса.
+	 *
+	 * @param divisor1 полуось по первому направлению (после поворота)
+	 * @param divisor2 полуось по второму направлению (после поворота)
+	 */
+	private double getDistance(int x, int z, BlockPos pos, int divisor1, int divisor2, double angle) {
+		double relX = x - pos.getX();
+		double relZ = z - pos.getZ();
+		double cosA = Math.cos(angle);
+		double sinA = Math.sin(angle);
+		return Math.pow((relX * cosA - relZ * sinA) / divisor1, 2.0)
+			+ Math.pow((relX * sinA + relZ * cosA) / divisor2, 2.0)
+			- 1.0;
 	}
 
+	/**
+	 * Вычисляет радиус надводной части с добавлением случайности.
+	 * Для высоких айсбергов применяется линейное уменьшение вместо квадратичного.
+	 */
 	private int calcAboveWaterRadiusRandom(Random random, int y, int height, int factor) {
-		float f = 3.5F - random.nextFloat();
-		float g = (1.0F - (float) Math.pow(y, 2.0) / (height * f)) * factor;
+		float falloff = 3.5F - random.nextFloat();
+		float radius = (1.0F - (float) Math.pow(y, 2.0) / (height * falloff)) * factor;
+
 		if (height > 15 + random.nextInt(5)) {
-			int i = y < 3 + random.nextInt(6) ? y / 2 : y;
-			g = (1.0F - i / (height * f * 0.4F)) * factor;
+			int effectiveY = y < 3 + random.nextInt(6) ? y / 2 : y;
+			radius = (1.0F - effectiveY / (height * falloff * 0.4F)) * factor;
 		}
 
-		return MathHelper.ceil(g / 2.0F);
+		return MathHelper.ceil(radius / 2.0F);
 	}
 
 	private int calcAboveWaterRadius(int y, int height, int factor) {
-		float f = 1.0F;
-		float g = (1.0F - (float) Math.pow(y, 2.0) / (height * 1.0F)) * factor;
-		return MathHelper.ceil(g / 2.0F);
+		float radius = (1.0F - (float) Math.pow(y, 2.0) / height) * factor;
+		return MathHelper.ceil(radius / 2.0F);
 	}
 
 	private int calcBelowWaterRadius(Random random, int y, int height, int factor) {
-		float f = 1.0F + random.nextFloat() / 2.0F;
-		float g = (1.0F - y / (height * f)) * factor;
-		return MathHelper.ceil(g / 2.0F);
+		float falloff = 1.0F + random.nextFloat() / 2.0F;
+		float radius = (1.0F - y / (height * falloff)) * factor;
+		return MathHelper.ceil(radius / 2.0F);
 	}
 
 	private static boolean isSnowOrIce(BlockState state) {
@@ -305,37 +368,43 @@ public class IcebergFeature extends Feature<SingleStateFeatureConfig> {
 		return world.getBlockState(pos.down()).isAir();
 	}
 
-	private void removeFloatingBlocks(WorldAccess world, BlockPos pos, int i, int height, boolean bl, int j) {
-		int k = bl ? j : i / 2;
+	/**
+	 * Удаляет висящие в воздухе блоки льда и снега после генерации формы айсберга.
+	 * Блок считается висящим, если под ним воздух или если у него 3+ не-ледяных соседа.
+	 */
+	private void removeFloatingBlocks(WorldAccess world, BlockPos pos, int factor, int height, boolean isSmall, int scanRadius) {
+		int range = isSmall ? scanRadius : factor / 2;
 
-		for (int l = -k; l <= k; l++) {
-			for (int m = -k; m <= k; m++) {
-				for (int n = 0; n <= height; n++) {
-					BlockPos blockPos = pos.add(l, n, m);
-					BlockState blockState = world.getBlockState(blockPos);
-					if (isSnowOrIce(blockState) || blockState.isOf(Blocks.SNOW)) {
-						if (this.isAirBelow(world, blockPos)) {
-							this.setBlockState(world, blockPos, Blocks.AIR.getDefaultState());
-							this.setBlockState(world, blockPos.up(), Blocks.AIR.getDefaultState());
+		for (int dx = -range; dx <= range; dx++) {
+			for (int dz = -range; dz <= range; dz++) {
+				for (int dy = 0; dy <= height; dy++) {
+					BlockPos candidate = pos.add(dx, dy, dz);
+					BlockState state = world.getBlockState(candidate);
+
+					if (!isSnowOrIce(state) && !state.isOf(Blocks.SNOW)) {
+						continue;
+					}
+
+					if (isAirBelow(world, candidate)) {
+						setBlockState(world, candidate, Blocks.AIR.getDefaultState());
+						setBlockState(world, candidate.up(), Blocks.AIR.getDefaultState());
+					} else if (isSnowOrIce(state)) {
+						BlockState[] neighbors = new BlockState[]{
+							world.getBlockState(candidate.west()),
+							world.getBlockState(candidate.east()),
+							world.getBlockState(candidate.north()),
+							world.getBlockState(candidate.south())
+						};
+						int nonIceNeighbors = 0;
+
+						for (BlockState neighbor : neighbors) {
+							if (!isSnowOrIce(neighbor)) {
+								nonIceNeighbors++;
+							}
 						}
-						else if (isSnowOrIce(blockState)) {
-							BlockState[] blockStates = new BlockState[]{
-									world.getBlockState(blockPos.west()),
-									world.getBlockState(blockPos.east()),
-									world.getBlockState(blockPos.north()),
-									world.getBlockState(blockPos.south())
-							};
-							int o = 0;
 
-							for (BlockState blockState2 : blockStates) {
-								if (!isSnowOrIce(blockState2)) {
-									o++;
-								}
-							}
-
-							if (o >= 3) {
-								this.setBlockState(world, blockPos, Blocks.AIR.getDefaultState());
-							}
+						if (nonIceNeighbors >= 3) {
+							setBlockState(world, candidate, Blocks.AIR.getDefaultState());
 						}
 					}
 				}

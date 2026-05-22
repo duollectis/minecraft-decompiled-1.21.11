@@ -1,30 +1,39 @@
 package net.minecraft.entity.damage;
 
-import com.google.common.collect.Lists;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.tag.DamageTypeTags;
-import net.minecraft.text.*;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
+import net.minecraft.text.Texts;
 import net.minecraft.util.Urls;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code DamageTracker}.
+ * Отслеживает историю урона, нанесённого живой сущности, для формирования
+ * корректного сообщения о смерти. Хранит записи о последних событиях урона
+ * в пределах кулдауна и определяет наиболее значимое падение.
  */
 public class DamageTracker {
 
 	public static final int DAMAGE_COOLDOWN = 100;
 	public static final int ATTACK_DAMAGE_COOLDOWN = 300;
-	private static final Style INTENTIONAL_GAME_DESIGN_ISSUE_LINK_STYLE = Style.EMPTY
-			.withClickEvent(new ClickEvent.OpenUrl(Urls.INTENTIONAL_GAME_DESIGN_ISSUE))
-			.withHoverEvent(new HoverEvent.ShowText(Text.literal("MCPE-28723")));
-	private final List<DamageRecord> recentDamage = Lists.newArrayList();
+
+	private static final Style INTENTIONAL_GAME_DESIGN_LINK_STYLE = Style.EMPTY
+		.withClickEvent(new ClickEvent.OpenUrl(Urls.INTENTIONAL_GAME_DESIGN_ISSUE))
+		.withHoverEvent(new HoverEvent.ShowText(Text.literal("MCPE-28723")));
+
+	private final List<DamageRecord> recentDamage = new ArrayList<>();
 	private final LivingEntity entity;
+
 	private int ageOnLastDamage;
 	private int ageOnLastAttacked;
 	private int ageOnLastUpdate;
@@ -36,167 +45,176 @@ public class DamageTracker {
 	}
 
 	/**
-	 * Обрабатывает событие damage.
+	 * Регистрирует событие урона: добавляет запись в историю, обновляет таймеры
+	 * и при необходимости инициирует боевой режим сущности.
 	 *
-	 * @param damageSource damage source
-	 * @param damage damage
+	 * @param damageSource источник урона
+	 * @param damage количество нанесённого урона
 	 */
 	public void onDamage(DamageSource damageSource, float damage) {
-		this.update();
-		FallLocation fallLocation = FallLocation.fromEntity(this.entity);
-		DamageRecord
-				damageRecord =
-				new DamageRecord(damageSource, damage, fallLocation, (float) this.entity.fallDistance);
-		this.recentDamage.add(damageRecord);
-		this.ageOnLastDamage = this.entity.age;
-		this.hasDamage = true;
-		if (!this.recentlyAttacked && this.entity.isAlive() && isAttackerLiving(damageSource)) {
-			this.recentlyAttacked = true;
-			this.ageOnLastAttacked = this.entity.age;
-			this.ageOnLastUpdate = this.ageOnLastAttacked;
-			this.entity.enterCombat();
+		update();
+
+		FallLocation fallLocation = FallLocation.fromEntity(entity);
+		DamageRecord record = new DamageRecord(damageSource, damage, fallLocation, (float) entity.fallDistance);
+		recentDamage.add(record);
+		ageOnLastDamage = entity.age;
+		hasDamage = true;
+
+		if (recentlyAttacked || !entity.isAlive() || !isAttackerLiving(damageSource)) {
+			return;
 		}
+
+		recentlyAttacked = true;
+		ageOnLastAttacked = entity.age;
+		ageOnLastUpdate = ageOnLastAttacked;
+		entity.enterCombat();
+	}
+
+	/**
+	 * Формирует локализованное сообщение о смерти с учётом типа последнего урона,
+	 * наиболее значимого падения и специальных случаев (intentional game design).
+	 *
+	 * @return текст сообщения о смерти
+	 */
+	public Text getDeathMessage() {
+		if (recentDamage.isEmpty()) {
+			return Text.translatable("death.attack.generic", entity.getDisplayName());
+		}
+
+		DamageRecord lastRecord = recentDamage.get(recentDamage.size() - 1);
+		DamageSource lastSource = lastRecord.damageSource();
+		DamageRecord biggestFall = getBiggestFall();
+		DeathMessageType messageType = lastSource.getType().deathMessageType();
+
+		if (messageType == DeathMessageType.FALL_VARIANTS && biggestFall != null) {
+			return getFallDeathMessage(biggestFall, lastSource.getAttacker());
+		}
+
+		if (messageType == DeathMessageType.INTENTIONAL_GAME_DESIGN) {
+			String key = "death.attack." + lastSource.getName();
+			Text link = Texts
+				.bracketed(Text.translatable(key + ".link"))
+				.fillStyle(INTENTIONAL_GAME_DESIGN_LINK_STYLE);
+			return Text.translatable(key + ".message", entity.getDisplayName(), link);
+		}
+
+		return lastSource.getDeathMessage(entity);
+	}
+
+	public int getTimeSinceLastAttack() {
+		return recentlyAttacked
+			? entity.age - ageOnLastAttacked
+			: ageOnLastUpdate - ageOnLastAttacked;
+	}
+
+	/**
+	 * Сбрасывает историю урона, если истёк кулдаун. Завершает боевой режим,
+	 * если сущность была атакована живым существом.
+	 */
+	public void update() {
+		int cooldown = recentlyAttacked ? ATTACK_DAMAGE_COOLDOWN : DAMAGE_COOLDOWN;
+		if (!hasDamage || (entity.isAlive() && entity.age - ageOnLastDamage <= cooldown)) {
+			return;
+		}
+
+		boolean wasAttacked = recentlyAttacked;
+		hasDamage = false;
+		recentlyAttacked = false;
+		ageOnLastUpdate = entity.age;
+
+		if (wasAttacked) {
+			entity.endCombat();
+		}
+
+		recentDamage.clear();
+	}
+
+	private Text getFallDeathMessage(DamageRecord damageRecord, @Nullable Entity attacker) {
+		DamageSource source = damageRecord.damageSource();
+
+		if (source.isIn(DamageTypeTags.IS_FALL) || source.isIn(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL)) {
+			FallLocation fallLocation = Objects.requireNonNullElse(damageRecord.fallLocation(), FallLocation.GENERIC);
+			return Text.translatable(fallLocation.getDeathMessageKey(), entity.getDisplayName());
+		}
+
+		Text attackerName = getDisplayName(attacker);
+		Entity sourceAttacker = source.getAttacker();
+		Text sourceAttackerName = getDisplayName(sourceAttacker);
+
+		if (sourceAttackerName != null && !sourceAttackerName.equals(attackerName)) {
+			return getAttackedFallDeathMessage(
+				sourceAttacker,
+				sourceAttackerName,
+				"death.fell.assist.item",
+				"death.fell.assist"
+			);
+		}
+
+		return attackerName != null
+			? getAttackedFallDeathMessage(attacker, attackerName, "death.fell.finish.item", "death.fell.finish")
+			: Text.translatable("death.fell.killer", entity.getDisplayName());
+	}
+
+	private Text getAttackedFallDeathMessage(
+		Entity attacker,
+		Text attackerDisplayName,
+		String itemDeathKey,
+		String deathKey
+	) {
+		ItemStack weapon = attacker instanceof LivingEntity living ? living.getMainHandStack() : ItemStack.EMPTY;
+
+		return !weapon.isEmpty() && weapon.contains(DataComponentTypes.CUSTOM_NAME)
+			? Text.translatable(itemDeathKey, entity.getDisplayName(), attackerDisplayName, weapon.toHoverableText())
+			: Text.translatable(deathKey, entity.getDisplayName(), attackerDisplayName);
+	}
+
+	/**
+	 * Находит наиболее значимую запись о падении из истории урона.
+	 * Приоритет отдаётся записи с наибольшей дистанцией падения (порог 5.0),
+	 * затем — записи с наибольшим уроном при наличии места падения.
+	 *
+	 * @return наиболее значимая запись о падении или {@code null}
+	 */
+	private @Nullable DamageRecord getBiggestFall() {
+		DamageRecord biggestFallRecord = null;
+		DamageRecord biggestDamageRecord = null;
+		float maxFallDistance = 0.0F;
+		float maxDamage = 0.0F;
+
+		for (int i = 0; i < recentDamage.size(); i++) {
+			DamageRecord current = recentDamage.get(i);
+			DamageRecord previous = i > 0 ? recentDamage.get(i - 1) : null;
+			DamageSource source = current.damageSource();
+
+			boolean alwaysSignificant = source.isIn(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL);
+			float fallDistance = alwaysSignificant ? Float.MAX_VALUE : current.fallDistance();
+
+			if ((source.isIn(DamageTypeTags.IS_FALL) || alwaysSignificant)
+				&& fallDistance > 0.0F
+				&& (biggestFallRecord == null || fallDistance > maxFallDistance)
+			) {
+				biggestFallRecord = i > 0 ? previous : current;
+				maxFallDistance = fallDistance;
+			}
+
+			if (current.fallLocation() != null && (biggestDamageRecord == null || current.damage() > maxDamage)) {
+				biggestDamageRecord = current;
+				maxDamage = current.damage();
+			}
+		}
+
+		if (maxFallDistance > 5.0F && biggestFallRecord != null) {
+			return biggestFallRecord;
+		}
+
+		return maxDamage > 5.0F && biggestDamageRecord != null ? biggestDamageRecord : null;
 	}
 
 	private static boolean isAttackerLiving(DamageSource damageSource) {
 		return damageSource.getAttacker() instanceof LivingEntity;
 	}
 
-	private Text getAttackedFallDeathMessage(
-			Entity attacker,
-			Text attackerDisplayName,
-			String itemDeathTranslationKey,
-			String deathTranslationKey
-	) {
-		ItemStack
-				itemStack =
-				attacker instanceof LivingEntity livingEntity ? livingEntity.getMainHandStack() : ItemStack.EMPTY;
-		return !itemStack.isEmpty() && itemStack.contains(DataComponentTypes.CUSTOM_NAME)
-		       ? Text.translatable(
-				itemDeathTranslationKey,
-				this.entity.getDisplayName(),
-				attackerDisplayName,
-				itemStack.toHoverableText()
-		)
-		       : Text.translatable(deathTranslationKey, this.entity.getDisplayName(), attackerDisplayName);
-	}
-
-	private Text getFallDeathMessage(DamageRecord damageRecord, @Nullable Entity attacker) {
-		DamageSource damageSource = damageRecord.damageSource();
-		if (!damageSource.isIn(DamageTypeTags.IS_FALL)
-				&& !damageSource.isIn(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL)) {
-			Text text = getDisplayName(attacker);
-			Entity entity = damageSource.getAttacker();
-			Text text2 = getDisplayName(entity);
-			if (text2 != null && !text2.equals(text)) {
-				return this.getAttackedFallDeathMessage(entity, text2, "death.fell.assist.item", "death.fell.assist");
-			}
-			else {
-				return (Text) (text != null
-				               ? this.getAttackedFallDeathMessage(
-						attacker,
-						text,
-						"death.fell.finish.item",
-						"death.fell.finish"
-				)
-				               : Text.translatable("death.fell.killer", this.entity.getDisplayName())
-				);
-			}
-		}
-		else {
-			FallLocation fallLocation = Objects.requireNonNullElse(damageRecord.fallLocation(), FallLocation.GENERIC);
-			return Text.translatable(fallLocation.getDeathMessageKey(), this.entity.getDisplayName());
-		}
-	}
-
 	private static @Nullable Text getDisplayName(@Nullable Entity entity) {
 		return entity == null ? null : entity.getDisplayName();
-	}
-
-	public Text getDeathMessage() {
-		if (this.recentDamage.isEmpty()) {
-			return Text.translatable("death.attack.generic", this.entity.getDisplayName());
-		}
-		else {
-			DamageRecord damageRecord = this.recentDamage.get(this.recentDamage.size() - 1);
-			DamageSource damageSource = damageRecord.damageSource();
-			DamageRecord damageRecord2 = this.getBiggestFall();
-			DeathMessageType deathMessageType = damageSource.getType().deathMessageType();
-			if (deathMessageType == DeathMessageType.FALL_VARIANTS && damageRecord2 != null) {
-				return this.getFallDeathMessage(damageRecord2, damageSource.getAttacker());
-			}
-			else if (deathMessageType == DeathMessageType.INTENTIONAL_GAME_DESIGN) {
-				String string = "death.attack." + damageSource.getName();
-				Text
-						text =
-						Texts
-								.bracketed(Text.translatable(string + ".link"))
-								.fillStyle(INTENTIONAL_GAME_DESIGN_ISSUE_LINK_STYLE);
-				return Text.translatable(string + ".message", this.entity.getDisplayName(), text);
-			}
-			else {
-				return damageSource.getDeathMessage(this.entity);
-			}
-		}
-	}
-
-	private @Nullable DamageRecord getBiggestFall() {
-		DamageRecord damageRecord = null;
-		DamageRecord damageRecord2 = null;
-		float f = 0.0F;
-		float g = 0.0F;
-
-		for (int i = 0; i < this.recentDamage.size(); i++) {
-			DamageRecord damageRecord3 = this.recentDamage.get(i);
-			DamageRecord damageRecord4 = i > 0 ? this.recentDamage.get(i - 1) : null;
-			DamageSource damageSource = damageRecord3.damageSource();
-			boolean bl = damageSource.isIn(DamageTypeTags.ALWAYS_MOST_SIGNIFICANT_FALL);
-			float h = bl ? Float.MAX_VALUE : damageRecord3.fallDistance();
-			if ((damageSource.isIn(DamageTypeTags.IS_FALL) || bl) && h > 0.0F && (damageRecord == null || h > g)) {
-				if (i > 0) {
-					damageRecord = damageRecord4;
-				}
-				else {
-					damageRecord = damageRecord3;
-				}
-
-				g = h;
-			}
-
-			if (damageRecord3.fallLocation() != null && (damageRecord2 == null || damageRecord3.damage() > f)) {
-				damageRecord2 = damageRecord3;
-				f = damageRecord3.damage();
-			}
-		}
-
-		if (g > 5.0F && damageRecord != null) {
-			return damageRecord;
-		}
-		else {
-			return f > 5.0F && damageRecord2 != null ? damageRecord2 : null;
-		}
-	}
-
-	public int getTimeSinceLastAttack() {
-		return this.recentlyAttacked ? this.entity.age - this.ageOnLastAttacked
-		                             : this.ageOnLastUpdate - this.ageOnLastAttacked;
-	}
-
-	/**
-	 * Update.
-	 */
-	public void update() {
-		int i = this.recentlyAttacked ? 300 : 100;
-		if (this.hasDamage && (!this.entity.isAlive() || this.entity.age - this.ageOnLastDamage > i)) {
-			boolean bl = this.recentlyAttacked;
-			this.hasDamage = false;
-			this.recentlyAttacked = false;
-			this.ageOnLastUpdate = this.entity.age;
-			if (bl) {
-				this.entity.endCombat();
-			}
-
-			this.recentDamage.clear();
-		}
 	}
 }

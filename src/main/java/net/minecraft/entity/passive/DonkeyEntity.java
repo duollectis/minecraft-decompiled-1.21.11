@@ -10,7 +10,8 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code DonkeyEntity}.
+ * Осёл — вьючное животное, способное нести сундук.
+ * Может скрещиваться с лошадью (порождает мула) или другим ослом.
  */
 public class DonkeyEntity extends AbstractDonkeyEntity {
 
@@ -48,27 +49,36 @@ public class DonkeyEntity extends AbstractDonkeyEntity {
 		if (other == this) {
 			return false;
 		}
-		else {
-			return !(other instanceof DonkeyEntity) && !(other instanceof HorseEntity) ? false : this.canBreed()
-			                                                                                     && ((AbstractHorseEntity) other).canBreed();
+
+		if (other instanceof DonkeyEntity donkey) {
+			return canBreed() && donkey.canBreed();
 		}
+
+		if (other instanceof HorseEntity horse) {
+			return canBreed() && horse.canBreed();
+		}
+
+		return false;
 	}
 
 	@Override
 	protected void playJumpSound() {
-		this.playSound(SoundEvents.ENTITY_DONKEY_JUMP, 0.4F, 1.0F);
+		playSound(SoundEvents.ENTITY_DONKEY_JUMP, 0.4F, 1.0F);
 	}
 
+	/**
+	 * При скрещивании с лошадью создаёт мула, при скрещивании с ослом — осла.
+	 */
 	@Override
 	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
-		EntityType<? extends AbstractHorseEntity>
-				entityType =
-				entity instanceof HorseEntity ? EntityType.MULE : EntityType.DONKEY;
-		AbstractHorseEntity abstractHorseEntity = entityType.create(world, SpawnReason.BREEDING);
-		if (abstractHorseEntity != null) {
-			this.setChildAttributes(entity, abstractHorseEntity);
+		EntityType<? extends AbstractHorseEntity> childType = entity instanceof HorseEntity
+			? EntityType.MULE
+			: EntityType.DONKEY;
+		AbstractHorseEntity child = childType.create(world, SpawnReason.BREEDING);
+		if (child != null) {
+			setChildAttributes(entity, child);
 		}
 
-		return abstractHorseEntity;
+		return child;
 	}
 }

@@ -14,7 +14,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@code BlockPosFormatFix}.
+ * Мигрирует формат координат блоков из устаревшего составного NBT-тега
+ * в новый компактный формат для различных типов сущностей и блок-сущностей.
+ * Также обновляет поля карт (фреймы, баннеры) и компас (цель лодестона).
  */
 public class BlockPosFormatFix extends DataFix {
 
@@ -44,40 +46,44 @@ public class BlockPosFormatFix extends DataFix {
 	}
 
 	private <T> Dynamic<T> fixMapItemFrames(Dynamic<T> dynamic) {
-		return dynamic.update(
-				"frames", frames -> frames.createList(frames.asStream().map(frame -> {
-					frame = frame.renameAndFixField("Pos", "pos", FixUtil::fixBlockPos);
-					frame = frame.renameField("Rotation", "rotation");
-					return frame.renameField("EntityId", "entity_id");
-				}))
-		).update(
-				"banners", banners -> banners.createList(banners.asStream().map(banner -> {
-					banner = banner.renameField("Pos", "pos");
-					banner = banner.renameField("Color", "color");
-					return banner.renameField("Name", "name");
-				}))
-		);
+		return dynamic
+				.update(
+						"frames", frames -> frames.createList(frames.asStream().map(frame -> {
+							frame = frame.renameAndFixField("Pos", "pos", FixUtil::fixBlockPos);
+							frame = frame.renameField("Rotation", "rotation");
+							return frame.renameField("EntityId", "entity_id");
+						}))
+				)
+				.update(
+						"banners", banners -> banners.createList(banners.asStream().map(banner -> {
+							banner = banner.renameField("Pos", "pos");
+							banner = banner.renameField("Color", "color");
+							return banner.renameField("Name", "name");
+						}))
+				);
 	}
 
 	public TypeRewriteRule makeRule() {
-		List<TypeRewriteRule> list = new ArrayList<>();
-		this.addEntityFixes(list);
-		this.addBlockEntityFixes(list);
-		list.add(
-				this.writeFixAndRead(
+		List<TypeRewriteRule> rules = new ArrayList<>();
+		addEntityFixes(rules);
+		addBlockEntityFixes(rules);
+
+		rules.add(
+				writeFixAndRead(
 						"BlockPos format for map frames",
-						this.getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA),
-						this.getOutputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA),
+						getInputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA),
+						getOutputSchema().getType(TypeReferences.SAVED_DATA_MAP_DATA),
 						dynamic -> dynamic.update("data", this::fixMapItemFrames)
 				)
 		);
-		Type<?> type = this.getInputSchema().getType(TypeReferences.ITEM_STACK);
-		list.add(
-				this.fixTypeEverywhereTyped(
+
+		Type<?> itemType = getInputSchema().getType(TypeReferences.ITEM_STACK);
+		rules.add(
+				fixTypeEverywhereTyped(
 						"BlockPos format for compass target",
-						type,
+						itemType,
 						ItemNbtFix.fixNbt(
-								type,
+								itemType,
 								"minecraft:compass"::equals,
 								typed -> typed.update(
 										DSL.remainderFinder(),
@@ -86,34 +92,35 @@ public class BlockPosFormatFix extends DataFix {
 						)
 				)
 		);
-		return TypeRewriteRule.seq(list);
+
+		return TypeRewriteRule.seq(rules);
 	}
 
 	private void addEntityFixes(List<TypeRewriteRule> rules) {
-		rules.add(this.createFixRule(
+		rules.add(createFixRule(
 				TypeReferences.ENTITY,
 				"minecraft:bee",
 				Map.of("HivePos", "hive_pos", "FlowerPos", "flower_pos")
 		));
-		rules.add(this.createFixRule(
+		rules.add(createFixRule(
 				TypeReferences.ENTITY,
 				"minecraft:end_crystal",
 				Map.of("BeamTarget", "beam_target")
 		));
-		rules.add(this.createFixRule(
+		rules.add(createFixRule(
 				TypeReferences.ENTITY,
 				"minecraft:wandering_trader",
 				Map.of("WanderTarget", "wander_target")
 		));
 
-		for (String string : PATROL_TARGET_ENTITY_IDS) {
-			rules.add(this.createFixRule(TypeReferences.ENTITY, string, Map.of("PatrolTarget", "patrol_target")));
+		for (String entityId : PATROL_TARGET_ENTITY_IDS) {
+			rules.add(createFixRule(TypeReferences.ENTITY, entityId, Map.of("PatrolTarget", "patrol_target")));
 		}
 
 		rules.add(
-				this.fixTypeEverywhereTyped(
+				fixTypeEverywhereTyped(
 						"BlockPos format in Leash for mobs",
-						this.getInputSchema().getType(TypeReferences.ENTITY),
+						getInputSchema().getType(TypeReferences.ENTITY),
 						typed -> typed.update(
 								DSL.remainderFinder(),
 								entityDynamic -> entityDynamic.renameAndFixField("Leash", "leash", FixUtil::fixBlockPos)
@@ -123,12 +130,12 @@ public class BlockPosFormatFix extends DataFix {
 	}
 
 	private void addBlockEntityFixes(List<TypeRewriteRule> rules) {
-		rules.add(this.createFixRule(
+		rules.add(createFixRule(
 				TypeReferences.BLOCK_ENTITY,
 				"minecraft:beehive",
 				Map.of("FlowerPos", "flower_pos")
 		));
-		rules.add(this.createFixRule(
+		rules.add(createFixRule(
 				TypeReferences.BLOCK_ENTITY,
 				"minecraft:end_gateway",
 				Map.of("ExitPortal", "exit_portal")
@@ -136,14 +143,14 @@ public class BlockPosFormatFix extends DataFix {
 	}
 
 	private TypeRewriteRule createFixRule(TypeReference typeReference, String id, Map<String, String> oldToNewKey) {
-		String
-				string =
+		String fixName =
 				"BlockPos format in " + oldToNewKey.keySet() + " for " + id + " (" + typeReference.typeName() + ")";
-		OpticFinder<?> opticFinder = DSL.namedChoice(id, this.getInputSchema().getChoiceType(typeReference, id));
-		return this.fixTypeEverywhereTyped(
-				string,
-				this.getInputSchema().getType(typeReference),
-				typed -> typed.updateTyped(opticFinder, typedx -> this.fixOldBlockPosFormat(typedx, oldToNewKey))
+		OpticFinder<?> entityFinder = DSL.namedChoice(id, getInputSchema().getChoiceType(typeReference, id));
+
+		return fixTypeEverywhereTyped(
+				fixName,
+				getInputSchema().getType(typeReference),
+				typed -> typed.updateTyped(entityFinder, inner -> fixOldBlockPosFormat(inner, oldToNewKey))
 		);
 	}
 }

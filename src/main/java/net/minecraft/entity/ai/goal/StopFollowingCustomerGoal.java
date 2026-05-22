@@ -6,9 +6,12 @@ import net.minecraft.entity.player.PlayerEntity;
 import java.util.EnumSet;
 
 /**
- * {@code StopFollowingCustomerGoal}.
+ * Цель торговца: останавливать навигацию, пока покупатель находится рядом
+ * (в радиусе 4 блоков). По завершении сбрасывает ссылку на покупателя.
  */
 public class StopFollowingCustomerGoal extends Goal {
+
+	private static final double MAX_CUSTOMER_DISTANCE_SQ = 16.0;
 
 	private final MerchantEntity merchant;
 
@@ -19,31 +22,33 @@ public class StopFollowingCustomerGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (!this.merchant.isAlive()) {
+		if (!merchant.isAlive()) {
 			return false;
 		}
-		else if (this.merchant.isTouchingWater()) {
+
+		if (merchant.isTouchingWater()) {
 			return false;
 		}
-		else if (!this.merchant.isOnGround()) {
+
+		if (!merchant.isOnGround()) {
 			return false;
 		}
-		else if (this.merchant.knockedBack) {
+
+		if (merchant.knockedBack) {
 			return false;
 		}
-		else {
-			PlayerEntity playerEntity = this.merchant.getCustomer();
-			return playerEntity == null ? false : !(this.merchant.squaredDistanceTo(playerEntity) > 16.0);
-		}
+
+		PlayerEntity customer = merchant.getCustomer();
+		return customer != null && merchant.squaredDistanceTo(customer) <= MAX_CUSTOMER_DISTANCE_SQ;
 	}
 
 	@Override
 	public void start() {
-		this.merchant.getNavigation().stop();
+		merchant.getNavigation().stop();
 	}
 
 	@Override
 	public void stop() {
-		this.merchant.setCustomer(null);
+		merchant.setCustomer(null);
 	}
 }

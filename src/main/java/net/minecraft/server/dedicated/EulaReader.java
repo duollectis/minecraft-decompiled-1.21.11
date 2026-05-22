@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 /**
- * {@code EulaReader}.
+ * Читатель и валидатор файла EULA: проверяет принятие лицензионного соглашения Minecraft.
  */
 public class EulaReader {
 

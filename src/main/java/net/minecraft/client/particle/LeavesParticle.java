@@ -43,8 +43,8 @@ public class LeavesParticle extends BillboardParticle {
 		this.windAmplitude = f;
 		this.windOscillationEnabled = bl;
 		this.driftEnabled = bl2;
-		this.maxAge = 300;
-		this.gravityStrength = gravity * 1.2F * 0.0025F;
+		this.maxAge = MAX_AGE;
+		this.gravityStrength = gravity * 1.2F * SPEED_SCALE;
 		float g = size * (this.random.nextBoolean() ? 0.05F : 0.075F);
 		this.scale = g;
 		this.setBoundingBoxSpacing(g, g);
@@ -85,8 +85,8 @@ public class LeavesParticle extends BillboardParticle {
 				e += g * Math.sin(g * this.oscillationFrequency) * this.windAmplitude;
 			}
 
-			this.velocityX += d * 0.0025F;
-			this.velocityZ += e * 0.0025F;
+			this.velocityX += d * SPEED_SCALE;
+			this.velocityZ += e * SPEED_SCALE;
 			this.velocityY = this.velocityY - this.gravityStrength;
 			this.angularVelocity = this.angularVelocity + this.angularAcceleration / 20.0F;
 			this.lastZRotation = this.zRotation;

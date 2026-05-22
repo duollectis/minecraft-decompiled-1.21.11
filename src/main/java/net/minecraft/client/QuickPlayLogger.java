@@ -22,10 +22,12 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code QuickPlayLogger}.
+ * Записывает результат сессии быстрого старта в JSON-файл.
+ * Используется лаунчером для отображения статистики последней игровой сессии.
+ * Экземпляр {@link #NOOP} используется, когда логирование отключено.
  */
+@Environment(EnvType.CLIENT)
 public class QuickPlayLogger {
 
 	private static final QuickPlayLogger NOOP = new QuickPlayLogger("") {
@@ -34,130 +36,107 @@ public class QuickPlayLogger {
 		}
 
 		@Override
-		public void setWorld(QuickPlayLogger.WorldType worldType, String id, String name) {
+		public void setWorld(WorldType worldType, String id, String name) {
 		}
 	};
+
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Gson GSON = new GsonBuilder().create();
+
 	private final Path path;
-	private QuickPlayLogger.@Nullable QuickPlayWorld world;
+	private @Nullable QuickPlayWorld world;
 
 	QuickPlayLogger(String relativePath) {
-		this.path = MinecraftClient.getInstance().runDirectory.toPath().resolve(relativePath);
+		path = MinecraftClient.getInstance().runDirectory.toPath().resolve(relativePath);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param relativePath relative path
-	 *
-	 * @return QuickPlayLogger — результат операции
-	 */
 	public static QuickPlayLogger create(@Nullable String relativePath) {
 		return relativePath == null ? NOOP : new QuickPlayLogger(relativePath);
 	}
 
-	public void setWorld(QuickPlayLogger.WorldType worldType, String id, String name) {
-		this.world = new QuickPlayLogger.QuickPlayWorld(worldType, id, name);
+	public void setWorld(WorldType worldType, String id, String name) {
+		world = new QuickPlayWorld(worldType, id, name);
 	}
 
 	/**
-	 * Save.
+	 * Асинхронно сохраняет лог сессии в JSON-файл.
+	 * Предварительно удаляет старый файл, затем записывает новый.
+	 * Логирует ошибку, если данные о мире или режиме игры недоступны.
 	 *
-	 * @param client client
+	 * @param client экземпляр клиента для получения текущего режима игры
 	 */
 	public void save(MinecraftClient client) {
-		if (client.interactionManager != null && this.world != null) {
-			Util.getIoWorkerExecutor()
-			    .execute(
-					    () -> {
-						    try {
-							    Files.deleteIfExists(this.path);
-						    }
-						    catch (IOException var3) {
-							    LOGGER.error("Failed to delete quickplay log file {}", this.path, var3);
-						    }
-
-						    QuickPlayLogger.Log
-								    log =
-								    new QuickPlayLogger.Log(
-										    this.world,
-										    Instant.now(),
-										    client.interactionManager.getCurrentGameMode()
-								    );
-						    Codec.list(QuickPlayLogger.Log.CODEC)
-						         .encodeStart(JsonOps.INSTANCE, List.of(log))
-						         .resultOrPartial(Util.addPrefix("Quick Play: ", LOGGER::error))
-						         .ifPresent(json -> {
-							         try {
-								         Files.createDirectories(this.path.getParent());
-								         Files.writeString(this.path, GSON.toJson(json));
-							         }
-							         catch (IOException var3x) {
-								         LOGGER.error("Failed to write to quickplay log file {}", this.path, var3x);
-							         }
-						         });
-					    }
-			    );
-		}
-		else {
+		if (client.interactionManager == null || world == null) {
 			LOGGER.error("Failed to log session for quickplay. Missing world data or gamemode");
+			return;
 		}
+
+		Util.getIoWorkerExecutor().execute(() -> {
+			try {
+				Files.deleteIfExists(path);
+			} catch (IOException exception) {
+				LOGGER.error("Failed to delete quickplay log file {}", path, exception);
+			}
+
+			Log log = new Log(world, Instant.now(), client.interactionManager.getCurrentGameMode());
+			Codec.list(Log.CODEC)
+				.encodeStart(JsonOps.INSTANCE, List.of(log))
+				.resultOrPartial(Util.addPrefix("Quick Play: ", LOGGER::error))
+				.ifPresent(json -> {
+					try {
+						Files.createDirectories(path.getParent());
+						Files.writeString(path, GSON.toJson(json));
+					} catch (IOException exception) {
+						LOGGER.error("Failed to write to quickplay log file {}", path, exception);
+					}
+				});
+		});
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Log}.
-	 */
-	record Log(QuickPlayLogger.QuickPlayWorld quickPlayWorld, Instant lastPlayedTime, GameMode gameMode) {
+	record Log(QuickPlayWorld quickPlayWorld, Instant lastPlayedTime, GameMode gameMode) {
 
-		public static final Codec<QuickPlayLogger.Log> CODEC = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    QuickPlayLogger.QuickPlayWorld.CODEC.forGetter(QuickPlayLogger.Log::quickPlayWorld),
-						                    Codecs.INSTANT.fieldOf("lastPlayedTime").forGetter(QuickPlayLogger.Log::lastPlayedTime),
-						                    GameMode.CODEC.fieldOf("gamemode").forGetter(QuickPlayLogger.Log::gameMode)
-				                    )
-				                    .apply(instance, QuickPlayLogger.Log::new)
+		static final Codec<Log> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+				QuickPlayWorld.CODEC.forGetter(Log::quickPlayWorld),
+				Codecs.INSTANT.fieldOf("lastPlayedTime").forGetter(Log::lastPlayedTime),
+				GameMode.CODEC.fieldOf("gamemode").forGetter(Log::gameMode)
+			).apply(instance, Log::new)
 		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code QuickPlayWorld}.
-	 */
-	record QuickPlayWorld(QuickPlayLogger.WorldType type, String id, String name) {
+	record QuickPlayWorld(WorldType type, String id, String name) {
 
-		public static final MapCodec<QuickPlayLogger.QuickPlayWorld> CODEC = RecordCodecBuilder.mapCodec(
-				instance -> instance.group(
-						                    QuickPlayLogger.WorldType.CODEC.fieldOf("type").forGetter(QuickPlayLogger.QuickPlayWorld::type),
-						                    Codecs.ESCAPED_STRING.fieldOf("id").forGetter(QuickPlayLogger.QuickPlayWorld::id),
-						                    Codec.STRING.fieldOf("name").forGetter(QuickPlayLogger.QuickPlayWorld::name)
-				                    )
-				                    .apply(instance, QuickPlayLogger.QuickPlayWorld::new)
+		static final MapCodec<QuickPlayWorld> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+				WorldType.CODEC.fieldOf("type").forGetter(QuickPlayWorld::type),
+				Codecs.ESCAPED_STRING.fieldOf("id").forGetter(QuickPlayWorld::id),
+				Codec.STRING.fieldOf("name").forGetter(QuickPlayWorld::name)
+			).apply(instance, QuickPlayWorld::new)
 		);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code WorldType}.
+	 * Тип мира для лога быстрого старта.
 	 */
-	public static enum WorldType implements StringIdentifiable {
+	@Environment(EnvType.CLIENT)
+	public enum WorldType implements StringIdentifiable {
 		SINGLEPLAYER("singleplayer"),
 		MULTIPLAYER("multiplayer"),
 		REALMS("realms");
 
-		static final Codec<QuickPlayLogger.WorldType>
-				CODEC =
-				StringIdentifiable.createCodec(QuickPlayLogger.WorldType::values);
+		static final Codec<WorldType> CODEC = StringIdentifiable.createCodec(WorldType::values);
+
 		private final String id;
 
-		private WorldType(final String id) {
+		WorldType(String id) {
 			this.id = id;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 	}
 }

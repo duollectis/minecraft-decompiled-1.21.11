@@ -23,9 +23,18 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 /**
- * {@code MoveThroughVillageGoal}.
+ * Цель перемещения через деревню: ищет занятую точку интереса (POI) в радиусе
+ * и прокладывает к ней путь, при необходимости открывая двери.
+ * Запоминает до 15 посещённых точек, чтобы не возвращаться к ним.
  */
 public class MoveThroughVillageGoal extends Goal {
+
+	private static final int FUZZY_HORIZONTAL_RANGE = 15;
+	private static final int FUZZY_VERTICAL_RANGE = 7;
+	private static final int POI_NEAR_RADIUS = 6;
+	private static final int POI_SEARCH_RADIUS = 10;
+	private static final int FALLBACK_HORIZONTAL_RANGE = 10;
+	private static final int MAX_VISITED_TARGETS = 15;
 
 	protected final PathAwareEntity mob;
 	private final double speed;
@@ -37,11 +46,11 @@ public class MoveThroughVillageGoal extends Goal {
 	private final BooleanSupplier doorPassingThroughGetter;
 
 	public MoveThroughVillageGoal(
-			PathAwareEntity entity,
-			double speed,
-			boolean requiresNighttime,
-			int distance,
-			BooleanSupplier doorPassingThroughGetter
+		PathAwareEntity entity,
+		double speed,
+		boolean requiresNighttime,
+		int distance,
+		BooleanSupplier doorPassingThroughGetter
 	) {
 		this.mob = entity;
 		this.speed = speed;
@@ -49,6 +58,7 @@ public class MoveThroughVillageGoal extends Goal {
 		this.distance = distance;
 		this.doorPassingThroughGetter = doorPassingThroughGetter;
 		this.setControls(EnumSet.of(Goal.Control.MOVE));
+
 		if (!NavigationConditions.hasMobNavigation(entity)) {
 			throw new IllegalArgumentException("Unsupported mob for MoveThroughVillageGoal");
 		}
@@ -56,129 +66,126 @@ public class MoveThroughVillageGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (!NavigationConditions.hasMobNavigation(this.mob)) {
+		if (!NavigationConditions.hasMobNavigation(mob)) {
 			return false;
 		}
-		else {
-			this.forgetOldTarget();
-			if (this.requiresNighttime && this.mob.getEntityWorld().isDay()) {
+
+		forgetOldTarget();
+
+		if (requiresNighttime && mob.getEntityWorld().isDay()) {
+			return false;
+		}
+
+		ServerWorld serverWorld = (ServerWorld) mob.getEntityWorld();
+		BlockPos mobPos = mob.getBlockPos();
+
+		if (!serverWorld.isNearOccupiedPointOfInterest(mobPos, POI_NEAR_RADIUS)) {
+			return false;
+		}
+
+		Vec3d fuzzyTarget = FuzzyTargeting.find(
+			mob,
+			FUZZY_HORIZONTAL_RANGE,
+			FUZZY_VERTICAL_RANGE,
+			pos -> {
+				if (!serverWorld.isNearOccupiedPointOfInterest(pos)) {
+					return Double.NEGATIVE_INFINITY;
+				}
+
+				Optional<BlockPos> nearestPoi = serverWorld.getPointOfInterestStorage()
+					.getPosition(
+						poiType -> poiType.isIn(PointOfInterestTypeTags.VILLAGE),
+						this::shouldVisit,
+						pos,
+						POI_SEARCH_RADIUS,
+						PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
+					);
+
+				return nearestPoi
+					.<Double>map(poiPos -> -poiPos.getSquaredDistance(mobPos))
+					.orElse(Double.NEGATIVE_INFINITY);
+			}
+		);
+
+		if (fuzzyTarget == null) {
+			return false;
+		}
+
+		Optional<BlockPos> poiPos = serverWorld.getPointOfInterestStorage()
+			.getPosition(
+				poiType -> poiType.isIn(PointOfInterestTypeTags.VILLAGE),
+				this::shouldVisit,
+				BlockPos.ofFloored(fuzzyTarget),
+				POI_SEARCH_RADIUS,
+				PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
+			);
+
+		if (poiPos.isEmpty()) {
+			return false;
+		}
+
+		target = poiPos.get().toImmutable();
+		EntityNavigation navigation = mob.getNavigation();
+		navigation.setCanOpenDoors(doorPassingThroughGetter.getAsBoolean());
+		targetPath = navigation.findPathTo(target, 0);
+		navigation.setCanOpenDoors(true);
+
+		if (targetPath == null) {
+			Vec3d fallback = NoPenaltyTargeting.findTo(
+				mob,
+				FALLBACK_HORIZONTAL_RANGE,
+				FUZZY_VERTICAL_RANGE,
+				Vec3d.ofBottomCenter(target),
+				(float) (Math.PI / 2)
+			);
+
+			if (fallback == null) {
 				return false;
 			}
-			else {
-				ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
-				BlockPos blockPos = this.mob.getBlockPos();
-				if (!serverWorld.isNearOccupiedPointOfInterest(blockPos, 6)) {
-					return false;
-				}
-				else {
-					Vec3d vec3d = FuzzyTargeting.find(
-							this.mob,
-							15,
-							7,
-							pos -> {
-								if (!serverWorld.isNearOccupiedPointOfInterest(pos)) {
-									return Double.NEGATIVE_INFINITY;
-								}
-								else {
-									Optional<BlockPos> optionalx = serverWorld.getPointOfInterestStorage()
-									                                          .getPosition(
-											                                          poiType -> poiType.isIn(
-													                                          PointOfInterestTypeTags.VILLAGE),
-											                                          this::shouldVisit,
-											                                          pos,
-											                                          10,
-											                                          PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
-									                                          );
-									return optionalx
-											.<Double>map(blockPos2x -> -blockPos2x.getSquaredDistance(blockPos))
-											.orElse(Double.NEGATIVE_INFINITY);
-								}
-							}
-					);
-					if (vec3d == null) {
-						return false;
-					}
-					else {
-						Optional<BlockPos> optional = serverWorld.getPointOfInterestStorage()
-						                                         .getPosition(
-								                                         poiType -> poiType.isIn(PointOfInterestTypeTags.VILLAGE),
-								                                         this::shouldVisit,
-								                                         BlockPos.ofFloored(vec3d),
-								                                         10,
-								                                         PointOfInterestStorage.OccupationStatus.IS_OCCUPIED
-						                                         );
-						if (optional.isEmpty()) {
-							return false;
-						}
-						else {
-							this.target = optional.get().toImmutable();
-							EntityNavigation entityNavigation = this.mob.getNavigation();
-							entityNavigation.setCanOpenDoors(this.doorPassingThroughGetter.getAsBoolean());
-							this.targetPath = entityNavigation.findPathTo(this.target, 0);
-							entityNavigation.setCanOpenDoors(true);
-							if (this.targetPath == null) {
-								Vec3d
-										vec3d2 =
-										NoPenaltyTargeting.findTo(
-												this.mob,
-												10,
-												7,
-												Vec3d.ofBottomCenter(this.target),
-												(float) (Math.PI / 2)
-										);
-								if (vec3d2 == null) {
-									return false;
-								}
 
-								entityNavigation.setCanOpenDoors(this.doorPassingThroughGetter.getAsBoolean());
-								this.targetPath = this.mob.getNavigation().findPathTo(vec3d2.x, vec3d2.y, vec3d2.z, 0);
-								entityNavigation.setCanOpenDoors(true);
-								if (this.targetPath == null) {
-									return false;
-								}
-							}
+			navigation.setCanOpenDoors(doorPassingThroughGetter.getAsBoolean());
+			targetPath = mob.getNavigation().findPathTo(fallback.x, fallback.y, fallback.z, 0);
+			navigation.setCanOpenDoors(true);
 
-							for (int i = 0; i < this.targetPath.getLength(); i++) {
-								PathNode pathNode = this.targetPath.getNode(i);
-								BlockPos blockPos2 = new BlockPos(pathNode.x, pathNode.y + 1, pathNode.z);
-								if (DoorBlock.canOpenByHand(this.mob.getEntityWorld(), blockPos2)) {
-									this.targetPath =
-											this.mob.getNavigation().findPathTo(pathNode.x, pathNode.y, pathNode.z, 0);
-									break;
-								}
-							}
-
-							return this.targetPath != null;
-						}
-					}
-				}
+			if (targetPath == null) {
+				return false;
 			}
 		}
+
+		for (int i = 0; i < targetPath.getLength(); i++) {
+			PathNode pathNode = targetPath.getNode(i);
+			BlockPos doorPos = new BlockPos(pathNode.x, pathNode.y + 1, pathNode.z);
+
+			if (DoorBlock.canOpenByHand(mob.getEntityWorld(), doorPos)) {
+				targetPath = mob.getNavigation().findPathTo(pathNode.x, pathNode.y, pathNode.z, 0);
+				break;
+			}
+		}
+
+		return targetPath != null;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return this.mob.getNavigation().isIdle() ? false : !this.target.isWithinDistance(
-				this.mob.getEntityPos(),
-				this.mob.getWidth() + this.distance
-		);
+		return !mob.getNavigation().isIdle()
+			&& !target.isWithinDistance(mob.getEntityPos(), mob.getWidth() + distance);
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingAlong(this.targetPath, this.speed);
+		mob.getNavigation().startMovingAlong(targetPath, speed);
 	}
 
 	@Override
 	public void stop() {
-		if (this.mob.getNavigation().isIdle() || this.target.isWithinDistance(this.mob.getEntityPos(), this.distance)) {
-			this.visitedTargets.add(this.target);
+		if (mob.getNavigation().isIdle() || target.isWithinDistance(mob.getEntityPos(), distance)) {
+			visitedTargets.add(target);
 		}
 	}
 
 	private boolean shouldVisit(BlockPos pos) {
-		for (BlockPos blockPos : this.visitedTargets) {
-			if (Objects.equals(pos, blockPos)) {
+		for (BlockPos visited : visitedTargets) {
+			if (Objects.equals(pos, visited)) {
 				return false;
 			}
 		}
@@ -187,8 +194,8 @@ public class MoveThroughVillageGoal extends Goal {
 	}
 
 	private void forgetOldTarget() {
-		if (this.visitedTargets.size() > 15) {
-			this.visitedTargets.remove(0);
+		if (visitedTargets.size() > MAX_VISITED_TARGETS) {
+			visitedTargets.remove(0);
 		}
 	}
 }

@@ -19,7 +19,7 @@ import net.minecraft.util.math.random.Random;
 import java.util.function.Predicate;
 
 /**
- * {@code CamelBrain}.
+ * Мозг верблюда: регистрирует сенсоры и задачи поведения.
  */
 public class CamelBrain {
 
@@ -115,7 +115,7 @@ public class CamelBrain {
 												Pair.of(
 														new TemptTask(
 																entity -> TEMPT_SPEED,
-																entity -> entity.isBaby() ? 2.5 : 3.5
+																entity -> entity.isBaby() ? TEMPT_SPEED : 3.5
 														), 1
 												),
 												Pair.of(
@@ -165,8 +165,8 @@ public class CamelBrain {
 	}
 
 	/**
-	 * {@code CamelWalkTask}.
-	 */
+ * Задача верблюда: садиться при простое.
+ */
 	public static class CamelWalkTask extends FleeTask<CamelEntity> {
 
 		public CamelWalkTask(float f) {
@@ -199,8 +199,8 @@ public class CamelBrain {
 	}
 
 	/**
-	 * {@code SitOrStandTask}.
-	 */
+ * Задача верблюда: вставать при необходимости движения.
+ */
 	public static class SitOrStandTask extends MultiTickTask<CamelEntity> {
 
 		private final int lastTimeSinceLastPoseTick;

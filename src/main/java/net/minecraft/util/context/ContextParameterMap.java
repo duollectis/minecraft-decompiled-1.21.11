@@ -10,7 +10,9 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
- * {@code ContextParameterMap}.
+ * Типобезопасная карта параметров контекста. Хранит значения, привязанные
+ * к типизированным ключам {@link ContextParameter}, и проверяет соответствие
+ * набора параметров заданному {@link ContextType} при построении.
  */
 public class ContextParameterMap {
 
@@ -20,13 +22,6 @@ public class ContextParameterMap {
 		this.map = map;
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param parameter parameter
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean contains(ContextParameter<?> parameter) {
 		return this.map.containsKey(parameter);
 	}
@@ -36,9 +31,8 @@ public class ContextParameterMap {
 		if (object == null) {
 			throw new NoSuchElementException(parameter.getId().toString());
 		}
-		else {
-			return object;
-		}
+
+		return object;
 	}
 
 	public <T> @Nullable T getNullable(ContextParameter<T> parameter) {
@@ -50,9 +44,6 @@ public class ContextParameterMap {
 		return (T) this.map.getOrDefault(parameter, defaultValue);
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
 		private final Map<ContextParameter<?>, Object> map = new IdentityHashMap<>();
@@ -78,36 +69,26 @@ public class ContextParameterMap {
 			if (object == null) {
 				throw new NoSuchElementException(parameter.getId().toString());
 			}
-			else {
-				return object;
-			}
+
+			return object;
 		}
 
 		public <T> @Nullable T getNullable(ContextParameter<T> parameter) {
 			return (T) this.map.get(parameter);
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @param type type
-		 *
-		 * @return ContextParameterMap — результат операции
-		 */
 		public ContextParameterMap build(ContextType type) {
-			Set<ContextParameter<?>> set = Sets.difference(this.map.keySet(), type.getAllowed());
-			if (!set.isEmpty()) {
-				throw new IllegalArgumentException("Parameters not allowed in this parameter set: " + set);
+			Set<ContextParameter<?>> disallowed = Sets.difference(this.map.keySet(), type.getAllowed());
+			if (!disallowed.isEmpty()) {
+				throw new IllegalArgumentException("Parameters not allowed in this parameter set: " + disallowed);
 			}
-			else {
-				Set<ContextParameter<?>> set2 = Sets.difference(type.getRequired(), this.map.keySet());
-				if (!set2.isEmpty()) {
-					throw new IllegalArgumentException("Missing required parameters: " + set2);
-				}
-				else {
-					return new ContextParameterMap(this.map);
-				}
+
+			Set<ContextParameter<?>> missing = Sets.difference(type.getRequired(), this.map.keySet());
+			if (!missing.isEmpty()) {
+				throw new IllegalArgumentException("Missing required parameters: " + missing);
 			}
+
+			return new ContextParameterMap(this.map);
 		}
 	}
 }

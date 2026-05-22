@@ -13,15 +13,20 @@ import net.minecraft.text.Text;
 
 import java.util.Objects;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LecternScreen}.
+ * Экран кафедры. Отображает книгу, лежащую на кафедре, с возможностью
+ * перелистывания страниц через сервер и взятия книги (для операторов).
  */
+@Environment(EnvType.CLIENT)
 public class LecternScreen extends BookScreen implements ScreenHandlerProvider<LecternScreenHandler> {
 
-	private static final int BUTTON_GAP = 4;
 	private static final int BUTTON_WIDTH = 98;
+	private static final int PAGE_PREV_BUTTON_ID = 1;
+	private static final int PAGE_NEXT_BUTTON_ID = 2;
+	private static final int TAKE_BOOK_BUTTON_ID = 3;
+	private static final int PAGE_JUMP_OFFSET = 100;
 	private static final Text TAKE_BOOK_TEXT = Text.translatable("lectern.take_book");
+
 	private final LecternScreenHandler handler;
 	private final ScreenHandlerListener listener = new ScreenHandlerListener() {
 		@Override
@@ -41,72 +46,74 @@ public class LecternScreen extends BookScreen implements ScreenHandlerProvider<L
 		this.handler = handler;
 	}
 
+	@Override
 	public LecternScreenHandler getScreenHandler() {
-		return this.handler;
+		return handler;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		this.handler.addListener(this.listener);
+		handler.addListener(listener);
 	}
 
 	@Override
 	public void close() {
-		this.client.player.closeHandledScreen();
+		client.player.closeHandledScreen();
 		super.close();
 	}
 
 	@Override
 	public void removed() {
 		super.removed();
-		this.handler.removeListener(this.listener);
+		handler.removeListener(listener);
 	}
 
 	@Override
 	protected void addCloseButton() {
-		if (this.client.player.canModifyBlocks()) {
-			int i = this.getCloseButtonY();
-			int j = this.width / 2;
-			this.addDrawableChild(ButtonWidget
-					.builder(ScreenTexts.DONE, button -> this.close())
-					.position(j - 98 - 2, i)
-					.width(98)
-					.build());
-			this.addDrawableChild(ButtonWidget
-					.builder(TAKE_BOOK_TEXT, button -> this.sendButtonPressPacket(3))
-					.position(j + 2, i)
-					.width(98)
-					.build());
-		}
-		else {
+		if (client.player.canModifyBlocks()) {
+			int buttonY = getCloseButtonY();
+			int centerX = width / 2;
+
+			addDrawableChild(
+				ButtonWidget.builder(ScreenTexts.DONE, button -> close())
+					.position(centerX - BUTTON_WIDTH - 2, buttonY)
+					.width(BUTTON_WIDTH)
+					.build()
+			);
+			addDrawableChild(
+				ButtonWidget.builder(TAKE_BOOK_TEXT, button -> sendButtonPressPacket(TAKE_BOOK_BUTTON_ID))
+					.position(centerX + 2, buttonY)
+					.width(BUTTON_WIDTH)
+					.build()
+			);
+		} else {
 			super.addCloseButton();
 		}
 	}
 
 	@Override
 	protected void goToPreviousPage() {
-		this.sendButtonPressPacket(1);
+		sendButtonPressPacket(PAGE_PREV_BUTTON_ID);
 	}
 
 	@Override
 	protected void goToNextPage() {
-		this.sendButtonPressPacket(2);
+		sendButtonPressPacket(PAGE_NEXT_BUTTON_ID);
 	}
 
 	@Override
 	protected boolean jumpToPage(int page) {
-		if (page != this.handler.getPage()) {
-			this.sendButtonPressPacket(100 + page);
-			return true;
-		}
-		else {
+		if (page == handler.getPage()) {
 			return false;
 		}
+
+		sendButtonPressPacket(PAGE_JUMP_OFFSET + page);
+		return true;
 	}
 
 	private void sendButtonPressPacket(int id) {
-		this.client.interactionManager.clickButton(this.handler.syncId, id);
+		client.interactionManager.clickButton(handler.syncId, id);
 	}
 
 	@Override
@@ -115,19 +122,19 @@ public class LecternScreen extends BookScreen implements ScreenHandlerProvider<L
 	}
 
 	void updatePageProvider() {
-		ItemStack itemStack = this.handler.getBookItem();
-		this.setPageProvider(Objects.requireNonNullElse(
-				BookScreen.Contents.create(itemStack),
-				BookScreen.EMPTY_PROVIDER
+		ItemStack bookItem = handler.getBookItem();
+		setPageProvider(Objects.requireNonNullElse(
+			BookScreen.Contents.create(bookItem),
+			BookScreen.EMPTY_PROVIDER
 		));
 	}
 
 	void updatePage() {
-		this.setPage(this.handler.getPage());
+		setPage(handler.getPage());
 	}
 
 	@Override
 	protected void closeScreen() {
-		this.client.player.closeHandledScreen();
+		client.player.closeHandledScreen();
 	}
 }

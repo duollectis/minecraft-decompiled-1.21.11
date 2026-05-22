@@ -10,10 +10,13 @@ import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TiledTexturedQuadGuiElementRenderState}.
+ * Состояние тайлированного текстурированного прямоугольника в GUI.
+ * Заполняет область повторяющимися тайлами размером {@code tileWidth × tileHeight}.
+ * Крайние тайлы обрезаются по границе области с корректным пересчётом UV-координат
+ * через линейную интерполяцию, чтобы избежать растяжения текстуры.
  */
+@Environment(EnvType.CLIENT)
 public record TiledTexturedQuadGuiElementRenderState(
 		RenderPipeline pipeline,
 		TextureSetup textureSetup,
@@ -70,58 +73,64 @@ public record TiledTexturedQuadGuiElementRenderState(
 		);
 	}
 
+	/**
+	 * Генерирует вершины для всех тайлов, заполняющих область.
+	 * Для каждого тайла вычисляется фактический размер (полный или обрезанный)
+	 * и соответствующие UV-координаты через {@link MathHelper#lerp}.
+	 */
 	@Override
 	public void setupVertices(VertexConsumer vertices) {
-		int i = this.x1() - this.x0();
-		int j = this.y1() - this.y0();
+		int totalWidth = x1() - x0();
+		int totalHeight = y1() - y0();
 
-		for (int k = 0; k < i; k += this.tileWidth()) {
-			int l = i - k;
-			int m;
-			float f;
-			if (this.tileWidth() <= l) {
-				m = this.tileWidth();
-				f = this.u1();
+		for (int tileX = 0; tileX < totalWidth; tileX += tileWidth()) {
+			int remainingWidth = totalWidth - tileX;
+			int segmentWidth;
+			float segmentU;
+
+			if (tileWidth() <= remainingWidth) {
+				segmentWidth = tileWidth();
+				segmentU = u1();
+			} else {
+				segmentWidth = remainingWidth;
+				segmentU = MathHelper.lerp((float) remainingWidth / tileWidth(), u0(), u1());
 			}
-			else {
-				m = l;
-				f = MathHelper.lerp((float) l / this.tileWidth(), this.u0(), this.u1());
-			}
 
-			for (int n = 0; n < j; n += this.tileHeight()) {
-				int o = j - n;
-				int p;
-				float g;
-				if (this.tileHeight() <= o) {
-					p = this.tileHeight();
-					g = this.v1();
-				}
-				else {
-					p = o;
-					g = MathHelper.lerp((float) o / this.tileHeight(), this.v0(), this.v1());
+			for (int tileY = 0; tileY < totalHeight; tileY += tileHeight()) {
+				int remainingHeight = totalHeight - tileY;
+				int segmentHeight;
+				float segmentV;
+
+				if (tileHeight() <= remainingHeight) {
+					segmentHeight = tileHeight();
+					segmentV = v1();
+				} else {
+					segmentHeight = remainingHeight;
+					segmentV = MathHelper.lerp((float) remainingHeight / tileHeight(), v0(), v1());
 				}
 
-				int q = this.x0() + k;
-				int r = this.x0() + k + m;
-				int s = this.y0() + n;
-				int t = this.y0() + n + p;
-				vertices.vertex(this.pose(), q, s).texture(this.u0(), this.v0()).color(this.color());
-				vertices.vertex(this.pose(), q, t).texture(this.u0(), g).color(this.color());
-				vertices.vertex(this.pose(), r, t).texture(f, g).color(this.color());
-				vertices.vertex(this.pose(), r, s).texture(f, this.v0()).color(this.color());
+				int left = x0() + tileX;
+				int right = x0() + tileX + segmentWidth;
+				int top = y0() + tileY;
+				int bottom = y0() + tileY + segmentHeight;
+
+				vertices.vertex(pose(), left, top).texture(u0(), v0()).color(color());
+				vertices.vertex(pose(), left, bottom).texture(u0(), segmentV).color(color());
+				vertices.vertex(pose(), right, bottom).texture(segmentU, segmentV).color(color());
+				vertices.vertex(pose(), right, top).texture(segmentU, v0()).color(color());
 			}
 		}
 	}
 
 	private static @Nullable ScreenRect createBounds(
+			int x0,
+			int y0,
 			int x1,
 			int y1,
-			int x2,
-			int y2,
 			Matrix3x2f pose,
-			@Nullable ScreenRect rect
+			@Nullable ScreenRect scissorArea
 	) {
-		ScreenRect screenRect = new ScreenRect(x1, y1, x2 - x1, y2 - y1).transformEachVertex(pose);
-		return rect != null ? rect.intersection(screenRect) : screenRect;
+		ScreenRect rect = new ScreenRect(x0, y0, x1 - x0, y1 - y0).transformEachVertex(pose);
+		return scissorArea != null ? scissorArea.intersection(rect) : rect;
 	}
 }

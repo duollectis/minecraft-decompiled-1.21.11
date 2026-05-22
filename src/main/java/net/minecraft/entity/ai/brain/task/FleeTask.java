@@ -25,7 +25,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * {@code FleeTask}.
+ * Задача мозга, заставляющая сущность убегать при получении опасного урона или наличии паники.
+ * При горении ищет ближайшую воду; иначе использует переданный {@code pathFinder}.
  */
 public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 
@@ -33,12 +34,17 @@ public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 	private static final int MAX_RUN_TIME = 120;
 	private static final int HORIZONTAL_RANGE = 5;
 	private static final int VERTICAL_RANGE = 4;
+	private static final int WATER_SEARCH_RADIUS = 5;
+	private static final int WATER_SEARCH_HEIGHT = 1;
+	private static final int WIDE_ENTITY_WIDTH = 2;
+	private static final float FLEE_HALF_PI = (float) (Math.PI / 2);
+
 	private final float speed;
 	private final Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes;
 	private final Function<E, Vec3d> pathFinder;
 
 	public FleeTask(float speed) {
-		this(speed, entity -> DamageTypeTags.PANIC_CAUSES, entity -> FuzzyTargeting.find(entity, 5, 4));
+		this(speed, entity -> DamageTypeTags.PANIC_CAUSES, entity -> FuzzyTargeting.find(entity, HORIZONTAL_RANGE, VERTICAL_RANGE));
 	}
 
 	public FleeTask(float speed, int startHeight) {
@@ -47,18 +53,18 @@ public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 				entity -> DamageTypeTags.PANIC_CAUSES,
 				entity -> NoPenaltySolidTargeting.find(
 						entity,
-						5,
-						4,
+						HORIZONTAL_RANGE,
+						VERTICAL_RANGE,
 						startHeight,
 						entity.getRotationVec(0.0F).x,
 						entity.getRotationVec(0.0F).z,
-						(float) (Math.PI / 2)
+						FLEE_HALF_PI
 				)
 		);
 	}
 
 	public FleeTask(float speed, Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes) {
-		this(speed, entityToDangerousDamageTypes, entity -> FuzzyTargeting.find(entity, 5, 4));
+		this(speed, entityToDangerousDamageTypes, entity -> FuzzyTargeting.find(entity, HORIZONTAL_RANGE, VERTICAL_RANGE));
 	}
 
 	public FleeTask(
@@ -72,112 +78,77 @@ public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 						MemoryModuleState.REGISTERED,
 						MemoryModuleType.HURT_BY,
 						MemoryModuleState.REGISTERED
-				), 100, 120
+				),
+				MIN_RUN_TIME,
+				MAX_RUN_TIME
 		);
 		this.speed = speed;
 		this.entityToDangerousDamageTypes = entityToDangerousDamageTypes;
 		this.pathFinder = pathFinder;
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, E pathAwareEntity) {
-		return pathAwareEntity.getBrain()
-		                      .getOptionalRegisteredMemory(MemoryModuleType.HURT_BY)
-		                      .map(hurtBy -> hurtBy.isIn(this.entityToDangerousDamageTypes.apply(pathAwareEntity)))
-		                      .orElse(false)
-				|| pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
+	@Override
+	protected boolean shouldRun(ServerWorld world, E entity) {
+		return entity.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.HURT_BY)
+				.map(hurtBy -> hurtBy.isIn(entityToDangerousDamageTypes.apply(entity)))
+				.orElse(false)
+				|| entity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
 		return true;
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, E pathAwareEntity, long l) {
-		pathAwareEntity.getBrain().remember(MemoryModuleType.IS_PANICKING, true);
-		pathAwareEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
-		pathAwareEntity.getNavigation().stop();
+	@Override
+	protected void run(ServerWorld world, E entity, long time) {
+		entity.getBrain().remember(MemoryModuleType.IS_PANICKING, true);
+		entity.getBrain().forget(MemoryModuleType.WALK_TARGET);
+		entity.getNavigation().stop();
 	}
 
-	/**
-	 * Finish running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void finishRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
-		Brain<?> brain = pathAwareEntity.getBrain();
-		brain.forget(MemoryModuleType.IS_PANICKING);
+	@Override
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+		entity.getBrain().forget(MemoryModuleType.IS_PANICKING);
 	}
 
-	/**
-	 * Keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param pathAwareEntity path aware entity
-	 * @param l l
-	 */
-	protected void keepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
-		if (pathAwareEntity.getNavigation().isIdle()) {
-			Vec3d vec3d = this.findTarget(pathAwareEntity, serverWorld);
-			if (vec3d != null) {
-				pathAwareEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(vec3d, this.speed, 0));
-			}
+	@Override
+	protected void keepRunning(ServerWorld world, E entity, long time) {
+		if (!entity.getNavigation().isIdle()) {
+			return;
+		}
+
+		Vec3d fleePos = findTarget(entity, world);
+
+		if (fleePos != null) {
+			entity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(fleePos, speed, 0));
 		}
 	}
 
 	private @Nullable Vec3d findTarget(E entity, ServerWorld world) {
 		if (entity.isOnFire()) {
-			Optional<Vec3d> optional = this.findClosestWater(world, entity).map(Vec3d::ofBottomCenter);
-			if (optional.isPresent()) {
-				return optional.get();
+			Optional<Vec3d> water = findClosestWater(world, entity).map(Vec3d::ofBottomCenter);
+
+			if (water.isPresent()) {
+				return water.get();
 			}
 		}
 
-		return this.pathFinder.apply(entity);
+		return pathFinder.apply(entity);
 	}
 
 	private Optional<BlockPos> findClosestWater(BlockView world, Entity entity) {
-		BlockPos blockPos = entity.getBlockPos();
-		if (!world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()) {
+		BlockPos pos = entity.getBlockPos();
+
+		if (!world.getBlockState(pos).getCollisionShape(world, pos).isEmpty()) {
 			return Optional.empty();
 		}
-		else {
-			Predicate<BlockPos> predicate;
-			if (MathHelper.ceil(entity.getWidth()) == 2) {
-				predicate =
-						pos -> BlockPos
-								.streamSouthEastSquare(pos)
-								.allMatch(posx -> world.getFluidState(posx).isIn(FluidTags.WATER));
-			}
-			else {
-				predicate = pos -> world.getFluidState(pos).isIn(FluidTags.WATER);
-			}
 
-			return BlockPos.findClosest(blockPos, 5, 1, predicate);
-		}
+		Predicate<BlockPos> waterPredicate = MathHelper.ceil(entity.getWidth()) == WIDE_ENTITY_WIDTH
+				? p -> BlockPos.streamSouthEastSquare(p).allMatch(sq -> world.getFluidState(sq).isIn(FluidTags.WATER))
+				: p -> world.getFluidState(p).isIn(FluidTags.WATER);
+
+		return BlockPos.findClosest(pos, WATER_SEARCH_RADIUS, WATER_SEARCH_HEIGHT, waterPredicate);
 	}
 }

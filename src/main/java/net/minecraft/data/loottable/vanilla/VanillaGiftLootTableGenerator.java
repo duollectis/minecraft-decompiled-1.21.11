@@ -36,9 +36,7 @@ public record VanillaGiftLootTableGenerator(RegistryWrapper.WrapperLookup regist
 
 	@Override
 	public void accept(BiConsumer<RegistryKey<LootTable>, LootTable.Builder> lootTableBiConsumer) {
-		RegistryEntryLookup<ChickenVariant>
-				registryEntryLookup =
-				this.registries.getOrThrow(RegistryKeys.CHICKEN_VARIANT);
+		RegistryEntryLookup<ChickenVariant> chickenVariantLookup = registries.getOrThrow(RegistryKeys.CHICKEN_VARIANT);
 		lootTableBiConsumer.accept(
 				LootTables.CAT_MORNING_GIFT_GAMEPLAY,
 				LootTable.builder()
@@ -363,7 +361,7 @@ public record VanillaGiftLootTableGenerator(RegistryWrapper.WrapperLookup regist
 																				                                                 ComponentMapPredicate.of(
 																						                                                 DataComponentTypes.CHICKEN_VARIANT,
 																						                                                 new LazyRegistryEntryReference<>(
-																								                                                 registryEntryLookup.getOrThrow(
+																								                                                 chickenVariantLookup.getOrThrow(
 																										                                                 ChickenVariants.TEMPERATE))
 																				                                                 )
 																		                                                 )
@@ -383,7 +381,7 @@ public record VanillaGiftLootTableGenerator(RegistryWrapper.WrapperLookup regist
 																				                                                 ComponentMapPredicate.of(
 																						                                                 DataComponentTypes.CHICKEN_VARIANT,
 																						                                                 new LazyRegistryEntryReference<>(
-																								                                                 registryEntryLookup.getOrThrow(
+																								                                                 chickenVariantLookup.getOrThrow(
 																										                                                 ChickenVariants.WARM))
 																				                                                 )
 																		                                                 )
@@ -403,7 +401,7 @@ public record VanillaGiftLootTableGenerator(RegistryWrapper.WrapperLookup regist
 																				                                                 ComponentMapPredicate.of(
 																						                                                 DataComponentTypes.CHICKEN_VARIANT,
 																						                                                 new LazyRegistryEntryReference<>(
-																								                                                 registryEntryLookup.getOrThrow(
+																								                                                 chickenVariantLookup.getOrThrow(
 																										                                                 ChickenVariants.COLD))
 																				                                                 )
 																		                                                 )

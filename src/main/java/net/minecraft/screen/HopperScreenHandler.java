@@ -8,65 +8,75 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 
 /**
- * {@code HopperScreenHandler}.
+ * Обработчик экрана воронки.
+ * <p>
+ * Содержит 5 слотов воронки в ряд и стандартный инвентарь игрока.
  */
 public class HopperScreenHandler extends ScreenHandler {
 
 	public static final int SLOT_COUNT = 5;
+	private static final int SLOT_START_X = 44;
+	private static final int SLOT_Y = 20;
+	private static final int SLOT_STEP = 18;
+
 	private final Inventory inventory;
 
 	public HopperScreenHandler(int syncId, PlayerInventory playerInventory) {
-		this(syncId, playerInventory, new SimpleInventory(5));
+		this(syncId, playerInventory, new SimpleInventory(SLOT_COUNT));
 	}
 
 	public HopperScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory) {
 		super(ScreenHandlerType.HOPPER, syncId);
+		checkSize(inventory, SLOT_COUNT);
 		this.inventory = inventory;
-		checkSize(inventory, 5);
 		inventory.onOpen(playerInventory.player);
 
-		for (int i = 0; i < 5; i++) {
-			this.addSlot(new Slot(inventory, i, 44 + i * 18, 20));
+		for (int slotIndex = 0; slotIndex < SLOT_COUNT; slotIndex++) {
+			addSlot(new Slot(inventory, slotIndex, SLOT_START_X + slotIndex * SLOT_STEP, SLOT_Y));
 		}
 
-		this.addPlayerSlots(playerInventory, 8, 51);
+		addPlayerSlots(playerInventory, 8, 51);
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.inventory.canPlayerUse(player);
+		return inventory.canPlayerUse(player);
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot < this.inventory.size()) {
-				if (!this.insertItem(itemStack2, this.inventory.size(), this.slots.size(), true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 0, this.inventory.size(), false)) {
-				return ItemStack.EMPTY;
-			}
+		Slot sourceSlot = slots.get(slot);
 
-			if (itemStack2.isEmpty()) {
-				slot2.setStack(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack slotStack = sourceSlot.getStack();
+		ItemStack original = slotStack.copy();
+		int hopperSize = inventory.size();
+
+		if (slot < hopperSize) {
+			if (!insertItem(slotStack, hopperSize, slots.size(), true)) {
+				return ItemStack.EMPTY;
+			}
+		}
+		else if (!insertItem(slotStack, 0, hopperSize, false)) {
+			return ItemStack.EMPTY;
+		}
+
+		if (slotStack.isEmpty()) {
+			sourceSlot.setStack(ItemStack.EMPTY);
+		}
+		else {
+			sourceSlot.markDirty();
+		}
+
+		return original;
 	}
 
 	@Override
 	public void onClosed(PlayerEntity player) {
 		super.onClosed(player);
-		this.inventory.onClose(player);
+		inventory.onClose(player);
 	}
 }

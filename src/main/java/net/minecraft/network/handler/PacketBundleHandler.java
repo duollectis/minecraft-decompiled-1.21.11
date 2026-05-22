@@ -13,7 +13,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Интерфейс packet bundle handler.
+ * Интерфейс для обработки пакетных бандлов: разбивает {@link BundlePacket} на отдельные пакеты
+ * при отправке и собирает их обратно при получении.
  */
 public interface PacketBundleHandler {
 
@@ -32,8 +33,7 @@ public interface PacketBundleHandler {
 					consumer.accept(splitter);
 					bundlePacket.getPackets().forEach(consumer);
 					consumer.accept(splitter);
-				}
-				else {
+				} else {
 					consumer.accept(packet);
 				}
 			}
@@ -44,17 +44,17 @@ public interface PacketBundleHandler {
 					private final List<Packet<? super T>> packets = new ArrayList<>();
 
 					@Override
-					public @Nullable Packet<?> add(Packet<?> packet) {
-						if (packet == splitter) {
-							return bundleFunction.apply(this.packets);
+					public @Nullable Packet<?> add(Packet<?> incoming) {
+						if (incoming == splitter) {
+							return bundleFunction.apply(packets);
 						}
-						else if (this.packets.size() >= 4096) {
+
+						if (packets.size() >= MAX_PACKETS) {
 							throw new IllegalStateException("Too many packets in a bundle");
 						}
-						else {
-							this.packets.add((Packet<? super T>) packet);
-							return null;
-						}
+
+						packets.add((Packet<? super T>) incoming);
+						return null;
 					}
 				} : null;
 			}
@@ -66,9 +66,9 @@ public interface PacketBundleHandler {
 	PacketBundleHandler.@Nullable Bundler createBundler(Packet<?> splitter);
 
 	/**
-	 * Интерфейс bundler.
+	 * Аккумулятор пакетов внутри бандла: принимает пакеты до получения завершающего сплиттера.
 	 */
-	public interface Bundler {
+	interface Bundler {
 
 		@Nullable Packet<?> add(Packet<?> packet);
 	}

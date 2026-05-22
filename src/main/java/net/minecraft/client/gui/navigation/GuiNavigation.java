@@ -3,30 +3,29 @@ package net.minecraft.client.gui.navigation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GuiNavigation}.
+ * Базовый интерфейс навигации по GUI с помощью клавиатуры или мыши.
+ * Каждая реализация описывает конкретный тип навигационного события.
  */
+@Environment(EnvType.CLIENT)
 public interface GuiNavigation {
 
 	NavigationDirection getDirection();
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Arrow}.
+	 * Навигация стрелочными клавишами. Вертикальная ось используется напрямую,
+	 * горизонтальная — принудительно заменяется на {@link NavigationDirection#DOWN}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Arrow(NavigationDirection direction) implements GuiNavigation {
 
 		@Override
 		public NavigationDirection getDirection() {
-			return this.direction.getAxis() == NavigationAxis.VERTICAL ? this.direction : NavigationDirection.DOWN;
+			return direction.getAxis() == NavigationAxis.VERTICAL ? direction : NavigationDirection.DOWN;
 		}
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Down}.
-	 */
 	public static class Down implements GuiNavigation {
 
 		@Override
@@ -36,14 +35,11 @@ public interface GuiNavigation {
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Tab}.
-	 */
 	public record Tab(boolean forward) implements GuiNavigation {
 
 		@Override
 		public NavigationDirection getDirection() {
-			return this.forward ? NavigationDirection.DOWN : NavigationDirection.UP;
+			return forward ? NavigationDirection.DOWN : NavigationDirection.UP;
 		}
 	}
 }

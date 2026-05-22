@@ -7,7 +7,10 @@ import net.minecraft.dialog.action.DialogAction;
 import java.util.Optional;
 
 /**
- * {@code ColumnsDialog}.
+ * Диалог с поддержкой многоколоночного расположения кнопок.
+ *
+ * <p>Предоставляет опциональную кнопку выхода, действие которой
+ * используется как действие отмены диалога.</p>
  */
 public interface ColumnsDialog extends Dialog {
 
@@ -20,6 +23,6 @@ public interface ColumnsDialog extends Dialog {
 
 	@Override
 	default Optional<DialogAction> getCancelAction() {
-		return this.exitAction().flatMap(DialogActionButtonData::action);
+		return exitAction().flatMap(DialogActionButtonData::action);
 	}
 }

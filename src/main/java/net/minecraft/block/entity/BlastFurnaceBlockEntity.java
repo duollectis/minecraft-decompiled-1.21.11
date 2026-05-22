@@ -11,7 +11,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code BlastFurnaceBlockEntity}.
+ * Блок-сущность доменной печи. Использует рецепты типа {@link RecipeType#BLASTING}.
+ * Сжигает топливо вдвое быстрее обычной печи.
  */
 public class BlastFurnaceBlockEntity extends AbstractFurnaceBlockEntity {
 
@@ -33,6 +34,6 @@ public class BlastFurnaceBlockEntity extends AbstractFurnaceBlockEntity {
 
 	@Override
 	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-		return new BlastFurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+		return new BlastFurnaceScreenHandler(syncId, playerInventory, this, propertyDelegate);
 	}
 }

@@ -10,10 +10,10 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
- * {@code EndCityStructure}.
+ * Структура города Края. Генерируется только выше Y=60 на внешних островах Края,
+ * использует случайный поворот и набор кусков из {@link net.minecraft.structure.EndCityGenerator}.
  */
 public class EndCityStructure extends Structure {
 
@@ -26,19 +26,13 @@ public class EndCityStructure extends Structure {
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		BlockRotation blockRotation = BlockRotation.random(context.random());
-		BlockPos blockPos = this.getShiftedPos(context, blockRotation);
+		BlockPos blockPos = getShiftedPos(context, blockRotation);
 		return blockPos.getY() < 60
 		       ? Optional.empty()
 		       : Optional.of(
 				       new Structure.StructurePosition(
 						       blockPos,
-						       (Consumer<StructurePiecesCollector>) (collector -> this.addPieces(
-								       collector,
-								       blockPos,
-								       blockRotation,
-								       context
-						       )
-						       )
+						       collector -> addPieces(collector, blockPos, blockRotation, context)
 				       )
 		       );
 	}

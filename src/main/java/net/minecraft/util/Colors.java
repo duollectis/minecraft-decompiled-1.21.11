@@ -1,7 +1,8 @@
 package net.minecraft.util;
 
 /**
- * {@code Colors}.
+ * Набор предопределённых цветов в формате ARGB (32-битное целое число).
+ * Все значения содержат полную непрозрачность (alpha = 0xFF).
  */
 public class Colors {
 

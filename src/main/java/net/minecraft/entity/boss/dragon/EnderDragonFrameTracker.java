@@ -5,63 +5,64 @@ import net.minecraft.util.math.MathHelper;
 import java.util.Arrays;
 
 /**
- * {@code EnderDragonFrameTracker}.
+ * Кольцевой буфер кадров позиции Эндер-дракона для интерполяции анимации тела.
+ * Хранит последние {@link #FRAME_BUFFER_SIZE} записей (Y-координата + угол поворота),
+ * позволяя плавно интерполировать положение частей тела между тиками.
  */
 public class EnderDragonFrameTracker {
 
 	public static final int FRAME_BUFFER_SIZE = 64;
-	private static final int FRAME_BUFFER_MASK = 63;
-	private final EnderDragonFrameTracker.Frame[] frames = new EnderDragonFrameTracker.Frame[64];
+	private static final int FRAME_BUFFER_MASK = FRAME_BUFFER_SIZE - 1;
+
+	private final Frame[] frames = new Frame[FRAME_BUFFER_SIZE];
 	private int currentIndex = -1;
 
 	public EnderDragonFrameTracker() {
-		Arrays.fill(this.frames, new EnderDragonFrameTracker.Frame(0.0, 0.0F));
+		Arrays.fill(frames, new Frame(0.0, 0.0F));
 	}
 
-	/**
-	 * Создаёт копию from.
-	 *
-	 * @param other other
-	 */
 	public void copyFrom(EnderDragonFrameTracker other) {
-		System.arraycopy(other.frames, 0, this.frames, 0, 64);
-		this.currentIndex = other.currentIndex;
+		System.arraycopy(other.frames, 0, frames, 0, FRAME_BUFFER_SIZE);
+		currentIndex = other.currentIndex;
 	}
 
 	/**
-	 * Tick.
-	 *
-	 * @param y y
-	 * @param yaw yaw
+	 * Записывает новый кадр в буфер. При первом вызове заполняет весь буфер этим кадром.
 	 */
 	public void tick(double y, float yaw) {
-		EnderDragonFrameTracker.Frame frame = new EnderDragonFrameTracker.Frame(y, yaw);
-		if (this.currentIndex < 0) {
-			Arrays.fill(this.frames, frame);
+		Frame frame = new Frame(y, yaw);
+		if (currentIndex < 0) {
+			Arrays.fill(frames, frame);
 		}
 
-		if (++this.currentIndex == 64) {
-			this.currentIndex = 0;
+		if (++currentIndex == FRAME_BUFFER_SIZE) {
+			currentIndex = 0;
 		}
 
-		this.frames[this.currentIndex] = frame;
+		frames[currentIndex] = frame;
 	}
 
-	public EnderDragonFrameTracker.Frame getFrame(int age) {
-		return this.frames[this.currentIndex - age & 63];
+	public Frame getFrame(int age) {
+		return frames[currentIndex - age & FRAME_BUFFER_MASK];
 	}
 
-	public EnderDragonFrameTracker.Frame getLerpedFrame(int age, float tickProgress) {
-		EnderDragonFrameTracker.Frame frame = this.getFrame(age);
-		EnderDragonFrameTracker.Frame frame2 = this.getFrame(age + 1);
-		return new EnderDragonFrameTracker.Frame(
-				MathHelper.lerp((double) tickProgress, frame2.y, frame.y),
-				MathHelper.lerpAngleDegrees(tickProgress, frame2.yRot, frame.yRot)
+	/**
+	 * Возвращает линейно интерполированный кадр между {@code age} и {@code age+1}.
+	 *
+	 * @param age          количество тиков назад от текущего
+	 * @param tickProgress прогресс интерполяции в диапазоне [0, 1]
+	 */
+	public Frame getLerpedFrame(int age, float tickProgress) {
+		Frame current = getFrame(age);
+		Frame previous = getFrame(age + 1);
+		return new Frame(
+				MathHelper.lerp((double) tickProgress, previous.y, current.y),
+				MathHelper.lerpAngleDegrees(tickProgress, previous.yRot, current.yRot)
 		);
 	}
 
 	/**
-	 * {@code Frame}.
+	 * Снимок состояния дракона в один тик: вертикальная позиция и угол поворота.
 	 */
 	public record Frame(double y, float yRot) {
 	}

@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@code ManagementServer}.
+ * Класс Management Server.
  */
 public class ManagementServer {
 

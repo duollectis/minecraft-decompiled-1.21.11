@@ -11,149 +11,181 @@ import net.minecraft.world.chunk.ChunkProvider;
 import net.minecraft.world.chunk.ChunkToNibbleArrayMap;
 
 /**
- * {@code SkyLightStorage}.
+ * Хранилище небесного освещения.
+ * <p>
+ * В отличие от блочного света, небесный свет имеет уровень 15 во всех секциях
+ * выше самой верхней загруженной секции колонки. Для этого хранится карта
+ * {@link Data#columnToTopSection}: колонка → Y-индекс верхней секции.
+ * <p>
+ * Секции выше {@code columnToTopSection} считаются полностью освещёнными (уровень 15),
+ * секции ниже — читаются из nibble-массивов как обычно.
  */
 public class SkyLightStorage extends LightStorage<SkyLightStorage.Data> {
 
 	protected SkyLightStorage(ChunkProvider chunkProvider) {
 		super(
-				LightType.SKY,
-				chunkProvider,
-				new SkyLightStorage.Data(new Long2ObjectOpenHashMap(), new Long2IntOpenHashMap(), Integer.MAX_VALUE)
+			LightType.SKY,
+			chunkProvider,
+			new SkyLightStorage.Data(new Long2ObjectOpenHashMap<>(), new Long2IntOpenHashMap(), Integer.MAX_VALUE)
 		);
 	}
 
 	@Override
 	protected int getLight(long blockPos) {
-		return this.getLight(blockPos, false);
+		return getLight(blockPos, false);
 	}
 
+	/**
+	 * Возвращает уровень небесного света для позиции блока.
+	 * <p>
+	 * Если секция выше верхней загруженной секции колонки — возвращает 15.
+	 * Если секция не имеет nibble-массива — поднимается вверх до первой секции с данными.
+	 *
+	 * @param cached {@code true} — использовать кэшированную копию данных
+	 */
 	protected int getLight(long blockPos, boolean cached) {
-		long l = ChunkSectionPos.fromBlockPos(blockPos);
-		int i = ChunkSectionPos.unpackY(l);
-		SkyLightStorage.Data data = cached ? this.storage : this.uncachedStorage;
-		int j = data.columnToTopSection.get(ChunkSectionPos.withZeroY(l));
-		if (j != data.minSectionY && i < j) {
-			ChunkNibbleArray chunkNibbleArray = this.getLightSection(data, l);
-			if (chunkNibbleArray == null) {
-				for (blockPos = BlockPos.removeChunkSectionLocalY(blockPos);
-				     chunkNibbleArray == null;
-				     chunkNibbleArray = this.getLightSection(data, l)) {
-					if (++i >= j) {
-						return 15;
-					}
+		long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+		int sectionY = ChunkSectionPos.unpackY(sectionPos);
+		SkyLightStorage.Data data = cached ? storage : uncachedStorage;
+		int topSection = data.columnToTopSection.get(ChunkSectionPos.withZeroY(sectionPos));
 
-					l = ChunkSectionPos.offset(l, Direction.UP);
+		if (topSection == data.minSectionY || sectionY >= topSection) {
+			return cached && !isSectionInEnabledColumn(sectionPos) ? 0 : 15;
+		}
+
+		ChunkNibbleArray section = getLightSection(data, sectionPos);
+
+		if (section == null) {
+			// Поднимаемся вверх до первой секции с данными, т.к. промежуточные секции полностью освещены
+			long currentPos = BlockPos.removeChunkSectionLocalY(blockPos);
+
+			while (section == null) {
+				if (++sectionY >= topSection) {
+					return 15;
 				}
+
+				sectionPos = ChunkSectionPos.offset(sectionPos, Direction.UP);
+				section = getLightSection(data, sectionPos);
 			}
 
-			return chunkNibbleArray.get(
-					ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
-					ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
-					ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos))
-			);
+			blockPos = currentPos;
 		}
-		else {
-			return cached && !this.isSectionInEnabledColumn(l) ? 0 : 15;
-		}
+
+		return section.get(
+			ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)),
+			ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)),
+			ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos))
+		);
 	}
 
 	@Override
 	protected void onLoadSection(long sectionPos) {
-		int i = ChunkSectionPos.unpackY(sectionPos);
-		if (this.storage.minSectionY > i) {
-			this.storage.minSectionY = i;
-			this.storage.columnToTopSection.defaultReturnValue(this.storage.minSectionY);
+		int sectionY = ChunkSectionPos.unpackY(sectionPos);
+
+		if (storage.minSectionY > sectionY) {
+			storage.minSectionY = sectionY;
+			storage.columnToTopSection.defaultReturnValue(storage.minSectionY);
 		}
 
-		long l = ChunkSectionPos.withZeroY(sectionPos);
-		int j = this.storage.columnToTopSection.get(l);
-		if (j < i + 1) {
-			this.storage.columnToTopSection.put(l, i + 1);
+		long columnPos = ChunkSectionPos.withZeroY(sectionPos);
+		int currentTop = storage.columnToTopSection.get(columnPos);
+
+		if (currentTop < sectionY + 1) {
+			storage.columnToTopSection.put(columnPos, sectionY + 1);
 		}
 	}
 
 	@Override
 	protected void onUnloadSection(long sectionPos) {
-		long l = ChunkSectionPos.withZeroY(sectionPos);
-		int i = ChunkSectionPos.unpackY(sectionPos);
-		if (this.storage.columnToTopSection.get(l) == i + 1) {
-			long m;
-			for (m = sectionPos;
-			     !this.hasSection(m) && this.isAboveMinHeight(i);
-			     m = ChunkSectionPos.offset(m, Direction.DOWN)) {
-				i--;
-			}
+		long columnPos = ChunkSectionPos.withZeroY(sectionPos);
+		int sectionY = ChunkSectionPos.unpackY(sectionPos);
 
-			if (this.hasSection(m)) {
-				this.storage.columnToTopSection.put(l, i + 1);
-			}
-			else {
-				this.storage.columnToTopSection.remove(l);
-			}
+		if (storage.columnToTopSection.get(columnPos) != sectionY + 1) {
+			return;
+		}
+
+		// Ищем новую верхнюю секцию, спускаясь вниз
+		long current = sectionPos;
+
+		while (!hasSection(current) && isAboveMinHeight(sectionY)) {
+			sectionY--;
+			current = ChunkSectionPos.offset(current, Direction.DOWN);
+		}
+
+		if (hasSection(current)) {
+			storage.columnToTopSection.put(columnPos, sectionY + 1);
+		} else {
+			storage.columnToTopSection.remove(columnPos);
 		}
 	}
 
 	@Override
 	protected ChunkNibbleArray createSection(long sectionPos) {
-		ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.queuedSections.get(sectionPos);
-		if (chunkNibbleArray != null) {
-			return chunkNibbleArray;
-		}
-		else {
-			int i = this.storage.columnToTopSection.get(ChunkSectionPos.withZeroY(sectionPos));
-			if (i != this.storage.minSectionY && ChunkSectionPos.unpackY(sectionPos) < i) {
-				long l = ChunkSectionPos.offset(sectionPos, Direction.UP);
+		ChunkNibbleArray queued = (ChunkNibbleArray) queuedSections.get(sectionPos);
 
-				ChunkNibbleArray chunkNibbleArray2;
-				while ((chunkNibbleArray2 = this.getLightSection(l, true)) == null) {
-					l = ChunkSectionPos.offset(l, Direction.UP);
-				}
-
-				return copy(chunkNibbleArray2);
-			}
-			else {
-				return this.isSectionInEnabledColumn(sectionPos) ? new ChunkNibbleArray(15) : new ChunkNibbleArray();
-			}
+		if (queued != null) {
+			return queued;
 		}
+
+		int topSection = storage.columnToTopSection.get(ChunkSectionPos.withZeroY(sectionPos));
+		int sectionY = ChunkSectionPos.unpackY(sectionPos);
+
+		if (topSection == storage.minSectionY || sectionY >= topSection) {
+			return isSectionInEnabledColumn(sectionPos) ? new ChunkNibbleArray(15) : new ChunkNibbleArray();
+		}
+
+		// Копируем данные из ближайшей секции выше (небесный свет распространяется сверху вниз)
+		long above = ChunkSectionPos.offset(sectionPos, Direction.UP);
+		ChunkNibbleArray aboveSection;
+
+		while ((aboveSection = getLightSection(above, true)) == null) {
+			above = ChunkSectionPos.offset(above, Direction.UP);
+		}
+
+		return copy(aboveSection);
 	}
 
+	/**
+	 * Создаёт копию nibble-массива с горизонтальным дублированием строк.
+	 * Используется для инициализации секций небесного света ниже уже загруженных:
+	 * каждая строка верхней секции копируется во все 16 строк новой секции.
+	 */
 	private static ChunkNibbleArray copy(ChunkNibbleArray source) {
 		if (source.isArrayUninitialized()) {
 			return source.copy();
 		}
-		else {
-			byte[] bs = source.asByteArray();
-			byte[] cs = new byte[2048];
 
-			for (int i = 0; i < 16; i++) {
-				System.arraycopy(bs, 0, cs, i * 128, 128);
-			}
+		byte[] sourceBytes = source.asByteArray();
+		byte[] destBytes = new byte[2048];
 
-			return new ChunkNibbleArray(cs);
+		for (int row = 0; row < 16; row++) {
+			System.arraycopy(sourceBytes, 0, destBytes, row * 128, 128);
 		}
+
+		return new ChunkNibbleArray(destBytes);
 	}
 
 	protected boolean isAboveMinHeight(int sectionY) {
-		return sectionY >= this.storage.minSectionY;
+		return sectionY >= storage.minSectionY;
 	}
 
 	protected boolean isAtOrAboveTopmostSection(long sectionPos) {
-		long l = ChunkSectionPos.withZeroY(sectionPos);
-		int i = this.storage.columnToTopSection.get(l);
-		return i == this.storage.minSectionY || ChunkSectionPos.unpackY(sectionPos) >= i;
+		long columnPos = ChunkSectionPos.withZeroY(sectionPos);
+		int topSection = storage.columnToTopSection.get(columnPos);
+
+		return topSection == storage.minSectionY || ChunkSectionPos.unpackY(sectionPos) >= topSection;
 	}
 
 	protected int getTopSectionForColumn(long columnPos) {
-		return this.storage.columnToTopSection.get(columnPos);
+		return storage.columnToTopSection.get(columnPos);
 	}
 
 	protected int getMinSectionY() {
-		return this.storage.minSectionY;
+		return storage.minSectionY;
 	}
 
 	/**
-	 * {@code Data}.
+	 * Данные небесного освещения: nibble-массивы секций + карта верхних секций колонок.
 	 */
 	protected static final class Data extends ChunkToNibbleArrayMap<SkyLightStorage.Data> {
 
@@ -161,9 +193,9 @@ public class SkyLightStorage extends LightStorage<SkyLightStorage.Data> {
 		final Long2IntOpenHashMap columnToTopSection;
 
 		public Data(
-				Long2ObjectOpenHashMap<ChunkNibbleArray> arrays,
-				Long2IntOpenHashMap columnToTopSection,
-				int minSectionY
+			Long2ObjectOpenHashMap<ChunkNibbleArray> arrays,
+			Long2IntOpenHashMap columnToTopSection,
+			int minSectionY
 		) {
 			super(arrays);
 			this.columnToTopSection = columnToTopSection;
@@ -172,7 +204,7 @@ public class SkyLightStorage extends LightStorage<SkyLightStorage.Data> {
 		}
 
 		public SkyLightStorage.Data copy() {
-			return new SkyLightStorage.Data(this.arrays.clone(), this.columnToTopSection.clone(), this.minSectionY);
+			return new SkyLightStorage.Data(arrays.clone(), columnToTopSection.clone(), minSectionY);
 		}
 	}
 }

@@ -10,7 +10,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code FallLocation}.
+ * Место падения сущности, используемое для выбора варианта сообщения о смерти
+ * при падении (лестница, лоза, строительные леса, вода и т.д.).
  */
 public record FallLocation(String id) {
 
@@ -24,49 +25,49 @@ public record FallLocation(String id) {
 	public static final FallLocation WATER = new FallLocation("water");
 
 	/**
-	 * From block state.
+	 * Определяет место падения по состоянию блока, на котором находилась сущность.
 	 *
-	 * @param state state
-	 *
-	 * @return FallLocation — результат операции
+	 * @param state состояние блока
+	 * @return соответствующее место падения
 	 */
 	public static FallLocation fromBlockState(BlockState state) {
 		if (state.isOf(Blocks.LADDER) || state.isIn(BlockTags.TRAPDOORS)) {
 			return LADDER;
 		}
-		else if (state.isOf(Blocks.VINE)) {
+
+		if (state.isOf(Blocks.VINE)) {
 			return VINES;
 		}
-		else if (state.isOf(Blocks.WEEPING_VINES) || state.isOf(Blocks.WEEPING_VINES_PLANT)) {
+
+		if (state.isOf(Blocks.WEEPING_VINES) || state.isOf(Blocks.WEEPING_VINES_PLANT)) {
 			return WEEPING_VINES;
 		}
-		else if (state.isOf(Blocks.TWISTING_VINES) || state.isOf(Blocks.TWISTING_VINES_PLANT)) {
+
+		if (state.isOf(Blocks.TWISTING_VINES) || state.isOf(Blocks.TWISTING_VINES_PLANT)) {
 			return TWISTING_VINES;
 		}
-		else {
-			return state.isOf(Blocks.SCAFFOLDING) ? SCAFFOLDING : OTHER_CLIMBABLE;
-		}
+
+		return state.isOf(Blocks.SCAFFOLDING) ? SCAFFOLDING : OTHER_CLIMBABLE;
 	}
 
 	/**
-	 * From entity.
+	 * Определяет место падения для живой сущности: проверяет блок карабкания
+	 * или контакт с водой. Возвращает {@code null}, если сущность падает в воздухе.
 	 *
-	 * @param entity entity
-	 *
-	 * @return @Nullable FallLocation — результат операции
+	 * @param entity сущность, для которой определяется место падения
+	 * @return место падения или {@code null}
 	 */
 	public static @Nullable FallLocation fromEntity(LivingEntity entity) {
-		Optional<BlockPos> optional = entity.getClimbingPos();
-		if (optional.isPresent()) {
-			BlockState blockState = entity.getEntityWorld().getBlockState(optional.get());
+		Optional<BlockPos> climbingPos = entity.getClimbingPos();
+		if (climbingPos.isPresent()) {
+			BlockState blockState = entity.getEntityWorld().getBlockState(climbingPos.get());
 			return fromBlockState(blockState);
 		}
-		else {
-			return entity.isTouchingWater() ? WATER : null;
-		}
+
+		return entity.isTouchingWater() ? WATER : null;
 	}
 
 	public String getDeathMessageKey() {
-		return "death.fell.accident." + this.id;
+		return "death.fell.accident." + id;
 	}
 }

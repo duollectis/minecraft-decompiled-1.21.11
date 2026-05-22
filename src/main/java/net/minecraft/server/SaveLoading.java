@@ -15,168 +15,172 @@ import java.util.concurrent.Executor;
 import java.util.stream.Stream;
 
 /**
- * {@code SaveLoading}.
+ * Утилитный класс для загрузки мира: инициализирует реестры, загружает датапаки
+ * и создаёт {@link SaveLoader} с готовыми ресурсами.
  */
 public class SaveLoading {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Выполняет полный цикл загрузки сервера: открывает датапаки, загружает реестры,
+	 * перезагружает датапак-ресурсы и применяет теги.
+	 *
+	 * @param serverConfig         конфигурация сервера с датапаками и окружением команд
+	 * @param loadContextSupplier  фабрика контекста загрузки (свойства мира, измерения)
+	 * @param saveApplierFactory   фабрика финального результата (например, {@link SaveLoader})
+	 * @param prepareExecutor      исполнитель для фазы подготовки ресурсов
+	 * @param applyExecutor        исполнитель для фазы применения ресурсов
+	 */
 	public static <D, R> CompletableFuture<R> load(
-			SaveLoading.ServerConfig serverConfig,
-			SaveLoading.LoadContextSupplier<D> loadContextSupplier,
-			SaveLoading.SaveApplierFactory<D, R> saveApplierFactory,
-			Executor prepareExecutor,
-			Executor applyExecutor
+		SaveLoading.ServerConfig serverConfig,
+		SaveLoading.LoadContextSupplier<D> loadContextSupplier,
+		SaveLoading.SaveApplierFactory<D, R> saveApplierFactory,
+		Executor prepareExecutor,
+		Executor applyExecutor
 	) {
 		try {
-			Pair<DataConfiguration, LifecycledResourceManager> pair = serverConfig.dataPacks.load();
-			LifecycledResourceManager lifecycledResourceManager = (LifecycledResourceManager) pair.getSecond();
-			CombinedDynamicRegistries<ServerDynamicRegistryType>
-					combinedDynamicRegistries =
-					ServerDynamicRegistryType.createCombinedDynamicRegistries();
-			List<Registry.PendingTagLoad<?>> list = TagGroupLoader.startReload(
-					lifecycledResourceManager, combinedDynamicRegistries.get(ServerDynamicRegistryType.STATIC)
+			Pair<DataConfiguration, LifecycledResourceManager> loaded = serverConfig.dataPacks.load();
+			LifecycledResourceManager resourceManager = loaded.getSecond();
+			DataConfiguration dataConfiguration = loaded.getFirst();
+
+			CombinedDynamicRegistries<ServerDynamicRegistryType> combinedRegistries =
+				ServerDynamicRegistryType.createCombinedDynamicRegistries();
+
+			List<Registry.PendingTagLoad<?>> pendingTagLoads = TagGroupLoader.startReload(
+				resourceManager,
+				combinedRegistries.get(ServerDynamicRegistryType.STATIC)
 			);
-			DynamicRegistryManager.Immutable
-					immutable =
-					combinedDynamicRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN);
-			List<RegistryWrapper.Impl<?>> list2 = TagGroupLoader.collectRegistries(immutable, list);
-			DynamicRegistryManager.Immutable
-					immutable2 =
-					RegistryLoader.loadFromResource(
-							lifecycledResourceManager,
-							list2,
-							RegistryLoader.DYNAMIC_REGISTRIES
-					);
-			List<RegistryWrapper.Impl<?>> list3 = Stream.concat(list2.stream(), immutable2.stream()).toList();
-			DynamicRegistryManager.Immutable
-					immutable3 =
-					RegistryLoader.loadFromResource(
-							lifecycledResourceManager,
-							list3,
-							RegistryLoader.DIMENSION_REGISTRIES
-					);
-			DataConfiguration dataConfiguration = (DataConfiguration) pair.getFirst();
-			RegistryWrapper.WrapperLookup wrapperLookup = RegistryWrapper.WrapperLookup.of(list3.stream());
+
+			DynamicRegistryManager.Immutable precedingRegistries =
+				combinedRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN);
+
+			List<RegistryWrapper.Impl<?>> staticRegistries =
+				TagGroupLoader.collectRegistries(precedingRegistries, pendingTagLoads);
+
+			DynamicRegistryManager.Immutable worldgenRegistries =
+				RegistryLoader.loadFromResource(resourceManager, staticRegistries, RegistryLoader.DYNAMIC_REGISTRIES);
+
+			List<RegistryWrapper.Impl<?>> allWorldgenRegistries =
+				Stream.concat(staticRegistries.stream(), worldgenRegistries.stream()).toList();
+
+			DynamicRegistryManager.Immutable dimensionRegistries =
+				RegistryLoader.loadFromResource(resourceManager, allWorldgenRegistries, RegistryLoader.DIMENSION_REGISTRIES);
+
+			RegistryWrapper.WrapperLookup wrapperLookup =
+				RegistryWrapper.WrapperLookup.of(allWorldgenRegistries.stream());
+
 			SaveLoading.LoadContext<D> loadContext = loadContextSupplier.get(
-					new SaveLoading.LoadContextSupplierContext(
-							lifecycledResourceManager,
-							dataConfiguration,
-							wrapperLookup,
-							immutable3
-					)
+				new SaveLoading.LoadContextSupplierContext(
+					resourceManager,
+					dataConfiguration,
+					wrapperLookup,
+					dimensionRegistries
+				)
 			);
-			CombinedDynamicRegistries<ServerDynamicRegistryType>
-					combinedDynamicRegistries2 =
-					combinedDynamicRegistries.with(
-							ServerDynamicRegistryType.WORLDGEN, immutable2, loadContext.dimensionsRegistryManager
-					);
-			return DataPackContents.reload(
-					                       lifecycledResourceManager,
-					                       combinedDynamicRegistries2,
-					                       list,
-					                       dataConfiguration.enabledFeatures(),
-					                       serverConfig.commandEnvironment(),
-					                       serverConfig.functionCompilationPermissions(),
-					                       prepareExecutor,
-					                       applyExecutor
-			                       )
-			                       .whenComplete((dataPackContents, throwable) -> {
-				                       if (throwable != null) {
-					                       lifecycledResourceManager.close();
-				                       }
-			                       })
-			                       .thenApplyAsync(
-					                       dataPackContents -> {
-						                       dataPackContents.applyPendingTagLoads();
-						                       return saveApplierFactory.create(
-								                       lifecycledResourceManager,
-								                       dataPackContents,
-								                       combinedDynamicRegistries2,
-								                       loadContext.extraData
-						                       );
-					                       }, applyExecutor
-			                       );
-		}
-		catch (Exception var18) {
-			return CompletableFuture.failedFuture(var18);
+
+			CombinedDynamicRegistries<ServerDynamicRegistryType> combinedRegistries2 =
+				combinedRegistries.with(
+					ServerDynamicRegistryType.WORLDGEN,
+					worldgenRegistries,
+					loadContext.dimensionsRegistryManager
+				);
+
+			return DataPackContents
+				.reload(
+					resourceManager,
+					combinedRegistries2,
+					pendingTagLoads,
+					dataConfiguration.enabledFeatures(),
+					serverConfig.commandEnvironment(),
+					serverConfig.functionCompilationPermissions(),
+					prepareExecutor,
+					applyExecutor
+				)
+				.whenComplete((contents, throwable) -> {
+					if (throwable != null) {
+						resourceManager.close();
+					}
+				})
+				.thenApplyAsync(
+					contents -> {
+						contents.applyPendingTagLoads();
+						return saveApplierFactory.create(
+							resourceManager,
+							contents,
+							combinedRegistries2,
+							loadContext.extraData
+						);
+					},
+					applyExecutor
+				);
+		} catch (Exception e) {
+			return CompletableFuture.failedFuture(e);
 		}
 	}
 
 	/**
-	 * {@code DataPacks}.
+	 * Конфигурация датапаков: менеджер паков, начальная конфигурация данных,
+	 * флаги безопасного режима и режима инициализации.
 	 */
 	public record DataPacks(
-			ResourcePackManager manager,
-			DataConfiguration initialDataConfig,
-			boolean safeMode,
-			boolean initMode
+		ResourcePackManager manager,
+		DataConfiguration initialDataConfig,
+		boolean safeMode,
+		boolean initMode
 	) {
 
 		/**
-		 * Load.
-		 *
-		 * @return Pair — результат операции
+		 * Открывает датапаки и создаёт {@link LifecycledResourceManager}.
+		 * В безопасном режиме загружается только ванильный датапак.
 		 */
 		public Pair<DataConfiguration, LifecycledResourceManager> load() {
-			DataConfiguration
-					dataConfiguration =
-					MinecraftServer.loadDataPacks(this.manager, this.initialDataConfig, this.initMode, this.safeMode);
-			List<ResourcePack> list = this.manager.createResourcePacks();
-			LifecycledResourceManager
-					lifecycledResourceManager =
-					new LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, list);
-			return Pair.of(dataConfiguration, lifecycledResourceManager);
+			DataConfiguration dataConfiguration =
+				MinecraftServer.loadDataPacks(manager, initialDataConfig, initMode, safeMode);
+			List<ResourcePack> packs = manager.createResourcePacks();
+			LifecycledResourceManager resourceManager =
+				new LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, packs);
+			return Pair.of(dataConfiguration, resourceManager);
 		}
 	}
 
-	/**
-	 * {@code LoadContext}.
-	 */
+	/** Контекст загрузки мира: дополнительные данные и реестр измерений. */
 	public record LoadContext<D>(D extraData, DynamicRegistryManager.Immutable dimensionsRegistryManager) {
 	}
 
+	/** Поставщик контекста загрузки на основе открытых ресурсов и реестров. */
 	@FunctionalInterface
-	/**
-	 * {@code LoadContextSupplier}.
-	 */
 	public interface LoadContextSupplier<D> {
 
 		SaveLoading.LoadContext<D> get(SaveLoading.LoadContextSupplierContext context);
 	}
 
-	/**
-	 * {@code LoadContextSupplierContext}.
-	 */
+	/** Контекст, передаваемый в {@link LoadContextSupplier}: ресурсы, конфигурация, реестры. */
 	public record LoadContextSupplierContext(
-			ResourceManager resourceManager,
-			DataConfiguration dataConfiguration,
-			RegistryWrapper.WrapperLookup worldGenRegistryManager,
-			DynamicRegistryManager.Immutable dimensionsRegistryManager
+		ResourceManager resourceManager,
+		DataConfiguration dataConfiguration,
+		RegistryWrapper.WrapperLookup worldGenRegistryManager,
+		DynamicRegistryManager.Immutable dimensionsRegistryManager
 	) {
 	}
 
+	/** Фабрика финального результата загрузки (например, {@link SaveLoader}). */
 	@FunctionalInterface
-	/**
-	 * {@code SaveApplierFactory}.
-	 */
 	public interface SaveApplierFactory<D, R> {
 
 		R create(
-				LifecycledResourceManager resourceManager,
-				DataPackContents dataPackContents,
-				CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
-				D loadContext
+			LifecycledResourceManager resourceManager,
+			DataPackContents dataPackContents,
+			CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
+			D loadContext
 		);
 	}
 
-	/**
-	 * {@code ServerConfig}.
-	 */
+	/** Полная конфигурация сервера для загрузки: датапаки, окружение команд, права функций. */
 	public record ServerConfig(
-			SaveLoading.DataPacks dataPacks,
-			CommandManager.RegistrationEnvironment commandEnvironment,
-			PermissionPredicate functionCompilationPermissions
+		SaveLoading.DataPacks dataPacks,
+		CommandManager.RegistrationEnvironment commandEnvironment,
+		PermissionPredicate functionCompilationPermissions
 	) {
 	}
 }

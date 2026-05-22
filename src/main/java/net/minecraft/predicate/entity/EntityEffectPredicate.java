@@ -16,27 +16,28 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 /**
- * {@code EntityEffectPredicate}.
+ * Предикат активных эффектов сущности. Проверяет наличие и параметры
+ * каждого из заданных эффектов статуса.
  */
 public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffectPredicate.EffectData> effects) {
 
-	public static final Codec<EntityEffectPredicate>
-			CODEC =
+	public static final Codec<EntityEffectPredicate> CODEC =
 			Codec.unboundedMap(StatusEffect.ENTRY_CODEC, EntityEffectPredicate.EffectData.CODEC)
-			     .xmap(EntityEffectPredicate::new, EntityEffectPredicate::effects);
+					.xmap(EntityEffectPredicate::new, EntityEffectPredicate::effects);
 
 	public boolean test(Entity entity) {
-		return entity instanceof LivingEntity livingEntity && this.test(livingEntity.getActiveStatusEffects());
+		return entity instanceof LivingEntity livingEntity && test(livingEntity.getActiveStatusEffects());
 	}
 
 	public boolean test(LivingEntity livingEntity) {
-		return this.test(livingEntity.getActiveStatusEffects());
+		return test(livingEntity.getActiveStatusEffects());
 	}
 
-	public boolean test(Map<RegistryEntry<StatusEffect>, StatusEffectInstance> effects) {
-		for (Entry<RegistryEntry<StatusEffect>, EntityEffectPredicate.EffectData> entry : this.effects.entrySet()) {
-			StatusEffectInstance statusEffectInstance = effects.get(entry.getKey());
-			if (!entry.getValue().test(statusEffectInstance)) {
+	public boolean test(Map<RegistryEntry<StatusEffect>, StatusEffectInstance> activeEffects) {
+		for (Entry<RegistryEntry<StatusEffect>, EntityEffectPredicate.EffectData> entry : effects.entrySet()) {
+			StatusEffectInstance instance = activeEffects.get(entry.getKey());
+
+			if (!entry.getValue().test(instance)) {
 				return false;
 			}
 		}
@@ -45,12 +46,11 @@ public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffec
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель для составления {@link EntityEffectPredicate} с набором проверяемых статус-эффектов.
 	 */
 	public static class Builder {
 
-		private final com.google.common.collect.ImmutableMap.Builder<RegistryEntry<StatusEffect>, EntityEffectPredicate.EffectData>
-				effects =
+		private final ImmutableMap.Builder<RegistryEntry<StatusEffect>, EntityEffectPredicate.EffectData> effects =
 				ImmutableMap.builder();
 
 		public static EntityEffectPredicate.Builder create() {
@@ -58,7 +58,7 @@ public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffec
 		}
 
 		public EntityEffectPredicate.Builder addEffect(RegistryEntry<StatusEffect> effect) {
-			this.effects.put(effect, new EntityEffectPredicate.EffectData());
+			effects.put(effect, new EntityEffectPredicate.EffectData());
 			return this;
 		}
 
@@ -66,17 +66,17 @@ public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffec
 				RegistryEntry<StatusEffect> effect,
 				EntityEffectPredicate.EffectData effectData
 		) {
-			this.effects.put(effect, effectData);
+			effects.put(effect, effectData);
 			return this;
 		}
 
 		public Optional<EntityEffectPredicate> build() {
-			return Optional.of(new EntityEffectPredicate(this.effects.build()));
+			return Optional.of(new EntityEffectPredicate(effects.build()));
 		}
 	}
 
 	/**
-	 * {@code EffectData}.
+	 * Данные конкретного эффекта: диапазоны усилителя, длительности и флаги ambient/visible.
 	 */
 	public record EffectData(
 			NumberRange.IntRange amplifier,
@@ -87,16 +87,15 @@ public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffec
 
 		public static final Codec<EntityEffectPredicate.EffectData> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("amplifier", NumberRange.IntRange.ANY)
-								                    .forGetter(EntityEffectPredicate.EffectData::amplifier),
-						                    NumberRange.IntRange.CODEC
-								                    .optionalFieldOf("duration", NumberRange.IntRange.ANY)
-								                    .forGetter(EntityEffectPredicate.EffectData::duration),
-						                    Codec.BOOL.optionalFieldOf("ambient").forGetter(EntityEffectPredicate.EffectData::ambient),
-						                    Codec.BOOL.optionalFieldOf("visible").forGetter(EntityEffectPredicate.EffectData::visible)
-				                    )
-				                    .apply(instance, EntityEffectPredicate.EffectData::new)
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("amplifier", NumberRange.IntRange.ANY)
+								.forGetter(EntityEffectPredicate.EffectData::amplifier),
+						NumberRange.IntRange.CODEC
+								.optionalFieldOf("duration", NumberRange.IntRange.ANY)
+								.forGetter(EntityEffectPredicate.EffectData::duration),
+						Codec.BOOL.optionalFieldOf("ambient").forGetter(EntityEffectPredicate.EffectData::ambient),
+						Codec.BOOL.optionalFieldOf("visible").forGetter(EntityEffectPredicate.EffectData::visible)
+				).apply(instance, EntityEffectPredicate.EffectData::new)
 		);
 
 		public EffectData() {
@@ -107,17 +106,20 @@ public record EntityEffectPredicate(Map<RegistryEntry<StatusEffect>, EntityEffec
 			if (statusEffectInstance == null) {
 				return false;
 			}
-			else if (!this.amplifier.test(statusEffectInstance.getAmplifier())) {
+
+			if (!amplifier.test(statusEffectInstance.getAmplifier())) {
 				return false;
 			}
-			else if (!this.duration.test(statusEffectInstance.getDuration())) {
+
+			if (!duration.test(statusEffectInstance.getDuration())) {
 				return false;
 			}
-			else {
-				return this.ambient.isPresent() && this.ambient.get() != statusEffectInstance.isAmbient()
-				       ? false
-				       : !this.visible.isPresent() || this.visible.get() == statusEffectInstance.shouldShowParticles();
+
+			if (ambient.isPresent() && ambient.get() != statusEffectInstance.isAmbient()) {
+				return false;
 			}
+
+			return visible.isEmpty() || visible.get() == statusEffectInstance.shouldShowParticles();
 		}
 	}
 }

@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * {@code RenameScoreboardDisplaySlotFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameScoreboardDisplaySlotFix extends DataFix {
 
@@ -64,9 +64,9 @@ public class RenameScoreboardDisplaySlotFix extends DataFix {
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.SAVED_DATA_SCOREBOARD);
+		Type<?> type = getInputSchema().getType(TypeReferences.SAVED_DATA_SCOREBOARD);
 		OpticFinder<?> opticFinder = type.findField("data");
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				"Scoreboard DisplaySlot rename",
 				type,
 				scoreboardTyped -> scoreboardTyped.updateTyped(

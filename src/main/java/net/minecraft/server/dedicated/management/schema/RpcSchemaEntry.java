@@ -4,7 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 /**
- * {@code RpcSchemaEntry}.
+ * Класс Rpc Schema Entry.
  */
 public record RpcSchemaEntry<T>(String name, URI reference, RpcSchema<T> schema) {
 

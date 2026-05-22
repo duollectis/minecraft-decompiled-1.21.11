@@ -8,7 +8,8 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 /**
- * {@code CryingObsidianBlock}.
+ * Плачущий обсидиан — декоративный блок, испускающий частицы слёз по случайным граням.
+ * Используется как компонент возрождающего якоря.
  */
 public class CryingObsidianBlock extends Block {
 
@@ -25,26 +26,35 @@ public class CryingObsidianBlock extends Block {
 
 	@Override
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-		if (random.nextInt(5) == 0) {
-			Direction direction = Direction.random(random);
-			if (direction != Direction.UP) {
-				BlockPos blockPos = pos.offset(direction);
-				BlockState blockState = world.getBlockState(blockPos);
-				if (!state.isOpaque() || !blockState.isSideSolidFullSquare(world, blockPos, direction.getOpposite())) {
-					double d = direction.getOffsetX() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetX() * 0.6;
-					double e = direction.getOffsetY() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetY() * 0.6;
-					double f = direction.getOffsetZ() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetZ() * 0.6;
-					world.addParticleClient(
-							ParticleTypes.DRIPPING_OBSIDIAN_TEAR,
-							pos.getX() + d,
-							pos.getY() + e,
-							pos.getZ() + f,
-							0.0,
-							0.0,
-							0.0
-					);
-				}
-			}
+		if (random.nextInt(5) != 0) {
+			return;
 		}
+
+		Direction direction = Direction.random(random);
+
+		if (direction == Direction.UP) {
+			return;
+		}
+
+		BlockPos neighborPos = pos.offset(direction);
+		BlockState neighborState = world.getBlockState(neighborPos);
+
+		if (state.isOpaque() && neighborState.isSideSolidFullSquare(world, neighborPos, direction.getOpposite())) {
+			return;
+		}
+
+		double x = direction.getOffsetX() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetX() * 0.6;
+		double y = direction.getOffsetY() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetY() * 0.6;
+		double z = direction.getOffsetZ() == 0 ? random.nextDouble() : 0.5 + direction.getOffsetZ() * 0.6;
+
+		world.addParticleClient(
+			ParticleTypes.DRIPPING_OBSIDIAN_TEAR,
+			pos.getX() + x,
+			pos.getY() + y,
+			pos.getZ() + z,
+			0.0,
+			0.0,
+			0.0
+		);
 	}
 }

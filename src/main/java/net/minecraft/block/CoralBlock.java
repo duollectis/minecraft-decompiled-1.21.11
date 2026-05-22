@@ -14,7 +14,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code CoralBlock}.
+ * Живой коралловый блок-растение. Выживает только в воде — при отсутствии
+ * соседнего водного блока планирует отложенный тик и превращается в мёртвый коралл.
  */
 public class CoralBlock extends AbstractCoralBlock {
 
@@ -38,13 +39,13 @@ public class CoralBlock extends AbstractCoralBlock {
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		this.checkLivingConditions(state, world, world, world.random, pos);
+		checkLivingConditions(state, world, world, world.random, pos);
 	}
 
 	@Override
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 		if (!isInWater(state, world, pos)) {
-			world.setBlockState(pos, this.deadCoralBlock.getDefaultState().with(WATERLOGGED, false), 2);
+			world.setBlockState(pos, deadCoralBlock.getDefaultState().with(WATERLOGGED, false), Block.NOTIFY_LISTENERS);
 		}
 	}
 
@@ -62,23 +63,23 @@ public class CoralBlock extends AbstractCoralBlock {
 		if (direction == Direction.DOWN && !state.canPlaceAt(world, pos)) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			this.checkLivingConditions(state, world, tickView, random, pos);
-			if (state.get(WATERLOGGED)) {
-				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-			}
 
-			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
-			);
+		checkLivingConditions(state, world, tickView, random, pos);
+
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
+
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
 	}
 
 	@Override

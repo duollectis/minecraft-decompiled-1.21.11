@@ -150,7 +150,7 @@ public class RealmsUploader {
 	}
 
 	private UploadInfo uploadSync() throws RealmsServiceException, InterruptedException {
-		for (int i = 0; i < 20; i++) {
+		for (int i = 0; i < MAX_ATTEMPTS; i++) {
 			try {
 				UploadInfo uploadInfo = this.client.upload(this.worldId);
 				if (this.cancelled) {

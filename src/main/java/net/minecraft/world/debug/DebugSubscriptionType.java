@@ -12,11 +12,19 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code DebugSubscriptionType}.
+ * Тип отладочной подписки — дескриптор канала передачи отладочных данных от сервера к клиенту.
+ * <p>
+ * Каждый экземпляр описывает один вид отладочной информации: кодек для сериализации,
+ * а также время жизни данных (expiry). Нулевое значение expiry означает, что данные
+ * хранятся бессрочно до явного обновления.
+ *
+ * @param <T> тип передаваемых отладочных данных
  */
 public class DebugSubscriptionType<T> {
 
+	/** Значение expiry по умолчанию — данные хранятся бессрочно. */
 	public static final int DEFAULT_EXPIRY = 0;
+
 	final @Nullable PacketCodec<? super RegistryByteBuf, T> packetCodec;
 	private final int expiry;
 
@@ -26,19 +34,44 @@ public class DebugSubscriptionType<T> {
 	}
 
 	public DebugSubscriptionType(@Nullable PacketCodec<? super RegistryByteBuf, T> packetCodec) {
-		this(packetCodec, 0);
+		this(packetCodec, DEFAULT_EXPIRY);
 	}
 
-	public DebugSubscriptionType.OptionalValue<T> optionalValueFor(@Nullable T value) {
-		return new DebugSubscriptionType.OptionalValue<>(this, Optional.ofNullable(value));
+	/**
+	 * Создаёт обёртку {@link OptionalValue} с возможно отсутствующим значением.
+	 *
+	 * @param value значение или {@code null}
+	 * @return обёртка с {@link Optional#ofNullable(Object)}
+	 */
+	public OptionalValue<T> optionalValueFor(@Nullable T value) {
+		return new OptionalValue<>(this, Optional.ofNullable(value));
 	}
 
-	public DebugSubscriptionType.OptionalValue<T> optionalValueFor() {
-		return new DebugSubscriptionType.OptionalValue<>(this, Optional.empty());
+	/**
+	 * Создаёт обёртку {@link OptionalValue} с отсутствующим значением.
+	 *
+	 * @return обёртка с {@link Optional#empty()}
+	 */
+	public OptionalValue<T> optionalValueFor() {
+		return new OptionalValue<>(this, Optional.empty());
 	}
 
-	public DebugSubscriptionType.Value<T> valueFor(T value) {
-		return new DebugSubscriptionType.Value<>(this, value);
+	/**
+	 * Создаёт обёртку {@link Value} с гарантированно присутствующим значением.
+	 *
+	 * @param value ненулевое значение
+	 * @return обёртка с конкретным значением
+	 */
+	public Value<T> valueFor(T value) {
+		return new Value<>(this, value);
+	}
+
+	public @Nullable PacketCodec<? super RegistryByteBuf, T> getPacketCodec() {
+		return packetCodec;
+	}
+
+	public int getExpiry() {
+		return expiry;
 	}
 
 	@Override
@@ -46,64 +79,64 @@ public class DebugSubscriptionType<T> {
 		return Util.registryValueToString(Registries.DEBUG_SUBSCRIPTION, this);
 	}
 
-	public @Nullable PacketCodec<? super RegistryByteBuf, T> getPacketCodec() {
-		return this.packetCodec;
-	}
-
-	public int getExpiry() {
-		return this.expiry;
-	}
-
 	/**
-	 * {@code OptionalValue}.
+	 * Обёртка значения подписки, допускающая отсутствие данных.
+	 * <p>
+	 * Используется в пакетах, где сервер может явно сигнализировать об удалении
+	 * ранее отправленных данных, передавая {@link Optional#empty()}.
+	 *
+	 * @param <T> тип данных подписки
 	 */
 	public record OptionalValue<T>(DebugSubscriptionType<T> subscription, Optional<T> value) {
 
-		public static final PacketCodec<RegistryByteBuf, DebugSubscriptionType.OptionalValue<?>>
-				PACKET_CODEC =
-				PacketCodecs.registryValue(
-						            RegistryKeys.DEBUG_SUBSCRIPTION
-				            )
+		public static final PacketCodec<RegistryByteBuf, OptionalValue<?>> PACKET_CODEC =
+				PacketCodecs.registryValue(RegistryKeys.DEBUG_SUBSCRIPTION)
 				            .dispatch(
-						            DebugSubscriptionType.OptionalValue::subscription,
-						            DebugSubscriptionType.OptionalValue::createPacketCodec
+						            OptionalValue::subscription,
+						            OptionalValue::createPacketCodec
 				            );
 
-		private static <T> PacketCodec<? super RegistryByteBuf, DebugSubscriptionType.OptionalValue<T>> createPacketCodec(
+		/**
+		 * Строит кодек для конкретного типа подписки через {@link PacketCodecs#optional}.
+		 * Требует ненулевого кодека у типа — иначе бросает {@link NullPointerException}.
+		 */
+		private static <T> PacketCodec<? super RegistryByteBuf, OptionalValue<T>> createPacketCodec(
 				DebugSubscriptionType<T> type
 		) {
 			return PacketCodecs.optional(Objects.requireNonNull(type.packetCodec))
 			                   .xmap(
-					                   value -> new DebugSubscriptionType.OptionalValue<>(type, (Optional<T>) value),
-					                   DebugSubscriptionType.OptionalValue::value
+					                   value -> new OptionalValue<>(type, (Optional<T>) value),
+					                   OptionalValue::value
 			                   );
 		}
 	}
 
 	/**
-	 * {@code Value}.
+	 * Обёртка гарантированно присутствующего значения подписки.
+	 *
+	 * @param <T> тип данных подписки
 	 */
 	public record Value<T>(DebugSubscriptionType<T> subscription, T value) {
 
-		public static final PacketCodec<RegistryByteBuf, DebugSubscriptionType.Value<?>>
-				PACKET_CODEC =
-				PacketCodecs.registryValue(
-						            RegistryKeys.DEBUG_SUBSCRIPTION
-				            )
+		public static final PacketCodec<RegistryByteBuf, Value<?>> PACKET_CODEC =
+				PacketCodecs.registryValue(RegistryKeys.DEBUG_SUBSCRIPTION)
 				            .dispatch(
-						            DebugSubscriptionType.Value::subscription,
-						            DebugSubscriptionType.Value::createPacketCodec
+						            Value::subscription,
+						            Value::createPacketCodec
 				            );
 
-		private static <T> PacketCodec<? super RegistryByteBuf, DebugSubscriptionType.Value<T>> createPacketCodec(
+		/**
+		 * Строит кодек для конкретного типа подписки через прямой xmap.
+		 * Требует ненулевого кодека у типа — иначе бросает {@link NullPointerException}.
+		 */
+		private static <T> PacketCodec<? super RegistryByteBuf, Value<T>> createPacketCodec(
 				DebugSubscriptionType<T> type
 		) {
-			return Objects
-					.requireNonNull(type.packetCodec)
-					.xmap(
-							value -> new DebugSubscriptionType.Value<>(type, (T) value),
-							DebugSubscriptionType.Value::value
-					);
+			return Objects.requireNonNull(type.packetCodec)
+			              .xmap(
+					              value -> new Value<>(type, (T) value),
+					              Value::value
+			              );
 		}
 	}
 }

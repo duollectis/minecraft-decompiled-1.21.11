@@ -9,7 +9,9 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code NetherForestVegetationFeature}.
+ * Генерирует растительность нижнемирового леса (грибы, корни и т.д.)
+ * случайным образом в пределах заданного радиуса вокруг начальной точки.
+ * Требует, чтобы блок под начальной точкой был нилиумом.
  */
 public class NetherForestVegetationFeature extends Feature<NetherForestVegetationFeatureConfig> {
 
@@ -19,45 +21,43 @@ public class NetherForestVegetationFeature extends Feature<NetherForestVegetatio
 
 	@Override
 	public boolean generate(FeatureContext<NetherForestVegetationFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		BlockState blockState = structureWorldAccess.getBlockState(blockPos.down());
-		NetherForestVegetationFeatureConfig netherForestVegetationFeatureConfig = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		NetherForestVegetationFeatureConfig config = context.getConfig();
 		Random random = context.getRandom();
-		if (!blockState.isIn(BlockTags.NYLIUM)) {
+
+		BlockState baseState = world.getBlockState(origin.down());
+
+		if (!baseState.isIn(BlockTags.NYLIUM)) {
 			return false;
 		}
-		else {
-			int i = blockPos.getY();
-			if (i >= structureWorldAccess.getBottomY() + 1 && i + 1 <= structureWorldAccess.getTopYInclusive()) {
-				int j = 0;
 
-				for (int k = 0;
-				     k < netherForestVegetationFeatureConfig.spreadWidth
-						     * netherForestVegetationFeatureConfig.spreadWidth;
-				     k++) {
-					BlockPos blockPos2 = blockPos.add(
-							random.nextInt(netherForestVegetationFeatureConfig.spreadWidth) - random.nextInt(
-									netherForestVegetationFeatureConfig.spreadWidth),
-							random.nextInt(netherForestVegetationFeatureConfig.spreadHeight) - random.nextInt(
-									netherForestVegetationFeatureConfig.spreadHeight),
-							random.nextInt(netherForestVegetationFeatureConfig.spreadWidth) - random.nextInt(
-									netherForestVegetationFeatureConfig.spreadWidth)
-					);
-					BlockState blockState2 = netherForestVegetationFeatureConfig.stateProvider.get(random, blockPos2);
-					if (structureWorldAccess.isAir(blockPos2)
-							&& blockPos2.getY() > structureWorldAccess.getBottomY()
-							&& blockState2.canPlaceAt(structureWorldAccess, blockPos2)) {
-						structureWorldAccess.setBlockState(blockPos2, blockState2, 2);
-						j++;
-					}
-				}
+		int originY = origin.getY();
 
-				return j > 0;
-			}
-			else {
-				return false;
+		if (originY < world.getBottomY() + 1 || originY + 1 > world.getTopYInclusive()) {
+			return false;
+		}
+
+		int placed = 0;
+		int attempts = config.spreadWidth * config.spreadWidth;
+
+		for (int attempt = 0; attempt < attempts; attempt++) {
+			BlockPos candidate = origin.add(
+				random.nextInt(config.spreadWidth) - random.nextInt(config.spreadWidth),
+				random.nextInt(config.spreadHeight) - random.nextInt(config.spreadHeight),
+				random.nextInt(config.spreadWidth) - random.nextInt(config.spreadWidth)
+			);
+			BlockState candidateState = config.stateProvider.get(random, candidate);
+
+			if (world.isAir(candidate)
+				&& candidate.getY() > world.getBottomY()
+				&& candidateState.canPlaceAt(world, candidate)
+			) {
+				world.setBlockState(candidate, candidateState, 2);
+				placed++;
 			}
 		}
+
+		return placed > 0;
 	}
 }

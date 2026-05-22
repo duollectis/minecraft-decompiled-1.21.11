@@ -5,7 +5,10 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 
 /**
- * {@code SimpleNamedScreenHandlerFactory}.
+ * Простая неизменяемая реализация {@link NamedScreenHandlerFactory}.
+ * <p>
+ * Оборачивает произвольную {@link ScreenHandlerFactory} и фиксированный заголовок,
+ * позволяя открывать именованные экраны без создания отдельного класса.
  */
 public final class SimpleNamedScreenHandlerFactory implements NamedScreenHandlerFactory {
 
@@ -19,11 +22,11 @@ public final class SimpleNamedScreenHandlerFactory implements NamedScreenHandler
 
 	@Override
 	public Text getDisplayName() {
-		return this.name;
+		return name;
 	}
 
 	@Override
-	public ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-		return this.baseFactory.createMenu(i, playerInventory, playerEntity);
+	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+		return baseFactory.createMenu(syncId, playerInventory, player);
 	}
 }

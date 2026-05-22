@@ -23,7 +23,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 
 /**
- * {@code EffectCommand}.
+ * Команда {@code /effect}: добавление и удаление эффектов зелий у сущностей.
  */
 public class EffectCommand {
 

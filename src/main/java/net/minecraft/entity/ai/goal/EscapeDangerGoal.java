@@ -16,11 +16,13 @@ import java.util.EnumSet;
 import java.util.function.Function;
 
 /**
- * {@code EscapeDangerGoal}.
+ * Цель побега от опасности: при получении урона из опасного источника ищет
+ * безопасную позицию или ближайшую воду (если моб горит).
  */
 public class EscapeDangerGoal extends Goal {
 
 	public static final int RANGE_Y = 1;
+
 	protected final PathAwareEntity mob;
 	protected final double speed;
 	protected double targetX;
@@ -45,88 +47,70 @@ public class EscapeDangerGoal extends Goal {
 		this.mob = mob;
 		this.speed = speed;
 		this.entityToDangerousDamageTypes = entityToDangerousDamageTypes;
-		this.setControls(EnumSet.of(Goal.Control.MOVE));
+		setControls(EnumSet.of(Goal.Control.MOVE));
 	}
 
 	@Override
 	public boolean canStart() {
-		if (!this.isInDanger()) {
+		if (!isInDanger()) {
 			return false;
 		}
-		else {
-			if (this.mob.isOnFire()) {
-				BlockPos blockPos = this.locateClosestWater(this.mob.getEntityWorld(), this.mob, 5);
-				if (blockPos != null) {
-					this.targetX = blockPos.getX();
-					this.targetY = blockPos.getY();
-					this.targetZ = blockPos.getZ();
-					return true;
-				}
-			}
 
-			return this.findTarget();
+		if (mob.isOnFire()) {
+			BlockPos waterPos = locateClosestWater(mob.getEntityWorld(), mob, 5);
+			if (waterPos != null) {
+				targetX = waterPos.getX();
+				targetY = waterPos.getY();
+				targetZ = waterPos.getZ();
+				return true;
+			}
 		}
+
+		return findTarget();
 	}
 
 	protected boolean isInDanger() {
-		return this.mob.getRecentDamageSource() != null && this.mob
-				.getRecentDamageSource()
-				.isIn(this.entityToDangerousDamageTypes.apply(this.mob));
+		return mob.getRecentDamageSource() != null
+				&& mob.getRecentDamageSource().isIn(entityToDangerousDamageTypes.apply(mob));
 	}
 
-	/**
-	 * Ищет target.
-	 *
-	 * @return boolean — target
-	 */
 	protected boolean findTarget() {
-		Vec3d vec3d = NoPenaltyTargeting.find(this.mob, 5, 4);
-		if (vec3d == null) {
+		Vec3d pos = NoPenaltyTargeting.find(mob, 5, 4);
+		if (pos == null) {
 			return false;
 		}
-		else {
-			this.targetX = vec3d.x;
-			this.targetY = vec3d.y;
-			this.targetZ = vec3d.z;
-			return true;
-		}
+
+		targetX = pos.x;
+		targetY = pos.y;
+		targetZ = pos.z;
+		return true;
 	}
 
 	public boolean isActive() {
-		return this.active;
+		return active;
 	}
 
 	@Override
 	public void start() {
-		this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
-		this.active = true;
+		mob.getNavigation().startMovingTo(targetX, targetY, targetZ, speed);
+		active = true;
 	}
 
 	@Override
 	public void stop() {
-		this.active = false;
+		active = false;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		return !this.mob.getNavigation().isIdle();
+		return !mob.getNavigation().isIdle();
 	}
 
-	/**
-	 * Locate closest water.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 * @param rangeX range x
-	 *
-	 * @return @Nullable BlockPos — результат операции
-	 */
 	protected @Nullable BlockPos locateClosestWater(BlockView world, Entity entity, int rangeX) {
 		BlockPos blockPos = entity.getBlockPos();
-		return !world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()
-		       ? null
-		       : BlockPos
-		         .findClosest(entity.getBlockPos(), rangeX, 1, pos -> world.getFluidState(pos).isIn(FluidTags.WATER))
-		         .orElse(null);
+		return world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()
+				? BlockPos.findClosest(entity.getBlockPos(), rangeX, 1, pos -> world.getFluidState(pos).isIn(FluidTags.WATER))
+						.orElse(null)
+				: null;
 	}
 }

@@ -1,7 +1,7 @@
 package net.minecraft.server.dedicated.management;
 
 /**
- * {@code RpcMethodNotFoundException}.
+ * Класс Rpc Method Not Found Exception.
  */
 public class RpcMethodNotFoundException extends RuntimeException {
 

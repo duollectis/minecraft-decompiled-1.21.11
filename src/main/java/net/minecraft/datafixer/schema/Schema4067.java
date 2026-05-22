@@ -9,12 +9,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema4067}.
+ * Схема DataFixer версии 4067, разделяющая единый тип сущности {@code minecraft:boat}
+ * на отдельные типы для каждого вида дерева (oak, spruce, birch и т.д.), а также
+ * регистрирующая сундучные лодки с поддержкой инвентаря {@code Items}.
  */
 public class Schema4067 extends IdentifierNormalizingSchema {
 
-	public Schema4067(int i, Schema schema) {
-		super(i, schema);
+	public Schema4067(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

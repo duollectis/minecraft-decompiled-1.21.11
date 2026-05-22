@@ -20,13 +20,21 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CopperGolemStatueModelRenderer}.
+ * Специализированный рендерер статуи медного голема как предмета.
+ * Поддерживает 4 позы голема (стоя, сидя, звезда, бег) и 4 степени окисления меди.
+ * Трансформация матриц переворачивает модель для корректного отображения в инвентаре:
+ * смещение в (0.5, 1.5, 0.5) и инверсия осей Y и X.
  */
+@Environment(EnvType.CLIENT)
 public class CopperGolemStatueModelRenderer implements SimpleSpecialModelRenderer {
 
 	private static final Direction DEFAULT_FACING = Direction.SOUTH;
+	private static final float TRANSLATE_X = 0.5F;
+	private static final float TRANSLATE_Y = 1.5F;
+	private static final float TRANSLATE_Z = 0.5F;
+	private static final float SCALE_FLIP = -1.0F;
+
 	private final CopperGolemStatueModel model;
 	private final Identifier texture;
 
@@ -43,40 +51,46 @@ public class CopperGolemStatueModelRenderer implements SimpleSpecialModelRendere
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
-		setAngles(matrices);
+		applyItemTransform(matrices);
+
 		queue.submitModel(
-				this.model,
+				model,
 				Direction.SOUTH,
 				matrices,
-				RenderLayers.entityCutoutNoCull(this.texture),
+				RenderLayers.entityCutoutNoCull(texture),
 				light,
 				overlay,
 				-1,
 				null,
-				i,
+				seed,
 				null
 		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		setAngles(matrixStack);
-		this.model.setAngles(DEFAULT_FACING);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		applyItemTransform(matrices);
+		model.setAngles(DEFAULT_FACING);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	private static void setAngles(MatrixStack matrices) {
-		matrices.translate(0.5F, 1.5F, 0.5F);
-		matrices.scale(-1.0F, -1.0F, 1.0F);
-	}
-
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Применяет стандартную трансформацию для отображения статуи в инвентаре.
+	 * Переворачивает модель по осям Y и X, чтобы она смотрела «на игрока».
 	 */
+	private static void applyItemTransform(MatrixStack matrices) {
+		matrices.translate(TRANSLATE_X, TRANSLATE_Y, TRANSLATE_Z);
+		matrices.scale(SCALE_FLIP, SCALE_FLIP, 1.0F);
+	}
+
+	/**
+	 * Несериализованная форма рендерера статуи медного голема.
+	 * Хранит текстуру (определяется степенью окисления) и позу голема.
+	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(
 			Identifier texture,
 			CopperGolemStatueBlock.Pose pose
@@ -84,12 +98,11 @@ public class CopperGolemStatueModelRenderer implements SimpleSpecialModelRendere
 
 		public static final MapCodec<CopperGolemStatueModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("texture").forGetter(CopperGolemStatueModelRenderer.Unbaked::texture),
-						                    CopperGolemStatueBlock.Pose.CODEC
-								                    .fieldOf("pose")
-								                    .forGetter(CopperGolemStatueModelRenderer.Unbaked::pose)
-				                    )
-				                    .apply(instance, CopperGolemStatueModelRenderer.Unbaked::new)
+						Identifier.CODEC.fieldOf("texture")
+								.forGetter(CopperGolemStatueModelRenderer.Unbaked::texture),
+						CopperGolemStatueBlock.Pose.CODEC.fieldOf("pose")
+								.forGetter(CopperGolemStatueModelRenderer.Unbaked::pose)
+				).apply(instance, CopperGolemStatueModelRenderer.Unbaked::new)
 		);
 
 		public Unbaked(Oxidizable.OxidationLevel oxidationLevel, CopperGolemStatueBlock.Pose pose) {
@@ -103,10 +116,10 @@ public class CopperGolemStatueModelRenderer implements SimpleSpecialModelRendere
 
 		@Override
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			CopperGolemStatueModel
-					copperGolemStatueModel =
-					new CopperGolemStatueModel(context.entityModelSet().getModelPart(getLayer(this.pose)));
-			return new CopperGolemStatueModelRenderer(copperGolemStatueModel, this.texture);
+			CopperGolemStatueModel bakedModel = new CopperGolemStatueModel(
+					context.entityModelSet().getModelPart(getLayer(pose))
+			);
+			return new CopperGolemStatueModelRenderer(bakedModel, texture);
 		}
 
 		private static EntityModelLayer getLayer(CopperGolemStatueBlock.Pose pose) {

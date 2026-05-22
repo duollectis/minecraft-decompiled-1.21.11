@@ -15,7 +15,8 @@ import net.minecraft.world.event.GameEvent;
 import java.util.List;
 
 /**
- * {@code EndCrystalItem}.
+ * Предмет «Кристалл Края». Размещается на обсидиане или бедроке в Крае,
+ * после чего может возродить Дракона Края при наличии полного кольца кристаллов.
  */
 public class EndCrystalItem extends Item {
 
@@ -23,43 +24,54 @@ public class EndCrystalItem extends Item {
 		super(settings);
 	}
 
+	/**
+	 * Размещает кристалл Края на блоке обсидиана или бедрока.
+	 * Проверяет, что над блоком есть два свободных блока воздуха и нет других сущностей.
+	 * При завершении кольца кристаллов инициирует возрождение Дракона Края.
+	 */
 	@Override
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		World world = context.getWorld();
-		BlockPos blockPos = context.getBlockPos();
-		BlockState blockState = world.getBlockState(blockPos);
+		BlockPos pos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(pos);
+
 		if (!blockState.isOf(Blocks.OBSIDIAN) && !blockState.isOf(Blocks.BEDROCK)) {
 			return ActionResult.FAIL;
 		}
-		else {
-			BlockPos blockPos2 = blockPos.up();
-			if (!world.isAir(blockPos2)) {
-				return ActionResult.FAIL;
-			}
-			else {
-				double d = blockPos2.getX();
-				double e = blockPos2.getY();
-				double f = blockPos2.getZ();
-				List<Entity> list = world.getOtherEntities(null, new Box(d, e, f, d + 1.0, e + 2.0, f + 1.0));
-				if (!list.isEmpty()) {
-					return ActionResult.FAIL;
-				}
-				else {
-					if (world instanceof ServerWorld) {
-						EndCrystalEntity endCrystalEntity = new EndCrystalEntity(world, d + 0.5, e, f + 0.5);
-						endCrystalEntity.setShowBottom(false);
-						world.spawnEntity(endCrystalEntity);
-						world.emitGameEvent(context.getPlayer(), GameEvent.ENTITY_PLACE, blockPos2);
-						EnderDragonFight enderDragonFight = ((ServerWorld) world).getEnderDragonFight();
-						if (enderDragonFight != null) {
-							enderDragonFight.respawnDragon();
-						}
-					}
 
-					context.getStack().decrement(1);
-					return ActionResult.SUCCESS;
-				}
+		BlockPos spawnPos = pos.up();
+
+		if (!world.isAir(spawnPos)) {
+			return ActionResult.FAIL;
+		}
+
+		double spawnX = spawnPos.getX();
+		double spawnY = spawnPos.getY();
+		double spawnZ = spawnPos.getZ();
+		List<Entity> blockingEntities = world.getOtherEntities(
+				null,
+				new Box(spawnX, spawnY, spawnZ, spawnX + 1.0, spawnY + 2.0, spawnZ + 1.0)
+		);
+
+		if (!blockingEntities.isEmpty()) {
+			return ActionResult.FAIL;
+		}
+
+		if (world instanceof ServerWorld serverWorld) {
+			EndCrystalEntity crystal = new EndCrystalEntity(world, spawnX + 0.5, spawnY, spawnZ + 0.5);
+			crystal.setShowBottom(false);
+			world.spawnEntity(crystal);
+			world.emitGameEvent(context.getPlayer(), GameEvent.ENTITY_PLACE, spawnPos);
+
+			EnderDragonFight dragonFight = serverWorld.getEnderDragonFight();
+
+			if (dragonFight != null) {
+				dragonFight.respawnDragon();
 			}
 		}
+
+		context.getStack().decrement(1);
+
+		return ActionResult.SUCCESS;
 	}
 }

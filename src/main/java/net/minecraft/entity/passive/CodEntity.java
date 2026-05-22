@@ -9,7 +9,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 
 /**
- * {@code CodEntity}.
+ * Треска — стайная рыба, обитающая в холодных и умеренных океанах.
  */
 public class CodEntity extends SchoolingFishEntity {
 

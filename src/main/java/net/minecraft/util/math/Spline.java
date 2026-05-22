@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * {@code Spline}.
+ * Кубический сплайн для интерполяции float-значений по произвольной функции координаты.
+ * Поддерживает сериализацию через Codec и обход узлов через {@link Visitor}.
  */
 public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction<C> {
 
@@ -28,75 +29,68 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 
 	Spline<C, I> apply(Spline.Visitor<I> visitor);
 
+	/**
+	 * Создаёт рекурсивный Codec для сплайна, поддерживающий как константные значения,
+	 * так и полноценные многоточечные реализации с производными.
+	 *
+	 * @param locationFunctionCodec кодек для функции координаты
+	 * @return кодек для {@code Spline<C, I>}
+	 */
 	static <C, I extends ToFloatFunction<C>> Codec<Spline<C, I>> createCodec(Codec<I> locationFunctionCodec) {
-		MutableObject<Codec<Spline<C, I>>> mutableObject = new MutableObject();
+		MutableObject<Codec<Spline<C, I>>> mutableObject = new MutableObject<>();
 
-		/**
-		 * {@code Serialized}.
-		 */
 		record Serialized<C, I extends ToFloatFunction<C>>(float location, Spline<C, I> value, float derivative) {
 		}
 
-		Codec<Serialized<C, I>> codec = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    Codec.FLOAT.fieldOf("location").forGetter(Serialized::location),
-						                    Codec.lazyInitialized(mutableObject).fieldOf("value").forGetter(Serialized::value),
-						                    Codec.FLOAT.fieldOf("derivative").forGetter(Serialized::derivative)
-				                    )
-				                    .apply(
-						                    instance,
-						                    (location, value, derivative) -> new Serialized(location, value, derivative)
-				                    )
+		Codec<Serialized<C, I>> pointCodec = RecordCodecBuilder.create(
+			instance -> instance.group(
+				Codec.FLOAT.fieldOf("location").forGetter(Serialized::location),
+				Codec.lazyInitialized(mutableObject).fieldOf("value").forGetter(Serialized::value),
+				Codec.FLOAT.fieldOf("derivative").forGetter(Serialized::derivative)
+			).apply(instance, (location, value, derivative) -> new Serialized<>(location, value, derivative))
 		);
-		Codec<Spline.Implementation<C, I>> codec2 = RecordCodecBuilder.create(
-				instance -> instance.group(
-						                    locationFunctionCodec.fieldOf("coordinate").forGetter(Spline.Implementation::locationFunction),
-						                    Codecs.nonEmptyList(codec.listOf())
-						                          .fieldOf("points")
-						                          .forGetter(
-								                          (Spline.Implementation<C, I> spline) -> IntStream
-										                          .range(0, spline.locations.length)
-										                          .mapToObj(index -> new Serialized<C, I>(
-												                          spline.locations()[index],
-												                          (Spline<C, I>) spline.values().get(index),
-												                          spline.derivatives()[index]
-										                          ))
-										                          .toList()
-						                          )
-				                    )
-				                    .apply(
-						                    instance, (locationFunction, splines) -> {
-							                    float[] fs = new float[splines.size()];
-							                    com.google.common.collect.ImmutableList.Builder<Spline<C, I>>
-									                    builder =
-									                    ImmutableList.builder();
-							                    float[] gs = new float[splines.size()];
 
-							                    for (int i = 0; i < splines.size(); i++) {
-								                    Serialized<C, I> serialized = (Serialized<C, I>) splines.get(i);
-								                    fs[i] = serialized.location();
-								                    builder.add(serialized.value());
-								                    gs[i] = serialized.derivative();
-							                    }
+		Codec<Spline.Implementation<C, I>> implCodec = RecordCodecBuilder.create(
+			instance -> instance.group(
+				locationFunctionCodec.fieldOf("coordinate").forGetter(Spline.Implementation::locationFunction),
+				Codecs.nonEmptyList(pointCodec.listOf())
+					.fieldOf("points")
+					.forGetter(
+						(Spline.Implementation<C, I> spline) -> IntStream
+							.range(0, spline.locations().length)
+							.mapToObj(index -> new Serialized<C, I>(
+								spline.locations()[index],
+								(Spline<C, I>) spline.values().get(index),
+								spline.derivatives()[index]
+							))
+							.toList()
+					)
+			).apply(instance, (locationFunction, splines) -> {
+				float[] locations = new float[splines.size()];
+				ImmutableList.Builder<Spline<C, I>> builder = ImmutableList.builder();
+				float[] derivatives = new float[splines.size()];
 
-							                    return Spline.Implementation.build(
-									                    (I) locationFunction,
-									                    fs,
-									                    builder.build(),
-									                    gs
-							                    );
-						                    }
-				                    )
+				for (int i = 0; i < splines.size(); i++) {
+					Serialized<C, I> serialized = (Serialized<C, I>) splines.get(i);
+					locations[i] = serialized.location();
+					builder.add(serialized.value());
+					derivatives[i] = serialized.derivative();
+				}
+
+				return Spline.Implementation.build((I) locationFunction, locations, builder.build(), derivatives);
+			})
 		);
+
 		mutableObject.setValue(
-				Codec.either(Codec.FLOAT, codec2)
-				     .xmap(
-						     either -> (Spline) either.map(Spline.FixedFloatFunction::new, spline -> spline),
-						     spline -> spline instanceof Spline.FixedFloatFunction<C, I> fixedFloatFunction
-						               ? Either.left(fixedFloatFunction.value())
-						               : Either.right((Spline.Implementation) spline)
-				     )
+			Codec.either(Codec.FLOAT, implCodec)
+				.xmap(
+					either -> (Spline) either.map(Spline.FixedFloatFunction::new, spline -> spline),
+					spline -> spline instanceof Spline.FixedFloatFunction<C, I> fixedFloatFunction
+						? Either.left(fixedFloatFunction.value())
+						: Either.right((Spline.Implementation) spline)
+				)
 		);
+
 		return (Codec<Spline<C, I>>) mutableObject.get();
 	}
 
@@ -109,16 +103,16 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 	}
 
 	static <C, I extends ToFloatFunction<C>> Spline.Builder<C, I> builder(
-			I locationFunction,
-			ToFloatFunction<Float> amplifier
+		I locationFunction,
+		ToFloatFunction<Float> amplifier
 	) {
 		return new Spline.Builder<>(locationFunction, amplifier);
 	}
 
 	/**
-	 * {@code Builder}.
+	 * Строитель многоточечного сплайна. Точки должны добавляться в порядке возрастания координаты.
 	 */
-	public static final class Builder<C, I extends ToFloatFunction<C>> {
+	final class Builder<C, I extends ToFloatFunction<C>> {
 
 		private final I locationFunction;
 		private final ToFloatFunction<Float> amplifier;
@@ -136,73 +130,67 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 		}
 
 		public Spline.Builder<C, I> add(float location, float value) {
-			return this.addPoint(location, new Spline.FixedFloatFunction<>(this.amplifier.apply(value)), 0.0F);
+			return addPoint(location, new Spline.FixedFloatFunction<>(amplifier.apply(value)), 0.0F);
 		}
 
 		public Spline.Builder<C, I> add(float location, float value, float derivative) {
-			return this.addPoint(location, new Spline.FixedFloatFunction<>(this.amplifier.apply(value)), derivative);
+			return addPoint(location, new Spline.FixedFloatFunction<>(amplifier.apply(value)), derivative);
 		}
 
 		public Spline.Builder<C, I> add(float location, Spline<C, I> value) {
-			return this.addPoint(location, value, 0.0F);
+			return addPoint(location, value, 0.0F);
 		}
 
 		private Spline.Builder<C, I> addPoint(float location, Spline<C, I> value, float derivative) {
-			if (!this.locations.isEmpty() && location <= this.locations.getFloat(this.locations.size() - 1)) {
+			if (!locations.isEmpty() && location <= locations.getFloat(locations.size() - 1)) {
 				throw new IllegalArgumentException("Please register points in ascending order");
 			}
-			else {
-				this.locations.add(location);
-				this.values.add(value);
-				this.derivatives.add(derivative);
-				return this;
-			}
+
+			locations.add(location);
+			values.add(value);
+			derivatives.add(derivative);
+
+			return this;
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return Spline — результат операции
-		 */
 		public Spline<C, I> build() {
-			if (this.locations.isEmpty()) {
+			if (locations.isEmpty()) {
 				throw new IllegalStateException("No elements added");
 			}
-			else {
-				return Spline.Implementation.build(
-						this.locationFunction,
-						this.locations.toFloatArray(),
-						ImmutableList.copyOf(this.values),
-						this.derivatives.toFloatArray()
-				);
-			}
+
+			return Spline.Implementation.build(
+				locationFunction,
+				locations.toFloatArray(),
+				ImmutableList.copyOf(values),
+				derivatives.toFloatArray()
+			);
 		}
 	}
 
-	@Debug
 	/**
-	 * {@code FixedFloatFunction}.
+	 * Константная функция, всегда возвращающая одно и то же значение.
 	 */
-	public record FixedFloatFunction<C, I extends ToFloatFunction<C>>(float value) implements Spline<C, I> {
+	@Debug
+	record FixedFloatFunction<C, I extends ToFloatFunction<C>>(float value) implements Spline<C, I> {
 
 		@Override
 		public float apply(C x) {
-			return this.value;
+			return value;
 		}
 
 		@Override
 		public String getDebugString() {
-			return String.format(Locale.ROOT, "k=%.3f", this.value);
+			return String.format(Locale.ROOT, "k=%.3f", value);
 		}
 
 		@Override
 		public float min() {
-			return this.value;
+			return value;
 		}
 
 		@Override
 		public float max() {
-			return this.value;
+			return value;
 		}
 
 		@Override
@@ -211,21 +199,27 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 		}
 	}
 
-	@Debug
 	/**
-	 * {@code Implementation}.
+	 * Многоточечная реализация кубического сплайна Эрмита.
+	 * Хранит предвычисленные границы min/max для быстрой проверки диапазона.
 	 */
-	public record Implementation<C, I extends ToFloatFunction<C>>(
-			I locationFunction, float[] locations, List<Spline<C, I>> values, float[] derivatives, float min, float max
+	@Debug
+	record Implementation<C, I extends ToFloatFunction<C>>(
+		I locationFunction,
+		float[] locations,
+		List<Spline<C, I>> values,
+		float[] derivatives,
+		float min,
+		float max
 	) implements Spline<C, I> {
 
 		public Implementation(
-				I locationFunction,
-				float[] locations,
-				List<Spline<C, I>> values,
-				float[] derivatives,
-				float min,
-				float max
+			I locationFunction,
+			float[] locations,
+			List<Spline<C, I>> values,
+			float[] derivatives,
+			float min,
+			float max
 		) {
 			assertParametersValid(locations, values, derivatives);
 			this.locationFunction = locationFunction;
@@ -236,116 +230,126 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 			this.max = max;
 		}
 
+		/**
+		 * Строит реализацию сплайна с предвычислением глобальных min/max,
+		 * учитывая поведение за пределами диапазона (линейная экстраполяция по производной).
+		 */
 		static <C, I extends ToFloatFunction<C>> Spline.Implementation<C, I> build(
-				I locationFunction, float[] locations, List<Spline<C, I>> values, float[] derivatives
+			I locationFunction,
+			float[] locations,
+			List<Spline<C, I>> values,
+			float[] derivatives
 		) {
 			assertParametersValid(locations, values, derivatives);
-			int i = locations.length - 1;
-			float f = Float.POSITIVE_INFINITY;
-			float g = Float.NEGATIVE_INFINITY;
-			float h = locationFunction.min();
-			float j = locationFunction.max();
-			if (h < locations[0]) {
-				float k = sampleOutsideRange(h, locations, values.get(0).min(), derivatives, 0);
-				float l = sampleOutsideRange(h, locations, values.get(0).max(), derivatives, 0);
-				f = Math.min(f, Math.min(k, l));
-				g = Math.max(g, Math.max(k, l));
+			int lastIndex = locations.length - 1;
+			float globalMin = Float.POSITIVE_INFINITY;
+			float globalMax = Float.NEGATIVE_INFINITY;
+			float funcMin = locationFunction.min();
+			float funcMax = locationFunction.max();
+
+			if (funcMin < locations[0]) {
+				float sampleMin = sampleOutsideRange(funcMin, locations, values.get(0).min(), derivatives, 0);
+				float sampleMax = sampleOutsideRange(funcMin, locations, values.get(0).max(), derivatives, 0);
+				globalMin = Math.min(globalMin, Math.min(sampleMin, sampleMax));
+				globalMax = Math.max(globalMax, Math.max(sampleMin, sampleMax));
 			}
 
-			if (j > locations[i]) {
-				float k = sampleOutsideRange(j, locations, values.get(i).min(), derivatives, i);
-				float l = sampleOutsideRange(j, locations, values.get(i).max(), derivatives, i);
-				f = Math.min(f, Math.min(k, l));
-				g = Math.max(g, Math.max(k, l));
+			if (funcMax > locations[lastIndex]) {
+				float sampleMin = sampleOutsideRange(funcMax, locations, values.get(lastIndex).min(), derivatives, lastIndex);
+				float sampleMax = sampleOutsideRange(funcMax, locations, values.get(lastIndex).max(), derivatives, lastIndex);
+				globalMin = Math.min(globalMin, Math.min(sampleMin, sampleMax));
+				globalMax = Math.max(globalMax, Math.max(sampleMin, sampleMax));
 			}
 
 			for (Spline<C, I> spline : values) {
-				f = Math.min(f, spline.min());
-				g = Math.max(g, spline.max());
+				globalMin = Math.min(globalMin, spline.min());
+				globalMax = Math.max(globalMax, spline.max());
 			}
 
-			for (int m = 0; m < i; m++) {
-				float l = locations[m];
-				float n = locations[m + 1];
-				float o = n - l;
-				Spline<C, I> spline2 = values.get(m);
-				Spline<C, I> spline3 = values.get(m + 1);
-				float p = spline2.min();
-				float q = spline2.max();
-				float r = spline3.min();
-				float s = spline3.max();
-				float t = derivatives[m];
-				float u = derivatives[m + 1];
-				if (t != 0.0F || u != 0.0F) {
-					float v = t * o;
-					float w = u * o;
-					float x = Math.min(p, r);
-					float y = Math.max(q, s);
-					float z = v - s + p;
-					float aa = v - r + q;
-					float ab = -w + r - q;
-					float ac = -w + s - p;
-					float ad = Math.min(z, ab);
-					float ae = Math.max(aa, ac);
-					f = Math.min(f, x + 0.25F * ad);
-					g = Math.max(g, y + 0.25F * ae);
+			for (int m = 0; m < lastIndex; m++) {
+				float locLeft = locations[m];
+				float locRight = locations[m + 1];
+				float span = locRight - locLeft;
+				Spline<C, I> splineLeft = values.get(m);
+				Spline<C, I> splineRight = values.get(m + 1);
+				float valLeftMin = splineLeft.min();
+				float valLeftMax = splineLeft.max();
+				float valRightMin = splineRight.min();
+				float valRightMax = splineRight.max();
+				float derivLeft = derivatives[m];
+				float derivRight = derivatives[m + 1];
+
+				if (derivLeft != 0.0F || derivRight != 0.0F) {
+					float scaledLeft = derivLeft * span;
+					float scaledRight = derivRight * span;
+					float rangeMin = Math.min(valLeftMin, valRightMin);
+					float rangeMax = Math.max(valLeftMax, valRightMax);
+					float z1 = scaledLeft - valRightMax + valLeftMin;
+					float z2 = scaledLeft - valRightMin + valLeftMax;
+					float z3 = -scaledRight + valRightMin - valLeftMax;
+					float z4 = -scaledRight + valRightMax - valLeftMin;
+					globalMin = Math.min(globalMin, rangeMin + 0.25F * Math.min(z1, z3));
+					globalMax = Math.max(globalMax, rangeMax + 0.25F * Math.max(z2, z4));
 				}
 			}
 
-			return new Spline.Implementation<>(locationFunction, locations, values, derivatives, f, g);
+			return new Spline.Implementation<>(locationFunction, locations, values, derivatives, globalMin, globalMax);
 		}
 
 		private static float sampleOutsideRange(
-				float point,
-				float[] locations,
-				float value,
-				float[] derivatives,
-				int i
+			float point,
+			float[] locations,
+			float value,
+			float[] derivatives,
+			int index
 		) {
-			float f = derivatives[i];
-			return f == 0.0F ? value : value + f * (point - locations[i]);
+			float deriv = derivatives[index];
+			return deriv == 0.0F ? value : value + deriv * (point - locations[index]);
 		}
 
 		private static <C, I extends ToFloatFunction<C>> void assertParametersValid(
-				float[] locations,
-				List<Spline<C, I>> values,
-				float[] derivatives
+			float[] locations,
+			List<Spline<C, I>> values,
+			float[] derivatives
 		) {
 			if (locations.length != values.size() || locations.length != derivatives.length) {
 				throw new IllegalArgumentException(
-						"All lengths must be equal, got: " + locations.length + " " + values.size() + " "
-								+ derivatives.length);
+					"All lengths must be equal, got: " + locations.length + " " + values.size() + " " + derivatives.length
+				);
 			}
-			else if (locations.length == 0) {
+
+			if (locations.length == 0) {
 				throw new IllegalArgumentException("Cannot create a multipoint spline with no points");
 			}
 		}
 
 		@Override
 		public float apply(C x) {
-			float f = this.locationFunction.apply(x);
-			int i = findRangeForLocation(this.locations, f);
-			int j = this.locations.length - 1;
-			if (i < 0) {
-				return sampleOutsideRange(f, this.locations, this.values.get(0).apply(x), this.derivatives, 0);
+			float coord = locationFunction.apply(x);
+			int index = findRangeForLocation(locations, coord);
+			int lastIndex = locations.length - 1;
+
+			if (index < 0) {
+				return sampleOutsideRange(coord, locations, values.get(0).apply(x), derivatives, 0);
 			}
-			else if (i == j) {
-				return sampleOutsideRange(f, this.locations, this.values.get(j).apply(x), this.derivatives, j);
+
+			if (index == lastIndex) {
+				return sampleOutsideRange(coord, locations, values.get(lastIndex).apply(x), derivatives, lastIndex);
 			}
-			else {
-				float g = this.locations[i];
-				float h = this.locations[i + 1];
-				float k = (f - g) / (h - g);
-				ToFloatFunction<C> toFloatFunction = (ToFloatFunction<C>) this.values.get(i);
-				ToFloatFunction<C> toFloatFunction2 = (ToFloatFunction<C>) this.values.get(i + 1);
-				float l = this.derivatives[i];
-				float m = this.derivatives[i + 1];
-				float n = toFloatFunction.apply(x);
-				float o = toFloatFunction2.apply(x);
-				float p = l * (h - g) - (o - n);
-				float q = -m * (h - g) + (o - n);
-				return MathHelper.lerp(k, n, o) + k * (1.0F - k) * MathHelper.lerp(k, p, q);
-			}
+
+			float locLeft = locations[index];
+			float locRight = locations[index + 1];
+			float t = (coord - locLeft) / (locRight - locLeft);
+			ToFloatFunction<C> funcLeft = (ToFloatFunction<C>) values.get(index);
+			ToFloatFunction<C> funcRight = (ToFloatFunction<C>) values.get(index + 1);
+			float derivLeft = derivatives[index];
+			float derivRight = derivatives[index + 1];
+			float valLeft = funcLeft.apply(x);
+			float valRight = funcRight.apply(x);
+			float p = derivLeft * (locRight - locLeft) - (valRight - valLeft);
+			float q = -derivRight * (locRight - locLeft) + (valRight - valLeft);
+
+			return MathHelper.lerp(t, valLeft, valRight) + t * (1.0F - t) * MathHelper.lerp(t, p, q);
 		}
 
 		private static int findRangeForLocation(float[] locations, float x) {
@@ -356,40 +360,37 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 		@Override
 		public String getDebugString() {
 			return "Spline{coordinate="
-					+ this.locationFunction
-					+ ", locations="
-					+ this.format(this.locations)
-					+ ", derivatives="
-					+ this.format(this.derivatives)
-					+ ", values="
-					+ this.values.stream().map(Spline::getDebugString).collect(Collectors.joining(", ", "[", "]"))
-					+ "}";
+				+ locationFunction
+				+ ", locations="
+				+ format(locations)
+				+ ", derivatives="
+				+ format(derivatives)
+				+ ", values="
+				+ values.stream().map(Spline::getDebugString).collect(Collectors.joining(", ", "[", "]"))
+				+ "}";
 		}
 
-		private String format(float[] values) {
+		private String format(float[] floats) {
 			return "["
-					+ IntStream.range(0, values.length)
-					           .mapToDouble(index -> values[index])
-					           .mapToObj(value -> String.format(Locale.ROOT, "%.3f", value))
-					           .collect(Collectors.joining(", "))
-					+ "]";
+				+ IntStream.range(0, floats.length)
+					.mapToDouble(index -> floats[index])
+					.mapToObj(value -> String.format(Locale.ROOT, "%.3f", value))
+					.collect(Collectors.joining(", "))
+				+ "]";
 		}
 
 		@Override
 		public Spline<C, I> apply(Spline.Visitor<I> visitor) {
 			return build(
-					visitor.visit(this.locationFunction),
-					this.locations,
-					this.values().stream().map(value -> value.apply(visitor)).toList(),
-					this.derivatives
+				visitor.visit(locationFunction),
+				locations,
+				values().stream().map(value -> value.apply(visitor)).toList(),
+				derivatives
 			);
 		}
 	}
 
-	/**
-	 * {@code Visitor}.
-	 */
-	public interface Visitor<I> {
+	interface Visitor<I> {
 
 		I visit(I value);
 	}

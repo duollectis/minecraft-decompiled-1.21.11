@@ -19,16 +19,18 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EquipmentAssetProvider}.
+ * Провайдер данных для генерации JSON-определений моделей снаряжения (брони, сёдел,
+ * элитр и прочего). Каждый ключ {@link EquipmentAsset} получает свой файл с описанием
+ * слоёв рендеринга для различных типов существ.
  */
+@Environment(EnvType.CLIENT)
 public class EquipmentAssetProvider implements DataProvider {
 
 	private final DataOutput.PathResolver pathResolver;
 
 	public EquipmentAssetProvider(DataOutput output) {
-		this.pathResolver = output.getResolver(DataOutput.OutputType.RESOURCE_PACK, "equipment");
+		pathResolver = output.getResolver(DataOutput.OutputType.RESOURCE_PACK, "equipment");
 	}
 
 	private static void bootstrap(BiConsumer<RegistryKey<EquipmentAsset>, EquipmentModel> equipmentBiConsumer) {
@@ -160,6 +162,12 @@ public class EquipmentAssetProvider implements DataProvider {
 		                     .build();
 	}
 
+	/**
+	 * Запускает генерацию всех определений снаряжения.
+	 *
+	 * @param writer писатель данных
+	 * @return будущее записи всех файлов
+	 */
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
 		Map<RegistryKey<EquipmentAsset>, EquipmentModel> map = new HashMap<>();
@@ -168,7 +176,7 @@ public class EquipmentAssetProvider implements DataProvider {
 				throw new IllegalStateException("Tried to register equipment asset twice for id: " + key);
 			}
 		});
-		return DataProvider.writeAllToPath(writer, EquipmentModel.CODEC, this.pathResolver::resolveJson, map);
+		return DataProvider.writeAllToPath(writer, EquipmentModel.CODEC, pathResolver::resolveJson, map);
 	}
 
 	@Override

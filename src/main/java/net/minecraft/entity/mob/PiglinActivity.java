@@ -1,7 +1,7 @@
 package net.minecraft.entity.mob;
 
 /**
- * {@code PiglinActivity}.
+ * Перечисление активностей пиглина для системы Brain.
  */
 public enum PiglinActivity {
 	ATTACKING_WITH_MELEE_WEAPON,

@@ -6,13 +6,18 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code FollowParentGoal}.
+ * Цель детёныша, следующего за ближайшим взрослым особью того же вида.
+ * Активируется только пока животное является детёнышем ({@code breedingAge < 0}).
  */
 public class FollowParentGoal extends Goal {
 
 	public static final int HORIZONTAL_CHECK_RANGE = 8;
 	public static final int VERTICAL_CHECK_RANGE = 4;
 	public static final int MIN_DISTANCE = 3;
+	private static final double MIN_FOLLOW_DISTANCE_SQ = 9.0;
+	private static final double MAX_FOLLOW_DISTANCE_SQ = 256.0;
+	private static final int UPDATE_INTERVAL_TICKS = 10;
+
 	private final AnimalEntity animal;
 	private @Nullable AnimalEntity parent;
 	private final double speed;
@@ -25,71 +30,66 @@ public class FollowParentGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		if (this.animal.getBreedingAge() >= 0) {
+		if (animal.getBreedingAge() >= 0) {
 			return false;
 		}
-		else {
-			List<? extends AnimalEntity> list = this.animal
-					.getEntityWorld()
-					.getNonSpectatingEntities(
-							(Class<? extends AnimalEntity>) this.animal.getClass(),
-							this.animal.getBoundingBox().expand(8.0, 4.0, 8.0)
-					);
-			AnimalEntity animalEntity = null;
-			double d = Double.MAX_VALUE;
 
-			for (AnimalEntity animalEntity2 : list) {
-				if (animalEntity2.getBreedingAge() >= 0) {
-					double e = this.animal.squaredDistanceTo(animalEntity2);
-					if (!(e > d)) {
-						d = e;
-						animalEntity = animalEntity2;
-					}
+		List<? extends AnimalEntity> nearby = animal
+				.getEntityWorld()
+				.getNonSpectatingEntities(
+						(Class<? extends AnimalEntity>) animal.getClass(),
+						animal.getBoundingBox().expand(HORIZONTAL_CHECK_RANGE, VERTICAL_CHECK_RANGE, HORIZONTAL_CHECK_RANGE)
+				);
+		AnimalEntity closest = null;
+		double closestDistSq = Double.MAX_VALUE;
+
+		for (AnimalEntity candidate : nearby) {
+			if (candidate.getBreedingAge() >= 0) {
+				double distSq = animal.squaredDistanceTo(candidate);
+				if (distSq <= closestDistSq) {
+					closestDistSq = distSq;
+					closest = candidate;
 				}
 			}
-
-			if (animalEntity == null) {
-				return false;
-			}
-			else if (d < 9.0) {
-				return false;
-			}
-			else {
-				this.parent = animalEntity;
-				return true;
-			}
 		}
+
+		if (closest == null || closestDistSq < MIN_FOLLOW_DISTANCE_SQ) {
+			return false;
+		}
+
+		parent = closest;
+		return true;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		if (this.animal.getBreedingAge() >= 0) {
+		if (animal.getBreedingAge() >= 0) {
 			return false;
 		}
-		else if (!this.parent.isAlive()) {
+
+		if (!parent.isAlive()) {
 			return false;
 		}
-		else {
-			double d = this.animal.squaredDistanceTo(this.parent);
-			return !(d < 9.0) && !(d > 256.0);
-		}
+
+		double distSq = animal.squaredDistanceTo(parent);
+		return distSq >= MIN_FOLLOW_DISTANCE_SQ && distSq <= MAX_FOLLOW_DISTANCE_SQ;
 	}
 
 	@Override
 	public void start() {
-		this.delay = 0;
+		delay = 0;
 	}
 
 	@Override
 	public void stop() {
-		this.parent = null;
+		parent = null;
 	}
 
 	@Override
 	public void tick() {
-		if (--this.delay <= 0) {
-			this.delay = this.getTickCount(10);
-			this.animal.getNavigation().startMovingTo(this.parent, this.speed);
+		if (--delay <= 0) {
+			delay = getTickCount(UPDATE_INTERVAL_TICKS);
+			animal.getNavigation().startMovingTo(parent, speed);
 		}
 	}
 }

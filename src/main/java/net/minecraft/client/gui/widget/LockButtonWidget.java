@@ -8,11 +8,14 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.MutableText;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LockButtonWidget}.
+ * Кнопка-замок для блокировки сложности. Отображает иконку в зависимости от состояния
+ * {@link #locked} и активности виджета.
  */
+@Environment(EnvType.CLIENT)
 public class LockButtonWidget extends ButtonWidget {
+
+	private static final int BUTTON_SIZE = 20;
 
 	private boolean locked;
 
@@ -20,8 +23,8 @@ public class LockButtonWidget extends ButtonWidget {
 		super(
 				x,
 				y,
-				20,
-				20,
+				BUTTON_SIZE,
+				BUTTON_SIZE,
 				net.minecraft.text.Text.translatable("narrator.button.difficulty_lock"),
 				action,
 				DEFAULT_NARRATION_SUPPLIER
@@ -32,14 +35,14 @@ public class LockButtonWidget extends ButtonWidget {
 	protected MutableText getNarrationMessage() {
 		return ScreenTexts.joinSentences(
 				super.getNarrationMessage(),
-				this.isLocked()
+				isLocked()
 				? net.minecraft.text.Text.translatable("narrator.button.difficulty_lock.locked")
 				: net.minecraft.text.Text.translatable("narrator.button.difficulty_lock.unlocked")
 		);
 	}
 
 	public boolean isLocked() {
-		return this.locked;
+		return locked;
 	}
 
 	public void setLocked(boolean locked) {
@@ -48,32 +51,28 @@ public class LockButtonWidget extends ButtonWidget {
 
 	@Override
 	public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-		LockButtonWidget.Icon icon;
-		if (!this.active) {
-			icon = this.locked ? LockButtonWidget.Icon.LOCKED_DISABLED : LockButtonWidget.Icon.UNLOCKED_DISABLED;
-		}
-		else if (this.isSelected()) {
-			icon = this.locked ? LockButtonWidget.Icon.LOCKED_HOVER : LockButtonWidget.Icon.UNLOCKED_HOVER;
+		Icon icon;
+		if (active) {
+			icon = isSelected()
+					? (locked ? Icon.LOCKED_HOVER : Icon.UNLOCKED_HOVER)
+					: (locked ? Icon.LOCKED : Icon.UNLOCKED);
 		}
 		else {
-			icon = this.locked ? LockButtonWidget.Icon.LOCKED : LockButtonWidget.Icon.UNLOCKED;
+			icon = locked ? Icon.LOCKED_DISABLED : Icon.UNLOCKED_DISABLED;
 		}
 
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
 				icon.texture,
-				this.getX(),
-				this.getY(),
-				this.width,
-				this.height
+				getX(),
+				getY(),
+				width,
+				height
 		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Icon}.
-	 */
-	static enum Icon {
+	enum Icon {
 		LOCKED(Identifier.ofVanilla("widget/locked_button")),
 		LOCKED_HOVER(Identifier.ofVanilla("widget/locked_button_highlighted")),
 		LOCKED_DISABLED(Identifier.ofVanilla("widget/locked_button_disabled")),

@@ -20,8 +20,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code LoreComponent}.
- */
+	 * Компонент описания предмета (лора). Хранит список строк текста, отображаемых
+	 * в тултипе предмета курсивным тёмно-фиолетовым шрифтом.
+	 */
 public record LoreComponent(List<Text> lines, List<Text> styledLines) implements TooltipAppender {
 
 	public static final LoreComponent DEFAULT = new LoreComponent(List.of());
@@ -29,9 +30,9 @@ public record LoreComponent(List<Text> lines, List<Text> styledLines) implements
 	private static final Style STYLE = Style.EMPTY.withColor(Formatting.DARK_PURPLE).withItalic(true);
 	public static final Codec<LoreComponent>
 			CODEC =
-			TextCodecs.CODEC.sizeLimitedListOf(256).xmap(LoreComponent::new, LoreComponent::lines);
+			TextCodecs.CODEC.sizeLimitedListOf(MAX_LORES).xmap(LoreComponent::new, LoreComponent::lines);
 	public static final PacketCodec<RegistryByteBuf, LoreComponent> PACKET_CODEC = TextCodecs.REGISTRY_PACKET_CODEC
-			.collect(PacketCodecs.toList(256))
+			.collect(PacketCodecs.toList(MAX_LORES))
 			.xmap(LoreComponent::new, LoreComponent::lines);
 
 	public LoreComponent(List<Text> lines) {
@@ -39,24 +40,22 @@ public record LoreComponent(List<Text> lines, List<Text> styledLines) implements
 	}
 
 	public LoreComponent(List<Text> lines, List<Text> styledLines) {
-		if (lines.size() > 256) {
-			throw new IllegalArgumentException("Got " + lines.size() + " lines, but maximum is 256");
+		if (lines.size() > MAX_LORES) {
+			throw new IllegalArgumentException("Got " + lines.size() + " lines, but maximum is " + MAX_LORES);
 		}
-		else {
-			this.lines = lines;
-			this.styledLines = styledLines;
-		}
+
+		this.lines = lines;
+		this.styledLines = styledLines;
 	}
 
 	/**
-	 * With.
-	 *
-	 * @param line line
-	 *
-	 * @return LoreComponent — результат операции
-	 */
+		 * Возвращает новый компонент с добавленной строкой лора в конец списка.
+		 *
+		 * @param line добавляемая строка текста
+		 * @return новый {@code LoreComponent} с расширенным списком строк
+		 */
 	public LoreComponent with(Text line) {
-		return new LoreComponent(Util.withAppended(this.lines, line));
+		return new LoreComponent(Util.withAppended(lines, line));
 	}
 
 	@Override

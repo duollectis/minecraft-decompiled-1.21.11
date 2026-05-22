@@ -139,7 +139,7 @@ public class NautilusEntityModel extends EntityModel<NautilusEntityRenderState> 
 		this.animation
 				.applyWalking(
 						nautilusEntityRenderState.limbSwingAnimationProgress + nautilusEntityRenderState.age / 5.0F,
-						nautilusEntityRenderState.limbSwingAmplitude + 0.2F,
+						nautilusEntityRenderState.limbSwingAmplitude + WALK_AMPLITUDE_OFFSET,
 						2.0F,
 						3.0F
 				);

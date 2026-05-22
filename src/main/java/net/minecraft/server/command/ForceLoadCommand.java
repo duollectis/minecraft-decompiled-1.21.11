@@ -19,7 +19,7 @@ import net.minecraft.util.math.ColumnPos;
 import net.minecraft.world.World;
 
 /**
- * {@code ForceLoadCommand}.
+ * Команда {@code /forceload}: принудительная загрузка чанков.
  */
 public class ForceLoadCommand {
 
@@ -249,8 +249,8 @@ public class ForceLoadCommand {
 			int o = ChunkSectionPos.getSectionCoord(k);
 			int p = ChunkSectionPos.getSectionCoord(l);
 			long q = (o - m + 1L) * (p - n + 1L);
-			if (q > 256L) {
-				throw TOO_BIG_EXCEPTION.create(256, q);
+			if (q > MAX_CHUNKS) {
+				throw TOO_BIG_EXCEPTION.create(MAX_CHUNKS, q);
 			}
 			else {
 				ServerWorld serverWorld = source.getWorld();

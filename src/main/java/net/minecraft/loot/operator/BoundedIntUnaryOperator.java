@@ -20,35 +20,29 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * {@code BoundedIntUnaryOperator}.
+ * Оператор, ограничивающий целочисленное значение диапазоном [min, max].
+ * Поддерживает динамические границы через {@link LootNumberProvider}.
+ * Сериализуется компактно как одно число, если min == max == константа.
  */
 public class BoundedIntUnaryOperator {
 
 	private static final Codec<BoundedIntUnaryOperator> OPERATOR_CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    LootNumberProviderTypes.CODEC
-							                    .optionalFieldOf("min")
-							                    .forGetter(operator -> Optional.ofNullable(operator.min)),
-					                    LootNumberProviderTypes.CODEC
-							                    .optionalFieldOf("max")
-							                    .forGetter(operator -> Optional.ofNullable(operator.max))
-			                    )
-			                    .apply(instance, BoundedIntUnaryOperator::new)
+		instance -> instance.group(
+			LootNumberProviderTypes.CODEC.optionalFieldOf("min").forGetter(op -> Optional.ofNullable(op.min)),
+			LootNumberProviderTypes.CODEC.optionalFieldOf("max").forGetter(op -> Optional.ofNullable(op.max))
+		).apply(instance, BoundedIntUnaryOperator::new)
 	);
-	public static final Codec<BoundedIntUnaryOperator> CODEC = Codec.either(Codec.INT, OPERATOR_CODEC)
-	                                                                .xmap(
-			                                                                either -> (BoundedIntUnaryOperator) either.map(
-					                                                                BoundedIntUnaryOperator::create,
-					                                                                Function.identity()
-			                                                                ), operator -> {
-				                                                                OptionalInt
-						                                                                optionalInt =
-						                                                                operator.getConstantValue();
-				                                                                return optionalInt.isPresent()
-				                                                                       ? Either.left(optionalInt.getAsInt())
-				                                                                       : Either.right(operator);
-			                                                                }
-	                                                                );
+
+	public static final Codec<BoundedIntUnaryOperator> CODEC = Codec.either(Codec.INT, OPERATOR_CODEC).xmap(
+		either -> either.map(BoundedIntUnaryOperator::create, Function.identity()),
+		operator -> {
+			OptionalInt constant = operator.getConstantValue();
+			return constant.isPresent()
+				? Either.left(constant.getAsInt())
+				: Either.right(operator);
+		}
+	);
+
 	private final @Nullable LootNumberProvider min;
 	private final @Nullable LootNumberProvider max;
 	private final BoundedIntUnaryOperator.Applier applier;
@@ -56,12 +50,13 @@ public class BoundedIntUnaryOperator {
 
 	public Set<ContextParameter<?>> getRequiredParameters() {
 		Builder<ContextParameter<?>> builder = ImmutableSet.builder();
-		if (this.min != null) {
-			builder.addAll(this.min.getAllowedParameters());
+
+		if (min != null) {
+			builder.addAll(min.getAllowedParameters());
 		}
 
-		if (this.max != null) {
-			builder.addAll(this.max.getAllowedParameters());
+		if (max != null) {
+			builder.addAll(max.getAllowedParameters());
 		}
 
 		return builder.build();
@@ -74,123 +69,71 @@ public class BoundedIntUnaryOperator {
 	private BoundedIntUnaryOperator(@Nullable LootNumberProvider min, @Nullable LootNumberProvider max) {
 		this.min = min;
 		this.max = max;
+
 		if (min == null) {
 			if (max == null) {
 				this.applier = (context, value) -> value;
 				this.tester = (context, value) -> true;
-			}
-			else {
+			} else {
 				this.applier = (context, value) -> Math.min(max.nextInt(context), value);
 				this.tester = (context, value) -> value <= max.nextInt(context);
 			}
-		}
-		else if (max == null) {
+		} else if (max == null) {
 			this.applier = (context, value) -> Math.max(min.nextInt(context), value);
 			this.tester = (context, value) -> value >= min.nextInt(context);
-		}
-		else {
+		} else {
 			this.applier = (context, value) -> MathHelper.clamp(value, min.nextInt(context), max.nextInt(context));
 			this.tester = (context, value) -> value >= min.nextInt(context) && value <= max.nextInt(context);
 		}
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param value value
-	 *
-	 * @return BoundedIntUnaryOperator — результат операции
-	 */
 	public static BoundedIntUnaryOperator create(int value) {
-		ConstantLootNumberProvider constantLootNumberProvider = ConstantLootNumberProvider.create(value);
-		return new BoundedIntUnaryOperator(
-				Optional.of(constantLootNumberProvider),
-				Optional.of(constantLootNumberProvider)
-		);
+		ConstantLootNumberProvider constant = ConstantLootNumberProvider.create(value);
+		return new BoundedIntUnaryOperator(Optional.of(constant), Optional.of(constant));
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param min min
-	 * @param max max
-	 *
-	 * @return BoundedIntUnaryOperator — результат операции
-	 */
 	public static BoundedIntUnaryOperator create(int min, int max) {
 		return new BoundedIntUnaryOperator(
-				Optional.of(ConstantLootNumberProvider.create(min)),
-				Optional.of(ConstantLootNumberProvider.create(max))
+			Optional.of(ConstantLootNumberProvider.create(min)),
+			Optional.of(ConstantLootNumberProvider.create(max))
 		);
 	}
 
-	/**
-	 * Создаёт min.
-	 *
-	 * @param min min
-	 *
-	 * @return BoundedIntUnaryOperator — результат операции
-	 */
 	public static BoundedIntUnaryOperator createMin(int min) {
 		return new BoundedIntUnaryOperator(Optional.of(ConstantLootNumberProvider.create(min)), Optional.empty());
 	}
 
-	/**
-	 * Создаёт max.
-	 *
-	 * @param max max
-	 *
-	 * @return BoundedIntUnaryOperator — результат операции
-	 */
 	public static BoundedIntUnaryOperator createMax(int max) {
 		return new BoundedIntUnaryOperator(Optional.empty(), Optional.of(ConstantLootNumberProvider.create(max)));
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param context context
-	 * @param value value
-	 *
-	 * @return int — результат операции
-	 */
 	public int apply(LootContext context, int value) {
-		return this.applier.apply(context, value);
+		return applier.apply(context, value);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param context context
-	 * @param value value
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean test(LootContext context, int value) {
-		return this.tester.test(context, value);
+		return tester.test(context, value);
 	}
 
 	private OptionalInt getConstantValue() {
-		return Objects.equals(this.min, this.max)
-				       && this.min instanceof ConstantLootNumberProvider constantLootNumberProvider
-				       && Math.floor(constantLootNumberProvider.value()) == constantLootNumberProvider.value()
-		       ? OptionalInt.of((int) constantLootNumberProvider.value())
-		       : OptionalInt.empty();
+		if (!Objects.equals(min, max) || !(min instanceof ConstantLootNumberProvider constant)) {
+			return OptionalInt.empty();
+		}
+
+		return Math.floor(constant.value()) == constant.value()
+			? OptionalInt.of((int) constant.value())
+			: OptionalInt.empty();
 	}
 
+	/** Функциональный интерфейс для применения ограничения к значению. */
 	@FunctionalInterface
-	/**
-	 * {@code Applier}.
-	 */
 	interface Applier {
 
 		int apply(LootContext context, int value);
 	}
 
+	/** Функциональный интерфейс для проверки попадания значения в диапазон. */
 	@FunctionalInterface
-	/**
-	 * {@code Tester}.
-	 */
 	interface Tester {
 
 		boolean test(LootContext context, int value);

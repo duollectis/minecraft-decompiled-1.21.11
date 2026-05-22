@@ -5,11 +5,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Подавляет предупреждения статического анализатора (линтера) для аннотированного элемента.
+ * Обязательно указывать причину подавления через {@link #reason()}.
+ */
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
-/**
- * {@code SuppressLinter}.
- */
 public @interface SuppressLinter {
 
 	String reason();

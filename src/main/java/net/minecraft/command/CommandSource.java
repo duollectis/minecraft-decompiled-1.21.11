@@ -25,16 +25,20 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * {@code CommandSource}.
+ * Базовый интерфейс источника команды с утилитами для автодополнения.
  */
 public interface CommandSource extends PermissionSource {
 
+	/** Символы, считающиеся разделителями при поиске подстроки в идентификаторе. */
 	CharMatcher SUGGESTION_MATCH_PREFIX = CharMatcher.anyOf("._/");
+
+	/** ASCII-код символа {@code :} — разделителя namespace:path в идентификаторах. */
+	int COLON_CHAR_CODE = ':';
 
 	Collection<String> getPlayerNames();
 
 	default Collection<String> getChatSuggestions() {
-		return this.getPlayerNames();
+		return getPlayerNames();
 	}
 
 	default Collection<String> getEntitySuggestions() {
@@ -47,12 +51,12 @@ public interface CommandSource extends PermissionSource {
 
 	CompletableFuture<Suggestions> getCompletions(CommandContext<?> context);
 
-	default Collection<CommandSource.RelativePosition> getBlockPositionSuggestions() {
-		return Collections.singleton(CommandSource.RelativePosition.ZERO_WORLD);
+	default Collection<RelativePosition> getBlockPositionSuggestions() {
+		return Collections.singleton(RelativePosition.ZERO_WORLD);
 	}
 
-	default Collection<CommandSource.RelativePosition> getPositionSuggestions() {
-		return Collections.singleton(CommandSource.RelativePosition.ZERO_WORLD);
+	default Collection<RelativePosition> getPositionSuggestions() {
+		return Collections.singleton(RelativePosition.ZERO_WORLD);
 	}
 
 	Set<RegistryKey<World>> getWorldKeys();
@@ -63,7 +67,7 @@ public interface CommandSource extends PermissionSource {
 
 	default void suggestIdentifiers(
 			RegistryWrapper<?> registry,
-			CommandSource.SuggestedIdType suggestedIdType,
+			SuggestedIdType suggestedIdType,
 			SuggestionsBuilder builder
 	) {
 		if (suggestedIdType.canSuggestTags()) {
@@ -79,41 +83,41 @@ public interface CommandSource extends PermissionSource {
 			CommandContext<S> context,
 			SuggestionsBuilder builder,
 			RegistryKey<? extends Registry<?>> registryRef,
-			CommandSource.SuggestedIdType suggestedIdType
+			SuggestedIdType suggestedIdType
 	) {
 		return context.getSource() instanceof CommandSource commandSource
-		       ? commandSource.listIdSuggestions(registryRef, suggestedIdType, builder, context)
-		       : builder.buildFuture();
+				? commandSource.listIdSuggestions(registryRef, suggestedIdType, builder, context)
+				: builder.buildFuture();
 	}
 
 	CompletableFuture<Suggestions> listIdSuggestions(
 			RegistryKey<? extends Registry<?>> registryRef,
-			CommandSource.SuggestedIdType suggestedIdType,
+			SuggestedIdType suggestedIdType,
 			SuggestionsBuilder builder,
 			CommandContext<?> context
 	);
 
+	/**
+	 * Перебирает кандидатов и вызывает {@code action} для тех, чей идентификатор
+	 * совпадает с {@code remaining}. Если {@code remaining} содержит {@code :},
+	 * сравнивается полная строка; иначе — namespace или path по отдельности.
+	 */
 	static <T> void forEachMatching(
 			Iterable<T> candidates,
 			String remaining,
 			Function<T, Identifier> identifier,
 			Consumer<T> action
 	) {
-		boolean bl = remaining.indexOf(58) > -1;
+		boolean hasColon = remaining.indexOf(COLON_CHAR_CODE) > -1;
 
-		for (T object : candidates) {
-			Identifier identifier2 = identifier.apply(object);
-			if (bl) {
-				String string = identifier2.toString();
-				if (shouldSuggest(remaining, string)) {
-					action.accept(object);
+		for (T candidate : candidates) {
+			Identifier id = identifier.apply(candidate);
+			if (hasColon) {
+				if (shouldSuggest(remaining, id.toString())) {
+					action.accept(candidate);
 				}
-			}
-			else if (shouldSuggest(remaining, identifier2.getNamespace()) || shouldSuggest(
-					remaining,
-					identifier2.getPath()
-			)) {
-				action.accept(object);
+			} else if (shouldSuggest(remaining, id.getNamespace()) || shouldSuggest(remaining, id.getPath())) {
+				action.accept(candidate);
 			}
 		}
 	}
@@ -127,13 +131,13 @@ public interface CommandSource extends PermissionSource {
 	) {
 		if (remaining.isEmpty()) {
 			candidates.forEach(action);
+			return;
 		}
-		else {
-			String string = Strings.commonPrefix(remaining, prefix);
-			if (!string.isEmpty()) {
-				String string2 = remaining.substring(string.length());
-				forEachMatching(candidates, string2, identifier, action);
-			}
+
+		String commonPrefix = Strings.commonPrefix(remaining, prefix);
+		if (!commonPrefix.isEmpty()) {
+			String stripped = remaining.substring(commonPrefix.length());
+			forEachMatching(candidates, stripped, identifier, action);
 		}
 	}
 
@@ -142,8 +146,8 @@ public interface CommandSource extends PermissionSource {
 			SuggestionsBuilder builder,
 			String prefix
 	) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
-		forEachMatching(candidates, string, prefix, id -> id, id -> builder.suggest(prefix + id));
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+		forEachMatching(candidates, remaining, prefix, id -> id, id -> builder.suggest(prefix + id));
 		return builder.buildFuture();
 	}
 
@@ -159,8 +163,8 @@ public interface CommandSource extends PermissionSource {
 			Iterable<Identifier> candidates,
 			SuggestionsBuilder builder
 	) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
-		forEachMatching(candidates, string, id -> id, id -> builder.suggest(id.toString()));
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+		forEachMatching(candidates, remaining, id -> id, id -> builder.suggest(id.toString()));
 		return builder.buildFuture();
 	}
 
@@ -170,12 +174,12 @@ public interface CommandSource extends PermissionSource {
 			Function<T, Identifier> identifier,
 			Function<T, Message> tooltip
 	) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 		forEachMatching(
 				candidates,
-				string,
+				remaining,
 				identifier,
-				object -> builder.suggest(identifier.apply(object).toString(), tooltip.apply(object))
+				candidate -> builder.suggest(identifier.apply(candidate).toString(), tooltip.apply(candidate))
 		);
 		return builder.buildFuture();
 	}
@@ -196,84 +200,89 @@ public interface CommandSource extends PermissionSource {
 		return suggestFromIdentifier(candidates::iterator, builder, identifier, tooltip);
 	}
 
+	/**
+	 * Генерирует подсказки для трёхкомпонентных позиций (x y z).
+	 * Если {@code remaining} пустой — предлагает все варианты из {@code candidates};
+	 * иначе дополняет уже введённые компоненты.
+	 */
 	static CompletableFuture<Suggestions> suggestPositions(
 			String remaining,
-			Collection<CommandSource.RelativePosition> candidates,
+			Collection<RelativePosition> candidates,
 			SuggestionsBuilder builder,
 			Predicate<String> predicate
 	) {
-		List<String> list = Lists.newArrayList();
+		List<String> suggestions = Lists.newArrayList();
 		if (Strings.isNullOrEmpty(remaining)) {
-			for (CommandSource.RelativePosition relativePosition : candidates) {
-				String string = relativePosition.x + " " + relativePosition.y + " " + relativePosition.z;
-				if (predicate.test(string)) {
-					list.add(relativePosition.x);
-					list.add(relativePosition.x + " " + relativePosition.y);
-					list.add(string);
+			for (RelativePosition position : candidates) {
+				String full = position.x + " " + position.y + " " + position.z;
+				if (predicate.test(full)) {
+					suggestions.add(position.x);
+					suggestions.add(position.x + " " + position.y);
+					suggestions.add(full);
 				}
 			}
-		}
-		else {
-			String[] strings = remaining.split(" ");
-			if (strings.length == 1) {
-				for (CommandSource.RelativePosition relativePosition2 : candidates) {
-					String string2 = strings[0] + " " + relativePosition2.y + " " + relativePosition2.z;
-					if (predicate.test(string2)) {
-						list.add(strings[0] + " " + relativePosition2.y);
-						list.add(string2);
+		} else {
+			String[] parts = remaining.split(" ");
+			if (parts.length == 1) {
+				for (RelativePosition position : candidates) {
+					String full = parts[0] + " " + position.y + " " + position.z;
+					if (predicate.test(full)) {
+						suggestions.add(parts[0] + " " + position.y);
+						suggestions.add(full);
 					}
 				}
-			}
-			else if (strings.length == 2) {
-				for (CommandSource.RelativePosition relativePosition2x : candidates) {
-					String string2 = strings[0] + " " + strings[1] + " " + relativePosition2x.z;
-					if (predicate.test(string2)) {
-						list.add(string2);
+			} else if (parts.length == 2) {
+				for (RelativePosition position : candidates) {
+					String full = parts[0] + " " + parts[1] + " " + position.z;
+					if (predicate.test(full)) {
+						suggestions.add(full);
 					}
 				}
 			}
 		}
 
-		return suggestMatching(list, builder);
+		return suggestMatching(suggestions, builder);
 	}
 
+	/**
+	 * Генерирует подсказки для двухкомпонентных позиций (x z).
+	 */
 	static CompletableFuture<Suggestions> suggestColumnPositions(
 			String remaining,
-			Collection<CommandSource.RelativePosition> candidates,
+			Collection<RelativePosition> candidates,
 			SuggestionsBuilder builder,
 			Predicate<String> predicate
 	) {
-		List<String> list = Lists.newArrayList();
+		List<String> suggestions = Lists.newArrayList();
 		if (Strings.isNullOrEmpty(remaining)) {
-			for (CommandSource.RelativePosition relativePosition : candidates) {
-				String string = relativePosition.x + " " + relativePosition.z;
-				if (predicate.test(string)) {
-					list.add(relativePosition.x);
-					list.add(string);
+			for (RelativePosition position : candidates) {
+				String full = position.x + " " + position.z;
+				if (predicate.test(full)) {
+					suggestions.add(position.x);
+					suggestions.add(full);
 				}
 			}
-		}
-		else {
-			String[] strings = remaining.split(" ");
-			if (strings.length == 1) {
-				for (CommandSource.RelativePosition relativePosition2 : candidates) {
-					String string2 = strings[0] + " " + relativePosition2.z;
-					if (predicate.test(string2)) {
-						list.add(string2);
+		} else {
+			String[] parts = remaining.split(" ");
+			if (parts.length == 1) {
+				for (RelativePosition position : candidates) {
+					String full = parts[0] + " " + position.z;
+					if (predicate.test(full)) {
+						suggestions.add(full);
 					}
 				}
 			}
 		}
 
-		return suggestMatching(list, builder);
+		return suggestMatching(suggestions, builder);
 	}
 
 	static CompletableFuture<Suggestions> suggestMatching(Iterable<String> candidates, SuggestionsBuilder builder) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-		for (String string2 : candidates) {
-			if (shouldSuggest(string, string2.toLowerCase(Locale.ROOT))) {
-				builder.suggest(string2);
+		for (String candidate : candidates) {
+			if (shouldSuggest(remaining, candidate.toLowerCase(Locale.ROOT))) {
+				builder.suggest(candidate);
 			}
 		}
 
@@ -281,19 +290,19 @@ public interface CommandSource extends PermissionSource {
 	}
 
 	static CompletableFuture<Suggestions> suggestMatching(Stream<String> candidates, SuggestionsBuilder builder) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 		candidates
-				.filter(candidate -> shouldSuggest(string, candidate.toLowerCase(Locale.ROOT)))
+				.filter(candidate -> shouldSuggest(remaining, candidate.toLowerCase(Locale.ROOT)))
 				.forEach(builder::suggest);
 		return builder.buildFuture();
 	}
 
 	static CompletableFuture<Suggestions> suggestMatching(String[] candidates, SuggestionsBuilder builder) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-		for (String string2 : candidates) {
-			if (shouldSuggest(string, string2.toLowerCase(Locale.ROOT))) {
-				builder.suggest(string2);
+		for (String candidate : candidates) {
+			if (shouldSuggest(remaining, candidate.toLowerCase(Locale.ROOT))) {
+				builder.suggest(candidate);
 			}
 		}
 
@@ -306,44 +315,45 @@ public interface CommandSource extends PermissionSource {
 			Function<T, String> suggestionText,
 			Function<T, Message> tooltip
 	) {
-		String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+		String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
 
-		for (T object : candidates) {
-			String string2 = suggestionText.apply(object);
-			if (shouldSuggest(string, string2.toLowerCase(Locale.ROOT))) {
-				builder.suggest(string2, tooltip.apply(object));
+		for (T candidate : candidates) {
+			String text = suggestionText.apply(candidate);
+			if (shouldSuggest(remaining, text.toLowerCase(Locale.ROOT))) {
+				builder.suggest(text, tooltip.apply(candidate));
 			}
 		}
 
 		return builder.buildFuture();
 	}
 
+	/**
+	 * Проверяет, является ли {@code remaining} подстрокой {@code candidate},
+	 * начинающейся после одного из символов-разделителей {@link #SUGGESTION_MATCH_PREFIX}.
+	 */
 	static boolean shouldSuggest(String remaining, String candidate) {
-		int i = 0;
+		int offset = 0;
 
-		while (!candidate.startsWith(remaining, i)) {
-			int j = SUGGESTION_MATCH_PREFIX.indexIn(candidate, i);
-			if (j < 0) {
+		while (!candidate.startsWith(remaining, offset)) {
+			int separatorPos = SUGGESTION_MATCH_PREFIX.indexIn(candidate, offset);
+			if (separatorPos < 0) {
 				return false;
 			}
 
-			i = j + 1;
+			offset = separatorPos + 1;
 		}
 
 		return true;
 	}
 
 	/**
-	 * {@code RelativePosition}.
+	 * Относительная позиция для подсказок команд (например, {@code ~ ~ ~} или {@code ^ ^ ^}).
 	 */
-	public static class RelativePosition {
+	class RelativePosition {
 
-		public static final CommandSource.RelativePosition
-				ZERO_LOCAL =
-				new CommandSource.RelativePosition("^", "^", "^");
-		public static final CommandSource.RelativePosition
-				ZERO_WORLD =
-				new CommandSource.RelativePosition("~", "~", "~");
+		public static final RelativePosition ZERO_LOCAL = new RelativePosition("^", "^", "^");
+		public static final RelativePosition ZERO_WORLD = new RelativePosition("~", "~", "~");
+
 		public final String x;
 		public final String y;
 		public final String z;
@@ -356,9 +366,9 @@ public interface CommandSource extends PermissionSource {
 	}
 
 	/**
-	 * {@code SuggestedIdType}.
+	 * Тип предлагаемых идентификаторов: теги, элементы или оба варианта.
 	 */
-	public static enum SuggestedIdType {
+	enum SuggestedIdType {
 		TAGS,
 		ELEMENTS,
 		ALL;

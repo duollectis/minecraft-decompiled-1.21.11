@@ -11,7 +11,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.OptionalInt;
 
 /**
- * {@code Merchant}.
+ * Контракт торговца — сущности, способной предлагать игроку сделки.
+ * <p>
+ * Реализуется как жителями деревни, так и странствующими торговцами.
+ * Разделяет серверную и клиентскую стороны через {@link #isClient()}.
  */
 public interface Merchant {
 
@@ -39,29 +42,39 @@ public interface Merchant {
 		return false;
 	}
 
+	/**
+	 * Открывает экран торговли для игрока и синхронизирует список предложений.
+	 *
+	 * @param player        игрок, открывающий торговлю
+	 * @param name          отображаемое имя торговца
+	 * @param levelProgress текущий уровень торговца для отображения прогресса
+	 */
 	default void sendOffers(PlayerEntity player, Text name, int levelProgress) {
-		OptionalInt optionalInt = player.openHandledScreen(
+		OptionalInt syncId = player.openHandledScreen(
 				new SimpleNamedScreenHandlerFactory(
-						(syncId, playerInventory, playerx) -> new MerchantScreenHandler(
-								syncId,
-								playerInventory,
-								this
-						), name
+						(id, playerInventory, playerx) -> new MerchantScreenHandler(id, playerInventory, this),
+						name
 				)
 		);
-		if (optionalInt.isPresent()) {
-			TradeOfferList tradeOfferList = this.getOffers();
-			if (!tradeOfferList.isEmpty()) {
-				player.sendTradeOffers(
-						optionalInt.getAsInt(),
-						tradeOfferList,
-						levelProgress,
-						this.getExperience(),
-						this.isLeveledMerchant(),
-						this.canRefreshTrades()
-				);
-			}
+
+		if (syncId.isEmpty()) {
+			return;
 		}
+
+		TradeOfferList offers = getOffers();
+
+		if (offers.isEmpty()) {
+			return;
+		}
+
+		player.sendTradeOffers(
+				syncId.getAsInt(),
+				offers,
+				levelProgress,
+				getExperience(),
+				isLeveledMerchant(),
+				canRefreshTrades()
+		);
 	}
 
 	boolean isClient();

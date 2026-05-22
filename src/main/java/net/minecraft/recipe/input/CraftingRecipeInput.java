@@ -7,11 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code CraftingRecipeInput}.
+ * Входные данные рецепта крафта: двумерная сетка предметов с шириной и высотой.
+ * При создании автоматически обрезает пустые строки и столбцы по краям,
+ * возвращая позиционированный результат с координатами смещения в исходной сетке.
  */
 public class CraftingRecipeInput implements RecipeInput {
 
 	public static final CraftingRecipeInput EMPTY = new CraftingRecipeInput(0, 0, List.of());
+
 	private final int width;
 	private final int height;
 	private final List<ItemStack> stacks;
@@ -22,150 +25,154 @@ public class CraftingRecipeInput implements RecipeInput {
 		this.width = width;
 		this.height = height;
 		this.stacks = stacks;
-		int i = 0;
 
-		for (ItemStack itemStack : stacks) {
-			if (!itemStack.isEmpty()) {
-				i++;
-				this.matcher.addInput(itemStack, 1);
+		int count = 0;
+
+		for (ItemStack stack : stacks) {
+			if (!stack.isEmpty()) {
+				count++;
+				matcher.addInput(stack, 1);
 			}
 		}
 
-		this.stackCount = i;
+		stackCount = count;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param width width
-	 * @param height height
-	 * @param stacks stacks
-	 *
-	 * @return CraftingRecipeInput — результат операции
-	 */
 	public static CraftingRecipeInput create(int width, int height, List<ItemStack> stacks) {
 		return createPositioned(width, height, stacks).input();
 	}
 
+	/**
+	 * Создаёт позиционированный ввод, обрезая пустые строки и столбцы по краям сетки.
+	 * Возвращает смещение {@code left}/{@code top} — позицию верхнего левого угла
+	 * обрезанной области в исходной сетке, что необходимо для корректного выравнивания
+	 * рецепта при заполнении слотов крафта.
+	 *
+	 * @param width  ширина исходной сетки
+	 * @param height высота исходной сетки
+	 * @param stacks список стеков в порядке строк (row-major)
+	 * @return позиционированный ввод с обрезанными границами
+	 */
 	public static CraftingRecipeInput.Positioned createPositioned(int width, int height, List<ItemStack> stacks) {
-		if (width != 0 && height != 0) {
-			int i = width - 1;
-			int j = 0;
-			int k = height - 1;
-			int l = 0;
-
-			for (int m = 0; m < height; m++) {
-				boolean bl = true;
-
-				for (int n = 0; n < width; n++) {
-					ItemStack itemStack = stacks.get(n + m * width);
-					if (!itemStack.isEmpty()) {
-						i = Math.min(i, n);
-						j = Math.max(j, n);
-						bl = false;
-					}
-				}
-
-				if (!bl) {
-					k = Math.min(k, m);
-					l = Math.max(l, m);
-				}
-			}
-
-			int m = j - i + 1;
-			int o = l - k + 1;
-			if (m <= 0 || o <= 0) {
-				return CraftingRecipeInput.Positioned.EMPTY;
-			}
-			else if (m == width && o == height) {
-				return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(width, height, stacks), i, k);
-			}
-			else {
-				List<ItemStack> list = new ArrayList<>(m * o);
-
-				for (int p = 0; p < o; p++) {
-					for (int q = 0; q < m; q++) {
-						int r = q + i + (p + k) * width;
-						list.add(stacks.get(r));
-					}
-				}
-
-				return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(m, o, list), i, k);
-			}
-		}
-		else {
+		if (width == 0 || height == 0) {
 			return CraftingRecipeInput.Positioned.EMPTY;
 		}
+
+		int minCol = width - 1;
+		int maxCol = 0;
+		int minRow = height - 1;
+		int maxRow = 0;
+
+		for (int row = 0; row < height; row++) {
+			boolean rowEmpty = true;
+
+			for (int col = 0; col < width; col++) {
+				ItemStack stack = stacks.get(col + row * width);
+
+				if (!stack.isEmpty()) {
+					minCol = Math.min(minCol, col);
+					maxCol = Math.max(maxCol, col);
+					rowEmpty = false;
+				}
+			}
+
+			if (!rowEmpty) {
+				minRow = Math.min(minRow, row);
+				maxRow = Math.max(maxRow, row);
+			}
+		}
+
+		int trimmedWidth = maxCol - minCol + 1;
+		int trimmedHeight = maxRow - minRow + 1;
+
+		if (trimmedWidth <= 0 || trimmedHeight <= 0) {
+			return CraftingRecipeInput.Positioned.EMPTY;
+		}
+
+		if (trimmedWidth == width && trimmedHeight == height) {
+			return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(width, height, stacks), minCol, minRow);
+		}
+
+		List<ItemStack> trimmed = new ArrayList<>(trimmedWidth * trimmedHeight);
+
+		for (int row = 0; row < trimmedHeight; row++) {
+			for (int col = 0; col < trimmedWidth; col++) {
+				trimmed.add(stacks.get(col + minCol + (row + minRow) * width));
+			}
+		}
+
+		return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(trimmedWidth, trimmedHeight, trimmed), minCol, minRow);
 	}
 
 	@Override
 	public ItemStack getStackInSlot(int slot) {
-		return this.stacks.get(slot);
+		return stacks.get(slot);
 	}
 
 	public ItemStack getStackInSlot(int x, int y) {
-		return this.stacks.get(x + y * this.width);
+		return stacks.get(x + y * width);
 	}
 
 	@Override
 	public int size() {
-		return this.stacks.size();
+		return stacks.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.stackCount == 0;
+		return stackCount == 0;
 	}
 
 	public RecipeFinder getRecipeMatcher() {
-		return this.matcher;
+		return matcher;
 	}
 
 	public List<ItemStack> getStacks() {
-		return this.stacks;
+		return stacks;
 	}
 
 	public int getStackCount() {
-		return this.stackCount;
+		return stackCount;
 	}
 
 	public int getWidth() {
-		return this.width;
+		return width;
 	}
 
 	public int getHeight() {
-		return this.height;
+		return height;
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		if (o == this) {
+	public boolean equals(Object obj) {
+		if (obj == this) {
 			return true;
 		}
-		else {
-			return !(o instanceof CraftingRecipeInput craftingRecipeInput)
-			       ? false
-			       : this.width == craftingRecipeInput.width
-			         && this.height == craftingRecipeInput.height
-			         && this.stackCount == craftingRecipeInput.stackCount
-			         && ItemStack.stacksEqual(this.stacks, craftingRecipeInput.stacks);
+
+		if (!(obj instanceof CraftingRecipeInput other)) {
+			return false;
 		}
+
+		return width == other.width
+				&& height == other.height
+				&& stackCount == other.stackCount
+				&& ItemStack.stacksEqual(stacks, other.stacks);
 	}
 
 	@Override
 	public int hashCode() {
-		int i = ItemStack.listHashCode(this.stacks);
-		i = 31 * i + this.width;
-		return 31 * i + this.height;
+		int hash = ItemStack.listHashCode(stacks);
+		hash = 31 * hash + width;
+		return 31 * hash + height;
 	}
 
 	/**
-	 * {@code Positioned}.
+	 * Позиционированный ввод крафта: содержит обрезанную сетку и смещение
+	 * её верхнего левого угла относительно исходной сетки крафтового стола.
 	 */
 	public record Positioned(CraftingRecipeInput input, int left, int top) {
 
-		public static final CraftingRecipeInput.Positioned
-				EMPTY =
+		public static final CraftingRecipeInput.Positioned EMPTY =
 				new CraftingRecipeInput.Positioned(CraftingRecipeInput.EMPTY, 0, 0);
 	}
 }

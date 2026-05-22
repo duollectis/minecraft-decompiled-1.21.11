@@ -43,7 +43,8 @@ import net.minecraft.world.gen.structure.OceanRuinStructure;
 import java.util.List;
 
 /**
- * {@code OceanRuinGenerator}.
+ * Генератор руин океана. Размещает одиночные или кластерные NBT-шаблоны
+ * тёплых и холодных руин с поддержкой археологии (подозрительный песок/гравий).
  */
 public class OceanRuinGenerator {
 
@@ -283,9 +284,6 @@ public class OceanRuinGenerator {
 		}
 	}
 
-	/**
-	 * {@code Piece}.
-	 */
 	public static class Piece extends SimpleStructurePiece {
 
 		private final OceanRuinStructure.BiomeTemperature biomeType;

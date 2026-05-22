@@ -26,7 +26,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 
 /**
- * {@code BrewingStandBlockEntity}.
+ * Блок-сущность стойки для зелий. Управляет процессом варки зелий,
+ * расходом топлива (blaze powder) и синхронизацией состояния слотов с блоком.
  */
 public class BrewingStandBlockEntity extends LockableContainerBlockEntity implements SidedInventory {
 
@@ -51,8 +52,8 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 		@Override
 		public int get(int index) {
 			return switch (index) {
-				case 0 -> BrewingStandBlockEntity.this.brewTime;
-				case 1 -> BrewingStandBlockEntity.this.fuel;
+				case BREW_TIME_PROPERTY_INDEX -> brewTime;
+				case FUEL_PROPERTY_INDEX -> fuel;
 				default -> 0;
 			};
 		}
@@ -60,17 +61,14 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 		@Override
 		public void set(int index, int value) {
 			switch (index) {
-				case 0:
-					BrewingStandBlockEntity.this.brewTime = value;
-					break;
-				case 1:
-					BrewingStandBlockEntity.this.fuel = value;
+				case BREW_TIME_PROPERTY_INDEX -> brewTime = value;
+				case FUEL_PROPERTY_INDEX -> fuel = value;
 			}
 		}
 
 		@Override
 		public int size() {
-			return 2;
+			return PROPERTY_COUNT;
 		}
 	};
 
@@ -85,12 +83,12 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 
 	@Override
 	public int size() {
-		return this.inventory.size();
+		return inventory.size();
 	}
 
 	@Override
 	protected DefaultedList<ItemStack> getHeldStacks() {
-		return this.inventory;
+		return inventory;
 	}
 
 	@Override
@@ -98,152 +96,153 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 		this.inventory = inventory;
 	}
 
-	/**
-	 * Tick.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param state state
-	 * @param blockEntity block entity
-	 */
 	public static void tick(World world, BlockPos pos, BlockState state, BrewingStandBlockEntity blockEntity) {
-		ItemStack itemStack = blockEntity.inventory.get(4);
-		if (blockEntity.fuel <= 0 && itemStack.isIn(ItemTags.BREWING_FUEL)) {
-			blockEntity.fuel = 20;
-			itemStack.decrement(1);
+		ItemStack fuelStack = blockEntity.inventory.get(FUEL_SLOT_INDEX);
+
+		if (blockEntity.fuel <= 0 && fuelStack.isIn(ItemTags.BREWING_FUEL)) {
+			blockEntity.fuel = MAX_FUEL_USES;
+			fuelStack.decrement(1);
 			markDirty(world, pos, state);
 		}
 
-		boolean bl = canCraft(world.getBrewingRecipeRegistry(), blockEntity.inventory);
-		boolean bl2 = blockEntity.brewTime > 0;
-		ItemStack itemStack2 = blockEntity.inventory.get(3);
-		if (bl2) {
+		boolean canCraft = canCraft(world.getBrewingRecipeRegistry(), blockEntity.inventory);
+		boolean isBrewing = blockEntity.brewTime > 0;
+		ItemStack ingredientStack = blockEntity.inventory.get(INPUT_SLOT_INDEX);
+
+		if (isBrewing) {
 			blockEntity.brewTime--;
-			boolean bl3 = blockEntity.brewTime == 0;
-			if (bl3 && bl) {
+			boolean brewFinished = blockEntity.brewTime == 0;
+
+			if (brewFinished && canCraft) {
 				craft(world, pos, blockEntity.inventory);
-			}
-			else if (!bl || !itemStack2.isOf(blockEntity.itemBrewing)) {
+			} else if (!canCraft || !ingredientStack.isOf(blockEntity.itemBrewing)) {
 				blockEntity.brewTime = 0;
 			}
 
 			markDirty(world, pos, state);
-		}
-		else if (bl && blockEntity.fuel > 0) {
+		} else if (canCraft && blockEntity.fuel > 0) {
 			blockEntity.fuel--;
 			blockEntity.brewTime = 400;
-			blockEntity.itemBrewing = itemStack2.getItem();
+			blockEntity.itemBrewing = ingredientStack.getItem();
 			markDirty(world, pos, state);
 		}
 
-		boolean[] bls = blockEntity.getSlotsEmpty();
-		if (!Arrays.equals(bls, blockEntity.slotsEmptyLastTick)) {
-			blockEntity.slotsEmptyLastTick = bls;
-			BlockState blockState = state;
+		boolean[] slotsEmpty = blockEntity.getSlotsEmpty();
+
+		if (!Arrays.equals(slotsEmpty, blockEntity.slotsEmptyLastTick)) {
+			blockEntity.slotsEmptyLastTick = slotsEmpty;
+
 			if (!(state.getBlock() instanceof BrewingStandBlock)) {
 				return;
 			}
 
-			for (int i = 0; i < BrewingStandBlock.BOTTLE_PROPERTIES.length; i++) {
-				blockState = blockState.with(BrewingStandBlock.BOTTLE_PROPERTIES[i], bls[i]);
+			BlockState updatedState = state;
+
+			for (int slot = 0; slot < BrewingStandBlock.BOTTLE_PROPERTIES.length; slot++) {
+				updatedState = updatedState.with(BrewingStandBlock.BOTTLE_PROPERTIES[slot], slotsEmpty[slot]);
 			}
 
-			world.setBlockState(pos, blockState, 2);
+			world.setBlockState(pos, updatedState, 2);
 		}
 	}
+
+	private static final int BOTTLE_SLOT_COUNT = 3;
+	private static final int BREW_TOTAL_TICKS = 400;
 
 	private boolean[] getSlotsEmpty() {
-		boolean[] bls = new boolean[3];
+		boolean[] result = new boolean[BOTTLE_SLOT_COUNT];
 
-		for (int i = 0; i < 3; i++) {
-			if (!this.inventory.get(i).isEmpty()) {
-				bls[i] = true;
+		for (int slot = 0; slot < BOTTLE_SLOT_COUNT; slot++) {
+			if (!inventory.get(slot).isEmpty()) {
+				result[slot] = true;
 			}
 		}
 
-		return bls;
+		return result;
 	}
 
-	private static boolean canCraft(BrewingRecipeRegistry brewingRecipeRegistry, DefaultedList<ItemStack> slots) {
-		ItemStack itemStack = slots.get(3);
-		if (itemStack.isEmpty()) {
-			return false;
-		}
-		else if (!brewingRecipeRegistry.isValidIngredient(itemStack)) {
-			return false;
-		}
-		else {
-			for (int i = 0; i < 3; i++) {
-				ItemStack itemStack2 = slots.get(i);
-				if (!itemStack2.isEmpty() && brewingRecipeRegistry.hasRecipe(itemStack2, itemStack)) {
-					return true;
-				}
-			}
+	private static boolean canCraft(BrewingRecipeRegistry registry, DefaultedList<ItemStack> slots) {
+		ItemStack ingredient = slots.get(INPUT_SLOT_INDEX);
 
+		if (ingredient.isEmpty()) {
 			return false;
 		}
+
+		if (!registry.isValidIngredient(ingredient)) {
+			return false;
+		}
+
+		for (int slot = 0; slot < BOTTLE_SLOT_COUNT; slot++) {
+			ItemStack bottle = slots.get(slot);
+			if (!bottle.isEmpty() && registry.hasRecipe(bottle, ingredient)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static void craft(World world, BlockPos pos, DefaultedList<ItemStack> slots) {
-		ItemStack itemStack = slots.get(3);
-		BrewingRecipeRegistry brewingRecipeRegistry = world.getBrewingRecipeRegistry();
+		ItemStack ingredient = slots.get(INPUT_SLOT_INDEX);
+		BrewingRecipeRegistry registry = world.getBrewingRecipeRegistry();
 
-		for (int i = 0; i < 3; i++) {
-			slots.set(i, brewingRecipeRegistry.craft(itemStack, slots.get(i)));
+		for (int slot = 0; slot < BOTTLE_SLOT_COUNT; slot++) {
+			slots.set(slot, registry.craft(ingredient, slots.get(slot)));
 		}
 
-		itemStack.decrement(1);
-		ItemStack itemStack2 = itemStack.getItem().getRecipeRemainder();
-		if (!itemStack2.isEmpty()) {
-			if (itemStack.isEmpty()) {
-				itemStack = itemStack2;
-			}
-			else {
-				ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), itemStack2);
+		ingredient.decrement(1);
+		ItemStack remainder = ingredient.getItem().getRecipeRemainder();
+
+		if (!remainder.isEmpty()) {
+			if (ingredient.isEmpty()) {
+				ingredient = remainder;
+			} else {
+				ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), remainder);
 			}
 		}
 
-		slots.set(3, itemStack);
+		slots.set(INPUT_SLOT_INDEX, ingredient);
 		world.syncWorldEvent(1035, pos, 0);
 	}
 
 	@Override
 	protected void readData(ReadView view) {
 		super.readData(view);
-		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-		Inventories.readData(view, this.inventory);
-		this.brewTime = view.getShort("BrewTime", (short) 0);
-		if (this.brewTime > 0) {
-			this.itemBrewing = this.inventory.get(3).getItem();
+		inventory = DefaultedList.ofSize(size(), ItemStack.EMPTY);
+		Inventories.readData(view, inventory);
+		brewTime = view.getShort("BrewTime", DEFAULT_BREW_TIME);
+
+		if (brewTime > 0) {
+			itemBrewing = inventory.get(INPUT_SLOT_INDEX).getItem();
 		}
 
-		this.fuel = view.getByte("Fuel", (byte) 0);
+		fuel = view.getByte("Fuel", DEFAULT_FUEL);
 	}
 
 	@Override
 	protected void writeData(WriteView view) {
 		super.writeData(view);
-		view.putShort("BrewTime", (short) this.brewTime);
-		Inventories.writeData(view, this.inventory);
-		view.putByte("Fuel", (byte) this.fuel);
+		view.putShort("BrewTime", (short) brewTime);
+		Inventories.writeData(view, inventory);
+		view.putByte("Fuel", (byte) fuel);
 	}
 
 	@Override
 	public boolean isValid(int slot, ItemStack stack) {
-		if (slot == 3) {
-			BrewingRecipeRegistry
-					brewingRecipeRegistry =
-					this.world != null ? this.world.getBrewingRecipeRegistry() : BrewingRecipeRegistry.EMPTY;
-			return brewingRecipeRegistry.isValidIngredient(stack);
+		if (slot == INPUT_SLOT_INDEX) {
+			BrewingRecipeRegistry registry = world != null ? world.getBrewingRecipeRegistry() : BrewingRecipeRegistry.EMPTY;
+			return registry.isValidIngredient(stack);
 		}
-		else {
-			return slot == 4
-			       ? stack.isIn(ItemTags.BREWING_FUEL)
-			       : (stack.isOf(Items.POTION) || stack.isOf(Items.SPLASH_POTION) || stack.isOf(Items.LINGERING_POTION)
-			          || stack.isOf(Items.GLASS_BOTTLE)
-			       )
-			         && this.getStack(slot).isEmpty();
+
+		if (slot == FUEL_SLOT_INDEX) {
+			return stack.isIn(ItemTags.BREWING_FUEL);
 		}
+
+		return (stack.isOf(Items.POTION)
+				|| stack.isOf(Items.SPLASH_POTION)
+				|| stack.isOf(Items.LINGERING_POTION)
+				|| stack.isOf(Items.GLASS_BOTTLE))
+				&& getStack(slot).isEmpty();
 	}
 
 	@Override
@@ -251,23 +250,22 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 		if (side == Direction.UP) {
 			return TOP_SLOTS;
 		}
-		else {
-			return side == Direction.DOWN ? BOTTOM_SLOTS : SIDE_SLOTS;
-		}
+
+		return side == Direction.DOWN ? BOTTOM_SLOTS : SIDE_SLOTS;
 	}
 
 	@Override
 	public boolean canInsert(int slot, ItemStack stack, @Nullable Direction dir) {
-		return this.isValid(slot, stack);
+		return isValid(slot, stack);
 	}
 
 	@Override
 	public boolean canExtract(int slot, ItemStack stack, Direction dir) {
-		return slot == 3 ? stack.isOf(Items.GLASS_BOTTLE) : true;
+		return slot == INPUT_SLOT_INDEX ? stack.isOf(Items.GLASS_BOTTLE) : true;
 	}
 
 	@Override
 	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-		return new BrewingStandScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+		return new BrewingStandScreenHandler(syncId, playerInventory, this, propertyDelegate);
 	}
 }

@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@code ServerPlayerInteractionManager}.
+ * Класс Server Player Interaction Manager.
  */
 public class ServerPlayerInteractionManager {
 
@@ -118,9 +118,6 @@ public class ServerPlayerInteractionManager {
 		return this.gameMode.isCreative();
 	}
 
-	/**
-	 * Update.
-	 */
 	public void update() {
 		this.tickCounter++;
 		if (this.failedToMine) {

@@ -9,7 +9,10 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 
 /**
- * {@code ResourceFileStore}.
+ * Реализация {@link FileStore} для виртуальной файловой системы ресурсов.
+ *
+ * <p>Файловое хранилище доступно только для чтения, не занимает реального дискового
+ * пространства и поддерживает только атрибуты типа {@code "basic"}.</p>
  */
 class ResourceFileStore extends FileStore {
 
@@ -21,7 +24,7 @@ class ResourceFileStore extends FileStore {
 
 	@Override
 	public String name() {
-		return this.name;
+		return name;
 	}
 
 	@Override

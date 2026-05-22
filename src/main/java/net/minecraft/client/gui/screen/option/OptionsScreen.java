@@ -19,10 +19,11 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code OptionsScreen}.
+ * Главный экран настроек игры — содержит кнопки перехода ко всем подразделам настроек,
+ * а также управление сложностью для одиночной игры.
  */
+@Environment(EnvType.CLIENT)
 public class OptionsScreen extends Screen {
 
 	private static final Text TITLE_TEXT = Text.translatable("options.title");
@@ -35,11 +36,12 @@ public class OptionsScreen extends Screen {
 	private static final Text RESOURCE_PACK_TEXT = Text.translatable("options.resourcepack");
 	private static final Text ACCESSIBILITY_TEXT = Text.translatable("options.accessibility");
 	private static final Text TELEMETRY_TEXT = Text.translatable("options.telemetry");
-	private static final Tooltip
-			TELEMETRY_DISABLED_TOOLTIP =
-			Tooltip.of(Text.translatable("options.telemetry.disabled"));
+	private static final Tooltip TELEMETRY_DISABLED_TOOLTIP = Tooltip.of(Text.translatable("options.telemetry.disabled"));
 	private static final Text CREDITS_AND_ATTRIBUTION_TEXT = Text.translatable("options.credits_and_attribution");
-	private static final int COLUMNS = 2;
+
+	private static final int DIFFICULTY_BUTTON_WIDTH = 150;
+	private static final int DIFFICULTY_BUTTON_HEIGHT = 20;
+
 	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this, 61, 33);
 	private final Screen parent;
 	private final GameOptions settings;
@@ -49,160 +51,135 @@ public class OptionsScreen extends Screen {
 	public OptionsScreen(Screen parent, GameOptions gameOptions) {
 		super(TITLE_TEXT);
 		this.parent = parent;
-		this.settings = gameOptions;
+		settings = gameOptions;
 	}
 
 	@Override
 	protected void init() {
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.layout.addHeader(DirectionalLayoutWidget.vertical().spacing(8));
-		directionalLayoutWidget.add(new TextWidget(TITLE_TEXT, this.textRenderer), Positioner::alignHorizontalCenter);
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.horizontal()).spacing(8);
-		directionalLayoutWidget2.add(this.settings.getFov().createWidget(this.client.options));
-		directionalLayoutWidget2.add(this.createTopRightButton());
+		DirectionalLayoutWidget headerLayout = layout.addHeader(DirectionalLayoutWidget.vertical().spacing(8));
+		headerLayout.add(new TextWidget(TITLE_TEXT, textRenderer), Positioner::alignHorizontalCenter);
+		DirectionalLayoutWidget fovRow = headerLayout.add(DirectionalLayoutWidget.horizontal()).spacing(8);
+		fovRow.add(settings.getFov().createWidget(client.options));
+		fovRow.add(createTopRightButton());
 		GridWidget gridWidget = new GridWidget();
 		gridWidget.getMainPositioner().marginX(4).marginBottom(4).alignHorizontalCenter();
 		GridWidget.Adder adder = gridWidget.createAdder(2);
-		adder.add(this.createButton(SKIN_CUSTOMIZATION_TEXT, () -> new SkinOptionsScreen(this, this.settings)));
-		adder.add(this.createButton(SOUNDS_TEXT, () -> new SoundOptionsScreen(this, this.settings)));
-		adder.add(this.createButton(VIDEO_TEXT, () -> new VideoOptionsScreen(this, this.client, this.settings)));
-		adder.add(this.createButton(CONTROL_TEXT, () -> new ControlsOptionsScreen(this, this.settings)));
-		adder.add(this.createButton(
-				LANGUAGE_TEXT,
-				() -> new LanguageOptionsScreen(this, this.settings, this.client.getLanguageManager())
+		adder.add(createButton(SKIN_CUSTOMIZATION_TEXT, () -> new SkinOptionsScreen(this, settings)));
+		adder.add(createButton(SOUNDS_TEXT, () -> new SoundOptionsScreen(this, settings)));
+		adder.add(createButton(VIDEO_TEXT, () -> new VideoOptionsScreen(this, client, settings)));
+		adder.add(createButton(CONTROL_TEXT, () -> new ControlsOptionsScreen(this, settings)));
+		adder.add(createButton(LANGUAGE_TEXT, () -> new LanguageOptionsScreen(this, settings, client.getLanguageManager())));
+		adder.add(createButton(CHAT_TEXT, () -> new ChatOptionsScreen(this, settings)));
+		adder.add(createButton(
+			RESOURCE_PACK_TEXT,
+			() -> new PackScreen(
+				client.getResourcePackManager(),
+				this::refreshResourcePacks,
+				client.getResourcePackDir(),
+				Text.translatable("resourcePack.title")
+			)
 		));
-		adder.add(this.createButton(CHAT_TEXT, () -> new ChatOptionsScreen(this, this.settings)));
-		adder.add(
-				this.createButton(
-						RESOURCE_PACK_TEXT,
-						() -> new PackScreen(
-								this.client.getResourcePackManager(),
-								this::refreshResourcePacks,
-								this.client.getResourcePackDir(),
-								Text.translatable("resourcePack.title")
-						)
-				)
-		);
-		adder.add(this.createButton(ACCESSIBILITY_TEXT, () -> new AccessibilityOptionsScreen(this, this.settings)));
-		ButtonWidget
-				buttonWidget =
-				adder.add(this.createButton(TELEMETRY_TEXT, () -> new TelemetryInfoScreen(this, this.settings)));
-		if (!this.client.isTelemetryEnabledByApi()) {
-			buttonWidget.active = false;
-			buttonWidget.setTooltip(TELEMETRY_DISABLED_TOOLTIP);
+		adder.add(createButton(ACCESSIBILITY_TEXT, () -> new AccessibilityOptionsScreen(this, settings)));
+		ButtonWidget telemetryButton = adder.add(createButton(TELEMETRY_TEXT, () -> new TelemetryInfoScreen(this, settings)));
+		if (!client.isTelemetryEnabledByApi()) {
+			telemetryButton.active = false;
+			telemetryButton.setTooltip(TELEMETRY_DISABLED_TOOLTIP);
 		}
 
-		adder.add(this.createButton(CREDITS_AND_ATTRIBUTION_TEXT, () -> new CreditsAndAttributionScreen(this)));
-		this.layout.addBody(gridWidget);
-		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).width(200).build());
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		adder.add(createButton(CREDITS_AND_ATTRIBUTION_TEXT, () -> new CreditsAndAttributionScreen(this)));
+		layout.addBody(gridWidget);
+		layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> close()).width(200).build());
+		layout.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
+		layout.refreshPositions();
 	}
 
 	@Override
 	public void close() {
-		this.client.setScreen(this.parent);
+		client.setScreen(parent);
 	}
 
 	private void refreshResourcePacks(ResourcePackManager resourcePackManager) {
-		this.settings.refreshResourcePacks(resourcePackManager);
-		this.client.setScreen(this);
+		settings.refreshResourcePacks(resourcePackManager);
+		client.setScreen(this);
 	}
 
 	private Widget createTopRightButton() {
-		if (this.client.world != null && this.client.isIntegratedServerRunning()) {
-			this.difficultyButton = createDifficultyButtonWidget(0, 0, "options.difficulty", this.client);
-			if (!this.client.world.getLevelProperties().isHardcore()) {
-				this.lockDifficultyButton = new LockButtonWidget(
-						0,
-						0,
-						button -> this.client
-								.setScreen(
-										new ConfirmScreen(
-												this::lockDifficulty,
-												Text.translatable("difficulty.lock.title"),
-												Text.translatable(
-														"difficulty.lock.question",
-														this.client.world
-																.getLevelProperties()
-																.getDifficulty()
-																.getTranslatableName()
-												)
-										)
-								)
-				);
-				this.difficultyButton.setWidth(this.difficultyButton.getWidth() - this.lockDifficultyButton.getWidth());
-				this.lockDifficultyButton.setLocked(this.client.world.getLevelProperties().isDifficultyLocked());
-				this.lockDifficultyButton.active = !this.lockDifficultyButton.isLocked();
-				this.difficultyButton.active = !this.lockDifficultyButton.isLocked();
-				AxisGridWidget axisGridWidget = new AxisGridWidget(150, 0, AxisGridWidget.DisplayAxis.HORIZONTAL);
-				axisGridWidget.add(this.difficultyButton);
-				axisGridWidget.add(this.lockDifficultyButton);
-				return axisGridWidget;
-			}
-			else {
-				this.difficultyButton.active = false;
-				return this.difficultyButton;
-			}
+		if (client.world == null || !client.isIntegratedServerRunning()) {
+			return ButtonWidget.builder(
+				Text.translatable("options.online"),
+				button -> client.setScreen(new OnlineOptionsScreen(this, settings))
+			).dimensions(width / 2 + 5, height / 6 - 12 + 24, DIFFICULTY_BUTTON_WIDTH, DIFFICULTY_BUTTON_HEIGHT).build();
 		}
-		else {
-			return ButtonWidget
-					.builder(
-							Text.translatable("options.online"),
-							button -> this.client.setScreen(new OnlineOptionsScreen(this, this.settings))
-					)
-					.dimensions(this.width / 2 + 5, this.height / 6 - 12 + 24, 150, 20)
-					.build();
+
+		difficultyButton = createDifficultyButtonWidget(0, 0, "options.difficulty", client);
+		if (client.world.getLevelProperties().isHardcore()) {
+			difficultyButton.active = false;
+			return difficultyButton;
 		}
+
+		lockDifficultyButton = new LockButtonWidget(
+			0, 0,
+			button -> client.setScreen(new ConfirmScreen(
+				this::lockDifficulty,
+				Text.translatable("difficulty.lock.title"),
+				Text.translatable(
+					"difficulty.lock.question",
+					client.world.getLevelProperties().getDifficulty().getTranslatableName()
+				)
+			))
+		);
+		difficultyButton.setWidth(difficultyButton.getWidth() - lockDifficultyButton.getWidth());
+		lockDifficultyButton.setLocked(client.world.getLevelProperties().isDifficultyLocked());
+		lockDifficultyButton.active = !lockDifficultyButton.isLocked();
+		difficultyButton.active = !lockDifficultyButton.isLocked();
+		AxisGridWidget difficultyRow = new AxisGridWidget(DIFFICULTY_BUTTON_WIDTH, 0, AxisGridWidget.DisplayAxis.HORIZONTAL);
+		difficultyRow.add(difficultyButton);
+		difficultyRow.add(lockDifficultyButton);
+		return difficultyRow;
 	}
 
+	/**
+	 * Создаёт кнопку выбора сложности с обработчиком отправки пакета на сервер.
+	 */
 	public static CyclingButtonWidget<Difficulty> createDifficultyButtonWidget(
-			int x,
-			int y,
-			String translationKey,
-			MinecraftClient client
+		int x,
+		int y,
+		String translationKey,
+		MinecraftClient client
 	) {
 		return CyclingButtonWidget.builder(Difficulty::getTranslatableName, client.world.getDifficulty())
-		                          .values(Difficulty.values())
-		                          .build(
-				                          x,
-				                          y,
-				                          150,
-				                          20,
-				                          Text.translatable(translationKey),
-				                          (button, difficulty) -> client
-						                          .getNetworkHandler()
-						                          .sendPacket(new UpdateDifficultyC2SPacket(difficulty))
-		                          );
+			.values(Difficulty.values())
+			.build(
+				x, y,
+				DIFFICULTY_BUTTON_WIDTH, DIFFICULTY_BUTTON_HEIGHT,
+				Text.translatable(translationKey),
+				(button, difficulty) -> client.getNetworkHandler().sendPacket(new UpdateDifficultyC2SPacket(difficulty))
+			);
 	}
 
 	private void lockDifficulty(boolean difficultyLocked) {
-		this.client.setScreen(this);
-		if (difficultyLocked && this.client.world != null && this.lockDifficultyButton != null
-				&& this.difficultyButton != null) {
-			this.client.getNetworkHandler().sendPacket(new UpdateDifficultyLockC2SPacket(true));
-			this.lockDifficultyButton.setLocked(true);
-			this.lockDifficultyButton.active = false;
-			this.difficultyButton.active = false;
+		client.setScreen(this);
+		if (!difficultyLocked || client.world == null || lockDifficultyButton == null || difficultyButton == null) {
+			return;
 		}
+
+		client.getNetworkHandler().sendPacket(new UpdateDifficultyLockC2SPacket(true));
+		lockDifficultyButton.setLocked(true);
+		lockDifficultyButton.active = false;
+		difficultyButton.active = false;
 	}
 
 	@Override
 	public void removed() {
-		this.settings.write();
+		settings.write();
 	}
 
 	private ButtonWidget createButton(Text message, Supplier<Screen> screenSupplier) {
-		return ButtonWidget.builder(message, button -> this.client.setScreen(screenSupplier.get())).build();
+		return ButtonWidget.builder(message, button -> client.setScreen(screenSupplier.get())).build();
 	}
 }

@@ -19,39 +19,46 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChunkGenerationStatsDebugHudEntry}.
+ * Запись отладочного HUD: статистика генерации чанков (шум, биомы, смешивание).
+ * Доступна только при наличии серверного мира.
  */
+@Environment(EnvType.CLIENT)
 public class ChunkGenerationStatsDebugHudEntry implements DebugHudEntry {
 
 	private static final Identifier SECTION_ID = Identifier.ofVanilla("chunk_generation");
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		Entity entity = minecraftClient.getCameraEntity();
-		ServerWorld serverWorld = world instanceof ServerWorld ? (ServerWorld) world : null;
-		if (entity != null && serverWorld != null) {
-			BlockPos blockPos = entity.getBlockPos();
-			ServerChunkManager serverChunkManager = serverWorld.getChunkManager();
-			List<String> list = new ArrayList<>();
-			ChunkGenerator chunkGenerator = serverChunkManager.getChunkGenerator();
-			NoiseConfig noiseConfig = serverChunkManager.getNoiseConfig();
-			chunkGenerator.appendDebugHudText(list, noiseConfig, blockPos);
-			MultiNoiseUtil.MultiNoiseSampler multiNoiseSampler = noiseConfig.getMultiNoiseSampler();
-			BiomeSource biomeSource = chunkGenerator.getBiomeSource();
-			biomeSource.addDebugInfo(list, blockPos, multiNoiseSampler);
-			if (chunk != null && chunk.usesOldNoise()) {
-				list.add("Blending: Old");
-			}
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
+		ServerWorld serverWorld = world instanceof ServerWorld sw ? sw : null;
 
-			lines.addLinesToSection(SECTION_ID, list);
+		if (cameraEntity == null || serverWorld == null) {
+			return;
 		}
+
+		BlockPos blockPos = cameraEntity.getBlockPos();
+		ServerChunkManager chunkManager = serverWorld.getChunkManager();
+		List<String> debugLines = new ArrayList<>();
+		ChunkGenerator chunkGenerator = chunkManager.getChunkGenerator();
+		NoiseConfig noiseConfig = chunkManager.getNoiseConfig();
+
+		chunkGenerator.appendDebugHudText(debugLines, noiseConfig, blockPos);
+
+		MultiNoiseUtil.MultiNoiseSampler noiseSampler = noiseConfig.getMultiNoiseSampler();
+		BiomeSource biomeSource = chunkGenerator.getBiomeSource();
+		biomeSource.addDebugInfo(debugLines, blockPos, noiseSampler);
+
+		if (chunk != null && chunk.usesOldNoise()) {
+			debugLines.add("Blending: Old");
+		}
+
+		lines.addLinesToSection(SECTION_ID, debugLines);
 	}
 }

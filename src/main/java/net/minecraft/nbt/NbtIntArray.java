@@ -12,22 +12,21 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * {@code NbtIntArray}.
+ * NBT-тег, хранящий массив 32-битных целых чисел ({@code TAG_Int_Array}).
+ * <p>
+ * Реализует {@link AbstractNbtList}, что позволяет обращаться к элементам
+ * через индекс и использовать стандартные операции добавления/удаления.
+ * Каждый элемент при доступе через {@link #get(int)} оборачивается в {@link NbtInt}.
  */
 public final class NbtIntArray implements AbstractNbtList {
 
 	private static final int SIZE = 24;
+	private static final int BYTES_PER_ELEMENT = 4;
+
 	public static final NbtType<NbtIntArray> TYPE = new NbtType.OfVariableSize<NbtIntArray>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtIntArray — результат операции
-		 */
-		public NbtIntArray read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return new NbtIntArray(readIntArray(dataInput, nbtSizeTracker));
+		@Override
+		public NbtIntArray read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return new NbtIntArray(readIntArray(input, tracker));
 		}
 
 		@Override
@@ -37,21 +36,21 @@ public final class NbtIntArray implements AbstractNbtList {
 		}
 
 		private static int[] readIntArray(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(24L);
-			int i = input.readInt();
-			tracker.add(4L, i);
-			int[] is = new int[i];
+			tracker.add(SIZE);
+			int length = input.readInt();
+			tracker.add(BYTES_PER_ELEMENT, length);
+			int[] ints = new int[length];
 
-			for (int j = 0; j < i; j++) {
-				is[j] = input.readInt();
+			for (int index = 0; index < length; index++) {
+				ints[index] = input.readInt();
 			}
 
-			return is;
+			return ints;
 		}
 
 		@Override
 		public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
-			input.skipBytes(input.readInt() * 4);
+			input.skipBytes(input.readInt() * BYTES_PER_ELEMENT);
 		}
 
 		@Override
@@ -64,6 +63,7 @@ public final class NbtIntArray implements AbstractNbtList {
 			return "TAG_Int_Array";
 		}
 	};
+
 	private int[] value;
 
 	public NbtIntArray(int[] value) {
@@ -72,21 +72,21 @@ public final class NbtIntArray implements AbstractNbtList {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeInt(this.value.length);
+		output.writeInt(value.length);
 
-		for (int i : this.value) {
-			output.writeInt(i);
+		for (int element : value) {
+			output.writeInt(element);
 		}
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 24 + 4 * this.value.length;
+		return SIZE + BYTES_PER_ELEMENT * value.length;
 	}
 
 	@Override
 	public byte getType() {
-		return 11;
+		return INT_ARRAY_TYPE;
 	}
 
 	@Override
@@ -96,34 +96,36 @@ public final class NbtIntArray implements AbstractNbtList {
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitIntArray(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitIntArray(this);
+		return writer.getString();
 	}
 
 	/**
-	 * Copy.
+	 * Создаёт глубокую копию массива.
 	 *
-	 * @return NbtIntArray — результат операции
+	 * @return новый {@link NbtIntArray} с независимой копией данных
 	 */
 	public NbtIntArray copy() {
-		int[] is = new int[this.value.length];
-		System.arraycopy(this.value, 0, is, 0, this.value.length);
-		return new NbtIntArray(is);
+		int[] copy = new int[value.length];
+		System.arraycopy(value, 0, copy, 0, value.length);
+		return new NbtIntArray(copy);
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof NbtIntArray && Arrays.equals(this.value, ((NbtIntArray) o).value);
+	public boolean equals(Object other) {
+		return this == other
+			? true
+			: other instanceof NbtIntArray nbtIntArray && Arrays.equals(value, nbtIntArray.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.value);
+		return Arrays.hashCode(value);
 	}
 
 	public int[] getIntArray() {
-		return this.value;
+		return value;
 	}
 
 	@Override
@@ -133,67 +135,58 @@ public final class NbtIntArray implements AbstractNbtList {
 
 	@Override
 	public int size() {
-		return this.value.length;
+		return value.length;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param i i
-	 *
-	 * @return NbtInt — 
-	 */
-	public NbtInt get(int i) {
-		return NbtInt.of(this.value[i]);
+	@Override
+	public NbtInt get(int index) {
+		return NbtInt.of(value[index]);
 	}
 
 	@Override
 	public boolean setElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value[index] = abstractNbtNumber.intValue();
+		if (element instanceof AbstractNbtNumber number) {
+			value[index] = number.intValue();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
 	public boolean addElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value = ArrayUtils.add(this.value, index, abstractNbtNumber.intValue());
+		if (element instanceof AbstractNbtNumber number) {
+			value = ArrayUtils.add(value, index, number.intValue());
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	/**
-	 * Remove.
+	 * Удаляет элемент по индексу и возвращает его как {@link NbtInt}.
 	 *
-	 * @param i i
-	 *
-	 * @return NbtInt — результат операции
+	 * @param index индекс удаляемого элемента
+	 * @return удалённое значение, обёрнутое в {@link NbtInt}
 	 */
-	public NbtInt remove(int i) {
-		int j = this.value[i];
-		this.value = ArrayUtils.remove(this.value, i);
-		return NbtInt.of(j);
+	public NbtInt remove(int index) {
+		int removed = value[index];
+		value = ArrayUtils.remove(value, index);
+		return NbtInt.of(removed);
 	}
 
 	@Override
 	public void clear() {
-		this.value = new int[0];
+		value = new int[0];
 	}
 
 	@Override
 	public Optional<int[]> asIntArray() {
-		return Optional.of(this.value);
+		return Optional.of(value);
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitIntArray(this.value);
+		return visitor.visitIntArray(value);
 	}
 }

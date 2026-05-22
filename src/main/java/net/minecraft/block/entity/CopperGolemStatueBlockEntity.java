@@ -14,7 +14,8 @@ import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code CopperGolemStatueBlockEntity}.
+ * Блок-сущность статуи медного голема. Хранит пользовательское имя и позу,
+ * а также управляет созданием живого голема при активации.
  */
 public class CopperGolemStatueBlockEntity extends BlockEntity {
 
@@ -22,40 +23,31 @@ public class CopperGolemStatueBlockEntity extends BlockEntity {
 		super(BlockEntityType.COPPER_GOLEM_STATUE, pos, state);
 	}
 
-	/**
-	 * Создаёт копию data from.
-	 *
-	 * @param copperGolemEntity copper golem entity
-	 */
 	public void copyDataFrom(CopperGolemEntity copperGolemEntity) {
-		this.setComponents(ComponentMap
+		setComponents(ComponentMap
 				.builder()
-				.addAll(this.getComponents())
+				.addAll(getComponents())
 				.add(DataComponentTypes.CUSTOM_NAME, copperGolemEntity.getCustomName())
 				.build());
 		super.markDirty();
 	}
 
 	/**
-	 * Создаёт copper golem.
-	 *
-	 * @param state state
-	 *
-	 * @return @Nullable CopperGolemEntity — результат операции
+	 * Создаёт живого медного голема из данных статуи, позиционируя его
+	 * в центре блока с направлением из {@link CopperGolemStatueBlock#FACING}.
 	 */
 	public @Nullable CopperGolemEntity createCopperGolem(BlockState state) {
-		CopperGolemEntity copperGolemEntity = EntityType.COPPER_GOLEM.create(this.world, SpawnReason.TRIGGERED);
-		if (copperGolemEntity != null) {
-			copperGolemEntity.setCustomName(this.getComponents().get(DataComponentTypes.CUSTOM_NAME));
-			return this.setupEntity(state, copperGolemEntity);
-		}
-		else {
+		CopperGolemEntity golem = EntityType.COPPER_GOLEM.create(world, SpawnReason.TRIGGERED);
+		if (golem == null) {
 			return null;
 		}
+
+		golem.setCustomName(getComponents().get(DataComponentTypes.CUSTOM_NAME));
+		return setupEntity(state, golem);
 	}
 
 	private CopperGolemEntity setupEntity(BlockState state, CopperGolemEntity entity) {
-		BlockPos blockPos = this.getPos();
+		BlockPos blockPos = getPos();
 		entity.refreshPositionAndAngles(
 				blockPos.toCenterPos().x,
 				blockPos.getY(),
@@ -69,25 +61,13 @@ public class CopperGolemStatueBlockEntity extends BlockEntity {
 		return entity;
 	}
 
-	/**
-	 * To update packet.
-	 *
-	 * @return BlockEntityUpdateS2CPacket — результат операции
-	 */
+	@Override
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
-	/**
-	 * With components.
-	 *
-	 * @param stack stack
-	 * @param pose pose
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public ItemStack withComponents(ItemStack stack, CopperGolemStatueBlock.Pose pose) {
-		stack.applyComponentsFrom(this.createComponentMap());
+		stack.applyComponentsFrom(createComponentMap());
 		stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(CopperGolemStatueBlock.POSE, pose));
 		return stack;
 	}

@@ -5,16 +5,12 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 /**
- * Класс local buf unpacker.
+ * Netty-обработчик входящего трафика для локальных соединений:
+ * распаковывает {@link OpaqueByteBufHolder} перед передачей дальше по pipeline.
  */
 public class LocalBufUnpacker extends ChannelInboundHandlerAdapter {
 
-	/**
-	 * Channel read.
-	 *
-	 * @param context context
-	 * @param buf buf
-	 */
+	@Override
 	public void channelRead(ChannelHandlerContext context, Object buf) {
 		context.fireChannelRead(OpaqueByteBufHolder.unpack(buf));
 	}

@@ -7,7 +7,8 @@ import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.book.RecipeBookType;
 
 /**
- * {@code FurnaceScreenHandler}.
+ * Обработчик экрана обычной печи.
+ * Принимает большинство предметов для плавки и приготовления еды.
  */
 public class FurnaceScreenHandler extends AbstractFurnaceScreenHandler {
 

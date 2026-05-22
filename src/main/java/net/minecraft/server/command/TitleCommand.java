@@ -19,7 +19,7 @@ import java.util.Collection;
 import java.util.function.Function;
 
 /**
- * {@code TitleCommand}.
+ * Команда {@code /title}: отображение заголовков и субтитров на экране игроков.
  */
 public class TitleCommand {
 

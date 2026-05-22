@@ -31,14 +31,15 @@ import net.minecraft.world.event.GameEvent;
 import java.util.function.Consumer;
 
 /**
- * {@code JukeboxPlayableComponent}.
- */
+	 * Компонент воспроизводимой пластинки. Хранит ленивую ссылку на {@link JukeboxSong}
+	 * и позволяет вставить предмет в проигрыватель при взаимодействии.
+	 */
 public record JukeboxPlayableComponent(LazyRegistryEntryReference<JukeboxSong> song) implements TooltipAppender {
 
 	public static final Codec<JukeboxPlayableComponent>
 			CODEC =
 			LazyRegistryEntryReference.createCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_CODEC)
-			                          .xmap(JukeboxPlayableComponent::new, JukeboxPlayableComponent::song);
+										.xmap(JukeboxPlayableComponent::new, JukeboxPlayableComponent::song);
 	public static final PacketCodec<RegistryByteBuf, JukeboxPlayableComponent> PACKET_CODEC = PacketCodec.tuple(
 			LazyRegistryEntryReference.createPacketCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_PACKET_CODEC),
 			JukeboxPlayableComponent::song,
@@ -62,15 +63,16 @@ public record JukeboxPlayableComponent(LazyRegistryEntryReference<JukeboxSong> s
 	}
 
 	/**
-	 * Try play stack.
-	 *
-	 * @param world world
-	 * @param pos pos
-	 * @param stack stack
-	 * @param player player
-	 *
-	 * @return ActionResult — результат операции
-	 */
+		 * Пытается вставить предмет в проигрыватель по указанным координатам.
+		 * Срабатывает только если блок является пустым проигрывателем и предмет
+		 * имеет компонент {@link DataComponentTypes#JUKEBOX_PLAYABLE}.
+		 *
+		 * @param world  мир, в котором находится проигрыватель
+		 * @param pos    позиция блока проигрывателя
+		 * @param stack  предмет с компонентом воспроизведения
+		 * @param player игрок, взаимодействующий с проигрывателем
+		 * @return результат действия
+		 */
 	public static ActionResult tryPlayStack(World world, BlockPos pos, ItemStack stack, PlayerEntity player) {
 		JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
 		if (jukeboxPlayableComponent == null) {

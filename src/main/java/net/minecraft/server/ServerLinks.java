@@ -14,39 +14,34 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 
 /**
- * {@code ServerLinks}.
+ * Набор ссылок сервера (баг-репорт, поддержка, сайт и т.д.), отправляемых клиенту при подключении.
  */
 public record ServerLinks(List<ServerLinks.Entry> entries) {
 
 	public static final ServerLinks EMPTY = new ServerLinks(List.of());
-	public static final PacketCodec<ByteBuf, Either<ServerLinks.Known, Text>>
-			TYPE_CODEC =
+	public static final PacketCodec<ByteBuf, Either<ServerLinks.Known, Text>> TYPE_CODEC =
 			PacketCodecs.either(ServerLinks.Known.CODEC, TextCodecs.PACKET_CODEC);
-	public static final PacketCodec<ByteBuf, List<ServerLinks.StringifiedEntry>>
-			LIST_CODEC =
+	public static final PacketCodec<ByteBuf, List<ServerLinks.StringifiedEntry>> LIST_CODEC =
 			ServerLinks.StringifiedEntry.CODEC.collect(PacketCodecs.toList());
 
 	public boolean isEmpty() {
-		return this.entries.isEmpty();
+		return entries.isEmpty();
 	}
 
 	public Optional<ServerLinks.Entry> getEntryFor(ServerLinks.Known known) {
-		return this.entries
+		return entries
 				.stream()
 				.filter(entry -> (Boolean) entry.type.map(type -> type == known, text -> false))
 				.findFirst();
 	}
 
 	public List<ServerLinks.StringifiedEntry> getLinks() {
-		return this.entries
+		return entries
 				.stream()
 				.map(entry -> new ServerLinks.StringifiedEntry(entry.type, entry.link.toString()))
 				.toList();
 	}
 
-	/**
-	 * {@code Entry}.
-	 */
 	public record Entry(Either<ServerLinks.Known, Text> type, URI link) {
 
 		public static ServerLinks.Entry create(ServerLinks.Known known, URI link) {
@@ -58,14 +53,11 @@ public record ServerLinks(List<ServerLinks.Entry> entries) {
 		}
 
 		public Text getText() {
-			return (Text) this.type.map(ServerLinks.Known::getText, text -> text);
+			return (Text) type.map(ServerLinks.Known::getText, text -> text);
 		}
 	}
 
-	/**
-	 * {@code Known}.
-	 */
-	public static enum Known {
+	public enum Known {
 		BUG_REPORT(0, "report_bug"),
 		COMMUNITY_GUIDELINES(1, "community_guidelines"),
 		SUPPORT(2, "support"),

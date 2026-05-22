@@ -7,29 +7,29 @@ import net.minecraft.network.codec.PacketCodecs;
 import java.util.List;
 
 /**
- * {@code GoalSelectorDebugData}.
+ * Отладочные данные селектора целей сущности: список активных и неактивных целей с приоритетами.
  */
 public record GoalSelectorDebugData(List<GoalSelectorDebugData.Goal> goals) {
 
 	public static final PacketCodec<ByteBuf, GoalSelectorDebugData> PACKET_CODEC = PacketCodec.tuple(
-			GoalSelectorDebugData.Goal.PACKET_CODEC.collect(PacketCodecs.toList()),
+			Goal.PACKET_CODEC.collect(PacketCodecs.toList()),
 			GoalSelectorDebugData::goals,
 			GoalSelectorDebugData::new
 	);
 
 	/**
-	 * {@code Goal}.
+	 * Снимок одной цели селектора: приоритет, статус выполнения и имя.
 	 */
 	public record Goal(int priority, boolean isRunning, String name) {
 
-		public static final PacketCodec<ByteBuf, GoalSelectorDebugData.Goal> PACKET_CODEC = PacketCodec.tuple(
+		public static final PacketCodec<ByteBuf, Goal> PACKET_CODEC = PacketCodec.tuple(
 				PacketCodecs.VAR_INT,
-				GoalSelectorDebugData.Goal::priority,
+				Goal::priority,
 				PacketCodecs.BOOLEAN,
-				GoalSelectorDebugData.Goal::isRunning,
+				Goal::isRunning,
 				PacketCodecs.string(255),
-				GoalSelectorDebugData.Goal::name,
-				GoalSelectorDebugData.Goal::new
+				Goal::name,
+				Goal::new
 		);
 	}
 }

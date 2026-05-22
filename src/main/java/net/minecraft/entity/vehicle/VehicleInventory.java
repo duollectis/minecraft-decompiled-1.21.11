@@ -31,7 +31,9 @@ import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code VehicleInventory}.
+ * Интерфейс для транспортных средств с инвентарём (сундуки-лодки, вагонетки-сундуки и т.д.).
+ * Предоставляет стандартную реализацию работы с лут-таблицами, сериализацией инвентаря
+ * и проверкой доступа игрока.
  */
 public interface VehicleInventory extends Inventory, NamedScreenHandlerFactory {
 
@@ -45,7 +47,7 @@ public interface VehicleInventory extends Inventory, NamedScreenHandlerFactory {
 
 	long getLootTableSeed();
 
-	void setLootTableSeed(long lootTableSeed);
+	void setLootTableSeed(long seed);
 
 	DefaultedList<ItemStack> getInventory();
 
@@ -57,39 +59,45 @@ public interface VehicleInventory extends Inventory, NamedScreenHandlerFactory {
 
 	@Override
 	default boolean isEmpty() {
-		return this.isInventoryEmpty();
+		return isInventoryEmpty();
 	}
 
 	default void writeInventoryToData(WriteView view) {
-		if (this.getLootTable() != null) {
-			view.putString("LootTable", this.getLootTable().getValue().toString());
-			if (this.getLootTableSeed() != 0L) {
-				view.putLong("LootTableSeed", this.getLootTableSeed());
+		RegistryKey<LootTable> table = getLootTable();
+
+		if (table != null) {
+			view.putString("LootTable", table.getValue().toString());
+
+			if (getLootTableSeed() != 0L) {
+				view.putLong("LootTableSeed", getLootTableSeed());
 			}
-		}
-		else {
-			Inventories.writeData(view, this.getInventory());
+		} else {
+			Inventories.writeData(view, getInventory());
 		}
 	}
 
 	default void readInventoryFromData(ReadView view) {
-		this.resetInventory();
-		RegistryKey<LootTable>
-				registryKey =
-				view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
-		this.setLootTable(registryKey);
-		this.setLootTableSeed(view.getLong("LootTableSeed", 0L));
-		if (registryKey == null) {
-			Inventories.readData(view, this.getInventory());
+		resetInventory();
+		RegistryKey<LootTable> table = view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
+		setLootTable(table);
+		setLootTableSeed(view.getLong("LootTableSeed", 0L));
+
+		if (table == null) {
+			Inventories.readData(view, getInventory());
 		}
 	}
 
+	/**
+	 * Вызывается при уничтожении транспортного средства: рассыпает содержимое инвентаря
+	 * и уведомляет мозг пиглина об взаимодействии с охраняемым блоком.
+	 */
 	default void onBroken(DamageSource source, ServerWorld world, Entity vehicle) {
 		if (world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
 			ItemScatterer.spawn(world, vehicle, this);
-			Entity entity = source.getSource();
-			if (entity != null && entity.getType() == EntityType.PLAYER) {
-				PiglinBrain.onGuardedBlockInteracted(world, (PlayerEntity) entity, true);
+			Entity sourceEntity = source.getSource();
+
+			if (sourceEntity != null && sourceEntity.getType() == EntityType.PLAYER) {
+				PiglinBrain.onGuardedBlockInteracted(world, (PlayerEntity) sourceEntity, true);
 			}
 		}
 	}
@@ -99,33 +107,43 @@ public interface VehicleInventory extends Inventory, NamedScreenHandlerFactory {
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Генерирует лут из лут-таблицы и заполняет инвентарь.
+	 * После генерации лут-таблица сбрасывается, чтобы не генерировать повторно.
+	 */
 	default void generateInventoryLoot(@Nullable PlayerEntity player) {
-		MinecraftServer minecraftServer = this.getEntityWorld().getServer();
-		if (this.getLootTable() != null && minecraftServer != null) {
-			LootTable lootTable = minecraftServer.getReloadableRegistries().getLootTable(this.getLootTable());
-			if (player != null) {
-				Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger((ServerPlayerEntity) player, this.getLootTable());
-			}
+		MinecraftServer server = getEntityWorld().getServer();
 
-			this.setLootTable(null);
-			LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld) this.getEntityWorld())
-					.add(LootContextParameters.ORIGIN, this.getEntityPos());
-			if (player != null) {
-				builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
-			}
-
-			lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), this.getLootTableSeed());
+		if (getLootTable() == null || server == null) {
+			return;
 		}
+
+		LootTable lootTable = server.getReloadableRegistries().getLootTable(getLootTable());
+
+		if (player != null) {
+			Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger((ServerPlayerEntity) player, getLootTable());
+		}
+
+		setLootTable(null);
+
+		LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld) getEntityWorld())
+				.add(LootContextParameters.ORIGIN, getEntityPos());
+
+		if (player != null) {
+			builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
+		}
+
+		lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), getLootTableSeed());
 	}
 
 	default void clearInventory() {
-		this.generateInventoryLoot(null);
-		this.getInventory().clear();
+		generateInventoryLoot(null);
+		getInventory().clear();
 	}
 
 	default boolean isInventoryEmpty() {
-		for (ItemStack itemStack : this.getInventory()) {
-			if (!itemStack.isEmpty()) {
+		for (ItemStack stack : getInventory()) {
+			if (!stack.isEmpty()) {
 				return false;
 			}
 		}
@@ -134,49 +152,51 @@ public interface VehicleInventory extends Inventory, NamedScreenHandlerFactory {
 	}
 
 	default ItemStack removeInventoryStack(int slot) {
-		this.generateInventoryLoot(null);
-		ItemStack itemStack = this.getInventory().get(slot);
-		if (itemStack.isEmpty()) {
+		generateInventoryLoot(null);
+		ItemStack stack = getInventory().get(slot);
+
+		if (stack.isEmpty()) {
 			return ItemStack.EMPTY;
 		}
-		else {
-			this.getInventory().set(slot, ItemStack.EMPTY);
-			return itemStack;
-		}
+
+		getInventory().set(slot, ItemStack.EMPTY);
+		return stack;
 	}
 
 	default ItemStack getInventoryStack(int slot) {
-		this.generateInventoryLoot(null);
-		return this.getInventory().get(slot);
+		generateInventoryLoot(null);
+		return getInventory().get(slot);
 	}
 
 	default ItemStack removeInventoryStack(int slot, int amount) {
-		this.generateInventoryLoot(null);
-		return Inventories.splitStack(this.getInventory(), slot, amount);
+		generateInventoryLoot(null);
+		return Inventories.splitStack(getInventory(), slot, amount);
 	}
 
 	default void setInventoryStack(int slot, ItemStack stack) {
-		this.generateInventoryLoot(null);
-		this.getInventory().set(slot, stack);
-		stack.capCount(this.getMaxCount(stack));
+		generateInventoryLoot(null);
+		getInventory().set(slot, stack);
+		stack.capCount(getMaxCount(stack));
 	}
 
 	default @Nullable StackReference getInventoryStackReference(int slot) {
-		return slot >= 0 && slot < this.size() ? new StackReference() {
-			@Override
-			public ItemStack get() {
-				return VehicleInventory.this.getInventoryStack(slot);
-			}
+		return slot >= 0 && slot < size()
+				? new StackReference() {
+					@Override
+					public ItemStack get() {
+						return VehicleInventory.this.getInventoryStack(slot);
+					}
 
-			@Override
-			public boolean set(ItemStack stack) {
-				VehicleInventory.this.setInventoryStack(slot, stack);
-				return true;
-			}
-		} : null;
+					@Override
+					public boolean set(ItemStack stack) {
+						VehicleInventory.this.setInventoryStack(slot, stack);
+						return true;
+					}
+				}
+				: null;
 	}
 
 	default boolean canPlayerAccess(PlayerEntity player) {
-		return !this.isRemoved() && player.canInteractWithEntityIn(this.getBoundingBox(), 4.0);
+		return !isRemoved() && player.canInteractWithEntityIn(getBoundingBox(), 4.0);
 	}
 }

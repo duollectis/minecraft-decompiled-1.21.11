@@ -30,7 +30,7 @@ public class DesertTempleGenerator extends ShiftableStructurePiece {
 	private BlockPos basementMarkerPos = BlockPos.ORIGIN;
 
 	public DesertTempleGenerator(Random random, int x, int z) {
-		super(StructurePieceType.DESERT_TEMPLE, x, 64, z, 21, 15, 21, getRandomHorizontalDirection(random));
+		super(StructurePieceType.DESERT_TEMPLE, x, 64, z, WIDTH, 15, 21, getRandomHorizontalDirection(random));
 	}
 
 	public DesertTempleGenerator(NbtCompound nbt) {

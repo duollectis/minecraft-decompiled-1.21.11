@@ -17,7 +17,9 @@ import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code AttributeEnchantmentEffect}.
+ * Эффект зачарования, добавляющий модификатор атрибута сущности на время действия зачарования.
+ * Применяется при надевании предмета ({@code newlyApplied = true}) и снимается при снятии.
+ * Идентификатор модификатора формируется как {@code id/slotName} для уникальности по слоту.
  */
 public record AttributeEnchantmentEffect(
 		Identifier id,
@@ -28,30 +30,25 @@ public record AttributeEnchantmentEffect(
 
 	public static final MapCodec<AttributeEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    Identifier.CODEC.fieldOf("id").forGetter(AttributeEnchantmentEffect::id),
-					                    EntityAttribute.CODEC.fieldOf("attribute").forGetter(AttributeEnchantmentEffect::attribute),
-					                    EnchantmentLevelBasedValue.CODEC.fieldOf("amount").forGetter(AttributeEnchantmentEffect::amount),
-					                    EntityAttributeModifier.Operation.CODEC
-							                    .fieldOf("operation")
-							                    .forGetter(AttributeEnchantmentEffect::operation)
-			                    )
-			                    .apply(instance, AttributeEnchantmentEffect::new)
+					Identifier.CODEC.fieldOf("id").forGetter(AttributeEnchantmentEffect::id),
+					EntityAttribute.CODEC.fieldOf("attribute").forGetter(AttributeEnchantmentEffect::attribute),
+					EnchantmentLevelBasedValue.CODEC.fieldOf("amount").forGetter(AttributeEnchantmentEffect::amount),
+					EntityAttributeModifier.Operation.CODEC
+							.fieldOf("operation")
+							.forGetter(AttributeEnchantmentEffect::operation)
+			).apply(instance, AttributeEnchantmentEffect::new)
 	);
 
-	private Identifier getModifierId(StringIdentifiable suffix) {
-		return this.id.withSuffixedPath("/" + suffix.asString());
-	}
-
 	/**
-	 * Создаёт attribute modifier.
-	 *
-	 * @param value value
-	 * @param suffix suffix
-	 *
-	 * @return EntityAttributeModifier — результат операции
+	 * Создаёт модификатор атрибута для указанного уровня зачарования и суффикса (обычно — слота экипировки).
+	 * Суффикс добавляется к идентификатору, чтобы один и тот же эффект мог применяться из разных слотов.
 	 */
-	public EntityAttributeModifier createAttributeModifier(int value, StringIdentifiable suffix) {
-		return new EntityAttributeModifier(this.getModifierId(suffix), this.amount().getValue(value), this.operation());
+	public EntityAttributeModifier createAttributeModifier(int level, StringIdentifiable suffix) {
+		return new EntityAttributeModifier(
+				id.withSuffixedPath("/" + suffix.asString()),
+				amount.getValue(level),
+				operation
+		);
 	}
 
 	@Override
@@ -64,28 +61,29 @@ public record AttributeEnchantmentEffect(
 			boolean newlyApplied
 	) {
 		if (newlyApplied && user instanceof LivingEntity livingEntity) {
-			livingEntity.getAttributes().addTemporaryModifiers(this.getModifiers(level, context.slot()));
+			livingEntity.getAttributes().addTemporaryModifiers(buildModifiers(level, context.slot()));
 		}
 	}
 
 	@Override
 	public void remove(EnchantmentEffectContext context, Entity user, Vec3d pos, int level) {
 		if (user instanceof LivingEntity livingEntity) {
-			livingEntity.getAttributes().removeModifiers(this.getModifiers(level, context.slot()));
+			livingEntity.getAttributes().removeModifiers(buildModifiers(level, context.slot()));
 		}
-	}
-
-	private HashMultimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> getModifiers(
-			int level,
-			EquipmentSlot slot
-	) {
-		HashMultimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> hashMultimap = HashMultimap.create();
-		hashMultimap.put(this.attribute, this.createAttributeModifier(level, slot));
-		return hashMultimap;
 	}
 
 	@Override
 	public MapCodec<AttributeEnchantmentEffect> getCodec() {
 		return CODEC;
+	}
+
+	private HashMultimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> buildModifiers(
+			int level,
+			EquipmentSlot slot
+	) {
+		HashMultimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiers = HashMultimap.create();
+		modifiers.put(attribute, createAttributeModifier(level, slot));
+
+		return modifiers;
 	}
 }

@@ -14,38 +14,38 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * {@code DamageEntityEnchantmentEffect}.
+ * Эффект зачарования, наносящий случайный урон сущности в диапазоне [{@code minDamage}, {@code maxDamage}].
+ * Источником урона является владелец зачарованного предмета ({@code context.owner()}).
  */
 public record DamageEntityEnchantmentEffect(
 		EnchantmentLevelBasedValue minDamage,
 		EnchantmentLevelBasedValue maxDamage,
 		RegistryEntry<DamageType> damageType
-)
-		implements EnchantmentEntityEffect {
+) implements EnchantmentEntityEffect {
 
 	public static final MapCodec<DamageEntityEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("min_damage")
-							                    .forGetter(DamageEntityEnchantmentEffect::minDamage),
-					                    EnchantmentLevelBasedValue.CODEC
-							                    .fieldOf("max_damage")
-							                    .forGetter(DamageEntityEnchantmentEffect::maxDamage),
-					                    DamageType.ENTRY_CODEC.fieldOf("damage_type").forGetter(DamageEntityEnchantmentEffect::damageType)
-			                    )
-			                    .apply(instance, DamageEntityEnchantmentEffect::new)
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("min_damage")
+							.forGetter(DamageEntityEnchantmentEffect::minDamage),
+					EnchantmentLevelBasedValue.CODEC
+							.fieldOf("max_damage")
+							.forGetter(DamageEntityEnchantmentEffect::maxDamage),
+					DamageType.ENTRY_CODEC
+							.fieldOf("damage_type")
+							.forGetter(DamageEntityEnchantmentEffect::damageType)
+			).apply(instance, DamageEntityEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		float
-				f =
-				MathHelper.nextBetween(
-						user.getRandom(),
-						this.minDamage.getValue(level),
-						this.maxDamage.getValue(level)
-				);
-		user.damage(world, new DamageSource(this.damageType, context.owner()), f);
+		float damage = MathHelper.nextBetween(
+				user.getRandom(),
+				minDamage.getValue(level),
+				maxDamage.getValue(level)
+		);
+
+		user.damage(world, new DamageSource(damageType, context.owner()), damage);
 	}
 
 	@Override

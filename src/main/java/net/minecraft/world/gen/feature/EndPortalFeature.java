@@ -8,9 +8,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
-/**
- * {@code EndPortalFeature}.
- */
+/** Генерирует портал Края: круглое основание из бедрока с порталом или камнем Края внутри, и факелами на уровне 2. */
 public class EndPortalFeature extends Feature<DefaultFeatureConfig> {
 
 	public static final int PORTAL_RADIUS = 4;
@@ -20,13 +18,6 @@ public class EndPortalFeature extends Feature<DefaultFeatureConfig> {
 	private static final BlockPos ORIGIN = BlockPos.ORIGIN;
 	private final boolean open;
 
-	/**
-	 * Offset origin.
-	 *
-	 * @param pos pos
-	 *
-	 * @return BlockPos — результат операции
-	 */
 	public static BlockPos offsetOrigin(BlockPos pos) {
 		return ORIGIN.add(pos);
 	}
@@ -38,58 +29,44 @@ public class EndPortalFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		BlockPos blockPos = context.getOrigin();
-		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		StructureWorldAccess world = context.getWorld();
 
-		for (BlockPos blockPos2 : BlockPos.iterate(
-				new BlockPos(blockPos.getX() - 4, blockPos.getY() - 1, blockPos.getZ() - 4),
-				new BlockPos(blockPos.getX() + 4, blockPos.getY() + 32, blockPos.getZ() + 4)
+		for (BlockPos pos : BlockPos.iterate(
+				new BlockPos(origin.getX() - PORTAL_RADIUS, origin.getY() - 1, origin.getZ() - PORTAL_RADIUS),
+				new BlockPos(origin.getX() + PORTAL_RADIUS, origin.getY() + 32, origin.getZ() + PORTAL_RADIUS)
 		)) {
-			boolean bl = blockPos2.isWithinDistance(blockPos, 2.5);
-			if (bl || blockPos2.isWithinDistance(blockPos, 3.5)) {
-				if (blockPos2.getY() < blockPos.getY()) {
-					if (bl) {
-						this.setBlockState(structureWorldAccess, blockPos2, Blocks.BEDROCK.getDefaultState());
-					}
-					else if (blockPos2.getY() < blockPos.getY()) {
-						if (this.open) {
-							this.place(structureWorldAccess, blockPos2, Blocks.END_STONE);
-						}
-						else {
-							this.setBlockState(structureWorldAccess, blockPos2, Blocks.END_STONE.getDefaultState());
-						}
-					}
+			boolean isInner = pos.isWithinDistance(origin, 2.5);
+
+			if (!isInner && !pos.isWithinDistance(origin, 3.5)) {
+				continue;
+			}
+
+			if (pos.getY() < origin.getY()) {
+				if (isInner) {
+					setBlockState(world, pos, Blocks.BEDROCK.getDefaultState());
+				} else {
+					placeOrBreak(world, pos, Blocks.END_STONE);
 				}
-				else if (blockPos2.getY() > blockPos.getY()) {
-					if (this.open) {
-						this.place(structureWorldAccess, blockPos2, Blocks.AIR);
-					}
-					else {
-						this.setBlockState(structureWorldAccess, blockPos2, Blocks.AIR.getDefaultState());
-					}
-				}
-				else if (!bl) {
-					this.setBlockState(structureWorldAccess, blockPos2, Blocks.BEDROCK.getDefaultState());
-				}
-				else if (this.open) {
-					this.place(structureWorldAccess, new BlockPos(blockPos2), Blocks.END_PORTAL);
-				}
-				else {
-					this.setBlockState(structureWorldAccess, new BlockPos(blockPos2), Blocks.AIR.getDefaultState());
-				}
+			} else if (pos.getY() > origin.getY()) {
+				placeOrBreak(world, pos, Blocks.AIR);
+			} else if (!isInner) {
+				setBlockState(world, pos, Blocks.BEDROCK.getDefaultState());
+			} else {
+				placeOrBreak(world, new BlockPos(pos), Blocks.END_PORTAL);
 			}
 		}
 
-		for (int i = 0; i < 4; i++) {
-			this.setBlockState(structureWorldAccess, blockPos.up(i), Blocks.BEDROCK.getDefaultState());
+		for (int dy = 0; dy < PORTAL_HEIGHT; dy++) {
+			setBlockState(world, origin.up(dy), Blocks.BEDROCK.getDefaultState());
 		}
 
-		BlockPos blockPos3 = blockPos.up(2);
+		BlockPos torchBase = origin.up(TORCH_HEIGHT_OFFSET + 1);
 
 		for (Direction direction : Direction.Type.HORIZONTAL) {
-			this.setBlockState(
-					structureWorldAccess,
-					blockPos3.offset(direction),
+			setBlockState(
+					world,
+					torchBase.offset(direction),
 					Blocks.WALL_TORCH.getDefaultState().with(WallTorchBlock.FACING, direction)
 			);
 		}
@@ -97,10 +74,14 @@ public class EndPortalFeature extends Feature<DefaultFeatureConfig> {
 		return true;
 	}
 
-	private void place(StructureWorldAccess world, BlockPos pos, Block block) {
-		if (!world.getBlockState(pos).isOf(block)) {
-			world.breakBlock(pos, true, null);
-			this.setBlockState(world, pos, block.getDefaultState());
+	private void placeOrBreak(StructureWorldAccess world, BlockPos pos, Block block) {
+		if (open) {
+			if (!world.getBlockState(pos).isOf(block)) {
+				world.breakBlock(pos, true, null);
+				setBlockState(world, pos, block.getDefaultState());
+			}
+		} else {
+			setBlockState(world, pos, block.getDefaultState());
 		}
 	}
 }

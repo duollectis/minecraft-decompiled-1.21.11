@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import java.util.Map;
 
 /**
- * {@code HelpCommand}.
+ * Команда {@code /help}: вывод справки по доступным командам.
  */
 public class HelpCommand {
 

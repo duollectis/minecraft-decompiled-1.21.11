@@ -12,7 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * {@code PackratParser}.
+ * Packrat-парсер с мемоизацией для грамматик PEG (Parsing Expression Grammar).
+ * Гарантирует линейное время разбора за счёт кэширования результатов промежуточных правил.
+ * Поддерживает автодополнение через {@link #listSuggestions}.
  */
 public record PackratParser<T>(
 		ParsingRules<StringReader> rules,
@@ -25,81 +27,76 @@ public record PackratParser<T>(
 		this.top = top;
 	}
 
-	/**
-	 * Запускает parsing.
-	 *
-	 * @param state state
-	 *
-	 * @return Optional — результат операции
-	 */
 	public Optional<T> startParsing(ParsingState<StringReader> state) {
-		return state.startParsing(this.top);
+		return state.startParsing(top);
 	}
 
 	@Override
 	public T parse(StringReader reader) throws CommandSyntaxException {
-		ParseErrorList.Impl<StringReader> impl = new ParseErrorList.Impl<>();
-		ReaderBackedParsingState readerBackedParsingState = new ReaderBackedParsingState(impl, reader);
-		Optional<T> optional = this.startParsing(readerBackedParsingState);
-		if (optional.isPresent()) {
-			return optional.get();
+		ParseErrorList.Impl<StringReader> errors = new ParseErrorList.Impl<>();
+		ReaderBackedParsingState state = new ReaderBackedParsingState(errors, reader);
+		Optional<T> result = startParsing(state);
+
+		if (result.isPresent()) {
+			return result.get();
 		}
-		else {
-			List<ParseError<StringReader>> list = impl.getErrors();
-			List<Exception> list2 = list.stream().<Exception>mapMulti((error, callback) -> {
-				if (error.reason() instanceof CursorExceptionType<?> cursorExceptionType) {
-					callback.accept(cursorExceptionType.create(reader.getString(), error.cursor()));
-				}
-				else if (error.reason() instanceof Exception exceptionx) {
-					callback.accept(exceptionx);
-				}
-			}).toList();
 
-			for (Exception exception : list2) {
-				if (exception instanceof CommandSyntaxException commandSyntaxException) {
-					throw commandSyntaxException;
-				}
-			}
+		List<ParseError<StringReader>> parseErrors = errors.getErrors();
+		List<Exception> exceptions = parseErrors.stream()
+				.<Exception>mapMulti((error, callback) -> {
+					if (error.reason() instanceof CursorExceptionType<?> cursorExceptionType) {
+						callback.accept(cursorExceptionType.create(reader.getString(), error.cursor()));
+					} else if (error.reason() instanceof Exception exception) {
+						callback.accept(exception);
+					}
+				})
+				.toList();
 
-			if (list2.size() == 1 && list2.get(0) instanceof RuntimeException runtimeException) {
-				throw runtimeException;
+		for (Exception exception : exceptions) {
+			if (exception instanceof CommandSyntaxException commandSyntaxException) {
+				throw commandSyntaxException;
 			}
-			else {
-				throw new IllegalStateException("Failed to parse: " + list
-						.stream()
+		}
+
+		if (exceptions.size() == 1 && exceptions.get(0) instanceof RuntimeException runtimeException) {
+			throw runtimeException;
+		}
+
+		throw new IllegalStateException(
+				"Failed to parse: " + parseErrors.stream()
 						.map(ParseError::toString)
-						.collect(Collectors.joining(", ")));
-			}
-		}
+						.collect(Collectors.joining(", "))
+		);
 	}
 
 	@Override
 	public CompletableFuture<Suggestions> listSuggestions(SuggestionsBuilder builder) {
-		StringReader stringReader = new StringReader(builder.getInput());
-		stringReader.setCursor(builder.getStart());
-		ParseErrorList.Impl<StringReader> impl = new ParseErrorList.Impl<>();
-		ReaderBackedParsingState readerBackedParsingState = new ReaderBackedParsingState(impl, stringReader);
-		this.startParsing(readerBackedParsingState);
-		List<ParseError<StringReader>> list = impl.getErrors();
-		if (list.isEmpty()) {
+		StringReader reader = new StringReader(builder.getInput());
+		reader.setCursor(builder.getStart());
+
+		ParseErrorList.Impl<StringReader> errors = new ParseErrorList.Impl<>();
+		ReaderBackedParsingState state = new ReaderBackedParsingState(errors, reader);
+		startParsing(state);
+
+		List<ParseError<StringReader>> parseErrors = errors.getErrors();
+
+		if (parseErrors.isEmpty()) {
 			return builder.buildFuture();
 		}
-		else {
-			SuggestionsBuilder suggestionsBuilder = builder.createOffset(impl.getCursor());
 
-			for (ParseError<StringReader> parseError : list) {
-				if (parseError.suggestions() instanceof IdentifierSuggestable identifierSuggestable) {
-					CommandSource.suggestIdentifiers(identifierSuggestable.possibleIds(), suggestionsBuilder);
-				}
-				else {
-					CommandSource.suggestMatching(
-							parseError.suggestions().possibleValues(readerBackedParsingState),
-							suggestionsBuilder
-					);
-				}
+		SuggestionsBuilder offsetBuilder = builder.createOffset(errors.getCursor());
+
+		for (ParseError<StringReader> parseError : parseErrors) {
+			if (parseError.suggestions() instanceof IdentifierSuggestable identifierSuggestable) {
+				CommandSource.suggestIdentifiers(identifierSuggestable.possibleIds(), offsetBuilder);
+			} else {
+				CommandSource.suggestMatching(
+						parseError.suggestions().possibleValues(state),
+						offsetBuilder
+				);
 			}
-
-			return suggestionsBuilder.buildFuture();
 		}
+
+		return offsetBuilder.buildFuture();
 	}
 }

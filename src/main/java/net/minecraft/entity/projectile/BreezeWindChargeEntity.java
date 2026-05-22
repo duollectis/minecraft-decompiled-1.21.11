@@ -9,7 +9,11 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 /**
- * {@code BreezeWindChargeEntity}.
+ * Заряд ветра, выпускаемый мобом «Бриз» (Breeze).
+ * <p>
+ * Использует унаследованное {@link AbstractWindChargeEntity#EXPLOSION_BEHAVIOR} и
+ * имеет значительно большую мощность взрыва ({@link #EXPLOSION_POWER}), чем
+ * {@link WindChargeEntity} игрока. Не может быть отражён.
  */
 public class BreezeWindChargeEntity extends AbstractWindChargeEntity {
 
@@ -25,21 +29,21 @@ public class BreezeWindChargeEntity extends AbstractWindChargeEntity {
 
 	@Override
 	protected void createExplosion(Vec3d pos) {
-		this.getEntityWorld()
-		    .createExplosion(
-				    this,
-				    null,
-				    EXPLOSION_BEHAVIOR,
-				    pos.getX(),
-				    pos.getY(),
-				    pos.getZ(),
-				    3.0F,
-				    false,
-				    World.ExplosionSourceType.TRIGGER,
-				    ParticleTypes.GUST_EMITTER_SMALL,
-				    ParticleTypes.GUST_EMITTER_LARGE,
-				    Pool.empty(),
-				    SoundEvents.ENTITY_BREEZE_WIND_BURST
-		    );
+		getEntityWorld()
+				.createExplosion(
+						this,
+						null,
+						EXPLOSION_BEHAVIOR,
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						EXPLOSION_POWER,
+						false,
+						World.ExplosionSourceType.TRIGGER,
+						ParticleTypes.GUST_EMITTER_SMALL,
+						ParticleTypes.GUST_EMITTER_LARGE,
+						Pool.empty(),
+						SoundEvents.ENTITY_BREEZE_WIND_BURST
+				);
 	}
 }

@@ -10,20 +10,27 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
- * Интерфейс packet codec.
+ * Комбинированный кодек пакета: объединяет {@link PacketDecoder} и {@link PacketEncoder} в одном интерфейсе.
+ *
+ * <p>Предоставляет фабричные методы ({@link #of}, {@link #ofStatic}, {@link #unit}),
+ * трансформации ({@link #xmap}, {@link #mapBuf}, {@link #dispatch}) и
+ * семейство методов {@code tuple} для сборки кодека из нескольких полей объекта.</p>
+ *
+ * @param <B> тип буфера (например, {@link ByteBuf} или {@link net.minecraft.network.RegistryByteBuf})
+ * @param <V> тип кодируемого/декодируемого значения
  */
 public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B, V> {
 
 	static <B, V> PacketCodec<B, V> ofStatic(PacketEncoder<B, V> encoder, PacketDecoder<B, V> decoder) {
 		return new PacketCodec<B, V>() {
 			@Override
-			public V decode(B object) {
-				return decoder.decode(object);
+			public V decode(B buf) {
+				return decoder.decode(buf);
 			}
 
 			@Override
-			public void encode(B object, V object2) {
-				encoder.encode(object, object2);
+			public void encode(B buf, V value) {
+				encoder.encode(buf, value);
 			}
 		};
 	}
@@ -31,28 +38,32 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	static <B, V> PacketCodec<B, V> of(ValueFirstEncoder<B, V> encoder, PacketDecoder<B, V> decoder) {
 		return new PacketCodec<B, V>() {
 			@Override
-			public V decode(B object) {
-				return decoder.decode(object);
+			public V decode(B buf) {
+				return decoder.decode(buf);
 			}
 
 			@Override
-			public void encode(B object, V object2) {
-				encoder.encode(object2, object);
+			public void encode(B buf, V value) {
+				encoder.encode(value, buf);
 			}
 		};
 	}
 
+	/**
+	 * Создаёт кодек для константного значения: декодирование всегда возвращает {@code value},
+	 * а кодирование проверяет, что переданное значение совпадает с константой.
+	 */
 	static <B, V> PacketCodec<B, V> unit(V value) {
 		return new PacketCodec<B, V>() {
 			@Override
-			public V decode(B object) {
+			public V decode(B buf) {
 				return value;
 			}
 
 			@Override
-			public void encode(B object, V object2) {
-				if (!object2.equals(value)) {
-					throw new IllegalStateException("Can't encode '" + object2 + "', expected '" + value + "'");
+			public void encode(B buf, V encoded) {
+				if (!encoded.equals(value)) {
+					throw new IllegalStateException("Can't encode '" + encoded + "', expected '" + value + "'");
 				}
 			}
 		};
@@ -65,64 +76,60 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	default <O> PacketCodec<B, O> xmap(Function<? super V, ? extends O> to, Function<? super O, ? extends V> from) {
 		return new PacketCodec<B, O>() {
 			@Override
-			public O decode(B object) {
-				return (O) to.apply(PacketCodec.this.decode(object));
+			public O decode(B buf) {
+				return (O) to.apply(PacketCodec.this.decode(buf));
 			}
 
 			@Override
-			public void encode(B object, O object2) {
-				PacketCodec.this.encode(object, (V) from.apply(object2));
+			public void encode(B buf, O value) {
+				PacketCodec.this.encode(buf, (V) from.apply(value));
 			}
 		};
 	}
 
+	/**
+	 * Адаптирует кодек к другому типу буфера {@code O}, применяя {@code function} для получения {@code B} из {@code O}.
+	 * Используется, например, для оборачивания {@link ByteBuf}-кодека в {@link net.minecraft.network.RegistryByteBuf}-кодек.
+	 */
 	default <O extends ByteBuf> PacketCodec<O, V> mapBuf(Function<O, ? extends B> function) {
 		return new PacketCodec<O, V>() {
-			/**
-			 * Decode.
-			 *
-			 * @param byteBuf byte buf
-			 *
-			 * @return V — результат операции
-			 */
-			public V decode(O byteBuf) {
-				B object = (B) function.apply(byteBuf);
-				return PacketCodec.this.decode(object);
+			@Override
+			public V decode(O buf) {
+				B mapped = (B) function.apply(buf);
+				return PacketCodec.this.decode(mapped);
 			}
 
-			/**
-			 * Encode.
-			 *
-			 * @param byteBuf byte buf
-			 * @param object object
-			 */
-			public void encode(O byteBuf, V object) {
-				B object2 = (B) function.apply(byteBuf);
-				PacketCodec.this.encode(object2, object);
+			@Override
+			public void encode(O buf, V value) {
+				B mapped = (B) function.apply(buf);
+				PacketCodec.this.encode(mapped, value);
 			}
 		};
 	}
 
+	/**
+	 * Создаёт диспетчерный кодек: тип {@code U} определяется по значению {@code V},
+	 * прочитанному из буфера, после чего выбирается соответствующий кодек для декодирования тела.
+	 */
 	default <U> PacketCodec<B, U> dispatch(
 			Function<? super U, ? extends V> type,
 			Function<? super V, ? extends PacketCodec<? super B, ? extends U>> codec
 	) {
 		return new PacketCodec<B, U>() {
 			@Override
-			public U decode(B object) {
-				V object2 = PacketCodec.this.decode(object);
-				PacketCodec<? super B, ? extends U>
-						packetCodec =
-						(PacketCodec<? super B, ? extends U>) codec.apply(object2);
-				return (U) packetCodec.decode(object);
+			public U decode(B buf) {
+				V typeValue = PacketCodec.this.decode(buf);
+				PacketCodec<? super B, ? extends U> typeCodec =
+						(PacketCodec<? super B, ? extends U>) codec.apply(typeValue);
+				return (U) typeCodec.decode(buf);
 			}
 
 			@Override
-			public void encode(B object, U object2) {
-				V object3 = (V) type.apply(object2);
-				PacketCodec<B, U> packetCodec = (PacketCodec<B, U>) codec.apply(object3);
-				PacketCodec.this.encode(object, object3);
-				packetCodec.encode(object, object2);
+			public void encode(B buf, U value) {
+				V typeValue = (V) type.apply(value);
+				PacketCodec<B, U> typeCodec = (PacketCodec<B, U>) codec.apply(typeValue);
+				PacketCodec.this.encode(buf, typeValue);
+				typeCodec.encode(buf, value);
 			}
 		};
 	}
@@ -134,14 +141,14 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec.decode(object);
-				return to.apply(object2);
+			public C decode(B buf) {
+				T1 t1 = codec.decode(buf);
+				return to.apply(t1);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec.encode(object, from.apply(object2));
+			public void encode(B buf, C value) {
+				codec.encode(buf, from.apply(value));
 			}
 		};
 	}
@@ -155,16 +162,16 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				return to.apply(object2, object3);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				return to.apply(t1, t2);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
 			}
 		};
 	}
@@ -180,18 +187,18 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				return (C) to.apply(object2, object3, object4);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				return (C) to.apply(t1, t2, t3);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
 			}
 		};
 	}
@@ -209,20 +216,20 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				return (C) to.apply(object2, object3, object4, object5);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
 			}
 		};
 	}
@@ -242,22 +249,22 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				return (C) to.apply(object2, object3, object4, object5, object6);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
 			}
 		};
 	}
@@ -279,24 +286,24 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				return (C) to.apply(object2, object3, object4, object5, object6, object7);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
 			}
 		};
 	}
@@ -320,26 +327,26 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				return (C) to.apply(object2, object3, object4, object5, object6, object7, object8);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
 			}
 		};
 	}
@@ -365,28 +372,28 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				T8 object9 = codec8.decode(object);
-				return (C) to.apply(object2, object3, object4, object5, object6, object7, object8, object9);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				T8 t8 = codec8.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7, t8);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
-				codec8.encode(object, from8.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
+				codec8.encode(buf, from8.apply(value));
 			}
 		};
 	}
@@ -414,30 +421,30 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				T8 object9 = codec8.decode(object);
-				T9 object10 = codec9.decode(object);
-				return (C) to.apply(object2, object3, object4, object5, object6, object7, object8, object9, object10);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				T8 t8 = codec8.decode(buf);
+				T9 t9 = codec9.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7, t8, t9);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
-				codec8.encode(object, from8.apply(object2));
-				codec9.encode(object, from9.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
+				codec8.encode(buf, from8.apply(value));
+				codec9.encode(buf, from9.apply(value));
 			}
 		};
 	}
@@ -467,43 +474,32 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				T8 object9 = codec8.decode(object);
-				T9 object10 = codec9.decode(object);
-				T10 object11 = codec10.decode(object);
-				return (C) to.apply(
-						object2,
-						object3,
-						object4,
-						object5,
-						object6,
-						object7,
-						object8,
-						object9,
-						object10,
-						object11
-				);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				T8 t8 = codec8.decode(buf);
+				T9 t9 = codec9.decode(buf);
+				T10 t10 = codec10.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
-				codec8.encode(object, from8.apply(object2));
-				codec9.encode(object, from9.apply(object2));
-				codec10.encode(object, from10.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
+				codec8.encode(buf, from8.apply(value));
+				codec9.encode(buf, from9.apply(value));
+				codec10.encode(buf, from10.apply(value));
 			}
 		};
 	}
@@ -535,46 +531,34 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				T8 object9 = codec8.decode(object);
-				T9 object10 = codec9.decode(object);
-				T10 object11 = codec10.decode(object);
-				T11 object12 = codec11.decode(object);
-				return (C) to.apply(
-						object2,
-						object3,
-						object4,
-						object5,
-						object6,
-						object7,
-						object8,
-						object9,
-						object10,
-						object11,
-						object12
-				);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				T8 t8 = codec8.decode(buf);
+				T9 t9 = codec9.decode(buf);
+				T10 t10 = codec10.decode(buf);
+				T11 t11 = codec11.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11);
 			}
 
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
-				codec8.encode(object, from8.apply(object2));
-				codec9.encode(object, from9.apply(object2));
-				codec10.encode(object, from10.apply(object2));
-				codec11.encode(object, from11.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
+				codec8.encode(buf, from8.apply(value));
+				codec9.encode(buf, from9.apply(value));
+				codec10.encode(buf, from10.apply(value));
+				codec11.encode(buf, from11.apply(value));
 			}
 		};
 	}
@@ -608,80 +592,76 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	) {
 		return new PacketCodec<B, C>() {
 			@Override
-			public C decode(B object) {
-				T1 object2 = codec1.decode(object);
-				T2 object3 = codec2.decode(object);
-				T3 object4 = codec3.decode(object);
-				T4 object5 = codec4.decode(object);
-				T5 object6 = codec5.decode(object);
-				T6 object7 = codec6.decode(object);
-				T7 object8 = codec7.decode(object);
-				T8 object9 = codec8.decode(object);
-				T9 object10 = codec9.decode(object);
-				T10 object11 = codec10.decode(object);
-				T11 object12 = codec11.decode(object);
-				T12 object13 = codec12.decode(object);
-				return (C) to.apply(
-						object2,
-						object3,
-						object4,
-						object5,
-						object6,
-						object7,
-						object8,
-						object9,
-						object10,
-						object11,
-						object12,
-						object13
-				);
+			public C decode(B buf) {
+				T1 t1 = codec1.decode(buf);
+				T2 t2 = codec2.decode(buf);
+				T3 t3 = codec3.decode(buf);
+				T4 t4 = codec4.decode(buf);
+				T5 t5 = codec5.decode(buf);
+				T6 t6 = codec6.decode(buf);
+				T7 t7 = codec7.decode(buf);
+				T8 t8 = codec8.decode(buf);
+				T9 t9 = codec9.decode(buf);
+				T10 t10 = codec10.decode(buf);
+				T11 t11 = codec11.decode(buf);
+				T12 t12 = codec12.decode(buf);
+				return (C) to.apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12);
 			}
-
+	
 			@Override
-			public void encode(B object, C object2) {
-				codec1.encode(object, from1.apply(object2));
-				codec2.encode(object, from2.apply(object2));
-				codec3.encode(object, from3.apply(object2));
-				codec4.encode(object, from4.apply(object2));
-				codec5.encode(object, from5.apply(object2));
-				codec6.encode(object, from6.apply(object2));
-				codec7.encode(object, from7.apply(object2));
-				codec8.encode(object, from8.apply(object2));
-				codec9.encode(object, from9.apply(object2));
-				codec10.encode(object, from10.apply(object2));
-				codec11.encode(object, from11.apply(object2));
-				codec12.encode(object, from12.apply(object2));
+			public void encode(B buf, C value) {
+				codec1.encode(buf, from1.apply(value));
+				codec2.encode(buf, from2.apply(value));
+				codec3.encode(buf, from3.apply(value));
+				codec4.encode(buf, from4.apply(value));
+				codec5.encode(buf, from5.apply(value));
+				codec6.encode(buf, from6.apply(value));
+				codec7.encode(buf, from7.apply(value));
+				codec8.encode(buf, from8.apply(value));
+				codec9.encode(buf, from9.apply(value));
+				codec10.encode(buf, from10.apply(value));
+				codec11.encode(buf, from11.apply(value));
+				codec12.encode(buf, from12.apply(value));
 			}
 		};
 	}
-
-	static <B, T> PacketCodec<B, T> recursive(UnaryOperator<PacketCodec<B, T>> codecGetter) {
-		return new PacketCodec<B, T>() {
-			private final Supplier<PacketCodec<B, T>> codecSupplier = Suppliers.memoize(() -> codecGetter.apply(this));
-
-			@Override
-			public T decode(B object) {
-				return this.codecSupplier.get().decode(object);
-			}
-
-			@Override
-			public void encode(B object, T object2) {
-				this.codecSupplier.get().encode(object, object2);
-			}
-		};
+	
+		/**
+			* Создаёт рекурсивный кодек, ссылающийся на самого себя через мемоизированный {@link Supplier}.
+			* Используется для кодирования рекурсивных структур данных (например, деревьев).
+			*/
+		static <B, T> PacketCodec<B, T> recursive(UnaryOperator<PacketCodec<B, T>> codecGetter) {
+			return new PacketCodec<B, T>() {
+				private final Supplier<PacketCodec<B, T>> codecSupplier = Suppliers.memoize(() -> codecGetter.apply(this));
+	
+				@Override
+				public T decode(B buf) {
+					return codecSupplier.get().decode(buf);
+				}
+	
+				@Override
+				public void encode(B buf, T value) {
+					codecSupplier.get().encode(buf, value);
+				}
+			};
+		}
+	
+		@SuppressWarnings("unchecked")
+		default <S extends B> PacketCodec<S, V> cast() {
+			return (PacketCodec<S, V>) this;
+		}
+	
+		/**
+			* Функциональный интерфейс для трансформации одного кодека в другой.
+			* Используется в {@link #collect(ResultFunction)} для применения цепочечных преобразований.
+			*
+			* @param <B> тип буфера
+			* @param <S> исходный тип значения
+			* @param <T> целевой тип значения
+			*/
+		@FunctionalInterface
+		interface ResultFunction<B, S, T> {
+	
+			PacketCodec<B, T> apply(PacketCodec<B, S> codec);
+		}
 	}
-
-	@SuppressWarnings("unchecked")
-	default <S extends B> PacketCodec<S, V> cast() {
-		return (PacketCodec<S, V>) this;
-	}
-
-	@FunctionalInterface
-	/**
-	 * Интерфейс result function.
-	 */
-	public interface ResultFunction<B, S, T> {
-
-		PacketCodec<B, T> apply(PacketCodec<B, S> codec);
-	}
-}

@@ -17,7 +17,12 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code VanillaBiomeParameters}.
+ * Параметры размещения ванильных биомов Верхнего мира в пространстве шумов MultiNoise.
+ * <p>
+ * Класс хранит диапазоны параметров (температура, влажность, эрозия, континентальность,
+ * странность) и таблицы биомов, индексированные по температуре и влажности.
+ * Метод {@link #writeOverworldBiomeParameters} записывает все пары (гиперкуб → биом)
+ * в переданный consumer, формируя полную карту биомов Верхнего мира.
  */
 public final class VanillaBiomeParameters {
 
@@ -46,16 +51,16 @@ public final class VanillaBiomeParameters {
 	private final MultiNoiseUtil.ParameterRange[] humidityParameters = new MultiNoiseUtil.ParameterRange[]{
 			MultiNoiseUtil.ParameterRange.of(-1.0F, -0.35F),
 			MultiNoiseUtil.ParameterRange.of(-0.35F, -0.1F),
-			MultiNoiseUtil.ParameterRange.of(-0.1F, 0.1F),
-			MultiNoiseUtil.ParameterRange.of(0.1F, 0.3F),
-			MultiNoiseUtil.ParameterRange.of(0.3F, 1.0F)
+			MultiNoiseUtil.ParameterRange.of(-0.1F, PEAK_WEIRDNESS_THRESHOLD),
+			MultiNoiseUtil.ParameterRange.of(PEAK_WEIRDNESS_THRESHOLD, HUMIDITY_THRESHOLD),
+			MultiNoiseUtil.ParameterRange.of(HUMIDITY_THRESHOLD, 1.0F)
 	};
 	private final MultiNoiseUtil.ParameterRange[] erosionParameters = new MultiNoiseUtil.ParameterRange[]{
-			MultiNoiseUtil.ParameterRange.of(-1.0F, -0.78F),
-			MultiNoiseUtil.ParameterRange.of(-0.78F, -0.375F),
-			MultiNoiseUtil.ParameterRange.of(-0.375F, -0.2225F),
-			MultiNoiseUtil.ParameterRange.of(-0.2225F, 0.05F),
-			MultiNoiseUtil.ParameterRange.of(0.05F, 0.45F),
+			MultiNoiseUtil.ParameterRange.of(-1.0F, EROSION_LOWER_BOUND),
+			MultiNoiseUtil.ParameterRange.of(EROSION_LOWER_BOUND, EROSION_UPPER_BOUND),
+			MultiNoiseUtil.ParameterRange.of(EROSION_UPPER_BOUND, -0.2225F),
+			MultiNoiseUtil.ParameterRange.of(-0.2225F, MAX_VALLEY_WEIRDNESS),
+			MultiNoiseUtil.ParameterRange.of(MAX_VALLEY_WEIRDNESS, 0.45F),
 			MultiNoiseUtil.ParameterRange.of(0.45F, 0.55F),
 			MultiNoiseUtil.ParameterRange.of(0.55F, 1.0F)
 	};
@@ -72,15 +77,15 @@ public final class VanillaBiomeParameters {
 	private final MultiNoiseUtil.ParameterRange
 			oceanContinentalness =
 			MultiNoiseUtil.ParameterRange.of(-0.455F, -0.19F);
-	private final MultiNoiseUtil.ParameterRange coastContinentalness = MultiNoiseUtil.ParameterRange.of(-0.19F, -0.11F);
-	private final MultiNoiseUtil.ParameterRange riverContinentalness = MultiNoiseUtil.ParameterRange.of(-0.11F, 0.55F);
+	private final MultiNoiseUtil.ParameterRange coastContinentalness = MultiNoiseUtil.ParameterRange.of(-0.19F, EROSION_LOW_THRESHOLD);
+	private final MultiNoiseUtil.ParameterRange riverContinentalness = MultiNoiseUtil.ParameterRange.of(EROSION_LOW_THRESHOLD, 0.55F);
 	private final MultiNoiseUtil.ParameterRange
 			nearInlandContinentalness =
-			MultiNoiseUtil.ParameterRange.of(-0.11F, 0.03F);
+			MultiNoiseUtil.ParameterRange.of(EROSION_LOW_THRESHOLD, EROSION_HIGH_THRESHOLD);
 	private final MultiNoiseUtil.ParameterRange
 			midInlandContinentalness =
-			MultiNoiseUtil.ParameterRange.of(0.03F, 0.3F);
-	private final MultiNoiseUtil.ParameterRange farInlandContinentalness = MultiNoiseUtil.ParameterRange.of(0.3F, 1.0F);
+			MultiNoiseUtil.ParameterRange.of(EROSION_HIGH_THRESHOLD, HUMIDITY_THRESHOLD);
+	private final MultiNoiseUtil.ParameterRange farInlandContinentalness = MultiNoiseUtil.ParameterRange.of(HUMIDITY_THRESHOLD, 1.0F);
 	private final RegistryKey<Biome>[][] oceanBiomes = new RegistryKey[][]{
 			{
 					BiomeKeys.DEEP_FROZEN_OCEAN,
@@ -181,17 +186,23 @@ public final class VanillaBiomeParameters {
 			{null, null, null, null, null}
 	};
 
+	/**
+	 * Возвращает список гиперкубов шума, определяющих зоны пригодности для спавна игрока.
+	 * <p>
+	 * Два диапазона странности (weirdness) исключают долины (valley) и пики (peak),
+	 * оставляя только «нормальный» рельеф, пригодный для появления игрока.
+	 */
 	public List<MultiNoiseUtil.NoiseHypercube> getSpawnSuitabilityNoises() {
-		MultiNoiseUtil.ParameterRange parameterRange = MultiNoiseUtil.ParameterRange.of(0.0F);
-		float f = 0.16F;
+		MultiNoiseUtil.ParameterRange surfaceDepth = MultiNoiseUtil.ParameterRange.of(0.0F);
+		float spawnWeirdnessThreshold = 0.16F;
 		return List.of(
 				new MultiNoiseUtil.NoiseHypercube(
 						this.defaultParameter,
 						this.defaultParameter,
 						MultiNoiseUtil.ParameterRange.combine(this.riverContinentalness, this.defaultParameter),
 						this.defaultParameter,
-						parameterRange,
-						MultiNoiseUtil.ParameterRange.of(-1.0F, -0.16F),
+						surfaceDepth,
+						MultiNoiseUtil.ParameterRange.of(-1.0F, -spawnWeirdnessThreshold),
 						0L
 				),
 				new MultiNoiseUtil.NoiseHypercube(
@@ -199,17 +210,21 @@ public final class VanillaBiomeParameters {
 						this.defaultParameter,
 						MultiNoiseUtil.ParameterRange.combine(this.riverContinentalness, this.defaultParameter),
 						this.defaultParameter,
-						parameterRange,
-						MultiNoiseUtil.ParameterRange.of(0.16F, 1.0F),
+						surfaceDepth,
+						MultiNoiseUtil.ParameterRange.of(spawnWeirdnessThreshold, 1.0F),
 						0L
 				)
 		);
 	}
 
 	/**
-	 * Записывает overworld biome parameters.
+	 * Записывает все параметры биомов Верхнего мира в переданный consumer.
+	 * <p>
+	 * В режиме отладки ({@link SharedConstants#DEBUG_BIOME_SOURCE}) записывает
+	 * диагностические точки для визуализации сплайнов. В обычном режиме последовательно
+	 * записывает океанские, наземные и пещерные биомы.
 	 *
-	 * @param parameters parameters
+	 * @param parameters consumer, принимающий пары (гиперкуб шума → ключ биома)
 	 */
 	public void writeOverworldBiomeParameters(Consumer<Pair<MultiNoiseUtil.NoiseHypercube, RegistryKey<Biome>>> parameters) {
 		if (SharedConstants.DEBUG_BIOME_SOURCE) {
@@ -265,9 +280,9 @@ public final class VanillaBiomeParameters {
 				-0.15F,
 				0.0F,
 				0.0F,
-				0.1F,
+				PEAK_WEIRDNESS_THRESHOLD,
 				0.0F,
-				-0.03F,
+				-EROSION_HIGH_THRESHOLD,
 				false,
 				false,
 				ToFloatFunction.IDENTITY
@@ -357,19 +372,19 @@ public final class VanillaBiomeParameters {
 	}
 
 	private void writeLandBiomes(Consumer<Pair<MultiNoiseUtil.NoiseHypercube, RegistryKey<Biome>>> parameters) {
-		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-1.0F, -0.93333334F));
-		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.93333334F, -0.7666667F));
-		this.writePeakBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.7666667F, -0.56666666F));
-		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.56666666F, -0.4F));
-		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.4F, -0.26666668F));
-		this.writeLowBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.26666668F, -0.05F));
-		this.writeValleyBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.05F, 0.05F));
-		this.writeLowBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.05F, 0.26666668F));
-		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.26666668F, 0.4F));
-		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.4F, 0.56666666F));
-		this.writePeakBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.56666666F, 0.7666667F));
-		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.7666667F, 0.93333334F));
-		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(0.93333334F, 1.0F));
+		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-1.0F, -MAX_SECOND_HIGH_WEIRDNESS));
+		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-MAX_SECOND_HIGH_WEIRDNESS, -MAX_PEAK_WEIRDNESS));
+		this.writePeakBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-MAX_PEAK_WEIRDNESS, -MAX_HIGH_WEIRDNESS));
+		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-MAX_HIGH_WEIRDNESS, -0.4F));
+		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-0.4F, -MAX_LOW_WEIRDNESS));
+		this.writeLowBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-MAX_LOW_WEIRDNESS, -MAX_VALLEY_WEIRDNESS));
+		this.writeValleyBiomes(parameters, MultiNoiseUtil.ParameterRange.of(-MAX_VALLEY_WEIRDNESS, MAX_VALLEY_WEIRDNESS));
+		this.writeLowBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_VALLEY_WEIRDNESS, MAX_LOW_WEIRDNESS));
+		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_LOW_WEIRDNESS, MAX_MID_WEIRDNESS));
+		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_MID_WEIRDNESS, MAX_HIGH_WEIRDNESS));
+		this.writePeakBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_HIGH_WEIRDNESS, MAX_PEAK_WEIRDNESS));
+		this.writeHighBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_PEAK_WEIRDNESS, MAX_SECOND_HIGH_WEIRDNESS));
+		this.writeMidBiomes(parameters, MultiNoiseUtil.ParameterRange.of(MAX_SECOND_HIGH_WEIRDNESS, 1.0F));
 	}
 
 	private void writePeakBiomes(
@@ -1465,7 +1480,7 @@ public final class VanillaBiomeParameters {
 								humidity,
 								continentalness,
 								erosion,
-								MultiNoiseUtil.ParameterRange.of(0.2F, 0.9F),
+								MultiNoiseUtil.ParameterRange.of(0.2F, WEIRDNESS_CAVE_THRESHOLD),
 								weirdness,
 								offset
 						),
@@ -1505,21 +1520,21 @@ public final class VanillaBiomeParameters {
 			DensityFunction depth,
 			DensityFunction.NoisePos pos
 	) {
-		return erosion.sample(pos) < -0.225F && depth.sample(pos) > 0.9F;
+		return erosion.sample(pos) < EROSION_CAVE_THRESHOLD && depth.sample(pos) > WEIRDNESS_CAVE_THRESHOLD;
 	}
 
 	public static String getPeaksValleysDescription(double weirdness) {
-		if (weirdness < DensityFunctions.getPeaksValleysNoise(0.05F)) {
+		if (weirdness < DensityFunctions.getPeaksValleysNoise(MAX_VALLEY_WEIRDNESS)) {
 			return "Valley";
 		}
-		else if (weirdness < DensityFunctions.getPeaksValleysNoise(0.26666668F)) {
+		else if (weirdness < DensityFunctions.getPeaksValleysNoise(MAX_LOW_WEIRDNESS)) {
 			return "Low";
 		}
-		else if (weirdness < DensityFunctions.getPeaksValleysNoise(0.4F)) {
+		else if (weirdness < DensityFunctions.getPeaksValleysNoise(MAX_MID_WEIRDNESS)) {
 			return "Mid";
 		}
 		else {
-			return weirdness < DensityFunctions.getPeaksValleysNoise(0.56666666F) ? "High" : "Peak";
+			return weirdness < DensityFunctions.getPeaksValleysNoise(MAX_HIGH_WEIRDNESS) ? "High" : "Peak";
 		}
 	}
 
@@ -1562,7 +1577,7 @@ public final class VanillaBiomeParameters {
 
 		for (int i = 0; i < noiseRanges.length; i++) {
 			if (d < noiseRanges[i].max()) {
-				return i + "";
+				return String.valueOf(i);
 			}
 		}
 
@@ -1600,20 +1615,20 @@ public final class VanillaBiomeParameters {
 	@Debug
 	public MultiNoiseUtil.ParameterRange[] getPeaksValleysParameters() {
 		return new MultiNoiseUtil.ParameterRange[]{
-				MultiNoiseUtil.ParameterRange.of(-2.0F, DensityFunctions.getPeaksValleysNoise(0.05F)),
+				MultiNoiseUtil.ParameterRange.of(-2.0F, DensityFunctions.getPeaksValleysNoise(MAX_VALLEY_WEIRDNESS)),
 				MultiNoiseUtil.ParameterRange.of(
-						DensityFunctions.getPeaksValleysNoise(0.05F),
-						DensityFunctions.getPeaksValleysNoise(0.26666668F)
+						DensityFunctions.getPeaksValleysNoise(MAX_VALLEY_WEIRDNESS),
+						DensityFunctions.getPeaksValleysNoise(MAX_LOW_WEIRDNESS)
 				),
 				MultiNoiseUtil.ParameterRange.of(
-						DensityFunctions.getPeaksValleysNoise(0.26666668F),
-						DensityFunctions.getPeaksValleysNoise(0.4F)
+						DensityFunctions.getPeaksValleysNoise(MAX_LOW_WEIRDNESS),
+						DensityFunctions.getPeaksValleysNoise(MAX_MID_WEIRDNESS)
 				),
 				MultiNoiseUtil.ParameterRange.of(
-						DensityFunctions.getPeaksValleysNoise(0.4F),
-						DensityFunctions.getPeaksValleysNoise(0.56666666F)
+						DensityFunctions.getPeaksValleysNoise(MAX_MID_WEIRDNESS),
+						DensityFunctions.getPeaksValleysNoise(MAX_HIGH_WEIRDNESS)
 				),
-				MultiNoiseUtil.ParameterRange.of(DensityFunctions.getPeaksValleysNoise(0.56666666F), 2.0F)
+				MultiNoiseUtil.ParameterRange.of(DensityFunctions.getPeaksValleysNoise(MAX_HIGH_WEIRDNESS), 2.0F)
 		};
 	}
 

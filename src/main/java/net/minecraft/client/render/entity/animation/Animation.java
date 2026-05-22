@@ -12,10 +12,15 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Animation}.
+ * Исполняемая анимация, привязанная к конкретному дереву модели.
+ * <p>
+ * Создаётся из {@link AnimationDefinition} через {@link #of(ModelPart, AnimationDefinition)},
+ * который разрешает имена костей в реальные ссылки на {@link ModelPart}.
+ * Поддерживает воспроизведение по времени в миллисекундах, по {@link AnimationState}
+ * и по прогрессу ходьбы.
  */
+@Environment(EnvType.CLIENT)
 public class Animation {
 
 	private final AnimationDefinition definition;
@@ -26,133 +31,142 @@ public class Animation {
 		this.entries = entries;
 	}
 
+	/**
+	 * Создаёт анимацию, разрешая имена костей из {@code definition} в части модели {@code root}.
+	 *
+	 * @param root       корневая часть модели
+	 * @param definition декларативное описание анимации
+	 * @return готовая к воспроизведению анимация
+	 * @throws IllegalArgumentException если кость из определения не найдена в модели
+	 */
 	static Animation of(ModelPart root, AnimationDefinition definition) {
-		List<Animation.TransformationEntry> list = new ArrayList<>();
-		Function<String, ModelPart> function = root.createPartGetter();
+		List<Animation.TransformationEntry> result = new ArrayList<>();
+		Function<String, ModelPart> partGetter = root.createPartGetter();
 
 		for (Entry<String, List<Transformation>> entry : definition.boneAnimations().entrySet()) {
-			String string = entry.getKey();
-			List<Transformation> list2 = entry.getValue();
-			ModelPart modelPart = function.apply(string);
-			if (modelPart == null) {
-				throw new IllegalArgumentException("Cannot animate " + string + ", which does not exist in model");
+			String boneName = entry.getKey();
+			ModelPart part = partGetter.apply(boneName);
+
+			if (part == null) {
+				throw new IllegalArgumentException("Cannot animate " + boneName + ", which does not exist in model");
 			}
 
-			for (Transformation transformation : list2) {
-				list.add(new Animation.TransformationEntry(
-						modelPart,
+			for (Transformation transformation : entry.getValue()) {
+				result.add(new Animation.TransformationEntry(
+						part,
 						transformation.target(),
 						transformation.keyframes()
 				));
 			}
 		}
 
-		return new Animation(definition, List.copyOf(list));
+		return new Animation(definition, List.copyOf(result));
 	}
 
-	/**
-	 * Применяет static.
-	 */
+	/** Применяет анимацию в нулевой момент времени (статичная поза). */
 	public void applyStatic() {
-		this.apply(0L, 1.0F);
+		apply(0L, 1.0F);
 	}
 
 	/**
-	 * Применяет walking.
+	 * Применяет анимацию, синхронизированную с циклом ходьбы.
 	 *
-	 * @param limbSwingAnimationProgress limb swing animation progress
-	 * @param limbSwingAmplitude limb swing amplitude
-	 * @param f f
-	 * @param g g
+	 * @param limbSwingProgress  прогресс качания конечностей (фаза)
+	 * @param limbSwingAmplitude амплитуда качания конечностей
+	 * @param speedFactor        множитель скорости воспроизведения
+	 * @param amplitudeScale     масштаб амплитуды (ограничивает силу анимации)
 	 */
-	public void applyWalking(float limbSwingAnimationProgress, float limbSwingAmplitude, float f, float g) {
-		long l = (long) (limbSwingAnimationProgress * 50.0F * f);
-		float h = Math.min(limbSwingAmplitude * g, 1.0F);
-		this.apply(l, h);
+	public void applyWalking(
+			float limbSwingProgress,
+			float limbSwingAmplitude,
+			float speedFactor,
+			float amplitudeScale
+	) {
+		long timeMs = (long) (limbSwingProgress * 50.0F * speedFactor);
+		float scale = Math.min(limbSwingAmplitude * amplitudeScale, 1.0F);
+		apply(timeMs, scale);
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param animationState animation state
-	 * @param age age
-	 */
+	/** Применяет анимацию по состоянию с масштабом 1.0. */
 	public void apply(AnimationState animationState, float age) {
-		this.apply(animationState, age, 1.0F);
+		apply(animationState, age, 1.0F);
 	}
 
 	/**
-	 * Apply.
+	 * Применяет анимацию по состоянию с заданным множителем скорости.
 	 *
-	 * @param animationState animation state
-	 * @param age age
-	 * @param speedMultiplier speed multiplier
+	 * @param animationState  состояние анимации сущности
+	 * @param age             возраст сущности в тиках
+	 * @param speedMultiplier множитель скорости воспроизведения
 	 */
 	public void apply(AnimationState animationState, float age, float speedMultiplier) {
-		animationState.run(state -> this.apply(
+		animationState.run(state -> apply(
 				(long) ((float) state.getTimeInMilliseconds(age) * speedMultiplier),
 				1.0F
 		));
 	}
 
 	/**
-	 * Apply.
+	 * Применяет анимацию в заданный момент времени.
 	 *
-	 * @param timeInMilliseconds time in milliseconds
-	 * @param scale scale
+	 * @param timeInMilliseconds время воспроизведения в миллисекундах
+	 * @param scale              общий масштаб трансформаций
 	 */
 	public void apply(long timeInMilliseconds, float scale) {
-		float f = this.getRunningSeconds(timeInMilliseconds);
-		Vector3f vector3f = new Vector3f();
+		float runningSeconds = getRunningSeconds(timeInMilliseconds);
+		Vector3f scratch = new Vector3f();
 
-		for (Animation.TransformationEntry transformationEntry : this.entries) {
-			transformationEntry.apply(f, scale, vector3f);
+		for (Animation.TransformationEntry entry : entries) {
+			entry.apply(runningSeconds, scale, scratch);
 		}
 	}
 
+	/** Переводит время в секунды с учётом зацикливания. */
 	private float getRunningSeconds(long timeInMilliseconds) {
-		float f = (float) timeInMilliseconds / 1000.0F;
-		return this.definition.looping() ? f % this.definition.lengthInSeconds() : f;
+		float seconds = (float) timeInMilliseconds / 1000.0F;
+		return definition.looping() ? seconds % definition.lengthInSeconds() : seconds;
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code TransformationEntry}.
+	 * Привязка трансформации к конкретной части модели.
+	 * <p>
+	 * Хранит ссылку на {@link ModelPart}, цель трансформации и массив ключевых кадров.
+	 * Метод {@link #apply} выполняет бинарный поиск нужного кадра и интерполирует значение.
 	 */
+	@Environment(EnvType.CLIENT)
 	record TransformationEntry(ModelPart part, Transformation.Target target, Keyframe[] keyframes) {
 
 		/**
-		 * Apply.
+		 * Вычисляет и применяет трансформацию для заданного момента времени.
+		 * <p>
+		 * Бинарным поиском находит пару соседних кадров, вычисляет дельту
+		 * интерполяции и делегирует вычисление конкретной стратегии {@link Transformation.Interpolation}.
 		 *
-		 * @param runningSeconds running seconds
-		 * @param scale scale
-		 * @param vec vec
+		 * @param runningSeconds текущее время анимации в секундах
+		 * @param scale          масштаб трансформации
+		 * @param scratch        переиспользуемый вектор для записи результата
 		 */
-		public void apply(float runningSeconds, float scale, Vector3f vec) {
-			int
-					i =
-					Math.max(
+		public void apply(float runningSeconds, float scale, Vector3f scratch) {
+			int startIndex = Math.max(
+					0,
+					MathHelper.binarySearch(
 							0,
-							MathHelper.binarySearch(
-									0,
-									this.keyframes.length,
-									index -> runningSeconds <= this.keyframes[index].timestamp()
-							) - 1
-					);
-			int j = Math.min(this.keyframes.length - 1, i + 1);
-			Keyframe keyframe = this.keyframes[i];
-			Keyframe keyframe2 = this.keyframes[j];
-			float f = runningSeconds - keyframe.timestamp();
-			float g;
-			if (j != i) {
-				g = MathHelper.clamp(f / (keyframe2.timestamp() - keyframe.timestamp()), 0.0F, 1.0F);
-			}
-			else {
-				g = 0.0F;
-			}
+							keyframes.length,
+							index -> runningSeconds <= keyframes[index].timestamp()
+					) - 1
+			);
+			int endIndex = Math.min(keyframes.length - 1, startIndex + 1);
 
-			keyframe2.interpolation().apply(vec, g, this.keyframes, i, j, scale);
-			this.target.apply(this.part, vec);
+			Keyframe startFrame = keyframes[startIndex];
+			Keyframe endFrame = keyframes[endIndex];
+
+			float elapsed = runningSeconds - startFrame.timestamp();
+			float delta = endIndex != startIndex
+					? MathHelper.clamp(elapsed / (endFrame.timestamp() - startFrame.timestamp()), 0.0F, 1.0F)
+					: 0.0F;
+
+			endFrame.interpolation().apply(scratch, delta, keyframes, startIndex, endIndex, scale);
+			target.apply(part, scratch);
 		}
 	}
 }

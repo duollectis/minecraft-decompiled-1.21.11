@@ -13,15 +13,18 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code WaterCreatureEntity}.
+ * Базовый класс для водных мобов.
  */
 public abstract class WaterCreatureEntity extends PathAwareEntity {
 
 	public static final int MIN_AMBIENT_SOUND_DELAY = 120;
+	private static final int MAX_AIR = 300;
+	private static final float DROWN_DAMAGE = 2.0F;
+	private static final int SPAWN_DEPTH_OFFSET = 13;
 
 	protected WaterCreatureEntity(EntityType<? extends WaterCreatureEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 	}
 
 	@Override
@@ -31,39 +34,37 @@ public abstract class WaterCreatureEntity extends PathAwareEntity {
 
 	@Override
 	public int getMinAmbientSoundDelay() {
-		return 120;
+		return MIN_AMBIENT_SOUND_DELAY;
 	}
 
 	@Override
 	protected int getExperienceToDrop(ServerWorld world) {
-		return 1 + this.random.nextInt(3);
+		return 1 + random.nextInt(3);
 	}
 
 	/**
-	 * Выполняет тик обновления для water breathing air.
-	 *
-	 * @param world world
-	 * @param air air
+	 * Уменьшает запас воздуха вне воды и наносит урон утоплением при его исчерпании.
+	 * Восстанавливает воздух до максимума при нахождении в воде.
 	 */
-	protected void tickWaterBreathingAir(ServerWorld world, int air) {
-		if (this.isAlive() && !this.isTouchingWater()) {
-			this.setAir(air - 1);
-			if (this.shouldDrown()) {
-				this.setAir(0);
-				this.damage(world, this.getDamageSources().drown(), 2.0F);
-			}
+	protected void tickWaterBreathingAir(ServerWorld world, int currentAir) {
+		if (!isAlive() || isTouchingWater()) {
+			setAir(MAX_AIR);
+			return;
 		}
-		else {
-			this.setAir(300);
+
+		setAir(currentAir - 1);
+		if (shouldDrown()) {
+			setAir(0);
+			damage(world, getDamageSources().drown(), DROWN_DAMAGE);
 		}
 	}
 
 	@Override
 	public void baseTick() {
-		int i = this.getAir();
+		int airBeforeTick = getAir();
 		super.baseTick();
-		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-			this.tickWaterBreathingAir(serverWorld, i);
+		if (getEntityWorld() instanceof ServerWorld serverWorld) {
+			tickWaterBreathingAir(serverWorld, airBeforeTick);
 		}
 	}
 
@@ -84,10 +85,11 @@ public abstract class WaterCreatureEntity extends PathAwareEntity {
 			BlockPos pos,
 			Random random
 	) {
-		int i = world.getSeaLevel();
-		int j = i - 13;
-		return pos.getY() >= j && pos.getY() <= i && world.getFluidState(pos.down()).isIn(FluidTags.WATER) && world
-				.getBlockState(pos.up())
-				.isOf(Blocks.WATER);
+		int seaLevel = world.getSeaLevel();
+		int minY = seaLevel - SPAWN_DEPTH_OFFSET;
+		return pos.getY() >= minY
+				&& pos.getY() <= seaLevel
+				&& world.getFluidState(pos.down()).isIn(FluidTags.WATER)
+				&& world.getBlockState(pos.up()).isOf(Blocks.WATER);
 	}
 }

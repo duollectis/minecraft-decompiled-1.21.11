@@ -29,11 +29,12 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * {@code RuinedPortalStructure}.
+ * Структура разрушенного портала. Поддерживает несколько конфигураций размещения ({@link Setup})
+ * с весовым выбором. Выбирает случайный шаблон из обычных или редких (5%) порталов,
+ * вычисляет высоту размещения в зависимости от типа вертикального размещения.
  */
 public class RuinedPortalStructure extends Structure {
 
@@ -79,132 +80,130 @@ public class RuinedPortalStructure extends Structure {
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
 		RuinedPortalStructurePiece.Properties properties = new RuinedPortalStructurePiece.Properties();
 		ChunkRandom chunkRandom = context.random();
-		RuinedPortalStructure.Setup setup = null;
-		if (this.setups.size() > 1) {
-			float f = 0.0F;
+		RuinedPortalStructure.Setup selectedSetup = setups.size() > 1
+				? pickWeightedSetup(chunkRandom)
+				: setups.get(0);
 
-			for (RuinedPortalStructure.Setup setup2 : this.setups) {
-				f += setup2.weight();
-			}
-
-			float g = chunkRandom.nextFloat();
-
-			for (RuinedPortalStructure.Setup setup3 : this.setups) {
-				g -= setup3.weight() / f;
-				if (g < 0.0F) {
-					setup = setup3;
-					break;
-				}
-			}
-		}
-		else {
-			setup = this.setups.get(0);
-		}
-
-		if (setup == null) {
+		if (selectedSetup == null) {
 			throw new IllegalStateException();
 		}
-		else {
-			RuinedPortalStructure.Setup setup4 = setup;
-			properties.airPocket = shouldPlaceAirPocket(chunkRandom, setup4.airPocketProbability());
-			properties.mossiness = setup4.mossiness();
-			properties.overgrown = setup4.overgrown();
-			properties.vines = setup4.vines();
-			properties.replaceWithBlackstone = setup4.replaceWithBlackstone();
-			Identifier identifier;
-			if (chunkRandom.nextFloat() < 0.05F) {
-				identifier =
-						Identifier.ofVanilla(RARE_PORTAL_STRUCTURE_IDS[chunkRandom.nextInt(RARE_PORTAL_STRUCTURE_IDS.length)]);
-			}
-			else {
-				identifier =
-						Identifier.ofVanilla(COMMON_PORTAL_STRUCTURE_IDS[chunkRandom.nextInt(COMMON_PORTAL_STRUCTURE_IDS.length)]);
-			}
 
-			StructureTemplate structureTemplate = context.structureTemplateManager().getTemplateOrBlank(identifier);
-			BlockRotation blockRotation = Util.getRandom(BlockRotation.values(), chunkRandom);
-			BlockMirror blockMirror = chunkRandom.nextFloat() < 0.5F ? BlockMirror.NONE : BlockMirror.FRONT_BACK;
-			BlockPos
-					blockPos =
-					new BlockPos(structureTemplate.getSize().getX() / 2, 0, structureTemplate.getSize().getZ() / 2);
-			ChunkGenerator chunkGenerator = context.chunkGenerator();
-			HeightLimitView heightLimitView = context.world();
-			NoiseConfig noiseConfig = context.noiseConfig();
-			BlockPos blockPos2 = context.chunkPos().getStartPos();
-			BlockBox blockBox = structureTemplate.calculateBoundingBox(blockPos2, blockRotation, blockPos, blockMirror);
-			BlockPos blockPos3 = blockBox.getCenter();
-			int i = chunkGenerator.getHeight(
-					blockPos3.getX(),
-					blockPos3.getZ(),
-					RuinedPortalStructurePiece.getHeightmapType(setup4.placement()),
-					heightLimitView,
-					noiseConfig
-			)
-					- 1;
-			int j = getFloorHeight(
-					chunkRandom,
-					chunkGenerator,
-					setup4.placement(),
-					properties.airPocket,
-					i,
-					blockBox.getBlockCountY(),
-					blockBox,
-					heightLimitView,
-					noiseConfig
-			);
-			BlockPos blockPos4 = new BlockPos(blockPos2.getX(), j, blockPos2.getZ());
-			return Optional.of(
-					new Structure.StructurePosition(
-							blockPos4,
-							(Consumer<StructurePiecesCollector>) (collector -> {
-								if (setup4.canBeCold()) {
-									properties.cold = isColdAt(
-											blockPos4,
-											context.chunkGenerator()
-											       .getBiomeSource()
-											       .getBiome(
-													       BiomeCoords.fromBlock(blockPos4.getX()),
-													       BiomeCoords.fromBlock(blockPos4.getY()),
-													       BiomeCoords.fromBlock(blockPos4.getZ()),
-													       noiseConfig.getMultiNoiseSampler()
-											       ),
-											chunkGenerator.getSeaLevel()
-									);
-								}
+		properties.airPocket = shouldPlaceAirPocket(chunkRandom, selectedSetup.airPocketProbability());
+		properties.mossiness = selectedSetup.mossiness();
+		properties.overgrown = selectedSetup.overgrown();
+		properties.vines = selectedSetup.vines();
+		properties.replaceWithBlackstone = selectedSetup.replaceWithBlackstone();
 
-								collector.addPiece(
-										new RuinedPortalStructurePiece(
-												context.structureTemplateManager(),
-												blockPos4,
-												setup4.placement(),
-												properties,
-												identifier,
-												structureTemplate,
-												blockRotation,
-												blockMirror,
-												blockPos
-										)
+		Identifier templateId = chunkRandom.nextFloat() < RARE_PORTAL_CHANCE
+				? Identifier.ofVanilla(RARE_PORTAL_STRUCTURE_IDS[chunkRandom.nextInt(RARE_PORTAL_STRUCTURE_IDS.length)])
+				: Identifier.ofVanilla(COMMON_PORTAL_STRUCTURE_IDS[chunkRandom.nextInt(COMMON_PORTAL_STRUCTURE_IDS.length)]);
+
+		StructureTemplate structureTemplate = context.structureTemplateManager().getTemplateOrBlank(templateId);
+		BlockRotation blockRotation = Util.getRandom(BlockRotation.values(), chunkRandom);
+		BlockMirror blockMirror = chunkRandom.nextFloat() < 0.5F ? BlockMirror.NONE : BlockMirror.FRONT_BACK;
+		BlockPos templateCenter = new BlockPos(
+				structureTemplate.getSize().getX() / 2,
+				0,
+				structureTemplate.getSize().getZ() / 2
+		);
+		ChunkGenerator chunkGenerator = context.chunkGenerator();
+		HeightLimitView heightLimitView = context.world();
+		NoiseConfig noiseConfig = context.noiseConfig();
+		BlockPos chunkStartPos = context.chunkPos().getStartPos();
+		BlockBox blockBox = structureTemplate.calculateBoundingBox(chunkStartPos, blockRotation, templateCenter, blockMirror);
+		BlockPos centerPos = blockBox.getCenter();
+		int surfaceY = chunkGenerator.getHeight(
+				centerPos.getX(),
+				centerPos.getZ(),
+				RuinedPortalStructurePiece.getHeightmapType(selectedSetup.placement()),
+				heightLimitView,
+				noiseConfig
+		) - 1;
+		int floorY = getFloorHeight(
+				chunkRandom,
+				chunkGenerator,
+				selectedSetup.placement(),
+				properties.airPocket,
+				surfaceY,
+				blockBox.getBlockCountY(),
+				blockBox,
+				heightLimitView,
+				noiseConfig
+		);
+		BlockPos placementPos = new BlockPos(chunkStartPos.getX(), floorY, chunkStartPos.getZ());
+
+		return Optional.of(
+				new Structure.StructurePosition(
+						placementPos,
+						collector -> {
+							if (selectedSetup.canBeCold()) {
+								properties.cold = isColdAt(
+										placementPos,
+										context.chunkGenerator()
+										       .getBiomeSource()
+										       .getBiome(
+												       BiomeCoords.fromBlock(placementPos.getX()),
+												       BiomeCoords.fromBlock(placementPos.getY()),
+												       BiomeCoords.fromBlock(placementPos.getZ()),
+												       noiseConfig.getMultiNoiseSampler()
+										       ),
+										chunkGenerator.getSeaLevel()
 								);
 							}
-							)
-					)
-			);
+
+							collector.addPiece(
+									new RuinedPortalStructurePiece(
+											context.structureTemplateManager(),
+											placementPos,
+											selectedSetup.placement(),
+											properties,
+											templateId,
+											structureTemplate,
+											blockRotation,
+											blockMirror,
+											templateCenter
+									)
+							);
+						}
+				)
+		);
+	}
+
+	private RuinedPortalStructure.Setup pickWeightedSetup(ChunkRandom random) {
+		float totalWeight = 0.0F;
+
+		for (RuinedPortalStructure.Setup setup : setups) {
+			totalWeight += setup.weight();
 		}
+
+		float roll = random.nextFloat();
+
+		for (RuinedPortalStructure.Setup setup : setups) {
+			roll -= setup.weight() / totalWeight;
+			if (roll < 0.0F) {
+				return setup;
+			}
+		}
+
+		return null;
 	}
 
 	private static boolean shouldPlaceAirPocket(ChunkRandom random, float probability) {
 		if (probability == 0.0F) {
 			return false;
 		}
-		else {
-			return probability == 1.0F ? true : random.nextFloat() < probability;
-		}
+
+		return probability == 1.0F || random.nextFloat() < probability;
 	}
 
 	private static boolean isColdAt(BlockPos pos, RegistryEntry<Biome> biome, int seaLevel) {
 		return biome.value().isCold(pos, seaLevel);
 	}
 
+	/**
+	 * Вычисляет Y-координату пола для размещения портала с учётом типа вертикального размещения.
+	 * Сканирует угловые колонки чанка снизу вверх, ища позицию с достаточным количеством твёрдых блоков.
+	 */
 	private static int getFloorHeight(
 			Random random,
 			ChunkGenerator chunkGenerator,
@@ -216,67 +215,56 @@ public class RuinedPortalStructure extends Structure {
 			HeightLimitView world,
 			NoiseConfig noiseConfig
 	) {
-		int i = world.getBottomY() + 15;
-		int j;
+		int worldBottomPadded = world.getBottomY() + MIN_BLOCKS_ABOVE_WORLD_BOTTOM;
+		int floorY;
+
 		if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.IN_NETHER) {
 			if (airPocket) {
-				j = MathHelper.nextBetween(random, 32, 100);
+				floorY = MathHelper.nextBetween(random, 32, 100);
+			} else if (random.nextFloat() < 0.5F) {
+				floorY = MathHelper.nextBetween(random, 27, 29);
+			} else {
+				floorY = MathHelper.nextBetween(random, 29, 100);
 			}
-			else if (random.nextFloat() < 0.5F) {
-				j = MathHelper.nextBetween(random, 27, 29);
-			}
-			else {
-				j = MathHelper.nextBetween(random, 29, 100);
-			}
-		}
-		else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.IN_MOUNTAIN) {
-			int k = height - blockCountY;
-			j = choosePlacementHeight(random, 70, k);
-		}
-		else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.UNDERGROUND) {
-			int k = height - blockCountY;
-			j = choosePlacementHeight(random, i, k);
-		}
-		else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.PARTLY_BURIED) {
-			j = height - blockCountY + MathHelper.nextBetween(random, 2, 8);
-		}
-		else {
-			j = height;
+		} else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.IN_MOUNTAIN) {
+			floorY = choosePlacementHeight(random, 70, height - blockCountY);
+		} else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.UNDERGROUND) {
+			floorY = choosePlacementHeight(random, worldBottomPadded, height - blockCountY);
+		} else if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.PARTLY_BURIED) {
+			floorY = height - blockCountY + MathHelper.nextBetween(random, 2, 8);
+		} else {
+			floorY = height;
 		}
 
-		List<BlockPos> list = ImmutableList.of(
+		List<BlockPos> cornerPositions = ImmutableList.of(
 				new BlockPos(box.getMinX(), 0, box.getMinZ()),
 				new BlockPos(box.getMaxX(), 0, box.getMinZ()),
 				new BlockPos(box.getMinX(), 0, box.getMaxZ()),
 				new BlockPos(box.getMaxX(), 0, box.getMaxZ())
 		);
-		List<VerticalBlockSample> list2 = list.stream()
-		                                      .map(pos -> chunkGenerator.getColumnSample(
-				                                      pos.getX(),
-				                                      pos.getZ(),
-				                                      world,
-				                                      noiseConfig
-		                                      ))
-		                                      .collect(Collectors.toList());
-		Heightmap.Type type = verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR
-		                      ? Heightmap.Type.OCEAN_FLOOR_WG
-		                      : Heightmap.Type.WORLD_SURFACE_WG;
+		List<VerticalBlockSample> columnSamples = cornerPositions.stream()
+				.map(pos -> chunkGenerator.getColumnSample(pos.getX(), pos.getZ(), world, noiseConfig))
+				.collect(Collectors.toList());
+		Heightmap.Type heightmapType = verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR
+				? Heightmap.Type.OCEAN_FLOOR_WG
+				: Heightmap.Type.WORLD_SURFACE_WG;
 
-		int l;
-		for (l = j; l > i; l--) {
-			int m = 0;
+		int y;
 
-			for (VerticalBlockSample verticalBlockSample : list2) {
-				BlockState blockState = verticalBlockSample.getState(l);
-				if (type.getBlockPredicate().test(blockState)) {
-					if (++m == 3) {
-						return l;
+		for (y = floorY; y > worldBottomPadded; y--) {
+			int solidCount = 0;
+
+			for (VerticalBlockSample columnSample : columnSamples) {
+				BlockState blockState = columnSample.getState(y);
+				if (heightmapType.getBlockPredicate().test(blockState)) {
+					if (++solidCount == 3) {
+						return y;
 					}
 				}
 			}
 		}
 
-		return l;
+		return y;
 	}
 
 	private static int choosePlacementHeight(Random random, int min, int max) {
@@ -289,7 +277,8 @@ public class RuinedPortalStructure extends Structure {
 	}
 
 	/**
-	 * {@code Setup}.
+	 * Конфигурация одного варианта размещения разрушенного портала.
+	 * Содержит параметры внешнего вида и вес для взвешенного случайного выбора.
 	 */
 	public record Setup(
 			RuinedPortalStructurePiece.VerticalPlacement placement,

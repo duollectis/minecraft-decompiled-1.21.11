@@ -8,10 +8,12 @@ import net.minecraft.util.math.random.Random;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WeightedBlockStateModel}.
+ * Модель состояния блока с весовой выборкой варианта отображения.
+ * При каждом вызове {@link #addParts} выбирает один из вариантов из {@link Pool}
+ * пропорционально их весам, используя переданный генератор случайных чисел.
  */
+@Environment(EnvType.CLIENT)
 public class WeightedBlockStateModel implements BlockStateModel {
 
 	private final Pool<BlockStateModel> models;
@@ -19,34 +21,34 @@ public class WeightedBlockStateModel implements BlockStateModel {
 
 	public WeightedBlockStateModel(Pool<BlockStateModel> models) {
 		this.models = models;
-		BlockStateModel blockStateModel = models.getEntries().getFirst().value();
-		this.particleSprite = blockStateModel.particleSprite();
+		this.particleSprite = models.getEntries().getFirst().value().particleSprite();
 	}
 
 	@Override
 	public Sprite particleSprite() {
-		return this.particleSprite;
+		return particleSprite;
 	}
 
 	@Override
 	public void addParts(Random random, List<BlockModelPart> parts) {
-		this.models.get(random).addParts(random, parts);
+		models.get(random).addParts(random, parts);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Незапечённый вариант взвешенной модели состояния блока.
+	 * Запекает каждый вариант из пула через {@link Baker} и собирает новый {@link Pool}.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(Pool<BlockStateModel.Unbaked> entries) implements BlockStateModel.Unbaked {
 
 		@Override
 		public BlockStateModel bake(Baker baker) {
-			return new WeightedBlockStateModel(this.entries.transform(model -> model.bake(baker)));
+			return new WeightedBlockStateModel(entries.transform(model -> model.bake(baker)));
 		}
 
 		@Override
 		public void resolve(ResolvableModel.Resolver resolver) {
-			this.entries.getEntries().forEach(entry -> entry.value().resolve(resolver));
+			entries.getEntries().forEach(entry -> entry.value().resolve(resolver));
 		}
 	}
 }

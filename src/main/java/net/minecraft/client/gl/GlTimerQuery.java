@@ -9,11 +9,16 @@ import org.lwjgl.opengl.GL32C;
 
 import java.util.OptionalLong;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GlTimerQuery}.
+ * Реализация GPU-запроса таймера через OpenGL query objects.
+ * Использует {@code GL_QUERY_RESULT_AVAILABLE} для неблокирующей проверки готовности
+ * и {@code ARBTimerQuery} для получения 64-битного результата в наносекундах.
  */
+@Environment(EnvType.CLIENT)
 public class GlTimerQuery implements GpuQuery {
+
+	private static final int GL_QUERY_RESULT_AVAILABLE = 34919;
+	private static final int GL_QUERY_RESULT = 34918;
 
 	private final int id;
 	private boolean closed;
@@ -26,27 +31,33 @@ public class GlTimerQuery implements GpuQuery {
 	@Override
 	public OptionalLong getValue() {
 		RenderSystem.assertOnRenderThread();
-		if (this.closed) {
+
+		if (closed) {
 			throw new IllegalStateException("GlTimerQuery is closed");
 		}
-		else if (this.value.isPresent()) {
-			return this.value;
+
+		if (value.isPresent()) {
+			return value;
 		}
-		else if (GL32C.glGetQueryObjecti(this.id, 34919) == 1) {
-			this.value = OptionalLong.of(ARBTimerQuery.glGetQueryObjecti64(this.id, 34918));
-			return this.value;
-		}
-		else {
+
+		if (GL32C.glGetQueryObjecti(id, GL_QUERY_RESULT_AVAILABLE) != 1) {
 			return OptionalLong.empty();
 		}
+
+		value = OptionalLong.of(ARBTimerQuery.glGetQueryObjecti64(id, GL_QUERY_RESULT));
+
+		return value;
 	}
 
 	@Override
 	public void close() {
 		RenderSystem.assertOnRenderThread();
-		if (!this.closed) {
-			this.closed = true;
-			GL32C.glDeleteQueries(this.id);
+
+		if (closed) {
+			return;
 		}
+
+		closed = true;
+		GL32C.glDeleteQueries(id);
 	}
 }

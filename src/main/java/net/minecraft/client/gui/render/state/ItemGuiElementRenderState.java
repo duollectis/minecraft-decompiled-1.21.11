@@ -9,11 +9,17 @@ import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ItemGuiElementRenderState}.
+ * Состояние предмета в GUI-слоте.
+ * При создании вычисляет {@code oversizedBounds} — область, выходящую за стандартные
+ * границы слота 16×16, если модель предмета является oversized.
+ * Ограничивающий прямоугольник {@code bounds} учитывает матрицу трансформации и scissor.
  */
+@Environment(EnvType.CLIENT)
 public final class ItemGuiElementRenderState implements GuiElementRenderState {
+
+	private static final int SLOT_SIZE = 16;
+	private static final float SLOT_CENTER_OFFSET = 8.0F;
 
 	private final String name;
 	private final Matrix3x2f pose;
@@ -38,100 +44,69 @@ public final class ItemGuiElementRenderState implements GuiElementRenderState {
 		this.x = x;
 		this.y = y;
 		this.scissorArea = scissor;
-		this.oversizedBounds = this.state().isOversizedInGui() ? this.createOversizedBounds() : null;
-		this.bounds =
-				this.createBounds(
-						this.oversizedBounds != null ? this.oversizedBounds : new ScreenRect(this.x, this.y, 16, 16));
+		this.oversizedBounds = state.isOversizedInGui() ? createOversizedBounds() : null;
+		this.bounds = createBounds(
+				oversizedBounds != null ? oversizedBounds : new ScreenRect(x, y, SLOT_SIZE, SLOT_SIZE)
+		);
 	}
 
+	/**
+	 * Вычисляет область, выходящую за стандартные границы слота, на основе
+	 * bounding box модели предмета. Возвращает {@code null}, если модель
+	 * вписывается в стандартный слот 16×16.
+	 */
 	private @Nullable ScreenRect createOversizedBounds() {
-		Box box = this.state.getModelBoundingBox();
-		int i = MathHelper.ceil(box.getLengthX() * 16.0);
-		int j = MathHelper.ceil(box.getLengthY() * 16.0);
-		if (i <= 16 && j <= 16) {
+		Box box = state.getModelBoundingBox();
+		int width = MathHelper.ceil(box.getLengthX() * SLOT_SIZE);
+		int height = MathHelper.ceil(box.getLengthY() * SLOT_SIZE);
+
+		if (width <= SLOT_SIZE && height <= SLOT_SIZE) {
 			return null;
 		}
-		else {
-			float f = (float) (box.minX * 16.0);
-			float g = (float) (box.maxY * 16.0);
-			int k = MathHelper.floor(f);
-			int l = MathHelper.floor(g);
-			int m = this.x + k + 8;
-			int n = this.y - l + 8;
-			return new ScreenRect(m, n, i, j);
-		}
+
+		float minX = (float) (box.minX * SLOT_SIZE);
+		float maxY = (float) (box.maxY * SLOT_SIZE);
+		int left = x + MathHelper.floor(minX) + (int) SLOT_CENTER_OFFSET;
+		int top = y - MathHelper.floor(maxY) + (int) SLOT_CENTER_OFFSET;
+
+		return new ScreenRect(left, top, width, height);
 	}
 
 	private @Nullable ScreenRect createBounds(ScreenRect rect) {
-		ScreenRect screenRect = rect.transformEachVertex(this.pose);
-		return this.scissorArea != null ? this.scissorArea.intersection(screenRect) : screenRect;
+		ScreenRect transformed = rect.transformEachVertex(pose);
+		return scissorArea != null ? scissorArea.intersection(transformed) : transformed;
 	}
 
-	/**
-	 * Name.
-	 *
-	 * @return String — результат операции
-	 */
 	public String name() {
-		return this.name;
+		return name;
 	}
 
-	/**
-	 * Pose.
-	 *
-	 * @return Matrix3x2f — результат операции
-	 */
 	public Matrix3x2f pose() {
-		return this.pose;
+		return pose;
 	}
 
-	/**
-	 * State.
-	 *
-	 * @return KeyedItemRenderState — результат операции
-	 */
 	public KeyedItemRenderState state() {
-		return this.state;
+		return state;
 	}
 
-	/**
-	 * X.
-	 *
-	 * @return int — результат операции
-	 */
 	public int x() {
-		return this.x;
+		return x;
 	}
 
-	/**
-	 * Y.
-	 *
-	 * @return int — результат операции
-	 */
 	public int y() {
-		return this.y;
+		return y;
 	}
 
-	/**
-	 * Scissor area.
-	 *
-	 * @return @Nullable ScreenRect — результат операции
-	 */
 	public @Nullable ScreenRect scissorArea() {
-		return this.scissorArea;
+		return scissorArea;
 	}
 
-	/**
-	 * Oversized bounds.
-	 *
-	 * @return @Nullable ScreenRect — результат операции
-	 */
 	public @Nullable ScreenRect oversizedBounds() {
-		return this.oversizedBounds;
+		return oversizedBounds;
 	}
 
 	@Override
 	public @Nullable ScreenRect bounds() {
-		return this.bounds;
+		return bounds;
 	}
 }

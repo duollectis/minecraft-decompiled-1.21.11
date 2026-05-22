@@ -21,9 +21,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code LargeDripstoneFeature}.
+ * Генерирует большую сталактит/сталагмит пару из блоков дрипстоуна.
+ * Оба элемента могут быть смещены горизонтально «ветром» для органичного вида.
+ * Радиус колонны ограничен соотношением высоты пещеры к конфигурационному параметру.
  */
 public class LargeDripstoneFeature extends Feature<LargeDripstoneFeatureConfig> {
+
+	private static final int MIN_CAVE_HEIGHT = 4;
 
 	public LargeDripstoneFeature(Codec<LargeDripstoneFeatureConfig> codec) {
 		super(codec);
@@ -31,133 +35,106 @@ public class LargeDripstoneFeature extends Feature<LargeDripstoneFeatureConfig> 
 
 	@Override
 	public boolean generate(FeatureContext<LargeDripstoneFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		LargeDripstoneFeatureConfig largeDripstoneFeatureConfig = context.getConfig();
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+		LargeDripstoneFeatureConfig config = context.getConfig();
 		Random random = context.getRandom();
-		if (!DripstoneHelper.canGenerate(structureWorldAccess, blockPos)) {
+
+		if (!DripstoneHelper.canGenerate(world, origin)) {
 			return false;
 		}
-		else {
-			Optional<CaveSurface> optional = CaveSurface.create(
-					structureWorldAccess,
-					blockPos,
-					largeDripstoneFeatureConfig.floorToCeilingSearchRange,
-					DripstoneHelper::canGenerate,
-					DripstoneHelper::canReplaceOrLava
-			);
-			if (!optional.isEmpty() && optional.get() instanceof CaveSurface.Bounded) {
-				CaveSurface.Bounded bounded = (CaveSurface.Bounded) optional.get();
-				if (bounded.getHeight() < 4) {
-					return false;
-				}
-				else {
-					int i = (int) (bounded.getHeight() * largeDripstoneFeatureConfig.maxColumnRadiusToCaveHeightRatio);
-					int
-							j =
-							MathHelper.clamp(
-									i,
-									largeDripstoneFeatureConfig.columnRadius.getMin(),
-									largeDripstoneFeatureConfig.columnRadius.getMax()
-							);
-					int k = MathHelper.nextBetween(random, largeDripstoneFeatureConfig.columnRadius.getMin(), j);
-					LargeDripstoneFeature.DripstoneGenerator dripstoneGenerator = createGenerator(
-							blockPos.withY(bounded.getCeiling() - 1),
-							false,
-							random,
-							k,
-							largeDripstoneFeatureConfig.stalactiteBluntness,
-							largeDripstoneFeatureConfig.heightScale
-					);
-					LargeDripstoneFeature.DripstoneGenerator dripstoneGenerator2 = createGenerator(
-							blockPos.withY(bounded.getFloor() + 1),
-							true,
-							random,
-							k,
-							largeDripstoneFeatureConfig.stalagmiteBluntness,
-							largeDripstoneFeatureConfig.heightScale
-					);
-					LargeDripstoneFeature.WindModifier windModifier;
-					if (dripstoneGenerator.generateWind(largeDripstoneFeatureConfig)
-							&& dripstoneGenerator2.generateWind(largeDripstoneFeatureConfig)) {
-						windModifier =
-								new LargeDripstoneFeature.WindModifier(
-										blockPos.getY(),
-										random,
-										largeDripstoneFeatureConfig.windSpeed
-								);
-					}
-					else {
-						windModifier = LargeDripstoneFeature.WindModifier.create();
-					}
 
-					boolean bl = dripstoneGenerator.canGenerate(structureWorldAccess, windModifier);
-					boolean bl2 = dripstoneGenerator2.canGenerate(structureWorldAccess, windModifier);
-					if (bl) {
-						dripstoneGenerator.generate(structureWorldAccess, random, windModifier);
-					}
+		Optional<CaveSurface> surfaceOpt = CaveSurface.create(
+			world,
+			origin,
+			config.floorToCeilingSearchRange,
+			DripstoneHelper::canGenerate,
+			DripstoneHelper::canReplaceOrLava
+		);
 
-					if (bl2) {
-						dripstoneGenerator2.generate(structureWorldAccess, random, windModifier);
-					}
-
-					if (SharedConstants.LARGE_DRIPSTONE) {
-						this.testGeneration(structureWorldAccess, blockPos, bounded, windModifier);
-					}
-
-					return true;
-				}
-			}
-			else {
-				return false;
-			}
+		if (surfaceOpt.isEmpty() || !(surfaceOpt.get() instanceof CaveSurface.Bounded bounded)) {
+			return false;
 		}
+
+		if (bounded.getHeight() < MIN_CAVE_HEIGHT) {
+			return false;
+		}
+
+		int maxRadius = (int) (bounded.getHeight() * config.maxColumnRadiusToCaveHeightRatio);
+		int clampedRadius = MathHelper.clamp(maxRadius, config.columnRadius.getMin(), config.columnRadius.getMax());
+		int radius = MathHelper.nextBetween(random, config.columnRadius.getMin(), clampedRadius);
+
+		DripstoneGenerator stalactite = createGenerator(
+			origin.withY(bounded.getCeiling() - 1),
+			false,
+			random,
+			radius,
+			config.stalactiteBluntness,
+			config.heightScale
+		);
+		DripstoneGenerator stalagmite = createGenerator(
+			origin.withY(bounded.getFloor() + 1),
+			true,
+			random,
+			radius,
+			config.stalagmiteBluntness,
+			config.heightScale
+		);
+
+		WindModifier wind = (stalactite.generateWind(config) && stalagmite.generateWind(config))
+			? new WindModifier(origin.getY(), random, config.windSpeed)
+			: WindModifier.create();
+
+		if (stalactite.canGenerate(world, wind)) {
+			stalactite.generate(world, random, wind);
+		}
+
+		if (stalagmite.canGenerate(world, wind)) {
+			stalagmite.generate(world, random, wind);
+		}
+
+		if (SharedConstants.LARGE_DRIPSTONE) {
+			testGeneration(world, origin, bounded, wind);
+		}
+
+		return true;
 	}
 
-	private static LargeDripstoneFeature.DripstoneGenerator createGenerator(
-			BlockPos pos,
-			boolean isStalagmite,
-			Random random,
-			int scale,
-			FloatProvider bluntness,
-			FloatProvider heightScale
+	private static DripstoneGenerator createGenerator(
+		BlockPos pos,
+		boolean isStalagmite,
+		Random random,
+		int scale,
+		FloatProvider bluntness,
+		FloatProvider heightScale
 	) {
-		return new LargeDripstoneFeature.DripstoneGenerator(
-				pos,
-				isStalagmite,
-				scale,
-				bluntness.get(random),
-				heightScale.get(random)
-		);
+		return new DripstoneGenerator(pos, isStalagmite, scale, bluntness.get(random), heightScale.get(random));
 	}
 
 	private void testGeneration(
-			StructureWorldAccess world,
-			BlockPos pos,
-			CaveSurface.Bounded surface,
-			LargeDripstoneFeature.WindModifier wind
+		StructureWorldAccess world,
+		BlockPos pos,
+		CaveSurface.Bounded surface,
+		WindModifier wind
 	) {
-		world.setBlockState(
-				wind.modify(pos.withY(surface.getCeiling() - 1)),
-				Blocks.DIAMOND_BLOCK.getDefaultState(),
-				2
-		);
+		world.setBlockState(wind.modify(pos.withY(surface.getCeiling() - 1)), Blocks.DIAMOND_BLOCK.getDefaultState(), 2);
 		world.setBlockState(wind.modify(pos.withY(surface.getFloor() + 1)), Blocks.GOLD_BLOCK.getDefaultState(), 2);
 
 		for (BlockPos.Mutable mutable = pos.withY(surface.getFloor() + 2).mutableCopy();
-		     mutable.getY() < surface.getCeiling() - 1;
-		     mutable.move(Direction.UP)) {
-			BlockPos blockPos = wind.modify(mutable);
-			if (DripstoneHelper.canGenerate(world, blockPos) || world
-					.getBlockState(blockPos)
-					.isOf(Blocks.DRIPSTONE_BLOCK)) {
-				world.setBlockState(blockPos, Blocks.CREEPER_HEAD.getDefaultState(), 2);
+			mutable.getY() < surface.getCeiling() - 1;
+			mutable.move(Direction.UP)
+		) {
+			BlockPos modified = wind.modify(mutable);
+
+			if (DripstoneHelper.canGenerate(world, modified) || world.getBlockState(modified).isOf(Blocks.DRIPSTONE_BLOCK)) {
+				world.setBlockState(modified, Blocks.CREEPER_HEAD.getDefaultState(), 2);
 			}
 		}
 	}
 
 	/**
-	 * {@code DripstoneGenerator}.
+	 * Генератор одного элемента пары (сталактит или сталагмит).
+	 * Итеративно уменьшает масштаб, если не удаётся найти подходящую позицию.
 	 */
 	static final class DripstoneGenerator {
 
@@ -176,130 +153,126 @@ public class LargeDripstoneFeature extends Feature<LargeDripstoneFeatureConfig> 
 		}
 
 		private int getBaseScale() {
-			return this.scale(0.0F);
+			return scale(0.0F);
 		}
 
 		private int getBottomY() {
-			return this.isStalagmite ? this.pos.getY() : this.pos.getY() - this.getBaseScale();
+			return isStalagmite ? pos.getY() : pos.getY() - getBaseScale();
 		}
 
 		private int getTopY() {
-			return !this.isStalagmite ? this.pos.getY() : this.pos.getY() + this.getBaseScale();
+			return !isStalagmite ? pos.getY() : pos.getY() + getBaseScale();
 		}
 
-		boolean canGenerate(StructureWorldAccess world, LargeDripstoneFeature.WindModifier wind) {
-			while (this.scale > 1) {
-				BlockPos.Mutable mutable = this.pos.mutableCopy();
-				int i = Math.min(10, this.getBaseScale());
+		boolean canGenerate(StructureWorldAccess world, WindModifier wind) {
+			while (scale > 1) {
+				BlockPos.Mutable mutable = pos.mutableCopy();
+				int searchDepth = Math.min(10, getBaseScale());
 
-				for (int j = 0; j < i; j++) {
+				for (int step = 0; step < searchDepth; step++) {
 					if (world.getBlockState(mutable).isOf(Blocks.LAVA)) {
 						return false;
 					}
 
-					if (DripstoneHelper.canGenerateBase(world, wind.modify(mutable), this.scale)) {
-						this.pos = mutable;
+					if (DripstoneHelper.canGenerateBase(world, wind.modify(mutable), scale)) {
+						pos = mutable;
 						return true;
 					}
 
-					mutable.move(this.isStalagmite ? Direction.DOWN : Direction.UP);
+					mutable.move(isStalagmite ? Direction.DOWN : Direction.UP);
 				}
 
-				this.scale /= 2;
+				scale /= 2;
 			}
 
 			return false;
 		}
 
 		private int scale(float height) {
-			return (int) DripstoneHelper.scaleHeightFromRadius(
-					(double) height,
-					(double) this.scale,
-					this.heightScale,
-					this.bluntness
-			);
+			return (int) DripstoneHelper.scaleHeightFromRadius((double) height, (double) scale, heightScale, bluntness);
 		}
 
-		void generate(StructureWorldAccess world, Random random, LargeDripstoneFeature.WindModifier wind) {
-			for (int i = -this.scale; i <= this.scale; i++) {
-				for (int j = -this.scale; j <= this.scale; j++) {
-					float f = MathHelper.sqrt(i * i + j * j);
-					if (!(f > this.scale)) {
-						int k = this.scale(f);
-						if (k > 0) {
-							if (random.nextFloat() < 0.2) {
-								k = (int) (k * MathHelper.nextBetween(random, 0.8F, 1.0F));
-							}
+		void generate(StructureWorldAccess world, Random random, WindModifier wind) {
+			for (int dx = -scale; dx <= scale; dx++) {
+				for (int dz = -scale; dz <= scale; dz++) {
+					float dist = MathHelper.sqrt(dx * dx + dz * dz);
 
-							BlockPos.Mutable mutable = this.pos.add(i, 0, j).mutableCopy();
-							boolean bl = false;
-							int
-									l =
-									this.isStalagmite ? world.getTopY(
-											Heightmap.Type.WORLD_SURFACE_WG,
-											mutable.getX(),
-											mutable.getZ()
-									) : Integer.MAX_VALUE;
+					if (dist > scale) {
+						continue;
+					}
 
-							for (int m = 0; m < k && mutable.getY() < l; m++) {
-								BlockPos blockPos = wind.modify(mutable);
-								if (DripstoneHelper.canGenerateOrLava(world, blockPos)) {
-									bl = true;
-									Block
-											block =
-											SharedConstants.LARGE_DRIPSTONE ? Blocks.GLASS : Blocks.DRIPSTONE_BLOCK;
-									world.setBlockState(blockPos, block.getDefaultState(), 2);
-								}
-								else if (bl && world.getBlockState(blockPos).isIn(BlockTags.BASE_STONE_OVERWORLD)) {
-									break;
-								}
+					int height = scale(dist);
 
-								mutable.move(this.isStalagmite ? Direction.UP : Direction.DOWN);
-							}
+					if (height <= 0) {
+						continue;
+					}
+
+					if (random.nextFloat() < 0.2) {
+						height = (int) (height * MathHelper.nextBetween(random, 0.8F, 1.0F));
+					}
+
+					BlockPos.Mutable mutable = pos.add(dx, 0, dz).mutableCopy();
+					boolean started = false;
+					int surfaceLimit = isStalagmite
+						? world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, mutable.getX(), mutable.getZ())
+						: Integer.MAX_VALUE;
+
+					for (int step = 0; step < height && mutable.getY() < surfaceLimit; step++) {
+						BlockPos modified = wind.modify(mutable);
+
+						if (DripstoneHelper.canGenerateOrLava(world, modified)) {
+							started = true;
+							Block block = SharedConstants.LARGE_DRIPSTONE ? Blocks.GLASS : Blocks.DRIPSTONE_BLOCK;
+							world.setBlockState(modified, block.getDefaultState(), 2);
+						} else if (started && world.getBlockState(modified).isIn(BlockTags.BASE_STONE_OVERWORLD)) {
+							break;
 						}
+
+						mutable.move(isStalagmite ? Direction.UP : Direction.DOWN);
 					}
 				}
 			}
 		}
 
 		boolean generateWind(LargeDripstoneFeatureConfig config) {
-			return this.scale >= config.minRadiusForWind && this.bluntness >= config.minBluntnessForWind;
+			return scale >= config.minRadiusForWind && bluntness >= config.minBluntnessForWind;
 		}
 	}
 
 	/**
-	 * {@code WindModifier}.
+	 * Применяет горизонтальное смещение («ветер») к позиции блока
+	 * в зависимости от расстояния до базовой высоты.
 	 */
 	static final class WindModifier {
 
-		private final int y;
+		private final int baseY;
 		private final @Nullable Vec3d wind;
 
-		WindModifier(int y, Random random, FloatProvider wind) {
-			this.y = y;
-			float f = wind.get(random);
-			float g = MathHelper.nextBetween(random, 0.0F, (float) Math.PI);
-			this.wind = new Vec3d(MathHelper.cos(g) * f, 0.0, MathHelper.sin(g) * f);
+		WindModifier(int baseY, Random random, FloatProvider windProvider) {
+			this.baseY = baseY;
+			float strength = windProvider.get(random);
+			float angle = MathHelper.nextBetween(random, 0.0F, (float) Math.PI);
+			this.wind = new Vec3d(MathHelper.cos(angle) * strength, 0.0, MathHelper.sin(angle) * strength);
 		}
 
 		private WindModifier() {
-			this.y = 0;
+			this.baseY = 0;
 			this.wind = null;
 		}
 
-		static LargeDripstoneFeature.WindModifier create() {
-			return new LargeDripstoneFeature.WindModifier();
+		static WindModifier create() {
+			return new WindModifier();
 		}
 
 		BlockPos modify(BlockPos pos) {
-			if (this.wind == null) {
+			if (wind == null) {
 				return pos;
 			}
-			else {
-				int i = this.y - pos.getY();
-				Vec3d vec3d = this.wind.multiply(i);
-				return pos.add(MathHelper.floor(vec3d.x), 0, MathHelper.floor(vec3d.z));
-			}
+
+			int distFromBase = baseY - pos.getY();
+			Vec3d offset = wind.multiply(distFromBase);
+
+			return pos.add(MathHelper.floor(offset.x), 0, MathHelper.floor(offset.z));
 		}
 	}
 }

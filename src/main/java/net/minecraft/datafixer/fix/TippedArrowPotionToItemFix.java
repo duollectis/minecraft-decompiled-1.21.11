@@ -7,7 +7,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.Optional;
 
 /**
- * {@code TippedArrowPotionToItemFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class TippedArrowPotionToItemFix extends ChoiceWriteReadFix {
 

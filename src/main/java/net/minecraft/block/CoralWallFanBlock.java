@@ -12,7 +12,8 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
 /**
- * {@code CoralWallFanBlock}.
+ * Живой коралловый веер, прикреплённый к стене. Выживает только в воде — при отсутствии
+ * соседнего водного блока планирует отложенный тик и превращается в мёртвый настенный коралловый веер.
  */
 public class CoralWallFanBlock extends DeadCoralWallFanBlock {
 
@@ -35,7 +36,7 @@ public class CoralWallFanBlock extends DeadCoralWallFanBlock {
 
 	@Override
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-		this.checkLivingConditions(state, world, world, world.random, pos);
+		checkLivingConditions(state, world, world, world.random, pos);
 	}
 
 	@Override
@@ -43,8 +44,8 @@ public class CoralWallFanBlock extends DeadCoralWallFanBlock {
 		if (!isInWater(state, world, pos)) {
 			world.setBlockState(
 					pos,
-					this.deadCoralBlock.getDefaultState().with(WATERLOGGED, false).with(FACING, state.get(FACING)),
-					2
+					deadCoralBlock.getDefaultState().with(WATERLOGGED, false).with(FACING, state.get(FACING)),
+					Block.NOTIFY_LISTENERS
 			);
 		}
 	}
@@ -63,22 +64,22 @@ public class CoralWallFanBlock extends DeadCoralWallFanBlock {
 		if (direction.getOpposite() == state.get(FACING) && !state.canPlaceAt(world, pos)) {
 			return Blocks.AIR.getDefaultState();
 		}
-		else {
-			if (state.get(WATERLOGGED)) {
-				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-			}
 
-			this.checkLivingConditions(state, world, tickView, random, pos);
-			return super.getStateForNeighborUpdate(
-					state,
-					world,
-					tickView,
-					pos,
-					direction,
-					neighborPos,
-					neighborState,
-					random
-			);
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
 		}
+
+		checkLivingConditions(state, world, tickView, random, pos);
+
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
 	}
 }

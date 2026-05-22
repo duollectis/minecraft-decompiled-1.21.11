@@ -12,12 +12,16 @@ import net.minecraft.util.math.GlobalPos;
 import java.util.Optional;
 
 /**
- * {@code VillagerWorkTask}.
+ * Базовая задача мозга жителя, выполняющей работу на рабочем месте.
+ * Воспроизводит звук работы, обновляет время последней работы и при необходимости пополняет запасы торговли.
+ * Расширяется {@link FarmerWorkTask} для специфики фермера.
  */
 public class VillagerWorkTask extends MultiTickTask<VillagerEntity> {
 
 	private static final int RUN_TIME = 300;
 	private static final double MAX_DISTANCE = 1.73;
+	private static final int WORK_CHANCE = 2;
+
 	private long lastCheckedTime;
 
 	public VillagerWorkTask() {
@@ -29,79 +33,49 @@ public class VillagerWorkTask extends MultiTickTask<VillagerEntity> {
 		));
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-		if (serverWorld.getTime() - this.lastCheckedTime < 300L) {
+	@Override
+	protected boolean shouldRun(ServerWorld world, VillagerEntity entity) {
+		if (world.getTime() - lastCheckedTime < RUN_TIME) {
 			return false;
 		}
-		else if (serverWorld.random.nextInt(2) != 0) {
+
+		if (world.random.nextInt(WORK_CHANCE) != 0) {
 			return false;
 		}
-		else {
-			this.lastCheckedTime = serverWorld.getTime();
-			GlobalPos
-					globalPos =
-					villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE).get();
-			return globalPos.dimension() == serverWorld.getRegistryKey() && globalPos
-					.pos()
-					.isWithinDistance(villagerEntity.getEntityPos(), 1.73);
-		}
+
+		lastCheckedTime = world.getTime();
+		GlobalPos jobSite = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE).get();
+		return jobSite.dimension() == world.getRegistryKey()
+				&& jobSite.pos().isWithinDistance(entity.getEntityPos(), MAX_DISTANCE);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		Brain<VillagerEntity> brain = villagerEntity.getBrain();
-		brain.remember(MemoryModuleType.LAST_WORKED_AT_POI, l);
+	@Override
+	protected void run(ServerWorld world, VillagerEntity entity, long time) {
+		Brain<VillagerEntity> brain = entity.getBrain();
+		brain.remember(MemoryModuleType.LAST_WORKED_AT_POI, time);
 		brain.getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE)
 		     .ifPresent(pos -> brain.remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(pos.pos())));
-		villagerEntity.playWorkSound();
-		this.performAdditionalWork(serverWorld, villagerEntity);
-		if (villagerEntity.shouldRestock(serverWorld)) {
-			villagerEntity.restock();
+		entity.playWorkSound();
+		performAdditionalWork(world, entity);
+
+		if (entity.shouldRestock(world)) {
+			entity.restock();
 		}
 	}
 
-	/**
-	 * Perform additional work.
-	 *
-	 * @param world world
-	 * @param entity entity
-	 */
 	protected void performAdditionalWork(ServerWorld world, VillagerEntity entity) {
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param villagerEntity villager entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-		Optional<GlobalPos> optional = villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
-		if (optional.isEmpty()) {
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, VillagerEntity entity, long time) {
+		Optional<GlobalPos> jobSiteOpt = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
+
+		if (jobSiteOpt.isEmpty()) {
 			return false;
 		}
-		else {
-			GlobalPos globalPos = optional.get();
-			return globalPos.dimension() == serverWorld.getRegistryKey() && globalPos
-					.pos()
-					.isWithinDistance(villagerEntity.getEntityPos(), 1.73);
-		}
+
+		GlobalPos jobSite = jobSiteOpt.get();
+		return jobSite.dimension() == world.getRegistryKey()
+				&& jobSite.pos().isWithinDistance(entity.getEntityPos(), MAX_DISTANCE);
 	}
 }

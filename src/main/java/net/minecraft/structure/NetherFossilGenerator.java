@@ -17,7 +17,8 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
 /**
- * {@code NetherFossilGenerator}.
+ * Генератор окаменелостей Нижнего мира. Размещает случайный шаблон
+ * из набора NBT-структур в базальтовых дельтах и пустошах.
  */
 public class NetherFossilGenerator {
 
@@ -48,9 +49,6 @@ public class NetherFossilGenerator {
 		holder.addPiece(new NetherFossilGenerator.Piece(manager, Util.getRandom(FOSSILS, random), pos, blockRotation));
 	}
 
-	/**
-	 * {@code Piece}.
-	 */
 	public static class Piece extends SimpleStructurePiece {
 
 		public Piece(StructureTemplateManager manager, Identifier template, BlockPos pos, BlockRotation rotation) {

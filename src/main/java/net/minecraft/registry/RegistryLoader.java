@@ -63,170 +63,183 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * {@code RegistryLoader}.
+ * Загружает динамические реестры из ресурсов датапаков или из сетевых пакетов.
+ *
+ * <p>Содержит два статических списка реестров:
+ * <ul>
+ *   <li>{@link #DYNAMIC_REGISTRIES} — все реестры, загружаемые с диска (биомы, структуры и т.д.);</li>
+ *   <li>{@link #SYNCED_REGISTRIES} — подмножество реестров, синхронизируемых с клиентом по сети.</li>
+ * </ul>
+ *
+ * <p>Точки входа: {@link #loadFromResource} и {@link #loadFromNetwork}.</p>
  */
 public class RegistryLoader {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Comparator<RegistryKey<?>> KEY_COMPARATOR = Comparator
-			.<RegistryKey<?>, Identifier>comparing(key -> key.getRegistry())
-			.thenComparing(key -> key.getValue());
-	private static final RegistryEntryInfo
-			EXPERIMENTAL_ENTRY_INFO =
+			.<RegistryKey<?>, Identifier>comparing(RegistryKey::getRegistry)
+			.thenComparing(RegistryKey::getValue);
+	private static final RegistryEntryInfo EXPERIMENTAL_ENTRY_INFO =
 			new RegistryEntryInfo(Optional.empty(), Lifecycle.experimental());
-	private static final Function<Optional<VersionedIdentifier>, RegistryEntryInfo>
-			RESOURCE_ENTRY_INFO_GETTER =
+	private static final Function<Optional<VersionedIdentifier>, RegistryEntryInfo> RESOURCE_ENTRY_INFO_GETTER =
 			Util.memoize(knownPacks -> {
-				Lifecycle
-						lifecycle =
-						knownPacks
-								.map(VersionedIdentifier::isVanilla)
-								.map(vanilla -> Lifecycle.stable())
-								.orElse(Lifecycle.experimental());
+				Lifecycle lifecycle = knownPacks
+						.map(VersionedIdentifier::isVanilla)
+						.map(vanilla -> Lifecycle.stable())
+						.orElse(Lifecycle.experimental());
 				return new RegistryEntryInfo(knownPacks, lifecycle);
 			});
-	public static final List<RegistryLoader.Entry<?>> DYNAMIC_REGISTRIES = List.of(
-			new RegistryLoader.Entry<>(RegistryKeys.DIMENSION_TYPE, DimensionType.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.BIOME, Biome.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.MESSAGE_TYPE, MessageType.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.CONFIGURED_CARVER, ConfiguredCarver.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.CONFIGURED_FEATURE, ConfiguredFeature.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.PLACED_FEATURE, PlacedFeature.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.STRUCTURE, Structure.STRUCTURE_CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.STRUCTURE_SET, StructureSet.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.PROCESSOR_LIST, StructureProcessorType.PROCESSORS_CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TEMPLATE_POOL, StructurePool.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.CHUNK_GENERATOR_SETTINGS, ChunkGeneratorSettings.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.NOISE_PARAMETERS, DoublePerlinNoiseSampler.NoiseParameters.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.DENSITY_FUNCTION, DensityFunction.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.WORLD_PRESET, WorldPreset.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, FlatLevelGeneratorPreset.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TRIM_PATTERN, ArmorTrimPattern.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TRIAL_SPAWNER, TrialSpawnerConfig.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.WOLF_VARIANT, WolfVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.PIG_VARIANT, PigVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.FROG_VARIANT, FrogVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.CAT_VARIANT, CatVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.COW_VARIANT, CowVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.CHICKEN_VARIANT, ChickenVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.PAINTING_VARIANT, PaintingVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.DAMAGE_TYPE, DamageType.CODEC),
-			new RegistryLoader.Entry<>(
-					RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST,
-					MultiNoiseBiomeSourceParameterList.CODEC
-			),
-			new RegistryLoader.Entry<>(RegistryKeys.BANNER_PATTERN, BannerPattern.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.ENCHANTMENT, Enchantment.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.ENCHANTMENT_PROVIDER, EnchantmentProvider.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.JUKEBOX_SONG, JukeboxSong.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.INSTRUMENT, Instrument.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TEST_ENVIRONMENT, TestEnvironmentDefinition.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TEST_INSTANCE, TestInstance.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.DIALOG, Dialog.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TIMELINE, Timeline.CODEC)
+
+	public static final List<Entry<?>> DYNAMIC_REGISTRIES = List.of(
+			new Entry<>(RegistryKeys.DIMENSION_TYPE, DimensionType.CODEC),
+			new Entry<>(RegistryKeys.BIOME, Biome.CODEC),
+			new Entry<>(RegistryKeys.MESSAGE_TYPE, MessageType.CODEC),
+			new Entry<>(RegistryKeys.CONFIGURED_CARVER, ConfiguredCarver.CODEC),
+			new Entry<>(RegistryKeys.CONFIGURED_FEATURE, ConfiguredFeature.CODEC),
+			new Entry<>(RegistryKeys.PLACED_FEATURE, PlacedFeature.CODEC),
+			new Entry<>(RegistryKeys.STRUCTURE, Structure.STRUCTURE_CODEC),
+			new Entry<>(RegistryKeys.STRUCTURE_SET, StructureSet.CODEC),
+			new Entry<>(RegistryKeys.PROCESSOR_LIST, StructureProcessorType.PROCESSORS_CODEC),
+			new Entry<>(RegistryKeys.TEMPLATE_POOL, StructurePool.CODEC),
+			new Entry<>(RegistryKeys.CHUNK_GENERATOR_SETTINGS, ChunkGeneratorSettings.CODEC),
+			new Entry<>(RegistryKeys.NOISE_PARAMETERS, DoublePerlinNoiseSampler.NoiseParameters.CODEC),
+			new Entry<>(RegistryKeys.DENSITY_FUNCTION, DensityFunction.CODEC),
+			new Entry<>(RegistryKeys.WORLD_PRESET, WorldPreset.CODEC),
+			new Entry<>(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, FlatLevelGeneratorPreset.CODEC),
+			new Entry<>(RegistryKeys.TRIM_PATTERN, ArmorTrimPattern.CODEC),
+			new Entry<>(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.CODEC),
+			new Entry<>(RegistryKeys.TRIAL_SPAWNER, TrialSpawnerConfig.CODEC),
+			new Entry<>(RegistryKeys.WOLF_VARIANT, WolfVariant.CODEC, true),
+			new Entry<>(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariant.CODEC, true),
+			new Entry<>(RegistryKeys.PIG_VARIANT, PigVariant.CODEC, true),
+			new Entry<>(RegistryKeys.FROG_VARIANT, FrogVariant.CODEC, true),
+			new Entry<>(RegistryKeys.CAT_VARIANT, CatVariant.CODEC, true),
+			new Entry<>(RegistryKeys.COW_VARIANT, CowVariant.CODEC, true),
+			new Entry<>(RegistryKeys.CHICKEN_VARIANT, ChickenVariant.CODEC, true),
+			new Entry<>(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariant.CODEC, true),
+			new Entry<>(RegistryKeys.PAINTING_VARIANT, PaintingVariant.CODEC, true),
+			new Entry<>(RegistryKeys.DAMAGE_TYPE, DamageType.CODEC),
+			new Entry<>(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST, MultiNoiseBiomeSourceParameterList.CODEC),
+			new Entry<>(RegistryKeys.BANNER_PATTERN, BannerPattern.CODEC),
+			new Entry<>(RegistryKeys.ENCHANTMENT, Enchantment.CODEC),
+			new Entry<>(RegistryKeys.ENCHANTMENT_PROVIDER, EnchantmentProvider.CODEC),
+			new Entry<>(RegistryKeys.JUKEBOX_SONG, JukeboxSong.CODEC),
+			new Entry<>(RegistryKeys.INSTRUMENT, Instrument.CODEC),
+			new Entry<>(RegistryKeys.TEST_ENVIRONMENT, TestEnvironmentDefinition.CODEC),
+			new Entry<>(RegistryKeys.TEST_INSTANCE, TestInstance.CODEC),
+			new Entry<>(RegistryKeys.DIALOG, Dialog.CODEC),
+			new Entry<>(RegistryKeys.TIMELINE, Timeline.CODEC)
 	);
-	public static final List<RegistryLoader.Entry<?>>
-			DIMENSION_REGISTRIES =
-			List.of(new RegistryLoader.Entry<>(RegistryKeys.DIMENSION, DimensionOptions.CODEC));
-	public static final List<RegistryLoader.Entry<?>> SYNCED_REGISTRIES = List.of(
-			new RegistryLoader.Entry<>(RegistryKeys.BIOME, Biome.NETWORK_CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.MESSAGE_TYPE, MessageType.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TRIM_PATTERN, ArmorTrimPattern.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.WOLF_VARIANT, WolfVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.PIG_VARIANT, PigVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.FROG_VARIANT, FrogVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.CAT_VARIANT, CatVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.COW_VARIANT, CowVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.CHICKEN_VARIANT, ChickenVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariant.NETWORK_CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.PAINTING_VARIANT, PaintingVariant.CODEC, true),
-			new RegistryLoader.Entry<>(RegistryKeys.DIMENSION_TYPE, DimensionType.NETWORK_CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.DAMAGE_TYPE, DamageType.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.BANNER_PATTERN, BannerPattern.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.ENCHANTMENT, Enchantment.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.JUKEBOX_SONG, JukeboxSong.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.INSTRUMENT, Instrument.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TEST_ENVIRONMENT, TestEnvironmentDefinition.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TEST_INSTANCE, TestInstance.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.DIALOG, Dialog.CODEC),
-			new RegistryLoader.Entry<>(RegistryKeys.TIMELINE, Timeline.NETWORK_CODEC)
+
+	public static final List<Entry<?>> DIMENSION_REGISTRIES =
+			List.of(new Entry<>(RegistryKeys.DIMENSION, DimensionOptions.CODEC));
+
+	public static final List<Entry<?>> SYNCED_REGISTRIES = List.of(
+			new Entry<>(RegistryKeys.BIOME, Biome.NETWORK_CODEC),
+			new Entry<>(RegistryKeys.MESSAGE_TYPE, MessageType.CODEC),
+			new Entry<>(RegistryKeys.TRIM_PATTERN, ArmorTrimPattern.CODEC),
+			new Entry<>(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterial.CODEC),
+			new Entry<>(RegistryKeys.WOLF_VARIANT, WolfVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.PIG_VARIANT, PigVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.FROG_VARIANT, FrogVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.CAT_VARIANT, CatVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.COW_VARIANT, CowVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.CHICKEN_VARIANT, ChickenVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariant.NETWORK_CODEC, true),
+			new Entry<>(RegistryKeys.PAINTING_VARIANT, PaintingVariant.CODEC, true),
+			new Entry<>(RegistryKeys.DIMENSION_TYPE, DimensionType.NETWORK_CODEC),
+			new Entry<>(RegistryKeys.DAMAGE_TYPE, DamageType.CODEC),
+			new Entry<>(RegistryKeys.BANNER_PATTERN, BannerPattern.CODEC),
+			new Entry<>(RegistryKeys.ENCHANTMENT, Enchantment.CODEC),
+			new Entry<>(RegistryKeys.JUKEBOX_SONG, JukeboxSong.CODEC),
+			new Entry<>(RegistryKeys.INSTRUMENT, Instrument.CODEC),
+			new Entry<>(RegistryKeys.TEST_ENVIRONMENT, TestEnvironmentDefinition.CODEC),
+			new Entry<>(RegistryKeys.TEST_INSTANCE, TestInstance.CODEC),
+			new Entry<>(RegistryKeys.DIALOG, Dialog.CODEC),
+			new Entry<>(RegistryKeys.TIMELINE, Timeline.NETWORK_CODEC)
 	);
 
 	public static DynamicRegistryManager.Immutable loadFromResource(
 			ResourceManager resourceManager,
 			List<RegistryWrapper.Impl<?>> registries,
-			List<RegistryLoader.Entry<?>> entries
+			List<Entry<?>> entries
 	) {
-		return load((loader, infoGetter) -> loader.loadFromResource(resourceManager, infoGetter), registries, entries);
+		return load(
+				(loader, infoGetter) -> loader.loadFromResource(resourceManager, infoGetter),
+				registries,
+				entries
+		);
 	}
 
 	public static DynamicRegistryManager.Immutable loadFromNetwork(
-			Map<RegistryKey<? extends Registry<?>>, RegistryLoader.ElementsAndTags> data,
+			Map<RegistryKey<? extends Registry<?>>, ElementsAndTags> data,
 			ResourceFactory factory,
 			List<RegistryWrapper.Impl<?>> registries,
-			List<RegistryLoader.Entry<?>> entries
+			List<Entry<?>> entries
 	) {
-		return load((loader, infoGetter) -> loader.loadFromNetwork(data, factory, infoGetter), registries, entries);
+		return load(
+				(loader, infoGetter) -> loader.loadFromNetwork(data, factory, infoGetter),
+				registries,
+				entries
+		);
 	}
 
+	/**
+	 * Общая точка загрузки реестров: создаёт загрузчики, применяет {@code loadable},
+	 * замораживает реестры и проверяет обязательные непустые реестры.
+	 */
 	private static DynamicRegistryManager.Immutable load(
-			RegistryLoader.RegistryLoadable loadable,
+			RegistryLoadable loadable,
 			List<RegistryWrapper.Impl<?>> registries,
-			List<RegistryLoader.Entry<?>> entries
+			List<Entry<?>> entries
 	) {
-		Map<RegistryKey<?>, Exception> map = new HashMap<>();
-		List<RegistryLoader.Loader<?>>
-				list =
-				entries
-						.stream()
-						.map(entry -> entry.getLoader(Lifecycle.stable(), map))
-						.collect(Collectors.toUnmodifiableList());
-		RegistryOps.RegistryInfoGetter registryInfoGetter = createInfoGetter(registries, list);
-		list.forEach(loader -> loadable.apply((RegistryLoader.Loader<?>) loader, registryInfoGetter));
-		list.forEach(loader -> {
+		Map<RegistryKey<?>, Exception> errors = new HashMap<>();
+		List<Loader<?>> loaders = entries.stream()
+				.map(entry -> entry.getLoader(Lifecycle.stable(), errors))
+				.collect(Collectors.toUnmodifiableList());
+		RegistryOps.RegistryInfoGetter infoGetter = createInfoGetter(registries, loaders);
+		loaders.forEach(loader -> loadable.apply((Loader<?>) loader, infoGetter));
+
+		loaders.forEach(loader -> {
 			Registry<?> registry = loader.registry();
 
 			try {
 				registry.freeze();
-			}
-			catch (Exception var4x) {
-				map.put(registry.getKey(), var4x);
+			} catch (Exception exception) {
+				errors.put(registry.getKey(), exception);
 			}
 
 			if (loader.data.requiredNonEmpty && registry.size() == 0) {
-				map.put(
+				errors.put(
 						registry.getKey(),
 						new IllegalStateException("Registry must be non-empty: " + registry.getKey().getValue())
 				);
 			}
 		});
-		if (!map.isEmpty()) {
-			throw writeAndCreateLoadingException(map);
+
+		if (errors.isEmpty()) {
+			return new DynamicRegistryManager.ImmutableImpl(
+					loaders.stream().map(Loader::registry).toList()
+			).toImmutable();
 		}
-		else {
-			return new DynamicRegistryManager.ImmutableImpl(list
-					.stream()
-					.map(RegistryLoader.Loader::registry)
-					.toList()).toImmutable();
-		}
+
+		throw writeAndCreateLoadingException(errors);
 	}
 
 	private static RegistryOps.RegistryInfoGetter createInfoGetter(
 			List<RegistryWrapper.Impl<?>> registries,
-			List<RegistryLoader.Loader<?>> additionalRegistries
+			List<Loader<?>> additionalRegistries
 	) {
-		final Map<RegistryKey<? extends Registry<?>>, RegistryOps.RegistryInfo<?>> map = new HashMap<>();
-		registries.forEach(registry -> map.put(registry.getKey(), createInfo((RegistryWrapper.Impl<?>) registry)));
-		additionalRegistries.forEach(loader -> map.put(loader.registry.getKey(), createInfo(loader.registry)));
+		final Map<RegistryKey<? extends Registry<?>>, RegistryOps.RegistryInfo<?>> infoMap = new HashMap<>();
+		registries.forEach(registry -> infoMap.put(registry.getKey(), createInfo((RegistryWrapper.Impl<?>) registry)));
+		additionalRegistries.forEach(loader -> infoMap.put(loader.registry.getKey(), createInfo(loader.registry)));
 		return new RegistryOps.RegistryInfoGetter() {
 			@Override
-			public <T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(RegistryKey<? extends Registry<? extends T>> registryRef) {
-				return Optional.ofNullable((RegistryOps.RegistryInfo<T>) map.get(registryRef));
+			public <T> Optional<RegistryOps.RegistryInfo<T>> getRegistryInfo(
+					RegistryKey<? extends Registry<? extends T>> registryRef
+			) {
+				return Optional.ofNullable((RegistryOps.RegistryInfo<T>) infoMap.get(registryRef));
 			}
 		};
 	}
@@ -251,54 +264,50 @@ public class RegistryLoader {
 	private static void writeLoadingError(Map<RegistryKey<?>, Exception> exceptions) {
 		StringWriter stringWriter = new StringWriter();
 		PrintWriter printWriter = new PrintWriter(stringWriter);
-		Map<Identifier, Map<Identifier, Exception>> map = exceptions.entrySet()
-		                                                            .stream()
-		                                                            .collect(Collectors.groupingBy(
-				                                                            entry -> entry
-						                                                            .getKey()
-						                                                            .getRegistry(),
-				                                                            Collectors.toMap(
-						                                                            entry -> entry
-								                                                            .getKey()
-								                                                            .getValue(),
-						                                                            Map.Entry::getValue
-				                                                            )
-		                                                            ));
-		map.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+		Map<Identifier, Map<Identifier, Exception>> grouped = exceptions.entrySet()
+				.stream()
+				.collect(Collectors.groupingBy(
+						entry -> entry.getKey().getRegistry(),
+						Collectors.toMap(
+								entry -> entry.getKey().getValue(),
+								Map.Entry::getValue
+						)
+				));
+
+		grouped.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
 			printWriter.printf(Locale.ROOT, "> Errors in registry %s:%n", entry.getKey());
 			entry.getValue().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(element -> {
 				printWriter.printf(Locale.ROOT, ">> Errors in element %s:%n", element.getKey());
 				element.getValue().printStackTrace(printWriter);
 			});
 		});
+
 		printWriter.flush();
 		LOGGER.error("Registry loading errors:\n{}", stringWriter);
 	}
 
 	private static CrashException createLoadingException(Map<RegistryKey<?>, Exception> exceptions) {
-		CrashReport
-				crashReport =
-				CrashReport.create(
-						new IllegalStateException("Failed to load registries due to errors"),
-						"Registry Loading"
-				);
-		CrashReportSection crashReportSection = crashReport.addElement("Loading info");
-		crashReportSection.add(
+		CrashReport crashReport = CrashReport.create(
+				new IllegalStateException("Failed to load registries due to errors"),
+				"Registry Loading"
+		);
+		CrashReportSection section = crashReport.addElement("Loading info");
+		section.add(
 				"Errors",
 				() -> {
-					StringBuilder stringBuilder = new StringBuilder();
+					StringBuilder builder = new StringBuilder();
 					exceptions.entrySet()
-					          .stream()
-					          .sorted(Map.Entry.comparingByKey(KEY_COMPARATOR))
-					          .forEach(
-							          entry -> stringBuilder.append("\n\t\t")
-							                                .append(entry.getKey().getRegistry())
-							                                .append("/")
-							                                .append(entry.getKey().getValue())
-							                                .append(": ")
-							                                .append(entry.getValue().getMessage())
-					          );
-					return stringBuilder.toString();
+							.stream()
+							.sorted(Map.Entry.comparingByKey(KEY_COMPARATOR))
+							.forEach(entry -> builder
+									.append("\n\t\t")
+									.append(entry.getKey().getRegistry())
+									.append("/")
+									.append(entry.getKey().getValue())
+									.append(": ")
+									.append(entry.getValue().getMessage())
+							);
+					return builder.toString();
 				}
 		);
 		return new CrashException(crashReport);
@@ -315,8 +324,8 @@ public class RegistryLoader {
 		try (Reader reader = resource.getReader()) {
 			JsonElement jsonElement = StrictJsonParser.parse(reader);
 			DataResult<E> dataResult = decoder.parse(ops, jsonElement);
-			E object = (E) dataResult.getOrThrow();
-			registry.add(key, object, entryInfo);
+			E value = (E) dataResult.getOrThrow();
+			registry.add(key, value, entryInfo);
 		}
 	}
 
@@ -331,24 +340,27 @@ public class RegistryLoader {
 		RegistryOps<JsonElement> registryOps = RegistryOps.of(JsonOps.INSTANCE, infoGetter);
 
 		for (Map.Entry<Identifier, Resource> entry : resourceFinder.findResources(resourceManager).entrySet()) {
-			Identifier identifier = entry.getKey();
-			RegistryKey<E> registryKey = RegistryKey.of(registry.getKey(), resourceFinder.toResourceId(identifier));
+			Identifier resourcePath = entry.getKey();
+			RegistryKey<E> registryKey = RegistryKey.of(
+					registry.getKey(),
+					resourceFinder.toResourceId(resourcePath)
+			);
 			Resource resource = entry.getValue();
-			RegistryEntryInfo registryEntryInfo = RESOURCE_ENTRY_INFO_GETTER.apply(resource.getKnownPackInfo());
+			RegistryEntryInfo entryInfo = RESOURCE_ENTRY_INFO_GETTER.apply(resource.getKnownPackInfo());
 
 			try {
-				parseAndAdd(registry, elementDecoder, registryOps, registryKey, resource, registryEntryInfo);
-			}
-			catch (Exception var14) {
+				parseAndAdd(registry, elementDecoder, registryOps, registryKey, resource, entryInfo);
+			} catch (Exception exception) {
 				errors.put(
 						registryKey,
 						new IllegalStateException(
 								String.format(
 										Locale.ROOT,
 										"Failed to parse %s from pack %s",
-										identifier,
+										resourcePath,
 										resource.getPackId()
-								), var14
+								),
+								exception
 						)
 				);
 			}
@@ -358,60 +370,63 @@ public class RegistryLoader {
 	}
 
 	static <E> void loadFromNetwork(
-			Map<RegistryKey<? extends Registry<?>>, RegistryLoader.ElementsAndTags> data,
+			Map<RegistryKey<? extends Registry<?>>, ElementsAndTags> data,
 			ResourceFactory factory,
 			RegistryOps.RegistryInfoGetter infoGetter,
 			MutableRegistry<E> registry,
 			Decoder<E> decoder,
 			Map<RegistryKey<?>, Exception> loadingErrors
 	) {
-		RegistryLoader.ElementsAndTags elementsAndTags = data.get(registry.getKey());
-		if (elementsAndTags != null) {
-			RegistryOps<NbtElement> registryOps = RegistryOps.of(NbtOps.INSTANCE, infoGetter);
-			RegistryOps<JsonElement> registryOps2 = RegistryOps.of(JsonOps.INSTANCE, infoGetter);
-			ResourceFinder resourceFinder = ResourceFinder.json(registry.getKey());
+		ElementsAndTags elementsAndTags = data.get(registry.getKey());
+		if (elementsAndTags == null) {
+			return;
+		}
 
-			for (SerializableRegistries.SerializedRegistryEntry serializedRegistryEntry : elementsAndTags.elements) {
-				RegistryKey<E> registryKey = RegistryKey.of(registry.getKey(), serializedRegistryEntry.id());
-				Optional<NbtElement> optional = serializedRegistryEntry.data();
-				if (optional.isPresent()) {
-					try {
-						DataResult<E> dataResult = decoder.parse(registryOps, optional.get());
-						E object = (E) dataResult.getOrThrow();
-						registry.add(registryKey, object, EXPERIMENTAL_ENTRY_INFO);
-					}
-					catch (Exception var16) {
-						loadingErrors.put(
-								registryKey,
-								new IllegalStateException(
-										String.format(
-												Locale.ROOT,
-												"Failed to parse value %s from server",
-												optional.get()
-										), var16
-								)
-						);
-					}
+		RegistryOps<NbtElement> nbtOps = RegistryOps.of(NbtOps.INSTANCE, infoGetter);
+		RegistryOps<JsonElement> jsonOps = RegistryOps.of(JsonOps.INSTANCE, infoGetter);
+		ResourceFinder resourceFinder = ResourceFinder.json(registry.getKey());
+
+		for (SerializableRegistries.SerializedRegistryEntry serializedEntry : elementsAndTags.elements) {
+			RegistryKey<E> registryKey = RegistryKey.of(registry.getKey(), serializedEntry.id());
+			Optional<NbtElement> nbtData = serializedEntry.data();
+
+			if (nbtData.isPresent()) {
+				try {
+					DataResult<E> dataResult = decoder.parse(nbtOps, nbtData.get());
+					E value = (E) dataResult.getOrThrow();
+					registry.add(registryKey, value, EXPERIMENTAL_ENTRY_INFO);
+				} catch (Exception exception) {
+					loadingErrors.put(
+							registryKey,
+							new IllegalStateException(
+									String.format(Locale.ROOT, "Failed to parse value %s from server", nbtData.get()),
+									exception
+							)
+					);
 				}
-				else {
-					Identifier identifier = resourceFinder.toResourcePath(serializedRegistryEntry.id());
+			} else {
+				Identifier resourcePath = resourceFinder.toResourcePath(serializedEntry.id());
 
-					try {
-						Resource resource = factory.getResourceOrThrow(identifier);
-						parseAndAdd(registry, decoder, registryOps2, registryKey, resource, EXPERIMENTAL_ENTRY_INFO);
-					}
-					catch (Exception var17) {
-						loadingErrors.put(registryKey, new IllegalStateException("Failed to parse local data", var17));
-					}
+				try {
+					Resource resource = factory.getResourceOrThrow(resourcePath);
+					parseAndAdd(registry, decoder, jsonOps, registryKey, resource, EXPERIMENTAL_ENTRY_INFO);
+				} catch (Exception exception) {
+					loadingErrors.put(
+							registryKey,
+							new IllegalStateException("Failed to parse local data", exception)
+					);
 				}
 			}
-
-			TagGroupLoader.loadFromNetwork(elementsAndTags.tags, registry);
 		}
+
+		TagGroupLoader.loadFromNetwork(elementsAndTags.tags, registry);
 	}
 
 	/**
-	 * {@code ElementsAndTags}.
+	 * Пара из списка элементов реестра и сериализованных тегов, полученных по сети.
+	 *
+	 * @param elements список сериализованных записей реестра
+	 * @param tags     сериализованные теги для этого реестра
 	 */
 	public record ElementsAndTags(
 			List<SerializableRegistries.SerializedRegistryEntry> elements,
@@ -420,76 +435,70 @@ public class RegistryLoader {
 	}
 
 	/**
-	 * {@code Entry}.
+	 * Описание одного динамического реестра: ключ, кодек и флаг обязательной непустоты.
+	 *
+	 * @param key              ключ реестра
+	 * @param elementCodec     кодек для сериализации/десериализации элементов
+	 * @param requiredNonEmpty если {@code true}, реестр должен содержать хотя бы один элемент
 	 */
-	public record Entry<T>(RegistryKey<? extends Registry<T>> key, Codec<T> elementCodec, boolean requiredNonEmpty) {
+	public record Entry<T>(
+			RegistryKey<? extends Registry<T>> key,
+			Codec<T> elementCodec,
+			boolean requiredNonEmpty
+	) {
 
 		Entry(RegistryKey<? extends Registry<T>> key, Codec<T> codec) {
 			this(key, codec, false);
 		}
 
-		RegistryLoader.Loader<T> getLoader(Lifecycle lifecycle, Map<RegistryKey<?>, Exception> errors) {
-			MutableRegistry<T> mutableRegistry = new SimpleRegistry<>(this.key, lifecycle);
-			return new RegistryLoader.Loader<>(this, mutableRegistry, errors);
+		Loader<T> getLoader(Lifecycle lifecycle, Map<RegistryKey<?>, Exception> errors) {
+			MutableRegistry<T> mutableRegistry = new SimpleRegistry<>(key, lifecycle);
+			return new Loader<>(this, mutableRegistry, errors);
 		}
 
-		/**
-		 * Добавляет to cloner.
-		 *
-		 * @param callback callback
-		 */
 		public void addToCloner(BiConsumer<RegistryKey<? extends Registry<T>>, Codec<T>> callback) {
-			callback.accept(this.key, this.elementCodec);
+			callback.accept(key, elementCodec);
 		}
 	}
 
 	/**
-	 * {@code Loader}.
+	 * Загрузчик одного реестра: связывает {@link Entry} с конкретным {@link MutableRegistry}.
 	 */
 	record Loader<T>(
-			RegistryLoader.Entry<T> data,
+			Entry<T> data,
 			MutableRegistry<T> registry,
 			Map<RegistryKey<?>, Exception> loadingErrors
 	) {
 
-		/**
-		 * Загружает from resource.
-		 *
-		 * @param resourceManager resource manager
-		 * @param infoGetter info getter
-		 */
 		public void loadFromResource(ResourceManager resourceManager, RegistryOps.RegistryInfoGetter infoGetter) {
 			RegistryLoader.loadFromResource(
 					resourceManager,
 					infoGetter,
-					this.registry,
-					this.data.elementCodec,
-					this.loadingErrors
+					registry,
+					data.elementCodec,
+					loadingErrors
 			);
 		}
 
 		public void loadFromNetwork(
-				Map<RegistryKey<? extends Registry<?>>, RegistryLoader.ElementsAndTags> data,
+				Map<RegistryKey<? extends Registry<?>>, ElementsAndTags> networkData,
 				ResourceFactory factory,
 				RegistryOps.RegistryInfoGetter infoGetter
 		) {
 			RegistryLoader.loadFromNetwork(
-					data,
+					networkData,
 					factory,
 					infoGetter,
-					this.registry,
-					this.data.elementCodec,
-					this.loadingErrors
+					registry,
+					data.elementCodec,
+					loadingErrors
 			);
 		}
 	}
 
 	@FunctionalInterface
-	/**
-	 * {@code RegistryLoadable}.
-	 */
 	interface RegistryLoadable {
 
-		void apply(RegistryLoader.Loader<?> loader, RegistryOps.RegistryInfoGetter infoGetter);
+		void apply(Loader<?> loader, RegistryOps.RegistryInfoGetter infoGetter);
 	}
 }

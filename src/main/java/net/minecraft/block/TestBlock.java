@@ -25,7 +25,9 @@ import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code TestBlock}.
+ * Блок тестирования игровых механик (аналог командного блока для тестов).
+ * Доступен только операторам второго уровня. Поддерживает режимы запуска
+ * через редстоун-сигнал и хранит состояние в {@link net.minecraft.block.entity.TestBlockEntity}.
  */
 public class TestBlock extends BlockWithEntity implements OperatorBlock {
 
@@ -99,13 +101,13 @@ public class TestBlock extends BlockWithEntity implements OperatorBlock {
 		TestBlockEntity testBlockEntity = getBlockEntityOnServer(world, pos);
 		if (testBlockEntity != null) {
 			if (testBlockEntity.getMode() != TestBlockMode.START) {
-				boolean bl = world.isReceivingRedstonePower(pos);
-				boolean bl2 = testBlockEntity.isPowered();
-				if (bl && !bl2) {
+				boolean receivingPower = world.isReceivingRedstonePower(pos);
+				boolean wasPowered = testBlockEntity.isPowered();
+				if (receivingPower && !wasPowered) {
 					testBlockEntity.setPowered(true);
 					testBlockEntity.trigger();
 				}
-				else if (!bl && bl2) {
+				else if (!receivingPower && wasPowered) {
 					testBlockEntity.setPowered(false);
 				}
 			}
@@ -137,14 +139,6 @@ public class TestBlock extends BlockWithEntity implements OperatorBlock {
 		return applyBlockStateToStack(itemStack, state.get(MODE));
 	}
 
-	/**
-	 * Применяет block state to stack.
-	 *
-	 * @param stack stack
-	 * @param mode mode
-	 *
-	 * @return ItemStack — результат операции
-	 */
 	public static ItemStack applyBlockStateToStack(ItemStack stack, TestBlockMode mode) {
 		stack.set(
 				DataComponentTypes.BLOCK_STATE,

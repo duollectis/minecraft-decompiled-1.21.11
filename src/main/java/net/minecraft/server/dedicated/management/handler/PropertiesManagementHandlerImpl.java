@@ -8,7 +8,7 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 
 /**
- * {@code PropertiesManagementHandlerImpl}.
+ * Класс Properties Management Handler Impl.
  */
 public class PropertiesManagementHandlerImpl implements PropertiesManagementHandler {
 

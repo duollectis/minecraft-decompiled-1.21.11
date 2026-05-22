@@ -4,7 +4,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 
 /**
- * {@code HeightLimitView}.
+ * Интерфейс, описывающий вертикальные границы мира или чанка.
+ * Предоставляет методы для работы с нижней/верхней границами,
+ * секциями чанков и проверки принадлежности Y-координаты допустимому диапазону.
  */
 public interface HeightLimitView {
 
@@ -13,43 +15,43 @@ public interface HeightLimitView {
 	int getBottomY();
 
 	default int getTopYInclusive() {
-		return this.getBottomY() + this.getHeight() - 1;
+		return getBottomY() + getHeight() - 1;
 	}
 
 	default int countVerticalSections() {
-		return this.getTopSectionCoord() - this.getBottomSectionCoord() + 1;
+		return getTopSectionCoord() - getBottomSectionCoord() + 1;
 	}
 
 	default int getBottomSectionCoord() {
-		return ChunkSectionPos.getSectionCoord(this.getBottomY());
+		return ChunkSectionPos.getSectionCoord(getBottomY());
 	}
 
 	default int getTopSectionCoord() {
-		return ChunkSectionPos.getSectionCoord(this.getTopYInclusive());
+		return ChunkSectionPos.getSectionCoord(getTopYInclusive());
 	}
 
 	default boolean isInHeightLimit(int y) {
-		return y >= this.getBottomY() && y <= this.getTopYInclusive();
+		return y >= getBottomY() && y <= getTopYInclusive();
 	}
 
 	default boolean isOutOfHeightLimit(BlockPos pos) {
-		return this.isOutOfHeightLimit(pos.getY());
+		return isOutOfHeightLimit(pos.getY());
 	}
 
 	default boolean isOutOfHeightLimit(int y) {
-		return y < this.getBottomY() || y > this.getTopYInclusive();
+		return y < getBottomY() || y > getTopYInclusive();
 	}
 
 	default int getSectionIndex(int y) {
-		return this.sectionCoordToIndex(ChunkSectionPos.getSectionCoord(y));
+		return sectionCoordToIndex(ChunkSectionPos.getSectionCoord(y));
 	}
 
 	default int sectionCoordToIndex(int coord) {
-		return coord - this.getBottomSectionCoord();
+		return coord - getBottomSectionCoord();
 	}
 
 	default int sectionIndexToCoord(int index) {
-		return index + this.getBottomSectionCoord();
+		return index + getBottomSectionCoord();
 	}
 
 	static HeightLimitView create(int bottomY, int height) {

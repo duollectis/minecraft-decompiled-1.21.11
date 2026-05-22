@@ -19,7 +19,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Запись signed message.
+ * Подписанное чат-сообщение с полным набором метаданных для верификации.
+ * Содержит ссылку в цепочке, подпись, тело, опциональный неподписанный контент и маску фильтрации.
+ * Сообщение считается истёкшим через {@link #SERVERBOUND_TIME_TO_LIVE} на сервере
+ * и через {@link #CLIENTBOUND_TIME_TO_LIVE} на клиенте.
  */
 public record SignedMessage(
 		MessageLink link,
@@ -47,108 +50,77 @@ public record SignedMessage(
 					                    instance,
 					                    (link, signature, signedBody, unsignedContent, filterMask) -> new SignedMessage(
 							                    link,
-							                    (MessageSignatureData) signature.orElse(null),
+							                    signature.orElse(null),
 							                    signedBody,
-							                    (Text) unsignedContent.orElse(null),
+							                    unsignedContent.orElse(null),
 							                    filterMask
 					                    )
 			                    )
 	);
+
 	private static final UUID NIL_UUID = Util.NIL_UUID;
 	public static final Duration SERVERBOUND_TIME_TO_LIVE = Duration.ofMinutes(5L);
 	public static final Duration CLIENTBOUND_TIME_TO_LIVE = SERVERBOUND_TIME_TO_LIVE.plus(Duration.ofMinutes(2L));
 
-	/**
-	 * Of unsigned.
-	 *
-	 * @param content content
-	 *
-	 * @return SignedMessage — результат операции
-	 */
 	public static SignedMessage ofUnsigned(String content) {
 		return ofUnsigned(NIL_UUID, content);
 	}
 
-	/**
-	 * Of unsigned.
-	 *
-	 * @param sender sender
-	 * @param content content
-	 *
-	 * @return SignedMessage — результат операции
-	 */
 	public static SignedMessage ofUnsigned(UUID sender, String content) {
-		MessageBody messageBody = MessageBody.ofUnsigned(content);
+		MessageBody body = MessageBody.ofUnsigned(content);
 		MessageLink messageLink = MessageLink.of(sender);
-		return new SignedMessage(messageLink, null, messageBody, null, FilterMask.PASS_THROUGH);
+		return new SignedMessage(messageLink, null, body, null, FilterMask.PASS_THROUGH);
 	}
 
 	/**
-	 * With unsigned content.
+	 * Возвращает копию с заменённым неподписанным контентом.
+	 * Если переданный текст совпадает с подписанным содержимым, неподписанный контент сбрасывается.
 	 *
-	 * @param unsignedContent unsigned content
-	 *
-	 * @return SignedMessage — результат операции
+	 * @param newUnsignedContent новый неподписанный текст для отображения
+	 * @return новый экземпляр с обновлённым неподписанным контентом
 	 */
-	public SignedMessage withUnsignedContent(Text unsignedContent) {
-		Text text = !unsignedContent.equals(Text.literal(this.getSignedContent())) ? unsignedContent : null;
-		return new SignedMessage(this.link, this.signature, this.signedBody, text, this.filterMask);
+	public SignedMessage withUnsignedContent(Text newUnsignedContent) {
+		Text resolved = newUnsignedContent.equals(Text.literal(getSignedContent())) ? null : newUnsignedContent;
+		return new SignedMessage(link, signature, signedBody, resolved, filterMask);
 	}
 
-	/**
-	 * Without unsigned.
-	 *
-	 * @return SignedMessage — результат операции
-	 */
 	public SignedMessage withoutUnsigned() {
-		return this.unsignedContent != null ? new SignedMessage(
-				this.link,
-				this.signature,
-				this.signedBody,
-				null,
-				this.filterMask
-		) : this;
+		return unsignedContent != null
+				? new SignedMessage(link, signature, signedBody, null, filterMask)
+				: this;
 	}
 
-	/**
-	 * With filter mask.
-	 *
-	 * @param filterMask filter mask
-	 *
-	 * @return SignedMessage — результат операции
-	 */
-	public SignedMessage withFilterMask(FilterMask filterMask) {
-		return this.filterMask.equals(filterMask) ? this : new SignedMessage(
-				this.link,
-				this.signature,
-				this.signedBody,
-				this.unsignedContent,
-				filterMask
-		);
+	public SignedMessage withFilterMask(FilterMask newFilterMask) {
+		return filterMask.equals(newFilterMask)
+				? this
+				: new SignedMessage(link, signature, signedBody, unsignedContent, newFilterMask);
 	}
 
-	/**
-	 * With filter mask enabled.
-	 *
-	 * @param enabled enabled
-	 *
-	 * @return SignedMessage — результат операции
-	 */
 	public SignedMessage withFilterMaskEnabled(boolean enabled) {
-		return this.withFilterMask(enabled ? this.filterMask : FilterMask.PASS_THROUGH);
+		return withFilterMask(enabled ? filterMask : FilterMask.PASS_THROUGH);
 	}
 
 	/**
-	 * Strip signature.
+	 * Создаёт неподписанную копию сообщения, сбрасывая цепочку подписей.
+	 * Используется когда верификация невозможна, но сообщение нужно отобразить.
 	 *
-	 * @return SignedMessage — результат операции
+	 * @return неподписанная копия с сохранённым контентом и маской фильтрации
 	 */
 	public SignedMessage stripSignature() {
-		MessageBody messageBody = MessageBody.ofUnsigned(this.getSignedContent());
-		MessageLink messageLink = MessageLink.of(this.getSender());
-		return new SignedMessage(messageLink, null, messageBody, this.unsignedContent, this.filterMask);
+		MessageBody strippedBody = MessageBody.ofUnsigned(getSignedContent());
+		MessageLink strippedLink = MessageLink.of(getSender());
+		return new SignedMessage(strippedLink, null, strippedBody, unsignedContent, filterMask);
 	}
 
+	/**
+	 * Добавляет данные сообщения в обновляемый объект подписи.
+	 * Версия протокола (1) записывается первой для совместимости.
+	 *
+	 * @param updater  объект для накопления данных подписи
+	 * @param link     ссылка в цепочке
+	 * @param body     тело сообщения
+	 * @throws SignatureException при ошибке криптографической операции
+	 */
 	public static void update(SignatureUpdatable.SignatureUpdater updater, MessageLink link, MessageBody body)
 	throws SignatureException {
 		updater.update(Ints.toByteArray(1));
@@ -156,78 +128,57 @@ public record SignedMessage(
 		body.update(updater);
 	}
 
-	/**
-	 * Verify.
-	 *
-	 * @param verifier verifier
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean verify(SignatureVerifier verifier) {
-		return this.signature != null && this.signature.verify(
+		return signature != null && signature.verify(
 				verifier,
-				updater -> update(updater, this.link, this.signedBody)
+				updater -> update(updater, link, signedBody)
 		);
 	}
 
 	public String getSignedContent() {
-		return this.signedBody.content();
+		return signedBody.content();
 	}
 
 	public Text getContent() {
-		return Objects.requireNonNullElseGet(this.unsignedContent, () -> Text.literal(this.getSignedContent()));
+		return Objects.requireNonNullElseGet(unsignedContent, () -> Text.literal(getSignedContent()));
 	}
 
 	public Instant getTimestamp() {
-		return this.signedBody.timestamp();
+		return signedBody.timestamp();
 	}
 
 	public long getSalt() {
-		return this.signedBody.salt();
+		return signedBody.salt();
 	}
 
 	public boolean isExpiredOnServer(Instant currentTime) {
-		return currentTime.isAfter(this.getTimestamp().plus(SERVERBOUND_TIME_TO_LIVE));
+		return currentTime.isAfter(getTimestamp().plus(SERVERBOUND_TIME_TO_LIVE));
 	}
 
 	public boolean isExpiredOnClient(Instant currentTime) {
-		return currentTime.isAfter(this.getTimestamp().plus(CLIENTBOUND_TIME_TO_LIVE));
+		return currentTime.isAfter(getTimestamp().plus(CLIENTBOUND_TIME_TO_LIVE));
 	}
 
 	public UUID getSender() {
-		return this.link.sender();
+		return link.sender();
 	}
 
 	public boolean isSenderMissing() {
-		return this.getSender().equals(NIL_UUID);
+		return getSender().equals(NIL_UUID);
 	}
 
 	public boolean hasSignature() {
-		return this.signature != null;
+		return signature != null;
 	}
 
-	/**
-	 * Проверяет возможность verify from.
-	 *
-	 * @param sender sender
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canVerifyFrom(UUID sender) {
-		return this.hasSignature() && this.link.sender().equals(sender);
+		return hasSignature() && link.sender().equals(sender);
 	}
 
 	public boolean isFullyFiltered() {
-		return this.filterMask.isFullyFiltered();
+		return filterMask.isFullyFiltered();
 	}
 
-	/**
-	 * To string.
-	 *
-	 * @param message message
-	 *
-	 * @return String — результат операции
-	 */
 	public static String toString(SignedMessage message) {
 		return "'"
 				+ message.signedBody.content()

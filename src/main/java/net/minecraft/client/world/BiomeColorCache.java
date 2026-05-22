@@ -26,7 +26,7 @@ public class BiomeColorCache {
 	private final ThreadLocal<BiomeColorCache.Last> last = ThreadLocal.withInitial(BiomeColorCache.Last::new);
 	private final Long2ObjectLinkedOpenHashMap<BiomeColorCache.Colors>
 			colors =
-			new Long2ObjectLinkedOpenHashMap<>(256, 0.25F);
+			new Long2ObjectLinkedOpenHashMap<>(MAX_ENTRY_SIZE, 0.25F);
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 	private final ToIntFunction<BlockPos> colorFactory;
 
@@ -139,7 +139,7 @@ public class BiomeColorCache {
 			if (existing == null) {
 				result = new BiomeColorCache.Colors();
 
-				if (this.colors.size() >= 256) {
+				if (this.colors.size() >= MAX_ENTRY_SIZE) {
 					BiomeColorCache.Colors evicted = (BiomeColorCache.Colors) this.colors.removeFirst();
 
 					if (evicted != null) {

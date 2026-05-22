@@ -10,9 +10,6 @@ import net.minecraft.util.math.random.Random;
 
 import java.util.List;
 
-/**
- * {@code ExplosionDecayLootFunction}.
- */
 public class ExplosionDecayLootFunction extends ConditionalLootFunction {
 
 	public static final MapCodec<ExplosionDecayLootFunction> CODEC = RecordCodecBuilder.mapCodec(
@@ -28,23 +25,29 @@ public class ExplosionDecayLootFunction extends ConditionalLootFunction {
 		return LootFunctionTypes.EXPLOSION_DECAY;
 	}
 
+	/**
+	 * Уменьшает количество предметов в стаке пропорционально радиусу взрыва.
+	 * Каждый предмет выживает с вероятностью {@code 1 / explosionRadius}.
+	 */
 	@Override
 	public ItemStack process(ItemStack stack, LootContext context) {
-		Float float_ = context.get(LootContextParameters.EXPLOSION_RADIUS);
-		if (float_ != null) {
-			Random random = context.getRandom();
-			float f = 1.0F / float_;
-			int i = stack.getCount();
-			int j = 0;
+		Float explosionRadius = context.get(LootContextParameters.EXPLOSION_RADIUS);
 
-			for (int k = 0; k < i; k++) {
-				if (random.nextFloat() <= f) {
-					j++;
-				}
-			}
-
-			stack.setCount(j);
+		if (explosionRadius == null) {
+			return stack;
 		}
+
+		Random random = context.getRandom();
+		float survivalChance = 1.0F / explosionRadius;
+		int survivors = 0;
+
+		for (int item = 0; item < stack.getCount(); item++) {
+			if (random.nextFloat() <= survivalChance) {
+				survivors++;
+			}
+		}
+
+		stack.setCount(survivors);
 
 		return stack;
 	}

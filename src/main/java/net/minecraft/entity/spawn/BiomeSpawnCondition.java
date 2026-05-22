@@ -8,28 +8,24 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.world.biome.Biome;
 
 /**
- * {@code BiomeSpawnCondition}.
+ * Условие спауна, проверяющее принадлежность текущего биома к заданному списку биомов.
+ * Используется в системе выбора вариантов сущностей для ограничения спауна конкретными биомами.
  */
 public record BiomeSpawnCondition(RegistryEntryList<Biome> requiredBiomes) implements SpawnCondition {
 
 	public static final MapCodec<BiomeSpawnCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(RegistryCodecs
-							.entryList(RegistryKeys.BIOME)
-							.fieldOf("biomes")
-							.forGetter(BiomeSpawnCondition::requiredBiomes))
-					.apply(instance, BiomeSpawnCondition::new)
+		instance -> instance
+			.group(
+				RegistryCodecs.entryList(RegistryKeys.BIOME)
+					.fieldOf("biomes")
+					.forGetter(BiomeSpawnCondition::requiredBiomes)
+			)
+			.apply(instance, BiomeSpawnCondition::new)
 	);
 
-	/**
-	 * Test.
-	 *
-	 * @param spawnContext spawn context
-	 *
-	 * @return boolean — результат операции
-	 */
-	public boolean test(SpawnContext spawnContext) {
-		return this.requiredBiomes.contains(spawnContext.biome());
+	@Override
+	public boolean test(SpawnContext context) {
+		return requiredBiomes.contains(context.biome());
 	}
 
 	@Override

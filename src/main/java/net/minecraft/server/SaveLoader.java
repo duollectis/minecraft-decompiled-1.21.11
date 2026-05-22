@@ -6,7 +6,9 @@ import net.minecraft.resource.LifecycledResourceManager;
 import net.minecraft.world.SaveProperties;
 
 /**
- * {@code SaveLoader}.
+ * Контейнер для всех ресурсов, загруженных при старте сервера: менеджер ресурсов,
+ * содержимое датапаков, реестры и свойства сохранения мира.
+ * Реализует {@link AutoCloseable} для корректного освобождения ресурсов.
  */
 public record SaveLoader(
 		LifecycledResourceManager resourceManager,
@@ -17,6 +19,6 @@ public record SaveLoader(
 
 	@Override
 	public void close() {
-		this.resourceManager.close();
+		resourceManager.close();
 	}
 }

@@ -10,16 +10,17 @@ import net.minecraft.util.math.random.Random;
 import java.util.Set;
 
 /**
- * {@code BinomialLootNumberProvider}.
+ * Провайдер числа, реализующий биномиальное распределение B(n, p).
+ * Выполняет {@code n} независимых испытаний Бернулли с вероятностью успеха {@code p}
+ * и возвращает суммарное количество успехов.
  */
 public record BinomialLootNumberProvider(LootNumberProvider n, LootNumberProvider p) implements LootNumberProvider {
 
 	public static final MapCodec<BinomialLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
 			instance -> instance.group(
-					                    LootNumberProviderTypes.CODEC.fieldOf("n").forGetter(BinomialLootNumberProvider::n),
-					                    LootNumberProviderTypes.CODEC.fieldOf("p").forGetter(BinomialLootNumberProvider::p)
-			                    )
-			                    .apply(instance, BinomialLootNumberProvider::new)
+					LootNumberProviderTypes.CODEC.fieldOf("n").forGetter(BinomialLootNumberProvider::n),
+					LootNumberProviderTypes.CODEC.fieldOf("p").forGetter(BinomialLootNumberProvider::p)
+			).apply(instance, BinomialLootNumberProvider::new)
 	);
 
 	@Override
@@ -29,33 +30,25 @@ public record BinomialLootNumberProvider(LootNumberProvider n, LootNumberProvide
 
 	@Override
 	public int nextInt(LootContext context) {
-		int i = this.n.nextInt(context);
-		float f = this.p.nextFloat(context);
+		int trials = n.nextInt(context);
+		float probability = p.nextFloat(context);
 		Random random = context.getRandom();
-		int j = 0;
+		int successes = 0;
 
-		for (int k = 0; k < i; k++) {
-			if (random.nextFloat() < f) {
-				j++;
+		for (int trial = 0; trial < trials; trial++) {
+			if (random.nextFloat() < probability) {
+				successes++;
 			}
 		}
 
-		return j;
+		return successes;
 	}
 
 	@Override
 	public float nextFloat(LootContext context) {
-		return this.nextInt(context);
+		return nextInt(context);
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param n n
-	 * @param p p
-	 *
-	 * @return BinomialLootNumberProvider — результат операции
-	 */
 	public static BinomialLootNumberProvider create(int n, float p) {
 		return new BinomialLootNumberProvider(
 				ConstantLootNumberProvider.create(n),
@@ -65,6 +58,6 @@ public record BinomialLootNumberProvider(LootNumberProvider n, LootNumberProvide
 
 	@Override
 	public Set<ContextParameter<?>> getAllowedParameters() {
-		return Sets.union(this.n.getAllowedParameters(), this.p.getAllowedParameters());
+		return Sets.union(n.getAllowedParameters(), p.getAllowedParameters());
 	}
 }

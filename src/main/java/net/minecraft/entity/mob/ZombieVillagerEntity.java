@@ -47,7 +47,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code ZombieVillagerEntity}.
+ * Зомби-житель — заражённый вариант жителя. Может быть исцелён золотым яблоком при наличии
+ * эффекта слабости. Сохраняет профессию, сделки и сплетни оригинального жителя.
+ * Скорость исцеления ускоряется при наличии рядом железных прутьев и кроватей.
  */
 public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataContainer {
 
@@ -62,7 +64,6 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 	private static final int MAX_CONVERSION_BOOST_BLOCKS = 14;
 	private static final int CONVERSION_BOOST_RADIUS = 4;
 	private static final int DEFAULT_CONVERSION_TIME = -1;
-	private static final int DEFAULT_EXPERIENCE = 0;
 	private static final Set<SpawnReason> SPAWN_REASONS_WITHOUT_PROFESSION = EnumSet.of(
 			SpawnReason.LOAD,
 			SpawnReason.DIMENSION_TRAVEL,
@@ -75,7 +76,7 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 	private @Nullable UUID converter;
 	private @Nullable VillagerGossips gossip;
 	private @Nullable TradeOfferList offerData;
-	private int experience = 0;
+	private int experience;
 
 	public ZombieVillagerEntity(EntityType<? extends ZombieVillagerEntity> entityType, World world) {
 		super(entityType, world);
@@ -85,40 +86,42 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
 		builder.add(CONVERTING, false);
-		builder.add(VILLAGER_DATA, this.createVillagerData());
+		builder.add(VILLAGER_DATA, createVillagerData());
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("VillagerData", VillagerData.CODEC, this.getVillagerData());
-		view.putNullable("Offers", TradeOfferList.CODEC, this.offerData);
-		view.putNullable("Gossips", VillagerGossips.CODEC, this.gossip);
-		view.putInt("ConversionTime", this.isConverting() ? this.conversionTimer : -1);
-		view.putNullable("ConversionPlayer", Uuids.INT_STREAM_CODEC, this.converter);
-		view.putInt("Xp", this.experience);
+		view.put("VillagerData", VillagerData.CODEC, getVillagerData());
+		view.putNullable("Offers", TradeOfferList.CODEC, offerData);
+		view.putNullable("Gossips", VillagerGossips.CODEC, gossip);
+		view.putInt("ConversionTime", isConverting() ? conversionTimer : DEFAULT_CONVERSION_TIME);
+		view.putNullable("ConversionPlayer", Uuids.INT_STREAM_CODEC, converter);
+		view.putInt("Xp", experience);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.dataTracker.set(
+		dataTracker.set(
 				VILLAGER_DATA,
 				view.<VillagerData>read("VillagerData", VillagerData.CODEC).orElseGet(this::createVillagerData)
 		);
-		this.offerData = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
-		this.gossip = view.<VillagerGossips>read("Gossips", VillagerGossips.CODEC).orElse(null);
-		int i = view.getInt("ConversionTime", -1);
-		if (i != -1) {
-			UUID uUID = view.<UUID>read("ConversionPlayer", Uuids.INT_STREAM_CODEC).orElse(null);
-			this.setConverting(uUID, i);
+		offerData = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
+		gossip = view.<VillagerGossips>read("Gossips", VillagerGossips.CODEC).orElse(null);
+
+		int savedConversionTime = view.getInt("ConversionTime", DEFAULT_CONVERSION_TIME);
+
+		if (savedConversionTime != DEFAULT_CONVERSION_TIME) {
+			UUID converterUuid = view.<UUID>read("ConversionPlayer", Uuids.INT_STREAM_CODEC).orElse(null);
+			setConverting(converterUuid, savedConversionTime);
 		}
 		else {
-			this.getDataTracker().set(CONVERTING, false);
-			this.conversionTimer = -1;
+			getDataTracker().set(CONVERTING, false);
+			conversionTimer = DEFAULT_CONVERSION_TIME;
 		}
 
-		this.experience = view.getInt("Xp", 0);
+		experience = view.getInt("Xp", 0);
 	}
 
 	@Override
@@ -129,21 +132,20 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 			@Nullable EntityData entityData
 	) {
 		if (!SPAWN_REASONS_WITHOUT_PROFESSION.contains(spawnReason)) {
-			this.setVillagerData(this
-					.getVillagerData()
-					.withType(world.getRegistryManager(), VillagerType.forBiome(world.getBiome(this.getBlockPos()))));
+			setVillagerData(
+					getVillagerData().withType(world.getRegistryManager(), VillagerType.forBiome(world.getBiome(getBlockPos())))
+			);
 		}
 
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	private VillagerData createVillagerData() {
-		Optional<RegistryEntry.Reference<VillagerProfession>>
-				optional =
-				Registries.VILLAGER_PROFESSION.getRandom(this.random);
+		Optional<RegistryEntry.Reference<VillagerProfession>> profession = Registries.VILLAGER_PROFESSION.getRandom(random);
 		VillagerData villagerData = VillagerEntity.createVillagerData();
-		if (optional.isPresent()) {
-			villagerData = villagerData.withProfession(optional.get());
+
+		if (profession.isPresent()) {
+			villagerData = villagerData.withProfession(profession.get());
 		}
 
 		return villagerData;
@@ -151,11 +153,11 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 
 	@Override
 	public void tick() {
-		if (!this.getEntityWorld().isClient() && this.isAlive() && this.isConverting()) {
-			int i = this.getConversionRate();
-			this.conversionTimer -= i;
-			if (this.conversionTimer <= 0) {
-				this.finishConversion((ServerWorld) this.getEntityWorld());
+		if (!getEntityWorld().isClient() && isAlive() && isConverting()) {
+			conversionTimer -= getConversionRate();
+
+			if (conversionTimer <= 0) {
+				finishConversion((ServerWorld) getEntityWorld());
 			}
 		}
 
@@ -164,23 +166,23 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 
 	@Override
 	public ActionResult interactMob(PlayerEntity player, Hand hand) {
-		ItemStack itemStack = player.getStackInHand(hand);
-		if (itemStack.isOf(Items.GOLDEN_APPLE)) {
-			if (this.hasStatusEffect(StatusEffects.WEAKNESS)) {
-				itemStack.decrementUnlessCreative(1, player);
-				if (!this.getEntityWorld().isClient()) {
-					this.setConverting(player.getUuid(), this.random.nextInt(2401) + 3600);
-				}
+		ItemStack heldStack = player.getStackInHand(hand);
 
-				return ActionResult.SUCCESS_SERVER;
-			}
-			else {
-				return ActionResult.CONSUME;
-			}
-		}
-		else {
+		if (!heldStack.isOf(Items.GOLDEN_APPLE)) {
 			return super.interactMob(player, hand);
 		}
+
+		if (!hasStatusEffect(StatusEffects.WEAKNESS)) {
+			return ActionResult.CONSUME;
+		}
+
+		heldStack.decrementUnlessCreative(1, player);
+
+		if (!getEntityWorld().isClient()) {
+			setConverting(player.getUuid(), random.nextInt(2401) + BASE_CONVERSION_DELAY);
+		}
+
+		return ActionResult.SUCCESS_SERVER;
 	}
 
 	@Override
@@ -190,97 +192,102 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 
 	@Override
 	public boolean canImmediatelyDespawn(double distanceSquared) {
-		return !this.isConverting() && this.experience == 0;
+		return !isConverting() && experience == 0;
 	}
 
 	public boolean isConverting() {
-		return this.getDataTracker().get(CONVERTING);
+		return getDataTracker().get(CONVERTING);
 	}
 
-	private void setConverting(@Nullable UUID uuid, int delay) {
-		this.converter = uuid;
-		this.conversionTimer = delay;
-		this.getDataTracker().set(CONVERTING, true);
-		this.removeStatusEffect(StatusEffects.WEAKNESS);
-		this.addStatusEffect(new StatusEffectInstance(
+	/**
+	 * Запускает процесс исцеления: снимает слабость, добавляет силу на время конвертации,
+	 * отправляет клиентам статус-событие для воспроизведения звука лечения.
+	 */
+	private void setConverting(@Nullable UUID converterUuid, int delay) {
+		converter = converterUuid;
+		conversionTimer = delay;
+		getDataTracker().set(CONVERTING, true);
+		removeStatusEffect(StatusEffects.WEAKNESS);
+		addStatusEffect(new StatusEffectInstance(
 				StatusEffects.STRENGTH,
 				delay,
-				Math.min(this.getEntityWorld().getDifficulty().getId() - 1, 0)
+				Math.min(getEntityWorld().getDifficulty().getId() - 1, 0)
 		));
-		this.getEntityWorld().sendEntityStatus(this, (byte) 16);
+		getEntityWorld().sendEntityStatus(this, (byte) 16);
 	}
 
 	@Override
 	public void handleStatus(byte status) {
-		if (status == 16) {
-			if (!this.isSilent()) {
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getEyeY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE,
-						    this.getSoundCategory(),
-						    1.0F + this.random.nextFloat(),
-						    this.random.nextFloat() * 0.7F + 0.3F,
-						    false
-				    );
-			}
-		}
-		else {
+		if (status != 16) {
 			super.handleStatus(status);
+			return;
+		}
+
+		if (!isSilent()) {
+			getEntityWorld().playSoundClient(
+					getX(),
+					getEyeY(),
+					getZ(),
+					SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE,
+					getSoundCategory(),
+					1.0F + random.nextFloat(),
+					random.nextFloat() * 0.7F + 0.3F,
+					false
+			);
 		}
 	}
 
+	/**
+	 * Завершает превращение в жителя: переносит снаряжение, профессию, сделки, сплетни и опыт.
+	 * Выдаёт достижение игроку, который инициировал исцеление.
+	 */
 	private void finishConversion(ServerWorld world) {
-		this.convertTo(
+		convertTo(
 				EntityType.VILLAGER,
 				EntityConversionContext.create(this, false, false),
 				villager -> {
-					for (EquipmentSlot equipmentSlot : this.dropForeignEquipment(
+					for (EquipmentSlot slot : dropForeignEquipment(
 							world,
 							stack -> !EnchantmentHelper.hasAnyEnchantmentsWith(
 									stack,
 									EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE
 							)
 					)) {
-						StackReference
-								stackReference =
-								villager.getStackReference(equipmentSlot.getEntitySlotId() + 300);
-						if (stackReference != null) {
-							stackReference.set(this.getEquippedStack(equipmentSlot));
+						StackReference slotRef = villager.getStackReference(slot.getEntitySlotId() + 300);
+
+						if (slotRef != null) {
+							slotRef.set(getEquippedStack(slot));
 						}
 					}
 
-					villager.setVillagerData(this.getVillagerData());
-					if (this.gossip != null) {
-						villager.readGossipData(this.gossip);
+					villager.setVillagerData(getVillagerData());
+
+					if (gossip != null) {
+						villager.readGossipData(gossip);
 					}
 
-					if (this.offerData != null) {
-						villager.setOffers(this.offerData.copy());
+					if (offerData != null) {
+						villager.setOffers(offerData.copy());
 					}
 
-					villager.setExperience(this.experience);
-					villager.initialize(
-							world,
-							world.getLocalDifficulty(villager.getBlockPos()),
-							SpawnReason.CONVERSION,
-							null
-					);
+					villager.setExperience(experience);
+					villager.initialize(world, world.getLocalDifficulty(villager.getBlockPos()), SpawnReason.CONVERSION, null);
 					villager.reinitializeBrain(world);
-					if (this.converter != null) {
-						PlayerEntity playerEntity = world.getPlayerByUuid(this.converter);
-						if (playerEntity instanceof ServerPlayerEntity) {
-							Criteria.CURED_ZOMBIE_VILLAGER.trigger((ServerPlayerEntity) playerEntity, this, villager);
-							world.handleInteraction(EntityInteraction.ZOMBIE_VILLAGER_CURED, playerEntity, villager);
+
+					if (converter != null) {
+						PlayerEntity converterPlayer = world.getPlayerByUuid(converter);
+
+						if (converterPlayer instanceof ServerPlayerEntity serverPlayer) {
+							Criteria.CURED_ZOMBIE_VILLAGER.trigger(serverPlayer, this, villager);
+							world.handleInteraction(EntityInteraction.ZOMBIE_VILLAGER_CURED, converterPlayer, villager);
 						}
 					}
 
 					villager.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 200, 0));
-					if (!this.isSilent()) {
-						world.syncWorldEvent(null, 1027, this.getBlockPos(), 0);
-					}
+
+					if (!isSilent()) {
+							world.syncWorldEvent(null, 1027, getBlockPos(), 0);
+						}
 				}
 		);
 	}
@@ -290,36 +297,45 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 		this.conversionTimer = conversionTimer;
 	}
 
+	/**
+	 * Вычисляет скорость убывания таймера конвертации. С вероятностью 1% проверяет
+	 * до 14 блоков железных прутьев и кроватей в радиусе 4 блоков — каждый с шансом 30%
+	 * увеличивает скорость на 1 (ускоряет исцеление).
+	 */
 	private int getConversionRate() {
-		int i = 1;
-		if (this.random.nextFloat() < 0.01F) {
-			int j = 0;
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
+		int rate = 1;
 
-			for (int k = (int) this.getX() - 4; k < (int) this.getX() + 4 && j < 14; k++) {
-				for (int l = (int) this.getY() - 4; l < (int) this.getY() + 4 && j < 14; l++) {
-					for (int m = (int) this.getZ() - 4; m < (int) this.getZ() + 4 && j < 14; m++) {
-						BlockState blockState = this.getEntityWorld().getBlockState(mutable.set(k, l, m));
-						if (blockState.isOf(Blocks.IRON_BARS) || blockState.getBlock() instanceof BedBlock) {
-							if (this.random.nextFloat() < 0.3F) {
-								i++;
-							}
+		if (random.nextFloat() >= 0.01F) {
+			return rate;
+		}
 
-							j++;
+		int boostCount = 0;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+		for (int x = (int) getX() - CONVERSION_BOOST_RADIUS; x < (int) getX() + CONVERSION_BOOST_RADIUS && boostCount < MAX_CONVERSION_BOOST_BLOCKS; x++) {
+			for (int y = (int) getY() - CONVERSION_BOOST_RADIUS; y < (int) getY() + CONVERSION_BOOST_RADIUS && boostCount < MAX_CONVERSION_BOOST_BLOCKS; y++) {
+				for (int z = (int) getZ() - CONVERSION_BOOST_RADIUS; z < (int) getZ() + CONVERSION_BOOST_RADIUS && boostCount < MAX_CONVERSION_BOOST_BLOCKS; z++) {
+					BlockState blockState = getEntityWorld().getBlockState(mutable.set(x, y, z));
+
+					if (blockState.isOf(Blocks.IRON_BARS) || blockState.getBlock() instanceof BedBlock) {
+						if (random.nextFloat() < 0.3F) {
+							rate++;
 						}
+
+						boostCount++;
 					}
 				}
 			}
 		}
 
-		return i;
+		return rate;
 	}
 
 	@Override
 	public float getSoundPitch() {
-		return this.isBaby()
-		       ? (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 2.0F
-		       : (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F;
+		return isBaby()
+				? (random.nextFloat() - random.nextFloat()) * 0.2F + 2.0F
+				: (random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F;
 	}
 
 	@Override
@@ -352,21 +368,22 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 
 	@Override
 	public void setVillagerData(VillagerData villagerData) {
-		VillagerData villagerData2 = this.getVillagerData();
-		if (!villagerData2.profession().equals(villagerData.profession())) {
-			this.offerData = null;
+		VillagerData current = getVillagerData();
+
+		if (!current.profession().equals(villagerData.profession())) {
+			offerData = null;
 		}
 
-		this.dataTracker.set(VILLAGER_DATA, villagerData);
+		dataTracker.set(VILLAGER_DATA, villagerData);
 	}
 
 	@Override
 	public VillagerData getVillagerData() {
-		return this.dataTracker.get(VILLAGER_DATA);
+		return dataTracker.get(VILLAGER_DATA);
 	}
 
 	public int getExperience() {
-		return this.experience;
+		return experience;
 	}
 
 	public void setExperience(int experience) {
@@ -375,27 +392,25 @@ public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataCo
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.VILLAGER_VARIANT ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getVillagerData().type()
-		) : super.get(type);
+		return type == DataComponentTypes.VILLAGER_VARIANT
+				? castComponentValue((ComponentType<T>) type, getVillagerData().type())
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.VILLAGER_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.VILLAGER_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.VILLAGER_VARIANT) {
-			RegistryEntry<VillagerType> registryEntry = castComponentValue(DataComponentTypes.VILLAGER_VARIANT, value);
-			this.setVillagerData(this.getVillagerData().withType(registryEntry));
+			RegistryEntry<VillagerType> villagerType = castComponentValue(DataComponentTypes.VILLAGER_VARIANT, value);
+			setVillagerData(getVillagerData().withType(villagerType));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 }

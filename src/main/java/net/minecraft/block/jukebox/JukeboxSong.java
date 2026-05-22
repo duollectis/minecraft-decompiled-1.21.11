@@ -72,7 +72,7 @@ public record JukeboxSong(
 	 * @return boolean — результат операции
 	 */
 	public boolean shouldStopPlaying(long ticksSinceSongStarted) {
-		return ticksSinceSongStarted >= this.getLengthInTicks() + 20;
+		return ticksSinceSongStarted >= this.getLengthInTicks() + TICKS_PER_SECOND;
 	}
 
 	public static Optional<RegistryEntry<JukeboxSong>> getSongEntryFromStack(

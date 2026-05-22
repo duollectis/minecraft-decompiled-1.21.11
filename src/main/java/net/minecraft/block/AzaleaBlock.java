@@ -12,14 +12,19 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
 /**
- * {@code AzaleaBlock}.
+ * Блок азалии — декоративный куст, способный превратиться в дерево азалии
+ * при использовании костяной муки. Растёт только на земле или глине,
+ * не пропускает сквозь себя мобов при поиске пути.
  */
 public class AzaleaBlock extends PlantBlock implements Fertilizable {
 
 	public static final MapCodec<AzaleaBlock> CODEC = createCodec(AzaleaBlock::new);
-	private static final VoxelShape
-			SHAPE =
-			VoxelShapes.union(Block.createColumnShape(16.0, 8.0, 16.0), Block.createColumnShape(4.0, 0.0, 8.0));
+	/** Вероятность успешного роста при применении костяной муки. */
+	private static final float GROWTH_CHANCE = 0.45f;
+	private static final VoxelShape SHAPE = VoxelShapes.union(
+		Block.createColumnShape(16.0, 8.0, 16.0),
+		Block.createColumnShape(4.0, 0.0, 8.0)
+	);
 
 	@Override
 	public MapCodec<AzaleaBlock> getCodec() {
@@ -47,7 +52,7 @@ public class AzaleaBlock extends PlantBlock implements Fertilizable {
 
 	@Override
 	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-		return world.random.nextFloat() < 0.45;
+		return world.random.nextFloat() < GROWTH_CHANCE;
 	}
 
 	@Override

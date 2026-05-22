@@ -9,7 +9,9 @@ import net.minecraft.loot.context.LootContext;
 import net.minecraft.util.ErrorReporter;
 
 /**
- * {@code TransformSlotSource}.
+ * Базовый класс для источников слотов, применяющих трансформацию к потоку предметов
+ * дочернего источника. Подклассы реализуют {@link #transform(ItemStream)} для определения
+ * конкретной операции (фильтрация, ограничение, маппинг содержимого контейнера).
  */
 public abstract class TransformSlotSource implements SlotSource {
 
@@ -26,23 +28,16 @@ public abstract class TransformSlotSource implements SlotSource {
 		return instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(source -> source.slotSource));
 	}
 
-	/**
-	 * Transform.
-	 *
-	 * @param stream stream
-	 *
-	 * @return ItemStream — результат операции
-	 */
 	protected abstract ItemStream transform(ItemStream stream);
 
 	@Override
 	public final ItemStream stream(LootContext context) {
-		return this.transform(this.slotSource.stream(context));
+		return transform(slotSource.stream(context));
 	}
 
 	@Override
 	public void validate(LootTableReporter reporter) {
 		SlotSource.super.validate(reporter);
-		this.slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
+		slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
 	}
 }

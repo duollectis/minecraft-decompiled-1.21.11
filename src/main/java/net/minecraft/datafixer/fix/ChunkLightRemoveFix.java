@@ -9,24 +9,26 @@ import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code ChunkLightRemoveFix}.
+ * Удаляет устаревший флаг {@code isLightOn} из тега {@code Level} чанка.
+ * После перехода на новый формат освещения этот флаг более не используется.
  */
 public class ChunkLightRemoveFix extends DataFix {
 
-	public ChunkLightRemoveFix(Schema schema, boolean bl) {
-		super(schema, bl);
+	public ChunkLightRemoveFix(Schema schema, boolean changesType) {
+		super(schema, changesType);
 	}
 
 	protected TypeRewriteRule makeRule() {
-		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-		Type<?> type2 = type.findFieldType("Level");
-		OpticFinder<?> opticFinder = DSL.fieldFinder("Level", type2);
-		return this.fixTypeEverywhereTyped(
+		Type<?> chunkType = getInputSchema().getType(TypeReferences.CHUNK);
+		Type<?> levelType = chunkType.findFieldType("Level");
+		OpticFinder<?> levelFinder = DSL.fieldFinder("Level", levelType);
+
+		return fixTypeEverywhereTyped(
 				"ChunkLightRemoveFix",
-				type,
-				this.getOutputSchema().getType(TypeReferences.CHUNK),
+				chunkType,
+				getOutputSchema().getType(TypeReferences.CHUNK),
 				chunkTyped -> chunkTyped.updateTyped(
-						opticFinder,
+						levelFinder,
 						levelTyped -> levelTyped.update(
 								DSL.remainderFinder(),
 								levelDynamic -> levelDynamic.remove("isLightOn")

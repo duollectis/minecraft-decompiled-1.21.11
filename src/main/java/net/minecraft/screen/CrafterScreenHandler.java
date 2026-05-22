@@ -16,15 +16,28 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code CrafterScreenHandler}.
+ * Обработчик экрана блока-крафтера (автоматический крафтер).
+ * <p>
+ * Управляет сеткой 3×3 входных слотов с возможностью отключения отдельных ячеек,
+ * слотом результата и синхронизацией состояния через {@link PropertyDelegate}.
+ * Слоты 0–8 — входные, слот 9 — результат (добавляется после слотов игрока).
  */
 public class CrafterScreenHandler extends ScreenHandler implements ScreenHandlerListener {
 
 	protected static final int CRAFTER_GRID_SIZE = 9;
-	private static final int CRAFTER_SLOT_COUNT = 9;
+
+	private static final int GRID_ROWS = 3;
+	private static final int GRID_COLS = 3;
 	private static final int PLAYER_INVENTORY_SIZE = 36;
-	private static final int PLAYER_INVENTORY_OFFSET = 36;
 	private static final int TOTAL_SLOT_COUNT = 45;
+	private static final int PROP_TRIGGERED = 9;
+	private static final int PROP_COUNT = 10;
+	private static final int GRID_START_X = 26;
+	private static final int GRID_START_Y = 17;
+	private static final int GRID_STEP = 18;
+	private static final int OUTPUT_X = 134;
+	private static final int OUTPUT_Y = 35;
+
 	private final CraftingResultInventory resultInventory = new CraftingResultInventory();
 	private final PropertyDelegate propertyDelegate;
 	private final PlayerEntity player;
@@ -32,10 +45,10 @@ public class CrafterScreenHandler extends ScreenHandler implements ScreenHandler
 
 	public CrafterScreenHandler(int syncId, PlayerInventory playerInventory) {
 		super(ScreenHandlerType.CRAFTER_3X3, syncId);
-		this.player = playerInventory.player;
-		this.propertyDelegate = new ArrayPropertyDelegate(10);
-		this.inputInventory = new CraftingInventory(this, 3, 3);
-		this.addSlots(playerInventory);
+		player = playerInventory.player;
+		propertyDelegate = new ArrayPropertyDelegate(PROP_COUNT);
+		inputInventory = new CraftingInventory(this, GRID_COLS, GRID_ROWS);
+		addSlots(playerInventory);
 	}
 
 	public CrafterScreenHandler(
@@ -45,101 +58,115 @@ public class CrafterScreenHandler extends ScreenHandler implements ScreenHandler
 			PropertyDelegate propertyDelegate
 	) {
 		super(ScreenHandlerType.CRAFTER_3X3, syncId);
-		this.player = playerInventory.player;
+		player = playerInventory.player;
 		this.propertyDelegate = propertyDelegate;
 		this.inputInventory = inputInventory;
-		checkSize(inputInventory, 9);
+		checkSize(inputInventory, CRAFTER_GRID_SIZE);
 		inputInventory.onOpen(playerInventory.player);
-		this.addSlots(playerInventory);
-		this.addListener(this);
+		addSlots(playerInventory);
+		addListener(this);
 	}
 
 	private void addSlots(PlayerInventory playerInventory) {
-		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 3; j++) {
-				int k = j + i * 3;
-				this.addSlot(new CrafterInputSlot(this.inputInventory, k, 26 + j * 18, 17 + i * 18, this));
+		for (int row = 0; row < GRID_ROWS; row++) {
+			for (int col = 0; col < GRID_COLS; col++) {
+				int slotIndex = col + row * GRID_COLS;
+				addSlot(new CrafterInputSlot(
+						inputInventory,
+						slotIndex,
+						GRID_START_X + col * GRID_STEP,
+						GRID_START_Y + row * GRID_STEP,
+						this
+				));
 			}
 		}
 
-		this.addPlayerSlots(playerInventory, 8, 84);
-		this.addSlot(new CrafterOutputSlot(this.resultInventory, 0, 134, 35));
-		this.addProperties(this.propertyDelegate);
-		this.updateResult();
+		addPlayerSlots(playerInventory, 8, 84);
+		addSlot(new CrafterOutputSlot(resultInventory, 0, OUTPUT_X, OUTPUT_Y));
+		addProperties(propertyDelegate);
+		updateResult();
 	}
 
 	public void setSlotEnabled(int slot, boolean enabled) {
-		CrafterInputSlot crafterInputSlot = (CrafterInputSlot) this.getSlot(slot);
-		this.propertyDelegate.set(crafterInputSlot.id, enabled ? 0 : 1);
-		this.sendContentUpdates();
+		CrafterInputSlot crafterSlot = (CrafterInputSlot) getSlot(slot);
+		propertyDelegate.set(crafterSlot.id, enabled ? 0 : 1);
+		sendContentUpdates();
 	}
 
 	public boolean isSlotDisabled(int slot) {
-		return slot > -1 && slot < 9 ? this.propertyDelegate.get(slot) == 1 : false;
+		return slot >= 0 && slot < CRAFTER_GRID_SIZE && propertyDelegate.get(slot) == 1;
 	}
 
 	public boolean isTriggered() {
-		return this.propertyDelegate.get(9) == 1;
+		return propertyDelegate.get(PROP_TRIGGERED) == 1;
 	}
 
 	@Override
 	public ItemStack quickMove(PlayerEntity player, int slot) {
-		ItemStack itemStack = ItemStack.EMPTY;
-		Slot slot2 = this.slots.get(slot);
-		if (slot2 != null && slot2.hasStack()) {
-			ItemStack itemStack2 = slot2.getStack();
-			itemStack = itemStack2.copy();
-			if (slot < 9) {
-				if (!this.insertItem(itemStack2, 9, 45, true)) {
-					return ItemStack.EMPTY;
-				}
-			}
-			else if (!this.insertItem(itemStack2, 0, 9, false)) {
-				return ItemStack.EMPTY;
-			}
+		ItemStack original = ItemStack.EMPTY;
+		Slot sourceSlot = slots.get(slot);
 
-			if (itemStack2.isEmpty()) {
-				slot2.setStackNoCallbacks(ItemStack.EMPTY);
-			}
-			else {
-				slot2.markDirty();
-			}
-
-			if (itemStack2.getCount() == itemStack.getCount()) {
-				return ItemStack.EMPTY;
-			}
-
-			slot2.onTakeItem(player, itemStack2);
+		if (sourceSlot == null || !sourceSlot.hasStack()) {
+			return ItemStack.EMPTY;
 		}
 
-		return itemStack;
+		ItemStack stack = sourceSlot.getStack();
+		original = stack.copy();
+
+		if (slot < CRAFTER_GRID_SIZE) {
+			if (!insertItem(stack, CRAFTER_GRID_SIZE, TOTAL_SLOT_COUNT, true)) {
+				return ItemStack.EMPTY;
+			}
+		} else {
+			if (!insertItem(stack, 0, CRAFTER_GRID_SIZE, false)) {
+				return ItemStack.EMPTY;
+			}
+		}
+
+		if (stack.isEmpty()) {
+			sourceSlot.setStackNoCallbacks(ItemStack.EMPTY);
+		} else {
+			sourceSlot.markDirty();
+		}
+
+		if (stack.getCount() == original.getCount()) {
+			return ItemStack.EMPTY;
+		}
+
+		sourceSlot.onTakeItem(player, stack);
+		return original;
 	}
 
 	@Override
 	public boolean canUse(PlayerEntity player) {
-		return this.inputInventory.canPlayerUse(player);
+		return inputInventory.canPlayerUse(player);
 	}
 
+	/**
+	 * Пересчитывает результат крафта на основе текущего содержимого сетки.
+	 * Выполняется только на сервере — клиент получает результат через синхронизацию.
+	 */
 	private void updateResult() {
-		if (this.player instanceof ServerPlayerEntity serverPlayerEntity) {
-			ServerWorld serverWorld = serverPlayerEntity.getEntityWorld();
-			CraftingRecipeInput craftingRecipeInput = this.inputInventory.createRecipeInput();
-			ItemStack itemStack = CrafterBlock.getCraftingRecipe(serverWorld, craftingRecipeInput)
-			                                  .map(recipeEntry -> recipeEntry
-					                                  .value()
-					                                  .craft(craftingRecipeInput, serverWorld.getRegistryManager()))
-			                                  .orElse(ItemStack.EMPTY);
-			this.resultInventory.setStack(0, itemStack);
+		if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+			return;
 		}
+
+		ServerWorld serverWorld = serverPlayer.getEntityWorld();
+		CraftingRecipeInput recipeInput = inputInventory.createRecipeInput();
+		ItemStack result = CrafterBlock.getCraftingRecipe(serverWorld, recipeInput)
+				.map(entry -> entry.value().craft(recipeInput, serverWorld.getRegistryManager()))
+				.orElse(ItemStack.EMPTY);
+
+		resultInventory.setStack(0, result);
 	}
 
 	public Inventory getInputInventory() {
-		return this.inputInventory;
+		return inputInventory;
 	}
 
 	@Override
 	public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
-		this.updateResult();
+		updateResult();
 	}
 
 	@Override

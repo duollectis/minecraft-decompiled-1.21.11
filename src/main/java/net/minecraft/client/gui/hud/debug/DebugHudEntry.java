@@ -6,17 +6,18 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code DebugHudEntry}.
+ * Контракт одной записи отладочного HUD. Каждая реализация отвечает
+ * за формирование строк в своей тематической секции.
  */
+@Environment(EnvType.CLIENT)
 public interface DebugHudEntry {
 
 	void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	);
 
 	default boolean canShow(boolean reducedDebugInfo) {

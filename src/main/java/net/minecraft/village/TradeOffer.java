@@ -10,34 +10,35 @@ import net.minecraft.util.math.MathHelper;
 import java.util.Optional;
 
 /**
- * {@code TradeOffer}.
+ * Одно торговое предложение жителя или торговца.
+ * <p>
+ * Содержит один или два входных предмета ({@code firstBuyItem}, {@code secondBuyItem})
+ * и один выходной ({@code sellItem}). Цена первого предмета динамически корректируется
+ * через {@code specialPrice} (репутация игрока) и {@code demandBonus} (спрос).
  */
 public class TradeOffer {
 
+	public static final int DEFAULT_MAX_USES = 4;
+	public static final int MAX_EMERALD_PRICE = 64;
+
 	public static final Codec<TradeOffer> CODEC = RecordCodecBuilder.create(
 			instance -> instance.group(
-					                    TradedItem.CODEC.fieldOf("buy").forGetter(tradeOffer -> tradeOffer.firstBuyItem),
-					                    TradedItem.CODEC.lenientOptionalFieldOf("buyB").forGetter(tradeOffer -> tradeOffer.secondBuyItem),
-					                    ItemStack.CODEC.fieldOf("sell").forGetter(tradeOffer -> tradeOffer.sellItem),
-					                    Codec.INT.lenientOptionalFieldOf("uses", 0).forGetter(tradeOffer -> tradeOffer.uses),
-					                    Codec.INT.lenientOptionalFieldOf("maxUses", 4).forGetter(tradeOffer -> tradeOffer.maxUses),
-					                    Codec.BOOL
-							                    .lenientOptionalFieldOf("rewardExp", true)
-							                    .forGetter(tradeOffer -> tradeOffer.rewardingPlayerExperience),
-					                    Codec.INT
-							                    .lenientOptionalFieldOf("specialPrice", 0)
-							                    .forGetter(tradeOffer -> tradeOffer.specialPrice),
-					                    Codec.INT.lenientOptionalFieldOf("demand", 0).forGetter(tradeOffer -> tradeOffer.demandBonus),
-					                    Codec.FLOAT
-							                    .lenientOptionalFieldOf("priceMultiplier", 0.0F)
-							                    .forGetter(tradeOffer -> tradeOffer.priceMultiplier),
-					                    Codec.INT.lenientOptionalFieldOf("xp", 1).forGetter(tradeOffer -> tradeOffer.merchantExperience)
-			                    )
-			                    .apply(instance, TradeOffer::new)
+					TradedItem.CODEC.fieldOf("buy").forGetter(offer -> offer.firstBuyItem),
+					TradedItem.CODEC.lenientOptionalFieldOf("buyB").forGetter(offer -> offer.secondBuyItem),
+					ItemStack.CODEC.fieldOf("sell").forGetter(offer -> offer.sellItem),
+					Codec.INT.lenientOptionalFieldOf("uses", 0).forGetter(offer -> offer.uses),
+					Codec.INT.lenientOptionalFieldOf("maxUses", DEFAULT_MAX_USES).forGetter(offer -> offer.maxUses),
+					Codec.BOOL.lenientOptionalFieldOf("rewardExp", true).forGetter(offer -> offer.rewardingPlayerExperience),
+					Codec.INT.lenientOptionalFieldOf("specialPrice", 0).forGetter(offer -> offer.specialPrice),
+					Codec.INT.lenientOptionalFieldOf("demand", 0).forGetter(offer -> offer.demandBonus),
+					Codec.FLOAT.lenientOptionalFieldOf("priceMultiplier", 0.0F).forGetter(offer -> offer.priceMultiplier),
+					Codec.INT.lenientOptionalFieldOf("xp", 1).forGetter(offer -> offer.merchantExperience)
+			).apply(instance, TradeOffer::new)
 	);
-	public static final PacketCodec<RegistryByteBuf, TradeOffer>
-			PACKET_CODEC =
+
+	public static final PacketCodec<RegistryByteBuf, TradeOffer> PACKET_CODEC =
 			PacketCodec.ofStatic(TradeOffer::write, TradeOffer::read);
+
 	private final TradedItem firstBuyItem;
 	private final Optional<TradedItem> secondBuyItem;
 	private final ItemStack sellItem;
@@ -146,132 +147,155 @@ public class TradeOffer {
 	}
 
 	public ItemStack getOriginalFirstBuyItem() {
-		return this.firstBuyItem.itemStack();
+		return firstBuyItem.itemStack();
 	}
 
 	public ItemStack getDisplayedFirstBuyItem() {
-		return this.firstBuyItem.itemStack().copyWithCount(this.getFirstBuyItemCount(this.firstBuyItem));
-	}
-
-	private int getFirstBuyItemCount(TradedItem firstBuyItem) {
-		int i = firstBuyItem.count();
-		int j = Math.max(0, MathHelper.floor(i * this.demandBonus * this.priceMultiplier));
-		return MathHelper.clamp(i + j + this.specialPrice, 1, firstBuyItem.itemStack().getMaxCount());
+		return firstBuyItem.itemStack().copyWithCount(calculateFirstBuyCount(firstBuyItem));
 	}
 
 	public ItemStack getDisplayedSecondBuyItem() {
-		return this.secondBuyItem.map(TradedItem::itemStack).orElse(ItemStack.EMPTY);
+		return secondBuyItem.map(TradedItem::itemStack).orElse(ItemStack.EMPTY);
 	}
 
 	public TradedItem getFirstBuyItem() {
-		return this.firstBuyItem;
+		return firstBuyItem;
 	}
 
 	public Optional<TradedItem> getSecondBuyItem() {
-		return this.secondBuyItem;
+		return secondBuyItem;
 	}
 
 	public ItemStack getSellItem() {
-		return this.sellItem;
-	}
-
-	public void updateDemandBonus() {
-		this.demandBonus = this.demandBonus + this.uses - (this.maxUses - this.uses);
+		return sellItem;
 	}
 
 	public ItemStack copySellItem() {
-		return this.sellItem.copy();
+		return sellItem.copy();
 	}
 
 	public int getUses() {
-		return this.uses;
-	}
-
-	public void resetUses() {
-		this.uses = 0;
+		return uses;
 	}
 
 	public int getMaxUses() {
-		return this.maxUses;
-	}
-
-	public void use() {
-		this.uses++;
+		return maxUses;
 	}
 
 	public int getDemandBonus() {
-		return this.demandBonus;
-	}
-
-	public void increaseSpecialPrice(int increment) {
-		this.specialPrice += increment;
-	}
-
-	public void clearSpecialPrice() {
-		this.specialPrice = 0;
+		return demandBonus;
 	}
 
 	public int getSpecialPrice() {
-		return this.specialPrice;
+		return specialPrice;
+	}
+
+	public float getPriceMultiplier() {
+		return priceMultiplier;
+	}
+
+	public int getMerchantExperience() {
+		return merchantExperience;
+	}
+
+	public boolean isDisabled() {
+		return uses >= maxUses;
+	}
+
+	public boolean hasBeenUsed() {
+		return uses > 0;
+	}
+
+	public boolean shouldRewardPlayerExperience() {
+		return rewardingPlayerExperience;
+	}
+
+	public void use() {
+		uses++;
+	}
+
+	public void resetUses() {
+		uses = 0;
+	}
+
+	public void disable() {
+		uses = maxUses;
 	}
 
 	public void setSpecialPrice(int specialPrice) {
 		this.specialPrice = specialPrice;
 	}
 
-	public float getPriceMultiplier() {
-		return this.priceMultiplier;
+	public void increaseSpecialPrice(int increment) {
+		specialPrice += increment;
 	}
 
-	public int getMerchantExperience() {
-		return this.merchantExperience;
+	public void clearSpecialPrice() {
+		specialPrice = 0;
 	}
 
-	public boolean isDisabled() {
-		return this.uses >= this.maxUses;
+	/**
+	 * Пересчитывает бонус спроса после завершения сделки.
+	 * <p>
+	 * Формула: {@code demand = demand + uses - (maxUses - uses)}.
+	 * Чем чаще покупают — тем выше спрос, чем больше остаток — тем ниже.
+	 */
+	public void updateDemandBonus() {
+		demandBonus = demandBonus + uses - (maxUses - uses);
 	}
 
-	public void disable() {
-		this.uses = this.maxUses;
-	}
-
-	public boolean hasBeenUsed() {
-		return this.uses > 0;
-	}
-
-	public boolean shouldRewardPlayerExperience() {
-		return this.rewardingPlayerExperience;
-	}
-
-	public boolean matchesBuyItems(ItemStack stack, ItemStack buyItem) {
-		if (!this.firstBuyItem.matches(stack) || stack.getCount() < this.getFirstBuyItemCount(this.firstBuyItem)) {
+	/**
+	 * Проверяет, достаточно ли у игрока предметов для совершения сделки.
+	 *
+	 * @param firstStack  стек первого покупаемого предмета
+	 * @param secondStack стек второго покупаемого предмета (может быть пустым)
+	 * @return {@code true}, если оба стека удовлетворяют условиям сделки
+	 */
+	public boolean matchesBuyItems(ItemStack firstStack, ItemStack secondStack) {
+		if (!firstBuyItem.matches(firstStack) || firstStack.getCount() < calculateFirstBuyCount(firstBuyItem)) {
 			return false;
 		}
-		else {
-			return !this.secondBuyItem.isPresent()
-			       ? buyItem.isEmpty()
-			       : this.secondBuyItem.get().matches(buyItem) && buyItem.getCount() >= this.secondBuyItem
-			                                                                            .get()
-			                                                                            .count();
-		}
+
+		return secondBuyItem.isEmpty()
+				? secondStack.isEmpty()
+				: secondBuyItem.get().matches(secondStack) && secondStack.getCount() >= secondBuyItem.get().count();
 	}
 
+	/**
+	 * Списывает предметы из стеков игрока при совершении сделки.
+	 *
+	 * @param firstBuyStack  стек первого предмета (изменяется in-place)
+	 * @param secondBuyStack стек второго предмета (изменяется in-place)
+	 * @return {@code true}, если списание прошло успешно
+	 */
 	public boolean depleteBuyItems(ItemStack firstBuyStack, ItemStack secondBuyStack) {
-		if (!this.matchesBuyItems(firstBuyStack, secondBuyStack)) {
+		if (!matchesBuyItems(firstBuyStack, secondBuyStack)) {
 			return false;
 		}
-		else {
-			firstBuyStack.decrement(this.getDisplayedFirstBuyItem().getCount());
-			if (!this.getDisplayedSecondBuyItem().isEmpty()) {
-				secondBuyStack.decrement(this.getDisplayedSecondBuyItem().getCount());
-			}
 
-			return true;
+		firstBuyStack.decrement(getDisplayedFirstBuyItem().getCount());
+
+		if (!getDisplayedSecondBuyItem().isEmpty()) {
+			secondBuyStack.decrement(getDisplayedSecondBuyItem().getCount());
 		}
+
+		return true;
 	}
 
 	public TradeOffer copy() {
 		return new TradeOffer(this);
+	}
+
+	/**
+	 * Вычисляет итоговое количество первого покупаемого предмета с учётом
+	 * бонуса спроса, множителя цены и специальной скидки от репутации.
+	 * <p>
+	 * Итоговая цена зажата в диапазоне [1, maxCount предмета].
+	 */
+	private int calculateFirstBuyCount(TradedItem item) {
+		int baseCount = item.count();
+		int demandAdjustment = Math.max(0, MathHelper.floor(baseCount * demandBonus * priceMultiplier));
+		return MathHelper.clamp(baseCount + demandAdjustment + specialPrice, 1, item.itemStack().getMaxCount());
 	}
 
 	private static void write(RegistryByteBuf buf, TradeOffer offer) {
@@ -288,22 +312,24 @@ public class TradeOffer {
 	}
 
 	public static TradeOffer read(RegistryByteBuf buf) {
-		TradedItem tradedItem = TradedItem.PACKET_CODEC.decode(buf);
-		ItemStack itemStack = ItemStack.PACKET_CODEC.decode(buf);
-		Optional<TradedItem> optional = TradedItem.OPTIONAL_PACKET_CODEC.decode(buf);
-		boolean bl = buf.readBoolean();
-		int i = buf.readInt();
-		int j = buf.readInt();
-		int k = buf.readInt();
-		int l = buf.readInt();
-		float f = buf.readFloat();
-		int m = buf.readInt();
-		TradeOffer tradeOffer = new TradeOffer(tradedItem, optional, itemStack, i, j, k, f, m);
-		if (bl) {
-			tradeOffer.disable();
+		TradedItem firstBuyItem = TradedItem.PACKET_CODEC.decode(buf);
+		ItemStack sellItem = ItemStack.PACKET_CODEC.decode(buf);
+		Optional<TradedItem> secondBuyItem = TradedItem.OPTIONAL_PACKET_CODEC.decode(buf);
+		boolean disabled = buf.readBoolean();
+		int uses = buf.readInt();
+		int maxUses = buf.readInt();
+		int merchantExperience = buf.readInt();
+		int specialPrice = buf.readInt();
+		float priceMultiplier = buf.readFloat();
+		int demandBonus = buf.readInt();
+
+		TradeOffer offer = new TradeOffer(firstBuyItem, secondBuyItem, sellItem, uses, maxUses, merchantExperience, priceMultiplier, demandBonus);
+
+		if (disabled) {
+			offer.disable();
 		}
 
-		tradeOffer.setSpecialPrice(l);
-		return tradeOffer;
+		offer.setSpecialPrice(specialPrice);
+		return offer;
 	}
 }

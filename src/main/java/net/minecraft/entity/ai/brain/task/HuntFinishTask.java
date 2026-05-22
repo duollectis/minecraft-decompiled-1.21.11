@@ -6,15 +6,11 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.mob.PiglinBrain;
 
 /**
- * {@code HuntFinishTask}.
+ * Фабричный класс задачи мозга пиглина, фиксирующей успешную охоту на хоглина.
+ * Устанавливает память {@code HUNTED_RECENTLY} на случайное время из диапазона {@code HUNT_MEMORY_DURATION}.
  */
 public class HuntFinishTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return Task — результат операции
-	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context
@@ -24,8 +20,9 @@ public class HuntFinishTask {
 						)
 						.apply(
 								context, (attackTarget, huntedRecently) -> (world, entity, time) -> {
-									LivingEntity livingEntity = context.getValue(attackTarget);
-									if (livingEntity.getType() == EntityType.HOGLIN && livingEntity.isDead()) {
+									LivingEntity target = context.getValue(attackTarget);
+
+									if (target.getType() == EntityType.HOGLIN && target.isDead()) {
 										huntedRecently.remember(
 												true,
 												PiglinBrain.HUNT_MEMORY_DURATION.get(entity.getEntityWorld().random)

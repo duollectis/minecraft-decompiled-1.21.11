@@ -10,7 +10,9 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code ItemPlacementContext}.
+ * Контекст размещения предмета-блока в мире.
+ * <p>Расширяет {@link ItemUsageContext}, добавляя логику определения позиции размещения:
+ * либо на месте существующего блока (если он заменяем), либо на соседней позиции.</p>
  */
 public class ItemPlacementContext extends ItemUsageContext {
 
@@ -27,24 +29,25 @@ public class ItemPlacementContext extends ItemUsageContext {
 
 	public ItemPlacementContext(
 			World world,
-			@Nullable PlayerEntity playerEntity,
+			@Nullable PlayerEntity player,
 			Hand hand,
-			ItemStack itemStack,
-			BlockHitResult blockHitResult
+			ItemStack stack,
+			BlockHitResult hitResult
 	) {
-		super(world, playerEntity, hand, itemStack, blockHitResult);
-		this.placementPos = blockHitResult.getBlockPos().offset(blockHitResult.getSide());
-		this.canReplaceExisting = world.getBlockState(blockHitResult.getBlockPos()).canReplace(this);
+		super(world, player, hand, stack, hitResult);
+		placementPos = hitResult.getBlockPos().offset(hitResult.getSide());
+		canReplaceExisting = world.getBlockState(hitResult.getBlockPos()).canReplace(this);
 	}
 
 	/**
-	 * Offset.
+	 * Создаёт контекст размещения со смещённой позицией и стороной.
+	 * <p>Используется для размещения блоков рядом с уже существующими
+	 * (например, при размещении через диспенсер).</p>
 	 *
-	 * @param context context
-	 * @param pos pos
-	 * @param side side
-	 *
-	 * @return ItemPlacementContext — результат операции
+	 * @param context исходный контекст
+	 * @param pos     новая позиция блока
+	 * @param side    сторона, с которой происходит размещение
+	 * @return новый контекст с обновлённой позицией
 	 */
 	public static ItemPlacementContext offset(ItemPlacementContext context, BlockPos pos, Direction side) {
 		return new ItemPlacementContext(
@@ -67,54 +70,56 @@ public class ItemPlacementContext extends ItemUsageContext {
 
 	@Override
 	public BlockPos getBlockPos() {
-		return this.canReplaceExisting ? super.getBlockPos() : this.placementPos;
+		return canReplaceExisting ? super.getBlockPos() : placementPos;
 	}
 
 	/**
-	 * Проверяет возможность place.
+	 * Проверяет, можно ли разместить блок на текущей позиции.
+	 * <p>Возвращает {@code true} если целевой блок заменяем или позиция рядом с ним свободна.</p>
 	 *
-	 * @return boolean — {@code true} если условие выполнено
+	 * @return {@code true} если размещение допустимо
 	 */
 	public boolean canPlace() {
-		return this.canReplaceExisting || this.getWorld().getBlockState(this.getBlockPos()).canReplace(this);
+		return canReplaceExisting || getWorld().getBlockState(getBlockPos()).canReplace(this);
 	}
 
-	/**
-	 * Проверяет возможность replace existing.
-	 *
-	 * @return boolean — {@code true} если условие выполнено
-	 */
 	public boolean canReplaceExisting() {
-		return this.canReplaceExisting;
+		return canReplaceExisting;
 	}
 
 	public Direction getPlayerLookDirection() {
-		return Direction.getEntityFacingOrder(this.getPlayer())[0];
+		return Direction.getEntityFacingOrder(getPlayer())[0];
 	}
 
 	public Direction getVerticalPlayerLookDirection() {
-		return Direction.getLookDirectionForAxis(this.getPlayer(), Direction.Axis.Y);
+		return Direction.getLookDirectionForAxis(getPlayer(), Direction.Axis.Y);
 	}
 
+	/**
+	 * Возвращает приоритетный порядок направлений для размещения блока.
+	 * <p>Если блок размещается не на заменяемом блоке, то направление от стороны попадания
+	 * ставится первым в списке, чтобы блок ориентировался правильно.</p>
+	 *
+	 * @return массив направлений в порядке приоритета
+	 */
 	public Direction[] getPlacementDirections() {
-		Direction[] directions = Direction.getEntityFacingOrder(this.getPlayer());
-		if (this.canReplaceExisting) {
+		Direction[] directions = Direction.getEntityFacingOrder(getPlayer());
+		if (canReplaceExisting) {
 			return directions;
 		}
-		else {
-			Direction direction = this.getSide();
-			int i = 0;
 
-			while (i < directions.length && directions[i] != direction.getOpposite()) {
-				i++;
-			}
+		Direction hitSide = getSide();
+		int insertIndex = 0;
 
-			if (i > 0) {
-				System.arraycopy(directions, 0, directions, 1, i);
-				directions[0] = direction.getOpposite();
-			}
-
-			return directions;
+		while (insertIndex < directions.length && directions[insertIndex] != hitSide.getOpposite()) {
+			insertIndex++;
 		}
+
+		if (insertIndex > 0) {
+			System.arraycopy(directions, 0, directions, 1, insertIndex);
+			directions[0] = hitSide.getOpposite();
+		}
+
+		return directions;
 	}
 }

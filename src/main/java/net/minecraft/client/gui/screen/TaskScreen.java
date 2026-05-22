@@ -12,15 +12,25 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TaskScreen}.
+ * Экран отображения выполняемой задачи или её результата.
+ * В режиме «выполнение» показывает анимированный индикатор загрузки,
+ * в режиме «результат» — многострочный текст описания.
  */
+@Environment(EnvType.CLIENT)
 public class TaskScreen extends Screen {
 
 	private static final int TITLE_TEXT_Y = 80;
 	private static final int DESCRIPTION_TEXT_Y = 120;
 	private static final int DESCRIPTION_TEXT_WIDTH = 360;
+	private static final int BUTTON_WIDTH = 150;
+	private static final int BUTTON_HEIGHT = 20;
+	private static final int BUTTON_BOTTOM_MARGIN = 40;
+	private static final int MIN_DESCRIPTION_LINES = 5;
+	private static final int LINE_HEIGHT = 9;
+	private static final int RESULT_BUTTON_COOLDOWN = 20;
+	private static final int LOADING_TEXT_COLOR = -6250336;
+
 	private final @Nullable Text descriptionText;
 	private final Text closeButtonText;
 	private final Runnable closeCallback;
@@ -28,34 +38,25 @@ public class TaskScreen extends Screen {
 	private ButtonWidget button;
 	private int buttonCooldown;
 
-	/**
-	 * Создаёт running screen.
-	 *
-	 * @param title title
-	 * @param closeButtonText close button text
-	 * @param closeCallback close callback
-	 *
-	 * @return TaskScreen — результат операции
-	 */
 	public static TaskScreen createRunningScreen(Text title, Text closeButtonText, Runnable closeCallback) {
 		return new TaskScreen(title, null, closeButtonText, closeCallback, 0);
 	}
 
 	public static TaskScreen createResultScreen(
-			Text title,
-			Text descriptionText,
-			Text closeButtonText,
-			Runnable closeCallback
+		Text title,
+		Text descriptionText,
+		Text closeButtonText,
+		Runnable closeCallback
 	) {
-		return new TaskScreen(title, descriptionText, closeButtonText, closeCallback, 20);
+		return new TaskScreen(title, descriptionText, closeButtonText, closeCallback, RESULT_BUTTON_COOLDOWN);
 	}
 
 	protected TaskScreen(
-			Text title,
-			@Nullable Text descriptionText,
-			Text closeButtonText,
-			Runnable closeCallback,
-			int buttonCooldown
+		Text title,
+		@Nullable Text descriptionText,
+		Text closeButtonText,
+		Runnable closeCallback,
+		int buttonCooldown
 	) {
 		super(title);
 		this.descriptionText = descriptionText;
@@ -67,61 +68,60 @@ public class TaskScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		if (this.descriptionText != null) {
-			this.description = MultilineText.create(this.textRenderer, this.descriptionText, 360);
+
+		if (descriptionText != null) {
+			description = MultilineText.create(textRenderer, descriptionText, DESCRIPTION_TEXT_WIDTH);
 		}
 
-		int i = 150;
-		int j = 20;
-		int k = this.description != null ? this.description.getLineCount() : 1;
-		int l = Math.max(k, 5) * 9;
-		int m = Math.min(120 + l, this.height - 40);
-		this.button = this.addDrawableChild(
-				ButtonWidget
-						.builder(this.closeButtonText, button -> this.close())
-						.dimensions((this.width - 150) / 2, m, 150, 20)
-						.build()
+		int lineCount = description != null ? description.getLineCount() : 1;
+		int descriptionHeight = Math.max(lineCount, MIN_DESCRIPTION_LINES) * LINE_HEIGHT;
+		int buttonY = Math.min(DESCRIPTION_TEXT_Y + descriptionHeight, height - BUTTON_BOTTOM_MARGIN);
+
+		button = addDrawableChild(
+			ButtonWidget.builder(closeButtonText, btn -> close())
+				.dimensions((width - BUTTON_WIDTH) / 2, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT)
+				.build()
 		);
 	}
 
 	@Override
 	public void tick() {
-		if (this.buttonCooldown > 0) {
-			this.buttonCooldown--;
+		if (buttonCooldown > 0) {
+			buttonCooldown--;
 		}
 
-		this.button.active = this.buttonCooldown == 0;
+		button.active = buttonCooldown == 0;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 80, -1);
-		if (this.description == null) {
-			String string = LoadingDisplay.get(Util.getMeasuringTimeMs());
-			context.drawCenteredTextWithShadow(this.textRenderer, string, this.width / 2, 120, -6250336);
-		}
-		else {
-			this.description.draw(Alignment.CENTER, this.width / 2, 120, 9, drawnTextConsumer);
+		DrawnTextConsumer textConsumer = context.getTextConsumer();
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_TEXT_Y, -1);
+
+		if (description == null) {
+			String loadingText = LoadingDisplay.get(Util.getMeasuringTimeMs());
+			context.drawCenteredTextWithShadow(textRenderer, loadingText, width / 2, DESCRIPTION_TEXT_Y, LOADING_TEXT_COLOR);
+		} else {
+			description.draw(Alignment.CENTER, width / 2, DESCRIPTION_TEXT_Y, LINE_HEIGHT, textConsumer);
 		}
 	}
 
 	@Override
 	public boolean shouldCloseOnEsc() {
-		return this.description != null && this.button.active;
+		return description != null && button.active;
 	}
 
 	@Override
 	public void close() {
-		this.closeCallback.run();
+		closeCallback.run();
 	}
 
 	@Override
 	public Text getNarratedTitle() {
 		return ScreenTexts.joinSentences(
-				this.title,
-				this.descriptionText != null ? this.descriptionText : ScreenTexts.EMPTY
+			title,
+			descriptionText != null ? descriptionText : ScreenTexts.EMPTY
 		);
 	}
 }

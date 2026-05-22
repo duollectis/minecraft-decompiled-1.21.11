@@ -19,10 +19,12 @@ import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChestModelRenderer}.
+ * Специализированный рендерер сундука как предмета.
+ * Поддерживает все варианты сундуков: обычный, ловушка, эндер, медные (4 степени окисления)
+ * и рождественский. Степень открытости крышки задаётся параметром {@code openness} (0.0–1.0).
  */
+@Environment(EnvType.CLIENT)
 public class ChestModelRenderer implements SimpleSpecialModelRenderer {
 
 	public static final Identifier CHRISTMAS_ID = Identifier.ofVanilla("christmas");
@@ -33,6 +35,9 @@ public class ChestModelRenderer implements SimpleSpecialModelRenderer {
 	public static final Identifier EXPOSED_COPPER_ID = Identifier.ofVanilla("copper_exposed");
 	public static final Identifier WEATHERED_COPPER_ID = Identifier.ofVanilla("copper_weathered");
 	public static final Identifier OXIDIZED_COPPER_ID = Identifier.ofVanilla("copper_oxidized");
+
+	private static final int FULL_WHITE_TINT = -1;
+
 	private final SpriteHolder spriteHolder;
 	private final ChestBlockModel model;
 	private final SpriteIdentifier textureId;
@@ -58,41 +63,41 @@ public class ChestModelRenderer implements SimpleSpecialModelRenderer {
 			int light,
 			int overlay,
 			boolean glint,
-			int i
+			int seed
 	) {
 		queue.submitModel(
-				this.model,
-				this.openness,
+				model,
+				openness,
 				matrices,
-				this.textureId.getRenderLayer(RenderLayers::entitySolid),
+				textureId.getRenderLayer(RenderLayers::entitySolid),
 				light,
 				overlay,
-				-1,
-				this.spriteHolder.getSprite(this.textureId),
-				i,
+				FULL_WHITE_TINT,
+				spriteHolder.getSprite(textureId),
+				seed,
 				null
 		);
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		this.model.setAngles(this.openness);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		model.setAngles(openness);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованная форма рендерера сундука.
+	 * Хранит идентификатор текстуры и степень открытости крышки.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked(Identifier texture, float openness) implements SpecialModelRenderer.Unbaked {
 
 		public static final MapCodec<ChestModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
-						                    Identifier.CODEC.fieldOf("texture").forGetter(ChestModelRenderer.Unbaked::texture),
-						                    Codec.FLOAT.optionalFieldOf("openness", 0.0F).forGetter(ChestModelRenderer.Unbaked::openness)
-				                    )
-				                    .apply(instance, ChestModelRenderer.Unbaked::new)
+						Identifier.CODEC.fieldOf("texture").forGetter(ChestModelRenderer.Unbaked::texture),
+						Codec.FLOAT.optionalFieldOf("openness", 0.0F).forGetter(ChestModelRenderer.Unbaked::openness)
+				).apply(instance, ChestModelRenderer.Unbaked::new)
 		);
 
 		public Unbaked(Identifier texture) {
@@ -106,11 +111,11 @@ public class ChestModelRenderer implements SimpleSpecialModelRenderer {
 
 		@Override
 		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-			ChestBlockModel
-					chestBlockModel =
-					new ChestBlockModel(context.entityModelSet().getModelPart(EntityModelLayers.CHEST));
-			SpriteIdentifier spriteIdentifier = TexturedRenderLayers.CHEST_SPRITE_MAPPER.map(this.texture);
-			return new ChestModelRenderer(context.spriteHolder(), chestBlockModel, spriteIdentifier, this.openness);
+			ChestBlockModel chestModel = new ChestBlockModel(
+					context.entityModelSet().getModelPart(EntityModelLayers.CHEST)
+			);
+			SpriteIdentifier spriteId = TexturedRenderLayers.CHEST_SPRITE_MAPPER.map(texture);
+			return new ChestModelRenderer(context.spriteHolder(), chestModel, spriteId, openness);
 		}
 	}
 }

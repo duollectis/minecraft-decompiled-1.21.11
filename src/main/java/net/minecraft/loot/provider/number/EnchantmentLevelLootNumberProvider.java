@@ -7,22 +7,23 @@ import net.minecraft.loot.context.LootContext;
 import net.minecraft.loot.context.LootContextParameters;
 
 /**
- * {@code EnchantmentLevelLootNumberProvider}.
+ * Провайдер числа, вычисляющий значение на основе уровня зачарования из контекста лута.
+ * Требует наличия параметра {@link LootContextParameters#ENCHANTMENT_LEVEL} в контексте.
  */
 public record EnchantmentLevelLootNumberProvider(EnchantmentLevelBasedValue amount) implements LootNumberProvider {
 
 	public static final MapCodec<EnchantmentLevelLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(EnchantmentLevelBasedValue.CODEC
-							.fieldOf("amount")
-							.forGetter(EnchantmentLevelLootNumberProvider::amount))
-					.apply(instance, EnchantmentLevelLootNumberProvider::new)
+		instance -> instance
+			.group(EnchantmentLevelBasedValue.CODEC
+				.fieldOf("amount")
+				.forGetter(EnchantmentLevelLootNumberProvider::amount))
+			.apply(instance, EnchantmentLevelLootNumberProvider::new)
 	);
 
 	@Override
 	public float nextFloat(LootContext context) {
-		int i = context.getOrThrow(LootContextParameters.ENCHANTMENT_LEVEL);
-		return this.amount.getValue(i);
+		int enchantmentLevel = context.getOrThrow(LootContextParameters.ENCHANTMENT_LEVEL);
+		return amount.getValue(enchantmentLevel);
 	}
 
 	@Override
@@ -30,13 +31,6 @@ public record EnchantmentLevelLootNumberProvider(EnchantmentLevelBasedValue amou
 		return LootNumberProviderTypes.ENCHANTMENT_LEVEL;
 	}
 
-	/**
-	 * Create.
-	 *
-	 * @param amount amount
-	 *
-	 * @return EnchantmentLevelLootNumberProvider — результат операции
-	 */
 	public static EnchantmentLevelLootNumberProvider create(EnchantmentLevelBasedValue amount) {
 		return new EnchantmentLevelLootNumberProvider(amount);
 	}

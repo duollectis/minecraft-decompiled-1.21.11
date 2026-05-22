@@ -36,12 +36,14 @@ import java.util.EnumSet;
 import java.util.List;
 
 /**
- * {@code PhantomEntity}.
+ * Фантом — летающий ночной моб, атакующий игроков, которые не спали более 3 дней.
+ * Боится кошек. Кружит над целью, затем пикирует. Получает урон от солнечного света.
  */
 public class PhantomEntity extends MobEntity implements Monster {
 
 	public static final float WING_FLAP_ANGULAR_VELOCITY = 7.448451F;
 	public static final int WING_FLAP_TICKS = MathHelper.ceil(24.166098F);
+	private static final int CAT_CHECK_INTERVAL = 20;
 	private static final TrackedData<Integer>
 			SIZE =
 			DataTracker.registerData(PhantomEntity.class, TrackedDataHandlerRegistry.INTEGER);
@@ -51,14 +53,14 @@ public class PhantomEntity extends MobEntity implements Monster {
 
 	public PhantomEntity(EntityType<? extends PhantomEntity> entityType, World world) {
 		super(entityType, world);
-		this.experiencePoints = 5;
-		this.moveControl = new PhantomEntity.PhantomMoveControl(this);
-		this.lookControl = new PhantomEntity.PhantomLookControl(this);
+		experiencePoints = 5;
+		moveControl = new PhantomEntity.PhantomMoveControl(this);
+		lookControl = new PhantomEntity.PhantomLookControl(this);
 	}
 
 	@Override
 	public boolean isFlappingWings() {
-		return (this.getWingFlapTickOffset() + this.age) % WING_FLAP_TICKS == 0;
+		return (getWingFlapTickOffset() + age) % WING_FLAP_TICKS == 0;
 	}
 
 	@Override
@@ -68,10 +70,10 @@ public class PhantomEntity extends MobEntity implements Monster {
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(1, new PhantomEntity.StartAttackGoal());
-		this.goalSelector.add(2, new PhantomEntity.SwoopMovementGoal());
-		this.goalSelector.add(3, new PhantomEntity.CircleMovementGoal());
-		this.targetSelector.add(1, new PhantomEntity.FindTargetGoal());
+		goalSelector.add(1, new PhantomEntity.StartAttackGoal());
+		goalSelector.add(2, new PhantomEntity.SwoopMovementGoal());
+		goalSelector.add(3, new PhantomEntity.CircleMovementGoal());
+		targetSelector.add(1, new PhantomEntity.FindTargetGoal());
 	}
 
 	@Override
@@ -81,84 +83,82 @@ public class PhantomEntity extends MobEntity implements Monster {
 	}
 
 	public void setPhantomSize(int size) {
-		this.dataTracker.set(SIZE, MathHelper.clamp(size, 0, 64));
+		dataTracker.set(SIZE, MathHelper.clamp(size, 0, 64));
 	}
 
 	private void onSizeChanged() {
-		this.calculateDimensions();
-		this.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(6 + this.getPhantomSize());
+		calculateDimensions();
+		getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(6 + getPhantomSize());
 	}
 
 	public int getPhantomSize() {
-		return this.dataTracker.get(SIZE);
+		return dataTracker.get(SIZE);
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
 		if (SIZE.equals(data)) {
-			this.onSizeChanged();
+			onSizeChanged();
 		}
 
 		super.onTrackedDataSet(data);
 	}
 
 	public int getWingFlapTickOffset() {
-		return this.getId() * 3;
+		return getId() * 3;
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (this.getEntityWorld().isClient()) {
-			float
-					f =
-					MathHelper.cos((this.getWingFlapTickOffset() + this.age) * 7.448451F * (float) (Math.PI / 180.0)
-							+ (float) Math.PI);
-			float
-					g =
-					MathHelper.cos((this.getWingFlapTickOffset() + this.age + 1) * 7.448451F * (float) (Math.PI / 180.0)
-							+ (float) Math.PI);
-			if (f > 0.0F && g <= 0.0F) {
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_PHANTOM_FLAP,
-						    this.getSoundCategory(),
-						    0.95F + this.random.nextFloat() * 0.05F,
-						    0.95F + this.random.nextFloat() * 0.05F,
-						    false
-				    );
-			}
 
-			float h = this.getWidth() * 1.48F;
-			float i = MathHelper.cos(this.getYaw() * (float) (Math.PI / 180.0)) * h;
-			float j = MathHelper.sin(this.getYaw() * (float) (Math.PI / 180.0)) * h;
-			float k = (0.3F + f * 0.45F) * this.getHeight() * 2.5F;
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							ParticleTypes.MYCELIUM,
-							this.getX() + i,
-							this.getY() + k,
-							this.getZ() + j,
-							0.0,
-							0.0,
-							0.0
-					);
-			this
-					.getEntityWorld()
-					.addParticleClient(
-							ParticleTypes.MYCELIUM,
-							this.getX() - i,
-							this.getY() + k,
-							this.getZ() - j,
-							0.0,
-							0.0,
-							0.0
-					);
+		if (!getEntityWorld().isClient()) {
+			return;
 		}
+
+		float wingCos = MathHelper.cos(
+			(getWingFlapTickOffset() + age) * WING_FLAP_ANGULAR_VELOCITY * (float) (Math.PI / 180.0) + (float) Math.PI
+		);
+		float wingCosNext = MathHelper.cos(
+			(getWingFlapTickOffset() + age + 1) * WING_FLAP_ANGULAR_VELOCITY * (float) (Math.PI / 180.0) + (float) Math.PI
+		);
+
+		if (wingCos > 0.0F && wingCosNext <= 0.0F) {
+			getEntityWorld().playSoundClient(
+				getX(),
+				getY(),
+				getZ(),
+				SoundEvents.ENTITY_PHANTOM_FLAP,
+				getSoundCategory(),
+				0.95F + random.nextFloat() * 0.05F,
+				0.95F + random.nextFloat() * 0.05F,
+				false
+			);
+		}
+
+		float wingSpan = getWidth() * 1.48F;
+		float wingOffsetX = MathHelper.cos(getYaw() * (float) (Math.PI / 180.0)) * wingSpan;
+		float wingOffsetZ = MathHelper.sin(getYaw() * (float) (Math.PI / 180.0)) * wingSpan;
+		float wingOffsetY = (0.3F + wingCos * 0.45F) * getHeight() * 2.5F;
+
+		getEntityWorld().addParticleClient(
+			ParticleTypes.MYCELIUM,
+			getX() + wingOffsetX,
+			getY() + wingOffsetY,
+			getZ() + wingOffsetZ,
+			0.0,
+			0.0,
+			0.0
+		);
+		getEntityWorld().addParticleClient(
+			ParticleTypes.MYCELIUM,
+			getX() - wingOffsetX,
+			getY() + wingOffsetY,
+			getZ() - wingOffsetZ,
+			0.0,
+			0.0,
+			0.0
+		);
 	}
 
 	@Override
@@ -172,33 +172,33 @@ public class PhantomEntity extends MobEntity implements Monster {
 
 	@Override
 	public void travel(Vec3d movementInput) {
-		this.travelFlying(movementInput, 0.2F);
+		travelFlying(movementInput, 0.2F);
 	}
 
 	@Override
 	public EntityData initialize(
-			ServerWorldAccess world,
-			LocalDifficulty difficulty,
-			SpawnReason spawnReason,
-			@Nullable EntityData entityData
+		ServerWorldAccess world,
+		LocalDifficulty difficulty,
+		SpawnReason spawnReason,
+		@Nullable EntityData entityData
 	) {
-		this.circlingCenter = this.getBlockPos().up(5);
-		this.setPhantomSize(0);
+		circlingCenter = getBlockPos().up(5);
+		setPhantomSize(0);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.circlingCenter = view.<BlockPos>read("anchor_pos", BlockPos.CODEC).orElse(null);
-		this.setPhantomSize(view.getInt("size", 0));
+		circlingCenter = view.<BlockPos>read("anchor_pos", BlockPos.CODEC).orElse(null);
+		setPhantomSize(view.getInt("size", 0));
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.putNullable("anchor_pos", BlockPos.CODEC, this.circlingCenter);
-		view.putInt("size", this.getPhantomSize());
+		view.putNullable("anchor_pos", BlockPos.CODEC, circlingCenter);
+		view.putInt("size", getPhantomSize());
 	}
 
 	@Override
@@ -238,18 +238,16 @@ public class PhantomEntity extends MobEntity implements Monster {
 
 	@Override
 	public EntityDimensions getBaseDimensions(EntityPose pose) {
-		int i = this.getPhantomSize();
-		EntityDimensions entityDimensions = super.getBaseDimensions(pose);
-		return entityDimensions.scaled(1.0F + 0.15F * i);
+		int size = getPhantomSize();
+		EntityDimensions dimensions = super.getBaseDimensions(pose);
+
+		return dimensions.scaled(1.0F + 0.15F * size);
 	}
 
 	boolean testTargetPredicate(ServerWorld world, LivingEntity target, TargetPredicate predicate) {
 		return predicate.test(world, this, target);
 	}
 
-	/**
-	 * {@code CircleMovementGoal}.
-	 */
 	class CircleMovementGoal extends PhantomEntity.MovementGoal {
 
 		private float angle;
@@ -322,83 +320,74 @@ public class PhantomEntity extends MobEntity implements Monster {
 		}
 	}
 
-	/**
-	 * {@code FindTargetGoal}.
-	 */
 	class FindTargetGoal extends Goal {
 
-		private final TargetPredicate
-				PLAYERS_IN_RANGE_PREDICATE =
-				TargetPredicate.createAttackable().setBaseMaxDistance(64.0);
-		private int delay = toGoalTicks(20);
+		private static final double PLAYER_DETECTION_RANGE = 64.0;
+		private static final TargetPredicate PLAYERS_IN_RANGE_PREDICATE = TargetPredicate.createAttackable().setBaseMaxDistance(PLAYER_DETECTION_RANGE);
+		private int delay = toGoalTicks(CAT_CHECK_INTERVAL);
 
 		@Override
 		public boolean canStart() {
-			if (this.delay > 0) {
-				this.delay--;
+			if (delay > 0) {
+				delay--;
 				return false;
 			}
-			else {
-				this.delay = toGoalTicks(60);
-				ServerWorld serverWorld = castToServerWorld(PhantomEntity.this.getEntityWorld());
-				List<PlayerEntity> list = serverWorld.getPlayers(
-						this.PLAYERS_IN_RANGE_PREDICATE,
-						PhantomEntity.this,
-						PhantomEntity.this.getBoundingBox().expand(16.0, 64.0, 16.0)
-				);
-				if (!list.isEmpty()) {
-					list.sort(Comparator.comparing(Entity::getY).reversed());
 
-					for (PlayerEntity playerEntity : list) {
-						if (PhantomEntity.this.testTargetPredicate(
-								serverWorld,
-								playerEntity,
-								TargetPredicate.DEFAULT
-						)) {
-							PhantomEntity.this.setTarget(playerEntity);
-							return true;
-						}
-					}
+			delay = toGoalTicks(60);
+			ServerWorld serverWorld = castToServerWorld(PhantomEntity.this.getEntityWorld());
+			List<PlayerEntity> players = serverWorld.getPlayers(
+				PLAYERS_IN_RANGE_PREDICATE,
+				PhantomEntity.this,
+				PhantomEntity.this.getBoundingBox().expand(16.0, 64.0, 16.0)
+			);
+
+			if (players.isEmpty()) {
+				return false;
+			}
+
+			players.sort(Comparator.comparing(Entity::getY).reversed());
+
+			for (PlayerEntity player : players) {
+				if (PhantomEntity.this.testTargetPredicate(serverWorld, player, TargetPredicate.DEFAULT)) {
+					PhantomEntity.this.setTarget(player);
+					return true;
 				}
-
-				return false;
 			}
+
+			return false;
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			LivingEntity livingEntity = PhantomEntity.this.getTarget();
-			return livingEntity != null
-			       ? PhantomEntity.this.testTargetPredicate(
-					castToServerWorld(PhantomEntity.this.getEntityWorld()),
-					livingEntity,
-					TargetPredicate.DEFAULT
-			)
-			       : false;
+			LivingEntity target = PhantomEntity.this.getTarget();
+
+			if (target == null) {
+				return false;
+			}
+
+			return PhantomEntity.this.testTargetPredicate(
+				castToServerWorld(PhantomEntity.this.getEntityWorld()),
+				target,
+				TargetPredicate.DEFAULT
+			);
 		}
 	}
 
-	/**
-	 * {@code MovementGoal}.
-	 */
 	abstract class MovementGoal extends Goal {
 
 		public MovementGoal() {
-			this.setControls(EnumSet.of(Goal.Control.MOVE));
+			setControls(EnumSet.of(Goal.Control.MOVE));
 		}
 
 		protected boolean isNearTarget() {
 			return PhantomEntity.this.targetPosition.squaredDistanceTo(
-					PhantomEntity.this.getX(),
-					PhantomEntity.this.getY(),
-					PhantomEntity.this.getZ()
+				PhantomEntity.this.getX(),
+				PhantomEntity.this.getY(),
+				PhantomEntity.this.getZ()
 			) < 4.0;
 		}
 	}
 
-	/**
-	 * {@code PhantomBodyControl}.
-	 */
 	class PhantomBodyControl extends BodyControl {
 
 		public PhantomBodyControl(final MobEntity entity) {
@@ -412,9 +401,6 @@ public class PhantomEntity extends MobEntity implements Monster {
 		}
 	}
 
-	/**
-	 * {@code PhantomLookControl}.
-	 */
 	static class PhantomLookControl extends LookControl {
 
 		public PhantomLookControl(MobEntity mobEntity) {
@@ -426,9 +412,6 @@ public class PhantomEntity extends MobEntity implements Monster {
 		}
 	}
 
-	/**
-	 * {@code PhantomMoveControl}.
-	 */
 	class PhantomMoveControl extends MoveControl {
 
 		private float targetSpeed = 0.1F;
@@ -441,174 +424,174 @@ public class PhantomEntity extends MobEntity implements Monster {
 		public void tick() {
 			if (PhantomEntity.this.horizontalCollision) {
 				PhantomEntity.this.setYaw(PhantomEntity.this.getYaw() + 180.0F);
-				this.targetSpeed = 0.1F;
+				targetSpeed = 0.1F;
 			}
 
-			double d = PhantomEntity.this.targetPosition.x - PhantomEntity.this.getX();
-			double e = PhantomEntity.this.targetPosition.y - PhantomEntity.this.getY();
-			double f = PhantomEntity.this.targetPosition.z - PhantomEntity.this.getZ();
-			double g = Math.sqrt(d * d + f * f);
-			if (Math.abs(g) > 1.0E-5F) {
-				double h = 1.0 - Math.abs(e * 0.7F) / g;
-				d *= h;
-				f *= h;
-				g = Math.sqrt(d * d + f * f);
-				double i = Math.sqrt(d * d + f * f + e * e);
-				float j = PhantomEntity.this.getYaw();
-				float k = (float) MathHelper.atan2(f, d);
-				float l = MathHelper.wrapDegrees(PhantomEntity.this.getYaw() + 90.0F);
-				float m = MathHelper.wrapDegrees(k * (180.0F / (float) Math.PI));
-				PhantomEntity.this.setYaw(MathHelper.stepUnwrappedAngleTowards(l, m, 4.0F) - 90.0F);
+			double dx = PhantomEntity.this.targetPosition.x - PhantomEntity.this.getX();
+			double dy = PhantomEntity.this.targetPosition.y - PhantomEntity.this.getY();
+			double dz = PhantomEntity.this.targetPosition.z - PhantomEntity.this.getZ();
+			double horizDist = Math.sqrt(dx * dx + dz * dz);
+
+			if (Math.abs(horizDist) > 1.0E-5F) {
+				double vertScale = 1.0 - Math.abs(dy * 0.7F) / horizDist;
+				dx *= vertScale;
+				dz *= vertScale;
+				horizDist = Math.sqrt(dx * dx + dz * dz);
+				double totalDist = Math.sqrt(dx * dx + dz * dz + dy * dy);
+				float prevYaw = PhantomEntity.this.getYaw();
+				float targetAngle = (float) MathHelper.atan2(dz, dx);
+				float wrappedYaw = MathHelper.wrapDegrees(PhantomEntity.this.getYaw() + 90.0F);
+				float wrappedTarget = MathHelper.wrapDegrees(targetAngle * (180.0F / (float) Math.PI));
+				PhantomEntity.this.setYaw(MathHelper.stepUnwrappedAngleTowards(wrappedYaw, wrappedTarget, 4.0F) - 90.0F);
 				PhantomEntity.this.bodyYaw = PhantomEntity.this.getYaw();
-				if (MathHelper.angleBetween(j, PhantomEntity.this.getYaw()) < 3.0F) {
-					this.targetSpeed =
-							MathHelper.stepTowards(this.targetSpeed, 1.8F, 0.005F * (1.8F / this.targetSpeed));
-				}
-				else {
-					this.targetSpeed = MathHelper.stepTowards(this.targetSpeed, 0.2F, 0.025F);
+
+				if (MathHelper.angleBetween(prevYaw, PhantomEntity.this.getYaw()) < 3.0F) {
+					targetSpeed = MathHelper.stepTowards(targetSpeed, 1.8F, 0.005F * (1.8F / targetSpeed));
+				} else {
+					targetSpeed = MathHelper.stepTowards(targetSpeed, 0.2F, 0.025F);
 				}
 
-				float n = (float) (-(MathHelper.atan2(-e, g) * 180.0F / (float) Math.PI));
-				PhantomEntity.this.setPitch(n);
-				float o = PhantomEntity.this.getYaw() + 90.0F;
-				double p = this.targetSpeed * MathHelper.cos(o * (float) (Math.PI / 180.0)) * Math.abs(d / i);
-				double q = this.targetSpeed * MathHelper.sin(o * (float) (Math.PI / 180.0)) * Math.abs(f / i);
-				double r = this.targetSpeed * MathHelper.sin(n * (float) (Math.PI / 180.0)) * Math.abs(e / i);
-				Vec3d vec3d = PhantomEntity.this.getVelocity();
-				PhantomEntity.this.setVelocity(vec3d.add(new Vec3d(p, r, q).subtract(vec3d).multiply(0.2)));
+				float pitch = (float) (-(MathHelper.atan2(-dy, horizDist) * 180.0F / (float) Math.PI));
+				PhantomEntity.this.setPitch(pitch);
+				float yawOffset = PhantomEntity.this.getYaw() + 90.0F;
+				double velX = targetSpeed * MathHelper.cos(yawOffset * (float) (Math.PI / 180.0)) * Math.abs(dx / totalDist);
+				double velZ = targetSpeed * MathHelper.sin(yawOffset * (float) (Math.PI / 180.0)) * Math.abs(dz / totalDist);
+				double velY = targetSpeed * MathHelper.sin(pitch * (float) (Math.PI / 180.0)) * Math.abs(dy / totalDist);
+				Vec3d velocity = PhantomEntity.this.getVelocity();
+				PhantomEntity.this.setVelocity(velocity.add(new Vec3d(velX, velY, velZ).subtract(velocity).multiply(0.2)));
 			}
 		}
 	}
 
-	/**
-	 * {@code PhantomMovementType}.
-	 */
-	static enum PhantomMovementType {
+	enum PhantomMovementType {
 		CIRCLE,
-		SWOOP;
+		SWOOP
 	}
 
-	/**
-	 * {@code StartAttackGoal}.
-	 */
 	class StartAttackGoal extends Goal {
 
 		private int cooldown;
 
 		@Override
 		public boolean canStart() {
-			LivingEntity livingEntity = PhantomEntity.this.getTarget();
-			return livingEntity != null
-			       ? PhantomEntity.this.testTargetPredicate(
-					castToServerWorld(PhantomEntity.this.getEntityWorld()),
-					livingEntity,
-					TargetPredicate.DEFAULT
-			)
-			       : false;
+			LivingEntity target = PhantomEntity.this.getTarget();
+
+			if (target == null) {
+				return false;
+			}
+
+			return PhantomEntity.this.testTargetPredicate(
+				castToServerWorld(PhantomEntity.this.getEntityWorld()),
+				target,
+				TargetPredicate.DEFAULT
+			);
 		}
 
 		@Override
 		public void start() {
-			this.cooldown = this.getTickCount(10);
+			cooldown = getTickCount(10);
 			PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.CIRCLE;
-			this.startSwoop();
+			startSwoop();
 		}
 
 		@Override
 		public void stop() {
-			if (PhantomEntity.this.circlingCenter != null) {
-				PhantomEntity.this.circlingCenter = PhantomEntity.this.getEntityWorld()
-				                                                      .getTopPosition(
-						                                                      Heightmap.Type.MOTION_BLOCKING,
-						                                                      PhantomEntity.this.circlingCenter
-				                                                      )
-				                                                      .up(10 + PhantomEntity.this.random.nextInt(20));
+			if (PhantomEntity.this.circlingCenter == null) {
+				return;
 			}
+
+			PhantomEntity.this.circlingCenter = PhantomEntity.this.getEntityWorld()
+				.getTopPosition(Heightmap.Type.MOTION_BLOCKING, PhantomEntity.this.circlingCenter)
+				.up(10 + PhantomEntity.this.random.nextInt(CAT_CHECK_INTERVAL));
 		}
 
 		@Override
 		public void tick() {
-			if (PhantomEntity.this.movementType == PhantomEntity.PhantomMovementType.CIRCLE) {
-				this.cooldown--;
-				if (this.cooldown <= 0) {
-					PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.SWOOP;
-					this.startSwoop();
-					this.cooldown = this.getTickCount((8 + PhantomEntity.this.random.nextInt(4)) * 20);
-					PhantomEntity.this.playSound(
-							SoundEvents.ENTITY_PHANTOM_SWOOP,
-							10.0F,
-							0.95F + PhantomEntity.this.random.nextFloat() * 0.1F
-					);
-				}
+			if (PhantomEntity.this.movementType != PhantomEntity.PhantomMovementType.CIRCLE) {
+				return;
+			}
+
+			cooldown--;
+
+			if (cooldown <= 0) {
+				PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.SWOOP;
+				startSwoop();
+				cooldown = getTickCount((8 + PhantomEntity.this.random.nextInt(4)) * CAT_CHECK_INTERVAL);
+				PhantomEntity.this.playSound(
+					SoundEvents.ENTITY_PHANTOM_SWOOP,
+					10.0F,
+					0.95F + PhantomEntity.this.random.nextFloat() * 0.1F
+				);
 			}
 		}
 
 		private void startSwoop() {
-			if (PhantomEntity.this.circlingCenter != null) {
-				PhantomEntity.this.circlingCenter =
-						PhantomEntity.this.getTarget().getBlockPos().up(20 + PhantomEntity.this.random.nextInt(20));
-				if (PhantomEntity.this.circlingCenter.getY() < PhantomEntity.this.getEntityWorld().getSeaLevel()) {
-					PhantomEntity.this.circlingCenter = new BlockPos(
-							PhantomEntity.this.circlingCenter.getX(),
-							PhantomEntity.this.getEntityWorld().getSeaLevel() + 1,
-							PhantomEntity.this.circlingCenter.getZ()
-					);
-				}
+			if (PhantomEntity.this.circlingCenter == null) {
+				return;
+			}
+
+			PhantomEntity.this.circlingCenter = PhantomEntity.this.getTarget()
+				.getBlockPos()
+				.up(CAT_CHECK_INTERVAL + PhantomEntity.this.random.nextInt(CAT_CHECK_INTERVAL));
+
+			if (PhantomEntity.this.circlingCenter.getY() < PhantomEntity.this.getEntityWorld().getSeaLevel()) {
+				PhantomEntity.this.circlingCenter = new BlockPos(
+					PhantomEntity.this.circlingCenter.getX(),
+					PhantomEntity.this.getEntityWorld().getSeaLevel() + 1,
+					PhantomEntity.this.circlingCenter.getZ()
+				);
 			}
 		}
 	}
 
-	/**
-	 * {@code SwoopMovementGoal}.
-	 */
 	class SwoopMovementGoal extends PhantomEntity.MovementGoal {
 
-		private static final int CAT_CHECK_INTERVAL = 20;
 		private boolean catsNearby;
 		private int nextCatCheckAge;
 
 		@Override
 		public boolean canStart() {
 			return PhantomEntity.this.getTarget() != null
-					&& PhantomEntity.this.movementType == PhantomEntity.PhantomMovementType.SWOOP;
+				&& PhantomEntity.this.movementType == PhantomEntity.PhantomMovementType.SWOOP;
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			LivingEntity livingEntity = PhantomEntity.this.getTarget();
-			if (livingEntity == null) {
-				return false;
-			}
-			else if (!livingEntity.isAlive()) {
-				return false;
-			}
-			else if (livingEntity instanceof PlayerEntity playerEntity && (livingEntity.isSpectator()
-					|| playerEntity.isCreative()
-			)) {
-				return false;
-			}
-			else if (!this.canStart()) {
-				return false;
-			}
-			else {
-				if (PhantomEntity.this.age > this.nextCatCheckAge) {
-					this.nextCatCheckAge = PhantomEntity.this.age + 20;
-					List<CatEntity> list = PhantomEntity.this.getEntityWorld()
-					                                         .getEntitiesByClass(
-							                                         CatEntity.class,
-							                                         PhantomEntity.this.getBoundingBox().expand(16.0),
-							                                         EntityPredicates.VALID_ENTITY
-					                                         );
+			LivingEntity target = PhantomEntity.this.getTarget();
 
-					for (CatEntity catEntity : list) {
-						catEntity.hiss();
-					}
+			if (target == null) {
+				return false;
+			}
 
-					this.catsNearby = !list.isEmpty();
+			if (!target.isAlive()) {
+				return false;
+			}
+
+			if (target instanceof PlayerEntity player && (target.isSpectator() || player.isCreative())) {
+				return false;
+			}
+
+			if (!canStart()) {
+				return false;
+			}
+
+			if (PhantomEntity.this.age > nextCatCheckAge) {
+				nextCatCheckAge = PhantomEntity.this.age + CAT_CHECK_INTERVAL;
+				List<CatEntity> cats = PhantomEntity.this.getEntityWorld()
+					.getEntitiesByClass(
+						CatEntity.class,
+						PhantomEntity.this.getBoundingBox().expand(16.0),
+						EntityPredicates.VALID_ENTITY
+					);
+
+				for (CatEntity cat : cats) {
+					cat.hiss();
 				}
 
-				return !this.catsNearby;
+				catsNearby = !cats.isEmpty();
 			}
+
+			return !catsNearby;
 		}
 
 		@Override
@@ -623,20 +606,23 @@ public class PhantomEntity extends MobEntity implements Monster {
 
 		@Override
 		public void tick() {
-			LivingEntity livingEntity = PhantomEntity.this.getTarget();
-			if (livingEntity != null) {
-				PhantomEntity.this.targetPosition =
-						new Vec3d(livingEntity.getX(), livingEntity.getBodyY(0.5), livingEntity.getZ());
-				if (PhantomEntity.this.getBoundingBox().expand(0.2F).intersects(livingEntity.getBoundingBox())) {
-					PhantomEntity.this.tryAttack(castToServerWorld(PhantomEntity.this.getEntityWorld()), livingEntity);
-					PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.CIRCLE;
-					if (!PhantomEntity.this.isSilent()) {
-						PhantomEntity.this.getEntityWorld().syncWorldEvent(1039, PhantomEntity.this.getBlockPos(), 0);
-					}
+			LivingEntity target = PhantomEntity.this.getTarget();
+
+			if (target == null) {
+				return;
+			}
+
+			PhantomEntity.this.targetPosition = new Vec3d(target.getX(), target.getBodyY(0.5), target.getZ());
+
+			if (PhantomEntity.this.getBoundingBox().expand(0.2F).intersects(target.getBoundingBox())) {
+				PhantomEntity.this.tryAttack(castToServerWorld(PhantomEntity.this.getEntityWorld()), target);
+				PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.CIRCLE;
+
+				if (!PhantomEntity.this.isSilent()) {
+					PhantomEntity.this.getEntityWorld().syncWorldEvent(1039, PhantomEntity.this.getBlockPos(), 0);
 				}
-				else if (PhantomEntity.this.horizontalCollision || PhantomEntity.this.hurtTime > 0) {
-					PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.CIRCLE;
-				}
+			} else if (PhantomEntity.this.horizontalCollision || PhantomEntity.this.hurtTime > 0) {
+				PhantomEntity.this.movementType = PhantomEntity.PhantomMovementType.CIRCLE;
 			}
 		}
 	}

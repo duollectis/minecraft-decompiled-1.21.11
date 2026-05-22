@@ -10,57 +10,72 @@ import net.minecraft.item.tooltip.TooltipData;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ProfilesTooltipComponent}.
+ * Компонент тултипа для отображения списка игровых профилей (скинов).
+ * Используется, например, в тултипе книги с подписями или предметов,
+ * связанных с конкретными игроками. Каждая строка содержит иконку скина и имя.
  */
+@Environment(EnvType.CLIENT)
 public class ProfilesTooltipComponent implements TooltipComponent {
 
 	private static final int PROFILE_ICON_SIZE = 10;
-	private static final int PROFILE_ICON_SPACING = 2;
+	private static final int PROFILE_ROW_HEIGHT = 12;
+	/** Горизонтальный отступ иконки от левого края компонента. */
+	private static final int ICON_LEFT_PADDING = 2;
+	/** Вертикальный отступ первой строки от верхнего края компонента. */
+	private static final int ROWS_TOP_PADDING = 2;
+	/** Отступ текста имени от правого края иконки. */
+	private static final int TEXT_LEFT_PADDING = 4;
+	/** Вертикальный отступ текста внутри строки. */
+	private static final int TEXT_TOP_PADDING = 2;
+	/** Дополнительный горизонтальный зазор между иконкой и правым краем компонента. */
+	private static final int WIDTH_EXTRA_PADDING = 6;
+	/** Цвет текста имени профиля (белый). */
+	private static final int TEXT_COLOR = -1;
+
 	private final List<PlayerSkinCache.Entry> profiles;
 
-	public ProfilesTooltipComponent(ProfilesTooltipComponent.ProfilesData data) {
-		this.profiles = data.profiles();
+	public ProfilesTooltipComponent(ProfilesData data) {
+		profiles = data.profiles();
 	}
 
 	@Override
 	public int getHeight(TextRenderer textRenderer) {
-		return this.profiles.size() * 12 + 2;
-	}
-
-	private static String getName(PlayerSkinCache.Entry entry) {
-		return entry.getProfile().name();
+		return profiles.size() * PROFILE_ROW_HEIGHT + ROWS_TOP_PADDING;
 	}
 
 	@Override
 	public int getWidth(TextRenderer textRenderer) {
-		int i = 0;
+		int maxWidth = 0;
 
-		for (PlayerSkinCache.Entry entry : this.profiles) {
-			int j = textRenderer.getWidth(getName(entry));
-			if (j > i) {
-				i = j;
+		for (PlayerSkinCache.Entry entry : profiles) {
+			int nameWidth = textRenderer.getWidth(entry.getProfile().name());
+			if (nameWidth > maxWidth) {
+				maxWidth = nameWidth;
 			}
 		}
 
-		return i + 10 + 6;
+		return maxWidth + PROFILE_ICON_SIZE + WIDTH_EXTRA_PADDING;
 	}
 
 	@Override
 	public void drawItems(TextRenderer textRenderer, int x, int y, int width, int height, DrawContext context) {
-		for (int i = 0; i < this.profiles.size(); i++) {
-			PlayerSkinCache.Entry entry = this.profiles.get(i);
-			int j = y + 2 + i * 12;
-			PlayerSkinDrawer.draw(context, entry.getTextures(), x + 2, j, 10);
-			context.drawTextWithShadow(textRenderer, getName(entry), x + 10 + 4, j + 2, -1);
+		for (int i = 0; i < profiles.size(); i++) {
+			PlayerSkinCache.Entry entry = profiles.get(i);
+			int entryY = y + ROWS_TOP_PADDING + i * PROFILE_ROW_HEIGHT;
+			PlayerSkinDrawer.draw(context, entry.getTextures(), x + ICON_LEFT_PADDING, entryY, PROFILE_ICON_SIZE);
+			context.drawTextWithShadow(
+				textRenderer,
+				entry.getProfile().name(),
+				x + PROFILE_ICON_SIZE + TEXT_LEFT_PADDING,
+				entryY + TEXT_TOP_PADDING,
+				TEXT_COLOR
+			);
 		}
 	}
 
+	/** Данные для создания компонента тултипа профилей. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ProfilesData}.
-	 */
 	public record ProfilesData(List<PlayerSkinCache.Entry> profiles) implements TooltipData {
 	}
 }

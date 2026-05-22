@@ -28,7 +28,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * {@code PerfCommand}.
+ * Команда {@code /perf}: запуск профилировщика производительности (только dedicated).
  */
 public class PerfCommand {
 

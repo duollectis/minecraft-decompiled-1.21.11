@@ -27,60 +27,78 @@ import org.jspecify.annotations.Nullable;
 import java.util.stream.Stream;
 
 /**
- * {@code FluidState}.
+ * Неизменяемое состояние жидкости, аналог {@code BlockState} для блоков.
+ *
+ * <p>Хранит набор свойств (уровень, флаг падения) и делегирует всю логику
+ * своему владельцу — объекту {@link Fluid}. Все экземпляры регистрируются
+ * в {@link Fluid#STATE_IDS} при инициализации {@link Fluids}.</p>
  */
 public final class FluidState extends State<Fluid, FluidState> {
 
-	public static final Codec<FluidState>
-			CODEC =
-			createCodec(Registries.FLUID.getCodec(), Fluid::getDefaultState).stable();
+	public static final Codec<FluidState> CODEC =
+		createCodec(Registries.FLUID.getCodec(), Fluid::getDefaultState).stable();
+
+	/** Максимальное количество «единиц» жидкости в блоке (уровень источника + 1). */
 	public static final int MAX_AMOUNT = 9;
+
+	/** Максимальный числовой уровень текущей жидкости. */
 	public static final int MAX_FLUID_LEVEL = 8;
 
 	public FluidState(
-			Fluid fluid,
-			Reference2ObjectArrayMap<Property<?>, Comparable<?>> propertyMap,
-			MapCodec<FluidState> codec
+		Fluid fluid,
+		Reference2ObjectArrayMap<Property<?>, Comparable<?>> propertyMap,
+		MapCodec<FluidState> codec
 	) {
 		super(fluid, propertyMap, codec);
 	}
 
 	public Fluid getFluid() {
-		return this.owner;
+		return owner;
 	}
 
 	public boolean isStill() {
-		return this.getFluid().isStill(this);
+		return getFluid().isStill(this);
 	}
 
+	/**
+	 * Проверяет, является ли данное состояние стоячей жидкостью конкретного типа.
+	 * Используется для определения источников при генерации новых источников.
+	 */
 	public boolean isEqualAndStill(Fluid fluid) {
-		return this.owner == fluid && this.owner.isStill(this);
+		return owner == fluid && owner.isStill(this);
 	}
 
 	public boolean isEmpty() {
-		return this.getFluid().isEmpty();
+		return getFluid().isEmpty();
 	}
 
 	public float getHeight(BlockView world, BlockPos pos) {
-		return this.getFluid().getHeight(this, world, pos);
+		return getFluid().getHeight(this, world, pos);
 	}
 
 	public float getHeight() {
-		return this.getFluid().getHeight(this);
+		return getFluid().getHeight(this);
 	}
 
 	public int getLevel() {
-		return this.getFluid().getLevel(this);
+		return getFluid().getLevel(this);
 	}
 
+	/**
+	 * Проверяет, может ли жидкость вытечь из данной позиции хотя бы в одном горизонтальном направлении.
+	 * Используется для оптимизации: если вытекать некуда, тик не нужен.
+	 */
 	public boolean canFlowTo(BlockView world, BlockPos pos) {
-		for (int i = -1; i <= 1; i++) {
-			for (int j = -1; j <= 1; j++) {
-				BlockPos blockPos = pos.add(i, 0, j);
-				FluidState fluidState = world.getFluidState(blockPos);
-				if (!fluidState.getFluid().matchesType(this.getFluid()) && !world
-						.getBlockState(blockPos)
-						.isOpaqueFullCube()) {
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				BlockPos neighbor = pos.add(dx, 0, dz);
+				FluidState neighborFluid = world.getFluidState(neighbor);
+
+				if (neighborFluid.getFluid().matchesType(getFluid())) {
+					continue;
+				}
+
+				if (!world.getBlockState(neighbor).isOpaqueFullCube()) {
 					return true;
 				}
 			}
@@ -90,70 +108,70 @@ public final class FluidState extends State<Fluid, FluidState> {
 	}
 
 	public void onScheduledTick(ServerWorld world, BlockPos pos, BlockState state) {
-		this.getFluid().onScheduledTick(world, pos, state, this);
+		getFluid().onScheduledTick(world, pos, state, this);
 	}
 
 	public void randomDisplayTick(World world, BlockPos pos, Random random) {
-		this.getFluid().randomDisplayTick(world, pos, this, random);
+		getFluid().randomDisplayTick(world, pos, this, random);
 	}
 
 	public boolean hasRandomTicks() {
-		return this.getFluid().hasRandomTicks();
+		return getFluid().hasRandomTicks();
 	}
 
 	public void onRandomTick(ServerWorld world, BlockPos pos, Random random) {
-		this.getFluid().onRandomTick(world, pos, this, random);
+		getFluid().onRandomTick(world, pos, this, random);
 	}
 
 	public Vec3d getVelocity(BlockView world, BlockPos pos) {
-		return this.getFluid().getVelocity(world, pos, this);
+		return getFluid().getVelocity(world, pos, this);
 	}
 
 	public BlockState getBlockState() {
-		return this.getFluid().toBlockState(this);
+		return getFluid().toBlockState(this);
 	}
 
 	public @Nullable ParticleEffect getParticle() {
-		return this.getFluid().getParticle();
+		return getFluid().getParticle();
 	}
 
 	public boolean isIn(TagKey<Fluid> tag) {
-		return this.getFluid().getRegistryEntry().isIn(tag);
+		return getFluid().getRegistryEntry().isIn(tag);
 	}
 
 	public boolean isIn(RegistryEntryList<Fluid> fluids) {
-		return fluids.contains(this.getFluid().getRegistryEntry());
+		return fluids.contains(getFluid().getRegistryEntry());
 	}
 
 	public boolean isOf(Fluid fluid) {
-		return this.getFluid() == fluid;
+		return getFluid() == fluid;
 	}
 
 	public float getBlastResistance() {
-		return this.getFluid().getBlastResistance();
+		return getFluid().getBlastResistance();
 	}
 
 	public boolean canBeReplacedWith(BlockView world, BlockPos pos, Fluid fluid, Direction direction) {
-		return this.getFluid().canBeReplacedWith(this, world, pos, fluid, direction);
+		return getFluid().canBeReplacedWith(this, world, pos, fluid, direction);
 	}
 
 	public VoxelShape getShape(BlockView world, BlockPos pos) {
-		return this.getFluid().getShape(this, world, pos);
+		return getFluid().getShape(this, world, pos);
 	}
 
 	public @Nullable Box getCollisionBox(BlockView world, BlockPos pos) {
-		return this.getFluid().getCollisionBox(this, world, pos);
+		return getFluid().getCollisionBox(this, world, pos);
 	}
 
 	public RegistryEntry<Fluid> getRegistryEntry() {
-		return this.owner.getRegistryEntry();
+		return owner.getRegistryEntry();
 	}
 
 	public Stream<TagKey<Fluid>> streamTags() {
-		return this.owner.getRegistryEntry().streamTags();
+		return owner.getRegistryEntry().streamTags();
 	}
 
 	public void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
-		this.getFluid().onEntityCollision(world, pos, entity, handler);
+		getFluid().onEntityCollision(world, pos, entity, handler);
 	}
 }

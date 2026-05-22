@@ -1,7 +1,6 @@
 package net.minecraft.datafixer.schema;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.DataFixUtils;
 import com.mojang.datafixers.schemas.Schema;
@@ -16,34 +15,41 @@ import net.minecraft.util.Identifier;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.HashMap;
 
 /**
- * {@code Schema1451v6}.
+ * Схема версии 1451v6: регистрирует типы {@code STATS} и {@code OBJECTIVE}
+ * с хуками {@code CRITERIA_NAME_TO_TYPE_HOOK} и {@code CRITERIA_TYPE_TO_NAME_HOOK},
+ * которые преобразуют строковое имя критерия вида {@code "namespace:path"} в
+ * структурированный объект {@code CriteriaType} и обратно.
  */
 public class Schema1451v6 extends IdentifierNormalizingSchema {
 
 	public static final String SPECIAL_TYPE = "_special";
+
+	/** ASCII-код символа {@code ':'}, используемого как разделитель namespace и path. */
+	private static final int COLON_CHAR_CODE = ':';
+
 	protected static final HookFunction CRITERIA_NAME_TO_TYPE_HOOK = new HookFunction() {
 		public <T> T apply(DynamicOps<T> ops, T value) {
-			Dynamic<T> dynamic = new Dynamic(ops, value);
-			return (T) ((Dynamic) DataFixUtils.orElse(
+			Dynamic<T> dynamic = new Dynamic<>(ops, value);
+			return (T) ((Dynamic<?>) DataFixUtils.orElse(
 					dynamic.get("CriteriaName")
 					       .asString()
 					       .result()
 					       .map(criteriaName -> {
-						       int i = criteriaName.indexOf(58);
-						       if (i < 0) {
+						       int colonIndex = criteriaName.indexOf(COLON_CHAR_CODE);
+						       if (colonIndex < 0) {
 							       return Pair.of("_special", criteriaName);
 						       }
-						       else {
-							       try {
-								       Identifier identifier = Identifier.splitOn(criteriaName.substring(0, i), '.');
-								       Identifier identifier2 = Identifier.splitOn(criteriaName.substring(i + 1), '.');
-								       return Pair.of(identifier.toString(), identifier2.toString());
-							       }
-							       catch (Exception var4) {
-								       return Pair.of("_special", criteriaName);
-							       }
+
+						       try {
+							       Identifier identifier = Identifier.splitOn(criteriaName.substring(0, colonIndex), '.');
+							       Identifier identifier2 = Identifier.splitOn(criteriaName.substring(colonIndex + 1), '.');
+							       return Pair.of(identifier.toString(), identifier2.toString());
+						       }
+						       catch (Exception var4) {
+							       return Pair.of("_special", criteriaName);
 						       }
 					       })
 					       .map(
@@ -67,7 +73,7 @@ public class Schema1451v6 extends IdentifierNormalizingSchema {
 	};
 	protected static final HookFunction CRITERIA_TYPE_TO_NAME_HOOK = new HookFunction() {
 		public <T> T apply(DynamicOps<T> ops, T value) {
-			Dynamic<T> dynamic = new Dynamic(ops, value);
+			Dynamic<T> dynamic = new Dynamic<>(ops, value);
 			Optional<Dynamic<T>> optional = dynamic.get("CriteriaType")
 			                                       .get()
 			                                       .result()
@@ -88,12 +94,10 @@ public class Schema1451v6 extends IdentifierNormalizingSchema {
 									                                              + ":" + Schema1451v6.toDotSeparated(
 											                                              optional2.get())));
 						                                       }
-						                                       else {
-							                                       return Optional.empty();
-						                                       }
-					                                       }
-			                                       );
-			return (T) ((Dynamic) DataFixUtils.orElse(
+						                                       return Optional.empty();
+						                                      }
+						                                    );
+			return (T) ((Dynamic<?>) DataFixUtils.orElse(
 					optional.map(criteriaName -> dynamic
 							.set("CriteriaName", criteriaName)
 							.remove("CriteriaType")), dynamic
@@ -103,8 +107,8 @@ public class Schema1451v6 extends IdentifierNormalizingSchema {
 		}
 	};
 
-	public Schema1451v6(int i, Schema schema) {
-		super(i, schema);
+	public Schema1451v6(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public void registerTypes(
@@ -181,7 +185,7 @@ public class Schema1451v6 extends IdentifierNormalizingSchema {
 		Supplier<TypeTemplate> supplier = () -> DSL.optionalFields("id", TypeReferences.ITEM_NAME.in(schema));
 		Supplier<TypeTemplate> supplier2 = () -> DSL.optionalFields("id", TypeReferences.BLOCK_NAME.in(schema));
 		Supplier<TypeTemplate> supplier3 = () -> DSL.optionalFields("id", TypeReferences.ENTITY_NAME.in(schema));
-		Map<String, Supplier<TypeTemplate>> map = Maps.newHashMap();
+		Map<String, Supplier<TypeTemplate>> map = new HashMap<>();
 		map.put("minecraft:mined", supplier2);
 		map.put("minecraft:crafted", supplier);
 		map.put("minecraft:used", supplier);

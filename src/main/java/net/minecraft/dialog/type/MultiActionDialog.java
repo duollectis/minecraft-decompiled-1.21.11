@@ -10,29 +10,32 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code MultiActionDialog}.
+ * Диалог с произвольным набором кнопок действий, расположенных в колонках.
+ *
+ * <p>Список {@code actions} должен содержать хотя бы одну кнопку.
+ * Кнопки располагаются в {@code columns} колонок.</p>
  */
 public record MultiActionDialog(
-		DialogCommonData common,
-		List<DialogActionButtonData> actions,
-		Optional<DialogActionButtonData> exitAction,
-		int columns
-)
-		implements ColumnsDialog {
+	DialogCommonData common,
+	List<DialogActionButtonData> actions,
+	Optional<DialogActionButtonData> exitAction,
+	int columns
+) implements ColumnsDialog {
+
+	private static final int DEFAULT_COLUMNS = 2;
 
 	public static final MapCodec<MultiActionDialog> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    DialogCommonData.CODEC.forGetter(MultiActionDialog::common),
-					                    Codecs
-							                    .nonEmptyList(DialogActionButtonData.CODEC.listOf())
-							                    .fieldOf("actions")
-							                    .forGetter(MultiActionDialog::actions),
-					                    DialogActionButtonData.CODEC
-							                    .optionalFieldOf("exit_action")
-							                    .forGetter(MultiActionDialog::exitAction),
-					                    Codecs.POSITIVE_INT.optionalFieldOf("columns", 2).forGetter(MultiActionDialog::columns)
-			                    )
-			                    .apply(instance, MultiActionDialog::new)
+		instance -> instance.group(
+			DialogCommonData.CODEC.forGetter(MultiActionDialog::common),
+			Codecs.nonEmptyList(DialogActionButtonData.CODEC.listOf())
+				.fieldOf("actions")
+				.forGetter(MultiActionDialog::actions),
+			DialogActionButtonData.CODEC
+				.optionalFieldOf("exit_action")
+				.forGetter(MultiActionDialog::exitAction),
+			Codecs.POSITIVE_INT.optionalFieldOf("columns", DEFAULT_COLUMNS).forGetter(MultiActionDialog::columns)
+		)
+		.apply(instance, MultiActionDialog::new)
 	);
 
 	@Override

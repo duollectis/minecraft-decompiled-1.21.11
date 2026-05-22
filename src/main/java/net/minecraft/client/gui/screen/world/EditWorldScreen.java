@@ -30,13 +30,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EditWorldScreen}.
+ * Экран редактирования параметров существующего мира.
+ * Позволяет переименовать мир, сбросить иконку, создать резервную копию и запустить оптимизацию.
  */
+@Environment(EnvType.CLIENT)
 public class EditWorldScreen extends Screen {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int BUTTON_WIDTH = 200;
+	private static final int HALF_BUTTON_WIDTH = 98;
+	private static final int BUTTON_SPACING = 4;
+	private static final int TITLE_Y = 15;
 	private static final Text ENTER_NAME_TEXT = Text.translatable("selectWorld.enterName").formatted(Formatting.GRAY);
 	private static final Text RESET_ICON_TEXT = Text.translatable("selectWorld.edit.resetIcon");
 	private static final Text OPEN_FOLDER_TEXT = Text.translatable("selectWorld.edit.openFolder");
@@ -47,9 +52,7 @@ public class EditWorldScreen extends Screen {
 	private static final Text CONFIRM_DESCRIPTION_TEXT = Text.translatable("optimizeWorld.confirm.description");
 	private static final Text CONFIRM_PROCEED_TEXT = Text.translatable("optimizeWorld.confirm.proceed");
 	private static final Text SAVE_TEXT = Text.translatable("selectWorld.edit.save");
-	private static final int BUTTON_WIDTH = 200;
-	private static final int BUTTON_SPACING = 4;
-	private static final int HALF_BUTTON_WIDTH = 98;
+
 	private final DirectionalLayoutWidget layout = DirectionalLayoutWidget.vertical().spacing(5);
 	private final BooleanConsumer callback;
 	private final LevelStorage.Session storageSession;
@@ -70,163 +73,166 @@ public class EditWorldScreen extends Screen {
 		super(Text.translatable("selectWorld.edit.title"));
 		this.callback = callback;
 		this.storageSession = session;
+
 		TextRenderer textRenderer = client.textRenderer;
-		this.layout.add(new EmptyWidget(200, 20));
-		this.layout.add(new TextWidget(ENTER_NAME_TEXT, textRenderer));
-		this.nameFieldWidget = this.layout.add(new TextFieldWidget(textRenderer, 200, 20, ENTER_NAME_TEXT));
-		this.nameFieldWidget.setText(levelName);
-		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(4);
-		ButtonWidget buttonWidget = directionalLayoutWidget.add(
-				ButtonWidget.builder(SAVE_TEXT, button -> this.commit(this.nameFieldWidget.getText())).width(98).build()
+		layout.add(new EmptyWidget(BUTTON_WIDTH, 20));
+		layout.add(new TextWidget(ENTER_NAME_TEXT, textRenderer));
+
+		nameFieldWidget = layout.add(new TextFieldWidget(textRenderer, BUTTON_WIDTH, 20, ENTER_NAME_TEXT));
+		nameFieldWidget.setText(levelName);
+
+		DirectionalLayoutWidget saveRow = DirectionalLayoutWidget.horizontal().spacing(BUTTON_SPACING);
+		ButtonWidget saveButton = saveRow.add(
+				ButtonWidget.builder(SAVE_TEXT, button -> commit(nameFieldWidget.getText())).width(HALF_BUTTON_WIDTH).build()
 		);
-		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.close()).width(98).build());
-		this.nameFieldWidget.setChangedListener(name -> buttonWidget.active = !StringHelper.isBlank(name));
-		this.layout.add(ButtonWidget.builder(
-				RESET_ICON_TEXT, buttonWidgetx -> {
+		saveRow.add(ButtonWidget.builder(ScreenTexts.CANCEL, button -> close()).width(HALF_BUTTON_WIDTH).build());
+		nameFieldWidget.setChangedListener(name -> saveButton.active = !StringHelper.isBlank(name));
+
+		layout.add(ButtonWidget.builder(
+				RESET_ICON_TEXT, button -> {
 					session.getIconFile().ifPresent(path -> FileUtils.deleteQuietly(path.toFile()));
-					buttonWidgetx.active = false;
+					button.active = false;
 				}
-		).width(200).build()).active = session.getIconFile().filter(path -> Files.isRegularFile(path)).isPresent();
-		this.layout
-				.add(ButtonWidget
-						.builder(
-								OPEN_FOLDER_TEXT,
-								button -> Util.getOperatingSystem().open(session.getDirectory(WorldSavePath.ROOT))
-						)
-						.width(200)
-						.build());
-		this.layout.add(ButtonWidget.builder(
+		).width(BUTTON_WIDTH).build()).active = session.getIconFile().filter(Files::isRegularFile).isPresent();
+
+		layout.add(ButtonWidget
+				.builder(
+						OPEN_FOLDER_TEXT,
+						button -> Util.getOperatingSystem().open(session.getDirectory(WorldSavePath.ROOT))
+				)
+				.width(BUTTON_WIDTH)
+				.build());
+
+		layout.add(ButtonWidget.builder(
 				BACKUP_TEXT, button -> {
-					boolean bl = backupLevel(session);
-					this.callback.accept(!bl);
+					boolean backupFailed = backupLevel(session);
+					callback.accept(!backupFailed);
 				}
-		).width(200).build());
-		this.layout.add(ButtonWidget.builder(
+		).width(BUTTON_WIDTH).build());
+
+		layout.add(ButtonWidget.builder(
 				BACKUP_FOLDER_TEXT, button -> {
 					LevelStorage levelStorage = client.getLevelStorage();
-					Path path = levelStorage.getBackupsDirectory();
+					Path backupsDir = levelStorage.getBackupsDirectory();
 
 					try {
-						PathUtil.createDirectories(path);
+						PathUtil.createDirectories(backupsDir);
 					}
-					catch (IOException var5x) {
-						throw new RuntimeException(var5x);
+					catch (IOException exception) {
+						throw new RuntimeException(exception);
 					}
 
-					Util.getOperatingSystem().open(path);
+					Util.getOperatingSystem().open(backupsDir);
 				}
-		).width(200).build());
-		this.layout
-				.add(ButtonWidget.builder(
-						OPTIMIZE_TEXT, button -> client.setScreen(new BackupPromptScreen(
-								() -> client.setScreen(this), (backup, eraseCache) -> {
+		).width(BUTTON_WIDTH).build());
+
+		layout.add(ButtonWidget.builder(
+				OPTIMIZE_TEXT, button -> client.setScreen(new BackupPromptScreen(
+						() -> client.setScreen(this),
+						(backup, eraseCache) -> {
 							if (backup) {
 								backupLevel(session);
 							}
 
 							client.setScreen(OptimizeWorldScreen.create(
 									client,
-									this.callback,
+									callback,
 									client.getDataFixer(),
 									session,
 									eraseCache
 							));
-						}, CONFIRM_TITLE_TEXT, CONFIRM_DESCRIPTION_TEXT, CONFIRM_PROCEED_TEXT, true
-						))
-				).width(200).build());
-		this.layout.add(new EmptyWidget(200, 20));
-		this.layout.add(directionalLayoutWidget);
-		this.layout.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
+						},
+						CONFIRM_TITLE_TEXT,
+						CONFIRM_DESCRIPTION_TEXT,
+						CONFIRM_PROCEED_TEXT,
+						true
+				))
+		).width(BUTTON_WIDTH).build());
+
+		layout.add(new EmptyWidget(BUTTON_WIDTH, 20));
+		layout.add(saveRow);
+		layout.forEachChild(this::addDrawableChild);
 	}
 
 	@Override
 	protected void setInitialFocus() {
-		this.setInitialFocus(this.nameFieldWidget);
+		setInitialFocus(nameFieldWidget);
 	}
 
 	@Override
 	protected void init() {
-		this.refreshWidgetPositions();
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		this.layout.refreshPositions();
-		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
+		layout.refreshPositions();
+		SimplePositioningWidget.setPos(layout, getNavigationFocus());
 	}
 
 	@Override
 	public boolean keyPressed(KeyInput input) {
-		if (this.nameFieldWidget.isFocused() && input.isEnter()) {
-			this.commit(this.nameFieldWidget.getText());
-			this.close();
+		if (nameFieldWidget.isFocused() && input.isEnter()) {
+			commit(nameFieldWidget.getText());
+			close();
 			return true;
 		}
-		else {
-			return super.keyPressed(input);
-		}
+
+		return super.keyPressed(input);
 	}
 
 	@Override
 	public void close() {
-		this.callback.accept(false);
+		callback.accept(false);
 	}
 
 	private void commit(String levelName) {
 		try {
-			this.storageSession.save(levelName);
+			storageSession.save(levelName);
 		}
-		catch (NbtException | NbtCrashException | IOException var3) {
-			LOGGER.error("Failed to access world '{}'", this.storageSession.getDirectoryName(), var3);
-			SystemToast.addWorldAccessFailureToast(this.client, this.storageSession.getDirectoryName());
+		catch (NbtException | NbtCrashException | IOException exception) {
+			LOGGER.error("Failed to access world '{}'", storageSession.getDirectoryName(), exception);
+			SystemToast.addWorldAccessFailureToast(client, storageSession.getDirectoryName());
 		}
 
-		this.callback.accept(true);
+		callback.accept(true);
 	}
 
 	/**
-	 * Backup level.
-	 *
-	 * @param storageSession storage session
-	 *
-	 * @return boolean — результат операции
+	 * Создаёт резервную копию мира и отображает тост с результатом операции.
+	 * Возвращает {@code true} если резервная копия была успешно создана.
 	 */
 	public static boolean backupLevel(LevelStorage.Session storageSession) {
-		long l = 0L;
-		IOException iOException = null;
+		long backupSize = 0L;
+		IOException backupException = null;
 
 		try {
-			l = storageSession.createBackup();
+			backupSize = storageSession.createBackup();
 		}
-		catch (IOException var6) {
-			iOException = var6;
+		catch (IOException exception) {
+			backupException = exception;
 		}
 
-		if (iOException != null) {
-			Text text = Text.translatable("selectWorld.edit.backupFailed");
-			Text text2 = Text.literal(iOException.getMessage());
-			MinecraftClient
-					.getInstance()
-					.getToastManager()
-					.add(new SystemToast(SystemToast.Type.WORLD_BACKUP, text, text2));
+		if (backupException != null) {
+			Text title = Text.translatable("selectWorld.edit.backupFailed");
+			Text message = Text.literal(backupException.getMessage());
+			MinecraftClient.getInstance().getToastManager().add(
+					new SystemToast(SystemToast.Type.WORLD_BACKUP, title, message)
+			);
 			return false;
 		}
-		else {
-			Text text = Text.translatable("selectWorld.edit.backupCreated", storageSession.getDirectoryName());
-			Text text2 = Text.translatable("selectWorld.edit.backupSize", MathHelper.ceil(l / 1048576.0));
-			MinecraftClient
-					.getInstance()
-					.getToastManager()
-					.add(new SystemToast(SystemToast.Type.WORLD_BACKUP, text, text2));
-			return true;
-		}
+
+		Text title = Text.translatable("selectWorld.edit.backupCreated", storageSession.getDirectoryName());
+		Text message = Text.translatable("selectWorld.edit.backupSize", MathHelper.ceil(backupSize / 1048576.0));
+		MinecraftClient.getInstance().getToastManager().add(
+				new SystemToast(SystemToast.Type.WORLD_BACKUP, title, message)
+		);
+		return true;
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		super.render(context, mouseX, mouseY, deltaTicks);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, -1);
+		context.drawCenteredTextWithShadow(textRenderer, title, width / 2, TITLE_Y, -1);
 	}
 }

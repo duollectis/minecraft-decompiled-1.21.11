@@ -6,7 +6,8 @@ import net.minecraft.util.math.ChunkPos;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code NbtScannable}.
+ * Контракт для асинхронного сканирования NBT-данных чанка без полной десериализации.
+ * Используется для быстрого чтения отдельных полей (например, DataVersion) без загрузки всего чанка.
  */
 public interface NbtScannable {
 

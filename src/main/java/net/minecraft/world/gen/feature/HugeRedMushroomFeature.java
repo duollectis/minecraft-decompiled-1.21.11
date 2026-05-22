@@ -8,7 +8,9 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.WorldAccess;
 
 /**
- * {@code HugeRedMushroomFeature}.
+ * Генерирует огромный красный гриб с куполообразной шляпкой.
+ * Шляпка формируется в нижних 3 уровнях как кольцо (только края),
+ * а верхний уровень — полный диск. Боковые грани ориентированы наружу.
  */
 public class HugeRedMushroomFeature extends HugeMushroomFeature {
 
@@ -18,42 +20,51 @@ public class HugeRedMushroomFeature extends HugeMushroomFeature {
 
 	@Override
 	protected void generateCap(
-			WorldAccess world,
-			Random random,
-			BlockPos start,
-			int y,
-			BlockPos.Mutable mutable,
-			HugeMushroomFeatureConfig config
+		WorldAccess world,
+		Random random,
+		BlockPos start,
+		int y,
+		BlockPos.Mutable mutable,
+		HugeMushroomFeatureConfig config
 	) {
-		for (int i = y - 3; i <= y; i++) {
-			int j = i < y ? config.foliageRadius : config.foliageRadius - 1;
-			int k = config.foliageRadius - 2;
+		int innerRadius = config.foliageRadius - 2;
 
-			for (int l = -j; l <= j; l++) {
-				for (int m = -j; m <= j; m++) {
-					boolean bl = l == -j;
-					boolean bl2 = l == j;
-					boolean bl3 = m == -j;
-					boolean bl4 = m == j;
-					boolean bl5 = bl || bl2;
-					boolean bl6 = bl3 || bl4;
-					if (i >= y || bl5 != bl6) {
-						mutable.set(start, l, i, m);
-						BlockState blockState = config.capProvider.get(random, start);
-						if (blockState.contains(MushroomBlock.WEST)
-								&& blockState.contains(MushroomBlock.EAST)
-								&& blockState.contains(MushroomBlock.NORTH)
-								&& blockState.contains(MushroomBlock.SOUTH)
-								&& blockState.contains(MushroomBlock.UP)) {
-							blockState = blockState.with(MushroomBlock.UP, i >= y - 1)
-							                       .with(MushroomBlock.WEST, l < -k)
-							                       .with(MushroomBlock.EAST, l > k)
-							                       .with(MushroomBlock.NORTH, m < -k)
-							                       .with(MushroomBlock.SOUTH, m > k);
-						}
+		for (int dy = y - 3; dy <= y; dy++) {
+			int outerRadius = dy < y ? config.foliageRadius : config.foliageRadius - 1;
 
-						this.generateStem(world, mutable, blockState);
+			for (int dx = -outerRadius; dx <= outerRadius; dx++) {
+				for (int dz = -outerRadius; dz <= outerRadius; dz++) {
+					boolean onWestEdge = dx == -outerRadius;
+					boolean onEastEdge = dx == outerRadius;
+					boolean onNorthEdge = dz == -outerRadius;
+					boolean onSouthEdge = dz == outerRadius;
+					boolean onXEdge = onWestEdge || onEastEdge;
+					boolean onZEdge = onNorthEdge || onSouthEdge;
+					boolean isTopLevel = dy >= y;
+					boolean isRingOnly = onXEdge != onZEdge;
+
+					if (!isTopLevel && !isRingOnly) {
+						continue;
 					}
+
+					mutable.set(start, dx, dy, dz);
+					BlockState capState = config.capProvider.get(random, start);
+
+					if (capState.contains(MushroomBlock.WEST)
+						&& capState.contains(MushroomBlock.EAST)
+						&& capState.contains(MushroomBlock.NORTH)
+						&& capState.contains(MushroomBlock.SOUTH)
+						&& capState.contains(MushroomBlock.UP)
+					) {
+						capState = capState
+							.with(MushroomBlock.UP, dy >= y - 1)
+							.with(MushroomBlock.WEST, dx < -innerRadius)
+							.with(MushroomBlock.EAST, dx > innerRadius)
+							.with(MushroomBlock.NORTH, dz < -innerRadius)
+							.with(MushroomBlock.SOUTH, dz > innerRadius);
+					}
+
+					generateStem(world, mutable, capState);
 				}
 			}
 		}
@@ -61,14 +72,10 @@ public class HugeRedMushroomFeature extends HugeMushroomFeature {
 
 	@Override
 	protected int getCapSize(int i, int j, int capSize, int y) {
-		int k = 0;
-		if (y < j && y >= j - 3) {
-			k = capSize;
-		}
-		else if (y == j) {
-			k = capSize;
+		if ((y < j && y >= j - 3) || y == j) {
+			return capSize;
 		}
 
-		return k;
+		return 0;
 	}
 }

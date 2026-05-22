@@ -31,7 +31,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /**
- * {@code WrapperProtoChunk}.
+ * Обёртка над {@link WorldChunk}, реализующая интерфейс {@link ProtoChunk}.
+ * Используется при финализации генерации: позволяет передавать {@link WorldChunk}
+ * туда, где ожидается {@link ProtoChunk}, с опциональной проксировкой мутаций.
  */
 public class WrapperProtoChunk extends ProtoChunk {
 
@@ -52,53 +54,53 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-		return this.wrapped.getBlockEntity(pos);
+		return wrapped.getBlockEntity(pos);
 	}
 
 	@Override
 	public BlockState getBlockState(BlockPos pos) {
-		return this.wrapped.getBlockState(pos);
+		return wrapped.getBlockState(pos);
 	}
 
 	@Override
 	public FluidState getFluidState(BlockPos pos) {
-		return this.wrapped.getFluidState(pos);
+		return wrapped.getFluidState(pos);
 	}
 
 	@Override
 	public ChunkSection getSection(int yIndex) {
-		return this.propagateToWrapped ? this.wrapped.getSection(yIndex) : super.getSection(yIndex);
+		return propagateToWrapped ? wrapped.getSection(yIndex) : super.getSection(yIndex);
 	}
 
 	@Override
 	public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-		return this.propagateToWrapped ? this.wrapped.setBlockState(pos, state, flags) : null;
+		return propagateToWrapped ? wrapped.setBlockState(pos, state, flags) : null;
 	}
 
 	@Override
 	public void setBlockEntity(BlockEntity blockEntity) {
-		if (this.propagateToWrapped) {
-			this.wrapped.setBlockEntity(blockEntity);
+		if (propagateToWrapped) {
+			wrapped.setBlockEntity(blockEntity);
 		}
 	}
 
 	@Override
 	public void addEntity(Entity entity) {
-		if (this.propagateToWrapped) {
-			this.wrapped.addEntity(entity);
+		if (propagateToWrapped) {
+			wrapped.addEntity(entity);
 		}
 	}
 
 	@Override
 	public void setStatus(ChunkStatus status) {
-		if (this.propagateToWrapped) {
+		if (propagateToWrapped) {
 			super.setStatus(status);
 		}
 	}
 
 	@Override
 	public ChunkSection[] getSectionArray() {
-		return this.wrapped.getSectionArray();
+		return wrapped.getSectionArray();
 	}
 
 	@Override
@@ -109,34 +111,33 @@ public class WrapperProtoChunk extends ProtoChunk {
 		if (type == Heightmap.Type.WORLD_SURFACE_WG) {
 			return Heightmap.Type.WORLD_SURFACE;
 		}
-		else {
-			return type == Heightmap.Type.OCEAN_FLOOR_WG ? Heightmap.Type.OCEAN_FLOOR : type;
-		}
+
+		return type == Heightmap.Type.OCEAN_FLOOR_WG ? Heightmap.Type.OCEAN_FLOOR : type;
 	}
 
 	@Override
 	public Heightmap getHeightmap(Heightmap.Type type) {
-		return this.wrapped.getHeightmap(type);
+		return wrapped.getHeightmap(type);
 	}
 
 	@Override
 	public int sampleHeightmap(Heightmap.Type type, int x, int z) {
-		return this.wrapped.sampleHeightmap(this.transformHeightmapType(type), x, z);
+		return wrapped.sampleHeightmap(transformHeightmapType(type), x, z);
 	}
 
 	@Override
 	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-		return this.wrapped.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
+		return wrapped.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
 	}
 
 	@Override
 	public ChunkPos getPos() {
-		return this.wrapped.getPos();
+		return wrapped.getPos();
 	}
 
 	@Override
 	public @Nullable StructureStart getStructureStart(Structure structure) {
-		return this.wrapped.getStructureStart(structure);
+		return wrapped.getStructureStart(structure);
 	}
 
 	@Override
@@ -145,7 +146,7 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public Map<Structure, StructureStart> getStructureStarts() {
-		return this.wrapped.getStructureStarts();
+		return wrapped.getStructureStarts();
 	}
 
 	@Override
@@ -154,7 +155,7 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public LongSet getStructureReferences(Structure structure) {
-		return this.wrapped.getStructureReferences(structure);
+		return wrapped.getStructureReferences(structure);
 	}
 
 	@Override
@@ -163,7 +164,7 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public Map<Structure, LongSet> getStructureReferences() {
-		return this.wrapped.getStructureReferences();
+		return wrapped.getStructureReferences();
 	}
 
 	@Override
@@ -172,7 +173,7 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public void markNeedsSaving() {
-		this.wrapped.markNeedsSaving();
+		wrapped.markNeedsSaving();
 	}
 
 	@Override
@@ -192,7 +193,7 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public ChunkStatus getStatus() {
-		return this.wrapped.getStatus();
+		return wrapped.getStatus();
 	}
 
 	@Override
@@ -209,12 +210,12 @@ public class WrapperProtoChunk extends ProtoChunk {
 
 	@Override
 	public @Nullable NbtCompound getBlockEntityNbt(BlockPos pos) {
-		return this.wrapped.getBlockEntityNbt(pos);
+		return wrapped.getBlockEntityNbt(pos);
 	}
 
 	@Override
 	public @Nullable NbtCompound getPackedBlockEntityNbt(BlockPos pos, RegistryWrapper.WrapperLookup registries) {
-		return this.wrapped.getPackedBlockEntityNbt(pos, registries);
+		return wrapped.getPackedBlockEntityNbt(pos, registries);
 	}
 
 	@Override
@@ -222,81 +223,77 @@ public class WrapperProtoChunk extends ProtoChunk {
 			Predicate<BlockState> predicate,
 			BiConsumer<BlockPos, BlockState> consumer
 	) {
-		this.wrapped.forEachBlockMatchingPredicate(predicate, consumer);
+		wrapped.forEachBlockMatchingPredicate(predicate, consumer);
 	}
 
 	@Override
 	public BasicTickScheduler<Block> getBlockTickScheduler() {
-		return this.propagateToWrapped ? this.wrapped.getBlockTickScheduler()
-		                               : EmptyTickSchedulers.getReadOnlyTickScheduler();
+		return propagateToWrapped ? wrapped.getBlockTickScheduler() : EmptyTickSchedulers.getReadOnlyTickScheduler();
 	}
 
 	@Override
 	public BasicTickScheduler<Fluid> getFluidTickScheduler() {
-		return this.propagateToWrapped ? this.wrapped.getFluidTickScheduler()
-		                               : EmptyTickSchedulers.getReadOnlyTickScheduler();
+		return propagateToWrapped ? wrapped.getFluidTickScheduler() : EmptyTickSchedulers.getReadOnlyTickScheduler();
 	}
 
 	@Override
 	public Chunk.TickSchedulers getTickSchedulers(long time) {
-		return this.wrapped.getTickSchedulers(time);
+		return wrapped.getTickSchedulers(time);
 	}
 
 	@Override
 	public @Nullable BlendingData getBlendingData() {
-		return this.wrapped.getBlendingData();
+		return wrapped.getBlendingData();
 	}
 
 	@Override
 	public CarvingMask getCarvingMask() {
-		if (this.propagateToWrapped) {
+		if (propagateToWrapped) {
 			return super.getCarvingMask();
 		}
-		else {
-			throw (UnsupportedOperationException) Util.getFatalOrPause(new UnsupportedOperationException(
-					"Meaningless in this context"));
-		}
+
+		throw (UnsupportedOperationException) Util.getFatalOrPause(
+				new UnsupportedOperationException("Meaningless in this context"));
 	}
 
 	@Override
 	public CarvingMask getOrCreateCarvingMask() {
-		if (this.propagateToWrapped) {
+		if (propagateToWrapped) {
 			return super.getOrCreateCarvingMask();
 		}
-		else {
-			throw (UnsupportedOperationException) Util.getFatalOrPause(new UnsupportedOperationException(
-					"Meaningless in this context"));
-		}
+
+		throw (UnsupportedOperationException) Util.getFatalOrPause(
+				new UnsupportedOperationException("Meaningless in this context"));
 	}
 
 	public WorldChunk getWrappedChunk() {
-		return this.wrapped;
+		return wrapped;
 	}
 
 	@Override
 	public boolean isLightOn() {
-		return this.wrapped.isLightOn();
+		return wrapped.isLightOn();
 	}
 
 	@Override
 	public void setLightOn(boolean lightOn) {
-		this.wrapped.setLightOn(lightOn);
+		wrapped.setLightOn(lightOn);
 	}
 
 	@Override
 	public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler) {
-		if (this.propagateToWrapped) {
-			this.wrapped.populateBiomes(biomeSupplier, sampler);
+		if (propagateToWrapped) {
+			wrapped.populateBiomes(biomeSupplier, sampler);
 		}
 	}
 
 	@Override
 	public void refreshSurfaceY() {
-		this.wrapped.refreshSurfaceY();
+		wrapped.refreshSurfaceY();
 	}
 
 	@Override
 	public ChunkSkyLight getChunkSkyLight() {
-		return this.wrapped.getChunkSkyLight();
+		return wrapped.getChunkSkyLight();
 	}
 }

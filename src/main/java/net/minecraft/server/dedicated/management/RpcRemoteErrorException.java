@@ -4,7 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 /**
- * {@code RpcRemoteErrorException}.
+ * Класс Rpc Remote Error Exception.
  */
 public class RpcRemoteErrorException extends RuntimeException {
 

@@ -5,7 +5,8 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.noise.DoublePerlinNoiseSampler;
 
 /**
- * {@code BuiltinNoiseParameters}.
+ * Регистрирует все встроенные параметры шума для генерации мира:
+ * биомные параметры, пещеры, руды, поверхность и специфические биомы.
  */
 public class BuiltinNoiseParameters {
 
@@ -14,11 +15,6 @@ public class BuiltinNoiseParameters {
 			OFFSET =
 			new DoublePerlinNoiseSampler.NoiseParameters(-3, 1.0, 1.0, 1.0, 0.0);
 
-	/**
-	 * Bootstrap.
-	 *
-	 * @param noiseParametersRegisterable noise parameters registerable
-	 */
 	public static void bootstrap(Registerable<DoublePerlinNoiseSampler.NoiseParameters> noiseParametersRegisterable) {
 		register(
 				noiseParametersRegisterable,

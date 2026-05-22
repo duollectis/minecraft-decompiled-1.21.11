@@ -9,7 +9,8 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
 /**
- * {@code VinesFeature}.
+ * Размещает один блок лозы в точке генерации, если рядом есть подходящая стена.
+ * Перебирает все направления (кроме DOWN) и ставит лозу, прикреплённую к первой найденной стене.
  */
 public class VinesFeature extends Feature<DefaultFeatureConfig> {
 
@@ -19,29 +20,30 @@ public class VinesFeature extends Feature<DefaultFeatureConfig> {
 
 	@Override
 	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-		StructureWorldAccess structureWorldAccess = context.getWorld();
-		BlockPos blockPos = context.getOrigin();
-		context.getConfig();
-		if (!structureWorldAccess.isAir(blockPos)) {
+		StructureWorldAccess world = context.getWorld();
+		BlockPos origin = context.getOrigin();
+
+		if (!world.isAir(origin)) {
 			return false;
 		}
-		else {
-			for (Direction direction : Direction.values()) {
-				if (direction != Direction.DOWN && VineBlock.shouldConnectTo(
-						structureWorldAccess,
-						blockPos.offset(direction),
-						direction
-				)) {
-					structureWorldAccess.setBlockState(
-							blockPos,
-							Blocks.VINE.getDefaultState().with(VineBlock.getFacingProperty(direction), true),
-							2
-					);
-					return true;
-				}
+
+		for (Direction direction : Direction.values()) {
+			if (direction == Direction.DOWN) {
+				continue;
 			}
 
-			return false;
+			if (!VineBlock.shouldConnectTo(world, origin.offset(direction), direction)) {
+				continue;
+			}
+
+			world.setBlockState(
+				origin,
+				Blocks.VINE.getDefaultState().with(VineBlock.getFacingProperty(direction), true),
+				2
+			);
+			return true;
 		}
+
+		return false;
 	}
 }

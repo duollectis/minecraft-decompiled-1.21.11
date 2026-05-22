@@ -14,14 +14,18 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Function;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code SpriteIdentifier}.
+ * Идентификатор спрайта в текстурном атласе.
+ * Хранит ссылку на атлас и конкретную текстуру внутри него,
+ * а также кэширует {@link RenderLayer} для повторного использования.
  */
+@Environment(EnvType.CLIENT)
 public class SpriteIdentifier {
 
-	public static final Comparator<SpriteIdentifier> COMPARATOR = Comparator.comparing(SpriteIdentifier::getAtlasId)
-	                                                                        .thenComparing(SpriteIdentifier::getTextureId);
+	public static final Comparator<SpriteIdentifier> COMPARATOR = Comparator
+		.comparing(SpriteIdentifier::getAtlasId)
+		.thenComparing(SpriteIdentifier::getTextureId);
+
 	private final Identifier atlas;
 	private final Identifier texture;
 	private @Nullable RenderLayer layer;
@@ -32,45 +36,45 @@ public class SpriteIdentifier {
 	}
 
 	public Identifier getAtlasId() {
-		return this.atlas;
+		return atlas;
 	}
 
 	public Identifier getTextureId() {
-		return this.texture;
+		return texture;
 	}
 
 	public RenderLayer getRenderLayer(Function<Identifier, RenderLayer> layerFactory) {
-		if (this.layer == null) {
-			this.layer = layerFactory.apply(this.atlas);
+		if (layer == null) {
+			layer = layerFactory.apply(atlas);
 		}
 
-		return this.layer;
+		return layer;
 	}
 
 	public VertexConsumer getVertexConsumer(
-			SpriteHolder spriteHolder,
-			VertexConsumerProvider vertexConsumerProvider,
-			Function<Identifier, RenderLayer> function
+		SpriteHolder spriteHolder,
+		VertexConsumerProvider vertexConsumerProvider,
+		Function<Identifier, RenderLayer> layerFactory
 	) {
 		return spriteHolder
-				.getSprite(this)
-				.getTextureSpecificVertexConsumer(vertexConsumerProvider.getBuffer(this.getRenderLayer(function)));
+			.getSprite(this)
+			.getTextureSpecificVertexConsumer(vertexConsumerProvider.getBuffer(getRenderLayer(layerFactory)));
 	}
 
 	public VertexConsumer getVertexConsumer(
-			SpriteHolder spriteHolder,
-			VertexConsumerProvider vertexConsumerProvider,
-			Function<Identifier, RenderLayer> function,
-			boolean bl,
-			boolean bl2
+		SpriteHolder spriteHolder,
+		VertexConsumerProvider vertexConsumerProvider,
+		Function<Identifier, RenderLayer> layerFactory,
+		boolean glint,
+		boolean foil
 	) {
 		return spriteHolder.getSprite(this)
-		                   .getTextureSpecificVertexConsumer(ItemRenderer.getItemGlintConsumer(
-				                   vertexConsumerProvider,
-				                   this.getRenderLayer(function),
-				                   bl,
-				                   bl2
-		                   ));
+			.getTextureSpecificVertexConsumer(ItemRenderer.getItemGlintConsumer(
+				vertexConsumerProvider,
+				getRenderLayer(layerFactory),
+				glint,
+				foil
+			));
 	}
 
 	@Override
@@ -78,22 +82,22 @@ public class SpriteIdentifier {
 		if (this == o) {
 			return true;
 		}
-		else if (o != null && this.getClass() == o.getClass()) {
-			SpriteIdentifier spriteIdentifier = (SpriteIdentifier) o;
-			return this.atlas.equals(spriteIdentifier.atlas) && this.texture.equals(spriteIdentifier.texture);
-		}
-		else {
+
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		SpriteIdentifier other = (SpriteIdentifier) o;
+		return atlas.equals(other.atlas) && texture.equals(other.texture);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.atlas, this.texture);
+		return Objects.hash(atlas, texture);
 	}
 
 	@Override
 	public String toString() {
-		return "Material{atlasLocation=" + this.atlas + ", texture=" + this.texture + "}";
+		return "Material{atlasLocation=" + atlas + ", texture=" + texture + "}";
 	}
 }

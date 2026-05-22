@@ -22,55 +22,63 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code LookingAtBlockDebugHudEntry}.
+ * Запись отладочного HUD: блок, на который смотрит игрок,
+ * его идентификатор, состояния свойств и теги.
  */
+@Environment(EnvType.CLIENT)
 public class LookingAtBlockDebugHudEntry implements DebugHudEntry {
 
 	private static final Identifier SECTION_ID = Identifier.ofVanilla("looking_at_block");
+	private static final double RAYCAST_DISTANCE = 20.0;
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		Entity entity = MinecraftClient.getInstance().getCameraEntity();
-		World world2 = (World) (SharedConstants.SHOW_SERVER_DEBUG_VALUES ? world : MinecraftClient.getInstance().world);
-		if (entity != null && world2 != null) {
-			HitResult hitResult = entity.raycast(20.0, 0.0F, false);
-			List<String> list = new ArrayList<>();
-			if (hitResult.getType() == HitResult.Type.BLOCK) {
-				BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
-				BlockState blockState = world2.getBlockState(blockPos);
-				list.add(Formatting.UNDERLINE + "Targeted Block: " + blockPos.getX() + ", " + blockPos.getY() + ", "
-						+ blockPos.getZ());
-				list.add(String.valueOf(Registries.BLOCK.getId(blockState.getBlock())));
+		MinecraftClient client = MinecraftClient.getInstance();
+		Entity cameraEntity = client.getCameraEntity();
+		World targetWorld = (World) (SharedConstants.SHOW_SERVER_DEBUG_VALUES ? world : client.world);
 
-				for (Entry<Property<?>, Comparable<?>> entry : blockState.getEntries().entrySet()) {
-					list.add(this.getBlockPropertyLine(entry));
-				}
+		if (cameraEntity == null || targetWorld == null) {
+			lines.addLinesToSection(SECTION_ID, List.of());
+			return;
+		}
 
-				blockState.streamTags().map(tag -> "#" + tag.id()).forEach(list::add);
+		HitResult hitResult = cameraEntity.raycast(RAYCAST_DISTANCE, 0.0F, false);
+		List<String> debugLines = new ArrayList<>();
+
+		if (hitResult.getType() == HitResult.Type.BLOCK) {
+			BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
+			BlockState blockState = targetWorld.getBlockState(blockPos);
+
+			debugLines.add(Formatting.UNDERLINE + "Targeted Block: " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ());
+			debugLines.add(String.valueOf(Registries.BLOCK.getId(blockState.getBlock())));
+
+			for (Entry<Property<?>, Comparable<?>> entry : blockState.getEntries().entrySet()) {
+				debugLines.add(getBlockPropertyLine(entry));
 			}
 
-			lines.addLinesToSection(SECTION_ID, list);
+			blockState.streamTags().map(tag -> "#" + tag.id()).forEach(debugLines::add);
 		}
+
+		lines.addLinesToSection(SECTION_ID, debugLines);
 	}
 
 	private String getBlockPropertyLine(Entry<Property<?>, Comparable<?>> propertyAndValue) {
 		Property<?> property = propertyAndValue.getKey();
-		Comparable<?> comparable = propertyAndValue.getValue();
-		String string = Util.getValueAsString(property, comparable);
-		if (Boolean.TRUE.equals(comparable)) {
-			string = Formatting.GREEN + string;
-		}
-		else if (Boolean.FALSE.equals(comparable)) {
-			string = Formatting.RED + string;
+		Comparable<?> value = propertyAndValue.getValue();
+		String valueString = Util.getValueAsString(property, value);
+
+		if (Boolean.TRUE.equals(value)) {
+			valueString = Formatting.GREEN + valueString;
+		} else if (Boolean.FALSE.equals(value)) {
+			valueString = Formatting.RED + valueString;
 		}
 
-		return property.getName() + ": " + string;
+		return property.getName() + ": " + valueString;
 	}
 }

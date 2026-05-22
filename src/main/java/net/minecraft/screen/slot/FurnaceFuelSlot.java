@@ -6,7 +6,11 @@ import net.minecraft.item.Items;
 import net.minecraft.screen.AbstractFurnaceScreenHandler;
 
 /**
- * {@code FurnaceFuelSlot}.
+ * Слот топлива печи.
+ * <p>
+ * Принимает любое топливо, зарегистрированное в реестре топлива мира,
+ * а также пустые вёдра (которые остаются после сжигания лавы).
+ * Для вёдер ограничивает стак до 1 предмета.
  */
 public class FurnaceFuelSlot extends Slot {
 
@@ -19,7 +23,7 @@ public class FurnaceFuelSlot extends Slot {
 
 	@Override
 	public boolean canInsert(ItemStack stack) {
-		return this.handler.isFuel(stack) || isBucket(stack);
+		return handler.isFuel(stack) || isBucket(stack);
 	}
 
 	@Override

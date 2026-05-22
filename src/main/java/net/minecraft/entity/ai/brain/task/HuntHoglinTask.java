@@ -9,15 +9,11 @@ import net.minecraft.entity.mob.PiglinEntity;
 import java.util.List;
 
 /**
- * {@code HuntHoglinTask}.
+ * Фабричный класс задачи мозга пиглина, инициирующей групповую охоту на ближайшего хоглина.
+ * Не запускает охоту, если пиглин — детёныш или кто-то из группы уже охотился недавно.
  */
 public class HuntHoglinTask {
 
-	/**
-	 * Create.
-	 *
-	 * @return SingleTickTask — результат операции
-	 */
 	public static SingleTickTask<PiglinEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(
@@ -29,29 +25,23 @@ public class HuntHoglinTask {
 				                  .apply(
 						                  context,
 						                  (nearestVisibleHuntableHoglin, angryAt, huntedRecently, nearestVisibleAdultPiglins) -> (world, entity, time) -> {
-							                  if (!entity.isBaby()
-									                  && !context
-									                  .<List<AbstractPiglinEntity>>getOptionalValue(
-											                  nearestVisibleAdultPiglins)
-									                  .map(piglin -> piglin
-											                  .stream()
-											                  .anyMatch(HuntHoglinTask::hasHuntedRecently))
-									                  .isPresent()) {
-								                  HoglinEntity
-										                  hoglinEntity =
-										                  context.getValue(nearestVisibleHuntableHoglin);
-								                  PiglinBrain.becomeAngryWith(world, entity, hoglinEntity);
-								                  PiglinBrain.rememberHunting(entity);
-								                  PiglinBrain.angerAtCloserTargets(world, entity, hoglinEntity);
-								                  context
-										                  .<List<AbstractPiglinEntity>>getOptionalValue(
-												                  nearestVisibleAdultPiglins)
-										                  .ifPresent(piglin -> piglin.forEach(PiglinBrain::rememberHunting));
-								                  return true;
-							                  }
-							                  else {
+							                  boolean groupAlreadyHunting = context
+									                  .<List<AbstractPiglinEntity>>getOptionalValue(nearestVisibleAdultPiglins)
+									                  .map(piglins -> piglins.stream().anyMatch(HuntHoglinTask::hasHuntedRecently))
+									                  .isPresent();
+
+							                  if (entity.isBaby() || groupAlreadyHunting) {
 								                  return false;
 							                  }
+
+							                  HoglinEntity hoglin = context.getValue(nearestVisibleHuntableHoglin);
+							                  PiglinBrain.becomeAngryWith(world, entity, hoglin);
+							                  PiglinBrain.rememberHunting(entity);
+							                  PiglinBrain.angerAtCloserTargets(world, entity, hoglin);
+							                  context.<List<AbstractPiglinEntity>>getOptionalValue(nearestVisibleAdultPiglins)
+							                         .ifPresent(piglins -> piglins.forEach(PiglinBrain::rememberHunting));
+
+							                  return true;
 						                  }
 				                  )
 		);

@@ -51,7 +51,7 @@ public abstract class AbstractBeeSoundInstance extends MovingSoundInstance {
 								this.getMinPitch(),
 								this.getMaxPitch()
 						);
-				this.volume = MathHelper.lerp(MathHelper.clamp(f, 0.0F, 0.5F), 0.0F, 1.2F);
+				this.volume = MathHelper.lerp(MathHelper.clamp(f, 0.0F, 0.5F), 0.0F, MAX_PITCH);
 			}
 			else {
 				this.pitch = 0.0F;

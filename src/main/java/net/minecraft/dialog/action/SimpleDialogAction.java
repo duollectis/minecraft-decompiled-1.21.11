@@ -10,31 +10,40 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * {@code SimpleDialogAction}.
+ * Простое действие диалога, оборачивающее готовое {@link ClickEvent}.
+ * <p>
+ * Для каждого пользовательски определяемого типа {@link ClickEvent.Action}
+ * создаётся отдельный кодек, хранящийся в {@link #CODECS}.
+ *
+ * @param value событие клика, которое будет выполнено при нажатии кнопки
  */
 public record SimpleDialogAction(ClickEvent value) implements DialogAction {
 
+	/**
+	 * Карта кодеков для каждого пользовательски определяемого типа действия клика.
+	 * Заполняется при инициализации класса.
+	 */
 	public static final Map<ClickEvent.Action, MapCodec<SimpleDialogAction>> CODECS = Util.make(() -> {
-		Map<ClickEvent.Action, MapCodec<SimpleDialogAction>> map = new EnumMap<>(ClickEvent.Action.class);
+		Map<ClickEvent.Action, MapCodec<SimpleDialogAction>> codecs = new EnumMap<>(ClickEvent.Action.class);
 
 		for (ClickEvent.Action action : ClickEvent.Action.class.getEnumConstants()) {
 			if (action.isUserDefinable()) {
 				@SuppressWarnings("unchecked")
-				MapCodec<ClickEvent> mapCodec = (MapCodec<ClickEvent>) (MapCodec<?>) action.getCodec();
-				map.put(action, mapCodec.xmap(SimpleDialogAction::new, SimpleDialogAction::value));
+				MapCodec<ClickEvent> clickCodec = (MapCodec<ClickEvent>) (MapCodec<?>) action.getCodec();
+				codecs.put(action, clickCodec.xmap(SimpleDialogAction::new, SimpleDialogAction::value));
 			}
 		}
 
-		return Collections.unmodifiableMap(map);
+		return Collections.unmodifiableMap(codecs);
 	});
 
 	@Override
 	public MapCodec<SimpleDialogAction> getCodec() {
-		return CODECS.get(this.value.getAction());
+		return CODECS.get(value.getAction());
 	}
 
 	@Override
 	public Optional<ClickEvent> createClickEvent(Map<String, DialogAction.ValueGetter> valueGetters) {
-		return Optional.of(this.value);
+		return Optional.of(value);
 	}
 }

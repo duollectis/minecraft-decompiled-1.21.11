@@ -57,7 +57,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.IntFunction;
 
 /**
- * {@code RabbitEntity}.
+ * Кролик — прыгающее пассивное существо с несколькими вариантами окраски.
+ * Особый вариант {@link Variant#EVIL} (Кролик-убийца) агрессивен и атакует игроков.
+ * Использует кастомный {@link RabbitJumpControl} и {@link RabbitMoveControl} для прыжковой локомоции.
  */
 public class RabbitEntity extends AnimalEntity {
 
@@ -66,92 +68,100 @@ public class RabbitEntity extends AnimalEntity {
 	public static final double SPRINT_SPEED = 1.0;
 	public static final double ESCAPE_DANGER_SPEED = 2.2;
 	public static final double MELEE_ATTACK_SPEED = 1.4;
-	private static final TrackedData<Integer>
-			VARIANT =
-			DataTracker.registerData(RabbitEntity.class, TrackedDataHandlerRegistry.INTEGER);
-	private static final int DEFAULT_MORE_CARROT_TICKS = 0;
+
+	private static final TrackedData<Integer> VARIANT = DataTracker.registerData(
+			RabbitEntity.class,
+			TrackedDataHandlerRegistry.INTEGER
+	);
 	private static final Identifier KILLER_BUNNY = Identifier.ofVanilla("killer_bunny");
+	private static final Identifier KILLER_BUNNY_ATTACK_DAMAGE_MODIFIER_ID = Identifier.ofVanilla("evil");
 	private static final int MIN_JUMP_TICKS = 3;
 	private static final int MAX_JUMP_TICKS = 5;
-	private static final Identifier KILLER_BUNNY_ATTACK_DAMAGE_MODIFIER_ID = Identifier.ofVanilla("evil");
 	private static final int FLEE_RADIUS = 8;
 	private static final int JUMP_COOLDOWN_TICKS = 40;
+	private static final int JUMP_DURATION = 10;
+	private static final double ATTACK_RANGE_SQUARED = 16.0;
+	private static final int CARROT_TICKS_RESET = 0;
+	private static final double WATER_SPEED_MULTIPLIER = 1.5;
+	private static final int SLOW_JUMP_COOLDOWN = 10;
+	private static final int FAST_JUMP_COOLDOWN = 1;
+
 	private int jumpTicks;
 	private int jumpDuration;
 	private boolean lastOnGround;
 	private int ticksUntilJump;
-	int moreCarrotTicks = 0;
+	int moreCarrotTicks = CARROT_TICKS_RESET;
 
 	public RabbitEntity(EntityType<? extends RabbitEntity> entityType, World world) {
 		super(entityType, world);
-		this.jumpControl = new RabbitEntity.RabbitJumpControl(this);
-		this.moveControl = new RabbitEntity.RabbitMoveControl(this);
-		this.setSpeed(0.0);
+		jumpControl = new RabbitJumpControl(this);
+		moveControl = new RabbitMoveControl(this);
+		setSpeed(0.0);
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(1, new SwimGoal(this));
-		this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
-		this.goalSelector.add(1, new RabbitEntity.EscapeDangerGoal(this, 2.2));
-		this.goalSelector.add(2, new AnimalMateGoal(this, 0.8));
-		this.goalSelector.add(3, new TemptGoal(this, 1.0, stack -> stack.isIn(ItemTags.RABBIT_FOOD), false));
-		this.goalSelector.add(4, new RabbitEntity.FleeGoal<>(this, PlayerEntity.class, 8.0F, 2.2, 2.2));
-		this.goalSelector.add(4, new RabbitEntity.FleeGoal<>(this, WolfEntity.class, 10.0F, 2.2, 2.2));
-		this.goalSelector.add(4, new RabbitEntity.FleeGoal<>(this, HostileEntity.class, 4.0F, 2.2, 2.2));
-		this.goalSelector.add(5, new RabbitEntity.EatCarrotCropGoal(this));
-		this.goalSelector.add(6, new WanderAroundFarGoal(this, 0.6));
-		this.goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
+		goalSelector.add(1, new SwimGoal(this));
+		goalSelector.add(1, new PowderSnowJumpGoal(this, getEntityWorld()));
+		goalSelector.add(1, new EscapeDangerGoal(this, ESCAPE_DANGER_SPEED));
+		goalSelector.add(2, new AnimalMateGoal(this, RUN_SPEED));
+		goalSelector.add(3, new TemptGoal(this, 1.0, stack -> stack.isIn(ItemTags.RABBIT_FOOD), false));
+		goalSelector.add(4, new FleeGoal<>(this, PlayerEntity.class, 8.0F, ESCAPE_DANGER_SPEED, ESCAPE_DANGER_SPEED));
+		goalSelector.add(4, new FleeGoal<>(this, WolfEntity.class, 10.0F, ESCAPE_DANGER_SPEED, ESCAPE_DANGER_SPEED));
+		goalSelector.add(4, new FleeGoal<>(this, HostileEntity.class, 4.0F, ESCAPE_DANGER_SPEED, ESCAPE_DANGER_SPEED));
+		goalSelector.add(5, new EatCarrotCropGoal(this));
+		goalSelector.add(6, new WanderAroundFarGoal(this, WALK_SPEED));
+		goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
 	}
 
 	@Override
 	protected float getJumpVelocity() {
-		float f = 0.3F;
-		if (this.moveControl.getSpeed() <= 0.6) {
-			f = 0.2F;
+		float velocity = 0.3F;
+		if (moveControl.getSpeed() <= WALK_SPEED) {
+			velocity = 0.2F;
 		}
 
-		Path path = this.navigation.getCurrentPath();
+		Path path = navigation.getCurrentPath();
 		if (path != null && !path.isFinished()) {
-			Vec3d vec3d = path.getNodePosition(this);
-			if (vec3d.y > this.getY() + 0.5) {
-				f = 0.5F;
+			Vec3d nodePos = path.getNodePosition(this);
+			if (nodePos.y > getY() + 0.5) {
+				velocity = 0.5F;
 			}
 		}
 
-		if (this.horizontalCollision || this.jumping && this.moveControl.getTargetY() > this.getY() + 0.5) {
-			f = 0.5F;
+		if (horizontalCollision || jumping && moveControl.getTargetY() > getY() + 0.5) {
+			velocity = 0.5F;
 		}
 
-		return super.getJumpVelocity(f / 0.42F);
+		return super.getJumpVelocity(velocity / 0.42F);
 	}
 
 	@Override
 	public void jump() {
 		super.jump();
-		double d = this.moveControl.getSpeed();
-		if (d > 0.0) {
-			double e = this.getVelocity().horizontalLengthSquared();
-			if (e < 0.01) {
-				this.updateVelocity(0.1F, new Vec3d(0.0, 0.0, 1.0));
+		double speed = moveControl.getSpeed();
+		if (speed > 0.0) {
+			double horizontalSpeedSq = getVelocity().horizontalLengthSquared();
+			if (horizontalSpeedSq < 0.01) {
+				updateVelocity(0.1F, new Vec3d(0.0, 0.0, 1.0));
 			}
 		}
 
-		if (!this.getEntityWorld().isClient()) {
-			this.getEntityWorld().sendEntityStatus(this, (byte) 1);
+		if (!getEntityWorld().isClient()) {
+			getEntityWorld().sendEntityStatus(this, (byte) 1);
 		}
 	}
 
 	public float getJumpProgress(float tickProgress) {
-		return this.jumpDuration == 0 ? 0.0F : (this.jumpTicks + tickProgress) / this.jumpDuration;
+		return jumpDuration == 0 ? 0.0F : (jumpTicks + tickProgress) / jumpDuration;
 	}
 
 	public void setSpeed(double speed) {
-		this.getNavigation().setSpeed(speed);
-		this.moveControl.moveTo(
-				this.moveControl.getTargetX(),
-				this.moveControl.getTargetY(),
-				this.moveControl.getTargetZ(),
+		getNavigation().setSpeed(speed);
+		moveControl.moveTo(
+				moveControl.getTargetX(),
+				moveControl.getTargetY(),
+				moveControl.getTargetZ(),
 				speed
 		);
 	}
@@ -160,88 +170,81 @@ public class RabbitEntity extends AnimalEntity {
 	public void setJumping(boolean jumping) {
 		super.setJumping(jumping);
 		if (jumping) {
-			this.playSound(
-					this.getJumpSound(),
-					this.getSoundVolume(),
-					((this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F) * 0.8F
+			playSound(
+					getJumpSound(),
+					getSoundVolume(),
+					((random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F) * (float) RUN_SPEED
 			);
 		}
 	}
 
 	/**
-	 * Запускает jump.
+	 * Запускает анимацию прыжка: устанавливает флаг прыжка и длительность анимации.
 	 */
 	public void startJump() {
-		this.setJumping(true);
-		this.jumpDuration = 10;
-		this.jumpTicks = 0;
+		setJumping(true);
+		jumpDuration = JUMP_DURATION;
+		jumpTicks = 0;
 	}
 
 	@Override
 	protected void initDataTracker(DataTracker.Builder builder) {
 		super.initDataTracker(builder);
-		builder.add(VARIANT, RabbitEntity.Variant.DEFAULT.index);
+		builder.add(VARIANT, Variant.DEFAULT.index);
 	}
 
 	@Override
 	public void mobTick(ServerWorld world) {
-		if (this.ticksUntilJump > 0) {
-			this.ticksUntilJump--;
+		if (ticksUntilJump > 0) {
+			ticksUntilJump--;
 		}
 
-		if (this.moreCarrotTicks > 0) {
-			this.moreCarrotTicks = this.moreCarrotTicks - this.random.nextInt(3);
-			if (this.moreCarrotTicks < 0) {
-				this.moreCarrotTicks = 0;
+		if (moreCarrotTicks > 0) {
+			moreCarrotTicks = moreCarrotTicks - random.nextInt(3);
+			if (moreCarrotTicks < 0) {
+				moreCarrotTicks = CARROT_TICKS_RESET;
 			}
 		}
 
-		if (this.isOnGround()) {
-			if (!this.lastOnGround) {
-				this.setJumping(false);
-				this.scheduleJump();
+		if (isOnGround()) {
+			if (!lastOnGround) {
+				setJumping(false);
+				scheduleJump();
 			}
 
-			if (this.getVariant() == RabbitEntity.Variant.EVIL && this.ticksUntilJump == 0) {
-				LivingEntity livingEntity = this.getTarget();
-				if (livingEntity != null && this.squaredDistanceTo(livingEntity) < 16.0) {
-					this.lookTowards(livingEntity.getX(), livingEntity.getZ());
-					this.moveControl.moveTo(
-							livingEntity.getX(),
-							livingEntity.getY(),
-							livingEntity.getZ(),
-							this.moveControl.getSpeed()
-					);
-					this.startJump();
-					this.lastOnGround = true;
+			if (getVariant() == Variant.EVIL && ticksUntilJump == 0) {
+				LivingEntity target = getTarget();
+				if (target != null && squaredDistanceTo(target) < ATTACK_RANGE_SQUARED) {
+					lookTowards(target.getX(), target.getZ());
+					moveControl.moveTo(target.getX(), target.getY(), target.getZ(), moveControl.getSpeed());
+					startJump();
+					lastOnGround = true;
 				}
 			}
 
-			RabbitEntity.RabbitJumpControl rabbitJumpControl = (RabbitEntity.RabbitJumpControl) this.jumpControl;
-			if (!rabbitJumpControl.isActive()) {
-				if (this.moveControl.isMoving() && this.ticksUntilJump == 0) {
-					Path path = this.navigation.getCurrentPath();
-					Vec3d
-							vec3d =
-							new Vec3d(
-									this.moveControl.getTargetX(),
-									this.moveControl.getTargetY(),
-									this.moveControl.getTargetZ()
-							);
-					if (path != null && !path.isFinished()) {
-						vec3d = path.getNodePosition(this);
-					}
-
-					this.lookTowards(vec3d.x, vec3d.z);
-					this.startJump();
+			RabbitJumpControl rabbitJumpControl = (RabbitJumpControl) jumpControl;
+			if (rabbitJumpControl.isActive()) {
+				if (!rabbitJumpControl.canJump()) {
+					enableJump();
 				}
 			}
-			else if (!rabbitJumpControl.canJump()) {
-				this.enableJump();
+			else if (moveControl.isMoving() && ticksUntilJump == 0) {
+				Path path = navigation.getCurrentPath();
+				Vec3d target = new Vec3d(
+						moveControl.getTargetX(),
+						moveControl.getTargetY(),
+						moveControl.getTargetZ()
+				);
+				if (path != null && !path.isFinished()) {
+					target = path.getNodePosition(this);
+				}
+
+				lookTowards(target.x, target.z);
+				startJump();
 			}
 		}
 
-		this.lastOnGround = this.isOnGround();
+		lastOnGround = isOnGround();
 	}
 
 	@Override
@@ -250,65 +253,58 @@ public class RabbitEntity extends AnimalEntity {
 	}
 
 	private void lookTowards(double x, double z) {
-		this.setYaw((float) (MathHelper.atan2(z - this.getZ(), x - this.getX()) * 180.0F / (float) Math.PI) - 90.0F);
+		setYaw((float) (MathHelper.atan2(z - getZ(), x - getX()) * 180.0F / (float) Math.PI) - 90.0F);
 	}
 
 	private void enableJump() {
-		((RabbitEntity.RabbitJumpControl) this.jumpControl).setCanJump(true);
+		((RabbitJumpControl) jumpControl).setCanJump(true);
 	}
 
 	private void disableJump() {
-		((RabbitEntity.RabbitJumpControl) this.jumpControl).setCanJump(false);
+		((RabbitJumpControl) jumpControl).setCanJump(false);
 	}
 
 	private void doScheduleJump() {
-		if (this.moveControl.getSpeed() < 2.2) {
-			this.ticksUntilJump = 10;
-		}
-		else {
-			this.ticksUntilJump = 1;
-		}
+		ticksUntilJump = moveControl.getSpeed() < ESCAPE_DANGER_SPEED ? SLOW_JUMP_COOLDOWN : FAST_JUMP_COOLDOWN;
 	}
 
 	private void scheduleJump() {
-		this.doScheduleJump();
-		this.disableJump();
+		doScheduleJump();
+		disableJump();
 	}
 
 	@Override
 	public void tickMovement() {
 		super.tickMovement();
-		if (this.jumpTicks != this.jumpDuration) {
-			this.jumpTicks++;
+		if (jumpTicks != jumpDuration) {
+			jumpTicks++;
 		}
-		else if (this.jumpDuration != 0) {
-			this.jumpTicks = 0;
-			this.jumpDuration = 0;
-			this.setJumping(false);
+		else if (jumpDuration != 0) {
+			jumpTicks = 0;
+			jumpDuration = 0;
+			setJumping(false);
 		}
 	}
 
 	public static DefaultAttributeContainer.Builder createRabbitAttributes() {
 		return AnimalEntity.createAnimalAttributes()
-		                   .add(EntityAttributes.MAX_HEALTH, 3.0)
-		                   .add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
-		                   .add(EntityAttributes.ATTACK_DAMAGE, 3.0);
+				.add(EntityAttributes.MAX_HEALTH, 3.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
+				.add(EntityAttributes.ATTACK_DAMAGE, 3.0);
 	}
 
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		view.put("RabbitType", RabbitEntity.Variant.INDEX_CODEC, this.getVariant());
-		view.putInt("MoreCarrotTicks", this.moreCarrotTicks);
+		view.put("RabbitType", Variant.INDEX_CODEC, getVariant());
+		view.putInt("MoreCarrotTicks", moreCarrotTicks);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setVariant(view
-				.<RabbitEntity.Variant>read("RabbitType", RabbitEntity.Variant.INDEX_CODEC)
-				.orElse(RabbitEntity.Variant.DEFAULT));
-		this.moreCarrotTicks = view.getInt("MoreCarrotTicks", 0);
+		setVariant(view.<Variant>read("RabbitType", Variant.INDEX_CODEC).orElse(Variant.DEFAULT));
+		moreCarrotTicks = view.getInt("MoreCarrotTicks", 0);
 	}
 
 	protected SoundEvent getJumpSound() {
@@ -332,45 +328,44 @@ public class RabbitEntity extends AnimalEntity {
 
 	@Override
 	public void playAttackSound() {
-		if (this.getVariant() == RabbitEntity.Variant.EVIL) {
-			this.playSound(
+		if (getVariant() == Variant.EVIL) {
+			playSound(
 					SoundEvents.ENTITY_RABBIT_ATTACK,
 					1.0F,
-					(this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F
+					(random.nextFloat() - random.nextFloat()) * 0.2F + 1.0F
 			);
 		}
 	}
 
 	@Override
 	public SoundCategory getSoundCategory() {
-		return this.getVariant() == RabbitEntity.Variant.EVIL ? SoundCategory.HOSTILE : SoundCategory.NEUTRAL;
+		return getVariant() == Variant.EVIL ? SoundCategory.HOSTILE : SoundCategory.NEUTRAL;
 	}
 
 	/**
-	 * Создаёт child.
+	 * Создаёт детёныша кролика при размножении.
+	 * С вероятностью 1/20 выбирает случайный вариант из биома, иначе наследует от одного из родителей.
 	 *
-	 * @param serverWorld server world
-	 * @param passiveEntity passive entity
-	 *
-	 * @return @Nullable RabbitEntity — результат операции
+	 * @param serverWorld мир сервера
+	 * @param passiveEntity второй родитель
+	 * @return новый кролик или {@code null} если создание не удалось
 	 */
+	@Override
 	public @Nullable RabbitEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-		RabbitEntity rabbitEntity = EntityType.RABBIT.create(serverWorld, SpawnReason.BREEDING);
-		if (rabbitEntity != null) {
-			RabbitEntity.Variant variant = getVariantFromPos(serverWorld, this.getBlockPos());
-			if (this.random.nextInt(20) != 0) {
-				if (passiveEntity instanceof RabbitEntity rabbitEntity2 && this.random.nextBoolean()) {
-					variant = rabbitEntity2.getVariant();
-				}
-				else {
-					variant = this.getVariant();
-				}
-			}
-
-			rabbitEntity.setVariant(variant);
+		RabbitEntity child = EntityType.RABBIT.create(serverWorld, SpawnReason.BREEDING);
+		if (child == null) {
+			return null;
 		}
 
-		return rabbitEntity;
+		Variant variant = getVariantFromPos(serverWorld, getBlockPos());
+		if (random.nextInt(20) != 0) {
+			variant = (passiveEntity instanceof RabbitEntity otherRabbit && random.nextBoolean())
+					? otherRabbit.getVariant()
+					: getVariant();
+		}
+
+		child.setVariant(variant);
+		return child;
 	}
 
 	@Override
@@ -378,61 +373,65 @@ public class RabbitEntity extends AnimalEntity {
 		return stack.isIn(ItemTags.RABBIT_FOOD);
 	}
 
-	public RabbitEntity.Variant getVariant() {
-		return RabbitEntity.Variant.byIndex(this.dataTracker.get(VARIANT));
+	public Variant getVariant() {
+		return Variant.byIndex(dataTracker.get(VARIANT));
 	}
 
-	private void setVariant(RabbitEntity.Variant variant) {
-		if (variant == RabbitEntity.Variant.EVIL) {
-			this.getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(8.0);
-			this.goalSelector.add(4, new MeleeAttackGoal(this, 1.4, true));
-			this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-			this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-			this.targetSelector.add(2, new ActiveTargetGoal<>(this, WolfEntity.class, true));
-			this.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE)
-			    .updateModifier(new EntityAttributeModifier(
-					    KILLER_BUNNY_ATTACK_DAMAGE_MODIFIER_ID,
-					    5.0,
-					    EntityAttributeModifier.Operation.ADD_VALUE
-			    ));
-			if (!this.hasCustomName()) {
-				this.setCustomName(Text.translatable(Util.createTranslationKey("entity", KILLER_BUNNY)));
+	/**
+	 * Устанавливает вариант кролика. Для {@link Variant#EVIL} добавляет броню, цели атаки и модификатор урона.
+	 */
+	private void setVariant(Variant variant) {
+		if (variant == Variant.EVIL) {
+			getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(8.0);
+			goalSelector.add(4, new MeleeAttackGoal(this, MELEE_ATTACK_SPEED, true));
+			targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+			targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+			targetSelector.add(2, new ActiveTargetGoal<>(this, WolfEntity.class, true));
+			getAttributeInstance(EntityAttributes.ATTACK_DAMAGE)
+					.updateModifier(new EntityAttributeModifier(
+							KILLER_BUNNY_ATTACK_DAMAGE_MODIFIER_ID,
+							5.0,
+							EntityAttributeModifier.Operation.ADD_VALUE
+					));
+			if (!hasCustomName()) {
+				setCustomName(Text.translatable(Util.createTranslationKey("entity", KILLER_BUNNY)));
 			}
 		}
 		else {
-			this
-					.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE)
+			getAttributeInstance(EntityAttributes.ATTACK_DAMAGE)
 					.removeModifier(KILLER_BUNNY_ATTACK_DAMAGE_MODIFIER_ID);
 		}
 
-		this.dataTracker.set(VARIANT, variant.index);
+		dataTracker.set(VARIANT, variant.index);
 	}
 
 	@Override
 	public <T> @Nullable T get(ComponentType<? extends T> type) {
-		return type == DataComponentTypes.RABBIT_VARIANT ? castComponentValue(
-				(ComponentType<T>) type,
-				this.getVariant()
-		) : super.get(type);
+		return type == DataComponentTypes.RABBIT_VARIANT
+				? castComponentValue((ComponentType<T>) type, getVariant())
+				: super.get(type);
 	}
 
 	@Override
 	protected void copyComponentsFrom(ComponentsAccess from) {
-		this.copyComponentFrom(from, DataComponentTypes.RABBIT_VARIANT);
+		copyComponentFrom(from, DataComponentTypes.RABBIT_VARIANT);
 		super.copyComponentsFrom(from);
 	}
 
 	@Override
 	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
 		if (type == DataComponentTypes.RABBIT_VARIANT) {
-			this.setVariant(castComponentValue(DataComponentTypes.RABBIT_VARIANT, value));
+			setVariant(castComponentValue(DataComponentTypes.RABBIT_VARIANT, value));
 			return true;
 		}
-		else {
-			return super.setApplicableComponent(type, value);
-		}
+
+		return super.setApplicableComponent(type, value);
 	}
 
+	/**
+	 * Определяет вариант кролика при спавне на основе биома.
+	 * Снежные биомы → белый/белый с пятнами, пустынные → золотой, остальные → коричневый/соляной/чёрный.
+	 */
 	@Override
 	public @Nullable EntityData initialize(
 			ServerWorldAccess world,
@@ -440,31 +439,31 @@ public class RabbitEntity extends AnimalEntity {
 			SpawnReason spawnReason,
 			@Nullable EntityData entityData
 	) {
-		RabbitEntity.Variant variant = getVariantFromPos(world, this.getBlockPos());
-		if (entityData instanceof RabbitEntity.RabbitData) {
-			variant = ((RabbitEntity.RabbitData) entityData).variant;
+		Variant variant = getVariantFromPos(world, getBlockPos());
+		if (entityData instanceof RabbitData rabbitData) {
+			variant = rabbitData.variant;
 		}
 		else {
-			entityData = new RabbitEntity.RabbitData(variant);
+			entityData = new RabbitData(variant);
 		}
 
-		this.setVariant(variant);
+		setVariant(variant);
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
-	private static RabbitEntity.Variant getVariantFromPos(WorldAccess world, BlockPos pos) {
-		RegistryEntry<Biome> registryEntry = world.getBiome(pos);
-		int i = world.getRandom().nextInt(100);
-		if (registryEntry.isIn(BiomeTags.SPAWNS_WHITE_RABBITS)) {
-			return i < 80 ? RabbitEntity.Variant.WHITE : RabbitEntity.Variant.WHITE_SPLOTCHED;
+	private static Variant getVariantFromPos(WorldAccess world, BlockPos pos) {
+		RegistryEntry<Biome> biome = world.getBiome(pos);
+		int roll = world.getRandom().nextInt(100);
+
+		if (biome.isIn(BiomeTags.SPAWNS_WHITE_RABBITS)) {
+			return roll < 80 ? Variant.WHITE : Variant.WHITE_SPLOTCHED;
 		}
-		else if (registryEntry.isIn(BiomeTags.SPAWNS_GOLD_RABBITS)) {
-			return RabbitEntity.Variant.GOLD;
+
+		if (biome.isIn(BiomeTags.SPAWNS_GOLD_RABBITS)) {
+			return Variant.GOLD;
 		}
-		else {
-			return i < 50 ? RabbitEntity.Variant.BROWN
-			              : (i < 90 ? RabbitEntity.Variant.SALT : RabbitEntity.Variant.BLACK);
-		}
+
+		return roll < 50 ? Variant.BROWN : (roll < 90 ? Variant.SALT : Variant.BLACK);
 	}
 
 	public static boolean canSpawn(
@@ -474,22 +473,20 @@ public class RabbitEntity extends AnimalEntity {
 			BlockPos pos,
 			Random random
 	) {
-		return world.getBlockState(pos.down()).isIn(BlockTags.RABBITS_SPAWNABLE_ON) && isLightLevelValidForNaturalSpawn(
-				world,
-				pos
-		);
+		return world.getBlockState(pos.down()).isIn(BlockTags.RABBITS_SPAWNABLE_ON)
+				&& isLightLevelValidForNaturalSpawn(world, pos);
 	}
 
 	boolean wantsCarrots() {
-		return this.moreCarrotTicks <= 0;
+		return moreCarrotTicks <= 0;
 	}
 
 	@Override
 	public void handleStatus(byte status) {
 		if (status == 1) {
-			this.spawnSprintingParticles();
-			this.jumpDuration = 10;
-			this.jumpTicks = 0;
+			spawnSprintingParticles();
+			jumpDuration = JUMP_DURATION;
+			jumpTicks = 0;
 		}
 		else {
 			super.handleStatus(status);
@@ -498,11 +495,12 @@ public class RabbitEntity extends AnimalEntity {
 
 	@Override
 	public Vec3d getLeashOffset() {
-		return new Vec3d(0.0, 0.6F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
+		return new Vec3d(0.0, WALK_SPEED * getStandingEyeHeight(), getWidth() * 0.4F);
 	}
 
 	/**
-	 * {@code EatCarrotCropGoal}.
+	 * Цель ИИ: поиск и поедание моркови на грядках.
+	 * Уменьшает возраст моркови на 1 или уничтожает её, если она ещё не выросла.
 	 */
 	static class EatCarrotCropGoal extends MoveToTargetPosGoal {
 
@@ -517,13 +515,13 @@ public class RabbitEntity extends AnimalEntity {
 
 		@Override
 		public boolean canStart() {
-			if (this.cooldown <= 0) {
-				if (!getServerWorld(this.rabbit).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+			if (cooldown <= 0) {
+				if (!getServerWorld(rabbit).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
 					return false;
 				}
 
-				this.hasTarget = false;
-				this.wantsCarrots = this.rabbit.wantsCarrots();
+				hasTarget = false;
+				wantsCarrots = rabbit.wantsCarrots();
 			}
 
 			return super.canStart();
@@ -531,56 +529,59 @@ public class RabbitEntity extends AnimalEntity {
 
 		@Override
 		public boolean shouldContinue() {
-			return this.hasTarget && super.shouldContinue();
+			return hasTarget && super.shouldContinue();
 		}
 
 		@Override
 		public void tick() {
 			super.tick();
-			this.rabbit
-					.getLookControl()
-					.lookAt(
-							this.targetPos.getX() + 0.5,
-							this.targetPos.getY() + 1,
-							this.targetPos.getZ() + 0.5,
-							10.0F,
-							this.rabbit.getMaxLookPitchChange()
-					);
-			if (this.hasReached()) {
-				World world = this.rabbit.getEntityWorld();
-				BlockPos blockPos = this.targetPos.up();
-				BlockState blockState = world.getBlockState(blockPos);
-				Block block = blockState.getBlock();
-				if (this.hasTarget && block instanceof CarrotsBlock) {
-					int i = blockState.get(CarrotsBlock.AGE);
-					if (i == 0) {
-						world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 2);
-						world.breakBlock(blockPos, true, this.rabbit);
-					}
-					else {
-						world.setBlockState(blockPos, blockState.with(CarrotsBlock.AGE, i - 1), 2);
-						world.emitGameEvent(GameEvent.BLOCK_CHANGE, blockPos, GameEvent.Emitter.of(this.rabbit));
-						world.syncWorldEvent(2001, blockPos, Block.getRawIdFromState(blockState));
-					}
+			rabbit.getLookControl().lookAt(
+					targetPos.getX() + 0.5,
+					targetPos.getY() + 1,
+					targetPos.getZ() + 0.5,
+					10.0F,
+					rabbit.getMaxLookPitchChange()
+			);
 
-					this.rabbit.moreCarrotTicks = 40;
+			if (!hasReached()) {
+				return;
+			}
+
+			World world = rabbit.getEntityWorld();
+			BlockPos blockPos = targetPos.up();
+			BlockState blockState = world.getBlockState(blockPos);
+			Block block = blockState.getBlock();
+
+			if (hasTarget && block instanceof CarrotsBlock) {
+				int age = blockState.get(CarrotsBlock.AGE);
+				if (age == 0) {
+					world.setBlockState(blockPos, Blocks.AIR.getDefaultState(), 2);
+					world.breakBlock(blockPos, true, rabbit);
+				}
+				else {
+					world.setBlockState(blockPos, blockState.with(CarrotsBlock.AGE, age - 1), 2);
+					world.emitGameEvent(GameEvent.BLOCK_CHANGE, blockPos, GameEvent.Emitter.of(rabbit));
+					world.syncWorldEvent(2001, blockPos, Block.getRawIdFromState(blockState));
 				}
 
-				this.hasTarget = false;
-				this.cooldown = 10;
+				rabbit.moreCarrotTicks = JUMP_COOLDOWN_TICKS;
 			}
+
+			hasTarget = false;
+			cooldown = SLOW_JUMP_COOLDOWN;
 		}
 
 		@Override
 		protected boolean isTargetPos(WorldView world, BlockPos pos) {
 			BlockState blockState = world.getBlockState(pos);
-			if (blockState.isOf(Blocks.FARMLAND) && this.wantsCarrots && !this.hasTarget) {
-				blockState = world.getBlockState(pos.up());
-				if (blockState.getBlock() instanceof CarrotsBlock && ((CarrotsBlock) blockState.getBlock()).isMature(
-						blockState)) {
-					this.hasTarget = true;
-					return true;
-				}
+			if (!blockState.isOf(Blocks.FARMLAND) || !wantsCarrots || hasTarget) {
+				return false;
+			}
+
+			BlockState above = world.getBlockState(pos.up());
+			if (above.getBlock() instanceof CarrotsBlock carrotsBlock && carrotsBlock.isMature(above)) {
+				hasTarget = true;
+				return true;
 			}
 
 			return false;
@@ -588,7 +589,7 @@ public class RabbitEntity extends AnimalEntity {
 	}
 
 	/**
-	 * {@code EscapeDangerGoal}.
+	 * Цель ИИ: побег от опасности с обновлением скорости кролика.
 	 */
 	static class EscapeDangerGoal extends net.minecraft.entity.ai.goal.EscapeDangerGoal {
 
@@ -602,12 +603,13 @@ public class RabbitEntity extends AnimalEntity {
 		@Override
 		public void tick() {
 			super.tick();
-			this.rabbit.setSpeed(this.speed);
+			rabbit.setSpeed(speed);
 		}
 	}
 
 	/**
-	 * {@code FleeGoal}.
+	 * Цель ИИ: бегство от определённого типа существ.
+	 * Неактивна для варианта {@link Variant#EVIL}.
 	 */
 	static class FleeGoal<T extends LivingEntity> extends FleeEntityGoal<T> {
 
@@ -626,25 +628,26 @@ public class RabbitEntity extends AnimalEntity {
 
 		@Override
 		public boolean canStart() {
-			return this.rabbit.getVariant() != RabbitEntity.Variant.EVIL && super.canStart();
+			return rabbit.getVariant() != Variant.EVIL && super.canStart();
 		}
 	}
 
 	/**
-	 * {@code RabbitData}.
+	 * Данные спавна кролика с фиксированным вариантом для всего помёта.
 	 */
 	public static class RabbitData extends PassiveEntity.PassiveData {
 
-		public final RabbitEntity.Variant variant;
+		public final Variant variant;
 
-		public RabbitData(RabbitEntity.Variant variant) {
+		public RabbitData(Variant variant) {
 			super(1.0F);
 			this.variant = variant;
 		}
 	}
 
 	/**
-	 * {@code RabbitJumpControl}.
+	 * Контроллер прыжков кролика.
+	 * Делегирует запуск прыжка в {@link RabbitEntity#startJump()} при активации.
 	 */
 	public static class RabbitJumpControl extends JumpControl {
 
@@ -657,16 +660,11 @@ public class RabbitEntity extends AnimalEntity {
 		}
 
 		public boolean isActive() {
-			return this.active;
+			return active;
 		}
 
-		/**
-		 * Проверяет возможность jump.
-		 *
-		 * @return boolean — {@code true} если условие выполнено
-		 */
 		public boolean canJump() {
-			return this.canJump;
+			return canJump;
 		}
 
 		public void setCanJump(boolean canJump) {
@@ -675,15 +673,18 @@ public class RabbitEntity extends AnimalEntity {
 
 		@Override
 		public void tick() {
-			if (this.active) {
-				this.rabbit.startJump();
-				this.active = false;
+			if (!active) {
+				return;
 			}
+
+			rabbit.startJump();
+			active = false;
 		}
 	}
 
 	/**
-	 * {@code RabbitMoveControl}.
+	 * Контроллер движения кролика.
+	 * Обнуляет скорость при приземлении и применяет ускорение в воде.
 	 */
 	static class RabbitMoveControl extends MoveControl {
 
@@ -692,17 +693,19 @@ public class RabbitEntity extends AnimalEntity {
 
 		public RabbitMoveControl(RabbitEntity owner) {
 			super(owner);
-			this.rabbit = owner;
+			rabbit = owner;
 		}
 
 		@Override
 		public void tick() {
-			if (this.rabbit.isOnGround() && !this.rabbit.jumping
-					&& !((RabbitEntity.RabbitJumpControl) this.rabbit.jumpControl).isActive()) {
-				this.rabbit.setSpeed(0.0);
+			if (rabbit.isOnGround()
+					&& !rabbit.jumping
+					&& !((RabbitJumpControl) rabbit.jumpControl).isActive()
+			) {
+				rabbit.setSpeed(0.0);
 			}
-			else if (this.isMoving() || this.state == MoveControl.State.JUMPING) {
-				this.rabbit.setSpeed(this.rabbitSpeed);
+			else if (isMoving() || state == MoveControl.State.JUMPING) {
+				rabbit.setSpeed(rabbitSpeed);
 			}
 
 			super.tick();
@@ -710,21 +713,21 @@ public class RabbitEntity extends AnimalEntity {
 
 		@Override
 		public void moveTo(double x, double y, double z, double speed) {
-			if (this.rabbit.isTouchingWater()) {
-				speed = 1.5;
+			if (rabbit.isTouchingWater()) {
+				speed = WATER_SPEED_MULTIPLIER;
 			}
 
 			super.moveTo(x, y, z, speed);
 			if (speed > 0.0) {
-				this.rabbitSpeed = speed;
+				rabbitSpeed = speed;
 			}
 		}
 	}
 
 	/**
-	 * {@code Variant}.
+	 * Варианты окраски кролика. Индекс используется для сериализации в NBT (устаревший формат).
 	 */
-	public static enum Variant implements StringIdentifiable {
+	public enum Variant implements StringIdentifiable {
 		BROWN(0, "brown"),
 		WHITE(1, "white"),
 		BLACK(2, "black"),
@@ -733,38 +736,41 @@ public class RabbitEntity extends AnimalEntity {
 		SALT(5, "salt"),
 		EVIL(99, "evil");
 
-		public static final RabbitEntity.Variant DEFAULT = BROWN;
-		private static final IntFunction<RabbitEntity.Variant> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
-				RabbitEntity.Variant::getIndex, values(), DEFAULT
+		public static final Variant DEFAULT = BROWN;
+		private static final IntFunction<Variant> INDEX_MAPPER = ValueLists.createIndexToValueFunction(
+				Variant::getIndex,
+				values(),
+				DEFAULT
 		);
-		public static final Codec<RabbitEntity.Variant>
-				CODEC =
-				StringIdentifiable.createCodec(RabbitEntity.Variant::values);
+		public static final Codec<Variant> CODEC = StringIdentifiable.createCodec(Variant::values);
 		@Deprecated
-		public static final Codec<RabbitEntity.Variant>
-				INDEX_CODEC =
-				Codec.INT.xmap(INDEX_MAPPER::apply, RabbitEntity.Variant::getIndex);
-		public static final PacketCodec<ByteBuf, RabbitEntity.Variant>
-				PACKET_CODEC =
-				PacketCodecs.indexed(INDEX_MAPPER, RabbitEntity.Variant::getIndex);
+		public static final Codec<Variant> INDEX_CODEC = Codec.INT.xmap(
+				INDEX_MAPPER::apply,
+				Variant::getIndex
+		);
+		public static final PacketCodec<ByteBuf, Variant> PACKET_CODEC = PacketCodecs.indexed(
+				INDEX_MAPPER,
+				Variant::getIndex
+		);
+
 		final int index;
 		private final String id;
 
-		private Variant(final int index, final String id) {
+		Variant(int index, String id) {
 			this.index = index;
 			this.id = id;
 		}
 
 		@Override
 		public String asString() {
-			return this.id;
+			return id;
 		}
 
 		public int getIndex() {
-			return this.index;
+			return index;
 		}
 
-		public static RabbitEntity.Variant byIndex(int index) {
+		public static Variant byIndex(int index) {
 			return INDEX_MAPPER.apply(index);
 		}
 	}

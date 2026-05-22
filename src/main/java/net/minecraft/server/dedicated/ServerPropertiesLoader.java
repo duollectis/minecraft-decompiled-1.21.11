@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code ServerPropertiesLoader}.
+ * Загрузчик server.properties: чтение файла свойств с диска и создание обработчика.
  */
 public class ServerPropertiesLoader {
 

@@ -2,7 +2,6 @@ package net.minecraft.world.gen;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
-import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
@@ -23,12 +22,12 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code StructureAccessor}.
+ * Предоставляет доступ к структурам мира для генерации и запросов.
+ * Является фасадом над {@link StructureLocator} и {@link WorldAccess}.
  */
 public class StructureAccessor {
 
@@ -43,32 +42,31 @@ public class StructureAccessor {
 	}
 
 	/**
-	 * For region.
+	 * Создаёт новый {@code StructureAccessor}, ограниченный регионом чанков.
+	 * Проверяет, что регион принадлежит тому же серверному миру.
 	 *
-	 * @param region region
-	 *
-	 * @return StructureAccessor — результат операции
+	 * @throws IllegalStateException если регион принадлежит другому миру
 	 */
 	public StructureAccessor forRegion(ChunkRegion region) {
-		if (region.toServerWorld() != this.world) {
+		if (region.toServerWorld() != world) {
 			throw new IllegalStateException(
-					"Using invalid structure manager (source level: " + region.toServerWorld() + ", region: " + region);
+				"Using invalid structure manager (source level: " + region.toServerWorld() + ", region: " + region
+			);
 		}
-		else {
-			return new StructureAccessor(region, this.options, this.locator);
-		}
+
+		return new StructureAccessor(region, options, locator);
 	}
 
 	public List<StructureStart> getStructureStarts(ChunkPos pos, Predicate<Structure> predicate) {
-		Map<Structure, LongSet>
-				map =
-				this.world.getChunk(pos.x, pos.z, ChunkStatus.STRUCTURE_REFERENCES).getStructureReferences();
+		Map<Structure, LongSet> references =
+			world.getChunk(pos.x, pos.z, ChunkStatus.STRUCTURE_REFERENCES).getStructureReferences();
 		Builder<StructureStart> builder = ImmutableList.builder();
 
-		for (Entry<Structure, LongSet> entry : map.entrySet()) {
+		for (Map.Entry<Structure, LongSet> entry : references.entrySet()) {
 			Structure structure = entry.getKey();
+
 			if (predicate.test(structure)) {
-				this.acceptStructureStarts(structure, entry.getValue(), builder::add);
+				acceptStructureStarts(structure, entry.getValue(), builder::add);
 			}
 		}
 
@@ -76,78 +74,71 @@ public class StructureAccessor {
 	}
 
 	public List<StructureStart> getStructureStarts(ChunkSectionPos sectionPos, Structure structure) {
-		LongSet longSet = this.world
-				.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.STRUCTURE_REFERENCES)
-				.getStructureReferences(structure);
+		LongSet positions = world
+			.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.STRUCTURE_REFERENCES)
+			.getStructureReferences(structure);
 		Builder<StructureStart> builder = ImmutableList.builder();
-		this.acceptStructureStarts(structure, longSet, builder::add);
+		acceptStructureStarts(structure, positions, builder::add);
 		return builder.build();
 	}
 
+	/**
+	 * Перебирает все стартовые позиции структуры и передаёт валидные старты в {@code consumer}.
+	 * Старт считается валидным, если он не null и содержит дочерние элементы.
+	 */
 	public void acceptStructureStarts(
-			Structure structure,
-			LongSet structureStartPositions,
-			Consumer<StructureStart> consumer
+		Structure structure,
+		LongSet structureStartPositions,
+		Consumer<StructureStart> consumer
 	) {
-		LongIterator var4 = structureStartPositions.iterator();
-
-		while (var4.hasNext()) {
-			long l = (Long) var4.next();
-			ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(new ChunkPos(l), this.world.getBottomSectionCoord());
-			StructureStart structureStart = this.getStructureStart(
-					chunkSectionPos,
-					structure,
-					this.world.getChunk(
-							chunkSectionPos.getSectionX(),
-							chunkSectionPos.getSectionZ(),
-							ChunkStatus.STRUCTURE_STARTS
-					)
+		for (long packedPos : structureStartPositions) {
+			ChunkSectionPos sectionPos = ChunkSectionPos.from(new ChunkPos(packedPos), world.getBottomSectionCoord());
+			StructureStart start = getStructureStart(
+				sectionPos,
+				structure,
+				world.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.STRUCTURE_STARTS)
 			);
-			if (structureStart != null && structureStart.hasChildren()) {
-				consumer.accept(structureStart);
+
+			if (start != null && start.hasChildren()) {
+				consumer.accept(start);
 			}
 		}
 	}
 
 	public @Nullable StructureStart getStructureStart(
-			ChunkSectionPos pos,
-			Structure structure,
-			StructureHolder holder
+		ChunkSectionPos pos,
+		Structure structure,
+		StructureHolder holder
 	) {
 		return holder.getStructureStart(structure);
 	}
 
 	public void setStructureStart(
-			ChunkSectionPos pos,
-			Structure structure,
-			StructureStart structureStart,
-			StructureHolder holder
+		ChunkSectionPos pos,
+		Structure structure,
+		StructureStart structureStart,
+		StructureHolder holder
 	) {
 		holder.setStructureStart(structure, structureStart);
 	}
 
 	public void addStructureReference(
-			ChunkSectionPos pos,
-			Structure structure,
-			long reference,
-			StructureHolder holder
+		ChunkSectionPos pos,
+		Structure structure,
+		long reference,
+		StructureHolder holder
 	) {
 		holder.addStructureReference(structure, reference);
 	}
 
-	/**
-	 * Определяет, следует ли generate structures.
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean shouldGenerateStructures() {
-		return this.options.shouldGenerateStructures();
+		return options.shouldGenerateStructures();
 	}
 
 	public StructureStart getStructureAt(BlockPos pos, Structure structure) {
-		for (StructureStart structureStart : this.getStructureStarts(ChunkSectionPos.from(pos), structure)) {
-			if (structureStart.getBoundingBox().contains(pos)) {
-				return structureStart;
+		for (StructureStart start : getStructureStarts(ChunkSectionPos.from(pos), structure)) {
+			if (start.getBoundingBox().contains(pos)) {
+				return start;
 			}
 		}
 
@@ -155,22 +146,26 @@ public class StructureAccessor {
 	}
 
 	public StructureStart getStructureContaining(BlockPos pos, TagKey<Structure> tag) {
-		return this.getStructureContaining(pos, structure -> structure.isIn(tag));
+		return getStructureContaining(pos, structure -> structure.isIn(tag));
 	}
 
 	public StructureStart getStructureContaining(BlockPos pos, RegistryEntryList<Structure> structures) {
-		return this.getStructureContaining(pos, structures::contains);
+		return getStructureContaining(pos, structures::contains);
 	}
 
+	/**
+	 * Ищет структуру, содержащую позицию, среди структур удовлетворяющих предикату.
+	 * Использует реестр структур для получения записи по сырому идентификатору.
+	 */
 	public StructureStart getStructureContaining(BlockPos pos, Predicate<RegistryEntry<Structure>> predicate) {
-		Registry<Structure> registry = this.getRegistryManager().getOrThrow(RegistryKeys.STRUCTURE);
+		Registry<Structure> registry = getRegistryManager().getOrThrow(RegistryKeys.STRUCTURE);
 
-		for (StructureStart structureStart : this.getStructureStarts(
-				new ChunkPos(pos),
-				structure -> registry.getEntry(registry.getRawId(structure)).map(predicate::test).orElse(false)
+		for (StructureStart start : getStructureStarts(
+			new ChunkPos(pos),
+			structure -> registry.getEntry(registry.getRawId(structure)).map(predicate::test).orElse(false)
 		)) {
-			if (this.structureContains(pos, structureStart)) {
-				return structureStart;
+			if (structureContains(pos, start)) {
+				return start;
 			}
 		}
 
@@ -178,26 +173,18 @@ public class StructureAccessor {
 	}
 
 	public StructureStart getStructureContaining(BlockPos pos, Structure structure) {
-		for (StructureStart structureStart : this.getStructureStarts(ChunkSectionPos.from(pos), structure)) {
-			if (this.structureContains(pos, structureStart)) {
-				return structureStart;
+		for (StructureStart start : getStructureStarts(ChunkSectionPos.from(pos), structure)) {
+			if (structureContains(pos, start)) {
+				return start;
 			}
 		}
 
 		return StructureStart.DEFAULT;
 	}
 
-	/**
-	 * Structure contains.
-	 *
-	 * @param pos pos
-	 * @param structureStart structure start
-	 *
-	 * @return boolean — результат операции
-	 */
 	public boolean structureContains(BlockPos pos, StructureStart structureStart) {
-		for (StructurePiece structurePiece : structureStart.getChildren()) {
-			if (structurePiece.getBoundingBox().contains(pos)) {
+		for (StructurePiece piece : structureStart.getChildren()) {
+			if (piece.getBoundingBox().contains(pos)) {
 				return true;
 			}
 		}
@@ -206,47 +193,34 @@ public class StructureAccessor {
 	}
 
 	public boolean hasStructureReferences(BlockPos pos) {
-		ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(pos);
-		return this.world
-				.getChunk(
-						chunkSectionPos.getSectionX(),
-						chunkSectionPos.getSectionZ(),
-						ChunkStatus.STRUCTURE_REFERENCES
-				)
-				.hasStructureReferences();
+		ChunkSectionPos sectionPos = ChunkSectionPos.from(pos);
+		return world
+			.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.STRUCTURE_REFERENCES)
+			.hasStructureReferences();
 	}
 
 	public Map<Structure, LongSet> getStructureReferences(BlockPos pos) {
-		ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(pos);
-		return this.world
-				.getChunk(
-						chunkSectionPos.getSectionX(),
-						chunkSectionPos.getSectionZ(),
-						ChunkStatus.STRUCTURE_REFERENCES
-				)
-				.getStructureReferences();
+		ChunkSectionPos sectionPos = ChunkSectionPos.from(pos);
+		return world
+			.getChunk(sectionPos.getSectionX(), sectionPos.getSectionZ(), ChunkStatus.STRUCTURE_REFERENCES)
+			.getStructureReferences();
 	}
 
 	public StructurePresence getStructurePresence(
-			ChunkPos chunkPos,
-			Structure structure,
-			StructurePlacement placement,
-			boolean skipReferencedStructures
+		ChunkPos chunkPos,
+		Structure structure,
+		StructurePlacement placement,
+		boolean skipReferencedStructures
 	) {
-		return this.locator.getStructurePresence(chunkPos, structure, placement, skipReferencedStructures);
+		return locator.getStructurePresence(chunkPos, structure, placement, skipReferencedStructures);
 	}
 
-	/**
-	 * Increment references.
-	 *
-	 * @param structureStart structure start
-	 */
 	public void incrementReferences(StructureStart structureStart) {
 		structureStart.incrementReferences();
-		this.locator.incrementReferences(structureStart.getPos(), structureStart.getStructure());
+		locator.incrementReferences(structureStart.getPos(), structureStart.getStructure());
 	}
 
 	public DynamicRegistryManager getRegistryManager() {
-		return this.world.getRegistryManager();
+		return world.getRegistryManager();
 	}
 }

@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema1483}.
+ * Схема версии 1483: переименовывает сущность {@code minecraft:puffer_fish}
+ * в {@code minecraft:pufferfish} — исправление несоответствия имени.
  */
 public class Schema1483 extends IdentifierNormalizingSchema {
 
-	public Schema1483(int i, Schema schema) {
-		super(i, schema);
+	public Schema1483(int versionKey, Schema parent) {
+		super(versionKey, parent);
 	}
 
 	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {

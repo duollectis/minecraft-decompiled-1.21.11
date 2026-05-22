@@ -10,9 +10,13 @@ import net.minecraft.entity.passive.AxolotlEntity;
 import net.minecraft.server.world.ServerWorld;
 
 /**
- * {@code PlayDeadTask}.
+ * Задача мозга аксолотля, реализующая притворство мёртвым в воде.
+ * При запуске применяет эффект регенерации и сбрасывает цели движения и взгляда.
  */
 public class PlayDeadTask extends MultiTickTask<AxolotlEntity> {
+
+	private static final int REGENERATION_DURATION = 200;
+	private static final int REGENERATION_AMPLIFIER = 0;
 
 	public PlayDeadTask() {
 		super(
@@ -22,48 +26,25 @@ public class PlayDeadTask extends MultiTickTask<AxolotlEntity> {
 						MemoryModuleType.HURT_BY_ENTITY,
 						MemoryModuleState.VALUE_PRESENT
 				),
-				200
+				REGENERATION_DURATION
 		);
 	}
 
-	/**
-	 * Определяет, следует ли run.
-	 *
-	 * @param serverWorld server world
-	 * @param axolotlEntity axolotl entity
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldRun(ServerWorld serverWorld, AxolotlEntity axolotlEntity) {
-		return axolotlEntity.isTouchingWater();
+	@Override
+	protected boolean shouldRun(ServerWorld world, AxolotlEntity entity) {
+		return entity.isTouchingWater();
 	}
 
-	/**
-	 * Определяет, следует ли keep running.
-	 *
-	 * @param serverWorld server world
-	 * @param axolotlEntity axolotl entity
-	 * @param l l
-	 *
-	 * @return boolean — результат операции
-	 */
-	protected boolean shouldKeepRunning(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
-		return axolotlEntity.isTouchingWater() && axolotlEntity
-				.getBrain()
-				.hasMemoryModule(MemoryModuleType.PLAY_DEAD_TICKS);
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, AxolotlEntity entity, long time) {
+		return entity.isTouchingWater() && entity.getBrain().hasMemoryModule(MemoryModuleType.PLAY_DEAD_TICKS);
 	}
 
-	/**
-	 * Run.
-	 *
-	 * @param serverWorld server world
-	 * @param axolotlEntity axolotl entity
-	 * @param l l
-	 */
-	protected void run(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
-		Brain<AxolotlEntity> brain = axolotlEntity.getBrain();
+	@Override
+	protected void run(ServerWorld world, AxolotlEntity entity, long time) {
+		Brain<AxolotlEntity> brain = entity.getBrain();
 		brain.forget(MemoryModuleType.WALK_TARGET);
 		brain.forget(MemoryModuleType.LOOK_TARGET);
-		axolotlEntity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 200, 0));
+		entity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, REGENERATION_DURATION, REGENERATION_AMPLIFIER));
 	}
 }

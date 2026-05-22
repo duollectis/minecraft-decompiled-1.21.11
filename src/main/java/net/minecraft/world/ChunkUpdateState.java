@@ -8,36 +8,36 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.datafixer.DataFixTypes;
 
 /**
- * {@code ChunkUpdateState}.
+ * Персистентное состояние, отслеживающее чанки, требующие обновления.
+ * Хранит два множества: все затронутые чанки и ещё не обработанные.
  */
 public class ChunkUpdateState extends PersistentState {
 
-	private final LongSet all;
-	private final LongSet remaining;
-	private static final Codec<LongSet>
-			LONG_SET_CODEC =
-			Codec.LONG_STREAM.xmap(LongOpenHashSet::toSet, LongCollection::longStream);
+	private static final Codec<LongSet> LONG_SET_CODEC =
+		Codec.LONG_STREAM.xmap(LongOpenHashSet::toSet, LongCollection::longStream);
+
 	public static final Codec<ChunkUpdateState> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    LONG_SET_CODEC.fieldOf("All").forGetter(state -> state.all),
-					                    LONG_SET_CODEC.fieldOf("Remaining").forGetter(state -> state.remaining)
-			                    )
-			                    .apply(instance, ChunkUpdateState::new)
+		instance -> instance.group(
+			LONG_SET_CODEC.fieldOf("All").forGetter(state -> state.all),
+			LONG_SET_CODEC.fieldOf("Remaining").forGetter(state -> state.remaining)
+		).apply(instance, ChunkUpdateState::new)
 	);
 
+	private final LongSet all;
+	private final LongSet remaining;
+
 	/**
-	 * Создаёт state type.
+	 * Создаёт тип персистентного состояния для регистрации в менеджере состояний.
 	 *
-	 * @param id id
-	 *
-	 * @return PersistentStateType — результат операции
+	 * @param id идентификатор состояния на диске
+	 * @return зарегистрированный тип состояния
 	 */
 	public static PersistentStateType<ChunkUpdateState> createStateType(String id) {
 		return new PersistentStateType<>(
-				id,
-				ChunkUpdateState::new,
-				CODEC,
-				DataFixTypes.SAVED_DATA_STRUCTURE_FEATURE_INDICES
+			id,
+			ChunkUpdateState::new,
+			CODEC,
+			DataFixTypes.SAVED_DATA_STRUCTURE_FEATURE_INDICES
 		);
 	}
 
@@ -50,44 +50,31 @@ public class ChunkUpdateState extends PersistentState {
 		this(new LongOpenHashSet(), new LongOpenHashSet());
 	}
 
-	/**
-	 * Add.
-	 *
-	 * @param pos pos
-	 */
+	/** Добавляет позицию чанка в оба множества и помечает состояние изменённым. */
 	public void add(long pos) {
-		this.all.add(pos);
-		this.remaining.add(pos);
-		this.markDirty();
+		all.add(pos);
+		remaining.add(pos);
+		markDirty();
 	}
 
-	/**
-	 * Contains.
-	 *
-	 * @param pos pos
-	 *
-	 * @return boolean — результат операции
-	 */
+	/** Проверяет, был ли чанк добавлен в это состояние. */
 	public boolean contains(long pos) {
-		return this.all.contains(pos);
+		return all.contains(pos);
 	}
 
+	/** Проверяет, ожидает ли чанк обработки. */
 	public boolean isRemaining(long pos) {
-		return this.remaining.contains(pos);
+		return remaining.contains(pos);
 	}
 
-	/**
-	 * Mark resolved.
-	 *
-	 * @param pos pos
-	 */
+	/** Помечает чанк как обработанный, удаляя его из множества ожидающих. */
 	public void markResolved(long pos) {
-		if (this.remaining.remove(pos)) {
-			this.markDirty();
+		if (remaining.remove(pos)) {
+			markDirty();
 		}
 	}
 
 	public LongSet getAll() {
-		return this.all;
+		return all;
 	}
 }

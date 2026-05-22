@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * {@code PrepareSpawnTask}.
+ * Класс Prepare Spawn Task.
  */
 public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 
@@ -108,9 +108,6 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		}
 	}
 
-	/**
-	 * Tick.
-	 */
 	public void tick() {
 		if (this.stage instanceof PrepareSpawnTask.PlayerSpawn playerSpawn) {
 			playerSpawn.tick();
@@ -133,9 +130,6 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		return KEY;
 	}
 
-	/**
-	 * {@code LoadPlayerChunks}.
-	 */
 	final class LoadPlayerChunks implements PrepareSpawnTask.Stage {
 
 		private final ServerWorld world;
@@ -202,9 +196,6 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		}
 	}
 
-	/**
-	 * {@code PlayerSpawn}.
-	 */
 	final class PlayerSpawn implements PrepareSpawnTask.Stage {
 
 		private final ServerWorld world;
@@ -271,9 +262,6 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		}
 	}
 
-	/**
-	 * {@code Stage}.
-	 */
 	sealed interface Stage permits PrepareSpawnTask.LoadPlayerChunks, PrepareSpawnTask.PlayerSpawn {
 	}
 }

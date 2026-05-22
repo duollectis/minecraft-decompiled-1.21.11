@@ -8,33 +8,33 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.world.gen.structure.Structure;
 
 /**
- * {@code StructureSpawnCondition}.
+ * Условие спауна, проверяющее нахождение позиции внутри одной из заданных структур.
+ * Использует {@code StructureAccessor} серверного мира для поиска структуры,
+ * содержащей позицию спауна. Условие выполнено, если найденная структура имеет дочерние элементы.
  */
 public record StructureSpawnCondition(RegistryEntryList<Structure> requiredStructures) implements SpawnCondition {
 
 	public static final MapCodec<StructureSpawnCondition> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(RegistryCodecs
-							.entryList(RegistryKeys.STRUCTURE)
-							.fieldOf("structures")
-							.forGetter(StructureSpawnCondition::requiredStructures))
-					.apply(instance, StructureSpawnCondition::new)
+		instance -> instance
+			.group(
+				RegistryCodecs.entryList(RegistryKeys.STRUCTURE)
+					.fieldOf("structures")
+					.forGetter(StructureSpawnCondition::requiredStructures)
+			)
+			.apply(instance, StructureSpawnCondition::new)
 	);
 
 	/**
-	 * Test.
-	 *
-	 * @param spawnContext spawn context
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, находится ли позиция спауна внутри одной из требуемых структур.
+	 * Структура считается подходящей, если у неё есть дочерние элементы (т.е. она сгенерирована).
 	 */
-	public boolean test(SpawnContext spawnContext) {
-		return spawnContext
-				.world()
-				.toServerWorld()
-				.getStructureAccessor()
-				.getStructureContaining(spawnContext.pos(), this.requiredStructures)
-				.hasChildren();
+	@Override
+	public boolean test(SpawnContext context) {
+		return context.world()
+			.toServerWorld()
+			.getStructureAccessor()
+			.getStructureContaining(context.pos(), requiredStructures)
+			.hasChildren();
 	}
 
 	@Override

@@ -8,27 +8,34 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code SynchronousResourceReloader}.
+ * Синхронный перезагрузчик ресурсов: выполняет всю работу в фазе применения (основной поток).
+ * Фаза подготовки пропускается — сразу сигнализирует о готовности через синхронизатор.
  */
 public interface SynchronousResourceReloader extends ResourceReloader {
 
 	@Override
 	default CompletableFuture<Void> reload(
-			ResourceReloader.Store store,
-			Executor executor,
-			ResourceReloader.Synchronizer synchronizer,
-			Executor executor2
+		ResourceReloader.Store store,
+		Executor prepareExecutor,
+		ResourceReloader.Synchronizer synchronizer,
+		Executor applyExecutor
 	) {
 		ResourceManager resourceManager = store.getResourceManager();
 		return synchronizer.whenPrepared(Unit.INSTANCE).thenRunAsync(
-				() -> {
-					Profiler profiler = Profilers.get();
-					profiler.push("listener");
-					this.reload(resourceManager);
-					profiler.pop();
-				}, executor2
+			() -> {
+				Profiler profiler = Profilers.get();
+				profiler.push("listener");
+				reload(resourceManager);
+				profiler.pop();
+			},
+			applyExecutor
 		);
 	}
 
+	/**
+	 * Выполняет перезагрузку синхронно в основном потоке.
+	 *
+	 * @param manager менеджер ресурсов
+	 */
 	void reload(ResourceManager manager);
 }

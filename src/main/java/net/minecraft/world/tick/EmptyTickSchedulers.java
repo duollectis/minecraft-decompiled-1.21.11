@@ -3,11 +3,12 @@ package net.minecraft.world.tick;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * {@code EmptyTickSchedulers}.
+ * Фабрика пустых (no-op) реализаций планировщиков тиков.
+ * Используется на клиентской стороне и в контекстах, где тики не нужны.
  */
-public class EmptyTickSchedulers {
+public final class EmptyTickSchedulers {
 
-	private static final BasicTickScheduler<Object> EMPTY_BASIC_TICK_SCHEDULER = new BasicTickScheduler<Object>() {
+	private static final BasicTickScheduler<Object> EMPTY_BASIC = new BasicTickScheduler<>() {
 		@Override
 		public void scheduleTick(OrderedTick<Object> orderedTick) {
 		}
@@ -22,34 +23,44 @@ public class EmptyTickSchedulers {
 			return 0;
 		}
 	};
-	private static final QueryableTickScheduler<Object>
-			EMPTY_QUERYABLE_TICK_SCHEDULER =
-			new QueryableTickScheduler<Object>() {
-				@Override
-				public void scheduleTick(OrderedTick<Object> orderedTick) {
-				}
 
-				@Override
-				public boolean isQueued(BlockPos pos, Object type) {
-					return false;
-				}
+	private static final QueryableTickScheduler<Object> EMPTY_QUERYABLE = new QueryableTickScheduler<>() {
+		@Override
+		public void scheduleTick(OrderedTick<Object> orderedTick) {
+		}
 
-				@Override
-				public boolean isTicking(BlockPos pos, Object type) {
-					return false;
-				}
+		@Override
+		public boolean isQueued(BlockPos pos, Object type) {
+			return false;
+		}
 
-				@Override
-				public int getTickCount() {
-					return 0;
-				}
-			};
+		@Override
+		public boolean isTicking(BlockPos pos, Object type) {
+			return false;
+		}
 
-	public static <T> BasicTickScheduler<T> getReadOnlyTickScheduler() {
-		return (BasicTickScheduler<T>) EMPTY_BASIC_TICK_SCHEDULER;
+		@Override
+		public int getTickCount() {
+			return 0;
+		}
+	};
+
+	private EmptyTickSchedulers() {
 	}
 
+	/**
+	 * @return пустой планировщик только для чтения (серверная сторона без активных тиков)
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> BasicTickScheduler<T> getReadOnlyTickScheduler() {
+		return (BasicTickScheduler<T>) EMPTY_BASIC;
+	}
+
+	/**
+	 * @return пустой планировщик для клиентской стороны, всегда возвращающий {@code false}
+	 */
+	@SuppressWarnings("unchecked")
 	public static <T> QueryableTickScheduler<T> getClientTickScheduler() {
-		return (QueryableTickScheduler<T>) EMPTY_QUERYABLE_TICK_SCHEDULER;
+		return (QueryableTickScheduler<T>) EMPTY_QUERYABLE;
 	}
 }

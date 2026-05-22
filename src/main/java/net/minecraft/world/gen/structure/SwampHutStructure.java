@@ -8,7 +8,7 @@ import net.minecraft.world.Heightmap;
 import java.util.Optional;
 
 /**
- * {@code SwampHutStructure}.
+ * Структура болотной хижины ведьмы — одиночный кусок на поверхности болотного биома.
  */
 public class SwampHutStructure extends Structure {
 

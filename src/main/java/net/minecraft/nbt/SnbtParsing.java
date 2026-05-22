@@ -24,189 +24,161 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 /**
- * {@code SnbtParsing}.
+ * Парсер формата SNBT (Stringified NBT) на основе packrat-алгоритма.
+ * <p>
+ * Поддерживает полный синтаксис SNBT: числа с суффиксами типов и основаниями (двоичное, шестнадцатеричное),
+ * строки с экранированием Unicode, массивы ({@code [B;}, {@code [I;}, {@code [L;}),
+ * списки, compound-теги, а также встроенные операции {@code bool()} и {@code uuid()}.
+ * <p>
+ * Точка входа — {@link #createParser(DynamicOps)}, возвращающий готовый {@link PackratParser}.
  */
 public class SnbtParsing {
 
 	private static final DynamicCommandExceptionType NUMBER_PARSE_FAILURE_EXCEPTION = new DynamicCommandExceptionType(
-			value -> Text.stringifiedTranslatable("snbt.parser.number_parse_failure", value)
+		value -> Text.stringifiedTranslatable("snbt.parser.number_parse_failure", value)
 	);
 	static final DynamicCommandExceptionType EXPECTED_HEX_ESCAPE_EXCEPTION = new DynamicCommandExceptionType(
-			length -> Text.stringifiedTranslatable("snbt.parser.expected_hex_escape", length)
+		length -> Text.stringifiedTranslatable("snbt.parser.expected_hex_escape", length)
 	);
 	private static final DynamicCommandExceptionType INVALID_CODEPOINT_EXCEPTION = new DynamicCommandExceptionType(
-			value -> Text.stringifiedTranslatable("snbt.parser.invalid_codepoint", value)
+		value -> Text.stringifiedTranslatable("snbt.parser.invalid_codepoint", value)
 	);
 	private static final DynamicCommandExceptionType NO_SUCH_OPERATION_EXCEPTION = new DynamicCommandExceptionType(
-			operation -> Text.stringifiedTranslatable("snbt.parser.no_such_operation", operation)
+		operation -> Text.stringifiedTranslatable("snbt.parser.no_such_operation", operation)
 	);
-	static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_INTEGER_TYPE_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_integer_type"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_FLOAT_TYPE_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_float_type"))
-			);
-	static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_NON_NEGATIVE_NUMBER_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_non_negative_number"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			INVALID_CHARACTER_NAME_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_character_name"))
-			);
-	static final CursorExceptionType<CommandSyntaxException>
-			INVALID_ARRAY_ELEMENT_TYPE_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_array_element_type"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			INVALID_UNQUOTED_START_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_unquoted_start"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_UNQUOTED_STRING_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_unquoted_string"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			INVALID_STRING_CONTENTS_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_string_contents"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_BINARY_NUMERAL_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_binary_numeral"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			UNDERSCORE_NOT_ALLOWED_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.underscore_not_allowed"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_DECIMAL_NUMERAL_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_decimal_numeral"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			EXPECTED_HEX_NUMERAL_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_hex_numeral"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException> EMPTY_KEY_EXCEPTION = CursorExceptionType.create(
+	static final CursorExceptionType<CommandSyntaxException> EXPECTED_INTEGER_TYPE_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_integer_type"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EXPECTED_FLOAT_TYPE_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_float_type"))
+		);
+	static final CursorExceptionType<CommandSyntaxException> EXPECTED_NON_NEGATIVE_NUMBER_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_non_negative_number"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> INVALID_CHARACTER_NAME_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_character_name"))
+		);
+	static final CursorExceptionType<CommandSyntaxException> INVALID_ARRAY_ELEMENT_TYPE_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_array_element_type"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> INVALID_UNQUOTED_START_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_unquoted_start"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EXPECTED_UNQUOTED_STRING_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_unquoted_string"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> INVALID_STRING_CONTENTS_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.invalid_string_contents"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EXPECTED_BINARY_NUMERAL_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_binary_numeral"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> UNDERSCORE_NOT_ALLOWED_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.underscore_not_allowed"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EXPECTED_DECIMAL_NUMERAL_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_decimal_numeral"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EXPECTED_HEX_NUMERAL_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.expected_hex_numeral"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> EMPTY_KEY_EXCEPTION =
+		CursorExceptionType.create(
 			new SimpleCommandExceptionType(Text.translatable("snbt.parser.empty_key"))
-	);
-	private static final CursorExceptionType<CommandSyntaxException>
-			LEADING_ZERO_NOT_ALLOWED_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.leading_zero_not_allowed"))
-			);
-	private static final CursorExceptionType<CommandSyntaxException>
-			INFINITY_NOT_ALLOWED_EXCEPTION =
-			CursorExceptionType.create(
-					new SimpleCommandExceptionType(Text.translatable("snbt.parser.infinity_not_allowed"))
-			);
+		);
+	private static final CursorExceptionType<CommandSyntaxException> LEADING_ZERO_NOT_ALLOWED_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.leading_zero_not_allowed"))
+		);
+	private static final CursorExceptionType<CommandSyntaxException> INFINITY_NOT_ALLOWED_EXCEPTION =
+		CursorExceptionType.create(
+			new SimpleCommandExceptionType(Text.translatable("snbt.parser.infinity_not_allowed"))
+		);
+
 	private static final HexFormat HEX_FORMAT = HexFormat.of().withUpperCase();
-	private static final NumeralParsingRule
-			BINARY_RULE =
-			new NumeralParsingRule(EXPECTED_BINARY_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
-				@Override
-				protected boolean accepts(char c) {
-					return switch (c) {
-						case '0', '1', '_' -> true;
-						default -> false;
-					};
-				}
-			};
-	private static final NumeralParsingRule
-			DECIMAL_RULE =
-			new NumeralParsingRule(EXPECTED_DECIMAL_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
-				@Override
-				protected boolean accepts(char c) {
-					return switch (c) {
-						case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_' -> true;
-						default -> false;
-					};
-				}
-			};
-	private static final NumeralParsingRule
-			HEX_RULE =
-			new NumeralParsingRule(EXPECTED_HEX_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
-				@Override
-				protected boolean accepts(char c) {
-					return switch (c) {
-						case '0',
-						     '1',
-						     '2',
-						     '3',
-						     '4',
-						     '5',
-						     '6',
-						     '7',
-						     '8',
-						     '9',
-						     'A',
-						     'B',
-						     'C',
-						     'D',
-						     'E',
-						     'F',
-						     '_',
-						     'a',
-						     'b',
-						     'c',
-						     'd',
-						     'e',
-						     'f' -> true;
-						default -> false;
-					};
-				}
-			};
-	private static final TokenParsingRule
-			UNQUOTED_STRING_RULE =
-			new TokenParsingRule(1, INVALID_STRING_CONTENTS_EXCEPTION) {
-				@Override
-				protected boolean isValidChar(char c) {
-					return switch (c) {
-						case '"', '\'', '\\' -> false;
-						default -> true;
-					};
-				}
-			};
+	private static final char UNDERSCORE_CHAR = '_';
+	private static final Pattern UNICODE_NAME_PATTERN = Pattern.compile("[-a-zA-Z0-9 ]+");
+
+	private static final NumeralParsingRule BINARY_RULE =
+		new NumeralParsingRule(EXPECTED_BINARY_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
+			@Override
+			protected boolean accepts(char c) {
+				return switch (c) {
+					case '0', '1', '_' -> true;
+					default -> false;
+				};
+			}
+		};
+	private static final NumeralParsingRule DECIMAL_RULE =
+		new NumeralParsingRule(EXPECTED_DECIMAL_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
+			@Override
+			protected boolean accepts(char c) {
+				return switch (c) {
+					case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_' -> true;
+					default -> false;
+				};
+			}
+		};
+	private static final NumeralParsingRule HEX_RULE =
+		new NumeralParsingRule(EXPECTED_HEX_NUMERAL_EXCEPTION, UNDERSCORE_NOT_ALLOWED_EXCEPTION) {
+			@Override
+			protected boolean accepts(char c) {
+				return switch (c) {
+					case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+					     'A', 'B', 'C', 'D', 'E', 'F',
+					     'a', 'b', 'c', 'd', 'e', 'f',
+					     '_' -> true;
+					default -> false;
+				};
+			}
+		};
+	private static final TokenParsingRule UNQUOTED_STRING_RULE =
+		new TokenParsingRule(1, INVALID_STRING_CONTENTS_EXCEPTION) {
+			@Override
+			protected boolean isValidChar(char c) {
+				return switch (c) {
+					case '"', '\'', '\\' -> false;
+					default -> true;
+				};
+			}
+		};
 	private static final Literals.CharacterLiteral DECIMAL_CHAR = new Literals.CharacterLiteral(CharList.of()) {
 		@Override
 		protected boolean accepts(char c) {
 			return SnbtParsing.isPartOfDecimal(c);
 		}
 	};
-	private static final Pattern UNICODE_NAME_PATTERN = Pattern.compile("[-a-zA-Z0-9 ]+");
 
 	static CursorExceptionType<CommandSyntaxException> toNumberParseFailure(NumberFormatException exception) {
 		return CursorExceptionType.create(NUMBER_PARSE_FAILURE_EXCEPTION, exception.getMessage());
 	}
 
 	/**
-	 * Escape special char.
+	 * Возвращает строку экранирования для управляющего символа, или {@code null} если экранирование не нужно.
 	 *
-	 * @param c c
-	 *
-	 * @return @Nullable String — результат операции
+	 * @param c символ для проверки
+	 * @return строка экранирования (например {@code "n"} для {@code '\n'}) или {@code null}
 	 */
 	public static @Nullable String escapeSpecialChar(char c) {
 		return switch (c) {
 			case '\b' -> "b";
 			case '\t' -> "t";
 			case '\n' -> "n";
-			default -> c < ' ' ? "x" + HEX_FORMAT.toHexDigits((byte) c) : null;
 			case '\f' -> "f";
 			case '\r' -> "r";
+			default -> c < ' ' ? "x" + HEX_FORMAT.toHexDigits((byte) c) : null;
 		};
 	}
 
@@ -222,7 +194,7 @@ public class SnbtParsing {
 	}
 
 	static boolean containsUnderscore(String string) {
-		return string.indexOf(95) != -1;
+		return string.indexOf(UNDERSCORE_CHAR) != -1;
 	}
 
 	private static void skipUnderscoreAndAppend(StringBuilder builder, String value) {
@@ -232,7 +204,7 @@ public class SnbtParsing {
 	static void append(StringBuilder builder, String value, boolean skipUnderscore) {
 		if (skipUnderscore) {
 			for (char c : value.toCharArray()) {
-				if (c != '_') {
+				if (c != UNDERSCORE_CHAR) {
 					builder.append(c);
 				}
 			}
@@ -243,81 +215,77 @@ public class SnbtParsing {
 	}
 
 	static short parseUnsignedShort(String value, int radix) {
-		int i = Integer.parseInt(value, radix);
-		if (i >> 16 == 0) {
-			return (short) i;
+		int parsed = Integer.parseInt(value, radix);
+		if (parsed >> 16 == 0) {
+			return (short) parsed;
 		}
-		else {
-			throw new NumberFormatException("out of range: " + i);
-		}
+
+		throw new NumberFormatException("out of range: " + parsed);
 	}
 
 	private static <T> @Nullable T decodeFloat(
-			DynamicOps<T> ops,
-			SnbtParsing.Sign sign,
-			@Nullable String intPart,
-			@Nullable String fractionalPart,
-			SnbtParsing.@Nullable SignedValue<String> exponent,
-			SnbtParsing.@Nullable NumericType type,
-			ParsingState<?> state
+		DynamicOps<T> ops,
+		SnbtParsing.Sign sign,
+		@Nullable String intPart,
+		@Nullable String fractionalPart,
+		SnbtParsing.@Nullable SignedValue<String> exponent,
+		SnbtParsing.@Nullable NumericType type,
+		ParsingState<?> state
 	) {
-		StringBuilder stringBuilder = new StringBuilder();
-		sign.append(stringBuilder);
+		StringBuilder builder = new StringBuilder();
+		sign.append(builder);
+
 		if (intPart != null) {
-			skipUnderscoreAndAppend(stringBuilder, intPart);
+			skipUnderscoreAndAppend(builder, intPart);
 		}
 
 		if (fractionalPart != null) {
-			stringBuilder.append('.');
-			skipUnderscoreAndAppend(stringBuilder, fractionalPart);
+			builder.append('.');
+			skipUnderscoreAndAppend(builder, fractionalPart);
 		}
 
 		if (exponent != null) {
-			stringBuilder.append('e');
-			exponent.sign().append(stringBuilder);
-			skipUnderscoreAndAppend(stringBuilder, exponent.value);
+			builder.append('e');
+			exponent.sign().append(builder);
+			skipUnderscoreAndAppend(builder, exponent.value);
 		}
 
 		try {
-			String string = stringBuilder.toString();
-
+			String numberStr = builder.toString();
 			return (T) (switch (type) {
-				case null -> (Object) parseFiniteDouble(ops, state, string);
-				case FLOAT -> (Object) parseFiniteFloat(ops, state, string);
-				case DOUBLE -> (Object) parseFiniteDouble(ops, state, string);
+				case null -> (Object) parseFiniteDouble(ops, state, numberStr);
+				case FLOAT -> (Object) parseFiniteFloat(ops, state, numberStr);
+				case DOUBLE -> (Object) parseFiniteDouble(ops, state, numberStr);
 				default -> {
 					state.getErrors().add(state.getCursor(), EXPECTED_FLOAT_TYPE_EXCEPTION);
 					yield null;
 				}
-			}
-			);
+			});
 		}
-		catch (NumberFormatException var11) {
-			state.getErrors().add(state.getCursor(), toNumberParseFailure(var11));
+		catch (NumberFormatException exception) {
+			state.getErrors().add(state.getCursor(), toNumberParseFailure(exception));
 			return null;
 		}
 	}
 
 	private static <T> @Nullable T parseFiniteFloat(DynamicOps<T> ops, ParsingState<?> state, String value) {
-		float f = Float.parseFloat(value);
-		if (!Float.isFinite(f)) {
+		float parsed = Float.parseFloat(value);
+		if (!Float.isFinite(parsed)) {
 			state.getErrors().add(state.getCursor(), INFINITY_NOT_ALLOWED_EXCEPTION);
 			return null;
 		}
-		else {
-			return (T) ops.createFloat(f);
-		}
+
+		return (T) ops.createFloat(parsed);
 	}
 
 	private static <T> @Nullable T parseFiniteDouble(DynamicOps<T> ops, ParsingState<?> state, String value) {
-		double d = Double.parseDouble(value);
-		if (!Double.isFinite(d)) {
+		double parsed = Double.parseDouble(value);
+		if (!Double.isFinite(parsed)) {
 			state.getErrors().add(state.getCursor(), INFINITY_NOT_ALLOWED_EXCEPTION);
 			return null;
 		}
-		else {
-			return (T) ops.createDouble(d);
-		}
+
+		return (T) ops.createDouble(parsed);
 	}
 
 	private static String join(List<String> values) {
@@ -329,602 +297,551 @@ public class SnbtParsing {
 	}
 
 	/**
-	 * Создаёт parser.
+	 * Создаёт packrat-парсер для разбора SNBT-строк в объекты целевого типа.
+	 * <p>
+	 * Парсер строится один раз и может использоваться многократно через {@link PackratParser#parse}.
+	 * Поддерживает все типы NBT: числа, строки, массивы, списки, compound-теги и встроенные операции.
 	 *
-	 * @param ops ops
-	 *
-	 * @return PackratParser — результат операции
+	 * @param ops операции сериализации целевого типа
+	 * @param <T> целевой тип данных
+	 * @return готовый парсер
 	 */
 	public static <T> PackratParser<T> createParser(DynamicOps<T> ops) {
-		T object = (T) ops.createBoolean(true);
-		T object2 = (T) ops.createBoolean(false);
-		T object3 = (T) ops.emptyMap();
-		T object4 = (T) ops.emptyList();
+		T trueValue = (T) ops.createBoolean(true);
+		T falseValue = (T) ops.createBoolean(false);
+		T emptyMap = (T) ops.emptyMap();
+		T emptyList = (T) ops.emptyList();
 		ParsingRules<StringReader> parsingRules = new ParsingRules<>();
-		Symbol<SnbtParsing.Sign> symbol = Symbol.of("sign");
+
+		Symbol<SnbtParsing.Sign> signSymbol = Symbol.of("sign");
 		parsingRules.set(
-				symbol,
-				Term.anyOf(
-						Term.sequence(Literals.character('+'), Term.always(symbol, SnbtParsing.Sign.PLUS)),
-						Term.sequence(Literals.character('-'), Term.always(symbol, SnbtParsing.Sign.MINUS))
-				),
-				results -> results.getOrThrow(symbol)
+			signSymbol,
+			Term.anyOf(
+				Term.sequence(Literals.character('+'), Term.always(signSymbol, SnbtParsing.Sign.PLUS)),
+				Term.sequence(Literals.character('-'), Term.always(signSymbol, SnbtParsing.Sign.MINUS))
+			),
+			results -> results.getOrThrow(signSymbol)
 		);
-		Symbol<SnbtParsing.NumberSuffix> symbol2 = Symbol.of("integer_suffix");
+
+		Symbol<SnbtParsing.NumberSuffix> intSuffixSymbol = Symbol.of("integer_suffix");
 		parsingRules.set(
-				symbol2,
-				Term.anyOf(
-						Term.sequence(
-								Literals.character('u', 'U'),
-								Term.anyOf(
-										Term.sequence(
-												Literals.character('b', 'B'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.UNSIGNED,
-																SnbtParsing.NumericType.BYTE
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('s', 'S'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.UNSIGNED,
-																SnbtParsing.NumericType.SHORT
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('i', 'I'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.UNSIGNED,
-																SnbtParsing.NumericType.INT
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('l', 'L'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.UNSIGNED,
-																SnbtParsing.NumericType.LONG
-														)
-												)
-										)
-								)
-						),
-						Term.sequence(
-								Literals.character('s', 'S'),
-								Term.anyOf(
-										Term.sequence(
-												Literals.character('b', 'B'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.SIGNED,
-																SnbtParsing.NumericType.BYTE
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('s', 'S'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.SIGNED,
-																SnbtParsing.NumericType.SHORT
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('i', 'I'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.SIGNED,
-																SnbtParsing.NumericType.INT
-														)
-												)
-										),
-										Term.sequence(
-												Literals.character('l', 'L'),
-												Term.always(
-														symbol2,
-														new SnbtParsing.NumberSuffix(
-																SnbtParsing.Signedness.SIGNED,
-																SnbtParsing.NumericType.LONG
-														)
-												)
-										)
-								)
-						),
-						Term.sequence(
-								Literals.character('b', 'B'),
-								Term.always(symbol2, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.BYTE))
-						),
-						Term.sequence(
-								Literals.character('s', 'S'),
-								Term.always(symbol2, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.SHORT))
-						),
-						Term.sequence(
-								Literals.character('i', 'I'),
-								Term.always(symbol2, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.INT))
-						),
-						Term.sequence(
-								Literals.character('l', 'L'),
-								Term.always(symbol2, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.LONG))
-						)
-				),
-				results -> results.getOrThrow(symbol2)
-		);
-		Symbol<String> symbol3 = Symbol.of("binary_numeral");
-		parsingRules.set(symbol3, BINARY_RULE);
-		Symbol<String> symbol4 = Symbol.of("decimal_numeral");
-		parsingRules.set(symbol4, DECIMAL_RULE);
-		Symbol<String> symbol5 = Symbol.of("hex_numeral");
-		parsingRules.set(symbol5, HEX_RULE);
-		Symbol<SnbtParsing.IntValue> symbol6 = Symbol.of("integer_literal");
-		ParsingRuleEntry<StringReader, SnbtParsing.IntValue> parsingRuleEntry = parsingRules.set(
-				symbol6,
+			intSuffixSymbol,
+			Term.anyOf(
 				Term.sequence(
-						Term.optional(parsingRules.term(symbol)),
+					Literals.character('u', 'U'),
+					Term.anyOf(
+						Term.sequence(
+							Literals.character('b', 'B'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.UNSIGNED, SnbtParsing.NumericType.BYTE))
+						),
+						Term.sequence(
+							Literals.character('s', 'S'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.UNSIGNED, SnbtParsing.NumericType.SHORT))
+						),
+						Term.sequence(
+							Literals.character('i', 'I'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.UNSIGNED, SnbtParsing.NumericType.INT))
+						),
+						Term.sequence(
+							Literals.character('l', 'L'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.UNSIGNED, SnbtParsing.NumericType.LONG))
+						)
+					)
+				),
+				Term.sequence(
+					Literals.character('s', 'S'),
+					Term.anyOf(
+						Term.sequence(
+							Literals.character('b', 'B'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.SIGNED, SnbtParsing.NumericType.BYTE))
+						),
+						Term.sequence(
+							Literals.character('s', 'S'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.SIGNED, SnbtParsing.NumericType.SHORT))
+						),
+						Term.sequence(
+							Literals.character('i', 'I'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.SIGNED, SnbtParsing.NumericType.INT))
+						),
+						Term.sequence(
+							Literals.character('l', 'L'),
+							Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(SnbtParsing.Signedness.SIGNED, SnbtParsing.NumericType.LONG))
+						)
+					)
+				),
+				Term.sequence(Literals.character('b', 'B'), Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.BYTE))),
+				Term.sequence(Literals.character('s', 'S'), Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.SHORT))),
+				Term.sequence(Literals.character('i', 'I'), Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.INT))),
+				Term.sequence(Literals.character('l', 'L'), Term.always(intSuffixSymbol, new SnbtParsing.NumberSuffix(null, SnbtParsing.NumericType.LONG)))
+			),
+			results -> results.getOrThrow(intSuffixSymbol)
+		);
+
+		Symbol<String> binaryNumeralSymbol = Symbol.of("binary_numeral");
+		parsingRules.set(binaryNumeralSymbol, BINARY_RULE);
+		Symbol<String> decimalNumeralSymbol = Symbol.of("decimal_numeral");
+		parsingRules.set(decimalNumeralSymbol, DECIMAL_RULE);
+		Symbol<String> hexNumeralSymbol = Symbol.of("hex_numeral");
+		parsingRules.set(hexNumeralSymbol, HEX_RULE);
+
+		Symbol<SnbtParsing.IntValue> intLiteralSymbol = Symbol.of("integer_literal");
+		ParsingRuleEntry<StringReader, SnbtParsing.IntValue> intLiteralEntry = parsingRules.set(
+			intLiteralSymbol,
+			Term.sequence(
+				Term.optional(parsingRules.term(signSymbol)),
+				Term.anyOf(
+					Term.sequence(
+						Literals.character('0'),
+						Term.cutting(),
 						Term.anyOf(
-								Term.sequence(
-										Literals.character('0'),
-										Term.cutting(),
-										Term.anyOf(
-												Term.sequence(
-														Literals.character('x', 'X'),
-														Term.cutting(),
-														parsingRules.term(symbol5)
-												),
-												Term.sequence(Literals.character('b', 'B'), parsingRules.term(symbol3)),
-												Term.sequence(
-														parsingRules.term(symbol4),
-														Term.cutting(),
-														Term.fail(LEADING_ZERO_NOT_ALLOWED_EXCEPTION)
-												),
-												Term.always(symbol4, "0")
-										)
-								),
-								parsingRules.term(symbol4)
-						),
-						Term.optional(parsingRules.term(symbol2))
-				),
-				results -> {
-					SnbtParsing.NumberSuffix
-							numberSuffix =
-							results.getOrDefault(symbol2, SnbtParsing.NumberSuffix.DEFAULT);
-					SnbtParsing.Sign sign = results.getOrDefault(symbol, SnbtParsing.Sign.PLUS);
-					String string = results.get(symbol4);
-					if (string != null) {
-						return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.DECIMAL, string, numberSuffix);
-					}
-					else {
-						String string2 = results.get(symbol5);
-						if (string2 != null) {
-							return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.HEX, string2, numberSuffix);
-						}
-						else {
-							String string3 = results.getOrThrow(symbol3);
-							return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.BINARY, string3, numberSuffix);
-						}
-					}
-				}
-		);
-		Symbol<SnbtParsing.NumericType> symbol7 = Symbol.of("float_type_suffix");
-		parsingRules.set(
-				symbol7,
-				Term.anyOf(
-						Term.sequence(
-								Literals.character('f', 'F'),
-								Term.always(symbol7, SnbtParsing.NumericType.FLOAT)
-						),
-						Term.sequence(
-								Literals.character('d', 'D'),
-								Term.always(symbol7, SnbtParsing.NumericType.DOUBLE)
+							Term.sequence(
+								Literals.character('x', 'X'),
+								Term.cutting(),
+								parsingRules.term(hexNumeralSymbol)
+							),
+							Term.sequence(Literals.character('b', 'B'), parsingRules.term(binaryNumeralSymbol)),
+							Term.sequence(
+								parsingRules.term(decimalNumeralSymbol),
+								Term.cutting(),
+								Term.fail(LEADING_ZERO_NOT_ALLOWED_EXCEPTION)
+							),
+							Term.always(decimalNumeralSymbol, "0")
 						)
+					),
+					parsingRules.term(decimalNumeralSymbol)
 				),
-				results -> results.getOrThrow(symbol7)
+				Term.optional(parsingRules.term(intSuffixSymbol))
+			),
+			results -> {
+				SnbtParsing.NumberSuffix suffix = results.getOrDefault(intSuffixSymbol, SnbtParsing.NumberSuffix.DEFAULT);
+				SnbtParsing.Sign sign = results.getOrDefault(signSymbol, SnbtParsing.Sign.PLUS);
+				String decimal = results.get(decimalNumeralSymbol);
+
+				if (decimal != null) {
+					return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.DECIMAL, decimal, suffix);
+				}
+
+				String hex = results.get(hexNumeralSymbol);
+				if (hex != null) {
+					return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.HEX, hex, suffix);
+				}
+
+				String binary = results.getOrThrow(binaryNumeralSymbol);
+				return new SnbtParsing.IntValue(sign, SnbtParsing.Radix.BINARY, binary, suffix);
+			}
 		);
-		Symbol<SnbtParsing.SignedValue<String>> symbol8 = Symbol.of("float_exponent_part");
+
+		Symbol<SnbtParsing.NumericType> floatSuffixSymbol = Symbol.of("float_type_suffix");
 		parsingRules.set(
-				symbol8,
-				Term.sequence(
-						Literals.character('e', 'E'),
-						Term.optional(parsingRules.term(symbol)),
-						parsingRules.term(symbol4)
-				),
-				results -> new SnbtParsing.SignedValue<>(
-						results.getOrDefault(symbol, SnbtParsing.Sign.PLUS),
-						results.getOrThrow(symbol4)
+			floatSuffixSymbol,
+			Term.anyOf(
+				Term.sequence(Literals.character('f', 'F'), Term.always(floatSuffixSymbol, SnbtParsing.NumericType.FLOAT)),
+				Term.sequence(Literals.character('d', 'D'), Term.always(floatSuffixSymbol, SnbtParsing.NumericType.DOUBLE))
+			),
+			results -> results.getOrThrow(floatSuffixSymbol)
+		);
+
+		Symbol<SnbtParsing.SignedValue<String>> floatExponentSymbol = Symbol.of("float_exponent_part");
+		parsingRules.set(
+			floatExponentSymbol,
+			Term.sequence(
+				Literals.character('e', 'E'),
+				Term.optional(parsingRules.term(signSymbol)),
+				parsingRules.term(decimalNumeralSymbol)
+			),
+			results -> new SnbtParsing.SignedValue<>(
+				results.getOrDefault(signSymbol, SnbtParsing.Sign.PLUS),
+				results.getOrThrow(decimalNumeralSymbol)
+			)
+		);
+
+		Symbol<String> floatWholeSymbol = Symbol.of("float_whole_part");
+		Symbol<String> floatFractionSymbol = Symbol.of("float_fraction_part");
+		Symbol<T> floatLiteralSymbol = Symbol.of("float_literal");
+		parsingRules.set(
+			floatLiteralSymbol,
+			Term.sequence(
+				Term.optional(parsingRules.term(signSymbol)),
+				Term.anyOf(
+					Term.sequence(
+						parsingRules.term(decimalNumeralSymbol, floatWholeSymbol),
+						Literals.character('.'),
+						Term.cutting(),
+						Term.optional(parsingRules.term(decimalNumeralSymbol, floatFractionSymbol)),
+						Term.optional(parsingRules.term(floatExponentSymbol)),
+						Term.optional(parsingRules.term(floatSuffixSymbol))
+					),
+					Term.sequence(
+						Literals.character('.'),
+						Term.cutting(),
+						parsingRules.term(decimalNumeralSymbol, floatFractionSymbol),
+						Term.optional(parsingRules.term(floatExponentSymbol)),
+						Term.optional(parsingRules.term(floatSuffixSymbol))
+					),
+					Term.sequence(
+						parsingRules.term(decimalNumeralSymbol, floatWholeSymbol),
+						parsingRules.term(floatExponentSymbol),
+						Term.cutting(),
+						Term.optional(parsingRules.term(floatSuffixSymbol))
+					),
+					Term.sequence(
+						parsingRules.term(decimalNumeralSymbol, floatWholeSymbol),
+						Term.optional(parsingRules.term(floatExponentSymbol)),
+						parsingRules.term(floatSuffixSymbol)
+					)
 				)
+			),
+			(ParsingRule.RuleAction<StringReader, T>) state -> {
+				ParseResults parseResults = state.getResults();
+				SnbtParsing.Sign sign = parseResults.getOrDefault(signSymbol, SnbtParsing.Sign.PLUS);
+				String wholePart = parseResults.get(floatWholeSymbol);
+				String fractionPart = parseResults.get(floatFractionSymbol);
+				SnbtParsing.SignedValue<String> exponent = parseResults.get(floatExponentSymbol);
+				SnbtParsing.NumericType numericType = parseResults.get(floatSuffixSymbol);
+				return decodeFloat(ops, sign, wholePart, fractionPart, exponent, numericType, state);
+			}
 		);
-		Symbol<String> symbol9 = Symbol.of("float_whole_part");
-		Symbol<String> symbol10 = Symbol.of("float_fraction_part");
-		Symbol<T> symbol11 = Symbol.of("float_literal");
-		parsingRules.set(
-				symbol11,
-				Term.sequence(
-						Term.optional(parsingRules.term(symbol)),
-						Term.anyOf(
-								Term.sequence(
-										parsingRules.term(symbol4, symbol9),
-										Literals.character('.'),
-										Term.cutting(),
-										Term.optional(parsingRules.term(symbol4, symbol10)),
-										Term.optional(parsingRules.term(symbol8)),
-										Term.optional(parsingRules.term(symbol7))
-								),
-								Term.sequence(
-										Literals.character('.'),
-										Term.cutting(),
-										parsingRules.term(symbol4, symbol10),
-										Term.optional(parsingRules.term(symbol8)),
-										Term.optional(parsingRules.term(symbol7))
-								),
-								Term.sequence(
-										parsingRules.term(symbol4, symbol9),
-										parsingRules.term(symbol8),
-										Term.cutting(),
-										Term.optional(parsingRules.term(symbol7))
-								),
-								Term.sequence(
-										parsingRules.term(symbol4, symbol9),
-										Term.optional(parsingRules.term(symbol8)),
-										parsingRules.term(symbol7)
-								)
-						)
-				),
-				(ParsingRule.RuleAction<StringReader, T>) state -> {
-					ParseResults parseResults = state.getResults();
-					SnbtParsing.Sign sign = parseResults.getOrDefault(symbol, SnbtParsing.Sign.PLUS);
-					String string = parseResults.get(symbol9);
-					String string2 = parseResults.get(symbol10);
-					SnbtParsing.SignedValue<String> signedValue = parseResults.get(symbol8);
-					SnbtParsing.NumericType numericType = parseResults.get(symbol7);
-					return decodeFloat(ops, sign, string, string2, signedValue, numericType, state);
-				}
-		);
-		Symbol<String> symbol12 = Symbol.of("string_hex_2");
-		parsingRules.set(symbol12, new SnbtParsing.HexParsingRule(2));
-		Symbol<String> symbol13 = Symbol.of("string_hex_4");
-		parsingRules.set(symbol13, new SnbtParsing.HexParsingRule(4));
-		Symbol<String> symbol14 = Symbol.of("string_hex_8");
-		parsingRules.set(symbol14, new SnbtParsing.HexParsingRule(8));
-		Symbol<String> symbol15 = Symbol.of("string_unicode_name");
-		parsingRules.set(symbol15, new PatternParsingRule(UNICODE_NAME_PATTERN, INVALID_CHARACTER_NAME_EXCEPTION));
-		Symbol<String> symbol16 = Symbol.of("string_escape_sequence");
-		parsingRules.set(
-				symbol16,
-				Term.anyOf(
-						Term.sequence(Literals.character('b'), Term.always(symbol16, "\b")),
-						Term.sequence(Literals.character('s'), Term.always(symbol16, " ")),
-						Term.sequence(Literals.character('t'), Term.always(symbol16, "\t")),
-						Term.sequence(Literals.character('n'), Term.always(symbol16, "\n")),
-						Term.sequence(Literals.character('f'), Term.always(symbol16, "\f")),
-						Term.sequence(Literals.character('r'), Term.always(symbol16, "\r")),
-						Term.sequence(Literals.character('\\'), Term.always(symbol16, "\\")),
-						Term.sequence(Literals.character('\''), Term.always(symbol16, "'")),
-						Term.sequence(Literals.character('"'), Term.always(symbol16, "\"")),
-						Term.sequence(Literals.character('x'), parsingRules.term(symbol12)),
-						Term.sequence(Literals.character('u'), parsingRules.term(symbol13)),
-						Term.sequence(Literals.character('U'), parsingRules.term(symbol14)),
-						Term.sequence(
-								Literals.character('N'),
-								Literals.character('{'),
-								parsingRules.term(symbol15),
-								Literals.character('}')
-						)
-				),
-				(ParsingRule.RuleAction<StringReader, String>) state -> {
-					ParseResults parseResults = state.getResults();
-					String string = parseResults.getAny(symbol16);
-					if (string != null) {
-						return string;
-					}
-					else {
-						String string2 = parseResults.getAny(symbol12, symbol13, symbol14);
-						if (string2 != null) {
-							int i = HexFormat.fromHexDigits(string2);
-							if (!Character.isValidCodePoint(i)) {
-								state
-										.getErrors()
-										.add(
-												state.getCursor(),
-												CursorExceptionType.create(
-														INVALID_CODEPOINT_EXCEPTION,
-														String.format(Locale.ROOT, "U+%08X", i)
-												)
-										);
-								return null;
-							}
-							else {
-								return Character.toString(i);
-							}
-						}
-						else {
-							String string3 = parseResults.getOrThrow(symbol15);
 
-							int j;
-							try {
-								j = Character.codePointOf(string3);
-							}
-							catch (IllegalArgumentException var12x) {
-								state.getErrors().add(state.getCursor(), INVALID_CHARACTER_NAME_EXCEPTION);
-								return null;
-							}
+		Symbol<String> hex2Symbol = Symbol.of("string_hex_2");
+		parsingRules.set(hex2Symbol, new SnbtParsing.HexParsingRule(2));
+		Symbol<String> hex4Symbol = Symbol.of("string_hex_4");
+		parsingRules.set(hex4Symbol, new SnbtParsing.HexParsingRule(4));
+		Symbol<String> hex8Symbol = Symbol.of("string_hex_8");
+		parsingRules.set(hex8Symbol, new SnbtParsing.HexParsingRule(8));
+		Symbol<String> unicodeNameSymbol = Symbol.of("string_unicode_name");
+		parsingRules.set(unicodeNameSymbol, new PatternParsingRule(UNICODE_NAME_PATTERN, INVALID_CHARACTER_NAME_EXCEPTION));
 
-							return Character.toString(j);
-						}
-					}
-				}
-		);
-		Symbol<String> symbol17 = Symbol.of("string_plain_contents");
-		parsingRules.set(symbol17, UNQUOTED_STRING_RULE);
-		Symbol<List<String>> symbol18 = Symbol.of("string_chunks");
-		Symbol<String> symbol19 = Symbol.of("string_contents");
-		Symbol<String> symbol20 = Symbol.of("single_quoted_string_chunk");
-		ParsingRuleEntry<StringReader, String> parsingRuleEntry2 = parsingRules.set(
-				symbol20,
-				Term.anyOf(
-						parsingRules.term(symbol17, symbol19),
-						Term.sequence(Literals.character('\\'), parsingRules.term(symbol16, symbol19)),
-						Term.sequence(Literals.character('"'), Term.always(symbol19, "\""))
-				),
-				results -> results.getOrThrow(symbol19)
-		);
-		Symbol<String> symbol21 = Symbol.of("single_quoted_string_contents");
+		Symbol<String> escapeSequenceSymbol = Symbol.of("string_escape_sequence");
 		parsingRules.set(
-				symbol21,
-				Term.repeated(parsingRuleEntry2, symbol18),
-				results -> join(results.getOrThrow(symbol18))
-		);
-		Symbol<String> symbol22 = Symbol.of("double_quoted_string_chunk");
-		ParsingRuleEntry<StringReader, String> parsingRuleEntry3 = parsingRules.set(
-				symbol22,
-				Term.anyOf(
-						parsingRules.term(symbol17, symbol19),
-						Term.sequence(Literals.character('\\'), parsingRules.term(symbol16, symbol19)),
-						Term.sequence(Literals.character('\''), Term.always(symbol19, "'"))
-				),
-				results -> results.getOrThrow(symbol19)
-		);
-		Symbol<String> symbol23 = Symbol.of("double_quoted_string_contents");
-		parsingRules.set(
-				symbol23,
-				Term.repeated(parsingRuleEntry3, symbol18),
-				results -> join(results.getOrThrow(symbol18))
-		);
-		Symbol<String> symbol24 = Symbol.of("quoted_string_literal");
-		parsingRules.set(
-				symbol24,
-				Term.anyOf(
-						Term.sequence(
-								Literals.character('"'),
-								Term.cutting(),
-								Term.optional(parsingRules.term(symbol23, symbol19)),
-								Literals.character('"')
-						),
-						Term.sequence(
-								Literals.character('\''),
-								Term.optional(parsingRules.term(symbol21, symbol19)),
-								Literals.character('\'')
-						)
-				),
-				results -> results.getOrThrow(symbol19)
-		);
-		Symbol<String> symbol25 = Symbol.of("unquoted_string");
-		parsingRules.set(symbol25, new UnquotedStringParsingRule(1, EXPECTED_UNQUOTED_STRING_EXCEPTION));
-		Symbol<T> symbol26 = Symbol.of("literal");
-		Symbol<List<T>> symbol27 = Symbol.of("arguments");
-		parsingRules.set(
-				symbol27,
-				Term.repeatWithPossiblyTrailingSeparator(
-						parsingRules.getOrCreate(symbol26),
-						symbol27,
-						Literals.character(',')
-				),
-				parseResults -> parseResults.getOrThrow(symbol27)
-		);
-		Symbol<T> symbol28 = Symbol.of("unquoted_string_or_builtin");
-		parsingRules.set(
-				symbol28,
+			escapeSequenceSymbol,
+			Term.anyOf(
+				Term.sequence(Literals.character('b'), Term.always(escapeSequenceSymbol, "\b")),
+				Term.sequence(Literals.character('s'), Term.always(escapeSequenceSymbol, " ")),
+				Term.sequence(Literals.character('t'), Term.always(escapeSequenceSymbol, "\t")),
+				Term.sequence(Literals.character('n'), Term.always(escapeSequenceSymbol, "\n")),
+				Term.sequence(Literals.character('f'), Term.always(escapeSequenceSymbol, "\f")),
+				Term.sequence(Literals.character('r'), Term.always(escapeSequenceSymbol, "\r")),
+				Term.sequence(Literals.character('\\'), Term.always(escapeSequenceSymbol, "\\")),
+				Term.sequence(Literals.character('\''), Term.always(escapeSequenceSymbol, "'")),
+				Term.sequence(Literals.character('"'), Term.always(escapeSequenceSymbol, "\"")),
+				Term.sequence(Literals.character('x'), parsingRules.term(hex2Symbol)),
+				Term.sequence(Literals.character('u'), parsingRules.term(hex4Symbol)),
+				Term.sequence(Literals.character('U'), parsingRules.term(hex8Symbol)),
 				Term.sequence(
-						parsingRules.term(symbol25),
-						Term.optional(Term.sequence(
-								Literals.character('('),
-								parsingRules.term(symbol27),
-								Literals.character(')')
-						))
-				),
-				(ParsingRule.RuleAction<StringReader, T>) state -> {
-					ParseResults parseResults = state.getResults();
-					String string = parseResults.getOrThrow(symbol25);
-					if (!string.isEmpty() && canUnquotedStringStartWith(string.charAt(0))) {
-						List<T> list = parseResults.get(symbol27);
-						if (list != null) {
-							SnbtOperation.Type type = new SnbtOperation.Type(string, list.size());
-							SnbtOperation.Operator operator = SnbtOperation.OPERATIONS.get(type);
-							if (operator != null) {
-								return operator.apply(ops, list, state);
-							}
-							else {
-								state
-										.getErrors()
-										.add(
-												state.getCursor(),
-												CursorExceptionType.create(NO_SUCH_OPERATION_EXCEPTION, type.toString())
-										);
-								return null;
-							}
-						}
-						else if (string.equalsIgnoreCase("true")) {
-							return object;
-						}
-						else {
-							return (T) (string.equalsIgnoreCase("false") ? object2 : ops.createString(string));
-						}
-					}
-					else {
-						state
-								.getErrors()
-								.add(state.getCursor(), SnbtOperation.SUGGESTIONS, INVALID_UNQUOTED_START_EXCEPTION);
+					Literals.character('N'),
+					Literals.character('{'),
+					parsingRules.term(unicodeNameSymbol),
+					Literals.character('}')
+				)
+			),
+			(ParsingRule.RuleAction<StringReader, String>) state -> {
+				ParseResults parseResults = state.getResults();
+				String directEscape = parseResults.getAny(escapeSequenceSymbol);
+
+				if (directEscape != null) {
+					return directEscape;
+				}
+
+				String hexDigits = parseResults.getAny(hex2Symbol, hex4Symbol, hex8Symbol);
+				if (hexDigits != null) {
+					int codePoint = HexFormat.fromHexDigits(hexDigits);
+					if (!Character.isValidCodePoint(codePoint)) {
+						state.getErrors().add(
+							state.getCursor(),
+							CursorExceptionType.create(
+								INVALID_CODEPOINT_EXCEPTION,
+								String.format(Locale.ROOT, "U+%08X", codePoint)
+							)
+						);
 						return null;
 					}
-				}
-		);
-		Symbol<String> symbol29 = Symbol.of("map_key");
-		parsingRules.set(
-				symbol29,
-				Term.anyOf(parsingRules.term(symbol24), parsingRules.term(symbol25)),
-				results -> results.getAnyOrThrow(symbol24, symbol25)
-		);
-		Symbol<Entry<String, T>> symbol30 = Symbol.of("map_entry");
-		ParsingRuleEntry<StringReader, Entry<String, T>> parsingRuleEntry4 = parsingRules.set(
-				symbol30,
-				Term.sequence(parsingRules.term(symbol29), Literals.character(':'), parsingRules.term(symbol26)),
-				(ParsingRule.RuleAction<StringReader, Entry<String, T>>) state -> {
-					ParseResults parseResults = state.getResults();
-					String string = parseResults.getOrThrow(symbol29);
-					if (string.isEmpty()) {
-						state.getErrors().add(state.getCursor(), EMPTY_KEY_EXCEPTION);
-						return null;
-					}
-					else {
-						T objectx = parseResults.getOrThrow(symbol26);
-						return Map.entry(string, objectx);
-					}
-				}
-		);
-		Symbol<List<Entry<String, T>>> symbol31 = Symbol.of("map_entries");
-		parsingRules.set(
-				symbol31,
-				Term.repeatWithPossiblyTrailingSeparator(parsingRuleEntry4, symbol31, Literals.character(',')),
-				results -> results.getOrThrow(symbol31)
-		);
-		Symbol<T> symbol32 = Symbol.of("map_literal");
-		parsingRules.set(
-				symbol32,
-				Term.sequence(Literals.character('{'), parsingRules.term(symbol31), Literals.character('}')),
-				results -> {
-					List<Entry<String, T>> list = results.getOrThrow(symbol31);
-					if (list.isEmpty()) {
-						return object3;
-					}
-					else {
-						Builder<T, T> builder = ImmutableMap.builderWithExpectedSize(list.size());
 
-						for (Entry<String, T> entry : list) {
-							builder.put(ops.createString(entry.getKey()), entry.getValue());
-						}
-
-						return (T) ops.createMap(builder.buildKeepingLast());
-					}
+					return Character.toString(codePoint);
 				}
+
+				String unicodeName = parseResults.getOrThrow(unicodeNameSymbol);
+				int codePoint;
+				try {
+					codePoint = Character.codePointOf(unicodeName);
+				}
+				catch (IllegalArgumentException ignored) {
+					state.getErrors().add(state.getCursor(), INVALID_CHARACTER_NAME_EXCEPTION);
+					return null;
+				}
+
+				return Character.toString(codePoint);
+			}
 		);
-		Symbol<List<T>> symbol33 = Symbol.of("list_entries");
-		parsingRules.set(
-				symbol33,
-				Term.repeatWithPossiblyTrailingSeparator(
-						parsingRules.getOrCreate(symbol26),
-						symbol33,
-						Literals.character(',')
-				),
-				results -> results.getOrThrow(symbol33)
+
+		Symbol<String> plainContentsSymbol = Symbol.of("string_plain_contents");
+		parsingRules.set(plainContentsSymbol, UNQUOTED_STRING_RULE);
+		Symbol<List<String>> stringChunksSymbol = Symbol.of("string_chunks");
+		Symbol<String> stringContentsSymbol = Symbol.of("string_contents");
+
+		Symbol<String> singleQuotedChunkSymbol = Symbol.of("single_quoted_string_chunk");
+		ParsingRuleEntry<StringReader, String> singleQuotedChunkEntry = parsingRules.set(
+			singleQuotedChunkSymbol,
+			Term.anyOf(
+				parsingRules.term(plainContentsSymbol, stringContentsSymbol),
+				Term.sequence(Literals.character('\\'), parsingRules.term(escapeSequenceSymbol, stringContentsSymbol)),
+				Term.sequence(Literals.character('"'), Term.always(stringContentsSymbol, "\""))
+			),
+			results -> results.getOrThrow(stringContentsSymbol)
 		);
-		Symbol<SnbtParsing.ArrayType> symbol34 = Symbol.of("array_prefix");
+		Symbol<String> singleQuotedContentsSymbol = Symbol.of("single_quoted_string_contents");
 		parsingRules.set(
-				symbol34,
-				Term.anyOf(
-						Term.sequence(Literals.character('B'), Term.always(symbol34, SnbtParsing.ArrayType.BYTE)),
-						Term.sequence(Literals.character('L'), Term.always(symbol34, SnbtParsing.ArrayType.LONG)),
-						Term.sequence(Literals.character('I'), Term.always(symbol34, SnbtParsing.ArrayType.INT))
-				),
-				results -> results.getOrThrow(symbol34)
+			singleQuotedContentsSymbol,
+			Term.repeated(singleQuotedChunkEntry, stringChunksSymbol),
+			results -> join(results.getOrThrow(stringChunksSymbol))
 		);
-		Symbol<List<SnbtParsing.IntValue>> symbol35 = Symbol.of("int_array_entries");
-		parsingRules.set(
-				symbol35,
-				Term.repeatWithPossiblyTrailingSeparator(parsingRuleEntry, symbol35, Literals.character(',')),
-				results -> results.getOrThrow(symbol35)
+
+		Symbol<String> doubleQuotedChunkSymbol = Symbol.of("double_quoted_string_chunk");
+		ParsingRuleEntry<StringReader, String> doubleQuotedChunkEntry = parsingRules.set(
+			doubleQuotedChunkSymbol,
+			Term.anyOf(
+				parsingRules.term(plainContentsSymbol, stringContentsSymbol),
+				Term.sequence(Literals.character('\\'), parsingRules.term(escapeSequenceSymbol, stringContentsSymbol)),
+				Term.sequence(Literals.character('\''), Term.always(stringContentsSymbol, "'"))
+			),
+			results -> results.getOrThrow(stringContentsSymbol)
 		);
-		Symbol<T> symbol36 = Symbol.of("list_literal");
+		Symbol<String> doubleQuotedContentsSymbol = Symbol.of("double_quoted_string_contents");
 		parsingRules.set(
-				symbol36,
+			doubleQuotedContentsSymbol,
+			Term.repeated(doubleQuotedChunkEntry, stringChunksSymbol),
+			results -> join(results.getOrThrow(stringChunksSymbol))
+		);
+
+		Symbol<String> quotedStringSymbol = Symbol.of("quoted_string_literal");
+		parsingRules.set(
+			quotedStringSymbol,
+			Term.anyOf(
 				Term.sequence(
-						Literals.character('['),
-						Term.anyOf(
-								Term.sequence(
-										parsingRules.term(symbol34),
-										Literals.character(';'),
-										parsingRules.term(symbol35)
-								), parsingRules.term(symbol33)
-						),
-						Literals.character(']')
+					Literals.character('"'),
+					Term.cutting(),
+					Term.optional(parsingRules.term(doubleQuotedContentsSymbol, stringContentsSymbol)),
+					Literals.character('"')
 				),
-				(ParsingRule.RuleAction<StringReader, T>) state -> {
-					ParseResults parseResults = state.getResults();
-					SnbtParsing.ArrayType arrayType = parseResults.get(symbol34);
-					if (arrayType != null) {
-						List<SnbtParsing.IntValue> list = parseResults.getOrThrow(symbol35);
-						return list.isEmpty() ? arrayType.createEmpty(ops) : arrayType.decode(ops, list, state);
-					}
-					else {
-						List<T> list = parseResults.getOrThrow(symbol33);
-						return (T) (list.isEmpty() ? object4 : ops.createList(list.stream()));
-					}
-				}
+				Term.sequence(
+					Literals.character('\''),
+					Term.optional(parsingRules.term(singleQuotedContentsSymbol, stringContentsSymbol)),
+					Literals.character('\'')
+				)
+			),
+			results -> results.getOrThrow(stringContentsSymbol)
 		);
-		ParsingRuleEntry<StringReader, T> parsingRuleEntry5 = parsingRules.set(
-				symbol26,
+
+		Symbol<String> unquotedStringSymbol = Symbol.of("unquoted_string");
+		parsingRules.set(unquotedStringSymbol, new UnquotedStringParsingRule(1, EXPECTED_UNQUOTED_STRING_EXCEPTION));
+
+		Symbol<T> literalSymbol = Symbol.of("literal");
+		Symbol<List<T>> argumentsSymbol = Symbol.of("arguments");
+		parsingRules.set(
+			argumentsSymbol,
+			Term.repeatWithPossiblyTrailingSeparator(
+				parsingRules.getOrCreate(literalSymbol),
+				argumentsSymbol,
+				Literals.character(',')
+			),
+			parseResults -> parseResults.getOrThrow(argumentsSymbol)
+		);
+
+		Symbol<T> unquotedOrBuiltinSymbol = Symbol.of("unquoted_string_or_builtin");
+		parsingRules.set(
+			unquotedOrBuiltinSymbol,
+			Term.sequence(
+				parsingRules.term(unquotedStringSymbol),
+				Term.optional(Term.sequence(
+					Literals.character('('),
+					parsingRules.term(argumentsSymbol),
+					Literals.character(')')
+				))
+			),
+			(ParsingRule.RuleAction<StringReader, T>) state -> {
+				ParseResults parseResults = state.getResults();
+				String name = parseResults.getOrThrow(unquotedStringSymbol);
+
+				if (name.isEmpty() || !canUnquotedStringStartWith(name.charAt(0))) {
+					state.getErrors().add(state.getCursor(), SnbtOperation.SUGGESTIONS, INVALID_UNQUOTED_START_EXCEPTION);
+					return null;
+				}
+
+				List<T> args = parseResults.get(argumentsSymbol);
+				if (args != null) {
+					SnbtOperation.Type operationType = new SnbtOperation.Type(name, args.size());
+					SnbtOperation.Operator operator = SnbtOperation.OPERATIONS.get(operationType);
+					if (operator != null) {
+						return operator.apply(ops, args, state);
+					}
+
+					state.getErrors().add(
+						state.getCursor(),
+						CursorExceptionType.create(NO_SUCH_OPERATION_EXCEPTION, operationType.toString())
+					);
+					return null;
+				}
+
+				if (name.equalsIgnoreCase(SnbtOperation.TRUE)) {
+					return trueValue;
+				}
+
+				return (T) (name.equalsIgnoreCase(SnbtOperation.FALSE) ? falseValue : ops.createString(name));
+			}
+		);
+
+		Symbol<String> mapKeySymbol = Symbol.of("map_key");
+		parsingRules.set(
+			mapKeySymbol,
+			Term.anyOf(parsingRules.term(quotedStringSymbol), parsingRules.term(unquotedStringSymbol)),
+			results -> results.getAnyOrThrow(quotedStringSymbol, unquotedStringSymbol)
+		);
+
+		Symbol<Entry<String, T>> mapEntrySymbol = Symbol.of("map_entry");
+		ParsingRuleEntry<StringReader, Entry<String, T>> mapEntryEntry = parsingRules.set(
+			mapEntrySymbol,
+			Term.sequence(parsingRules.term(mapKeySymbol), Literals.character(':'), parsingRules.term(literalSymbol)),
+			(ParsingRule.RuleAction<StringReader, Entry<String, T>>) state -> {
+				ParseResults parseResults = state.getResults();
+				String key = parseResults.getOrThrow(mapKeySymbol);
+
+				if (key.isEmpty()) {
+					state.getErrors().add(state.getCursor(), EMPTY_KEY_EXCEPTION);
+					return null;
+				}
+
+				T value = parseResults.getOrThrow(literalSymbol);
+				return Map.entry(key, value);
+			}
+		);
+
+		Symbol<List<Entry<String, T>>> mapEntriesSymbol = Symbol.of("map_entries");
+		parsingRules.set(
+			mapEntriesSymbol,
+			Term.repeatWithPossiblyTrailingSeparator(mapEntryEntry, mapEntriesSymbol, Literals.character(',')),
+			results -> results.getOrThrow(mapEntriesSymbol)
+		);
+
+		Symbol<T> mapLiteralSymbol = Symbol.of("map_literal");
+		parsingRules.set(
+			mapLiteralSymbol,
+			Term.sequence(Literals.character('{'), parsingRules.term(mapEntriesSymbol), Literals.character('}')),
+			results -> {
+				List<Entry<String, T>> entries = results.getOrThrow(mapEntriesSymbol);
+				if (entries.isEmpty()) {
+					return emptyMap;
+				}
+
+				Builder<T, T> builder = ImmutableMap.builderWithExpectedSize(entries.size());
+				for (Entry<String, T> entry : entries) {
+					builder.put(ops.createString(entry.getKey()), entry.getValue());
+				}
+
+				return (T) ops.createMap(builder.buildKeepingLast());
+			}
+		);
+
+		Symbol<List<T>> listEntriesSymbol = Symbol.of("list_entries");
+		parsingRules.set(
+			listEntriesSymbol,
+			Term.repeatWithPossiblyTrailingSeparator(
+				parsingRules.getOrCreate(literalSymbol),
+				listEntriesSymbol,
+				Literals.character(',')
+			),
+			results -> results.getOrThrow(listEntriesSymbol)
+		);
+
+		Symbol<SnbtParsing.ArrayType> arrayPrefixSymbol = Symbol.of("array_prefix");
+		parsingRules.set(
+			arrayPrefixSymbol,
+			Term.anyOf(
+				Term.sequence(Literals.character('B'), Term.always(arrayPrefixSymbol, SnbtParsing.ArrayType.BYTE)),
+				Term.sequence(Literals.character('L'), Term.always(arrayPrefixSymbol, SnbtParsing.ArrayType.LONG)),
+				Term.sequence(Literals.character('I'), Term.always(arrayPrefixSymbol, SnbtParsing.ArrayType.INT))
+			),
+			results -> results.getOrThrow(arrayPrefixSymbol)
+		);
+
+		Symbol<List<SnbtParsing.IntValue>> intArrayEntriesSymbol = Symbol.of("int_array_entries");
+		parsingRules.set(
+			intArrayEntriesSymbol,
+			Term.repeatWithPossiblyTrailingSeparator(intLiteralEntry, intArrayEntriesSymbol, Literals.character(',')),
+			results -> results.getOrThrow(intArrayEntriesSymbol)
+		);
+
+		Symbol<T> listLiteralSymbol = Symbol.of("list_literal");
+		parsingRules.set(
+			listLiteralSymbol,
+			Term.sequence(
+				Literals.character('['),
 				Term.anyOf(
-						Term.sequence(
-								Term.positiveLookahead(DECIMAL_CHAR),
-								Term.anyOf(parsingRules.term(symbol11, symbol26), parsingRules.term(symbol6))
-						),
-						Term.sequence(
-								Term.positiveLookahead(Literals.character('"', '\'')),
-								Term.cutting(),
-								parsingRules.term(symbol24)
-						),
-						Term.sequence(
-								Term.positiveLookahead(Literals.character('{')),
-								Term.cutting(),
-								parsingRules.term(symbol32, symbol26)
-						),
-						Term.sequence(
-								Term.positiveLookahead(Literals.character('[')),
-								Term.cutting(),
-								parsingRules.term(symbol36, symbol26)
-						),
-						parsingRules.term(symbol28, symbol26)
+					Term.sequence(
+						parsingRules.term(arrayPrefixSymbol),
+						Literals.character(';'),
+						parsingRules.term(intArrayEntriesSymbol)
+					),
+					parsingRules.term(listEntriesSymbol)
 				),
-				(ParsingRule.RuleAction<StringReader, T>) state -> {
-					ParseResults parseResults = state.getResults();
-					String string = parseResults.get(symbol24);
-					if (string != null) {
-						return (T) ops.createString(string);
-					}
-					else {
-						SnbtParsing.IntValue intValue = parseResults.get(symbol6);
-						return intValue != null ? intValue.decode(ops, state) : parseResults.getOrThrow(symbol26);
-					}
+				Literals.character(']')
+			),
+			(ParsingRule.RuleAction<StringReader, T>) state -> {
+				ParseResults parseResults = state.getResults();
+				SnbtParsing.ArrayType arrayType = parseResults.get(arrayPrefixSymbol);
+
+				if (arrayType != null) {
+					List<SnbtParsing.IntValue> values = parseResults.getOrThrow(intArrayEntriesSymbol);
+					return values.isEmpty() ? arrayType.createEmpty(ops) : arrayType.decode(ops, values, state);
 				}
+
+				List<T> values = parseResults.getOrThrow(listEntriesSymbol);
+				return (T) (values.isEmpty() ? emptyList : ops.createList(values.stream()));
+			}
 		);
-		return new PackratParser<>(parsingRules, parsingRuleEntry5);
+
+		ParsingRuleEntry<StringReader, T> rootEntry = parsingRules.set(
+			literalSymbol,
+			Term.anyOf(
+				Term.sequence(
+					Term.positiveLookahead(DECIMAL_CHAR),
+					Term.anyOf(parsingRules.term(floatLiteralSymbol, literalSymbol), parsingRules.term(intLiteralSymbol))
+				),
+				Term.sequence(
+					Term.positiveLookahead(Literals.character('"', '\'')),
+					Term.cutting(),
+					parsingRules.term(quotedStringSymbol)
+				),
+				Term.sequence(
+					Term.positiveLookahead(Literals.character('{')),
+					Term.cutting(),
+					parsingRules.term(mapLiteralSymbol, literalSymbol)
+				),
+				Term.sequence(
+					Term.positiveLookahead(Literals.character('[')),
+					Term.cutting(),
+					parsingRules.term(listLiteralSymbol, literalSymbol)
+				),
+				parsingRules.term(unquotedOrBuiltinSymbol, literalSymbol)
+			),
+			(ParsingRule.RuleAction<StringReader, T>) state -> {
+				ParseResults parseResults = state.getResults();
+				String quotedStr = parseResults.get(quotedStringSymbol);
+
+				if (quotedStr != null) {
+					return (T) ops.createString(quotedStr);
+				}
+
+				SnbtParsing.IntValue intValue = parseResults.get(intLiteralSymbol);
+				return intValue != null ? intValue.decode(ops, state) : parseResults.getOrThrow(literalSymbol);
+			}
+		);
+
+		return new PackratParser<>(parsingRules, rootEntry);
 	}
 
 	/**
-	 * {@code ArrayType}.
+	 * Тип массива SNBT: байтовый, целочисленный или длинный.
 	 */
-	static enum ArrayType {
+	enum ArrayType {
 		BYTE(SnbtParsing.NumericType.BYTE) {
 			private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.wrap(new byte[0]);
 
@@ -937,8 +854,8 @@ public class SnbtParsing {
 			public <T> @Nullable T decode(DynamicOps<T> ops, List<SnbtParsing.IntValue> values, ParsingState<?> state) {
 				ByteList byteList = new ByteArrayList();
 
-				for (SnbtParsing.IntValue intValue : values) {
-					Number number = this.decode(intValue, state);
+				for (SnbtParsing.IntValue value : values) {
+					Number number = this.decode(value, state);
 					if (number == null) {
 						return null;
 					}
@@ -959,8 +876,8 @@ public class SnbtParsing {
 			public <T> @Nullable T decode(DynamicOps<T> ops, List<SnbtParsing.IntValue> values, ParsingState<?> state) {
 				java.util.stream.IntStream.Builder builder = IntStream.builder();
 
-				for (SnbtParsing.IntValue intValue : values) {
-					Number number = this.decode(intValue, state);
+				for (SnbtParsing.IntValue value : values) {
+					Number number = this.decode(value, state);
 					if (number == null) {
 						return null;
 					}
@@ -972,10 +889,10 @@ public class SnbtParsing {
 			}
 		},
 		LONG(
-				SnbtParsing.NumericType.LONG,
-				SnbtParsing.NumericType.BYTE,
-				SnbtParsing.NumericType.SHORT,
-				SnbtParsing.NumericType.INT
+			SnbtParsing.NumericType.LONG,
+			SnbtParsing.NumericType.BYTE,
+			SnbtParsing.NumericType.SHORT,
+			SnbtParsing.NumericType.INT
 		) {
 			@Override
 			public <T> T createEmpty(DynamicOps<T> ops) {
@@ -986,8 +903,8 @@ public class SnbtParsing {
 			public <T> @Nullable T decode(DynamicOps<T> ops, List<SnbtParsing.IntValue> values, ParsingState<?> state) {
 				java.util.stream.LongStream.Builder builder = LongStream.builder();
 
-				for (SnbtParsing.IntValue intValue : values) {
-					Number number = this.decode(intValue, state);
+				for (SnbtParsing.IntValue value : values) {
+					Number number = this.decode(value, state);
 					if (number == null) {
 						return null;
 					}
@@ -1008,211 +925,162 @@ public class SnbtParsing {
 		}
 
 		public boolean isTypeAllowed(SnbtParsing.NumericType type) {
-			return type == this.elementType || this.castableTypes.contains(type);
+			return type == elementType || castableTypes.contains(type);
 		}
 
-		/**
-		 * Создаёт empty.
-		 *
-		 * @param ops ops
-		 *
-		 * @return T — результат операции
-		 */
 		public abstract <T> T createEmpty(DynamicOps<T> ops);
 
 		public abstract <T> @Nullable T decode(
-				DynamicOps<T> ops,
-				List<SnbtParsing.IntValue> values,
-				ParsingState<?> state
+			DynamicOps<T> ops,
+			List<SnbtParsing.IntValue> values,
+			ParsingState<?> state
 		);
 
-		/**
-		 * Decode.
-		 *
-		 * @param value value
-		 * @param state state
-		 *
-		 * @return @Nullable Number — результат операции
-		 */
 		protected @Nullable Number decode(SnbtParsing.IntValue value, ParsingState<?> state) {
-			SnbtParsing.NumericType numericType = this.getType(value.suffix);
+			SnbtParsing.NumericType numericType = getType(value.suffix);
 			if (numericType == null) {
 				state.getErrors().add(state.getCursor(), SnbtParsing.INVALID_ARRAY_ELEMENT_TYPE_EXCEPTION);
 				return null;
 			}
-			else {
-				return (Number) value.decode(JavaOps.INSTANCE, numericType, state);
-			}
+
+			return (Number) value.decode(JavaOps.INSTANCE, numericType, state);
 		}
 
 		private SnbtParsing.@Nullable NumericType getType(SnbtParsing.NumberSuffix suffix) {
 			SnbtParsing.NumericType numericType = suffix.type();
 			if (numericType == null) {
-				return this.elementType;
+				return elementType;
 			}
-			else {
-				return !this.isTypeAllowed(numericType) ? null : numericType;
-			}
+
+			return !isTypeAllowed(numericType) ? null : numericType;
 		}
 	}
 
 	/**
-	 * {@code HexParsingRule}.
-	 */
+		* Правило парсинга шестнадцатеричных escape-последовательностей фиксированной длины.
+		*/
 	static class HexParsingRule extends TokenParsingRule {
 
 		public HexParsingRule(int length) {
 			super(
-					length,
-					length,
-					CursorExceptionType.create(SnbtParsing.EXPECTED_HEX_ESCAPE_EXCEPTION, String.valueOf(length))
+				length,
+				length,
+				CursorExceptionType.create(SnbtParsing.EXPECTED_HEX_ESCAPE_EXCEPTION, String.valueOf(length))
 			);
 		}
 
 		@Override
 		protected boolean isValidChar(char c) {
 			return switch (c) {
-				case '0',
-				     '1',
-				     '2',
-				     '3',
-				     '4',
-				     '5',
-				     '6',
-				     '7',
-				     '8',
-				     '9',
-				     'A',
-				     'B',
-				     'C',
-				     'D',
-				     'E',
-				     'F',
-				     'a',
-				     'b',
-				     'c',
-				     'd',
-				     'e',
-				     'f' -> true;
+				case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+				     'A', 'B', 'C', 'D', 'E', 'F',
+				     'a', 'b', 'c', 'd', 'e', 'f' -> true;
 				default -> false;
 			};
 		}
 	}
 
 	/**
-	 * {@code IntValue}.
-	 */
+		* Представляет целочисленный литерал SNBT с его знаком, основанием, цифрами и суффиксом типа.
+		*/
 	record IntValue(SnbtParsing.Sign sign, SnbtParsing.Radix base, String digits, SnbtParsing.NumberSuffix suffix) {
 
 		private SnbtParsing.Signedness getSignedness() {
-			if (this.suffix.signed != null) {
-				return this.suffix.signed;
+			if (suffix.signed != null) {
+				return suffix.signed;
 			}
-			else {
-				return switch (this.base) {
-					case BINARY, HEX -> SnbtParsing.Signedness.UNSIGNED;
-					case DECIMAL -> SnbtParsing.Signedness.SIGNED;
-				};
-			}
+
+			return switch (base) {
+				case BINARY, HEX -> SnbtParsing.Signedness.UNSIGNED;
+				case DECIMAL -> SnbtParsing.Signedness.SIGNED;
+			};
 		}
 
-		private String toString(SnbtParsing.Sign sign) {
-			boolean bl = SnbtParsing.containsUnderscore(this.digits);
-			if (sign != SnbtParsing.Sign.MINUS && !bl) {
-				return this.digits;
+		private String toSignedString(SnbtParsing.Sign effectiveSign) {
+			boolean hasUnderscore = SnbtParsing.containsUnderscore(digits);
+			if (effectiveSign != SnbtParsing.Sign.MINUS && !hasUnderscore) {
+				return digits;
 			}
-			else {
-				StringBuilder stringBuilder = new StringBuilder();
-				sign.append(stringBuilder);
-				SnbtParsing.append(stringBuilder, this.digits, bl);
-				return stringBuilder.toString();
-			}
+
+			StringBuilder builder = new StringBuilder();
+			effectiveSign.append(builder);
+			SnbtParsing.append(builder, digits, hasUnderscore);
+			return builder.toString();
 		}
 
-		/**
-		 * Decode.
-		 *
-		 * @param ops ops
-		 * @param state state
-		 *
-		 * @return @Nullable T — результат операции
-		 */
 		public <T> @Nullable T decode(DynamicOps<T> ops, ParsingState<?> state) {
-			return this.decode(ops, Objects.requireNonNullElse(this.suffix.type, SnbtParsing.NumericType.INT), state);
+			return decode(ops, Objects.requireNonNullElse(suffix.type, SnbtParsing.NumericType.INT), state);
 		}
 
 		/**
-		 * Decode.
+		 * Декодирует целочисленный литерал в значение целевого типа.
+		 * Учитывает знаковость (signed/unsigned) и основание системы счисления.
 		 *
-		 * @param ops ops
-		 * @param type type
-		 * @param state state
-		 *
-		 * @return @Nullable T — результат операции
+		 * @param ops   операции сериализации
+		 * @param type  целевой числовой тип
+		 * @param state состояние парсера для записи ошибок
+		 * @param <T>   целевой тип данных
+		 * @return декодированное значение или {@code null} при ошибке
 		 */
 		public <T> @Nullable T decode(DynamicOps<T> ops, SnbtParsing.NumericType type, ParsingState<?> state) {
-			boolean bl = this.getSignedness() == SnbtParsing.Signedness.SIGNED;
-			if (!bl && this.sign == SnbtParsing.Sign.MINUS) {
+			boolean isSigned = getSignedness() == SnbtParsing.Signedness.SIGNED;
+			if (!isSigned && sign == SnbtParsing.Sign.MINUS) {
 				state.getErrors().add(state.getCursor(), SnbtParsing.EXPECTED_NON_NEGATIVE_NUMBER_EXCEPTION);
 				return null;
 			}
-			else {
-				String string = this.toString(this.sign);
 
-				int i = switch (this.base) {
-					case BINARY -> 2;
-					case DECIMAL -> 10;
-					case HEX -> 16;
-				};
+			String numberStr = toSignedString(sign);
+			int radix = switch (base) {
+				case BINARY -> 2;
+				case DECIMAL -> 10;
+				case HEX -> 16;
+			};
 
-				try {
-					if (bl) {
-						return (T) (switch (type) {
-							case BYTE -> (Object) ops.createByte(Byte.parseByte(string, i));
-							case SHORT -> (Object) ops.createShort(Short.parseShort(string, i));
-							case INT -> (Object) ops.createInt(Integer.parseInt(string, i));
-							case LONG -> (Object) ops.createLong(Long.parseLong(string, i));
-							default -> {
-								state.getErrors().add(state.getCursor(), SnbtParsing.EXPECTED_INTEGER_TYPE_EXCEPTION);
-								yield null;
-							}
+			try {
+				if (isSigned) {
+					return (T) (switch (type) {
+						case BYTE -> (Object) ops.createByte(Byte.parseByte(numberStr, radix));
+						case SHORT -> (Object) ops.createShort(Short.parseShort(numberStr, radix));
+						case INT -> (Object) ops.createInt(Integer.parseInt(numberStr, radix));
+						case LONG -> (Object) ops.createLong(Long.parseLong(numberStr, radix));
+						default -> {
+							state.getErrors().add(state.getCursor(), SnbtParsing.EXPECTED_INTEGER_TYPE_EXCEPTION);
+							yield null;
 						}
-						);
-					}
-					else {
-						return (T) (switch (type) {
-							case BYTE -> (Object) ops.createByte(UnsignedBytes.parseUnsignedByte(string, i));
-							case SHORT -> (Object) ops.createShort(SnbtParsing.parseUnsignedShort(string, i));
-							case INT -> (Object) ops.createInt(Integer.parseUnsignedInt(string, i));
-							case LONG -> (Object) ops.createLong(Long.parseUnsignedLong(string, i));
-							default -> {
-								state.getErrors().add(state.getCursor(), SnbtParsing.EXPECTED_INTEGER_TYPE_EXCEPTION);
-								yield null;
-							}
+					});
+				}
+				else {
+					return (T) (switch (type) {
+						case BYTE -> (Object) ops.createByte(UnsignedBytes.parseUnsignedByte(numberStr, radix));
+						case SHORT -> (Object) ops.createShort(SnbtParsing.parseUnsignedShort(numberStr, radix));
+						case INT -> (Object) ops.createInt(Integer.parseUnsignedInt(numberStr, radix));
+						case LONG -> (Object) ops.createLong(Long.parseUnsignedLong(numberStr, radix));
+						default -> {
+							state.getErrors().add(state.getCursor(), SnbtParsing.EXPECTED_INTEGER_TYPE_EXCEPTION);
+							yield null;
 						}
-						);
-					}
+					});
 				}
-				catch (NumberFormatException var8) {
-					state.getErrors().add(state.getCursor(), SnbtParsing.toNumberParseFailure(var8));
-					return null;
-				}
+			}
+			catch (NumberFormatException exception) {
+				state.getErrors().add(state.getCursor(), SnbtParsing.toNumberParseFailure(exception));
+				return null;
 			}
 		}
 	}
 
 	/**
-	 * {@code NumberSuffix}.
-	 */
+		* Суффикс числового литерала: знаковость и тип.
+		*/
 	record NumberSuffix(SnbtParsing.@Nullable Signedness signed, SnbtParsing.@Nullable NumericType type) {
 
 		public static final SnbtParsing.NumberSuffix DEFAULT = new SnbtParsing.NumberSuffix(null, null);
 	}
 
 	/**
-	 * {@code NumericType}.
+	 * Числовой тип SNBT-литерала.
 	 */
-	static enum NumericType {
+	enum NumericType {
 		FLOAT,
 		DOUBLE,
 		BYTE,
@@ -1222,43 +1090,38 @@ public class SnbtParsing {
 	}
 
 	/**
-	 * {@code Radix}.
+	 * Основание системы счисления числового литерала.
 	 */
-	static enum Radix {
+	enum Radix {
 		BINARY,
 		DECIMAL,
 		HEX;
 	}
 
 	/**
-	 * {@code Sign}.
+	 * Знак числового литерала.
 	 */
-	static enum Sign {
+	enum Sign {
 		PLUS,
 		MINUS;
 
-		/**
-		 * Append.
-		 *
-		 * @param builder builder
-		 */
 		public void append(StringBuilder builder) {
 			if (this == MINUS) {
-				builder.append("-");
+				builder.append('-');
 			}
 		}
 	}
 
 	/**
-	 * {@code SignedValue}.
-	 */
+		* Значение с явно указанным знаком (используется для экспоненты числа с плавающей точкой).
+		*/
 	record SignedValue<T>(SnbtParsing.Sign sign, T value) {
 	}
 
 	/**
-	 * {@code Signedness}.
+	 * Явная знаковость числового литерала.
 	 */
-	static enum Signedness {
+	enum Signedness {
 		SIGNED,
 		UNSIGNED;
 	}

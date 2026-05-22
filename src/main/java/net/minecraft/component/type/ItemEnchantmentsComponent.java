@@ -1,9 +1,8 @@
 package net.minecraft.component.type;
 
 import com.mojang.serialization.Codec;
-import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.Item;
@@ -30,41 +29,46 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * {@code ItemEnchantmentsComponent}.
- */
+	 * Компонент зачарований предмета. Хранит карту «зачарование → уровень».
+	 * Уровень 0 означает отсутствие зачарования; уровни выше {@link Enchantment#MAX_LEVEL} обрезаются.
+	 */
 public class ItemEnchantmentsComponent implements TooltipAppender {
 
-	public static final ItemEnchantmentsComponent DEFAULT = new ItemEnchantmentsComponent(new Object2IntOpenHashMap());
-	private static final Codec<Integer> ENCHANTMENT_LEVEL_CODEC = Codec.intRange(1, 255);
-	public static final Codec<ItemEnchantmentsComponent>
-			CODEC =
-			Codec.unboundedMap(Enchantment.ENTRY_CODEC, ENCHANTMENT_LEVEL_CODEC)
-			     .xmap(
-					     map -> new ItemEnchantmentsComponent(new Object2IntOpenHashMap(map)),
-					     itemEnchantmentsComponent -> itemEnchantmentsComponent.enchantments
-			     );
+	private static final int MIN_VALID_LEVEL = 0;
+	private static final int MAX_VALID_LEVEL = 255;
+
+	public static final ItemEnchantmentsComponent DEFAULT = new ItemEnchantmentsComponent(new Object2IntOpenHashMap<>());
+	private static final Codec<Integer> ENCHANTMENT_LEVEL_CODEC = Codec.intRange(1, Enchantment.MAX_LEVEL);
+
+	public static final Codec<ItemEnchantmentsComponent> CODEC = Codec.unboundedMap(
+			Enchantment.ENTRY_CODEC,
+			ENCHANTMENT_LEVEL_CODEC
+	).xmap(
+			map -> new ItemEnchantmentsComponent(new Object2IntOpenHashMap<>(map)),
+			component -> component.enchantments
+	);
+
 	public static final PacketCodec<RegistryByteBuf, ItemEnchantmentsComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.map(Object2IntOpenHashMap::new, Enchantment.ENTRY_PACKET_CODEC, PacketCodecs.VAR_INT),
 			component -> component.enchantments,
 			ItemEnchantmentsComponent::new
 	);
+
 	final Object2IntOpenHashMap<RegistryEntry<Enchantment>> enchantments;
 
 	ItemEnchantmentsComponent(Object2IntOpenHashMap<RegistryEntry<Enchantment>> enchantments) {
 		this.enchantments = enchantments;
-		ObjectIterator var2 = enchantments.object2IntEntrySet().iterator();
 
-		while (var2.hasNext()) {
-			Entry<RegistryEntry<Enchantment>> entry = (Entry<RegistryEntry<Enchantment>>) var2.next();
-			int i = entry.getIntValue();
-			if (i < 0 || i > 255) {
-				throw new IllegalArgumentException("Enchantment " + entry.getKey() + " has invalid level " + i);
+		for (Object2IntMap.Entry<RegistryEntry<Enchantment>> entry : enchantments.object2IntEntrySet()) {
+			int level = entry.getIntValue();
+			if (level < MIN_VALID_LEVEL || level > MAX_VALID_LEVEL) {
+				throw new IllegalArgumentException("Enchantment " + entry.getKey() + " has invalid level " + level);
 			}
 		}
 	}
 
 	public int getLevel(RegistryEntry<Enchantment> enchantment) {
-		return this.enchantments.getInt(enchantment);
+		return enchantments.getInt(enchantment);
 	}
 
 	@Override
@@ -75,27 +79,23 @@ public class ItemEnchantmentsComponent implements TooltipAppender {
 			ComponentsAccess components
 	) {
 		RegistryWrapper.WrapperLookup wrapperLookup = context.getRegistryLookup();
-		RegistryEntryList<Enchantment>
-				registryEntryList =
-				getTooltipOrderList(wrapperLookup, RegistryKeys.ENCHANTMENT, EnchantmentTags.TOOLTIP_ORDER);
+		RegistryEntryList<Enchantment> orderedList = getTooltipOrderList(
+				wrapperLookup,
+				RegistryKeys.ENCHANTMENT,
+				EnchantmentTags.TOOLTIP_ORDER
+		);
 
-		for (RegistryEntry<Enchantment> registryEntry : registryEntryList) {
-			int i = this.enchantments.getInt(registryEntry);
-			if (i > 0) {
-				textConsumer.accept(Enchantment.getName(registryEntry, i));
+		for (RegistryEntry<Enchantment> entry : orderedList) {
+			int level = enchantments.getInt(entry);
+			if (level > 0) {
+				textConsumer.accept(Enchantment.getName(entry, level));
 			}
 		}
 
-		ObjectIterator var10 = this.enchantments.object2IntEntrySet().iterator();
-
-		while (var10.hasNext()) {
-			Entry<RegistryEntry<Enchantment>> entry = (Entry<RegistryEntry<Enchantment>>) var10.next();
-			RegistryEntry<Enchantment> registryEntry2 = (RegistryEntry<Enchantment>) entry.getKey();
-			if (!registryEntryList.contains(registryEntry2)) {
-				textConsumer.accept(Enchantment.getName(
-						(RegistryEntry<Enchantment>) entry.getKey(),
-						entry.getIntValue()
-				));
+		for (Object2IntMap.Entry<RegistryEntry<Enchantment>> entry : enchantments.object2IntEntrySet()) {
+			RegistryEntry<Enchantment> enchantment = entry.getKey();
+			if (!orderedList.contains(enchantment)) {
+				textConsumer.accept(Enchantment.getName(enchantment, entry.getIntValue()));
 			}
 		}
 	}
@@ -105,117 +105,83 @@ public class ItemEnchantmentsComponent implements TooltipAppender {
 			RegistryKey<Registry<T>> registryRef,
 			TagKey<T> tooltipOrderTag
 	) {
-		if (registries != null) {
-			Optional<RegistryEntryList.Named<T>>
-					optional =
-					registries.getOrThrow(registryRef).getOptional(tooltipOrderTag);
-			if (optional.isPresent()) {
-				return optional.get();
-			}
+		if (registries == null) {
+			return RegistryEntryList.of();
 		}
 
-		return RegistryEntryList.of();
+		Optional<RegistryEntryList.Named<T>> optional = registries.getOrThrow(registryRef).getOptional(tooltipOrderTag);
+		return optional.isPresent() ? optional.get() : RegistryEntryList.of();
 	}
 
 	public Set<RegistryEntry<Enchantment>> getEnchantments() {
-		return Collections.unmodifiableSet(this.enchantments.keySet());
+		return Collections.unmodifiableSet(enchantments.keySet());
 	}
 
-	public Set<Entry<RegistryEntry<Enchantment>>> getEnchantmentEntries() {
-		return Collections.unmodifiableSet(this.enchantments.object2IntEntrySet());
+	public Set<Object2IntMap.Entry<RegistryEntry<Enchantment>>> getEnchantmentEntries() {
+		return Collections.unmodifiableSet(enchantments.object2IntEntrySet());
 	}
 
 	public int getSize() {
-		return this.enchantments.size();
+		return enchantments.size();
 	}
 
 	public boolean isEmpty() {
-		return this.enchantments.isEmpty();
+		return enchantments.isEmpty();
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else {
-			return o instanceof ItemEnchantmentsComponent itemEnchantmentsComponent ? this.enchantments.equals(
-					itemEnchantmentsComponent.enchantments) : false;
-		}
+		return this == o
+			? true
+			: o instanceof ItemEnchantmentsComponent other && enchantments.equals(other.enchantments);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.enchantments.hashCode();
+		return enchantments.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "ItemEnchantments{enchantments=" + this.enchantments + "}";
+		return "ItemEnchantments{enchantments=" + enchantments + "}";
 	}
 
-	/**
-	 * {@code Builder}.
-	 */
 	public static class Builder {
 
-		private final Object2IntOpenHashMap<RegistryEntry<Enchantment>> enchantments = new Object2IntOpenHashMap();
+		private final Object2IntOpenHashMap<RegistryEntry<Enchantment>> enchantments = new Object2IntOpenHashMap<>();
 
 		public Builder(ItemEnchantmentsComponent enchantmentsComponent) {
-			this.enchantments.putAll(enchantmentsComponent.enchantments);
+			enchantments.putAll(enchantmentsComponent.enchantments);
 		}
 
-		/**
-		 * Set.
-		 *
-		 * @param enchantment enchantment
-		 * @param level level
-		 */
 		public void set(RegistryEntry<Enchantment> enchantment, int level) {
 			if (level <= 0) {
-				this.enchantments.removeInt(enchantment);
-			}
-			else {
-				this.enchantments.put(enchantment, Math.min(level, 255));
+				enchantments.removeInt(enchantment);
+			} else {
+				enchantments.put(enchantment, Math.min(level, Enchantment.MAX_LEVEL));
 			}
 		}
 
-		/**
-		 * Add.
-		 *
-		 * @param enchantment enchantment
-		 * @param level level
-		 */
 		public void add(RegistryEntry<Enchantment> enchantment, int level) {
 			if (level > 0) {
-				this.enchantments.merge(enchantment, Math.min(level, 255), Integer::max);
+				enchantments.merge(enchantment, Math.min(level, Enchantment.MAX_LEVEL), Integer::max);
 			}
 		}
 
-		/**
-		 * Remove.
-		 *
-		 * @param predicate predicate
-		 */
 		public void remove(Predicate<RegistryEntry<Enchantment>> predicate) {
-			this.enchantments.keySet().removeIf(predicate);
+			enchantments.keySet().removeIf(predicate);
 		}
 
 		public int getLevel(RegistryEntry<Enchantment> enchantment) {
-			return this.enchantments.getOrDefault(enchantment, 0);
+			return enchantments.getOrDefault(enchantment, 0);
 		}
 
 		public Set<RegistryEntry<Enchantment>> getEnchantments() {
-			return this.enchantments.keySet();
+			return enchantments.keySet();
 		}
 
-		/**
-		 * Build.
-		 *
-		 * @return ItemEnchantmentsComponent — результат операции
-		 */
 		public ItemEnchantmentsComponent build() {
-			return new ItemEnchantmentsComponent(this.enchantments);
+			return new ItemEnchantmentsComponent(enchantments);
 		}
 	}
 }

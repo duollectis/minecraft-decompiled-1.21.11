@@ -20,7 +20,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * {@code OceanMonumentStructure}.
+ * Структура подводного монумента. Перед размещением проверяет, что все биомы в радиусе 29 блоков
+ * принадлежат тегу {@link net.minecraft.registry.tag.BiomeTags#REQUIRED_OCEAN_MONUMENT_SURROUNDING}.
  */
 public class OceanMonumentStructure extends Structure {
 
@@ -32,18 +33,18 @@ public class OceanMonumentStructure extends Structure {
 
 	@Override
 	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
-		int i = context.chunkPos().getOffsetX(9);
-		int j = context.chunkPos().getOffsetZ(9);
+		int centerX = context.chunkPos().getOffsetX(9);
+		int centerZ = context.chunkPos().getOffsetZ(9);
 
-		for (RegistryEntry<Biome> registryEntry : context.biomeSource()
-		                                                 .getBiomesInArea(
-				                                                 i,
-				                                                 context.chunkGenerator().getSeaLevel(),
-				                                                 j,
-				                                                 29,
-				                                                 context.noiseConfig().getMultiNoiseSampler()
-		                                                 )) {
-			if (!registryEntry.isIn(BiomeTags.REQUIRED_OCEAN_MONUMENT_SURROUNDING)) {
+		for (RegistryEntry<Biome> biome : context.biomeSource()
+		                                         .getBiomesInArea(
+				                                         centerX,
+				                                         context.chunkGenerator().getSeaLevel(),
+				                                         centerZ,
+				                                         29,
+				                                         context.noiseConfig().getMultiNoiseSampler()
+		                                         )) {
+			if (!biome.isIn(BiomeTags.REQUIRED_OCEAN_MONUMENT_SURROUNDING)) {
 				return Optional.empty();
 			}
 		}
@@ -52,10 +53,10 @@ public class OceanMonumentStructure extends Structure {
 	}
 
 	private static StructurePiece createBasePiece(ChunkPos pos, ChunkRandom random) {
-		int i = pos.getStartX() - 29;
-		int j = pos.getStartZ() - 29;
+		int startX = pos.getStartX() - 29;
+		int startZ = pos.getStartZ() - 29;
 		Direction direction = Direction.Type.HORIZONTAL.random(random);
-		return new OceanMonumentGenerator.Base(random, i, j, direction);
+		return new OceanMonumentGenerator.Base(random, startX, startZ, direction);
 	}
 
 	private static void addPieces(StructurePiecesCollector collector, Structure.Context context) {
@@ -63,32 +64,26 @@ public class OceanMonumentStructure extends Structure {
 	}
 
 	/**
-	 * Modify pieces on read.
-	 *
-	 * @param pos pos
-	 * @param worldSeed world seed
-	 * @param pieces pieces
-	 *
-	 * @return StructurePiecesList — результат операции
+	 * Пересоздаёт базовый кусок монумента при загрузке из сохранения, используя сид мира для
+	 * воспроизводимого направления. Необходимо из-за изменений формата сохранения в старых версиях.
 	 */
 	public static StructurePiecesList modifyPiecesOnRead(ChunkPos pos, long worldSeed, StructurePiecesList pieces) {
 		if (pieces.isEmpty()) {
 			return pieces;
 		}
-		else {
-			ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(RandomSeed.getSeed()));
-			chunkRandom.setCarverSeed(worldSeed, pos.x, pos.z);
-			StructurePiece structurePiece = pieces.pieces().get(0);
-			BlockBox blockBox = structurePiece.getBoundingBox();
-			int i = blockBox.getMinX();
-			int j = blockBox.getMinZ();
-			Direction direction = Direction.Type.HORIZONTAL.random(chunkRandom);
-			Direction direction2 = Objects.requireNonNullElse(structurePiece.getFacing(), direction);
-			StructurePiece structurePiece2 = new OceanMonumentGenerator.Base(chunkRandom, i, j, direction2);
-			StructurePiecesCollector structurePiecesCollector = new StructurePiecesCollector();
-			structurePiecesCollector.addPiece(structurePiece2);
-			return structurePiecesCollector.toList();
-		}
+
+		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(RandomSeed.getSeed()));
+		chunkRandom.setCarverSeed(worldSeed, pos.x, pos.z);
+		StructurePiece firstPiece = pieces.pieces().get(0);
+		BlockBox boundingBox = firstPiece.getBoundingBox();
+		int startX = boundingBox.getMinX();
+		int startZ = boundingBox.getMinZ();
+		Direction randomDirection = Direction.Type.HORIZONTAL.random(chunkRandom);
+		Direction facing = Objects.requireNonNullElse(firstPiece.getFacing(), randomDirection);
+		StructurePiece rebuiltPiece = new OceanMonumentGenerator.Base(chunkRandom, startX, startZ, facing);
+		StructurePiecesCollector collector = new StructurePiecesCollector();
+		collector.addPiece(rebuiltPiece);
+		return collector.toList();
 	}
 
 	@Override

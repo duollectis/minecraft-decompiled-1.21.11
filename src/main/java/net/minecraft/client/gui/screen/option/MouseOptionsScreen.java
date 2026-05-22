@@ -11,10 +11,11 @@ import net.minecraft.text.Text;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code MouseOptionsScreen}.
+ * Экран настроек мыши — управляет чувствительностью, инверсией осей,
+ * сенсорным экраном и другими параметрами мыши.
  */
+@Environment(EnvType.CLIENT)
 public class MouseOptionsScreen extends GameOptionsScreen {
 
 	private static final Text TITLE = Text.translatable("options.mouse_settings.title");
@@ -38,16 +39,14 @@ public class MouseOptionsScreen extends GameOptionsScreen {
 	@Override
 	protected void addOptions() {
 		if (InputUtil.isRawMouseMotionSupported()) {
-			this.body
-					.addAll(Stream
-							.concat(
-									Arrays.stream(getOptions(this.gameOptions)),
-									Stream.of(this.gameOptions.getRawMouseInput())
-							)
-							.toArray(SimpleOption[]::new));
-		}
-		else {
-			this.body.addAll(getOptions(this.gameOptions));
+			body.addAll(Stream
+					.concat(
+							Arrays.stream(getOptions(gameOptions)),
+							Stream.of(gameOptions.getRawMouseInput())
+					)
+					.toArray(SimpleOption[]::new));
+		} else {
+			body.addAll(getOptions(gameOptions));
 		}
 	}
 }

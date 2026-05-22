@@ -8,10 +8,11 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code TintSource}.
+ * Источник цветового оттенка для предметной модели.
+ * Возвращает ARGB-цвет, применяемый к квадам с соответствующим {@code tintIndex}.
  */
+@Environment(EnvType.CLIENT)
 public interface TintSource {
 
 	int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user);

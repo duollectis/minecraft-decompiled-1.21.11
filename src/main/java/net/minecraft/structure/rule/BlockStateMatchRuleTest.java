@@ -5,13 +5,15 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code BlockStateMatchRuleTest}.
+ * Реализация {@link RuleTest}, проверяющая точное совпадение {@link BlockState}.
+ * В отличие от {@link BlockMatchRuleTest}, учитывает все свойства состояния блока.
  */
 public class BlockStateMatchRuleTest extends RuleTest {
 
 	public static final MapCodec<BlockStateMatchRuleTest> CODEC = BlockState.CODEC
-			.fieldOf("block_state")
-			.xmap(BlockStateMatchRuleTest::new, ruleTest -> ruleTest.blockState);
+		.fieldOf("block_state")
+		.xmap(BlockStateMatchRuleTest::new, ruleTest -> ruleTest.blockState);
+
 	private final BlockState blockState;
 
 	public BlockStateMatchRuleTest(BlockState blockState) {
@@ -20,7 +22,7 @@ public class BlockStateMatchRuleTest extends RuleTest {
 
 	@Override
 	public boolean test(BlockState state, Random random) {
-		return state == this.blockState;
+		return state == blockState;
 	}
 
 	@Override

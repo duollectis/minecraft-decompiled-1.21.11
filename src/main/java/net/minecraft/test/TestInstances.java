@@ -9,31 +9,31 @@ import net.minecraft.util.Identifier;
 import java.util.function.Consumer;
 
 /**
- * {@code TestInstances}.
+ * Реестр встроенных экземпляров тестов.
+ * {@link #ALWAYS_PASS} — базовый тест, который всегда проходит успешно.
  */
 public interface TestInstances {
 
 	RegistryKey<TestInstance> ALWAYS_PASS = of("always_pass");
 
 	static void bootstrap(Registerable<TestInstance> registry) {
-		RegistryEntryLookup<Consumer<TestContext>>
-				registryEntryLookup =
-				registry.getRegistryLookup(RegistryKeys.TEST_FUNCTION);
-		RegistryEntryLookup<TestEnvironmentDefinition>
-				registryEntryLookup2 =
-				registry.getRegistryLookup(RegistryKeys.TEST_ENVIRONMENT);
+		RegistryEntryLookup<Consumer<TestContext>> functionLookup =
+			registry.getRegistryLookup(RegistryKeys.TEST_FUNCTION);
+		RegistryEntryLookup<TestEnvironmentDefinition> environmentLookup =
+			registry.getRegistryLookup(RegistryKeys.TEST_ENVIRONMENT);
+
 		registry.register(
-				ALWAYS_PASS,
-				new FunctionTestInstance(
-						BuiltinTestFunctions.ALWAYS_PASS,
-						new TestData<>(
-								registryEntryLookup2.getOrThrow(TestEnvironments.DEFAULT),
-								Identifier.ofVanilla("empty"),
-								1,
-								1,
-								false
-						)
+			ALWAYS_PASS,
+			new FunctionTestInstance(
+				BuiltinTestFunctions.ALWAYS_PASS,
+				new TestData<>(
+					environmentLookup.getOrThrow(TestEnvironments.DEFAULT),
+					Identifier.ofVanilla("empty"),
+					1,
+					1,
+					false
 				)
+			)
 		);
 	}
 

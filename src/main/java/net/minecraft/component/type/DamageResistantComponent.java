@@ -10,8 +10,9 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 
 /**
- * {@code DamageResistantComponent}.
- */
+	 * Компонент устойчивости к урону. Предмет с этим компонентом не уничтожается
+	 * при получении урона типов, входящих в тег {@code types}.
+	 */
 public record DamageResistantComponent(TagKey<DamageType> types) {
 
 	public static final Codec<DamageResistantComponent> CODEC = RecordCodecBuilder.create(
@@ -27,12 +28,11 @@ public record DamageResistantComponent(TagKey<DamageType> types) {
 	);
 
 	/**
-	 * Resists.
-	 *
-	 * @param damageSource damage source
-	 *
-	 * @return boolean — результат операции
-	 */
+		 * Проверяет, устойчив ли предмет к данному источнику урона.
+		 *
+		 * @param damageSource источник урона
+		 * @return {@code true} если тип урона входит в тег {@code types}
+		 */
 	public boolean resists(DamageSource damageSource) {
 		return damageSource.isIn(this.types);
 	}

@@ -7,47 +7,32 @@ import net.minecraft.util.math.intprovider.IntProvider;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code CountPlacementModifier}.
+ * Модификатор размещения, повторяющий позицию заданное количество раз
+ * согласно {@link IntProvider}.
  */
 public class CountPlacementModifier extends AbstractCountPlacementModifier {
 
-	public static final MapCodec<CountPlacementModifier> MODIFIER_CODEC = IntProvider.createValidatingCodec(0, 256)
-	                                                                                 .fieldOf("count")
-	                                                                                 .xmap(
-			                                                                                 CountPlacementModifier::new,
-			                                                                                 placementModifier -> placementModifier.count
-	                                                                                 );
+	public static final MapCodec<CountPlacementModifier> MODIFIER_CODEC =
+		IntProvider.createValidatingCodec(0, 256)
+			.fieldOf("count")
+			.xmap(CountPlacementModifier::new, modifier -> modifier.count);
 	private final IntProvider count;
 
 	private CountPlacementModifier(IntProvider count) {
 		this.count = count;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param count count
-	 *
-	 * @return CountPlacementModifier — результат операции
-	 */
 	public static CountPlacementModifier of(IntProvider count) {
 		return new CountPlacementModifier(count);
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param count count
-	 *
-	 * @return CountPlacementModifier — результат операции
-	 */
 	public static CountPlacementModifier of(int count) {
 		return of(ConstantIntProvider.create(count));
 	}
 
 	@Override
 	protected int getCount(Random random, BlockPos pos) {
-		return this.count.get(random);
+		return count.get(random);
 	}
 
 	@Override

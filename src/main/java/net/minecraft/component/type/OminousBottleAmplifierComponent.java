@@ -20,25 +20,26 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * {@code OminousBottleAmplifierComponent}.
- */
+	 * Компонент усилителя зловещего зелья. Определяет уровень эффекта {@code BAD_OMEN},
+	 * применяемого при употреблении зловещего зелья (0–4).
+	 */
 public record OminousBottleAmplifierComponent(int value) implements Consumable, TooltipAppender {
 
 	public static final int DURATION = 120000;
 	public static final int MIN_VALUE = 0;
 	public static final int MAX_VALUE = 4;
-	public static final Codec<OminousBottleAmplifierComponent> CODEC = Codecs.rangedInt(0, 4)
-	                                                                         .xmap(
-			                                                                         OminousBottleAmplifierComponent::new,
-			                                                                         OminousBottleAmplifierComponent::value
-	                                                                         );
+	public static final Codec<OminousBottleAmplifierComponent> CODEC = Codecs.rangedInt(MIN_VALUE, MAX_VALUE)
+																				.xmap(
+																						OminousBottleAmplifierComponent::new,
+																						OminousBottleAmplifierComponent::value
+																				);
 	public static final PacketCodec<RegistryByteBuf, OminousBottleAmplifierComponent> PACKET_CODEC = PacketCodec.tuple(
 			PacketCodecs.VAR_INT, OminousBottleAmplifierComponent::value, OminousBottleAmplifierComponent::new
 	);
 
 	@Override
 	public void onConsume(World world, LivingEntity user, ItemStack stack, ConsumableComponent consumable) {
-		user.addStatusEffect(new StatusEffectInstance(StatusEffects.BAD_OMEN, 120000, this.value, false, false, true));
+		user.addStatusEffect(new StatusEffectInstance(StatusEffects.BAD_OMEN, DURATION, this.value, false, false, true));
 	}
 
 	@Override
@@ -50,7 +51,7 @@ public record OminousBottleAmplifierComponent(int value) implements Consumable, 
 	) {
 		List<StatusEffectInstance>
 				list =
-				List.of(new StatusEffectInstance(StatusEffects.BAD_OMEN, 120000, this.value, false, false, true));
+				List.of(new StatusEffectInstance(StatusEffects.BAD_OMEN, DURATION, this.value, false, false, true));
 		PotionContentsComponent.buildTooltip(list, textConsumer, 1.0F, context.getUpdateTickRate());
 	}
 }

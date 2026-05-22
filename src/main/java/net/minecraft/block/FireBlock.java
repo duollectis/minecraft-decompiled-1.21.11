@@ -26,12 +26,17 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 /**
- * {@code FireBlock}.
+ * Блок огня, распространяющийся по воспламеняемым блокам.
+ * <p>Каждый тик огонь стареет (свойство {@link #AGE}), пытается поджечь соседние блоки
+ * и гасится дождём. Шансы горения и распространения задаются через
+ * {@link #registerFlammableBlock(Block, int, int)} и хранятся в отдельных картах.</p>
  */
 public class FireBlock extends AbstractFireBlock {
 
 	public static final MapCodec<FireBlock> CODEC = createCodec(FireBlock::new);
 	public static final int MAX_AGE = 15;
+	/** Флаги обновления блока: уведомить соседей, но не перерисовывать (Block.NOTIFY_ALL | Block.NO_REDRAW). */
+	private static final int UPDATE_FLAGS_NO_RERENDER = 260;
 	public static final IntProperty AGE = Properties.AGE_15;
 	public static final BooleanProperty NORTH = ConnectingBlock.NORTH;
 	public static final BooleanProperty EAST = ConnectingBlock.EAST;
@@ -166,7 +171,7 @@ public class FireBlock extends AbstractFireBlock {
 				int j = Math.min(15, i + random.nextInt(3) / 2);
 				if (i != j) {
 					state = state.with(AGE, j);
-					world.setBlockState(pos, state, 260);
+					world.setBlockState(pos, state, UPDATE_FLAGS_NO_RERENDER);
 				}
 
 				if (!bl) {
@@ -180,7 +185,7 @@ public class FireBlock extends AbstractFireBlock {
 						return;
 					}
 
-					if (i == 15 && random.nextInt(4) == 0 && !this.isFlammable(world.getBlockState(pos.down()))) {
+					if (i == MAX_AGE && random.nextInt(4) == 0 && !this.isFlammable(world.getBlockState(pos.down()))) {
 						world.removeBlock(pos, false);
 						return;
 					}
@@ -204,15 +209,15 @@ public class FireBlock extends AbstractFireBlock {
 					for (int m = -1; m <= 1; m++) {
 						for (int n = -1; n <= 4; n++) {
 							if (l != 0 || n != 0 || m != 0) {
-								int o = 100;
+								int o = DRY_GRASS_FLAMMABILITY;
 								if (n > 1) {
-									o += (n - 1) * 100;
+									o += (n - 1) * DRY_GRASS_FLAMMABILITY;
 								}
 
 								mutable.set(pos, l, n, m);
 								int p = this.getBurnChance(world, mutable);
 								if (p > 0) {
-									int q = (p + 40 + world.getDifficulty().getId() * 7) / (i + 30);
+									int q = (p + 40 + world.getDifficulty().getId() * 7) / (i + LEAVES_FLAMMABILITY);
 									if (bl2) {
 										q /= 2;
 									}
@@ -313,7 +318,7 @@ public class FireBlock extends AbstractFireBlock {
 	}
 
 	private static int getFireTickDelay(Random random) {
-		return 30 + random.nextInt(10);
+		return LEAVES_FLAMMABILITY + random.nextInt(10);
 	}
 
 	@Override
@@ -321,76 +326,66 @@ public class FireBlock extends AbstractFireBlock {
 		builder.add(AGE, NORTH, EAST, SOUTH, WEST, UP);
 	}
 
-	/**
-	 * Регистрирует flammable block.
-	 *
-	 * @param block block
-	 * @param burnChance burn chance
-	 * @param spreadChance spread chance
-	 */
 	public void registerFlammableBlock(Block block, int burnChance, int spreadChance) {
 		this.burnChances.put(block, burnChance);
 		this.spreadChances.put(block, spreadChance);
 	}
 
-	/**
-	 * Регистрирует default flammables.
-	 */
 	public static void registerDefaultFlammables() {
 		FireBlock fireBlock = (FireBlock) Blocks.FIRE;
-		fireBlock.registerFlammableBlock(Blocks.OAK_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_PLANKS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC_SLAB, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_FENCE_GATE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_FENCE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_STAIRS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC_STAIRS, 5, 20);
+		fireBlock.registerFlammableBlock(Blocks.OAK_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_PLANKS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC_SLAB, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_FENCE_GATE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_FENCE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_STAIRS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_MOSAIC_STAIRS, 5, FENCE_FLAMMABILITY);
 		fireBlock.registerFlammableBlock(Blocks.OAK_LOG, 5, 5);
 		fireBlock.registerFlammableBlock(Blocks.SPRUCE_LOG, 5, 5);
 		fireBlock.registerFlammableBlock(Blocks.BIRCH_LOG, 5, 5);
@@ -429,120 +424,120 @@ public class FireBlock extends AbstractFireBlock {
 		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_WOOD, 5, 5);
 		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_WOOD, 5, 5);
 		fireBlock.registerFlammableBlock(Blocks.MANGROVE_WOOD, 5, 5);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_ROOTS, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BOOKSHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.TNT, 15, 100);
-		fireBlock.registerFlammableBlock(Blocks.SHORT_GRASS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.FERN, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.DEAD_BUSH, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.SHORT_DRY_GRASS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.TALL_DRY_GRASS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.SUNFLOWER, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.LILAC, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.ROSE_BUSH, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.PEONY, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.TALL_GRASS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.LARGE_FERN, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.DANDELION, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.POPPY, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.OPEN_EYEBLOSSOM, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.CLOSED_EYEBLOSSOM, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.BLUE_ORCHID, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.ALLIUM, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.AZURE_BLUET, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.RED_TULIP, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.ORANGE_TULIP, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.WHITE_TULIP, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.PINK_TULIP, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.OXEYE_DAISY, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.CORNFLOWER, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.LILY_OF_THE_VALLEY, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.TORCHFLOWER, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.PITCHER_PLANT, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.WITHER_ROSE, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.PINK_PETALS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.WILDFLOWERS, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.LEAF_LITTER, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.CACTUS_FLOWER, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.WHITE_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.ORANGE_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.MAGENTA_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.LIGHT_BLUE_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.YELLOW_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.LIME_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.PINK_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.GRAY_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.LIGHT_GRAY_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.CYAN_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.PURPLE_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BLUE_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BROWN_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.GREEN_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.RED_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BLACK_WOOL, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.VINE, 15, 100);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_ROOTS, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BOOKSHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.TNT, WOOL_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SHORT_GRASS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.FERN, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DEAD_BUSH, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SHORT_DRY_GRASS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.TALL_DRY_GRASS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SUNFLOWER, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LILAC, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ROSE_BUSH, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PEONY, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.TALL_GRASS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LARGE_FERN, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DANDELION, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.POPPY, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OPEN_EYEBLOSSOM, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CLOSED_EYEBLOSSOM, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BLUE_ORCHID, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ALLIUM, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.AZURE_BLUET, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.RED_TULIP, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ORANGE_TULIP, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.WHITE_TULIP, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PINK_TULIP, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OXEYE_DAISY, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CORNFLOWER, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LILY_OF_THE_VALLEY, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.TORCHFLOWER, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PITCHER_PLANT, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.WITHER_ROSE, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PINK_PETALS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.WILDFLOWERS, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LEAF_LITTER, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CACTUS_FLOWER, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.WHITE_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ORANGE_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MAGENTA_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIGHT_BLUE_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.YELLOW_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIME_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PINK_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.GRAY_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIGHT_GRAY_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CYAN_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PURPLE_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BLUE_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BROWN_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.GREEN_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.RED_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BLACK_WOOL, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.VINE, WOOL_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
 		fireBlock.registerFlammableBlock(Blocks.COAL_BLOCK, 5, 5);
-		fireBlock.registerFlammableBlock(Blocks.HAY_BLOCK, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.TARGET, 15, 20);
-		fireBlock.registerFlammableBlock(Blocks.WHITE_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.ORANGE_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.MAGENTA_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.LIGHT_BLUE_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.YELLOW_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.LIME_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.PINK_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.GRAY_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.LIGHT_GRAY_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.CYAN_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.PURPLE_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.BLUE_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.BROWN_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.GREEN_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.RED_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.BLACK_CARPET, 60, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_MOSS_BLOCK, 5, 100);
-		fireBlock.registerFlammableBlock(Blocks.PALE_MOSS_CARPET, 5, 100);
-		fireBlock.registerFlammableBlock(Blocks.PALE_HANGING_MOSS, 5, 100);
-		fireBlock.registerFlammableBlock(Blocks.DRIED_KELP_BLOCK, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO, 60, 60);
-		fireBlock.registerFlammableBlock(Blocks.SCAFFOLDING, 60, 60);
-		fireBlock.registerFlammableBlock(Blocks.LECTERN, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.COMPOSTER, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.SWEET_BERRY_BUSH, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.BEEHIVE, 5, 20);
-		fireBlock.registerFlammableBlock(Blocks.BEE_NEST, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.AZALEA_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.FLOWERING_AZALEA_LEAVES, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.CAVE_VINES, 15, 60);
-		fireBlock.registerFlammableBlock(Blocks.CAVE_VINES_PLANT, 15, 60);
-		fireBlock.registerFlammableBlock(Blocks.SPORE_BLOSSOM, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.AZALEA, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.FLOWERING_AZALEA, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.BIG_DRIPLEAF, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.BIG_DRIPLEAF_STEM, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.SMALL_DRIPLEAF, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.HANGING_ROOTS, 30, 60);
-		fireBlock.registerFlammableBlock(Blocks.GLOW_LICHEN, 15, 100);
-		fireBlock.registerFlammableBlock(Blocks.FIREFLY_BUSH, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.BUSH, 60, 100);
-		fireBlock.registerFlammableBlock(Blocks.ACACIA_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.BAMBOO_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.BIRCH_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.CHERRY_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.JUNGLE_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.MANGROVE_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.OAK_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_SHELF, 30, 20);
-		fireBlock.registerFlammableBlock(Blocks.SPRUCE_SHELF, 30, 20);
+		fireBlock.registerFlammableBlock(Blocks.HAY_BLOCK, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.TARGET, WOOL_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.WHITE_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ORANGE_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MAGENTA_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIGHT_BLUE_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.YELLOW_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIME_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PINK_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.GRAY_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.LIGHT_GRAY_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CYAN_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PURPLE_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BLUE_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BROWN_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.GREEN_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.RED_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BLACK_CARPET, WOOD_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_MOSS_BLOCK, 5, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_MOSS_CARPET, 5, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_HANGING_MOSS, 5, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DRIED_KELP_BLOCK, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO, WOOD_FLAMMABILITY, 60);
+		fireBlock.registerFlammableBlock(Blocks.SCAFFOLDING, WOOD_FLAMMABILITY, 60);
+		fireBlock.registerFlammableBlock(Blocks.LECTERN, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.COMPOSTER, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SWEET_BERRY_BUSH, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BEEHIVE, 5, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BEE_NEST, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.AZALEA_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.FLOWERING_AZALEA_LEAVES, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CAVE_VINES, MAX_AGE, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CAVE_VINES_PLANT, MAX_AGE, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPORE_BLOSSOM, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.AZALEA, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.FLOWERING_AZALEA, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIG_DRIPLEAF, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIG_DRIPLEAF_STEM, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SMALL_DRIPLEAF, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.HANGING_ROOTS, LEAVES_FLAMMABILITY, WOOD_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.GLOW_LICHEN, WOOL_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.FIREFLY_BUSH, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BUSH, WOOD_FLAMMABILITY, DRY_GRASS_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.ACACIA_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BAMBOO_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.BIRCH_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.CHERRY_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.DARK_OAK_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.JUNGLE_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.MANGROVE_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.OAK_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.PALE_OAK_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
+		fireBlock.registerFlammableBlock(Blocks.SPRUCE_SHELF, LEAVES_FLAMMABILITY, FENCE_FLAMMABILITY);
 	}
 }

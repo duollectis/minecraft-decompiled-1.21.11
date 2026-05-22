@@ -7,25 +7,27 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChunkSourceStatsDebugHudEntry}.
+ * Запись отладочного HUD: строковое представление источника чанков
+ * клиентского и (при наличии) серверного мира.
  */
+@Environment(EnvType.CLIENT)
 public class ChunkSourceStatsDebugHudEntry implements DebugHudEntry {
 
 	@Override
 	public void render(
-			DebugHudLines lines,
-			@Nullable World world,
-			@Nullable WorldChunk clientChunk,
-			@Nullable WorldChunk chunk
+		DebugHudLines lines,
+		@Nullable World world,
+		@Nullable WorldChunk clientChunk,
+		@Nullable WorldChunk chunk
 	) {
-		MinecraftClient minecraftClient = MinecraftClient.getInstance();
-		if (minecraftClient.world != null) {
-			lines.addLine(minecraftClient.world.asString());
+		MinecraftClient client = MinecraftClient.getInstance();
+
+		if (client.world != null) {
+			lines.addLine(client.world.asString());
 		}
 
-		if (world != null && world != minecraftClient.world) {
+		if (world != null && world != client.world) {
 			lines.addLine(world.asString());
 		}
 	}

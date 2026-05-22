@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code TextStream}.
+ * Поток фильтрации текстовых сообщений для конкретного игрока.
+ * Предоставляет методы для асинхронной фильтрации одного или нескольких сообщений.
  */
 public interface TextStream {
 

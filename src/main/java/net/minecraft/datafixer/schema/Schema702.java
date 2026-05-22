@@ -9,7 +9,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * {@code Schema702}.
+ * Схема DataFixer версии 702, добавляющая сущности {@code ZombieVillager}
+ * (зомби-житель, с торговыми предложениями) и {@code Husk} (иссушённый).
  */
 public class Schema702 extends Schema {
 

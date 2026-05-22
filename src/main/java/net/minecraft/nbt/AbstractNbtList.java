@@ -6,53 +6,80 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code AbstractNbtList}.
+ * Запечатанный интерфейс для всех NBT-элементов с индексированным доступом.
+ *
+ * <p>Объединяет {@link NbtList}, {@link NbtByteArray}, {@link NbtIntArray} и {@link NbtLongArray}
+ * под единым контрактом списка. Предоставляет стандартный {@link Iterator} и {@link Stream}
+ * поверх индексированного доступа.</p>
  */
-public sealed interface AbstractNbtList extends Iterable<NbtElement>, NbtElement permits NbtList, NbtByteArray, NbtIntArray, NbtLongArray {
+public sealed interface AbstractNbtList extends Iterable<NbtElement>, NbtElement
+		permits NbtList, NbtByteArray, NbtIntArray, NbtLongArray {
 
 	void clear();
 
+	/**
+	 * Заменяет элемент по индексу.
+	 *
+	 * @param index индекс заменяемого элемента
+	 * @param element новый элемент
+	 * @return {@code true} если замена прошла успешно (тип совместим)
+	 */
 	boolean setElement(int index, NbtElement element);
 
+	/**
+	 * Вставляет элемент по индексу.
+	 *
+	 * @param index позиция вставки
+	 * @param element вставляемый элемент
+	 * @return {@code true} если вставка прошла успешно (тип совместим)
+	 */
 	boolean addElement(int index, NbtElement element);
 
-	NbtElement remove(int i);
+	/**
+	 * Удаляет и возвращает элемент по индексу.
+	 *
+	 * @param index индекс удаляемого элемента
+	 * @return удалённый элемент
+	 */
+	NbtElement remove(int index);
 
-	NbtElement get(int i);
+	/**
+	 * Возвращает элемент по индексу.
+	 *
+	 * @param index индекс элемента
+	 * @return элемент
+	 */
+	NbtElement get(int index);
 
+	/** @return количество элементов в списке */
 	int size();
 
 	default boolean isEmpty() {
-		return this.size() == 0;
+		return size() == 0;
 	}
 
 	@Override
 	default Iterator<NbtElement> iterator() {
-		return new Iterator<NbtElement>() {
-			private int current;
+		return new Iterator<>() {
+			private int cursor;
 
 			@Override
 			public boolean hasNext() {
-				return this.current < AbstractNbtList.this.size();
+				return cursor < AbstractNbtList.this.size();
 			}
 
-			/**
-			 * Next.
-			 *
-			 * @return NbtElement — результат операции
-			 */
+			@Override
 			public NbtElement next() {
-				if (!this.hasNext()) {
+				if (!hasNext()) {
 					throw new NoSuchElementException();
 				}
-				else {
-					return AbstractNbtList.this.get(this.current++);
-				}
+
+				return AbstractNbtList.this.get(cursor++);
 			}
 		};
 	}
 
 	default Stream<NbtElement> stream() {
-		return StreamSupport.stream(this.spliterator(), false);
+		return StreamSupport.stream(spliterator(), false);
 	}
 }

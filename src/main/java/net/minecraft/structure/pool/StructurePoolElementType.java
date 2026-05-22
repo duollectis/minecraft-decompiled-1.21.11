@@ -5,27 +5,25 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 /**
- * {@code StructurePoolElementType}.
+ * Реестр типов элементов пула структур.
+ * Каждый тип связан с кодеком для сериализации/десериализации соответствующего элемента.
  */
 public interface StructurePoolElementType<P extends StructurePoolElement> {
 
-	StructurePoolElementType<SinglePoolElement>
-			SINGLE_POOL_ELEMENT =
-			register("single_pool_element", SinglePoolElement.CODEC);
+	StructurePoolElementType<SinglePoolElement> SINGLE_POOL_ELEMENT =
+		register("single_pool_element", SinglePoolElement.CODEC);
 
-	StructurePoolElementType<ListPoolElement> LIST_POOL_ELEMENT = register("list_pool_element", ListPoolElement.CODEC);
+	StructurePoolElementType<ListPoolElement> LIST_POOL_ELEMENT =
+		register("list_pool_element", ListPoolElement.CODEC);
 
-	StructurePoolElementType<FeaturePoolElement>
-			FEATURE_POOL_ELEMENT =
-			register("feature_pool_element", FeaturePoolElement.CODEC);
+	StructurePoolElementType<FeaturePoolElement> FEATURE_POOL_ELEMENT =
+		register("feature_pool_element", FeaturePoolElement.CODEC);
 
-	StructurePoolElementType<EmptyPoolElement>
-			EMPTY_POOL_ELEMENT =
-			register("empty_pool_element", EmptyPoolElement.CODEC);
+	StructurePoolElementType<EmptyPoolElement> EMPTY_POOL_ELEMENT =
+		register("empty_pool_element", EmptyPoolElement.CODEC);
 
-	StructurePoolElementType<LegacySinglePoolElement>
-			LEGACY_SINGLE_POOL_ELEMENT =
-			register("legacy_single_pool_element", LegacySinglePoolElement.CODEC);
+	StructurePoolElementType<LegacySinglePoolElement> LEGACY_SINGLE_POOL_ELEMENT =
+		register("legacy_single_pool_element", LegacySinglePoolElement.CODEC);
 
 	MapCodec<P> codec();
 

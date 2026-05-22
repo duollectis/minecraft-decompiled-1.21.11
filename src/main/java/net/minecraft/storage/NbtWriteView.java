@@ -14,7 +14,12 @@ import net.minecraft.util.ErrorReporter;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code NbtWriteView}.
+ * Реализация {@link WriteView} поверх {@link NbtCompound}.
+ * <p>
+ * Записывает поля в NBT-тег, кодируя значения через кодеки DFU. При ошибках
+ * кодирования сообщает об этом через {@link ErrorReporter}, не бросая исключений.
+ * Поддерживает вложенные объекты и списки с автоматическим созданием дочерних
+ * контекстов ошибок.
  */
 public class NbtWriteView implements WriteView {
 
@@ -28,23 +33,38 @@ public class NbtWriteView implements WriteView {
 		this.nbt = nbt;
 	}
 
+	/**
+	 * Создаёт корневое представление для записи с поддержкой реестров.
+	 * Операции оборачиваются через {@link RegistryWrapper.WrapperLookup#getOps},
+	 * чтобы корректно кодировать ссылки на реестровые объекты.
+	 *
+	 * @param reporter   получатель ошибок кодирования
+	 * @param registries реестры для разрешения ссылок
+	 * @return новый {@link NbtWriteView}
+	 */
 	public static NbtWriteView create(ErrorReporter reporter, RegistryWrapper.WrapperLookup registries) {
 		return new NbtWriteView(reporter, registries.getOps(NbtOps.INSTANCE), new NbtCompound());
 	}
 
+	/**
+	 * Создаёт корневое представление для записи без реестров (чистый NBT).
+	 *
+	 * @param reporter получатель ошибок кодирования
+	 * @return новый {@link NbtWriteView}
+	 */
 	public static NbtWriteView create(ErrorReporter reporter) {
 		return new NbtWriteView(reporter, NbtOps.INSTANCE, new NbtCompound());
 	}
 
 	@Override
 	public <T> void put(String key, Codec<T> codec, T value) {
-		switch (codec.encodeStart(this.ops, value)) {
+		switch (codec.encodeStart(ops, value)) {
 			case Success<NbtElement> success:
-				this.nbt.put(key, (NbtElement) success.value());
+				nbt.put(key, success.value());
 				break;
 			case Error<NbtElement> error:
-				this.reporter.report(new NbtWriteView.EncodeFieldError(key, value, error));
-				error.partialValue().ifPresent(partialValue -> this.nbt.put(key, partialValue));
+				reporter.report(new EncodeFieldError(key, value, error));
+				error.partialValue().ifPresent(partial -> nbt.put(key, partial));
 				break;
 			default:
 				throw new MatchException(null, null);
@@ -54,19 +74,19 @@ public class NbtWriteView implements WriteView {
 	@Override
 	public <T> void putNullable(String key, Codec<T> codec, @Nullable T value) {
 		if (value != null) {
-			this.put(key, codec, value);
+			put(key, codec, value);
 		}
 	}
 
 	@Override
 	public <T> void put(MapCodec<T> codec, T value) {
-		switch (codec.encoder().encodeStart(this.ops, value)) {
+		switch (codec.encoder().encodeStart(ops, value)) {
 			case Success<NbtElement> success:
-				this.nbt.copyFrom((NbtCompound) success.value());
+				nbt.copyFrom((NbtCompound) success.value());
 				break;
 			case Error<NbtElement> error:
-				this.reporter.report(new NbtWriteView.MergeError(value, error));
-				error.partialValue().ifPresent(partialValue -> this.nbt.copyFrom((NbtCompound) partialValue));
+				reporter.report(new MergeError(value, error));
+				error.partialValue().ifPresent(partial -> nbt.copyFrom((NbtCompound) partial));
 				break;
 			default:
 				throw new MatchException(null, null);
@@ -75,123 +95,97 @@ public class NbtWriteView implements WriteView {
 
 	@Override
 	public void putBoolean(String key, boolean value) {
-		this.nbt.putBoolean(key, value);
+		nbt.putBoolean(key, value);
 	}
 
 	@Override
 	public void putByte(String key, byte value) {
-		this.nbt.putByte(key, value);
+		nbt.putByte(key, value);
 	}
 
 	@Override
 	public void putShort(String key, short value) {
-		this.nbt.putShort(key, value);
+		nbt.putShort(key, value);
 	}
 
 	@Override
 	public void putInt(String key, int value) {
-		this.nbt.putInt(key, value);
+		nbt.putInt(key, value);
 	}
 
 	@Override
 	public void putLong(String key, long value) {
-		this.nbt.putLong(key, value);
+		nbt.putLong(key, value);
 	}
 
 	@Override
 	public void putFloat(String key, float value) {
-		this.nbt.putFloat(key, value);
+		nbt.putFloat(key, value);
 	}
 
 	@Override
 	public void putDouble(String key, double value) {
-		this.nbt.putDouble(key, value);
+		nbt.putDouble(key, value);
 	}
 
 	@Override
 	public void putString(String key, String value) {
-		this.nbt.putString(key, value);
+		nbt.putString(key, value);
 	}
 
 	@Override
 	public void putIntArray(String key, int[] value) {
-		this.nbt.putIntArray(key, value);
+		nbt.putIntArray(key, value);
 	}
 
 	private ErrorReporter makeChildReporter(String key) {
-		return this.reporter.makeChild(new ErrorReporter.MapElementContext(key));
+		return reporter.makeChild(new ErrorReporter.MapElementContext(key));
 	}
 
 	@Override
 	public WriteView get(String key) {
-		NbtCompound nbtCompound = new NbtCompound();
-		this.nbt.put(key, nbtCompound);
-		return new NbtWriteView(this.makeChildReporter(key), this.ops, nbtCompound);
+		NbtCompound compound = new NbtCompound();
+		nbt.put(key, compound);
+		return new NbtWriteView(makeChildReporter(key), ops, compound);
 	}
 
 	@Override
 	public WriteView.ListView getList(String key) {
-		NbtList nbtList = new NbtList();
-		this.nbt.put(key, nbtList);
-		return new NbtWriteView.NbtListView(key, this.reporter, this.ops, nbtList);
+		NbtList list = new NbtList();
+		nbt.put(key, list);
+		return new NbtListView(key, reporter, ops, list);
 	}
 
 	@Override
 	public <T> WriteView.ListAppender<T> getListAppender(String key, Codec<T> codec) {
-		NbtList nbtList = new NbtList();
-		this.nbt.put(key, nbtList);
-		return new NbtWriteView.NbtListAppender<>(this.reporter, key, this.ops, codec, nbtList);
+		NbtList list = new NbtList();
+		nbt.put(key, list);
+		return new NbtListAppender<>(reporter, key, ops, codec, list);
 	}
 
 	@Override
 	public void remove(String key) {
-		this.nbt.remove(key);
+		nbt.remove(key);
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return this.nbt.isEmpty();
+		return nbt.isEmpty();
 	}
 
 	public NbtCompound getNbt() {
-		return this.nbt;
+		return nbt;
 	}
 
-	/**
-	 * {@code AppendToListError}.
-	 */
-	public record AppendToListError(String name, Object value, Error<?> error) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to append value '" + this.value + "' to list '" + this.name + "': " + this.error.message();
-		}
-	}
+	// -------------------------------------------------------------------------
+	// Вложенные классы
+	// -------------------------------------------------------------------------
 
 	/**
-	 * {@code EncodeFieldError}.
-	 */
-	public record EncodeFieldError(String name, Object value, Error<?> error) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to encode value '" + this.value + "' to field '" + this.name + "': " + this.error.message();
-		}
-	}
-
-	/**
-	 * {@code MergeError}.
-	 */
-	public record MergeError(Object value, Error<?> error) implements ErrorReporter.Error {
-
-		@Override
-		public String getMessage() {
-			return "Failed to merge value '" + this.value + "' to an object: " + this.error.message();
-		}
-	}
-
-	/**
-	 * {@code NbtListAppender}.
+	 * Аппендер для добавления типизированных элементов в {@link NbtList}.
+	 * Каждый элемент кодируется через заданный кодек перед добавлением.
+	 *
+	 * @param <T> тип элементов
 	 */
 	static class NbtListAppender<T> implements WriteView.ListAppender<T> {
 
@@ -201,7 +195,13 @@ public class NbtWriteView implements WriteView {
 		private final Codec<T> codec;
 		private final NbtList list;
 
-		NbtListAppender(ErrorReporter reporter, String key, DynamicOps<NbtElement> ops, Codec<T> codec, NbtList list) {
+		NbtListAppender(
+				ErrorReporter reporter,
+				String key,
+				DynamicOps<NbtElement> ops,
+				Codec<T> codec,
+				NbtList list
+		) {
 			this.reporter = reporter;
 			this.key = key;
 			this.ops = ops;
@@ -211,13 +211,13 @@ public class NbtWriteView implements WriteView {
 
 		@Override
 		public void add(T value) {
-			switch (this.codec.encodeStart(this.ops, value)) {
+			switch (codec.encodeStart(ops, value)) {
 				case Success<NbtElement> success:
-					this.list.add((NbtElement) success.value());
+					list.add(success.value());
 					break;
 				case Error<NbtElement> error:
-					this.reporter.report(new NbtWriteView.AppendToListError(this.key, value, error));
-					error.partialValue().ifPresent(this.list::add);
+					reporter.report(new AppendToListError(key, value, error));
+					error.partialValue().ifPresent(list::add);
 					break;
 				default:
 					throw new MatchException(null, null);
@@ -226,12 +226,13 @@ public class NbtWriteView implements WriteView {
 
 		@Override
 		public boolean isEmpty() {
-			return this.list.isEmpty();
+			return list.isEmpty();
 		}
 	}
 
 	/**
-	 * {@code NbtListView}.
+	 * Представление {@link NbtList} для последовательного добавления вложенных объектов.
+	 * Каждый вызов {@link #add()} создаёт новый {@link NbtCompound} и возвращает его представление.
 	 */
 	static class NbtListView implements WriteView.ListView {
 
@@ -249,24 +250,85 @@ public class NbtWriteView implements WriteView {
 
 		@Override
 		public WriteView add() {
-			int i = this.list.size();
-			NbtCompound nbtCompound = new NbtCompound();
-			this.list.add(nbtCompound);
+			int index = list.size();
+			NbtCompound compound = new NbtCompound();
+			list.add(compound);
 			return new NbtWriteView(
-					this.reporter.makeChild(new ErrorReporter.NamedListElementContext(this.key, i)),
-					this.ops,
-					nbtCompound
+					reporter.makeChild(new ErrorReporter.NamedListElementContext(key, index)),
+					ops,
+					compound
 			);
 		}
 
 		@Override
 		public void removeLast() {
-			this.list.removeLast();
+			list.removeLast();
 		}
 
 		@Override
 		public boolean isEmpty() {
-			return this.list.isEmpty();
+			return list.isEmpty();
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Записи об ошибках
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Ошибка добавления элемента в список через кодек.
+	 *
+	 * @param name  имя поля-списка
+	 * @param value значение, которое не удалось закодировать
+	 * @param error результат ошибки от DFU
+	 */
+	public record AppendToListError(String name, Object value, Error<?> error) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to append value '"
+					+ value
+					+ "' to list '"
+					+ name
+					+ "': "
+					+ error.message();
+		}
+	}
+
+	/**
+	 * Ошибка кодирования значения поля через {@link Codec}.
+	 *
+	 * @param name  имя поля
+	 * @param value значение, которое не удалось закодировать
+	 * @param error результат ошибки от DFU
+	 */
+	public record EncodeFieldError(String name, Object value, Error<?> error) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to encode value '"
+					+ value
+					+ "' to field '"
+					+ name
+					+ "': "
+					+ error.message();
+		}
+	}
+
+	/**
+	 * Ошибка слияния значения в объект через {@link MapCodec}.
+	 *
+	 * @param value значение, которое не удалось закодировать
+	 * @param error результат ошибки от DFU
+	 */
+	public record MergeError(Object value, Error<?> error) implements ErrorReporter.Error {
+
+		@Override
+		public String getMessage() {
+			return "Failed to merge value '"
+					+ value
+					+ "' to an object: "
+					+ error.message();
 		}
 	}
 }

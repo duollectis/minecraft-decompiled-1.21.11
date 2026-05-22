@@ -9,53 +9,40 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code BuiltinEmptyGlyph}.
+ * Встроенные пустые глифы движка: белый прямоугольник и символ «отсутствующего» глифа.
+ * Оба реализуют {@link GlyphMetrics} напрямую и создают своё изображение при инициализации.
+ * <p>
+ * {@code WHITE} — сплошной белый прямоугольник, используется для эффектов (подчёркивание, фон).
+ * {@code MISSING} — рамка (граница белая, внутри прозрачно), отображается для неизвестных символов.
  */
+@Environment(EnvType.CLIENT)
 public enum BuiltinEmptyGlyph implements GlyphMetrics {
 	WHITE(() -> createRectImage(5, 8, (x, y) -> -1)),
 	MISSING(() -> {
-		int i = 5;
-		int j = 8;
-		return createRectImage(
-				5, 8, (x, y) -> {
-					boolean bl = x == 0 || x + 1 == 5 || y == 0 || y + 1 == 8;
-					return bl ? -1 : 0;
-				}
-		);
+		// Рисуем только граничные пиксели: x==0, x==4, y==0, y==7
+		return createRectImage(5, 8, (x, y) -> {
+			boolean isBorder = x == 0 || x + 1 == 5 || y == 0 || y + 1 == 8;
+			return isBorder ? -1 : 0;
+		});
 	});
 
 	final NativeImage image;
 
-	private static NativeImage createRectImage(int width, int height, BuiltinEmptyGlyph.ColorSupplier colorSupplier) {
-		NativeImage nativeImage = new NativeImage(NativeImage.Format.RGBA, width, height, false);
-
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				nativeImage.setColorArgb(j, i, colorSupplier.getColor(j, i));
-			}
-		}
-
-		nativeImage.untrack();
-		return nativeImage;
-	}
-
-	private BuiltinEmptyGlyph(final Supplier<NativeImage> imageSupplier) {
-		this.image = imageSupplier.get();
+	BuiltinEmptyGlyph(final Supplier<NativeImage> imageSupplier) {
+		image = imageSupplier.get();
 	}
 
 	@Override
 	public float getAdvance() {
-		return this.image.getWidth() + 1;
+		return image.getWidth() + 1;
 	}
 
 	/**
-	 * Bake.
+	 * Запекает этот глиф в атлас через переданный {@link GlyphBaker}.
 	 *
-	 * @param glyphBaker glyph baker
-	 *
-	 * @return @Nullable BakedGlyphImpl — результат операции
+	 * @param glyphBaker пекарь, управляющий атласом текстур
+	 * @return запечённый глиф или {@code null}, если атлас переполнен
 	 */
 	public @Nullable BakedGlyphImpl bake(GlyphBaker glyphBaker) {
 		return glyphBaker.bake(
@@ -102,11 +89,21 @@ public enum BuiltinEmptyGlyph implements GlyphMetrics {
 		);
 	}
 
+	private static NativeImage createRectImage(int width, int height, BuiltinEmptyGlyph.ColorSupplier colorSupplier) {
+		NativeImage nativeImage = new NativeImage(NativeImage.Format.RGBA, width, height, false);
+
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				nativeImage.setColorArgb(x, y, colorSupplier.getColor(x, y));
+			}
+		}
+
+		nativeImage.untrack();
+		return nativeImage;
+	}
+
 	@FunctionalInterface
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code ColorSupplier}.
-	 */
 	interface ColorSupplier {
 
 		int getColor(int x, int y);

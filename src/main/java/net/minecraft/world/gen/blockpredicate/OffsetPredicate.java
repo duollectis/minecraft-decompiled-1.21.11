@@ -9,48 +9,30 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.StructureWorldAccess;
 
 /**
- * {@code OffsetPredicate}.
+ * Базовый класс для предикатов, проверяющих состояние блока со смещением от целевой позиции.
  */
 public abstract class OffsetPredicate implements BlockPredicate {
 
 	protected final Vec3i offset;
-
-	/**
-	 * Регистрирует offset field.
-	 *
-	 * @param instance instance
-	 *
-	 * @return P1, Vec3i> — результат операции
-	 */
-	protected static <P extends OffsetPredicate> P1<Mu<P>, Vec3i> registerOffsetField(Instance<P> instance) {
-		return instance.group(Vec3i
-				.createOffsetCodec(16)
-				.optionalFieldOf("offset", Vec3i.ZERO)
-				.forGetter(predicate -> predicate.offset));
-	}
 
 	protected OffsetPredicate(Vec3i offset) {
 		this.offset = offset;
 	}
 
 	/**
-	 * Test.
-	 *
-	 * @param structureWorldAccess structure world access
-	 * @param blockPos block pos
-	 *
-	 * @return boolean — результат операции
+	 * Регистрирует поле смещения в кодеке подкласса.
+	 * Смещение ограничено диапазоном [-16, 16] по каждой оси.
 	 */
-	public final boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-		return this.test(structureWorldAccess.getBlockState(blockPos.add(this.offset)));
+	protected static <P extends OffsetPredicate> P1<Mu<P>, Vec3i> registerOffsetField(Instance<P> instance) {
+		return instance.group(
+			Vec3i.createOffsetCodec(16).optionalFieldOf("offset", Vec3i.ZERO).forGetter(p -> p.offset)
+		);
 	}
 
-	/**
-	 * Test.
-	 *
-	 * @param state state
-	 *
-	 * @return boolean — результат операции
-	 */
+	@Override
+	public final boolean test(StructureWorldAccess world, BlockPos pos) {
+		return test(world.getBlockState(pos.add(offset)));
+	}
+
 	protected abstract boolean test(BlockState state);
 }

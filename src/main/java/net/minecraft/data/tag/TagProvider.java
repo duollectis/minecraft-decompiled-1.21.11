@@ -22,7 +22,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * {@code TagProvider}.
+ * Абстрактный провайдер данных для генерации тегов реестра.
+ * <p>
+ * Подклассы переопределяют метод {@link #configure(RegistryWrapper.WrapperLookup)},
+ * в котором через {@link #getTagBuilder(TagKey)} наполняют теги записями.
+ * При запуске провайдер проверяет корректность всех ссылок (записи и теги должны существовать
+ * в реестре или в родительском провайдере) и записывает JSON-файлы тегов на диск.
+ *
+ * @param <T> тип объекта реестра, для которого генерируются теги
  */
 public abstract class TagProvider<T> implements DataProvider {
 
@@ -55,108 +62,98 @@ public abstract class TagProvider<T> implements DataProvider {
 
 	@Override
 	public String getName() {
-		return "Tags for " + this.registryRef.getValue();
+		return "Tags for " + registryRef.getValue();
 	}
 
 	protected abstract void configure(RegistryWrapper.WrapperLookup registries);
 
 	@Override
 	public CompletableFuture<?> run(DataWriter writer) {
-		/**
-		 * {@code RegistryInfo}.
-		 */
 		record RegistryInfo<T>(RegistryWrapper.WrapperLookup contents, TagProvider.TagLookup<T> parent) {
 		}
 
-		return this.getRegistriesFuture()
-		           .thenApply(registriesFuture -> {
-			           this.registryLoadFuture.complete(null);
-			           return (RegistryWrapper.WrapperLookup) registriesFuture;
-		           })
-		           .thenCombineAsync(
-				           this.parentTagLookupFuture,
-				           (registries, parent) -> new RegistryInfo<>(registries, (TagProvider.TagLookup<T>) parent),
-				           Util.getMainWorkerExecutor()
-		           )
-		           .thenCompose(
-				           info -> {
-					           RegistryWrapper.Impl<T> impl = info.contents.getOrThrow(this.registryRef);
-					           Predicate<Identifier>
-							           predicate =
-							           id -> impl.getOptional(RegistryKey.of(this.registryRef, id)).isPresent();
-					           Predicate<Identifier>
-							           predicate2 =
-							           id -> this.tagBuilders.containsKey(id)
-									           || info.parent.contains(TagKey.of(this.registryRef, id));
-					           return CompletableFuture.allOf(
-							           this.tagBuilders
-									           .entrySet()
-									           .stream()
-									           .map(
-											           entry -> {
-												           Identifier identifier = entry.getKey();
-												           TagBuilder tagBuilder = entry.getValue();
-												           List<TagEntry> list = tagBuilder.build();
-												           List<TagEntry>
-														           list2 =
-														           list
-																           .stream()
-																           .filter(tagEntry -> !tagEntry.canAdd(
-																		           predicate,
-																		           predicate2
-																           ))
-																           .toList();
-												           if (!list2.isEmpty()) {
-													           throw new IllegalArgumentException(
-															           String.format(
-																	           Locale.ROOT,
-																	           "Couldn't define tag %s as it is missing following references: %s",
-																	           identifier,
-																	           list2
-																			           .stream()
-																			           .map(Objects::toString)
-																			           .collect(Collectors.joining(","))
-															           )
-													           );
-												           }
-												           else {
-													           Path path = this.pathResolver.resolveJson(identifier);
-													           return DataProvider.writeCodecToPath(
-															           writer,
-															           info.contents,
-															           TagFile.CODEC,
-															           new TagFile(list, false),
-															           path
-													           );
-												           }
-											           }
-									           )
-									           .toArray(CompletableFuture[]::new)
-					           );
-				           }
-		           );
+		return getRegistriesFuture()
+				.thenApply(registries -> {
+					registryLoadFuture.complete(null);
+					return (RegistryWrapper.WrapperLookup) registries;
+				})
+				.thenCombineAsync(
+						parentTagLookupFuture,
+						(registries, parent) -> new RegistryInfo<>(registries, (TagProvider.TagLookup<T>) parent),
+						Util.getMainWorkerExecutor()
+				)
+				.thenCompose(info -> {
+					RegistryWrapper.Impl<T> registryWrapper = info.contents.getOrThrow(registryRef);
+					Predicate<Identifier> entryExistsInRegistry =
+							id -> registryWrapper.getOptional(RegistryKey.of(registryRef, id)).isPresent();
+					Predicate<Identifier> tagExistsInParent =
+							id -> tagBuilders.containsKey(id)
+									|| info.parent.contains(TagKey.of(registryRef, id));
+
+					return CompletableFuture.allOf(
+							tagBuilders.entrySet()
+									.stream()
+									.map(entry -> {
+										Identifier tagId = entry.getKey();
+										TagBuilder tagBuilder = entry.getValue();
+										List<TagEntry> tagEntries = tagBuilder.build();
+										List<TagEntry> invalidEntries = tagEntries
+												.stream()
+												.filter(tagEntry -> !tagEntry.canAdd(
+														entryExistsInRegistry,
+														tagExistsInParent
+												))
+												.toList();
+
+										if (!invalidEntries.isEmpty()) {
+											throw new IllegalArgumentException(
+													String.format(
+															Locale.ROOT,
+															"Couldn't define tag %s as it is missing following references: %s",
+															tagId,
+															invalidEntries.stream()
+																	.map(Objects::toString)
+																	.collect(Collectors.joining(","))
+													)
+											);
+										}
+
+										Path path = pathResolver.resolveJson(tagId);
+
+										return DataProvider.writeCodecToPath(
+												writer,
+												info.contents,
+												TagFile.CODEC,
+												new TagFile(tagEntries, false),
+												path
+										);
+									})
+									.toArray(CompletableFuture[]::new)
+					);
+				});
 	}
 
 	protected TagBuilder getTagBuilder(TagKey<T> tag) {
-		return this.tagBuilders.computeIfAbsent(tag.id(), id -> TagBuilder.create());
+		return tagBuilders.computeIfAbsent(tag.id(), id -> TagBuilder.create());
 	}
 
 	public CompletableFuture<TagProvider.TagLookup<T>> getTagLookupFuture() {
-		return this.registryLoadFuture.thenApply(void_ -> tag -> Optional.ofNullable(this.tagBuilders.get(tag.id())));
+		return registryLoadFuture.thenApply(void_ -> tag -> Optional.ofNullable(tagBuilders.get(tag.id())));
 	}
 
 	protected CompletableFuture<RegistryWrapper.WrapperLookup> getRegistriesFuture() {
-		return this.registriesFuture.thenApply(registries -> {
-			this.tagBuilders.clear();
-			this.configure(registries);
+		return registriesFuture.thenApply(registries -> {
+			tagBuilders.clear();
+			configure(registries);
 			return (RegistryWrapper.WrapperLookup) registries;
 		});
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code TagLookup}.
+	 * Функциональный интерфейс для поиска {@link TagBuilder} по ключу тега.
+	 * Используется для проверки существования тегов в родительском провайдере.
 	 */
+	@FunctionalInterface
 	public interface TagLookup<T> extends Function<TagKey<T>, Optional<TagBuilder>> {
 
 		static <T> TagProvider.TagLookup<T> empty() {

@@ -6,23 +6,25 @@ import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 import java.util.List;
 
 /**
- * {@code AttributeIdPrefixFix}.
+ * Удаляет устаревшие префиксы категорий атрибутов ({@code generic.}, {@code horse.},
+ * {@code player.}, {@code zombie.}) и добавляет namespace {@code minecraft:}.
  */
 public class AttributeIdPrefixFix extends AttributeRenameFix {
 
-	private static final List<String> PREFIXES = List.of("generic.", "horse.", "player.", "zombie.");
+	private static final List<String> LEGACY_PREFIXES = List.of("generic.", "horse.", "player.", "zombie.");
 
 	public AttributeIdPrefixFix(Schema outputSchema) {
 		super(outputSchema, "AttributeIdPrefixFix", AttributeIdPrefixFix::removePrefix);
 	}
 
 	private static String removePrefix(String id) {
-		String string = IdentifierNormalizingSchema.normalize(id);
+		String normalized = IdentifierNormalizingSchema.normalize(id);
 
-		for (String string2 : PREFIXES) {
-			String string3 = IdentifierNormalizingSchema.normalize(string2);
-			if (string.startsWith(string3)) {
-				return "minecraft:" + string.substring(string3.length());
+		for (String prefix : LEGACY_PREFIXES) {
+			String normalizedPrefix = IdentifierNormalizingSchema.normalize(prefix);
+
+			if (normalized.startsWith(normalizedPrefix)) {
+				return "minecraft:" + normalized.substring(normalizedPrefix.length());
 			}
 		}
 

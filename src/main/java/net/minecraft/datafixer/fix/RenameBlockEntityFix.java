@@ -9,7 +9,7 @@ import net.minecraft.datafixer.TypeReferences;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code RenameBlockEntityFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class RenameBlockEntityFix extends DataFix {
 
@@ -26,11 +26,11 @@ public class RenameBlockEntityFix extends DataFix {
 	public TypeRewriteRule makeRule() {
 		TaggedChoiceType<String>
 				taggedChoiceType =
-				(TaggedChoiceType<String>) this.getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
+				(TaggedChoiceType<String>) getInputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
 		TaggedChoiceType<String>
 				taggedChoiceType2 =
-				(TaggedChoiceType<String>) this.getOutputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
-		return this.fixTypeEverywhere(
+				(TaggedChoiceType<String>) getOutputSchema().findChoiceType(TypeReferences.BLOCK_ENTITY);
+		return fixTypeEverywhere(
 				this.name,
 				taggedChoiceType,
 				taggedChoiceType2,

@@ -24,7 +24,7 @@ public class ComplexRecipeJsonBuilder {
 	}
 
 	public void offerTo(RecipeExporter exporter, String id) {
-		this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(id)));
+		offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, Identifier.of(id)));
 	}
 
 	public void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey) {

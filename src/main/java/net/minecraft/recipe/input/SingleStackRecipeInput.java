@@ -3,7 +3,7 @@ package net.minecraft.recipe.input;
 import net.minecraft.item.ItemStack;
 
 /**
- * {@code SingleStackRecipeInput}.
+ * Входные данные рецепта с единственным слотом (печь, коптильня, костёр, камнерез).
  */
 public record SingleStackRecipeInput(ItemStack item) implements RecipeInput {
 
@@ -12,9 +12,8 @@ public record SingleStackRecipeInput(ItemStack item) implements RecipeInput {
 		if (slot != 0) {
 			throw new IllegalArgumentException("No item for index " + slot);
 		}
-		else {
-			return this.item;
-		}
+
+		return item;
 	}
 
 	@Override

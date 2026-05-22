@@ -10,7 +10,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.state.NetworkState;
 
 /**
- * Класс network state transitions.
+ * Фабрика и реализации переходников состояния сетевого протокола.
+ * Используется для замены {@link DecoderHandler}/{@link EncoderHandler} в Netty pipeline
+ * при смене фазы соединения (например, LOGIN → CONFIGURATION → PLAY).
  */
 public class NetworkStateTransitions {
 
@@ -22,7 +24,7 @@ public class NetworkStateTransitions {
 
 	private static NetworkStateTransitions.DecoderTransitioner decoderSwapper(ChannelInboundHandler newDecoder) {
 		return context -> {
-			context.pipeline().replace(context.name(), "decoder", newDecoder);
+			context.pipeline().replace(context.name(), HandlerNames.DECODER, newDecoder);
 			context.channel().config().setAutoRead(true);
 		};
 	}
@@ -34,114 +36,101 @@ public class NetworkStateTransitions {
 	}
 
 	private static NetworkStateTransitions.EncoderTransitioner encoderSwapper(ChannelOutboundHandler newEncoder) {
-		return context -> context.pipeline().replace(context.name(), "encoder", newEncoder);
+		return context -> context.pipeline().replace(context.name(), HandlerNames.ENCODER, newEncoder);
 	}
 
-	@FunctionalInterface
 	/**
-	 * Интерфейс decoder transitioner.
+	 * Функциональный интерфейс для переключения входящего декодера в pipeline.
 	 */
+	@FunctionalInterface
 	public interface DecoderTransitioner {
 
 		void run(ChannelHandlerContext context);
 
-		default NetworkStateTransitions.DecoderTransitioner andThen(NetworkStateTransitions.DecoderTransitioner decoderTransitioner) {
+		default NetworkStateTransitions.DecoderTransitioner andThen(NetworkStateTransitions.DecoderTransitioner next) {
 			return context -> {
-				this.run(context);
-				decoderTransitioner.run(context);
+				run(context);
+				next.run(context);
 			};
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * Интерфейс encoder transitioner.
+	 * Функциональный интерфейс для переключения исходящего энкодера в pipeline.
 	 */
+	@FunctionalInterface
 	public interface EncoderTransitioner {
 
 		void run(ChannelHandlerContext context);
 
-		default NetworkStateTransitions.EncoderTransitioner andThen(NetworkStateTransitions.EncoderTransitioner encoderTransitioner) {
+		default NetworkStateTransitions.EncoderTransitioner andThen(NetworkStateTransitions.EncoderTransitioner next) {
 			return context -> {
-				this.run(context);
-				encoderTransitioner.run(context);
+				run(context);
+				next.run(context);
 			};
 		}
 	}
 
+	/**
+	 * Временный обработчик, устанавливаемый в pipeline на время переключения входящего декодера.
+	 * Отклоняет любые пакеты/буферы до завершения перехода.
+	 */
 	public static class InboundConfigurer extends ChannelDuplexHandler {
 
-		/**
-		 * Channel read.
-		 *
-		 * @param context context
-		 * @param received received
-		 */
+		@Override
 		public void channelRead(ChannelHandlerContext context, Object received) {
-			if (!(received instanceof ByteBuf) && !(received instanceof Packet)) {
-				context.fireChannelRead(received);
-			}
-			else {
+			if (received instanceof ByteBuf || received instanceof Packet) {
 				ReferenceCountUtil.release(received);
 				throw new DecoderException(
 						"Pipeline has no inbound protocol configured, can't process packet " + received);
 			}
+
+			context.fireChannelRead(received);
 		}
 
-		/**
-		 * Write.
-		 *
-		 * @param context context
-		 * @param received received
-		 * @param promise promise
-		 */
+		@Override
 		public void write(ChannelHandlerContext context, Object received, ChannelPromise promise) throws Exception {
-			if (received instanceof NetworkStateTransitions.DecoderTransitioner decoderTransitioner) {
-				try {
-					decoderTransitioner.run(context);
-				}
-				finally {
-					ReferenceCountUtil.release(received);
-				}
-
-				promise.setSuccess();
-			}
-			else {
+			if (!(received instanceof NetworkStateTransitions.DecoderTransitioner transitioner)) {
 				context.write(received, promise);
+				return;
 			}
+
+			try {
+				transitioner.run(context);
+			} finally {
+				ReferenceCountUtil.release(received);
+			}
+
+			promise.setSuccess();
 		}
 	}
 
+	/**
+	 * Временный обработчик, устанавливаемый в pipeline на время переключения исходящего энкодера.
+	 * Отклоняет любые пакеты до завершения перехода.
+	 */
 	public static class OutboundConfigurer extends ChannelOutboundHandlerAdapter {
 
-		/**
-		 * Write.
-		 *
-		 * @param context context
-		 * @param received received
-		 * @param promise promise
-		 */
+		@Override
 		public void write(ChannelHandlerContext context, Object received, ChannelPromise promise) throws Exception {
 			if (received instanceof Packet) {
 				ReferenceCountUtil.release(received);
 				throw new EncoderException(
 						"Pipeline has no outbound protocol configured, can't process packet " + received);
 			}
-			else {
-				if (received instanceof NetworkStateTransitions.EncoderTransitioner encoderTransitioner) {
-					try {
-						encoderTransitioner.run(context);
-					}
-					finally {
-						ReferenceCountUtil.release(received);
-					}
 
-					promise.setSuccess();
+			if (received instanceof NetworkStateTransitions.EncoderTransitioner transitioner) {
+				try {
+					transitioner.run(context);
+				} finally {
+					ReferenceCountUtil.release(received);
 				}
-				else {
-					context.write(received, promise);
-				}
+
+				promise.setSuccess();
+				return;
 			}
+
+			context.write(received, promise);
 		}
 	}
 }

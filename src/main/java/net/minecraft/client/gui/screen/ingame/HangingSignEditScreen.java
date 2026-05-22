@@ -9,22 +9,21 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.joml.Vector3f;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code HangingSignEditScreen}.
+ * Экран редактирования текста на подвесной табличке.
  */
+@Environment(EnvType.CLIENT)
 public class HangingSignEditScreen extends AbstractSignEditScreen {
 
 	public static final float BACKGROUND_SCALE = 4.5F;
 	private static final Vector3f TEXT_SCALE = new Vector3f(1.0F, 1.0F, 1.0F);
 	private static final int MAX_LINE_LENGTH = 16;
 	private static final int LINE_HEIGHT = 16;
-	private final Identifier
-			texture =
+	private final Identifier texture =
 			Identifier.ofVanilla("textures/gui/hanging_signs/" + this.signType.name() + ".png");
 
-	public HangingSignEditScreen(SignBlockEntity signBlockEntity, boolean bl, boolean bl2) {
-		super(signBlockEntity, bl, bl2, Text.translatable("hanging_sign.edit"));
+	public HangingSignEditScreen(SignBlockEntity signBlockEntity, boolean frontSide, boolean filtered) {
+		super(signBlockEntity, frontSide, filtered, Text.translatable("hanging_sign.edit"));
 	}
 
 	@Override
@@ -35,7 +34,7 @@ public class HangingSignEditScreen extends AbstractSignEditScreen {
 	@Override
 	protected void renderSignBackground(DrawContext context) {
 		context.getMatrices().translate(0.0F, -13.0F);
-		context.getMatrices().scale(4.5F, 4.5F);
+		context.getMatrices().scale(BACKGROUND_SCALE, BACKGROUND_SCALE);
 		context.drawTexture(RenderPipelines.GUI_TEXTURED, this.texture, -8, -8, 0.0F, 0.0F, 16, 16, 16, 16);
 	}
 

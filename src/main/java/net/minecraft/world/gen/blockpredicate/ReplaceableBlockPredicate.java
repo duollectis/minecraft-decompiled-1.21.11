@@ -6,16 +6,16 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.Vec3i;
 
 /**
- * {@code ReplaceableBlockPredicate}.
+ * Предикат, проверяющий, является ли блок по смещённой позиции заменяемым (replaceable).
  */
 class ReplaceableBlockPredicate extends OffsetPredicate {
 
 	public static final MapCodec<ReplaceableBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> registerOffsetField(instance).apply(instance, ReplaceableBlockPredicate::new)
+		instance -> registerOffsetField(instance).apply(instance, ReplaceableBlockPredicate::new)
 	);
 
-	public ReplaceableBlockPredicate(Vec3i vec3i) {
-		super(vec3i);
+	public ReplaceableBlockPredicate(Vec3i offset) {
+		super(offset);
 	}
 
 	@Override

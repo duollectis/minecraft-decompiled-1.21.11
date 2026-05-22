@@ -1,6 +1,5 @@
 package net.minecraft.advancement;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -14,49 +13,54 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 /**
- * {@code AdvancementProgress}.
+ * Хранит прогресс выполнения достижения: состояние каждого критерия
+ * и требования, которым должен соответствовать прогресс.
  */
 public class AdvancementProgress implements Comparable<AdvancementProgress> {
 
-	private static final DateTimeFormatter
-			TIME_FORMATTER =
-			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT);
-	private static final Codec<Instant>
-			TIME_CODEC =
-			Codecs.formattedTime(TIME_FORMATTER).xmap(Instant::from, instant -> instant.atZone(ZoneId.systemDefault()));
-	private static final Codec<Map<String, CriterionProgress>> MAP_CODEC = Codec.unboundedMap(Codec.STRING, TIME_CODEC)
-	                                                                            .xmap(
-			                                                                            map -> Util.transformMapValues(
-					                                                                            map,
-					                                                                            CriterionProgress::new
-			                                                                            ),
-			                                                                            map -> map.entrySet()
-			                                                                                      .stream()
-			                                                                                      .filter(entry -> ((CriterionProgress) entry.getValue()).isObtained())
-			                                                                                      .collect(Collectors.toMap(
-					                                                                                      Entry::getKey,
-					                                                                                      entry -> Objects.requireNonNull(
-							                                                                                      ((CriterionProgress) entry.getValue()).getObtainedTime())
-			                                                                                      ))
-	                                                                            );
+	private static final int MIN_PROGRESS_BAR_REQUIREMENTS = 2;
+
+	private static final DateTimeFormatter TIME_FORMATTER =
+		DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT);
+
+	private static final Codec<Instant> TIME_CODEC =
+		Codecs.formattedTime(TIME_FORMATTER)
+		      .xmap(Instant::from, instant -> instant.atZone(ZoneId.systemDefault()));
+
+	private static final Codec<Map<String, CriterionProgress>> MAP_CODEC =
+		Codec.unboundedMap(Codec.STRING, TIME_CODEC)
+		     .xmap(
+			     map -> Util.transformMapValues(map, CriterionProgress::new),
+			     map -> {
+				     Map<String, Instant> result = new HashMap<>();
+				     map.forEach((key, progress) -> {
+					     if (progress.isObtained()) {
+						     result.put(key, Objects.requireNonNull(progress.getObtainedTime()));
+					     }
+				     });
+				     return result;
+			     }
+		     );
+
 	public static final Codec<AdvancementProgress> CODEC = RecordCodecBuilder.create(
-			instance -> instance.group(
-					                    MAP_CODEC
-							                    .optionalFieldOf("criteria", Map.of())
-							                    .forGetter(advancementProgress -> advancementProgress.criteriaProgresses),
-					                    Codec.BOOL.fieldOf("done").orElse(true).forGetter(AdvancementProgress::isDone)
-			                    )
-			                    .apply(
-					                    instance,
-					                    (criteriaProgresses, done) -> new AdvancementProgress(new HashMap<>(
-							                    criteriaProgresses))
-			                    )
+		instance -> instance.group(
+			MAP_CODEC.optionalFieldOf("criteria", Map.of()).forGetter(p -> p.criteriaProgresses),
+			Codec.BOOL.fieldOf("done").orElse(true).forGetter(AdvancementProgress::isDone)
+		).apply(
+			instance,
+			(criteriaProgresses, done) -> new AdvancementProgress(new HashMap<>(criteriaProgresses))
+		)
 	);
+
 	private final Map<String, CriterionProgress> criteriaProgresses;
 	private AdvancementRequirements requirements = AdvancementRequirements.EMPTY;
 
@@ -65,66 +69,65 @@ public class AdvancementProgress implements Comparable<AdvancementProgress> {
 	}
 
 	public AdvancementProgress() {
-		this.criteriaProgresses = Maps.newHashMap();
+		criteriaProgresses = Maps.newHashMap();
 	}
 
+	/**
+	 * Синхронизирует набор критериев с заданными требованиями:
+	 * удаляет устаревшие критерии и добавляет недостающие.
+	 */
 	public void init(AdvancementRequirements requirements) {
-		Set<String> set = requirements.getNames();
-		this.criteriaProgresses.entrySet().removeIf(progress -> !set.contains(progress.getKey()));
+		java.util.Set<String> names = requirements.getNames();
+		criteriaProgresses.entrySet().removeIf(entry -> !names.contains(entry.getKey()));
 
-		for (String string : set) {
-			this.criteriaProgresses.putIfAbsent(string, new CriterionProgress());
+		for (String name : names) {
+			criteriaProgresses.putIfAbsent(name, new CriterionProgress());
 		}
 
 		this.requirements = requirements;
 	}
 
 	public boolean isDone() {
-		return this.requirements.matches(this::isCriterionObtained);
+		return requirements.matches(this::isCriterionObtained);
 	}
 
 	public boolean isAnyObtained() {
-		for (CriterionProgress criterionProgress : this.criteriaProgresses.values()) {
-			if (criterionProgress.isObtained()) {
+		for (CriterionProgress progress : criteriaProgresses.values()) {
+			if (progress.isObtained()) {
 				return true;
 			}
 		}
-
 		return false;
 	}
 
 	public boolean obtain(String name) {
-		CriterionProgress criterionProgress = this.criteriaProgresses.get(name);
-		if (criterionProgress != null && !criterionProgress.isObtained()) {
-			criterionProgress.obtain();
-			return true;
-		}
-		else {
+		CriterionProgress progress = criteriaProgresses.get(name);
+		if (progress == null || progress.isObtained()) {
 			return false;
 		}
+		progress.obtain();
+		return true;
 	}
 
 	public boolean reset(String name) {
-		CriterionProgress criterionProgress = this.criteriaProgresses.get(name);
-		if (criterionProgress != null && criterionProgress.isObtained()) {
-			criterionProgress.reset();
-			return true;
-		}
-		else {
+		CriterionProgress progress = criteriaProgresses.get(name);
+		if (progress == null || !progress.isObtained()) {
 			return false;
 		}
+		progress.reset();
+		return true;
 	}
 
 	@Override
 	public String toString() {
-		return "AdvancementProgress{criteria=" + this.criteriaProgresses + ", requirements=" + this.requirements + "}";
+		return "AdvancementProgress{criteria=" + criteriaProgresses + ", requirements=" + requirements + "}";
 	}
 
 	public void toPacket(PacketByteBuf buf) {
 		buf.writeMap(
-				this.criteriaProgresses,
-				PacketByteBuf::writeString,
-				(bufx, progresses) -> progresses.toPacket(bufx)
+			criteriaProgresses,
+			PacketByteBuf::writeString,
+			(bufx, progress) -> progress.toPacket(bufx)
 		);
 	}
 
@@ -134,90 +137,79 @@ public class AdvancementProgress implements Comparable<AdvancementProgress> {
 	}
 
 	public @Nullable CriterionProgress getCriterionProgress(String name) {
-		return this.criteriaProgresses.get(name);
+		return criteriaProgresses.get(name);
 	}
 
 	private boolean isCriterionObtained(String name) {
-		CriterionProgress criterionProgress = this.getCriterionProgress(name);
-		return criterionProgress != null && criterionProgress.isObtained();
+		CriterionProgress progress = getCriterionProgress(name);
+		return progress != null && progress.isObtained();
 	}
 
 	public float getProgressBarPercentage() {
-		if (this.criteriaProgresses.isEmpty()) {
+		if (criteriaProgresses.isEmpty()) {
 			return 0.0F;
 		}
-		else {
-			float f = this.requirements.getLength();
-			float g = this.countObtainedRequirements();
-			return g / f;
-		}
+		float total = requirements.getLength();
+		float obtained = countObtainedRequirements();
+		return obtained / total;
 	}
 
 	public @Nullable Text getProgressBarFraction() {
-		if (this.criteriaProgresses.isEmpty()) {
+		if (criteriaProgresses.isEmpty()) {
 			return null;
 		}
-		else {
-			int i = this.requirements.getLength();
-			if (i <= 1) {
-				return null;
-			}
-			else {
-				int j = this.countObtainedRequirements();
-				return Text.translatable("advancements.progress", j, i);
-			}
+		int total = requirements.getLength();
+		if (total <= MIN_PROGRESS_BAR_REQUIREMENTS - 1) {
+			return null;
 		}
+		int obtained = countObtainedRequirements();
+		return Text.translatable("advancements.progress", obtained, total);
 	}
 
 	private int countObtainedRequirements() {
-		return this.requirements.countMatches(this::isCriterionObtained);
+		return requirements.countMatches(this::isCriterionObtained);
 	}
 
 	public Iterable<String> getUnobtainedCriteria() {
-		List<String> list = Lists.newArrayList();
-
-		for (Entry<String, CriterionProgress> entry : this.criteriaProgresses.entrySet()) {
-			if (!entry.getValue().isObtained()) {
-				list.add(entry.getKey());
+		List<String> result = new ArrayList<>();
+		criteriaProgresses.forEach((name, progress) -> {
+			if (!progress.isObtained()) {
+				result.add(name);
 			}
-		}
-
-		return list;
+		});
+		return result;
 	}
 
 	public Iterable<String> getObtainedCriteria() {
-		List<String> list = Lists.newArrayList();
-
-		for (Entry<String, CriterionProgress> entry : this.criteriaProgresses.entrySet()) {
-			if (entry.getValue().isObtained()) {
-				list.add(entry.getKey());
+		List<String> result = new ArrayList<>();
+		criteriaProgresses.forEach((name, progress) -> {
+			if (progress.isObtained()) {
+				result.add(name);
 			}
-		}
-
-		return list;
+		});
+		return result;
 	}
 
 	public @Nullable Instant getEarliestProgressObtainDate() {
-		return this.criteriaProgresses
-				.values()
-				.stream()
-				.map(CriterionProgress::getObtainedTime)
-				.filter(Objects::nonNull)
-				.min(Comparator.naturalOrder())
-				.orElse(null);
+		return criteriaProgresses.values()
+		                         .stream()
+		                         .map(CriterionProgress::getObtainedTime)
+		                         .filter(Objects::nonNull)
+		                         .min(Comparator.naturalOrder())
+		                         .orElse(null);
 	}
 
-	public int compareTo(AdvancementProgress advancementProgress) {
-		Instant instant = this.getEarliestProgressObtainDate();
-		Instant instant2 = advancementProgress.getEarliestProgressObtainDate();
-		if (instant == null && instant2 != null) {
+	@Override
+	public int compareTo(AdvancementProgress other) {
+		Instant thisTime = getEarliestProgressObtainDate();
+		Instant otherTime = other.getEarliestProgressObtainDate();
+
+		if (thisTime == null && otherTime != null) {
 			return 1;
 		}
-		else if (instant != null && instant2 == null) {
+		if (thisTime != null && otherTime == null) {
 			return -1;
 		}
-		else {
-			return instant == null && instant2 == null ? 0 : instant.compareTo(instant2);
-		}
+		return thisTime == null ? 0 : thisTime.compareTo(otherTime);
 	}
 }

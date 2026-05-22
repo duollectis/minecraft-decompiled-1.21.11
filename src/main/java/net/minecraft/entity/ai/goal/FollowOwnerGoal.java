@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.EnumSet;
 
 /**
- * {@code FollowOwnerGoal}.
+ * Цель, заставляющая прирученное существо следовать за своим владельцем.
+ * Автоматически телепортируется к владельцу, если расстояние слишком велико.
  */
 public class FollowOwnerGoal extends Goal {
 
@@ -30,7 +31,7 @@ public class FollowOwnerGoal extends Goal {
 		this.navigation = tameable.getNavigation();
 		this.minDistance = minDistance;
 		this.maxDistance = maxDistance;
-		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
 		if (!(tameable.getNavigation() instanceof MobNavigation)
 				&& !(tameable.getNavigation() instanceof BirdNavigation)) {
 			throw new IllegalArgumentException("Unsupported mob type for FollowOwnerGoal");
@@ -39,62 +40,64 @@ public class FollowOwnerGoal extends Goal {
 
 	@Override
 	public boolean canStart() {
-		LivingEntity livingEntity = this.tameable.getOwner();
+		LivingEntity livingEntity = tameable.getOwner();
 		if (livingEntity == null) {
 			return false;
 		}
-		else if (this.tameable.cannotFollowOwner()) {
+
+		if (tameable.cannotFollowOwner()) {
 			return false;
 		}
-		else if (this.tameable.squaredDistanceTo(livingEntity) < this.minDistance * this.minDistance) {
+
+		if (tameable.squaredDistanceTo(livingEntity) < minDistance * minDistance) {
 			return false;
 		}
-		else {
-			this.owner = livingEntity;
-			return true;
-		}
+
+		owner = livingEntity;
+		return true;
 	}
 
 	@Override
 	public boolean shouldContinue() {
-		if (this.navigation.isIdle()) {
+		if (navigation.isIdle()) {
 			return false;
 		}
-		else {
-			return this.tameable.cannotFollowOwner() ? false : !(this.tameable.squaredDistanceTo(this.owner)
-			                                                     <= this.maxDistance * this.maxDistance
-			);
+
+		if (tameable.cannotFollowOwner()) {
+			return false;
 		}
+
+		return tameable.squaredDistanceTo(owner) > maxDistance * maxDistance;
 	}
 
 	@Override
 	public void start() {
-		this.updateCountdownTicks = 0;
-		this.oldWaterPathfindingPenalty = this.tameable.getPathfindingPenalty(PathNodeType.WATER);
-		this.tameable.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+		updateCountdownTicks = 0;
+		oldWaterPathfindingPenalty = tameable.getPathfindingPenalty(PathNodeType.WATER);
+		tameable.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
 	}
 
 	@Override
 	public void stop() {
-		this.owner = null;
-		this.navigation.stop();
-		this.tameable.setPathfindingPenalty(PathNodeType.WATER, this.oldWaterPathfindingPenalty);
+		owner = null;
+		navigation.stop();
+		tameable.setPathfindingPenalty(PathNodeType.WATER, oldWaterPathfindingPenalty);
 	}
 
 	@Override
 	public void tick() {
-		boolean bl = this.tameable.shouldTryTeleportToOwner();
-		if (!bl) {
-			this.tameable.getLookControl().lookAt(this.owner, 10.0F, this.tameable.getMaxLookPitchChange());
+		boolean shouldTeleport = tameable.shouldTryTeleportToOwner();
+		if (!shouldTeleport) {
+			tameable.getLookControl().lookAt(owner, 10.0F, tameable.getMaxLookPitchChange());
 		}
 
-		if (--this.updateCountdownTicks <= 0) {
-			this.updateCountdownTicks = this.getTickCount(10);
-			if (bl) {
-				this.tameable.tryTeleportToOwner();
+		if (--updateCountdownTicks <= 0) {
+			updateCountdownTicks = getTickCount(10);
+			if (shouldTeleport) {
+				tameable.tryTeleportToOwner();
 			}
 			else {
-				this.navigation.startMovingTo(this.owner, this.speed);
+				navigation.startMovingTo(owner, speed);
 			}
 		}
 	}

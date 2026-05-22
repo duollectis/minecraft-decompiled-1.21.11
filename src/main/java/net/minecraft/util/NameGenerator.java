@@ -8,109 +8,52 @@ import net.minecraft.util.math.random.Random;
 import java.util.UUID;
 
 /**
- * {@code NameGenerator}.
+ * Генератор псевдослучайных имён для сущностей на основе их UUID.
+ * Имена составляются из фиксированных массивов префиксов и суффиксов,
+ * что обеспечивает детерминированность: одинаковый UUID всегда даёт одинаковое имя.
  */
 public class NameGenerator {
 
-	private static final String[] PREFIX = new String[]{
-			"Slim",
-			"Far",
-			"River",
-			"Silly",
-			"Fat",
-			"Thin",
-			"Fish",
-			"Bat",
-			"Dark",
-			"Oak",
-			"Sly",
-			"Bush",
-			"Zen",
-			"Bark",
-			"Cry",
-			"Slack",
-			"Soup",
-			"Grim",
-			"Hook",
-			"Dirt",
-			"Mud",
-			"Sad",
-			"Hard",
-			"Crook",
-			"Sneak",
-			"Stink",
-			"Weird",
-			"Fire",
-			"Soot",
-			"Soft",
-			"Rough",
-			"Cling",
-			"Scar"
+	private static final String[] PREFIX = {
+		"Slim", "Far", "River", "Silly", "Fat", "Thin", "Fish", "Bat",
+		"Dark", "Oak", "Sly", "Bush", "Zen", "Bark", "Cry", "Slack",
+		"Soup", "Grim", "Hook", "Dirt", "Mud", "Sad", "Hard", "Crook",
+		"Sneak", "Stink", "Weird", "Fire", "Soot", "Soft", "Rough", "Cling", "Scar"
 	};
-	private static final String[] SUFFIX = new String[]{
-			"Fox",
-			"Tail",
-			"Jaw",
-			"Whisper",
-			"Twig",
-			"Root",
-			"Finder",
-			"Nose",
-			"Brow",
-			"Blade",
-			"Fry",
-			"Seek",
-			"Wart",
-			"Tooth",
-			"Foot",
-			"Leaf",
-			"Stone",
-			"Fall",
-			"Face",
-			"Tongue",
-			"Voice",
-			"Lip",
-			"Mouth",
-			"Snail",
-			"Toe",
-			"Ear",
-			"Hair",
-			"Beard",
-			"Shirt",
-			"Fist"
+
+	private static final String[] SUFFIX = {
+		"Fox", "Tail", "Jaw", "Whisper", "Twig", "Root", "Finder", "Nose",
+		"Brow", "Blade", "Fry", "Seek", "Wart", "Tooth", "Foot", "Leaf",
+		"Stone", "Fall", "Face", "Tongue", "Voice", "Lip", "Mouth", "Snail",
+		"Toe", "Ear", "Hair", "Beard", "Shirt", "Fist"
 	};
 
 	/**
-	 * Name.
+	 * Возвращает имя сущности: для игроков — их игровое имя,
+	 * для остальных — пользовательское имя или сгенерированное по UUID.
 	 *
-	 * @param entity entity
-	 *
-	 * @return String — результат операции
+	 * @param entity сущность
+	 * @return строковое имя сущности
 	 */
 	public static String name(Entity entity) {
 		if (entity instanceof PlayerEntity) {
 			return entity.getStringifiedName();
 		}
-		else {
-			Text text = entity.getCustomName();
-			return text != null ? text.getString() : name(entity.getUuid());
-		}
+
+		Text customName = entity.getCustomName();
+		return customName != null ? customName.getString() : name(entity.getUuid());
 	}
 
 	/**
-	 * Name.
+	 * Генерирует детерминированное имя по UUID.
+	 * Использует хэш UUID как зерно генератора случайных чисел.
 	 *
-	 * @param uuid uuid
-	 *
-	 * @return String — результат операции
+	 * @param uuid идентификатор сущности
+	 * @return сгенерированное имя вида «ПрефиксСуффикс»
 	 */
 	public static String name(UUID uuid) {
 		Random random = randomFromUuid(uuid);
-		return getRandom(random, PREFIX) + getRandom(random, SUFFIX);
-	}
-
-	private static String getRandom(Random random, String[] options) {
-		return Util.getRandom(options, random);
+		return Util.getRandom(PREFIX, random) + Util.getRandom(SUFFIX, random);
 	}
 
 	private static Random randomFromUuid(UUID uuid) {

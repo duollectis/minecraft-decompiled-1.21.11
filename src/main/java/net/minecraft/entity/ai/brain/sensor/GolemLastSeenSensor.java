@@ -11,7 +11,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * {@code GolemLastSeenSensor}.
+ * Сенсор, отслеживающий факт недавнего обнаружения железного голема.
+ * При обнаружении голема в памяти {@code MOBS} записывает флаг {@code GOLEM_DETECTED_RECENTLY}
+ * с временем жизни {@code GOLEM_DETECTED_WARMUP} тиков.
  */
 public class GolemLastSeenSensor extends Sensor<LivingEntity> {
 
@@ -19,11 +21,11 @@ public class GolemLastSeenSensor extends Sensor<LivingEntity> {
 	private static final int GOLEM_DETECTED_WARMUP = 599;
 
 	public GolemLastSeenSensor() {
-		this(200);
+		this(RUN_TIME);
 	}
 
-	public GolemLastSeenSensor(int i) {
-		super(i);
+	public GolemLastSeenSensor(int senseInterval) {
+		super(senseInterval);
 	}
 
 	@Override
@@ -36,29 +38,21 @@ public class GolemLastSeenSensor extends Sensor<LivingEntity> {
 		return ImmutableSet.of(MemoryModuleType.MOBS);
 	}
 
-	/**
-	 * Sense iron golem.
-	 *
-	 * @param entity entity
-	 */
 	public static void senseIronGolem(LivingEntity entity) {
-		Optional<List<LivingEntity>> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
-		if (!optional.isEmpty()) {
-			boolean
-					bl =
-					optional.get().stream().anyMatch(seenEntity -> seenEntity.getType().equals(EntityType.IRON_GOLEM));
-			if (bl) {
-				rememberIronGolem(entity);
-			}
+		Optional<List<LivingEntity>> mobs = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
+
+		if (mobs.isEmpty()) {
+			return;
+		}
+
+		boolean golemSeen = mobs.get().stream().anyMatch(seen -> seen.getType().equals(EntityType.IRON_GOLEM));
+
+		if (golemSeen) {
+			rememberIronGolem(entity);
 		}
 	}
 
-	/**
-	 * Remember iron golem.
-	 *
-	 * @param entity entity
-	 */
 	public static void rememberIronGolem(LivingEntity entity) {
-		entity.getBrain().remember(MemoryModuleType.GOLEM_DETECTED_RECENTLY, true, 599L);
+		entity.getBrain().remember(MemoryModuleType.GOLEM_DETECTED_RECENTLY, true, GOLEM_DETECTED_WARMUP);
 	}
 }

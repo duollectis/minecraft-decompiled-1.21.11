@@ -13,39 +13,37 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.Optional;
 
 /**
- * {@code RecipeUnlockedCriterion}.
+ * Критерий выполняется, когда игрок разблокирует рецепт крафта.
  */
 public class RecipeUnlockedCriterion extends AbstractCriterion<RecipeUnlockedCriterion.Conditions> {
 
 	@Override
-	public Codec<RecipeUnlockedCriterion.Conditions> getConditionsCodec() {
-		return RecipeUnlockedCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(ServerPlayerEntity player, RecipeEntry<?> recipe) {
-		this.trigger(player, conditions -> conditions.matches(recipe));
+		trigger(player, conditions -> conditions.matches(recipe));
 	}
 
 	public static AdvancementCriterion<RecipeUnlockedCriterion.Conditions> create(RegistryKey<Recipe<?>> registryKey) {
-		return Criteria.RECIPE_UNLOCKED.create(new RecipeUnlockedCriterion.Conditions(Optional.empty(), registryKey));
+		return Criteria.RECIPE_UNLOCKED.create(new Conditions(Optional.empty(), registryKey));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			RegistryKey<Recipe<?>> recipe
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<RecipeUnlockedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(RecipeUnlockedCriterion.Conditions::player),
-						                    Recipe.KEY_CODEC.fieldOf("recipe").forGetter(RecipeUnlockedCriterion.Conditions::recipe)
-				                    )
-				                    .apply(instance, RecipeUnlockedCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						Recipe.KEY_CODEC
+								.fieldOf("recipe")
+								.forGetter(Conditions::recipe)
+				).apply(instance, Conditions::new)
 		);
 
 		public boolean matches(RecipeEntry<?> recipe) {

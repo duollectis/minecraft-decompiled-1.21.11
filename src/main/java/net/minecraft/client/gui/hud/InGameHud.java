@@ -68,10 +68,10 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code InGameHud}.
+ * Главный HUD игрового процесса: здоровье, голод, броня, опыт, хотбар, прицел и статус-эффекты.
  */
+@Environment(EnvType.CLIENT)
 public class InGameHud {
 
 	private static final Identifier CROSSHAIR_TEXTURE = Identifier.ofVanilla("hud/crosshair");
@@ -1339,7 +1339,7 @@ public class InGameHud {
 		if (nauseaStrength < 1.0F) {
 			nauseaStrength *= nauseaStrength;
 			nauseaStrength *= nauseaStrength;
-			nauseaStrength = nauseaStrength * 0.8F + 0.2F;
+			nauseaStrength = nauseaStrength * 0.8F + NAUSEA_OVERLAY_ALPHA;
 		}
 
 		int i = ColorHelper.getWhite(nauseaStrength);
@@ -1470,7 +1470,7 @@ public class InGameHud {
 		MinecraftServer minecraftServer = this.client.getServer();
 		boolean bl = minecraftServer != null && minecraftServer.isSaving();
 		this.lastAutosaveIndicatorAlpha = this.autosaveIndicatorAlpha;
-		this.autosaveIndicatorAlpha = MathHelper.lerp(0.2F, this.autosaveIndicatorAlpha, bl ? 1.0F : 0.0F);
+		this.autosaveIndicatorAlpha = MathHelper.lerp(AUTOSAVE_LERP_FACTOR, this.autosaveIndicatorAlpha, bl ? 1.0F : 0.0F);
 	}
 
 	public void setRecordPlayingOverlay(Text description) {
@@ -1616,7 +1616,7 @@ public class InGameHud {
 	}
 
 	private boolean shouldShowExperienceBar() {
-		return this.client.player.experienceBarDisplayStartTime + 100 > this.client.player.age;
+		return this.client.player.experienceBarDisplayStartTime + SLEEP_FADE_TICKS > this.client.player.age;
 	}
 
 	private boolean shouldShowJumpBar() {
@@ -1646,7 +1646,9 @@ public class InGameHud {
 
 	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code BarType}.
+	 * Тип полосы, отображаемой над слотбаром игрока.
+	 * Определяет, какой из взаимоисключающих индикаторов показывается в данный момент:
+	 * опыт, прыжок верхового животного, локатор путевой точки или пустое состояние.
 	 */
 	static enum BarType {
 		EMPTY,
@@ -1657,7 +1659,9 @@ public class InGameHud {
 
 	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code HeartType}.
+	 * Визуальный тип сердца на панели здоровья игрока.
+	 * Кодирует текстуры для каждого состояния (обычное, отравленное, иссушённое,
+	 * поглощение, контейнер) с учётом режима хардкора и анимации мигания при уроне.
 	 */
 	static enum HeartType {
 		CONTAINER(
@@ -1788,7 +1792,9 @@ public class InGameHud {
 
 	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Renderable}.
+	 * Контракт для любого компонента HUD, способного отрисовывать себя на экране.
+	 * Реализуется всеми элементами внутриигрового интерфейса, которые регистрируются
+	 * в {@link InGameHud} и вызываются в каждом кадре рендеринга.
 	 */
 	public interface Renderable {
 

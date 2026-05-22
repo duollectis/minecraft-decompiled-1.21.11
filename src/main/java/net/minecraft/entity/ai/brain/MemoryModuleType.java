@@ -30,7 +30,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * {@code MemoryModuleType}.
+ * Реестр всех типов модулей памяти мозга (Brain API).
+ * Каждый тип описывает слот памяти с опциональным кодеком для сериализации в NBT.
+ * Типы без кодека существуют только в оперативной памяти и не сохраняются между сессиями.
  */
 public class MemoryModuleType<U> {
 
@@ -221,7 +223,7 @@ public class MemoryModuleType<U> {
 	}
 
 	public Optional<Codec<Memory<U>>> getCodec() {
-		return this.codec;
+		return codec;
 	}
 
 	private static <U> MemoryModuleType<U> register(String id, Codec<U> codec) {

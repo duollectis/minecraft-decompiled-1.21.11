@@ -22,51 +22,63 @@ import net.minecraft.world.World;
 import java.util.Optional;
 
 /**
- * {@code SummonEntityEnchantmentEffect}.
+ * Эффект зачарования, призывающий случайную сущность из заданного списка типов.
+ * Если призвана молния и владелец контекста — игрок, молния привязывается к нему как каналу.
+ * При {@code joinTeam = true} призванная сущность добавляется в команду пользователя.
  */
 public record SummonEntityEnchantmentEffect(
-		RegistryEntryList<EntityType<?>> entityTypes,
-		boolean joinTeam
+	RegistryEntryList<EntityType<?>> entityTypes,
+	boolean joinTeam
 ) implements EnchantmentEntityEffect {
 
 	public static final MapCodec<SummonEntityEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance.group(
-					                    RegistryCodecs
-							                    .entryList(RegistryKeys.ENTITY_TYPE)
-							                    .fieldOf("entity")
-							                    .forGetter(SummonEntityEnchantmentEffect::entityTypes),
-					                    Codec.BOOL.optionalFieldOf("join_team", false).forGetter(SummonEntityEnchantmentEffect::joinTeam)
-			                    )
-			                    .apply(instance, SummonEntityEnchantmentEffect::new)
+		instance -> instance.group(
+			RegistryCodecs.entryList(RegistryKeys.ENTITY_TYPE)
+				.fieldOf("entity")
+				.forGetter(SummonEntityEnchantmentEffect::entityTypes),
+			Codec.BOOL
+				.optionalFieldOf("join_team", false)
+				.forGetter(SummonEntityEnchantmentEffect::joinTeam)
+		)
+		.apply(instance, SummonEntityEnchantmentEffect::new)
 	);
 
 	@Override
 	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-		BlockPos blockPos = BlockPos.ofFloored(pos);
-		if (World.isValid(blockPos)) {
-			Optional<RegistryEntry<EntityType<?>>> optional = this.entityTypes().getRandom(world.getRandom());
-			if (!optional.isEmpty()) {
-				Entity entity = optional.get().value().spawn(world, blockPos, SpawnReason.TRIGGERED);
-				if (entity != null) {
-					if (entity instanceof LightningEntity lightningEntity
-							&& context.owner() instanceof ServerPlayerEntity serverPlayerEntity) {
-						lightningEntity.setChanneler(serverPlayerEntity);
-					}
+		BlockPos spawnPos = BlockPos.ofFloored(pos);
 
-					if (this.joinTeam && user.getScoreboardTeam() != null) {
-						world
-								.getScoreboard()
-								.addScoreHolderToTeam(entity.getNameForScoreboard(), user.getScoreboardTeam());
-					}
-
-					entity.refreshPositionAndAngles(pos.x, pos.y, pos.z, entity.getYaw(), entity.getPitch());
-				}
-			}
+		if (!World.isValid(spawnPos)) {
+			return;
 		}
+
+		Optional<RegistryEntry<EntityType<?>>> chosenType = entityTypes.getRandom(world.getRandom());
+
+		if (chosenType.isEmpty()) {
+			return;
+		}
+
+		Entity spawned = chosenType.get().value().spawn(world, spawnPos, SpawnReason.TRIGGERED);
+
+		if (spawned == null) {
+			return;
+		}
+
+		if (spawned instanceof LightningEntity lightning
+			&& context.owner() instanceof ServerPlayerEntity player
+		) {
+			lightning.setChanneler(player);
+		}
+
+		if (joinTeam && user.getScoreboardTeam() != null) {
+			world.getScoreboard().addScoreHolderToTeam(spawned.getNameForScoreboard(), user.getScoreboardTeam());
+		}
+
+		spawned.refreshPositionAndAngles(pos.x, pos.y, pos.z, spawned.getYaw(), spawned.getPitch());
 	}
 
 	@Override
 	public MapCodec<SummonEntityEnchantmentEffect> getCodec() {
 		return CODEC;
 	}
+
 }

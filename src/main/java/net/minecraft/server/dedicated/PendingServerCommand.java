@@ -3,7 +3,7 @@ package net.minecraft.server.dedicated;
 import net.minecraft.server.command.ServerCommandSource;
 
 /**
- * {@code PendingServerCommand}.
+ * Команда, ожидающая выполнения в очереди сервера: хранит текст команды и источник.
  */
 public class PendingServerCommand {
 

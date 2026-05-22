@@ -12,10 +12,11 @@ import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientSamplerSource}.
+ * Источник сэмплеров производительности для клиентской стороны.
+ * Регистрирует метрики рендеринга чанков, GPU-утилизации и системные показатели.
  */
+@Environment(EnvType.CLIENT)
 public class ClientSamplerSource implements SamplerSource {
 
 	private final WorldRenderer renderer;
@@ -24,63 +25,29 @@ public class ClientSamplerSource implements SamplerSource {
 
 	public ClientSamplerSource(LongSupplier nanoTimeSupplier, WorldRenderer renderer) {
 		this.renderer = renderer;
-		this.samplers.add(ServerSamplerSource.createTickTimeTracker(nanoTimeSupplier));
-		this.addInfoSamplers();
+		samplers.add(ServerSamplerSource.createTickTimeTracker(nanoTimeSupplier));
+		addInfoSamplers();
 	}
 
 	private void addInfoSamplers() {
-		this.samplers.addAll(ServerSamplerSource.createSystemSamplers());
-		this.samplers.add(Sampler.create(
-				"totalChunks",
-				SampleType.CHUNK_RENDERING,
-				this.renderer,
-				WorldRenderer::getChunkCount
-		));
-		this.samplers.add(Sampler.create(
-				"renderedChunks",
-				SampleType.CHUNK_RENDERING,
-				this.renderer,
-				WorldRenderer::getCompletedChunkCount
-		));
-		this.samplers.add(Sampler.create(
-				"lastViewDistance",
-				SampleType.CHUNK_RENDERING,
-				this.renderer,
-				WorldRenderer::getViewDistance
-		));
-		ChunkBuilder chunkBuilder = this.renderer.getChunkBuilder();
+		samplers.addAll(ServerSamplerSource.createSystemSamplers());
+		samplers.add(Sampler.create("totalChunks", SampleType.CHUNK_RENDERING, renderer, WorldRenderer::getChunkCount));
+		samplers.add(Sampler.create("renderedChunks", SampleType.CHUNK_RENDERING, renderer, WorldRenderer::getCompletedChunkCount));
+		samplers.add(Sampler.create("lastViewDistance", SampleType.CHUNK_RENDERING, renderer, WorldRenderer::getViewDistance));
+
+		ChunkBuilder chunkBuilder = renderer.getChunkBuilder();
 		if (chunkBuilder != null) {
-			this.samplers.add(Sampler.create(
-					"toUpload",
-					SampleType.CHUNK_RENDERING_DISPATCHING,
-					chunkBuilder,
-					ChunkBuilder::getChunksToUpload
-			));
-			this.samplers.add(Sampler.create(
-					"freeBufferCount",
-					SampleType.CHUNK_RENDERING_DISPATCHING,
-					chunkBuilder,
-					ChunkBuilder::getFreeBufferCount
-			));
-			this.samplers.add(Sampler.create(
-					"compileQueueSize",
-					SampleType.CHUNK_RENDERING_DISPATCHING,
-					chunkBuilder,
-					ChunkBuilder::getScheduledTaskCount
-			));
+			samplers.add(Sampler.create("toUpload", SampleType.CHUNK_RENDERING_DISPATCHING, chunkBuilder, ChunkBuilder::getChunksToUpload));
+			samplers.add(Sampler.create("freeBufferCount", SampleType.CHUNK_RENDERING_DISPATCHING, chunkBuilder, ChunkBuilder::getFreeBufferCount));
+			samplers.add(Sampler.create("compileQueueSize", SampleType.CHUNK_RENDERING_DISPATCHING, chunkBuilder, ChunkBuilder::getScheduledTaskCount));
 		}
 
-		this.samplers.add(Sampler.create(
-				"gpuUtilization",
-				SampleType.GPU,
-				MinecraftClient.getInstance(),
-				MinecraftClient::getGpuUtilizationPercentage
-		));
+		samplers.add(Sampler.create("gpuUtilization", SampleType.GPU, MinecraftClient.getInstance(), MinecraftClient::getGpuUtilizationPercentage));
 	}
 
 	@Override
 	public Set<Sampler> getSamplers(Supplier<ReadableProfiler> profilerSupplier) {
-		this.samplers.addAll(this.factory.createSamplers(profilerSupplier));
-		return this.samplers;
+		samplers.addAll(factory.createSamplers(profilerSupplier));
+		return samplers;
 	}
 }

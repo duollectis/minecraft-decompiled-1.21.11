@@ -74,7 +74,7 @@ import java.util.function.*;
 import java.util.stream.Stream;
 
 /**
- * {@code ServerChunkLoadingManager}.
+ * Класс Server Chunk Loading Manager.
  */
 public class ServerChunkLoadingManager extends VersionedChunkStorage implements ChunkHolder.PlayersWatchingChunkProvider, ChunkLoadingManager {
 
@@ -573,7 +573,7 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		int i = 0;
 		LongIterator longIterator = this.chunksToSave.iterator();
 
-		while (i < 20 && this.chunksBeingSavedCount.get() < 128 && shouldKeepTicking.getAsBoolean()
+		while (i < MAX_CHUNKS_SAVED_PER_TICK && this.chunksBeingSavedCount.get() < MAX_CONCURRENT_SAVES && shouldKeepTicking.getAsBoolean()
 				&& longIterator.hasNext()) {
 			long m = longIterator.nextLong();
 			ChunkHolder chunkHolder = (ChunkHolder) this.chunkHolders.get(m);
@@ -877,7 +877,7 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 					boolean bl = this.save(chunk);
 					chunkHolder.updateAccessibleStatus();
 					if (bl) {
-						this.chunkToNextSaveTimeMs.put(l, currentTime + 10000L);
+						this.chunkToNextSaveTimeMs.put(l, currentTime + CHUNK_SAVE_COOLDOWN_MS);
 					}
 
 					return bl;
@@ -963,7 +963,7 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 	}
 
 	protected void setViewDistance(int watchDistance) {
-		int i = MathHelper.clamp(watchDistance, 2, 32);
+		int i = MathHelper.clamp(watchDistance, 2, MAX_VIEW_DISTANCE);
 		if (i != this.watchDistance) {
 			this.watchDistance = i;
 			this.levelManager.setWatchDistance(this.watchDistance);
@@ -1586,9 +1586,6 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
-	/**
-	 * {@code EntityTracker}.
-	 */
 	class EntityTracker implements EntityTrackerEntry.TrackerPacketSender {
 
 		final EntityTrackerEntry entry;
@@ -1744,9 +1741,6 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
-	/**
-	 * {@code LevelManager}.
-	 */
 	class LevelManager extends ChunkLevelManager {
 
 		protected LevelManager(

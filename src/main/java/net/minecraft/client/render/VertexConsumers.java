@@ -5,59 +5,36 @@ import net.fabricmc.api.Environment;
 
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code VertexConsumers}.
+ * Фабричные методы для создания составных {@link VertexConsumer}, перенаправляющих
+ * вершинные данные одновременно нескольким получателям.
+ * Используется для одновременной записи в основной буфер и буфер контуров.
  */
+@Environment(EnvType.CLIENT)
 public class VertexConsumers {
 
-	/**
-	 * Union.
-	 *
-	 * @return VertexConsumer — результат операции
-	 */
+	/** Бросает исключение — вызов без аргументов не имеет смысла. */
 	public static VertexConsumer union() {
 		throw new IllegalArgumentException();
 	}
 
-	/**
-	 * Union.
-	 *
-	 * @param first first
-	 *
-	 * @return VertexConsumer — результат операции
-	 */
+	/** Возвращает единственный потребитель без обёртки. */
 	public static VertexConsumer union(VertexConsumer first) {
 		return first;
 	}
 
-	/**
-	 * Union.
-	 *
-	 * @param first first
-	 * @param second second
-	 *
-	 * @return VertexConsumer — результат операции
-	 */
+	/** Создаёт оптимизированный двойной потребитель для двух получателей. */
 	public static VertexConsumer union(VertexConsumer first, VertexConsumer second) {
 		return new VertexConsumers.Dual(first, second);
 	}
 
-	/**
-	 * Union.
-	 *
-	 * @param delegates delegates
-	 *
-	 * @return VertexConsumer — результат операции
-	 */
+	/** Создаёт потребитель, транслирующий данные произвольному числу получателей. */
 	public static VertexConsumer union(VertexConsumer... delegates) {
 		return new VertexConsumers.Union(delegates);
 	}
 
+	/** Оптимизированная реализация для ровно двух получателей без накладных расходов массива. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Dual}.
-	 */
 	static class Dual implements VertexConsumer {
 
 		private final VertexConsumer first;
@@ -67,65 +44,64 @@ public class VertexConsumers {
 			if (first == second) {
 				throw new IllegalArgumentException("Duplicate delegates");
 			}
-			else {
-				this.first = first;
-				this.second = second;
-			}
+
+			this.first = first;
+			this.second = second;
 		}
 
 		@Override
 		public VertexConsumer vertex(float x, float y, float z) {
-			this.first.vertex(x, y, z);
-			this.second.vertex(x, y, z);
+			first.vertex(x, y, z);
+			second.vertex(x, y, z);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer color(int red, int green, int blue, int alpha) {
-			this.first.color(red, green, blue, alpha);
-			this.second.color(red, green, blue, alpha);
+			first.color(red, green, blue, alpha);
+			second.color(red, green, blue, alpha);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer color(int argb) {
-			this.first.color(argb);
-			this.second.color(argb);
+			first.color(argb);
+			second.color(argb);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer texture(float u, float v) {
-			this.first.texture(u, v);
-			this.second.texture(u, v);
+			first.texture(u, v);
+			second.texture(u, v);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer overlay(int u, int v) {
-			this.first.overlay(u, v);
-			this.second.overlay(u, v);
+			first.overlay(u, v);
+			second.overlay(u, v);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer light(int u, int v) {
-			this.first.light(u, v);
-			this.second.light(u, v);
+			first.light(u, v);
+			second.light(u, v);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer normal(float x, float y, float z) {
-			this.first.normal(x, y, z);
-			this.second.normal(x, y, z);
+			first.normal(x, y, z);
+			second.normal(x, y, z);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer lineWidth(float width) {
-			this.first.lineWidth(width);
-			this.second.lineWidth(width);
+			first.lineWidth(width);
+			second.lineWidth(width);
 			return this;
 		}
 
@@ -143,15 +119,13 @@ public class VertexConsumers {
 				float normalY,
 				float normalZ
 		) {
-			this.first.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
-			this.second.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
+			first.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
+			second.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
 		}
 	}
 
+	/** Реализация для произвольного числа получателей через массив делегатов. */
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code Union}.
-	 */
 	record Union(VertexConsumer[] delegates) implements VertexConsumer {
 
 		Union(VertexConsumer[] delegates) {
@@ -167,56 +141,56 @@ public class VertexConsumers {
 		}
 
 		private void delegate(Consumer<VertexConsumer> action) {
-			for (VertexConsumer vertexConsumer : this.delegates) {
-				action.accept(vertexConsumer);
+			for (VertexConsumer consumer : delegates) {
+				action.accept(consumer);
 			}
 		}
 
 		@Override
 		public VertexConsumer vertex(float x, float y, float z) {
-			this.delegate(vertexConsumer -> vertexConsumer.vertex(x, y, z));
+			delegate(consumer -> consumer.vertex(x, y, z));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer color(int red, int green, int blue, int alpha) {
-			this.delegate(vertexConsumer -> vertexConsumer.color(red, green, blue, alpha));
+			delegate(consumer -> consumer.color(red, green, blue, alpha));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer color(int argb) {
-			this.delegate(vertexConsumer -> vertexConsumer.color(argb));
+			delegate(consumer -> consumer.color(argb));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer texture(float u, float v) {
-			this.delegate(vertexConsumer -> vertexConsumer.texture(u, v));
+			delegate(consumer -> consumer.texture(u, v));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer overlay(int u, int v) {
-			this.delegate(vertexConsumer -> vertexConsumer.overlay(u, v));
+			delegate(consumer -> consumer.overlay(u, v));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer light(int u, int v) {
-			this.delegate(vertexConsumer -> vertexConsumer.light(u, v));
+			delegate(consumer -> consumer.light(u, v));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer normal(float x, float y, float z) {
-			this.delegate(vertexConsumer -> vertexConsumer.normal(x, y, z));
+			delegate(consumer -> consumer.normal(x, y, z));
 			return this;
 		}
 
 		@Override
 		public VertexConsumer lineWidth(float width) {
-			this.delegate(vertexConsumer -> vertexConsumer.lineWidth(width));
+			delegate(consumer -> consumer.lineWidth(width));
 			return this;
 		}
 
@@ -234,19 +208,7 @@ public class VertexConsumers {
 				float normalY,
 				float normalZ
 		) {
-			this.delegate(vertexConsumer -> vertexConsumer.vertex(
-					x,
-					y,
-					z,
-					color,
-					u,
-					v,
-					overlay,
-					light,
-					normalX,
-					normalY,
-					normalZ
-			));
+			delegate(consumer -> consumer.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ));
 		}
 	}
 }

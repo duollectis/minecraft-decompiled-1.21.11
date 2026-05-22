@@ -11,7 +11,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 
 /**
- * {@code ProjectileDispenserBehavior}.
+ * Поведение диспенсера для предметов-снарядов ({@link ProjectileItem}).
+ * Спавнит снаряд в направлении диспенсера с параметрами из {@link ProjectileItem.Settings}.
  */
 public class ProjectileDispenserBehavior extends ItemDispenserBehavior {
 
@@ -22,10 +23,10 @@ public class ProjectileDispenserBehavior extends ItemDispenserBehavior {
 		if (item instanceof ProjectileItem projectileItem) {
 			this.projectile = projectileItem;
 			this.projectileSettings = projectileItem.getProjectileSettings();
+			return;
 		}
-		else {
-			throw new IllegalArgumentException(item + " not instance of " + ProjectileItem.class.getSimpleName());
-		}
+
+		throw new IllegalArgumentException(item + " not instance of " + ProjectileItem.class.getSimpleName());
 	}
 
 	@Override

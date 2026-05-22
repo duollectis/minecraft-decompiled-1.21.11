@@ -7,10 +7,12 @@ import net.minecraft.util.Identifier;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Models}.
+ * Реестр предопределённых шаблонов моделей блоков и предметов.
+ * Каждая константа описывает родительскую модель и набор обязательных текстурных слотов.
+ * Используется генераторами моделей для загрузки JSON-файлов в ресурс-пак.
  */
+@Environment(EnvType.CLIENT)
 public class Models {
 
 	public static final Model CUBE = block(

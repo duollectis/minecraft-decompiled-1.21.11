@@ -94,15 +94,23 @@ import org.slf4j.Logger;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ClientWorld}.
+ * Клиентская реализация игрового мира Minecraft.
+ *
+ * <p>Управляет рендерингом, тиками сущностей, частицами, звуками и синхронизацией
+ * состояния блоков с сервером через {@link ClientPlayNetworkHandler}.
+ * Не выполняет серверную логику — только отображает и интерполирует данные,
+ * полученные по сети.</p>
  */
+@Environment(EnvType.CLIENT)
 public class ClientWorld extends World implements DataCache.CacheContext<ClientWorld> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final Text QUITTING_MULTIPLAYER_TEXT = Text.translatable("multiplayer.status.quitting");
 	private static final double PARTICLE_Y_OFFSET = 0.05;
+	private static final double BREAK_PARTICLE_STEP = 0.25;
+	private static final float PARTICLE_OFFSET = 0.1F;
+	private static final double DISTANCE_SOUND_THRESHOLD_SQ = 100.0;
 	private static final int AMBIENT_TICK_INTERVAL = 10;
 	private static final int AMBIENT_TICK_RANGE = 1000;
 	final EntityList entityList = new EntityList();
@@ -153,65 +161,68 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	private static final Set<Item> BLOCK_MARKER_ITEMS = Set.of(Items.BARRIER, Items.LIGHT);
 
 	/**
-	 * Обрабатывает player action response.
+	 * Подтверждает серверное действие игрока и применяет все накопленные
+	 * отложенные обновления блоков с порядковым номером ≤ {@code sequence}.
 	 *
-	 * @param sequence sequence
+	 * @param sequence порядковый номер подтверждённого действия
 	 */
 	public void handlePlayerActionResponse(int sequence) {
 		if (SharedConstants.BLOCK_BREAK) {
 			LOGGER.debug("ACK {}", sequence);
 		}
 
-		this.pendingUpdateManager.processPendingUpdates(sequence, this);
+		pendingUpdateManager.processPendingUpdates(sequence, this);
 	}
 
 	@Override
 	public void loadBlockEntity(BlockEntity blockEntity) {
-		BlockEntityRenderer<BlockEntity, ?>
-				blockEntityRenderer =
-				this.client.getBlockEntityRenderDispatcher().get(blockEntity);
+		BlockEntityRenderer<BlockEntity, ?> blockEntityRenderer = client.getBlockEntityRenderDispatcher().get(blockEntity);
 		if (blockEntityRenderer != null && blockEntityRenderer.rendersOutsideBoundingBox()) {
-			this.blockEntities.add(blockEntity);
+			blockEntities.add(blockEntity);
 		}
 	}
 
 	public Set<BlockEntity> getBlockEntities() {
-		return this.blockEntities;
+		return blockEntities;
 	}
 
 	/**
-	 * Обрабатывает block update.
+	 * Применяет обновление блока, полученное от сервера, если для данной позиции
+	 * нет ожидающего клиентского предсказания.
 	 *
-	 * @param pos pos
-	 * @param state state
-	 * @param flags flags
+	 * @param pos   позиция блока
+	 * @param state новое состояние блока
+	 * @param flags флаги обновления
 	 */
 	public void handleBlockUpdate(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-		if (!this.pendingUpdateManager.hasPendingUpdate(pos, state)) {
+		if (!pendingUpdateManager.hasPendingUpdate(pos, state)) {
 			super.setBlockState(pos, state, flags, 512);
 		}
 	}
 
 	/**
-	 * Обрабатывает pending update.
+	 * Принудительно устанавливает состояние блока, корректируя позицию игрока
+	 * при коллизии — используется для разрешения конфликтов предсказания.
 	 *
-	 * @param pos pos
-	 * @param state state
-	 * @param playerPos player pos
+	 * @param pos       позиция блока
+	 * @param state     корректное состояние блока от сервера
+	 * @param playerPos скорректированная позиция игрока
 	 */
 	public void processPendingUpdate(BlockPos pos, BlockState state, Vec3d playerPos) {
-		BlockState blockState = this.getBlockState(pos);
-		if (blockState != state) {
-			this.setBlockState(pos, state, 19);
-			PlayerEntity playerEntity = this.client.player;
-			if (this == playerEntity.getEntityWorld() && playerEntity.collidesWithStateAtPos(pos, state)) {
-				playerEntity.updatePosition(playerPos.x, playerPos.y, playerPos.z);
-			}
+		BlockState currentState = getBlockState(pos);
+		if (currentState == state) {
+			return;
+		}
+
+		setBlockState(pos, state, 19);
+		PlayerEntity playerEntity = client.player;
+		if (this == playerEntity.getEntityWorld() && playerEntity.collidesWithStateAtPos(pos, state)) {
+			playerEntity.updatePosition(playerPos.x, playerPos.y, playerPos.z);
 		}
 	}
 
 	public PendingUpdateManager getPendingUpdateManager() {
-		return this.pendingUpdateManager;
+		return pendingUpdateManager;
 	}
 
 	@Override
@@ -221,18 +232,17 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			@Block.SetBlockStateFlag int flags,
 			int maxUpdateDepth
 	) {
-		if (this.pendingUpdateManager.hasPendingSequence()) {
-			BlockState blockState = this.getBlockState(pos);
-			boolean bl = super.setBlockState(pos, state, flags, maxUpdateDepth);
-			if (bl) {
-				this.pendingUpdateManager.addPendingUpdate(pos, blockState, this.client.player);
-			}
-
-			return bl;
-		}
-		else {
+		if (!pendingUpdateManager.hasPendingSequence()) {
 			return super.setBlockState(pos, state, flags, maxUpdateDepth);
 		}
+
+		BlockState previousState = getBlockState(pos);
+		boolean updated = super.setBlockState(pos, state, flags, maxUpdateDepth);
+		if (updated) {
+			pendingUpdateManager.addPendingUpdate(pos, previousState, client.player);
+		}
+
+		return updated;
 	}
 
 	public ClientWorld(
@@ -263,148 +273,154 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		this.clientWorldProperties = properties;
 		this.worldRenderer = worldRenderer;
 		this.seaLevel = seaLevel;
-		this.worldEventHandler = new WorldEventHandler(this.client, this);
+		this.worldEventHandler = new WorldEventHandler(client, this);
 		this.endLightFlashManager = dimensionType.value().getSkybox() ? new EndLightFlashManager() : null;
-		this.setSpawnPoint(WorldProperties.SpawnPoint.create(registryRef, new BlockPos(8, 64, 8), 0.0F, 0.0F));
+		setSpawnPoint(WorldProperties.SpawnPoint.create(registryRef, new BlockPos(8, 64, 8), 0.0F, 0.0F));
 		this.simulationDistance = simulationDistance;
-		this.environmentAttributeAccess =
-				this.addClientSideAttributes(WorldEnvironmentAttributeAccess.builder()).build();
-		this.calculateAmbientDarkness();
-		if (this.canHaveWeather()) {
-			this.initWeatherGradients();
+		this.environmentAttributeAccess = addClientSideAttributes(WorldEnvironmentAttributeAccess.builder()).build();
+		calculateAmbientDarkness();
+		if (canHaveWeather()) {
+			initWeatherGradients();
 		}
 	}
 
 	private WorldEnvironmentAttributeAccess.Builder addClientSideAttributes(WorldEnvironmentAttributeAccess.Builder builder) {
 		builder.world(this);
-		int i = ColorHelper.getArgb(204, 204, 255);
+		int lightningColor = ColorHelper.getArgb(204, 204, 255);
 		builder.timeBased(
 				EnvironmentAttributes.SKY_COLOR_VISUAL,
-				(color, time) -> this.getLightningTicksLeft() > 0 ? ColorHelper.lerp(0.22F, color, i) : color
+				(color, time) -> getLightningTicksLeft() > 0 ? ColorHelper.lerp(0.22F, color, lightningColor) : color
 		);
 		builder.timeBased(
 				EnvironmentAttributes.SKY_LIGHT_FACTOR_VISUAL,
-				(factor, time) -> this.getLightningTicksLeft() > 0 ? 1.0F : factor
+				(factor, time) -> getLightningTicksLeft() > 0 ? 1.0F : factor
 		);
 		return builder;
 	}
 
 	/**
-	 * Enqueue chunk update.
+	 * Добавляет задачу обновления чанка в очередь для отложенного выполнения.
 	 *
-	 * @param updater updater
+	 * @param updater задача обновления
 	 */
 	public void enqueueChunkUpdate(Runnable updater) {
-		this.chunkUpdaters.add(updater);
+		chunkUpdaters.add(updater);
 	}
 
 	/**
-	 * Run queued chunk updates.
+	 * Выполняет пакет задач из очереди обновлений чанков.
+	 * Размер пакета адаптируется к размеру очереди: при малой очереди
+	 * обрабатывается минимум {@code AMBIENT_TICK_INTERVAL} задач за тик.
 	 */
 	public void runQueuedChunkUpdates() {
-		int i = this.chunkUpdaters.size();
-		int j = i < 1000 ? Math.max(10, i / 10) : i;
+		int queueSize = chunkUpdaters.size();
+		int batchSize = queueSize < AMBIENT_TICK_RANGE
+				? Math.max(AMBIENT_TICK_INTERVAL, queueSize / AMBIENT_TICK_INTERVAL)
+				: queueSize;
 
-		for (int k = 0; k < j; k++) {
-			Runnable runnable = this.chunkUpdaters.poll();
-			if (runnable == null) {
+		for (int processed = 0; processed < batchSize; processed++) {
+			Runnable updater = chunkUpdaters.poll();
+			if (updater == null) {
 				break;
 			}
 
-			runnable.run();
+			updater.run();
 		}
 	}
 
 	public @Nullable EndLightFlashManager getEndLightFlashManager() {
-		return this.endLightFlashManager;
+		return endLightFlashManager;
 	}
 
 	/**
-	 * Tick.
+	 * Выполняет основной тик клиентского мира: обновляет темноту, границу мира,
+	 * время, молнии, вспышки Края, частицы блоков и чанки.
 	 *
-	 * @param shouldKeepTicking should keep ticking
+	 * @param shouldKeepTicking поставщик условия продолжения тика
 	 */
 	public void tick(BooleanSupplier shouldKeepTicking) {
-		this.calculateAmbientDarkness();
-		if (this.getTickManager().shouldTick()) {
-			this.getWorldBorder().tick();
-			this.tickTime();
+		calculateAmbientDarkness();
+		if (getTickManager().shouldTick()) {
+			getWorldBorder().tick();
+			tickTime();
 		}
 
-		if (this.lightningTicksLeft > 0) {
-			this.setLightningTicksLeft(this.lightningTicksLeft - 1);
+		if (lightningTicksLeft > 0) {
+			setLightningTicksLeft(lightningTicksLeft - 1);
 		}
 
-		if (this.endLightFlashManager != null) {
-			this.endLightFlashManager.tick(this.getTime());
-			if (this.endLightFlashManager.shouldFlash() && !(this.client.currentScreen instanceof CreditsScreen)) {
-				this.client
+		if (endLightFlashManager != null) {
+			endLightFlashManager.tick(getTime());
+			if (endLightFlashManager.shouldFlash() && !(client.currentScreen instanceof CreditsScreen)) {
+				client
 						.getSoundManager()
 						.play(
 								new EndLightFlashSoundInstance(
 										SoundEvents.WEATHER_END_FLASH,
 										SoundCategory.WEATHER,
-										this.random,
-										this.client.gameRenderer.getCamera(),
-										this.endLightFlashManager.getPitch(),
-										this.endLightFlashManager.getYaw()
+										random,
+										client.gameRenderer.getCamera(),
+										endLightFlashManager.getPitch(),
+										endLightFlashManager.getYaw()
 								),
 								30
 						);
 			}
 		}
 
-		this.blockParticlesManager.tick(this);
+		blockParticlesManager.tick(this);
 
 		try (ScopedProfiler scopedProfiler = Profilers.get().scoped("blocks")) {
-			this.chunkManager.tick(shouldKeepTicking, true);
+			chunkManager.tick(shouldKeepTicking, true);
 		}
 
-		FlightProfiler.INSTANCE.onClientFps(this.client.getCurrentFps());
-		this.getEnvironmentAttributes().tick();
+		FlightProfiler.INSTANCE.onClientFps(client.getCurrentFps());
+		getEnvironmentAttributes().tick();
 	}
 
 	private void tickTime() {
-		this.clientWorldProperties.setTime(this.clientWorldProperties.getTime() + 1L);
-		if (this.shouldTickTimeOfDay) {
-			this.clientWorldProperties.setTimeOfDay(this.clientWorldProperties.getTimeOfDay() + 1L);
+		clientWorldProperties.setTime(clientWorldProperties.getTime() + 1L);
+		if (shouldTickTimeOfDay) {
+			clientWorldProperties.setTimeOfDay(clientWorldProperties.getTimeOfDay() + 1L);
 		}
 	}
 
 	public void setTime(long time, long timeOfDay, boolean shouldTickTimeOfDay) {
-		this.clientWorldProperties.setTime(time);
-		this.clientWorldProperties.setTimeOfDay(timeOfDay);
+		clientWorldProperties.setTime(time);
+		clientWorldProperties.setTimeOfDay(timeOfDay);
 		this.shouldTickTimeOfDay = shouldTickTimeOfDay;
 	}
 
 	public Iterable<Entity> getEntities() {
-		return this.getEntityLookup().iterate();
+		return getEntityLookup().iterate();
 	}
 
 	/**
-	 * Выполняет тик обновления для entities.
+	 * Выполняет тик всех активных сущностей мира, пропуская пассажиров
+	 * и сущности, которые должны быть пропущены менеджером тиков.
 	 */
 	public void tickEntities() {
-		this.entityList.forEach(entity -> {
-			if (!entity.isRemoved() && !entity.hasVehicle() && !this.tickManager.shouldSkipTick(entity)) {
-				this.tickEntity(this::tickEntity, entity);
+		entityList.forEach(entity -> {
+			if (!entity.isRemoved() && !entity.hasVehicle() && !tickManager.shouldSkipTick(entity)) {
+				tickEntity(this::tickEntity, entity);
 			}
 		});
 	}
 
 	public boolean hasEntity(Entity entity) {
-		return this.entityList.has(entity);
+		return entityList.has(entity);
 	}
 
 	@Override
 	public boolean shouldUpdatePostDeath(Entity entity) {
-		return entity.getChunkPos().getChebyshevDistance(this.client.player.getChunkPos()) <= this.simulationDistance;
+		return entity.getChunkPos().getChebyshevDistance(client.player.getChunkPos()) <= simulationDistance;
 	}
 
 	/**
-	 * Выполняет тик обновления для entity.
+	 * Выполняет тик сущности: сбрасывает позицию, увеличивает возраст,
+	 * вызывает {@code tick()} и рекурсивно тикает всех пассажиров.
 	 *
-	 * @param entity entity
+	 * @param entity сущность для тика
 	 */
 	public void tickEntity(Entity entity) {
 		entity.resetPosition();
@@ -413,61 +429,63 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		entity.tick();
 		Profilers.get().pop();
 
-		for (Entity entity2 : entity.getPassengerList()) {
-			this.tickPassenger(entity, entity2);
+		for (Entity passenger : entity.getPassengerList()) {
+			tickPassenger(entity, passenger);
 		}
 	}
 
-	private void tickPassenger(Entity entity, Entity passenger) {
-		if (passenger.isRemoved() || passenger.getVehicle() != entity) {
+	private void tickPassenger(Entity vehicle, Entity passenger) {
+		if (passenger.isRemoved() || passenger.getVehicle() != vehicle) {
 			passenger.stopRiding();
+			return;
 		}
-		else if (passenger instanceof PlayerEntity || this.entityList.has(passenger)) {
+
+		if (passenger instanceof PlayerEntity || entityList.has(passenger)) {
 			passenger.resetPosition();
 			passenger.age++;
 			passenger.tickRiding();
 
-			for (Entity entity2 : passenger.getPassengerList()) {
-				this.tickPassenger(passenger, entity2);
+			for (Entity nested : passenger.getPassengerList()) {
+				tickPassenger(passenger, nested);
 			}
 		}
 	}
 
 	/**
-	 * Unload block entities.
+	 * Выгружает блочные сущности чанка и отключает его освещение и тикинг.
 	 *
-	 * @param chunk chunk
+	 * @param chunk выгружаемый чанк
 	 */
 	public void unloadBlockEntities(WorldChunk chunk) {
 		chunk.clear();
-		this.chunkManager.getLightingProvider().setColumnEnabled(chunk.getPos(), false);
-		this.entityManager.stopTicking(chunk.getPos());
+		chunkManager.getLightingProvider().setColumnEnabled(chunk.getPos(), false);
+		entityManager.stopTicking(chunk.getPos());
 	}
 
 	/**
-	 * Сбрасывает chunk color.
+	 * Сбрасывает кэш цветов биомов для указанного чанка и запускает тикинг сущностей.
 	 *
-	 * @param chunkPos chunk pos
+	 * @param chunkPos позиция чанка
 	 */
 	public void resetChunkColor(ChunkPos chunkPos) {
-		this.colorCache.forEach((resolver, cache) -> cache.reset(chunkPos.x, chunkPos.z));
-		this.entityManager.startTicking(chunkPos);
+		colorCache.forEach((resolver, cache) -> cache.reset(chunkPos.x, chunkPos.z));
+		entityManager.startTicking(chunkPos);
 	}
 
 	/**
-	 * Обрабатывает событие chunk unload.
+	 * Уведомляет рендерер о выгрузке секции чанка.
 	 *
-	 * @param sectionPos section pos
+	 * @param sectionPos упакованная позиция секции
 	 */
 	public void onChunkUnload(long sectionPos) {
-		this.worldRenderer.onChunkUnload(sectionPos);
+		worldRenderer.onChunkUnload(sectionPos);
 	}
 
 	/**
-	 * Reload color.
+	 * Полностью сбрасывает кэш цветов биомов для всего мира.
 	 */
 	public void reloadColor() {
-		this.colorCache.forEach((resolver, cache) -> cache.reset());
+		colorCache.forEach((resolver, cache) -> cache.reset());
 	}
 
 	@Override
@@ -476,24 +494,24 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	public int getRegularEntityCount() {
-		return this.entityManager.getEntityCount();
+		return entityManager.getEntityCount();
 	}
 
 	/**
-	 * Добавляет entity.
+	 * Добавляет сущность в мир, предварительно удаляя старую с тем же ID.
 	 *
-	 * @param entity entity
+	 * @param entity добавляемая сущность
 	 */
 	public void addEntity(Entity entity) {
-		this.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
-		this.entityManager.addEntity(entity);
+		removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
+		entityManager.addEntity(entity);
 	}
 
 	/**
-	 * Удаляет entity.
+	 * Помечает сущность как удалённую по указанной причине.
 	 *
-	 * @param entityId entity id
-	 * @param removalReason removal reason
+	 * @param entityId      числовой ID сущности
+	 * @param removalReason причина удаления
 	 */
 	public void removeEntity(int entityId, Entity.RemovalReason removalReason) {
 		Entity entity = this.getEntityLookup().get(entityId);
@@ -536,20 +554,19 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	 * @param centerZ center z
 	 */
 	public void doRandomBlockDisplayTicks(int centerX, int centerY, int centerZ) {
-		int i = 32;
-		Random random = Random.create();
-		Block block = this.getBlockParticle();
+		Random tickRandom = Random.create();
+		Block markerBlock = getBlockParticle();
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-		for (int j = 0; j < 667; j++) {
-			this.randomBlockDisplayTick(centerX, centerY, centerZ, 16, random, block, mutable);
-			this.randomBlockDisplayTick(centerX, centerY, centerZ, 32, random, block, mutable);
+		for (int pass = 0; pass < 667; pass++) {
+			randomBlockDisplayTick(centerX, centerY, centerZ, 16, tickRandom, markerBlock, mutable);
+			randomBlockDisplayTick(centerX, centerY, centerZ, 32, tickRandom, markerBlock, mutable);
 		}
 	}
 
 	private @Nullable Block getBlockParticle() {
-		if (this.client.interactionManager.getCurrentGameMode() == GameMode.CREATIVE) {
-			ItemStack itemStack = this.client.player.getMainHandStack();
+		if (client.interactionManager.getCurrentGameMode() == GameMode.CREATIVE) {
+			ItemStack itemStack = client.player.getMainHandStack();
 			Item item = itemStack.getItem();
 			if (BLOCK_MARKER_ITEMS.contains(item) && item instanceof BlockItem blockItem) {
 				return blockItem.getBlock();
@@ -568,29 +585,29 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			@Nullable Block block,
 			BlockPos.Mutable pos
 	) {
-		int i = centerX + this.random.nextInt(radius) - this.random.nextInt(radius);
-		int j = centerY + this.random.nextInt(radius) - this.random.nextInt(radius);
-		int k = centerZ + this.random.nextInt(radius) - this.random.nextInt(radius);
-		pos.set(i, j, k);
-		BlockState blockState = this.getBlockState(pos);
+		int x = centerX + this.random.nextInt(radius) - this.random.nextInt(radius);
+		int y = centerY + this.random.nextInt(radius) - this.random.nextInt(radius);
+		int z = centerZ + this.random.nextInt(radius) - this.random.nextInt(radius);
+		pos.set(x, y, z);
+		BlockState blockState = getBlockState(pos);
 		blockState.getBlock().randomDisplayTick(blockState, this, pos, random);
-		FluidState fluidState = this.getFluidState(pos);
+		FluidState fluidState = getFluidState(pos);
 		if (!fluidState.isEmpty()) {
 			fluidState.randomDisplayTick(this, pos, random);
 			ParticleEffect particleEffect = fluidState.getParticle();
-			if (particleEffect != null && this.random.nextInt(10) == 0) {
-				boolean bl = blockState.isSideSolidFullSquare(this, pos, Direction.DOWN);
-				BlockPos blockPos = pos.down();
-				this.addParticle(blockPos, this.getBlockState(blockPos), particleEffect, bl);
+			if (particleEffect != null && this.random.nextInt(AMBIENT_TICK_INTERVAL) == 0) {
+				boolean solidBelow = blockState.isSideSolidFullSquare(this, pos, Direction.DOWN);
+				BlockPos belowPos = pos.down();
+				addParticle(belowPos, getBlockState(belowPos), particleEffect, solidBelow);
 			}
 		}
 
 		if (block == blockState.getBlock()) {
-			this.addParticleClient(
+			addParticleClient(
 					new BlockStateParticleEffect(ParticleTypes.BLOCK_MARKER, blockState),
-					i + 0.5,
-					j + 0.5,
-					k + 0.5,
+					x + 0.5,
+					y + 0.5,
+					z + 0.5,
 					0.0,
 					0.0,
 					0.0
@@ -598,11 +615,10 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		}
 
 		if (!blockState.isFullCube(this, pos)) {
-			for (AmbientParticle ambientParticle : this
-					.getEnvironmentAttributes()
+			for (AmbientParticle ambientParticle : getEnvironmentAttributes()
 					.getAttributeValue(EnvironmentAttributes.AMBIENT_PARTICLES_VISUAL, pos)) {
 				if (ambientParticle.shouldAddParticle(this.random)) {
-					this.addParticleClient(
+					addParticleClient(
 							ambientParticle.particle(),
 							pos.getX() + this.random.nextDouble(),
 							pos.getY() + this.random.nextDouble(),
@@ -617,41 +633,43 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	private void addParticle(BlockPos pos, BlockState state, ParticleEffect parameters, boolean solidBelow) {
-		if (state.getFluidState().isEmpty()) {
-			VoxelShape voxelShape = state.getCollisionShape(this, pos);
-			double d = voxelShape.getMax(Direction.Axis.Y);
-			if (d < 1.0) {
-				if (solidBelow) {
-					this.addParticle(
-							pos.getX(),
-							pos.getX() + 1,
-							pos.getZ(),
-							pos.getZ() + 1,
-							pos.getY() + 1 - 0.05,
-							parameters
-					);
-				}
+		if (!state.getFluidState().isEmpty()) {
+			return;
+		}
+
+		VoxelShape shape = state.getCollisionShape(this, pos);
+		double topY = shape.getMax(Direction.Axis.Y);
+		if (topY < 1.0) {
+			if (solidBelow) {
+				addParticle(
+						pos.getX(),
+						pos.getX() + 1,
+						pos.getZ(),
+						pos.getZ() + 1,
+						pos.getY() + 1 - PARTICLE_Y_OFFSET,
+						parameters
+				);
 			}
-			else if (!state.isIn(BlockTags.IMPERMEABLE)) {
-				double e = voxelShape.getMin(Direction.Axis.Y);
-				if (e > 0.0) {
-					this.addParticle(pos, parameters, voxelShape, pos.getY() + e - 0.05);
-				}
-				else {
-					BlockPos blockPos = pos.down();
-					BlockState blockState = this.getBlockState(blockPos);
-					VoxelShape voxelShape2 = blockState.getCollisionShape(this, blockPos);
-					double f = voxelShape2.getMax(Direction.Axis.Y);
-					if (f < 1.0 && blockState.getFluidState().isEmpty()) {
-						this.addParticle(pos, parameters, voxelShape, pos.getY() - 0.05);
-					}
+		}
+		else if (!state.isIn(BlockTags.IMPERMEABLE)) {
+			double minY = shape.getMin(Direction.Axis.Y);
+			if (minY > 0.0) {
+				addParticle(pos, parameters, shape, pos.getY() + minY - PARTICLE_Y_OFFSET);
+			}
+			else {
+				BlockPos belowPos = pos.down();
+				BlockState belowState = getBlockState(belowPos);
+				VoxelShape belowShape = belowState.getCollisionShape(this, belowPos);
+				double belowTopY = belowShape.getMax(Direction.Axis.Y);
+				if (belowTopY < 1.0 && belowState.getFluidState().isEmpty()) {
+					addParticle(pos, parameters, shape, pos.getY() - PARTICLE_Y_OFFSET);
 				}
 			}
 		}
 	}
 
 	private void addParticle(BlockPos pos, ParticleEffect parameters, VoxelShape shape, double y) {
-		this.addParticle(
+		addParticle(
 				pos.getX() + shape.getMin(Direction.Axis.X),
 				pos.getX() + shape.getMax(Direction.Axis.X),
 				pos.getZ() + shape.getMin(Direction.Axis.Z),
@@ -662,11 +680,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	private void addParticle(double minX, double maxX, double minZ, double maxZ, double y, ParticleEffect parameters) {
-		this.addParticleClient(
+		addParticleClient(
 				parameters,
-				MathHelper.lerp(this.random.nextDouble(), minX, maxX),
+				MathHelper.lerp(random.nextDouble(), minX, maxX),
 				y,
-				MathHelper.lerp(this.random.nextDouble(), minZ, maxZ),
+				MathHelper.lerp(random.nextDouble(), minZ, maxZ),
 				0.0,
 				0.0,
 				0.0
@@ -698,8 +716,8 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			float pitch,
 			long seed
 	) {
-		if (source == this.client.player) {
-			this.playSound(x, y, z, sound.value(), category, volume, pitch, false, seed);
+		if (source == client.player) {
+			playSound(x, y, z, sound.value(), category, volume, pitch, false, seed);
 		}
 	}
 
@@ -713,9 +731,8 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			float pitch,
 			long seed
 	) {
-		if (source == this.client.player) {
-			this.client
-					.getSoundManager()
+		if (source == client.player) {
+			client.getSoundManager()
 					.play(new EntityTrackingSoundInstance(sound.value(), category, volume, pitch, entity, seed));
 		}
 	}
@@ -728,25 +745,18 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			float volume,
 			float pitch
 	) {
-		this.client
-				.getSoundManager()
-				.play(new EntityTrackingSoundInstance(sound, category, volume, pitch, entity, this.random.nextLong()));
+		client.getSoundManager()
+				.play(new EntityTrackingSoundInstance(sound, category, volume, pitch, entity, random.nextLong()));
 	}
 
 	@Override
 	public void playSoundClient(SoundEvent sound, SoundCategory category, float volume, float pitch) {
-		if (this.client.player != null) {
-			this.client
-					.getSoundManager()
-					.play(new EntityTrackingSoundInstance(
-							sound,
-							category,
-							volume,
-							pitch,
-							this.client.player,
-							this.random.nextLong()
-					));
+		if (client.player == null) {
+			return;
 		}
+
+		client.getSoundManager()
+				.play(new EntityTrackingSoundInstance(sound, category, volume, pitch, client.player, random.nextLong()));
 	}
 
 	@Override
@@ -760,7 +770,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			float pitch,
 			boolean useDistance
 	) {
-		this.playSound(x, y, z, sound, category, volume, pitch, useDistance, this.random.nextLong());
+		playSound(x, y, z, sound, category, volume, pitch, useDistance, random.nextLong());
 	}
 
 	private void playSound(
@@ -774,16 +784,16 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			boolean useDistance,
 			long seed
 	) {
-		double d = this.client.gameRenderer.getCamera().getCameraPos().squaredDistanceTo(x, y, z);
-		PositionedSoundInstance
-				positionedSoundInstance =
-				new PositionedSoundInstance(event, category, volume, pitch, Random.create(seed), x, y, z);
-		if (useDistance && d > 100.0) {
-			double e = Math.sqrt(d) / 40.0;
-			this.client.getSoundManager().play(positionedSoundInstance, (int) (e * 20.0));
+		double distanceSq = client.gameRenderer.getCamera().getCameraPos().squaredDistanceTo(x, y, z);
+		PositionedSoundInstance soundInstance = new PositionedSoundInstance(
+				event, category, volume, pitch, Random.create(seed), x, y, z
+		);
+		if (useDistance && distanceSq > DISTANCE_SOUND_THRESHOLD_SQ) {
+			double delay = Math.sqrt(distanceSq) / 40.0;
+			client.getSoundManager().play(soundInstance, (int) (delay * 20.0));
 		}
 		else {
-			this.client.getSoundManager().play(positionedSoundInstance);
+			client.getSoundManager().play(soundInstance);
 		}
 	}
 
@@ -798,21 +808,20 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			List<FireworkExplosionComponent> explosions
 	) {
 		if (explosions.isEmpty()) {
-			for (int i = 0; i < this.random.nextInt(3) + 2; i++) {
-				this.addParticleClient(
+			for (int count = 0; count < random.nextInt(3) + 2; count++) {
+				addParticleClient(
 						ParticleTypes.POOF,
 						x,
 						y,
 						z,
-						this.random.nextGaussian() * 0.05,
+						random.nextGaussian() * PARTICLE_Y_OFFSET,
 						0.005,
-						this.random.nextGaussian() * 0.05
+						random.nextGaussian() * PARTICLE_Y_OFFSET
 				);
 			}
 		}
 		else {
-			this.client
-					.particleManager
+			client.particleManager
 					.addParticle(new FireworksSparkParticle.FireworkParticle(
 							this,
 							x,
@@ -821,7 +830,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 							velocityX,
 							velocityY,
 							velocityZ,
-							this.client.particleManager,
+							client.particleManager,
 							explosions
 					));
 		}
@@ -829,27 +838,27 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 	@Override
 	public void sendPacket(Packet<?> packet) {
-		this.networkHandler.sendPacket(packet);
+		networkHandler.sendPacket(packet);
 	}
 
 	@Override
 	public WorldBorder getWorldBorder() {
-		return this.worldBorder;
+		return worldBorder;
 	}
 
 	@Override
 	public RecipeManager getRecipeManager() {
-		return this.networkHandler.getRecipeManager();
+		return networkHandler.getRecipeManager();
 	}
 
 	@Override
 	public TickManager getTickManager() {
-		return this.tickManager;
+		return tickManager;
 	}
 
 	@Override
 	public WorldEnvironmentAttributeAccess getEnvironmentAttributes() {
-		return this.environmentAttributeAccess;
+		return environmentAttributeAccess;
 	}
 
 	@Override
@@ -863,27 +872,21 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	public ClientChunkManager getChunkManager() {
-		return this.chunkManager;
+		return chunkManager;
 	}
 
 	@Override
 	public @Nullable MapState getMapState(MapIdComponent id) {
-		return this.mapStates.get(id);
+		return mapStates.get(id);
 	}
 
-	/**
-	 * Put clientside map state.
-	 *
-	 * @param id id
-	 * @param state state
-	 */
 	public void putClientsideMapState(MapIdComponent id, MapState state) {
-		this.mapStates.put(id, state);
+		mapStates.put(id, state);
 	}
 
 	@Override
 	public Scoreboard getScoreboard() {
-		return this.networkHandler.getScoreboard();
+		return networkHandler.getScoreboard();
 	}
 
 	@Override
@@ -893,56 +896,56 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			BlockState newState,
 			@Block.SetBlockStateFlag int flags
 	) {
-		this.worldRenderer.updateBlock(this, pos, oldState, newState, flags);
+		worldRenderer.updateBlock(this, pos, oldState, newState, flags);
 	}
 
 	@Override
 	public void scheduleBlockRerenderIfNeeded(BlockPos pos, BlockState old, BlockState updated) {
-		this.worldRenderer.scheduleBlockRerenderIfNeeded(pos, old, updated);
+		worldRenderer.scheduleBlockRerenderIfNeeded(pos, old, updated);
 	}
 
 	/**
-	 * Schedule block renders.
+	 * Планирует перерендер 3×3×3 чанков вокруг указанной позиции блока.
 	 *
-	 * @param x x
-	 * @param y y
-	 * @param z z
+	 * @param x координата X блока
+	 * @param y координата Y блока
+	 * @param z координата Z блока
 	 */
 	public void scheduleBlockRenders(int x, int y, int z) {
-		this.worldRenderer.scheduleChunkRenders3x3x3(x, y, z);
+		worldRenderer.scheduleChunkRenders3x3x3(x, y, z);
 	}
 
 	/**
-	 * Schedule chunk renders.
+	 * Планирует перерендер всех чанков в указанном диапазоне координат.
 	 *
-	 * @param minX min x
-	 * @param minY min y
-	 * @param minZ min z
-	 * @param maxX max x
-	 * @param maxY max y
-	 * @param maxZ max z
+	 * @param minX минимальная X-координата
+	 * @param minY минимальная Y-координата
+	 * @param minZ минимальная Z-координата
+	 * @param maxX максимальная X-координата
+	 * @param maxY максимальная Y-координата
+	 * @param maxZ максимальная Z-координата
 	 */
 	public void scheduleChunkRenders(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
-		this.worldRenderer.scheduleChunkRenders(minX, minY, minZ, maxX, maxY, maxZ);
+		worldRenderer.scheduleChunkRenders(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	@Override
 	public void setBlockBreakingInfo(int entityId, BlockPos pos, int progress) {
-		this.worldRenderer.setBlockBreakingInfo(entityId, pos, progress);
+		worldRenderer.setBlockBreakingInfo(entityId, pos, progress);
 	}
 
 	@Override
 	public void syncGlobalEvent(int eventId, BlockPos pos, int data) {
-		this.worldEventHandler.processGlobalEvent(eventId, pos, data);
+		worldEventHandler.processGlobalEvent(eventId, pos, data);
 	}
 
 	@Override
 	public void syncWorldEvent(@Nullable Entity source, int eventId, BlockPos pos, int data) {
 		try {
-			this.worldEventHandler.processWorldEvent(eventId, pos, data);
+			worldEventHandler.processWorldEvent(eventId, pos, data);
 		}
-		catch (Throwable var8) {
-			CrashReport crashReport = CrashReport.create(var8, "Playing level event");
+		catch (Throwable ex) {
+			CrashReport crashReport = CrashReport.create(ex, "Playing level event");
 			CrashReportSection crashReportSection = crashReport.addElement("Level event being played");
 			crashReportSection.add("Block coordinates", CrashReportSection.createPositionString(this, pos));
 			crashReportSection.add("Event source", source);
@@ -962,7 +965,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			double velocityY,
 			double velocityZ
 	) {
-		this.addParticle(
+		addParticle(
 				parameters,
 				parameters.getType().shouldAlwaysSpawn(),
 				false,
@@ -987,7 +990,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			double velocityY,
 			double velocityZ
 	) {
-		this.addParticle(
+		addParticle(
 				parameters,
 				parameters.getType().shouldAlwaysSpawn() || force,
 				canSpawnOnMinimal,
@@ -1010,7 +1013,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			double velocityY,
 			double velocityZ
 	) {
-		this.addParticle(parameters, false, true, x, y, z, velocityX, velocityY, velocityZ);
+		addParticle(parameters, false, true, x, y, z, velocityX, velocityY, velocityZ);
 	}
 
 	@Override
@@ -1024,7 +1027,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			double velocityY,
 			double velocityZ
 	) {
-		this.addParticle(
+		addParticle(
 				parameters,
 				parameters.getType().shouldAlwaysSpawn() || force,
 				true,
@@ -1039,71 +1042,71 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 	private void addParticle(
 			ParticleEffect particleEffect,
-			boolean bl,
-			boolean bl2,
-			double d,
-			double e,
-			double f,
-			double g,
-			double h,
-			double i
+			boolean alwaysSpawn,
+			boolean canSpawnOnMinimal,
+			double x,
+			double y,
+			double z,
+			double velX,
+			double velY,
+			double velZ
 	) {
 		try {
-			Camera camera = this.client.gameRenderer.getCamera();
-			ParticlesMode particlesMode = this.getParticlesMode(bl2);
-			if (bl) {
-				this.client.particleManager.addParticle(particleEffect, d, e, f, g, h, i);
+			Camera camera = client.gameRenderer.getCamera();
+			ParticlesMode mode = getParticlesMode(canSpawnOnMinimal);
+			if (alwaysSpawn) {
+				client.particleManager.addParticle(particleEffect, x, y, z, velX, velY, velZ);
 			}
-			else if (!(camera.getCameraPos().squaredDistanceTo(d, e, f) > 1024.0)) {
-				if (particlesMode != ParticlesMode.MINIMAL) {
-					this.client.particleManager.addParticle(particleEffect, d, e, f, g, h, i);
+			else if (camera.getCameraPos().squaredDistanceTo(x, y, z) <= 1024.0) {
+				if (mode != ParticlesMode.MINIMAL) {
+					client.particleManager.addParticle(particleEffect, x, y, z, velX, velY, velZ);
 				}
 			}
 		}
-		catch (Throwable var19) {
-			CrashReport crashReport = CrashReport.create(var19, "Exception while adding particle");
+		catch (Throwable ex) {
+			CrashReport crashReport = CrashReport.create(ex, "Exception while adding particle");
 			CrashReportSection crashReportSection = crashReport.addElement("Particle being added");
 			crashReportSection.add("ID", Registries.PARTICLE_TYPE.getId(particleEffect.getType()));
 			crashReportSection.add(
 					"Parameters",
 					() -> ParticleTypes.TYPE_CODEC
-							.encodeStart(this.getRegistryManager().getOps(NbtOps.INSTANCE), particleEffect)
+							.encodeStart(getRegistryManager().getOps(NbtOps.INSTANCE), particleEffect)
 							.toString()
 			);
-			crashReportSection.add("Position", () -> CrashReportSection.createPositionString(this, d, e, f));
+			crashReportSection.add("Position", () -> CrashReportSection.createPositionString(this, x, y, z));
 			throw new CrashException(crashReport);
 		}
 	}
 
-	private ParticlesMode getParticlesMode(boolean bl) {
-		ParticlesMode particlesMode = this.client.options.getParticles().getValue();
-		if (bl && particlesMode == ParticlesMode.MINIMAL && this.random.nextInt(10) == 0) {
-			particlesMode = ParticlesMode.DECREASED;
+	private ParticlesMode getParticlesMode(boolean canSpawnOnMinimal) {
+		ParticlesMode mode = client.options.getParticles().getValue();
+		if (canSpawnOnMinimal && mode == ParticlesMode.MINIMAL && random.nextInt(AMBIENT_TICK_INTERVAL) == 0) {
+			mode = ParticlesMode.DECREASED;
 		}
 
-		if (particlesMode == ParticlesMode.DECREASED && this.random.nextInt(3) == 0) {
-			particlesMode = ParticlesMode.MINIMAL;
+		if (mode == ParticlesMode.DECREASED && random.nextInt(3) == 0) {
+			mode = ParticlesMode.MINIMAL;
 		}
 
-		return particlesMode;
+		return mode;
 	}
 
 	@Override
 	public List<AbstractClientPlayerEntity> getPlayers() {
-		return this.players;
+		return players;
 	}
 
 	public List<EnderDragonPart> getEnderDragonParts() {
-		return this.enderDragonParts;
+		return enderDragonParts;
 	}
 
 	@Override
 	public RegistryEntry<Biome> getGeneratorStoredBiome(int biomeX, int biomeY, int biomeZ) {
-		return this.getRegistryManager().getOrThrow(RegistryKeys.BIOME).getOrThrow(BiomeKeys.PLAINS);
+		return getRegistryManager().getOrThrow(RegistryKeys.BIOME).getOrThrow(BiomeKeys.PLAINS);
 	}
 
 	private int getLightningTicksLeft() {
-		return this.client.options.getHideLightningFlashes().getValue() ? 0 : this.lightningTicksLeft;
+		return client.options.getHideLightningFlashes().getValue() ? 0 : lightningTicksLeft;
 	}
 
 	@Override
@@ -1113,7 +1116,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 	@Override
 	public float getBrightness(Direction direction, boolean shaded) {
-		DimensionType.CardinalLightType cardinalLightType = this.getDimension().cardinalLightType();
+		DimensionType.CardinalLightType cardinalLightType = getDimension().cardinalLightType();
 		if (!shaded) {
 			return cardinalLightType == DimensionType.CardinalLightType.NETHER ? 0.9F : 1.0F;
 		}
@@ -1129,53 +1132,57 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 	@Override
 	public int getColor(BlockPos pos, ColorResolver colorResolver) {
-		BiomeColorCache biomeColorCache = (BiomeColorCache) this.colorCache.get(colorResolver);
+		BiomeColorCache biomeColorCache = (BiomeColorCache) colorCache.get(colorResolver);
 		return biomeColorCache.getBiomeColor(pos);
 	}
 
 	/**
-	 * Вычисляет color.
+	 * Вычисляет усреднённый цвет биома в радиусе смешивания вокруг позиции.
+	 * При радиусе 0 возвращает точный цвет биома без усреднения.
 	 *
-	 * @param pos pos
-	 * @param colorResolver color resolver
-	 *
-	 * @return int — результат операции
+	 * @param pos           позиция блока
+	 * @param colorResolver резолвер цвета биома
+	 * @return упакованный RGB-цвет
 	 */
 	public int calculateColor(BlockPos pos, ColorResolver colorResolver) {
-		int i = MinecraftClient.getInstance().options.getBiomeBlendRadius().getValue();
-		if (i == 0) {
-			return colorResolver.getColor(this.getBiome(pos).value(), pos.getX(), pos.getZ());
+		int blendRadius = MinecraftClient.getInstance().options.getBiomeBlendRadius().getValue();
+		if (blendRadius == 0) {
+			return colorResolver.getColor(getBiome(pos).value(), pos.getX(), pos.getZ());
 		}
-		else {
-			int j = (i * 2 + 1) * (i * 2 + 1);
-			int k = 0;
-			int l = 0;
-			int m = 0;
-			CuboidBlockIterator cuboidBlockIterator = new CuboidBlockIterator(
-					pos.getX() - i, pos.getY(), pos.getZ() - i, pos.getX() + i, pos.getY(), pos.getZ() + i
-			);
-			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			while (cuboidBlockIterator.step()) {
-				mutable.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
-				int n = colorResolver.getColor(this.getBiome(mutable).value(), mutable.getX(), mutable.getZ());
-				k += (n & 0xFF0000) >> 16;
-				l += (n & 0xFF00) >> 8;
-				m += n & 0xFF;
-			}
+		int sampleCount = (blendRadius * 2 + 1) * (blendRadius * 2 + 1);
+		int red = 0;
+		int green = 0;
+		int blue = 0;
+		CuboidBlockIterator iterator = new CuboidBlockIterator(
+				pos.getX() - blendRadius,
+				pos.getY(),
+				pos.getZ() - blendRadius,
+				pos.getX() + blendRadius,
+				pos.getY(),
+				pos.getZ() + blendRadius
+		);
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-			return (k / j & 0xFF) << 16 | (l / j & 0xFF) << 8 | m / j & 0xFF;
+		while (iterator.step()) {
+			mutable.set(iterator.getX(), iterator.getY(), iterator.getZ());
+			int color = colorResolver.getColor(getBiome(mutable).value(), mutable.getX(), mutable.getZ());
+			red += (color & 0xFF0000) >> 16;
+			green += (color & 0xFF00) >> 8;
+			blue += color & 0xFF;
 		}
+
+		return (red / sampleCount & 0xFF) << 16 | (green / sampleCount & 0xFF) << 8 | blue / sampleCount & 0xFF;
 	}
 
 	@Override
 	public void setSpawnPoint(WorldProperties.SpawnPoint spawnPoint) {
-		this.properties.setSpawnPoint(this.ensureWithinBorder(spawnPoint));
+		properties.setSpawnPoint(ensureWithinBorder(spawnPoint));
 	}
 
 	@Override
 	public WorldProperties.SpawnPoint getSpawnPoint() {
-		return this.properties.getSpawnPoint();
+		return properties.getSpawnPoint();
 	}
 
 	@Override
@@ -1184,7 +1191,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	public ClientWorld.Properties getLevelProperties() {
-		return this.clientWorldProperties;
+		return clientWorldProperties;
 	}
 
 	@Override
@@ -1192,13 +1199,13 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	public Map<MapIdComponent, MapState> getMapStates() {
-		return ImmutableMap.copyOf(this.mapStates);
+		return ImmutableMap.copyOf(mapStates);
 	}
 
 	/**
-	 * Put map states.
+	 * Добавляет все состояния карт из переданного словаря в локальный кэш.
 	 *
-	 * @param mapStates map states
+	 * @param mapStates словарь состояний карт для добавления
 	 */
 	public void putMapStates(Map<MapIdComponent, MapState> mapStates) {
 		this.mapStates.putAll(mapStates);
@@ -1206,103 +1213,101 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 	@Override
 	protected EntityLookup<Entity> getEntityLookup() {
-		return this.entityManager.getLookup();
+		return entityManager.getLookup();
 	}
 
 	@Override
 	public String asString() {
-		return "Chunks[C] W: " + this.chunkManager.getDebugString() + " E: " + this.entityManager.getDebugString();
+		return "Chunks[C] W: " + chunkManager.getDebugString() + " E: " + entityManager.getDebugString();
 	}
 
 	@Override
 	public void addBlockBreakParticles(BlockPos pos, BlockState state) {
-		if (!state.isAir() && state.hasBlockBreakParticles()) {
-			VoxelShape voxelShape = state.getOutlineShape(this, pos);
-			double d = 0.25;
-			voxelShape.forEachBox(
-					(minX, minY, minZ, maxX, maxY, maxZ) -> {
-						double dx = Math.min(1.0, maxX - minX);
-						double e = Math.min(1.0, maxY - minY);
-						double f = Math.min(1.0, maxZ - minZ);
-						int i = Math.max(2, MathHelper.ceil(dx / 0.25));
-						int j = Math.max(2, MathHelper.ceil(e / 0.25));
-						int k = Math.max(2, MathHelper.ceil(f / 0.25));
+		if (state.isAir() || !state.hasBlockBreakParticles()) {
+			return;
+		}
 
-						for (int l = 0; l < i; l++) {
-							for (int m = 0; m < j; m++) {
-								for (int n = 0; n < k; n++) {
-									double g = (l + 0.5) / i;
-									double h = (m + 0.5) / j;
-									double o = (n + 0.5) / k;
-									double p = g * dx + minX;
-									double q = h * e + minY;
-									double r = o * f + minZ;
-									this.client
-											.particleManager
-											.addParticle(new BlockDustParticle(
-													this,
-													pos.getX() + p,
-													pos.getY() + q,
-													pos.getZ() + r,
-													g - 0.5,
-													h - 0.5,
-													o - 0.5,
-													state,
-													pos
-											));
-								}
+		VoxelShape voxelShape = state.getOutlineShape(this, pos);
+		voxelShape.forEachBox(
+				(minX, minY, minZ, maxX, maxY, maxZ) -> {
+					double sizeX = Math.min(1.0, maxX - minX);
+					double sizeY = Math.min(1.0, maxY - minY);
+					double sizeZ = Math.min(1.0, maxZ - minZ);
+					int countX = Math.max(2, MathHelper.ceil(sizeX / BREAK_PARTICLE_STEP));
+					int countY = Math.max(2, MathHelper.ceil(sizeY / BREAK_PARTICLE_STEP));
+					int countZ = Math.max(2, MathHelper.ceil(sizeZ / BREAK_PARTICLE_STEP));
+
+					for (int xi = 0; xi < countX; xi++) {
+						for (int yi = 0; yi < countY; yi++) {
+							for (int zi = 0; zi < countZ; zi++) {
+								double fracX = (xi + 0.5) / countX;
+								double fracY = (yi + 0.5) / countY;
+								double fracZ = (zi + 0.5) / countZ;
+								double relX = fracX * sizeX + minX;
+								double relY = fracY * sizeY + minY;
+								double relZ = fracZ * sizeZ + minZ;
+								client.particleManager
+										.addParticle(new BlockDustParticle(
+												this,
+												pos.getX() + relX,
+												pos.getY() + relY,
+												pos.getZ() + relZ,
+												fracX - 0.5,
+												fracY - 0.5,
+												fracZ - 0.5,
+												state,
+												pos
+										));
 							}
 						}
 					}
-			);
-		}
+				}
+		);
 	}
 
 	/**
-	 * Создаёт (спавнит) block breaking particle.
+	 * Создаёт частицу разрушения блока на грани, указанной направлением.
 	 *
-	 * @param pos pos
-	 * @param direction direction
+	 * @param pos       позиция блока
+	 * @param direction грань блока, с которой вылетает частица
 	 */
 	public void spawnBlockBreakingParticle(BlockPos pos, Direction direction) {
-		BlockState blockState = this.getBlockState(pos);
-		if (blockState.getRenderType() != BlockRenderType.INVISIBLE && blockState.hasBlockBreakParticles()) {
-			int i = pos.getX();
-			int j = pos.getY();
-			int k = pos.getZ();
-			float f = 0.1F;
-			Box box = blockState.getOutlineShape(this, pos).getBoundingBox();
-			double d = i + this.random.nextDouble() * (box.maxX - box.minX - 0.2F) + 0.1F + box.minX;
-			double e = j + this.random.nextDouble() * (box.maxY - box.minY - 0.2F) + 0.1F + box.minY;
-			double g = k + this.random.nextDouble() * (box.maxZ - box.minZ - 0.2F) + 0.1F + box.minZ;
-			if (direction == Direction.DOWN) {
-				e = j + box.minY - 0.1F;
-			}
-
-			if (direction == Direction.UP) {
-				e = j + box.maxY + 0.1F;
-			}
-
-			if (direction == Direction.NORTH) {
-				g = k + box.minZ - 0.1F;
-			}
-
-			if (direction == Direction.SOUTH) {
-				g = k + box.maxZ + 0.1F;
-			}
-
-			if (direction == Direction.WEST) {
-				d = i + box.minX - 0.1F;
-			}
-
-			if (direction == Direction.EAST) {
-				d = i + box.maxX + 0.1F;
-			}
-
-			this.client.particleManager.addParticle(new BlockDustParticle(this, d, e, g, 0.0, 0.0, 0.0, blockState, pos)
-					.move(0.2F)
-					.scale(0.6F));
+		BlockState blockState = getBlockState(pos);
+		if (blockState.getRenderType() == BlockRenderType.INVISIBLE || !blockState.hasBlockBreakParticles()) {
+			return;
 		}
+
+		int posX = pos.getX();
+		int posY = pos.getY();
+		int posZ = pos.getZ();
+		Box box = blockState.getOutlineShape(this, pos).getBoundingBox();
+		double particleX = posX + random.nextDouble() * (box.maxX - box.minX - 2 * PARTICLE_OFFSET) + PARTICLE_OFFSET + box.minX;
+		double particleY = posY + random.nextDouble() * (box.maxY - box.minY - 2 * PARTICLE_OFFSET) + PARTICLE_OFFSET + box.minY;
+		double particleZ = posZ + random.nextDouble() * (box.maxZ - box.minZ - 2 * PARTICLE_OFFSET) + PARTICLE_OFFSET + box.minZ;
+
+		if (direction == Direction.DOWN) {
+			particleY = posY + box.minY - PARTICLE_OFFSET;
+		}
+		else if (direction == Direction.UP) {
+			particleY = posY + box.maxY + PARTICLE_OFFSET;
+		}
+		else if (direction == Direction.NORTH) {
+			particleZ = posZ + box.minZ - PARTICLE_OFFSET;
+		}
+		else if (direction == Direction.SOUTH) {
+			particleZ = posZ + box.maxZ + PARTICLE_OFFSET;
+		}
+		else if (direction == Direction.WEST) {
+			particleX = posX + box.minX - PARTICLE_OFFSET;
+		}
+		else if (direction == Direction.EAST) {
+			particleX = posX + box.maxX + PARTICLE_OFFSET;
+		}
+
+		client.particleManager
+				.addParticle(new BlockDustParticle(this, particleX, particleY, particleZ, 0.0, 0.0, 0.0, blockState, pos)
+						.move(0.2F)
+						.scale(0.6F));
 	}
 
 	public void setSimulationDistance(int simulationDistance) {
@@ -1310,22 +1315,22 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	}
 
 	public int getSimulationDistance() {
-		return this.simulationDistance;
+		return simulationDistance;
 	}
 
 	@Override
 	public FeatureSet getEnabledFeatures() {
-		return this.networkHandler.getEnabledFeatures();
+		return networkHandler.getEnabledFeatures();
 	}
 
 	@Override
 	public BrewingRecipeRegistry getBrewingRecipeRegistry() {
-		return this.networkHandler.getBrewingRecipeRegistry();
+		return networkHandler.getBrewingRecipeRegistry();
 	}
 
 	@Override
 	public FuelRegistry getFuelRegistry() {
-		return this.networkHandler.getFuelRegistry();
+		return networkHandler.getFuelRegistry();
 	}
 
 	@Override
@@ -1367,97 +1372,62 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			int blockCount,
 			Pool<BlockParticleEffect> particles
 	) {
-		this.blockParticlesManager.scheduleBlockParticles(center, radius, blockCount, particles);
+		blockParticlesManager.scheduleBlockParticles(center, radius, blockCount, particles);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code ClientEntityHandler}.
+	 * Внутренний обработчик событий жизненного цикла сущностей клиентского мира.
+	 * Синхронизирует списки игроков и частей Эндер-дракона при добавлении/удалении сущностей.
 	 */
+	@Environment(EnvType.CLIENT)
 	final class ClientEntityHandler implements EntityHandler<Entity> {
 
-		/**
-		 * Create.
-		 *
-		 * @param entity entity
-		 */
 		public void create(Entity entity) {
 		}
 
-		/**
-		 * Destroy.
-		 *
-		 * @param entity entity
-		 */
 		public void destroy(Entity entity) {
 		}
 
-		/**
-		 * Запускает ticking.
-		 *
-		 * @param entity entity
-		 */
 		public void startTicking(Entity entity) {
 			ClientWorld.this.entityList.add(entity);
 		}
 
-		/**
-		 * Останавливает ticking.
-		 *
-		 * @param entity entity
-		 */
 		public void stopTicking(Entity entity) {
 			ClientWorld.this.entityList.remove(entity);
 		}
 
-		/**
-		 * Запускает tracking.
-		 *
-		 * @param entity entity
-		 */
 		public void startTracking(Entity entity) {
 			switch (entity) {
-				case AbstractClientPlayerEntity abstractClientPlayerEntity:
-					ClientWorld.this.players.add(abstractClientPlayerEntity);
-					break;
-				case EnderDragonEntity enderDragonEntity:
-					ClientWorld.this.enderDragonParts.addAll(Arrays.asList(enderDragonEntity.getBodyParts()));
-					break;
-				default:
+				case AbstractClientPlayerEntity player -> ClientWorld.this.players.add(player);
+				case EnderDragonEntity dragon -> ClientWorld.this.enderDragonParts.addAll(
+						Arrays.asList(dragon.getBodyParts())
+				);
+				default -> {
+				}
 			}
 		}
 
-		/**
-		 * Останавливает tracking.
-		 *
-		 * @param entity entity
-		 */
 		public void stopTracking(Entity entity) {
 			entity.detach();
 			switch (entity) {
-				case AbstractClientPlayerEntity abstractClientPlayerEntity:
-					ClientWorld.this.players.remove(abstractClientPlayerEntity);
-					break;
-				case EnderDragonEntity enderDragonEntity:
-					ClientWorld.this.enderDragonParts.removeAll(Arrays.asList(enderDragonEntity.getBodyParts()));
-					break;
-				default:
+				case AbstractClientPlayerEntity player -> ClientWorld.this.players.remove(player);
+				case EnderDragonEntity dragon -> ClientWorld.this.enderDragonParts.removeAll(
+						Arrays.asList(dragon.getBodyParts())
+				);
+				default -> {
+				}
 			}
 		}
 
-		/**
-		 * Обновляет load status.
-		 *
-		 * @param entity entity
-		 */
 		public void updateLoadStatus(Entity entity) {
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Properties}.
+	 * Клиентская реализация свойств мира, синхронизируемых с сервером.
+	 * Хранит сложность, режим хардкора, время и погоду.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Properties implements MutableWorldProperties {
 
 		private final boolean hardcore;
@@ -1477,17 +1447,17 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 		@Override
 		public WorldProperties.SpawnPoint getSpawnPoint() {
-			return this.position;
+			return position;
 		}
 
 		@Override
 		public long getTime() {
-			return this.time;
+			return time;
 		}
 
 		@Override
 		public long getTimeOfDay() {
-			return this.timeOfDay;
+			return timeOfDay;
 		}
 
 		public void setTime(long time) {
@@ -1510,7 +1480,7 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 		@Override
 		public boolean isRaining() {
-			return this.raining;
+			return raining;
 		}
 
 		@Override
@@ -1520,17 +1490,17 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 
 		@Override
 		public boolean isHardcore() {
-			return this.hardcore;
+			return hardcore;
 		}
 
 		@Override
 		public Difficulty getDifficulty() {
-			return this.difficulty;
+			return difficulty;
 		}
 
 		@Override
 		public boolean isDifficultyLocked() {
-			return this.difficultyLocked;
+			return difficultyLocked;
 		}
 
 		@Override
@@ -1547,11 +1517,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		}
 
 		public double getSkyDarknessHeight(HeightLimitView world) {
-			return this.flatWorld ? world.getBottomY() : 63.0;
+			return flatWorld ? world.getBottomY() : 63.0;
 		}
 
 		public float getVoidDarknessRange() {
-			return this.flatWorld ? 1.0F : 32.0F;
+			return flatWorld ? 1.0F : 32.0F;
 		}
 	}
 }

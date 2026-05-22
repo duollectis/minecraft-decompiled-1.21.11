@@ -12,22 +12,21 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * {@code NbtLongArray}.
+ * NBT-тег, хранящий массив 64-битных целых чисел ({@code TAG_Long_Array}).
+ * <p>
+ * Реализует {@link AbstractNbtList}, что позволяет обращаться к элементам
+ * через индекс и использовать стандартные операции добавления/удаления.
+ * Каждый элемент при доступе через {@link #get(int)} оборачивается в {@link NbtLong}.
  */
 public final class NbtLongArray implements AbstractNbtList {
 
 	private static final int SIZE = 24;
+	private static final int BYTES_PER_ELEMENT = 8;
+
 	public static final NbtType<NbtLongArray> TYPE = new NbtType.OfVariableSize<NbtLongArray>() {
-		/**
-		 * Read.
-		 *
-		 * @param dataInput data input
-		 * @param nbtSizeTracker nbt size tracker
-		 *
-		 * @return NbtLongArray — результат операции
-		 */
-		public NbtLongArray read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-			return new NbtLongArray(readLongArray(dataInput, nbtSizeTracker));
+		@Override
+		public NbtLongArray read(DataInput input, NbtSizeTracker tracker) throws IOException {
+			return new NbtLongArray(readLongArray(input, tracker));
 		}
 
 		@Override
@@ -37,21 +36,21 @@ public final class NbtLongArray implements AbstractNbtList {
 		}
 
 		private static long[] readLongArray(DataInput input, NbtSizeTracker tracker) throws IOException {
-			tracker.add(24L);
-			int i = input.readInt();
-			tracker.add(8L, i);
-			long[] ls = new long[i];
+			tracker.add(SIZE);
+			int length = input.readInt();
+			tracker.add(BYTES_PER_ELEMENT, length);
+			long[] longs = new long[length];
 
-			for (int j = 0; j < i; j++) {
-				ls[j] = input.readLong();
+			for (int index = 0; index < length; index++) {
+				longs[index] = input.readLong();
 			}
 
-			return ls;
+			return longs;
 		}
 
 		@Override
 		public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
-			input.skipBytes(input.readInt() * 8);
+			input.skipBytes(input.readInt() * BYTES_PER_ELEMENT);
 		}
 
 		@Override
@@ -64,6 +63,7 @@ public final class NbtLongArray implements AbstractNbtList {
 			return "TAG_Long_Array";
 		}
 	};
+
 	private long[] value;
 
 	public NbtLongArray(long[] value) {
@@ -72,21 +72,21 @@ public final class NbtLongArray implements AbstractNbtList {
 
 	@Override
 	public void write(DataOutput output) throws IOException {
-		output.writeInt(this.value.length);
+		output.writeInt(value.length);
 
-		for (long l : this.value) {
-			output.writeLong(l);
+		for (long element : value) {
+			output.writeLong(element);
 		}
 	}
 
 	@Override
 	public int getSizeInBytes() {
-		return 24 + 8 * this.value.length;
+		return SIZE + BYTES_PER_ELEMENT * value.length;
 	}
 
 	@Override
 	public byte getType() {
-		return 12;
+		return LONG_ARRAY_TYPE;
 	}
 
 	@Override
@@ -96,30 +96,32 @@ public final class NbtLongArray implements AbstractNbtList {
 
 	@Override
 	public String toString() {
-		StringNbtWriter stringNbtWriter = new StringNbtWriter();
-		stringNbtWriter.visitLongArray(this);
-		return stringNbtWriter.getString();
+		StringNbtWriter writer = new StringNbtWriter();
+		writer.visitLongArray(this);
+		return writer.getString();
 	}
 
 	/**
-	 * Copy.
+	 * Создаёт глубокую копию массива.
 	 *
-	 * @return NbtLongArray — результат операции
+	 * @return новый {@link NbtLongArray} с независимой копией данных
 	 */
 	public NbtLongArray copy() {
-		long[] ls = new long[this.value.length];
-		System.arraycopy(this.value, 0, ls, 0, this.value.length);
-		return new NbtLongArray(ls);
+		long[] copy = new long[value.length];
+		System.arraycopy(value, 0, copy, 0, value.length);
+		return new NbtLongArray(copy);
 	}
 
 	@Override
-	public boolean equals(Object o) {
-		return this == o ? true : o instanceof NbtLongArray && Arrays.equals(this.value, ((NbtLongArray) o).value);
+	public boolean equals(Object other) {
+		return this == other
+			? true
+			: other instanceof NbtLongArray nbtLongArray && Arrays.equals(value, nbtLongArray.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.value);
+		return Arrays.hashCode(value);
 	}
 
 	@Override
@@ -128,72 +130,63 @@ public final class NbtLongArray implements AbstractNbtList {
 	}
 
 	public long[] getLongArray() {
-		return this.value;
+		return value;
 	}
 
 	@Override
 	public int size() {
-		return this.value.length;
+		return value.length;
 	}
 
-	/**
-	 * Get.
-	 *
-	 * @param i i
-	 *
-	 * @return NbtLong — 
-	 */
-	public NbtLong get(int i) {
-		return NbtLong.of(this.value[i]);
+	@Override
+	public NbtLong get(int index) {
+		return NbtLong.of(value[index]);
 	}
 
 	@Override
 	public boolean setElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value[index] = abstractNbtNumber.longValue();
+		if (element instanceof AbstractNbtNumber number) {
+			value[index] = number.longValue();
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	@Override
 	public boolean addElement(int index, NbtElement element) {
-		if (element instanceof AbstractNbtNumber abstractNbtNumber) {
-			this.value = ArrayUtils.add(this.value, index, abstractNbtNumber.longValue());
+		if (element instanceof AbstractNbtNumber number) {
+			value = ArrayUtils.add(value, index, number.longValue());
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	/**
-	 * Remove.
+	 * Удаляет элемент по индексу и возвращает его как {@link NbtLong}.
 	 *
-	 * @param i i
-	 *
-	 * @return NbtLong — результат операции
+	 * @param index индекс удаляемого элемента
+	 * @return удалённое значение, обёрнутое в {@link NbtLong}
 	 */
-	public NbtLong remove(int i) {
-		long l = this.value[i];
-		this.value = ArrayUtils.remove(this.value, i);
-		return NbtLong.of(l);
+	public NbtLong remove(int index) {
+		long removed = value[index];
+		value = ArrayUtils.remove(value, index);
+		return NbtLong.of(removed);
 	}
 
 	@Override
 	public void clear() {
-		this.value = new long[0];
+		value = new long[0];
 	}
 
 	@Override
 	public Optional<long[]> asLongArray() {
-		return Optional.of(this.value);
+		return Optional.of(value);
 	}
 
 	@Override
 	public NbtScanner.Result doAccept(NbtScanner visitor) {
-		return visitor.visitLongArray(this.value);
+		return visitor.visitLongArray(value);
 	}
 }

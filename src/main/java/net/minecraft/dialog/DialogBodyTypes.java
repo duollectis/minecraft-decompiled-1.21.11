@@ -8,10 +8,19 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
 /**
- * {@code DialogBodyTypes}.
+ * Регистратор типов тела диалогов.
+ * <p>
+ * Регистрирует все доступные типы {@link DialogBody} в реестре и возвращает
+ * тип по умолчанию ({@code plain_message}).
  */
 public class DialogBodyTypes {
 
+	/**
+	 * Регистрирует все типы тела диалогов и возвращает тип по умолчанию.
+	 *
+	 * @param registry реестр кодеков типов тела
+	 * @return кодек типа тела по умолчанию ({@code plain_message})
+	 */
 	public static MapCodec<? extends DialogBody> registerAndGetDefault(Registry<MapCodec<? extends DialogBody>> registry) {
 		Registry.register(registry, Identifier.ofVanilla("item"), ItemDialogBody.CODEC);
 		return Registry.register(registry, Identifier.ofVanilla("plain_message"), PlainMessageDialogBody.CODEC);

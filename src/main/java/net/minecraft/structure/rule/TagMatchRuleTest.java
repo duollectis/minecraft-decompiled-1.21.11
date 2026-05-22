@@ -8,13 +8,15 @@ import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code TagMatchRuleTest}.
+ * Реализация {@link RuleTest}, проверяющая принадлежность блока тегу {@link TagKey}.
+ * Позволяет задавать правила замены для целых групп блоков через теги.
  */
 public class TagMatchRuleTest extends RuleTest {
 
 	public static final MapCodec<TagMatchRuleTest> CODEC = TagKey.unprefixedCodec(RegistryKeys.BLOCK)
-	                                                             .fieldOf("tag")
-	                                                             .xmap(TagMatchRuleTest::new, ruleTest -> ruleTest.tag);
+		.fieldOf("tag")
+		.xmap(TagMatchRuleTest::new, ruleTest -> ruleTest.tag);
+
 	private final TagKey<Block> tag;
 
 	public TagMatchRuleTest(TagKey<Block> tag) {
@@ -23,7 +25,7 @@ public class TagMatchRuleTest extends RuleTest {
 
 	@Override
 	public boolean test(BlockState state, Random random) {
-		return state.isIn(this.tag);
+		return state.isIn(tag);
 	}
 
 	@Override

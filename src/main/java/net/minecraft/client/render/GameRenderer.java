@@ -139,7 +139,7 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 	private final DiffuseLighting diffuseLighting = new DiffuseLighting();
 	private final GlobalSettings globalSettings = new GlobalSettings();
 	private final RawProjectionMatrix worldProjectionMatrix = new RawProjectionMatrix("level");
-	private final ProjectionMatrix3 hudProjectionMatrix = new ProjectionMatrix3("3d hud", 0.05F, 100.0F);
+	private final ProjectionMatrix3 hudProjectionMatrix = new ProjectionMatrix3("3d hud", CAMERA_DEPTH, HUD_FAR_PLANE);
 
 	public GameRenderer(
 			MinecraftClient client,
@@ -327,14 +327,14 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 			this.nauseaEffectSpeed = 0.0F;
 		}
 		else {
-			this.nauseaEffectSpeed = (f * 20.0F + g * 7.0F) / (f + g);
+			this.nauseaEffectSpeed = (f * NAUSEA_EFFECT_DURATION + g * 7.0F) / (f + g);
 			this.nauseaEffectTime = this.nauseaEffectTime + this.nauseaEffectSpeed;
 		}
 
 		if (this.client.world.getTickManager().shouldTick()) {
 			this.lastSkyDarkness = this.skyDarkness;
 			if (this.client.inGameHud.getBossBarHud().shouldDarkenSky()) {
-				this.skyDarkness += 0.05F;
+				this.skyDarkness += CAMERA_DEPTH;
 				if (this.skyDarkness > 1.0F) {
 					this.skyDarkness = 1.0F;
 				}
@@ -414,7 +414,7 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 			}
 
 			if (camera.getFocusedEntity() instanceof LivingEntity livingEntity && livingEntity.isDead()) {
-				float g = Math.min(livingEntity.deathTime + tickProgress, 20.0F);
+				float g = Math.min(livingEntity.deathTime + tickProgress, NAUSEA_EFFECT_DURATION);
 				f /= (1.0F - 500.0F / (g + 500.0F)) * 2.0F + 1.0F;
 			}
 
@@ -433,7 +433,7 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		if (this.client.getCameraEntity() instanceof LivingEntity livingEntity) {
 			float f = livingEntity.hurtTime - tickProgress;
 			if (livingEntity.isDead()) {
-				float g = Math.min(livingEntity.deathTime + tickProgress, 20.0F);
+				float g = Math.min(livingEntity.deathTime + tickProgress, NAUSEA_EFFECT_DURATION);
 				matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(40.0F - 8000.0F / (g + 200.0F)));
 			}
 
@@ -505,7 +505,7 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		return matrix4f.perspective(
 				fovDegrees * (float) (Math.PI / 180.0),
 				(float) this.client.getWindow().getFramebufferWidth() / this.client.getWindow().getFramebufferHeight(),
-				0.05F,
+				CAMERA_DEPTH,
 				this.getFarPlaneDistance()
 		);
 	}
@@ -739,7 +739,7 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 	}
 
 	private void updateWorldIcon(Path path) {
-		if (this.client.worldRenderer.getCompletedChunkCount() > 10
+		if (this.client.worldRenderer.getCompletedChunkCount() > WINDOW_FOCUS_DELAY_TICKS
 				&& this.client.worldRenderer.isTerrainRenderComplete()) {
 			ScreenshotRecorder.takeScreenshot(
 					this.client.getFramebuffer(), screenshot -> Util.getIoWorkerExecutor().execute(() -> {

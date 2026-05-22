@@ -24,11 +24,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ShieldModelRenderer}.
+ * Рендерер щита как предмета инвентаря.
+ * Если щит имеет баннерный узор или цвет основания — рисует полотно с паттернами через
+ * {@link BannerBlockEntityRenderer#renderCanvas}; иначе рисует пластину без узора.
  */
+@Environment(EnvType.CLIENT)
 public class ShieldModelRenderer implements SpecialModelRenderer<ComponentMap> {
+
+	private static final int NO_TINT = -1;
 
 	private final SpriteHolder spriteHolder;
 	private final ShieldEntityModel model;
@@ -43,87 +47,87 @@ public class ShieldModelRenderer implements SpecialModelRenderer<ComponentMap> {
 	}
 
 	public void render(
-			@Nullable ComponentMap componentMap,
-			ItemDisplayContext itemDisplayContext,
-			MatrixStack matrixStack,
-			OrderedRenderCommandQueue orderedRenderCommandQueue,
-			int i,
-			int j,
-			boolean bl,
-			int k
+			@Nullable ComponentMap components,
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int seed
 	) {
-		BannerPatternsComponent bannerPatternsComponent = componentMap != null
-		                                                  ? componentMap.getOrDefault(
-				DataComponentTypes.BANNER_PATTERNS,
-				BannerPatternsComponent.DEFAULT
-		)
-		                                                  : BannerPatternsComponent.DEFAULT;
-		DyeColor dyeColor = componentMap != null ? componentMap.get(DataComponentTypes.BASE_COLOR) : null;
-		boolean bl2 = !bannerPatternsComponent.layers().isEmpty() || dyeColor != null;
-		matrixStack.push();
-		matrixStack.scale(1.0F, -1.0F, -1.0F);
-		SpriteIdentifier spriteIdentifier = bl2 ? ModelBaker.SHIELD_BASE : ModelBaker.SHIELD_BASE_NO_PATTERN;
-		orderedRenderCommandQueue.submitModelPart(
-				this.model.getHandle(),
-				matrixStack,
-				this.model.getLayer(spriteIdentifier.getAtlasId()),
-				i,
-				j,
-				this.spriteHolder.getSprite(spriteIdentifier),
+		BannerPatternsComponent patterns = components != null
+				? components.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT)
+				: BannerPatternsComponent.DEFAULT;
+		DyeColor baseColor = components != null ? components.get(DataComponentTypes.BASE_COLOR) : null;
+		boolean hasDecoration = !patterns.layers().isEmpty() || baseColor != null;
+
+		matrices.push();
+		matrices.scale(1.0F, -1.0F, -1.0F);
+
+		SpriteIdentifier spriteId = hasDecoration ? ModelBaker.SHIELD_BASE : ModelBaker.SHIELD_BASE_NO_PATTERN;
+
+		queue.submitModelPart(
+				model.getHandle(),
+				matrices,
+				model.getLayer(spriteId.getAtlasId()),
+				light,
+				overlay,
+				spriteHolder.getSprite(spriteId),
 				false,
 				false,
-				-1,
+				NO_TINT,
 				null,
-				k
+				seed
 		);
-		if (bl2) {
+
+		if (hasDecoration) {
 			BannerBlockEntityRenderer.renderCanvas(
-					this.spriteHolder,
-					matrixStack,
-					orderedRenderCommandQueue,
-					i,
-					j,
-					this.model,
+					spriteHolder,
+					matrices,
+					queue,
+					light,
+					overlay,
+					model,
 					Unit.INSTANCE,
-					spriteIdentifier,
+					spriteId,
 					false,
-					Objects.requireNonNullElse(dyeColor, DyeColor.WHITE),
-					bannerPatternsComponent,
-					bl,
+					Objects.requireNonNullElse(baseColor, DyeColor.WHITE),
+					patterns,
+					glint,
 					null,
-					k
+					seed
 			);
-		}
-		else {
-			orderedRenderCommandQueue.submitModelPart(
-					this.model.getPlate(),
-					matrixStack,
-					this.model.getLayer(spriteIdentifier.getAtlasId()),
-					i,
-					j,
-					this.spriteHolder.getSprite(spriteIdentifier),
+		} else {
+			queue.submitModelPart(
+					model.getPlate(),
+					matrices,
+					model.getLayer(spriteId.getAtlasId()),
+					light,
+					overlay,
+					spriteHolder.getSprite(spriteId),
 					false,
-					bl,
-					-1,
+					glint,
+					NO_TINT,
 					null,
-					k
+					seed
 			);
 		}
 
-		matrixStack.pop();
+		matrices.pop();
 	}
 
 	@Override
 	public void collectVertices(Consumer<Vector3fc> consumer) {
-		MatrixStack matrixStack = new MatrixStack();
-		matrixStack.scale(1.0F, -1.0F, -1.0F);
-		this.model.getRootPart().collectVertices(matrixStack, consumer);
+		MatrixStack matrices = new MatrixStack();
+		matrices.scale(1.0F, -1.0F, -1.0F);
+		model.getRootPart().collectVertices(matrices, consumer);
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Unbaked}.
+	 * Несериализованный дескриптор рендерера щита. Не содержит параметров.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record Unbaked() implements SpecialModelRenderer.Unbaked {
 
 		public static final ShieldModelRenderer.Unbaked INSTANCE = new ShieldModelRenderer.Unbaked();

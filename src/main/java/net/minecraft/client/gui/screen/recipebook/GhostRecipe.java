@@ -16,11 +16,16 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code GhostRecipe}.
+ * Призрачный рецепт — полупрозрачное отображение ингредиентов и результата крафта
+ * поверх слотов инвентаря, подсказывающее игроку, что нужно положить в сетку.
  */
+@Environment(EnvType.CLIENT)
 public class GhostRecipe {
+
+	private static final int COLOR_GHOST_FILL = 822018048;
+	private static final int COLOR_GHOST_OVERLAY = 822083583;
+	private static final int RESULT_PADDING = 4;
 
 	private final Reference2ObjectMap<Slot, GhostRecipe.CyclingItem> items = new Reference2ObjectArrayMap();
 	private final CurrentIndexProvider currentIndexProvider;
@@ -29,110 +34,83 @@ public class GhostRecipe {
 		this.currentIndexProvider = currentIndexProvider;
 	}
 
-	/**
-	 * Clear.
-	 */
 	public void clear() {
-		this.items.clear();
+		items.clear();
 	}
 
 	private void addItems(Slot slot, ContextParameterMap context, SlotDisplay display, boolean resultSlot) {
-		List<ItemStack> list = display.getStacks(context);
-		if (!list.isEmpty()) {
-			this.items.put(slot, new GhostRecipe.CyclingItem(list, resultSlot));
+		List<ItemStack> stacks = display.getStacks(context);
+
+		if (stacks.isEmpty()) {
+			return;
 		}
+
+		items.put(slot, new GhostRecipe.CyclingItem(stacks, resultSlot));
 	}
 
-	/**
-	 * Добавляет inputs.
-	 *
-	 * @param slot slot
-	 * @param context context
-	 * @param display display
-	 */
 	protected void addInputs(Slot slot, ContextParameterMap context, SlotDisplay display) {
-		this.addItems(slot, context, display, false);
+		addItems(slot, context, display, false);
 	}
 
-	/**
-	 * Добавляет results.
-	 *
-	 * @param slot slot
-	 * @param context context
-	 * @param display display
-	 */
 	protected void addResults(Slot slot, ContextParameterMap context, SlotDisplay display) {
-		this.addItems(slot, context, display, true);
+		addItems(slot, context, display, true);
 	}
 
 	/**
-	 * Draw.
-	 *
-	 * @param context context
-	 * @param client client
-	 * @param resultHasPadding result has padding
+	 * Отрисовывает призрачные предметы поверх слотов крафта.
+	 * Для слота результата добавляет расширенную подложку, если {@code resultHasPadding} равен {@code true}.
 	 */
 	public void draw(DrawContext context, MinecraftClient client, boolean resultHasPadding) {
-		this.items.forEach((slot, item) -> {
-			int i = slot.x;
-			int j = slot.y;
+		items.forEach((slot, item) -> {
+			int slotX = slot.x;
+			int slotY = slot.y;
+
 			if (item.isResultSlot && resultHasPadding) {
-				context.fill(i - 4, j - 4, i + 20, j + 20, 822018048);
-			}
-			else {
-				context.fill(i, j, i + 16, j + 16, 822018048);
+				context.fill(slotX - RESULT_PADDING, slotY - RESULT_PADDING, slotX + 20, slotY + 20, COLOR_GHOST_FILL);
+			} else {
+				context.fill(slotX, slotY, slotX + 16, slotY + 16, COLOR_GHOST_FILL);
 			}
 
-			ItemStack itemStack = item.get(this.currentIndexProvider.currentIndex());
-			context.drawItemWithoutEntity(itemStack, i, j);
-			context.fill(i, j, i + 16, j + 16, 822083583);
+			ItemStack displayStack = item.get(currentIndexProvider.currentIndex());
+			context.drawItemWithoutEntity(displayStack, slotX, slotY);
+			context.fill(slotX, slotY, slotX + 16, slotY + 16, COLOR_GHOST_OVERLAY);
+
 			if (item.isResultSlot) {
-				context.drawStackOverlay(client.textRenderer, itemStack, i, j);
+				context.drawStackOverlay(client.textRenderer, displayStack, slotX, slotY);
 			}
 		});
 	}
 
 	/**
-	 * Draw tooltip.
-	 *
-	 * @param context context
-	 * @param client client
-	 * @param x x
-	 * @param y y
-	 * @param slot slot
+	 * Отрисовывает подсказку для призрачного предмета в указанном слоте.
 	 */
 	public void drawTooltip(DrawContext context, MinecraftClient client, int x, int y, @Nullable Slot slot) {
-		if (slot != null) {
-			GhostRecipe.CyclingItem cyclingItem = (GhostRecipe.CyclingItem) this.items.get(slot);
-			if (cyclingItem != null) {
-				ItemStack itemStack = cyclingItem.get(this.currentIndexProvider.currentIndex());
-				context.drawTooltip(
-						client.textRenderer,
-						Screen.getTooltipFromItem(client, itemStack),
-						x,
-						y,
-						itemStack.get(DataComponentTypes.TOOLTIP_STYLE)
-				);
-			}
+		if (slot == null) {
+			return;
 		}
+
+		GhostRecipe.CyclingItem cyclingItem = items.get(slot);
+
+		if (cyclingItem == null) {
+			return;
+		}
+
+		ItemStack displayStack = cyclingItem.get(currentIndexProvider.currentIndex());
+		context.drawTooltip(
+				client.textRenderer,
+				Screen.getTooltipFromItem(client, displayStack),
+				x,
+				y,
+				displayStack.get(DataComponentTypes.TOOLTIP_STYLE)
+		);
 	}
 
 	@Environment(EnvType.CLIENT)
-	/**
-	 * {@code CyclingItem}.
-	 */
 	record CyclingItem(List<ItemStack> items, boolean isResultSlot) {
 
-		/**
-		 * Get.
-		 *
-		 * @param index index
-		 *
-		 * @return ItemStack — 
-		 */
 		public ItemStack get(int index) {
-			int i = this.items.size();
-			return i == 0 ? ItemStack.EMPTY : this.items.get(index % i);
+			int count = items.size();
+			return count == 0 ? ItemStack.EMPTY : items.get(index % count);
 		}
 	}
 }

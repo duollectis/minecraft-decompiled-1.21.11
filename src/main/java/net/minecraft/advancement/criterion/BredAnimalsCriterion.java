@@ -15,13 +15,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * {@code BredAnimalsCriterion}.
+ * Критерий: игрок скрестил двух животных.
+ * Поддерживает проверку родителей и потомка по отдельности.
+ * Родители взаимозаменяемы — порядок передачи не важен.
  */
 public class BredAnimalsCriterion extends AbstractCriterion<BredAnimalsCriterion.Conditions> {
 
 	@Override
-	public Codec<BredAnimalsCriterion.Conditions> getConditionsCodec() {
-		return BredAnimalsCriterion.Conditions.CODEC;
+	public Codec<Conditions> getConditionsCodec() {
+		return Conditions.CODEC;
 	}
 
 	public void trigger(
@@ -30,17 +32,14 @@ public class BredAnimalsCriterion extends AbstractCriterion<BredAnimalsCriterion
 			AnimalEntity partner,
 			@Nullable PassiveEntity child
 	) {
-		LootContext lootContext = EntityPredicate.createAdvancementEntityLootContext(player, parent);
-		LootContext lootContext2 = EntityPredicate.createAdvancementEntityLootContext(player, partner);
-		LootContext
-				lootContext3 =
-				child != null ? EntityPredicate.createAdvancementEntityLootContext(player, child) : null;
-		this.trigger(player, conditions -> conditions.matches(lootContext, lootContext2, lootContext3));
+		LootContext parentContext = EntityPredicate.createAdvancementEntityLootContext(player, parent);
+		LootContext partnerContext = EntityPredicate.createAdvancementEntityLootContext(player, partner);
+		LootContext childContext = child != null
+				? EntityPredicate.createAdvancementEntityLootContext(player, child)
+				: null;
+		trigger(player, conditions -> conditions.matches(parentContext, partnerContext, childContext));
 	}
 
-	/**
-	 * {@code Conditions}.
-	 */
 	public record Conditions(
 			Optional<LootContextPredicate> player,
 			Optional<LootContextPredicate> parent,
@@ -48,26 +47,25 @@ public class BredAnimalsCriterion extends AbstractCriterion<BredAnimalsCriterion
 			Optional<LootContextPredicate> child
 	) implements AbstractCriterion.Conditions {
 
-		public static final Codec<BredAnimalsCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+		public static final Codec<Conditions> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("player")
-								                    .forGetter(BredAnimalsCriterion.Conditions::player),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("parent")
-								                    .forGetter(BredAnimalsCriterion.Conditions::parent),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("partner")
-								                    .forGetter(BredAnimalsCriterion.Conditions::partner),
-						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
-								                    .optionalFieldOf("child")
-								                    .forGetter(BredAnimalsCriterion.Conditions::child)
-				                    )
-				                    .apply(instance, BredAnimalsCriterion.Conditions::new)
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("player")
+								.forGetter(Conditions::player),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("parent")
+								.forGetter(Conditions::parent),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("partner")
+								.forGetter(Conditions::partner),
+						EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								.optionalFieldOf("child")
+								.forGetter(Conditions::child)
+				).apply(instance, Conditions::new)
 		);
 
-		public static AdvancementCriterion<BredAnimalsCriterion.Conditions> any() {
-			return Criteria.BRED_ANIMALS.create(new BredAnimalsCriterion.Conditions(
+		public static AdvancementCriterion<Conditions> any() {
+			return Criteria.BRED_ANIMALS.create(new Conditions(
 					Optional.empty(),
 					Optional.empty(),
 					Optional.empty(),
@@ -75,53 +73,55 @@ public class BredAnimalsCriterion extends AbstractCriterion<BredAnimalsCriterion
 			));
 		}
 
-		public static AdvancementCriterion<BredAnimalsCriterion.Conditions> create(EntityPredicate.Builder child) {
-			return Criteria.BRED_ANIMALS
-					.create(
-							new BredAnimalsCriterion.Conditions(
-									Optional.empty(),
-									Optional.empty(),
-									Optional.empty(),
-									Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(child))
-							)
-					);
+		public static AdvancementCriterion<Conditions> create(EntityPredicate.Builder child) {
+			return Criteria.BRED_ANIMALS.create(new Conditions(
+					Optional.empty(),
+					Optional.empty(),
+					Optional.empty(),
+					Optional.of(EntityPredicate.contextPredicateFromEntityPredicate(child))
+			));
 		}
 
-		public static AdvancementCriterion<BredAnimalsCriterion.Conditions> create(
-				Optional<EntityPredicate> parent, Optional<EntityPredicate> partner, Optional<EntityPredicate> child
+		public static AdvancementCriterion<Conditions> create(
+				Optional<EntityPredicate> parent,
+				Optional<EntityPredicate> partner,
+				Optional<EntityPredicate> child
 		) {
-			return Criteria.BRED_ANIMALS
-					.create(
-							new BredAnimalsCriterion.Conditions(
-									Optional.empty(),
-									EntityPredicate.contextPredicateFromEntityPredicate(parent),
-									EntityPredicate.contextPredicateFromEntityPredicate(partner),
-									EntityPredicate.contextPredicateFromEntityPredicate(child)
-							)
-					);
+			return Criteria.BRED_ANIMALS.create(new Conditions(
+					Optional.empty(),
+					EntityPredicate.contextPredicateFromEntityPredicate(parent),
+					EntityPredicate.contextPredicateFromEntityPredicate(partner),
+					EntityPredicate.contextPredicateFromEntityPredicate(child)
+			));
 		}
 
+		/**
+		 * Проверяет совпадение. Родители взаимозаменяемы: проверяются оба варианта
+		 * (parent=A, partner=B) и (parent=B, partner=A).
+		 */
 		public boolean matches(
 				LootContext parentContext,
 				LootContext partnerContext,
 				@Nullable LootContext childContext
 		) {
-			return !this.child.isPresent() || childContext != null && this.child.get().test(childContext)
-			       ? parentMatches(this.parent, parentContext) && parentMatches(this.partner, partnerContext)
-			         || parentMatches(this.parent, partnerContext) && parentMatches(this.partner, parentContext)
-			       : false;
+			if (child.isPresent() && (childContext == null || !child.get().test(childContext))) {
+				return false;
+			}
+
+			return parentMatches(parent, parentContext) && parentMatches(partner, partnerContext)
+					|| parentMatches(parent, partnerContext) && parentMatches(partner, parentContext);
 		}
 
-		private static boolean parentMatches(Optional<LootContextPredicate> parent, LootContext parentContext) {
-			return parent.isEmpty() || parent.get().test(parentContext);
+		private static boolean parentMatches(Optional<LootContextPredicate> predicate, LootContext context) {
+			return predicate.isEmpty() || predicate.get().test(context);
 		}
 
 		@Override
 		public void validate(LootContextPredicateValidator validator) {
 			AbstractCriterion.Conditions.super.validate(validator);
-			validator.validateEntityPredicate(this.parent, "parent");
-			validator.validateEntityPredicate(this.partner, "partner");
-			validator.validateEntityPredicate(this.child, "child");
+			validator.validateEntityPredicate(parent, "parent");
+			validator.validateEntityPredicate(partner, "partner");
+			validator.validateEntityPredicate(child, "child");
 		}
 	}
 }

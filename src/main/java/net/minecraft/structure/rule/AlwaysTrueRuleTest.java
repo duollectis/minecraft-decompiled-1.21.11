@@ -5,12 +5,13 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.random.Random;
 
 /**
- * {@code AlwaysTrueRuleTest}.
+ * Реализация {@link RuleTest}, которая всегда возвращает {@code true}.
+ * Используется как заглушка, когда замена блока должна происходить безусловно.
  */
 public class AlwaysTrueRuleTest extends RuleTest {
 
-	public static final MapCodec<AlwaysTrueRuleTest> CODEC = MapCodec.unit(() -> AlwaysTrueRuleTest.INSTANCE);
 	public static final AlwaysTrueRuleTest INSTANCE = new AlwaysTrueRuleTest();
+	public static final MapCodec<AlwaysTrueRuleTest> CODEC = MapCodec.unit(() -> INSTANCE);
 
 	private AlwaysTrueRuleTest() {
 	}

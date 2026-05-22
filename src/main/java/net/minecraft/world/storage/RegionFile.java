@@ -19,29 +19,43 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 
 /**
- * {@code RegionFile}.
+ * Представляет один файл региона (.mca), содержащий данные до 1024 чанков.
+ *
+ * <p>Формат файла:
+ * <ul>
+ *   <li>Байты 0–4095: таблица смещений секторов (по 4 байта на чанк, 1024 записи)</li>
+ *   <li>Байты 4096–8191: таблица временных меток последнего сохранения</li>
+ *   <li>Байты 8192+: данные чанков, выровненные по секторам ({@value #SECTOR_SIZE} байт)</li>
+ * </ul>
+ *
+ * <p>Чанки, превышающие {@value #HEADER_SIZE} секторов, сохраняются во внешние файлы (.mcc).
  */
 public class RegionFile implements AutoCloseable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final int SECTOR_SIZE = 4096;
+	private static final int HEADER_SECTORS = 2;
+	private static final int HEADER_BYTE_SIZE = SECTOR_SIZE * HEADER_SECTORS;
+	private static final int CHUNK_HEADER_BYTE_SIZE = 5;
+	private static final int EXTERNAL_CHUNK_FLAG = 128;
+	private static final int EXTERNAL_FLAG_MASK = -129;
+	private static final String EXTERNAL_CHUNK_EXTENSION = ".mcc";
+	private static final ByteBuffer ZERO = ByteBuffer.allocateDirect(1);
+
 	@VisibleForTesting
 	protected static final int SECTOR_DATA_LIMIT = 1024;
-	private static final int FORMAT_VERSION = 5;
-	private static final int HEADER_OFFSET = 0;
-	private static final ByteBuffer ZERO = ByteBuffer.allocateDirect(1);
-	private static final String FILE_EXTENSION = ".mcc";
-	private static final int MAX_CHUNKS = 128;
+	/** Максимальное число секторов для одного чанка; при превышении — внешний файл. */
 	private static final int HEADER_SIZE = 256;
-	private static final int INITIAL_INDEX = 0;
+
 	final StorageKey storageKey;
 	private final Path path;
 	private final FileChannel channel;
 	private final Path directory;
 	final ChunkCompressionFormat compressionFormat;
-	private final ByteBuffer header = ByteBuffer.allocateDirect(8192);
+	private final ByteBuffer header = ByteBuffer.allocateDirect(HEADER_BYTE_SIZE);
 	private final IntBuffer sectorData;
 	private final IntBuffer saveTimes;
+
 	@VisibleForTesting
 	protected final SectorMap sectors = new SectorMap();
 
@@ -49,153 +63,162 @@ public class RegionFile implements AutoCloseable {
 		this(storageKey, directory, path, ChunkCompressionFormat.getCurrentFormat(), dsync);
 	}
 
+	/**
+	 * Открывает или создаёт файл региона, читает заголовок и восстанавливает карту секторов.
+	 * При обнаружении повреждённых записей в заголовке — обнуляет их и логирует предупреждение.
+	 *
+	 * @param storageKey ключ хранилища для профилировщика
+	 * @param path путь к файлу .mca
+	 * @param directory директория файла (для внешних .mcc чанков)
+	 * @param compressionFormat формат сжатия данных чанков
+	 * @param dsync использовать O_DSYNC для гарантии записи на диск
+	 */
 	public RegionFile(
-			StorageKey storageKey,
-			Path path,
-			Path directory,
-			ChunkCompressionFormat compressionFormat,
-			boolean dsync
+		StorageKey storageKey,
+		Path path,
+		Path directory,
+		ChunkCompressionFormat compressionFormat,
+		boolean dsync
 	) throws IOException {
 		this.storageKey = storageKey;
 		this.path = path;
 		this.compressionFormat = compressionFormat;
+
 		if (!Files.isDirectory(directory)) {
 			throw new IllegalArgumentException("Expected directory, got " + directory.toAbsolutePath());
 		}
-		else {
-			this.directory = directory;
-			this.sectorData = this.header.asIntBuffer();
-			this.sectorData.limit(1024);
-			this.header.position(4096);
-			this.saveTimes = this.header.asIntBuffer();
-			if (dsync) {
-				this.channel =
-						FileChannel.open(
-								path,
-								StandardOpenOption.CREATE,
-								StandardOpenOption.READ,
-								StandardOpenOption.WRITE,
-								StandardOpenOption.DSYNC
-						);
+
+		this.directory = directory;
+		this.sectorData = header.asIntBuffer();
+		this.sectorData.limit(SECTOR_DATA_LIMIT);
+		this.header.position(SECTOR_SIZE);
+		this.saveTimes = header.asIntBuffer();
+
+		this.channel = dsync
+			? FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.DSYNC)
+			: FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+
+		// Первые два сектора всегда заняты заголовком
+		sectors.allocate(0, HEADER_SECTORS);
+		header.position(0);
+
+		int bytesRead = channel.read(header, 0L);
+
+		if (bytesRead == -1) {
+			return;
+		}
+
+		if (bytesRead != HEADER_BYTE_SIZE) {
+			LOGGER.warn("Region file {} has truncated header: {}", path, bytesRead);
+		}
+
+		long fileSize = Files.size(path);
+
+		for (int index = 0; index < SECTOR_DATA_LIMIT; index++) {
+			int packed = sectorData.get(index);
+
+			if (packed == 0) {
+				continue;
+			}
+
+			int sectorOffset = getOffset(packed);
+			int sectorCount = getSize(packed);
+
+			if (sectorOffset < HEADER_SECTORS) {
+				LOGGER.warn(
+					"Region file {} has invalid sector at index: {}; sector {} overlaps with header",
+					new Object[]{path, index, sectorOffset}
+				);
+				sectorData.put(index, 0);
+			}
+			else if (sectorCount == 0) {
+				LOGGER.warn(
+					"Region file {} has an invalid sector at index: {}; size has to be > 0",
+					path,
+					index
+				);
+				sectorData.put(index, 0);
+			}
+			else if ((long) sectorOffset * SECTOR_SIZE > fileSize) {
+				LOGGER.warn(
+					"Region file {} has an invalid sector at index: {}; sector {} is out of bounds",
+					new Object[]{path, index, sectorOffset}
+				);
+				sectorData.put(index, 0);
 			}
 			else {
-				this.channel =
-						FileChannel.open(
-								path,
-								StandardOpenOption.CREATE,
-								StandardOpenOption.READ,
-								StandardOpenOption.WRITE
-						);
-			}
-
-			this.sectors.allocate(0, 2);
-			this.header.position(0);
-			int i = this.channel.read(this.header, 0L);
-			if (i != -1) {
-				if (i != 8192) {
-					LOGGER.warn("Region file {} has truncated header: {}", path, i);
-				}
-
-				long l = Files.size(path);
-
-				for (int j = 0; j < 1024; j++) {
-					int k = this.sectorData.get(j);
-					if (k != 0) {
-						int m = getOffset(k);
-						int n = getSize(k);
-						if (m < 2) {
-							LOGGER.warn(
-									"Region file {} has invalid sector at index: {}; sector {} overlaps with header",
-									new Object[]{path, j, m}
-							);
-							this.sectorData.put(j, 0);
-						}
-						else if (n == 0) {
-							LOGGER.warn(
-									"Region file {} has an invalid sector at index: {}; size has to be > 0",
-									path,
-									j
-							);
-							this.sectorData.put(j, 0);
-						}
-						else if (m * 4096L > l) {
-							LOGGER.warn(
-									"Region file {} has an invalid sector at index: {}; sector {} is out of bounds",
-									new Object[]{path, j, m}
-							);
-							this.sectorData.put(j, 0);
-						}
-						else {
-							this.sectors.allocate(m, n);
-						}
-					}
-				}
+				sectors.allocate(sectorOffset, sectorCount);
 			}
 		}
 	}
 
 	public Path getPath() {
-		return this.path;
+		return path;
 	}
 
 	private Path getExternalChunkPath(ChunkPos chunkPos) {
-		String string = "c." + chunkPos.x + "." + chunkPos.z + ".mcc";
-		return this.directory.resolve(string);
+		return directory.resolve("c." + chunkPos.x + "." + chunkPos.z + EXTERNAL_CHUNK_EXTENSION);
 	}
 
+	/**
+	 * Открывает поток чтения для данных чанка.
+	 * Возвращает {@code null}, если чанк не существует или повреждён.
+	 */
 	public synchronized @Nullable DataInputStream getChunkInputStream(ChunkPos pos) throws IOException {
-		int i = this.getSectorData(pos);
-		if (i == 0) {
+		int packed = getSectorData(pos);
+
+		if (packed == 0) {
 			return null;
 		}
-		else {
-			int j = getOffset(i);
-			int k = getSize(i);
-			int l = k * 4096;
-			ByteBuffer byteBuffer = ByteBuffer.allocate(l);
-			this.channel.read(byteBuffer, j * 4096);
-			byteBuffer.flip();
-			if (byteBuffer.remaining() < 5) {
-				LOGGER.error(
-						"Chunk {} header is truncated: expected {} but read {}",
-						new Object[]{pos, l, byteBuffer.remaining()}
-				);
-				return null;
-			}
-			else {
-				int m = byteBuffer.getInt();
-				byte b = byteBuffer.get();
-				if (m == 0) {
-					LOGGER.warn("Chunk {} is allocated, but stream is missing", pos);
-					return null;
-				}
-				else {
-					int n = m - 1;
-					if (hasChunkStreamVersionId(b)) {
-						if (n != 0) {
-							LOGGER.warn("Chunk has both internal and external streams");
-						}
 
-						return this.getInputStream(pos, getChunkStreamVersionId(b));
-					}
-					else if (n > byteBuffer.remaining()) {
-						LOGGER.error(
-								"Chunk {} stream is truncated: expected {} but read {}",
-								new Object[]{pos, n, byteBuffer.remaining()}
-						);
-						return null;
-					}
-					else if (n < 0) {
-						LOGGER.error("Declared size {} of chunk {} is negative", m, pos);
-						return null;
-					}
-					else {
-						FlightProfiler.INSTANCE.onChunkRegionRead(this.storageKey, pos, this.compressionFormat, n);
-						return this.decompress(pos, b, getInputStream(byteBuffer, n));
-					}
-				}
-			}
+		int sectorOffset = getOffset(packed);
+		int sectorCount = getSize(packed);
+		int totalBytes = sectorCount * SECTOR_SIZE;
+		ByteBuffer buffer = ByteBuffer.allocate(totalBytes);
+		channel.read(buffer, (long) sectorOffset * SECTOR_SIZE);
+		buffer.flip();
+
+		if (buffer.remaining() < CHUNK_HEADER_BYTE_SIZE) {
+			LOGGER.error(
+				"Chunk {} header is truncated: expected {} but read {}",
+				new Object[]{pos, totalBytes, buffer.remaining()}
+			);
+			return null;
 		}
+
+		int dataLength = buffer.getInt();
+		byte flags = buffer.get();
+
+		if (dataLength == 0) {
+			LOGGER.warn("Chunk {} is allocated, but stream is missing", pos);
+			return null;
+		}
+
+		if (hasChunkStreamVersionId(flags)) {
+			if (dataLength != 1) {
+				LOGGER.warn("Chunk has both internal and external streams");
+			}
+
+			return getInputStream(pos, getChunkStreamVersionId(flags));
+		}
+
+		int payloadLength = dataLength - 1;
+
+		if (payloadLength > buffer.remaining()) {
+			LOGGER.error(
+				"Chunk {} stream is truncated: expected {} but read {}",
+				new Object[]{pos, payloadLength, buffer.remaining()}
+			);
+			return null;
+		}
+
+		if (payloadLength < 0) {
+			LOGGER.error("Declared size {} of chunk {} is negative", dataLength, pos);
+			return null;
+		}
+
+		FlightProfiler.INSTANCE.onChunkRegionRead(storageKey, pos, compressionFormat, payloadLength);
+		return decompress(pos, flags, getInputStream(buffer, payloadLength));
 	}
 
 	private static int getEpochTimeSeconds() {
@@ -203,45 +226,47 @@ public class RegionFile implements AutoCloseable {
 	}
 
 	private static boolean hasChunkStreamVersionId(byte flags) {
-		return (flags & 128) != 0;
+		return (flags & EXTERNAL_CHUNK_FLAG) != 0;
 	}
 
 	private static byte getChunkStreamVersionId(byte flags) {
-		return (byte) (flags & -129);
+		return (byte) (flags & EXTERNAL_FLAG_MASK);
 	}
 
 	private @Nullable DataInputStream decompress(ChunkPos pos, byte flags, InputStream stream) throws IOException {
-		ChunkCompressionFormat chunkCompressionFormat = ChunkCompressionFormat.get(flags);
-		if (chunkCompressionFormat == ChunkCompressionFormat.CUSTOM) {
-			String string = new DataInputStream(stream).readUTF();
-			Identifier identifier = Identifier.tryParse(string);
+		ChunkCompressionFormat format = ChunkCompressionFormat.get(flags);
+
+		if (format == ChunkCompressionFormat.CUSTOM) {
+			String compressionId = new DataInputStream(stream).readUTF();
+			Identifier identifier = Identifier.tryParse(compressionId);
+
 			if (identifier != null) {
 				LOGGER.error("Unrecognized custom compression {}", identifier);
-				return null;
 			}
 			else {
-				LOGGER.error("Invalid custom compression id {}", string);
-				return null;
+				LOGGER.error("Invalid custom compression id {}", compressionId);
 			}
+
+			return null;
 		}
-		else if (chunkCompressionFormat == null) {
+
+		if (format == null) {
 			LOGGER.error("Chunk {} has invalid chunk stream version {}", pos, flags);
 			return null;
 		}
-		else {
-			return new DataInputStream(chunkCompressionFormat.wrap(stream));
-		}
+
+		return new DataInputStream(format.wrap(stream));
 	}
 
 	private @Nullable DataInputStream getInputStream(ChunkPos pos, byte flags) throws IOException {
-		Path path = this.getExternalChunkPath(pos);
-		if (!Files.isRegularFile(path)) {
-			LOGGER.error("External chunk path {} is not file", path);
+		Path externalPath = getExternalChunkPath(pos);
+
+		if (!Files.isRegularFile(externalPath)) {
+			LOGGER.error("External chunk path {} is not file", externalPath);
 			return null;
 		}
-		else {
-			return this.decompress(pos, flags, Files.newInputStream(path));
-		}
+
+		return decompress(pos, flags, Files.newInputStream(externalPath));
 	}
 
 	private static ByteArrayInputStream getInputStream(ByteBuffer buffer, int length) {
@@ -252,167 +277,160 @@ public class RegionFile implements AutoCloseable {
 		return offset << 8 | size;
 	}
 
-	private static int getSize(int sectorData) {
-		return sectorData & 0xFF;
+	private static int getSize(int packed) {
+		return packed & 0xFF;
 	}
 
-	private static int getOffset(int sectorData) {
-		return sectorData >> 8 & 16777215;
+	private static int getOffset(int packed) {
+		return packed >> 8 & 0xFFFFFF;
 	}
 
 	private static int getSectorCount(int byteCount) {
-		return (byteCount + 4096 - 1) / 4096;
+		return (byteCount + SECTOR_SIZE - 1) / SECTOR_SIZE;
 	}
 
 	public boolean isChunkValid(ChunkPos pos) {
-		int i = this.getSectorData(pos);
-		if (i == 0) {
+		int packed = getSectorData(pos);
+
+		if (packed == 0) {
 			return false;
 		}
-		else {
-			int j = getOffset(i);
-			int k = getSize(i);
-			ByteBuffer byteBuffer = ByteBuffer.allocate(5);
 
-			try {
-				this.channel.read(byteBuffer, j * 4096);
-				byteBuffer.flip();
-				if (byteBuffer.remaining() != 5) {
-					return false;
-				}
-				else {
-					int l = byteBuffer.getInt();
-					byte b = byteBuffer.get();
-					if (hasChunkStreamVersionId(b)) {
-						if (!ChunkCompressionFormat.exists(getChunkStreamVersionId(b))) {
-							return false;
-						}
+		int sectorOffset = getOffset(packed);
+		int sectorCount = getSize(packed);
+		ByteBuffer buffer = ByteBuffer.allocate(CHUNK_HEADER_BYTE_SIZE);
 
-						if (!Files.isRegularFile(this.getExternalChunkPath(pos))) {
-							return false;
-						}
-					}
-					else {
-						if (!ChunkCompressionFormat.exists(b)) {
-							return false;
-						}
+		try {
+			channel.read(buffer, (long) sectorOffset * SECTOR_SIZE);
+			buffer.flip();
 
-						if (l == 0) {
-							return false;
-						}
-
-						int m = l - 1;
-						if (m < 0 || m > 4096 * k) {
-							return false;
-						}
-					}
-
-					return true;
-				}
-			}
-			catch (IOException var9) {
+			if (buffer.remaining() != CHUNK_HEADER_BYTE_SIZE) {
 				return false;
 			}
+
+			int dataLength = buffer.getInt();
+			byte flags = buffer.get();
+
+			if (hasChunkStreamVersionId(flags)) {
+				return ChunkCompressionFormat.exists(getChunkStreamVersionId(flags))
+					&& Files.isRegularFile(getExternalChunkPath(pos));
+			}
+
+			if (!ChunkCompressionFormat.exists(flags)) {
+				return false;
+			}
+
+			if (dataLength == 0) {
+				return false;
+			}
+
+			int payloadLength = dataLength - 1;
+			return payloadLength >= 0 && payloadLength <= SECTOR_SIZE * sectorCount;
+		}
+		catch (IOException exception) {
+			return false;
 		}
 	}
 
 	public DataOutputStream getChunkOutputStream(ChunkPos pos) throws IOException {
-		return new DataOutputStream(this.compressionFormat.wrap(new RegionFile.ChunkBuffer(pos)));
+		return new DataOutputStream(compressionFormat.wrap(new ChunkBuffer(pos)));
 	}
 
-	/**
-	 * Sync.
-	 */
 	public void sync() throws IOException {
-		this.channel.force(true);
+		channel.force(true);
 	}
 
-	/**
-	 * Delete.
-	 *
-	 * @param pos pos
-	 */
 	public void delete(ChunkPos pos) throws IOException {
-		int i = getIndex(pos);
-		int j = this.sectorData.get(i);
-		if (j != 0) {
-			this.sectorData.put(i, 0);
-			this.saveTimes.put(i, getEpochTimeSeconds());
-			this.writeHeader();
-			Files.deleteIfExists(this.getExternalChunkPath(pos));
-			this.sectors.free(getOffset(j), getSize(j));
+		int index = getIndex(pos);
+		int packed = sectorData.get(index);
+
+		if (packed == 0) {
+			return;
 		}
+
+		sectorData.put(index, 0);
+		saveTimes.put(index, getEpochTimeSeconds());
+		writeHeader();
+		Files.deleteIfExists(getExternalChunkPath(pos));
+		sectors.free(getOffset(packed), getSize(packed));
 	}
 
 	/**
-	 * Записывает chunk.
+	 * Записывает данные чанка в файл региона.
+	 * Если размер превышает {@value #HEADER_SIZE} секторов — сохраняет во внешний .mcc файл.
 	 *
-	 * @param pos pos
-	 * @param buf buf
+	 * @param pos позиция чанка
+	 * @param buf буфер с данными (включая 5-байтный заголовок)
 	 */
 	protected synchronized void writeChunk(ChunkPos pos, ByteBuffer buf) throws IOException {
-		int i = getIndex(pos);
-		int j = this.sectorData.get(i);
-		int k = getOffset(j);
-		int l = getSize(j);
-		int m = buf.remaining();
-		int n = getSectorCount(m);
-		int o;
-		RegionFile.OutputAction outputAction;
-		if (n >= 256) {
-			Path path = this.getExternalChunkPath(pos);
-			LOGGER.warn("Saving oversized chunk {} ({} bytes} to external file {}", new Object[]{pos, m, path});
-			n = 1;
-			o = this.sectors.allocate(n);
-			outputAction = this.writeSafely(path, buf);
-			ByteBuffer byteBuffer = this.getHeaderBuf();
-			this.channel.write(byteBuffer, o * 4096);
+		int index = getIndex(pos);
+		int oldPacked = sectorData.get(index);
+		int oldOffset = getOffset(oldPacked);
+		int oldSize = getSize(oldPacked);
+		int dataSize = buf.remaining();
+		int requiredSectors = getSectorCount(dataSize);
+
+		int newOffset;
+		OutputAction postWriteAction;
+
+		if (requiredSectors >= HEADER_SIZE) {
+			Path externalPath = getExternalChunkPath(pos);
+			LOGGER.warn(
+				"Saving oversized chunk {} ({} bytes} to external file {}",
+				new Object[]{pos, dataSize, externalPath}
+			);
+			requiredSectors = 1;
+			newOffset = sectors.allocate(requiredSectors);
+			postWriteAction = writeSafely(externalPath, buf);
+			ByteBuffer headerBuf = getHeaderBuf();
+			channel.write(headerBuf, (long) newOffset * SECTOR_SIZE);
 		}
 		else {
-			o = this.sectors.allocate(n);
-			outputAction = () -> Files.deleteIfExists(this.getExternalChunkPath(pos));
-			this.channel.write(buf, o * 4096);
+			newOffset = sectors.allocate(requiredSectors);
+			postWriteAction = () -> Files.deleteIfExists(getExternalChunkPath(pos));
+			channel.write(buf, (long) newOffset * SECTOR_SIZE);
 		}
 
-		this.sectorData.put(i, this.packSectorData(o, n));
-		this.saveTimes.put(i, getEpochTimeSeconds());
-		this.writeHeader();
-		outputAction.run();
-		if (k != 0) {
-			this.sectors.free(k, l);
+		sectorData.put(index, packSectorData(newOffset, requiredSectors));
+		saveTimes.put(index, getEpochTimeSeconds());
+		writeHeader();
+		postWriteAction.run();
+
+		if (oldOffset != 0) {
+			sectors.free(oldOffset, oldSize);
 		}
 	}
 
 	private ByteBuffer getHeaderBuf() {
-		ByteBuffer byteBuffer = ByteBuffer.allocate(5);
-		byteBuffer.putInt(1);
-		byteBuffer.put((byte) (this.compressionFormat.getId() | 128));
-		byteBuffer.flip();
-		return byteBuffer;
+		ByteBuffer buf = ByteBuffer.allocate(CHUNK_HEADER_BYTE_SIZE);
+		buf.putInt(1);
+		buf.put((byte) (compressionFormat.getId() | EXTERNAL_CHUNK_FLAG));
+		buf.flip();
+		return buf;
 	}
 
-	private RegionFile.OutputAction writeSafely(Path path, ByteBuffer buf) throws IOException {
-		Path path2 = Files.createTempFile(this.directory, "tmp", null);
+	private OutputAction writeSafely(Path path, ByteBuffer buf) throws IOException {
+		Path tempFile = Files.createTempFile(directory, "tmp", null);
 
-		try (FileChannel fileChannel = FileChannel.open(path2, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-			buf.position(5);
-			fileChannel.write(buf);
+		try (FileChannel tempChannel = FileChannel.open(tempFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+			buf.position(CHUNK_HEADER_BYTE_SIZE);
+			tempChannel.write(buf);
 		}
 
-		return () -> Files.move(path2, path, StandardCopyOption.REPLACE_EXISTING);
+		return () -> Files.move(tempFile, path, StandardCopyOption.REPLACE_EXISTING);
 	}
 
 	private void writeHeader() throws IOException {
-		this.header.position(0);
-		this.channel.write(this.header, 0L);
+		header.position(0);
+		channel.write(header, 0L);
 	}
 
 	private int getSectorData(ChunkPos pos) {
-		return this.sectorData.get(getIndex(pos));
+		return sectorData.get(getIndex(pos));
 	}
 
 	public boolean hasChunk(ChunkPos pos) {
-		return this.getSectorData(pos) != 0;
+		return getSectorData(pos) != 0;
 	}
 
 	private static int getIndex(ChunkPos pos) {
@@ -422,37 +440,42 @@ public class RegionFile implements AutoCloseable {
 	@Override
 	public void close() throws IOException {
 		try {
-			this.fillLastSector();
+			fillLastSector();
 		}
 		finally {
 			try {
-				this.channel.force(true);
+				channel.force(true);
 			}
 			finally {
-				this.channel.close();
+				channel.close();
 			}
 		}
 	}
 
 	private void fillLastSector() throws IOException {
-		int i = (int) this.channel.size();
-		int j = getSectorCount(i) * 4096;
-		if (i != j) {
-			ByteBuffer byteBuffer = ZERO.duplicate();
-			byteBuffer.position(0);
-			this.channel.write(byteBuffer, j - 1);
+		int currentSize = (int) channel.size();
+		int alignedSize = getSectorCount(currentSize) * SECTOR_SIZE;
+
+		if (currentSize == alignedSize) {
+			return;
 		}
+
+		ByteBuffer zeroBuf = ZERO.duplicate();
+		zeroBuf.position(0);
+		channel.write(zeroBuf, alignedSize - 1);
 	}
 
 	/**
-	 * {@code ChunkBuffer}.
+	 * Буфер записи чанка. При закрытии автоматически записывает данные в файл региона.
+	 * Первые 5 байт зарезервированы под заголовок (4 байта длины + 1 байт формата сжатия).
 	 */
 	class ChunkBuffer extends ByteArrayOutputStream {
 
 		private final ChunkPos pos;
 
-		public ChunkBuffer(final ChunkPos pos) {
+		public ChunkBuffer(ChunkPos pos) {
 			super(8096);
+			// Резервируем место под заголовок: 4 байта длины + 1 байт ID формата сжатия
 			super.write(0);
 			super.write(0);
 			super.write(0);
@@ -463,22 +486,20 @@ public class RegionFile implements AutoCloseable {
 
 		@Override
 		public void close() throws IOException {
-			ByteBuffer byteBuffer = ByteBuffer.wrap(this.buf, 0, this.count);
-			int i = this.count - 5 + 1;
+			ByteBuffer byteBuffer = ByteBuffer.wrap(buf, 0, count);
+			// Длина = (count - 5 заголовочных байт) + 1 байт ID формата
+			int payloadLength = count - CHUNK_HEADER_BYTE_SIZE + 1;
 			FlightProfiler.INSTANCE.onChunkRegionWrite(
-					RegionFile.this.storageKey,
-					this.pos,
-					RegionFile.this.compressionFormat,
-					i
+				RegionFile.this.storageKey,
+				pos,
+				RegionFile.this.compressionFormat,
+				payloadLength
 			);
-			byteBuffer.putInt(0, i);
-			RegionFile.this.writeChunk(this.pos, byteBuffer);
+			byteBuffer.putInt(0, payloadLength);
+			RegionFile.this.writeChunk(pos, byteBuffer);
 		}
 	}
 
-	/**
-	 * {@code OutputAction}.
-	 */
 	interface OutputAction {
 
 		void run() throws IOException;

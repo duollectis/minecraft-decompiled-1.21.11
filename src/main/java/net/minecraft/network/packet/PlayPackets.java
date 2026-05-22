@@ -8,7 +8,8 @@ import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.Identifier;
 
 /**
- * Класс play packets.
+ * Реестр типов пакетов фазы {@code PLAY}: все игровые пакеты — сущности,
+ * чанки, инвентарь, чат, мир, UI, отладка и управление состоянием.
  */
 public class PlayPackets {
 

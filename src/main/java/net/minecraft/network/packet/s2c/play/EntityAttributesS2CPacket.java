@@ -20,7 +20,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Класс entity attributes s2 c packet.
+ * Пакет сервер→клиент для синхронизации атрибутов сущности (здоровье, скорость, урон и т.д.).
+ * Отправляется при изменении базового значения или модификаторов атрибута.
  */
 public class EntityAttributesS2CPacket implements Packet<ClientPlayPacketListener> {
 
@@ -60,11 +61,6 @@ public class EntityAttributesS2CPacket implements Packet<ClientPlayPacketListene
 		return PlayPackets.UPDATE_ATTRIBUTES;
 	}
 
-	/**
-	 * Apply.
-	 *
-	 * @param clientPlayPacketListener client play packet listener
-	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityAttributes(this);
 	}
@@ -77,9 +73,6 @@ public class EntityAttributesS2CPacket implements Packet<ClientPlayPacketListene
 		return this.entries;
 	}
 
-	/**
-	 * Запись entry.
-	 */
 	public record Entry(
 			RegistryEntry<EntityAttribute> attribute,
 			double base,

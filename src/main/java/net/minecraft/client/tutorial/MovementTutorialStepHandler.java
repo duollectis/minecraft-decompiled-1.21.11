@@ -59,7 +59,7 @@ public class MovementTutorialStepHandler implements TutorialStepHandler {
 			this.lookedAroundLastTick = false;
 		}
 
-		if (this.moveAroundCompletionTicks == -1 && this.movedTicks > 40) {
+		if (this.moveAroundCompletionTicks == -1 && this.movedTicks > MOVE_COMPLETION_TICKS) {
 			if (this.moveToast != null) {
 				this.moveToast.hide();
 				this.moveToast = null;
@@ -68,7 +68,7 @@ public class MovementTutorialStepHandler implements TutorialStepHandler {
 			this.moveAroundCompletionTicks = this.ticks;
 		}
 
-		if (this.lookAroundCompletionTicks == -1 && this.lookedAroundTicks > 40) {
+		if (this.lookAroundCompletionTicks == -1 && this.lookedAroundTicks > LOOK_COMPLETION_TICKS) {
 			if (this.lookAroundToast != null) {
 				this.lookAroundToast.hide();
 				this.lookAroundToast = null;
@@ -94,7 +94,7 @@ public class MovementTutorialStepHandler implements TutorialStepHandler {
 			this.lookAroundToast.setProgress(this.lookedAroundTicks / 40.0F);
 		}
 
-		if (this.ticks >= 100) {
+		if (this.ticks >= TOAST_SHOW_DELAY_TICKS) {
 			MinecraftClient minecraftClient = this.manager.getClient();
 			if (this.moveAroundCompletionTicks == -1 && this.moveToast == null) {
 				this.moveToast =
@@ -108,7 +108,7 @@ public class MovementTutorialStepHandler implements TutorialStepHandler {
 				minecraftClient.getToastManager().add(this.moveToast);
 			}
 			else if (this.moveAroundCompletionTicks != -1
-					&& this.ticks - this.moveAroundCompletionTicks >= 20
+					&& this.ticks - this.moveAroundCompletionTicks >= LOOK_TOAST_DELAY_TICKS
 					&& this.lookAroundCompletionTicks == -1
 					&& this.lookAroundToast == null) {
 				this.lookAroundToast =

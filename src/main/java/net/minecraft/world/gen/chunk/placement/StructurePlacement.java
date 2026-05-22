@@ -21,40 +21,40 @@ import net.minecraft.util.math.random.ChunkRandom;
 import java.util.Optional;
 
 /**
- * {@code StructurePlacement}.
+ * Базовый класс стратегии размещения структуры в мире.
+ * Определяет, должна ли структура генерироваться в данном чанке,
+ * с учётом частоты появления, зоны исключения и конкретного алгоритма размещения.
  */
 public abstract class StructurePlacement {
 
 	public static final Codec<StructurePlacement> TYPE_CODEC = Registries.STRUCTURE_PLACEMENT
 			.getCodec()
 			.dispatch(StructurePlacement::getType, StructurePlacementType::codec);
+
+	// Соль для устаревшего алгоритма LEGACY_TYPE_2 — фиксированное значение из оригинального кода.
 	private static final int ARBITRARY_SALT = 10387320;
+
 	private final Vec3i locateOffset;
-	private final StructurePlacement.FrequencyReductionMethod frequencyReductionMethod;
+	private final FrequencyReductionMethod frequencyReductionMethod;
 	private final float frequency;
 	private final int salt;
-	private final Optional<StructurePlacement.ExclusionZone> exclusionZone;
+	private final Optional<ExclusionZone> exclusionZone;
 
-	protected static <S extends StructurePlacement> P5<Mu<S>, Vec3i, StructurePlacement.FrequencyReductionMethod, Float, Integer, Optional<StructurePlacement.ExclusionZone>> buildCodec(
+	protected static <S extends StructurePlacement> P5<Mu<S>, Vec3i, FrequencyReductionMethod, Float, Integer, Optional<ExclusionZone>> buildCodec(
 			Instance<S> instance
 	) {
 		return instance.group(
-				Vec3i
-						.createOffsetCodec(16)
-						.optionalFieldOf("locate_offset", Vec3i.ZERO)
-						.forGetter(StructurePlacement::getLocateOffset),
-				StructurePlacement.FrequencyReductionMethod.CODEC
-						.optionalFieldOf(
-								"frequency_reduction_method",
-								StructurePlacement.FrequencyReductionMethod.DEFAULT
-						)
+				Vec3i.createOffsetCodec(16)
+				     .optionalFieldOf("locate_offset", Vec3i.ZERO)
+				     .forGetter(StructurePlacement::getLocateOffset),
+				FrequencyReductionMethod.CODEC
+						.optionalFieldOf("frequency_reduction_method", FrequencyReductionMethod.DEFAULT)
 						.forGetter(StructurePlacement::getFrequencyReductionMethod),
-				Codec
-						.floatRange(0.0F, 1.0F)
-						.optionalFieldOf("frequency", 1.0F)
-						.forGetter(StructurePlacement::getFrequency),
+				Codec.floatRange(0.0F, 1.0F)
+				     .optionalFieldOf("frequency", 1.0F)
+				     .forGetter(StructurePlacement::getFrequency),
 				Codecs.NON_NEGATIVE_INT.fieldOf("salt").forGetter(StructurePlacement::getSalt),
-				StructurePlacement.ExclusionZone.CODEC
+				ExclusionZone.CODEC
 						.optionalFieldOf("exclusion_zone")
 						.forGetter(StructurePlacement::getExclusionZone)
 		);
@@ -62,10 +62,10 @@ public abstract class StructurePlacement {
 
 	protected StructurePlacement(
 			Vec3i locateOffset,
-			StructurePlacement.FrequencyReductionMethod frequencyReductionMethod,
+			FrequencyReductionMethod frequencyReductionMethod,
 			float frequency,
 			int salt,
-			Optional<StructurePlacement.ExclusionZone> exclusionZone
+			Optional<ExclusionZone> exclusionZone
 	) {
 		this.locateOffset = locateOffset;
 		this.frequencyReductionMethod = frequencyReductionMethod;
@@ -75,181 +75,147 @@ public abstract class StructurePlacement {
 	}
 
 	protected Vec3i getLocateOffset() {
-		return this.locateOffset;
+		return locateOffset;
 	}
 
-	protected StructurePlacement.FrequencyReductionMethod getFrequencyReductionMethod() {
-		return this.frequencyReductionMethod;
+	protected FrequencyReductionMethod getFrequencyReductionMethod() {
+		return frequencyReductionMethod;
 	}
 
 	protected float getFrequency() {
-		return this.frequency;
+		return frequency;
 	}
 
 	protected int getSalt() {
-		return this.salt;
+		return salt;
 	}
 
-	protected Optional<StructurePlacement.ExclusionZone> getExclusionZone() {
-		return this.exclusionZone;
+	protected Optional<ExclusionZone> getExclusionZone() {
+		return exclusionZone;
 	}
 
 	/**
-	 * Определяет, следует ли generate.
-	 *
-	 * @param calculator calculator
-	 * @param chunkX chunk x
-	 * @param chunkZ chunk z
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, должна ли структура генерироваться в чанке {@code (chunkX, chunkZ)}.
+	 * Последовательно применяет: проверку стартового чанка, снижение частоты и зону исключения.
 	 */
 	public boolean shouldGenerate(StructurePlacementCalculator calculator, int chunkX, int chunkZ) {
-		return this.isStartChunk(calculator, chunkX, chunkZ)
-				&& this.applyFrequencyReduction(chunkX, chunkZ, calculator.getStructureSeed())
-				&& this.applyExclusionZone(calculator, chunkX, chunkZ);
+		return isStartChunk(calculator, chunkX, chunkZ)
+				&& applyFrequencyReduction(chunkX, chunkZ, calculator.getStructureSeed())
+				&& applyExclusionZone(calculator, chunkX, chunkZ);
 	}
 
 	/**
-	 * Применяет frequency reduction.
-	 *
-	 * @param chunkX chunk x
-	 * @param chunkZ chunk z
-	 * @param seed seed
-	 *
-	 * @return boolean — результат операции
+	 * Применяет снижение частоты появления структуры.
+	 * Если частота равна 1.0, проверка пропускается — структура всегда проходит.
 	 */
 	public boolean applyFrequencyReduction(int chunkX, int chunkZ, long seed) {
-		return !(this.frequency < 1.0F) || this.frequencyReductionMethod.shouldGenerate(
-				seed,
-				this.salt,
-				chunkX,
-				chunkZ,
-				this.frequency
-		);
+		return frequency >= 1.0F || frequencyReductionMethod.shouldGenerate(seed, salt, chunkX, chunkZ, frequency);
 	}
 
 	/**
-	 * Применяет exclusion zone.
-	 *
-	 * @param calculator calculator
-	 * @param centerChunkX center chunk x
-	 * @param centerChunkZ center chunk z
-	 *
-	 * @return boolean — результат операции
+	 * Проверяет, не попадает ли чанк в зону исключения другого набора структур.
 	 */
 	public boolean applyExclusionZone(StructurePlacementCalculator calculator, int centerChunkX, int centerChunkZ) {
-		return !this.exclusionZone.isPresent() || !this.exclusionZone
-				.get()
-				.shouldExclude(calculator, centerChunkX, centerChunkZ);
+		return exclusionZone.isEmpty()
+				|| !exclusionZone.get().shouldExclude(calculator, centerChunkX, centerChunkZ);
 	}
 
 	protected abstract boolean isStartChunk(StructurePlacementCalculator calculator, int chunkX, int chunkZ);
 
 	public BlockPos getLocatePos(ChunkPos chunkPos) {
-		return new BlockPos(chunkPos.getStartX(), 0, chunkPos.getStartZ()).add(this.getLocateOffset());
+		return new BlockPos(chunkPos.getStartX(), 0, chunkPos.getStartZ()).add(getLocateOffset());
 	}
 
 	public abstract StructurePlacementType<?> getType();
 
 	private static boolean defaultShouldGenerate(long seed, int salt, int chunkX, int chunkZ, float frequency) {
-		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(0L));
-		chunkRandom.setRegionSeed(seed, salt, chunkX, chunkZ);
-		return chunkRandom.nextFloat() < frequency;
+		ChunkRandom random = new ChunkRandom(new CheckedRandom(0L));
+		random.setRegionSeed(seed, salt, chunkX, chunkZ);
+		return random.nextFloat() < frequency;
 	}
 
 	private static boolean legacyType3ShouldGenerate(long seed, int salt, int chunkX, int chunkZ, float frequency) {
-		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(0L));
-		chunkRandom.setCarverSeed(seed, chunkX, chunkZ);
-		return chunkRandom.nextDouble() < frequency;
+		ChunkRandom random = new ChunkRandom(new CheckedRandom(0L));
+		random.setCarverSeed(seed, chunkX, chunkZ);
+		return random.nextDouble() < frequency;
 	}
 
 	private static boolean legacyType2ShouldGenerate(long seed, int salt, int chunkX, int chunkZ, float frequency) {
-		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(0L));
-		chunkRandom.setRegionSeed(seed, chunkX, chunkZ, 10387320);
-		return chunkRandom.nextFloat() < frequency;
+		ChunkRandom random = new ChunkRandom(new CheckedRandom(0L));
+		random.setRegionSeed(seed, chunkX, chunkZ, ARBITRARY_SALT);
+		return random.nextFloat() < frequency;
 	}
 
 	private static boolean legacyType1ShouldGenerate(long seed, int salt, int chunkX, int chunkZ, float frequency) {
-		int i = chunkX >> 4;
-		int j = chunkZ >> 4;
-		ChunkRandom chunkRandom = new ChunkRandom(new CheckedRandom(0L));
-		chunkRandom.setSeed(i ^ j << 4 ^ seed);
-		chunkRandom.nextInt();
-		return chunkRandom.nextInt((int) (1.0F / frequency)) == 0;
+		int regionX = chunkX >> 4;
+		int regionZ = chunkZ >> 4;
+		ChunkRandom random = new ChunkRandom(new CheckedRandom(0L));
+		random.setSeed(regionX ^ regionZ << 4 ^ seed);
+		random.nextInt();
+		return random.nextInt((int) (1.0F / frequency)) == 0;
 	}
 
-	@Deprecated
 	/**
-	 * {@code ExclusionZone}.
+	 * Зона исключения: запрещает генерацию данной структуры, если в радиусе {@code chunkCount}
+	 * чанков уже может генерироваться структура из {@code otherSet}.
+	 * Помечена как {@code @Deprecated} — механизм устарел и может быть удалён в будущем.
 	 */
+	@Deprecated
 	public record ExclusionZone(RegistryEntry<StructureSet> otherSet, int chunkCount) {
 
-		public static final Codec<StructurePlacement.ExclusionZone> CODEC = RecordCodecBuilder.create(
+		public static final Codec<ExclusionZone> CODEC = RecordCodecBuilder.create(
 				instance -> instance.group(
-						                    RegistryElementCodec.of(RegistryKeys.STRUCTURE_SET, StructureSet.CODEC, false)
-						                                        .fieldOf("other_set")
-						                                        .forGetter(StructurePlacement.ExclusionZone::otherSet),
-						                    Codec
-								                    .intRange(1, 16)
-								                    .fieldOf("chunk_count")
-								                    .forGetter(StructurePlacement.ExclusionZone::chunkCount)
-				                    )
-				                    .apply(instance, StructurePlacement.ExclusionZone::new)
+						RegistryElementCodec.of(RegistryKeys.STRUCTURE_SET, StructureSet.CODEC, false)
+						                    .fieldOf("other_set")
+						                    .forGetter(ExclusionZone::otherSet),
+						Codec.intRange(1, 16)
+						     .fieldOf("chunk_count")
+						     .forGetter(ExclusionZone::chunkCount)
+				).apply(instance, ExclusionZone::new)
 		);
 
 		boolean shouldExclude(StructurePlacementCalculator calculator, int centerChunkX, int centerChunkZ) {
-			return calculator.canGenerate(this.otherSet, centerChunkX, centerChunkZ, this.chunkCount);
+			return calculator.canGenerate(otherSet, centerChunkX, centerChunkZ, chunkCount);
 		}
 	}
 
 	/**
-	 * {@code FrequencyReductionMethod}.
+	 * Метод снижения частоты появления структуры.
+	 * Разные варианты используют разные алгоритмы генерации случайных чисел
+	 * для обратной совместимости с историческими версиями мира.
 	 */
-	public static enum FrequencyReductionMethod implements StringIdentifiable {
+	public enum FrequencyReductionMethod implements StringIdentifiable {
 		DEFAULT("default", StructurePlacement::defaultShouldGenerate),
 		LEGACY_TYPE_1("legacy_type_1", StructurePlacement::legacyType1ShouldGenerate),
 		LEGACY_TYPE_2("legacy_type_2", StructurePlacement::legacyType2ShouldGenerate),
 		LEGACY_TYPE_3("legacy_type_3", StructurePlacement::legacyType3ShouldGenerate);
 
-		public static final Codec<StructurePlacement.FrequencyReductionMethod> CODEC = StringIdentifiable.createCodec(
-				StructurePlacement.FrequencyReductionMethod::values
+		public static final Codec<FrequencyReductionMethod> CODEC = StringIdentifiable.createCodec(
+				FrequencyReductionMethod::values
 		);
-		private final String name;
-		private final StructurePlacement.GenerationPredicate generationPredicate;
 
-		private FrequencyReductionMethod(
-				final String name,
-				final StructurePlacement.GenerationPredicate generationPredicate
-		) {
+		private final String name;
+		private final GenerationPredicate generationPredicate;
+
+		FrequencyReductionMethod(String name, GenerationPredicate generationPredicate) {
 			this.name = name;
 			this.generationPredicate = generationPredicate;
 		}
 
-		/**
-		 * Определяет, следует ли generate.
-		 *
-		 * @param seed seed
-		 * @param salt salt
-		 * @param chunkX chunk x
-		 * @param chunkZ chunk z
-		 * @param chance chance
-		 *
-		 * @return boolean — результат операции
-		 */
 		public boolean shouldGenerate(long seed, int salt, int chunkX, int chunkZ, float chance) {
-			return this.generationPredicate.shouldGenerate(seed, salt, chunkX, chunkZ, chance);
+			return generationPredicate.shouldGenerate(seed, salt, chunkX, chunkZ, chance);
 		}
 
 		@Override
 		public String asString() {
-			return this.name;
+			return name;
 		}
 	}
 
-	@FunctionalInterface
 	/**
-	 * {@code GenerationPredicate}.
+	 * Предикат, определяющий, должна ли структура генерироваться с заданной вероятностью.
 	 */
+	@FunctionalInterface
 	public interface GenerationPredicate {
 
 		boolean shouldGenerate(long seed, int salt, int chunkX, int chunkZ, float chance);

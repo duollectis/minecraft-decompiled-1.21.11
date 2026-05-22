@@ -31,7 +31,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code PistonExtensionBlock}.
+ * Блок-заглушка движущегося поршня ({@code minecraft:moving_piston}).
+ * Не имеет собственной блок-сущности — вместо этого делегирует всё {@link PistonBlockEntity},
+ * которая управляет анимацией и хранит состояние перемещаемого блока.
  */
 public class PistonExtensionBlock extends BlockWithEntity {
 
@@ -46,7 +48,7 @@ public class PistonExtensionBlock extends BlockWithEntity {
 
 	public PistonExtensionBlock(AbstractBlock.Settings settings) {
 		super(settings);
-		this.setDefaultState(this.stateManager
+		setDefaultState(stateManager
 				.getDefaultState()
 				.with(FACING, Direction.NORTH)
 				.with(TYPE, PistonType.DEFAULT));
@@ -83,25 +85,24 @@ public class PistonExtensionBlock extends BlockWithEntity {
 
 	@Override
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-		if (!world.isClient() && world.getBlockEntity(pos) == null) {
+		if (world.isClient() == false && world.getBlockEntity(pos) == null) {
 			world.removeBlock(pos, false);
 			return ActionResult.CONSUME;
 		}
-		else {
-			return ActionResult.PASS;
-		}
+
+		return ActionResult.PASS;
 	}
 
 	@Override
 	protected List<ItemStack> getDroppedStacks(BlockState state, LootWorldContext.Builder builder) {
-		PistonBlockEntity
-				pistonBlockEntity =
-				this.getPistonBlockEntity(
-						builder.getWorld(),
-						BlockPos.ofFloored(builder.get(LootContextParameters.ORIGIN))
-				);
-		return pistonBlockEntity == null ? Collections.emptyList()
-		                                 : pistonBlockEntity.getPushedBlock().getDroppedStacks(builder);
+		PistonBlockEntity pistonEntity = getPistonBlockEntity(
+				builder.getWorld(),
+				BlockPos.ofFloored(builder.get(LootContextParameters.ORIGIN))
+		);
+
+		return pistonEntity == null
+				? Collections.emptyList()
+				: pistonEntity.getPushedBlock().getDroppedStacks(builder);
 	}
 
 	@Override
@@ -111,13 +112,13 @@ public class PistonExtensionBlock extends BlockWithEntity {
 
 	@Override
 	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-		PistonBlockEntity pistonBlockEntity = this.getPistonBlockEntity(world, pos);
-		return pistonBlockEntity != null ? pistonBlockEntity.getCollisionShape(world, pos) : VoxelShapes.empty();
+		PistonBlockEntity pistonEntity = getPistonBlockEntity(world, pos);
+		return pistonEntity != null ? pistonEntity.getCollisionShape(world, pos) : VoxelShapes.empty();
 	}
 
 	private @Nullable PistonBlockEntity getPistonBlockEntity(BlockView world, BlockPos pos) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
-		return blockEntity instanceof PistonBlockEntity ? (PistonBlockEntity) blockEntity : null;
+		return blockEntity instanceof PistonBlockEntity pistonEntity ? pistonEntity : null;
 	}
 
 	@Override

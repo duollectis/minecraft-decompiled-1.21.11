@@ -4,10 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.Style;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code EmptyGlyphRect}.
+ * Прямоугольная область пустого (невидимого) глифа.
+ * Используется для hit-testing при обработке кликов и наведения мыши
+ * на символы, у которых нет визуального представления (пробелы и т.п.).
  */
+@Environment(EnvType.CLIENT)
 public record EmptyGlyphRect(
 		float x,
 		float y,
@@ -17,26 +19,29 @@ public record EmptyGlyphRect(
 		Style style
 ) implements GlyphRect {
 
+	/** Стандартная высота строки в пикселях. */
 	public static final float DEFAULT_HEIGHT = 9.0F;
+
+	/** Стандартный подъём (ascent) в пикселях. */
 	public static final float DEFAULT_ASCENT = 7.0F;
 
 	@Override
 	public float getLeft() {
-		return this.x;
+		return x;
 	}
 
 	@Override
 	public float getTop() {
-		return this.y + 7.0F - this.ascent;
+		return y + DEFAULT_ASCENT - ascent;
 	}
 
 	@Override
 	public float getRight() {
-		return this.x + this.advance;
+		return x + advance;
 	}
 
 	@Override
 	public float getBottom() {
-		return this.getTop() + this.height;
+		return getTop() + height;
 	}
 }

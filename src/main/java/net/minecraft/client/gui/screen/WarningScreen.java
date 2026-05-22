@@ -6,10 +6,10 @@ import net.minecraft.client.gui.widget.*;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WarningScreen}.
+ * Базовый класс для экранов предупреждений с прокручиваемым текстом и опциональным чекбоксом.
  */
+@Environment(EnvType.CLIENT)
 public abstract class WarningScreen extends Screen {
 
 	private static final int CONTENT_WIDTH = 100;
@@ -29,58 +29,53 @@ public abstract class WarningScreen extends Screen {
 		this.messageText = messageText;
 		this.checkMessage = checkMessage;
 		this.narratedText = narratedText;
-		this.positioningWidget = new SimplePositioningWidget(0, 0, this.width, this.height);
+		positioningWidget = new SimplePositioningWidget(0, 0, width, height);
 	}
 
 	protected abstract LayoutWidget getLayout();
 
 	@Override
 	protected void init() {
-		DirectionalLayoutWidget
-				directionalLayoutWidget =
-				this.positioningWidget.add(DirectionalLayoutWidget.vertical().spacing(8));
-		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter();
-		directionalLayoutWidget.add(new TextWidget(this.getTitle(), this.textRenderer));
-		this.textWidget = directionalLayoutWidget.add(
+		DirectionalLayoutWidget contentLayout = positioningWidget.add(DirectionalLayoutWidget.vertical().spacing(8));
+		contentLayout.getMainPositioner().alignHorizontalCenter();
+		contentLayout.add(new TextWidget(getTitle(), textRenderer));
+		textWidget = contentLayout.add(
 				new ScrollableTextWidget(
 						0,
 						0,
-						this.width - 100,
-						this.height - 100,
-						this.messageText,
-						this.textRenderer
+						width - CONTENT_WIDTH,
+						height - CONTENT_WIDTH,
+						messageText,
+						textRenderer
 				), positioner -> positioner.margin(12)
 		);
-		DirectionalLayoutWidget
-				directionalLayoutWidget2 =
-				directionalLayoutWidget.add(DirectionalLayoutWidget.vertical().spacing(8));
-		directionalLayoutWidget2.getMainPositioner().alignHorizontalCenter();
-		if (this.checkMessage != null) {
-			this.checkbox =
-					directionalLayoutWidget2.add(CheckboxWidget.builder(this.checkMessage, this.textRenderer).build());
+
+		DirectionalLayoutWidget bottomLayout = contentLayout.add(DirectionalLayoutWidget.vertical().spacing(8));
+		bottomLayout.getMainPositioner().alignHorizontalCenter();
+
+		if (checkMessage != null) {
+			checkbox = bottomLayout.add(CheckboxWidget.builder(checkMessage, textRenderer).build());
 		}
 
-		directionalLayoutWidget2.add(this.getLayout());
-		this.positioningWidget.forEachChild(child -> {
-			ClickableWidget var10000 = this.addDrawableChild(child);
-		});
-		this.refreshWidgetPositions();
+		bottomLayout.add(getLayout());
+		positioningWidget.forEachChild(this::addDrawableChild);
+		refreshWidgetPositions();
 	}
 
 	@Override
 	protected void refreshWidgetPositions() {
-		if (this.textWidget != null) {
-			this.textWidget.setWidth(this.width - 100);
-			this.textWidget.setHeight(this.height - 100);
-			this.textWidget.updateHeight();
+		if (textWidget != null) {
+			textWidget.setWidth(width - CONTENT_WIDTH);
+			textWidget.setHeight(height - CONTENT_WIDTH);
+			textWidget.updateHeight();
 		}
 
-		this.positioningWidget.refreshPositions();
-		SimplePositioningWidget.setPos(this.positioningWidget, this.getNavigationFocus());
+		positioningWidget.refreshPositions();
+		SimplePositioningWidget.setPos(positioningWidget, getNavigationFocus());
 	}
 
 	@Override
 	public Text getNarratedTitle() {
-		return this.narratedText;
+		return narratedText;
 	}
 }

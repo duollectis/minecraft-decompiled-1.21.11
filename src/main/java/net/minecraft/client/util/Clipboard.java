@@ -13,63 +13,62 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 @Environment(EnvType.CLIENT)
-/**
- * {@code Clipboard}.
- */
 public class Clipboard {
 
 	public static final int GLFW_FORMAT_UNAVAILABLE = 65545;
-	private final ByteBuffer clipboardBuffer = BufferUtils.createByteBuffer(8192);
+
+	private static final int CLIPBOARD_BUFFER_CAPACITY = 8192;
+
+	private final ByteBuffer clipboardBuffer = BufferUtils.createByteBuffer(CLIPBOARD_BUFFER_CAPACITY);
 
 	/**
-	 * Get.
+	 * Читает текст из системного буфера обмена.
+	 * Временно подменяет GLFW-коллбэк ошибок на переданный, чтобы перехватить
+	 * ошибку {@code GLFW_FORMAT_UNAVAILABLE} без крэша.
 	 *
-	 * @param window window
-	 * @param errorCallback error callback
-	 *
-	 * @return String — 
+	 * @param window        окно, для которого запрашивается буфер обмена
+	 * @param errorCallback коллбэк для обработки ошибок GLFW во время чтения
+	 * @return содержимое буфера обмена или пустая строка, если буфер пуст
 	 */
 	public String get(Window window, GLFWErrorCallbackI errorCallback) {
-		GLFWErrorCallback gLFWErrorCallback = GLFW.glfwSetErrorCallback(errorCallback);
-		String string = GLFW.glfwGetClipboardString(window.getHandle());
-		string = string != null ? TextVisitFactory.validateSurrogates(string) : "";
-		GLFWErrorCallback gLFWErrorCallback2 = GLFW.glfwSetErrorCallback(gLFWErrorCallback);
-		if (gLFWErrorCallback2 != null) {
-			gLFWErrorCallback2.free();
+		GLFWErrorCallback previousCallback = GLFW.glfwSetErrorCallback(errorCallback);
+		String clipboardText = GLFW.glfwGetClipboardString(window.getHandle());
+		String result = clipboardText != null ? TextVisitFactory.validateSurrogates(clipboardText) : "";
+		GLFWErrorCallback restoredCallback = GLFW.glfwSetErrorCallback(previousCallback);
+		if (restoredCallback != null) {
+			restoredCallback.free();
 		}
 
-		return string;
-	}
-
-	private static void set(Window window, ByteBuffer clipboardBuffer, byte[] content) {
-		clipboardBuffer.clear();
-		clipboardBuffer.put(content);
-		clipboardBuffer.put((byte) 0);
-		clipboardBuffer.flip();
-		GLFW.glfwSetClipboardString(window.getHandle(), clipboardBuffer);
+		return result;
 	}
 
 	/**
-	 * Set.
+	 * Записывает текст в системный буфер обмена.
+	 * Для строк, умещающихся в предвыделенный буфер, избегает лишней аллокации.
 	 *
-	 * @param window window
-	 * @param string string
+	 * @param window окно, для которого устанавливается буфер обмена
+	 * @param text   текст для записи
 	 */
-	public void set(Window window, String string) {
-		byte[] bs = string.getBytes(StandardCharsets.UTF_8);
-		int i = bs.length + 1;
-		if (i < this.clipboardBuffer.capacity()) {
-			set(window, this.clipboardBuffer, bs);
-		}
-		else {
-			ByteBuffer byteBuffer = MemoryUtil.memAlloc(i);
-
+	public void set(Window window, String text) {
+		byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+		int requiredSize = bytes.length + 1;
+		if (requiredSize < clipboardBuffer.capacity()) {
+			writeToClipboard(window, clipboardBuffer, bytes);
+		} else {
+			ByteBuffer tempBuffer = MemoryUtil.memAlloc(requiredSize);
 			try {
-				set(window, byteBuffer, bs);
-			}
-			finally {
-				MemoryUtil.memFree(byteBuffer);
+				writeToClipboard(window, tempBuffer, bytes);
+			} finally {
+				MemoryUtil.memFree(tempBuffer);
 			}
 		}
+	}
+
+	private static void writeToClipboard(Window window, ByteBuffer buffer, byte[] content) {
+		buffer.clear();
+		buffer.put(content);
+		buffer.put((byte) 0);
+		buffer.flip();
+		GLFW.glfwSetClipboardString(window.getHandle(), buffer);
 	}
 }

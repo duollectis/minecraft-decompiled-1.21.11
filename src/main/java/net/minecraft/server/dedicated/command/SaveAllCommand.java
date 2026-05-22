@@ -10,7 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
 /**
- * {@code SaveAllCommand}.
+ * Команда {@code /save-all}: принудительное сохранение всех миров (только dedicated).
  */
 public class SaveAllCommand {
 

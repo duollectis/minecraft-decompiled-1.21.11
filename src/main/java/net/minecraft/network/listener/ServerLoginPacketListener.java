@@ -7,7 +7,9 @@ import net.minecraft.network.packet.c2s.login.LoginKeyC2SPacket;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 
 /**
- * Интерфейс server login packet listener.
+ * Слушатель серверных пакетов фазы {@link net.minecraft.network.NetworkPhase#LOGIN}.
+ * Обрабатывает приветствие клиента, ключ шифрования, ответы на запросы плагинов
+ * и переход в фазу конфигурации.
  */
 public interface ServerLoginPacketListener extends ServerCookieResponsePacketListener {
 

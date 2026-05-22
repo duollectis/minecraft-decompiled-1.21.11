@@ -7,16 +7,18 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code AmbientSoundLoops}.
+ * Фоновые звуковые петли, привязанные к состоянию игрока.
+ * Содержит реализации для музыкальных петель и звука под водой.
  */
+@Environment(EnvType.CLIENT)
 public class AmbientSoundLoops {
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code MusicLoop}.
+	 * Однократная музыкальная петля, воспроизводимая пока игрок находится под водой.
+	 * Останавливается при выходе игрока из воды или его удалении из мира.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class MusicLoop extends MovingSoundInstance {
 
 		private final ClientPlayerEntity player;
@@ -24,55 +26,56 @@ public class AmbientSoundLoops {
 		protected MusicLoop(ClientPlayerEntity player, SoundEvent soundEvent) {
 			super(soundEvent, SoundCategory.AMBIENT, SoundInstance.createRandom());
 			this.player = player;
-			this.repeat = false;
-			this.repeatDelay = 0;
-			this.volume = 1.0F;
-			this.relative = true;
+			repeat = false;
+			repeatDelay = 0;
+			volume = 1.0F;
+			relative = true;
 		}
 
 		@Override
 		public void tick() {
-			if (this.player.isRemoved() || !this.player.isSubmergedInWater()) {
-				this.setDone();
+			if (player.isRemoved() || player.isSubmergedInWater() == false) {
+				setDone();
 			}
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Underwater}.
+	 * Зацикленный звук подводного окружения с плавным нарастанием и затуханием громкости.
+	 * Громкость плавно увеличивается при погружении и уменьшается при выходе из воды.
 	 */
+	@Environment(EnvType.CLIENT)
 	public static class Underwater extends MovingSoundInstance {
 
 		public static final int MAX_TRANSITION_TIMER = 40;
+
 		private final ClientPlayerEntity player;
 		private int transitionTimer;
 
 		public Underwater(ClientPlayerEntity player) {
 			super(SoundEvents.AMBIENT_UNDERWATER_LOOP, SoundCategory.AMBIENT, SoundInstance.createRandom());
 			this.player = player;
-			this.repeat = true;
-			this.repeatDelay = 0;
-			this.volume = 1.0F;
-			this.relative = true;
+			repeat = true;
+			repeatDelay = 0;
+			volume = 1.0F;
+			relative = true;
 		}
 
 		@Override
 		public void tick() {
-			if (!this.player.isRemoved() && this.transitionTimer >= 0) {
-				if (this.player.isSubmergedInWater()) {
-					this.transitionTimer++;
-				}
-				else {
-					this.transitionTimer -= 2;
-				}
+			if (player.isRemoved() || transitionTimer < 0) {
+				setDone();
+				return;
+			}
 
-				this.transitionTimer = Math.min(this.transitionTimer, 40);
-				this.volume = Math.max(0.0F, Math.min(this.transitionTimer / 40.0F, 1.0F));
+			if (player.isSubmergedInWater()) {
+				transitionTimer++;
+			} else {
+				transitionTimer -= 2;
 			}
-			else {
-				this.setDone();
-			}
+
+			transitionTimer = Math.min(transitionTimer, MAX_TRANSITION_TIMER);
+			volume = Math.max(0.0F, Math.min(transitionTimer / (float) MAX_TRANSITION_TIMER, 1.0F));
 		}
 	}
 }

@@ -39,7 +39,7 @@ public class GuardianAttackSoundInstance extends MovingSoundInstance {
 			this.z = (float) this.guardian.getZ();
 			float f = this.guardian.getBeamProgress(0.0F);
 			this.volume = 0.0F + 1.0F * f * f;
-			this.pitch = 0.7F + 0.5F * f;
+			this.pitch = BASE_PITCH + 0.5F * f;
 		}
 		else {
 			this.setDone();

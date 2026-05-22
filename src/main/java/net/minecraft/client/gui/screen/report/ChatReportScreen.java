@@ -16,14 +16,16 @@ import net.minecraft.text.Text;
 
 import java.util.UUID;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code ChatReportScreen}.
+ * Экран формы жалобы на сообщения в чате.
+ * Позволяет выбрать конкретные сообщения, указать причину жалобы и добавить комментарий.
  */
+@Environment(EnvType.CLIENT)
 public class ChatReportScreen extends ReportScreen<ChatAbuseReport.Builder> {
 
 	private static final Text TITLE_TEXT = Text.translatable("gui.chatReport.title");
 	private static final Text SELECT_CHAT_TEXT = Text.translatable("gui.chatReport.select_chat");
+
 	private EditBoxWidget commentsBox;
 	private ButtonWidget selectChatButton;
 	private ButtonWidget selectReasonButton;
@@ -42,44 +44,40 @@ public class ChatReportScreen extends ReportScreen<ChatAbuseReport.Builder> {
 
 	@Override
 	protected void addContent() {
-		this.selectChatButton = this.layout
-				.add(
-						ButtonWidget.builder(
-								            SELECT_CHAT_TEXT, button -> this.client.setScreen(new ChatSelectionScreen(
-										            this, this.context, this.reportBuilder, updatedReportBuilder -> {
-									            this.reportBuilder = updatedReportBuilder;
-									            this.onChange();
-								            }
-								            ))
-						            )
-						            .width(280)
-						            .build()
-				);
-		this.selectReasonButton = ButtonWidget.builder(
-				                                      SELECT_REASON_TEXT,
-				                                      button -> this.client.setScreen(new AbuseReportReasonScreen(
-						                                      this, this.reportBuilder.getReason(), AbuseReportType.CHAT, reason -> {
-					                                      this.reportBuilder.setReason(reason);
-					                                      this.onChange();
-				                                      }
-				                                      ))
-		                                      )
-		                                      .width(280)
-		                                      .build();
-		this.layout.add(LayoutWidgets.createLabeledWidget(
-				this.textRenderer,
-				this.selectReasonButton,
-				OBSERVED_WHAT_TEXT
-		));
-		this.commentsBox = this.createCommentsBox(
-				280, 9 * 8, comments -> {
-					this.reportBuilder.setOpinionComments(comments);
-					this.onChange();
+		selectChatButton = layout.add(
+				ButtonWidget.builder(
+						SELECT_CHAT_TEXT,
+						button -> client.setScreen(new ChatSelectionScreen(
+								this, context, reportBuilder, updatedBuilder -> {
+									reportBuilder = updatedBuilder;
+									onChange();
+								}
+						))
+				).width(CONTENT_WIDTH).build()
+		);
+
+		selectReasonButton = ButtonWidget.builder(
+				SELECT_REASON_TEXT,
+				button -> client.setScreen(new AbuseReportReasonScreen(
+						this, reportBuilder.getReason(), AbuseReportType.CHAT, reason -> {
+							reportBuilder.setReason(reason);
+							onChange();
+						}
+				))
+		).width(CONTENT_WIDTH).build();
+
+		layout.add(LayoutWidgets.createLabeledWidget(textRenderer, selectReasonButton, OBSERVED_WHAT_TEXT));
+
+		commentsBox = createCommentsBox(
+				CONTENT_WIDTH, 9 * 8, comments -> {
+					reportBuilder.setOpinionComments(comments);
+					onChange();
 				}
 		);
-		this.layout.add(LayoutWidgets.createLabeledWidget(
-				this.textRenderer,
-				this.commentsBox,
+
+		layout.add(LayoutWidgets.createLabeledWidget(
+				textRenderer,
+				commentsBox,
 				MORE_COMMENTS_TEXT,
 				positioner -> positioner.marginBottom(12)
 		));
@@ -87,27 +85,21 @@ public class ChatReportScreen extends ReportScreen<ChatAbuseReport.Builder> {
 
 	@Override
 	protected void onChange() {
-		IntSet intSet = this.reportBuilder.getSelectedMessages();
-		if (intSet.isEmpty()) {
-			this.selectChatButton.setMessage(SELECT_CHAT_TEXT);
-		}
-		else {
-			this.selectChatButton.setMessage(Text.translatable("gui.chatReport.selected_chat", intSet.size()));
-		}
+		IntSet selectedMessages = reportBuilder.getSelectedMessages();
+		selectChatButton.setMessage(
+				selectedMessages.isEmpty()
+						? SELECT_CHAT_TEXT
+						: Text.translatable("gui.chatReport.selected_chat", selectedMessages.size())
+		);
 
-		AbuseReportReason abuseReportReason = this.reportBuilder.getReason();
-		if (abuseReportReason != null) {
-			this.selectReasonButton.setMessage(abuseReportReason.getText());
-		}
-		else {
-			this.selectReasonButton.setMessage(SELECT_REASON_TEXT);
-		}
+		AbuseReportReason reason = reportBuilder.getReason();
+		selectReasonButton.setMessage(reason != null ? reason.getText() : SELECT_REASON_TEXT);
 
 		super.onChange();
 	}
 
 	@Override
 	public boolean mouseReleased(Click click) {
-		return super.mouseReleased(click) ? true : this.commentsBox.mouseReleased(click);
+		return super.mouseReleased(click) || commentsBox.mouseReleased(click);
 	}
 }

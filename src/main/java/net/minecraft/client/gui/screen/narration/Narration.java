@@ -9,61 +9,37 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code Narration}.
+ * Иммутабельный контейнер нарративного сообщения, хранящий значение и функцию его преобразования
+ * в строки для синтезатора речи. Поддерживает три источника: строка, {@link Text} и список текстов.
  */
+@Environment(EnvType.CLIENT)
 public class Narration<T> {
+
+	public static final Narration<?> EMPTY = new Narration<>(Unit.INSTANCE, (consumer, text) -> {});
 
 	private final T value;
 	private final BiConsumer<Consumer<String>, T> transformer;
-	public static final Narration<?> EMPTY = new Narration<>(Unit.INSTANCE, (consumer, text) -> {});
 
 	private Narration(T value, BiConsumer<Consumer<String>, T> transformer) {
 		this.value = value;
 		this.transformer = transformer;
 	}
 
-	/**
-	 * String.
-	 *
-	 * @param string string
-	 *
-	 * @return Narration — результат операции
-	 */
 	public static Narration<?> string(String string) {
 		return new Narration<>(string, Consumer::accept);
 	}
 
-	/**
-	 * Text.
-	 *
-	 * @param text text
-	 *
-	 * @return Narration — результат операции
-	 */
 	public static Narration<?> text(Text text) {
-		return new Narration<>(text, (consumer, textx) -> consumer.accept(textx.getString()));
+		return new Narration<>(text, (consumer, t) -> consumer.accept(t.getString()));
 	}
 
-	/**
-	 * Texts.
-	 *
-	 * @param texts texts
-	 *
-	 * @return Narration — результат операции
-	 */
 	public static Narration<?> texts(List<Text> texts) {
-		return new Narration<>(texts, (consumer, textsx) -> texts.stream().map(Text::getString).forEach(consumer));
+		return new Narration<>(texts, (consumer, list) -> list.stream().map(Text::getString).forEach(consumer));
 	}
 
-	/**
-	 * For each sentence.
-	 *
-	 * @param consumer consumer
-	 */
 	public void forEachSentence(Consumer<String> consumer) {
-		this.transformer.accept(consumer, this.value);
+		transformer.accept(consumer, value);
 	}
 
 	@Override
@@ -71,15 +47,17 @@ public class Narration<T> {
 		if (this == o) {
 			return true;
 		}
-		else {
-			return !(o instanceof Narration<?> narration) ? false : narration.transformer == this.transformer
-			                                                        && narration.value.equals(this.value);
+
+		if (o instanceof Narration<?> narration) {
+			return narration.transformer == transformer && narration.value.equals(value);
 		}
+
+		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		int i = this.value.hashCode();
-		return 31 * i + this.transformer.hashCode();
+		int valueHash = value.hashCode();
+		return 31 * valueHash + transformer.hashCode();
 	}
 }

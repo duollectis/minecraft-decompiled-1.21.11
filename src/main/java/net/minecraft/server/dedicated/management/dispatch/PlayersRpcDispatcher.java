@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@code PlayersRpcDispatcher}.
+ * Класс Players Rpc Dispatcher.
  */
 public class PlayersRpcDispatcher {
 
@@ -61,9 +61,6 @@ public class PlayersRpcDispatcher {
 		}
 	}
 
-	/**
-	 * {@code RpcEntry}.
-	 */
 	public record RpcEntry(RpcPlayer player, Optional<RpcKickReason> message) {
 
 		public static final MapCodec<PlayersRpcDispatcher.RpcEntry> CODEC = RecordCodecBuilder.mapCodec(

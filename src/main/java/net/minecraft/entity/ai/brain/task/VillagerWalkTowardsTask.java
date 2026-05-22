@@ -11,9 +11,15 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Optional;
 
 /**
- * {@code VillagerWalkTowardsTask}.
+ * Фабричный класс задачи мозга жителя, идущего к запомненной глобальной позиции (дом, работа, встреча).
+ * При превышении максимального расстояния ищет промежуточную точку через {@link NoPenaltyTargeting};
+ * при исчерпании попыток освобождает тикет POI и запоминает время недостижимости.
  */
 public class VillagerWalkTowardsTask {
+
+	private static final int SEARCH_HORIZONTAL_RANGE = 15;
+	private static final int SEARCH_VERTICAL_RANGE = 7;
+	private static final int MAX_SEARCH_ATTEMPTS = 1000;
 
 	public static SingleTickTask<VillagerEntity> create(
 			MemoryModuleType<GlobalPos> destination, float speed, int completionRange, int maxDistance, int maxRunTime
@@ -27,33 +33,29 @@ public class VillagerWalkTowardsTask {
 				                  .apply(
 						                  context,
 						                  (cantReachWalkTargetSince, walkTarget, destinationResult) -> (world, entity, time) -> {
-							                  GlobalPos globalPos = context.getValue(destinationResult);
-							                  Optional<Long>
-									                  optional =
-									                  context.getOptionalValue(cantReachWalkTargetSince);
-							                  if (globalPos.dimension() == world.getRegistryKey() && (
-									                  !optional.isPresent()
-											                  || world.getTime() - optional.get() <= maxRunTime
-							                  )) {
-								                  if (globalPos.pos().getManhattanDistance(entity.getBlockPos())
-										                  > maxDistance) {
-									                  Vec3d vec3d = null;
-									                  int l = 0;
-									                  int m = 1000;
+							                  GlobalPos destPos = context.getValue(destinationResult);
+							                  Optional<Long> cantReachSince = context.getOptionalValue(cantReachWalkTargetSince);
+							                  boolean sameWorld = destPos.dimension() == world.getRegistryKey();
+							                  boolean notTimedOut = cantReachSince.isEmpty()
+									                  || world.getTime() - cantReachSince.get() <= maxRunTime;
 
-									                  while (vec3d == null || BlockPos
-											                  .ofFloored(vec3d)
-											                  .getManhattanDistance(entity.getBlockPos())
-											                  > maxDistance) {
-										                  vec3d =
-												                  NoPenaltyTargeting.findTo(
-														                  entity,
-														                  15,
-														                  7,
-														                  Vec3d.ofBottomCenter(globalPos.pos()),
-														                  (float) (Math.PI / 2)
-												                  );
-										                  if (++l == 1000) {
+							                  if (sameWorld && notTimedOut) {
+								                  if (destPos.pos().getManhattanDistance(entity.getBlockPos()) > maxDistance) {
+									                  Vec3d targetPos = null;
+									                  int attempts = 0;
+
+									                  while (targetPos == null
+											                  || BlockPos.ofFloored(targetPos).getManhattanDistance(entity.getBlockPos()) > maxDistance
+									                  ) {
+										                  targetPos = NoPenaltyTargeting.findTo(
+												                  entity,
+												                  SEARCH_HORIZONTAL_RANGE,
+												                  SEARCH_VERTICAL_RANGE,
+												                  Vec3d.ofBottomCenter(destPos.pos()),
+												                  (float) (Math.PI / 2)
+										                  );
+
+										                  if (++attempts == MAX_SEARCH_ATTEMPTS) {
 											                  entity.releaseTicketFor(destination);
 											                  destinationResult.forget();
 											                  cantReachWalkTargetSince.remember(time);
@@ -61,22 +63,11 @@ public class VillagerWalkTowardsTask {
 										                  }
 									                  }
 
-									                  walkTarget.remember(new WalkTarget(
-											                  vec3d,
-											                  speed,
-											                  completionRange
-									                  ));
+									                  walkTarget.remember(new WalkTarget(targetPos, speed, completionRange));
+								                  } else if (destPos.pos().getManhattanDistance(entity.getBlockPos()) > completionRange) {
+									                  walkTarget.remember(new WalkTarget(destPos.pos(), speed, completionRange));
 								                  }
-								                  else if (globalPos.pos().getManhattanDistance(entity.getBlockPos())
-										                  > completionRange) {
-									                  walkTarget.remember(new WalkTarget(
-											                  globalPos.pos(),
-											                  speed,
-											                  completionRange
-									                  ));
-								                  }
-							                  }
-							                  else {
+							                  } else {
 								                  entity.releaseTicketFor(destination);
 								                  destinationResult.forget();
 								                  cantReachWalkTargetSince.remember(time);

@@ -4,7 +4,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@code Submitter}.
+ * Интерфейс для асинхронной отправки задач на выполнение.
+ * <p>
+ * Используется в серверной инфраструктуре для делегирования работы
+ * в определённый поток или пул потоков (например, главный серверный поток).
+ * Позволяет безопасно передавать задачи между потоками через {@link java.util.concurrent.CompletableFuture}.
  */
 public interface Submitter {
 

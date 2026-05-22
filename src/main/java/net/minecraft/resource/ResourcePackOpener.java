@@ -13,9 +13,16 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 
 /**
- * {@code ResourcePackOpener}.
+ * Абстрактный открыватель ресурс-паков из файловой системы.
+ * Определяет тип записи (директория или zip-архив) и делегирует открытие
+ * соответствующему методу. Проверяет символические ссылки перед открытием.
+ *
+ * @param <T> тип результата открытия пака
  */
 public abstract class ResourcePackOpener<T> {
+
+	private static final String ZIP_EXTENSION = ".zip";
+	private static final String PACK_META_FILE = "pack.mcmeta";
 
 	private final SymlinkFinder symlinkFinder;
 
@@ -23,43 +30,66 @@ public abstract class ResourcePackOpener<T> {
 		this.symlinkFinder = symlinkFinder;
 	}
 
+	/**
+	 * Открывает пак по указанному пути.
+	 * Разрешает символические ссылки, проверяет их безопасность,
+	 * затем определяет тип (директория или zip) и открывает соответственно.
+	 *
+	 * @param path          путь к паку
+	 * @param foundSymlinks список для записи найденных символических ссылок
+	 * @return открытый пак или {@code null}, если путь не является паком
+	 * @throws IOException при ошибке чтения файловой системы
+	 */
 	public @Nullable T open(Path path, List<SymlinkEntry> foundSymlinks) throws IOException {
-		Path path2 = path;
-
-		BasicFileAttributes basicFileAttributes;
+		BasicFileAttributes attributes;
 		try {
-			basicFileAttributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-		}
-		catch (NoSuchFileException var6) {
+			attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+		} catch (NoSuchFileException ignored) {
 			return null;
 		}
 
-		if (basicFileAttributes.isSymbolicLink()) {
-			this.symlinkFinder.validate(path, foundSymlinks);
+		Path resolvedPath = path;
+		if (attributes.isSymbolicLink()) {
+			symlinkFinder.validate(path, foundSymlinks);
 			if (!foundSymlinks.isEmpty()) {
 				return null;
 			}
 
-			path2 = Files.readSymbolicLink(path);
-			basicFileAttributes = Files.readAttributes(path2, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+			resolvedPath = Files.readSymbolicLink(path);
+			attributes = Files.readAttributes(resolvedPath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
 		}
 
-		if (basicFileAttributes.isDirectory()) {
-			this.symlinkFinder.validateRecursively(path2, foundSymlinks);
+		if (attributes.isDirectory()) {
+			symlinkFinder.validateRecursively(resolvedPath, foundSymlinks);
 			if (!foundSymlinks.isEmpty()) {
 				return null;
 			}
-			else {
-				return !Files.isRegularFile(path2.resolve("pack.mcmeta")) ? null : this.openDirectory(path2);
-			}
+
+			return Files.isRegularFile(resolvedPath.resolve(PACK_META_FILE))
+				? openDirectory(resolvedPath)
+				: null;
 		}
-		else {
-			return basicFileAttributes.isRegularFile() && path2.getFileName().toString().endsWith(".zip")
-			       ? this.openZip(path2) : null;
-		}
+
+		return attributes.isRegularFile() && resolvedPath.getFileName().toString().endsWith(ZIP_EXTENSION)
+			? openZip(resolvedPath)
+			: null;
 	}
 
+	/**
+	 * Открывает пак из zip-архива.
+	 *
+	 * @param path путь к zip-файлу
+	 * @return открытый пак или {@code null}
+	 * @throws IOException при ошибке чтения
+	 */
 	protected abstract @Nullable T openZip(Path path) throws IOException;
 
+	/**
+	 * Открывает пак из директории.
+	 *
+	 * @param path путь к директории
+	 * @return открытый пак или {@code null}
+	 * @throws IOException при ошибке чтения
+	 */
 	protected abstract @Nullable T openDirectory(Path path) throws IOException;
 }

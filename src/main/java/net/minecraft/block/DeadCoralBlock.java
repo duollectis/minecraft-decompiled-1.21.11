@@ -6,7 +6,7 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
 /**
- * {@code DeadCoralBlock}.
+ * Мёртвый коралловый блок — декоративный блок, не требующий воды для существования.
  */
 public class DeadCoralBlock extends AbstractCoralBlock {
 

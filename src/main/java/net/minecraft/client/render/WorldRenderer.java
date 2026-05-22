@@ -84,10 +84,13 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code WorldRenderer}.
+ * Центральный рендерер клиентского мира: управляет отрисовкой чанков, сущностей,
+ * блок-энтити, частиц, погоды, облаков, неба и отладочных оверлеев.
+ * Реализует {@link SynchronousResourceReloader} для перезагрузки при смене ресурс-пака
+ * и {@link AutoCloseable} для освобождения GPU-ресурсов.
  */
+@Environment(EnvType.CLIENT)
 public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable {
 
 	private static final Identifier TRANSPARENCY = Identifier.ofVanilla("transparency");
@@ -547,7 +550,7 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 						this.world.getWorldBorder(),
 						f,
 						vec3d,
-						this.client.options.getClampedViewDistance() * 16,
+						this.client.options.getClampedViewDistance() * SECTION_SIZE,
 						this.worldRenderState.worldBorderRenderState
 				);
 		profiler.pop();
@@ -850,7 +853,7 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 	}
 
 	private void renderWeather(FrameGraphBuilder frameGraphBuilder, GpuBufferSlice gpuBufferSlice) {
-		int i = this.client.options.getClampedViewDistance() * 16;
+		int i = this.client.options.getClampedViewDistance() * SECTION_SIZE;
 		float f = this.client.gameRenderer.getFarPlaneDistance();
 		FramePass framePass = frameGraphBuilder.createPass("weather");
 		if (this.framebufferSet.weatherFramebuffer != null) {
@@ -995,7 +998,7 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		while (iterator.hasNext()) {
 			ChunkBuilder.BuiltChunk builtChunk = (ChunkBuilder.BuiltChunk) iterator.next();
 			List<BlockEntity> list = builtChunk.getCurrentRenderData().getBlockEntities();
-			if (!list.isEmpty() && !(builtChunk.getFadeInProgress(Util.getMeasuringTimeMs()) < 0.3F)) {
+			if (!list.isEmpty() && !(builtChunk.getFadeInProgress(Util.getMeasuringTimeMs()) < CLOUD_ALPHA)) {
 				for (BlockEntity blockEntity : list) {
 					BlockPos blockPos = blockEntity.getPos();
 					SortedSet<BlockBreakingInfo>
@@ -1224,7 +1227,7 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 			}
 
 			this.chunkIndex = this.chunkIndex % this.builtChunks.size();
-			int ix = Math.max(this.builtChunks.size() / 8, 15);
+			int ix = Math.max(this.builtChunks.size() / 8, MIN_TRANSPARENT_SORT_COUNT);
 
 			while (ix-- > 0) {
 				int j = this.chunkIndex++ % this.builtChunks.size();
@@ -1806,7 +1809,7 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 	public boolean isRenderingReady(BlockPos pos) {
 		ChunkBuilder.BuiltChunk builtChunk = this.chunks.getRenderedChunk(pos);
 		return builtChunk != null && builtChunk.currentRenderData.get() != ChunkRenderData.HIDDEN
-		       ? builtChunk.getFadeInProgress(Util.getMeasuringTimeMs()) >= 0.3F
+		       ? builtChunk.getFadeInProgress(Util.getMeasuringTimeMs()) >= CLOUD_ALPHA
 		       : false;
 	}
 
@@ -1895,7 +1898,9 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 
 	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code Gizmos}.
+	 * Пара отрисовщиков отладочных примитивов (gizmo) для текущего кадра.
+	 * {@code standardPrimitives} рисуется с учётом глубины сцены,
+	 * {@code alwaysOnTopPrimitives} — поверх всей геометрии, игнорируя окклюзию.
 	 */
 	record Gizmos(GizmoDrawerImpl standardPrimitives, GizmoDrawerImpl alwaysOnTopPrimitives) {
 	}

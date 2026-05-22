@@ -53,7 +53,7 @@ public abstract class SampleEvent {
 	 */
 	public boolean shouldSample() {
 		return this.enabled && this.lastSampleTime != null
-				&& Duration.between(this.lastSampleTime, Instant.now()).toMillis() > 60000L;
+				&& Duration.between(this.lastSampleTime, Instant.now()).toMillis() > INTERVAL_IN_MILLIS;
 	}
 
 	/**
@@ -62,7 +62,7 @@ public abstract class SampleEvent {
 	 * @return boolean — результат операции
 	 */
 	public boolean shouldSend() {
-		return this.sampleCount >= 10;
+		return this.sampleCount >= BATCH_SIZE;
 	}
 
 	/**

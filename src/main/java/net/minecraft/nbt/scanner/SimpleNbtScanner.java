@@ -3,7 +3,13 @@ package net.minecraft.nbt.scanner;
 import net.minecraft.nbt.NbtType;
 
 /**
- * {@code SimpleNbtScanner}.
+ * Базовая реализация {@link NbtScanner}, которая по умолчанию пропускает все элементы.
+ * <p>
+ * Все методы возвращают {@link NbtScanner.Result#CONTINUE} или {@link NbtScanner.NestedResult#SKIP},
+ * что означает «ничего не делать, продолжить обход».
+ * Подклассы переопределяют только те методы, которые им нужны.
+ * <p>
+ * Константа {@link #NOOP} — готовый экземпляр-заглушка для случаев, когда сканирование не нужно.
  */
 public interface SimpleNbtScanner extends NbtScanner {
 

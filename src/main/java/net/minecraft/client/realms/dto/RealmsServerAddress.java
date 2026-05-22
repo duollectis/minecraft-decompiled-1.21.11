@@ -10,10 +10,11 @@ import net.minecraft.client.realms.ServiceQuality;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code RealmsServerAddress}.
+ * DTO адреса сервера Realms для подключения.
+ * Содержит адрес, опциональный ресурс-пак и данные региона текущей сессии.
  */
+@Environment(EnvType.CLIENT)
 public record RealmsServerAddress(
 		@SerializedName("address") @Nullable String address,
 		@SerializedName("resourcePackUrl") @Nullable String resourcePackUrl,
@@ -25,34 +26,33 @@ public record RealmsServerAddress(
 	private static final RealmsServerAddress NULL = new RealmsServerAddress(null, null, null, null);
 
 	/**
-	 * Parse.
+	 * Парсит адрес сервера из JSON-строки ответа Realms.
+	 * При ошибке возвращает объект с null-полями вместо выброса исключения.
 	 *
-	 * @param gson gson
-	 * @param json json
-	 *
-	 * @return RealmsServerAddress — результат операции
+	 * @param gson настроенный экземпляр Gson
+	 * @param json JSON-строка с данными адреса
+	 * @return распарсенный адрес или {@link #NULL} при ошибке
 	 */
 	public static RealmsServerAddress parse(CheckedGson gson, String json) {
 		try {
-			RealmsServerAddress realmsServerAddress = gson.fromJson(json, RealmsServerAddress.class);
-			if (realmsServerAddress == null) {
+			RealmsServerAddress address = gson.fromJson(json, RealmsServerAddress.class);
+
+			if (address == null) {
 				LOGGER.error("Could not parse RealmsServerAddress: {}", json);
 				return NULL;
 			}
-			else {
-				return realmsServerAddress;
-			}
-		}
-		catch (Exception var3) {
-			LOGGER.error("Could not parse RealmsServerAddress", var3);
+
+			return address;
+		} catch (Exception ex) {
+			LOGGER.error("Could not parse RealmsServerAddress", ex);
 			return NULL;
 		}
 	}
 
-	@Environment(EnvType.CLIENT)
 	/**
-	 * {@code RegionData}.
+	 * Данные региона текущей игровой сессии Realms.
 	 */
+	@Environment(EnvType.CLIENT)
 	public record RegionData(
 			@SerializedName("regionName") @Nullable RealmsRegion region,
 			@SerializedName("serviceQuality") @Nullable ServiceQuality serviceQuality

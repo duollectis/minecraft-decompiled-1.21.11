@@ -12,20 +12,15 @@ import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.mutable.MutableLong;
 
 /**
- * {@code WalkTowardsWaterTask}.
+ * Фабричный класс задачи мозга, направляющей существо к ближайшей воде с берега.
+ * Ищет позицию рядом с блоком воды с твёрдым основанием; повторяет попытку каждые {@code RETRY_DELAY} тиков.
  */
 public class WalkTowardsWaterTask {
 
-	/**
-	 * Create.
-	 *
-	 * @param range range
-	 * @param speed speed
-	 *
-	 * @return Task — результат операции
-	 */
+	private static final long RETRY_DELAY = 40L;
+
 	public static Task<PathAwareEntity> create(int range, float speed) {
-		MutableLong mutableLong = new MutableLong(0L);
+		MutableLong nextUpdateTime = new MutableLong(0L);
 		return TaskTriggerer.task(
 				context -> context.group(
 						                  context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
@@ -38,50 +33,48 @@ public class WalkTowardsWaterTask {
 							                  if (world.getFluidState(entity.getBlockPos()).isIn(FluidTags.WATER)) {
 								                  return false;
 							                  }
-							                  else if (time < mutableLong.longValue()) {
-								                  mutableLong.setValue(time + 40L);
+
+							                  if (time < nextUpdateTime.longValue()) {
+								                  nextUpdateTime.setValue(time + RETRY_DELAY);
 								                  return true;
 							                  }
-							                  else {
-								                  ShapeContext shapeContext = ShapeContext.of(entity);
-								                  BlockPos blockPos = entity.getBlockPos();
-								                  BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-								                  label45:
-								                  for (BlockPos blockPos2 : BlockPos.iterateOutwards(
-										                  blockPos,
-										                  range,
-										                  range,
-										                  range
-								                  )) {
-									                  if ((blockPos2.getX() != blockPos.getX()
-											                  || blockPos2.getZ() != blockPos.getZ()
-									                  )
-											                  && world
-											                  .getBlockState(blockPos2)
-											                  .getCollisionShape(world, blockPos2, shapeContext)
-											                  .isEmpty()
-											                  && !world
-											                  .getBlockState(mutable.set(blockPos2, Direction.DOWN))
-											                  .getCollisionShape(world, blockPos2, shapeContext)
-											                  .isEmpty()) {
-										                  for (Direction direction : Direction.Type.HORIZONTAL) {
-											                  mutable.set(blockPos2, direction);
-											                  if (world.getBlockState(mutable).isAir() && world
-													                  .getBlockState(mutable.move(Direction.DOWN))
-													                  .isOf(Blocks.WATER)) {
-												                  lookTarget.remember(new BlockPosLookTarget(blockPos2));
-												                  walkTarget.remember(new WalkTarget(
-														                  new BlockPosLookTarget(blockPos2), speed, 0));
-												                  break label45;
-											                  }
+							                  ShapeContext shapeCtx = ShapeContext.of(entity);
+							                  BlockPos entityPos = entity.getBlockPos();
+							                  BlockPos.Mutable mutablePos = new BlockPos.Mutable();
+							                  boolean found = false;
+
+							                  outer:
+							                  for (BlockPos candidate : BlockPos.iterateOutwards(entityPos, range, range, range)) {
+								                  if (candidate.getX() == entityPos.getX() && candidate.getZ() == entityPos.getZ()) {
+									                  continue;
+								                  }
+
+								                  boolean candidatePassable = world.getBlockState(candidate)
+								                                                   .getCollisionShape(world, candidate, shapeCtx)
+								                                                   .isEmpty();
+								                  boolean belowSolid = !world.getBlockState(mutablePos.set(candidate, Direction.DOWN))
+								                                             .getCollisionShape(world, candidate, shapeCtx)
+								                                             .isEmpty();
+
+								                  if (candidatePassable && belowSolid) {
+									                  for (Direction direction : Direction.Type.HORIZONTAL) {
+										                  mutablePos.set(candidate, direction);
+
+										                  if (world.getBlockState(mutablePos).isAir()
+												                  && world.getBlockState(mutablePos.move(Direction.DOWN)).isOf(Blocks.WATER)
+										                  ) {
+											                  lookTarget.remember(new BlockPosLookTarget(candidate));
+											                  walkTarget.remember(new WalkTarget(new BlockPosLookTarget(candidate), speed, 0));
+											                  found = true;
+											                  break outer;
 										                  }
 									                  }
 								                  }
-
-								                  mutableLong.setValue(time + 40L);
-								                  return true;
 							                  }
+
+							                  nextUpdateTime.setValue(time + RETRY_DELAY);
+							                  return true;
 						                  }
 				                  )
 		);

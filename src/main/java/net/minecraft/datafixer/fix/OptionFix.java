@@ -7,7 +7,7 @@ import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
 /**
- * {@code OptionFix}.
+ * Исправляет данные в формате DataFixer.
  */
 public class OptionFix extends DataFix {
 
@@ -23,9 +23,9 @@ public class OptionFix extends DataFix {
 	}
 
 	public TypeRewriteRule makeRule() {
-		return this.fixTypeEverywhereTyped(
+		return fixTypeEverywhereTyped(
 				this.name,
-				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				getInputSchema().getType(TypeReferences.OPTIONS),
 				optionsTyped -> optionsTyped.update(
 						DSL.remainderFinder(),
 						optionsDynamic -> optionsDynamic.renameField(this.oldName, this.newName)

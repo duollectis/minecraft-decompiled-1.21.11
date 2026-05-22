@@ -15,7 +15,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code SuggestionProviders}.
+ * Реестр именованных провайдеров подсказок для команд Brigadier.
+ * Провайдеры регистрируются по {@link Identifier} и могут быть сериализованы в NBT/JSON.
+ * {@link #ASK_SERVER} — специальный провайдер, делегирующий подсказки серверу.
  */
 public class SuggestionProviders {
 
@@ -45,20 +47,25 @@ public class SuggestionProviders {
 			)
 	);
 
+	/**
+	 * Регистрирует провайдер подсказок под заданным идентификатором.
+	 * Бросает исключение, если провайдер с таким ID уже зарегистрирован.
+	 */
+	@SuppressWarnings("unchecked")
 	public static <S extends CommandSource> SuggestionProvider<S> register(
 			Identifier id,
 			SuggestionProvider<CommandSource> provider
 	) {
-		SuggestionProvider<CommandSource> suggestionProvider = REGISTRY.putIfAbsent(id, provider);
-		if (suggestionProvider != null) {
+		SuggestionProvider<CommandSource> existing = REGISTRY.putIfAbsent(id, provider);
+		if (existing != null) {
 			throw new IllegalArgumentException(
 					"A command suggestion provider is already registered with the name '" + id + "'");
 		}
-		else {
-			return (SuggestionProvider<S>) new SuggestionProviders.LocalProvider(id, provider);
-		}
+
+		return (SuggestionProvider<S>) new LocalProvider(id, provider);
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <S extends CommandSource> SuggestionProvider<S> cast(SuggestionProvider<CommandSource> suggestionProvider) {
 		return (SuggestionProvider<S>) suggestionProvider;
 	}
@@ -68,12 +75,9 @@ public class SuggestionProviders {
 	}
 
 	public static Identifier computeId(SuggestionProvider<?> provider) {
-		return provider instanceof SuggestionProviders.LocalProvider localProvider ? localProvider.id : ASK_SERVER_ID;
+		return provider instanceof LocalProvider localProvider ? localProvider.id : ASK_SERVER_ID;
 	}
 
-	/**
-	 * {@code LocalProvider}.
-	 */
 	record LocalProvider(
 			Identifier id,
 			SuggestionProvider<CommandSource> provider
@@ -83,7 +87,7 @@ public class SuggestionProviders {
 				CommandContext<CommandSource> context,
 				SuggestionsBuilder builder
 		) throws CommandSyntaxException {
-			return this.provider.getSuggestions(context, builder);
+			return provider.getSuggestions(context, builder);
 		}
 	}
 }

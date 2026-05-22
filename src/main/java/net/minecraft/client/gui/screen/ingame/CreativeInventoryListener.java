@@ -7,10 +7,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerListener;
 
-@Environment(EnvType.CLIENT)
 /**
- * {@code CreativeInventoryListener}.
+ * Слушатель изменений слотов инвентаря в креативном режиме.
+ * Синхронизирует содержимое слотов с сервером через {@code interactionManager}.
  */
+@Environment(EnvType.CLIENT)
 public class CreativeInventoryListener implements ScreenHandlerListener {
 
 	private final MinecraftClient client;
@@ -21,7 +22,7 @@ public class CreativeInventoryListener implements ScreenHandlerListener {
 
 	@Override
 	public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
-		this.client.interactionManager.clickCreativeStack(stack, slotId);
+		client.interactionManager.clickCreativeStack(stack, slotId);
 	}
 
 	@Override

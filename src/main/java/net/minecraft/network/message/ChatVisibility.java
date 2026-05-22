@@ -7,7 +7,8 @@ import net.minecraft.util.function.ValueLists;
 import java.util.function.IntFunction;
 
 /**
- * Перечисление chat visibility.
+ * Настройка видимости чата на стороне клиента.
+ * Передаётся серверу в пакете настроек клиента.
  */
 public enum ChatVisibility {
 	FULL(0, "options.chat.visibility.full"),
@@ -15,18 +16,19 @@ public enum ChatVisibility {
 	HIDDEN(2, "options.chat.visibility.hidden");
 
 	private static final IntFunction<ChatVisibility> BY_ID = ValueLists.createIndexToValueFunction(
-			(ChatVisibility chatVisibility) -> chatVisibility.id, values(), ValueLists.OutOfBoundsHandling.WRAP
+			(ChatVisibility visibility) -> visibility.id, values(), ValueLists.OutOfBoundsHandling.WRAP
 	);
 	public static final Codec<ChatVisibility> CODEC = Codec.INT.xmap(BY_ID::apply, visibility -> visibility.id);
+
 	private final int id;
 	private final Text text;
 
-	private ChatVisibility(final int id, final String translationKey) {
+	ChatVisibility(final int id, final String translationKey) {
 		this.id = id;
 		this.text = Text.translatable(translationKey);
 	}
 
 	public Text getText() {
-		return this.text;
+		return text;
 	}
 }

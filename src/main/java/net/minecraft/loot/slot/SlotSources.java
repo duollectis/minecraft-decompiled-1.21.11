@@ -12,17 +12,14 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * {@code SlotSources}.
+ * Реестр и утилиты для работы с {@link SlotSource}.
+ * Поддерживает инлайн-кодек для {@link GroupSlotSource} (сокращённая JSON-запись в виде массива).
  */
 public interface SlotSources {
 
-	Codec<SlotSource>
-			BASE_CODEC =
-			Registries.SLOT_SOURCE_TYPE.getCodec().dispatch(SlotSource::getCodec, codec -> codec);
+	Codec<SlotSource> BASE_CODEC = Registries.SLOT_SOURCE_TYPE.getCodec().dispatch(SlotSource::getCodec, codec -> codec);
 
-	Codec<SlotSource>
-			CODEC =
-			Codec.lazyInitialized(() -> Codec.withAlternative(BASE_CODEC, GroupSlotSource.INLINE_CODEC));
+	Codec<SlotSource> CODEC = Codec.lazyInitialized(() -> Codec.withAlternative(BASE_CODEC, GroupSlotSource.INLINE_CODEC));
 
 	static MapCodec<? extends SlotSource> registerAndGetDefault(Registry<MapCodec<? extends SlotSource>> registry) {
 		Registry.register(registry, "group", GroupSlotSource.CODEC);
@@ -33,25 +30,32 @@ public interface SlotSources {
 		return Registry.register(registry, "empty", EmptySlotSourceType.CODEC);
 	}
 
+	/**
+	 * Компилирует коллекцию источников слотов в единую функцию конкатенации потоков.
+	 * Оптимизирует частные случаи (0, 1, 2 источника) без создания промежуточных списков.
+	 *
+	 * @param sources коллекция источников слотов
+	 * @return функция, принимающая контекст лута и возвращающая объединённый поток предметов
+	 */
 	static Function<LootContext, ItemStream> concat(Collection<? extends SlotSource> sources) {
-		List<SlotSource> list = List.copyOf(sources);
+		List<SlotSource> frozen = List.copyOf(sources);
 
-		return switch (list.size()) {
+		return switch (frozen.size()) {
 			case 0 -> context -> ItemStream.EMPTY;
-			case 1 -> list.getFirst()::stream;
+			case 1 -> frozen.getFirst()::stream;
 			case 2 -> {
-				SlotSource slotSource = list.get(0);
-				SlotSource slotSource2 = list.get(1);
-				yield context -> ItemStream.concat(slotSource.stream(context), slotSource2.stream(context));
+				SlotSource first = frozen.get(0);
+				SlotSource second = frozen.get(1);
+				yield context -> ItemStream.concat(first.stream(context), second.stream(context));
 			}
 			default -> context -> {
-				List<ItemStream> list2 = new ArrayList<>();
+				List<ItemStream> streams = new ArrayList<>();
 
-				for (SlotSource slotSourcex : list) {
-					list2.add(slotSourcex.stream(context));
+				for (SlotSource source : frozen) {
+					streams.add(source.stream(context));
 				}
 
-				return ItemStream.concat(list2);
+				return ItemStream.concat(streams);
 			};
 		};
 	}

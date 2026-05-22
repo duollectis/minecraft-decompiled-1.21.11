@@ -6,7 +6,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * {@code AdvancementPositioner}.
+ * Реализует алгоритм Рейнгольда–Тилфорда для расстановки узлов дерева достижений.
+ * <p>
+ * Каждый узел хранит вычисленную строку ({@code row}) и глубину ({@code depth}),
+ * которые затем применяются к {@link AdvancementDisplay#setPos} через {@link #apply()}.
  */
 public class AdvancementPositioner {
 
@@ -24,232 +27,208 @@ public class AdvancementPositioner {
 	private float rowOffset;
 
 	public AdvancementPositioner(
-			PlacedAdvancement advancement,
-			@Nullable AdvancementPositioner parent,
-			@Nullable AdvancementPositioner previousSibling,
-			int childrenSize,
-			int depth
+		PlacedAdvancement advancement,
+		@Nullable AdvancementPositioner parent,
+		@Nullable AdvancementPositioner previousSibling,
+		int childrenSize,
+		int depth
 	) {
 		if (advancement.getAdvancement().display().isEmpty()) {
 			throw new IllegalArgumentException("Can't position an invisible advancement!");
 		}
-		else {
-			this.advancement = advancement;
-			this.parent = parent;
-			this.previousSibling = previousSibling;
-			this.childrenSize = childrenSize;
-			this.optionalLast = this;
-			this.depth = depth;
-			this.row = -1.0F;
-			AdvancementPositioner advancementPositioner = null;
 
-			for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
-				advancementPositioner = this.findChildrenRecursively(placedAdvancement, advancementPositioner);
-			}
+		this.advancement = advancement;
+		this.parent = parent;
+		this.previousSibling = previousSibling;
+		this.childrenSize = childrenSize;
+		optionalLast = this;
+		this.depth = depth;
+		row = -1.0F;
+
+		AdvancementPositioner lastChild = null;
+		for (PlacedAdvancement child : advancement.getChildren()) {
+			lastChild = findChildrenRecursively(child, lastChild);
 		}
 	}
 
 	private @Nullable AdvancementPositioner findChildrenRecursively(
-			PlacedAdvancement advancement,
-			@Nullable AdvancementPositioner lastChild
+		PlacedAdvancement advancement,
+		@Nullable AdvancementPositioner lastChild
 	) {
 		if (advancement.getAdvancement().display().isPresent()) {
-			lastChild =
-					new AdvancementPositioner(advancement, this, lastChild, this.children.size() + 1, this.depth + 1);
-			this.children.add(lastChild);
-		}
-		else {
-			for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
-				lastChild = this.findChildrenRecursively(placedAdvancement, lastChild);
+			lastChild = new AdvancementPositioner(advancement, this, lastChild, children.size() + 1, depth + 1);
+			children.add(lastChild);
+		} else {
+			for (PlacedAdvancement child : advancement.getChildren()) {
+				lastChild = findChildrenRecursively(child, lastChild);
 			}
 		}
-
 		return lastChild;
 	}
 
 	private void calculateRecursively() {
-		if (this.children.isEmpty()) {
-			if (this.previousSibling != null) {
-				this.row = this.previousSibling.row + 1.0F;
-			}
-			else {
-				this.row = 0.0F;
-			}
+		if (children.isEmpty()) {
+			row = previousSibling != null ? previousSibling.row + 1.0F : 0.0F;
+			return;
 		}
-		else {
-			AdvancementPositioner advancementPositioner = null;
 
-			for (AdvancementPositioner advancementPositioner2 : this.children) {
-				advancementPositioner2.calculateRecursively();
-				advancementPositioner =
-						advancementPositioner2.onFinishCalculation(
-								advancementPositioner == null ? advancementPositioner2 : advancementPositioner);
-			}
+		AdvancementPositioner last = null;
+		for (AdvancementPositioner child : children) {
+			child.calculateRecursively();
+			last = child.onFinishCalculation(last == null ? child : last);
+		}
 
-			this.onFinishChildrenCalculation();
-			float f = (this.children.get(0).row + this.children.get(this.children.size() - 1).row) / 2.0F;
-			if (this.previousSibling != null) {
-				this.row = this.previousSibling.row + 1.0F;
-				this.relativeRowInSiblings = this.row - f;
-			}
-			else {
-				this.row = f;
-			}
+		onFinishChildrenCalculation();
+
+		float firstRow = children.get(0).row;
+		float lastRow = children.get(children.size() - 1).row;
+		float midRow = (firstRow + lastRow) / 2.0F;
+
+		if (previousSibling != null) {
+			row = previousSibling.row + 1.0F;
+			relativeRowInSiblings = row - midRow;
+		} else {
+			row = midRow;
 		}
 	}
 
 	private float findMinRowRecursively(float deltaRow, int depth, float minRow) {
-		this.row += deltaRow;
+		row += deltaRow;
 		this.depth = depth;
-		if (this.row < minRow) {
-			minRow = this.row;
+		if (row < minRow) {
+			minRow = row;
 		}
-
-		for (AdvancementPositioner advancementPositioner : this.children) {
-			minRow =
-					advancementPositioner.findMinRowRecursively(
-							deltaRow + this.relativeRowInSiblings,
-							depth + 1,
-							minRow
-					);
+		for (AdvancementPositioner child : children) {
+			minRow = child.findMinRowRecursively(deltaRow + relativeRowInSiblings, depth + 1, minRow);
 		}
-
 		return minRow;
 	}
 
 	private void increaseRowRecursively(float deltaRow) {
-		this.row += deltaRow;
-
-		for (AdvancementPositioner advancementPositioner : this.children) {
-			advancementPositioner.increaseRowRecursively(deltaRow);
+		row += deltaRow;
+		for (AdvancementPositioner child : children) {
+			child.increaseRowRecursively(deltaRow);
 		}
 	}
 
 	private void onFinishChildrenCalculation() {
-		float f = 0.0F;
-		float g = 0.0F;
+		float accumulated = 0.0F;
+		float totalShift = 0.0F;
 
-		for (int i = this.children.size() - 1; i >= 0; i--) {
-			AdvancementPositioner advancementPositioner = this.children.get(i);
-			advancementPositioner.row += f;
-			advancementPositioner.relativeRowInSiblings += f;
-			g += advancementPositioner.rowShift;
-			f += advancementPositioner.rowOffset + g;
+		for (int index = children.size() - 1; index >= 0; index--) {
+			AdvancementPositioner child = children.get(index);
+			child.row += accumulated;
+			child.relativeRowInSiblings += accumulated;
+			totalShift += child.rowShift;
+			accumulated += child.rowOffset + totalShift;
 		}
 	}
 
 	private @Nullable AdvancementPositioner getFirstChild() {
-		if (this.substituteChild != null) {
-			return this.substituteChild;
+		if (substituteChild != null) {
+			return substituteChild;
 		}
-		else {
-			return !this.children.isEmpty() ? this.children.get(0) : null;
-		}
+		return children.isEmpty() ? null : children.get(0);
 	}
 
 	private @Nullable AdvancementPositioner getLastChild() {
-		if (this.substituteChild != null) {
-			return this.substituteChild;
+		if (substituteChild != null) {
+			return substituteChild;
 		}
-		else {
-			return !this.children.isEmpty() ? this.children.get(this.children.size() - 1) : null;
-		}
+		return children.isEmpty() ? null : children.get(children.size() - 1);
 	}
 
 	private AdvancementPositioner onFinishCalculation(AdvancementPositioner last) {
-		if (this.previousSibling == null) {
+		if (previousSibling == null) {
 			return last;
 		}
-		else {
-			AdvancementPositioner advancementPositioner = this;
-			AdvancementPositioner advancementPositioner2 = this;
-			AdvancementPositioner advancementPositioner3 = this.previousSibling;
-			AdvancementPositioner advancementPositioner4 = this.parent.children.get(0);
-			float f = this.relativeRowInSiblings;
-			float g = this.relativeRowInSiblings;
-			float h = advancementPositioner3.relativeRowInSiblings;
 
-			float i;
-			for (i = advancementPositioner4.relativeRowInSiblings;
-			     advancementPositioner3.getLastChild() != null && advancementPositioner.getFirstChild() != null;
-			     g += advancementPositioner2.relativeRowInSiblings
-			) {
-				advancementPositioner3 = advancementPositioner3.getLastChild();
-				advancementPositioner = advancementPositioner.getFirstChild();
-				advancementPositioner4 = advancementPositioner4.getFirstChild();
-				advancementPositioner2 = advancementPositioner2.getLastChild();
-				advancementPositioner2.optionalLast = this;
-				float j = advancementPositioner3.row + h - (advancementPositioner.row + f) + 1.0F;
-				if (j > 0.0F) {
-					advancementPositioner3.getLast(this, last).pushDown(this, j);
-					f += j;
-					g += j;
-				}
+		AdvancementPositioner innerRight = this;
+		AdvancementPositioner outerRight = this;
+		AdvancementPositioner innerLeft = previousSibling;
+		AdvancementPositioner outerLeft = parent.children.get(0);
 
-				h += advancementPositioner3.relativeRowInSiblings;
-				f += advancementPositioner.relativeRowInSiblings;
-				i += advancementPositioner4.relativeRowInSiblings;
+		float shiftRight = relativeRowInSiblings;
+		float shiftOuterRight = relativeRowInSiblings;
+		float shiftLeft = innerLeft.relativeRowInSiblings;
+		float shiftOuterLeft = outerLeft.relativeRowInSiblings;
+
+		while (innerLeft.getLastChild() != null && innerRight.getFirstChild() != null) {
+			innerLeft = innerLeft.getLastChild();
+			innerRight = innerRight.getFirstChild();
+			outerLeft = outerLeft.getFirstChild();
+			outerRight = outerRight.getLastChild();
+			outerRight.optionalLast = this;
+
+			float gap = innerLeft.row + shiftLeft - (innerRight.row + shiftRight) + 1.0F;
+			if (gap > 0.0F) {
+				innerLeft.getLast(this, last).pushDown(this, gap);
+				shiftRight += gap;
+				shiftOuterRight += gap;
 			}
 
-			if (advancementPositioner3.getLastChild() != null && advancementPositioner2.getLastChild() == null) {
-				advancementPositioner2.substituteChild = advancementPositioner3.getLastChild();
-				advancementPositioner2.relativeRowInSiblings += h - g;
-			}
-			else {
-				if (advancementPositioner.getFirstChild() != null && advancementPositioner4.getFirstChild() == null) {
-					advancementPositioner4.substituteChild = advancementPositioner.getFirstChild();
-					advancementPositioner4.relativeRowInSiblings += f - i;
-				}
-
-				last = this;
-			}
-
-			return last;
+			shiftLeft += innerLeft.relativeRowInSiblings;
+			shiftRight += innerRight.relativeRowInSiblings;
+			shiftOuterLeft += outerLeft.relativeRowInSiblings;
+			shiftOuterRight += outerRight.relativeRowInSiblings;
 		}
+
+		if (innerLeft.getLastChild() != null && outerRight.getLastChild() == null) {
+			outerRight.substituteChild = innerLeft.getLastChild();
+			outerRight.relativeRowInSiblings += shiftLeft - shiftOuterRight;
+		} else {
+			if (innerRight.getFirstChild() != null && outerLeft.getFirstChild() == null) {
+				outerLeft.substituteChild = innerRight.getFirstChild();
+				outerLeft.relativeRowInSiblings += shiftRight - shiftOuterLeft;
+			}
+			last = this;
+		}
+
+		return last;
 	}
 
 	private void pushDown(AdvancementPositioner positioner, float extraRowDistance) {
-		float f = positioner.childrenSize - this.childrenSize;
-		if (f != 0.0F) {
-			positioner.rowShift -= extraRowDistance / f;
-			this.rowShift += extraRowDistance / f;
+		float ratio = positioner.childrenSize - childrenSize;
+		if (ratio != 0.0F) {
+			positioner.rowShift -= extraRowDistance / ratio;
+			rowShift += extraRowDistance / ratio;
 		}
-
 		positioner.rowOffset += extraRowDistance;
 		positioner.row += extraRowDistance;
 		positioner.relativeRowInSiblings += extraRowDistance;
 	}
 
-	private AdvancementPositioner getLast(
-			AdvancementPositioner advancementPositioner,
-			AdvancementPositioner advancementPositioner2
-	) {
-		return this.optionalLast != null && advancementPositioner.parent.children.contains(this.optionalLast)
-		       ? this.optionalLast : advancementPositioner2;
+	private AdvancementPositioner getLast(AdvancementPositioner positioner, AdvancementPositioner fallback) {
+		return optionalLast != null && positioner.parent.children.contains(optionalLast)
+			? optionalLast
+			: fallback;
 	}
 
 	private void apply() {
-		this.advancement.getAdvancement().display().ifPresent(display -> display.setPos(this.depth, this.row));
-		if (!this.children.isEmpty()) {
-			for (AdvancementPositioner advancementPositioner : this.children) {
-				advancementPositioner.apply();
-			}
+		advancement.getAdvancement().display().ifPresent(display -> display.setPos(depth, row));
+		for (AdvancementPositioner child : children) {
+			child.apply();
 		}
 	}
 
+	/**
+	 * Вычисляет и применяет позиции всех достижений в дереве с заданным корнем.
+	 *
+	 * @throws IllegalArgumentException если корневое достижение не имеет дисплея
+	 */
 	public static void arrangeForTree(PlacedAdvancement root) {
 		if (root.getAdvancement().display().isEmpty()) {
 			throw new IllegalArgumentException("Can't position children of an invisible root!");
 		}
-		else {
-			AdvancementPositioner advancementPositioner = new AdvancementPositioner(root, null, null, 1, 0);
-			advancementPositioner.calculateRecursively();
-			float f = advancementPositioner.findMinRowRecursively(0.0F, 0, advancementPositioner.row);
-			if (f < 0.0F) {
-				advancementPositioner.increaseRowRecursively(-f);
-			}
 
-			advancementPositioner.apply();
+		AdvancementPositioner positioner = new AdvancementPositioner(root, null, null, 1, 0);
+		positioner.calculateRecursively();
+
+		float minRow = positioner.findMinRowRecursively(0.0F, 0, positioner.row);
+		if (minRow < 0.0F) {
+			positioner.increaseRowRecursively(-minRow);
 		}
+
+		positioner.apply();
 	}
 }

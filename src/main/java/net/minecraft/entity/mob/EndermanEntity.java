@@ -55,7 +55,9 @@ import java.util.EnumSet;
 import java.util.Optional;
 
 /**
- * {@code EndermanEntity}.
+ * Эндермен — нейтральный моб, атакующий игрока при зрительном контакте.
+ * Умеет телепортироваться, подбирать и переносить блоки.
+ * Получает урон от воды и снарядов (кроме водяных зелий).
  */
 public class EndermanEntity extends HostileEntity implements Angerable {
 
@@ -82,23 +84,23 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 	public EndermanEntity(EntityType<? extends EndermanEntity> entityType, World world) {
 		super(entityType, world);
-		this.setPathfindingPenalty(PathNodeType.WATER, -1.0F);
+		setPathfindingPenalty(PathNodeType.WATER, -1.0F);
 	}
 
 	@Override
 	protected void initGoals() {
-		this.goalSelector.add(0, new SwimGoal(this));
-		this.goalSelector.add(1, new EndermanEntity.ChasePlayerGoal(this));
-		this.goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
-		this.goalSelector.add(7, new WanderAroundFarGoal(this, 1.0, 0.0F));
-		this.goalSelector.add(8, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-		this.goalSelector.add(8, new LookAroundGoal(this));
-		this.goalSelector.add(10, new EndermanEntity.PlaceBlockGoal(this));
-		this.goalSelector.add(11, new EndermanEntity.PickUpBlockGoal(this));
-		this.targetSelector.add(1, new EndermanEntity.TeleportTowardsPlayerGoal(this, this::shouldAngerAt));
-		this.targetSelector.add(2, new RevengeGoal(this));
-		this.targetSelector.add(3, new ActiveTargetGoal<>(this, EndermiteEntity.class, true, false));
-		this.targetSelector.add(4, new UniversalAngerGoal<>(this, false));
+		goalSelector.add(0, new SwimGoal(this));
+		goalSelector.add(1, new EndermanEntity.ChasePlayerGoal(this));
+		goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
+		goalSelector.add(7, new WanderAroundFarGoal(this, 1.0, 0.0F));
+		goalSelector.add(8, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		goalSelector.add(8, new LookAroundGoal(this));
+		goalSelector.add(10, new EndermanEntity.PlaceBlockGoal(this));
+		goalSelector.add(11, new EndermanEntity.PickUpBlockGoal(this));
+		targetSelector.add(1, new EndermanEntity.TeleportTowardsPlayerGoal(this, this::shouldAngerAt));
+		targetSelector.add(2, new RevengeGoal(this));
+		targetSelector.add(3, new ActiveTargetGoal<>(this, EndermiteEntity.class, true, false));
+		targetSelector.add(4, new UniversalAngerGoal<>(this, false));
 	}
 
 	@Override
@@ -118,19 +120,21 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 	@Override
 	public void setTarget(@Nullable LivingEntity target) {
 		super.setTarget(target);
-		EntityAttributeInstance entityAttributeInstance = this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+		EntityAttributeInstance speedAttribute = getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+
 		if (target == null) {
-			this.ageWhenTargetSet = 0;
-			this.dataTracker.set(ANGRY, false);
-			this.dataTracker.set(PROVOKED, false);
-			entityAttributeInstance.removeModifier(ATTACKING_SPEED_MODIFIER_ID);
+			ageWhenTargetSet = 0;
+			dataTracker.set(ANGRY, false);
+			dataTracker.set(PROVOKED, false);
+			speedAttribute.removeModifier(ATTACKING_SPEED_MODIFIER_ID);
+			return;
 		}
-		else {
-			this.ageWhenTargetSet = this.age;
-			this.dataTracker.set(ANGRY, true);
-			if (!entityAttributeInstance.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
-				entityAttributeInstance.addTemporaryModifier(ATTACKING_SPEED_BOOST);
-			}
+
+		ageWhenTargetSet = age;
+		dataTracker.set(ANGRY, true);
+
+		if (!speedAttribute.hasModifier(ATTACKING_SPEED_MODIFIER_ID)) {
+			speedAttribute.addTemporaryModifier(ATTACKING_SPEED_BOOST);
 		}
 	}
 
@@ -144,7 +148,7 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 	@Override
 	public void chooseRandomAngerTime() {
-		this.setAngerDuration(ANGER_TIME_RANGE.get(this.random));
+		setAngerDuration(ANGER_TIME_RANGE.get(random));
 	}
 
 	@Override
@@ -154,7 +158,7 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 	@Override
 	public long getAngerEndTime() {
-		return this.angerEndTime;
+		return angerEndTime;
 	}
 
 	@Override
@@ -164,35 +168,37 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 	@Override
 	public @Nullable LazyEntityReference<LivingEntity> getAngryAt() {
-		return this.angryAt;
+		return angryAt;
 	}
 
-	/**
-	 * Play angry sound.
-	 */
 	public void playAngrySound() {
-		if (this.age >= this.lastAngrySoundAge + 400) {
-			this.lastAngrySoundAge = this.age;
-			if (!this.isSilent()) {
-				this.getEntityWorld()
-				    .playSoundClient(
-						    this.getX(),
-						    this.getEyeY(),
-						    this.getZ(),
-						    SoundEvents.ENTITY_ENDERMAN_STARE,
-						    this.getSoundCategory(),
-						    2.5F,
-						    1.0F,
-						    false
-				    );
-			}
+		if (age < lastAngrySoundAge + ANGRY_SOUND_COOLDOWN) {
+			return;
 		}
+
+		lastAngrySoundAge = age;
+
+		if (isSilent()) {
+			return;
+		}
+
+		getEntityWorld()
+			.playSoundClient(
+				getX(),
+				getEyeY(),
+				getZ(),
+				SoundEvents.ENTITY_ENDERMAN_STARE,
+				getSoundCategory(),
+				2.5F,
+				1.0F,
+				false
+			);
 	}
 
 	@Override
 	public void onTrackedDataSet(TrackedData<?> data) {
-		if (ANGRY.equals(data) && this.isProvoked() && this.getEntityWorld().isClient()) {
-			this.playAngrySound();
+		if (ANGRY.equals(data) && isProvoked() && getEntityWorld().isClient()) {
+			playAngrySound();
 		}
 
 		super.onTrackedDataSet(data);
@@ -201,54 +207,52 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 	@Override
 	protected void writeCustomData(WriteView view) {
 		super.writeCustomData(view);
-		BlockState blockState = this.getCarriedBlock();
+		BlockState blockState = getCarriedBlock();
+
 		if (blockState != null) {
 			view.put("carriedBlockState", BlockState.CODEC, blockState);
 		}
 
-		this.writeAngerToData(view);
+		writeAngerToData(view);
 	}
 
 	@Override
 	protected void readCustomData(ReadView view) {
 		super.readCustomData(view);
-		this.setCarriedBlock(view
-				.<BlockState>read("carriedBlockState", BlockState.CODEC)
+		setCarriedBlock(
+			view.<BlockState>read("carriedBlockState", BlockState.CODEC)
 				.filter(blockState -> !blockState.isAir())
-				.orElse(null));
-		this.readAngerFromData(this.getEntityWorld(), view);
+				.orElse(null)
+		);
+		readAngerFromData(getEntityWorld(), view);
 	}
 
 	boolean isPlayerStaring(PlayerEntity player) {
-		return !LivingEntity.NOT_WEARING_GAZE_DISGUISE_PREDICATE.test(player) ? false : this.isEntityLookingAtMe(
-				player,
-				0.025,
-				true,
-				false,
-				this.getEyeY()
-		);
+		return LivingEntity.NOT_WEARING_GAZE_DISGUISE_PREDICATE.test(player)
+			&& isEntityLookingAtMe(player, 0.025, true, false, getEyeY());
 	}
 
 	@Override
 	public void tickMovement() {
-		if (this.getEntityWorld().isClient()) {
+		if (getEntityWorld().isClient()) {
 			for (int i = 0; i < 2; i++) {
-				this.getEntityWorld()
-				    .addParticleClient(
-						    ParticleTypes.PORTAL,
-						    this.getParticleX(0.5),
-						    this.getRandomBodyY() - 0.25,
-						    this.getParticleZ(0.5),
-						    (this.random.nextDouble() - 0.5) * 2.0,
-						    -this.random.nextDouble(),
-						    (this.random.nextDouble() - 0.5) * 2.0
-				    );
+				getEntityWorld()
+					.addParticleClient(
+						ParticleTypes.PORTAL,
+						getParticleX(0.5),
+						getRandomBodyY() - 0.25,
+						getParticleZ(0.5),
+						(random.nextDouble() - 0.5) * 2.0,
+						-random.nextDouble(),
+						(random.nextDouble() - 0.5) * 2.0
+					);
 			}
 		}
 
-		this.jumping = false;
-		if (!this.getEntityWorld().isClient()) {
-			this.tickAngerLogic((ServerWorld) this.getEntityWorld(), true);
+		jumping = false;
+
+		if (!getEntityWorld().isClient()) {
+			tickAngerLogic((ServerWorld) getEntityWorld(), true);
 		}
 
 		super.tickMovement();
@@ -261,12 +265,15 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 	@Override
 	protected void mobTick(ServerWorld world) {
-		if (world.isDay() && this.age >= this.ageWhenTargetSet + 600) {
-			float f = this.getBrightnessAtEyes();
-			if (f > 0.5F && world.isSkyVisible(this.getBlockPos())
-					&& this.random.nextFloat() * 30.0F < (f - 0.4F) * 2.0F) {
-				this.setTarget(null);
-				this.teleportRandomly();
+		if (world.isDay() && age >= ageWhenTargetSet + TARGET_ABANDON_AGE_OFFSET) {
+			float brightness = getBrightnessAtEyes();
+
+			if (brightness > 0.5F
+				&& world.isSkyVisible(getBlockPos())
+				&& random.nextFloat() * 30.0F < (brightness - 0.4F) * 2.0F
+			) {
+				setTarget(null);
+				teleportRandomly();
 			}
 		}
 
@@ -274,82 +281,81 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 	}
 
 	/**
-	 * Телепортирует randomly.
-	 *
-	 * @return boolean — результат операции
+	 * Телепортирует эндермена в случайную точку в радиусе 64 блоков.
+	 * Не выполняется на клиентской стороне или если моб мёртв.
 	 */
 	protected boolean teleportRandomly() {
-		if (!this.getEntityWorld().isClient() && this.isAlive()) {
-			double d = this.getX() + (this.random.nextDouble() - 0.5) * 64.0;
-			double e = this.getY() + (this.random.nextInt(64) - 32);
-			double f = this.getZ() + (this.random.nextDouble() - 0.5) * 64.0;
-			return this.teleportTo(d, e, f);
-		}
-		else {
+		if (getEntityWorld().isClient() || !isAlive()) {
 			return false;
 		}
+
+		double targetX = getX() + (random.nextDouble() - 0.5) * 64.0;
+		double targetY = getY() + (random.nextInt(64) - 32);
+		double targetZ = getZ() + (random.nextDouble() - 0.5) * 64.0;
+
+		return teleportTo(targetX, targetY, targetZ);
 	}
 
 	boolean teleportTo(Entity entity) {
-		Vec3d
-				vec3d =
-				new Vec3d(
-						this.getX() - entity.getX(),
-						this.getBodyY(0.5) - entity.getEyeY(),
-						this.getZ() - entity.getZ()
-				);
-		vec3d = vec3d.normalize();
-		double d = 16.0;
-		double e = this.getX() + (this.random.nextDouble() - 0.5) * 8.0 - vec3d.x * 16.0;
-		double f = this.getY() + (this.random.nextInt(16) - 8) - vec3d.y * 16.0;
-		double g = this.getZ() + (this.random.nextDouble() - 0.5) * 8.0 - vec3d.z * 16.0;
-		return this.teleportTo(e, f, g);
+		Vec3d direction = new Vec3d(
+			getX() - entity.getX(),
+			getBodyY(0.5) - entity.getEyeY(),
+			getZ() - entity.getZ()
+		).normalize();
+
+		double targetX = getX() + (random.nextDouble() - 0.5) * 8.0 - direction.x * 16.0;
+		double targetY = getY() + (random.nextInt(16) - 8) - direction.y * 16.0;
+		double targetZ = getZ() + (random.nextDouble() - 0.5) * 8.0 - direction.z * 16.0;
+
+		return teleportTo(targetX, targetY, targetZ);
 	}
 
 	private boolean teleportTo(double x, double y, double z) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable(x, y, z);
 
-		while (mutable.getY() > this.getEntityWorld().getBottomY() && !this
-				.getEntityWorld()
-				.getBlockState(mutable)
-				.blocksMovement()) {
+		while (mutable.getY() > getEntityWorld().getBottomY()
+			&& !getEntityWorld().getBlockState(mutable).blocksMovement()
+		) {
 			mutable.move(Direction.DOWN);
 		}
 
-		BlockState blockState = this.getEntityWorld().getBlockState(mutable);
-		boolean bl = blockState.blocksMovement();
-		boolean bl2 = blockState.getFluidState().isIn(FluidTags.WATER);
-		if (bl && !bl2) {
-			Vec3d vec3d = this.getEntityPos();
-			boolean bl3 = this.teleport(x, y, z, true);
-			if (bl3) {
-				this.getEntityWorld().emitGameEvent(GameEvent.TELEPORT, vec3d, GameEvent.Emitter.of(this));
-				if (!this.isSilent()) {
-					this.getEntityWorld()
-					    .playSound(
-							    null,
-							    this.lastX,
-							    this.lastY,
-							    this.lastZ,
-							    SoundEvents.ENTITY_ENDERMAN_TELEPORT,
-							    this.getSoundCategory(),
-							    1.0F,
-							    1.0F
-					    );
-					this.playSound(SoundEvents.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.0F);
-				}
-			}
+		BlockState blockState = getEntityWorld().getBlockState(mutable);
+		boolean blocksMovement = blockState.blocksMovement();
+		boolean isWater = blockState.getFluidState().isIn(FluidTags.WATER);
 
-			return bl3;
-		}
-		else {
+		if (!blocksMovement || isWater) {
 			return false;
 		}
+
+		Vec3d prevPos = getEntityPos();
+		boolean teleported = teleport(x, y, z, true);
+
+		if (!teleported) {
+			return false;
+		}
+
+		getEntityWorld().emitGameEvent(GameEvent.TELEPORT, prevPos, GameEvent.Emitter.of(this));
+
+		if (!isSilent()) {
+			getEntityWorld().playSound(
+					null,
+					lastX,
+					lastY,
+					lastZ,
+					SoundEvents.ENTITY_ENDERMAN_TELEPORT,
+					getSoundCategory(),
+					1.0F,
+					1.0F
+			);
+			playSound(SoundEvents.ENTITY_ENDERMAN_TELEPORT, 1.0F, 1.0F);
+		}
+
+		return teleported;
 	}
 
 	@Override
 	protected SoundEvent getAmbientSound() {
-		return this.isAngry() ? SoundEvents.ENTITY_ENDERMAN_SCREAM : SoundEvents.ENTITY_ENDERMAN_AMBIENT;
+		return isAngry() ? SoundEvents.ENTITY_ENDERMAN_SCREAM : SoundEvents.ENTITY_ENDERMAN_AMBIENT;
 	}
 
 	@Override
@@ -365,92 +371,99 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 	@Override
 	protected void dropEquipment(ServerWorld world, DamageSource source, boolean causedByPlayer) {
 		super.dropEquipment(world, source, causedByPlayer);
-		BlockState blockState = this.getCarriedBlock();
-		if (blockState != null) {
-			ItemStack itemStack = new ItemStack(Items.DIAMOND_AXE);
-			EnchantmentHelper.applyEnchantmentProvider(
-					itemStack,
-					world.getRegistryManager(),
-					EnchantmentProviders.ENDERMAN_LOOT_DROP,
-					world.getLocalDifficulty(this.getBlockPos()),
-					this.getRandom()
-			);
-			LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld) this.getEntityWorld())
-					.add(LootContextParameters.ORIGIN, this.getEntityPos())
-					.add(LootContextParameters.TOOL, itemStack)
-					.addOptional(LootContextParameters.THIS_ENTITY, this);
+		BlockState blockState = getCarriedBlock();
 
-			for (ItemStack itemStack2 : blockState.getDroppedStacks(builder)) {
-				this.dropStack(world, itemStack2);
-			}
+		if (blockState == null) {
+			return;
+		}
+
+		ItemStack axe = new ItemStack(Items.DIAMOND_AXE);
+		EnchantmentHelper.applyEnchantmentProvider(
+			axe,
+			world.getRegistryManager(),
+			EnchantmentProviders.ENDERMAN_LOOT_DROP,
+			world.getLocalDifficulty(getBlockPos()),
+			getRandom()
+		);
+		LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld) getEntityWorld())
+			.add(LootContextParameters.ORIGIN, getEntityPos())
+			.add(LootContextParameters.TOOL, axe)
+			.addOptional(LootContextParameters.THIS_ENTITY, this);
+
+		for (ItemStack drop : blockState.getDroppedStacks(builder)) {
+			dropStack(world, drop);
 		}
 	}
 
 	public void setCarriedBlock(@Nullable BlockState state) {
-		this.dataTracker.set(CARRIED_BLOCK, Optional.ofNullable(state));
+		dataTracker.set(CARRIED_BLOCK, Optional.ofNullable(state));
 	}
 
 	public @Nullable BlockState getCarriedBlock() {
-		return this.dataTracker.get(CARRIED_BLOCK).orElse(null);
+		return dataTracker.get(CARRIED_BLOCK).orElse(null);
 	}
 
+	/**
+	 * Эндермен уклоняется от снарядов телепортацией.
+	 * Водяные зелья наносят урон напрямую, остальные снаряды провоцируют до 64 попыток телепортации.
+	 */
 	@Override
 	public boolean damage(ServerWorld world, DamageSource source, float amount) {
-		if (this.isInvulnerableTo(world, source)) {
+		if (isInvulnerableTo(world, source)) {
 			return false;
 		}
-		else {
-			PotionEntity potionEntity2 = source.getSource() instanceof PotionEntity potionEntity ? potionEntity : null;
-			if (!source.isIn(DamageTypeTags.IS_PROJECTILE) && potionEntity2 == null) {
-				boolean bl = super.damage(world, source, amount);
-				if (!(source.getAttacker() instanceof LivingEntity) && this.random.nextInt(10) != 0) {
-					this.teleportRandomly();
-				}
 
-				return bl;
+		PotionEntity potion = source.getSource() instanceof PotionEntity p ? p : null;
+
+		if (!source.isIn(DamageTypeTags.IS_PROJECTILE) && potion == null) {
+			boolean damaged = super.damage(world, source, amount);
+
+			if (!(source.getAttacker() instanceof LivingEntity) && random.nextInt(10) != 0) {
+				teleportRandomly();
 			}
-			else {
-				boolean bl = potionEntity2 != null && this.damageFromPotion(world, source, potionEntity2, amount);
 
-				for (int i = 0; i < 64; i++) {
-					if (this.teleportRandomly()) {
-						return true;
-					}
-				}
+			return damaged;
+		}
 
-				return bl;
+		boolean damaged = potion != null && damageFromPotion(world, source, potion, amount);
+
+		for (int i = 0; i < 64; i++) {
+			if (teleportRandomly()) {
+				return true;
 			}
 		}
+
+		return damaged;
 	}
 
 	private boolean damageFromPotion(ServerWorld world, DamageSource source, PotionEntity potion, float amount) {
-		ItemStack itemStack = potion.getStack();
-		PotionContentsComponent
-				potionContentsComponent =
-				itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-		return potionContentsComponent.matches(Potions.WATER) ? super.damage(world, source, amount) : false;
+		ItemStack stack = potion.getStack();
+		PotionContentsComponent contents = stack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
+
+		if (!contents.matches(Potions.WATER)) {
+			return false;
+		}
+
+		return super.damage(world, source, amount);
 	}
 
 	public boolean isAngry() {
-		return this.dataTracker.get(ANGRY);
+		return dataTracker.get(ANGRY);
 	}
 
 	public boolean isProvoked() {
-		return this.dataTracker.get(PROVOKED);
+		return dataTracker.get(PROVOKED);
 	}
 
 	public void setProvoked() {
-		this.dataTracker.set(PROVOKED, true);
+		dataTracker.set(PROVOKED, true);
 	}
 
 	@Override
 	public boolean cannotDespawn() {
-		return super.cannotDespawn() || this.getCarriedBlock() != null;
+		return super.cannotDespawn() || getCarriedBlock() != null;
 	}
 
-	/**
-	 * {@code ChasePlayerGoal}.
-	 */
 	static class ChasePlayerGoal extends Goal {
 
 		private final EndermanEntity enderman;
@@ -458,35 +471,33 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 		public ChasePlayerGoal(EndermanEntity enderman) {
 			this.enderman = enderman;
-			this.setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
+			setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
 		}
 
 		@Override
 		public boolean canStart() {
-			this.target = this.enderman.getTarget();
-			if (this.target instanceof PlayerEntity playerEntity) {
-				double d = this.target.squaredDistanceTo(this.enderman);
-				return d > 256.0 ? false : this.enderman.isPlayerStaring(playerEntity);
-			}
-			else {
+			target = enderman.getTarget();
+
+			if (!(target instanceof PlayerEntity playerEntity)) {
 				return false;
 			}
+
+			double distSq = target.squaredDistanceTo(enderman);
+
+			return distSq <= 256.0 && enderman.isPlayerStaring(playerEntity);
 		}
 
 		@Override
 		public void start() {
-			this.enderman.getNavigation().stop();
+			enderman.getNavigation().stop();
 		}
 
 		@Override
 		public void tick() {
-			this.enderman.getLookControl().lookAt(this.target.getX(), this.target.getEyeY(), this.target.getZ());
+			enderman.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
 		}
 	}
 
-	/**
-	 * {@code PickUpBlockGoal}.
-	 */
 	static class PickUpBlockGoal extends Goal {
 
 		private final EndermanEntity enderman;
@@ -497,48 +508,47 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 		@Override
 		public boolean canStart() {
-			if (this.enderman.getCarriedBlock() != null) {
+			if (enderman.getCarriedBlock() != null) {
 				return false;
 			}
-			else {
-				return !getServerWorld(this.enderman).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-				       ? false
-				       : this.enderman.getRandom().nextInt(toGoalTicks(20)) == 0;
+
+			if (!getServerWorld(enderman).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				return false;
 			}
+
+			return enderman.getRandom().nextInt(toGoalTicks(20)) == 0;
 		}
 
 		@Override
 		public void tick() {
-			Random random = this.enderman.getRandom();
-			World world = this.enderman.getEntityWorld();
-			int i = MathHelper.floor(this.enderman.getX() - 2.0 + random.nextDouble() * 4.0);
-			int j = MathHelper.floor(this.enderman.getY() + random.nextDouble() * 3.0);
-			int k = MathHelper.floor(this.enderman.getZ() - 2.0 + random.nextDouble() * 4.0);
-			BlockPos blockPos = new BlockPos(i, j, k);
+			Random random = enderman.getRandom();
+			World world = enderman.getEntityWorld();
+			int x = MathHelper.floor(enderman.getX() - 2.0 + random.nextDouble() * 4.0);
+			int y = MathHelper.floor(enderman.getY() + random.nextDouble() * 3.0);
+			int z = MathHelper.floor(enderman.getZ() - 2.0 + random.nextDouble() * 4.0);
+			BlockPos blockPos = new BlockPos(x, y, z);
 			BlockState blockState = world.getBlockState(blockPos);
-			Vec3d vec3d = new Vec3d(this.enderman.getBlockX() + 0.5, j + 0.5, this.enderman.getBlockZ() + 0.5);
-			Vec3d vec3d2 = new Vec3d(i + 0.5, j + 0.5, k + 0.5);
-			BlockHitResult blockHitResult = world.raycast(
-					new RaycastContext(
-							vec3d,
-							vec3d2,
-							RaycastContext.ShapeType.OUTLINE,
-							RaycastContext.FluidHandling.NONE,
-							this.enderman
-					)
+			Vec3d fromPos = new Vec3d(enderman.getBlockX() + 0.5, y + 0.5, enderman.getBlockZ() + 0.5);
+			Vec3d toPos = new Vec3d(x + 0.5, y + 0.5, z + 0.5);
+			BlockHitResult hitResult = world.raycast(
+				new RaycastContext(
+					fromPos,
+					toPos,
+					RaycastContext.ShapeType.OUTLINE,
+					RaycastContext.FluidHandling.NONE,
+					enderman
+				)
 			);
-			boolean bl = blockHitResult.getBlockPos().equals(blockPos);
-			if (blockState.isIn(BlockTags.ENDERMAN_HOLDABLE) && bl) {
+			boolean hasLineOfSight = hitResult.getBlockPos().equals(blockPos);
+
+			if (blockState.isIn(BlockTags.ENDERMAN_HOLDABLE) && hasLineOfSight) {
 				world.removeBlock(blockPos, false);
-				world.emitGameEvent(GameEvent.BLOCK_DESTROY, blockPos, GameEvent.Emitter.of(this.enderman, blockState));
-				this.enderman.setCarriedBlock(blockState.getBlock().getDefaultState());
+				world.emitGameEvent(GameEvent.BLOCK_DESTROY, blockPos, GameEvent.Emitter.of(enderman, blockState));
+				enderman.setCarriedBlock(blockState.getBlock().getDefaultState());
 			}
 		}
 	}
 
-	/**
-	 * {@code PlaceBlockGoal}.
-	 */
 	static class PlaceBlockGoal extends Goal {
 
 		private final EndermanEntity enderman;
@@ -549,62 +559,60 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 		@Override
 		public boolean canStart() {
-			if (this.enderman.getCarriedBlock() == null) {
+			if (enderman.getCarriedBlock() == null) {
 				return false;
 			}
-			else {
-				return !getServerWorld(this.enderman).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
-				       ? false
-				       : this.enderman.getRandom().nextInt(toGoalTicks(2000)) == 0;
+
+			if (!getServerWorld(enderman).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+				return false;
 			}
+
+			return enderman.getRandom().nextInt(toGoalTicks(2000)) == 0;
 		}
 
 		@Override
 		public void tick() {
-			Random random = this.enderman.getRandom();
-			World world = this.enderman.getEntityWorld();
-			int i = MathHelper.floor(this.enderman.getX() - 1.0 + random.nextDouble() * 2.0);
-			int j = MathHelper.floor(this.enderman.getY() + random.nextDouble() * 2.0);
-			int k = MathHelper.floor(this.enderman.getZ() - 1.0 + random.nextDouble() * 2.0);
-			BlockPos blockPos = new BlockPos(i, j, k);
-			BlockState blockState = world.getBlockState(blockPos);
-			BlockPos blockPos2 = blockPos.down();
-			BlockState blockState2 = world.getBlockState(blockPos2);
-			BlockState blockState3 = this.enderman.getCarriedBlock();
-			if (blockState3 != null) {
-				blockState3 = Block.postProcessState(blockState3, this.enderman.getEntityWorld(), blockPos);
-				if (this.canPlaceOn(world, blockPos, blockState3, blockState, blockState2, blockPos2)) {
-					world.setBlockState(blockPos, blockState3, 3);
-					world.emitGameEvent(
-							GameEvent.BLOCK_PLACE,
-							blockPos,
-							GameEvent.Emitter.of(this.enderman, blockState3)
-					);
-					this.enderman.setCarriedBlock(null);
-				}
+			Random random = enderman.getRandom();
+			World world = enderman.getEntityWorld();
+			int x = MathHelper.floor(enderman.getX() - 1.0 + random.nextDouble() * 2.0);
+			int y = MathHelper.floor(enderman.getY() + random.nextDouble() * 2.0);
+			int z = MathHelper.floor(enderman.getZ() - 1.0 + random.nextDouble() * 2.0);
+			BlockPos blockPos = new BlockPos(x, y, z);
+			BlockState stateAbove = world.getBlockState(blockPos);
+			BlockPos posBelow = blockPos.down();
+			BlockState stateBelow = world.getBlockState(posBelow);
+			BlockState carried = enderman.getCarriedBlock();
+
+			if (carried == null) {
+				return;
+			}
+
+			carried = Block.postProcessState(carried, enderman.getEntityWorld(), blockPos);
+
+			if (canPlaceOn(world, blockPos, carried, stateAbove, stateBelow, posBelow)) {
+				world.setBlockState(blockPos, carried, 3);
+				world.emitGameEvent(GameEvent.BLOCK_PLACE, blockPos, GameEvent.Emitter.of(enderman, carried));
+				enderman.setCarriedBlock(null);
 			}
 		}
 
 		private boolean canPlaceOn(
-				World world,
-				BlockPos posAbove,
-				BlockState carriedState,
-				BlockState stateAbove,
-				BlockState state,
-				BlockPos pos
+			World world,
+			BlockPos posAbove,
+			BlockState carriedState,
+			BlockState stateAbove,
+			BlockState state,
+			BlockPos pos
 		) {
 			return stateAbove.isAir()
-					&& !state.isAir()
-					&& !state.isOf(Blocks.BEDROCK)
-					&& state.isFullCube(world, pos)
-					&& carriedState.canPlaceAt(world, posAbove)
-					&& world.getOtherEntities(this.enderman, Box.from(Vec3d.of(posAbove))).isEmpty();
+				&& !state.isAir()
+				&& !state.isOf(Blocks.BEDROCK)
+				&& state.isFullCube(world, pos)
+				&& carriedState.canPlaceAt(world, posAbove)
+				&& world.getOtherEntities(enderman, Box.from(Vec3d.of(posAbove))).isEmpty();
 		}
 	}
 
-	/**
-	 * {@code TeleportTowardsPlayerGoal}.
-	 */
 	static class TeleportTowardsPlayerGoal extends ActiveTargetGoal<PlayerEntity> {
 
 		private final EndermanEntity enderman;
@@ -638,88 +646,84 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 
 		@Override
 		public boolean canStart() {
-			this.targetPlayer = getServerWorld(this.enderman)
-					.getClosestPlayer(
-							this.staringPlayerPredicate.setBaseMaxDistance(this.getFollowRange()),
-							this.enderman
-					);
-			return this.targetPlayer != null;
+			targetPlayer = getServerWorld(enderman)
+				.getClosestPlayer(
+					staringPlayerPredicate.setBaseMaxDistance(getFollowRange()),
+					enderman
+				);
+
+			return targetPlayer != null;
 		}
 
 		@Override
 		public void start() {
-			this.lookAtPlayerWarmup = this.getTickCount(5);
-			this.ticksSinceUnseenTeleport = 0;
-			this.enderman.setProvoked();
+			lookAtPlayerWarmup = getTickCount(5);
+			ticksSinceUnseenTeleport = 0;
+			enderman.setProvoked();
 		}
 
 		@Override
 		public void stop() {
-			this.targetPlayer = null;
+			targetPlayer = null;
 			super.stop();
 		}
 
 		@Override
 		public boolean shouldContinue() {
-			if (this.targetPlayer != null) {
-				if (!this.angerPredicate.test(this.targetPlayer, getServerWorld(this.enderman))) {
+			if (targetPlayer != null) {
+				if (!angerPredicate.test(targetPlayer, getServerWorld(enderman))) {
 					return false;
 				}
-				else {
-					this.enderman.lookAtEntity(this.targetPlayer, 10.0F, 10.0F);
+
+				enderman.lookAtEntity(targetPlayer, 10.0F, 10.0F);
+				return true;
+			}
+
+			if (targetEntity != null) {
+				if (enderman.hasPassengerDeep(targetEntity)) {
+					return false;
+				}
+
+				if (validTargetPredicate.test(getServerWorld(enderman), enderman, targetEntity)) {
 					return true;
 				}
 			}
-			else {
-				if (this.targetEntity != null) {
-					if (this.enderman.hasPassengerDeep(this.targetEntity)) {
-						return false;
-					}
 
-					if (this.validTargetPredicate.test(
-							getServerWorld(this.enderman),
-							this.enderman,
-							this.targetEntity
-					)) {
-						return true;
-					}
-				}
-
-				return super.shouldContinue();
-			}
+			return super.shouldContinue();
 		}
 
 		@Override
 		public void tick() {
-			if (this.enderman.getTarget() == null) {
+			if (enderman.getTarget() == null) {
 				super.setTargetEntity(null);
 			}
 
-			if (this.targetPlayer != null) {
-				if (--this.lookAtPlayerWarmup <= 0) {
-					this.targetEntity = this.targetPlayer;
-					this.targetPlayer = null;
+			if (targetPlayer != null) {
+				if (--lookAtPlayerWarmup <= 0) {
+					targetEntity = targetPlayer;
+					targetPlayer = null;
 					super.start();
 				}
-			}
-			else {
-				if (this.targetEntity != null && !this.enderman.hasVehicle()) {
-					if (this.enderman.isPlayerStaring((PlayerEntity) this.targetEntity)) {
-						if (this.targetEntity.squaredDistanceTo(this.enderman) < 16.0) {
-							this.enderman.teleportRandomly();
-						}
 
-						this.ticksSinceUnseenTeleport = 0;
+				return;
+			}
+
+			if (targetEntity != null && !enderman.hasVehicle()) {
+				if (enderman.isPlayerStaring((PlayerEntity) targetEntity)) {
+					if (targetEntity.squaredDistanceTo(enderman) < 16.0) {
+						enderman.teleportRandomly();
 					}
-					else if (this.targetEntity.squaredDistanceTo(this.enderman) > 256.0
-							&& this.ticksSinceUnseenTeleport++ >= this.getTickCount(30)
-							&& this.enderman.teleportTo(this.targetEntity)) {
-						this.ticksSinceUnseenTeleport = 0;
-					}
+
+					ticksSinceUnseenTeleport = 0;
+				} else if (targetEntity.squaredDistanceTo(enderman) > 256.0
+					&& ticksSinceUnseenTeleport++ >= getTickCount(30)
+					&& enderman.teleportTo(targetEntity)
+				) {
+					ticksSinceUnseenTeleport = 0;
 				}
-
-				super.tick();
 			}
+
+			super.tick();
 		}
 	}
 }

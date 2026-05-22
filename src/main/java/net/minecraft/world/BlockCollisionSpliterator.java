@@ -15,9 +15,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.BiFunction;
 
 /**
- * {@code BlockCollisionSpliterator}.
+ * Итератор столкновений блоков в заданном AABB-объёме.
+ * Перебирает все блоки в кубоиде и возвращает их формы столкновений,
+ * пересекающиеся с исходным боксом.
+ *
+ * @param <T> тип результата, возвращаемого функцией-маппером
  */
 public class BlockCollisionSpliterator<T> extends AbstractIterator<T> {
+
+	/** Погрешность расширения границ для надёжного захвата граничных блоков. */
+	private static final double BOUNDARY_EPSILON = 1.0E-7;
 
 	private final Box box;
 	private final ShapeContext context;
@@ -31,21 +38,27 @@ public class BlockCollisionSpliterator<T> extends AbstractIterator<T> {
 	private final BiFunction<BlockPos.Mutable, VoxelShape, T> resultFunction;
 
 	public BlockCollisionSpliterator(
-			CollisionView world,
-			@Nullable Entity entity,
-			Box box,
-			boolean forEntity,
-			BiFunction<BlockPos.Mutable, VoxelShape, T> resultFunction
+		CollisionView world,
+		@Nullable Entity entity,
+		Box box,
+		boolean forEntity,
+		BiFunction<BlockPos.Mutable, VoxelShape, T> resultFunction
 	) {
-		this(world, entity == null ? ShapeContext.absent() : ShapeContext.of(entity), box, forEntity, resultFunction);
+		this(
+			world,
+			entity == null ? ShapeContext.absent() : ShapeContext.of(entity),
+			box,
+			forEntity,
+			resultFunction
+		);
 	}
 
 	public BlockCollisionSpliterator(
-			CollisionView world,
-			ShapeContext context,
-			Box box,
-			boolean forEntity,
-			BiFunction<BlockPos.Mutable, VoxelShape, T> resultFunction
+		CollisionView world,
+		ShapeContext context,
+		Box box,
+		boolean forEntity,
+		BiFunction<BlockPos.Mutable, VoxelShape, T> resultFunction
 	) {
 		this.context = context;
 		this.pos = new BlockPos.Mutable();
@@ -54,65 +67,77 @@ public class BlockCollisionSpliterator<T> extends AbstractIterator<T> {
 		this.box = box;
 		this.forEntity = forEntity;
 		this.resultFunction = resultFunction;
-		int i = MathHelper.floor(box.minX - 1.0E-7) - 1;
-		int j = MathHelper.floor(box.maxX + 1.0E-7) + 1;
-		int k = MathHelper.floor(box.minY - 1.0E-7) - 1;
-		int l = MathHelper.floor(box.maxY + 1.0E-7) + 1;
-		int m = MathHelper.floor(box.minZ - 1.0E-7) - 1;
-		int n = MathHelper.floor(box.maxZ + 1.0E-7) + 1;
-		this.blockIterator = new CuboidBlockIterator(i, k, m, j, l, n);
+
+		int minX = MathHelper.floor(box.minX - BOUNDARY_EPSILON) - 1;
+		int maxX = MathHelper.floor(box.maxX + BOUNDARY_EPSILON) + 1;
+		int minY = MathHelper.floor(box.minY - BOUNDARY_EPSILON) - 1;
+		int maxY = MathHelper.floor(box.maxY + BOUNDARY_EPSILON) + 1;
+		int minZ = MathHelper.floor(box.minZ - BOUNDARY_EPSILON) - 1;
+		int maxZ = MathHelper.floor(box.maxZ + BOUNDARY_EPSILON) + 1;
+
+		this.blockIterator = new CuboidBlockIterator(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	private @Nullable BlockView getChunk(int x, int z) {
-		int i = ChunkSectionPos.getSectionCoord(x);
-		int j = ChunkSectionPos.getSectionCoord(z);
-		long l = ChunkPos.toLong(i, j);
-		if (this.chunk != null && this.chunkPos == l) {
+		int chunkX = ChunkSectionPos.getSectionCoord(x);
+		int chunkZ = ChunkSectionPos.getSectionCoord(z);
+		long packedPos = ChunkPos.toLong(chunkX, chunkZ);
+
+		if (this.chunk != null && this.chunkPos == packedPos) {
 			return this.chunk;
 		}
-		else {
-			BlockView blockView = this.world.getChunkAsView(i, j);
-			this.chunk = blockView;
-			this.chunkPos = l;
-			return blockView;
-		}
+
+		BlockView blockView = this.world.getChunkAsView(chunkX, chunkZ);
+		this.chunk = blockView;
+		this.chunkPos = packedPos;
+
+		return blockView;
 	}
 
 	/**
-	 * Вычисляет next.
-	 *
-	 * @return T — результат операции
+	 * Вычисляет следующий элемент итерации — форму столкновения блока,
+	 * пересекающуюся с исходным боксом.
+	 * Пропускает блоки на рёбрах куба (edgeCount == 3), а также
+	 * применяет оптимизации для граничных случаев (edgeCount 1 и 2).
 	 */
+	@Override
 	protected T computeNext() {
 		while (this.blockIterator.step()) {
-			int i = this.blockIterator.getX();
-			int j = this.blockIterator.getY();
-			int k = this.blockIterator.getZ();
-			int l = this.blockIterator.getEdgeCoordinatesCount();
-			if (l != 3) {
-				BlockView blockView = this.getChunk(i, k);
-				if (blockView != null) {
-					this.pos.set(i, j, k);
-					BlockState blockState = blockView.getBlockState(this.pos);
-					if ((!this.forEntity || blockState.shouldSuffocate(blockView, this.pos))
-							&& (l != 1 || blockState.exceedsCube())
-							&& (l != 2 || blockState.isOf(Blocks.MOVING_PISTON))) {
-						VoxelShape voxelShape = this.context.getCollisionShape(blockState, this.world, this.pos);
-						if (voxelShape == VoxelShapes.fullCube()) {
-							if (this.box.intersects(i, j, k, i + 1.0, j + 1.0, k + 1.0)) {
-								return this.resultFunction.apply(this.pos, voxelShape.offset(this.pos));
-							}
-						}
-						else {
-							VoxelShape voxelShape2 = voxelShape.offset(this.pos);
-							if (!voxelShape2.isEmpty() && VoxelShapes.matchesAnywhere(
-									voxelShape2,
-									this.boxShape,
-									BooleanBiFunction.AND
-							)) {
-								return this.resultFunction.apply(this.pos, voxelShape2);
-							}
-						}
+			int x = this.blockIterator.getX();
+			int y = this.blockIterator.getY();
+			int z = this.blockIterator.getZ();
+			int edgeCount = this.blockIterator.getEdgeCoordinatesCount();
+
+			// Блоки в углах куба (3 граничных координаты) пропускаем — они не могут пересекаться
+			if (edgeCount == 3) {
+				continue;
+			}
+
+			BlockView blockView = this.getChunk(x, z);
+			if (blockView == null) {
+				continue;
+			}
+
+			this.pos.set(x, y, z);
+			BlockState blockState = blockView.getBlockState(this.pos);
+
+			boolean passesEntityCheck = !this.forEntity || blockState.shouldSuffocate(blockView, this.pos);
+			boolean passesEdgeCheck1 = edgeCount != 1 || blockState.exceedsCube();
+			boolean passesEdgeCheck2 = edgeCount != 2 || blockState.isOf(Blocks.MOVING_PISTON);
+
+			if (passesEntityCheck && passesEdgeCheck1 && passesEdgeCheck2) {
+				VoxelShape shape = this.context.getCollisionShape(blockState, this.world, this.pos);
+
+				if (shape == VoxelShapes.fullCube()) {
+					if (this.box.intersects(x, y, z, x + 1.0, y + 1.0, z + 1.0)) {
+						return this.resultFunction.apply(this.pos, shape.offset(this.pos));
+					}
+				} else {
+					VoxelShape offsetShape = shape.offset(this.pos);
+					if (!offsetShape.isEmpty()
+						&& VoxelShapes.matchesAnywhere(offsetShape, this.boxShape, BooleanBiFunction.AND)
+					) {
+						return this.resultFunction.apply(this.pos, offsetShape);
 					}
 				}
 			}

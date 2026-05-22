@@ -9,16 +9,17 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 
 /**
- * {@code SurfaceWaterDepthFilterPlacementModifier}.
+ * Модификатор размещения, фильтрующий позиции по глубине воды над поверхностью —
+ * пропускает только те, где глубина воды не превышает {@code maxWaterDepth} блоков.
  */
 public class SurfaceWaterDepthFilterPlacementModifier extends AbstractConditionalPlacementModifier {
 
 	public static final MapCodec<SurfaceWaterDepthFilterPlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-			instance -> instance
-					.group(Codec.INT
-							.fieldOf("max_water_depth")
-							.forGetter(placementModifier -> placementModifier.maxWaterDepth))
-					.apply(instance, SurfaceWaterDepthFilterPlacementModifier::new)
+		instance -> instance
+			.group(Codec.INT
+				.fieldOf("max_water_depth")
+				.forGetter(modifier -> modifier.maxWaterDepth))
+			.apply(instance, SurfaceWaterDepthFilterPlacementModifier::new)
 	);
 	private final int maxWaterDepth;
 
@@ -26,22 +27,15 @@ public class SurfaceWaterDepthFilterPlacementModifier extends AbstractConditiona
 		this.maxWaterDepth = maxWaterDepth;
 	}
 
-	/**
-	 * Of.
-	 *
-	 * @param maxWaterDepth max water depth
-	 *
-	 * @return SurfaceWaterDepthFilterPlacementModifier — результат операции
-	 */
 	public static SurfaceWaterDepthFilterPlacementModifier of(int maxWaterDepth) {
 		return new SurfaceWaterDepthFilterPlacementModifier(maxWaterDepth);
 	}
 
 	@Override
 	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
-		int i = context.getTopY(Heightmap.Type.OCEAN_FLOOR, pos.getX(), pos.getZ());
-		int j = context.getTopY(Heightmap.Type.WORLD_SURFACE, pos.getX(), pos.getZ());
-		return j - i <= this.maxWaterDepth;
+		int oceanFloorY = context.getTopY(Heightmap.Type.OCEAN_FLOOR, pos.getX(), pos.getZ());
+		int worldSurfaceY = context.getTopY(Heightmap.Type.WORLD_SURFACE, pos.getX(), pos.getZ());
+		return worldSurfaceY - oceanFloorY <= maxWaterDepth;
 	}
 
 	@Override
